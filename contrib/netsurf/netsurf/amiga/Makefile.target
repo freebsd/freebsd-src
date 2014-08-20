@@ -1,0 +1,142 @@
+# ----------------------------------------------------------------------------
+# Amiga target setup
+# ----------------------------------------------------------------------------
+
+CFLAGS += -std=c99 -Dnsamiga -DFETCHER_CURLL_SCHEDULED
+
+ifneq ($(SUBTARGET),os3)
+  CFLAGS += -U__STRICT_ANSI__ -D__USE_INLINE__ -D__USE_BASETYPE__
+endif
+
+NETSURF_FEATURE_ROSPRITE_CFLAGS := -DWITH_NSSPRITE
+NETSURF_FEATURE_BMP_CFLAGS := -DWITH_BMP
+NETSURF_FEATURE_GIF_CFLAGS := -DWITH_GIF
+NETSURF_FEATURE_PNG_CFLAGS := -DWITH_PNG
+NETSURF_FEATURE_WEBP_CFLAGS := -DWITH_WEBP
+NETSURF_FEATURE_NSSVG_CFLAGS := -DWITH_NS_SVG
+NETSURF_FEATURE_VIDEO_CFLAGS := -DWITH_VIDEO
+NETSURF_FEATURE_AMIGA_CAIRO_CFLAGS := -DNS_AMIGA_CAIRO
+
+ifeq ($(HOST),amiga)
+  $(eval $(call feature_enabled,ROSPRITE,-DWITH_NSSPRITE,-lrosprite,Sprite (librosprite)))
+  $(eval $(call feature_enabled,BMP,-DWITH_BMP,-lnsbmp,BMP (libnsbmp)))
+  $(eval $(call feature_enabled,GIF,-DWITH_GIF,-lnsgif,GIF (libnsgif)))
+  $(eval $(call feature_enabled,PNG,-DWITH_PNG,-lpng,PNG (libpng)  ))
+  $(eval $(call feature_enabled,NSSVG,-DWITH_NS_SVG,-lsvgtiny,SVG (libsvgtiny)))
+  $(eval $(call feature_enabled,WEBP,-DWITH_WEBP,-lwebp,WebP (libwebp)))
+  $(eval $(call feature_enabled,VIDEO,-DWITH_VIDEO -I /SDK/local/newlib/include/glib-2.0,-lgstreamer-0.10 -lglib-2.0 -lgobject-2.0 -lgmodule-2.0 -lgthread-2.0 -lintl -lffi,Video (libgstreamer)))
+  $(eval $(call feature_enabled,JS,-DXP_UNIX -DWITH_JS -DJS_VERSION=185,-lstdc++ -lmozjs185,JavaScript))
+  $(eval $(call feature_enabled,MOZJS,-DXP_AMIGA -DWITH_MOZJS -DJS_VERSION=170 -DJSVERSION_LATEST=170 -DJSOPTION_JIT=0 -DJSCLASS_GLOBAL_FLAGS=0,-ljs -lfdlibm,JavaScript))
+  $(eval $(call feature_enabled,AMIGA_CAIRO,-DNS_AMIGA_CAIRO,,Cairo))
+  $(eval $(call feature_enabled,AMIGA_ICON,-DWITH_AMIGA_ICON,,Amiga icon))
+  $(eval $(call feature_enabled,AMIGA_DATATYPES,-DWITH_AMIGA_DATATYPES,,DataTypes))
+
+  CFLAGS += -I /SDK/local/common/include/libpng12
+  LDFLAGS += -lcurl -lrtmp -lpthread -ltre -lintl -lauto -lpbl
+  LDFLAGS += -lssl -lcrypto -ldom -lhubbub -lcss -lparserutils -lwapcaplet
+
+  ifeq ($(NETSURF_USE_AMIGA_CAIRO),YES)
+    CFLAGS +=  -I /SDK/local/common/include/cairo
+    LDFLAGS += -use-dynld -ldl -lcairo -lpixman-1 -lfreetype -lfontconfig -lpng -lexpat
+  endif
+else
+  $(eval $(call pkg_config_find_and_add_enabled,ROSPRITE,librosprite,Sprite))
+  $(eval $(call pkg_config_find_and_add_enabled,BMP,libnsbmp,BMP))
+  $(eval $(call pkg_config_find_and_add_enabled,GIF,libnsgif,GIF))
+  $(eval $(call pkg_config_find_and_add_enabled,PNG,libpng,PNG))
+  $(eval $(call pkg_config_find_and_add_enabled,NSSVG,libsvgtiny,NSSVG))
+  $(eval $(call pkg_config_find_and_add_enabled,AMIGA_CAIRO,cairo,Cairo))
+  $(eval $(call feature_enabled,MOZJS,-DXP_AMIGA -DWITH_MOZJS -DJS_VERSION=170 -DJSVERSION_LATEST=170 -DJSOPTION_JIT=0 -DJSCLASS_GLOBAL_FLAGS=0,-ljs,JavaScript))
+  $(eval $(call feature_enabled,AMIGA_ICON,-DWITH_AMIGA_ICON,,Amiga icon))
+  $(eval $(call feature_enabled,AMIGA_DATATYPES,-DWITH_AMIGA_DATATYPES,,DataTypes))
+
+  CFLAGS += -I$(GCCSDK_INSTALL_ENV)/include
+  CFLAGS += $(shell $(PKG_CONFIG) --cflags libcurl openssl)
+  CFLAGS += $(shell $(PKG_CONFIG) --cflags tre libdom libcss)
+
+  LDFLAGS += $(shell $(PKG_CONFIG) --static --libs libcurl openssl)
+  LDFLAGS += $(shell $(PKG_CONFIG) --libs tre libdom libcss)
+  LDFLAGS += -L$(GCCSDK_INSTALL_ENV)/lib
+
+  ifeq ($(SUBTARGET),os3)
+    LDFLAGS += -lpbl -liconv
+  else
+    LDFLAGS += -lauto -lpbl -liconv
+  endif
+endif
+
+EXETARGET := NetSurf
+
+# ----------------------------------------------------------------------------
+# Source file setup
+# ----------------------------------------------------------------------------
+
+# S_AMIGA are sources purely for the Amiga build
+S_AMIGA := gui.c tree.c history.c hotlist.c schedule.c file.c		\
+	thumbnail.c misc.c bitmap.c font.c filetype.c utf8.c login.c	\
+	plotters.c object.c menu.c save_pdf.c arexx.c version.c		\
+	cookies.c context_menu.c clipboard.c help.c font_scan.c	\
+	launch.c search.c history_local.c download.c iff_dr2d.c		\
+	sslcert.c gui_options.c print.c	theme.c	drag.c icon.c  		\
+	datatypes.c dt_picture.c dt_anim.c dt_sound.c plugin_hack.c	\
+	stringview/stringview.c stringview/urlhistory.c			\
+	agclass/amigaguide_class.c
+S_AMIGA := $(addprefix amiga/,$(S_AMIGA))
+
+# This is the final source build list
+# Note this is deliberately *not* expanded here as common and image
+#   are not yet available
+SOURCES = $(S_COMMON) $(S_IMAGE) $(S_BROWSER) $(S_AMIGA) $(S_PDF)
+
+# ----------------------------------------------------------------------------
+# Install target
+# ----------------------------------------------------------------------------
+
+install-amiga:
+
+# ----------------------------------------------------------------------------
+# Package target
+# ----------------------------------------------------------------------------
+
+package-amiga: netsurf.lha
+
+AMIGA_LANGUAGES_MESSAGES := de en it
+AMIGA_LANGUAGES := $(AMIGA_LANGUAGES_MESSAGES) ja
+AMIGA_PLATFORM_RESOURCES := Pointers Themes default.css default.css.info favicon.png LangNames mimetypes Resource.map SearchEngines splash.png
+AMIGA_GENERIC_RESOURCES := $(AMIGA_LANGUAGES) ca-bundle Icons
+AMIGA_RESOURCES := $(addprefix amiga/resources/,$(AMIGA_PLATFORM_RESOURCES)) $(addprefix \!NetSurf/Resources/,$(AMIGA_GENERIC_RESOURCES))
+AMIGA_LIBRARIES := parserutils.library nsgif.library nsbmp.library iconv.library hubbub.library
+AMIGA_LIBS := $(addprefix /Libs/,$(AMIGA_LIBRARIES))
+AMIGA_SHARED_OBJS := libjpeg.so.12 libcurl.so.7 librtmp.so.0 libsvgtiny.so.0	\
+	libssl.so.1.0.0 libcrypto.so.1.0.0 libcss.so.0 libwapcaplet.so.0 libpng12.so 	\
+	libdom.so.0 libhubbub.so.0 libtre.so.5 libintl.so libparserutils.so.0
+AMIGA_SOBJS := $(addprefix /SObjs/,$(AMIGA_SHARED_OBJS))
+AMIGA_DISTRIBUTION_FILES := amiga/dist/*
+AMIGA_INSTALL_TARGET_DIR := NetSurf_Amiga
+
+netsurf.lha: $(EXETARGET)
+	$(VQ)echo Creating netsurf.lha
+	$(Q)rm -rf $(AMIGA_INSTALL_TARGET_DIR)
+	$(Q)mkdir -p $(AMIGA_INSTALL_TARGET_DIR)/NetSurf
+	$(Q)cp -p $(EXETARGET) $(AMIGA_INSTALL_TARGET_DIR)/NetSurf
+	$(Q)mkdir $(AMIGA_INSTALL_TARGET_DIR)/NetSurf/Resources
+	$(Q)cp -r $(AMIGA_RESOURCES) $(AMIGA_INSTALL_TARGET_DIR)/NetSurf/Resources
+	$(Q)cp -r $(AMIGA_DISTRIBUTION_FILES) $(AMIGA_INSTALL_TARGET_DIR)/NetSurf
+	$(Q)cp \!NetSurf/Resources/AdBlock,f79 $(AMIGA_INSTALL_TARGET_DIR)/NetSurf/Resources/adblock.css
+	$(Q)cp \!NetSurf/Resources/CSS,f79 $(AMIGA_INSTALL_TARGET_DIR)/NetSurf/Resources/nsdefault.css
+	$(Q)cp \!NetSurf/Resources/internal.css,f79 $(AMIGA_INSTALL_TARGET_DIR)/NetSurf/Resources/internal.css
+	$(Q)cp \!NetSurf/Resources/Quirks,f79 $(AMIGA_INSTALL_TARGET_DIR)/NetSurf/Resources/quirks.css
+	$(Q)cp \!NetSurf/Resources/netsurf.png,b60 $(AMIGA_INSTALL_TARGET_DIR)/NetSurf/Resources/netsurf.png
+	$(Q)cp amiga/pkg/fitr $(AMIGA_INSTALL_TARGET_DIR)/NetSurf
+	$(Q)cp amiga/pkg/drawer.info $(AMIGA_INSTALL_TARGET_DIR)/NetSurf.info
+	$(Q)cp amiga/pkg/AutoInstall $(AMIGA_INSTALL_TARGET_DIR)
+    ifeq ($(HOST),amiga)
+#		$(Q)mkdir $(AMIGA_INSTALL_TARGET_DIR)/NetSurf/Libs
+#		$(Q)cp $(AMIGA_LIBS) $(AMIGA_INSTALL_TARGET_DIR)/NetSurf/Libs
+#		$(Q)mkdir $(AMIGA_INSTALL_TARGET_DIR)/NetSurf/SObjs
+#		$(Q)cp --preserve=timestamps $(AMIGA_SOBJS) $(AMIGA_INSTALL_TARGET_DIR)/NetSurf/SObjs
+    endif
+	$(call split_install_messages, ami, $(AMIGA_INSTALL_TARGET_DIR)/NetSurf/Resources/)
+	$(Q)cd $(AMIGA_INSTALL_TARGET_DIR); \
+	  lha a netsurf.lha NetSurf NetSurf.info AutoInstall
+

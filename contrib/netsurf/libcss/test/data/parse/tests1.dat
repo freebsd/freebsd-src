@@ -1,0 +1,46 @@
+#data
+* { }
+#errors
+#expected
+| 1 *
+#reset
+
+#data
+* { color: #ff0000 }
+#errors
+#expected
+| 1 *
+|   0x02000018 0xffff0000
+#reset
+
+#data
+* { color: inherit }
+#errors
+#expected
+| 1 *
+|   0x00000818
+#reset
+
+#data
+* { color: inherit ! important }
+#errors
+#expected
+| 1 *
+|   0x00000c18
+#reset
+
+#data
+* { color: inherit !important }
+#errors
+#expected
+| 1 *
+|   0x00000c18
+#reset
+
+#data
+* { background-image: url("foo.png"); color: inherit }
+#errors
+#expected
+| 1 *
+|   0x02000003 PTR(foo.png) 0x00000818
+#reset

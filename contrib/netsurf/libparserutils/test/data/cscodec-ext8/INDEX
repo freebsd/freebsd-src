@@ -1,0 +1,13 @@
+# Index file for charset codec tests
+#
+# Test			Description
+
+cp1250.dat		Windows-1250
+cp1251.dat		Windows-1251
+cp1252.dat		Windows-1252
+cp1253.dat		Windows-1253
+cp1254.dat		Windows-1254
+cp1255.dat		Windows-1255
+cp1256.dat		Windows-1256
+cp1257.dat		Windows-1257
+cp1258.dat		Windows-1258

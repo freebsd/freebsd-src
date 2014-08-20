@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<!--
+
+Copyright (c) 2001-2004 World Wide Web Consortium, 
+(Massachusetts Institute of Technology, Institut National de
+Recherche en Informatique et en Automatique, Keio University).  All 
+Rights Reserved.  This program is distributed under the W3C's Software
+Intellectual Property License.  This program is distributed in the 
+hope that it will be useful, but WITHOUT ANY WARRANTY; without even
+the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR 
+PURPOSE.  
+
+See W3C License http://www.w3.org/Consortium/Legal/ for more details.
+
+-->
+<!DOCTYPE test SYSTEM "dom2.dtd">
+<test xmlns="http://www.w3.org/2001/DOM-Test-Suite/Level-2" name="HTMLIFrameElement11">
+<metadata>
+<title>HTMLIFrameElement11</title>
+<creator>NIST</creator>
+<description>
+    Retrieve the contentDocument attribute of the second IFRAME element
+    and examine its title.  
+</description>
+<contributor>Rick Rivello</contributor>
+<date qualifier="created">2002-07-03</date>
+<subject resource="http://www.w3.org/TR/DOM-Level-2-HTML/html#ID-67133006"/>
+</metadata>
+<var name="testNode" type="Element"/>
+<var name="cd" type="Document" />
+<var name="vtitle" type="DOMString"/>
+<var name="doc" type="Document"/>
+<load var="doc" href="iframe2" willBeModified="false"/>
+<getElementById interface="Document" obj="doc" var="testNode" elementId='"Iframe2"'/>
+<contentDocument interface="HTMLIFrameElement" obj="testNode" var="cd"/>
+<title interface="HTMLDocument" obj="cd" var="vtitle"/>
+<assertEquals actual="vtitle" expected='"NIST DOM HTML Test - FRAME"' id="titleLink" ignoreCase="false" />
+</test>

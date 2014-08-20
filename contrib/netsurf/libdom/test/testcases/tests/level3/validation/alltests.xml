@@ -1,0 +1,69 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<?xml-stylesheet href="test-to-html.xsl" type="text/xml"?>
+<!--
+
+Copyright (c) 2003 Oracle
+
+All Rights Reserved.  This program is distributed under the W3C's 
+Software Intellectual Property License [1].  This program is distributed
+in the hope that it will be useful, but WITHOUT ANY WARRANTY; without
+even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR 
+PURPOSE.
+
+[1] http://www.w3.org/Consortium/Legal/2002/copyright-software-20021231
+
+-->
+
+<!DOCTYPE suite SYSTEM "dom3.dtd">
+
+<suite xmlns="http://www.w3.org/2001/DOM-Test-Suite/Level-3" name="alltests">
+	<metadata>
+		<title>DOM Level 3 Validation Test Suite</title>
+		<creator>DOM Test Suite Project</creator>
+	</metadata>
+   <suite.member href="allowedAttributes.xml"/>
+   <suite.member href="allowedChildren.xml"/>
+   <suite.member href="allowedFirstChildren.xml"/>
+   <suite.member href="allowedNextSiblings.xml"/>
+   <suite.member href="allowedParents.xml"/>
+   <suite.member href="allowedPreviousSiblings.xml"/>
+   <suite.member href="canAppendChildFalse.xml"/>
+   <suite.member href="canAppendChildTrue.xml"/>
+   <suite.member href="canAppendData.xml"/>
+   <suite.member href="canDeleteData.xml"/>
+   <suite.member href="canInsertBeforeFalse.xml"/>
+   <suite.member href="canInsertBeforeTrue.xml"/>
+   <suite.member href="canInsertData.xml"/>
+   <suite.member href="canRemoveAttributeFalse.xml"/>
+   <suite.member href="canRemoveAttributeNS.xml"/>
+   <suite.member href="canRemoveAttributeNode.xml"/>
+   <suite.member href="canRemoveAttributeTrue.xml"/>
+   <suite.member href="canRemoveChildFalse.xml"/>
+   <suite.member href="canRemoveChildTrue.xml"/>
+   <suite.member href="canReplaceChildFalse.xml"/>
+   <suite.member href="canReplaceChildTrue.xml"/>
+   <suite.member href="canReplaceDataFalse.xml"/>
+   <suite.member href="canReplaceDataTrue.xml"/>
+   <suite.member href="canSetAttributeFalse.xml"/>
+   <suite.member href="canSetAttributeNS.xml"/>
+   <suite.member href="canSetAttributeNode.xml"/>
+   <suite.member href="canSetAttributeTrue.xml"/>
+   <suite.member href="canSetData.xml"/>
+   <suite.member href="contentType.xml"/>
+   <suite.member href="defaultValue.xml"/>
+   <suite.member href="definedElements.xml"/>
+   <suite.member href="enumeratedValues.xml"/>
+   <suite.member href="isElementDefined.xml"/>
+   <suite.member href="isElementDefinedNS.xml"/>
+   <suite.member href="nodeValidity.xml"/>
+   <suite.member href="requiredAttributes.xml"/>
+   <suite.member href="validateDocument.xml"/>
+
+   <suite.member href="hasFeature01.xml"/>
+   <suite.member href="hasFeature02.xml"/>
+   <suite.member href="hasFeature03.xml"/>
+   <suite.member href="hasFeature04.xml"/>
+   <suite.member href="getFeature01.xml"/>
+   <suite.member href="getFeature02.xml"/>
+
+</suite>

@@ -1,0 +1,75 @@
+<?xml version="1.0" encoding="UTF-8"?><?xml-stylesheet href="test-to-html.xsl" type="text/xml"?>
+
+<!--
+
+Copyright (c) 2001-2004 World Wide Web Consortium, 
+(Massachusetts Institute of Technology, Institut National de
+Recherche en Informatique et en Automatique, Keio University).  All 
+Rights Reserved.  This program is distributed under the W3C's Software
+Intellectual Property License.  This program is distributed in the 
+hope that it will be useful, but WITHOUT ANY WARRANTY; without even
+the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR 
+PURPOSE.  
+
+See W3C License http://www.w3.org/Consortium/Legal/ for more details.
+
+-->
+
+<!DOCTYPE test SYSTEM "dom3.dtd">
+<test xmlns="http://www.w3.org/2001/DOM-Test-Suite/Level-3" name="documentnormalizedocument10">
+<metadata>
+<title>documentnormalizedocument10</title>
+<creator>IBM</creator>
+<description>
+	The normalizeDocument method method acts as if the document was going through a save 
+	and load cycle, putting the document in a "normal" form. 
+
+	Create an Element and a text node and verify the nodeValue of this text node and append these to
+	this Document.  If supported, invoke the setParameter method on this domconfiguration object to set the 
+	"element-content-whitespace"  feature to false.  Invoke the normalizeDocument method and verify if 
+	the text node has been discarded.
+</description>
+<contributor>Neil Delima</contributor>
+<date qualifier="created">2002-06-10</date>
+<subject resource="http://www.w3.org/TR/2004/REC-DOM-Level-3-Core-20040407/core#Document3-normalizeDocument"/>
+<subject resource="http://www.w3.org/TR/2004/REC-DOM-Level-3-Core-20040407/core#parameter-element-content-whitespace"/>
+</metadata>
+<implementationAttribute name="namespaceAware" value="true"/>
+<var name="doc" type="Document"/>
+<var name="elem" type="Element"/>
+<var name="newText" type="Text"/>
+<var name="text" type="Text"/>
+<var name="nodeValue" type="DOMString"/>
+<var name="canSet" type="boolean"/>
+<var name="appendedChild" type="Node"/>
+<var name="domConfig" type="DOMConfiguration"/>
+<load var="doc" href="hc_staff" willBeModified="false"/>
+<createElement var="elem" obj="doc" tagName='"newElem"'/>
+<createTextNode var="newText" obj="doc" data='"Text 	
+		     Node"'/>
+<appendChild obj="elem" var="appendedChild" newChild="newText"/>
+<appendChild obj="doc" var="appendedChild" newChild="elem"/>
+<firstChild var="text" obj="elem" interface="Node"/>
+<nodeValue var="nodeValue" obj="text"/>
+<assertEquals actual="nodeValue" expected='"Text 	
+		     Node"' id="documentnormalizedocument10" ignoreCase="false"/>
+<domConfig obj="doc" var="domConfig" interface="Document"/>
+<canSetParameter var="canSet" obj="domConfig" name='"element-content-whitespace"' value="true"/>
+<assertTrue actual="canSet" id="canSetElementContentWhitespaceTrue"/>
+<setParameter obj="domConfig" name='"element-content-whitespace"'  value="true"/>
+<normalizeDocument obj="doc"/>
+<firstChild var="text" obj="elem" interface="Node"/>
+<nodeValue var="nodeValue" obj="text"/>
+<assertEquals actual="nodeValue" expected='"Text 	
+		     Node"' id="documentnormalizedocument10_true1" ignoreCase="false"/>
+<canSetParameter var="canSet" obj="domConfig" name='"element-content-whitespace"' value="false"/>
+<if>
+<isTrue value="canSet"/>		     
+<setParameter obj="domConfig" name='"element-content-whitespace"' value="false"/>
+<normalizeDocument obj="doc"/>
+<firstChild var="text" obj="elem" interface="Node"/>
+<nodeValue var="nodeValue" obj="text"/>
+<assertEquals actual="nodeValue" expected='"Text Node"' id="documentnormalizedocument10_true2" ignoreCase="false"/>
+</if>
+</test> 
+

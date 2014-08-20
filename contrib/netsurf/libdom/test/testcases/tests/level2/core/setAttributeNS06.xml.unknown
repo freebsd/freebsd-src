@@ -1,0 +1,51 @@
+<?xml version="1.0" encoding="UTF-8"?><?xml-stylesheet href="test-to-html.xsl" type="text/xml"?>
+
+<!--
+
+Copyright (c) 2001 World Wide Web Consortium, 
+(Massachusetts Institute of Technology, Institut National de
+Recherche en Informatique et en Automatique, Keio University).  All 
+Rights Reserved.  This program is distributed under the W3C's Software
+Intellectual Property License.  This program is distributed in the 
+hope that it will be useful, but WITHOUT ANY WARRANTY; without even
+the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR 
+PURPOSE.  
+
+See W3C License http://www.w3.org/Consortium/Legal/ for more details.
+
+-->
+<!DOCTYPE test SYSTEM "dom2.dtd">
+<test xmlns="http://www.w3.org/2001/DOM-Test-Suite/Level-2" name="setAttributeNS06">
+<metadata>
+<title>setAttributeNS06</title>
+<creator>NIST</creator>
+<description>
+    The "setAttributeNS(namespaceURI,localName,value)" method raises a 
+   NAMESPACE_ERR DOMException if the "qualifiedName" has a
+   prefix of "xml" and the namespaceURI is different from
+   http://www.w3.org/XML/1998/namespace.
+   
+   Attempt to add an attribute with a prefix of "xml" as the on the first employee node.
+   An exception should be raised since the namespaceURI of this node is not 
+   http://www.w3.org/XML/1998/namespace.
+</description>
+<contributor>Mary Brady</contributor>
+<date qualifier="created">2001-08-17</date>
+<subject resource="http://www.w3.org/TR/DOM-Level-2-Core/core#xpointer(id('ID-258A00AF')/constant[@name='NAMESPACE_ERR'])"/>
+<subject resource="http://www.w3.org/TR/DOM-Level-2-Core/core#ID-ElSetAttrNS"/>
+<subject resource="http://www.w3.org/TR/DOM-Level-2-Core/core#xpointer(id('ID-ElSetAttrNS')/raises/exception[@name='DOMException']/descr/p[substring-before(.,':')='NAMESPACE_ERR'])"/>
+</metadata>
+<var name="namespaceURI" type="DOMString" value="&quot;http://www.nist.gov&quot;"/>
+<var name="qualifiedName" type="DOMString" value="&quot;xml:qualifiedName&quot;"/>
+<var name="doc" type="Document"/>
+<var name="elementList" type="NodeList"/>
+<var name="testAddr" type="Node"/>
+<load var="doc" href="staffNS" willBeModified="true"/>
+<getElementsByTagName interface="Document" obj="doc" var="elementList" tagname="&quot;employee&quot;"/>
+<item interface="NodeList" obj="elementList" var="testAddr" index="0"/>
+<assertDOMException id="throw_NAMESPACE_ERR">
+<NAMESPACE_ERR>
+<setAttributeNS obj="testAddr" namespaceURI="namespaceURI" qualifiedName="qualifiedName" value="&quot;newValue&quot;"/>
+</NAMESPACE_ERR>
+</assertDOMException>
+</test>

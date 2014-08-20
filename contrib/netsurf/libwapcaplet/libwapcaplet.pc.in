@@ -1,0 +1,10 @@
+prefix=PREFIX
+exec_prefix=${prefix}
+libdir=${exec_prefix}/LIBDIR
+includedir=${prefix}/include
+
+Name: libwapcaplet
+Description: String internalisation dictionary
+Version: VERSION
+Libs: -L${libdir} -lwapcaplet
+Cflags: -I${includedir}

@@ -1,0 +1,83 @@
+<?xml version="1.0" encoding="UTF-8"?><?xml-stylesheet href="test-to-html.xsl" type="text/xml"?>
+
+<!--
+
+Copyright (c) 2001-2004 World Wide Web Consortium, 
+(Massachusetts Institute of Technology, Institut National de
+Recherche en Informatique et en Automatique, Keio University).  All 
+Rights Reserved.  This program is distributed under the W3C's Software
+Intellectual Property License.  This program is distributed in the 
+hope that it will be useful, but WITHOUT ANY WARRANTY; without even
+the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR 
+PURPOSE.  
+
+See W3C License http://www.w3.org/Consortium/Legal/ for more details.
+
+-->
+
+<!DOCTYPE test SYSTEM "dom3.dtd">
+<test xmlns="http://www.w3.org/2001/DOM-Test-Suite/Level-3" name="nodegetfeature13">
+<metadata>
+<title>nodegetfeature13</title>
+<creator>Curt Arnold</creator>
+<description>
+Check implementation of Node.getFeature on Notation.
+</description>
+<date qualifier="created">2004-02-25</date>
+<subject resource="http://www.w3.org/TR/2004/REC-DOM-Level-3-Core-20040407/core#Node3-getFeature"/>
+</metadata>
+<var name="doc" type="Document"/>
+<var name="node" type="Node"/>
+<var name="nullVersion" type="DOMString" isNull="true"/>
+<var name="featureImpl" type="Node"/>
+<var name="isSupported" type="boolean"/>
+<var name="domImpl" type="DOMImplementation"/>
+<var name="notations" type="NamedNodeMap"/>
+<var name="doctype" type="DocumentType"/>
+<load var="doc" href="hc_staff" willBeModified="false"/>
+<implementation var="domImpl" obj="doc"/>
+<doctype var="doctype" obj="doc"/>
+<notations var="notations" obj="doctype"/>
+<getNamedItem var="node" obj="notations" name='"notation1"'/>
+<getFeature interface="Node" var="featureImpl" obj="node" feature='"Core"' version="nullVersion"/>
+<assertSame actual="featureImpl" expected="node" id="coreUnspecifiedVersion"/> 
+<getFeature interface="Node" var="featureImpl" obj="node" feature='"cOrE"' version="nullVersion"/>
+<assertSame actual="featureImpl" expected="node" id="cOrEUnspecifiedVersion"/> 
+<getFeature interface="Node" var="featureImpl" obj="node" feature='"+cOrE"' version="nullVersion"/>
+<assertSame actual="featureImpl" expected="node" id="PlusCoreUnspecifiedVersion"/> 
+<getFeature interface="Node" var="featureImpl" obj="node" feature='"org.w3c.domts.bogus.feature"' version="nullVersion"/>
+<assertNull actual="featureImpl" id="unrecognizedFeature"/> 
+<getFeature interface="Node" var="featureImpl" obj="node" feature='"cOrE"' version='"2.0"'/>
+<assertSame actual="featureImpl" expected="node" id="Core20"/> 
+<getFeature interface="Node" var="featureImpl" obj="node" feature='"cOrE"' version='"3.0"'/>
+<assertSame actual="featureImpl" expected="node" id="Core30"/> 
+<!--  ask for some well-known feature, 
+    can't say that they will be supported but they should not throw an exception  -->
+<isSupported var="isSupported" obj="node" feature='"XML"' version="nullVersion"/>
+<getFeature interface="Node" var="featureImpl" obj="node" feature='"XML"' version='nullVersion'/>
+<if><isTrue value="isSupported"/><assertSame actual="featureImpl" expected="node" id="XMLUnspecified"/></if>
+<isSupported var="isSupported" obj="node" feature='"SVG"' version="nullVersion"/>
+<getFeature interface="Node" var="featureImpl" obj="node" feature='"SVG"' version='nullVersion'/>
+<if><isTrue value="isSupported"/><assertSame actual="featureImpl" expected="node" id="SVGUnspecified"/></if>
+<isSupported var="isSupported" obj="node" feature='"HTML"' version="nullVersion"/>
+<getFeature interface="Node" var="featureImpl" obj="node" feature='"HTML"' version='nullVersion'/>
+<if><isTrue value="isSupported"/><assertSame actual="featureImpl" expected="node" id="HTMLUnspecified"/></if>
+<isSupported var="isSupported" obj="node" feature='"Events"' version="nullVersion"/>
+<getFeature interface="Node" var="featureImpl" obj="node" feature='"Events"' version='nullVersion'/>
+<if><isTrue value="isSupported"/><assertSame actual="featureImpl" expected="node" id="EventsUnspecified"/></if>
+<isSupported var="isSupported" obj="node" feature='"LS"' version="nullVersion"/>
+<getFeature interface="Node" var="featureImpl" obj="node" feature='"LS"' version='nullVersion'/>
+<if><isTrue value="isSupported"/><assertSame actual="featureImpl" expected="node" id="LSUnspecified"/></if>
+<isSupported var="isSupported" obj="node" feature='"LS-Async"' version="nullVersion"/>
+<getFeature interface="Node" var="featureImpl" obj="node" feature='"LS-Async"' version='nullVersion'/>
+<if><isTrue value="isSupported"/><assertSame actual="featureImpl" expected="node" id="LSAsyncUnspecified"/></if>
+<isSupported var="isSupported" obj="node" feature='"XPath"' version="nullVersion"/>
+<getFeature interface="Node" var="featureImpl" obj="node" feature='"XPath"' version='nullVersion'/>
+<if><isTrue value="isSupported"/><assertSame actual="featureImpl" expected="node" id="XPathUnspecified"/></if>
+<isSupported var="isSupported" obj="node" feature='"+HTML"' version="nullVersion"/>
+<getFeature interface="Node" var="featureImpl" obj="node" feature='"HTML"' version='nullVersion'/>
+<if><isTrue value="isSupported"/><assertNotNull actual="featureImpl" id="PlusHTMLUnspecified"/></if>
+<isSupported var="isSupported" obj="node" feature='"+SVG"' version="nullVersion"/>
+<getFeature interface="Node" var="featureImpl" obj="node" feature='"SVG"' version='nullVersion'/>
+<if><isTrue value="isSupported"/><assertNotNull actual="featureImpl" id="PlusSVGUnspecified"/></if>
+</test>

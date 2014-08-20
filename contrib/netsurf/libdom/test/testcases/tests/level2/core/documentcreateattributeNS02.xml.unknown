@@ -1,0 +1,65 @@
+<?xml version="1.0" encoding="UTF-8"?><?xml-stylesheet href="test-to-html.xsl" type="text/xml"?>
+
+<!--
+
+Copyright (c) 2001 World Wide Web Consortium, 
+(Massachusetts Institute of Technology, Institut National de
+Recherche en Informatique et en Automatique, Keio University).  All 
+Rights Reserved.  This program is distributed under the W3C's Software
+Intellectual Property License.  This program is distributed in the 
+hope that it will be useful, but WITHOUT ANY WARRANTY; without even
+the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR 
+PURPOSE.  
+
+See W3C License http://www.w3.org/Consortium/Legal/ for more details.
+
+-->
+
+<!DOCTYPE test SYSTEM "dom2.dtd">
+<test xmlns="http://www.w3.org/2001/DOM-Test-Suite/Level-2" name="documentcreateattributeNS02">
+<metadata>
+<title>documentcreateattributeNS02</title>
+<creator>IBM</creator>
+<description>
+	The method createAttributeNS creates an attribute of the given qualified name and namespace URI
+	
+	Invoke the createAttributeNS method on this Document object with a valid values for 
+	namespaceURI, and a qualifiedName as below.  This should return a valid Attr node.
+</description>
+<contributor>Neil Delima</contributor>
+<date qualifier="created">2002-04-30</date>
+<subject resource="http://www.w3.org/TR/DOM-Level-2-Core/core"/>
+<subject resource="http://www.w3.org/TR/DOM-Level-2-Core/core#ID-DocCrAttrNS"/>
+</metadata>
+<var name="doc" type="Document"/>
+<var name="attribute1" type="Attr"/>
+<var name="attribute2" type="Attr"/>
+<var name="name" type="DOMString"/>
+<var name="nodeName" type="DOMString"/>
+<var name="nodeValue" type="DOMString"/>
+<var name="prefix" type="DOMString"/>
+<var name="namespaceURI" type="DOMString"/>
+<load var="doc" href="staffNS" willBeModified="false"/>
+<createAttributeNS obj="doc" var="attribute1" namespaceURI='"http://www.w3.org/XML/1998/namespace"' qualifiedName='"xml:xml"'/>
+<name var="name" obj="attribute1" interface="Attr"/>
+<nodeName var="nodeName" obj="attribute1" />
+<nodeValue var="nodeValue" obj="attribute1" />
+<prefix var="prefix" obj="attribute1" />
+<namespaceURI var="namespaceURI" obj="attribute1" />
+<assertEquals actual="name" expected='"xml:xml"' id="documentcreateattributeNS02_att1_name" ignoreCase="false"/>
+<assertEquals actual="nodeName" expected='"xml:xml"' id="documentcreateattributeNS02_att1_nodeName" ignoreCase="false"/>
+<assertEquals actual="nodeValue" expected='""' id="documentcreateattributeNS02_att1_nodeValue" ignoreCase="false"/>
+<assertEquals actual="prefix" expected='"xml"' id="documentcreateattributeNS02_att1_prefix" ignoreCase="false"/>
+<assertEquals actual="namespaceURI" expected='"http://www.w3.org/XML/1998/namespace"' id="documentcreateattributeNS02_att1_namespaceURI" ignoreCase="false"/>
+
+<createAttributeNS obj="doc" var="attribute2" namespaceURI='"http://www.w3.org/2000/xmlns/"' qualifiedName='"xmlns"'/>
+<name var="name" obj="attribute2" interface="Attr"/>
+<nodeName var="nodeName" obj="attribute2" />
+<nodeValue var="nodeValue" obj="attribute2" />
+<prefix var="prefix" obj="attribute2"/>
+<namespaceURI var="namespaceURI" obj="attribute2"/>
+<assertEquals actual="name" expected='"xmlns"' id="documentcreateattributeNS02_att2_name" ignoreCase="false"/>
+<assertEquals actual="nodeName" expected='"xmlns"' id="documentcreateattributeNS02_att2_nodeName" ignoreCase="false"/>
+<assertEquals actual="nodeValue" expected='""' id="documentcreateattributeNS02_att2_nodeValue" ignoreCase="false"/>
+<assertEquals actual="namespaceURI" expected='"http://www.w3.org/2000/xmlns/"' id="documentcreateattributeNS02_att2_namespaceURI" ignoreCase="false"/>
+</test>

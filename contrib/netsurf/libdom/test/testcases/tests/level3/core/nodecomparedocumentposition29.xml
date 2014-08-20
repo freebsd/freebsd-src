@@ -1,0 +1,55 @@
+<?xml version="1.0" encoding="UTF-8"?><?xml-stylesheet href="test-to-html.xsl" type="text/xml"?>
+
+<!--
+
+Copyright (c) 2001-2004 World Wide Web Consortium, 
+(Massachusetts Institute of Technology, Institut National de
+Recherche en Informatique et en Automatique, Keio University).  All 
+Rights Reserved.  This program is distributed under the W3C's Software
+Intellectual Property License.  This program is distributed in the 
+hope that it will be useful, but WITHOUT ANY WARRANTY; without even
+the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR 
+PURPOSE.  
+
+See W3C License http://www.w3.org/Consortium/Legal/ for more details.
+
+-->
+
+<!DOCTYPE test SYSTEM "dom3.dtd">
+<test xmlns="http://www.w3.org/2001/DOM-Test-Suite/Level-3" name="nodecomparedocumentposition29">
+<metadata>
+<title>nodecomparedocumentposition29</title>
+<creator>IBM</creator>
+<description>
+	Create two entity reference nodes. Using compareDocumentPosition to check if the child of the first Entity 
+	Ref node precedes the child of the second Entity Ref node, and that the child of the second Entity Ref node
+	follows the child of the first Entity Ref node.  
+</description>
+<contributor>Jenny Hsu</contributor>
+<date qualifier="created">2003-02-20</date>
+<subject resource="http://www.w3.org/TR/2004/REC-DOM-Level-3-Core-20040407/core#Node3-compareDocumentPosition"/>
+</metadata>
+<var name="doc" type="Document"/>
+<var name="docElem" type="Element"/>
+<var name="entRef1" type="EntityReference"/>
+<var name="entRef2" type="EntityReference"/>
+<var name="entRefChild1" type="Element"/>
+<var name="entRefChild2" type="ProcessingInstruction"/>
+<var name="entRefChild1Position" type="int"/>
+<var name="entRefChild2Position" type="int"/>
+<var name="appendedChild" type="Node"/>
+<load var="doc" href="hc_staff" willBeModified="true"/>
+<createEntityReference name='"ent4"' obj="doc" var="entRef1"/>
+<createEntityReference name='"ent4"' obj="doc" var="entRef2"/>
+<documentElement var="docElem" obj="doc"/>
+<appendChild obj="docElem" var="appendedChild" newChild="entRef1"/>
+<appendChild obj="docElem" var="appendedChild" newChild="entRef2"/>
+<firstChild obj="entRef1" var="entRefChild1" interface="Node"/>
+<assertNotNull actual="entRefChild1" id="entRefChild1NotNull"/>
+<lastChild obj="entRef2" var="entRefChild2" interface="Node"/>
+<assertNotNull actual="entRefChild2" id="entRefChild2NotNull"/>
+<compareDocumentPosition var="entRefChild1Position" obj="entRefChild1" other="entRefChild2"/>
+<assertEquals  actual="entRefChild1Position" expected="4" id="nodecomparedocumentpositionFollowing29" ignoreCase="false"/>
+<compareDocumentPosition var="entRefChild2Position" obj="entRefChild2" other="entRefChild1"/>
+<assertEquals  actual="entRefChild2Position" expected="2" id="nodecomparedocumentpositionPRECEDING29" ignoreCase="false"/>
+</test>

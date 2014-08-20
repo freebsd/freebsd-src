@@ -1,0 +1,21 @@
+# compiling on RISC OS using Norcroft
+CC = cc
+CFLAGS = -fn -ecz -wap -IOSLib: -DNDEBUG
+LD = link
+LDFLAGS = -aof
+LIBS = OSLib:o.oslib32
+MKDLK = makedlk
+SOURCE += strfuncs.c
+OBJS = $(SOURCE:.c=.o)
+EXEEXT =
+
+all: librufl.a rufl/pyd rufl_test rufl_chars
+
+librufl.a: $(OBJS)
+	$(LD) $(LDFLAGS) -o $@ $(OBJS)
+o.ruflmodule: ruflmodule.o librufl.a
+	$(LD) $(LDFLAGS) -o $@ $^ $(LIBS)
+ruflmodule.o: ruflmodule.c
+	$(CC) -fn -wp -IPyInc:Include,PyInc:RISCOS,TCPIPLibs:,OSLib: -c $@ $<
+rufl/pyd: o.ruflmodule
+	$(MKDLK) -s <Python$$Dir>.RISCOS.s.linktab -o $< -d $@ -e initrufl

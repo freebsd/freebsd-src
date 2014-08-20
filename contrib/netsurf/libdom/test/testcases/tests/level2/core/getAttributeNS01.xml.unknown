@@ -1,0 +1,50 @@
+<?xml version="1.0" encoding="UTF-8"?><?xml-stylesheet href="test-to-html.xsl" type="text/xml"?>
+
+<!--
+
+Copyright (c) 2001-2003 World Wide Web Consortium, 
+(Massachusetts Institute of Technology, Institut National de
+Recherche en Informatique et en Automatique, Keio University).  All 
+Rights Reserved.  This program is distributed under the W3C's Software
+Intellectual Property License.  This program is distributed in the 
+hope that it will be useful, but WITHOUT ANY WARRANTY; without even
+the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR 
+PURPOSE.  
+
+See W3C License http://www.w3.org/Consortium/Legal/ for more details.
+
+-->
+<!DOCTYPE test SYSTEM "dom2.dtd">
+<test xmlns="http://www.w3.org/2001/DOM-Test-Suite/Level-2" name="getAttributeNS01">
+<metadata>
+<title>getAttributeNS01</title>
+<creator>NIST</creator>
+<description>
+    The "getAttributeNS(namespaceURI,localName)" method retrieves an
+   attribute value by local name and NamespaceURI.
+   
+   Retrieve the first "emp:address" element.
+   The value returned by the "getAttributeNS()" method should be the 
+   value "DISTRICT" since the attribute has a default value.
+</description>
+<contributor>Mary Brady</contributor>
+<date qualifier="created">2001-08-17</date>
+<subject resource="http://www.w3.org/TR/DOM-Level-2-Core/core#ID-ElGetAttrNS"/>
+<subject resource="http://www.w3.org/Bugs/Public/show_bug.cgi?id=238"/>
+</metadata>
+<!--  test requires namespace awareness and validation   -->
+<implementationAttribute name="namespaceAware" value="true"/>
+<implementationAttribute name="validating" value="true"/>
+<var name="namespaceURI" type="DOMString" value="&quot;http://www.nist.gov&quot;"/>
+<var name="localName" type="DOMString" value="&quot;district&quot;"/>
+<var name="qualifiedName" type="DOMString" value="&quot;emp:district&quot;"/>
+<var name="doc" type="Document"/>
+<var name="elementList" type="NodeList"/>
+<var name="testAddr" type="Element"/>
+<var name="attrValue" type="DOMString"/>
+<load var="doc" href="staffNS" willBeModified="false"/>
+<getElementsByTagName interface="Document" obj="doc" tagname="&quot;emp:address&quot;" var="elementList"/>
+<item interface="NodeList" obj="elementList" index="0" var="testAddr"/>
+<getAttributeNS obj="testAddr" var="attrValue" namespaceURI="namespaceURI" localName="localName"/>
+<assertEquals actual="attrValue" expected='"DISTRICT"' id="attrValue" ignoreCase="false"/>
+</test>

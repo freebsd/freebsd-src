@@ -1,0 +1,46 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+Copyright (c) 2001 World Wide Web Consortium,
+(Massachusetts Institute of Technology, Institut National de
+Recherche en Informatique et en Automatique, Keio University). All
+Rights Reserved. This program is distributed under the W3C's Software
+Intellectual Property License. This program is distributed in the
+hope that it will be useful, but WITHOUT ANY WARRANTY; without even
+the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
+PURPOSE.
+See W3C License http://www.w3.org/Consortium/Legal/ for more details.
+--><!DOCTYPE test SYSTEM "dom1.dtd">
+
+<test xmlns="http://www.w3.org/2001/DOM-Test-Suite/Level-1" name="hc_textsplittextfour">
+<metadata>
+<title>hc_textSplitTextFour</title>
+<creator>Curt Arnold</creator>
+<description>
+    The "splitText(offset)" method returns the new Text node.
+    
+    Retrieve the textual data from the last child of the 
+    first employee and invoke the "splitText(offset)" method.
+    The method should return the new Text node.   The offset
+    value used for this test is 30.   The "getNodeValue()"
+    method is called to check that the new node now contains
+    the characters at and after position 30.
+    (Starting count at 0)
+</description>
+
+<date qualifier="created">2002-06-09</date>
+<subject resource="http://www.w3.org/TR/1998/REC-DOM-Level-1-19981001/level-one-core#ID-38853C1D"/>
+</metadata>
+<var name="doc" type="Document"/>
+<var name="elementList" type="NodeList"/>
+<var name="addressNode" type="Node"/>
+<var name="textNode" type="Text"/>
+<var name="splitNode" type="Text"/>
+<var name="value" type="DOMString"/>
+<load var="doc" href="hc_staff" willBeModified="true"/>
+<getElementsByTagName interface="Document" obj="doc" var="elementList" tagname='"acronym"'/>
+<item interface="NodeList" obj="elementList" var="addressNode" index="0"/>
+<firstChild interface="Node" obj="addressNode" var="textNode"/>
+<splitText obj="textNode" var="splitNode" offset="30"/>
+<nodeValue obj="splitNode" var="value"/>
+<assertEquals actual="value" expected='"98551"' id="textSplitTextFourAssert" ignoreCase="false"/>
+</test>

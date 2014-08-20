@@ -1,0 +1,137 @@
+#
+# Makefile for NetSurf RISC OS target
+#
+# This file is part of NetSurf 
+
+# ----------------------------------------------------------------------------
+# RISC OS target setup
+# ----------------------------------------------------------------------------
+
+ifeq ($(HOST),riscos)
+  LDFLAGS += -Xlinker -symbols=$(OBJROOT)/sym -lz -lm -lcurl -lcares
+  LDFLAGS += -lssl -lcrypto -ldom -lhubbub -lcss -lparserutils -lwapcaplet
+else
+  LDFLAGS += $(shell $(PKG_CONFIG) --libs libcares libcurl openssl)
+  LDFLAGS += $(shell $(PKG_CONFIG) --libs libdom libcss)
+endif
+
+$(eval $(call feature_enabled,NSSVG,-DWITH_NS_SVG,-lsvgtiny,SVG (libsvgtiny)))
+$(eval $(call feature_enabled,DRAW,-DWITH_DRAW,,Drawfile rendering))
+$(eval $(call feature_enabled,SPRITE,-DWITH_SPRITE,,Sprite rendering))
+$(eval $(call feature_enabled,ARTWORKS,-DWITH_ARTWORKS,,ArtWorks rendering))
+$(eval $(call feature_enabled,DRAW_EXPORT,-DWITH_DRAW_EXPORT,-lpencil,Drawfile export))
+ifeq ($(HOST),riscos)
+  $(eval $(call feature_enabled,BMP,-DWITH_BMP,-lnsbmp,BMP (libnsbmp)))
+  $(eval $(call feature_enabled,GIF,-DWITH_GIF,-lnsgif,GIF (libnsgif)))
+  $(eval $(call feature_enabled,PNG,-DWITH_PNG,-lpng,PNG (libpng)  ))
+else
+  NETSURF_FEATURE_BMP_CFLAGS := -DWITH_BMP
+  NETSURF_FEATURE_GIF_CFLAGS := -DWITH_GIF
+  NETSURF_FEATURE_PNG_CFLAGS := -DWITH_PNG
+  NETSURF_FEATURE_JS_CFLAGS := -DWITH_JS -DJS_HAS_FILE_OBJECT=0
+  NETSURF_FEATURE_MOZJS_CFLAGS := -DWITH_MOZJS -DJS_HAS_FILE_OBJECT=0
+  $(eval $(call pkg_config_find_and_add_enabled,BMP,libnsbmp,BMP))
+  $(eval $(call pkg_config_find_and_add_enabled,GIF,libnsgif,GIF))
+  $(eval $(call pkg_config_find_and_add_enabled,PNG,libpng,PNG  ))
+  $(eval $(call pkg_config_find_and_add_enabled,MOZJS,mozjs185,JavaScript))
+  $(eval $(call pkg_config_find_and_add_enabled,JS,mozilla-js,JavaScript))
+endif
+
+TPD_RISCOS = $(foreach TPL,$(notdir $(TPL_RISCOS)), \
+		!NetSurf/Resources/$(TPL)/Templates$(TPLEXT))
+
+RESOURCES = $(TPD_RISCOS) split-messages
+
+CFLAGS += $(WARNFLAGS) -Driscos	-std=c99 -D_BSD_SOURCE -D_POSIX_C_SOURCE \
+	    -mpoke-function-name -fno-strict-aliasing
+
+CFLAGS += -I$(GCCSDK_INSTALL_ENV)/include
+ifeq ($(HOST),riscos)
+  CFLAGS += -I<OSLib$$Dir> -mthrowback
+endif
+ASFLAGS += -xassembler-with-cpp -I. -I$(GCCSDK_INSTALL_ENV)/include
+LDFLAGS += -L$(GCCSDK_INSTALL_ENV)/lib -lrufl
+ifeq ($(HOST),riscos)
+  LDFLAGS += -LOSLib: -lOSLib32
+else
+  LDFLAGS += -lOSLib32
+  ifeq ($(SUBTARGET),-elf)
+    # Go for static builds & AIF binary at the moment:
+    CFLAGS += -static
+    LDFLAGS += -static
+    EXEEXT := ,ff8
+  endif
+endif
+
+# ----------------------------------------------------------------------------
+# Source file setup
+# ----------------------------------------------------------------------------
+
+# S_RISCOS are sources purely for the RISC OS build
+S_RISCOS := 401login.c assert.c bitmap.c buffer.c cookies.c configure.c	\
+	dialog.c download.c filetype.c font.c				\
+	global_history.c gui.c help.c history.c hotlist.c iconbar.c	\
+	image.c menus.c message.c mouse.c palettes.c plotters.c		\
+	print.c query.c save.c save_draw.c save_pdf.c schedule.c	\
+	search.c searchweb.c sslcert.c textarea.c			\
+	textselection.c theme.c theme_install.c thumbnail.c toolbar.c	\
+	treeview.c ucstables.c uri.c url_complete.c url_protocol.c	\
+	url_suggest.c wimp.c wimp_event.c window.c			\
+	$(addprefix content-handlers/,artworks.c awrender.s draw.c	\
+	sprite.c)							\
+	$(addprefix gui/,button_bar.c progress_bar.c status_bar.c	\
+	throbber.c url_bar.c)						\
+	$(addprefix configure/,con_cache.c con_connect.c con_content.c	\
+	con_fonts.c con_home.c con_image.c con_inter.c con_language.c	\
+	con_secure.c con_theme.c)
+S_RISCOS := $(addprefix riscos/,$(S_RISCOS))
+TPL_RISCOS := de en fr nl # TODO: It'd be nice to auto-detect these
+TPL_RISCOS := $(addprefix riscos/templates/,$(TPL_RISCOS))
+
+
+# This is the final source build list
+# Note this is deliberately *not* expanded here as common and image
+#   are not yet available
+SOURCES = $(S_COMMON) $(S_IMAGE) $(S_BROWSER) $(S_PDF) $(S_RISCOS)
+EXETARGET := !NetSurf/!RunImage$(EXEEXT)
+
+!NetSurf/!Run$(RUNEXT): riscos/scripts/Run $(EXETARGET)
+	$(VQ)echo " MAKERUN: $@"
+	$(Q)$(MAKERUN) $(EXETARGET) $< $@
+$(DEPROOT)/squeeze.d: $(EXETARGET)
+	$(VQ)echo " SQUEEZE: $<"
+	$(Q)$(SQUEEZE) -f -v $(EXETARGET)
+	$(Q)$(TOUCH) $@
+POSTEXES += !NetSurf/!Run$(RUNEXT) $(DEPROOT)/squeeze.d
+
+clean-run:
+	$(VQ)echo "   CLEAN: !NetSurf/!Run$(RUNEXT)"
+	$(Q) $(RM) !NetSurf/!Run$(RUNEXT)
+CLEANS += clean-run
+
+split-messages:
+	$(call split_install_messages, ro, !NetSurf/Resources/)
+.PHONY: split-messages
+
+# ----------------------------------------------------------------------------
+# Install target
+# ----------------------------------------------------------------------------
+
+install-riscos:
+
+# ----------------------------------------------------------------------------
+# Package target
+# ----------------------------------------------------------------------------
+
+package-riscos: netsurf.zip
+
+netsurf.zip: $(EXETARGET)
+	$(eval $@_TMPDIR := $(shell mktemp -d))
+	$(Q) $(RM) $@
+	$(Q) rsync --archive --verbose $(CURDIR)/!NetSurf $($@_TMPDIR)
+	$(Q) rsync --archive --verbose $(CURDIR)/riscos/distribution/!Boot $($@_TMPDIR)
+	$(Q) rsync --archive --verbose $(CURDIR)/riscos/distribution/!System $($@_TMPDIR)
+	$(Q) rsync --archive --verbose $(CURDIR)/riscos/distribution/3rdParty $($@_TMPDIR)
+	$(Q) cp $(CURDIR)/riscos/distribution/ReadMe $($@_TMPDIR)
+	$(Q) cd $($@_TMPDIR) && /opt/netsurf/arm-unknown-riscos/env/bin/zip -9vr\, $(CURDIR)/$@ *
+	$(Q) $(RM) -rf $($@_TMPDIR)

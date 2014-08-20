@@ -1,0 +1,33 @@
+# *** Simple test:
+#data decode STRICT
+&#x0040&#x4142
+#expected PARSERUTILS_OK
+&#x00000040&#x00004142
+#reset
+
+# *** Surrogate test:
+#data decode STRICT
+&#xD800&#xDF02
+#expected PARSERUTILS_OK
+&#x00010302
+#reset
+
+# *** Lonely high surrogate:
+# This is a bit strange that end status is ok.
+#data decode STRICT
+&#xD805
+#expected PARSERUTILS_OK
+#reset
+
+# With an extra code point, the status is different.
+#data decode STRICT
+&#xD805&#x4142
+#expected PARSERUTILS_INVALID
+#reset
+
+# *** Wrong low surrogate start:
+#data decode STRICT
+&#xDC05
+#expected PARSERUTILS_INVALID
+#reset
+

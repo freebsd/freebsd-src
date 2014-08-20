@@ -1,0 +1,4 @@
+<!DOCTYPE elt0 [
+  <!ELEMENT elt0 (elt0)>
+]>
+<elt0/>

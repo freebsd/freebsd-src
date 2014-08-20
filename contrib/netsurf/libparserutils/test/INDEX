@@ -1,0 +1,11 @@
+# Index for testcases
+#
+# Test		Description				DataDir
+
+aliases		Encoding alias handling
+cscodec-utf8	UTF-8 charset codec implementation	cscodec-utf8
+cscodec-utf16	UTF-16 charset codec implementation	cscodec-utf16
+cscodec-ext8	Extended 8bit charset codec		cscodec-ext8
+cscodec-8859	ISO-8859-n codec			cscodec-8859
+filter		Input stream filtering
+inputstream	Inputstream handling			input

@@ -1,0 +1,71 @@
+Hubbub parser architecture
+==========================
+
+Introduction
+------------
+
+  Hubbub is a flexible HTML parser. It offers two interfaces:
+  
+    * a SAX-style event interface
+    * a DOM-style tree-based interface
+
+Overview
+--------
+
+  Hubbub is comprised of two parts:
+  
+    * a tokeniser
+    * a tree builder
+
+  Tokeniser
+  ---------
+  
+    The tokeniser divides the data held in the document buffer into chunks. 
+    It sends SAX-style events for each chunk. 
+  
+  Tree builder
+  ------------
+  
+    The tree builder constructs a DOM-like tree from the SAX events emitted by 
+    the tokeniser. The exact representation of the tree is up to the client,
+    which must provide a number of tree building handler functions.
+
+Memory usage and ownership
+--------------------------
+
+  Memory usage within the library is well defined, as is ownership of allocated
+  memory.
+  
+  Raw input data provided by the library client is owned by the client. 
+
+  SAX events which refer to document segments contain direct references to
+  internal data. Token objects are transient and data within them are no 
+  longer valid once the event handler has returned control to the tokeniser.
+  All data returned by a SAX event is owned by the library.
+
+  The tree builder will use client callbacks to create the objects used
+  within the tree. Tree objects may be reference counted (the client may
+  do nothing in the ref/unref callbacks and use garbage collection instead).
+  The resultant tree is owned by the client.
+
+Parse errors
+------------
+
+  Notification of parse errors is made through a dedicated event. This event
+  contains the line/column offset of the error location, along with a message
+  detailing the error.
+
+Exceptional circumstances
+-------------------------
+
+  Exceptional circumstances (such as memory exhaustion) are reported 
+  immediately.
+
+  The parser's state in such situations is undefined. There is no recovery
+  mechanism. 
+
+  Therefore, if the client is able to recover from the exceptional
+  circumstance (e.g. by making more free memory available) the only valid
+  way to proceed is to create a new parser instance and start parsing from
+  scratch. The client should ensure that they destroy the old parser instance
+  and any DOM tree produced by it, to avoid resource leaks.

@@ -1,0 +1,241 @@
+# ----------------------------------------------------------------------------
+# Mac OS X target setup
+# ----------------------------------------------------------------------------
+
+POSTEXES += NetSurf.app
+
+LDFLAGS += -L/usr/lib
+LDFLAGS += $(shell $(PKG_CONFIG) --libs libhubbub libcss libdom)
+LDFLAGS += -L/usr/X11/lib
+LDFLAGS += -lm -lcurl -liconv
+LDFLAGS += -lssl -lcrypto
+
+CFLAGS += -O $(WARNFLAGS) -Dnscocoa -D_BSD_SOURCE -D_POSIX_C_SOURCE \
+		-std=c99 -g -Os
+
+CFLAGS += $(shell $(PKG_CONFIG) --cflags libhubbub libcss libdom)
+
+# shut up zconf.h and zlib.h
+#CFLAGS += -D_LARGEFILE64_SOURCE=1
+
+ifneq ($(WITH_MACPORTS),)
+  LDFLAGS += -L/opt/local/lib
+  CFLAGS += -I/opt/local/include
+endif
+
+# for timerisset()
+CFLAGS += -D_DARWIN_C_SOURCE
+
+MACOSX_VERSION ?= 10.5
+SDK_VERSION ?= $(MACOSX_VERSION)
+SDK_PATH ?= $(DEVELOPER_PATH)/SDKs/MacOSX$(SDK_VERSION).sdk
+SDK_FLAGS := -isysroot $(SDK_PATH) -mmacosx-version-min=$(MACOSX_VERSION)
+CFLAGS :=  $(SDK_FLAGS) $(CFLAGS)
+LDFLAGS :=  $(SDK_FLAGS) -Wl,-syslibroot,$(SDK_PATH) $(LDFLAGS)
+CXXFLAGS :=  $(SDK_FLAGS) $(CXXFLAGS)
+
+CFLAGS += -I/usr/X11/include
+CFLAGS += -include cocoa/Prefix.pch
+
+#  VERSION_FULL := $(shell sed -n '/\"/{s/.*"\(.*\)\".*/\1/;p;}' desktop/version.c)
+# TODO: this needs fixing properly everywhere
+VERSION_FULL := "3.0 (Dev)"
+VERSION_MAJ := $(shell sed -n '/_major/{s/.* = \([0-9]*\).*/\1/;p;}' desktop/version.c)
+VERSION_MIN := $(shell sed -n '/_minor/{s/.* = \([0-9]*\).*/\1/;p;}' desktop/version.c)
+
+LDFLAGS += -Wl,-framework,Cocoa -Wl,-framework,Carbon $(NETLDFLAGS)
+
+NETSURF_FEATURE_BMP_CFLAGS := -DWITH_BMP
+NETSURF_FEATURE_GIF_CFLAGS := -DWITH_GIF
+NETSURF_FEATURE_PNG_CFLAGS := -DWITH_PNG
+NETSURF_FEATURE_NSSVG_CFLAGS := -DWITH_NS_SVG
+
+$(eval $(call pkg_config_find_and_add_enabled,BMP,libnsbmp,BMP))
+$(eval $(call pkg_config_find_and_add_enabled,GIF,libnsgif,GIF))
+$(eval $(call pkg_config_find_and_add_enabled,PNG,libpng,PNG))
+$(eval $(call pkg_config_find_and_add_enabled,NSSVG,libsvgtiny,SVG))
+$(eval $(call feature_enabled,IMAGEIO,-DWITH_APPLE_IMAGE,,Apple ImageIO       ))
+
+ifneq ($(UNIVERSAL),)
+    UNIVERSAL_FLAGS := $(foreach arch,$(UNIVERSAL),-arch $(arch) )
+    CFLAGS += $(UNIVERSAL_FLAGS)
+	LDFLAGS += $(UNIVERSAL_FLAGS)
+	CXXFLAGS += $(UNIVERSAL_FLAGS)
+endif
+
+# ----------------------------------------------------------------------------
+# Source file setup
+# ----------------------------------------------------------------------------
+
+# S_COCOA are sources purely for the Mac OS X build
+S_COCOA := \
+	BookmarksController.m \
+	BrowserView.m \
+	BrowserViewController.m \
+	BrowserWindowController.m \
+	BrowserWindow.m \
+	DownloadWindowController.m \
+	NetSurfAppDelegate.m \
+	NetsurfApp.m \
+	PreferencesWindowController.m \
+	ScrollableView.m \
+	SearchWindowController.m \
+	URLFieldCell.m \
+	Tree.m \
+	TreeView.m \
+	HistoryView.m \
+	HistoryWindowController.m \
+	FormSelectMenu.m \
+	bitmap.m \
+	fetch.m \
+	font.m \
+	gui.m \
+	plotter.m \
+	schedule.m \
+	selection.m \
+	thumbnail.m \
+	utils.m \
+	ArrowBox.m \
+	ArrowWindow.m \
+	BlackScroller.m \
+	LocalHistoryController.m \
+	apple_image.m
+
+S_TABBAR := \
+	NSBezierPath_AMShading.m	\
+	NSString_AITruncation.m		\
+	PSMOverflowPopUpButton.m	\
+	PSMProgressIndicator.m		\
+	PSMRolloverButton.m			\
+	PSMTabBarCell.m				\
+	PSMTabBarControl.m			\
+	PSMTabBarController.m		\
+	PSMTabDragAssistant.m		\
+	PSMTabDragView.m			\
+	PSMTabDragWindow.m			\
+	PSMTabDragWindowController.m \
+	PSMUnifiedTabStyle.m
+
+S_COCOA := $(addprefix cocoa/,$(S_COCOA))
+S_TABBAR := $(addprefix cocoa/PSMTabBarControl/,$(S_TABBAR))
+
+# This is the final source build list
+# Note this is deliberately *not* expanded here as common and image
+#   are not yet available
+SOURCES = $(addprefix $(shell pwd)/,$(S_COMMON) $(S_IMAGE) $(S_BROWSER) $(S_COCOA) $(S_TABBAR))
+
+# Since we prefix the sources with the pwd, also create a special
+# prefixed rule so that the testament is run
+$(shell pwd)/content/fetchers/about.c: testament
+
+EXETARGET := NetSurf
+
+S_XIBS := MainMenu.xib Browser.xib BrowserWindow.xib DownloadWindow.xib SearchWindow.xib PreferencesWindow.xib \
+		HistoryWindow.xib BookmarksWindow.xib LocalHistoryPanel.xib
+
+R_RESOURCES := default.css adblock.css internal.css quirks.css NetSurf.icns HomeTemplate.pdf Icons ca-bundle \
+	netsurf.png
+R_RESOURCES := $(addprefix cocoa/res/,$(R_RESOURCES))
+
+LANGUAGES := de en fr it nl
+LOCALIZED_RESOURCES := Localizable.strings
+
+TABBAR_RESOURCES := AquaTabClose_Front_Pressed.png \
+	AquaTabClose_Front_Rollover.png \
+	AquaTabClose_Front.png \
+	AquaTabCloseDirty_Front_Pressed.png \
+	AquaTabCloseDirty_Front_Rollover.png \
+	AquaTabCloseDirty_Front.png \
+	AquaTabNew.png \
+	AquaTabNewPressed.png \
+	AquaTabNewRollover.png \
+	overflowImage.png \
+	overflowImagePressed.png \
+	pi.png
+
+R_RESOURCES += $(addprefix cocoa/PSMTabBarControl/Images/,$(TABBAR_RESOURCES))
+
+#languiage project macro
+# $1 is language name
+# $2 is list of resources per language 
+define make_lproj 
+R_RESOURCES += $$(OBJROOT)/$(1).lproj
+$$(OBJROOT)/$(1).lproj: $(2)
+	$(VQ)echo Bundling language $(1)
+	$(Q)mkdir -p $$@
+	$(Q)cp -pLR $(2) $$@
+	$(Q)$(SPLIT_MESSAGES) -l $(1) -p cocoa -f messages resources/FatMessages > $$@/Messages
+endef
+
+# compile_xib (xib) (lang)
+define compile_xib
+$$(OBJROOT)/$(2).lproj: $$(OBJROOT)/$(2).lproj/$(1:.xib=.nib)
+
+$$(OBJROOT)/$(2).lproj/$(1:.xib=.nib): cocoa/res/$(1) $$(OBJROOT)/created
+	$(VQ)echo Compiling XIB $(1) for language $(2)
+	$(Q)mkdir -p $$(OBJROOT)/$(2).lproj
+	$(Q)cocoa/compile-xib.sh $(DEVELOPER_PATH) cocoa/res/$(1) $(2) $$@
+
+ifeq ($(wildcard cocoa/res/$(2).lproj/$(1).strings),cocoa/res/$(2).lproj/$(1).strings)
+$$(OBJROOT)/$(2).lproj/$(1:.xib=.nib): cocoa/res/$(2).lproj/$(1).strings
+endif
+
+endef
+
+$(foreach lang,$(LANGUAGES),$(eval $(call make_lproj,$(lang),$(addprefix cocoa/res/$(lang).lproj/,$(LOCALIZED_RESOURCES)))))
+$(foreach lang,$(LANGUAGES),$(foreach xib,$(S_XIBS),$(eval $(call compile_xib,$(xib),$(lang)))))
+
+# ----------------------------------------------------------------------------
+# Install target
+# ----------------------------------------------------------------------------
+
+install-cocoa: NetSurf.app
+
+NetSurf.app: NetSurf cocoa/Makefile.target $(R_RESOURCES) NetSurf.app/Contents/Info.plist
+	$(VQ)echo Assembling NetSurf.app bundle
+	$(Q)mkdir -p NetSurf.app/Contents/MacOS
+	$(Q)cp NetSurf NetSurf.app/Contents/MacOS
+	$(Q)rm -rf NetSurf.app/Contents/Resources
+	$(Q)mkdir -p NetSurf.app/Contents/Resources
+	$(Q)cp -pLR $(R_RESOURCES) NetSurf.app/Contents/Resources
+	$(Q)echo 'APPL????' > NetSurf.app/Contents/PkgInfo
+
+NetSurf.app/Contents/Info.plist: cocoa/res/NetSurf-Info.plist cocoa/Makefile.target
+	$(VQ)echo Generating Info.plist
+	$(Q)mkdir -p NetSurf.app/Contents
+	$(Q)sed -e 's/$${EXECUTABLE_NAME}/$(EXETARGET)/' \
+	    -e 's/$${PRODUCT_NAME.*}/$(EXETARGET)/' \
+	    -e 's/$${MACOSX_DEPLOYMENT_TARGET}/$(MACOSX_VERSION)/' \
+	    -e 's/$${NETSURF_VERSION}/$(VERSION_FULL)/' \
+		-e 's/$${NETSURF_SHORT_VERSION}/$(VERSION_MAJ).$(VERSION_MIN)/' \
+	   < cocoa/res/NetSurf-Info.plist > NetSurf.app/Contents/Info.plist
+
+# ----------------------------------------------------------------------------
+# Package target
+# ----------------------------------------------------------------------------
+
+package-cocoa: NetSurf.dmg
+
+.INTERMEDIATE: NetSurf.tmp.dmg
+
+NetSurf.tmp.dmg: NetSurf.app
+	hdiutil create -size 8m -fs HFS+ -volname "NetSurf" $@
+	sleep 2
+	hdiutil attach $@
+	sleep 2
+	cp -pPR $^ /Volumes/NetSurf/
+	hdiutil detach $$(echo $$(hdiutil attach $@ | cut -f 1)  | cut -f 1 -d ' ')
+	sleep 2
+
+NetSurf.dmg: NetSurf.tmp.dmg
+	hdiutil convert $^ -format UDZO -o $@
+
+CLEANS += clean-package-cocoa
+
+clean-package-cocoa:
+	$(VQ)echo "   CLEAN: NetSurf.tmp.dmg"
+	$(Q)$(RM) NetSurf.tmp.dmg
+	$(VQ)echo "   CLEAN: NetSurf.dmg"
+	$(Q)$(RM) NetSurf.dmg 
+	$(VQ)echo "   CLEAN: NetSurf.app"
+	$(Q)$(RM) -r NetSurf.app 

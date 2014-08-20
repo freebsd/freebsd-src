@@ -1,0 +1,119 @@
+<?xml version="1.0" encoding="iso-8859-1"?>
+<?xml-stylesheet href="test-to-html.xsl" type="text/xml"?>
+<!--
+ Copyright (c) 2003 World Wide Web Consortium,
+
+ (Massachusetts Institute of Technology, European Research Consortium for
+ Informatics and Mathematics, Keio University). All Rights Reserved. This
+ work is distributed under the W3C(r) Software License [1] in the hope that
+ it will be useful, but WITHOUT ANY WARRANTY; without even the implied
+ warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+
+ [1] http://www.w3.org/Consortium/Legal/2002/copyright-software-20021231
+-->
+
+<!DOCTYPE test SYSTEM "dom3.dtd" [
+  <!ENTITY % entities SYSTEM "dom3xpathents.ent">
+  %entities;
+]>
+<test xmlns="&level3;" name="XPathNSResolver_lookupNamespaceURI_nist_dmstc">
+  <metadata>
+    <title>XPathNSResolver_lookupNamespaceURI_nist_dmstc</title>
+    <creator>Bob Clary</creator>
+    <description>
+      Interate over all employee elements with xmlns:dmstc attribute
+      in the test document, creating nsresolvers checking that 
+      for all children the prefix 'nist' resolves to 
+      http://www.nist.gov and that prefix 'dmstc' resolves to the same 
+      value as employee.getAttribute('xmlns:dmstc').
+    </description>
+    <date qualifier="created">2003-12-09</date>
+    <subject resource="&spec;#XPathEvaluator"/>
+    <subject resource="&spec;#XPathEvaluator-createNSResolver"/>
+    <subject resource="&spec;#XPathNSResolver"/>
+    <subject resource="&spec;#XPathNSResolver-lookupNamespaceURI"/>
+  </metadata>
+
+  <!-- Standard Variables -->
+
+  <var name="doc"                 type="Document" />
+  <var name="resolver"            type="XPathNSResolver" />
+  <var name="evaluator"           type="XPathEvaluator" />
+
+  <!-- Test Variables -->
+
+  <var name="lookupNamespaceURI" type="DOMString"/>
+  <var name="namespaceURI" type="DOMString"/>
+  <var name="child"        type="Element"/>
+  <var name="children"     type="NodeList"/>
+  <var name="employee"      type="Element"/>
+  <var name="employees"     type="NodeList"/>
+
+  <!-- Load Test Document -->
+
+  <load var="doc" href="staffNS" willBeModified="false"/>
+
+  <getElementsByTagNameNS obj="doc"
+                          interface="Document"
+                          var="employees"
+                          namespaceURI="&quot;*&quot;"
+                          localName="&quot;employee&quot;"
+                          />
+
+  <createXPathEvaluator var='evaluator' 
+                        document='doc'/>
+
+
+  <for-each member="employee" 
+            collection="employees">
+
+
+    <getAttribute obj="employee"
+                  interface="Element"
+                  name="&quot;xmlns:dmstc&quot;"
+                  var="namespaceURI"
+                  />
+
+    <getElementsByTagNameNS obj="employee"
+                            interface="Element"
+                            var="children"
+                            namespaceURI="&quot;*&quot;"
+                            localName="&quot;*&quot;"
+                            />
+
+    <for-each member="child"
+              collection="children">
+
+      <createNSResolver obj="evaluator" 
+                        var="resolver" 
+                        nodeResolver="child"
+                        />
+
+      <lookupNamespaceURI obj="resolver"
+                          interface="XPathNSResolver"
+                          var="lookupNamespaceURI"
+                          prefix="&quot;dmstc&quot;"
+                          />
+
+      <assertEquals id="dmstcequal" 
+                    actual="lookupNamespaceURI"
+                    expected="namespaceURI"
+                    ignoreCase="false"
+                    />
+
+      <lookupNamespaceURI obj="resolver"
+                          interface="XPathNSResolver"
+                          var="lookupNamespaceURI"
+                          prefix="&quot;nist&quot;"
+                          />
+
+      <assertEquals id="nistequal" 
+                    actual="lookupNamespaceURI"
+                    expected="&quot;http://www.nist.gov&quot;"
+                    ignoreCase="false"
+                    />
+    </for-each>
+
+  </for-each>
+
+</test>

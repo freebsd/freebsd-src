@@ -1,0 +1,46 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<?xml-stylesheet href="test-to-html.xsl" type="text/xml"?>
+<!--
+Copyright (c) 2001-2004 World Wide Web Consortium,
+(Massachusetts Institute of Technology, Institut National de
+Recherche en Informatique et en Automatique, Keio University). All
+Rights Reserved. This program is distributed under the W3C's Software
+Intellectual Property License. This program is distributed in the
+hope that it will be useful, but WITHOUT ANY WARRANTY; without even
+the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
+PURPOSE.
+See W3C License http://www.w3.org/Consortium/Legal/ for more details.
+--><!DOCTYPE suite SYSTEM "dom2.dtd">
+
+<suite xmlns="http://www.w3.org/2001/DOM-Test-Suite/Level-2" name="alltests">
+<metadata>
+<title>DOM Level 2 Events Test Suite</title>
+<creator>DOM Test Suite Project</creator>
+</metadata>
+     <suite.member href="DocumentEventCast01.xml"/>
+     <suite.member href="EventTargetCast01.xml"/>
+     <suite.member href="createEvent01.xml"/>
+     <suite.member href="createEvent02.xml"/>
+     <suite.member href="createEvent03.xml"/>
+     <suite.member href="createEvent04.xml"/>
+     <suite.member href="createEvent05.xml"/>
+     <suite.member href="dispatchEvent01.xml"/>
+     <suite.member href="dispatchEvent02.xml"/>
+     <suite.member href="dispatchEvent03.xml"/>
+     <suite.member href="dispatchEvent04.xml"/>
+     <suite.member href="dispatchEvent05.xml"/>
+     <suite.member href="dispatchEvent06.xml"/>
+     <suite.member href="dispatchEvent07.xml"/>
+     <suite.member href="dispatchEvent08.xml"/>
+     <suite.member href="dispatchEvent09.xml"/>
+     <suite.member href="dispatchEvent10.xml"/>
+     <suite.member href="dispatchEvent11.xml"/>
+     <suite.member href="dispatchEvent12.xml"/>
+     <suite.member href="dispatchEvent13.xml"/>
+     <suite.member href="initEvent01.xml"/>
+     <suite.member href="initEvent02.xml"/>
+     <suite.member href="initEvent03.xml"/>
+     <suite.member href="initEvent04.xml"/>
+     <suite.member href="initEvent05.xml"/>
+     <suite.member href="initEvent06.xml"/>
+</suite>

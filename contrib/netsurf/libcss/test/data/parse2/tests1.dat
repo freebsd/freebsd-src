@@ -1,0 +1,142 @@
+#data
+* { }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { color: #ff0000 }
+#errors
+#expected
+| *
+|  color: #ffff0000
+#reset
+
+#data
+* { color: inherit }
+#errors
+#expected
+| *
+|  color: inherit
+#reset
+
+#data
+* { cursor: inherit }
+#errors
+#expected
+| *
+|  cursor: inherit
+#reset
+
+#data
+* { cursor: text inherit }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { cursor: inherit auto }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { background-image: url("foo.png"); color: inherit }
+#errors
+#expected
+| *
+|  background-image: url('foo.png')
+|  color: inherit
+#reset
+
+#data
+* { display: block; display: table-cell; }
+#errors
+#expected
+| *
+|  display: block
+|  display: table-cell
+#reset
+
+#data
+* { display: inherit; }
+#errors
+#expected
+| *
+|  display: inherit
+#reset
+
+#data
+* { height: inherit; }
+#errors
+#expected
+| *
+|  height: inherit
+#reset
+
+#data
+* { line-height: inherit; }
+#errors
+#expected
+| *
+|  line-height: inherit
+#reset
+
+#data
+* { max-height: inherit; }
+#errors
+#expected
+| *
+|  max-height: inherit
+#reset
+
+#data
+* { max-width: inherit; }
+#errors
+#expected
+| *
+|  max-width: inherit
+#reset
+
+#data
+* { min-height: inherit; }
+#errors
+#expected
+| *
+|  min-height: inherit
+#reset
+
+#data
+* { min-width: inherit; }
+#errors
+#expected
+| *
+|  min-width: inherit
+#reset
+
+#data
+* { width: inherit; }
+#errors
+#expected
+| *
+|  width: inherit
+#reset
+
+#data
+* { display: block inherit; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { cursor: url("foo.png"), url("bar.gif"), pointer; }
+#errors
+#expected
+| *
+|  cursor: url('foo.png'), url('bar.gif'), pointer
+#reset
+

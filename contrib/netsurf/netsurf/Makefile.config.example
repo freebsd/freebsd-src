@@ -1,0 +1,36 @@
+#
+# NetSurf build configuration example
+#
+#
+# To configure NetSurf's build options create a Makefile.config file. This is
+# an example Makefile.config.
+#
+# To see the available config options, look at Makefile.defaults, but make any
+# alterations in your Makefile.config
+
+### To enable/disable PNG support, uncomment the appropriate line below.
+# override NETSURF_USE_PNG := YES
+# override NETSURF_USE_PNG := NO
+
+### To enable/disable SVGTiny support, uncomment the appropriate line below.
+# override NETSURF_USE_NSSVG := YES
+# override NETSURF_USE_NSSVG := NO
+
+### To enable/disable RSVG support, uncomment the appropriate line below.
+# override NETSURF_USE_RSVG := YES
+# override NETSURF_USE_RSVG := NO
+
+### To enable/disable BMP support, uncomment the appropriate line below.
+# override NETSURF_USE_BMP := YES
+# override NETSURF_USE_BMP := NO
+
+### To make the framebuffer front end use freetype for text, uncomment the
+### following line
+# override NETSURF_FB_FONTLIB := freetype
+
+### To enable/disable JavaScript support, uncomment the appropriate line below.
+# override NETSURF_USE_JS := NO
+# override NETSURF_USE_JS := YES
+# override NETSURF_USE_MOZJS := NO
+# override NETSURF_USE_MOZJS := YES
+

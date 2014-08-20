@@ -1,0 +1,51 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+Copyright (c) 2001 World Wide Web Consortium,
+(Massachusetts Institute of Technology, Institut National de
+Recherche en Informatique et en Automatique, Keio University). All
+Rights Reserved. This program is distributed under the W3C's Software
+Intellectual Property License. This program is distributed in the
+hope that it will be useful, but WITHOUT ANY WARRANTY; without even
+the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
+PURPOSE.
+See W3C License http://www.w3.org/Consortium/Legal/ for more details.
+--><!DOCTYPE test SYSTEM "dom1.dtd">
+
+<test xmlns="http://www.w3.org/2001/DOM-Test-Suite/Level-1" name="attrcreatedocumentfragment">
+<metadata>
+<title>attrCreateDocumentFragment</title>
+<creator>NIST</creator>
+<description>
+    Attr nodes may be associated with Element nodes contained within a DocumentFragment.
+  Create a new DocumentFragment and add a newly created Element node(with one attribute).  
+  Once the element is added, its attribute should be available as an attribute associated 
+  with an Element within a DocumentFragment.
+</description>
+<contributor>Mary Brady</contributor>
+<date qualifier="created">2001-08-17</date>
+<!--  createDocumentFragment  -->
+<subject resource="http://www.w3.org/TR/1998/REC-DOM-Level-1-19981001/level-one-core#ID-35CB04B5"/>
+<!--  setAttribute -->
+<subject resource="http://www.w3.org/TR/1998/REC-DOM-Level-1-19981001/level-one-core#ID-F68F082"/>
+<!--  DocumentFragment   -->
+<subject resource="http://www.w3.org/TR/1998/REC-DOM-Level-1-19981001/level-one-core#ID-B63ED1A3"/>
+</metadata>
+<var name="doc" type="Document"/>
+<var name="docFragment" type="DocumentFragment"/>
+<var name="newOne" type="Element"/>
+<var name="domesticNode" type="Node"/>
+<var name="domesticAttr" type="NamedNodeMap"/>
+<var name="attrs" type="Attr"/>
+<var name="attrName" type="DOMString"/>
+<var name="appendedChild" type="Node"/>
+<load var="doc" href="staff" willBeModified="true"/>
+<createDocumentFragment obj="doc" var="docFragment"/>
+<createElement obj="doc" var="newOne" tagName="&quot;newElement&quot;"/>
+<setAttribute obj="newOne" name="&quot;newdomestic&quot;" value="&quot;Yes&quot;"/>
+<appendChild var="appendedChild" obj="docFragment" newChild="newOne"/>
+<firstChild interface="Node" obj="docFragment" var="domesticNode"/>
+<attributes obj="domesticNode" var="domesticAttr"/>
+<item interface="NamedNodeMap" obj="domesticAttr" var="attrs" index="0"/>
+<name interface="Attr" obj="attrs" var="attrName"/>
+<assertEquals actual="attrName" expected="&quot;newdomestic&quot;" id="attrCreateDocumentFragmentAssert" ignoreCase="false"/>
+</test>

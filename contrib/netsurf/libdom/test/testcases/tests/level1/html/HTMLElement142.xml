@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<?xml-stylesheet href="test-to-html.xsl" type="text/xml"?>
+
+<!--
+
+Copyright (c) 2001 World Wide Web Consortium, 
+(Massachusetts Institute of Technology, Institut National de
+Recherche en Informatique et en Automatique, Keio University).  All 
+Rights Reserved.  This program is distributed under the W3C's Software
+Intellectual Property License.  This program is distributed in the 
+hope that it will be useful, but WITHOUT ANY WARRANTY; without even
+the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR 
+PURPOSE.  
+
+See W3C License http://www.w3.org/Consortium/Legal/ for more details.
+
+-->
+<!DOCTYPE test SYSTEM "dom1.dtd">
+<test xmlns="http://www.w3.org/2001/DOM-Test-Suite/Level-1" name="HTMLElement142">
+<metadata>
+<title>HTMLElement142</title>
+<creator>NIST</creator>
+<description>
+    The className attribute specifies the class attribute of the element. 
+
+    Retrieve the class attribute of the NOFRAMES element and examine its value.  
+</description>
+<contributor>Mary Brady</contributor>
+<date qualifier="created">2002-02-22</date>
+<subject resource="http://www.w3.org/TR/1998/REC-DOM-Level-1-19981001/level-one-html#ID-95362176"/>
+</metadata>
+<var name="nodeList" type="NodeList"/>
+<var name="testNode" type="Node"/>
+<var name="vclassname" type="DOMString"/>
+<var name="doc" type="Document"/>
+<load var="doc" href="element" willBeModified="false"/>
+<getElementsByTagName interface="Document" obj="doc" var="nodeList" tagname='"noframes"'/>
+<assertSize collection="nodeList" size="1" id="Asize"/>
+<item interface="NodeList" obj="nodeList" var="testNode" index="0"/>
+<className interface="HTMLElement" obj="testNode" var="vclassname"/>
+<assertEquals actual="vclassname" expected='"NOFRAMES-class"' id="classNameLink" ignoreCase="false"/>
+</test>

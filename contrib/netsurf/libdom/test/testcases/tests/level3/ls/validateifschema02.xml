@@ -1,0 +1,57 @@
+<?xml version="1.0" encoding="UTF-8"?><?xml-stylesheet href="test-to-html.xsl" type="text/xml"?>
+
+<!--
+
+Copyright (c) 2004 World Wide Web Consortium,
+(Massachusetts Institute of Technology, Institut National de
+Recherche en Informatique et en Automatique, Keio University).  All
+Rights Reserved.  This program is distributed under the W3C's Software
+Intellectual Property License.  This program is distributed in the
+hope that it will be useful, but WITHOUT ANY WARRANTY; without even
+the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
+PURPOSE.
+
+See W3C License http://www.w3.org/Consortium/Legal/ for more details.
+
+-->
+
+<!DOCTYPE test SYSTEM "dom3.dtd">
+<test xmlns="http://www.w3.org/2001/DOM-Test-Suite/Level-3" name="validateifschema02">
+<metadata>
+<title>validateifschema02</title>
+<creator>Curt Arnold</creator>
+<description>
+Load a document without a DTD with validate-if-schema=true should successfully complete.
+</description>
+<date qualifier="created">2004-03-29</date>
+<subject resource="http://www.w3.org/TR/2004/REC-DOM-Level-3-LS-20040407/load-save#LS-LSParser-parseURI"/>
+<subject resource="http://www.w3.org/TR/2004/REC-DOM-Level-3-Core-20040407/core#parameter-validate-if-schema"/>
+</metadata>
+<var name="doc" type="Document"/>
+<var name="elem" type="Element"/>
+<var name="node" type="Node"/>
+<var name="nodeName" type="DOMString"/>
+<var name="domConfig" type="DOMConfiguration"/>
+<var name="domImplLS" type="DOMImplementationLS"/>
+<var name="lsParser" type="LSParser"/>
+<var name="nullSchemaType" type="DOMString" isNull="true"/>
+<var name="resourceURI" type="DOMString"/>
+<var name="errorMonitor" type="DOMErrorMonitor"/>
+<var name="canSet" type="boolean"/>
+<implementation var="domImplLS"/>
+<createLSParser var="lsParser" obj="domImplLS" mode="1" schemaType="nullSchemaType"/>
+<domConfig obj="lsParser" var="domConfig" interface="LSParser"/>
+<canSetParameter var="canSet" obj="domConfig" name='"validate-if-schema"' value="true"/>
+<if><isTrue value="canSet"/>
+<setParameter obj="domConfig" name='"validate-if-schema"' value="true"/>
+<setParameter obj="domConfig" name='"error-handler"' value="errorMonitor"/>
+<getResourceURI var="resourceURI" href='"test0"' contentType="text/xml"/>
+<parseURI var="doc" obj="lsParser" uri="resourceURI"/>
+<assertNotNull actual="doc" id="docNotNull"/>
+<assertLowerSeverity id="noErrors" obj="errorMonitor" severity="SEVERITY_ERROR"/>
+<documentElement var="elem" obj="doc"/>
+<assertNotNull actual="elem" id="docElemNotNull"/>
+<nodeName var="nodeName" obj="elem"/>
+<assertEquals actual="nodeName" expected='"elt0"' ignoreCase="false" id="docElemName"/>
+</if>
+</test>

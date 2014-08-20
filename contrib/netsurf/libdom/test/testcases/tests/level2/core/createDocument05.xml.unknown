@@ -1,0 +1,82 @@
+<?xml version="1.0" encoding="UTF-8"?><?xml-stylesheet href="test-to-html.xsl" type="text/xml"?>
+
+<!--
+
+Copyright (c) 2001 World Wide Web Consortium, 
+(Massachusetts Institute of Technology, Institut National de
+Recherche en Informatique et en Automatique, Keio University).  All 
+Rights Reserved.  This program is distributed under the W3C's Software
+Intellectual Property License.  This program is distributed in the 
+hope that it will be useful, but WITHOUT ANY WARRANTY; without even
+the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR 
+PURPOSE.  
+
+See W3C License http://www.w3.org/Consortium/Legal/ for more details.
+
+-->
+<!DOCTYPE test SYSTEM "dom2.dtd">
+<test xmlns="http://www.w3.org/2001/DOM-Test-Suite/Level-2" name="createDocument05">
+<metadata>
+<title>createDocument05</title>
+<creator>NIST</creator>
+<description>
+    The "createDocument(namespaceURI,qualifiedName,doctype)" method for a 
+   DOMImplementation should raise INVALID_CHARACTER_ERR DOMException
+   if parameter qualifiedName contains an illegal character.
+   
+   Invoke method createDocument(namespaceURI,qualifiedName,doctype) on
+   this domimplementation with namespaceURI equals "http://www.ecommerce.org/schema",
+   doctype is null and qualifiedName contains an illegal character from
+   illegalChars[].  Method should raise INVALID_CHARACTER_ERR DOMException
+   for all characters in illegalChars[].
+</description>
+<contributor>Mary Brady</contributor>
+<date qualifier="created">2001-08-17</date>
+<subject resource="http://www.w3.org/TR/DOM-Level-2-Core/core#"/>
+</metadata>
+<var name="namespaceURI" type="DOMString" value="&quot;http://www.ecommerce.org/schema&quot;"/>
+<var name="qualifiedName" type="DOMString"/>
+<var name="doc" type="Document"/>
+<var name="docType" type="DocumentType" isNull="true"/>
+<var name="domImpl" type="DOMImplementation"/>
+<var name="aNewDoc" type="Document"/>
+<var name="charact" type="DOMString"/>
+<var name="illegalQNames" type="List">
+<member>"namespaceURI:{"</member>
+<member>"namespaceURI:}"</member>
+<member>"namespaceURI:~"</member>
+<member>"namespaceURI:'"</member>
+<member>"namespaceURI:!"</member>
+<member>"namespaceURI:@"</member>
+<member>"namespaceURI:#"</member>
+<member>"namespaceURI:$"</member>
+<member>"namespaceURI:%"</member>
+<member>"namespaceURI:^"</member>
+<member>"namespaceURI:&amp;"</member>
+<member>"namespaceURI:*"</member>
+<member>"namespaceURI:("</member>
+<member>"namespaceURI:)"</member>
+<member>"namespaceURI:+"</member>
+<member>"namespaceURI:="</member>
+<member>"namespaceURI:["</member>
+<member>"namespaceURI:]"</member>
+<member>"namespaceURI:\\"</member>
+<member>"namespaceURI:/"</member>
+<member>"namespaceURI:;"</member>
+<member>"namespaceURI:`"</member>
+<member>"namespaceURI:&lt;"</member>
+<member>"namespaceURI:&gt;"</member>
+<member>"namespaceURI:,"</member>
+<member>"namespaceURI:a "</member>
+<member>"namespaceURI:\""</member>
+</var>
+<load var="doc" href="staffNS" willBeModified="false"/>
+<for-each collection="illegalQNames" member="qualifiedName">
+<implementation obj="doc" var="domImpl"/>
+<assertDOMException id="throw_INVALID_CHARACTER_ERR">
+<INVALID_CHARACTER_ERR>
+<createDocument obj="domImpl" var="aNewDoc" namespaceURI="namespaceURI" qualifiedName="qualifiedName" doctype="docType"/>
+</INVALID_CHARACTER_ERR>
+</assertDOMException>
+</for-each>
+</test>

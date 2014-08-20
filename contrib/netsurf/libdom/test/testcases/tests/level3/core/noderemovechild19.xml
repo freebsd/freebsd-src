@@ -1,0 +1,76 @@
+<?xml version="1.0" encoding="UTF-8"?><?xml-stylesheet href="test-to-html.xsl" type="text/xml"?>
+
+<!--
+
+Copyright (c) 2001-2004 World Wide Web Consortium, 
+(Massachusetts Institute of Technology, Institut National de
+Recherche en Informatique et en Automatique, Keio University).  All 
+Rights Reserved.  This program is distributed under the W3C's Software
+Intellectual Property License.  This program is distributed in the 
+hope that it will be useful, but WITHOUT ANY WARRANTY; without even
+the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR 
+PURPOSE.  
+
+See W3C License http://www.w3.org/Consortium/Legal/ for more details.
+
+-->
+
+<!DOCTYPE test SYSTEM "dom3.dtd">
+<test xmlns="http://www.w3.org/2001/DOM-Test-Suite/Level-3" name="noderemovechild19">
+<metadata>
+<title>noderemovechild19</title>
+<creator>IBM</creator>
+<description>
+	Using removeChild on the first 'p' Element node attempt to remove a EntityReference 
+	node child and verify the nodeName of the returned node that was removed.  Attempt
+	to remove a non-child from an entity reference and expect either a NOT_FOUND_ERR or
+	a NO_MODIFICATION_ALLOWED_ERR.  Renove a child from an entity reference and expect
+	a NO_MODIFICATION_ALLOWED_ERR.
+</description>
+<contributor>Neil Delima</contributor>
+<date qualifier="created">2002-06-10</date>
+<subject resource="http://www.w3.org/TR/2004/REC-DOM-Level-3-Core-20040407/core#ID-1734834066"/>
+</metadata>
+<implementationAttribute name="expandEntityReferences" value="false"/>
+<var name="doc" type="Document"/>
+<var name="parentList" type="NodeList"/>
+<var name="parent" type="Element"/>
+<var name="child" type="EntityReference"/>
+<var name="removed" type="EntityReference"/>
+<var name="removedName" type="DOMString"/>
+<var name="removedNode" type="Node"/>
+<var name="entRefChild" type="Node"/>
+<load var="doc" href="hc_staff" willBeModified="true"/>
+<getElementsByTagName var="parentList" obj="doc" tagname='"acronym"' interface="Document"/>
+<item var="parent" obj="parentList" index="1" interface="NodeList"/>
+<firstChild var="child" obj="parent" interface="Node"/>
+<removeChild var="removed"  obj="parent" oldChild="child" />
+<nodeName obj="removed" var="removedName"/>
+<assertEquals actual="removedName" expected='"beta"' id="noderemovechild19" ignoreCase="false"/>
+<!--  
+   Remove a non-member of the entity reference,
+   expect either a NO_MODIFICATION_ALLOWED_ERR or a NOT_FOUND_ERR
+-->
+<try>
+	<removeChild obj="child" var="removedNode" oldChild="parent" />
+	<fail id="throw_DOMException"/>
+	<catch>
+		<DOMException code="NO_MODIFICATION_ALLOWED_ERR"/>
+		<DOMException code="NOT_FOUND_ERR"/>
+	</catch>
+</try>
+<!--
+Remove a child of the entity reference
+   Expect a NO_MODIFICATION_ALLOWED_ERR exception 
+-->   
+<firstChild var="entRefChild" obj="child" interface="Node"/>
+<if>
+    <!-- entity may not be resolved if validating is false  -->
+	<notNull obj="entRefChild"/>
+	<assertDOMException id="throw_NO_MODIFICATION_ALLOWED_ERR">
+		<NO_MODIFICATION_ALLOWED_ERR>
+			<removeChild obj="child" var="removedNode" oldChild="entRefChild"/>
+		</NO_MODIFICATION_ALLOWED_ERR>
+	</assertDOMException>
+</if>
+</test>

@@ -1,0 +1,3 @@
+set -e
+make
+bin/decode_ico $1 | display

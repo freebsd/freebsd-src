@@ -1,0 +1,446 @@
+// DOM core WebIDL
+// retrived from http://dom.spec.whatwg.org/
+// 23rd October 2012
+
+
+
+exception DOMException {
+  const unsigned short INDEX_SIZE_ERR = 1;
+  const unsigned short DOMSTRING_SIZE_ERR = 2; // historical
+  const unsigned short HIERARCHY_REQUEST_ERR = 3;
+  const unsigned short WRONG_DOCUMENT_ERR = 4;
+  const unsigned short INVALID_CHARACTER_ERR = 5;
+  const unsigned short NO_DATA_ALLOWED_ERR = 6; // historical
+  const unsigned short NO_MODIFICATION_ALLOWED_ERR = 7;
+  const unsigned short NOT_FOUND_ERR = 8;
+  const unsigned short NOT_SUPPORTED_ERR = 9;
+  const unsigned short INUSE_ATTRIBUTE_ERR = 10; // historical
+  const unsigned short INVALID_STATE_ERR = 11;
+  const unsigned short SYNTAX_ERR = 12;
+  const unsigned short INVALID_MODIFICATION_ERR = 13;
+  const unsigned short NAMESPACE_ERR = 14;
+  const unsigned short INVALID_ACCESS_ERR = 15;
+  const unsigned short VALIDATION_ERR = 16; // historical
+  const unsigned short TYPE_MISMATCH_ERR = 17;
+  const unsigned short SECURITY_ERR = 18;
+  const unsigned short NETWORK_ERR = 19;
+  const unsigned short ABORT_ERR = 20;
+  const unsigned short URL_MISMATCH_ERR = 21;
+  const unsigned short QUOTA_EXCEEDED_ERR = 22;
+  const unsigned short TIMEOUT_ERR = 23;
+  const unsigned short INVALID_NODE_TYPE_ERR = 24;
+  const unsigned short DATA_CLONE_ERR = 25;
+  unsigned short code;
+};
+
+interface DOMError {
+  readonly attribute DOMString name;
+};
+
+[Constructor(DOMString type, optional EventInit eventInitDict)]
+interface Event {
+  readonly attribute DOMString type;
+  readonly attribute EventTarget? target;
+  readonly attribute EventTarget? currentTarget;
+
+  const unsigned short NONE = 0;
+  const unsigned short CAPTURING_PHASE = 1;
+  const unsigned short AT_TARGET = 2;
+  const unsigned short BUBBLING_PHASE = 3;
+  readonly attribute unsigned short eventPhase;
+
+  void stopPropagation();
+  void stopImmediatePropagation();
+
+  readonly attribute boolean bubbles;
+  readonly attribute boolean cancelable;
+  void preventDefault();
+  readonly attribute boolean defaultPrevented;
+
+  readonly attribute boolean isTrusted;
+  readonly attribute DOMTimeStamp timeStamp;
+
+  void initEvent(DOMString type, boolean bubbles, boolean cancelable);
+};
+
+dictionary EventInit {
+  boolean bubbles;
+  boolean cancelable;
+};
+
+[Constructor(DOMString type, optional CustomEventInit eventInitDict)]
+interface CustomEvent : Event {
+  readonly attribute any detail;
+};
+
+dictionary CustomEventInit : EventInit {
+  any detail;
+};
+
+interface EventTarget {
+  void addEventListener(DOMString type, EventListener? callback, optional boolean capture = false);
+  void removeEventListener(DOMString type, EventListener? callback, optional boolean capture = false);
+  boolean dispatchEvent(Event event);
+};
+
+callback interface EventListener {
+  void handleEvent(Event event);
+};
+
+[Constructor(MutationCallback callback)]
+interface MutationObserver {
+  void observe(Node target, MutationObserverInit options);
+  void disconnect();
+  sequence<MutationRecord> takeRecords();
+};
+
+callback MutationCallback = void (sequence<MutationRecord> mutations, MutationObserver observer);
+
+dictionary MutationObserverInit {
+  boolean childList;
+  boolean attributes;
+  boolean characterData;
+  boolean subtree;
+  boolean attributeOldValue;
+  boolean characterDataOldValue;
+  sequence<DOMString> attributeFilter;
+};
+
+interface MutationRecord {
+  readonly attribute DOMString type;
+  readonly attribute Node target;
+  readonly attribute NodeList addedNodes;
+  readonly attribute NodeList removedNodes;
+  readonly attribute Node? previousSibling;
+  readonly attribute Node? nextSibling;
+  readonly attribute DOMString? attributeName;
+  readonly attribute DOMString? attributeNamespace;
+  readonly attribute DOMString? oldValue;
+};
+
+interface Node : EventTarget {
+  const unsigned short ELEMENT_NODE = 1;
+  const unsigned short ATTRIBUTE_NODE = 2; // historical
+  const unsigned short TEXT_NODE = 3;
+  const unsigned short CDATA_SECTION_NODE = 4; // historical
+  const unsigned short ENTITY_REFERENCE_NODE = 5; // historical
+  const unsigned short ENTITY_NODE = 6; // historical
+  const unsigned short PROCESSING_INSTRUCTION_NODE = 7;
+  const unsigned short COMMENT_NODE = 8;
+  const unsigned short DOCUMENT_NODE = 9;
+  const unsigned short DOCUMENT_TYPE_NODE = 10;
+  const unsigned short DOCUMENT_FRAGMENT_NODE = 11;
+  const unsigned short NOTATION_NODE = 12; // historical
+  readonly attribute unsigned short nodeType;
+  readonly attribute DOMString nodeName;
+
+  readonly attribute DOMString? baseURI;
+
+  readonly attribute Document? ownerDocument;
+  readonly attribute Node? parentNode;
+  readonly attribute Element? parentElement;
+  boolean hasChildNodes();
+  readonly attribute NodeList childNodes;
+  readonly attribute Node? firstChild;
+  readonly attribute Node? lastChild;
+  readonly attribute Node? previousSibling;
+  readonly attribute Node? nextSibling;
+
+           attribute DOMString? nodeValue;
+           attribute DOMString? textContent;
+  Node insertBefore(Node node, Node? child);
+  Node appendChild(Node node);
+  Node replaceChild(Node node, Node child);
+  Node removeChild(Node child);
+  void normalize();
+
+
+Node cloneNode(optional boolean deep = true);
+  boolean isEqualNode(Node? node);
+
+  const unsigned short DOCUMENT_POSITION_DISCONNECTED = 0x01;
+  const unsigned short DOCUMENT_POSITION_PRECEDING = 0x02;
+  const unsigned short DOCUMENT_POSITION_FOLLOWING = 0x04;
+  const unsigned short DOCUMENT_POSITION_CONTAINS = 0x08;
+  const unsigned short DOCUMENT_POSITION_CONTAINED_BY = 0x10;
+  const unsigned short DOCUMENT_POSITION_IMPLEMENTATION_SPECIFIC = 0x20; // historical
+  unsigned short compareDocumentPosition(Node other);
+  boolean contains(Node? other);
+
+  DOMString? lookupPrefix(DOMString? namespace);
+  DOMString? lookupNamespaceURI(DOMString? prefix);
+  boolean isDefaultNamespace(DOMString? namespace);
+};
+
+[Constructor]
+interface Document : Node {
+  readonly attribute DOMImplementation implementation;
+  readonly attribute DOMString URL;
+  readonly attribute DOMString documentURI;
+  readonly attribute DOMString compatMode;
+  readonly attribute DOMString characterSet;
+  readonly attribute DOMString contentType;
+
+  readonly attribute DocumentType? doctype;
+  readonly attribute Element? documentElement;
+  HTMLCollection getElementsByTagName(DOMString localName);
+  HTMLCollection getElementsByTagNameNS(DOMString? namespace, DOMString localName);
+  HTMLCollection getElementsByClassName(DOMString classNames);
+  Element? getElementById(DOMString elementId);
+
+  Element createElement(DOMString localName);
+  Element createElementNS(DOMString? namespace, DOMString qualifiedName);
+  DocumentFragment createDocumentFragment();
+  Text createTextNode(DOMString data);
+  Comment createComment(DOMString data);
+  ProcessingInstruction createProcessingInstruction(DOMString target, DOMString data);
+
+  Node importNode(Node node, optional boolean deep = true);
+  Node adoptNode(Node node);
+
+  Event createEvent(DOMString interface);
+
+  Range createRange();
+
+  // NodeFilter.SHOW_ALL = 0xFFFFFFFF
+  NodeIterator createNodeIterator(Node root, optional unsigned long whatToShow = 0xFFFFFFFF, optional NodeFilter? filter = null);
+  TreeWalker createTreeWalker(Node root, optional unsigned long whatToShow = 0xFFFFFFFF, optional NodeFilter? filter = null);
+
+  // NEW
+  void prepend((Node or DOMString)... nodes);
+  void append((Node or DOMString)... nodes);
+};
+
+interface XMLDocument : Document {};
+
+interface DOMImplementation {
+  DocumentType createDocumentType(DOMString qualifiedName, DOMString publicId, DOMString systemId);
+  XMLDocument createDocument(DOMString? namespace, [TreatNullAs=EmptyString] DOMString qualifiedName, DocumentType? doctype);
+  Document createHTMLDocument(optional DOMString title);
+
+  boolean hasFeature(DOMString feature, [TreatNullAs=EmptyString] DOMString version);
+};
+
+interface DocumentFragment : Node {
+  // NEW
+  void prepend((Node or DOMString)... nodes);
+  void append((Node or DOMString)... nodes);
+};
+
+interface DocumentType : Node {
+  readonly attribute DOMString name;
+  readonly attribute DOMString publicId;
+  readonly attribute DOMString systemId;
+
+  // NEW
+  void before((Node or DOMString)... nodes);
+  void after((Node or DOMString)... nodes);
+  void replace((Node or DOMString)... nodes);
+  void remove();
+};
+
+interface Element : Node {
+  readonly attribute DOMString? namespaceURI;
+  readonly attribute DOMString? prefix;
+  readonly attribute DOMString localName;
+  readonly attribute DOMString tagName;
+
+           attribute DOMString id;
+           attribute DOMString className;
+  readonly attribute DOMTokenList classList;
+
+  readonly attribute Attr[] attributes;
+  DOMString? getAttribute(DOMString name);
+  DOMString? getAttributeNS(DOMString? namespace, DOMString localName);
+  void setAttribute(DOMString name, DOMString value);
+  void setAttributeNS(DOMString? namespace, DOMString name, DOMString value);
+  void removeAttribute(DOMString name);
+  void removeAttributeNS(DOMString? namespace, DOMString localName);
+  boolean hasAttribute(DOMString name);
+  boolean hasAttributeNS(DOMString? namespace, DOMString localName);
+
+  HTMLCollection getElementsByTagName(DOMString localName);
+  HTMLCollection getElementsByTagNameNS(DOMString? namespace, DOMString localName);
+  HTMLCollection getElementsByClassName(DOMString classNames);
+
+  readonly attribute HTMLCollection children;
+  readonly attribute Element? firstElementChild;
+  readonly attribute Element? lastElementChild;
+  readonly attribute Element? previousElementSibling;
+  readonly attribute Element? nextElementSibling;
+  readonly attribute unsigned long childElementCount;
+
+
+  // NEW
+  void prepend((Node or DOMString)... nodes);
+  void append((Node or DOMString)... nodes);
+  void before((Node or DOMString)... nodes);
+  void after((Node or DOMString)... nodes);
+  void replace((Node or DOMString)... nodes);
+  void remove();
+};
+
+interface Attr {
+  readonly attribute DOMString name;
+           attribute DOMString value;
+
+  readonly attribute DOMString? namespaceURI;
+  readonly attribute DOMString? prefix;
+  readonly attribute DOMString localName;
+};
+
+interface CharacterData : Node {
+  [TreatNullAs=EmptyString] attribute DOMString data;
+  readonly attribute unsigned long length;
+  DOMString substringData(unsigned long offset, unsigned long count);
+  void appendData(DOMString data);
+  void insertData(unsigned long offset, DOMString data);
+  void deleteData(unsigned long offset, unsigned long count);
+  void replaceData(unsigned long offset, unsigned long count, DOMString data);
+
+  // NEW
+  void before((Node or DOMString)... nodes);
+  void after((Node or DOMString)... nodes);
+  void replace((Node or DOMString)... nodes);
+  void remove();
+};
+
+interface Text : CharacterData {
+  Text splitText(unsigned long offset);
+  readonly attribute DOMString wholeText;
+};
+
+interface ProcessingInstruction : CharacterData {
+  readonly attribute DOMString target;
+};
+
+interface Comment : CharacterData {
+};
+
+interface Range {
+  readonly attribute Node startContainer;
+  readonly attribute unsigned long startOffset;
+  readonly attribute Node endContainer;
+  readonly attribute unsigned long endOffset;
+  readonly attribute boolean collapsed;
+  readonly attribute Node commonAncestorContainer;
+
+  void setStart(Node refNode, unsigned long offset);
+  void setEnd(Node refNode, unsigned long offset);
+  void setStartBefore(Node refNode);
+  void setStartAfter(Node refNode);
+  void setEndBefore(Node refNode);
+  void setEndAfter(Node refNode);
+  void collapse(boolean toStart);
+  void selectNode(Node refNode);
+  void selectNodeContents(Node refNode);
+
+  const unsigned short START_TO_START = 0;
+  const unsigned short START_TO_END = 1;
+  const unsigned short END_TO_END = 2;
+  const unsigned short END_TO_START = 3;
+  short compareBoundaryPoints(unsigned short how, Range sourceRange);
+
+  void deleteContents();
+  DocumentFragment extractContents();
+  DocumentFragment cloneContents();
+  void insertNode(Node node);
+  void surroundContents(Node newParent);
+
+  Range cloneRange();
+  void detach();
+
+  boolean isPointInRange(Node node, unsigned long offset);
+  short comparePoint(Node node, unsigned long offset);
+
+  boolean intersectsNode(Node node);
+
+  stringifier;
+};
+
+interface NodeIterator {
+  readonly attribute Node root;
+  readonly attribute Node? referenceNode;
+  readonly attribute boolean pointerBeforeReferenceNode;
+  readonly attribute unsigned long whatToShow;
+  readonly attribute NodeFilter? filter;
+
+  Node? nextNode();
+  Node? previousNode();
+
+  void detach();
+};
+
+interface TreeWalker {
+  readonly attribute Node root;
+  readonly attribute unsigned long whatToShow;
+  readonly attribute NodeFilter? filter;
+
+           attribute Node currentNode;
+
+  Node? parentNode();
+  Node? firstChild();
+  Node? lastChild();
+  Node? previousSibling();
+  Node? nextSibling();
+  Node? previousNode();
+  Node? nextNode();
+};
+
+callback interface NodeFilter {
+  // Constants for acceptNode()
+  const unsigned short FILTER_ACCEPT = 1;
+  const unsigned short FILTER_REJECT = 2;
+  const unsigned short FILTER_SKIP = 3;
+
+  // Constants for whatToShow
+  const unsigned long SHOW_ALL = 0xFFFFFFFF;
+  const unsigned long SHOW_ELEMENT = 0x1;
+  const unsigned long SHOW_ATTRIBUTE = 0x2; // historical
+  const unsigned long SHOW_TEXT = 0x4;
+  const unsigned long SHOW_CDATA_SECTION = 0x8; // historical
+  const unsigned long SHOW_ENTITY_REFERENCE = 0x10; // historical
+  const unsigned long SHOW_ENTITY = 0x20; // historical
+  const unsigned long SHOW_PROCESSING_INSTRUCTION = 0x40;
+  const unsigned long SHOW_COMMENT = 0x80;
+  const unsigned long SHOW_DOCUMENT = 0x100;
+  const unsigned long SHOW_DOCUMENT_TYPE = 0x200;
+  const unsigned long SHOW_DOCUMENT_FRAGMENT = 0x400;
+  const unsigned long SHOW_NOTATION = 0x800; // historical
+
+  unsigned short acceptNode(Node node);
+};
+
+[ArrayClass]
+interface NodeList {
+  getter Node? item(unsigned long index);
+  readonly attribute unsigned long length;
+};
+
+interface HTMLCollection {
+  readonly attribute unsigned long length;
+  getter Element? item(unsigned long index);
+  getter object? namedItem(DOMString name); // only returns Element
+};
+
+[NoInterfaceObject]
+interface DOMStringList {
+  readonly attribute unsigned long length;
+  getter DOMString? item(unsigned long index);
+  boolean contains(DOMString string);
+};
+
+interface DOMTokenList {
+  readonly attribute unsigned long length;
+  getter DOMString? item(unsigned long index);
+  boolean contains(DOMString token);
+  void add(DOMString... tokens);
+  void remove(DOMString... tokens);
+  boolean toggle(DOMString token, optional boolean force);
+  stringifier;
+};
+
+interface DOMSettableTokenList : DOMTokenList {
+            attribute DOMString value;
+};
+

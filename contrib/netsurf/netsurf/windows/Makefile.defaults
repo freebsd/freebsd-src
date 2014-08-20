@@ -1,0 +1,21 @@
+# ----------------------------------------------------------------------------
+# windows-specific options
+# ----------------------------------------------------------------------------
+
+# Enable NetSurf's use of librosprite for displaying RISC OS Sprites
+# Valid options: YES, NO, AUTO
+NETSURF_USE_ROSPRITE := NO
+
+# Enable NetSurf's use of libsvgtiny for displaying SVGs
+# Valid options: YES, NO
+NETSURF_USE_NSSVG := NO
+
+# Force using glibc internal iconv implementation instead of external libiconv
+# Valid options: YES, NO
+NETSURF_USE_LIBICONV_PLUG := NO
+
+# no pdf support
+NETSURF_USE_HARU_PDF := NO
+
+# Optimisation levels
+CFLAGS += -O2

@@ -1,0 +1,714 @@
+; Installation script for NetSurf
+
+(procedure p_setmimetype #type #mimetype
+	(transcript "Setting MIME Type " #mimetype " for default " #type " icon")
+
+	(set #fullpath (cat "ENVARC:Sys/def_" #type))
+
+	(tooltype
+		(prompt "Setting MIME type")
+		(help @tooltype-help)
+		(dest #fullpath)
+		(settooltype "MIMETYPE" #mimetype)
+	)
+)
+
+; The below procedure is part of "fitr", see
+; http://www.unsatisfactorysoftware.co.uk/fitr
+(procedure p_fitr #filename #text #comment #flags
+	(set #comstring "")
+	(if #comment (set #comstring (cat "COMMENT=\"" #comment "\"")))
+	(set #comment "")
+	(set #switches "")
+	(if #flags (set #switches (cat " " #flags)))
+	(set #flags "")
+
+	(if #text
+		(
+			(transcript "Adding " @app-name " section to " #filename)
+
+			(textfile
+				(dest "t:fitr-installer.tmp")
+				(append #text)
+			)
+
+			(run (cat "fitr \"" #filename "\" \"" @app-name "\" t:fitr-installer.tmp " #comstring #switches))
+			(delete "t:fitr-installer.tmp")
+		)
+;else
+		(
+			(transcript "Removing " @app-name " section from " #filename)
+			(run (cat "fitr \"" #filename "\" \"" @app-name "\" " #comstring #switches))
+		)
+	)
+)
+
+(procedure p_failedsobjs
+	(if #failedsobjs
+		(message "The following shared objects failed to copy.  These will be updated on next reboot.\n\n" #failedsobjs)
+	)
+)
+
+(procedure p_schedulesobj #sobj
+	(transcript "Scheduling update of " #sobj " for next reboot")
+
+	(set #failedsobjs (cat #failedsobjs "\n" #sobj))
+
+	(makedir "SObjs:so-installer")
+
+	(copyfiles
+		(source (tackon "SObjs" #sobj))
+		(dest "SObjs:so-installer")
+	)
+
+	(startup "Shared object installer"
+		(prompt "Adding commands to user-startup to schedule copy of " #sobj " on next reboot")
+		(help @startup-help)
+		(command "if EXISTS SObjs:so-installer\n")
+		(command "  copy SObjs:so-installer SObjs: CLONE FORCE QUIET\n")
+		(command "  delete SObjs:so-installer ALL FORCE QUIET\n")
+		(command "endif\n")
+	)
+)
+
+(procedure p_comparesobj2 #sobj1_full #sobj2_full
+	(set #same 0)
+
+	(set #sobj-version (getversion (#sobj1_full)))
+	(if (= #sobj-version 0)
+		(
+			(if (exists (#sobj2_full))
+				(
+					(set #file-newer (earlier (#sobj2_full) (#sobj1_full)))
+					(set #old-size (getsize (#sobj2_full)))
+					(set #new-size (getsize (#sobj1_full)))
+
+					(if (AND (= #old-size #new-size) (= #file-newer 0)) (set #same 1))
+				)
+			)
+		)
+		; else if version info is available
+		(
+			(set #sobj-oldversion (getversion (#sobj2_full)))
+
+			(if (<= #sobj-version #sobj-oldversion) (set #same 1))
+		)
+	)
+)
+
+(procedure p_comparesobj #sobj
+	(set #sobj1 (tackon "SObjs/" #sobj))
+	(set #sobj2 (tackon "SObjs:" #sobj))
+
+	(p_comparesobj2 #sobj1 #sobj2)
+)
+
+(procedure p_linksobj #sobj #sobj_link
+	(set #sobj2 (tackon "SObjs:" #sobj_link))
+
+	(p_comparesobj2 (tackon "SObjs/" #sobj) #sobj2)
+
+	(if (= #same 0) ;if #sobj is newer than that pointed to by #sobj_link
+		(
+			(if (exists (#sobj2))
+				(transcript "Deleting " #sobj2)
+				(delete #sobj2 (optional "force")) ;prevent dodgy recursive links
+			)
+			(set #linkcmd (cat "makelink " #sobj2 " SObjs:" #sobj " soft"))
+			(transcript "Running " #linkcmd)
+			(run #linkcmd)
+		)
+	)
+)
+
+(procedure p_copysobj #sobj
+	(set #sobj-version (getversion (tackon "SObjs/" #sobj)))
+
+	(if (= #sobj-version 0)
+		(
+			(transcript "Date compare " #sobj)
+
+			(if (exists (tackon "SObjs:" #sobj))
+				(
+					(set #file-newer (earlier (tackon "SObjs:" #sobj) (tackon "SObjs/" #sobj)))
+
+					(if (= #file-newer 0)
+						(
+							(set #newer-text "has an older datestamp")
+						)
+						;else
+						(
+							(set #newer-text "has a newer datestamp")
+						)
+					)
+
+					(set #old-size (getsize (tackon "SObjs:" #sobj)))
+					(set #new-size (getsize (tackon "SObjs/" #sobj)))
+
+					(if (AND (= #old-size #new-size) (= #file-newer 0))
+						(
+							(set #copy 0)
+						)
+						;else
+						(
+							(if (OR (= @user-level 2) (AND (= @user-level 1) (<> #file-newer 0)))
+; Expert users are always prompted
+; Average users are prompted if the file trying to be copied is newer
+; Novice users are never prompted
+; This is roughly equivalent to (copylib (confirm))
+; No prompting occurs if the destination does not exist (silent copy)
+; or the files are the same size and the one being copied isn't newer (don't copy)
+								(
+									(set #copy
+										(askbool
+											(prompt "Copying " #sobj "...\n\n"
+												"Version to install: " #new-size " bytes\n"
+												"Version currently installed: " #old-size " bytes\n\n"
+												"The file to copy " #newer-text)
+											(help @askbool-help)
+											(default #file-newer)
+											(choices "Proceed with copy" "Skip this part")
+										)
+									)
+								)
+								;else
+								(
+									(set #copy #file-newer)
+								)
+							)
+						)
+					)
+				)
+				; else if dest file does not exist
+				(
+					(set #copy 1)
+				)
+			)
+
+			(if (<> #copy 0)
+				(
+					(if (<> #AutoInstall 1)
+						(
+							(copyfiles
+								(prompt "Copying " #sobj "...")
+								(help @copyfiles-help)
+								(source (tackon "SObjs/" #sobj))
+								(dest "SObjs:")
+								(optional "nofail" "force")
+							)
+						)
+						;else
+						(
+							(run "CopyStore SObjs/" #sobj " SObjs:")
+						)
+					)
+
+					(p_comparesobj #sobj)
+					(if (= #same 0)
+						(
+							(p_schedulesobj #sobj)
+						)
+					)
+				)
+			)
+		)
+		; else if version info is available
+		(
+			(if (<> #AutoInstall 1)
+				(
+					(copylib
+						(prompt "Copying " #sobj "...")
+						(help @copylib-help)
+						(source (tackon "SObjs/" #sobj))
+						(dest "SObjs:")
+						(optional "nofail" "force")
+						(confirm "expert")
+					)
+				)
+				;else
+				(
+					(run "CopyStore SObjs/" #sobj " SObjs:")
+				)
+			)
+
+			(p_comparesobj #sobj)
+			(if (= #same 0)
+				(
+					(p_schedulesobj #sobj)
+				)
+			)
+		)
+	)
+)
+
+(procedure p_copylib #lib
+	(if (<> #AutoInstall 1)
+		(
+			(copylib
+				(prompt "Copying " #lib "...")
+				(help @copylib-help)
+				(source (tackon "Libs/" #lib))
+				(dest "Libs:")
+				(optional "nofail" "force")
+				(confirm "expert")
+			)
+		)
+		;else
+		(
+			(run "CopyStore Libs/" #lib " Libs:")
+		)
+	)
+)
+
+(procedure p_chk_launch-handler #protocol
+	(run "C:Search >T:NS_Install.tmp " (tackon "ENVARC:launch-handler/URL" #protocol) " NetSurf" (safe))
+	(set #has_entry (getsize "T:NS_Install.tmp"))
+)
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;; Script execution starts here ;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+(if (= @app-name "NetSurfAutoInstall") (set #AutoInstall 1))
+(set @app-name "NetSurf")
+
+(if (<> #AutoInstall 1) (welcome))
+
+(complete 0)
+
+(set @default-dest (getenv "AppPaths/NetSurf"))
+
+; If env-var did not exist, this is a first time install.
+; For novice users we must take care to put the files somewhere sensible.
+(if (= @default-dest "")
+	(
+		; Workaround for Installer bug picking TEXTCLIP: as a sensible location
+		(if (= @default-dest "TextClip:") (set @default-dest "SYS:Internet"))
+
+		(if (= @user-level 0)
+			(
+				(makedir (tackon @default-dest "NetSurf") (infos))
+				(set @default-dest (tackon @default-dest "NetSurf"))
+			)
+		)
+	)
+)
+
+(set @default-dest
+	(askdir
+		(prompt "Where would you like to install NetSurf?\n"
+				"(a drawer WILL NOT be created)")
+		(help @askdir-help)
+		(default @default-dest)
+	)
+)
+
+(complete 5)
+
+(working "Checking existing installation...")
+(set #icon-exists (exists (tackon @default-dest "NetSurf.info")))
+(set osver (getversion))
+(set osver (/ osver 65536))
+(set #versions-available 0)
+
+(set #static-filename "NetSurf")
+(set #cairo-filename "NetSurf")
+
+(if (exists "NetSurf")
+	(
+		(if (exists "SObjs")
+			(
+				(if (>= osver 53) 
+					(
+						(set #cairo-name "Shared objects/part-Cairo")
+						(set #versions-available (+ #versions-available 1))
+						(set #cairo-version 1)
+					)
+					;else
+					(
+						(set #cairo-version 0)
+						(set #cairo-name "")
+					)
+				)
+			)
+			;else
+			(
+				; assume static if sobjs is not present
+				(set #static-name "Static/graphics.library")
+				(set #versions-available (+ #versions-available 1))
+				(set #cairo-version 0)
+				(set #static-filename "NetSurf")
+			)
+		)
+	)
+	; else
+	(
+		(set #cairo-version 0)
+		(set #cairo-name "")		
+	)
+)
+
+(transcript "Versions avaiable for install: " #versions-available "  " #static-name "  " #cairo-name)
+
+(if (= #versions-available 0)
+	(
+		(abort "Did not find any compatible versions of NetSurf to install!\n\n"
+			"NetSurf requires AmigaOS 4.1 or higher.")
+	)
+)
+
+(complete 10)
+
+(if (AND (> @user-level 0) (> #versions-available 1))
+	(
+		(set #cairo-version
+			(askchoice
+				(prompt "Which version of NetSurf would you like to install?")
+				(help "The Cairo version has anti-aliasing of graphical elements.\n\n"
+					@askchoice-help)
+				(choices #static-name #cairo-name)
+				(default #cairo-version)
+			)
+		)
+	)
+)
+
+(complete 15)
+
+(set #user (getenv "user"))
+(if (= #user "") (set #user "Default"))
+
+(set #user-dir (tackon (tackon @default-dest "Users") #user))
+(set #user-options (tackon #user-dir "Choices"))
+(set #options-exist (exists #user-options))
+(set #searchengines-exist (exists (tackon @default-dest "Resources/SearchEngines")))
+(set #user-hotlist (tackon #user-dir "Hotlist"))
+(set #hotlist-exist (exists #user-hotlist))
+(set #old-hotlist (tackon @default-dest "Resources/Hotlist"))
+(set #old-hotlist-exist (exists #old-hotlist))
+(set #aiss-theme "")
+
+(if (= #options-exist 0)
+	(
+		(if (exists "TBimages:" (noreq))
+			(set #aiss-theme "AISS")
+		)
+
+		(set #themename
+   			(askchoice
+  				(prompt "Please select theme")
+ 	      		(help "AISS theme requires AISS (and def_pointers for 32-bit "
+						"pointers), and will only be shown as an option if "
+						"AISS is installed.\n\n"
+						@askchoice-help)
+				(choices "Default" #aiss-theme)
+       			(default 0)
+   			)
+		)
+
+		(select #themename
+			(set #themeshort "Default")
+			(set #themeshort "AISS")
+		)
+
+		(set #theme (tackon "PROGDIR:Resources/Themes/" #themeshort))
+	)
+)
+
+(complete 18)
+
+(if (>= osver 53)
+	(
+		(set #addlaunchhandler
+			(askbool
+				(prompt "Add NetSurf to launch-handler? (recommended)")
+				(help "launch-handler is part of OS4.1 which opens URLs "
+					" by launching a web browser.\n\n"
+					"The installation will update the configuration of "
+					"OS4.1 to allow URLs to be opened by NetSurf.")
+				(default 1)
+			)
+		)
+	)
+	;else
+	(
+		(set #addlaunchhandler 0)
+	)
+)
+
+(complete 19)
+
+(set #runfixfonts
+	(askbool
+		(prompt "Installer will run FixFonts after NetSurf is installed.  "
+			"Unless you have a *very* good reason you should not skip this step.")
+		(help "FixFonts corrects inconsistencies in the Amiga FONTS: structure. "
+			"Running it will prevent NetSurf hitting problems when the fonts are scanned.")
+		(default 1)
+		(choices "Run FixFonts" "Skip")
+	)
+)
+
+(complete 20)
+
+(set #netsurf-name (select #cairo-version #static-filename #cairo-filename))
+
+(working "Installing NetSurf")
+
+(if (= #AutoInstall 0)
+	(
+		(copyfiles
+			(prompt "Copying NetSurf...")
+			(help @copyfiles-help)
+			(source #netsurf-name)
+			(dest @default-dest)
+			(newname "NetSurf")
+			(optional "askuser" "force" "oknodelete")
+			(confirm "expert")
+		)
+	)
+;else
+	(
+		(run "CopyStore NetSurf" @default-dest)
+	)
+)
+
+(complete 30)
+
+(if #searchengines-exist
+	(rename (tackon @default-dest "Resources/SearchEngines") (tackon @default-dest "Resources/SearchEngines.backup"))
+)
+
+(run "c:filenote Rexx/CloseTabs.nsrx \"Close other tabs\"")
+(run "c:filenote Rexx/ViewSource.nsrx \"View source\"")
+(run "c:filenote Rexx/GetVideo.nsrx \"Get video\"")
+
+(copyfiles
+	(prompt "Copying files")
+	(source "")
+	(choices "Resources" "Rexx" "NetSurf.guide" "NetSurf.readme")
+	(help @copyfiles-help)
+	(dest @default-dest)
+	(infos)
+	(optional "nofail")
+;	(all)
+)
+
+(copyfiles
+	(prompt "Copying additional documentation")
+	(source "")
+	(pattern "(COPYING|ChangeLog)")
+	(help @copyfiles-help)
+	(dest @default-dest)
+	(infos)
+	(optional "nofail")
+)
+
+(set #complete 40)
+(working "Copying Libraries")
+
+(if (exists "Libs")
+	(
+		(foreach "Libs" "#?"
+			(complete #complete)
+			(p_copylib @each-name)
+			(set #complete (+ #complete 2))
+		)
+	)
+)
+
+(set #complete 60)
+
+(if (= #cairo-version 1)
+	(
+		(working "Copying Shared Objects")
+
+		(foreach "SObjs" "#?"
+			(complete #complete)
+			(p_copysobj @each-name)
+			(set #complete (+ #complete 1))
+		)
+	)
+)
+
+(complete 90)
+
+(if #themeshort
+	(
+		(set #theme-icon
+			(tackon "Resources/Themes"
+				(tackon #themeshort "NetSurf.info")
+			)
+		)
+
+		(if (exists #theme-icon)
+			(
+				(copyfiles
+					(prompt "Copying theme icon")
+					(help @copyfiles-help)
+					(source #theme-icon)
+					(dest @default-dest)
+				)
+			)
+		)
+
+		(makedir #user-dir)
+
+		(textfile
+			(prompt "Setting default options")
+			(help @textfile-help)
+			(dest #user-options)
+			(append "theme:" #theme "\n")
+			(append "pubscreen_name:Workbench\n")
+		)
+
+		(if (= #hotlist-exist 0)
+			(if (= #old-hotlist-exist 1)
+				(
+					(copyfiles
+						(prompt "Migrating NetSurf 2.x Hotlist")
+						(help @copyfiles-help)
+						(source #old-hotlist)
+						(dest #user-dir)
+						(optional "askuser" "force" "oknodelete")
+					)
+				)
+			)
+		)
+	)
+)
+
+(complete 95)
+
+(if (= (exists "ENVARC:Sys/def_css.info") 0)
+	(copyfiles
+		(prompt "Copying default CSS icon")
+		(source "Resources/default.css.info")
+		(newname "def_css.info")
+		(help @copyfiles-help)
+		(dest "ENVARC:Sys")
+		(optional "nofail")
+	)
+)
+
+(complete 96)
+
+(working "Setting MIME types")
+(p_setmimetype "css" "text/css")
+(p_setmimetype "html" "text/html")
+(p_setmimetype "ascii" "text/plain")
+(p_setmimetype "jpeg" "image/jpeg")
+(p_setmimetype "gif" "image/gif")
+(p_setmimetype "png" "image/png")
+(p_setmimetype "jng" "image/jng")
+(p_setmimetype "mng" "image/mng")
+(p_setmimetype "svg" "image/svg")
+(p_setmimetype "bmp" "image/bmp")
+(p_setmimetype "ico" "image/ico")
+(p_setmimetype "sprite" "image/x-riscos-sprite")
+(p_setmimetype "webp" "image/webp")
+(p_setmimetype "lha" "application/x-lha")
+(p_setmimetype "zip" "application/x-zip")
+(p_setmimetype "js" "application/javascript")
+
+(complete 97)
+
+(if (>= osver 53)
+	(if (= (exists "Rexx:NetSurf") 0)
+		(
+			(textfile
+				(prompt "Creating NetSurf launch helper")
+				(help @textfile-help)
+				(dest "Rexx:NetSurf")
+				(append "/*\n"
+" * Copyright 2013 Chris Young <chris@unsatisfactorysoftware.co.uk>\n"
+" *\n"
+" * This file is part of NetSurf, http://www.netsurf-browser.org/\n"
+" *\n"
+" * NetSurf is free software; you can redistribute it and/or modify\n"
+" * it under the terms of the GNU General Public License as published by\n"
+" * the Free Software Foundation; version 2 of the License.\n"
+" *\n"
+" * NetSurf is distributed in the hope that it will be useful,\n"
+" * but WITHOUT ANY WARRANTY; without even the implied warranty of\n"
+" * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the\n"
+" * GNU General Public License for more details.\n"
+" *\n"
+" * You should have received a copy of the GNU General Public License\n"
+" * along with this program.  If not, see <http://www.gnu.org/licenses/>.\n"
+" */\n"
+"\n"
+"/* This is a convenience script for launching NetSurf from the Shell.\n"
+" * If NetSurf is already running it will open the supplied URL in a new tab.\n"
+" * This can be used in URL Prefs in place of directly calling APPDIR:NetSurf.\n"
+" */\n"
+"\n"
+"options results\n"
+"parse arg url\n"
+"\n"
+"if show('P', 'NETSURF') then do\n"
+" address NETSURF 'OPEN' url 'NEWTAB'\n"
+" address NETSURF 'TOFRONT'\n"
+"end\n"
+"else do\n"
+" address command 'APPDIR:NetSurf URL' url\n"
+"end\n")
+			)
+			(protect "Rexx:NetSurf" "+se")
+		)
+	)
+)
+
+(complete 98)
+
+(if (= #addlaunchhandler 1)
+	(
+; We use fitr here so that the sections are only added once.
+; We also check for string "NetSurf" within the files as saving
+; the config will overwrite fitr's tags.
+; This probably needs rewriting to not use fitr as it isn't really necessary now.
+
+		(working "Adding NetSurf to launch-handler config")
+		(if (= (p_chk_launch-handler "FILE.LH") 0)
+			(p_fitr "ENVARC:launch-handler/URL/FILE.LH" "ClientName=\"NETSURF\"   ClientPath=\"Rexx:NetSurf\"   CMDFORMAT=\"*\"file:///%s*\"\"")
+		)
+
+		(if (= (p_chk_launch-handler "HTTP.LH") 0)
+			(p_fitr "ENVARC:launch-handler/URL/HTTP.LH" "ClientName=\"NETSURF\"   ClientPath=\"Rexx:NetSurf\"   CMDFORMAT=\"*\"http://%s*\"\"")
+		)
+
+		(if (= (p_chk_launch-handler "HTTPS.LH") 0)
+			(p_fitr "ENVARC:launch-handler/URL/HTTPS.LH" "ClientName=\"NETSURF\"   ClientPath=\"Rexx:NetSurf\"   CMDFORMAT=\"*\"https://%s*\"\"")
+		)
+
+		(if (= (p_chk_launch-handler "WWW.LH") 0)
+			(p_fitr "ENVARC:launch-handler/URL/WWW.LH" "ClientName=\"NETSURF\"   ClientPath=\"Rexx:NetSurf\"   CMDFORMAT=\"*\"http://www.%s*\"\"")
+		)
+
+;		(if (= (p_chk_launch-handler "FTP.LH") 0)
+;			(p_fitr "ENVARC:launch-handler/URL/FTP.LH" "ClientName=\"NETSURF\"   ClientPath=\"Rexx:NetSurf\"   CMDFORMAT=\"*\"ftp://%s*\"\"")
+;		)
+	)
+)
+
+(complete 99)
+
+(working "Running FixFonts")
+
+(if #runfixfonts
+	(
+		(run "SYS:System/FixFonts")
+	)
+)
+
+(complete 100)
+
+(if (= #AutoInstall 1)
+	(
+		(exit (quiet))
+	)
+	(
+		(p_failedsobjs)
+		(exit)
+	)
+)

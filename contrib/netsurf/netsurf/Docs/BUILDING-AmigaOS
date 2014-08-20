@@ -1,0 +1,149 @@
+--------------------------------------------------------------------------------
+  Build Instructions for AmigaOS NetSurf                           29 March 2014
+--------------------------------------------------------------------------------
+
+  This document provides instructions for building the AmigaOS version of
+  NetSurf and provides guidance on obtaining NetSurf's build dependencies.
+
+  AmigaOS NetSurf has been tested on AmigaOS 4.0 July 2007 Update and AmigaOS
+  4.1.  It will require modification for AmigaOS 3.9 or earlier, or other
+  Amiga-like platforms.
+
+  AmigaOS NetSurf will build against newlib by default, building against
+  clib2 has not been tested.
+
+
+  Building and executing NetSurf
+================================
+
+  First of all, you should examine the contents of Makefile.defaults
+  and enable and disable relevant features as you see fit by creating
+  a Makefile.config.  Some of these options can be automatically
+  detected and used, although it is better to explicitly enable or
+  disable options.
+  
+  You should then obtain NetSurf's dependencies, keeping in mind which options
+  you have enabled in the configuration file.  See the next section for
+  specifics.
+  
+  Once done, to build AmigaOS NetSurf on OS4, simply run:
+
+      1> gmake
+
+  If that produces errors, you probably don't have some of NetSurf's build
+  dependencies installed. See "Obtaining NetSurf's dependencies" below, or turn
+  off the complaining features in a Makefile.config.
+
+  Running NetSurf from the build tree requires some setup:
+
+      1> makelink resources amiga/resources force
+      1> copy amiga/resources/themes/default/NetSurf.info NetSurf.info
+
+  It should then be possible to run NetSurf by executing NetSurf from the
+  Shell or by double-clicking on the icon.
+
+
+  Obtaining NetSurf's build dependencies
+========================================
+
+  Many of NetSurf's dependencies are included with the OS4 SDK or available
+  from Aminet or OS4Depot.  The remainder must be built manually.
+
+  The NetSurf project's libraries
+---------------------------------
+
+  The NetSurf project has developed several libraries which are required by
+  the browser.  To fetch each of these libraries, run the appropriate commands
+  from the Docs/LIBRARIES file.
+
+  To build and install these libraries, simply enter each of their directories
+  and run:
+  
+      1> gmake PREFIX=/path/to/buildsystem
+
+  The path MUST be in UNIX format and point to directory containing "share".
+
+  | Note: Building libsvgtiny requires gperf, which is available from Aminet:
+  |
+  |           http://www.aminet.net/package/dev/c/gperf
+
+
+  cURL
+------
+
+  A version of libcurl built for newlib is available from Aminet
+
+      http://www.os4depot.net/share/development/library/misc/libcurl.lha
+
+  To use the shared object when compiling with Cairo support, a link must be made:
+
+      1> makelink sdk:local/newlib/lib/libcurl.so sobjs:libcurl.so.8 soft
+
+
+  libpng
+--------
+
+  NetSurf uses libPNG to display PNG files.
+  It builds without any problems on OS4, or available from OS4Depot:
+
+      http://www.os4depot.net/share/development/library/graphics/libpng.lha
+
+  If building with Cairo, NetSurf MUST be linked against the version of
+  libpng.so included with OS4.
+
+
+  OpenSSL
+---------
+
+  NetSurf uses OpenSSL for encrypted transfers.
+
+      http://www.os4depot.net/share/development/library/misc/libopenssl.lha
+
+  To use the shared object when compiling with Cairo support, a link must be made:
+
+      1> makelink sdk:local/newlib/lib/libssl.so sobjs:libssl.so.1.0.0 soft
+      1> makelink sdk:local/newlib/lib/libcrypto.so sobjs:libcrypto.so.1.0.0 soft
+
+
+  Libharu
+---------
+
+  NetSurf can use Haru PDF to enable PDF export.  Haru PDF can be obtained
+  from http://libharu.org/.  We require libharu 2.2 or later.
+
+  | Note: libharu cannot be auto-detected by the Makefile.  If you wish to
+  |       enable it, do so by creating a Makefile.config file.
+
+
+  libregex
+----------
+
+  A version of the regular expression library can be obtained from Aminet:
+
+      http://www.aminet.net/package/dev/lib/libregex-4.4.3
+
+
+  openurl.library
+-----------------
+
+  The AmigaOS mailto: URL support uses openurl.library, this and the includes
+  can be obtained from Aminet:
+
+      http://www.aminet.net/package/comm/www/OpenURL-OS4
+
+
+  Spidermonkey
+--------------
+
+  Experimental Javascript support requires Spidermonkey.  The patches to
+  build v1.7 are available from the NetSurf toolchains Git repository.
+
+
+  General requirements
+----------------------
+
+  Please note that building with Cairo (option NETSURF_AMIGA_USE_CAIRO) will
+  link NetSurf against shared objects, and require the OS4.1 SDK to build and
+  AmigaOS 4.1 to run.  There is no longer any advantage in building against
+  Cairo beyond anti-aliasing, and this option may be removed in the future.
+

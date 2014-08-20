@@ -1,0 +1,10 @@
+genjsbind
+=========
+
+This is a tool to generate javascript to dom bindings from w3c webidl
+files and a binding configuration file.
+
+building
+--------
+
+The tool requires bison and flex as pre-requisites

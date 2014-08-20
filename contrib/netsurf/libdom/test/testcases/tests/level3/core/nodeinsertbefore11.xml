@@ -1,0 +1,77 @@
+<?xml version="1.0" encoding="UTF-8"?><?xml-stylesheet href="test-to-html.xsl" type="text/xml"?>
+
+<!--
+
+Copyright (c) 2001-2004 World Wide Web Consortium, 
+(Massachusetts Institute of Technology, Institut National de
+Recherche en Informatique et en Automatique, Keio University).  All 
+Rights Reserved.  This program is distributed under the W3C's Software
+Intellectual Property License.  This program is distributed in the 
+hope that it will be useful, but WITHOUT ANY WARRANTY; without even
+the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR 
+PURPOSE.  
+
+See W3C License http://www.w3.org/Consortium/Legal/ for more details.
+
+-->
+
+<!DOCTYPE test SYSTEM "dom3.dtd">
+<test xmlns="http://www.w3.org/2001/DOM-Test-Suite/Level-3" name="nodeinsertbefore11">
+<metadata>
+<title>nodeinsertbefore11</title>
+<creator>IBM</creator>
+<description>
+
+
+
+	Using insertBefore on a DocumentFragment node attempt to insert a child nodes before
+	other permissible nodes and verify the contents/name of each inserted node.
+</description>
+<contributor>Neil Delima</contributor>
+<date qualifier="created">2002-06-10</date>
+<subject resource="http://www.w3.org/TR/2004/REC-DOM-Level-3-Core-20040407/core#ID-952280727"/>
+</metadata>
+<var name="doc" type="Document"/>
+<var name="docFrag" type="DocumentFragment"/>
+<var name="elem" type="Element"/>
+<var name="pi" type="ProcessingInstruction"/>
+<var name="comment" type="Comment"/>
+<var name="txt" type="Text"/>
+<var name="cdata" type="CDATASection"/>
+<var name="eRef" type="EntityReference"/>
+<var name="inserted" type="Node"/>
+<var name="insertedVal" type="DOMString"/>
+<var name="appendedChild" type="Node"/>
+<load var="doc" href="hc_staff" willBeModified="true"/>
+<createDocumentFragment var="docFrag" obj="doc"/>
+<createElementNS var="elem" obj="doc"  qualifiedName='"body"' namespaceURI='"http://www.w3.org/1999/xhtml"'/>
+<createProcessingInstruction var="pi" obj="doc" target='"PITarget"' data='"PIData"' />
+<createComment var="comment" obj="doc" data='"Comment"' />
+<createTextNode var="txt" obj="doc" data='"Text"' />
+<createCDATASection var="cdata" obj="doc" data='"CDATA"' />
+<createEntityReference var="eRef" obj="doc" name='"alpha"' />
+<appendChild obj="docFrag" var="appendedChild" newChild="elem"/>
+<appendChild obj="docFrag" var="appendedChild" newChild="pi"/>
+<appendChild obj="docFrag" var="appendedChild" newChild="comment"/>
+<appendChild obj="docFrag" var="appendedChild" newChild="txt"/>
+<appendChild obj="docFrag" var="appendedChild" newChild="cdata"/>
+<appendChild obj="docFrag" var="appendedChild" newChild="eRef"/>
+<!--
+<insertBefore var="inserted" obj="docFrag" newChild="pi" refChild="elem" />
+<target var="insertedVal" obj="inserted" interface="ProcessingInstruction"/>
+<assertEquals actual="insertedVal" expected='"PITarget"' id="nodeinsertbefore11"/>
+-->
+<insertBefore var="inserted" obj="docFrag" newChild="comment" refChild="pi"/>
+<data var="insertedVal" obj="inserted" interface="CharacterData"/>
+<assertEquals actual="insertedVal" expected='"Comment"' id="nodeinsertbefore11_Comment" ignoreCase="false"/>
+<insertBefore var="inserted" obj="docFrag" newChild="txt" refChild="comment"/>
+<data var="insertedVal" obj="inserted" interface="CharacterData"/>
+<assertEquals actual="insertedVal" expected='"Text"' id="nodeinsertbefore11_Text" ignoreCase="false"/>
+<insertBefore var="inserted" obj="docFrag" newChild="cdata" refChild="txt"/>
+<data var="insertedVal" obj="inserted" interface="CharacterData"/>
+<assertEquals actual="insertedVal" expected='"CDATA"' id="nodeinsertbefore11_CDATA" ignoreCase="false"/>
+<insertBefore var="inserted" obj="docFrag" newChild="eRef" refChild="cdata"/>
+<nodeName var="insertedVal" obj="inserted" />
+<assertEquals actual="insertedVal" expected='"alpha"' id="nodeinsertbefore11_Ent1" ignoreCase="false"/>
+
+</test>

@@ -1,0 +1,67 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+Copyright (c) 2001-2003 World Wide Web Consortium,
+(Massachusetts Institute of Technology, Institut National de
+Recherche en Informatique et en Automatique, Keio University). All
+Rights Reserved. This program is distributed under the W3C's Software
+Intellectual Property License. This program is distributed in the
+hope that it will be useful, but WITHOUT ANY WARRANTY; without even
+the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
+PURPOSE.
+See W3C License http://www.w3.org/Consortium/Legal/ for more details.
+--><!DOCTYPE test SYSTEM "dom1.dtd">
+
+<test xmlns="http://www.w3.org/2001/DOM-Test-Suite/Level-1" name="hc_nodereplacechildnewchildexists">
+<metadata>
+<title>hc_nodeReplaceChildNewChildExists</title>
+<creator>Curt Arnold</creator>
+<description>
+    If the "newChild" is already in the tree, it is first
+    removed before the new one is added.
+   
+    Retrieve the second "p" and replace "acronym" with its "em".
+</description>
+<date qualifier="created">2002-06-09</date>
+<subject resource="http://www.w3.org/TR/1998/REC-DOM-Level-1-19981001/level-one-core#ID-785887307"/>
+<subject resource="http://www.w3.org/Bugs/Public/show_bug.cgi?id=246"/>
+</metadata>
+<var name="doc" type="Document"/>
+<var name="elementList" type="NodeList"/>
+<var name="employeeNode" type="Node"/>
+<var name="childList" type="NodeList"/>
+<var name="oldChild" type="Node" isNull="true"/>
+<var name="newChild" type="Node" isNull="true"/>
+<var name="child" type="Node"/>
+<var name="childName" type="DOMString"/>
+<var name="childNode" type="Node"/>
+<var name="actual" type="List"/>
+<var name="expected" type="List">
+<member>"strong"</member>
+<member>"code"</member>
+<member>"sup"</member>
+<member>"var"</member>
+<member>"em"</member>
+</var>
+<var name="replacedChild" type="Node"/>
+<var name="nodeType" type="int"/>
+<load var="doc" href="hc_staff" willBeModified="true"/>
+<getElementsByTagName interface="Document" obj="doc" tagname='"p"' var="elementList"/>
+<item interface="NodeList" obj="elementList" index="1" var="employeeNode"/>
+<getElementsByTagName interface="Element" obj="employeeNode" var="childList" tagname='"*"'/>
+<item interface="NodeList" obj="childList" index="0" var="newChild"/>
+<item interface="NodeList" obj="childList" index="5" var="oldChild"/>
+<replaceChild var="replacedChild" obj="employeeNode" newChild="newChild" oldChild="oldChild"/>
+<assertSame actual="replacedChild" expected="oldChild" id="return_value_same"/>
+<for-each collection="childList" member="childNode">
+<nodeName var="childName" obj="childNode"/>
+<nodeType var="nodeType" obj="childNode"/>
+<if><equals actual="nodeType" expected="1"/>
+<append collection="actual" item="childName"/>
+<else>
+<assertEquals actual="nodeType" expected="3" id="textNodeType" ignoreCase="false"/>
+<assertEquals actual="childName" expected='"#text"' id="textNodeName" ignoreCase="false"/>
+</else>
+</if>
+</for-each>
+<assertEquals actual="actual" expected="expected" id="childNames" ignoreCase="auto"/>
+</test>

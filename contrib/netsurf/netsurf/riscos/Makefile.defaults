@@ -1,0 +1,30 @@
+# ----------------------------------------------------------------------------
+# RISC OS-specific options
+# ----------------------------------------------------------------------------
+
+# Enable NetSurf's use of libsvgtiny for displaying SVGs
+# Valid options: YES, NO
+NETSURF_USE_NSSVG := YES
+
+# Enable NetSurf's support for displaying RISC OS Draw files
+# Valid options: YES, NO
+NETSURF_USE_DRAW := YES
+
+# Enable NetSurf's support for displaying RISC OS Sprites
+# Valid options: YES, NO
+NETSURF_USE_SPRITE := YES
+
+# Enable NetSurf's use of AWRender for displaying ArtWorks files
+# Valid options: YES, NO
+NETSURF_USE_ARTWORKS := YES
+
+# Enable NetSurf's support for the Acorn plugin protocol
+# Valid options: YES, NO
+NETSURF_USE_PLUGINS := NO
+
+# Enable NetSurf's use of pencil for Drawfile export
+# Valid options: YES, NO
+NETSURF_USE_DRAW_EXPORT := YES
+
+# Optimisation levels
+CFLAGS += -O2

@@ -1,0 +1,252 @@
+#data
+* { padding: 10px; }
+#errors
+#expected
+| *
+|  padding-top: 10px
+|  padding-right: 10px
+|  padding-bottom: 10px
+|  padding-left: 10px
+#reset
+
+#data
+* { padding: 10px 20px; }
+#errors
+#expected
+| *
+|  padding-top: 10px
+|  padding-right: 20px
+|  padding-bottom: 10px
+|  padding-left: 20px
+#reset
+
+#data
+* { padding: 10px 20px 30px; }
+#errors
+#expected
+| *
+|  padding-top: 10px
+|  padding-right: 20px
+|  padding-bottom: 30px
+|  padding-left: 20px
+#reset
+
+#data
+* { padding: 10px 20px 30px 40px; }
+#errors
+#expected
+| *
+|  padding-top: 10px
+|  padding-right: 20px
+|  padding-bottom: 30px
+|  padding-left: 40px
+#reset
+
+#data
+* { padding: inherit; }
+#errors
+#expected
+| *
+|  padding-top: inherit
+|  padding-right: inherit
+|  padding-bottom: inherit
+|  padding-left: inherit
+#reset
+
+#data
+* { padding: 20px inherit; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { padding: inherit 20px; }
+#errors
+#expected
+| *
+#reset
+
+
+#data
+* { padding: 10px !important; }
+#errors
+#expected
+| *
+|  padding-top: 10px !important
+|  padding-right: 10px !important
+|  padding-bottom: 10px !important
+|  padding-left: 10px !important
+#reset
+
+#data
+* { padding: 10px 20px !important; }
+#errors
+#expected
+| *
+|  padding-top: 10px !important
+|  padding-right: 20px !important
+|  padding-bottom: 10px !important
+|  padding-left: 20px !important
+#reset
+
+#data
+* { padding: 10px 20px 30px !important; }
+#errors
+#expected
+| *
+|  padding-top: 10px !important
+|  padding-right: 20px !important
+|  padding-bottom: 30px !important
+|  padding-left: 20px !important
+#reset
+
+#data
+* { padding: 10px 20px 30px 40px !important; }
+#errors
+#expected
+| *
+|  padding-top: 10px !important
+|  padding-right: 20px !important
+|  padding-bottom: 30px !important
+|  padding-left: 40px !important
+#reset
+
+#data
+* { padding: inherit !important; }
+#errors
+#expected
+| *
+|  padding-top: inherit !important
+|  padding-right: inherit !important
+|  padding-bottom: inherit !important
+|  padding-left: inherit !important
+#reset
+
+#data
+* { padding: 20px inherit !important; }
+#errors
+#expected
+| *
+#reset
+
+
+#data
+* { padding: invalid; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { padding: ; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { padding: 20deg; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { padding:}
+#errors
+#expected
+| *
+#reset
+
+#data
+* { padding: 2px inherit; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { padding: inherit 2px; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { padding: 2px 3em inherit; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { padding: 2px inherit 3em; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { padding: 2px 0 0 0 inherit; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { padding: inherit inherit; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { padding: inherit 0 !important; }
+#errors
+#expected
+| *
+#reset
+
+
+
+#data
+* { padding-top: inherit;}
+#errors
+#expected
+| *
+|  padding-top: inherit
+#reset
+
+#data
+* { padding-right: inherit;}
+#errors
+#expected
+| *
+|  padding-right: inherit
+#reset
+
+#data
+* { padding-bottom: inherit;}
+#errors
+#expected
+| *
+|  padding-bottom: inherit
+#reset
+
+#data
+* { padding-bottom: 2em inherit;}
+#errors
+#expected
+| *
+#reset
+
+#data
+* { padding-left: inherit;}
+#errors
+#expected
+| *
+|  padding-left: inherit
+#reset
+
+

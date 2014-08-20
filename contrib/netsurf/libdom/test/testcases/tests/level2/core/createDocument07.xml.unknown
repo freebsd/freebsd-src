@@ -1,0 +1,52 @@
+<?xml version="1.0" encoding="UTF-8"?><?xml-stylesheet href="test-to-html.xsl" type="text/xml"?>
+
+<!--
+
+Copyright (c) 2001 World Wide Web Consortium, 
+(Massachusetts Institute of Technology, Institut National de
+Recherche en Informatique et en Automatique, Keio University).  All 
+Rights Reserved.  This program is distributed under the W3C's Software
+Intellectual Property License.  This program is distributed in the 
+hope that it will be useful, but WITHOUT ANY WARRANTY; without even
+the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR 
+PURPOSE.  
+
+See W3C License http://www.w3.org/Consortium/Legal/ for more details.
+
+-->
+<!DOCTYPE test SYSTEM "dom2.dtd">
+<test xmlns="http://www.w3.org/2001/DOM-Test-Suite/Level-2" name="createDocument07">
+<metadata>
+<title>createDocument07</title>
+<creator>NIST</creator>
+<description>
+    The "createDocument(namespaceURI,qualifiedName,doctype)" method for a 
+   DOMImplementation should return a new xml Document object of the 
+   specified type with its document element given that all parameters are
+   valid and correctly formed.
+   
+   Invoke method createDocument(namespaceURI,qualifiedName,doctype) on
+   this domimplementation. namespaceURI is "http://www.ecommerce.org/schema"
+   qualifiedName is "y:x" and doctype is null.
+   Method should return a new xml Document as specified by the listed parameters.
+</description>
+<contributor>Mary Brady</contributor>
+<date qualifier="created">2001-08-17</date>
+<subject resource="http://www.w3.org/TR/DOM-Level-2-Core/core#Level-2-Core-DOM-createDocument"/>
+</metadata>
+<var name="namespaceURI" type="DOMString" value="&quot;http://www.ecommerce.org/schema&quot;"/>
+<var name="qualifiedName" type="DOMString" value="&quot;y:x&quot;"/>
+<var name="doc" type="Document"/>
+<var name="docType" type="DocumentType" isNull="true"/>
+<var name="domImpl" type="DOMImplementation"/>
+<var name="aNewDoc" type="Document"/>
+<var name="nodeName" type="DOMString"/>
+<var name="nodeValue" type="DOMString"/>
+<load var="doc" href="staffNS" willBeModified="false"/>
+<implementation obj="doc" var="domImpl"/>
+<createDocument obj="domImpl" var="aNewDoc" namespaceURI="namespaceURI" qualifiedName="qualifiedName" doctype="docType"/>
+<nodeName var="nodeName" obj="aNewDoc"/>
+<nodeValue var="nodeValue" obj="aNewDoc"/>
+<assertEquals actual="nodeName" expected='"#document"' id="nodeName" ignoreCase="false"/>
+<assertNull actual="nodeValue" id="nodeValue"/>
+</test>

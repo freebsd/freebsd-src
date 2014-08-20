@@ -1,0 +1,43 @@
+<?xml version="1.0" standalone="no"?>
+<?xml-stylesheet href="test-to-html.xsl" type="text/xml"?>
+<!--
+
+Copyright (c) 2003 World Wide Web Consortium,
+(Massachusetts Institute of Technology, Institut National de
+Recherche en Informatique et en Automatique, Keio University).  All
+Rights Reserved.  This program is distributed under the W3C's Software
+Intellectual Property License.  This program is distributed in the
+hope that it will be useful, but WITHOUT ANY WARRANTY; without even
+the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
+PURPOSE.
+
+See W3C License http://www.w3.org/Consortium/Legal/ for more details.
+
+-->
+<!DOCTYPE test SYSTEM "dom3.dtd">
+
+
+<test xmlns="http://www.w3.org/2001/DOM-Test-Suite/Level-3" name="HasFeature05">
+  <metadata>
+    <title>HasFeature05</title>
+    <creator>Curt Arnold</creator>
+    <description>The return values of hasFeature("lS-aSynC", "3.0") and hasFeature("+Ls-AsYNc", "3.0") should be equal.</description>
+        <date qualifier="created">2003-12-09</date>
+        <!--  DOMImplementation.hasFeature  -->
+        <subject resource="http://www.w3.org/TR/2004/REC-DOM-Level-3-Core-20040407/core#ID-5CED94D7"/>
+  </metadata>
+  <!--  + on feature names requires L3 Core  -->
+  <hasFeature feature='"Core"' version='"3.0"'/>
+  <var name="domImpl" type="DOMImplementation"/>
+  <var name="hasLS1" type="boolean"/>
+  <var name="hasLS2" type="boolean"/>
+  <implementation var="domImpl"/>
+  <hasFeature var="hasLS1" obj="domImpl" feature='"lS-aSynC"' version='"3.0"'/>
+  <hasFeature var="hasLS2" obj="domImpl" feature='"+Ls-AsYNc"' version='"3.0"'/>
+  <assertEquals actual="hasLS2" expected="hasLS1" id="featuresEqual" ignoreCase="false"/>
+</test>
+
+
+
+
+

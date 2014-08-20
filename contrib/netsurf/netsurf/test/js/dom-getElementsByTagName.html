@@ -1,0 +1,31 @@
+<html>
+<head>
+<title>Call getElementsByTagName</title>
+<link rel="stylesheet" type="text/css" href="tst.css">
+</head>
+<body>
+<h1>Call getElementsByTagName</h1>
+<p>p one</p>
+<p>p two</p>
+<p>p three</p>
+<script>var pcol = document.getElementsByTagName("p");</script>
+<p>length: <script>document.write(pcol.length);</script>
+<p>
+<script>
+for (var i=0;i<pcol.length;i++)
+{ 
+document.write(pcol.item(i).textContent);
+document.write("|");
+}
+</script>
+<br>
+<p>
+<script>
+for (var i=0;i<pcol.length;i++)
+{ 
+document.write(pcol[i].textContent);
+document.write("|");
+}
+</script>
+</body>
+</html>

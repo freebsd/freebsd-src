@@ -1,0 +1,44 @@
+<?xml version="1.0" encoding="UTF-8"?><?xml-stylesheet href="test-to-html.xsl" type="text/xml"?>
+
+<!--
+
+Copyright (c) 2001-2004 World Wide Web Consortium, 
+(Massachusetts Institute of Technology, Institut National de
+Recherche en Informatique et en Automatique, Keio University).  All 
+Rights Reserved.  This program is distributed under the W3C's Software
+Intellectual Property License.  This program is distributed in the 
+hope that it will be useful, but WITHOUT ANY WARRANTY; without even
+the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR 
+PURPOSE.  
+
+See W3C License http://www.w3.org/Consortium/Legal/ for more details.
+
+-->
+
+<!DOCTYPE test SYSTEM "dom3.dtd">
+<test xmlns="http://www.w3.org/2001/DOM-Test-Suite/Level-3" name="documentrenamenode23">
+<metadata>
+<title>documentrenamenode23</title>
+<creator>IBM</creator>
+<description>
+	The method renameNode renames an existing node and raises a  NOT_SUPPORTED_ERR
+	if the type of the specified node is neither ELEMENT_NODE nor ATTRIBUTE_NODE.
+ 
+	Invoke the renameNode method on this document node to attempt to rename itself.
+	Check if a NOT_SUPPORTED_ERR gets thrown.
+</description>
+<contributor>Neil Delima</contributor>
+<date qualifier="created">2002-06-10</date>
+<subject resource="http://www.w3.org/TR/2004/REC-DOM-Level-3-Core-20040407/core#Document3-renameNode"/>
+</metadata>
+<implementationAttribute name="namespaceAware" value="true"/>
+<var name="doc" type="Document"/>
+<var name="renamedNode" type="Node"/>
+<var name="docowner" type="Document"/>
+<load var="doc" href="hc_staff" willBeModified="false"/>
+<assertDOMException id="documentrenamenode23_NOT_SUPPORTED_ERR">
+<NOT_SUPPORTED_ERR>
+<renameNode var="renamedNode" obj="doc" n="doc" namespaceURI='"http://www.w3.org/DOM/Test"' qualifiedName='"root"'/>
+</NOT_SUPPORTED_ERR>
+</assertDOMException>
+</test>

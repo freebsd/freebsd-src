@@ -1,0 +1,60 @@
+The data which Hubbub is fed (the input stream) gets buffered into a UTF-8
+buffer.  This buffer only holds a subset of the input stream at any given time.
+To avoid unnecessary copying (which is both a speed and memory loss), Hubbub
+tries to make all emitted strings point into this buffer, which is then
+advanced after tokens have been emitted.  This is not always possible, however,
+because HTML5 specifies behaviour which requires changing various characters to
+various other characters, and these sets of characters may not have the same
+length.  These cases are:
+
+ - CR handling -- CRLFs and CRs are converted to LFs
+ - tag and attribute names are lowercased
+ - entities are allowed in attribute names
+ - NUL bytes must be turned into U+FFFD REPLACEMENT CHARACTER
+
+When collecting the strings it will emit, Hubbub starts by assuming that no
+transformations on the input stream will be required.  However, if it hits one
+of the above cases, then it copies all of the collected characters into a buffer
+and switches to using that instead.  This means that every time a character is
+collected and it is possible that that character could be collected into a
+buffer, the code must check if it should be collected into a buffer.  To allow
+this check, and others, to happen when necessary and never otherwise, Hubbub
+uses a set of macros to collect characters, detailed below.
+
+Hubbub strings are (beginning,length) pairs.  This means that once the
+beginning is set to a position in the input stream, the string can collect
+further character runs in the stream simply by adding to the length part.  This
+makes extending strings very efficient.
+
+  | COLLECT(hubbub_string str, uintptr_t cptr, size_t length)
+
+  This collects the character pointed to "cptr" (of size "length") into "str",
+  whether str is a buffered or unbuffered string, but only if "str" already
+  points to collected characters.
+  
+  | COLLECT_NOBUF(hubbub_string str, size_t length)
+  
+  This collects "length" bytes into "str", but only if "str" already points to
+  collected characters.  (There is no need to pass the character, since this
+  just increases the length of the string.)
+  
+  | COLLECT_MS(hubbub_string str, uintptr_t cptr, size_t length)
+  
+  If "str" is currently zero-length, this acts like START(str, cptr, length).
+  Otherwise, it just acts like COLLECT(str, cptr, length).
+  
+  | START(hubbub_string str, uintptr_t cptr, size_t length)
+
+  This sets the string "str"'s start to "cptr" and its length to "length".
+  
+  | START_BUF(hubbub_string str, uintptr_t cptr, size_t length)
+  
+  This buffers the character of length "length" pointed to by "c" and then
+  sets "str" to point to it.
+  
+  | SWITCH(hubbub_string str)
+  
+  This switches the string "str" from unbuffered to buffered; it copies all
+  characters currently collected in "str" to the buffer and then updates it
+  to point there.
+

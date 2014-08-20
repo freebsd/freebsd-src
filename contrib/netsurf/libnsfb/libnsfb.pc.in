@@ -1,0 +1,11 @@
+prefix=PREFIX
+exec_prefix=${prefix}
+libdir=${exec_prefix}/LIBDIR
+includedir=${prefix}/include
+
+Name: libnsfb
+Description: Provides framebuffer access for netsurf.
+Version: VERSION
+REQUIRED
+Libs: -L${libdir} -lnsfb
+Cflags: -I${includedir}

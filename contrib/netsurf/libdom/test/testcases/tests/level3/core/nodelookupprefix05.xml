@@ -1,0 +1,52 @@
+<?xml version="1.0" encoding="UTF-8"?><?xml-stylesheet href="test-to-html.xsl" type="text/xml"?>
+
+<!--
+
+Copyright (c) 2001-2004 World Wide Web Consortium, 
+(Massachusetts Institute of Technology, Institut National de
+Recherche en Informatique et en Automatique, Keio University).  All 
+Rights Reserved.  This program is distributed under the W3C's Software
+Intellectual Property License.  This program is distributed in the 
+hope that it will be useful, but WITHOUT ANY WARRANTY; without even
+the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR 
+PURPOSE.  
+
+See W3C License http://www.w3.org/Consortium/Legal/ for more details.
+
+-->
+
+<!DOCTYPE test SYSTEM "dom3.dtd">
+<test xmlns="http://www.w3.org/2001/DOM-Test-Suite/Level-3" name="nodelookupprefix05">
+<metadata>
+<title>nodelookupprefix05</title>
+<creator>IBM</creator>
+<description>
+	Using lookupPrefix on the DocumentElement node of a new document with a 
+	namespaceURI and prefix and check if the prefix value returned is valid.
+</description>
+<contributor>Jenny Hsu</contributor>
+<date qualifier="created">2003-02-24</date>
+<subject resource="http://www.w3.org/TR/2004/REC-DOM-Level-3-Core-20040407/core#Node3-lookupNamespacePrefix"/>
+</metadata>
+<implementationAttribute name="namespaceAware" value="true"/>
+<var name="doc" type="Document"/>
+<var name="elem" type="Element"/>
+<var name="domImpl" type="DOMImplementation"/>
+<var name="newDoc" type="Document"/>
+<var name="prefix" type="DOMString"/>
+<var name="nullDocType" type="DocumentType" isNull="true"/>
+<var name="docElem" type="Element"/>
+<var name="rootNS" type="DOMString"/>
+<var name="rootName" type="DOMString"/>
+<var name="qname" type="DOMString"/>
+<load var="doc" href="hc_staff" willBeModified="false"/>
+<documentElement var="docElem" obj="doc"/>
+<namespaceURI var="rootNS" obj="docElem" interface="Node"/>
+<tagName var="rootName" obj="docElem"/>
+<plus var="qname" op1='"dom3:"' op2="rootName"/>
+<implementation var="domImpl" obj="doc"/>
+<createDocument var="newDoc" obj="domImpl" namespaceURI="rootNS" qualifiedName="qname" doctype="nullDocType"/>
+<documentElement var="elem" obj="newDoc"/>
+<lookupPrefix var="prefix" obj="elem" namespaceURI="rootNS"/>
+<assertEquals  actual="prefix" expected='"dom3"' id="nodelookupprefix05" ignoreCase="false"/>
+</test>

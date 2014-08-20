@@ -1,0 +1,48 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+Copyright (c) 2001 World Wide Web Consortium,
+(Massachusetts Institute of Technology, Institut National de
+Recherche en Informatique et en Automatique, Keio University). All
+Rights Reserved. This program is distributed under the W3C's Software
+Intellectual Property License. This program is distributed in the
+hope that it will be useful, but WITHOUT ANY WARRANTY; without even
+the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
+PURPOSE.
+See W3C License http://www.w3.org/Consortium/Legal/ for more details.
+--><!DOCTYPE test SYSTEM "dom1.dtd">
+
+<test xmlns="http://www.w3.org/2001/DOM-Test-Suite/Level-1" name="hc_nodedocumentfragmentnodevalue">
+<metadata>
+<title>hc_nodeDocumentFragmentNodeValue</title>
+<creator>Curt Arnold</creator>
+<description>
+    The string returned by the "getNodeValue()" method for a 
+    DocumentFragment Node is null.
+    
+    Retrieve the DOM document and invoke the
+    "createDocumentFragment()" method and check the string      
+    returned by the "getNodeValue()" method.   It should be 
+    equal to null.
+</description>
+
+<contributor>Curt Arnold</contributor>
+<date qualifier="created">2002-06-09</date>
+<subject resource="http://www.w3.org/TR/1998/REC-DOM-Level-1-19981001/level-one-core#ID-B63ED1A3"/>
+<!--nodeValue attribute -->
+<subject resource="http://www.w3.org/TR/1998/REC-DOM-Level-1-19981001/level-one-core#ID-F68D080"/>
+<!-- Node.attributes   -->
+<subject resource="http://www.w3.org/TR/1998/REC-DOM-Level-1-19981001/level-one-core#ID-84CF096"/>
+</metadata>
+<var name="doc" type="Document"/>
+<var name="docFragment" type="DocumentFragment"/>
+<var name="attrList" type="NamedNodeMap"/>
+<var name="value" type="DOMString"/>
+<load var="doc" href="hc_staff" willBeModified="true"/>
+<createDocumentFragment obj="doc" var="docFragment"/>
+<!--  despite the name, this was the only assertion in the original test  -->
+<attributes obj="docFragment" var="attrList"/>
+<assertNull actual="attrList" id="attributesNull"/>
+<!--  now actually test the initial value of nodeValue   -->
+<nodeValue obj="docFragment" var="value"/>
+<assertNull actual="value" id="initiallyNull"/>
+</test>

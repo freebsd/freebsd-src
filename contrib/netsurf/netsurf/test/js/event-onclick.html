@@ -1,0 +1,30 @@
+<html>
+<head>
+<title>alert onclick example</title>
+
+<script type="text/javascript">
+
+function causealert()
+{
+var txt = document.getElementById("p1").textContent;
+alert(txt);
+}
+
+</script>
+</head>
+
+<body>
+<div style="border: 1px solid red">
+<p id="p1">First line of paragraph.<br /></p>
+</div><br />
+
+<button id="button1" >add another textNode.</button>
+
+<script>
+var button = document.getElementById("button1");
+
+button.onclick = causealert;
+</script>
+
+</body>
+</html>

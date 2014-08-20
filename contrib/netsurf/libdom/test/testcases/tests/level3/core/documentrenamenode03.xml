@@ -1,0 +1,46 @@
+<?xml version="1.0" encoding="UTF-8"?><?xml-stylesheet href="test-to-html.xsl" type="text/xml"?>
+
+<!--
+
+Copyright (c) 2001-2004 World Wide Web Consortium, 
+(Massachusetts Institute of Technology, Institut National de
+Recherche en Informatique et en Automatique, Keio University).  All 
+Rights Reserved.  This program is distributed under the W3C's Software
+Intellectual Property License.  This program is distributed in the 
+hope that it will be useful, but WITHOUT ANY WARRANTY; without even
+the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR 
+PURPOSE.  
+
+See W3C License http://www.w3.org/Consortium/Legal/ for more details.
+
+-->
+
+<!DOCTYPE test SYSTEM "dom3.dtd">
+<test xmlns="http://www.w3.org/2001/DOM-Test-Suite/Level-3" name="documentrenamenode03">
+<metadata>
+<title>documentrenamenode03</title>
+<creator>IBM</creator>
+<description>
+	Invoke the renameNode method to rename a new attribute node to one whose
+	namespaceURI is http://www.w3.org/DOM/Test and name is pre0:fix1. 
+	Check if this attribute has been renamed successfully by verifying the
+	nodeName, namespaceURI, nodeType attributes of the renamed node.
+</description>
+<contributor>Neil Delima</contributor>
+<date qualifier="created">2002-06-10</date>
+<subject resource="http://www.w3.org/TR/2004/REC-DOM-Level-3-Core-20040407/core#Document3-renameNode"/>
+</metadata>
+<var name="doc" type="Document"/>
+<var name="attr" type="Attr"/>
+<var name="renamedNode" type="Node"/>
+<var name="nodeName" type="DOMString"/>
+<var name="namespaceURI" type="DOMString"/>
+<var name="nullNSURI" type="DOMString" isNull="true"/>
+<load var="doc" href="hc_staff" willBeModified="true"/>
+<createAttributeNS var="attr" obj="doc" namespaceURI="nullNSURI" qualifiedName='"test"'/>
+<renameNode var="renamedNode" obj="doc" n="attr" namespaceURI='"http://www.w3.org/DOM/Test"' qualifiedName='"pre0:fix1"'/>
+<nodeName var="nodeName" obj="renamedNode"/>
+<namespaceURI var="namespaceURI" obj="renamedNode" interface="Node"/>
+<assertEquals expected='"pre0:fix1"' actual="nodeName"  id="documentrenamenode03_nodeName" ignoreCase="false"/>
+<assertEquals expected='"http://www.w3.org/DOM/Test"' actual="namespaceURI"  id="documentrenamenode02_namespaceURI" ignoreCase="false"/>
+</test>

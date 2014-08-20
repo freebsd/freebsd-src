@@ -1,0 +1,156 @@
+#
+# Makefile for NetSurf GTK target
+#
+# This file is part of NetSurf 
+#
+# ----------------------------------------------------------------------------
+# GTK flag setup (using pkg-config)
+# ----------------------------------------------------------------------------
+
+# define additional CFLAGS and LDFLAGS requirements for pkg-configed libs here
+NETSURF_FEATURE_RSVG_CFLAGS := -DWITH_RSVG
+NETSURF_FEATURE_NSSVG_CFLAGS := -DWITH_NS_SVG
+NETSURF_FEATURE_ROSPRITE_CFLAGS := -DWITH_NSSPRITE
+NETSURF_FEATURE_BMP_CFLAGS := -DWITH_BMP
+NETSURF_FEATURE_GIF_CFLAGS := -DWITH_GIF
+NETSURF_FEATURE_PNG_CFLAGS := -DWITH_PNG
+NETSURF_FEATURE_WEBP_CFLAGS := -DWITH_WEBP
+NETSURF_FEATURE_JS_CFLAGS := -DWITH_JS -DJS_HAS_FILE_OBJECT=0
+NETSURF_FEATURE_MOZJS_CFLAGS := -DWITH_MOZJS -DJS_HAS_FILE_OBJECT=0
+NETSURF_FEATURE_VIDEO_CFLAGS := -DWITH_VIDEO
+
+# add a line similar to below for each optional lib here
+# note: webp lacks pkg-config file
+$(eval $(call pkg_config_find_and_add_enabled,PNG,libpng,PNG))
+$(eval $(call pkg_config_find_and_add_enabled,BMP,libnsbmp,BMP))
+$(eval $(call pkg_config_find_and_add_enabled,GIF,libnsgif,GIF))
+$(eval $(call pkg_config_find_and_add_enabled,RSVG,librsvg-2.0,SVG))
+$(eval $(call pkg_config_find_and_add_enabled,NSSVG,libsvgtiny,SVG))
+$(eval $(call pkg_config_find_and_add_enabled,ROSPRITE,librosprite,Sprite))
+$(eval $(call feature_enabled,WEBP,-DWITH_WEBP,-lwebp,WebP (libwebp)))
+$(eval $(call pkg_config_find_and_add_enabled,MOZJS,mozjs185,JavaScript))
+$(eval $(call pkg_config_find_and_add_enabled,JS,mozilla-js,JavaScript))
+$(eval $(call pkg_config_find_and_add_enabled,VIDEO,gstreamer-0.10,Video))
+
+# GTK and GLIB flags to disable depricated usage
+GTKDEPFLAGS := -DG_DISABLE_SINGLE_INCLUDES \
+		-DG_DISABLE_DEPRECATED \
+	       	-DGTK_DISABLE_SINGLE_INCLUDES \
+	       	-DGTK_DISABLE_DEPRECATED \
+		-DGTK_MULTIHEAD_SAFE \
+		-DPANGO_DISABLE_DEPRECATED \
+	       	-DGDK_PIXBUF_DISABLE_DEPRECATED
+
+# libsexy currently means we cannot enable this
+#		-DGDK_DISABLE_DEPRECATED 
+
+GTKCFLAGS := -std=c99 -Dgtk -Dnsgtk \
+		$(GTKDEPFLAGS) \
+		-D_BSD_SOURCE \
+		-D_XOPEN_SOURCE=600 \
+		-D_POSIX_C_SOURCE=200112L \
+		-D_NETBSD_SOURCE \
+		-DGTK_RESPATH=\"$(NETSURF_GTK_RESOURCES)\" \
+		$(WARNFLAGS) -g
+
+# non optional pkg-configed libs
+$(eval $(call pkg_config_find_and_add,libcss,CSS))
+$(eval $(call pkg_config_find_and_add,libdom,DOM))
+$(eval $(call pkg_config_find_and_add,libhubbub,Hubbub))
+$(eval $(call pkg_config_find_and_add,openssl,OpenSSL))
+$(eval $(call pkg_config_find_and_add,libcurl,Curl ))
+$(eval $(call pkg_config_find_and_add,gtk+-$(NETSURF_GTK_MAJOR).0,GTK-$(NETSURF_GTK_MAJOR)))
+$(eval $(call pkg_config_find_and_add,gthread-2.0,GThread2))
+$(eval $(call pkg_config_find_and_add,gmodule-2.0,GModule2))
+
+
+CFLAGS += $(GTKCFLAGS)
+LDFLAGS += -lm
+
+# ---------------------------------------------------------------------------
+# Windows flag setup
+# ---------------------------------------------------------------------------
+
+ifeq ($(HOST),Windows_NT)
+    CFLAGS += -U__STRICT_ANSI__
+endif
+
+
+# ----------------------------------------------------------------------------
+# Pixbuf
+# ----------------------------------------------------------------------------
+
+GTK_IMAGE_menu_cursor := gtk/res/menu_cursor.png
+
+# 1: input file
+# 2: output file
+# 3: bitmap name
+define convert_image
+
+S_PIXBUF += $(2)
+
+$(2): $(1)
+	$(Q)echo "#include <gdk-pixbuf/gdk-pixdata.h>" > $(2)
+	$(Q)gdk-pixbuf-csource --extern --struct --name=$(3) $(1) >> $(2) || \
+	( rm -f $(2) && false )
+
+endef
+
+# ----------------------------------------------------------------------------
+# Source file setup
+# ----------------------------------------------------------------------------
+
+#converted pixbuf sources
+S_PIXBUF :=
+
+$(eval $(foreach V,$(filter GTK_IMAGE_%,$(.VARIABLES)),$(call convert_image,$($(V)),$(OBJROOT)/$(patsubst GTK_IMAGE_%,%,$(V)).c,$(patsubst GTK_IMAGE_%,%,$(V))_pixdata)))
+
+# S_GTK are sources purely for the GTK build
+S_GTK := font_pango.c bitmap.c gui.c schedule.c thumbnail.c plotters.c	\
+	treeview.c scaffolding.c gdk.c completion.c login.c throbber.c	\
+	selection.c history.c window.c fetch.c download.c menu.c	\
+	print.c search.c tabs.c theme.c toolbar.c gettext.c		\
+	compat.c cookies.c hotlist.c 					\
+	$(addprefix dialogs/,preferences.c about.c source.c)
+
+S_GTK := $(addprefix gtk/,$(S_GTK)) $(addprefix utils/,container.c)
+# code in utils/container.ch is non-universal it seems
+
+# This is the final source build list
+# Note this is deliberately *not* expanded here as common and image
+#   are not yet available
+SOURCES = $(S_COMMON) $(S_IMAGE) $(S_BROWSER) $(S_PDF) $(S_PIXBUF) $(S_GTK)
+EXETARGET := nsgtk
+
+# ----------------------------------------------------------------------------
+# Install target
+# ----------------------------------------------------------------------------
+
+GTK_RESOURCES_LIST := adblock.css arrow_down_8x32.png ca-bundle.txt default.css \
+			default.ico favicon.png gtkdefault.css internal.css \
+			languages license netsurf.png netsurf.xpm \
+			netsurf-16x16.xpm quirks.css themelist toolbarIndices \
+			SearchEngines
+GTK_RESOURCES_LIST := $(addprefix gtk/res/, $(GTK_RESOURCES_LIST)) \
+			$(wildcard gtk/res/*.gtk*.ui)
+
+# translations with more than just Messages files
+GTK_TRANSLATIONS_HTML := de en fr it ja nl
+
+install-gtk:
+	$(Q)mkdir -p $(DESTDIR)$(NETSURF_GTK_RESOURCES)throbber
+	$(Q)mkdir -p $(DESTDIR)$(NETSURF_GTK_RESOURCES)icons
+	$(Q)mkdir -p $(DESTDIR)$(NETSURF_GTK_BIN)
+	$(Q)install nsgtk $(DESTDIR)$(NETSURF_GTK_BIN)netsurf
+	$(Q)install -m 0644 $(GTK_RESOURCES_LIST) $(DESTDIR)$(NETSURF_GTK_RESOURCES)
+	$(Q)install -m 0644 gtk/res/icons/*.png $(DESTDIR)$(NETSURF_GTK_RESOURCES)/icons
+	$(Q)install -m 0644 gtk/res/throbber/*.png $(DESTDIR)$(NETSURF_GTK_RESOURCES)/throbber
+	$(Q)tar -c -h -C gtk/res -f - themes | tar -xv -C $(DESTDIR)$(NETSURF_GTK_RESOURCES) -f -
+	$(Q)tar -c -h -C gtk/res -f - C $(GTK_TRANSLATIONS_HTML) | tar -xv -C $(DESTDIR)$(NETSURF_GTK_RESOURCES) -f -
+	$(call split_install_messages, gtk, $(DESTDIR)$(NETSURF_GTK_RESOURCES))
+
+# ----------------------------------------------------------------------------
+# Package target
+# ----------------------------------------------------------------------------
+
+package-gtk:

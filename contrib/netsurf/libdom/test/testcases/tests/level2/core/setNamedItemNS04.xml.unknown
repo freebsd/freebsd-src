@@ -1,0 +1,73 @@
+<?xml version="1.0" encoding="UTF-8"?><?xml-stylesheet href="test-to-html.xsl" type="text/xml"?>
+
+<!--
+
+Copyright (c) 2001-2004 World Wide Web Consortium, 
+(Massachusetts Institute of Technology, Institut National de
+Recherche en Informatique et en Automatique, Keio University).  All 
+Rights Reserved.  This program is distributed under the W3C's Software
+Intellectual Property License.  This program is distributed in the 
+hope that it will be useful, but WITHOUT ANY WARRANTY; without even
+the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR 
+PURPOSE.  
+
+See W3C License http://www.w3.org/Consortium/Legal/ for more details.
+
+-->
+<!DOCTYPE test SYSTEM "dom2.dtd">
+<test xmlns="http://www.w3.org/2001/DOM-Test-Suite/Level-2" name="setNamedItemNS04">
+<metadata>
+<title>setNamedItemNS04</title>
+<creator>NIST</creator>
+<description>
+  The "setNamedItemNS(arg)" method for a 
+  NamedNodeMap should raise NO_MODIFICATION_ALLOWED_ERR DOMException if 
+  this map is readonly.
+  
+  Retrieve a list of "gender" elements. Get access to the THIRD element
+  which contains an ENTITY_REFERENCE child node.  Get access to the node's
+  map. Try to add an attribute node specified by arg with 
+  method setNamedItemNS(arg).  This should result in NO_MODIFICATION_ALLOWED_ERR
+  DOMException. 
+</description>
+<contributor>Mary Brady</contributor>
+<date qualifier="created">2001-08-17</date>
+<subject resource="http://www.w3.org/TR/DOM-Level-2-Core/core#xpointer(id('ID-258A00AF')/constant[@name='NO_MODIFICATION_ALLOWED_ERR'])"/>
+<subject resource="http://www.w3.org/TR/DOM-Level-2-Core/core#ID-setNamedItemNS"/>
+<subject resource="http://www.w3.org/TR/DOM-Level-2-Core/core#xpointer(id('ID-setNamedItemNS')/raises/exception[@name='DOMException']/descr/p[substring-before(.,':')='NO_MODIFICATION_ALLOWED_ERR'])"/>
+</metadata>
+<implementationAttribute name="namespaceAware" value="true"/>
+<var name="namespaceURI" type="DOMString" value="&quot;http://www.w3.org/2000/xmlns/&quot;"/>
+<var name="localName" type="DOMString" value="&quot;local1&quot;"/>
+<var name="doc" type="Document"/>
+<var name="elementList" type="NodeList"/>
+<var name="testAddress" type="Node"/>
+<var name="nList" type="NodeList"/>
+<var name="child" type="Node"/>
+<var name="n2List" type="NodeList"/>
+<var name="child2" type="Node"/>
+<var name="attributes" type="NamedNodeMap"/>
+<var name="arg" type="Node"/>
+<var name="setNode" type="Node"/>
+<var name="nodeType" type="int"/>
+<load var="doc" href="staffNS" willBeModified="true"/>
+<getElementsByTagName interface="Document" obj="doc" var="elementList" tagname="&quot;gender&quot;"/>
+<item interface="NodeList" obj="elementList" var="testAddress" index="2"/>
+<childNodes obj="testAddress" var="nList"/>
+<item interface="NodeList" obj="nList" var="child" index="0"/>
+<nodeType var="nodeType" obj="child"/>
+<if><equals actual="nodeType" expected="1" ignoreCase="false"/>
+	<createEntityReference var="child" name='"ent4"' obj="doc"/>
+	<assertNotNull actual="child" id="createdEntRefNotNull"/>
+</if>
+<childNodes obj="child" var="n2List"/>
+<item interface="NodeList" obj="n2List" var="child2" index="0"/>
+<assertNotNull actual="child2" id="notnull"/>
+<attributes obj="child2" var="attributes"/>
+<getNamedItemNS obj="attributes" var="arg" namespaceURI="namespaceURI" localName="localName"/>
+<assertDOMException id="throw_NO_MODIFICATION_ALLOWED_ERR">
+<NO_MODIFICATION_ALLOWED_ERR>
+<setNamedItemNS var="setNode" interface="NamedNodeMap" obj="attributes" arg="arg"/>
+</NO_MODIFICATION_ALLOWED_ERR>
+</assertDOMException>
+</test>

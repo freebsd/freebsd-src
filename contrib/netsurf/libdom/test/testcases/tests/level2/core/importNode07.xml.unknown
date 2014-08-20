@@ -1,0 +1,62 @@
+<?xml version="1.0" encoding="UTF-8"?><?xml-stylesheet href="test-to-html.xsl" type="text/xml"?>
+
+<!--
+
+Copyright (c) 2001-2003 World Wide Web Consortium, 
+(Massachusetts Institute of Technology, Institut National de
+Recherche en Informatique et en Automatique, Keio University).  All 
+Rights Reserved.  This program is distributed under the W3C's Software
+Intellectual Property License.  This program is distributed in the 
+hope that it will be useful, but WITHOUT ANY WARRANTY; without even
+the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR 
+PURPOSE.  
+
+See W3C License http://www.w3.org/Consortium/Legal/ for more details.
+
+-->
+<!DOCTYPE test SYSTEM "dom2.dtd">
+<test xmlns="http://www.w3.org/2001/DOM-Test-Suite/Level-2" name="importNode07">
+<metadata>
+<title>importNode07</title>
+<creator>NIST</creator>
+<description>
+    The "importNode(importedNode,deep)" method for a 
+   Document should import the given importedNode into that Document.
+   The importedNode is of type Element.
+   If this document defines default attributes for this element name (importedNode),
+   those default attributes are assigned.
+   
+   Create an element whose name is "emp:employee" in a different document.
+   Invoke method importNode(importedNode,deep) on this document which
+   defines default attribute for the element name "emp:employee".
+   Method should return an the imported element with an assigned default attribute.
+</description>
+<contributor>Mary Brady</contributor>
+<date qualifier="created">2001-08-17</date>
+<subject resource="http://www.w3.org/TR/DOM-Level-2-Core/core#Core-Document-importNode"/>
+<subject resource="http://www.w3.org/Bugs/Public/show_bug.cgi?id=238"/>
+</metadata>
+<implementationAttribute name="namespaceAware" value="true"/>
+<implementationAttribute name="validating" value="true"/>
+<var name="doc" type="Document"/>
+<var name="aNewDoc" type="Document"/>
+<var name="element" type="Element"/>
+<var name="aNode" type="Node"/>
+<var name="attributes" type="NamedNodeMap"/>
+<var name="name" type="DOMString"/>
+<var name="attr" type="Node"/>
+<var name="lname" type="DOMString"/>
+<var name="namespaceURI" type="DOMString" value='"http://www.nist.gov"'/>
+<var name="qualifiedName" type="DOMString" value='"emp:employee"'/>
+<load var="doc" href="staffNS" willBeModified="true"/>
+<load var="aNewDoc" href="staff" willBeModified="true"/>
+<createElementNS obj="aNewDoc" var="element" namespaceURI="namespaceURI" qualifiedName="qualifiedName"/>
+<importNode obj="doc" var="aNode" importedNode="element" deep="false"/>
+<attributes obj="aNode" var="attributes"/>
+<assertSize collection="attributes" size="1" id="throw_Size"/>
+<nodeName obj="aNode" var="name"/>
+<assertEquals actual="name" expected='"emp:employee"' ignoreCase="false" id="nodeName"/>
+<item interface="NamedNodeMap" obj="attributes" var="attr" index="0"/>
+<localName obj="attr" var="lname"/>
+<assertEquals actual="lname" expected='"defaultAttr"' ignoreCase="false" id="lname"/>
+</test>

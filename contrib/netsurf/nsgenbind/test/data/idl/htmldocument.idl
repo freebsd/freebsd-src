@@ -1,0 +1,108 @@
+[OverrideBuiltins]
+partial interface Document {
+  // resource metadata management
+  [PutForwards=href] readonly attribute Location? location;
+           attribute DOMString domain;
+  readonly attribute DOMString referrer;
+           attribute DOMString cookie;
+  readonly attribute DOMString lastModified;
+  readonly attribute DOMString readyState;
+
+  // DOM tree accessors
+  getter object (DOMString name);
+           attribute DOMString title;
+           attribute DOMString dir;
+           attribute HTMLElement? body;
+  readonly attribute HTMLHeadElement? head;
+  readonly attribute HTMLCollection images;
+  readonly attribute HTMLCollection embeds;
+  readonly attribute HTMLCollection plugins;
+  readonly attribute HTMLCollection links;
+  readonly attribute HTMLCollection forms;
+  readonly attribute HTMLCollection scripts;
+  NodeList getElementsByName(DOMString elementName);
+  NodeList getItems(optional DOMString typeNames); // microdata 
+  readonly attribute DOMElementMap cssElementMap;
+
+  // dynamic markup insertion
+  Document open(optional DOMString type, optional DOMString replace);
+  WindowProxy open(DOMString url, DOMString name, DOMString features, optional boolean replace);
+  void close();
+  void write(DOMString... text);
+  void writeln(DOMString... text);
+
+  // user interaction
+  readonly attribute WindowProxy? defaultView;
+  readonly attribute Element? activeElement;
+  boolean hasFocus();
+           attribute DOMString designMode;
+  boolean execCommand(DOMString commandId);
+  boolean execCommand(DOMString commandId, boolean showUI);
+  boolean execCommand(DOMString commandId, boolean showUI, DOMString value);
+  boolean queryCommandEnabled(DOMString commandId);
+  boolean queryCommandIndeterm(DOMString commandId);
+  boolean queryCommandState(DOMString commandId);
+  boolean queryCommandSupported(DOMString commandId);
+  DOMString queryCommandValue(DOMString commandId);
+  readonly attribute HTMLCollection commands;
+
+  // event handler IDL attributes
+           attribute EventHandler onabort;
+           attribute EventHandler onblur;
+           attribute EventHandler oncancel;
+           attribute EventHandler oncanplay;
+           attribute EventHandler oncanplaythrough;
+           attribute EventHandler onchange;
+           attribute EventHandler onclick;
+           attribute EventHandler onclose;
+           attribute EventHandler oncontextmenu;
+           attribute EventHandler oncuechange;
+           attribute EventHandler ondblclick;
+           attribute EventHandler ondrag;
+           attribute EventHandler ondragend;
+           attribute EventHandler ondragenter;
+           attribute EventHandler ondragleave;
+           attribute EventHandler ondragover;
+           attribute EventHandler ondragstart;
+           attribute EventHandler ondrop;
+           attribute EventHandler ondurationchange;
+           attribute EventHandler onemptied;
+           attribute EventHandler onended;
+           attribute OnErrorEventHandler onerror;
+           attribute EventHandler onfocus;
+           attribute EventHandler oninput;
+           attribute EventHandler oninvalid;
+           attribute EventHandler onkeydown;
+           attribute EventHandler onkeypress;
+           attribute EventHandler onkeyup;
+           attribute EventHandler onload;
+           attribute EventHandler onloadeddata;
+           attribute EventHandler onloadedmetadata;
+           attribute EventHandler onloadstart;
+           attribute EventHandler onmousedown;
+           attribute EventHandler onmousemove;
+           attribute EventHandler onmouseout;
+           attribute EventHandler onmouseover;
+           attribute EventHandler onmouseup;
+           attribute EventHandler onmousewheel;
+           attribute EventHandler onpause;
+           attribute EventHandler onplay;
+           attribute EventHandler onplaying;
+           attribute EventHandler onprogress;
+           attribute EventHandler onratechange;
+           attribute EventHandler onreset;
+           attribute EventHandler onscroll;
+           attribute EventHandler onseeked;
+           attribute EventHandler onseeking;
+           attribute EventHandler onselect;
+           attribute EventHandler onshow;
+           attribute EventHandler onstalled;
+           attribute EventHandler onsubmit;
+           attribute EventHandler onsuspend;
+           attribute EventHandler ontimeupdate;
+           attribute EventHandler onvolumechange;
+           attribute EventHandler onwaiting;
+
+  // special event handler IDL attributes that only apply to Document objects
+  [LenientThis] attribute EventHandler onreadystatechange;
+};

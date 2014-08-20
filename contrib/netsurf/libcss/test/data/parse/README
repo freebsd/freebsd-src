@@ -1,0 +1,48 @@
+Parser testcases
+================
+
+Format
+------
+
+#data
+<css source data>
+#errors
+<list of expected errors, with line/col offsets> (ignored at present)
+#expected
+<rule list, as below>
+#reset
+
+Format of rule list
+-------------------
+
+  line     ::= rule | bytecode
+  rule     ::= '| ' type ' '+ name
+  name     ::= .+
+  type     ::= [0-9]+
+  bytecode ::= '|  ' ' '* hexnum (' '+ (hexnum | ptr))*
+  hexnum   ::= '0x' [0-9a-fA-F]+
+  ptr      ::= 'PTR(' .* ')'
+
+Type corresponds to css_rule_type. Consult the library sources for the values.
+
+Bytecode may be split over multiple lines for readability. All bytecode is
+associated with the most-recently-declared rule. Consult the bytecode
+documentation for what the hexnums should be representing.
+
+Example
+-------
+
+#data
+* { color: #ff0000; background-image: url("foo.png"); }
+#errors
+#expected
+| 1 *
+|   0x0200000f 0xff000000
+|   0x02000003 PTR(foo.png)
+#reset
+
+TODO
+----
+
+  + Permit nesting of rules (for nested block support)
+

@@ -1,0 +1,41 @@
+<?xml version="1.0" encoding="UTF-8"?><?xml-stylesheet href="test-to-html.xsl" type="text/xml"?>
+
+<!--
+
+Copyright (c) 2001 World Wide Web Consortium, 
+(Massachusetts Institute of Technology, Institut National de
+Recherche en Informatique et en Automatique, Keio University).  All 
+Rights Reserved.  This program is distributed under the W3C's Software
+Intellectual Property License.  This program is distributed in the 
+hope that it will be useful, but WITHOUT ANY WARRANTY; without even
+the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR 
+PURPOSE.  
+
+See W3C License http://www.w3.org/Consortium/Legal/ for more details.
+
+-->
+
+<!DOCTYPE test SYSTEM "dom2.dtd">
+<test xmlns="http://www.w3.org/2001/DOM-Test-Suite/Level-2" name="documentgetelementsbytagnameNS03">
+<metadata>
+<title>documentgetelementsbytagnameNS03</title>
+<creator>IBM</creator>
+<description>
+	The method getElementsByTagNameNS returns a NodeList of all the Elements with 
+	a given local name and namespace URI in the order in which they are encountered 
+	in a preorder traversal of the Document tree.
+	
+	Invoke the getElementsByTagNameNS method on a new Document object with the values of
+	namespaceURI=** and localName=**.  This should return a nodeList of 0 items.
+</description>
+<contributor>Neil Delima</contributor>
+<date qualifier="created">2002-04-30</date>
+<subject resource="http://www.w3.org/TR/DOM-Level-2-Core/core"/>
+<subject resource="http://www.w3.org/TR/DOM-Level-2-Core/core#ID-getElBTNNS"/>
+</metadata>
+<var name="doc" type="Document"/>
+<var name="childList" type="NodeList"/>
+<load var="doc" href="staffNS" willBeModified="false"/>
+<getElementsByTagNameNS var="childList" obj="doc" namespaceURI ='"**"' localName  ='"*"'  interface="Document"/>
+<assertSize size="0" collection="childList"  id="documentgetelementsbytagnameNS03"/>
+</test>

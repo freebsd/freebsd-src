@@ -1,0 +1,79 @@
+<?xml version="1.0" encoding="UTF-8"?><?xml-stylesheet href="test-to-html.xsl" type="text/xml"?>
+
+<!--
+
+Copyright (c) 2004 World Wide Web Consortium, 
+(Massachusetts Institute of Technology, Institut National de
+Recherche en Informatique et en Automatique, Keio University).  All 
+Rights Reserved.  This program is distributed under the W3C's Software
+Intellectual Property License.  This program is distributed in the 
+hope that it will be useful, but WITHOUT ANY WARRANTY; without even
+the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR 
+PURPOSE.  
+
+See W3C License http://www.w3.org/Consortium/Legal/ for more details.
+
+-->
+
+<!DOCTYPE test SYSTEM "dom3.dtd">
+<test xmlns="http://www.w3.org/2001/DOM-Test-Suite/Level-3" name="entities01">
+<metadata>
+<title>entities01</title>
+<creator>Curt Arnold</creator>
+<description>
+Normalize document with entities set to true, check that
+entity references and unused entity declaration are maintained.
+</description>
+<date qualifier="created">2004-02-24</date>
+<subject resource="http://www.w3.org/TR/2004/REC-DOM-Level-3-Core-20040407/core#Document3-normalizeDocument"/>
+<subject resource="http://www.w3.org/TR/2004/REC-DOM-Level-3-Core-20040407/core#parameter-entities"/>
+</metadata>
+<implementationAttribute name="namespaceAware" value="true"/>
+<var name="doc" type="Document"/>
+<var name="pList" type="NodeList"/>
+<var name="pElem" type="Element"/>
+<var name="domConfig" type="DOMConfiguration"/>
+<var name="canSet" type="boolean"/>
+<var name="canSetValidate" type="boolean"/>
+<var name="errorMonitor" type="DOMErrorMonitor"/>
+<var name="child" type="Node"/>
+<var name="childName" type="DOMString"/>
+<var name="entRef" type="EntityReference"/>
+<var name="entities" type="NamedNodeMap"/>
+<var name="ent2" type="Entity"/>
+<var name="doctype" type="DocumentType"/>
+<load var="doc" href="barfoo" willBeModified="true"/>
+<domConfig obj="doc" var="domConfig" interface="Document"/>
+<setParameter obj="domConfig" name='"entities"' value="true"/>
+<setParameter obj="domConfig" name='"error-handler"' value="errorMonitor"/>
+<!--  add an entity reference to the content of the p element  -->
+<getElementsByTagName 
+	var="pList" 
+	obj="doc" 
+	tagname='"p"' 
+	interface="Document"/>
+<item var="pElem" obj="pList" interface="NodeList" index="0"/>
+<createEntityReference var="entRef" obj="doc" name='"ent1"'/>
+<appendChild var="child" obj="pElem" newChild="entRef"/>
+<normalizeDocument obj="doc"/>
+<!--  fail test if normalize had any errors or fatal errors   -->
+<assertLowerSeverity obj="errorMonitor" id="normalizeError" severity="SEVERITY_ERROR"/>
+<getElementsByTagName 
+	var="pList" 
+	obj="doc" 
+	tagname='"p"' 
+	interface="Document"/>
+<item var="pElem" obj="pList" interface="NodeList" index="0"/>
+<lastChild var="child" obj="pElem" interface="Node"/>
+<assertNotNull actual="child" id="lastChildNotNull"/>
+<!--   this should be a Entity Reference node  -->
+<nodeName var="childName" obj="child"/>
+<assertEquals actual="childName" expected='"ent1"' ignoreCase="false" id="firstChild"/>
+<!--  early drafts would have removed unused entity declarations too  -->
+<doctype var="doctype" obj="doc"/>
+<entities var="entities" obj="doctype"/>
+<getNamedItem var="ent2" obj="entities" name='"ent2"'/>
+<assertNotNull actual="ent2" id="ent2NotNull"/>
+</test> 
+ 
+

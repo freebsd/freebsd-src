@@ -1,0 +1,767 @@
+#data
+* { font: inherit; }
+#errors
+#expected
+| *
+|  font-style: inherit
+|  font-variant: inherit
+|  font-weight: inherit
+|  font-size: inherit
+|  line-height: inherit
+|  font-family: inherit
+#reset
+
+#data
+* { font: 10pt serif; }
+#errors
+#expected
+| *
+|  font-style: normal
+|  font-variant: normal
+|  font-weight: normal
+|  font-size: 10pt
+|  line-height: normal
+|  font-family: serif
+#reset
+
+#data
+* { font: 10pt; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { font: serif; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { font: italic 10pt serif; }
+#errors
+#expected
+| *
+|  font-style: italic
+|  font-variant: normal
+|  font-weight: normal
+|  font-size: 10pt
+|  line-height: normal
+|  font-family: serif
+#reset
+
+#data
+* { font: oblique 10pt serif; }
+#errors
+#expected
+| *
+|  font-style: oblique
+|  font-variant: normal
+|  font-weight: normal
+|  font-size: 10pt
+|  line-height: normal
+|  font-family: serif
+#reset
+
+#data
+* { font: 12pt serif; }
+#errors
+#expected
+| *
+|  font-style: normal
+|  font-variant: normal
+|  font-weight: normal
+|  font-size: 12pt
+|  line-height: normal
+|  font-family: serif
+#reset
+
+#data
+* { font: serif 12pt; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { font: small-caps 10pt serif; }
+#errors
+#expected
+| *
+|  font-style: normal
+|  font-variant: small-caps
+|  font-weight: normal
+|  font-size: 10pt
+|  line-height: normal
+|  font-family: serif
+#reset
+
+#data
+* { font: bold 10pt serif; }
+#errors
+#expected
+| *
+|  font-style: normal
+|  font-variant: normal
+|  font-weight: bold
+|  font-size: 10pt
+|  line-height: normal
+|  font-family: serif
+#reset
+
+#data
+* { font: italic bold 10pt serif; }
+#errors
+#expected
+| *
+|  font-style: italic
+|  font-variant: normal
+|  font-weight: bold
+|  font-size: 10pt
+|  line-height: normal
+|  font-family: serif
+#reset
+
+#data
+* { font: italic 400 10pt serif; }
+#errors
+#expected
+| *
+|  font-style: italic
+|  font-variant: normal
+|  font-weight: 400
+|  font-size: 10pt
+|  line-height: normal
+|  font-family: serif
+#reset
+
+#data
+* { font: bold italic 10pt serif; }
+#errors
+#expected
+| *
+|  font-style: italic
+|  font-variant: normal
+|  font-weight: bold
+|  font-size: 10pt
+|  line-height: normal
+|  font-family: serif
+#reset
+
+#data
+* { font: italic small-caps 10pt serif; }
+#errors
+#expected
+| *
+|  font-style: italic
+|  font-variant: small-caps
+|  font-weight: normal
+|  font-size: 10pt
+|  line-height: normal
+|  font-family: serif
+#reset
+
+#data
+* { font: small-caps italic 10pt serif; }
+#errors
+#expected
+| *
+|  font-style: italic
+|  font-variant: small-caps
+|  font-weight: normal
+|  font-size: 10pt
+|  line-height: normal
+|  font-family: serif
+#reset
+
+#data
+* { font: small-caps bold 10pt serif; }
+#errors
+#expected
+| *
+|  font-style: normal
+|  font-variant: small-caps
+|  font-weight: bold
+|  font-size: 10pt
+|  line-height: normal
+|  font-family: serif
+#reset
+
+#data
+* { font: bold small-caps 10pt serif; }
+#errors
+#expected
+| *
+|  font-style: normal
+|  font-variant: small-caps
+|  font-weight: bold
+|  font-size: 10pt
+|  line-height: normal
+|  font-family: serif
+#reset
+
+#data
+* { font: italic bold small-caps 10pt serif; }
+#errors
+#expected
+| *
+|  font-style: italic
+|  font-variant: small-caps
+|  font-weight: bold
+|  font-size: 10pt
+|  line-height: normal
+|  font-family: serif
+#reset
+
+#data
+* { font: bold italic small-caps 10pt serif; }
+#errors
+#expected
+| *
+|  font-style: italic
+|  font-variant: small-caps
+|  font-weight: bold
+|  font-size: 10pt
+|  line-height: normal
+|  font-family: serif
+#reset
+
+#data
+* { font: bold small-caps italic 10pt serif; }
+#errors
+#expected
+| *
+|  font-style: italic
+|  font-variant: small-caps
+|  font-weight: bold
+|  font-size: 10pt
+|  line-height: normal
+|  font-family: serif
+#reset
+
+#data
+* { font: small-caps bold italic 10pt serif; }
+#errors
+#expected
+| *
+|  font-style: italic
+|  font-variant: small-caps
+|  font-weight: bold
+|  font-size: 10pt
+|  line-height: normal
+|  font-family: serif
+#reset
+
+#data
+* { font: small-caps italic bold 10pt serif; }
+#errors
+#expected
+| *
+|  font-style: italic
+|  font-variant: small-caps
+|  font-weight: bold
+|  font-size: 10pt
+|  line-height: normal
+|  font-family: serif
+#reset
+
+#data
+* { font: italic small-caps bold 10pt serif; }
+#errors
+#expected
+| *
+|  font-style: italic
+|  font-variant: small-caps
+|  font-weight: bold
+|  font-size: 10pt
+|  line-height: normal
+|  font-family: serif
+#reset
+
+#data
+* { font: 10pt/50% serif; }
+#errors
+#expected
+| *
+|  font-style: normal
+|  font-variant: normal
+|  font-weight: normal
+|  font-size: 10pt
+|  line-height: 50%
+|  font-family: serif
+#reset
+
+#data
+* { font: 10pt Times New Roman; }
+#errors
+#expected
+| *
+|  font-style: normal
+|  font-variant: normal
+|  font-weight: normal
+|  font-size: 10pt
+|  line-height: normal
+|  font-family: 'Times New Roman'
+#reset
+
+
+#data
+* { font: invalid; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { font: ; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { font:}
+#errors
+#expected
+| *
+#reset
+
+#data
+* { font: 10pt inherit; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { font: inherit 10pt; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { font: 'Sonic the Hedgehog' 12pt inherit; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { font: 'Sonic the Hedgehog' inherit 12pt; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { font: inherit 12pt 'Sonic the Hedgehog'; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { font: inherit inherit; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { font-family: inherit; }
+#errors
+#expected
+| *
+|  font-family: inherit
+#reset
+
+#data
+* { font-size: inherit; }
+#errors
+#expected
+| *
+|  font-size: inherit
+#reset
+
+#data
+* { font-style: inherit; }
+#errors
+#expected
+| *
+|  font-style: inherit
+#reset
+
+#data
+* { font-variant: inherit; }
+#errors
+#expected
+| *
+|  font-variant: inherit
+#reset
+
+#data
+* { font-weight: inherit; }
+#errors
+#expected
+| *
+|  font-weight: inherit
+#reset
+
+
+
+
+
+#data
+* { font: inherit !important; }
+#errors
+#expected
+| *
+|  font-style: inherit !important
+|  font-variant: inherit !important
+|  font-weight: inherit !important
+|  font-size: inherit !important
+|  line-height: inherit !important
+|  font-family: inherit !important
+#reset
+
+#data
+* { font: 10pt serif !important; }
+#errors
+#expected
+| *
+|  font-style: normal !important
+|  font-variant: normal !important
+|  font-weight: normal !important
+|  font-size: 10pt !important
+|  line-height: normal !important
+|  font-family: serif !important
+#reset
+
+#data
+* { font: 10pt !important; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { font: serif !important; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { font: italic 10pt serif !important; }
+#errors
+#expected
+| *
+|  font-style: italic !important
+|  font-variant: normal !important
+|  font-weight: normal !important
+|  font-size: 10pt !important
+|  line-height: normal !important
+|  font-family: serif !important
+#reset
+
+#data
+* { font: small-caps 10pt serif !important; }
+#errors
+#expected
+| *
+|  font-style: normal !important
+|  font-variant: small-caps !important
+|  font-weight: normal !important
+|  font-size: 10pt !important
+|  line-height: normal !important
+|  font-family: serif !important
+#reset
+
+#data
+* { font: bold 10pt serif !important; }
+#errors
+#expected
+| *
+|  font-style: normal !important
+|  font-variant: normal !important
+|  font-weight: bold !important
+|  font-size: 10pt !important
+|  line-height: normal !important
+|  font-family: serif !important
+#reset
+
+#data
+* { font: italic bold 10pt serif !important; }
+#errors
+#expected
+| *
+|  font-style: italic !important
+|  font-variant: normal !important
+|  font-weight: bold !important
+|  font-size: 10pt !important
+|  line-height: normal !important
+|  font-family: serif !important
+#reset
+
+#data
+* { font: italic 400 10pt serif !important; }
+#errors
+#expected
+| *
+|  font-style: italic !important
+|  font-variant: normal !important
+|  font-weight: 400 !important
+|  font-size: 10pt !important
+|  line-height: normal !important
+|  font-family: serif !important
+#reset
+
+#data
+* { font: bold italic 10pt serif !important; }
+#errors
+#expected
+| *
+|  font-style: italic !important
+|  font-variant: normal !important
+|  font-weight: bold !important
+|  font-size: 10pt !important
+|  line-height: normal !important
+|  font-family: serif !important
+#reset
+
+#data
+* { font: italic small-caps 10pt serif !important; }
+#errors
+#expected
+| *
+|  font-style: italic !important
+|  font-variant: small-caps !important
+|  font-weight: normal !important
+|  font-size: 10pt !important
+|  line-height: normal !important
+|  font-family: serif !important
+#reset
+
+#data
+* { font: small-caps italic 10pt serif !important; }
+#errors
+#expected
+| *
+|  font-style: italic !important
+|  font-variant: small-caps !important
+|  font-weight: normal !important
+|  font-size: 10pt !important
+|  line-height: normal !important
+|  font-family: serif !important
+#reset
+
+#data
+* { font: small-caps bold 10pt serif !important; }
+#errors
+#expected
+| *
+|  font-style: normal !important
+|  font-variant: small-caps !important
+|  font-weight: bold !important
+|  font-size: 10pt !important
+|  line-height: normal !important
+|  font-family: serif !important
+#reset
+
+#data
+* { font: bold small-caps 10pt serif !important; }
+#errors
+#expected
+| *
+|  font-style: normal !important
+|  font-variant: small-caps !important
+|  font-weight: bold !important
+|  font-size: 10pt !important
+|  line-height: normal !important
+|  font-family: serif !important
+#reset
+
+#data
+* { font: italic bold small-caps 10pt serif !important; }
+#errors
+#expected
+| *
+|  font-style: italic !important
+|  font-variant: small-caps !important
+|  font-weight: bold !important
+|  font-size: 10pt !important
+|  line-height: normal !important
+|  font-family: serif !important
+#reset
+
+#data
+* { font: bold italic small-caps 10pt serif !important; }
+#errors
+#expected
+| *
+|  font-style: italic !important
+|  font-variant: small-caps !important
+|  font-weight: bold !important
+|  font-size: 10pt !important
+|  line-height: normal !important
+|  font-family: serif !important
+#reset
+
+#data
+* { font: bold small-caps italic 10pt serif !important; }
+#errors
+#expected
+| *
+|  font-style: italic !important
+|  font-variant: small-caps !important
+|  font-weight: bold !important
+|  font-size: 10pt !important
+|  line-height: normal !important
+|  font-family: serif !important
+#reset
+
+#data
+* { font: small-caps bold italic 10pt serif !important; }
+#errors
+#expected
+| *
+|  font-style: italic !important
+|  font-variant: small-caps !important
+|  font-weight: bold !important
+|  font-size: 10pt !important
+|  line-height: normal !important
+|  font-family: serif !important
+#reset
+
+#data
+* { font: small-caps italic bold 10pt serif !important; }
+#errors
+#expected
+| *
+|  font-style: italic !important
+|  font-variant: small-caps !important
+|  font-weight: bold !important
+|  font-size: 10pt !important
+|  line-height: normal !important
+|  font-family: serif !important
+#reset
+
+#data
+* { font: italic small-caps bold 10pt serif !important; }
+#errors
+#expected
+| *
+|  font-style: italic !important
+|  font-variant: small-caps !important
+|  font-weight: bold !important
+|  font-size: 10pt !important
+|  line-height: normal !important
+|  font-family: serif !important
+#reset
+
+#data
+* { font: 10pt/50% serif !important; }
+#errors
+#expected
+| *
+|  font-style: normal !important
+|  font-variant: normal !important
+|  font-weight: normal !important
+|  font-size: 10pt !important
+|  line-height: 50% !important
+|  font-family: serif !important
+#reset
+
+#data
+* { font: 10pt "Times New Roman" !important; }
+#errors
+#expected
+| *
+|  font-style: normal !important
+|  font-variant: normal !important
+|  font-weight: normal !important
+|  font-size: 10pt !important
+|  line-height: normal !important
+|  font-family: 'Times New Roman' !important
+#reset
+
+#data
+* { font: 10pt Times New Roman !important; }
+#errors
+#expected
+| *
+|  font-style: normal !important
+|  font-variant: normal !important
+|  font-weight: normal !important
+|  font-size: 10pt !important
+|  line-height: normal !important
+|  font-family: 'Times New Roman' !important
+#reset
+
+
+#data
+* { font: bold inherit italic 10pt serif; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { font: bold italic 10pt inherit serif; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { font: bold italic 10pt serif inherit; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { font: inherit serif; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { font: serif inherit; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { font: inherit inherit; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { font: italic 10pt inherit serif; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { font: italic 10pt serif inherit; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { font: italic 10pt serif inherit !important; }
+#errors
+#expected
+| *
+#reset
+
+

@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<?xml-stylesheet href="test-to-html.xsl" type="text/xml"?>
+<!--
+
+Copyright (c) 2001 World Wide Web Consortium, 
+(Massachusetts Institute of Technology, Institut National de
+Recherche en Informatique et en Automatique, Keio University).  All 
+Rights Reserved.  This program is distributed under the W3C's Software
+Intellectual Property License.  This program is distributed in the 
+hope that it will be useful, but WITHOUT ANY WARRANTY; without even
+the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR 
+PURPOSE.  
+
+See W3C License http://www.w3.org/Consortium/Legal/ for more details.
+
+-->
+<!DOCTYPE test SYSTEM "dom2.dtd">
+<test xmlns="http://www.w3.org/2001/DOM-Test-Suite/Level-2" name="createEvent02">
+<metadata>
+<title>createEvent02</title>
+<creator>Curt Arnold</creator>
+<description>
+An object implementing the Event interface is created by using 
+DocumentEvent.createEvent method with eventType equals "MutationEvents".
+Only applicable if implementation supports MutationEvents.
+</description>
+<date qualifier="created">2002-04-21</date>
+<subject resource="http://www.w3.org/TR/DOM-Level-2-Events/events#Events-DocumentEvent-createEvent"/>
+</metadata>
+<hasFeature feature='"MutationEvents"' version='"2.0"'/>
+<var name="doc" type="Document"/>
+<var name="event" type="MutationEvent"/>
+<load var="doc" href="hc_staff" willBeModified="true"/>
+<createEvent var="event" obj="doc" eventType='"MutationEvents"'/>
+<assertNotNull actual="event" id="notnull"/>
+</test>

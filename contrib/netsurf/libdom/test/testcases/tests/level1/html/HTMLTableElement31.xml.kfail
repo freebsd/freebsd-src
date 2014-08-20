@@ -1,0 +1,65 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<?xml-stylesheet href="test-to-html.xml" type="text/xml"?>
+
+<!--
+
+Copyright (c) 2001-2004 World Wide Web Consortium, 
+(Massachusetts Institute of Technology, Institut National de
+Recherche en Informatique et en Automatique, Keio University).  All 
+Rights Reserved.  This program is distributed under the W3C's Software
+Intellectual Property License.  This program is distributed in the 
+hope that it will be useful, but WITHOUT ANY WARRANTY; without even
+the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR 
+PURPOSE.  
+
+See W3C License http://www.w3.org/Consortium/Legal/ for more details.
+
+-->
+<!DOCTYPE test SYSTEM "dom1.dtd">
+<test xmlns="http://www.w3.org/2001/DOM-Test-Suite/Level-1" name="HTMLTableElement31">
+<metadata>
+<title>HTMLTableElement31</title>
+<creator>NIST</creator>
+<description>
+    The insertRow() method inserts a new empty table row.  In addition, when
+    the table is empty the row is inserted into a TBODY which is created
+    and inserted into the table.
+    
+    Load the table1 file which has a non-empty table element.
+    Create an empty TABLE element and append to the document.
+    Check to make sure that the empty TABLE element doesn't
+    have a TBODY element.  Insert a new row into the empty
+    TABLE element.  Check for existence of the a TBODY element
+    in the table.
+</description>
+<contributor>Rick Rivello</contributor>
+<date qualifier="created">2002-05-02</date>
+<subject resource="http://www.w3.org/TR/1998/REC-DOM-Level-1-19981001/level-one-html#ID-39872903"/>
+<!--  comments on the commented out sections   -->
+<subject resource="http://lists.w3.org/Archives/Public/www-dom-ts/2002Aug/0019.html"/>
+<subject resource="http://www.w3.org/Bugs/Public/show_bug.cgi?id=502"/>
+</metadata>
+<var name="nodeList" type="NodeList"/>
+<var name="testNode" type="Node"/>
+<var name="tableNode" type="Node"/>
+<var name="tbodiesnodeList" type="HTMLCollection"/>
+<var name="newRow" type="HTMLElement"/>
+<var name="doc" type="Document"/>
+<var name="table" type="Element"/>
+<var name="tbodiesLength" type="int"/>
+<load var="doc" href="table1" willBeModified="true"/>
+<getElementsByTagName interface="Document" obj="doc" var="nodeList" tagname='"body"'/>
+<assertSize collection="nodeList" size="1" id="tableSize1"/>
+<item interface="NodeList" obj="nodeList" index="0" var="testNode"/>
+<createElement obj="doc" var="table" tagName='"table"'/>
+<appendChild obj="testNode" newChild="table" var="tableNode"/>
+<getElementsByTagName interface="Document" obj="doc" var="nodeList" tagname='"table"'/>
+<assertSize collection="nodeList" size="2" id="tableSize2"/>
+<tBodies interface="HTMLTableElement" obj="tableNode" var="tbodiesnodeList"/>
+<length var="tbodiesLength" obj="tbodiesnodeList" interface="HTMLCollection"/>
+<assertEquals actual="tbodiesLength" expected="0" id="Asize3" ignoreCase="false"/>
+<insertRow interface="HTMLTableElement" obj="tableNode" var="newRow" index="0"/>
+<tBodies interface="HTMLTableElement" obj="tableNode" var="tbodiesnodeList"/>
+<length var="tbodiesLength" obj="tbodiesnodeList" interface="HTMLCollection"/>
+<assertEquals actual="tbodiesLength" expected="1" id="Asize4" ignoreCase="false"/>
+</test>

@@ -1,0 +1,53 @@
+<?xml version="1.0" encoding="UTF-8"?><?xml-stylesheet href="test-to-html.xsl" type="text/xml"?>
+
+<!--
+
+Copyright (c) 2001-2004 World Wide Web Consortium, 
+(Massachusetts Institute of Technology, Institut National de
+Recherche en Informatique et en Automatique, Keio University).  All 
+Rights Reserved.  This program is distributed under the W3C's Software
+Intellectual Property License.  This program is distributed in the 
+hope that it will be useful, but WITHOUT ANY WARRANTY; without even
+the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR 
+PURPOSE.  
+
+See W3C License http://www.w3.org/Consortium/Legal/ for more details.
+
+-->
+
+<!DOCTYPE test SYSTEM "dom3.dtd">
+<test xmlns="http://www.w3.org/2001/DOM-Test-Suite/Level-3" name="nodesetuserdata07">
+<metadata>
+<title>nodesetuserdata07</title>
+<creator>IBM</creator>
+<description>
+
+	
+	Invoke setUserData on a Notation to set its UserData to a Comment node 
+	twice using the same key.  Verify if the UserData object that was returned 
+	by second setUserData is the Comment node set in the first setUserData call.
+</description>
+<contributor>Neil Delima</contributor>
+<date qualifier="created">2002-06-10</date>
+<subject resource="http://www.w3.org/TR/2004/REC-DOM-Level-3-Core-20040407/core#Node3-setUserData"/>
+</metadata>
+<var name="doc" type="Document"/>
+<var name="docType" type="DocumentType"/>
+<var name="notations" type="NamedNodeMap"/>
+<var name="notation" type="Notation"/>
+<var name="comment" type="Comment"/>
+<var name="userData" type="DOMUserData"/>
+<var name="returned" type="DOMUserData"/>
+<var name="success" type="boolean"/>
+<var name="retUserData" type="DOMUserData"/>
+<var name="nullHandler" type="UserDataHandler" isNull="true"/>
+<load var="doc" href="hc_staff" willBeModified="true"/>
+<doctype var="docType" obj="doc"/>
+<notations var="notations" obj="docType"/>
+<getNamedItem var="notation" obj="notations" name='"notation1"'/>
+<createComment var="comment" obj="doc" data='"COMMENT_NODE"' />
+<setUserData obj="notation" var="retUserData" key='"Key1"' data="comment" handler="nullHandler"/>
+<setUserData  var="returned" obj="notation" key='"Key1"' data="comment" handler="nullHandler"/>
+<isEqualNode var="success" obj="returned" arg="comment"/>
+<assertTrue  actual="success"  id="nodesetuserdata07"/>
+</test>

@@ -1,0 +1,50 @@
+<?xml version="1.0" encoding="UTF-8"?><?xml-stylesheet href="test-to-html.xsl" type="text/xml"?>
+
+<!--
+
+Copyright (c) 2001-2004 World Wide Web Consortium, 
+(Massachusetts Institute of Technology, Institut National de
+Recherche en Informatique et en Automatique, Keio University).  All 
+Rights Reserved.  This program is distributed under the W3C's Software
+Intellectual Property License.  This program is distributed in the 
+hope that it will be useful, but WITHOUT ANY WARRANTY; without even
+the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR 
+PURPOSE.  
+
+See W3C License http://www.w3.org/Consortium/Legal/ for more details.
+
+-->
+
+<!DOCTYPE test SYSTEM "dom3.dtd">
+<test xmlns="http://www.w3.org/2001/DOM-Test-Suite/Level-3" name="nodeinsertbefore23">
+<metadata>
+<title>nodeinsertbefore23</title>
+<creator>IBM</creator>
+<description>
+	Using insertBefore on an Element node attempt to insert a Text node created by a different
+	Document before an Element child and verify if a WRONG_DOCUMENT_ERR is raised.
+</description>
+<contributor>Neil Delima</contributor>
+<date qualifier="created">2002-06-10</date>
+<subject resource="http://www.w3.org/TR/2004/REC-DOM-Level-3-Core-20040407/core#ID-952280727"/>
+</metadata>
+<var name="doc" type="Document"/>
+<var name="doc2" type="Document"/>
+<var name="element" type="Element"/>
+<var name="refNode" type="Element"/>
+<var name="newNode" type="Text"/>
+<var name="childList" type="NodeList"/>
+<var name="appendedChild" type="Node"/>
+<var name="inserted" type="Node"/>
+<load var="doc" href="hc_staff" willBeModified="true"/>
+<load var="doc2" href="hc_staff" willBeModified="true"/>
+<createElementNS var="element" obj="doc" namespaceURI='"http://www.w3.org/1999/xhtml"' qualifiedName='"xhtml:body"'/>
+<createElementNS var="refNode" obj="doc" namespaceURI='"http://www.w3.org/1999/xhtml"' qualifiedName='"xhtml:p"'/>
+<createTextNode var="newNode" obj="doc2" data='"TextNode"' />
+<appendChild obj="element" var="appendedChild" newChild="refNode"/>
+<assertDOMException id="throw_WRONG_DOCUMENT_ERR">
+<WRONG_DOCUMENT_ERR>
+<insertBefore obj="element" var="inserted" refChild="refNode" newChild="newNode"/>
+</WRONG_DOCUMENT_ERR>
+</assertDOMException>
+</test>

@@ -1,0 +1,10 @@
+prefix=PREFIX
+exec_prefix=${prefix}
+libdir=${exec_prefix}/lib
+includedir=${prefix}/include
+
+Name: librufl
+Description: RISC OS Unicode font library
+Version: VERSION
+Libs: -L${libdir} -lrufl
+Cflags: -I${includedir}

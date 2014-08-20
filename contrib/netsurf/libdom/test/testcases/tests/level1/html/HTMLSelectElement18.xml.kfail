@@ -1,0 +1,57 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<?xml-stylesheet href="test-to-html.xsl" type="text/xml"?>
+
+<!--
+
+Copyright (c) 2004 World Wide Web Consortium, 
+(Massachusetts Institute of Technology, Institut National de
+Recherche en Informatique et en Automatique, Keio University).  All 
+Rights Reserved.  This program is distributed under the W3C's Software
+Intellectual Property License.  This program is distributed in the 
+hope that it will be useful, but WITHOUT ANY WARRANTY; without even
+the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR 
+PURPOSE.  
+
+See W3C License http://www.w3.org/Consortium/Legal/ for more details.
+
+-->
+<!DOCTYPE test SYSTEM "dom1.dtd">
+<test xmlns="http://www.w3.org/2001/DOM-Test-Suite/Level-1" name="HTMLSelectElement18">
+<metadata>
+<title>HTMLSelectElement18</title>
+<creator>Curt Arnold</creator>
+<description>
+Add a new option at the end of an select using HTMLSelectElement.add.
+</description>
+<date qualifier="created">2004-03-18</date>
+<subject resource="http://www.w3.org/TR/1998/REC-DOM-Level-1-19981001/level-one-html#ID-14493106"/>
+</metadata>
+<var name="nodeList" type="NodeList"/>
+<var name="testNode" type="Node"/>
+<var name="doc" type="Document"/>
+<var name="optLength" type="int"/>
+<var name="selected" type="int"/>
+<var name="newOpt" type="Element"/>
+<var name="newOptText" type="Text"/>
+<var name="opt" type="Element"/>
+<var name="optText" type="Text"/>
+<var name="optValue" type="DOMString"/>
+<var name="retNode" type="Node"/>
+<var name="nullNode" type="Node" isNull="true"/>
+<load var="doc" href="select" willBeModified="true"/>
+<getElementsByTagName interface="Document" obj="doc" var="nodeList" tagname='"select"'/>
+<assertSize collection="nodeList" size="3" id="Asize"/>
+<item interface="NodeList" obj="nodeList" var="testNode" index="0"/>
+<createElement var="newOpt" obj="doc" tagName='"option"'/>
+<createTextNode var="newOptText" obj="doc" data='"EMP31415"'/>
+<appendChild var="retNode" obj="newOpt" newChild="newOptText"/>
+<add interface="HTMLSelectElement" obj="testNode" element="newOpt" before="nullNode"/>
+<length interface="HTMLSelectElement" obj="testNode" var="optLength"/>
+<assertEquals actual="optLength" expected="6" id="optLength"  ignoreCase="false"/>
+<selectedIndex interface="HTMLSelectElement" obj="testNode" var="selected"/>
+<assertEquals actual="selected" expected="0" id="selected"  ignoreCase="false"/>
+<lastChild var="opt" obj="testNode" interface="Node"/>
+<firstChild var="optText" obj="opt" interface="Node"/>
+<nodeValue var="optValue" obj="optText"/>
+<assertEquals actual="optValue" expected='"EMP31415"' id="lastValue" ignoreCase="false"/>
+</test>

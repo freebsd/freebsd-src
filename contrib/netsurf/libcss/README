@@ -1,0 +1,46 @@
+LibCSS -- a CSS parser and selection engine
+===========================================
+
+Overview
+--------
+
+  LibCSS is a CSS parser and selection engine. It aims to parse the forward
+  compatible CSS grammar.
+
+Requirements
+------------
+
+  LibCSS requires the following tools:
+
+    + A C99 capable C compiler
+    + GNU make or compatible
+    + Pkg-config
+    + Perl (for the testcases)
+
+  LibCSS also requires the following libraries to be installed:
+
+    +  LibParserUtils
+    +  LibWapcaplet
+
+Compilation
+-----------
+
+  If necessary, modify the toolchain settings in the Makefile.
+  Invoke make:
+  		$ make
+
+Verification
+------------
+
+  To verify that the parser is working, it is necessary to specify a 
+  different makefile target than that used for normal compilation, thus:
+  
+  		$ make test
+
+API documentation
+-----------------
+
+  Currently, there is none. However, the code is well commented and the 
+  public API may be found in the "include" directory. The testcase sources 
+  may also be of use in working out how to use it.
+

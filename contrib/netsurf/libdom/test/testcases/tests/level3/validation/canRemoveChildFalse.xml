@@ -1,0 +1,47 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<!--
+
+Copyright (c) 2003 Oracle
+
+All Rights Reserved.  This program is distributed under the W3C's 
+Software Intellectual Property License [1].  This program is distributed
+in the hope that it will be useful, but WITHOUT ANY WARRANTY; without
+even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR 
+PURPOSE.
+
+[1] http://www.w3.org/Consortium/Legal/2002/copyright-software-20021231
+
+-->
+<!DOCTYPE test SYSTEM "dom3.dtd">
+<test xmlns="http://www.w3.org/2001/DOM-Test-Suite/Level-3" name="canRemoveChildFalse">
+<metadata>
+
+<title>canRemoveChildFalse</title>
+<creator>Kongyi Zhou</creator>
+<description>
+    The method canRemoveChild checks if schema allows the child to be removed
+    should return VAL_FALSE   
+</description>
+<contributor>Oracle Corp.</contributor>
+<date qualifier="created">2003-03-01</date>
+<subject resource="http://www.w3.org/TR/2003/CR-DOM-Level-3-Val-20030730/validation#VAL-Interfaces-NodeEditVAL-canRemoveChild"/>
+</metadata>
+<implementationAttribute name="schemaValidating" value="true"/>
+
+<var name="doc" type="Document"/>
+<var name="root" type="ElementEditVAL"/>
+<var name="valboolean" type="short"/>
+<var name="oldchild" type="Node"/>
+<var name="nlist" type="NodeList"/>
+<load var="doc" href="book" willBeModified="false"/>
+<getElementsByTagName interface="Document" obj="doc" tagname='"ISBN"' var="nlist"/>
+<item obj="nlist" index="0" var="oldchild" interface="NodeList"/>
+<documentElement obj="doc"  var="root"/>
+<canRemoveChild obj="root" oldChild="oldchild" var="valboolean"/>
+<assertEquals actual="valboolean" expected="6" ignoreCase="false" id="canRemoveChildFalse"/>
+</test>
+
+
+
+

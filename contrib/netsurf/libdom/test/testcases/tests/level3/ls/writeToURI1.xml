@@ -1,0 +1,69 @@
+<?xml version="1.0" standalone="no"?>
+<?xml-stylesheet href="test-to-html.xsl" type="text/xml"?>
+<!--
+
+Copyright (c) 2003 World Wide Web Consortium, 
+(Massachusetts Institute of Technology, Institut National de
+Recherche en Informatique et en Automatique, Keio University).  All 
+Rights Reserved.  This program is distributed under the W3C's Software
+Intellectual Property License.  This program is distributed in the 
+hope that it will be useful, but WITHOUT ANY WARRANTY; without even
+the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR 
+PURPOSE.  
+
+See W3C License http://www.w3.org/Consortium/Legal/ for more details.
+
+-->
+<!DOCTYPE test SYSTEM "dom3.dtd">
+
+
+<test xmlns="http://www.w3.org/2001/DOM-Test-Suite/Level-3" name="writeToURI1">
+  <metadata>
+    <title>writeToURI1</title>
+    <creator>Curt Arnold</creator>
+    <description>Writes a document to a URL for a temporary file 
+    using LSSerializer.writeToURI and rereads the document.</description>
+	<date qualifier="created">2003-12-30</date>
+	<subject resource="http://www.w3.org/TR/2004/REC-DOM-Level-3-LS-20040407/load-save#LS-LSSerializer-writeToURI"/>
+  </metadata>
+  <implementationAttribute name="validating" value="false"/>
+
+  <var name="testDoc" type="Document"/>
+  <var name="domImpl" type="DOMImplementationLS"/>
+  <var name="output" type="LSOutput"/>
+  <var name="serializer" type="LSSerializer"/>
+  <var name="systemId" type="DOMString"/>
+  <var name="checkSystemId" type="DOMString"/>
+  <var name="status" type="boolean"/>
+  <var name="input" type="LSInput"/>
+  <var name="parser" type="LSParser"/>
+  <var name="checkDoc" type="Document"/>
+  <var name="docElem" type="Element"/>
+  <var name="docElemName" type="DOMString"/>
+  <var name="NULL_SCHEMA_TYPE" type="DOMString" isNull="true"/>
+  
+  <load var="testDoc" href="test0" willBeModified="false"/>
+  <implementation var="domImpl"/>
+  
+  <createTempURI var="systemId" scheme="file"/>
+
+  <!--   create a serializer and write a test document    -->
+  <createLSSerializer var="serializer" obj="domImpl"/>
+  <writeToURI var="status" obj="serializer" nodeArg="testDoc" uri="systemId"/>
+  <assertTrue actual="status" id="writeStatus"/>
+  
+  <!--   read the serialized document   -->
+  <createLSInput var="input" obj="domImpl"/>
+  <systemId obj="input" value="systemId" interface="LSInput"/>
+  <createLSParser var="parser" obj="domImpl" schemaType="NULL_SCHEMA_TYPE" mode="1"/>
+  <parse var="checkDoc" obj="parser" input="input"/>
+  <assertNotNull actual="checkDoc" id="checkNotNull"/>
+  <documentElement var="docElem" obj="checkDoc"/>
+  <nodeName var="docElemName" obj="docElem"/>
+  <assertEquals expected='"elt0"' actual="docElemName" id="checkDocElemName" ignoreCase="false"/>  
+</test>
+
+
+
+
+

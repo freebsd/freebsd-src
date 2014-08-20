@@ -1,0 +1,53 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+Copyright (c) 2001-2004 World Wide Web Consortium,
+(Massachusetts Institute of Technology, Institut National de
+Recherche en Informatique et en Automatique, Keio University). All
+Rights Reserved. This program is distributed under the W3C's Software
+Intellectual Property License. This program is distributed in the
+hope that it will be useful, but WITHOUT ANY WARRANTY; without even
+the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
+PURPOSE.
+See W3C License http://www.w3.org/Consortium/Legal/ for more details.
+--><!DOCTYPE test SYSTEM "dom1.dtd">
+
+<test xmlns="http://www.w3.org/2001/DOM-Test-Suite/Level-1" name="documentcreateelementdefaultattr">
+<metadata>
+<title>documentCreateElementDefaultAttr</title>
+<creator>NIST</creator>
+<description>
+    The "createElement(tagName)" method creates an Element 
+   of the type specified.  In addition, if there are known attributes
+   with default values, Attr nodes representing them are automatically
+   created and attached to the element.
+   Retrieve the entire DOM document and invoke its 
+   "createElement(tagName)" method with tagName="address".
+   The method should create an instance of an Element node
+   whose tagName is "address".  The tagName "address" has an 
+   attribute with default values, therefore the newly created element
+   will have them.  
+</description>
+<contributor>Mary Brady</contributor>
+<date qualifier="created">2001-08-17</date>
+<subject resource="http://www.w3.org/TR/1998/REC-DOM-Level-1-19981001/level-one-core#ID-2141741547"/>
+<!--  DOM WG opinion on default attributes -->
+<subject resource="http://lists.w3.org/Archives/Public/www-dom-ts/2002Mar/0002.html"/>
+</metadata>
+<implementationAttribute name="validating" value="true"/>
+<var name="doc" type="Document"/>
+<var name="newElement" type="Element"/>
+<var name="defaultAttr" type="NamedNodeMap"/>
+<var name="child" type="Node"/>
+<var name="name" type="DOMString"/>
+<var name="value" type="DOMString"/>
+<load var="doc" href="staff" willBeModified="true"/>
+<createElement obj="doc" var="newElement" tagName="&quot;address&quot;"/>
+<attributes obj="newElement" var="defaultAttr"/>
+<item obj="defaultAttr" var="child" index="0" interface="NamedNodeMap"/>
+<assertNotNull actual="child" id="defaultAttrNotNull"/>
+<nodeName obj="child" var="name"/>
+<assertEquals actual="name" expected="&quot;street&quot;" id="attrName" ignoreCase="false"/>
+<nodeValue obj="child" var="value"/>
+<assertEquals actual="value" expected="&quot;Yes&quot;" id="attrValue" ignoreCase="false"/>
+<assertSize collection="defaultAttr" size="1" id="attrCount"/>
+</test>

@@ -1,0 +1,57 @@
+# ----------------------------------------------------------------------------
+# Atari-specific options
+# ----------------------------------------------------------------------------
+
+# Force using glibc internal iconv implementation instead of external libiconv
+# Valid options: YES, NO
+NETSURF_USE_LIBICONV_PLUG := NO
+
+# Enable NetSurf's use of librosprite for displaying RISC OS Sprites
+# Valid options: YES, NO, AUTO
+NETSURF_USE_ROSPRITE := NO
+
+# Enable NetSurf's use of libwebp for displaying WebPs
+# Valid options: YES, NO
+NETSURF_USE_WEBP := NO
+
+# Enable NetSurf's use of librsvg in conjunction with Cairo to display SVGs
+# Valid options: YES, NO, AUTO
+NETSURF_USE_RSVG := AUTO
+
+# Enable NetSurf's use of libsvgtiny for displaying SVGs
+# Valid options: YES, NO, AUTO
+NETSURF_USE_NSSVG := AUTO
+
+# Enable Spidermonkey JavaScript engine
+# Valid options: YES, NO
+NETSURF_USE_MOZJS := NO
+
+# enable true type fonts via freetype2
+# Valid options: YES, NO
+NETSURF_USE_ATARI_FREETYPE_FONT := YES
+
+# Enable use of netsurf embedded font
+# Valid options: YES, NO
+NETSURF_USE_ATARI_NETSURF_FONT := YES
+
+# Enable VDI Font rendering
+# Valid options: YES, NO
+NETSURF_USE_ATARI_VDI_FONT := NO
+
+# Configure support for screen drivers with no true colour mode
+# Valid options: YES, NO
+NETSURF_USE_ATARI_8BPP_SUPPORT := NO
+
+# Configure the CPU target
+# Valid options: 68000, 68020-60, 5475 (coldfire)
+ATARIARCH = 68020-60
+
+# enable optimizations
+# -O2 is currently broken with m68000 / m68020-60 builds
+CFLAGS += -O3
+
+# override warning flags removing -Wall
+WARNFLAGS = -W -Wundef -Wpointer-arith \
+		-Wcast-align -Wwrite-strings -Wstrict-prototypes \
+		-Wmissing-prototypes -Wmissing-declarations -Wredundant-decls \
+		-Wnested-externs -Wuninitialized -Wl,-t

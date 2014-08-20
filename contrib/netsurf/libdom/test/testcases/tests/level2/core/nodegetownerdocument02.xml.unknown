@@ -1,0 +1,52 @@
+<?xml version="1.0" encoding="UTF-8"?><?xml-stylesheet href="test-to-html.xsl" type="text/xml"?>
+
+<!--
+
+Copyright (c) 2001-2003 World Wide Web Consortium, 
+(Massachusetts Institute of Technology, Institut National de
+Recherche en Informatique et en Automatique, Keio University).  All 
+Rights Reserved.  This program is distributed under the W3C's Software
+Intellectual Property License.  This program is distributed in the 
+hope that it will be useful, but WITHOUT ANY WARRANTY; without even
+the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR 
+PURPOSE.  
+
+See W3C License http://www.w3.org/Consortium/Legal/ for more details.
+
+-->
+<!DOCTYPE test SYSTEM "dom2.dtd">
+<test xmlns="http://www.w3.org/2001/DOM-Test-Suite/Level-2" name="nodegetownerdocument02">
+<metadata>
+<title>nodegetownerdocument02</title>
+<creator>IBM</creator>
+<description>
+	The method getOwnerDocument returns the Document object associated with this node
+  
+	Create a new Document node.  Since this node is not used with any Document yet
+	verify if the ownerDocument is null.  Create a new element Node on the new Document
+	object.  Check the ownerDocument of the new element node.
+</description>
+<contributor>Neil Delima</contributor>
+<date qualifier="created">2002-04-28</date>
+<subject resource="http://www.w3.org/TR/DOM-Level-2-Core/core#node-ownerDoc"/>
+<subject resource="http://www.w3.org/Bugs/Public/show_bug.cgi?id=259"/>
+</metadata>
+<implementationAttribute name="namespaceAware" value="true"/>
+<var name="doc" type="Document"/>
+<var name="newDoc" type="Document"/>
+<var name="newElem" type="Element"/>
+<var name="ownerDocDoc" type="Document"/>
+<var name="ownerDocElem" type="Document"/>
+<var name="domImpl" type="DOMImplementation"/>
+<var name="docType" type="DocumentType"/>
+<var name="nullNS" type="DOMString" isNull="true"/>
+<load var="doc" href="staff" willBeModified="false"/>
+<implementation var="domImpl" obj="doc"/>
+<createDocumentType var="docType" obj="domImpl" qualifiedName='"mydoc"' publicId="nullNS" systemId="nullNS"/>
+<createDocument var="newDoc" obj="domImpl" namespaceURI='"http://www.w3.org/DOM/Test"' qualifiedName='"mydoc"' doctype="docType"/>
+<ownerDocument var="ownerDocDoc" obj="newDoc"/>
+<assertNull actual="ownerDocDoc" id="nodegetownerdocument02_1"/>
+<createElementNS var="newElem" obj="newDoc" namespaceURI='"http://www.w3.org/DOM/Test"' qualifiedName='"myelem"'/>
+<ownerDocument var="ownerDocElem" obj="newElem"/>
+<assertNotNull actual="ownerDocElem" id="nodegetownerdocument02_2"/>
+</test>

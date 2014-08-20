@@ -1,0 +1,78 @@
+<!ENTITY level3      "http://www.w3.org/2001/DOM-Test-Suite/Level-3">
+<!ENTITY spec        "http://www.w3.org/TR/2004/REC-DOM-Level-3-LS-20040407/load-save">
+<!ENTITY date        "<date qualifier='created'>2002-03-23</date>">
+<!ENTITY contributor "<contributor>X-Hive Corporation</contributor>">
+<!ENTITY creator     "<creator>Jeroen van Rotterdam</creator>">
+
+<!ENTITY vars        "
+                      <var name='implementation'   type='DOMImplementation'/> 
+                      <var name='lsImplementation' type='DOMImplementationLS'/> 
+                      <var name='inputSource'      type='LSInput'/> 
+                      <var name='document'         type='Document'/>            
+                      <var name='writer'           type='LSSerializer'/>            
+                      <var name='parser'          type='LSParser'/>
+                     
+                      <!-- constants  -->
+                      <var name='MODE_SYNCHRONOUS'  type='short'  value='1'/>
+                      <var name='MODE_ASYNCHRONOUS' type='short'  value='2'/>
+                      <var name='DTD_SCHEMATYPE'    type='DOMString' value='&quot;http://www.w3.org/TR/REC-xml&quot;'/>
+                      <var name='SCHEMA_SCHEMATYPE' type='DOMString' value='&quot;http://www.w3.org/2001/XMLSchema&quot;'/>
+                      <var name='NULL_SCHEMATYPE'  type='DOMString' isNull='true'/>
+
+                      <!-- action types DOMParser.parseWithContext -->
+                      <var name='ACTION_REPLACE_CHILDREN'    type='short' value='2'/>
+                      <var name='ACTION_APPEND_AS_CHILDREN'  type='short' value='1'/>
+                      <var name='ACTION_INSERT_AFTER'        type='short' value='4'/>
+                      <var name='ACTION_INSERT_BEFORE'       type='short' value='3'/>
+                      <var name='ACTION_REPLACE'             type='short' value='5'/>
+
+
+                      <!-- testfiles  -->
+                      <var name='TEST0'   type='DOMString' value='&quot;test0&quot;'/>
+                      <var name='TEST1'   type='DOMString' value='&quot;test1&quot;'/>
+                      <var name='TEST2'   type='DOMString' value='&quot;test2&quot;'/>
+                      <var name='TEST3'   type='DOMString' value='&quot;test3&quot;'/>
+                      <var name='TEST4'   type='DOMString' value='&quot;test4&quot;'/>
+                      <var name='TEST5'   type='DOMString' value='&quot;test5&quot;'/>
+                      <var name='TEST6'   type='DOMString' value='&quot;test6&quot;'/>
+                      <var name='TEST7'   type='DOMString' value='&quot;test7&quot;'/>
+                      <var name='TESTPDF' type='DOMString' value='&quot;testpdf&quot;'/>
+
+                      <implementation var='implementation'/> 
+                      <assign var='lsImplementation' value='implementation'/> 
+                      ">
+
+<!ENTITY filterVars  "">
+
+<!ENTITY errorHandlerVars  "
+                      <var name='error'            type='DOMError'/>
+                      <var name='severity'         type='short'/>
+                      <var name='message'          type='DOMString'/>
+                      <var name='type'             type='DOMString'/>
+                      <var name='location'         type='DOMLocator'/>
+                      ">
+
+<!ENTITY assignErrorHandlerVars  "
+                      <severity         var='severity'         obj='error' interface='DOMError'/> 
+                      <message          var='message'          obj='error' interface='DOMError'/>
+                      <type             var='type'             obj='error' interface='DOMError'/>
+                      <location         var='location'         obj='error' interface='DOMError'/>
+                      ">
+
+
+<!ENTITY init        "<createLSParser      var='parser'     obj='lsImplementation' mode='MODE_SYNCHRONOUS' schemaType='NULL_SCHEMATYPE'/>
+                      <createLSSerializer       var='writer'      obj='lsImplementation'/>
+                      <createLSInput  var='inputSource' obj='lsImplementation'/>">
+
+<!ENTITY parser.setFilter_myfilter "<filter obj='parser' value='myfilter' interface='LSParser'/>">
+
+<!ENTITY SHOW_ELEMENT  "1">
+<!ENTITY SHOW_TEXT '4'>
+<!ENTITY SHOW_ALL '65535'>
+<!ENTITY SHOW_ATTRIBUTE '2'>
+<!ENTITY SHOW_COMMENT '128'>
+<!ENTITY FILTER_ACCEPT '1'>
+<!ENTITY FILTER_REJECT '2'>
+<!ENTITY FILTER_SKIP '3'>
+
+

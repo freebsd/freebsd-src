@@ -1,0 +1,50 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<?xml-stylesheet href="test-to-html.xsl" type="text/xml"?>
+<!--
+
+Copyright (c) 2001 World Wide Web Consortium, 
+(Massachusetts Institute of Technology, Institut National de
+Recherche en Informatique et en Automatique, Keio University).  All 
+Rights Reserved.  This program is distributed under the W3C's Software
+Intellectual Property License.  This program is distributed in the 
+hope that it will be useful, but WITHOUT ANY WARRANTY; without even
+the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR 
+PURPOSE.  
+
+See W3C License http://www.w3.org/Consortium/Legal/ for more details.
+
+-->
+<!DOCTYPE test SYSTEM "dom2.dtd">
+<test xmlns="http://www.w3.org/2001/DOM-Test-Suite/Level-2" name="initEvent05">
+<metadata>
+<title>initEvent05</title>
+<creator>Curt Arnold</creator>
+<description>
+The Event.initEvent method is called for event returned by 
+DocumentEvent.createEvent("MutationEvents")
+and the state is checked to see if it reflects the parameters.
+</description>
+<date qualifier="created">2002-04-22</date>
+<subject resource="http://www.w3.org/TR/DOM-Level-2-Events/events#Events-Event-initEvent"/>
+</metadata>
+<hasFeature feature='"MutationEvents"' version='"2.0"'/>
+<var name="doc" type="Document"/>
+<var name="event" type="Event"/>
+<var name="expectedEventType" type="DOMString" value='"rotate"'/>
+<var name="actualEventType" type="DOMString"/>
+<var name="expectedCanBubble" type="boolean" value='false'/>
+<var name="actualCanBubble" type="boolean"/>
+<var name="expectedCancelable" type="boolean" value='true'/>
+<var name="actualCancelable" type="boolean"/>
+<load var="doc" href="hc_staff" willBeModified="true"/>
+<createEvent var="event" obj="doc" eventType='"MutationEvents"'/>
+<assertNotNull actual="event" id="notnull"/>
+<initEvent obj="event" eventTypeArg="expectedEventType" 
+    canBubbleArg="expectedCanBubble" cancelableArg="expectedCancelable"/>
+<type var="actualEventType" obj="event" interface="Event"/>
+<assertEquals actual="actualEventType" expected="expectedEventType" id="type" ignoreCase="false"/>
+<cancelable var="actualCancelable" obj="event"/>
+<assertEquals actual="actualCancelable" expected="expectedCancelable" id="cancelable"  ignoreCase="false"/>
+<bubbles var="actualCanBubble" obj="event"/>
+<assertEquals actual="actualCanBubble" expected="expectedCanBubble" id="canBubble" ignoreCase="false"/>
+</test>

@@ -1,0 +1,60 @@
+<?xml version="1.0" encoding="UTF-8"?><?xml-stylesheet href="test-to-html.xsl" type="text/xml"?>
+
+<!--
+
+Copyright (c) 2001 World Wide Web Consortium, 
+(Massachusetts Institute of Technology, Institut National de
+Recherche en Informatique et en Automatique, Keio University).  All 
+Rights Reserved.  This program is distributed under the W3C's Software
+Intellectual Property License.  This program is distributed in the 
+hope that it will be useful, but WITHOUT ANY WARRANTY; without even
+the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR 
+PURPOSE.  
+
+See W3C License http://www.w3.org/Consortium/Legal/ for more details.
+
+-->
+<!DOCTYPE test SYSTEM "dom2.dtd">
+<test xmlns="http://www.w3.org/2001/DOM-Test-Suite/Level-2" name="setAttributeNodeNS05">
+<metadata>
+<title>setAttributeNodeNS05</title>
+<creator>NIST</creator>
+<description>
+    The "setAttributeNodeNS(newAttr)" method raises an 
+   "WRONG_DOCUMENT_ERR DOMException if the "newAttr" 
+   was created from a different document than the one that
+   created this document.
+   
+   Retrieve the first emp:address and attempt to set a new
+   attribute node.  The new
+   attribute was created from a document other than the
+   one that created this element, therefore a
+   WRONG_DOCUMENT_ERR DOMException should be raised.
+   This test uses the "createAttributeNS(newAttr)" method
+   from the Document interface.
+</description>
+<contributor>Mary Brady</contributor>
+<date qualifier="created">2001-08-17</date>
+<subject resource="http://www.w3.org/TR/DOM-Level-2-Core/core#xpointer(id('ID-258A00AF')/constant[@name='WRONG_DOCUMENT_ERR'])"/>
+<subject resource="http://www.w3.org/TR/DOM-Level-2-Core/core#ID-ElSetAtNodeNS"/>
+<subject resource="http://www.w3.org/TR/DOM-Level-2-Core/core#xpointer(id('ID-ElSetAtNodeNS')/raises/exception[@name='DOMException']/descr/p[substring-before(.,':')='WRONG_DOCUMENT_ERR'])"/>
+</metadata>
+<var name="namespaceURI" type="DOMString" value="&quot;http://www.newattr.com&quot;"/>
+<var name="qualifiedName" type="DOMString" value="&quot;emp:newAttr&quot;"/>
+<var name="doc1" type="Document"/>
+<var name="doc2" type="Document"/>
+<var name="newAttr" type="Attr"/>
+<var name="elementList" type="NodeList"/>
+<var name="testAddr" type="Node"/>
+<var name="setAttr1" type="Attr"/>
+<load var="doc1" href="staffNS" willBeModified="true"/>
+<load var="doc2" href="staffNS" willBeModified="true"/>
+<createAttributeNS obj="doc2" var="newAttr" namespaceURI="namespaceURI" qualifiedName="qualifiedName"/>
+<getElementsByTagName interface="Document" obj="doc1" var="elementList" tagname="&quot;emp:address&quot;"/>
+<item interface="NodeList" obj="elementList" var="testAddr" index="0"/>
+<assertDOMException id="throw_WRONG_DOCUMENT_ERR">
+<WRONG_DOCUMENT_ERR>
+<setAttributeNodeNS var="setAttr1" obj="testAddr" newAttr="newAttr"/>
+</WRONG_DOCUMENT_ERR>
+</assertDOMException>
+</test>

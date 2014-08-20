@@ -1,0 +1,63 @@
+<?xml version="1.0" encoding="UTF-8"?><?xml-stylesheet href="test-to-html.xsl" type="text/xml"?>
+
+<!--
+
+Copyright (c) 2001-2004 World Wide Web Consortium, 
+(Massachusetts Institute of Technology, Institut National de
+Recherche en Informatique et en Automatique, Keio University).  All 
+Rights Reserved.  This program is distributed under the W3C's Software
+Intellectual Property License.  This program is distributed in the 
+hope that it will be useful, but WITHOUT ANY WARRANTY; without even
+the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR 
+PURPOSE.  
+
+See W3C License http://www.w3.org/Consortium/Legal/ for more details.
+
+-->
+<!DOCTYPE test SYSTEM "dom2.dtd">
+<test xmlns="http://www.w3.org/2001/DOM-Test-Suite/Level-2" name="namednodemapremovenameditemns05">
+<metadata>
+<title>namednodemapremovenameditemns05</title>
+<creator>IBM</creator>
+<description>
+	Retreive an entity and notation node and remove the first notation from the 
+	entity node map and first entity node from the notation map.  Since both these
+	maps are readonly, a NO_MODIFICATION_ALLOWED_ERR should be raised.
+</description>
+<contributor>Neil Delima</contributor>
+<date qualifier="created">2002-04-28</date>
+<subject resource="http://www.w3.org/TR/DOM-Level-2-Core/core#ID-setNamedItemNS"/>
+<subject resource="http://www.w3.org/Bugs/Public/show_bug.cgi?id=259"/>
+<subject resource="http://www.w3.org/Bugs/Public/show_bug.cgi?id=407"/>
+<subject resource="http://lists.w3.org/Archives/Member/w3c-dom-ig/2003Nov/0016.html"/>
+</metadata>
+<implementationAttribute name="namespaceAware" value="true"/>
+<var name="doc" type="Document"/>
+<var name="docType" type="DocumentType"/>
+<var name="entities" type="NamedNodeMap"/>
+<var name="notations" type="NamedNodeMap"/>
+<var name="removedNode" type="Node"/>
+<var name="nullNS" type="DOMString" isNull="true"/>
+<load var="doc" href="staffNS" willBeModified="true"/>
+<doctype var="docType" obj="doc"/>
+<entities var="entities" obj="docType"/>
+<assertNotNull actual="entities" id="entitiesNotNull"/>
+<notations var="notations" obj="docType"/>
+<assertNotNull actual="notations" id="notationsNotNull"/>
+<try>
+   <removeNamedItemNS var="removedNode" obj="entities"  namespaceURI="nullNS" localName='"ent1"'/>
+   <fail id="entity_throw_DOMException"/>
+   <catch>
+   		<DOMException code="NOT_FOUND_ERR"/>
+   		<DOMException code="NO_MODIFICATION_ALLOWED_ERR"/>
+   </catch>
+</try>
+<try>
+	<removeNamedItemNS var="removedNode" obj="notations"  namespaceURI="nullNS" localName='"notation1"'/>
+    <fail id="notation_throw_DOMException"/>
+    <catch>
+    	<DOMException code="NOT_FOUND_ERR"/>
+    	<DOMException code="NO_MODIFICATION_ALLOWED_ERR"/>
+    </catch>
+</try>
+</test>

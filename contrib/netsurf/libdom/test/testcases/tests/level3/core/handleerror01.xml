@@ -1,0 +1,91 @@
+<?xml version="1.0" encoding="UTF-8"?><?xml-stylesheet href="test-to-html.xsl" type="text/xml"?>
+
+<!--
+
+Copyright (c) 2001-2004 World Wide Web Consortium, 
+(Massachusetts Institute of Technology, Institut National de
+Recherche en Informatique et en Automatique, Keio University).  All 
+Rights Reserved.  This program is distributed under the W3C's Software
+Intellectual Property License.  This program is distributed in the 
+hope that it will be useful, but WITHOUT ANY WARRANTY; without even
+the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR 
+PURPOSE.  
+
+See W3C License http://www.w3.org/Consortium/Legal/ for more details.
+
+-->
+
+<!DOCTYPE test SYSTEM "dom3.dtd">
+<test xmlns="http://www.w3.org/2001/DOM-Test-Suite/Level-3" name="handleerror01">
+<metadata>
+<title>handleerror01</title>
+<creator>Curt Arnold</creator>
+<description>
+Add two CDATASection containing "]]&gt;" and call Node.normalize
+with an error handler that stops processing.  Only one of the
+CDATASections should be split.
+</description>
+<date qualifier="created">2004-02-25</date>
+<subject resource="http://www.w3.org/TR/2004/REC-DOM-Level-3-Core-20040407/core#ID-normalize"/>
+<subject resource="http://www.w3.org/TR/2004/REC-DOM-Level-3-Core-20040407/core#parameter-split-cdata-sections"/>
+<subject resource="http://www.w3.org/TR/2004/REC-DOM-Level-3-Core-20040407/core#ID-ERRORS-DOMErrorHandler-handleError"/>
+</metadata>
+<implementationAttribute name="namespaceAware" value="true"/>
+<var name="doc" type="Document"/>
+<var name="elem" type="Element"/>
+<var name="domConfig" type="DOMConfiguration"/>
+<var name="elemList" type="NodeList"/>
+<var name="newChild" type="CDATASection"/>
+<var name="oldChild" type="Node"/>
+<var name="child" type="Node"/>
+<var name="childValue" type="DOMString"/>
+<var name="childType" type="int"/>
+<var name="retval" type="Node"/>
+<var name="errors" type="List"/>
+
+<var name="errorHandler" type="DOMErrorHandler">
+    <handleError>
+          <!--  returning false should stop processing  -->
+    	  <return value="false"/>
+    </handleError>
+</var>
+<load var="doc" href="barfoo" willBeModified="true"/>
+<getElementsByTagName var="elemList" obj="doc" tagname='"p"' interface="Document"/>
+<item var="elem" obj="elemList" index="0" interface="NodeList"/>
+<!-- have two invalid CDATASections as the content for the p element  -->
+<firstChild var="oldChild" obj="elem" interface="Node"/>
+<createCDATASection var="newChild" obj="doc" data='"this is not ]]&gt; good"'/>
+<replaceChild var="retval" obj="elem" newChild="newChild" oldChild="oldChild"/>
+<createCDATASection var="newChild" obj="doc" data='"this is not ]]&gt; bad"'/>
+<appendChild var="retval" obj="elem" newChild="newChild"/>
+<domConfig obj="doc" var="domConfig" interface="Document"/>
+<setParameter obj="domConfig" name='"split-cdata-sections"' value="true"/>
+<setParameter obj="domConfig" name='"error-handler"' value="errorHandler"/>
+<!--  normalization should have been stopped after 
+         so one of the cdata sections should be intact   -->
+<normalizeDocument obj="doc"/>
+<getElementsByTagName var="elemList" obj="doc" tagname='"p"' interface="Document"/>
+<item var="elem" obj="elemList" index="0" interface="NodeList"/>
+<lastChild var="child" obj="elem" interface="Node"/>
+<nodeValue var="childValue" obj="child"/>
+<if>
+    <!--  if last child matches original test  -->
+	<equals actual="childValue" expected='"this is not ]]&gt; bad"' ignoreCase="false"/>
+    <!--  check that it is a CDATASection      -->
+	<nodeType var="childType" obj="child"/>
+	<assertEquals actual="childType" expected="4" ignoreCase="false" id="lastChildCDATA"/>
+    <!--  check that first child is not intact  -->
+	<firstChild var="child" obj="elem" interface="Node"/>
+	<nodeValue var="childValue" obj="child"/>
+	<assertNotEquals actual="childValue" expected='"this is not ]]&gt; good"'
+	       ignoreCase="false" id="firstChildNotIntact"/>
+	<else>
+	    <!-- last child was split, check that first child is intact  -->
+		<firstChild var="child" obj="elem" interface="Node"/>
+		<nodeValue var="childValue" obj="child"/>
+		<assertEquals actual="childValue" expected='"this is not ]]&gt; good"'
+	       ignoreCase="false" id="firstChildIntact"/>
+	</else>
+</if>
+</test> 
+ 

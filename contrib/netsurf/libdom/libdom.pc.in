@@ -1,0 +1,11 @@
+prefix=PREFIX
+exec_prefix=${prefix}
+libdir=${exec_prefix}/LIBDIR
+includedir=${prefix}/include
+
+Name: libdom
+Description: W3C DOM implementation
+Version: VERSION
+REQUIRED
+Libs: -L${libdir} -ldom -lexpat
+Cflags: -I${includedir}

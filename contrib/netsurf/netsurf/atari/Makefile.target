@@ -1,0 +1,225 @@
+# ----------------------------------------------------------------------------
+# Atari target setup
+# ----------------------------------------------------------------------------
+
+# !!!IMPORTANT!!!
+# On regular m68k-atari-mint installation, these must be set
+# manually via env. variables, because the m68k-atari-mint
+# toolchain is located in /usr/bin and the wildcard matching
+# fails then. So this wildcard matches only works for
+# the netsurf environment!
+STRIP := $(wildcard $(GCCSDK_INSTALL_CROSSBIN)/*strip)
+STACK := $(wildcard $(GCCSDK_INSTALL_CROSSBIN)/*stack)
+FT2CF := $(GCCSDK_INSTALL_ENV)/bin/freetype-config
+
+ifeq ($(ATARIARCH),68000)
+PRGSUFFIX := 000.app
+PKGNAME := ns000.zip
+endif
+
+ifeq ($(ATARIARCH),68020-60)
+CFLAGS += -m68020-60
+LDFLAGS += -m68020-60
+PRGSUFFIX := 020.app
+PKGNAME := ns020.zip
+endif
+
+ifeq ($(ATARIARCH),v4e)
+CFLAGS += -mcpu=5475
+LDFLAGS += -mcpu=5475
+PRGSUFFIX := v4e.app
+PKGNAME := nsv4e.zip
+endif
+
+# non-pkgconfig components
+
+FREETYPE_FONT_CFLAGS := $(shell $(FT2CF) --cflags) -DWITH_FREETYPE_FONT_DRIVER
+SPIDERMONKEY_CFLAGS := -DWITH_MOZJS -DXP_UNIX -DJS_HAS_FILE_OBJECT=0 -DJSOPTION_JIT=0 -DPOSIX_SOURCE -D_BSD_SOURCE
+
+$(eval $(call feature_enabled,PNG,-DWITH_PNG,-lpng,PNG (libpng)))
+$(eval $(call feature_enabled,MOZJS,$(SPIDERMONKEY_CFLAGS),-ljs,JavaScript (Spidermonkey)))
+$(eval $(call feature_enabled,ATARI_FREETYPE_FONT,$(FREETYPE_FONT_CFLAGS),-lfreetype,(Freetype)))
+$(eval $(call feature_enabled,ATARI_NETSURF_FONT,-DWITH_INTERNAL_FONT_DRIVER,,(Internal Font)))
+$(eval $(call feature_enabled,ATARI_VDI_FONT,-DWITH_VDI_FONT_DRIVER,,(VDI Font)))
+$(eval $(call feature_enabled,ATARI_8BPP_SUPPORT,-DWITH_8BPP_SUPPORT,,(Indexed screen format support)))
+
+# define additional CFLAGS and LDFLAGS requirements for pkg-configed libs here
+NETSURF_FEATURE_RSVG_CFLAGS := -DWITH_RSVG
+NETSURF_FEATURE_HUBBUB_CFLAGS := -DWITH_HUBBUB
+NETSURF_FEATURE_BMP_CFLAGS := -DWITH_BMP
+NETSURF_FEATURE_GIF_CFLAGS := -DWITH_GIF
+NETSURF_FEATURE_JS_CFLAGS := -DWITH_JS -DJS_HAS_FILE_OBJECT=0
+NETSURF_FEATURE_MOZJS_CFLAGS := -DWITH_MOZJS -DJS_HAS_FILE_OBJECT=0
+
+ifeq ($(NETSURF_USE_MOZJS),YES)
+NETSURF_USE_JS:=YES
+NETSURF_USE_MOZJS:=YES
+endif
+
+$(eval $(call pkg_config_find_and_add_enabled,BMP,libnsbmp,BMP))
+$(eval $(call pkg_config_find_and_add_enabled,GIF,libnsgif,GIF))
+
+CFLAGS += -U__STRICT_ANSI__ -std=c99 -Dsmall $(WARNFLAGS) -Dnsatari \
+		-D_BSD_SOURCE \
+		-D_XOPEN_SOURCE=600 \
+		-D_POSIX_C_SOURCE=200112L \
+		$(shell $(PKG_CONFIG) --cflags libhubbub libcss openssl ) \
+		$(shell $(PKG_CONFIG) --cflags libcurl )
+
+LDFLAGS += -lcflib -lcurl
+LDFLAGS += -lcss -lparserutils -ldom -lwapcaplet -lhubbub
+LDFLAGS += -lssl -lcrypto
+LDFLAGS += -lz -liconv -lcares -lHermes -lgem -lm
+LDFLAGS += -L$(GCCSDK_INSTALL_ENV)/lib
+
+
+# S_ATARI are sources purely for the Atari FreeMiNT build
+S_ATARI := \
+	about.c \
+	bitmap.c \
+	clipboard.c \
+	ctxmenu.c \
+	cookies.c \
+	certview.c \
+	deskmenu.c \
+	download.c \
+	encoding.c \
+	findfile.c \
+	filetype.c \
+	font.c \
+	gui.c \
+	hotlist.c \
+	history.c \
+	login.c \
+	misc.c \
+	osspec.c \
+	redrawslots.c \
+	rootwin.c \
+	schedule.c \
+	search.c \
+	statusbar.c \
+	settings.c \
+	toolbar.c \
+	thumbnail.c \
+	treeview.c \
+	plot/plot.c \
+	plot/fontplot.c \
+	plot/eddi.s \
+	plot/font_freetype.c \
+	plot/font_internal.c \
+	plot/font_vdi.c \
+	gemtk/aestabs.c \
+	gemtk/dragdrop.c \
+	gemtk/guiwin.c \
+	gemtk/msgbox.c \
+	gemtk/utils.c \
+	gemtk/objc.c
+
+
+S_ATARI := $(addprefix atari/,$(S_ATARI))
+
+# This is the final source build list
+# Note this is deliberately *not* expanded here as common and image
+#   are not yet available
+SOURCES = $(S_COMMON) $(S_IMAGE) $(S_BROWSER) $(S_ATARI)
+EXETARGET := ns$(SUBTARGET)$(PRGSUFFIX)
+
+# ----------------------------------------------------------------------------
+# Install target
+# ----------------------------------------------------------------------------
+
+ATARI_TARGET_DIR := netsurf/
+ATARI_RES_DIR := atari/res/
+ATARI_DOC_DIR := atari/doc/
+ATARI_FONT_NAME := ttf-bitstream-vera-1.10
+ATARI_FONT_SOURCE_URL := http://ftp.gnome.org/pub/GNOME/sources/ttf-bitstream-vera/1.10/$(ATARI_FONT_NAME).tar.gz
+#ATARI_FONT_SOURCE_URL := http://localhost/$(ATARI_FONT_NAME).tar.gz
+ATARI_FONT_TMP_DIR := $(DEPROOT)/../
+ATARI_FONT_SOURCE_DIR := $(ATARI_FONT_TMP_DIR)$(ATARI_FONT_NAME)/
+ATARI_GENERIC_RESOURCES := de en it ja
+ATARI_RESOURCES := $(addprefix \!NetSurf/Resources/,$(ATARI_GENERIC_RESOURCES))
+
+# ----------------------------------------------------------------------------
+# Install target
+# ----------------------------------------------------------------------------
+
+install-atari:
+
+# ----------------------------------------------------------------------------
+# Package target
+# ----------------------------------------------------------------------------
+
+$(ATARI_FONT_TMP_DIR)$(ATARI_FONT_NAME):
+	$(Q)wget $(ATARI_FONT_SOURCE_URL) -O $(ATARI_FONT_TMP_DIR)$(ATARI_FONT_NAME).tar.gz
+	tar xfz $(ATARI_FONT_TMP_DIR)/$(ATARI_FONT_NAME).tar.gz -C $(ATARI_FONT_TMP_DIR)
+
+package-atari: $(ATARI_FONT_TMP_DIR)$(ATARI_FONT_NAME) $(PKGNAME)
+	$(VQ)echo Creating $(PKGNAME)
+
+$(PKGNAME): $(EXETARGET)
+ifneq ($(strip $(STRIP)),)
+	$(Q)echo Stripping symbols from $(EXETARGET) with $(STRIP)
+	$(Q)$(STRIP) $(EXETARGET)
+endif
+ifneq ($(strip $(STACK)),)
+	$(Q)$(STACK) -S 256k $(EXETARGET)
+endif
+	$(Q)rm -rf $(ATARI_TARGET_DIR)
+	$(Q)rm -rf $(PKGNAME)
+	$(Q)mkdir $(ATARI_TARGET_DIR)
+	$(Q)mkdir $(ATARI_TARGET_DIR)doc
+	$(Q)mkdir $(ATARI_TARGET_DIR)downloads
+	$(Q)mkdir $(ATARI_TARGET_DIR)res
+	$(Q)mkdir $(ATARI_TARGET_DIR)res/fonts
+	$(Q)mkdir $(ATARI_TARGET_DIR)res/icons
+	$(Q)touch $(ATARI_TARGET_DIR)cookies
+	$(Q)touch $(ATARI_TARGET_DIR)url.db
+
+	$(Q)cp $(ATARI_DOC_DIR)bugs $(ATARI_TARGET_DIR)doc/
+	$(Q)cp $(ATARI_DOC_DIR)faq.txt $(ATARI_TARGET_DIR)doc/
+	$(Q)cp $(ATARI_DOC_DIR)readme.txt $(ATARI_TARGET_DIR)doc/
+	$(Q)cp $(ATARI_DOC_DIR)todo.txt $(ATARI_TARGET_DIR)doc/
+
+# GUI resources:
+	$(Q)cp -r $(ATARI_RESOURCES)  $(ATARI_TARGET_DIR)res/
+	$(Q)cp $(ATARI_RES_DIR)/netsurf.rsc  $(ATARI_TARGET_DIR)res/netsurf.rsc
+	$(Q)cp $(ATARI_RES_DIR)/languages  $(ATARI_TARGET_DIR)res/languages
+	$(Q)cp $(ATARI_RES_DIR)/icons/toolbar -R $(ATARI_TARGET_DIR)res/icons
+	$(Q)cp \!NetSurf/Resources/Icons/* -R $(ATARI_TARGET_DIR)res/icons/
+
+	$(Q)cp \!NetSurf/Resources/netsurf.png,b60 $(ATARI_TARGET_DIR)res/netsurf.png
+	$(Q)cp \!NetSurf/Resources/AdBlock,f79 $(ATARI_TARGET_DIR)res/adblock.css
+	$(Q)cp \!NetSurf/Resources/CSS,f79 $(ATARI_TARGET_DIR)res/default.css
+	$(Q)cp \!NetSurf/Resources/Quirks,f79 $(ATARI_TARGET_DIR)res/quirks.css
+	$(Q)cp \!NetSurf/Resources/internal.css,f79 $(ATARI_TARGET_DIR)res/internal.css
+	$(Q)cp \!NetSurf/Resources/SearchEngines $(ATARI_TARGET_DIR)res/search
+	$(Q)cp \!NetSurf/Resources/ca-bundle $(ATARI_TARGET_DIR)res/cabundle
+	$(Q)cp \!NetSurf/Resources/ca-bundle $(ATARI_TARGET_DIR)res/cabundle
+	$(Q)$(SPLIT_MESSAGES) -l en -p atari -f messages resources/FatMessages > $(ATARI_TARGET_DIR)res/messages
+	$(Q)cp \!NetSurf/Resources/en/welcome.html,faf $(ATARI_TARGET_DIR)res/welcome.html
+	$(Q)cp \!NetSurf/Resources/en/licence.html,faf $(ATARI_TARGET_DIR)res/licence.html
+	$(Q)cp \!NetSurf/Resources/en/credits.html,faf $(ATARI_TARGET_DIR)res/credits.html
+
+# copy "Bitstream Vera" font:
+	$(Q)cp $(ATARI_FONT_SOURCE_DIR)RELEASENOTES.TXT $(ATARI_TARGET_DIR)res/fonts/
+	$(Q)cp $(ATARI_FONT_SOURCE_DIR)README.TXT $(ATARI_TARGET_DIR)res/fonts/
+	$(Q)cp $(ATARI_FONT_SOURCE_DIR)COPYRIGHT.TXT $(ATARI_TARGET_DIR)res/fonts/
+
+	$(Q)cp $(ATARI_FONT_SOURCE_DIR)Vera.ttf $(ATARI_TARGET_DIR)res/fonts/ss.ttf
+	$(Q)cp $(ATARI_FONT_SOURCE_DIR)VeraBd.ttf $(ATARI_TARGET_DIR)res/fonts/ssb.ttf
+	$(Q)cp $(ATARI_FONT_SOURCE_DIR)VeraIt.ttf $(ATARI_TARGET_DIR)res/fonts/ssi.ttf
+	$(Q)cp $(ATARI_FONT_SOURCE_DIR)VeraBI.ttf $(ATARI_TARGET_DIR)res/fonts/ssib.ttf
+	$(Q)cp $(ATARI_FONT_SOURCE_DIR)VeraSe.ttf $(ATARI_TARGET_DIR)res/fonts/s.ttf
+	$(Q)cp $(ATARI_FONT_SOURCE_DIR)VeraSeBd.ttf $(ATARI_TARGET_DIR)res/fonts/sb.ttf
+	$(Q)cp $(ATARI_FONT_SOURCE_DIR)VeraMono.ttf $(ATARI_TARGET_DIR)res/fonts/mono.ttf
+	$(Q)cp $(ATARI_FONT_SOURCE_DIR)VeraMoBd.ttf $(ATARI_TARGET_DIR)res/fonts/monob.ttf
+	$(Q)cp $(ATARI_FONT_SOURCE_DIR)VeraMoIt.ttf $(ATARI_TARGET_DIR)res/fonts/cursive.ttf
+	$(Q)cp $(ATARI_FONT_SOURCE_DIR)VeraMoBI.ttf $(ATARI_TARGET_DIR)res/fonts/fantasy.ttf
+
+	$(Q)cp $(EXETARGET) $(ATARI_TARGET_DIR)$(EXETARGET)
+
+# zip files
+	$(Q)zip $(PKGNAME) -9 -r ./$(ATARI_TARGET_DIR)
+
+# delete temporary folders
+	$(Q)rm -rf $(ATARI_TARGET_DIR)

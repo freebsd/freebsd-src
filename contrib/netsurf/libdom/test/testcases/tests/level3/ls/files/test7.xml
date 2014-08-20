@@ -1,0 +1,18 @@
+<?xml version="1.0"?>
+<!DOCTYPE elt0 [
+
+  <!ELEMENT elt0 (elt1+)>
+  <!ATTLIST elt0 base CDATA #IMPLIED>
+
+  <!ENTITY logo SYSTEM "logo.png" NDATA PNG>
+  <!NOTATION PNG SYSTEM "image/png">
+
+  <!ELEMENT elt1 (#PCDATA)>
+  <!ATTLIST elt1 source ENTITY #REQUIRED>
+
+  <!ENTITY ref PUBLIC "-//X-Hive//native xml storage//EN" "test5.xml">
+]>
+   <elt0 base="base">
+      <elt1 source="logo">first elt1</elt1>
+      &ref;
+   </elt0>

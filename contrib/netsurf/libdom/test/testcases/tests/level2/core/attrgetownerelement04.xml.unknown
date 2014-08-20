@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="UTF-8"?><?xml-stylesheet href="test-to-html.xsl" type="text/xml"?>
+<!--Copyright (c) 2001-2004 World Wide Web Consortium, (Massachusetts Institute of Technology, Institut National de
+Recherche en Informatique et en Automatique, Keio University).  All 
+Rights Reserved.  This program is distributed under the W3C's Software
+Intellectual Property License.  This program is distributed in the 
+hope that it will be useful, but WITHOUT ANY WARRANTY; without even
+the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR 
+PURPOSE.  
+See W3C License http://www.w3.org/Consortium/Legal/ for more details.
+-->
+<!DOCTYPE test SYSTEM "dom2.dtd">
+<test xmlns="http://www.w3.org/2001/DOM-Test-Suite/Level-2" name="attrgetownerelement04">
+<metadata>
+<title>attrgetownerelement04</title>
+<creator>IBM</creator>
+<description>
+  The "getOwnerElement()" will return the Element node this attribute is attached to or 
+  null if this attribute is not in use.  
+  Import an attribute node to another document.  If an Attr node is imported, its 
+  ownerElement attribute should be set to null.  Verify if the ownerElement has been set 
+  to null.
+</description>
+<contributor>Neil Delima</contributor>
+<date qualifier="created">2002-04-28</date>
+<subject resource="http://www.w3.org/TR/DOM-Level-2-Core/core#Attr-ownerElement"/>
+</metadata>
+<implementationAttribute name="namespaceAware" value="true"/>
+<var name="doc" type="Document"/>
+<var name="docImp" type="Document"/>
+<var name="ownerElement" type="Node"/>
+<var name="element" type="Element"/>
+<var name="attr" type="Attr"/>
+<var name="attrImp" type="Attr"/><var name="addresses" type="NodeList"/>
+<load var="doc" href="staffNS" willBeModified="false"/>
+<load var="docImp" href="staff" willBeModified="false"/><getElementsByTagNameNS var="addresses" obj="doc" interface="Document" namespaceURI='"http://www.nist.gov"' localName='"address"'/><item var="element" obj="addresses" interface="NodeList" index="1"/><assertNotNull actual="element" id="empAddressNotNull"/>
+<getAttributeNodeNS var="attr" obj="element" namespaceURI='"http://www.nist.gov"' localName='"zone"'/>
+<importNode var="attrImp" obj="docImp" importedNode="attr" deep="true"/>
+<ownerElement var="ownerElement" obj="attrImp"/>
+<assertNull actual="ownerElement" id="attrgetownerelement04"/>
+</test>

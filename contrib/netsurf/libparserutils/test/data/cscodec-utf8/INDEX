@@ -1,0 +1,6 @@
+# Index file for charset codec tests
+#
+# Test			Description
+
+simple.dat		Simple tests, designed to validate testdriver
+UTF-8-test.txt		Markus Kuhn's UTF-8 decoding test file

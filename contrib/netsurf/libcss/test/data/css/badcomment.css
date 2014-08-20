@@ -1,0 +1,31 @@
+.icon-app-medium,
+.icon-archive-medium,
+.icon-document-medium,
+.icon-folder-medium,
+.icon-folder-apps-medium,
+.icon-folder-download-medium,
+.icon-folder-dev-medium,
+.icon-folder-haiku-medium,
+.icon-folder-mail-medium,
+.icon-folder-people-medium,
+.icon-folder-search-medium,
+.icon-hdd-medium,
+.icon-html-medium,
+.icon-ide-project-medium,
+.icon-news-medium,
+.icon-pdf-medium,
+.icon-video-medium,
+.icon-people-medium,
+.icon-person-medium,
+.icon-screen-medium,
+.icon-styled-edit-medium,
+.icon-terminal-medium,
+.icon-vmware-medium
+{ 
+  background-repeat: no-repeat;
+  list-style: none !important;
+  padding-left: 36px;
+  padding-top: 10px; Increased from 15 to 20 to avoid icon chop off */
+  line-height: 150% !important;
+  list-style-image: none !important;
+}

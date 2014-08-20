@@ -1,0 +1,53 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+Copyright (c) 2001-2003 World Wide Web Consortium,
+(Massachusetts Institute of Technology, Institut National de
+Recherche en Informatique et en Automatique, Keio University). All
+Rights Reserved. This program is distributed under the W3C's Software
+Intellectual Property License. This program is distributed in the
+hope that it will be useful, but WITHOUT ANY WARRANTY; without even
+the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
+PURPOSE.
+See W3C License http://www.w3.org/Consortium/Legal/ for more details.
+--><!DOCTYPE test SYSTEM "dom1.dtd">
+
+<test xmlns="http://www.w3.org/2001/DOM-Test-Suite/Level-1" name="hc_nodelistindexequalzero">
+<metadata>
+<title>hc_nodelistIndexEqualZero</title>
+<creator>Curt Arnold</creator>
+<description>
+   Create a list of all the children elements of the third
+   employee and access its first child by using an index
+   of 0.  This should result in the whitspace before "em" being
+   selected (em when ignoring whitespace).  
+   Further we evaluate its content(by using
+   the "getNodeName()" method) to ensure the proper
+   element was accessed.
+</description>
+
+<date qualifier="created">2002-06-09</date>
+<!--item-->
+<subject resource="http://www.w3.org/TR/1998/REC-DOM-Level-1-19981001/level-one-core#ID-844377136"/>
+<subject resource="http://www.w3.org/Bugs/Public/show_bug.cgi?id=246"/>
+</metadata>
+<var name="doc" type="Document"/>
+<var name="elementList" type="NodeList"/>
+<var name="employeeNode" type="Node"/>
+<var name="employeeList" type="NodeList"/>
+<var name="child" type="Node"/>
+<var name="childName" type="DOMString"/>
+<var name="length" type="int"/>
+<load var="doc" href="hc_staff" willBeModified="false"/>
+<getElementsByTagName interface="Document" obj="doc" var="elementList" tagname='"p"'/>
+<item interface="NodeList" obj="elementList" var="employeeNode" index="2"/>
+<childNodes obj="employeeNode" var="employeeList"/>
+<length var="length" obj="employeeList" interface="NodeList"/>
+<item interface="NodeList" obj="employeeList" var="child" index="0"/>
+<nodeName obj="child" var="childName"/>
+<if><equals expected='13' actual="length" ignoreCase="false"/>
+<assertEquals actual="childName" expected='"#text"' ignoreCase="false" id="childName_w_whitespace"/>
+<else>
+<assertEquals actual="childName" expected='"em"' ignoreCase="auto" id="childName_wo_whitespace"/>
+</else>
+</if>
+</test>

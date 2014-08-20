@@ -1,0 +1,71 @@
+<?xml version="1.0" standalone="no"?>
+<?xml-stylesheet href="test-to-html.xsl" type="text/xml"?>
+<!--
+
+Copyright (c) 2003 World Wide Web Consortium, 
+(Massachusetts Institute of Technology, Institut National de
+Recherche en Informatique et en Automatique, Keio University).  All 
+Rights Reserved.  This program is distributed under the W3C's Software
+Intellectual Property License.  This program is distributed in the 
+hope that it will be useful, but WITHOUT ANY WARRANTY; without even
+the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR 
+PURPOSE.  
+
+See W3C License http://www.w3.org/Consortium/Legal/ for more details.
+
+-->
+<!DOCTYPE test SYSTEM "dom3.dtd">
+
+
+<test xmlns="http://www.w3.org/2001/DOM-Test-Suite/Level-3" name="LSParserConfig6">
+  <metadata>
+    <title>LSParserConfig6</title>
+    <creator>Curt Arnold</creator>
+    <description>Checks support of infoset.</description>
+	<date qualifier="created">2003-12-08</date>
+	<subject resource="http://www.w3.org/TR/2004/REC-DOM-Level-3-LS-20040407/load-save#LS-LSParser-config"/>
+  </metadata>
+  <var name="domImpl" type="DOMImplementationLS"/>
+  <var name="parser" type="LSParser"/>
+  <var name="config" type="DOMConfiguration"/>
+  <var name="state" type="boolean"/>
+  <var name="canSet" type="boolean"/>
+  <var name="NULL_SCHEMA_TYPE" type="DOMString" isNull="true"/>
+  <var name="propertyName" type="DOMString" value='"iNfoset"'/>
+  
+  <implementation var="domImpl"/>
+  <createLSParser var="parser" obj="domImpl" schemaType="NULL_SCHEMA_TYPE" mode="1"/>
+  <domConfig var="config" obj="parser" interface="LSParser"/>
+  <assertNotNull actual="config" id="configNotNull"/>
+  <getParameter var="state" obj="config" name="propertyName"/>
+  <assertTrue actual="state" id="defaultValue"/>
+  <canSetParameter var="canSet" obj="config" name="propertyName" value="true"/>
+  <assertTrue actual="canSet" id="canSetTrue"/>
+  <canSetParameter var="canSet" obj="config" name="propertyName" value="false"/>
+  <assertTrue actual="canSet" id="canSetFalse"/>
+  <!--  setting infoset to false should have no effect
+           that is infoset will still be true   -->
+  <setParameter obj="config" name="propertyName" value="false"/>
+  <getParameter var="state" obj="config" name="propertyName"/>
+  <assertTrue actual="state" id="setFalse"/>
+  
+  <!--  setting comments to false should change value of
+          infoset to false    -->
+  <setParameter obj="config" name='"comments"' value="false"/>
+  <getParameter var="state" obj="config" name="propertyName"/>
+  <assertFalse actual="state" id="falseWhenCommentsFalse"/>
+  
+  <!--  setting infoset to true should cause infoset to be true
+                and comments to be true   -->
+  <setParameter obj="config" name="propertyName" value="true"/>
+  <getParameter var="state" obj="config" name="propertyName"/>
+  <assertTrue actual="state" id="resetTrue"/>
+  
+  <getParameter var="state" obj="config" name='"comments"'/>
+  <assertTrue actual="state" id="resetTrueComments"/>
+</test>
+
+
+
+
+

@@ -1,0 +1,53 @@
+<?xml version="1.0" encoding="UTF-8"?><?xml-stylesheet href="test-to-html.xsl" type="text/xml"?>
+
+<!--
+
+Copyright (c) 2001 World Wide Web Consortium, 
+(Massachusetts Institute of Technology, Institut National de
+Recherche en Informatique et en Automatique, Keio University).  All 
+Rights Reserved.  This program is distributed under the W3C's Software
+Intellectual Property License.  This program is distributed in the 
+hope that it will be useful, but WITHOUT ANY WARRANTY; without even
+the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR 
+PURPOSE.  
+
+See W3C License http://www.w3.org/Consortium/Legal/ for more details.
+
+-->
+<!DOCTYPE test SYSTEM "dom2.dtd">
+<test xmlns="http://www.w3.org/2001/DOM-Test-Suite/Level-2" name="namednodemapremovenameditemns03">
+<metadata>
+<title>namednodemapremovenameditemns03</title>
+<creator>IBM</creator>
+<description>
+   The method removeNamedItemNS removes a node specified by local name and namespace 
+      
+	Create a new element node and add 2 new attribute nodes to it that have the same localName
+	but different namespaceURI's.  Remove the first attribute node from the namedNodeMap of the
+	new element node and check to see that the second attribute still exists.
+</description>
+<contributor>Neil Delima</contributor>
+<date qualifier="created">2002-04-28</date>
+<subject resource="http://www.w3.org/TR/DOM-Level-2-Core/core#ID-D58B193"/>
+</metadata>
+<implementationAttribute name="namespaceAware" value="true"/>
+<var name="doc" type="Document"/>
+<var name="attributes" type="NamedNodeMap"/>
+<var name="element" type="Node"/>
+<var name="attribute" type="Attr"/>
+<var name="newAttribute" type="Attr"/>
+<var name="attribute1" type="Attr"/>
+<var name="attribute2" type="Attr"/>
+<var name="nodeName" type="DOMString"/>
+<load var="doc" href="staffNS" willBeModified="true"/>
+<createElementNS var="element" obj="doc" namespaceURI='"http://www.w3.org/DOM/Test"' qualifiedName='"root"'/>
+<createAttributeNS var="attribute1" obj="doc" namespaceURI='"http://www.w3.org/DOM/L1"' qualifiedName='"L1:att"'/>
+<setAttributeNodeNS var="newAttribute" obj="element" newAttr="attribute1"/>
+<createAttributeNS var="attribute2" obj="doc" namespaceURI='"http://www.w3.org/DOM/L2"' qualifiedName='"L2:att"'/>
+<setAttributeNodeNS var="newAttribute" obj="element" newAttr="attribute2"/>
+<attributes var="attributes" obj="element"/>
+<removeNamedItemNS var="attribute" obj="attributes" namespaceURI='"http://www.w3.org/DOM/L1"' localName='"att"'/>
+<getNamedItemNS var="attribute" obj="attributes" namespaceURI='"http://www.w3.org/DOM/L2"' localName='"att"'/>
+<nodeName var="nodeName" obj="attribute"/>
+<assertEquals actual="nodeName" expected='"L2:att"' id="namednodemapremovenameditemns02" ignoreCase="false"/>
+</test>

@@ -1,0 +1,142 @@
+@font-face {
+   invalid-descriptor: name;
+   src: invalid-src;
+}
+
+/* To use a downloadable font called Gentium */
+@font-face {
+  font-family: Gentium;
+  src: url(http://example.com/fonts/Gentium.ttf);
+}
+
+p { font-family: Gentium, serif; }
+
+/* load WOFF font if possible, otherwise use OpenType font */
+@font-face {
+  font-family: bodytext;
+  src: url(ideal-sans-serif.woff) format("woff"),
+       url(basic-sans-serif.ttf) format("opentype");
+}
+
+/* regular face of Gentium */
+@font-face {
+  font-family: MyGentium;
+  src: local(Gentium),   /* use locally available Gentium */
+       url(Gentium.ttf); /* otherwise, download it */
+}
+
+/* bold face of Gentium */
+@font-face {
+  font-family: MyGentium;
+  src: local(Gentium Bold),   /* full font name */
+       local(Gentium-Bold),   /* Postscript name */
+       url(GentiumBold.ttf);  /* otherwise, download it */
+  font-weight: bold;
+}
+
+/* Use a local font or reference an SVG font in another document: */
+@font-face {
+  font-family: Headline;
+  src: local(Futura-Medium), 
+       url(fonts.svg#MyGeometricModern) format("svg");
+}
+
+/* Create an alias for local Japanese fonts on different platforms: */
+@font-face {
+  font-family: jpgothic;
+  src: local(HiraKakuPro-W3), local(Meiryo), local(IPAPGothic);
+}
+
+/* Reference a font face that cannot be matched within a larger family: */
+@font-face {
+  font-family: Hoefler Text Ornaments;
+  /* has the same font properties as Hoefler Text Regular */
+  src: local(HoeflerText-Ornaments); 
+}
+
+/* Since localized fullnames should never match, a document with the header style rules below would always render using the default serif font, regardless whether a particular system locale parameter is set to Finnish or not: */
+@font-face {
+  font-family: SectionHeader;
+  src: local("Arial Lihavoitu");  /* Finnish fullname for Arial Bold, matching should fail */
+  font-weight: bold;
+}
+
+h2 { font-family: SectionHeader, serif; }
+
+/* A conformant user agent should never load the font ‘gentium.eot’ in the example below, since it is included in the first definition of the ‘src’ descriptor which is overridden by the second definition in the same @font-face rule: */
+@font-face {
+  font-family: MainText;
+  src: url(gentium.eot); /* for compatibility with older non-conformant user agents */
+  src: local("Gentium"), url(gentium.ttf);  /* Overrides src definition */
+}
+
+/* The BBC provides news services in a wide variety of languages, many that are not well supported across all platforms. Using an @font-face rule, the BBC could provide a font for any of these languages, as it already does via a manual font download. */
+@font-face {
+  font-family: BBCBengali;
+  src: url(fonts/BBCBengali.ttf) format("opentype");
+  unicode-range: U+00-FF, U+980-9FF;
+}
+
+/* Technical documents often require a wide range of symbols. The STIX Fonts project is one project aimed at providing fonts to support a wide range of technical typesetting in a standardized way. The example below shows the use of a font that provides glyphs for many of the mathematical and technical symbol ranges within Unicode: */
+@font-face {
+  font-family: STIXGeneral;
+  src: local(STIXGeneral), url(/stixfonts/STIXGeneral.otf);
+  unicode-range: U+000-49F, U+2000-27FF, U+2900-2BFF, U+1D400-1D7FF;
+}
+
+
+
+@font-face {
+  font-family: JapaneseWithGentium;
+  src: local(MSMincho);
+  /* no range specified, defaults to entire range */
+}
+
+@font-face {
+  font-family: JapaneseWithGentium;
+  src: url(../fonts/Gentium.ttf);
+  unicode-range: U+0-2FF;
+}
+
+/* Consider a family constructed to optimize bandwidth by separating out Latin, Japanese and other characters into different font files: */
+/* fallback font - size: 4.5MB */
+@font-face {
+  font-family: DroidSans;
+  src: url(DroidSansFallback.ttf);
+  /* no range specified, defaults to entire range */
+}
+
+/* Japanese glyphs - size: 1.2MB */
+@font-face {
+  font-family: DroidSans;
+  src: url(DroidSansJapanese.ttf);
+  unicode-range: U+3000-9FFF, U+ff??;
+}
+
+/* Latin, Greek, Cyrillic along with some 
+   punctuation and symbols - size: 190KB */
+@font-face {
+  font-family: DroidSans;
+  src: url(DroidSans.ttf);
+  unicode-range: U+000-5FF, U+1e00-1fff, U+2000-2300;
+}
+
+/* The first src: should be used because the second is invalid. */
+@font-face {
+  font-family: BadSrc;
+  src: url(http://example.com/fonts/Gentium.ttf);
+  src: fhgwgads;
+  font-style: oblique;
+}
+
+/* The third src: should be used because the second is invalid, but the thirsd is valid, overriding the first. */
+@font-face {
+  font-family: ThirdSrc;
+  src: url(http://example.com/fonts/Gentium.ttf);
+  src: fhgwgads;
+  font-style: italic;
+  src: local(gentium);
+}
+
+
+

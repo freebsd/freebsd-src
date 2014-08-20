@@ -1,0 +1,22 @@
+# Index file for generic HTML content
+#
+# Test			Description
+
+section-tree-construction.html	HTML5 tree construction algorithm
+#web-apps.html		HTML5 specification
+initial-close-tag.html	Page with initial </html>
+#phonecalls.html		HTML document that breaks libxml's HTML parser
+misnested.html		Misnested tags
+isindex.html		Test of <isindex> parsing
+#firmaer.phtml		http://www.danmarks.net/firmaer.phtml?idxno=1418&letter=F
+#d11MXs.2WQ9.d.htm	http://www.secinfo.com/d11MXs.2WQ9.d.htm
+regression-script-collect.html	Regression test for script collection
+mangleme.1.html		Mangleme page (caused assertion, fixed in r5093).
+mangleme.2.html		Mangleme page (caused segfault, fixed in r5098).
+mangleme.3.html		Mangleme page (caused assertion, fixed in r5086).
+www.fhis.ubc.ca.html	Segfault page (fixed in r5104).
+ccr.coriell.org.html	Segfault page (fixed in r5106).
+wbh.co.uk.html		Segfault in treebuilder (fixed in r5125).
+www.directline.com.html	Segfault in current_node()
+www.hanazonohifuku.com.html	Abort in token emitter (fixed in r5146).
+DocumentIndex.jsp	Abort in generic end tag handling (fixed in r6746).

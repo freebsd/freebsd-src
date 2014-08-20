@@ -1,0 +1,7 @@
+# Resource.map
+favicon.ico:TBimages:list_file
+icons/arrow-l.png:TBimages:list_mailreplied
+icons/search.png:TBimages:list_search
+icons/directory.png:TBimages:list_drawer
+icons/directory2.png:TBimages:list_drawer_s
+icons/content.png:TBimages:list_file

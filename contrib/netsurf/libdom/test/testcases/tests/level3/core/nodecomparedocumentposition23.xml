@@ -1,0 +1,54 @@
+<?xml version="1.0" encoding="UTF-8"?><?xml-stylesheet href="test-to-html.xsl" type="text/xml"?>
+
+<!--
+
+Copyright (c) 2001-2004 World Wide Web Consortium, 
+(Massachusetts Institute of Technology, Institut National de
+Recherche en Informatique et en Automatique, Keio University).  All 
+Rights Reserved.  This program is distributed under the W3C's Software
+Intellectual Property License.  This program is distributed in the 
+hope that it will be useful, but WITHOUT ANY WARRANTY; without even
+the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR 
+PURPOSE.  
+
+See W3C License http://www.w3.org/Consortium/Legal/ for more details.
+
+-->
+
+<!DOCTYPE test SYSTEM "dom3.dtd">
+<test xmlns="http://www.w3.org/2001/DOM-Test-Suite/Level-3" name="nodecomparedocumentposition23">
+<metadata>
+<title>nodecomparedocumentposition23</title>
+<creator>IBM</creator>
+<description>
+	Using compareDocumentPosition check if the document position of an Entity node compared to another
+	Entity node following it in DocumentType is implementation specific.
+</description>
+<contributor>Jenny Hsu</contributor>
+<date qualifier="created">2003-02-20</date>
+<subject resource="http://www.w3.org/TR/2004/REC-DOM-Level-3-Core-20040407/core#Node3-compareDocumentPosition"/>
+</metadata>
+<var name="doc" type="Document"/>
+<var name="docType" type="DocumentType"/>
+<var name="entitiesMap" type="NamedNodeMap"/>
+<var name="entity" type="Entity"/>
+<var name="entity2" type="Entity"/>
+<var name="position1" type="int"/>
+<var name="position2" type="int"/>
+<var name="position3" type="int"/>
+<load var="doc" href="hc_staff" willBeModified="false"/>
+<doctype var="docType" obj="doc"/>
+<entities var="entitiesMap" obj="docType"/>
+<getNamedItem var="entity" obj="entitiesMap" name='"alpha"'/>
+<getNamedItem var="entity2" obj="entitiesMap" name='"delta"'/>
+<compareDocumentPosition var="position1" obj="entity" other="entity2"/>
+<!--  bitmask blocks out preceding and following bits   -->
+<assertEquals bitmask="57" actual="position1" expected="32" id="isImplSpecificDisconnected1" ignoreCase="false"/>
+<compareDocumentPosition var="position2" obj="entity2" other="entity"/>
+<assertNotEquals bitmask="2" actual="position2" expected="position1" id="notBothPreceding" ignoreCase="false"/>
+<assertNotEquals bitmask="4" actual="position2" expected="position1" id="notBothFollowing" ignoreCase="false"/>
+<assertEquals bitmask="57" actual="position2" expected="32" id="isImplSpecificDisconnected2" ignoreCase="false"/>
+<!--  returned value should be consistent between invocations   -->
+<compareDocumentPosition var="position3" obj="entity" other="entity2"/>
+<assertEquals  actual="position3" expected="position1" id="isConsistent" ignoreCase="false"/>
+</test>

@@ -1,0 +1,14 @@
+# ----------------------------------------------------------------------------
+# Monkey-specific options
+# ----------------------------------------------------------------------------
+
+# How did I get mixed up with this fucking monkey anyhow?
+NETSURF_MONKEY_RESOURCES := $(PREFIX)/share/netsurf/
+NETSURF_MONKEY_BIN := $(PREFIX)/bin/
+NETSURF_USE_RSVG := NO
+NETSURF_USE_NSSVG := NO
+NETSURF_USE_ROSPRITE := NO
+NETSURF_USE_HARU_PDF := NO
+NETSURF_USE_LIBICONV_PLUG := NO
+
+CFLAGS += -O2

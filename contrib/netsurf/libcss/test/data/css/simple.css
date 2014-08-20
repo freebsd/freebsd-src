@@ -1,0 +1,51 @@
+<!--
+-->
+url(foo);
+"foo)";
+"foo'";
+'foo"';
+"foo\"";
+'foo\'';
+url("foo)");
+url("foo'");
+url('foo"');
+url("foo\"");
+url('foo\'');
+.blah
+#foo
+/********/
+html {
+	color: green;
+}
+U+2022-2023
+U+??33-40fa
+U+x
+U+01234599
+U+??????-000012f
+0.575
+.825
+15
+20%
+.05%
+0.1%
+0.%
+5em
+.5em
+0.4px
+.%
+\.moo\se {}
+bla\2022 f {}
+@import url('foo.css');
+@\hello;
+@.bad {}
+body { font-family: "Bitstream Vera Sans"; }
+body { font-family: "foo \
+	bar"; }
+/**
+*/
+body { font-family: "unterminated string
+foo }
+
+blah { baz: bat; foo: bar !important; }
+
+foo { bar: ""; }{ color: green; }

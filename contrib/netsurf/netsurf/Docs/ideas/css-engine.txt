@@ -1,0 +1,381 @@
+CSS engine
+==========
+
+Requirements
+------------
+
+ + Parse stylesheets conforming to the forward compatible CSS grammar
+   (Note that in the short term, the semantic analysis stage only need
+    support CSS2.1)
+ + Stylesheet management/merging (i.e. multiple stylesheets may be added 
+   to a single engine context and thus affect style selection)
+ + Be able to select a style for a DOM node based upon the current stylesheets
+   in the engine context.
+ + Implemented as a standalone, reusable, library -- ideally MIT licensed.
+
+Suggested API
+-------------
+
+struct css_context;
+struct css_style;
+struct css_stylesheet;
+
+typedef struct css_context css_context;
+typedef struct css_style css_style;
+typedef struct css_stylesheet css_stylesheet;
+
+typedef enum css_error {
+	CSS_OK,
+	CSS_NOMEM,
+	/* etc */
+} css_error;
+
+typedef enum css_origin {
+	CSS_ORIGIN_UA,
+	CSS_ORIGIN_USER,
+	CSS_ORIGIN_AUTHOR
+} css_origin;
+
+#define CSS_MEDIA_SCREEN (1<<0)
+#define CSS_MEDIA_PRINT  (1<<1)
+/* etc */
+#define CSS_MEDIA_ALL    (0xffffffff)
+
+#define CSS_PSEUDO_CLASS_NONE    (0)
+#define CSS_PSEUDO_CLASS_LINK    (1<<0)
+#define CSS_PSEUDO_CLASS_VISITED (1<<1)
+#define CSS_PSEUDO_CLASS_HOVER   (1<<2)
+#define CSS_PSEUDO_CLASS_ACTIVE  (1<<3)
+#define CSS_PSEUDO_CLASS_FOCUS   (1<<4)
+
+typedef enum css_property {
+	CSS_BACKGROUND_ATTACHMENT,
+	/* etc */
+} css_property;
+
+typedef struct css_value {
+	css_property property;
+
+	union {
+		css_background_attachment background_attachment;
+		/* etc */
+	} value;
+} css_value;
+
+typedef css_error (*css_import_handler)(void *pw, const char *url,
+		css_stylesheet *sheet);
+
+/* Initialise library */
+css_error css_init(void);
+/* Finalise library */
+css_error css_fini(void);
+
+/* Create a stylesheet associated with the given URL,
+ * specifying the sheet's origin, the media type(s) it applies to and 
+ * a callback routine for fetching imported sheets */
+css_stylesheet *css_stylesheet_create(const char *url, 
+		css_origin origin, uint32_t media,
+		css_import_handler import_callback, void *pw);
+/* Destroy a stylesheet */
+void css_stylesheet_destroy(css_stylesheet *sheet);
+
+/* Append data to a stylesheet, parsing progressively */
+css_error css_stylesheet_append_data(css_stylesheet *sheet,
+		const uint8_t *data, size_t len);
+/* Tell stylesheet parser that there's no more data (will complete parsing) */
+css_error css_stylesheet_data_done(css_stylesheet *sheet);
+
+/* Retrieve the URL associated with a stylesheet */
+const char *css_stylesheet_get_url(css_stylesheet *sheet);
+/* Retrieve the origin of a stylesheet */
+css_origin css_stylesheet_get_origin(css_stylesheet *sheet);
+/* Retrieve the media type(s) applicable to a stylesheet */
+uint32_t css_stylesheet_get_media(css_stylesheet *sheet);
+
+/* Create a selection context */
+css_context *css_context_create(void);
+/* Destroy a selection context */
+void css_context_destroy(css_context *context);
+
+/* Append a top-level stylesheet to a selection context */
+css_error css_context_append_sheet(css_context *context,
+		css_stylesheet *sheet);
+/* Insert a top-level stylesheet into a selection context, at the given index */
+css_error css_context_insert_sheet(css_context *context, 
+		css_stylesheet *sheet, uint32_t index);
+/* Remove a top-level stylesheet from a selection context */
+css_error css_context_remove_sheet(css_context *context, 
+		css_stylesheet *sheet);
+
+/* Retrieve the total number of top-level sheets in a selection context */
+uint32_t css_context_count_sheets(css_context *context);
+/* Get a stylesheet from a selection context given an index [0, count) */
+const css_stylesheet *css_context_get_sheet(css_context *context, 
+		uint32_t index);
+
+/* Select a style for a given DOM node with the given pseudo classes active
+ * and media type.
+ *
+ * If the document language contains non-CSS presentational hints (e.g. HTML
+ * presentational attributes etc), then these are passed in through 
+ * property_list and treated as if they were encountered at the start of the
+ * author stylesheet with a specificity of 0. */
+css_style *css_style_select(css_context *context,
+		<dom_node_type> *node, uint32_t pseudo_classes, uint32_t media,
+		css_value **property_list, uint32_t property_list_length);
+/* Destroy a selected style */
+void css_style_destroy(css_style *style);
+
+/* Retrieve a property value from a style */
+css_value *css_value_get(css_style *style, css_property property);
+/* Destroy a property value */
+void css_value_destroy(css_value *value);
+
+Memory management
+-----------------
+
+ + Stylesheets are owned by their creator. Selection contexts reference them.
+ + Selection contexts are owned by the client.
+ + Selected styles are owned by the client.
+ + Property values are owned by the client.
+
+ Therefore, the only difficulty lies within the handling of stylesheets 
+ inserted into a selection context. The client code must ensure that a
+ stylesheet is destroyed after it has been removed from any selection
+ contexts which are using it.
+
+DOM node types & tree traversal
+-------------------------------
+
+ This is currently undecided. Either the CSS engine is tied to a DOM 
+ implementation (and makes API calls directly), or it's more generic and
+ performs API calls through a vtable provided by the client.
+
+Imported stylesheets
+--------------------
+
+ Imported stylesheets are handled by the CSS engine creating an appropriate
+ css_stylesheet object for the imported sheet and then asking the client
+ to fetch the data and append it to the sheet. The imported sheet is then 
+ stored in the sheet that imported it. This effectively creates a tree of
+ stylesheets beneath the initial top-level sheet created by the client.
+
+Style selection algorithm
+-------------------------
+
+ css_style_select(context, node, pseudo_classes, media, 
+	 property_list, property_list_length):
+   result = blank_style;
+   done_props = false;
+   foreach sheet in context:
+     # Assumes that sheets are in the order UA, USER, AUTHOR
+     if !done_props && css_stylesheet_get_origin(sheet) == CSS_ORIGIN_AUTHOR:
+       fake_rule = fake_rule(node, property_list, property_list_length);
+       cascade(result, fake_rule, CSS_ORIGIN_AUTHOR);
+       done_props = true;
+     process_sheet(sheet, node, pseudo_classes, media, result);
+   return result;
+
+ fake_rule(node, property_list, property_list_length):
+   rule = (node.name, 0); # Specificity is 0
+   foreach (property, value, importance) in property_list:
+     rule[property] = (value, importance);
+   return rule;
+
+ process_sheet(sheet, node, pseudo_classes, media, result):
+   if (css_stylesheet_get_media(sheet) & media) == 0:
+     return;
+   foreach import in sheet:
+     process_sheet(import, node, pseudo_classes, media, result);
+   origin = css_stylesheet_get_origin(sheet);
+   foreach rule in sheet:
+     if matches_rule(rule, node, pseudo_classes):
+       cascade(result, rule, origin);
+
+ cascade(result, rule, origin):
+   foreach (property, value, importance) in rule:
+     insert = false;
+     if result[property]:
+       rOrigin = result[property].origin;
+       rImportance = result[property].importance;
+       rSpecificity = result[property].specificity;
+       if rOrigin < origin:
+         if rImportance == "important":
+           if rOrigin != CSS_ORIGIN_USER:
+             insert = true;
+         else:
+           insert = true;
+       else if rOrigin == origin:
+         if rImportance == "" && importance == "important":
+           if rOrigin == CSS_ORIGIN_UA:
+             if rSpecificity <= rule.specificity:
+               insert = true;
+           else:
+             insert = true;
+         else if rImportance == "important" && importance == "":
+           if rOrigin == CSS_ORIGIN_UA:
+             if rSpecificity <= rule.specificity:
+               insert = true;
+         else:
+           if rSpecificity <= rule.specificity:
+             insert = true;
+       else:
+         if origin == CSS_ORIGIN_USER && importance == "important":
+           insert = true;
+     else:
+       insert = true;
+     if insert:
+       result[property] = (value, origin, importance, rule.specificity);
+
+Outstanding issues
+------------------
+
+  + Parsing/selection quirks.
+  
+    Probably as an argument to css_stylesheet_create() and possibly 
+    css_style_select(). This could either take the form of a blanket 
+    full/almost/not quirks mode flag or be more granular and permit the 
+    toggling of individual quirks.
+
+    References:
+
+     + http://developer.mozilla.org/en/docs/Mozilla_Quirks_Mode_Behavior
+     + http://www.opera.com/docs/specs/doctype/
+     + http://www.quirksmode.org/css/quirksmode.html
+     + http://www.cs.tut.fi/~jkorpela/quirks-mode.html
+     + Grep WebKit sources for inCompatMode()
+
+  + The :lang pseudo-class
+
+    Need to pass the current language string into css_style_select()
+
+  + Pseudo-elements
+
+    Probably as an argument to css_style_select(). Most likely a bitfield
+    like the way in which pseudo-classes are handled.
+    
+    The inheritance model of :first-line and :first-letter is such that:
+
+      + css_style_select() must begin with a blank style and not the 
+        parent node's style
+      + an API for cascading one style onto another is needed
+
+    This is because pseudo-elements may be nested inside children of the
+    node to which they are logically connected. e.g.:
+
+      <div>
+       <p>
+        first paragraph
+       </p>
+      </div> 
+    
+    is logically equivalent to
+
+      <div>
+       <p>
+        <div:first-line>
+         <p:first-line>
+          first paragraph
+         </p:first-line>
+        </div:first-line>
+       </p>
+      </div>
+
+    so the actual cascade order is only known at the time the render tree is
+    built. Note that, courtesy of scripting, the location of pseudo-elements
+    can move around (e.g. if some text was inserted just before the <p> within
+    the div, above, then <div:first-line> would move). Additionally, the actual
+    content that pseudo-elements apply to can change due to reflow.
+
+    Pseudo-elements may also affect the processing of inline boxes. e.g.:
+
+      <p>
+       <span>foo bar baz bat</span>
+      </p>
+
+    becomes (logically):
+
+      <p>
+       <p:first-line>
+        <span>foo bar baz </span>
+       </p:first-line>
+       <span>bat</span>
+      </p>
+
+    In terms of interaction between pseudo-elements, :first-letter inherits
+    from :first-line e.g.:
+
+      <p>
+       first line
+       second line
+      </p>
+
+    becomes (logically):
+
+      <p>
+       <p:first-line>
+        <p:first-letter>
+         f
+        </p:first-letter>
+        irst line
+       </p:first-line>
+       second line
+      </p>
+
+    :first-line and :first-letter apply to the relevant content _including_ any
+    text inserted using :before and :after.
+
+    List of CSS 3 pseudo-elements:
+
+     + :(:)?first-line
+     + :(:)?first-letter
+     + :(:)?before
+     + :(:)?after
+     + ::selection
+     + ::footnote-call
+     + ::footnote-marker
+     + ::before-page-break
+     + ::after-page-break
+     + ::line-number-left
+     + ::line-number-right
+     + ::line-number-inside
+     + ::line-number-outside
+     + ::slot()
+     + ::value
+     + ::choices
+     + ::repeat-item
+     + ::repeat-index
+     + ::marker
+     + ::outside
+     + ::alternate
+     + ::line-marker
+
+    References:
+
+     + CSS 2.1 $$5.12 and $$12.1
+
+  + Stylesheet charset handling
+
+    An embedded stylesheet shares the charset of the containing document.
+
+    The charset of a stand-alone stylesheet can be specified by (in order of 
+    priority, highest -> lowest):
+    
+     + the transport layer
+     + a BOM and/or @charset at the immediate start of the sheet
+     + <link charset=""> or other metadata from the linking mechanism
+     + charset of referring stylesheet or document
+     + assuming UTF-8
+
+    The API currently has no way of conveying the first, third, or fourth of 
+    these to the engine. This can be realised through the addition of a 
+    parameter to css_stylesheet_create()
+
+    CSS 2.1 $4.4 specifies that a stylesheet's transport encoding must be a 
+    superset of US-ASCII.
+
+    The internal encoding will be UTF-8.
+
+    All strings passed in by the client are assumed to be UTF-8 encoded.
+    Strings retrieved from DOM nodes are assumed to be UTF-8 encoded.
+

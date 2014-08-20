@@ -1,0 +1,70 @@
+<?xml version="1.0" encoding="UTF-8"?><?xml-stylesheet href="test-to-html.xsl" type="text/xml"?>
+
+<!--
+
+Copyright (c) 2001-2003 World Wide Web Consortium, 
+(Massachusetts Institute of Technology, Institut National de
+Recherche en Informatique et en Automatique, Keio University).  All 
+Rights Reserved.  This program is distributed under the W3C's Software
+Intellectual Property License.  This program is distributed in the 
+hope that it will be useful, but WITHOUT ANY WARRANTY; without even
+the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR 
+PURPOSE.  
+
+See W3C License http://www.w3.org/Consortium/Legal/ for more details.
+
+-->
+
+<!DOCTYPE test SYSTEM "dom2.dtd">
+<test xmlns="http://www.w3.org/2001/DOM-Test-Suite/Level-2" name="nodeissupported02">
+<metadata>
+<title>nodeissupported02</title>
+<creator>IBM</creator>
+<description>
+	The method "isSupported(feature,version)" Tests whether the DOM implementation 
+	implements a specific feature and that feature is supported by this node. 
+	
+	Call the isSupported method on a new attribute node with a combination of features 
+	versions and versions as below.  Valid feature names are case insensitive and versions
+	"2.0", "1.0" and if the version is not specified, supporting any version of the feature
+	should return true.  Check if the value returned value was true.
+</description>
+<contributor>Neil Delima</contributor>
+<date qualifier="created">2002-04-24</date>
+<subject resource="http://www.w3.org/TR/DOM-Level-2-Core/core#Level-2-Core-Node-supports"/>
+</metadata>
+<var name="doc" type="Document"/>		
+<var name="attribute" type="Attr"/>
+<var name="version" type="DOMString" value="&quot;&quot;"/>		
+<var name="version1" type="DOMString" value="&quot;1.0&quot;"/>		
+<var name="version2" type="DOMString" value="&quot;2.0&quot;"/>		
+<var name="featureCore" type="DOMString"/>
+<var name="featureXML" type="DOMString"/>
+<var name="success" type="boolean"/>		
+<var name="featuresXML" type="List">
+<member>&quot;XML&quot;</member>
+<member>&quot;xmL&quot;</member>
+</var>
+<var name="featuresCore" type="List">
+<member>&quot;Core&quot;</member>
+<member>&quot;CORE&quot;</member>
+</var>
+<load var="doc" href="staffNS" willBeModified="false"/>
+<createAttribute obj="doc" var="attribute" name='"TestAttr"'/>
+<for-each collection="featuresXML" member="featureXML">
+<isSupported obj="attribute" var="success" feature="featureXML" version="version"/>
+<assertTrue actual="success" id="nodeissupported02_XML1"/>
+<isSupported obj="attribute" var="success" feature="featureXML" version="version1"/>
+<assertTrue actual="success" id="nodeissupported02_XML2"/>
+</for-each>
+<for-each collection="featuresCore" member="featureCore">
+<isSupported obj="attribute" var="success" feature="featureCore" version="version"/>
+<assertTrue actual="success" id="nodeissupported02_Core1"/>
+
+<!--   isSupported("Core", "1.0") is unspecified since "Core" was not defined in L1  -->
+<isSupported obj="attribute" var="success" feature="featureCore" version="version1"/>
+
+<isSupported obj="attribute" var="success" feature="featureCore" version="version2"/>
+<assertTrue actual="success" id="nodeissupported02_Core3"/>
+</for-each>
+</test>

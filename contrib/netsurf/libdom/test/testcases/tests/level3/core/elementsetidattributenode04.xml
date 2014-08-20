@@ -1,0 +1,55 @@
+<?xml version="1.0" encoding="UTF-8"?><?xml-stylesheet href="test-to-html.xsl" type="text/xml"?>
+
+<!--
+
+Copyright (c) 2001-2004 World Wide Web Consortium, 
+(Massachusetts Institute of Technology, Institut National de
+Recherche en Informatique et en Automatique, Keio University).  All 
+Rights Reserved.  This program is distributed under the W3C's Software
+Intellectual Property License.  This program is distributed in the 
+hope that it will be useful, but WITHOUT ANY WARRANTY; without even
+the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR 
+PURPOSE.  
+
+See W3C License http://www.w3.org/Consortium/Legal/ for more details.
+
+-->
+<!DOCTYPE test SYSTEM "dom3.dtd">
+<test xmlns="http://www.w3.org/2001/DOM-Test-Suite/Level-3" name="elementsetidattributenode04">
+  <metadata>
+    <title>elementsetidattributenode04</title>
+    <creator>IBM</creator>
+    <description>
+     Create a new namespace attribute on the second strong element.  Invoke setIdAttributeNode on a newly created 
+     attribute node.  Verify by calling isID on the attribute node and getElementById on document node. 
+     Call setIdAttributeNode again with isId=false to reset.  Invoke isId on the attribute node should return false.
+    </description>
+    <contributor>Jenny Hsu</contributor>
+    <date qualifier="created">2003-02-27</date>
+    <subject resource="http://www.w3.org/TR/2004/REC-DOM-Level-3-Core-20040407/core#ID-ElSetIdAttrNode"/>
+  </metadata>
+  <var name="doc" type="Document"/>
+  <var name="elemList" type="NodeList"/>
+  <var name="nameElem" type="Element"/>
+  <var name="attributesMap" type="NamedNodeMap"/>
+  <var name="attr" type="Attr"/>
+  <var name="newAttr" type="Attr"/>
+  <var name="id" type="boolean" value="false"/>
+  <var name="elem" type="Element"/>
+  <var name="elemName" type="DOMString"/>
+  <load var="doc" href="hc_staff" willBeModified="true"/>
+  <getElementsByTagName var="elemList" obj="doc" tagname='"strong"' interface="Document"/>
+  <item var="nameElem" obj="elemList" index="1" interface="NodeList"/>
+  <setAttributeNS obj="nameElem" namespaceURI='"http://www.w3.org/2000/xmlns/"' qualifiedName='"xmlns:middle"'  value='"http://www.example.com/middle"'/>
+  <attributes var="attributesMap" obj="nameElem"/>
+  <getNamedItem var="attr" obj="attributesMap" name='"xmlns:middle"'/>
+  <setIdAttributeNode obj="nameElem" idAttr="attr" isId="true"/>
+  <isId var="id" obj="attr"/>
+  <assertTrue actual="id" id="elementsetidattributenodeIsIdTrue04"/>
+  <getElementById obj="doc" var="elem" elementId='"http://www.example.com/middle"'/>
+  <tagName obj="elem" var="elemName"/>
+  <assertEquals actual="elemName" expected='"strong"' id="elementsetidattributenodeGetElementById04" ignoreCase="false"/>
+  <setIdAttributeNode obj="elem" idAttr="attr" isId="false"/>
+  <isId var="id" obj="attr"/>
+  <assertFalse actual="id" id="elementsetidattributenodeIsIdFalse04"/>
+</test>

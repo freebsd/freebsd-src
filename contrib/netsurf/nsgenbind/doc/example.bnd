@@ -1,0 +1,261 @@
+/* Example binding to generate Example interface
+ *
+ * The js_libdom (javascript to libdom) binding type is currently the
+ * only one implemented and this principly describes that binding.
+ *
+ * Copyright 2012 Vincent Sanders <vince@netsurf-browser.org>
+ *
+ * This file is part of NetSurf, http://www.netsurf-browser.org/
+ *
+ * Released under the terms of the MIT License,
+ *         http://www.opensource.org/licenses/mit-license
+ */
+
+
+/* directive to read WebIDL file and add its contents to the webidl AST */
+webidlfile "html.idl";
+
+/* The hdrcomment are added into the geenrated output comment header */
+hdrcomment "Copyright 2012 Vincent Sanders <vince@netsurf-browser.org>";
+hdrcomment "This file is part of NetSurf, http://www.netsurf-browser.org/";
+hdrcomment "Released under the terms of the MIT License,";
+hdrcomment "        http://www.opensource.org/licenses/mit-license";
+
+/* the preamble block is copied verbatum into the generated output
+ *
+ * This can be used for includes, comments or whatever else is desired
+ */
+preamble %{
+
+#include <dom/dom.h>
+
+#include "utils/config.h"
+#include "utils/log.h"
+
+#include "javascript/jsapi.h"
+#include "javascript/jsapi/binding.h"
+
+%}
+
+/* code block emitted immediately before the binding function bodies */
+prologue %{
+%}
+
+/* code block emmitted at the end of the output */
+epilogue %{
+%}
+
+/* additional binding fragments may be included
+ * Note: this is not preprocessed despite the #include name, the
+ *  parser will simply switch input to the included file and carry on
+ *  cosntructing the bindings Abstract Syntax Tree (AST)
+ */
+#include "dom.bnd"
+
+
+/* this block describes the binding to be generated
+ *
+ * Depending on the type of binding being generated multiple blocks
+ * may be allowed.
+ *
+ * Note: the js_libdom (javascript to libdom) binding as currently
+ * implemented only allows for a single binding per file, this may
+ * be improved in future.
+ */
+binding example {
+    type js_libdom; /* the binding type */
+
+    interface Navigator; /* The WebIDL interface to generate a binding for */
+
+    /* private members:
+     *  - stored in private context structure.
+     *  - passed as parameters to constructor and stored automatically.
+     *  - are *not* considered for property getters/setters.
+     */
+    private "dom_document *" node;
+
+     /* internal members:
+     *  - value stored in private context structure
+     *  - not passed to constructor
+     *  - must be instantiated by constructor
+     *  - are considered for property getters/setters.
+     */
+    internal "void *" fluff;
+
+    /* property handler specifiers:
+     *   - (un)shared flag allows control of the properties JSAPI shared state.
+     *          The default for all unnamed properties on the interface
+     *          is shared without a type handler.
+     *   - type flag allows a set of properties whose type matches the
+     *          identifier to be handled by the same callback function.
+     */
+    property shared bar; /* the default - a noop */
+    property shared type EventHandler;
+    property unshared foo;
+    property unshared type WindowProxy;
+}
+
+/* operation implementation code.
+ *
+ * The body is copied verbatum into operation binding
+ *
+ * several values are generated automatically:
+ *
+ * - The generated operations use a macro to create a JSNative JSAPI
+ *    callback. The interface allows a uniform interface despite the
+ *    evolution of the interface over differing spidermonkey versions.
+ *
+ * - The above implies the javascript context is in a variable called cx
+ *
+ * - If private or internal binding members are present they may be
+ *    accessed through a structure named "private"
+ *
+ * - if there are arguemnts they may be accesed via an argc/argv jsval
+ *    vector.
+ *
+ * - Arguments are automatically converted into c variables (named as
+ *    per the WebIDL names.
+ *
+ * - Return values (excepting void return types where its omitted) are
+ *    always named "retval" and are of the appropriate c type. The
+ *    initial value is set appropriately.
+ */
+operation foo %{
+  retval = JS_NewStringCopyN(cx, "foo", SLEN("foo"));
+%}
+
+/* property getter implementation code.
+ *
+ * The body is copied verbatum into property getter binding
+ *
+ * several values are generated automatically:
+ *
+ * - The generated operations use a macro to create a JSPropertyOp
+ *    JSAPI callback. The interface allows a uniform interface despite
+ *    the evolution of the interface over differing spidermonkey
+ *    versions.
+ *
+ * - The above implies the javascript context is available in a
+ *    variable called "cx".
+ *
+ * - If private or internal binding members are present they may be
+ *    accessed through a structure named "private"
+ *
+ * - Return values (void on a getter is not possible) are always named
+ *    "retval" and are of the appropriate c type. The initial value is
+ *    set appropriately.
+ *
+ * - If the getter is omitted altogether but an internal or private
+ *    value of the same name appears in the private structure a getter
+ *    is automatically constructed to return that value.
+ */
+getter bar %{
+  retval = JS_NewStringCopyN(cx, "bar", SLEN("bar"));
+%}
+
+/* property setter implementation code.
+ *
+ * The body is copied verbatum into property getter binding
+ *
+ * several values are generated automatically:
+ *
+ * - The generated operations use a macro to create a JSPropertyOp
+ *    JSAPI callback. The interface allows a uniform interface despite
+ *    the evolution of the interface over differing spidermonkey
+ *    versions.
+ *
+ * - The above implies the javascript context is available in a
+ *    variable called "cx".
+ *
+ * - If private or internal binding members are present they may be
+ *    accessed through a structure named "private"
+ *
+ * - Value to set is placed in a c variable named "setval" of the
+ *    appropriate type.
+ *
+ * - Return value, named retval" is a boolean (default true) which
+ *    indicates if the set was performed.
+ *
+ * - If the setter is omitted altogether but an internal or private
+ *    value of the same name appears in the private structure a setter
+ *    is automatically constructed to assign that value.
+ */
+setter baz %{
+  printf("%s\n", setval);
+%}
+
+/* implementation of the class initilisation
+ *
+ * This allows the default JS_InitClass to be overriden - currently
+ *  only used for the window (global) object to cause all the other class
+ *  initialisors to be called.
+ *
+ * function prototype is:
+ *  JSObject *jsapi_InitClass_HTMLElement(JSContext *cx, JSObject *parent)
+ */
+api init %{
+%}
+
+/* implementation of the c instance creation
+ *
+ * This allows the overriding of the construction of an interface instance.
+ *
+ * The body is copied verbatum and must return the new object in the
+ *  "newobject" variable.
+ *
+ * The base prototype is
+ * JSObject *jsapi_new_HTMLElement(JSContext *cx, JSObject *prototype, JSObject *parent, ...)
+ * The varadic elements are private variables as specified in the binding
+ *
+ * If there are private or internal values the private struct is
+ * constructed and instantiated. The struct is available during the
+ * new function and is automatically attached as the private value to
+ * the object.
+ *
+ * The default implemenattion simply calls JS_NewObject()
+ *
+ * Note this does *not* rely upon (or even call) the instances
+ * javascript constructor allowing the c code to create objects that
+ * cannot be instantiated from javascript.
+ *
+ */
+api new %{
+%}
+
+/* additional code in the instance finalise operation.
+ *
+ * The body is copied verbatim into the output
+ *
+ * Prototype is
+ * void jsclass_finalize(JSContext *cx, JSObject *obj)
+ *
+ * private is available (if appropriate) and freed after the body
+ */
+api finalise %{
+%}
+
+/* resolver code
+ *
+ * A resolver is only generated if this api is provided. This is a
+ *  JSResolveOp with JSCLASS_NEW_RESOLVE specified and must provide a
+ *  complete implementation.
+ *
+ * The body is copied verbatim into the output
+ *
+ * Prototype is:
+ * JSBool jsclass_resolve(JSContext *cx, JSObject *obj, jsval id, uintN flags, JSObject **objp)
+ *
+ * By default returns JS_TRUE implying that *objp has been updated
+ *
+ * The minimal implementation would be "*objp = NULL;" but is
+ *   equivalent to simply omitting this directive and using the defaul stub.
+ */
+api resolve %{
+%}
+
+/* mark the generated interface as a a global object
+ *
+ * The body is discarded.
+ */
+api global %{
+%}

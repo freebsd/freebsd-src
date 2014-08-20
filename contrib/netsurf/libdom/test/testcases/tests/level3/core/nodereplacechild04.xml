@@ -1,0 +1,47 @@
+<?xml version="1.0" encoding="UTF-8"?><?xml-stylesheet href="test-to-html.xsl" type="text/xml"?>
+
+<!--
+
+Copyright (c) 2001-2004 World Wide Web Consortium, 
+(Massachusetts Institute of Technology, Institut National de
+Recherche en Informatique et en Automatique, Keio University).  All 
+Rights Reserved.  This program is distributed under the W3C's Software
+Intellectual Property License.  This program is distributed in the 
+hope that it will be useful, but WITHOUT ANY WARRANTY; without even
+the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR 
+PURPOSE.  
+
+See W3C License http://www.w3.org/Consortium/Legal/ for more details.
+
+-->
+
+<!DOCTYPE test SYSTEM "dom3.dtd">
+<test xmlns="http://www.w3.org/2001/DOM-Test-Suite/Level-3" name="nodereplacechild04">
+<metadata>
+<title>nodereplacechild04</title>
+<creator>IBM</creator>
+<description>
+	The method replaceChild replaces the child node oldChild with newChild in the list of 
+	children, and returns the oldChild node.
+
+	Using replaceChild on this Document node attempt to replace this DocumentElement node with 
+	this Document Node and verify if a HIERARCHY_REQUEST_ERR or a NOT_FOUND_ERR error is thrown.
+</description>
+<contributor>Neil Delima</contributor>
+<date qualifier="created">2002-06-10</date>
+<subject resource="http://www.w3.org/TR/2004/REC-DOM-Level-3-Core-20040407/core#ID-785887307"/>
+</metadata>
+<implementationAttribute name="namespaceAware" value="true"/>
+<var name="doc" type="Document"/>
+<var name="docElem" type="Element"/>
+<var name="replaced" type="Node"/>
+<load var="doc" href="hc_staff" willBeModified="false"/>
+<documentElement var="docElem" obj="doc"/>
+<try>
+        <replaceChild obj="doc" var="replaced" oldChild="docElem" newChild="doc"/>
+        <catch>
+                <DOMException code="NOT_FOUND_ERR"/>
+                <DOMException code="HIERARCHY_REQUEST_ERR"/>
+        </catch>
+</try>
+</test>

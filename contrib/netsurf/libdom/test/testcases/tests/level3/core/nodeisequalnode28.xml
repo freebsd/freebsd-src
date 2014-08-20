@@ -1,0 +1,46 @@
+<?xml version="1.0" encoding="UTF-8"?><?xml-stylesheet href="test-to-html.xsl" type="text/xml"?>
+
+<!--
+
+Copyright (c) 2001-2004 World Wide Web Consortium, 
+(Massachusetts Institute of Technology, Institut National de
+Recherche en Informatique et en Automatique, Keio University).  All 
+Rights Reserved.  This program is distributed under the W3C's Software
+Intellectual Property License.  This program is distributed in the 
+hope that it will be useful, but WITHOUT ANY WARRANTY; without even
+the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR 
+PURPOSE.  
+
+See W3C License http://www.w3.org/Consortium/Legal/ for more details.
+
+-->
+
+<!DOCTYPE test SYSTEM "dom3.dtd">
+<test xmlns="http://www.w3.org/2001/DOM-Test-Suite/Level-3" name="nodeisequalnode28">
+<metadata>
+<title>nodeisequalnode28</title>
+<creator>IBM</creator>
+<description>
+
+	
+	Using isEqualNode check if 2 new Text nodes having null text are equal and two others
+	having different data are not equal.
+</description>
+<contributor>Neil Delima</contributor>
+<date qualifier="created">2002-06-10</date>
+<subject resource="http://www.w3.org/TR/2004/REC-DOM-Level-3-Core-20040407/core#Node3-isEqualNode"/>
+</metadata>
+<var name="doc" type="Document"/>
+<var name="text1" type="Text"/>
+<var name="text2" type="Text"/>
+<var name="text3" type="Text"/>
+<var name="isEqual" type="boolean"/>
+<load var="doc" href="hc_staff" willBeModified="false"/>
+<createTextNode var="text1" obj="doc" data='""'/>
+<createTextNode var="text2" obj="doc" data='""'/>
+<createTextNode var="text3" obj="doc" data='"#Text"'/>
+<isEqualNode var="isEqual" obj="text1" arg="text2"/>
+<assertTrue  actual="isEqual"  id="nodeisequalnodeTrue28"/>
+<isEqualNode var="isEqual" obj="text1" arg="text3"/>
+<assertFalse  actual="isEqual"  id="nodeisequalnodeFalse28"/>
+</test>

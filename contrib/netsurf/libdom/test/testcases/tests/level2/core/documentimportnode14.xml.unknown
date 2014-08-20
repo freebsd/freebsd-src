@@ -1,0 +1,61 @@
+<?xml version="1.0" encoding="UTF-8"?><?xml-stylesheet href="test-to-html.xsl" type="text/xml"?>
+
+<!--
+
+Copyright (c) 2001-2003 World Wide Web Consortium, 
+(Massachusetts Institute of Technology, Institut National de
+Recherche en Informatique et en Automatique, Keio University).  All 
+Rights Reserved.  This program is distributed under the W3C's Software
+Intellectual Property License.  This program is distributed in the 
+hope that it will be useful, but WITHOUT ANY WARRANTY; without even
+the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR 
+PURPOSE.  
+
+See W3C License http://www.w3.org/Consortium/Legal/ for more details.
+
+-->
+
+<!DOCTYPE test SYSTEM "dom2.dtd">
+<test xmlns="http://www.w3.org/2001/DOM-Test-Suite/Level-2" name="documentimportnode14">
+<metadata>
+<title>documentimportnode14</title>
+<creator>IBM</creator>
+<description>
+	Using the method importNode with deep=true, import the fourth employee element node of this
+	Document.  Verify if the node has been imported correctly by checking 
+	if the default attribute present on this node has not been imported
+	and an explicit attribute has been imported.  
+</description>
+<contributor>Neil Delima</contributor>
+<date qualifier="created">2002-04-30</date>
+<subject resource="http://www.w3.org/TR/DOM-Level-2-Core/core"/>
+<subject resource="http://www.w3.org/TR/DOM-Level-2-Core/core#Core-Document-importNode"/>
+<subject resource="http://www.w3.org/Bugs/Public/show_bug.cgi?id=259"/>
+<subject resource="http://www.w3.org/Bugs/Public/show_bug.cgi?id=402"/>
+</metadata>
+<implementationAttribute name="namespaceAware" value="true"/>
+<var name="doc" type="Document"/>
+<var name="newDoc" type="Document"/>
+<var name="domImpl" type="DOMImplementation"/>
+<var name="nullDocType" type="DocumentType" isNull="true"/>
+<var name="childList" type="NodeList"/>
+<var name="imported" type="Node"/>
+<var name="employeeElem" type="Node"/>
+<var name="attrNode" type="Attr"/>
+<var name="attrValue" type="DOMString"/>
+<var name="nullNS" type="DOMString" isNull="true"/>
+<!--  willBeModified set to true just to be safe  -->
+<load var="doc" href="staffNS" willBeModified="true"/>
+<getElementsByTagNameNS var="childList" obj="doc" namespaceURI='"*"' localName='"employee"' interface="Document"/>
+<item var="employeeElem" obj="childList" index="3" interface="NodeList"/>
+<implementation var="domImpl"/>
+<createDocument var="newDoc" obj="domImpl" namespaceURI="nullNS" qualifiedName='"staff"' doctype="nullDocType"/>
+<importNode var="imported" obj="newDoc" importedNode="employeeElem" deep="true"/>
+<getAttributeNodeNS var="attrNode" obj="imported" namespaceURI="nullNS" localName='"defaultAttr"'/>
+<!--  default attribute should not be copied  -->
+<assertNull actual="attrNode" id="defaultAttrNotImported"/>
+<!--  explicit attributes should be copied  -->
+<getAttributeNS var="attrValue" obj="imported" namespaceURI='"http://www.w3.org/2000/xmlns/"' localName='"emp"'/>
+<assertEquals actual="attrValue" expected='"http://www.nist.gov"' 
+    ignoreCase="false" id="explicitAttrImported"/>
+</test>

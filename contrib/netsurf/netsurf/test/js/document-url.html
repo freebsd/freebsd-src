@@ -1,0 +1,31 @@
+<html>
+<head>
+<title>document location and URL interface</title>
+<link rel="stylesheet" type="text/css" href="tst.css">
+</head>
+<body>
+<h1>document location and URL interface</h1>
+
+<h2>Document location enumeration</h2>
+<script>
+function output(x,y) {
+    document.body.appendChild(document.createTextNode(x));
+    document.body.appendChild(document.createTextNode("("));
+    if (y != undefined) {
+        document.body.appendChild(document.createTextNode(y.length));
+    }
+    document.body.appendChild(document.createTextNode(") = "));
+    document.body.appendChild(document.createTextNode(y));
+    document.body.appendChild(document.createElement('br'));
+}
+
+for(var key in document.location) {
+    output(key, document.location[key]);
+}
+</script>
+<h2>Document URL</h2>
+<script>output("document.URL", document.URL);</script>
+<h2>DocumentURI</h2>
+<script>output("document.documentURI", document.documentURI);</script>
+</body>
+</html>

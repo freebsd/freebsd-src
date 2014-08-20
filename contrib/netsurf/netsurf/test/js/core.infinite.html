@@ -1,0 +1,23 @@
+<html>
+<head>
+<title>Infinite loop</title>
+<link rel="stylesheet" type="text/css" href="tst.css">
+</head>
+<body>
+<h1>Infinite loop</h1>
+<p>Before</p>
+<script>
+
+function bar(x) { return  (x/2) + 1; }
+
+n=1;
+while (n < 3) {
+  n = bar(n);
+
+}
+
+</script>
+</script>
+<p>Afterwards</p>
+</body>
+</html>

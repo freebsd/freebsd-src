@@ -1,0 +1,110 @@
+<?xml version="1.0" encoding="iso-8859-1"?>
+<?xml-stylesheet href="test-to-html.xsl" type="text/xml"?>
+<!--
+ Copyright (c) 2003 World Wide Web Consortium,
+
+ (Massachusetts Institute of Technology, European Research Consortium for
+ Informatics and Mathematics, Keio University). All Rights Reserved. This
+ work is distributed under the W3C(r) Software License [1] in the hope that
+ it will be useful, but WITHOUT ANY WARRANTY; without even the implied
+ warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+
+ [1] http://www.w3.org/Consortium/Legal/2002/copyright-software-20021231
+-->
+
+<!DOCTYPE test SYSTEM "dom3.dtd" [
+  <!ENTITY % entities SYSTEM "dom3xpathents.ent">
+  %entities;
+]>
+<test xmlns="&level3;" name="XPathEvaluator_createNSResolver_all">
+  <metadata>
+    <title>XPathEvaluator_createNSResolver_all</title>
+    <creator>Bob Clary</creator>
+    <description>
+      Iterate over all nodes in the test document, creating
+      XPathNSResolvers checking that none return a null object.
+    </description>
+    <date qualifier="created">2003-12-02</date>
+    <subject resource="&spec;#XPathEvaluator"/>
+    <subject resource="&spec;#XPathEvaluator-createNSResolver"/>
+  </metadata>
+
+  <var name="doc" type="Document"/>
+  <var name="staff"                   type="Element"/>
+  <var name="staffchildren"           type="NodeList"/>
+  <var name="staffchild"              type="Node"/>
+  <var name="staffgrandchildren"      type="NodeList"/>
+  <var name="staffgrandchild"         type="Node"/>
+  <var name="staffgreatgrandchildren" type="NodeList"/>
+  <var name="staffgreatgrandchild"    type="Node"/>
+  <var name="resolver"                type="XPathNSResolver"/>
+  <var name="evaluator"               type="XPathEvaluator"/>
+
+  <load var="doc" href="staffNS" willBeModified="false"/>
+
+  <createXPathEvaluator var='evaluator' 
+                        document='doc'/>
+
+  <createNSResolver var="resolver" 
+                    obj="evaluator" 
+                    nodeResolver="doc"/>
+
+  <assertNotNull id="documentnotnull" 
+                 actual="resolver"/>
+
+  <documentElement  var="staff" 
+                    obj="doc"/>
+
+  <createNSResolver var="resolver" 
+                    obj="evaluator" 
+                    nodeResolver="staff"/>
+
+  <assertNotNull id="documentElementnotnull" 
+                 actual="resolver"/>
+
+  <childNodes var="staffchildren" 
+              obj="staff"/>
+
+  <for-each member="staffchild" 
+            collection="staffchildren">
+
+    <createNSResolver var="resolver" 
+                      obj="evaluator" 
+                      nodeResolver="staffchild"/>
+
+    <assertNotNull id="staffchildnotnull" 
+                   actual="resolver"/>
+
+    <childNodes var="staffgrandchildren" 
+                obj="staffchild"/>
+
+    <for-each member="staffgrandchild" 
+              collection="staffgrandchildren">
+
+      <createNSResolver var="resolver" 
+                        obj="evaluator" 
+                        nodeResolver="staffgrandchild"/>
+
+      <assertNotNull id="staffgrandchildnotnull" 
+                     actual="resolver"/>
+
+      <childNodes var="staffgreatgrandchildren" 
+                  obj="staffgrandchild"/>
+
+      <for-each member="staffgreatgrandchild" 
+                collection="staffgreatgrandchildren">
+
+        <createNSResolver var="resolver" 
+                          obj="evaluator" 
+                          nodeResolver="staffgreatgrandchild"/>
+
+        <assertNotNull id="staffgreatgrandchildnotnull" 
+                       actual="resolver"/>
+
+      </for-each>
+
+    </for-each>
+
+  </for-each>
+
+</test>

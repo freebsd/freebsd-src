@@ -1,0 +1,4548 @@
+#data
+* { azimuth: -361deg; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { azimuth: 361deg; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { azimuth: -6.284rad; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { azimuth: 6.284rad; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { azimuth: -6.283rad; }
+#errors
+#expected
+| *
+|  azimuth: -6.283rad
+#reset
+
+#data
+* { azimuth: 6.283rad; }
+#errors
+#expected
+| *
+|  azimuth: 6.283rad
+#reset
+
+#data
+* { azimuth: -400.001grad; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { azimuth: 400.001deg; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { azimuth: 0; azimuth: moose behind; }
+#errors
+#expected
+| *
+|  azimuth: 0deg
+#reset
+
+#data
+* { azimuth: 0; azimuth: moose behind; }
+#errors
+#expected
+| *
+|  azimuth: 0deg
+#reset
+
+#data
+* { azimuth: behind; azimuth: -left; }
+#errors
+#expected
+| *
+|  azimuth: center behind
+#reset
+
+#data
+* { azimuth: -; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { background-attachment: well-stuck; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { background-attachment: 0; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { background-attachment: 100%; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { background-color: black and blue; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { background-color: 0; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { background-color: -bbc; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { background-color: -bbc111; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { background-image: 0; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { background-image: "sonic"; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { background-image: url"sonic"; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { background-image: url(); }
+#errors
+#expected
+| *
+|  background-image: url('')
+#reset
+
+#data
+* { background-position: -20% 0; background-position: rightwards; }
+#errors
+#expected
+| *
+|  background-position: -20% 0px
+#reset
+
+#data
+* { background-position: left; background-position: rightwards; }
+#errors
+#expected
+| *
+|  background-position: left center
+#reset
+
+#data
+* { border-collapse: tweaked; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { border-top-color: 25grad; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { border-spacing: -1; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { border-spacing: -1px; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { border-spacing: 3px -30em; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { border-spacing: wide; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { border-top-style: thin; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { border-bottom-style: 7px; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { border-left-style: smidgin; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { border-right-style: url("Sonic"); }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { border-left-width: url("Sonic"); }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { border-left-width: inset; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { border-left-width: -4px; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { border-left-width: 0; }
+#errors
+#expected
+| *
+|  border-left-width: 0px
+#reset
+
+#data
+* { border-left-width: hidden; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { border-left-style: none; }
+#errors
+#expected
+| *
+|  border-left-style: none
+#reset
+
+#data
+* { border-bottom-style: hidden; }
+#errors
+#expected
+| *
+|  border-bottom-style: hidden
+#reset
+
+#data
+* { bottom: -4; bottom: blunderbus; bottom: -50%; bottom: 6Hz; }
+#errors
+#expected
+| *
+|  bottom: -50%
+#reset
+
+#data
+* { top: -4; top: blunderbus; top: -50%; top: 6Hz; }
+#errors
+#expected
+| *
+|  top: -50%
+#reset
+
+#data
+* { caption-side: 0; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { caption-side: top "7"; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { caption-side: 7em; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { clip: rect("0 2px 30px 1px"); clip: rect(0 60px 40pt 0px); }
+#errors
+#expected
+| *
+|  clip: rect(0px, 60px, 40pt, 0px)
+#reset
+
+#data
+* { clip: rect(1px 2px); }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { clip: rect(1px 2px 1px 2px 1px); }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { clip: 1px 2px 1px 2px; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { color: #gghhgg; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { color: #gghhgg; stress: 101; stress: 50px; stress: -50; stress: 50grad; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { content::; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { content: content: counters(n, ".", moo, moose); }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { content: content: content: open-quote shoe-horn url('http://picodrive.acornarcade.com/') " : " attr(name) " " counter(x) "." counters(y, ".") close-quote; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { counter-increment: "moose" 7; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { counter-increment: 1st-moose 7; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { counter-increment: sonic&knuckles 7; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { counter-increment: sonic 7 2; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { counter-increment: sonic 7 knuckles 2; }
+#errors
+#expected
+| *
+|  counter-increment: sonic 7 knuckles 2
+#reset
+
+#data
+* { counter-increment: sonic 2nd; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { counter-increment: sonic 2px; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { counter-increment: sonic "2"; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { counter-increment: sonic url(2); }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { counter-increment: url(2) 1; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { counter-increment: woo; }
+#errors
+#expected
+| *
+|  counter-increment: woo 1
+#reset
+
+#data
+* { counter-increment: 1; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { counter-reset: "moose" 7; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { counter-reset: 1st-moose 7; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { counter-reset: sonic&knuckles 7; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { counter-reset: sonic 7 2; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { counter-reset: sonic 7 knuckles 2; }
+#errors
+#expected
+| *
+|  counter-reset: sonic 7 knuckles 2
+#reset
+
+#data
+* { counter-reset: sonic 2nd; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { counter-reset: sonic 2px; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { counter-reset: sonic "2"; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { counter-reset: sonic url(2); }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { counter-reset: url(2) 1; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { counter-reset: 1; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { counter-reset: woo; }
+#errors
+#expected
+| *
+|  counter-reset: woo 0
+#reset
+
+#data
+* { cue-after: url(mooo; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { cue-after: url(mooo) woo; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { cue-after: woo url(mooo); }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { cue-after: ""; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { cue-after: "woo"; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { cue-after: url"woo"; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { cue-after: 10px; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { cue-after: 0; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { cue-after: sonic the hedgehog; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { cue-before: url(mooo; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { cue-before: url(mooo) woo; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { cue-before: woo url(mooo); }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { cue-before: ""; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { cue-before: "woo"; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { cue-before: url"woo"; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { cue-before: 10px; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { cue-before: 0; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { cue-before: sonic the hedgehog; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { cursor: sonic the hedgehog; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { cursor: "sonic the hedgehog"; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { cursor: move help; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { cursor: move url("moose") help; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { direction: rtl ltr; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { direction: rtl, ltr; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { direction: "ltr"; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { direction: -ltr; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { direction: -1 ltr; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { direction: ltr -1; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { direction: -1; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { direction: 0; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { direction: url(knuckles); }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { display: web; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { display: "sonic"; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { display: block inline-block; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { display: block, inline-block; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { display: block 0; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { display: 0 block; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { display: 0.00; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { display: 0.00em; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { display: 0.0%; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { display: ^; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { display:  gB    /© ‹i fw D‰ Ëu D‰    0t D‰ gB ‹i gB gB    gB C 0t Šû Ëu Šû    fw Šû /© C /© gB                    <ÿÿÿ    :© qû §B ]‰   €„© gB    ‘¥ öe ÄÕ @Š à ‰    Óî Lˆ ÅA ¡p WB gB    ÅA . Óî ‚ü à Áû    ÄÕ ú ‘¥ Ø „© gB    „© gB „© gB „© gB        œ  4ýÿÿÌ  à   üÿÿ7    :© tw §B `   ã¨ =w   @.© ³¬ .© !Ð ã¨ —    \R G ­´ G ³B —    gB Ùá gB üš ³B =w    ­´ w \R w ã¨ =w                                           ã¨ =w ³B —         (    ÿÿÿB                         4       Øÿÿÿ&                        °	 ÿÿÿÿÌÿÿÿ    Ä   ¤ÿÿÿ4     ã¨ =w ³B — /© w /© G gB G   €/© j¾    /© Žå fw G Ëu G    0t G gB Žå gB j¾    gB F— 0t w Ëu w    fw w /© F— /© j¾                    <ÿÿÿ    :© tw §B `   €„© j¾    ‘¥ ùá ÄÕ C à     Óî O ÅA ¤ì WB j¾    ÅA 1 Óî …x à Äw    ÄÕ ’v ‘¥ Ûš  „© j¾    „© j¾ „© j¾ „© j¾        œ  4ýÿÿÌ  à   Lùÿÿ7   ! :© vó §B b   ã¨ ?ó   @.© µ( .© #L ã¨ ™    \R I ­´ I ³B ™    gB Û] gB þ ³B ?ó    ­´ ó \R ó ã¨ ?ó                     ; position: fixed; }
+#errors
+#expected
+| *
+|  position: fixed
+#reset
+
+#data
+* { elevation: 1000; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { elevation: 10; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { elevation: 0; }
+#errors
+#expected
+| *
+|  elevation: 0deg
+#reset
+
+#data
+* { elevation: 91deg; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { elevation: -90.001deg; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { elevation: 90deg; }
+#errors
+#expected
+| *
+|  elevation: 90deg
+#reset
+
+#data
+* { elevation: -90deg; }
+#errors
+#expected
+| *
+|  elevation: -90deg
+#reset
+
+#data
+* { elevation: 100.1grad; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { elevation: -101grad; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { elevation: 100grad; }
+#errors
+#expected
+| *
+|  elevation: 100grad
+#reset
+
+#data
+* { elevation: -99.9grad; }
+#errors
+#expected
+| *
+|  elevation: -99.900grad
+#reset
+
+#data
+* { elevation: 1.571rad; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { elevation: -1.571rad; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { elevation: 1.57rad; }
+#errors
+#expected
+| *
+|  elevation: 1.570rad
+#reset
+
+#data
+* { elevation: -1.569rad; }
+#errors
+#expected
+| *
+|  elevation: -1.569rad
+#reset
+
+#data
+* { elevation: -1.1739673929057382429872339846535643689687rad; }
+#errors
+#expected
+| *
+|  elevation: -1.174rad
+#reset
+
+#data
+* { elevation: lower -90deg; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { elevation: lower level; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { elevation: moo; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { elevation: "PicoDrive"; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { elevation: ""; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { elevation: 3em; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { empty-cells: slow; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { empty-cells: 13; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { empty-cells: 13em; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { empty-cells: "font-style: italic;"; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { empty-cells: show inherit; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { empty-cells: show 2; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { empty-cells: 0 show ; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { empty-cells: empty-cells: show; show; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { float: 0 none; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { float: left"; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { float: left right; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { float: "left"; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { float: ltr; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { float: -1pt; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { float: -1; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { float: 0; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { float: url(knuckles); }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { font-family: 1000pt; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { font-family: 0; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { font-family: "; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { font-family: "'; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { font-family: serif, "Trinity"; }
+#errors
+#expected
+| *
+|  font-family: serif, 'Trinity'
+#reset
+
+#data
+* { font-family: serif, sans-serif; }
+#errors
+#expected
+| *
+|  font-family: serif, sans-serif
+#reset
+
+#data
+* { font-family: "Homerton", "Oxford", moose; }
+#errors
+#expected
+| *
+|  font-family: 'Homerton', 'Oxford', 'moose'
+#reset
+
+#data
+* { font-family: "Homerton", "Oxford", sans-serif, moose; }
+#errors
+#expected
+| *
+|  font-family: 'Homerton', 'Oxford', sans-serif, 'moose'
+#reset
+
+#data
+* { font-family: "Homerton" "Oxford" sans-serif; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { font-family: moo, "Homerton", "Oxford"; }
+#errors
+#expected
+| *
+|  font-family: 'moo', 'Homerton', 'Oxford'
+#reset
+
+#data
+* { font-family: moo, "Homerton" "Oxford"; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { font-family: "Homerton", "Oxford", url(font); }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { font-family: Soinc the Hedgehog; }
+#errors
+#expected
+| *
+|  font-family: 'Soinc the Hedgehog'
+#reset
+
+#data
+* { font-size: xx-small larger; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { font-size: xx-small 3pt; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { font-size: 3pt xx-small; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { font-size: xx-small xx-small; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { font-size: normal; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { font-size: -10pt; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { font-size: 10pt 11pt; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { font-size: 0 larger; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { font-size: 0 0%; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { font-size: 6% larger; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { font-size: -150%; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { font-style: -150%; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { font-style: 150%; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { font-style: 150; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { font-style: 150ex; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { font-style: "hidden"; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { font-style: thin solid black; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { font-style: normally; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { font-style: normal%; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { font-style: 40pt italic; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { font-style: small-caps; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { font-style: url(), 20grad, common, "endless drivel"; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { font-style: "
+#errors
+#expected
+| *
+#reset
+
+#data
+* { font-style: ,
+#errors
+#expected
+| *
+#reset
+
+#data
+* { font-style: {
+#errors
+#expected
+| *
+#reset
+
+#data
+* { font-style: }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { font-variant: sixteen; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { font-variant: 17%; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { font-variant: 18pc; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { font-variant: 19; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { font-variant: 1,2,3,4,5; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { font-variant: 1, 2, 3, 4, 5; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { font-variant: bolder small-caps; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { font-variant: bolder, small-caps; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { font-variant: bolder,small-caps; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { font-variant: normal url("small-caps"); }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { font-variant: "normal"; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { font-variant: "normal",; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { font-weight: 1000; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { font-weight: 450; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { font-weight: 100, 300; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { font-weight: 100 300; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { font-weight: 400 lighter; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { font-weight: bold lighter; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { height: 11; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { height: -11; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { height: 11Hz; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { height: -2grad; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { height: -2px; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { height: -20%; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { height: 20% 2pt; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { height: 2px tall; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { height: tall; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { height: auto 3px; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { height: 3px auto; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { height: "3"px; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { height: "3px"; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { height: 3px,; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { height: 3px, 10em; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { left: -4; left: blunderbus; left: -50%; left: 6Hz; }
+#errors
+#expected
+| *
+|  left: -50%
+#reset
+
+#data
+* { left: -4px, 2px; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { left: -4px 2px; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { left: -; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { left: "3"en; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { left: "3en"; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { letter-spacing: 30%; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { letter-spacing: normal 0; letter-spacing: -1px; }
+#errors
+#expected
+| *
+|  letter-spacing: -1px
+#reset
+
+#data
+* { letter-spacing: 1px 2px; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { letter-spacing: --1px; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { line-height: 1.1 1.1; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { line-height: -1.1; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { line-height: -1; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { line-height: -1%; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { line-height: -100%; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { line-height: -10em; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { line-height: 10em normal; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { list-style-image: url(Sonic) url(Knuckles); }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { list-style-image: "Knuckles"; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { list-style-image: url(Knuckles) none; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { list-style-image: url(,"Knuckles"); }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { list-style-image: inherit none; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { list-style-position: internal; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { list-style-position: -external; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { list-style-position: "inside"; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { list-style-position: -"inside"; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { list-style-position: 3.14em; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { list-style-position: none; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { list-style-position: normal; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { list-style-type: normal; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { list-style-type: normal; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { list-style-type: disc circle; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { list-style-type: 24pt circle; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { list-style-type: 24pt, circle; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { list-style-type: "circle"; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { list-style-type: lower_alpha; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { list-style-position: url(,"inside"); }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { margin-left: url("wide"); }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { margin-left: <margin-width>; margin-right: -100px; }
+#errors
+#expected
+| *
+|  margin-right: -100px
+#reset
+
+#data
+* { margin-left: margin-top: 0;; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { margin-top: 0 0 0 0; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { margin-top: 0 2em; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { margin-bottom: 2rad; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { margin-bottom: 20px 10%; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { margin-bottom: auto 10%; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { margin-right: 10% auto; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { max-height: 10% auto; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { max-height: 10% none; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { max-height: auto; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { max-height: -3em; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { max-height: -30%; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { max-height: none; }
+#errors
+#expected
+| *
+|  max-height: none
+#reset
+
+#data
+* { min-height: -3em; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { min-height: -100%; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { min-height: -10%; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { min-height: 2px 2in; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { min-height: 2px, 2in; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { min-height: url( SEGA ); }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { min-height: none; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { min-width: none; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { min-width: -67%; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { min-width: -200px; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { min-width: 2em 3em; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { min-width: "Sonic & Knuckles"; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { max-width: -24pt; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { max-width: -50%; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { max-width: 7 thousand 6 hundred and twenty 3cm; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { max-width: "50"in; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { orphans: -3; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { orphans: 3em; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { orphans: "3; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { orphans: ,3; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { orphans: 3,; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { orphans: 3.3; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { orphans: 3.3cm; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { orphans: #567; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { orphans: red; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { outline-color: red black; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { outline-color: #BBC Radio 4; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { outline-color: -#BBC; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { outline-color: rgb); }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { outline-color: rgb),,); }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { outline-color: rgb)2,3,5); }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { outline-color: rgb (2,30,5); }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { outline-color: rgb; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { outline-color: Green Hill Zone; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { outline-color: green hill zone; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { outline-color: "Green Hill Zone"; outline-color: invert; }
+#errors
+#expected
+| *
+|  outline-color: invert
+#reset
+
+#data
+* { outline-style: hidden; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { outline-style: none solid; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { outline-style: Spin-dash; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { outline-width: thin medium; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { outline-width: 00 medium; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { outline-width: 00; }
+#errors
+#expected
+| *
+|  outline-width: 0px
+#reset
+
+#data
+* { outline-width: 00em; }
+#errors
+#expected
+| *
+|  outline-width: 0em
+#reset
+
+#data
+* { outline-width: 24px 2px; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { outline-width: 5%; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { overflow: 5%; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { overflow: "hidden"; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { overflow: none; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { overflow: auto visible; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { overflow: 6; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { overflow: 62em; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { padding-left: -2em; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { padding-right: -40%; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { padding-top: -2em; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { padding-bottom: -4.0%; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { padding-top: 2em 4em; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { padding-left: 0 4em; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { padding-right: "Chemical Plant Zone"; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { padding-right: thick; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { page-break-after: 0; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { page-break-after: 2em; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { page-break-after: -2em; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { page-break-after: "Hedgehog"; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { page-break-after: PicoDrive; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { page-break-after: always left; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { page-break-after: auto 0; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { page-break-before: 0; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { page-break-before: 2em; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { page-break-before: -2em; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { page-break-before: "Hedgehog"; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { page-break-before: PicoDrive; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { page-break-before: always left; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { page-break-before: auto 0; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { page-break-inside: 0; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { page-break-inside: 2em; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { page-break-inside: -2em; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { page-break-inside: "Hedgehog"; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { page-break-inside: PicoDrive; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { page-break-inside: auto avoid; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { page-break-inside: auto 0; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { pause-after: auto 0; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { pause-after: auto; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { pause-after: none; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { pause-after: 1s 2s; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { pause-after: -1s; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { pause-after: -1.2ms; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { pause-after: -90%; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { pause-after: 24; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { pause-after: 24hrs; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { pause-after: pause; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { pause-after: "pause"; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { pause-after: 0 0; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { pause-after: 0 inherit; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { pause-after: inherit 0; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { pause-before: auto 0; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { pause-before: auto; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { pause-before: none; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { pause-before: 1s 2s; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { pause-before: -1s; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { pause-before: -1.2ms; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { pause-before: -90%; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { pause-before: 24; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { pause-before: 24hrs; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { pause-before: pause; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { pause-before: "pause"; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { pause-before: 0 0; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { pause-before: 0 inherit; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { pause-before: inherit 0; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { pitch-range: -1; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { pitch-range: -0.01; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { pitch-range: 101; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { pitch-range: 100.1; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { pitch-range: 50 50; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { pitch-range: +50; }
+#errors
+#expected
+| *
+|  pitch-range: 50
+#reset
+
+#data
+* { pitch-range: inherit 25; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { pitch-range: 50Hz; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { pitch-range: high; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { pitch-range: wide; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { pitch-range: "subtle"; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { pitch-range: url"()#ff9; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { pitch-range: #ff9; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { pitch: -10Hz; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { pitch: -1kHz; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { pitch: kHz; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { pitch: Hz; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { pitch: low, high; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { pitch: low high; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { pitch: 200Hz high; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { pitch: "high"; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { pitch: ; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { play-during: url(sonic_boom.ogg) mix repeat auto; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { play-during: mix repeat url(sonic_boom.ogg); }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { play-during: none url(sonic_boom.ogg); }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { play-during: "mix" url(intro); }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { play-during: mix; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { play-during: repeat; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { play-during: repeat mix; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { play-during: 12; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { play-during: 12s; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { position: fixed; position: 3; }
+#errors
+#expected
+| *
+|  position: fixed
+#reset
+
+#data
+* { position: 50Hz; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { position: 50em; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { position: hidden; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { position: "fixed"; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { position: static inherit; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { position:fixed; font-family: 'Trinity max-height: 30%; min-height: 2em; }
+#errors
+#expected
+| *
+|  position: fixed
+#reset
+
+#data
+* { position:fixed; font-family: 'Trinity
+max-height: 30%; min-height: 2em; }
+#errors
+#expected
+| *
+|  position: fixed
+|  min-height: 2em
+#reset
+
+#data
+* { position:fixed; font-family: 'Trinity
+; max-height: 30px; min-height: 2em; }
+#errors
+#expected
+| *
+|  position: fixed
+|  max-height: 30px
+|  min-height: 2em
+#reset
+
+#data
+* { quotes: "'"; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { quotes: "'" '"' "'"; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { quotes: "'" 0 "'"; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { quotes: "'" "'" 0 0; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { quotes: "'" "'" url(tails) url(tails); }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { quotes: 25%; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { quotes: 25% 20%; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { quotes: "'", "'"; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { quotes: "'" "'", '"' '"'; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { quotes: "'" "'" '"' '"' none; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { richness: 25%; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { richness: -34%; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { richness: 2kHz; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { richness: kHz; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { richness: -1; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { richness: -0.01; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { richness: 100.001; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { richness: 101; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { richness: 75 rich; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { richness: rich; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { richness: "rich"; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { right: -4; right: blunderbus; right: 1em; right: 6Hz; }
+#errors
+#expected
+| *
+|  right: 1em
+#reset
+
+#data
+* { right: "twelve"; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { right: auto inherit; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { speak-header: twice; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { speak-header: once always; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { speak-header: 1 once; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { speak-header: 1s once; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { speak-header: once url(); }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { speak-header: url() always; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { speak-numeral: digits inherit; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { speak-numeral: 2 digits; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { speak-numeral: 2em; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { speak-numeral: once; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { speak-numeral: 0; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { speak-punctuation: 0; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { speak-punctuation: none 0; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { speak-punctuation: 0pt; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { speak-punctuation: -0pt; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { speak-punctuation: code inherit; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { speak: 23s; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { speak: 0; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { speak: auto; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { speak: none spell-out; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { speak: spell-out "Sonic"; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { speak: spell-out url("Sonic"); }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { speech-rate: -10; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { speech-rate: slow medium; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { speech-rate: 120 slow; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { speech-rate: 2s slow; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { speech-rate: 2s; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { speech-rate: "2"; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { speech-rate: #BBC; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { stress: 50 medium; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { stress: -0.1; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { stress: 101; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { stress: normal; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { stress: medium 50; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { stress: medium 50; stress: 40; position: "fixed"; }
+#errors
+#expected
+| *
+|  stress: 40
+#reset
+
+#data
+* { table-layout: none 0; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { table-layout: 0pt; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { table-layout: -0pt; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { table-layout: fixed inherit; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { text-align: none 0; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { text-align: 0pt; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { text-align: -0pt; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { text-align: fixed inherit; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { text-align: left right; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { text-align: left, right; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { text-align: left | right; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { text-align: justified; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { text-align: center 50%; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { text-align: 50%; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { text-decoration: underline overline none; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { text-decoration: underline overline moose; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { text-decoration: underline moose overline; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { text-decoration: moose underline overline; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { text-decoration: blink hidden underline overline; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { text-decoration: blink 0 underline overline; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { text-decoration: overline url("Sonic"); }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { text-decoration: inherit overline; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { text-indent: -3000px; text-indent: 0 0%; }
+#errors
+#expected
+| *
+|  text-indent: -3000px
+#reset
+
+#data
+* { text-indent: 30%, 5%; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { text-indent: 30% 5%; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { text-indent: 2em, 4em }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { text-indent: hidden; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { text-indent: inherit 30%; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { text-indent: 30px inherit; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { text-transform: capitalise; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { text-transform: uppercase lowercase; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { text-transform: lowercase none; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { text-transform: inherit "Sonic"; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { text-transform: 0; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { text-transform: 40px; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { text-transform: #BBCbbc; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { top: 50em; bottom: 11; }
+#errors
+#expected
+| *
+|  top: 50em
+#reset
+
+#data
+* { top: 50s; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { top: "7"; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { top: "7; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { top: ""7em; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { top: #147; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { unicode-bidi: normal embed; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { unicode-bidi: 74px; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { unicode-bidi: 74 px; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { unicode-bidi: px; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { unicode-bidi: override; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { unicode-bidi: 4x4=16; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { unicode-bidi: 4x4 =16; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { unicode-bidi: "trivial"; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { vertical-align: "trivial"; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { vertical-align: #445"; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { vertical-align: text-top 30px; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { vertical-align: -4cm; vertical-align: 30px -30px; }
+#errors
+#expected
+| *
+|  vertical-align: -4cm
+#reset
+
+#data
+* { vertical-align: - 30px; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { vertical-align: - 20%; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { vertical-align: 3% super; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { vertical-align: sub super; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { vertical-align: top; }
+#errors
+#expected
+| *
+|  vertical-align: top
+#reset
+
+#data
+* { visibility: 23pt; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { visibility: 44em hidden; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { visibility: both hidden; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { visibility: single; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { visibility: "Knuckles"; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { visibility: HiDDen; }
+#errors
+#expected
+| *
+|  visibility: hidden
+#reset
+
+#data
+* { visibility: ?hidden; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { visibility: hidden???; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { visibility: hidden ???; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { visibility: inherit 4in; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { voice-family: 1000pt; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { voice-family: 0; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { voice-family: "; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { voice-family: "'; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { voice-family: serif, "Trinity"; }
+#errors
+#expected
+| *
+|  voice-family: 'serif', 'Trinity'
+#reset
+
+#data
+* { voice-family: serif, sans-serif; }
+#errors
+#expected
+| *
+|  voice-family: 'serif', 'sans-serif'
+#reset
+
+#data
+* { voice-family: "Homerton", "Oxford", moose; }
+#errors
+#expected
+| *
+|  voice-family: 'Homerton', 'Oxford', 'moose'
+#reset
+
+#data
+* { voice-family: "Homerton", "Oxford", sans-serif, moose; }
+#errors
+#expected
+| *
+|  voice-family: 'Homerton', 'Oxford', 'sans-serif', 'moose'
+#reset
+
+#data
+* { voice-family: "Homerton" "Oxford" sans-serif; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { voice-family: moo, "Homerton", "Oxford"; }
+#errors
+#expected
+| *
+|  voice-family: 'moo', 'Homerton', 'Oxford'
+#reset
+
+#data
+* { voice-family: moo, "Homerton" "Oxford"; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { voice-family: "Homerton", "Oxford", url(font); }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { voice-family: male, "Trinity"; }
+#errors
+#expected
+| *
+|  voice-family: male, 'Trinity'
+#reset
+
+#data
+* { voice-family: male, female; }
+#errors
+#expected
+| *
+|  voice-family: male, female
+#reset
+
+#data
+* { voice-family: "Homerton", "Oxford", child, moose; }
+#errors
+#expected
+| *
+|  voice-family: 'Homerton', 'Oxford', child, 'moose'
+#reset
+
+#data
+* { voice-family: "Homerton" "Oxford" child; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { volume: racket; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { volume: "loud"; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { volume: louder; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { volume: loud 75; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { volume: -1; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { volume: 101; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { volume: 3 7; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { volume: 55 20%; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { volume: 55 %; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { volume: 150%; volume: -40%; }
+#errors
+#expected
+| *
+|  volume: 150%
+#reset
+
+#data
+* { volume: 55% url(222); }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { white-space: pre pre; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { white-space: pre per; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { white-space: per; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { white-space: nowrap pre-line; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { white-space: nowrap 0; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { white-space: #449; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { white-space: ,cube; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { white-space: pre"; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { white-space: pre,; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { white-space: normal|; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { white-space: normal |; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { white-space: |; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { widows: -4; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { widows: 20%; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { widows: 3em; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { widows: 3 3; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { widows: 3 3pt; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { widows: 3 %; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { widows: 4,; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { width: -10%; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { width: -1px; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { width: -1; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { width: - 4em; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { width: 4px 2px; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { width: url(3em); }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { width: "3em"; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { width: auto 0; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { width: auto, 0; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { width: auto,,,,,,, 0; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { width: ,,,,,,, 0; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { width: ,,,,, ,,; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { width: wider; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { word-spacing: normally; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { word-spacing: 23pt 3px; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { word-spacing: g; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { word-spacing: %; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { word-spacing: 10%; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { word-spacing: em; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { word-spacing: 0.1em; }
+#errors
+#expected
+| *
+|  word-spacing: 0.100em
+#reset
+
+#data
+* { writing-mode: em; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { writing-mode: 2em; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { writing-mode: vertical; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { z-index: - 40; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { z-index: --3; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { z-index: 3 3; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { z-index: 4%; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { z-index: 4em; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { z-index: 4 auto; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { z-index: auto 4; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { z-index: "4"; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { z-index: #333; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { z-index: url("-2"); }
+#errors
+#expected
+| *
+#reset
+
+

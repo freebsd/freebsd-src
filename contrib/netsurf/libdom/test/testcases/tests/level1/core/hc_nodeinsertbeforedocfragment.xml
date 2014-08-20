@@ -1,0 +1,64 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+Copyright (c) 2001-2003 World Wide Web Consortium,
+(Massachusetts Institute of Technology, Institut National de
+Recherche en Informatique et en Automatique, Keio University). All
+Rights Reserved. This program is distributed under the W3C's Software
+Intellectual Property License. This program is distributed in the
+hope that it will be useful, but WITHOUT ANY WARRANTY; without even
+the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
+PURPOSE.
+See W3C License http://www.w3.org/Consortium/Legal/ for more details.
+--><!DOCTYPE test SYSTEM "dom1.dtd">
+
+<test xmlns="http://www.w3.org/2001/DOM-Test-Suite/Level-1" name="hc_nodeinsertbeforedocfragment">
+<metadata>
+<title>hc_nodeInsertBeforeDocFragment</title>
+<creator>Curt Arnold</creator>
+<description>
+    If the "newChild" is a DocumentFragment object then all
+    its children are inserted in the same order before the
+    the "refChild". 
+    
+    Create a DocumentFragment object and populate it with
+    two Element nodes.   Retrieve the second employee and
+    insert the newly created DocumentFragment before its
+    fourth child.   The second employee should now have two
+    extra children("newChild1" and "newChild2") at 
+    positions fourth and fifth respectively.
+</description>
+
+<date qualifier="created">2002-06-09</date>
+<subject resource="http://www.w3.org/TR/1998/REC-DOM-Level-1-19981001/level-one-core#ID-952280727"/>
+<subject resource="http://www.w3.org/Bugs/Public/show_bug.cgi?id=247"/>
+</metadata>
+<var name="doc" type="Document"/>
+<var name="elementList" type="NodeList"/>
+<var name="employeeNode" type="Node"/>
+<var name="childList" type="NodeList"/>
+<var name="refChild" type="Node"/>
+<var name="newdocFragment" type="DocumentFragment"/>
+<var name="newChild1" type="Node"/>
+<var name="newChild2" type="Node"/>
+<var name="child" type="Node"/>
+<var name="childName" type="DOMString"/>
+<var name="appendedChild" type="Node"/>
+<var name="insertedNode" type="Node"/>
+<load var="doc" href="hc_staff" willBeModified="true"/>
+<getElementsByTagName interface="Document" obj="doc" tagname='"p"' var="elementList"/>
+<item interface="NodeList" obj="elementList" index="1" var="employeeNode"/>
+<childNodes obj="employeeNode" var="childList"/>
+<item interface="NodeList" obj="childList" index="3" var="refChild"/>
+<createDocumentFragment obj="doc" var="newdocFragment"/>
+<createElement obj="doc" tagName='"br"' var="newChild1"/>
+<createElement obj="doc" tagName='"b"' var="newChild2"/>
+<appendChild var="appendedChild" obj="newdocFragment" newChild="newChild1"/>
+<appendChild var="appendedChild" obj="newdocFragment" newChild="newChild2"/>
+<insertBefore var="insertedNode" obj="employeeNode" newChild="newdocFragment" refChild="refChild"/>
+<item interface="NodeList" obj="childList" index="3" var="child"/>
+<nodeName obj="child" var="childName"/>
+<assertEquals actual="childName" expected='"br"' ignoreCase="auto" id="childName3"/>
+<item interface="NodeList" obj="childList" index="4" var="child"/>
+<nodeName obj="child" var="childName"/>
+<assertEquals actual="childName" expected='"b"' ignoreCase="auto" id="childName4"/>
+</test>

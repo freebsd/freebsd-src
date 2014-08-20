@@ -1,0 +1,55 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+Copyright (c) 2001-2003 World Wide Web Consortium,
+(Massachusetts Institute of Technology, Institut National de
+Recherche en Informatique et en Automatique, Keio University). All
+Rights Reserved. This program is distributed under the W3C's Software
+Intellectual Property License. This program is distributed in the
+hope that it will be useful, but WITHOUT ANY WARRANTY; without even
+the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
+PURPOSE.
+See W3C License http://www.w3.org/Consortium/Legal/ for more details.
+--><!DOCTYPE test SYSTEM "dom1.dtd">
+
+<test xmlns="http://www.w3.org/2001/DOM-Test-Suite/Level-1" name="hc_nodereplacechildinvalidnodetype">
+<metadata>
+<title>hc_nodeReplaceChildInvalidNodeType</title>
+<creator>Curt Arnold</creator>
+<description>
+    The "replaceChild(newChild,oldChild)" method raises a 
+    HIERARCHY_REQUEST_ERR DOMException if this node is of
+    a type that does not allow children of the type "newChild"
+    to be inserted.
+    
+    Retrieve the root node and attempt to replace 
+    one of its children with a newly created Attr node.
+    An Element node cannot have children of the "Attr"
+    type, therefore the desired exception should be raised.
+</description>
+
+<date qualifier="created">2002-06-09</date>
+<subject resource="http://www.w3.org/TR/1998/REC-DOM-Level-1-19981001/level-one-core#xpointer(id('ID-258A00AF')/constant[@name='HIERARCHY_REQUEST_ERR'])"/>
+<subject resource="http://www.w3.org/TR/1998/REC-DOM-Level-1-19981001/level-one-core#ID-785887307"/>
+<subject resource="http://www.w3.org/TR/1998/REC-DOM-Level-1-19981001/level-one-core#xpointer(id('ID-785887307')/raises/exception[@name='DOMException']/descr/p[substring-before(.,':')='HIERARCHY_REQUEST_ERR'])"/>
+<subject resource="http://www.w3.org/TR/1998/REC-DOM-Level-1-19981001/level-one-core#ID-785887307"/>
+<subject resource="http://www.w3.org/Bugs/Public/show_bug.cgi?id=247"/>
+<subject resource="http://www.w3.org/Bugs/Public/show_bug.cgi?id=249"/>
+<subject resource="http://www.w3.org/Bugs/Public/show_bug.cgi?id=406"/>
+</metadata>
+<var name="doc" type="Document"/>
+<var name="rootNode" type="Element"/>
+<var name="newChild" type="Node"/>
+<var name="elementList" type="NodeList"/>
+<var name="oldChild" type="Node"/>
+<var name="replacedChild" type="Node"/>
+<load var="doc" href="hc_staff" willBeModified="true"/>
+<createAttribute obj="doc" name='"lang"' var="newChild"/>
+<getElementsByTagName interface="Document" obj="doc" tagname='"p"' var="elementList"/>
+<item interface="NodeList" obj="elementList" index="1" var="oldChild"/>
+<parentNode var="rootNode" obj="oldChild" interface="Node"/>
+<assertDOMException id="throw_HIERARCHY_REQUEST_ERR">
+<HIERARCHY_REQUEST_ERR>
+<replaceChild var="replacedChild" obj="rootNode" newChild="newChild" oldChild="oldChild"/>
+</HIERARCHY_REQUEST_ERR>
+</assertDOMException>
+</test>

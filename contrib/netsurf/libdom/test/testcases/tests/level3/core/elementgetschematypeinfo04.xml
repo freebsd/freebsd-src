@@ -1,0 +1,51 @@
+<?xml version="1.0" encoding="UTF-8"?><?xml-stylesheet href="test-to-html.xsl" type="text/xml"?>
+
+<!--
+
+Copyright (c) 2001-2004 World Wide Web Consortium, 
+(Massachusetts Institute of Technology, Institut National de
+Recherche en Informatique et en Automatique, Keio University).  All 
+Rights Reserved.  This program is distributed under the W3C's Software
+Intellectual Property License.  This program is distributed in the 
+hope that it will be useful, but WITHOUT ANY WARRANTY; without even
+the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR 
+PURPOSE.  
+
+See W3C License http://www.w3.org/Consortium/Legal/ for more details.
+
+-->
+
+<!DOCTYPE test SYSTEM "dom3.dtd">
+<test xmlns="http://www.w3.org/2001/DOM-Test-Suite/Level-3" name="elementgetschematypeinfo04">
+<metadata>
+<title>elementgetschematypeinfo04</title>
+<creator>IBM</creator>
+<description>
+	The getSchemaTypeInfo method retrieves the type information associated with this element. 
+
+	Load a valid document with an XML Schema.
+	Invoke getSchemaTypeInfo method on an element having [type definition] property.  Expose {name} and {target namespace}
+	properties of the [type definition] property.  Verity that the typeName and typeNamespace of the code element's
+	schemaTypeInfo are correct.
+</description>
+<contributor>Jenny Hsu</contributor>
+<date qualifier="created">2003-10-28</date>
+<subject resource="http://www.w3.org/TR/2004/REC-DOM-Level-3-Core-20040407/core#Element-schemaTypeInfo"/>
+</metadata>
+<implementationAttribute name="schemaValidating" value="true"/>
+<var name="doc" type="Document"/>
+<var name="codeElem" type="Element"/>
+<var name="elemTypeInfo" type="TypeInfo"/>
+<var name="typeName" type="DOMString"/>
+<var name="typeNamespace" type="DOMString"/>
+<var name="elemList" type="NodeList"/>
+<var name="docElemNodeName" type="DOMString"/>
+<load var="doc" href="hc_staff" willBeModified="false"/>
+<getElementsByTagName var="elemList" obj="doc" tagname='"code"' interface="Document"/>
+<item var="codeElem" obj="elemList" index="1" interface="NodeList"/>
+<schemaTypeInfo var="elemTypeInfo" obj="codeElem" interface="Element"/>
+<typeName var="typeName" obj="elemTypeInfo"/>
+<typeNamespace var="typeNamespace" obj="elemTypeInfo"/>
+<assertEquals expected='"code"' actual="typeName" id="elementgetschematypeinfo04_typeName" ignoreCase="false"/>
+<assertEquals expected='"http://www.w3.org/1999/xhtml"' actual="typeNamespace" id="elementgetschematypeinfo04_typeNamespace" ignoreCase="false"/>
+</test>

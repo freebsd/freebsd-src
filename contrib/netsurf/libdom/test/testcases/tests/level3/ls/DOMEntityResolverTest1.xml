@@ -1,0 +1,79 @@
+<?xml version="1.0" standalone="no"?>
+<?xml-stylesheet href="test-to-html.xsl" type="text/xml"?>
+<!--
+ Copyright (c) 2003 X-Hive Corporation
+
+ All Rights Reserved. This work is distributed under the W3C(r)
+ Software License [1] in the hope that it will be useful, but WITHOUT
+ ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
+ FITNESS FOR A PARTICULAR PURPOSE.
+
+ [1] http://www.w3.org/Consortium/Legal/2002/copyright-software-20021231
+-->
+
+
+<!DOCTYPE test SYSTEM "dom3.dtd" [
+  <!ENTITY % entities SYSTEM "dom3tests.ent">
+  %entities;
+]>
+
+
+<test xmlns="&level3;" name="DOMEntityResolverTest1">
+  <metadata>
+    <title>DOMEntityResolverTest1</title>
+    &creator;
+    <description>Tests a custom entity resolver. The entity resolver creates an input source that supplies 2 elt1 elements. The original entity reference referes to 1 elt1</description>
+    &contributor; &date;
+    <subject resource="&spec;#LS-LSResourceResolver-resolveResource"/>
+    <subject resource="http://www.w3.org/TR/2004/REC-DOM-Level-3-LS-20040407/load-save#parameter-resource-resolver"/>
+  </metadata>
+  <implementationAttribute name="validating" value="true"/>
+
+
+  <var name="myentityresolver" type="LSResourceResolver">
+     <resolveResource>
+        <var name="erInputSource" type="LSInput"/>
+        <var name='implementation'   type='DOMImplementation'/>
+        <var name='lsImplementation' type='DOMImplementationLS'/>
+        <var name="substitute"       type="DOMString" value='"&lt;elt1&gt;second elt1&lt;/elt1&gt;&lt;elt1&gt;third elt1&lt;/elt1&gt;"'/>
+
+        <implementation var='implementation'/>
+        <assign var='lsImplementation' value='implementation'/>
+
+        <createLSInput  var='erInputSource' obj='lsImplementation'/>
+        <stringData obj="erInputSource" value="substitute" interface="LSInput"/>
+
+        <return value="erInputSource"/>
+     </resolveResource>
+
+  </var>
+
+  <var name="elementList" type="NodeList"/>
+  <var name="configuration" type="DOMConfiguration"/>
+  <var name="resourceURI" type="DOMString"/>
+
+  &vars;
+  &init;
+
+  <domConfig var="configuration" obj="parser" interface="LSParser"/>
+
+  <getResourceURI var="resourceURI" href="TEST4" contentType="text/xml"/>
+
+  <!-- before applying the entity resolver there should be 2 elt1 in this document -->
+  <parseURI var="document" obj="parser" uri="resourceURI"/>
+  <getElementsByTagName interface="Document" obj="document" tagname="&quot;elt1&quot;" var="elementList"/>
+  <assertSize collection="elementList" size="2" id="count_elt1_before_applying_entity_resolver"/>
+
+  <setParameter obj="configuration" name='"resource-resolver"' value="myentityresolver"/>
+
+  <!-- after applying the entity resolver there should be 3 elt1 in this document -->
+  <parseURI var="document" obj="parser" uri="resourceURI"/>
+  <getElementsByTagName interface="Document" obj="document" tagname="&quot;elt1&quot;" var="elementList"/>
+  <assertSize collection="elementList" size="3" id="count_elt1_after_applying_entity_resolver"/>
+
+</test>
+
+
+
+
+

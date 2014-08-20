@@ -1,0 +1,91 @@
+#
+# Makefile for NetSurf monkey target
+#
+# This file is part of NetSurf 
+
+# ----------------------------------------------------------------------------
+# Monkey flag setup (using pkg-config)
+# ----------------------------------------------------------------------------
+
+
+LDFLAGS += $(shell $(PKG_CONFIG) --libs libcurl libdom libcss)
+LDFLAGS += $(shell $(PKG_CONFIG) --libs openssl)
+
+# define additional CFLAGS and LDFLAGS requirements for pkg-configed libs here
+NETSURF_FEATURE_NSSVG_CFLAGS := -DWITH_NS_SVG
+NETSURF_FEATURE_ROSPRITE_CFLAGS := -DWITH_NSSPRITE
+NETSURF_FEATURE_BMP_CFLAGS := -DWITH_BMP
+NETSURF_FEATURE_GIF_CFLAGS := -DWITH_GIF
+NETSURF_FEATURE_PNG_CFLAGS := -DWITH_PNG
+NETSURF_FEATURE_WEBP_CFLAGS := -DWITH_WEBP
+NETSURF_FEATURE_JS_CFLAGS := -DWITH_JS -DJS_HAS_FILE_OBJECT=0
+NETSURF_FEATURE_MOZJS_CFLAGS := -DWITH_MOZJS -DJS_HAS_FILE_OBJECT=0
+
+# add a line similar to below for each optional pkg-configed lib here
+$(eval $(call pkg_config_find_and_add_enabled,NSSVG,libsvgtiny,SVG))
+$(eval $(call pkg_config_find_and_add_enabled,ROSPRITE,librosprite,Sprite))
+$(eval $(call pkg_config_find_and_add_enabled,BMP,libnsbmp,BMP))
+$(eval $(call pkg_config_find_and_add_enabled,GIF,libnsgif,GIF))
+$(eval $(call pkg_config_find_and_add_enabled,PNG,libpng,PNG  ))
+$(eval $(call pkg_config_find_and_add_enabled,MOZJS,mozjs185,JavaScript))
+$(eval $(call pkg_config_find_and_add_enabled,JS,mozilla-js,JavaScript))
+
+# no pkg-config for this library
+$(eval $(call feature_enabled,WEBP,-DWITH_WEBP,-lwebp -lvpx,WebP (libwebp)))
+
+WARNFLAGS += -Werror
+
+MONKEYCFLAGS := -std=c99 -Dmonkey -Dnsmonkey \
+		-D_BSD_SOURCE \
+		-D_XOPEN_SOURCE=600 \
+		-D_POSIX_C_SOURCE=200112L \
+		-D_NETBSD_SOURCE \
+		-DMONKEY_RESPATH=\"$(NETSURF_MONKEY_RESOURCES)\" \
+		$(WARNFLAGS) -g \
+		$(shell $(PKG_CONFIG) --cflags glib-2.0) \
+		$(shell $(PKG_CONFIG) --cflags libdom libcurl) \
+		$(shell $(PKG_CONFIG) --cflags openssl) \
+		$(shell xml2-config --cflags)
+
+MONKEYLDFLAGS := -lm $(shell $(PKG_CONFIG) --cflags --libs glib-2.0)
+
+
+CFLAGS += $(MONKEYCFLAGS)
+LDFLAGS += $(MONKEYLDFLAGS)
+
+# ---------------------------------------------------------------------------
+# Windows flag setup
+# ---------------------------------------------------------------------------
+
+ifeq ($(HOST),Windows_NT)
+  CFLAGS += -U__STRICT_ANSI__
+endif
+
+# ----------------------------------------------------------------------------
+# Source file setup
+# ----------------------------------------------------------------------------
+
+# S_MONKEY are sources purely for the MONKEY build
+S_MONKEY := main.c utils.c filetype.c schedule.c \
+            bitmap.c plot.c browser.c download.c thumbnail.c		\
+            401login.c cert.c font.c poll.c dispatch.c fetch.c
+
+S_MONKEY := $(addprefix monkey/,$(S_MONKEY))
+
+# This is the final source build list
+# Note this is deliberately *not* expanded here as common and image
+#   are not yet available
+SOURCES = $(S_COMMON) $(S_IMAGE) $(S_BROWSER) $(S_PDF) $(S_MONKEY)
+EXETARGET := nsmonkey
+
+# ----------------------------------------------------------------------------
+# Install target
+# ----------------------------------------------------------------------------
+
+install-monkey:
+
+# ----------------------------------------------------------------------------
+# Package target
+# ----------------------------------------------------------------------------
+
+package-monkey:

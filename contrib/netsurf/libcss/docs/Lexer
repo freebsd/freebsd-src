@@ -1,0 +1,31 @@
+Lexical analyser
+================
+
+This document contains various snippets of information about the lexer
+implementation.
+
+First sets
+----------
+
+IDENT 		[a-zA-Z] | '-' | '_' | [^#x0-#x7F] | '\'
+ATKEYWORD	'@'
+STRING		'"' | "'"
+INVALID_STRING	'"' | "'"
+HASH		'#'
+NUMBER		[0-9] | '.' | '-' | '+'
+PERCENTAGE	[0-9] | '.' | '-' | '+'
+DIMENSION	[0-9] | '.'
+URI		[Uu]
+UNICODE-RANGE	[Uu]
+CDO		'<'
+CDC		'-'
+S	 	#x9 | #xA | #xC | #xD | #x20
+COMMENT		'/'
+FUNCTION	[a-zA-Z] | '-' | '_' | [^#x0-#x7F] | '\'
+INCLUDES	'~'
+DASHMATCH	'|'
+PREFIXMATCH	'^'
+SUFFIXMATCH	'$'
+SUBSTRINGMATCH	'*'
+CHAR		anything except " or '
+

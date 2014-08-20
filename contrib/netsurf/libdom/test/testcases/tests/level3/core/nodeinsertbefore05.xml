@@ -1,0 +1,53 @@
+<?xml version="1.0" encoding="UTF-8"?><?xml-stylesheet href="test-to-html.xsl" type="text/xml"?>
+
+<!--
+
+Copyright (c) 2001-2004 World Wide Web Consortium, 
+(Massachusetts Institute of Technology, Institut National de
+Recherche en Informatique et en Automatique, Keio University).  All 
+Rights Reserved.  This program is distributed under the W3C's Software
+Intellectual Property License.  This program is distributed in the 
+hope that it will be useful, but WITHOUT ANY WARRANTY; without even
+the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR 
+PURPOSE.  
+
+See W3C License http://www.w3.org/Consortium/Legal/ for more details.
+
+-->
+
+<!DOCTYPE test SYSTEM "dom3.dtd">
+<test xmlns="http://www.w3.org/2001/DOM-Test-Suite/Level-3" name="nodeinsertbefore05">
+<metadata>
+<title>nodeinsertbefore05</title>
+<creator>IBM</creator>
+<description>
+    Attempt to insert a second DocumentType node in a document using Node.insertBefore,
+    should raise either DOMException with either a HIERARCHY_REQUEST_ERR 
+    or NOT_SUPPORTED_ERR code.
+</description>
+<contributor>Neil Delima</contributor>
+<date qualifier="created">2002-06-10</date>
+<subject resource="http://www.w3.org/TR/2004/REC-DOM-Level-3-Core-20040407/core#ID-952280727"/>
+</metadata>
+<var name="doc" type="Document"/>
+<var name="docType" type="DocumentType"/>
+<var name="domImpl" type="DOMImplementation"/>
+<var name="newDocType" type="DocumentType"/>
+<var name="inserted" type="Node"/>
+<var name="nullPubId" type="DOMString" isNull="true"/>
+<var name="nullSysId" type="DOMString" isNull="true"/>
+<var name="rootName" type="DOMString"/>
+<load var="doc" href="hc_staff" willBeModified="true"/>
+<doctype var="docType" obj="doc"/>
+<name var="rootName" obj="docType" interface="DocumentType"/>
+<implementation var="domImpl" obj="doc"/>
+<createDocumentType var="newDocType" obj="domImpl" qualifiedName="rootName" publicId="nullPubId" systemId="nullSysId"/>
+<try>
+	<insertBefore obj="doc" var="inserted" newChild="newDocType" refChild="docType"/>
+ 	<fail id="throw_DOMException"/>
+	<catch>
+		<DOMException code="HIERARCHY_REQUEST_ERR"/>
+		<DOMException code="NOT_SUPPORTED_ERR"/>
+	</catch>
+</try>
+</test>

@@ -1,0 +1,54 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<!--
+
+Copyright (c) 2001 World Wide Web Consortium, 
+(Massachusetts Institute of Technology, Institut National de
+Recherche en Informatique et en Automatique, Keio University).  All 
+Rights Reserved.  This program is distributed under the W3C's Software
+Intellectual Property License.  This program is distributed in the 
+hope that it will be useful, but WITHOUT ANY WARRANTY; without even
+the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR 
+PURPOSE.  
+
+See W3C License http://www.w3.org/Consortium/Legal/ for more details.
+
+-->
+<!DOCTYPE test SYSTEM "dom2.dtd">
+<test xmlns="http://www.w3.org/2001/DOM-Test-Suite/Level-2" name="HTMLOptionsCollection04">
+<metadata>
+<title>HTMLOptionsCollection04</title>
+<creator>NIST</creator>
+<description>
+    An HTMLOptionsCollection is a list of nodes representing HTML option
+    element.
+    An individual node may be accessed by either ordinal index, the node's
+    name or id attributes.  (Test node name).
+    The namedItem method retrieves a Node using a name.  It first searches
+    for a node with a matching id attribute.  If it doesn't find one, it
+    then searches for a Node with a matching name attribute, but only
+    those elements that are allowed a name attribute.
+
+    Retrieve the first FORM element.  Create a HTMLCollection of the elements.
+    Search for an element that has selectId as the value for the id attribute.
+    Get the nodeName of that element.
+</description>
+<contributor>Rick Rivello</contributor>
+<date qualifier="created">2002-08-01</date>
+<subject resource="http://www.w3.org/TR/DOM-Level-2-HTML/html#HTMLOptionsCollection-namedItem"/>
+</metadata>
+<var name="nodeList" type="NodeList"/>
+<var name="testNode" type="Node"/>
+<var name="optionsNode" type="Node"/>
+<var name="formsnodeList" type="HTMLCollection"/>
+<var name="vname" type="DOMString"/>
+<var name="doc" type="Document"/>
+<load var="doc" href="optionscollection" willBeModified="false"/>
+<getElementsByTagName interface="Document" obj="doc" var="nodeList" tagname='"form"'/>
+<assertSize collection="nodeList" size="1" id="Asize"/>
+<item interface="NodeList" obj="nodeList" var="testNode" index="0"/>
+<elements interface="HTMLFormElement" obj="testNode" var="formsnodeList"/>
+<namedItem interface="HTMLOptionsCollection" obj="formsnodeList" var="optionsNode" name='"selectId"'/>
+<nodeName obj="optionsNode" var="vname"/>
+<assertEquals actual="vname" expected='"select"' id="nameIndexLink" ignoreCase="auto"/>
+</test>

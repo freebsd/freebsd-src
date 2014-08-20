@@ -1,0 +1,147 @@
+REM Attempt to fix broken font installations which have non-Base0 copies of the
+REM ROM fonts in !Fonts on disc.
+
+ON ERROR ON ERROR OFF: PRINT REPORT$ + " (at line " + STR$ERL + ")": END
+
+DIM f$(11)
+f$() = "Corpus.Bold","Corpus.Bold.Oblique","Corpus.Medium","Corpus.Medium.Oblique","Homerton.Bold","Homerton.Bold.Oblique","Homerton.Medium","Homerton.Medium.Oblique","Trinity.Bold","Trinity.Bold.Italic","Trinity.Medium","Trinity.Medium.Italic"
+
+PRINT "FONT INSTALLATION FIX"
+PRINT
+
+PRINT "Checking ROM fonts"
+PRINT
+ok% = TRUE
+FOR f% = 0 TO 11
+    PROCcheck_rom_font(f$(f%))
+NEXT
+PRINT
+IF NOT ok% THEN
+    PRINT "One or more of the standard ROM fonts are missing!"
+    PRINT "Please contact the developers stating your RISC OS version."
+    END
+ENDIF
+
+
+PRINT "Searching for obsolete copies in Boot:Resources.!Fonts"
+PRINT
+ok% = TRUE
+FOR f% = 0 TO 11
+    PROCcheck_disc_font(f$(f%))
+NEXT
+PRINT
+IF ok% THEN
+    PRINT "No problems were found."
+    END
+ENDIF
+
+PRINT "One or more obsolete fonts were found in !Fonts."
+PRINT
+PRINT "Press Y to move these fonts to a new directory"
+PRINT "called 'ObsolFonts' and remove them from the"
+PRINT "font list ('Messages1'),"
+PRINT "or any other key to exit without changes."
+key$ = GET$
+IF INSTR("Yy", key$) = 0 THEN
+    PRINT
+    PRINT "Exiting without changes."
+    END
+ENDIF
+PRINT
+
+PRINT "Creating 'ObsolFonts' directory - ";
+SYS"OS_File", 8, "<Boot$Dir>.^.ObsolFonts"
+PRINT "done"
+PRINT
+PRINT "Closing open files - ";
+SYS"OS_FSControl", 22
+PRINT "done"
+PRINT
+PRINT "Removing fonts from font list - ";
+file% = OPENIN "<Boot$Dir>.Resources.!Fonts.Messages1"
+IF file% THEN
+    new% = OPENOUT "<Boot$Dir>.Resources.!Fonts.Messages_"
+    IF new% = 0 THEN
+        PRINT "Failed to open new font list"
+        END
+    ENDIF
+    WHILE NOT EOF#file%
+        line$ = GET$#file%
+        ok% = TRUE
+        FOR f% = 0 TO 11
+            IF INSTR(line$, "Font_" + f$(f%) + ":") <> 0 THEN ok% = FALSE
+        NEXT
+        IF ok% THEN
+            BPUT#new%, line$
+        ENDIF
+    ENDWHILE
+    CLOSE#file%
+    CLOSE#new%
+    SYS"OS_File", 18, "<Boot$Dir>.Resources.!Fonts.Messages_", &fff
+    SYS"XOS_FSControl", 27, "<Boot$Dir>.^.ObsolFonts.Messages1"
+    SYS"OS_FSControl", 25, "<Boot$Dir>.Resources.!Fonts.Messages1", "<Boot$Dir>.^.ObsolFonts.Messages1"
+    SYS"OS_FSControl", 25, "<Boot$Dir>.Resources.!Fonts.Messages_", "<Boot$Dir>.Resources.!Fonts.Messages1"
+ENDIF
+PRINT "done"
+PRINT
+PRINT "Moving away obsolete fonts"
+PRINT
+FOR f% = 0 TO 11
+    PROCfix_font(f$(f%))
+NEXT
+PRINT
+PRINT "Finished"
+PRINT "Please restart your machine for the changes to take effect."
+
+END
+
+
+
+DEF PROCcheck_rom_font(f$)
+PRINT "  "; f$;
+SYS"OS_File", 17, "Resources:$.Fonts." + f$ + ".Outlines0" TO t1%
+SYS"OS_File", 17, "Resources:$.Fonts." + f$ + ".IntMetric0" TO t2%
+IF t1% = 1 AND t2% = 1 THEN
+    PRINT " - ok"
+ELSE
+    PRINT " - MISSING"
+    ok% = FALSE
+ENDIF
+ENDPROC
+
+
+
+DEF PROCcheck_disc_font(f$)
+SYS"OS_File", 17, "<Boot$Dir>.Resources.!Fonts." + f$ + ".Outlines" TO t%
+IF t% <> 0 THEN
+    PRINT "  "; f$
+    ok% = FALSE
+ENDIF
+ENDPROC
+
+
+
+DEF PROCfix_font(f$)
+SYS"OS_File", 17, "<Boot$Dir>.Resources.!Fonts." + f$ + ".Outlines" TO t%
+IF t% = 0 THEN ENDPROC
+
+PRINT "  "; f$; " - ";
+i% = 0
+REPEAT
+    i% = INSTR(f$, ".", i% + 1)
+    IF i% <> 0 THEN
+        SYS"OS_File", 8, "<Boot$Dir>.^.ObsolFonts." + LEFT$(f$, i% - 1)
+    ENDIF
+UNTIL i% = 0
+SYS"OS_File", 8, "<Boot$Dir>.^.ObsolFonts." + f$
+
+SYS"OS_FSControl", 25, "<Boot$Dir>.Resources.!Fonts." + f$ + ".Outlines", "<Boot$Dir>.^.ObsolFonts." + f$ + ".Outlines"
+
+SYS"OS_File", 17, "<Boot$Dir>.Resources.!Fonts." + f$ + ".IntMetrics" TO t%
+IF t% <> 0 THEN
+    SYS"OS_FSControl", 25, "<Boot$Dir>.Resources.!Fonts." + f$ + ".IntMetrics", "<Boot$Dir>.^.ObsolFonts." + f$ + ".IntMetrics"
+ENDIF
+
+PRINT "done"
+ENDPROC
+

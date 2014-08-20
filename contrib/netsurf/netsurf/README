@@ -1,0 +1,41 @@
+--------------------------------------------------------------------------------
+  NetSurf README
+--------------------------------------------------------------------------------
+
+  This document should help point you at various useful bits of information.
+
+
+  Building NetSurf
+==================
+  
+  Read the appropriate BUILDING-* document in the Docs/ directory for
+  instructions.
+
+
+  Creating a new port
+=====================
+
+  Look at the existing front ends for example implementations.  The framebuffer
+  front end is simplest and most self-contained.  Also, you can contact the
+  developers for help:
+
+      http://www.netsurf-browser.org/contact/
+
+  Check out the developer documentation sources listed below too.
+
+
+  Further documentation
+=======================
+
+  The Developer section of the web site has loads of info to get you started:
+
+      http://www.netsurf-browser.org/developers/
+
+  General documentation on how NetSurf's code works can be found on the
+  development wiki:
+
+      http://wiki.netsurf-browser.org/Documentation/
+
+  The code style guide is here:
+
+      http://www.netsurf-browser.org/developers/StyleGuide.pdf

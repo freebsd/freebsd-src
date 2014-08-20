@@ -1,0 +1,10 @@
+prefix=PREFIX
+exec_prefix=${prefix}
+libdir=${exec_prefix}/lib
+includedir=${prefix}/include
+
+Name: libfoo
+Description: Pointless example library
+Version: 0.0.1
+Libs: -L${libdir}
+Cflags: -I${includedir}

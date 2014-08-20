@@ -1,0 +1,58 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+Copyright (c) 2001-2004 World Wide Web Consortium,
+(Massachusetts Institute of Technology, Institut National de
+Recherche en Informatique et en Automatique, Keio University). All
+Rights Reserved. This program is distributed under the W3C's Software
+Intellectual Property License. This program is distributed in the
+hope that it will be useful, but WITHOUT ANY WARRANTY; without even
+the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
+PURPOSE.
+See W3C License http://www.w3.org/Consortium/Legal/ for more details.
+--><!DOCTYPE test SYSTEM "dom1.dtd">
+
+<test xmlns="http://www.w3.org/2001/DOM-Test-Suite/Level-1" name="hc_attrcreatedocumentfragment">
+<metadata>
+<title>hc_attrcreatedocumentfragment</title>
+<creator>Curt Arnold</creator>
+<description>
+  Create a new DocumentFragment and add a newly created Element node(with one attribute).  
+  Once the element is added, its attribute should be available as an attribute associated 
+  with an Element within a DocumentFragment.
+</description>
+
+<date qualifier="created">2002-06-09</date>
+<!--  createDocumentFragment  -->
+<subject resource="http://www.w3.org/TR/1998/REC-DOM-Level-1-19981001/level-one-core#ID-35CB04B5"/>
+<!--  setAttribute -->
+<subject resource="http://www.w3.org/TR/1998/REC-DOM-Level-1-19981001/level-one-core#ID-F68F082"/>
+<!--  DocumentFragment   -->
+<subject resource="http://www.w3.org/TR/1998/REC-DOM-Level-1-19981001/level-one-core#ID-B63ED1A3"/>
+<subject resource="http://www.w3.org/Bugs/Public/show_bug.cgi?id=236"/>
+<subject resource="http://lists.w3.org/Archives/Public/www-dom-ts/2003Jun/0011.html"/>
+<subject resource="http://www.w3.org/Bugs/Public/show_bug.cgi?id=184"/>
+</metadata>
+<var name="doc" type="Document"/>
+<var name="docFragment" type="DocumentFragment"/>
+<var name="newOne" type="Element"/>
+<var name="domesticNode" type="Node"/>
+<var name="attributes" type="NamedNodeMap"/>
+<var name="attribute" type="Attr"/>
+<var name="attrName" type="DOMString"/>
+<var name="appendedChild" type="Node"/>
+<var name="langAttrCount" type="int" value="0"/>
+<load var="doc" href="hc_staff" willBeModified="true"/>
+<createDocumentFragment obj="doc" var="docFragment"/>
+<createElement obj="doc" var="newOne" tagName='"html"'/>
+<setAttribute obj="newOne" name='"lang"' value='"EN"'/>
+<appendChild var="appendedChild" obj="docFragment" newChild="newOne"/>
+<firstChild interface="Node" obj="docFragment" var="domesticNode"/>
+<attributes obj="domesticNode" var="attributes"/>
+<for-each collection="attributes" member="attribute">
+    <nodeName var="attrName" obj="attribute"/>
+    <if><equals expected='"lang"' actual="attrName" ignoreCase="auto" context="attribute"/>
+        <increment var="langAttrCount" value="1"/>
+    </if>
+</for-each>
+<assertEquals expected="1" actual="langAttrCount" id="hasLangAttr" ignoreCase="false"/> 
+</test>

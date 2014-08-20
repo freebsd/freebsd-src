@@ -1,0 +1,19 @@
+# Index file for charset codec tests
+#
+# Test			Description
+
+1.dat			ISO-8859-1
+2.dat			ISO-8859-2
+3.dat			ISO-8859-3
+4.dat			ISO-8859-4
+5.dat			ISO-8859-5
+6.dat			ISO-8859-6
+7.dat			ISO-8859-7
+8.dat			ISO-8859-8
+9.dat			ISO-8859-9
+10.dat			ISO-8859-10
+11.dat			ISO-8859-11
+13.dat			ISO-8859-13
+14.dat			ISO-8859-14
+15.dat			ISO-8859-15
+16.dat			ISO-8859-16

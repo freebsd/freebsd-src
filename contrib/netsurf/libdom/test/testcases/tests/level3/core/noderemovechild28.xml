@@ -1,0 +1,55 @@
+<?xml version="1.0" encoding="UTF-8"?><?xml-stylesheet href="test-to-html.xsl" type="text/xml"?>
+
+<!--
+
+Copyright (c) 2001-2004 World Wide Web Consortium, 
+(Massachusetts Institute of Technology, Institut National de
+Recherche en Informatique et en Automatique, Keio University).  All 
+Rights Reserved.  This program is distributed under the W3C's Software
+Intellectual Property License.  This program is distributed in the 
+hope that it will be useful, but WITHOUT ANY WARRANTY; without even
+the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR 
+PURPOSE.  
+
+See W3C License http://www.w3.org/Consortium/Legal/ for more details.
+
+-->
+
+<!DOCTYPE test SYSTEM "dom3.dtd">
+<test xmlns="http://www.w3.org/2001/DOM-Test-Suite/Level-3" name="noderemovechild28">
+<metadata>
+<title>noderemovechild28</title>
+<creator>IBM</creator>
+<description>
+	Using removeChild on an Attribute node attempt to remove its Text child node and
+	and verify the name of the returned node that was removed.  Now attempt the reverse
+	and verify if a NOT_FOUND_ERR is thrown.
+</description>
+<contributor>Neil Delima</contributor>
+<date qualifier="created">2002-06-10</date>
+<subject resource="http://www.w3.org/TR/2004/REC-DOM-Level-3-Core-20040407/core#ID-1734834066"/>
+</metadata>
+<var name="doc" type="Document"/>
+<var name="parentList" type="NodeList"/>
+<var name="attrsMap" type="NamedNodeMap"/>
+<var name="parent" type="Attr"/>
+<var name="child" type="Text"/>
+<var name="elem" type="Element"/>
+<var name="removed" type="Text"/>
+<var name="removedName" type="DOMString"/>
+<var name="removedNode" type="Node"/>
+<load var="doc" href="hc_staff" willBeModified="true"/>
+<getElementsByTagName var="parentList" obj="doc" tagname='"acronym"' interface="Document"/>
+<item var="elem" obj="parentList" index="0" interface="NodeList"/>
+<attributes var="attrsMap" obj="elem"/>
+<getNamedItem var="parent" obj="attrsMap" name='"xsi:noNamespaceSchemaLocation"'/>
+<firstChild var="child" obj="parent" interface="Node"/>
+<removeChild var="removed"  obj="parent" oldChild="child" />
+<nodeValue obj="removed" var="removedName"/>
+<assertEquals actual="removedName" expected='"Yes"' id="noderemovechild28" ignoreCase="false"/>
+<assertDOMException id="NOT_FOUND_ERR_noderemovechild28">
+<NOT_FOUND_ERR>
+<removeChild obj="child" var="removedNode" oldChild="parent" />
+</NOT_FOUND_ERR>
+</assertDOMException>
+</test>

@@ -1,0 +1,10 @@
+prefix=PREFIX
+exec_prefix=${prefix}
+libdir=${exec_prefix}/lib
+includedir=${prefix}/include
+
+Name: libpencil
+Description: Pencil: a drawfile creation library
+Version: VERSION
+Libs: -L${libdir} -lpencil
+Cflags: -I${includedir}

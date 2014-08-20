@@ -1,0 +1,11 @@
+<?xml version="1.0"?>
+<!DOCTYPE svg [
+   <!ENTITY svgunit SYSTEM "svgunit.js">   
+   <!ENTITY svgtest SYSTEM "svgtest.js">   
+]>
+<svg xmlns='http://www.w3.org/2000/svg'><rect x="0" y="0" width="100" height="100"/><script type="text/ecmascript">&svgtest;&svgunit;</script>
+   <elt0 xmlns="http://www.example.com">
+      <elt1>the first element elt1</elt1><elt1>the second element elt1</elt1>
+      <elt2/>
+   </elt0>
+</svg>   

@@ -1,0 +1,42 @@
+# ----------------------------------------------------------------------------
+# Amiga-specific options
+# ----------------------------------------------------------------------------
+
+# Force using glibc internal iconv implementation instead of external libiconv
+# Valid options: YES, NO
+NETSURF_USE_LIBICONV_PLUG := YES
+
+# Enable NetSurf's use of librosprite for displaying RISC OS Sprites
+# Valid options: YES, NO, AUTO
+NETSURF_USE_ROSPRITE := NO
+
+# Enable NetSurf's use of libwebp for displaying WebPs
+# Valid options: YES, NO
+NETSURF_USE_WEBP := NO
+
+# Enable NetSurf to display Amiga icons
+# Valid options: YES, NO                 (recommended)
+NETSURF_USE_AMIGA_ICON := YES
+
+# Enable NetSurf's use of DataTypes for unknown filetypes
+# Valid options: YES, NO
+NETSURF_USE_AMIGA_DATATYPES := YES
+
+# Enable NetSurf's use of libsvgtiny for displaying SVGs
+# Valid options: YES, NO
+NETSURF_USE_NSSVG := YES
+
+# Enable NetSurf's use of libcairo for some plotter functions
+# This will also link NetSurf with shared objects, and
+# requires AmigaOS 4.1 or higher to run the resulting executable
+# Valid options: YES, NO, AUTO
+NETSURF_USE_AMIGA_CAIRO := AUTO
+
+# Enable NetSurf's use of Spidermonkey 1.80+
+# Only here to stop the build complaining;
+# enable NETSURF_USE_MOZJS instead for JavaScript support
+# Valid options: NO
+NETSURF_USE_JS := NO
+
+# Optimisation levels
+CFLAGS += -O2 -gstabs

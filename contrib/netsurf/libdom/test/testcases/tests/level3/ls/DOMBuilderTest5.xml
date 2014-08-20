@@ -1,0 +1,81 @@
+<?xml version="1.0" standalone="no"?>
+<?xml-stylesheet href="test-to-html.xsl" type="text/xml"?>
+<!--
+ Copyright (c) 2003-2004 X-Hive Corporation
+
+ All Rights Reserved. This work is distributed under the W3C(r)
+ Software License [1] in the hope that it will be useful, but WITHOUT
+ ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
+ FITNESS FOR A PARTICULAR PURPOSE.
+
+ [1] http://www.w3.org/Consortium/Legal/2002/copyright-software-20021231
+-->
+
+<!DOCTYPE test SYSTEM "dom3.dtd"[
+  <!ENTITY % entities SYSTEM "dom3tests.ent">
+  %entities;
+]>
+
+<test xmlns="&level3;" name="DOMBuilderTest5">
+  <metadata>
+    <title>DOMBuilderTest5</title>
+    &creator;
+    <description>supported-media-types-only is set to true if supported and
+    an XML file with an unsupported media type from an HTTP server
+    on the local machine is retrieved.</description>
+    &contributor; &date;
+    <subject resource="&spec;#LS-LSParser-parseURI"/>
+    <subject resource="&spec;#parameter-supported-media-types-only"/>
+  </metadata>
+
+
+  <var name="elementList" type="NodeList"/>
+  <var name="stringDoc" type="DOMString"/>
+  <var name="configuration" type="DOMConfiguration"/>
+
+  <var name="ERROR_HANDLER" type="DOMString" value='"error-handler"'/>
+  <var name="SUPPORTED_MEDIATYPES_ONLY" type="DOMString" value='"supported-media-types-only"'/>
+  <var name="mediaTypesSupported" type="boolean"/>
+  <var name="resourceURI" type="DOMString"/>
+
+  <var name="errorHandler" type="DOMErrorHandler">
+     <handleError>
+        <var name="type" type="DOMString"/>
+        <type var="type" obj="error" interface="DOMError"/>
+        <assertEquals id="handler_1" actual="type" expected='"unsupported-media-type"' ignoreCase="false"/>
+        <return value="false"/>
+     </handleError>
+  </var>
+  &vars;
+
+  &init;
+
+  <domConfig var="configuration" obj="parser" interface="LSParser"/>
+
+  <getResourceURI var="resourceURI" href="TESTPDF" scheme="http" contentType="application/pdf"/>
+  <parseURI var="document" obj="parser" uri="resourceURI"/>
+  <!--
+         document should successfully parse since, properly configured,
+         testpdf.pdf is a valid XML file on the http server.
+  -->
+  <assertNotNull actual="document" id="testpdf_parsed"/>
+
+  <canSetParameter var="mediaTypesSupported" obj="configuration" name="SUPPORTED_MEDIATYPES_ONLY" value="true"/>
+  <if>
+           <isTrue value="mediaTypesSupported"/>
+           <setParameter obj="configuration" name="SUPPORTED_MEDIATYPES_ONLY" value="true"/>
+           <setParameter obj="configuration" name="ERROR_HANDLER" value="errorHandler"/>
+           <assertLSException id="throw_PARSE_ERR">
+                   <PARSE_ERR>
+                         <parseURI var="document" obj="parser" uri="resourceURI"/>
+                 </PARSE_ERR>
+         </assertLSException>
+  </if>
+
+</test>
+
+
+
+
+
+

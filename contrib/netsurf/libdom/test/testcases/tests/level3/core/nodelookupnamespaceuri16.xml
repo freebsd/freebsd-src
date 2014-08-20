@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="UTF-8"?><?xml-stylesheet href="test-to-html.xsl" type="text/xml"?>
+
+<!--
+
+Copyright (c) 2001-2004 World Wide Web Consortium, 
+(Massachusetts Institute of Technology, Institut National de
+Recherche en Informatique et en Automatique, Keio University).  All 
+Rights Reserved.  This program is distributed under the W3C's Software
+Intellectual Property License.  This program is distributed in the 
+hope that it will be useful, but WITHOUT ANY WARRANTY; without even
+the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR 
+PURPOSE.  
+
+See W3C License http://www.w3.org/Consortium/Legal/ for more details.
+
+-->
+
+<!DOCTYPE test SYSTEM "dom3.dtd">
+<test xmlns="http://www.w3.org/2001/DOM-Test-Suite/Level-3" name="nodelookupnamespaceuri16">
+<metadata>
+<title>nodelookupnamespaceuri16</title>
+<creator>IBM</creator>
+<description>
+	Invoke lookupNamespaceURI on a new Attribute node with with a namespace URI
+	and prefix and verify if the namespaceURI returned is null.
+</description>
+<contributor>Neil Delima</contributor>
+<date qualifier="created">2002-06-10</date>
+<subject resource="http://www.w3.org/TR/2004/REC-DOM-Level-3-Core-20040407/core#Node3-lookupNamespaceURI"/>
+</metadata>
+<implementationAttribute name="namespaceAware" value="true"/>
+<var name="doc" type="Document"/>
+<var name="elem" type="Element"/>
+<var name="attr" type="Attr"/>
+<var name="attNode" type="Attr"/>
+<var name="namespaceURI" type="DOMString"/>
+<load var="doc" href="hc_staff" willBeModified="false"/>
+<createElementNS var="elem" obj="doc" namespaceURI='"http://www.w3.org/1999/xhtml"' qualifiedName='"dom3:p"'/>
+<createAttributeNS var="attr" obj="doc" namespaceURI='"http://www.w3.org/XML/1998/namespace"' qualifiedName='"xml:lang"'/>
+<setAttributeNodeNS obj="elem" var="attNode" newAttr="attr"/>
+<lookupNamespaceURI var="namespaceURI" obj="attr" prefix='"xml"' interface="Node"/>
+<assertNull actual="namespaceURI" id="nodelookupnamespaceuri16"/>
+</test>

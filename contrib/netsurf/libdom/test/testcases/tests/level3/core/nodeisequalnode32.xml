@@ -1,0 +1,46 @@
+<?xml version="1.0" encoding="UTF-8"?><?xml-stylesheet href="test-to-html.xsl" type="pi/xml"?>
+
+<!--
+
+Copyright (c) 2001-2004 World Wide Web Consortium, 
+(Massachusetts Institute of Technology, Institut National de
+Recherche en Informatique et en Automatique, Keio University).  All 
+Rights Reserved.  This program is distributed under the W3C's Software
+Intellectual Property License.  This program is distributed in the 
+hope that it will be useful, but WITHOUT ANY WARRANTY; without even
+the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR 
+PURPOSE.  
+
+See W3C License http://www.w3.org/Consortium/Legal/ for more details.
+
+-->
+
+<!DOCTYPE test SYSTEM "dom3.dtd">
+<test xmlns="http://www.w3.org/2001/DOM-Test-Suite/Level-3" name="nodeisequalnode32">
+<metadata>
+<title>nodeisequalnode32</title>
+<creator>IBM</creator>
+<description>
+
+	
+	Using isEqualNode check if 2 new ProcessingInstruction nodes having the same data are equal and two others
+	having different data are not equal.
+</description>
+<contributor>Neil Delima</contributor>
+<date qualifier="created">2002-06-10</date>
+<subject resource="http://www.w3.org/TR/2004/REC-DOM-Level-3-Core-20040407/core#Node3-isEqualNode"/>
+</metadata>
+<var name="doc" type="Document"/>
+<var name="pi1" type="ProcessingInstruction"/>
+<var name="pi2" type="ProcessingInstruction"/>
+<var name="pi3" type="ProcessingInstruction"/>
+<var name="isEqual" type="boolean"/>
+<load var="doc" href="hc_staff" willBeModified="false"/>
+<createProcessingInstruction var="pi1" obj="doc" data='"pi"' target='"Target1"'/>
+<createProcessingInstruction var="pi2" obj="doc" data='"pi"' target='"Target1"'/>
+<createProcessingInstruction var="pi3" obj="doc" data='"#ProcessingInstruction"' target='"Target1"'/>
+<isEqualNode var="isEqual" obj="pi1" arg="pi2"/>
+<assertTrue  actual="isEqual"  id="nodeisequalnodeTrue29"/>
+<isEqualNode var="isEqual" obj="pi1" arg="pi3"/>
+<assertFalse  actual="isEqual"  id="nodeisequalnodeFalse29"/>
+</test>

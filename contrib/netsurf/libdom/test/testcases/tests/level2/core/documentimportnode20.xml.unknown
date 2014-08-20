@@ -1,0 +1,81 @@
+<?xml version="1.0" encoding="UTF-8"?><?xml-stylesheet href="test-to-html.xsl" type="text/xml"?>
+
+<!--
+
+Copyright (c) 2001 World Wide Web Consortium, 
+(Massachusetts Institute of Technology, Institut National de
+Recherche en Informatique et en Automatique, Keio University).  All 
+Rights Reserved.  This program is distributed under the W3C's Software
+Intellectual Property License.  This program is distributed in the 
+hope that it will be useful, but WITHOUT ANY WARRANTY; without even
+the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR 
+PURPOSE.  
+
+See W3C License http://www.w3.org/Consortium/Legal/ for more details.
+
+-->
+
+<!DOCTYPE test SYSTEM "dom2.dtd">
+<test xmlns="http://www.w3.org/2001/DOM-Test-Suite/Level-2" name="documentimportnode20">
+<metadata>
+<title>documentimportnode20</title>
+<creator>IBM</creator>
+<description>
+	The importNode method imports a node from another document to this document. 
+	The returned node has no parent; (parentNode is null). The source node is not 
+	altered or removed from the original document but a new copy of the source node
+	is created.
+	
+	Using the method importNode with deep=true, import a entity node ent4 
+	from this document to a new document object.  The replacement text of this entity is an element
+	node, a cdata node and a pi.  Verify if the nodes have been 
+	imported correctly by checking the nodeNames of the imported element node, the data for the
+	cdata nodes and the PItarget and PIData for the pi nodes.
+</description>
+<contributor>Neil Delima</contributor>
+<date qualifier="created">2002-04-30</date>
+<subject resource="http://www.w3.org/TR/DOM-Level-2-Core/core"/>
+<subject resource="http://www.w3.org/TR/DOM-Level-2-Core/core#Core-Document-importNode"/>
+</metadata>
+<implementationAttribute name="namespaceAware" value="true"/>
+<implementationAttribute name="expandEntityReferences" value="false"/>
+<var name="doc" type="Document"/>
+<var name="docImp" type="Document"/>
+<var name="domImpl" type="DOMImplementation"/>
+<var name="docType" type="DocumentType"/>
+<var name="docTypeNull" type="DocumentType" isNull="true"/>
+<var name="nodeMap" type="NamedNodeMap"/>
+<var name="entity4" type="Entity"/>
+<var name="entityImp4" type="Entity"/>
+<var name="element" type="Element"/>
+<var name="cdata" type="CharacterData"/>
+<var name="pi" type="ProcessingInstruction"/>
+<var name="childList" type="NodeList"/>
+<var name="elemchildList" type="NodeList"/>
+<var name="ent4Name" type="DOMString"/>
+<var name="ent4ImpName" type="DOMString"/>
+<var name="cdataVal" type="DOMString"/>
+<var name="piTargetVal" type="DOMString"/>
+<var name="piDataVal" type="DOMString"/>
+<load var="doc" href="staffNS" willBeModified="true"/>
+<implementation var="domImpl" obj="doc" />
+<doctype var="docType" obj="doc"/>
+<createDocument var="docImp" obj="domImpl" namespaceURI='"http://www.w3.org/DOM/Test"' qualifiedName='"a:b"' doctype="docTypeNull"/>
+<entities var="nodeMap" obj="docType"/>
+<getNamedItem var="entity4" obj="nodeMap" name='"ent4"'/>
+<importNode  var="entityImp4" obj="docImp" importedNode="entity4" deep="true"/>
+<childNodes var="childList" obj="entityImp4" />
+<item var="element" obj="childList" index="0" interface="NodeList"/>
+<childNodes var="elemchildList" obj="element"/>
+<item var="cdata" obj="elemchildList" index="0" interface="NodeList"/>
+<item var="pi" obj="childList" index="1" interface="NodeList"/>
+<nodeName var="ent4Name" obj="entity4"/>
+<nodeName var="ent4ImpName" obj="entityImp4"/>
+<data var="cdataVal" obj="cdata" interface="CharacterData"/>
+<target var="piTargetVal" obj="pi" interface="ProcessingInstruction"/>
+<data var="piDataVal" obj="pi"  interface="ProcessingInstruction"/>
+<assertEquals expected="ent4Name" actual="ent4ImpName" id="documentimportnode20_Ent4NodeName" ignoreCase="false"/>
+<assertEquals expected='"Element data"' actual="cdataVal" id="documentimportnode20_Cdata"  ignoreCase="false"/>
+<assertEquals expected='"PItarget"' actual="piTargetVal" id="documentimportnode20_PITarget"  ignoreCase="false"/>
+<assertEquals expected='"PIdata"' actual="piDataVal" id="documentimportnode20_PIData"  ignoreCase="false"/>
+</test>

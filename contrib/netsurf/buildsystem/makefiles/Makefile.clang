@@ -1,0 +1,50 @@
+# Clang-specific toolchain setup
+# We assume that we're using a standard GCC/binutils environment, as well
+# as clang being mostly GCC-compatible on the command line
+
+CCDEF := -D
+CCOPT := -O2
+CCNOOPT := -O0
+CCDBG := -g
+CCINC := -I
+CCLIB := -L
+CCAS := -xassembler-with-cpp
+CCSHR := -fPIC
+
+CXXDEF := -D
+CXXOPT := -O2
+CXXNOOPT := -O0
+CXXDBG := -g
+CXXINC := -I
+CXXLIB := -L
+CXXSHR := -fPIC
+
+LDDBG := -g
+# Reevaluation is required here
+LDSHR = -shared -Wl,-soname,$(SONAME)
+
+ARFLG := cru
+
+# Definitions of various attributes
+CFLAGS := $(CFLAGS) -D_ALIGNED="__attribute__((aligned))"
+
+###############################################################################
+# Mac OS X Universal Binaries
+###############################################################################
+
+ifeq ($(TARGET),Darwin)
+	ifneq ($(UNIVERSAL),)
+		UNIVERSAL_FLAGS := $(foreach arch,$(UNIVERSAL),-arch $(arch) )
+		
+		CFLAGS := $(CFLAGS) $(UNIVERSAL_FLAGS)
+		LDFLAGS := $(LDFLAGS) $(UNIVERSAL_FLAGS)
+		CXXFLAGS := $(CXXFLAGS) $(UNIVERSAL_FLAGS)
+		ARFLAGS := $(ARFLAGS) -s 
+	endif
+endif
+
+###############################################################################
+# Other settings
+###############################################################################
+
+CC_CAN_BUILD_AND_DEP ?= yes

@@ -1,0 +1,132 @@
+# Child makefile fragment
+#
+# Inputs (reset on exit)
+#
+# DIR_SOURCES		List of source files in this directory
+# DIR_TEST_ITEMS	List of test items in this directory
+# DIR_INSTALL_ITEMS	Items to install in form <destination>:<file1>;<file2>
+#
+# Toolchain is provided by top-level makefile
+#
+# Variables provided by top-level makefile
+#
+# BUILDDIR		The location of the build tree root
+# COMPONENT		The name of the component
+# CURDIR		The location of the source tree root
+# EXPORTDIR		The location of the export directory
+# WANT_TEST		Whether to build testcases
+#
+# do_include		Canned command sequence to include a child makefile
+#
+# Variables provided by parent makefile:
+#
+# DIR			The name of the directory we're in, relative to CURDIR
+#
+# Variables we can manipulate:
+#
+# CLEAN_ITEMS		The list of items to remove for "make clean"
+# DISTCLEAN_ITEMS	The list of items to remove for "make distclean"
+# TEST_ITEMS		The list of items to build for "make test"
+# TEST_TARGETS		The list of target names to run for "make test"
+# INSTALL_ITEMS		The list of items to (un)install
+#
+# SOURCES		The list of sources to build for $(COMPONENT)
+#
+# Plus anything from the toolchain
+
+# Push parent directory onto the directory stack
+sp             := $(sp).x
+dirstack_$(sp) := $(d)
+d              := $(DIR)
+
+# Sources
+SRCS_$(d) := $(DIR_SOURCES)
+TEST_ITEMS_$(d) :=
+INSTALL_ITEMS_$(d) :=
+
+# Append to sources for component
+SOURCES := $(SOURCES) $(addprefix $(d), $(SRCS_$(d)))
+
+# Test sources
+ifeq ($(WANT_TEST),yes)
+  ifneq ($(DIR_TEST_ITEMS),)
+    # Extract the binary name from the ITEM
+    binary = $(subst /,_,$(addprefix $(d),$(firstword $(subst :, ,$(ITEM)))))
+    # Extract the list of sources from the ITEM
+    sources = $(subst ;, ,$(lastword $(subst :, ,$(ITEM))))
+
+    # We can't simply use the output of foreach here, 
+    # as it space separates its output, which kinda defeats the point.
+    define append_test_src
+      TEST_ITEMS_$(d) := $$(TEST_ITEMS_$(d))$1;
+
+    endef
+
+    define append_test
+      TEST_ITEMS_$(d) := $$(TEST_ITEMS_$(d)) $1:
+
+      $$(eval $$(foreach TSRC,$2, \
+		$$(call append_test_src,$$(addprefix $$(d),$$(TSRC)))))
+
+    endef
+
+    # Append test items, prepending $(d) to each source file 
+    $(eval $(foreach ITEM,$(DIR_TEST_ITEMS), \
+		$(call append_test,$(binary),$(sources))))
+
+    TEST_ITEMS := $(TEST_ITEMS) $(TEST_ITEMS_$(d))
+
+    TEST_TARGETS := $(TEST_TARGETS) test_$(d)
+
+    # Extract the binary name from the TEST
+    binary_name = $(firstword $(subst :, ,$(TEST)))
+
+    # Target for tests in this directory
+    test_$(d): $(d) $(addprefix $(BUILDDIR)/, \
+			$(foreach TEST,$(TEST_ITEMS_$(d)),$(binary_name)))
+	$(Q)$(SHAREDLDPATH) $(TESTRUNNER) $(BUILDDIR) \
+		$(CURDIR)/$< $(subst /,_,$<) $(EXEEXT)
+  endif
+endif
+
+# Install items
+ifneq ($(DIR_INSTALL_ITEMS),)
+  # Extract the destination directory from the variable
+  dest_dir = $(firstword $(subst :, ,$(ITEM)))
+  # Extract the list of files to install
+  files = $(subst ;, ,$(lastword $(subst :, ,$(ITEM))))
+
+  define append_install_file
+    INSTALL_ITEMS_$(d) := $$(INSTALL_ITEMS_$(d))$1;
+
+  endef
+
+  define append_install_item
+    INSTALL_ITEMS_$(d) := $$(INSTALL_ITEMS_$(d)) $1:
+
+    $$(eval $$(foreach FILE,$2, \
+		$$(call append_install_file,$$(addprefix $$(d),$$(FILE)))))
+
+  endef
+
+  # Append items to install (along with install location), prepending $(d)
+  # to each item in the file list 
+  $(eval $(foreach ITEM,$(DIR_INSTALL_ITEMS), \
+		$(call append_install_item,$(dest_dir),$(files))))
+
+  INSTALL_ITEMS := $(INSTALL_ITEMS) $(INSTALL_ITEMS_$(d))
+endif
+
+# Reset the inputs
+DIR_SOURCES :=
+DIR_TEST_ITEMS :=
+DIR_INSTALL_ITEMS :=
+
+# Now include any children we may have
+MAKE_INCLUDES := $(wildcard $(d)*/Makefile)
+$(eval $(foreach INC, $(MAKE_INCLUDES), $(call do_include,$(INC))))
+
+# Pop off the directory stack
+d  := $(dirstack_$(sp))
+sp := $(basename $(sp))
+

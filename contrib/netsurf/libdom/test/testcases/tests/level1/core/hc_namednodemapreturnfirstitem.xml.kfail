@@ -1,0 +1,63 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+Copyright (c) 2001-2003 World Wide Web Consortium,
+(Massachusetts Institute of Technology, Institut National de
+Recherche en Informatique et en Automatique, Keio University). All
+Rights Reserved. This program is distributed under the W3C's Software
+Intellectual Property License. This program is distributed in the
+hope that it will be useful, but WITHOUT ANY WARRANTY; without even
+the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
+PURPOSE.
+See W3C License http://www.w3.org/Consortium/Legal/ for more details.
+--><!DOCTYPE test SYSTEM "dom1.dtd">
+
+<test xmlns="http://www.w3.org/2001/DOM-Test-Suite/Level-1" name="hc_namednodemapreturnfirstitem">
+<metadata>
+<title>hc_namednodemapReturnFirstItem</title>
+<creator>Curt Arnold</creator>
+<description>
+    The "item(index)" method returns the indexth item in 
+   the map(test for first item). 
+   
+   Retrieve the second "acronym" get the NamedNodeMap of the attributes. Since the
+   DOM does not specify an order of these nodes the contents
+   of the FIRST node can contain either "title", "class" or "dir".
+</description>
+
+<date qualifier="created">2002-06-09</date>
+<subject resource="http://www.w3.org/TR/1998/REC-DOM-Level-1-19981001/level-one-core#ID-349467F9"/>
+<subject resource="http://www.w3.org/Bugs/Public/show_bug.cgi?id=236"/>
+<subject resource="http://lists.w3.org/Archives/Public/www-dom-ts/2003Jun/0011.html"/>
+<subject resource="http://www.w3.org/Bugs/Public/show_bug.cgi?id=184"/>
+</metadata>
+<var name="doc" type="Document"/>
+<var name="elementList" type="NodeList"/>
+<var name="testAddress" type="Node"/>
+<var name="attributes" type="NamedNodeMap"/>
+<var name="child" type="Node"/>
+<var name="nodeName" type="DOMString"/>
+<var name="htmlExpected" type="Collection">
+    <member>"title"</member>
+    <member>"class"</member>
+</var>
+<var name="expected" type="Collection">
+    <member>"title"</member>
+    <member>"class"</member>
+    <member>"dir"</member>
+</var>
+<var name="actual" type="Collection"/>
+<load var="doc" href="hc_staff" willBeModified="true"/>
+<getElementsByTagName interface="Document" obj="doc" var="elementList" tagname='"acronym"'/>
+<item interface="NodeList" obj="elementList" var="testAddress" index="1"/>
+<attributes obj="testAddress" var="attributes"/>
+<for-each collection="attributes" member="child">
+<nodeName obj="child" var="nodeName"/>
+<append collection="actual" item="nodeName"/>
+</for-each>
+<if><contentType type="text/html"/>
+<assertEquals id="attrName_html" actual="actual" expected="htmlExpected" ignoreCase="true"/>
+<else>
+<assertEquals id="attrName" actual="actual" expected="expected" ignoreCase="false"/>
+</else>
+</if>
+</test>

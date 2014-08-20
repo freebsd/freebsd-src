@@ -1,0 +1,78 @@
+﻿/* ... of (total size) */
+" of %@" = " von %@";
+
+/* time remaining: hours, minutes */
+"%2:%02u hours" = "%1$:%2$u Stunden";
+
+/* time remaining */
+"%u seconds" = "%u Sekunden";
+
+/* time remaining: minutes, seconds */
+"%u:%02u minutes" = "%1$u:%2$u Minuten";
+
+/* Context menu */
+"Back" = "Zurück";
+
+/* Download */
+"Cancel download?" = "Download abbrechen?";
+
+/* Context menu */
+"Copy image" = "Bild kopieren";
+
+/* Context menu */
+"Copy link" = "Link kopieren";
+
+/* No comment provided by engineer. */
+"Do you really want to close this window?" = "Wollen Sie dieses Fenster wirklich schließen?";
+
+/* show error */
+"Error" = "Fehler";
+
+/* Context menu */
+"Forward" = "Vorwärts";
+
+/* time remaining */
+"less than 10 seconds" = "weniger als 10 Sekunden";
+
+/* 'No' button */
+"No" = "Nein";
+
+/* 'OK' button */
+"OK" = "OK";
+
+/* Context menu */
+"Open image in new tab" = "Bild in neuem Tab öffnen";
+
+/* Context menu */
+"Open image in new window" = "Bild in neuem Fenster öffnen";
+
+/* Context menu */
+"Open link in new tab" = "Link in neuem Tab öffnen";
+
+/* Context menu */
+"Open link in new window" = "Link in neuem Fenster öffnen";
+
+/* Context menu */
+"Reload" = "Neu laden";
+
+/* Context menu */
+"Save image as" = "Bild speichern";
+
+/* Context menu */
+"Save link target" = "Linkziel speichern";
+
+/* Download */
+"Should the download of '%@' really be cancelled?" = "Soll der Download von '%@' wirklich abgebrochen werden?";
+
+/* No comment provided by engineer. */
+"There are %d tabs open, do you want to close them all?" = "Es sind noch %d tabs offen. Sollen alle geschlossen werden?";
+
+/* Warning title */
+"Warning" = "Warnung";
+
+/* Warning message */
+"Warning %s%s%s" = "Warnung %1$s%2$s%3$s";
+
+/* 'Yes' button */
+"Yes" = "Ja";
+

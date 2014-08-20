@@ -1,0 +1,62 @@
+<?xml version="1.0" encoding="iso-8859-1"?>
+<?xml-stylesheet href="test-to-html.xsl" type="text/xml"?>
+<!--
+ Copyright (c) 2003 World Wide Web Consortium,
+
+ (Massachusetts Institute of Technology, European Research Consortium for
+ Informatics and Mathematics, Keio University). All Rights Reserved. This
+ work is distributed under the W3C(r) Software License [1] in the hope that
+ it will be useful, but WITHOUT ANY WARRANTY; without even the implied
+ warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+
+ [1] http://www.w3.org/Consortium/Legal/2002/copyright-software-20021231
+-->
+
+<!DOCTYPE test SYSTEM "dom3.dtd" [
+  <!ENTITY % entities SYSTEM "dom3xpathents.ent">
+  %entities;
+]>
+<test xmlns="&level3;" name="XPathExpression_evaluate_documentElement">
+  <metadata>
+    <title>XPathExpression_evaluate_documentElement</title>
+    <creator>Philippe Le Hégaret</creator>
+    <creator>Bob Clary</creator>
+    <description>      
+      Test if XPathExpression.evaluate returns non-null result
+      using Document.documentElement as contextNode.
+    </description>
+    <date qualifier="created">2003-12-02</date>
+    <subject resource="&spec;#XPathExpression-evaluate"/>
+    <subject resource="&spec;#XPathEvaluator-createExpression"/>
+  </metadata>
+
+  &vars;
+
+  <var name="nullNSResolver"  type="XPathNSResolver" isNull="true"/>
+  <var name="contextNode"     type='Element'/>
+  <var name="xpathResult"     type="XPathResult"/>
+  <var name="nullResult"      type="XPathResult" isNull="true"/>
+  <var name="xpathExpression" type="XPathExpression"/>
+  <var name="expression"      type="DOMString" value="&quot;/&quot;"/>
+
+  &findXPathEvaluator;
+    
+  <documentElement obj='doc' var='contextNode'/>
+
+  <createExpression interface="XPathEvaluator" 
+                    obj='xpEvaluator' 
+                    var='xpathExpression'
+                    expression='expression' 
+                    resolver='nullNSResolver' 
+                    />
+
+  <evaluate         interface="XPathExpression" 
+                    obj='xpathExpression' 
+                    var='xpathResult'
+                    contextNode='contextNode' 
+                    type='0' 
+                    result='nullResult'/>
+
+  <assertNotNull actual="xpathResult" id="notnull"/>
+
+</test>

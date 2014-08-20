@@ -1,0 +1,67 @@
+<?xml version="1.0" encoding="UTF-8"?><?xml-stylesheet href="test-to-html.xsl" type="text/xml"?>
+
+<!--
+
+Copyright (c) 2001-2004 World Wide Web Consortium, 
+(Massachusetts Institute of Technology, Institut National de
+Recherche en Informatique et en Automatique, Keio University).  All 
+Rights Reserved.  This program is distributed under the W3C's Software
+Intellectual Property License.  This program is distributed in the 
+hope that it will be useful, but WITHOUT ANY WARRANTY; without even
+the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR 
+PURPOSE.  
+
+See W3C License http://www.w3.org/Consortium/Legal/ for more details.
+
+-->
+
+<!DOCTYPE test SYSTEM "dom2.dtd">
+<test xmlns="http://www.w3.org/2001/DOM-Test-Suite/Level-2" name="documentimportnode04">
+<metadata>
+<title>documentimportnode04</title>
+<creator>IBM</creator>
+<description>
+	The importNode method imports a node from another document to this document. 
+	The returned node has no parent; (parentNode is null). The source node is not 
+	altered or removed from the original document but a new copy of the source node
+	is created.
+	
+	Using the method importNode with deep=true, import the default Attribute attribute, 
+	"defaultAttr" of the second element node whose namespaceURI="http://www.nist.gov" and 
+	localName="defaultAttr", into a new document.
+	Check the parentNode, nodeName, nodeType and nodeValue of the imported node to 
+	verify if it has been imported correctly.  
+</description>
+<contributor>Neil Delima</contributor>
+<date qualifier="created">2002-04-30</date>
+<subject resource="http://www.w3.org/TR/DOM-Level-2-Core/core"/>
+<subject resource="http://www.w3.org/TR/DOM-Level-2-Core/core#Core-Document-importNode"/>
+</metadata>
+<implementationAttribute name="namespaceAware" value="true"/>
+<implementationAttribute name="validating" value="true"/>
+<var name="doc" type="Document"/>
+<var name="newDoc" type="Document"/>
+<var name="docType" type="DocumentType" isNull="true"/>
+<var name="domImpl" type="DOMImplementation"/>
+<var name="element" type="Element"/>
+<var name="attr" type="Attr"/>
+<var name="childList" type="NodeList"/>
+<var name="importedAttr" type="Node"/>
+<var name="nodeName" type="DOMString"/>
+<var name="nodeType" type="int"/>
+<var name="nodeValue" type="DOMString"/>
+<load var="doc" href="staffNS" willBeModified="true"/>
+<implementation var="domImpl" obj="doc"/>
+<createDocument var="newDoc" obj="domImpl" namespaceURI='"http://www.w3.org/DOM/Test"' qualifiedName='"l2:root"' doctype="docType"/>
+<getElementsByTagNameNS var="childList" obj="doc" localName='"employee"' namespaceURI='"http://www.nist.gov"' interface="Document"/>
+<item var="element" obj="childList" index="1" interface="NodeList"/>
+<getAttributeNode var="attr" obj="element" name='"defaultAttr"'/>
+<importNode var="importedAttr" obj="newDoc" importedNode="attr" deep="true"/>
+<nodeName var="nodeName" obj="importedAttr"/>
+<nodeValue var="nodeValue" obj="importedAttr"/>
+<nodeType var="nodeType" obj="importedAttr"/>
+<assertEquals expected='"defaultAttr"' actual="nodeName"  id="documentimportnode04_nodeName"  ignoreCase="false"/>
+<assertEquals expected="2" actual="nodeType"  id="documentimportnode04_nodeType"  ignoreCase="false"/>
+<assertEquals expected='"defaultVal"' actual="nodeValue"  id="documentimportnode04_nodeValue"  ignoreCase="false"/>
+</test>
+

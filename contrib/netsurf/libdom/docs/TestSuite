@@ -1,0 +1,353 @@
+Assertions
+-------------------------------------------------------------------------------
+fail
+	assert(false);
+
+assertTrue
+assertFalse
+	@actual is a variable name, of type boolean (or castable to boolean?)
+	or evaluate nested condition to boolean
+
+assertNull
+assertNotNull
+	@actual is a variable name
+	or evaluate nested condition
+	
+assertEquals
+assertNotEquals
+	Test actual is equal (or not equal) to expected.
+	
+	<assertEquals actual="result" expected="expectedResult" ignoreCase="true/false/auto" context="attribute/element" bitmask="..."/>
+	
+	For Collections (or Lists), need to check neither list is null, then that both lists have the same size, then that all their elements are equal.
+	
+	@ignoreCase="auto"
+		if contentType == "text/html":
+			if context == "attribute", do case insensitive test
+			if context == "element", do case sensitive test against expected.toUpperCase()
+	@context used in combination with ignoreCase="auto"
+	@bitmask used in DOM Level 3 only.  Tests: (actual & bitmask) equals (expectedResult & bitmask) where bitmask is an int
+
+	Alternatively, can include nested statement (presumably as a substitute to @actual), but can't see this is used anywhere.
+
+assertSame
+	Tests two objects for identity.
+	If not, call assertEquals()
+	Don't really understand the point of this assert
+	
+(note about assertNull, assertNotNull, assertEquals, assertNotEquals, assertSame)
+	Alternatively, can include nested statement (presumably as a substitute to @actual), but can't see this is used anywhere.
+
+assertInstanceOf
+	Used in [hc_]namednodemapreturnattrnode.xml
+	Can use Node.getNodeType() to get runtime type
+
+assertSize
+	Tests a Java Collection has the specified size. 
+	
+	<assertSize size="2" collection="notifications"/>
+
+assertEventCount
+	(not used)
+	
+assertURIEquals
+	Compare pieces of the URI in @actual
+
+	@actual
+	@scheme
+	@path
+	@host
+	@file
+	@name
+	@query
+	@fragment 
+	@isAbsolute boolean
+
+assertImplementationException
+	DOM Level 2 Events dispatchEvent01.xml
+
+assertDOMException
+	Tests that a DOMException is thrown with a specified code.  Try/catching not nested.
+	
+	<assertDOMException id="setValue_throws_NO_MODIFICATION_ERR">
+	    <NO_MODIFICATION_ALLOWED_ERR>
+	        <removeChild obj="attrNode" oldChild="textNode" var="removedNode"/>
+	    </NO_MODIFICATION_ALLOWED_ERR>
+	</assertDOMException>
+	
+	boolean success = false;
+	try {
+    	removedNode = attrNode.removeChild(textNode);
+    } catch (DOMException ex) {
+    	success = (ex.code == DOMException.NO_MODIFICATION_ALLOWED_ERR);
+    }
+    assertTrue(success);
+    
+assertLowerSeverity
+	DOM Level 3 Core only
+
+Conditions
+-------------------------------------------------------------------------------
+same
+	(not used)
+
+equals
+notEquals
+less
+
+lessOrEquals
+	(not used)
+	
+greater
+
+greaterOrEquals
+	(not used)
+	
+isNull
+	(not used)
+
+notNull
+and
+or
+
+xor
+	(not used)
+	
+not
+
+instanceOf
+	(not used)
+
+isTrue
+isFalse
+
+hasSize
+	(not used)
+	
+contentType
+
+contains
+	DOM Level 3 Core and LS only
+	
+hasFeature
+	calls DOMImplementation.hasFeature()
+	
+	@feature quoted string e.g. "XML"
+	@version quoted string e.g. "1.0"
+	@value boolean
+	@var variable to assign the result to
+	@obj name of var holding the DOMImplementation
+	
+implementationAttribute
+	pass param to the test suite's DOMTestDocumentBuilderFactory (e.g. validating)
+
+
+Statements
+-------------------------------------------------------------------------------
+var
+	Can contain nested <member> elements when the var has @type Collection
+	
+	Can contain <handleError> element when the var type @type DOMErrorHandler.
+	This then creates an class implementing DOMErrorHandler, overriding the handleError() method.
+	This is only used in DOM Level 3 Core.
+	
+	@name variable name
+	@type type of variable
+	@value initially assigned value
+	@isNull boolean assign initial value of NULL (essentially mutually exclusive with @value ?)
+
+assign
+	<assign var="..." value="..."/>
+
+increment
+decrement
+	<increment var="..." value="..."/>
+
+append
+	<append collection="..." item="..."/>
+	Append an object to the end of a Collection.
+	In Java, this is implemented with an ArrayList.
+
+plus
+subtract
+mult
+divide
+load
+
+if
+while
+
+try
+	Fail if reach the end of the try without throwing an exception specified in <catch>
+	<try>
+		...
+		<catch>
+			<DOMException code="..."/>
+			<DOMException code="..."/>
+			...
+		</catch>
+	</try>
+	
+	No nesting in test cases, but sometimes more than one instance in a single test.
+
+for-each
+	<for-each collection="..." member="...">
+
+comment
+	Only used in DOM Level 3 XPath.
+
+return
+	Only used in DOM Level 2/3.  Returns immediately from method call with optional @value
+
+userObj
+	(not used)
+
+atEvents
+capturedEvents
+bubbledEvents
+allEvents
+	DOM Level 2 Events only
+
+createXPathEvaluator
+	DOM Level 3 XPath only
+	
+getResourceURI
+	DOM Level 3 LS only
+
+substring
+	<substringData var="..." obj="..." offset="..." count="..."/>
+	Calls @obj.substringData() where obj is an instance of CharacterData
+
+createTempURI
+	DOMImplementationRegistry.newInstance
+
+allErrors
+	Only used in DOM Level 3
+	Calls org.w3c.domts.DOMErrorMonitor.getAllErrors(), which is an instance of DOMErrorHandler
+
+allNotifications
+operation
+key
+dst
+	DOM Level 3 Core only
+
+Datatypes
+-------------------------------------------------------------------------------
+int
+short
+double
+boolean
+	Primitives
+
+DOMString
+
+List
+	In Java, an ArrayList instance typed as a List
+
+Collection
+	In Java, an ArrayList instance typed as a Collection
+	
+	<var name="expectedResult" type="Collection">
+		<member>"ent1"</member>
+		<member>"ent2"</member>
+
+EventMonitor
+	DOM Level 2 Events only
+
+DOMErrorMonitor
+	DOM Level 3 only
+	
+UserDataMonitor
+UserDataNotification
+LSInputStream
+	DOM Level 3 Core only
+
+
+Attr
+CDATASection
+CharacterData
+Comment
+Document
+DocumentFragment
+DocumentType
+DOMImplementation
+Element
+Entity
+EntityReference
+NamedNodeMap
+Node
+NodeList
+Notation
+ProcessingInstruction
+Text
+	DOM types
+	
+-------------------------------------------------------------------------------	
+WHAT ABOUT RETURN VALUES?
+for method calls and attribute getters (&result)
+
+ASSERTIONS (other statements?)
+[temp variables for assert params]
+assertFoo(...)
+for @expected, produce a var decl/ref
+required-type is the type of @actual
+
+
+CONDITIONS IN CONTROL STRUCTURES
+[temp variables for condition params]
+if (<condition>)
+for every condition clause that requires it (e.g. <equals>), produce a var decl/ref
+required-type is the type of @actual
+	e.g. 
+	<var name="myVar" type="DOMString"/>
+	<equals actual="myVar" expected="&quot;beans&quot;"/>
+	required-type is DOMString
+
+METHOD CALL
+[temp variables for method params]
+[temp variable to hold method result]
+getElementsByTagName(doc, param_a, param_b, param_c, &result)
+[assign temp variable to real result var]
+
+produce var decl/ref for each param: a, b, c
+required-type is the method param's type in the domspec
+
+
+ATTRIBUTE SET
+[temp variables for setting attribute]
+setFoo(node, param)
+
+required-type is the attribute's type in the domspec
+
+
+ATTRIBUTE GET
+[temp variable to hold getter result]
+getFoo(node, &result)
+[assign temp variable to real result var]
+
+call produce-var-reference in getFoo() call to generate &result
+call produce-var-assignment after getFoo() to convert the temp result into the desired result 
+
+
+PSEUDO TEMPLATES
+template name="produce-var-declaration"
+param name="var-or-literal"
+param name="required-type"
+if (needs temp variable)
+	declare and assign new temporary variable $var_x$		
+/if
+
+template name="produce-var-reference"
+choose
+	when (needs temp variable)
+		print temporary variable $var_x$ using generate-id()
+	when (needs cast)
+		call-template name="cast"
+	otherwise
+		$var-or-literal
+/choose
+
+template name="produce-var-assignment"
+if (needs temp variable)
+	$var-or-literal = conversion_function($var_x$);
+/if

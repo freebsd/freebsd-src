@@ -1,0 +1,280 @@
+<?xml version="1.0" encoding="iso-8859-1"?>
+<?xml-stylesheet href="test-to-html.xsl" type="text/xml"?>
+<!--
+ Copyright (c) 2003 World Wide Web Consortium,
+
+ (Massachusetts Institute of Technology, European Research Consortium for
+ Informatics and Mathematics, Keio University). All Rights Reserved. This
+ work is distributed under the W3C(r) Software License [1] in the hope that
+ it will be useful, but WITHOUT ANY WARRANTY; without even the implied
+ warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+
+ [1] http://www.w3.org/Consortium/Legal/2002/copyright-software-20021231
+-->
+
+<!DOCTYPE test SYSTEM "dom3.dtd" [
+  <!ENTITY % entities SYSTEM "dom3xpathents.ent">
+  %entities;
+]>
+<test xmlns="&level3;" name="Conformance_Expressions">
+  <metadata>
+    <title>Conformance_Expressions</title>
+    <creator>Bob Clary</creator>
+    <description>
+      1.3 Conformance - Iterate over a list of strings containing 
+      valid XPath expressions, calling XPathEvaluator.createExpression 
+      for each. If no expections are thrown and each result is non-null, 
+      then the test passes.
+    </description>
+    <date qualifier="created">2003-11-18</date>
+    <subject resource="&spec;#Conformance"/>
+    <subject resource="&spec;#XPathEvaluator"/>
+    <subject resource="&spec;#XPathEvaluator-createNSResolver"/>
+    <subject resource="&spec;#XPathEvaluator-createExpression"/>
+    <subject resource="&spec;#XPathNSResolver"/>
+  </metadata>
+
+  <!-- Standard Variables -->
+
+  <var name="doc"         type="Document"/>
+  <var name="resolver"    type="XPathNSResolver"/>
+  <var name="evaluator"   type="XPathEvaluator"/>
+
+  <!-- Inputs -->
+
+  <var name="expression"           type="DOMString"/>
+
+  <!-- Test Variables -->
+
+  <var name="expressionList"       type="List"/>
+  <var name="xpathexpression"      type="XPathExpression"/>
+
+  <load var="doc" href="staffNS" willBeModified="false"/>
+
+  <createXPathEvaluator var='evaluator' document='doc'/>
+
+  <createNSResolver var="resolver" obj="evaluator" nodeResolver="doc"/>
+
+  <!-- test root absolute expression -->
+  <append collection="expressionList" item="&quot;/&quot;"/>
+
+  <!-- test verbose axes and basic node tests -->
+  <append collection="expressionList" item="&quot;child::comment()&quot;"/>
+  <append collection="expressionList" item="&quot;child::text()&quot;"/>
+  <append collection="expressionList" item="&quot;child::processing-instruction()&quot;"/>
+  <append collection="expressionList" item="&quot;child::processing-instruction('name')&quot;"/>
+  <append collection="expressionList" item="&quot;child::node()&quot;"/>
+  <append collection="expressionList" item="&quot;child::*&quot;"/>
+  <append collection="expressionList" item="&quot;child::nist:*&quot;"/>
+  <append collection="expressionList" item="&quot;child::employee&quot;"/>
+
+  <append collection="expressionList" item="&quot;descendant::comment()&quot;"/>
+  <append collection="expressionList" item="&quot;descendant::text()&quot;"/>
+  <append collection="expressionList" item="&quot;descendant::processing-instruction()&quot;"/>
+  <append collection="expressionList" item="&quot;descendant::processing-instruction('name')&quot;"/>
+  <append collection="expressionList" item="&quot;descendant::node()&quot;"/>
+  <append collection="expressionList" item="&quot;descendant::*&quot;"/>
+  <append collection="expressionList" item="&quot;descendant::nist:*&quot;"/>
+  <append collection="expressionList" item="&quot;descendant::employee&quot;"/>
+
+  <append collection="expressionList" item="&quot;parent::comment()&quot;"/>
+  <append collection="expressionList" item="&quot;parent::text()&quot;"/>
+  <append collection="expressionList" item="&quot;parent::processing-instruction()&quot;"/>
+  <append collection="expressionList" item="&quot;parent::processing-instruction('name')&quot;"/>
+  <append collection="expressionList" item="&quot;parent::node()&quot;"/>
+  <append collection="expressionList" item="&quot;parent::*&quot;"/>
+  <append collection="expressionList" item="&quot;parent::nist:*&quot;"/>
+  <append collection="expressionList" item="&quot;parent::employee&quot;"/>
+
+  <append collection="expressionList" item="&quot;ancestor::comment()&quot;"/>
+  <append collection="expressionList" item="&quot;ancestor::text()&quot;"/>
+  <append collection="expressionList" item="&quot;ancestor::processing-instruction()&quot;"/>
+  <append collection="expressionList" item="&quot;ancestor::processing-instruction('name')&quot;"/>
+  <append collection="expressionList" item="&quot;ancestor::node()&quot;"/>
+  <append collection="expressionList" item="&quot;ancestor::*&quot;"/>
+  <append collection="expressionList" item="&quot;ancestor::nist:*&quot;"/>
+  <append collection="expressionList" item="&quot;ancestor::employee&quot;"/>
+
+  <append collection="expressionList" item="&quot;following-sibling::comment()&quot;"/>
+  <append collection="expressionList" item="&quot;following-sibling::text()&quot;"/>
+  <append collection="expressionList" item="&quot;following-sibling::processing-instruction()&quot;"/>
+  <append collection="expressionList" item="&quot;following-sibling::processing-instruction('name')&quot;"/>
+  <append collection="expressionList" item="&quot;following-sibling::node()&quot;"/>
+  <append collection="expressionList" item="&quot;following-sibling::*&quot;"/>
+  <append collection="expressionList" item="&quot;following-sibling::nist:*&quot;"/>
+  <append collection="expressionList" item="&quot;following-sibling::employee&quot;"/>
+
+  <append collection="expressionList" item="&quot;preceding-sibling::comment()&quot;"/>
+  <append collection="expressionList" item="&quot;preceding-sibling::text()&quot;"/>
+  <append collection="expressionList" item="&quot;preceding-sibling::processing-instruction()&quot;"/>
+  <append collection="expressionList" item="&quot;preceding-sibling::processing-instruction('name')&quot;"/>
+  <append collection="expressionList" item="&quot;preceding-sibling::node()&quot;"/>
+  <append collection="expressionList" item="&quot;preceding-sibling::*&quot;"/>
+  <append collection="expressionList" item="&quot;preceding-sibling::nist:*&quot;"/>
+  <append collection="expressionList" item="&quot;preceding-sibling::employee&quot;"/>
+
+  <append collection="expressionList" item="&quot;following::comment()&quot;"/>
+  <append collection="expressionList" item="&quot;following::text()&quot;"/>
+  <append collection="expressionList" item="&quot;following::processing-instruction()&quot;"/>
+  <append collection="expressionList" item="&quot;following::processing-instruction('name')&quot;"/>
+  <append collection="expressionList" item="&quot;following::node()&quot;"/>
+  <append collection="expressionList" item="&quot;following::*&quot;"/>
+  <append collection="expressionList" item="&quot;following::nist:*&quot;"/>
+  <append collection="expressionList" item="&quot;following::employee&quot;"/>
+
+  <append collection="expressionList" item="&quot;preceding::comment()&quot;"/>
+  <append collection="expressionList" item="&quot;preceding::text()&quot;"/>
+  <append collection="expressionList" item="&quot;preceding::processing-instruction()&quot;"/>
+  <append collection="expressionList" item="&quot;preceding::processing-instruction('name')&quot;"/>
+  <append collection="expressionList" item="&quot;preceding::node()&quot;"/>
+  <append collection="expressionList" item="&quot;preceding::*&quot;"/>
+  <append collection="expressionList" item="&quot;preceding::nist:*&quot;"/>
+  <append collection="expressionList" item="&quot;preceding::employee&quot;"/>
+
+  <append collection="expressionList" item="&quot;attribute::comment()&quot;"/>
+  <append collection="expressionList" item="&quot;attribute::text()&quot;"/>
+  <append collection="expressionList" item="&quot;attribute::processing-instruction()&quot;"/>
+  <append collection="expressionList" item="&quot;attribute::processing-instruction('name')&quot;"/>
+  <append collection="expressionList" item="&quot;attribute::node()&quot;"/>
+  <append collection="expressionList" item="&quot;attribute::*&quot;"/>
+  <append collection="expressionList" item="&quot;attribute::nist:*&quot;"/>
+  <append collection="expressionList" item="&quot;attribute::employee&quot;"/>
+
+  <append collection="expressionList" item="&quot;namespace::comment()&quot;"/>
+  <append collection="expressionList" item="&quot;namespace::text()&quot;"/>
+  <append collection="expressionList" item="&quot;namespace::processing-instruction()&quot;"/>
+  <append collection="expressionList" item="&quot;namespace::processing-instruction('name')&quot;"/>
+  <append collection="expressionList" item="&quot;namespace::node()&quot;"/>
+  <append collection="expressionList" item="&quot;namespace::*&quot;"/>
+  <append collection="expressionList" item="&quot;namespace::nist:*&quot;"/>
+  <append collection="expressionList" item="&quot;namespace::employee&quot;"/>
+
+  <append collection="expressionList" item="&quot;self::comment()&quot;"/>
+  <append collection="expressionList" item="&quot;self::text()&quot;"/>
+  <append collection="expressionList" item="&quot;self::processing-instruction()&quot;"/>
+  <append collection="expressionList" item="&quot;self::processing-instruction('name')&quot;"/>
+  <append collection="expressionList" item="&quot;self::node()&quot;"/>
+  <append collection="expressionList" item="&quot;self::*&quot;"/>
+  <append collection="expressionList" item="&quot;self::nist:*&quot;"/>
+  <append collection="expressionList" item="&quot;self::employee&quot;"/>
+
+  <append collection="expressionList" item="&quot;descendant-or-self::comment()&quot;"/>
+  <append collection="expressionList" item="&quot;descendant-or-self::text()&quot;"/>
+  <append collection="expressionList" item="&quot;descendant-or-self::processing-instruction()&quot;"/>
+  <append collection="expressionList" item="&quot;descendant-or-self::processing-instruction('name')&quot;"/>
+  <append collection="expressionList" item="&quot;descendant-or-self::node()&quot;"/>
+  <append collection="expressionList" item="&quot;descendant-or-self::*&quot;"/>
+  <append collection="expressionList" item="&quot;descendant-or-self::nist:*&quot;"/>
+  <append collection="expressionList" item="&quot;descendant-or-self::employee&quot;"/>
+
+  <append collection="expressionList" item="&quot;ancestor-or-self::comment()&quot;"/>
+  <append collection="expressionList" item="&quot;ancestor-or-self::text()&quot;"/>
+  <append collection="expressionList" item="&quot;ancestor-or-self::processing-instruction()&quot;"/>
+  <append collection="expressionList" item="&quot;ancestor-or-self::processing-instruction('name')&quot;"/>
+  <append collection="expressionList" item="&quot;ancestor-or-self::node()&quot;"/>
+  <append collection="expressionList" item="&quot;ancestor-or-self::*&quot;"/>
+  <append collection="expressionList" item="&quot;ancestor-or-self::nist:*&quot;"/>
+  <append collection="expressionList" item="&quot;ancestor-or-self::employee&quot;"/>
+
+  <!-- test common abbreviations -->
+  <append collection="expressionList" item="&quot;comment()&quot;"/>
+  <append collection="expressionList" item="&quot;text()&quot;"/>
+  <append collection="expressionList" item="&quot;processing-instruction()&quot;"/>
+  <append collection="expressionList" item="&quot;processing-instruction('name')&quot;"/>
+  <append collection="expressionList" item="&quot;node()&quot;"/>
+  <append collection="expressionList" item="&quot;*&quot;"/>
+  <append collection="expressionList" item="&quot;nist:*&quot;"/>
+  <append collection="expressionList" item="&quot;employee&quot;"/>
+
+  <append collection="expressionList" item="&quot;.//comment()&quot;"/>
+  <append collection="expressionList" item="&quot;.//text()&quot;"/>
+  <append collection="expressionList" item="&quot;.//processing-instruction()&quot;"/>
+  <append collection="expressionList" item="&quot;.//processing-instruction('name')&quot;"/>
+  <append collection="expressionList" item="&quot;.//node()&quot;"/>
+  <append collection="expressionList" item="&quot;.//*&quot;"/>
+  <append collection="expressionList" item="&quot;.//nist:*&quot;"/>
+  <append collection="expressionList" item="&quot;.//employee&quot;"/>
+
+  <append collection="expressionList" item="&quot;../comment()&quot;"/>
+  <append collection="expressionList" item="&quot;../text()&quot;"/>
+  <append collection="expressionList" item="&quot;../processing-instruction()&quot;"/>
+  <append collection="expressionList" item="&quot;../processing-instruction('name')&quot;"/>
+  <append collection="expressionList" item="&quot;../node()&quot;"/>
+  <append collection="expressionList" item="&quot;../*&quot;"/>
+  <append collection="expressionList" item="&quot;../nist:*&quot;"/>
+  <append collection="expressionList" item="&quot;../employee&quot;"/>
+
+  <append collection="expressionList" item="&quot;@attributename&quot;"/>
+
+  <append collection="expressionList" item="&quot;./comment()&quot;"/>
+  <append collection="expressionList" item="&quot;./text()&quot;"/>
+  <append collection="expressionList" item="&quot;./processing-instruction()&quot;"/>
+  <append collection="expressionList" item="&quot;./processing-instruction('name')&quot;"/>
+  <append collection="expressionList" item="&quot;./node()&quot;"/>
+  <append collection="expressionList" item="&quot;./*&quot;"/>
+  <append collection="expressionList" item="&quot;./nist:*&quot;"/>
+  <append collection="expressionList" item="&quot;./employee&quot;"/>
+
+  <!-- test Union -->
+  <append collection="expressionList" item="&quot;comment() | text() | processing-instruction() | node()&quot;"/>
+
+  <!-- test various predicates -->
+
+  <append collection="expressionList" item="&quot;employee[address]&quot;"/>
+  <append collection="expressionList" item="&quot;employee/address[@street]&quot;"/>
+  <append collection="expressionList" item="&quot;employee[position='Computer Specialist']&quot;"/>
+  <append collection="expressionList" item="&quot;employee[position!='Computer Specialist']&quot;"/>
+  <append collection="expressionList" item="&quot;employee[gender='Male' or gender='Female']&quot;"/>
+  <append collection="expressionList" item="&quot;employee[gender!='Male' and gender!='Female']&quot;"/>
+  <append collection="expressionList" item="&quot;employee/address[@street='Yes']&quot;"/>
+  <append collection="expressionList" item="&quot;employee/address[@street!='Yes']&quot;"/>
+  <append collection="expressionList" item="&quot;employee[position()=1]&quot;"/>
+  <append collection="expressionList" item="&quot;employee[1]&quot;"/>
+  <append collection="expressionList" item="&quot;employee[position()=last()]&quot;"/>
+  <append collection="expressionList" item="&quot;employee[last()]&quot;"/>
+  <append collection="expressionList" item="&quot;employee[position()&gt;1 and position&lt;last()]&quot;"/>
+  <append collection="expressionList" item="&quot;employee[position()&gt;=1 and position&lt;=last()]&quot;"/>
+  <append collection="expressionList" item="&quot;employee[count(.)&gt;0]&quot;"/>
+  <append collection="expressionList" item="&quot;employee[position() mod 2=0]&quot;"/>
+  <append collection="expressionList" item="&quot;employee[position() mod -2=0]&quot;"/>
+  <append collection="expressionList" item="&quot;employee[position() div 2=0]&quot;"/>
+  <append collection="expressionList" item="&quot;employee[position() div -2=-1]&quot;"/>
+  <append collection="expressionList" item="&quot;employee[position() div 2 * 2=position()]&quot;"/>
+  <append collection="expressionList" item="&quot;employee[3 &gt; 2 &gt; 1]&quot;"/>
+  <append collection="expressionList" item="&quot;id('CANADA')&quot;"/>
+  <append collection="expressionList" item="&quot;*[local-name()='employee']&quot;"/>
+  <append collection="expressionList" item="&quot;*[local-name(.)='employee']&quot;"/>
+  <append collection="expressionList" item="&quot;*[local-name(employee)='employee']&quot;"/>
+  <append collection="expressionList" item="&quot;*[local-name()='employee']&quot;"/>
+  <append collection="expressionList" item="&quot;*[namespace-uri()='http://www.nist.gov']&quot;"/>
+  <append collection="expressionList" item="&quot;*[name()='nist:employee']&quot;"/>
+  <append collection="expressionList" item="&quot;*[string()]&quot;"/>
+  <append collection="expressionList" item="&quot;*[string(10 div foo)='NaN']&quot;"/>
+  <append collection="expressionList" item="&quot;*[concat('a', 'b', 'c')]&quot;"/>
+  <append collection="expressionList" item="&quot;*[starts-with('employee', 'emp')]&quot;"/>
+  <append collection="expressionList" item="&quot;*[contains('employee', 'emp')]&quot;"/>
+  <append collection="expressionList" item="&quot;*[substring-before('employeeId', 'Id')]&quot;"/>
+  <append collection="expressionList" item="&quot;*[substring-after('employeeId', 'employee')]&quot;"/>
+  <append collection="expressionList" item="&quot;*[substring('employeeId', 4)]&quot;"/>
+  <append collection="expressionList" item="&quot;*[substring('employeeId', 4, 5)]&quot;"/>
+  <append collection="expressionList" item="&quot;*[string-length()=2]&quot;"/>
+  <append collection="expressionList" item="&quot;*[string-length(.)=string-length(normalize-space(.))]&quot;"/>
+  <append collection="expressionList" item="&quot;*[translate('bar', 'abc', 'ABC')='BAr']&quot;"/>
+  <append collection="expressionList" item="&quot;*[boolean(.)]&quot;"/>
+  <append collection="expressionList" item="&quot;*[not(boolean(.))]&quot;"/>
+  <append collection="expressionList" item="&quot;*[true()]&quot;"/>
+  <append collection="expressionList" item="&quot;*[false()]&quot;"/>
+  <append collection="expressionList" item="&quot;*[lang('en')]&quot;"/>
+  <append collection="expressionList" item="&quot;*[number()]&quot;"/>
+  <append collection="expressionList" item="&quot;*[number('4')]&quot;"/>
+  <append collection="expressionList" item="&quot;*[floor(.)]&gt;0&quot;"/>
+  <append collection="expressionList" item="&quot;*[ceiling(.)]&lt;1&quot;"/>
+  <append collection="expressionList" item="&quot;*[round(number(.))=0]&lt;1&quot;"/>
+
+  <for-each collection="expressionList" member="expression">
+    <createExpression var="xpathexpression" 
+                      obj="evaluator" 
+                      resolver="resolver" 
+                      expression="expression"/>
+  </for-each>
+</test>

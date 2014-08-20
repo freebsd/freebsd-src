@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+Copyright (c) 2001-2004 World Wide Web Consortium,
+(Massachusetts Institute of Technology, Institut National de
+Recherche en Informatique et en Automatique, Keio University). All
+Rights Reserved. This program is distributed under the W3C's Software
+Intellectual Property License. This program is distributed in the
+hope that it will be useful, but WITHOUT ANY WARRANTY; without even
+the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
+PURPOSE.
+See W3C License http://www.w3.org/Consortium/Legal/ for more details.
+--><!DOCTYPE test SYSTEM "dom1.dtd">
+
+<test xmlns="http://www.w3.org/2001/DOM-Test-Suite/Level-1" name="nodeclonetruecopytext">
+<metadata>
+<title>nodeclonetruecopytext</title>
+<creator>NIST</creator>
+<description>
+    Retrieve the second salary and
+    the "cloneNode(deep)" method with deep=true.   The
+    duplicate node returned by the method should copy
+    any text data contained in this node.
+</description>
+<contributor>Mary Brady</contributor>
+<date qualifier="created">2001-08-17</date>
+<subject resource="http://www.w3.org/TR/1998/REC-DOM-Level-1-19981001/level-one-core#ID-3A0ED0A4"/>
+</metadata>
+<var name="doc" type="Document"/>
+<var name="elementList" type="NodeList"/>
+<var name="childList" type="NodeList"/>
+<var name="childNode" type="Node"/>
+<var name="clonedNode" type="Node"/>
+<var name="lastChildNode" type="Node"/>
+<var name="childValue" type="DOMString"/>
+<load var="doc" href="staff" willBeModified="true"/>
+<getElementsByTagName interface="Document" obj="doc" tagname='"salary"' var="elementList"/>
+<item interface="NodeList" obj="elementList" index="1" var="childNode"/>
+<cloneNode obj="childNode" deep="true" var="clonedNode"/>
+<lastChild interface="Node" obj="clonedNode" var="lastChildNode"/>
+<nodeValue obj="lastChildNode" var="childValue"/>
+<assertEquals actual="childValue" expected='"35,000"' id="nodeCloneTrueCopyTextAssert1" ignoreCase="false"/>
+</test>

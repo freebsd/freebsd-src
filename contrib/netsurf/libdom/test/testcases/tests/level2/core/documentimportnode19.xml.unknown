@@ -1,0 +1,83 @@
+<?xml version="1.0" encoding="UTF-8"?><?xml-stylesheet href="test-to-html.xsl" type="text/xml"?>
+
+<!--
+
+Copyright (c) 2001-2004 World Wide Web Consortium, 
+(Massachusetts Institute of Technology, Institut National de
+Recherche en Informatique et en Automatique, Keio University).  All 
+Rights Reserved.  This program is distributed under the W3C's Software
+Intellectual Property License.  This program is distributed in the 
+hope that it will be useful, but WITHOUT ANY WARRANTY; without even
+the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR 
+PURPOSE.  
+
+See W3C License http://www.w3.org/Consortium/Legal/ for more details.
+
+-->
+
+<!DOCTYPE test SYSTEM "dom2.dtd">
+<test xmlns="http://www.w3.org/2001/DOM-Test-Suite/Level-2" name="documentimportnode19">
+<metadata>
+<title>documentimportnode19</title>
+<creator>IBM</creator>
+<description>
+	The importNode method imports a node from another document to this document. 
+	The returned node has no parent; (parentNode is null). The source node is not 
+	altered or removed from the original document but a new copy of the source node
+	is created.
+	
+	Using the method importNode with deep=true/false, import a entity nodes ent2 and ent6
+	from this document to a new document object.  Verify if the nodes have been 
+	imported correctly by checking the nodeNames of the imported nodes and public and system ids.
+</description>
+<contributor>Neil Delima</contributor>
+<date qualifier="created">2002-04-30</date>
+<subject resource="http://www.w3.org/TR/DOM-Level-2-Core/core"/>
+<subject resource="http://www.w3.org/TR/DOM-Level-2-Core/core#Core-Document-importNode"/>
+</metadata>
+<implementationAttribute name="namespaceAware" value="true"/>
+<var name="doc" type="Document"/>
+<var name="docTypeNull" type="DocumentType" isNull="true"/>
+<var name="docImp" type="Document"/>
+<var name="domImpl" type="DOMImplementation"/>
+<var name="docType" type="DocumentType"/>
+<var name="nodeMap" type="NamedNodeMap"/>
+<var name="entity2" type="Entity"/>
+<var name="entity6" type="Entity"/>
+<var name="entityImp2" type="Entity"/>
+<var name="entityImp6" type="Entity"/>
+<var name="nodeName" type="DOMString"/>
+<var name="systemId" type="DOMString"/>
+<var name="notationName" type="DOMString"/>
+<var name="nodeNameImp" type="DOMString"/>
+<var name="systemIdImp" type="DOMString"/>
+<var name="notationNameImp" type="DOMString"/>
+<load var="doc" href="staffNS" willBeModified="true"/>
+<implementation var="domImpl" obj="doc" />
+<doctype var="docType" obj="doc"/>
+<createDocument var="docImp" obj="domImpl" namespaceURI='"http://www.w3.org/DOM/Test"' qualifiedName='"a:b"' doctype="docTypeNull"/>
+<entities var="nodeMap" obj="docType"/>
+<assertNotNull actual="nodeMap" id="entitiesNotNull"/>
+<getNamedItem var="entity2" obj="nodeMap" name='"ent2"'/>
+<getNamedItem var="entity6" obj="nodeMap" name='"ent6"'/>
+<importNode  var="entityImp2" obj="docImp" importedNode="entity2" deep="false"/>
+<importNode  var="entityImp6" obj="docImp" importedNode="entity6" deep="true"/>
+<nodeName var="nodeName" obj="entity2" />
+<nodeName var="nodeNameImp" obj="entityImp2" />
+<assertEquals expected="nodeName" actual="nodeNameImp" id="documentimportnode19_Ent2NodeName" ignoreCase="false"/>
+<nodeName var="nodeName" obj="entity6" />
+<nodeName var="nodeNameImp" obj="entityImp6" />
+<assertEquals expected="nodeName" actual="nodeNameImp" id="documentimportnode19_Ent6NodeName" ignoreCase="false"/>
+<systemId var="systemId" obj="entity2" interface="Entity"/>
+<systemId var="systemIdImp" obj="entityImp2"  interface="Entity"/>
+<assertEquals expected="systemId" actual="systemIdImp" id="documentimportnode19_Ent2SystemId" ignoreCase="false"/>
+<systemId var="systemId" obj="entity6"  interface="Entity"/>
+<systemId var="systemIdImp" obj="entityImp6"  interface="Entity"/>
+<assertEquals expected="systemId" actual="systemIdImp" id="documentimportnode19_Ent6SystemId" ignoreCase="false"/>
+<notationName var="notationName" obj="entity2"  interface="Entity"/>
+<notationName var="notationNameImp" obj="entityImp2"  interface="Entity"/>
+<assertEquals expected="notationName" actual="notationNameImp" id="documentimportnode19_Ent2NotationName" ignoreCase="false"/>
+<notationName var="notationName" obj="entity6"  interface="Entity"/>
+<notationName var="notationNameImp" obj="entityImp6"  interface="Entity"/>
+<assertEquals expected="notationName" actual="notationNameImp" id="documentimportnode19_Ent6NotationName" ignoreCase="false"/>
+</test>

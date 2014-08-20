@@ -1,0 +1,178 @@
+Content caching
+===============
+
+NetSurf's existing fetch/cache architecture has a number of problems:
+
+1) Content dependencies are not modelled.
+2) Content source data for non-shareable contents is duplicated.
+3) Detection of content sharability is dependent on Content-Type, which
+   requires content cloning (which will fail for dependent contents).
+4) Detection of cycles in content dependency graphs is not performed
+   (e.g. content1 includes content2, which includes content1).
+5) All content caching is in-memory, there's no offline storage.
+
+Proposal
+--------
+
+A split-level cache.
+
+Low-level cache:
+
+  + Responsible for source data (+header) management.
+  + Interfaces with low-level fetch system to retrieve data from network.
+  + Is responsible for offline storage (if any) of cache objects.
+  + Returns opaque handles to low-level cache objects.
+  + Handles HTTP redirects, recording URLs encountered when retrieving resource.
+  + May perform content-type sniffing (requires usage context)
+
+High-level cache:
+
+  + Responsible for content objects.
+  + Tracks content dependencies (and potential cycles).
+  + Returns opaque handles to content objects.
+  + Manages content sharability & reusability (see below).
+  + Contents with unknown types are never shared and thus get unique handles.
+  + Content handles <> content objects: they're an indirection mechanism.
+
+Content sharability & reusability
+--------------------------------
+
+  If a content is shareable, then it may have multiple concurrent users.
+  Otherwise, it may have at most one user.
+
+  If a content is reusable, then it may be retained in the cache for later use
+  when it has no users. Otherwise, it will be removed from the cache when
+  it has no users.
+
+Example: retrieving a top-level resource
+----------------------------------------
+
+  1) Client requests an URL, specifying no parent handle.
+  2) High-level cache asks low-level cache for low-level handle for URL.
+  3) Low-level cache looks for appropriate object in its index.
+     a) it finds one that's not stale and returns its handle
+     b) it finds only stale entries, or no appropiate entry,
+        so allocates a new entry, requests a fetch for it, 
+        and returns the handle.
+  4) High-level cache looks for content objects that are using the low-level 
+     handle.
+     a) it finds one that's shareable and selects its handle for use.
+     b) it finds only non-shareable entries, or no appropriate entry,
+        so allocates a new entry and selects its handle for use.
+  5) High-level cache registers the parent and client with the selected handle,
+     then returns the selected handle.
+  6) Client carries on, happy in the knowledge that a content is available.
+
+Example: retrieving a child resource
+------------------------------------
+
+  1) Client requests an URL, specifying parent handle.
+  2) High-level cache searches parent+ancestors for requested URL.
+     a) it finds the URL, so returns a non-fatal error.
+     b) it does not find the URL, so proceeds from step 2 of the 
+        top-level resource algorithm.
+
+  NOTE: this approach means that shareable contents may have multiple parents.
+
+Handling of contents of unknown type
+------------------------------------
+
+  Contents of unknown type are, by definition, not shareable. Therefore, each
+  client will be issued with a different content handle.
+
+  Content types are only known once a resource's headers are fetched (or once
+  the type has been sniffed from the resource's data when the headers are
+  inconclusive).
+
+  As a resource is fetched, users of the resource are informed of the fetch
+  status. Therefore, the high-level cache is always informed of fetch progress.
+  Cache clients need not care about this: they are simply interested in
+  a content's readiness for use.
+
+  When the high-level cache is informed of a low-level cache object's type,
+  it is in a position to determine whether the corresponding content handles
+  can share a single content object or not.
+
+  If it detects that a single content object may be shared by multiple handles,
+  it simply creates the content object and registers each of the handles as
+  a user of the content.
+
+  If it detects that each handle requires a separate content object, then it
+  will create a content object for each handle and register the handle as a
+  user.
+
+  This approach requires that clients of the high-level cache get issued with
+  handles to content objects, rather than content objects (so that the decision
+  whether to create multiple content objects can be deferred until suitable
+  information is available). 
+
+  Handles with no associated content object will act as if they had a content
+  object that was not ready for use.
+
+A more concrete example
+-----------------------
+
+  + bw1 contains html1 which includes css1, css2, img1, img2
+  + bw2 contains html2 which includes css1, img1, img2
+  + bw3 contains img1
+
+  Neither HTML nor CSS contents are shareable.
+  All shareable contents are requested from the high-level cache 
+  once their type is known.
+
+  Low-level cache contains source data for:
+
+    1 - html1
+    2 - html2
+    3 - css1
+    4 - css2
+    5 - img1
+    6 - img2
+
+  High-level cache contains:
+
+    Content objects (ll-handle in parentheses):
+
+      + c1 (1 - html1)
+      + c2 (2 - html2)
+      + c3 (3 - css1)
+      + c4 (4 - css2)
+      + c5 (5 - img1)
+      + c6 (6 - img2)
+      + c7 (3 - css1)
+
+    Content handles (objects in parentheses):
+
+      + h1 (c1, used by bw1)
+      + h2 (c3, used by h1)
+      + h3 (c4, used by h1)
+      + h4 (c2, used by bw2)
+      + h5 (c7, used by h4)
+      + h6 (c5, used by h1,h4,bw3)
+      + h7 (c6, used by h1,h4)
+
+  If img1 was not of known type when requested:
+
+    Content handles (objects in parentheses):
+
+      + h1 (c1, used by bw1)
+      + h2 (c3, used by h1)
+      + h3 (c4, used by h1)
+      + h4 (c2, used by bw2)
+      + h5 (c7, used by h4)
+      + h6 (c5, used by h1)
+      + h7 (c6, used by h1,h4)
+      + h8 (c5, used by h4)
+      + h9 (c5, used by bw3)
+
+This achieves the desired effect that:
+
+  + source data is shared between contents
+  + content objects are only created when absolutely necessary
+  + content usage/dependency is tracked and cycles avoided
+  + offline storage is possible
+
+Achieving this requires the use of indirection objects, but these are expected
+to be small in comparison to the content objects / ll-cache objects that they
+are indirecting.
+

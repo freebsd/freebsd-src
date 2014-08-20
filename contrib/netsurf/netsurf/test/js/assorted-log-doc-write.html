@@ -1,0 +1,34 @@
+<html>
+<head><title>moo</title></head>
+<body>
+<script>
+var tree = (this ===window)
+console.log(tree);
+var string = "50";
+
+console.log(string + 100);  // 50100
+console.log(+string + 100); // 150
+
+string = parseInt(string, 10);
+console.log(string + 100);  // 150
+var binary = parseInt("110010", 2);
+console.log(binary);        // 50 
+
+function doSomething(param) {
+    param = param.toUpperCase(); // param is now a local variable
+    console.log(param);
+}
+var string = "test";
+
+/* note that string will be passed in by reference */
+doSomething(string);             // TEST
+console.log(string);             // test
+
+document.write("<p>Hello World!<p>");
+</script>
+<p>one</p>
+<script>document.write("<scr" +"ipt>document.write(\"Goodbye Cruel World\");</scri" + "pt>");</script>
+</script>
+<p>hi</p>
+</body>
+</html>

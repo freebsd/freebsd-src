@@ -1,0 +1,66 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<?xml-stylesheet href="test-to-html.xml" type="text/xml"?>
+
+<!--
+
+Copyright (c) 2001 World Wide Web Consortium, 
+(Massachusetts Institute of Technology, Institut National de
+Recherche en Informatique et en Automatique, Keio University).  All 
+Rights Reserved.  This program is distributed under the W3C's Software
+Intellectual Property License.  This program is distributed in the 
+hope that it will be useful, but WITHOUT ANY WARRANTY; without even
+the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR 
+PURPOSE.  
+
+See W3C License http://www.w3.org/Consortium/Legal/ for more details.
+
+-->
+<!DOCTYPE test SYSTEM "dom1.dtd">
+<test xmlns="http://www.w3.org/2001/DOM-Test-Suite/Level-1" name="HTMLTableRowElement14">
+<metadata>
+<title>HTMLTableRowElement14</title>
+<creator>NIST</creator>
+<description>
+    The deleteCell() method deletes a cell from the current row.   
+
+    
+    Retrieve the fourth TR element and examine the value of
+    the cells length attribute which should be set to six.  
+    Check the value of the third(index 2) TD element.  Invoke the
+    deleteCell() method which will delete a cell from the current row.
+    Check the value of the third cell(index 2) and also check
+    the number of cells which should now be five. 
+</description>
+<contributor>Rick Rivello</contributor>
+<date qualifier="created">2002-05-06</date>
+<subject resource="http://www.w3.org/TR/1998/REC-DOM-Level-1-19981001/level-one-html#ID-11738598"/>
+</metadata>
+<var name="nodeList" type="NodeList"/>
+<var name="cellsnodeList" type="HTMLCollection"/>
+<var name="testNode" type="Node"/>
+<var name="trNode" type="Node"/>
+<var name="cellNode" type="Node"/>
+<var name="value" type="DOMString"/>
+<var name="vcells" type="int" />
+<var name="doc" type="Document"/>
+<load var="doc" href="tablerow" willBeModified="true"/>
+<getElementsByTagName interface="Document" obj="doc" var="nodeList" tagname='"tr"'/>
+<assertSize collection="nodeList" size="5" id="Asize"/>
+<item interface="NodeList" obj="nodeList" var="testNode" index="3"/>
+<cells interface="HTMLTableRowElement" obj="testNode" var="cellsnodeList"/>
+<length interface="HTMLCollection" obj="cellsnodeList" var="vcells"/>
+<assertEquals actual="vcells" expected="6" id="cellsLink1" ignoreCase="false"/>
+<item interface="HTMLCollection" obj="cellsnodeList" var="trNode" index="2"/>
+<firstChild interface="Node" obj="trNode" var="cellNode"/>
+<nodeValue obj="cellNode" var="value"/>
+<assertEquals actual="value" expected='"Accountant"' id="value1Link" ignoreCase="false"/>
+<deleteCell interface="HTMLTableRowElement" obj="testNode" index="2"/>
+<item interface="NodeList" obj="nodeList" var="testNode" index="3"/>
+<cells interface="HTMLTableRowElement" obj="testNode" var="cellsnodeList"/>
+<length interface="HTMLCollection" obj="cellsnodeList" var="vcells"/>
+<assertEquals actual="vcells" expected="5" id="cellsLink2" ignoreCase="false"/>
+<item interface="HTMLCollection" obj="cellsnodeList" var="trNode" index="2"/>
+<firstChild interface="Node" obj="trNode" var="cellNode"/>
+<nodeValue obj="cellNode" var="value"/>
+<assertEquals actual="value" expected='"56,000"' id="value2Link" ignoreCase="false"/>
+</test>

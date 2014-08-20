@@ -1,0 +1,14 @@
+/* Quirks mode stylesheet for NetSurf */
+
+/**
+ * Netscape/IE 4 compatibility.
+ *
+ * See https://developer.mozilla.org/en/Fixing_Table_Inheritance_in_Quirks_Mode
+ */
+table {
+	/* Reset font properties (except family) */
+	font-size: medium;
+	font-style: normal;
+	font-variant: normal;
+	font-weight: normal;
+}

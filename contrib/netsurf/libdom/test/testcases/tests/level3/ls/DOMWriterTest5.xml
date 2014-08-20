@@ -1,0 +1,88 @@
+<?xml version="1.0" standalone="no"?>
+<?xml-stylesheet href="test-to-html.xsl" type="text/xml"?>
+<!--
+
+Copyright (c) 2003 World Wide Web Consortium, 
+(Massachusetts Institute of Technology, Institut National de
+Recherche en Informatique et en Automatique, Keio University).  All 
+Rights Reserved.  This program is distributed under the W3C's Software
+Intellectual Property License.  This program is distributed in the 
+hope that it will be useful, but WITHOUT ANY WARRANTY; without even
+the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR 
+PURPOSE.  
+
+See W3C License http://www.w3.org/Consortium/Legal/ for more details.
+
+-->
+<!DOCTYPE test SYSTEM "dom3.dtd">
+
+
+<test xmlns="http://www.w3.org/2001/DOM-Test-Suite/Level-3" name="DOMWriterTest5">
+  <metadata>
+    <title>DOMWriterTest5</title>
+    <creator>Curt Arnold</creator>
+    <description>Creates an document containing a namespaced attribute node without
+    user-specified prefix and checks that it is serialized properly.</description>
+	<date qualifier="created">2003-12-22</date>
+	<subject resource="http://www.w3.org/TR/2004/REC-DOM-Level-3-LS-20040407/load-save#LS-LSSerializer-write"/>
+	<subject resource="http://lists.w3.org/Archives/Public/www-dom/2003OctDec/0062.html"/>
+  </metadata>
+  <implementationAttribute name="namespaceAware" value="true"/>
+  
+  <var name="domImpl" type="DOMImplementation"/>
+  <var name="origDoc" type="Document"/>
+  <var name="nullDocType" type="DocumentType" isNull="true"/>
+  <var name="namespaceURI" type="DOMString" value='"http://www.example.com/DOMWriterTest5"'/>
+  <var name="docElem" type="Element"/>
+  <var name="outputString" type="DOMString"/>
+  <var name="input" type="LSInput"/>
+  <var name="serializer" type="LSSerializer"/>
+  <var name="parser" type="LSParser"/>
+  <var name="NULL_SCHEMA_TYPE" type="DOMString" isNull="true"/>
+  <var name="attrValue" type="DOMString"/>
+  <var name="parsedDoc" type="Document"/>
+  <var name="docElemLocalName" type="DOMString"/>
+  <var name="docElemNS" type="DOMString"/>
+  
+  <implementation var="domImpl"/>
+  <createDocument var="origDoc" obj="domImpl" 
+  	namespaceURI="namespaceURI"
+    qualifiedName='"test"'
+    doctype="nullDocType"/>
+  <documentElement var="docElem" obj="origDoc"/>
+  <setAttributeNS obj="docElem" namespaceURI="namespaceURI" qualifiedName='"attr"' value='"test value"'/>
+  
+  
+  <!--   create a serializer and write the document    -->
+  <createLSSerializer var="serializer" obj="domImpl"/>
+  <writeToString var="outputString" obj="serializer" nodeArg="origDoc"/>
+
+  <!--   create an LSInput   -->
+  <createLSInput var="input" obj="domImpl"/>
+  <stringData obj="input" value="outputString"/>
+  
+  <!--   create parser  -->
+  <createLSParser var="parser" obj="domImpl" mode="1" schemaType="NULL_SCHEMA_TYPE"/>
+  <parse var="parsedDoc" obj="parser" input="input"/>
+  
+  <documentElement var="docElem" obj="parsedDoc"/>
+
+  <!--  check local name of document element  -->
+  <localName var="docElemLocalName" obj="docElem"/>
+  <assertEquals actual="docElemLocalName" expected='"test"' ignoreCase="false" id="docElemLocalName"/>
+
+  <!--   namespace of document element   -->
+  <namespaceURI var="docElemNS" obj="docElem" interface="Node"/>
+  <assertEquals actual="docElemNS" expected="namespaceURI" ignoreCase="false" id="docElemNS"/>
+  
+  <!--  attribute with namespaceURI namespace  -->
+  <getAttributeNS var="attrValue" obj="docElem" namespaceURI="namespaceURI" localName='"attr"'/>
+  <assertEquals actual="attrValue" expected='"test value"' ignoreCase="false" id="properNSAttrValue"/>
+
+
+</test>
+
+
+
+
+

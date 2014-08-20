@@ -1,0 +1,47 @@
+/* Binding to generate Text interface
+ *
+ * Copyright 2012 Vincent Sanders <vince@netsurf-browser.org>
+ *
+ * This file is part of NetSurf, http://www.netsurf-browser.org/
+ *
+ * Released under the terms of the MIT License,
+ *         http://www.opensource.org/licenses/mit-license
+ */
+
+
+webidlfile "html.idl";
+
+hdrcomment "Copyright 2012 Vincent Sanders <vince@netsurf-browser.org>";
+hdrcomment "This file is part of NetSurf, http://www.netsurf-browser.org/";
+hdrcomment "Released under the terms of the MIT License,";
+hdrcomment "        http://www.opensource.org/licenses/mit-license";
+
+preamble %{
+
+#include <dom/dom.h>
+
+#include "utils/config.h"
+#include "utils/log.h"
+#include "render/html_internal.h"
+#include "javascript/jsapi.h"
+
+#include "text.h"
+
+%}
+
+#include "dom.bnd"
+
+binding text {
+    type js_libdom; /* the binding type */
+
+    interface Text; /* Web IDL interface to generate */
+
+    private "dom_text *" node;
+    private "struct html_content *" htmlc; 
+}
+
+api finalise %{
+        if (private != NULL) {
+                dom_node_unref(private->node);
+        }
+%}

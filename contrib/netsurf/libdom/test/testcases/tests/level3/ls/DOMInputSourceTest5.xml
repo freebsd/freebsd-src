@@ -1,0 +1,88 @@
+<?xml version="1.0" standalone="no"?>
+<?xml-stylesheet href="test-to-html.xsl" type="text/xml"?>
+<!--
+ Copyright (c) 2003 X-Hive Corporation
+
+ All Rights Reserved. This work is distributed under the W3C(r)
+ Software License [1] in the hope that it will be useful, but WITHOUT
+ ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
+ FITNESS FOR A PARTICULAR PURPOSE.
+
+ [1] http://www.w3.org/Consortium/Legal/2002/copyright-software-20021231
+-->
+
+
+<!DOCTYPE test SYSTEM "dom3.dtd" [
+  <!ENTITY % entities SYSTEM "dom3tests.ent">
+  %entities;
+]>
+
+
+<test xmlns="&level3;" name="DOMInputSourceTest5">
+  <metadata>
+    <title>DOMInputSourceTest5</title>
+    &creator;
+    <description>Parses a document containing an external entity and checks
+    that resource resolver is passed the baseURI value specified on LSInput.</description>
+    &contributor; &date;
+        <subject resource="http://www.w3.org/TR/2004/REC-DOM-Level-3-LS-20040407/load-save#LS-LSInput-systemId"/>
+        <subject resource="http://www.w3.org/TR/2004/REC-DOM-Level-3-LS-20040407/load-save#LS-LSInput-publicId"/>
+        <subject resource="http://www.w3.org/TR/2004/REC-DOM-Level-3-LS-20040407/load-save#LS-LSInput-baseURI"/>
+        <subject resource="http://www.w3.org/TR/2004/REC-DOM-Level-3-LS-20040407/load-save#LS-LSResourceResolver-resolveResource"/>
+  </metadata>
+
+
+  <var name="myentityresolver" type="LSResourceResolver">
+     <resolveResource>
+        <var name="domImplLS" type="DOMImplementationLS"/>
+                <var name="input" type="LSInput"/>
+        <assertEquals actual="baseURI" expected='"http://www.example.com/new_base"'   ignoreCase="false" id="er_base"/>
+        <assertEquals actual="publicId"  expected='"-//X-Hive//native xml storage//EN"' ignoreCase="false" id="er_public"/>
+        <assertURIEquals actual="systemId" isAbsolute="true" name='"test5"' id="er_system"/>
+
+        <!--  create an empty string input so we can detect
+                that resource resolver was used  -->
+        <implementation var="domImplLS"/>
+        <createLSInput var="input" obj="domImplLS"/>
+        <stringData obj="input" value='""' interface="LSInput"/>
+        <return value="input"/>
+     </resolveResource>
+
+  </var>
+
+  <var name="configuration" type="DOMConfiguration"/>
+  <var name="resourceURI" type="DOMString"/>
+  <var name="nodeList" type="NodeList"/>
+  &vars;
+  &init;
+
+  <domConfig var="configuration" obj="parser" interface="LSParser"/>
+
+  <setParameter obj="configuration" name='"resource-resolver"' value="myentityresolver"/>
+  <setParameter obj="configuration" name='"entities"' value="false"/>
+
+  <getResourceURI var="resourceURI" href="TEST4" contentType="text/xml"/>
+  <systemId obj="inputSource" value="resourceURI" interface="LSInput"/>
+  <publicId obj="inputSource" value='"-//X-Hive//native xml storage//DE"' interface="LSInput"/>
+  <baseURI  obj="inputSource" value='"http://www.example.com/new_base"' interface="LSInput"/>
+
+
+  <parse var="document" obj="parser" input="inputSource"/>
+  <!--  should parse successfully   -->
+  <assertNotNull actual="document" id="documentNotNull"/>
+
+  <!--  resource resolver should have suppressed elt2 from the
+           external entity   -->
+  <getElementsByTagName var="nodeList" obj="document" tagname='"elt2"' interface="Document"/>
+  <assertSize size="0" collection="nodeList" id="noElt2"/>
+
+  <!--  check that there is an elt1    -->
+  <getElementsByTagName var="nodeList" obj="document" tagname='"elt1"' interface="Document"/>
+  <assertSize size="1" collection="nodeList" id="hasElt1"/>
+
+</test>
+
+
+
+
+

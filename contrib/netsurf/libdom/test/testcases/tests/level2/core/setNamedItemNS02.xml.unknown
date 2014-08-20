@@ -1,0 +1,60 @@
+<?xml version="1.0" encoding="UTF-8"?><?xml-stylesheet href="test-to-html.xsl" type="text/xml"?>
+
+<!--
+
+Copyright (c) 2001 World Wide Web Consortium, 
+(Massachusetts Institute of Technology, Institut National de
+Recherche en Informatique et en Automatique, Keio University).  All 
+Rights Reserved.  This program is distributed under the W3C's Software
+Intellectual Property License.  This program is distributed in the 
+hope that it will be useful, but WITHOUT ANY WARRANTY; without even
+the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR 
+PURPOSE.  
+
+See W3C License http://www.w3.org/Consortium/Legal/ for more details.
+
+-->
+<!DOCTYPE test SYSTEM "dom2.dtd">
+<test xmlns="http://www.w3.org/2001/DOM-Test-Suite/Level-2" name="setNamedItemNS02">
+<metadata>
+<title>setNamedItemNS02</title>
+<creator>NIST</creator>
+<description>
+    The "setNamedItemNS(arg)" method for a 
+   NamedNodeMap should raise WRONG_DOCUMENT_ERR DOMException if arg was
+   created from a different document than the one that created this map.
+   
+   Create an attr node in a different document with qualifiedName equals
+   "dmstc:domestic" and namespaceURI is "http://www.usa.com".
+   Access the namednodemap of the first "address" element in this document.
+   Invoke method setNamedItemNS(arg) with arg being the attr node from above.
+   Method should raise WRONG_DOCUMENT_ERR DOMException.
+</description>
+<contributor>Mary Brady</contributor>
+<date qualifier="created">2001-08-17</date>
+<subject resource="http://www.w3.org/TR/DOM-Level-2-Core/core#xpointer(id('ID-258A00AF')/constant[@name='WRONG_DOCUMENT_ERR'])"/>
+<subject resource="http://www.w3.org/TR/DOM-Level-2-Core/core#ID-setNamedItemNS"/>
+<subject resource="http://www.w3.org/TR/DOM-Level-2-Core/core#xpointer(id('ID-setNamedItemNS')/raises/exception[@name='DOMException']/descr/p[substring-before(.,':')='WRONG_DOCUMENT_ERR'])"/>
+</metadata>
+<var name="namespaceURI" type="DOMString" value="&quot;http://www.usa.com&quot;"/>
+<var name="qualifiedName" type="DOMString" value="&quot;dmstc:domestic&quot;"/>
+<var name="doc" type="Document"/>
+<var name="anotherDoc" type="Document"/>
+<var name="arg" type="Node"/>
+<var name="elementList" type="NodeList"/>
+<var name="testAddress" type="Node"/>
+<var name="attributes" type="NamedNodeMap"/>
+<var name="setNode" type="Node"/>
+<load var="doc" href="staffNS" willBeModified="true"/>
+<load var="anotherDoc" href="staffNS" willBeModified="true"/>
+<createAttributeNS obj="anotherDoc" var="arg" namespaceURI="namespaceURI" qualifiedName="qualifiedName"/>
+<nodeValue obj="arg" value="&quot;Maybe&quot;"/>
+<getElementsByTagName interface="Document" obj="doc" var="elementList" tagname="&quot;address&quot;"/>
+<item interface="NodeList" obj="elementList" var="testAddress" index="0"/>
+<attributes obj="testAddress" var="attributes"/>
+<assertDOMException id="throw_WRONG_DOCUMENT_ERR">
+<WRONG_DOCUMENT_ERR>
+<setNamedItemNS var="setNode" interface="NamedNodeMap" obj="attributes" arg="arg"/>
+</WRONG_DOCUMENT_ERR>
+</assertDOMException>
+</test>

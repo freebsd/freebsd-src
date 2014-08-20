@@ -1,0 +1,138 @@
+# ----------------------------------------------------------------------------
+# BeOS target setup
+# ----------------------------------------------------------------------------
+
+
+$(eval $(call feature_enabled,PNG,-DWITH_PNG,-lpng,PNG (libpng)  ))
+
+LDFLAGS += -L/boot/home/config/lib
+# for Haiku
+LDFLAGS += -L/boot/common/lib
+# some people do *not* have libm...
+LDFLAGS += -lssl -lcrypto -lcss
+$(eval $(call feature_enabled,NSSVG,-DWITH_NS_SVG,-lsvgtiny,SVG (libsvgtiny)))
+LDFLAGS += -ldom -lparserutils -lhubbub -lwapcaplet
+LDFLAGS += -lexpat -lcurl -liconv
+
+CFLAGS += -O $(WARNFLAGS) -Dnsbeos -D_BSD_SOURCE -D_POSIX_C_SOURCE	\
+	    -Drestrict="" -Wno-multichar
+# DEBUG
+CFLAGS += -g -O0
+# -DDEBUG=1
+
+BEOS_BERES := beres
+BEOS_RC := rc
+BEOS_XRES := xres
+BEOS_SETVER := setversion
+BEOS_MIMESET := mimeset
+VERSION_FULL := $(shell sed -n '/"/{s/.*"\(.*\)".*/\1/;p;}' desktop/version.c)
+VERSION_MAJ := $(shell sed -n '/_major/{s/.* = \([0-9]*\).*/\1/;p;}' desktop/version.c)
+VERSION_MIN := $(shell sed -n '/_minor/{s/.* = \([0-9]*\).*/\1/;p;}' desktop/version.c)
+RSRC_BEOS = $(addprefix $(OBJROOT)/,$(subst /,_,$(patsubst %.rdef,%.rsrc,$(RDEF_BEOS))))
+RESOURCES = $(RSRC_BEOS)
+ifeq ($(HOST),beos)
+    CFLAGS += -I/boot/home/config/include		\
+		-I/boot/home/config/include/hubbub	\
+		-I/boot/home/config/include/libcss	\
+		-I/boot/home/config/include/parserutils
+    ifneq ($(wildcard /boot/develop/lib/*/libzeta.so),)
+      LDFLAGS += -lzeta
+    endif
+    ifneq ($(wildcard /boot/develop/lib/*/libnetwork.so),)
+      # Haiku
+      CFLAGS += -I/boot/common/include		\
+		-I/boot/common/include/hubbub	\
+		-I/boot/common/include/libcss	\
+		-I/boot/common/include/parserutils
+      NETLDFLAGS := -lnetwork
+    else
+      ifneq ($(wildcard /boot/develop/lib/*/libbind.so),)
+        # BONE
+        NETLDFLAGS := -lsocket -lbind
+      else
+        # net_server, will probably never work
+        NETLDFLAGS := -lnet
+      endif
+    endif
+  else
+    # cross: Haiku ?
+    NETLDFLAGS := -lnetwork
+  endif
+  LDFLAGS += -lbe -ltranslation -ltracker $(NETLDFLAGS)
+  ifeq ($(CC_MAJOR),2)
+    LDFLAGS += -lstdc++.r4
+  else
+    LDFLAGS += -lstdc++ -lsupc++
+endif
+
+ifeq ($(HOST),beos)
+  CFLAGS += -I$(PREFIX)/include
+  LDFLAGS += -L$(PREFIX)/lib
+  $(eval $(call feature_enabled,BMP,-DWITH_BMP,-lnsbmp,BMP (libnsbmp)))
+  $(eval $(call feature_enabled,GIF,-DWITH_GIF,-lnsgif,GIF (libnsgif)))
+  $(eval $(call feature_enabled,PNG,-DWITH_PNG,-lpng,PNG (libpng)  ))
+else
+  NETSURF_FEATURE_BMP_CFLAGS := -DWITH_BMP
+  NETSURF_FEATURE_GIF_CFLAGS := -DWITH_GIF
+  NETSURF_FEATURE_PNG_CFLAGS := -DWITH_PNG
+  $(eval $(call pkg_config_find_and_add_enabled,BMP,libnsbmp,BMP))
+  $(eval $(call pkg_config_find_and_add_enabled,GIF,libnsgif,GIF))
+  $(eval $(call pkg_config_find_and_add_enabled,PNG,libpng,PNG  ))
+endif
+
+# ----------------------------------------------------------------------------
+# Source file setup
+# ----------------------------------------------------------------------------
+
+# S_BEOS are sources purely for the BeOS build
+S_BEOS := about.cpp bitmap.cpp download.cpp fetch_rsrc.cpp filetype.cpp \
+	font.cpp gui.cpp login.cpp gui_options.cpp plotters.cpp		\
+	scaffolding.cpp search.cpp schedule.cpp	thumbnail.cpp		\
+	throbber.cpp window.cpp
+S_BEOS := $(addprefix beos/,$(S_BEOS))
+
+RDEF_BEOS := res.rdef
+RDEF_BEOS := $(addprefix beos/,$(RDEF_BEOS))
+
+RDEF_IMP_BEOS := res_import.rdef
+RDEF_IMP_BEOS := $(addprefix $(OBJROOT)/,$(subst /,_,$(RDEF_IMP_BEOS)))
+
+RDEP_BEOS := \
+	adblock.css beosdefault.css default.css internal.css quirks.css	\
+	netsurf.png favicon.png ca-bundle.txt \
+	credits.html licence.html welcome.html
+RDEP_BEOS := $(addprefix beos/res/,$(RDEP_BEOS))			\
+	$(wildcard beos/res/icons/*.png)						\
+	$(wildcard beos/res/??/*)								\
+	$(wildcard beos/res/throbber/throbber*.png)
+
+
+# This is the final source build list
+# Note this is deliberately *not* expanded here as common and image
+#   are not yet available
+SOURCES = $(S_COMMON) $(S_IMAGE) $(S_BROWSER) $(S_BEOS)
+EXETARGET := NetSurf
+
+# ----------------------------------------------------------------------------
+# Install target
+# ----------------------------------------------------------------------------
+
+install-beos:
+#       TODO:HAIKU -- not sure if throbber is needed.  being left out for now.
+	mkdir -p $(DESTDIR)$(NETSURF_BEOS_BIN)
+	mkdir -p $(DESTDIR)$(NETSURF_BEOS_RESOURCES)
+#	mkdir -p $(DESTDIR)$(NETSURF_BEOS_RESOURCES)throbber
+	@copyattr -d $(EXETARGET) $(DESTDIR)$(NETSURF_BEOS_BIN)NetSurf
+	@cp -vRL beos/res/adblock.css $(DESTDIR)$(NETSURF_BEOS_RESOURCES)
+	@cp -vRL beos/res/ca-bundle.txt $(DESTDIR)$(NETSURF_BEOS_RESOURCES)
+	@cp -vRL beos/res/default.css $(DESTDIR)$(NETSURF_BEOS_RESOURCES)
+	@cp -vRL beos/res/beosdefault.css $(DESTDIR)$(NETSURF_BEOS_RESOURCES)
+	@cp -vRL gtk/res/license $(DESTDIR)$(NETSURF_BEOS_RESOURCES)
+#	@cp -vRL beos/res/throbber/*.png $(DESTDIR)$(NETSURF_BEOS_RESOURCES)throbber
+	$(call split_install_messages, beos, $(DESTDIR)$(NETSURF_BEOS_RESOURCES))
+
+# ----------------------------------------------------------------------------
+# Package target
+# ----------------------------------------------------------------------------
+
+package-beos:

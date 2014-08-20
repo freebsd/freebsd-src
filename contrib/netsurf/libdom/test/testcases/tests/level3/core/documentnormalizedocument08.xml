@@ -1,0 +1,78 @@
+<?xml version="1.0" encoding="UTF-8"?><?xml-stylesheet href="test-to-html.xsl" type="text/xml"?>
+
+<!--
+
+Copyright (c) 2001-2004 World Wide Web Consortium, 
+(Massachusetts Institute of Technology, Institut National de
+Recherche en Informatique et en Automatique, Keio University).  All 
+Rights Reserved.  This program is distributed under the W3C's Software
+Intellectual Property License.  This program is distributed in the 
+hope that it will be useful, but WITHOUT ANY WARRANTY; without even
+the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR 
+PURPOSE.  
+
+See W3C License http://www.w3.org/Consortium/Legal/ for more details.
+
+-->
+
+<!DOCTYPE test SYSTEM "dom3.dtd">
+<test xmlns="http://www.w3.org/2001/DOM-Test-Suite/Level-3" name="documentnormalizedocument08">
+<metadata>
+<title>documentnormalizedocument08</title>
+<creator>Curt Arnold</creator>
+<description>
+Add two CDATASections containing "]]&gt;" perform normalization with split-cdata-sections=true.
+Should result in two warnings and at least 4 nodes.
+</description>
+<date qualifier="created">2004-01-20</date>
+<subject resource="http://www.w3.org/TR/2004/REC-DOM-Level-3-Core-20040407/core#Document3-normalizeDocument"/>
+<subject resource="http://www.w3.org/TR/2004/REC-DOM-Level-3-Core-20040407/core#parameter-split-cdata-sections"/>
+</metadata>
+<implementationAttribute name="namespaceAware" value="true"/>
+<var name="doc" type="Document"/>
+<var name="elem" type="Element"/>
+<var name="domConfig" type="DOMConfiguration"/>
+<var name="elemList" type="NodeList"/>
+<var name="newChild" type="CDATASection"/>
+<var name="oldChild" type="Node"/>
+<var name="retval" type="Node"/>
+<var name="errorMonitor" type="DOMErrorMonitor"/>
+<var name="errors" type="List"/>
+<var name="error" type="DOMError"/>
+<var name="length" type="int"/>
+<var name="childNodes" type="NodeList"/>
+<var name="type" type="DOMString"/>
+<var name="splittedCount" type="int" value="0"/>
+<var name="severity" type="int"/>
+<load var="doc" href="barfoo" willBeModified="true"/>
+<getElementsByTagName var="elemList" obj="doc" tagname='"p"' interface="Document"/>
+<item var="elem" obj="elemList" index="0" interface="NodeList"/>
+<createCDATASection var="newChild" obj="doc" data='"this is not ]]&gt; good"'/>
+<firstChild var="oldChild" obj="elem" interface="Node"/>
+<replaceChild var="retval" obj="elem" newChild="newChild" oldChild="oldChild"/>
+<createCDATASection var="newChild" obj="doc" data='"this is not ]]&gt; good"'/>
+<appendChild var="retval" obj="elem" newChild="newChild"/>
+<domConfig obj="doc" var="domConfig" interface="Document"/>
+<setParameter obj="domConfig" name='"split-cdata-sections"' value="true"/>
+<setParameter obj="domConfig" name='"error-handler"' value="errorMonitor"/>
+<normalizeDocument obj="doc"/>
+<allErrors var="errors" obj="errorMonitor"/>
+<for-each member="error" collection="errors">
+	<type var="type" obj="error" interface="DOMError"/>
+	<severity var="severity" obj="error"/>
+	<if>
+		<equals actual="type" expected='"cdata-sections-splitted"' ignoreCase="false"/>
+		<increment var="splittedCount" value="1"/>
+		<else>
+			<assertEquals actual="severity" expected="1" ignoreCase="false" id="anyOthersShouldBeWarnings"/>
+		</else>
+	</if>
+</for-each>
+<assertEquals actual="splittedCount" expected="2" ignoreCase="false" id="twoSplittedWarning"/>
+<getElementsByTagName var="elemList" obj="doc" tagname='"p"' interface="Document"/>
+<item var="elem" obj="elemList" index="0" interface="NodeList"/>
+<childNodes var="childNodes" obj="elem"/>
+<length	var="length" obj="childNodes" interface="NodeList"/>
+<assertTrue id="atLeast4ChildNodes"><greater actual="length" expected="3"/></assertTrue>	
+</test> 
+ 

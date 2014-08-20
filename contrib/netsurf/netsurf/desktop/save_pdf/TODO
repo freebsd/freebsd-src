@@ -1,0 +1,19 @@
+- finish all graphic primitives
+- allow adding raw bitmaps
+- make image-aware (embed the image in its native/original type if possible)
+
+- adjust content width to page width
+- divide output into multiple pages (not just the first one)
+- rearrange file structure
+
+- separate print-plotting as much as possible from window redrawing
+- add text-scaling (if not yet using the original font - make the default one
+	have the same width)
+- add a save file.. dialogue
+- add utf support to Haru ( doable? )
+- wait for browser to end fetching?
+- analyze and deal with performance issues(huge file hangs some pdf viewers,
+	for example kpdf when viewing plotted http://www.onet.pl)
+- deal with to wide pages - when window layouting adds a horizontal scrollbar,
+	we should treat it otherwise - either print horizontal or scale or,
+	better, find a new layout.

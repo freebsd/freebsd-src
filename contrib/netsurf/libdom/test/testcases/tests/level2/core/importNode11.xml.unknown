@@ -1,0 +1,57 @@
+<?xml version="1.0" encoding="UTF-8"?><?xml-stylesheet href="test-to-html.xsl" type="text/xml"?>
+
+<!--
+
+Copyright (c) 2001-2004 World Wide Web Consortium, 
+(Massachusetts Institute of Technology, Institut National de
+Recherche en Informatique et en Automatique, Keio University).  All 
+Rights Reserved.  This program is distributed under the W3C's Software
+Intellectual Property License.  This program is distributed in the 
+hope that it will be useful, but WITHOUT ANY WARRANTY; without even
+the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR 
+PURPOSE.  
+
+See W3C License http://www.w3.org/Consortium/Legal/ for more details.
+
+-->
+<!DOCTYPE test SYSTEM "dom2.dtd">
+<test xmlns="http://www.w3.org/2001/DOM-Test-Suite/Level-2" name="importNode11">
+<metadata>
+<title>importNode11</title>
+<creator>NIST</creator>
+<description>
+    The "importNode(importedNode,deep)" method for a 
+   Document should import the given importedNode into that Document.
+   The importedNode is of type Entity_Reference.
+   Only the EntityReference is copied, regardless of deep's value.
+   If the Document provides a definition for the entity name, its value is assigned.
+   
+   Create an entity reference whose name is "ent3" in a different document.
+   Invoke method importNode(importedNode,deep) on this document with importedNode
+   being "ent3".
+   Method should return a node of type Entity_Reference whose first child's value is "Texas" as defined
+   in this document.
+</description>
+<contributor>Mary Brady</contributor>
+<date qualifier="created">2001-08-17</date>
+<subject resource="http://www.w3.org/TR/DOM-Level-2-Core/core#Core-Document-importNode"/>
+</metadata>
+<var name="doc" type="Document"/>
+<var name="aNewDoc" type="Document"/>
+<var name="entRef" type="EntityReference"/>
+<var name="aNode" type="Node"/>
+<var name="name" type="DOMString"/>
+<var name="child" type="Node"/>
+<var name="childValue" type="DOMString"/>
+<load var="doc" href="staff" willBeModified="true"/>
+<load var="aNewDoc" href="staff" willBeModified="true"/>
+<createEntityReference obj="aNewDoc" var="entRef" name='"ent3"'/>
+<assertNotNull actual="entRef" id="createdEntRefNotNull"/>
+<importNode obj="doc" var="aNode" importedNode="entRef" deep="true"/>
+<nodeName obj="aNode" var="name"/>
+<assertEquals actual="name" id="entityName" expected='"ent3"' ignoreCase="false"/>
+<firstChild interface="Node" obj="aNode" var="child"/>
+<assertNotNull id="child" actual="child"/>
+<nodeValue obj="child" var="childValue"/>
+<assertEquals actual="childValue" id="childValue" expected='"Texas"' ignoreCase="false"/>
+</test>

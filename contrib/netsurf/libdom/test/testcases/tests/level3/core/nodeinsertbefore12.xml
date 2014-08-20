@@ -1,0 +1,53 @@
+<?xml version="1.0" encoding="UTF-8"?><?xml-stylesheet href="test-to-html.xsl" type="text/xml"?>
+
+<!--
+
+Copyright (c) 2001-2004 World Wide Web Consortium, 
+(Massachusetts Institute of Technology, Institut National de
+Recherche en Informatique et en Automatique, Keio University).  All 
+Rights Reserved.  This program is distributed under the W3C's Software
+Intellectual Property License.  This program is distributed in the 
+hope that it will be useful, but WITHOUT ANY WARRANTY; without even
+the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR 
+PURPOSE.  
+
+See W3C License http://www.w3.org/Consortium/Legal/ for more details.
+
+-->
+
+<!DOCTYPE test SYSTEM "dom3.dtd">
+<test xmlns="http://www.w3.org/2001/DOM-Test-Suite/Level-3" name="nodeinsertbefore12">
+<metadata>
+<title>nodeinsertbefore12</title>
+<creator>IBM</creator>
+<description>
+	The method insertBefore inserts the node newChild before the existing child node refChild. 
+	If refChild is null, insert newChild at the end of the list of children.
+
+	Using insertBefore on a DocumentFragment node attempt to insert a new DocumentFragment node 
+	before this DocumentFragment's Element node and verify the last child is still the only child
+	appended to docFrag.   
+</description>
+<contributor>Neil Delima</contributor>
+<date qualifier="created">2002-06-10</date>
+<subject resource="http://www.w3.org/TR/2004/REC-DOM-Level-3-Core-20040407/core#ID-952280727"/>
+</metadata>
+<implementationAttribute name="namespaceAware" value="true"/>
+<var name="doc" type="Document"/>
+<var name="docFrag" type="DocumentFragment"/>
+<var name="docFragNew" type="DocumentFragment"/>
+<var name="elem" type="Element"/>
+<var name="inserted" type="Node"/>
+<var name="appendedChild" type="Node"/>
+<var name="last" type="Node"/>
+<var name="name" type="DOMString"/>
+<load var="doc" href="hc_staff" willBeModified="false"/>
+<createDocumentFragment var="docFrag" obj="doc"/>
+<createDocumentFragment var="docFragNew" obj="doc"/>
+<createElementNS var="elem" obj="doc"  qualifiedName='"dom3:elem"' namespaceURI='"http://www.w3.org/DOM/Test"'/>
+<appendChild obj="docFrag" var="appendedChild" newChild="elem"/>
+<insertBefore obj="docFrag" var="inserted" newChild="docFragNew" refChild="elem"/>
+<lastChild obj="docFrag" var="last" interface="Node"/>
+<nodeName obj="last" var="name" interface="Node"/>
+<assertEquals actual="name" expected='"dom3:elem"' id="nodeinsertbefore12" ignoreCase="false"/>
+</test>

@@ -1,0 +1,56 @@
+<?xml version="1.0" encoding="UTF-8"?><?xml-stylesheet href="test-to-html.xsl" type="text/xml"?>
+
+<!--
+
+Copyright (c) 2001-2004 World Wide Web Consortium, 
+(Massachusetts Institute of Technology, Institut National de
+Recherche en Informatique et en Automatique, Keio University).  All 
+Rights Reserved.  This program is distributed under the W3C's Software
+Intellectual Property License.  This program is distributed in the 
+hope that it will be useful, but WITHOUT ANY WARRANTY; without even
+the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR 
+PURPOSE.  
+
+See W3C License http://www.w3.org/Consortium/Legal/ for more details.
+
+-->
+
+<!DOCTYPE test SYSTEM "dom3.dtd">
+<test xmlns="http://www.w3.org/2001/DOM-Test-Suite/Level-3" name="nodecomparedocumentposition27">
+<metadata>
+<title>nodecomparedocumentposition27</title>
+<creator>IBM</creator>
+<description>
+	Using compareDocumentPosition to check if the EntityReference node contains and precedes it's last
+	childElement, and that this childElement is contained and follows the EntityReference node.
+</description>
+<contributor>Jenny Hsu</contributor>
+<date qualifier="created">2003-02-20</date>
+<subject resource="http://www.w3.org/TR/2004/REC-DOM-Level-3-Core-20040407/core#Node3-compareDocumentPosition"/>
+</metadata>
+<var name="doc" type="Document"/>
+<var name="varList" type="NodeList"/>
+<var name="varElem" type="Element"/>
+<var name="entRef" type="EntityReference"/>
+<var name="entRefChild1" type="ProcessingInstruction"/>
+<var name="entRefPosition" type="int"/>
+<var name="entRefChild1Position" type="int"/>
+<load var="doc" href="hc_staff" willBeModified="false"/>
+<if>
+	<implementationAttribute name="expandEntityReferences" value="false"/>
+	<getElementsByTagName var="varList" obj="doc" tagname='"var"' interface="Document"/>
+	<item var="varElem" obj="varList" index="2" interface="NodeList"/>
+	<assertNotNull actual="varElem" id="varElemNotNull"/>
+	<firstChild var="entRef" obj="varElem" interface="Node"/>
+	<assertNotNull actual="entRef" id="entRefNotNull"/>
+	<else>
+		<createEntityReference name='"ent4"' obj="doc" var="entRef"/>
+	</else>
+</if>
+<lastChild obj="entRef" var="entRefChild1" interface="Node"/>
+<assertNotNull actual="entRefChild1" id="entRefChild1NotNull"/>
+<compareDocumentPosition var="entRefPosition" obj="entRef" other="entRefChild1"/>
+<assertEquals  actual="entRefPosition" expected="20" id="nodecomparedocumentpositionIsContainedFollowing27" ignoreCase="false"/>
+<compareDocumentPosition var="entRefChild1Position" obj="entRefChild1" other="entRef"/>
+<assertEquals  actual="entRefChild1Position" expected="10" id="nodecomparedocumentpositionContainsPRECEDING" ignoreCase="false"/>
+</test>

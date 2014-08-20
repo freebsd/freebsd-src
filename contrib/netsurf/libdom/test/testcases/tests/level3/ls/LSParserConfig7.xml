@@ -1,0 +1,65 @@
+<?xml version="1.0" standalone="no"?>
+<?xml-stylesheet href="test-to-html.xsl" type="text/xml"?>
+<!--
+
+Copyright (c) 2003 World Wide Web Consortium, 
+(Massachusetts Institute of Technology, Institut National de
+Recherche en Informatique et en Automatique, Keio University).  All 
+Rights Reserved.  This program is distributed under the W3C's Software
+Intellectual Property License.  This program is distributed in the 
+hope that it will be useful, but WITHOUT ANY WARRANTY; without even
+the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR 
+PURPOSE.  
+
+See W3C License http://www.w3.org/Consortium/Legal/ for more details.
+
+-->
+<!DOCTYPE test SYSTEM "dom3.dtd">
+
+
+<test xmlns="http://www.w3.org/2001/DOM-Test-Suite/Level-3" name="LSParserConfig7">
+  <metadata>
+    <title>LSParserConfig7</title>
+    <creator>Curt Arnold</creator>
+    <description>Checks support of namespaces.</description>
+	<date qualifier="created">2003-12-08</date>
+	<subject resource="http://www.w3.org/TR/2004/REC-DOM-Level-3-LS-20040407/load-save#LS-LSParser-config"/>
+  </metadata>
+  <var name="domImpl" type="DOMImplementationLS"/>
+  <var name="parser" type="LSParser"/>
+  <var name="config" type="DOMConfiguration"/>
+  <var name="state" type="boolean"/>
+  <var name="canSet" type="boolean"/>
+  <var name="propertyName" type="DOMString" value='"nAmespaces"'/>
+  <var name="NULL_SCHEMA_TYPE" type="DOMString" isNull="true"/>
+  
+  <implementation var="domImpl"/>
+  <createLSParser var="parser" obj="domImpl" mode="1" schemaType="NULL_SCHEMA_TYPE"/>
+  <domConfig var="config" obj="parser" interface="LSParser"/>
+  <assertNotNull actual="config" id="configNotNull"/>
+  <getParameter var="state" obj="config" name="propertyName"/>
+  <assertTrue actual="state" id="defaultValue"/>
+  <canSetParameter var="canSet" obj="config" name="propertyName" value="false"/>
+  <if>
+  	  <isTrue value="canSet"/>
+  	  <setParameter obj="config" name="propertyName" value="false"/>
+  	  <getParameter var="state" obj="config" name="propertyName"/>
+  	  <assertFalse actual="state" id="setFalseIsEffective"/>
+  	  <setParameter obj="config" name="propertyName" value="true"/>
+  	  <getParameter var="state" obj="config" name="propertyName"/>
+  	  <assertTrue actual="state" id="setTrueIsEffective"/>
+  	  <else>
+  	  	  <setParameter obj="config" name="propertyName" value="true"/>
+  	  	  <assertDOMException id="throw_NOT_SUPPORTED_ERR_if_not_canSetParameter">
+  	  	  	  <NOT_SUPPORTED_ERR>
+  	  				<setParameter obj="config" name="propertyName" value="false"/>
+  	  		  </NOT_SUPPORTED_ERR>
+  	  	  </assertDOMException>
+  	  </else>
+   </if>
+</test>
+
+
+
+
+

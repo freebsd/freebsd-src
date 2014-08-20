@@ -1,0 +1,49 @@
+<?xml version="1.0" encoding="UTF-8"?><?xml-stylesheet href="test-to-html.xsl" type="text/xml"?>
+
+<!--
+
+Copyright (c) 2004 World Wide Web Consortium, 
+(Massachusetts Institute of Technology, Institut National de
+Recherche en Informatique et en Automatique, Keio University).  All 
+Rights Reserved.  This program is distributed under the W3C's Software
+Intellectual Property License.  This program is distributed in the 
+hope that it will be useful, but WITHOUT ANY WARRANTY; without even
+the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR 
+PURPOSE.  
+
+See W3C License http://www.w3.org/Consortium/Legal/ for more details.
+
+-->
+
+<!DOCTYPE test SYSTEM "dom3.dtd">
+<test xmlns="http://www.w3.org/2001/DOM-Test-Suite/Level-3" name="namespaces01">
+<metadata>
+<title>namespaces01</title>
+<creator>Curt Arnold</creator>
+<description>
+Attempt to load a namespace invalid document with namespaces = true.
+</description>
+<date qualifier="created">2004-03-29</date>
+<subject resource="http://www.w3.org/TR/2004/REC-DOM-Level-3-LS-20040407/load-save#LS-LSParser-parseURI"/>
+<subject resource="http://www.w3.org/TR/2004/REC-DOM-Level-3-LS-20040407/load-save#parameter-namespaces"/>
+</metadata>
+<var name="doc" type="Document"/>
+<var name="node" type="Node"/>
+<var name="nodeType" type="int"/>
+<var name="domConfig" type="DOMConfiguration"/>
+<var name="domImplLS" type="DOMImplementationLS"/>
+<var name="lsParser" type="LSParser"/>
+<var name="nullSchemaType" type="DOMString" isNull="true"/>
+<var name="resourceURI" type="DOMString"/>
+<implementation var="domImplLS"/>
+<createLSParser var="lsParser" obj="domImplLS" mode="1" schemaType="nullSchemaType"/>
+<domConfig obj="lsParser" var="domConfig" interface="LSParser"/>
+<setParameter obj="domConfig" name='"namespaces"' value="true"/>
+<getResourceURI var="resourceURI" href='"namespaces1"' contentType="text/xml"/>
+<assertLSException id="throw_PARSE_ERR">
+	<PARSE_ERR>
+		<parseURI var="doc" obj="lsParser" uri="resourceURI"/>
+	</PARSE_ERR>
+</assertLSException>
+</test> 
+ 

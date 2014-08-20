@@ -1,0 +1,45 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+Copyright (c) 2001-2004 World Wide Web Consortium,
+(Massachusetts Institute of Technology, Institut National de
+Recherche en Informatique et en Automatique, Keio University). All
+Rights Reserved. This program is distributed under the W3C's Software
+Intellectual Property License. This program is distributed in the
+hope that it will be useful, but WITHOUT ANY WARRANTY; without even
+the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
+PURPOSE.
+See W3C License http://www.w3.org/Consortium/Legal/ for more details.
+--><!DOCTYPE test SYSTEM "dom1.dtd">
+
+<test xmlns="http://www.w3.org/2001/DOM-Test-Suite/Level-1" name="hc_attrspecifiedvalue">
+<metadata>
+<title>hc_attrSpecifiedValue</title>
+<creator>Curt Arnold</creator>
+<description>
+    The "getSpecified()" method for an Attr node should 
+  be set to true if the attribute was explicitly given
+  a value.
+  Retrieve the attribute named "domestic" from the last 
+  child of of the first employee and examine the value 
+  returned by the "getSpecified()" method.  This test uses 
+  the "getNamedItem(name)" method from the NamedNodeMap 
+  interface.
+</description>
+
+<date qualifier="created">2002-06-09</date>
+<subject resource="http://www.w3.org/TR/1998/REC-DOM-Level-1-19981001/level-one-core#ID-862529273"/>
+</metadata>
+<var name="doc" type="Document"/>
+<var name="addressList" type="NodeList"/>
+<var name="testNode" type="Node"/>
+<var name="attributes" type="NamedNodeMap"/>
+<var name="domesticAttr" type="Attr"/>
+<var name="state" type="boolean"/>
+<load var="doc" href="hc_staff" willBeModified="false"/>
+<getElementsByTagName interface="Document" obj="doc" var="addressList" tagname='"acronym"'/>
+<item interface="NodeList" obj="addressList" var="testNode" index="0"/>
+<attributes obj="testNode" var="attributes"/>
+<getNamedItem obj="attributes" var="domesticAttr" name='"title"'/>
+<specified obj="domesticAttr" var="state"/>
+<assertTrue actual="state" id="acronymTitleSpecified"/>
+</test>

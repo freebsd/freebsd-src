@@ -1,0 +1,94 @@
+<?xml version="1.0" standalone="no"?>
+<?xml-stylesheet href="test-to-html.xsl" type="text/xml"?>
+<!--
+
+Copyright (c) 2003 World Wide Web Consortium, 
+(Massachusetts Institute of Technology, Institut National de
+Recherche en Informatique et en Automatique, Keio University).  All 
+Rights Reserved.  This program is distributed under the W3C's Software
+Intellectual Property License.  This program is distributed in the 
+hope that it will be useful, but WITHOUT ANY WARRANTY; without even
+the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR 
+PURPOSE.  
+
+See W3C License http://www.w3.org/Consortium/Legal/ for more details.
+
+-->
+<!DOCTYPE test SYSTEM "dom3.dtd">
+
+
+<test xmlns="http://www.w3.org/2001/DOM-Test-Suite/Level-3" name="domconfigparameternames01">
+  <metadata>
+    <title>domconfigparameternames01</title>
+    <creator>Curt Arnold</creator>
+    <description>Checks getParameterNames and canSetParameter for Document.domConfig.</description>
+	<date qualifier="created">2004-01-22</date>
+	<subject resource="http://www.w3.org/TR/2004/REC-DOM-Level-3-Core-20040407/core#Document3-domConfig"/>
+	<subject resource="http://www.w3.org/TR/2004/REC-DOM-Level-3-Core-20040407/core#DOMConfiguration-parameterNames"/>
+  	<subject resource="http://www.w3.org/TR/2004/REC-DOM-Level-3-Core-20040407/core#parameter-canonical-form"/>
+  	<subject resource="http://www.w3.org/TR/2004/REC-DOM-Level-3-Core-20040407/core#parameter-cdata-sections"/>
+  	<subject resource="http://www.w3.org/TR/2004/REC-DOM-Level-3-Core-20040407/core#parameter-check-character-normalization"/>
+  	<subject resource="http://www.w3.org/TR/2004/REC-DOM-Level-3-Core-20040407/core#parameter-comments"/>
+  	<subject resource="http://www.w3.org/TR/2004/REC-DOM-Level-3-Core-20040407/core#parameter-datatype-normalization"/>
+  	<subject resource="http://www.w3.org/TR/2004/REC-DOM-Level-3-Core-20040407/core#parameter-entities"/>
+  	<subject resource="http://www.w3.org/TR/2004/REC-DOM-Level-3-Core-20040407/core#parameter-error-handler"/>
+  	<subject resource="http://www.w3.org/TR/2004/REC-DOM-Level-3-Core-20040407/core#parameter-infoset"/>
+  	<subject resource="http://www.w3.org/TR/2004/REC-DOM-Level-3-Core-20040407/core#parameter-namespaces"/>
+  	<subject resource="http://www.w3.org/TR/2004/REC-DOM-Level-3-Core-20040407/core#parameter-namespace-declarations"/>
+  	<subject resource="http://www.w3.org/TR/2004/REC-DOM-Level-3-Core-20040407/core#parameter-normalize-characters"/>
+  	<subject resource="http://www.w3.org/TR/2004/REC-DOM-Level-3-Core-20040407/core#parameter-split-cdata-sections"/>
+  	<subject resource="http://www.w3.org/TR/2004/REC-DOM-Level-3-Core-20040407/core#parameter-validate"/>
+  	<subject resource="http://www.w3.org/TR/2004/REC-DOM-Level-3-Core-20040407/core#parameter-validate-if-schema"/>
+  	<subject resource="http://www.w3.org/TR/2004/REC-DOM-Level-3-Core-20040407/core#parameter-well-formed"/>
+  	<subject resource="http://www.w3.org/TR/2004/REC-DOM-Level-3-Core-20040407/core#parameter-element-content-whitespace"/>
+  </metadata>
+  <var name="domImpl" type="DOMImplementation"/>
+  <var name="doc" type="Document"/>
+  <var name="config" type="DOMConfiguration"/>
+  <var name="state" type="boolean"/>
+  <var name="parameterNames" type="DOMStringList"/>
+  <var name="parameterName" type="DOMString"/>
+  <var name="matchCount" type="int" value="0"/>
+  <var name="paramValue" type="DOMUserData"/>
+  <var name="canSet" type="boolean"/>
+  <load var="doc" href="barfoo" willBeModified="false"/>
+  <domConfig var="config" obj="doc" interface="Document"/>
+  <assertNotNull actual="config" id="configNotNull"/>
+  <parameterNames var="parameterNames" obj="config"/>
+  <assertNotNull actual="parameterNames" id="parameterNamesNotNull"/>
+  <for-each collection="parameterNames" member="parameterName">
+  		<!--  get the default value of this parameter   -->
+  		<getParameter var="paramValue" obj="config" name="parameterName"/>
+  		<!--  should be able to set to default value    -->
+  		<canSetParameter var="canSet" obj="config" name="parameterName" value="paramValue"/>
+  		<assertTrue actual="canSet" id="canSetToDefaultValue"/>
+  		<setParameter obj="config" name="parameterName" value="paramValue"/>
+  		<if>
+  			<or>
+  				<equals actual="parameterName" expected='"canonical-form"' ignoreCase="true"/>
+  				<equals actual="parameterName" expected='"cdata-sections"'  ignoreCase="true"/>
+  				<equals actual="parameterName" expected='"check-character-normalization"'  ignoreCase="true"/>
+  				<equals actual="parameterName" expected='"comments"'  ignoreCase="true"/>
+  				<equals actual="parameterName" expected='"datatype-normalization"'  ignoreCase="true"/>
+  				<equals actual="parameterName" expected='"entities"'  ignoreCase="true"/>
+  				<equals actual="parameterName" expected='"error-handler"'  ignoreCase="true"/>
+  				<equals actual="parameterName" expected='"infoset"'  ignoreCase="true"/>
+  				<equals actual="parameterName" expected='"namespaces"'  ignoreCase="true"/>
+  				<equals actual="parameterName" expected='"namespace-declarations"'  ignoreCase="true"/>
+  				<equals actual="parameterName" expected='"normalize-characters"'  ignoreCase="true"/>
+  				<equals actual="parameterName" expected='"split-cdata-sections"'  ignoreCase="true"/>
+  				<equals actual="parameterName" expected='"validate"'  ignoreCase="true"/>
+  				<equals actual="parameterName" expected='"validate-if-schema"'  ignoreCase="true"/>
+  				<equals actual="parameterName" expected='"well-formed"'  ignoreCase="true"/>
+  				<equals actual="parameterName" expected='"element-content-whitespace"' ignoreCase="true"/>
+  			</or>
+  			<increment var="matchCount" value="1"/>
+  		</if>
+  </for-each>
+  <assertEquals actual="matchCount" expected="16" id="definedParameterCount" ignoreCase="false"/>
+</test>
+
+
+
+
+

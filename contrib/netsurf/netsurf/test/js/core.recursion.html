@@ -1,0 +1,21 @@
+<html>
+<head>
+<title>Infinite recursion</title>
+<link rel="stylesheet" type="text/css" href="tst.css">
+</head>
+<body>
+<h1>Infinite recursion</h1>
+<p>Before</p>
+<script>
+
+function it_keeps_going_and_going_and_going(i) {
+
+  return it_keeps_going_and_going_and_going(i+1);
+}
+
+it_keeps_going_and_going_and_going(1)
+</script>
+</script>
+<p>Afterwards</p>
+</body>
+</html>

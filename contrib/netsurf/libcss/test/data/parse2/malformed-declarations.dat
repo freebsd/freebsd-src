@@ -1,0 +1,124 @@
+#data
+* { top: 1em; }
+#errors
+#expected
+| *
+|  top: 1em
+#reset
+
+#data
+* { top: 1em; bottom }
+#errors
+#expected
+| *
+|  top: 1em
+#reset
+
+#data
+* { top: 1em; bottom; bottom: 3px; }
+#errors
+#expected
+| *
+|  top: 1em
+|  bottom: 3px
+#reset
+
+#data
+* { top: 1em; bottom left; bottom: 3px; }
+#errors
+#expected
+| *
+|  top: 1em
+|  bottom: 3px
+#reset
+
+#data
+* { top: 1em; bottom: }
+#errors
+#expected
+| *
+|  top: 1em
+#reset
+
+#data
+* { top: 1em; bottom:; left:1in; }
+#errors
+#expected
+| *
+|  top: 1em
+|  left: 1in
+#reset
+
+#data
+* { top: 1em; bottom{; left:1in} }
+#errors
+#expected
+| *
+|  top: 1em
+#reset
+
+#data
+* { top: 1em; bottom{; left:1in}; color: #BBC; }
+#errors
+#expected
+| *
+|  top: 1em
+|  color: #ffbbbbcc
+#reset
+
+#data
+* { top: 1em; bottom{; left:1in}; color: #BBC; }
+#errors
+#expected
+| *
+|  top: 1em
+|  color: #ffbbbbcc
+#reset
+
+#data
+* { background-color: black; :; color: white; }
+#errors
+#expected
+| *
+|  background-color: #ff000000
+|  color: #ffffffff
+#reset
+
+#data
+* { background-color: black; : color: white; }
+#errors
+#expected
+| *
+|  background-color: #ff000000
+#reset
+
+#data
+* { background-color: black; dentist: color: white; }
+#errors
+#expected
+| *
+|  background-color: #ff000000
+#reset
+
+#data
+*{f():{
+#errors
+#expected
+| *
+#reset
+
+#data
+*{:{
+#errors
+#expected
+| *
+#reset
+
+#data
+*{:{};f():{};font-size:{};clear:both}
+#errors
+#expected
+| *
+|  clear: both
+#reset
+

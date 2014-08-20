@@ -1,0 +1,51 @@
+<?xml version="1.0" standalone="no"?>
+<?xml-stylesheet href="test-to-html.xsl" type="text/xml"?>
+<!--
+
+Copyright (c) 2003-2004 World Wide Web Consortium, 
+(Massachusetts Institute of Technology, Institut National de
+Recherche en Informatique et en Automatique, Keio University).  All 
+Rights Reserved.  This program is distributed under the W3C's Software
+Intellectual Property License.  This program is distributed in the 
+hope that it will be useful, but WITHOUT ANY WARRANTY; without even
+the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR 
+PURPOSE.  
+
+See W3C License http://www.w3.org/Consortium/Legal/ for more details.
+
+-->
+<!DOCTYPE test SYSTEM "dom3.dtd">
+
+
+<test xmlns="http://www.w3.org/2001/DOM-Test-Suite/Level-3" name="DOMBuilderTest8">
+  <metadata>
+    <title>DOMBuilderTest8</title>
+    <creator>Curt Arnold</creator>
+    <description>Parses an unresolvable System ID.</description>
+	<date qualifier="created">2003-12-19</date>
+	<subject resource="http://www.w3.org/TR/2004/REC-DOM-Level-3-LS-20040407/load-save#LS-LSParser-parse"/>
+  </metadata>
+  <var name="domImpl" type="DOMImplementationLS"/>
+  <var name="parser" type="LSParser"/>
+  <var name="NULL_SCHEMA_TYPE" type="DOMString" isNull="true"/>
+  <var name="input" type="LSInput"/>
+  <var name="document" type="Document"/>
+  <var name="resourceURI" type="DOMString"/>
+  
+  <implementation var="domImpl"/>
+  <createLSParser var="parser" obj="domImpl" schemaType="NULL_SCHEMA_TYPE" mode="1"/>
+  <createLSInput var="input" obj="domImpl"/>
+  <getResourceURI var="resourceURI" href='"test0"' contentType="text/xml"/>
+  <plus var="resourceURI" op1="resourceURI" op2='"_missing"'/>
+  <systemId obj="input" value="resourceURI" interface="LSInput"/>  
+  <assertLSException id="throw_PARSE_ERR">
+  	<PARSE_ERR>
+  		<parse var="document" obj="parser" input="input"/>
+  	</PARSE_ERR>
+  </assertLSException>
+</test>
+
+
+
+
+

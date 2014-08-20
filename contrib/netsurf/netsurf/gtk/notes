@@ -1,0 +1,36 @@
+Currently a gui_window is a top level browser object.
+
+This has to be corrected. Instead a gui_window must simply be a render
+target inside a non-user-sizable container which is capable of
+scrolling around. I.E. a GtkViewport.
+
+Thusly all routines which are callbacks for the viewport can remain
+attached to a gui_window, all others must be migrated to a
+gtk_scaffold concept which embodies the toolbar, statusbar,
+blahblahblah.
+
+If a gui_window wants to be able to scroll itself, it automatically
+embeds itself in a GtkScrolledWindow which will provide scrollbars for
+it. Otherwise it makes a call to its scaffold to ask it to attach its
+scrollbars to the viewport.
+
+The gui_window objects therefore are a GtkDrawingArea inside a
+GtkFixed inside a GtkViewport (optionally inside a GtkScrolledWindow)
+The GtkFixed's job (among other things) is to sit on its size_allocate
+event and ensure that the GtkDrawingArea fills 100% of itself. (and is
+on the bottom of the widget stack -- this happens automatically if the
+drawing area is the first widget to be added to the GtkFixed and it is
+never removed.)
+
+The gtk_scaffold object must expose a call to show/hide (link/delink?)
+its scrollbars so that if the contained gui_window becomes a frameset
+then it can hide the scrollbars belonging to the top level window.
+
+It must be possible to add gui_window objects to other gui_window
+objects rather than to a gtk_scaffold so that frames can be embedded
+appropriately.
+
+The size-allocate event for the drawing area must pass through to the
+underlying browser_window as currently it does.
+
+

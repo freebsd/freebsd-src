@@ -1,0 +1,26 @@
+<html>
+<head>
+<title>window interface enumeration</title>
+<link rel="stylesheet" type="text/css" href="tst.css">
+</head>
+<body>
+<h1>window interface enumeration</h1>
+
+<script>
+function output(x,y) {
+    document.body.appendChild(document.createTextNode(x));
+    document.body.appendChild(document.createTextNode("("));
+    if (y != undefined) {
+        document.body.appendChild(document.createTextNode(y.length));
+    }
+    document.body.appendChild(document.createTextNode(") = "));
+    document.body.appendChild(document.createTextNode(y));
+    document.body.appendChild(document.createElement('br'));
+}
+
+for(var key in window) {
+    output(key, window[key]);
+}
+</script>
+</body>
+</html>

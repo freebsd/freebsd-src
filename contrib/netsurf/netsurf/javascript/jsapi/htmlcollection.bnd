@@ -1,0 +1,93 @@
+/* Binding to generate HTMLcollection interface
+ *
+ * The js_libdom (javascript to libdom) binding type is currently the
+ * only one implemented and this principly describes that binding.
+ *
+ * Copyright 2012 Vincent Sanders <vince@netsurf-browser.org>
+ *
+ * This file is part of NetSurf, http://www.netsurf-browser.org/
+ *
+ * Released under the terms of the MIT License,
+ *         http://www.opensource.org/licenses/mit-license
+ */
+
+/* The hdrcomment are added into the geenrated output comment header */
+hdrcomment "Copyright 2012 Vincent Sanders <vince@netsurf-browser.org>";
+hdrcomment "This file is part of NetSurf, http://www.netsurf-browser.org/";
+hdrcomment "Released under the terms of the MIT License,";
+hdrcomment "        http://www.opensource.org/licenses/mit-license";
+
+preamble %{
+
+#include <dom/dom.h>
+        
+#include "utils/config.h"
+#include "utils/log.h"
+#include "javascript/jsapi.h"
+#include "render/html_internal.h"
+
+#include "htmlelement.h"
+#include "htmlcollection.h"
+
+%}
+
+webidlfile "dom.idl";
+
+binding htmlcollection {
+    type js_libdom; /* the binding type */
+
+    interface HTMLCollection; /* The WebIDL interface to generate a binding for */
+
+    private "dom_html_collection *" collection;
+    private "struct html_content *" htmlc;
+}
+
+getter length %{
+        dom_exception err;
+
+        err = dom_html_collection_get_length(private->collection, &jsret);
+        if (err != DOM_NO_ERR) {
+                return JS_FALSE;
+        }
+        %}
+  
+operation item %{
+        dom_exception err;
+        dom_node *domnode;
+
+        err = dom_html_collection_item(private->collection, index, &domnode);
+        if (err != DOM_NO_ERR)  {
+                return JS_FALSE;
+        }
+
+        if (domnode != NULL) {
+                jsret = jsapi_new_HTMLElement(cx, NULL, NULL, (dom_element *)domnode, private->htmlc);
+        }
+        %}
+
+operation namedItem %{
+        dom_exception err;
+        dom_node *domnode;
+        dom_string *name_dom;
+
+        err = dom_string_create((uint8_t *)name, name_len, &name_dom);
+        if (err != DOM_NO_ERR) {
+                return JS_FALSE;
+        }
+
+        err = dom_html_collection_named_item(private->collection, name_dom, &domnode);
+        if (err != DOM_NO_ERR)  {
+                return JS_FALSE;
+        }
+
+        if (domnode != NULL) {
+                jsret = jsapi_new_HTMLElement(cx, NULL, NULL, (dom_element *)domnode, private->htmlc);
+        }
+
+%}
+
+api finalise %{
+        if (private != NULL) {
+                dom_html_collection_unref(private->collection);
+        }
+%}

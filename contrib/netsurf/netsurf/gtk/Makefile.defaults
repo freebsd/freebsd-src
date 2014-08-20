@@ -1,0 +1,34 @@
+# ----------------------------------------------------------------------------
+# GTK-specific options
+# ----------------------------------------------------------------------------
+
+# Where to search for NetSurf's resources after looking in ~/.netsurf and
+# $NETSURFRES.  It must have a trailing /
+NETSURF_GTK_RESOURCES := $(PREFIX)/share/netsurf/
+
+# Where to install the netsurf binary
+NETSURF_GTK_BIN := $(PREFIX)/bin/
+
+# Enable NetSurf's use of librsvg in conjunction with Cairo to display SVGs
+# Valid options: YES, NO, AUTO
+NETSURF_USE_RSVG := AUTO
+
+# Enable NetSurf's use of libsvgtiny for displaying SVGs
+# Valid options: YES, NO, AUTO
+NETSURF_USE_NSSVG := AUTO
+
+# Enable NetSurf's use of librosprite for displaying RISC OS Sprites
+# Valid options: YES, NO, AUTO
+NETSURF_USE_ROSPRITE := AUTO
+
+# Configuration overrides for Mac OS X
+ifeq ($(HOST),macosx)
+    NETSURF_USE_LIBICONV_PLUG := NO
+    NETSURF_USE_HARU_PDF := NO
+endif
+
+# Set default GTK version to build for (2 or 3)
+NETSURF_GTK_MAJOR := 2
+
+# Optimisation levels
+CFLAGS += -O2

@@ -1,0 +1,123 @@
+LibParserUtils -- a utility library for parser building
+=======================================================
+
+Overview
+--------
+
+  LibParserUtils provides various pieces of functionality that are useful
+  when writing parsers. These are:
+
+  + A number of character set convertors
+  + Mapping of character set names to/from MIB enum values
+  + UTF-8 and UTF-16 (host endian) support functions
+  + Various simple data structures (resizeable buffer, stack, vector)
+  + A UTF-8 input stream
+
+Requirements
+------------
+
+  LibParserUtils requires the following tools:
+
+    + A C99 capable C compiler
+    + GNU make or compatible
+    + Perl (for the testcases)
+    + Pkg-config (for the testcases)
+    + doxygen (for the API documentation)
+
+  For enhanced charset support, LibParserUtils requires an iconv() 
+  implementation. If you don't have an implementation of iconv(),
+  this requirement may be disabled: see the "Disabling iconv() 
+  support" section, below.
+
+Compilation
+-----------
+
+  The exact type of build may be configured by passing parameters to make.
+  Common usage is described below.
+
+  For a static library:
+
+  		$ make
+
+  For a shared library:
+
+		$ make COMPONENT_TYPE=lib-shared
+
+  For a static library with debug enabled:
+
+		$ make BUILD=debug
+
+  To cross-compile a static library:
+
+		$ make TARGET=<target-platform>
+
+Verification
+------------
+
+  The library's functionality may be verified, thus:
+  
+  		$ make test
+
+  If you wish to see test coverage statistics, run:
+
+		$ make coverage
+
+  Then open build/coverage/index.html in a web browser.
+
+  In both cases, ensure that the same parameters to make are passed as when 
+  building the library.
+
+(Un)installation
+----------------
+
+  To install the library:
+
+		$ make install
+
+  Ensure that the same parameters to make are passed as when building the
+  library.
+
+  To specify the installation prefix:
+
+		$ make install PREFIX=/path/to/prefix
+
+  To specify a staging directory for packaging:
+
+		$ make install DESTDIR=/path/to/directory
+
+  Items will be installed to $(DESTDIR)$(PREFIX)/
+
+  To uninstall:
+
+		$ make uninstall
+
+API documentation
+-----------------
+
+  Use doxygen to auto-generate API documentation, thus:
+
+  		$ make docs
+
+  Then open build/docs/html/index.html in a web browser.
+
+  The test driver code in test/ may also provide some useful pointers.
+
+Disabling iconv() support
+-------------------------
+
+  Without iconv() support enabled, libparserutils only supports the 
+  following character sets:
+
+    + UTF-16 (platform-native endian)
+    + UTF-8
+    + ISO-8859-n
+    + Windows-125n
+    + US-ASCII
+
+  To disable iconv() support in libparserutils, do the following:
+
+  		$ echo "CFLAGS += -DWITHOUT_ICONV_FILTER" \
+				>Makefile.config.override
+
+  Then build libparserutils as normal.
+

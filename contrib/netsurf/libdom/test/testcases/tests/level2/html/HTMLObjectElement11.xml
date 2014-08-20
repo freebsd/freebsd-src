@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<!--
+
+Copyright (c) 2001 World Wide Web Consortium, 
+(Massachusetts Institute of Technology, Institut National de
+Recherche en Informatique et en Automatique, Keio University).  All 
+Rights Reserved.  This program is distributed under the W3C's Software
+Intellectual Property License.  This program is distributed in the 
+hope that it will be useful, but WITHOUT ANY WARRANTY; without even
+the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR 
+PURPOSE.  
+
+See W3C License http://www.w3.org/Consortium/Legal/ for more details.
+
+-->
+<!DOCTYPE test SYSTEM "dom2.dtd">
+<test xmlns="http://www.w3.org/2001/DOM-Test-Suite/Level-2" name="HTMLObjectElement11">
+<metadata>
+<title>HTMLObjectElement11</title>
+<creator>NIST</creator>
+<description>
+    The hspace attribute specifies the horizontal space to the left and right
+    of this image, applet or object.
+
+    Retrieve the hspace attribute of the first OBJECT element and examine
+    it's value.  
+</description>
+<contributor>Mary Brady</contributor>
+<date qualifier="created">2002-01-02</date>
+<subject resource="http://www.w3.org/TR/DOM-Level-2-HTML/html#ID-17085376"/>
+</metadata>
+<var name="nodeList" type="NodeList"/>
+<var name="testNode" type="Node"/>
+<var name="vhspace" type="int"/>
+<var name="doc" type="Node"/>
+<load var="doc" href="object" willBeModified="false"/>
+<getElementsByTagName interface="Document" obj="doc" var="nodeList" tagname="&quot;object&quot;"/>
+<assertSize collection="nodeList" size="2" id="Asize"/>
+<item interface="NodeList" obj="nodeList" var="testNode" index="0"/>
+<hspace interface="HTMLObjectElement" obj="testNode" var="vhspace"/>
+<assertEquals actual="vhspace" expected="0" id="hspaceLink" ignoreCase="false"/>
+</test>

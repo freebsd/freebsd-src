@@ -1,0 +1,58 @@
+#data
+/**/* /* 2 *//*3*/ {/*4*/ background-attachment:/*5*/ fixed/**/;/*7*/ }
+#errors
+#expected
+| *
+|  background-attachment: fixed
+#reset
+
+#data
+/**/* /* } *//*3*/ {/*;*/ background-attachment/* display: */:/*6}*/ scroll/**/;/*8*/ }
+#errors
+#expected
+| *
+|  background-attachment: scroll
+#reset
+
+#data
+/**/* /* 2 *//*3*/ {/*4*/ background-attachment:/*5*/ fixed/**/;/*7*/ speech-rate: /*/*//*/**/ medium; }
+#errors
+#expected
+| *
+|  background-attachment: fixed
+|  speech-rate: medium
+#reset
+
+#data
+* {/* stress:100; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* /*{ stress:100; }
+#errors
+#expected
+#reset
+
+#data
+*/* { stress:100; }
+#errors
+#expected
+#reset
+
+#data
+* { stress:/*100; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { stress:100/*; }
+#errors
+#expected
+| *
+|  stress: 100
+#reset

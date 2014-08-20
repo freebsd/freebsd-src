@@ -1,0 +1,3 @@
+set -e
+make BUILD=debug test
+build-Linux-Linux-debug-lib-static/test_svgtiny_test $1 $2 | convert mvg:- png:- | display -

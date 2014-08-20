@@ -1,0 +1,6 @@
+# Index file for charset detection tests
+#
+# Test			Description
+
+bom.dat			UTF Byte Order Mark detection tests
+bom-charset.dat		BOM + @charset tests

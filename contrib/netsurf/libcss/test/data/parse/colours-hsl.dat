@@ -1,0 +1,130 @@
+## simple HSL color values
+
+## red
+#data
+* { color: hsl(0, 100%, 50%) }
+#errors
+#expected
+| 1 *
+|   0x02000018 0xffff0000
+#reset
+
+## yellow
+#data
+* { color: hsl(60, 100%, 50%) }
+#errors
+#expected
+| 1 *
+|   0x02000018 0xffffff00
+#reset
+
+## green
+#data
+* { color: hsl(120, 100%, 50%) }
+#errors
+#expected
+| 1 *
+|   0x02000018 0xff00ff00
+#reset
+
+## cyan
+#data
+* { color: hsl(180, 100%, 50%) }
+#errors
+#expected
+| 1 *
+|   0x02000018 0xff00ffff
+#reset
+
+## blue
+#data
+* { color: hsl(240, 100%, 50%) }
+#errors
+#expected
+| 1 *
+|   0x02000018 0xff0000ff
+#reset
+
+## Magenta
+#data
+* { color: hsl(300, 100%, 50%) }
+#errors
+#expected
+| 1 *
+|   0x02000018 0xffff00ff
+#reset
+
+## Selection of different HSL values
+
+#data
+* { color: hsl(0, 0%, 0%) }
+#errors
+#expected
+| 1 *
+|   0x02000018 0xff000000
+#reset
+
+#data
+* { color: hsl(0, 0%, 100%) }
+#errors
+#expected
+| 1 *
+|   0x02000018 0xffffffff
+#reset
+
+#data
+* { color: hsl(0, 0%, 40%) }
+#errors
+#expected
+| 1 *
+|   0x02000018 0xff666666
+#reset
+
+#data
+* { color: hsl(12, 44%, 66%) }
+#errors
+#expected
+| 1 *
+|   0x02000018 0xffCE9182
+#reset
+
+#data
+* { color: hsl(69, 22%, 11%) }
+#errors
+#expected
+| 1 *
+|   0x02000018 0xff202215
+#reset
+
+
+#data
+* { color: hsl(111, 22%, 33%) }
+#errors
+#expected
+| 1 *
+|   0x02000018 0xff476641
+#reset
+
+#data
+* { color: hsl(188, 50%, 75%) }
+#errors
+#expected
+| 1 *
+|   0x02000018 0xff9FD6DF
+#reset
+
+#data
+* { color: hsl(222, 22%, 22%) }
+#errors
+#expected
+| 1 *
+|   0x02000018 0xff2b3344
+#reset
+
+#data
+* { color: hsl(300, 30%, 30%) }
+#errors
+#expected
+| 1 *
+|   0x02000018 0xff633563
+#reset

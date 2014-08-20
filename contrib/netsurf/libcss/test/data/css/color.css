@@ -1,0 +1,19 @@
+h1 { 
+	color: red; 
+	color: #12f;
+	color: #12345f;
+	color: rgb(0, 0, 0);
+	color: rgb(0%, 0%, 0%);
+
+	color: rgb(300, 0, 0);
+	color: rgb(-10, 0, 0);
+	color: rgb(150%, 0%, 0%);
+	color: rgb(-10%, 0%, 0%);
+
+	color: 123;
+	color: 123456;
+	color: 12f;
+	color: 12345f;
+	color: 12f456;
+	color: f00000;
+}

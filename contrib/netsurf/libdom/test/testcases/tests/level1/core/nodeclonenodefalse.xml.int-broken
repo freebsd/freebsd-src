@@ -1,0 +1,49 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+Copyright (c) 2001 World Wide Web Consortium,
+(Massachusetts Institute of Technology, Institut National de
+Recherche en Informatique et en Automatique, Keio University). All
+Rights Reserved. This program is distributed under the W3C's Software
+Intellectual Property License. This program is distributed in the
+hope that it will be useful, but WITHOUT ANY WARRANTY; without even
+the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
+PURPOSE.
+See W3C License http://www.w3.org/Consortium/Legal/ for more details.
+--><!DOCTYPE test SYSTEM "dom1.dtd">
+
+<test xmlns="http://www.w3.org/2001/DOM-Test-Suite/Level-1" name="nodeclonenodefalse">
+<metadata>
+<title>nodeCloneNodeFalse</title>
+<creator>NIST</creator>
+<description>
+    The "cloneNode(deep)" method returns a copy of the node
+    only if deep=false.
+    
+    Retrieve the second employee and invoke the
+    "cloneNode(deep)" method with deep=false.   The
+    method should only clone this node.   The NodeName and
+    length of the NodeList are checked.   The "getNodeName()"
+    method should return "employee" and the "getLength()"
+    method should return 0.
+</description>
+<contributor>Mary Brady</contributor>
+<date qualifier="created">2001-08-17</date>
+<subject resource="http://www.w3.org/TR/1998/REC-DOM-Level-1-19981001/level-one-core#ID-3A0ED0A4"/>
+</metadata>
+<var name="doc" type="Document"/>
+<var name="elementList" type="NodeList"/>
+<var name="employeeNode" type="Node"/>
+<var name="clonedNode" type="Node"/>
+<var name="cloneName" type="DOMString"/>
+<var name="cloneChildren" type="NodeList"/>
+<var name="length" type="int"/>
+<load var="doc" href="staff" willBeModified="true"/>
+<getElementsByTagName interface="Document" obj="doc" tagname="&quot;employee&quot;" var="elementList"/>
+<item interface="NodeList" obj="elementList" index="1" var="employeeNode"/>
+<cloneNode obj="employeeNode" deep="false" var="clonedNode"/>
+<nodeName obj="clonedNode" var="cloneName"/>
+<assertEquals actual="cloneName" expected="&quot;employee&quot;" ignoreCase="false" id="name"/>
+<childNodes obj="clonedNode" var="cloneChildren"/>
+<length interface="NodeList" obj="cloneChildren" var="length"/>
+<assertEquals actual="length" expected="0" ignoreCase="false" id="length"/>
+</test>

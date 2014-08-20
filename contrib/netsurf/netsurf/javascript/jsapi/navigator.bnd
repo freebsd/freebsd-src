@@ -1,0 +1,121 @@
+/* Binding to generate Navigator interface
+ *
+ * Copyright 2012 Vincent Sanders <vince@netsurf-browser.org>
+ *
+ * This file is part of NetSurf, http://www.netsurf-browser.org/
+ *
+ * Released under the terms of the MIT License,
+ *         http://www.opensource.org/licenses/mit-license
+ */
+
+
+webidlfile "html.idl";
+
+hdrcomment "Copyright 2012 Vincent Sanders <vince@netsurf-browser.org>";
+hdrcomment "This file is part of NetSurf, http://www.netsurf-browser.org/";
+hdrcomment "Released under the terms of the MIT License,";
+hdrcomment "        http://www.opensource.org/licenses/mit-license";
+
+preamble %{
+
+#include <assert.h>
+#include <stdlib.h>
+
+#include "desktop/netsurf.h"
+#include "utils/config.h"
+#include "utils/nsoption.h"
+#include "utils/useragent.h"
+#include "utils/log.h"
+#include "utils/utsname.h"
+#include "javascript/jsapi.h"
+
+#include "navigator.h"
+
+/*
+ * navigator properties for netsurf
+ * 
+ * Property    | Everyone else   | NetSurf      | Notes
+ * ------------+-----------------+--------------+------------------------------
+ * appCodeName | "Mozilla"       | "NetSurf"    | This is kinda a pointless 
+ *             |                 |              |  constant as everyone returns 
+ *             |                 |              |  "Mozilla" which is dumb
+ * ------------+-----------------+--------------+------------------------------
+ * appName     | "<Browsername>" | "NetSurf"    | Browsers named other than 
+ *             |                 |              | "Netscape", "Mozilla", 
+ *             |                 |              | "Netscape Navigator", 
+ *             |                 |              | "Microsoft Internet Explorer" 
+ *             |                 |              |  often other browser have 
+ *             |                 |              | "(compatible with Netscape)" 
+ *             |                 |              |  append.
+ * ------------+-----------------+--------------+------------------------------
+ * appVersion  | "<ver> (<type>)"| "<ver>"      | Actually just the version 
+ *             |                 |              |  number e.g "3.0".
+ * ------------+-----------------+--------------+------------------------------
+ * language    | "<lang>"        | "<lang>"     | The language the frontend is 
+ *             |                 |              |  configured for
+ * ------------+-----------------+--------------+------------------------------
+ * platform    | "<krn> <hw>"    | "<krn> <hw>" | Efectively uname -s -i, 
+ *             |                 |              |   eg "Linux x86_64"
+ * ------------+-----------------+--------------+------------------------------
+ * userAgent   | "Mozilla/5.0 (" | "NetSurf"    | The usual useragent string  
+ *             |                 |              |  with excessive lies
+ * ------------+-----------------+--------------+------------------------------
+ */
+
+#define NAVIGATOR_APPNAME "NetSurf"
+#define NAVIGATOR_APPCODENAME "NetSurf"
+%}
+
+binding navigator {
+    type js_libdom; /* the binding type */
+
+    interface Navigator; /* Web IDL interface to generate */
+
+}
+
+getter appName %{
+  jsret = JS_NewStringCopyZ(cx, NAVIGATOR_APPNAME);
+%}
+
+getter appCodeName %{
+  jsret = JS_NewStringCopyZ(cx, NAVIGATOR_APPCODENAME);
+%}
+
+getter appVersion %{
+   jsret = JS_NewStringCopyZ(cx, netsurf_version);
+%}
+
+getter language %{
+  const char *alang = nsoption_charp(accept_language);
+
+  if (alang != NULL) {
+    jsret = JS_NewStringCopyZ(cx, alang);
+  }
+
+%}
+
+getter platform %{
+	struct utsname *cutsname;
+
+	cutsname = malloc(sizeof(struct utsname));
+
+	if (cutsname != NULL) {
+		if (uname(cutsname) >= 0) {
+			char *platstr;
+			int platstrlen;
+
+			platstrlen = strlen(cutsname->sysname) + strlen(cutsname->machine) + 2;
+			platstr = malloc(platstrlen);
+			if (platstr != NULL) {
+				snprintf(platstr, platstrlen, "%s %s", cutsname->sysname, cutsname->machine);
+				jsret = JS_NewStringCopyN(cx, platstr, platstrlen - 1);
+				free(platstr);
+			} 
+		}
+		free(cutsname);
+	}
+%}
+
+getter userAgent %{
+  jsret = JS_NewStringCopyZ(cx, user_agent_string());
+%}

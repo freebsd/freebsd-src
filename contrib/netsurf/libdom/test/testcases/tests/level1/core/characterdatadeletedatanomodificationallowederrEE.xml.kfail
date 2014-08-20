@@ -1,0 +1,47 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+Copyright (c) 2001-2004 World Wide Web Consortium,
+(Massachusetts Institute of Technology, Institut National de
+Recherche en Informatique et en Automatique, Keio University). All
+Rights Reserved. This program is distributed under the W3C's Software
+Intellectual Property License. This program is distributed in the
+hope that it will be useful, but WITHOUT ANY WARRANTY; without even
+the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
+PURPOSE.
+See W3C License http://www.w3.org/Consortium/Legal/ for more details.
+--><!DOCTYPE test SYSTEM "dom1.dtd">
+
+<test xmlns="http://www.w3.org/2001/DOM-Test-Suite/Level-1" name="characterdatadeletedatanomodificationallowederrEE">
+<metadata>
+<title>characterdataDeleteDataNoModificationAllowedErrEE</title>
+<creator>Curt Arnold</creator>
+<description>
+Create an ent3 entity reference and call deleteData on a text child, should thrown a NO_MODIFICATION_ALLOWED_ERR. 
+</description>
+<date qualifier="created">2001-08-20</date>
+<subject resource="http://www.w3.org/TR/1998/REC-DOM-Level-1-19981001/level-one-core#xpointer(id('ID-258A00AF')/constant[@name='NO_MODIFICATION_ALLOWED_ERR'])"/>
+<subject resource="http://www.w3.org/TR/1998/REC-DOM-Level-1-19981001/level-one-core#ID-7C603781"/>
+<subject resource="http://www.w3.org/TR/1998/REC-DOM-Level-1-19981001/level-one-core#xpointer(id('ID-7C603781')/raises/exception[@name='DOMException']/descr/p[substring-before(.,':')='NO_MODIFICATION_ALLOWED_ERR'])"/>
+<subject resource="http://www.w3.org/TR/1998/REC-DOM-Level-1-19981001/level-one-core#ID-7C603781"/>
+<source resource="http://www.w3.org/2001/DOM-Test-Suite/level1/core/characterdatadeletedatanomodificationallowederr.xml"/>
+</metadata>
+<var name="doc" type="Document"/>
+<var name="genderList" type="NodeList"/>
+<var name="genderNode" type="Node"/>
+<var name="entText" type="Node"/>
+<var name="entReference" type="EntityReference"/>
+<var name="appendedChild" type="Node"/>
+<load var="doc" href="staff" willBeModified="true"/>
+<getElementsByTagName interface="Document" obj="doc" tagname="&quot;gender&quot;" var="genderList"/>
+<item interface="NodeList" obj="genderList" index="2" var="genderNode"/>
+<createEntityReference obj="doc" var="entReference" name='"ent3"'/>
+<assertNotNull actual="entReference" id="createdEntRefNotNull"/>	
+<appendChild obj="genderNode" newChild="entReference" var="appendedChild"/>
+<firstChild var="entText" obj="entReference" interface="Node"/>
+<assertNotNull actual="entText" id="entTextNotNull"/>
+<assertDOMException id="throw_NO_MODIFICATION_ALLOWED_ERR">
+<NO_MODIFICATION_ALLOWED_ERR>
+<deleteData obj="entText" offset="1" count="3"/>
+</NO_MODIFICATION_ALLOWED_ERR>
+</assertDOMException>
+</test>

@@ -1,0 +1,41 @@
+<?xml version="1.0" encoding="UTF-8"?><?xml-stylesheet href="test-to-html.xsl" type="text/xml"?>
+
+<!--
+
+Copyright (c) 2004 World Wide Web Consortium, 
+(Massachusetts Institute of Technology, Institut National de
+Recherche en Informatique et en Automatique, Keio University).  All 
+Rights Reserved.  This program is distributed under the W3C's Software
+Intellectual Property License.  This program is distributed in the 
+hope that it will be useful, but WITHOUT ANY WARRANTY; without even
+the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR 
+PURPOSE.  
+
+See W3C License http://www.w3.org/Consortium/Legal/ for more details.
+
+-->
+<!DOCTYPE test SYSTEM "dom2.dtd">
+<test xmlns="http://www.w3.org/2001/DOM-Test-Suite/Level-2" name="createDocumentType04">
+<metadata>
+<title>createDocumentType04</title>
+<creator>Curt Arnold</creator>
+<description>
+DOMImplementation.createDocumentType with an empty name should cause an INVALID_CHARACTER_ERR.
+</description>
+<date qualifier="created">2004-03-09</date>
+<subject resource="http://www.w3.org/TR/DOM-Level-2-Core/core#Level-2-Core-DOM-createDocType"/>
+<subject resource="http://www.w3.org/TR/DOM-Level-2-Core/core#xpointer(id('Level-2-Core-DOM-createDocType')/raises/exception[@name='DOMException']/descr/p[substring-before(.,':')='INVALID_CHARACTER_ERR'])"/>
+<subject resource="http://www.w3.org/Bugs/Public/show_bug.cgi?id=525"/>
+</metadata>
+<var name="publicId" type="DOMString" value='"http://www.example.com/"'/>
+<var name="systemId" type="DOMString" value='"myDoc.dtd"'/>
+<var name="qualifiedName" type="DOMString"/>
+<var name="docType" type="DocumentType" isNull="true"/>
+<var name="domImpl" type="DOMImplementation"/>
+<implementation var="domImpl"/>
+<assertDOMException id="throw_INVALID_CHARACTER_ERR">
+<INVALID_CHARACTER_ERR>
+<createDocumentType obj="domImpl" var="docType" qualifiedName='""' publicId="publicId" systemId="systemId"/>
+</INVALID_CHARACTER_ERR>
+</assertDOMException>
+</test>

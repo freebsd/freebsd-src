@@ -1,0 +1,21 @@
+/*
+ * This file is part of libdom.
+ * Licensed under the MIT License,
+ *                http://www.opensource.org/licenses/mit-license.php
+ * Copyright 2009 Bo Yang <struggleyb.nku.com>
+ */
+
+#ifndef dom_html_head_element_h_
+#define dom_html_head_element_h_
+
+#include <dom/html/html_element.h>
+
+typedef struct dom_html_head_element dom_html_head_element;
+
+dom_exception dom_html_head_element_get_profile(
+		struct dom_html_head_element *element, dom_string **profile);
+dom_exception dom_html_head_element_set_profile(
+		struct dom_html_head_element *element, dom_string *profile);
+
+#endif
+

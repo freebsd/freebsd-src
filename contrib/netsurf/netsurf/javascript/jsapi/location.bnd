@@ -1,0 +1,224 @@
+/* Binding to generate Location interface
+ *
+ * Copyright 2012 Vincent Sanders <vince@netsurf-browser.org>
+ *
+ * This file is part of NetSurf, http://www.netsurf-browser.org/
+ *
+ * Released under the terms of the MIT License,
+ *         http://www.opensource.org/licenses/mit-license
+ */
+
+webidlfile "html.idl";
+
+hdrcomment "Copyright 2012 Vincent Sanders <vince@netsurf-browser.org>";
+hdrcomment "This file is part of NetSurf, http://www.netsurf-browser.org/";
+hdrcomment "Released under the terms of the MIT License,";
+hdrcomment "        http://www.opensource.org/licenses/mit-license";
+
+preamble %{
+
+#include "desktop/browser.h"
+        
+#include "utils/config.h"
+#include "utils/log.h"
+#include "javascript/jsapi.h"
+#include "render/html_internal.h"
+
+#include "location.h"
+
+struct browser_window *jsapi_get_browser_window(JSContext *cx);
+
+%}
+
+binding location {
+	type js_libdom; /* the binding type */
+
+	interface Location; /* Web IDL interface to generate */
+
+	private "nsurl *" url;
+
+	property unshared href;
+
+}
+
+operation reload %{
+	struct browser_window *bw;
+	bw = jsapi_get_browser_window(cx);
+	if (bw != NULL) {
+		browser_window_reload(bw, false);
+	} else {
+		JSLOG("failed to get browser context");
+	}
+%}
+
+/* void Location::assign(DOMString url); */
+operation assign %{
+	nsurl *joined;
+	struct browser_window *bw;
+
+	bw = jsapi_get_browser_window(cx);
+	if (bw != NULL) {
+		nsurl_join(private->url, url, &joined);
+		browser_window_navigate(bw,
+					joined,
+					NULL,
+					BW_NAVIGATE_HISTORY,
+					NULL,
+					NULL,
+					NULL);
+		nsurl_unref(joined);
+	} else {
+		JSLOG("failed to get browser context");
+	}
+%}
+
+/* void Location::replace(DOMString url); */
+operation replace %{
+	nsurl *joined;
+	struct browser_window *bw;
+
+	bw = jsapi_get_browser_window(cx);
+	if (bw != NULL) {
+		nsurl_join(private->url, url, &joined);
+		browser_window_navigate(bw,
+					joined,
+					NULL,
+					BW_NAVIGATE_NONE,
+					NULL,
+					NULL,
+					NULL);
+		nsurl_unref(joined);
+	} else {
+		JSLOG("failed to get browser context");
+	}
+%}
+
+getter href %{
+	char *url_s = NULL;
+	size_t url_l;
+
+	if (!JSVAL_IS_VOID(JSAPI_PROP_RVAL(cx,vp))) {
+		/* already created - return it */
+		return JS_TRUE;
+	}
+
+	nsurl_get(private->url, NSURL_COMPLETE, &url_s, &url_l);
+	if (url_s != NULL) {
+		jsret = JS_NewStringCopyN(cx, url_s, url_l);
+		free(url_s);		
+	}
+%}
+
+setter href %{
+	JSString *url_jsstr = NULL;
+	int url_len = 0;
+	char *url = NULL;
+	struct browser_window *bw;
+	nsurl *joined;
+
+	bw = jsapi_get_browser_window(cx);
+
+	if (bw != NULL) {
+		url_jsstr = JS_ValueToString(cx, *vp);
+		if (url_jsstr != NULL) {
+			JSString_to_char(url_jsstr, url, url_len);
+
+			nsurl_join(private->url, url, &joined);
+
+			browser_window_navigate(bw,
+						joined,
+						NULL,
+						BW_NAVIGATE_NONE,
+						NULL,
+						NULL,
+						NULL);
+
+			nsurl_unref(joined);
+		} else {
+			JSLOG("failed to convert string value");
+		}
+	} else {
+		JSLOG("failed to get browser context");
+	}
+%}
+
+getter protocol %{
+	lwc_string *component;
+	component = nsurl_get_component(private->url, NSURL_SCHEME);
+	if (component != NULL) {
+		jsret = JS_NewStringCopyN(cx,
+					  lwc_string_data(component),
+					  lwc_string_length(component));
+		lwc_string_unref(component);
+	}
+%}
+
+getter host %{
+	lwc_string *component;
+	component = nsurl_get_component(private->url, NSURL_HOST);
+	if (component != NULL) {
+		jsret = JS_NewStringCopyN(cx,
+					  lwc_string_data(component),
+					  lwc_string_length(component));
+		lwc_string_unref(component);
+	}
+%}
+
+getter hostname %{
+	lwc_string *component;
+	component = nsurl_get_component(private->url, NSURL_HOST);
+	if (component != NULL) {
+		jsret = JS_NewStringCopyN(cx,
+					  lwc_string_data(component),
+					  lwc_string_length(component));
+		lwc_string_unref(component);
+	}
+
+%}
+
+getter port %{
+	lwc_string *component;
+	component = nsurl_get_component(private->url, NSURL_PORT);
+	if (component != NULL) {
+		jsret = JS_NewStringCopyN(cx,
+					  lwc_string_data(component),
+					  lwc_string_length(component));
+		lwc_string_unref(component);
+	}
+
+%}
+
+getter pathname %{
+	lwc_string *component;
+	component = nsurl_get_component(private->url, NSURL_PATH);
+	if (component != NULL) {
+		jsret = JS_NewStringCopyN(cx,
+					  lwc_string_data(component),
+					  lwc_string_length(component));
+		lwc_string_unref(component);
+	}
+
+%}
+
+getter search %{
+	lwc_string *component;
+	component = nsurl_get_component(private->url, NSURL_QUERY);
+	if (component != NULL) {
+		jsret = JS_NewStringCopyN(cx,
+					  lwc_string_data(component),
+					  lwc_string_length(component));
+		lwc_string_unref(component);
+	}
+
+%}
+
+getter hash %{
+	lwc_string *component;
+	component = nsurl_get_component(private->url, NSURL_FRAGMENT);
+	if (component != NULL) {
+		jsret = JS_NewStringCopyN(cx,
+					  lwc_string_data(component),
+					  lwc_string_length(component));
+		lwc_string_unref(component);
+	}
+%}

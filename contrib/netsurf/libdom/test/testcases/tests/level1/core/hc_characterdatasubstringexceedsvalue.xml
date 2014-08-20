@@ -1,0 +1,46 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+Copyright (c) 2001 World Wide Web Consortium,
+(Massachusetts Institute of Technology, Institut National de
+Recherche en Informatique et en Automatique, Keio University). All
+Rights Reserved. This program is distributed under the W3C's Software
+Intellectual Property License. This program is distributed in the
+hope that it will be useful, but WITHOUT ANY WARRANTY; without even
+the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
+PURPOSE.
+See W3C License http://www.w3.org/Consortium/Legal/ for more details.
+--><!DOCTYPE test SYSTEM "dom1.dtd">
+
+<test xmlns="http://www.w3.org/2001/DOM-Test-Suite/Level-1" name="hc_characterdatasubstringexceedsvalue">
+<metadata>
+<title>hc_characterdataSubStringExceedsValue</title>
+<creator>Curt Arnold</creator>
+<description>
+    If the sum of the "offset" and "count" exceeds the
+   "length" then the "substringData(offset,count)" method
+   returns all the characters to the end of the data. 
+   
+   Retrieve the character data from the second child 
+   of the first employee and access part of the data 
+   by using the substringData(offset,count) method
+   with offset=9 and count=10.  The method should return 
+   the substring "Martin" since offset+count &gt; length
+   (19 &gt; 15).
+</description>
+
+<date qualifier="created">2002-06-09</date>
+<!--CharacterData.substringData-->
+<subject resource="http://www.w3.org/TR/1998/REC-DOM-Level-1-19981001/level-one-core#ID-6531BCCF"/>
+</metadata>
+<var name="doc" type="Document"/>
+<var name="elementList" type="NodeList"/>
+<var name="nameNode" type="Node"/>
+<var name="child" type="CharacterData"/>
+<var name="substring" type="DOMString"/>
+<load var="doc" href="hc_staff" willBeModified="false"/>
+<getElementsByTagName interface="Document" obj="doc" tagname='"strong"' var="elementList"/>
+<item interface="NodeList" obj="elementList" index="0" var="nameNode"/>
+<firstChild interface="Node" obj="nameNode" var="child"/>
+<substringData obj="child" var="substring" offset="9" count="10"/>
+<assertEquals actual="substring" expected='"Martin"' id="characterdataSubStringExceedsValueAssert" ignoreCase="false"/>
+</test>

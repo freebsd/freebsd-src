@@ -1,0 +1,59 @@
+<?xml version="1.0" encoding="UTF-8"?><?xml-stylesheet href="test-to-html.xsl" type="text/xml"?>
+
+<!--
+
+Copyright (c) 2001-2004 World Wide Web Consortium, 
+(Massachusetts Institute of Technology, Institut National de
+Recherche en Informatique et en Automatique, Keio University).  All 
+Rights Reserved.  This program is distributed under the W3C's Software
+Intellectual Property License.  This program is distributed in the 
+hope that it will be useful, but WITHOUT ANY WARRANTY; without even
+the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR 
+PURPOSE.  
+
+See W3C License http://www.w3.org/Consortium/Legal/ for more details.
+
+-->
+
+<!DOCTYPE test SYSTEM "dom3.dtd">
+<test xmlns="http://www.w3.org/2001/DOM-Test-Suite/Level-3" name="nodereplacechild14">
+<metadata>
+<title>nodereplacechild14</title>
+<creator>IBM</creator>
+<description>
+	The method replaceChild replaces the child node oldChild with newChild in the list of 
+	children, and returns the oldChild node.
+
+	Using replaceChild on the documentElement of a newly created Document node, attempt to replace an
+        element child of this documentElement node with a child that was imported from another document.  
+        Verify the nodeName of the replaced element node. 
+</description>
+<contributor>Neil Delima</contributor>
+<date qualifier="created">2002-06-10</date>
+<subject resource="http://www.w3.org/TR/2004/REC-DOM-Level-3-Core-20040407/core#ID-785887307"/>
+</metadata>
+<implementationAttribute name="namespaceAware" value="true"/>
+<var name="doc" type="Document"/>
+<var name="newDoc" type="Document"/>
+<var name="docElem" type="Element"/>
+<var name="elem" type="Element"/>
+<var name="elem2" type="Element"/>
+<var name="imported" type="Node"/>
+<var name="replaced" type="Element"/>
+<var name="domImpl" type="DOMImplementation"/>
+<var name="nodeName" type="DOMString"/>
+<var name="appendedChild" type="Node"/>
+<var name="nullDocType" type="DocumentType" isNull="true"/>
+<load var="doc" href="hc_staff" willBeModified="false"/>
+<createElementNS var="elem" obj="doc" namespaceURI='"http://www.w3.org/DOM/Test"' qualifiedName='"dom3:doc1elem"'/>
+<implementation var="domImpl" obj="doc"/>
+<createDocument var="newDoc" obj="domImpl" qualifiedName='"dom3:doc"'  namespaceURI='"http://www.w3.org/DOM/test"' doctype="nullDocType"/>
+<createElementNS var="elem2" obj="newDoc" namespaceURI='"http://www.w3.org/DOM/Test"' qualifiedName='"dom3:doc2elem"'/>
+<importNode var="imported" obj="newDoc" importedNode="elem" deep="true"/>
+<documentElement var="docElem" obj="newDoc" interface="Document"/>
+<appendChild obj="docElem" var="appendedChild" newChild="imported"/>
+<appendChild obj="docElem" var="appendedChild" newChild="elem2"/>
+<replaceChild var="replaced" obj="docElem" oldChild="elem2" newChild="imported"/>
+<nodeName var="nodeName" obj="replaced"/>
+<assertEquals actual="nodeName" expected='"dom3:doc2elem"' id="nodereplacechild14" ignoreCase="false"/>
+</test>

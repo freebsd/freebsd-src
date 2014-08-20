@@ -1,0 +1,110 @@
+#data
+<!DOCTYPE html><body></body></html><!--x-->
+#errors
+#comments
+This tests comment insertion in "after after body".
+#document
+| <!DOCTYPE html>
+| <html>
+|   <head>
+|   <body>
+| <!-- x -->
+
+#data
+<!DOCTYPE html><body></body></html><!DOCTYPE foo>
+#errors
+Unexpected DOCTYPE: <!DOCTYPE foo>
+#comments
+This tests DOCTYPE ignorance in "after after body".
+This handling should be identical to "in body".
+#document
+| <!DOCTYPE html>
+| <html>
+|   <head>
+|   <body>
+
+#data
+<!DOCTYPE html><body></body></html>
+
+#errors
+#comments
+This tests that whitespace in "after after body" is appended to the current
+node, which in "after after body" is always the <body> element.
+#document
+| <!DOCTYPE html>
+| <html>
+|   <head>
+|   <body>
+|     "
+"
+
+#data
+<!DOCTYPE html><body></body></html><html>
+#errors
+Second <html> tag not allowed.
+#comments
+This tests that no new <html> tag is added to the document.
+This handling should be identical to "in body".
+#document
+| <!DOCTYPE html>
+| <html>
+|   <head>
+|   <body>
+
+#data
+<!DOCTYPE html><body></body></html><html bgcolor="red">
+#errors
+Second <html> tag not allowed.
+#comments
+This tests that the attributes on <html> tags in "after after body" are added
+to the top element on the stack of open elements (e.g. the root <html> tag.)
+This handling should be identical to "in body".
+#document
+| <!DOCTYPE html>
+| <html>
+|   bgcolor="red"
+|   <head>
+|   <body>
+
+#data
+<!DOCTYPE html><body></body></html>xxx
+#errors
+Unexpected text past </html> tag.
+#comments
+This tests that "anything else" causes switching back to "in body" and
+reprocessing of the token.  (Character data)
+#document
+| <!DOCTYPE html>
+| <html>
+|   <head>
+|   <body>
+|     "xxx"
+
+#data
+<!DOCTYPE html><body></body></html><table>
+#errors
+Unexpected tag after </html> tag.
+EOF in "in table" mode.
+#comments
+This tests that "anything else" causes switching back to "in body" and
+reprocessing of the token.  (Start tag)
+#document
+| <!DOCTYPE html>
+| <html>
+|   <head>
+|   <body>
+|     <table>
+
+#data
+<!DOCTYPE html><body></body></html></table>
+#errors
+Unexpected end tag after </html> tag.
+End tag with no matching start tag.
+#comments
+This tests that "anything else" causes switching back to "in body" and
+reprocessing of the token.  (End tag)
+#document
+| <!DOCTYPE html>
+| <html>
+|   <head>
+|   <body>

@@ -1,0 +1,37 @@
+/* Binding to generate event interface
+ *
+ * Copyright 2012 Vincent Sanders <vince@netsurf-browser.org>
+ *
+ * This file is part of NetSurf, http://www.netsurf-browser.org/
+ *
+ * Released under the terms of the MIT License,
+ *         http://www.opensource.org/licenses/mit-license
+ */
+
+webidlfile "dom.idl";
+
+hdrcomment "Copyright 2012 Vincent Sanders <vince@netsurf-browser.org>";
+hdrcomment "This file is part of NetSurf, http://www.netsurf-browser.org/";
+hdrcomment "Released under the terms of the MIT License,";
+hdrcomment "        http://www.opensource.org/licenses/mit-license";
+
+preamble %{
+#include <stdlib.h>
+
+#include <dom/dom.h>
+        
+#include "utils/config.h"
+#include "utils/log.h"
+#include "javascript/jsapi.h"
+
+#include "event.h"
+
+%}
+
+binding node {
+    type js_libdom; /* the binding type */
+
+    interface Event; /* Web IDL interface to generate */
+
+    private "dom_event *" event;
+}

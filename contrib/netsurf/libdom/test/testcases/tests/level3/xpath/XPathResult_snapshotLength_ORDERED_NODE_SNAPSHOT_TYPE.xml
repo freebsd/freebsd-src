@@ -1,0 +1,98 @@
+<?xml version="1.0" encoding="iso-8859-1"?>
+<?xml-stylesheet href="test-to-html.xsl" type="text/xml"?>
+<!--
+ Copyright (c) 2003 World Wide Web Consortium,
+
+ (Massachusetts Institute of Technology, European Research Consortium for
+ Informatics and Mathematics, Keio University). All Rights Reserved. This
+ work is distributed under the W3C(r) Software License [1] in the hope that
+ it will be useful, but WITHOUT ANY WARRANTY; without even the implied
+ warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+
+ [1] http://www.w3.org/Consortium/Legal/2002/copyright-software-20021231
+-->
+
+<!DOCTYPE test SYSTEM "dom3.dtd" [
+  <!ENTITY % entities SYSTEM "dom3xpathents.ent">
+  %entities;
+]>
+<test xmlns="&level3;" name="XPathResult_snapshotLength_ORDERED_NODE_SNAPSHOT_TYPE">
+  <metadata>
+    <title>XPathResult_snapshotLength_ORDERED_NODE_SNAPSHOT_TYPE</title>
+    <creator>Bob Clary</creator>
+    <description>
+    Create an XPathResult ORDERED_NODE_SNAPSHOT_TYPE XPathResultType for 
+    expression /staff/employee/employeeId/text() checking that:
+    XPathResult.snapshotLength is correct value.
+    </description>
+    <date qualifier="created">2003-12-02</date>
+    <subject resource="&spec;#XPathResult-snapshot-length"/>
+    <subject resource="&spec;#XPathResult-snapshotItem"/>
+    <subject resource="&spec;#XPathResult"/>
+    <subject resource="&spec;#XPathResultType"/>
+    <subject resource="&spec;#XPathEvaluator-createNSResolver"/>
+  </metadata>
+
+  <!-- Standard Variables -->
+
+  <var name="ANY_TYPE"                     type="short" value="0"/>
+  <var name="NUMBER_TYPE"                  type="short" value="1"/>
+  <var name="STRING_TYPE"                  type="short" value="2"/>
+  <var name="BOOLEAN_TYPE"                 type="short" value="3"/>
+  <var name="UNORDERED_NODE_ITERATOR_TYPE" type="short" value="4"/>
+  <var name="ORDERED_NODE_ITERATOR_TYPE"   type="short" value="5"/>
+  <var name="UNORDERED_NODE_SNAPSHOT_TYPE" type="short" value="6"/>
+  <var name="ORDERED_NODE_SNAPSHOT_TYPE"   type="short" value="7"/>
+  <var name="ANY_UNORDERED_NODE_TYPE"      type="short" value="8"/>
+  <var name="FIRST_ORDERED_NODE_TYPE"      type="short" value="9"/>
+
+  <var name="doc"                 type="Document" />
+  <var name="resolver"            type="XPathNSResolver" />
+  <var name="evaluator"           type="XPathEvaluator" />
+  <var name="contextNode"         type="Node" />
+  <var name="inresult"            type="XPathResult" isNull="true"/>
+  <var name="outresult"           type="XPathResult" isNull="true"/>
+
+  <!-- Inputs -->
+
+  <var name="expression"  type="DOMString" value="&quot;/staff/employee/employeeId/text()&quot;"/>
+  <var name="xpathType"  type="short"     value="ORDERED_NODE_SNAPSHOT_TYPE" />
+
+  <!-- Test Variables -->
+
+  <var name="snapshotItem" type="Node"/>
+  <var name="snapshotLength" type="int"/>
+
+  <!-- Load Test Document -->
+
+  <load var="doc" href="staff" willBeModified="false"/>
+
+  <!-- Get XPathResult -->
+
+  <createXPathEvaluator var="evaluator" document="doc"/>
+
+  <createNSResolver obj="evaluator" var="resolver" nodeResolver="doc"/>
+
+  <assign var="contextNode" value="doc"/>
+
+  <evaluate obj="evaluator"
+            var="outresult"
+            expression="expression"
+            contextNode="contextNode"
+            resolver="resolver"
+            type="xpathType"
+            result="inresult"
+            interface="XPathEvaluator"
+            />
+
+  <snapshotLength obj="outresult"
+                  var="snapshotLength"
+	                />
+
+  <assertEquals  id="same" 
+               actual="snapshotLength"
+               expected="5"
+	       ignoreCase="false"
+      	       />
+
+</test>

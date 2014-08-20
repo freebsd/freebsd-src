@@ -1,0 +1,46 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<!--
+
+Copyright (c) 2001 World Wide Web Consortium, 
+(Massachusetts Institute of Technology, Institut National de
+Recherche en Informatique et en Automatique, Keio University).  All 
+Rights Reserved.  This program is distributed under the W3C's Software
+Intellectual Property License.  This program is distributed in the 
+hope that it will be useful, but WITHOUT ANY WARRANTY; without even
+the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR 
+PURPOSE.  
+
+See W3C License http://www.w3.org/Consortium/Legal/ for more details.
+
+-->
+<!DOCTYPE test SYSTEM "dom2.dtd">
+<test xmlns="http://www.w3.org/2001/DOM-Test-Suite/Level-2" name="HTMLOptionsCollection01">
+<metadata>
+<title>HTMLOptionsCollection01</title>
+<creator>NIST</creator>
+<description>
+    An HTMLOptionsCollection is a list of nodes representing HTML option
+    element. 
+    The length attribute specifies the length or size of the list.
+
+    Retrieve the first SELECT element and create a HTMLOptionsCollection
+    of the OPTION elements.  Check the size of the length of OPTION elements.
+</description>
+<contributor>Rick Rivello</contributor>
+<date qualifier="created">2002-08-01</date>
+<subject resource="http://www.w3.org/TR/DOM-Level-2-HTML/html#HTMLOptionsCollection-length"/>
+</metadata>
+<var name="nodeList" type="NodeList"/>
+<var name="testNode" type="Node"/>
+<var name="optionsList" type="HTMLOptionsCollection"/>
+<var name="vlength" type="int"/>
+<var name="doc" type="Document"/>
+<load var="doc" href="optionscollection" willBeModified="false"/>
+<getElementsByTagName interface="Document" obj="doc" var="nodeList" tagname='"select"'/>
+<assertSize collection="nodeList" size="2" id="Asize"/>
+<item interface="NodeList" obj="nodeList" var="testNode" index="0"/>
+<options interface="HTMLSelectElement" obj="testNode" var="optionsList"/>
+<length interface="HTMLOptionsCollection" obj="optionsList" var="vlength"/>
+<assertEquals actual="vlength" expected="5" id="lengthLink" ignoreCase="false"/>
+</test>

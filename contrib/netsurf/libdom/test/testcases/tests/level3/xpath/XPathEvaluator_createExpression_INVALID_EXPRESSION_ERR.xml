@@ -1,0 +1,50 @@
+<?xml version="1.0" encoding="iso-8859-1"?>
+<?xml-stylesheet href="test-to-html.xsl" type="text/xml"?>
+<!--
+ Copyright (c) 2003 World Wide Web Consortium,
+
+ (Massachusetts Institute of Technology, European Research Consortium for
+ Informatics and Mathematics, Keio University). All Rights Reserved. This
+ work is distributed under the W3C(r) Software License [1] in the hope that
+ it will be useful, but WITHOUT ANY WARRANTY; without even the implied
+ warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+
+ [1] http://www.w3.org/Consortium/Legal/2002/copyright-software-20021231
+-->
+
+<!DOCTYPE test SYSTEM "dom3.dtd" [
+  <!ENTITY % entities SYSTEM "dom3xpathents.ent">
+  %entities;
+]>
+<test xmlns="&level3;" name="XPathEvaluator_createExpression_INVALID_EXPRESSION_ERR">
+  <metadata>
+    <title>XPathEvaluator_createExpression_INVALID_EXPRESSION_ERR</title>
+    <creator>Philippe Le Hégaret</creator>
+    <description>
+      The XPathEvaluator can create a "XPathExpression" using the method
+      "createExpression(expression, resolver)".
+      
+      Retrieve the DOM document on which the
+      'createExpression("12a", null)' method is
+      invoked with the document element.  The method should fail to create
+      pre-compiled expression and throws
+      XPathException.INVALID_EXPRESSION_ERR
+      since "12a" is not an XPath expression.
+    </description>
+    <date qualifier="created">2002-04-26</date>
+    <subject resource="&spec;#XPathEvaluator-createExpression"/>
+  </metadata>
+  <var name="nullNSResolver" type="XPathNSResolver" isNull="true"/>  
+  &vars;
+  <var name="exp" type="XPathExpression"/>
+
+  &findXPathEvaluator;
+  
+  <assertXPathException id="throw_INVALID_EXPRESSION_ERR">
+    <INVALID_EXPRESSION_ERR>
+      <createExpression obj='xpEvaluator' var='exp'
+	expression='&quot;12a&quot;' resolver='nullNSResolver' />
+    </INVALID_EXPRESSION_ERR>
+  </assertXPathException>
+
+</test>

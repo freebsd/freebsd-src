@@ -1,0 +1,16 @@
+--------------------------------------------------------------------------------
+  NetSurf: JavaScript                                             8 April 2013
+--------------------------------------------------------------------------------
+
+  NetSurf may be built with primitive support for JavaScript.
+
+  | Note: NetSurf's JavaScript handling is currently:
+  |
+  |         * incomplete,
+  |         * unsupported,
+  |         * disabled by default.
+
+  To test it, you may build NetSurf with JavaScript and ensure NetSurf's
+  "enable_javascript" run-time configuration option is set to "1".  To do this
+  you may set the option in the frontend's settings GUI, create/edit a Choices
+  file, or pass --enable_javascript=1 to the executable.

@@ -1,0 +1,24 @@
+## Unknown combinator
+
+#data
+E & F {}
+#errors
+#expected
+#reset
+
+## Unknown pseudo
+
+#data
+E:foobar {}
+#errors
+#expected
+#reset
+
+## Pseudo element in non-terminal simple selector
+
+#data
+E:first-letter > B {}
+#errors
+#expected
+#reset
+

@@ -1,0 +1,246 @@
+# Test data for nth-* expressions
+
+# Odd and Even
+
+#data
+E:nth-child(odd) {}
+#errors
+#expected
+| 1 E:nth-child(2n+1)
+#reset
+
+#data
+E:nth-child(even) {}
+#errors
+#expected
+| 1 E:nth-child(2n+0)
+#reset
+
+# Basic numbers
+
+#data
+E:nth-child(1) {}
+#errors
+#expected
+| 1 E:nth-child(0n+1)
+#reset
+
+#data
+E:nth-child(-1) {}
+#errors
+#expected
+| 1 E:nth-child(0n+-1)
+#reset
+
+# IDENT ws [ NUMBER ws ]?
+
+#data
+E:nth-child(n) {}
+#errors
+#expected
+| 1 E:nth-child(1n+0)
+#reset
+
+#data
+E:nth-child(-n) {}
+#errors
+#expected
+| 1 E:nth-child(-1n+0)
+#reset
+
+#data
+E:nth-child(-n- 1) {}
+#errors
+#expected
+| 1 E:nth-child(-1n+-1)
+#reset
+
+#data
+E:nth-child(-n-1) {}
+#errors
+#expected
+| 1 E:nth-child(-1n+-1)
+#reset
+
+# DIMENSION ws [ NUMBER ws ]?
+
+#data
+E:nth-child(2n) {}
+#errors
+#expected
+| 1 E:nth-child(2n+0)
+#reset
+
+#data
+E:nth-child(-2n) {}
+#errors
+#expected
+| 1 E:nth-child(-2n+0)
+#reset
+
+#data
+E:nth-child(2n- 1) {}
+#errors
+#expected
+| 1 E:nth-child(2n+-1)
+#reset
+
+#data
+E:nth-child(-2n- 1) {}
+#errors
+#expected
+| 1 E:nth-child(-2n+-1)
+#reset
+
+#data
+E:nth-child(2n-1) {}
+#errors
+#expected
+| 1 E:nth-child(2n+-1)
+#reset
+
+#data
+E:nth-child(-2n-1) {}
+#errors
+#expected
+| 1 E:nth-child(-2n+-1)
+#reset
+
+# IDENT ws CHAR ws NUMBER ws
+
+#data
+E:nth-child(n - 1) {}
+#errors
+#expected
+| 1 E:nth-child(1n+-1)
+#reset
+
+#data
+E:nth-child(n+1) {}
+#errors
+#expected
+| 1 E:nth-child(1n+1)
+#reset
+
+#data
+E:nth-child(n + 1) {}
+#errors
+#expected
+| 1 E:nth-child(1n+1)
+#reset
+
+# DIMENSION ws CHAR ws NUMBER ws
+
+#data
+E:nth-child(2n - 1) {}
+#errors
+#expected
+| 1 E:nth-child(2n+-1)
+#reset
+
+#data
+E:nth-child(2n+1) {}
+#errors
+#expected
+| 1 E:nth-child(2n+1)
+#reset
+
+#data
+E:nth-child(2n + 1) {}
+#errors
+#expected
+| 1 E:nth-child(2n+1)
+#reset
+
+# Illegal inputs
+
+#data
+E:nth-child(n--1) {}
+#errors
+#expected
+#reset
+
+#data
+E:nth-child(n-+1) {}
+#errors
+#expected
+#reset
+
+#data
+E:nth-child(n- -1) {}
+#errors
+#expected
+#reset
+
+#data
+E:nth-child(n- +1) {}
+#errors
+#expected
+#reset
+
+#data
+E:nth-child(n + -1) {}
+#errors
+#expected
+#reset
+
+#data
+E:nth-child(n - +1) {}
+#errors
+#expected
+#reset
+
+#data
+E:nth-child(2n--1) {}
+#errors
+#expected
+#reset
+
+#data
+E:nth-child(2n-+1) {}
+#errors
+#expected
+#reset
+
+#data
+E:nth-child(2n- -1) {}
+#errors
+#expected
+#reset
+
+#data
+E:nth-child(2n- +1) {}
+#errors
+#expected
+#reset
+
+#data
+E:nth-child(2n + -1) {}
+#errors
+#expected
+#reset
+
+#data
+E:nth-child(2n - +1) {}
+#errors
+#expected
+#reset
+
+#data
+E:nth-child(3 n) {}
+#errors
+#expected
+#reset
+
+#data
+E:nth-child(+2 n) {}
+#errors
+#expected
+#reset
+
+#data
+E:nth-child(+ 2) {}
+#errors
+#expected
+#reset
+

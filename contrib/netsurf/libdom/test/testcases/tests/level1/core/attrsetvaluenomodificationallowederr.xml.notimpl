@@ -1,0 +1,69 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+Copyright (c) 2001-2004 World Wide Web Consortium,
+(Massachusetts Institute of Technology, Institut National de
+Recherche en Informatique et en Automatique, Keio University). All
+Rights Reserved. This program is distributed under the W3C's Software
+Intellectual Property License. This program is distributed in the
+hope that it will be useful, but WITHOUT ANY WARRANTY; without even
+the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
+PURPOSE.
+See W3C License http://www.w3.org/Consortium/Legal/ for more details.
+--><!DOCTYPE test SYSTEM "dom1.dtd">
+
+<test xmlns="http://www.w3.org/2001/DOM-Test-Suite/Level-1" name="attrsetvaluenomodificationallowederr">
+<metadata>
+<title>attrSetValueNoModificationAllowedErr</title>
+<creator>NIST</creator>
+<description>
+    The "setValue()" method for an attribute causes the 
+  DOMException NO_MODIFICATION_ALLOWED_ERR to be raised
+  if the node is readonly.
+  Obtain the children of the THIRD "gender" element.  The elements
+  content is an entity reference.  Get the "domestic" attribute
+  from the entity reference and execute the "setValue()" method.
+  This causes a NO_MODIFICATION_ALLOWED_ERR DOMException to be thrown.
+</description>
+<contributor>Mary Brady</contributor>
+<date qualifier="created">2001-08-17</date>
+<subject resource="http://www.w3.org/TR/2000/WD-DOM-Level-1-20000929/level-one-core#xpointer(id('ID-258A00AF')/constant[@name='NO_MODIFICATION_ALLOWED_ERR'])"/>
+<subject resource="http://www.w3.org/TR/2000/WD-DOM-Level-1-20000929/level-one-core#ID-221662474"/>
+<subject resource="http://www.w3.org/TR/2000/WD-DOM-Level-1-20000929/level-one-core#xpointer(id('ID-221662474')/setraises/exception[@name='DOMException']/descr/p[substring-before(.,':')='NO_MODIFICATION_ALLOWED_ERR'])"/>
+<subject resource="http://www.w3.org/DOM/updates/REC-DOM-Level-1-19981001-errata.html"/>
+<subject resource="http://www.w3.org/TR/1998/REC-DOM-Level-1-19981001/level-one-core#ID-221662474"/>
+</metadata>
+<implementationAttribute name="expandEntityReferences" value="false"/>
+<var name="doc" type="Document"/>
+<var name="genderList" type="NodeList"/>
+<var name="gender" type="Node"/>
+<var name="genList" type="NodeList"/>
+<var name="gen" type="Node"/>
+<var name="gList" type="NodeList"/>
+<var name="g" type="Node"/>
+<var name="attrList" type="NamedNodeMap"/>
+<var name="attrNode" type="Attr"/>
+<load var="doc" href="staff" willBeModified="true"/>
+<getElementsByTagName interface="Document" obj="doc" var="genderList" tagname="&quot;gender&quot;"/>
+<item interface="NodeList" obj="genderList" var="gender" index="2"/>
+<assertNotNull actual="gender" id="genderNotNull"/>
+<childNodes obj="gender" var="genList"/>
+<item interface="NodeList" obj="genList" var="gen" index="0"/>
+<assertNotNull actual="gen" id="genderFirstChildNotNull"/>
+<childNodes obj="gen" var="gList"/>
+<item interface="NodeList" obj="gList" var="g" index="0"/>
+<assertNotNull actual="g" id="genderFirstGrandchildNotNull"/>
+<attributes obj="g" var="attrList"/>
+<assertNotNull actual="attrList" id="attributesNotNull"/>
+<getNamedItem obj="attrList" var="attrNode" name='"domestic"'/>
+<assertNotNull actual="attrNode" id="attrNotNull"/>
+<assertDOMException id="setValue_throws_NO_MODIFICATION">
+    <NO_MODIFICATION_ALLOWED_ERR>
+        <value interface="Attr" obj="attrNode" value='"newvalue"'/>
+    </NO_MODIFICATION_ALLOWED_ERR>
+</assertDOMException>
+<assertDOMException id="setNodeValue_throws_NO_MODIFICATION">
+    <NO_MODIFICATION_ALLOWED_ERR>
+        <nodeValue interface="Node" obj="attrNode" value='"newvalue2"'/>
+    </NO_MODIFICATION_ALLOWED_ERR>
+</assertDOMException>
+</test>

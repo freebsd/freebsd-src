@@ -1,0 +1,127 @@
+--------------------------------------------------------------------------------
+  Build Instructions for BeOS and Haiku NetSurf               13 February 2010
+--------------------------------------------------------------------------------
+
+  This document provides instructions for building the BeOS and Haiku version 
+  of NetSurf and provides guidance on obtaining NetSurf's build dependencies.
+
+  BeOS NetSurf has been tested on Zeta only for now. There are still some 
+  issues to sort out for other BeOS versions.
+
+
+  There are still pending fixes against SVN before it can be build from BeOS 
+  or Haiku.
+
+
+  Building and executing NetSurf
+================================
+
+  To build NetSurf on a BeOS or Haiku, provided you have the relevant
+  build dependencies installed, simply run:
+
+      $ make
+
+  If that produces errors, you probably don't have some of NetSurf's build
+  dependencies installed. See "Obtaining NetSurf's dependencies" below. You
+  may need to "make clean" before attempting to build after installing the 
+  dependencies. Also note BeOS has an old make command that won't work, see 
+  below.
+
+
+  Obtaining NetSurf's dependencies
+==================================
+
+  Many of NetSurf's dependencies are either installed or available for BeOS and 
+  Haiku. The remainder must be installed manually.
+
+  The NetSurf project's libraries
+---------------------------------
+
+  The NetSurf project has developed several libraries which are required by
+  the browser.  To fetch each of these libraries, run the appropriate commands
+  from the Docs/LIBRARIES file.
+
+  To build and install these libraries, simply enter each of their directories
+  and run:
+  
+      $ make install
+
+  | Note: We advise enabling iconv() support in libparserutils, which vastly
+  |       increases the number of supported character sets.  To do this,
+  |       create a file called Makefile.config.override in the libparserutils
+  |       directory, containing the following line:
+  |
+  |           CFLAGS += -DWITH_ICONV_FILTER
+  |
+  |       For more information, consult the libparserutils README file.
+
+  TODO: add some more here.
+
+  rc
+----
+
+  Building NetSurf needs the Haiku resource compiler (rc), that allows 
+  importing files from resource definitions (.rdef).
+
+      $ cd <haiku-trunk-directory>
+      $ TARGET_PLATFORM=r5 jam -q rc
+      $ cp generated/objects/dano/x86/release/tools/rc/rc  /boot/home/config/bin/
+
+
+  GNU make 3.81
+---------------
+
+  BeOS has an old make tool, which won't work when building NetSurf.
+  Haiku has 3.81 which is the one that works. For BeOS, one has to replace 
+  the original make with one built from the Haiku tree, or install it as gmake:
+
+      $ cd <haiku-trunk-directory>
+      $ TARGET_PLATFORM=r5 jam -q make
+      $ cp generated/objects/r5/x86/release/bin/make/make /boot/home/config/bin/gmake
+
+
+  cURL
+------
+
+  NetSurf uses cURL to fetch files from the network. 
+  There is a patch against the official version on HaikuPorts.
+
+  TODO
+
+
+  libpng
+--------
+
+  NetSurf uses libPNG to display PNG files.
+  It should build just fine on BeOS.
+
+
+  libjpeg
+---------
+
+  NetSurf uses libjpeg to display JPEG files.
+  It should already be available in your dev kit.
+
+
+  OpenSSL
+----------
+
+  NetSurf uses OpenSSL for encrypted transfers.
+
+
+  General requirements
+----------------------
+
+  There is currently an issue on stdbool.h (unsigned char bool vs enum bool) 
+  which needs to be fixed, for now one can use the Haiku version of the header 
+  and copy it over the gcc-provided one.
+      $ cd <haiku-trunk-directory>
+      $ cp headers/build/gcc-2.95.3/stdbool.h /boot/develop/tools/gnupro/lib/gcc-lib/i586-pc-beos/2.95.3-beos-060710/include/stdbool.h
+
+
+  NetSurf might build on BeOS R5 but probably won't work on anything else than 
+  BONE. 
+
+  This will pull in loads of things, like all the GTK dev libraries, the PNG
+  and JPEG libraries, colour management libraries, zlib, OpenSSL etc that
+  NetSurf also depends on.

@@ -1,0 +1,10 @@
+prefix=PREFIX
+exec_prefix=${prefix}
+libdir=${exec_prefix}/LIBDIR
+includedir=${prefix}/include
+
+Name: libnsbmp
+Description: Provides bmp loading and conversion
+Version: VERSION
+Libs: -L${libdir} -lnsbmp
+Cflags: -I${includedir}/

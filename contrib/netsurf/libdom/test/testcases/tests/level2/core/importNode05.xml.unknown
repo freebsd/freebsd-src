@@ -1,0 +1,62 @@
+<?xml version="1.0" encoding="UTF-8"?><?xml-stylesheet href="test-to-html.xsl" type="text/xml"?>
+
+<!--
+
+Copyright (c) 2001 World Wide Web Consortium, 
+(Massachusetts Institute of Technology, Institut National de
+Recherche en Informatique et en Automatique, Keio University).  All 
+Rights Reserved.  This program is distributed under the W3C's Software
+Intellectual Property License.  This program is distributed in the 
+hope that it will be useful, but WITHOUT ANY WARRANTY; without even
+the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR 
+PURPOSE.  
+
+See W3C License http://www.w3.org/Consortium/Legal/ for more details.
+
+-->
+<!DOCTYPE test SYSTEM "dom2.dtd">
+<test xmlns="http://www.w3.org/2001/DOM-Test-Suite/Level-2" name="importNode05">
+<metadata>
+<title>importNode05</title>
+<creator>NIST</creator>
+<description>
+    The "importNode(importedNode,deep)" method for a 
+   Document should import the given importedNode into that Document.
+   The importedNode is of type Element.
+   
+   Retrieve element "emp:address" from staffNS.xml document.
+   Invoke method importNode(importedNode,deep) on this document
+   with importedNode being the element from above and deep is false.
+   Method should return an element node whose name matches "emp:address" 
+   and whose children are not imported. The returned node should 
+   belong to this document whose systemId is "staff.dtd"
+</description>
+<contributor>Mary Brady</contributor>
+<date qualifier="created">2001-08-17</date>
+<subject resource="http://www.w3.org/TR/DOM-Level-2-Core/core#Core-Document-importNode"/>
+</metadata>
+<var name="doc" type="Document"/>
+<var name="aNewDoc" type="Document"/>
+<var name="element" type="Element"/>
+<var name="aNode" type="Node"/>
+<var name="hasChild" type="boolean"/>
+<var name="ownerDocument" type="Document"/>
+<var name="docType" type="DocumentType"/>
+<var name="system" type="DOMString"/>
+<var name="name" type="DOMString"/>
+<var name="addresses" type="NodeList"/>
+<load var="doc" href="staffNS" willBeModified="true"/>
+<load var="aNewDoc" href="staffNS" willBeModified="true"/>
+<getElementsByTagName var="addresses" obj="aNewDoc" interface="Document" tagname='"emp:address"'/>
+<item var="element" obj="addresses" interface="NodeList" index="0"/>
+<assertNotNull actual="element" id="empAddressNotNull"/>
+<importNode obj="doc" var="aNode" importedNode="element" deep="false"/>
+<hasChildNodes obj="aNode" var="hasChild"/>
+<assertFalse actual="hasChild" id="hasChild"/>
+<ownerDocument obj="aNode" var="ownerDocument"/>
+<doctype obj="ownerDocument" var="docType"/>
+<systemId interface="DocumentType" obj="docType" var="system"/>
+<assertURIEquals actual="system" file='"staffNS.dtd"' id="dtdSystemId"/>
+<nodeName obj="aNode" var="name"/>
+<assertEquals actual="name" expected='"emp:address"' id="nodeName" ignoreCase="false"/>
+</test>

@@ -1,0 +1,136 @@
+<?xml version="1.0" encoding="UTF-8"?><?xml-stylesheet href="test-to-html.xsl" type="text/xml"?>
+
+<!--
+
+Copyright (c) 2001-2004 World Wide Web Consortium, 
+(Massachusetts Institute of Technology, Institut National de
+Recherche en Informatique et en Automatique, Keio University).  All 
+Rights Reserved.  This program is distributed under the W3C's Software
+Intellectual Property License.  This program is distributed in the 
+hope that it will be useful, but WITHOUT ANY WARRANTY; without even
+the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR 
+PURPOSE.  
+
+See W3C License http://www.w3.org/Consortium/Legal/ for more details.
+
+-->
+
+<!DOCTYPE test SYSTEM "dom3.dtd">
+<test xmlns="http://www.w3.org/2001/DOM-Test-Suite/Level-3" name="documentnormalizedocument06">
+<metadata>
+<title>documentnormalizedocument06</title>
+<creator>Curt Arnold</creator>
+<description>
+Add a CDATASection containing "]]&gt;" perform normalization with split-cdata-sections=true.  Should result
+in an warning.
+</description>
+<date qualifier="created">2004-01-20</date>
+<subject resource="http://www.w3.org/TR/2004/REC-DOM-Level-3-Core-20040407/core#Document3-normalizeDocument"/>
+<subject resource="http://www.w3.org/TR/2004/REC-DOM-Level-3-Core-20040407/core#parameter-split-cdata-sections"/>
+<subject resource="http://www.w3.org/TR/2004/REC-DOM-Level-3-Core-20040407/core#ERROR-DOMError-severity"/>
+<subject resource="http://www.w3.org/TR/2004/REC-DOM-Level-3-Core-20040407/core#ERROR-DOMError-message"/>
+<subject resource="http://www.w3.org/TR/2004/REC-DOM-Level-3-Core-20040407/core#ERROR-DOMError-type"/>
+<subject resource="http://www.w3.org/TR/2004/REC-DOM-Level-3-Core-20040407/core#ERROR-DOMError-relatedException"/>
+<subject resource="http://www.w3.org/TR/2004/REC-DOM-Level-3-Core-20040407/core#ERROR-DOMError-relatedData"/>
+<subject resource="http://www.w3.org/TR/2004/REC-DOM-Level-3-Core-20040407/core#ERROR-DOMError-location"/>
+<subject resource="http://www.w3.org/TR/2004/REC-DOM-Level-3-Core-20040407/core#DOMLocator-line-number"/>
+<subject resource="http://www.w3.org/TR/2004/REC-DOM-Level-3-Core-20040407/core#DOMLocator-column-number"/>
+<subject resource="http://www.w3.org/TR/2004/REC-DOM-Level-3-Core-20040407/core#DOMLocator-byteOffset"/>
+<subject resource="http://www.w3.org/TR/2004/REC-DOM-Level-3-Core-20040407/core#DOMLocator-utf16Offset"/>
+<subject resource="http://www.w3.org/TR/2004/REC-DOM-Level-3-Core-20040407/core#DOMLocator-node"/>
+<subject resource="http://www.w3.org/TR/2004/REC-DOM-Level-3-Core-20040407/core#DOMLocator-uri"/>
+<subject resource="http://www.w3.org/Bugs/Public/show_bug.cgi?id=542"/>
+</metadata>
+<implementationAttribute name="namespaceAware" value="true"/>
+<var name="doc" type="Document"/>
+<var name="elem" type="Element"/>
+<var name="domConfig" type="DOMConfiguration"/>
+<var name="elemList" type="NodeList"/>
+<var name="newChild" type="CDATASection"/>
+<var name="oldChild" type="Node"/>
+<var name="retval" type="Node"/>
+<var name="errorMonitor" type="DOMErrorMonitor"/>
+<var name="errors" type="List"/>
+<var name="error" type="DOMError"/>
+<var name="splittedCount" type="int" value="0"/>
+<var name="severity" type="int"/>
+<var name="problemNode" type="Node"/>
+<var name="location" type="DOMLocator"/>
+<var name="lineNumber" type="int"/>
+<var name="columnNumber" type="int"/>
+<var name="byteOffset" type="int"/>
+<var name="utf16Offset" type="int"/>
+<var name="uri" type="DOMString"/>
+<var name="type" type="DOMString"/>
+<var name="message" type="DOMString"/>
+<var name="relatedException" type="DOMObject"/>
+<var name="relatedData" type="DOMObject"/>
+<var name="length" type="int"/>
+<var name="nodeType" type="int"/>
+<var name="nodeValue" type="DOMString"/>
+<load var="doc" href="barfoo" willBeModified="true"/>
+<getElementsByTagName var="elemList" obj="doc" tagname='"p"' interface="Document"/>
+<item var="elem" obj="elemList" index="0" interface="NodeList"/>
+<createCDATASection var="newChild" obj="doc" data='"this is not ]]&gt; good"'/>
+<firstChild var="oldChild" obj="elem" interface="Node"/>
+<replaceChild var="retval" obj="elem" newChild="newChild" oldChild="oldChild"/>
+<domConfig obj="doc" var="domConfig" interface="Document"/>
+<setParameter obj="domConfig" name='"split-cdata-sections"' value="true"/>
+<setParameter obj="domConfig" name='"error-handler"' value="errorMonitor"/>
+<normalizeDocument obj="doc"/>
+<firstChild var="newChild" obj="elem" interface="Node"/>
+<!--  the first child should not be a CDATASection containing a ]]>  -->
+<nodeValue var="nodeValue" obj="newChild"/>
+<nodeType var="nodeType" obj="newChild"/>
+<assertFalse id="wasSplit">
+	<and>
+		<equals actual="nodeType" expected="4" ignoreCase="false"/>		
+		<contains obj="nodeValue" str='"]]>"' interface="DOMString"/>
+	</and>
+</assertFalse>
+<allErrors var="errors" obj="errorMonitor"/>
+<for-each member="error" collection="errors">
+	<type var="type" obj="error" interface="DOMError"/>
+	<severity var="severity" obj="error"/>
+	<if>
+		<equals actual="type" expected='"cdata-sections-splitted"' ignoreCase="false"/>
+		<!--  related data is first split node  -->
+		<relatedData var="relatedData" obj="error"/>
+		<assertSame actual="relatedData" expected="newChild" id="relatedData"/>
+
+		<!--  severity is warning   -->
+		<assertEquals actual="severity" expected="1" ignoreCase="false" id="severity"/>	
+
+		<!--  message should be non-empty  -->
+		<message var="message" obj="error"/>
+		<length var="length" obj="message" interface="DOMString"/>
+		<assertTrue id="messageNotEmpty">
+			<greater actual="length" expected="0"/>
+		</assertTrue>
+
+		<!--  can't make any assertions about relatedException
+		          other than access should not raise exception   -->
+		<relatedException var="relatedException" obj="error"/>
+
+		<!-- location should have relatedNode-->
+		<location var="location" obj="error"/>
+		<relatedNode var="problemNode" obj="location" interface="DOMLocator"/>
+		<assertSame actual="problemNode" expected="newChild" id="relatedNode"/>
+
+		<!--  
+			can't make assertions about these values   
+		-->
+		<lineNumber var="lineNumber" obj="location"/>
+		<columnNumber var="columnNumber" obj="location"/>
+		<byteOffset var="byteOffset" obj="location"/>
+		<utf16Offset var="utf16Offset" obj="location"/>
+		<uri var="uri" obj="location" interface="DOMLocator"/>
+		<increment var="splittedCount" value="1"/>
+		<else>
+			<assertEquals actual="severity" expected="1" ignoreCase="false" id="anyOthersShouldBeWarnings"/>
+		</else>
+	</if>
+</for-each>
+<assertEquals actual="splittedCount" expected="1" ignoreCase="false" id="oneSplittedWarning"/>		
+</test> 
+ 

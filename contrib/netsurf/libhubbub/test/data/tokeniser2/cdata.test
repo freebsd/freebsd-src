@@ -1,0 +1,23 @@
+{"tests": [
+
+{"description":"Basic CDATA test",
+"processCDATA":true,
+"input":"<![CDATA[test]]>",
+"output":[["Character", "test"]]},
+
+{"description":"Unfinished CDATA test",
+"processCDATA":true,
+"input":"<![CDAT",
+"output":["ParseError", ["Comment", "[CDAT"]]},
+
+{"description":"EOF in CDATA chunk",
+"processCDATA":true,
+"input":"<![CDATA[aa",
+"output":[["Character", "aa"]]},
+
+{"description":"False end in CDATA chunk",
+"processCDATA":true,
+"input":"<![CDATA[aa]]aa",
+"output":[["Character", "aa]]aa"]]},
+
+]}

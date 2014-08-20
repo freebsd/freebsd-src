@@ -1,0 +1,47 @@
+# ----------------------------------------------------------------------------
+# Framebuffer-target-specific options
+# ----------------------------------------------------------------------------
+
+# Optimisation levels
+CFLAGS += -O2
+
+# Framebuffer default surface provider.
+# Valid values are: x, sdl, linux, vnc, able,
+NETSURF_FB_FRONTEND := sdl
+
+# Use libharu to enable PDF export and GTK printing support.
+# Valid options: YES, NO
+NETSURF_USE_HARU_PDF := NO
+
+# Enable NetSurf's use of librosprite for displaying RISC OS Sprites
+# Valid options: YES, NO, AUTO
+NETSURF_USE_ROSPRITE := AUTO
+
+# Library to use for font plotting
+# Valid options: internal, freetype
+NETSURF_FB_FONTLIB := internal
+
+# Default freetype font files
+NETSURF_FB_FONT_SANS_SERIF := DejaVuSans.ttf
+NETSURF_FB_FONT_SANS_SERIF_BOLD := DejaVuSans-Bold.ttf
+NETSURF_FB_FONT_SANS_SERIF_ITALIC := DejaVuSans-Oblique.ttf
+NETSURF_FB_FONT_SANS_SERIF_ITALIC_BOLD := DejaVuSans-BoldOblique.ttf
+NETSURF_FB_FONT_SERIF := DejaVuSerif.ttf
+NETSURF_FB_FONT_SERIF_BOLD := DejaVuSerif-Bold.ttf
+NETSURF_FB_FONT_MONOSPACE := DejaVuSansMono.ttf
+NETSURF_FB_FONT_MONOSPACE_BOLD := DejaVuSansMono-Bold.ttf
+NETSURF_FB_FONT_CURSIVE := Comic_Sans_MS.ttf
+NETSURF_FB_FONT_FANTASY := Impact.ttf
+
+# Default binary install path
+NETSURF_FRAMEBUFFER_BIN := $(PREFIX)/bin/
+
+# Default resource install path
+NETSURF_FRAMEBUFFER_RESOURCES := $(PREFIX)/share/netsurf/
+
+# Default framebuffer search path
+NETSURF_FB_RESPATH := $${HOME}/.netsurf/:$${NETSURFRES}:$(NETSURF_FRAMEBUFFER_RESOURCES):./framebuffer/res
+
+# freetype compiled in font serch path
+NETSURF_FB_FONTPATH := /usr/share/fonts/truetype/ttf-dejavu:/usr/share/fonts/truetype/msttcorefonts
+

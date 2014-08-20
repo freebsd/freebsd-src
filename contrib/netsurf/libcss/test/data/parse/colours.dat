@@ -1,0 +1,188 @@
+## Simple colour values
+
+#data
+* { color: red }
+#errors
+#expected
+| 1 *
+|   0x02000018 0xffff0000
+#reset
+
+#data
+* { color: #f00 }
+#errors
+#expected
+| 1 *
+|   0x02000018 0xffff0000
+#reset
+
+#data
+* { color: #ff0000 }
+#errors
+#expected
+| 1 *
+|   0x02000018 0xffff0000
+#reset
+
+#data
+* { color: rgb(255, 0, 0) }
+#errors
+#expected
+| 1 *
+|   0x02000018 0xffff0000
+#reset
+
+#data
+* { color: rgb(100%, 0%, 0%) }
+#errors
+#expected
+| 1 *
+|   0x02000018 0xffff0000
+#reset
+
+#data
+* { color: transparent }
+#errors
+#expected
+| 1 *
+|   0x00000018
+#reset
+
+#data
+* { color: currentColor }
+#errors
+#expected
+| 1 *
+|   0x00040018
+#reset
+
+#data
+* { opacity: 0 }
+#errors
+#expected
+| 1 *
+|   0x02000063 0x00000000
+#reset
+
+#data
+* { opacity: 0.22 }
+#errors
+#expected
+| 1 *
+|   0x02000063 0x000000e1
+#reset
+
+#data
+* { opacity: 0.22 !important }
+#errors
+#expected
+| 1 *
+|   0x02000463 0x000000e1
+#reset
+
+#data
+* { opacity: inherit }
+#errors
+#expected
+| 1 *
+|   0x00000863
+#reset
+
+#data
+* { opacity: inherit !important }
+#errors
+#expected
+| 1 *
+|   0x00000c63
+#reset
+
+## Out-of-range rgb() parameters
+
+#data
+* { color: rgb(300, 0, 0) }
+#errors
+#expected
+| 1 *
+|   0x02000018 0xffff0000
+#reset
+
+#data
+* { color: rgb(-10, 0, 0) }
+#errors
+#expected
+| 1 *
+|   0x02000018 0xff000000
+#reset
+
+#data
+* { color: rgb(150%, 0%, 0%) }
+#errors
+#expected
+| 1 *
+|   0x02000018 0xffff0000
+#reset
+
+#data
+* { color: rgb(-10%, 0%, 0%) }
+#errors
+#expected
+| 1 *
+|   0x02000018 0xff000000
+#reset
+
+#data
+* { color: rgba(255, 0, 0, 0) }
+#errors
+#expected
+| 1 *
+|   0x02000018 0x00ff0000
+#reset
+
+#data
+* { color: rgba(255, 0, 0, 0.5) }
+#errors
+#expected
+| 1 *
+|   0x02000018 0x7fff0000
+#reset
+
+#data
+* { color: rgba(255, 0, 0, 1.1) }
+#errors
+#expected
+| 1 *
+|   0x02000018 0xffff0000
+#reset
+
+#data
+* { color: rgba(255, 0, 0, 128) }
+#errors
+#expected
+| 1 *
+|   0x02000018 0xffff0000
+#reset
+
+#data
+* { color: rgba(-255, 0, 0, -255) }
+#errors
+#expected
+| 1 *
+|   0x02000018 0x00000000
+#reset
+
+#data
+* { opacity: -0.22 }
+#errors
+#expected
+| 1 *
+|   0x02000063 0x00000000
+#reset
+
+#data
+* { opacity: 1.22 }
+#errors
+#expected
+| 1 *
+|   0x02000063 0x00000400
+#reset
+

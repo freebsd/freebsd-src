@@ -1,0 +1,44 @@
+<?xml version="1.0" encoding="UTF-8"?><?xml-stylesheet href="test-to-html.xsl" type="text/xml"?>
+
+<!--
+
+Copyright (c) 2001 World Wide Web Consortium, 
+(Massachusetts Institute of Technology, Institut National de
+Recherche en Informatique et en Automatique, Keio University).  All 
+Rights Reserved.  This program is distributed under the W3C's Software
+Intellectual Property License.  This program is distributed in the 
+hope that it will be useful, but WITHOUT ANY WARRANTY; without even
+the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR 
+PURPOSE.  
+
+See W3C License http://www.w3.org/Consortium/Legal/ for more details.
+
+-->
+
+<!DOCTYPE test SYSTEM "dom2.dtd">
+<test xmlns="http://www.w3.org/2001/DOM-Test-Suite/Level-2" name="documentcreateelementNS02">
+<metadata>
+<title>documentcreateelementNS02</title>
+<creator>IBM</creator>
+<description>
+	The method createElementNS creates an element of the given valid qualifiedName and NamespaceURI. 
+	
+	Invoke the createElementNS method on this Document object with null values for namespaceURI, 
+	and a qualifiedName with an invalid character and check if an INVALID_CHARACTER_ERR is thrown.
+</description>
+<contributor>Neil Delima</contributor>
+<date qualifier="created">2002-04-30</date>
+<subject resource="http://www.w3.org/TR/DOM-Level-2-Core/core"/>
+<subject resource="http://www.w3.org/TR/DOM-Level-2-Core/core#ID-DocCrElNS"/>
+</metadata>
+<var name="doc" type="Document"/>
+<var name="element" type="Element"/>
+<var name="namespaceURI" type="DOMString" isNull="true"/>
+<var name="qualifiedName" type="DOMString" value='"^^"' />
+<load var="doc" href="staffNS" willBeModified="false"/>
+<assertDOMException id="documentcreateelementNS02">
+<INVALID_CHARACTER_ERR>
+<createElementNS obj="doc" var="element" namespaceURI="namespaceURI" qualifiedName="qualifiedName"/>
+</INVALID_CHARACTER_ERR>
+</assertDOMException>
+</test>

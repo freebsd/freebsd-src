@@ -1,0 +1,50 @@
+<?xml version="1.0" encoding="UTF-8"?><?xml-stylesheet href="test-to-html.xsl" type="text/xml"?>
+
+<!--
+
+Copyright (c) 2001-2004 World Wide Web Consortium, 
+(Massachusetts Institute of Technology, Institut National de
+Recherche en Informatique et en Automatique, Keio University).  All 
+Rights Reserved.  This program is distributed under the W3C's Software
+Intellectual Property License.  This program is distributed in the 
+hope that it will be useful, but WITHOUT ANY WARRANTY; without even
+the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR 
+PURPOSE.  
+
+See W3C License http://www.w3.org/Consortium/Legal/ for more details.
+
+-->
+
+<!DOCTYPE test SYSTEM "dom3.dtd">
+<test xmlns="http://www.w3.org/2001/DOM-Test-Suite/Level-3" name="nodeisdefaultnamespace15">
+<metadata>
+<title>nodeisdefaultnamespace15</title>
+<creator>IBM</creator>
+<description>
+	Using isDefaultNamespace on a Element's new cloned Comment node, which has a namespace attribute 
+	declaration without a namespace prefix in its parent Element node and  verify if the 
+	value returned is true.
+</description>
+<contributor>Neil Delima</contributor>
+<date qualifier="created">2002-06-10</date>
+<subject resource="http://www.w3.org/TR/2004/REC-DOM-Level-3-Core-20040407/core#Node3-isDefaultNamespace"/>
+</metadata>
+<var name="doc" type="Document"/>
+<var name="bodyElem" type="Element"/>
+<var name="elem" type="Element"/>
+<var name="comment" type="Comment"/>
+<var name="clonedComment" type="Comment"/>
+<var name="isDefault" type="boolean"/>
+<var name="appendedChild" type="Node"/>
+<var name="bodyList" type="NodeList"/>
+<load var="doc" href="hc_staff" willBeModified="true"/>
+<getElementsByTagName var="bodyList" obj="doc" tagname='"body"' interface="Document"/>
+<item var="bodyElem" obj="bodyList" index="0" interface="NodeList"/>
+<createElementNS var="elem" obj="doc" namespaceURI='"http://www.w3.org/1999/xhtml"' qualifiedName='"p"'/>
+<createComment var="comment" obj="doc" data='"Text"'/>
+<cloneNode var="clonedComment" obj="comment" deep="true"/>
+<appendChild obj="elem" var="appendedChild" newChild="clonedComment"/>
+<appendChild obj="bodyElem" var="appendedChild" newChild="elem"/>
+<isDefaultNamespace var="isDefault" obj="clonedComment" namespaceURI='"http://www.w3.org/1999/xhtml"'/>
+<assertTrue  actual="isDefault" id="nodeisdefaultnamespace15"/>
+</test>

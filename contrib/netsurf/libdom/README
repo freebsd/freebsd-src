@@ -1,0 +1,44 @@
+LibDOM -- an implementation of the W3C DOM
+==========================================
+
+Overview
+--------
+
+  LibDOM is an implementation of the W3C DOM API in C.
+
+Requirements
+------------
+
+  libdom requires the following tools:
+
+    + A C99 capable C compiler
+    + GNU make or compatible
+    + Perl (for the testcases)
+
+  LibDOM also requires the following libraries to be installed:
+
+    +  LibParserUtils
+    +  LibWapcaplet
+
+Compilation
+-----------
+
+  If necessary, modify the toolchain settings in the Makefile.
+  Invoke make:
+  		$ make
+
+Verification
+------------
+
+  To verify that the library is working, it is necessary to specify a 
+  different makefile target than that used for normal compilation, thus:
+  
+  		$ make test
+
+API documentation
+-----------------
+
+  Currently, there is none. However, the code is well commented and the 
+  public API may be found in the "include" directory. The testcase sources 
+  may also be of use in working out how to use it.
+

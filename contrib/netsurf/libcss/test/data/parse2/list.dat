@@ -1,0 +1,551 @@
+#data
+* { list-style: inherit; }
+#errors
+#expected
+| *
+|  list-style-image: inherit
+|  list-style-position: inherit
+|  list-style-type: inherit
+#reset
+
+#data
+* { list-style: circle; }
+#errors
+#expected
+| *
+|  list-style-image: none
+|  list-style-position: outside
+|  list-style-type: circle
+#reset
+
+#data
+* { list-style: inside; }
+#errors
+#expected
+| *
+|  list-style-image: none
+|  list-style-position: inside
+|  list-style-type: disc
+#reset
+
+#data
+* { list-style: url(foo); }
+#errors
+#expected
+| *
+|  list-style-image: url('foo')
+|  list-style-position: outside
+|  list-style-type: disc
+#reset
+
+#data
+* { list-style: circle inside; }
+#errors
+#expected
+| *
+|  list-style-image: none
+|  list-style-position: inside
+|  list-style-type: circle
+#reset
+
+#data
+* { list-style: inside circle; }
+#errors
+#expected
+| *
+|  list-style-image: none
+|  list-style-position: inside
+|  list-style-type: circle
+#reset
+
+#data
+* { list-style: inside url(foo); }
+#errors
+#expected
+| *
+|  list-style-image: url('foo')
+|  list-style-position: inside
+|  list-style-type: disc
+#reset
+
+#data
+* { list-style: url(foo) inside; }
+#errors
+#expected
+| *
+|  list-style-image: url('foo')
+|  list-style-position: inside
+|  list-style-type: disc
+#reset
+
+#data
+* { list-style: circle url(foo); }
+#errors
+#expected
+| *
+|  list-style-image: url('foo')
+|  list-style-position: outside
+|  list-style-type: circle
+#reset
+
+#data
+* { list-style: url(foo) circle; }
+#errors
+#expected
+| *
+|  list-style-image: url('foo')
+|  list-style-position: outside
+|  list-style-type: circle
+#reset
+
+#data
+* { list-style: circle inside url(foo); }
+#errors
+#expected
+| *
+|  list-style-image: url('foo')
+|  list-style-position: inside
+|  list-style-type: circle
+#reset
+
+#data
+* { list-style: circle url(foo) inside; }
+#errors
+#expected
+| *
+|  list-style-image: url('foo')
+|  list-style-position: inside
+|  list-style-type: circle
+#reset
+
+#data
+* { list-style: inside circle url(foo); }
+#errors
+#expected
+| *
+|  list-style-image: url('foo')
+|  list-style-position: inside
+|  list-style-type: circle
+#reset
+
+#data
+* { list-style: inside url(foo) circle; }
+#errors
+#expected
+| *
+|  list-style-image: url('foo')
+|  list-style-position: inside
+|  list-style-type: circle
+#reset
+
+#data
+* { list-style: url(foo) circle inside; }
+#errors
+#expected
+| *
+|  list-style-image: url('foo')
+|  list-style-position: inside
+|  list-style-type: circle
+#reset
+
+#data
+* { list-style: url(foo) inside circle; }
+#errors
+#expected
+| *
+|  list-style-image: url('foo')
+|  list-style-position: inside
+|  list-style-type: circle
+#reset
+
+
+#data
+* { list-style: invalid; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { list-style: ; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { list-style:}
+#errors
+#expected
+| *
+#reset
+
+#data
+* { list-style: inherit circle; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { list-style: disc inherit; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { list-style: circle inside inherit; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { list-style: inherit disc inside; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { list-style: disc circle; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { list-style: inside inherit url('PicoDrive'); }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { list-style: !important disc circle; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { list-style: !important disc inherit; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { list-style: disc inherit !important; }
+#errors
+#expected
+| *
+#reset
+
+
+
+
+#data
+* { list-style: inherit !important; }
+#errors
+#expected
+| *
+|  list-style-image: inherit !important
+|  list-style-position: inherit !important
+|  list-style-type: inherit !important
+#reset
+
+#data
+* { list-style: circle !important; }
+#errors
+#expected
+| *
+|  list-style-image: none !important
+|  list-style-position: outside !important
+|  list-style-type: circle !important
+#reset
+
+#data
+* { list-style: inside !important; }
+#errors
+#expected
+| *
+|  list-style-image: none !important
+|  list-style-position: inside !important
+|  list-style-type: disc !important
+#reset
+
+#data
+* { list-style: url(foo) !important; }
+#errors
+#expected
+| *
+|  list-style-image: url('foo') !important
+|  list-style-position: outside !important
+|  list-style-type: disc !important
+#reset
+
+#data
+* { list-style: circle inside !important; }
+#errors
+#expected
+| *
+|  list-style-image: none !important
+|  list-style-position: inside !important
+|  list-style-type: circle !important
+#reset
+
+#data
+* { list-style: inside circle !important; }
+#errors
+#expected
+| *
+|  list-style-image: none !important
+|  list-style-position: inside !important
+|  list-style-type: circle !important
+#reset
+
+#data
+* { list-style: inside url(foo) !important; }
+#errors
+#expected
+| *
+|  list-style-image: url('foo') !important
+|  list-style-position: inside !important
+|  list-style-type: disc !important
+#reset
+
+#data
+* { list-style: url(foo) inside !important; }
+#errors
+#expected
+| *
+|  list-style-image: url('foo') !important
+|  list-style-position: inside !important
+|  list-style-type: disc !important
+#reset
+
+#data
+* { list-style: circle url(foo) !important; }
+#errors
+#expected
+| *
+|  list-style-image: url('foo') !important
+|  list-style-position: outside !important
+|  list-style-type: circle !important
+#reset
+
+#data
+* { list-style: url(foo) circle !important; }
+#errors
+#expected
+| *
+|  list-style-image: url('foo') !important
+|  list-style-position: outside !important
+|  list-style-type: circle !important
+#reset
+
+#data
+* { list-style: circle inside url(foo) !important; }
+#errors
+#expected
+| *
+|  list-style-image: url('foo') !important
+|  list-style-position: inside !important
+|  list-style-type: circle !important
+#reset
+
+#data
+* { list-style: circle url(foo) inside !important; }
+#errors
+#expected
+| *
+|  list-style-image: url('foo') !important
+|  list-style-position: inside !important
+|  list-style-type: circle !important
+#reset
+
+#data
+* { list-style: inside circle url(foo) !important; }
+#errors
+#expected
+| *
+|  list-style-image: url('foo') !important
+|  list-style-position: inside !important
+|  list-style-type: circle !important
+#reset
+
+#data
+* { list-style: inside url(foo) circle !important; }
+#errors
+#expected
+| *
+|  list-style-image: url('foo') !important
+|  list-style-position: inside !important
+|  list-style-type: circle !important
+#reset
+
+#data
+* { list-style: url(foo) circle inside !important; }
+#errors
+#expected
+| *
+|  list-style-image: url('foo') !important
+|  list-style-position: inside !important
+|  list-style-type: circle !important
+#reset
+
+#data
+* { list-style: url(foo) inside circle !important; }
+#errors
+#expected
+| *
+|  list-style-image: url('foo') !important
+|  list-style-position: inside !important
+|  list-style-type: circle !important
+#reset
+
+#data
+* { content: inherit; }
+#errors
+#expected
+| *
+|  content: inherit
+#reset
+
+#data
+* { list-style-position: inherit; }
+#errors
+#expected
+| *
+|  list-style-position: inherit
+#reset
+
+#data
+* { list-style-type: inherit; }
+#errors
+#expected
+| *
+|  list-style-type: inherit
+#reset
+
+#data
+* { quotes: inherit; }
+#errors
+#expected
+| *
+|  quotes: inherit
+#reset
+
+#data
+* { counter-reset: inherit; }
+#errors
+#expected
+| *
+|  counter-reset: inherit
+#reset
+
+#data
+* { content: open-quote; }
+#errors
+#expected
+| *
+|  content: open-quote
+#reset
+
+#data
+* { content: open-quote "moose" close-quote; }
+#errors
+#expected
+| *
+|  content: open-quote 'moose' close-quote
+#reset
+
+#data
+* { content: no-open-quote "moose" no-close-quote; }
+#errors
+#expected
+| *
+|  content: no-open-quote 'moose' no-close-quote
+#reset
+
+#data
+* { content: no-close-quote "moose" no-open-quote; }
+#errors
+#expected
+| *
+|  content: no-close-quote 'moose' no-open-quote
+#reset
+
+#data
+* { content: open-quote "moose" close-quote open-quote no-open-quote "moose" no-close-quote close-quote; }
+#errors
+#expected
+| *
+|  content: open-quote 'moose' close-quote open-quote no-open-quote 'moose' no-close-quote close-quote
+#reset
+
+
+
+
+
+#data
+* { list-style: inherit inside; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { list-style: inherit inside inherit; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { list-style: inherit inherit; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { list-style: inherit url(foo); }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { list-style: url(foo) inherit; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { list-style: circle inherit inside; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { list-style: inherit circle inside; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { list-style: circle inside inherit; }
+#errors
+#expected
+| *
+#reset
+
+
+
+

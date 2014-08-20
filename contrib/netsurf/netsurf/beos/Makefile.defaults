@@ -1,0 +1,30 @@
+# ----------------------------------------------------------------------------
+# BeOS-specific options
+# ----------------------------------------------------------------------------
+
+# Where to install the netsurf binary
+NETSURF_BEOS_BIN := /boot/apps/netsurf/
+
+# TODO:HAIKU -- not sure if ~/.netsurf applies in beos
+# Where to search for NetSurf's resources after looking in ~/.netsurf and
+# $NETSURFRES.  It must have a trailing /
+NETSURF_BEOS_RESOURCES := /boot/apps/netsurf/res/
+
+# Enable NetSurf's use of libsvgtiny for displaying SVGs
+# Valid options: YES, NO, AUTO
+NETSURF_USE_NSSVG := YES
+
+# Enable NetSurf's use of librosprite for displaying RISC OS Sprites
+# Valid options: YES, NO, AUTO
+NETSURF_USE_ROSPRITE := AUTO
+
+# Enable NetSurf's use of libharu for PDF export.
+# Valid options: YES, NO
+NETSURF_USE_HARU_PDF := NO
+
+# Force using glibc internal iconv implementation instead of external libiconv
+# Valid options: YES, NO
+NETSURF_USE_LIBICONV_PLUG := NO
+
+# Optimisation levels
+CFLAGS += -O2

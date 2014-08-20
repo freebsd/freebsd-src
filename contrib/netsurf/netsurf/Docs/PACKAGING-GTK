@@ -1,0 +1,86 @@
+--------------------------------------------------------------------------------
+  Packaging suggestions for NetSurf                               30 July 2008
+--------------------------------------------------------------------------------
+
+  This document lays out some suggestions for people interested in packaging
+  NetSurf for UNIX-like OSes.
+
+  We consider the Debian (and thus Ubuntu) packages excellent examples to
+  crib from.  They do everything right.
+
+
+  Building NetSurf
+==================
+
+  You should change Makefile.config to be specific (rather than rely on AUTO)
+  for the libraries and functionality you want to include.  This will help
+  your packages be consistent.  Also remember that you can turn off
+  functionality such as PDF export, RISC OS Sprite support, SVG rendering etc.
+  from here should you require a smaller, lighter build.
+
+
+  Launching NetSurf
+===================
+
+  The GTK port of NetSurf requires access to some resources at run time.
+  These are stored in gtk/res/ in the source tree.  Some of these files are
+  symlinks into the !NetSurf directory, which is the application container
+  for the native RISC OS build.  None of the other files from the !NetSurf
+  directory are required - the symlinks are used only as a way of making
+  checkouts smaller and making sure changes to one set of resources updates
+  the other.
+
+  The binary that the build system produces is called "nsgtk".  There is also
+  a shell script called "netsurf" that will set up the environment and launch
+  the nsgtk binary.  Do not ship this shell script with your package.  It is
+  included only as a convience for launching NetSurf from the build tree.
+  Instead, you should move nsgtk to /usr/bin/netsurf (or wherever your
+  distribution's packaging policy suggests) and copy the contents of
+  gtk/res/ (dereferencing the symlinks, obviously) to /usr/share/netsurf (or
+  wherever your packaging policy suggests).
+
+  You will need to tell NetSurf where to find its resources.  NetSurf searches
+  three locations by default when trying to load them, in this order:
+
+    1. ~/.netsurf/
+    2. $NETSURFRES/
+    3. /usr/share/netsurf/
+
+  The second one is how the netsurf launcher script controls it.  The third
+  location is controlled by the NETSURF_GTK_RESOURCES option in
+  Makefile.config, and this is the recommended way for packagers to change
+  the location it searches, as this still allows the user some flexibility in
+  changing what NetSurf uses.
+
+
+  User agent string
+===================
+
+  You may also want to change NetSurf's user agent string to include the
+  name of your distribution.  The user agent string is build by a function
+  kept in utils/useragent.c - you'll want to change the macro called
+  NETSURF_UA_FORMAT_STRING.  It's processed via sprintf, so keep that in
+  mind when changing it.  The first two printf parameters are major and minor
+  version numbers, the second two are OS name (uname -s) and architecture
+  (uname -m).  You might want change this to something like:
+
+      "NetSurf/%d.%d (%s; %s; Debian GNU/Linux)"
+
+  or similar.  Please don't be tempted to mention Mozilla or similar - let's
+  let that lie die.
+
+
+  Home page URL
+===============
+
+  If the user hasn't specified a home page URL in their Preferences, NetSurf
+  defaults to a "portal" welcome page at about:netsurf - if you wish to
+  change this, you can do so by overriding the NETSURF_HOMEPAGE URL in
+  Makefile.config.
+
+
+  If you make significant changes to NetSurf in your package, please ask your
+  users to report bugs to your bug tracker, not ours.  We'd also be interested
+  in seeing the diffs for these changes - we may be able to integrate them
+  to make your job easier in future.
+

@@ -1,0 +1,41 @@
+<?xml version="1.0" standalone="no"?>
+<?xml-stylesheet href="test-to-html.xsl" type="text/xml"?>
+<!--
+
+Copyright (c) 2003-2004 World Wide Web Consortium, 
+(Massachusetts Institute of Technology, Institut National de
+Recherche en Informatique et en Automatique, Keio University).  All 
+Rights Reserved.  This program is distributed under the W3C's Software
+Intellectual Property License.  This program is distributed in the 
+hope that it will be useful, but WITHOUT ANY WARRANTY; without even
+the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR 
+PURPOSE.  
+
+See W3C License http://www.w3.org/Consortium/Legal/ for more details.
+
+-->
+<!DOCTYPE test SYSTEM "dom3.dtd">
+
+
+<test xmlns="http://www.w3.org/2001/DOM-Test-Suite/Level-3" name="hasFeature04">
+  <metadata>
+    <title>hasFeature04</title>
+    <creator>Curt Arnold</creator>
+    <description>Implementations should return true for hasFeature("+vAlIdAtIoN", "3.0").</description>
+	<date qualifier="created">2003-12-09</date>
+	<!--  DOMImplementation.hasFeature  -->
+	<subject resource="http://www.w3.org/TR/2003/CR-DOM-Level-3-Core-20031107/core#ID-5CED94D7"/>
+  </metadata>
+  <!--  + on feature names requires L3 Core   -->
+  <hasFeature feature='"Core"' version='"3.0"'/>
+  <var name="domImpl" type="DOMImplementation"/>
+  <var name="hasVAL" type="boolean"/>
+  <implementation var="domImpl"/>
+  <hasFeature var="hasVAL" obj="domImpl" feature='"+vAlIdAtIoN"' version='"3.0"'/>
+  <assertTrue actual="hasVAL" id="hasFeature_VAL3"/>
+</test>
+
+
+
+
+

@@ -1,0 +1,47 @@
+<?xml version="1.0" encoding="UTF-8"?><?xml-stylesheet href="test-to-html.xsl" type="text/xml"?>
+
+<!--
+
+Copyright (c) 2001-2004 World Wide Web Consortium, 
+(Massachusetts Institute of Technology, Institut National de
+Recherche en Informatique et en Automatique, Keio University).  All 
+Rights Reserved.  This program is distributed under the W3C's Software
+Intellectual Property License.  This program is distributed in the 
+hope that it will be useful, but WITHOUT ANY WARRANTY; without even
+the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR 
+PURPOSE.  
+
+See W3C License http://www.w3.org/Consortium/Legal/ for more details.
+
+-->
+
+<!DOCTYPE test SYSTEM "dom3.dtd">
+<test xmlns="http://www.w3.org/2001/DOM-Test-Suite/Level-3" name="documentadoptnode22">
+<metadata>
+<title>documentadoptnode22</title>
+<creator>IBM</creator>
+<description>
+	Invoke the adoptNode method on this document with the documentElement as the source.  
+	Verify if the node has been adopted correctly by its nodeName.
+</description>
+<contributor>Neil Delima</contributor>
+<date qualifier="created">2002-06-10</date>
+<subject resource="http://www.w3.org/TR/2004/REC-DOM-Level-3-Core-20040407/core#Document3-adoptNode"/>
+</metadata>
+<var name="doc" type="Document"/>
+<var name="docElement" type="Element"/>
+<var name="adoptedNode" type="Node"/>
+<var name="success" type="boolean"/>
+<var name="nodeNameOrig" type="DOMString"/>
+<var name="nodeName" type="DOMString"/>
+<load var="doc" href="hc_staff" willBeModified="true"/>
+<documentElement var="docElement" obj="doc"/>
+<adoptNode var="adoptedNode" obj="doc" source="docElement"/>
+<if><notNull obj="adoptedNode"/>
+<hasChildNodes var="success" obj="adoptedNode"/>
+<assertTrue actual="success" id="documentadoptnode22_1"/>
+<nodeName var="nodeName" obj="adoptedNode"/>
+<nodeName var="nodeNameOrig" obj="docElement"/>
+<assertEquals actual="nodeNameOrig" expected="nodeName" id="documentadoptnode22_2" ignoreCase="false"/>
+</if>
+</test>

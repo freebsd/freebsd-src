@@ -1,0 +1,67 @@
+<?xml version="1.0" encoding="UTF-8"?><?xml-stylesheet href="test-to-html.xsl" type="text/xml"?>
+
+<!--
+
+Copyright (c) 2001-2004 World Wide Web Consortium, 
+(Massachusetts Institute of Technology, Institut National de
+Recherche en Informatique et en Automatique, Keio University).  All 
+Rights Reserved.  This program is distributed under the W3C's Software
+Intellectual Property License.  This program is distributed in the 
+hope that it will be useful, but WITHOUT ANY WARRANTY; without even
+the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR 
+PURPOSE.  
+
+See W3C License http://www.w3.org/Consortium/Legal/ for more details.
+
+-->
+
+<!DOCTYPE test SYSTEM "dom3.dtd">
+<test xmlns="http://www.w3.org/2001/DOM-Test-Suite/Level-3" name="textreplacewholetext06">
+<metadata>
+<title>textreplacewholetext06</title>
+<creator>IBM</creator>
+<description>
+	The method replaceWholeText substitutes the a specified text for the text of 
+	the current node and all logically-adjacent text nodes.  This method raises
+	a NO_MODIFICATION_ALLOWED_ERR if one of the Text nodes being replaced is readonly.
+	
+	Invoke replaceWholeText on an existing text node with newly created text and Entityreference
+	nodes (whose replacement text is a character entity reference) appended as children of its parent element node.  
+	Where the nodes to be removed are read-only descendants of an EntityReference, the EntityReference 
+        must be removed instead of the read-only nodes. Only if any EntityReference to be removed has 
+        descendants that are not EntityReference, Text, or CDATASection nodes, the replaceWholeText 
+        method must fail, raising a NO_MODIFICATION_ALLOWED_ERR. Verify that the method does not raise
+        an exception and verify the content of the returned text node.
+</description>
+<contributor>Neil Delima</contributor>
+<date qualifier="created">2002-05-30</date>
+<subject resource="http://www.w3.org/TR/2004/REC-DOM-Level-3-Core-20040407/core#Text3-replaceWholeText"/>
+</metadata>
+<implementationAttribute name="namespaceAware" value="true"/>
+<implementationAttribute name="expandEntityReferences" value="true"/>
+<var name="doc" type="Document"/>
+<var name="itemList" type="NodeList"/>
+<var name="elementStrong" type="Element"/>
+<var name="textNode" type="Text"/>
+<var name="erefNode" type="EntityReference"/>
+<var name="replacedText" type="Text"/>
+<var name="appendedChild" type="Node"/>
+<var name="nodeValue" type="DOMString"/>
+
+
+
+<load var="doc" href="hc_staff" willBeModified="false"/>
+
+
+
+<getElementsByTagName var="itemList" obj="doc" tagname='"strong"' interface="Document"/>
+<item var="elementStrong" obj="itemList" index="0" interface="NodeList"/>
+<createTextNode var="textNode" obj="doc" data='"New Text"'/>
+<createEntityReference var="erefNode" obj="doc" name='"beta"'/>
+<appendChild obj="elementStrong" var="appendedChild" newChild="textNode"/>
+<appendChild obj="elementStrong" var="appendedChild" newChild="erefNode"/>
+<firstChild var="textNode" obj="elementStrong" interface="Node"/>
+<replaceWholeText obj="textNode" var="replacedText" content='"New Text and Cdata"'/>
+<nodeValue var="nodeValue" obj="textNode" />
+<assertEquals actual="nodeValue" expected='"New Text and Cdata"' id="textreplacewholetext06" ignoreCase="false"/>
+</test>

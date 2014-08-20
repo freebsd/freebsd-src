@@ -1,0 +1,202 @@
+Hubbub treebuilding interface
+=============================
+
+Introduction
+------------
+
+  hubbub uses an interface to build a tree.  this is what the functions should
+  do.
+
+Types
+-----
+
+  hubbub_string
+  -------------
+
+
+Reference counting
+------------------
+
+  The callback interface provides hooks to allow tree nodes to be reference 
+  counted.  There is, however, no requirement that the client actually performs
+  reference counting.  It is perfectly acceptable to use some other object use
+  tracking scheme (e.g. garbage collection).  The descriptions below describe
+  the expected reference counting behaviour, regardless.
+
+
+Callback behaviour
+------------------
+  
+  The first parameter to all callbacks is the context passed to the library
+  on initialisation.
+  
+  All node creation functions should return 0 on success, and something else
+  on failure.
+  
+  
+  Node creation
+  -------------
+  
+  | int hubbub_tree_create_comment(void *ctx,
+  |                                const hubbub_string *data,
+  |                                void **result);
+  |
+  | int hubbub_tree_create_doctype(void *ctx,
+  |                                const hubbub_doctype *doctype,
+  |                                void **result);
+  |
+  | int hubbub_tree_create_element(void *ctx,
+  |                                const hubbub_tag *tag,
+  |                                void **result);
+  |
+  | int hubbub_tree_create_text(void *ctx,
+  |                             const hubbub_string *data,
+  |                             void **result);
+  
+  All node creation functions must create a node with the information passed
+  in their second argument, and place a pointer to that node in *result.  The
+  reference count of the created node must be set to 1.
+  
+  
+  | int hubbub_tree_clone_node(void *ctx,
+  |                            void *node,
+  |                            bool deep,
+  |                            void **result);
+  
+  If deep == false, then this function must duplicate "node" and none of its
+  children, and place a pointer to the clone in *result.  It must also set the
+  reference count of the clone to 1.  The clone must be isolated from the 
+  document tree (it must have no parent or sibling nodes).
+  
+  If deep == true, then this function must duplicate "node" and all of its
+  children.  A pointer to the clone of "node" must be placed in *result.  The
+  reference count of the clone must be set to 1.  The reference count of all
+  other created nodes must be set to 0. The clone must also be isolated from
+  the document tree (it must have no parent or sibling nodes).
+  
+  
+  
+  Reference counting
+  ------------------
+  
+  | int hubbub_tree_ref_node(void *ctx, void *node);
+  | int hubbub_tree_unref_node(void *ctx, void *node);
+  
+  These functions should increase and decrease the reference count of "node",
+  respectively.  If the reference count of "node" falls to zero, and it is
+  isolated from the document tree (it has no parent or sibling nodes), then
+  it must be destroyed. 
+  
+  
+  
+  Tree manipulation
+  -----------------
+  
+  | int hubbub_tree_append_child(void *ctx,
+  |                              void *parent,
+  |                              void *child,
+  |                              void **result);
+  
+  This function must append the node "child" to the end of the list of children
+  of the node "parent", and place a pointer to the newly-inserted node in
+  *result.
+  
+  If the node "child" is a text node, and the last child node of "parent" is
+  also a text node, then instead the text of "child" must be appended to that
+  node, and a pointer to the node thus appended to must be placed in *result.
+  
+  In any case, the reference count of the node pointed to by *result at the end
+  of these steps must be incremented.
+  
+  
+  | int hubbub_tree_insert_before(void *ctx,
+  |                               void *parent,
+  |                               void *child,
+  |                               void *ref_child,
+  |                               void **result);
+  
+  This function must insert the node "child" into the list of children of
+  "parent" immediately before the node "ref_child", and place a pointer to the
+  newly-inserted node in *result.
+  
+  If the node "child" is a text node, and the node "ref_child" or the node
+  before "ref_child" is also a text node, then instead the text of "child" must
+  be prepended to the text of "ref_child", or appended to the text of node
+  before "ref_node", and a pointer to the node thus appended to must be placed
+  in *result.
+  
+  In any case, the reference count of the node pointed to by *result at the end
+  of these steps must be incremented.
+  
+  
+  | int hubbub_tree_remove_child(void *ctx,
+  |                              void *parent,
+  |                              void *child,
+  |                              void **result);
+  
+  This function must remove the node "child" from the document tree.  It must
+  increment the reference count of the node "child", and place a pointer to
+  the newly-removed node in *result.
+  
+  
+  | int hubbub_tree_reparent_children(void *ctx,
+  |                                   void *node,
+  |                                   void *new_parent);
+
+  This function must detach all children from "node" and insert them into 
+  "new_parent" in the same order as they were found in "node".
+  
+  | int hubbub_tree_get_parent(void *ctx,
+  |                            void *node,
+  |                            bool element_only,
+  |                            void **result);
+  
+  This function must retrieve the parent of "node".  If there is no parent 
+  node, then NULL must be placed in *result.  Otherwise, it must increment 
+  the reference count of the parent, and place a pointer to the parent in 
+  *result.
+
+  If "element_only" == true and the retrieved parent is not an element node,
+  then act as if no parent exists. 
+
+  | int hubbub_tree_has_children(void *ctx,
+  |                              void *node,
+  |                              bool *result);
+
+  If "node" has any child nodes attached to it, then *result must be set to 
+  true.  Otherwise, *result must be set to false.  
+ 
+  | int hubbub_tree_form_associate(void *ctx,
+  |                                void *form,
+  |                                void *node);
+
+  This function must associate "node" with the node "form" (which is the 
+  currently active form element). 
+
+  | int hubbub_tree_add_attributes(void *ctx,
+  |                                void *node,
+  |                                const hubbub_attribute *attributes,
+  |                                uint32_t n_attributes);
+ 
+  For each attribute in the array "attributes", this function must check to
+  see if there is such an attribute already present on "node".  If there is
+  not such an attribute, then the attribute must be added to "node". 
+  
+  | int hubbub_tree_set_quirks_mode(void *ctx,
+  |                                 hubbub_quirks_mode mode);
+
+  This function must set the quirks mode flag of the document to "mode".
+
+  | int hubbub_tree_encoding_change(void *ctx,
+  |                                 const char *name);
+  
+  This function is called when a meta tag which specifies a charset is seen
+  in the treebuilder. [1]  The client is responsible for checking if the
+  encoding the document is being processed as should actually be changed, and
+  if it should, this function should return 1.  In this case, the parser
+  instance will return the error code HUBBUB_ENCODINGCHANGE when it returns
+  from parsing the chunk that triggered the encoding change.  The parser
+  instance should then be destroyed and a new one created with that encoding
+  specified.
+  
+  [1] http://www.whatwg.org/specs/web-apps/current-work/#in-head

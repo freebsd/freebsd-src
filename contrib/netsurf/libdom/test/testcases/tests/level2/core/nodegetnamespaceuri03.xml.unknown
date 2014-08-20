@@ -1,0 +1,59 @@
+<?xml version="1.0" encoding="UTF-8"?><?xml-stylesheet href="test-to-html.xsl" type="text/xml"?>
+
+<!--
+
+Copyright (c) 2001-2003 World Wide Web Consortium, 
+(Massachusetts Institute of Technology, Institut National de
+Recherche en Informatique et en Automatique, Keio University).  All 
+Rights Reserved.  This program is distributed under the W3C's Software
+Intellectual Property License.  This program is distributed in the 
+hope that it will be useful, but WITHOUT ANY WARRANTY; without even
+the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR 
+PURPOSE.  
+
+See W3C License http://www.w3.org/Consortium/Legal/ for more details.
+
+-->
+<!DOCTYPE test SYSTEM "dom2.dtd">
+<test xmlns="http://www.w3.org/2001/DOM-Test-Suite/Level-2" name="nodegetnamespaceuri03">
+<metadata>
+<title>nodegetnamespaceuri03</title>
+<creator>IBM</creator>
+<description>
+	The method getNamespaceURI returns the namespace URI of this node, or null if it is unspecified
+	For nodes of any type other than ELEMENT_NODE and ATTRIBUTE_NODE and nodes created with 
+	a DOM Level 1 method, such as createElement from the Document interface, this is always null.
+  
+	Ceate two new element nodes and atribute nodes, with and without namespace prefixes.
+	Retreive their namespaceURI's using getNamespaceURI and verrify if it is correct.
+</description>
+<contributor>Neil Delima</contributor>
+<date qualifier="created">2002-04-28</date>
+<subject resource="http://www.w3.org/TR/DOM-Level-2-Core/core#ID-NodeNSname"/>
+<subject resource="http://www.w3.org/Bugs/Public/show_bug.cgi?id=259"/>
+</metadata>
+<implementationAttribute name="namespaceAware" value="true"/>
+<var name="doc" type="Document"/>
+<var name="element" type="Element"/>
+<var name="elementNS" type="Element"/>
+<var name="attr" type="Attr"/>
+<var name="attrNS" type="Attr"/>
+<var name="elemNSURI" type="DOMString"/>
+<var name="elemNSURINull" type="DOMString"/>
+<var name="attrNSURI" type="DOMString"/>
+<var name="attrNSURINull" type="DOMString"/>
+<var name="nullNS" type="DOMString" isNull="true"/>
+<load var="doc" href="staff" willBeModified="false"/>
+<createElementNS var="element" obj="doc" namespaceURI="nullNS" qualifiedName='"elem"'/>
+<createElementNS var="elementNS" obj="doc" namespaceURI='"http://www.w3.org/DOM/Test/elem"' qualifiedName='"qual:qelem"'/>
+<createAttributeNS var="attr" obj="doc" namespaceURI="nullNS" qualifiedName='"attr"'/>
+<createAttributeNS var="attrNS" obj="doc" namespaceURI='"http://www.w3.org/DOM/Test/attr"' qualifiedName='"qual:qattr"'/>
+<namespaceURI var="elemNSURI" obj="elementNS"/>
+<namespaceURI var="elemNSURINull" obj="element"/>
+<namespaceURI var="attrNSURI" obj="attrNS"/>
+<namespaceURI var="attrNSURINull" obj="attr"/>
+<assertEquals actual="elemNSURI" expected='"http://www.w3.org/DOM/Test/elem"' id="nodegetnamespaceuri03_elemNSURI" ignoreCase="false"/>
+<assertNull actual="elemNSURINull" id="nodegetnamespaceuri03_1"/>
+<assertEquals actual="attrNSURI" expected='"http://www.w3.org/DOM/Test/attr"' id="nodegetnamespaceuri03_attrNSURI" ignoreCase="false"/>
+<assertNull actual="attrNSURINull" id="nodegetnamespaceuri03_2"/>
+</test>

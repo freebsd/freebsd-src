@@ -1,0 +1,68 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+Copyright (c) 2001-2004 World Wide Web Consortium,
+(Massachusetts Institute of Technology, Institut National de
+Recherche en Informatique et en Automatique, Keio University). All
+Rights Reserved. This program is distributed under the W3C's Software
+Intellectual Property License. This program is distributed in the
+hope that it will be useful, but WITHOUT ANY WARRANTY; without even
+the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
+PURPOSE.
+See W3C License http://www.w3.org/Consortium/Legal/ for more details.
+--><!DOCTYPE test SYSTEM "dom1.dtd">
+
+<test xmlns="http://www.w3.org/2001/DOM-Test-Suite/Level-1" name="documenttypegetentities">
+<metadata>
+<title>documenttypeGetEntities</title>
+<creator>NIST</creator>
+<description>
+    The "getEntities()" method is a NamedNodeMap that contains
+   the general entities for this document. 
+   
+   Retrieve the Document Type for this document and create 
+   a NamedNodeMap of all its entities.  The entire map is
+   traversed and the names of the entities are retrieved.
+   There should be 5 entities.  Duplicates should be ignored.
+</description>
+<contributor>Mary Brady</contributor>
+<date qualifier="created">2001-08-17</date>
+<subject resource="http://www.w3.org/TR/1998/REC-DOM-Level-1-19981001/level-one-core#ID-1788794630"/>
+</metadata>
+<var name="doc" type="Document"/>
+<var name="docType" type="DocumentType"/>
+<var name="entityList" type="NamedNodeMap"/>
+<var name="name" type="DOMString"/>
+<var name="expectedResult" type="Collection">
+<member>"ent1"</member>
+<member>"ent2"</member>
+<member>"ent3"</member>
+<member>"ent4"</member>
+<member>"ent5"</member>
+</var>
+<var name="expectedResultSVG" type="Collection">
+<member>"ent1"</member>
+<member>"ent2"</member>
+<member>"ent3"</member>
+<member>"ent4"</member>
+<member>"ent5"</member>
+<member>"svgunit"</member>
+<member>"svgtest"</member>
+</var>
+<var name="nameList" type="Collection"/>
+<var name="entity" type="Node"/>
+<load var="doc" href="staff" willBeModified="false"/>
+<doctype obj="doc" var="docType"/>
+<assertNotNull actual="docType" id="docTypeNotNull"/>
+<entities obj="docType" var="entityList"/>
+<assertNotNull actual="entityList" id="entitiesNotNull"/>
+<for-each collection="entityList" member="entity">
+	<nodeName obj="entity" var="name"/>
+	<append collection="nameList" item="name"/>
+</for-each>
+<if><contentType type="image/svg+xml"/>
+	<assertEquals actual="nameList" expected="expectedResultSVG" id="entityNamesSVG" ignoreCase="false"/>
+	<else>
+		<assertEquals actual="nameList" expected="expectedResult" id="entityNames" ignoreCase="false"/>
+	</else>
+</if>
+</test>

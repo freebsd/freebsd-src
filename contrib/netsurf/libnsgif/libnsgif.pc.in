@@ -1,0 +1,10 @@
+prefix=PREFIX
+exec_prefix=${prefix}
+libdir=${exec_prefix}/LIBDIR
+includedir=${prefix}/include
+
+Name: libnsgif
+Description: Provides gif loading and conversion
+Version: VERSION
+Libs: -L${libdir} -lnsgif
+Cflags: -I${includedir}

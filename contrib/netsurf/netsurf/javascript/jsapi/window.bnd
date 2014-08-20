@@ -1,0 +1,402 @@
+/* Binding to generate window interface
+ *
+ * Copyright 2012 Vincent Sanders <vince@netsurf-browser.org>
+ *
+ * This file is part of NetSurf, http://www.netsurf-browser.org/
+ *
+ * Released under the terms of the MIT License,
+ *         http://www.opensource.org/licenses/mit-license
+ */
+
+
+webidlfile "html.idl";
+webidlfile "dom.idl";
+webidlfile "console.idl";
+
+hdrcomment "Copyright 2012 Vincent Sanders <vince@netsurf-browser.org>";
+hdrcomment "This file is part of NetSurf, http://www.netsurf-browser.org/";
+hdrcomment "Released under the terms of the MIT License,";
+hdrcomment "        http://www.opensource.org/licenses/mit-license";
+
+preamble %{
+
+#include <dom/dom.h>
+
+#include "utils/config.h"
+#include "utils/log.h"
+#include "utils/corestrings.h"
+#include "render/html_internal.h"
+#include "javascript/jsapi.h"
+
+#include "console.h"
+#include "navigator.h"
+#include "event.h"
+#include "node.h"
+#include "htmlcollection.h"
+#include "nodelist.h"
+#include "htmldocument.h"
+#include "text.h"
+#include "comment.h"
+#include "htmlelement.h"
+#include "window.h"
+#include "location.h"
+
+struct browser_window *jsapi_get_browser_window(JSContext *cx);
+
+%}
+
+prologue %{
+
+struct browser_window *jsapi_get_browser_window(JSContext *cx)
+{
+	struct jsclass_private *private;
+
+	private = JS_GetInstancePrivate(cx,
+					JS_GetGlobalObject(cx),
+					&JSClass_Window,
+					NULL);
+	if (private != NULL) {
+		return private->bw;
+	}
+
+	return NULL;
+}
+
+static bool
+init_user_prototypes(JSContext *cx,
+		     struct jsclass_private *private,
+		     JSObject *parent)
+{
+	/* Initialises all the user javascript classes to make their
+	 * prototypes available.
+	 */
+	/** @todo should we be managing these prototype objects ourselves */
+	private->prototype_Document = jsapi_InitClass_Document(cx, parent);
+	if (private->prototype_Document == NULL) {
+		return false;
+	}
+
+	private->prototype_Navigator = jsapi_InitClass_Navigator(cx, parent);
+	if (private->prototype_Navigator == NULL) {
+		return false;
+	}
+
+	private->prototype_Location = jsapi_InitClass_Location(cx, parent);
+	if (private->prototype_Location == NULL) {
+		return false;
+	}
+
+	private->prototype_Console = jsapi_InitClass_Console(cx, parent);
+	if (private->prototype_Console == NULL) {
+		return false;
+	}
+
+	private->prototype_HTMLElement = jsapi_InitClass_HTMLElement(cx, parent);
+	if (private->prototype_HTMLElement == NULL) {
+		return false;
+	}
+
+	private->prototype_HTMLCollection = jsapi_InitClass_HTMLCollection(cx, parent);
+	if (private->prototype_HTMLCollection == NULL) {
+		return false;
+	}
+
+	private->prototype_NodeList = jsapi_InitClass_NodeList(cx, parent);
+	if (private->prototype_NodeList == NULL) {
+		return false;
+	}
+
+	private->prototype_Text = jsapi_InitClass_Text(cx, parent);
+	if (private->prototype_Text == NULL) {
+		return false;
+	}
+
+	private->prototype_Comment = jsapi_InitClass_Comment(cx, parent);
+	if (private->prototype_Comment == NULL) {
+		return false;
+	}
+
+	private->prototype_Node = jsapi_InitClass_Node(cx, parent);
+	if (private->prototype_Node == NULL) {
+		return false;
+	}
+
+	private->prototype_Event = jsapi_InitClass_Event(cx, parent);
+	if (private->prototype_Event == NULL) {
+		return false;
+	}
+	return true;
+}
+
+%}
+
+binding window {
+	type js_libdom; /* the binding type */
+
+	interface Window; /* Web IDL interface to generate */
+
+	private "struct browser_window *" bw;
+	private "struct html_content *" htmlc;
+
+	/* prototypes held in this object */
+	internal "JSObject *" prototype_Document;
+	internal "JSObject *" prototype_Navigator;
+	internal "JSObject *" prototype_Location;
+	internal "JSObject *" prototype_Console;
+	internal "JSObject *" prototype_HTMLElement;
+	internal "JSObject *" prototype_HTMLCollection;
+	internal "JSObject *" prototype_NodeList;
+	internal "JSObject *" prototype_Text;
+	internal "JSObject *" prototype_Comment;
+	internal "JSObject *" prototype_Node;
+	internal "JSObject *" prototype_Event;
+
+	/** document instantiated on first use */
+	property unshared document;
+
+	/** navigator instantiated on first use */
+	property unshared navigator;
+
+	/** console instantiated on first use */
+	property unshared console;
+
+        /** location is unshared */
+	property unshared location;
+
+	/** @todo instantiate forms, history etc. attributes */
+
+	/* events through a single interface */
+	property unshared type EventHandler;
+}
+
+api mark %{
+
+	if (private != NULL) {
+		if (private->prototype_Document != NULL) {
+			JSAPI_GCMARK(private->prototype_Document);
+		}
+
+		if (private->prototype_Navigator != NULL) {
+			JSAPI_GCMARK(private->prototype_Navigator);
+		}
+
+		if (private->prototype_Location != NULL) {
+			JSAPI_GCMARK(private->prototype_Location);
+		}
+
+		if (private->prototype_Console != NULL) {
+			JSAPI_GCMARK(private->prototype_Console);
+		}
+
+		if (private->prototype_HTMLElement != NULL) {
+			JSAPI_GCMARK(private->prototype_HTMLElement);
+		}
+
+		if (private->prototype_HTMLCollection != NULL) {
+			JSAPI_GCMARK(private->prototype_HTMLCollection);
+		}
+
+		if (private->prototype_NodeList != NULL) {
+			JSAPI_GCMARK(private->prototype_NodeList);
+		}
+
+		if (private->prototype_Text != NULL) {
+			JSAPI_GCMARK(private->prototype_Text);
+		}
+
+		if (private->prototype_Comment != NULL) {
+			JSAPI_GCMARK(private->prototype_Comment);
+		}
+
+		if (private->prototype_Node != NULL) {
+			JSAPI_GCMARK(private->prototype_Node);
+		}
+
+		if (private->prototype_Event != NULL) {
+			JSAPI_GCMARK(private->prototype_Event);
+		}
+	}
+%}
+
+api global %{
+%}
+
+api init %{
+	prototype = JS_NewCompartmentAndGlobalObject(cx, &JSClass_Window, NULL);
+	if (prototype == NULL) {
+		return NULL;
+	}
+
+	/** @todo reconsider global object handling. future
+	 * editions of spidermonkey appear to be removing the
+	 * idea of a global so we probably need to handle
+	 * global object references internally
+	 */
+
+	/* set the contexts global */
+	JS_SetGlobalObject(cx, prototype);
+
+	/* Populate the global object with the standard globals, like
+	 *  Object and Array.
+	 */
+	if (!JS_InitStandardClasses(cx, prototype)) {
+		return NULL;
+	}
+
+	/* add functions to prototype */
+	if (!JS_DefineFunctions(cx, prototype, jsclass_functions)) {
+		return NULL;
+	}
+
+	/* add properties to prototype */
+	if (!JS_DefineProperties(cx, prototype, jsclass_properties))
+		return NULL;
+
+	/* as the global just got changed, force a GC run */
+	JS_GC(cx);
+%}
+
+api new %{
+	/* @todo sort out windows that are not globals */
+	assert(parent == NULL);
+
+	/* the window object is the global so its prototype *is* the instance */
+	newobject = prototype;
+
+	if (init_user_prototypes(cx, private, prototype) == false) {
+		/* prototype initialisation failed */
+		free(private);
+		return NULL;
+	}
+
+	LOG(("Created new window object %p", newobject));
+%}
+
+getter document %{
+	if (!JSVAL_IS_VOID(JSAPI_PROP_RVAL(cx, vp))) {
+		/* already created - return it */
+		return JS_TRUE;
+	}
+
+	/* instantiate the subclasses off the window global */
+	jsret = jsapi_new_Document(cx,
+				   NULL,
+				   NULL,
+				   (dom_document *)dom_node_ref(private->htmlc->document),
+				   private->htmlc);
+%}
+
+getter navigator %{
+	if (!JSVAL_IS_VOID(JSAPI_PROP_RVAL(cx, vp))) {
+		/* already created - return it */
+		return JS_TRUE;
+	}
+
+	jsret = jsapi_new_Navigator(cx, NULL, NULL);
+%}
+
+getter console %{
+	if (!JSVAL_IS_VOID(JSAPI_PROP_RVAL(cx, vp))) {
+		/* already created - return it */
+		return JS_TRUE;
+	}
+
+	jsret = jsapi_new_Console(cx, NULL, NULL);
+%}
+
+operation confirm %{
+	warn_user(message, NULL);
+%}
+
+operation alert %{
+	warn_user(message, NULL);
+%}
+
+operation prompt %{
+	warn_user(message, NULL);
+%}
+
+/* boolean dispatchEvent(Event event); */
+operation dispatchEvent %{
+	/* this implementation is unique to the window object as it is
+	 * not a "real" dom node.
+	 */
+
+	/* caution, this must match the struct generated from event.bnd */
+	struct {
+		dom_event *event;
+	} *event_private;
+	dom_string *type_dom = NULL;
+	dom_exception exc;
+	jsval eventval = JSVAL_VOID;
+	jsval event_argv[1];
+	jsval event_rval;
+
+	event_private = JS_GetInstancePrivate(cx, event, &JSClass_Event, NULL);
+	if (event_private->event == NULL) {
+		/** @todo type error? */
+		jsret = JS_FALSE;
+	} else {
+		exc = dom_event_get_type(event_private->event, &type_dom);
+		if (exc == DOM_NO_ERR) {
+
+			if (dom_string_isequal(type_dom, corestring_dom_load)) {
+				JS_GetProperty(cx, JSAPI_THIS_OBJECT(cx, vp), "onload", &eventval);
+			}
+
+			if (!JSVAL_IS_VOID(eventval)) {
+				event_argv[0] = eventval;
+				jsret = JS_CallFunctionValue(cx, NULL, eventval, 1, event_argv, &event_rval);
+			}
+		}
+	}
+%}
+
+getter location %{
+	if (!JSVAL_IS_VOID(JSAPI_PROP_RVAL(cx, vp))) {
+		/* already created - return it */
+		return JS_TRUE;
+	}
+
+/* should get the docuemnts location
+	jsval loc;
+	JS_GetProperty(cx, private->document, "location", &loc);
+	jsret = JSVAL_TO_OBJECT(loc);
+*/
+
+	jsret = jsapi_new_Location(cx,
+				   NULL,
+				   NULL,
+				   llcache_handle_get_url(private->htmlc->base.llcache));
+%}
+
+getter window %{
+	jsret = obj;
+%}
+
+getter self %{
+	jsret = obj;
+%}
+
+/* very iffy implementation */
+getter top %{
+	jsret = obj;
+%}
+
+getter EventHandler %{
+	/* this implementation is unique to the window object as it is
+	 * not a dom node.
+	 */
+	JSLOG("propname[%d]=\"%s\"",
+	      tinyid,
+	      jsclass_properties[tinyid].name);
+%}
+
+setter EventHandler %{
+	/* this implementation is unique to the window object as it is
+	 * not a dom node.
+	 */
+	JSLOG("propname[%d]=\"%s\"",
+	      tinyid,
+	      jsclass_properties[tinyid].name);
+%}

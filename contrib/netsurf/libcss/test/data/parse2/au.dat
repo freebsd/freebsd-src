@@ -1,0 +1,773 @@
+#data
+* { cue: inherit; }
+#errors
+#expected
+| *
+|  cue-before: inherit
+|  cue-after: inherit
+#reset
+
+#data
+* { cue: none; }
+#errors
+#expected
+| *
+|  cue-before: none
+|  cue-after: none
+#reset
+
+#data
+* { cue: url(foo); }
+#errors
+#expected
+| *
+|  cue-before: url('foo')
+|  cue-after: url('foo')
+#reset
+
+#data
+* { cue: none url(foo); }
+#errors
+#expected
+| *
+|  cue-before: none
+|  cue-after: url('foo')
+#reset
+
+#data
+* { cue: url(foo) none; }
+#errors
+#expected
+| *
+|  cue-before: url('foo')
+|  cue-after: none
+#reset
+
+
+#data
+* { cue: inherit !important; }
+#errors
+#expected
+| *
+|  cue-before: inherit !important
+|  cue-after: inherit !important
+#reset
+
+#data
+* { cue: none !important; }
+#errors
+#expected
+| *
+|  cue-before: none !important
+|  cue-after: none !important
+#reset
+
+#data
+* { cue: url(foo) !important; }
+#errors
+#expected
+| *
+|  cue-before: url('foo') !important
+|  cue-after: url('foo') !important
+#reset
+
+#data
+* { cue: none url(foo) !important; }
+#errors
+#expected
+| *
+|  cue-before: none !important
+|  cue-after: url('foo') !important
+#reset
+
+#data
+* { cue: url(foo) none !important; }
+#errors
+#expected
+| *
+|  cue-before: url('foo') !important
+|  cue-after: none !important
+#reset
+
+
+#data
+* { cue: invalid; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { cue: ; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { cue: inherit inherit; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { cue: none inherit; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { cue: inherit none; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { cue: none url(foo) !important inherit; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { cue: inherit none url(foo) !important; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { cue: inherit url(foo) !important; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { cue:}
+#errors
+#expected
+| *
+#reset
+
+#data
+* { cue: url(foo) inherit none; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { cue: inherit url(foo) none !important;}
+#errors
+#expected
+| *
+#reset
+
+
+#data
+* { pause: inherit; }
+#errors
+#expected
+| *
+|  pause-before: inherit
+|  pause-after: inherit
+#reset
+
+#data
+* { pause: 0; }
+#errors
+#expected
+| *
+|  pause-before: 0s
+|  pause-after: 0s
+#reset
+
+#data
+* { pause: 50%; }
+#errors
+#expected
+| *
+|  pause-before: 50%
+|  pause-after: 50%
+#reset
+
+#data
+* { pause: 0 10ms; }
+#errors
+#expected
+| *
+|  pause-before: 0s
+|  pause-after: 10ms
+#reset
+
+#data
+* { pause: 10s 0; }
+#errors
+#expected
+| *
+|  pause-before: 10s
+|  pause-after: 0s
+#reset
+
+#data
+* { pause: 0 50%; }
+#errors
+#expected
+| *
+|  pause-before: 0s
+|  pause-after: 50%
+#reset
+
+#data
+* { pause: 50% 0; }
+#errors
+#expected
+| *
+|  pause-before: 50%
+|  pause-after: 0s
+#reset
+
+#data
+* { pause: 50% 0 5s; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { pause: inherit 0 5s; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { pause: 50% inherit 5s; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { pause: 50% 0 inherit; }
+#errors
+#expected
+| *
+#reset
+
+
+#data
+* { pause: inherit !important; }
+#errors
+#expected
+| *
+|  pause-before: inherit !important
+|  pause-after: inherit !important
+#reset
+
+#data
+* { pause: 0 !important; }
+#errors
+#expected
+| *
+|  pause-before: 0s !important
+|  pause-after: 0s !important
+#reset
+
+#data
+* { pause: 50% !important; }
+#errors
+#expected
+| *
+|  pause-before: 50% !important
+|  pause-after: 50% !important
+#reset
+
+#data
+* { pause: 0 10s !important; }
+#errors
+#expected
+| *
+|  pause-before: 0s !important
+|  pause-after: 10s !important
+#reset
+
+#data
+* { pause: 10s 0 !important; }
+#errors
+#expected
+| *
+|  pause-before: 10s !important
+|  pause-after: 0s !important
+#reset
+
+#data
+* { pause: 0 50% !important; }
+#errors
+#expected
+| *
+|  pause-before: 0s !important
+|  pause-after: 50% !important
+#reset
+
+#data
+* { pause: 50% 0 !important; }
+#errors
+#expected
+| *
+|  pause-before: 50% !important
+|  pause-after: 0s !important
+#reset
+
+
+#data
+* { pause: invalid; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { pause: ; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { pause:}
+#errors
+#expected
+| *
+#reset
+
+#data
+* { pause}
+#errors
+#expected
+| *
+#reset
+
+
+
+
+
+
+#data
+* { cue: none inherit; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { cue: inherit url(Sonic.png); }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { pause: 0 inherit; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { pause: 7ms inherit !important; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { pause: inherit 4%; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { pause: inherit 0 !important; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { azimuth: behind behind; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { azimuth: inherit behind; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { azimuth: left-side inherit; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { azimuth: left-side behind; }
+#errors
+#expected
+| *
+|  azimuth: left-side behind
+#reset
+
+#data
+* { azimuth: behind left-side; }
+#errors
+#expected
+| *
+|  azimuth: left-side behind
+#reset
+
+#data
+* { azimuth: far-left behind; }
+#errors
+#expected
+| *
+|  azimuth: far-left behind
+#reset
+
+#data
+* { azimuth: behind far-left; }
+#errors
+#expected
+| *
+|  azimuth: far-left behind
+#reset
+
+#data
+* { azimuth: behind left; }
+#errors
+#expected
+| *
+|  azimuth: left behind
+#reset
+
+#data
+* { azimuth: center-left behind; }
+#errors
+#expected
+| *
+|  azimuth: center-left behind
+#reset
+
+#data
+* { azimuth: behind center-left; }
+#errors
+#expected
+| *
+|  azimuth: center-left behind
+#reset
+
+#data
+* { azimuth: center-left behind center-left; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { azimuth: behind center; }
+#errors
+#expected
+| *
+|  azimuth: center behind
+#reset
+
+#data
+* { azimuth: center-right behind; }
+#errors
+#expected
+| *
+|  azimuth: center-right behind
+#reset
+
+#data
+* { azimuth: behind center-right; }
+#errors
+#expected
+| *
+|  azimuth: center-right behind
+#reset
+
+#data
+* { azimuth: behind right; }
+#errors
+#expected
+| *
+|  azimuth: right behind
+#reset
+
+#data
+* { azimuth: far-right behind; }
+#errors
+#expected
+| *
+|  azimuth: far-right behind
+#reset
+
+#data
+* { azimuth: behind right-side; }
+#errors
+#expected
+| *
+|  azimuth: right-side behind
+#reset
+
+#data
+* { elevation: inherit; }
+#errors
+#expected
+| *
+|  elevation: inherit
+#reset
+
+#data
+* { elevation: 0deg inherit; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { pitch: inherit; }
+#errors
+#expected
+| *
+|  pitch: inherit
+#reset
+
+#data
+* { play-during: inherit !important; }
+#errors
+#expected
+| *
+|  play-during: inherit !important
+#reset
+
+#data
+* { richness: inherit; }
+#errors
+#expected
+| *
+|  richness: inherit
+#reset
+
+#data
+* { richness: inherit !important; }
+#errors
+#expected
+| *
+|  richness: inherit !important
+#reset
+
+#data
+* { speak-header: inherit; }
+#errors
+#expected
+| *
+|  speak-header: inherit
+#reset
+
+#data
+* { speak-header: inherit !important; }
+#errors
+#expected
+| *
+|  speak-header: inherit !important
+#reset
+
+#data
+* { speak-numeral: inherit; }
+#errors
+#expected
+| *
+|  speak-numeral: inherit
+#reset
+
+#data
+* { speak-numeral: inherit !important; }
+#errors
+#expected
+| *
+|  speak-numeral: inherit !important
+#reset
+
+#data
+* { speak-punctuation: inherit; }
+#errors
+#expected
+| *
+|  speak-punctuation: inherit
+#reset
+
+#data
+* { speak-punctuation: inherit !important; }
+#errors
+#expected
+| *
+|  speak-punctuation: inherit !important
+#reset
+
+#data
+* { speak: inherit; }
+#errors
+#expected
+| *
+|  speak: inherit
+#reset
+
+#data
+* { speak: inherit !important; }
+#errors
+#expected
+| *
+|  speak: inherit !important
+#reset
+
+#data
+* { speech-rate: inherit; }
+#errors
+#expected
+| *
+|  speech-rate: inherit
+#reset
+
+#data
+* { speech-rate: inherit !important; }
+#errors
+#expected
+| *
+|  speech-rate: inherit !important
+#reset
+
+#data
+* { stress: inherit; }
+#errors
+#expected
+| *
+|  stress: inherit
+#reset
+
+#data
+* { stress: inherit !important; }
+#errors
+#expected
+| *
+|  stress: inherit !important
+#reset
+
+#data
+* { voice-family: inherit; }
+#errors
+#expected
+| *
+|  voice-family: inherit
+#reset
+
+#data
+* { voice-family: inherit !important; }
+#errors
+#expected
+| *
+|  voice-family: inherit !important
+#reset
+
+#data
+* { volume: inherit; }
+#errors
+#expected
+| *
+|  volume: inherit
+#reset
+
+#data
+* { volume: inherit !important; }
+#errors
+#expected
+| *
+|  volume: inherit !important
+#reset
+
+#data
+* { pause-before: inherit; }
+#errors
+#expected
+| *
+|  pause-before: inherit
+#reset
+
+#data
+* { pause-before: inherit !important; }
+#errors
+#expected
+| *
+|  pause-before: inherit !important
+#reset
+
+#data
+* { pause-after: inherit; }
+#errors
+#expected
+| *
+|  pause-after: inherit
+#reset
+
+#data
+* { pause-after: inherit !important; }
+#errors
+#expected
+| *
+|  pause-after: inherit !important
+#reset
+
+#data
+* { cue-before: inherit; }
+#errors
+#expected
+| *
+|  cue-before: inherit
+#reset
+
+#data
+* { cue-before: inherit !important; }
+#errors
+#expected
+| *
+|  cue-before: inherit !important
+#reset
+
+#data
+* { cue-after: inherit; }
+#errors
+#expected
+| *
+|  cue-after: inherit
+#reset
+
+#data
+* { cue-after: inherit !important; }
+#errors
+#expected
+| *
+|  cue-after: inherit !important
+#reset
+
+

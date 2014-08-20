@@ -1,0 +1,186 @@
+{\rtf1\mac\ansicpg10000\cocoartf824\cocoasubrtf380
+{\fonttbl\f0\fswiss\fcharset77 Helvetica-Bold;\f1\fswiss\fcharset77 Helvetica;\f2\fswiss\fcharset77 Helvetica-Oblique;
+\f3\fnil\fcharset77 Monaco;}
+{\colortbl;\red255\green255\blue255;\red118\green15\blue80;\red0\green0\blue255;\red35\green110\blue37;
+}
+{\*\listtable{\list\listtemplateid1\listhybrid{\listlevel\levelnfc23\levelnfcn23\leveljc2\leveljcn2\levelfollow0\levelstartat1\levelspace360\levelindent0{\*\levelmarker \{disc\}}{\leveltext\leveltemplateid0\'02\'05.;}{\levelnumbers\'01;}}{\listname ;}\listid1}}
+{\*\listoverridetable{\listoverride\listid1\listoverridecount0\ls1}}
+\pard\tx720\tx1440\tx2160\tx2880\tx3600\tx4320\tx5040\tx5760\tx6480\tx7200\tx7920\tx8640\qc\pardirnatural
+
+\f0\b\fs24 \cf0 \
+PSMTabBarControl (and related classes)\
+
+\f1\b0 developed by John Pannell, Positive Spin Media\
+\
+as seen in the super-cool app...\
+\pard\tx720\tx1440\tx2160\tx2880\tx3600\tx4320\tx5040\tx5760\tx6480\tx7200\tx7920\tx8640\qc\pardirnatural
+\cf0 {{\NeXTGraphic startpage.gif \width7200 \height2820
+}¬}\pard\tx720\tx1440\tx2160\tx2880\tx3600\tx4320\tx5040\tx5760\tx6480\tx7200\tx7920\tx8640\qc\pardirnatural
+\cf0 \
+\
+\pard\tx720\tx1440\tx2160\tx2880\tx3600\tx4320\tx5040\tx5760\tx6480\tx7200\tx7920\tx8640\ql\qnatural\pardirnatural
+\cf0 This source code and all related materials are released under the BSD license, which is explained at the end of this document, along with some other legalese.  I've made my best effort to make everything bug free, but please let me know of any bugs found or suggestions you have: johnp@positivespinmedia.com.\
+\
+
+\f0\b Purpose
+\f1\b0 \
+\
+PSMTabBarControl seeks to provide developers with a high-quality, easy to use GUI to manage an NSTabView (or subclasses) in a manner similar to Safari's tabbed browsing implementation.  It attempts to add a few features as well.  Here's what you get:\
+\
+
+\f0\b The look:
+\f1\b0   a control/cell architecture that draws the expected tab appearance below a toolbar or similar view.  Included styles work consistently in Aqua, Metal, or customized metal variations by basing fills on the window's background color.  Includes drawing of a close button, and rollover states for the close button and tab cell.  Also provides pop-up button and menu when tabs overflow available space, and support for individual tab progress indicators, icons, and object counters.  Tabs can be drawn sized to fit the string content of the label, or uniformly sized.\
+\
+
+\f0\b The functionality:
+\f1\b0   Close button removes tabs, click on a tab cell selects.  Indicators start, stop, and hide if things are hooked up correctly.\
+\
+
+\f0\b Extras:
+\f1\b0  Supports multi-window drag-and-drop reordering of the tabs with aqua-licious animation.\
+\
+
+\f0\b Files
+\f1\b0 \
+\
+Your project will need the files in the "Framework" folder of the project.  The actual framework packages these (and some images) up nicely for you, if desired.  Please look over the "TabBarControlDemo" target of the source code project to see exactly what is needed to get everything to build.  Building and playing with the demo is also a good way to get a feel for the features provided by these classes.\
+\
+
+\f0\b Usage
+\f1\b0 \
+\
+Simply drag a custom view object from the views palette in IB, read the PSMTabBarControl class into IB, and set the view's custom class to PSMTabBarControl.  Then connect the control's tabview outlet to the tab view being controlled, and make the control the delegate of the tab view.  You can also connect the control's "partner view" outlet to another view that will resize in response to the hide/show behavior of the control.\
+\
+Alternately, you can build the Palette subproject and add the built IB palette to Interface Builder.  In this case, creating and configuring an instance is as easy and drag, drop, and a few clicks.  A demo movie and the built palette are available in a separate download from my website: http://www.positivespinmedia.com/dev/PSMTabBarControl.html\
+\
+
+\f2\i Please read the PSMTabBarControlDoc.html file in the documentation folder of this project.  It provides an Apple-ish page describing the interface and usage of this object.
+\f1\i0 \
+\
+
+\f0\b Patterns of Use
+\f1\b0 \
+\
+There are a few random notes I can think of for usage guidelines...\
+\
+- You may see a line between the toolbar and the control in your app; it is part of the toolbar.  In Tiger, you can eliminate the appearance of this line:\
+\
+\pard\tx960\tx1920\tx2880\tx3840\tx4800\tx5760\tx6720\tx7680\tx8640\tx9600\tx10560\tx11520\tx12480\tx13440\tx14400\tx15360\tx16320\tx17280\tx18240\tx19200\tx20160\tx21120\tx22080\tx23040\tx24000\tx24960\tx25920\tx26880\tx27840\tx28800\tx29760\tx30720\tx31680\tx32640\tx33600\tx34560\tx35520\tx36480\tx37440\tx38400\tx39360\tx40320\tx41280\tx42240\tx43200\tx44160\tx45120\tx46080\tx47040\tx48000\tx48960\tx49920\tx50880\tx51840\tx52800\tx53760\tx54720\tx55680\tx56640\tx57600\tx58560\tx59520\tx60480\tx61440\tx62400\tx63360\tx64320\tx65280\tx66240\tx67200\tx68160\tx69120\tx70080\tx71040\tx72000\tx72960\tx73920\tx74880\tx75840\tx76800\tx77760\tx78720\tx79680\tx80640\tx81600\tx82560\tx83520\tx84480\tx85440\tx86400\tx87360\tx88320\tx89280\tx90240\tx91200\tx92160\tx93120\tx94080\tx95040\tx96000\ql\qnatural\pardirnatural
+
+\f3\fs20 \cf0 \CocoaLigature0 SInt32 MacVersion;\
+\pard\tx960\tx1920\tx2880\tx3840\tx4800\tx5760\tx6720\tx7680\tx8640\tx9600\tx10560\tx11520\tx12480\tx13440\tx14400\tx15360\tx16320\tx17280\tx18240\tx19200\tx20160\tx21120\tx22080\tx23040\tx24000\tx24960\tx25920\tx26880\tx27840\tx28800\tx29760\tx30720\tx31680\tx32640\tx33600\tx34560\tx35520\tx36480\tx37440\tx38400\tx39360\tx40320\tx41280\tx42240\tx43200\tx44160\tx45120\tx46080\tx47040\tx48000\tx48960\tx49920\tx50880\tx51840\tx52800\tx53760\tx54720\tx55680\tx56640\tx57600\tx58560\tx59520\tx60480\tx61440\tx62400\tx63360\tx64320\tx65280\tx66240\tx67200\tx68160\tx69120\tx70080\tx71040\tx72000\tx72960\tx73920\tx74880\tx75840\tx76800\tx77760\tx78720\tx79680\tx80640\tx81600\tx82560\tx83520\tx84480\tx85440\tx86400\tx87360\tx88320\tx89280\tx90240\tx91200\tx92160\tx93120\tx94080\tx95040\tx96000\ql\qnatural\pardirnatural
+\cf2 if\cf0  (Gestalt(gestaltSystemVersion, &MacVersion) == noErr)\{\
+    \cf2 if\cf0  (MacVersion >= \cf3 0x1040\cf0 )\{\
+        \cf4 // this call is Tiger only\cf0 \
+        [toolbar setShowsBaselineSeparator:\cf2 NO\cf0 ];\
+    \}\
+\}\
+\
+\pard\tx960\tx1920\tx2880\tx3840\tx4800\tx5760\tx6720\tx7680\tx8640\tx9600\tx10560\tx11520\tx12480\tx13440\tx14400\tx15360\tx16320\tx17280\tx18240\tx19200\tx20160\tx21120\tx22080\tx23040\tx24000\tx24960\tx25920\tx26880\tx27840\tx28800\tx29760\tx30720\tx31680\tx32640\tx33600\tx34560\tx35520\tx36480\tx37440\tx38400\tx39360\tx40320\tx41280\tx42240\tx43200\tx44160\tx45120\tx46080\tx47040\tx48000\tx48960\tx49920\tx50880\tx51840\tx52800\tx53760\tx54720\tx55680\tx56640\tx57600\tx58560\tx59520\tx60480\tx61440\tx62400\tx63360\tx64320\tx65280\tx66240\tx67200\tx68160\tx69120\tx70080\tx71040\tx72000\tx72960\tx73920\tx74880\tx75840\tx76800\tx77760\tx78720\tx79680\tx80640\tx81600\tx82560\tx83520\tx84480\tx85440\tx86400\tx87360\tx88320\tx89280\tx90240\tx91200\tx92160\tx93120\tx94080\tx95040\tx96000\ql\qnatural\pardirnatural
+
+\f1\fs24 \cf0 - In general, there is no reason for your app objects to communicate (outside of configuration) with the PSMTabBarControl at all.  Changes made to the NSTabView instance programmatically should be directed at the NSTabView instance itself, and the control will update to reflect the changes made.\
+\
+- Your app might want to receive tab view delegate notifications in order to perform some actions.  No problem, simply make the desired object the delegate of the PSMTabBarControl instance... it passes along all tab view notifications.  Note that it uses these notifications to make changes itself - read the source code to make sure you aren't tripping over something.\
+\
+- The control creates bindings between each cell's progress indicator and the represented NSTabViewItem's identifier object, if it can.  In my app design, I set an instance of NSObjectController as the NSTabViewItem's identifier, and then bind to the "isProcessing" key of the controller's content object.  All of this can be seen in the source of the demo app...\
+\
+- The control can be set to hide itself when there is only a single tab, and can also be told to hide/show on demand.  It can animate to appear and disappear, and will resize something to compensate for the missing window real estate.  By default, it will resize the window, but you can also connect the "partnerView" outlet in IB to specify another view to resize to take up the missing space.  Note that this takes some attention to sizing springs and wires to get right, and complex views may need a container view to achieve the desired effect.\
+\
+- The control can be configured to draw an attractive "Add Tab" button at the end of the tab cells.  Unfortunately, the button is all looks and no brains - it has no idea what your app wants to do when adding a tab.  If you configure your app to show the add tab button, you need to hook up the add tab button to the proper target with the proper selector.  Something like this will do nicely in your app controller's awakeFromNib:\
+\
+\pard\tx960\tx1920\tx2880\tx3840\tx4800\tx5760\tx6720\tx7680\tx8640\tx9600\tx10560\tx11520\tx12480\tx13440\tx14400\tx15360\tx16320\tx17280\tx18240\tx19200\tx20160\tx21120\tx22080\tx23040\tx24000\tx24960\tx25920\tx26880\tx27840\tx28800\tx29760\tx30720\tx31680\tx32640\tx33600\tx34560\tx35520\tx36480\tx37440\tx38400\tx39360\tx40320\tx41280\tx42240\tx43200\tx44160\tx45120\tx46080\tx47040\tx48000\tx48960\tx49920\tx50880\tx51840\tx52800\tx53760\tx54720\tx55680\tx56640\tx57600\tx58560\tx59520\tx60480\tx61440\tx62400\tx63360\tx64320\tx65280\tx66240\tx67200\tx68160\tx69120\tx70080\tx71040\tx72000\tx72960\tx73920\tx74880\tx75840\tx76800\tx77760\tx78720\tx79680\tx80640\tx81600\tx82560\tx83520\tx84480\tx85440\tx86400\tx87360\tx88320\tx89280\tx90240\tx91200\tx92160\tx93120\tx94080\tx95040\tx96000\ql\qnatural\pardirnatural
+
+\f3\fs20 \cf4 // hook up add tab button\cf0 \
+[[tabBar addTabButton] setTarget:\cf2 self\cf0 ];\
+[[tabBar addTabButton] setAction:\cf2 @selector\cf0 (addNewTab:)];
+\f1\fs24 \
+\
+- The tabs have some sizing options:  You can specify the minimum width, maximum width, and optimum width, as well as spcifying if the tabs should size to fit their label or not.  The sizing bahavior of the tabs is as follows: If "size to fit" is specified, then tabs will be generated to fit the label, but will never exceed the specified max or min widths.  Once the end of the control is reached, the overflow menu will appear as tabs are added; the last tab will squeeze in if it can, or the remaining tabs will stretch to occupy the full control.  If "size to fit" is not specified, then all successive tabs will appear at the optimum width.  Once the end of the control is reached, adding new tabs will cause all tabs to shrink to accomodate, until the minumum width is reached, and then the overflow menu will be used; max width is ignored in this case.  Hopefully that all makes sense :-)\
+\
+- PSMTabBarControl will load the existing tabs from the tabView outlet at startup.  However, many of the advanced features (icon display, progress indicator, object count) rely on binding to a controller that is likely not set up in IB.  Solution?  Nuke the existing tabs in the NSTabView and add new ones, configured the way you like.  The demo app does this in the awakeFromNib: method of the app controller.\
+\
+- As a design choice, I elected to keep a cell object around until its tab was closed, instead of "churning" cell objects in each update cycle.  Each cell keeps its NSTabViewItem as its representedObject and maintains reference that way, rather than by any index.  As a result of this, drag-and-drop reordering of tabs does not change the underlying NSTabView instance at all.  All that to say: don't rely on numerical indices if communicating with both the control and the tab view - the indices may not correlate if the user moved some tabs around (and remember - you shouldn't need to communicate with the control anyway :-).  The Shiira Project, from which I gained much insight and inspiration from for this UI element, elected to scrap and rebuild the array of cells each time through the update cycle, and rely on indices to correlate between cells and NSTabViewItems.  I felt the representedObject route was cleaner, and preferred not to churn objects.\
+\
+\pard\tx960\tx1920\tx2880\tx3840\tx4800\tx5760\tx6720\tx7680\tx8640\tx9600\tx10560\tx11520\tx12480\tx13440\tx14400\tx15360\tx16320\tx17280\tx18240\tx19200\tx20160\tx21120\tx22080\tx23040\tx24000\tx24960\tx25920\tx26880\tx27840\tx28800\tx29760\tx30720\tx31680\tx32640\tx33600\tx34560\tx35520\tx36480\tx37440\tx38400\tx39360\tx40320\tx41280\tx42240\tx43200\tx44160\tx45120\tx46080\tx47040\tx48000\tx48960\tx49920\tx50880\tx51840\tx52800\tx53760\tx54720\tx55680\tx56640\tx57600\tx58560\tx59520\tx60480\tx61440\tx62400\tx63360\tx64320\tx65280\tx66240\tx67200\tx68160\tx69120\tx70080\tx71040\tx72000\tx72960\tx73920\tx74880\tx75840\tx76800\tx77760\tx78720\tx79680\tx80640\tx81600\tx82560\tx83520\tx84480\tx85440\tx86400\tx87360\tx88320\tx89280\tx90240\tx91200\tx92160\tx93120\tx94080\tx95040\tx96000\ql\qnatural\pardirnatural
+
+\f0\b \cf0 Improvements?
+\f1\b0 \
+\
+Pipe up if you think of something you'd like to see; here's my current list:\
+\
+- "Pop-up" tabs - like pop-up folders in the finder, in case you want to drag to a destination in another tab.\
+- Support for the 
+\f3\fs22 \CocoaLigature1 NSUnifiedTitleAndToolbarWindowMask
+\f1\fs24 \CocoaLigature0  "unified" window appearance.  (Help!  I really searched around to try to make this work... the color pattern of the title and toolbar seem to be top secret! The new "unified" style is an excellent replication of a unified look, but isn't "built from" the unified appearance like the metal is.)\
+- During multi-window drag, having a "drag window/image" that shows the represented view getting moved to the other window.\
+- During multi-window drag, support for dragging out solo tabs to consolidate in another window, removing the source window in the process.\
+- Support vertical as well as horizontal alignment.\
+\
+
+\f0\b Version History
+\f1\b0 \
+\
+Version 1.3 (May 29, 2006)\
+- new feature: Unified tab style, compliments of Keith Blount\
+- new feature: allow multi-window drag config option (again from Keith).\
+- fixed bug: Palette installation/usage instructions were wrong.\
+- enhancement: exposed the 
+\f3\fs20 representedTabViewItems
+\f1\fs24  method, which can be used to retrieve the order of the tabs as displayed in the control, since the underlying NSTabView does not get reordered during drag and drop rearrangement.\
+\
+Version 1.2 (April 20, 2006)\
+- new feature: multi-window drag and drop support.\
+- bug fixed: zombie issue with tabView:didCloseTabViewItem\
+- bugs fixed: some drawing issues around the progress indicators in tabs, and the add tab button.\
+- enhancement: the hide/show animation has been improved with less "flickering" of progress indicators during the hide and show.\
+\
+Version 1.1.2 (April 5, 2006)\
+- fixed bug: tabs of non-integer width resulted in occasional anti-aliased drawing issues of dividers between tabs in the Metal style (Thanks, Kent).\
+- added feature: delegate can now respond to -tabView:shouldCloseTabViewItem: and -tabView:willCloseTabViewItem:, and -tabView:didCloseTabViewItem: messages, so your app can take care of any needed setup/cleanup for these actions.\
+- fixed bug: tab close buttons now show down state when pressed down.\
+\
+Version 1.1.1 (March 16, 2006)\
+- fixed bug: Palette inspector would not reflect state of previously instantiated control.  This has been fixed (Thanks, Guillaume).\
+- enhancement: Overflow button now highlights when mouse down (Thanks, Kent).\
+- fixed bug: when set to not close a solo tab, the close button would be hidden for the tab, but could still be closed if you clicked the tab in the right location.  This has been fixed (Thanks, malcom).\
+\
+Version 1.1 (March 10, 2006)\
+- Bound the "title" of the cell to the "label" of the source tabview item.  Just in case you wanted to change the label on the tab during the running of your application.\
+- PSMTabBarCell factored to support new tab "styles", or appearances in drawing.  Now supported are the existing "Metal" style and a new "Aqua" style.  Many thanks to David Smith, Seth Willits, and Chris Forsythe for their contributions!\
+- Control can be configured to "Hide for single tab", so it doesn't appear unless there are more than a single tab view present.  Features animated show/hide behavior (that can be called anytime, and is called automatically in the case that a single tab exists).  The show/hide behavior can also be set up to resize either the window (default) or a selected "partner view" to compensate for the lost height of the tab bar.\
+- Control can be configured for "Can close only tab" behavior.  If set to NO, no close button will appear on a lone tab.\
+- Cells can be set to "size to fit", or given uniform min/max/optimum sizes.\
+- Added support for display of an icon and an object count, if the proper app design pattern is followed.\
+- Sweet animated drag-and-drop drawing!\
+- A few drawing bugs surrounding the progress indicators in cells were squished.\
+- New documentation, in case you found this read me a little pithy.\
+\
+Version 1.0 (December 2005)\
+Initial release of safari-like tab implementation.\
+\
+
+\f0\b The standard disavowal of this beautiful mess
+\f1\b0 \
+\
+I should note that portions of this source code were inspired by the Shiira project's implementation of Safari-style tabs.  While I made some different design decisions, the drawing and some other aspects are only slight modifications of their excellent work.  As such, I note their copyright under their BSD licence:\
+\
+\pard\tx960\tx1920\tx2880\tx3840\tx4800\tx5760\tx6720\tx7680\tx8640\tx9600\tx10560\tx11520\tx12480\tx13440\tx14400\tx15360\tx16320\tx17280\tx18240\tx19200\tx20160\tx21120\tx22080\tx23040\tx24000\tx24960\tx25920\tx26880\tx27840\tx28800\tx29760\tx30720\tx31680\tx32640\tx33600\tx34560\tx35520\tx36480\tx37440\tx38400\tx39360\tx40320\tx41280\tx42240\tx43200\tx44160\tx45120\tx46080\tx47040\tx48000\tx48960\tx49920\tx50880\tx51840\tx52800\tx53760\tx54720\tx55680\tx56640\tx57600\tx58560\tx59520\tx60480\tx61440\tx62400\tx63360\tx64320\tx65280\tx66240\tx67200\tx68160\tx69120\tx70080\tx71040\tx72000\tx72960\tx73920\tx74880\tx75840\tx76800\tx77760\tx78720\tx79680\tx80640\tx81600\tx82560\tx83520\tx84480\tx85440\tx86400\tx87360\tx88320\tx89280\tx90240\tx91200\tx92160\tx93120\tx94080\tx95040\tx96000\ql\qnatural\pardirnatural
+
+\f3\fs20 \cf4 Portions of this software Copyright 2004 The Shiira Project. All rights reserved.\
+\pard\tx960\tx1920\tx2880\tx3840\tx4800\tx5760\tx6720\tx7680\tx8640\tx9600\tx10560\tx11520\tx12480\tx13440\tx14400\tx15360\tx16320\tx17280\tx18240\tx19200\tx20160\tx21120\tx22080\tx23040\tx24000\tx24960\tx25920\tx26880\tx27840\tx28800\tx29760\tx30720\tx31680\tx32640\tx33600\tx34560\tx35520\tx36480\tx37440\tx38400\tx39360\tx40320\tx41280\tx42240\tx43200\tx44160\tx45120\tx46080\tx47040\tx48000\tx48960\tx49920\tx50880\tx51840\tx52800\tx53760\tx54720\tx55680\tx56640\tx57600\tx58560\tx59520\tx60480\tx61440\tx62400\tx63360\tx64320\tx65280\tx66240\tx67200\tx68160\tx69120\tx70080\tx71040\tx72000\tx72960\tx73920\tx74880\tx75840\tx76800\tx77760\tx78720\tx79680\tx80640\tx81600\tx82560\tx83520\tx84480\tx85440\tx86400\tx87360\tx88320\tx89280\tx90240\tx91200\tx92160\tx93120\tx94080\tx95040\tx96000\ql\qnatural\pardirnatural
+
+\f1\fs24 \cf0 Check them out at: http://hmdt-web.net/shiira/\
+\
+This source code is provided under BSD license, the conditions of which are listed below.  I hope you'll make note somewhere in your about window or ReadMe stating the sweet coding goodness of Positive Spin Media and link to the fascinating and informative website at www.positivespinmedia.com\
+\
+\pard\pardeftab720\sa320\ql\qnatural
+\cf0 \CocoaLigature1 Copyright (c) 2005, Positive Spin Media\uc0\u8232 All rights reserved.\
+Redistribution and use in source and binary forms, with or without modification, are permitted provided that the following conditions are met:\
+\pard\tx220\tx720\pardeftab720\li720\fi-720\ql\qnatural
+\ls1\ilvl0\cf0 {\listtext	\'a5	}Redistributions of source code must retain the above copyright notice, this list of conditions and the following disclaimer.\
+{\listtext	\'a5	}Redistributions in binary form must reproduce the above copyright notice, this list of conditions and the following disclaimer in the documentation and/or other materials provided with the distribution.\
+{\listtext	\'a5	}Neither the name of Positive Spin Media nor the names of its contributors may be used to endorse or promote products derived from this software without specific prior written permission.\
+        \
+\pard\pardeftab720\sa320\ql\qnatural
+\cf0 THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.\CocoaLigature0 \
+}

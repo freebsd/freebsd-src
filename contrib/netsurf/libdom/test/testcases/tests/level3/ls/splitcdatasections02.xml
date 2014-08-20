@@ -1,0 +1,76 @@
+<?xml version="1.0" encoding="UTF-8"?><?xml-stylesheet href="test-to-html.xsl" type="text/xml"?>
+
+<!--
+
+Copyright (c) 2004 World Wide Web Consortium,
+(Massachusetts Institute of Technology, Institut National de
+Recherche en Informatique et en Automatique, Keio University).  All
+Rights Reserved.  This program is distributed under the W3C's Software
+Intellectual Property License.  This program is distributed in the
+hope that it will be useful, but WITHOUT ANY WARRANTY; without even
+the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
+PURPOSE.
+
+See W3C License http://www.w3.org/Consortium/Legal/ for more details.
+
+-->
+
+<!DOCTYPE test SYSTEM "dom3.dtd">
+<test xmlns="http://www.w3.org/2001/DOM-Test-Suite/Level-3" name="splitcdatasections02">
+<metadata>
+<title>splitcdatasections02</title>
+<creator>Curt Arnold</creator>
+<description>
+CDATASections containing unrepresentable characters raise a SERIALIZE_ERR when
+split-cdata-sections is false and well-formed is true.
+</description>
+<date qualifier="created">2004-03-31</date>
+<subject resource="http://www.w3.org/TR/2004/REC-DOM-Level-3-LS-20040407/load-save#LS-LSSerializer-writeToString"/>
+<subject resource="http://www.w3.org/TR/2004/REC-DOM-Level-3-Core-20040407/core#parameter-split-cdata-sections"/>
+<subject resource="http://www.w3.org/TR/2004/REC-DOM-Level-3-Core-20040407/core#parameter-well-formed"/>
+</metadata>
+<var name="doc" type="Document"/>
+<var name="domConfig" type="DOMConfiguration"/>
+<var name="domImplLS" type="DOMImplementationLS"/>
+<var name="lsSerializer" type="LSSerializer"/>
+<var name="docType" type="DocumentType" isNull="true"/>
+<var name="docElem" type="Element"/>
+<var name="newNode" type="Node"/>
+<var name="output" type="DOMString"/>
+<var name="retNode" type="Node"/>
+<var name="errorMonitor" type="DOMErrorMonitor"/>
+<var name="errors" type="List"/>
+<var name="error" type="DOMError"/>
+<var name="severity" type="int"/>
+<var name="type" type="DOMString"/>
+<var name="errorCount" type="int" value="0"/>
+<implementation var="domImplLS"/>
+<createLSSerializer var="lsSerializer" obj="domImplLS"/>
+<createDocument var="doc" obj="domImplLS" namespaceURI='"http://www.example.org"'
+        qualifiedName='"test"' doctype="docType"/>
+<documentElement var="docElem" obj="doc"/>
+<createCDATASection var="newNode" obj="doc" data='"this is not ]]&gt; good"'/>
+<appendChild var="retNode" obj="docElem" newChild="newNode"/>
+<domConfig obj="lsSerializer" var="domConfig" interface="LSSerializer"/>
+<setParameter obj="domConfig" name='"split-cdata-sections"' value="false"/>
+<setParameter obj="domConfig" name='"cdata-sections"' value="true"/>
+<setParameter obj="domConfig" name='"well-formed"' value="true"/>
+<setParameter obj="domConfig" name='"error-handler"' value="errorMonitor"/>
+<assertLSException id="throw_SERIALIZE_ERR">
+        <SERIALIZE_ERR>
+                <writeToString var="output" obj="lsSerializer" nodeArg="doc"/>
+        </SERIALIZE_ERR>
+</assertLSException>
+<allErrors var="errors" obj="errorMonitor"/>
+<for-each member="error" collection="errors">
+        <severity var="severity" obj="error"/>
+        <type var="type" obj="error" interface="DOMError"/>
+        <if><equals actual="type" expected='"wf-invalid-character"' ignoreCase="false"/>
+                <assertEquals actual="severity" expected="2" ignoreCase="false" id="severityError"/>
+                <increment var="errorCount" value="1"/>
+        </if>
+</for-each>
+<assertTrue id="hasWfErrors"><greater actual="errorCount" expected="0"/></assertTrue>
+</test>
+
+

@@ -1,0 +1,11 @@
+# Index file for automated parser tests
+#
+# Test			Description
+
+tests1.dat		Basic tests
+selectors.dat		Selectors
+atrules.dat		@-rules
+colours.dat		Colour values
+colours-hsl.dat		HSL Colour values
+nth.dat			:nth-* expressions
+properties.dat		Properties

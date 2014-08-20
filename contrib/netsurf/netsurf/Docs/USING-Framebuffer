@@ -1,0 +1,201 @@
+--------------------------------------------------------------------------------
+  Usage Instructions for Framebuffer NetSurf                  2nd October 2010
+--------------------------------------------------------------------------------
+
+  This document provides usage instructions for the Framebuffer version of 
+  NetSurf.
+
+  Framebuffer NetSurf has been tested on Ubuntu and Debian.
+
+Overview
+========
+
+  What it is
+  ----------
+
+  The NetSurf framebuffer front end is primarily intended for kiosk
+   and embedded applications where there is insufficient Operating
+   System support for a full graphical windowing environment.
+
+  The framebuffer frontend features:
+
+  * A trivial occluded rectangle window management toolkit
+
+  * Font handling system using either:
+    - A trivial internal monochrome bitmap glyph set.
+    - An interface to fully anti-aliased glyphs using libfreetype 2
+
+  * Uses libnsfb to provide transparent support for:
+    - Numerous surface providers allowing usage on Linux, X, SDL, VNC
+      and any mapped linear memory region.
+    - Surface depths of 8, 16, 24 and 32bpp 
+    - Optimised software plotters for lines, rectangles, polygons,
+      arbitrary ellipses (including circles), cubic and quadratic
+      splines, font glyphs and 32bpp RGBA bitmaps.
+    - Abstracted input handling.
+ 
+  What it is not
+  --------------
+  
+  The framebuffer frontend is not a replacement for full native
+   ports. It lacks functionality and flexibility compared to such
+   implementations. 
+
+  Limitations include:
+    - Single window interface.
+    - No tabbed interface.
+    - Expects to control the entire plotting surface.
+    - No ability to re-size a surface after initialisation.
+    - Inflexible input character mapping.
+    - Limited history view.
+
+  In addition it should be noted support for some libnsfb surfaces has
+   been implemented purely for debugging functionality (SDL
+   especially) and is not intended to replace native surface
+   handlers.
+
+  If a high level windowing system is available then a native NetSurf
+   frontend is almost certainly a better choice than attempting to use
+   the framebuffer frontend.
+
+  If there is a graphical environment which supports GTK then using
+   the GTK frontend is a vastly superior choice. The framebuffer
+   frontend will appear exceptionally limited on such capable systems.
+
+
+Configuring
+===========
+
+  Several resources are set at *compile* time and are not changeable at
+   run time such as the icon bitmaps, the font system to use and what
+   default surface to use. Refer to the BUILDING-Framebuffer document
+   for details.
+
+  Toolkit Options
+  ---------------
+
+  The trivial toolkit has some configuration parameters allowing the
+   user to alter specific aspects of the UI. All the sizes are in
+   surface pixels however that is mapped.
+
+  fb_furniture_size 
+    This is the size allowed for the scroll bar elements.
+
+  fb_toolbar_size
+    The height of the toolbar.
+
+  fb_toolbar_layout
+    The layout of the toolbar, layout uses a string to define buttons
+    type and position each character adds an element to the toolbar:
+
+    b - back
+    l - local history
+    f - forward
+    s - stop 
+    r - refresh
+    u - url bar expands to fit remaining space
+    t - throbber/activity indicator
+    c - close the current window
+
+    The default layout is "blfsrutc" there should be no more than a
+    single url bar entry. If the option is set to the empty string (no
+    spaces permitted) the toolbar is disabled altogether.
+
+  fb_osk
+    Whether the on screen keyboard should be enabled for input.
+
+
+  Framebuffer Surface
+  -------------------
+
+  There are four command line switches which override compiled in
+   defaults these are:
+
+  -f <handler>   
+     Selects a surface handler to pass to libnsfb instead of the
+     default. (e.g. x, sdl, mem, linux)
+
+  -b <depth>
+     Selects the pixel depth to pass to libnsfb instead of the
+     compiled in default. (one of 8, 16, 24, 32)
+
+  -w <width>
+     Selects the surface width to pass to libnsfb instead of the
+     compiled in default.
+
+  -h <height>
+     Selects the surface height to pass to libnsfb instead of the
+     compiled in default.
+
+  As with any NetSurf frontend run-time configuration is read from a
+   "Choices-fb" file. This file is a simple key:value list. In addition
+   to the standard values supported by the NetSurf core there are a
+   number of values to control specific aspects of the framebuffer
+   version.
+
+  The libnsfb surface parameters are controlled with:
+
+    fb_refresh - The refresh rate (for physical displays)
+    fb_depth - The depth (in bits per pixel) of the surface
+    fb_device - The path to the device (for physical displays)
+    fb_input_devpath - The path to the input devices (for linux input layer)
+    fb_input_glob - The input device selection glob  (for linux input layer)
+    window_width - The width of the framebuffer
+    window_height - The height of the framebuffer
+
+  The defaults are for 800 by 600 pixels at 16bpp and 70Hz refresh rate.
+
+  The documentation of libnsfb should be consulted for further
+   information about supported surfaces and their configuration.
+
+  Fonts
+  -----
+
+  If the compile time option is set to use the freetype font system
+   then several configuration options are available. If the simple
+   bitmap glyphs are used none of these options apply.
+
+  Font faces are provided for the css default styles of sans serif,
+   serif, monospace, cursive and fantasy. Only the sans serif
+   non-italic normal weight font is required to exist, If any of the
+   other faces are missing the sans serif font will be used instead.
+
+  The compiled in default font file paths are specified within the
+  build time Makefile.config. The default faces is the truetype DejaVu
+  font set in the directory /usr/share/fonts/truetype/ttf-dejavu/
+
+  The font glyphs are, by default, rendered as 256 level transparency
+   which gives excellent visual results even on small font sizes.
+
+  The font selection may be changed by placing truetype font files
+   in the resources path. The resource files will be the generic names
+   sans_serif.ttf, sans_serif_bold.ttf etc. 
+
+  The font system is configured at run-time by several options: 
+
+  fb_font_monochrome 
+    This option causes the renderer to use monochrome glyph
+    rendering. This method of rendering is much less visually
+    appealing and while faster to plot it is slower to render.
+
+  fb_font_cachesize
+    This option sets the number of kilobytes of memory set aside for
+    caching the rendered glyphs. This caching significantly improves
+    the performance of using the freetype rendering system. It is set
+    to 2048 by default (2 Megabytes of memory) which impiracle testing
+    shows to be a suitable value for the seven default faces.
+
+  The remaining options control the files to be used for font faces. The
+   font file name options will override both the compiled in paths and
+   files found in the resource path.
+
+  fb_face_sans_serif - The sans serif face
+  fb_face_sans_serif_bold - The bold sans serif face
+  fb_face_sans_serif_italic - The italic sans serif face
+  fb_face_sans_serif_italic_bold - The bold italic sans serif face.
+  fb_face_serif - The serif font
+  fb_face_serif_bold - The bold serif font
+  fb_face_monospace - The monospaced font
+  fb_face_monospace_bold - The bold monospaced font
+  fb_face_cursive - The cursive font
+  fb_face_fantasy - The fantasy font

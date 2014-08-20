@@ -1,0 +1,44 @@
+/* test binding to generate htmldocument */
+
+#include "document.bnd"
+
+webidlfile "htmldocument.idl";
+
+hdrcomment "Part of NetSurf Project";
+hdrcomment "multi" 
+           "line" 
+           "comment";
+
+hdrcomment "IDL http://www.whatwg.org/specs/web-apps/current-work/#the-document-object";
+
+preamble %{
+
+#include <dom/dom.h>
+        
+#include "utils/config.h"
+#include "utils/log.h"
+
+#include "javascript/jsapi.h"
+
+%}
+
+operation write %{
+	LOG(("content %p parser %p writing %s",
+		private->htmlc, private->htmlc->parser, text));
+
+	if (private->htmlc->parser != NULL) {
+		dom_hubbub_parser_insert_chunk(private->htmlc->parser, (uint8_t *)text, text_len);
+	}
+%}
+
+binding document {
+    type js_libdom; /* the binding type */
+
+    /* parameters to constructor value stored in private
+     * context structure.
+     */
+    private "dom_document *" node;
+    private "struct html_content *" htmlc; 
+
+    interface Document; /* Web IDL interface to generate */
+}

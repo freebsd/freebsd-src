@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE html
+   PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+   "xhtml1-transitional.dtd">
+<html xmlns='http://www.w3.org/1999/xhtml'>
+<head>
+<title>NIST DOM HTML Test - LINK</title>
+<link charset="Latin-1" target="dynamic" href="./files/glossary.html" hreflang="en" media="screen" rel="Glossary" type="text/html"/>
+<link charset="Latin-1" href="./files/style1.css" hreflang="en" media="screen" rev="stylesheet" type="text/css"/>
+</head>
+<body onload="parent.loadComplete()">
+<p>
+<br/>
+</p>
+</body>
+</html>
+

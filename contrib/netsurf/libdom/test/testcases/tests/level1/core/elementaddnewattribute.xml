@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+Copyright (c) 2001 World Wide Web Consortium,
+(Massachusetts Institute of Technology, Institut National de
+Recherche en Informatique et en Automatique, Keio University). All
+Rights Reserved. This program is distributed under the W3C's Software
+Intellectual Property License. This program is distributed in the
+hope that it will be useful, but WITHOUT ANY WARRANTY; without even
+the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
+PURPOSE.
+See W3C License http://www.w3.org/Consortium/Legal/ for more details.
+--><!DOCTYPE test SYSTEM "dom1.dtd">
+
+<test xmlns="http://www.w3.org/2001/DOM-Test-Suite/Level-1" name="elementaddnewattribute">
+<metadata>
+<title>elementAddNewAttribute</title>
+<creator>NIST</creator>
+<description>
+    The "setAttribute(name,value)" method adds a new attribute
+   to the Element 
+   
+   Retrieve the last child of the last employee, then 
+   add an attribute to it by invoking the             
+   "setAttribute(name,value)" method.  It should create
+   a "name" attribute with an assigned value equal to 
+   "value".
+</description>
+<contributor>Mary Brady</contributor>
+<date qualifier="created">2001-08-17</date>
+<!--setAttribute-->
+<subject resource="http://www.w3.org/TR/1998/REC-DOM-Level-1-19981001/level-one-core#ID-F68F082"/>
+</metadata>
+<var name="doc" type="Document"/>
+<var name="elementList" type="NodeList"/>
+<var name="testEmployee" type="Element"/>
+<var name="attrValue" type="DOMString"/>
+<load var="doc" href="staff" willBeModified="true"/>
+<getElementsByTagName interface="Document" obj="doc" tagname="&quot;address&quot;" var="elementList"/>
+<item interface="NodeList" obj="elementList" index="4" var="testEmployee"/>
+<setAttribute obj="testEmployee" name="&quot;district&quot;" value="&quot;dallas&quot;"/>
+<getAttribute obj="testEmployee" var="attrValue" name="&quot;district&quot;"/>
+<assertEquals actual="attrValue" expected="&quot;dallas&quot;" id="elementAddNewAttributeAssert" ignoreCase="false"/>
+</test>

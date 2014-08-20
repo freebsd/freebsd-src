@@ -1,0 +1,314 @@
+#data
+* { margin: 0 0 0 0; }
+#errors
+#expected
+| *
+|  margin-top: 0px
+|  margin-right: 0px
+|  margin-bottom: 0px
+|  margin-left: 0px
+#reset
+
+#data
+* { margin: 2em; }
+#errors
+#expected
+| *
+|  margin-top: 2em
+|  margin-right: 2em
+|  margin-bottom: 2em
+|  margin-left: 2em
+#reset
+
+#data
+* { margin: 2em auto; }
+#errors
+#expected
+| *
+|  margin-top: 2em
+|  margin-right: auto
+|  margin-bottom: 2em
+|  margin-left: auto
+#reset
+
+#data
+* { margin: 10% 5px -4em -50%; }
+#errors
+#expected
+| *
+|  margin-top: 10%
+|  margin-right: 5px
+|  margin-bottom: -4em
+|  margin-left: -50%
+#reset
+
+#data
+* { margin: 10% 5px -4em; }
+#errors
+#expected
+| *
+|  margin-top: 10%
+|  margin-right: 5px
+|  margin-bottom: -4em
+|  margin-left: 5px
+#reset
+
+#data
+* { margin: 10% 5px "Hello!" -4em; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { margin: auto; }
+#errors
+#expected
+| *
+|  margin-top: auto
+|  margin-right: auto
+|  margin-bottom: auto
+|  margin-left: auto
+#reset
+
+#data
+* { margin: auto auto; }
+#errors
+#expected
+| *
+|  margin-top: auto
+|  margin-right: auto
+|  margin-bottom: auto
+|  margin-left: auto
+#reset
+
+#data
+* { margin: auto inherit; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { margin: inherit; }
+#errors
+#expected
+| *
+|  margin-top: inherit
+|  margin-right: inherit
+|  margin-bottom: inherit
+|  margin-left: inherit
+#reset
+
+#data
+* { margin: inherit auto auto; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { margin: auto auto 0; }
+#errors
+#expected
+| *
+|  margin-top: auto
+|  margin-right: auto
+|  margin-bottom: 0px
+|  margin-left: auto
+#reset
+
+#data
+* { margin: auto auto 10px 0; }
+#errors
+#expected
+| *
+|  margin-top: auto
+|  margin-right: auto
+|  margin-bottom: 10px
+|  margin-left: 0px
+#reset
+
+
+#data
+* { margin: auto !important; }
+#errors
+#expected
+| *
+|  margin-top: auto !important
+|  margin-right: auto !important
+|  margin-bottom: auto !important
+|  margin-left: auto !important
+#reset
+
+#data
+* { margin: auto auto !important; }
+#errors
+#expected
+| *
+|  margin-top: auto !important
+|  margin-right: auto !important
+|  margin-bottom: auto !important
+|  margin-left: auto !important
+#reset
+
+#data
+* { margin: auto auto inherit auto	!	important; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { margin: inherit !important; }
+#errors
+#expected
+| *
+|  margin-top: inherit !important
+|  margin-right: inherit !important
+|  margin-bottom: inherit !important
+|  margin-left: inherit !important
+#reset
+
+#data
+* { margin: auto auto 0 !important; }
+#errors
+#expected
+| *
+|  margin-top: auto !important
+|  margin-right: auto !important
+|  margin-bottom: 0px !important
+|  margin-left: auto !important
+#reset
+
+#data
+* { margin: auto auto 10px 0 !important; }
+#errors
+#expected
+| *
+|  margin-top: auto !important
+|  margin-right: auto !important
+|  margin-bottom: 10px !important
+|  margin-left: 0px !important
+#reset
+
+#data
+* { margin: auto auto 10px !important 0; }
+#errors
+#expected
+| *
+#reset
+
+
+#data
+* { margin: invalid; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { margin: ; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { margin:}
+#errors
+#expected
+| *
+#reset
+
+#data
+* { margin: 2px inherit; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { margin: inherit 2px; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { margin: 2px 3em inherit; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { margin: 2px inherit 3em; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { margin: 2px 0 0 0 inherit; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { margin: inherit inherit; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { margin: inherit 0 !important; }
+#errors
+#expected
+| *
+#reset
+
+
+
+#data
+* { margin-top: inherit;}
+#errors
+#expected
+| *
+|  margin-top: inherit
+#reset
+
+#data
+* { margin-right: inherit;}
+#errors
+#expected
+| *
+|  margin-right: inherit
+#reset
+
+#data
+* { margin-bottom: inherit;}
+#errors
+#expected
+| *
+|  margin-bottom: inherit
+#reset
+
+#data
+* { margin-bottom: 2em inherit;}
+#errors
+#expected
+| *
+#reset
+
+#data
+* { margin-left: inherit;}
+#errors
+#expected
+| *
+|  margin-left: inherit
+#reset
+
+

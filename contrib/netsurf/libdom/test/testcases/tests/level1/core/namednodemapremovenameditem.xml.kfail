@@ -1,0 +1,54 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+Copyright (c) 2001-2004 World Wide Web Consortium,
+(Massachusetts Institute of Technology, Institut National de
+Recherche en Informatique et en Automatique, Keio University). All
+Rights Reserved. This program is distributed under the W3C's Software
+Intellectual Property License. This program is distributed in the
+hope that it will be useful, but WITHOUT ANY WARRANTY; without even
+the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
+PURPOSE.
+See W3C License http://www.w3.org/Consortium/Legal/ for more details.
+--><!DOCTYPE test SYSTEM "dom1.dtd">
+
+<test xmlns="http://www.w3.org/2001/DOM-Test-Suite/Level-1" name="namednodemapremovenameditem">
+<metadata>
+<title>namednodemapRemoveNamedItem</title>
+<creator>NIST</creator>
+<description>
+    The "removeNamedItem(name)" method removes a node 
+   specified by name. 
+   
+   Retrieve the third employee and create a NamedNodeMap 
+   object of the attributes of the last child.  Once the
+   list is created invoke the "removeNamedItem(name)"
+   method with name="street".  This should result
+   in the removal of the specified attribute and
+   the "getSpecified()" method should return false.
+</description>
+<contributor>Mary Brady</contributor>
+<date qualifier="created">2001-08-17</date>
+<subject resource="http://www.w3.org/TR/1998/REC-DOM-Level-1-19981001/level-one-core#ID-D58B193"/>
+<subject resource="http://www.w3.org/TR/1998/REC-DOM-Level-1-19981001/level-one-core#ID-349467F9"/>
+<!--  DOM WG opinion on default attributes -->
+<subject resource="http://lists.w3.org/Archives/Public/www-dom-ts/2002Mar/0002.html"/>
+</metadata>
+<implementationAttribute name="validating" value="true"/>
+<var name="doc" type="Document"/>
+<var name="elementList" type="NodeList"/>
+<var name="testAddress" type="Node"/>
+<var name="attributes" type="NamedNodeMap"/>
+<var name="streetAttr" type="Attr"/>
+<var name="specified" type="boolean"/>
+<var name="removedNode" type="Node"/>
+<load var="doc" href="staff" willBeModified="true"/>
+<getElementsByTagName interface="Document" obj="doc" var="elementList" tagname="&quot;address&quot;"/>
+<item interface="NodeList" obj="elementList" var="testAddress" index="2"/>
+<attributes obj="testAddress" var="attributes"/>
+<assertNotNull actual="attributes" id="attributesNotNull"/>
+<removeNamedItem var="removedNode" interface="NamedNodeMap" obj="attributes" name="&quot;street&quot;"/>
+<getNamedItem obj="attributes" var="streetAttr" name="&quot;street&quot;"/>
+<assertNotNull actual="streetAttr" id="streetAttrNotNull"/>
+<specified obj="streetAttr" var="specified"/>
+<assertFalse actual="specified" id="attrNotSpecified"/>
+</test>

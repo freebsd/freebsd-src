@@ -1,0 +1,95 @@
+<?xml version="1.0" encoding="UTF-8"?><?xml-stylesheet href="test-to-html.xsl" type="text/xml"?>
+
+<!--
+
+Copyright (c) 2001-2004 World Wide Web Consortium, 
+(Massachusetts Institute of Technology, Institut National de
+Recherche en Informatique et en Automatique, Keio University).  All 
+Rights Reserved.  This program is distributed under the W3C's Software
+Intellectual Property License.  This program is distributed in the 
+hope that it will be useful, but WITHOUT ANY WARRANTY; without even
+the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR 
+PURPOSE.  
+
+See W3C License http://www.w3.org/Consortium/Legal/ for more details.
+
+-->
+
+<!DOCTYPE test SYSTEM "dom3.dtd">
+<test xmlns="http://www.w3.org/2001/DOM-Test-Suite/Level-3" name="documentadoptnode02">
+<metadata>
+<title>documentadoptnode02</title>
+<creator>IBM</creator>
+<description>
+	Adopt the class attribute node of the fourth acronym element.  Check if this attribute has been adopted 
+	successfully by verifying the nodeName, nodeType, ownerElement, specified attributes and child nodes 
+	of the adopted node.
+</description>
+<contributor>Neil Delima</contributor>
+<date qualifier="created">2002-06-10</date>
+<subject resource="http://www.w3.org/TR/2004/REC-DOM-Level-3-Core-20040407/core#Document3-adoptNode"/>
+</metadata>
+<var name="doc" type="Document"/>
+<var name="newDoc" type="Document"/>
+<var name="domImpl" type="DOMImplementation"/>
+<var name="attrOwnerElem" type="Element"/>
+<var name="element" type="Element"/>
+<var name="attr" type="Attr"/>
+<var name="childList" type="NodeList"/>
+<var name="adoptedclass" type="Node"/>
+<var name="attrsParent" type="Node"/>
+<var name="nodeName" type="DOMString"/>
+<var name="nodeType" type="int"/>
+<var name="nodeValue" type="DOMString"/>
+<var name="isSpecified" type="boolean"/>
+<var name="nullDocType" type="DocumentType" isNull="true"/>
+<var name="firstChild" type="Text"/>
+<var name="firstChildValue" type="DOMString"/>
+<var name="secondChild" type="EntityReference"/>
+<var name="secondChildType" type="int"/>
+<var name="secondChildName" type="DOMString"/>
+<var name="docElem" type="Element"/>
+<var name="rootNS" type="DOMString"/>
+<var name="rootName" type="DOMString"/>
+
+<load var="doc" href="hc_staff" willBeModified="true"/>
+<documentElement var="docElem" obj="doc"/>
+<tagName var="rootName" obj="docElem"/>
+<namespaceURI var="rootNS" obj="docElem" interface="Node"/>
+<implementation var="domImpl" obj="doc"/>
+<createDocument var="newDoc" obj="domImpl" namespaceURI="rootNS" qualifiedName="rootName" doctype="nullDocType"/>
+<getElementsByTagName var="childList" obj="doc" tagname='"acronym"' interface="Document"/>
+<item var="element" obj="childList" index="3" interface="NodeList"/>
+<getAttributeNode var="attr" obj="element" name='"class"'/>
+<adoptNode var="adoptedclass" obj="newDoc" source="attr"/>
+<if><notNull obj="adoptedclass"/>
+<nodeName var="nodeName" obj="adoptedclass"/>
+<nodeValue var="nodeValue" obj="adoptedclass"/>
+<nodeType var="nodeType" obj="adoptedclass"/>
+<ownerElement var="attrOwnerElem" obj="adoptedclass" interface="Attr"/>
+<specified var="isSpecified"  obj="adoptedclass" />
+<assertEquals expected='"class"' actual="nodeName"  id="documentadoptnode02_nodeName" ignoreCase="false"/>
+<assertEquals expected="2" actual="nodeType"  id="documentadoptnode02_nodeType" ignoreCase="false"/>
+<assertNull  actual="attrOwnerElem"  id="documentadoptnode02_ownerDoc"/>
+<assertTrue  actual="isSpecified"  id="documentadoptnode02_specified"/>
+<!--  The attribute's child list can either be a text node "Yes" or 
+          an text node "Y" and a entity reference to "alpha"  -->
+<firstChild var="firstChild" obj="adoptedclass" interface="Node"/>
+<assertNotNull actual="firstChild" id="firstChildNotNull"/>
+<nodeValue var="firstChildValue" obj="firstChild"/>
+<if>
+	<equals actual="firstChildValue" expected='"Y"' ignoreCase="false"/>
+	<nextSibling var="secondChild" obj="firstChild" interface="Node"/>
+	<assertNotNull actual="secondChild" id="secondChildNotNull"/>
+	<nodeType var="secondChildType" obj="secondChild"/>
+	<assertEquals actual="secondChildType" expected="5" 
+		id="secondChildIsEntityReference" ignoreCase="false"/>
+	<nodeName var="secondChildName" obj="secondChild"/>
+	<assertEquals actual="secondChildName" expected='"alpha"' 
+		id="secondChildIsEnt1Reference" ignoreCase="false"/>
+	<else>
+		<assertEquals expected='"Y&#945;"' actual="nodeValue"  id="documentadoptnode02_nodeValue" ignoreCase="false"/>
+	</else>
+</if>
+</if>
+</test>

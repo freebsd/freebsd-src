@@ -1,0 +1,44 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+Copyright (c) 2004 World Wide Web Consortium,
+(Massachusetts Institute of Technology, Institut National de
+Recherche en Informatique et en Automatique, Keio University). All
+Rights Reserved. This program is distributed under the W3C's Software
+Intellectual Property License. This program is distributed in the
+hope that it will be useful, but WITHOUT ANY WARRANTY; without even
+the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
+PURPOSE.
+See W3C License http://www.w3.org/Consortium/Legal/ for more details.
+--><!DOCTYPE test SYSTEM "dom1.dtd">
+
+<test xmlns="http://www.w3.org/2001/DOM-Test-Suite/Level-1" name="hc_notationsremovenameditem1">
+<metadata>
+<title>hc_notationsremovenameditem1</title>
+<creator>Curt Arnold</creator>
+<description>
+An attempt to add remove an notation should result in a NO_MODIFICATION_ERR.
+</description>
+<date qualifier="created">2004-01-11</date>
+<!--  DocumentType.notations   -->
+<subject resource="http://www.w3.org/TR/1998/REC-DOM-Level-1-19981001/level-one-core#ID-D46829EF"/>
+<!--  NamedNodeMap.removeNamedItem   -->
+<subject resource="http://www.w3.org/TR/1998/REC-DOM-Level-1-19981001/level-one-core#ID-D58B193"/>
+</metadata>
+<hasFeature feature='"XML"'/>
+<var name="doc" type="Document"/>
+<var name="notations" type="NamedNodeMap"/>
+<var name="docType" type="DocumentType"/>
+<var name="retval" type="Node"/>
+<load var="doc" href="hc_staff" willBeModified="true"/>
+<doctype var="docType" obj="doc"/>
+<if><not><contentType type="text/html"/></not>
+<assertNotNull actual="docType" id="docTypeNotNull"/>
+<notations var="notations" obj="docType"/>
+<assertNotNull actual="notations" id="notationsNotNull"/>
+<assertDOMException id="throw_NO_MODIFICATION_ALLOWED_ERR">
+	<NO_MODIFICATION_ALLOWED_ERR>
+		<removeNamedItem var="retval" obj="notations" name='"notation1"'/>
+	</NO_MODIFICATION_ALLOWED_ERR>
+</assertDOMException>
+</if>
+</test>

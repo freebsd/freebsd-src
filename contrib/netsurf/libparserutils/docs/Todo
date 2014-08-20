@@ -1,0 +1,5 @@
+Todo list
+---------
+
++ Charset conversion should use Unicode Normalisation Form C.
+

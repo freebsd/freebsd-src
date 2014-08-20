@@ -1,0 +1,56 @@
+# Norcroft specific toolchain setup
+
+CCDEF := -D
+CCOPT := -Otime
+CCNOOPT :=
+CCDBG := -g
+CCINC := -I
+CCLIB := -L
+# TODO: Norcroft CC cannot do assembler as C
+CCAS :=
+CCSHR :=
+
+CXXDEF := -D
+CXXOPT := -O2
+CXXNOOPT := -O0
+CXXDBG := -g
+CXXINC := -I
+CXXLIB := -L
+CXXSHR := -fPIC
+
+LDDBG := -g
+LDSHR :=
+
+ARFLG := -c
+
+# Definitions of various attributes
+CFLAGS := $(CFLAGS) -D_ALIGNED=""
+
+# Extensions for coverage target
+ifeq ($(MAKECMDGOALS),coverage)
+  $(error Coverage is not supported with Norcroft)
+endif
+
+# Extensions for profile target
+ifeq ($(MAKECMDGOALS),profile)
+  $(error Profile is not supported with Norcroft)
+endif
+
+# RISC OS module extensions
+ifeq ($(COMPONENT_TYPE),riscos-module)
+  ifneq ($(TARGET),riscos)
+    $(error Attempting to build a RISC OS module for a non-RISC OS target)
+  endif
+
+  CFLAGS := $(CFLAGS) -zM
+  CXXFLAGS := $(CXXFLAGS) -zM
+  LDFLAGS := $(LDFLAGS) -zM
+endif
+
+###############################################################################
+# Other settings
+###############################################################################
+
+# Determine if the compiler supports simultaneous build & dep.
+CC_CANNOT_DEP := yes
+

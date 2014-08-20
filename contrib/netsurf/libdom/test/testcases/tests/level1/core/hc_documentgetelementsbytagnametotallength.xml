@@ -1,0 +1,135 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+Copyright (c) 2001-2004 World Wide Web Consortium,
+(Massachusetts Institute of Technology, Institut National de
+Recherche en Informatique et en Automatique, Keio University). All
+Rights Reserved. This program is distributed under the W3C's Software
+Intellectual Property License. This program is distributed in the
+hope that it will be useful, but WITHOUT ANY WARRANTY; without even
+the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
+PURPOSE.
+See W3C License http://www.w3.org/Consortium/Legal/ for more details.
+--><!DOCTYPE test SYSTEM "dom1.dtd">
+
+<test xmlns="http://www.w3.org/2001/DOM-Test-Suite/Level-1" name="hc_documentgetelementsbytagnametotallength">
+<metadata>
+<title>hc_documentgetelementsbytagnametotallength</title>
+<creator>Curt Arnold</creator>
+<description>
+   Retrieve the entire DOM document and invoke its 
+   "getElementsByTagName(tagName)" method with tagName
+   equal to "*".  The method should return a NodeList 
+   that contains all the elements of the document. 
+</description>
+
+<date qualifier="created">2002-06-09</date>
+<subject resource="http://www.w3.org/TR/1998/REC-DOM-Level-1-19981001/level-one-core#ID-A6C9094"/>
+<subject resource="http://www.w3.org/Bugs/Public/show_bug.cgi?id=251"/>
+</metadata>
+<var name="doc" type="Document"/>
+<var name="nameList" type="NodeList"/>
+<var name="expectedNames" type="List">
+    <member>"html"</member>
+    <member>"head"</member>
+    <member>"meta"</member>
+    <member>"title"</member>
+    <member>"script"</member>
+    <member>"script"</member>
+    <member>"script"</member>
+    <member>"body"</member>
+    <member>"p"</member>
+    <member>"em"</member>
+    <member>"strong"</member>
+    <member>"code"</member>           
+    <member>"sup"</member>
+    <member>"var"</member>
+    <member>"acronym"</member>
+    <member>"p"</member>
+    <member>"em"</member>
+    <member>"strong"</member>
+    <member>"code"</member>
+    <member>"sup"</member>
+    <member>"var"</member>
+    <member>"acronym"</member>
+    <member>"p"</member>
+    <member>"em"</member>
+    <member>"strong"</member>
+    <member>"code"</member>
+    <member>"sup"</member>
+    <member>"var"</member>
+    <member>"acronym"</member>
+    <member>"p"</member>
+    <member>"em"</member>
+    <member>"strong"</member>
+    <member>"code"</member>
+    <member>"sup"</member>
+    <member>"var"</member>
+    <member>"acronym"</member>
+    <member>"p"</member>
+    <member>"em"</member>
+    <member>"strong"</member>
+    <member>"code"</member>
+    <member>"sup"</member>
+    <member>"var"</member>
+    <member>"acronym"</member>
+</var>
+<var name="svgExpectedNames" type="List">
+    <member>"svg"</member>
+    <member>"rect"</member>
+    <member>"script"</member>
+    <member>"head"</member>
+    <member>"meta"</member>
+    <member>"title"</member>
+    <member>"body"</member>
+    <member>"p"</member>
+    <member>"em"</member>
+    <member>"strong"</member>
+    <member>"code"</member>           
+    <member>"sup"</member>
+    <member>"var"</member>
+    <member>"acronym"</member>
+    <member>"p"</member>
+    <member>"em"</member>
+    <member>"strong"</member>
+    <member>"code"</member>
+    <member>"sup"</member>
+    <member>"var"</member>
+    <member>"acronym"</member>
+    <member>"p"</member>
+    <member>"em"</member>
+    <member>"strong"</member>
+    <member>"code"</member>
+    <member>"sup"</member>
+    <member>"var"</member>
+    <member>"acronym"</member>
+    <member>"p"</member>
+    <member>"em"</member>
+    <member>"strong"</member>
+    <member>"code"</member>
+    <member>"sup"</member>
+    <member>"var"</member>
+    <member>"acronym"</member>
+    <member>"p"</member>
+    <member>"em"</member>
+    <member>"strong"</member>
+    <member>"code"</member>
+    <member>"sup"</member>
+    <member>"var"</member>
+    <member>"acronym"</member>
+</var>
+<var name="actualNames" type="List"/>
+<var name="thisElement" type="Element"/>
+<var name="thisTag" type="DOMString"/>
+<load var="doc" href="hc_staff" willBeModified="false"/>
+<getElementsByTagName interface="Document" obj="doc" var="nameList" tagname='"*"'/>
+<for-each collection="nameList" member="thisElement">
+    <tagName var="thisTag" obj="thisElement"/>
+    <append collection="actualNames" item="thisTag"/>
+</for-each>
+<if><contentType type="image/svg+xml"/> 
+<assertEquals expected="svgExpectedNames" actual="actualNames" ignoreCase="auto" id="svgTagNames"/>
+<else>
+<assertEquals expected="expectedNames" actual="actualNames" ignoreCase="auto" id="tagNames"/>
+</else>
+</if>
+</test>

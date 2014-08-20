@@ -1,0 +1,48 @@
+<?xml version="1.0" encoding="UTF-8"?><?xml-stylesheet href="test-to-html.xsl" type="text/xml"?>
+
+<!--
+
+Copyright (c) 2001-2004 World Wide Web Consortium, 
+(Massachusetts Institute of Technology, Institut National de
+Recherche en Informatique et en Automatique, Keio University).  All 
+Rights Reserved.  This program is distributed under the W3C's Software
+Intellectual Property License.  This program is distributed in the 
+hope that it will be useful, but WITHOUT ANY WARRANTY; without even
+the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR 
+PURPOSE.  
+
+See W3C License http://www.w3.org/Consortium/Legal/ for more details.
+
+-->
+
+<!DOCTYPE test SYSTEM "dom3.dtd">
+<test xmlns="http://www.w3.org/2001/DOM-Test-Suite/Level-3" name="nodesettextcontent13">
+<metadata>
+<title>nodesettextcontent13</title>
+<creator>IBM</creator>
+<description>
+
+	
+	Using setTextContent on an Entity node, attempt to set its replacement text.  
+	Since Entity nodes are ReadOnly, check if a NO_MODIFICATION_ALLOWED_ERR  
+	is raised.
+</description>
+<contributor>Neil Delima</contributor>
+<date qualifier="created">2002-06-10</date>
+<subject resource="http://www.w3.org/TR/2004/REC-DOM-Level-3-Core-20040407/core#Node3-textContent"/>
+</metadata>
+<var name="doc" type="Document"/>
+<var name="docType" type="DocumentType"/>
+<var name="entity" type="Entity"/>
+<var name="entitymap" type="NamedNodeMap"/>
+<var name="textContent" type="DOMString"/>
+<load var="doc" href="hc_staff" willBeModified="true"/>
+<doctype var="docType" obj="doc"/>
+<entities var="entitymap" obj="docType"/>
+<getNamedItem var="entity" obj="entitymap" name='"delta"'/>
+<assertDOMException id="nodesettextcontent13">
+<NO_MODIFICATION_ALLOWED_ERR>
+<textContent value='"NA"' obj="entity"/>
+</NO_MODIFICATION_ALLOWED_ERR>
+</assertDOMException>
+</test>

@@ -1,0 +1,10 @@
+The exported representation of colours is an unsigned 32bit value in host order
+
+The value is divided into four 8bit channels. These are:
+
+Bits	Name	Desciption
+0-7	Blue	The blue intensity of the colour 0 is off 0xff is fully on
+8-15	Green	The green intensity of the colour 0 is off 0xff is fully on
+16-23	Red	The red intensity of the colour 0 is off 0xff is fully on
+24-31	Alpha	The Alpha component represents the opacity of the colour 0 is fully transparent and 0xff is opaque
+

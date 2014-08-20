@@ -1,0 +1,45 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+Copyright (c) 2001-2004 World Wide Web Consortium,
+(Massachusetts Institute of Technology, Institut National de
+Recherche en Informatique et en Automatique, Keio University). All
+Rights Reserved. This program is distributed under the W3C's Software
+Intellectual Property License. This program is distributed in the
+hope that it will be useful, but WITHOUT ANY WARRANTY; without even
+the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
+PURPOSE.
+See W3C License http://www.w3.org/Consortium/Legal/ for more details.
+--><!DOCTYPE test SYSTEM "dom1.dtd">
+
+<test xmlns="http://www.w3.org/2001/DOM-Test-Suite/Level-1" name="hc_documentcreateattribute">
+<metadata>
+<title>hc_documentcreateattribute</title>
+<creator>Curt Arnold</creator>
+<description>
+   Retrieve the entire DOM document and invoke its 
+   "createAttribute(name)" method.  It should create a  
+   new Attribute node with the given name. The name, value
+   and type of the newly created object are retrieved and
+   output.
+</description>
+
+<date qualifier="created">2002-06-09</date>
+<subject resource="http://www.w3.org/TR/1998/REC-DOM-Level-1-19981001/level-one-core#ID-1084891198"/>
+<subject resource="http://www.w3.org/Bugs/Public/show_bug.cgi?id=236"/>
+<subject resource="http://lists.w3.org/Archives/Public/www-dom-ts/2003Jun/0011.html"/>
+<subject resource="http://www.w3.org/Bugs/Public/show_bug.cgi?id=243"/>
+</metadata>
+<var name="doc" type="Document"/>
+<var name="newAttrNode" type="Attr"/>
+<var name="attrValue" type="DOMString"/>
+<var name="attrName" type="DOMString"/>
+<var name="attrType" type="int"/>
+<load var="doc" href="hc_staff" willBeModified="true"/>
+<createAttribute obj="doc" var="newAttrNode" name='"title"'/>
+<nodeValue obj="newAttrNode" var="attrValue"/>
+<assertEquals actual="attrValue" expected='""' ignoreCase="false" id="value"/>
+<nodeName obj="newAttrNode" var="attrName"/>
+<assertEquals actual="attrName" expected='"title"' ignoreCase="auto" context="attribute" id="name"/>
+<nodeType obj="newAttrNode" var="attrType"/>
+<assertEquals actual="attrType" expected="2" ignoreCase="false" id="type"/>
+</test>

@@ -1,0 +1,114 @@
+Iconv Changelog
+===============
+
+0.01 10-Sep-2004
+----------------
+
+  - Initial version - unreleased.
+
+0.02 27-Sep-2004
+----------------
+
+  - Use allocated SWI & error chunks.
+  - Fix issues in 8bit encoding handling.
+  - First public release.
+
+0.03 22-Jan-2005
+----------------
+
+  - Add Iconv_Convert SWI with improved interface.
+  - Deprecate Iconv_Iconv SWI.
+  - Add encoding name alias handling.
+  - Bundle !Unicode resource.
+
+0.04 08-Apr-2005
+----------------
+
+  - Improve parameter checking.
+  - Fix potential memory leaks.
+  - Add encoding menu creation and selection handling.
+
+0.05 27-Jun-2005
+----------------
+
+  - Improve encoding alias support, using external data file.
+  - Add StubsG build for A9home users.
+
+0.06 05-Nov-2005
+----------------
+
+  - Modified menu creation API to store indirected text in a
+    user-provided buffer. This change is backwards incompatible.
+
+0.07 11-Feb-2006
+----------------
+
+  - Corrected output values for E2BIG errors.
+  - Fixed input pointer update after successful conversion.
+
+0.08 11-Mar-2007
+----------------
+
+  - Tightened up parameter checking in various places.
+  - Improve aliases hash function.
+  - Make 8bit write function's return values match encoding_write
+    with encoding_WRITE_STRICT set.
+  - Fix bug in 8bit writing which resulted in the remaining buffer
+    size being reduced even if nothing was written.
+  - Improve support for endian-specific Unicode variants.
+  - Work around issue in UnicodeLib where remaining buffer size is
+    reduced if an attempt is made to write an unrepresentable character.
+  - Add rudimentary //TRANSLIT support - simply replaces with '?' for now.
+  - Make UnicodeLib handle raw ISO-8859-{1,2,9,10,15} and not attempt
+    ISO-6937-2-25 shift sequences.
+  - Remove StubsG build as A9home now has a C99 capable C library.
+  - Overhaul documentation.
+
+0.09 20-Nov-2008
+----------------
+
+  - Restructured source tree into cross-platform and RO-specific parts.
+  - New build system to go with this.
+  - Fixes for compiling with GCC4.
+  - Introduce *Iconv command which performs command line conversion.
+  - Fixes/improvements to the handlers for:
+      + US-ASCII
+      + UTF-8
+      + ISO-8859-7
+      + ISO-8859-8
+      + ISO-8859-11
+      + Windows-1256
+      + MacRoman
+      + JIS X 0208
+      + JIS X 0212
+      + KS X 1001
+      + EUC-JP
+      + Any ISO-2022 based charset that uses a 94x94 table in GR
+      + Johab
+      + ShiftJIS
+  - Add support for ISO-8859-16 (Latin 10)
+  - Significantly improve detection and reporting of error conditions
+
+0.10 29-Nov-2008
+----------------
+
+  - Fixes to the *Iconv command parameter parsing
+  - Ensure *Iconv outputs all converted data when the input is invalid
+  - Fix handling of illegal UTF-8 byte sequences
+  - Fix handling of incomplete multibyte input sequences.
+
+0.11 04-Jan-2011
+----------------
+
+  - Detect missing mapping file when using 8bit codecs. This prevents spurious
+    memory exhaustion errors.
+  - Toolchain used to build 0.10 turns out to have produced broken code.
+  - Minor additions to the charset alias mapping file.
+
+0.12 20-Jan-2013
+---------------
+
+  - Master alias mapping file now lives in ROOL repository.
+  - Correct handling of trailing valid shift sequences. Previously would
+    erroneously report EINVAL, instead of silently accepting them.
+  - Add proper transliteration behaviour when requested using //TRANSLIT.

@@ -1,0 +1,47 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+Copyright (c) 2001-2003 World Wide Web Consortium,
+(Massachusetts Institute of Technology, Institut National de
+Recherche en Informatique et en Automatique, Keio University). All
+Rights Reserved. This program is distributed under the W3C's Software
+Intellectual Property License. This program is distributed in the
+hope that it will be useful, but WITHOUT ANY WARRANTY; without even
+the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
+PURPOSE.
+See W3C License http://www.w3.org/Consortium/Legal/ for more details.
+--><!DOCTYPE test SYSTEM "dom1.dtd">
+
+<test xmlns="http://www.w3.org/2001/DOM-Test-Suite/Level-1" name="hc_nodeappendchildgetnodename">
+<metadata>
+<title>hc_nodeAppendChildGetNodeName</title>
+<creator>Curt Arnold</creator>
+<description>
+    The "appendChild(newChild)" method returns the node
+    added.
+    
+    Append a newly created node to the child list of the 
+    second employee and check the NodeName returned.   The
+    "getNodeName()" method should return "br".
+</description>
+
+<date qualifier="created">2002-06-09</date>
+<subject resource="http://www.w3.org/TR/1998/REC-DOM-Level-1-19981001/level-one-core#ID-F68D095"/>
+<subject resource="http://www.w3.org/TR/1998/REC-DOM-Level-1-19981001/level-one-core#ID-184E7107"/>
+<subject resource="http://www.w3.org/Bugs/Public/show_bug.cgi?id=247"/>
+</metadata>
+<var name="doc" type="Document"/>
+<var name="elementList" type="NodeList"/>
+<var name="employeeNode" type="Node"/>
+<var name="childList" type="NodeList"/>
+<var name="newChild" type="Node"/>
+<var name="appendNode" type="Node"/>
+<var name="childName" type="DOMString"/>
+<load var="doc" href="hc_staff" willBeModified="true"/>
+<getElementsByTagName interface="Document" obj="doc" tagname='"p"' var="elementList"/>
+<item interface="NodeList" obj="elementList" index="1" var="employeeNode"/>
+<childNodes obj="employeeNode" var="childList"/>
+<createElement obj="doc" tagName='"br"' var="newChild"/>
+<appendChild obj="employeeNode" newChild="newChild" var="appendNode"/>
+<nodeName obj="appendNode" var="childName"/>
+<assertEquals actual="childName" expected='"br"' id="nodeName" ignoreCase="auto"/>
+</test>

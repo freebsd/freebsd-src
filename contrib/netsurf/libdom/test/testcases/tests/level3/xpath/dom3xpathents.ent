@@ -1,0 +1,16 @@
+<!ENTITY level3      "http://www.w3.org/2001/DOM-Test-Suite/Level-3">
+<!ENTITY spec        "http://www.w3.org/TR/2003/CR-DOM-Level-3-XPath-20030331/xpath">
+
+<!ENTITY vars
+ "
+  <!-- common variables -->
+  <var name='doc' type='Document'/>
+  <var name='xpEvaluator' type='XPathEvaluator'/>
+ ">
+
+<!-- the following entity requires the entity vars as well -->
+<!ENTITY findXPathEvaluator
+  "
+  <load var='doc' href='staffNS' willBeModified='false'/>
+  <createXPathEvaluator var='xpEvaluator' document='doc'/>
+">

@@ -1,0 +1,49 @@
+<?xml version="1.0" encoding="UTF-8"?><?xml-stylesheet href="test-to-html.xsl" type="text/xml"?>
+
+<!--
+
+Copyright (c) 2004 World Wide Web Consortium, 
+(Massachusetts Institute of Technology, Institut National de
+Recherche en Informatique et en Automatique, Keio University).  All 
+Rights Reserved.  This program is distributed under the W3C's Software
+Intellectual Property License.  This program is distributed in the 
+hope that it will be useful, but WITHOUT ANY WARRANTY; without even
+the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR 
+PURPOSE.  
+
+See W3C License http://www.w3.org/Consortium/Legal/ for more details.
+
+-->
+
+<!DOCTYPE test SYSTEM "dom3.dtd">
+<test xmlns="http://www.w3.org/2001/DOM-Test-Suite/Level-3" name="domimplementationregistry16">
+<metadata>
+<title>domimplementationregistry16</title>
+<creator>Curt Arnold</creator>
+<description>
+DOMImplementationRegistry.getDOMImplementationList("+cOrE 3.0") should return 
+a list of DOMImplementation
+where hasFeature("+Core", "3.0") returns true.
+</description>
+<date qualifier="created">2004-01-15</date>
+<subject resource="http://www.w3.org/TR/2004/REC-DOM-Level-3-Core-20040407/java-binding"/>
+<subject resource="http://www.w3.org/TR/2004/REC-DOM-Level-3-Core-20040407/ecma-script-binding"/>
+<subject resource="http://www.w3.org/TR/2004/REC-DOM-Level-3-Core-20040407/core#ID-getDOMImpls"/>
+</metadata>
+<var name="domImplRegistry" type="DOMImplementationRegistry"/>
+<var name="domImpl" type="DOMImplementation"/>
+<var name="hasFeature" type="boolean"/>
+<var name="domImplList" type="DOMImplementationList"/>
+<var name="length" type="int"/>
+<DOMImplementationRegistry.newInstance var="domImplRegistry"/>
+<assertNotNull actual="domImplRegistry" id="domImplRegistryNotNull"/>
+<getDOMImplementationList var="domImplList" obj="domImplRegistry" features='"+cOrE 3.0"' interface="DOMImplementationRegistry"/>
+<length var="length" obj="domImplList" interface="DOMImplementationList"/>
+<assertTrue id="atLeastOne">
+	<greater actual="length" expected="0"/>
+</assertTrue>
+<for-each collection="domImplList" member="domImpl">
+	<hasFeature var="hasFeature" obj="domImpl" feature='"+Core"' version='"3.0"'/>
+	<assertTrue actual="hasFeature" id="hasCore"/>
+</for-each>
+</test>

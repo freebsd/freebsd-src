@@ -1,0 +1,59 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+Copyright (c) 2001-2004 World Wide Web Consortium,
+(Massachusetts Institute of Technology, Institut National de
+Recherche en Informatique et en Automatique, Keio University). All
+Rights Reserved. This program is distributed under the W3C's Software
+Intellectual Property License. This program is distributed in the
+hope that it will be useful, but WITHOUT ANY WARRANTY; without even
+the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
+PURPOSE.
+See W3C License http://www.w3.org/Consortium/Legal/ for more details.
+--><!DOCTYPE test SYSTEM "dom1.dtd">
+
+<test xmlns="http://www.w3.org/2001/DOM-Test-Suite/Level-1" name="hc_elementretrieveallattributes">
+<metadata>
+<title>hc_elementretrieveallattributes</title>
+<creator>Curt Arnold</creator>
+<description>
+   Create a list of all the attributes of the last child
+   of the first "p" element by using the "getAttributes()"
+   method.
+</description>
+
+<date qualifier="created">2002-06-09</date>
+<!--attributes attribute -->
+<subject resource="http://www.w3.org/TR/1998/REC-DOM-Level-1-19981001/level-one-core#ID-84CF096"/>
+<!--  DOM WG opinion on default attributes -->
+<subject resource="http://lists.w3.org/Archives/Public/www-dom-ts/2002Mar/0002.html"/>
+<subject resource="http://www.w3.org/Bugs/Public/show_bug.cgi?id=184"/>
+</metadata>
+<var name="doc" type="Document"/>
+<var name="addressList" type="NodeList"/>
+<var name="testAddress" type="Node"/>
+<var name="attributes" type="NamedNodeMap"/>
+<var name="attribute" type="Attr"/>
+<var name="attributeName" type="DOMString"/>
+<var name="actual" type="Collection"/>
+<var name="htmlExpected" type="Collection">
+    <member>"title"</member>
+</var>
+<var name="expected" type="Collection">
+    <member>"title"</member>
+    <member>"dir"</member>
+</var>
+<load var="doc" href="hc_staff" willBeModified="false"/>
+<getElementsByTagName interface="Document" obj="doc" tagname='"acronym"' var="addressList"/>
+<item interface="NodeList" obj="addressList" index="0" var="testAddress"/>
+<attributes obj="testAddress" var="attributes"/>
+<for-each collection="attributes" member="attribute">
+    <nodeName var="attributeName" obj="attribute"/>
+    <append collection="actual" item="attributeName"/>
+</for-each>
+<if><contentType type="text/html"/>
+    <assertEquals id="htmlAttributeNames" actual="actual" expected="htmlExpected" ignoreCase="true"/>
+    <else>
+        <assertEquals id="attributeNames" actual="actual" expected="expected" ignoreCase="true"/>
+    </else>
+</if>
+</test>

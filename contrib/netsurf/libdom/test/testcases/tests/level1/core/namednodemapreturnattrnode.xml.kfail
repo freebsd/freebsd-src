@@ -1,0 +1,55 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+Copyright (c) 2001 World Wide Web Consortium,
+(Massachusetts Institute of Technology, Institut National de
+Recherche en Informatique et en Automatique, Keio University). All
+Rights Reserved. This program is distributed under the W3C's Software
+Intellectual Property License. This program is distributed in the
+hope that it will be useful, but WITHOUT ANY WARRANTY; without even
+the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
+PURPOSE.
+See W3C License http://www.w3.org/Consortium/Legal/ for more details.
+--><!DOCTYPE test SYSTEM "dom1.dtd">
+
+<test xmlns="http://www.w3.org/2001/DOM-Test-Suite/Level-1" name="namednodemapreturnattrnode">
+<metadata>
+<title>namednodemapReturnAttrNode</title>
+<creator>NIST</creator>
+<description>
+    The "getNamedItem(name)" method returns a node of any 
+   type specified by name. 
+   
+   Retrieve the second employee and create a NamedNodeMap 
+   listing of the attributes of the last child.  Once the
+   list is created an invocation of the "getNamedItem(name)"
+   method is done with name="street".  This should result
+   in the method returning an Attr node.
+</description>
+<contributor>Mary Brady</contributor>
+<date qualifier="created">2001-08-17</date>
+<!--getNamedItem-->
+<subject resource="http://www.w3.org/TR/1998/REC-DOM-Level-1-19981001/level-one-core#ID-1074577549"/>
+<!--attributes attribute -->
+<subject resource="http://www.w3.org/TR/1998/REC-DOM-Level-1-19981001/level-one-core#ID-84CF096"/>
+<!-- Attr interface   -->
+<subject resource="http://www.w3.org/TR/1998/REC-DOM-Level-1-19981001/level-one-core#ID-637646024"/>
+<!--name attribute -->
+<subject resource="http://www.w3.org/TR/1998/REC-DOM-Level-1-19981001/level-one-core#ID-1112119403"/>
+</metadata>
+<var name="doc" type="Document"/>
+<var name="elementList" type="NodeList"/>
+<var name="testEmployee" type="Node"/>
+<var name="attributes" type="NamedNodeMap"/>
+<var name="streetAttr" type="Node"/>
+<var name="attrName" type="DOMString"/>
+<load var="doc" href="staff" willBeModified="false"/>
+<getElementsByTagName interface="Document" obj="doc" var="elementList" tagname="&quot;address&quot;"/>
+<item interface="NodeList" obj="elementList" var="testEmployee" index="1"/>
+<attributes obj="testEmployee" var="attributes"/>
+<getNamedItem obj="attributes" var="streetAttr" name="&quot;street&quot;"/>
+<assertInstanceOf obj="streetAttr" type="Attr" id="typeAssert"/>
+<nodeName obj="streetAttr" var="attrName"/>
+<assertEquals actual="attrName" expected="&quot;street&quot;" id="nodeName" ignoreCase="false"/>
+<name obj="streetAttr" var="attrName" interface="Attr"/>
+<assertEquals actual="attrName" expected="&quot;street&quot;" id="attrName" ignoreCase="false"/>
+</test>

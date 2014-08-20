@@ -1,0 +1,99 @@
+/* Binding to generate NodeList interface
+ *
+ * Copyright 2012 Vincent Sanders <vince@netsurf-browser.org>
+ *
+ * This file is part of NetSurf, http://www.netsurf-browser.org/
+ *
+ * Released under the terms of the MIT License,
+ *         http://www.opensource.org/licenses/mit-license
+ */
+
+/* The hdrcomment are added into the geenrated output comment header */
+hdrcomment "Copyright 2012 Vincent Sanders <vince@netsurf-browser.org>";
+hdrcomment "This file is part of NetSurf, http://www.netsurf-browser.org/";
+hdrcomment "Released under the terms of the MIT License,";
+hdrcomment "        http://www.opensource.org/licenses/mit-license";
+
+preamble %{
+
+#include <dom/dom.h>
+        
+#include "utils/config.h"
+#include "utils/log.h"
+#include "javascript/jsapi.h"
+#include "render/html_internal.h"
+
+#include "nodelist.h"
+#include "htmlelement.h"
+
+%}
+
+webidlfile "dom.idl";
+
+binding nodelist {
+	type js_libdom; /* the binding type */
+
+	interface NodeList; /* The WebIDL interface to generate a binding for */
+
+	private "dom_nodelist *" nodelist;
+	private "struct html_content *" htmlc;
+}
+
+api finalise %{
+        if (private != NULL) {
+                dom_nodelist_unref(private->nodelist);
+        }
+%}
+
+/* default handler for numericaly indexed property values */
+api getproperty %{
+	jsval queryprop;
+	int idx;
+	JSObject *jsret = NULL; /* Node */
+        dom_exception err;
+        dom_node *domnode;
+
+	JSAPI_PROP_IDVAL(cx, &queryprop);
+	if (JSVAL_IS_INT(queryprop)) {
+		idx = JSVAL_TO_INT(queryprop);
+		JSDBG("Index was %d", idx);
+
+
+		err = dom_nodelist_item(private->nodelist, idx, &domnode);
+		if (err != DOM_NO_ERR)  {
+			return JS_FALSE;
+		}
+
+		if (domnode != NULL) {
+			jsret = jsapi_new_HTMLElement(cx, NULL, NULL, (dom_element *)domnode, private->htmlc);
+
+			JSDBG("return object:%p", jsret);
+
+			JSAPI_PROP_SET_RVAL(cx, vp, OBJECT_TO_JSVAL(jsret));
+		}
+	}
+%}
+
+getter length %{
+        dom_exception err;
+
+        err = dom_nodelist_get_length(private->nodelist, &jsret);
+        if (err != DOM_NO_ERR) {
+                return JS_FALSE;
+        }
+%}
+  
+operation item %{
+        dom_exception err;
+        dom_node *domnode;
+
+        err = dom_nodelist_item(private->nodelist, index, &domnode);
+        if (err != DOM_NO_ERR)  {
+                return JS_FALSE;
+        }
+
+        if (domnode != NULL) {
+                jsret = jsapi_new_HTMLElement(cx, NULL, NULL, (dom_element *)domnode, private->htmlc);
+        }
+%}
+

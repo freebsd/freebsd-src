@@ -1,0 +1,17 @@
+p { color:green }
+p { color:green; color }  /* malformed declaration missing ':', value */
+p { color:red;   color; color:green }  /* same with expected recovery */
+p { color:green; color: } /* malformed declaration missing value */
+p { color:red;   color:; color:green } /* same with expected recovery */
+p { color:green; color{;color:maroon} } /* unexpected tokens { } */
+p { color:red;   color{;color:maroon}; color:green } /* same with recovery */
+p { color:red; !important; color:green }
+
+@blah <!-- ;
+@foo --> { moose }
+
+"Foo bar baz
+p ( { ) color: green } )
+p {color:green}
+
+p { color: green; }

@@ -1,0 +1,64 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<?xml-stylesheet href="test-to-html.xml" type="text/xml"?>
+
+<!--
+
+Copyright (c) 2001 World Wide Web Consortium, 
+(Massachusetts Institute of Technology, Institut National de
+Recherche en Informatique et en Automatique, Keio University).  All 
+Rights Reserved.  This program is distributed under the W3C's Software
+Intellectual Property License.  This program is distributed in the 
+hope that it will be useful, but WITHOUT ANY WARRANTY; without even
+the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR 
+PURPOSE.  
+
+See W3C License http://www.w3.org/Consortium/Legal/ for more details.
+
+-->
+<!DOCTYPE test SYSTEM "dom1.dtd">
+<test xmlns="http://www.w3.org/2001/DOM-Test-Suite/Level-1" name="HTMLTableElement30">
+<metadata>
+<title>HTMLTableElement30</title>
+<creator>NIST</creator>
+<description>
+    The insertRow() method inserts a new empty table row.  
+    
+    Retrieve the second TABLE element and invoke the insertRow() method
+    with an index of four. After the new row is inserted the number of rows
+    in the table should be five.
+    Also the number of rows in the TFOOT section before
+    insertion of the new row is one.  After the new row is inserted the number 
+    of rows in the TFOOT section is two.
+</description>
+<contributor>Rick Rivello</contributor>
+<date qualifier="created">2002-05-02</date>
+<subject resource="http://www.w3.org/TR/1998/REC-DOM-Level-1-19981001/level-one-html#ID-39872903"/>
+</metadata>
+<var name="nodeList" type="NodeList"/>
+<var name="tbodiesnodeList" type="HTMLCollection"/>
+<var name="testNode" type="Node"/>
+<var name="newRow" type="HTMLElement"/>
+<var name="rowsnodeList" type="HTMLCollection"/>
+<var name="vsection1" type="HTMLTableSectionElement"/>
+<var name="vrows" type="int" />
+<var name="doc" type="Document"/>
+<load var="doc" href="table" willBeModified="true"/>
+<getElementsByTagName interface="Document" obj="doc" var="nodeList" tagname='"table"'/>
+<assertSize collection="nodeList" size="3" id="Asize"/>
+<item interface="NodeList" obj="nodeList" var="testNode" index="1"/>
+<rows interface="HTMLTableSectionElement" obj="testNode" var="rowsnodeList"/>
+<length interface="HTMLCollection" obj="rowsnodeList" var="vrows"/>
+<assertEquals actual="vrows" expected="4" id="rowsLink1" ignoreCase="false"/>
+<tFoot interface="HTMLTableElement" obj="testNode" var="vsection1"/>
+<rows interface="HTMLTableSectionElement" obj="vsection1" var="rowsnodeList"/>
+<length interface="HTMLCollection" obj="rowsnodeList" var="vrows"/>
+<assertEquals actual="vrows" expected="1" id="rowsLink" ignoreCase="false"/>
+<insertRow interface="HTMLTableElement" obj="testNode" var="newRow" index="4"/>
+<rows interface="HTMLTableSectionElement" obj="testNode" var="rowsnodeList"/>
+<length interface="HTMLCollection" obj="rowsnodeList" var="vrows"/>
+<assertEquals actual="vrows" expected="5" id="rowsLink2" ignoreCase="false"/>
+<tFoot interface="HTMLTableElement" obj="testNode" var="vsection1"/>
+<rows interface="HTMLTableSectionElement" obj="vsection1" var="rowsnodeList"/>
+<length interface="HTMLCollection" obj="rowsnodeList" var="vrows"/>
+<assertEquals actual="vrows" expected="2" id="rowsLink3" ignoreCase="false"/>
+</test>

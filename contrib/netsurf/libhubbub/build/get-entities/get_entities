@@ -1,0 +1,13 @@
+#!/bin/bash
+# Get entities from the whatwg.org SVN repository.
+
+(rm -f *.inc entities.xml) || exit 1
+(wget http://svn.whatwg.org/webapps/entities-legacy.inc &&
+	wget http://svn.whatwg.org/webapps/entities-unicode.inc) ||
+	(echo "Failed to get entities" && exit 1)
+(echo "<table>" &&
+	cat entities-legacy.inc &&
+	cat entities-unicode.inc &&
+	echo "</table>") > entities.xml
+(xsltproc entities.xslt entities.xml |
+	sort -d) > entities.inc

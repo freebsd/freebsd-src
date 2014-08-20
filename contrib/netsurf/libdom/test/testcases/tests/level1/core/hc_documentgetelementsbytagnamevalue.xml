@@ -1,0 +1,44 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+Copyright (c) 2001 World Wide Web Consortium,
+(Massachusetts Institute of Technology, Institut National de
+Recherche en Informatique et en Automatique, Keio University). All
+Rights Reserved. This program is distributed under the W3C's Software
+Intellectual Property License. This program is distributed in the
+hope that it will be useful, but WITHOUT ANY WARRANTY; without even
+the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
+PURPOSE.
+See W3C License http://www.w3.org/Consortium/Legal/ for more details.
+--><!DOCTYPE test SYSTEM "dom1.dtd">
+
+<test xmlns="http://www.w3.org/2001/DOM-Test-Suite/Level-1" name="hc_documentgetelementsbytagnamevalue">
+<metadata>
+<title>hc_documentGetElementsByTagNameValue</title>
+<creator>Curt Arnold</creator>
+<description>
+    The "getElementsByTagName(tagName)" method returns a 
+   NodeList of all the Elements with a given tagName
+   in a pre-order traversal of the tree.
+   
+   Retrieve the entire DOM document and invoke its 
+   "getElementsByTagName(tagName)" method with tagName
+   equal to "strong".  The method should return a NodeList 
+   that contains 5 elements.  The FOURTH item in the
+   list is retrieved and output.
+</description>
+
+<date qualifier="created">2002-06-09</date>
+<subject resource="http://www.w3.org/TR/1998/REC-DOM-Level-1-19981001/level-one-core#ID-A6C9094"/>
+</metadata>
+<var name="doc" type="Document"/>
+<var name="nameList" type="NodeList"/>
+<var name="nameNode" type="Node"/>
+<var name="firstChild" type="Node"/>
+<var name="childValue" type="DOMString"/>
+<load var="doc" href="hc_staff" willBeModified="false"/>
+<getElementsByTagName interface="Document" obj="doc" var="nameList" tagname='"strong"'/>
+<item interface="NodeList" obj="nameList" var="nameNode" index="3"/>
+<firstChild interface="Node" obj="nameNode" var="firstChild"/>
+<nodeValue obj="firstChild" var="childValue"/>
+<assertEquals actual="childValue" expected='"Jeny Oconnor"' id="documentGetElementsByTagNameValueAssert" ignoreCase="false"/>
+</test>

@@ -1,0 +1,14 @@
+# Valgrind suppression file for NetSurf
+
+# Suppress a valgrind message about use of uninitialized memory in strchrnul().
+# This use is OK because it provides only a speedup.
+{
+    strchrnul-addr4
+    Memcheck:Addr4
+    fun:strchrnul
+}
+{
+    strchrnul-addr8
+    Memcheck:Addr8
+    fun:strchrnul
+}

@@ -1,0 +1,63 @@
+<?xml version="1.0" encoding="UTF-8"?><?xml-stylesheet href="test-to-html.xsl" type="text/xml"?>
+
+<!--
+
+Copyright (c) 2001-2003 World Wide Web Consortium, 
+(Massachusetts Institute of Technology, Institut National de
+Recherche en Informatique et en Automatique, Keio University).  All 
+Rights Reserved.  This program is distributed under the W3C's Software
+Intellectual Property License.  This program is distributed in the 
+hope that it will be useful, but WITHOUT ANY WARRANTY; without even
+the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR 
+PURPOSE.  
+
+See W3C License http://www.w3.org/Consortium/Legal/ for more details.
+
+-->
+<!DOCTYPE test SYSTEM "dom2.dtd">
+<test xmlns="http://www.w3.org/2001/DOM-Test-Suite/Level-2" name="elementsetattributenodens02">
+  <metadata>
+    <title>elementsetattributenodens02</title>
+    <creator>IBM</creator>
+    <description>
+      Test the setAttributeNodeNS method.
+      Retreive the street attribute from the second address element node.  
+      Clone it and add it to the first address node.  The INUSE_ATTRIBUTE_ERR exception
+      should not be thrown. Check the name and value of the newly added node.
+    </description>
+    <contributor>Neil Delima</contributor>
+    <date qualifier="created">2002-04-28</date>
+    <subject resource="http://www.w3.org/TR/DOM-Level-2-Core/core#ID-ElSetAtNodeNS"/>
+    <subject resource="http://www.w3.org/Bugs/Public/show_bug.cgi?id=259"/>
+  </metadata>
+  <implementationAttribute name="namespaceAware" value="true"/>
+  <var name="doc" type="Document"/>
+  <var name="element" type="Element"/>
+  <var name="element2" type="Element"/>
+  <var name="attribute" type="Attr"/>
+  <var name="attributeCloned" type="Attr"/>
+  <var name="newAttr" type="Attr"/>
+  <var name="elementList" type="NodeList"/>
+  <var name="attrName" type="DOMString"/>
+  <var name="attrValue" type="DOMString"/>
+  <var name="nullNS" type="DOMString" isNull="true"/>
+  <load var="doc" href="staffNS" willBeModified="true"/>
+
+  <getElementsByTagNameNS var="elementList" obj="doc" 
+			  namespaceURI='"http://www.nist.gov"' 
+			  localName='"address"' interface="Document"/>
+
+  <item var="element" obj="elementList" index="1"  interface="NodeList"/>
+
+  <getAttributeNodeNS var="attribute" obj="element" 
+		      namespaceURI="nullNS" localName='"street"'/>
+
+  <cloneNode var="attributeCloned" obj="attribute" deep="true"/>
+
+  <item var="element2" obj="elementList" index="2" interface="NodeList"/>
+  <setAttributeNodeNS var="newAttr" obj="element2" newAttr="attributeCloned"/>
+  <nodeName var="attrName" obj="newAttr"/>
+  <nodeValue var="attrValue" obj="newAttr"/>
+  <assertEquals actual="attrName" expected='"street"' id="elementsetattributenodens02_attrName" ignoreCase="false"/>
+  <assertEquals actual="attrValue" expected='"Yes"' id="elementsetattributenodens02_attrValue" ignoreCase="false"/>
+</test>

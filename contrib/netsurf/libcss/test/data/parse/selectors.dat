@@ -1,0 +1,594 @@
+## Simple selectors & basic combinators
+
+#data
+* {}
+#errors
+#expected
+| 1 *
+#reset
+
+#data
+E {}
+#errors
+#expected
+| 1 E
+#reset
+
+#data
+E F {}
+#errors
+#expected
+| 1 E F
+#reset
+
+#data
+E > F {}
+#errors
+#expected
+| 1 E > F
+#reset
+
+#data
+E:first-child {}
+#errors
+#expected
+| 1 E:first-child
+#reset
+
+#data
+E:link {}
+#errors
+#expected
+| 1 E:link
+#reset
+
+#data
+E:visited {}
+#errors
+#expected
+| 1 E:visited
+#reset
+
+#data
+E:active {}
+#errors
+#expected
+| 1 E:active
+#reset
+
+#data
+E:hover {}
+#errors
+#expected
+| 1 E:hover
+#reset
+
+#data
+E:focus {}
+#errors
+#expected
+| 1 E:focus
+#reset
+
+#data
+E:lang(c) {}
+#errors
+#expected
+| 1 E:lang(c)
+#reset
+
+#data
+E:left {}
+#errors
+#expected
+| 1 E:left
+#reset
+
+#data
+E:right {}
+#errors
+#expected
+| 1 E:right
+#reset
+
+#data
+E:first {}
+#errors
+#expected
+| 1 E:first
+#reset
+
+#data
+E:root {}
+#errors
+#expected
+| 1 E:root
+#reset
+
+#data
+E:nth-child(2n+1) {}
+#errors
+#expected
+| 1 E:nth-child(2n+1)
+#reset
+
+#data
+E:nth-last-child(2n+1) {}
+#errors
+#expected
+| 1 E:nth-last-child(2n+1)
+#reset
+
+#data
+E:nth-of-type(2n+1) {}
+#errors
+#expected
+| 1 E:nth-of-type(2n+1)
+#reset
+
+#data
+E:nth-last-of-type(2n+1) {}
+#errors
+#expected
+| 1 E:nth-last-of-type(2n+1)
+#reset
+
+#data
+E:last-child {}
+#errors
+#expected
+| 1 E:last-child
+#reset
+
+#data
+E:first-of-type {}
+#errors
+#expected
+| 1 E:first-of-type
+#reset
+
+#data
+E:last-of-type {}
+#errors
+#expected
+| 1 E:last-of-type
+#reset
+
+#data
+E:only-child {}
+#errors
+#expected
+| 1 E:only-child
+#reset
+
+#data
+E:only-of-type {}
+#errors
+#expected
+| 1 E:only-of-type
+#reset
+
+#data
+E:empty {}
+#errors
+#expected
+| 1 E:empty
+#reset
+
+#data
+E:target {}
+#errors
+#expected
+| 1 E:target
+#reset
+
+#data
+E:enabled {}
+#errors
+#expected
+| 1 E:enabled
+#reset
+
+#data
+E:disabled {}
+#errors
+#expected
+| 1 E:disabled
+#reset
+
+#data
+E:checked {}
+#errors
+#expected
+| 1 E:checked
+#reset
+
+#data
+E:first-line {}
+#errors
+#expected
+| 1 E:first-line
+#reset
+
+#data
+E:first-letter {}
+#errors
+#expected
+| 1 E:first-letter
+#reset
+
+#data
+E:before {}
+#errors
+#expected
+| 1 E:before
+#reset
+
+#data
+E:after {}
+#errors
+#expected
+| 1 E:after
+#reset
+
+#data
+E::first-line {}
+#errors
+#expected
+| 1 E:first-line
+#reset
+
+#data
+E::first-letter {}
+#errors
+#expected
+| 1 E:first-letter
+#reset
+
+#data
+E::before {}
+#errors
+#expected
+| 1 E:before
+#reset
+
+#data
+E::after {}
+#errors
+#expected
+| 1 E:after
+#reset
+
+#data
+E + F {}
+#errors
+#expected
+| 1 E + F
+#reset
+
+#data
+E ~ F {}
+#errors
+#expected
+| 1 E ~ F
+#reset
+
+#data
+E[foo] {}
+#errors
+#expected
+| 1 E[foo]
+#reset
+
+#data
+E[foo="warning"] {}
+#errors
+#expected
+| 1 E[foo="warning"]
+#reset
+
+#data
+E[foo~="warning"] {}
+#errors
+#expected
+| 1 E[foo~="warning"]
+#reset
+
+#data
+E[lang|="en"] {}
+#errors
+#expected
+| 1 E[lang|="en"]
+#reset
+
+#data
+E[foo^="warning"] {}
+#errors
+#expected
+| 1 E[foo^="warning"]
+#reset
+
+#data
+E[foo$="warning"] {}
+#errors
+#expected
+| 1 E[foo$="warning"]
+#reset
+
+#data
+E[foo*="warning"] {}
+#errors
+#expected
+| 1 E[foo*="warning"]
+#reset
+
+#data
+DIV.warning {}
+#errors
+#expected
+| 1 DIV.warning
+#reset
+
+#data
+.warning {}
+#errors
+#expected
+| 1 .warning
+#reset
+
+#data
+E#myid {}
+#errors
+#expected
+| 1 E#myid
+#reset
+
+#data
+#myid {}
+#errors
+#expected
+| 1 #myid
+#reset
+
+## Multiple specifics in simple selectors
+
+#data
+foo.bar#baz {}
+#errors
+#expected
+| 1 foo.bar#baz
+#reset
+
+#data
+[bar="baz"][foo|="bar"] {}
+#errors
+#expected
+| 1 [bar="baz"][foo|="bar"]
+#reset
+
+#data
+.foo[bar~="baz"] {}
+#errors
+#expected
+| 1 .foo[bar~="baz"]
+#reset
+
+#data
+#myid:link:before {}
+#errors
+#expected
+| 1 #myid:link:before
+#reset
+
+#data
+.class:lang(c):after {}
+#errors
+#expected
+| 1 .class:lang(c):after
+#reset
+
+#data
+.class:lang(c) > #myid:before {}
+#errors
+#expected
+| 1 .class:lang(c) > #myid:before
+#reset
+
+## Multiple selectors in a rule
+
+#data
+foo,bar {}
+#errors
+#expected
+| 1 foo, bar
+#reset
+
+#data
+E>F,bar {}
+#errors
+#expected
+| 1 E > F, bar
+#reset
+
+#data
+E+F,bar {}
+#errors
+#expected
+| 1 E + F, bar
+#reset
+
+#data
+E F,bar {}
+#errors
+#expected
+| 1 E F, bar
+#reset
+
+#data
+E:first-child,bar {}
+#errors
+#expected
+| 1 E:first-child, bar
+#reset
+
+#data
+E:link,bar {}
+#errors
+#expected
+| 1 E:link, bar
+#reset
+
+#data
+E:visited,bar {}
+#errors
+#expected
+| 1 E:visited, bar
+#reset
+
+#data
+E:active,bar {}
+#errors
+#expected
+| 1 E:active, bar
+#reset
+
+#data
+E:hover,bar {}
+#errors
+#expected
+| 1 E:hover, bar
+#reset
+
+#data
+E:focus,bar {}
+#errors
+#expected
+| 1 E:focus, bar
+#reset
+
+#data
+E:lang(c),bar {}
+#errors
+#expected
+| 1 E:lang(c), bar
+#reset
+
+#data
+E[foo],bar {}
+#errors
+#expected
+| 1 E[foo], bar
+#reset
+
+#data
+E[foo="warning"],bar {}
+#errors
+#expected
+| 1 E[foo="warning"], bar
+#reset
+
+#data
+E[foo~="warning"],bar {}
+#errors
+#expected
+| 1 E[foo~="warning"], bar
+#reset
+
+#data
+E[lang|="en"],bar {}
+#errors
+#expected
+| 1 E[lang|="en"], bar
+#reset
+
+#data
+DIV.warning,bar {}
+#errors
+#expected
+| 1 DIV.warning, bar
+#reset
+
+#data
+.warning,bar {}
+#errors
+#expected
+| 1 .warning, bar
+#reset
+
+#data
+E#myid,bar {}
+#errors
+#expected
+| 1 E#myid, bar
+#reset
+
+#data
+#myid,bar {}
+#errors
+#expected
+| 1 #myid, bar
+#reset
+
+# Not pseudo class
+
+#data
+E:not(bar) {}
+#errors
+#expected
+| 1 E:not(bar)
+#reset
+
+#data
+E:not(*) {}
+#errors
+#expected
+| 1 E:not(*)
+#reset
+
+#data
+E:not(#foo) {}
+#errors
+#expected
+| 1 E:not(#foo)
+#reset
+
+#data
+E:not(.bar) {}
+#errors
+#expected
+| 1 E:not(.bar)
+#reset
+
+#data
+E:not([bar]) {}
+#errors
+#expected
+| 1 E:not([bar])
+#reset
+
+#data
+E:not(:first-child) {}
+#errors
+#expected
+| 1 E:not(:first-child)
+#reset
+
+#data
+E:not(:nth-child(2n+1)) {}
+#errors
+#expected
+| 1 E:not(:nth-child(2n+1))
+#reset
+
+#data
+E:not(:first-line) {}
+#errors
+#expected
+#reset
+
+#data
+E:not(:not(bar)) {}
+#errors
+#expected
+#reset
+

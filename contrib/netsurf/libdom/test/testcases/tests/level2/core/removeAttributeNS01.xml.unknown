@@ -1,0 +1,64 @@
+<?xml version="1.0" encoding="UTF-8"?><?xml-stylesheet href="test-to-html.xsl" type="text/xml"?>
+
+<!--
+
+Copyright (c) 2001-2004 World Wide Web Consortium, 
+(Massachusetts Institute of Technology, Institut National de
+Recherche en Informatique et en Automatique, Keio University).  All 
+Rights Reserved.  This program is distributed under the W3C's Software
+Intellectual Property License.  This program is distributed in the 
+hope that it will be useful, but WITHOUT ANY WARRANTY; without even
+the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR 
+PURPOSE.  
+
+See W3C License http://www.w3.org/Consortium/Legal/ for more details.
+
+-->
+<!DOCTYPE test SYSTEM "dom2.dtd">
+<test xmlns="http://www.w3.org/2001/DOM-Test-Suite/Level-2" name="removeAttributeNS01">
+<metadata>
+<title>removeAttributeNS01</title>
+<creator>NIST</creator>
+<description>
+    The "removeAttributeNS(namespaceURI,localName)" method for an attribute causes the 
+   DOMException NO_MODIFICATION_ALLOWED_ERR to be raised
+   if the node is readonly.
+   
+   Obtain the children of the THIRD "gender" element.  The elements
+   content is an entity reference.  Try to remove an attribute
+   from the entity reference by executing the 
+   "removeAttributeNS(namespaceURI,localName)" method.
+   This causes a NO_MODIFICATION_ALLOWED_ERR DOMException to be thrown.
+</description>
+<contributor>Mary Brady</contributor>
+<date qualifier="created">2001-08-17</date>
+<subject resource="http://www.w3.org/TR/DOM-Level-2-Core/core#xpointer(id('ID-258A00AF')/constant[@name='NO_MODIFICATION_ALLOWED_ERR'])"/>
+<subject resource="http://www.w3.org/TR/DOM-Level-2-Core/core#ID-ElRemAtNS"/>
+<subject resource="http://www.w3.org/TR/DOM-Level-2-Core/core#xpointer(id('ID-ElRemAtNS')/raises/exception[@name='DOMException']/descr/p[substring-before(.,':')='NO_MODIFICATION_ALLOWED_ERR'])"/>
+</metadata>
+<implementationAttribute name="namespaceAware" value="true"/>
+<var name="doc" type="Document"/>
+<var name="genderList" type="NodeList"/>
+<var name="gender" type="Node"/>
+<var name="gen" type="Node"/>
+<var name="gList" type="NodeList"/>
+<var name="genElement" type="Element"/>
+<var name="nodeType" type="int"/>
+<load var="doc" href="staffNS" willBeModified="true"/>
+<getElementsByTagName interface="Document" obj="doc" var="genderList" tagname="&quot;gender&quot;"/>
+<item interface="NodeList" obj="genderList" var="gender" index="2"/>
+<firstChild var="gen" obj="gender" interface="Node"/>
+<nodeType var="nodeType" obj="gen"/>
+<if><equals actual="nodeType" expected="1" ignoreCase="false"/>
+	<createEntityReference name='"ent4"' obj="doc" var="gen"/>
+	<assertNotNull actual="gen" id="createdEntRefNotNull"/>
+</if>
+<childNodes obj="gen" var="gList"/>
+<item interface="NodeList" obj="gList" var="genElement" index="0"/>
+<assertNotNull actual="genElement" id="notnull"/>
+<assertDOMException id="throw_NO_MODIFICATION_ALLOWED_ERR">
+<NO_MODIFICATION_ALLOWED_ERR>
+<removeAttributeNS obj="genElement" namespaceURI='"www.xyz.com"' localName='"local1"'/>
+</NO_MODIFICATION_ALLOWED_ERR>
+</assertDOMException>
+</test>

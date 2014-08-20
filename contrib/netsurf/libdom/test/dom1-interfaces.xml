@@ -1,0 +1,3665 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+Copyright (c) 2001 World Wide Web Consortium,
+(Massachusetts Institute of Technology, Institut National de
+Recherche en Informatique et en Automatique, Keio University). All
+Rights Reserved. This program is distributed under the W3C's Document
+Intellectual Property License. This program is distributed in the
+hope that it will be useful, but WITHOUT ANY WARRANTY; without even
+the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
+PURPOSE.
+See W3C License http://www.w3.org/Consortium/Legal/ for more details.
+-->
+<!--This file is an extract of interface definitions from Document Object Model (DOM) Level 1 Specification-->
+<library>
+<exception name="DOMException" id="ID-17189187">
+<descr>
+<p>DOM operations only raise exceptions in "exceptional" circumstances, i.e., when an operation is impossible to perform (either for logical reasons, because data is lost, or because the implementation has become unstable). In general, DOM methods return specific error values in ordinary processing situation, such as out-of-bound errors when using<code>NodeList</code>.</p>
+<p>Implementations may raise other exceptions under other circumstances. For example, implementations may raise an implementation-dependent exception if a<code>null</code>argument is passed.</p>
+<p>Some languages and object systems do not support the concept of exceptions. For such systems, error conditions may be indicated using native error reporting mechanisms. For some bindings, for example, methods may return error codes similar to those listed in the corresponding method descriptions.</p>
+</descr>
+<component id="ID-146F692A" name="code">
+<typename>unsigned short</typename>
+</component>
+</exception>
+<group id="ID-258A00AF" name="ExceptionCode">
+<descr>
+<p>An integer indicating the type of error generated.</p>
+</descr>
+<constant name="INDEX_SIZE_ERR" type="unsigned short" value="1">
+<descr>
+<p>If index or size is negative, or greater than the allowed value</p>
+</descr>
+</constant>
+<constant name="DOMSTRING_SIZE_ERR" type="unsigned short" value="2">
+<descr>
+<p>If the specified range of text does not fit into a DOMString</p>
+</descr>
+</constant>
+<constant name="HIERARCHY_REQUEST_ERR" type="unsigned short" value="3">
+<descr>
+<p>If any node is inserted somewhere it doesn't belong</p>
+</descr>
+</constant>
+<constant name="WRONG_DOCUMENT_ERR" type="unsigned short" value="4">
+<descr>
+<p>If a node is used in a different document than the one that created it (that doesn't support it)</p>
+</descr>
+</constant>
+<constant name="INVALID_CHARACTER_ERR" type="unsigned short" value="5">
+<descr>
+<p>If an invalid character is specified, such as in a name.</p>
+</descr>
+</constant>
+<constant name="NO_DATA_ALLOWED_ERR" type="unsigned short" value="6">
+<descr>
+<p>If data is specified for a node which does not support data</p>
+</descr>
+</constant>
+<constant name="NO_MODIFICATION_ALLOWED_ERR" type="unsigned short" value="7">
+<descr>
+<p>If an attempt is made to modify an object where modifications are not allowed</p>
+</descr>
+</constant>
+<constant name="NOT_FOUND_ERR" type="unsigned short" value="8">
+<descr>
+<p>If an attempt was made to reference a node in a context where it does not exist</p>
+</descr>
+</constant>
+<constant name="NOT_SUPPORTED_ERR" type="unsigned short" value="9">
+<descr>
+<p>If the implementation does not support the type of object requested</p>
+</descr>
+</constant>
+<constant name="INUSE_ATTRIBUTE_ERR" type="unsigned short" value="10">
+<descr>
+<p>If an attempt is made to add an attribute that is already inuse elsewhere</p>
+</descr>
+</constant>
+</group>
+<interface name="DOMImplementation" id="ID-102161490">
+<descr>
+<p>The<code>DOMImplementation</code>interface provides a number of methods for performing operations that are independent of any particular instance of the document object model.</p>
+<p>The DOM Level 1 does not specify a way of creating a document instance, and hence document creation is an operation specific to an implementation. Future Levels of the DOM specification are expected to provide methods for creating documents directly.</p>
+</descr>
+<method name="hasFeature" id="ID-5CED94D7">
+<descr>
+<p>Test if the DOM implementation implements a specific feature.</p>
+</descr>
+<parameters>
+<param name="feature" type="DOMString" attr="in">
+<descr>
+<p>The package name of the feature to test. In Level 1, the legal values are "HTML" and "XML" (case-insensitive).</p>
+</descr>
+</param>
+<param name="version" type="DOMString" attr="in">
+<descr>
+<p>This is the version number of the package name to test. In Level 1, this is the string "1.0". If the version is not specified, supporting any version of the feature will cause the method to return<code>true</code>.</p>
+</descr>
+</param>
+</parameters>
+<returns type="boolean">
+<descr>
+<p>
+<code>true</code>if the feature is implemented in the specified version,<code>false</code>otherwise.</p>
+</descr>
+</returns>
+<raises/>
+</method>
+</interface>
+<interface name="DocumentFragment" inherits="Node" id="ID-B63ED1A3">
+<descr>
+<p>
+<code>DocumentFragment</code>is a "lightweight" or "minimal"<code>Document</code>object. It is very common to want to be able to extract a portion of a document's tree or to create a new fragment of a document. Imagine implementing a user command like cut or rearranging a document by moving fragments around. It is desirable to have an object which can hold such fragments and it is quite natural to use a Node for this purpose. While it is true that a<code>Document</code>object could fulfil this role, a<code>Document</code>object can potentially be a heavyweight object, depending on the underlying implementation. What is really needed for this is a very lightweight object.<code>DocumentFragment</code>is such an object.</p>
+<p>Furthermore, various operations -- such as inserting nodes as children of another<code>Node</code>-- may take<code>DocumentFragment</code>objects as arguments; this results in all the child nodes of the<code>DocumentFragment</code>being moved to the child list of this node.</p>
+<p>The children of a<code>DocumentFragment</code>node are zero or more nodes representing the tops of any sub-trees defining the structure of the document.<code>DocumentFragment</code>nodes do not need to be well-formed XML documents (although they do need to follow the rules imposed upon well-formed XML parsed entities, which can have multiple top nodes). For example, a<code>DocumentFragment</code>might have only one child and that child node could be a<code>Text</code>node. Such a structure model represents neither an HTML document nor a well-formed XML document.</p>
+<p>When a<code>DocumentFragment</code>is inserted into a<code>Document</code>(or indeed any other<code>Node</code>that may take children) the children of the<code>DocumentFragment</code>and not the<code>DocumentFragment</code>itself are inserted into the<code>Node</code>. This makes the<code>DocumentFragment</code>very useful when the user wishes to create nodes that are siblings; the<code>DocumentFragment</code>acts as the parent of these nodes so that the user can use the standard methods from the<code>Node</code>interface, such as<code>insertBefore()</code>and<code>appendChild()</code>.</p>
+</descr>
+</interface>
+<interface name="Document" inherits="Node" id="i-Document">
+<descr>
+<p>The<code>Document</code>interface represents the entire HTML or XML document. Conceptually, it is the root of the document tree, and provides the primary access to the document's data.</p>
+<p>Since elements, text nodes, comments, processing instructions, etc. cannot exist outside the context of a<code>Document</code>, the<code>Document</code>interface also contains the factory methods needed to create these objects. The<code>Node</code>objects created have a<code>ownerDocument</code>attribute which associates them with the<code>Document</code>within whose context they were created.</p>
+</descr>
+<attribute readonly="yes" name="doctype" type="DocumentType" id="ID-B63ED1A31">
+<descr>
+<p>The Document Type Declaration (see<code>DocumentType</code>) associated with this document. For HTML documents as well as XML documents without a document type declaration this returns<code>null</code>. The DOM Level 1 does not support editing the Document Type Declaration, therefore<code>docType</code>cannot be altered in any way.</p>
+</descr>
+</attribute>
+<attribute readonly="yes" name="implementation" type="DOMImplementation" id="ID-1B793EBA">
+<descr>
+<p>The<code>DOMImplementation</code>object that handles this document. A DOM application may use objects from multiple implementations.</p>
+</descr>
+</attribute>
+<attribute readonly="yes" name="documentElement" type="Element" id="ID-87CD092">
+<descr>
+<p>This is a convenience attribute that allows direct access to the child node that is the root element of the document. For HTML documents, this is the element with the tagName "HTML".</p>
+</descr>
+</attribute>
+<method name="createElement" id="ID-2141741547">
+<descr>
+<p>Creates an element of the type specified. Note that the instance returned implements the<xtermref href="ID-745549614" form="simple" show="embed" actuate="auto">Element</xtermref>interface, so attributes can be specified directly on the returned object.</p>
+</descr>
+<parameters>
+<param name="tagName" type="DOMString" attr="in">
+<descr>
+<p>The name of the element type to instantiate. For XML, this is case-sensitive. For HTML, the<code>tagName</code>parameter may be provided in any case, but it must be mapped to the canonical uppercase form by the DOM implementation.</p>
+</descr>
+</param>
+</parameters>
+<returns type="Element">
+<descr>
+<p>A new<code>Element</code>object.</p>
+</descr>
+</returns>
+<raises>
+<exception name="DOMException">
+<descr>
+<p>INVALID_CHARACTER_ERR: Raised if the specified name contains an invalid character.</p>
+</descr>
+</exception>
+</raises>
+</method>
+<method name="createDocumentFragment" id="ID-35CB04B5">
+<descr>
+<p>Creates an empty<code>DocumentFragment</code>object.</p>
+</descr>
+<parameters/>
+<returns type="DocumentFragment">
+<descr>
+<p>A new<code>DocumentFragment</code>.</p>
+</descr>
+</returns>
+<raises/>
+</method>
+<method name="createTextNode" id="ID-1975348127">
+<descr>
+<p>Creates a<code>Text</code>node given the specified string.</p>
+</descr>
+<parameters>
+<param name="data" type="DOMString" attr="in">
+<descr>
+<p>The data for the node.</p>
+</descr>
+</param>
+</parameters>
+<returns type="Text">
+<descr>
+<p>The new<code>Text</code>object.</p>
+</descr>
+</returns>
+<raises/>
+</method>
+<method name="createComment" id="ID-1334481328">
+<descr>
+<p>Creates a<code>Comment</code>node given the specified string.</p>
+</descr>
+<parameters>
+<param name="data" type="DOMString" attr="in">
+<descr>
+<p>The data for the node.</p>
+</descr>
+</param>
+</parameters>
+<returns type="Comment">
+<descr>
+<p>The new<code>Comment</code>object.</p>
+</descr>
+</returns>
+<raises/>
+</method>
+<method name="createCDATASection" id="ID-D26C0AF8">
+<descr>
+<p>Creates a<code>CDATASection</code>node whose value is the specified string.</p>
+</descr>
+<parameters>
+<param name="data" type="DOMString" attr="in">
+<descr>
+<p>The data for the<code>CDATASection</code>contents.</p>
+</descr>
+</param>
+</parameters>
+<returns type="CDATASection">
+<descr>
+<p>The new<code>CDATASection</code>object.</p>
+</descr>
+</returns>
+<raises>
+<exception name="DOMException">
+<descr>
+<p>NOT_SUPPORTED_ERR: Raised if this document is an HTML document.</p>
+</descr>
+</exception>
+</raises>
+</method>
+<method name="createProcessingInstruction" id="ID-135944439">
+<descr>
+<p>Creates a<code>ProcessingInstruction</code>node given the specified name and data strings.</p>
+</descr>
+<parameters>
+<param name="target" type="DOMString" attr="in">
+<descr>
+<p>The target part of the processing instruction.</p>
+</descr>
+</param>
+<param name="data" type="DOMString" attr="in">
+<descr>
+<p>The data for the node.</p>
+</descr>
+</param>
+</parameters>
+<returns type="ProcessingInstruction">
+<descr>
+<p>The new<code>ProcessingInstruction</code>object.</p>
+</descr>
+</returns>
+<raises>
+<exception name="DOMException">
+<descr>
+<p>INVALID_CHARACTER_ERR: Raised if an invalid character is specified.</p>
+<p>NOT_SUPPORTED_ERR: Raised if this document is an HTML document.</p>
+</descr>
+</exception>
+</raises>
+</method>
+<method name="createAttribute" id="ID-1084891198">
+<descr>
+<p>Creates an<code>Attr</code>of the given name. Note that the<code>Attr</code>instance can then be set on an<code>Element</code>using the<code>setAttribute</code>method.</p>
+</descr>
+<parameters>
+<param name="name" type="DOMString" attr="in">
+<descr>
+<p>The name of the attribute.</p>
+</descr>
+</param>
+</parameters>
+<returns type="Attr">
+<descr>
+<p>A new<code>Attr</code>object.</p>
+</descr>
+</returns>
+<raises>
+<exception name="DOMException">
+<descr>
+<p>INVALID_CHARACTER_ERR: Raised if the specified name contains an invalid character.</p>
+</descr>
+</exception>
+</raises>
+</method>
+<method name="createEntityReference" id="ID-392B75AE">
+<descr>
+<p>Creates an EntityReference object.</p>
+</descr>
+<parameters>
+<param name="name" type="DOMString" attr="in">
+<descr>
+<p>The name of the entity to reference.</p>
+</descr>
+</param>
+</parameters>
+<returns type="EntityReference">
+<descr>
+<p>The new<code>EntityReference</code>object.</p>
+</descr>
+</returns>
+<raises>
+<exception name="DOMException">
+<descr>
+<p>INVALID_CHARACTER_ERR: Raised if the specified name contains an invalid character.</p>
+<p>NOT_SUPPORTED_ERR: Raised if this document is an HTML document.</p>
+</descr>
+</exception>
+</raises>
+</method>
+<method name="getElementsByTagName" id="ID-A6C9094">
+<descr>
+<p>Returns a<code>NodeList</code>of all the<code>Element</code>s with a given tag name in the order in which they would be encountered in a preorder traversal of the<code>Document</code>tree.</p>
+</descr>
+<parameters>
+<param name="tagname" type="DOMString" attr="in">
+<descr>
+<p>The name of the tag to match on. The special value "*" matches all tags.</p>
+</descr>
+</param>
+</parameters>
+<returns type="NodeList">
+<descr>
+<p>A new<code>NodeList</code>object containing all the matched<code>Element</code>s.</p>
+</descr>
+</returns>
+<raises/>
+</method>
+</interface>
+<interface name="Node" id="ID-1950641247">
+<descr>
+<p>The<code>Node</code>interface is the primary datatype for the entire Document Object Model. It represents a single node in the document tree. While all objects implementing the<code>Node</code>interface expose methods for dealing with children, not all objects implementing the<code>Node</code>interface may have children. For example,<code>Text</code>nodes may not have children, and adding children to such nodes results in a<code>DOMException</code>being raised.</p>
+<p>The attributes<code>nodeName</code>,<code>nodeValue</code>and<code>attributes</code>are included as a mechanism to getat node information without casting down to the specific derived interface. In cases where there is no obvious mapping of these attributes for a specific<code>nodeType</code>(e.g.,<code>nodeValue</code>for an Element or<code>attributes</code>for a Comment), this returns<code>null</code>. Note that the specialized interfaces may contain additional and more convenient mechanisms to get and set the relevant information.</p>
+</descr>
+<group id="ID-1841493061" name="NodeType">
+<descr>
+<p>An integer indicating which type of node this is.</p>
+</descr>
+<constant name="ELEMENT_NODE" type="unsigned short" value="1">
+<descr>
+<p>The node is a<code>Element</code>.</p>
+</descr>
+</constant>
+<constant name="ATTRIBUTE_NODE" type="unsigned short" value="2">
+<descr>
+<p>The node is an<code>Attr</code>.</p>
+</descr>
+</constant>
+<constant name="TEXT_NODE" type="unsigned short" value="3">
+<descr>
+<p>The node is a<code>Text</code>node.</p>
+</descr>
+</constant>
+<constant name="CDATA_SECTION_NODE" type="unsigned short" value="4">
+<descr>
+<p>The node is a<code>CDATASection</code>.</p>
+</descr>
+</constant>
+<constant name="ENTITY_REFERENCE_NODE" type="unsigned short" value="5">
+<descr>
+<p>The node is an<code>EntityReference</code>.</p>
+</descr>
+</constant>
+<constant name="ENTITY_NODE" type="unsigned short" value="6">
+<descr>
+<p>The node is an<code>Entity</code>.</p>
+</descr>
+</constant>
+<constant name="PROCESSING_INSTRUCTION_NODE" type="unsigned short" value="7">
+<descr>
+<p>The node is a<code>ProcessingInstruction</code>.</p>
+</descr>
+</constant>
+<constant name="COMMENT_NODE" type="unsigned short" value="8">
+<descr>
+<p>The node is a<code>Comment</code>.</p>
+</descr>
+</constant>
+<constant name="DOCUMENT_NODE" type="unsigned short" value="9">
+<descr>
+<p>The node is a<code>Document</code>.</p>
+</descr>
+</constant>
+<constant name="DOCUMENT_TYPE_NODE" type="unsigned short" value="10">
+<descr>
+<p>The node is a<code>DocumentType</code>.</p>
+</descr>
+</constant>
+<constant name="DOCUMENT_FRAGMENT_NODE" type="unsigned short" value="11">
+<descr>
+<p>The node is a<code>DocumentFragment</code>.</p>
+</descr>
+</constant>
+<constant name="NOTATION_NODE" type="unsigned short" value="12">
+<descr>
+<p>The node is a<code>Notation</code>.</p>
+</descr>
+</constant>
+</group>
+<p>The values of<code>nodeName</code>,<code>nodeValue</code>, and<code>attributes</code>vary according to the node type as follows:<table border="1">
+<tbody>
+<tr>
+<td rowspan="1" colspan="1"/>
+<td rowspan="1" colspan="1">nodeName</td>
+<td rowspan="1" colspan="1">nodeValue</td>
+<td rowspan="1" colspan="1">attributes</td>
+</tr>
+<tr>
+<td rowspan="1" colspan="1">Element</td>
+<td rowspan="1" colspan="1">tagName</td>
+<td rowspan="1" colspan="1">null</td>
+<td rowspan="1" colspan="1">NamedNodeMap</td>
+</tr>
+<tr>
+<td rowspan="1" colspan="1">Attr</td>
+<td rowspan="1" colspan="1">name of attribute</td>
+<td rowspan="1" colspan="1">value of attribute</td>
+<td rowspan="1" colspan="1">null</td>
+</tr>
+<tr>
+<td rowspan="1" colspan="1">Text</td>
+<td rowspan="1" colspan="1">#text</td>
+<td rowspan="1" colspan="1">content of the text node</td>
+<td rowspan="1" colspan="1">null</td>
+</tr>
+<tr>
+<td rowspan="1" colspan="1">CDATASection</td>
+<td rowspan="1" colspan="1">#cdata-section</td>
+<td rowspan="1" colspan="1">content of the CDATA Section</td>
+<td rowspan="1" colspan="1">null</td>
+</tr>
+<tr>
+<td rowspan="1" colspan="1">EntityReference</td>
+<td rowspan="1" colspan="1">name of entity referenced</td>
+<td rowspan="1" colspan="1">null</td>
+<td rowspan="1" colspan="1">null</td>
+</tr>
+<tr>
+<td rowspan="1" colspan="1">Entity</td>
+<td rowspan="1" colspan="1">entity name</td>
+<td rowspan="1" colspan="1">null</td>
+<td rowspan="1" colspan="1">null</td>
+</tr>
+<tr>
+<td rowspan="1" colspan="1">ProcessingInstruction</td>
+<td rowspan="1" colspan="1">target</td>
+<td rowspan="1" colspan="1">entire content excluding the target</td>
+<td rowspan="1" colspan="1">null</td>
+</tr>
+<tr>
+<td rowspan="1" colspan="1">Comment</td>
+<td rowspan="1" colspan="1">#comment</td>
+<td rowspan="1" colspan="1">content of the comment</td>
+<td rowspan="1" colspan="1">null</td>
+</tr>
+<tr>
+<td rowspan="1" colspan="1">Document</td>
+<td rowspan="1" colspan="1">#document</td>
+<td rowspan="1" colspan="1">null</td>
+<td rowspan="1" colspan="1">null</td>
+</tr>
+<tr>
+<td rowspan="1" colspan="1">DocumentType</td>
+<td rowspan="1" colspan="1">document type name</td>
+<td rowspan="1" colspan="1">null</td>
+<td rowspan="1" colspan="1">null</td>
+</tr>
+<tr>
+<td rowspan="1" colspan="1">DocumentFragment</td>
+<td rowspan="1" colspan="1">#document-fragment</td>
+<td rowspan="1" colspan="1">null</td>
+<td rowspan="1" colspan="1">null</td>
+</tr>
+<tr>
+<td rowspan="1" colspan="1">Notation</td>
+<td rowspan="1" colspan="1">notation name</td>
+<td rowspan="1" colspan="1">null</td>
+<td rowspan="1" colspan="1">null</td>
+</tr>
+</tbody>
+</table>
+</p>
+<attribute type="DOMString" readonly="yes" name="nodeName" id="ID-F68D095">
+<descr>
+<p>The name of this node, depending on its type; see the table above.</p>
+</descr>
+</attribute>
+<attribute type="DOMString" name="nodeValue" id="ID-F68D080" readonly="no">
+<descr>
+<p>The value of this node, depending on its type; see the table above.</p>
+</descr>
+<setraises>
+<exception name="DOMException">
+<descr>
+<p>NO_MODIFICATION_ALLOWED_ERR: Raised when the node is readonly.</p>
+</descr>
+</exception>
+</setraises>
+<getraises>
+<exception name="DOMException">
+<descr>
+<p>DOMSTRING_SIZE_ERR: Raised when it would return more characters than fit in a<code>DOMString</code>variable on the implementation platform.</p>
+</descr>
+</exception>
+</getraises>
+</attribute>
+<attribute type="unsigned short" name="nodeType" readonly="yes" id="ID-111237558">
+<descr>
+<p>A code representing the type of the underlying object, as defined above.</p>
+</descr>
+</attribute>
+<attribute type="Node" readonly="yes" name="parentNode" id="ID-1060184317">
+<descr>
+<p>The parent of this node. All nodes, except<code>Document</code>,<code>DocumentFragment</code>, and<code>Attr</code>may have a parent. However, if a node has just been created and not yet added to the tree, or if it has been removed from the tree, this is<code>null</code>.</p>
+</descr>
+</attribute>
+<attribute type="NodeList" readonly="yes" name="childNodes" id="ID-1451460987">
+<descr>
+<p>A<code>NodeList</code>that contains all children of this node. If there are no children, this is a<code>NodeList</code>containing no nodes. The content of the returned<code>NodeList</code>is "live" in the sense that, for instance, changes to the children of the node object that it was created from are immediately reflected in the nodes returned by the<code>NodeList</code>accessors; it is not a static snapshot of the content of the node. This is true for every<code>NodeList</code>, including the ones returned by the<code>getElementsByTagName</code>method.</p>
+</descr>
+</attribute>
+<attribute readonly="yes" type="Node" name="firstChild" id="ID-169727388">
+<descr>
+<p>The first child of this node. If there is no such node, this returns<code>null</code>.</p>
+</descr>
+</attribute>
+<attribute readonly="yes" type="Node" name="lastChild" id="ID-61AD09FB">
+<descr>
+<p>The last child of this node. If there is no such node, this returns<code>null</code>.</p>
+</descr>
+</attribute>
+<attribute readonly="yes" type="Node" name="previousSibling" id="ID-640FB3C8">
+<descr>
+<p>The node immediately preceding this node. If there is no such node, this returns<code>null</code>.</p>
+</descr>
+</attribute>
+<attribute readonly="yes" type="Node" name="nextSibling" id="ID-6AC54C2F">
+<descr>
+<p>The node immediately following this node. If there is no such node, this returns<code>null</code>.</p>
+</descr>
+</attribute>
+<attribute readonly="yes" type="NamedNodeMap" name="attributes" id="ID-84CF096">
+<descr>
+<p>A<code>NamedNodeMap</code>containing the attributes of this node (if it is an<code>Element</code>) or<code>null</code>otherwise.</p>
+</descr>
+</attribute>
+<attribute readonly="yes" type="Document" name="ownerDocument" id="node-ownerDoc">
+<descr>
+<p>The<code>Document</code>object associated with this node. This is also the<code>Document</code>object used to create new nodes. When this node is a<code>Document</code>this is<code>null</code>.</p>
+</descr>
+</attribute>
+<method name="insertBefore" id="ID-952280727">
+<descr>
+<p>Inserts the node<code>newChild</code>before the existing child node<code>refChild</code>. If<code>refChild</code>is<code>null</code>, insert<code>newChild</code>at the end of the list of children.</p>
+<p>If<code>newChild</code>is a<code>DocumentFragment</code>object, all of its children are inserted, in the same order, before<code>refChild</code>. If the<code>newChild</code>is already in the tree, it is first removed.</p>
+</descr>
+<parameters>
+<param name="newChild" type="Node" attr="in">
+<descr>
+<p>The node to insert.</p>
+</descr>
+</param>
+<param name="refChild" type="Node" attr="in">
+<descr>
+<p>The reference node, i.e., the node before which the new node must be inserted.</p>
+</descr>
+</param>
+</parameters>
+<returns type="Node">
+<descr>
+<p>The node being inserted.</p>
+</descr>
+</returns>
+<raises>
+<exception name="DOMException">
+<descr>
+<p>HIERARCHY_REQUEST_ERR: Raised if this node is of a type that does not allow children of the type of the<code>newChild</code>node, or if the node to insert is one of this node's ancestors.</p>
+<p>WRONG_DOCUMENT_ERR: Raised if<code>newChild</code>was created from a different document than the one that created this node.</p>
+<p>NO_MODIFICATION_ALLOWED_ERR: Raised if this node is readonly.</p>
+<p>NOT_FOUND_ERR: Raised if<code>refChild</code>is not a child of this node.</p>
+</descr>
+</exception>
+</raises>
+</method>
+<method name="replaceChild" id="ID-785887307">
+<descr>
+<p>Replaces the child node<code>oldChild</code>with<code>newChild</code>in the list of children, and returns the<code>oldChild</code>node. If the<code>newChild</code>is already in the tree, it is first removed.</p>
+</descr>
+<parameters>
+<param name="newChild" type="Node" attr="in">
+<descr>
+<p>The new node to put in the child list.</p>
+</descr>
+</param>
+<param name="oldChild" type="Node" attr="in">
+<descr>
+<p>The node being replaced in the list.</p>
+</descr>
+</param>
+</parameters>
+<returns type="Node">
+<descr>
+<p>The node replaced.</p>
+</descr>
+</returns>
+<raises>
+<exception name="DOMException">
+<descr>
+<p>HIERARCHY_REQUEST_ERR: Raised if this node is of a type that does not allow children of the type of the<code>newChild</code>node, or it the node to put in is one of this node's ancestors.</p>
+<p>WRONG_DOCUMENT_ERR: Raised if<code>newChild</code>was created from a different document than the one that created this node.</p>
+<p>NO_MODIFICATION_ALLOWED_ERR: Raised if this node is readonly.</p>
+<p>NOT_FOUND_ERR: Raised if<code>oldChild</code>is not a child of this node.</p>
+</descr>
+</exception>
+</raises>
+</method>
+<method name="removeChild" id="ID-1734834066">
+<descr>
+<p>Removes the child node indicated by<code>oldChild</code>from the list of children, and returns it.</p>
+</descr>
+<parameters>
+<param name="oldChild" type="Node" attr="in">
+<descr>
+<p>The node being removed.</p>
+</descr>
+</param>
+</parameters>
+<returns type="Node">
+<descr>
+<p>The node removed.</p>
+</descr>
+</returns>
+<raises>
+<exception name="DOMException">
+<descr>
+<p>NO_MODIFICATION_ALLOWED_ERR: Raised if this node is readonly.</p>
+<p>NOT_FOUND_ERR: Raised if<code>oldChild</code>is not a child of this node.</p>
+</descr>
+</exception>
+</raises>
+</method>
+<method name="appendChild" id="ID-184E7107">
+<descr>
+<p>Adds the node<code>newChild</code>to the end of the list of children of this node. If the<code>newChild</code>is already in the tree, it is first removed.</p>
+</descr>
+<parameters>
+<param name="newChild" type="Node" attr="in">
+<descr>
+<p>The node to add.</p>
+<p>If it is a<code>DocumentFragment</code>object, the entire contents of the document fragment are moved into the child list of this node</p>
+</descr>
+</param>
+</parameters>
+<returns type="Node">
+<descr>
+<p>The node added.</p>
+</descr>
+</returns>
+<raises>
+<exception name="DOMException">
+<descr>
+<p>HIERARCHY_REQUEST_ERR: Raised if this node is of a type that does not allow children of the type of the<code>newChild</code>node, or if the node to append is one of this node's ancestors.</p>
+<p>WRONG_DOCUMENT_ERR: Raised if<code>newChild</code>was created from a different document than the one that created this node.</p>
+<p>NO_MODIFICATION_ALLOWED_ERR: Raised if this node is readonly.</p>
+</descr>
+</exception>
+</raises>
+</method>
+<method name="hasChildNodes" id="ID-810594187">
+<descr>
+<p>This is a convenience method to allow easy determination of whether a node has any children.</p>
+</descr>
+<parameters/>
+<returns type="boolean">
+<descr>
+<p>
+<code>true</code>if the node has any children,<code>false</code>if the node has no children.</p>
+</descr>
+</returns>
+<raises/>
+</method>
+<method name="cloneNode" id="ID-3A0ED0A4">
+<descr>
+<p>Returns a duplicate of this node, i.e., serves as a generic copy constructor for nodes. The duplicate node has no parent (<code>parentNode</code>returns<code>null</code>.).</p>
+<p>Cloning an<code>Element</code>copies all attributes and their values, including those generated by the XML processor to represent defaulted attributes, but this method does not copy any text it contains unless it is a deep clone, since the text is contained in a child<code>Text</code>node. Cloning any other type of node simply returns a copy of this node.</p>
+</descr>
+<parameters>
+<param name="deep" type="boolean" attr="in">
+<descr>
+<p>If<code>true</code>, recursively clone the subtree under the specified node; if<code>false</code>, clone only the node itself (and its attributes, if it is an<code>Element</code>).</p>
+</descr>
+</param>
+</parameters>
+<returns type="Node">
+<descr>
+<p>The duplicate node.</p>
+</descr>
+</returns>
+<raises/>
+</method>
+</interface>
+<interface name="NodeList" id="ID-536297177">
+<descr>
+<p>The<code>NodeList</code>interface provides the abstraction of an ordered collection of nodes, without defining or constraining how this collection is implemented.</p>
+<p>The items in the<code>NodeList</code>are accessible via an integral index, starting from 0.</p>
+</descr>
+<method name="item" id="ID-844377136">
+<descr>
+<p>Returns the<code>index</code>th item in the collection. If<code>index</code>is greater than or equal to the number of nodes in the list, this returns<code>null</code>.</p>
+</descr>
+<parameters>
+<param name="index" type="unsigned long" attr="in">
+<descr>
+<p>Index into the collection.</p>
+</descr>
+</param>
+</parameters>
+<returns type="Node">
+<descr>
+<p>The node atthe<code>index</code>th position in the<code>NodeList</code>, or<code>null</code>if that is not a valid index.</p>
+</descr>
+</returns>
+<raises/>
+</method>
+<attribute type="unsigned long" readonly="yes" name="length" id="ID-203510337">
+<descr>
+<p>The number of nodes in the list. The range of valid child node indices is 0 to<code>length-1</code>inclusive.</p>
+</descr>
+</attribute>
+</interface>
+<interface name="NamedNodeMap" inherits="" id="ID-1780488922">
+<descr>
+<p>Objects implementing the<code>NamedNodeMap</code>interface are used to represent collections of nodes that can be accessed by name. Note that<code>NamedNodeMap</code>does not inherit from<code>NodeList</code>;<code>NamedNodeMap</code>s are not maintained in any particular order. Objects contained in an object implementing<code>NamedNodeMap</code>may also be accessed by an ordinal index, but this is simply to allow convenient enumeration of the contents of a<code>NamedNodeMap</code>, and does not imply that the DOM specifies an order to these Nodes.</p>
+</descr>
+<method name="getNamedItem" id="ID-1074577549">
+<descr>
+<p>Retrieves a node specified by name.</p>
+</descr>
+<parameters>
+<param name="name" type="DOMString" attr="in">
+<descr>
+<p>Name of a node to retrieve.</p>
+</descr>
+</param>
+</parameters>
+<returns type="Node">
+<descr>
+<p>A<code>Node</code>(of any type) with the specified name, or<code>null</code>if the specified name did not identify any node in the map.</p>
+</descr>
+</returns>
+<raises/>
+</method>
+<method name="setNamedItem" id="ID-1025163788">
+<descr>
+<p>Adds a node using its<code>nodeName</code>attribute.</p>
+<p>As the<code>nodeName</code>attribute is used to derive the name which the node must be stored under, multiple nodes of certain types (those that have a "special" string value) cannot be stored as the names would clash. This is seen as preferable to allowing nodes to be aliased.</p>
+</descr>
+<parameters>
+<param name="arg" type="Node" attr="in">
+<descr>
+<p>A node to store in a named node map. The node will later be accessible using the value of the<code>nodeName</code>attribute of the node. If a node with that name is already present in the map, it is replaced by the new one.</p>
+</descr>
+</param>
+</parameters>
+<returns type="Node">
+<descr>
+<p>If the new<code>Node</code>replaces an existing node with the same name the previously existing<code>Node</code>is returned, otherwise<code>null</code>is returned.</p>
+</descr>
+</returns>
+<raises>
+<exception name="DOMException">
+<descr>
+<p>WRONG_DOCUMENT_ERR: Raised if<code>arg</code>was created from a different document than the one that created the<code>NamedNodeMap</code>.</p>
+<p>NO_MODIFICATION_ALLOWED_ERR: Raised if this<code>NamedNodeMap</code>is readonly.</p>
+<p>INUSE_ATTRIBUTE_ERR: Raised if<code>arg</code>is an<code>Attr</code>that is already an attribute of another<code>Element</code>object. The DOM user must explicitly clone<code>Attr</code>nodes to re-use them in other elements.</p>
+</descr>
+</exception>
+</raises>
+</method>
+<method name="removeNamedItem" id="ID-D58B193">
+<descr>
+<p>Removes a node specified by name. If the removed node is an<code>Attr</code>with a default value it is immediately replaced.</p>
+</descr>
+<parameters>
+<param name="name" type="DOMString" attr="in">
+<descr>
+<p>The name of a node to remove.</p>
+</descr>
+</param>
+</parameters>
+<returns type="Node">
+<descr>
+<p>The node removed from the map or<code>null</code>if no node with such a name exists.</p>
+</descr>
+</returns>
+<raises>
+<exception name="DOMException">
+<descr>
+<p>NOT_FOUND_ERR: Raised if there is no node named <code>name</code> in this map.</p>
+<p>NO_MODIFICATION_ALLOWED_ERR: Raised if this map is readonly.</p>
+</descr>
+</exception>
+</raises>
+</method>
+<method name="item" id="ID-349467F9">
+<descr>
+<p>Returns the<code>index</code>th item in the map. If<code>index</code>is greater than or equal to the number of nodes in the map, this returns<code>null</code>.</p>
+</descr>
+<parameters>
+<param name="index" type="unsigned long" attr="in">
+<descr>
+<p>Index into the map.</p>
+</descr>
+</param>
+</parameters>
+<returns type="Node">
+<descr>
+<p>The node at the<code>index</code>th position in the<code>NamedNodeMap</code>, or<code>null</code>if that is not a valid index.</p>
+</descr>
+</returns>
+<raises/>
+</method>
+<attribute type="unsigned long" readonly="yes" name="length" id="ID-6D0FB19E">
+<descr>
+<p>The number of nodes in the map. The range of valid child node indices is 0 to<code>length-1</code>inclusive.</p>
+</descr>
+</attribute>
+</interface>
+<interface name="CharacterData" inherits="Node" id="ID-FF21A306">
+<descr>
+<p>The<code>CharacterData</code>interface extends Node with a set of attributes and methods for accessing character data in the DOM. For clarity this set is defined here rather than on each object that uses these attributes and methods. No DOM objects correspond directly to<code>CharacterData</code>, though<code>Text</code>and others do inherit the interface from it. All<code>offset</code>s in this interface start from 0.</p>
+</descr>
+<attribute type="DOMString" name="data" id="ID-72AB8359" readonly="no">
+<descr>
+<p>The character data of the node that implements this interface. The DOM implementation may not put arbitrary limits on the amount of data that may be stored in a<code>CharacterData</code>node. However, implementation limits may mean that the entirety of a node's data may not fit into a single<code>DOMString</code>. In such cases, the user may call<code>substringData</code>to retrieve the data in appropriately sized pieces.</p>
+</descr>
+<setraises>
+<exception name="DOMException">
+<descr>
+<p>NO_MODIFICATION_ALLOWED_ERR: Raised when the node is readonly.</p>
+</descr>
+</exception>
+</setraises>
+<getraises>
+<exception name="DOMException">
+<descr>
+<p>DOMSTRING_SIZE_ERR: Raised when it would return more characters than fit in a<code>DOMString</code>variable on the implementation platform.</p>
+</descr>
+</exception>
+</getraises>
+</attribute>
+<attribute type="unsigned long" name="length" readonly="yes" id="ID-7D61178C">
+<descr>
+<p>The number of characters that are available through<code>data</code>and the<code>substringData</code>method below. This may have the value zero, i.e.,<code>CharacterData</code>nodes may be empty.</p>
+</descr>
+</attribute>
+<method name="substringData" id="ID-6531BCCF">
+<descr>
+<p>Extracts a range of data from the node.</p>
+</descr>
+<parameters>
+<param name="offset" type="unsigned long" attr="in">
+<descr>
+<p>Start offset of substring to extract.</p>
+</descr>
+</param>
+<param name="count" type="unsigned long" attr="in">
+<descr>
+<p>The number of characters to extract.</p>
+</descr>
+</param>
+</parameters>
+<returns type="DOMString">
+<descr>
+<p>The specified substring. If the sum of<code>offset</code>and<code>count</code>exceeds the<code>length</code>, then all characters to the end of the data are returned.</p>
+</descr>
+</returns>
+<raises>
+<exception name="DOMException">
+<descr>
+<p>INDEX_SIZE_ERR: Raised if the specified offset is negative or greater than the number of characters in<code>data</code>, or if the specified<code>count</code>is negative.</p>
+<p>DOMSTRING_SIZE_ERR: Raised if the specified range of text does not fit into a<code>DOMString</code>.</p>
+</descr>
+</exception>
+</raises>
+</method>
+<method name="appendData" id="ID-32791A2F">
+<descr>
+<p>Append the string to the end of the character data of the node. Upon success,<code>data</code>provides access to the concatenation of<code>data</code>and the<code>DOMString</code>specified.</p>
+</descr>
+<parameters>
+<param name="arg" type="DOMString" attr="in">
+<descr>
+<p>The<code>DOMString</code>to append.</p>
+</descr>
+</param>
+</parameters>
+<returns type="void">
+<descr>
+<p/>
+</descr>
+</returns>
+<raises>
+<exception name="DOMException">
+<descr>
+<p>NO_MODIFICATION_ALLOWED_ERR: Raised if this node is readonly.</p>
+</descr>
+</exception>
+</raises>
+</method>
+<method name="insertData" id="ID-3EDB695F">
+<descr>
+<p>Insert a string at the specified character offset.</p>
+</descr>
+<parameters>
+<param name="offset" type="unsigned long" attr="in">
+<descr>
+<p>The character offset at which to insert.</p>
+</descr>
+</param>
+<param name="arg" type="DOMString" attr="in">
+<descr>
+<p>The<code>DOMString</code>to insert.</p>
+</descr>
+</param>
+</parameters>
+<returns type="void">
+<descr>
+<p/>
+</descr>
+</returns>
+<raises>
+<exception name="DOMException">
+<descr>
+<p>INDEX_SIZE_ERR: Raised if the specified offset is negative or greater than the number of characters in<code>data</code>.</p>
+<p>NO_MODIFICATION_ALLOWED_ERR: Raised if this node is readonly.</p>
+</descr>
+</exception>
+</raises>
+</method>
+<method name="deleteData" id="ID-7C603781">
+<descr>
+<p>Remove a range of characters from the node. Upon success,<code>data</code>and<code>length</code>reflect the change.</p>
+</descr>
+<parameters>
+<param name="offset" type="unsigned long" attr="in">
+<descr>
+<p>The offset from which to remove characters.</p>
+</descr>
+</param>
+<param name="count" type="unsigned long" attr="in">
+<descr>
+<p>The number of characters to delete. If the sum of<code>offset</code>and<code>count</code>exceeds<code>length</code>then all characters from<code>offset</code>to the end of the data are deleted.</p>
+</descr>
+</param>
+</parameters>
+<returns type="void">
+<descr>
+<p/>
+</descr>
+</returns>
+<raises>
+<exception name="DOMException">
+<descr>
+<p>INDEX_SIZE_ERR: Raised if the specified offset is negative or greater than the number of characters in<code>data</code>, or if the specified<code>count</code>is negative.</p>
+<p>NO_MODIFICATION_ALLOWED_ERR: Raised if this node is readonly.</p>
+</descr>
+</exception>
+</raises>
+</method>
+<method name="replaceData" id="ID-E5CBA7FB">
+<descr>
+<p>Replace the characters starting at the specified character offset with the specified string.</p>
+</descr>
+<parameters>
+<param name="offset" type="unsigned long" attr="in">
+<descr>
+<p>The offset from which to start replacing.</p>
+</descr>
+</param>
+<param name="count" type="unsigned long" attr="in">
+<descr>
+<p>The number of characters to replace. If the sum of<code>offset</code>and<code>count</code>exceeds<code>length</code>, then all characters to the end of the data are replaced (i.e., the effect is the same as a<code>remove</code>method call with the same range, followed by an<code>append</code>method invocation).</p>
+</descr>
+</param>
+<param name="arg" type="DOMString" attr="in">
+<descr>
+<p>The<code>DOMString</code>with which the range must be replaced.</p>
+</descr>
+</param>
+</parameters>
+<returns type="void">
+<descr>
+<p/>
+</descr>
+</returns>
+<raises>
+<exception name="DOMException">
+<descr>
+<p>INDEX_SIZE_ERR: Raised if the specified offset is negative or greater than the number of characters in<code>data</code>, or if the specified<code>count</code>is negative.</p>
+<p>NO_MODIFICATION_ALLOWED_ERR: Raised if this node is readonly.</p>
+</descr>
+</exception>
+</raises>
+</method>
+</interface>
+<interface name="Attr" inherits="Node" id="ID-637646024">
+<descr>
+<p>The<code>Attr</code>interface represents an attribute in an<code>Element</code>object. Typically the allowable values for the attribute are defined in a document type definition.</p>
+<p>
+<code>Attr</code>objects inherit the<code>Node</code>interface, but since they are not actually child nodes of the element they describe, the DOM does not consider them part of the document tree. Thus, the<code>Node</code>attributes<code>parentNode</code>,<code>previousSibling</code>, and<code>nextSibling</code>have a null value for<code>Attr</code>objects. The DOM takes the view that attributes are properties of elements rather than having a separate identity from the elements they are associated with; this should make it more efficient to implement such features as default attributes associated with all elements of a given type. Furthermore,<code>Attr</code>nodes may not be immediate children of a<code>DocumentFragment</code>. However, they can be associated with<code>Element</code>nodes contained within a<code>DocumentFragment</code>. In short, users and implementors of the DOM need to be aware that<code>Attr</code>nodes have some things in common with other objects inheriting the<code>Node</code>interface, but they also are quite distinct.</p>
+<p>The attribute's effective value is determined as follows: if this attribute has been explicitly assigned any value, that value is the attribute's effective value; otherwise, if there is a declaration for this attribute, and that declaration includes a default value, then that default value is the attribute's effective value; otherwise, the attribute does not exist on this element in the structure model until it has been explicitly added. Note that the<code>nodeValue</code>attribute on the<code>Attr</code>instance can also be used to retrieve the string version of the attribute's value(s).</p>
+<p>In XML, where the value of an attribute can contain entity references, the child nodes of the<code>Attr</code>node provide a representation in which entity references are not expanded. These child nodes may be either<code>Text</code>or<code>EntityReference</code>nodes. Because the attribute type may be unknown, there are no tokenized attribute values.</p>
+</descr>
+<attribute type="DOMString" readonly="yes" name="name" id="ID-1112119403">
+<descr>
+<p>Returns the name of this attribute.</p>
+</descr>
+</attribute>
+<attribute type="boolean" readonly="yes" name="specified" id="ID-862529273">
+<descr>
+<p>If this attribute was explicitly given a value in the original document, this is<code>true</code>; otherwise, it is<code>false</code>. Note that the implementation is in charge of this attribute, not the user. If the user changes the value of the attribute (even if it ends up having the same value as the default value) then the<code>specified</code>flag is automatically flipped to<code>true</code>. To re-specify the attribute as the default value from the DTD, the user must delete the attribute. The implementation will then make a new attribute available with<code>specified</code>set to<code>false</code>and the default value (if one exists).</p>
+<p>In summary:<ulist>
+<item>
+<p>If the attribute has an assigned value in the document then<code>specified</code>is<code>true</code>, and the value is the assigned value.</p>
+</item>
+<item>
+<p>If the attribute has no assigned value in the document and has a default value in the DTD, then<code>specified</code>is<code>false</code>, and the value is the default value in the DTD.</p>
+</item>
+<item>
+<p>If the attribute has no assigned value in the document and has a value of #IMPLIED in the DTD, then the attribute does not appear in the structure model of the document.</p>
+</item>
+</ulist>
+</p>
+</descr>
+</attribute>
+<attribute type="DOMString" name="value" id="ID-221662474" readonly="no">
+<descr>
+<p>On retrieval, the value of the attribute is returned as a string. Character and general entity references are replaced with their values.</p>
+<p>On setting, this creates a<code>Text</code>node with the unparsed contents of the string.</p>
+</descr>
+<setraises>
+<exception name="DOMException">
+<descr>
+<p>NO_MODIFICATION_ALLOWED_ERR: Raised when the node is readonly.</p>
+</descr>
+</exception>
+</setraises>
+</attribute>
+</interface>
+<interface name="Element" inherits="Node" id="ID-745549614">
+<descr>
+<p>By far the vast majority of objects (apart from text) that authors encounter when traversing a document are<code>Element</code>nodes. Assume the following XML document:<eg role="code" space="preserve">&lt;elementExample id="demo"&gt; &lt;subelement1/&gt; &lt;subelement2&gt;&lt;subsubelement/&gt;&lt;/subelement2&gt; &lt;/elementExample&gt;</eg>
+</p>
+<p>When represented using DOM, the top node is an<code>Element</code>node for "elementExample", which contains two child<code>Element</code>nodes, one for "subelement1" and one for "subelement2". "subelement1" contains no child nodes.</p>
+<p>Elements may have attributes associated with them; since the<code>Element</code>interface inherits from<code>Node</code>, the generic<code>Node</code>interface method<code>getAttributes</code>may be used to retrieve the set of all attributes for an element. There are methods on the<code>Element</code>interface to retrieve either an<code>Attr</code>object by name or an attribute value by name. In XML, where an attribute value may contain entity references, an<code>Attr</code>object should be retrieved to examine the possibly fairly complex sub-tree representing the attribute value. On the other hand, in HTML, where all attributes have simple string values, methods to directly access an attribute value can safely be used as a convenience.</p>
+</descr>
+<attribute type="DOMString" name="tagName" readonly="yes" id="ID-104682815">
+<descr>
+<p>The name of the element. For example, in:<eg role="code" space="preserve">&lt;elementExample id="demo"&gt; ... &lt;/elementExample&gt; ,</eg>
+<code>tagName</code>has the value<code>"elementExample"</code>. Note that this is case-preserving in XML, as are all of the operations of the DOM. The HTML DOM returns the<code>tagName</code>of an HTML element in the canonical uppercase form, regardless of the case in the source HTML document.</p>
+</descr>
+</attribute>
+<method name="getAttribute" id="ID-666EE0F9">
+<descr>
+<p>Retrieves an attribute value by name.</p>
+</descr>
+<parameters>
+<param name="name" type="DOMString" attr="in">
+<descr>
+<p>The name of the attribute to retrieve.</p>
+</descr>
+</param>
+</parameters>
+<returns type="DOMString">
+<descr>
+<p>The<code>Attr</code>value as a string, or the empty string if that attribute does not have a specified or default value.</p>
+</descr>
+</returns>
+<raises/>
+</method>
+<method name="setAttribute" id="ID-F68F082">
+<descr>
+<p>Adds a new attribute. If an attribute with that name is already present in the element, its value is changed to be that of the value parameter. This value is a simple string, it is not parsed as it is being set. So any markup (such as syntax to be recognized as an entity reference) is treated as literal text, and needs to be appropriately escaped by the implementation when it is written out. In order to assign an attribute value that contains entity references, the user must create an<code>Attr</code>node plus any<code>Text</code>and<code>EntityReference</code>nodes, build the appropriate subtree, and use<code>setAttributeNode</code>to assign it as the value of an attribute.</p>
+</descr>
+<parameters>
+<param name="name" type="DOMString" attr="in">
+<descr>
+<p>The name of the attribute to create or alter.</p>
+</descr>
+</param>
+<param name="value" type="DOMString" attr="in">
+<descr>
+<p>Value to set in string form.</p>
+</descr>
+</param>
+</parameters>
+<returns type="void">
+<descr>
+<p/>
+</descr>
+</returns>
+<raises>
+<exception name="DOMException">
+<descr>
+<p>INVALID_CHARACTER_ERR: Raised if the specified name contains an invalid character.</p>
+<p>NO_MODIFICATION_ALLOWED_ERR: Raised if this node is readonly.</p>
+</descr>
+</exception>
+</raises>
+</method>
+<method name="removeAttribute" id="ID-6D6AC0F9">
+<descr>
+<p>Removes an attribute by name. If the removed attribute has a default value it is immediately replaced.</p>
+</descr>
+<parameters>
+<param name="name" type="DOMString" attr="in">
+<descr>
+<p>The name of the attribute to remove.</p>
+</descr>
+</param>
+</parameters>
+<returns type="void">
+<descr>
+<p/>
+</descr>
+</returns>
+<raises>
+<exception name="DOMException">
+<descr>
+<p>NO_MODIFICATION_ALLOWED_ERR: Raised if this node is readonly.</p>
+</descr>
+</exception>
+</raises>
+</method>
+<method name="getAttributeNode" id="ID-217A91B8">
+<descr>
+<p>Retrieves an<code>Attr</code>node by name.</p>
+</descr>
+<parameters>
+<param name="name" type="DOMString" attr="in">
+<descr>
+<p>The name of the attribute to retrieve.</p>
+</descr>
+</param>
+</parameters>
+<returns type="Attr">
+<descr>
+<p>The<code>Attr</code>node with the specified attribute name or<code>null</code>if there is no such attribute.</p>
+</descr>
+</returns>
+<raises/>
+</method>
+<method name="setAttributeNode" id="ID-887236154">
+<descr>
+<p>Adds a new attribute. If an attribute with that name is already present in the element, it is replaced by the new one.</p>
+</descr>
+<parameters>
+<param name="newAttr" type="Attr" attr="in">
+<descr>
+<p>The<code>Attr</code>node to add to the attribute list.</p>
+</descr>
+</param>
+</parameters>
+<returns type="Attr">
+<descr>
+<p>If the<code>newAttr</code>attribute replaces an existing attribute with the same name, the previously existing<code>Attr</code>node is returned, otherwise<code>null</code>is returned.</p>
+</descr>
+</returns>
+<raises>
+<exception name="DOMException">
+<descr>
+<p>WRONG_DOCUMENT_ERR: Raised if<code>newAttr</code>was created from a different document than the one that created the element.</p>
+<p>NO_MODIFICATION_ALLOWED_ERR: Raised if this node is readonly.</p>
+<p>INUSE_ATTRIBUTE_ERR: Raised if<code>newAttr</code>is already an attribute of another<code>Element</code>object. The DOM user must explicitly clone<code>Attr</code>nodes to re-use them in other elements.</p>
+</descr>
+</exception>
+</raises>
+</method>
+<method name="removeAttributeNode" id="ID-D589198">
+<descr>
+<p>Removes the specified attribute.</p>
+</descr>
+<parameters>
+<param name="oldAttr" type="Attr" attr="in">
+<descr>
+<p>The<code>Attr</code>node to remove from the attribute list. If the removed<code>Attr</code>has a default value it is immediately replaced.</p>
+</descr>
+</param>
+</parameters>
+<returns type="Attr">
+<descr>
+<p>The<code>Attr</code>node that was removed.</p>
+</descr>
+</returns>
+<raises>
+<exception name="DOMException">
+<descr>
+<p>NO_MODIFICATION_ALLOWED_ERR: Raised if this node is readonly.</p>
+<p>NOT_FOUND_ERR: Raised if<code>oldAttr</code>is not an attribute of the element.</p>
+</descr>
+</exception>
+</raises>
+</method>
+<method name="getElementsByTagName" id="ID-1938918D">
+<descr>
+<p>Returns a<code>NodeList</code>of all descendant elements with a given tag name, in the order in which they would be encountered in a preorder traversal of the<code>Element</code>tree.</p>
+</descr>
+<parameters>
+<param name="tagname" type="DOMString" attr="in">
+<descr>
+<p>The name of the tag to match on. The special value "*" matches all tags.</p>
+</descr>
+</param>
+</parameters>
+<returns type="NodeList">
+<descr>
+<p>A list of matching<code>Element</code>nodes.</p>
+</descr>
+</returns>
+<raises/>
+</method>
+<method name="normalize" id="ID-162CF083">
+<descr>
+<p>Puts all<code>Text</code>nodes in the full depth of the sub-tree underneath this<code>Element</code>into a "normal" form where only markup (e.g., tags, comments, processing instructions, CDATA sections, and entity references) separates<code>Text</code>nodes, i.e., there are no adjacent<code>Text</code>nodes. This can be used to ensure that the DOM view of a document is the same as if it were saved and re-loaded, and is useful when operations (such as XPointer lookups) that depend on a particular document tree structure are to be used.</p>
+</descr>
+<parameters/>
+<returns type="void">
+<descr>
+<p/>
+</descr>
+</returns>
+<raises/>
+</method>
+</interface>
+<interface name="Text" inherits="CharacterData" id="ID-1312295772">
+<descr>
+<p>The<code>Text</code>interface represents the textual content (termed<loc href="http://www.w3.org/TR/REC-xml#syntax" form="simple" show="embed" actuate="auto">characterdata</loc>in XML) of an<code>Element</code>or<code>Attr</code>. If there is no markup inside an element's content, the text is contained in a single object implementing the<code>Text</code>interface that is the only child of the element. If there is markup, it is parsed into a list of elements and<code>Text</code>nodes that form the list of children of the element.</p>
+<p>When a document is first made available via the DOM, there is only one<code>Text</code>node for each block of text. Users may create adjacent<code>Text</code>nodes that represent the contents of a given element without any intervening markup, but should be aware that there is no way to represent the separations between these nodes in XML or HTML, so they will not (in general) persist between DOM editing sessions. The<code>normalize()</code>method on<code>Element</code>merges any such adjacent<code>Text</code>objects into a single node for each block of text; this is recommended before employing operations that depend on a particular document structure, such as navigation with<code>XPointers.</code>
+</p>
+</descr>
+<method name="splitText" id="ID-38853C1D">
+<descr>
+<p>Breaks this<code>Text</code>node into two Text nodes at the specified offset, keeping both in the tree as siblings. This node then only contains all the content up to the<code>offset</code>point. And a new<code>Text</code>node, which is inserted as the next sibling of this node, contains all the content at and after the<code>offset</code>point.</p>
+</descr>
+<parameters>
+<param name="offset" type="unsigned long" attr="in">
+<descr>
+<p>The offset at which to split, starting from 0.</p>
+</descr>
+</param>
+</parameters>
+<returns type="Text">
+<descr>
+<p>The new<code>Text</code>node.</p>
+</descr>
+</returns>
+<raises>
+<exception name="DOMException">
+<descr>
+<p>INDEX_SIZE_ERR: Raised if the specified offset is negative or greater than the number of characters in<code>data</code>.</p>
+<p>NO_MODIFICATION_ALLOWED_ERR: Raised if this node is readonly.</p>
+</descr>
+</exception>
+</raises>
+</method>
+</interface>
+<interface name="Comment" inherits="CharacterData" id="ID-1728279322">
+<descr>
+<p>This represents the content of a comment, i.e., all the characters between the starting '<code>&lt;!--</code>' and ending '<code>--&gt;</code>'. Note that this is the definition of a comment in XML, and, in practice, HTML, although some HTML tools may implement the full SGML comment structure.</p>
+</descr>
+</interface>
+<interface name="CDATASection" inherits="Text" id="ID-667469212">
+<descr>
+<p>CDATA sections are used to escape blocks of text containing characters that would otherwise be regarded as markup. The only delimiter that is recognized in a CDATA section is the "]]&gt;" string that ends the CDATA section. CDATA sections can not be nested. The primary purpose is for including material such as XML fragments, without needing to escape all the delimiters.</p>
+<p>The<code>DOMString</code>attribute of the<code>Text</code>node holds the text that is contained by the CDATA section. Note that this<emph>may</emph>contain characters that need to be escaped outside of CDATA sections and that, depending on the character encoding ("charset") chosen for serialization, it may be impossible to write out some characters as part of a CDATA section.</p>
+<p>The<code>CDATASection</code>interface inherits the<code>CharacterData</code>interface through the<code>Text</code>interface. Adjacent<code>CDATASections</code>nodes are not merged by use of the Element.normalize() method.</p>
+</descr>
+</interface>
+<interface name="DocumentType" inherits="Node" id="ID-412266927">
+<descr>
+<p>Each<code>Document</code>has a<code>doctype</code>attribute whose value is either<code>null</code>or a<code>DocumentType</code>object. The<code>DocumentType</code>interface in the DOM Level 1 Core provides an interface to the list of entities that are defined for the document, and little else because the effect of namespaces and the various XML scheme efforts on DTD representation are not clearly understood as of this writing.</p>
+<p>The DOM Level 1 doesn't support editing<code>DocumentType</code>nodes.</p>
+</descr>
+<attribute readonly="yes" name="name" type="DOMString" id="ID-1844763134">
+<descr>
+<p>The name of DTD; i.e., the name immediately following the<code>DOCTYPE</code>keyword.</p>
+</descr>
+</attribute>
+<attribute readonly="yes" name="entities" type="NamedNodeMap" id="ID-1788794630">
+<descr>
+<p>A<code>NamedNodeMap</code>containing the general entities, both external and internal, declared in the DTD. Duplicates are discarded. For example in:<eg role="code" space="preserve">&lt;!DOCTYPE ex SYSTEM "ex.dtd" [ &lt;!ENTITY foo "foo"&gt; &lt;!ENTITY bar "bar"&gt; &lt;!ENTITY % baz "baz"&gt; ]&gt; &lt;ex/&gt;</eg>the interface provides access to<code>foo</code>and<code>bar</code>but not<code>baz</code>. Every node in this map also implements the<code>Entity</code>interface.</p>
+<p>The DOM Level 1 does not support editing entities, therefore<code>entities</code>cannot be altered in any way.</p>
+</descr>
+</attribute>
+<attribute readonly="yes" name="notations" type="NamedNodeMap" id="ID-D46829EF">
+<descr>
+<p>A<code>NamedNodeMap</code>containing the notations declared in the DTD. Duplicates are discarded. Every node in this map also implements the<code>Notation</code>interface.</p>
+<p>The DOM Level 1 does not support editing notations, therefore<code>notations</code>cannot be altered in any way.</p>
+</descr>
+</attribute>
+</interface>
+<interface name="Notation" inherits="Node" id="ID-5431D1B9">
+<descr>
+<p>This interface represents a notation declared in the DTD. A notation either declares, by name, the format of an unparsed entity (see section 4.7 of the XML 1.0 specification), or is used for formal declaration of Processing Instruction targets (see section 2.6 of the XML 1.0 specification). The<code>nodeName</code>attribute inherited from<code>Node</code>is set to the declared name of the notation.</p>
+<p>The DOM Level 1 does not support editing<code>Notation</code>nodes; they are therefore readonly.</p>
+<p>A<code>Notation</code>node does not have any parent.</p>
+</descr>
+<attribute readonly="yes" name="publicId" type="DOMString" id="ID-54F2B4D0">
+<descr>
+<p>The public identifier of this notation. If the public identifier was not specified, this is<code>null</code>.</p>
+</descr>
+</attribute>
+<attribute readonly="yes" name="systemId" type="DOMString" id="ID-E8AAB1D0">
+<descr>
+<p>The system identifier of this notation. If the system identifier was not specified, this is<code>null</code>.</p>
+</descr>
+</attribute>
+</interface>
+<interface name="Entity" inherits="Node" id="ID-527DCFF2">
+<descr>
+<p>This interface represents an entity, either parsed or unparsed, in an XML document. Note that this models the entity itself<emph>not</emph>the entity declaration.<code>Entity</code>declaration modeling has been left for a later Level of the DOM specification.</p>
+<p>The<code>nodeName</code>attribute that is inherited from<code>Node</code>contains the name of the entity.</p>
+<p>An XML processor may choose to completely expand entities before the structure model is passed to the DOM; in this case there will be no<code>EntityReference</code>nodes in the document tree.</p>
+<p>XML does not mandate that a non-validating XML processor read and process entity declarations made in the external subset or declared in external parameter entities. This means that parsed entities declared in the external subset need not be expanded by some classes of applications, and that the replacement value of the entity may not be available. When the replacement value is available, the corresponding<code>Entity</code>node's child list represents the structure of that replacement text. Otherwise, the child list is empty.</p>
+<p>The resolution of the children of the<code>Entity</code>(the replacement value) may be lazily evaluated; actions by the user (such as calling the<code>childNodes</code>method on the<code>Entity</code>Node) are assumed to trigger the evaluation.</p>
+<p>The DOM Level 1 does not support editing<code>Entity</code>nodes; if a user wants to make changes to the contents of an<code>Entity</code>, every related<code>EntityReference</code>node has to be replaced in the structure model by a clone of the<code>Entity</code>'s contents, and then the desired changes must be made to each of those clones instead. All the descendants of an<code>Entity</code>node are readonly.</p>
+<p>An<code>Entity</code>node does not have any parent.</p>
+</descr>
+<attribute readonly="yes" name="publicId" type="DOMString" id="ID-D7303025">
+<descr>
+<p>The public identifier associated with the entity, if specified. If the public identifier was not specified, this is<code>null</code>.</p>
+</descr>
+</attribute>
+<attribute readonly="yes" name="systemId" type="DOMString" id="ID-D7C29F3E">
+<descr>
+<p>The system identifier associated with the entity, if specified. If the system identifier was not specified, this is<code>null</code>.</p>
+</descr>
+</attribute>
+<attribute readonly="yes" name="notationName" type="DOMString" id="ID-6ABAEB38">
+<descr>
+<p>For unparsed entities, the name of the notation for the entity. For parsed entities, this is<code>null</code>.</p>
+</descr>
+</attribute>
+</interface>
+<interface name="EntityReference" inherits="Node" id="ID-11C98490">
+<descr>
+<p>
+<code>EntityReference</code>objects may be inserted into the structure model when an entity reference is in the source document, or when the user wishes to insert an entity reference. Note that character references and references to predefined entities are considered to be expanded by the HTML or XML processor so that characters are represented by their Unicode equivalent rather than by an entity reference. Moreover, the XMLprocessor may completely expand references to entities while building the structure model, instead of providing<code>EntityReference</code>objects. If it does provide such objects, then for a given<code>EntityReference</code>node, it may be that there is no<code>Entity</code>node representing the referenced entity; but if such an<code>Entity</code>exists, then the child list of the<code>EntityReference</code>node is the same as that of the<code>Entity</code>node. As with the<code>Entity</code>node, all descendants of the<code>EntityReference</code>are readonly.</p>
+<p>The resolution of the children of the<code>EntityReference</code>(the replacement value of the referenced<code>Entity</code>) may be lazily evaluated; actions by the user (such as calling the<code>childNodes</code>method on the<code>EntityReference</code>node) are assumed to trigger the evaluation.</p>
+</descr>
+</interface>
+<interface name="ProcessingInstruction" inherits="Node" id="ID-1004215813">
+<descr>
+<p>The<code>ProcessingInstruction</code>interface represents a "processing instruction", used in XML as a way to keep processor-specific information in the text of the document.</p>
+</descr>
+<attribute readonly="yes" type="DOMString" name="target" id="ID-1478689192">
+<descr>
+<p>The target of this processing instruction. XML defines this as being the first token following the markup that begins the processing instruction.</p>
+</descr>
+</attribute>
+<attribute type="DOMString" name="data" id="ID-837822393" readonly="no">
+<descr>
+<p>The content of this processing instruction. This is from the first non white space character after the target to the character immediately preceding the<code>?&gt;</code>.</p>
+</descr>
+<setraises>
+<exception name="DOMException">
+<descr>
+<p>NO_MODIFICATION_ALLOWED_ERR: Raised when the node is readonly.</p>
+</descr>
+</exception>
+</setraises>
+</attribute>
+</interface>
+<interface name="HTMLCollection" id="ID-75708506">
+<descr>
+<p>An<code>HTMLCollection</code>is a list of nodes. An individual node may be accessed by either ordinal index or the node's<code>name</code>or<code>id</code>attributes.<emph>Note:</emph>Collections in the HTML DOM are assumed to be<emph>live</emph>meaning that they are automatically updated when the underlying document is changed.</p>
+</descr>
+<attribute readonly="yes" type="unsigned long" name="length" id="ID-40057551">
+<descr>
+<p>This attribute specifies the length or<emph>size</emph>of the list.</p>
+</descr>
+</attribute>
+<method name="item" id="ID-33262535">
+<descr>
+<p>This method retrieves a node specified by ordinal index. Nodes are numbered in tree order (depth-first traversal order).</p>
+</descr>
+<parameters>
+<param id="ID-3496656" name="index" type="unsigned long" attr="in">
+<descr>
+<p>The index of the node to be fetched. The index origin is 0.</p>
+</descr>
+</param>
+</parameters>
+<returns type="Node">
+<descr>
+<p>The<code>Node</code>at the corresponding position upon success. A value of<code>null</code>is returned if the index is out of range.</p>
+</descr>
+</returns>
+<raises/>
+</method>
+<method name="namedItem" id="ID-21069976">
+<descr>
+<p>This method retrieves a<code>Node</code>using a name. It first searches for a<code>Node</code>with a matching<code>id</code>attribute. If it doesn't find one, it then searches for a<code>Node</code>with a matching<code>name</code>attribute, but only on those elements that are allowed a name attribute.</p>
+</descr>
+<parameters>
+<param id="ID-76682631" name="name" type="DOMString" attr="in">
+<descr>
+<p>The name of the<code>Node</code>to be fetched.</p>
+</descr>
+</param>
+</parameters>
+<returns type="Node">
+<descr>
+<p>The<code>Node</code>with a<code>name</code>or<code>id</code>attribute whose value corresponds to the specified string. Upon failure (e.g., no node with this name exists), returns<code>null</code>.</p>
+</descr>
+</returns>
+<raises/>
+</method>
+</interface>
+<interface name="HTMLDocument" inherits="Document" id="ID-26809268">
+<descr>
+<p>An<code>HTMLDocument</code>is the root of the HTML hierarchy and holds the entire content. Beside providing access to the hierarchy, it also provides some convenience methods for accessing certain sets of information from the document.</p>
+<p>The following properties have been deprecated in favor of the corresponding ones for the BODY element:</p>
+<ulist>
+<item>
+<p>alinkColor</p>
+</item>
+<item>
+<p>background</p>
+</item>
+<item>
+<p>bgColor</p>
+</item>
+<item>
+<p>fgColor</p>
+</item>
+<item>
+<p>linkColor</p>
+</item>
+<item>
+<p>vlinkColor</p>
+</item>
+</ulist>
+<p/>
+</descr>
+<attribute type="DOMString" name="title" id="ID-18446827" readonly="no">
+<descr>
+<p>The title of a document as specified by the<code>TITLE</code>element in the head of the document.</p>
+</descr>
+</attribute>
+<attribute readonly="yes" type="DOMString" name="referrer" id="ID-95229140">
+<descr>
+<p>Returns the URI of the page that linked to this page. The value is an empty string if the user navigated to the page directly (not through a link, but, for example, via a bookmark).</p>
+</descr>
+</attribute>
+<attribute readonly="yes" type="DOMString" name="domain" id="ID-2250147">
+<descr>
+<p>The domain name of the server that served the document, or a null string if the server cannot be identified by a domain name.</p>
+</descr>
+</attribute>
+<attribute readonly="yes" type="DOMString" name="URL" id="ID-46183437">
+<descr>
+<p>The complete URI of the document.</p>
+</descr>
+</attribute>
+<attribute type="HTMLElement" name="body" id="ID-56360201" readonly="no">
+<descr>
+<p>The element that contains the content for the document. In documents with<code>BODY</code>contents, returns the<code>BODY</code>element, and in frameset documents, this returns the outermost<code>FRAMESET</code>element.</p>
+</descr>
+</attribute>
+<attribute readonly="yes" type="HTMLCollection" name="images" id="ID-90379117">
+<descr>
+<p>A collection of all the<code>IMG</code>elements in a document. The behavior is limited to<code>IMG</code>elements for backwards compatibility.</p>
+</descr>
+</attribute>
+<attribute readonly="yes" type="HTMLCollection" name="applets" id="ID-85113862">
+<descr>
+<p>A collection of all the<code>OBJECT</code>elements that include applets and<code>APPLET</code>(<emph>deprecated</emph>) elements in a document.</p>
+</descr>
+</attribute>
+<attribute readonly="yes" type="HTMLCollection" name="links" id="ID-7068919">
+<descr>
+<p>A collection of all<code>AREA</code>elements and anchor (<code>A</code>) elements in a document with a value for the<code>href</code>attribute.</p>
+</descr>
+</attribute>
+<attribute readonly="yes" type="HTMLCollection" name="forms" id="ID-1689064">
+<descr>
+<p>A collection of all the forms of a document.</p>
+</descr>
+</attribute>
+<attribute readonly="yes" type="HTMLCollection" name="anchors" id="ID-7577272">
+<descr>
+<p>A collection of all the anchor (<code>A</code>) elements in a document with a value for the<code>name</code>attribute.<emph>Note.</emph>For reasons of backwards compatibility, the returned set of anchors only contains those anchors created with the<code>name</code>attribute, not those created with the<code>id</code>attribute.</p>
+</descr>
+</attribute>
+<attribute type="DOMString" name="cookie" id="ID-8747038" readonly="no">
+<descr>
+<p>The cookies associated with this document. If there are none, the value is an empty string. Otherwise, the value is a string: a semicolon-delimited list of "name, value" pairs for all the cookies associated with the page. For example,<code>name=value;expires=date</code>.</p>
+</descr>
+</attribute>
+<method name="open" id="ID-72161170">
+<descr>
+<p>
+<emph>Note.</emph>This method and the ones following allow a user to add to or replace the structure model of a document using strings of unparsed HTML. At the time of writing alternate methods for providing similar functionality for both HTML and XML documents were being considered. The following methods may be deprecated at some point in the future in favor of a more general-purpose mechanism.</p>
+<p>Open a document stream for writing. If a document exists in the target, this method clears it.</p>
+</descr>
+<parameters/>
+<returns type="void">
+<descr>
+<p/>
+</descr>
+</returns>
+<raises/>
+</method>
+<method name="close" id="ID-98948567">
+<descr>
+<p>Closes a document stream opened by<code>open()</code>and forces rendering.</p>
+</descr>
+<parameters/>
+<returns type="void">
+<descr>
+<p/>
+</descr>
+</returns>
+<raises/>
+</method>
+<method name="write" id="ID-75233634">
+<descr>
+<p>Write a string of text to a document stream opened by<code>open()</code>. The text is parsed into the document's structure model.</p>
+</descr>
+<parameters>
+<param id="ID-68980829" name="text" type="DOMString" attr="in">
+<descr>
+<p>The string to be parsed into some structure in the document structure model.</p>
+</descr>
+</param>
+</parameters>
+<returns type="void">
+<descr>
+<p/>
+</descr>
+</returns>
+<raises/>
+</method>
+<method name="writeln" id="ID-35318390">
+<descr>
+<p>Write a string of text followed by a newline character to a document stream opened by<code>open()</code>. The text is parsed into the document's structure model.</p>
+</descr>
+<parameters>
+<param id="ID-19167591" name="text" type="DOMString" attr="in">
+<descr>
+<p>The string to be parsed into some structure in the document structure model.</p>
+</descr>
+</param>
+</parameters>
+<returns type="void">
+<descr>
+<p/>
+</descr>
+</returns>
+<raises/>
+</method>
+<method name="getElementById" id="ID-36113835">
+<descr>
+<p>Returns the Element whose<code>id</code>is given by elementId. If no such element exists, returns<code>null</code>. Behavior is not defined if more than one element has this<code>id</code>.</p>
+</descr>
+<parameters>
+<param id="ID-9998411" name="elementId" type="DOMString" attr="in">
+<descr>
+<p>The unique<code>id</code>value for an element.</p>
+</descr>
+</param>
+</parameters>
+<returns type="Element">
+<descr>
+<p>The matching element.</p>
+</descr>
+</returns>
+<raises/>
+</method>
+<method name="getElementsByName" id="ID-71555259">
+<descr>
+<p>Returns the (possibly empty) collection of elements whose<code>name</code>value is given by<code>elementName</code>.</p>
+</descr>
+<parameters>
+<param id="ID-81610098" name="elementName" type="DOMString" attr="in">
+<descr>
+<p>The<code>name</code>attribute value for an element.</p>
+</descr>
+</param>
+</parameters>
+<returns type="NodeList">
+<descr>
+<p>The matching elements.</p>
+</descr>
+</returns>
+<raises/>
+</method>
+</interface>
+<interface name="HTMLElement" inherits="Element" id="ID-58190037">
+<descr>
+<p>All HTML element interfaces derive from this class. Elements that only expose the HTML core attributes are represented by the base<code>HTMLElement</code>interface. These elements are as follows:</p>
+<ulist>
+<item>
+<p>HEAD</p>
+</item>
+<item>
+<p>special: SUB, SUP, SPAN, BDO</p>
+</item>
+<item>
+<p>font: TT, I, B, U, S, STRIKE, BIG, SMALL</p>
+</item>
+<item>
+<p>phrase: EM, STRONG, DFN, CODE, SAMP, KBD, VAR, CITE, ACRONYM, ABBR</p>
+</item>
+<item>
+<p>list: DD, DT</p>
+</item>
+<item>
+<p>NOFRAMES, NOSCRIPT</p>
+</item>
+<item>
+<p>ADDRESS, CENTER</p>
+</item>
+</ulist>
+<p>
+<emph>Note.</emph>The<code>style</code>attribute for this interface is reserved for future usage.</p>
+</descr>
+<attribute type="DOMString" name="id" id="ID-63534901" readonly="no">
+<descr>
+<p>The element's identifier. See the<loc href="http://www.w3.org/TR/REC-html40/struct/global.html#adef-id" form="simple" show="embed" actuate="auto">id attribute definition</loc>in HTML 4.0.</p>
+</descr>
+</attribute>
+<attribute type="DOMString" name="title" id="ID-78276800" readonly="no">
+<descr>
+<p>The element's advisory title. See the<loc href="http://www.w3.org/TR/REC-html40/struct/global.html#adef-title" form="simple" show="embed" actuate="auto">title attribute definition</loc>in HTML 4.0.</p>
+</descr>
+</attribute>
+<attribute type="DOMString" name="lang" id="ID-59132807" readonly="no">
+<descr>
+<p>Language code defined in RFC 1766. See the<loc href="http://www.w3.org/TR/REC-html40/struct/dirlang.html#adef-lang" form="simple" show="embed" actuate="auto">lang attribute definition</loc>in HTML 4.0.</p>
+</descr>
+</attribute>
+<attribute type="DOMString" name="dir" id="ID-52460740" readonly="no">
+<descr>
+<p>Specifies the base direction of directionally neutral text and the directionality of tables. See the<loc href="http://www.w3.org/TR/REC-html40/struct/dirlang.html#adef-dir" form="simple" show="embed" actuate="auto">dir attribute definition</loc>in HTML 4.0.</p>
+</descr>
+</attribute>
+<attribute type="DOMString" name="className" id="ID-95362176" readonly="no">
+<descr>
+<p>The class attribute of the element. This attribute has been renamed due to conflicts with the "class" keyword exposed by many languages. See the<loc href="http://www.w3.org/TR/REC-html40/struct/global.html#adef-class" form="simple" show="embed" actuate="auto">class attribute definition</loc>in HTML 4.0.</p>
+</descr>
+</attribute>
+</interface>
+<interface name="HTMLHtmlElement" inherits="HTMLElement" id="ID-33759296">
+<descr>
+<p>Root of an HTML document. See the<loc href="http://www.w3.org/TR/REC-html40/struct/global.html#edef-HTML" form="simple" show="embed" actuate="auto">HTML element definition</loc>in HTML 4.0.</p>
+</descr>
+<attribute type="DOMString" name="version" id="ID-9383775" readonly="no">
+<descr>
+<p>Version information about the document's DTD. See the<loc href="http://www.w3.org/TR/REC-html40/struct/global.html#adef-version" form="simple" show="embed" actuate="auto">version attribute definition</loc>in HTML 4.0. This attribute is deprecated in HTML 4.0.</p>
+</descr>
+</attribute>
+</interface>
+<interface name="HTMLHeadElement" inherits="HTMLElement" id="ID-77253168">
+<descr>
+<p>Document head information. See the<loc href="http://www.w3.org/TR/REC-html40/struct/global.html#edef-HEAD" form="simple" show="embed" actuate="auto">HEAD element definition</loc>in HTML 4.0.</p>
+</descr>
+<attribute type="DOMString" name="profile" id="ID-96921909" readonly="no">
+<descr>
+<p>URI designating a metadata profile. See the<loc href="http://www.w3.org/TR/REC-html40/struct/global.html#adef-profile" form="simple" show="embed" actuate="auto">profile attribute definition</loc>in HTML 4.0.</p>
+</descr>
+</attribute>
+</interface>
+<interface name="HTMLLinkElement" inherits="HTMLElement" id="ID-35143001">
+<descr>
+<p>The<code>LINK</code>element specifies a link to an external resource, and defines this document's relationship to that resource (or vice versa). See the<loc href="http://www.w3.org/TR/REC-html40/struct/links.html#edef-LINK" form="simple" show="embed" actuate="auto">LINK element definition</loc>in HTML 4.0.</p>
+</descr>
+<attribute type="boolean" name="disabled" id="ID-87355129" readonly="no">
+<descr>
+<p>Enables/disables the link. This is currently only used for style sheet links, and may be used to activate or deactivate style sheets.</p>
+</descr>
+</attribute>
+<attribute type="DOMString" name="charset" id="ID-63954491" readonly="no">
+<descr>
+<p>The character encoding of the resource being linked to. See the<loc href="http://www.w3.org/TR/REC-html40/struct/links.html#adef-charset" form="simple" show="embed" actuate="auto">charset attribute definition</loc>in HTML 4.0.</p>
+</descr>
+</attribute>
+<attribute type="DOMString" name="href" id="ID-33532588" readonly="no">
+<descr>
+<p>The URI of the linked resource. See the<loc href="http://www.w3.org/TR/REC-html40/struct/links.html#adef-href" form="simple" show="embed" actuate="auto">href attribute definition</loc>in HTML 4.0.</p>
+</descr>
+</attribute>
+<attribute type="DOMString" name="hreflang" id="ID-85145682" readonly="no">
+<descr>
+<p>Language code of the linked resource. See the<loc href="http://www.w3.org/TR/REC-html40/struct/links.html#adef-hreflang" form="simple" show="embed" actuate="auto">hreflang attribute definition</loc>in HTML 4.0.</p>
+</descr>
+</attribute>
+<attribute type="DOMString" name="media" id="ID-75813125" readonly="no">
+<descr>
+<p>Designed for use with one or more target media. See the<loc href="http://www.w3.org/TR/REC-html40/present/styles.html#adef-media" form="simple" show="embed" actuate="auto">media attribute definition</loc>in HTML 4.0.</p>
+</descr>
+</attribute>
+<attribute type="DOMString" name="rel" id="ID-41369587" readonly="no">
+<descr>
+<p>Forward link type. See the<loc href="http://www.w3.org/TR/REC-html40/struct/links.html#adef-rel" form="simple" show="embed" actuate="auto">rel attribute definition</loc>in HTML 4.0.</p>
+</descr>
+</attribute>
+<attribute type="DOMString" name="rev" id="ID-40715461" readonly="no">
+<descr>
+<p>Reverse link type. See the<loc href="http://www.w3.org/TR/REC-html40/struct/links.html#adef-rev" form="simple" show="embed" actuate="auto">rev attribute definition</loc>in HTML 4.0.</p>
+</descr>
+</attribute>
+<attribute type="DOMString" name="target" id="ID-84183095" readonly="no">
+<descr>
+<p>Frame to render the resource in. See the<loc href="http://www.w3.org/TR/REC-html40/present/frames.html#adef-target" form="simple" show="embed" actuate="auto">target attribute definition</loc>in HTML 4.0.</p>
+</descr>
+</attribute>
+<attribute type="DOMString" name="type" id="ID-32498296" readonly="no">
+<descr>
+<p>Advisory content type. See the<loc href="http://www.w3.org/TR/REC-html40/struct/links.html#adef-type-A" form="simple" show="embed" actuate="auto">type attribute definition</loc>in HTML 4.0.</p>
+</descr>
+</attribute>
+</interface>
+<interface name="HTMLTitleElement" inherits="HTMLElement" id="ID-79243169">
+<descr>
+<p>The document title. See the<loc href="http://www.w3.org/TR/REC-html40/struct/global.html#edef-TITLE" form="simple" show="embed" actuate="auto">TITLE element definition</loc>in HTML 4.0.</p>
+</descr>
+<attribute type="DOMString" name="text" id="ID-77500413" readonly="no">
+<descr>
+<p>The specified title as a string.</p>
+</descr>
+</attribute>
+</interface>
+<interface name="HTMLMetaElement" inherits="HTMLElement" id="ID-37041454">
+<descr>
+<p>This contains generic meta-information about the document. See the<loc href="http://www.w3.org/TR/REC-html40/struct/global.html#edef-META" form="simple" show="embed" actuate="auto">META element definition</loc>in HTML 4.0.</p>
+</descr>
+<attribute type="DOMString" name="content" id="ID-87670826" readonly="no">
+<descr>
+<p>Associated information. See the<loc href="http://www.w3.org/TR/REC-html40/struct/global.html#adef-content" form="simple" show="embed" actuate="auto">content attribute definition</loc>in HTML 4.0.</p>
+</descr>
+</attribute>
+<attribute type="DOMString" name="httpEquiv" id="ID-77289449" readonly="no">
+<descr>
+<p>HTTP response header name. See the<loc href="http://www.w3.org/TR/REC-html40/struct/global.html#adef-http-equiv" form="simple" show="embed" actuate="auto">http-equiv attribute definition</loc>in HTML 4.0.</p>
+</descr>
+</attribute>
+<attribute type="DOMString" name="name" id="ID-31037081" readonly="no">
+<descr>
+<p>Meta information name. See the<loc href="http://www.w3.org/TR/REC-html40/struct/global.html#adef-name-META" form="simple" show="embed" actuate="auto">name attribute definition</loc>in HTML 4.0.</p>
+</descr>
+</attribute>
+<attribute type="DOMString" name="scheme" id="ID-35993789" readonly="no">
+<descr>
+<p>Select form of content. See the<loc href="http://www.w3.org/TR/REC-html40/struct/global.html#adef-scheme" form="simple" show="embed" actuate="auto">scheme attribute definition</loc>in HTML 4.0.</p>
+</descr>
+</attribute>
+</interface>
+<interface name="HTMLBaseElement" inherits="HTMLElement" id="ID-73629039">
+<descr>
+<p>Document base URI. See the<loc href="http://www.w3.org/TR/REC-html40/struct/links.html#edef-BASE" form="simple" show="embed" actuate="auto">BASE element definition</loc>in HTML 4.0.</p>
+</descr>
+<attribute type="DOMString" name="href" id="ID-65382887" readonly="no">
+<descr>
+<p>The base URI See the<loc href="http://www.w3.org/TR/REC-html40/struct/links.html#adef-href-BASE" form="simple" show="embed" actuate="auto">href attribute definition</loc>in HTML 4.0.</p>
+</descr>
+</attribute>
+<attribute type="DOMString" name="target" id="ID-73844298" readonly="no">
+<descr>
+<p>The default target frame. See the<loc href="http://www.w3.org/TR/REC-html40/present/frames.html#adef-target" form="simple" show="embed" actuate="auto">target attribute definition</loc>in HTML 4.0.</p>
+</descr>
+</attribute>
+</interface>
+<interface name="HTMLIsIndexElement" inherits="HTMLElement" id="ID-85283003">
+<descr>
+<p>This element is used for single-line text input. See the<loc href="http://www.w3.org/TR/REC-html40/interact/forms.html#edef-ISINDEX" form="simple" show="embed" actuate="auto">ISINDEX element definition</loc>in HTML 4.0. This element is deprecated in HTML 4.0.</p>
+</descr>
+<attribute readonly="yes" type="HTMLFormElement" name="form" id="ID-87069980">
+<descr>
+<p>Returns the<code>FORM</code>element containing this control. Returns null if this control is not within the context of a form.</p>
+</descr>
+</attribute>
+<attribute type="DOMString" name="prompt" id="ID-33589862" readonly="no">
+<descr>
+<p>The prompt message. See the<loc href="http://www.w3.org/TR/REC-html40/interact/forms.html#adef-prompt" form="simple" show="embed" actuate="auto">prompt attribute definition</loc>in HTML 4.0. This attribute is deprecated in HTML 4.0.</p>
+</descr>
+</attribute>
+</interface>
+<interface name="HTMLStyleElement" inherits="HTMLElement" id="ID-16428977">
+<descr>
+<p>Style information. A more detailed style sheet object model is planned to be defined in a separate document. See the<loc href="http://www.w3.org/TR/REC-html40/present/styles.html#edef-STYLE" form="simple" show="embed" actuate="auto">STYLE element definition</loc>in HTML 4.0.</p>
+</descr>
+<attribute type="boolean" name="disabled" id="ID-51162010" readonly="no">
+<descr>
+<p>Enables/disables the style sheet.</p>
+</descr>
+</attribute>
+<attribute type="DOMString" name="media" id="ID-76412738" readonly="no">
+<descr>
+<p>Designed for use with one or more target media. See the<loc href="http://www.w3.org/TR/REC-html40/present/styles.html#adef-media" form="simple" show="embed" actuate="auto">media attribute definition</loc>in HTML 4.0.</p>
+</descr>
+</attribute>
+<attribute type="DOMString" name="type" id="ID-22472002" readonly="no">
+<descr>
+<p>The style sheet language (Internet media type). See the<loc href="http://www.w3.org/TR/REC-html40/present/styles.html#adef-type-STYLE" form="simple" show="embed" actuate="auto">type attribute definition</loc>in HTML 4.0.</p>
+</descr>
+</attribute>
+</interface>
+<interface name="HTMLBodyElement" inherits="HTMLElement" id="ID-62018039">
+<descr>
+<p>The HTML document body. This element is always present in the DOM API, even if the tags are not present in the source document. See the<loc href="http://www.w3.org/TR/REC-html40/struct/global.html#edef-BODY" form="simple" show="embed" actuate="auto">BODY element definition</loc>in HTML 4.0.</p>
+</descr>
+<attribute type="DOMString" name="aLink" id="ID-59424581" readonly="no">
+<descr>
+<p>Color of active links (after mouse-button down, but before mouse-button up). See the<loc href="http://www.w3.org/TR/REC-html40/struct/global.html#adef-alink" form="simple" show="embed" actuate="auto">alink attribute definition</loc>in HTML 4.0. This attribute is deprecated in HTML 4.0.</p>
+</descr>
+</attribute>
+<attribute type="DOMString" name="background" id="ID-37574810" readonly="no">
+<descr>
+<p>URI of the background texture tile image. See the<loc href="http://www.w3.org/TR/REC-html40/struct/global.html#adef-background" form="simple" show="embed" actuate="auto">background attribute definition</loc>in HTML 4.0. This attribute is deprecated in HTML 4.0.</p>
+</descr>
+</attribute>
+<attribute type="DOMString" name="bgColor" id="ID-24940084" readonly="no">
+<descr>
+<p>Document background color. See the<loc href="http://www.w3.org/TR/REC-html40/present/graphics.html#adef-bgcolor" form="simple" show="embed" actuate="auto">bgcolor attribute definition</loc>in HTML 4.0. This attribute is deprecated in HTML 4.0.</p>
+</descr>
+</attribute>
+<attribute type="DOMString" name="link" id="ID-7662206" readonly="no">
+<descr>
+<p>Color of links that are not active and unvisited. See the<loc href="http://www.w3.org/TR/REC-html40/struct/global.html#adef-link" form="simple" show="embed" actuate="auto">link attribute definition</loc>in HTML 4.0. This attribute is deprecated in HTML 4.0.</p>
+</descr>
+</attribute>
+<attribute type="DOMString" name="text" id="ID-73714763" readonly="no">
+<descr>
+<p>Document text color. See the<loc href="http://www.w3.org/TR/REC-html40/struct/global.html#adef-text" form="simple" show="embed" actuate="auto">text attribute definition</loc>in HTML 4.0. This attribute is deprecated in HTML 4.0.</p>
+</descr>
+</attribute>
+<attribute type="DOMString" name="vLink" id="ID-83224305" readonly="no">
+<descr>
+<p>Color of links that have been visited by the user. See the<loc href="http://www.w3.org/TR/REC-html40/struct/global.html#adef-vlink" form="simple" show="embed" actuate="auto">vlink attribute definition</loc>in HTML 4.0. This attribute is deprecated in HTML 4.0.</p>
+</descr>
+</attribute>
+</interface>
+<interface name="HTMLFormElement" inherits="HTMLElement" id="ID-40002357">
+<descr>
+<p>The<code>FORM</code>element encompasses behavior similar to a collection and an element. It provides direct access to the contained input elements as well as the attributes of the form element. See the<loc href="http://www.w3.org/TR/REC-html40/interact/forms.html#edef-FORM" form="simple" show="embed" actuate="auto">FORM element definition</loc>in HTML 4.0.</p>
+</descr>
+<attribute readonly="yes" type="HTMLCollection" name="elements" id="ID-76728479">
+<descr>
+<p>Returns a collection of all control elements in the form.</p>
+</descr>
+</attribute>
+<attribute readonly="yes" type="long" name="length">
+<descr>
+<p>The number of form controls in the form.</p>
+</descr>
+</attribute>
+<attribute type="DOMString" name="name" id="ID-22051454" readonly="no">
+<descr>
+<p>Names the form.</p>
+</descr>
+</attribute>
+<attribute type="DOMString" name="acceptCharset" id="ID-19661795" readonly="no">
+<descr>
+<p>List of character sets supported by the server. See the<loc href="http://www.w3.org/TR/REC-html40/interact/forms.html#adef-accept-charset" form="simple" show="embed" actuate="auto">accept-charset attribute definition</loc>in HTML 4.0.</p>
+</descr>
+</attribute>
+<attribute type="DOMString" name="action" id="ID-74049184" readonly="no">
+<descr>
+<p>Server-side form handler. See the<loc href="http://www.w3.org/TR/REC-html40/interact/forms.html#adef-action" form="simple" show="embed" actuate="auto">action attribute definition</loc>in HTML 4.0.</p>
+</descr>
+</attribute>
+<attribute type="DOMString" name="enctype" id="ID-84227810" readonly="no">
+<descr>
+<p>The content type of the submitted form, generally "application/x-www-form-urlencoded". See the<loc href="http://www.w3.org/TR/REC-html40/interact/forms.html#adef-enctype" form="simple" show="embed" actuate="auto">enctype attribute definition</loc>in HTML 4.0.</p>
+</descr>
+</attribute>
+<attribute type="DOMString" name="method" id="ID-82545539" readonly="no">
+<descr>
+<p>HTTP method used to submit form. See the<loc href="http://www.w3.org/TR/REC-html40/interact/forms.html#adef-method" form="simple" show="embed" actuate="auto">method attribute definition</loc>in HTML 4.0.</p>
+</descr>
+</attribute>
+<attribute type="DOMString" name="target" id="ID-6512890" readonly="no">
+<descr>
+<p>Frame to render the resource in. See the<loc href="http://www.w3.org/TR/REC-html40/present/frames.html#adef-target" form="simple" show="embed" actuate="auto">target attribute definition</loc>in HTML 4.0.</p>
+</descr>
+</attribute>
+<method name="submit" id="ID-76767676">
+<descr>
+<p>Submits the form. It performs the same action as a submit button.</p>
+</descr>
+<parameters/>
+<returns type="void">
+<descr>
+<p/>
+</descr>
+</returns>
+<raises/>
+</method>
+<method name="reset" id="ID-76767677">
+<descr>
+<p>Restores a form element's default values. It performs the same action as a reset button.</p>
+</descr>
+<parameters/>
+<returns type="void">
+<descr>
+<p/>
+</descr>
+</returns>
+<raises/>
+</method>
+</interface>
+<interface name="HTMLSelectElement" inherits="HTMLElement" id="ID-94282980">
+<descr>
+<p>The select element allows the selection of an option. The contained options can be directly accessed through the select element as a collection. See the<loc href="http://www.w3.org/TR/REC-html40/interact/forms.html#edef-SELECT" form="simple" show="embed" actuate="auto">SELECT element definition</loc>in HTML 4.0.</p>
+</descr>
+<attribute readonly="yes" type="DOMString" name="type" id="ID-58783172">
+<descr>
+<p>The type of control created.</p>
+</descr>
+</attribute>
+<attribute type="long" name="selectedIndex" id="ID-85676760" readonly="no">
+<descr>
+<p>The ordinal index of the selected option. The value -1 is returned if no element is selected. If multiple options are selected, the index of the first selected option is returned.</p>
+</descr>
+</attribute>
+<attribute type="DOMString" name="value" id="ID-59351919" readonly="no">
+<descr>
+<p>The current form control value.</p>
+</descr>
+</attribute>
+<attribute readonly="yes" type="long" name="length" id="ID-5933486">
+<descr>
+<p>The number of options in this<code>SELECT</code>.</p>
+</descr>
+</attribute>
+<attribute readonly="yes" type="HTMLFormElement" name="form" id="ID-20489458">
+<descr>
+<p>Returns the<code>FORM</code>element containing this control. Returns null if this control is not within the context of a form.</p>
+</descr>
+</attribute>
+<attribute readonly="yes" type="HTMLCollection" name="options" id="ID-30606413">
+<descr>
+<p>The collection of<code>OPTION</code>elements contained by this element.</p>
+</descr>
+</attribute>
+<attribute type="boolean" name="disabled" id="ID-79102918" readonly="no">
+<descr>
+<p>The control is unavailable in this context. See the<loc href="http://www.w3.org/TR/REC-html40/interact/forms.html#adef-disabled" form="simple" show="embed" actuate="auto">disabled attribute definition</loc>in HTML 4.0.</p>
+</descr>
+</attribute>
+<attribute type="boolean" name="multiple" id="ID-13246613" readonly="no">
+<descr>
+<p>If true, multiple<code>OPTION</code>elements may be selected in this<code>SELECT</code>. See the<loc href="http://www.w3.org/TR/REC-html40/interact/forms.html#adef-multiple" form="simple" show="embed" actuate="auto">multiple attribute definition</loc>in HTML 4.0.</p>
+</descr>
+</attribute>
+<attribute type="DOMString" name="name" id="ID-41636323" readonly="no">
+<descr>
+<p>Form control or object name when submitted with a form. See the<loc href="http://www.w3.org/TR/REC-html40/interact/forms.html#adef-name-SELECT" form="simple" show="embed" actuate="auto">name attribute definition</loc>in HTML 4.0.</p>
+</descr>
+</attribute>
+<attribute type="long" name="size" id="ID-18293826" readonly="no">
+<descr>
+<p>Number of visible rows. See the<loc href="http://www.w3.org/TR/REC-html40/interact/forms.html#adef-size-SELECT" form="simple" show="embed" actuate="auto">size attribute definition</loc>in HTML 4.0.</p>
+</descr>
+</attribute>
+<attribute type="long" name="tabIndex" id="ID-40676705" readonly="no">
+<descr>
+<p>Index that represents the element's position in the tabbing order. See the<loc href="http://www.w3.org/TR/REC-html40/interact/forms.html#adef-tabindex" form="simple" show="embed" actuate="auto">tabindex attribute definition</loc>in HTML 4.0.</p>
+</descr>
+</attribute>
+<method name="add" id="ID-14493106">
+<descr>
+<p>Add a new element to the collection of<code>OPTION</code>elements for this<code>SELECT</code>.</p>
+</descr>
+<parameters>
+<param id="ID-43168006" name="element" type="HTMLElement" attr="in">
+<descr>
+<p>The element to add.</p>
+</descr>
+</param>
+<param id="ID-76828919" name="before" type="HTMLElement" attr="in">
+<descr>
+<p>The element to insert before, or NULL for the head of the list.</p>
+</descr>
+</param>
+</parameters>
+<returns type="void">
+<descr>
+<p/>
+</descr>
+</returns>
+<raises/>
+</method>
+<method name="remove" id="ID-33404570">
+<descr>
+<p>Remove an element from the collection of<code>OPTION</code>elements for this<code>SELECT</code>. Does nothing if no element has the given index.</p>
+</descr>
+<parameters>
+<param id="ID-36270997" name="index" type="long" attr="in">
+<descr>
+<p>The index of the item to remove.</p>
+</descr>
+</param>
+</parameters>
+<returns type="void">
+<descr>
+<p/>
+</descr>
+</returns>
+<raises/>
+</method>
+<method name="blur" id="ID-28216144">
+<descr>
+<p>Removes keyboard focus from this element.</p>
+</descr>
+<parameters/>
+<returns type="void">
+<descr>
+<p/>
+</descr>
+</returns>
+<raises/>
+</method>
+<method name="focus" id="ID-32130014">
+<descr>
+<p>Gives keyboard focus to this element.</p>
+</descr>
+<parameters/>
+<returns type="void">
+<descr>
+<p/>
+</descr>
+</returns>
+<raises/>
+</method>
+</interface>
+<interface name="HTMLOptGroupElement" inherits="HTMLElement" id="ID-38450247">
+<descr>
+<p>Group options together in logical subdivisions. See the<loc href="http://www.w3.org/TR/REC-html40/interact/forms.html#edef-OPTGROUP" form="simple" show="embed" actuate="auto">OPTGROUP element definition</loc>in HTML 4.0.</p>
+</descr>
+<attribute type="boolean" name="disabled" id="ID-15518803" readonly="no">
+<descr>
+<p>The control is unavailable in this context. See the<loc href="http://www.w3.org/TR/REC-html40/interact/forms.html#adef-disabled" form="simple" show="embed" actuate="auto">disabled attribute definition</loc>in HTML 4.0.</p>
+</descr>
+</attribute>
+<attribute type="DOMString" name="label" id="ID-95806054" readonly="no">
+<descr>
+<p>Assigns a label to this option group. See the<loc href="http://www.w3.org/TR/REC-html40/interact/forms.html#adef-label-OPTGROUP" form="simple" show="embed" actuate="auto">label attribute definition</loc>in HTML 4.0.</p>
+</descr>
+</attribute>
+</interface>
+<interface name="HTMLOptionElement" inherits="HTMLElement" id="ID-70901257">
+<descr>
+<p>A selectable choice. See the<loc href="http://www.w3.org/TR/REC-html40/interact/forms.html#edef-OPTION" form="simple" show="embed" actuate="auto">OPTION element definition</loc>in HTML 4.0.</p>
+</descr>
+<attribute readonly="yes" type="HTMLFormElement" name="form" id="ID-17116503">
+<descr>
+<p>Returns the<code>FORM</code>element containing this control. Returns null if this control is not within the context of a form.</p>
+</descr>
+</attribute>
+<attribute type="boolean" name="defaultSelected" id="ID-37770574" readonly="no">
+<descr>
+<p>Stores the initial value of the<code>selected</code>attribute.</p>
+</descr>
+</attribute>
+<attribute readonly="yes" type="DOMString" name="text" id="ID-48154426">
+<descr>
+<p>The text contained within the option element.</p>
+</descr>
+</attribute>
+<attribute type="long" name="index" id="ID-14038413" readonly="no">
+<descr>
+<p>The index of this<code>OPTION</code>in its parent<code>SELECT</code>.</p>
+</descr>
+</attribute>
+<attribute type="boolean" name="disabled" id="ID-23482473" readonly="no">
+<descr>
+<p>The control is unavailable in this context. See the<loc href="http://www.w3.org/TR/REC-html40/interact/forms.html#adef-disabled" form="simple" show="embed" actuate="auto">disabled attribute definition</loc>in HTML 4.0.</p>
+</descr>
+</attribute>
+<attribute type="DOMString" name="label" id="ID-40736115" readonly="no">
+<descr>
+<p>Option label for use in hierarchical menus. See the<loc href="http://www.w3.org/TR/REC-html40/interact/forms.html#adef-label-OPTION" form="simple" show="embed" actuate="auto">label attribute definition</loc>in HTML 4.0.</p>
+</descr>
+</attribute>
+<attribute readonly="yes" type="boolean" name="selected" id="ID-70874476">
+<descr>
+<p>Means that this option is initially selected. See the<loc href="http://www.w3.org/TR/REC-html40/interact/forms.html#adef-selected" form="simple" show="embed" actuate="auto">selected attribute definition</loc>in HTML 4.0.</p>
+</descr>
+</attribute>
+<attribute type="DOMString" name="value" id="ID-6185554" readonly="no">
+<descr>
+<p>The current form control value. See the<loc href="http://www.w3.org/TR/REC-html40/interact/forms.html#adef-value-OPTION" form="simple" show="embed" actuate="auto">value attribute definition</loc>in HTML 4.0.</p>
+</descr>
+</attribute>
+</interface>
+<interface name="HTMLInputElement" inherits="HTMLElement" id="ID-6043025">
+<descr>
+<p>Form control.<emph>Note.</emph>Depending upon the environment the page is being viewed, the value property may be read-only for the file upload input type. For the "password" input type, the actual value returned may be masked to prevent unauthorized use. See the<loc href="http://www.w3.org/TR/REC-html40/interact/forms.html#edef-INPUT" form="simple" show="embed" actuate="auto">INPUT element definition</loc>in HTML 4.0.</p>
+</descr>
+<attribute type="DOMString" name="defaultValue" id="ID-26091157" readonly="no">
+<descr>
+<p>Stores the initial control value (i.e., the initial value of<code>value</code>).</p>
+</descr>
+</attribute>
+<attribute type="boolean" name="defaultChecked" id="ID-20509171" readonly="no">
+<descr>
+<p>When<code>type</code>has the value "Radio" or "Checkbox", stores the initial value of the<code>checked</code>attribute.</p>
+</descr>
+</attribute>
+<attribute readonly="yes" type="HTMLFormElement" name="form" id="ID-63239895">
+<descr>
+<p>Returns the<code>FORM</code>element containing this control. Returns null if this control is not within the context of a form.</p>
+</descr>
+</attribute>
+<attribute type="DOMString" name="accept" id="ID-15328520" readonly="no">
+<descr>
+<p>A comma-separated list of content types that a server processing this form will handle correctly. See the<loc href="http://www.w3.org/TR/REC-html40/interact/forms.html#adef-accept" form="simple" show="embed" actuate="auto">accept attribute definition</loc>in HTML 4.0.</p>
+</descr>
+</attribute>
+<attribute type="DOMString" name="accessKey" id="ID-59914154" readonly="no">
+<descr>
+<p>A single character access key to give access to the form control. See the<loc href="http://www.w3.org/TR/REC-html40/interact/forms.html#adef-accesskey" form="simple" show="embed" actuate="auto">accesskey attribute definition</loc>in HTML 4.0.</p>
+</descr>
+</attribute>
+<attribute type="DOMString" name="align" id="ID-96991182" readonly="no">
+<descr>
+<p>Aligns this object (vertically or horizontally) with respect to its surrounding text. See the<loc href="http://www.w3.org/TR/REC-html40/struct/objects.html#adef-align-IMG" form="simple" show="embed" actuate="auto">align attribute definition</loc>in HTML 4.0. This attribute is deprecated in HTML 4.0.</p>
+</descr>
+</attribute>
+<attribute type="DOMString" name="alt" id="ID-92701314" readonly="no">
+<descr>
+<p>Alternate text for user agents not rendering the normal content of this element. See the<loc href="http://www.w3.org/TR/REC-html40/struct/objects.html#adef-alt" form="simple" show="embed" actuate="auto">alt attribute definition</loc>in HTML 4.0.</p>
+</descr>
+</attribute>
+<attribute type="boolean" name="checked" id="ID-30233917" readonly="no">
+<descr>
+<p>Describes whether a radio or check box is checked, when<code>type</code>has the value "Radio" or "Checkbox". The value is TRUE if explicitly set. Represents the current state of the checkbox or radio button. See the<loc href="http://www.w3.org/TR/REC-html40/interact/forms.html#adef-checked" form="simple" show="embed" actuate="auto">checked attribute definition</loc>in HTML 4.0.</p>
+</descr>
+</attribute>
+<attribute type="boolean" name="disabled" id="ID-50886781" readonly="no">
+<descr>
+<p>The control is unavailable in this context. See the<loc href="http://www.w3.org/TR/REC-html40/interact/forms.html#adef-disabled" form="simple" show="embed" actuate="auto">disabled attribute definition</loc>in HTML 4.0.</p>
+</descr>
+</attribute>
+<attribute type="long" name="maxLength" id="ID-54719353" readonly="no">
+<descr>
+<p>Maximum number of characters for text fields, when<code>type</code>has the value "Text" or "Password". See the<loc href="http://www.w3.org/TR/REC-html40/interact/forms.html#adef-maxlength" form="simple" show="embed" actuate="auto">maxlength attribute definition</loc>in HTML 4.0.</p>
+</descr>
+</attribute>
+<attribute type="DOMString" name="name" id="ID-89658498" readonly="no">
+<descr>
+<p>Form control or object name when submitted with a form. See the<loc href="http://www.w3.org/TR/REC-html40/interact/forms.html#adef-name-INPUT" form="simple" show="embed" actuate="auto">name attribute definition</loc>in HTML 4.0.</p>
+</descr>
+</attribute>
+<attribute type="boolean" name="readOnly" id="ID-88461592" readonly="no">
+<descr>
+<p>This control is read-only. When<code>type</code>has the value "text" or "password" only. See the<loc href="http://www.w3.org/TR/REC-html40/interact/forms.html#adef-readonly" form="simple" show="embed" actuate="auto">readonly attribute definition</loc>in HTML 4.0.</p>
+</descr>
+</attribute>
+<attribute type="DOMString" name="size" id="ID-79659438" readonly="no">
+<descr>
+<p>Size information. The precise meaning is specific to each type of field. See the<loc href="http://www.w3.org/TR/REC-html40/interact/forms.html#adef-size-INPUT" form="simple" show="embed" actuate="auto">size attribute definition</loc>in HTML 4.0.</p>
+</descr>
+</attribute>
+<attribute type="DOMString" name="src" id="ID-97320704" readonly="no">
+<descr>
+<p>When the<code>type</code>attribute has the value "Image", this attribute specifies the location of the image to be used to decorate the graphical submit button. See the<loc href="http://www.w3.org/TR/REC-html40/interact/forms.html#adef-src" form="simple" show="embed" actuate="auto">src attribute definition</loc>in HTML 4.0.</p>
+</descr>
+</attribute>
+<attribute type="long" name="tabIndex" id="ID-62176355" readonly="no">
+<descr>
+<p>Index that represents the element's position in the tabbing order. See the<loc href="http://www.w3.org/TR/REC-html40/interact/forms.html#adef-tabindex" form="simple" show="embed" actuate="auto">tabindex attribute definition</loc>in HTML 4.0.</p>
+</descr>
+</attribute>
+<attribute readonly="yes" type="DOMString" name="type" id="ID-62883744">
+<descr>
+<p>The type of control created. See the<loc href="http://www.w3.org/TR/REC-html40/interact/forms.html#adef-type-INPUT" form="simple" show="embed" actuate="auto">type attribute definition</loc>in HTML 4.0.</p>
+</descr>
+</attribute>
+<attribute type="DOMString" name="useMap" id="ID-32463706" readonly="no">
+<descr>
+<p>Use client-side image map. See the<loc href="http://www.w3.org/TR/REC-html40/struct/objects.html#adef-usemap" form="simple" show="embed" actuate="auto">usemap attribute definition</loc>in HTML 4.0.</p>
+</descr>
+</attribute>
+<attribute type="DOMString" name="value" id="ID-49531485" readonly="no">
+<descr>
+<p>The current form control value. Used for radio buttons and check boxes. See the<loc href="http://www.w3.org/TR/REC-html40/interact/forms.html#adef-value-INPUT" form="simple" show="embed" actuate="auto">value attribute definition</loc>in HTML 4.0.</p>
+</descr>
+</attribute>
+<method name="blur" id="ID-26838235">
+<descr>
+<p>Removes keyboard focus from this element.</p>
+</descr>
+<parameters/>
+<returns type="void">
+<descr>
+<p/>
+</descr>
+</returns>
+<raises/>
+</method>
+<method name="focus" id="ID-65996295">
+<descr>
+<p>Gives keyboard focus to this element.</p>
+</descr>
+<parameters/>
+<returns type="void">
+<descr>
+<p/>
+</descr>
+</returns>
+<raises/>
+</method>
+<method name="select" id="ID-34677168">
+<descr>
+<p>Select the contents of the text area. For<code>INPUT</code>elements whose<code>type</code>attribute has one of the following values: "Text", "File", or "Password".</p>
+</descr>
+<parameters/>
+<returns type="void">
+<descr>
+<p/>
+</descr>
+</returns>
+<raises/>
+</method>
+<method name="click" id="ID-2651361">
+<descr>
+<p>Simulate a mouse-click. For<code>INPUT</code>elements whose<code>type</code>attribute has one of the following values: "Button", "Checkbox", "Radio", "Reset", or "Submit".</p>
+</descr>
+<parameters/>
+<returns type="void">
+<descr>
+<p/>
+</descr>
+</returns>
+<raises/>
+</method>
+</interface>
+<interface name="HTMLTextAreaElement" inherits="HTMLElement" id="ID-24874179">
+<descr>
+<p>Multi-line text field. See the<loc href="http://www.w3.org/TR/REC-html40/interact/forms.html#edef-TEXTAREA" form="simple" show="embed" actuate="auto">TEXTAREA element definition</loc>in HTML 4.0.</p>
+</descr>
+<attribute type="DOMString" name="defaultValue" id="ID-36152213" readonly="no">
+<descr>
+<p>Stores the initial control value (i.e., the initial value of<code>value</code>).</p>
+</descr>
+</attribute>
+<attribute readonly="yes" type="HTMLFormElement" name="form" id="ID-18911464">
+<descr>
+<p>Returns the<code>FORM</code>element containing this control. Returns null if this control is not within the context of a form.</p>
+</descr>
+</attribute>
+<attribute type="DOMString" name="accessKey" id="ID-93102991" readonly="no">
+<descr>
+<p>A single character access key to give access to the form control. See the<loc href="http://www.w3.org/TR/REC-html40/interact/forms.html#adef-accesskey" form="simple" show="embed" actuate="auto">accesskey attribute definition</loc>in HTML 4.0.</p>
+</descr>
+</attribute>
+<attribute type="long" name="cols" id="ID-51387225" readonly="no">
+<descr>
+<p>Width of control (in characters). See the<loc href="http://www.w3.org/TR/REC-html40/interact/forms.html#adef-cols-TEXTAREA" form="simple" show="embed" actuate="auto">cols attribute definition</loc>in HTML 4.0.</p>
+</descr>
+</attribute>
+<attribute type="boolean" name="disabled" id="ID-98725443" readonly="no">
+<descr>
+<p>The control is unavailable in this context. See the<loc href="http://www.w3.org/TR/REC-html40/interact/forms.html#adef-disabled" form="simple" show="embed" actuate="auto">disabled attribute definition</loc>in HTML 4.0.</p>
+</descr>
+</attribute>
+<attribute type="DOMString" name="name" id="ID-70715578" readonly="no">
+<descr>
+<p>Form control or object name when submitted with a form. See the<loc href="http://www.w3.org/TR/REC-html40/interact/forms.html#adef-name-TEXTAREA" form="simple" show="embed" actuate="auto">name attribute definition</loc>in HTML 4.0.</p>
+</descr>
+</attribute>
+<attribute type="boolean" name="readOnly" id="ID-39131423" readonly="no">
+<descr>
+<p>This control is read-only. See the<loc href="http://www.w3.org/TR/REC-html40/interact/forms.html#adef-readonly" form="simple" show="embed" actuate="auto">readonly attribute definition</loc>in HTML 4.0.</p>
+</descr>
+</attribute>
+<attribute type="long" name="rows" id="ID-46975887" readonly="no">
+<descr>
+<p>Number of text rows. See the<loc href="http://www.w3.org/TR/REC-html40/interact/forms.html#adef-rows-TEXTAREA" form="simple" show="embed" actuate="auto">rows attribute definition</loc>in HTML 4.0.</p>
+</descr>
+</attribute>
+<attribute type="long" name="tabIndex" id="ID-60363303" readonly="no">
+<descr>
+<p>Index that represents the element's position in the tabbing order. See the<loc href="http://www.w3.org/TR/REC-html40/interact/forms.html#adef-tabindex" form="simple" show="embed" actuate="auto">tabindex attribute definition</loc>in HTML 4.0.</p>
+</descr>
+</attribute>
+<attribute readonly="yes" type="DOMString" name="type">
+<descr>
+<p>The type of this form control.</p>
+</descr>
+</attribute>
+<attribute type="DOMString" name="value" id="ID-70715579" readonly="no">
+<descr>
+<p>The current textual content of the multi-line text field. If the entirety of the data can not fit into a single wstring, the implementation may truncate the data.</p>
+</descr>
+</attribute>
+<method name="blur" id="ID-6750689">
+<descr>
+<p>Removes keyboard focus from this element.</p>
+</descr>
+<parameters/>
+<returns type="void">
+<descr>
+<p/>
+</descr>
+</returns>
+<raises/>
+</method>
+<method name="focus" id="ID-39055426">
+<descr>
+<p>Gives keyboard focus to this element.</p>
+</descr>
+<parameters/>
+<returns type="void">
+<descr>
+<p/>
+</descr>
+</returns>
+<raises/>
+</method>
+<method name="select" id="ID-48880622">
+<descr>
+<p>Select the contents of the<code>TEXTAREA</code>.</p>
+</descr>
+<parameters/>
+<returns type="void">
+<descr>
+<p/>
+</descr>
+</returns>
+<raises/>
+</method>
+</interface>
+<interface name="HTMLButtonElement" inherits="HTMLElement" id="ID-34812697">
+<descr>
+<p>Push button. See the<loc href="http://www.w3.org/TR/REC-html40/interact/forms.html#edef-BUTTON" form="simple" show="embed" actuate="auto">BUTTON element definition</loc>in HTML 4.0.</p>
+</descr>
+<attribute readonly="yes" type="HTMLFormElement" name="form" id="ID-71254493">
+<descr>
+<p>Returns the<code>FORM</code>element containing this control. Returns null if this control is not within the context of a form.</p>
+</descr>
+</attribute>
+<attribute type="DOMString" name="accessKey" id="ID-73169431" readonly="no">
+<descr>
+<p>A single character access key to give access to the form control. See the<loc href="http://www.w3.org/TR/REC-html40/interact/forms.html#adef-accesskey" form="simple" show="embed" actuate="auto">accesskey attribute definition</loc>in HTML 4.0.</p>
+</descr>
+</attribute>
+<attribute type="boolean" name="disabled" id="ID-92757155" readonly="no">
+<descr>
+<p>The control is unavailable in this context. See the<loc href="http://www.w3.org/TR/REC-html40/interact/forms.html#adef-disabled" form="simple" show="embed" actuate="auto">disabled attribute definition</loc>in HTML 4.0.</p>
+</descr>
+</attribute>
+<attribute type="DOMString" name="name" id="ID-11029910" readonly="no">
+<descr>
+<p>Form control or object name when submitted with a form. See the<loc href="http://www.w3.org/TR/REC-html40/interact/forms.html#adef-name-BUTTON" form="simple" show="embed" actuate="auto">name attribute definition</loc>in HTML 4.0.</p>
+</descr>
+</attribute>
+<attribute type="long" name="tabIndex" id="ID-39190908" readonly="no">
+<descr>
+<p>Index that represents the element's position in the tabbing order. See the<loc href="http://www.w3.org/TR/REC-html40/interact/forms.html#adef-tabindex" form="simple" show="embed" actuate="auto">tabindex attribute definition</loc>in HTML 4.0.</p>
+</descr>
+</attribute>
+<attribute readonly="yes" type="DOMString" name="type" id="ID-27430092">
+<descr>
+<p>The type of button. See the<loc href="http://www.w3.org/TR/REC-html40/interact/forms.html#adef-type-BUTTON" form="simple" show="embed" actuate="auto">type attribute definition</loc>in HTML 4.0.</p>
+</descr>
+</attribute>
+<attribute type="DOMString" name="value" id="ID-72856782" readonly="no">
+<descr>
+<p>The current form control value. See the<loc href="http://www.w3.org/TR/REC-html40/interact/forms.html#adef-value-BUTTON" form="simple" show="embed" actuate="auto">value attribute definition</loc>in HTML 4.0.</p>
+</descr>
+</attribute>
+</interface>
+<interface name="HTMLLabelElement" inherits="HTMLElement" id="ID-13691394">
+<descr>
+<p>Form field label text. See the<loc href="http://www.w3.org/TR/REC-html40/interact/forms.html#edef-LABEL" form="simple" show="embed" actuate="auto">LABEL element definition</loc>in HTML 4.0.</p>
+</descr>
+<attribute readonly="yes" type="HTMLFormElement" name="form" id="ID-32480901">
+<descr>
+<p>Returns the<code>FORM</code>element containing this control. Returns null if this control is not within the context of a form.</p>
+</descr>
+</attribute>
+<attribute type="DOMString" name="accessKey" id="ID-43589892" readonly="no">
+<descr>
+<p>A single character access key to give access to the form control. See the<loc href="http://www.w3.org/TR/REC-html40/interact/forms.html#adef-accesskey" form="simple" show="embed" actuate="auto">accesskey attribute definition</loc>in HTML 4.0.</p>
+</descr>
+</attribute>
+<attribute type="DOMString" name="htmlFor" id="ID-96509813" readonly="no">
+<descr>
+<p>This attribute links this label with another form control by<code>id</code>attribute. See the<loc href="http://www.w3.org/TR/REC-html40/interact/forms.html#adef-for" form="simple" show="embed" actuate="auto">for attribute definition</loc>in HTML 4.0.</p>
+</descr>
+</attribute>
+</interface>
+<interface name="HTMLFieldSetElement" inherits="HTMLElement" id="ID-7365882">
+<descr>
+<p>Organizes form controls into logical groups. See the<loc href="http://www.w3.org/TR/REC-html40/interact/forms.html#edef-FIELDSET" form="simple" show="embed" actuate="auto">FIELDSET element definition</loc>in HTML 4.0.</p>
+</descr>
+<attribute readonly="yes" type="HTMLFormElement" name="form" id="ID-75392630">
+<descr>
+<p>Returns the<code>FORM</code>element containing this control. Returns null if this control is not within the context of a form.</p>
+</descr>
+</attribute>
+</interface>
+<interface name="HTMLLegendElement" inherits="HTMLElement" id="ID-21482039">
+<descr>
+<p>Provides a captionfor a<code>FIELDSET</code>grouping. See the<loc href="http://www.w3.org/TR/REC-html40/interact/forms.html#edef-LEGEND" form="simple" show="embed" actuate="auto">LEGEND element definition</loc>in HTML 4.0.</p>
+</descr>
+<attribute readonly="yes" type="HTMLFormElement" name="form" id="ID-29594519">
+<descr>
+<p>Returns the<code>FORM</code>element containing this control. Returns null if this control is not within the context of a form.</p>
+</descr>
+</attribute>
+<attribute type="DOMString" name="accessKey" id="ID-11297832" readonly="no">
+<descr>
+<p>A single character access key to give access to the form control. See the<loc href="http://www.w3.org/TR/REC-html40/interact/forms.html#adef-accesskey" form="simple" show="embed" actuate="auto">accesskey attribute definition</loc>in HTML 4.0.</p>
+</descr>
+</attribute>
+<attribute type="DOMString" name="align" id="ID-79538067" readonly="no">
+<descr>
+<p>Text alignment relative to<code>FIELDSET</code>. See the<loc href="http://www.w3.org/TR/REC-html40/interact/forms.html#adef-align-LEGEND" form="simple" show="embed" actuate="auto">align attribute definition</loc>in HTML 4.0. This attribute is deprecated in HTML 4.0.</p>
+</descr>
+</attribute>
+</interface>
+<interface name="HTMLUListElement" inherits="HTMLElement" id="ID-86834457">
+<descr>
+<p>Unordered list. See the<loc href="http://www.w3.org/TR/REC-html40/struct/lists.html#edef-UL" form="simple" show="embed" actuate="auto">UL element definition</loc>in HTML 4.0.</p>
+</descr>
+<attribute type="boolean" name="compact" id="ID-39864178" readonly="no">
+<descr>
+<p>Reduce spacing between list items. See the<loc href="http://www.w3.org/TR/REC-html40/struct/lists.html#adef-compact" form="simple" show="embed" actuate="auto">compact attribute definition</loc>in HTML 4.0. This attribute is deprecated in HTML 4.0.</p>
+</descr>
+</attribute>
+<attribute type="DOMString" name="type" id="ID-96874670" readonly="no">
+<descr>
+<p>Bullet style. See the<loc href="http://www.w3.org/TR/REC-html40/struct/lists.html#adef-type-UL" form="simple" show="embed" actuate="auto">type attribute definition</loc>in HTML 4.0. This attribute is deprecated in HTML 4.0.</p>
+</descr>
+</attribute>
+</interface>
+<interface name="HTMLOListElement" inherits="HTMLElement" id="ID-58056027">
+<descr>
+<p>Ordered list. See the<loc href="http://www.w3.org/TR/REC-html40/struct/lists.html#edef-OL" form="simple" show="embed" actuate="auto">OL element definition</loc>in HTML 4.0.</p>
+</descr>
+<attribute type="boolean" name="compact" id="ID-76448506" readonly="no">
+<descr>
+<p>Reduce spacing between list items. See the<loc href="http://www.w3.org/TR/REC-html40/struct/lists.html#adef-compact" form="simple" show="embed" actuate="auto">compact attribute definition</loc>in HTML 4.0. This attribute is deprecated in HTML 4.0.</p>
+</descr>
+</attribute>
+<attribute type="long" name="start" id="ID-14793325" readonly="no">
+<descr>
+<p>Starting sequence number. See the<loc href="http://www.w3.org/TR/REC-html40/struct/lists.html#adef-start" form="simple" show="embed" actuate="auto">start attribute definition</loc>in HTML 4.0. This attribute is deprecated in HTML 4.0.</p>
+</descr>
+</attribute>
+<attribute type="DOMString" name="type" id="ID-40971103" readonly="no">
+<descr>
+<p>Numbering style. See the<loc href="http://www.w3.org/TR/REC-html40/struct/lists.html#adef-type-OL" form="simple" show="embed" actuate="auto">type attribute definition</loc>in HTML 4.0. This attribute is deprecated in HTML 4.0.</p>
+</descr>
+</attribute>
+</interface>
+<interface name="HTMLDListElement" inherits="HTMLElement" id="ID-52368974">
+<descr>
+<p>Definition list. See the<loc href="http://www.w3.org/TR/REC-html40/struct/lists.html#edef-DL" form="simple" show="embed" actuate="auto">DL element definition</loc>in HTML 4.0.</p>
+</descr>
+<attribute type="boolean" name="compact" id="ID-21738539" readonly="no">
+<descr>
+<p>Reduce spacing between list items. See the<loc href="http://www.w3.org/TR/REC-html40/struct/lists.html#adef-compact" form="simple" show="embed" actuate="auto">compact attribute definition</loc>in HTML 4.0. This attribute is deprecated in HTML 4.0.</p>
+</descr>
+</attribute>
+</interface>
+<interface name="HTMLDirectoryElement" inherits="HTMLElement" id="ID-71600284">
+<descr>
+<p>Directory list. See the<loc href="http://www.w3.org/TR/REC-html40/struct/lists.html#edef-DIR" form="simple" show="embed" actuate="auto">DIR element definition</loc>in HTML 4.0. This element is deprecated in HTML 4.0.</p>
+</descr>
+<attribute type="boolean" name="compact" id="ID-75317739" readonly="no">
+<descr>
+<p>Reduce spacing between list items. See the<loc href="http://www.w3.org/TR/REC-html40/struct/lists.html#adef-compact" form="simple" show="embed" actuate="auto">compact attribute definition</loc>in HTML 4.0. This attribute is deprecated in HTML 4.0.</p>
+</descr>
+</attribute>
+</interface>
+<interface name="HTMLMenuElement" inherits="HTMLElement" id="ID-72509186">
+<descr>
+<p>Menu list. See the<loc href="http://www.w3.org/TR/REC-html40/struct/lists.html#edef-MENU" form="simple" show="embed" actuate="auto">MENU element definition</loc>in HTML 4.0. This element is deprecated in HTML 4.0.</p>
+</descr>
+<attribute type="boolean" name="compact" id="ID-68436464" readonly="no">
+<descr>
+<p>Reduce spacing between list items. See the<loc href="http://www.w3.org/TR/REC-html40/struct/lists.html#adef-compact" form="simple" show="embed" actuate="auto">compact attribute definition</loc>in HTML 4.0. This attribute is deprecated in HTML 4.0.</p>
+</descr>
+</attribute>
+</interface>
+<interface name="HTMLLIElement" inherits="HTMLElement" id="ID-74680021">
+<descr>
+<p>List item. See the<loc href="http://www.w3.org/TR/REC-html40/struct/lists.html#edef-LI" form="simple" show="embed" actuate="auto">LI element definition</loc>in HTML 4.0.</p>
+</descr>
+<attribute type="DOMString" name="type" id="ID-52387668" readonly="no">
+<descr>
+<p>List item bullet style. See the<loc href="http://www.w3.org/TR/REC-html40/struct/lists.html#adef-type-LI" form="simple" show="embed" actuate="auto">type attribute definition</loc>in HTML 4.0. This attribute is deprecated in HTML 4.0.</p>
+</descr>
+</attribute>
+<attribute type="long" name="value" id="ID-45496263" readonly="no">
+<descr>
+<p>Reset sequence number when used in<code>OL</code>See the<loc href="http://www.w3.org/TR/REC-html40/struct/lists.html#adef-value-LI" form="simple" show="embed" actuate="auto">value attribute definition</loc>in HTML 4.0. This attribute is deprecated in HTML 4.0.</p>
+</descr>
+</attribute>
+</interface>
+<interface name="HTMLDivElement" inherits="HTMLElement" id="ID-22445964">
+<descr>
+<p>Generic block container. See the<loc href="http://www.w3.org/TR/REC-html40/struct/global.html#edef-DIV" form="simple" show="embed" actuate="auto">DIV element definition</loc>in HTML 4.0.</p>
+</descr>
+<attribute type="DOMString" name="align" id="ID-70908791" readonly="no">
+<descr>
+<p>Horizontal text alignment. See the<loc href="http://www.w3.org/TR/REC-html40/present/graphics.html#adef-align" form="simple" show="embed" actuate="auto">align attribute definition</loc>in HTML 4.0. This attribute is deprecated in HTML 4.0.</p>
+</descr>
+</attribute>
+</interface>
+<interface name="HTMLParagraphElement" inherits="HTMLElement" id="ID-84675076">
+<descr>
+<p>Paragraphs. See the<loc href="http://www.w3.org/TR/REC-html40/struct/text.html#edef-P" form="simple" show="embed" actuate="auto">P element definition</loc>in HTML 4.0.</p>
+</descr>
+<attribute type="DOMString" name="align" id="ID-53465507" readonly="no">
+<descr>
+<p>Horizontal text alignment. See the<loc href="http://www.w3.org/TR/REC-html40/present/graphics.html#adef-align" form="simple" show="embed" actuate="auto">align attribute definition</loc>in HTML 4.0. This attribute is deprecated in HTML 4.0.</p>
+</descr>
+</attribute>
+</interface>
+<interface name="HTMLHeadingElement" inherits="HTMLElement" id="ID-43345119">
+<descr>
+<p>For the<code>H1</code>to<code>H6</code>elements. See the<loc href="http://www.w3.org/TR/REC-html40/struct/global.html#edef-H1" form="simple" show="embed" actuate="auto">H1 element definition</loc>in HTML 4.0.</p>
+</descr>
+<attribute type="DOMString" name="align" id="ID-6796462" readonly="no">
+<descr>
+<p>Horizontal text alignment. See the<loc href="http://www.w3.org/TR/REC-html40/present/graphics.html#adef-align" form="simple" show="embed" actuate="auto">align attribute definition</loc>in HTML 4.0. This attribute is deprecated in HTML 4.0.</p>
+</descr>
+</attribute>
+</interface>
+<interface name="HTMLQuoteElement" inherits="HTMLElement" id="ID-70319763">
+<descr>
+<p>For the<code>Q</code>and<code>BLOCKQUOTE</code>elements. See the<loc href="http://www.w3.org/TR/REC-html40/struct/text.html#edef-Q" form="simple" show="embed" actuate="auto">Q element definition</loc>in HTML 4.0.</p>
+</descr>
+<attribute type="DOMString" name="cite" id="ID-53895598" readonly="no">
+<descr>
+<p>A URI designating a document that designates a source document or message. See the<loc href="http://www.w3.org/TR/REC-html40/struct/text.html#adef-cite-Q" form="simple" show="embed" actuate="auto">cite attribute definition</loc>in HTML 4.0.</p>
+</descr>
+</attribute>
+</interface>
+<interface name="HTMLPreElement" inherits="HTMLElement" id="ID-11383425">
+<descr>
+<p>Preformatted text. See the<loc href="http://www.w3.org/TR/REC-html40/struct/text.html#edef-PRE" form="simple" show="embed" actuate="auto">PRE element definition</loc>in HTML 4.0.</p>
+</descr>
+<attribute type="long" name="width" id="ID-13894083" readonly="no">
+<descr>
+<p>Fixed width for content. See the<loc href="http://www.w3.org/TR/REC-html40/struct/text.html#adef-width-PRE" form="simple" show="embed" actuate="auto">width attribute definition</loc>in HTML 4.0. This attribute is deprecated in HTML 4.0.</p>
+</descr>
+</attribute>
+</interface>
+<interface name="HTMLBRElement" inherits="HTMLElement" id="ID-56836063">
+<descr>
+<p>Force a line break. See the<loc href="http://www.w3.org/TR/REC-html40/struct/text.html#edef-BR" form="simple" show="embed" actuate="auto">BR element definition</loc>in HTML 4.0.</p>
+</descr>
+<attribute type="DOMString" name="clear" id="ID-82703081" readonly="no">
+<descr>
+<p>Control flow of text around floats. See the<loc href="http://www.w3.org/TR/REC-html40/present/graphics.html#adef-clear" form="simple" show="embed" actuate="auto">clear attribute definition</loc>in HTML 4.0. This attribute is deprecated in HTML 4.0.</p>
+</descr>
+</attribute>
+</interface>
+<interface name="HTMLBaseFontElement" inherits="HTMLElement" id="ID-32774408">
+<descr>
+<p>Base font. See the<loc href="http://www.w3.org/TR/REC-html40/present/graphics.html#edef-BASEFONT" form="simple" show="embed" actuate="auto">BASEFONT element definition</loc>in HTML 4.0. This element is deprecated in HTML 4.0.</p>
+</descr>
+<attribute type="DOMString" name="color" id="ID-87502302" readonly="no">
+<descr>
+<p>Font color. See the<loc href="http://www.w3.org/TR/REC-html40/" form="simple" show="embed" actuate="auto">color attribute definition</loc>in HTML 4.0. This attribute is deprecated in HTML 4.0.</p>
+</descr>
+</attribute>
+<attribute type="DOMString" name="face" id="ID-88128969" readonly="no">
+<descr>
+<p>Font face identifier. See the<loc href="http://www.w3.org/TR/REC-html40/" form="simple" show="embed" actuate="auto">face attribute definition</loc>in HTML 4.0. This attribute is deprecated in HTML 4.0.</p>
+</descr>
+</attribute>
+<attribute type="DOMString" name="size" id="ID-38930424" readonly="no">
+<descr>
+<p>Font size. See the<loc href="http://www.w3.org/TR/REC-html40/present/graphics.html#adef-size-BASEFONT" form="simple" show="embed" actuate="auto">size attribute definition</loc>in HTML 4.0. This attribute is deprecated in HTML 4.0.</p>
+</descr>
+</attribute>
+</interface>
+<interface name="HTMLFontElement" inherits="HTMLElement" id="ID-43943847">
+<descr>
+<p>Local change to font. See the<loc href="http://www.w3.org/TR/REC-html40/present/graphics.html#edef-FONT" form="simple" show="embed" actuate="auto">FONT element definition</loc>in HTML 4.0. This element is deprecated in HTML 4.0.</p>
+</descr>
+<attribute type="DOMString" name="color" id="ID-53532975" readonly="no">
+<descr>
+<p>Font color. See the<loc href="http://www.w3.org/TR/REC-html40/present/graphics.html#adef-color-FONT" form="simple" show="embed" actuate="auto">color attribute definition</loc>in HTML 4.0. This attribute is deprecated in HTML 4.0.</p>
+</descr>
+</attribute>
+<attribute type="DOMString" name="face" id="ID-55715655" readonly="no">
+<descr>
+<p>Font face identifier. See the<loc href="http://www.w3.org/TR/REC-html40/present/graphics.html#adef-face-FONT" form="simple" show="embed" actuate="auto">face attribute definition</loc>in HTML 4.0. This attribute is deprecated in HTML 4.0.</p>
+</descr>
+</attribute>
+<attribute type="DOMString" name="size" id="ID-90127284" readonly="no">
+<descr>
+<p>Font size. See the<loc href="http://www.w3.org/TR/REC-html40/present/graphics.html#adef-size-FONT" form="simple" show="embed" actuate="auto">size attribute definition</loc>in HTML 4.0. This attribute is deprecated in HTML 4.0.</p>
+</descr>
+</attribute>
+</interface>
+<interface name="HTMLHRElement" inherits="HTMLElement" id="ID-68228811">
+<descr>
+<p>Create a horizontal rule. See the<loc href="http://www.w3.org/TR/REC-html40/present/graphics.html#edef-HR" form="simple" show="embed" actuate="auto">HR element definition</loc>in HTML 4.0.</p>
+</descr>
+<attribute type="DOMString" name="align" id="ID-15235012" readonly="no">
+<descr>
+<p>Align the rule on the page. See the<loc href="http://www.w3.org/TR/REC-html40/present/graphics.html#adef-align-HR" form="simple" show="embed" actuate="auto">align attribute definition</loc>in HTML 4.0. This attribute is deprecated in HTML 4.0.</p>
+</descr>
+</attribute>
+<attribute type="boolean" name="noShade" id="ID-79813978" readonly="no">
+<descr>
+<p>Indicates to the user agent that there should be no shading in the rendering of this element. See the<loc href="http://www.w3.org/TR/REC-html40/present/graphics.html#adef-noshade" form="simple" show="embed" actuate="auto">noshade attribute definition</loc>in HTML 4.0. This attribute is deprecated in HTML 4.0.</p>
+</descr>
+</attribute>
+<attribute type="DOMString" name="size" id="ID-77612587" readonly="no">
+<descr>
+<p>The height of the rule. See the<loc href="http://www.w3.org/TR/REC-html40/present/graphics.html#adef-size-HR" form="simple" show="embed" actuate="auto">size attribute definition</loc>in HTML 4.0. This attribute is deprecated in HTML 4.0.</p>
+</descr>
+</attribute>
+<attribute type="DOMString" name="width" id="ID-87744198" readonly="no">
+<descr>
+<p>The width of the rule. See the<loc href="http://www.w3.org/TR/REC-html40/present/graphics.html#adef-width-HR" form="simple" show="embed" actuate="auto">width attribute definition</loc>in HTML 4.0. This attribute is deprecated in HTML 4.0.</p>
+</descr>
+</attribute>
+</interface>
+<interface name="HTMLModElement" inherits="HTMLElement" id="ID-79359609">
+<descr>
+<p>Notice of modification to part of a document. See the<loc href="http://www.w3.org/TR/REC-html40/struct/text.html#edef-ins" form="simple" show="embed" actuate="auto">INS</loc>and<loc href="http://www.w3.org/TR/REC-html40/struct/text.html#edef-del" form="simple" show="embed" actuate="auto">DEL</loc>element definitions in HTML 4.0.</p>
+</descr>
+<attribute type="DOMString" name="cite" id="ID-75101708" readonly="no">
+<descr>
+<p>A URI designating a document that describes the reason for the change. See the<loc href="http://www.w3.org/TR/REC-html40/" form="simple" show="embed" actuate="auto">cite attribute definition</loc>in HTML 4.0.</p>
+</descr>
+</attribute>
+<attribute type="DOMString" name="dateTime" id="ID-88432678" readonly="no">
+<descr>
+<p>The date and time of the change. See the<loc href="http://www.w3.org/TR/REC-html40/struct/text.html#adef-datetime" form="simple" show="embed" actuate="auto">datetime attribute definition</loc>in HTML 4.0.</p>
+</descr>
+</attribute>
+</interface>
+<interface name="HTMLAnchorElement" inherits="HTMLElement" id="ID-48250443">
+<descr>
+<p>The anchor element. See the<loc href="http://www.w3.org/TR/REC-html40/struct/links.html#edef-A" form="simple" show="embed" actuate="auto">A element definition</loc>in HTML 4.0.</p>
+</descr>
+<attribute type="DOMString" name="accessKey" id="ID-89647724" readonly="no">
+<descr>
+<p>A single character access key to give access to the form control. See the<loc href="http://www.w3.org/TR/REC-html40/interact/forms.html#adef-accesskey" form="simple" show="embed" actuate="auto">accesskey attribute definition</loc>in HTML 4.0.</p>
+</descr>
+</attribute>
+<attribute type="DOMString" name="charset" id="ID-67619266" readonly="no">
+<descr>
+<p>The character encoding of the linked resource. See the<loc href="http://www.w3.org/TR/REC-html40/struct/links.html#adef-charset" form="simple" show="embed" actuate="auto">charset attribute definition</loc>in HTML 4.0.</p>
+</descr>
+</attribute>
+<attribute type="DOMString" name="coords" id="ID-92079539" readonly="no">
+<descr>
+<p>Comma-separated list of lengths, defining an active region geometry. See also<code>shape</code>for the shape of the region. See the<loc href="http://www.w3.org/TR/REC-html40/struct/objects.html#adef-coords" form="simple" show="embed" actuate="auto">coords attribute definition</loc>in HTML 4.0.</p>
+</descr>
+</attribute>
+<attribute type="DOMString" name="href" id="ID-88517319" readonly="no">
+<descr>
+<p>The URI of the linked resource. See the<loc href="http://www.w3.org/TR/REC-html40/struct/links.html#adef-href" form="simple" show="embed" actuate="auto">href attribute definition</loc>in HTML 4.0.</p>
+</descr>
+</attribute>
+<attribute type="DOMString" name="hreflang" id="ID-87358513" readonly="no">
+<descr>
+<p>Language code of the linked resource. See the<loc href="http://www.w3.org/TR/REC-html40/struct/links.html#adef-hreflang" form="simple" show="embed" actuate="auto">hreflang attribute definition</loc>in HTML 4.0.</p>
+</descr>
+</attribute>
+<attribute type="DOMString" name="name" id="ID-32783304" readonly="no">
+<descr>
+<p>Anchor name. See the<loc href="http://www.w3.org/TR/REC-html40/struct/links.html#adef-name-A" form="simple" show="embed" actuate="auto">name attribute definition</loc>in HTML 4.0.</p>
+</descr>
+</attribute>
+<attribute type="DOMString" name="rel" id="ID-3815891" readonly="no">
+<descr>
+<p>Forward link type. See the<loc href="http://www.w3.org/TR/REC-html40/struct/links.html#adef-rel" form="simple" show="embed" actuate="auto">rel attribute definition</loc>in HTML 4.0.</p>
+</descr>
+</attribute>
+<attribute type="DOMString" name="rev" id="ID-58259771" readonly="no">
+<descr>
+<p>Reverse link type. See the<loc href="http://www.w3.org/TR/REC-html40/struct/links.html#adef-rev" form="simple" show="embed" actuate="auto">rev attribute definition</loc>in HTML 4.0.</p>
+</descr>
+</attribute>
+<attribute type="DOMString" name="shape" id="ID-49899808" readonly="no">
+<descr>
+<p>The shape of the active area. The coordinates are given by<code>coords</code>. See the<loc href="http://www.w3.org/TR/REC-html40/struct/objects.html#adef-shape" form="simple" show="embed" actuate="auto">shape attribute definition</loc>in HTML 4.0.</p>
+</descr>
+</attribute>
+<attribute type="long" name="tabIndex" id="ID-41586466" readonly="no">
+<descr>
+<p>Index that represents the element's position in the tabbing order. See the<loc href="http://www.w3.org/TR/REC-html40/interact/forms.html#adef-tabindex" form="simple" show="embed" actuate="auto">tabindex attribute definition</loc>in HTML 4.0.</p>
+</descr>
+</attribute>
+<attribute type="DOMString" name="target" id="ID-6414197" readonly="no">
+<descr>
+<p>Frame to render the resource in. See the<loc href="http://www.w3.org/TR/REC-html40/present/frames.html#adef-target" form="simple" show="embed" actuate="auto">target attribute definition</loc>in HTML 4.0.</p>
+</descr>
+</attribute>
+<attribute type="DOMString" name="type" id="ID-63938221" readonly="no">
+<descr>
+<p>Advisory content type. See the<loc href="http://www.w3.org/TR/REC-html40/struct/links.html#adef-type-A" form="simple" show="embed" actuate="auto">type attribute definition</loc>in HTML 4.0.</p>
+</descr>
+</attribute>
+<method name="blur" id="ID-65068939">
+<descr>
+<p>Removes keyboard focus from this element.</p>
+</descr>
+<parameters/>
+<returns type="void">
+<descr>
+<p/>
+</descr>
+</returns>
+<raises/>
+</method>
+<method name="focus" id="ID-47150313">
+<descr>
+<p>Gives keyboard focus to this element.</p>
+</descr>
+<parameters/>
+<returns type="void">
+<descr>
+<p/>
+</descr>
+</returns>
+<raises/>
+</method>
+</interface>
+<interface name="HTMLImageElement" inherits="HTMLElement" id="ID-17701901">
+<descr>
+<p>Embedded image. See the<loc href="http://www.w3.org/TR/REC-html40/struct/objects.html#edef-IMG" form="simple" show="embed" actuate="auto">IMG element definition</loc>in HTML 4.0.</p>
+</descr>
+<attribute type="DOMString" name="lowSrc" id="ID-91256910" readonly="no">
+<descr>
+<p>URI designating the source of this image, for low-resolution output.</p>
+</descr>
+</attribute>
+<attribute type="DOMString" name="name" id="ID-47534097" readonly="no">
+<descr>
+<p>The name of the element (for backwards compatibility).</p>
+</descr>
+</attribute>
+<attribute type="DOMString" name="align" id="ID-3211094" readonly="no">
+<descr>
+<p>Aligns this object (vertically or horizontally) with respect to its surrounding text. See the<loc href="http://www.w3.org/TR/REC-html40/struct/objects.html#adef-align-IMG" form="simple" show="embed" actuate="auto">align attribute definition</loc>in HTML 4.0. This attribute is deprecated in HTML 4.0.</p>
+</descr>
+</attribute>
+<attribute type="DOMString" name="alt" id="ID-95636861" readonly="no">
+<descr>
+<p>Alternate text for user agents not rendering the normal content of this element. See the<loc href="http://www.w3.org/TR/REC-html40/struct/objects.html#adef-alt" form="simple" show="embed" actuate="auto">alt attribute definition</loc>in HTML 4.0.</p>
+</descr>
+</attribute>
+<attribute type="DOMString" name="border" id="ID-136671" readonly="no">
+<descr>
+<p>Width of border around image. See the<loc href="http://www.w3.org/TR/REC-html40/struct/objects.html#adef-border-IMG" form="simple" show="embed" actuate="auto">border attribute definition</loc>in HTML 4.0. This attribute is deprecated in HTML 4.0.</p>
+</descr>
+</attribute>
+<attribute type="DOMString" name="height" id="ID-91561496" readonly="no">
+<descr>
+<p>Override height. See the<loc href="http://www.w3.org/TR/REC-html40/struct/objects.html#adef-height-IMG" form="simple" show="embed" actuate="auto">height attribute definition</loc>in HTML 4.0.</p>
+</descr>
+</attribute>
+<attribute type="DOMString" name="hspace" id="ID-53675471" readonly="no">
+<descr>
+<p>Horizontal space to the left and right of this image. See the<loc href="http://www.w3.org/TR/REC-html40/struct/objects.html#adef-hspace" form="simple" show="embed" actuate="auto">hspace attribute definition</loc>in HTML 4.0. This attribute is deprecated in HTML 4.0.</p>
+</descr>
+</attribute>
+<attribute type="boolean" name="isMap" id="ID-58983880" readonly="no">
+<descr>
+<p>Use server-side image map. See the<loc href="http://www.w3.org/TR/REC-html40/struct/objects.html#adef-ismap" form="simple" show="embed" actuate="auto">ismap attribute definition</loc>in HTML 4.0.</p>
+</descr>
+</attribute>
+<attribute type="DOMString" name="longDesc" id="ID-77376969" readonly="no">
+<descr>
+<p>URI designating a long description of this image or frame. See the<loc href="http://www.w3.org/TR/REC-html40/struct/objects.html#adef-longdesc-IMG" form="simple" show="embed" actuate="auto">longdesc attribute definition</loc>in HTML 4.0.</p>
+</descr>
+</attribute>
+<attribute type="DOMString" name="src" id="ID-87762984" readonly="no">
+<descr>
+<p>URI designating the source of this image. See the<loc href="http://www.w3.org/TR/REC-html40/struct/objects.html#adef-src-IMG" form="simple" show="embed" actuate="auto">src attribute definition</loc>in HTML 4.0.</p>
+</descr>
+</attribute>
+<attribute type="DOMString" name="useMap" id="ID-35981181" readonly="no">
+<descr>
+<p>Use client-side image map. See the<loc href="http://www.w3.org/TR/REC-html40/struct/objects.html#adef-usemap" form="simple" show="embed" actuate="auto">usemap attribute definition</loc>in HTML 4.0.</p>
+</descr>
+</attribute>
+<attribute type="DOMString" name="vspace" id="ID-85374897" readonly="no">
+<descr>
+<p>Vertical space above and below this image. See the<loc href="http://www.w3.org/TR/REC-html40/struct/objects.html#adef-vspace" form="simple" show="embed" actuate="auto">vspace attribute definition</loc>in HTML 4.0. This attribute is deprecated in HTML 4.0.</p>
+</descr>
+</attribute>
+<attribute type="DOMString" name="width" id="ID-13839076" readonly="no">
+<descr>
+<p>Override width. See the<loc href="http://www.w3.org/TR/REC-html40/struct/objects.html#adef-width-IMG" form="simple" show="embed" actuate="auto">width attribute definition</loc>in HTML 4.0.</p>
+</descr>
+</attribute>
+</interface>
+<interface name="HTMLObjectElement" inherits="HTMLElement" id="ID-9893177">
+<descr>
+<p>Generic embedded object.<emph>Note.</emph>In principle, all properties on the object element are read-write but in some environments some properties may be read-only once the underlying object is instantiated. See the<loc href="http://www.w3.org/TR/REC-html40/struct/objects.html#edef-OBJECT" form="simple" show="embed" actuate="auto">OBJECT element definition</loc>in HTML 4.0.</p>
+</descr>
+<attribute readonly="yes" type="HTMLFormElement" name="form" id="ID-46094773">
+<descr>
+<p>Returns the<code>FORM</code>element containing this control. Returns null if this control is not within the context of a form.</p>
+</descr>
+</attribute>
+<attribute type="DOMString" name="code" id="ID-75241146" readonly="no">
+<descr>
+<p>Applet class file. See the<code>code</code>attribute for HTMLAppletElement.</p>
+</descr>
+</attribute>
+<attribute type="DOMString" name="align" id="ID-16962097" readonly="no">
+<descr>
+<p>Aligns this object (vertically or horizontally) with respect to its surrounding text. See the<loc href="http://www.w3.org/TR/REC-html40/struct/objects.html#adef-align-IMG" form="simple" show="embed" actuate="auto">align attribute definition</loc>in HTML 4.0. This attribute is deprecated in HTML 4.0.</p>
+</descr>
+</attribute>
+<attribute type="DOMString" name="archive" id="ID-47783837" readonly="no">
+<descr>
+<p>Space-separated list of archives. See the<loc href="http://www.w3.org/TR/REC-html40/struct/objects.html#adef-archive-OBJECT" form="simple" show="embed" actuate="auto">archive attribute definition</loc>in HTML 4.0.</p>
+</descr>
+</attribute>
+<attribute type="DOMString" name="border" id="ID-82818419" readonly="no">
+<descr>
+<p>Width of border around the object. See the<loc href="http://www.w3.org/TR/REC-html40/struct/objects.html#adef-border" form="simple" show="embed" actuate="auto">border attribute definition</loc>in HTML 4.0. This attribute is deprecated in HTML 4.0.</p>
+</descr>
+</attribute>
+<attribute type="DOMString" name="codeBase" id="ID-25709136" readonly="no">
+<descr>
+<p>Base URI for<code>classid</code>,<code>data</code>, and<code>archive</code>attributes. See the<loc href="http://www.w3.org/TR/REC-html40/struct/objects.html#adef-codebase-OBJECT" form="simple" show="embed" actuate="auto">codebase attribute definition</loc>in HTML 4.0.</p>
+</descr>
+</attribute>
+<attribute type="DOMString" name="codeType" id="ID-19945008" readonly="no">
+<descr>
+<p>Content type for data downloaded via<code>classid</code>attribute. See the<loc href="http://www.w3.org/TR/REC-html40/struct/objects.html#adef-codetype" form="simple" show="embed" actuate="auto">codetype attribute definition</loc>in HTML 4.0.</p>
+</descr>
+</attribute>
+<attribute type="DOMString" name="data" id="ID-81766986" readonly="no">
+<descr>
+<p>A URI specifying the location of the object's data. See the<loc href="http://www.w3.org/TR/REC-html40/struct/objects.html#adef-data" form="simple" show="embed" actuate="auto">data attribute definition</loc>in HTML 4.0.</p>
+</descr>
+</attribute>
+<attribute type="boolean" name="declare" id="ID-942770" readonly="no">
+<descr>
+<p>Declare (for future reference), but do not instantiate, this object. See the<loc href="http://www.w3.org/TR/REC-html40/struct/objects.html#adef-declare" form="simple" show="embed" actuate="auto">declare attribute definition</loc>in HTML 4.0.</p>
+</descr>
+</attribute>
+<attribute type="DOMString" name="height" id="ID-88925838" readonly="no">
+<descr>
+<p>Override height. See the<loc href="http://www.w3.org/TR/REC-html40/struct/objects.html#adef-height-IMG" form="simple" show="embed" actuate="auto">height attribute definition</loc>in HTML 4.0.</p>
+</descr>
+</attribute>
+<attribute type="DOMString" name="hspace" id="ID-17085376" readonly="no">
+<descr>
+<p>Horizontal space to the left and right of this image, applet, or object. See the<loc href="http://www.w3.org/TR/REC-html40/struct/objects.html#adef-hspace" form="simple" show="embed" actuate="auto">hspace attribute definition</loc>in HTML 4.0. This attribute is deprecated in HTML 4.0.</p>
+</descr>
+</attribute>
+<attribute type="DOMString" name="name" id="ID-20110362" readonly="no">
+<descr>
+<p>Form control or object name when submitted with a form. See the<loc href="http://www.w3.org/TR/REC-html40/interact/forms.html#adef-name-INPUT" form="simple" show="embed" actuate="auto">name attribute definition</loc>in HTML 4.0.</p>
+</descr>
+</attribute>
+<attribute type="DOMString" name="standby" id="ID-25039673" readonly="no">
+<descr>
+<p>Message to render while loading the object. See the<loc href="http://www.w3.org/TR/REC-html40/struct/objects.html#adef-standby" form="simple" show="embed" actuate="auto">standby attribute definition</loc>in HTML 4.0.</p>
+</descr>
+</attribute>
+<attribute type="long" name="tabIndex" id="ID-27083787" readonly="no">
+<descr>
+<p>Index that represents the element's position in the tabbing order. See the<loc href="http://www.w3.org/TR/REC-html40/interact/forms.html#adef-tabindex" form="simple" show="embed" actuate="auto">tabindex attribute definition</loc>in HTML 4.0.</p>
+</descr>
+</attribute>
+<attribute type="DOMString" name="type" id="ID-91665621" readonly="no">
+<descr>
+<p>Content type for data downloaded via<code>data</code>attribute. See the<loc href="http://www.w3.org/TR/REC-html40/struct/objects.html#adef-type-OBJECT" form="simple" show="embed" actuate="auto">type attribute definition</loc>in HTML 4.0.</p>
+</descr>
+</attribute>
+<attribute type="DOMString" name="useMap" id="ID-6649772" readonly="no">
+<descr>
+<p>Use client-side image map. See the<loc href="http://www.w3.org/TR/REC-html40/struct/objects.html#adef-usemap" form="simple" show="embed" actuate="auto">usemap attribute definition</loc>in HTML 4.0.</p>
+</descr>
+</attribute>
+<attribute type="DOMString" name="vspace" id="ID-8682483" readonly="no">
+<descr>
+<p>Vertical space above and below this image, applet, or object. See the<loc href="http://www.w3.org/TR/REC-html40/struct/objects.html#adef-vspace" form="simple" show="embed" actuate="auto">vspace attribute definition</loc>in HTML 4.0. This attribute is deprecated in HTML 4.0.</p>
+</descr>
+</attribute>
+<attribute type="DOMString" name="width" id="ID-38538620" readonly="no">
+<descr>
+<p>Override width. See the<loc href="http://www.w3.org/TR/REC-html40/struct/objects.html#adef-width-IMG" form="simple" show="embed" actuate="auto">width attribute definition</loc>in HTML 4.0.</p>
+</descr>
+</attribute>
+</interface>
+<interface name="HTMLParamElement" inherits="HTMLElement" id="ID-64077273">
+<descr>
+<p>Parameters fed to the<code>OBJECT</code>element. See the<loc href="http://www.w3.org/TR/REC-html40/struct/objects.html#edef-PARAM" form="simple" show="embed" actuate="auto">PARAM element definition</loc>in HTML 4.0.</p>
+</descr>
+<attribute type="DOMString" name="name" id="ID-59871447" readonly="no">
+<descr>
+<p>The name of a run-time parameter. See the<loc href="http://www.w3.org/TR/REC-html40/struct/objects.html#adef-name-PARAM" form="simple" show="embed" actuate="auto">name attribute definition</loc>in HTML 4.0.</p>
+</descr>
+</attribute>
+<attribute type="DOMString" name="type" id="ID-18179888" readonly="no">
+<descr>
+<p>Content type for the<code>value</code>attribute when<code>valuetype</code>has the value "ref". See the<loc href="http://www.w3.org/TR/REC-html40/struct/objects.html#adef-type-PARAM" form="simple" show="embed" actuate="auto">type attribute definition</loc>in HTML 4.0.</p>
+</descr>
+</attribute>
+<attribute type="DOMString" name="value" id="ID-77971357" readonly="no">
+<descr>
+<p>The value of a run-time parameter. See the<loc href="http://www.w3.org/TR/REC-html40/struct/objects.html#adef-value-PARAM" form="simple" show="embed" actuate="auto">value attribute definition</loc>in HTML 4.0.</p>
+</descr>
+</attribute>
+<attribute type="DOMString" name="valueType" id="ID-23931872" readonly="no">
+<descr>
+<p>Information about the meaning of the<code>value</code>attribute value. See the<loc href="http://www.w3.org/TR/REC-html40/struct/objects.html#adef-valuetype" form="simple" show="embed" actuate="auto">valuetype attribute definition</loc>in HTML 4.0.</p>
+</descr>
+</attribute>
+</interface>
+<interface name="HTMLAppletElement" inherits="HTMLElement" id="ID-31006348">
+<descr>
+<p>An embedded Java applet. See the<loc href="http://www.w3.org/TR/REC-html40/struct/objects.html#edef-APPLET" form="simple" show="embed" actuate="auto">APPLET element definition</loc>in HTML 4.0. This element is deprecated in HTML 4.0.</p>
+</descr>
+<attribute type="DOMString" name="align" id="ID-8049912" readonly="no">
+<descr>
+<p>Aligns this object (vertically or horizontally) with respect to its surrounding text. See the<loc href="http://www.w3.org/TR/REC-html40/struct/objects.html#adef-align-IMG" form="simple" show="embed" actuate="auto">align attribute definition</loc>in HTML 4.0. This attribute is deprecated in HTML 4.0.</p>
+</descr>
+</attribute>
+<attribute type="DOMString" name="alt" id="ID-58610064" readonly="no">
+<descr>
+<p>Alternate text for user agents not rendering the normal content of this element. See the<loc href="http://www.w3.org/TR/REC-html40/struct/objects.html#adef-alt" form="simple" show="embed" actuate="auto">alt attribute definition</loc>in HTML 4.0. This attribute is deprecated in HTML 4.0.</p>
+</descr>
+</attribute>
+<attribute type="DOMString" name="archive" id="ID-14476360" readonly="no">
+<descr>
+<p>Comma-separated archive list. See the<loc href="http://www.w3.org/TR/REC-html40/struct/objects.html#adef-archive-APPLET" form="simple" show="embed" actuate="auto">archive attribute definition</loc>in HTML 4.0. This attribute is deprecated in HTML 4.0.</p>
+</descr>
+</attribute>
+<attribute type="DOMString" name="code" id="ID-61509645" readonly="no">
+<descr>
+<p>Applet class file. See the<loc href="http://www.w3.org/TR/REC-html40/struct/objects.html#adef-code" form="simple" show="embed" actuate="auto">code attribute definition</loc>in HTML 4.0. This attribute is deprecated in HTML 4.0.</p>
+</descr>
+</attribute>
+<attribute type="DOMString" name="codeBase" id="ID-6581160" readonly="no">
+<descr>
+<p>Optional base URI for applet. See the<loc href="http://www.w3.org/TR/REC-html40/struct/objects.html#adef-codebase-APPLET" form="simple" show="embed" actuate="auto">codebase attribute definition</loc>in HTML 4.0. This attribute is deprecated in HTML 4.0.</p>
+</descr>
+</attribute>
+<attribute type="DOMString" name="height" id="ID-90184867" readonly="no">
+<descr>
+<p>Override height. See the<loc href="http://www.w3.org/TR/REC-html40/struct/objects.html#adef-height-APPLET" form="simple" show="embed" actuate="auto">height attribute definition</loc>in HTML 4.0. This attribute is deprecated in HTML 4.0.</p>
+</descr>
+</attribute>
+<attribute type="DOMString" name="hspace" id="ID-1567197" readonly="no">
+<descr>
+<p>Horizontal space to the left and right of this image, applet, or object. See the<loc href="http://www.w3.org/TR/REC-html40/struct/objects.html#adef-hspace" form="simple" show="embed" actuate="auto">hspace attribute definition</loc>in HTML 4.0. This attribute is deprecated in HTML 4.0.</p>
+</descr>
+</attribute>
+<attribute type="DOMString" name="name" id="ID-39843695" readonly="no">
+<descr>
+<p>The name of the applet. See the<loc href="http://www.w3.org/TR/REC-html40/struct/objects.html#adef-name-APPLET" form="simple" show="embed" actuate="auto">name attribute definition</loc>in HTML 4.0. This attribute is deprecated in HTML 4.0.</p>
+</descr>
+</attribute>
+<attribute type="DOMString" name="object" id="ID-93681523" readonly="no">
+<descr>
+<p>Serialized applet file. See the<loc href="http://www.w3.org/TR/REC-html40/struct/objects.html#adef-object" form="simple" show="embed" actuate="auto">object attribute definition</loc>in HTML 4.0. This attribute is deprecated in HTML 4.0.</p>
+</descr>
+</attribute>
+<attribute type="DOMString" name="vspace" id="ID-22637173" readonly="no">
+<descr>
+<p>Vertical space above and below this image, applet, or object. See the<loc href="http://www.w3.org/TR/REC-html40/struct/objects.html#adef-vspace" form="simple" show="embed" actuate="auto">vspace attribute definition</loc>in HTML 4.0. This attribute is deprecated in HTML 4.0.</p>
+</descr>
+</attribute>
+<attribute type="DOMString" name="width" id="ID-16526327" readonly="no">
+<descr>
+<p>Override width. See the<loc href="http://www.w3.org/TR/REC-html40/struct/objects.html#adef-width-APPLET" form="simple" show="embed" actuate="auto">width attribute definition</loc>in HTML 4.0. This attribute is deprecated in HTML 4.0.</p>
+</descr>
+</attribute>
+</interface>
+<interface name="HTMLMapElement" inherits="HTMLElement" id="ID-94109203">
+<descr>
+<p>Client-side image map. See the<loc href="http://www.w3.org/TR/REC-html40/struct/objects.html#edef-MAP" form="simple" show="embed" actuate="auto">MAP element definition</loc>in HTML 4.0.</p>
+</descr>
+<attribute readonly="yes" type="HTMLCollection" name="areas" id="ID-71838730">
+<descr>
+<p>The list of areas defined for the image map.</p>
+</descr>
+</attribute>
+<attribute type="DOMString" name="name" id="ID-52696514" readonly="no">
+<descr>
+<p>Names the map (for use with<code>usemap</code>). See the<loc href="http://www.w3.org/TR/REC-html40/struct/objects.html#adef-name-MAP" form="simple" show="embed" actuate="auto">name attribute definition</loc>in HTML 4.0.</p>
+</descr>
+</attribute>
+</interface>
+<interface name="HTMLAreaElement" inherits="HTMLElement" id="ID-26019118">
+<descr>
+<p>Client-side image map area definition. See the<loc href="http://www.w3.org/TR/REC-html40/struct/objects.html#edef-AREA" form="simple" show="embed" actuate="auto">AREA element definition</loc>in HTML 4.0.</p>
+</descr>
+<attribute type="DOMString" name="accessKey" id="ID-57944457" readonly="no">
+<descr>
+<p>A single character access key to give access to the form control. See the<loc href="http://www.w3.org/TR/REC-html40/interact/forms.html#adef-accesskey" form="simple" show="embed" actuate="auto">accesskey attribute definition</loc>in HTML 4.0.</p>
+</descr>
+</attribute>
+<attribute type="DOMString" name="alt" id="ID-39775416" readonly="no">
+<descr>
+<p>Alternate text for user agents not rendering the normal content of this element. See the<loc href="http://www.w3.org/TR/REC-html40/struct/objects.html#adef-alt" form="simple" show="embed" actuate="auto">alt attribute definition</loc>in HTML 4.0.</p>
+</descr>
+</attribute>
+<attribute type="DOMString" name="coords" id="ID-66021476" readonly="no">
+<descr>
+<p>Comma-separated list of lengths, defining an active region geometry. See also<code>shape</code>for the shape of the region. See the<loc href="http://www.w3.org/TR/REC-html40/struct/objects.html#adef-coords" form="simple" show="embed" actuate="auto">coords attribute definition</loc>in HTML 4.0.</p>
+</descr>
+</attribute>
+<attribute type="DOMString" name="href" id="ID-34672936" readonly="no">
+<descr>
+<p>The URI of the linked resource. See the<loc href="http://www.w3.org/TR/REC-html40/struct/links.html#adef-href" form="simple" show="embed" actuate="auto">href attribute definition</loc>in HTML 4.0.</p>
+</descr>
+</attribute>
+<attribute type="boolean" name="noHref" id="ID-61826871" readonly="no">
+<descr>
+<p>Specifies that this area is inactive, i.e., has no associated action. See the<loc href="http://www.w3.org/TR/REC-html40/struct/objects.html#adef-nohref" form="simple" show="embed" actuate="auto">nohref attribute definition</loc>in HTML 4.0.</p>
+</descr>
+</attribute>
+<attribute type="DOMString" name="shape" id="ID-85683271" readonly="no">
+<descr>
+<p>The shape of the active area. The coordinates are given by<code>coords</code>. See the<loc href="http://www.w3.org/TR/REC-html40/struct/objects.html#adef-shape" form="simple" show="embed" actuate="auto">shape attribute definition</loc>in HTML 4.0.</p>
+</descr>
+</attribute>
+<attribute type="long" name="tabIndex" id="ID-8722121" readonly="no">
+<descr>
+<p>Index that represents the element's position in the tabbing order. See the<loc href="http://www.w3.org/TR/REC-html40/interact/forms.html#adef-tabindex" form="simple" show="embed" actuate="auto">tabindex attribute definition</loc>in HTML 4.0.</p>
+</descr>
+</attribute>
+<attribute type="DOMString" name="target" id="ID-46054682" readonly="no">
+<descr>
+<p>Frame to render the resource in. See the<loc href="http://www.w3.org/TR/REC-html40/present/frames.html#adef-target" form="simple" show="embed" actuate="auto">target attribute definition</loc>in HTML 4.0.</p>
+</descr>
+</attribute>
+</interface>
+<interface name="HTMLScriptElement" inherits="HTMLElement" id="ID-81598695">
+<descr>
+<p>Script statements. See the<loc href="http://www.w3.org/TR/REC-html40/interact/scripts.html#edef-SCRIPT" form="simple" show="embed" actuate="auto">SCRIPT element definition</loc>in HTML 4.0.</p>
+</descr>
+<attribute type="DOMString" name="text" id="ID-46872999" readonly="no">
+<descr>
+<p>The script content of the element.</p>
+</descr>
+</attribute>
+<attribute type="DOMString" name="htmlFor" id="ID-66979266" readonly="no">
+<descr>
+<p>
+<emph>Reserved for future use.</emph>
+</p>
+</descr>
+</attribute>
+<attribute type="DOMString" name="event" id="ID-56700403" readonly="no">
+<descr>
+<p>
+<emph>Reserved for future use.</emph>
+</p>
+</descr>
+</attribute>
+<attribute type="DOMString" name="charset" id="ID-35305677" readonly="no">
+<descr>
+<p>The character encoding of the linked resource. See the<loc href="http://www.w3.org/TR/REC-html40/struct/links.html#adef-charset" form="simple" show="embed" actuate="auto">charset attribute definition</loc>in HTML 4.0.</p>
+</descr>
+</attribute>
+<attribute type="boolean" name="defer" id="ID-93788534" readonly="no">
+<descr>
+<p>Indicates that the user agent can defer processing of the script. See the<loc href="http://www.w3.org/TR/REC-html40/interact/scripts.html#adef-defer" form="simple" show="embed" actuate="auto">defer attribute definition</loc>in HTML 4.0.</p>
+</descr>
+</attribute>
+<attribute type="DOMString" name="src" id="ID-75147231" readonly="no">
+<descr>
+<p>URI designating an external script. See the<loc href="http://www.w3.org/TR/REC-html40/interact/scripts.html#adef-src-SCRIPT" form="simple" show="embed" actuate="auto">src attribute definition</loc>in HTML 4.0.</p>
+</descr>
+</attribute>
+<attribute type="DOMString" name="type" id="ID-30534818" readonly="no">
+<descr>
+<p>The content type of the script language. See the<loc href="http://www.w3.org/TR/REC-html40/interact/scripts.html#adef-type-SCRIPT" form="simple" show="embed" actuate="auto">type attribute definition</loc>in HTML 4.0.</p>
+</descr>
+</attribute>
+</interface>
+<interface name="HTMLTableElement" inherits="HTMLElement" id="ID-64060425">
+<descr>
+<p>The create* and delete* methods on the table allow authors to construct and modify tables. HTML 4.0 specifies that only one of each of the<code>CAPTION</code>,<code>THEAD</code>, and<code>TFOOT</code>elements may exist in a table. Therefore, if one exists, and the createTHead() or createTFoot() method is called, the method returns the existing THead or TFoot element. See the<loc href="http://www.w3.org/TR/REC-html40/struct/tables.html#edef-TABLE" form="simple" show="embed" actuate="auto">TABLE element definition</loc>in HTML 4.0.</p>
+</descr>
+<attribute type="HTMLTableCaptionElement" name="caption" id="ID-14594520" readonly="no">
+<descr>
+<p>Returns the table's<code>CAPTION</code>, or void if none exists.</p>
+</descr>
+</attribute>
+<attribute type="HTMLTableSectionElement" name="tHead" id="ID-9530944" readonly="no">
+<descr>
+<p>Returns the table's<code>THEAD</code>, or<code>null</code>if none exists.</p>
+</descr>
+</attribute>
+<attribute type="HTMLTableSectionElement" name="tFoot" id="ID-64197097" readonly="no">
+<descr>
+<p>Returns the table's<code>TFOOT</code>, or<code>null</code>if none exists.</p>
+</descr>
+</attribute>
+<attribute readonly="yes" type="HTMLCollection" name="rows" id="ID-6156016">
+<descr>
+<p>Returns a collection of all the rows in the table, including all in<code>THEAD</code>,<code>TFOOT</code>, all<code>TBODY</code>elements.</p>
+</descr>
+</attribute>
+<attribute readonly="yes" type="HTMLCollection" name="tBodies" id="ID-63206416">
+<descr>
+<p>Returns a collection of the defined table bodies.</p>
+</descr>
+</attribute>
+<attribute type="DOMString" name="align" id="ID-23180977" readonly="no">
+<descr>
+<p>Specifies the table's position with respect to the rest of the document. See the<loc href="http://www.w3.org/TR/REC-html40/struct/tables.html#adef-align-TABLE" form="simple" show="embed" actuate="auto">align attribute definition</loc>in HTML 4.0. This attribute is deprecated in HTML 4.0.</p>
+</descr>
+</attribute>
+<attribute type="DOMString" name="bgColor" id="ID-83532985" readonly="no">
+<descr>
+<p>Cell background color. See the<loc href="http://www.w3.org/TR/REC-html40/present/graphics.html#adef-bgcolor" form="simple" show="embed" actuate="auto">bgcolor attribute definition</loc>in HTML 4.0. This attribute is deprecated in HTML 4.0.</p>
+</descr>
+</attribute>
+<attribute type="DOMString" name="border" id="ID-50969400" readonly="no">
+<descr>
+<p>The width of the border around the table. See the<loc href="http://www.w3.org/TR/REC-html40/struct/tables.html#adef-border-TABLE" form="simple" show="embed" actuate="auto">border attribute definition</loc>in HTML 4.0.</p>
+</descr>
+</attribute>
+<attribute type="DOMString" name="cellPadding" id="ID-59162158" readonly="no">
+<descr>
+<p>Specifies the horizontal and vertical space between cell content and cell borders. See the<loc href="http://www.w3.org/TR/REC-html40/struct/tables.html#adef-cellpadding" form="simple" show="embed" actuate="auto">cellpadding attribute definition</loc>in HTML 4.0.</p>
+</descr>
+</attribute>
+<attribute type="DOMString" name="cellSpacing" id="ID-68907883" readonly="no">
+<descr>
+<p>Specifies the horizontal and vertical separation between cells. See the<loc href="http://www.w3.org/TR/REC-html40/struct/tables.html#adef-cellspacing" form="simple" show="embed" actuate="auto">cellspacing attribute definition</loc>in HTML 4.0.</p>
+</descr>
+</attribute>
+<attribute type="DOMString" name="frame" id="ID-64808476" readonly="no">
+<descr>
+<p>Specifies which external table borders to render. See the<loc href="http://www.w3.org/TR/REC-html40/struct/tables.html#adef-frame" form="simple" show="embed" actuate="auto">frame attribute definition</loc>in HTML 4.0.</p>
+</descr>
+</attribute>
+<attribute type="DOMString" name="rules" id="ID-26347553" readonly="no">
+<descr>
+<p>Specifies which internal table borders to render. See the<loc href="http://www.w3.org/TR/REC-html40/struct/tables.html#adef-rules" form="simple" show="embed" actuate="auto">rules attribute definition</loc>in HTML 4.0.</p>
+</descr>
+</attribute>
+<attribute type="DOMString" name="summary" id="ID-44998528" readonly="no">
+<descr>
+<p>Supplementary description about the purpose or structure of a table. See the<loc href="http://www.w3.org/TR/REC-html40/struct/tables.html#adef-summary" form="simple" show="embed" actuate="auto">summary attribute definition</loc>in HTML 4.0.</p>
+</descr>
+</attribute>
+<attribute type="DOMString" name="width" id="ID-77447361" readonly="no">
+<descr>
+<p>Specifies the desired table width. See the<loc href="http://www.w3.org/TR/REC-html40/struct/tables.html#adef-width-TABLE" form="simple" show="embed" actuate="auto">width attribute definition</loc>in HTML 4.0.</p>
+</descr>
+</attribute>
+<method name="createTHead" id="ID-70313345">
+<descr>
+<p>Create a table header row or return an existing one.</p>
+</descr>
+<parameters/>
+<returns type="HTMLElement">
+<descr>
+<p>A new table header element (<code>THEAD</code>).</p>
+</descr>
+</returns>
+<raises/>
+</method>
+<method name="deleteTHead" id="ID-38310198">
+<descr>
+<p>Delete the header from the table, if one exists.</p>
+</descr>
+<parameters/>
+<returns type="void">
+<descr>
+<p/>
+</descr>
+</returns>
+<raises/>
+</method>
+<method name="createTFoot" id="ID-8453710">
+<descr>
+<p>Create a table footer row or return an existing one.</p>
+</descr>
+<parameters/>
+<returns type="HTMLElement">
+<descr>
+<p>A footer element (<code>TFOOT</code>).</p>
+</descr>
+</returns>
+<raises/>
+</method>
+<method name="deleteTFoot" id="ID-78363258">
+<descr>
+<p>Delete the footer from the table, if one exists.</p>
+</descr>
+<parameters/>
+<returns type="void">
+<descr>
+<p/>
+</descr>
+</returns>
+<raises/>
+</method>
+<method name="createCaption" id="ID-96920263">
+<descr>
+<p>Create a new table caption object or return an existing one.</p>
+</descr>
+<parameters/>
+<returns type="HTMLElement">
+<descr>
+<p>A<code>CAPTION</code>element.</p>
+</descr>
+</returns>
+<raises/>
+</method>
+<method name="deleteCaption" id="ID-22930071">
+<descr>
+<p>Delete the table caption, if one exists.</p>
+</descr>
+<parameters/>
+<returns type="void">
+<descr>
+<p/>
+</descr>
+</returns>
+<raises/>
+</method>
+<method name="insertRow" id="ID-39872903">
+<descr>
+<p>Insert a new empty row in the table.<emph>Note.</emph>A table row cannot be empty according to HTML 4.0 Recommendation.</p>
+</descr>
+<parameters>
+<param id="ID-3501423" name="index" type="long" attr="in">
+<descr>
+<p>The row number where to insert a new row.</p>
+</descr>
+</param>
+</parameters>
+<returns type="HTMLElement">
+<descr>
+<p>The newly created row.</p>
+</descr>
+</returns>
+<raises/>
+</method>
+<method name="deleteRow" id="ID-13114938">
+<descr>
+<p>Delete a table row.</p>
+</descr>
+<parameters>
+<param id="ID-41440100" name="index" type="long" attr="in">
+<descr>
+<p>The index of the row to be deleted.</p>
+</descr>
+</param>
+</parameters>
+<returns type="void">
+<descr>
+<p/>
+</descr>
+</returns>
+<raises/>
+</method>
+</interface>
+<interface name="HTMLTableCaptionElement" inherits="HTMLElement" id="ID-12035137">
+<descr>
+<p>Table caption See the<loc href="http://www.w3.org/TR/REC-html40/struct/tables.html#edef-CAPTION" form="simple" show="embed" actuate="auto">CAPTION element definition</loc>in HTML 4.0.</p>
+</descr>
+<attribute type="DOMString" name="align" id="ID-79875068" readonly="no">
+<descr>
+<p>Caption alignment with respect to the table. See the<loc href="http://www.w3.org/TR/REC-html40/struct/tables.html#adef-align-CAPTION" form="simple" show="embed" actuate="auto">align attribute definition</loc>in HTML 4.0. This attribute is deprecated in HTML 4.0.</p>
+</descr>
+</attribute>
+</interface>
+<interface name="HTMLTableColElement" inherits="HTMLElement" id="ID-84150186">
+<descr>
+<p>Regroups the<code>COL</code>and<code>COLGROUP</code>elements. See the<loc href="http://www.w3.org/TR/REC-html40/struct/tables.html#edef-COL" form="simple" show="embed" actuate="auto">COL element definition</loc>in HTML 4.0.</p>
+</descr>
+<attribute type="DOMString" name="align" id="ID-31128447" readonly="no">
+<descr>
+<p>Horizontal alignment of cell data in column. See the<loc href="http://www.w3.org/TR/REC-html40/struct/tables.html#adef-align-TD" form="simple" show="embed" actuate="auto">align attribute definition</loc>in HTML 4.0.</p>
+</descr>
+</attribute>
+<attribute type="DOMString" name="ch" id="ID-9447412" readonly="no">
+<descr>
+<p>Alignment character for cells in a column. See the<loc href="http://www.w3.org/TR/REC-html40/struct/tables.html#adef-char" form="simple" show="embed" actuate="auto">char attribute definition</loc>in HTML 4.0.</p>
+</descr>
+</attribute>
+<attribute type="DOMString" name="chOff" id="ID-57779225" readonly="no">
+<descr>
+<p>Offset of alignment character. See the<loc href="http://www.w3.org/TR/REC-html40/struct/tables.html#adef-charoff" form="simple" show="embed" actuate="auto">charoff attribute definition</loc>in HTML 4.0.</p>
+</descr>
+</attribute>
+<attribute type="long" name="span" id="ID-96511335" readonly="no">
+<descr>
+<p>Indicates the number of columns in a group or affected by a grouping. See the<loc href="http://www.w3.org/TR/REC-html40/struct/tables.html#adef-span-COL" form="simple" show="embed" actuate="auto">span attribute definition</loc>in HTML 4.0.</p>
+</descr>
+</attribute>
+<attribute type="DOMString" name="vAlign" id="ID-83291710" readonly="no">
+<descr>
+<p>Vertical alignment of cell data in column. See the<loc href="http://www.w3.org/TR/REC-html40/struct/tables.html#adef-valign" form="simple" show="embed" actuate="auto">valign attribute definition</loc>in HTML 4.0.</p>
+</descr>
+</attribute>
+<attribute type="DOMString" name="width" id="ID-25196799" readonly="no">
+<descr>
+<p>Default column width. See the<loc href="http://www.w3.org/TR/REC-html40/struct/tables.html#adef-width-COL" form="simple" show="embed" actuate="auto">width attribute definition</loc>in HTML 4.0.</p>
+</descr>
+</attribute>
+</interface>
+<interface name="HTMLTableSectionElement" inherits="HTMLElement" id="ID-67417573">
+<descr>
+<p>The<code>THEAD</code>,<code>TFOOT</code>, and<code>TBODY</code>elements.</p>
+</descr>
+<attribute type="DOMString" name="align" id="ID-40530119" readonly="no">
+<descr>
+<p>Horizontal alignment of data in cells. See the<code>align</code>attribute for HTMLTheadElement for details.</p>
+</descr>
+</attribute>
+<attribute type="DOMString" name="ch" id="ID-83470012" readonly="no">
+<descr>
+<p>Alignment character for cells in a column. See the<loc href="http://www.w3.org/TR/REC-html40/struct/tables.html#adef-char" form="simple" show="embed" actuate="auto">char attribute definition</loc>in HTML 4.0.</p>
+</descr>
+</attribute>
+<attribute type="DOMString" name="chOff" id="ID-53459732" readonly="no">
+<descr>
+<p>Offset of alignment character. See the<loc href="http://www.w3.org/TR/REC-html40/struct/tables.html#adef-charoff" form="simple" show="embed" actuate="auto">charoff attribute definition</loc>in HTML 4.0.</p>
+</descr>
+</attribute>
+<attribute type="DOMString" name="vAlign" id="ID-4379116" readonly="no">
+<descr>
+<p>Vertical alignment of data in cells. See the<code>valign</code>attribute for HTMLTheadElement for details.</p>
+</descr>
+</attribute>
+<attribute readonly="yes" type="HTMLCollection" name="rows" id="ID-52092650">
+<descr>
+<p>The collection of rows in this table section.</p>
+</descr>
+</attribute>
+<method name="insertRow" id="ID-93995626">
+<descr>
+<p>Insert a row into this section.</p>
+</descr>
+<parameters>
+<param id="ID-48322963" name="index" type="long" attr="in">
+<descr>
+<p>The row number where to insert a new row.</p>
+</descr>
+</param>
+</parameters>
+<returns type="HTMLElement">
+<descr>
+<p>The newly created row.</p>
+</descr>
+</returns>
+<raises/>
+</method>
+<method name="deleteRow" id="ID-5625626">
+<descr>
+<p>Delete a row from this section.</p>
+</descr>
+<parameters>
+<param id="ID-49711281" name="index" type="long" attr="in">
+<descr>
+<p>The index of the row to be deleted.</p>
+</descr>
+</param>
+</parameters>
+<returns type="void">
+<descr>
+<p/>
+</descr>
+</returns>
+<raises/>
+</method>
+</interface>
+<interface name="HTMLTableRowElement" inherits="HTMLElement" id="ID-6986576">
+<descr>
+<p>A row in a table. See the<loc href="http://www.w3.org/TR/REC-html40/struct/tables.html#edef-TR" form="simple" show="embed" actuate="auto">TR element definition</loc>in HTML 4.0.</p>
+</descr>
+<attribute type="long" name="rowIndex" id="ID-67347567" readonly="no">
+<descr>
+<p>The index of this row, relative to the entire table.</p>
+</descr>
+</attribute>
+<attribute type="long" name="sectionRowIndex" id="ID-79105901" readonly="no">
+<descr>
+<p>The index of this row, relative to the current section (<code>THEAD</code>,<code>TFOOT</code>, or<code>TBODY</code>).</p>
+</descr>
+</attribute>
+<attribute type="HTMLCollection" name="cells" id="ID-67349879" readonly="no">
+<descr>
+<p>The collection of cells in this row.</p>
+</descr>
+</attribute>
+<attribute type="DOMString" name="align" id="ID-74098257" readonly="no">
+<descr>
+<p>Horizontal alignment of data within cells of this row. See the<loc href="http://www.w3.org/TR/REC-html40/struct/tables.html#adef-align-TD" form="simple" show="embed" actuate="auto">align attribute definition</loc>in HTML 4.0.</p>
+</descr>
+</attribute>
+<attribute type="DOMString" name="bgColor" id="ID-18161327" readonly="no">
+<descr>
+<p>Background color for rows. See the<loc href="http://www.w3.org/TR/REC-html40/present/graphics.html#adef-bgcolor" form="simple" show="embed" actuate="auto">bgcolor attribute definition</loc>in HTML 4.0. This attribute is deprecated in HTML 4.0.</p>
+</descr>
+</attribute>
+<attribute type="DOMString" name="ch" id="ID-16230502" readonly="no">
+<descr>
+<p>Alignment character for cells in a column. See the<loc href="http://www.w3.org/TR/REC-html40/struct/tables.html#adef-char" form="simple" show="embed" actuate="auto">char attribute definition</loc>in HTML 4.0.</p>
+</descr>
+</attribute>
+<attribute type="DOMString" name="chOff" id="ID-68207461" readonly="no">
+<descr>
+<p>Offset of alignment character. See the<loc href="http://www.w3.org/TR/REC-html40/struct/tables.html#adef-charoff" form="simple" show="embed" actuate="auto">charoff attribute definition</loc>in HTML 4.0.</p>
+</descr>
+</attribute>
+<attribute type="DOMString" name="vAlign" id="ID-90000058" readonly="no">
+<descr>
+<p>Vertical alignment of data within cells of this row. See the<loc href="http://www.w3.org/TR/REC-html40/struct/tables.html#adef-valign" form="simple" show="embed" actuate="auto">valign attribute definition</loc>in HTML 4.0.</p>
+</descr>
+</attribute>
+<method name="insertCell" id="ID-68927016">
+<descr>
+<p>Insert an empty<code>TD</code>cell into this row.</p>
+</descr>
+<parameters>
+<param id="ID-20576436" name="index" type="long" attr="in">
+<descr>
+<p>The place to insert the cell.</p>
+</descr>
+</param>
+</parameters>
+<returns type="HTMLElement">
+<descr>
+<p>The newly created cell.</p>
+</descr>
+</returns>
+<raises/>
+</method>
+<method name="deleteCell" id="ID-11738598">
+<descr>
+<p>Delete a cell from the current row.</p>
+</descr>
+<parameters>
+<param id="ID-63209996" name="index" type="long" attr="in">
+<descr>
+<p>The index of the cell to delete.</p>
+</descr>
+</param>
+</parameters>
+<returns type="void">
+<descr>
+<p/>
+</descr>
+</returns>
+<raises/>
+</method>
+</interface>
+<interface name="HTMLTableCellElement" inherits="HTMLElement" id="ID-82915075">
+<descr>
+<p>The object used to represent the<code>TH</code>and<code>TD</code>elements. See the<loc href="http://www.w3.org/TR/REC-html40/struct/tables.html#edef-TD" form="simple" show="embed" actuate="auto">TD element definition</loc>in HTML 4.0.</p>
+</descr>
+<attribute type="long" name="cellIndex" id="ID-80748363" readonly="no">
+<descr>
+<p>The index of this cell in the row.</p>
+</descr>
+</attribute>
+<attribute type="DOMString" name="abbr" id="ID-74444037" readonly="no">
+<descr>
+<p>Abbreviation for header cells. See the<loc href="http://www.w3.org/TR/REC-html40/struct/tables.html#adef-abbr" form="simple" show="embed" actuate="auto">abbr attribute definition</loc>in HTML 4.0.</p>
+</descr>
+</attribute>
+<attribute type="DOMString" name="align" id="ID-98433879" readonly="no">
+<descr>
+<p>Horizontal alignment of data in cell. See the<loc href="http://www.w3.org/TR/REC-html40/struct/tables.html#adef-align-TD" form="simple" show="embed" actuate="auto">align attribute definition</loc>in HTML 4.0.</p>
+</descr>
+</attribute>
+<attribute type="DOMString" name="axis" id="ID-76554418" readonly="no">
+<descr>
+<p>Names group of related headers. See the<loc href="http://www.w3.org/TR/REC-html40/struct/tables.html#adef-axis" form="simple" show="embed" actuate="auto">axis attribute definition</loc>in HTML 4.0.</p>
+</descr>
+</attribute>
+<attribute type="DOMString" name="bgColor" id="ID-88135431" readonly="no">
+<descr>
+<p>Cell background color. See the<loc href="http://www.w3.org/TR/REC-html40/present/graphics.html#adef-bgcolor" form="simple" show="embed" actuate="auto">bgcolor attribute definition</loc>in HTML 4.0. This attribute is deprecated in HTML 4.0.</p>
+</descr>
+</attribute>
+<attribute type="DOMString" name="ch" id="ID-30914780" readonly="no">
+<descr>
+<p>Alignment character for cells in a column. See the<loc href="http://www.w3.org/TR/REC-html40/struct/tables.html#adef-char" form="simple" show="embed" actuate="auto">char attribute definition</loc>in HTML 4.0.</p>
+</descr>
+</attribute>
+<attribute type="DOMString" name="chOff" id="ID-20144310" readonly="no">
+<descr>
+<p>Offset of alignment character. See the<loc href="http://www.w3.org/TR/REC-html40/struct/tables.html#adef-charoff" form="simple" show="embed" actuate="auto">charoff attribute definition</loc>in HTML 4.0.</p>
+</descr>
+</attribute>
+<attribute type="long" name="colSpan" id="ID-84645244" readonly="no">
+<descr>
+<p>Number of columns spanned by cell. See the<loc href="http://www.w3.org/TR/REC-html40/struct/tables.html#adef-colspan" form="simple" show="embed" actuate="auto">colspan attribute definition</loc>in HTML 4.0.</p>
+</descr>
+</attribute>
+<attribute type="DOMString" name="headers" id="ID-89104817" readonly="no">
+<descr>
+<p>List of<code>id</code>attribute values for header cells. See the<loc href="http://www.w3.org/TR/REC-html40/struct/tables.html#adef-headers" form="simple" show="embed" actuate="auto">headers attribute definition</loc>in HTML 4.0.</p>
+</descr>
+</attribute>
+<attribute type="DOMString" name="height" id="ID-83679212" readonly="no">
+<descr>
+<p>Cell height. See the<loc href="http://www.w3.org/TR/REC-html40/struct/tables.html#adef-height-TH" form="simple" show="embed" actuate="auto">height attribute definition</loc>in HTML 4.0. This attribute is deprecated in HTML 4.0.</p>
+</descr>
+</attribute>
+<attribute type="boolean" name="noWrap" id="ID-62922045" readonly="no">
+<descr>
+<p>Suppress word wrapping. See the<loc href="http://www.w3.org/TR/REC-html40/struct/tables.html#adef-nowrap" form="simple" show="embed" actuate="auto">nowrap attribute definition</loc>in HTML 4.0. This attribute is deprecated in HTML 4.0.</p>
+</descr>
+</attribute>
+<attribute type="long" name="rowSpan" id="ID-48237625" readonly="no">
+<descr>
+<p>Number of rows spanned by cell. See the<loc href="http://www.w3.org/TR/REC-html40/struct/tables.html#adef-rowspan" form="simple" show="embed" actuate="auto">rowspan attribute definition</loc>in HTML 4.0.</p>
+</descr>
+</attribute>
+<attribute type="DOMString" name="scope" id="ID-36139952" readonly="no">
+<descr>
+<p>Scope covered by header cells. See the<loc href="http://www.w3.org/TR/REC-html40/struct/tables.html#adef-scope" form="simple" show="embed" actuate="auto">scope attribute definition</loc>in HTML 4.0.</p>
+</descr>
+</attribute>
+<attribute type="DOMString" name="vAlign" id="ID-58284221" readonly="no">
+<descr>
+<p>Vertical alignment of data in cell. See the<loc href="http://www.w3.org/TR/REC-html40/struct/tables.html#adef-valign" form="simple" show="embed" actuate="auto">valign attribute definition</loc>in HTML 4.0.</p>
+</descr>
+</attribute>
+<attribute type="DOMString" name="width" id="ID-27480795" readonly="no">
+<descr>
+<p>Cell width. See the<loc href="http://www.w3.org/TR/REC-html40/struct/tables.html#adef-width-TH" form="simple" show="embed" actuate="auto">width attribute definition</loc>in HTML 4.0. This attribute is deprecated in HTML 4.0.</p>
+</descr>
+</attribute>
+</interface>
+<interface name="HTMLFrameSetElement" inherits="HTMLElement" id="ID-43829095">
+<descr>
+<p>Create a grid of frames. See the<loc href="http://www.w3.org/TR/REC-html40/present/frames.html#edef-FRAMESET" form="simple" show="embed" actuate="auto">FRAMESET element definition</loc>in HTML 4.0.</p>
+</descr>
+<attribute type="DOMString" name="cols" id="ID-98869594" readonly="no">
+<descr>
+<p>The number of columns of frames in the frameset. See the<loc href="http://www.w3.org/TR/REC-html40/present/frames.html#adef-cols-FRAMESET" form="simple" show="embed" actuate="auto">cols attribute definition</loc>in HTML 4.0.</p>
+</descr>
+</attribute>
+<attribute type="DOMString" name="rows" id="ID-19739247" readonly="no">
+<descr>
+<p>The number of rows of frames in the frameset. See the<loc href="http://www.w3.org/TR/REC-html40/present/frames.html#adef-rows-FRAMESET" form="simple" show="embed" actuate="auto">rows attribute definition</loc>in HTML 4.0.</p>
+</descr>
+</attribute>
+</interface>
+<interface name="HTMLFrameElement" inherits="HTMLElement" id="ID-97790553">
+<descr>
+<p>Create a frame. See the<loc href="http://www.w3.org/TR/REC-html40/present/frames.html#edef-FRAME" form="simple" show="embed" actuate="auto">FRAME element definition</loc>in HTML 4.0.</p>
+</descr>
+<attribute type="DOMString" name="frameBorder" id="ID-11858633" readonly="no">
+<descr>
+<p>Request frame borders. See the<loc href="http://www.w3.org/TR/REC-html40/present/frames.html#adef-frameborder" form="simple" show="embed" actuate="auto">frameborder attribute definition</loc>in HTML 4.0.</p>
+</descr>
+</attribute>
+<attribute type="DOMString" name="longDesc" id="ID-7836998" readonly="no">
+<descr>
+<p>URI designating a long description of this image or frame. See the<loc href="http://www.w3.org/TR/REC-html40/present/frames.html#adef-longdesc-FRAME" form="simple" show="embed" actuate="auto">longdesc attribute definition</loc>in HTML 4.0.</p>
+</descr>
+</attribute>
+<attribute type="DOMString" name="marginHeight" id="ID-55569778" readonly="no">
+<descr>
+<p>Frame margin height, in pixels. See the<loc href="http://www.w3.org/TR/REC-html40/present/frames.html#adef-marginheight" form="simple" show="embed" actuate="auto">marginheight attribute definition</loc>in HTML 4.0.</p>
+</descr>
+</attribute>
+<attribute type="DOMString" name="marginWidth" id="ID-8369969" readonly="no">
+<descr>
+<p>Frame margin width, in pixels. See the<loc href="http://www.w3.org/TR/REC-html40/present/frames.html#adef-marginwidth" form="simple" show="embed" actuate="auto">marginwidth attribute definition</loc>in HTML 4.0.</p>
+</descr>
+</attribute>
+<attribute type="DOMString" name="name" id="ID-91128709" readonly="no">
+<descr>
+<p>The frame name (object of the<code>target</code>attribute). See the<loc href="http://www.w3.org/TR/REC-html40/present/frames.html#adef-name-FRAME" form="simple" show="embed" actuate="auto">name attribute definition</loc>in HTML 4.0.</p>
+</descr>
+</attribute>
+<attribute type="boolean" name="noResize" id="ID-80766578" readonly="no">
+<descr>
+<p>When true, forbid user from resizing frame. See the<loc href="http://www.w3.org/TR/REC-html40/present/frames.html#adef-noresize" form="simple" show="embed" actuate="auto">noresize attribute definition</loc>in HTML 4.0.</p>
+</descr>
+</attribute>
+<attribute type="DOMString" name="scrolling" id="ID-45411424" readonly="no">
+<descr>
+<p>Specify whether or not the frame should have scrollbars. See the<loc href="http://www.w3.org/TR/REC-html40/present/frames.html#adef-scrolling" form="simple" show="embed" actuate="auto">scrolling attribute definition</loc>in HTML 4.0.</p>
+</descr>
+</attribute>
+<attribute type="DOMString" name="src" id="ID-78799535" readonly="no">
+<descr>
+<p>A URI designating the initial frame contents. See the<loc href="http://www.w3.org/TR/REC-html40/present/frames.html#adef-src-FRAME" form="simple" show="embed" actuate="auto">src attribute definition</loc>in HTML 4.0.</p>
+</descr>
+</attribute>
+</interface>
+<interface name="HTMLIFrameElement" inherits="HTMLElement" id="ID-50708718">
+<descr>
+<p>Inline subwindows. See the<loc href="http://www.w3.org/TR/REC-html40/present/frames.html#edef-IFRAME" form="simple" show="embed" actuate="auto">IFRAME element definition</loc>in HTML 4.0.</p>
+</descr>
+<attribute type="DOMString" name="align" id="ID-11309947" readonly="no">
+<descr>
+<p>Aligns this object (vertically or horizontally) with respect to its surrounding text. See the<loc href="http://www.w3.org/TR/REC-html40/struct/objects.html#adef-align-IMG" form="simple" show="embed" actuate="auto">align attribute definition</loc>in HTML 4.0. This attribute is deprecated in HTML 4.0.</p>
+</descr>
+</attribute>
+<attribute type="DOMString" name="frameBorder" id="ID-22463410" readonly="no">
+<descr>
+<p>Request frame borders. See the<loc href="http://www.w3.org/TR/REC-html40/present/frames.html#adef-frameborder" form="simple" show="embed" actuate="auto">frameborder attribute definition</loc>in HTML 4.0.</p>
+</descr>
+</attribute>
+<attribute type="DOMString" name="height" id="ID-1678118" readonly="no">
+<descr>
+<p>Frame height. See the<loc href="http://www.w3.org/TR/REC-html40/present/frames.html#adef-height-IFRAME" form="simple" show="embed" actuate="auto">height attribute definition</loc>in HTML 4.0.</p>
+</descr>
+</attribute>
+<attribute type="DOMString" name="longDesc" id="ID-70472105" readonly="no">
+<descr>
+<p>URI designating a long description of this image or frame. See the<loc href="http://www.w3.org/TR/REC-html40/present/frames.html#adef-longdesc-IFRAME" form="simple" show="embed" actuate="auto">longdesc attribute definition</loc>in HTML 4.0.</p>
+</descr>
+</attribute>
+<attribute type="DOMString" name="marginHeight" id="ID-91371294" readonly="no">
+<descr>
+<p>Frame margin height, in pixels. See the<loc href="http://www.w3.org/TR/REC-html40/present/frames.html#adef-marginheight" form="simple" show="embed" actuate="auto">marginheight attribute definition</loc>in HTML 4.0.</p>
+</descr>
+</attribute>
+<attribute type="DOMString" name="marginWidth" id="ID-66486595" readonly="no">
+<descr>
+<p>Frame margin width, in pixels. See the<loc href="http://www.w3.org/TR/REC-html40/present/frames.html#adef-marginwidth" form="simple" show="embed" actuate="auto">marginwidth attribute definition</loc>in HTML 4.0.</p>
+</descr>
+</attribute>
+<attribute type="DOMString" name="name" id="ID-96819659" readonly="no">
+<descr>
+<p>The frame name (object of the<code>target</code>attribute). See the<loc href="http://www.w3.org/TR/REC-html40/present/frames.html#adef-name-IFRAME" form="simple" show="embed" actuate="auto">name attribute definition</loc>in HTML 4.0.</p>
+</descr>
+</attribute>
+<attribute type="DOMString" name="scrolling" id="ID-36369822" readonly="no">
+<descr>
+<p>Specify whether or not the frame should have scrollbars. See the<loc href="http://www.w3.org/TR/REC-html40/present/frames.html#adef-scrolling" form="simple" show="embed" actuate="auto">scrolling attribute definition</loc>in HTML 4.0.</p>
+</descr>
+</attribute>
+<attribute type="DOMString" name="src" id="ID-43933957" readonly="no">
+<descr>
+<p>A URI designating the initial frame contents. See the<loc href="http://www.w3.org/TR/REC-html40/present/frames.html#adef-src-FRAME" form="simple" show="embed" actuate="auto">src attribute definition</loc>in HTML 4.0.</p>
+</descr>
+</attribute>
+<attribute type="DOMString" name="width" id="ID-67133005" readonly="no">
+<descr>
+<p>Frame width. See the<loc href="http://www.w3.org/TR/REC-html40/present/frames.html#adef-width-IFRAME" form="simple" show="embed" actuate="auto">width attribute definition</loc>in HTML 4.0.</p>
+</descr>
+</attribute>
+</interface>
+</library>

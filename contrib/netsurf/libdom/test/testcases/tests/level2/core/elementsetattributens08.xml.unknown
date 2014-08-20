@@ -1,0 +1,56 @@
+<?xml version="1.0" encoding="UTF-8"?><?xml-stylesheet href="test-to-html.xsl" type="text/xml"?>
+
+<!--
+
+Copyright (c) 2001 World Wide Web Consortium, 
+(Massachusetts Institute of Technology, Institut National de
+Recherche en Informatique et en Automatique, Keio University).  All 
+Rights Reserved.  This program is distributed under the W3C's Software
+Intellectual Property License.  This program is distributed in the 
+hope that it will be useful, but WITHOUT ANY WARRANTY; without even
+the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR 
+PURPOSE.  
+
+See W3C License http://www.w3.org/Consortium/Legal/ for more details.
+
+-->
+<!DOCTYPE test SYSTEM "dom2.dtd">
+<test xmlns="http://www.w3.org/2001/DOM-Test-Suite/Level-2" name="elementsetattributens08">
+  <metadata>
+    <title>elementsetattributens08</title>
+    <creator>IBM</creator>
+    <description>
+      The method setAttributeNS adds a new attribute and raises a NAMESPACE_ERR 
+      if the qualifiedName, or its prefix, is "xmlns" and the namespaceURI is 
+      different from "http://www.w3.org/2000/xmlns/".
+      
+      Invoke the setAttributeNS method on a new Element object with namespaceURI that is 
+      http://www.w3.org/DOMTest/level2 and a qualifiedName that has the prefix xmlns and once
+      again with a qualifiedName that is xmlns.  
+      Check if the NAMESPACE_ERR was thrown.
+    </description>
+    <contributor>Neil Delima</contributor>
+    <date qualifier="created">2002-04-28</date>
+    <subject resource="http://www.w3.org/TR/DOM-Level-2-Core/core#ID-ElSetAttrNS"/>
+  </metadata>
+  <var name="doc" type="Document"/>
+  <var name="element" type="Element"/>
+  <load var="doc" href="staffNS" willBeModified="true"/>
+  <createElementNS var="element" obj="doc" 
+		   namespaceURI='"http://www.w3.org/DOMTest/level2"' 
+		   qualifiedName='"dom:elem"'/>
+  <assertDOMException id="elementsetattributens08_Err1">
+    <NAMESPACE_ERR>
+      <setAttributeNS obj="element"  
+		      namespaceURI='"http://www.w3.org/DOMTest/level2"' 
+		      qualifiedName='"xmlns"' value='"test"'/>
+    </NAMESPACE_ERR>
+  </assertDOMException>
+  <assertDOMException id="elementsetattributens08_Err2">
+    <NAMESPACE_ERR>
+      <setAttributeNS obj="element"  
+		      namespaceURI='"http://www.w3.org/DOMTest/level2"' 
+		      qualifiedName='"xmlns:root"' value='"test"'/>
+    </NAMESPACE_ERR>
+  </assertDOMException>
+</test>

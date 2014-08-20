@@ -1,0 +1,55 @@
+<?xml version="1.0" encoding="UTF-8"?><?xml-stylesheet href="test-to-html.xsl" type="text/xml"?>
+
+<!--
+
+Copyright (c) 2001-2004 World Wide Web Consortium, 
+(Massachusetts Institute of Technology, Institut National de
+Recherche en Informatique et en Automatique, Keio University).  All 
+Rights Reserved.  This program is distributed under the W3C's Software
+Intellectual Property License.  This program is distributed in the 
+hope that it will be useful, but WITHOUT ANY WARRANTY; without even
+the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR 
+PURPOSE.  
+
+See W3C License http://www.w3.org/Consortium/Legal/ for more details.
+
+-->
+
+<!DOCTYPE test SYSTEM "dom3.dtd">
+<test xmlns="http://www.w3.org/2001/DOM-Test-Suite/Level-3" name="noderemovechild27">
+<metadata>
+<title>noderemovechild27</title>
+<creator>IBM</creator>
+<description>
+	The method removeChild removes the child node indicated by oldChild from the list 
+	of children, and returns it. 
+
+	Using removeChild on a Notation node attempt to remove an Entity node 
+	and verify if a NO_MODIFICATION_ALLOWED_ERR or a NOT_FOUND_ERR gets thrown.  
+</description>
+<contributor>Neil Delima</contributor>
+<date qualifier="created">2002-06-10</date>
+<subject resource="http://www.w3.org/TR/2004/REC-DOM-Level-3-Core-20040407/core#ID-1734834066"/>
+</metadata>
+<implementationAttribute name="namespaceAware" value="true"/>
+<var name="doc" type="Document"/>
+<var name="docType" type="DocumentType"/>
+<var name="entitiesMap" type="NamedNodeMap"/>
+<var name="notationsMap" type="NamedNodeMap"/>
+<var name="child" type="Entity"/>
+<var name="parent" type="Notation"/>
+<var name="removed" type="Node"/>
+<load var="doc" href="hc_staff" willBeModified="false"/>
+<doctype var="docType" obj="doc"/>
+<entities var="entitiesMap" obj="docType"/>
+<notations var="notationsMap" obj="docType"/>
+<getNamedItem var="child" interface="NamedNodeMap" obj="entitiesMap" name='"ent1"'/>
+<getNamedItem var="parent" interface="NamedNodeMap" obj="notationsMap" name='"notation1"'/>
+<try>
+        <removeChild obj="parent" var="removed" oldChild="child" />
+        <catch>
+                <DOMException code="NOT_FOUND_ERR"/>
+                <DOMException code="NO_MODIFICATION_ALLOWED_ERR"/>
+        </catch>
+</try>
+</test>

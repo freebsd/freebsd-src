@@ -1,0 +1,87 @@
+<?xml version="1.0" standalone="no"?>
+<?xml-stylesheet href="test-to-html.xsl" type="text/xml"?>
+<!--
+ Copyright (c) 2003 X-Hive Corporation
+
+ All Rights Reserved. This work is distributed under the W3C(r)
+ Software License [1] in the hope that it will be useful, but WITHOUT
+ ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
+ FITNESS FOR A PARTICULAR PURPOSE.
+
+ [1] http://www.w3.org/Consortium/Legal/2002/copyright-software-20021231
+-->
+
+
+<!DOCTYPE test SYSTEM "dom3.dtd" [
+  <!ENTITY % entities SYSTEM "dom3tests.ent">
+  %entities;
+]>
+
+
+<test xmlns="&level3;" name="DOMBuilderFilterTest0">
+  <metadata>
+    <title>DOMBuilderFilterTest0</title>
+    &creator;
+    <description>Parses a document twice, once using a filter to reject all elt1 elements.</description>
+    &contributor; &date;
+        <subject resource="http://www.w3.org/TR/2004/REC-DOM-Level-3-LS-20040407/load-save#LS-LSParser-filter"/>
+        <subject resource="http://www.w3.org/TR/2004/REC-DOM-Level-3-LS-20040407/load-save#LS-LSParserFilter-startElement"/>
+        <subject resource="http://www.w3.org/TR/2004/REC-DOM-Level-3-LS-20040407/load-save#LS-LSParserFilter-whatToShow"/>
+  </metadata>
+
+
+  <var name="myfilter"         type="LSParserFilter">
+     <var name="name"            type="DOMString"/>
+     &filterVars;
+
+
+     <startElement>
+        <nodeName var="name" obj="elementArg"/>
+        <if>
+            <equals actual="name" expected='"elt1"' ignoreCase="false"/>
+            <return value="&FILTER_REJECT;"/>
+          <else>
+            <return value="&FILTER_ACCEPT;"/>
+          </else>
+        </if>
+     </startElement>
+
+     <acceptNode>
+            <return value="&FILTER_ACCEPT;"/>
+     </acceptNode>
+
+     <whatToShow>
+       <get>
+        <return value="&SHOW_ELEMENT;"/>
+       </get>
+     </whatToShow>
+
+  </var>
+
+  <var name="list" type="NodeList"/>
+  <var name="count" type="int"/>
+  <var name="resourceURI" type="DOMString"/>
+  &vars;
+  &init;
+
+  <getResourceURI var="resourceURI" href="TEST1"/>
+  <parseURI  var="document" obj="parser" uri="resourceURI"/>
+  <getElementsByTagName var="list" obj="document" tagname="&quot;elt1&quot;" interface="Document"/>
+  <length var="count" obj="list" interface="NodeList"/>
+  <assertEquals actual="count" expected="1" ignoreCase="false" id="filter_count_1"/>
+
+  &parser.setFilter_myfilter;
+
+  <parseURI  var="document" obj="parser" uri="resourceURI"/>
+  <assertNotNull actual="document" id="secondParseDocumentNotNull"/>
+  <getElementsByTagName var="list" obj="document" tagname="&quot;elt1&quot;" interface="Document"/>
+  <length var="count" obj="list" interface="NodeList"/>
+  <assertEquals actual="count" expected="0" ignoreCase="false" id="filter_count_2"/>
+
+
+</test>
+
+
+
+
+

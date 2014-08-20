@@ -1,0 +1,70 @@
+<?xml version="1.0" encoding="UTF-8"?><?xml-stylesheet href="test-to-html.xsl" type="text/xml"?>
+
+<!--
+
+Copyright (c) 2001 World Wide Web Consortium, 
+(Massachusetts Institute of Technology, Institut National de
+Recherche en Informatique et en Automatique, Keio University).  All 
+Rights Reserved.  This program is distributed under the W3C's Software
+Intellectual Property License.  This program is distributed in the 
+hope that it will be useful, but WITHOUT ANY WARRANTY; without even
+the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR 
+PURPOSE.  
+
+See W3C License http://www.w3.org/Consortium/Legal/ for more details.
+
+-->
+
+<!DOCTYPE test SYSTEM "dom2.dtd">
+<test xmlns="http://www.w3.org/2001/DOM-Test-Suite/Level-2" name="domimplementationhasfeature01">
+<metadata>
+<title>domimplementationhasfeature01</title>
+<creator>IBM</creator>
+<description>
+	The method "hasFeature(feature,version)" tests if the DOMImplementation implements
+	a specific feature and if so returns true.
+	
+	Call the hasFeature method on this DOMImplementation with a combination of features 
+	versions as below.  Valid feature names are case insensitive and versions "2.0", 
+	"1.0" and if the version is not specified, supporting any version of the feature
+	should return true.  Check if the value returned value was true.
+</description>
+<contributor>Neil Delima</contributor>
+<date qualifier="created">2002-04-24</date>
+<subject resource="http://www.w3.org/TR/DOM-Level-2-Core/core#ID-5CED94D7"/>
+</metadata>
+<var name="doc" type="Document"/>		
+<var name="domImpl" type="DOMImplementation"/>
+<var name="version" type="DOMString" value="&quot;&quot;"/>		
+<var name="version1" type="DOMString" value="&quot;1.0&quot;"/>		
+<var name="version2" type="DOMString" value="&quot;2.0&quot;"/>		
+<var name="featureCore" type="DOMString"/>
+<var name="featureXML" type="DOMString"/>
+<var name="success" type="boolean"/>		
+<var name="featuresXML" type="List">
+<member>&quot;XML&quot;</member>
+<member>&quot;xmL&quot;</member>
+</var>
+<var name="featuresCore" type="List">
+<member>&quot;Core&quot;</member>
+<member>&quot;CORE&quot;</member>
+</var>
+<load var="doc" href="staffNS" willBeModified="false"/>
+<implementation obj="doc" var="domImpl"/>
+<for-each collection="featuresXML" member="featureXML">
+<hasFeature obj="domImpl" var="success" feature="featureXML" version="version"/>
+<assertTrue actual="success" id="domimplementationhasfeature01_XML_1"/>
+<hasFeature obj="domImpl" var="success" feature="featureXML" version="version1"/>
+<assertTrue actual="success" id="domimplementationhasfeature01_XML_2"/>
+</for-each>
+<for-each collection="featuresCore" member="featureCore">
+<hasFeature obj="domImpl" var="success" feature="featureCore" version="version"/>
+<assertTrue actual="success" id="domimplementationhasfeature01_Core_1"/>
+
+<!--  result is indeterminant since Core was not defined in DOM L1   -->
+<hasFeature obj="domImpl" var="success" feature="featureCore" version="version1"/>
+
+<hasFeature obj="domImpl" var="success" feature="featureCore" version="version2"/>
+<assertTrue actual="success" id="domimplementationhasfeature01_Core_3"/>
+</for-each>
+</test>

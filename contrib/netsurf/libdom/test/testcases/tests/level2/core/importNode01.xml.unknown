@@ -1,0 +1,82 @@
+<?xml version="1.0" encoding="UTF-8"?><?xml-stylesheet href="test-to-html.xsl" type="text/xml"?>
+
+<!--
+
+Copyright (c) 2001 World Wide Web Consortium, 
+(Massachusetts Institute of Technology, Institut National de
+Recherche en Informatique et en Automatique, Keio University).  All 
+Rights Reserved.  This program is distributed under the W3C's Software
+Intellectual Property License.  This program is distributed in the 
+hope that it will be useful, but WITHOUT ANY WARRANTY; without even
+the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR 
+PURPOSE.  
+
+See W3C License http://www.w3.org/Consortium/Legal/ for more details.
+
+-->
+<!DOCTYPE test SYSTEM "dom2.dtd">
+<test xmlns="http://www.w3.org/2001/DOM-Test-Suite/Level-2" name="importNode01">
+<metadata>
+<title>importNode01</title>
+<creator>NIST</creator>
+<description>
+    The "importNode(importedNode,deep)" method for a 
+   Document should import the given importedNode into that Document.
+   The importedNode is of type Attr. 
+   The ownerElement is set to null. Specified flag is set to true.
+   Children is imported.
+   
+   Create a new attribute whose name is "elem:attr1" in a different document.
+   Create a child Text node with value "importedText" for the attribute node above.
+   Invoke method importNode(importedNode,deep) on this document with
+   importedNode being the newly created attribute.
+   Method should return a node whose name matches "elem:attr1" and a child node
+   whose value equals "importedText".
+   The returned node should belong to this document whose systemId is "staff.dtd"
+</description>
+<contributor>Mary Brady</contributor>
+<date qualifier="created">2001-08-17</date>
+<subject resource="http://www.w3.org/TR/DOM-Level-2-Core/core#Core-Document-importNode"/>
+</metadata>
+<var name="doc" type="Document"/>
+<var name="aNewDoc" type="Document"/>
+<var name="newAttr" type="Attr"/>
+<var name="importedChild" type="Text"/>
+<var name="aNode" type="Node"/>
+<var name="ownerDocument" type="Document"/>
+<var name="attrOwnerElement" type="Element"/>
+<var name="docType" type="DocumentType"/>
+<var name="system" type="DOMString"/>
+<var name="specified" type="boolean"/>
+<var name="childList" type="NodeList"/>
+<var name="nodeName" type="DOMString"/>
+<var name="child" type="Node"/>
+<var name="childValue" type="DOMString"/>
+<var name="result" type="List"/>
+<var name="expectedResult" type="List">
+<member>"elem:attr1"</member>
+<member>"importedText"</member>
+</var>
+<load var="doc" href="staffNS" willBeModified="true"/>
+<load var="aNewDoc" href="staffNS" willBeModified="true"/>
+<createAttribute obj="aNewDoc" var="newAttr" name='"elem:attr1"'/>
+<createTextNode obj="aNewDoc" var="importedChild" data='"importedText"'/>
+<appendChild obj="newAttr" var="aNode" newChild="importedChild"/>
+<importNode obj="doc" var="aNode" importedNode="newAttr" deep="false"/>
+<ownerDocument obj="aNode" var="ownerDocument"/>
+<doctype obj="ownerDocument" var="docType"/>
+<systemId interface="DocumentType" obj="docType" var="system"/>
+<assertNotNull actual="aNode" id="aNode"/>
+<assertURIEquals actual="system" file='"staffNS.dtd"' id="systemId"/>
+<ownerElement obj="aNode" var="attrOwnerElement"/>
+<assertNull actual="attrOwnerElement" id="ownerElement"/>
+<specified obj="aNode" var="specified"/>
+<assertTrue actual="specified" id="specified"/>
+<childNodes obj="aNode" var="childList"/>
+<assertSize collection="childList" size="1" id="childList"/>
+<nodeName obj="aNode" var="nodeName"/>
+<assertEquals actual="nodeName" id="nodeName" ignoreCase="false" expected='"elem:attr1"'/>
+<firstChild interface="Node" obj="aNode" var="child"/>
+<nodeValue obj="child" var="childValue"/>
+<assertEquals actual="childValue" id="childValue" ignoreCase="false" expected='"importedText"'/>
+</test>

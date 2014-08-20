@@ -1,0 +1,60 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<?xml-stylesheet href="test-to-html.xml" type="text/xml"?>
+
+<!--
+
+Copyright (c) 2004 World Wide Web Consortium, 
+(Massachusetts Institute of Technology, Institut National de
+Recherche en Informatique et en Automatique, Keio University).  All 
+Rights Reserved.  This program is distributed under the W3C's Software
+Intellectual Property License.  This program is distributed in the 
+hope that it will be useful, but WITHOUT ANY WARRANTY; without even
+the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR 
+PURPOSE.  
+
+See W3C License http://www.w3.org/Consortium/Legal/ for more details.
+
+-->
+<!DOCTYPE test SYSTEM "dom1.dtd">
+<test xmlns="http://www.w3.org/2001/DOM-Test-Suite/Level-1" name="HTMLDocument21">
+<metadata>
+<title>HTMLDocument21</title>
+<creator>Curt Arnold</creator>
+<description>
+Replaces the current document checks that writeln adds a new line.
+</description>
+<date qualifier="created">2002-03-18</date>
+<subject resource="http://www.w3.org/TR/1998/REC-DOM-Level-1-19981001/level-one-html#ID-72161170"/>
+<subject resource="http://www.w3.org/TR/1998/REC-DOM-Level-1-19981001/level-one-html#ID-98948567"/>
+<subject resource="http://www.w3.org/TR/1998/REC-DOM-Level-1-19981001/level-one-html#ID-75233634"/>
+<subject resource="http://www.w3.org/TR/1998/REC-DOM-Level-1-19981001/level-one-html#ID-35318390"/>
+</metadata>
+<var name="doc" type="Document"/>
+<var name="docElem" type="Element"/>
+<var name="preElems" type="NodeList"/>
+<var name="preElem" type="Element"/>
+<var name="preText" type="Text"/>
+<var name="preValue" type="DOMString"/>
+<load var="doc" href="document" willBeModified="true"/>
+<open obj="doc"/>
+<if><contentType type="text/html"/>
+	<writeln obj="doc" text='"&lt;html&gt;"'/>
+	<else>
+    	<writeln obj="doc" text='"&lt;html xmlns=&apos;http://www.w3.org/1999/xhtml&apos;&gt;"'/>
+    </else>
+</if>
+<writeln obj="doc" text='"&lt;body&gt;"'/>
+<writeln obj="doc" text='"&lt;title&gt;Replacement&lt;/title&gt;"'/>
+<writeln obj="doc" text='"&lt;/body&gt;"'/>
+<write obj="doc" text='"&lt;pre&gt;"'/>
+<writeln obj="doc" text='"Hello, World."'/>
+<writeln obj="doc" text='"Hello, World."'/>
+<writeln obj="doc" text='"&lt;/pre&gt;"'/>
+<write obj="doc" text='"&lt;pre&gt;"'/>
+<write obj="doc" text='"Hello, World."'/>
+<write obj="doc" text='"Hello, World."'/>
+<writeln obj="doc" text='"&lt;/pre&gt;"'/>
+<writeln obj="doc" text='"&lt;/body&gt;"'/>
+<writeln obj="doc" text='"&lt;/html&gt;"'/>
+<close obj="doc"/>
+</test>

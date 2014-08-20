@@ -1,0 +1,18 @@
+TODO's (no priority order) for NetSurf 3.1 - 4.0
+
+ - Optimize drawing of bitmaps on Low-Memory machines
+ - Restore the Palette when Windows get's the Focus
+   -> only needed for <= 256 colors
+ - Make drawing of tiled bitmaps optional ( they are slooow )
+   -> already optimized, still needed?
+ - Make context menu more stable (grab all available context data at popup display)
+ - Implement SystemColor Choices dialog
+ - Add at least one offscreen plotter implementation
+ - Fix utf8 to atari character conversion (legacy VDI text plotter
+   must be able to handle the text argument characters correctly)
+ - Add URL history when typing URL's into url textarea
+ - Have browser_window specific cursor, window specifc cursor
+ - When minimized (not iconyfied) NetSurf doesn't recognize that.
+ - Implement Tabs (up to 4 tab favicons when iconyfied)
+ - merge treeview and gui_window handling
+

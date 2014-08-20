@@ -1,0 +1,46 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+Copyright (c) 2001-2003 World Wide Web Consortium,
+(Massachusetts Institute of Technology, Institut National de
+Recherche en Informatique et en Automatique, Keio University). All
+Rights Reserved. This program is distributed under the W3C's Software
+Intellectual Property License. This program is distributed in the
+hope that it will be useful, but WITHOUT ANY WARRANTY; without even
+the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
+PURPOSE.
+See W3C License http://www.w3.org/Consortium/Legal/ for more details.
+--><!DOCTYPE test SYSTEM "dom1.dtd">
+
+<test xmlns="http://www.w3.org/2001/DOM-Test-Suite/Level-1" name="hc_nodelistindexgetlengthofemptylist">
+<metadata>
+<title>hc_nodelistIndexGetLengthOfEmptyList</title>
+<creator>Curt Arnold</creator>
+<description>
+    The "getLength()" method returns the number of nodes
+   in the list.(Test for EMPTY list)
+   
+   Create a list of all the children of the Text node 
+   inside the first child of the third employee and
+   invoke the "getLength()" method.   It should contain
+   the value 0.
+</description>
+
+<date qualifier="created">2002-06-09</date>
+<!--length attribute -->
+<subject resource="http://www.w3.org/TR/1998/REC-DOM-Level-1-19981001/level-one-core#ID-203510337"/>
+<subject resource="http://www.w3.org/Bugs/Public/show_bug.cgi?id=246"/>
+</metadata>
+<var name="doc" type="Document"/>
+<var name="emList" type="NodeList"/>
+<var name="emNode" type="Node"/>
+<var name="textNode" type="Node"/>
+<var name="textList" type="NodeList"/>
+<var name="length" type="int"/>
+<load var="doc" href="hc_staff" willBeModified="false"/>
+<getElementsByTagName interface="Document" obj="doc" var="emList" tagname='"em"'/>
+<item interface="NodeList" obj="emList" var="emNode" index="2"/>
+<firstChild var="textNode" obj="emNode"/>
+<childNodes var="textList" obj="textNode"/>
+<length var="length" obj="textList" interface="NodeList"/>
+<assertEquals actual="length" expected="0" id="length" ignoreCase="false"/>
+</test>

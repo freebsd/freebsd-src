@@ -1,0 +1,59 @@
+<?xml version="1.0" encoding="UTF-8"?><?xml-stylesheet href="test-to-html.xsl" type="text/xml"?>
+
+<!--
+
+Copyright (c) 2001-2004 World Wide Web Consortium, 
+(Massachusetts Institute of Technology, Institut National de
+Recherche en Informatique et en Automatique, Keio University).  All 
+Rights Reserved.  This program is distributed under the W3C's Software
+Intellectual Property License.  This program is distributed in the 
+hope that it will be useful, but WITHOUT ANY WARRANTY; without even
+the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR 
+PURPOSE.  
+
+See W3C License http://www.w3.org/Consortium/Legal/ for more details.
+
+-->
+
+<!DOCTYPE test SYSTEM "dom3.dtd">
+<test xmlns="http://www.w3.org/2001/DOM-Test-Suite/Level-3" name="nodeisequalnode09">
+<metadata>
+<title>nodeisequalnode09</title>
+<creator>IBM</creator>
+<description>
+Get the first "em" node, construct an equivalent in a new document and see if isEqualNode
+returns true.
+</description>
+<contributor>Neil Delima</contributor>
+<date qualifier="created">2002-06-10</date>
+<subject resource="http://www.w3.org/TR/2004/REC-DOM-Level-3-Core-20040407/core#Node3-isEqualNode"/>
+</metadata>
+<implementationAttribute name="namespaceAware" value="true"/>
+<implementationAttribute name="ignoringElementContentWhitespace" value="true"/>
+<var name="doc" type="Document"/>
+<var name="domImpl" type="DOMImplementation"/>
+<var name="newDoc" type="Document"/>
+<var name="elem1" type="Element"/>
+<var name="elem2" type="Element"/>
+<var name="employeeList" type="NodeList"/>
+<var name="text" type="Text"/>
+<var name="isEqual" type="boolean"/>
+<var name="nullDocType" type="DocumentType" isNull="true"/>
+<var name="appendedChild" type="Node"/>
+<var name="docElem" type="Element"/>
+<var name="rootNS" type="DOMString"/>
+<var name="rootName" type="DOMString"/>
+<load var="doc" href="hc_staff" willBeModified="false"/>
+<documentElement var="docElem" obj="doc"/>
+<namespaceURI var="rootNS" obj="docElem" interface="Node"/>
+<localName var="rootName" obj="docElem" interface="Node"/>
+<implementation var="domImpl" obj="doc"/>
+<createDocument var="newDoc" obj="domImpl" namespaceURI='rootNS' qualifiedName='rootName' doctype="nullDocType"/>
+<getElementsByTagName var="employeeList" obj="doc" tagname='"em"' interface="Document"/>
+<item var="elem1" obj="employeeList" index="0" interface="NodeList"/>
+<createElementNS var="elem2" obj="newDoc" namespaceURI='"http://www.w3.org/1999/xhtml"' qualifiedName='"em"'/>
+<createTextNode var="text" obj="newDoc" data='"EMP0001"'/>
+<appendChild obj="elem2" var="appendedChild" newChild="text"/>
+<isEqualNode var="isEqual" obj="elem1" arg="elem2"/>
+<assertTrue actual="isEqual"  id="nodesAreEqual"/>
+</test>

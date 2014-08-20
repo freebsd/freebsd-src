@@ -1,0 +1,84 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+Copyright (c) 2001-2004 World Wide Web Consortium,
+(Massachusetts Institute of Technology, Institut National de
+Recherche en Informatique et en Automatique, Keio University). All
+Rights Reserved. This program is distributed under the W3C's Software
+Intellectual Property License. This program is distributed in the
+hope that it will be useful, but WITHOUT ANY WARRANTY; without even
+the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
+PURPOSE.
+See W3C License http://www.w3.org/Consortium/Legal/ for more details.
+--><!DOCTYPE test SYSTEM "dom1.dtd">
+
+<test xmlns="http://www.w3.org/2001/DOM-Test-Suite/Level-1" name="nodereplacechildnewchildexists">
+<metadata>
+<title>nodeReplaceChildNewChildExists</title>
+<creator>NIST</creator>
+<description>
+    Retrieve the second employee and replace its TWELFTH 
+    child(address) with its SECOND child(employeeId).   After the
+    replacement the second child should now be the one that used   
+    to be at the third position and the TWELFTH child should be the
+    one that used to be at the SECOND position.
+</description>
+<contributor>Mary Brady</contributor>
+<date qualifier="created">2001-08-17</date>
+<subject resource="http://www.w3.org/TR/1998/REC-DOM-Level-1-19981001/level-one-core#ID-785887307"/>
+</metadata>
+<var name="doc" type="Document"/>
+<var name="elementList" type="NodeList"/>
+<var name="employeeNode" type="Node"/>
+<var name="childList" type="NodeList"/>
+<var name="oldChild" type="Node" isNull="true"/>
+<var name="newChild" type="Node" isNull="true"/>
+<var name="childName" type="DOMString"/>
+<var name="childNode" type="Node"/>
+<var name="length" type="int"/>
+<var name="actual" type="List"/>
+<var name="expected" type="List"/>
+<var name="expectedWithoutWhitespace" type="List">
+<member>"name"</member>
+<member>"position"</member>
+<member>"salary"</member>
+<member>"gender"</member>
+<member>"employeeId"</member>
+</var>
+<var name="expectedWithWhitespace" type="List">
+<member>"#text"</member>
+<member>"#text"</member>
+<member>"name"</member>
+<member>"#text"</member>
+<member>"position"</member>
+<member>"#text"</member>
+<member>"salary"</member>
+<member>"#text"</member>
+<member>"gender"</member>
+<member>"#text"</member>
+<member>"employeeId"</member>
+<member>"#text"</member>
+</var>
+<var name="replacedChild" type="Node"/>
+<load var="doc" href="staff" willBeModified="true"/>
+<getElementsByTagName interface="Document" obj="doc" tagname='"employee"' var="elementList"/>
+<item interface="NodeList" obj="elementList" index="1" var="employeeNode"/>
+<childNodes obj="employeeNode" var="childList"/>
+<length var="length" obj="childList" interface="NodeList"/>
+<if><equals actual="length" expected="13" ignoreCase="false"/>
+	<item interface="NodeList" obj="childList" index="1" var="newChild"/>
+	<item interface="NodeList" obj="childList" index="11" var="oldChild"/>
+	<assign var="expected" value="expectedWithWhitespace"/>
+<else>
+	<item interface="NodeList" obj="childList" index="0" var="newChild"/>
+	<item interface="NodeList" obj="childList" index="5" var="oldChild"/>
+	<assign var="expected" value="expectedWithoutWhitespace"/>
+</else>
+</if>
+<replaceChild var="replacedChild" obj="employeeNode" newChild="newChild" oldChild="oldChild"/>
+<assertSame actual="replacedChild" expected="oldChild" id="return_value_same"/>
+<for-each collection="childList" member="childNode">
+	<nodeName var="childName" obj="childNode"/>
+	<append collection="actual" item="childName"/>
+</for-each>
+<assertEquals actual="actual" expected="expected" id="childNames" ignoreCase="false"/>
+</test>

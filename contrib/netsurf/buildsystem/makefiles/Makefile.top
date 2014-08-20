@@ -1,0 +1,637 @@
+# Top-level Makefile fragment
+#
+# Expected inputs:
+#
+# BUILD			Type of build to perform:
+# 				release		-	Release build
+# 				debug		-	Debug build
+# COMPONENT		Name of the component (sans leading "lib" iff a library)
+# COMPONENT_VERSION	Component version number (x.y.z)
+# COMPONENT_TYPE	Type of component:
+# 				binary		-	Executable binary
+# 				lib-static	-	Static library
+# 				lib-shared	-	Shared library
+# 				riscos-module	-	RISC OS module
+# TARGET		Target platform identifier
+#
+# Optional inputs:
+#
+# BUILDDIR		Directory to build into (defaults to 
+# 			build-$(HOST)-$(TARGET)-$(BUILD)-$(COMPONENT_TYPE))
+# CC_CAN_BUILD_AND_DEP	Flag whether $(CC) is capable of calculating dependency
+# 			information at the same time as compiling sources.
+# 			Set to "yes" if it can.
+# DESTDIR		Sandboxed FS root (e.g. for packaging)
+# HOST			Host platform identifier
+# REQUIRED_PKGS		List of required pkg-config packages
+#
+# The client may also override all toolchain settings, including:
+#
+# ARFLAGS		Archiver flags for the current compilation
+# CFLAGS		C compiler flags for the current compilation
+# CXXFLAGS		C++ compiler flags for the current compilation
+# LDFLAGS		Linker flags for the current compilation
+#
+# TESTCFLAGS		Any test-specific CFLAGS
+# TESTCXXFLAGS		Any test-specific CXXFLAGS
+# TESTLDFLAGS		Any test-specific LDFLAGS
+#
+# TESTRUNNER		Test runner invocation command
+# 			The test runner takes a command line in the form
+# 				<build dir> <test dir> <testprefix> <exeext>
+#
+# Targets provided:
+#
+# all			Default target. Builds component using current settings
+# test			Build and run test suite, using current settings.
+# coverage		Determine test suite coverage (requires lcov)
+# profile		Build with profiling support enabled (requires gprof)
+# docs			Produce documentation (requires doxygen)
+# dist                  Produce release tarball from latest git tag
+# clean			Clean the build
+# distclean		Remove distribution files, too
+# install		Install component into prefix.
+# uninstall		Remove component from prefix.
+#
+# Variables provided:
+#
+# major-version		Extracts the major version (x) from COMPONENT_VERSION
+# minor-version		Extracts the minor version (y) from COMPONENT_VERSION
+# patch-version		Extracts the patch version (z) from COMPONENT_VERSION
+# OUTPUT		Path + filename of build target
+
+###############################################################################
+# Sanity checks
+###############################################################################
+
+# Name of component must be defined by client
+ifeq ($(COMPONENT),)
+  $(error COMPONENT not defined)
+endif
+
+# As must the version
+ifeq ($(COMPONENT_VERSION),)
+  $(error COMPONENT_VERSION not defined)
+endif
+
+# As must the component type
+ifeq ($(COMPONENT_TYPE),)
+  $(error COMPONENT_TYPE not defined)
+endif
+
+# Target platform must be defined by the client
+ifeq ($(TARGET),)
+  $(error TARGET not defined)
+endif
+
+# Build type, too
+ifeq ($(BUILD),)
+  $(error BUILD not defined)
+endif
+
+##############################################################################
+# Makefile variables
+##############################################################################
+
+Q ?= @
+VQ ?= @
+
+##############################################################################
+# Exported variables (also OUTPUT, further down)
+##############################################################################
+
+major-version := $(word 1,$(subst ., ,$(COMPONENT_VERSION)))
+minor-version := $(word 2,$(subst ., ,$(COMPONENT_VERSION)))
+patch-version := $(word 3,$(subst ., ,$(COMPONENT_VERSION)))
+
+##############################################################################
+# Build environment
+##############################################################################
+
+# Build directory
+BUILDDIR ?= build-$(HOST)-$(TARGET)-$(BUILD)-$(COMPONENT_TYPE)
+
+# Build tree subdirs
+COVERAGEDIR := $(BUILDDIR)/coverage
+DOCDIR := $(BUILDDIR)/docs
+
+# Determine if we want to build testcases
+ifeq ($(MAKECMDGOALS),test)
+  WANT_TEST := yes
+else ifeq ($(MAKECMDGOALS),profile)
+  WANT_TEST := yes
+else ifeq ($(MAKECMDGOALS),coverage)
+  WANT_TEST := yes
+else
+  WANT_TEST := no
+endif
+
+# List of items to delete on clean
+CLEAN_ITEMS :=
+# List of items to delete on distclean
+DISTCLEAN_ITEMS :=
+
+# List of items to build for testing
+TEST_ITEMS :=
+# List of targets to run for testing
+TEST_TARGETS :=
+# List of targets which are prerequisites for running tests
+TEST_PREREQS :=
+
+# List of items to (un)install
+INSTALL_ITEMS :=
+
+# List of targets to run before building $(OBJECT)
+PRE_TARGETS :=
+# List of targets to run after building $(OBJECT)
+POST_TARGETS :=
+
+# Source files
+SOURCES :=
+
+# Include configuration Makefile fragment
+-include Makefile.config
+
+# Set the default target (before including any children)
+__default: all
+
+# Include Makefile fragments in subdirectories
+define do_include
+DIR := $$(dir $(1))
+include $(1)
+
+endef
+
+MAKE_INCLUDES := $(wildcard */Makefile)
+$(eval $(foreach INC, $(MAKE_INCLUDES), $(call do_include,$(INC))))
+
+# Calculate objects to build
+OBJECTS := $(addprefix $(BUILDDIR)/,$(filter %.o, \
+		$(subst /,_,$(subst .c,.o,$(SOURCES))) \
+		$(subst /,_,$(subst .cpp,.o,$(SOURCES))) \
+		$(subst /,_,$(subst .cmhg,.o,$(SOURCES))) \
+		$(subst /,_,$(subst .s,.o,$(SOURCES)))))
+
+bin_for_test = $(addprefix $(BUILDDIR)/,$(firstword $(subst :, ,$(ITEM))))
+TEST_BINARIES := $(foreach ITEM,$(TEST_ITEMS),$(bin_for_test))
+
+# Determine if we're building any C++ sources
+ifneq ($(filter %.cpp,$(SOURCES)),)
+  CXX_IN_BUILD := yes
+else
+  CXX_IN_BUILD := no
+endif
+
+# Determine the output filename
+ifeq ($(findstring lib,$(COMPONENT_TYPE)),lib)
+  ifeq ($(findstring lib-shared,$(COMPONENT_TYPE)),lib-shared)
+    SHAREDLIBNAME := lib$(COMPONENT)$(LIBEXT)
+    SONAME := $(SHAREDLIBNAME).$(major-version)
+    OUTPUT := $(BUILDDIR)/$(SHAREDLIBNAME).$(COMPONENT_VERSION)
+  else
+    OUTPUT := $(BUILDDIR)/lib$(COMPONENT)$(LIBEXT)
+  endif
+else
+  OUTPUT := $(BUILDDIR)/$(COMPONENT)$(EXEEXT)
+endif
+
+###############################################################################
+# Build targets
+###############################################################################
+
+.PHONY: all test coverage profile docs clean distclean install uninstall \
+	__default __precov __partial_clean __postshared
+
+ifeq ($(COMPONENT_TYPE),lib-shared)
+  POST_TARGETS := __postshared $(POST_TARGETS)
+
+__postshared:
+	$(Q)$(LN) $(LNFLAGS) -f -s $(notdir $(OUTPUT)) $(BUILDDIR)/$(SONAME)
+	$(Q)$(LN) $(LNFLAGS) -f -s $(notdir $(OUTPUT)) $(BUILDDIR)/$(SHAREDLIBNAME)
+endif
+
+# Default target
+all: $(PRE_TARGETS) $(OUTPUT) $(POST_TARGETS)
+
+# Build and execute testsuite 
+test: all $(TEST_PREREQS) $(TEST_BINARIES) $(TEST_TARGETS)
+	$(VQ)$(ECHO) $(ECHOFLAGS) "    TEST: Testing complete"
+
+# Compute coverage
+__precov: __partial_clean
+	$(Q)$(LCOV) --directory . --zerocounters
+
+coverage: __precov test
+	$(Q)$(LCOV) --directory $(BUILDDIR) --base-directory $(CURDIR) \
+		--capture --output-file $(COVERAGEDIR)/$(COMPONENT)_tmp.info
+	$(Q)$(LCOV) --extract $(COVERAGEDIR)/$(COMPONENT)_tmp.info \
+		"$(CURDIR)/src*" -o $(COVERAGEDIR)/$(COMPONENT).info
+	$(Q)$(RM) $(RMFLAGS) $(COVERAGEDIR)/$(COMPONENT)_tmp.info
+	$(Q)$(GENHTML) -o $(COVERAGEDIR) --num-spaces 2 \
+		$(COVERAGEDIR)/$(COMPONENT).info
+
+# Build for profiling
+profile: __partial_clean test
+
+# Compile documentation
+docs: $(BUILDDIR)/stamp
+	$(Q)$(DOXYGEN) build/Doxyfile
+
+# Distribution
+# This constructs a distribution tar from the last git tag. It ensures
+#   the Makefile component version matches the git tag version and the 
+#   tar is apropriately named for the component being generated
+dist:
+	$(eval GIT_TAG := $(shell git describe --abbrev=0 --match "release/*"))
+	$(eval GIT_VER := $(shell x="$(GIT_TAG)"; echo "$${x#release/}"))
+	$(if $(subst $(GIT_VER),,$(COMPONENT_VERSION)), $(error Component Version "$(COMPONENT_VERSION)" and GIT tag version "$(GIT_VER)" do not match))
+ifeq ($(findstring lib,$(COMPONENT_TYPE)),lib)
+	$(eval DIST_FILE := lib$(COMPONENT)-${GIT_VER})
+else
+	$(eval DIST_FILE := $(COMPONENT)-${GIT_VER})
+endif
+	$(Q)git archive --format=tar.gz --prefix=$(DIST_FILE)/ -o $(DIST_FILE).tar.gz $(GIT_TAG)
+
+
+# Clean build tree
+__partial_clean:
+	-$(Q)$(RM) $(RMFLAGS) $(CLEAN_ITEMS)
+	-$(Q)$(RM) $(RMFLAGS) gmon.out
+	-$(Q)$(RM) $(RMFLAGS) $(wildcard $(BUILDDIR)/*.d)
+	-$(Q)$(RM) $(RMFLAGS) $(wildcard $(BUILDDIR)/*.gcda)
+	-$(Q)$(RM) $(RMFLAGS) $(wildcard $(BUILDDIR)/*.gcno)
+	-$(Q)$(RM) $(RMFLAGS) $(wildcard $(BUILDDIR)/*.o)
+
+clean: __partial_clean
+	-$(Q)$(RM) $(RMFLAGS) -r build/docs
+	-$(Q)$(RM) $(RMFLAGS) -r $(BUILDDIR)
+
+# Remove auto-generated non-build-tree items
+distclean: clean
+	-$(Q)$(RM) $(RMFLAGS) $(DISTCLEAN_ITEMS)
+
+# The installation target, and associated canned command sequences.
+# For reference, the syntax of INSTALL_ITEMS is:
+#
+# <destination>:<file>[';'<file>]*
+#
+# We also permit a trailing ';' in the file list.
+
+__comma := ,
+__empty := 
+__space := $(empty) $(empty)
+__required = $(if $(REQUIRED_PKGS),Requires: $(subst $(__space),$(__comma) ,$(strip $(REQUIRED_PKGS))),)
+
+# Install a pkg-config control file ($1) to the specified location ($2)
+define install_pkgconfig
+	$(Q)$(ECHO) $(ECHOFLAGS) "sed -e... $1 >$(BUILDDIR)/$(1:.in=)"
+	$(Q)$(SED) \
+		-e 's#PREFIX#$(PREFIX)#' \
+		-e 's#LIBDIR#$(LIBDIR)#' \
+		-e 's#MAJOR#$(major-version)#' \
+		-e 's#MINOR#$(minor-version)#' \
+		-e 's#PATCH#$(patch-version)#' \
+		-e 's#VERSION#$(COMPONENT_VERSION)#' \
+		-e 's#REQUIRED#$(__required)#' \
+		$1 >$(BUILDDIR)/$(1:.in=)
+	$(INSTALL) $(INSTALLFLAGS) -m 644 $(BUILDDIR)/$(1:.in=) \
+		$2/$(1:.in=)
+
+endef
+
+# TODO: Is this scheme portable?
+define install_shared_lib
+  $(INSTALL) $(INSTALLFLAGS) -m 755 $1 $2/$(notdir $1)
+  $(LN) $(LNFLAGS) -f -s $(notdir $1) $2/$(SONAME)
+  $(LN) $(LNFLAGS) -f -s $(notdir $1) $2/$(SHAREDLIBNAME)
+
+endef
+
+# Install a binary or normal file ($1) to the specified location ($2)
+define install_binary_or_normal_file
+  $(if $(and $(filter binary,$(COMPONENT_TYPE)), \
+             $(filter $(OUTPUT),$1)), \
+    $(INSTALL) $(INSTALLFLAGS) -m 755 $1 $2, \
+    $(INSTALL) $(INSTALLFLAGS) -m 644 $1 $2)
+
+endef
+
+# Install a non-pkgconfig file ($1) to the specified location ($2)
+define install_non_pkgconfig
+  $(if $(and $(filter lib-shared,$(COMPONENT_TYPE)), \
+             $(filter $(OUTPUT),$1)), \
+    $(call install_shared_lib,$1,$2), \
+    $(call install_binary_or_normal_file,$1,$2))
+
+endef
+
+# Install a file ($1) to the specified location ($2)
+define install_file
+  $(if $1, \
+    $(if $(findstring .pc.in,$1), \
+      $(call install_pkgconfig,$1,$2), \
+      $(call install_non_pkgconfig,$1,$2)))
+
+endef
+
+# Install a list of files ($2) to the specified location ($1)
+# We create the installation location if it doesn't already exist
+define install_to_dest
+	$(Q)$(MKDIR) $(MKDIRFLAGS) $(DESTDIR)$(PREFIX)$1
+	$(foreach FILE,$(strip $(subst ;, ,$2)), \
+		$(call install_file,$(FILE),$(DESTDIR)$(PREFIX)$1))
+
+endef
+
+install: all
+	$(foreach ITEM,$(INSTALL_ITEMS), \
+		$(call install_to_dest,$(firstword $(subst :, ,$(ITEM))), \
+			$(lastword $(subst :, ,$(ITEM)))))
+
+# Uninstallation
+
+# TODO: Work out how to safely remove symlinks
+define uninstall_shared_lib
+	$(RM) $(RMFLAGS) $2/$(notdir $1).$(COMPONENT_VERSION)
+endef
+
+# Uninstall a file ($1) from the specified location ($2)
+define uninstall_file
+  $(if $1, \
+    $(if $(findstring .pc.in,$1), \
+      $(RM) $(RMFLAGS) $2/$(1:.pc.in=.pc), \
+      $(if $(and $(filter lib-shared,$(COMPONENT_TYPE)), \
+		$(filter $(OUTPUT),$1)), \
+	$(call uninstall_shared_lib,$1,$2), \
+	$(RM) $(RMFLAGS) $2/$(notdir $1))))
+
+endef
+
+# Uninstall a list of files ($2) from the specified location ($1)
+# TODO: Come up with a safe way of removing directories, too
+define uninstall_from_dest
+	$(foreach FILE,$(strip $(subst ;, ,$2)), \
+		$(call uninstall_file,$(FILE),$(DESTDIR)$(PREFIX)$1))
+
+endef
+
+uninstall:
+	$(foreach ITEM,$(INSTALL_ITEMS), \
+		$(call uninstall_from_dest,$(firstword $(subst :, ,$(ITEM))), \
+			$(lastword $(subst :, ,$(ITEM)))))
+
+###############################################################################
+# Actual rules
+###############################################################################
+
+$(BUILDDIR)/stamp:
+	$(Q)$(MKDIR) $(MKDIRFLAGS) $(BUILDDIR)
+	$(Q)$(MKDIR) $(MKDIRFLAGS) $(COVERAGEDIR)
+	$(Q)$(MKDIR) $(MKDIRFLAGS) $(DOCDIR)
+	$(Q)$(TOUCH) $(TOUCHFLAGS) $(BUILDDIR)/stamp
+
+$(OUTPUT): $(BUILDDIR)/stamp $(OBJECTS)
+ifeq ($(COMPONENT_TYPE),lib-static)
+	$(VQ)$(ECHO) $(ECHOFLAGS) "      AR: $@"
+	$(Q)$(RM) $(RMFLAGS) $@
+	$(Q)$(AR) $(ARFLAGS) $@ $(OBJECTS)
+else
+	$(VQ)$(ECHO) $(ECHOFLAGS) "    LINK: $@"
+  ifeq ($(CXX_IN_BUILD),yes)
+	$(Q)$(CXX) -o $@ $(OBJECTS) $(LDFLAGS) $(SHAREDLDFLAGS)
+  else
+	$(Q)$(CC) -o $@ $(OBJECTS) $(LDFLAGS) $(SHAREDLDFLAGS)
+  endif
+endif
+
+###############################################################################
+# Autogenerated, implied rules
+###############################################################################
+
+DEPFILES :=
+BUILDFILES :=
+
+ifeq ($(CC_CAN_BUILD_AND_DEP),yes)
+  # C compiler can compile and dep simultaneously
+
+  define dep_c
+    ifeq ($$(findstring $$(BUILDDIR)/$2,$$(DEPFILES)),)
+      $$(BUILDDIR)/$2: $$(BUILDDIR)/stamp $1
+
+      DEPFILES += $$(BUILDDIR)/$2
+    endif
+
+  endef
+
+  define dep_cxx
+    ifeq ($$(findstring $$(BUILDDIR)/$2,$$(DEPFILES)),)
+      $$(BUILDDIR)/$2: $$(BUILDDIR)/stamp $1
+
+      DEPFILES += $$(BUILDDIR)/$2
+    endif
+
+  endef
+
+  define build_c
+    ifeq ($$(findstring $$(BUILDDIR)/$2,$$(BUILDFILES)),)
+      $$(BUILDDIR)/$2: $$(BUILDDIR)/stamp $1
+	$$(VQ)$$(ECHO) $$(ECHOFLAGS) " COMPILE: $1"
+	$$(Q)$$(CC) -MMD -MP $$($3) -o $$@ -c $1
+
+      BUILDFILES += $$(BUILDDIR)/$2
+    endif
+
+  endef
+
+  define build_cxx
+    ifeq ($$(findstring $$(BUILDDIR)/$2,$$(BUILDFILES)),)
+      $$(BUILDDIR)/$2: $$(BUILDDIR)/stamp $1
+	$$(VQ)$$(ECHO) $$(ECHOFLAGS) " COMPILE: $1"
+	$$(Q)$$(CXX) -MMD -MP $$($3) -o $$@ -c $1
+
+      BUILDFILES += $$(BUILDDIR)/$2
+    endif
+
+  endef
+else
+  ifeq ($(CC_CANNOT_DEP),yes)
+    # C compiler cannot calculate dependencies
+
+    define dep_c
+    endef
+
+    define dep_cxx
+    endef
+
+    define build_c
+      ifeq ($$(findstring $$(BUILDDIR)/$2,$$(BUILDFILES)),)
+        $$(BUILDDIR)/$2: $$(BUILDDIR)/stamp $1
+	$$(VQ)$$(ECHO) $$(ECHOFLAGS) " COMPILE: $1"
+	$$(Q)$$(CC) $$($3) -o $$@ -c $1
+
+        BUILDFILES += $$(BUILDDIR)/$2
+      endif
+
+    endef
+
+    define build_cxx
+      ifeq ($$(findstring $$(BUILDDIR)/$2,$$(BUILDFILES)),)
+        $$(BUILDDIR)/$2: $$(BUILDDIR)/stamp $1
+	$$(VQ)$$(ECHO) $$(ECHOFLAGS) " COMPILE: $1"
+	$$(Q)$$(CXX) $$($3) -o $$@ -c $1
+
+        BUILDFILES += $$(BUILDDIR)/$2
+      endif
+
+    endef
+  else
+    # C compiler must calculate dependencies first, then compile (default)
+
+    define dep_c
+      ifeq ($$(findstring $$(BUILDDIR)/$2,$$(DEPFILES)),)
+        $$(BUILDDIR)/$2: $$(BUILDDIR)/stamp $1
+	$$(VQ)$$(ECHO) $$(ECHOFLAGS) "     DEP: $1"
+	$$(Q)$$(RM) $$(RMFLAGS) $($@)
+	$$(Q)$$(CC) $$($3) -MM $1 > $$@.tmp
+	$$(Q)$$(SED) $$(SEDFLAGS) 's,^.*:,$$@ $$(@:.d=.o):,' < $$@.tmp > $$@
+	$$(Q)$$(RM) $$@.tmp
+
+        DEPFILES += $$(BUILDDIR)/$2
+      endif
+
+    endef
+
+    define dep_cxx
+      ifeq ($$(findstring $$(BUILDDIR)/$2,$$(DEPFILES)),)
+        $$(BUILDDIR)/$2: $$(BUILDDIR)/stamp $1
+	$$(VQ)$$(ECHO) $$(ECHOFLAGS) "     DEP: $1"
+	$$(Q)$$(RM) $$(RMFLAGS) $($@)
+	$$(Q)$$(CXX) $$($3) -MM $1 > $$@.tmp
+	$$(Q)$$(SED) $$(SEDFLAGS) 's,^.*:,$$@ $$(@:.d=.o):,' < $$@.tmp > $$@
+	$$(Q)$$(RM) $$@.tmp
+
+        DEPFILES += $$(BUILDDIR)/$2
+      endif
+
+    endef
+
+    define build_c
+      ifeq ($$(findstring $$(BUILDDIR)/$2,$$(BUILDFILES)),)
+        $$(BUILDDIR)/$2: $$(BUILDDIR)/stamp $1
+	$$(VQ)$$(ECHO) $$(ECHOFLAGS) " COMPILE: $1"
+	$$(Q)$$(CC) $$($3) -o $$@ -c $1
+
+        BUILDFILES += $$(BUILDDIR)/$2
+      endif
+
+    endef
+
+    define build_cxx
+      ifeq ($$(findstring $$(BUILDDIR)/$2,$$(BUILDFILES)),)
+        $$(BUILDDIR)/$2: $$(BUILDDIR)/stamp $1
+	$$(VQ)$$(ECHO) $$(ECHOFLAGS) " COMPILE: $1"
+	$$(Q)$$(CXX) $$($3) -o $$@ -c $1
+
+        BUILDFILES += $$(BUILDDIR)/$2
+      endif
+
+    endef
+  endif
+endif
+
+define build_cmhg
+  ifeq ($$(findstring $$(BUILDDIR)/$2,$$(BUILDFILES)),)
+    $$(BUILDDIR)/$2: $$(BUILDDIR)/stamp $1
+	$$(VQ)$$(ECHO) $$(ECHOFLAGS) "    CMHG: $1"
+	$$(Q)$$(CMHG) $$(CMHGFLAGS) $1 -o $$@
+
+    BUILDFILES += $$(BUILDDIR)/$2
+  endif
+
+endef
+
+define build_s
+  ifeq ($$(findstring $$(BUILDDIR)/$2,$$(BUILDFILES)),)
+    $$(BUILDDIR)/$2: $$(BUILDDIR)/stamp $1
+	$$(VQ)$$(ECHO) $$(ECHOFLAGS) "ASSEMBLE: $1"
+	$$(Q)$$(CC) $$($3) $1 -c -o $$@
+    BUILDFILES += $$(BUILDDIR)/$2
+  endif
+
+endef
+
+BUILDCFLAGS = $(CFLAGS) $(SHAREDCFLAGS)
+BUILDCXXFLAGS = $(CXXFLAGS) $(SHAREDCXXFLAGS)
+BUILDASFLAGS = $(ASFLAGS) $(SHAREDCFLAGS)
+
+# Generate dependency rules
+$(eval $(foreach SOURCE,$(filter %.c,$(SOURCES)), \
+	$(call dep_c,$(SOURCE),$(subst /,_,$(SOURCE:.c=.d)),BUILDCFLAGS)))
+$(eval $(foreach SOURCE,$(filter %.cpp,$(SOURCES)), \
+	$(call dep_cxx,$(SOURCE),$(subst /,_,$(SOURCE:.cpp=.d)),BUILDCXXFLAGS)))
+
+# Generate compilation rules
+$(eval $(foreach SOURCE,$(filter %.c,$(SOURCES)), \
+	$(call build_c,$(SOURCE),$(subst /,_,$(SOURCE:.c=.o)),BUILDCFLAGS)))
+
+$(eval $(foreach SOURCE,$(filter %.cpp,$(SOURCES)), \
+	$(call build_cxx,$(SOURCE),$(subst /,_,$(SOURCE:.cpp=.o)),BUILDCXXFLAGS)))
+
+$(eval $(foreach SOURCE,$(filter %.cmhg,$(SOURCES)), \
+	$(call build_cmhg,$(SOURCE),$(subst /,_,$(SOURCE:.cmhg=.o)))))
+
+$(eval $(foreach SOURCE,$(filter %.s,$(SOURCES)), \
+	$(call build_s,$(SOURCE),$(subst /,_,$(SOURCE:.s=.o)),BUILDASFLAGS)))
+
+# Similarly for test sources
+ifeq ($(WANT_TEST),yes)
+  ifeq ($(findstring lib,$(COMPONENT_TYPE)),lib)
+    TESTLIB := $(OUTPUT)
+    TESTLDFLAGS += -L$(BUILDDIR)/ -l$(COMPONENT)
+  endif
+
+  TESTCFLAGS := $(CFLAGS) $(TESTCFLAGS)
+  TESTCXXFLAGS += $(CXXFLAGS)
+  TESTLDFLAGS += $(LDFLAGS)
+
+  define link_test
+    $2: $($3) $1
+	$$(VQ)$$(ECHO) $$(ECHOFLAGS) "    LINK: $2"
+      ifeq ($$(CXX_IN_BUILD),yes)
+	$$(Q)$$(CXX) -o $$@ $1 $$($4)
+      else
+	$$(Q)$$(CC) -o $$@ $1 $$($4)
+      endif
+
+  endef
+
+  srcs_for_test = $(subst ;, ,$(lastword $(subst :, ,$(ITEM))))
+  objs_for_test = $(addprefix $(BUILDDIR)/, \
+		$(subst /,_,$(addsuffix .o,$(basename $(srcs_for_test)))))
+
+  $(eval $(foreach ITEM,$(TEST_ITEMS), \
+	$(foreach SOURCE,$(filter %.c,$(srcs_for_test)), \
+	$(call dep_c,$(SOURCE),$(subst /,_,$(SOURCE:.c=.d)),TESTCFLAGS))))
+
+  $(eval $(foreach ITEM,$(TEST_ITEMS), \
+	$(foreach SOURCE,$(filter %.cpp,$(srcs_for_test)), \
+	$(call dep_cxx,$(SOURCE),$(subst /,_,$(SOURCE:.cpp=.d)),TESTCXXFLAGS))))
+
+  $(eval $(foreach ITEM,$(TEST_ITEMS), \
+	$(foreach SOURCE,$(filter %.c,$(srcs_for_test)), \
+	$(call build_c,$(SOURCE),$(subst /,_,$(SOURCE:.c=.o)),TESTCFLAGS))))
+
+  $(eval $(foreach ITEM,$(TEST_ITEMS), \
+	$(foreach SOURCE,$(filter %.cpp,$(srcs_for_test)), \
+	$(call build_cxx,$(SOURCE),$(subst /,_,$(SOURCE:.cpp=.o)),TESTCXXFLAGS))))
+
+  $(eval $(foreach ITEM,$(TEST_ITEMS), \
+	$(call link_test,$(objs_for_test),$(bin_for_test),TESTLIB,TESTLDFLAGS)))
+
+endif
+
+# Include dependency makefiles
+ifneq ($(findstring clean,$(MAKECMDGOALS)),clean)
+-include $(sort $(DEPFILES))
+endif
+

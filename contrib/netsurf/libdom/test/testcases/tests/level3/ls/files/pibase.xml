@@ -1,0 +1,10 @@
+<!DOCTYPE root [
+<!ELEMENT root (one, more)>
+<!ELEMENT one (two)>
+<!ELEMENT two EMPTY>
+<!ELEMENT more EMPTY>
+<!ENTITY e SYSTEM 'subdir/myentity.ent'>
+]>
+<root>
+&e;
+</root>

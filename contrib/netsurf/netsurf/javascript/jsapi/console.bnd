@@ -1,0 +1,47 @@
+/* Binding to generate Console interface
+ *
+ * Copyright 2012 Vincent Sanders <vince@netsurf-browser.org>
+ *
+ * This file is part of NetSurf, http://www.netsurf-browser.org/
+ *
+ * Released under the terms of the MIT License,
+ *         http://www.opensource.org/licenses/mit-license
+ */
+
+webidlfile "console.idl";
+
+hdrcomment "Copyright 2012 Vincent Sanders <vince@netsurf-browser.org>";
+hdrcomment "This file is part of NetSurf, http://www.netsurf-browser.org/";
+hdrcomment "Released under the terms of the MIT License,";
+hdrcomment "        http://www.opensource.org/licenses/mit-license";
+
+preamble %{
+
+#include "utils/config.h"
+#include "utils/log.h"
+#include "javascript/jsapi.h"
+
+#include "console.h"
+
+%}
+
+binding navigator {
+    type js_libdom; /* the binding type */
+
+    interface Console; /* Web IDL interface to generate */
+
+}
+
+operation log %{
+	unsigned int argloop;
+	JSString *jsstr;
+	unsigned long jsstrlen;
+	char *txt;
+
+	for (argloop = 0; argloop < argc; argloop++) {
+		jsstr = JS_ValueToString(cx, argv[argloop]);
+
+		JSString_to_char(jsstr, txt, jsstrlen);
+		LOG(("%s", txt));
+	}
+%}

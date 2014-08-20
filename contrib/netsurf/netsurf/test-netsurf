@@ -1,0 +1,35 @@
+#!/bin/sh
+# This file is part of NetSurf, http://netsurf-browser.org/
+# Licensed under the GNU General Public License,
+#                http://www.opensource.org/licenses/gpl-license
+# Copyright 2007 Rob Kendrick <rjek@netsurf-browser.org>
+#
+# This launcher script is meant only for running nsgtk from inside the
+# build tree, with some debugging enabled.  It is not meant for day-to-day
+# or packaged use!
+
+if [ -d ~/.netsurf ]; then
+  LOG=~/.netsurf/log.txt
+elif [ -d /tmp ]; then
+  LOG=/tmp/netsurf-log.txt
+else
+  LOG=netsurf-log.txt
+fi
+
+echo $0: using $LOG as logfile
+
+ulimit -c unlimited
+
+if [ "x$1" = "x--gdb" ]; then
+  GDB="gdb --args"
+  echo
+  echo
+  echo "**********************************************************"
+  echo "Remember to type 'run' and press ENTER once gdb has loaded"
+  echo "**********************************************************"
+  echo
+  echo
+  shift
+fi
+
+exec $GDB $PREFIX/bin/netsurf -v "$@" 2>&1 | tee $LOG

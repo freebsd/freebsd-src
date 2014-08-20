@@ -1,0 +1,55 @@
+<?xml version="1.0" encoding="UTF-8"?><?xml-stylesheet href="test-to-html.xsl" type="text/xml"?>
+<!--
+
+Copyright (c) 2001-2004 World Wide Web Consortium, 
+(Massachusetts Institute of Technology, Institut National de
+Recherche en Informatique et en Automatique, Keio University).  All 
+Rights Reserved.  This program is distributed under the W3C's Software
+Intellectual Property License.  This program is distributed in the 
+hope that it will be useful, but WITHOUT ANY WARRANTY; without even
+the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR 
+PURPOSE.  
+
+See W3C License http://www.w3.org/Consortium/Legal/ for more details.
+
+-->
+
+<!DOCTYPE test SYSTEM "dom3.dtd">
+<test xmlns="http://www.w3.org/2001/DOM-Test-Suite/Level-3" name="domconfigurationcansetparameter04">
+<metadata>
+<title>domconfigurationcansetparameter04</title>
+<creator>IBM</creator>
+<description>
+	The parameter entities is turned on by default.  Check to see if this feature can be set
+	to false by invoking canSetParameter method.  Also check that this method does not change the
+	value of parameter by checking if entity references still exist in the document.
+</description>
+<contributor>Jenny Hsu</contributor>
+<date qualifier="created">2003-11-04</date>
+<subject resource="http://www.w3.org/TR/2004/REC-DOM-Level-3-Core-20040407/core#DOMConfiguration-canSetParameter"/>
+</metadata>
+<implementationAttribute name="expandEntityReferences" value="false"/>
+<implementationAttribute name="namespaceAware" value="true"/>
+<var name="doc" type="Document"/>
+<var name="domConfig" type="DOMConfiguration"/>
+<var name="acronymList" type="NodeList"/>
+<var name="acronymElem" type="Node"/>
+<var name="nodeType" type="int"/>
+<var name="first" type="Node"/>
+<var name="canSet" type="boolean"/>
+<var name="paramVal" type="boolean"/>
+<load var="doc" href="hc_staff" willBeModified="true"/>
+<domConfig obj="doc" var="domConfig" interface="Document"/>
+<canSetParameter obj="domConfig" var="canSet" name='"entities"' value="false"/>
+<assertTrue actual="canSet" id="canSetFalse"/>
+<!--  checking if it can be set false should not actually change it  -->
+<getParameter var="paramVal" obj="domConfig" name='"entities"'/>
+<assertTrue actual="paramVal" id="stillTrue"/>
+<!--  or change the behavior of normalize document -->
+<normalizeDocument obj="doc"/>
+<getElementsByTagName var="acronymList" obj="doc" tagname='"acronym"' interface="Document"/>
+<item var="acronymElem" obj="acronymList" index="1" interface="NodeList"/>
+<firstChild var="first" obj="acronymElem" interface="Node"/>
+<nodeType var="nodeType" obj="first" interface="Node"/>
+<assertEquals actual="nodeType" expected="5" id="entityRefPreserved" ignoreCase="false"/>
+</test>

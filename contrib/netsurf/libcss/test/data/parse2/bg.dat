@@ -1,0 +1,275 @@
+#data
+* { background: red; }
+#errors
+#expected
+| *
+|  background-attachment: scroll
+|  background-color: #ffff0000
+|  background-image: none
+|  background-position: left top
+|  background-repeat: repeat
+#reset
+
+#data
+* { background: transparent }
+#errors
+#expected
+| *
+|  background-attachment: scroll
+|  background-color: transparent
+|  background-image: none
+|  background-position: left top
+|  background-repeat: repeat
+#reset
+
+#data
+* { background: currentColor }
+#errors
+#expected
+| *
+|  background-attachment: scroll
+|  background-color: currentColor
+|  background-image: none
+|  background-position: left top
+|  background-repeat: repeat
+#reset
+
+#data
+* { background: url("chess.png") gray 40% repeat fixed; }
+#errors
+#expected
+| *
+|  background-attachment: fixed
+|  background-color: #ff808080
+|  background-image: url('chess.png')
+|  background-position: 40% center
+|  background-repeat: repeat
+#reset
+
+#data
+* { background: inherit; }
+#errors
+#expected
+| *
+|  background-attachment: inherit
+|  background-color: inherit
+|  background-image: inherit
+|  background-position: inherit
+|  background-repeat: inherit
+#reset
+
+#data
+* { background: #fff url(bg.gif) no-repeat fixed top left; }
+#errors
+#expected
+| *
+|  background-attachment: fixed
+|  background-color: #ffffffff
+|  background-image: url('bg.gif')
+|  background-position: left top
+|  background-repeat: no-repeat
+#reset
+
+#data
+* { background: #fff #000; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { background: #fff url(foo) repeat fixed right bottom #000; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { background: #fff inherit; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { background: inherit #fff; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { background: #fff inherit top left; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { background: inherit fixed !important; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { background: #fff url(foo) repeat fixed right bottom inherit; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { background: red !important; }
+#errors
+#expected
+| *
+|  background-attachment: scroll !important
+|  background-color: #ffff0000 !important
+|  background-image: none !important
+|  background-position: left top !important
+|  background-repeat: repeat !important
+#reset
+
+#data
+* { background: url("chess.png") gray 50% repeat fixed ! important; }
+#errors
+#expected
+| *
+|  background-attachment: fixed !important
+|  background-color: #ff808080 !important
+|  background-image: url('chess.png') !important
+|  background-position: 50% center !important
+|  background-repeat: repeat !important
+#reset
+
+#data
+* { background: inherit !important; }
+#errors
+#expected
+| *
+|  background-attachment: inherit !important
+|  background-color: inherit !important
+|  background-image: inherit !important
+|  background-position: inherit !important
+|  background-repeat: inherit !important
+#reset
+
+#data
+* { background: #fff url(bg.gif) no-repeat fixed top left !important; }
+#errors
+#expected
+| *
+|  background-attachment: fixed !important
+|  background-color: #ffffffff !important
+|  background-image: url('bg.gif') !important
+|  background-position: left top !important
+|  background-repeat: no-repeat !important
+#reset
+
+#data
+* { background: #fff #000 ! important; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { background: #fff url(foo) repeat fixed right bottom #000 ! important; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { background: invalid; }
+#errors
+#expected
+| *
+#reset
+
+
+#data
+* { background: url(foo) !important no-repeat; }
+#errors
+#expected
+| *
+#reset
+
+
+#data
+* { background-image: inherit; }
+#errors
+#expected
+| *
+|  background-image: inherit
+#reset
+
+#data
+* { background-color: inherit; }
+#errors
+#expected
+| *
+|  background-color: inherit
+#reset
+
+#data
+* { background-color: red inherit; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { background-color: inherit red; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { background-color: inherit red !important; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { background-color: red !important; }
+#errors
+#expected
+| *
+|  background-color: #ffff0000 !important
+#reset
+
+#data
+* { background-attachment: inherit; }
+#errors
+#expected
+| *
+|  background-attachment: inherit
+#reset
+
+#data
+* { background-position: inherit; }
+#errors
+#expected
+| *
+|  background-position: inherit
+#reset
+
+#data
+* { background-repeat: inherit; }
+#errors
+#expected
+| *
+|  background-repeat: inherit
+#reset
+
+#data
+* { background-repeat: red; }
+#errors
+#expected
+| *
+#reset
+

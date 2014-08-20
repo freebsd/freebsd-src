@@ -1,0 +1,36 @@
+# ----------------------------------------------------------------------------
+# Cocoa-specific options
+# ----------------------------------------------------------------------------
+
+# Force using glibc internal iconv implementation instead of external libiconv
+# Valid options: YES, NO
+NETSURF_USE_LIBICONV_PLUG := NO
+
+# Enable NetSurf's use of librosprite for displaying RISC OS Sprites
+# Valid options: YES, NO, AUTO
+NETSURF_USE_ROSPRITE := NO
+
+# Enable NetSurf's use of libwebp for displaying WebPs
+# Valid options: YES, NO
+NETSURF_USE_WEBP := NO
+
+# Enable NetSurf's use of librsvg in conjunction with Cairo to display SVGs
+# Valid options: YES, NO, AUTO
+NETSURF_USE_RSVG := AUTO
+
+# Enable NetSurf's use of libsvgtiny for displaying SVGs
+# Valid options: YES, NO, AUTO
+NETSURF_USE_NSSVG := AUTO
+
+NETSURF_USE_BMP := NO
+NETSURF_USE_GIF := NO
+NETSURF_USE_PNG := NO
+NETSURF_USE_JPEG := NO
+NETSURF_USE_IMAGEIO := YES
+
+DEVELOPER_PATH := /Developer
+MACOSX_VERSION := 10.5
+SDK_VERSION := $(MACOSX_VERSION)
+
+# Optimisation levels
+CFLAGS += -O2

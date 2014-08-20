@@ -1,0 +1,596 @@
+/* Binding to generate HTMLdocument interface
+ *
+ * Copyright 2012 Vincent Sanders <vince@netsurf-browser.org>
+ *
+ * This file is part of NetSurf, http://www.netsurf-browser.org/
+ *
+ * Released under the terms of the MIT License,
+ *         http://www.opensource.org/licenses/mit-license
+ */
+
+webidlfile "html.idl";
+
+hdrcomment "Copyright 2012 Vincent Sanders <vince@netsurf-browser.org>";
+hdrcomment "This file is part of NetSurf, http://www.netsurf-browser.org/";
+hdrcomment "Released under the terms of the MIT License,";
+hdrcomment "        http://www.opensource.org/licenses/mit-license";
+
+preamble %{
+
+#include <dom/dom.h>
+
+#include "utils/config.h"
+#include "utils/log.h"
+#include "utils/corestrings.h"
+#include "utils/libdom.h"
+#include "content/urldb.h"
+#include "javascript/js.h"
+#include "javascript/jsapi.h"
+#include "render/html_internal.h"
+
+#include "htmldocument.h"
+#include "htmlelement.h"
+#include "text.h"
+#include "nodelist.h"
+#include "location.h"
+
+%}
+
+#include "dom.bnd"
+
+binding document {
+	type js_libdom; /* the binding type */
+
+	interface Document; /* Web IDL interface to generate */
+
+	/* parameters to constructor value stored in private
+	 * context structure.
+	 */
+	private "dom_document *" node;
+	private "struct html_content *" htmlc;
+
+	/** location instantiated on first use */
+	property unshared location;
+
+        /* compatability mode instantiated on first use */
+	property unshared compatMode;
+
+	/* events through a single interface */
+	property unshared type EventHandler;
+}
+
+api finalise %{
+	LOG(("jscontext:%p jsobject:%p private:%p", cx, obj, private));
+	if (private != NULL) {
+		JSLOG("dom_document %p in content %p",
+		     private->node, private->htmlc);
+		dom_node_unref(private->node);
+	}
+%}
+
+
+getter location %{
+	if (!JSVAL_IS_VOID(JSAPI_PROP_RVAL(cx, vp))) {
+		/* already created - return it */
+		return JS_TRUE;
+	}
+	jsret = jsapi_new_Location(cx,
+				   NULL,
+				   NULL,
+				   llcache_handle_get_url(private->htmlc->base.llcache));
+%}
+
+getter URL %{
+	jsval loc;
+	jsval jsstr = JSVAL_NULL;
+	if (JS_GetProperty(cx, obj, "location", &loc) == JS_TRUE) {
+		JS_GetProperty(cx, JSVAL_TO_OBJECT(loc), "href", &jsstr);
+	}
+	jsret = JSVAL_TO_STRING(jsstr);
+%}
+
+getter documentURI %{
+	jsval loc;
+	jsval jsstr = JSVAL_NULL;
+	if (JS_GetProperty(cx, obj, "location", &loc) == JS_TRUE) {
+		JS_GetProperty(cx, JSVAL_TO_OBJECT(loc), "href", &jsstr);
+	}
+	jsret = JSVAL_TO_STRING(jsstr);
+%}
+
+
+getter compatMode %{
+	/* Returns the string "CSS1Compat" if document is in no-quirks
+	 * mode or limited-quirks mode, and "BackCompat", if document
+	 * is in quirks mode.
+	 */
+	if (!JSVAL_IS_VOID(JSAPI_PROP_RVAL(cx, vp))) {
+		/* already created, just use it */
+		return JS_TRUE;
+	}
+	if (private->htmlc->quirks == DOM_DOCUMENT_QUIRKS_MODE_FULL) {
+		jsret = JS_NewStringCopyN(cx, "BackCompat", SLEN("BackCompat"));
+	} else {
+		jsret = JS_NewStringCopyN(cx, "CSS1Compat", SLEN("CSS1Compat"));
+	}
+
+%}
+
+/*
+getter characterSet %{
+%}
+
+getter contentType %{
+%}
+*/
+
+getter cookie %{
+	char *cookie_str;
+	cookie_str = urldb_get_cookie(llcache_handle_get_url(private->htmlc->base.llcache), false);
+	if (cookie_str != NULL) {
+		jsret = JS_NewStringCopyN(cx, cookie_str, strlen(cookie_str));
+		free(cookie_str);
+	}
+%}
+
+getter documentElement %{
+	dom_exception exc;
+	dom_element *element;
+
+	/* document (html) element */
+	exc = dom_document_get_document_element(private->node, (void *)&element);
+	if (exc != DOM_NO_ERR) {
+		return JS_FALSE;
+	}
+
+	if (element != NULL) {
+		jsret = jsapi_new_HTMLElement(cx, NULL, NULL, element, private->htmlc);
+	}
+%}
+
+getter head %{
+	dom_node *element;
+	dom_node *head;
+	dom_exception exc;
+
+	/* document (html) element */
+	exc = dom_document_get_document_element(private->node, &element);
+	if (exc != DOM_NO_ERR) {
+		return JS_FALSE;
+	}
+
+	if (element != NULL) {
+		head = libdom_find_first_element(element, corestring_lwc_head) ;
+		if (head != NULL) {
+			jsret = jsapi_new_HTMLElement(cx, NULL, NULL, (dom_element *)head, private->htmlc);
+		}
+		dom_node_unref(element);
+	}
+%}
+
+getter body %{
+	dom_node *element;
+	dom_node *body;
+	dom_exception exc;
+
+	JSDBG("Getting your body");
+
+	/* document (html) element */
+	exc = dom_document_get_document_element(private->node, &element);
+	if (exc != DOM_NO_ERR) {
+		return JS_FALSE;
+	}
+
+	if (element != NULL) {
+		body = libdom_find_first_element(element, corestring_lwc_body) ;
+		if (body != NULL) {
+			jsret = jsapi_new_HTMLElement(cx, NULL, NULL, (dom_element *)body, private->htmlc);
+		}
+		dom_node_unref(element);
+	}
+
+	JSDBG("returning jsobject %p",jsret);
+
+%}
+
+operation getElementById %{
+	dom_string *elementId_dom;
+	dom_element *element;
+	dom_exception exc;
+
+	exc = dom_string_create((unsigned char*)elementId, elementId_len, &elementId_dom);
+	if (exc != DOM_NO_ERR) {
+		return JS_FALSE;
+	}
+
+	exc = dom_document_get_element_by_id(private->node, elementId_dom, &element);
+	dom_string_unref(elementId_dom);
+	if (exc != DOM_NO_ERR) {
+		return JS_FALSE;
+	}
+
+	if (element != NULL) {
+	      jsret = jsapi_new_HTMLElement(cx, NULL, NULL, element, private->htmlc);
+	}
+%}
+
+/*
+ *
+ * Dom 4 says this should return a htmlcollection, libdom currently
+ * returns DOM 3 spec of a nodelist
+ */
+/* HTMLCollection Document::getElementsByTagName(DOMString localName); */
+operation getElementsByTagName %{
+	dom_string *localName_dom;
+	/* dom_html_collection *collection;*/
+	dom_nodelist *nodelist;
+	dom_exception exc;
+
+	exc = dom_string_create((uint8_t *)localName, localName_len, &localName_dom);
+	if (exc != DOM_NO_ERR) {
+		return JS_FALSE;
+	}
+
+	exc = dom_document_get_elements_by_tag_name(private->node, localName_dom, /*&collection*/&nodelist);
+	dom_string_unref(localName_dom);
+	if (exc != DOM_NO_ERR) {
+		return JS_FALSE;
+	}
+
+	if (/*collection*/nodelist != NULL) {
+		/*jsret = jsapi_new_HTMLCollection(cx,
+						 NULL,
+						 NULL,
+						 collection,
+						 private->htmlc);*/
+		jsret = jsapi_new_NodeList(cx,
+						 NULL,
+						 NULL,
+						 nodelist,
+						 private->htmlc);
+	}
+
+%}
+
+operation write %{
+	if (private->htmlc->parser != NULL) {
+		dom_hubbub_parser_insert_chunk(private->htmlc->parser, (uint8_t *)text, text_len);
+	}
+%}
+
+/* interface Document (dom) { Text createTextNode(DOMString data);  } */
+operation createTextNode %{
+	dom_string *data_dom;
+	dom_exception exc;
+	dom_text *text;
+
+	if (data != NULL) {
+
+		JSDBG("Creating text node for string \"%s\"", data);
+		exc = dom_string_create((unsigned char*)data, data_len, &data_dom);
+		if (exc != DOM_NO_ERR) {
+			return JS_FALSE;
+		}
+
+		exc = dom_document_create_text_node(private->node, data_dom, &text);
+		dom_string_unref(data_dom);
+		if (exc != DOM_NO_ERR) {
+			return JS_FALSE;
+		}
+
+		jsret = jsapi_new_Text(cx, NULL, NULL, text, private->htmlc);
+	}
+
+	JSDBG("returning jsobject %p",jsret);
+
+%}
+
+/* interface Document (dom) { Comment createComment(DOMString data);  } */
+operation createComment %{
+	dom_string *data_dom;
+	dom_exception exc;
+	dom_comment *comment;
+
+	if (data != NULL) {
+
+		JSDBG("Creating string \"%s\"", data);
+		exc = dom_string_create((unsigned char*)data,
+					data_len,
+					&data_dom);
+		if (exc != DOM_NO_ERR) {
+			return JS_FALSE;
+		}
+
+		JSDBG("Creating comment object for dom string \"%s\"",
+		      dom_string_data(data_dom));
+		exc = dom_document_create_comment(private->node,
+						  data_dom,
+						  &comment);
+		dom_string_unref(data_dom);
+		if (exc != DOM_NO_ERR) {
+			return JS_FALSE;
+		}
+
+		jsret = jsapi_new_Comment(cx, NULL, NULL, comment, private->htmlc);
+	}
+
+	JSDBG("returning jsobject %p", jsret);
+
+%}
+
+/* in dom Document */
+operation createElement %{
+	dom_string *localName_dom;
+	dom_exception exc;
+	dom_element *element;
+
+	if (localName != NULL) {
+		JSDBG("Creating text node for string \"%s\"", localName);
+		exc = dom_string_create((unsigned char*)localName, localName_len, &localName_dom);
+		if (exc != DOM_NO_ERR) {
+			return JS_FALSE;
+		}
+
+		exc = dom_document_create_element(private->node, localName_dom, &element);
+		dom_string_unref(localName_dom);
+		if (exc != DOM_NO_ERR) {
+			return JS_FALSE;
+		}
+
+		jsret = jsapi_new_HTMLElement(cx, NULL, NULL, element, private->htmlc);
+	}
+
+	JSDBG("returning jsobject %p",jsret);
+
+%}
+
+getter EventHandler %{
+	JSLOG("propname[%d].name=\"%s\"",
+	      tinyid,
+	      jsclass_properties[tinyid].name);
+%}
+
+
+setter EventHandler %{
+	dom_string *event_type_dom;
+
+	JSLOG("propname[%d].name=\"%s\"",
+	      tinyid,
+	      jsclass_properties[tinyid].name);
+
+	switch (tinyid) {
+	case JSAPI_PROP_TINYID_onabort:
+		event_type_dom = corestring_dom_abort;
+		break;
+
+	case JSAPI_PROP_TINYID_onblur:
+		event_type_dom = corestring_dom_blur;
+		break;
+
+	case JSAPI_PROP_TINYID_oncancel:
+		event_type_dom = corestring_dom_cancel;
+		break;
+
+	case JSAPI_PROP_TINYID_oncanplay:
+		event_type_dom = corestring_dom_canplay;
+		break;
+
+	case JSAPI_PROP_TINYID_oncanplaythrough:
+		event_type_dom = corestring_dom_canplaythrough;
+		break;
+
+	case JSAPI_PROP_TINYID_onchange:
+		event_type_dom = corestring_dom_change;
+		break;
+
+	case JSAPI_PROP_TINYID_onclick:
+		event_type_dom = corestring_dom_click;
+		break;
+
+	case JSAPI_PROP_TINYID_onclose:
+		event_type_dom = corestring_dom_close;
+		break;
+
+	case JSAPI_PROP_TINYID_oncontextmenu:
+		event_type_dom = corestring_dom_contextmenu;
+		break;
+
+	case JSAPI_PROP_TINYID_oncuechange:
+		event_type_dom = corestring_dom_cuechange;
+		break;
+
+	case JSAPI_PROP_TINYID_ondblclick:
+		event_type_dom = corestring_dom_dblclick;
+		break;
+
+	case JSAPI_PROP_TINYID_ondrag:
+		event_type_dom = corestring_dom_drag;
+		break;
+
+	case JSAPI_PROP_TINYID_ondragend:
+		event_type_dom = corestring_dom_dragend;
+		break;
+
+	case JSAPI_PROP_TINYID_ondragenter:
+		event_type_dom = corestring_dom_dragenter;
+		break;
+
+	case JSAPI_PROP_TINYID_ondragleave:
+		event_type_dom = corestring_dom_dragleave;
+		break;
+
+	case JSAPI_PROP_TINYID_ondragover:
+		event_type_dom = corestring_dom_dragover;
+		break;
+
+	case JSAPI_PROP_TINYID_ondragstart:
+		event_type_dom = corestring_dom_dragstart;
+		break;
+
+	case JSAPI_PROP_TINYID_ondrop:
+		event_type_dom = corestring_dom_drop;
+		break;
+
+	case JSAPI_PROP_TINYID_ondurationchange:
+		event_type_dom = corestring_dom_durationchange;
+		break;
+
+	case JSAPI_PROP_TINYID_onemptied:
+		event_type_dom = corestring_dom_emptied;
+		break;
+
+	case JSAPI_PROP_TINYID_onended:
+		event_type_dom = corestring_dom_ended;
+		break;
+
+	case JSAPI_PROP_TINYID_onerror:
+		event_type_dom = corestring_dom_error;
+		break;
+
+	case JSAPI_PROP_TINYID_onfocus:
+		event_type_dom = corestring_dom_focus;
+		break;
+
+	case JSAPI_PROP_TINYID_oninput:
+		event_type_dom = corestring_dom_input;
+		break;
+
+	case JSAPI_PROP_TINYID_oninvalid:
+		event_type_dom = corestring_dom_invalid;
+		break;
+
+	case JSAPI_PROP_TINYID_onkeydown:
+		event_type_dom = corestring_dom_keydown;
+		break;
+
+	case JSAPI_PROP_TINYID_onkeypress:
+		event_type_dom = corestring_dom_keypress;
+		break;
+
+	case JSAPI_PROP_TINYID_onkeyup:
+		event_type_dom = corestring_dom_keyup;
+		break;
+
+	case JSAPI_PROP_TINYID_onload:
+		event_type_dom = corestring_dom_load;
+		break;
+
+	case JSAPI_PROP_TINYID_onloadeddata:
+		event_type_dom = corestring_dom_loadeddata;
+		break;
+
+	case JSAPI_PROP_TINYID_onloadedmetadata:
+		event_type_dom = corestring_dom_loadedmetadata;
+		break;
+
+	case JSAPI_PROP_TINYID_onloadstart:
+		event_type_dom = corestring_dom_loadstart;
+		break;
+
+	case JSAPI_PROP_TINYID_onmousedown:
+		event_type_dom = corestring_dom_mousedown;
+		break;
+
+	case JSAPI_PROP_TINYID_onmousemove:
+		event_type_dom = corestring_dom_mousemove;
+		break;
+
+	case JSAPI_PROP_TINYID_onmouseout:
+		event_type_dom = corestring_dom_mouseout;
+		break;
+
+	case JSAPI_PROP_TINYID_onmouseover:
+		event_type_dom = corestring_dom_mouseover;
+		break;
+
+	case JSAPI_PROP_TINYID_onmouseup:
+		event_type_dom = corestring_dom_mouseup;
+		break;
+
+	case JSAPI_PROP_TINYID_onmousewheel:
+		event_type_dom = corestring_dom_mousewheel;
+		break;
+
+	case JSAPI_PROP_TINYID_onpause:
+		event_type_dom = corestring_dom_pause;
+		break;
+
+	case JSAPI_PROP_TINYID_onplay:
+		event_type_dom = corestring_dom_play;
+		break;
+
+	case JSAPI_PROP_TINYID_onplaying:
+		event_type_dom = corestring_dom_playing;
+		break;
+
+	case JSAPI_PROP_TINYID_onprogress:
+		event_type_dom = corestring_dom_progress;
+		break;
+
+	case JSAPI_PROP_TINYID_onratechange:
+		event_type_dom = corestring_dom_ratechange;
+		break;
+
+	case JSAPI_PROP_TINYID_onreset:
+		event_type_dom = corestring_dom_reset;
+		break;
+
+	case JSAPI_PROP_TINYID_onscroll:
+		event_type_dom = corestring_dom_scroll;
+		break;
+
+	case JSAPI_PROP_TINYID_onseeked:
+		event_type_dom = corestring_dom_seeked;
+		break;
+
+	case JSAPI_PROP_TINYID_onseeking:
+		event_type_dom = corestring_dom_seeking;
+		break;
+
+	case JSAPI_PROP_TINYID_onselect:
+		event_type_dom = corestring_dom_select;
+		break;
+
+	case JSAPI_PROP_TINYID_onshow:
+		event_type_dom = corestring_dom_show;
+		break;
+
+	case JSAPI_PROP_TINYID_onstalled:
+		event_type_dom = corestring_dom_stalled;
+		break;
+
+	case JSAPI_PROP_TINYID_onsubmit:
+		event_type_dom = corestring_dom_submit;
+		break;
+
+	case JSAPI_PROP_TINYID_onsuspend:
+		event_type_dom = corestring_dom_suspend;
+		break;
+
+	case JSAPI_PROP_TINYID_ontimeupdate:
+		event_type_dom = corestring_dom_timeupdate;
+		break;
+
+	case JSAPI_PROP_TINYID_onvolumechange:
+		event_type_dom = corestring_dom_volumechange;
+		break;
+
+	case JSAPI_PROP_TINYID_onwaiting:
+		event_type_dom = corestring_dom_waiting;
+		break;
+
+	case JSAPI_PROP_TINYID_onreadystatechange:
+		event_type_dom = corestring_dom_readystatechange;
+		break;
+
+	default:
+		JSLOG("called with unknown tinyid");
+		return JS_TRUE;
+	}
+
+	js_dom_event_add_listener((struct jscontext *)cx,
+				  private->node,
+				  (dom_node *)private->node,
+				  event_type_dom,
+				  vp);
+%}

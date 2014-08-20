@@ -1,0 +1,44 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<!--
+
+Copyright (c) 2003 Oracle
+
+All Rights Reserved.  This program is distributed under the W3C's 
+Software Intellectual Property License [1].  This program is distributed
+in the hope that it will be useful, but WITHOUT ANY WARRANTY; without
+even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR 
+PURPOSE.
+
+[1] http://www.w3.org/Consortium/Legal/2002/copyright-software-20021231
+
+-->
+<!DOCTYPE test SYSTEM "dom3.dtd">
+<test xmlns="http://www.w3.org/2001/DOM-Test-Suite/Level-3" name="requiredAttributes">
+<metadata>
+
+<title>requiredAttributes</title>
+<creator>Kongyi Zhou</creator>
+<description>
+	The method requiredAttributes returns the NameList of required attributes for
+        the element.
+</description>
+<contributor>Oracle Corp.</contributor>
+<date qualifier="created">2003-03-01</date>
+<subject resource="http://www.w3.org/TR/2003/CR-DOM-Level-3-Val-20030730/validation#ElementEditVAL-requiredAttributes"/>
+</metadata>
+<implementationAttribute name="schemaValidating" value="true"/>
+
+<var name="doc" type="Document"/>
+<var name="root" type="ElementEditVAL"/>
+<var name="attrlist" type="NameList"/>
+<var name="attname" type="DOMString"/>
+<load var="doc" href="book" willBeModified="false"/>
+<documentElement obj="doc"  var="root"/>
+<requiredAttributes interface="ElementEditVAL" obj="root" var="attrlist"/>
+<assertNotNull actual="attrlist" id="requiredAttributesNotNull"/>
+<getName interface="NameList" obj="attrlist" index="0" var="attname"/>
+<assertEquals actual="attname" expected='"inStock"' ignoreCase="false" id="requiredAttributes"/>
+</test>
+
+

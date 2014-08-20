@@ -1,0 +1,116 @@
+| Run file for NetSurf. ( $Revision$ )
+|
+| This file ensures that the system resources required by NetSurf are 
+| present. Additionally, it forces setting of system variables related
+| to NetSurf.
+
+| Set system variables and application sprites
+Set NetSurf$ForceVars 1
+/<Obey$Dir>.!Boot
+UnSet NetSurf$ForceVars
+
+| Configure logging.  Set 1 to enable, or 0 to suppress.
+Set NetSurf$Logging 1
+
+| Detect if NetSurf is already running and, if so, force the 
+| current instance to open a new window. Then stop this script.
+Set Alias$NetSurfRunning UnSet Alias$NetSurfRunning|mUnSet NetSurf$Running|mObey
+Set NetSurf$Running 0
+WimpSlot -min 64k -max 64k
+/<NetSurf$Dir>.KickNS
+| If not running, then unset system variables and continue
+If "<NetSurf$Running>" = "0" Then Set Alias$NetSurfRunning UnSet Alias$NetSurfRunning|mUnSet NetSurf$Running
+| Invoke our alias to clean up
+NetSurfRunning
+
+| Resource Locations
+| The following are read-only locations
+SetMacro NetSurf$Path        Choices:WWW.NetSurf.,<NetSurf$Dir>.
+| The following are write-only locations
+SetMacro NetSurf$ChoicesSave <Choices$Write>.WWW.NetSurf.Choices
+
+| We need RISC OS 3
+RMEnsure UtilityModule 3.00 Error NetSurf needs RISC OS 3 or later
+
+| Ensure Nested WIMP is installed
+| http://acorn.riscos.com/ (in the universal boot archive)
+RMEnsure WindowManager 3.80 Error NetSurf requires the Nested Window Manager. This can be obtained by downloading the Universal Boot sequence from http://acorn.riscos.com/
+
+| Check for various key resources - can't do much if they don't exist
+If "<System$Path>" = "" Then Set System$Path_Message System resources not found.
+If "<Wimp$ScrapDir>" = "" Then Error Scrap resource not found.
+If "<InetDBase$Path>" = "" Then Error Internet resources can not be found
+If "<Unicode$Path>" = "" Then Error NetSurf requires the !Unicode resource. This can be found, along with the Iconv module, at http://www.netsurf-browser.org/projects/iconv/
+If "<Inet$MimeMappings>" = "" Then Set Inet$MimeMappings InetDBase:MimeMap
+
+| Define this alias for clarity
+| Syntax: NetSurfRMLoad <Path to module>
+Set Alias$NetSurfRMLoad IfThere %%*0 Then RMLoad %%*0
+
+| Ensure a 32bit SharedCLibrary is installed
+| http://www.iyonix.com/32bit/
+| (5.17 == first 32bit SCL, 5.43 == C99 features)
+RMEnsure SharedCLibrary 5.17 NetSurfRMLoad System:Modules.CLib
+RMEnsure SharedCLibrary 5.43 Error NetSurf requires SharedCLibrary 5.43 or later. This can be downloaded from http://www.iyonix.com/32bit/system.shtml
+
+| Ensure CallASWI is installed
+| http://www.iyonix.com/32bit/
+RMEnsure UtilityModule 3.70 RMEnsure CallASWI 0.02 NetSurfRMLoad System:Modules.CallASWI
+RMEnsure UtilityModule 3.70 RMEnsure CallASWI 0.02 Error NetSurf requires the CallASWI module. This can be downloaded from http://www.iyonix.com/32bit/system.shtml
+
+| Ensure DrawFile module is installed
+| http://acorn.riscos.com/riscos/releases/drawfile.arc
+| Should be installed in !System.310.Modules
+RMEnsure DrawFile 1.30 NetSurfRMLoad System:Modules.DrawFile
+RMEnsure DrawFile 1.30 Error NetSurf requires the DrawFile module. An old verson of this can be downloaded from http://acorn.riscos.com/riscos/releases/drawfile.arc
+
+| Ensure SharedUnixLibrary is installed
+| http://www.riscos.info/downloads/gccsdk/sharedunixlib/system.zip
+RMEnsure SharedUnixLibrary 1.07 NetSurfRMLoad System:Modules.SharedULib
+RMEnsure SharedUnixLibrary 1.07 Error NetSurf requires SharedUnixLibrary 1.07 or later. This can be downloaded from http://www.riscos.info/downloads/gccsdk/sharedunixlib/system.zip
+
+| Load AcornURI if it isn't already
+| http://sudden.recoil.org/
+Unset NetSurf$Start_URI_Handler
+RMEnsure AcornURI 0.12 Set NetSurf$Start_URI_Handler 1
+RMEnsure AcornURI 0.12 NetSurfRMLoad System:Modules.Network.URI
+RMEnsure AcornURI 0.12 Error NetSurf requires AcornURI 0.12 or later. A version of this can be found at http://sudden.recoil.org/others/
+RMEnsure AcornURI 0.12 Unset NetSurf$Start_URI_Handler
+
+| Check for mime map module
+RMEnsure MimeMap 0.10 NetSurfRMLoad System:Modules.Network.MimeMap
+RMEnsure MimeMap 0.10 Error NetSurf requires MimeMap 0.10 or later
+
+| Ensure Tinct is loaded
+| http://www.tinct.net/
+RMEnsure Tinct 0.13 NetSurfRMLoad System:Modules.Tinct
+RMEnsure Tinct 0.13 Error NetSurf requires Tinct 0.13 or later. This can be downloaded from http://www.tinct.net/
+
+| Ensure Iconv
+| http://www.netsurf-browser.org/iconv/
+RMEnsure Iconv 0.12 NetSurfRMLoad System:Modules.Iconv
+RMEnsure Iconv 0.12 Error NetSurf requires Iconv 0.12 or later. This can be downloaded from http://www.netsurf-browser.org/iconv/
+
+| Ensure CryptRandom
+RMEnsure CryptRandom 0.13 NetSurfRMLoad System:Modules.CryptRand
+RMEnsure CryptRandom 0.13 Error NetSurf requires CryptRandom 0.13 or later.  This can be downloaded from http://www.markettos.org.uk/riscos/crypto/
+
+| Disable SpecialFX, if present
+Set NetSurf$SpecialFX 1
+RMEnsure SpecialFX 1.00 Set NetSurf$SpecialFX 0
+If <NetSurf$SpecialFX> Then SpecialFX ~B~G~L NetSurf
+Unset NetSurf$SpecialFX
+
+| No longer need this alias
+Unset Alias$NetSurfRMLoad
+
+| Now attempt to create Scrap directories
+CDir <Wimp$ScrapDir>.WWW
+CDir <Wimp$ScrapDir>.WWW.NetSurf
+
+| Install NetSurf-specific fonts
+| NB: trailing dot is required
+FontInstall NetSurf:Resources.Fonts.
+
+WIMPSLOT
+Run <NetSurf$Dir>.!RunImage %*0 2><Wimp$ScrapDir>.WWW.NetSurf.Log

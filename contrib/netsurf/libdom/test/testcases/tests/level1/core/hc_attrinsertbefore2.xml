@@ -1,0 +1,71 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+Copyright (c) 2001-2004 World Wide Web Consortium,
+(Massachusetts Institute of Technology, Institut National de
+Recherche en Informatique et en Automatique, Keio University). All
+Rights Reserved. This program is distributed under the W3C's Software
+Intellectual Property License. This program is distributed in the
+hope that it will be useful, but WITHOUT ANY WARRANTY; without even
+the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
+PURPOSE.
+See W3C License http://www.w3.org/Consortium/Legal/ for more details.
+--><!DOCTYPE test SYSTEM "dom1.dtd">
+
+<test xmlns="http://www.w3.org/2001/DOM-Test-Suite/Level-1" name="hc_attrinsertbefore2">
+<metadata>
+<title>hc_attrinsertbefore2</title>
+<creator>Curt Arnold</creator>
+<description>
+Prepends a text node to an attribute and checks if the value of
+the attribute is changed.
+</description>
+
+<date qualifier="created">2004-01-01</date>
+<!--  Attr interface  -->
+<subject resource="http://www.w3.org/TR/1998/REC-DOM-Level-1-19981001/level-one-core#ID-637646024"/>
+<!--  Node.insertBefore   -->
+<subject resource="http://www.w3.org/TR/1998/REC-DOM-Level-1-19981001/level-one-core#ID-952280727"/>
+</metadata>
+
+<var name="doc" type="Document"/>
+<var name="acronymList" type="NodeList"/>
+<var name="testNode" type="Node"/>
+<var name="attributes" type="NamedNodeMap"/>
+<var name="titleAttr" type="Attr"/>
+<var name="value" type="DOMString"/>
+<var name="textNode" type="Text"/>
+<var name="retval" type="Node"/>
+<var name="lastChild" type="Node"/>
+<var name="firstChild" type="Node"/>
+<var name="refChild" type="Node"/>
+<load var="doc" href="hc_staff" willBeModified="true"/>
+<getElementsByTagName interface="Document" obj="doc" var="acronymList" tagname='"acronym"'/>
+<item interface="NodeList" obj="acronymList" var="testNode" index="3"/>
+<attributes obj="testNode" var="attributes"/>
+<getNamedItem obj="attributes" var="titleAttr" name='"title"'/>
+<createTextNode var="textNode" obj="doc" data='"terday"'/>
+<firstChild var="refChild" obj="titleAttr" interface="Node"/>
+<insertBefore var="retval" obj="titleAttr" newChild="textNode" refChild="refChild"/>
+
+<!--  check that Attr.value gives expected result   -->
+<value interface="Attr" obj="titleAttr" var="value"/>
+<assertEquals actual="value" expected='"terdayYes"' id="attrValue" ignoreCase="false"/>
+
+<!--  check that Node.value gives expected result   -->
+<nodeValue obj="titleAttr" var="value"/>
+<assertEquals actual="value" expected='"terdayYes"' id="attrNodeValue" ignoreCase="false"/>
+
+<!--  check that retval is the appended node  -->
+<nodeValue obj="retval" var="value"/>
+<assertEquals actual="value" expected='"terday"' id="retvalValue" ignoreCase="false"/>
+
+<!--  check that firstChild is the prepended node   -->
+<firstChild var="firstChild" obj="titleAttr" interface="Node"/>
+<nodeValue obj="firstChild" var="value"/>
+<assertEquals actual="value" expected='"terday"' id="firstChildValue" ignoreCase="false"/>
+
+<!--  check that lastChild is the original node   -->
+<lastChild var="lastChild" obj="titleAttr" interface="Node"/>
+<nodeValue obj="lastChild" var="value"/>
+<assertEquals actual="value" expected='"Yes"' id="lastChildValue" ignoreCase="false"/>
+</test>

@@ -1,0 +1,57 @@
+<?xml version="1.0" encoding="UTF-8"?><?xml-stylesheet href="test-to-html.xsl" type="text/xml"?>
+
+<!--
+
+Copyright (c) 2001 World Wide Web Consortium, 
+(Massachusetts Institute of Technology, Institut National de
+Recherche en Informatique et en Automatique, Keio University).  All 
+Rights Reserved.  This program is distributed under the W3C's Software
+Intellectual Property License.  This program is distributed in the 
+hope that it will be useful, but WITHOUT ANY WARRANTY; without even
+the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR 
+PURPOSE.  
+
+See W3C License http://www.w3.org/Consortium/Legal/ for more details.
+
+-->
+<!DOCTYPE test SYSTEM "dom2.dtd">
+<test xmlns="http://www.w3.org/2001/DOM-Test-Suite/Level-2" name="setNamedItemNS03">
+<metadata>
+<title>setNamedItemNS03</title>
+<creator>NIST</creator>
+<description>
+    The "setNamedItemNS(arg)" method for a 
+   NamedNodeMap should add a node using its namespaceURI and localName given that
+   there is no existing node with the same namespaceURI and localName in the map.
+   
+   Create an attr node with namespaceURI "http://www.nist.gov",qualifiedName
+   "prefix:newAttr" and value "newValue".
+   Invoke method setNamedItemNS(arg) on the map of the first "address"
+   element where arg is identified by the namespaceURI and qualifiedName
+   from above.  Method should return the newly added attr node.
+</description>
+<contributor>Mary Brady</contributor>
+<date qualifier="created">2001-08-17</date>
+<subject resource="http://www.w3.org/TR/DOM-Level-2-Core/core#ID-F68D080"/>
+</metadata>
+<var name="namespaceURI" type="DOMString" value="&quot;http://www.nist.gov&quot;"/>
+<var name="qualifiedName" type="DOMString" value="&quot;prefix:newAttr&quot;"/>
+<var name="doc" type="Document"/>
+<var name="arg" type="Node"/>
+<var name="elementList" type="NodeList"/>
+<var name="testAddress" type="Node"/>
+<var name="attributes" type="NamedNodeMap"/>
+<var name="retnode" type="Node"/>
+<var name="value" type="DOMString"/>
+<var name="setNode" type="Node"/>
+<load var="doc" href="staffNS" willBeModified="true"/>
+<createAttributeNS obj="doc" var="arg" namespaceURI="namespaceURI" qualifiedName="qualifiedName"/>
+<nodeValue obj="arg" value="&quot;newValue&quot;"/>
+<getElementsByTagName interface="Document" obj="doc" var="elementList" tagname="&quot;address&quot;"/>
+<item interface="NodeList" obj="elementList" var="testAddress" index="0"/>
+<attributes obj="testAddress" var="attributes"/>
+<setNamedItemNS var="setNode" interface="NamedNodeMap" obj="attributes" arg="arg"/>
+<getNamedItemNS obj="attributes" var="retnode" namespaceURI="namespaceURI" localName="&quot;newAttr&quot;"/>
+<nodeValue obj="retnode" var="value"/>
+<assertEquals actual="value" expected="&quot;newValue&quot;" id="throw_Equals" ignoreCase="false"/>
+</test>

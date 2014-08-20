@@ -1,0 +1,47 @@
+<?xml version="1.0" encoding="UTF-8"?><?xml-stylesheet href="test-to-html.xsl" type="text/xml"?>
+
+<!--
+
+Copyright (c) 2001-2004 World Wide Web Consortium, 
+(Massachusetts Institute of Technology, Institut National de
+Recherche en Informatique et en Automatique, Keio University).  All 
+Rights Reserved.  This program is distributed under the W3C's Software
+Intellectual Property License.  This program is distributed in the 
+hope that it will be useful, but WITHOUT ANY WARRANTY; without even
+the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR 
+PURPOSE.  
+
+See W3C License http://www.w3.org/Consortium/Legal/ for more details.
+
+-->
+
+<!DOCTYPE test SYSTEM "dom3.dtd">
+<test xmlns="http://www.w3.org/2001/DOM-Test-Suite/Level-3" name="typeinfoisderivedfrom17">
+<metadata>
+<title>typeinfoisderivedfrom17</title>
+<creator>Curt Arnold</creator>
+<description>
+Check if emType is derived from emp0001_3Type by any method other than union.
+</description>
+<date qualifier="created">2004-01-13</date>
+<subject resource="http://www.w3.org/TR/2004/REC-DOM-Level-3-Core-20040407/core#TypeInfo-isDerivedFrom"/>
+</metadata>
+<implementationAttribute name="schemaValidating" value="true"/>
+<var name="doc" type="Document"/>
+<var name="elemList" type="NodeList"/>
+<var name="elem" type="Element"/>
+<var name="typeInfo" type="TypeInfo"/>
+<var name="isDerived" type="boolean"/>
+<var name="typeName" type="DOMString"/>
+<load var="doc" href="hc_staff" willBeModified="false"/>
+<getElementsByTagName var="elemList" obj="doc" tagname='"em"' interface="Document"/>
+<item var="elem" obj="elemList" index="0" interface="NodeList"/>
+<schemaTypeInfo var="typeInfo" obj="elem" interface="Element"/>
+<!--  type should be emType  -->
+<assertNotNull actual="typeInfo" id="typeInfoNotNull"/>
+<typeName var="typeName" obj="typeInfo"/>
+<assertEquals actual="typeName" expected='"emType"' ignoreCase="false" id="name"/>
+<isDerivedFrom var="isDerived" obj="typeInfo" typeNamespaceArg='"http://www.w3.org/1999/xhtml"'
+	typeNameArg='"emp0001_3Type"' derivationMethod="11"/>
+<assertFalse actual="isDerived" id="derivedFromEmp13NotUnion"/>
+</test>

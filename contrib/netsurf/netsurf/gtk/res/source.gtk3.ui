@@ -1,0 +1,179 @@
+<?xml version="1.0"?>
+<!--Generated with glade3 3.4.5 on Mon Apr 20 21:28:45 2009 -->
+<interface>
+  <object class="GtkUIManager" id="uimanager1">
+    <child>
+      <object class="GtkActionGroup" id="actiongroup1">
+        <child>
+          <object class="GtkAction" id="menuitem1">
+            <property name="name">menuitem1</property>
+            <property name="label" translatable="yes">_File</property>
+          </object>
+        </child>
+        <child>
+          <object class="GtkAction" id="source_save_as">
+            <property name="stock_id" translatable="yes">gtk-save-as</property>
+            <property name="name">source_save_as</property>
+          </object>
+          <accelerator key="S" modifiers="GDK_CONTROL_MASK"/>
+        </child>
+        <child>
+          <object class="GtkAction" id="source_print">
+            <property name="stock_id" translatable="yes">gtk-print</property>
+            <property name="name">source_print</property>
+          </object>
+          <accelerator key="P" modifiers="GDK_CONTROL_MASK"/>
+        </child>
+        <child>
+          <object class="GtkAction" id="source_close">
+            <property name="stock_id" translatable="yes">gtk-close</property>
+            <property name="name">source_close</property>
+          </object>
+        </child>
+        <child>
+          <object class="GtkAction" id="menuitem2">
+            <property name="name">menuitem2</property>
+            <property name="label" translatable="yes">_Edit</property>
+          </object>
+        </child>
+        <child>
+          <object class="GtkAction" id="source_select_all">
+            <property name="stock_id" translatable="yes">gtk-select-all</property>
+            <property name="name">source_select_all</property>
+          </object>
+          <accelerator key="A" modifiers="GDK_CONTROL_MASK"/>
+        </child>
+        <child>
+          <object class="GtkAction" id="source_cut">
+            <property name="stock_id" translatable="yes">gtk-cut</property>
+            <property name="name">source_cut</property>
+          </object>
+        </child>
+        <child>
+          <object class="GtkAction" id="source_copy">
+            <property name="stock_id" translatable="yes">gtk-copy</property>
+            <property name="name">source_copy</property>
+          </object>
+        </child>
+        <child>
+          <object class="GtkAction" id="source_paste">
+            <property name="stock_id" translatable="yes">gtk-paste</property>
+            <property name="name">source_paste</property>
+          </object>
+        </child>
+        <child>
+          <object class="GtkAction" id="source_delete">
+            <property name="stock_id" translatable="yes">gtk-delete</property>
+            <property name="name">source_delete</property>
+          </object>
+          <accelerator key="Delete" modifiers=""/>
+        </child>
+        <child>
+          <object class="GtkAction" id="menuitem3">
+            <property name="name">menuitem3</property>
+            <property name="label" translatable="yes">_View</property>
+          </object>
+        </child>
+        <child>
+          <object class="GtkAction" id="source_zoom_in">
+            <property name="stock_id" translatable="yes">gtk-zoom-in</property>
+            <property name="name">source_zoom_in</property>
+          </object>
+          <accelerator key="plus" modifiers="GDK_CONTROL_MASK"/>
+        </child>
+        <child>
+          <object class="GtkAction" id="source_zoom_out">
+            <property name="stock_id" translatable="yes">gtk-zoom-out</property>
+            <property name="name">source_zoom_out</property>
+          </object>
+          <accelerator key="minus" modifiers="GDK_CONTROL_MASK"/>
+        </child>
+        <child>
+          <object class="GtkAction" id="source_zoom_normal">
+            <property name="stock_id" translatable="yes">gtk-zoom-100</property>
+            <property name="name">source_zoom_normal</property>
+          </object>
+          <accelerator key="0" modifiers="GDK_CONTROL_MASK"/>
+        </child>
+        <child>
+          <object class="GtkAction" id="menuitem4">
+            <property name="name">menuitem4</property>
+            <property name="label" translatable="yes">_Help</property>
+          </object>
+        </child>
+        <child>
+          <object class="GtkAction" id="source_about">
+            <property name="stock_id" translatable="yes">gtk-about</property>
+            <property name="name">source_about</property>
+          </object>
+        </child>
+      </object>
+    </child>
+    <ui>
+      <menubar name="menubar1">
+        <menu action="menuitem1">
+          <menuitem action="source_save_as"/>
+          <menuitem action="source_print"/>
+          <separator/>
+          <menuitem action="source_close"/>
+        </menu>
+        <menu action="menuitem2">
+          <menuitem action="source_select_all"/>
+          <menuitem action="source_cut"/>
+          <menuitem action="source_copy"/>
+          <menuitem action="source_paste"/>
+          <menuitem action="source_delete"/>
+        </menu>
+        <menu action="menuitem3">
+          <menuitem action="source_zoom_in"/>
+          <menuitem action="source_zoom_out"/>
+          <menuitem action="source_zoom_normal"/>
+        </menu>
+        <menu action="menuitem4">
+          <menuitem action="source_about"/>
+        </menu>
+      </menubar>
+    </ui>
+  </object>
+  <object class="GtkWindow" id="wndSource">
+    <child>
+      <object class="GtkVBox" id="vbox1">
+        <property name="visible">True</property>
+        <child>
+          <object class="GtkMenuBar" constructor="uimanager1" id="menubar1">
+            <property name="visible">True</property>
+          </object>
+          <packing>
+            <property name="expand">False</property>
+          </packing>
+        </child>
+        <child>
+          <object class="GtkScrolledWindow" id="sourcescrolled">
+            <property name="visible">True</property>
+            <property name="can_focus">True</property>
+            <property name="hscrollbar_policy">GTK_POLICY_AUTOMATIC</property>
+            <property name="vscrollbar_policy">GTK_POLICY_AUTOMATIC</property>
+            <child>
+              <object class="GtkTextView" id="source_view">
+                <property name="width_request">600</property>
+                <property name="height_request">400</property>
+                <property name="visible">True</property>
+                <property name="can_focus">True</property>
+                <property name="pixels_above_lines">1</property>
+                <property name="pixels_below_lines">1</property>
+                <property name="editable">False</property>
+                <property name="wrap_mode">GTK_WRAP_WORD</property>
+                <property name="left_margin">3</property>
+                <property name="right_margin">3</property>
+                <property name="accepts_tab">False</property>
+              </object>
+            </child>
+          </object>
+          <packing>
+            <property name="position">1</property>
+          </packing>
+        </child>
+      </object>
+    </child>
+  </object>
+</interface>

@@ -1,0 +1,55 @@
+<?xml version="1.0" encoding="UTF-8"?><?xml-stylesheet href="test-to-html.xsl" type="text/xml"?>
+
+<!--
+
+Copyright (c) 2001-2004 World Wide Web Consortium, 
+(Massachusetts Institute of Technology, Institut National de
+Recherche en Informatique et en Automatique, Keio University).  All 
+Rights Reserved.  This program is distributed under the W3C's Software
+Intellectual Property License.  This program is distributed in the 
+hope that it will be useful, but WITHOUT ANY WARRANTY; without even
+the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR 
+PURPOSE.  
+
+See W3C License http://www.w3.org/Consortium/Legal/ for more details.
+
+-->
+
+<!DOCTYPE test SYSTEM "dom3.dtd">
+<test xmlns="http://www.w3.org/2001/DOM-Test-Suite/Level-3" name="nodereplacechild40">
+<metadata>
+<title>nodereplacechild40</title>
+<creator>Curt Arnold</creator>
+<description>
+Attempt to add a second document element by a comment.  The attempt should result
+in a HIERARCHY_REQUEST_ERR or NOT_SUPPORTED_ERR. 
+</description>
+<date qualifier="created">2004-01-22</date>
+<subject resource="http://www.w3.org/TR/2004/REC-DOM-Level-3-Core-20040407/core#ID-785887307"/>
+</metadata>
+<var name="doc" type="Document"/>
+<var name="docElem" type="Element"/>
+<var name="rootName" type="DOMString"/>
+<var name="publicId" type="DOMString" isNull="true"/>
+<var name="systemId" type="DOMString" isNull="true"/>
+<var name="newComment" type="Comment"/>
+<var name="newDocType" type="DocumentType"/>
+<var name="domImpl" type="DOMImplementation"/>
+<var name="retNode" type="Node"/>
+<load var="doc" href="barfoo" willBeModified="true"/>
+<documentElement var="docElem" obj="doc"/>
+<tagName var="rootName" obj="docElem"/>
+<implementation var="domImpl" obj="doc"/>
+<createDocumentType var="newDocType" obj="domImpl" qualifiedName="rootName" 
+	publicId="publicId" systemId="systemId"/>
+<createComment var="newComment" obj="doc" data='"second element goes here"'/>
+<insertBefore var="retNode" obj="doc" newChild="newComment" refChild="docElem"/>
+<try>
+	<replaceChild var="retNode" obj="doc" newChild="newDocType" oldChild="newComment"/>
+	<fail id="throw_HIERARCHY_REQUEST_OR_NOT_SUPPORTED"/>
+	<catch>
+		<DOMException code="HIERARCHY_REQUEST_ERR"/>
+		<DOMException code="NOT_SUPPORTED_ERR"/>
+	</catch>
+</try>
+</test>

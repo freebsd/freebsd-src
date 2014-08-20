@@ -1,0 +1,81 @@
+This file is part of NetSurf, http://www.netsurf-browser.org/
+
+The images in this theme folder 'gtk+' are from the gtk stock image set
+http://library.gnome.org/devel/gtk/unstable/gtk-Stock-Items.html
+
+the image history.png is [for what it's worth!] Copyright 2009 Mark Benjamin
+<netsurf-browser.org.MarkBenjamin@dfgh.net>
+
+NetSurf is free software; you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation; version 2 of the License.
+
+NetSurf is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License
+along with this program.  If not, see <http://www.gnu.org/licenses/>.
+
+*** Instructions for theming ***
+
+to create a theme, make a folder, whose name is the name of the theme;
+put in the folder, a set of png images for the toolbuttons;
+the names of the images should be a subset of the list
+
+	back.png,
+	history.png,
+	forward.png,
+	stop.png,
+	reload.png,
+	home.png,
+	newwindow.png,
+	newtab.png,
+	openfile.png,
+	closetab.png,
+	closewindow.png,
+	savepage.png,
+	pdf.png,
+	plaintext.png,
+	drawfile.png,
+	postscript.png,
+	printpreview.png,
+	print.png,
+	quit.png,
+	cut.png,
+	copy.png,
+	paste.png,
+	delete.png,
+	selectall.png,
+	find.png,
+	preferences.png,
+	zoomplus.png,
+	zoomminus.png,
+	zoomnormal.png,
+	fullscreen.png,
+	viewsource.png,
+	downloads.png,
+	savewindowsize.png,
+	toggledebugging.png,
+	saveboxtree.png,
+	savedomtree.png,
+	localhistory.png,
+	globalhistory.png,
+	addbookmarks.png,
+	showbookmarks.png,
+	openlocation.png,
+	nexttab.png,
+	prevtab.png,
+	contents.png,
+	guide.png,
+	info.png,
+	about.png,
+	searchback.png,
+	searchforward.png,
+	searchclose.png
+	
+for local theming, the folder may be placed directly [as a subfolder] into the netsurf/gtk/res/themes folder; then 'add theme' from the preferences->advanced tab;
+
+for downloadable themes, compile netsurf/utils/container.c according to the instructions in the header of that file; make a netsurf container of the folder, serve it as content-type "application/x-netsurf-theme"; browse to it in NetSurf, then NetSurf should automatically install it
+

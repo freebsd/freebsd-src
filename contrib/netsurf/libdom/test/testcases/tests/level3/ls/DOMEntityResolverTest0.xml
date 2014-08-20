@@ -1,0 +1,75 @@
+<?xml version="1.0" standalone="no"?>
+<?xml-stylesheet href="test-to-html.xsl" type="text/xml"?>
+<!--
+ Copyright (c) 2003 X-Hive Corporation
+
+ All Rights Reserved. This work is distributed under the W3C(r)
+ Software License [1] in the hope that it will be useful, but WITHOUT
+ ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
+ FITNESS FOR A PARTICULAR PURPOSE.
+
+ [1] http://www.w3.org/Consortium/Legal/2002/copyright-software-20021231
+-->
+
+
+<!DOCTYPE test SYSTEM "dom3.dtd" [
+  <!ENTITY % entities SYSTEM "dom3tests.ent">
+  %entities;
+]>
+
+
+<test xmlns="&level3;" name="DOMEntityResolverTest0">
+  <metadata>
+    <title>DOMEntityResolverTest0</title>
+    &creator;
+    <description>Checks parameters on call to resolve resource are
+       as expected and redirects to parse a different resource.</description>
+    &contributor; &date;
+    <subject resource="&spec;#LS-LSResourceResolver-resolveResource"/>
+    <subject resource="http://www.w3.org/TR/2004/REC-DOM-Level-3-LS-20040407/load-save#parameter-resource-resolver"/>
+  </metadata>
+
+  <var name="resourceURI" type="DOMString"/>
+  <var name="elt2List" type="NodeList"/>
+  <var name="elt2Count" type="int"/>
+  <var name="myentityresolver" type="LSResourceResolver">
+     <resolveResource>
+             <var name="domImplLS" type="DOMImplementationLS"/>
+             <var name="redirectedInput" type="LSInput"/>
+             <var name="resourceURI" type="DOMString"/>
+             <var name="source" type="DOMString" value='"&lt;elt2/&gt;"'/>
+
+                <!--  check that parameters on call to resolveSource are correct  -->
+        <assertNull actual="publicId"  id="rr_publicId"/>
+        <assertEquals actual="systemId"  expected='"test5.xml"' ignoreCase="false" id="rr_systemId"/>
+        <assertURIEquals actual="baseURI" isAbsolute='true' name='"test4"' id="rr_baseURI"/>
+
+        <!--  redirect so that test5 is loaded  -->
+        <implementation var="domImplLS"/>
+        <createLSInput var="redirectedInput" obj="domImplLS"/>
+        <stringData obj="redirectedInput" value="source" interface="LSInput"/>
+        <return value="redirectedInput"/>
+     </resolveResource>
+
+  </var>
+
+  <var name="configuration" type="DOMConfiguration"/>
+
+  &vars;
+  &init;
+
+  <domConfig var="configuration" obj="parser" interface="LSParser"/>
+  <setParameter obj="configuration" name='"resource-resolver"' value="myentityresolver"/>
+
+  <getResourceURI var="resourceURI" href="TEST4" contentType="text/xml"/>
+  <parseURI var="document" obj="parser" uri="resourceURI"/>
+  <getElementsByTagName var="elt2List" obj="document"
+     tagname='"elt2"' interface="Document"/>
+  <length var="elt2Count" obj="elt2List" interface="NodeList"/>
+  <assertEquals actual="elt2Count" expected="1" id="elt2Count" ignoreCase="false"/>
+</test>
+
+
+
+
+

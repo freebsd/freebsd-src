@@ -1,0 +1,60 @@
+<?xml version="1.0" encoding="UTF-8"?><?xml-stylesheet href="test-to-html.xsl" type="text/xml"?>
+
+<!--
+
+Copyright (c) 2001 World Wide Web Consortium, 
+(Massachusetts Institute of Technology, Institut National de
+Recherche en Informatique et en Automatique, Keio University).  All 
+Rights Reserved.  This program is distributed under the W3C's Software
+Intellectual Property License.  This program is distributed in the 
+hope that it will be useful, but WITHOUT ANY WARRANTY; without even
+the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR 
+PURPOSE.  
+
+See W3C License http://www.w3.org/Consortium/Legal/ for more details.
+
+-->
+<!DOCTYPE test SYSTEM "dom2.dtd">
+<test xmlns="http://www.w3.org/2001/DOM-Test-Suite/Level-2" name="elementsetattributens04">
+  <metadata>
+    <title>elementsetattributens04</title>
+    <creator>IBM</creator>
+    <description>
+      The method setAttributeNS adds a new attribute and raises a INVALID_CHARACTER_ERR if 
+      the specified qualified name contains an illegal character.
+      Invoke the setAttributeNS method on this Element object with a valid value for 
+      namespaceURI, and qualifiedNames that contain illegal characters.  Check if the an
+      INVALID_CHARACTER_ERR was thrown.
+    </description>
+    <contributor>Neil Delima</contributor>
+    <date qualifier="created">2002-04-28</date>
+    <subject resource="http://www.w3.org/TR/DOM-Level-2-Core/core#ID-ElSetAttrNS"/>
+  </metadata>
+  <var name="doc" type="Document"/>
+  <var name="element" type="Element"/>
+  <var name="qualifiedName" type="DOMString"/>
+  <var name="qualifiedNames" type="List">
+    <member>&quot;/&quot;</member>
+    <member>&quot;//&quot;</member>
+    <member>&quot;\\&quot;</member>
+    <member>&quot;;&quot;</member>
+    <member>&quot;&amp;&quot;</member>
+    <member>&quot;*&quot;</member>
+    <member>&quot;]]&quot;</member>
+    <member>&quot;>&quot;</member>
+    <member>&quot;&lt;&quot;</member>
+  </var>
+  <load var="doc" href="staffNS" willBeModified="true"/>
+  <createElementNS var="element" obj="doc" 
+		   namespaceURI='"http://www.w3.org/DOM/Test/L2"' 
+		   qualifiedName='"dom:elem"'/>
+  <for-each collection="qualifiedNames" member="qualifiedName">
+    <assertDOMException id="elementsetattributens04">
+      <INVALID_CHARACTER_ERR>
+	<setAttributeNS obj="element"  
+			namespaceURI='"http://www.w3.org/DOM/Test/L2"' 
+			qualifiedName ="qualifiedName" value='"test"'/>
+      </INVALID_CHARACTER_ERR>
+    </assertDOMException>
+  </for-each>
+</test>

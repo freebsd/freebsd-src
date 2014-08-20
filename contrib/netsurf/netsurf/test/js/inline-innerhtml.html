@@ -1,0 +1,15 @@
+<html>
+<head>
+<title>Inline Script innerHTML Test</title>
+<link rel="stylesheet" type="text/css" href="tst.css">
+</head>
+<body>
+<h1>Inline Script innerHTML Test</h1>
+<p>Before</p>
+<p id="demo">some text you should never see</p>
+<script type="text/javascript">
+document.getElementById("demo").innerHTML="text inserted by script";
+</script>
+<p>Afterwards</p>
+</body>
+</html>

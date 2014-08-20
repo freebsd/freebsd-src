@@ -1,0 +1,48 @@
+<?xml version="1.0" encoding="UTF-8"?><?xml-stylesheet href="test-to-html.xsl" type="text/xml"?>
+
+<!--
+
+Copyright (c) 2001-2004 World Wide Web Consortium, 
+(Massachusetts Institute of Technology, Institut National de
+Recherche en Informatique et en Automatique, Keio University).  All 
+Rights Reserved.  This program is distributed under the W3C's Software
+Intellectual Property License.  This program is distributed in the 
+hope that it will be useful, but WITHOUT ANY WARRANTY; without even
+the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR 
+PURPOSE.  
+
+See W3C License http://www.w3.org/Consortium/Legal/ for more details.
+
+-->
+
+<!DOCTYPE test SYSTEM "dom3.dtd">
+<test xmlns="http://www.w3.org/2001/DOM-Test-Suite/Level-3" name="nodegetbaseuri13">
+<metadata>
+<title>nodegetbaseuri13</title>
+<creator>IBM</creator>
+<description>
+	Using getBaseURI verify if the notation defined in an internal subset
+	is the base URI of the document.
+</description>
+<contributor>Neil Delima</contributor>
+<date qualifier="created">2002-06-10</date>
+<subject resource="http://www.w3.org/TR/2004/REC-DOM-Level-3-Core-20040407/core#Node3-baseURI"/>
+<subject resource="http://www.w3.org/Bugs/Public/show_bug.cgi?id=419"/>
+<subject resource="http://www.w3.org/TR/2004/REC-DOM-Level-3-Core-20040407/infoset-mapping#Infoset2Notation"/>
+</metadata>
+<var name="doc" type="Document"/>
+<var name="docType" type="DocumentType"/>
+<var name="notationsMap" type="NamedNodeMap"/>
+<var name="notation" type="Notation"/>
+<var name="baseURI" type="DOMString"/>
+<var name="docURI" type="DOMString"/>
+<load var="doc" href="hc_staff" willBeModified="false"/>
+<doctype var="docType" obj="doc"/>
+<notations var="notationsMap" obj="docType"/>
+<getNamedItem var="notation" obj="notationsMap" name='"notation1"'/>
+<baseURI var="baseURI" obj="notation" interface="Node"/>
+<documentURI var="docURI" obj="doc"/>
+<assertEquals actual="baseURI" expected="docURI" ignoreCase="false" id="sameAsDocURI"/>
+<assertURIEquals actual="baseURI" id="entityBase" isAbsolute="true" name='"hc_staff"'/>
+</test>
+

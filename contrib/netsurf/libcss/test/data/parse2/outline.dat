@@ -1,0 +1,738 @@
+#data
+* { outline: inherit; }
+#errors
+#expected
+| *
+|  outline-color: inherit
+|  outline-style: inherit
+|  outline-width: inherit
+#reset
+
+#data
+* { outline: red; }
+#errors
+#expected
+| *
+|  outline-color: #ffff0000
+|  outline-style: none
+|  outline-width: medium
+#reset
+
+#data
+* { outline: transparent; }
+#errors
+#expected
+| *
+|  outline-color: transparent
+|  outline-style: none
+|  outline-width: medium
+#reset
+
+#data
+* { outline: currentColor; }
+#errors
+#expected
+| *
+|  outline-color: currentColor
+|  outline-style: none
+|  outline-width: medium
+#reset
+
+#data
+* { outline: solid; }
+#errors
+#expected
+| *
+|  outline-color: invert
+|  outline-style: solid
+|  outline-width: medium
+#reset
+
+#data
+* { outline: thin; }
+#errors
+#expected
+| *
+|  outline-color: invert
+|  outline-style: none
+|  outline-width: thin
+#reset
+
+#data
+* { outline: red solid; }
+#errors
+#expected
+| *
+|  outline-color: #ffff0000
+|  outline-style: solid
+|  outline-width: medium
+#reset
+
+#data
+* { outline: solid red; }
+#errors
+#expected
+| *
+|  outline-color: #ffff0000
+|  outline-style: solid
+|  outline-width: medium
+#reset
+
+#data
+* { outline: red thin; }
+#errors
+#expected
+| *
+|  outline-color: #ffff0000
+|  outline-style: none
+|  outline-width: thin
+#reset
+
+#data
+* { outline: thin red; }
+#errors
+#expected
+| *
+|  outline-color: #ffff0000
+|  outline-style: none
+|  outline-width: thin
+#reset
+
+#data
+* { outline: solid thin; }
+#errors
+#expected
+| *
+|  outline-color: invert
+|  outline-style: solid
+|  outline-width: thin
+#reset
+
+#data
+* { outline: thin solid; }
+#errors
+#expected
+| *
+|  outline-color: invert
+|  outline-style: solid
+|  outline-width: thin
+#reset
+
+#data
+* { outline: red solid thin; }
+#errors
+#expected
+| *
+|  outline-color: #ffff0000
+|  outline-style: solid
+|  outline-width: thin
+#reset
+
+#data
+* { outline: red thin solid; }
+#errors
+#expected
+| *
+|  outline-color: #ffff0000
+|  outline-style: solid
+|  outline-width: thin
+#reset
+
+#data
+* { outline: solid red thin; }
+#errors
+#expected
+| *
+|  outline-color: #ffff0000
+|  outline-style: solid
+|  outline-width: thin
+#reset
+
+#data
+* { outline: solid thin red; }
+#errors
+#expected
+| *
+|  outline-color: #ffff0000
+|  outline-style: solid
+|  outline-width: thin
+#reset
+
+#data
+* { outline: thin red solid; }
+#errors
+#expected
+| *
+|  outline-color: #ffff0000
+|  outline-style: solid
+|  outline-width: thin
+#reset
+
+#data
+* { outline: thin solid red; }
+#errors
+#expected
+| *
+|  outline-color: #ffff0000
+|  outline-style: solid
+|  outline-width: thin
+#reset
+
+
+#data
+* { outline: inherit !important; }
+#errors
+#expected
+| *
+|  outline-color: inherit !important
+|  outline-style: inherit !important
+|  outline-width: inherit !important
+#reset
+
+#data
+* { outline: red !important; }
+#errors
+#expected
+| *
+|  outline-color: #ffff0000 !important
+|  outline-style: none !important
+|  outline-width: medium !important
+#reset
+
+#data
+* { outline: solid !important; }
+#errors
+#expected
+| *
+|  outline-color: invert !important
+|  outline-style: solid !important
+|  outline-width: medium !important
+#reset
+
+#data
+* { outline: thin !important; }
+#errors
+#expected
+| *
+|  outline-color: invert !important
+|  outline-style: none !important
+|  outline-width: thin !important
+#reset
+
+#data
+* { outline: red solid !important; }
+#errors
+#expected
+| *
+|  outline-color: #ffff0000 !important
+|  outline-style: solid !important
+|  outline-width: medium !important
+#reset
+
+#data
+* { outline: solid red !important; }
+#errors
+#expected
+| *
+|  outline-color: #ffff0000 !important
+|  outline-style: solid !important
+|  outline-width: medium !important
+#reset
+
+#data
+* { outline: red thin !important; }
+#errors
+#expected
+| *
+|  outline-color: #ffff0000 !important
+|  outline-style: none !important
+|  outline-width: thin !important
+#reset
+
+#data
+* { outline: thin red !important; }
+#errors
+#expected
+| *
+|  outline-color: #ffff0000 !important
+|  outline-style: none !important
+|  outline-width: thin !important
+#reset
+
+#data
+* { outline: solid thin !important; }
+#errors
+#expected
+| *
+|  outline-color: invert !important
+|  outline-style: solid !important
+|  outline-width: thin !important
+#reset
+
+#data
+* { outline: thin solid !important; }
+#errors
+#expected
+| *
+|  outline-color: invert !important
+|  outline-style: solid !important
+|  outline-width: thin !important
+#reset
+
+#data
+* { outline: red solid thin !important; }
+#errors
+#expected
+| *
+|  outline-color: #ffff0000 !important
+|  outline-style: solid !important
+|  outline-width: thin !important
+#reset
+
+#data
+* { outline: red thin solid !important; }
+#errors
+#expected
+| *
+|  outline-color: #ffff0000 !important
+|  outline-style: solid !important
+|  outline-width: thin !important
+#reset
+
+#data
+* { outline: solid red thin !important; }
+#errors
+#expected
+| *
+|  outline-color: #ffff0000 !important
+|  outline-style: solid !important
+|  outline-width: thin !important
+#reset
+
+#data
+* { outline: solid thin red !important; }
+#errors
+#expected
+| *
+|  outline-color: #ffff0000 !important
+|  outline-style: solid !important
+|  outline-width: thin !important
+#reset
+
+#data
+* { outline: thin red solid !important; }
+#errors
+#expected
+| *
+|  outline-color: #ffff0000 !important
+|  outline-style: solid !important
+|  outline-width: thin !important
+#reset
+
+#data
+* { outline: thin solid red !important; }
+#errors
+#expected
+| *
+|  outline-color: #ffff0000 !important
+|  outline-style: solid !important
+|  outline-width: thin !important
+#reset
+
+
+#data
+* { outline: invalid; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { outline: ; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { outline:}
+#errors
+#expected
+| *
+#reset
+
+#data
+* { outline: thin solid red inherit; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { outline: inherit thin solid #fff; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { outline: inherit thin; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { outline: thin inherit; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { outline: inherit inherit; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { outline: inherit #BBC !important; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { outline: #BBC !important inherit; }
+#errors
+#expected
+| *
+#reset
+
+
+#data
+* { outline-color: red; }
+#errors
+#expected
+| *
+|  outline-color: #ffff0000
+#reset
+
+#data
+* { outline-color: inherit; }
+#errors
+#expected
+| *
+|  outline-color: inherit
+#reset
+
+#data
+* { outline-color: red green; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { outline-color: red green blue; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { outline-color: red green blue yellow; }
+#errors
+#expected
+| *
+#reset
+
+
+#data
+* { outline-color: red !important; }
+#errors
+#expected
+| *
+|  outline-color: #ffff0000 !important
+#reset
+
+#data
+* { outline-color: red green !important; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { outline-color: red green blue !important; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { outline-color: red green blue yellow !important; }
+#errors
+#expected
+| *
+#reset
+
+
+#data
+* { outline-color: invalid; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { outline-color: ; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { outline-color:}
+#errors
+#expected
+| *
+#reset
+
+
+#data
+* { outline-style: solid; }
+#errors
+#expected
+| *
+|  outline-style: solid
+#reset
+
+#data
+* { outline-style: inherit; }
+#errors
+#expected
+| *
+|  outline-style: inherit
+#reset
+
+#data
+* { outline-style: solid double; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { outline-style: solid double groove; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { outline-style: solid double groove ridge; }
+#errors
+#expected
+| *
+#reset
+
+
+#data
+* { outline-style: solid !important; }
+#errors
+#expected
+| *
+|  outline-style: solid !important
+#reset
+
+#data
+* { outline-style: solid double !important; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { outline-style: solid double groove !important; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { outline-style: solid double groove ridge !important; }
+#errors
+#expected
+| *
+#reset
+
+
+#data
+* { outline-style: invalid; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { outline-style: ; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { outline-style:}
+#errors
+#expected
+| *
+#reset
+
+
+#data
+* { outline-width: thin; }
+#errors
+#expected
+| *
+|  outline-width: thin
+#reset
+
+#data
+* { outline-width: inherit; }
+#errors
+#expected
+| *
+|  outline-width: inherit
+#reset
+
+#data
+* { outline-width: thin thick; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { outline-width: thin thick medium; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { outline-width: thin thick medium 0; }
+#errors
+#expected
+| *
+#reset
+
+
+#data
+* { outline-width: thin !important; }
+#errors
+#expected
+| *
+|  outline-width: thin !important
+#reset
+
+#data
+* { outline-width: thin thick !important; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { outline-width: thin thick medium !important; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { outline-width: thin thick medium 0 !important; }
+#errors
+#expected
+| *
+#reset
+
+
+#data
+* { outline-width: invalid; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { outline-width: ; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { outline-width:}
+#errors
+#expected
+| *
+#reset
+
+#data
+* { outline: red inherit; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { outline: inherit inherit; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { outline: inherit red; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { outline: thin inherit red; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { outline: thin inherit; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { outline: solid inherit; }
+#errors
+#expected
+| *
+#reset
+
+#data
+* { outline-color: red !important; }
+#errors
+#expected
+| *
+|  outline-color: #ffff0000 !important
+#reset
+
+
+
+
+
+
+

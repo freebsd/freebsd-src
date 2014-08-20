@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<!--
+
+Copyright (c) 2001-2004 World Wide Web Consortium, 
+(Massachusetts Institute of Technology, Institut National de
+Recherche en Informatique et en Automatique, Keio University).  All 
+Rights Reserved.  This program is distributed under the W3C's Software
+Intellectual Property License.  This program is distributed in the 
+hope that it will be useful, but WITHOUT ANY WARRANTY; without even
+the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR 
+PURPOSE.  
+
+See W3C License http://www.w3.org/Consortium/Legal/ for more details.
+
+-->
+<!DOCTYPE test SYSTEM "dom1.dtd">
+<test xmlns="http://www.w3.org/2001/DOM-Test-Suite/Level-1" name="object05">
+<metadata>
+<title>object05</title>
+<creator>Netscape</creator>
+<description>
+Base URI for classid, data, and archive attributes.
+The value of attribute codebase of the object element is read and checked against the expected value.
+</description>
+<contributor>Sivakiran Tummala</contributor>
+<date qualifier="created">2002-02-15</date>
+<subject resource="http://www.w3.org/TR/1998/REC-DOM-Level-1-19981001/level-one-html#ID-25709136"/>
+</metadata>
+<var name="nodeList" type="NodeList"/>
+<var name="testNode" type="Node"/>
+<var name="vcodebase" type="DOMString" />
+<var name="doc" type="Node"/>
+<load var="doc" href="object" willBeModified="false"/>
+<getElementsByTagName interface="Document" obj="doc" var="nodeList" tagname='"object"'/>
+<assertSize collection="nodeList" size="2" id="Asize"/>
+<item interface="NodeList" obj="nodeList" var="testNode" index="0"/>
+<codeBase interface="HTMLObjectElement" obj="testNode" var="vcodebase"/>
+<assertEquals actual="vcodebase" expected='"http://xw2k.sdct.itl.nist.gov/brady/dom/"' id="codebaseLink" ignoreCase="false"/>
+</test>

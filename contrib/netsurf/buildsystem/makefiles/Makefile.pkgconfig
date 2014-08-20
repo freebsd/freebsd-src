@@ -1,0 +1,100 @@
+# General purpose pkg-config macros
+
+# Determine if a package is available
+# 1: Name of variable to assign result into
+# 2: Name of package to search for
+define pkg_config_package_available
+  ifeq ($$(PKGCONFIG),)
+    $$(error pkg-config is required to auto-detect package availability)
+  endif
+
+  ifeq ($$(shell $$(PKGCONFIG) --exists $(2) && echo yes),yes)
+    $(1) := yes
+  else
+    $(1) := no
+  endif
+
+endef
+
+# Retrieve the version of a package
+# 1: Name of variable to assign result into
+# 2: Name of package to search for
+define pkg_config_package_version
+  ifeq ($$(PKGCONFIG),)
+    $$(error pkg-config is required to auto-detect package version)
+  endif
+
+  $(1) := $$(shell $$(PKGCONFIG) --modversion $(2))
+
+endef
+
+# Test the presence of a minimum version of a package
+# 1: Name of variable to assign result into
+# 2: Name of package to search for
+# 3: Lowest accepted version number
+define pkg_config_package_min_version
+  ifeq ($$(PKGCONFIG),)
+    $$(error pkg-config is required to auto-detect package version)
+  endif
+
+  ifeq ($$(shell $$(PKGCONFIG) --atleast-version=$(3) $(2) && echo yes),yes)
+     $(1) := yes
+  else
+     $(1) := no
+  endif
+
+endef
+
+# Test the presence of a minimum version of a package
+# 1: Name of variable to assign result into
+# 2: Name of package to search for
+# 3: Lowest accepted version number
+# 4: Highest accepted version number
+define pkg_config_package_compare_version
+  ifeq ($$(PKGCONFIG),)
+    $$(error pkg-config is required to auto-detect package version)
+  endif
+
+  ifeq ($$(shell $$(PKGCONFIG) --atleast-version=$(3) $(2) && echo yes),yes)
+     ifeq ($$(shell $$(PKGCONFIG) --max-version=$(4) $(2) && echo yes),yes)
+       $(1) := yes
+     else
+       $(1) := no
+     endif
+  else
+     $(1) := no
+  endif
+
+endef
+
+# Add package to compiler/linker flags
+# 1: Name of package to add details of
+# 2: CFLAGS variable to extend, or none
+# 3: LDFLAGS variable to extend, or none
+define pkg_config_package_add_flags
+  ifeq ($$(PKGCONFIG),)
+    $$(error pkg-config is required to auto-detect package version)
+  endif
+
+  ifneq ($(2),)
+    $(2) := $$($(2)) $$(shell $$(PKGCONFIG) --cflags $(1))
+  endif
+
+  ifneq ($(3),)
+    $(3) := $$($(3)) $$(shell $$(PKGCONFIG) --libs $(1))
+  endif
+
+endef
+
+# Obtain the value of a pkg-config variable
+# 1: Name of variable to assign result into
+# 2: Name of package to search for
+# 3: Name of pkg-config variable to retrieve
+define pkg_config_get_variable
+  ifeq ($$(PKGCONFIG),)
+    $$(error pkg-config is required to auto-detect package version)
+  endif
+
+  $(1) := $$(shell $$(PKGCONFIG) --variable=$(3) $(2))
+
+endef

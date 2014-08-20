@@ -1,0 +1,44 @@
+<?xml version="1.0" encoding="UTF-8"?><?xml-stylesheet href="test-to-html.xsl" type="text/xml"?>
+
+<!--
+
+Copyright (c) 2001-2004 World Wide Web Consortium, 
+(Massachusetts Institute of Technology, Institut National de
+Recherche en Informatique et en Automatique, Keio University).  All 
+Rights Reserved.  This program is distributed under the W3C's Software
+Intellectual Property License.  This program is distributed in the 
+hope that it will be useful, but WITHOUT ANY WARRANTY; without even
+the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR 
+PURPOSE.  
+
+See W3C License http://www.w3.org/Consortium/Legal/ for more details.
+
+-->
+
+<!DOCTYPE test SYSTEM "dom3.dtd">
+<test xmlns="http://www.w3.org/2001/DOM-Test-Suite/Level-3" name="nodelookupnamespaceuri10">
+<metadata>
+<title>nodelookupnamespaceuri10</title>
+<creator>IBM</creator>
+<description>
+	Invoke lookupNamespaceURI on a new Child of a new Element node with a namespace URI
+	and prefix and using the parents prefix as an argument, verify if the namespaceURI
+	returned is a valid namespaceURI for the parent.
+</description>
+<contributor>Neil Delima</contributor>
+<date qualifier="created">2002-06-10</date>
+<subject resource="http://www.w3.org/TR/2004/REC-DOM-Level-3-Core-20040407/core#Node3-lookupNamespaceURI"/>
+</metadata>
+<implementationAttribute name="namespaceAware" value="true"/>
+<var name="doc" type="Document"/>
+<var name="parent" type="Element"/>
+<var name="child" type="Element"/>
+<var name="namespaceURI" type="DOMString"/>
+<var name="appendedChild" type="Node"/>
+<load var="doc" href="hc_staff" willBeModified="false"/>
+<createElementNS var="parent" obj="doc" namespaceURI='"http://www.w3.org/1999/xhtml"' qualifiedName='"xhtml:body"'/>
+<createElement var="child" obj="doc" tagName='"p"'/>
+<appendChild obj="parent" var="appendedChild" newChild="child"/>
+<lookupNamespaceURI var="namespaceURI" obj="child" prefix='"xhtml"' interface="Node"/>
+<assertEquals  actual="namespaceURI" expected='"http://www.w3.org/1999/xhtml"' id="nodelookupnamespaceuri10" ignoreCase="false"/>
+</test>

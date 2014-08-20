@@ -1,0 +1,78 @@
+<?xml version="1.0" encoding="UTF-8"?><?xml-stylesheet href="test-to-html.xsl" type="text/xml"?>
+
+<!--
+
+Copyright (c) 2004 World Wide Web Consortium, 
+(Massachusetts Institute of Technology, Institut National de
+Recherche en Informatique et en Automatique, Keio University).  All 
+Rights Reserved.  This program is distributed under the W3C's Software
+Intellectual Property License.  This program is distributed in the 
+hope that it will be useful, but WITHOUT ANY WARRANTY; without even
+the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR 
+PURPOSE.  
+
+See W3C License http://www.w3.org/Consortium/Legal/ for more details.
+
+-->
+
+<!DOCTYPE test SYSTEM "dom3.dtd">
+<test xmlns="http://www.w3.org/2001/DOM-Test-Suite/Level-3" name="infoset08">
+<metadata>
+<title>infoset08</title>
+<creator>Curt Arnold</creator>
+<description>
+Normalize document with infoset and validation set to true, check that
+whitespace in element content is preserved.
+</description>
+<date qualifier="created">2004-02-24</date>
+<subject resource="http://www.w3.org/TR/2004/REC-DOM-Level-3-Core-20040407/core#Document3-normalizeDocument"/>
+<subject resource="http://www.w3.org/TR/2004/REC-DOM-Level-3-Core-20040407/core#parameter-infoset"/>
+</metadata>
+<implementationAttribute name="namespaceAware" value="true"/>
+<var name="doc" type="Document"/>
+<var name="bodyList" type="NodeList"/>
+<var name="body" type="Element"/>
+<var name="domConfig" type="DOMConfiguration"/>
+<var name="canSet" type="boolean"/>
+<var name="canSetValidate" type="boolean"/>
+<var name="errorMonitor" type="DOMErrorMonitor"/>
+<var name="child" type="Node"/>
+<var name="childName" type="DOMString"/>
+<var name="text" type="Text"/>
+<load var="doc" href="barfoo" willBeModified="true"/>
+<domConfig obj="doc" var="domConfig" interface="Document"/>
+<setParameter obj="domConfig" name='"infoset"' value="true"/>
+<setParameter obj="domConfig" name='"error-handler"' value="errorMonitor"/>
+<!-- if we discarded whitespace on parse, add some back  -->
+<if><implementationAttribute name="ignoringElementContentWhitespace" value="true"/>
+	<getElementsByTagName 
+		var="bodyList" 
+		obj="doc" 
+		tagname='"body"' 
+		interface="Document"/>
+	<item var="body" obj="bodyList" interface="NodeList" index="0"/>
+	<firstChild var="child" obj="body" interface="Node"/>
+	<createTextNode var="text" obj="doc" data='"    "'/>
+	<insertBefore var="child" obj="body" newChild="text" refChild="child"/>
+</if>
+<normalizeDocument obj="doc"/>
+<!--  fail test if normalize had any errors or fatal errors   -->
+<assertLowerSeverity obj="errorMonitor" id="normalizeError" severity="SEVERITY_ERROR"/>
+<getElementsByTagName 
+	var="bodyList" 
+	obj="doc" 
+	tagname='"body"' 
+	interface="Document"/>
+<item var="body" obj="bodyList" interface="NodeList" index="0"/>
+<firstChild var="child" obj="body" interface="Node"/>
+<assertNotNull actual="child" id="firstChildNotNull"/>
+<!--   this should be a Text node  -->
+<nodeName var="childName" obj="child"/>
+<assertEquals actual="childName" expected='"#text"' ignoreCase="false" id="firstChild"/>
+<nextSibling var="child" obj="child" interface="Node"/>
+<assertNotNull actual="child" id="secondChildNotNull"/>
+<nodeName var="childName" obj="child"/>
+<assertEquals actual="childName" expected='"p"' ignoreCase="false" id="secondChild"/>
+</test> 
+ 
+

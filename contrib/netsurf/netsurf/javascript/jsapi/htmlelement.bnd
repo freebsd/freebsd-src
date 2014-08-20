@@ -1,0 +1,721 @@
+/* Binding to generate HTMLElement interface
+ *
+ * Copyright 2012 Vincent Sanders <vince@netsurf-browser.org>
+ *
+ * This file is part of NetSurf, http://www.netsurf-browser.org/
+ *
+ * Released under the terms of the MIT License,
+ *         http://www.opensource.org/licenses/mit-license
+ */
+
+webidlfile "html.idl";
+
+hdrcomment "Copyright 2012 Vincent Sanders <vince@netsurf-browser.org>";
+hdrcomment "This file is part of NetSurf, http://www.netsurf-browser.org/";
+hdrcomment "Released under the terms of the MIT License,";
+hdrcomment "        http://www.opensource.org/licenses/mit-license";
+
+preamble %{
+
+#include <dom/dom.h>
+
+#include "utils/config.h"
+#include "utils/log.h"
+#include "utils/corestrings.h"
+#include "javascript/js.h"
+#include "javascript/jsapi.h"
+#include "render/html_internal.h"
+
+#include "htmlelement.h"
+#include "text.h"
+#include "location.h"
+#include "nodelist.h"
+
+%}
+
+#include "dom.bnd"
+
+binding htmlelement {
+	type js_libdom; /* the binding type */
+
+	interface HTMLElement; /* Web IDL interface to generate */
+	/* superclasses
+
+	   interface HTMLAnchorElement
+	   interface HTMLAppletElement
+	   interface HTMLAreaElement
+	   interface HTMLBaseElement
+	   interface HTMLBaseFontElement
+	   interface HTMLBodyElement
+	   interface HTMLBRElement
+	   interface HTMLButtonElement
+	   interface HTMLCanvasElement
+	   interface HTMLCommandElement
+	   interface HTMLDataElement
+	   interface HTMLDataListElement
+	   interface HTMLDetailsElement
+	   interface HTMLDialogElement
+	   interface HTMLDirectoryElement
+	   interface HTMLDivElement
+	   interface HTMLDListElement
+	   interface HTMLEmbedElement
+	   interface HTMLFieldSetElement
+	   interface HTMLFontElement
+	   interface HTMLFormElement
+	   interface HTMLFrameElement
+	   interface HTMLFrameSetElement
+	   interface HTMLHeadElement
+	   interface HTMLHeadingElement
+	   interface HTMLHRElement
+	   interface HTMLHtmlElement
+	   interface HTMLIFrameElement
+	   interface HTMLImageElement
+	   interface HTMLInputElement
+	   interface HTMLKeygenElement
+	   interface HTMLLabelElement
+	   interface HTMLLegendElement
+	   interface HTMLLIElement
+	   interface HTMLLinkElement
+	   interface HTMLMapElement
+	   interface HTMLMarqueeElement
+	   interface HTMLMediaElement
+	   interface HTMLMenuElement
+	   interface HTMLMetaElement
+	   interface HTMLMeterElement
+	   interface HTMLModElement
+	   interface HTMLObjectElement
+	   interface HTMLOListElement
+	   interface HTMLOptGroupElement
+	   interface HTMLOptionElement
+	   interface HTMLOutputElement
+	   interface HTMLParagraphElement
+	   interface HTMLParamElement
+	   interface HTMLPreElement
+	   interface HTMLProgressElement
+	   interface HTMLQuoteElement
+	   interface HTMLScriptElement
+	   interface HTMLSelectElement
+	   interface HTMLSourceElement
+	   interface HTMLSpanElement
+	   interface HTMLStyleElement
+	   interface HTMLTableCaptionElement
+	   interface HTMLTableCellElement
+	   interface HTMLTableColElement
+	   interface HTMLTableElement
+	   interface HTMLTableRowElement
+	   interface HTMLTableSectionElement
+	   interface HTMLTextAreaElement
+	   interface HTMLTimeElement
+	   interface HTMLTitleElement
+	   interface HTMLTrackElement
+	   interface HTMLUListElement
+	   interface HTMLUnknownElement
+	*/
+
+	private "dom_element *" node;
+	private "struct html_content *" htmlc;
+
+	/* tag name retrieved first time its fetched and doesnt change */
+	property unshared tagName;
+
+	/* events through a single interface */
+	property unshared type EventHandler;
+}
+
+api finalise %{
+	if (private != NULL) {
+		dom_node_unref(private->node);
+	}
+%}
+
+/* interface Element in dom idl */
+
+/* readonly attribute DOMString Element::tagName; */
+getter tagName %{
+	if (!JSVAL_IS_VOID(JSAPI_PROP_RVAL(cx, vp))) {
+		/* already created - return it */
+		return JS_TRUE;
+	}
+
+	dom_exception exc;
+	dom_string *name;
+
+	exc = dom_element_get_tag_name(private->node, &name);
+	if (name != NULL) {
+		jsret = JS_NewStringCopyN(cx, dom_string_data(name), dom_string_length(name));
+		dom_string_unref(name);
+	}
+%}
+
+/* attribute DOMString Element::id; */
+getter id %{
+	dom_string *value;
+	dom_exception exc;
+
+	exc = dom_element_get_attribute(private->node, corestring_dom_id, &value);
+	if (exc != DOM_NO_ERR) {
+		return JS_FALSE;
+	}
+
+	if (value != NULL) {
+		jsret = JS_NewStringCopyN(cx, dom_string_data(value), dom_string_length(value));
+		dom_string_unref(value);
+	}
+%}
+
+/* attribute DOMString Element::className; */
+getter className %{
+	dom_string *value;
+	dom_exception exc;
+
+	exc = dom_element_get_attribute(private->node, corestring_dom_class, &value);
+	if (exc != DOM_NO_ERR) {
+		return JS_FALSE;
+	}
+
+	if (value != NULL) {
+		jsret = JS_NewStringCopyN(cx, dom_string_data(value), dom_string_length(value));
+		dom_string_unref(value);
+	}
+%}
+
+/* DOMString? Element::getAttribute(DOMString name); */
+operation getAttribute %{
+	dom_string *value;
+	dom_string *name_dom;
+	dom_exception exc;
+
+	exc = dom_string_create((unsigned char*)name, name_len, &name_dom);
+	if (exc != DOM_NO_ERR) {
+		return JS_FALSE;
+	}
+
+	exc = dom_element_get_attribute(private->node, name_dom, &value);
+	dom_string_unref(name_dom);
+	if (exc != DOM_NO_ERR) {
+		return JS_FALSE;
+	}
+
+	if (value != NULL) {
+		jsret = JS_NewStringCopyN(cx, dom_string_data(value), dom_string_length(value));
+		dom_string_unref(value);
+	}
+%}
+
+/* void Element::setAttribute(DOMString name, DOMString value); */
+operation setAttribute %{
+	dom_string *value_dom;
+	dom_string *name_dom;
+	dom_exception exc;
+
+	exc = dom_string_create((unsigned char*)name, name_len, &name_dom);
+	if (exc != DOM_NO_ERR) {
+		return JS_FALSE;
+	}
+
+	exc = dom_string_create((unsigned char*)name, name_len, &value_dom);
+	if (exc != DOM_NO_ERR) {
+		dom_string_unref(name_dom);
+		return JS_FALSE;
+	}
+
+	exc = dom_element_set_attribute(private->node, name_dom, value_dom);
+	dom_string_unref(name_dom);
+	dom_string_unref(value_dom);
+	if (exc != DOM_NO_ERR) {
+		return JS_FALSE;
+	}
+%}
+
+/* void Element::removeAttribute(DOMString name); */
+operation removeAttribute %{
+	dom_string *name_dom;
+	dom_exception exc;
+
+	exc = dom_string_create((unsigned char*)name, name_len, &name_dom);
+	if (exc != DOM_NO_ERR) {
+		return JS_FALSE;
+	}
+
+	exc = dom_element_remove_attribute(private->node, name_dom);
+	dom_string_unref(name_dom);
+	if (exc != DOM_NO_ERR) {
+		return JS_FALSE;
+	}
+%}
+
+/* boolean Element::hasAttribute(DOMString name); */
+operation hasAttribute %{
+	bool result;
+	dom_string *name_dom;
+	dom_exception exc;
+
+	exc = dom_string_create((unsigned char*)name, name_len, &name_dom);
+	if (exc != DOM_NO_ERR) {
+		return JS_FALSE;
+	}
+
+	exc = dom_element_has_attribute(private->node, name_dom, &result);
+	dom_string_unref(name_dom);
+	if (exc != DOM_NO_ERR) {
+		return JS_FALSE;
+	}
+
+	if (result) {
+		jsret = JS_TRUE;
+	}
+%}
+
+/*
+ *
+ * Dom 4 says this should return a htmlcollection, libdom currently
+ * returns DOM 3 spec of a nodelist
+ */
+/* HTMLCollection Element::getElementsByTagName(DOMString localName); */
+operation getElementsByTagName %{
+	dom_string *localName_dom;
+	/* dom_html_collection *collection;*/
+	dom_nodelist *nodelist;
+	dom_exception exc;
+
+	exc = dom_string_create((uint8_t *)localName, localName_len, &localName_dom);
+	if (exc != DOM_NO_ERR) {
+		return JS_FALSE;
+	}
+
+	exc = dom_element_get_elements_by_tag_name(private->node, localName_dom, /*&collection*/&nodelist);
+	dom_string_unref(localName_dom);
+	if (exc != DOM_NO_ERR) {
+		return JS_FALSE;
+	}
+
+	if (/*collection*/nodelist != NULL) {
+		/*jsret = jsapi_new_HTMLCollection(cx,
+						 NULL,
+						 NULL,
+						 collection,
+						 private->htmlc);*/
+		jsret = jsapi_new_NodeList(cx,
+						 NULL,
+						 NULL,
+						 nodelist,
+						 private->htmlc);
+	}
+
+%}
+
+/*
+ * DOM 3 has these as the element traversal  extension
+ *
+ * http://dev.w3.org/2006/webapi/ElementTraversal/publish/ElementTraversal.html
+ */
+
+getter firstElementChild %{
+	dom_node *element;
+	dom_exception exc;
+	dom_node_type node_type;
+	dom_node *next_node;
+
+	exc = dom_node_get_first_child(private->node, &element);
+	if (exc != DOM_NO_ERR) {
+		return JS_FALSE;
+	}
+
+	while (element != NULL) {
+		exc = dom_node_get_node_type(element, &node_type);
+		if ((exc == DOM_NO_ERR) && (node_type == DOM_ELEMENT_NODE)) {
+			/* found it */
+			jsret = jsapi_new_HTMLElement(cx,
+						      NULL,
+						      NULL,
+						      (dom_element *)element,
+						      private->htmlc);
+			break;
+		}
+
+		exc = dom_node_get_next_sibling(element, &next_node);
+		dom_node_unref(element);
+		if (exc == DOM_NO_ERR) {
+			element = next_node;
+		} else {
+			element = NULL;
+		}
+
+	}
+
+
+	%}
+
+getter lastElementChild %{
+	dom_node *element;
+	dom_exception exc;
+	dom_node_type node_type;
+	dom_node *sib_node;
+
+	exc = dom_node_get_last_child(private->node, &element);
+	if (exc != DOM_NO_ERR) {
+		return JS_FALSE;
+	}
+
+	while (element != NULL) {
+		exc = dom_node_get_node_type(element, &node_type);
+		if ((exc == DOM_NO_ERR) && (node_type == DOM_ELEMENT_NODE)) {
+			/* found it */
+			jsret = jsapi_new_HTMLElement(cx,
+						      NULL,
+						      NULL,
+						      (dom_element *)element,
+						      private->htmlc);
+			break;
+		}
+
+		exc = dom_node_get_previous_sibling(element, &sib_node);
+		dom_node_unref(element);
+		if (exc == DOM_NO_ERR) {
+			element = sib_node;
+		} else {
+			element = NULL;
+		}
+
+	}
+	%}
+
+getter previousElementSibling %{
+	dom_node *element;
+	dom_exception exc;
+	dom_node_type node_type;
+	dom_node *sib_node;
+
+	exc = dom_node_get_previous_sibling(private->node, &element);
+	if (exc != DOM_NO_ERR) {
+		return JS_FALSE;
+	}
+
+	while (element != NULL) {
+		exc = dom_node_get_node_type(element, &node_type);
+		if ((exc == DOM_NO_ERR) && (node_type == DOM_ELEMENT_NODE)) {
+			/* found it */
+			jsret = jsapi_new_HTMLElement(cx,
+						      NULL,
+						      NULL,
+						      (dom_element *)element,
+						      private->htmlc);
+			break;
+		}
+
+		exc = dom_node_get_previous_sibling(element, &sib_node);
+		dom_node_unref(element);
+		if (exc == DOM_NO_ERR) {
+			element = sib_node;
+		} else {
+			element = NULL;
+		}
+	}
+%}
+
+getter nextElementSibling %{
+	dom_node *element;
+	dom_exception exc;
+	dom_node_type node_type;
+	dom_node *sib_node;
+
+	exc = dom_node_get_next_sibling(private->node, &element);
+	if (exc != DOM_NO_ERR) {
+		return JS_FALSE;
+	}
+
+	while (element != NULL) {
+		exc = dom_node_get_node_type(element, &node_type);
+		if ((exc == DOM_NO_ERR) && (node_type == DOM_ELEMENT_NODE)) {
+			/* found it */
+			jsret = jsapi_new_HTMLElement(cx,
+						      NULL,
+						      NULL,
+						      (dom_element *)element,
+						      private->htmlc);
+			break;
+		}
+
+		exc = dom_node_get_next_sibling(element, &sib_node);
+		dom_node_unref(element);
+		if (exc == DOM_NO_ERR) {
+			element = sib_node;
+		} else {
+			element = NULL;
+		}
+	}
+%}
+
+getter childElementCount %{
+	dom_node *element;
+	dom_exception exc;
+	dom_node_type node_type;
+	dom_node *next_node;
+
+	exc = dom_node_get_first_child(private->node, &element);
+	if (exc != DOM_NO_ERR) {
+		return JS_FALSE;
+	}
+
+	while (element != NULL) {
+		exc = dom_node_get_node_type(element, &node_type);
+		if ((exc == DOM_NO_ERR) && (node_type == DOM_ELEMENT_NODE)) {
+			jsret += 1;
+		}
+
+		exc = dom_node_get_next_sibling(element, &next_node);
+		dom_node_unref(element);
+		if (exc == DOM_NO_ERR) {
+			element = next_node;
+		} else {
+			element = NULL;
+		}
+	}
+%}
+
+getter EventHandler %{
+	JSLOG("propname[%d].name=\"%s\"",
+	      tinyid,
+	      jsclass_properties[tinyid].name);
+%}
+
+
+setter EventHandler %{
+	dom_string *event_type_dom;
+
+	JSLOG("propname[%d].name=\"%s\"",
+	      tinyid,
+	      jsclass_properties[tinyid].name);
+
+	switch (tinyid) {
+	case JSAPI_PROP_TINYID_onabort:
+		event_type_dom = corestring_dom_abort;
+		break;
+
+	case JSAPI_PROP_TINYID_onblur:
+		event_type_dom = corestring_dom_blur;
+		break;
+
+	case JSAPI_PROP_TINYID_oncancel:
+		event_type_dom = corestring_dom_cancel;
+		break;
+
+	case JSAPI_PROP_TINYID_oncanplay:
+		event_type_dom = corestring_dom_canplay;
+		break;
+
+	case JSAPI_PROP_TINYID_oncanplaythrough:
+		event_type_dom = corestring_dom_canplaythrough;
+		break;
+
+	case JSAPI_PROP_TINYID_onchange:
+		event_type_dom = corestring_dom_change;
+		break;
+
+	case JSAPI_PROP_TINYID_onclick:
+		event_type_dom = corestring_dom_click;
+		break;
+
+	case JSAPI_PROP_TINYID_onclose:
+		event_type_dom = corestring_dom_close;
+		break;
+
+	case JSAPI_PROP_TINYID_oncontextmenu:
+		event_type_dom = corestring_dom_contextmenu;
+		break;
+
+	case JSAPI_PROP_TINYID_oncuechange:
+		event_type_dom = corestring_dom_cuechange;
+		break;
+
+	case JSAPI_PROP_TINYID_ondblclick:
+		event_type_dom = corestring_dom_dblclick;
+		break;
+
+	case JSAPI_PROP_TINYID_ondrag:
+		event_type_dom = corestring_dom_drag;
+		break;
+
+	case JSAPI_PROP_TINYID_ondragend:
+		event_type_dom = corestring_dom_dragend;
+		break;
+
+	case JSAPI_PROP_TINYID_ondragenter:
+		event_type_dom = corestring_dom_dragenter;
+		break;
+
+	case JSAPI_PROP_TINYID_ondragleave:
+		event_type_dom = corestring_dom_dragleave;
+		break;
+
+	case JSAPI_PROP_TINYID_ondragover:
+		event_type_dom = corestring_dom_dragover;
+		break;
+
+	case JSAPI_PROP_TINYID_ondragstart:
+		event_type_dom = corestring_dom_dragstart;
+		break;
+
+	case JSAPI_PROP_TINYID_ondrop:
+		event_type_dom = corestring_dom_drop;
+		break;
+
+	case JSAPI_PROP_TINYID_ondurationchange:
+		event_type_dom = corestring_dom_durationchange;
+		break;
+
+	case JSAPI_PROP_TINYID_onemptied:
+		event_type_dom = corestring_dom_emptied;
+		break;
+
+	case JSAPI_PROP_TINYID_onended:
+		event_type_dom = corestring_dom_ended;
+		break;
+
+	case JSAPI_PROP_TINYID_onerror:
+		event_type_dom = corestring_dom_error;
+		break;
+
+	case JSAPI_PROP_TINYID_onfocus:
+		event_type_dom = corestring_dom_focus;
+		break;
+
+	case JSAPI_PROP_TINYID_oninput:
+		event_type_dom = corestring_dom_input;
+		break;
+
+	case JSAPI_PROP_TINYID_oninvalid:
+		event_type_dom = corestring_dom_invalid;
+		break;
+
+	case JSAPI_PROP_TINYID_onkeydown:
+		event_type_dom = corestring_dom_keydown;
+		break;
+
+	case JSAPI_PROP_TINYID_onkeypress:
+		event_type_dom = corestring_dom_keypress;
+		break;
+
+	case JSAPI_PROP_TINYID_onkeyup:
+		event_type_dom = corestring_dom_keyup;
+		break;
+
+	case JSAPI_PROP_TINYID_onload:
+		event_type_dom = corestring_dom_load;
+		break;
+
+	case JSAPI_PROP_TINYID_onloadeddata:
+		event_type_dom = corestring_dom_loadeddata;
+		break;
+
+	case JSAPI_PROP_TINYID_onloadedmetadata:
+		event_type_dom = corestring_dom_loadedmetadata;
+		break;
+
+	case JSAPI_PROP_TINYID_onloadstart:
+		event_type_dom = corestring_dom_loadstart;
+		break;
+
+	case JSAPI_PROP_TINYID_onmousedown:
+		event_type_dom = corestring_dom_mousedown;
+		break;
+
+	case JSAPI_PROP_TINYID_onmousemove:
+		event_type_dom = corestring_dom_mousemove;
+		break;
+
+	case JSAPI_PROP_TINYID_onmouseout:
+		event_type_dom = corestring_dom_mouseout;
+		break;
+
+	case JSAPI_PROP_TINYID_onmouseover:
+		event_type_dom = corestring_dom_mouseover;
+		break;
+
+	case JSAPI_PROP_TINYID_onmouseup:
+		event_type_dom = corestring_dom_mouseup;
+		break;
+
+	case JSAPI_PROP_TINYID_onmousewheel:
+		event_type_dom = corestring_dom_mousewheel;
+		break;
+
+	case JSAPI_PROP_TINYID_onpause:
+		event_type_dom = corestring_dom_pause;
+		break;
+
+	case JSAPI_PROP_TINYID_onplay:
+		event_type_dom = corestring_dom_play;
+		break;
+
+	case JSAPI_PROP_TINYID_onplaying:
+		event_type_dom = corestring_dom_playing;
+		break;
+
+	case JSAPI_PROP_TINYID_onprogress:
+		event_type_dom = corestring_dom_progress;
+		break;
+
+	case JSAPI_PROP_TINYID_onratechange:
+		event_type_dom = corestring_dom_ratechange;
+		break;
+
+	case JSAPI_PROP_TINYID_onreset:
+		event_type_dom = corestring_dom_reset;
+		break;
+
+	case JSAPI_PROP_TINYID_onscroll:
+		event_type_dom = corestring_dom_scroll;
+		break;
+
+	case JSAPI_PROP_TINYID_onseeked:
+		event_type_dom = corestring_dom_seeked;
+		break;
+
+	case JSAPI_PROP_TINYID_onseeking:
+		event_type_dom = corestring_dom_seeking;
+		break;
+
+	case JSAPI_PROP_TINYID_onselect:
+		event_type_dom = corestring_dom_select;
+		break;
+
+	case JSAPI_PROP_TINYID_onshow:
+		event_type_dom = corestring_dom_show;
+		break;
+
+	case JSAPI_PROP_TINYID_onstalled:
+		event_type_dom = corestring_dom_stalled;
+		break;
+
+	case JSAPI_PROP_TINYID_onsubmit:
+		event_type_dom = corestring_dom_submit;
+		break;
+
+	case JSAPI_PROP_TINYID_onsuspend:
+		event_type_dom = corestring_dom_suspend;
+		break;
+
+	case JSAPI_PROP_TINYID_ontimeupdate:
+		event_type_dom = corestring_dom_timeupdate;
+		break;
+
+	case JSAPI_PROP_TINYID_onvolumechange:
+		event_type_dom = corestring_dom_volumechange;
+		break;
+
+	case JSAPI_PROP_TINYID_onwaiting:
+		event_type_dom = corestring_dom_waiting;
+		break;
+
+	default:
+		JSLOG("called with unknown tinyid");
+		return JS_TRUE;
+	}
+
+	js_dom_event_add_listener((struct jscontext *)cx,
+				  private->htmlc->document,
+				  (dom_node *)private->node,
+				  event_type_dom,
+				  vp);
+%}

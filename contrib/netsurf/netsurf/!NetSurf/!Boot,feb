@@ -1,0 +1,90 @@
+| Boot file for NetSurf. ( $Revision$ )
+|
+| This file sets up various system variables which NetSurf may use.
+| Additionally, it places the NetSurf application sprites into the Wimp
+| sprite pool.
+|
+| This file may be executed in two ways:
+|   1. When NetSurf is first seen by the OS.
+|   2. When NetSurf is run by the user (called from the !Run file).
+| In the first instance, NetSurf-specific variables are set and non
+| NetSurf-specific variables which are unset are initialised.
+| In the second instance, all variables are set, irrespective of their
+| previous state. This is achieved by use of the NetSurf$ForceVars 
+| variable, which is set by the !Run file prior to calling this file.
+
+| Set up NetSurf$Dir
+If (("<NetSurf$Dir>" = "") OR ("<NetSurf$ForceVars>" = "1")) Then Set NetSurf$Dir <Obey$Dir>
+
+| Filetype -> Type name mappings
+|
+| These get set whether they were previously set or not
+Set File$Type_132 ICO
+Set File$Type_695 GIF
+Set File$Type_69C BMP
+Set File$Type_AAD SVG
+Set File$Type_ADF PDF
+Set File$Type_B28 URL
+Set File$Type_B60 PNG
+Set File$Type_C85 JPEG
+Set File$Type_F78 JNG
+Set File$Type_F79 CSS
+Set File$Type_F81 JSScript
+Set File$Type_F83 MNG
+Set File$Type_F91 URI
+Set File$Type_FAF HTML
+
+| Application system variables
+|
+| See http://www.iyonix.com/32bit/help.shtml for more details.
+If (("<NetSurf$Help>" = "") OR ("<NetSurf$ForceVars>" = "1")) Then Set NetSurf$Help <NetSurf$Dir>.Docs.docs_en
+If (("<NetSurf$Web>" = "") OR ("<NetSurf$ForceVars>" = "1")) Then Set NetSurf$Web "http://www.netsurf-browser.org/"
+If (("<NetSurf$Title>" = "") OR ("<NetSurf$ForceVars>" = "1")) Then Set NetSurf$Title "NetSurf"
+If (("<NetSurf$Publisher>" = "") OR ("<NetSurf$ForceVars>" = "1")) Then Set NetSurf$Publisher "The NetSurf Developers"
+If (("<NetSurf$Description>" = "") OR ("<NetSurf$ForceVars>" = "1")) Then Set NetSurf$Description "Web browser"
+
+| NetSurf Sprites
+Set NetSurf$Sprites "!Sprites"
+/<NetSurf$Dir>.ChkSprites
+IconSprites <NetSurf$Dir>.<NetSurf$Sprites>
+Unset NetSurf$Sprites
+
+| Acorn URI protocol
+|
+| Format: Alias$Open_URI_<scheme> <command to run>
+|
+| These are basically a last resort. The URI module will initially broadcast
+| Message_URI_MProcess. If this isn't claimed, then it'll check if an 
+| appropriate Alias$Open_URI_<scheme> variable is set. If such a variable 
+| exists, then it will attempt to launch the task named by the variable. 
+| If the launch is successful, the Message_URI_MProcess is rebroadcast.
+| The -nowin is required to ensure only one window is opened (this only has
+| an effect if the user has configured auto window opening at startup).
+If (("<Alias$Open_URI_http>" = "") OR ("<NetSurf$ForceVars>" = "1")) Then      Set Alias$Open_URI_http /<NetSurf$Dir>.!Run -nowin
+If (("<Alias$Open_URI_https>" = "") OR ("<NetSurf$ForceVars>" = "1")) Then     Set Alias$Open_URI_https /<NetSurf$Dir>.!Run -nowin
+If (("<Alias$Open_URI_file>" = "") OR ("<NetSurf$ForceVars>" = "1")) Then      Set Alias$Open_URI_file /<NetSurf$Dir>.!Run -nowin
+
+| ANT URL protocol
+|
+| Format: Alias$URLOpen_<scheme> <command to run>
+|
+| These handle the "load" stage of the protocol. The appropriate variable's
+| existence is checked then, if it is present, the URL to be opened is
+| appended to the string "URLOpen_<scheme> " and this is then fed to
+| Wimp_StartTask.
+If (("<Alias$URLOpen_http>" = "") OR ("<NetSurf$ForceVars>" = "1")) Then       Set Alias$URLOpen_http /<NetSurf$Dir>.!Run -url %%*0
+If (("<Alias$URLOpen_https>" = "") OR ("<NetSurf$ForceVars>" = "1")) Then      Set Alias$URLOpen_https /<NetSurf$Dir>.!Run -url %%*0
+If (("<Alias$URLOpen_file>" = "") OR ("<NetSurf$ForceVars>" = "1")) Then       Set Alias$URLOpen_file /<NetSurf$Dir>.!Run -url %%*0
+
+| Claim HTML and URL files
+|
+| Format: Alias$@RunType_<hex> <command to run>
+|
+| Again, a fallback. The filer initially tries a DataOpen message. If that
+| bounces, it looks at these variables.
+If (("<Alias$@RunType_FAF>" = "") OR ("<NetSurf$ForceVars>" = "1")) Then       Set Alias$@RunType_FAF /<NetSurf$Dir>.!Run -html %%*0
+If (("<Alias$@RunType_B28>" = "") OR ("<NetSurf$ForceVars>" = "1")) Then       Set Alias$@RunType_B28 /<NetSurf$Dir>.!Run -urlf %%*0
+
+| We don't claim the URI filetype as the spec tells us not to:
+| "Applications must not set an Alias$@RunType variable for the URI filetype"
+| Obviously this means that Browse/Phoenix and the Oreganos are incorrect.

@@ -1,0 +1,21 @@
+#data
+﻿@charset "UTF-8";html{color:green}
+/* starts with utf-8 bom */
+#encoding
+utf-8
+
+#data
+﻿@charset "ISO-8859-1";html{color:green}
+/* starts with utf-8 bom, so @charset is ignored */
+#encoding
+utf-8
+
+#data
+@charset "ISO-8859-2";html{color:green}
+#encoding
+iso-8859-2
+
+#data
+@charset "IMadeThisUp";html{color:green}
+#encoding
+utf-8

@@ -1,0 +1,104 @@
+#
+# NetSurf default build setup
+#
+#
+# | WARNING: You should NOT be editing this file.
+# |
+# |          If you want to configure your build, create a 'Makefile.config'
+# |          file with 'override' statements to override the settings here.
+# |          Follow the example in 'Makefile.config.example'.
+#
+#
+# This file should be treated as INVIOLATE and only altered to alter
+# the defaults by a core developer. If you wish to configure the build
+# of NetSurf then instead please create a file called Makefile.config
+# and simply override the statements you require in that.  Remember
+# that Makefile.config cannot override the TARGET. That must be set on
+# the commandline. i.e. 'make TARGET=framebuffer' However
+# Makefile.config can use the TARGET variable to control what to set
+# the configuration options to.
+#
+# Some of these options support an 'AUTO' option, as well as YES and NO.
+# When an option is set to AUTO, the Makefile will attempt to detect if that
+# feature is available, enabling it if possible.
+#
+# Options marked "highly recommended" have a severe impact on NetSurf's
+# use as a web browser and should be set to YES unless there is a particularly
+# good reason not to.
+#
+
+# ----------------------------------------------------------------------------
+# Options relating to all versions of NetSurf
+# ----------------------------------------------------------------------------
+
+# Enable NetSurf's use of libnsbmp for displaying BMPs and ICOs
+# Valid options: YES, NO
+NETSURF_USE_BMP := YES
+
+# Enable NetSurf's use of libnsgif for displaying GIFs
+# Valid options: YES, NO				  (highly recommended)
+NETSURF_USE_GIF := YES
+
+# Enable NetSurf's use of libjpeg for displaying JPEGs
+# Valid options: YES, NO				  (highly recommended)
+NETSURF_USE_JPEG := YES
+
+# Enable NetSurf's use of libpng for displaying PNGs.
+# Valid options: YES, NO	                          (highly recommended)
+NETSURF_USE_PNG := YES
+
+# Enable NetSurf's use of libwebp for displaying WebPs
+# Valid options: YES, NO
+NETSURF_USE_WEBP := NO
+
+# Enable NetSurf's use of gstreamer for displaying videos
+# Valid options: YES, NO
+NETSURF_USE_VIDEO := NO
+
+# Enable NetSurf's use of spidermonkey for javascript
+# Valid options: YES, NO, AUTO
+NETSURF_USE_JS := AUTO
+# Javascript support in older debian/ubuntu versions
+NETSURF_USE_MOZJS := AUTO
+
+# Enable NetSurf's use of libharu for PDF export and GTK printing support.
+# There is no auto-detection available for this, as it does not have a
+# pkg-config file.
+# Valid options: YES, NO
+NETSURF_USE_HARU_PDF := NO
+
+# Enable stripping the NetSurf binary
+# Valid options: YES, NO
+NETSURF_STRIP_BINARY := NO
+
+# Template used for constructing the User Agent: string.  The first two
+# replacements are major/minor version, next is OS.
+# Please don't be tempted to mention Mozilla here!  Let's let that lie die.
+NETSURF_UA_FORMAT_STRING := "NetSurf/%d.%d (%s)"
+
+# Default home page, if one is not defined by the user.  Note that this
+# option does not apply to the RISC OS version, as it has its own local
+# home page, and it can be changed by editing the end of gui_init2() in
+# riscos/gui.c
+NETSURF_HOMEPAGE := "about:welcome"
+
+# Force using glibc internal iconv implementation instead of external libiconv
+# Valid options: YES, NO
+NETSURF_USE_LIBICONV_PLUG := YES
+
+# Initial CFLAGS. Optimisation level etc. tend to be target specific.
+CFLAGS :=
+
+# Default installation/execution prefix
+PREFIX ?= /usr/local
+
+# Incude defaults specific to a TARGET
+-include $(TARGET)/Makefile.defaults
+
+# Include any local configuration
+ifneq ($(MAKEFILE_DEFAULTS_FINISHED),)
+$(error Makefile.defaults has been double-included.  If you did something utterly brain-dead such as copying Makefile.defaults to Makefile.config then you deserve all the pain you can imagine.  Do NOT do that.  Why not read the comments at the top of Makefile.defaults.  They are there to help you, you numpty)
+endif
+MAKEFILE_DEFAULTS_FINISHED=yes
+-include Makefile.config
+

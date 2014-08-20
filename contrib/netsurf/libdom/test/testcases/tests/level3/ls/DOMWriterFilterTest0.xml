@@ -1,0 +1,95 @@
+<?xml version="1.0" standalone="no"?>
+<?xml-stylesheet href="test-to-html.xsl" type="text/xml"?>
+<!--
+ Copyright (c) 2003 X-Hive Corporation
+
+ All Rights Reserved. This work is distributed under the W3C(r)
+ Software License [1] in the hope that it will be useful, but WITHOUT
+ ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
+ FITNESS FOR A PARTICULAR PURPOSE.
+
+ [1] http://www.w3.org/Consortium/Legal/2002/copyright-software-20021231
+-->
+
+
+<!DOCTYPE test SYSTEM "dom3.dtd" [
+  <!ENTITY % entities SYSTEM "dom3tests.ent">
+  %entities;
+]>
+
+
+<test xmlns="&level3;" name="DOMWriterFilterTest0">
+  <metadata>
+    <title>DOMWriterFilterTest0</title>
+    &creator;
+    <description>DOMSerializerFilter test, a simple test eliminating a subtree</description>
+    &contributor; &date;
+    <subject resource="&spec;#LS-Interfaces-LSSerializerFilter"/>
+        <subject resource="http://www.w3.org/TR/2004/REC-DOM-Level-3-LS-20040407/load-save#LS-LSSerializer-LSSerializerFilter"/>
+        <subject resource="http://www.w3.org/TR/2004/REC-DOM-Level-3-LS-20040407/load-save#LS-LSSerializerFilter-acceptNode"/>
+  </metadata>
+
+
+  <var name="myfilter" type="LSSerializerFilter">
+     <var name="name" type="DOMString"/>
+     &filterVars;
+
+
+     <acceptNode>
+
+        <nodeName obj="n" var="name"/>
+        <if>
+          <equals actual="name" expected='"elt1"' ignoreCase="false"/>
+          <return value="&FILTER_ACCEPT;"/>
+        </if>
+
+        <return value="&FILTER_REJECT;"/>
+     </acceptNode>
+
+     <whatToShow>
+       <get>
+        <return value="&SHOW_ALL;"/>
+       </get>
+     </whatToShow>
+
+  </var>
+
+
+
+
+  <var name="configuration"   type="DOMConfiguration"/>
+  <var name="stringDoc"       type="DOMString" value='"&lt;elt1&gt;first elt1&lt;elt2&gt;elt2&lt;/elt2&gt;&lt;/elt1&gt;"'/>
+  <var name="writeResult"     type="DOMString"/>
+  <var name="length"          type="int"/>
+  <var name="elementList"     type="NodeList"/>
+
+  &vars;
+  &init;
+
+  <!-- parse the string -->
+  <stringData obj="inputSource" value="stringDoc"/>
+  <parse  var="document" obj="parser" input="inputSource"/>
+
+  <!-- apply the filter -->
+  <filter obj="writer" value="myfilter" interface="LSSerializer"/>
+
+  <!-- serialize result -->
+  <writeToString var="writeResult" obj="writer" nodeArg="document"/>
+
+  <!-- parse result -->
+  <stringData obj="inputSource" value="writeResult" interface="LSInput"/>
+  <parse  var="document" obj="parser" input="inputSource"/>
+
+  <!-- tests elt1 should be in the result, elt2 should be filtered out -->
+  <getElementsByTagName interface="Document" obj="document" tagname="&quot;elt2&quot;" var="elementList"/>
+  <assertSize collection="elementList" size="0" id="count_elt2"/>
+
+  <getElementsByTagName interface="Document" obj="document" tagname="&quot;elt1&quot;" var="elementList"/>
+  <assertSize collection="elementList" size="1" id="count_elt1"/>
+
+
+</test>
+
+
+
+

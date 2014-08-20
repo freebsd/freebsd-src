@@ -1,0 +1,210 @@
+Expanded grammar rules
+======================
+
+This file provides a fully-expanded version of (a slightly modified)
+forward-compatible CSS grammar. See CSS3 Syntax $4.3.2 for the compact version.
+
+start         -> ws stylesheet EOF
+
+stylesheet    -> CDO ws stylesheet
+stylesheet    -> CDC ws stylesheet
+stylesheet    -> statement stylesheet
+stylesheet    ->
+
+statement     -> ruleset
+statement     -> at-rule
+
+ruleset       -> selector '{' ws ruleset-end
+ruleset       -> '{' ws ruleset-end
+
+ruleset-end   -> declaration decl-list '}' ws
+ruleset-end   -> decl-list '}' ws
+
+at-rule       -> ATKEYWORD ws any0 at-rule-end
+
+at-rule-end   -> block
+at-rule-end   -> ';' ws
+
+block         -> '{' ws block-content '}' ws
+
+block-content -> any block-content
+block-content -> block block-content
+block-content -> ATKEYWORD ws block-content
+block-content -> ';' ws block-content
+block-content ->
+
+selector      -> any1
+
+declaration   -> property ':' ws value1
+
+decl-list     -> ';' ws decl-list-end
+decl-list     ->
+
+decl-list-end -> declaration decl-list
+decl-list-end -> decl-list
+
+property      -> IDENT ws
+
+value0        -> value value0
+value0        ->
+
+value1        -> value value0
+
+value         -> any
+value         -> block
+value         -> ATKEYWORD ws
+
+any0          -> any any0
+any0          ->
+
+any1          -> any any0
+
+any           -> IDENT ws
+any           -> NUMBER ws
+any           -> PERCENTAGE ws
+any           -> DIMENSION ws
+any           -> STRING ws
+any           -> CHAR ws
+any           -> URI ws
+any           -> HASH ws
+any           -> UNICODE-RANGE ws
+any           -> INCLUDES ws
+any           -> DASHMATCH ws
+any           -> PREFIXMATCH ws
+any           -> SUFFIXMATCH ws
+any           -> SUBSTRINGMATCH ws
+any           -> FUNCTION ws any0 ')' ws
+any           -> '(' ws any0 ')' ws
+any           -> '[' ws any0 ']' ws
+
+ws            -> S ws
+ws            ->
+
+Differences from the specification
+----------------------------------
+
+1) The start non-terminal has been introduced. It eats any leading whitespace
+   and handles EOF.
+2) The "stylesheet -> S stylesheet" production has been removed.
+3) The "stylesheet -> CDO stylesheet" production has been changed to 
+   "stylesheet -> CDO ws stylesheet".
+4) The "stylesheet -> CDC stylesheet" production has been changed to
+   "stylesheet -> CDC ws stylesheet".
+
+Essentially, the above changes remove the expectation of leading whitespace
+from the stylesheet non-terminal. This is handled by either the start 
+non-terminal, or by the changes made to the production rules for the stylesheet 
+non-terminal. Note that the "stylesheet -> statement stylesheet" production 
+does not require modification as the statement production rule already consumes 
+any whitespace following the statement.
+
+If '{', '}', '[', ']', '(', ')', and ';' are omitted from any, then the above
+grammar is LL(1).
+
+Nullable productions
+--------------------
+
+stylesheet, block-content, decl-list, decl-list-end, value0, any0, ws 
+
+FIRST sets
+----------
+
+start		CDO, CDC, S, IDENT, NUMBER, PERCENTAGE, DIMENSION, STRING, 
+		CHAR, URI, HASH, UNICODE-RANGE, INCLUDES, DASHMATCH, 
+		PREFIXMATCH, SUFFIXMATCH, SUBSTRINGMATCH, FUNCTION, '(', 
+		'[', '{', ATKEYWORD, EOF
+stylesheet	CDO, CDC, IDENT, NUMBER, PERCENTAGE, DIMENSION, STRING, 
+		CHAR, URI, HASH, UNICODE-RANGE, INCLUDES, DASHMATCH, 
+		PREFIXMATCH, SUFFIXMATCH, SUBSTRINGMATCH, FUNCTION, '(', 
+		'[', '{', ATKEYWORD
+statement	IDENT, NUMBER, PERCENTAGE, DIMENSION, STRING, CHAR, URI, HASH,
+		UNICODE-RANGE, INCLUDES, DASHMATCH, PREFIXMATCH, SUFFIXMATCH,
+		SUBSTRINGMATCH, FUNCTION, '(', '[', '{', ATKEYWORD
+ruleset		IDENT, NUMBER, PERCENTAGE, DIMENSION, STRING, CHAR, URI, HASH,
+		UNICODE-RANGE, INCLUDES, DASHMATCH, PREFIXMATCH, SUFFIXMATCH,
+		SUBSTRINGMATCH, FUNCTION, '(', '[', '{'
+ruleset-end	IDENT, ';'
+at-rule		ATKEYWORD
+at-rule-end	'{', ';'
+block		'{'
+block-content	IDENT, NUMBER, PERCENTAGE, DIMENSION, STRING, CHAR, URI, HASH,
+		UNICODE-RANGE, INCLUDES, DASHMATCH, PREFIXMATCH, SUFFIXMATCH,
+		SUBSTRINGMATCH, FUNCTION, '(', '[', '{', ATKEYWORD, ';'
+selector	IDENT, NUMBER, PERCENTAGE, DIMENSION, STRING, CHAR, URI, HASH,
+		UNICODE-RANGE, INCLUDES, DASHMATCH, PREFIXMATCH, SUFFIXMATCH,
+		SUBSTRINGMATCH, FUNCTION, '(', '['
+declaration	IDENT
+decl-list	';', '}'
+decl-list-end   IDENT, ';', '}'
+property	IDENT
+value0		IDENT, NUMBER, PERCENTAGE, DIMENSION, STRING, CHAR, URI, HASH,
+		UNICODE-RANGE, INCLUDES, DASHMATCH, PREFIXMATCH, SUFFIXMATCH,
+		SUBSTRINGMATCH, FUNCTION, '(', '[', '{', ATKEYWORD
+value1		IDENT, NUMBER, PERCENTAGE, DIMENSION, STRING, CHAR, URI, HASH,
+		UNICODE-RANGE, INCLUDES, DASHMATCH, PREFIXMATCH, SUFFIXMATCH,
+		SUBSTRINGMATCH, FUNCTION, '(', '[', '{', ATKEYWORD
+value		IDENT, NUMBER, PERCENTAGE, DIMENSION, STRING, CHAR, URI, HASH,
+		UNICODE-RANGE, INCLUDES, DASHMATCH, PREFIXMATCH, SUFFIXMATCH,
+		SUBSTRINGMATCH, FUNCTION, '(', '[', '{', ATKEYWORD
+any0		IDENT, NUMBER, PERCENTAGE, DIMENSION, STRING, CHAR, URI, HASH,
+		UNICODE-RANGE, INCLUDES, DASHMATCH, PREFIXMATCH, SUFFIXMATCH,
+		SUBSTRINGMATCH, FUNCTION, '(', '['
+any1		IDENT, NUMBER, PERCENTAGE, DIMENSION, STRING, CHAR, URI, HASH,
+		UNICODE-RANGE, INCLUDES, DASHMATCH, PREFIXMATCH, SUFFIXMATCH,
+		SUBSTRINGMATCH, FUNCTION, '(', '['
+any		IDENT, NUMBER, PERCENTAGE, DIMENSION, STRING, CHAR, URI, HASH,
+		UNICODE-RANGE, INCLUDES, DASHMATCH, PREFIXMATCH, SUFFIXMATCH,
+		SUBSTRINGMATCH, FUNCTION, '(', '['
+ws		S
+
+FOLLOW sets
+-----------
+
+start
+stylesheet	EOF
+statement	CDO, CDC, IDENT, NUMBER, PERCENTAGE, DIMENSION, STRING, 
+		CHAR, URI, HASH, UNICODE-RANGE, INCLUDES, DASHMATCH, 
+		PREFIXMATCH, SUFFIXMATCH, SUBSTRINGMATCH, FUNCTION, '(', 
+		'[', '{', ATKEYWORD, EOF
+ruleset		CDO, CDC, IDENT, NUMBER, PERCENTAGE, DIMENSION, STRING, 
+		CHAR, URI, HASH, UNICODE-RANGE, INCLUDES, DASHMATCH, 
+		PREFIXMATCH, SUFFIXMATCH, SUBSTRINGMATCH, FUNCTION, '(', 
+		'[', '{', ATKEYWORD, EOF
+ruleset-end	CDO, CDC, IDENT, NUMBER, PERCENTAGE, DIMENSION, STRING, 
+		CHAR, URI, HASH, UNICODE-RANGE, INCLUDES, DASHMATCH, 
+		PREFIXMATCH, SUFFIXMATCH, SUBSTRINGMATCH, FUNCTION, '(', 
+		'[', '{', ATKEYWORD, EOF
+at-rule		CDO, CDC, IDENT, NUMBER, PERCENTAGE, DIMENSION, STRING, 
+		CHAR, URI, HASH, UNICODE-RANGE, INCLUDES, DASHMATCH, 
+		PREFIXMATCH, SUFFIXMATCH, SUBSTRINGMATCH, FUNCTION, '(', 
+		'[', '{', ATKEYWORD, EOF
+at-rule-end	CDO, CDC, IDENT, NUMBER, PERCENTAGE, DIMENSION, STRING, 
+		CHAR, URI, HASH, UNICODE-RANGE, INCLUDES, DASHMATCH, 
+		PREFIXMATCH, SUFFIXMATCH, SUBSTRINGMATCH, FUNCTION, '(', 
+		'[', '{', ATKEYWORD, EOF
+block		CDO, CDC, IDENT, NUMBER, PERCENTAGE, DIMENSION, STRING, 
+		CHAR, URI, HASH, UNICODE-RANGE, INCLUDES, DASHMATCH, 
+		PREFIXMATCH, SUFFIXMATCH, SUBSTRINGMATCH, FUNCTION, '(', 
+		'[', '{', ATKEYWORD, EOF, ';', '}'
+block-content	'}'
+selector	'{'
+declaration	';', '}'
+decl-list	'}'
+decl-list-end	'}'
+property	':'
+value0		';', '}'
+value1		';', '}'
+value		IDENT, NUMBER, PERCENTAGE, DIMENSION, STRING, CHAR, URI, HASH,
+		UNICODE-RANGE, INCLUDES, DASHMATCH, PREFIXMATCH, SUFFIXMATCH,
+		SUBSTRINGMATCH, FUNCTION, '(', '[', '{', ATKEYWORD, ';', '}'
+any0		'{', ';', ')', ']'
+any1		'{'
+any		IDENT, NUMBER, PERCENTAGE, DIMENSION, STRING, CHAR, URI, HASH,
+		UNICODE-RANGE, INCLUDES, DASHMATCH, PREFIXMATCH, SUFFIXMATCH,
+		SUBSTRINGMATCH, FUNCTION, '(', '[', '{', ';', ATKEYWORD, '}'
+ws		CDO, CDC, IDENT, NUMBER, PERCENTAGE, DIMENSION, STRING, 
+		CHAR, URI, HASH, UNICODE-RANGE, INCLUDES, DASHMATCH, 
+		PREFIXMATCH, SUFFIXMATCH, SUBSTRINGMATCH, FUNCTION, '(', 
+		'[', '{', ATKEYWORD, EOF, ';', '}', ':'
+
+

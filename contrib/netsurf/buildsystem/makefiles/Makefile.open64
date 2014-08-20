@@ -1,0 +1,69 @@
+# Open64 specific toolchain setup
+# We assume that we're using a standard GCC/binutils environment
+
+CCDEF := -D
+CCOPT := -O3 -IPA
+CCNOOPT := -O0
+CCDBG := -g
+CCINC := -I
+CCLIB := -L
+CCAS := -xassembler-with-cpp
+CCSHR := -fPIC
+
+CXXDEF := -D
+CXXOPT := -O3
+CXXNOOPT := -O0
+CXXDBG := -g
+CXXINC := -I
+CXXLIB := -L
+CXXSHR := -fPIC
+
+LDDBG := -g
+# Reevaluation is required here
+LDSHR = -ipa -shared -Wl,-soname,$(SONAME)
+
+LDFLAGS := $(LDFLAGS) -ipa
+
+ARFLG := cru
+
+# Definitions for various attributes
+CFLAGS := $(CFLAGS) -D_ALIGNED="__attribute__((aligned))"
+
+# Extensions for coverage target
+ifeq ($(MAKECMDGOALS),coverage)
+  COVCFLAGS ?= -fprofile-arcs -ftest-coverage
+  COVCXXFLAGS ?= -fprofile-arcs -ftest-coverage
+  COVLDFLAGS ?= -lgcov
+
+  CFLAGS := $(CFLAGS) $(COVCFLAGS)
+  CXXFLAGS := $(CXXFLAGS) $(COVCXXFLAGS)
+  LDFLAGS := $(LDFLAGS) $(COVLDFLAGS)
+endif
+
+# Extensions for profile target
+ifeq ($(MAKECMDGOALS),profile)
+  PROFCFLAGS ?= -pg
+  PROFCXXFLAGS ?= -pg
+  PROFLDFLAGS ?= -pg
+
+  CFLAGS := $(CFLAGS) $(PROFCFLAGS)
+  CXXFLAGS := $(CXXFLAGS) $(PROFCXXFLAGS)
+  LDFLAGS := $(LDFLAGS) $(PROFLDFLAGS)
+endif
+
+###############################################################################
+# Other settings
+###############################################################################
+
+# Determine if the compiler supports simultaneous build & dep.
+ccvsn := $(shell $(CC) -dumpversion)
+# ccvsn = x.y.z
+GCCVER := $(word 1,$(subst ., ,$(ccvsn)))
+# GCCVER = x
+
+# If the major version (x, above) is not 2, then assume build & dep.
+# This will break if using a version of GCC < 2, but that's unlikely.
+ifneq ($(GCCVER),2)
+  CC_CAN_BUILD_AND_DEP ?= yes
+endif
+

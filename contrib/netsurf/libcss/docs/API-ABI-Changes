@@ -1,0 +1,37 @@
+LibCSS API & ABI Changes
+========================
+
+  This document explains how to upgrade clients to use new versions of LibCSS.
+
+
+LibCSS 0.2.0 --> LibCSS 0.3.0
+-----------------------------
+
+  Both the API and ABI are changed.
+
+  LibCSS nolonger lets clients provide a memory allocator function.
+  This change affects the following functions:
+
+    From include/libcss/computed.h    --  css_computed_style_create()
+
+    From include/libcss/select.h      --  css_select_ctx_create()
+
+    From incluce/libcss/stylesheet.h  --  css_stylesheet_create()
+
+
+  There are changes to selection handler callback table:
+
+    node_classes
+      LibCSS nolonger frees the any array of classes passed to the
+      node_classes callback.  It does still unref the individual strings.
+      This means clients need not allocate a new array each call, but can
+      keep the array cached on the node.
+
+    set_libcss_node_data
+      New selection handler function used to store a private cache belonging
+      to libcss on document element nodes.  When the node is deleted or
+      modified, clients should call css_libcss_node_data_handler().
+
+    get_libcss_node_data
+      New selection handler function used to retrieve private cache belonging
+      to libcss from document element nodes.

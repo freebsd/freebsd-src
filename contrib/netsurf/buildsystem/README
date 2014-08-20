@@ -1,0 +1,24 @@
+NetSurf shared build system
+===========================
+
+To install
+----------
+
+   make install [PREFIX=/somewhere]
+
+By default, PREFIX will be /opt/netsurf and this will be true for all
+makefiles which use the shared build infrastructure.
+
+To use
+------
+
+See the example in example/
+
+Note that PREFIX must be the same for when you compile/test/install
+anything using this build system as it was when you installed it in
+the first place.
+
+If it is not (or if packaging is getting in the way or similar) then
+simply set NSSHARED to the path to the shared build system (up to an
+including simply pointing at the directory containing this README) and
+the makefiles will work the rest out.

@@ -1,0 +1,216 @@
+/* binding to generate window */
+
+
+webidlfile "html.idl";
+
+hdrcomment "Part of NetSurf Project";
+
+preamble %{
+
+#include <dom/dom.h>
+        
+#include "utils/config.h"
+#include "utils/log.h"
+
+#include "javascript/jsapi.h"
+#include "javascript/jsapi/binding.h"
+
+%}
+
+prologue %{
+/* prologue comment */
+%}
+
+epilogue %{
+/* epilogue comment */
+%}
+
+#include "dom.bnd"
+
+binding window {
+	type js_libdom; /* the binding type */
+
+	interface Window; /* Web IDL interface to generate */
+
+	private "struct browser_window *" bw;
+	private "struct html_content *" htmlc;
+
+	internal "JSObject *" document;
+	internal "JSObject *" navigator;
+	internal "JSObject *" console;
+	internal "JSObject *" location;
+
+	property unshared type WindowProxy;
+	property unshared foo;
+	property shared type EventHandler;
+	property shared baz;
+}
+
+api mark %{
+	if (private != NULL) {
+		if (private->document != NULL) {
+			JSAPI_GCMARK(private->document);
+		}
+		if (private->navigator != NULL) {
+			JSAPI_GCMARK(private->navigator);
+		}
+		if (private->console != NULL) {
+			JSAPI_GCMARK(private->console);
+		}
+		if (private->location != NULL) {
+			JSAPI_GCMARK(private->location);
+		}
+	}
+%}
+
+api global %{
+%}
+
+api init %{
+	JSObject *user_proto;
+
+	prototype = JS_NewCompartmentAndGlobalObject(cx, &JSClass_Window, NULL);
+	if (prototype == NULL) {
+		return NULL;
+	}
+
+	/** @todo reconsider global object handling. future
+	 * editions of spidermonkey appear to be removing the
+	 * idea of a global so we probably need to handle
+	 * global object references internally
+	 */
+
+	/* set the contexts global */
+	JS_SetGlobalObject(cx, prototype);
+
+	/* Populate the global object with the standard globals, like
+	 *  Object and Array.
+	 */
+	if (!JS_InitStandardClasses(cx, prototype)) {
+		return NULL;
+	}
+
+	/* add functions to prototype */
+	if (!JS_DefineFunctions(cx, prototype, jsclass_functions)) {
+		return NULL;
+	}
+
+	/* add properties to prototype */
+	if (!JS_DefineProperties(cx, prototype, jsclass_properties))
+		return NULL;
+
+	/* Initialises all the user javascript classes to make their
+	 * prototypes available. 
+	 */
+	/** @todo should we be managing these prototype objects ourselves */
+	user_proto = jsapi_InitClass_Document(cx, prototype);
+	if (user_proto == NULL) {
+		return NULL;
+	}
+
+	user_proto = jsapi_InitClass_Navigator(cx, prototype);
+	if (user_proto == NULL) {
+		return NULL;
+	}
+
+	user_proto = jsapi_InitClass_Location(cx, prototype);
+	if (user_proto == NULL) {
+		return NULL;
+	}
+
+	user_proto = jsapi_InitClass_Console(cx, prototype);
+	if (user_proto == NULL) {
+		return NULL;
+	}
+
+	user_proto = jsapi_InitClass_HTMLElement(cx, prototype);
+	if (user_proto == NULL) {
+		return NULL;
+	}
+
+	user_proto = jsapi_InitClass_HTMLCollection(cx, prototype);
+	if (user_proto == NULL) {
+		return NULL;
+	}
+
+	user_proto = jsapi_InitClass_NodeList(cx, prototype);
+	if (user_proto == NULL) {
+		return NULL;
+	}
+
+	user_proto = jsapi_InitClass_Text(cx, prototype);
+	if (user_proto == NULL) {
+		return NULL;
+	}
+
+	user_proto = jsapi_InitClass_Node(cx, prototype);
+	if (user_proto == NULL) {
+		return NULL;
+	}
+
+%}
+
+api new %{
+	/* @todo sort out windows that are not globals */
+	assert(parent == NULL);
+
+        /* the window object is the global so its prototype *is* the instance */
+        newobject = prototype;
+
+	/* instantiate the subclasses off the window global */
+	private->document = jsapi_new_Document(cx,
+                                               NULL,
+                                               newobject, 
+                                               (dom_document *)dom_node_ref(htmlc->document), 
+                                               htmlc);
+	if (private->document == NULL) { 
+		free(private);
+		return NULL;
+	}
+
+	private->navigator = jsapi_new_Navigator(cx, NULL, newobject);
+	if (private->navigator == NULL) {
+		free(private);
+		return NULL;
+	}
+
+	private->location = jsapi_new_Location(cx, NULL, newobject, bw);
+	if (private->location == NULL) {
+		free(private);
+		return NULL;
+	}
+
+	private->console = jsapi_new_Console(cx, NULL, newobject);
+	if (private->console == NULL) {
+		free(private);
+		return NULL;
+	}
+
+	/** @todo forms, history */
+
+	LOG(("Created new window object %p", newobject));
+%}
+
+operation confirm %{
+	warn_user(message, NULL);
+%}
+
+operation alert %{
+	warn_user(message, NULL);
+%}
+
+operation prompt %{
+	warn_user(message, NULL);
+%}
+
+getter window %{
+	jsret = obj;
+%}
+
+getter self %{
+	jsret = obj;
+%}
+
+getter EventHandler %{
+	/* example shared property type handler */
+%}

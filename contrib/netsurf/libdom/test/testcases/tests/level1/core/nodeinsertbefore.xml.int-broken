@@ -1,0 +1,87 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+Copyright (c) 2001 World Wide Web Consortium,
+(Massachusetts Institute of Technology, Institut National de
+Recherche en Informatique et en Automatique, Keio University). All
+Rights Reserved. This program is distributed under the W3C's Software
+Intellectual Property License. This program is distributed in the
+hope that it will be useful, but WITHOUT ANY WARRANTY; without even
+the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
+PURPOSE.
+See W3C License http://www.w3.org/Consortium/Legal/ for more details.
+--><!DOCTYPE test SYSTEM "dom1.dtd">
+
+<test xmlns="http://www.w3.org/2001/DOM-Test-Suite/Level-1" name="nodeinsertbefore">
+<metadata>
+<title>nodeInsertBefore</title>
+<creator>NIST</creator>
+<description>
+    The "insertBefore(newChild,refChild)" method inserts the
+    node "newChild" before the node "refChild". 
+    
+    Insert a newly created Element node before the eigth
+    child of the second employee and check the "newChild"
+    and "refChild" after insertion for correct placement.
+</description>
+<contributor>Mary Brady</contributor>
+<date qualifier="created">2001-08-17</date>
+<subject resource="http://www.w3.org/TR/1998/REC-DOM-Level-1-19981001/level-one-core#ID-952280727"/>
+</metadata>
+<var name="doc" type="Document"/>
+<var name="elementList" type="NodeList"/>
+<var name="employeeNode" type="Node"/>
+<var name="childList" type="NodeList"/>
+<var name="refChild" type="Node"/>
+<var name="newChild" type="Node"/>
+<var name="child" type="Node"/>
+<var name="childName" type="DOMString"/>
+<var name="length" type="int"/>
+<var name="insertedNode" type="Node"/>
+<var name="actual" type="List"/>
+<var name="expectedWithWhitespace" type="List">
+<member>"#text"</member>
+<member>"employeeId"</member>
+<member>"#text"</member>
+<member>"name"</member>
+<member>"#text"</member>
+<member>"position"</member>
+<member>"#text"</member>
+<member>"newChild"</member>
+<member>"salary"</member>
+<member>"#text"</member>
+<member>"gender"</member>
+<member>"#text"</member>
+<member>"address"</member>
+<member>"#text"</member>
+</var>
+<var name="expectedWithoutWhitespace" type="List">
+<member>"employeeId"</member>
+<member>"name"</member>
+<member>"position"</member>
+<member>"newChild"</member>
+<member>"salary"</member>
+<member>"gender"</member>
+<member>"address"</member>
+</var>
+<var name="expected" type="List"/>
+<load var="doc" href="staff" willBeModified="true"/>
+<getElementsByTagName interface="Document" obj="doc" tagname='"employee"' var="elementList"/>
+<item interface="NodeList" obj="elementList" index="1" var="employeeNode"/>
+<childNodes obj="employeeNode" var="childList"/>
+<length var="length" obj="childList" interface="NodeList"/>
+<if><equals actual="length" expected="6" ignoreCase="false"/>
+	<item interface="NodeList" obj="childList" index="3" var="refChild"/>
+	<assign var="expected" value="expectedWithoutWhitespace"/>
+	<else>
+		<item interface="NodeList" obj="childList" index="7" var="refChild"/>
+		<assign var="expected" value="expectedWithWhitespace"/>
+	</else>
+</if>
+<createElement obj="doc" tagName='"newChild"' var="newChild"/>
+<insertBefore var="insertedNode" obj="employeeNode" newChild="newChild" refChild="refChild"/>
+<for-each collection="childList" member="child">
+	<nodeName obj="child" var="childName"/>
+	<append collection="actual" item="childName"/>
+</for-each>
+<assertEquals actual="actual" expected="expected" id="nodeNames" ignoreCase="false"/>
+</test>

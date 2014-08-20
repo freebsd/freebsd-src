@@ -1,0 +1,2783 @@
+<!DOCTYPE HTML>
+
+
+<html lang="en-GB-hixie">
+ <head>
+  <title>HTML 5</title>
+  <link href="/style/specification" type="text/css" rel="stylesheet">
+  <link href="/images/icon" rel="icon">
+
+  <style type="text/css">
+   h4 + .element { margin-top: -2.5em; padding-top: 2em; }
+   h4 + p + .element { margin-top: -5em; padding-top: 4em; }
+   .element { background: #EEFFEE; color: black; margin: 0 0 1em -1em; padding: 0 1em 0.25em 0.75em; border-left: solid #99FF99 0.25em; -padding: 0; /* that last decl is for IE6. Try removing it, it's hilarious! */ }
+   .proposal { border: blue solid; padding: 1em; }
+   table.matrix, table.matrix td { border: none; text-align: right; }
+   table.matrix { margin-left: 2em; }
+  </style>
+
+ <link href="section-tokenisation.html#nav-bar" rel="prev" title="8.2.3. Tokenisation"><link href="index.html#contents" rel="index" title="Table of contents"><link href="section-namespaces.html#nav-bar" rel="next" title="8.3. Namespaces"></head><body class="draft"><div class="head">
+   <p><a href="http://www.whatwg.org/" class="logo" rel="home"><img src="/images/logo" alt="WHATWG"></a></p>
+
+   <h1 id="html-5">HTML 5</h1>
+
+   <h2 id="working" class="no-num no-toc">Working Draft — 12 June 2007</h2></div><nav id="nav-bar"><a href="section-tokenisation.html#nav-bar">&lt; 8.2.3. Tokenisation</a> – <a href="index.html#contents">Table of contents</a> – <a href="section-namespaces.html#nav-bar">8.3. Namespaces &gt;</a></nav><h4 id="tree-construction"><span class="secno">8.2.4. </span><dfn id="tree-construction0">Tree construction</dfn></h4>
+
+  <p>The input to the tree construction stage is a sequence of tokens from
+   the <a href="section-tokenisation.html#tokenisation0">tokenisation</a> stage. The tree construction
+   stage is associated with a DOM <code>Document</code> object when a parser
+   is created. The &quot;output&quot; of this stage consists of dynamically modifying
+   or extending that document's DOM tree.
+
+  </p><p>Tree construction passes through several phases. Initially, UAs must act
+   according to the steps described as being those of <a href="#the-initial0">the initial phase</a>.
+
+  </p><p>This specification does not define when an interactive user agent has to
+   render the <code>Document</code> available to the user, or when it has to
+   begin accepting user input.
+
+  </p><p>When the steps below require the UA to <dfn id="append">append a
+   character</dfn> to a node, the UA must collect it and all subsequent
+   consecutive characters that would be appended to that node, and insert one
+   <code>Text</code> node whose data is the concatenation of all those
+   characters.
+
+  </p><p id="mutation-during-parsing">DOM mutation events must not fire for changes
+   caused by the UA parsing the document. (Conceptually, the parser is not
+   mutating the DOM, it is constructing it.) This includes the parsing of any
+   content inserted using <code title="dom-document-write-HTML"><a href="section-dynamic.html#document.write0">document.write()</a></code> and <code title="dom-document-writeln"><a href="section-dynamic.html#document.writeln">document.writeln()</a></code> calls.<!--
+  XXX xref -->
+   <a href="#refsDOM3EVENTS">[DOM3EVENTS]</a></p>
+  <!-- XXX
+  what abotu innerHTML? -->
+
+  <p class="note">Not all of the tag names mentioned below are conformant tag
+   names in this specification; many are included to handle legacy content.
+   They still form part of the algorithm that implementations are required to
+   implement to claim conformance.
+
+  </p><p class="note">The algorithm described below places no limit on the depth of
+   the DOM tree generated, or on the length of tag names, attribute names,
+   attribute values, text nodes, etc. While implementators are encouraged to
+   avoid arbitrary limits, it is recognised that <a href="section-conformance.html#hardwareLimitations">practical concerns</a> will likely force user
+   agents to impose nesting depths.
+
+  </p><h5 id="the-initial"><span class="secno">8.2.4.1. </span><dfn id="the-initial0">The initial phase</dfn></h5>
+
+  <p>Initially, the tree construction stage must handle each token emitted
+   from the <a href="section-tokenisation.html#tokenisation0">tokenisation</a> stage as follows:
+
+  </p><dl class="switch">
+   <dt>A DOCTYPE token that is marked as being in error
+
+   </dt><dt>A comment token
+
+   </dt><dt>A start tag token
+
+   </dt><dt>An end tag token
+
+   </dt><dt>A character token that is not one of one of U+0009 CHARACTER
+    TABULATION, U+000A LINE FEED (LF), U+000B LINE TABULATION, U+000C FORM
+    FEED (FF), U+000D CARRIAGE RETURN (CR), or U+0020 SPACE
+
+   </dt><dt>An end-of-file token
+
+   </dt><dd>
+    <p>This specification does not define how to handle this case. In
+     particular, user agents may ignore the entirety of this specification
+     altogether for such documents, and instead invoke special parse modes
+     with a greater emphasis on backwards compatibility.</p>
+
+    <div class="note">
+     <p>Browsers in particular have generally used DOCTYPE-based sniffing to
+      invoke an &quot;alternative conformance mode&quot; known as <em>quirks mode</em>
+      on certain documents. In this mode, emphasis is put on legacy
+      compatibility rather than on standards compliance. This specification
+      takes no position on this behaviour; documents without DOCTYPEs or with
+      DOCTYPEs that do not conform to the syntax allowed by this
+      specification are considered to be out of scope of this specification.</p>
+    </div>
+
+    <div class="big-issue">
+     <p>As far as parsing goes, the quirks I know of are:</p>
+
+     <ul>
+      <li>Comment parsing is different.
+
+      </li><li>The following is considered one script block (!):
+       <pre>&lt;script&gt;&lt;!-- document.write('&lt;/script&gt;'); --&gt;&lt;/script&gt;</pre>
+
+      </li><li><code title="">&lt;/br&gt;</code> and <code title="">&lt;/p&gt;</code> do
+       magical things.
+
+      </li><li><code><a href="section-prose.html#p">p</a></code> can contain <code><a href="section-tabular.html#table">table</a></code>
+
+      </li><li>Safari and IE have special parsing rules for &lt;% ... %&gt; (even
+       in standards mode, though clearly this should be quirks-only).
+     </li></ul>
+
+     <p>Maybe we should just adopt all those and be done with it. One parsing
+      mode to rule them all. Or legitimise/codify the quirks mode parsing in
+      some way.</p>
+
+     <p>Would be interesting to do a search to see how many pages hit each of
+      the above.</p>
+     <!-- biased by page rank? --></div>
+
+   </dd><dt>A DOCTYPE token marked as being correct
+
+   </dt><dd>
+    <p>Append a <code>DocumentType</code> node to the <code>Document</code>
+     node, with the <code title="">name</code> attribute set to the name
+     given in the DOCTYPE token (which will be &quot;HTML&quot;), and the other
+     attributes specific to <code>DocumentType</code> objects set to null,
+     empty lists, or the empty string as appropriate.</p>
+
+    <p>Then, switch to <a href="#the-root1">the root element phase</a> of the
+     tree construction stage.</p>
+    <!-- XXX should set doctype on the Document object, too, unless
+    spec is defined to already point to it if you append -->
+    
+
+   </dd><dt>A character token that <em>is</em> one of one of U+0009 CHARACTER
+    TABULATION, U+000A LINE FEED (LF), U+000B LINE TABULATION, U+000C FORM
+    FEED (FF), U+000D CARRIAGE RETURN (CR), or U+0020 SPACE
+
+   </dt><dd>
+    <p><a href="#append" title="append a character">Append that character</a>
+     to the <code>Document</code> node.</p>
+  </dd></dl>
+
+  <h5 id="the-root0"><span class="secno">8.2.4.2. </span><dfn id="the-root1">The
+   root element phase</dfn></h5>
+
+  <p>After <a href="#the-initial0">the initial phase</a>, as each token is
+   emitted from the <a href="section-tokenisation.html#tokenisation0">tokenisation</a> stage, it must
+   be processed as described in this section.
+
+  </p><dl class="switch">
+   <dt>A DOCTYPE token
+
+   </dt><dd>
+    <p><a href="section-parsing.html#parse">Parse error</a>. Ignore the token.</p>
+
+   </dd><dt>A comment token
+
+   </dt><dd>
+    <p>Append a <code>Comment</code> node to the <code>Document</code> object
+     with the <code title="">data</code> attribute set to the data given in
+     the comment token.</p>
+
+   </dd><dt>A character token that is one of one of U+0009 CHARACTER TABULATION,
+    U+000A LINE FEED (LF), U+000B LINE TABULATION, U+000C FORM FEED (FF),
+    U+000D CARRIAGE RETURN (CR), or U+0020 SPACE
+
+   </dt><dd>
+    <p><a href="#append" title="append a character">Append that character</a>
+     to the <code>Document</code> node.</p>
+
+   </dd><dt>A character token that is <em>not</em> one of U+0009 CHARACTER
+    TABULATION, U+000A LINE FEED (LF), U+000B LINE TABULATION, U+000C FORM
+    FEED (FF), U+000D CARRIAGE RETURN (CR), or U+0020 SPACE
+
+   </dt><dt>A start tag token
+
+   </dt><dt>An end tag token
+
+   </dt><dt>An end-of-file token
+
+   </dt><dd>
+    <p>Create an <code><a href="section-elements.html#htmlelement">HTMLElement</a></code> node
+     with the tag name <code><a href="section-the-root.html#html">html</a></code>, in the <a href="section-namespaces.html#html-namespace0">HTML namespace</a>. Append it to the
+     <code>Document</code> object. Switch to <a href="#the-main0">the main
+     phase</a> and reprocess the current token.</p>
+
+    <p class="big-issue">Should probably make end tags be ignored, so that
+     &quot;&lt;/head&gt;&lt;!-- --&gt;&lt;html&gt;&quot; puts the comment befor the root node
+     (or should we?)</p>
+  </dd></dl>
+
+  <p>The root element can end up being removed from the <code>Document</code>
+   object, e.g. by scripts; nothing in particular happens in such cases,
+   content continues being appended to the nodes as described in the next
+   section.
+
+  </p><h5 id="the-main"><span class="secno">8.2.4.3. </span><dfn id="the-main0">The
+   main phase</dfn></h5>
+
+  <p>After <a href="#the-root1">the root element phase</a>, each token
+   emitted from the <a href="section-tokenisation.html#tokenisation0">tokenisation</a> stage must be
+   processed as described in <em>this</em> section. This is by far the most
+   involved part of parsing an HTML document.
+
+  </p><p>The tree construction stage in this phase has several pieces of state: a
+   <a href="#stack">stack of open elements</a>, a <a href="#list-of4">list of
+   active formatting elements</a>, a <a href="#head-element"><code title="">head</code> element pointer</a>, a <a href="#form-element"><code title="">form</code> element pointer</a>, and an <a href="#insertion0">insertion mode</a>.
+
+  </p><p class="big-issue">We could just fold insertion modes and phases into one
+   concept (and duplicate the two rules common to all insertion modes into
+   all of them).
+
+  </p><h6 id="the-stack"><span class="secno">8.2.4.3.1. </span>The stack of open
+   elements</h6>
+
+  <p>Initially the <dfn id="stack">stack of open elements</dfn> contains just
+   the <code><a href="section-the-root.html#html">html</a></code> root element node created in the
+   <a href="#the-root1" title="the root element phase">last phase</a> before
+   switching to <em>this</em> phase (or, in the <a href="section-dynamic.html#innerhtml1"><code>innerHTML</code> case</a>, the <code><a href="section-the-root.html#html">html</a></code> element created to represent the element
+   whose <code title="dom-innerHTML-HTML"><a href="section-dynamic.html#innerhtml0">innerHTML</a></code> attribute is being set). That's
+   the topmost node of the stack. It never gets popped off the stack. (This
+   stack grows downwards.)
+
+  </p><p>The <dfn id="current4">current node</dfn> is the bottommost node in this
+   stack.
+
+  </p><p>Elements in the stack fall into the following categories:
+
+  </p><dl>
+   <dt><dfn id="special">Special</dfn>
+
+   </dt><dd>
+    <p>The following HTML elements have varying levels of special parsing
+     rules: <code><a href="section-sections.html#address">address</a></code>, <code><a href="section-the-canvas.html#area">area</a></code>, <code><a href="section-document.html#base">base</a></code>,
+     <code>basefont</code>, <code>bgsound</code>, <code><a href="section-sections.html#blockquote">blockquote</a></code>, <code><a href="section-sections.html#body0">body</a></code>, <code><a href="section-prose.html#br">br</a></code>,
+     <code>center</code>, <code><a href="section-tabular.html#col">col</a></code>, <code><a href="section-tabular.html#colgroup">colgroup</a></code>, <code><a href="section-lists0.html#dd">dd</a></code>,
+     <code>dir</code>, <code><a href="section-miscellaneous.html#div">div</a></code>, <code><a href="section-lists0.html#dl">dl</a></code>, <code><a href="section-lists0.html#dt">dt</a></code>, <code><a href="section-embedded.html#embed">embed</a></code>, <code>fieldset</code>,
+     <code>form</code>, <code>frame</code>, <code>frameset</code>, <code><a href="section-sections.html#h1">h1</a></code>, <code><a href="section-sections.html#h2">h2</a></code>, <code><a href="section-sections.html#h3">h3</a></code>, <code><a href="section-sections.html#h4">h4</a></code>, <code><a href="section-sections.html#h5">h5</a></code>, <code><a href="section-sections.html#h6">h6</a></code>, <code><a href="section-document.html#head">head</a></code>, <code><a href="section-prose.html#hr">hr</a></code>,
+     <code><a href="section-embedded.html#iframe">iframe</a></code>,
+     <code>image</code><!-- XXX ? this isn't an element that can end up
+   on the stack-->,
+     <code><a href="section-embedded.html#img">img</a></code>, <code>input</code>,
+     <code>isindex</code>, <code><a href="section-lists0.html#li">li</a></code>, <code><a href="section-document.html#link">link</a></code>, <code>listing</code>, <code><a href="section-the-command.html#menu">menu</a></code>, <code><a href="section-document.html#meta0">meta</a></code>,
+     <code>noembed</code>, <code>noframes</code>, <code><a href="section-scripting0.html#noscript">noscript</a></code>, <code><a href="section-lists0.html#ol">ol</a></code>,
+     <code>optgroup</code>, <code>option</code>, <code><a href="section-prose.html#p">p</a></code>, <code><a href="section-embedded.html#param">param</a></code>,
+     <code>plaintext</code>, <code><a href="section-preformatted.html#pre">pre</a></code>, <code><a href="section-scripting0.html#script0">script</a></code>, <code>select</code>,
+     <code>spacer</code>, <code><a href="section-document.html#style">style</a></code>, <code><a href="section-tabular.html#tbody">tbody</a></code>, <code>textarea</code>, <code><a href="section-tabular.html#tfoot0">tfoot</a></code>, <code><a href="section-tabular.html#thead0">thead</a></code>, <code><a href="section-document.html#title1">title</a></code>, <code><a href="section-tabular.html#tr">tr</a></code>,
+     <code><a href="section-lists0.html#ul">ul</a></code>, and <code>wbr</code>.
+
+   </p></dd><dt><dfn id="scoping">Scoping</dfn>
+
+   </dt><dd>
+    <p>The following HTML elements introduce new <a href="#have-an" title="has an element in scope">scopes</a> for various parts of the
+     parsing: <code>button</code>, <code><a href="section-tabular.html#caption0">caption</a></code>, <code><a href="section-the-root.html#html">html</a></code>, <code>marquee</code>, <code><a href="section-embedded.html#object">object</a></code>, <code><a href="section-tabular.html#table">table</a></code>, <code><a href="section-tabular.html#td">td</a></code> and
+     <code><a href="section-tabular.html#th">th</a></code>.
+
+   </p></dd><dt><dfn id="formatting">Formatting</dfn>
+
+   </dt><dd>
+    <p>The following HTML elements are those that end up in the <a href="#list-of4">list of active formatting elements</a>: <code><a href="section-phrase.html#a">a</a></code>, <code><a href="section-phrase.html#b">b</a></code>,
+     <code>big</code>, <code><a href="section-phrase.html#em">em</a></code>, <code><a href="section-presentational.html#font">font</a></code>, <code><a href="section-phrase.html#i">i</a></code>,
+     <code>nobr</code>, <code>s</code>, <code><a href="section-phrase.html#small">small</a></code>, <code>strike</code>, <code><a href="section-phrase.html#strong">strong</a></code>, <code>tt</code>, and <code>u</code>.
+
+   </p></dd><dt><dfn id="phrasing">Phrasing</dfn>
+
+   </dt><dd>
+    <p>All other elements found while parsing an HTML document.
+  </p></dd></dl>
+
+  <p class="big-issue">Still need to add these new elements to the lists:
+   <code><a href="section-scripting0.html#event-source">event-source</a></code>, <code><a href="section-sections.html#section">section</a></code>, <code><a href="section-sections.html#nav">nav</a></code>,
+   <code><a href="section-sections.html#article">article</a></code>, <code><a href="section-sections.html#aside">aside</a></code>, <code><a href="section-sections.html#header">header</a></code>,
+   <code><a href="section-sections.html#footer">footer</a></code>, <code><a href="section-interactive.html#datagrid0">datagrid</a></code>, <code><a href="section-the-command.html#command0">command</a></code>
+
+  </p><p>The <a href="#stack">stack of open elements</a> is said to <dfn id="have-an" title="has an element in scope">have an element in scope</dfn>
+   or <dfn id="have-an0" title="has an element in table scope">have an element
+   in <em>table scope</em></dfn> when the following algorithm terminates in a
+   match state:
+
+  </p><ol>
+   <li>
+    <p>Initialise <var title="">node</var> to be the <a href="#current4">current node</a> (the bottommost node of the stack).
+
+   </p></li><li>
+    <p>If <var title="">node</var> is the target node, terminate in a match
+     state.
+
+   </p></li><li>
+    <p>Otherwise, if <var title="">node</var> is a <code><a href="section-tabular.html#table">table</a></code> element, terminate in a failure state.
+
+   </p></li><li>
+    <p>Otherwise, if the algorithm is the &quot;has an element in scope&quot; variant
+     (rather than the &quot;has an element in table scope&quot; variant), and <var title="">node</var> is one of the following, terminate in a failure
+     state:</p>
+
+    <ul class="brief">
+     <li><code><a href="section-tabular.html#caption0">caption</a></code>
+
+     </li><li><code><a href="section-tabular.html#td">td</a></code>
+
+     </li><li><code><a href="section-tabular.html#th">th</a></code>
+
+     </li><li><code>button</code>
+
+     </li><li><code>marquee</code>
+
+     </li><li><code><a href="section-embedded.html#object">object</a></code>
+    </li></ul>
+
+   </li><li>
+    <p>Otherwise, if <var title="">node</var> is an <code><a href="section-the-root.html#html">html</a></code> element, terminate in a failure state.
+     (This can only happen if the <var title="">node</var> is the topmost
+     node of the <a href="#stack">stack of open elements</a>, and prevents
+     the next step from being invoked if there are no more elements in the
+     stack.)
+
+   </p></li><li>
+    <p>Otherwise, set <var title="">node</var> to the previous entry in the
+     <a href="#stack">stack of open elements</a> and return to step 2. (This
+     will never fail, since the loop will always terminate in the previous
+     step if the top of the stack is reached.)
+  </p></li></ol>
+
+  <p>Nothing happens if at any time any of the elements in the <a href="#stack">stack of open elements</a> are moved to a new location in,
+   or removed from, the <code>Document</code> tree. In particular, the stack
+   is not changed in this situation. This can cause, amongst other strange
+   effects, content to be appended to nodes that are no longer in the DOM.
+
+  </p><p class="note">In some cases (namely, when <a href="#adoptionAgency">closing
+   misnested formatting elements</a>), the stack is manipulated in a
+   random-access fashion.
+
+  </p><h6 id="the-list"><span class="secno">8.2.4.3.2. </span>The list of active
+   formatting elements</h6>
+
+  <p>Initially the <dfn id="list-of4">list of active formatting elements</dfn>
+   is empty. It is used to handle mis-nested <a href="#formatting" title="formatting">formatting element tags</a>.
+
+  </p><p>The list contains elements in the <a href="#formatting">formatting</a>
+   category, and scope markers. The scope markers are inserted when entering
+   buttons, <code><a href="section-embedded.html#object">object</a></code> elements, marquees,
+   table cells, and table captions, and are used to prevent formatting from
+   &quot;leaking&quot; into tables, buttons, <code><a href="section-embedded.html#object">object</a></code>
+   elements, and marquees.
+
+  </p><p>When the steps below require the UA to <dfn id="reconstruct">reconstruct
+   the active formatting elements</dfn>, the UA must perform the following
+   steps:
+
+  </p><ol>
+   <li>If there are no entries in the <a href="#list-of4">list of active
+    formatting elements</a>, then there is nothing to reconstruct; stop this
+    algorithm.
+
+   </li><li>If the last (most recently added) entry in the <a href="#list-of4">list of active formatting elements</a> is a marker, or
+    if it is an element that is in the <a href="#stack">stack of open
+    elements</a>, then there is nothing to reconstruct; stop this algorithm.
+
+   </li><li>Let <var title="">entry</var> be the last (most recently added)
+    element in the <a href="#list-of4">list of active formatting
+    elements</a>.
+
+   </li><li>If there are no entries before <var title="">entry</var> in the <a href="#list-of4">list of active formatting elements</a>, then jump to
+    step 8.
+
+   </li><li>Let <var title="">entry</var> be the entry one earlier than <var title="">entry</var> in the <a href="#list-of4">list of active formatting
+    elements</a>.
+
+   </li><li>If <var title="">entry</var> is neither a marker nor an element that
+    is also in the <a href="#stack">stack of open elements</a>, go to step 4.
+
+   </li><li>Let <var title="">entry</var> be the element one later than <var title="">entry</var> in the <a href="#list-of4">list of active formatting
+    elements</a>.
+
+   </li><li>Perform a shallow clone of the element <var title="">entry</var> to
+    obtain <var title="">clone</var>. <a href="#refsDOM3CORE">[DOM3CORE]</a>
+
+   </li><li>Append <var title="">clone</var> to the <a href="#current4">current
+    node</a> and push it onto the <a href="#stack">stack of open elements</a>
+    so that it is the new <a href="#current4">current node</a>.
+
+   </li><li>Replace the entry for <var title="">entry</var> in the list with an
+    entry for <var title="">clone</var>.
+
+   </li><li>If the entry for <var title="">clone</var> in the <a href="#list-of4">list of active formatting elements</a> is not the last
+    entry in the list, return to step 7.
+  </li></ol>
+
+  <p>This has the effect of reopening all the formatting elements that were
+   opened in the current body, cell, or caption (whichever is youngest) that
+   haven't been explicitly closed.
+
+  </p><p class="note">The way this specification is written, the <a href="#list-of4">list of active formatting elements</a> always consists of
+   elements in chronological order with the least recently added element
+   first and the most recently added element last (except for while steps 8
+   to 11 of the above algorithm are being executed, of course).
+
+  </p><p>When the steps below require the UA to <dfn id="clear0">clear the list of
+   active formatting elements up to the last marker</dfn>, the UA must
+   perform the following steps:
+
+  </p><ol>
+   <li>Let <var title="">entry</var> be the last (most recently added) entry
+    in the <a href="#list-of4">list of active formatting elements</a>.
+
+   </li><li>Remove <var title="">entry</var> from the <a href="#list-of4">list of
+    active formatting elements</a>.
+
+   </li><li>If <var title="">entry</var> was a marker, then stop the algorithm at
+    this point. The list has been cleared up to the last marker.
+
+   </li><li>Go to step 1.
+  </li></ol>
+
+  <h6 id="creating"><span class="secno">8.2.4.3.3. </span>Creating and inserting
+   HTML elements</h6>
+
+  <p>When the steps below require the UA to <dfn id="create" title="create an
+   element for the token">create an element for a token</dfn>, the UA must
+   create a node implementing the interface appropriate for the element type
+   corresponding to the tag name of the token (as given in the section of
+   this specification that defines that element, e.g. for an <code><a href="section-phrase.html#a">a</a></code> element it would be the <code><a href="section-phrase.html#htmlanchorelement">HTMLAnchorElement</a></code> interface), with
+   the tag name being the name of that element, with the node being in the <a href="section-namespaces.html#html-namespace0">HTML namespace</a>, and with the attributes on the
+   node being those given in the given token.
+
+  </p><p>When the steps below require the UA to <dfn id="insert">insert an HTML
+   element</dfn> for a token, the UA must first <a href="#create">create an
+   element for the token</a>, and then append this node to the <a href="#current4">current node</a>, and push it onto the <a href="#stack">stack of open elements</a> so that it is the new <a href="#current4">current node</a>.
+
+  </p><p>The steps below may also require that the UA insert an HTML element in a
+   particular place, in which case the UA must <a href="#create">create an
+   element for the token</a> and then insert or append the new node in the
+   location specified. (This happens in particular during the parsing of
+   tables with invalid content.)
+
+  </p><p>The interface appropriate for an element that is not defined in this
+   specification is <code><a href="section-elements.html#htmlelement">HTMLElement</a></code>.
+
+  </p><h6 id="closing"><span class="secno">8.2.4.3.4. </span>Closing elements that
+   have implied end tags</h6>
+
+  <p>When the steps below require the UA to <dfn id="generate">generate implied
+   end tags</dfn>, then, if the <a href="#current4">current node</a> is a
+   <code><a href="section-lists0.html#dd">dd</a></code> element, a <code><a href="section-lists0.html#dt">dt</a></code> element, an <code><a href="section-lists0.html#li">li</a></code>
+   element, a <code><a href="section-prose.html#p">p</a></code> element, a <code><a href="section-tabular.html#td">td</a></code> element, a <code><a href="section-tabular.html#th">th</a></code>
+   element, or a <code><a href="section-tabular.html#tr">tr</a></code> element, the UA must act
+   as if an end tag with the respective tag name had been seen and then <a href="#generate">generate implied end tags</a> again.
+
+  </p><p>The step that requires the UA to generate implied end tags but lists an
+   element to exclude from the process, then the UA must perform the above
+   steps as if that element was not in the above list.
+
+  </p><h6 id="the-element"><span class="secno">8.2.4.3.5. </span>The element pointers</h6>
+
+  <p>Initially the <dfn id="head-element"><code title="">head</code> element
+   pointer</dfn> and the <dfn id="form-element"><code title="">form</code>
+   element pointer</dfn> are both null.
+
+  </p><p>Once a <code><a href="section-document.html#head">head</a></code> element has been parsed
+   (whether implicitly or explicitly) the <a href="#head-element"><code title="">head</code> element pointer</a> gets set to point to this node.
+
+  </p><p>The <a href="#form-element"><code title="">form</code> element
+   pointer</a> points to the last <code>form</code> element that was opened
+   and whose end tag has not yet been seen. It is used to make form controls
+   associate with forms in the face of dramatically bad markup, for
+   historical reasons.
+
+  </p><h6 id="the-insertion"><span class="secno">8.2.4.3.6. </span>The insertion mode</h6>
+
+  <p>Initially the <dfn id="insertion0">insertion mode</dfn> is &quot;<a href="#before2" title="insertion mode: before head">before head</a>&quot;. It
+   can change to &quot;<a href="#in-head" title="insertion mode: in head">in
+   head</a>&quot;, &quot;<a href="#after1" title="insertion mode: after head">after
+   head</a>&quot;, &quot;<a href="#in-body" title="insertion mode: in body">in
+   body</a>&quot;, &quot;<a href="#in-table" title="insertion mode: in table">in
+   table</a>&quot;, &quot;<a href="#in-caption" title="insertion mode: in caption">in
+   caption</a>&quot;, &quot;<a href="#in-column" title="insertion mode: in column
+   group">in column group</a>&quot;, &quot;<a href="#in-table0" title="insertion mode:
+   in table body">in table body</a>&quot;, &quot;<a href="#in-row" title="insertion
+   mode: in row">in row</a>&quot;, &quot;<a href="#in-cell" title="insertion mode: in
+   cell">in cell</a>&quot;, &quot;<a href="#in-select" title="insertion mode: in
+   select">in select</a>&quot;, &quot;<a href="#after2" title="insertion mode: after
+   body">after body</a>&quot;, &quot;<a href="#in-frameset" title="insertion mode: in
+   frameset">in frameset</a>&quot;, and &quot;<a href="#after3" title="insertion mode:
+   after frameset">after frameset</a>&quot; during the course of the parsing, as
+   described below. It affects how certain tokens are processed.
+
+  </p><p>If the tree construction stage is switched from <a href="#the-main0">the
+   main phase</a> to <a href="#the-trailing0">the trailing end phase</a> and
+   back again, the various pieces of state are not reset; the UA must act as
+   if the state was maintained.
+
+  </p><p>When the steps below require the UA to <dfn id="reset">reset the insertion
+   mode appropriately</dfn>, it means the UA must follow these steps:
+
+  </p><ol>
+   <li>Let <var title="">last</var> be false.
+
+   </li><li>Let <var title="">node</var> be the last node in the <a href="#stack">stack of open elements</a>.
+
+   </li><li>If <var title="">node</var> is the first node in the stack of open
+    elements, then set <var title="">last</var> to true. If the element whose
+    <code title="dom-innerHTML-HTML"><a href="section-dynamic.html#innerhtml0">innerHTML</a></code>
+    attribute is being set is neither a <code><a href="section-tabular.html#td">td</a></code>
+    element nor a <code><a href="section-tabular.html#th">th</a></code> element, then set <var title="">node</var> to the element whose <code title="dom-innerHTML-HTML"><a href="section-dynamic.html#innerhtml0">innerHTML</a></code>
+    attribute is being set. (<a href="section-dynamic.html#innerhtml1"><code>innerHTML</code>
+    case</a>)
+
+   </li><li>If <var title="">node</var> is a <code>select</code> element, then
+    switch the <a href="#insertion0">insertion mode</a> to &quot;<a href="#in-select" title="insertion mode: in select">in select</a>&quot; and
+    abort these steps. (<a href="section-dynamic.html#innerhtml1"><code>innerHTML</code>
+    case</a>)
+
+   </li><li>If <var title="">node</var> is a <code><a href="section-tabular.html#td">td</a></code> or
+    <code><a href="section-tabular.html#th">th</a></code> element, then switch the <a href="#insertion0">insertion mode</a> to &quot;<a href="#in-cell" title="insertion mode: in cell">in cell</a>&quot; and abort these steps.
+
+   </li><li>If <var title="">node</var> is a <code><a href="section-tabular.html#tr">tr</a></code>
+    element, then switch the <a href="#insertion0">insertion mode</a> to &quot;<a href="#in-row" title="insertion mode: in row">in row</a>&quot; and abort these
+    steps.
+
+   </li><li>If <var title="">node</var> is a <code><a href="section-tabular.html#tbody">tbody</a></code>, <code><a href="section-tabular.html#thead0">thead</a></code>,
+    or <code><a href="section-tabular.html#tfoot0">tfoot</a></code> element, then switch the <a href="#insertion0">insertion mode</a> to &quot;<a href="#in-table0" title="insertion mode: in table body">in table body</a>&quot; and abort these
+    steps.
+
+   </li><li>If <var title="">node</var> is a <code><a href="section-tabular.html#caption0">caption</a></code> element, then switch the <a href="#insertion0">insertion mode</a> to &quot;<a href="#in-caption" title="insertion mode: in caption">in caption</a>&quot; and abort these steps.
+
+   </li><li>If <var title="">node</var> is a <code><a href="section-tabular.html#colgroup">colgroup</a></code> element, then switch the <a href="#insertion0">insertion mode</a> to &quot;<a href="#in-column" title="insertion mode: in column group">in column group</a>&quot; and abort
+    these steps. (<a href="section-dynamic.html#innerhtml1"><code>innerHTML</code> case</a>)
+
+   </li><li>If <var title="">node</var> is a <code><a href="section-tabular.html#table">table</a></code> element, then switch the <a href="#insertion0">insertion mode</a> to &quot;<a href="#in-table" title="insertion mode: in table">in table</a>&quot; and abort these steps.
+
+   </li><li>If <var title="">node</var> is a <code><a href="section-document.html#head">head</a></code>
+    element, then switch the <a href="#insertion0">insertion mode</a> to &quot;<a href="#in-body" title="insertion mode: in body">in body</a>&quot; (&quot;<a href="#in-body" title="insertion mode: in body">in body</a>&quot;! <em> not
+    &quot;<a href="#in-head" title="insertion mode: in head">in head</a>&quot;</em>!)
+    and abort these steps. (<a href="section-dynamic.html#innerhtml1"><code>innerHTML</code>
+    case</a>)
+
+   </li><li>If <var title="">node</var> is a <code><a href="section-sections.html#body0">body</a></code> element, then switch the <a href="#insertion0">insertion mode</a> to &quot;<a href="#in-body" title="insertion mode: in body">in body</a>&quot; and abort these steps.
+
+   </li><li>If <var title="">node</var> is a <code>frameset</code> element, then
+    switch the <a href="#insertion0">insertion mode</a> to &quot;<a href="#in-frameset" title="insertion mode: in frameset">in frameset</a>&quot;
+    and abort these steps. (<a href="section-dynamic.html#innerhtml1"><code>innerHTML</code>
+    case</a>)
+
+   </li><li>If <var title="">node</var> is an <code><a href="section-the-root.html#html">html</a></code> element, then: if the <a href="#head-element"><code title="">head</code> element pointer</a> is
+    null, switch the <a href="#insertion0">insertion mode</a> to &quot;<a href="#before2" title="insertion mode: before head">before head</a>&quot;,
+    otherwise, switch the <a href="#insertion0">insertion mode</a> to &quot;<a href="#after1" title="insertion mode: after head">after head</a>&quot;. In
+    either case, abort these steps. (<a href="section-dynamic.html#innerhtml1"><code>innerHTML</code> case</a>)</li>
+   <!-- XXX can the head element pointer ever be
+   non-null when we're going through these steps? -->
+
+   <li>If <var title="">last</var> is true, then set the <a href="#insertion0">insertion mode</a> to &quot;<a href="#in-body" title="insertion mode: in body">in body</a>&quot; and abort these steps. (<a href="section-dynamic.html#innerhtml1"><code>innerHTML</code> case</a>)
+
+   </li><li>Let <var title="">node</var> now be the node before <var title="">node</var> in the <a href="#stack">stack of open elements</a>.
+
+   </li><li>Return to step 3.
+  </li></ol>
+  <!--When you don't have to handle innerHTML, you can use this
+simplified explanation instead:
+
+  <ol>
+
+   <li><p>If the <span>stack of open elements</span> <span title="has
+   an element in table scope">has a <code>td</code> or <code>th</code>
+   element in table scope</span>, then switch the <span>insertion
+   mode</span> to "<span title="insertion mode: in cell">in
+   cell</span>".</p></li>
+
+   <li><p>Otherwise, if the <span>stack of open elements</span> <span
+   title="has an element in table scope">has a <code>tr</code> element
+   in table scope</span>, then switch the <span>insertion mode</span>
+   to "<span title="insertion mode: in row">in row</span>".</p></li>
+
+   <li><p>Otherwise, if the <span>stack of open elements</span> <span
+   title="has an element in table scope">has a <code>tbody</code>,
+   <code>tfoot</code>, or <code>thead</code> element in table
+   scope</span>, then switch the <span>insertion mode</span> to "<span
+   title="insertion mode: in table body">in table
+   body</span>".</p></li>
+
+   <li><p>Otherwise, if the <span>stack of open elements</span> <span
+   title="has an element in table scope">has a <code>caption</code>
+   element in table scope</span>, then switch the <span>insertion
+   mode</span> to "<span title="insertion mode: in caption">in
+   caption</span>".</p></li>
+
+   ( you can't reach this point with a colgroup element on the
+   stack )
+
+   <li><p>Otherwise, if the <span>stack of open elements</span> <span
+   title="has an element in table scope">has a <code>table</code>
+   element in table scope</span>, then switch the <span>insertion
+   mode</span> to "<span title="insertion mode: in table">in
+   table</span>".</p></li>
+
+   <li><p>Otherwise, switch the <span>insertion mode</span> to "<span
+   title="insertion mode: in body">in body</span>".</p></li>
+
+  </ol>
+-->
+
+  <h6 id="how-to0"><span class="secno">8.2.4.3.7. </span>How to handle tokens in
+   the main phase</h6>
+
+  <p>Tokens in the main phase must be handled as follows:
+
+  </p><dl class="switch">
+   <dt>A DOCTYPE token
+
+   </dt><dd>
+    <p><a href="section-parsing.html#parse">Parse error</a>. Ignore the token.</p>
+
+   </dd><dt>A start tag token with the tag name &quot;html&quot;
+
+   </dt><dd>
+    <p>If this start tag token was not the first start tag token, then it is
+     a <a href="section-parsing.html#parse">parse error</a>.</p>
+
+    <p>For each attribute on the token, check to see if the attribute is
+     already present on the top element of the <a href="#stack">stack of open
+     elements</a>. If it is not, add the attribute and its corresponding
+     value to that element.</p>
+
+   </dd><dt>An end-of-file token
+
+   </dt><dd>
+    <p><a href="#generate">Generate implied end tags.</a></p>
+
+    <p>If there are more than two nodes on the <a href="#stack">stack of open
+     elements</a>, or if there are two nodes but the second node is not a
+     <code><a href="section-sections.html#body0">body</a></code> node, this is a <a href="section-parsing.html#parse">parse error</a>.</p>
+
+    <p>Otherwise, if the parser was originally created in order to handle the
+     setting of an element's <code title="dom-innerHTML-HTML"><a href="section-dynamic.html#innerhtml0">innerHTML</a></code> attribute, and there's more than
+     one element in the <a href="#stack">stack of open elements</a>, and the
+     second node on the <a href="#stack">stack of open elements</a> is not a
+     <code><a href="section-sections.html#body0">body</a></code> node, then this is a <a href="section-parsing.html#parse">parse error</a>. (<a href="section-dynamic.html#innerhtml1"><code>innerHTML</code> case</a>)</p>
+
+    <p><a href="#stops">Stop parsing.</a></p>
+
+    <p class="big-issue">This fails because it doesn't imply HEAD and BODY
+     tags. We should probably expand out the insertion modes and merge them
+     with phases and then put the three things here into each insertion mode
+     instead of trying to factor them out so carefully.</p>
+
+   </dd><dt>Anything else
+
+   </dt><dd>
+    <p>Depends on the <a href="#insertion0">insertion mode</a>:</p>
+
+    <dl class="switch">
+     <dt>If the <a href="#insertion0">insertion mode</a> is &quot;<dfn id="before2" title="insertion mode: before head">before head</dfn>&quot;
+
+     </dt><dd>
+      <p>Handle the token as follows:</p>
+
+      <dl class="switch">
+       <dt>A character token that is one of one of U+0009 CHARACTER
+        TABULATION, U+000A LINE FEED (LF), U+000B LINE TABULATION, U+000C
+        FORM FEED (FF), U+000D CARRIAGE RETURN (CR), or U+0020 SPACE
+
+       </dt><dd>
+        <p><a href="#append" title="append a character">Append the
+         character</a> to the <a href="#current4">current node</a>.</p>
+
+       </dd><dt>A comment token
+
+       </dt><dd>
+        <p>Append a <code>Comment</code> node to the <a href="#current4">current node</a> with the <code title="">data</code> attribute set to the data given in the comment
+         token.</p>
+
+       </dd><dt>A start tag token with the tag name &quot;head&quot;
+
+       </dt><dd>
+        <p><a href="#create">Create an element for the token</a>.</p>
+
+        <p>Set the <a href="#head-element"><code title="">head</code> element
+         pointer</a> to this new element node.</p>
+
+        <p>Append the new element to the <a href="#current4">current node</a>
+         and push it onto the <a href="#stack">stack of open elements</a>.</p>
+
+        <p>Change the <a href="#insertion0">insertion mode</a> to &quot;<a href="#in-head" title="insertion mode: in head">in head</a>&quot;.</p>
+
+       </dd><dt>A start tag token whose tag name is one of: &quot;base&quot;, &quot;link&quot;,
+        &quot;meta&quot;, &quot;script&quot;, &quot;style&quot;, &quot;title&quot;
+
+       </dt><dd>
+        <p>Act as if a start tag token with the tag name &quot;head&quot; and no
+         attributes had been seen, then reprocess the current token.</p>
+
+        <p class="note">This will result in a <code><a href="section-document.html#head">head</a></code> element being generated, and with the
+         current token being reprocessed in the &quot;<a href="#in-head" title="insertion mode: in head">in head</a>&quot; <a href="#insertion0">insertion mode</a>.</p>
+
+       </dd><dt>An end tag with the tag name &quot;html&quot;
+
+       </dt><dd>
+        <p>Act as if a start tag token with the tag name &quot;head&quot; and no
+         attributes had been seen, then reprocess the current token.</p>
+
+       </dd><dt>Any other end tag
+
+       </dt><dd>
+        <p><a href="section-parsing.html#parse">Parse error</a>. Ignore the token.</p>
+
+       </dd><dt>A character token that is <em>not</em> one of U+0009 CHARACTER
+        TABULATION, U+000A LINE FEED (LF), U+000B LINE TABULATION, U+000C
+        FORM FEED (FF), U+000D CARRIAGE RETURN (CR), or U+0020 SPACE
+
+       </dt><dt>Any other start tag token
+
+       </dt><dd>
+        <p>Act as if a start tag token with the tag name &quot;head&quot; and no
+         attributes had been seen, then reprocess the current token.</p>
+
+        <p class="note">This will result in an empty <code><a href="section-document.html#head">head</a></code> element being generated, with the
+         current token being reprocessed in the &quot;<a href="#after1" title="insertion mode: after head">after head</a>&quot; <a href="#insertion0">insertion mode</a>.</p>
+      </dd></dl>
+
+     </dd><dt id="parsing-main-inhead">If the <a href="#insertion0">insertion
+      mode</a> is &quot;<dfn id="in-head" title="insertion mode: in head">in
+      head</dfn>&quot;
+
+     </dt><dd>
+      <p>Handle the token as follows.</p>
+
+      <p class="note">The rules for handling &quot;title&quot;, &quot;style&quot;, and &quot;script&quot;
+       start tags are similar, but not identical.</p>
+
+      <p class="note">It is possible for the <a href="#tree-construction0">tree
+       construction</a> stage's <a href="#the-main0" title="the main
+       phase">main phase</a> to be in the &quot;<a href="#in-head" title="insertion mode: in head">in head</a>&quot; <a href="#insertion0">insertion mode</a> without the <a href="#current4">current node</a> being a <code><a href="section-document.html#head">head</a></code> element, e.g. if a <code><a href="section-document.html#head">head</a></code> end tag is immediately followed by a
+       <code><a href="section-document.html#meta0">meta</a></code> start tag.</p>
+
+      <dl class="switch">
+       <dt>A character token that is one of one of U+0009 CHARACTER
+        TABULATION, U+000A LINE FEED (LF), U+000B LINE TABULATION, U+000C
+        FORM FEED (FF), U+000D CARRIAGE RETURN (CR), or U+0020 SPACE
+
+       </dt><dd>
+        <p><a href="#append" title="append a character">Append the
+         character</a> to the <a href="#current4">current node</a>.</p>
+
+       </dd><dt>A comment token
+
+       </dt><dd>
+        <p>Append a <code>Comment</code> node to the <a href="#current4">current node</a> with the <code title="">data</code> attribute set to the data given in the comment
+         token.</p>
+
+       </dd><dt>A start tag with the tag name &quot;title&quot;
+
+       </dt><dd>
+        <p><a href="#create">Create an element for the token</a>.</p>
+
+        <p>Append the new element to the node pointed to by the <a href="#head-element"><code title="">head</code> element pointer</a>,
+         or, if that is null (<a href="section-dynamic.html#innerhtml1"><code>innerHTML</code>
+         case</a>), to the <a href="#current4">current node</a>.</p>
+
+        <p>Switch the tokeniser's <a href="section-tokenisation.html#content2">content model flag</a>
+         to the RCDATA state.</p>
+
+        <p>Then, collect all the character tokens that the tokeniser returns
+         until it returns a token that is not a character token.</p>
+
+        <p>If this process resulted in a collection of character tokens,
+         append a single <code>Text</code> node to the <code><a href="section-document.html#title1">title</a></code> element node whose contents is the
+         concatenation of all those tokens' characters.</p>
+
+        <p>The tokeniser's <a href="section-tokenisation.html#content2">content model flag</a> will
+         have switched back to the PCDATA state.</p>
+
+        <p>If the next token is an end tag token with the tag name &quot;title&quot;,
+         ignore it. Otherwise, this is a <a href="section-parsing.html#parse">parse error</a>.</p>
+
+       </dd><dt>A start tag with the tag name &quot;style&quot;
+
+       </dt><dd>
+        <p><a href="#create">Create an element for the token</a>.</p>
+
+        <p>Append the new element to the <a href="#current4">current
+         node</a>, unless the <a href="#insertion0">insertion mode</a> is &quot;<a href="#in-head" title="insertion mode: in head">in head</a>&quot; and the
+         <a href="#head-element"><code title="">head</code> element
+         pointer</a> is not null, in which case append it to the node pointed
+         to by the <a href="#head-element"><code title="">head</code> element
+         pointer</a>. <!--
+        <head></head><style><body> should put the style block in the
+        head, and does so by switching back to in head, but the head
+        isn't the current node at that point (comments should go
+        between the head and the body) -->.</p>
+
+        <p>Switch the tokeniser's <a href="section-tokenisation.html#content2">content model flag</a>
+         to the CDATA state.</p>
+
+        <p>Then, collect all the character tokens that the tokeniser returns
+         until it returns a token that is not a character token, or until it
+         stops tokenising.</p>
+
+        <p>If this process resulted in a collection of character tokens,
+         append a single <code>Text</code> node to the <code><a href="section-document.html#style">style</a></code> element node whose contents is the
+         concatenation of all those tokens' characters.</p>
+
+        <p>The tokeniser's <a href="section-tokenisation.html#content2">content model flag</a> will
+         have switched back to the PCDATA state.</p>
+
+        <p>If the next token is an end tag token with the tag name &quot;style&quot;,
+         ignore it. Otherwise, this is a <a href="section-parsing.html#parse">parse error</a>.</p>
+
+       </dd><dt id="scriptTag">A start tag with the tag name &quot;script&quot;
+
+       </dt><dd>
+        <p><a href="#create">Create an element for the token</a>.</p>
+
+        <p>Mark the element as being <a href="section-scripting0.html#parser-inserted">&quot;parser-inserted&quot;</a>. This ensures that, if
+         the script is external, any <code title="dom-document-write-HTML"><a href="section-dynamic.html#document.write0">document.write()</a></code> calls in the
+         script will execute in-line, instead of blowing the document away,
+         as would happen in most other cases.</p>
+
+        <p>Switch the tokeniser's <a href="section-tokenisation.html#content2">content model flag</a>
+         to the CDATA state.</p>
+
+        <p>Then, collect all the character tokens that the tokeniser returns
+         until it returns a token that is not a character token, or until it
+         stops tokenising.</p>
+
+        <p>If this process resulted in a collection of character tokens,
+         append a single <code>Text</code> node to the <code><a href="section-scripting0.html#script0">script</a></code> element node whose contents is the
+         concatenation of all those tokens' characters.</p>
+
+        <p>The tokeniser's <a href="section-tokenisation.html#content2">content model flag</a> will
+         have switched back to the PCDATA state.</p>
+
+        <p>If the next token is not an end tag token with the tag name
+         &quot;script&quot;, then this is a <a href="section-parsing.html#parse">parse error</a>; mark the
+         <code><a href="section-scripting0.html#script0">script</a></code> element as <a href="section-scripting0.html#already">&quot;already executed&quot;</a>. Otherwise, the token is the
+         <code><a href="section-scripting0.html#script0">script</a></code> element's end tag, so
+         ignore it.</p>
+
+        <p>If the parser was originally created in order to handle the
+         setting of a node's <code title="dom-innerHTML-HTML"><a href="section-dynamic.html#innerhtml0">innerHTML</a></code> attribute, then mark the
+         <code><a href="section-scripting0.html#script0">script</a></code> element as <a href="section-scripting0.html#already">&quot;already executed&quot;</a>, and skip the rest of the
+         processing described for this token (including the part below where
+         &quot;<a href="section-scripting0.html#the-script" title="the script that will execute as soon
+         as the parser resumes">scripts that will execute as soon as the
+         parser resumes</a>&quot; are executed). (<a href="section-dynamic.html#innerhtml1"><code>innerHTML</code> case</a>)</p>
+
+        <p class="note">Marking the <code><a href="section-scripting0.html#script0">script</a></code>
+         element as &quot;already executed&quot; prevents it from executing when it is
+         inserted into the document a few paragraphs below. Scripts missing
+         their end tags and scripts that were inserted using <code title="dom-innerHTML-HTML"><a href="section-dynamic.html#innerhtml0">innerHTML</a></code>
+         aren't executed.</p>
+
+        <p>Let the <var title="">old insertion point</var> have the same
+         value as the current <a href="section-parsing.html#insertion">insertion point</a>. Let
+         the <a href="section-parsing.html#insertion">insertion point</a> be just before the <a href="section-parsing.html#next-input">next input character</a>.</p>
+
+        <p>Append the new element to the <a href="#current4">current
+         node</a>, unless the <a href="#insertion0">insertion mode</a> is &quot;<a href="#in-head" title="insertion mode: in head">in head</a>&quot; and the
+         <a href="#head-element"><code title="">head</code> element
+         pointer</a> is not null, in which case append it to the node pointed
+         to by the <a href="#head-element"><code title="">head</code> element
+         pointer</a>. <!--
+        <head></head><script><body> should put the script in the head,
+        and does so by switching back to in head, but the head isn't
+        the current node at that point (comments should go between the
+        head and the body) -->
+         <a href="section-scripting0.html#running0" title="running a script">Special processing
+         occurs when a <code>script</code> element is inserted into a
+         document</a> that might cause some script to execute, which might
+         cause <a href="section-dynamic.html#document.write0" title="dom-document-write-HTML">new
+         characters to be inserted into the tokeniser</a>.</p>
+
+        <p>Let the <a href="section-parsing.html#insertion">insertion point</a> have the value of
+         the <var title="">old insertion point</var>. (In other words,
+         restore the <a href="section-parsing.html#insertion">insertion point</a> to the value it
+         had before the previous paragraph. This value might be the
+         &quot;undefined&quot; value.)</p>
+
+        <p id="scriptTagParserResumes">At this stage, if there is <a href="section-scripting0.html#the-script" title="the script that will execute as soon as
+         the parser resumes">a script that will execute as soon as the parser
+         resumes</a>, then:</p>
+
+        <dl class="switch">
+         <dt>If the tree construction stage is <a href="section-parsing.html#nestedParsing">being
+          called reentrantly</a>, say from a call to <code title="dom-document-write-HTML"><a href="section-dynamic.html#document.write0">document.write()</a></code>:
+
+         </dt><dd>
+          <p>Abort the processing of any nested invokations of the tokeniser,
+           yielding control back to the caller. (Tokenisation will resume
+           when the caller returns to the &quot;outer&quot; tree construction stage.)
+
+         </p></dd><dt>Otherwise:
+
+         </dt><dd>
+          <p>Follow these steps:</p>
+
+          <ol>
+           <li>
+            <p>Let <var title="">the script</var> be <a href="section-scripting0.html#the-script">the script that will execute as soon as the
+             parser resumes</a>. There is no longer <a href="section-scripting0.html#the-script" title="the script that will execute as soon as the parser
+             resumes">a script that will execute as soon as the parser
+             resumes</a>.
+
+           </p></li><li>
+            <p><a href="section-terminology.html#pause">Pause</a> until the script has
+             <span>completed loading</span><!-- XXX xref -->.
+
+           </p></li><li>
+            <p>Let the <a href="section-parsing.html#insertion">insertion point</a> be just
+             before the <a href="section-parsing.html#next-input">next input character</a>.
+
+           </p></li><li>
+            <p><a href="section-scripting0.html#executing0" title="executing a script block">Execute
+             the script</a>.
+
+           </p></li><li>
+            <p>Let the <a href="section-parsing.html#insertion">insertion point</a> be undefined
+             again.
+
+           </p></li><li>
+            <p>If there is once again <a href="section-scripting0.html#the-script" title="the script
+             that will execute as soon as the parser resumes">a script that
+             will execute as soon as the parser resumes</a>, then repeat
+             these steps from step 1.
+          </p></li></ol>
+        </dd></dl>
+
+       </dd><dt>A start tag with the tag name &quot;base&quot;, &quot;link&quot;, or &quot;meta&quot;
+
+       </dt><dd>
+        <p><a href="#create">Create an element for the token</a>.</p>
+
+        <p>Append the new element to the node pointed to by the <a href="#head-element"><code title="">head</code> element pointer</a>,
+         or, if that is null (<a href="section-dynamic.html#innerhtml1"><code>innerHTML</code>
+         case</a>), to the <a href="#current4">current node</a>.</p>
+
+       </dd><dt>An end tag with the tag name &quot;head&quot;
+
+       </dt><dd>
+        <p>If the <a href="#current4">current node</a> is a <code><a href="section-document.html#head">head</a></code> element, pop the <a href="#current4">current node</a> off the <a href="#stack">stack of
+         open elements</a>. Otherwise, this is a <a href="section-parsing.html#parse">parse
+         error</a>.</p>
+        <!-- might happen if you see two </head>s
+        and something in between the two sends you from "after head"
+        back to "in head" -->
+        
+        <p>Change the <a href="#insertion0">insertion mode</a> to &quot;<a href="#after1" title="insertion mode: after head">after head</a>&quot;.</p>
+
+       </dd><dt>An end tag with the tag name &quot;html&quot;
+
+       </dt><dd>
+        <p>Act as described in the &quot;anything else&quot; entry below.</p>
+
+       </dd><dt>A start tag with the tag name &quot;head&quot;
+
+       </dt><dt>Any other end tag
+
+       </dt><dd>
+        <p><a href="section-parsing.html#parse">Parse error</a>. Ignore the token.</p>
+
+       </dd><dt>Anything else
+
+       </dt><dd>
+        <p>If the <a href="#current4">current node</a> is a <code><a href="section-document.html#head">head</a></code> element, act as if an end tag token
+         with the tag name &quot;head&quot; had been seen.</p>
+
+        <p>Otherwise, change the <a href="#insertion0">insertion mode</a> to
+         &quot;<a href="#after1" title="insertion mode: after head">after
+         head</a>&quot;.</p>
+
+        <p>Then, reprocess the current token.</p>
+
+        <p class="big-issue">In certain UAs, <a href="https://bugzilla.mozilla.org/attachment.cgi?id=180157&amp;action=view">some
+         elements</a> don't trigger the &quot;in body&quot; mode straight away, but
+         instead get put into the head. Do we want to copy that?</p>
+      </dd></dl>
+
+     </dd><dt>If the <a href="#insertion0">insertion mode</a> is &quot;<dfn id="after1" title="insertion mode: after head">after head</dfn>&quot;
+
+     </dt><dd>
+      <p>Handle the token as follows:</p>
+
+      <dl class="switch">
+       <dt>A character token that is one of one of U+0009 CHARACTER
+        TABULATION, U+000A LINE FEED (LF), U+000B LINE TABULATION, U+000C
+        FORM FEED (FF), U+000D CARRIAGE RETURN (CR), or U+0020 SPACE
+
+       </dt><dd>
+        <p><a href="#append" title="append a character">Append the
+         character</a> to the <a href="#current4">current node</a>.</p>
+
+       </dd><dt>A comment token
+
+       </dt><dd>
+        <p>Append a <code>Comment</code> node to the <a href="#current4">current node</a> with the <code title="">data</code> attribute set to the data given in the comment
+         token.</p>
+
+       </dd><dt>A start tag token with the tag name &quot;body&quot;
+
+       </dt><dd>
+        <p><a href="#insert" title="insert an HTML element">Insert a
+         <code>body</code> element</a> for the token.</p>
+
+        <p>Change the <a href="#insertion0">insertion mode</a> to &quot;<a href="#in-body" title="insertion mode: in body">in body</a>&quot;.</p>
+
+       </dd><dt>A start tag token with the tag name &quot;frameset&quot;
+
+       </dt><dd>
+        <p><a href="#insert" title="insert an HTML element">Insert a
+         <code>frameset</code> element</a> for the token.</p>
+
+        <p>Change the <a href="#insertion0">insertion mode</a> to &quot;<a href="#in-frameset" title="insertion mode: in frameset">in
+         frameset</a>&quot;.</p>
+
+       </dd><dt>A start tag token whose tag name is one of: &quot;base&quot;, &quot;link&quot;,
+        &quot;meta&quot;, &quot;script&quot;, &quot;style&quot;, &quot;title&quot;
+
+       </dt><dd>
+        <p><a href="section-parsing.html#parse">Parse error</a>. Switch the <a href="#insertion0">insertion mode</a> back to &quot;<a href="#in-head" title="insertion mode: in head">in head</a>&quot; and reprocess the
+         token.</p>
+
+       </dd><dt>Anything else
+
+       </dt><dd>
+        <p>Act as if a start tag token with the tag name &quot;body&quot; and no
+         attributes had been seen, and then reprocess the current token.</p>
+      </dd></dl>
+
+     </dd><dt id="parsing-main-inbody">If the <a href="#insertion0">insertion
+      mode</a> is &quot;<dfn id="in-body" title="insertion mode: in body">in
+      body</dfn>&quot;
+
+     </dt><dd>
+      <p>Handle the token as follows:</p>
+
+      <dl class="switch">
+       <dt>A character token
+
+       </dt><dd>
+        <p><a href="#reconstruct">Reconstruct the active formatting
+         elements</a>, if any.</p>
+
+        <p><a href="#append" title="append a character">Append the token's
+         character</a> to the <a href="#current4">current node</a>.</p>
+
+       </dd><dt>A comment token
+
+       </dt><dd>
+        <p>Append a <code>Comment</code> node to the <a href="#current4">current node</a> with the <code title="">data</code> attribute set to the data given in the comment
+         token.</p>
+
+       </dd><dt>A start tag token whose tag name is one of: &quot;script&quot;, &quot;style&quot;
+
+       </dt><dd>
+        <p>Process the token as if the <a href="#insertion0">insertion
+         mode</a> had been &quot;<a href="#in-head" title="insertion mode: in
+         head">in head</a>&quot;.</p>
+
+       </dd><dt>A start tag token whose tag name is one of: &quot;base&quot;, &quot;link&quot;,
+        &quot;meta&quot;, &quot;title&quot;
+
+       </dt><dd>
+        <p><a href="section-parsing.html#parse">Parse error</a>. Process the token as if the <a href="#insertion0">insertion mode</a> had been &quot;<a href="#in-head" title="insertion mode: in head">in head</a>&quot;.</p>
+
+       </dd><dt>A start tag token with the tag name &quot;body&quot;
+
+       </dt><dd>
+        <p><a href="section-parsing.html#parse">Parse error</a>.</p>
+
+        <p>If the second element on the <a href="#stack">stack of open
+         elements</a> is not a <code><a href="section-sections.html#body0">body</a></code>
+         element, or, if the <a href="#stack">stack of open elements</a> has
+         only one node on it, then ignore the token. (<a href="section-dynamic.html#innerhtml1"><code>innerHTML</code> case</a>)</p>
+
+        <p>Otherwise, for each attribute on the token, check to see if the
+         attribute is already present on the <code><a href="section-sections.html#body0">body</a></code> element (the second element) on the <a href="#stack">stack of open elements</a>. If it is not, add the
+         attribute and its corresponding value to that element.</p>
+
+       </dd><dt>An end tag with the tag name &quot;body&quot;
+
+       </dt><dd>
+        <p>If the second element in the <a href="#stack">stack of open
+         elements</a> is not a <code><a href="section-sections.html#body0">body</a></code>
+         element, this is a <a href="section-parsing.html#parse">parse error</a>. Ignore the
+         token. (<a href="section-dynamic.html#innerhtml1"><code>innerHTML</code> case</a>)</p>
+
+        <p>Otherwise:</p>
+
+        <p class="big-issue">this needs to handle closing of implied elements,
+         but without closing them</p>
+
+        <p>If the <a href="#current4">current node</a> is not the <code><a href="section-sections.html#body0">body</a></code> element, then this is a <a href="section-parsing.html#parse">parse error</a>.</p>
+
+        <p>Change the <a href="#insertion0">insertion mode</a> to &quot;<a href="#after2" title="insertion mode: after body">after body</a>&quot;.</p>
+
+       </dd><dt>An end tag with the tag name &quot;html&quot;
+
+       </dt><dd>
+        <p>Act as if an end tag with tag name &quot;body&quot; had been seen, then, if
+         that token wasn't ignored, reprocess the current token.</p>
+
+        <p class="note">The fake end tag token here can only be ignored in the
+         <a href="section-dynamic.html#innerhtml1"><code>innerHTML</code> case</a>.</p>
+
+       </dd><dt>A start tag whose tag name is one of: &quot;address&quot;, &quot;blockquote&quot;,
+        &quot;center&quot;, &quot;dir&quot;, &quot;div&quot;, &quot;dl&quot;, &quot;fieldset&quot;, &quot;listing&quot;, &quot;menu&quot;, &quot;ol&quot;,
+        &quot;p&quot;, &quot;ul&quot;
+
+       </dt><dd>
+        <p>If the <a href="#stack">stack of open elements</a> <a href="#have-an" title="has an element in scope">has a <code>p</code>
+         element in scope</a>, then act as if an end tag with the tag name
+         <code><a href="section-prose.html#p">p</a></code> had been seen.</p>
+
+        <p><a href="#insert" title="insert an html element">Insert an HTML
+         element</a> for the token.</p>
+
+       </dd><dt>A start tag whose tag name is &quot;pre&quot;
+
+       </dt><dd>
+        <p>If the <a href="#stack">stack of open elements</a> <a href="#have-an" title="has an element in scope">has a <code>p</code>
+         element in scope</a>, then act as if an end tag with the tag name
+         <code><a href="section-prose.html#p">p</a></code> had been seen.</p>
+
+        <p><a href="#insert" title="insert an html element">Insert an HTML
+         element</a> for the token.</p>
+
+        <p>If the next token is a U+000A LINE FEED (LF) character token, then
+         ignore that token and move on to the next one. (Newlines at the
+         start of <code><a href="section-preformatted.html#pre">pre</a></code> blocks are ignored as
+         an authoring convenience.)</p>
+
+       </dd><dt>A start tag whose tag name is &quot;form&quot;
+
+       </dt><dd>
+        <p>If the <a href="#form-element"><code title="form">form</code>
+         element pointer</a> is not null, ignore the token with a <a href="section-parsing.html#parse">parse error</a>.</p>
+
+        <p>Otherwise:</p>
+
+        <p>If the <a href="#stack">stack of open elements</a> <a href="#have-an" title="has an element in scope">has a <code>p</code>
+         element in scope</a>, then act as if an end tag with the tag name
+         <code><a href="section-prose.html#p">p</a></code> had been seen.</p>
+
+        <p><a href="#insert" title="insert an html Element">Insert an HTML
+         element</a> for the token, and set the <code title="form">form</code>
+         element pointer to point to the element created.</p>
+
+       </dd><dt>A start tag whose tag name is &quot;li&quot;
+
+       </dt><dd>
+        <p>If the <a href="#stack">stack of open elements</a> <a href="#have-an" title="has an element in scope">has a <code>p</code>
+         element in scope</a>, then act as if an end tag with the tag name
+         <code><a href="section-prose.html#p">p</a></code> had been seen.</p>
+
+        <p>Run the following algorithm:</p>
+
+        <ol>
+         <li>
+          <p>Initialise <var title="">node</var> to be the <a href="#current4">current node</a> (the bottommost node of the
+           stack).
+
+         </p></li><li>
+          <p>If <var title="">node</var> is an <code><a href="section-lists0.html#li">li</a></code> element, then pop all the nodes from the
+           <a href="#current4">current node</a> up to <var title="">node</var>, including <var title="">node</var>, then stop
+           this algorithm. If more than one node is popped, then this is a <a href="section-parsing.html#parse">parse error</a>.
+
+         </p></li><li>
+          <p>If <var title="">node</var> is not in the <a href="#formatting">formatting</a> category, and is not in the <a href="#phrasing">phrasing</a> category, and is not an <code><a href="section-sections.html#address">address</a></code> or <code><a href="section-miscellaneous.html#div">div</a></code> element, then stop this algorithm.
+         </p></li>
+         <!-- an element <foo> is in this
+         list if the following markup:
+
+             <!DOCTYPE html><body><ol><li><foo><li>
+
+         ...results in the second <li> not being (in any way) a
+         descendant of the first <li>, or if <foo> is a formatting
+         element that gets reopened later. -->
+
+         <li>
+          <p>Otherwise, set <var title="">node</var> to the previous entry in
+           the <a href="#stack">stack of open elements</a> and return to step
+           2.
+        </p></li></ol>
+
+        <p>Finally, <a href="#insert" title="insert an html element">insert
+         an <code>li</code> element</a>.</p>
+
+       </dd><dt>A start tag whose tag name is &quot;dd&quot; or &quot;dt&quot;
+
+       </dt><dd>
+        <p>If the <a href="#stack">stack of open elements</a> <a href="#have-an" title="has an element in scope">has a <code>p</code>
+         element in scope</a>, then act as if an end tag with the tag name
+         <code><a href="section-prose.html#p">p</a></code> had been seen.</p>
+
+        <p>Run the following algorithm:</p>
+
+        <ol>
+         <li>
+          <p>Initialise <var title="">node</var> to be the <a href="#current4">current node</a> (the bottommost node of the
+           stack).
+
+         </p></li><li>
+          <p>If <var title="">node</var> is a <code><a href="section-lists0.html#dd">dd</a></code> or <code><a href="section-lists0.html#dt">dt</a></code>
+           element, then pop all the nodes from the <a href="#current4">current node</a> up to <var title="">node</var>,
+           including <var title="">node</var>, then stop this algorithm. If
+           more than one node is popped, then this is a <a href="section-parsing.html#parse">parse error</a>.
+
+         </p></li><li>
+          <p>If <var title="">node</var> is not in the <a href="#formatting">formatting</a> category, and is not in the <a href="#phrasing">phrasing</a> category, and is not an <code><a href="section-sections.html#address">address</a></code> or <code><a href="section-miscellaneous.html#div">div</a></code> element, then stop this algorithm.
+         </p></li>
+         <!-- an element <foo> is in this
+         list if the following markup:
+
+             <!DOCTYPE html><body><ol><dt><foo><dt>
+
+         ...results in the second <li> not being (in any way) a
+         descendant of the first <li>, or if <foo> is a formatting
+         element that gets reopened later. -->
+
+         <li>
+          <p>Otherwise, set <var title="">node</var> to the previous entry in
+           the <a href="#stack">stack of open elements</a> and return to step
+           2.
+        </p></li></ol>
+
+        <p>Finally, <a href="#insert" title="insert an html element">insert
+         an HTML element</a> with the same tag name as the token's.</p>
+
+       </dd><dt>A start tag token whose tag name is &quot;plaintext&quot;
+
+       </dt><dd>
+        <p>If the <a href="#stack">stack of open elements</a> <a href="#have-an" title="has an element in scope">has a <code>p</code>
+         element in scope</a>, then act as if an end tag with the tag name
+         <code><a href="section-prose.html#p">p</a></code> had been seen.</p>
+
+        <p><a href="#insert" title="insert an html element">Insert an HTML
+         element</a> for the token.</p>
+
+        <p>Switch the <a href="section-tokenisation.html#content2">content model flag</a> to the
+         PLAINTEXT state.</p>
+
+        <p class="note">Once a start tag with the tag name &quot;plaintext&quot; has been
+         seen, that will be the last token ever seen other than character
+         tokens (and the end-of-file token), because there is no way to
+         switch the <a href="section-tokenisation.html#content2">content model flag</a> out of the
+         PLAINTEXT state.</p>
+
+       </dd><dt>An end tag whose tag name is one of: &quot;address&quot;, &quot;blockquote&quot;,
+        &quot;center&quot;, &quot;dir&quot;, &quot;div&quot;, &quot;dl&quot;, &quot;fieldset&quot;, &quot;listing&quot;, &quot;menu&quot;, &quot;ol&quot;,
+        &quot;pre&quot;, &quot;ul&quot;
+
+       </dt><dd>
+        <p>If the <a href="#stack">stack of open elements</a> <a href="#have-an">has an element in scope</a> with the same tag name
+         as that of the token, then <a href="#generate">generate implied end
+         tags</a>.</p>
+
+        <p>Now, if the <a href="#current4">current node</a> is not an element
+         with the same tag name as that of the token, then this is a <a href="section-parsing.html#parse">parse error</a>.</p>
+
+        <p>If the <a href="#stack">stack of open elements</a> <a href="#have-an">has an element in scope</a> with the same tag name
+         as that of the token, then pop elements from this stack until an
+         element with that tag name has been popped from the stack.</p>
+        <!-- XXX quirk (except for in certain cases?):
+        <p>Otherwise, act as if a start tag with the tag name given in
+        the token had been seen, then reprocess the current token.</p>
+        -->
+        
+
+       </dd><dt>An end tag whose tag name is &quot;form&quot;
+
+       </dt><dd>
+        <p>If the <a href="#stack">stack of open elements</a> <a href="#have-an">has an element in scope</a> with the same tag name
+         as that of the token, then <a href="#generate">generate implied end
+         tags</a>.</p>
+
+        <p>Now, if the <a href="#current4">current node</a> is not an element
+         with the same tag name as that of the token, then this is a <a href="section-parsing.html#parse">parse error</a>.</p>
+
+        <p>Otherwise, if the <a href="#current4">current node</a> is an
+         element with the same tag name as that of the token pop that element
+         from the stack.</p>
+
+        <p>In any case, set the <a href="#form-element"><code title="">form</code> element pointer</a> to null.</p>
+
+       </dd><dt>An end tag whose tag name is &quot;p&quot;
+
+       </dt><dd>
+        <p>If the <a href="#stack">stack of open elements</a> <a href="#have-an" title="has an element in scope">has a <code>p</code>
+         element in scope</a>, then <a href="#generate">generate implied end
+         tags</a>, except for <code><a href="section-prose.html#p">p</a></code> elements.</p>
+
+        <p>If the <a href="#current4">current node</a> is not a <code><a href="section-prose.html#p">p</a></code> element, then this is a <a href="section-parsing.html#parse">parse error</a>.</p>
+
+        <p>If the <a href="#stack">stack of open elements</a> <a href="#have-an" title="has an element in scope">has a <code>p</code>
+         element in scope</a>, then pop elements from this stack until the
+         stack no longer <a href="#have-an" title="has an element in
+         scope">has a <code>p</code> element in scope</a>.</p>
+        <!-- XXX quirk:
+        <p>Otherwise, act as if a start tag with the tag name
+        <code>p</code> had been seen, then reprocess the current
+        token.</p>
+        -->
+        
+
+       </dd><dt>An end tag whose tag name is &quot;dd&quot;, &quot;dt&quot;, or &quot;li&quot;
+
+       </dt><dd>
+        <p>If the <a href="#stack">stack of open elements</a> <a href="#have-an">has an element in scope</a> whose tag name matches
+         the tag name of the token, then <a href="#generate">generate implied
+         end tags</a>, except for elements with the same tag name as the
+         token.</p>
+
+        <p>If the <a href="#current4">current node</a> is not an element with
+         the same tag name as the token, then this is a <a href="section-parsing.html#parse">parse error</a>.</p>
+
+        <p>If the <a href="#stack">stack of open elements</a> <a href="#have-an">has an element in scope</a> whose tag name matches
+         the tag name of the token, then pop elements from this stack until
+         an element with that tag name has been popped from the stack.</p>
+
+       </dd><dt>A start tag whose tag name is one of: &quot;h1&quot;, &quot;h2&quot;, &quot;h3&quot;, &quot;h4&quot;,
+        &quot;h5&quot;, &quot;h6&quot;
+
+       </dt><dd>
+        <p>If the <a href="#stack">stack of open elements</a> <a href="#have-an" title="has an element in scope">has a <code>p</code>
+         element in scope</a>, then act as if an end tag with the tag name
+         <code><a href="section-prose.html#p">p</a></code> had been seen.</p>
+
+        <p>If the <a href="#stack">stack of open elements</a> <a href="#have-an" title="has an element in scope">has in scope</a> an
+         element whose tag name is one of &quot;h1&quot;, &quot;h2&quot;, &quot;h3&quot;, &quot;h4&quot;, &quot;h5&quot;, or
+         &quot;h6&quot;, then this is a <a href="section-parsing.html#parse">parse error</a>; pop elements
+         from the stack until an element with one of those tag names has been
+         popped from the stack.</p>
+
+        <p><a href="#insert" title="insert an html element">Insert an HTML
+         element</a> for the token.</p>
+
+       </dd><dt>An end tag whose tag name is one of: &quot;h1&quot;, &quot;h2&quot;, &quot;h3&quot;, &quot;h4&quot;, &quot;h5&quot;,
+        &quot;h6&quot;
+
+       </dt><dd>
+        <p>If the <a href="#stack">stack of open elements</a> <a href="#have-an" title="has an element in scope">has in scope</a> an
+         element whose tag name is one of &quot;h1&quot;, &quot;h2&quot;, &quot;h3&quot;, &quot;h4&quot;, &quot;h5&quot;, or
+         &quot;h6&quot;, then <a href="#generate">generate implied end tags</a>.</p>
+
+        <p>Now, if the <a href="#current4">current node</a> is not an element
+         with the same tag name as that of the token, then this is a <a href="section-parsing.html#parse">parse error</a>.</p>
+
+        <p>If the <a href="#stack">stack of open elements</a> <a href="#have-an" title="has an element in scope">has in scope</a> an
+         element whose tag name is one of &quot;h1&quot;, &quot;h2&quot;, &quot;h3&quot;, &quot;h4&quot;, &quot;h5&quot;, or
+         &quot;h6&quot;, then pop elements from the stack until an element with one of
+         those tag names has been popped from the stack.</p>
+        <!-- XXX quirk:
+        <p>Otherwise, act as if a start tag with the tag name given in
+        the token had been seen, then reprocess the current token.</p>
+        -->
+        </dd>
+       <!-- ADOPTION AGENCY ELEMENTS
+            Mozilla-only: bdo blink del ins sub sup q
+            Safari-only: code dfn kbd nobr samp var wbr
+            Both: a b big em font i s small strike strong tt u -->
+
+       <dt>A start tag whose tag name is &quot;a&quot;
+
+       </dt><dd>
+        <p>If the <a href="#list-of4">list of active formatting elements</a>
+         contains an element whose tag name is &quot;a&quot; between the end of the
+         list and the last marker on the list (or the start of the list if
+         there is no marker on the list), then this is a <a href="section-parsing.html#parse">parse error</a>; act as if an end tag with the tag
+         name &quot;a&quot; had been seen, then remove that element from the <a href="#list-of4">list of active formatting elements</a> and the <a href="#stack">stack of open elements</a> if the end tag didn't
+         already remove it (it might not have if the element is not <a href="#have-an0" title="has an element in table scope">in table
+         scope</a>).</p>
+
+        <p class="example">In the non-conforming stream
+         <code>&lt;a href=&quot;a&quot;&gt;a&lt;table&gt;&lt;a href=&quot;b&quot;&gt;b&lt;/table&gt;x</code>,
+         the first <code><a href="section-phrase.html#a">a</a></code> element would be closed
+         upon seeing the second one, and the &quot;x&quot; character would be inside a
+         link to &quot;b&quot;, not to &quot;a&quot;. This is despite the fact that the outer
+         <code><a href="section-phrase.html#a">a</a></code> element is not in table scope
+         (meaning that a regular <code>&lt;/a&gt;</code> end tag at the start of
+         the table wouldn't close the outer <code><a href="section-phrase.html#a">a</a></code>
+         element).</p>
+
+        <p><a href="#reconstruct">Reconstruct the active formatting
+         elements</a>, if any.</p>
+
+        <p><a href="#insert" title="insert an html element">Insert an HTML
+         element</a> for the token. Add that element to the <a href="#list-of4">list of active formatting elements</a>.</p>
+
+       </dd><dt>A start tag whose tag name is one of: &quot;b&quot;, &quot;big&quot;, &quot;em&quot;, &quot;font&quot;,
+        &quot;i&quot;, &quot;nobr&quot;, &quot;s&quot;, &quot;small&quot;, &quot;strike&quot;, &quot;strong&quot;, &quot;tt&quot;, &quot;u&quot;
+
+       </dt><dd>
+        <p><a href="#reconstruct">Reconstruct the active formatting
+         elements</a>, if any.</p>
+
+        <p><a href="#insert" title="insert an html element">Insert an HTML
+         element</a> for the token. Add that element to the <a href="#list-of4">list of active formatting elements</a>.</p>
+
+       </dd><dt id="adoptionAgency">An end tag whose tag name is one of: &quot;a&quot;, &quot;b&quot;,
+        &quot;big&quot;, &quot;em&quot;, &quot;font&quot;, &quot;i&quot;, &quot;nobr&quot;, &quot;s&quot;, &quot;small&quot;, &quot;strike&quot;, &quot;strong&quot;,
+        &quot;tt&quot;, &quot;u&quot;
+
+       </dt><dd>
+        <p>Follow these steps:</p>
+
+        <ol>
+         <li>
+          <p>Let the <var title="">formatting element</var> be the last
+           element in the <a href="#list-of4">list of active formatting
+           elements</a> that:</p>
+
+          <ul>
+           <li>is between the end of the list and the last scope marker in
+            the list, if any, or the start of the list otherwise, and
+
+           </li><li>has the same tag name as the token.
+          </li></ul>
+
+          <p>If there is no such node, or, if that node is also in the <a href="#stack">stack of open elements</a> but the element is not <a href="#have-an" title="has an element in scope">in scope</a>, then
+           this is a <a href="section-parsing.html#parse">parse error</a>. Abort these steps. The
+           token is ignored.</p>
+
+          <p>Otherwise, if there is such a node, but that node is not in the
+           <a href="#stack">stack of open elements</a>, then this is a <a href="section-parsing.html#parse">parse error</a>; remove the element from the list,
+           and abort these steps.</p>
+
+          <p>Otherwise, there is a <var title="">formatting element</var> and
+           that element is in <a href="#stack" title="stack of open
+           elements">the stack</a> and is <a href="#have-an" title="has an
+           element in scope">in scope</a>. If the element is not the <a href="#current4">current node</a>, this is a <a href="section-parsing.html#parse">parse error</a>. In any case, proceed with the
+           algorithm as written in the following steps.</p>
+
+         </li><li>
+          <p>Let the <var title="">furthest block</var> be the topmost node
+           in the <a href="#stack">stack of open elements</a> that is lower
+           in the stack than the <var title="">formatting element</var>, and
+           is not an element in the <a href="#phrasing">phrasing</a> or <a href="#formatting">formatting</a> categories. There might not be
+           one.
+
+         </p></li><li>
+          <p>If there is no <var title="">furthest block</var>, then the UA
+           must skip the subsequent steps and instead just pop all the nodes
+           from the bottom of the <a href="#stack">stack of open
+           elements</a>, from the <a href="#current4">current node</a> up to
+           the <var title="">formatting element</var>, and remove the <var title="">formatting element</var> from the <a href="#list-of4">list of active formatting elements</a>.
+
+         </p></li><li>
+          <p>Let the <var title="">common ancestor</var> be the element
+           immediately above the <var title="">formatting element</var> in
+           the <a href="#stack">stack of open elements</a>.
+
+         </p></li><li>
+          <p>If the <var title="">furthest block</var> has a parent node,
+           then remove the <var title="">furthest block</var> from its parent
+           node.
+
+         </p></li><li>
+          <p>Let a bookmark note the position of the <var title="">formatting
+           element</var> in the <a href="#list-of4">list of active formatting
+           elements</a> relative to the elements on either side of it in the
+           list.
+
+         </p></li><li>
+          <p>Let <var title="">node</var> and <var title="">last node</var>
+           be the <var title="">furthest block</var>. Follow these steps:</p>
+
+          <ol>
+           <li>Let <var title="">node</var> be the element immediately prior
+            to <var title="">node</var> in the <a href="#stack">stack of open
+            elements</a>.
+
+           </li><li>If <var title="">node</var> is not in the <a href="#list-of4">list of active formatting elements</a>, then
+            remove <var title="">node</var> from the <a href="#stack">stack
+            of open elements</a> and then go back to step 1.
+
+           </li><li>Otherwise, if <var title="">node</var> is the <var title="">formatting element</var>, then go to the next step in
+            the overall algorithm.
+
+           </li><li>Otherwise, if <var title="">last node</var> is the <var title="">furthest block</var>, then move the aforementioned
+            bookmark to be immediately after the <var title="">node</var> in
+            the <a href="#list-of4">list of active formatting elements</a>.
+
+           </li><li>If <var title="">node</var> has any children, perform a
+            shallow clone of <var title="">node</var>, replace the entry for
+            <var title="">node</var> in the <a href="#list-of4">list of
+            active formatting elements</a> with an entry for the clone,
+            replace the entry for <var title="">node</var> in the <a href="#stack">stack of open elements</a> with an entry for the
+            clone, and let <var title="">node</var> be the clone.
+
+           </li><li>Insert <var title="">last node</var> into <var title="">node</var>, first removing it from its previous parent
+            node if any.
+
+           </li><li>Let <var title="">last node</var> be <var title="">node</var>.
+
+           </li><li>Return to step 1 of this inner set of steps.
+          </li></ol>
+
+         </li><li>
+          <p>Insert whatever <var title="">last node</var> ended up being in
+           the previous step into the <var title="">common ancestor</var>
+           node, first removing it from its previous parent node if any.
+
+         </p></li><li>
+          <p>Perform a shallow clone of the <var title="">formatting
+           element</var>.
+
+         </p></li><li>
+          <p>Take all of the child nodes of the <var title="">furthest
+           block</var> and append them to the clone created in the last step.
+
+         </p></li><li>
+          <p>Append that clone to the <var title="">furthest block</var>.
+
+         </p></li><li>
+          <p>Remove the <var title="">formatting element</var> from the <a href="#list-of4">list of active formatting elements</a>, and
+           insert the clone into the <a href="#list-of4">list of active
+           formatting elements</a> at the position of the aforementioned
+           bookmark.
+
+         </p></li><li>
+          <p>Remove the <var title="">formatting element</var> from the <a href="#stack">stack of open elements</a>, and insert the clone
+           into the <a href="#stack">stack of open elements</a> immediately
+           after (i.e. in a more deeply nested position than) the position of
+           the <var title="">furthest block</var> in that stack.
+
+         </p></li><li>
+          <p>Jump back to step 1 in this series of steps.
+        </p></li></ol>
+
+        <p class="note">The way these steps are defined, only elements in the
+         <a href="#formatting">formatting</a> category ever get cloned by
+         this algorithm.</p>
+        <!--XXX
+        <div class="example">
+         <p class="big-issue">Need an example.</p>
+        </div>
+-->
+        
+        <p class="note">Because of the way this algorithm causes elements to
+         change parents, it has been dubbed the &quot;adoption agency algorithm&quot;
+         (in contrast with other possibly algorithms for dealing with
+         misnested content, which included the &quot;incest algorithm&quot;, the
+         &quot;secret affair algorithm&quot;, and the &quot;Heisenberg algorithm&quot;).</p>
+
+       </dd><dt>A start tag token whose tag name is &quot;button&quot;
+
+       </dt><dd>
+        <p>If the <a href="#stack">stack of open elements</a> <a href="#have-an" title="has an element in scope">has a
+         <code>button</code> element in scope</a>, then this is a <a href="section-parsing.html#parse">parse error</a>; act as if an end tag with the tag
+         name &quot;button&quot; had been seen, then reprocess the token.</p>
+
+        <p>Otherwise:</p>
+
+        <p><a href="#reconstruct">Reconstruct the active formatting
+         elements</a>, if any.</p>
+
+        <p><a href="#insert">Insert an HTML element</a> for the token.</p>
+
+        <p>Insert a marker at the end of the <a href="#list-of4">list of
+         active formatting elements</a>.</p>
+
+       </dd><dt>A start tag token whose tag name is one of: &quot;marquee&quot;, &quot;object&quot;
+
+       </dt><dd>
+        <p><a href="#reconstruct">Reconstruct the active formatting
+         elements</a>, if any.</p>
+
+        <p><a href="#insert">Insert an HTML element</a> for the token.</p>
+
+        <p>Insert a marker at the end of the <a href="#list-of4">list of
+         active formatting elements</a>.</p>
+
+       </dd><dt>An end tag token whose tag name is one of: &quot;button&quot;, &quot;marquee&quot;,
+        &quot;object&quot;
+
+       </dt><dd>
+        <p>If the <a href="#stack">stack of open elements</a> <a href="#have-an" title="has an element in scope">has in scope</a> an
+         element whose tag name is the same as the tag name of the token,
+         then <a href="#generate">generate implied end tags</a>.</p>
+
+        <p>Now, if the <a href="#current4">current node</a> is not an element
+         with the same tag name as the token, then this is a <a href="section-parsing.html#parse">parse error</a>.</p>
+
+        <p>Now, if the <a href="#stack">stack of open elements</a> <a href="#have-an">has an element in scope</a> whose tag name matches
+         the tag name of the token, then pop elements from the stack until
+         that element has been popped from the stack, and <a href="#clear0">clear the list of active formatting elements up to
+         the last marker</a>.</p>
+
+       </dd><dt>A start tag token whose tag name is &quot;xmp&quot;
+
+       </dt><dd>
+        <p><a href="#reconstruct">Reconstruct the active formatting
+         elements</a>, if any.</p>
+
+        <p><a href="#insert">Insert an HTML element</a> for the token.</p>
+
+        <p>Switch the <a href="section-tokenisation.html#content2">content model flag</a> to the CDATA
+         state.</p>
+
+       </dd><dt>A start tag whose tag name is &quot;table&quot;
+
+       </dt><dd>
+        <p>If the <a href="#stack">stack of open elements</a> <a href="#have-an" title="has an element in scope">has a <code>p</code>
+         element in scope</a>, then act as if an end tag with the tag name
+         <code><a href="section-prose.html#p">p</a></code> had been seen.</p>
+        <!-- XXX quirks: don't do this -->
+        <p><a href="#insert">Insert an HTML element</a> for the token.</p>
+
+        <p>Change the <a href="#insertion0">insertion mode</a> to &quot;<a href="#in-table" title="insertion mode: in table">in table</a>&quot;.</p>
+
+       </dd><dt>A start tag whose tag name is one of: &quot;area&quot;, &quot;basefont&quot;,
+        &quot;bgsound&quot;, &quot;br&quot;, &quot;embed&quot;, &quot;img&quot;, &quot;param&quot;, &quot;spacer&quot;, &quot;wbr&quot;
+
+       </dt><dd>
+        <p><a href="#reconstruct">Reconstruct the active formatting
+         elements</a>, if any.</p>
+
+        <p><a href="#insert" title="insert an html element">Insert an HTML
+         element</a> for the token. Immediately pop the <a href="#current4">current node</a> off the <a href="#stack">stack of
+         open elements</a>.</p>
+
+       </dd><dt>A start tag whose tag name is &quot;hr&quot;
+
+       </dt><dd>
+        <p>If the <a href="#stack">stack of open elements</a> <a href="#have-an" title="has an element in scope">has a <code>p</code>
+         element in scope</a>, then act as if an end tag with the tag name
+         <code><a href="section-prose.html#p">p</a></code> had been seen.</p>
+        <!-- XXX quirks: don't do this -->
+        <p><a href="#insert" title="insert an html element">Insert an HTML
+         element</a> for the token. Immediately pop the <a href="#current4">current node</a> off the <a href="#stack">stack of
+         open elements</a>.</p>
+
+       </dd><dt>A start tag whose tag name is &quot;image&quot;
+
+       </dt><dd>
+        <p><a href="section-parsing.html#parse">Parse error</a>. Change the token's tag name to
+         &quot;img&quot; and reprocess it. (Don't ask.)</p>
+        <!-- As of
+        2005-12, studies showed that around 0.2% of pages used the
+        <image> element. -->
+        
+
+       </dd><dt>A start tag whose tag name is &quot;input&quot;
+
+       </dt><dd>
+        <p><a href="#reconstruct">Reconstruct the active formatting
+         elements</a>, if any.</p>
+
+        <p><a href="#insert" title="insert an html element">Insert an
+         <code>input</code> element</a> for the token.</p>
+
+        <p>If the <a href="#form-element"><code title="">form</code> element
+         pointer</a> is not null, then <span>associate</span><!--XXX
+        xref! -->
+         the <code>input</code> element with the <code>form</code> element
+         pointed to by the <a href="#form-element"><code title="">form</code>
+         element pointer</a>.</p>
+
+        <p>Pop that <code>input</code> element off the <a href="#stack">stack
+         of open elements</a>.</p>
+
+       </dd><dt id="isindex">A start tag whose tag name is &quot;isindex&quot;
+
+       </dt><dd>
+        <p><a href="section-parsing.html#parse">Parse error</a>.</p>
+
+        <p>If the <a href="#form-element"><code title="">form</code> element
+         pointer</a> is not null, then ignore the token.</p>
+
+        <p>Otherwise:</p>
+
+        <p>Act as if a start tag token with the tag name &quot;form&quot; had been
+         seen.</p>
+
+        <p>Act as if a start tag token with the tag name &quot;hr&quot; had been seen.</p>
+
+        <p>Act as if a start tag token with the tag name &quot;p&quot; had been seen.</p>
+
+        <p>Act as if a start tag token with the tag name &quot;label&quot; had been
+         seen.</p>
+
+        <p>Act as if a stream of character tokens had been seen (see below
+         for what they should say).</p>
+
+        <p>Act as if a start tag token with the tag name &quot;input&quot; had been
+         seen, with all the attributes from the &quot;isindex&quot; token, except with
+         the &quot;name&quot; attribute set to the value &quot;isindex&quot; (ignoring any
+         explicit &quot;name&quot; attribute).</p>
+
+        <p>Act as if a stream of character tokens had been seen (see below
+         for what they should say).</p>
+
+        <p>Act as if an end tag token with the tag name &quot;label&quot; had been
+         seen.</p>
+
+        <p>Act as if an end tag token with the tag name &quot;p&quot; had been seen.</p>
+
+        <p>Act as if a start tag token with the tag name &quot;hr&quot; had been seen.</p>
+
+        <p>Act as if an end tag token with the tag name &quot;form&quot; had been seen.</p>
+
+        <p>The two streams of character tokens together should, together with
+         the <code>input</code> element, express the equivalent of &quot;This is a
+         searchable index. Insert your search keywords here: (input field)&quot;
+         in the user's preferred language.</p>
+
+        <p class="big-issue"> Then need to specify that if the form submission
+         causes just a single form control, whose name is &quot;isindex&quot;, to be
+         submitted, then we submit just the value part, not the &quot;isindex=&quot;
+         part.</p>
+       </dd>
+       <!-- XXX keygen support; don't forget form element pointer!
+
+       <dt>A start tag whose tag name is "keygen"</dt>
+       <dd>
+        ...
+       </dd>
+-->
+
+       <dt>A start tag whose tag name is &quot;textarea&quot;
+
+       </dt><dd>
+        <p><a href="#create">Create an element for the token</a>.</p>
+
+        <p>If the <a href="#form-element"><code title="">form</code> element
+         pointer</a> is not null, then <span>associate</span><!--XXX
+        xref! -->
+         the <code>textarea</code> element with the <code>form</code> element
+         pointed to by the <a href="#form-element"><code title="">form</code>
+         element pointer</a>.</p>
+
+        <p>Append the new element to the <a href="#current4">current
+         node</a>.</p>
+
+        <p>Switch the tokeniser's <a href="section-tokenisation.html#content2">content model flag</a>
+         to the RCDATA state.</p>
+
+        <p>If the next token is a U+000A LINE FEED (LF) character token, then
+         ignore that token and move on to the next one. (Newlines at the
+         start of <code>textarea</code> elements are ignored as an authoring
+         convenience.)</p>
+
+        <p>Then, collect all the character tokens that the tokeniser returns
+         until it returns a token that is not a character token, or until it
+         stops tokenising.</p>
+
+        <p>If this process resulted in a collection of character tokens,
+         append a single <code>Text</code> node, whose contents is the
+         concatenation of all those tokens' characters, to the new element
+         node.</p>
+
+        <p>The tokeniser's <a href="section-tokenisation.html#content2">content model flag</a> will
+         have switched back to the PCDATA state.</p>
+
+        <p>If the next token is an end tag token with the tag name
+         &quot;textarea&quot;, ignore it. Otherwise, this is a <a href="section-parsing.html#parse">parse
+         error</a>.</p>
+
+       </dd><dt>A start tag whose tag name is one of: &quot;iframe&quot;, &quot;noembed&quot;,
+        &quot;noframes&quot;
+
+       </dt><dt>A start tag whose tag name is &quot;noscript&quot;, if <a href="section-scripting.html#scripting2">scripting is enabled</a>:
+
+       </dt><dd>
+        <p><a href="#create">Create an element for the token</a>.</p>
+
+        <p>For &quot;iframe&quot; tags, the node must be an <code><a href="section-embedded.html#htmliframeelement">HTMLIFrameElement</a></code> object, for
+         the other tags it must be an <code><a href="section-elements.html#htmlelement">HTMLElement</a></code> object.</p>
+
+        <p>Append the new element to the <a href="#current4">current
+         node</a>.</p>
+
+        <p>Switch the tokeniser's <a href="section-tokenisation.html#content2">content model flag</a>
+         to the CDATA state.</p>
+
+        <p>Then, collect all the character tokens that the tokeniser returns
+         until it returns a token that is not a character token, or until it
+         stops tokenising.</p>
+
+        <p>If this process resulted in a collection of character tokens,
+         append a single <code>Text</code> node, whose contents is the
+         concatenation of all those tokens' characters, to the new element
+         node.</p>
+
+        <p>The tokeniser's <a href="section-tokenisation.html#content2">content model flag</a> will
+         have switched back to the PCDATA state.</p>
+
+        <p>If the next token is an end tag token with the same tag name as
+         the start tag token, ignore it. Otherwise, this is a <a href="section-parsing.html#parse">parse error</a>.</p>
+
+       </dd><dt>A start tag whose tag name is &quot;select&quot;
+
+       </dt><dd>
+        <p><a href="#reconstruct">Reconstruct the active formatting
+         elements</a>, if any.</p>
+
+        <p><a href="#insert">Insert an HTML element</a> for the token.</p>
+
+        <p>Change the <a href="#insertion0">insertion mode</a> to &quot;<a href="#in-select" title="insertion mode: in select">in select</a>&quot;.</p>
+       </dd>
+       <!-- XXX quirks:
+       <dt>An end tag whose tag name is "br"</dt>
+       <dd>
+        <p>Act as if a start tag token with the tag name "br" had been
+        seen. Ignore the end tag token.</p>
+       </dd>
+-->
+
+       <dt>A start or end tag whose tag name is one of: &quot;caption&quot;, &quot;col&quot;,
+        &quot;colgroup&quot;, &quot;frame&quot;, &quot;frameset&quot;, &quot;head&quot;, &quot;option&quot;, &quot;optgroup&quot;,
+        &quot;tbody&quot;, &quot;td&quot;, &quot;tfoot&quot;, &quot;th&quot;, &quot;thead&quot;, &quot;tr&quot;
+
+       </dt><dt>An end tag whose tag name is one of: &quot;area&quot;, &quot;basefont&quot;,
+        &quot;bgsound&quot;, <!--XXX quirks: remove br-->&quot;br&quot;, &quot;embed&quot;, &quot;hr&quot;, &quot;iframe&quot;,
+        &quot;image&quot;, &quot;img&quot;, &quot;input&quot;, &quot;isindex&quot;, &quot;noembed&quot;, &quot;noframes&quot;, &quot;param&quot;,
+        &quot;select&quot;, &quot;spacer&quot;, &quot;table&quot;, &quot;textarea&quot;, &quot;wbr&quot;</dt>
+       <!-- add keygen if we add the start tag -->
+
+       <dt>An end tag whose tag name is &quot;noscript&quot;, if <a href="section-scripting.html#scripting2">scripting is enabled</a>:
+
+       </dt><dd>
+        <p><a href="section-parsing.html#parse">Parse error</a>. Ignore the token.</p>
+
+       </dd><dt>A start or end tag whose tag name is one of: &quot;event-source&quot;,
+        &quot;section&quot;, &quot;nav&quot;, &quot;article&quot;, &quot;aside&quot;, &quot;header&quot;, &quot;footer&quot;, &quot;datagrid&quot;,
+        &quot;command&quot;
+
+       </dt><dd> <!-- XXXX -->
+        <p class="big-issue">Work in progress!</p>
+
+       </dd><dt>A start tag token not covered by the previous entries
+
+       </dt><dd>
+        <p><a href="#reconstruct">Reconstruct the active formatting
+         elements</a>, if any.</p>
+
+        <p><a href="#insert">Insert an HTML element</a> for the token.</p>
+
+        <p class="note">This element will be a <a href="#phrasing">phrasing</a>
+         element.</p>
+        <!--
+Put the following into the MathML namespace if parsed:
+   math, mrow, mfrac, msqrt, mroot, mstyle, merror, mpadded, 
+   mphantom, mfenced, menclose, msub, msup, msubsup, munder, 
+   mover, munderover, mmultiscripts, mtable, mlabeledtr, mtr, 
+   mtd, maction
+-->
+        
+
+       </dd><dt>An end tag token not covered by the previous entries
+
+       </dt><dd>
+        <p>Run the following algorithm:</p>
+
+        <ol>
+         <li>
+          <p>Initialise <var title="">node</var> to be the <a href="#current4">current node</a> (the bottommost node of the
+           stack).
+
+         </p></li><li>
+          <p>If <var title="">node</var> has the same tag name as the end tag
+           token, then:</p>
+
+          <ol>
+           <li>
+            <p><a href="#generate">Generate implied end tags</a>.
+
+           </p></li><li>
+            <p>If the tag name of the end tag token does not match the tag
+             name of the <a href="#current4">current node</a>, this is a <a href="section-parsing.html#parse">parse error</a>.
+
+           </p></li><li>
+            <p>Pop all the nodes from the <a href="#current4">current
+             node</a> up to <var title="">node</var>, including <var title="">node</var>, then stop this algorithm.
+          </p></li></ol>
+
+         </li><li>
+          <p>Otherwise, if <var title="">node</var> is in neither the <a href="#formatting">formatting</a> category nor the <a href="#phrasing">phrasing</a> category, then this is a <a href="section-parsing.html#parse">parse error</a>. Stop this algorithm. The end tag
+           token is ignored.
+
+         </p></li><li>
+          <p>Set <var title="">node</var> to the previous entry in the <a href="#stack">stack of open elements</a>.
+
+         </p></li><li>
+          <p>Return to step 2.
+        </p></li></ol>
+      </dd></dl>
+
+     </dd><dt id="parsing-main-intable">If the <a href="#insertion0">insertion
+      mode</a> is &quot;<dfn id="in-table" title="insertion mode: in table">in
+      table</dfn>&quot;
+
+     </dt><dd>
+      <dl class="switch">
+       <dt>A character token that is one of one of U+0009 CHARACTER
+        TABULATION, U+000A LINE FEED (LF), U+000B LINE TABULATION, U+000C
+        FORM FEED (FF), U+000D CARRIAGE RETURN (CR), or U+0020 SPACE
+
+       </dt><dd>
+        <p><a href="#append" title="append a character">Append the
+         character</a> to the <a href="#current4">current node</a>.</p>
+
+       </dd><dt>A comment token
+
+       </dt><dd>
+        <p>Append a <code>Comment</code> node to the <a href="#current4">current node</a> with the <code title="">data</code> attribute set to the data given in the comment
+         token.</p>
+
+       </dd><dt>A start tag whose tag name is &quot;caption&quot;
+
+       </dt><dd>
+        <p><a href="#clear1">Clear the stack back to a table context</a>.
+         (See below.)</p>
+
+        <p>Insert a marker at the end of the <a href="#list-of4">list of
+         active formatting elements</a>.</p>
+
+        <p><a href="#insert">Insert an HTML element</a> for the token, then
+         switch the <a href="#insertion0">insertion mode</a> to &quot;<a href="#in-caption" title="insertion mode: in caption">in
+         caption</a>&quot;.</p>
+
+       </dd><dt>A start tag whose tag name is &quot;colgroup&quot;
+
+       </dt><dd>
+        <p><a href="#clear1">Clear the stack back to a table context</a>.
+         (See below.)</p>
+
+        <p><a href="#insert">Insert an HTML element</a> for the token, then
+         switch the <a href="#insertion0">insertion mode</a> to &quot;<a href="#in-column" title="insertion mode: in column group">in column
+         group</a>&quot;.</p>
+
+       </dd><dt>A start tag whose tag name is &quot;col&quot;
+
+       </dt><dd>
+        <p>Act as if a start tag token with the tag name &quot;colgroup&quot; had been
+         seen, then reprocess the current token.</p>
+
+       </dd><dt>A start tag whose tag name is one of: &quot;tbody&quot;, &quot;tfoot&quot;, &quot;thead&quot;
+
+       </dt><dd>
+        <p><a href="#clear1">Clear the stack back to a table context</a>.
+         (See below.)</p>
+
+        <p><a href="#insert">Insert an HTML element</a> for the token, then
+         switch the <a href="#insertion0">insertion mode</a> to &quot;<a href="#in-table0" title="insertion mode: in table body">in table
+         body</a>&quot;.</p>
+
+       </dd><dt>A start tag whose tag name is one of: &quot;td&quot;, &quot;th&quot;, &quot;tr&quot;
+
+       </dt><dd>
+        <p>Act as if a start tag token with the tag name &quot;tbody&quot; had been
+         seen, then reprocess the current token.</p>
+
+       </dd><dt>A start tag whose tag name is &quot;table&quot;
+
+       </dt><dd>
+        <p><a href="section-parsing.html#parse">Parse error</a>. Act as if an end tag token with
+         the tag name &quot;table&quot; had been seen, then, if that token wasn't
+         ignored, reprocess the current token.</p>
+
+        <p class="note">The fake end tag token here can only be ignored in the
+         <a href="section-dynamic.html#innerhtml1"><code>innerHTML</code> case</a>.</p>
+
+       </dd><dt>An end tag whose tag name is &quot;table&quot;
+
+       </dt><dd>
+        <p>If the <a href="#stack">stack of open elements</a> does not <a href="#have-an0" title="has an element in table scope">have an
+         element in table scope</a> with the same tag name as the token, this
+         is a <a href="section-parsing.html#parse">parse error</a>. Ignore the token. (<a href="section-dynamic.html#innerhtml1"><code>innerHTML</code> case</a>)</p>
+
+        <p>Otherwise:</p>
+
+        <p><a href="#generate">Generate implied end tags</a>.</p>
+
+        <p>Now, if the <a href="#current4">current node</a> is not a <code><a href="section-tabular.html#table">table</a></code> element, then this is a <a href="section-parsing.html#parse">parse error</a>.</p>
+
+        <p>Pop elements from this stack until a <code><a href="section-tabular.html#table">table</a></code> element has been popped from the
+         stack.</p>
+
+        <p><a href="#reset">Reset the insertion mode appropriately</a>.</p>
+
+       </dd><dt>An end tag whose tag name is one of: &quot;body&quot;, &quot;caption&quot;, &quot;col&quot;,
+        &quot;colgroup&quot;, &quot;html&quot;, &quot;tbody&quot;, &quot;td&quot;, &quot;tfoot&quot;, &quot;th&quot;, &quot;thead&quot;, &quot;tr&quot;
+
+       </dt><dd>
+        <p><a href="section-parsing.html#parse">Parse error</a>. Ignore the token.</p>
+
+       </dd><dt>Anything else
+
+       </dt><dd>
+        <p><a href="section-parsing.html#parse">Parse error</a>. Process the token as if the <a href="#insertion0">insertion mode</a> was &quot;<a href="#in-body" title="insertion mode: in body">in body</a>&quot;, with the following
+         exception:</p>
+
+        <p>If the <a href="#current4">current node</a> is a <code><a href="section-tabular.html#table">table</a></code>, <code><a href="section-tabular.html#tbody">tbody</a></code>, <code><a href="section-tabular.html#tfoot0">tfoot</a></code>, <code><a href="section-tabular.html#thead0">thead</a></code>, or <code><a href="section-tabular.html#tr">tr</a></code> element, then, whenever a node would be
+         inserted into the <a href="#current4">current node</a>, it must
+         instead be inserted into the <em><a href="#foster">foster parent
+         element</a></em>.</p>
+
+        <p>The <dfn id="foster">foster parent element</dfn> is the parent
+         element of the last <code><a href="section-tabular.html#table">table</a></code> element
+         in the <a href="#stack">stack of open elements</a>, if there is a
+         <code><a href="section-tabular.html#table">table</a></code> element and it has such a
+         parent element. If there is no <code><a href="section-tabular.html#table">table</a></code> element in the <a href="#stack">stack
+         of open elements</a> (<a href="section-dynamic.html#innerhtml1"><code>innerHTML</code>
+         case</a>), then the <em><a href="#foster">foster parent
+         element</a></em> is the first element in the <a href="#stack">stack
+         of open elements</a> (the <code><a href="section-the-root.html#html">html</a></code>
+         element). Otherwise, if there is a <code><a href="section-tabular.html#table">table</a></code> element in the <a href="#stack">stack
+         of open elements</a>, but the last <code><a href="section-tabular.html#table">table</a></code> element in the <a href="#stack">stack
+         of open elements</a> has no parent, or its parent node is not an
+         element, then the <em><a href="#foster">foster parent
+         element</a></em> is the element before the last <code><a href="section-tabular.html#table">table</a></code> element in the <a href="#stack">stack
+         of open elements</a>.</p>
+
+        <p>If the <em><a href="#foster">foster parent element</a></em> is the
+         parent element of the last <code><a href="section-tabular.html#table">table</a></code>
+         element in the <a href="#stack">stack of open elements</a>, then the
+         new node must be inserted immediately <em>before</em> the last
+         <code><a href="section-tabular.html#table">table</a></code> element in the <a href="#stack">stack of open elements</a> in the <a href="#foster">foster parent element</a>; otherwise, the new node
+         must be <em>appended</em> to the <a href="#foster">foster parent
+         element</a>.</p>
+      </dd></dl>
+
+      <p>When the steps above require the UA to <dfn id="clear1">clear the
+       stack back to a table context</dfn>, it means that the UA must, while
+       the <a href="#current4">current node</a> is not a <code><a href="section-tabular.html#table">table</a></code> element or an <code><a href="section-the-root.html#html">html</a></code> element, pop elements from the <a href="#stack">stack of open elements</a>. If this causes any elements
+       to be popped from the stack, then this is a <a href="section-parsing.html#parse">parse
+       error</a>.</p>
+
+      <p class="note">The <a href="#current4">current node</a> being an
+       <code><a href="section-the-root.html#html">html</a></code> element after this process is an
+       <a href="section-dynamic.html#innerhtml1"><code>innerHTML</code> case</a>.</p>
+
+     </dd><dt id="parsing-main-incaption">If the <a href="#insertion0">insertion
+      mode</a> is &quot;<dfn id="in-caption" title="insertion mode: in caption">in
+      caption</dfn>&quot;
+
+     </dt><dd>
+      <dl class="switch">
+       <dt>An end tag whose tag name is &quot;caption&quot;
+
+       </dt><dd>
+        <p>If the <a href="#stack">stack of open elements</a> does not <a href="#have-an0" title="has an element in table scope">have an
+         element in table scope</a> with the same tag name as the token, this
+         is a <a href="section-parsing.html#parse">parse error</a>. Ignore the token. (<a href="section-dynamic.html#innerhtml1"><code>innerHTML</code> case</a>)</p>
+
+        <p>Otherwise:</p>
+
+        <p><a href="#generate">Generate implied end tags</a>.</p>
+
+        <p>Now, if the <a href="#current4">current node</a> is not a <code><a href="section-tabular.html#caption0">caption</a></code> element, then this is a <a href="section-parsing.html#parse">parse error</a>.</p>
+
+        <p>Pop elements from this stack until a <code><a href="section-tabular.html#caption0">caption</a></code> element has been popped from the
+         stack.</p>
+
+        <p><a href="#clear0">Clear the list of active formatting elements up
+         to the last marker</a>.</p>
+
+        <p>Switch the <a href="#insertion0">insertion mode</a> to &quot;<a href="#in-table" title="insertion mode: in table">in table</a>&quot;.</p>
+
+       </dd><dt>A start tag whose tag name is one of: &quot;caption&quot;, &quot;col&quot;,
+        &quot;colgroup&quot;, &quot;tbody&quot;, &quot;td&quot;, &quot;tfoot&quot;, &quot;th&quot;, &quot;thead&quot;, &quot;tr&quot;
+
+       </dt><dt>An end tag whose tag name is &quot;table&quot;
+
+       </dt><dd>
+        <p><a href="section-parsing.html#parse">Parse error</a>. Act as if an end tag with the
+         tag name &quot;caption&quot; had been seen, then, if that token wasn't
+         ignored, reprocess the current token.</p>
+
+        <p class="note">The fake end tag token here can only be ignored in the
+         <a href="section-dynamic.html#innerhtml1"><code>innerHTML</code> case</a>.</p>
+
+       </dd><dt>An end tag whose tag name is one of: &quot;body&quot;, &quot;col&quot;, &quot;colgroup&quot;,
+        &quot;html&quot;, &quot;tbody&quot;, &quot;td&quot;, &quot;tfoot&quot;, &quot;th&quot;, &quot;thead&quot;, &quot;tr&quot;
+
+       </dt><dd>
+        <p><a href="section-parsing.html#parse">Parse error</a>. Ignore the token.</p>
+
+       </dd><dt>Anything else
+
+       </dt><dd>
+        <p>Process the token as if the <a href="#insertion0">insertion
+         mode</a> was &quot;<a href="#in-body" title="insertion mode: in body">in
+         body</a>&quot;.</p>
+      </dd></dl>
+
+     </dd><dt id="parsing-main-incolgroup">If the <a href="#insertion0">insertion
+      mode</a> is &quot;<dfn id="in-column" title="insertion mode: in column
+      group">in column group</dfn>&quot;
+
+     </dt><dd>
+      <dl class="switch">
+       <dt>A character token that is one of one of U+0009 CHARACTER
+        TABULATION, U+000A LINE FEED (LF), U+000B LINE TABULATION, U+000C
+        FORM FEED (FF), U+000D CARRIAGE RETURN (CR), or U+0020 SPACE
+
+       </dt><dd>
+        <p><a href="#append" title="append a character">Append the
+         character</a> to the <a href="#current4">current node</a>.</p>
+
+       </dd><dt>A comment token
+
+       </dt><dd>
+        <p>Append a <code>Comment</code> node to the <a href="#current4">current node</a> with the <code title="">data</code> attribute set to the data given in the comment
+         token.</p>
+
+       </dd><dt>A start tag whose tag name is &quot;col&quot;
+
+       </dt><dd>
+        <p><a href="#insert" title="insert an HTML element">Insert a
+         <code>col</code> element</a> for the token. Immediately pop the <a href="#current4">current node</a> off the <a href="#stack">stack of
+         open elements</a>.</p>
+
+       </dd><dt>An end tag whose tag name is &quot;colgroup&quot;
+
+       </dt><dd>
+        <p>If the <a href="#current4">current node</a> is the root <code><a href="section-the-root.html#html">html</a></code> element, then this is a <a href="section-parsing.html#parse">parse error</a>, ignore the token. (<a href="section-dynamic.html#innerhtml1"><code>innerHTML</code> case</a>)</p>
+
+        <p>Otherwise, pop the <a href="#current4">current node</a> (which
+         will be a <code><a href="section-tabular.html#colgroup">colgroup</a></code> element)
+         from the <a href="#stack">stack of open elements</a>. Switch the <a href="#insertion0">insertion mode</a> to &quot;<a href="#in-table" title="insertion mode: in table">in table</a>&quot;.</p>
+
+       </dd><dt>An end tag whose tag name is &quot;col&quot;
+
+       </dt><dd>
+        <p><a href="section-parsing.html#parse">Parse error</a>. Ignore the token.</p>
+
+       </dd><dt>Anything else
+
+       </dt><dd>
+        <p>Act as if an end tag with the tag name &quot;colgroup&quot; had been seen,
+         and then, if that token wasn't ignored, reprocess the current token.</p>
+
+        <p class="note">The fake end tag token here can only be ignored in the
+         <a href="section-dynamic.html#innerhtml1"><code>innerHTML</code> case</a>.</p>
+      </dd></dl>
+
+     </dd><dt id="parsing-main-intbody">If the <a href="#insertion0">insertion
+      mode</a> is &quot;<dfn id="in-table0" title="insertion mode: in table body">in
+      table body</dfn>&quot;
+
+     </dt><dd>
+      <dl class="switch">
+       <dt>A start tag whose tag name is &quot;tr&quot;
+
+       </dt><dd>
+        <p><a href="#clear2">Clear the stack back to a table body
+         context</a>. (See below.)</p>
+
+        <p><a href="#insert" title="insert an HTML element">Insert a
+         <code>tr</code> element</a> for the token, then switch the <a href="#insertion0">insertion mode</a> to &quot;<a href="#in-row" title="insertion mode: in row">in row</a>&quot;.</p>
+
+       </dd><dt>A start tag whose tag name is one of: &quot;th&quot;, &quot;td&quot;
+
+       </dt><dd>
+        <p><a href="section-parsing.html#parse">Parse error</a>. Act as if a start tag with the
+         tag name &quot;tr&quot; had been seen, then reprocess the current token.</p>
+
+       </dd><dt>An end tag whose tag name is one of: &quot;tbody&quot;, &quot;tfoot&quot;, &quot;thead&quot;
+
+       </dt><dd>
+        <p>If the <a href="#stack">stack of open elements</a> does not <a href="#have-an0" title="has an element in table scope">have an
+         element in table scope</a> with the same tag name as the token, this
+         is a <a href="section-parsing.html#parse">parse error</a>. Ignore the token.</p>
+
+        <p>Otherwise:</p>
+
+        <p><a href="#clear2">Clear the stack back to a table body
+         context</a>. (See below.)</p>
+
+        <p>Pop the <a href="#current4">current node</a> from the <a href="#stack">stack of open elements</a>. Switch the <a href="#insertion0">insertion mode</a> to &quot;<a href="#in-table" title="insertion mode: in table">in table</a>&quot;.</p>
+
+       </dd><dt>A start tag whose tag name is one of: &quot;caption&quot;, &quot;col&quot;,
+        &quot;colgroup&quot;, &quot;tbody&quot;, &quot;tfoot&quot;, &quot;thead&quot;
+
+       </dt><dt>An end tag whose tag name is &quot;table&quot;
+
+       </dt><dd>
+        <p>If the <a href="#stack">stack of open elements</a> does not <a href="#have-an0" title="has an element in table scope">have a
+         <code>tbody</code>, <code>thead</code>, or <code>tfoot</code>
+         element in table scope</a>, this is a <a href="section-parsing.html#parse">parse
+         error</a>. Ignore the token. (<a href="section-dynamic.html#innerhtml1"><code>innerHTML</code> case</a>)</p>
+
+        <p>Otherwise:</p>
+
+        <p><a href="#clear2">Clear the stack back to a table body
+         context</a>. (See below.)</p>
+
+        <p>Act as if an end tag with the same tag name as the <a href="#current4">current node</a> (&quot;tbody&quot;, &quot;tfoot&quot;, or &quot;thead&quot;) had
+         been seen, then reprocess the current token.</p>
+
+       </dd><dt>An end tag whose tag name is one of: &quot;body&quot;, &quot;caption&quot;, &quot;col&quot;,
+        &quot;colgroup&quot;, &quot;html&quot;, &quot;td&quot;, &quot;th&quot;, &quot;tr&quot;
+
+       </dt><dd>
+        <p><a href="section-parsing.html#parse">Parse error</a>. Ignore the token.</p>
+
+       </dd><dt>Anything else
+
+       </dt><dd>
+        <p>Process the token as if the <a href="#insertion0">insertion
+         mode</a> was &quot;<a href="#in-table" title="insertion mode: in
+         table">in table</a>&quot;.</p>
+      </dd></dl>
+
+      <p>When the steps above require the UA to <dfn id="clear2">clear the
+       stack back to a table body context</dfn>, it means that the UA must,
+       while the <a href="#current4">current node</a> is not a <code><a href="section-tabular.html#tbody">tbody</a></code>, <code><a href="section-tabular.html#tfoot0">tfoot</a></code>, <code><a href="section-tabular.html#thead0">thead</a></code>, or <code><a href="section-the-root.html#html">html</a></code> element, pop elements from the <a href="#stack">stack of open elements</a>. If this causes any elements
+       to be popped from the stack, then this is a <a href="section-parsing.html#parse">parse
+       error</a>.</p>
+
+      <p class="note">The <a href="#current4">current node</a> being an
+       <code><a href="section-the-root.html#html">html</a></code> element after this process is an
+       <a href="section-dynamic.html#innerhtml1"><code>innerHTML</code> case</a>.</p>
+
+     </dd><dt id="parsing-main-intr">If the <a href="#insertion0">insertion mode</a>
+      is &quot;<dfn id="in-row" title="insertion mode: in row">in row</dfn>&quot;
+
+     </dt><dd>
+      <dl class="switch">
+       <dt>A start tag whose tag name is one of: &quot;th&quot;, &quot;td&quot;
+
+       </dt><dd>
+        <p><a href="#clear3">Clear the stack back to a table row context</a>.
+         (See below.)</p>
+
+        <p><a href="#insert" title="insert an HTML element">Insert an HTML
+         element</a> for the token, then switch the <a href="#insertion0">insertion mode</a> to &quot;<a href="#in-cell" title="insertion mode: in cell">in cell</a>&quot;.</p>
+
+        <p>Insert a marker at the end of the <a href="#list-of4">list of
+         active formatting elements</a>.</p>
+
+       </dd><dt>An end tag whose tag name is &quot;tr&quot;
+
+       </dt><dd>
+        <p>If the <a href="#stack">stack of open elements</a> does not <a href="#have-an0" title="has an element in table scope">have an
+         element in table scope</a> with the same tag name as the token, this
+         is a <a href="section-parsing.html#parse">parse error</a>. Ignore the token. (<a href="section-dynamic.html#innerhtml1"><code>innerHTML</code> case</a>)</p>
+
+        <p>Otherwise:</p>
+
+        <p><a href="#clear3">Clear the stack back to a table row context</a>.
+         (See below.)</p>
+
+        <p>Pop the <a href="#current4">current node</a> (which will be a
+         <code><a href="section-tabular.html#tr">tr</a></code> element) from the <a href="#stack">stack of open elements</a>. Switch the <a href="#insertion0">insertion mode</a> to &quot;<a href="#in-table0" title="insertion mode: in table body">in table body</a>&quot;.</p>
+
+       </dd><dt>A start tag whose tag name is one of: &quot;caption&quot;, &quot;col&quot;,
+        &quot;colgroup&quot;, &quot;tbody&quot;, &quot;tfoot&quot;, &quot;thead&quot;, &quot;tr&quot;
+
+       </dt><dt>An end tag whose tag name is &quot;table&quot;
+
+       </dt><dd>
+        <p>Act as if an end tag with the tag name &quot;tr&quot; had been seen, then,
+         if that token wasn't ignored, reprocess the current token.</p>
+
+        <p class="note">The fake end tag token here can only be ignored in the
+         <a href="section-dynamic.html#innerhtml1"><code>innerHTML</code> case</a>.</p>
+
+       </dd><dt>An end tag whose tag name is one of: &quot;tbody&quot;, &quot;tfoot&quot;, &quot;thead&quot;
+
+       </dt><dd>
+        <p>If the <a href="#stack">stack of open elements</a> does not <a href="#have-an0" title="has an element in table scope">have an
+         element in table scope</a> with the same tag name as the token, this
+         is a <a href="section-parsing.html#parse">parse error</a>. Ignore the token.</p>
+
+        <p>Otherwise, act as if an end tag with the tag name &quot;tr&quot; had been
+         seen, then reprocess the current token.</p>
+
+       </dd><dt>An end tag whose tag name is one of: &quot;body&quot;, &quot;caption&quot;, &quot;col&quot;,
+        &quot;colgroup&quot;, &quot;html&quot;, &quot;td&quot;, &quot;th&quot;
+
+       </dt><dd>
+        <p><a href="section-parsing.html#parse">Parse error</a>. Ignore the token.</p>
+
+       </dd><dt>Anything else
+
+       </dt><dd>
+        <p>Process the token as if the <a href="#insertion0">insertion
+         mode</a> was &quot;<a href="#in-table" title="insertion mode: in
+         table">in table</a>&quot;.</p>
+      </dd></dl>
+
+      <p>When the steps above require the UA to <dfn id="clear3">clear the
+       stack back to a table row context</dfn>, it means that the UA must,
+       while the <a href="#current4">current node</a> is not a <code><a href="section-tabular.html#tr">tr</a></code> element or an <code><a href="section-the-root.html#html">html</a></code> element, pop elements from the <a href="#stack">stack of open elements</a>. If this causes any elements
+       to be popped from the stack, then this is a <a href="section-parsing.html#parse">parse
+       error</a>.</p>
+
+      <p class="note">The <a href="#current4">current node</a> being an
+       <code><a href="section-the-root.html#html">html</a></code> element after this process is an
+       <a href="section-dynamic.html#innerhtml1"><code>innerHTML</code> case</a>.</p>
+
+     </dd><dt id="parsing-main-intd">If the <a href="#insertion0">insertion mode</a>
+      is &quot;<dfn id="in-cell" title="insertion mode: in cell">in cell</dfn>&quot;
+
+     </dt><dd>
+      <dl class="switch">
+       <dt>An end tag whose tag name is one of: &quot;td&quot;, &quot;th&quot;
+
+       </dt><dd>
+        <p>If the <a href="#stack">stack of open elements</a> does not <a href="#have-an0" title="has an element in table scope">have an
+         element in table scope</a> with the same tag name as that of the
+         token, then this is a <a href="section-parsing.html#parse">parse error</a> and the token
+         must be ignored.</p>
+
+        <p>Otherwise:</p>
+
+        <p><a href="#generate">Generate implied end tags</a>, except for
+         elements with the same tag name as the token.</p>
+
+        <p>Now, if the <a href="#current4">current node</a> is not an element
+         with the same tag name as the token, then this is a <a href="section-parsing.html#parse">parse error</a>.</p>
+
+        <p>Pop elements from this stack until an element with the same tag
+         name as the token has been popped from the stack.</p>
+
+        <p><a href="#clear0">Clear the list of active formatting elements up
+         to the last marker</a>.</p>
+
+        <p>Switch the <a href="#insertion0">insertion mode</a> to &quot;<a href="#in-row" title="insertion mode: in row">in row</a>&quot;. (The <a href="#current4">current node</a> will be a <code><a href="section-tabular.html#tr">tr</a></code> element at this point.)</p>
+
+       </dd><dt>A start tag whose tag name is one of: &quot;caption&quot;, &quot;col&quot;,
+        &quot;colgroup&quot;, &quot;tbody&quot;, &quot;td&quot;, &quot;tfoot&quot;, &quot;th&quot;, &quot;thead&quot;, &quot;tr&quot;
+
+       </dt><dd>
+        <p>If the <a href="#stack">stack of open elements</a> does
+         <em>not</em> <a href="#have-an0" title="has an element in table
+         scope">have a <code>td</code> or <code>th</code> element in table
+         scope</a>, then this is a <a href="section-parsing.html#parse">parse error</a>; ignore
+         the token. (<a href="section-dynamic.html#innerhtml1"><code>innerHTML</code> case</a>)</p>
+
+        <p>Otherwise, <a href="#close2">close the cell</a> (see below) and
+         reprocess the current token.</p>
+
+       </dd><dt>An end tag whose tag name is one of: &quot;body&quot;, &quot;caption&quot;, &quot;col&quot;,
+        &quot;colgroup&quot;, &quot;html&quot;
+
+       </dt><dd>
+        <p><a href="section-parsing.html#parse">Parse error</a>. Ignore the token.</p>
+
+       </dd><dt>An end tag whose tag name is one of: &quot;table&quot;, &quot;tbody&quot;, &quot;tfoot&quot;,
+        &quot;thead&quot;, &quot;tr&quot;
+
+       </dt><dd>
+        <p>If the <a href="#stack">stack of open elements</a> does not <a href="#have-an0" title="has an element in table scope">have an
+         element in table scope</a> with the same tag name as that of the
+         token (which can only happen for &quot;tbody&quot;, &quot;tfoot&quot; and &quot;thead&quot;, or,
+         in the <a href="section-dynamic.html#innerhtml1"><code>innerHTML</code> case</a>), then
+         this is a <a href="section-parsing.html#parse">parse error</a> and the token must be
+         ignored.</p>
+
+        <p>Otherwise, <a href="#close2">close the cell</a> (see below) and
+         reprocess the current token.</p>
+
+       </dd><dt>Anything else
+
+       </dt><dd>
+        <p>Process the token as if the <a href="#insertion0">insertion
+         mode</a> was &quot;<a href="#in-body" title="insertion mode: in body">in
+         body</a>&quot;.</p>
+      </dd></dl>
+
+      <p>Where the steps above say to <dfn id="close2">close the cell</dfn>,
+       they mean to follow the following algorithm:</p>
+
+      <ol>
+       <li>
+        <p>If the <a href="#stack">stack of open elements</a> <a href="#have-an0" title="has an element in table scope">has a
+         <code>td</code> element in table scope</a>, then act as if an end
+         tag token with the tag name &quot;td&quot; had been seen.
+
+       </p></li><li>
+        <p>Otherwise, the <a href="#stack">stack of open elements</a> will <a href="#have-an0" title="has an element in table scope">have a
+         <code>th</code> element in table scope</a>; act as if an end tag
+         token with the tag name &quot;th&quot; had been seen.
+      </p></li></ol>
+
+      <p class="note">The <a href="#stack">stack of open elements</a> cannot
+       have both a <code><a href="section-tabular.html#td">td</a></code> and a <code><a href="section-tabular.html#th">th</a></code> element <a href="#have-an0" title="has an
+       element in table scope">in table scope</a> at the same time, nor can
+       it have neither when the <a href="#insertion0">insertion mode</a> is
+       &quot;<a href="#in-cell" title="insertion mode: in cell">in cell</a>&quot;.</p>
+
+     </dd><dt id="parsing-main-inselect">If the <a href="#insertion0">insertion
+      mode</a> is &quot;<dfn id="in-select" title="insertion mode: in select">in
+      select</dfn>&quot;
+
+     </dt><dd>
+      <p>Handle the token as follows:</p>
+
+      <dl class="switch">
+       <dt>A character token
+
+       </dt><dd>
+        <p><a href="#append" title="append a character">Append the token's
+         character</a> to the <a href="#current4">current node</a>.</p>
+
+       </dd><dt>A comment token
+
+       </dt><dd>
+        <p>Append a <code>Comment</code> node to the <a href="#current4">current node</a> with the <code title="">data</code> attribute set to the data given in the comment
+         token.</p>
+
+       </dd><dt>A start tag token whose tag name is &quot;option&quot;
+
+       </dt><dd>
+        <p>If the <a href="#current4">current node</a> is an
+         <code>option</code> element, act as if an end tag with the tag name
+         &quot;option&quot; had been seen.</p>
+
+        <p><a href="#insert">Insert an HTML element</a> for the token.</p>
+
+       </dd><dt>A start tag token whose tag name is &quot;optgroup&quot;
+
+       </dt><dd>
+        <p>If the <a href="#current4">current node</a> is an
+         <code>option</code> element, act as if an end tag with the tag name
+         &quot;option&quot; had been seen.</p>
+
+        <p>If the <a href="#current4">current node</a> is an
+         <code>optgroup</code> element, act as if an end tag with the tag
+         name &quot;optgroup&quot; had been seen.</p>
+
+        <p><a href="#insert">Insert an HTML element</a> for the token.</p>
+
+       </dd><dt>An end tag token whose tag name is &quot;optgroup&quot;
+
+       </dt><dd>
+        <p>First, if the <a href="#current4">current node</a> is an
+         <code>option</code> element, and the node immediately before it in
+         the <a href="#stack">stack of open elements</a> is an
+         <code>optgroup</code> element, then act as if an end tag with the
+         tag name &quot;option&quot; had been seen.</p>
+
+        <p>If the <a href="#current4">current node</a> is an
+         <code>optgroup</code> element, then pop that node from the <a href="#stack">stack of open elements</a>. Otherwise, this is a <a href="section-parsing.html#parse">parse error</a>, ignore the token.</p>
+
+       </dd><dt>An end tag token whose tag name is &quot;option&quot;
+
+       </dt><dd>
+        <p>If the <a href="#current4">current node</a> is an
+         <code>option</code> element, then pop that node from the <a href="#stack">stack of open elements</a>. Otherwise, this is a <a href="section-parsing.html#parse">parse error</a>, ignore the token.</p>
+
+       </dd><dt>An end tag whose tag name is &quot;select&quot;
+
+       </dt><dd>
+        <p>If the <a href="#stack">stack of open elements</a> does not <a href="#have-an0" title="has an element in table scope">have an
+         element in table scope</a> with the same tag name as the token, this
+         is a <a href="section-parsing.html#parse">parse error</a>. Ignore the token. (<a href="section-dynamic.html#innerhtml1"><code>innerHTML</code> case</a>)</p>
+
+        <p>Otherwise:</p>
+
+        <p>Pop elements from the <a href="#stack">stack of open elements</a>
+         until a <code>select</code> element has been popped from the stack.</p>
+
+        <p><a href="#reset">Reset the insertion mode appropriately</a>.</p>
+
+       </dd><dt>A start tag whose tag name is &quot;select&quot;
+
+       </dt><dd>
+        <p><a href="section-parsing.html#parse">Parse error</a>. Act as if the token had been an
+         end tag with the tag name &quot;select&quot; instead.</p>
+
+       </dd><dt>An end tag whose tag name is one of: &quot;caption&quot;, &quot;table&quot;, &quot;tbody&quot;,
+        &quot;tfoot&quot;, &quot;thead&quot;, &quot;tr&quot;, &quot;td&quot;, &quot;th&quot;
+
+       </dt><dd>
+        <p><a href="section-parsing.html#parse">Parse error</a>.</p>
+
+        <p>If the <a href="#stack">stack of open elements</a> <a href="#have-an0">has an element in table scope</a> with the same tag
+         name as that of the token, then act as if an end tag with the tag
+         name &quot;select&quot; had been seen, and reprocess the token. Otherwise,
+         ignore the token.</p>
+
+       </dd><dt>Anything else
+
+       </dt><dd>
+        <p><a href="section-parsing.html#parse">Parse error</a>. Ignore the token.</p>
+      </dd></dl>
+
+     </dd><dt id="parsing-main-afterbody">If the <a href="#insertion0">insertion
+      mode</a> is &quot;<dfn id="after2" title="insertion mode: after body">after
+      body</dfn>&quot;
+
+     </dt><dd>
+      <p>Handle the token as follows:</p>
+
+      <dl class="switch">
+       <dt>A character token that is one of one of U+0009 CHARACTER
+        TABULATION, U+000A LINE FEED (LF), U+000B LINE TABULATION, U+000C
+        FORM FEED (FF), U+000D CARRIAGE RETURN (CR), or U+0020 SPACE
+
+       </dt><dd>
+        <p>Process the token as it would be processed if the <a href="#insertion0">insertion mode</a> was &quot;<a href="#in-body" title="insertion mode: in body">in body</a>&quot;.</p>
+
+       </dd><dt>A comment token
+
+       </dt><dd>
+        <p>Append a <code>Comment</code> node to the first element in the <a href="#stack">stack of open elements</a> (the <code><a href="section-the-root.html#html">html</a></code> element), with the <code title="">data</code> attribute set to the data given in the comment
+         token.</p>
+
+       </dd><dt>An end tag with the tag name &quot;html&quot;
+
+       </dt><dd>
+        <p>If the parser was originally created in order to handle the
+         setting of <em>an element</em>'s <code title="dom-innerHTML-HTML"><a href="section-dynamic.html#innerhtml0">innerHTML</a></code> attribute, this is a <a href="section-parsing.html#parse">parse error</a>; ignore the token. (The element will
+         be an <code><a href="section-the-root.html#html">html</a></code> element in this case.)
+         (<a href="section-dynamic.html#innerhtml1"><code>innerHTML</code> case</a>)</p>
+
+        <p>Otherwise, switch to <a href="#the-trailing0">the trailing end
+         phase</a>.</p>
+
+       </dd><dt>Anything else
+
+       </dt><dd>
+        <p><a href="section-parsing.html#parse">Parse error</a>. Set the <a href="#insertion0">insertion mode</a> to &quot;<a href="#in-body" title="insertion mode: in body">in body</a>&quot; and reprocess the
+         token.</p>
+      </dd></dl>
+
+     </dd><dt id="parsing-main-inframeset">If the <a href="#insertion0">insertion
+      mode</a> is &quot;<dfn id="in-frameset" title="insertion mode: in frameset">in
+      frameset</dfn>&quot;
+
+     </dt><dd>
+      <p>Handle the token as follows:</p>
+
+      <dl class="switch">
+       <dt>A character token that is one of one of U+0009 CHARACTER
+        TABULATION, U+000A LINE FEED (LF), U+000B LINE TABULATION, U+000C
+        FORM FEED (FF), U+000D CARRIAGE RETURN (CR), or U+0020 SPACE
+
+       </dt><dd>
+        <p><a href="#append" title="append a character">Append the
+         character</a> to the <a href="#current4">current node</a>.</p>
+
+       </dd><dt>A comment token
+
+       </dt><dd>
+        <p>Append a <code>Comment</code> node to the <a href="#current4">current node</a> with the <code title="">data</code> attribute set to the data given in the comment
+         token.</p>
+
+       </dd><dt>A start tag with the tag name &quot;frameset&quot;
+
+       </dt><dd>
+        <p><a href="#insert" title="Insert an HTML element">Insert a
+         <code>frameset</code> element</a> for the token.</p>
+
+       </dd><dt>An end tag with the tag name &quot;frameset&quot;
+
+       </dt><dd>
+        <p>If the <a href="#current4">current node</a> is the root <code><a href="section-the-root.html#html">html</a></code> element, then this is a <a href="section-parsing.html#parse">parse error</a>; ignore the token. (<a href="section-dynamic.html#innerhtml1"><code>innerHTML</code> case</a>)</p>
+
+        <p>Otherwise, pop the <a href="#current4">current node</a> from the
+         <a href="#stack">stack of open elements</a>.</p>
+
+        <p>If the parser was <em>not</em> originally created in order to
+         handle the setting of an element's <code title="dom-innerHTML-HTML"><a href="section-dynamic.html#innerhtml0">innerHTML</a></code> attribute (<a href="section-dynamic.html#innerhtml1"><code>innerHTML</code> case</a>), and the <a href="#current4">current node</a> is no longer a
+         <code>frameset</code> element, then change the <a href="#insertion0">insertion mode</a> to &quot;<a href="#after3" title="insertion mode: after frameset">after frameset</a>&quot;.</p>
+
+       </dd><dt>A start tag with the tag name &quot;frame&quot;
+
+       </dt><dd>
+        <p><a href="#insert">Insert an HTML element</a> for the token.
+         Immediately pop the <a href="#current4">current node</a> off the <a href="#stack">stack of open elements</a>.</p>
+
+       </dd><dt>A start tag with the tag name &quot;noframes&quot;
+
+       </dt><dd>
+        <p>Process the token as if the <a href="#insertion0">insertion
+         mode</a> had been &quot;<a href="#in-body" title="insertion mode: in
+         body">in body</a>&quot;.</p>
+
+       </dd><dt>Anything else
+
+       </dt><dd>
+        <p><a href="section-parsing.html#parse">Parse error</a>. Ignore the token.</p>
+      </dd></dl>
+
+     </dd><dt id="parsing-main-afterframeset">If the <a href="#insertion0">insertion
+      mode</a> is &quot;<dfn id="after3" title="insertion mode: after
+      frameset">after frameset</dfn>&quot;
+
+     </dt><dd>
+      <p>Handle the token as follows:</p>
+
+      <dl class="switch">
+       <dt>A character token that is one of one of U+0009 CHARACTER
+        TABULATION, U+000A LINE FEED (LF), U+000B LINE TABULATION, U+000C
+        FORM FEED (FF), U+000D CARRIAGE RETURN (CR), or U+0020 SPACE
+
+       </dt><dd>
+        <p><a href="#append" title="append a character">Append the
+         character</a> to the <a href="#current4">current node</a>.</p>
+
+       </dd><dt>A comment token
+
+       </dt><dd>
+        <p>Append a <code>Comment</code> node to the <a href="#current4">current node</a> with the <code title="">data</code> attribute set to the data given in the comment
+         token.</p>
+
+       </dd><dt>An end tag with the tag name &quot;html&quot;
+
+       </dt><dd>
+        <p>Switch to <a href="#the-trailing0">the trailing end phase</a>.</p>
+
+       </dd><dt>A start tag with the tag name &quot;noframes&quot;
+
+       </dt><dd>
+        <p>Process the token as if the <a href="#insertion0">insertion
+         mode</a> had been &quot;<a href="#in-body" title="insertion mode: in
+         body">in body</a>&quot;.</p>
+
+       </dd><dt>Anything else
+
+       </dt><dd>
+        <p><a href="section-parsing.html#parse">Parse error</a>. Ignore the token.</p>
+      </dd></dl>
+    </dd></dl>
+  </dd></dl>
+
+  <p class="big-issue">This doesn't handle UAs that don't support frames, or
+   that do support frames but want to show the NOFRAMES content. Supporting
+   the former is easy; supporting the latter is harder.
+
+  </p><h5 id="the-trailing"><span class="secno">8.2.4.4. </span><dfn id="the-trailing0">The trailing end phase</dfn></h5>
+
+  <p>After <a href="#the-main0">the main phase</a>, as each token is emitted
+   from the <a href="section-tokenisation.html#tokenisation0">tokenisation</a> stage, it must be
+   processed as described in this section.
+
+  </p><dl class="switch">
+   <dt>A DOCTYPE token
+
+   </dt><dd>
+    <p><a href="section-parsing.html#parse">Parse error</a>. Ignore the token.</p>
+
+   </dd><dt>A comment token
+
+   </dt><dd>
+    <p>Append a <code>Comment</code> node to the <code>Document</code> object
+     with the <code title="">data</code> attribute set to the data given in
+     the comment token.</p>
+
+   </dd><dt>A character token that is one of one of U+0009 CHARACTER TABULATION,
+    U+000A LINE FEED (LF), U+000B LINE TABULATION, U+000C FORM FEED (FF),
+    U+000D CARRIAGE RETURN (CR), or U+0020 SPACE
+
+   </dt><dd>
+    <p>Process the token as it would be processed in <a href="#the-main0">the
+     main phase</a>.</p>
+
+   </dd><dt>A character token that is <em>not</em> one of U+0009 CHARACTER
+    TABULATION, U+000A LINE FEED (LF), U+000B LINE TABULATION, U+000C FORM
+    FEED (FF), U+000D CARRIAGE RETURN (CR), or U+0020 SPACE
+
+   </dt><dt>A start tag token
+
+   </dt><dt>An end tag token
+
+   </dt><dd>
+    <p><a href="section-parsing.html#parse">Parse error</a>. Switch back to <a href="#the-main0">the main phase</a> and reprocess the token.</p>
+
+   </dd><dt>An end-of-file token
+
+   </dt><dd>
+    <p><a href="#stops">Stop parsing</a>.</p>
+  </dd></dl>
+
+  <h4 id="the-end"><span class="secno">8.2.5. </span>The End</h4>
+
+  <p>Once the user agent <dfn id="stops" title="stop parsing">stops
+   parsing</dfn> the document, the user agent must follow the steps in this
+   section.
+
+  </p><p>First, <!--the user agent must <span title="fire a DOMContentLoaded
+  event">fire a <code
+  title="event-DOMContentLoaded">DOMContentLoaded</code> event</span>
+  at <span>the <code>body</code> element</span>.</p>
+
+  <p>Then, -->the
+   rules for <a href="section-scripting0.html#when-a">when a script completes loading</a> start
+   applying (script execution is no longer managed by the parser).
+
+  </p><p>If any of the scripts in the <a href="section-scripting0.html#list-of1">list of scripts that
+   will execute as soon as possible</a> have <span>completed
+   loading</span><!-- XXX xref -->, or if the <a href="section-scripting0.html#list-of0">list of
+   scripts that will execute asynchronously</a> is not empty and the first
+   script in that list has <span>completed loading</span><!-- XXX xref
+  -->,
+   then the user agent must act as if those scripts just completed loading,
+   following the rules given for that in the <code><a href="section-scripting0.html#script0">script</a></code> element definition.
+
+  </p><p>Then, if the <a href="section-scripting0.html#list-of">list of scripts that will execute when
+   the document has finished parsing</a> is not empty, and the first item in
+   this list has already <span>completed loading</span><!--XXX
+  xref -->,
+   then the user agent must act as if that script just finished loading.
+
+  </p><p>By this point, there will be no scripts that have loaded but have not
+   yet been executed.
+
+  </p><p>The user agent must then <a href="section-scripting.html#firing2">fire a simple event</a>
+   called <code title="event-DOMContentLoaded">DOMContentLoaded</code> at the
+   <code>Document</code>.
+
+  </p><p>Once everything that <dfn id="delays" title="delay the load event">delays
+   the load event</dfn> has completed, the user agent must <a href="section-scripting.html#firing4" title="fire a load event">fire a <code title="event-load">load</code>
+   event</a> at <a href="section-dom-tree.html#the-body0">the <code>body</code> element</a>.</p>
+  <!-- XXX make sure things "delay the load event" -->
+  <!--XXX need to handle
+http://lxr.mozilla.org/mozilla/source/parser/htmlparser/src/CNavDTD.cpp#2354
+2354           // Don't open transient styles if it makes the stack deep, bug 58917.
+-->
+  <!--XXX
+http://lxr.mozilla.org/mozilla/source/parser/htmlparser/src/nsHTMLTokenizer.cpp#749
+-->
+  <!--
+see also  CTextToken::ConsumeCharacterData()  for CDATA parsing?
+
+1212                      1  Here's a tricky case from bug 22596:  <h5><li><h5>
+1213                         How do we know that the 2nd <h5> should close the <LI> rather than nest inside the <LI>?
+1214                         (Afterall, the <h5> is a legal child of the <LI>).
+1215               
+1216                         The way you know is that there is no root between the two, so the <h5> binds more
+1217                         tightly to the 1st <h5> than to the <LI>.
+1218                      2.  Also, bug 6148 shows this case: <SPAN><DIV><SPAN>
+1219                         From this case we learned not to execute this logic if the parent is a block.
+1220                     
+1221                      3. Fix for 26583
+1222                         Ex. <A href=foo.html><B>foo<A href-bar.html>bar</A></B></A>  <- A legal HTML
+1223                         In the above example clicking on "foo" or "bar" should link to
+1224                         foo.html or bar.html respectively. That is, the inner <A> should be informed
+1225                         about the presence of an open <A> above <B>..so that the inner <A> can close out
+1226                         the outer <A>. The following code does it for us.
+1227                      
+1228                      4. Fix for 27865 [ similer to 22596 ]. Ex: <DL><DD><LI>one<DD><LI>two
+ - http://lxr.mozilla.org/mozilla/source/parser/htmlparser/src/CNavDTD.cpp#1211
+
+815             // Here's a problem.  If theTag is legal in here, we don't move it
+816             // out.  So if we're moving stuff out of here, the parent of theTag
+817             // gets closed at this point.  But some things are legal
+818             // _everywhere_ and hence would effectively close out misplaced
+819             // content in tables.  This is undesirable, so treat them as
+820             // illegal here so they'll be shipped out with their parents and
+821             // siblings.  See bug 40855 for an explanation (that bug was for
+822             // comments, but the same issues arise with whitespace, newlines,
+823             // noscript, etc).  Script is special, though.  Shipping it out
+824             // breaks document.write stuff.  See bug 243064.
+ - http://lxr.mozilla.org/mozilla/source/parser/htmlparser/src/CNavDTD.cpp#825
+
+
+1326     /**************************************************************************************
+1327      *
+1328      * Now a little code to deal with bug #49687 (crash when layout stack gets too deep)
+1329      * I've also opened this up to any container (not just inlines): re bug 55095
+1330      * Improved to handle bug 55980 (infinite loop caused when DEPTH is exceeded and
+1331      * </P> is encountered by itself (<P>) is continuously produced.
+1332      *
+1333      **************************************************************************************/
+
+1912               // Oh boy!! we found a "stray" tag. Nav4.x and IE introduce line break in
+1913               // such cases. So, let's simulate that effect for compatibility.
+1914               // Ex. <html><body>Hello</P>There</body></html>
+http://lxr.mozilla.org/mozilla/source/parser/htmlparser/src/CNavDTD.cpp#1912
+
+http://lxr.mozilla.org/seamonkey/search?string=nested
+/parser/htmlparser/src/CNavDTD.cpp, line 791 - * 2. <CENTER><DL><DT><A><CENTER> allow nested <CENTER>
+/parser/htmlparser/src/CNavDTD.cpp, line 792 - * 3. <TABLE><TR><TD><TABLE>... allow nested <TABLE>
+/parser/htmlparser/src/CNavDTD.cpp, line 2562 - // Discard nested forms - bug 72639
+/parser/htmlparser/src/nsElementTable.cpp, line 1453 - * 2. <CENTER><DL><DT><A><CENTER> allow nested <CENTER>
+/parser/htmlparser/src/nsElementTable.cpp, line 1454 - * 3. <TABLE><TR><TD><TABLE>... allow nested <TABLE>
+/parser/htmlparser/src/nsElementTable.cpp, line 1901 - // Ex: <H1><LI><H1><LI>. Inner LI has the potential of getting nested
+-->
+
+  <script src="http://status.whatwg.org/annotate-web-apps.js" type="text/javascript"></script></body></html>

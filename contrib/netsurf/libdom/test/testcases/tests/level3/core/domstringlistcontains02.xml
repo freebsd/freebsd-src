@@ -1,0 +1,59 @@
+<?xml version="1.0" encoding="UTF-8"?><?xml-stylesheet href="test-to-html.xsl" type="text/xml"?>
+<!--
+
+Copyright (c) 2001-2004 World Wide Web Consortium, 
+(Massachusetts Institute of Technology, Institut National de
+Recherche en Informatique et en Automatique, Keio University).  All 
+Rights Reserved.  This program is distributed under the W3C's Software
+Intellectual Property License.  This program is distributed in the 
+hope that it will be useful, but WITHOUT ANY WARRANTY; without even
+the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR 
+PURPOSE.  
+
+See W3C License http://www.w3.org/Consortium/Legal/ for more details.
+
+-->
+
+<!DOCTYPE test SYSTEM "dom3.dtd">
+<test xmlns="http://www.w3.org/2001/DOM-Test-Suite/Level-3" name="domstringlistcontains02">
+<metadata>
+<title>domstringlistcontains02</title>
+<creator>IBM</creator>
+<description>
+	The contains method of the DOMStringList tests if a string is part of this DOMStringList.  
+	
+	Invoke the contains method on the list searching for several of the parameters recognized by the 
+        DOMConfiguration object.  
+	Verify that the list contains features that are required and supported by this DOMConfiguration object.
+        Verify that the contains method returns false for a string that is not contained in this DOMStringList. 
+</description>
+<contributor>Jenny Hsu</contributor>
+<date qualifier="created">2003-10-29</date>
+<subject resource="http://www.w3.org/TR/2004/REC-DOM-Level-3-Core-20040407/core#DOMStringList-contains"/>
+</metadata>
+<var name="doc" type="Document"/>
+<var name="paramList" type="DOMStringList"/>
+<var name="domConfig" type="DOMConfiguration"/>
+<var name="contain" type="boolean"/>
+<load var="doc" href="hc_staff" willBeModified="false"/>
+<domConfig obj="doc" var="domConfig" interface="Document"/>
+<parameterNames obj="domConfig" var="paramList"/>
+
+<contains obj="paramList" var="contain" str='"comments"' interface="DOMStringList"/>
+<assertTrue actual="contain" id="domstringlistcontains02_1"/>
+<contains obj="paramList" var="contain" str='"cdata-sections"' interface="DOMStringList"/>
+<assertTrue actual="contain" id="domstringlistcontains02_2"/>
+<contains obj="paramList" var="contain" str='"entities"' interface="DOMStringList"/>
+<assertTrue actual="contain" id="domstringlistcontains02_3"/>
+<contains obj="paramList" var="contain" str='"error-handler"' interface="DOMStringList"/>
+<assertTrue actual="contain" id="domstringlistcontains02_4"/>
+<contains obj="paramList" var="contain" str='"infoset"' interface="DOMStringList"/>
+<assertTrue actual="contain" id="domstringlistcontains02_5"/>
+<contains obj="paramList" var="contain" str='"namespace-declarations"' interface="DOMStringList"/>
+<assertTrue actual="contain" id="domstringlistcontains02_6"/>
+<contains obj="paramList" var="contain" str='"element-content-whitespace"' interface="DOMStringList"/>
+<assertTrue actual="contain" id="domstringlistcontains02_7"/>
+<contains obj="paramList" var="contain" str='"test"' interface="DOMStringList"/>
+<assertFalse actual="contain" id="domstringlistcontains02_8"/> 
+</test> 
+

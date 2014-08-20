@@ -1,0 +1,61 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+Copyright (c) 2001-2004 World Wide Web Consortium,
+(Massachusetts Institute of Technology, Institut National de
+Recherche en Informatique et en Automatique, Keio University). All
+Rights Reserved. This program is distributed under the W3C's Software
+Intellectual Property License. This program is distributed in the
+hope that it will be useful, but WITHOUT ANY WARRANTY; without even
+the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
+PURPOSE.
+See W3C License http://www.w3.org/Consortium/Legal/ for more details.
+--><!DOCTYPE test SYSTEM "dom1.dtd">
+
+<test xmlns="http://www.w3.org/2001/DOM-Test-Suite/Level-1" name="elementremoveattributenodenomodificationallowederrEE">
+<metadata>
+<title>elementRemoveAttributeNodeNoModificationAllowedErrEE</title>
+<creator>Curt Arnold</creator>
+<description>
+    The "removeAttributeNode(oldAttr)" method for an attribute causes the 
+   DOMException NO_MODIFICATION_ALLOWED_ERR to be raised
+   if the node is readonly.
+   
+   Create an entity reference and add it to the children of the THIRD "gender" element.
+   Try to remove the "domestic" attribute from the entity 
+   reference by executing the "removeAttributeNode(oldAttr)" method.
+   This causes a NO_MODIFICATION_ALLOWED_ERR DOMException to be thrown.
+</description>
+<date qualifier="created">2001-08-21</date>
+<subject resource="http://www.w3.org/TR/1998/REC-DOM-Level-1-19981001/level-one-core#xpointer(id('ID-258A00AF')/constant[@name='NO_MODIFICATION_ALLOWED_ERR'])"/>
+<subject resource="http://www.w3.org/TR/1998/REC-DOM-Level-1-19981001/level-one-core#ID-D589198"/>
+<subject resource="http://www.w3.org/TR/1998/REC-DOM-Level-1-19981001/level-one-core#xpointer(id('ID-D589198')/raises/exception[@name='DOMException']/descr/p[substring-before(.,':')='NO_MODIFICATION_ALLOWED_ERR'])"/>
+<subject resource="http://www.w3.org/TR/1998/REC-DOM-Level-1-19981001/level-one-core#ID-D589198"/>
+<source resource="http://www.w3.org/2001/DOM-Test-Suite/level1/core/elementremoveattributenodenomodificationallowederr.xml"/>
+</metadata>
+<var name="doc" type="Document"/>
+<var name="genderList" type="NodeList"/>
+<var name="gender" type="Node"/>
+<var name="entRef" type="EntityReference"/>
+<var name="entElement" type="Element"/>
+<var name="attrList" type="NamedNodeMap"/>
+<var name="attrNode" type="Attr"/>
+<var name="nodeType" type="int"/>
+<var name="removedAttr" type="Attr"/>
+<var name="appendedChild" type="Node"/>
+<load var="doc" href="staff" willBeModified="true"/>
+<getElementsByTagName interface="Document" obj="doc" var="genderList" tagname="&quot;gender&quot;"/>
+<item interface="NodeList" obj="genderList" var="gender" index="2"/>
+<createEntityReference var="entRef" obj="doc" name="&quot;ent4&quot;"/>
+<assertNotNull actual="entRef" id="createdEntRefNotNull"/>
+<appendChild obj="gender" newChild="entRef" var="appendedChild"/>
+<firstChild interface="Node" var="entElement" obj="entRef"/>
+<assertNotNull actual="entElement" id="entElementNotNull"/>
+<attributes obj="entElement" var="attrList"/>
+<getNamedItem obj="attrList" var="attrNode" name='"domestic"'/>
+<assertNotNull actual="attrNode" id="attrNodeNotNull"/>
+<assertDOMException id="throw_NO_MODIFICATION_ALLOWED_ERR">
+<NO_MODIFICATION_ALLOWED_ERR>
+<removeAttributeNode var="removedAttr" obj="entElement" oldAttr="attrNode"/>
+</NO_MODIFICATION_ALLOWED_ERR>
+</assertDOMException>
+</test>

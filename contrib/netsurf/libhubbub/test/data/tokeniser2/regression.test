@@ -1,0 +1,20 @@
+{"tests": [
+
+{"description":"CR in double-quoted attribute value",
+"input":"<foo bar=\"\r\u2022xyz\"",
+"output":[["StartTag", "foo", {"bar":"\n\u2022xyz"}]]},
+
+{"description":"CR in single-quoted attribute value",
+"input":"<foo bar='\r\u2022xyz'",
+"output":[["StartTag", "foo", {"bar":"\n\u2022xyz"}]]},
+
+{"description":"CR in comment",
+"input":"<!--\r\u2022xyz-->",
+"output":[["Comment", "\n\u2022xyz"]]},
+
+{"description":"CR in CDATA section",
+"processCDATA":true,
+"input":"<![CDATA[\r\u2022xyz]]>",
+"output":[["Character", "\n\u2022xyz"]]},
+
+]}

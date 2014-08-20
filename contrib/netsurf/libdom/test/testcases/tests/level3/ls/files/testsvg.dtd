@@ -1,0 +1,13 @@
+<!ELEMENT svg (rect, script, (elt0|elt1)*)>
+<!ATTLIST svg 
+      xmlns CDATA #FIXED "http://www.w3.org/2000/svg"
+      name CDATA #IMPLIED>
+<!ELEMENT rect EMPTY>
+<!ATTLIST rect 
+      x CDATA #REQUIRED
+      y CDATA #REQUIRED
+      width CDATA #REQUIRED
+      height CDATA #REQUIRED>
+<!ELEMENT script (#PCDATA)>
+<!ATTLIST script type CDATA #IMPLIED>      
+

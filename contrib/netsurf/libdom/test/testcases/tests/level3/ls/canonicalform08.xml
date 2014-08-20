@@ -1,0 +1,113 @@
+<?xml version="1.0" encoding="UTF-8"?><?xml-stylesheet href="test-to-html.xsl" type="text/xml"?>
+
+<!--
+
+Copyright (c) 2004 World Wide Web Consortium,
+(Massachusetts Institute of Technology, Institut National de
+Recherche en Informatique et en Automatique, Keio University).  All
+Rights Reserved.  This program is distributed under the W3C's Software
+Intellectual Property License.  This program is distributed in the
+hope that it will be useful, but WITHOUT ANY WARRANTY; without even
+the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
+PURPOSE.
+
+See W3C License http://www.w3.org/Consortium/Legal/ for more details.
+
+-->
+
+<!DOCTYPE test SYSTEM "dom3.dtd">
+<test xmlns="http://www.w3.org/2001/DOM-Test-Suite/Level-3" name="canonicalform08">
+<metadata>
+<title>canonicalform08</title>
+<creator>Curt Arnold</creator>
+<description>
+Normalize document based on section 3.1 with canonical-form set to true and check normalized document.
+</description>
+<date qualifier="created">2004-03-29</date>
+<subject resource="http://www.w3.org/TR/2004/REC-DOM-Level-3-LS-20040407/load-save#LS-LSParser-parseURI"/>
+<subject resource="http://www.w3.org/TR/2004/REC-DOM-Level-3-Core-20040407/core#parameter-canonical-form"/>
+</metadata>
+<var name="doc" type="Document"/>
+<var name="bodyList" type="NodeList"/>
+<var name="body" type="Element"/>
+<var name="domConfig" type="DOMConfiguration"/>
+<var name="canSet" type="boolean"/>
+<var name="canSetValidate" type="boolean"/>
+<var name="node" type="Node"/>
+<var name="nodeName" type="DOMString"/>
+<var name="nodeValue" type="DOMString"/>
+<var name="nodeType" type="int"/>
+<var name="length" type="int"/>
+<var name="text" type="Text"/>
+<var name="domImplLS" type="DOMImplementationLS"/>
+<var name="lsParser" type="LSParser"/>
+<var name="nullSchemaType" type="DOMString" isNull="true"/>
+<var name="resourceURI" type="DOMString"/>
+<var name="canSetCanonicalForm" type="boolean"/>
+<implementation var="domImplLS"/>
+<createLSParser var="lsParser" obj="domImplLS" mode="1" schemaType="nullSchemaType"/>
+<domConfig obj="lsParser" var="domConfig" interface="LSParser"/>
+<canSetParameter var="canSetCanonicalForm" obj="domConfig" name='"canonical-form"' value="true"/>
+<if><isTrue value="canSetCanonicalForm"/>
+<setParameter obj="domConfig" name='"canonical-form"' value="true"/>
+<getResourceURI var="resourceURI" href='"canonicalform01"' contentType="text/xml"/>
+<parseURI var="doc" obj="lsParser" uri="resourceURI"/>
+<firstChild var="node" obj="doc" interface="Node"/>
+<nodeType var="nodeType" obj="node" interface="Node"/>
+<assertEquals expected="7" actual="nodeType" ignoreCase="false" id="PIisFirstChild"/>
+<data var="nodeValue" obj="node" interface="ProcessingInstruction"/>
+<length var="length" obj="nodeValue" interface="DOMString"/>
+<assertEquals actual="length" expected="36" ignoreCase="false" id="piDataLength"/>
+<!--  next sibling is a #0A line feed  -->
+<nextSibling interface="Node"  var="node" obj="node"/>
+<nodeType var="nodeType" obj="node"/>
+<assertEquals expected="3" actual="nodeType"  ignoreCase="false" id="TextisSecondChild"/>
+<nodeValue var="nodeValue" obj="node"/>
+<length var="length" obj="nodeValue" interface="DOMString"/>
+<assertEquals actual="length" expected="1" ignoreCase="false" id="secondChildLength"/>
+<!--  next sibling is document element  -->
+<nextSibling interface="Node"  var="node" obj="node"/>
+<nodeType var="nodeType" obj="node"/>
+<assertEquals expected="1" actual="nodeType" ignoreCase="false" id="ElementisThirdChild"/>
+<!--  next sibling is a #0A line feed  -->
+<nextSibling interface="Node"  var="node" obj="node"/>
+<nodeType var="nodeType" obj="node"/>
+<assertEquals expected="3" actual="nodeType"  ignoreCase="false" id="TextisFourthChild"/>
+<nodeValue var="nodeValue" obj="node"/>
+<length var="length" obj="nodeValue" interface="DOMString"/>
+<assertEquals actual="length" expected="1" ignoreCase="false" id="fourthChildLength"/>
+<!--  next sibling is a processing instruction  -->
+<nextSibling interface="Node"  var="node" obj="node"/>
+<nodeType var="nodeType" obj="node"/>
+<assertEquals expected="7" actual="nodeType"  ignoreCase="false" id="PIisFifthChild"/>
+<data var="nodeValue" obj="node" interface="ProcessingInstruction"/>
+<assertEquals actual="nodeValue" expected='""' ignoreCase="false" id="trailingPIData"/>
+<!--  next sibling is a #0A line feed  -->
+<nextSibling interface="Node"  var="node" obj="node"/>
+<nodeType var="nodeType" obj="node"/>
+<assertEquals expected="3" actual="nodeType"  ignoreCase="false" id="TextisSixthChild"/>
+<nodeValue var="nodeValue" obj="node"/>
+<length var="length" obj="nodeValue" interface="DOMString"/>
+<assertEquals actual="length" expected="1" ignoreCase="false" id="sixthChildLength"/>
+<!--  next sibling is a comment  -->
+<nextSibling interface="Node"  var="node" obj="node"/>
+<nodeType var="nodeType" obj="node"/>
+<assertEquals expected="8" actual="nodeType"  ignoreCase="false" id="CommentisSeventhChild"/>
+<!--  next sibling is a #0A line feed  -->
+<nextSibling interface="Node"  var="node" obj="node"/>
+<nodeType var="nodeType" obj="node"/>
+<assertEquals expected="3" actual="nodeType"  ignoreCase="false" id="TextisEighthChild"/>
+<nodeValue var="nodeValue" obj="node"/>
+<length var="length" obj="nodeValue" interface="DOMString"/>
+<assertEquals actual="length" expected="1" ignoreCase="false" id="eighthChildLength"/>
+<!--  next sibling is a comment  -->
+<nextSibling interface="Node"  var="node" obj="node"/>
+<nodeType var="nodeType" obj="node"/>
+<assertEquals expected="8" actual="nodeType"  ignoreCase="false" id="CommentisNinthChild"/>
+<!--  next sibling is a null  -->
+<nextSibling interface="Node"  var="node" obj="node"/>
+<assertNull actual="node" id="TenthIsNull"/>
+</if>
+</test>
+
+

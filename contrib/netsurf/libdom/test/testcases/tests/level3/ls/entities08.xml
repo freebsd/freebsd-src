@@ -1,0 +1,62 @@
+<?xml version="1.0" encoding="UTF-8"?><?xml-stylesheet href="test-to-html.xsl" type="text/xml"?>
+
+<!--
+
+Copyright (c) 2004 World Wide Web Consortium,
+(Massachusetts Institute of Technology, Institut National de
+Recherche en Informatique et en Automatique, Keio University).  All
+Rights Reserved.  This program is distributed under the W3C's Software
+Intellectual Property License.  This program is distributed in the
+hope that it will be useful, but WITHOUT ANY WARRANTY; without even
+the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
+PURPOSE.
+
+See W3C License http://www.w3.org/Consortium/Legal/ for more details.
+
+-->
+
+<!DOCTYPE test SYSTEM "dom3.dtd">
+<test xmlns="http://www.w3.org/2001/DOM-Test-Suite/Level-3" name="entities08">
+<metadata>
+<title>entities08</title>
+<creator>Curt Arnold</creator>
+<description>
+Entity references should be preserved when entities is true.
+</description>
+<date qualifier="created">2004-03-31</date>
+<subject resource="http://www.w3.org/TR/2004/REC-DOM-Level-3-LS-20040407/load-save#LS-LSSerializer-writeToString"/>
+<subject resource="http://www.w3.org/TR/2004/REC-DOM-Level-3-Core-20040407/core#parameter-entities"/>
+</metadata>
+<var name="doc" type="Document"/>
+<var name="domConfig" type="DOMConfiguration"/>
+<var name="domImplLS" type="DOMImplementationLS"/>
+<var name="lsSerializer" type="LSSerializer"/>
+<var name="output" type="DOMString"/>
+<var name="varList" type="NodeList"/>
+<var name="varNode" type="Node"/>
+<var name="child" type="Node"/>
+<var name="childType" type="int"/>
+<var name="entRef" type="EntityReference"/>
+<var name="retNode" type="Node"/>
+<implementation var="domImplLS"/>
+<load var="doc" href="hc_staff" willBeModified="true"/>
+<!--  entity references may be expanded on load
+         if so, create and insert an entity reference into the document -->
+<getElementsByTagName var="varList" obj="doc"
+       tagname='"var"' interface="Document"/>
+<item var="varNode" obj="varList" index="2" interface="NodeList"/>
+<firstChild var="child" obj="varNode" interface="Node"/>
+<nodeType var="childType" obj="child"/>
+<if><equals actual="childType" expected="1" ignoreCase="false"/>
+	<createEntityReference var="entRef" obj="doc"
+		name='"ent4"'/>
+	<appendChild var="retNode" obj="varNode" newChild="entRef"/>
+</if>      
+<createLSSerializer var="lsSerializer" obj="domImplLS"/>
+<domConfig obj="lsSerializer" var="domConfig" interface="LSSerializer"/>
+<setParameter obj="domConfig" name='"entities"' value="true"/>
+<writeToString var="output" obj="lsSerializer" nodeArg="doc"/>
+<assertTrue id="hasEntRef"><contains obj="output" str='"ent4;"' interface="DOMString"/></assertTrue>
+</test>
+
+

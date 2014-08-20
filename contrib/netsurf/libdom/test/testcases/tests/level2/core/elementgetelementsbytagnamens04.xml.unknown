@@ -1,0 +1,63 @@
+<?xml version="1.0" encoding="UTF-8"?><?xml-stylesheet href="test-to-html.xsl" type="text/xml"?>
+
+<!--
+
+Copyright (c) 2001-2003 World Wide Web Consortium, 
+(Massachusetts Institute of Technology, Institut National de
+Recherche en Informatique et en Automatique, Keio University).  All 
+Rights Reserved.  This program is distributed under the W3C's Software
+Intellectual Property License.  This program is distributed in the 
+hope that it will be useful, but WITHOUT ANY WARRANTY; without even
+the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR 
+PURPOSE.  
+
+See W3C License http://www.w3.org/Consortium/Legal/ for more details.
+
+-->
+<!DOCTYPE test SYSTEM "dom2.dtd">
+<test xmlns="http://www.w3.org/2001/DOM-Test-Suite/Level-2" name="elementgetelementsbytagnamens04">
+  <metadata>
+    <title>elementgetelementsbytagnamens04</title>
+    <creator>IBM</creator>
+    <description>
+      Returns a NodeList of all the Elements with a given local name and namespace URI in the 
+      order in which they are encountered in a preorder traversal of the Document tree. 
+      Create a new element node ('root') and append three newly created child nodes (all have 
+      local name 'child' and defined in different namespaces). 
+      Test 1: invoke getElementsByTagNameNS to retrieve one of the children.
+      Test 2: invoke getElementsByTagNameNS with the value of namespace equals to '*', and 
+      verify that the node list has length of 3. 
+    </description>
+    <contributor>Neil Delima</contributor>
+    <date qualifier="created">2002-04-28</date>
+    <subject resource="http://www.w3.org/TR/DOM-Level-2-Core/core#ID-getElBTNNS"/>
+    <subject resource="http://www.w3.org/Bugs/Public/show_bug.cgi?id=259"/>
+  </metadata>
+  <implementationAttribute name="namespaceAware" value="true"/>
+  <var name="doc" type="Document"/>
+  <var name="element" type="Element"/>
+  <var name="child1" type="Element"/>
+  <var name="child2" type="Element"/>
+  <var name="child3" type="Element"/>
+  <var name="appendedChild" type="Node"/>
+  <var name="elementList" type="NodeList"/>
+  <var name="nullNS" type="DOMString" isNull="true"/>
+  <load var="doc" href="staffNS" willBeModified="false"/>
+  <createElementNS var="element" obj="doc" namespaceURI='"http://www.w3.org/DOM"' 
+		   qualifiedName='"root"'/>
+  <createElementNS var="child1" obj="doc" namespaceURI='"http://www.w3.org/DOM/Level1"' 
+		   qualifiedName='"dom:child"'/>
+  <createElementNS var="child2" obj="doc" namespaceURI="nullNS" 
+		   qualifiedName='"child"'/>
+  <createElementNS var="child3" obj="doc" namespaceURI='"http://www.w3.org/DOM/Level2"' 
+		   qualifiedName='"dom:child"'/>
+  <appendChild var="appendedChild" obj="element" newChild="child1"/>
+  <appendChild var="appendedChild" obj="element" newChild="child2"/>
+  <appendChild var="appendedChild" obj="element" newChild="child3"/>
+  <getElementsByTagNameNS var="elementList" obj="element" namespaceURI="nullNS" 
+			  localName='"child"'  interface="Element" />
+  <assertSize size="1" collection="elementList" id="elementgetelementsbytagnamens04_1"/>
+  <getElementsByTagNameNS var="elementList" obj="element" namespaceURI='"*"' 
+			  localName='"child"'  interface="Element" />
+  <assertSize size="3" collection="elementList" id="elementgetelementsbytagnamens04_2"/>
+</test>

@@ -1,0 +1,52 @@
+<?xml version="1.0" encoding="UTF-8"?><?xml-stylesheet href="test-to-html.xsl" type="text/xml"?>
+
+<!--
+
+Copyright (c) 2001-2004 World Wide Web Consortium, 
+(Massachusetts Institute of Technology, Institut National de
+Recherche en Informatique et en Automatique, Keio University).  All 
+Rights Reserved.  This program is distributed under the W3C's Software
+Intellectual Property License.  This program is distributed in the 
+hope that it will be useful, but WITHOUT ANY WARRANTY; without even
+the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR 
+PURPOSE.  
+
+See W3C License http://www.w3.org/Consortium/Legal/ for more details.
+
+-->
+
+<!DOCTYPE test SYSTEM "dom3.dtd">
+<test xmlns="http://www.w3.org/2001/DOM-Test-Suite/Level-3" name="documentrenamenode16">
+<metadata>
+<title>documentrenamenode16</title>
+<creator>IBM</creator>
+<description>
+	Invoke the renameNode method to rename the fourth 
+	acronym element with a new namespaceURI that is 
+	null and qualifiedName that is renamedNode. 
+	Check if this element has been renamed successfully by verifying the
+	nodeName, attributes of the renamed node.
+</description>
+<contributor>Neil Delima</contributor>
+<date qualifier="created">2002-06-10</date>
+<subject resource="http://www.w3.org/TR/2004/REC-DOM-Level-3-Core-20040407/core#Document3-renameNode"/>
+</metadata>
+<var name="doc" type="Document"/>
+<var name="element" type="Element"/>
+<var name="childList" type="NodeList"/>
+<var name="renamedclass" type="Node"/>
+<var name="nodeName" type="DOMString"/>
+<var name="nodeType" type="int"/>
+<var name="namespaceURI" type="DOMString"/>
+<var name="nullNSURI" type="DOMString" isNull="true"/>
+<load var="doc" href="hc_staff" willBeModified="true"/>
+<getElementsByTagName var="childList" obj="doc" tagname='"acronym"' interface="Document"/>
+<item var="element" obj="childList" index="3" interface="NodeList"/>
+<renameNode var="renamedclass" obj="doc" n="element" namespaceURI="nullNSURI" qualifiedName='"renamedNode"'/>
+<nodeName var="nodeName" obj="renamedclass"/>
+<namespaceURI var="namespaceURI" obj="renamedclass" interface="Node"/>
+<nodeType var="nodeType" obj="renamedclass"/>
+<assertEquals expected='"renamedNode"' actual="nodeName"  id="documentrenamenode16_nodeName" ignoreCase="false"/>
+<assertEquals expected="1" actual="nodeType"  id="documentrenamenode16_nodeType" ignoreCase="false"/>
+<assertNull actual="namespaceURI"  id="documentrenamenode16_nodeValue"/>
+</test>
