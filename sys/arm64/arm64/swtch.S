@@ -64,6 +64,7 @@ ENTRY(cpu_switch)
 	ldr	x3, .Lcurpcpu
 
 	/* Store the new curthread */
+	str	x1, [x3, #PC_CURTHREAD]
 	msr	tpidr_el1, x1
 	/* And the new pcb */
 	ldr	x4, [x1, #TD_PCB]
