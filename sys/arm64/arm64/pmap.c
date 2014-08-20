@@ -746,8 +746,18 @@ pmap_growkernel(vm_offset_t addr)
 void
 pmap_remove(pmap_t pmap, vm_offset_t sva, vm_offset_t eva)
 {
+	pt_entry_t *l3;
+	vm_offset_t va_next;
 
-	panic("pmap_remove");
+	KASSERT(pmap == pmap_kernel(), ("Only kernel mappings for now"));
+	PMAP_LOCK(pmap);
+	for (; sva < eva; sva = va_next) {
+		va_next = sva + L3_SIZE;
+		l3 = pmap_l3(pmap, sva);
+		if (l3 != NULL)
+			*l3 = 0;
+	}
+	PMAP_UNLOCK(pmap);
 }
 
 /*
