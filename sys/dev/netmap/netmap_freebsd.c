@@ -50,6 +50,9 @@
 #include <sys/selinfo.h>
 #include <net/if.h>
 #include <net/if_var.h>
+#include <net/if_types.h> /* IFT_ETHER */
+#include <net/ethernet.h> /* ether_ifdetach */
+#include <net/if_dl.h> /* LLADDR */
 #include <machine/bus.h>        /* bus_dmamap_* */
 #include <netinet/in.h>		/* in6_cksum_pseudo() */
 #include <machine/in_cksum.h>  /* in_pseudo(), in_cksum_hdr() */
@@ -91,8 +94,7 @@ nm_csum_fold(rawsum_t cur_sum)
 	return htobe16((~cur_sum) & 0xFFFF);
 }
 
-uint16_t
-nm_csum_ipv4(struct nm_iphdr *iph)
+uint16_t nm_csum_ipv4(struct nm_iphdr *iph)
 {
 #if 0
 	return in_cksum_hdr((void *)iph);
@@ -148,8 +150,7 @@ nm_csum_tcpudp_ipv6(struct nm_ipv6hdr *ip6h, void *data,
 int
 netmap_catch_rx(struct netmap_adapter *na, int intercept)
 {
-	struct netmap_generic_adapter *gna =
-		(struct netmap_generic_adapter *)na;
+	struct netmap_generic_adapter *gna = (struct netmap_generic_adapter *)na;
 	struct ifnet *ifp = na->ifp;
 
 	if (intercept) {
@@ -221,9 +222,9 @@ generic_xmit_frame(struct ifnet *ifp, struct mbuf *m,
 	 * (and eventually, just reference the netmap buffer)
 	 */
 
-	if (*m->m_ext.ref_cnt != 1) {
+	if (GET_MBUF_REFCNT(m) != 1) {
 		D("invalid refcnt %d for %p",
-			*m->m_ext.ref_cnt, m);
+			GET_MBUF_REFCNT(m), m);
 		panic("in generic_xmit_frame");
 	}
 	// XXX the ext_size check is unnecessary if we link the netmap buf
@@ -231,14 +232,14 @@ generic_xmit_frame(struct ifnet *ifp, struct mbuf *m,
 		RD(5, "size %d < len %d", m->m_ext.ext_size, len);
 		len = m->m_ext.ext_size;
 	}
-	if (1) { /* XXX seems to have negligible benefits */
+	if (0) { /* XXX seems to have negligible benefits */
 		m->m_ext.ext_buf = m->m_data = addr;
 	} else {
 		bcopy(addr, m->m_data, len);
 	}
 	m->m_len = m->m_pkthdr.len = len;
 	// inc refcount. All ours, we could skip the atomic
-	atomic_fetchadd_int(m->m_ext.ref_cnt, 1);
+	atomic_fetchadd_int(PNT_MBUF_REFCNT(m), 1);
 	m->m_flags |= M_FLOWID;
 	m->m_pkthdr.flowid = ring_nr;
 	m->m_pkthdr.rcvif = ifp; /* used for tx notification */
@@ -277,10 +278,11 @@ generic_find_num_queues(struct ifnet *ifp, u_int *txq, u_int *rxq)
 
 
 void
-netmap_mitigation_init(struct nm_generic_mit *mit, struct netmap_adapter *na)
+netmap_mitigation_init(struct nm_generic_mit *mit, int idx, struct netmap_adapter *na)
 {
 	ND("called");
 	mit->mit_pending = 0;
+	mit->mit_ring_idx = idx;
 	mit->mit_na = na;
 }
 
@@ -313,6 +315,135 @@ netmap_mitigation_cleanup(struct nm_generic_mit *mit)
 	ND("called");
 }
 
+static int
+nm_vi_dummy(struct ifnet *ifp, u_long cmd, caddr_t addr)
+{
+	return EINVAL;
+}
+
+static void
+nm_vi_start(struct ifnet *ifp)
+{
+	panic("nm_vi_start() must not be called");
+}
+
+/*
+ * Index manager of persistent virtual interfaces.
+ * It is used to decide the lowest byte of the MAC address.
+ * We use the same algorithm with management of bridge port index.
+ */
+#define NM_VI_MAX	255
+static struct {
+	uint8_t index[NM_VI_MAX]; /* XXX just for a reasonable number */
+	uint8_t active;
+	struct mtx lock;
+} nm_vi_indices;
+
+void
+nm_vi_init_index(void)
+{
+	int i;
+	for (i = 0; i < NM_VI_MAX; i++)
+		nm_vi_indices.index[i] = i;
+	nm_vi_indices.active = 0;
+	mtx_init(&nm_vi_indices.lock, "nm_vi_indices_lock", NULL, MTX_DEF);
+}
+
+/* return -1 if no index available */
+static int
+nm_vi_get_index(void)
+{
+	int ret;
+
+	mtx_lock(&nm_vi_indices.lock);
+	ret = nm_vi_indices.active == NM_VI_MAX ? -1 :
+		nm_vi_indices.index[nm_vi_indices.active++];
+	mtx_unlock(&nm_vi_indices.lock);
+	return ret;
+}
+
+static void
+nm_vi_free_index(uint8_t val)
+{
+	int i, lim;
+
+	mtx_lock(&nm_vi_indices.lock);
+	lim = nm_vi_indices.active;
+	for (i = 0; i < lim; i++) {
+		if (nm_vi_indices.index[i] == val) {
+			/* swap index[lim-1] and j */
+			int tmp = nm_vi_indices.index[lim-1];
+			nm_vi_indices.index[lim-1] = val;
+			nm_vi_indices.index[i] = tmp;
+			nm_vi_indices.active--;
+			break;
+		}
+	}
+	if (lim == nm_vi_indices.active)
+		D("funny, index %u didn't found", val);
+	mtx_unlock(&nm_vi_indices.lock);
+}
+#undef NM_VI_MAX
+
+/*
+ * Implementation of a netmap-capable virtual interface that
+ * registered to the system.
+ * It is based on if_tap.c and ip_fw_log.c in FreeBSD 9.
+ *
+ * Note: Linux sets refcount to 0 on allocation of net_device,
+ * then increments it on registration to the system.
+ * FreeBSD sets refcount to 1 on if_alloc(), and does not
+ * increment this refcount on if_attach().
+ */
+int
+nm_vi_persist(const char *name, struct ifnet **ret)
+{
+	struct ifnet *ifp;
+	u_short macaddr_hi;
+	uint32_t macaddr_mid;
+	u_char eaddr[6];
+	int unit = nm_vi_get_index(); /* just to decide MAC address */
+
+	if (unit < 0)
+		return EBUSY;
+	/*
+	 * We use the same MAC address generation method with tap
+	 * except for the highest octet is 00:be instead of 00:bd
+	 */
+	macaddr_hi = htons(0x00be); /* XXX tap + 1 */
+	macaddr_mid = (uint32_t) ticks;
+	bcopy(&macaddr_hi, eaddr, sizeof(short));
+	bcopy(&macaddr_mid, &eaddr[2], sizeof(uint32_t));
+	eaddr[5] = (uint8_t)unit;
+
+	ifp = if_alloc(IFT_ETHER);
+	if (ifp == NULL) {
+		D("if_alloc failed");
+		return ENOMEM;
+	}
+	if_initname(ifp, name, IF_DUNIT_NONE);
+	ifp->if_mtu = 65536;
+	ifp->if_flags = IFF_UP | IFF_SIMPLEX | IFF_MULTICAST;
+	ifp->if_init = (void *)nm_vi_dummy;
+	ifp->if_ioctl = nm_vi_dummy;
+	ifp->if_start = nm_vi_start;
+	ifp->if_mtu = ETHERMTU;
+	IFQ_SET_MAXLEN(&ifp->if_snd, ifqmaxlen);
+	ifp->if_capabilities |= IFCAP_LINKSTATE;
+	ifp->if_capenable |= IFCAP_LINKSTATE;
+
+	ether_ifattach(ifp, eaddr);
+	*ret = ifp;
+	return 0;
+}
+/* unregister from the system and drop the final refcount */
+void
+nm_vi_detach(struct ifnet *ifp)
+{
+	nm_vi_free_index(((char *)IF_LLADDR(ifp))[5]);
+	ether_ifdetach(ifp);
+	if_free(ifp);
+}
 
 /*
  * In order to track whether pages are still mapped, we hook into
