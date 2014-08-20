@@ -30,7 +30,8 @@
 
 #if defined(_KERNEL)
 	/*
-	 * Legacy kernel interfaces; they will go away (eventually).
+	 * Legacy kernel interfaces; they will go away the moment our closed
+	 * bins no longer require them.
 	 */
 	ANSI_PRAGMA_WEAK2(cas8,atomic_cas_8,function)
 	ANSI_PRAGMA_WEAK2(cas32,atomic_cas_32,function)
