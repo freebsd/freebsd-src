@@ -78,7 +78,6 @@ typedef void * (*path_enum_proc) (const char *path, size_t len, void *arg);
  * Function declarations.
  */
 static const char *basename(const char *);
-static void die(void) __dead2;
 static void digest_dynamic1(Obj_Entry *, int, const Elf_Dyn **,
     const Elf_Dyn **, const Elf_Dyn **);
 static void digest_dynamic2(Obj_Entry *, const Elf_Dyn *, const Elf_Dyn *,
@@ -842,7 +841,7 @@ origin_subst(char *real, const char *origin_path)
 	return (res4);
 }
 
-static void
+void
 die(void)
 {
     const char *msg = dlerror();
