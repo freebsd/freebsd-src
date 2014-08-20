@@ -44,13 +44,13 @@
 #define unlikely(x)	__builtin_expect((long)!!(x), 0L)
 
 #define	NM_LOCK_T	struct mtx
-#define	NMG_LOCK_T	struct mtx
-#define NMG_LOCK_INIT()	mtx_init(&netmap_global_lock, \
-				"netmap global lock", NULL, MTX_DEF)
-#define NMG_LOCK_DESTROY()	mtx_destroy(&netmap_global_lock)
-#define NMG_LOCK()	mtx_lock(&netmap_global_lock)
-#define NMG_UNLOCK()	mtx_unlock(&netmap_global_lock)
-#define NMG_LOCK_ASSERT()	mtx_assert(&netmap_global_lock, MA_OWNED)
+#define	NMG_LOCK_T	struct sx
+#define NMG_LOCK_INIT()	sx_init(&netmap_global_lock, \
+				"netmap global lock")
+#define NMG_LOCK_DESTROY()	sx_destroy(&netmap_global_lock)
+#define NMG_LOCK()	sx_xlock(&netmap_global_lock)
+#define NMG_UNLOCK()	sx_xunlock(&netmap_global_lock)
+#define NMG_LOCK_ASSERT()	sx_assert(&netmap_global_lock, SA_XLOCKED)
 
 #define	NM_SELINFO_T	struct selinfo
 #define	MBUF_LEN(m)	((m)->m_pkthdr.len)
