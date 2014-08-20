@@ -92,7 +92,9 @@ static void nspng_error(png_structp png_ptr, png_const_charp error_message)
 static void nspng_setup_transforms(png_structp png_ptr, png_infop info_ptr)
 {
 	int bit_depth, color_type, intent;
+#if 0
 	double gamma;
+#endif
 
 	bit_depth = png_get_bit_depth(png_ptr, info_ptr);
 	color_type = png_get_color_type(png_ptr, info_ptr);
@@ -123,6 +125,7 @@ static void nspng_setup_transforms(png_structp png_ptr, png_infop info_ptr)
 		png_set_filler(png_ptr, 0xff, PNG_FILLER_AFTER);
 	}
 
+#if 0
 	/* gamma correction - we use 2.2 as our screen gamma
 	 * this appears to be correct (at least in respect to !Browse)
 	 * see http://www.w3.org/Graphics/PNG/all_seven.html for a test case
@@ -136,6 +139,7 @@ static void nspng_setup_transforms(png_structp png_ptr, png_infop info_ptr)
 			png_set_gamma(png_ptr, 2.2, 0.45455);
 		}
 	}
+#endif
 
 	png_read_update_info(png_ptr, info_ptr);
 }
