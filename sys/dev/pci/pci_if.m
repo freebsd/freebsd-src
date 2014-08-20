@@ -138,6 +138,26 @@ METHOD int alloc_msix {
 	int		*count;
 };
 
+METHOD void enable_msi {
+	device_t	dev;
+	device_t	child;
+	uint64_t	address;
+	uint16_t	data;
+};
+
+METHOD void enable_msix {
+	device_t	dev;
+	device_t	child;
+	u_int		index;
+	uint64_t	address;
+	uint32_t	data;
+};
+
+METHOD void disable_msi {
+	device_t	dev;
+	device_t	child;
+};
+
 METHOD int remap_msix {
 	device_t	dev;
 	device_t	child;
