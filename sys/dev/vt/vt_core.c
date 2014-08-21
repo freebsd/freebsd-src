@@ -835,9 +835,33 @@ vt_flush(struct vt_device *vd)
 #ifndef SC_NO_CUTPASTE
 	if ((vd->vd_flags & VDF_MOUSECURSOR) && /* Mouse support enabled. */
 	    !(vw->vw_flags & VWF_MOUSE_HIDE)) { /* Cursor displayed.      */
-		/* Mark last mouse position as dirty to erase. */
-		vtbuf_mouse_cursor_position(&vw->vw_buf, vd->vd_mdirtyx,
-		    vd->vd_mdirtyy);
+		if (vd->vd_moldx != vd->vd_mx ||
+		    vd->vd_moldy != vd->vd_my) {
+			/*
+			 * Mark last mouse position as dirty to erase.
+			 *
+			 * FIXME: The font size could be different among
+			 * all windows, so the column/row calculation
+			 * below isn't correct for all windows.
+			 *
+			 * FIXME: The cursor can span more than one
+			 * character cell. vtbuf_mouse_cursor_position
+			 * marks surrounding cells as dirty. But due
+			 * to font size possibly inconsistent across
+			 * windows, this may not be sufficient. This
+			 * causes part of the cursor to not be erased.
+			 */
+			vtbuf_mouse_cursor_position(&vw->vw_buf,
+			    vd->vd_moldx / vf->vf_width,
+			    vd->vd_moldy / vf->vf_height);
+
+			/*
+			 * Save point of last mouse cursor to erase it
+			 * later.
+			 */
+			vd->vd_moldx = vd->vd_mx;
+			vd->vd_moldy = vd->vd_my;
+		}
 	}
 #endif
 
@@ -892,9 +916,6 @@ vt_flush(struct vt_device *vd)
 		    vd->vd_offset.tp_row + vd->vd_my,
 		    vd->vd_offset.tp_col + vd->vd_mx,
 		    w, h, TC_WHITE, TC_BLACK);
-		/* Save point of last mouse cursor to erase it later. */
-		vd->vd_mdirtyx = vd->vd_mx / vf->vf_width;
-		vd->vd_mdirtyy = vd->vd_my / vf->vf_height;
 	}
 #endif
 }
