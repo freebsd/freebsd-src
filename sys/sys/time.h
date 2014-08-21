@@ -129,7 +129,7 @@ bintime_shift(struct bintime *_bt, int _exp)
 #define	SBT_1MS	(SBT_1S / 1000)
 #define	SBT_1US	(SBT_1S / 1000000)
 #define	SBT_1NS	(SBT_1S / 1000000000)
-#define	SBT_MAX	0x7fffffffffffffff
+#define	SBT_MAX	0x7fffffffffffffffLL
 
 static __inline int
 sbintime_getsec(sbintime_t _sbt)
@@ -184,7 +184,7 @@ timespec2bintime(const struct timespec *_ts, struct bintime *_bt)
 
 	_bt->sec = _ts->tv_sec;
 	/* 18446744073 = int(2^64 / 1000000000) */
-	_bt->frac = _ts->tv_nsec * (uint64_t)18446744073;
+	_bt->frac = _ts->tv_nsec * (uint64_t)18446744073LL;
 }
 
 static __inline void
@@ -201,7 +201,7 @@ timeval2bintime(const struct timeval *_tv, struct bintime *_bt)
 
 	_bt->sec = _tv->tv_sec;
 	/* 18446744073709 = int(2^64 / 1000000) */
-	_bt->frac = _tv->tv_usec * (uint64_t)18446744073709;
+	_bt->frac = _tv->tv_usec * (uint64_t)18446744073709LL;
 }
 
 static __inline struct timespec
