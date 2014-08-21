@@ -449,7 +449,7 @@ trim_map_vdev_commit(spa_t *spa, zio_t *zio, vdev_t *vd)
 {
 	trim_map_t *tm = vd->vdev_trimmap;
 	trim_seg_t *ts;
-	uint64_t size, txgtarget, txgsafe;
+	uint64_t size, offset, txgtarget, txgsafe;
 	hrtime_t timelimit;
 
 	ASSERT(vd->vdev_ops->vdev_op_leaf);
@@ -477,9 +477,20 @@ trim_map_vdev_commit(spa_t *spa, zio_t *zio, vdev_t *vd)
 		avl_remove(&tm->tm_queued_frees, ts);
 		avl_add(&tm->tm_inflight_frees, ts);
 		size = ts->ts_end - ts->ts_start;
-		zio_nowait(zio_trim(zio, spa, vd, ts->ts_start, size));
+		offset = ts->ts_start;
 		TRIM_MAP_SDEC(tm, size);
 		TRIM_MAP_QDEC(tm);
+		/*
+		 * We drop the lock while we call zio_nowait as the IO
+		 * scheduler can result in a different IO being run e.g.
+		 * a write which would result in a recursive lock.
+		 */
+		mutex_exit(&tm->tm_lock);
+
+		zio_nowait(zio_trim(zio, spa, vd, offset, size));
+
+		mutex_enter(&tm->tm_lock);
+		ts = trim_map_first(tm, txgtarget, txgsafe, timelimit);
 	}
 	mutex_exit(&tm->tm_lock);
 }
