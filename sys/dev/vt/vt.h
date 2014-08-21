@@ -197,7 +197,7 @@ void vtbuf_cursor_position(struct vt_buf *, const term_pos_t *);
 void vtbuf_scroll_mode(struct vt_buf *vb, int yes);
 void vtbuf_undirty(struct vt_buf *, term_rect_t *, struct vt_bufmask *);
 void vtbuf_sethistory_size(struct vt_buf *, int);
-int vtbuf_iscursor(struct vt_buf *vb, int row, int col);
+int vtbuf_iscursor(const struct vt_buf *vb, int row, int col);
 void vtbuf_cursor_visibility(struct vt_buf *, int);
 #ifndef SC_NO_CUTPASTE
 void vtbuf_mouse_cursor_position(struct vt_buf *vb, int col, int row);
