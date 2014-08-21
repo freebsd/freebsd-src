@@ -134,7 +134,7 @@ extern unsigned char vt_logo_image[];
 /* Font. */
 extern struct vt_font vt_font_default;
 #ifndef SC_NO_CUTPASTE
-extern struct mouse_cursor vt_default_mouse_pointer;
+extern struct vt_mouse_cursor vt_default_mouse_pointer;
 #endif
 
 static int signal_vt_rel(struct vt_window *);
@@ -853,7 +853,7 @@ vt_flush(struct vt_device *vd)
 	term_pos_t size;
 	term_char_t *r;
 #ifndef SC_NO_CUTPASTE
-	struct mouse_cursor *cursor;
+	struct vt_mouse_cursor *cursor;
 	int bpl, h, w;
 #endif
 
@@ -940,13 +940,15 @@ vt_flush(struct vt_device *vd)
 
 #ifndef SC_NO_CUTPASTE
 	if (cursor != NULL) {
-		bpl = (cursor->w + 7) >> 3; /* Bytes per source line. */
-		w = cursor->w;
-		h = cursor->h;
+		bpl = (cursor->width + 7) >> 3; /* Bytes per source line. */
+		w = cursor->width;
+		h = cursor->height;
 
-		if ((vd->vd_mx + cursor->w) > (size.tp_col * vf->vf_width))
+		if ((vd->vd_mx + cursor->width) >
+		    (size.tp_col * vf->vf_width))
 			w = (size.tp_col * vf->vf_width) - vd->vd_mx - 1;
-		if ((vd->vd_my + cursor->h) > (size.tp_row * vf->vf_height))
+		if ((vd->vd_my + cursor->height) >
+		    (size.tp_row * vf->vf_height))
 			h = (size.tp_row * vf->vf_height) - vd->vd_my - 1;
 
 		vd->vd_driver->vd_bitbltchr(vd, cursor->map, cursor->mask, bpl,
