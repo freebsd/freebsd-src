@@ -221,11 +221,11 @@ d_tags(u_int64_t tag)
 	case DT_GNU_HASH:	return "DT_GNU_HASH";
 	case 0x6ffffef8:	return "DT_GNU_CONFLICT";
 	case 0x6ffffef9:	return "DT_GNU_LIBLIST";
-	case 0x6ffffefa:	return "DT_SUNW_CONFIG";
-	case 0x6ffffefb:	return "DT_SUNW_DEPAUDIT";
-	case 0x6ffffefc:	return "DT_SUNW_AUDIT";
-	case 0x6ffffefd:	return "DT_SUNW_PLTPAD";
-	case 0x6ffffefe:	return "DT_SUNW_MOVETAB";
+	case DT_CONFIG:		return "DT_CONFIG";
+	case DT_DEPAUDIT:	return "DT_DEPAUDIT";
+	case DT_AUDIT:		return "DT_AUDIT";
+	case DT_PLTPAD:		return "DT_PLTPAD";
+	case DT_MOVETAB:	return "DT_MOVETAB";
 	case DT_SYMINFO :	return "DT_SYMINFO (DT_ADDRRNGHI)";
 	case DT_RELACOUNT:	return "DT_RELACOUNT";
 	case DT_RELCOUNT:	return "DT_RELCOUNT";
