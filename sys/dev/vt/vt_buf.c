@@ -148,7 +148,7 @@ vtbuf_wth(struct vt_buf *vb, int row)
 
 /* Translate history row to current view row number. */
 static int
-vtbuf_htw(struct vt_buf *vb, int row)
+vtbuf_htw(const struct vt_buf *vb, int row)
 {
 
 	/*
@@ -162,7 +162,7 @@ vtbuf_htw(struct vt_buf *vb, int row)
 }
 
 int
-vtbuf_iscursor(struct vt_buf *vb, int row, int col)
+vtbuf_iscursor(const struct vt_buf *vb, int row, int col)
 {
 	int sc, sr, ec, er, tmp;
 
