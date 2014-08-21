@@ -316,8 +316,12 @@ driver_suitable(const struct cryptocap *cap, const struct cryptoini *cri)
 
 	/* See if all the algorithms are supported. */
 	for (cr = cri; cr; cr = cr->cri_next)
-		if (cap->cc_alg[cr->cri_alg] == 0)
+		if (cap->cc_alg[cr->cri_alg] == 0) {
+#ifdef DEBUG
+			printf("cr->cri_alg: %d\n", cr->cri_alg);
+#endif
 			return 0;
+		}
 	return 1;
 }
 
@@ -421,9 +425,12 @@ crypto_newsession(u_int64_t *sid, struct cryptoini *cri, int crid)
 			(*sid) <<= 32;
 			(*sid) |= (lid & 0xffffffff);
 			cap->cc_sessions++;
-		}
-	} else
+		} else
+			CRYPTDEB("dev newsession failed");
+	} else {
+		CRYPTDEB("no driver");
 		err = EINVAL;
+	}
 	CRYPTO_DRIVER_UNLOCK();
 	return err;
 }

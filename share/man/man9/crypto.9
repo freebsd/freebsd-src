@@ -17,7 +17,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd April 18, 2014
+.Dd August 12, 2014
 .Dt CRYPTO 9
 .Os
 .Sh NAME
@@ -175,17 +175,26 @@ Contains an algorithm identifier.
 Currently supported algorithms are:
 .Pp
 .Bl -tag -width ".Dv CRYPTO_RIPEMD160_HMAC" -compact
+.It Dv CRYPTO_AES_128_NIST_GMAC
+.It Dv CRYPTO_AES_192_NIST_GMAC
+.It Dv CRYPTO_AES_256_NIST_GMAC
 .It Dv CRYPTO_AES_CBC
+.It Dv CRYPTO_AES_ICM
+.It Dv CRYPTO_AES_NIST_GCM_16
+.It Dv CRYPTO_AES_NIST_GMAC
+.It Dv CRYPTO_AES_XTS
 .It Dv CRYPTO_ARC4
 .It Dv CRYPTO_BLF_CBC
 .It Dv CRYPTO_CAMELLIA_CBC
 .It Dv CRYPTO_CAST_CBC
+.It Dv CRYPTO_DEFLATE_COMP
 .It Dv CRYPTO_DES_CBC
 .It Dv CRYPTO_3DES_CBC
-.It Dv CRYPTO_SKIPJACK_CBC
 .It Dv CRYPTO_MD5
 .It Dv CRYPTO_MD5_HMAC
 .It Dv CRYPTO_MD5_KPDK
+.It Dv CRYPTO_NULL_HMAC
+.It Dv CRYPTO_NULL_CBC
 .It Dv CRYPTO_RIPEMD160_HMAC
 .It Dv CRYPTO_SHA1
 .It Dv CRYPTO_SHA1_HMAC
@@ -193,8 +202,7 @@ Currently supported algorithms are:
 .It Dv CRYPTO_SHA2_256_HMAC
 .It Dv CRYPTO_SHA2_384_HMAC
 .It Dv CRYPTO_SHA2_512_HMAC
-.It Dv CRYPTO_NULL_HMAC
-.It Dv CRYPTO_NULL_CBC
+.It Dv CRYPTO_SKIPJACK_CBC
 .El
 .It Va cri_klen
 Specifies the length of the key in bits, for variable-size key

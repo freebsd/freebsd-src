@@ -1,7 +1,11 @@
 /*-
  * Copyright (c) 2005-2008 Pawel Jakub Dawidek <pjd@FreeBSD.org>
  * Copyright (c) 2010 Konstantin Belousov <kib@FreeBSD.org>
+ * Copyright (c) 2014 The FreeBSD Foundation
  * All rights reserved.
+ *
+ * Portions of this software were developed by John-Mark Gurney
+ * under sponsorship from the FreeBSD Foundation.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -41,6 +45,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/uio.h>
 #include <crypto/aesni/aesni.h>
 #include <cryptodev_if.h>
+#include <opencrypto/gmac.h>
 
 struct aesni_softc {
 	int32_t cid;
@@ -56,7 +61,7 @@ static void aesni_freesession_locked(struct aesni_softc *sc,
 static int aesni_cipher_setup(struct aesni_session *ses,
     struct cryptoini *encini);
 static int aesni_cipher_process(struct aesni_session *ses,
-    struct cryptodesc *enccrd, struct cryptop *crp);
+    struct cryptodesc *enccrd, struct cryptodesc *authcrd, struct cryptop *crp);
 
 MALLOC_DEFINE(M_AESNI, "aesni_data", "AESNI Data");
 
@@ -79,12 +84,12 @@ aesni_probe(device_t dev)
 		return (EINVAL);
 	}
 
-	if ((cpu_feature & CPUID_SSE2) == 0) {
-		device_printf(dev, "No SSE2 support but AESNI!?!\n");
+	if ((cpu_feature & CPUID2_SSE41) == 0) {
+		device_printf(dev, "No SSE4.1 support.\n");
 		return (EINVAL);
 	}
 
-	device_set_desc_copy(dev, "AES-CBC,AES-XTS");
+	device_set_desc_copy(dev, "AES-CBC,AES-XTS,AES-GCM");
 	return (0);
 }
 
@@ -106,6 +111,10 @@ aesni_attach(device_t dev)
 	rw_init(&sc->lock, "aesni_lock");
 	crypto_register(sc->cid, CRYPTO_AES_CBC, 0, 0);
 	crypto_register(sc->cid, CRYPTO_AES_XTS, 0, 0);
+	crypto_register(sc->cid, CRYPTO_AES_NIST_GCM_16, 0, 0);
+	crypto_register(sc->cid, CRYPTO_AES_128_NIST_GMAC, 0, 0);
+	crypto_register(sc->cid, CRYPTO_AES_192_NIST_GMAC, 0, 0);
+	crypto_register(sc->cid, CRYPTO_AES_256_NIST_GMAC, 0, 0);
 	return (0);
 }
 
@@ -144,8 +153,10 @@ aesni_newsession(device_t dev, uint32_t *sidp, struct cryptoini *cri)
 	struct cryptoini *encini;
 	int error;
 
-	if (sidp == NULL || cri == NULL)
+	if (sidp == NULL || cri == NULL) {
+		CRYPTDEB("no sidp or cri");
 		return (EINVAL);
+	}
 
 	sc = device_get_softc(dev);
 	ses = NULL;
@@ -154,16 +165,30 @@ aesni_newsession(device_t dev, uint32_t *sidp, struct cryptoini *cri)
 		switch (cri->cri_alg) {
 		case CRYPTO_AES_CBC:
 		case CRYPTO_AES_XTS:
-			if (encini != NULL)
+		case CRYPTO_AES_NIST_GCM_16:
+			if (encini != NULL) {
+				CRYPTDEB("encini already set");
 				return (EINVAL);
+			}
 			encini = cri;
 			break;
+		case CRYPTO_AES_128_NIST_GMAC:
+		case CRYPTO_AES_192_NIST_GMAC:
+		case CRYPTO_AES_256_NIST_GMAC:
+			/*
+			 * nothing to do here, maybe in the future cache some
+			 * values for GHASH
+			 */
+			break;
 		default:
+			CRYPTDEB("unhandled algorithm");
 			return (EINVAL);
 		}
 	}
-	if (encini == NULL)
+	if (encini == NULL) {
+		CRYPTDEB("no cipher");
 		return (EINVAL);
+	}
 
 	rw_wlock(&sc->lock);
 	/*
@@ -195,6 +220,7 @@ aesni_newsession(device_t dev, uint32_t *sidp, struct cryptoini *cri)
 
 	error = aesni_cipher_setup(ses, encini);
 	if (error != 0) {
+		CRYPTDEB("setup failed");
 		rw_wlock(&sc->lock);
 		aesni_freesession_locked(sc, ses);
 		rw_wunlock(&sc->lock);
@@ -248,11 +274,13 @@ aesni_process(device_t dev, struct cryptop *crp, int hint __unused)
 {
 	struct aesni_softc *sc = device_get_softc(dev);
 	struct aesni_session *ses = NULL;
-	struct cryptodesc *crd, *enccrd;
-	int error;
+	struct cryptodesc *crd, *enccrd, *authcrd;
+	int error, needauth;
 
 	error = 0;
 	enccrd = NULL;
+	authcrd = NULL;
+	needauth = 0;
 
 	/* Sanity check. */
 	if (crp == NULL)
@@ -273,11 +301,40 @@ aesni_process(device_t dev, struct cryptop *crp, int hint __unused)
 			}
 			enccrd = crd;
 			break;
+
+		case CRYPTO_AES_NIST_GCM_16:
+			if (enccrd != NULL) {
+				error = EINVAL;
+				goto out;
+			}
+			enccrd = crd;
+			needauth = 1;
+			break;
+
+		case CRYPTO_AES_128_NIST_GMAC:
+		case CRYPTO_AES_192_NIST_GMAC:
+		case CRYPTO_AES_256_NIST_GMAC:
+			if (authcrd != NULL) {
+				error = EINVAL;
+				goto out;
+			}
+			authcrd = crd;
+			needauth = 1;
+			break;
+
 		default:
 			return (EINVAL);
 		}
 	}
-	if (enccrd == NULL || (enccrd->crd_len % AES_BLOCK_LEN) != 0) {
+
+	/* CBC & XTS can only handle full blocks for now */
+	if ((enccrd->crd_alg == CRYPTO_AES_CBC || enccrd->crd_alg ==
+	    CRYPTO_AES_XTS) && (enccrd->crd_len % AES_BLOCK_LEN) != 0) {
+		error = EINVAL;
+		goto out;
+	}
+
+	if (enccrd == NULL || (needauth && authcrd == NULL)) {
 		error = EINVAL;
 		goto out;
 	}
@@ -293,7 +350,7 @@ aesni_process(device_t dev, struct cryptop *crp, int hint __unused)
 		goto out;
 	}
 
-	error = aesni_cipher_process(ses, enccrd, crp);
+	error = aesni_cipher_process(ses, enccrd, authcrd, crp);
 	if (error != 0)
 		goto out;
 
@@ -376,22 +433,49 @@ aesni_cipher_setup(struct aesni_session *ses, struct cryptoini *encini)
 	return (error);
 }
 
+static void
+printhexstr(uint8_t *ptr, int len)
+{
+	int i;
+
+	for (i = 0; i < len; i++)
+		printf("%02hhx", ptr[i]);
+}
+
+/*
+ * authcrd contains the associated date.
+ */
 static int
 aesni_cipher_process(struct aesni_session *ses, struct cryptodesc *enccrd,
-    struct cryptop *crp)
+    struct cryptodesc *authcrd, struct cryptop *crp)
 {
+	uint8_t tag[GMAC_DIGEST_LEN];
 	struct thread *td;
-	uint8_t *buf;
-	int error, allocated;
+	uint8_t *buf, *authbuf;
+	int error, allocated, authallocated;
+	int ivlen, encflag;
+	int r;
+
+	encflag = (enccrd->crd_flags & CRD_F_ENCRYPT) == CRD_F_ENCRYPT;
 
 	buf = aesni_cipher_alloc(enccrd, crp, &allocated);
 	if (buf == NULL)
 		return (ENOMEM);
 
+	authbuf = NULL;
+	authallocated = 0;
+	if (authcrd != NULL) {
+		authbuf = aesni_cipher_alloc(authcrd, crp, &authallocated);
+		if (authbuf == NULL) {
+			error = ENOMEM;
+			goto out1;
+		}
+	}
+
 	td = curthread;
 	error = fpu_kern_enter(td, ses->fpu_ctx, FPU_KERN_NORMAL |
 	    FPU_KERN_KTHR);
-	if (error != 0)
+	if (error != 0) 
 		goto out1;
 
 	if ((enccrd->crd_flags & CRD_F_KEY_EXPLICIT) != 0) {
@@ -401,42 +485,109 @@ aesni_cipher_process(struct aesni_session *ses, struct cryptodesc *enccrd,
 			goto out;
 	}
 
+	/* XXX - validate that enccrd and authcrd have/use same key? */
+	switch (enccrd->crd_alg) {
+	case CRYPTO_AES_CBC:
+		ivlen = 16;
+		break;
+	case CRYPTO_AES_XTS:
+		ivlen = 8;
+		break;
+	case CRYPTO_AES_NIST_GCM_16:
+		ivlen = 12;	/* should support arbitarily larger */
+		break;
+	}
+
+	/* Setup ses->iv */
+	bzero(ses->iv, sizeof ses->iv);
+	/*printf("crd_flags: %#x, ivlen: %d, iv: ", enccrd->crd_flags, ivlen);*/
 	if ((enccrd->crd_flags & CRD_F_ENCRYPT) != 0) {
 		if ((enccrd->crd_flags & CRD_F_IV_EXPLICIT) != 0)
-			bcopy(enccrd->crd_iv, ses->iv, AES_BLOCK_LEN);
+			bcopy(enccrd->crd_iv, ses->iv, ivlen);
 		if ((enccrd->crd_flags & CRD_F_IV_PRESENT) == 0)
 			crypto_copyback(crp->crp_flags, crp->crp_buf,
-			    enccrd->crd_inject, AES_BLOCK_LEN, ses->iv);
-		if (ses->algo == CRYPTO_AES_CBC) {
+			    enccrd->crd_inject, ivlen, ses->iv);
+	} else {
+		if ((enccrd->crd_flags & CRD_F_IV_EXPLICIT) != 0)
+			bcopy(enccrd->crd_iv, ses->iv, ivlen);
+		else
+			crypto_copydata(crp->crp_flags, crp->crp_buf,
+			    enccrd->crd_inject, ivlen, ses->iv);
+	}
+	/*printhexstr(ses->iv, ivlen);
+	printf("\n");*/
+
+	if (authcrd != NULL && !encflag) {
+		crypto_copydata(crp->crp_flags, crp->crp_buf,
+		    authcrd->crd_inject, GMAC_DIGEST_LEN, tag);
+	} else {
+		/*printf("ptag: ");
+		printhexstr(tag, sizeof tag);
+		printf("\n");*/
+		bzero(tag, sizeof tag);
+	}
+
+	/* Do work */
+	switch (ses->algo) {
+	case CRYPTO_AES_CBC:
+		if (encflag)
 			aesni_encrypt_cbc(ses->rounds, ses->enc_schedule,
 			    enccrd->crd_len, buf, buf, ses->iv);
-		} else /* if (ses->algo == CRYPTO_AES_XTS) */ {
+		else
+			aesni_decrypt_cbc(ses->rounds, ses->dec_schedule,
+			    enccrd->crd_len, buf, ses->iv);
+		break;
+	case CRYPTO_AES_XTS:
+		if (encflag)
 			aesni_encrypt_xts(ses->rounds, ses->enc_schedule,
 			    ses->xts_schedule, enccrd->crd_len, buf, buf,
 			    ses->iv);
-		}
-	} else {
-		if ((enccrd->crd_flags & CRD_F_IV_EXPLICIT) != 0)
-			bcopy(enccrd->crd_iv, ses->iv, AES_BLOCK_LEN);
 		else
-			crypto_copydata(crp->crp_flags, crp->crp_buf,
-			    enccrd->crd_inject, AES_BLOCK_LEN, ses->iv);
-		if (ses->algo == CRYPTO_AES_CBC) {
-			aesni_decrypt_cbc(ses->rounds, ses->dec_schedule,
-			    enccrd->crd_len, buf, ses->iv);
-		} else /* if (ses->algo == CRYPTO_AES_XTS) */ {
 			aesni_decrypt_xts(ses->rounds, ses->dec_schedule,
 			    ses->xts_schedule, enccrd->crd_len, buf, buf,
 			    ses->iv);
+		break;
+	case CRYPTO_AES_NIST_GCM_16:
+		/*printf("GCM: %d\n", encflag);
+		printf("buf(%d): ", enccrd->crd_len);
+		printhexstr(buf, enccrd->crd_len);
+		printf("\nauthbuf(%d): ", authcrd->crd_len);
+		printhexstr(authbuf, authcrd->crd_len);
+		printf("\niv: ");
+		printhexstr(ses->iv, ivlen);
+		printf("\ntag: ");
+		printhexstr(tag, 16);
+		printf("\nsched: ");
+		printhexstr(ses->enc_schedule, 16 * (ses->rounds + 1));
+		printf("\n");*/
+		if (encflag)
+			AES_GCM_encrypt(buf, buf, authbuf, ses->iv, tag,
+			    enccrd->crd_len, authcrd->crd_len, ivlen,
+			    ses->enc_schedule, ses->rounds);
+		else {
+			r = AES_GCM_decrypt(buf, buf, authbuf, ses->iv, tag,
+			    enccrd->crd_len, authcrd->crd_len, ivlen,
+			    ses->enc_schedule, ses->rounds);
+			/*printf("dec r: %d\n", r);*/
 		}
+		break;
 	}
+
 	if (allocated)
 		crypto_copyback(crp->crp_flags, crp->crp_buf, enccrd->crd_skip,
 		    enccrd->crd_len, buf);
+
+	/* OpenBSD doesn't copy this back.  Why not? */
 	if ((enccrd->crd_flags & CRD_F_ENCRYPT) != 0)
 		crypto_copydata(crp->crp_flags, crp->crp_buf,
 		    enccrd->crd_skip + enccrd->crd_len - AES_BLOCK_LEN,
 		    AES_BLOCK_LEN, ses->iv);
+
+	if (authcrd != NULL) {
+		crypto_copyback(crp->crp_flags, crp->crp_buf,
+		    authcrd->crd_inject, GMAC_DIGEST_LEN, tag);
+	}
+
 out:
 	fpu_kern_leave(td, ses->fpu_ctx);
 out1:
@@ -444,5 +595,7 @@ out1:
 		bzero(buf, enccrd->crd_len);
 		free(buf, M_AESNI);
 	}
+	if (authallocated)
+		free(authbuf, M_AESNI);
 	return (error);
 }

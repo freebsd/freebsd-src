@@ -3141,6 +3141,7 @@ libkern/arc4random.c		standard
 libkern/bcd.c			standard
 libkern/bsearch.c		standard
 libkern/crc32.c			standard
+libkern/explicit_bzero.c	standard
 libkern/fnmatch.c		standard
 libkern/iconv.c			optional libiconv
 libkern/iconv_converter_if.m	optional libiconv
@@ -3833,6 +3834,8 @@ opencrypto/cryptodev.c		optional cryptodev
 opencrypto/cryptodev_if.m	optional crypto
 opencrypto/cryptosoft.c		optional crypto
 opencrypto/cryptodeflate.c	optional crypto
+opencrypto/gmac.c		optional crypto
+opencrypto/gfmult.c		optional crypto
 opencrypto/rmd160.c		optional crypto | ipsec
 opencrypto/skipjack.c		optional crypto
 opencrypto/xform.c		optional crypto

@@ -1,7 +1,14 @@
-.\"	$OpenBSD: crypto.4,v 1.4 2002/09/12 07:15:03 deraadt Exp $
+.\"	$NetBSD: crypto.4,v 1.24 2014/01/27 21:23:59 pgoyette Exp $
 .\"
-.\" Copyright (c) 2001 Theo de Raadt
+.\" Copyright (c) 2008 The NetBSD Foundation, Inc.
+.\" Copyright (c) 2014 The FreeBSD Foundation
 .\" All rights reserved.
+.\"
+.\" Portions of this documentation were writen by John-Mark Gurney
+.\" under sponsorship from the FreeBSD Foundation.
+.\"
+.\" This code is derived from software contributed to The NetBSD Foundation
+.\" by Coyote Point Systems, Inc.
 .\"
 .\" Redistribution and use in source and binary forms, with or without
 .\" modification, are permitted provided that the following conditions
@@ -123,3 +130,24 @@ The
 .Nm
 driver was imported to
 .Fx 5.0 .
+.Sh BUGS
+Error checking and reporting is weak.
+.Pp
+The values specified for symmetric-key key sizes to
+.Dv CIOCGSESSION
+must exactly match the values expected by
+.Xr opencrypto 9 .
+The output buffer and MAC buffers supplied to
+.Dv CIOCCRYPT
+must follow whether privacy or integrity algorithms were specified for
+session: if you request a
+.No non- Ns Dv NULL
+algorithm, you must supply a suitably-sized buffer.
+.Pp
+The scheme for passing arguments for asymmetric requests is baroque.
+.Pp
+The naming inconsistency between
+.Dv CRIOGET
+and the various
+.Dv CIOC Ns \&*
+names is an unfortunate historical artifact.

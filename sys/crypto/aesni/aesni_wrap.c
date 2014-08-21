@@ -3,8 +3,12 @@
  * Copyright (c) 2010 Konstantin Belousov <kib@FreeBSD.org>
  * Copyright (c) 2010-2011 Pawel Jakub Dawidek <pawel@dawidek.net>
  * Copyright 2012-2013 John-Mark Gurney <jmg@FreeBSD.org>
+ * Copyright (c) 2014 The FreeBSD Foundation
  * All rights reserved.
  *
+ * Portions of this software were developed by John-Mark Gurney
+ * under sponsorship from the FreeBSD Foundation.
+ * 
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
  * are met:
@@ -29,14 +33,15 @@
 
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
- 
 #include <sys/param.h>
 #include <sys/libkern.h>
 #include <sys/malloc.h>
 #include <sys/proc.h>
 #include <sys/systm.h>
 #include <crypto/aesni/aesni.h>
- 
+
+#include <opencrypto/gmac.h>
+
 #include "aesencdec.h"
 
 MALLOC_DECLARE(M_AESNI);
@@ -336,6 +341,7 @@ aesni_cipher_setup_common(struct aesni_session *ses, const uint8_t *key,
 
 	switch (ses->algo) {
 	case CRYPTO_AES_CBC:
+	case CRYPTO_AES_NIST_GCM_16:
 		switch (keylen) {
 		case 128:
 			ses->rounds = AES128_ROUNDS;
@@ -347,6 +353,7 @@ aesni_cipher_setup_common(struct aesni_session *ses, const uint8_t *key,
 			ses->rounds = AES256_ROUNDS;
 			break;
 		default:
+			CRYPTDEB("invalid CBC/GCM key length");
 			return (EINVAL);
 		}
 		break;
@@ -359,6 +366,7 @@ aesni_cipher_setup_common(struct aesni_session *ses, const uint8_t *key,
 			ses->rounds = AES256_ROUNDS;
 			break;
 		default:
+			CRYPTDEB("invalid XTS key length");
 			return (EINVAL);
 		}
 		break;
@@ -368,7 +376,9 @@ aesni_cipher_setup_common(struct aesni_session *ses, const uint8_t *key,
 
 	aesni_set_enckey(key, ses->enc_schedule, ses->rounds);
 	aesni_set_deckey(ses->enc_schedule, ses->dec_schedule, ses->rounds);
-	if (ses->algo == CRYPTO_AES_CBC)
+
+	/* setup IV */
+	if (ses->algo == CRYPTO_AES_CBC || ses->algo == CRYPTO_AES_NIST_GCM_16)
 		arc4rand(ses->iv, sizeof(ses->iv), 0);
 	else /* if (ses->algo == CRYPTO_AES_XTS) */ {
 		aesni_set_enckey(key + keylen / 16, ses->xts_schedule,
