@@ -186,11 +186,12 @@ static bool nsbmp_redraw(struct content *c, struct content_redraw_data *data,
 	nsbmp_content *bmp = (nsbmp_content *) c;
 	bitmap_flags_t flags = BITMAPF_NONE;
 
-	if (bmp->bmp->decoded == false)
+	if (bmp->bmp->decoded == false) {
 		if (bmp_decode(bmp->bmp) != BMP_OK)
 			return false;
 		else
 			bitmap_modified(bmp->bitmap);
+	}
 
 	bmp->bitmap = bmp->bmp->bitmap;
 
