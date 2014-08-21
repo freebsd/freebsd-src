@@ -604,7 +604,6 @@ vga_initialize(struct vt_device *vd, int textmode)
 		 * planes.
 		 */
 		for (ofs = 0; ofs < VT_VGA_MEMSIZE; ofs++) {
-			MEM_READ1(sc, ofs);
 			MEM_WRITE1(sc, ofs, 0);
 		}
 	}
