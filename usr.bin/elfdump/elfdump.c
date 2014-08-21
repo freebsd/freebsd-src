@@ -213,7 +213,7 @@ d_tags(u_int64_t tag)
 	case DT_PLTPADSZ:	return "DT_PLTPADSZ";
 	case DT_MOVEENT:	return "DT_MOVEENT";
 	case DT_MOVESZ:		return "DT_MOVESZ";
-	case 0x6ffffdfc:	return "DT_FEATURE";
+	case DT_FEATURE:	return "DT_FEATURE";
 	case DT_POSFLAG_1:	return "DT_POSFLAG_1";
 	case DT_SYMINSZ:	return "DT_SYMINSZ";
 	case DT_SYMINENT :	return "DT_SYMINENT (DT_VALRNGHI)";
