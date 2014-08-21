@@ -12,7 +12,7 @@ ISO8859-1+EURO	be.iso.kbd			be.kbd
 ISO8859-1+EURO	be.iso.acc.kbd			be.acc.kbd
 
 ISO8859-5	bg.bds.ctrlcaps.kbd		bg.bds.kbd
-ISO8859-5	bg.phonetic.ctrlcaps.kbd	bg.bds.ctrlcaps.kbd
+ISO8859-5	bg.phonetic.ctrlcaps.kbd	bg.phonetic.kbd
 
 #ISO8859-1	br275.iso.kbd			br.kbd.from-iso1	(only AltGr-Shift-6 differs from CP850)
 ISO8859-1	br275.iso.acc.kbd		br.kbd
@@ -24,7 +24,7 @@ ISO8859-5	by.iso5.kbd			by.kbd
 
 ISO8859-2	ce.iso2.kbd			centraleuropean.qwerty.kbd
 
-ISO8859-1	colemak.iso15.acc.kbd		colemak.kbd
+ISO8859-1	colemak.iso15.acc.kbd		colemak.acc.kbd
 
 ISO8859-2	cs.latin2.qwertz.kbd		cz.kbd
 ISO8859-2	cz.iso2.kbd			cz.qwerty.kbd.from-ce
