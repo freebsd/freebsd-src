@@ -87,7 +87,7 @@ __FBSDID("$FreeBSD$");
 #include <linux/types.h>
 #include <rdma/rdma_cm.h>
 
-#include "icl.h"
+#include <dev/iscsi/icl.h>
 
 static int debug = 1;
 
