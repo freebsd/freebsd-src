@@ -284,6 +284,15 @@ struct vt_window {
  * (VDF_TEXTMODE).
  */
 
+#ifndef SC_NO_CUTPASTE
+struct vt_mouse_cursor {
+	uint8_t map[64 * 64 / 8];
+	uint8_t mask[64 * 64 / 8];
+	uint8_t width;
+	uint8_t height;
+};
+#endif
+
 typedef int vd_init_t(struct vt_device *vd);
 typedef int vd_probe_t(struct vt_device *vd);
 typedef void vd_postswitch_t(struct vt_device *vd);
@@ -376,15 +385,6 @@ struct vt_font {
 	unsigned int		 vf_map_count[VFNT_MAPS];
 	unsigned int		 vf_refcount;
 };
-
-#ifndef SC_NO_CUTPASTE
-struct mouse_cursor {
-	uint8_t map[64 * 64 / 8];
-	uint8_t mask[64 * 64 / 8];
-	uint8_t w;
-	uint8_t h;
-};
-#endif
 
 const uint8_t	*vtfont_lookup(const struct vt_font *vf, term_char_t c);
 struct vt_font	*vtfont_ref(struct vt_font *vf);
