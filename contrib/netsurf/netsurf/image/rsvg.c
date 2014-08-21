@@ -135,19 +135,18 @@ static bool rsvg_process_data(struct content *c, const char *data,
 static inline void rsvg_argb_to_abgr(uint8_t *pixels, 
 		int width, int height, size_t rowstride)
 {
-	uint8_t *p = pixels;
+	uint32_t *p = (uint32_t *)pixels;
 
 	for (int y = 0; y < height; y++) {
 		for (int x = 0; x < width; x++) {
-			/* Swap R and B */
-			const uint8_t r = p[x+3];
+			uint32_t c = *p;
 
-			p[x+3] = p[x];
-
-			p[x] = r;
+			((uint8_t *)p)[0] = (c & 0xff0000) >> 16;
+			((uint8_t *)p)[1] = (c & 0xff00) >> 8;
+			((uint8_t *)p)[2] = (c & 0xff);
+			((uint8_t *)p)[3] = (c & 0xff000000) >> 24;
+			p++;
 		}
-
-		p += rowstride;
 	}
 }
 

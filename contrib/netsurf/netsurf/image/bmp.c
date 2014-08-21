@@ -171,7 +171,6 @@ static bool nsbmp_convert(struct content *c)
 
 	/* exit as a success */
 	bmp->bitmap = bmp->bmp->bitmap;
-	bitmap_modified(bmp->bitmap);
 
 	content_set_ready(c);
 	content_set_done(c);
@@ -190,6 +189,8 @@ static bool nsbmp_redraw(struct content *c, struct content_redraw_data *data,
 	if (bmp->bmp->decoded == false)
 		if (bmp_decode(bmp->bmp) != BMP_OK)
 			return false;
+		else
+			bitmap_modified(bmp->bitmap);
 
 	bmp->bitmap = bmp->bmp->bitmap;
 

@@ -142,6 +142,52 @@ bool bitmap_save(void *bitmap, const char *path, unsigned flags)
  * \param  bitmap  a bitmap, as returned by bitmap_create()
  */
 void bitmap_modified(void *bitmap) {
+	nsfb_t *bm = bitmap;
+	int pixel_height, pixel_width;
+	enum nsfb_format_e pixel_format;
+	int pixel_loop, pixel_count, pixel_stride;
+	uint32_t *pixels;
+	uint32_t pixel;
+
+	assert(bm != NULL);
+
+	nsfb_get_geometry(bm, &pixel_width, &pixel_height, &pixel_format);
+	pixel_count = pixel_width * pixel_height;
+	nsfb_get_buffer(bm, (unsigned char *)&pixels, &pixel_stride);
+
+	if (pixel_format == NSFB_FMT_RGB888) {
+		for (pixel_loop = 0; pixel_loop < pixel_count; pixel_loop++) {
+			pixel = ((uint8_t *)(pixels + pixel_loop))[0] << 16 |
+				((uint8_t *)(pixels + pixel_loop))[1] << 8 |
+				((uint8_t *)(pixels + pixel_loop))[2] |
+				((uint8_t *)(pixels + pixel_loop))[3] << 24;
+			pixels[pixel_loop] = pixel;
+		}
+	} else {
+		uint8_t t, r, g, b;
+		for (pixel_loop=0; pixel_loop < pixel_count; pixel_loop++) {
+			t = ((uint8_t *)(pixels + pixel_loop))[3];
+			if (t == 0) {
+				pixels[pixel_loop] = 0;
+			} else {
+				/*
+				r = ((uint8_t *)(pixels + pixel_loop))[0];
+				g = ((uint8_t *)(pixels + pixel_loop))[1];
+				b = ((uint8_t *)(pixels + pixel_loop))[2];
+				*/
+
+				b = ((uint8_t *)(pixels + pixel_loop))[0];
+				g = ((uint8_t *)(pixels + pixel_loop))[1];
+				r = ((uint8_t *)(pixels + pixel_loop))[2];
+
+				pixels[pixel_loop] = (t << 24) |
+					((r * t) >> 8) << 16 |
+					((g * t) >> 8) << 8 |
+					((b * t) >> 8);
+			}
+		}
+
+	}
 }
 
 /**
