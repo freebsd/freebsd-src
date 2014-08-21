@@ -1559,6 +1559,15 @@ vt_mouse_state(int show)
 		vw->vw_flags &= ~VWF_MOUSE_HIDE;
 		break;
 	}
+
+	/*
+	 * Mark mouse position as dirty.
+	 *
+	 * FIXME: See comments in vt_flush().
+	 */
+	vtbuf_mouse_cursor_position(&vw->vw_buf,
+	    vd->vd_mx / vw->vw_font->vf_width,
+	    vd->vd_my / vw->vw_font->vf_height);
 }
 #endif
 
