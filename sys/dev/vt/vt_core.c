@@ -832,6 +832,14 @@ vt_flush(struct vt_device *vd)
 	if (vd->vd_flags & VDF_SPLASH || vw->vw_flags & VWF_BUSY)
 		return;
 
+#ifndef SC_NO_CUTPASTE
+	if ((vw->vw_flags & VWF_MOUSE_HIDE) == 0) {
+		/* Mark last mouse position as dirty to erase. */
+		vtbuf_mouse_cursor_position(&vw->vw_buf, vd->vd_mdirtyx,
+		    vd->vd_mdirtyy);
+	}
+#endif
+
 	vtbuf_undirty(&vw->vw_buf, &tarea, &tmask);
 	vt_termsize(vd, vf, &size);
 
@@ -843,14 +851,6 @@ vt_flush(struct vt_device *vd)
 
 		vd->vd_flags &= ~VDF_INVALID;
 	}
-
-#ifndef SC_NO_CUTPASTE
-	if ((vw->vw_flags & VWF_MOUSE_HIDE) == 0) {
-		/* Mark last mouse position as dirty to erase. */
-		vtbuf_mouse_cursor_position(&vw->vw_buf, vd->vd_mdirtyx,
-		    vd->vd_mdirtyy);
-	}
-#endif
 
 	for (row = tarea.tr_begin.tp_row; row < tarea.tr_end.tp_row; row++) {
 		if (!VTBUF_DIRTYROW(&tmask, row))
