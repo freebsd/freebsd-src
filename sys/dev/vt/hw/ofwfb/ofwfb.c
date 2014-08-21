@@ -245,8 +245,8 @@ ofwfb_initialize(struct vt_device *vd)
 
 	switch (sc->sc_depth) {
 	case 8:
-		vt_generate_vga_palette(sc->sc_colormap, COLOR_FORMAT_RGB, 255,
-		    0, 255, 8, 255, 16);
+		vt_generate_cons_palette(sc->sc_colormap, COLOR_FORMAT_RGB, 255,
+		    16, 255, 8, 255, 0);
 
 		for (i = 0; i < 16; i++) {
 			OF_call_method("color!", ih, 4, 1,
@@ -268,11 +268,11 @@ ofwfb_initialize(struct vt_device *vd)
 		oldpix = bus_space_read_4(sc->sc_memt, sc->sc_addr, 0);
 		bus_space_write_4(sc->sc_memt, sc->sc_addr, 0, 0xff000000);
 		if (*(uint8_t *)(sc->sc_addr) == 0xff)
-			vt_generate_vga_palette(sc->sc_colormap,
-			    COLOR_FORMAT_RGB, 255, 16, 255, 8, 255, 0);
-		else
-			vt_generate_vga_palette(sc->sc_colormap,
+			vt_generate_cons_palette(sc->sc_colormap,
 			    COLOR_FORMAT_RGB, 255, 0, 255, 8, 255, 16);
+		else
+			vt_generate_cons_palette(sc->sc_colormap,
+			    COLOR_FORMAT_RGB, 255, 16, 255, 8, 255, 0);
 		bus_space_write_4(sc->sc_memt, sc->sc_addr, 0, oldpix);
 		break;
 

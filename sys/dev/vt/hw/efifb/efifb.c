@@ -126,7 +126,7 @@ vt_efifb_init(struct vt_device *vd)
 
 	info->fb_stride = efifb->fb_stride * (depth / 8);
 
-	vt_generate_vga_palette(info->fb_cmap, COLOR_FORMAT_RGB,
+	vt_generate_cons_palette(info->fb_cmap, COLOR_FORMAT_RGB,
 	    efifb->fb_mask_red, ffs(efifb->fb_mask_red) - 1,
 	    efifb->fb_mask_green, ffs(efifb->fb_mask_green) - 1,
 	    efifb->fb_mask_blue, ffs(efifb->fb_mask_blue) - 1);
