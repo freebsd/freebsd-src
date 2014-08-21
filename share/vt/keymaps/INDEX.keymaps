@@ -53,8 +53,9 @@ be.acc.kbd:es:Belga (con acentos)
 
 bg.bds.kbd:en:Bulgarian (BDS)
 bg.bds.kbd:de:Bulgarisch (BDS)
-bg.bds.ctrlcaps.kbd:en:Bulgarian (Phonetic)
-bg.bds.ctrlcaps.kbd:de:Bulgarisch (phonetisch)
+
+bg.phonetic.kbd:en:Bulgarian (Phonetic)
+bg.phonetic.kbd:de:Bulgarisch (phonetisch)
 
 br.kbd:en:Brazilian (accent keys)
 br.kbd:de:Brasilianisch (mit Akzenten)
@@ -82,7 +83,7 @@ centraleuropean.qwerty.kbd:de:Zentral Europäisch (QWERTY)
 centraleuropean.qwerty.kbd:fr:Centre européen (QWERTY)
 centraleuropean.qwerty.kbd:es:Centroeuropeo (QWERTY)
 
-colemak.kbd:en:Colemak ergonomic alternative
+colemak.acc.kbd:en:Colemak ergonomic alternative
 
 cz.kbd:en:Czech (QWERTZ, accent keys)
 cz.kbd:de:Tschechisch (QWERTZ, mit Akzenten)

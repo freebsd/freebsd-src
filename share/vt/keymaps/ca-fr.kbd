@@ -61,7 +61,7 @@
   049   'n'    'N'    so     so     'n'    'N'    so     so      C
   050   'm'    'M'    cr     cr     'm'    'M'    cr     cr      C
   051   ','    '''    nop    nop    '_'    '''    nop    nop     O
-  052   '.'    '.'    nop    nop    nop    '.'    nop    nop     O
+  052   '.'    '.'    nop    nop    '.'    '.'    nop    nop     O
   053   0xe9   0xc9   nop    nop    dacu   0xc9   nop    nop     C
   054   rshift rshift rshift rshift rshift rshift rshift rshift  O
   055   '*'    '*'    '*'    '*'    '*'    '*'    '*'    '*'     O
