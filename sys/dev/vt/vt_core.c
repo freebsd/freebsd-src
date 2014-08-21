@@ -833,7 +833,8 @@ vt_flush(struct vt_device *vd)
 		return;
 
 #ifndef SC_NO_CUTPASTE
-	if ((vw->vw_flags & VWF_MOUSE_HIDE) == 0) {
+	if ((vd->vd_flags & VDF_MOUSECURSOR) && /* Mouse support enabled. */
+	    !(vw->vw_flags & VWF_MOUSE_HIDE)) { /* Cursor displayed.      */
 		/* Mark last mouse position as dirty to erase. */
 		vtbuf_mouse_cursor_position(&vw->vw_buf, vd->vd_mdirtyx,
 		    vd->vd_mdirtyy);
