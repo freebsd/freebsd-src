@@ -2,9 +2,13 @@
 
 FILES=	INDEX.keymaps \
 	am.kbd \
-	bg.bds.ctrlcaps.kbd \
+	be.acc.kbd \
+	be.kbd \
 	bg.bds.kbd \
+	bg.phonetic.kbd \
 	br.kbd \
+	br.noacc.kbd \
+	by.kbd \
 	ca.kbd \
 	ca-fr.kbd \
 	centraleuropean.kbd \
@@ -14,9 +18,10 @@ FILES=	INDEX.keymaps \
 	ch.acc.kbd \
 	ch.kbd \
 	ch.macbook.acc.kbd \
-	colemak.kbd \
+	colemak.acc.kbd \
 	cz.kbd \
 	de.acc.kbd \
+	de.noacc.kbd \
 	de.kbd \
 	dk.acc.kbd \
 	dk.kbd \
@@ -26,6 +31,9 @@ FILES=	INDEX.keymaps \
 	es.dvorak.kbd \
 	es.kbd \
 	fi.kbd \
+	fr.dvorak.acc.kbd \
+	fr.dvorak.kbd \
+	fr.macbook.kbd \
 	gr.101.acc.kbd \
 	gr.elot.acc.kbd \
 	gr.kbd \
