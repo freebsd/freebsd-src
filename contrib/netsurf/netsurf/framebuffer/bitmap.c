@@ -153,7 +153,7 @@ void bitmap_modified(void *bitmap) {
 
 	nsfb_get_geometry(bm, &pixel_width, &pixel_height, &pixel_format);
 	pixel_count = pixel_width * pixel_height;
-	nsfb_get_buffer(bm, (unsigned char *)&pixels, &pixel_stride);
+	nsfb_get_buffer(bm, (uint8_t **)&pixels, &pixel_stride);
 
 	if (pixel_format == NSFB_FMT_RGB888) {
 		for (pixel_loop = 0; pixel_loop < pixel_count; pixel_loop++) {
