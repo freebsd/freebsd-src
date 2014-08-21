@@ -853,7 +853,7 @@ vt_flush(struct vt_device *vd)
 	term_pos_t size;
 	term_char_t *r;
 #ifndef SC_NO_CUTPASTE
-	struct mouse_cursor *m;
+	struct mouse_cursor *cursor;
 	int bpl, h, w;
 #endif
 
@@ -868,6 +868,7 @@ vt_flush(struct vt_device *vd)
 		return;
 
 #ifndef SC_NO_CUTPASTE
+	cursor = NULL;
 	if ((vd->vd_flags & VDF_MOUSECURSOR) && /* Mouse support enabled. */
 	    !(vw->vw_flags & VWF_MOUSE_HIDE)) { /* Cursor displayed.      */
 		if (vd->vd_moldx != vd->vd_mx ||
@@ -903,6 +904,11 @@ vt_flush(struct vt_device *vd)
 			vd->vd_moldx = vd->vd_mx;
 			vd->vd_moldy = vd->vd_my;
 		}
+
+		if (!kdb_active && panicstr == NULL) {
+			/* Mouse enabled, and DDB isn't active. */
+			cursor = &vt_default_mouse_pointer;
+		}
 	}
 #endif
 
@@ -933,27 +939,17 @@ vt_flush(struct vt_device *vd)
 	}
 
 #ifndef SC_NO_CUTPASTE
-	/* Mouse disabled. */
-	if (vw->vw_flags & VWF_MOUSE_HIDE)
-		return;
+	if (cursor != NULL) {
+		bpl = (cursor->w + 7) >> 3; /* Bytes per source line. */
+		w = cursor->w;
+		h = cursor->h;
 
-	/* No mouse for DDB. */
-	if (kdb_active || panicstr != NULL)
-		return;
-
-	if ((vd->vd_flags & (VDF_MOUSECURSOR|VDF_TEXTMODE)) ==
-	    VDF_MOUSECURSOR) {
-		m = &vt_default_mouse_pointer;
-		bpl = (m->w + 7) >> 3; /* Bytes per source line. */
-		w = m->w;
-		h = m->h;
-
-		if ((vd->vd_mx + m->w) > (size.tp_col * vf->vf_width))
+		if ((vd->vd_mx + cursor->w) > (size.tp_col * vf->vf_width))
 			w = (size.tp_col * vf->vf_width) - vd->vd_mx - 1;
-		if ((vd->vd_my + m->h) > (size.tp_row * vf->vf_height))
+		if ((vd->vd_my + cursor->h) > (size.tp_row * vf->vf_height))
 			h = (size.tp_row * vf->vf_height) - vd->vd_my - 1;
 
-		vd->vd_driver->vd_bitbltchr(vd, m->map, m->mask, bpl,
+		vd->vd_driver->vd_bitbltchr(vd, cursor->map, cursor->mask, bpl,
 		    vd->vd_offset.tp_row + vd->vd_my,
 		    vd->vd_offset.tp_col + vd->vd_mx,
 		    w, h, TC_WHITE, TC_BLACK);
