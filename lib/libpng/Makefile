@@ -1,11 +1,14 @@
 # $FreeBSD$
 
-LIB=	png
+LIB?=	png
 SHLIB_MAJOR= 15
 
-CFLAGS+=	-I${.CURDIR}
+BUILDDIR?=	${.CURDIR}
+SRCDIR?=	${.CURDIR}/../../contrib/libpng
 
-.PATH: ${.CURDIR}/../../contrib/libpng
+CFLAGS+=	-I${BUILDDIR}
+
+.PATH: ${SRCDIR}
 SRCS=	\
 	png.c \
 	pngerror.c \
@@ -23,12 +26,12 @@ SRCS=	\
 	pngwtran.c \
 	pngwutil.c
 
+.if ${BUILDDIR} == ${.CURDIR}
 INCS=	\
 	png.h \
 	pngconf.h \
 	pnglibconf.h
-
-#INCSDIR=        ${INCLUDEDIR}/libpng15
+.endif
 
 WARNS?=	6
 

