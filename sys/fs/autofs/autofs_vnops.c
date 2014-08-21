@@ -46,7 +46,7 @@ __FBSDID("$FreeBSD$");
 #include <machine/atomic.h>
 #include <vm/uma.h>
 
-#include "autofs.h"
+#include <fs/autofs/autofs.h>
 
 static int	autofs_trigger_vn(struct vnode *vp, const char *path,
 		    int pathlen, struct vnode **newvp);
