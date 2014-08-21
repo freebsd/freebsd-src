@@ -850,10 +850,16 @@ vt_flush(struct vt_device *vd)
 			 * to font size possibly inconsistent across
 			 * windows, this may not be sufficient. This
 			 * causes part of the cursor to not be erased.
+			 *
+			 * FIXME: The vt_buf lock is acquired twice in a
+			 * row.
 			 */
 			vtbuf_mouse_cursor_position(&vw->vw_buf,
 			    vd->vd_moldx / vf->vf_width,
 			    vd->vd_moldy / vf->vf_height);
+			vtbuf_mouse_cursor_position(&vw->vw_buf,
+			    vd->vd_mx / vf->vf_width,
+			    vd->vd_my / vf->vf_height);
 
 			/*
 			 * Save point of last mouse cursor to erase it
