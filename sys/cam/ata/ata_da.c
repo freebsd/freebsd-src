@@ -299,10 +299,10 @@ static struct ada_quirk_entry ada_quirk_table[] =
 	},
 	{
 		/*
-		 * Corsair Force GT SSDs
+		 * Corsair Force GT & GS SSDs
 		 * 4k optimised & trim only works in 4k requests + 4k aligned
 		 */
-		{ T_DIRECT, SIP_MEDIA_FIXED, "*", "Corsair Force GT*", "*" },
+		{ T_DIRECT, SIP_MEDIA_FIXED, "*", "Corsair Force G*", "*" },
 		/*quirks*/ADA_Q_4K
 	},
 	{
@@ -439,6 +439,14 @@ static struct ada_quirk_entry ada_quirk_table[] =
 		 * 4k optimised
 		 */
 		{ T_DIRECT, SIP_MEDIA_FIXED, "*", "SAMSUNG SSD 830 Series*", "*" },
+		/*quirks*/ADA_Q_4K
+	},
+	{
+		/*
+		 * Samsung 840 SSDs
+		 * 4k optimised
+		 */
+		{ T_DIRECT, SIP_MEDIA_FIXED, "*", "Samsung SSD 840*", "*" },
 		/*quirks*/ADA_Q_4K
 	},
 	{
