@@ -1949,8 +1949,7 @@ sctp_validate_init_auth_params(struct mbuf *m, int offset, int limit)
 		    "SCTP: peer sent chunk list w/o AUTH\n");
 		return (-1);
 	}
-	if (!SCTP_BASE_SYSCTL(sctp_asconf_auth_nochk) && peer_supports_asconf &&
-	    !peer_supports_auth) {
+	if (peer_supports_asconf && !peer_supports_auth) {
 		SCTPDBG(SCTP_DEBUG_AUTH1,
 		    "SCTP: peer supports ASCONF but not AUTH\n");
 		return (-1);

@@ -79,7 +79,6 @@ struct sctp_sysctl {
 	/* EY 5/5/08 - nr_sack flag variable */
 	uint32_t sctp_nr_sack_on_off;
 	uint32_t sctp_use_cwnd_based_maxburst;
-	uint32_t sctp_asconf_auth_nochk;
 	uint32_t sctp_auth_disable;
 	uint32_t sctp_nat_friendly;
 	uint32_t sctp_L2_abc_variable;
@@ -359,12 +358,6 @@ struct sctp_sysctl {
 #define SCTPCTL_CWND_MAXBURST_MIN	0
 #define SCTPCTL_CWND_MAXBURST_MAX	1
 #define SCTPCTL_CWND_MAXBURST_DEFAULT	1
-
-/* asconf_auth_nochk: Disable SCTP ASCONF AUTH requirement */
-#define SCTPCTL_ASCONF_AUTH_NOCHK_DESC	"Disable SCTP ASCONF AUTH requirement"
-#define SCTPCTL_ASCONF_AUTH_NOCHK_MIN	0
-#define SCTPCTL_ASCONF_AUTH_NOCHK_MAX	1
-#define SCTPCTL_ASCONF_AUTH_NOCHK_DEFAULT	0
 
 /* auth_disable: Disable SCTP AUTH function */
 #define SCTPCTL_AUTH_DISABLE_DESC	"Disable SCTP AUTH function"
