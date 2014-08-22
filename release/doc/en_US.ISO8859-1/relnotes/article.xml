@@ -196,8 +196,13 @@
     <sect3 xml:id="boot">
       <title>Boot Loader Changes</title>
 
-      <para>&nbsp;</para>
-
+      <para revision="262701">A kernel selection menu has been added
+	to &man.loader.8;.  If the <quote>beastie menu</quote> is
+	enabled, the kernel to boot may be selected from the kernel
+	selection menu.  Additional kernels may be listed in
+	&man.loader.conf.5; as a comma- or space-separated list.  By
+	default, <literal>kernel</literal> and
+	<literal>kernel.old</literal> are listed.</para>
     </sect3>
 
     <sect3 xml:id="proc">
