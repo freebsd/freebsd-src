@@ -1,10 +1,11 @@
 #$FreeBSD$
 
-.PATH:  ${.CURDIR}/../../dev/i40e
+.PATH:  ${.CURDIR}/../../dev/ixl
 
-KMOD    = if_i40e
+KMOD    = if_ixl
 SRCS    = device_if.h bus_if.h pci_if.h opt_bdg.h
-SRCS    += if_i40e.c i40e_txrx.c i40e_osdep.c
+SRCS    += opt_inet.h opt_inet6.h
+SRCS    += if_ixl.c ixl_txrx.c i40e_osdep.c
 
 # Shared source
 SRCS    += i40e_common.c i40e_nvm.c i40e_adminq.c i40e_lan_hmc.c i40e_hmc.c
@@ -12,8 +13,8 @@ SRCS    += i40e_common.c i40e_nvm.c i40e_adminq.c i40e_lan_hmc.c i40e_hmc.c
 CFLAGS	+= -DSMP
 
 # Add Flow Director support
-# CFLAGS += -DI40E_FDIR
+# CFLAGS += -DIXL_FDIR
 # Debug messages / sysctls
-# CFLAGS += -DI40E_DEBUG
+# CFLAGS += -DIXLE_DEBUG
 
 .include <bsd.kmod.mk>

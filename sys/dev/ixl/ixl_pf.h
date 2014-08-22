@@ -33,11 +33,11 @@
 /*$FreeBSD$*/
 
 
-#ifndef _I40E_PF_H_
-#define _I40E_PF_H_
+#ifndef _IXL_PF_H_
+#define _IXL_PF_H_
 
 /* Physical controller structure */
-struct i40e_pf {
+struct ixl_pf {
 	struct i40e_hw		hw;
 	struct i40e_osdep	osdep;
 	struct device		*dev;
@@ -64,6 +64,8 @@ struct i40e_pf {
 	struct task     	adminq;
 	struct taskqueue	*tq;
 
+	int			advertised_speed;
+
 	/*
 	** VSI - Stations: 
 	**   These are the traffic class holders, and
@@ -71,7 +73,7 @@ struct i40e_pf {
 	**   associated with them.
 	** NOTE: for now using just one, so embed it.
 	*/
-	struct i40e_vsi		vsi;
+	struct ixl_vsi		vsi;
 
 	/* Misc stats maintained by the driver */
 	u64			watchdog_events;
@@ -84,11 +86,11 @@ struct i40e_pf {
 };
 
 
-#define I40E_PF_LOCK_INIT(_sc, _name) \
-        mtx_init(&(_sc)->pf_mtx, _name, "I40E PF Lock", MTX_DEF)
-#define I40E_PF_LOCK(_sc)              mtx_lock(&(_sc)->pf_mtx)
-#define I40E_PF_UNLOCK(_sc)            mtx_unlock(&(_sc)->pf_mtx)
-#define I40E_PF_LOCK_DESTROY(_sc)      mtx_destroy(&(_sc)->pf_mtx)
-#define I40E_PF_LOCK_ASSERT(_sc)       mtx_assert(&(_sc)->pf_mtx, MA_OWNED)
+#define IXL_PF_LOCK_INIT(_sc, _name) \
+        mtx_init(&(_sc)->pf_mtx, _name, "IXL PF Lock", MTX_DEF)
+#define IXL_PF_LOCK(_sc)              mtx_lock(&(_sc)->pf_mtx)
+#define IXL_PF_UNLOCK(_sc)            mtx_unlock(&(_sc)->pf_mtx)
+#define IXL_PF_LOCK_DESTROY(_sc)      mtx_destroy(&(_sc)->pf_mtx)
+#define IXL_PF_LOCK_ASSERT(_sc)       mtx_assert(&(_sc)->pf_mtx, MA_OWNED)
 
-#endif /* _I40E_PF_H_ */
+#endif /* _IXL_PF_H_ */
