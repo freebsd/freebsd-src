@@ -271,9 +271,16 @@ socket_hhook_register(int subtype)
 }
 
 static void
+socket_hhook_deregister(int subtype)
+{
+	
+	if (hhook_head_deregister(V_socket_hhh[subtype]) != 0)
+		printf("%s: WARNING: unable to deregister hook\n", __func__);
+}
+
+static void
 socket_init(void *tag)
 {
-	int i;
 
 	socket_zone = uma_zcreate("socket", sizeof(struct socket), NULL, NULL,
 	    NULL, NULL, UMA_ALIGN_PTR, UMA_ZONE_NOFREE);
@@ -281,13 +288,31 @@ socket_init(void *tag)
 	uma_zone_set_warning(socket_zone, "kern.ipc.maxsockets limit reached");
 	EVENTHANDLER_REGISTER(maxsockets_change, socket_zone_change, NULL,
 	    EVENTHANDLER_PRI_FIRST);
-
-	/* We expect a contiguous range */
-	for (i = 0; i <= HHOOK_SOCKET_LAST; i++) {
-		socket_hhook_register(i);
-	}
 }
 SYSINIT(socket, SI_SUB_PROTO_DOMAININIT, SI_ORDER_ANY, socket_init, NULL);
+
+static void
+socket_vnet_init(const void *unused __unused)
+{
+	int i;
+
+	/* We expect a contiguous range */
+	for (i = 0; i <= HHOOK_SOCKET_LAST; i++)
+		socket_hhook_register(i);
+}
+VNET_SYSINIT(socket_vnet_init, SI_SUB_PROTO_DOMAININIT, SI_ORDER_ANY,
+    socket_vnet_init, NULL);
+
+static void
+socket_vnet_uninit(const void *unused __unused)
+{
+	int i;
+
+	for (i = 0; i <= HHOOK_SOCKET_LAST; i++)
+		socket_hhook_deregister(i);
+}
+VNET_SYSUNINIT(socket_vnet_uninit, SI_SUB_PROTO_DOMAININIT, SI_ORDER_ANY,
+    socket_vnet_uninit, NULL);
 
 /*
  * Initialise maxsockets.  This SYSINIT must be run after
@@ -376,12 +401,15 @@ soalloc(struct vnet *vnet)
 #endif
 	mtx_unlock(&so_global_mtx);
 
+	CURVNET_SET(vnet);
 	/* We shouldn't need the so_global_mtx */
 	if (V_socket_hhh[HHOOK_SOCKET_CREATE]->hhh_nhooks > 0) {
 		if (hhook_run_socket(so, NULL, HHOOK_SOCKET_CREATE))
 			/* Do we need more comprehensive error returns? */
-			return (NULL);
+			so = NULL;
 	}
+	CURVNET_RESTORE();
+
 	return (so);
 }
 
@@ -418,8 +446,10 @@ sodealloc(struct socket *so)
 #ifdef MAC
 	mac_socket_destroy(so);
 #endif
+	CURVNET_SET(so->so_vnet);
 	if (V_socket_hhh[HHOOK_SOCKET_CLOSE]->hhh_nhooks > 0)
 		hhook_run_socket(so, NULL, HHOOK_SOCKET_CLOSE);
+	CURVNET_RESTORE();
 
 	crfree(so->so_cred);
 	khelp_destroy_osd(&so->osd);
