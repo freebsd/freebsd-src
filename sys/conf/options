@@ -459,6 +459,7 @@ SCTP_LTRACE_ERRORS	opt_sctp.h # Log to KTR error returns.
 SCTP_USE_PERCPU_STAT	opt_sctp.h # Use per cpu stats.
 SCTP_MCORE_INPUT	opt_sctp.h # Have multiple input threads for input mbufs
 SCTP_LOCAL_TRACE_BUF	opt_sctp.h # Use tracebuffer exported via sysctl
+SCTP_DETAILED_STR_STATS	opt_sctp.h # Use per PR-SCTP policy stream stats
 #
 #
 #
