@@ -521,12 +521,8 @@ vga_bitblt_pixels_block_ncolors(struct vt_device *vd, const uint8_t *masks,
 
 static void
 vga_bitblt_one_text_pixels_block(struct vt_device *vd, const struct vt_buf *vb,
-    const struct vt_font *vf, unsigned int x, unsigned int y
-#ifndef SC_NO_CUTPASTE
-    , const struct vt_mouse_cursor *cursor,
-    term_color_t cursor_fg, term_color_t cursor_bg
-#endif
-    )
+    const struct vt_font *vf, unsigned int x, unsigned int y,
+    int cursor_displayed)
 {
 	unsigned int i, col, row, src_x, x_count;
 	unsigned int used_colors_list[16], used_colors;
@@ -536,6 +532,7 @@ vga_bitblt_one_text_pixels_block(struct vt_device *vd, const struct vt_buf *vb,
 	term_color_t fg, bg;
 	const uint8_t *src;
 #ifndef SC_NO_CUTPASTE
+	struct vt_mouse_cursor *cursor;
 	unsigned int mx, my;
 #endif
 
@@ -629,9 +626,10 @@ vga_bitblt_one_text_pixels_block(struct vt_device *vd, const struct vt_buf *vb,
 	 * the current position could be different than the one used
 	 * to mark the area dirty.
 	 */
+	cursor = vd->vd_mcursor;
 	mx = vd->vd_moldx + vd->vd_offset.tp_col;
 	my = vd->vd_moldy + vd->vd_offset.tp_row;
-	if (cursor != NULL &&
+	if (cursor_displayed &&
 	    ((mx >= x && x + VT_VGA_PIXELS_BLOCK - 1 >= mx) ||
 	     (mx < x && mx + cursor->width >= x)) &&
 	    ((my >= y && y + vf->vf_height - 1 >= my) ||
@@ -660,11 +658,11 @@ vga_bitblt_one_text_pixels_block(struct vt_device *vd, const struct vt_buf *vb,
 		vga_copy_bitmap_portion(pattern_2colors, pattern_ncolors,
 		    cursor->map, cursor->mask, cursor->width,
 		    src_x, dst_x, x_count, src_y, dst_y, y_count,
-		    cursor_fg, cursor_bg, 1);
+		    vd->vd_mcursor_fg, vd->vd_mcursor_bg, 1);
 
-		if ((used_colors_list[cursor_fg] & 0x1) != 0x1)
+		if ((used_colors_list[vd->vd_mcursor_fg] & 0x1) != 0x1)
 			used_colors++;
-		if ((used_colors_list[cursor_bg] & 0x2) != 0x2)
+		if ((used_colors_list[vd->vd_mcursor_bg] & 0x2) != 0x2)
 			used_colors++;
 	}
 #endif
@@ -683,12 +681,7 @@ vga_bitblt_one_text_pixels_block(struct vt_device *vd, const struct vt_buf *vb,
 
 static void
 vga_bitblt_text_gfxmode(struct vt_device *vd, const struct vt_buf *vb,
-    const struct vt_font *vf, const term_rect_t *area
-#ifndef SC_NO_CUTPASTE
-    , const struct vt_mouse_cursor *cursor,
-    term_color_t cursor_fg, term_color_t cursor_bg
-#endif
-    )
+    const struct vt_font *vf, const term_rect_t *area, int cursor_displayed)
 {
 	unsigned int col, row;
 	unsigned int x1, y1, x2, y2, x, y;
@@ -770,23 +763,15 @@ vga_bitblt_text_gfxmode(struct vt_device *vd, const struct vt_buf *vb,
 
 	for (y = y1; y < y2; y += vf->vf_height) {
 		for (x = x1; x < x2; x += VT_VGA_PIXELS_BLOCK) {
-			vga_bitblt_one_text_pixels_block(vd, vb, vf, x, y
-#ifndef SC_NO_CUTPASTE
-			    , cursor, cursor_fg, cursor_bg
-#endif
-			    );
+			vga_bitblt_one_text_pixels_block(vd, vb, vf, x, y,
+			    cursor_displayed);
 		}
 	}
 }
 
 static void
 vga_bitblt_text_txtmode(struct vt_device *vd, const struct vt_buf *vb,
-    const term_rect_t *area
-#ifndef SC_NO_CUTPASTE
-    , const struct vt_mouse_cursor *cursor,
-    term_color_t cursor_fg, term_color_t cursor_bg
-#endif
-    )
+    const term_rect_t *area, int cursor_displayed)
 {
 	struct vga_softc *sc;
 	unsigned int col, row;
@@ -828,26 +813,13 @@ vga_bitblt_text_txtmode(struct vt_device *vd, const struct vt_buf *vb,
 
 static void
 vga_bitblt_text(struct vt_device *vd, const struct vt_buf *vb,
-    const struct vt_font *vf, const term_rect_t *area
-#ifndef SC_NO_CUTPASTE
-    , const struct vt_mouse_cursor *cursor,
-    term_color_t cursor_fg, term_color_t cursor_bg
-#endif
-    )
+    const struct vt_font *vf, const term_rect_t *area, int cursor_displayed)
 {
 
 	if (!(vd->vd_flags & VDF_TEXTMODE)) {
-		vga_bitblt_text_gfxmode(vd, vb, vf, area
-#ifndef SC_NO_CUTPASTE
-		    , cursor, cursor_fg, cursor_bg
-#endif
-		    );
+		vga_bitblt_text_gfxmode(vd, vb, vf, area, cursor_displayed);
 	} else {
-		vga_bitblt_text_txtmode(vd, vb, area
-#ifndef SC_NO_CUTPASTE
-		    , cursor, cursor_fg, cursor_bg
-#endif
-		    );
+		vga_bitblt_text_txtmode(vd, vb, area, cursor_displayed);
 	}
 }
 
