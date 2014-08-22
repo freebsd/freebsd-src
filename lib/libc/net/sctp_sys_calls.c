@@ -356,6 +356,9 @@ sctp_opt_info(int sd, sctp_assoc_t id, int opt, void *arg, socklen_t * size)
 	case SCTP_PR_SUPPORTED:
 		((struct sctp_assoc_value *)arg)->assoc_id = id;
 		break;
+	case SCTP_RECONFIG_SUPPORTED:
+		((struct sctp_assoc_value *)arg)->assoc_id = id;
+		break;
 	case SCTP_NRSACK_SUPPORTED:
 		((struct sctp_assoc_value *)arg)->assoc_id = id;
 		break;
