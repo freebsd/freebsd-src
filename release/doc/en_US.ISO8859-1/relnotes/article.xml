@@ -207,6 +207,9 @@
 
 	<para revision="259453">Support for Ralink RT5370 and
 	  RT5372 chipsets has been added.</para>
+
+	<para revision="260120">Firmware for the &man.run.4; driver
+	  has been updated to version 0.33.</para>
       </sect4>
     </sect3>
 
