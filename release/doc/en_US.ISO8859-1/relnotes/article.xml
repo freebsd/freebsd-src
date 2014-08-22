@@ -179,6 +179,10 @@
 	has been added to &os;/i386 as loadable modules, however
 	not available in the <filename>GENERIC</filename> kernel
 	configuration.</para>
+
+      <para revision="261090">The &man.bhyve.4; hypervisor now
+	supports soft power-off functionality via the ACPI S5
+	state.</para>
     </sect3>
 
     <sect3 xml:id="kernel-arm">
