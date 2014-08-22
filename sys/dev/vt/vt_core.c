@@ -428,7 +428,7 @@ vt_scroll(struct vt_window *vw, int offset, int whence)
 
 	diff = vthistory_seek(&vw->vw_buf, offset, whence);
 	/*
-	 * Offset changed, please update Nth lines on sceen.
+	 * Offset changed, please update Nth lines on screen.
 	 * +N - Nth lines at top;
 	 * -N - Nth lines at bottom.
 	 */
@@ -903,12 +903,7 @@ vt_flush(struct vt_device *vd)
 	    !(vw->vw_flags & VWF_MOUSE_HIDE)) { /* Cursor displayed.      */
 		if (vd->vd_moldx != vd->vd_mx ||
 		    vd->vd_moldy != vd->vd_my) {
-			/*
-			 * Mark last mouse position as dirty to erase.
-			 *
-			 * FIXME: The vt_buf lock is acquired twice in a
-			 * row.
-			 */
+			/* Mark last mouse position as dirty to erase. */
 			vt_mark_mouse_position_as_dirty(vd,
 			    vd->vd_moldx, vd->vd_moldy);
 
