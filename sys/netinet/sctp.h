@@ -124,6 +124,7 @@ struct sctp_paramhdr {
 #define SCTP_ECN_SUPPORTED              0x00000025
 #define SCTP_PR_SUPPORTED               0x00000026
 #define SCTP_NRSACK_SUPPORTED           0x00000027
+#define SCTP_PKTDROP_SUPPORTED          0x00000028
 
 /*
  * read-only options
