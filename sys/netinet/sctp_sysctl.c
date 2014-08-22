@@ -49,6 +49,7 @@ __FBSDID("$FreeBSD$");
 void
 sctp_init_sysctls()
 {
+	printf("sctp_init_sysctls().\n");
 	SCTP_BASE_SYSCTL(sctp_sendspace) = SCTPCTL_MAXDGRAM_DEFAULT;
 	SCTP_BASE_SYSCTL(sctp_recvspace) = SCTPCTL_RECVSPACE_DEFAULT;
 	SCTP_BASE_SYSCTL(sctp_auto_asconf) = SCTPCTL_AUTOASCONF_DEFAULT;
@@ -125,6 +126,7 @@ sctp_init_sysctls()
 	SCTP_BASE_SYSCTL(sctp_inits_include_nat_friendly) = SCTPCTL_NAT_FRIENDLY_INITS_DEFAULT;
 #if defined(SCTP_DEBUG)
 	SCTP_BASE_SYSCTL(sctp_debug_on) = SCTPCTL_DEBUG_DEFAULT;
+printf("debug = %d.\n", SCTP_BASE_SYSCTL(sctp_debug_on));
 #endif
 #if defined(__APPLE__) || defined(SCTP_SO_LOCK_TESTING)
 	SCTP_BASE_SYSCTL(sctp_output_unlocked) = SCTPCTL_OUTPUT_UNLOCKED_DEFAULT;
