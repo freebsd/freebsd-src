@@ -49,7 +49,6 @@ __FBSDID("$FreeBSD$");
 void
 sctp_init_sysctls()
 {
-	printf("sctp_init_sysctls().\n");
 	SCTP_BASE_SYSCTL(sctp_sendspace) = SCTPCTL_MAXDGRAM_DEFAULT;
 	SCTP_BASE_SYSCTL(sctp_recvspace) = SCTPCTL_RECVSPACE_DEFAULT;
 	SCTP_BASE_SYSCTL(sctp_auto_asconf) = SCTPCTL_AUTOASCONF_DEFAULT;
