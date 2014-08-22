@@ -837,8 +837,8 @@ vt_bitblt_char(struct vt_device *vd, struct vt_font *vf, term_char_t c,
 		 * Fonts may not always be able to fill the entire
 		 * screen.
 		 */
-		top = row * vf->vf_height + vd->vd_offset.tp_row;
-		left = col * vf->vf_width + vd->vd_offset.tp_col;
+		top = row * vf->vf_height + vd->vd_curwindow->vw_offset.tp_row;
+		left = col * vf->vf_width + vd->vd_curwindow->vw_offset.tp_col;
 
 		vd->vd_driver->vd_bitbltchr(vd, src, NULL, 0, top, left,
 		    vf->vf_width, vf->vf_height, fg, bg);
@@ -973,8 +973,8 @@ vt_flush(struct vt_device *vd)
 
 			vd->vd_driver->vd_bitbltchr(vd,
 			    vd->vd_mcursor->map, vd->vd_mcursor->mask, bpl,
-			    vd->vd_offset.tp_row + vd->vd_my,
-			    vd->vd_offset.tp_col + vd->vd_mx,
+			    vw->vw_offset.tp_row + vd->vd_my,
+			    vw->vw_offset.tp_col + vd->vd_mx,
 			    w, h, vd->vd_mcursor_fg, vd->vd_mcursor_bg);
 		}
 #endif
@@ -1248,8 +1248,8 @@ vt_change_font(struct vt_window *vw, struct vt_font *vf)
 	vt_termsize(vd, vf, &size);
 	vt_winsize(vd, vf, &wsz);
 	/* Save offset to font aligned area. */
-	vd->vd_offset.tp_col = (vd->vd_width % vf->vf_width) / 2;
-	vd->vd_offset.tp_row = (vd->vd_height % vf->vf_height) / 2;
+	vw->vw_offset.tp_col = (vd->vd_width % vf->vf_width) / 2;
+	vw->vw_offset.tp_row = (vd->vd_height % vf->vf_height) / 2;
 
 	/* Grow the screen buffer and terminal. */
 	terminal_mute(tm, 1);
@@ -1287,8 +1287,8 @@ vt_set_border(struct vt_window *vw, struct vt_font *vf, term_color_t c)
 
 	x = vd->vd_width - 1;
 	y = vd->vd_height - 1;
-	off_x = vd->vd_offset.tp_col;
-	off_y = vd->vd_offset.tp_row;
+	off_x = vw->vw_offset.tp_col;
+	off_y = vw->vw_offset.tp_row;
 
 	/* Top bar. */
 	if (off_y > 0)
