@@ -741,16 +741,7 @@ vga_bitblt_text_gfxmode(struct vt_device *vd, const struct vt_window *vw,
 	    * VT_VGA_PIXELS_BLOCK;
 	y2 = row * vf->vf_height + vw->vw_offset.tp_row;
 
-	/*
-	 * Clip the area to the screen size.
-	 *
-	 * FIXME: The problem with handling the dirty area in character
-	 * cells is that when using different fonts, the dirty area was
-	 * possibly calculated with a different font than the one we use
-	 * here, leading to out-of-screen coordinates. The dirty area
-	 * should be stored in pixels.
-	 */
-
+	/* Clip the area to the screen size. */
 	x2 = min(x2, vd->vd_width - 1);
 	y2 = min(y2, vd->vd_height - 1);
 
