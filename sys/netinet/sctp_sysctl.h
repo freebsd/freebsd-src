@@ -46,6 +46,7 @@ struct sctp_sysctl {
 	uint32_t sctp_multiple_asconfs;
 	uint32_t sctp_ecn_enable;
 	uint32_t sctp_pr_enable;
+	uint32_t sctp_reconfig_enable;
 	uint32_t sctp_nrsack_enable;
 	uint32_t sctp_pktdrop_enable;
 	uint32_t sctp_fr_max_burst_default;
@@ -161,8 +162,14 @@ struct sctp_sysctl {
 #define SCTPCTL_PR_ENABLE_MAX		1
 #define SCTPCTL_PR_ENABLE_DEFAULT	1
 
+/* reconfig_enable: Enable SCTP RE-CONFIG */
+#define SCTPCTL_RECONFIG_ENABLE_DESC	"Enable SCTP RE-CONFIG"
+#define SCTPCTL_RECONFIG_ENABLE_MIN	0
+#define SCTPCTL_RECONFIG_ENABLE_MAX	1
+#define SCTPCTL_RECONFIG_ENABLE_DEFAULT	1
+
 /* nrsack_enable: Enable NR_SACK */
-#define SCTPCTL_NRSACK_ENABLE_DESC	"Enable NR_SACK"
+#define SCTPCTL_NRSACK_ENABLE_DESC	"Enable SCTP NR-SACK"
 #define SCTPCTL_NRSACK_ENABLE_MIN	0
 #define SCTPCTL_NRSACK_ENABLE_MAX	1
 #define SCTPCTL_NRSACK_ENABLE_DEFAULT	0
