@@ -20,6 +20,9 @@ FILES=	DAEMON \
 	atm3 \
 	auditd \
 	auditdistd \
+	automount \
+	automountd \
+	autounmountd \
 	bgfsck \
 	${_bluetooth} \
 	bootparams \

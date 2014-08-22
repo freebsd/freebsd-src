@@ -77,7 +77,6 @@ this file.
 
 acct		Exercise the integer to float conversion used in acct(5)
 geom		Some tests and an out-of-kernel simulator for the GEOM code
-ia64		ia64 specific regression tests
 nfsmmap		Some tests to exercise some tricky cases in NFS and mmap
 p1003_1b	Exercise 1003.1B scheduler
 pipe		Pipe code regression test

@@ -13,6 +13,6 @@ divert(-1)
 #
 
 divert(0)
-VERSIONID(`$Id: bsdi2.0.m4,v 8.11 2013/11/22 20:51:15 ca Exp $')
+VERSIONID(`$Id: bsdi2.0.m4,v 8.11 2013-11-22 20:51:15 ca Exp $')
 errprint(`NOTE: OSTYPE(bsdi2.0) is deprecated.  Use OSTYPE(bsdi) instead.')
 include(_CF_DIR_`'ostype/bsdi.m4)dnl

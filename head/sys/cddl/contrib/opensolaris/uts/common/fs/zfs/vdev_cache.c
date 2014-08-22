@@ -90,13 +90,10 @@ int zfs_vdev_cache_bshift = 16;
 
 SYSCTL_DECL(_vfs_zfs_vdev);
 SYSCTL_NODE(_vfs_zfs_vdev, OID_AUTO, cache, CTLFLAG_RW, 0, "ZFS VDEV Cache");
-TUNABLE_INT("vfs.zfs.vdev.cache.max", &zfs_vdev_cache_max);
 SYSCTL_INT(_vfs_zfs_vdev_cache, OID_AUTO, max, CTLFLAG_RDTUN,
     &zfs_vdev_cache_max, 0, "Maximum I/O request size that increase read size");
-TUNABLE_INT("vfs.zfs.vdev.cache.size", &zfs_vdev_cache_size);
 SYSCTL_INT(_vfs_zfs_vdev_cache, OID_AUTO, size, CTLFLAG_RDTUN,
     &zfs_vdev_cache_size, 0, "Size of VDEV cache");
-TUNABLE_INT("vfs.zfs.vdev.cache.bshift", &zfs_vdev_cache_bshift);
 SYSCTL_INT(_vfs_zfs_vdev_cache, OID_AUTO, bshift, CTLFLAG_RDTUN,
     &zfs_vdev_cache_bshift, 0, "Turn too small requests into 1 << this value");
 
@@ -114,7 +111,7 @@ static vdc_stats_t vdc_stats = {
 	{ "misses",		KSTAT_DATA_UINT64 }
 };
 
-#define	VDCSTAT_BUMP(stat)	atomic_add_64(&vdc_stats.stat.value.ui64, 1);
+#define	VDCSTAT_BUMP(stat)	atomic_inc_64(&vdc_stats.stat.value.ui64);
 
 static int
 vdev_cache_offset_compare(const void *a1, const void *a2)

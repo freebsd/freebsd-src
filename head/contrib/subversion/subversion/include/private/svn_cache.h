@@ -182,6 +182,10 @@ typedef struct svn_cache__info_t
  * if they are strings.  Cached values will be copied in and out of
  * the cache using @a serialize_func and @a deserialize_func, respectively.
  *
+ * If @a deserialize_func is NULL, then the data is returned as an
+ * svn_stringbuf_t; if @a serialize_func is NULL, then the data is
+ * assumed to be an svn_stringbuf_t.
+ *
  * The cache stores up to @a pages * @a items_per_page items at a
  * time.  The exact cache invalidation strategy is not defined here,
  * but in general, a lower value for @a items_per_page means more
@@ -224,7 +228,7 @@ svn_cache__create_inprocess(svn_cache__t **cache_p,
  * other caches.  @a *cache_p will be allocated in @a result_pool.
  *
  * If @a deserialize_func is NULL, then the data is returned as an
- * svn_string_t; if @a serialize_func is NULL, then the data is
+ * svn_stringbuf_t; if @a serialize_func is NULL, then the data is
  * assumed to be an svn_stringbuf_t.
  *
  * These caches are always thread safe.
@@ -309,7 +313,7 @@ svn_cache__membuffer_cache_create(svn_membuffer_t **cache,
  * this cache from other caches.  @a *cache_p will be allocated in @a result_pool.
  *
  * If @a deserialize_func is NULL, then the data is returned as an
- * svn_string_t; if @a serialize_func is NULL, then the data is
+ * svn_stringbuf_t; if @a serialize_func is NULL, then the data is
  * assumed to be an svn_stringbuf_t.
  *
  * If @a thread_safe is true, and APR is compiled with threads, all

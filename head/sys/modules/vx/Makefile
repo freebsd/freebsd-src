@@ -1,8 +1,9 @@
 # $FreeBSD$
 
-.include <src.opts.mk>
+SYSDIR?=${.CURDIR}/../..
+.include "${SYSDIR}/conf/kern.opts.mk"
 
-.PATH: ${.CURDIR}/../../dev/vx
+.PATH: ${SYSDIR}/dev/vx
 
 KMOD=	if_vx
 SRCS=	if_vx.c if_vx_pci.c

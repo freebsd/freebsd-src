@@ -131,7 +131,7 @@ APR_DECLARE(apr_pool_t *) apr_allocator_owner_get(apr_allocator_t *allocator)
 /**
  * Set the current threshold at which the allocator should start
  * giving blocks back to the system.
- * @param allocator The allocator the set the threshold on
+ * @param allocator The allocator to set the threshold on
  * @param size The threshold.  0 == unlimited.
  */
 APR_DECLARE(void) apr_allocator_max_free_set(apr_allocator_t *allocator,

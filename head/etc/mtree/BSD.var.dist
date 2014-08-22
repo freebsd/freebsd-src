@@ -96,6 +96,8 @@
         ..
     ..
     unbound         uname=unbound gname=unbound mode=0755
+        conf.d          uname=unbound gname=unbound mode=0755
+        ..
     ..
     yp
     ..

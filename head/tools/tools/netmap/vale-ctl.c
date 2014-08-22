@@ -38,6 +38,7 @@
 #include <net/netmap.h>
 #include <net/netmap_user.h>
 #include <libgen.h>	/* basename */
+#include <stdlib.h>	/* atoi, free */
 
 /* debug support */
 #define ND(format, ...)	do {} while(0)
@@ -45,8 +46,47 @@
 	fprintf(stderr, "%s [%d] " format "\n",		\
 	__FUNCTION__, __LINE__, ##__VA_ARGS__)
 
+/* XXX cut and paste from pkt-gen.c because I'm not sure whether this
+ * program may include nm_util.h
+ */
+void parse_nmr_config(const char* conf, struct nmreq *nmr)
+{
+	char *w, *tok;
+	int i, v;
+
+	nmr->nr_tx_rings = nmr->nr_rx_rings = 0;
+	nmr->nr_tx_slots = nmr->nr_rx_slots = 0;
+	if (conf == NULL || ! *conf)
+		return;
+	w = strdup(conf);
+	for (i = 0, tok = strtok(w, ","); tok; i++, tok = strtok(NULL, ",")) {
+		v = atoi(tok);
+		switch (i) {
+		case 0:
+			nmr->nr_tx_slots = nmr->nr_rx_slots = v;
+			break;
+		case 1:
+			nmr->nr_rx_slots = v;
+			break;
+		case 2:
+			nmr->nr_tx_rings = nmr->nr_rx_rings = v;
+			break;
+		case 3:
+			nmr->nr_rx_rings = v;
+			break;
+		default:
+			D("ignored config: %s", tok);
+			break;
+		}
+	}
+	D("txr %d txd %d rxr %d rxd %d",
+			nmr->nr_tx_rings, nmr->nr_tx_slots,
+			nmr->nr_rx_rings, nmr->nr_rx_slots);
+	free(w);
+}
+
 static int
-bdg_ctl(const char *name, int nr_cmd, int nr_arg)
+bdg_ctl(const char *name, int nr_cmd, int nr_arg, char *nmr_config)
 {
 	struct nmreq nmr;
 	int error = 0;
@@ -62,8 +102,19 @@ bdg_ctl(const char *name, int nr_cmd, int nr_arg)
 	if (name != NULL) /* might be NULL */
 		strncpy(nmr.nr_name, name, sizeof(nmr.nr_name));
 	nmr.nr_cmd = nr_cmd;
+	parse_nmr_config(nmr_config, &nmr);
 
 	switch (nr_cmd) {
+	case NETMAP_BDG_DELIF:
+	case NETMAP_BDG_NEWIF:
+		error = ioctl(fd, NIOCREGIF, &nmr);
+		if (error == -1) {
+			ND("Unable to %s %s", nr_cmd == NETMAP_BDG_DELIF ? "delete":"create", name);
+			perror(name);
+		} else {
+			ND("Success to %s %s", nr_cmd == NETMAP_BDG_DELIF ? "delete":"create", name);
+		}
+		break;
 	case NETMAP_BDG_ATTACH:
 	case NETMAP_BDG_DETACH:
 		if (nr_arg && nr_arg != NETMAP_BDG_HOST)
@@ -120,7 +171,7 @@ main(int argc, char *argv[])
 {
 	int ch, nr_cmd = 0, nr_arg = 0;
 	const char *command = basename(argv[0]);
-	char *name = NULL;
+	char *name = NULL, *nmr_config = NULL;
 
 	if (argc > 3) {
 usage:
@@ -131,12 +182,15 @@ usage:
 			"\t-d interface	interface name to be detached\n"
 			"\t-a interface	interface name to be attached\n"
 			"\t-h interface	interface name to be attached with the host stack\n"
+			"\t-n interface	interface name to be created\n"
+			"\t-r interface	interface name to be deleted\n"
 			"\t-l list all or specified bridge's interfaces (default)\n"
+			"\t-C string ring/slot setting of an interface creating by -n\n"
 			"", command);
 		return 0;
 	}
 
-	while ((ch = getopt(argc, argv, "d:a:h:g:l")) != -1) {
+	while ((ch = getopt(argc, argv, "d:a:h:g:l:n:r:C:")) != -1) {
 		name = optarg; /* default */
 		switch (ch) {
 		default:
@@ -152,6 +206,12 @@ usage:
 			nr_cmd = NETMAP_BDG_ATTACH;
 			nr_arg = NETMAP_BDG_HOST;
 			break;
+		case 'n':
+			nr_cmd = NETMAP_BDG_NEWIF;
+			break;
+		case 'r':
+			nr_cmd = NETMAP_BDG_DELIF;
+			break;
 		case 'g':
 			nr_cmd = 0;
 			break;
@@ -159,6 +219,9 @@ usage:
 			nr_cmd = NETMAP_BDG_LIST;
 			if (optind < argc && argv[optind][0] == '-')
 				name = NULL;
+			break;
+		case 'C':
+			nmr_config = strdup(optarg);
 			break;
 		}
 		if (optind != argc) {
@@ -168,5 +231,5 @@ usage:
 	}
 	if (argc == 1)
 		nr_cmd = NETMAP_BDG_LIST;
-	return bdg_ctl(name, nr_cmd, nr_arg) ? 1 : 0;
+	return bdg_ctl(name, nr_cmd, nr_arg, nmr_config) ? 1 : 0;
 }

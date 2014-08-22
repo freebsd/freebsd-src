@@ -153,7 +153,7 @@ static struct ofw_compat_data compat_data[] = {
 	{"fsl,imx53-esdhc",	HWTYPE_ESDHC},
 	{"fsl,imx51-esdhc",	HWTYPE_ESDHC},
 	{NULL,			HWTYPE_NONE},
-};;
+};
 
 static void imx_sdhc_set_clock(struct imx_sdhci_softc *sc, int enable);
 static void imx_sdhci_r1bfix_func(void *arg);

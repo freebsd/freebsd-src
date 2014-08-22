@@ -2,7 +2,7 @@ Pull in r200103 from upstream llvm trunk (by Venkatraman Govindaraju):
 
   Missing ELF relocations for Sparc.
 
-Introduced here: http://svn.freebsd.org/changeset/base/262261
+Introduced here: http://svnweb.freebsd.org/changeset/base/262261
 
 Index: include/llvm/Support/ELF.h
 ===================================================================

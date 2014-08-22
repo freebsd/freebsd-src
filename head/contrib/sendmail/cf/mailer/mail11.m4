@@ -42,7 +42,7 @@ POPDIVERT
 ###   UTK-MAIL11 Mailer specification   ###
 ###########################################
 
-VERSIONID(`$Id: mail11.m4,v 8.23 2013/11/22 20:51:14 ca Exp $')
+VERSIONID(`$Id: mail11.m4,v 8.23 2013-11-22 20:51:14 ca Exp $')
 
 SMail11To
 R$+ < @ $- .UUCP >	$: $2 ! $1		back to old style

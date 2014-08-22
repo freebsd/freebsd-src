@@ -1,5 +1,8 @@
 # $FreeBSD$
-BXE	= ${.CURDIR}/../../dev/bxe
+
+SYSDIR	?= ${.CURDIR}/../..
+
+BXE	= ${SYSDIR}/dev/bxe
 .PATH:	${BXE}
 
 KMOD	= if_bxe

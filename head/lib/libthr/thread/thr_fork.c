@@ -57,6 +57,7 @@
  *
  */
 
+#include <sys/syscall.h>
 #include "namespace.h"
 #include <errno.h>
 #include <link.h>
@@ -174,8 +175,15 @@ _fork(void)
 		was_threaded = 0;
 	}
 
-	/* Fork a new process: */
-	if ((ret = __sys_fork()) == 0) {
+	/*
+	 * Fork a new process.
+	 * There is no easy way to pre-resolve the __sys_fork symbol
+	 * without performing the fork.  Use the syscall(2)
+	 * indirection, the syscall symbol is resolved in
+	 * _thr_rtld_init() with side-effect free call.
+	 */
+	ret = syscall(SYS_fork);
+	if (ret == 0) {
 		/* Child process */
 		errsave = errno;
 		curthread->cancel_pending = 0;
@@ -250,6 +258,5 @@ _fork(void)
 	}
 	errno = errsave;
 
-	/* Return the process ID: */
 	return (ret);
 }

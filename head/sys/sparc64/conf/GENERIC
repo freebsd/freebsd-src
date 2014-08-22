@@ -21,7 +21,7 @@
 cpu		SUN4U
 ident		GENERIC
 
-makeoptions	DEBUG=-g
+makeoptions	DEBUG=-g		# Build kernel with gdb(1) debug symbols
 
 # Platforms supported
 #	At this time all platforms are supported, as-is.
@@ -139,6 +139,9 @@ device		creator		# Creator, Creator3D and Elite3D framebuffers
 device		machfb		# ATI Mach64 framebuffers
 device		splash		# Splash screen and screen saver support
 options 	KBD_INSTALL_CDEV # install a CDEV entry in /dev
+
+# vt is the new video console driver
+device		vt
 
 # Builtin hardware
 device		auxio		# auxiliary I/O device

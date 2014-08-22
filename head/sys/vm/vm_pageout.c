@@ -875,14 +875,6 @@ vm_pageout_map_deactivate_pages(map, desired)
 		tmpe = tmpe->next;
 	}
 
-#ifdef __ia64__
-	/*
-	 * Remove all non-wired, managed mappings if a process is swapped out.
-	 * This will free page table pages.
-	 */
-	if (desired == 0)
-		pmap_remove_pages(map->pmap);
-#else
 	/*
 	 * Remove all mappings if a process is swapped out, this will free page
 	 * table pages.
@@ -891,7 +883,6 @@ vm_pageout_map_deactivate_pages(map, desired)
 		pmap_remove(vm_map_pmap(map), vm_map_min(map),
 		    vm_map_max(map));
 	}
-#endif
 
 	vm_map_unlock(map);
 }

@@ -69,6 +69,7 @@ __FBSDID("$FreeBSD$");
 #include <net/if.h>
 #include <net/route.h>
 #include <net/vnet.h>
+#include <sys/sysctl.h>
 
 uma_zone_t	sdp_zone;
 struct rwlock	sdp_lock;

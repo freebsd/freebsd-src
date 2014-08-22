@@ -104,10 +104,11 @@ struct mfi_command {
 #define MFI_CMD_POLLED		(1<<4)
 #define MFI_CMD_SCSI		(1<<5)
 #define MFI_CMD_CCB		(1<<6)
-#define MFI_CMD_TBOLT		(1<<7)
-#define MFI_ON_MFIQ_FREE	(1<<8)
-#define MFI_ON_MFIQ_READY	(1<<9)
-#define MFI_ON_MFIQ_BUSY	(1<<10)
+#define	MFI_CMD_BIO		(1<<7)
+#define MFI_CMD_TBOLT		(1<<8)
+#define MFI_ON_MFIQ_FREE	(1<<9)
+#define MFI_ON_MFIQ_READY	(1<<10)
+#define MFI_ON_MFIQ_BUSY	(1<<11)
 #define MFI_ON_MFIQ_MASK	(MFI_ON_MFIQ_FREE | MFI_ON_MFIQ_READY| \
     MFI_ON_MFIQ_BUSY)
 #define MFI_CMD_FLAGS_FMT	"\20" \
@@ -117,10 +118,11 @@ struct mfi_command {
     "\4COMPLETED" \
     "\5POLLED" \
     "\6SCSI" \
-    "\7TBOLT" \
-    "\10Q_FREE" \
-    "\11Q_READY" \
-    "\12Q_BUSY"
+    "\7BIO" \
+    "\10TBOLT" \
+    "\11Q_FREE" \
+    "\12Q_READY" \
+    "\13Q_BUSY"
 	uint8_t			retry_for_fw_reset;
 	void			(* cm_complete)(struct mfi_command *cm);
 	void			*cm_private;

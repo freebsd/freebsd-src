@@ -561,12 +561,9 @@ g_disk_create(void *arg, int flag)
 		SYSCTL_STATIC_CHILDREN(_kern_geom_disk), OID_AUTO, gp->name,
 		CTLFLAG_RD, 0, tmpstr);
 	if (sc->sysctl_tree != NULL) {
-		snprintf(tmpstr, sizeof(tmpstr),
-		    "kern.geom.disk.%s.led", gp->name);
-		TUNABLE_STR_FETCH(tmpstr, sc->led, sizeof(sc->led));
 		SYSCTL_ADD_STRING(&sc->sysctl_ctx,
 		    SYSCTL_CHILDREN(sc->sysctl_tree), OID_AUTO, "led",
-		    CTLFLAG_RW | CTLFLAG_TUN, sc->led, sizeof(sc->led),
+		    CTLFLAG_RWTUN, sc->led, sizeof(sc->led),
 		    "LED name");
 	}
 	pp->private = sc;

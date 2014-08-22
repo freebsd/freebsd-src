@@ -90,6 +90,11 @@ int		pci_find_htcap_method(device_t dev, device_t child,
 		    int capability, int *capreg);
 int		pci_alloc_msi_method(device_t dev, device_t child, int *count);
 int		pci_alloc_msix_method(device_t dev, device_t child, int *count);
+void		pci_enable_msi_method(device_t dev, device_t child,
+		    uint64_t address, uint16_t data);
+void		pci_enable_msix_method(device_t dev, device_t child,
+		    u_int index, uint64_t address, uint32_t data);
+void		pci_disable_msi_method(device_t dev, device_t child);
 int		pci_remap_msix_method(device_t dev, device_t child,
 		    int count, const u_int *vectors);
 int		pci_release_msi_method(device_t dev, device_t child);

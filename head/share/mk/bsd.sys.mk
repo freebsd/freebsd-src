@@ -126,12 +126,12 @@ CFLAGS.clang+=	 -fno-dwarf2-cfi-asm
 # but not yet.
 CXXFLAGS.clang+=	 -Wno-c++11-extensions
 
-.if ${MK_SSP} != "no" && ${MACHINE_CPUARCH} != "ia64" && \
+.if ${MK_SSP} != "no" && \
     ${MACHINE_CPUARCH} != "arm" && ${MACHINE_CPUARCH} != "mips"
 # Don't use -Wstack-protector as it breaks world with -Werror.
 SSP_CFLAGS?=	-fstack-protector
 CFLAGS+=	${SSP_CFLAGS}
-.endif # SSP && !IA64 && !ARM && !MIPS
+.endif # SSP && !ARM && !MIPS
 
 # Allow user-specified additional warning flags, plus compiler specific flag overrides.
 # Unless we've overriden this...

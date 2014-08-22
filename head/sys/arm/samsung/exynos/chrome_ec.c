@@ -43,13 +43,11 @@ __FBSDID("$FreeBSD$");
 #include <sys/watchdog.h>
 #include <sys/gpio.h>
 
-#include <dev/fdt/fdt_common.h>
 #include <dev/ofw/openfirm.h>
 #include <dev/ofw/ofw_bus.h>
 #include <dev/ofw/ofw_bus_subr.h>
 
 #include <machine/bus.h>
-#include <machine/fdt.h>
 #include <machine/cpu.h>
 #include <machine/intr.h>
 
@@ -60,12 +58,11 @@ __FBSDID("$FreeBSD$");
 
 #include <arm/samsung/exynos/chrome_ec.h>
 
-/* TODO: export to DTS */
-#define OUR_GPIO	177
-#define EC_GPIO		168
-
 struct ec_softc {
 	device_t	dev;
+	int		have_arbitrator;
+	pcell_t		our_gpio;
+	pcell_t		ec_gpio;
 };
 
 struct ec_softc *ec_sc;
@@ -82,17 +79,24 @@ bus_claim(struct ec_softc *sc)
 	device_t gpio_dev;
 	int status;
 
+	if (sc->our_gpio == 0 || sc->ec_gpio == 0) {
+		device_printf(sc->dev, "i2c arbitrator is not configured\n");
+		return (1);
+	}
+
 	gpio_dev = devclass_get_device(devclass_find("gpio"), 0);
-        if (gpio_dev == NULL) {
+	if (gpio_dev == NULL) {
 		device_printf(sc->dev, "cant find gpio_dev\n");
 		return (1);
 	}
 
 	/* Say we want the bus */
-	GPIO_PIN_SET(gpio_dev, OUR_GPIO, GPIO_PIN_LOW);
+	GPIO_PIN_SET(gpio_dev, sc->our_gpio, GPIO_PIN_LOW);
+
+	/* TODO: insert a delay to allow EC to react. */
 
 	/* Check EC decision */
-	GPIO_PIN_GET(gpio_dev, EC_GPIO, &status);
+	GPIO_PIN_GET(gpio_dev, sc->ec_gpio, &status);
 
 	if (status == 1) {
 		/* Okay. We have bus */
@@ -108,13 +112,18 @@ bus_release(struct ec_softc *sc)
 {
 	device_t gpio_dev;
 
+	if (sc->our_gpio == 0 || sc->ec_gpio == 0) {
+		device_printf(sc->dev, "i2c arbitrator is not configured\n");
+		return (1);
+	}
+
 	gpio_dev = devclass_get_device(devclass_find("gpio"), 0);
-        if (gpio_dev == NULL) {
+	if (gpio_dev == NULL) {
 		device_printf(sc->dev, "cant find gpio_dev\n");
 		return (1);
 	}
 
-	GPIO_PIN_SET(gpio_dev, OUR_GPIO, GPIO_PIN_HIGH);
+	GPIO_PIN_SET(gpio_dev, sc->our_gpio, GPIO_PIN_HIGH);
 
 	return (0);
 }
@@ -154,7 +163,7 @@ ec_command(uint8_t cmd, uint8_t *dout, uint8_t dout_len,
 	int i;
 
 	msg_dout = malloc(dout_len + 4, M_DEVBUF, M_NOWAIT);
-	msg_dinp = malloc(dinp_len + 4, M_DEVBUF, M_NOWAIT);
+	msg_dinp = malloc(dinp_len + 3, M_DEVBUF, M_NOWAIT);
 
 	if (ec_sc == NULL)
 		return (-1);
@@ -173,7 +182,7 @@ ec_command(uint8_t cmd, uint8_t *dout, uint8_t dout_len,
 
 	struct iic_msg msgs[] = {
 		{ 0x1e, IIC_M_WR, dout_len + 4, msg_dout, },
-		{ 0x1e, IIC_M_RD, dinp_len + 4, msg_dinp, },
+		{ 0x1e, IIC_M_RD, dinp_len + 3, msg_dinp, },
 	};
 
 	ret = iicbus_transfer(sc->dev, msgs, 2);
@@ -185,7 +194,7 @@ ec_command(uint8_t cmd, uint8_t *dout, uint8_t dout_len,
 	}
 
 	for (i = 0; i < dinp_len; i++) {
-		dinp[i] = msg_dinp[i + 3];
+		dinp[i] = msg_dinp[i + 2];
 	};
 
 	free(msg_dout, M_DEVBUF);
@@ -203,10 +212,32 @@ int ec_hello(void)
 	data_in[2] = 0x20;
 	data_in[3] = 0x10;
 
-	ec_command(EC_CMD_MKBP_STATE, data_in, 4,
+	ec_command(EC_CMD_HELLO, data_in, 4,
 	    data_out, 4);
 
 	return (0);
+}
+
+static void
+configure_i2c_arbitrator(struct ec_softc *sc)
+{
+	phandle_t arbitrator;
+
+	/* TODO: look for compatible entry instead of hard-coded path */
+	arbitrator = OF_finddevice("/i2c-arbitrator");
+	if (arbitrator > 0 &&
+	    OF_hasprop(arbitrator, "freebsd,our-gpio") &&
+	    OF_hasprop(arbitrator, "freebsd,ec-gpio")) {
+		sc->have_arbitrator = 1;
+		OF_getencprop(arbitrator, "freebsd,our-gpio",
+		    &sc->our_gpio, sizeof(sc->our_gpio));
+		OF_getencprop(arbitrator, "freebsd,ec-gpio",
+		    &sc->ec_gpio, sizeof(sc->ec_gpio));
+	} else {
+		sc->have_arbitrator = 0;
+		sc->our_gpio = 0;
+		sc->ec_gpio = 0;
+	}
 }
 
 static int
@@ -219,6 +250,8 @@ ec_attach(device_t dev)
 
 	ec_sc = sc;
 
+	configure_i2c_arbitrator(sc);
+
 	/*
 	 * Claim the bus.
 	 *
@@ -227,7 +260,7 @@ ec_attach(device_t dev)
 	 *
 	 */
 
-	if (bus_claim(sc) != 0) {
+	if (sc->have_arbitrator && bus_claim(sc) != 0) {
 		return (ENXIO);
 	}
 
@@ -241,7 +274,9 @@ ec_detach(device_t dev)
 
 	sc = device_get_softc(dev);
 
-	bus_release(sc);
+	if (sc->have_arbitrator) {
+		bus_release(sc);
+	}
 
 	return (0);
 }

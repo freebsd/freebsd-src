@@ -37,38 +37,6 @@ __FBSDID("$FreeBSD$");
 .Lpj4b_sf_ctrl_reg:
 	.word	0xf1021820
 
-
-ENTRY(pj4b_setttb)
-	/* Cache synchronization is not required as this core has PIPT caches */
-	mcr	p15, 0, r1, c7, c10, 4	/* drain the write buffer */
-#ifdef SMP
-	orr 	r0, r0, #2		/* Set TTB shared memory flag */
-#endif
-	mcr	p15, 0, r0, c2, c0, 0	/* load new TTB */
-	mcr	p15, 0, r0, c8, c7, 0	/* invalidate I+D TLBs */
-	RET
-END(pj4b_setttb)
-
-ENTRY(pj4b_drain_readbuf)
-	mcr	p15, 0, r0, c7, c5, 4	/* flush prefetch buffers */
-	RET
-END(pj4b_drain_readbuf)
-
-ENTRY(pj4b_flush_brnchtgt_all)
-	mcr	p15, 0, r0, c7, c5, 6	/* flush entrie branch target cache */
-	RET
-END(pj4b_flush_brnchtgt_all)
-
-ENTRY(pj4b_flush_brnchtgt_va)
-	mcr	p15, 0, r0, c7, c5, 7	/* flush branch target cache by VA */
-	RET
-END(pj4b_flush_brnchtgt_va)
-
-ENTRY(get_core_id)
-	mrc p15, 0, r0, c0, c0, 5
-	RET
-END(get_core_id)
-
 ENTRY(pj4b_config)
 
 	/* Set Auxiliary Debug Modes Control 0 register */

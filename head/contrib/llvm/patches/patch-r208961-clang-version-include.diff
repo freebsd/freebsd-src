@@ -1,7 +1,7 @@
 This patch adjusts clang's default include paths to add FreeBSD-specific
 directories.
 
-Introduced here: http://svn.freebsd.org/changeset/base/208961
+Introduced here: http://svnweb.freebsd.org/changeset/base/208961
 
 Index: tools/clang/lib/Frontend/InitHeaderSearch.cpp
 ===================================================================

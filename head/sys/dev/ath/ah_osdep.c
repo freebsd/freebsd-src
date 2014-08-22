@@ -96,9 +96,8 @@ static SYSCTL_NODE(_hw_ath, OID_AUTO, hal, CTLFLAG_RD, 0,
 
 #ifdef AH_DEBUG
 int ath_hal_debug = 0;
-SYSCTL_INT(_hw_ath_hal, OID_AUTO, debug, CTLFLAG_RW, &ath_hal_debug,
+SYSCTL_INT(_hw_ath_hal, OID_AUTO, debug, CTLFLAG_RWTUN, &ath_hal_debug,
     0, "Atheros HAL debugging printfs");
-TUNABLE_INT("hw.ath.hal.debug", &ath_hal_debug);
 #endif /* AH_DEBUG */
 
 static MALLOC_DEFINE(M_ATH_HAL, "ath_hal", "ath hal data");

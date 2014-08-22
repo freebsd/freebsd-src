@@ -1,7 +1,7 @@
 This patch ensures the target triple that is passed during the compiler build is
 respected, instead of mangling it.
 
-Introduced here: http://svn.freebsd.org/changeset/base/221503
+Introduced here: http://svnweb.freebsd.org/changeset/base/221503
 
 Index: lib/Support/Unix/Host.inc
 ===================================================================

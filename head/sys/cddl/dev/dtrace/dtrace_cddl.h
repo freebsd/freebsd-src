@@ -136,6 +136,7 @@ typedef struct kdtrace_thread {
 #define	t_procp		td_proc
 #define	t_tid		td_tid
 #define	t_did		td_tid
+#define	t_cred		td_ucred
 
 
 int priv_policy(const cred_t *, int, boolean_t, int, const char *);

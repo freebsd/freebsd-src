@@ -1,4 +1,4 @@
-# $Id: bsd.after-import.mk,v 1.11 2012/12/29 19:32:25 sjg Exp $
+# $Id: bsd.after-import.mk,v 1.12 2014/02/14 23:45:49 sjg Exp $
 
 # This makefile is for use when integrating bmake into a BSD build
 # system.  Use this makefile after importing bmake.
@@ -41,15 +41,13 @@ SRCTOP := ${srctop}
 HOST_OS!= uname
 .endif
 
-# .../share/mk will find ${SRCTOP}/share/mk
-# if we are within ${SRCTOP}
-DEFAULT_SYS_PATH= .../share/mk:/usr/share/mk
-
 BOOTSTRAP_ARGS = \
-	--with-default-sys-path='${DEFAULT_SYS_PATH}' \
 	--prefix /usr \
 	--share /usr/share
 
+.if !empty(DEFAULT_SYS_PATH)
+BOOTSTRAP_ARGS += --with-default-sys-path='${DEFAULT_SYS_PATH}'
+.endif
 
 # run boot-strap with minimal influence
 bootstrap:	${BMAKE_SRC}/boot-strap ${MAKEFILE}

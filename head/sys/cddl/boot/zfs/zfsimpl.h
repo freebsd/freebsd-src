@@ -55,8 +55,13 @@
 /*
  * Copyright 2013 by Saso Kiselkov. All rights reserved.
  */
+/*
+ * Copyright (c) 2013 by Delphix. All rights reserved.
+ */
 
 #define	MAXNAMELEN	256
+
+#define _NOTE(s)
 
 /* CRC64 table */
 #define	ZFS_CRC64_POLY	0xC96C5795D7870F42ULL	/* ECMA-182, reflected form */
@@ -163,7 +168,7 @@ typedef struct zio_cksum {
  *	+-------+-------+-------+-------+-------+-------+-------+-------+
  * 5	|G|			 offset3				|
  *	+-------+-------+-------+-------+-------+-------+-------+-------+
- * 6	|BDX|lvl| type	| cksum | comp	|     PSIZE	|     LSIZE	|
+ * 6	|BDX|lvl| type	| cksum |E| comp|    PSIZE	|     LSIZE	|
  *	+-------+-------+-------+-------+-------+-------+-------+-------+
  * 7	|			padding					|
  *	+-------+-------+-------+-------+-------+-------+-------+-------+
@@ -197,7 +202,8 @@ typedef struct zio_cksum {
  * G		gang block indicator
  * B		byteorder (endianness)
  * D		dedup
- * X		unused
+ * X		encryption (on version 30, which is not supported)
+ * E		blkptr_t contains embedded data (see below)
  * lvl		level of indirection
  * type		DMU object type
  * phys birth	txg of block allocation; zero if same as logical birth txg
@@ -205,6 +211,100 @@ typedef struct zio_cksum {
  * fill count	number of non-zero blocks under this bp
  * checksum[4]	256-bit checksum of the data this bp describes
  */
+
+/*
+ * "Embedded" blkptr_t's don't actually point to a block, instead they
+ * have a data payload embedded in the blkptr_t itself.  See the comment
+ * in blkptr.c for more details.
+ *
+ * The blkptr_t is laid out as follows:
+ *
+ *	64	56	48	40	32	24	16	8	0
+ *	+-------+-------+-------+-------+-------+-------+-------+-------+
+ * 0	|      payload                                                  |
+ * 1	|      payload                                                  |
+ * 2	|      payload                                                  |
+ * 3	|      payload                                                  |
+ * 4	|      payload                                                  |
+ * 5	|      payload                                                  |
+ *	+-------+-------+-------+-------+-------+-------+-------+-------+
+ * 6	|BDX|lvl| type	| etype |E| comp| PSIZE|              LSIZE	|
+ *	+-------+-------+-------+-------+-------+-------+-------+-------+
+ * 7	|      payload                                                  |
+ * 8	|      payload                                                  |
+ * 9	|      payload                                                  |
+ *	+-------+-------+-------+-------+-------+-------+-------+-------+
+ * a	|			logical birth txg			|
+ *	+-------+-------+-------+-------+-------+-------+-------+-------+
+ * b	|      payload                                                  |
+ * c	|      payload                                                  |
+ * d	|      payload                                                  |
+ * e	|      payload                                                  |
+ * f	|      payload                                                  |
+ *	+-------+-------+-------+-------+-------+-------+-------+-------+
+ *
+ * Legend:
+ *
+ * payload		contains the embedded data
+ * B (byteorder)	byteorder (endianness)
+ * D (dedup)		padding (set to zero)
+ * X			encryption (set to zero; see above)
+ * E (embedded)		set to one
+ * lvl			indirection level
+ * type			DMU object type
+ * etype		how to interpret embedded data (BP_EMBEDDED_TYPE_*)
+ * comp			compression function of payload
+ * PSIZE		size of payload after compression, in bytes
+ * LSIZE		logical size of payload, in bytes
+ *			note that 25 bits is enough to store the largest
+ *			"normal" BP's LSIZE (2^16 * 2^9) in bytes
+ * log. birth		transaction group in which the block was logically born
+ *
+ * Note that LSIZE and PSIZE are stored in bytes, whereas for non-embedded
+ * bp's they are stored in units of SPA_MINBLOCKSHIFT.
+ * Generally, the generic BP_GET_*() macros can be used on embedded BP's.
+ * The B, D, X, lvl, type, and comp fields are stored the same as with normal
+ * BP's so the BP_SET_* macros can be used with them.  etype, PSIZE, LSIZE must
+ * be set with the BPE_SET_* macros.  BP_SET_EMBEDDED() should be called before
+ * other macros, as they assert that they are only used on BP's of the correct
+ * "embedded-ness".
+ */
+
+#define	BPE_GET_ETYPE(bp)	\
+	(ASSERT(BP_IS_EMBEDDED(bp)), \
+	BF64_GET((bp)->blk_prop, 40, 8))
+#define	BPE_SET_ETYPE(bp, t)	do { \
+	ASSERT(BP_IS_EMBEDDED(bp)); \
+	BF64_SET((bp)->blk_prop, 40, 8, t); \
+_NOTE(CONSTCOND) } while (0)
+
+#define	BPE_GET_LSIZE(bp)	\
+	(ASSERT(BP_IS_EMBEDDED(bp)), \
+	BF64_GET_SB((bp)->blk_prop, 0, 25, 0, 1))
+#define	BPE_SET_LSIZE(bp, x)	do { \
+	ASSERT(BP_IS_EMBEDDED(bp)); \
+	BF64_SET_SB((bp)->blk_prop, 0, 25, 0, 1, x); \
+_NOTE(CONSTCOND) } while (0)
+
+#define	BPE_GET_PSIZE(bp)	\
+	(ASSERT(BP_IS_EMBEDDED(bp)), \
+	BF64_GET_SB((bp)->blk_prop, 25, 7, 0, 1))
+#define	BPE_SET_PSIZE(bp, x)	do { \
+	ASSERT(BP_IS_EMBEDDED(bp)); \
+	BF64_SET_SB((bp)->blk_prop, 25, 7, 0, 1, x); \
+_NOTE(CONSTCOND) } while (0)
+
+typedef enum bp_embedded_type {
+	BP_EMBEDDED_TYPE_DATA,
+	BP_EMBEDDED_TYPE_RESERVED, /* Reserved for an unintegrated feature. */
+	NUM_BP_EMBEDDED_TYPES = BP_EMBEDDED_TYPE_RESERVED
+} bp_embedded_type_t;
+
+#define	BPE_NUM_WORDS 14
+#define	BPE_PAYLOAD_SIZE (BPE_NUM_WORDS * sizeof (uint64_t))
+#define	BPE_IS_PAYLOADWORD(bp, wp) \
+	((wp) != &(bp)->blk_prop && (wp) != &(bp)->blk_birth)
+
 #define	SPA_BLKPTRSHIFT	7		/* blkptr_t is 128 bytes	*/
 #define	SPA_DVAS_PER_BP	3		/* Number of DVAs in a bp	*/
 
@@ -242,18 +342,22 @@ typedef struct blkptr {
 #define	DVA_SET_GANG(dva, x)	BF64_SET((dva)->dva_word[1], 63, 1, x)
 
 #define	BP_GET_LSIZE(bp)	\
-	(BP_IS_HOLE(bp) ? 0 : \
+	(BP_IS_EMBEDDED(bp) ?	\
+	(BPE_GET_ETYPE(bp) == BP_EMBEDDED_TYPE_DATA ? BPE_GET_LSIZE(bp) : 0): \
 	BF64_GET_SB((bp)->blk_prop, 0, SPA_LSIZEBITS, SPA_MINBLOCKSHIFT, 1))
-#define	BP_SET_LSIZE(bp, x)	\
-	BF64_SET_SB((bp)->blk_prop, 0, SPA_LSIZEBITS, SPA_MINBLOCKSHIFT, 1, x)
+#define	BP_SET_LSIZE(bp, x)	do { \
+	ASSERT(!BP_IS_EMBEDDED(bp)); \
+	BF64_SET_SB((bp)->blk_prop, \
+	    0, SPA_LSIZEBITS, SPA_MINBLOCKSHIFT, 1, x); \
+_NOTE(CONSTCOND) } while (0)
 
 #define	BP_GET_PSIZE(bp)	\
 	BF64_GET_SB((bp)->blk_prop, 16, SPA_LSIZEBITS, SPA_MINBLOCKSHIFT, 1)
 #define	BP_SET_PSIZE(bp, x)	\
 	BF64_SET_SB((bp)->blk_prop, 16, SPA_LSIZEBITS, SPA_MINBLOCKSHIFT, 1, x)
 
-#define	BP_GET_COMPRESS(bp)	BF64_GET((bp)->blk_prop, 32, 8)
-#define	BP_SET_COMPRESS(bp, x)	BF64_SET((bp)->blk_prop, 32, 8, x)
+#define	BP_GET_COMPRESS(bp)	BF64_GET((bp)->blk_prop, 32, 7)
+#define	BP_SET_COMPRESS(bp, x)	BF64_SET((bp)->blk_prop, 32, 7, x)
 
 #define	BP_GET_CHECKSUM(bp)	BF64_GET((bp)->blk_prop, 40, 8)
 #define	BP_SET_CHECKSUM(bp, x)	BF64_SET((bp)->blk_prop, 40, 8, x)
@@ -263,6 +367,8 @@ typedef struct blkptr {
 
 #define	BP_GET_LEVEL(bp)	BF64_GET((bp)->blk_prop, 56, 5)
 #define	BP_SET_LEVEL(bp, x)	BF64_SET((bp)->blk_prop, 56, 5, x)
+
+#define	BP_IS_EMBEDDED(bp)	BF64_GET((bp)->blk_prop, 39, 1)
 
 #define	BP_GET_DEDUP(bp)	BF64_GET((bp)->blk_prop, 62, 1)
 #define	BP_SET_DEDUP(bp, x)	BF64_SET((bp)->blk_prop, 62, 1, x)
@@ -330,6 +436,11 @@ typedef struct blkptr {
 	(bp)->blk_fill = 0;			\
 	ZIO_SET_CHECKSUM(&(bp)->blk_cksum, 0, 0, 0, 0);	\
 }
+
+#define	BPE_NUM_WORDS 14
+#define	BPE_PAYLOAD_SIZE (BPE_NUM_WORDS * sizeof (uint64_t))
+#define	BPE_IS_PAYLOADWORD(bp, wp) \
+	((wp) != &(bp)->blk_prop && (wp) != &(bp)->blk_birth)
 
 /*
  * Embedded checksum
@@ -1341,3 +1452,5 @@ typedef struct spa {
 	objset_phys_t	spa_mos;	/* MOS for this pool */
 	int		spa_inited;	/* initialized */
 } spa_t;
+
+static void decode_embedded_bp_compressed(const blkptr_t *, void *);

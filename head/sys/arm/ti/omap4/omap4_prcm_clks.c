@@ -256,7 +256,7 @@ static int omap4_clk_get_arm_fclk_freq(struct ti_clock_dev *clkdev, unsigned int
 	}
 
 
-struct ti_clock_dev ti_clk_devmap[] = {
+struct ti_clock_dev ti_omap4_clk_devmap[] = {
 
 	/* System clocks */
 	{	.id                  = SYS_CLK,

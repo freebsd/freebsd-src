@@ -107,14 +107,12 @@ driver_intr_t	csintr;
 static SYSCTL_NODE(_hw, OID_AUTO, cs, CTLFLAG_RD, 0, "cs device parameters");
 
 int	cs_ignore_cksum_failure = 0;
-TUNABLE_INT("hw.cs.ignore_checksum_failure", &cs_ignore_cksum_failure);
-SYSCTL_INT(_hw_cs, OID_AUTO, ignore_checksum_failure, CTLFLAG_RW,
+SYSCTL_INT(_hw_cs, OID_AUTO, ignore_checksum_failure, CTLFLAG_RWTUN,
     &cs_ignore_cksum_failure, 0,
   "ignore checksum errors in cs card EEPROM");
 
 static int	cs_recv_delay = 570;
-TUNABLE_INT("hw.cs.recv_delay", &cs_recv_delay);
-SYSCTL_INT(_hw_cs, OID_AUTO, recv_delay, CTLFLAG_RW, &cs_recv_delay, 570, "");
+SYSCTL_INT(_hw_cs, OID_AUTO, recv_delay, CTLFLAG_RWTUN, &cs_recv_delay, 570, "");
 
 static int cs8900_eeint2irq[16] = {
 	 10,  11,  12,   5, 255, 255, 255, 255,
@@ -266,7 +264,7 @@ cs_cs89x0_probe(device_t dev)
 	uint16_t id;
 	char chip_revision;
 	uint16_t eeprom_buff[CHKSUM_LEN];
-	int chip_type, pp_isaint, pp_isadma;
+	int chip_type, pp_isaint;
 
 	sc->dev = dev;
 	error = cs_alloc_port(dev, 0, CS_89x0_IO_PORTS);
@@ -301,11 +299,9 @@ cs_cs89x0_probe(device_t dev)
 
 	if (chip_type == CS8900) {
 		pp_isaint = PP_CS8900_ISAINT;
-		pp_isadma = PP_CS8900_ISADMA;
 		sc->send_cmd = TX_CS8900_AFTER_ALL;
 	} else {
 		pp_isaint = PP_CS8920_ISAINT;
-		pp_isadma = PP_CS8920_ISADMA;
 		sc->send_cmd = TX_CS8920_AFTER_ALL;
 	}
 
@@ -382,17 +378,6 @@ cs_cs89x0_probe(device_t dev)
 
 	if (!(sc->flags & CS_NO_IRQ))
 		cs_writereg(sc, pp_isaint, irq);
-
-	/*
-	 * Temporary disabled
-	 *
-	if (drq>0)
-		cs_writereg(sc, pp_isadma, drq);
-	else {
-		device_printf(dev, "incorrect drq\n",);
-		return (0);
-	}
-	*/
 
 	if (bootverbose)
 		 device_printf(dev, "CS89%c0%s rev %c media%s%s%s\n",
@@ -704,7 +689,6 @@ cs_get_packet(struct cs_softc *sc)
 {
 	struct ifnet *ifp = sc->ifp;
 	int status, length;
-	struct ether_header *eh;
 	struct mbuf *m;
 
 #ifdef CS_DEBUG
@@ -747,8 +731,6 @@ cs_get_packet(struct cs_softc *sc)
 	/* Get the data */
 	bus_read_multi_2(sc->port_res, RX_FRAME_PORT, mtod(m, uint16_t *),
 	    (length + 1) >> 1);
-
-	eh = mtod(m, struct ether_header *);
 
 #ifdef CS_DEBUG
 	for (i=0;i<length;i++)

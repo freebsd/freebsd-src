@@ -133,6 +133,7 @@ nm_ring_space(struct netmap_ring *ring)
 #ifndef HAVE_NETMAP_WITH_LIBS
 #define HAVE_NETMAP_WITH_LIBS
 
+#include <stdio.h>
 #include <sys/time.h>
 #include <sys/mman.h>
 #include <string.h>	/* memset */
@@ -148,21 +149,21 @@ nm_ring_space(struct netmap_ring *ring)
 #define ND(_fmt, ...) do {} while(0)
 #define D(_fmt, ...)						\
 	do {							\
-		struct timeval t0;				\
-		gettimeofday(&t0, NULL);			\
+		struct timeval _t0;				\
+		gettimeofday(&_t0, NULL);			\
 		fprintf(stderr, "%03d.%06d %s [%d] " _fmt "\n",	\
-		    (int)(t0.tv_sec % 1000), (int)t0.tv_usec,	\
+		    (int)(_t0.tv_sec % 1000), (int)_t0.tv_usec,	\
 		    __FUNCTION__, __LINE__, ##__VA_ARGS__);	\
         } while (0)
 
 /* Rate limited version of "D", lps indicates how many per second */
 #define RD(lps, format, ...)                                    \
     do {                                                        \
-        static int t0, __cnt;                                   \
+        static int __t0, __cnt;                                 \
         struct timeval __xxts;                                  \
         gettimeofday(&__xxts, NULL);                            \
-        if (t0 != __xxts.tv_sec) {                              \
-            t0 = __xxts.tv_sec;                                 \
+        if (__t0 != __xxts.tv_sec) {                            \
+            __t0 = __xxts.tv_sec;                               \
             __cnt = 0;                                          \
         }                                                       \
         if (__cnt++ < lps) {                                    \
@@ -192,7 +193,7 @@ struct nm_desc {
 	struct nm_desc *self; /* point to self if netmap. */
 	int fd;
 	void *mem;
-	int memsize;
+	uint32_t memsize;
 	int done_mmap;	/* set if mem is the result of mmap */
 	struct netmap_if * const nifp;
 	uint16_t first_tx_ring, last_tx_ring, cur_tx_ring;
@@ -293,7 +294,7 @@ typedef void (*nm_cb_t)(u_char *, const struct nm_pkthdr *, const u_char *d);
  *		if passed a netmap_desc with mem != NULL,
  *		use that memory instead of mmap.
  */
- 
+
 static struct nm_desc *nm_open(const char *ifname, const struct nmreq *req,
 	uint64_t flags, const struct nm_desc *arg);
 
@@ -404,8 +405,6 @@ nm_open(const char *ifname, const struct nmreq *req,
 		errmsg = "invalid ringid";
 		goto fail;
 	}
-	/* add the *XPOLL flags */
-	nr_ringid |= new_flags & (NETMAP_NO_TX_POLL | NETMAP_DO_RX_POLL);
 
 	d = (struct nm_desc *)calloc(1, sizeof(*d));
 	if (d == NULL) {
@@ -461,6 +460,9 @@ nm_open(const char *ifname, const struct nmreq *req,
 			d->req.nr_flags = parent->req.nr_flags;
 		}
 	}
+	/* add the *XPOLL flags */
+	d->req.nr_ringid |= new_flags & (NETMAP_NO_TX_POLL | NETMAP_DO_RX_POLL);
+
 	if (ioctl(d->fd, NIOCREGIF, &d->req)) {
 		errmsg = "NIOCREGIF failed";
 		goto fail;
@@ -472,10 +474,11 @@ nm_open(const char *ifname, const struct nmreq *req,
 		d->memsize = parent->memsize;
 		d->mem = parent->mem;
 	} else {
+		/* XXX TODO: check if memsize is too large (or there is overflow) */
 		d->memsize = d->req.nr_memsize;
 		d->mem = mmap(0, d->memsize, PROT_WRITE | PROT_READ, MAP_SHARED,
 				d->fd, 0);
-		if (d->mem == NULL) {
+		if (d->mem == MAP_FAILED) {
 			errmsg = "mmap failed";
 			goto fail;
 		}
@@ -492,23 +495,23 @@ nm_open(const char *ifname, const struct nmreq *req,
 			(char *)d->mem + d->memsize;
 	}
 
-	if (nr_flags ==  NR_REG_SW) { /* host stack */
+	if (d->req.nr_flags ==  NR_REG_SW) { /* host stack */
 		d->first_tx_ring = d->last_tx_ring = d->req.nr_tx_rings;
 		d->first_rx_ring = d->last_rx_ring = d->req.nr_rx_rings;
-	} else if (nr_flags ==  NR_REG_ALL_NIC) { /* only nic */
+	} else if (d->req.nr_flags ==  NR_REG_ALL_NIC) { /* only nic */
 		d->first_tx_ring = 0;
 		d->first_rx_ring = 0;
 		d->last_tx_ring = d->req.nr_tx_rings - 1;
 		d->last_rx_ring = d->req.nr_rx_rings - 1;
-	} else if (nr_flags ==  NR_REG_NIC_SW) {
+	} else if (d->req.nr_flags ==  NR_REG_NIC_SW) {
 		d->first_tx_ring = 0;
 		d->first_rx_ring = 0;
 		d->last_tx_ring = d->req.nr_tx_rings;
 		d->last_rx_ring = d->req.nr_rx_rings;
-	} else if (nr_flags == NR_REG_ONE_NIC) {
+	} else if (d->req.nr_flags == NR_REG_ONE_NIC) {
 		/* XXX check validity */
 		d->first_tx_ring = d->last_tx_ring =
-		d->first_rx_ring = d->last_rx_ring = nr_ringid;
+		d->first_rx_ring = d->last_rx_ring = d->req.nr_ringid & NETMAP_RING_MASK;
 	} else { /* pipes */
 		d->first_tx_ring = d->last_tx_ring = 0;
 		d->first_rx_ring = d->last_rx_ring = 0;
@@ -531,7 +534,7 @@ nm_open(const char *ifname, const struct nmreq *req,
 	}
     }
 #endif /* debugging */
-		
+
 	d->cur_tx_ring = d->first_tx_ring;
 	d->cur_rx_ring = d->first_rx_ring;
 	return d;

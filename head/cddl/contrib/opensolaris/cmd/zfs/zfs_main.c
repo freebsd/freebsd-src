@@ -21,7 +21,7 @@
 
 /*
  * Copyright (c) 2005, 2010, Oracle and/or its affiliates. All rights reserved.
- * Copyright (c) 2013 by Delphix. All rights reserved.
+ * Copyright (c) 2011, 2014 by Delphix. All rights reserved.
  * Copyright 2012 Milan Jurik. All rights reserved.
  * Copyright (c) 2012, Joyent, Inc. All rights reserved.
  * Copyright (c) 2011-2012 Pawel Jakub Dawidek <pawel@dawidek.net>.
@@ -274,9 +274,9 @@ get_usage(zfs_help_t idx)
 	case HELP_ROLLBACK:
 		return (gettext("\trollback [-rRf] <snapshot>\n"));
 	case HELP_SEND:
-		return (gettext("\tsend [-DnPpRv] [-[iI] snapshot] "
+		return (gettext("\tsend [-DnPpRve] [-[iI] snapshot] "
 		    "<snapshot>\n"
-		    "\tsend [-i snapshot|bookmark] "
+		    "\tsend [-e] [-i snapshot|bookmark] "
 		    "<filesystem|volume|snapshot>\n"));
 	case HELP_SET:
 		return (gettext("\tset <property=value> "
@@ -590,6 +590,7 @@ finish_progress(char *done)
 	free(pt_header);
 	pt_header = NULL;
 }
+
 /*
  * zfs clone [-p] [-o prop=value] ... <snap> <fs | vol>
  *
@@ -3368,6 +3369,7 @@ rollback_check_dependent(zfs_handle_t *zhp, void *data)
 	zfs_close(zhp);
 	return (0);
 }
+
 /*
  * Report any snapshots more recent than the one specified.  Used when '-r' is
  * not specified.  We reuse this same callback for the snapshot dependents - if
@@ -3707,7 +3709,7 @@ zfs_do_send(int argc, char **argv)
 	boolean_t extraverbose = B_FALSE;
 
 	/* check options */
-	while ((c = getopt(argc, argv, ":i:I:RDpvnP")) != -1) {
+	while ((c = getopt(argc, argv, ":i:I:RDpvnPe")) != -1) {
 		switch (c) {
 		case 'i':
 			if (fromname)
@@ -3741,6 +3743,9 @@ zfs_do_send(int argc, char **argv)
 			break;
 		case 'n':
 			flags.dryrun = B_TRUE;
+			break;
+		case 'e':
+			flags.embed_data = B_TRUE;
 			break;
 		case ':':
 			(void) fprintf(stderr, gettext("missing argument for "
@@ -3780,6 +3785,7 @@ zfs_do_send(int argc, char **argv)
 	if (strchr(argv[0], '@') == NULL ||
 	    (fromname && strchr(fromname, '#') != NULL)) {
 		char frombuf[ZFS_MAXNAMELEN];
+		enum lzc_send_flags lzc_flags = 0;
 
 		if (flags.replicate || flags.doall || flags.props ||
 		    flags.dedup || flags.dryrun || flags.verbose ||
@@ -3794,6 +3800,9 @@ zfs_do_send(int argc, char **argv)
 		if (zhp == NULL)
 			return (1);
 
+		if (flags.embed_data)
+			lzc_flags |= LZC_SEND_FLAG_EMBED_DATA;
+
 		if (fromname != NULL &&
 		    (fromname[0] == '#' || fromname[0] == '@')) {
 			/*
@@ -3807,7 +3816,7 @@ zfs_do_send(int argc, char **argv)
 			(void) strlcat(frombuf, fromname, sizeof (frombuf));
 			fromname = frombuf;
 		}
-		err = zfs_send_one(zhp, fromname, STDOUT_FILENO);
+		err = zfs_send_one(zhp, fromname, STDOUT_FILENO, lzc_flags);
 		zfs_close(zhp);
 		return (err != 0);
 	}
@@ -6847,6 +6856,9 @@ zfs_do_bookmark(int argc, char **argv)
 		case ENOTSUP:
 			err_msg = "bookmark feature not enabled";
 			break;
+		case ENOSPC:
+			err_msg = "out of space";
+			break;
 		default:
 			err_msg = "unknown error";
 			break;
@@ -6855,7 +6867,7 @@ zfs_do_bookmark(int argc, char **argv)
 		    dgettext(TEXT_DOMAIN, err_msg));
 	}
 
-	return (ret);
+	return (ret != 0);
 
 usage:
 	usage(B_FALSE);

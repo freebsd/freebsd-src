@@ -11,3 +11,5 @@ device		at91sam9x5
 
 # bring in the sam specific timers and such
 device		at91sam9
+
+options		ARM_DEVICE_MULTIPASS

@@ -1,12 +1,16 @@
 # $FreeBSD$
 
-.include <src.opts.mk>
+SYSDIR?=${.CURDIR}/..
+.include "${SYSDIR}/conf/kern.opts.mk"
 
 SUBDIR_PARALLEL=
 
 # Modules that include binary-only blobs of microcode should be selectable by
 # MK_SOURCELESS_UCODE option (see below).
 
+.if defined(MODULES_OVERRIDE) && !defined(ALL_MODULES)
+SUBDIR=${MODULES_OVERRIDE}
+.else
 SUBDIR=	\
 	${_3dfx} \
 	${_3dfx_linux} \
@@ -44,6 +48,7 @@ SUBDIR=	\
 	ata \
 	ath \
 	ath_pci \
+	autofs \
 	${_auxio} \
 	${_bce} \
 	bfe \
@@ -82,6 +87,7 @@ SUBDIR=	\
 	${_ct} \
 	${_ctau} \
 	ctl \
+	cuse \
 	${_cxgb} \
 	${_cxgbe} \
 	${_cyclic} \
@@ -150,7 +156,7 @@ SUBDIR=	\
 	if_vlan \
 	${_igb} \
 	${_iir} \
-	${_imgact_binmisc} \
+	imgact_binmisc \
 	${_io} \
         ${_ipoib} \
 	${_ipdivert} \
@@ -304,6 +310,7 @@ SUBDIR=	\
 	${_sf} \
 	${_sfxge} \
 	sge \
+	${_si} \
 	siba_bwn \
 	siftr \
 	siis \
@@ -358,7 +365,9 @@ SUBDIR=	\
 	${_vxge} \
 	wb \
 	${_wbwd} \
+	${_wds} \
 	${_wi} \
+	${_wl} \
 	wlan \
 	wlan_acl \
 	wlan_amrr \
@@ -377,7 +386,6 @@ SUBDIR=	\
 
 .if ${MACHINE_CPUARCH} == "i386" || ${MACHINE_CPUARCH} == "amd64"
 _filemon=	filemon
-_imgact_binmisc=	imgact_binmisc
 _vmware=	vmware
 .endif
 
@@ -542,6 +550,7 @@ _rdma=		rdma
 _safe=		safe
 _sbni=		sbni
 _scsi_low=	scsi_low
+_si=		si
 _smbfs=		smbfs
 _sound=		sound
 _speaker=	speaker
@@ -552,6 +561,7 @@ _streams=	streams
 _svr4=		svr4
 _vxge=  	vxge
 _wbwd=		wbwd
+_wds=		wds
 _wi=		wi
 _xe=		xe
 .if ${MK_ZFS} != "no" || defined(ALL_MODULES)
@@ -620,6 +630,7 @@ _nvram=		nvram
 _nxge=		nxge
 _tpm=		tpm
 _viawd=		viawd
+_wl=		wl
 _wpi=		wpi
 .if ${MK_SOURCELESS_UCODE} != "no"
 _wpifw=		wpifw
@@ -752,6 +763,7 @@ _s3=		s3
 _safe=		safe
 _scsi_low=	scsi_low
 _sfxge=		sfxge
+_si=		si
 _smbfs=		smbfs
 _sound=		sound
 _speaker=	speaker
@@ -779,46 +791,7 @@ _zfs=		zfs
 .if ${MACHINE_CPUARCH} == "arm"
 _cfi=		cfi
 _cpsw=		cpsw
-.endif
-
-.if ${MACHINE_CPUARCH} == "ia64"
-_aac=		aac
-_aacraid=	aacraid
-_aic=		aic
-_an=		an
-_arcnet=	arcnet
-_asr=		asr
-_bktr=		bktr
-_cardbus=	cardbus
-_cbb=		cbb
-_ciss=		ciss
-_cm=		cm
-_cmx=		cmx
-_coff=		coff
-_cpufreq=	cpufreq
-_dpt=		dpt
-_em=		em
-_ep=		ep
-_et=		et
-_exca=		exca
-_fe=		fe
-_hptiop=	hptiop
-_ida=		ida
-_igb=		igb
-_iir=		iir
-_ips=		ips
-_mly=		mly
-_pccard=	pccard
-_scsi_low=	scsi_low
-_smbfs=		smbfs
 _sound=		sound
-_splash=	splash
-_sppp=		sppp
-_streams=	streams
-_tpm=		tpm
-_twa=		twa
-_wi=		wi
-_xe=		xe
 .endif
 
 .if ${MACHINE_CPUARCH} == "powerpc"
@@ -868,9 +841,6 @@ _sound=		sound
 _zfs=		zfs
 .endif
 .endif
-
-.if defined(MODULES_OVERRIDE) && !defined(ALL_MODULES)
-SUBDIR=${MODULES_OVERRIDE}
 .endif
 
 .for reject in ${WITHOUT_MODULES}

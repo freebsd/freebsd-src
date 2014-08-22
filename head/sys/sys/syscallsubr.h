@@ -239,6 +239,7 @@ int	kern_ktimer_settime(struct thread *td, int timer_id, int flags,
 	    struct itimerspec *val, struct itimerspec *oval);
 int	kern_ktimer_gettime(struct thread *td, int timer_id,
 	    struct itimerspec *val);
+int	kern_ktimer_getoverrun(struct thread *td, int timer_id);
 int	kern_thr_new(struct thread *td, struct thr_param *param);
 int	kern_thr_suspend(struct thread *td, struct timespec *tsp);
 int	kern_truncate(struct thread *td, char *path, enum uio_seg pathseg,

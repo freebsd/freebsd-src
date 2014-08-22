@@ -343,7 +343,9 @@ ep_attach(struct ep_softc *sc)
 	EP_FSET(sc, F_RX_FIRST);
 	sc->top = sc->mcur = 0;
 
+	EP_LOCK(sc);
 	epstop(sc);
+	EP_UNLOCK(sc);
 
 	return (0);
 }
@@ -1000,6 +1002,9 @@ epwatchdog(struct ep_softc *sc)
 static void
 epstop(struct ep_softc *sc)
 {
+
+	EP_ASSERT_LOCKED(sc);
+
 	CSR_WRITE_2(sc, EP_COMMAND, RX_DISABLE);
 	CSR_WRITE_2(sc, EP_COMMAND, RX_DISCARD_TOP_PACK);
 	EP_BUSY_WAIT(sc);

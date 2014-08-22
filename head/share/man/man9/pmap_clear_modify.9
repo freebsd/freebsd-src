@@ -25,12 +25,11 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd July 21, 2003
+.Dd July 17, 2014
 .Dt PMAP_CLEAR_MODIFY 9
 .Os
 .Sh NAME
-.Nm pmap_clear_modify ,
-.Nm pmap_clear_reference
+.Nm pmap_clear_modify
 .Nd set information about physical pages
 .Sh SYNOPSIS
 .In sys/param.h
@@ -38,8 +37,6 @@
 .In vm/pmap.h
 .Ft void
 .Fn pmap_clear_modify "vm_page_t m"
-.Ft void
-.Fn pmap_clear_reference "vm_page_t m"
 .Sh DESCRIPTION
 The
 .Fn pmap_clear_modify
@@ -47,17 +44,9 @@ function clears the
 .Dq modified
 bit on the physical page
 .Fa m .
-.Pp
-The
-.Fn pmap_clear_reference
-function clears the
-.Dq referenced
-bit on the physical page
-.Fa m .
 .Sh SEE ALSO
 .Xr pmap 9 ,
-.Xr pmap_is_modified 9 ,
-.Xr pmap_ts_referenced 9
+.Xr pmap_is_modified 9
 .Sh AUTHORS
 This manual page was written by
-.An Bruce M Simpson Aq bms@spc.org .
+.An Bruce M Simpson Aq Mt bms@spc.org .

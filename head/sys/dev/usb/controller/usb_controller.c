@@ -90,19 +90,16 @@ SYSCTL_INT(_hw_usb_ctrl, OID_AUTO, debug, CTLFLAG_RW, &usb_ctrl_debug, 0,
 
 #if USB_HAVE_ROOT_MOUNT_HOLD
 static int usb_no_boot_wait = 0;
-TUNABLE_INT("hw.usb.no_boot_wait", &usb_no_boot_wait);
-SYSCTL_INT(_hw_usb, OID_AUTO, no_boot_wait, CTLFLAG_RD|CTLFLAG_TUN, &usb_no_boot_wait, 0,
+SYSCTL_INT(_hw_usb, OID_AUTO, no_boot_wait, CTLFLAG_RDTUN, &usb_no_boot_wait, 0,
     "No USB device enumerate waiting at boot.");
 #endif
 
 static int usb_no_suspend_wait = 0;
-TUNABLE_INT("hw.usb.no_suspend_wait", &usb_no_suspend_wait);
-SYSCTL_INT(_hw_usb, OID_AUTO, no_suspend_wait, CTLFLAG_RW|CTLFLAG_TUN,
+SYSCTL_INT(_hw_usb, OID_AUTO, no_suspend_wait, CTLFLAG_RWTUN,
     &usb_no_suspend_wait, 0, "No USB device waiting at system suspend.");
 
 static int usb_no_shutdown_wait = 0;
-TUNABLE_INT("hw.usb.no_shutdown_wait", &usb_no_shutdown_wait);
-SYSCTL_INT(_hw_usb, OID_AUTO, no_shutdown_wait, CTLFLAG_RW|CTLFLAG_TUN,
+SYSCTL_INT(_hw_usb, OID_AUTO, no_shutdown_wait, CTLFLAG_RWTUN,
     &usb_no_shutdown_wait, 0, "No USB device waiting at system shutdown.");
 
 static devclass_t usb_devclass;
@@ -133,12 +130,12 @@ DRIVER_MODULE(usbus, xhci, usb_driver, usb_devclass, 0, 0);
 /* Device Only Drivers */
 DRIVER_MODULE(usbus, at91_udp, usb_driver, usb_devclass, 0, 0);
 DRIVER_MODULE(usbus, musbotg, usb_driver, usb_devclass, 0, 0);
-DRIVER_MODULE(usbus, uss820, usb_driver, usb_devclass, 0, 0);
+DRIVER_MODULE(usbus, uss820dci, usb_driver, usb_devclass, 0, 0);
 DRIVER_MODULE(usbus, octusb, usb_driver, usb_devclass, 0, 0);
 
 /* Dual Mode Drivers */
 DRIVER_MODULE(usbus, dwcotg, usb_driver, usb_devclass, 0, 0);
-DRIVER_MODULE(usbus, saf1761, usb_driver, usb_devclass, 0, 0);
+DRIVER_MODULE(usbus, saf1761otg, usb_driver, usb_devclass, 0, 0);
 
 /*------------------------------------------------------------------------*
  *	usb_probe
@@ -333,7 +330,7 @@ usb_shutdown(device_t dev)
 		return (0);
 	}
 
-	device_printf(bus->bdev, "Controller shutdown\n");
+	DPRINTF("%s: Controller shutdown\n", device_get_nameunit(bus->bdev));
 
 	USB_BUS_LOCK(bus);
 	usb_proc_msignal(USB_BUS_EXPLORE_PROC(bus),
@@ -345,7 +342,8 @@ usb_shutdown(device_t dev)
 	}
 	USB_BUS_UNLOCK(bus);
 
-	device_printf(bus->bdev, "Controller shutdown complete\n");
+	DPRINTF("%s: Controller shutdown complete\n",
+	    device_get_nameunit(bus->bdev));
 
 	return (0);
 }
@@ -367,7 +365,13 @@ usb_bus_explore(struct usb_proc_msg *pm)
 	if (bus->no_explore != 0)
 		return;
 
-	if (udev && udev->hub) {
+	if (udev != NULL) {
+		USB_BUS_UNLOCK(bus);
+		uhub_explore_handle_re_enumerate(udev);
+		USB_BUS_LOCK(bus);
+	}
+
+	if (udev != NULL && udev->hub != NULL) {
 
 		if (bus->do_probe) {
 			bus->do_probe = 0;
@@ -899,10 +903,10 @@ usb_bus_mem_alloc_all(struct usb_bus *bus, bus_dma_tag_t dmat,
 	bus->alloc_failed = 0;
 
 	mtx_init(&bus->bus_mtx, device_get_nameunit(bus->parent),
-	    NULL, MTX_DEF | MTX_RECURSE);
+	    "usb_def_mtx", MTX_DEF | MTX_RECURSE);
 
 	mtx_init(&bus->bus_spin_lock, device_get_nameunit(bus->parent),
-	    NULL, MTX_SPIN | MTX_RECURSE);
+	    "usb_spin_mtx", MTX_SPIN | MTX_RECURSE);
 
 	usb_callout_init_mtx(&bus->power_wdog,
 	    &bus->bus_mtx, 0);

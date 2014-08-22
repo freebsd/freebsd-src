@@ -78,5 +78,9 @@ beforeinstall:
 
 .PATH: ${.CURDIR}/${RTLD_ARCH}
 
+.if ${MK_TESTS} != "no"
+SUBDIR+=	tests
+.endif
+
 .include <bsd.symver.mk>
 .include <bsd.prog.mk>

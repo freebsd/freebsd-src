@@ -27,6 +27,15 @@ TESTS_SUBDIRS?=
 # List of variables to pass to the tests at run-time via the environment.
 TESTS_ENV?=
 
+# Force all tests in a separate distribution file.
+#
+# We want this to be the case even when the distribution name is already
+# overriden.  For example: we want the tests for programs in the 'games'
+# distribution to end up in the 'tests' distribution; the test programs
+# themselves have all the necessary logic to detect that the games are not
+# installed and thus won't cause false negatives.
+DISTRIBUTION:=	tests
+
 # Ordered list of directories to construct the PATH for the tests.
 TESTS_PATH+= ${DESTDIR}/bin ${DESTDIR}/sbin \
              ${DESTDIR}/usr/bin ${DESTDIR}/usr/sbin
@@ -82,8 +91,7 @@ test: aftertest
 
 .if !empty(PROGS) || !empty(PROGS_CXX) || !empty(SCRIPTS)
 .include <bsd.progs.mk>
-.elif !empty(FILES)
-.include <bsd.files.mk>
 .endif
+.include <bsd.files.mk>
 
 .include <bsd.obj.mk>

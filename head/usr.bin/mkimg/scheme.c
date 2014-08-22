@@ -103,14 +103,12 @@ int
 scheme_bootcode(int fd)
 {
 	struct stat sb;
-	int error;
 
 	if (scheme->bootcode == 0)
 		return (ENXIO);
 
-	error = fstat(fd, &sb);
-	if (error)
-		return (error);
+	if (fstat(fd, &sb) == -1)
+		return (errno);
 	if (sb.st_size > scheme->bootcode)
 		return (EFBIG);
 

@@ -30,6 +30,9 @@ __FBSDID("$FreeBSD$");
 #include <sys/types.h>
 #include <assert.h>
 #include <errno.h>
+#include <limits.h>
+#include <paths.h>
+#include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
 
@@ -38,7 +41,7 @@ __FBSDID("$FreeBSD$");
 
 #define	BUFFER_SIZE	(1024*1024)
 
-static char image_tmpfile[] = "/tmp/mkimg-XXXXXX";
+static char image_tmpfile[PATH_MAX];
 static int image_fd = -1;
 static lba_t image_size;
 
@@ -91,21 +94,49 @@ image_copyin(lba_t blk, int fd, uint64_t *sizep)
 int
 image_copyout(int fd)
 {
+	int error;
+
+	error = image_copyout_region(fd, 0, image_size);
+	if (!error)
+		error = image_copyout_done(fd);
+	return (error);
+}
+
+int
+image_copyout_done(int fd)
+{
+	off_t ofs;
+	int error;
+
+	ofs = lseek(fd, 0L, SEEK_CUR);
+	if (ofs == -1)
+		return (0);
+	error = (ftruncate(fd, ofs) == -1) ? errno : 0;
+	return (error);
+}
+
+int
+image_copyout_region(int fd, lba_t blk, lba_t size)
+{
 	char *buffer;
 	off_t ofs;
+	size_t sz;
 	ssize_t rdsz, wrsz;
 	int error;
 
 	ofs = lseek(fd, 0L, SEEK_CUR);
 
+	blk *= secsz;
+	if (lseek(image_fd, blk, SEEK_SET) != blk)
+		return (errno);
 	buffer = malloc(BUFFER_SIZE);
 	if (buffer == NULL)
 		return (errno);
-	if (lseek(image_fd, 0, SEEK_SET) != 0)
-		return (errno);
 	error = 0;
-	while (1) {
-		rdsz = read(image_fd, buffer, BUFFER_SIZE);
+	size *= secsz;
+	while (size > 0) {
+		sz = (BUFFER_SIZE < size) ? BUFFER_SIZE : size;
+		rdsz = read(image_fd, buffer, sz);
 		if (rdsz <= 0) {
 			error = (rdsz < 0) ? errno : 0;
 			break;
@@ -117,11 +148,38 @@ image_copyout(int fd)
 			error = errno;
 			break;
 		}
+		assert(wrsz == rdsz);
+		size -= rdsz;
 	}
 	free(buffer);
-	ofs = lseek(fd, 0L, SEEK_CUR);
-	ftruncate(fd, ofs);
 	return (error);
+}
+
+int
+image_data(lba_t blk, lba_t size)
+{
+	char *buffer, *p;
+
+	blk *= secsz;
+	if (lseek(image_fd, blk, SEEK_SET) != blk)
+		return (1);
+
+	size *= secsz;
+	buffer = malloc(size);
+	if (buffer == NULL)
+		return (1);
+
+	if (read(image_fd, buffer, size) != (ssize_t)size) {
+		free(buffer);
+		return (1);
+	}
+
+	p = buffer;
+	while (size > 0 && *p == '\0')
+		size--, p++;
+
+	free(buffer);
+	return ((size == 0) ? 0 : 1);
 }
 
 lba_t
@@ -157,9 +215,14 @@ image_write(lba_t blk, void *buf, ssize_t len)
 int
 image_init(void)
 {
+	const char *tmpdir;
 
 	if (atexit(cleanup) == -1)
 		return (errno);
+	if ((tmpdir = getenv("TMPDIR")) == NULL || *tmpdir == '\0')
+		tmpdir = _PATH_TMP;
+	snprintf(image_tmpfile, sizeof(image_tmpfile), "%s/mkimg-XXXXXX",
+	    tmpdir);
 	image_fd = mkstemp(image_tmpfile);
 	if (image_fd == -1)
 		return (errno);

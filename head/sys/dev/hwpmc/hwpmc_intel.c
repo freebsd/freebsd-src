@@ -147,14 +147,21 @@ pmc_intel_initialize(void)
 				 * Per Intel document 253669-032 9/2009,
 				 * pages A-2 and A-57
 				 */
-		case 0x2E:
 			cputype = PMC_CPU_INTEL_COREI7;
 			nclasses = 5;
+			break;
+		case 0x2E:
+			cputype = PMC_CPU_INTEL_NEHALEM_EX;
+			nclasses = 3;
 			break;
 		case 0x25:	/* Per Intel document 253669-033US 12/2009. */
 		case 0x2C:	/* Per Intel document 253669-033US 12/2009. */
 			cputype = PMC_CPU_INTEL_WESTMERE;
 			nclasses = 5;
+			break;
+		case 0x2F:	/* Westmere-EX, seen in wild */
+			cputype = PMC_CPU_INTEL_WESTMERE_EX;
+			nclasses = 3;
 			break;
 		case 0x2A:	/* Per Intel document 253669-039US 05/2011. */
 			cputype = PMC_CPU_INTEL_SANDYBRIDGE;
@@ -218,9 +225,11 @@ pmc_intel_initialize(void)
 	case PMC_CPU_INTEL_CORE2:
 	case PMC_CPU_INTEL_CORE2EXTREME:
 	case PMC_CPU_INTEL_COREI7:
+	case PMC_CPU_INTEL_NEHALEM_EX:
 	case PMC_CPU_INTEL_IVYBRIDGE:
 	case PMC_CPU_INTEL_SANDYBRIDGE:
 	case PMC_CPU_INTEL_WESTMERE:
+	case PMC_CPU_INTEL_WESTMERE_EX:
 	case PMC_CPU_INTEL_SANDYBRIDGE_XEON:
 	case PMC_CPU_INTEL_IVYBRIDGE_XEON:
 	case PMC_CPU_INTEL_HASWELL:
@@ -307,10 +316,12 @@ pmc_intel_finalize(struct pmc_mdep *md)
 	case PMC_CPU_INTEL_CORE2:
 	case PMC_CPU_INTEL_CORE2EXTREME:
 	case PMC_CPU_INTEL_COREI7:
+	case PMC_CPU_INTEL_NEHALEM_EX:
 	case PMC_CPU_INTEL_HASWELL:
 	case PMC_CPU_INTEL_IVYBRIDGE:
 	case PMC_CPU_INTEL_SANDYBRIDGE:
 	case PMC_CPU_INTEL_WESTMERE:
+	case PMC_CPU_INTEL_WESTMERE_EX:
 	case PMC_CPU_INTEL_SANDYBRIDGE_XEON:
 	case PMC_CPU_INTEL_IVYBRIDGE_XEON:
 		pmc_core_finalize(md);

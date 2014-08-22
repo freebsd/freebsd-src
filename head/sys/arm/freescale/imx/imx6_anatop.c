@@ -375,12 +375,12 @@ cpufreq_initialize(struct imx6_anatop_softc *sc)
 	    "CPU frequency");
 
 	SYSCTL_ADD_PROC(NULL, SYSCTL_STATIC_CHILDREN(_hw_imx6), 
-	    OID_AUTO, "cpu_minmhz", CTLTYPE_INT | CTLFLAG_RWTUN, sc, 0,
-	    cpufreq_sysctl_minmhz, "IU", "Minimum CPU frequency");
+	    OID_AUTO, "cpu_minmhz", CTLTYPE_INT | CTLFLAG_RWTUN | CTLFLAG_NOFETCH,
+	    sc, 0, cpufreq_sysctl_minmhz, "IU", "Minimum CPU frequency");
 
 	SYSCTL_ADD_PROC(NULL, SYSCTL_STATIC_CHILDREN(_hw_imx6),
-	    OID_AUTO, "cpu_maxmhz", CTLTYPE_INT | CTLFLAG_RWTUN, sc, 0,
-	    cpufreq_sysctl_maxmhz, "IU", "Maximum CPU frequency");
+	    OID_AUTO, "cpu_maxmhz", CTLTYPE_INT | CTLFLAG_RWTUN | CTLFLAG_NOFETCH,
+	    sc, 0, cpufreq_sysctl_maxmhz, "IU", "Maximum CPU frequency");
 
 	SYSCTL_ADD_INT(NULL, SYSCTL_STATIC_CHILDREN(_hw_imx6),
 	    OID_AUTO, "cpu_maxmhz_hw", CTLFLAG_RD, &sc->cpu_maxmhz_hw, 0, 
@@ -412,9 +412,6 @@ cpufreq_initialize(struct imx6_anatop_softc *sc)
 	    FSL_OCOTP_CFG3_SPEED_MASK) >> FSL_OCOTP_CFG3_SPEED_SHIFT;
 	sc->cpu_maxmhz_hw = imx6_ocotp_mhz_tab[cfg3speed];
 	sc->cpu_maxmhz = sc->cpu_maxmhz_hw;
-
-	TUNABLE_INT_FETCH("hw.imx6.cpu_overclock_enable",
-	    &sc->cpu_overclock_enable);
 
 	TUNABLE_INT_FETCH("hw.imx6.cpu_minmhz", &sc->cpu_minmhz);
 	op = cpufreq_nearest_oppt(sc, sc->cpu_minmhz);
@@ -561,7 +558,6 @@ static void
 initialize_tempmon(struct imx6_anatop_softc *sc)
 {
 	uint32_t cal;
-	struct sysctl_ctx_list *ctx;
 
 	/*
 	 * Fetch calibration data: a sensor count at room temperature (25C),
@@ -605,11 +601,10 @@ initialize_tempmon(struct imx6_anatop_softc *sc)
 	callout_reset_sbt(&sc->temp_throttle_callout, sc->temp_throttle_delay, 
 	    0, tempmon_throttle_check, sc, 0);
 
-	ctx = device_get_sysctl_ctx(sc->dev);
-	SYSCTL_ADD_PROC(ctx, SYSCTL_CHILDREN(device_get_sysctl_tree(sc->dev)),
+	SYSCTL_ADD_PROC(NULL, SYSCTL_STATIC_CHILDREN(_hw_imx6), 
 	    OID_AUTO, "temperature", CTLTYPE_INT | CTLFLAG_RD, sc, 0,
 	    temp_sysctl_handler, "IK", "Current die temperature");
-	SYSCTL_ADD_PROC(ctx, SYSCTL_CHILDREN(device_get_sysctl_tree(sc->dev)),
+	SYSCTL_ADD_PROC(NULL, SYSCTL_STATIC_CHILDREN(_hw_imx6), 
 	    OID_AUTO, "throttle_temperature", CTLTYPE_INT | CTLFLAG_RW, sc,
 	    0, temp_throttle_sysctl_handler, "IK", 
 	    "Throttle CPU when exceeding this temperature");

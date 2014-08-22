@@ -26,13 +26,15 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
  */
 
 /*
  * iSCSI Common Layer.  It's used by both the initiator and target to send
  * and receive iSCSI PDUs.
  */
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/capsicum.h>
@@ -56,29 +58,24 @@
 #include <netinet/in.h>
 #include <netinet/tcp.h>
 
-#include "icl.h"
-#include "iscsi_proto.h"
+#include <dev/iscsi/icl.h>
+#include <dev/iscsi/iscsi_proto.h>
 
 SYSCTL_NODE(_kern, OID_AUTO, icl, CTLFLAG_RD, 0, "iSCSI Common Layer");
 static int debug = 1;
-TUNABLE_INT("kern.icl.debug", &debug);
 SYSCTL_INT(_kern_icl, OID_AUTO, debug, CTLFLAG_RWTUN,
     &debug, 0, "Enable debug messages");
 static int coalesce = 1;
-TUNABLE_INT("kern.icl.coalesce", &coalesce);
 SYSCTL_INT(_kern_icl, OID_AUTO, coalesce, CTLFLAG_RWTUN,
     &coalesce, 0, "Try to coalesce PDUs before sending");
 static int partial_receive_len = 128 * 1024;
-TUNABLE_INT("kern.icl.partial_receive_len", &partial_receive_len);
 SYSCTL_INT(_kern_icl, OID_AUTO, partial_receive_len, CTLFLAG_RWTUN,
     &partial_receive_len, 0, "Minimum read size for partially received "
     "data segment");
 static int sendspace = 1048576;
-TUNABLE_INT("kern.icl.sendspace", &sendspace);
 SYSCTL_INT(_kern_icl, OID_AUTO, sendspace, CTLFLAG_RWTUN,
     &sendspace, 0, "Default send socket buffer size");
 static int recvspace = 1048576;
-TUNABLE_INT("kern.icl.recvspace", &recvspace);
 SYSCTL_INT(_kern_icl, OID_AUTO, recvspace, CTLFLAG_RWTUN,
     &recvspace, 0, "Default receive socket buffer size");
 
@@ -669,7 +666,10 @@ icl_conn_receive_pdu(struct icl_conn *ic, size_t *availablep)
 	}
 
 	if (error != 0) {
-		icl_pdu_free(request);
+		/*
+		 * Don't free the PDU; it's pointed to by ic->ic_receive_pdu
+		 * and will get freed in icl_conn_close().
+		 */
 		icl_conn_fail(ic);
 	}
 

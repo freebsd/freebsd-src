@@ -132,14 +132,14 @@ static int
 e1000phy_attach(device_t dev)
 {
 	struct mii_softc *sc;
-	struct ifnet *ifp;
+	if_t ifp;
 
 	sc = device_get_softc(dev);
 
 	mii_phy_dev_attach(dev, MIIF_NOMANPAUSE, &e1000phy_funcs, 0);
 
 	ifp = sc->mii_pdata->mii_ifp;
-	if (strcmp(ifp->if_dname, "msk") == 0 &&
+	if (strcmp(if_getdname(ifp), "msk") == 0 &&
 	    (sc->mii_flags & MIIF_MACPRIV0) != 0)
 		sc->mii_flags |= MIIF_PHYPRIV0;
 

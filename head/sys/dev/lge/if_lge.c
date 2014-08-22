@@ -123,7 +123,7 @@ static int lge_detach(device_t);
 static int lge_alloc_jumbo_mem(struct lge_softc *);
 static void lge_free_jumbo_mem(struct lge_softc *);
 static void *lge_jalloc(struct lge_softc *);
-static int lge_jfree(struct mbuf *, void *, void *);
+static void lge_jfree(struct mbuf *, void *, void *);
 
 static int lge_newbuf(struct lge_softc *, struct lge_rx_desc *, struct mbuf *);
 static int lge_encap(struct lge_softc *, struct mbuf *, u_int32_t *);
@@ -847,7 +847,7 @@ lge_jalloc(sc)
 /*
  * Release a jumbo buffer.
  */
-static int
+static void
 lge_jfree(struct mbuf *m, void *buf, void *args)
 {
 	struct lge_softc	*sc;
@@ -873,8 +873,6 @@ lge_jfree(struct mbuf *m, void *buf, void *args)
 	entry->slot = i;
 	SLIST_REMOVE_HEAD(&sc->lge_jinuse_listhead, jpool_entries);
 	SLIST_INSERT_HEAD(&sc->lge_jfree_listhead, entry, jpool_entries);
-
-	return (EXT_FREE_OK);
 }
 
 /*

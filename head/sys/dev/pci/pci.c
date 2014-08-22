@@ -110,11 +110,6 @@ static int		pci_write_vpd_reg(device_t pcib, pcicfgregs *cfg,
 			    int reg, uint32_t data);
 #endif
 static void		pci_read_vpd(device_t pcib, pcicfgregs *cfg);
-static void		pci_disable_msi(device_t dev);
-static void		pci_enable_msi(device_t dev, uint64_t address,
-			    uint16_t data);
-static void		pci_enable_msix(device_t dev, u_int index,
-			    uint64_t address, uint32_t data);
 static void		pci_mask_msix(device_t dev, u_int index);
 static void		pci_unmask_msix(device_t dev, u_int index);
 static int		pci_msi_blacklisted(void);
@@ -180,6 +175,9 @@ static device_method_t pci_methods[] = {
 	DEVMETHOD(pci_find_htcap,	pci_find_htcap_method),
 	DEVMETHOD(pci_alloc_msi,	pci_alloc_msi_method),
 	DEVMETHOD(pci_alloc_msix,	pci_alloc_msix_method),
+	DEVMETHOD(pci_enable_msi,	pci_enable_msi_method),
+	DEVMETHOD(pci_enable_msix,	pci_enable_msix_method),
+	DEVMETHOD(pci_disable_msi,	pci_disable_msi_method),
 	DEVMETHOD(pci_remap_msix,	pci_remap_msix_method),
 	DEVMETHOD(pci_release_msi,	pci_release_msi_method),
 	DEVMETHOD(pci_msi_count,	pci_msi_count_method),
@@ -282,22 +280,20 @@ static int pcie_chipset, pcix_chipset;
 SYSCTL_NODE(_hw, OID_AUTO, pci, CTLFLAG_RD, 0, "PCI bus tuning parameters");
 
 static int pci_enable_io_modes = 1;
-TUNABLE_INT("hw.pci.enable_io_modes", &pci_enable_io_modes);
-SYSCTL_INT(_hw_pci, OID_AUTO, enable_io_modes, CTLFLAG_RW,
+SYSCTL_INT(_hw_pci, OID_AUTO, enable_io_modes, CTLFLAG_RWTUN,
     &pci_enable_io_modes, 1,
     "Enable I/O and memory bits in the config register.  Some BIOSes do not\n\
 enable these bits correctly.  We'd like to do this all the time, but there\n\
 are some peripherals that this causes problems with.");
 
 static int pci_do_realloc_bars = 0;
-TUNABLE_INT("hw.pci.realloc_bars", &pci_do_realloc_bars);
-SYSCTL_INT(_hw_pci, OID_AUTO, realloc_bars, CTLFLAG_RW,
+SYSCTL_INT(_hw_pci, OID_AUTO, realloc_bars, CTLFLAG_RWTUN,
     &pci_do_realloc_bars, 0,
-    "Attempt to allocate a new range for any BARs whose original firmware-assigned ranges fail to allocate during the initial device scan.");
+    "Attempt to allocate a new range for any BARs whose original "
+    "firmware-assigned ranges fail to allocate during the initial device scan.");
 
 static int pci_do_power_nodriver = 0;
-TUNABLE_INT("hw.pci.do_power_nodriver", &pci_do_power_nodriver);
-SYSCTL_INT(_hw_pci, OID_AUTO, do_power_nodriver, CTLFLAG_RW,
+SYSCTL_INT(_hw_pci, OID_AUTO, do_power_nodriver, CTLFLAG_RWTUN,
     &pci_do_power_nodriver, 0,
   "Place a function into D3 state when no driver attaches to it.  0 means\n\
 disable.  1 means conservatively place devices into D3 state.  2 means\n\
@@ -305,30 +301,25 @@ agressively place devices into D3 state.  3 means put absolutely everything\n\
 in D3 state.");
 
 int pci_do_power_resume = 1;
-TUNABLE_INT("hw.pci.do_power_resume", &pci_do_power_resume);
-SYSCTL_INT(_hw_pci, OID_AUTO, do_power_resume, CTLFLAG_RW,
+SYSCTL_INT(_hw_pci, OID_AUTO, do_power_resume, CTLFLAG_RWTUN,
     &pci_do_power_resume, 1,
   "Transition from D3 -> D0 on resume.");
 
 int pci_do_power_suspend = 1;
-TUNABLE_INT("hw.pci.do_power_suspend", &pci_do_power_suspend);
-SYSCTL_INT(_hw_pci, OID_AUTO, do_power_suspend, CTLFLAG_RW,
+SYSCTL_INT(_hw_pci, OID_AUTO, do_power_suspend, CTLFLAG_RWTUN,
     &pci_do_power_suspend, 1,
   "Transition from D0 -> D3 on suspend.");
 
 static int pci_do_msi = 1;
-TUNABLE_INT("hw.pci.enable_msi", &pci_do_msi);
-SYSCTL_INT(_hw_pci, OID_AUTO, enable_msi, CTLFLAG_RW, &pci_do_msi, 1,
+SYSCTL_INT(_hw_pci, OID_AUTO, enable_msi, CTLFLAG_RWTUN, &pci_do_msi, 1,
     "Enable support for MSI interrupts");
 
 static int pci_do_msix = 1;
-TUNABLE_INT("hw.pci.enable_msix", &pci_do_msix);
-SYSCTL_INT(_hw_pci, OID_AUTO, enable_msix, CTLFLAG_RW, &pci_do_msix, 1,
+SYSCTL_INT(_hw_pci, OID_AUTO, enable_msix, CTLFLAG_RWTUN, &pci_do_msix, 1,
     "Enable support for MSI-X interrupts");
 
 static int pci_honor_msi_blacklist = 1;
-TUNABLE_INT("hw.pci.honor_msi_blacklist", &pci_honor_msi_blacklist);
-SYSCTL_INT(_hw_pci, OID_AUTO, honor_msi_blacklist, CTLFLAG_RD,
+SYSCTL_INT(_hw_pci, OID_AUTO, honor_msi_blacklist, CTLFLAG_RDTUN,
     &pci_honor_msi_blacklist, 1, "Honor chipset blacklist for MSI/MSI-X");
 
 #if defined(__i386__) || defined(__amd64__)
@@ -336,26 +327,22 @@ static int pci_usb_takeover = 1;
 #else
 static int pci_usb_takeover = 0;
 #endif
-TUNABLE_INT("hw.pci.usb_early_takeover", &pci_usb_takeover);
 SYSCTL_INT(_hw_pci, OID_AUTO, usb_early_takeover, CTLFLAG_RDTUN,
     &pci_usb_takeover, 1, "Enable early takeover of USB controllers.\n\
 Disable this if you depend on BIOS emulation of USB devices, that is\n\
 you use USB devices (like keyboard or mouse) but do not load USB drivers");
 
 static int pci_clear_bars;
-TUNABLE_INT("hw.pci.clear_bars", &pci_clear_bars);
 SYSCTL_INT(_hw_pci, OID_AUTO, clear_bars, CTLFLAG_RDTUN, &pci_clear_bars, 0,
     "Ignore firmware-assigned resources for BARs.");
 
 #if defined(NEW_PCIB) && defined(PCI_RES_BUS)
 static int pci_clear_buses;
-TUNABLE_INT("hw.pci.clear_buses", &pci_clear_buses);
 SYSCTL_INT(_hw_pci, OID_AUTO, clear_buses, CTLFLAG_RDTUN, &pci_clear_buses, 0,
     "Ignore firmware-assigned bus numbers.");
 #endif
 
 static int pci_enable_ari = 1;
-TUNABLE_INT("hw.pci.enable_ari", &pci_enable_ari);
 SYSCTL_INT(_hw_pci, OID_AUTO, enable_ari, CTLFLAG_RDTUN, &pci_enable_ari,
     0, "Enable support for PCIe Alternative RID Interpretation");
 
@@ -1354,9 +1341,10 @@ pci_find_extcap_method(device_t dev, device_t child, int capability,
  * Support for MSI-X message interrupts.
  */
 void
-pci_enable_msix(device_t dev, u_int index, uint64_t address, uint32_t data)
+pci_enable_msix_method(device_t dev, device_t child, u_int index,
+    uint64_t address, uint32_t data)
 {
-	struct pci_devinfo *dinfo = device_get_ivars(dev);
+	struct pci_devinfo *dinfo = device_get_ivars(child);
 	struct pcicfg_msix *msix = &dinfo->cfg.msix;
 	uint32_t offset;
 
@@ -1367,7 +1355,7 @@ pci_enable_msix(device_t dev, u_int index, uint64_t address, uint32_t data)
 	bus_write_4(msix->msix_table_res, offset + 8, data);
 
 	/* Enable MSI -> HT mapping. */
-	pci_ht_map_msi(dev, address);
+	pci_ht_map_msi(child, address);
 }
 
 void
@@ -1879,45 +1867,46 @@ pci_set_max_read_req(device_t dev, int size)
  * Support for MSI message signalled interrupts.
  */
 void
-pci_enable_msi(device_t dev, uint64_t address, uint16_t data)
+pci_enable_msi_method(device_t dev, device_t child, uint64_t address,
+    uint16_t data)
 {
-	struct pci_devinfo *dinfo = device_get_ivars(dev);
+	struct pci_devinfo *dinfo = device_get_ivars(child);
 	struct pcicfg_msi *msi = &dinfo->cfg.msi;
 
 	/* Write data and address values. */
-	pci_write_config(dev, msi->msi_location + PCIR_MSI_ADDR,
+	pci_write_config(child, msi->msi_location + PCIR_MSI_ADDR,
 	    address & 0xffffffff, 4);
 	if (msi->msi_ctrl & PCIM_MSICTRL_64BIT) {
-		pci_write_config(dev, msi->msi_location + PCIR_MSI_ADDR_HIGH,
+		pci_write_config(child, msi->msi_location + PCIR_MSI_ADDR_HIGH,
 		    address >> 32, 4);
-		pci_write_config(dev, msi->msi_location + PCIR_MSI_DATA_64BIT,
+		pci_write_config(child, msi->msi_location + PCIR_MSI_DATA_64BIT,
 		    data, 2);
 	} else
-		pci_write_config(dev, msi->msi_location + PCIR_MSI_DATA, data,
+		pci_write_config(child, msi->msi_location + PCIR_MSI_DATA, data,
 		    2);
 
 	/* Enable MSI in the control register. */
 	msi->msi_ctrl |= PCIM_MSICTRL_MSI_ENABLE;
-	pci_write_config(dev, msi->msi_location + PCIR_MSI_CTRL, msi->msi_ctrl,
-	    2);
+	pci_write_config(child, msi->msi_location + PCIR_MSI_CTRL,
+	    msi->msi_ctrl, 2);
 
 	/* Enable MSI -> HT mapping. */
-	pci_ht_map_msi(dev, address);
+	pci_ht_map_msi(child, address);
 }
 
 void
-pci_disable_msi(device_t dev)
+pci_disable_msi_method(device_t dev, device_t child)
 {
-	struct pci_devinfo *dinfo = device_get_ivars(dev);
+	struct pci_devinfo *dinfo = device_get_ivars(child);
 	struct pcicfg_msi *msi = &dinfo->cfg.msi;
 
 	/* Disable MSI -> HT mapping. */
-	pci_ht_map_msi(dev, 0);
+	pci_ht_map_msi(child, 0);
 
 	/* Disable MSI in the control register. */
 	msi->msi_ctrl &= ~PCIM_MSICTRL_MSI_ENABLE;
-	pci_write_config(dev, msi->msi_location + PCIR_MSI_CTRL, msi->msi_ctrl,
-	    2);
+	pci_write_config(child, msi->msi_location + PCIR_MSI_CTRL,
+	    msi->msi_ctrl, 2);
 }
 
 /*

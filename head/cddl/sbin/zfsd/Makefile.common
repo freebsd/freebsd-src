@@ -24,6 +24,7 @@ INCFLAGS+= -I${SRCDIR}/sys/cddl/compat/opensolaris
 INCFLAGS+= -I${SRCDIR}/cddl/contrib/opensolaris/head
 INCFLAGS+= -I${SRCDIR}/cddl/contrib/opensolaris/lib/libuutil/common
 INCFLAGS+= -I${SRCDIR}/cddl/contrib/opensolaris/lib/libumem/common
+INCFLAGS+= -I${SRCDIR}/cddl/contrib/opensolaris/lib/libzfs_core/common
 INCFLAGS+= -I${SRCDIR}/cddl/contrib/opensolaris/lib/libzfs/common
 INCFLAGS+= -I${SRCDIR}/cddl/contrib/opensolaris/lib/libnvpair
 INCFLAGS+= -I${SRCDIR}/sys/cddl/contrib/opensolaris/common/zfs

@@ -30,6 +30,9 @@
 /* Define to 1 if mkstemp() is available and working. */
 #undef HAVE_MKSTEMP
 
+/* Define to 1 if vsnprintf() is available and working. */
+#undef HAVE_VSNPRINTF
+
 /* Define to maximum table size (default: 32500) */
 #undef MAXTABLE
 

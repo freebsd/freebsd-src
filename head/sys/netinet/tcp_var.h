@@ -654,7 +654,7 @@ char	*tcp_log_vain(struct in_conninfo *, struct tcphdr *, void *,
 	    const void *);
 int	 tcp_reass(struct tcpcb *, struct tcphdr *, int *, struct mbuf *);
 void	 tcp_reass_flush(struct tcpcb *);
-void	 tcp_input(struct mbuf *, int);
+int	 tcp_input(struct mbuf **, int *, int);
 u_long	 tcp_maxmtu(struct in_conninfo *, struct tcp_ifcap *);
 u_long	 tcp_maxmtu6(struct in_conninfo *, struct tcp_ifcap *);
 void	 tcp_mss_update(struct tcpcb *, int, int, struct hc_metrics_lite *,
@@ -678,7 +678,6 @@ void	 tcp_tw_destroy(void);
 void	 tcp_tw_zone_change(void);
 int	 tcp_twcheck(struct inpcb *, struct tcpopt *, struct tcphdr *,
 	    struct mbuf *, int);
-int	 tcp_twrespond(struct tcptw *, int);
 void	 tcp_setpersist(struct tcpcb *);
 #ifdef TCP_SIGNATURE
 int	 tcp_signature_compute(struct mbuf *, int, int, int, u_char *, u_int);
@@ -719,6 +718,27 @@ u_long	 tcp_seq_subtract(u_long, u_long );
 
 void	cc_cong_signal(struct tcpcb *tp, struct tcphdr *th, uint32_t type);
 
+static inline void
+tcp_fields_to_host(struct tcphdr *th)
+{
+
+	th->th_seq = ntohl(th->th_seq);
+	th->th_ack = ntohl(th->th_ack);
+	th->th_win = ntohs(th->th_win);
+	th->th_urp = ntohs(th->th_urp);
+}
+
+#ifdef TCP_SIGNATURE
+static inline void
+tcp_fields_to_net(struct tcphdr *th)
+{
+
+	th->th_seq = htonl(th->th_seq);
+	th->th_ack = htonl(th->th_ack);
+	th->th_win = htons(th->th_win);
+	th->th_urp = htons(th->th_urp);
+}
+#endif
 #endif /* _KERNEL */
 
 #endif /* _NETINET_TCP_VAR_H_ */

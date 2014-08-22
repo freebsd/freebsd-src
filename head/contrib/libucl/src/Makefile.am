@@ -4,6 +4,8 @@ libucl_common_cflags=	-I$(top_srcdir)/src \
 			-Wall -W -Wno-unused-parameter -Wno-pointer-sign
 lib_LTLIBRARIES=	libucl.la
 libucl_la_SOURCES=	ucl_emitter.c \
+					ucl_emitter_streamline.c \
+					ucl_emitter_utils.c \
 					ucl_hash.c \
 					ucl_parser.c \
 					ucl_schema.c \
