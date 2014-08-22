@@ -216,13 +216,14 @@
 	<title>Network Interface Support</title>
 
 	<para revision="259453">Support for Ralink RT5370 and
-	  RT5372 chipsets has been added.</para>
+	  RT5372 chipsets has been added to the &man.run.4;
+	  driver.</para>
 
 	<para revision="260120">Firmware for the &man.run.4; driver
 	  has been updated to version 0.33.</para>
 
 	<para revision="261868">Support for the Ralink RT3593
-	  chipset has been added.</para>
+	  chipset has been added to the &man.run.4; driver.</para>
 
 	<para revision="261972">The &man.nve.4; driver is now
 	  deprecated, and the &man.nfe.4; driver should be used
