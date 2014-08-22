@@ -639,6 +639,10 @@ kern_sigaction(td, sig, act, oact, flags)
 
 	if (!_SIG_VALID(sig))
 		return (EINVAL);
+	if (act != NULL && (act->sa_flags & ~(SA_ONSTACK | SA_RESTART |
+	    SA_RESETHAND | SA_NOCLDSTOP | SA_NODEFER | SA_NOCLDWAIT |
+	    SA_SIGINFO)) != 0)
+		return (EINVAL);
 
 	PROC_LOCK(p);
 	ps = p->p_sigacts;
