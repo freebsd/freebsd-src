@@ -407,6 +407,7 @@ struct sctp_inpcb {
 	uint8_t local_strreset_support;
 	uint32_t sctp_cmt_on_off;
 	uint8_t ecn_supported;
+	uint8_t prsctp_supported;
 	struct sctp_nonpad_sndrcvinfo def_send;
 	/*-
 	 * These three are here for the sosend_dgram
