@@ -104,10 +104,10 @@ enum i40e_status_code i40e_aq_set_phy_config(struct i40e_hw *hw,
 				struct i40e_asq_cmd_details *cmd_details);
 enum i40e_status_code i40e_set_fc(struct i40e_hw *hw, u8 *aq_failures,
 				  bool atomic_reset);
+enum i40e_status_code i40e_aq_set_phy_int_mask(struct i40e_hw *hw, u16 mask,
+				struct i40e_asq_cmd_details *cmd_details);
 enum i40e_status_code i40e_aq_set_mac_config(struct i40e_hw *hw,
 				u16 max_frame_size, bool crc_en, u16 pacing,
-				struct i40e_asq_cmd_details *cmd_details);
-enum i40e_status_code i40e_aq_set_phy_int_mask(struct i40e_hw *hw, u16 mask,
 				struct i40e_asq_cmd_details *cmd_details);
 enum i40e_status_code i40e_aq_get_local_advt_reg(struct i40e_hw *hw,
 				u64 *advt_reg,
@@ -393,10 +393,8 @@ enum i40e_status_code i40e_nvmupd_command(struct i40e_hw *hw,
 					  u8 *bytes, int *);
 void i40e_set_pci_config_data(struct i40e_hw *hw, u16 link_status);
 
-#if defined(I40E_QV) || defined(VF_DRIVER)
 enum i40e_status_code i40e_set_mac_type(struct i40e_hw *hw);
 
-#endif
 extern struct i40e_rx_ptype_decoded i40e_ptype_lookup[];
 
 static INLINE struct i40e_rx_ptype_decoded decode_rx_desc_ptype(u8 ptype)

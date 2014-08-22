@@ -34,7 +34,7 @@
 
 #include <machine/stdarg.h>
 
-#include "i40e.h"
+#include "ixl.h"
 
 /********************************************************************
  * Manage DMA'able memory.

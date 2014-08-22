@@ -33,8 +33,8 @@
 /*$FreeBSD$*/
 
 
-#ifndef _I40E_H_
-#define _I40E_H_
+#ifndef _IXL_H_
+#define _IXL_H_
 
 
 #include <sys/param.h>
@@ -91,7 +91,7 @@
 #include "i40e_type.h"
 #include "i40e_prototype.h"
 
-#ifdef I40E_DEBUG
+#ifdef IXL_DEBUG
 #include <sys/sbuf.h>
 
 #define MAC_FORMAT "%02x:%02x:%02x:%02x:%02x:%02x"
@@ -100,15 +100,48 @@
 	(mac_addr)[4], (mac_addr)[5]
 #define ON_OFF_STR(is_set) ((is_set) ? "On" : "Off")
 
-#define DPRINTF(...)		printf(__VA_ARGS__)
-#define DDPRINTF(dev, ...)	device_printf(dev, __VA_ARGS__)
-#define IDPRINTF(ifp, ...)	if_printf(ifp, __VA_ARGS__)
 
-// static void	i40e_dump_desc(void *, u8, u16);
+#define _DBG_PRINTF(S, ...)		printf("%s: " S "\n", __func__, ##__VA_ARGS__)
+#define _DEV_DBG_PRINTF(dev, S, ...)	device_printf(dev, "%s: " S "\n", __func__, ##__VA_ARGS__)
+#define _IF_DBG_PRINTF(ifp, S, ...)	if_printf(ifp, "%s: " S "\n", __func__, ##__VA_ARGS__)
+
+/* Defines for printing generic debug information */
+#define DPRINTF(...)			_DBG_PRINTF(__VA_ARGS__)
+#define DDPRINTF(...)			_DEV_DBG_PRINTF(__VA_ARGS__)
+#define IDPRINTF(...)			_IF_DBG_PRINTF(__VA_ARGS__)
+
+/* Defines for printing specific debug information */
+#define DEBUG_INIT  1
+#define DEBUG_IOCTL 1
+#define DEBUG_HW    1
+
+#define INIT_DEBUGOUT(...)		if (DEBUG_INIT) _DBG_PRINTF(__VA_ARGS__)
+#define INIT_DBG_DEV(...)		if (DEBUG_INIT) _DEV_DBG_PRINTF(__VA_ARGS__)
+#define INIT_DBG_IF(...)		if (DEBUG_INIT) _IF_DBG_PRINTF(__VA_ARGS__)
+
+#define IOCTL_DEBUGOUT(...)		if (DEBUG_IOCTL) _DBG_PRINTF(__VA_ARGS__)
+#define IOCTL_DBG_IF2(ifp, S, ...)	if (DEBUG_IOCTL) \
+					    if_printf(ifp, S "\n", ##__VA_ARGS__)
+#define IOCTL_DBG_IF(...)		if (DEBUG_IOCTL) _IF_DBG_PRINTF(__VA_ARGS__)
+
+#define HW_DEBUGOUT(...)		if (DEBUG_HW) _DBG_PRINTF(__VA_ARGS__)
+
 #else
+#define DEBUG_INIT  0
+#define DEBUG_IOCTL 0
+#define DEBUG_HW    0
+
 #define DPRINTF(...)
 #define DDPRINTF(...)
 #define IDPRINTF(...)
+
+#define INIT_DEBUGOUT(...)
+#define INIT_DBG_DEV(...)
+#define INIT_DBG_IF(...)
+#define IOCTL_DEBUGOUT(...)
+#define IOCTL_DBG_IF2(...)
+#define IOCTL_DBG_IF(...)
+#define HW_DEBUGOUT(...)
 #endif
 
 /* Tunables */
@@ -124,6 +157,11 @@
 #define MAX_RING	4096
 #define MIN_RING	32
 
+/*
+** Default number of entries in Tx queue buf_ring.
+*/
+#define DEFAULT_TXBRSZ	(4096 * 4096)
+
 /* Alignment for rings */
 #define DBA_ALIGN	128
 
@@ -138,106 +176,91 @@
  * pass between any two TX clean operations, such only happening
  * when the TX hardware is functioning.
  */
-#define I40E_WATCHDOG                   (10 * hz)
+#define IXL_WATCHDOG                   (10 * hz)
 
 /*
  * This parameters control when the driver calls the routine to reclaim
  * transmit descriptors.
  */
-#define I40E_TX_CLEANUP_THRESHOLD	(que->num_desc / 8)
-#define I40E_TX_OP_THRESHOLD		(que->num_desc / 32)
+#define IXL_TX_CLEANUP_THRESHOLD	(que->num_desc / 8)
+#define IXL_TX_OP_THRESHOLD		(que->num_desc / 32)
 
 /* Flow control constants */
-#define I40E_FC_PAUSE		0xFFFF
-#define I40E_FC_HI		0x20000
-#define I40E_FC_LO		0x10000
-
-/* Defines for printing debug information */
-#define DEBUG_INIT  0
-#define DEBUG_IOCTL 0
-#define DEBUG_HW    0
-
-#define INIT_DEBUGOUT(S)            if (DEBUG_INIT)  printf(S "\n")
-#define INIT_DEBUGOUT1(S, A)        if (DEBUG_INIT)  printf(S "\n", A)
-#define INIT_DEBUGOUT2(S, A, B)     if (DEBUG_INIT)  printf(S "\n", A, B)
-#define IOCTL_DEBUGOUT(S)           if (DEBUG_IOCTL) printf(S "\n")
-#define IOCTL_DEBUGOUT1(S, A)       if (DEBUG_IOCTL) printf(S "\n", A)
-#define IOCTL_DEBUGOUT2(S, A, B)    if (DEBUG_IOCTL) printf(S "\n", A, B)
-#define HW_DEBUGOUT(S)              if (DEBUG_HW) printf(S "\n")
-#define HW_DEBUGOUT1(S, A)          if (DEBUG_HW) printf(S "\n", A)
-#define HW_DEBUGOUT2(S, A, B)       if (DEBUG_HW) printf(S "\n", A, B)
+#define IXL_FC_PAUSE		0xFFFF
+#define IXL_FC_HI		0x20000
+#define IXL_FC_LO		0x10000
 
 #define MAX_MULTICAST_ADDR	128
 
-#define I40E_BAR		3
-#define I40E_ADM_LIMIT		2
-#define I40E_TSO_SIZE		65535
-#define I40E_TX_BUF_SZ		((u32) 1514)
-#define I40E_AQ_BUF_SZ		((u32) 4096)
-#define I40E_RX_HDR		128
-#define I40E_AQ_LEN		32
-#define I40E_AQ_BUFSZ		4096
-#define I40E_RX_LIMIT		512
-#define I40E_RX_ITR		0
-#define I40E_TX_ITR		1
-#define I40E_ITR_NONE		3
-#define I40E_QUEUE_EOL		0x7FF
-#define I40E_MAX_FRAME		0x2600
-#define I40E_MAX_TX_SEGS	8 
-#define I40E_MAX_TSO_SEGS	66 
-#define I40E_SPARSE_CHAIN	6
-#define I40E_QUEUE_HUNG		0x80000000
+#define IXL_BAR		3
+#define IXL_ADM_LIMIT		2
+#define IXL_TSO_SIZE		65535
+#define IXL_TX_BUF_SZ		((u32) 1514)
+#define IXL_AQ_BUF_SZ		((u32) 4096)
+#define IXL_RX_HDR		128
+#define IXL_AQ_LEN		256
+#define IXL_AQ_BUFSZ		4096
+#define IXL_RX_LIMIT		512
+#define IXL_RX_ITR		0
+#define IXL_TX_ITR		1
+#define IXL_ITR_NONE		3
+#define IXL_QUEUE_EOL		0x7FF
+#define IXL_MAX_FRAME		0x2600
+#define IXL_MAX_TX_SEGS	8 
+#define IXL_MAX_TSO_SEGS	66 
+#define IXL_SPARSE_CHAIN	6
+#define IXL_QUEUE_HUNG		0x80000000
 
 /* ERJ: hardware can support ~1.5k filters between all functions */
-#define I40E_MAX_FILTERS	256
-#define I40E_MAX_TX_BUSY	10
+#define IXL_MAX_FILTERS	256
+#define IXL_MAX_TX_BUSY	10
 
-#define I40E_NVM_VERSION_LO_SHIFT	0
-#define I40E_NVM_VERSION_LO_MASK	(0xff << I40E_NVM_VERSION_LO_SHIFT)
-#define I40E_NVM_VERSION_HI_SHIFT	12
-#define I40E_NVM_VERSION_HI_MASK	(0xf << I40E_NVM_VERSION_HI_SHIFT)
+#define IXL_NVM_VERSION_LO_SHIFT	0
+#define IXL_NVM_VERSION_LO_MASK		(0xff << IXL_NVM_VERSION_LO_SHIFT)
+#define IXL_NVM_VERSION_HI_SHIFT	12
+#define IXL_NVM_VERSION_HI_MASK		(0xf << IXL_NVM_VERSION_HI_SHIFT)
 
 
 /*
  * Interrupt Moderation parameters 
  */
-#define I40E_MAX_ITR		0x07FF
-#define I40E_ITR_100K		0x0005
-#define I40E_ITR_20K		0x0019
-#define I40E_ITR_8K		0x003E
-#define I40E_ITR_4K		0x007A
-#define I40E_ITR_DYNAMIC	0x8000
-#define I40E_LOW_LATENCY	0
-#define I40E_AVE_LATENCY	1
-#define I40E_BULK_LATENCY	2
+#define IXL_MAX_ITR		0x07FF
+#define IXL_ITR_100K		0x0005
+#define IXL_ITR_20K		0x0019
+#define IXL_ITR_8K		0x003E
+#define IXL_ITR_4K		0x007A
+#define IXL_ITR_DYNAMIC		0x8000
+#define IXL_LOW_LATENCY		0
+#define IXL_AVE_LATENCY		1
+#define IXL_BULK_LATENCY	2
 
 /* MacVlan Flags */
-#define I40E_FILTER_USED	(u16)(1 << 0)
-#define I40E_FILTER_VLAN	(u16)(1 << 1)
-#define I40E_FILTER_ADD		(u16)(1 << 2)
-#define I40E_FILTER_DEL		(u16)(1 << 3)
-#define I40E_FILTER_MC		(u16)(1 << 4)
+#define IXL_FILTER_USED		(u16)(1 << 0)
+#define IXL_FILTER_VLAN		(u16)(1 << 1)
+#define IXL_FILTER_ADD		(u16)(1 << 2)
+#define IXL_FILTER_DEL		(u16)(1 << 3)
+#define IXL_FILTER_MC		(u16)(1 << 4)
 
 /* used in the vlan field of the filter when not a vlan */
-#define I40E_VLAN_ANY		-1
+#define IXL_VLAN_ANY		-1
 
 #define CSUM_OFFLOAD_IPV4	(CSUM_IP|CSUM_TCP|CSUM_UDP|CSUM_SCTP)
 #define CSUM_OFFLOAD_IPV6	(CSUM_TCP_IPV6|CSUM_UDP_IPV6|CSUM_SCTP_IPV6)
 #define CSUM_OFFLOAD		(CSUM_OFFLOAD_IPV4|CSUM_OFFLOAD_IPV6|CSUM_TSO)
 
-/* Misc flags for i40e_vsi.flags */
-#define I40E_FLAGS_KEEP_TSO4	(1 << 0)
-#define I40E_FLAGS_KEEP_TSO6	(1 << 1)
+/* Misc flags for ixl_vsi.flags */
+#define IXL_FLAGS_KEEP_TSO4	(1 << 0)
+#define IXL_FLAGS_KEEP_TSO6	(1 << 1)
 
-#define I40E_TX_LOCK(_sc)                mtx_lock(&(_sc)->mtx)
-#define I40E_TX_UNLOCK(_sc)              mtx_unlock(&(_sc)->mtx)
-#define I40E_TX_LOCK_DESTROY(_sc)        mtx_destroy(&(_sc)->mtx)
-#define I40E_TX_TRYLOCK(_sc)             mtx_trylock(&(_sc)->mtx)
-#define I40E_TX_LOCK_ASSERT(_sc)         mtx_assert(&(_sc)->mtx, MA_OWNED)
+#define IXL_TX_LOCK(_sc)                mtx_lock(&(_sc)->mtx)
+#define IXL_TX_UNLOCK(_sc)              mtx_unlock(&(_sc)->mtx)
+#define IXL_TX_LOCK_DESTROY(_sc)        mtx_destroy(&(_sc)->mtx)
+#define IXL_TX_TRYLOCK(_sc)             mtx_trylock(&(_sc)->mtx)
+#define IXL_TX_LOCK_ASSERT(_sc)         mtx_assert(&(_sc)->mtx, MA_OWNED)
 
-#define I40E_RX_LOCK(_sc)                mtx_lock(&(_sc)->mtx)
-#define I40E_RX_UNLOCK(_sc)              mtx_unlock(&(_sc)->mtx)
-#define I40E_RX_LOCK_DESTROY(_sc)        mtx_destroy(&(_sc)->mtx)
+#define IXL_RX_LOCK(_sc)                mtx_lock(&(_sc)->mtx)
+#define IXL_RX_UNLOCK(_sc)              mtx_unlock(&(_sc)->mtx)
+#define IXL_RX_LOCK_DESTROY(_sc)        mtx_destroy(&(_sc)->mtx)
 
 /*
  *****************************************************************************
@@ -248,36 +271,39 @@
  * 
  *****************************************************************************
  */
-typedef struct _i40e_vendor_info_t {
+typedef struct _ixl_vendor_info_t {
 	unsigned int    vendor_id;
 	unsigned int    device_id;
 	unsigned int    subvendor_id;
 	unsigned int    subdevice_id;
 	unsigned int    index;
-} i40e_vendor_info_t;
+} ixl_vendor_info_t;
 
 
-struct i40e_tx_buf {
+struct ixl_tx_buf {
 	u32		eop_index;
 	struct mbuf	*m_head;
 	bus_dmamap_t	map;
 	bus_dma_tag_t	tag;
 };
 
-struct i40e_rx_buf {
+struct ixl_rx_buf {
 	struct mbuf	*m_head;
 	struct mbuf	*m_pack;
 	struct mbuf	*fmp;
 	bus_dmamap_t	hmap;
 	bus_dmamap_t	pmap;
+#ifdef DEV_NETMAP
+	u64		addr;
+#endif
 };
 
 /*
 ** This struct has multiple uses, multicast
 ** addresses, vlans, and mac filters all use it.
 */
-struct i40e_mac_filter {
-	SLIST_ENTRY(i40e_mac_filter) next;
+struct ixl_mac_filter {
+	SLIST_ENTRY(ixl_mac_filter) next;
 	u8	macaddr[ETHER_ADDR_LEN];
 	s16	vlan;
 	u16	flags;
@@ -288,7 +314,7 @@ struct i40e_mac_filter {
  * The Transmit ring control struct
  */
 struct tx_ring {
-        struct i40e_queue	*que;
+        struct ixl_queue	*que;
 	struct mtx		mtx;
 	u32			tail;
 	struct i40e_tx_desc	*base;
@@ -299,7 +325,7 @@ struct tx_ring {
 	u16			atr_count;
 	u16			itr;
 	u16			latency;
-	struct i40e_tx_buf	*buffers;
+	struct ixl_tx_buf	*buffers;
 	volatile u16		avail;
 	u32			cmd;
 	bus_dma_tag_t		tx_tag;
@@ -307,9 +333,12 @@ struct tx_ring {
 	char			mtx_name[16];
 	struct buf_ring		*br;
 
-	/* Soft Stats */
+	/* Used for Dynamic ITR calculation */
 	u32			packets;
 	u32 			bytes;
+
+	/* Soft Stats */
+	u64			tx_bytes;
 	u64			no_desc;
 	u64			total_packets;
 };
@@ -319,7 +348,7 @@ struct tx_ring {
  * The Receive ring control struct
  */
 struct rx_ring {
-        struct i40e_queue	*que;
+        struct ixl_queue	*que;
 	struct mtx		mtx;
 	union i40e_rx_desc	*base;
 	struct i40e_dma_mem	dma;
@@ -332,16 +361,17 @@ struct rx_ring {
 	u16			itr;
 	u16			latency;
 	char			mtx_name[16];
-	struct i40e_rx_buf	*buffers;
+	struct ixl_rx_buf	*buffers;
 	u32			mbuf_sz;
 	u32			tail;
 	bus_dma_tag_t		htag;
 	bus_dma_tag_t		ptag;
 
-	/* Soft stats */
+	/* Used for Dynamic ITR calculation */
 	u32			packets;
 	u32 			bytes;
 
+	/* Soft stats */
 	u64			split;
 	u64			rx_packets;
 	u64 			rx_bytes;
@@ -353,8 +383,8 @@ struct rx_ring {
 ** Driver queue struct: this is the interrupt container
 **  for the associated tx and rx ring pair.
 */
-struct i40e_queue {
-	struct i40e_vsi		*vsi;
+struct ixl_queue {
+	struct ixl_vsi		*vsi;
 	u32			me;
 	u32			msix;           /* This queue's MSIX vector */
 	u32			eims;           /* This queue's EIMS bit */
@@ -384,8 +414,8 @@ struct i40e_queue {
 **	there would be one of these per traffic class/type
 **	for now just one, and its embedded in the pf
 */
-SLIST_HEAD(i40e_ftl_head, i40e_mac_filter);
-struct i40e_vsi {
+SLIST_HEAD(ixl_ftl_head, ixl_mac_filter);
+struct ixl_vsi {
 	void 			*back;
 	struct ifnet		*ifp;
 	struct device		*dev;
@@ -397,7 +427,7 @@ struct i40e_vsi {
 	u16			num_queues;
 	u16			rx_itr_setting;
 	u16			tx_itr_setting;
-	struct i40e_queue	*queues;	/* head of queues */
+	struct ixl_queue	*queues;	/* head of queues */
 	bool			link_active;
 	u16			seid;
 	u16			max_frame_size;
@@ -406,7 +436,7 @@ struct i40e_vsi {
 	u32			fc; /* local flow ctrl setting */
 
 	/* MAC/VLAN Filter list */
-	struct i40e_ftl_head ftl;
+	struct ixl_ftl_head ftl;
 
 	struct i40e_aqc_vsi_properties_data info;
 
@@ -432,7 +462,7 @@ struct i40e_vsi {
 ** Find the number of unrefreshed RX descriptors
 */
 static inline u16
-i40e_rx_unrefreshed(struct i40e_queue *que)
+ixl_rx_unrefreshed(struct ixl_queue *que)
 {       
         struct rx_ring	*rxr = &que->rxr;
         
@@ -446,13 +476,13 @@ i40e_rx_unrefreshed(struct i40e_queue *que)
 /*
 ** Find the next available unused filter
 */
-static inline struct i40e_mac_filter *
-i40e_get_filter(struct i40e_vsi *vsi)
+static inline struct ixl_mac_filter *
+ixl_get_filter(struct ixl_vsi *vsi)
 {
-	struct i40e_mac_filter  *f;
+	struct ixl_mac_filter  *f;
 
 	/* create a new empty filter */
-	f = malloc(sizeof(struct i40e_mac_filter),
+	f = malloc(sizeof(struct ixl_mac_filter),
 	    M_DEVBUF, M_NOWAIT | M_ZERO);
 	SLIST_INSERT_HEAD(&vsi->ftl, f, next);
 
@@ -478,19 +508,19 @@ cmp_etheraddr(u8 *ea1, u8 *ea2)
 /*
  * Info for stats sysctls
  */
-struct i40e_sysctl_info {
+struct ixl_sysctl_info {
 	u64	*stat;
 	char	*name;
 	char	*description;
 };
 
-extern int i40e_atr_rate;
+extern int ixl_atr_rate;
 
 /*
-** i40e_fw_version_str - format the FW and NVM version strings
+** ixl_fw_version_str - format the FW and NVM version strings
 */
 static inline char *
-i40e_fw_version_str(struct i40e_hw *hw)
+ixl_fw_version_str(struct i40e_hw *hw)
 {
 	static char buf[32];
 
@@ -498,10 +528,10 @@ i40e_fw_version_str(struct i40e_hw *hw)
 	    "f%d.%d a%d.%d n%02x.%02x e%08x",
 	    hw->aq.fw_maj_ver, hw->aq.fw_min_ver,
 	    hw->aq.api_maj_ver, hw->aq.api_min_ver,
-	    (hw->nvm.version & I40E_NVM_VERSION_HI_MASK) >>
-	    I40E_NVM_VERSION_HI_SHIFT,
-	    (hw->nvm.version & I40E_NVM_VERSION_LO_MASK) >>
-	    I40E_NVM_VERSION_LO_SHIFT,
+	    (hw->nvm.version & IXL_NVM_VERSION_HI_MASK) >>
+	    IXL_NVM_VERSION_HI_SHIFT,
+	    (hw->nvm.version & IXL_NVM_VERSION_LO_MASK) >>
+	    IXL_NVM_VERSION_LO_SHIFT,
 	    hw->nvm.eetrack);
 	return buf;
 }
@@ -509,21 +539,21 @@ i40e_fw_version_str(struct i40e_hw *hw)
 /*********************************************************************
  *  TXRX Function prototypes
  *********************************************************************/
-int	i40e_allocate_tx_data(struct i40e_queue *);
-int	i40e_allocate_rx_data(struct i40e_queue *);
-void	i40e_init_tx_ring(struct i40e_queue *);
-int	i40e_init_rx_ring(struct i40e_queue *);
-bool	i40e_rxeof(struct i40e_queue *, int);
-bool	i40e_txeof(struct i40e_queue *);
-int	i40e_mq_start(struct ifnet *, struct mbuf *);
-int	i40e_mq_start_locked(struct ifnet *, struct tx_ring *);
-void	i40e_deferred_mq_start(void *, int);
-void	i40e_qflush(struct ifnet *);
-void	i40e_free_vsi(struct i40e_vsi *);
-void	i40e_free_que_tx(struct i40e_queue *);
-void	i40e_free_que_rx(struct i40e_queue *);
-#ifdef I40E_FDIR
-void	i40e_atr(struct i40e_queue *, struct tcphdr *, int);
+int	ixl_allocate_tx_data(struct ixl_queue *);
+int	ixl_allocate_rx_data(struct ixl_queue *);
+void	ixl_init_tx_ring(struct ixl_queue *);
+int	ixl_init_rx_ring(struct ixl_queue *);
+bool	ixl_rxeof(struct ixl_queue *, int);
+bool	ixl_txeof(struct ixl_queue *);
+int	ixl_mq_start(struct ifnet *, struct mbuf *);
+int	ixl_mq_start_locked(struct ifnet *, struct tx_ring *);
+void	ixl_deferred_mq_start(void *, int);
+void	ixl_qflush(struct ifnet *);
+void	ixl_free_vsi(struct ixl_vsi *);
+void	ixl_free_que_tx(struct ixl_queue *);
+void	ixl_free_que_rx(struct ixl_queue *);
+#ifdef IXL_FDIR
+void	ixl_atr(struct ixl_queue *, struct tcphdr *, int);
 #endif
 
-#endif /* _I40E_H_ */
+#endif /* _IXL_H_ */

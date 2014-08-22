@@ -33,28 +33,25 @@
 /*$FreeBSD$*/
 
 /*
-**	I40E driver TX/RX Routines:
+**	IXL driver TX/RX Routines:
 **	    This was seperated to allow usage by
 ** 	    both the BASE and the VF drivers.
 */
 
-#ifdef HAVE_KERNEL_OPTION_HEADERS
 #include "opt_inet.h"
 #include "opt_inet6.h"
-#endif
-
-#include "i40e.h"
+#include "ixl.h"
 
 /* Local Prototypes */
-static void	i40e_rx_checksum(struct mbuf *, u32, u32, u8);
-static void	i40e_refresh_mbufs(struct i40e_queue *, int);
-static int      i40e_xmit(struct i40e_queue *, struct mbuf **);
-static int	i40e_tx_setup_offload(struct i40e_queue *,
+static void	ixl_rx_checksum(struct mbuf *, u32, u32, u8);
+static void	ixl_refresh_mbufs(struct ixl_queue *, int);
+static int      ixl_xmit(struct ixl_queue *, struct mbuf **);
+static int	ixl_tx_setup_offload(struct ixl_queue *,
 		    struct mbuf *, u32 *, u32 *);
-static bool	i40e_tso_setup(struct i40e_queue *, struct mbuf *);
+static bool	ixl_tso_setup(struct ixl_queue *, struct mbuf *);
 
-static __inline void i40e_rx_discard(struct rx_ring *, int);
-static __inline void i40e_rx_input(struct rx_ring *, struct ifnet *,
+static __inline void ixl_rx_discard(struct rx_ring *, int);
+static __inline void ixl_rx_input(struct rx_ring *, struct ifnet *,
 		    struct mbuf *, u8);
 
 /*
@@ -62,10 +59,10 @@ static __inline void i40e_rx_input(struct rx_ring *, struct ifnet *,
 **
 */
 int
-i40e_mq_start(struct ifnet *ifp, struct mbuf *m)
+ixl_mq_start(struct ifnet *ifp, struct mbuf *m)
 {
-	struct i40e_vsi		*vsi = ifp->if_softc;
-	struct i40e_queue	*que;
+	struct ixl_vsi		*vsi = ifp->if_softc;
+	struct ixl_queue	*que;
 	struct tx_ring		*txr;
 	int 			err, i;
 
@@ -85,9 +82,9 @@ i40e_mq_start(struct ifnet *ifp, struct mbuf *m)
 	err = drbr_enqueue(ifp, txr->br, m);
 	if (err)
 		return(err);
-	if (I40E_TX_TRYLOCK(txr)) {
-		i40e_mq_start_locked(ifp, txr);
-		I40E_TX_UNLOCK(txr);
+	if (IXL_TX_TRYLOCK(txr)) {
+		ixl_mq_start_locked(ifp, txr);
+		IXL_TX_UNLOCK(txr);
 	} else
 		taskqueue_enqueue(que->tq, &que->tx_task);
 
@@ -95,10 +92,10 @@ i40e_mq_start(struct ifnet *ifp, struct mbuf *m)
 }
 
 int
-i40e_mq_start_locked(struct ifnet *ifp, struct tx_ring *txr)
+ixl_mq_start_locked(struct ifnet *ifp, struct tx_ring *txr)
 {
-	struct i40e_queue	*que = txr->que;
-	struct i40e_vsi		*vsi = que->vsi;
+	struct ixl_queue	*que = txr->que;
+	struct ixl_vsi		*vsi = que->vsi;
         struct mbuf		*next;
         int			err = 0;
 
@@ -109,7 +106,7 @@ i40e_mq_start_locked(struct ifnet *ifp, struct tx_ring *txr)
 
 	/* Process the transmit queue */
 	while ((next = drbr_peek(ifp, txr->br)) != NULL) {
-		if ((err = i40e_xmit(que, &next)) != 0) {
+		if ((err = ixl_xmit(que, &next)) != 0) {
 			if (next == NULL)
 				drbr_advance(ifp, txr->br);
 			else
@@ -123,8 +120,8 @@ i40e_mq_start_locked(struct ifnet *ifp, struct tx_ring *txr)
 			break;
 	}
 
-	if (txr->avail < I40E_TX_CLEANUP_THRESHOLD)
-		i40e_txeof(que);
+	if (txr->avail < IXL_TX_CLEANUP_THRESHOLD)
+		ixl_txeof(que);
 
 	return (err);
 }
@@ -133,35 +130,35 @@ i40e_mq_start_locked(struct ifnet *ifp, struct tx_ring *txr)
  * Called from a taskqueue to drain queued transmit packets.
  */
 void
-i40e_deferred_mq_start(void *arg, int pending)
+ixl_deferred_mq_start(void *arg, int pending)
 {
-	struct i40e_queue	*que = arg;
+	struct ixl_queue	*que = arg;
         struct tx_ring		*txr = &que->txr;
-	struct i40e_vsi		*vsi = que->vsi;
+	struct ixl_vsi		*vsi = que->vsi;
         struct ifnet		*ifp = vsi->ifp;
         
-	I40E_TX_LOCK(txr);
+	IXL_TX_LOCK(txr);
 	if (!drbr_empty(ifp, txr->br))
-		i40e_mq_start_locked(ifp, txr);
-	I40E_TX_UNLOCK(txr);
+		ixl_mq_start_locked(ifp, txr);
+	IXL_TX_UNLOCK(txr);
 }
 
 /*
 ** Flush all queue ring buffers
 */
 void
-i40e_qflush(struct ifnet *ifp)
+ixl_qflush(struct ifnet *ifp)
 {
-	struct i40e_vsi	*vsi = ifp->if_softc;
+	struct ixl_vsi	*vsi = ifp->if_softc;
 
         for (int i = 0; i < vsi->num_queues; i++) {
-		struct i40e_queue *que = &vsi->queues[i];
+		struct ixl_queue *que = &vsi->queues[i];
 		struct tx_ring	*txr = &que->txr;
 		struct mbuf	*m;
-		I40E_TX_LOCK(txr);
+		IXL_TX_LOCK(txr);
 		while ((m = buf_ring_dequeue_sc(txr->br)) != NULL)
 			m_freem(m);
-		I40E_TX_UNLOCK(txr);
+		IXL_TX_UNLOCK(txr);
 	}
 	if_qflush(ifp);
 }
@@ -172,7 +169,7 @@ i40e_qflush(struct ifnet *ifp)
 ** mbufs to deliver an mss-size chunk of data
 */
 static inline bool
-i40e_tso_detect_sparse(struct mbuf *mp)
+ixl_tso_detect_sparse(struct mbuf *mp)
 {
 	struct mbuf	*m;
 	int		num = 0, mss;
@@ -187,7 +184,7 @@ i40e_tso_detect_sparse(struct mbuf *mp)
 		if (m->m_next == NULL)
 			break;
 	}
-	if (num > I40E_SPARSE_CHAIN)
+	if (num > IXL_SPARSE_CHAIN)
 		ret = TRUE;
 
 	return (ret);
@@ -201,15 +198,15 @@ i40e_tso_detect_sparse(struct mbuf *mp)
  *  	- return 0 on success, positive on failure
  *
  **********************************************************************/
-#define I40E_TXD_CMD (I40E_TX_DESC_CMD_EOP | I40E_TX_DESC_CMD_RS)
+#define IXL_TXD_CMD (I40E_TX_DESC_CMD_EOP | I40E_TX_DESC_CMD_RS)
 
 static int
-i40e_xmit(struct i40e_queue *que, struct mbuf **m_headp)
+ixl_xmit(struct ixl_queue *que, struct mbuf **m_headp)
 {
-	struct i40e_vsi		*vsi = que->vsi;
+	struct ixl_vsi		*vsi = que->vsi;
 	struct i40e_hw		*hw = vsi->hw;
 	struct tx_ring		*txr = &que->txr;
-	struct i40e_tx_buf	*buf;
+	struct ixl_tx_buf	*buf;
 	struct i40e_tx_desc	*txd = NULL;
 	struct mbuf		*m_head, *m;
 	int             	i, j, error, nsegs, maxsegs;
@@ -218,7 +215,7 @@ i40e_xmit(struct i40e_queue *que, struct mbuf **m_headp)
 	u32			cmd, off;
 	bus_dmamap_t		map;
 	bus_dma_tag_t		tag;
-	bus_dma_segment_t	segs[I40E_MAX_TSO_SEGS];
+	bus_dma_segment_t	segs[IXL_MAX_TSO_SEGS];
 
 
 	cmd = off = 0;
@@ -233,13 +230,13 @@ i40e_xmit(struct i40e_queue *que, struct mbuf **m_headp)
 	buf = &txr->buffers[first];
 	map = buf->map;
 	tag = txr->tx_tag;
-	maxsegs = I40E_MAX_TX_SEGS;
+	maxsegs = IXL_MAX_TX_SEGS;
 
 	if (m_head->m_pkthdr.csum_flags & CSUM_TSO) {
 		/* Use larger mapping for TSO */
 		tag = txr->tso_tag;
-		maxsegs = I40E_MAX_TSO_SEGS;
-		if (i40e_tso_detect_sparse(m_head)) {
+		maxsegs = IXL_MAX_TSO_SEGS;
+		if (ixl_tso_detect_sparse(m_head)) {
 			m = m_defrag(m_head, M_NOWAIT);
 			*m_headp = m;
 		}
@@ -296,7 +293,7 @@ i40e_xmit(struct i40e_queue *que, struct mbuf **m_headp)
 
 	/* Set up the TSO/CSUM offload */
 	if (m_head->m_pkthdr.csum_flags & CSUM_OFFLOAD) {
-		error = i40e_tx_setup_offload(que, m_head, &cmd, &off);
+		error = ixl_tx_setup_offload(que, m_head, &cmd, &off);
 		if (error)
 			goto xmit_fail;
 	}
@@ -335,7 +332,7 @@ i40e_xmit(struct i40e_queue *que, struct mbuf **m_headp)
 	}
 	/* Set the last descriptor for report */
 	txd->cmd_type_offset_bsz |=
-	    htole64(((u64)I40E_TXD_CMD << I40E_TXD_QW1_CMD_SHIFT));
+	    htole64(((u64)IXL_TXD_CMD << I40E_TXD_QW1_CMD_SHIFT));
 	txr->avail -= nsegs;
 	txr->next_avail = i;
 
@@ -358,7 +355,7 @@ i40e_xmit(struct i40e_queue *que, struct mbuf **m_headp)
 	++txr->total_packets;
 	wr32(hw, txr->tail, i);
 
-	i40e_flush(hw);
+	ixl_flush(hw);
 	/* Mark outstanding work */
 	if (que->busy == 0)
 		que->busy = 1;
@@ -378,12 +375,12 @@ xmit_fail:
  *
  **********************************************************************/
 int
-i40e_allocate_tx_data(struct i40e_queue *que)
+ixl_allocate_tx_data(struct ixl_queue *que)
 {
 	struct tx_ring		*txr = &que->txr;
-	struct i40e_vsi		*vsi = que->vsi;
+	struct ixl_vsi		*vsi = que->vsi;
 	device_t		dev = vsi->dev;
-	struct i40e_tx_buf	*buf;
+	struct ixl_tx_buf	*buf;
 	int			error = 0;
 
 	/*
@@ -394,8 +391,8 @@ i40e_allocate_tx_data(struct i40e_queue *que)
 			       BUS_SPACE_MAXADDR,	/* lowaddr */
 			       BUS_SPACE_MAXADDR,	/* highaddr */
 			       NULL, NULL,		/* filter, filterarg */
-			       I40E_TSO_SIZE,		/* maxsize */
-			       I40E_MAX_TX_SEGS,	/* nsegments */
+			       IXL_TSO_SIZE,		/* maxsize */
+			       IXL_MAX_TX_SEGS,		/* nsegments */
 			       PAGE_SIZE,		/* maxsegsize */
 			       0,			/* flags */
 			       NULL,			/* lockfunc */
@@ -411,8 +408,8 @@ i40e_allocate_tx_data(struct i40e_queue *que)
 			       BUS_SPACE_MAXADDR,	/* lowaddr */
 			       BUS_SPACE_MAXADDR,	/* highaddr */
 			       NULL, NULL,		/* filter, filterarg */
-			       I40E_TSO_SIZE,		/* maxsize */
-			       I40E_MAX_TSO_SEGS,	/* nsegments */
+			       IXL_TSO_SIZE,		/* maxsize */
+			       IXL_MAX_TSO_SEGS,	/* nsegments */
 			       PAGE_SIZE,		/* maxsegsize */
 			       0,			/* flags */
 			       NULL,			/* lockfunc */
@@ -423,7 +420,7 @@ i40e_allocate_tx_data(struct i40e_queue *que)
 	}
 
 	if (!(txr->buffers =
-	    (struct i40e_tx_buf *) malloc(sizeof(struct i40e_tx_buf) *
+	    (struct ixl_tx_buf *) malloc(sizeof(struct ixl_tx_buf) *
 	    que->num_desc, M_DEVBUF, M_NOWAIT | M_ZERO))) {
 		device_printf(dev, "Unable to allocate tx_buffer memory\n");
 		error = ENOMEM;
@@ -453,13 +450,21 @@ fail:
  *
  **********************************************************************/
 void
-i40e_init_tx_ring(struct i40e_queue *que)
+ixl_init_tx_ring(struct ixl_queue *que)
 {
 	struct tx_ring *txr = &que->txr;
-	struct i40e_tx_buf *buf;
+	struct ixl_tx_buf *buf;
+#ifdef DEV_NETMAP
+	struct ixl_vsi *vsi = que->vsi;
+	struct netmap_adapter *na = NA(vsi->ifp);
+	struct netmap_slot *slot;
+#endif /* DEV_NETMAP */
 
 	/* Clear the old ring contents */
-	I40E_TX_LOCK(txr);
+	IXL_TX_LOCK(txr);
+#ifdef DEV_NETMAP
+	slot = netmap_reset(na, NR_TX, que->me, 0);
+#endif
 	bzero((void *)txr->base,
 	      (sizeof(struct i40e_tx_desc)) * que->num_desc);
 
@@ -467,9 +472,9 @@ i40e_init_tx_ring(struct i40e_queue *que)
 	txr->next_avail = 0;
 	txr->next_to_clean = 0;
 
-#ifdef I40E_FDIR
+#ifdef IXL_FDIR
 	/* Initialize flow director */
-	txr->atr_rate = i40e_atr_rate;
+	txr->atr_rate = ixl_atr_rate;
 	txr->atr_count = 0;
 #endif
 
@@ -483,6 +488,13 @@ i40e_init_tx_ring(struct i40e_queue *que)
 			m_freem(buf->m_head);
 			buf->m_head = NULL;
 		}
+#ifdef DEV_NETMAP
+		if (slot)
+		{
+			int si = netmap_idx_n2k(&na->tx_rings[que->me], i);
+			netmap_load_map(txr->tag, buf->map, NMB(slot + si));
+		}
+#endif
 		/* Clear the EOP index */
 		buf->eop_index = -1;
         }
@@ -492,7 +504,7 @@ i40e_init_tx_ring(struct i40e_queue *que)
 
 	bus_dmamap_sync(txr->dma.tag, txr->dma.map,
 	    BUS_DMASYNC_PREREAD | BUS_DMASYNC_PREWRITE);
-	I40E_TX_UNLOCK(txr);
+	IXL_TX_UNLOCK(txr);
 }
 
 
@@ -502,12 +514,12 @@ i40e_init_tx_ring(struct i40e_queue *que)
  *
  **********************************************************************/
 void
-i40e_free_que_tx(struct i40e_queue *que)
+ixl_free_que_tx(struct ixl_queue *que)
 {
 	struct tx_ring *txr = &que->txr;
-	struct i40e_tx_buf *buf;
+	struct ixl_tx_buf *buf;
 
-	INIT_DEBUGOUT("i40e_free_que_tx: begin");
+	INIT_DBG_IF(que->vsi->ifp, "queue %d: begin", que->me);
 
 	for (int i = 0; i < que->num_desc; i++) {
 		buf = &txr->buffers[i];
@@ -545,6 +557,8 @@ i40e_free_que_tx(struct i40e_queue *que)
 		bus_dma_tag_destroy(txr->tso_tag);
 		txr->tso_tag = NULL;
 	}
+
+	INIT_DBG_IF(que->vsi->ifp, "queue %d: end", que->me);
 	return;
 }
 
@@ -555,7 +569,7 @@ i40e_free_que_tx(struct i40e_queue *que)
  **********************************************************************/
 
 static int
-i40e_tx_setup_offload(struct i40e_queue *que,
+ixl_tx_setup_offload(struct ixl_queue *que,
     struct mbuf *mp, u32 *cmd, u32 *off)
 {
 	struct ether_vlan_header	*eh;
@@ -570,7 +584,7 @@ i40e_tx_setup_offload(struct i40e_queue *que,
 
 	/* Set up the TSO context descriptor if required */
 	if (mp->m_pkthdr.csum_flags & CSUM_TSO) {
-		tso = i40e_tso_setup(que, mp);
+		tso = ixl_tso_setup(que, mp);
 		if (tso)
 			++que->tso;
 		else
@@ -625,8 +639,8 @@ i40e_tx_setup_offload(struct i40e_queue *que,
 				*off |= (tcp_hlen >> 2) <<
 				    I40E_TX_DESC_LENGTH_L4_FC_LEN_SHIFT;
 			}
-#ifdef I40E_FDIR
-			i40e_atr(que, th, etype);
+#ifdef IXL_FDIR
+			ixl_atr(que, th, etype);
 #endif
 			break;
 		case IPPROTO_UDP:
@@ -658,11 +672,11 @@ i40e_tx_setup_offload(struct i40e_queue *que,
  *
  **********************************************************************/
 static bool
-i40e_tso_setup(struct i40e_queue *que, struct mbuf *mp)
+ixl_tso_setup(struct ixl_queue *que, struct mbuf *mp)
 {
 	struct tx_ring			*txr = &que->txr;
 	struct i40e_tx_context_desc	*TXD;
-	struct i40e_tx_buf		*buf;
+	struct ixl_tx_buf		*buf;
 	u32				cmd, mss, type, tsolen;
 	u16				etype;
 	int				idx, elen, ip_hlen, tcp_hlen;
@@ -749,11 +763,11 @@ i40e_tso_setup(struct i40e_queue *que, struct mbuf *mp)
 }
 
 /*             
-** i40e_get_tx_head - Retrieve the value from the 
+** ixl_get_tx_head - Retrieve the value from the 
 **    location the HW records its HEAD index
 */
 static inline u32
-i40e_get_tx_head(struct i40e_queue *que)
+ixl_get_tx_head(struct ixl_queue *que)
 {
 	struct tx_ring  *txr = &que->txr;
 	void *head = &txr->base[que->num_desc];
@@ -768,18 +782,47 @@ i40e_get_tx_head(struct i40e_queue *que)
  *
  **********************************************************************/
 bool
-i40e_txeof(struct i40e_queue *que)
+ixl_txeof(struct ixl_queue *que)
 {
-	struct i40e_vsi		*vsi = que->vsi;
+	struct ixl_vsi		*vsi = que->vsi;
 	struct ifnet		*ifp = vsi->ifp;
 	struct tx_ring		*txr = &que->txr;
 	u32			first, last, head, done, processed;
-	struct i40e_tx_buf	*buf;
+	struct ixl_tx_buf	*buf;
 	struct i40e_tx_desc	*tx_desc, *eop_desc;
 
 
 	mtx_assert(&txr->mtx, MA_OWNED);
 
+#ifdef DEV_NETMAP
+	if (ifp->if_capenable & IFCAP_NETMAP) {
+		struct netmap_adapter *na = NA(ifp);
+		struct netmap_kring *kring = &na->tx_rings[que->me];
+		tx_desc = txr->base;
+		bus_dmamap_sync(txr->dma.tag, txr->dma.map,
+		     BUS_DMASYNC_POSTREAD);
+		if (!netmap_mitigate ||
+		    (kring->nr_kflags < kring->nkr_num_slots &&
+		    tx_desc[kring->nr_kflags].cmd_type_offset_bsz &
+		        htole32(I40E_TX_DESC_DTYPE_DESC_DONE)))
+		{
+#if NETMAP_API < 4
+			struct ixl_pf *pf = vsi->pf;
+			kring->nr_kflags = kring->nkr_num_slots;
+			selwakeuppri(&na->tx_rings[que->me].si, PI_NET);
+			IXL_TX_UNLOCK(txr);
+			IXL_PF_LOCK(pf);
+			selwakeuppri(&na->tx_si, PI_NET);
+			IXL_PF_UNLOCK(pf);
+			IXL_TX_LOCK(txr);
+#else /* NETMAP_API >= 4 */
+			netmap_tx_irq(ifp, txr->que->me);
+#endif /* NETMAP_API */
+		}
+		// XXX guessing there is no more work to be done
+		return FALSE;
+	}
+#endif /* DEV_NETMAP */
 
 	/* These are not the descriptors you seek, move along :) */
 	if (txr->avail == que->num_desc) {
@@ -797,7 +840,7 @@ i40e_txeof(struct i40e_queue *que)
 	eop_desc = (struct i40e_tx_desc *)&txr->base[last];
 
 	/* Get the Head WB value */
-	head = i40e_get_tx_head(que);
+	head = ixl_get_tx_head(que);
 
 	/*
 	** Get the index of the first descriptor
@@ -823,7 +866,9 @@ i40e_txeof(struct i40e_queue *que)
 			++processed;
 
 			if (buf->m_head) {
-				txr->bytes +=
+				txr->bytes += /* for ITR adjustment */
+				    buf->m_head->m_pkthdr.len;
+				txr->tx_bytes += /* for TX stats */
 				    buf->m_head->m_pkthdr.len;
 				bus_dmamap_sync(buf->tag,
 				    buf->map,
@@ -869,7 +914,7 @@ i40e_txeof(struct i40e_queue *que)
 	** be considered hung. If anything has been
 	** cleaned then reset the state.
 	*/
-	if ((processed == 0) && (que->busy != I40E_QUEUE_HUNG))
+	if ((processed == 0) && (que->busy != IXL_QUEUE_HUNG))
 		++que->busy;
 
 	if (processed)
@@ -896,13 +941,13 @@ i40e_txeof(struct i40e_queue *que)
  *
  **********************************************************************/
 static void
-i40e_refresh_mbufs(struct i40e_queue *que, int limit)
+ixl_refresh_mbufs(struct ixl_queue *que, int limit)
 {
-	struct i40e_vsi		*vsi = que->vsi;
+	struct ixl_vsi		*vsi = que->vsi;
 	struct rx_ring		*rxr = &que->rxr;
 	bus_dma_segment_t	hseg[1];
 	bus_dma_segment_t	pseg[1];
-	struct i40e_rx_buf	*buf;
+	struct ixl_rx_buf	*buf;
 	struct mbuf		*mh, *mp;
 	int			i, j, nsegs, error;
 	bool			refreshed = FALSE;
@@ -966,8 +1011,12 @@ no_split:
 		buf->m_pack = mp;
 		bus_dmamap_sync(rxr->ptag, buf->pmap,
 		    BUS_DMASYNC_PREREAD);
+#ifdef DEV_NETMAP
+		rxr->base[i].read.pkt_addr = buf->addr;
+#else /* !DEV_NETMAP */
 		rxr->base[i].read.pkt_addr =
 		   htole64(pseg[0].ds_addr);
+#endif /* DEV_NETMAP */
 		/* Used only when doing header split */
 		rxr->base[i].read.hdr_addr = 0;
 
@@ -994,17 +1043,17 @@ update:
  *
  **********************************************************************/
 int
-i40e_allocate_rx_data(struct i40e_queue *que)
+ixl_allocate_rx_data(struct ixl_queue *que)
 {
 	struct rx_ring		*rxr = &que->rxr;
-	struct i40e_vsi		*vsi = que->vsi;
+	struct ixl_vsi		*vsi = que->vsi;
 	device_t 		dev = vsi->dev;
-	struct i40e_rx_buf 	*buf;
+	struct ixl_rx_buf 	*buf;
 	int             	i, bsize, error;
 
-	bsize = sizeof(struct i40e_rx_buf) * que->num_desc;
+	bsize = sizeof(struct ixl_rx_buf) * que->num_desc;
 	if (!(rxr->buffers =
-	    (struct i40e_rx_buf *) malloc(bsize,
+	    (struct ixl_rx_buf *) malloc(bsize,
 	    M_DEVBUF, M_NOWAIT | M_ZERO))) {
 		device_printf(dev, "Unable to allocate rx_buffer memory\n");
 		error = ENOMEM;
@@ -1069,17 +1118,24 @@ i40e_allocate_rx_data(struct i40e_queue *que)
  *
  **********************************************************************/
 int
-i40e_init_rx_ring(struct i40e_queue *que)
+ixl_init_rx_ring(struct ixl_queue *que)
 {
-	struct i40e_vsi		*vsi = que->vsi;
+	struct ixl_vsi		*vsi = que->vsi;
 	struct ifnet		*ifp = vsi->ifp;
 	struct	rx_ring 	*rxr = &que->rxr;
 	struct lro_ctrl		*lro = &rxr->lro;
-	struct i40e_rx_buf	*buf;
+	struct ixl_rx_buf	*buf;
 	bus_dma_segment_t	pseg[1], hseg[1];
 	int			rsize, nsegs, error = 0;
+#ifdef DEV_NETMAP
+	struct netmap_adapter *na = NA(ifp);
+	struct netmap_slot *slot;
+#endif /* DEV_NETMAP */
 
-	I40E_RX_LOCK(rxr);
+	IXL_RX_LOCK(rxr);
+#ifdef DEV_NETMAP
+	slot = netmap_reset(na, NR_RX, que->me, 0);
+#endif
 	/* Clear the ring contents */
 	rsize = roundup2(que->num_desc *
 	    sizeof(union i40e_rx_desc), DBA_ALIGN);
@@ -1113,6 +1169,21 @@ i40e_init_rx_ring(struct i40e_queue *que)
 		struct mbuf	*mh, *mp;
 
 		buf = &rxr->buffers[j];
+#ifdef DEV_NETMAP
+		if (slot)
+		{
+			int sj = netmap_idx_n2k(&na->rx_rings[que->me], j);
+			u64 paddr;
+			void *addr;
+
+			addr = PNMB(slot + sj, &paddr);
+			netmap_load_map(rxr->ptag, buf->pmap, addr);
+			/* Update descriptor and cached value */
+			rxr->base[j].read.pkt_addr = htole64(paddr);
+			buf->addr = htole64(paddr);
+			continue;
+		}
+#endif /* DEV_NETMAP */
 		/*
 		** Don't allocate mbufs if not
 		** doing header split, its wasteful
@@ -1179,10 +1250,10 @@ skip_head:
 	if (ifp->if_capenable & IFCAP_LRO) {
 		int err = tcp_lro_init(lro);
 		if (err) {
-			printf("LRO Initialization failed!\n");
+			if_printf(ifp, "queue %d: LRO Initialization failed!\n", que->me);
 			goto fail;
 		}
-		INIT_DEBUGOUT("RX Soft LRO Initialized\n");
+		INIT_DBG_IF(ifp, "queue %d: RX Soft LRO Initialized", que->me);
 		rxr->lro_enabled = TRUE;
 		lro->ifp = vsi->ifp;
 	}
@@ -1191,7 +1262,7 @@ skip_head:
 	    BUS_DMASYNC_PREREAD | BUS_DMASYNC_PREWRITE);
 
 fail:
-	I40E_RX_UNLOCK(rxr);
+	IXL_RX_UNLOCK(rxr);
 	return (error);
 }
 
@@ -1202,12 +1273,12 @@ fail:
  *
  **********************************************************************/
 void
-i40e_free_que_rx(struct i40e_queue *que)
+ixl_free_que_rx(struct ixl_queue *que)
 {
 	struct rx_ring		*rxr = &que->rxr;
-	struct i40e_rx_buf	*buf;
+	struct ixl_rx_buf	*buf;
 
-	INIT_DEBUGOUT("free_que_rx: begin");
+	INIT_DBG_IF(que->vsi->ifp, "queue %d: begin", que->me);
 
 	/* Cleanup any existing buffers */
 	if (rxr->buffers != NULL) {
@@ -1252,11 +1323,13 @@ i40e_free_que_rx(struct i40e_queue *que)
 		bus_dma_tag_destroy(rxr->ptag);
 		rxr->ptag = NULL;
 	}
+
+	INIT_DBG_IF(que->vsi->ifp, "queue %d: end", que->me);
 	return;
 }
 
 static __inline void
-i40e_rx_input(struct rx_ring *rxr, struct ifnet *ifp, struct mbuf *m, u8 ptype)
+ixl_rx_input(struct rx_ring *rxr, struct ifnet *ifp, struct mbuf *m, u8 ptype)
 {
         /*
          * ATM LRO is only for IPv4/TCP packets and TCP checksum of the packet
@@ -1277,16 +1350,16 @@ i40e_rx_input(struct rx_ring *rxr, struct ifnet *ifp, struct mbuf *m, u8 ptype)
                         if (tcp_lro_rx(&rxr->lro, m, 0) == 0)
                                 return;
         }
-	I40E_RX_UNLOCK(rxr);
+	IXL_RX_UNLOCK(rxr);
         (*ifp->if_input)(ifp, m);
-	I40E_RX_LOCK(rxr);
+	IXL_RX_LOCK(rxr);
 }
 
 
 static __inline void
-i40e_rx_discard(struct rx_ring *rxr, int i)
+ixl_rx_discard(struct rx_ring *rxr, int i)
 {
-	struct i40e_rx_buf	*rbuf;
+	struct ixl_rx_buf	*rbuf;
 
 	rbuf = &rxr->buffers[i];
 
@@ -1329,20 +1402,42 @@ i40e_rx_discard(struct rx_ring *rxr, int i)
  *  Return TRUE for more work, FALSE for all clean.
  *********************************************************************/
 bool
-i40e_rxeof(struct i40e_queue *que, int count)
+ixl_rxeof(struct ixl_queue *que, int count)
 {
-	struct i40e_vsi		*vsi = que->vsi;
+	struct ixl_vsi		*vsi = que->vsi;
 	struct rx_ring		*rxr = &que->rxr;
 	struct ifnet		*ifp = vsi->ifp;
 	struct lro_ctrl		*lro = &rxr->lro;
 	struct lro_entry	*queued;
 	int			i, nextp, processed = 0;
 	union i40e_rx_desc	*cur;
-	struct i40e_rx_buf	*rbuf, *nbuf;
+	struct ixl_rx_buf	*rbuf, *nbuf;
 
 
-	I40E_RX_LOCK(rxr);
+	IXL_RX_LOCK(rxr);
 
+#ifdef DEV_NETMAP
+#if NETMAP_API < 4
+	if (ifp->if_capenable & IFCAP_NETMAP)
+	{
+		struct netmap_adapter *na = NA(ifp);
+
+		na->rx_rings[que->me].nr_kflags |= NKR_PENDINTR;
+		selwakeuppri(&na->rx_rings[que->me].si, PI_NET);
+		IXL_RX_UNLOCK(rxr);
+		IXL_PF_LOCK(vsi->pf);
+		selwakeuppri(&na->rx_si, PI_NET);
+		IXL_PF_UNLOCK(vsi->pf);
+		return (FALSE);
+	}
+#else /* NETMAP_API >= 4 */
+	if (netmap_rx_irq(ifp, que->me, &processed))
+	{
+		IXL_RX_UNLOCK(rxr);
+		return (FALSE);
+	}
+#endif /* NETMAP_API */
+#endif /* DEV_NETMAP */
 
 	for (i = rxr->next_check; count != 0;) {
 		struct mbuf	*sendmp, *mh, *mp;
@@ -1398,7 +1493,7 @@ i40e_rxeof(struct i40e_queue *que, int count)
                 if (eop && (error & (1 << I40E_RX_DESC_ERROR_RXE_SHIFT))) {
 			ifp->if_ierrors++;
 			rxr->discarded++;
-			i40e_rx_discard(rxr, i);
+			ixl_rx_discard(rxr, i);
 			goto next_desc;
 		}
 
@@ -1423,8 +1518,8 @@ i40e_rxeof(struct i40e_queue *que, int count)
 		** descriptor to the next, until we get EOP.
 		*/
 		if (rxr->hdr_split && (rbuf->fmp == NULL)) {
-			if (hlen > I40E_RX_HDR)
-				hlen = I40E_RX_HDR;
+			if (hlen > IXL_RX_HDR)
+				hlen = IXL_RX_HDR;
 			mh->m_len = hlen;
 			mh->m_flags |= M_PKTHDR;
 			mh->m_next = NULL;
@@ -1512,7 +1607,7 @@ i40e_rxeof(struct i40e_queue *que, int count)
 			rxr->packets++;
 			rxr->bytes += sendmp->m_pkthdr.len;
 			if ((ifp->if_capenable & IFCAP_RXCSUM) != 0)
-				i40e_rx_checksum(sendmp, status, error, ptype);
+				ixl_rx_checksum(sendmp, status, error, ptype);
 			sendmp->m_pkthdr.flowid = que->msix;
 			sendmp->m_flags |= M_FLOWID;
 		}
@@ -1527,20 +1622,20 @@ next_desc:
 		/* Now send to the stack or do LRO */
 		if (sendmp != NULL) {
 			rxr->next_check = i;
-			i40e_rx_input(rxr, ifp, sendmp, ptype);
+			ixl_rx_input(rxr, ifp, sendmp, ptype);
 			i = rxr->next_check;
 		}
 
                /* Every 8 descriptors we go to refresh mbufs */
 		if (processed == 8) {
-			i40e_refresh_mbufs(que, i);
+			ixl_refresh_mbufs(que, i);
 			processed = 0;
 		}
 	}
 
 	/* Refresh any remaining buf structs */
-	if (i40e_rx_unrefreshed(que))
-		i40e_refresh_mbufs(que, i);
+	if (ixl_rx_unrefreshed(que))
+		ixl_refresh_mbufs(que, i);
 
 	rxr->next_check = i;
 
@@ -1552,7 +1647,7 @@ next_desc:
 		tcp_lro_flush(lro, queued);
 	}
 
-	I40E_RX_UNLOCK(rxr);
+	IXL_RX_UNLOCK(rxr);
 	return (FALSE);
 }
 
@@ -1565,7 +1660,7 @@ next_desc:
  *
  *********************************************************************/
 static void
-i40e_rx_checksum(struct mbuf * mp, u32 status, u32 error, u8 ptype)
+ixl_rx_checksum(struct mbuf * mp, u32 status, u32 error, u8 ptype)
 {
 	struct i40e_rx_ptype_decoded decoded;
 
