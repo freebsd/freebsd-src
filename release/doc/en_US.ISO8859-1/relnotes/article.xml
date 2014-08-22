@@ -291,6 +291,11 @@
       of the blocks on disk.  This matches the behavior documented in
       &man.newsyslog.conf.5;.</para>
 
+    <para revision="262384">The location of the &man.rctl.8;
+      configuration file can now be overridden in &man.rc.conf.5;.
+      To use a non-default location, set <literal>rctl_rules</literal>
+      in &man.rc.conf.5; to the location of the file.</para>
+
     <para revision="266279">The &man.ps.1; utility has been
       updated to include the <literal>-J</literal> flag, used to
       filter output by matching &man.jail.8; IDs and names.
