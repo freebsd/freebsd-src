@@ -239,8 +239,11 @@
     <sect3 xml:id="fs">
       <title>File Systems</title>
 
-      <para>&nbsp;</para>
-
+      <para revision="260178" contrib="vendor"
+	vendor="&netflix;">A new flag, <literal>-R</literal>,
+	has been added to the &man.fsck.ffs.8; utility.  When used,
+	&man.fsck.ffs.8; will restart itself when too many critical
+	errors have been detected.</para>
     </sect3>
   </sect2>
 
