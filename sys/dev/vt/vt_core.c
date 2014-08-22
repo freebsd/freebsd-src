@@ -893,9 +893,6 @@ vt_flush(struct vt_device *vd)
 			vtbuf_mouse_cursor_position(&vw->vw_buf,
 			    vd->vd_moldx / vf->vf_width,
 			    vd->vd_moldy / vf->vf_height);
-			vtbuf_mouse_cursor_position(&vw->vw_buf,
-			    vd->vd_mx / vf->vf_width,
-			    vd->vd_my / vf->vf_height);
 
 			/*
 			 * Save point of last mouse cursor to erase it
@@ -908,6 +905,11 @@ vt_flush(struct vt_device *vd)
 		if (!kdb_active && panicstr == NULL) {
 			/* Mouse enabled, and DDB isn't active. */
 			cursor = &vt_default_mouse_pointer;
+
+			/* Mark new mouse position as dirty. */
+			vtbuf_mouse_cursor_position(&vw->vw_buf,
+			    vd->vd_mx / vf->vf_width,
+			    vd->vd_my / vf->vf_height);
 		}
 	}
 #endif
