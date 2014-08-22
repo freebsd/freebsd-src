@@ -20,6 +20,8 @@
  */
 
 /*
+ * Copyright 2013 Garrett D'Amore <garrett@damore.org>
+ *
  * Copyright 2006 Sun Microsystems, Inc.  All rights reserved.
  * Use is subject to license terms.
  */
@@ -42,15 +44,16 @@ extern "C" {
  *		199309L	    POSIX.1b-1993 compilation (Real Time)
  *		199506L	    POSIX.1c-1995 compilation (POSIX Threads)
  *		200112L	    POSIX.1-2001 compilation (Austin Group Revision)
+ *		200809L     POSIX.1-2008 compilation
  */
 #if defined(_POSIX_SOURCE) && !defined(_POSIX_C_SOURCE)
 #define	_POSIX_C_SOURCE 1
 #endif
 
 /*
- * The feature test macros __XOPEN_OR_POSIX, _STRICT_STDC, and _STDC_C99
- * are Sun implementation specific macros created in order to compress
- * common standards specified feature test macros for easier reading.
+ * The feature test macros __XOPEN_OR_POSIX, _STRICT_STDC, _STRICT_SYMBOLS,
+ * and _STDC_C99 are Sun implementation specific macros created in order to
+ * compress common standards specified feature test macros for easier reading.
  * These macros should not be used by the application developer as
  * unexpected results may occur. Instead, the user should reference
  * standards(5) for correct usage of the standards feature test macros.
@@ -76,6 +79,10 @@ extern "C" {
  *                      the C standard. A value of 199901L indicates a
  *                      compiler that complies with ISO/IEC 9899:1999, other-
  *                      wise known as the C99 standard.
+ *
+ * _STRICT_SYMBOLS	Used in cases where symbol visibility is restricted
+ *                      by the standards, and the user has not explicitly
+ *                      relaxed the strictness via __EXTENSIONS__.
  */
 
 #if defined(_XOPEN_SOURCE) || defined(_POSIX_C_SOURCE)
@@ -142,6 +149,14 @@ extern "C" {
 #ifndef _STDC_C99
 #define	_STDC_C99
 #endif
+#endif
+
+/*
+ * Use strict symbol visibility.
+ */
+#if (defined(_STRICT_STDC) || defined(__XOPEN_OR_POSIX)) && \
+	!defined(__EXTENSIONS__)
+#define	_STRICT_SYMBOLS
 #endif
 
 /*
@@ -223,6 +238,8 @@ extern "C" {
  * X/Open CAE Specification, Issue 5 (XPG5)
  * Open Group Technical Standard, Issue 6 (XPG6), also referred to as
  *    IEEE Std. 1003.1-2001 and ISO/IEC 9945:2002.
+ * Open Group Technical Standard, Issue 7 (XPG7), also referred to as
+ *    IEEE Std. 1003.1-2008 and ISO/IEC 9945:2009.
  *
  * XPG4v2 is also referred to as UNIX 95 (SUS or SUSv1).
  * XPG5 is also referred to as UNIX 98 or the Single Unix Specification,
@@ -230,6 +247,7 @@ extern "C" {
  * XPG6 is the result of a merge of the X/Open and POSIX specifications
  *     and as such is also referred to as IEEE Std. 1003.1-2001 in
  *     addition to UNIX 03 and SUSv3.
+ * XPG7 is also referred to as UNIX 08 and SUSv4.
  *
  * When writing a conforming X/Open application, as per the specification
  * requirements, the appropriate feature test macros must be defined at
@@ -242,6 +260,7 @@ extern "C" {
  * _XOPEN_SOURCE && _XOPEN_SOURCE_EXTENDED = 1           XPG4v2
  * _XOPEN_SOURCE = 500                                   XPG5
  * _XOPEN_SOURCE = 600  (or POSIX_C_SOURCE=200112L)      XPG6
+ * _XOPEN_SOURCE = 700  (or POSIX_C_SOURCE=200809L)      XPG7
  *
  * In order to simplify the guards within the headers, the following
  * implementation private test macros have been created. Applications
@@ -261,6 +280,7 @@ extern "C" {
  * _XPG4_2  X/Open CAE Specification, Issue 4, Version 2 (XPG4v2/UNIX 95/SUS)
  * _XPG5    X/Open CAE Specification, Issue 5 (XPG5/UNIX 98/SUSv2)
  * _XPG6    Open Group Technical Standard, Issue 6 (XPG6/UNIX 03/SUSv3)
+ * _XPG7    Open Group Technical Standard, Issue 7 (XPG7/UNIX 08/SUSv4)
  */
 
 /* X/Open Portability Guide, Issue 3 */
@@ -295,6 +315,19 @@ extern "C" {
 #define	_POSIX_C_SOURCE			200112L
 #undef	_XOPEN_SOURCE
 #define	_XOPEN_SOURCE			600
+
+/* Open Group Technical Standard, Issue 7 */
+#elif	(_XOPEN_SOURCE - 0 == 700) || (_POSIX_C_SOURCE - 0 == 200809L)
+#define	_XPG7
+#define	_XPG6
+#define	_XPG5
+#define	_XPG4_2
+#define	_XPG4
+#define	_XPG3
+#undef	_POSIX_C_SOURCE
+#define	_POSIX_C_SOURCE			200809L
+#undef	_XOPEN_SOURCE
+#define	_XOPEN_SOURCE			700
 #endif
 
 /*
@@ -305,12 +338,15 @@ extern "C" {
  * with the value of 4 indicates an XPG4 or XPG4v2 (UNIX 95) application.
  * _XOPEN_VERSION  defined with a value of 500 indicates an XPG5 (UNIX 98)
  * application and with a value of 600 indicates an XPG6 (UNIX 03)
- * application.  The appropriate version is determined by the use of the
+ * application and with a value of 700 indicates an XPG7 (UNIX 08).
+ * The appropriate version is determined by the use of the
  * feature test macros described earlier.  The value of _XOPEN_VERSION
  * defaults to 3 otherwise indicating support for XPG3 applications.
  */
 #ifndef _XOPEN_VERSION
-#ifdef	_XPG6
+#if	defined(_XPG7)
+#define	_XOPEN_VERSION 700
+#elif	defined(_XPG6)
 #define	_XOPEN_VERSION 600
 #elif defined(_XPG5)
 #define	_XOPEN_VERSION 500
