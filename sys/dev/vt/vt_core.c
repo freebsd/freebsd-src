@@ -935,8 +935,8 @@ vt_flush(struct vt_device *vd)
 
 	if (vd->vd_driver->vd_bitblt_text != NULL) {
 		if (tarea.tr_begin.tp_col < tarea.tr_end.tp_col) {
-			vd->vd_driver->vd_bitblt_text(vd, &vw->vw_buf, vf,
-			    &tarea, cursor_displayed);
+			vd->vd_driver->vd_bitblt_text(vd, vw, &tarea,
+			    cursor_displayed);
 		}
 	} else {
 		/*

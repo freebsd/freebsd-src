@@ -520,14 +520,16 @@ vga_bitblt_pixels_block_ncolors(struct vt_device *vd, const uint8_t *masks,
 }
 
 static void
-vga_bitblt_one_text_pixels_block(struct vt_device *vd, const struct vt_buf *vb,
-    const struct vt_font *vf, unsigned int x, unsigned int y,
+vga_bitblt_one_text_pixels_block(struct vt_device *vd,
+    const struct vt_window *vw, unsigned int x, unsigned int y,
     int cursor_displayed)
 {
+	const struct vt_buf *vb;
+	const struct vt_font *vf;
 	unsigned int i, col, row, src_x, x_count;
 	unsigned int used_colors_list[16], used_colors;
-	uint8_t pattern_2colors[vf->vf_height];
-	uint8_t pattern_ncolors[vf->vf_height * 16];
+	uint8_t pattern_2colors[vw->vw_font->vf_height];
+	uint8_t pattern_ncolors[vw->vw_font->vf_height * 16];
 	term_char_t c;
 	term_color_t fg, bg;
 	const uint8_t *src;
@@ -535,6 +537,9 @@ vga_bitblt_one_text_pixels_block(struct vt_device *vd, const struct vt_buf *vb,
 	struct vt_mouse_cursor *cursor;
 	unsigned int mx, my;
 #endif
+
+	vb = &vw->vw_buf;
+	vf = vw->vw_font;
 
 	/*
 	 * The current pixels block.
@@ -680,11 +685,14 @@ vga_bitblt_one_text_pixels_block(struct vt_device *vd, const struct vt_buf *vb,
 }
 
 static void
-vga_bitblt_text_gfxmode(struct vt_device *vd, const struct vt_buf *vb,
-    const struct vt_font *vf, const term_rect_t *area, int cursor_displayed)
+vga_bitblt_text_gfxmode(struct vt_device *vd, const struct vt_window *vw,
+    const term_rect_t *area, int cursor_displayed)
 {
+	const struct vt_font *vf;
 	unsigned int col, row;
 	unsigned int x1, y1, x2, y2, x, y;
+
+	vf = vw->vw_font;
 
 	/*
 	 * Compute the top-left pixel position aligned with the video
@@ -763,23 +771,25 @@ vga_bitblt_text_gfxmode(struct vt_device *vd, const struct vt_buf *vb,
 
 	for (y = y1; y < y2; y += vf->vf_height) {
 		for (x = x1; x < x2; x += VT_VGA_PIXELS_BLOCK) {
-			vga_bitblt_one_text_pixels_block(vd, vb, vf, x, y,
+			vga_bitblt_one_text_pixels_block(vd, vw, x, y,
 			    cursor_displayed);
 		}
 	}
 }
 
 static void
-vga_bitblt_text_txtmode(struct vt_device *vd, const struct vt_buf *vb,
+vga_bitblt_text_txtmode(struct vt_device *vd, const struct vt_window *vw,
     const term_rect_t *area, int cursor_displayed)
 {
 	struct vga_softc *sc;
+	const struct vt_buf *vb;
 	unsigned int col, row;
 	term_char_t c;
 	term_color_t fg, bg;
 	uint8_t ch, attr;
 
 	sc = vd->vd_softc;
+	vb = &vw->vw_buf;
 
 	for (row = area->tr_begin.tp_row; row < area->tr_end.tp_row; ++row) {
 		for (col = area->tr_begin.tp_col;
@@ -812,14 +822,14 @@ vga_bitblt_text_txtmode(struct vt_device *vd, const struct vt_buf *vb,
 }
 
 static void
-vga_bitblt_text(struct vt_device *vd, const struct vt_buf *vb,
-    const struct vt_font *vf, const term_rect_t *area, int cursor_displayed)
+vga_bitblt_text(struct vt_device *vd, const struct vt_window *vw,
+    const term_rect_t *area, int cursor_displayed)
 {
 
 	if (!(vd->vd_flags & VDF_TEXTMODE)) {
-		vga_bitblt_text_gfxmode(vd, vb, vf, area, cursor_displayed);
+		vga_bitblt_text_gfxmode(vd, vw, area, cursor_displayed);
 	} else {
-		vga_bitblt_text_txtmode(vd, vb, area, cursor_displayed);
+		vga_bitblt_text_txtmode(vd, vw, area, cursor_displayed);
 	}
 }
 
