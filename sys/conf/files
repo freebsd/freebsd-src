@@ -1424,22 +1424,26 @@ dev/hptiop/hptiop.c		optional hptiop scbus
 dev/hwpmc/hwpmc_logging.c	optional hwpmc
 dev/hwpmc/hwpmc_mod.c		optional hwpmc
 dev/hwpmc/hwpmc_soft.c		optional hwpmc
-dev/i40e/if_i40e.c		optional i40e inet \
-	compile-with "${NORMAL_C} -I$S/dev/i40e -DSMP"
-dev/i40e/i40e_txrx.c		optional i40e inet \
-	compile-with "${NORMAL_C} -I$S/dev/i40e -DSMP"
-dev/i40e/i40e_osdep.c		optional i40e inet \
-	compile-with "${NORMAL_C} -I$S/dev/i40e -DSMP"
-dev/i40e/i40e_nvm.c		optional i40e inet \
-	compile-with "${NORMAL_C} -I$S/dev/i40e -DSMP"
-dev/i40e/i40e_lan_hmc.c		optional i40e inet \
-	compile-with "${NORMAL_C} -I$S/dev/i40e -DSMP"
-dev/i40e/i40e_hmc.c		optional i40e inet \
-	compile-with "${NORMAL_C} -I$S/dev/i40e -DSMP"
-dev/i40e/i40e_common.c		optional i40e inet \
-	compile-with "${NORMAL_C} -I$S/dev/i40e -DSMP"
-dev/i40e/i40e_adminq.c		optional i40e inet \
-	compile-with "${NORMAL_C} -I$S/dev/i40e -DSMP"
+dev/ixl/if_ixl.c		optional ixl inet \
+	compile-with "${NORMAL_C} -I$S/dev/ixl"
+dev/ixl/if_ixlv.c		optional ixlv inet \
+	compile-with "${NORMAL_C} -I$S/dev/ixl"
+dev/ixl/ixlvc.c			optional ixlv inet \
+	compile-with "${NORMAL_C} -I$S/dev/ixl"
+dev/ixl/ixl_txrx.c		optional ixl ixlv inet \
+	compile-with "${NORMAL_C} -I$S/dev/ixl"
+dev/ixl/i40e_osdep.c		optional ixl ixlv inet \
+	compile-with "${NORMAL_C} -I$S/dev/ixl"
+dev/ixl/i40e_lan_hmc.c		optional ixl ixlv inet \
+	compile-with "${NORMAL_C} -I$S/dev/ixl"
+dev/ixl/i40e_hmc.c		optional ixl ixlv inet \
+	compile-with "${NORMAL_C} -I$S/dev/ixl"
+dev/ixl/i40e_common.c		optional ixl ixlv inet \
+	compile-with "${NORMAL_C} -I$S/dev/ixl"
+dev/ixl/i40e_nvm.c		optional ixl ixlv inet \
+	compile-with "${NORMAL_C} -I$S/dev/ixl"
+dev/ixl/i40e_adminq.c		optional ixl ixlv inet \
+	compile-with "${NORMAL_C} -I$S/dev/ixl"
 dev/ichsmb/ichsmb.c		optional ichsmb
 dev/ichsmb/ichsmb_pci.c		optional ichsmb pci
 dev/ida/ida.c			optional ida

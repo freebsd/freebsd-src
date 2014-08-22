@@ -1,7 +1,7 @@
-FreeBSD Base Driver for the Intel® XL710 Ethernet Controller Family
-================================================================
+ixl FreeBSD* Base Driver for the Intel® XL710 Ethernet Controller Family
 
 /*$FreeBSD$*/
+================================================================
 
 July 21, 2014
 
@@ -19,7 +19,7 @@ Contents
 Overview
 ========
 
-This file describes the i40e FreeBSD* Base driver for the XL710 Ethernet Family of Adapters. The Driver has been developed for use with FreeBSD 10.0 or later,  but should be compatible with any supported release.
+This file describes the IXL FreeBSD* Base driver for the XL710 Ethernet Family of Adapters. The Driver has been developed for use with FreeBSD 10.0 or later,  but should be compatible with any supported release.
 
 For questions related to hardware requirements, refer to the documentation      supplied with your Intel XL710 adapter. All hardware requirements listed apply  for use with FreeBSD.
 
@@ -60,17 +60,17 @@ NOTE: You must have kernel sources installed to compile the driver module.
 In the instructions below, x.x.x is the driver version
 as indicated in thename of the driver tar. 
 
-1. Move the base driver tar file to the directory of your choice. For example,  use /home/username/i40e or /usr/local/src/i40e.
+1. Move the base driver tar file to the directory of your choice. For example,  use /home/username/ixl or /usr/local/src/ixl.
 
 2. Untar/unzip the archive:
-     tar xfz i40e-x.x.x.tar.gz
+     tar xfz ixl-x.x.x.tar.gz
 
 3. To install man page:
-     cd i40e-x.x.x
-     gzip -c i40e.4 > /usr/share/man/man4/i40e.4.gz
+     cd ixl-x.x.x
+     gzip -c ixl.4 > /usr/share/man/man4/ixl.4.gz
 
 4. To load the driver onto a running system:
-     cd i40e-x.x.x/src
+     cd ixl-x.x.x/src
      make load
 
 5. To assign an IP address to the interface, enter the following:
@@ -82,12 +82,12 @@ as indicated in thename of the driver tar.
 
 7. If you want the driver to load automatically when the system is booted:
 
-     cd i40e-x.x.x/src
+     cd ixl-x.x.x/src
      make
      make install
         
     Edit /boot/loader.conf, and add the following line:
-     if_i40e_load="YES"
+     if_ixl_load="YES"
 
     Edit /etc/rc.conf, and create the appropriate
     ifconfig_ixl<interface_num> entry:
@@ -304,7 +304,7 @@ Also, increasing the follwing in /etc/sysctl.conf could help increase network   
 
 UDP Stress Test Dropped Packet Issue
 ------------------------------------
-  Under small packet UDP stress test with the i40e driver, the FreeBSD system   will drop UDP packets due to the fullness of socket buffers. You may want to    change the driver's Flow Control variables to the minimum value for controlling packet reception.
+  Under small packet UDP stress test with the ixl driver, the FreeBSD system   will drop UDP packets due to the fullness of socket buffers. You may want to    change the driver's Flow Control variables to the minimum value for controlling packet reception.
 
 
 Disable LRO when routing/bridging
