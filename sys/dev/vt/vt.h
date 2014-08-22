@@ -115,6 +115,10 @@ typedef unsigned int 	vt_axis_t;
  * Per-device datastructure.
  */
 
+#ifndef SC_NO_CUTPASTE
+struct vt_mouse_cursor;
+#endif
+
 struct vt_device {
 	struct vt_window	*vd_windows[VT_MAXWINDOWS]; /* (c) Windows. */
 	struct vt_window	*vd_curwindow;	/* (d) Current window. */
@@ -122,6 +126,11 @@ struct vt_device {
 	struct vt_window	*vd_markedwin;	/* (?) Copy/paste buf owner. */
 	const struct vt_driver	*vd_driver;	/* (c) Graphics driver. */
 	void			*vd_softc;	/* (u) Driver data. */
+#ifndef SC_NO_CUTPASTE
+	struct vt_mouse_cursor	*vd_mcursor;	/* (?) Cursor bitmap. */
+	term_color_t		 vd_mcursor_fg;	/* (?) Cursor fg color. */
+	term_color_t		 vd_mcursor_bg;	/* (?) Cursor bg color. */
+#endif
 	uint16_t		 vd_mx;		/* (?) Current mouse X. */
 	uint16_t		 vd_my;		/* (?) current mouse Y. */
 	vt_axis_t		 vd_moldx;	/* (?) Mouse X as of last redraw. */
@@ -280,15 +289,6 @@ struct vt_window {
  * Per-device driver routines.
  */
 
-#ifndef SC_NO_CUTPASTE
-struct vt_mouse_cursor {
-	uint8_t map[64 * 64 / 8];
-	uint8_t mask[64 * 64 / 8];
-	uint8_t width;
-	uint8_t height;
-};
-#endif
-
 typedef int vd_init_t(struct vt_device *vd);
 typedef int vd_probe_t(struct vt_device *vd);
 typedef void vd_postswitch_t(struct vt_device *vd);
@@ -303,12 +303,7 @@ typedef void vd_bitbltchr_t(struct vt_device *vd, const uint8_t *src,
 typedef void vd_putchar_t(struct vt_device *vd, term_char_t,
     vt_axis_t top, vt_axis_t left, term_color_t fg, term_color_t bg);
 typedef void vd_bitblt_text_t(struct vt_device *vd, const struct vt_buf *vb,
-    const struct vt_font *vf, const term_rect_t *area
-#ifndef SC_NO_CUTPASTE
-    , const struct vt_mouse_cursor *cursor,
-    term_color_t cursor_fg, term_color_t cursor_bg
-#endif
-    );
+    const struct vt_font *vf, const term_rect_t *area, int cursor_displayed);
 typedef int vd_fb_ioctl_t(struct vt_device *, u_long, caddr_t, struct thread *);
 typedef int vd_fb_mmap_t(struct vt_device *, vm_ooffset_t, vm_paddr_t *, int,
     vm_memattr_t *);
@@ -393,6 +388,15 @@ struct vt_font {
 	unsigned int		 vf_map_count[VFNT_MAPS];
 	unsigned int		 vf_refcount;
 };
+
+#ifndef SC_NO_CUTPASTE
+struct vt_mouse_cursor {
+	uint8_t map[64 * 64 / 8];
+	uint8_t mask[64 * 64 / 8];
+	uint8_t width;
+	uint8_t height;
+};
+#endif
 
 const uint8_t	*vtfont_lookup(const struct vt_font *vf, term_char_t c);
 struct vt_font	*vtfont_ref(struct vt_font *vf);
