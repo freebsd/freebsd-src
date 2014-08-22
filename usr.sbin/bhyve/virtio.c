@@ -33,6 +33,7 @@ __FBSDID("$FreeBSD$");
 #include <stdio.h>
 #include <stdint.h>
 #include <pthread.h>
+#include <pthread_np.h>
 
 #include "bhyverun.h"
 #include "pci_emul.h"
@@ -89,6 +90,9 @@ vi_reset_dev(struct virtio_softc *vs)
 	struct vqueue_info *vq;
 	int i, nvq;
 
+	if (vs->vs_mtx)
+		assert(pthread_mutex_isowned_np(vs->vs_mtx));
+
 	nvq = vs->vs_vc->vc_nvq;
 	for (vq = vs->vs_queues, i = 0; i < nvq; vq++, i++) {
 		vq->vq_flags = 0;
@@ -99,11 +103,9 @@ vi_reset_dev(struct virtio_softc *vs)
 	vs->vs_negotiated_caps = 0;
 	vs->vs_curq = 0;
 	/* vs->vs_status = 0; -- redundant */
-	VS_LOCK(vs);
 	if (vs->vs_isr)
 		pci_lintr_deassert(vs->vs_pi);
 	vs->vs_isr = 0;
-	VS_UNLOCK(vs);
 	vs->vs_msix_cfg_idx = VIRTIO_MSI_NO_VECTOR;
 }
 
@@ -137,7 +139,9 @@ vi_intr_init(struct virtio_softc *vs, int barnum, int use_msix)
 
 	if (use_msix) {
 		vs->vs_flags |= VIRTIO_USE_MSIX;
+		VS_LOCK(vs);
 		vi_reset_dev(vs); /* set all vectors to NO_VECTOR */
+		VS_UNLOCK(vs);
 		nvec = vs->vs_vc->vc_nvq + 1;
 		if (pci_emul_add_msixcap(vs->vs_pi, nvec, barnum))
 			return (1);
