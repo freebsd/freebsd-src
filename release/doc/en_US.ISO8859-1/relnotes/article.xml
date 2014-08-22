@@ -205,8 +205,8 @@
       <sect4 xml:id="net-if">
 	<title>Network Interface Support</title>
 
-	<para>&nbsp;</para>
-
+	<para revision="259453">Support for Ralink RT5370 and
+	  RT5372 chipsets has been added.</para>
       </sect4>
     </sect3>
 
