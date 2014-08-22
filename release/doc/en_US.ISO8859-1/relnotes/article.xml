@@ -231,6 +231,11 @@
 	  class="directory">/dev/gptid/</filename> would not be
 	resized.</para>
 
+      <para revision="260502">The &man.gmirror.8;
+	utility now has a <literal>resize</literal> command, making
+	it easier to resize the size of a mirror when all of its
+	components have been replaced.</para>
+
       <para revision="268091">Support for the
 	<literal>disklabel64</literal> partitioning scheme has been
 	added to &man.gpart.8;.</para>
