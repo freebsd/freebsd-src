@@ -18,7 +18,6 @@ CFLAGS+=	-I${.CURDIR}/../../../sys/cddl/compat/opensolaris \
 		-I${.CURDIR}/../../../sys
 
 CFLAGS+=	-DNEED_ERRLOC -g
-CSTD?=		gnu99
 
 #YFLAGS+=	-d
 
