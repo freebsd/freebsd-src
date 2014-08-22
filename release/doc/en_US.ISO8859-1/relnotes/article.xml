@@ -220,6 +220,9 @@
 
 	<para revision="260120">Firmware for the &man.run.4; driver
 	  has been updated to version 0.33.</para>
+
+	<para revision="261868">Support for the Ralink RT3593
+	  chipset has been added.</para>
       </sect4>
     </sect3>
 
