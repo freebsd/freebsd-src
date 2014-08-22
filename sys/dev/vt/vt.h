@@ -278,10 +278,6 @@ struct vt_window {
 
 /*
  * Per-device driver routines.
- *
- * vd_bitbltchr is used when the driver operates in graphics mode, while
- * vd_putchar is used when the driver operates in text mode
- * (VDF_TEXTMODE).
  */
 
 #ifndef SC_NO_CUTPASTE
@@ -297,11 +293,22 @@ typedef int vd_init_t(struct vt_device *vd);
 typedef int vd_probe_t(struct vt_device *vd);
 typedef void vd_postswitch_t(struct vt_device *vd);
 typedef void vd_blank_t(struct vt_device *vd, term_color_t color);
+/*
+ * FIXME: Remove vd_bitblt_t and vd_putchar_t, once vd_bitblt_text_t is
+ * provided by all drivers.
+ */
 typedef void vd_bitbltchr_t(struct vt_device *vd, const uint8_t *src,
     const uint8_t *mask, int bpl, vt_axis_t top, vt_axis_t left,
     unsigned int width, unsigned int height, term_color_t fg, term_color_t bg);
 typedef void vd_putchar_t(struct vt_device *vd, term_char_t,
     vt_axis_t top, vt_axis_t left, term_color_t fg, term_color_t bg);
+typedef void vd_bitblt_text_t(struct vt_device *vd, const struct vt_buf *vb,
+    const struct vt_font *vf, const term_rect_t *area
+#ifndef SC_NO_CUTPASTE
+    , const struct vt_mouse_cursor *cursor,
+    term_color_t cursor_fg, term_color_t cursor_bg
+#endif
+    );
 typedef int vd_fb_ioctl_t(struct vt_device *, u_long, caddr_t, struct thread *);
 typedef int vd_fb_mmap_t(struct vt_device *, vm_ooffset_t, vm_paddr_t *, int,
     vm_memattr_t *);
@@ -317,9 +324,10 @@ struct vt_driver {
 
 	/* Drawing. */
 	vd_blank_t	*vd_blank;
-	vd_bitbltchr_t	*vd_bitbltchr;
+	vd_bitbltchr_t	*vd_bitbltchr; /* FIXME: Deprecated. */
 	vd_drawrect_t	*vd_drawrect;
 	vd_setpixel_t	*vd_setpixel;
+	vd_bitblt_text_t *vd_bitblt_text;
 
 	/* Framebuffer ioctls, if present. */
 	vd_fb_ioctl_t	*vd_fb_ioctl;
@@ -328,7 +336,7 @@ struct vt_driver {
 	vd_fb_mmap_t	*vd_fb_mmap;
 
 	/* Text mode operation. */
-	vd_putchar_t	*vd_putchar;
+	vd_putchar_t	*vd_putchar; /* FIXME: Deprecated. */
 
 	/* Update display setting on vt switch. */
 	vd_postswitch_t	*vd_postswitch;
@@ -399,6 +407,10 @@ void vt_mouse_state(int show);
 #endif
 #define	VT_MOUSE_SHOW 1
 #define	VT_MOUSE_HIDE 0
+
+/* Utilities. */
+void	vt_determine_colors(term_char_t c, int cursor,
+	    term_color_t *fg, term_color_t *bg);
 
 #endif /* !_DEV_VT_VT_H_ */
 

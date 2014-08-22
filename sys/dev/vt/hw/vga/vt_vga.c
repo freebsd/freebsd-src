@@ -54,7 +54,7 @@ struct vga_softc {
 	bus_space_handle_t	 vga_fb_handle;
 	bus_space_tag_t		 vga_reg_tag;
 	bus_space_handle_t	 vga_reg_handle;
-	int			 vga_curcolor;
+	term_color_t		 vga_curfg, vga_curbg;
 };
 
 /* Convenience macros. */
@@ -71,13 +71,26 @@ struct vga_softc {
 #define	VT_VGA_HEIGHT	480
 #define	VT_VGA_MEMSIZE	(VT_VGA_WIDTH * VT_VGA_HEIGHT / 8)
 
+/*
+ * VGA is designed to handle 8 pixels at a time (8 pixels in one byte of
+ * memory).
+ */
+#define	VT_VGA_PIXELS_BLOCK	8
+
+/*
+ * We use an off-screen addresses to:
+ *     o  store the background color;
+ *     o  store pixels pattern.
+ * Those addresses are then loaded in the latches once.
+ */
+#define	VT_VGA_BGCOLOR_OFFSET	VT_VGA_MEMSIZE
+
 static vd_probe_t	vga_probe;
 static vd_init_t	vga_init;
 static vd_blank_t	vga_blank;
-static vd_bitbltchr_t	vga_bitbltchr;
+static vd_bitblt_text_t	vga_bitblt_text;
 static vd_drawrect_t	vga_drawrect;
 static vd_setpixel_t	vga_setpixel;
-static vd_putchar_t	vga_putchar;
 static vd_postswitch_t	vga_postswitch;
 
 static const struct vt_driver vt_vga_driver = {
@@ -85,10 +98,9 @@ static const struct vt_driver vt_vga_driver = {
 	.vd_probe	= vga_probe,
 	.vd_init	= vga_init,
 	.vd_blank	= vga_blank,
-	.vd_bitbltchr	= vga_bitbltchr,
+	.vd_bitblt_text	= vga_bitblt_text,
 	.vd_drawrect	= vga_drawrect,
 	.vd_setpixel	= vga_setpixel,
-	.vd_putchar	= vga_putchar,
 	.vd_postswitch	= vga_postswitch,
 	.vd_priority	= VD_PRIORITY_GENERIC,
 };
@@ -101,152 +113,45 @@ static struct vga_softc vga_conssoftc;
 VT_DRIVER_DECLARE(vt_vga, vt_vga_driver);
 
 static inline void
-vga_setcolor(struct vt_device *vd, term_color_t color)
+vga_setfg(struct vt_device *vd, term_color_t color)
 {
 	struct vga_softc *sc = vd->vd_softc;
 
-	if (sc->vga_curcolor != color) {
+	if (sc->vga_curfg != color) {
 		REG_WRITE1(sc, VGA_GC_ADDRESS, VGA_GC_SET_RESET);
 		REG_WRITE1(sc, VGA_GC_DATA, color);
-		sc->vga_curcolor = color;
+		sc->vga_curfg = color;
 	}
-}
-
-static void
-vga_blank(struct vt_device *vd, term_color_t color)
-{
-	struct vga_softc *sc = vd->vd_softc;
-	u_int ofs;
-
-	vga_setcolor(vd, color);
-	for (ofs = 0; ofs < VT_VGA_MEMSIZE; ofs++)
-		MEM_WRITE1(sc, ofs, 0xff);
 }
 
 static inline void
-vga_bitblt_put(struct vt_device *vd, u_long dst, term_color_t color,
-    uint8_t v)
+vga_setbg(struct vt_device *vd, term_color_t color)
 {
 	struct vga_softc *sc = vd->vd_softc;
 
-	/* Skip empty writes, in order to avoid palette changes. */
-	if (v != 0x00) {
-		vga_setcolor(vd, color);
+	if (sc->vga_curbg != color) {
+		REG_WRITE1(sc, VGA_GC_ADDRESS, VGA_GC_SET_RESET);
+		REG_WRITE1(sc, VGA_GC_DATA, color);
+
 		/*
-		 * When this MEM_READ1() gets disabled, all sorts of
-		 * artifacts occur.  This is because this read loads the
-		 * set of 8 pixels that are about to be changed.  There
-		 * is one scenario where we can avoid the read, namely
-		 * if all pixels are about to be overwritten anyway.
+		 * Write 8 pixels using the background color to an
+		 * off-screen byte in the video memory.
 		 */
-		if (v != 0xff)
-			MEM_READ1(sc, dst);
-		MEM_WRITE1(sc, dst, v);
-	}
-}
+		MEM_WRITE1(sc, VT_VGA_BGCOLOR_OFFSET, 0xff);
 
-static void
-vga_setpixel(struct vt_device *vd, int x, int y, term_color_t color)
-{
+		/*
+		 * Read those 8 pixels back to load the background color
+		 * in the latches register.
+		 */
+		MEM_READ1(sc, VT_VGA_BGCOLOR_OFFSET);
 
-	vga_bitblt_put(vd, (y * VT_VGA_WIDTH / 8) + (x / 8), color,
-	    0x80 >> (x % 8));
-}
+		sc->vga_curbg = color;
 
-static void
-vga_drawrect(struct vt_device *vd, int x1, int y1, int x2, int y2, int fill,
-    term_color_t color)
-{
-	int x, y;
-
-	for (y = y1; y <= y2; y++) {
-		if (fill || (y == y1) || (y == y2)) {
-			for (x = x1; x <= x2; x++)
-				vga_setpixel(vd, x, y, color);
-		} else {
-			vga_setpixel(vd, x1, y, color);
-			vga_setpixel(vd, x2, y, color);
-		}
-	}
-}
-
-/*
- * Shift bitmap of one row of the glyph.
- * a - array of bytes with src bitmap and result storage.
- * m - resulting background color bitmask.
- * size - number of bytes per glyph row (+ one byte to store shift overflow).
- * shift - offset for target bitmap.
- */
-
-static void
-vga_shift_u8array(uint8_t *a, uint8_t *m, int size, int shift)
-{
-	int i;
-
-	for (i = (size - 1); i > 0; i--) {
-		a[i] = (a[i] >> shift) | (a[i-1] << (7 - shift));
-		m[i] = ~a[i];
-	}
-	a[0] = (a[0] >> shift);
-	m[0] = ~a[0] & (0xff >> shift);
-	m[size - 1] = ~a[size - 1] & (0xff << (7 - shift));
-}
-
-/* XXX: fix gaps on mouse track when character size is not rounded to 8. */
-static void
-vga_bitbltchr(struct vt_device *vd, const uint8_t *src, const uint8_t *mask,
-    int bpl, vt_axis_t top, vt_axis_t left, unsigned int width,
-    unsigned int height, term_color_t fg, term_color_t bg)
-{
-	uint8_t aa[64], ma[64], *r;
-	int dst, shift, sz, x, y;
-	struct vga_softc *sc;
-
-	if ((left + width) > VT_VGA_WIDTH)
-		return;
-	if ((top + height) > VT_VGA_HEIGHT)
-		return;
-
-	sc = vd->vd_softc;
-
-	sz = (width + 7) / 8;
-	shift = left % 8;
-
-	dst = (VT_VGA_WIDTH * top + left) / 8;
-
-	for (y = 0; y < height; y++) {
-		r = (uint8_t *)src + (y * sz);
-		memcpy(aa, r, sz);
-		aa[sz] = 0;
-		vga_shift_u8array(aa, ma, sz + 1, shift);
-
-		vga_setcolor(vd, bg);
-		for (x = 0; x < (sz + 1); x ++) {
-			if (ma[x] == 0)
-				continue;
-			/*
-			 * XXX Only mouse cursor can go out of screen.
-			 * So for mouse it have to just return, but for regular
-			 * characters it have to panic, to indicate error in
-			 * size/coordinates calculations.
-			 */
-			if ((dst + x) >= (VT_VGA_WIDTH * VT_VGA_HEIGHT))
-				return;
-			if (ma[x] != 0xff)
-				MEM_READ1(sc, dst + x);
-			MEM_WRITE1(sc, dst + x, ma[x]);
-		}
-
-		vga_setcolor(vd, fg);
-		for (x = 0; x < (sz + 1); x ++) {
-			if (aa[x] == 0)
-				continue;
-			if (aa[x] != 0xff)
-				MEM_READ1(sc, dst + x);
-			MEM_WRITE1(sc, dst + x, aa[x]);
-		}
-
-		dst += VT_VGA_WIDTH / 8;
+		/*
+		 * The Set/Reset register doesn't contain the fg color
+		 * anymore, store an invalid color.
+		 */
+		sc->vga_curfg = 0xff;
 	}
 }
 
@@ -376,25 +281,561 @@ vga_get_cp437(term_char_t c)
 }
 
 static void
-vga_putchar(struct vt_device *vd, term_char_t c,
-    vt_axis_t top, vt_axis_t left, term_color_t fg, term_color_t bg)
+vga_blank(struct vt_device *vd, term_color_t color)
 {
 	struct vga_softc *sc = vd->vd_softc;
+	u_int ofs;
+
+	vga_setfg(vd, color);
+	for (ofs = 0; ofs < VT_VGA_MEMSIZE; ofs++)
+		MEM_WRITE1(sc, ofs, 0xff);
+}
+
+static inline void
+vga_bitblt_put(struct vt_device *vd, u_long dst, term_color_t color,
+    uint8_t v)
+{
+	struct vga_softc *sc = vd->vd_softc;
+
+	/* Skip empty writes, in order to avoid palette changes. */
+	if (v != 0x00) {
+		vga_setfg(vd, color);
+		/*
+		 * When this MEM_READ1() gets disabled, all sorts of
+		 * artifacts occur.  This is because this read loads the
+		 * set of 8 pixels that are about to be changed.  There
+		 * is one scenario where we can avoid the read, namely
+		 * if all pixels are about to be overwritten anyway.
+		 */
+		if (v != 0xff) {
+			MEM_READ1(sc, dst);
+
+			/* The bg color was trashed by the reads. */
+			sc->vga_curbg = 0xff;
+		}
+		MEM_WRITE1(sc, dst, v);
+	}
+}
+
+static void
+vga_setpixel(struct vt_device *vd, int x, int y, term_color_t color)
+{
+
+	vga_bitblt_put(vd, (y * VT_VGA_WIDTH / 8) + (x / 8), color,
+	    0x80 >> (x % 8));
+}
+
+static void
+vga_drawrect(struct vt_device *vd, int x1, int y1, int x2, int y2, int fill,
+    term_color_t color)
+{
+	int x, y;
+
+	for (y = y1; y <= y2; y++) {
+		if (fill || (y == y1) || (y == y2)) {
+			for (x = x1; x <= x2; x++)
+				vga_setpixel(vd, x, y, color);
+		} else {
+			vga_setpixel(vd, x1, y, color);
+			vga_setpixel(vd, x2, y, color);
+		}
+	}
+}
+
+static void
+vga_compute_shifted_pattern(const uint8_t *src, unsigned int bytes,
+    unsigned int src_x, unsigned int x_count, unsigned int dst_x,
+    uint8_t *pattern, uint8_t *mask)
+{
+	unsigned int n;
+
+	n = src_x / 8;
+
+	/*
+	 * This mask has bits set, where a pixel (ether 0 or 1)
+	 * comes from the source bitmap.
+	 */
+	if (mask != NULL) {
+		*mask = (0xff
+		    >> (8 - x_count))
+		    << (8 - x_count - dst_x);
+	}
+
+	if (n == (src_x + x_count - 1) / 8) {
+		/* All the pixels we want are in the same byte. */
+		*pattern = src[n];
+		if (dst_x >= src_x)
+			*pattern >>= (dst_x - src_x % 8);
+		else
+			*pattern <<= (src_x % 8 - dst_x);
+	} else {
+		/* The pixels we want are split into two bytes. */
+		if (dst_x >= src_x % 8) {
+			*pattern =
+			    src[n] << (8 - dst_x - src_x % 8) |
+			    src[n + 1] >> (dst_x - src_x % 8);
+		} else {
+			*pattern =
+			    src[n] << (src_x % 8 - dst_x) |
+			    src[n + 1] >> (8 - src_x % 8 - dst_x);
+		}
+	}
+}
+
+static void
+vga_copy_bitmap_portion(uint8_t *pattern_2colors, uint8_t *pattern_ncolors,
+    const uint8_t *src, const uint8_t *src_mask, unsigned int src_width,
+    unsigned int src_x, unsigned int dst_x, unsigned int x_count,
+    unsigned int src_y, unsigned int dst_y, unsigned int y_count,
+    term_color_t fg, term_color_t bg, int overwrite)
+{
+	unsigned int i, bytes;
+	uint8_t pattern, relevant_bits, mask;
+
+	bytes = (src_width + 7) / 8;
+
+	for (i = 0; i < y_count; ++i) {
+		vga_compute_shifted_pattern(src + (src_y + i) * bytes,
+		    bytes, src_x, x_count, dst_x, &pattern, &relevant_bits);
+
+		if (src_mask == NULL) {
+			/*
+			 * No src mask. Consider that all wanted bits
+			 * from the source are "authoritative".
+			 */
+			mask = relevant_bits;
+		} else {
+			/*
+			 * There's an src mask. We shift it the same way
+			 * we shifted the source pattern.
+			 */
+			vga_compute_shifted_pattern(
+			    src_mask + (src_y + i) * bytes,
+			    bytes, src_x, x_count, dst_x,
+			    &mask, NULL);
+
+			/* Now, only keep the wanted bits among them. */
+			mask &= relevant_bits;
+		}
+
+		/*
+		 * Clear bits from the pattern which must be
+		 * transparent, according to the source mask.
+		 */
+		pattern &= mask;
+
+		/* Set the bits in the 2-colors array. */
+		if (overwrite)
+			pattern_2colors[dst_y + i] &= ~mask;
+		pattern_2colors[dst_y + i] |= pattern;
+
+		/*
+		 * Set the same bits in the n-colors array. This one
+		 * supports transparency, when a given bit is cleared in
+		 * all colors.
+		 */
+		if (overwrite) {
+			/*
+			 * Ensure that the pixels used by this bitmap are
+			 * cleared in other colors.
+			 */
+			for (int j = 0; j < 16; ++j)
+				pattern_ncolors[(dst_y + i) * 16 + j] &=
+				    ~mask;
+		}
+		pattern_ncolors[(dst_y + i) * 16 + fg] |= pattern;
+		pattern_ncolors[(dst_y + i) * 16 + bg] |= (~pattern & mask);
+	}
+}
+
+static void
+vga_bitblt_pixels_block_2colors(struct vt_device *vd, const uint8_t *masks,
+    term_color_t fg, term_color_t bg,
+    unsigned int x, unsigned int y, unsigned int height)
+{
+	unsigned int i, offset;
+	struct vga_softc *sc;
+
+	/*
+	 * The great advantage of Write Mode 3 is that we just need
+	 * to load the foreground in the Set/Reset register, load the
+	 * background color in the latches register (this is done
+	 * through a write in offscreen memory followed by a read of
+	 * that data), then write the pattern to video memory. This
+	 * pattern indicates if the pixel should use the foreground
+	 * color (bit set) or the background color (bit cleared).
+	 */
+
+	vga_setbg(vd, bg);
+	vga_setfg(vd, fg);
+
+	sc = vd->vd_softc;
+	offset = (VT_VGA_WIDTH * y + x) / 8;
+
+	for (i = 0; i < height; ++i, offset += VT_VGA_WIDTH / 8) {
+		MEM_WRITE1(sc, offset, masks[i]);
+	}
+}
+
+static void
+vga_bitblt_pixels_block_ncolors(struct vt_device *vd, const uint8_t *masks,
+    unsigned int x, unsigned int y, unsigned int height)
+{
+	unsigned int i, j, offset;
+	struct vga_softc *sc;
+	uint8_t mask;
+
+	sc = vd->vd_softc;
+
+	/*
+	 * To draw a pixels block with N colors (N > 2), we write each
+	 * color one by one:
+	 *     1. Use the color as the foreground color
+	 *     2. Read the pixels block into the latches
+	 *     3. Draw the calculated mask
+	 *     4. Go back to #1 for subsequent colors.
+	 *
+	 * FIXME: Use Write Mode 0 to remove the need to read from video
+	 * memory.
+	 */
+
+	for (i = 0; i < height; ++i) {
+		for (j = 0; j < 16; ++j) {
+			mask = masks[i * 16 + j];
+			if (mask == 0)
+				continue;
+
+			vga_setfg(vd, j);
+
+			offset = (VT_VGA_WIDTH * (y + i) + x) / 8;
+			if (mask != 0xff) {
+				MEM_READ1(sc, offset);
+
+				/* The bg color was trashed by the reads. */
+				sc->vga_curbg = 0xff;
+			}
+			MEM_WRITE1(sc, offset, mask);
+		}
+	}
+}
+
+static void
+vga_bitblt_one_text_pixels_block(struct vt_device *vd, const struct vt_buf *vb,
+    const struct vt_font *vf, unsigned int x, unsigned int y
+#ifndef SC_NO_CUTPASTE
+    , const struct vt_mouse_cursor *cursor,
+    term_color_t cursor_fg, term_color_t cursor_bg
+#endif
+    )
+{
+	unsigned int i, col, row, src_x, x_count;
+	unsigned int used_colors_list[16], used_colors;
+	uint8_t pattern_2colors[vf->vf_height];
+	uint8_t pattern_ncolors[vf->vf_height * 16];
+	term_char_t c;
+	term_color_t fg, bg;
+	const uint8_t *src;
+#ifndef SC_NO_CUTPASTE
+	unsigned int mx, my;
+#endif
+
+	/*
+	 * The current pixels block.
+	 *
+	 * We fill it with portions of characters, because both "grids"
+	 * may not match.
+	 *
+	 * i is the index in this pixels block.
+	 */
+
+	i = x;
+	used_colors = 0;
+	memset(used_colors_list, 0, sizeof(used_colors_list));
+	memset(pattern_2colors, 0, sizeof(pattern_2colors));
+	memset(pattern_ncolors, 0, sizeof(pattern_ncolors));
+
+	if (i < vd->vd_offset.tp_col) {
+		/*
+		 * i is in the margin used to center the text area on
+		 * the screen.
+		 */
+
+		i = vd->vd_offset.tp_col;
+	}
+
+	while (i < x + VT_VGA_PIXELS_BLOCK) {
+		/*
+		 * Find which character is drawn on this pixel in the
+		 * pixels block.
+		 *
+		 * While here, record what colors it uses.
+		 */
+
+		col = (i - vd->vd_offset.tp_col) / vf->vf_width;
+		row = (y - vd->vd_offset.tp_row) / vf->vf_height;
+
+		c = VTBUF_GET_FIELD(vb, row, col);
+		src = vtfont_lookup(vf, c);
+
+		vt_determine_colors(c, VTBUF_ISCURSOR(vb, row, col), &fg, &bg);
+		if ((used_colors_list[fg] & 0x1) != 0x1)
+			used_colors++;
+		if ((used_colors_list[bg] & 0x2) != 0x2)
+			used_colors++;
+		used_colors_list[fg] |= 0x1;
+		used_colors_list[bg] |= 0x2;
+
+		/*
+		 * Compute the portion of the character we want to draw,
+		 * because the pixels block may start in the middle of a
+		 * character.
+		 *
+		 * The first pixel to draw in the character is
+		 *     the current position -
+		 *     the start position of the character
+		 *
+		 * The last pixel to draw is either
+		 *     - the last pixel of the character, or
+		 *     - the pixel of the character matching the end of
+		 *       the pixels block
+		 * whichever comes first. This position is then
+		 * changed to be relative to the start position of the
+		 * character.
+		 */
+
+		src_x = i - (col * vf->vf_width + vd->vd_offset.tp_col);
+		x_count = min(
+		    (col + 1) * vf->vf_width + vd->vd_offset.tp_col,
+		    x + VT_VGA_PIXELS_BLOCK);
+		x_count -= col * vf->vf_width + vd->vd_offset.tp_col;
+		x_count -= src_x;
+
+		/* Copy a portion of the character. */
+		vga_copy_bitmap_portion(pattern_2colors, pattern_ncolors,
+		    src, NULL, vf->vf_width,
+		    src_x, i % VT_VGA_PIXELS_BLOCK, x_count,
+		    0, 0, vf->vf_height, fg, bg, 0);
+
+		/* We move to the next portion. */
+		i += x_count;
+	}
+
+#ifndef SC_NO_CUTPASTE
+	/*
+	 * Copy the mouse pointer bitmap if it's over the current pixels
+	 * block.
+	 *
+	 * We use the saved cursor position (saved in vt_flush()), because
+	 * the current position could be different than the one used
+	 * to mark the area dirty.
+	 */
+	mx = vd->vd_moldx + vd->vd_offset.tp_col;
+	my = vd->vd_moldy + vd->vd_offset.tp_row;
+	if (cursor != NULL &&
+	    ((mx >= x && x + VT_VGA_PIXELS_BLOCK - 1 >= mx) ||
+	     (mx < x && mx + cursor->width >= x)) &&
+	    ((my >= y && y + vf->vf_height - 1 >= my) ||
+	     (my < y && my + cursor->height >= y))) {
+		unsigned int dst_x, src_y, dst_y, y_count;
+
+		/* Compute the portion of the cursor we want to copy. */
+		src_x = x > mx ? x - mx : 0;
+		dst_x = mx > x ? mx - x : 0;
+		x_count = min(
+		    min(cursor->width - src_x, x + VT_VGA_PIXELS_BLOCK - mx),
+		    VT_VGA_PIXELS_BLOCK);
+
+		/*
+		 * The cursor isn't aligned on the Y-axis with
+		 * characters, so we need to compute the vertical
+		 * start/count.
+		 */
+		src_y = y > my ? y - my : 0;
+		dst_y = my > y ? my - y : 0;
+		y_count = min(
+		    min(cursor->height - src_y, y + vf->vf_height - my),
+		    vf->vf_height);
+
+		/* Copy the cursor portion. */
+		vga_copy_bitmap_portion(pattern_2colors, pattern_ncolors,
+		    cursor->map, cursor->mask, cursor->width,
+		    src_x, dst_x, x_count, src_y, dst_y, y_count,
+		    cursor_fg, cursor_bg, 1);
+
+		if ((used_colors_list[cursor_fg] & 0x1) != 0x1)
+			used_colors++;
+		if ((used_colors_list[cursor_bg] & 0x2) != 0x2)
+			used_colors++;
+	}
+#endif
+
+	/*
+	 * The pixels block is completed, we can now draw it on the
+	 * screen.
+	 */
+	if (used_colors == 2)
+		vga_bitblt_pixels_block_2colors(vd, pattern_2colors, fg, bg,
+		    x, y, vf->vf_height);
+	else
+		vga_bitblt_pixels_block_ncolors(vd, pattern_ncolors,
+		    x, y, vf->vf_height);
+}
+
+static void
+vga_bitblt_text_gfxmode(struct vt_device *vd, const struct vt_buf *vb,
+    const struct vt_font *vf, const term_rect_t *area
+#ifndef SC_NO_CUTPASTE
+    , const struct vt_mouse_cursor *cursor,
+    term_color_t cursor_fg, term_color_t cursor_bg
+#endif
+    )
+{
+	unsigned int col, row;
+	unsigned int x1, y1, x2, y2, x, y;
+
+	/*
+	 * Compute the top-left pixel position aligned with the video
+	 * adapter pixels block size.
+	 *
+	 * This is calculated from the top-left column of te dirty area:
+	 *
+	 *     1. Compute the top-left pixel of the character:
+	 *        col * font width + x offset
+	 *
+	 *        NOTE: x offset is used to center the text area on the
+	 *        screen. It's expressed in pixels, not in characters
+	 *        col/row!
+	 *
+	 *     2. Find the pixel further on the left marking the start of
+	 *        an aligned pixels block (eg. chunk of 8 pixels):
+	 *        character's x / blocksize * blocksize
+	 *
+	 *        The division, being made on integers, achieves the
+	 *        alignment.
+	 *
+	 * For the Y-axis, we need to compute the character's y
+	 * coordinate, but we don't need to align it.
+	 */
+
+	col = area->tr_begin.tp_col;
+	row = area->tr_begin.tp_row;
+	x1 = (int)((col * vf->vf_width + vd->vd_offset.tp_col)
+	     / VT_VGA_PIXELS_BLOCK)
+	    * VT_VGA_PIXELS_BLOCK;
+	y1 = row * vf->vf_height + vd->vd_offset.tp_row;
+
+	/*
+	 * Compute the bottom right pixel position, again, aligned with
+	 * the pixels block size.
+	 *
+	 * The same rules apply, we just add 1 to base the computation
+	 * on the "right border" of the dirty area.
+	 */
+
+	col = area->tr_end.tp_col;
+	row = area->tr_end.tp_row;
+	x2 = (int)((col * vf->vf_width + vd->vd_offset.tp_col
+	      + VT_VGA_PIXELS_BLOCK - 1)
+	     / VT_VGA_PIXELS_BLOCK)
+	    * VT_VGA_PIXELS_BLOCK;
+	y2 = row * vf->vf_height + vd->vd_offset.tp_row;
+
+	/*
+	 * Now, we take care of N pixels line at a time (the first for
+	 * loop, N = font height), and for these lines, draw one pixels
+	 * block at a time (the second for loop), not a character at a
+	 * time.
+	 *
+	 * Therefore, on the X-axis, characters my be drawn partially if
+	 * they are not aligned on 8-pixels boundary.
+	 *
+	 * However, the operation is repeated for the full height of the
+	 * font before moving to the next character, because it allows
+	 * to keep the color settings and write mode, before perhaps
+	 * changing them with the next one.
+	 */
+
+	for (y = y1; y < y2; y += vf->vf_height) {
+		for (x = x1; x < x2; x += VT_VGA_PIXELS_BLOCK) {
+			vga_bitblt_one_text_pixels_block(vd, vb, vf, x, y
+#ifndef SC_NO_CUTPASTE
+			    , cursor, cursor_fg, cursor_bg
+#endif
+			    );
+		}
+	}
+}
+
+static void
+vga_bitblt_text_txtmode(struct vt_device *vd, const struct vt_buf *vb,
+    const term_rect_t *area
+#ifndef SC_NO_CUTPASTE
+    , const struct vt_mouse_cursor *cursor,
+    term_color_t cursor_fg, term_color_t cursor_bg
+#endif
+    )
+{
+	struct vga_softc *sc;
+	unsigned int col, row;
+	term_char_t c;
+	term_color_t fg, bg;
 	uint8_t ch, attr;
 
-	/*
-	 * Convert character to CP437, which is the character set used
-	 * by the VGA hardware by default.
-	 */
-	ch = vga_get_cp437(c);
+	sc = vd->vd_softc;
 
-	/*
-	 * Convert colors to VGA attributes.
-	 */
-	attr = bg << 4 | fg;
+	for (row = area->tr_begin.tp_row; row < area->tr_end.tp_row; ++row) {
+		for (col = area->tr_begin.tp_col;
+		    col < area->tr_end.tp_col;
+		    ++col) {
+			/*
+			 * Get next character and its associated fg/bg
+			 * colors.
+			 */
+			c = VTBUF_GET_FIELD(vb, row, col);
+			vt_determine_colors(c, VTBUF_ISCURSOR(vb, row, col),
+			    &fg, &bg);
 
-	MEM_WRITE1(sc, 0x18000 + (top * 80 + left) * 2 + 0, ch);
-	MEM_WRITE1(sc, 0x18000 + (top * 80 + left) * 2 + 1, attr);
+			/*
+			 * Convert character to CP437, which is the
+			 * character set used by the VGA hardware by
+			 * default.
+			 */
+			ch = vga_get_cp437(c);
+
+			/* Convert colors to VGA attributes. */
+			attr = bg << 4 | fg;
+
+			MEM_WRITE1(sc, 0x18000 + (row * 80 + col) * 2 + 0,
+			    ch);
+			MEM_WRITE1(sc, 0x18000 + (row * 80 + col) * 2 + 1,
+			    attr);
+		}
+	}
+}
+
+static void
+vga_bitblt_text(struct vt_device *vd, const struct vt_buf *vb,
+    const struct vt_font *vf, const term_rect_t *area
+#ifndef SC_NO_CUTPASTE
+    , const struct vt_mouse_cursor *cursor,
+    term_color_t cursor_fg, term_color_t cursor_bg
+#endif
+    )
+{
+
+	if (!(vd->vd_flags & VDF_TEXTMODE)) {
+		vga_bitblt_text_gfxmode(vd, vb, vf, area
+#ifndef SC_NO_CUTPASTE
+		    , cursor, cursor_fg, cursor_bg
+#endif
+		    );
+	} else {
+		vga_bitblt_text_txtmode(vd, vb, area
+#ifndef SC_NO_CUTPASTE
+		    , cursor, cursor_fg, cursor_bg
+#endif
+		    );
+	}
 }
 
 static void
@@ -622,6 +1063,12 @@ vga_initialize(struct vt_device *vd, int textmode)
 		REG_WRITE1(sc, VGA_GC_DATA, 3);
 		REG_WRITE1(sc, VGA_GC_ADDRESS, VGA_GC_ENABLE_SET_RESET);
 		REG_WRITE1(sc, VGA_GC_DATA, 0x0f);
+
+		/*
+		 * Clear the colors we think are loaded into Set/Reset or
+		 * the latches.
+		 */
+		sc->vga_curfg = sc->vga_curbg = 0xff;
 	}
 }
 
