@@ -587,6 +587,14 @@ struct sctp_stream_out {
 	struct sctp_streamhead outqueue;
 	union scheduling_parameters ss_params;
 	uint32_t chunks_on_queues;
+#if defined(SCTP_DETAILED_STR_STATS)
+	uint32_t abandoned_unsent[SCTP_PR_SCTP_MAX + 1];
+	uint32_t abandoned_sent[SCTP_PR_SCTP_MAX + 1];
+#else
+	/* Only the aggregation */
+	uint32_t abandoned_unsent[1];
+	uint32_t abandoned_sent[1];
+#endif
 	uint16_t stream_no;
 	uint16_t next_sequence_send;	/* next one I expect to send out */
 	uint8_t last_msg_incomplete;
@@ -1211,6 +1219,8 @@ struct sctp_association {
 	uint32_t timoshutdownack;
 	struct timeval start_time;
 	struct timeval discontinuity_time;
+	uint64_t abandoned_unsent[SCTP_PR_SCTP_MAX + 1];
+	uint64_t abandoned_sent[SCTP_PR_SCTP_MAX + 1];
 };
 
 #endif
