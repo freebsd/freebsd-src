@@ -866,11 +866,12 @@ vt_flush(struct vt_device *vd)
 	vw = vd->vd_curwindow;
 	if (vw == NULL)
 		return;
-	vf = vw->vw_font;
-	if (((vd->vd_flags & VDF_TEXTMODE) == 0) && (vf == NULL))
-		return;
 
 	if (vd->vd_flags & VDF_SPLASH || vw->vw_flags & VWF_BUSY)
+		return;
+
+	vf = vw->vw_font;
+	if (((vd->vd_flags & VDF_TEXTMODE) == 0) && (vf == NULL))
 		return;
 
 	cursor_displayed = 0;
@@ -1211,6 +1212,35 @@ vtterm_opened(struct terminal *tm, int opened)
 }
 
 static int
+vt_set_border(struct vt_window *vw, struct vt_font *vf, term_color_t c)
+{
+	struct vt_device *vd = vw->vw_device;
+	int x, y, off_x, off_y;
+
+	if (vd->vd_driver->vd_drawrect == NULL)
+		return (ENOTSUP);
+
+	x = vd->vd_width - 1;
+	y = vd->vd_height - 1;
+	off_x = vw->vw_offset.tp_col;
+	off_y = vw->vw_offset.tp_row;
+
+	/* Top bar. */
+	if (off_y > 0)
+		vd->vd_driver->vd_drawrect(vd, 0, 0, x, off_y - 1, 1, c);
+	/* Left bar. */
+	if (off_x > 0)
+		vd->vd_driver->vd_drawrect(vd, 0, off_y, off_x - 1, y - off_y,
+		    1, c);
+	/* Right bar.  May be 1 pixel wider than necessary due to rounding. */
+	vd->vd_driver->vd_drawrect(vd, x - off_x, off_y, x, y - off_y, 1, c);
+	/* Bottom bar.  May be 1 mixel taller than necessary due to rounding. */
+	vd->vd_driver->vd_drawrect(vd, 0, y - off_y, x, y, 1, c);
+
+	return (0);
+}
+
+static int
 vt_change_font(struct vt_window *vw, struct vt_font *vf)
 {
 	struct vt_device *vd = vw->vw_device;
@@ -1269,39 +1299,12 @@ vt_change_font(struct vt_window *vw, struct vt_font *vf)
 	}
 
 	/* Force a full redraw the next timer tick. */
-	if (vd->vd_curwindow == vw)
+	if (vd->vd_curwindow == vw) {
+		vt_set_border(vw, vf, TC_BLACK);
 		vd->vd_flags |= VDF_INVALID;
+	}
 	vw->vw_flags &= ~VWF_BUSY;
 	VT_UNLOCK(vd);
-	return (0);
-}
-
-static int
-vt_set_border(struct vt_window *vw, struct vt_font *vf, term_color_t c)
-{
-	struct vt_device *vd = vw->vw_device;
-	int x, y, off_x, off_y;
-
-	if (vd->vd_driver->vd_drawrect == NULL)
-		return (ENOTSUP);
-
-	x = vd->vd_width - 1;
-	y = vd->vd_height - 1;
-	off_x = vw->vw_offset.tp_col;
-	off_y = vw->vw_offset.tp_row;
-
-	/* Top bar. */
-	if (off_y > 0)
-		vd->vd_driver->vd_drawrect(vd, 0, 0, x, off_y - 1, 1, c);
-	/* Left bar. */
-	if (off_x > 0)
-		vd->vd_driver->vd_drawrect(vd, 0, off_y, off_x - 1, y - off_y,
-		    1, c);
-	/* Right bar.  May be 1 pixel wider than necessary due to rounding. */
-	vd->vd_driver->vd_drawrect(vd, x - off_x, off_y, x, y - off_y, 1, c);
-	/* Bottom bar.  May be 1 mixel taller than necessary due to rounding. */
-	vd->vd_driver->vd_drawrect(vd, 0, y - off_y, x, y, 1, c);
-
 	return (0);
 }
 
@@ -1840,10 +1843,6 @@ skip_thunk:
 			return (error);
 
 		error = vt_change_font(vw, vf);
-		if (error == 0) {
-			/* XXX: replace 0 with current bg color. */
-			vt_set_border(vw, vf, 0);
-		}
 		vtfont_unref(vf);
 		return (error);
 	}
