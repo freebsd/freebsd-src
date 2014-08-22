@@ -139,6 +139,12 @@
       which allows controlling how long the system will wait after
       &man.panic.9; before rebooting.</para>
 
+    <para revision="260857">The &man.virtio_blk.4; driver has been
+      updated to support unmapped I/O.</para>
+
+    <para revision="260858">The &man.virtio_scsi.4; driver has been
+      updated to support unmapped I/O.</para>
+
     <para revision="265388" contrib="sponsor" sponsor="&lsi;">The
       &man.mpr.4; device has been added,
       providing support for LSI Fusion-MPT 3 12Gb SCSI/SATA
