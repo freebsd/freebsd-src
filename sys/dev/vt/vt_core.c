@@ -786,7 +786,7 @@ vtterm_param(struct terminal *tm, int cmd, unsigned int arg)
 	}
 }
 
-static inline void
+void
 vt_determine_colors(term_char_t c, int cursor,
     term_color_t *fg, term_color_t *bg)
 {
@@ -924,39 +924,53 @@ vt_flush(struct vt_device *vd)
 		vd->vd_flags &= ~VDF_INVALID;
 	}
 
-	for (row = tarea.tr_begin.tp_row; row < tarea.tr_end.tp_row; row++) {
-		if (!VTBUF_DIRTYROW(&tmask, row))
-			continue;
-		r = VTBUF_GET_ROW(&vw->vw_buf, row);
-		for (col = tarea.tr_begin.tp_col;
-		    col < tarea.tr_end.tp_col; col++) {
-			if (!VTBUF_DIRTYCOL(&tmask, col))
-				continue;
-
-			vt_bitblt_char(vd, vf, r[col],
-			    VTBUF_ISCURSOR(&vw->vw_buf, row, col), row, col);
+	if (vd->vd_driver->vd_bitblt_text != NULL) {
+		if (tarea.tr_begin.tp_col < tarea.tr_end.tp_col) {
+			vd->vd_driver->vd_bitblt_text(vd, &vw->vw_buf, vf, &tarea
+#ifndef SC_NO_CUTPASTE
+			    , cursor, TC_WHITE, TC_BLACK
+#endif
+			    );
 		}
-	}
+	} else {
+		/*
+		 * FIXME: Once all backend drivers expose the
+		 * vd_bitblt_text_t callback, this code can be removed.
+		 */
+		for (row = tarea.tr_begin.tp_row; row < tarea.tr_end.tp_row; row++) {
+			if (!VTBUF_DIRTYROW(&tmask, row))
+				continue;
+			r = VTBUF_GET_ROW(&vw->vw_buf, row);
+			for (col = tarea.tr_begin.tp_col;
+			    col < tarea.tr_end.tp_col; col++) {
+				if (!VTBUF_DIRTYCOL(&tmask, col))
+					continue;
+
+				vt_bitblt_char(vd, vf, r[col],
+				    VTBUF_ISCURSOR(&vw->vw_buf, row, col), row, col);
+			}
+		}
 
 #ifndef SC_NO_CUTPASTE
-	if (cursor != NULL) {
-		bpl = (cursor->width + 7) >> 3; /* Bytes per source line. */
-		w = cursor->width;
-		h = cursor->height;
+		if (cursor != NULL) {
+			bpl = (cursor->width + 7) >> 3; /* Bytes per source line. */
+			w = cursor->width;
+			h = cursor->height;
 
-		if ((vd->vd_mx + cursor->width) >
-		    (size.tp_col * vf->vf_width))
-			w = (size.tp_col * vf->vf_width) - vd->vd_mx - 1;
-		if ((vd->vd_my + cursor->height) >
-		    (size.tp_row * vf->vf_height))
-			h = (size.tp_row * vf->vf_height) - vd->vd_my - 1;
+			if ((vd->vd_mx + cursor->width) >
+			    (size.tp_col * vf->vf_width))
+				w = (size.tp_col * vf->vf_width) - vd->vd_mx - 1;
+			if ((vd->vd_my + cursor->height) >
+			    (size.tp_row * vf->vf_height))
+				h = (size.tp_row * vf->vf_height) - vd->vd_my - 1;
 
-		vd->vd_driver->vd_bitbltchr(vd, cursor->map, cursor->mask, bpl,
-		    vd->vd_offset.tp_row + vd->vd_my,
-		    vd->vd_offset.tp_col + vd->vd_mx,
-		    w, h, TC_WHITE, TC_BLACK);
-	}
+			vd->vd_driver->vd_bitbltchr(vd, cursor->map, cursor->mask, bpl,
+			    vd->vd_offset.tp_row + vd->vd_my,
+			    vd->vd_offset.tp_col + vd->vd_mx,
+			    w, h, TC_WHITE, TC_BLACK);
+		}
 #endif
+	}
 }
 
 static void
