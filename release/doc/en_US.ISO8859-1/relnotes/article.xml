@@ -176,7 +176,8 @@
     <sect3 xml:id="kernel-arm">
       <title>ARM support</title>
 
-      <para>&nbsp;</para>
+      <para revision="259355">The <filename>WANDBOARD</filename>
+	kernel configuration file has been added.</para>
 
     </sect3>
 
