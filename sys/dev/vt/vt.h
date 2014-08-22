@@ -136,7 +136,6 @@ struct vt_device {
 	vt_axis_t		 vd_moldx;	/* (?) Mouse X as of last redraw. */
 	vt_axis_t		 vd_moldy;	/* (?) Mouse Y as of last redraw. */
 	uint32_t		 vd_mstate;	/* (?) Mouse state. */
-	term_pos_t		 vd_offset;	/* (?) Pixel offset. */
 	vt_axis_t		 vd_width;	/* (?) Screen width. */
 	vt_axis_t		 vd_height;	/* (?) Screen height. */
 	struct mtx		 vd_lock;	/* Per-device lock. */
@@ -258,6 +257,7 @@ struct vt_window {
 	struct terminal		*vw_terminal;	/* (c) Terminal. */
 	struct vt_buf		 vw_buf;	/* (u) Screen buffer. */
 	struct vt_font		*vw_font;	/* (d) Graphical font. */
+	term_pos_t		 vw_offset;	/* (?) Pixel offset. */
 	unsigned int		 vw_number;	/* (c) Window number. */
 	int			 vw_kbdmode;	/* (?) Keyboard mode. */
 	char			*vw_kbdsq;	/* Escape sequence queue*/

@@ -556,13 +556,13 @@ vga_bitblt_one_text_pixels_block(struct vt_device *vd,
 	memset(pattern_2colors, 0, sizeof(pattern_2colors));
 	memset(pattern_ncolors, 0, sizeof(pattern_ncolors));
 
-	if (i < vd->vd_offset.tp_col) {
+	if (i < vw->vw_offset.tp_col) {
 		/*
 		 * i is in the margin used to center the text area on
 		 * the screen.
 		 */
 
-		i = vd->vd_offset.tp_col;
+		i = vw->vw_offset.tp_col;
 	}
 
 	while (i < x + VT_VGA_PIXELS_BLOCK) {
@@ -573,8 +573,8 @@ vga_bitblt_one_text_pixels_block(struct vt_device *vd,
 		 * While here, record what colors it uses.
 		 */
 
-		col = (i - vd->vd_offset.tp_col) / vf->vf_width;
-		row = (y - vd->vd_offset.tp_row) / vf->vf_height;
+		col = (i - vw->vw_offset.tp_col) / vf->vf_width;
+		row = (y - vw->vw_offset.tp_row) / vf->vf_height;
 
 		c = VTBUF_GET_FIELD(vb, row, col);
 		src = vtfont_lookup(vf, c);
@@ -605,11 +605,11 @@ vga_bitblt_one_text_pixels_block(struct vt_device *vd,
 		 * character.
 		 */
 
-		src_x = i - (col * vf->vf_width + vd->vd_offset.tp_col);
+		src_x = i - (col * vf->vf_width + vw->vw_offset.tp_col);
 		x_count = min(
-		    (col + 1) * vf->vf_width + vd->vd_offset.tp_col,
+		    (col + 1) * vf->vf_width + vw->vw_offset.tp_col,
 		    x + VT_VGA_PIXELS_BLOCK);
-		x_count -= col * vf->vf_width + vd->vd_offset.tp_col;
+		x_count -= col * vf->vf_width + vw->vw_offset.tp_col;
 		x_count -= src_x;
 
 		/* Copy a portion of the character. */
@@ -632,8 +632,8 @@ vga_bitblt_one_text_pixels_block(struct vt_device *vd,
 	 * to mark the area dirty.
 	 */
 	cursor = vd->vd_mcursor;
-	mx = vd->vd_moldx + vd->vd_offset.tp_col;
-	my = vd->vd_moldy + vd->vd_offset.tp_row;
+	mx = vd->vd_moldx + vw->vw_offset.tp_col;
+	my = vd->vd_moldy + vw->vw_offset.tp_row;
 	if (cursor_displayed &&
 	    ((mx >= x && x + VT_VGA_PIXELS_BLOCK - 1 >= mx) ||
 	     (mx < x && mx + cursor->width >= x)) &&
@@ -720,10 +720,10 @@ vga_bitblt_text_gfxmode(struct vt_device *vd, const struct vt_window *vw,
 
 	col = area->tr_begin.tp_col;
 	row = area->tr_begin.tp_row;
-	x1 = (int)((col * vf->vf_width + vd->vd_offset.tp_col)
+	x1 = (int)((col * vf->vf_width + vw->vw_offset.tp_col)
 	     / VT_VGA_PIXELS_BLOCK)
 	    * VT_VGA_PIXELS_BLOCK;
-	y1 = row * vf->vf_height + vd->vd_offset.tp_row;
+	y1 = row * vf->vf_height + vw->vw_offset.tp_row;
 
 	/*
 	 * Compute the bottom right pixel position, again, aligned with
@@ -735,11 +735,11 @@ vga_bitblt_text_gfxmode(struct vt_device *vd, const struct vt_window *vw,
 
 	col = area->tr_end.tp_col;
 	row = area->tr_end.tp_row;
-	x2 = (int)((col * vf->vf_width + vd->vd_offset.tp_col
+	x2 = (int)((col * vf->vf_width + vw->vw_offset.tp_col
 	      + VT_VGA_PIXELS_BLOCK - 1)
 	     / VT_VGA_PIXELS_BLOCK)
 	    * VT_VGA_PIXELS_BLOCK;
-	y2 = row * vf->vf_height + vd->vd_offset.tp_row;
+	y2 = row * vf->vf_height + vw->vw_offset.tp_row;
 
 	/*
 	 * Clip the area to the screen size.
