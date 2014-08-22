@@ -169,8 +169,10 @@
     <sect3 xml:id="kernel-virtualization">
       <title>Virtualization support</title>
 
-      <para>&nbsp;</para>
-
+      <para revision="259450">Support for &microsoft; Hyper-V
+	has been added to &os;/i386 as loadable modules, however
+	not available in the <filename>GENERIC</filename> kernel
+	configuration.</para>
     </sect3>
 
     <sect3 xml:id="kernel-arm">
