@@ -2516,58 +2516,44 @@ sctp_get_next_param(struct mbuf *m,
 }
 
 
-int
+struct mbuf *
 sctp_add_pad_tombuf(struct mbuf *m, int padlen)
 {
-	/*
-	 * add padlen bytes of 0 filled padding to the end of the mbuf. If
-	 * padlen is > 3 this routine will fail.
-	 */
-	uint8_t *dp;
-	int i;
+	struct mbuf *m_last;
+	caddr_t dp;
 
 	if (padlen > 3) {
-		SCTP_LTRACE_ERR_RET_PKT(m, NULL, NULL, NULL, SCTP_FROM_SCTPUTIL, ENOBUFS);
-		return (ENOBUFS);
+		return (NULL);
 	}
 	if (padlen <= M_TRAILINGSPACE(m)) {
 		/*
 		 * The easy way. We hope the majority of the time we hit
 		 * here :)
 		 */
-		dp = (uint8_t *) (mtod(m, caddr_t)+SCTP_BUF_LEN(m));
-		SCTP_BUF_LEN(m) += padlen;
+		m_last = m;
 	} else {
-		/* Hard way we must grow the mbuf */
-		struct mbuf *tmp;
-
-		tmp = sctp_get_mbuf_for_msg(padlen, 0, M_NOWAIT, 1, MT_DATA);
-		if (tmp == NULL) {
-			/* Out of space GAK! we are in big trouble. */
-			SCTP_LTRACE_ERR_RET_PKT(m, NULL, NULL, NULL, SCTP_FROM_SCTPUTIL, ENOBUFS);
-			return (ENOBUFS);
+		/* Hard way we must grow the mbuf chain */
+		m_last = sctp_get_mbuf_for_msg(padlen, 0, M_NOWAIT, 1, MT_DATA);
+		if (m_last == NULL) {
+			return (NULL);
 		}
-		/* setup and insert in middle */
-		SCTP_BUF_LEN(tmp) = padlen;
-		SCTP_BUF_NEXT(tmp) = NULL;
-		SCTP_BUF_NEXT(m) = tmp;
-		dp = mtod(tmp, uint8_t *);
+		SCTP_BUF_LEN(m_last) = 0;
+		SCTP_BUF_NEXT(m_last) = NULL;
+		SCTP_BUF_NEXT(m) = m_last;
 	}
-	/* zero out the pad */
-	for (i = 0; i < padlen; i++) {
-		*dp = 0;
-		dp++;
-	}
-	return (0);
+	dp = mtod(m_last, caddr_t)+SCTP_BUF_LEN(m_last);
+	SCTP_BUF_LEN(m_last) += padlen;
+	memset(dp, 0, padlen);
+	return (m_last);
 }
 
-int
+struct mbuf *
 sctp_pad_lastmbuf(struct mbuf *m, int padval, struct mbuf *last_mbuf)
 {
 	/* find the last mbuf in chain and pad it */
 	struct mbuf *m_at;
 
-	if (last_mbuf) {
+	if (last_mbuf != NULL) {
 		return (sctp_add_pad_tombuf(last_mbuf, padval));
 	} else {
 		for (m_at = m; m_at; m_at = SCTP_BUF_NEXT(m_at)) {
@@ -2576,8 +2562,7 @@ sctp_pad_lastmbuf(struct mbuf *m, int padval, struct mbuf *last_mbuf)
 			}
 		}
 	}
-	SCTP_LTRACE_ERR_RET_PKT(m, NULL, NULL, NULL, SCTP_FROM_SCTPUTIL, EFAULT);
-	return (EFAULT);
+	return (NULL);
 }
 
 static void
