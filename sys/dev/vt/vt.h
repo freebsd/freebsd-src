@@ -203,12 +203,12 @@ void vtbuf_grow(struct vt_buf *, const term_pos_t *, int);
 void vtbuf_putchar(struct vt_buf *, const term_pos_t *, term_char_t);
 void vtbuf_cursor_position(struct vt_buf *, const term_pos_t *);
 void vtbuf_scroll_mode(struct vt_buf *vb, int yes);
+void vtbuf_dirty(struct vt_buf *vb, const term_rect_t *area);
 void vtbuf_undirty(struct vt_buf *, term_rect_t *, struct vt_bufmask *);
 void vtbuf_sethistory_size(struct vt_buf *, int);
 int vtbuf_iscursor(const struct vt_buf *vb, int row, int col);
 void vtbuf_cursor_visibility(struct vt_buf *, int);
 #ifndef SC_NO_CUTPASTE
-void vtbuf_mouse_cursor_position(struct vt_buf *vb, int col, int row);
 int vtbuf_set_mark(struct vt_buf *vb, int type, int col, int row);
 int vtbuf_get_marked_len(struct vt_buf *vb);
 void vtbuf_extract_marked(struct vt_buf *vb, term_char_t *buf, int sz);

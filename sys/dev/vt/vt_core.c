@@ -819,6 +819,28 @@ vt_determine_colors(term_char_t c, int cursor,
 }
 
 static void
+vt_mark_mouse_position_as_dirty(struct vt_device *vd, int x, int y)
+{
+	term_rect_t area;
+	struct vt_window *vw;
+	struct vt_font *vf;
+
+	vw = vd->vd_curwindow;
+	vf = vw->vw_font;
+
+	area.tr_begin.tp_col = (x - vw->vw_offset.tp_col) / vf->vf_width;
+	area.tr_begin.tp_row = (y - vw->vw_offset.tp_row) / vf->vf_height;
+	area.tr_end.tp_col =
+	    ((x + vd->vd_mcursor->width - vw->vw_offset.tp_col) /
+	     vf->vf_width) + 1;
+	area.tr_end.tp_row =
+	    ((y + vd->vd_mcursor->height - vw->vw_offset.tp_row) /
+	     vf->vf_height) + 1;
+
+	vtbuf_dirty(&vw->vw_buf, &area);
+}
+
+static void
 vt_bitblt_char(struct vt_device *vd, struct vt_font *vf, term_char_t c,
     int iscursor, unsigned int row, unsigned int col)
 {
@@ -884,23 +906,11 @@ vt_flush(struct vt_device *vd)
 			/*
 			 * Mark last mouse position as dirty to erase.
 			 *
-			 * FIXME: The font size could be different among
-			 * all windows, so the column/row calculation
-			 * below isn't correct for all windows.
-			 *
-			 * FIXME: The cursor can span more than one
-			 * character cell. vtbuf_mouse_cursor_position
-			 * marks surrounding cells as dirty. But due
-			 * to font size possibly inconsistent across
-			 * windows, this may not be sufficient. This
-			 * causes part of the cursor to not be erased.
-			 *
 			 * FIXME: The vt_buf lock is acquired twice in a
 			 * row.
 			 */
-			vtbuf_mouse_cursor_position(&vw->vw_buf,
-			    vd->vd_moldx / vf->vf_width,
-			    vd->vd_moldy / vf->vf_height);
+			vt_mark_mouse_position_as_dirty(vd,
+			    vd->vd_moldx, vd->vd_moldy);
 
 			/*
 			 * Save point of last mouse cursor to erase it
@@ -915,9 +925,8 @@ vt_flush(struct vt_device *vd)
 			cursor_displayed = 1;
 
 			/* Mark new mouse position as dirty. */
-			vtbuf_mouse_cursor_position(&vw->vw_buf,
-			    vd->vd_mx / vf->vf_width,
-			    vd->vd_my / vf->vf_height);
+			vt_mark_mouse_position_as_dirty(vd,
+			    vd->vd_mx, vd->vd_my);
 		}
 	}
 #endif
@@ -1618,14 +1627,8 @@ vt_mouse_state(int show)
 		break;
 	}
 
-	/*
-	 * Mark mouse position as dirty.
-	 *
-	 * FIXME: See comments in vt_flush().
-	 */
-	vtbuf_mouse_cursor_position(&vw->vw_buf,
-	    vd->vd_mx / vw->vw_font->vf_width,
-	    vd->vd_my / vw->vw_font->vf_height);
+	/* Mark mouse position as dirty. */
+	vt_mark_mouse_position_as_dirty(vd, vd->vd_mx, vd->vd_my);
 }
 #endif
 
