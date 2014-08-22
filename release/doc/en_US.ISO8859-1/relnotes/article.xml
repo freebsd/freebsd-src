@@ -217,6 +217,14 @@
     <sect3 xml:id="disks">
       <title>Disks and Storage</title>
 
+      <para revision="259328" contrib="sponsor"
+	sponsor="&ff;">The &man.geom.8; <literal>label</literal> class
+	is now aware of resized partitions.  This corrects an issue
+	where <command>geom resize</command> would resize the
+	partition, but the label provider in <filename
+	  class="directory">/dev/gptid/</filename> would not be
+	resized.</para>
+
       <para revision="268091">Support for the
 	<literal>disklabel64</literal> partitioning scheme has been
 	added to &man.gpart.8;.</para>
