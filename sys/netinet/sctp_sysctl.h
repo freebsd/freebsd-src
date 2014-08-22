@@ -46,6 +46,8 @@ struct sctp_sysctl {
 	uint32_t sctp_multiple_asconfs;
 	uint32_t sctp_ecn_enable;
 	uint32_t sctp_pr_enable;
+	uint32_t sctp_auth_disable;
+	uint32_t sctp_asconf_enable;
 	uint32_t sctp_reconfig_enable;
 	uint32_t sctp_nrsack_enable;
 	uint32_t sctp_pktdrop_enable;
@@ -81,7 +83,6 @@ struct sctp_sysctl {
 	uint32_t sctp_cmt_on_off;
 	uint32_t sctp_cmt_use_dac;
 	uint32_t sctp_use_cwnd_based_maxburst;
-	uint32_t sctp_auth_disable;
 	uint32_t sctp_nat_friendly;
 	uint32_t sctp_L2_abc_variable;
 	uint32_t sctp_mbuf_threshold_count;
@@ -161,6 +162,18 @@ struct sctp_sysctl {
 #define SCTPCTL_PR_ENABLE_MIN		0
 #define SCTPCTL_PR_ENABLE_MAX		1
 #define SCTPCTL_PR_ENABLE_DEFAULT	1
+
+/* auth_disable: Disable SCTP AUTH function */
+#define SCTPCTL_AUTH_DISABLE_DESC	"Disable SCTP AUTH function"
+#define SCTPCTL_AUTH_DISABLE_MIN	0
+#define SCTPCTL_AUTH_DISABLE_MAX	1
+#define SCTPCTL_AUTH_DISABLE_DEFAULT	0
+
+/* asconf_enable: Enable SCTP ASCONF */
+#define SCTPCTL_ASCONF_ENABLE_DESC	"Enable SCTP ASCONF"
+#define SCTPCTL_ASCONF_ENABLE_MIN	0
+#define SCTPCTL_ASCONF_ENABLE_MAX	1
+#define SCTPCTL_ASCONF_ENABLE_DEFAULT	1
 
 /* reconfig_enable: Enable SCTP RE-CONFIG */
 #define SCTPCTL_RECONFIG_ENABLE_DESC	"Enable SCTP RE-CONFIG"
@@ -378,12 +391,6 @@ struct sctp_sysctl {
 #define SCTPCTL_CWND_MAXBURST_MIN	0
 #define SCTPCTL_CWND_MAXBURST_MAX	1
 #define SCTPCTL_CWND_MAXBURST_DEFAULT	1
-
-/* auth_disable: Disable SCTP AUTH function */
-#define SCTPCTL_AUTH_DISABLE_DESC	"Disable SCTP AUTH function"
-#define SCTPCTL_AUTH_DISABLE_MIN	0
-#define SCTPCTL_AUTH_DISABLE_MAX	1
-#define SCTPCTL_AUTH_DISABLE_DEFAULT	0
 
 /* nat_friendly: SCTP NAT friendly operation */
 #define SCTPCTL_NAT_FRIENDLY_DESC	"SCTP NAT friendly operation"
