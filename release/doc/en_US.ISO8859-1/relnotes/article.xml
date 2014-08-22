@@ -223,6 +223,10 @@
 
 	<para revision="261868">Support for the Ralink RT3593
 	  chipset has been added.</para>
+
+	<para revision="261972">The &man.nve.4; driver is now
+	  deprecated, and the &man.nfe.4; driver should be used
+	  instead.</para>
       </sect4>
     </sect3>
 
