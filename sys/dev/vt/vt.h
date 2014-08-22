@@ -302,8 +302,8 @@ typedef void vd_bitbltchr_t(struct vt_device *vd, const uint8_t *src,
     unsigned int width, unsigned int height, term_color_t fg, term_color_t bg);
 typedef void vd_putchar_t(struct vt_device *vd, term_char_t,
     vt_axis_t top, vt_axis_t left, term_color_t fg, term_color_t bg);
-typedef void vd_bitblt_text_t(struct vt_device *vd, const struct vt_buf *vb,
-    const struct vt_font *vf, const term_rect_t *area, int cursor_displayed);
+typedef void vd_bitblt_text_t(struct vt_device *vd, const struct vt_window *vw,
+    const term_rect_t *area, int cursor_displayed);
 typedef int vd_fb_ioctl_t(struct vt_device *, u_long, caddr_t, struct thread *);
 typedef int vd_fb_mmap_t(struct vt_device *, vm_ooffset_t, vm_paddr_t *, int,
     vm_memattr_t *);
