@@ -227,6 +227,11 @@
 	<para revision="261972">The &man.nve.4; driver is now
 	  deprecated, and the &man.nfe.4; driver should be used
 	  instead.</para>
+
+	<para revision="262137">Support for the &man.axge.4; driver
+	  has been added.  This driver supports the ASIX AX88178A and
+	  AX88179 USB ethernet adapters.  The AX88178A supports USB
+	  2.0, and the AX88179 supports USB 2.0 and 3.0.</para>
       </sect4>
     </sect3>
 
