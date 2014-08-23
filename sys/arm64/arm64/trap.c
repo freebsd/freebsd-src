@@ -30,9 +30,20 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/systm.h>
+#include <sys/lock.h>
+#include <sys/mutex.h>
 #include <sys/proc.h>
 
+#include <vm/vm.h>
+#include <vm/pmap.h>
+#include <vm/vm_kern.h>
+#include <vm/vm_map.h>
+#include <vm/vm_extern.h>
+
 #include <machine/frame.h>
+
+/* Called from exception.S */
+void do_el1h_sync(struct trapframe *);
 
 int
 cpu_fetch_syscall_args(struct thread *td, struct syscall_args *sa)
@@ -41,8 +52,64 @@ cpu_fetch_syscall_args(struct thread *td, struct syscall_args *sa)
 	panic("cpu_fetch_syscall_args");
 }
 
-void do_el1h_sync(struct trapframe *frame);
-void do_el1h_sync(struct trapframe *frame)
+static void
+data_abort(struct trapframe *frame, uint64_t esr, int lower)
+{
+	struct vm_map *map;
+	struct thread *td;
+	struct proc *p;
+	vm_prot_t ftype;
+	vm_offset_t va;
+	uint64_t far;
+	int error;
+
+	__asm __volatile("mrs %x0, far_el1" : "=r"(far));
+
+	td = curthread;
+	p = td->td_proc;
+
+	if (lower)
+		map = &td->td_proc->p_vmspace->vm_map;
+	else {
+		/* The top bit tells us which range to use */
+		if ((far >> 63) == 1)
+			map = kernel_map;
+		else
+			map = &td->td_proc->p_vmspace->vm_map;
+	}
+
+	va = trunc_page(far);
+	ftype = ((esr >> 6) & 1) ? VM_PROT_READ | VM_PROT_WRITE : VM_PROT_READ;
+
+	if (map != kernel_map) {
+		/*
+		 * Keep swapout from messing with us during this
+		 *	critical time.
+		 */
+		PROC_LOCK(p);
+		++p->p_lock;
+		PROC_UNLOCK(p);
+
+		/* Fault in the user page: */
+		error = vm_fault(map, va, ftype, VM_FAULT_NORMAL);
+
+		PROC_LOCK(p);
+		--p->p_lock;
+		PROC_UNLOCK(p);
+	} else {
+		/*
+		 * Don't have to worry about process locking or stacks in the
+		 * kernel.
+		 */
+		error = vm_fault(map, va, ftype, VM_FAULT_NORMAL);
+	}
+
+	if (error != 0)
+		panic("vm_fault failed");
+}
+
+void
+do_el1h_sync(struct trapframe *frame)
 {
 	uint32_t exception;
 	uint64_t esr;
@@ -66,7 +133,7 @@ void do_el1h_sync(struct trapframe *frame)
 	printf("spsr: %llx\n", frame->tf_spsr);
 	switch(exception) {
 	case 0x25:
-		panic("Data abort at %#llx", frame->tf_elr);
+		data_abort(frame, esr, 0);
 		break;
 	case 0x3c:
 		printf("Breakpoint %x\n", (uint32_t)(esr & 0xffffff));
@@ -75,6 +142,6 @@ void do_el1h_sync(struct trapframe *frame)
 	default:
 		panic("Unknown exception %x\n", exception);
 	}
-	frame->tf_elr += 4;
+	printf("Done do_el1h_sync\n");
 }
 
