@@ -107,6 +107,11 @@ static int create_table_internal(struct ip_fw_chain *ch, struct tid_info *ti,
     struct table_algo **pta, uint16_t *pkidx, int ref);
 static void link_table(struct ip_fw_chain *ch, struct table_config *tc);
 static void unlink_table(struct ip_fw_chain *ch, struct table_config *tc);
+static int find_ref_table(struct ip_fw_chain *ch, struct tid_info *ti,
+    struct tentry_info *tei, uint32_t count, int op,
+    struct table_config **ptc, struct table_algo **pta);
+#define	OP_ADD	1
+#define	OP_DEL	0
 static int export_tables(struct ip_fw_chain *ch, ipfw_obj_lheader *olh,
     struct sockopt_data *sd);
 static void export_table_info(struct ip_fw_chain *ch, struct table_config *tc,
@@ -239,7 +244,7 @@ create_table_compat(struct ip_fw_chain *ch, struct tid_info *ti,
  */
 static int
 find_ref_table(struct ip_fw_chain *ch, struct tid_info *ti,
-    struct tentry_info *tei, uint32_t count, int do_add,
+    struct tentry_info *tei, uint32_t count, int op,
     struct table_config **ptc, struct table_algo **pta)
 {
 	struct namedobj_instance *ni;
@@ -265,7 +270,7 @@ find_ref_table(struct ip_fw_chain *ch, struct tid_info *ti,
 		}
 
 		/* Try to exit early on limit hit */
-		if (do_add != 0 && count == 1 &&
+		if (op == OP_ADD && count == 1 &&
 		    check_table_limit(tc, tei) != 0) {
 			IPFW_UH_WUNLOCK(ch);
 			return (EFBIG);
@@ -278,7 +283,7 @@ find_ref_table(struct ip_fw_chain *ch, struct tid_info *ti,
 	IPFW_UH_WUNLOCK(ch);
 
 	if (tc == NULL) {
-		if (do_add == 0)
+		if (op == OP_DEL)
 			return (ESRCH);
 
 		/* Compability mode: create new table for old clients */
@@ -354,7 +359,7 @@ rollback_added_entries(struct ip_fw_chain *ch, struct table_config *tc,
  */
 static int
 prepare_batch_buffer(struct ip_fw_chain *ch, struct table_algo *ta,
-    struct tentry_info *tei, uint32_t count, int do_add, caddr_t *ta_buf)
+    struct tentry_info *tei, uint32_t count, int op, caddr_t *ta_buf)
 {
 	caddr_t ta_buf_m, v;
 	size_t ta_buf_sz, sz;
@@ -378,14 +383,14 @@ prepare_batch_buffer(struct ip_fw_chain *ch, struct table_algo *ta,
 		 * if we need to rollback all changes)
 		 */
 		sz = count * ta_buf_sz;
-		ta_buf_m = malloc((do_add != 0) ? sz * 2 : sz, M_TEMP,
+		ta_buf_m = malloc((op == OP_ADD) ? sz * 2 : sz, M_TEMP,
 		    M_WAITOK | M_ZERO);
 	}
 
 	v = ta_buf_m;
 	for (i = 0; i < count; i++, v += ta_buf_sz) {
 		ptei = &tei[i];
-		error = (do_add != 0) ?
+		error = (op == OP_ADD) ?
 		    ta->prepare_add(ch, ptei, v) : ta->prepare_del(ch, ptei, v);
 
 		/*
@@ -460,14 +465,15 @@ add_table_entry(struct ip_fw_chain *ch, struct tid_info *ti,
 	/*
 	 * Find and reference existing table.
 	 */
-	if ((error = find_ref_table(ch, ti, tei, count, 1, &tc, &ta)) != 0)
+	error = find_ref_table(ch, ti, tei, count, OP_ADD, &tc, &ta);
+	if (error != 0)
 		return (error);
 
 	/* Allocate memory and prepare record(s) */
 	rollback = 0;
 	/* Pass stack buffer by default */
 	ta_buf_m = ta_buf;
-	error = prepare_batch_buffer(ch, ta, tei, count, 1, &ta_buf_m);
+	error = prepare_batch_buffer(ch, ta, tei, count, OP_ADD, &ta_buf_m);
 	if (error != 0)
 		goto cleanup;
 
@@ -579,13 +585,14 @@ del_table_entry(struct ip_fw_chain *ch, struct tid_info *ti,
 	/*
 	 * Find and reference existing table.
 	 */
-	if ((error = find_ref_table(ch, ti, tei, count, 0, &tc, &ta)) != 0)
+	error = find_ref_table(ch, ti, tei, count, OP_DEL, &tc, &ta);
+	if (error != 0)
 		return (error);
 
 	/* Allocate memory and prepare record(s) */
 	/* Pass stack buffer by default */
 	ta_buf_m = ta_buf;
-	error = prepare_batch_buffer(ch, ta, tei, count, 0, &ta_buf_m);
+	error = prepare_batch_buffer(ch, ta, tei, count, OP_DEL, &ta_buf_m);
 	if (error != 0)
 		goto cleanup;
 
@@ -1892,8 +1899,10 @@ struct dump_args {
 	uint32_t cnt;
 	uint16_t uidx;
 	int error;
-	ipfw_table_entry *ent;
 	uint32_t size;
+	ipfw_table_entry *ent;
+	ta_foreach_f *f;
+	void *farg;
 	ipfw_obj_tentry tent;
 };
 
@@ -2352,6 +2361,65 @@ dump_table_xentry(void *e, void *arg)
 		xent->flags = IPFW_TCF_INET;
 	} else
 		memcpy(&xent->k, &tent->k, sizeof(xent->k));
+
+	return (0);
+}
+
+/*
+ * Helper function to export table algo data
+ * to tentry format before calling user function.
+ *
+ * Returns 0 on success.
+ */
+static int
+prepare_table_tentry(void *e, void *arg)
+{
+	struct dump_args *da;
+	struct table_config *tc;
+	struct table_algo *ta;
+	int error;
+
+	da = (struct dump_args *)arg;
+
+	tc = da->tc;
+	ta = tc->ta;
+
+	error = ta->dump_tentry(tc->astate, da->ti, e, &da->tent);
+	if (error != 0)
+		return (error);
+
+	da->f(&da->tent, da->farg);
+
+	return (0);
+}
+
+/*
+ * Allow external consumers to read table entries in standard format.
+ */
+int
+ipfw_foreach_table_tentry(struct ip_fw_chain *ch, uint16_t kidx,
+    ta_foreach_f *f, void *arg)
+{
+	struct namedobj_instance *ni;
+	struct table_config *tc;
+	struct table_algo *ta;
+	struct dump_args da;
+
+	ni = CHAIN_TO_NI(ch);
+
+	tc = (struct table_config *)ipfw_objhash_lookup_kidx(ni, kidx);
+	if (tc == NULL)
+		return (ESRCH);
+
+	ta = tc->ta;
+
+	memset(&da, 0, sizeof(da));
+	da.ti = KIDX_TO_TI(ch, tc->no.kidx);
+	da.tc = tc;
+	da.f = f;
+	da.farg = arg;
+
+	ta->foreach(tc->astate, da.ti, prepare_table_tentry, &da);
 
 	return (0);
 }

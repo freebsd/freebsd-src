@@ -188,6 +188,8 @@ int ipfw_move_tables_sets(struct ip_fw_chain *ch, ipfw_range_tlv *rt,
     uint32_t new_set);
 void ipfw_swap_tables_sets(struct ip_fw_chain *ch, uint32_t old_set,
     uint32_t new_set, int mv);
+int ipfw_foreach_table_tentry(struct ip_fw_chain *ch, uint16_t kidx,
+    ta_foreach_f f, void *arg);
 
 /* Legacy interfaces */
 int ipfw_count_table(struct ip_fw_chain *ch, struct tid_info *ti,
