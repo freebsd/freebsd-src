@@ -716,7 +716,13 @@ parse_map_yyin(struct node *parent, const char *map, const char *executable_key)
 	for (;;) {
 		ret = yylex();
 		if (ret == 0 || ret == NEWLINE) {
-			if (key != NULL || options != NULL) {
+			/*
+			 * In case of executable map, the key is always
+			 * non-NULL, even if the map is empty.  So, make sure
+			 * we don't fail empty maps here.
+			 */
+			if ((key != NULL && executable_key == NULL) ||
+			    options != NULL) {
 				log_errx(1, "truncated entry at %s, line %d",
 				    map, lineno);
 			}
