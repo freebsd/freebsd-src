@@ -103,13 +103,11 @@ static struct table_config *alloc_table_config(struct ip_fw_chain *ch,
 static void free_table_config(struct namedobj_instance *ni,
     struct table_config *tc);
 static int create_table_internal(struct ip_fw_chain *ch, struct tid_info *ti,
-    char *aname, ipfw_xtable_info *i, struct table_config **ptc,
-    struct table_algo **pta, uint16_t *pkidx, int ref);
+    char *aname, ipfw_xtable_info *i, uint16_t *pkidx, int ref);
 static void link_table(struct ip_fw_chain *ch, struct table_config *tc);
 static void unlink_table(struct ip_fw_chain *ch, struct table_config *tc);
 static int find_ref_table(struct ip_fw_chain *ch, struct tid_info *ti,
-    struct tentry_info *tei, uint32_t count, int op,
-    struct table_config **ptc, struct table_algo **pta);
+    struct tentry_info *tei, uint32_t count, int op, struct table_config **ptc);
 #define	OP_ADD	1
 #define	OP_DEL	0
 static int export_tables(struct ip_fw_chain *ch, ipfw_obj_lheader *olh,
@@ -182,7 +180,7 @@ check_table_limit(struct table_config *tc, struct tentry_info *tei)
  * one of pre-defined states known by userland.
  */
 static void
-store_tei_result(struct tentry_info *tei, int do_add, int error, uint32_t num)
+store_tei_result(struct tentry_info *tei, int op, int error, uint32_t num)
 {
 	int flag;
 
@@ -190,9 +188,9 @@ store_tei_result(struct tentry_info *tei, int do_add, int error, uint32_t num)
 
 	switch (error) {
 	case 0:
-		if (do_add && num != 0)
+		if (op == OP_ADD && num != 0)
 			flag = TEI_FLAGS_ADDED;
-		if (do_add == 0)
+		if (op == OP_DEL)
 			flag = TEI_FLAGS_DELETED;
 		break;
 	case ENOENT:
@@ -218,7 +216,7 @@ store_tei_result(struct tentry_info *tei, int do_add, int error, uint32_t num)
  */
 static int
 create_table_compat(struct ip_fw_chain *ch, struct tid_info *ti,
-    struct table_config **ptc, struct table_algo **pta, uint16_t *pkidx)
+    uint16_t *pkidx)
 {
 	ipfw_xtable_info xi;
 	int error;
@@ -227,7 +225,7 @@ create_table_compat(struct ip_fw_chain *ch, struct tid_info *ti,
 	/* Set u32 as default value type for legacy clients */
 	xi.vtype = IPFW_VTYPE_U32;
 
-	error = create_table_internal(ch, ti, NULL, &xi, ptc, pta, pkidx, 1);
+	error = create_table_internal(ch, ti, NULL, &xi, pkidx, 1);
 	if (error != 0)
 		return (error);
 
@@ -238,72 +236,68 @@ create_table_compat(struct ip_fw_chain *ch, struct tid_info *ti,
  * Find and reference existing table optionally
  * creating new one.
  *
- * Saves found table config/table algo into @ptc / @pta.
+ * Saves found table config into @ptc.
+ * Note function may drop/acquire UH_WLOCK.
  * Returns 0 if table was found/created and referenced
  * or non-zero return code.
  */
 static int
 find_ref_table(struct ip_fw_chain *ch, struct tid_info *ti,
     struct tentry_info *tei, uint32_t count, int op,
-    struct table_config **ptc, struct table_algo **pta)
+    struct table_config **ptc)
 {
 	struct namedobj_instance *ni;
 	struct table_config *tc;
-	struct table_algo *ta;
+	uint16_t kidx;
 	int error;
 
-	IPFW_UH_WLOCK(ch);
+	IPFW_UH_WLOCK_ASSERT(ch);
 
 	ni = CHAIN_TO_NI(ch);
 	tc = NULL;
-	ta = NULL;
 	if ((tc = find_table(ni, ti)) != NULL) {
 		/* check table type */
-		if (tc->no.type != ti->type) {
-			IPFW_UH_WUNLOCK(ch);
+		if (tc->no.type != ti->type)
 			return (EINVAL);
-		}
 
-		if (tc->locked != 0) {
-			IPFW_UH_WUNLOCK(ch);
+		if (tc->locked != 0)
 			return (EACCES);
-		}
 
 		/* Try to exit early on limit hit */
 		if (op == OP_ADD && count == 1 &&
-		    check_table_limit(tc, tei) != 0) {
-			IPFW_UH_WUNLOCK(ch);
+		    check_table_limit(tc, tei) != 0)
 			return (EFBIG);
-		}
 
-		/* Reference and unlock */
+		/* Reference and return */
 		tc->no.refcnt++;
-		ta = tc->ta;
+		*ptc = tc;
+		return (0);
 	}
+
+	if (op == OP_DEL)
+		return (ESRCH);
+
+	/* Compability mode: create new table for old clients */
+	if ((tei->flags & TEI_FLAGS_COMPAT) == 0)
+		return (ESRCH);
+
 	IPFW_UH_WUNLOCK(ch);
+	error = create_table_compat(ch, ti, &kidx);
+	IPFW_UH_WLOCK(ch);
+	
+	if (error != 0)
+		return (error);
 
-	if (tc == NULL) {
-		if (op == OP_DEL)
-			return (ESRCH);
+	tc = (struct table_config *)ipfw_objhash_lookup_kidx(ni, kidx);
+	KASSERT(tc != NULL, ("create_table_compat returned bad idx %d", kidx));
 
-		/* Compability mode: create new table for old clients */
-		if ((tei->flags & TEI_FLAGS_COMPAT) == 0)
-			return (ESRCH);
-
-		error = create_table_compat(ch, ti, &tc, &ta, NULL);
-		if (error != 0)
-			return (error);
-
-		/* OK, now we've got referenced table. */
-	}
-
+	/* OK, now we've got referenced table. */
 	*ptc = tc;
-	*pta = ta;
 	return (0);
 }
 
 /*
- * Rolls back already @added to @tc entries using state arrat @ta_buf_m.
+ * Rolls back already @added to @tc entries using state array @ta_buf_m.
  * Assume the following layout:
  * 1) ADD state (ta_buf_m[0] ... t_buf_m[added - 1]) for handling update cases
  * 2) DEL state (ta_buf_m[count[ ... t_buf_m[count + added - 1])
@@ -412,7 +406,7 @@ prepare_batch_buffer(struct ip_fw_chain *ch, struct table_algo *ta,
  */
 static void
 flush_batch_buffer(struct ip_fw_chain *ch, struct table_algo *ta,
-    struct tentry_info *tei, uint32_t count, int do_add, int rollback,
+    struct tentry_info *tei, uint32_t count, int rollback,
     caddr_t ta_buf_m, caddr_t ta_buf)
 {
 	caddr_t v;
@@ -465,9 +459,14 @@ add_table_entry(struct ip_fw_chain *ch, struct tid_info *ti,
 	/*
 	 * Find and reference existing table.
 	 */
-	error = find_ref_table(ch, ti, tei, count, OP_ADD, &tc, &ta);
-	if (error != 0)
+	IPFW_UH_WLOCK(ch);
+	error = find_ref_table(ch, ti, tei, count, OP_ADD, &tc);
+	if (error != 0) {
+		IPFW_UH_WUNLOCK(ch);
 		return (error);
+	}
+	ta = tc->ta;
+	IPFW_UH_WUNLOCK(ch);
 
 	/* Allocate memory and prepare record(s) */
 	rollback = 0;
@@ -522,7 +521,7 @@ add_table_entry(struct ip_fw_chain *ch, struct tid_info *ti,
 			error = ta->add(tc->astate, KIDX_TO_TI(ch, kidx),
 			    ptei, v, &num);
 			/* Set status flag to inform userland */
-			store_tei_result(ptei, 1, error, num);
+			store_tei_result(ptei, OP_ADD, error, num);
 		}
 		if (error == 0) {
 			/* Update number of records to ease limit checking */
@@ -559,7 +558,7 @@ add_table_entry(struct ip_fw_chain *ch, struct tid_info *ti,
 	error = first_error;
 
 cleanup:
-	flush_batch_buffer(ch, ta, tei, count, 1, rollback, ta_buf_m, ta_buf);
+	flush_batch_buffer(ch, ta, tei, count, rollback, ta_buf_m, ta_buf);
 
 	return (error);
 }
@@ -585,9 +584,14 @@ del_table_entry(struct ip_fw_chain *ch, struct tid_info *ti,
 	/*
 	 * Find and reference existing table.
 	 */
-	error = find_ref_table(ch, ti, tei, count, OP_DEL, &tc, &ta);
-	if (error != 0)
+	IPFW_UH_WLOCK(ch);
+	error = find_ref_table(ch, ti, tei, count, OP_DEL, &tc);
+	if (error != 0) {
+		IPFW_UH_WUNLOCK(ch);
 		return (error);
+	}
+	ta = tc->ta;
+	IPFW_UH_WUNLOCK(ch);
 
 	/* Allocate memory and prepare record(s) */
 	/* Pass stack buffer by default */
@@ -623,7 +627,7 @@ del_table_entry(struct ip_fw_chain *ch, struct tid_info *ti,
 		error = ta->del(tc->astate, KIDX_TO_TI(ch, kidx), ptei, v,
 		    &num);
 		/* Save state for userland */
-		store_tei_result(ptei, 0, error, num);
+		store_tei_result(ptei, OP_DEL, error, num);
 		if (error != 0 && first_error == 0)
 			first_error = error;
 		tc->count -= num;
@@ -642,7 +646,7 @@ del_table_entry(struct ip_fw_chain *ch, struct tid_info *ti,
 	error = first_error;
 
 cleanup:
-	flush_batch_buffer(ch, ta, tei, count, 0, 0, ta_buf_m, ta_buf);
+	flush_batch_buffer(ch, ta, tei, count, 0, ta_buf_m, ta_buf);
 
 	return (error);
 }
@@ -1712,7 +1716,7 @@ ipfw_create_table(struct ip_fw_chain *ch, ip_fw3_opheader *op3,
 	}
 	IPFW_UH_RUNLOCK(ch);
 
-	return (create_table_internal(ch, &ti, aname, i, NULL, NULL, NULL, 0));
+	return (create_table_internal(ch, &ti, aname, i, NULL, 0));
 }
 
 /*
@@ -1720,16 +1724,14 @@ ipfw_create_table(struct ip_fw_chain *ch, ip_fw3_opheader *op3,
  *
  * Relies on table name checking inside find_name_tlv()
  * Assume @aname to be checked and valid.
- * Stores allocated table config, used algo and kidx
- * inside @ptc, @pta and @pkidx (if non-NULL).
+ * Stores allocated table kidx inside @pkidx (if non-NULL).
  * Reference created table if @compat is non-zero.
  *
  * Returns 0 on success.
  */
 static int
 create_table_internal(struct ip_fw_chain *ch, struct tid_info *ti,
-    char *aname, ipfw_xtable_info *i, struct table_config **ptc,
-    struct table_algo **pta, uint16_t *pkidx, int compat)
+    char *aname, ipfw_xtable_info *i, uint16_t *pkidx, int compat)
 {
 	struct namedobj_instance *ni;
 	struct table_config *tc, *tc_new, *tmp;
@@ -1793,10 +1795,6 @@ create_table_internal(struct ip_fw_chain *ch, struct tid_info *ti,
 
 	if (compat != 0)
 		tc->no.refcnt++;
-	if (ptc != NULL)
-		*ptc = tc;
-	if (pta != NULL)
-		*pta = ta;
 	if (pkidx != NULL)
 		*pkidx = tc->no.kidx;
 
@@ -3230,7 +3228,7 @@ find_ref_rule_tables(struct ip_fw_chain *ch, struct ip_fw *rule,
 		ti->type = p->type;
 		ti->atype = 0;
 
-		error = create_table_compat(ch, ti, NULL, NULL, &kidx);
+		error = create_table_compat(ch, ti, &kidx);
 		if (error == 0) {
 			p->kidx = kidx;
 			continue;
