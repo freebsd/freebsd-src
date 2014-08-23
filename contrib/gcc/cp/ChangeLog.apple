@@ -1,0 +1,31 @@
+2006-02-15   Fariborz Jahanian <fjahanian@apple.com>
+
+        Radar 4445586
+	* semantics.c (begin_do_stmt): DO_STMT nodes take an
+	extra argument to build.
+
+ # APPLE LOCAL begin for-fsf-4_4 3274130 5295549
+2007-08-03  Geoffrey Keating  <geoffk@apple.com>
+
+	Radar 5295549
+	* parser.c (cp_parser_iteration_statement): Handle attributes.
+	* semantics.c (begin_for_stmt): Put attributes in built tree.
+	(begin_while_stmt): Put attributes in built tree.
+	(begin_do_stmt): Put attributes in built tree.
+	* pt.c (tsubst_expr): Handle attributes for FOR_STMT, WHILE_STMT,
+	DO_STMT.
+	* cp-gimplify.c (gimplify_cp_loop): Handle attributes.
+	(gimplify_for_stmt): Pass attributes to gimplify_cp_loop.
+	(gimplify_while_stmt): Pass attributes to gimplify_cp_loop.
+	(gimplify_do_stmt): Pass attributes to gimplify_cp_loop.
+	* dump.c (cp_dump_tree): Dump attributes for FOR_STMT, WHILE_STMT,
+	DO_STMT.
+	* cp-tree.h (begin_while_stmt): Update prototype.
+	(begin_do_stmt): Likewise.
+	(begin_for_stmt): Likewise.
+	* cp-tree.def (FOR_STMT): Add extra parameter.
+	(WHILE_STMT): Likewise.
+	(DO_STMT): Likewise.
+	* init.c (build_vec_init): Update for change to begin_for_stmt.
+
+ # APPLE LOCAL end for-fsf-4_4 3274130 5295549

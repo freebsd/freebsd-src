@@ -423,8 +423,13 @@ _cpp_handle_directive (cpp_reader *pfile, int indented)
 	 does not cause '#define foo bar' to get executed when
 	 compiled with -save-temps, we recognize directives in
 	 -fpreprocessed mode only if the # is in column 1.  macro.c
-	 puts a space in front of any '#' at the start of a macro.  */
+	 puts a space in front of any '#' at the start of a macro.
+	 
+	 We exclude the -fdirectives-only case because macro expansion
+	 has not been performed yet, and block comments can cause spaces
+	 to preceed the directive.  */
       if (CPP_OPTION (pfile, preprocessed)
+	  && !CPP_OPTION (pfile, directives_only)
 	  && (indented || !(dir->flags & IN_I)))
 	{
 	  skip = 0;
@@ -986,7 +991,11 @@ do_diagnostic (cpp_reader *pfile, int code, int print_dir)
       if (print_dir)
 	fprintf (stderr, "#%s ", pfile->directive->name);
       pfile->state.prevent_expansion++;
+      /* APPLE LOCAL #error with unmatched quotes 5607574 */
+      pfile->state.in_diagnostic++;
       cpp_output_line (pfile, stderr);
+      /* APPLE LOCAL #error with unmatched quotes 5607574 */
+      pfile->state.in_diagnostic--;
       pfile->state.prevent_expansion--;
     }
 }
@@ -1168,12 +1177,25 @@ cpp_register_deferred_pragma (cpp_reader *pfile, const char *space,
     }
 }  
 
+/* APPLE LOCAL begin pragma mark 5614511 */
+/* Handle #pragma mark.  */
+static void
+do_pragma_mark (cpp_reader *pfile)
+{
+  ++pfile->state.skipping;
+  skip_rest_of_line (pfile);
+  --pfile->state.skipping;
+}
+/* APPLE LOCAL end pragma mark 5614511 */
+
 /* Register the pragmas the preprocessor itself handles.  */
 void
 _cpp_init_internal_pragmas (cpp_reader *pfile)
 {
   /* Pragmas in the global namespace.  */
   register_pragma_internal (pfile, 0, "once", do_pragma_once);
+  /* APPLE LOCAL pragma mark 5614511 */
+  register_pragma_internal (pfile, 0, "mark", do_pragma_mark);
 
   /* New GCC-specific pragmas should be put in the GCC namespace.  */
   register_pragma_internal (pfile, "GCC", "poison", do_pragma_poison);

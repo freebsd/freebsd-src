@@ -136,9 +136,19 @@ label_rtx (tree label)
   if (!DECL_RTL_SET_P (label))
     {
       rtx r = gen_label_rtx ();
+/* APPLE LOCAL begin for-fsf-4_4 3274130 5295549 */ \
+      unsigned align = DECL_ALIGN_UNIT (label);
+      int align_log2 = exact_log2 (align);
+      
+/* APPLE LOCAL end for-fsf-4_4 3274130 5295549 */ \
       SET_DECL_RTL (label, r);
       if (FORCED_LABEL (label) || DECL_NONLOCAL (label))
 	LABEL_PRESERVE_P (r) = 1;
+/* APPLE LOCAL begin for-fsf-4_4 3274130 5295549 */ \
+
+      if (align_log2 >= 0 && align_log2 <= 0xFF)
+	SET_LABEL_ALIGN (r, align_log2, align - 1);
+/* APPLE LOCAL end for-fsf-4_4 3274130 5295549 */ \
     }
 
   return DECL_RTL (label);
@@ -194,11 +204,12 @@ expand_computed_goto (tree exp)
 /* Specify the location in the RTL code of a label LABEL,
    which is a LABEL_DECL tree node.
 
-   This is used for the kind of label that the user can jump to with a
-   goto statement, and for alternatives of a switch or case statement.
-   RTL labels generated for loops and conditionals don't go through here;
-   they are generated directly at the RTL level, by other functions below.
+   APPLE LOCAL begin for-fsf-4_4 3274130 5295549
+   This is used for those labels created by the front-end that survive
+   through CFG generation, including all user labels.  (Some labels
+   are removed by cleanup_dead_labels in tree-cfg.c.)
 
+   APPLE LOCAL end for-fsf-4_4 3274130 5295549
    Note that this has nothing to do with defining label *names*.
    Languages vary in how they do that and what that even means.  */
 

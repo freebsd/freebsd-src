@@ -257,6 +257,10 @@ struct c_declspecs {
   BOOL_BITFIELD explicit_signed_p : 1;
   /* Whether the specifiers include a deprecated typedef.  */
   BOOL_BITFIELD deprecated_p : 1;
+  /* APPLE LOCAL begin "unavailable" attribute (radar 2809697) */
+  /* Whether the specifiers include a unavailable typedef.  */
+  BOOL_BITFIELD unavailable_p : 1;
+  /* APPLE LOCAL end "unavailable" attribute (radar 2809697) */
   /* Whether the type defaulted to "int" because there were no type
      specifiers.  */
   BOOL_BITFIELD default_int_p;
@@ -573,7 +577,10 @@ extern int c_types_compatible_p (tree, tree);
 extern tree c_begin_compound_stmt (bool);
 extern tree c_end_compound_stmt (tree, bool);
 extern void c_finish_if_stmt (location_t, tree, tree, tree, bool);
-extern void c_finish_loop (location_t, tree, tree, tree, tree, tree, bool);
+/* APPLE LOCAL begin for-fsf-4_4 3274130 5295549 */ \
+extern void c_finish_loop (location_t, tree, tree, tree, tree, tree, tree,
+			   bool);
+/* APPLE LOCAL end for-fsf-4_4 3274130 5295549 */ \
 extern tree c_begin_stmt_expr (void);
 extern tree c_finish_stmt_expr (tree);
 extern tree c_process_expr_stmt (tree);

@@ -59,6 +59,11 @@ bool extra_warnings;
 bool warn_larger_than;
 HOST_WIDE_INT larger_than_size;
 
+/* True to warn about any function whose frame size is larger
+ * than N bytes. */
+bool warn_frame_larger_than;
+HOST_WIDE_INT frame_larger_than_size;
+
 /* Nonzero means warn about constructs which might not be
    strict-aliasing safe.  */
 int warn_strict_aliasing;
@@ -358,6 +363,15 @@ static bool flag_unroll_loops_set, flag_tracer_set;
 static bool flag_value_profile_transformations_set;
 static bool flag_peel_loops_set, flag_branch_probabilities_set;
 
+/* Functions excluded from profiling.  */
+
+typedef char *char_p; /* For DEF_VEC_P.  */
+DEF_VEC_P(char_p);
+DEF_VEC_ALLOC_P(char_p,heap);
+
+static VEC(char_p,heap) *flag_instrument_functions_exclude_functions;
+static VEC(char_p,heap) *flag_instrument_functions_exclude_files;
+
 /* Input file names.  */
 const char **in_fnames;
 unsigned num_in_fnames;
@@ -602,6 +616,87 @@ add_input_filename (const char *filename)
   num_in_fnames++;
   in_fnames = xrealloc (in_fnames, num_in_fnames * sizeof (in_fnames[0]));
   in_fnames[num_in_fnames - 1] = filename;
+}
+
+/* Add functions or file names to a vector of names to exclude from
+   instrumentation.  */
+
+static void
+add_instrument_functions_exclude_list (VEC(char_p,heap) **pvec,
+				       const char* arg)
+{
+  char *tmp;
+  char *r;
+  char *w;
+  char *token_start;
+
+  /* We never free this string.  */
+  tmp = xstrdup (arg);
+
+  r = tmp;
+  w = tmp;
+  token_start = tmp;
+
+  while (*r != '\0')
+    {
+      if (*r == ',')
+	{
+	  *w++ = '\0';
+	  ++r;
+	  VEC_safe_push (char_p, heap, *pvec, token_start);
+	  token_start = w;
+	}
+      if (*r == '\\' && r[1] == ',')
+	{
+	  *w++ = ',';
+	  r += 2;
+	}
+      else
+	*w++ = *r++;
+    }
+  if (*token_start != '\0')
+    VEC_safe_push (char_p, heap, *pvec, token_start);
+}
+
+/* Return whether we should exclude FNDECL from instrumentation.  */
+
+bool
+flag_instrument_functions_exclude_p (tree fndecl)
+{
+  if (VEC_length (char_p, flag_instrument_functions_exclude_functions) > 0)
+    {
+      const char *name;
+      int i;
+      char *s;
+
+      name = lang_hooks.decl_printable_name (fndecl, 0);
+      for (i = 0;
+	   VEC_iterate (char_p, flag_instrument_functions_exclude_functions,
+			i, s);
+	   ++i)
+	{
+	  if (strstr (name, s) != NULL)
+	    return true;
+	}
+    }
+
+  if (VEC_length (char_p, flag_instrument_functions_exclude_files) > 0)
+    {
+      const char *name;
+      int i;
+      char *s;
+
+      name = DECL_SOURCE_FILE (fndecl);
+      for (i = 0;
+	   VEC_iterate (char_p, flag_instrument_functions_exclude_files, i, s);
+	   ++i)
+	{
+	  if (strstr (name, s) != NULL)
+	    return true;
+	}
+    }
+
+  return false;
 }
 
 /* Decode and handle the vector of command line options.  LANG_MASK
@@ -979,7 +1074,15 @@ common_handle_option (size_t scode, const char *arg, int value,
       warn_larger_than = value != -1;
       break;
 
+    case OPT_Wframe_larger_than_:
+      frame_larger_than_size = value;
+      warn_frame_larger_than = value != -1;
+      break;
+
     case OPT_Wstrict_aliasing:
+      set_warn_strict_aliasing (value);
+      break;
+
     case OPT_Wstrict_aliasing_:
       warn_strict_aliasing = value;
       break;
@@ -1084,6 +1187,16 @@ common_handle_option (size_t scode, const char *arg, int value,
     case OPT_finline_limit_eq:
       set_param_value ("max-inline-insns-single", value / 2);
       set_param_value ("max-inline-insns-auto", value / 2);
+      break;
+
+    case OPT_finstrument_functions_exclude_function_list_:
+      add_instrument_functions_exclude_list
+	(&flag_instrument_functions_exclude_functions, arg);
+      break;
+
+    case OPT_finstrument_functions_exclude_file_list_:
+      add_instrument_functions_exclude_list
+	(&flag_instrument_functions_exclude_files, arg);
       break;
 
     case OPT_fmessage_length_:
@@ -1346,6 +1459,20 @@ set_Wunused (int setting)
   warn_unused_parameter = (setting && extra_warnings);
   warn_unused_variable = setting;
   warn_unused_value = setting;
+}
+
+/* Used to set the level of strict aliasing warnings, 
+   when no level is specified (i.e., when -Wstrict-aliasing, and not
+   -Wstrict-aliasing=level was given).
+   ONOFF is assumed to take value 1 when -Wstrict-aliasing is specified,
+   and 0 otherwise.  After calling this function, wstrict_aliasing will be
+   set to the default value of -Wstrict_aliasing=level, currently 3.  */
+void
+set_warn_strict_aliasing (int onoff)
+{
+  gcc_assert (onoff == 0 || onoff == 1);
+  if (onoff != 0)
+    warn_strict_aliasing = 3;
 }
 
 /* The following routines are useful in setting all the flags that

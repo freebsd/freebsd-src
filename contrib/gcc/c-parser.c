@@ -3940,16 +3940,25 @@ c_parser_switch_statement (c_parser *parser)
 /* Parse a while statement (C90 6.6.5, C99 6.8.5).
 
    while-statement:
-      while (expression) statement
+   APPLE LOCAL begin for-fsf-4_4 3274130 5295549
+      while attributes (expression) statement
+
+   The use of attributes is a GNU extension.
+   APPLE LOCAL end for-fsf-4_4 3274130 5295549
 */
 
 static void
 c_parser_while_statement (c_parser *parser)
 {
-  tree block, cond, body, save_break, save_cont;
+/* APPLE LOCAL begin for-fsf-4_4 3274130 5295549 */ \
+  tree block, cond, body, save_break, save_cont, attrs;
+/* APPLE LOCAL end for-fsf-4_4 3274130 5295549 */ \
   location_t loc;
   gcc_assert (c_parser_next_token_is_keyword (parser, RID_WHILE));
   c_parser_consume_token (parser);
+/* APPLE LOCAL begin for-fsf-4_4 3274130 5295549 */ \
+  attrs = c_parser_attributes (parser);
+/* APPLE LOCAL end for-fsf-4_4 3274130 5295549 */ \
   block = c_begin_compound_stmt (flag_isoc99);
   loc = c_parser_peek_token (parser)->location;
   cond = c_parser_paren_condition (parser);
@@ -3958,7 +3967,10 @@ c_parser_while_statement (c_parser *parser)
   save_cont = c_cont_label;
   c_cont_label = NULL_TREE;
   body = c_parser_c99_block_statement (parser);
-  c_finish_loop (loc, cond, NULL, body, c_break_label, c_cont_label, true);
+/* APPLE LOCAL begin for-fsf-4_4 3274130 5295549 */ \
+  c_finish_loop (loc, cond, NULL, body, c_break_label, c_cont_label, attrs,
+		 true);
+/* APPLE LOCAL end for-fsf-4_4 3274130 5295549 */ \
   add_stmt (c_end_compound_stmt (block, flag_isoc99));
   c_break_label = save_break;
   c_cont_label = save_cont;
@@ -3967,16 +3979,25 @@ c_parser_while_statement (c_parser *parser)
 /* Parse a do statement (C90 6.6.5, C99 6.8.5).
 
    do-statement:
-     do statement while ( expression ) ;
+   APPLE LOCAL begin for-fsf-4_4 3274130 5295549
+     do attributes statement while ( expression ) ;
+
+   The use of attributes is a GNU extension.
+   APPLE LOCAL end for-fsf-4_4 3274130 5295549
 */
 
 static void
 c_parser_do_statement (c_parser *parser)
 {
-  tree block, cond, body, save_break, save_cont, new_break, new_cont;
+/* APPLE LOCAL begin for-fsf-4_4 3274130 5295549 */ \
+  tree block, cond, body, save_break, save_cont, new_break, new_cont, attrs;
+/* APPLE LOCAL end for-fsf-4_4 3274130 5295549 */ \
   location_t loc;
   gcc_assert (c_parser_next_token_is_keyword (parser, RID_DO));
   c_parser_consume_token (parser);
+/* APPLE LOCAL begin for-fsf-4_4 3274130 5295549 */ \
+  attrs = c_parser_attributes (parser);
+/* APPLE LOCAL end for-fsf-4_4 3274130 5295549 */ \
   block = c_begin_compound_stmt (flag_isoc99);
   loc = c_parser_peek_token (parser)->location;
   save_break = c_break_label;
@@ -3992,18 +4013,26 @@ c_parser_do_statement (c_parser *parser)
   cond = c_parser_paren_condition (parser);
   if (!c_parser_require (parser, CPP_SEMICOLON, "expected %<;%>"))
     c_parser_skip_to_end_of_block_or_statement (parser);
-  c_finish_loop (loc, cond, NULL, body, new_break, new_cont, false);
+/* APPLE LOCAL begin for-fsf-4_4 3274130 5295549 */ \
+  c_finish_loop (loc, cond, NULL, body, new_break, new_cont, attrs, false);
+/* APPLE LOCAL end for-fsf-4_4 3274130 5295549 */ \
   add_stmt (c_end_compound_stmt (block, flag_isoc99));
 }
 
 /* Parse a for statement (C90 6.6.5, C99 6.8.5).
 
    for-statement:
-     for ( expression[opt] ; expression[opt] ; expression[opt] ) statement
-     for ( nested-declaration expression[opt] ; expression[opt] ) statement
+   APPLE LOCAL begin for-fsf-4_4 3274130 5295549
+     for attributes ( expression[opt] ; expression[opt] ; expression[opt] ) \
+         statement
+     for attributes ( nested-declaration expression[opt] ; expression[opt] ) \
+         statement
 
    The form with a declaration is new in C99.
 
+   The use of attributes is a GNU extension.
+
+   APPLE LOCAL end for-fsf-4_4 3274130 5295549
    ??? In accordance with the old parser, the declaration may be a
    nested function, which is then rejected in check_for_loop_decls,
    but does it make any sense for this to be included in the grammar?
@@ -4015,11 +4044,16 @@ c_parser_do_statement (c_parser *parser)
 static void
 c_parser_for_statement (c_parser *parser)
 {
-  tree block, cond, incr, save_break, save_cont, body;
+/* APPLE LOCAL begin for-fsf-4_4 3274130 5295549 */ \
+  tree block, cond, incr, save_break, save_cont, body, attrs;
+/* APPLE LOCAL end for-fsf-4_4 3274130 5295549 */ \
   location_t loc;
   gcc_assert (c_parser_next_token_is_keyword (parser, RID_FOR));
   loc = c_parser_peek_token (parser)->location;
   c_parser_consume_token (parser);
+/* APPLE LOCAL begin for-fsf-4_4 3274130 5295549 */ \
+  attrs = c_parser_attributes (parser);
+/* APPLE LOCAL end for-fsf-4_4 3274130 5295549 */ \
   block = c_begin_compound_stmt (flag_isoc99);
   if (c_parser_require (parser, CPP_OPEN_PAREN, "expected %<(%>"))
     {
@@ -4094,7 +4128,10 @@ c_parser_for_statement (c_parser *parser)
   save_cont = c_cont_label;
   c_cont_label = NULL_TREE;
   body = c_parser_c99_block_statement (parser);
-  c_finish_loop (loc, cond, incr, body, c_break_label, c_cont_label, true);
+/* APPLE LOCAL begin for-fsf-4_4 3274130 5295549 */ \
+    c_finish_loop (loc, cond, incr, body, c_break_label, c_cont_label, attrs,
+		   true);
+/* APPLE LOCAL end for-fsf-4_4 3274130 5295549 */ \
   add_stmt (c_end_compound_stmt (block, flag_isoc99));
   c_break_label = save_break;
   c_cont_label = save_cont;

@@ -369,10 +369,6 @@ int align_labels_log;
 int align_labels_max_skip;
 int align_functions_log;
 
-/* Like align_functions_log above, but used by front-ends to force the
-   minimum function alignment.  Zero means no alignment is forced.  */
-int force_align_functions_log;
-
 typedef struct
 {
   const char *const string;
@@ -949,6 +945,46 @@ warn_deprecated_use (tree node)
 	}
     }
 }
+
+/* APPLE LOCAL begin "unavailable" attribute (radar 2809697) --ilr */
+/* Warn about a use of an identifier which was marked deprecated.  */
+void
+error_unavailable_use (tree node)
+{
+  if (node == 0)
+    return;
+
+  if (DECL_P (node))
+    error ("%qs is unavailable (declared at %s:%d)",
+	   IDENTIFIER_POINTER (DECL_NAME (node)),
+	   DECL_SOURCE_FILE (node), DECL_SOURCE_LINE (node));
+  else if (TYPE_P (node))
+    {
+      const char *what = NULL;
+      tree decl = TYPE_STUB_DECL (node);
+
+      if (TREE_CODE (TYPE_NAME (node)) == IDENTIFIER_NODE)
+	what = IDENTIFIER_POINTER (TYPE_NAME (node));
+      else if (TREE_CODE (TYPE_NAME (node)) == TYPE_DECL
+	       && DECL_NAME (TYPE_NAME (node)))
+	what = IDENTIFIER_POINTER (DECL_NAME (TYPE_NAME (node)));
+
+      if (what)
+	{
+	  if (decl)
+	    error ("%qs is unavailable (declared at %s:%d)", what,
+		   DECL_SOURCE_FILE (decl), DECL_SOURCE_LINE (decl));
+	  else
+	    error ("%qs is unavailable", what);
+	}
+      else if (decl)
+	error ("type is unavailable (declared at %s:%d)",
+	       DECL_SOURCE_FILE (decl), DECL_SOURCE_LINE (decl));
+      else
+	error ("type is unavailable");
+    }
+}
+/* APPLE LOCAL end "unavailable" attribute (radar 2809697) --ilr */
 
 /* Save the current INPUT_LOCATION on the top entry in the
    INPUT_FILE_STACK.  Push a new entry for FILE and LINE, and set the

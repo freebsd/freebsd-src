@@ -903,7 +903,7 @@ _GLIBCXX_BEGIN_NAMESPACE(std)
       const size_type __len = std::min(__n, __osize);
       int __r = traits_type::compare(_M_data() + __pos, __str.data(), __len);
       if (!__r)
-	__r = __n - __osize;
+	__r = _S_compare(__n, __osize);
       return __r;
     }
 
@@ -921,7 +921,7 @@ _GLIBCXX_BEGIN_NAMESPACE(std)
       int __r = traits_type::compare(_M_data() + __pos1,
 				     __str.data() + __pos2, __len);
       if (!__r)
-	__r = __n1 - __n2;
+	__r = _S_compare(__n1, __n2);
       return __r;
     }
 
@@ -936,7 +936,7 @@ _GLIBCXX_BEGIN_NAMESPACE(std)
       const size_type __len = std::min(__size, __osize);
       int __r = traits_type::compare(_M_data(), __s, __len);
       if (!__r)
-	__r = __size - __osize;
+	__r = _S_compare(__size, __osize);
       return __r;
     }
 
@@ -952,7 +952,7 @@ _GLIBCXX_BEGIN_NAMESPACE(std)
       const size_type __len = std::min(__n1, __osize);
       int __r = traits_type::compare(_M_data() + __pos, __s, __len);
       if (!__r)
-	__r = __n1 - __osize;
+	__r = _S_compare(__n1, __osize);
       return __r;
     }
 
@@ -968,7 +968,7 @@ _GLIBCXX_BEGIN_NAMESPACE(std)
       const size_type __len = std::min(__n1, __n2);
       int __r = traits_type::compare(_M_data() + __pos, __s, __len);
       if (!__r)
-	__r = __n1 - __n2;
+	__r = _S_compare(__n1, __n2);
       return __r;
     }
 

@@ -2563,7 +2563,9 @@ build_vec_init (tree base, tree maxindex, tree init,
       tree elt_init;
       tree to;
 
-      for_stmt = begin_for_stmt ();
+/* APPLE LOCAL begin for-fsf-4_4 3274130 5295549 */ \
+      for_stmt = begin_for_stmt (NULL_TREE);
+/* APPLE LOCAL end for-fsf-4_4 3274130 5295549 */ \
       finish_for_init_stmt (for_stmt);
       finish_for_cond (build2 (NE_EXPR, boolean_type_node, iterator,
 			       build_int_cst (TREE_TYPE (iterator), -1)),

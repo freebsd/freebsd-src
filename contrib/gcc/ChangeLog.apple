@@ -1,0 +1,51 @@
+006-02-15   Fariborz Jahanian <fjahanian@apple.com>
+
+	Radar 4445586
+	* c-common.def (DO_STMT): Takes an extra argument.
+
+/* APPLE LOCAL merge marger */
+/* Stuff under is in fsf mainline, but not in the 4.2 branch */
+
+2007-08-02  Geoffrey Keating  <geoffk@apple.com>
+
+	Radar 3274130, 5295549
+	* c-parser.c (c_parser_while_statement): Handle attributes.
+	(c_parser_do_statement): Handle attributes.
+	(c_parser_for_statement): Handle attributes.
+	* c-common.c (handle_unused_attribute): Warn if a statement
+	is marked as unused.
+	* c-tree.h (c_finish_loop): Add extra parameter.
+	* c-typeck.c (c_finish_loop): Handle attributes.
+	* doc/extend.texi (Attribute Syntax): Document statement attributes.
+	(Label Attributes): Explain how they apply to statements.
+	* tree-cfg.c (cleanup_dead_labels): Preserve labels with
+	user-specified alignment or attributes.
+	* stmt.c (expand_label): Update and correct documentation.
+
+	* c-common.c (handle_aligned_attribute): Handle LABEL_DECL.
+	* rtl.def (CODE_LABEL): Add 8th operand.
+	* rtl.h (LABEL_ALIGN_LOG): New.
+	(LABEL_MAX_SKIP): New.
+	(SET_LABEL_ALIGN): New.
+	* emit-rtl.c (gen_label_rtx): Adjust.
+	* print-rtl.c (print_rtx): Print LABEL_ALIGN_LOG.
+	* stmt.c (label_rtx): Set CODE_LABEL's alignment from DECL_ALIGN.
+	(expand_label): Update documentation.
+	* final.c (struct label_alignment): Delete.
+	(label_align): Delete.
+	(min_labelno): Delete.
+	(max_labelno): Delete.
+	(LABEL_TO_ALIGNMENT): Delete.
+	(LABEL_TO_MAX_SKIP): Delete.
+	(label_to_alignment): Adjust for LABEL_ALIGN_LOG.
+	(align_fuzz): Likewise.
+	(compute_alignments): Likewise.
+	(shorten_branches): Remove code to set up label_align.
+	Adjust for LABEL_ALIGN_LOG.
+	(final_scan_insn): Adjust for LABEL_ALIGN_LOG.
+	* doc/extend.texi (C Extensions): Add 'Label Attributes' to menu.
+	(Attribute Syntax): Move label content to Label Attributes.
+	(Function Attributes): Mention label attributes.
+	(Variable Attributes): Mention label attributes.
+	(Type Attributes): Mention label attributes.
+	(Label Attributes): New.

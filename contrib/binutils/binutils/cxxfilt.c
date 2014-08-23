@@ -44,12 +44,12 @@ demangle_it (char *mangled_name)
   /* For command line args, also try to demangle type encodings.  */
   result = cplus_demangle (mangled_name, flags | DMGL_TYPES);
   if (result == NULL)
-    {
-      printf ("%s\n", mangled_name);
-    }
+    printf ("%s",mangled_name);
   else
     {
-      printf ("%s\n", result);
+      if (mangled_name[0] == '.')
+	putchar ('.');
+      printf ("%s",result);
       free (result);
     }
 }

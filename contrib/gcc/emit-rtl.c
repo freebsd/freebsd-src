@@ -2062,7 +2062,9 @@ rtx
 gen_label_rtx (void)
 {
   return gen_rtx_CODE_LABEL (VOIDmode, 0, NULL_RTX, NULL_RTX,
-			     NULL, label_num++, NULL);
+/* APPLE LOCAL begin for-fsf-4_4 3274130 5295549 */ \
+			     NULL, label_num++, NULL, 0);
+/* APPLE LOCAL end for-fsf-4_4 3274130 5295549 */ \
 }
 
 /* For procedure integration.  */

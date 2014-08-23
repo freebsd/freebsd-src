@@ -87,16 +87,19 @@ interpret_float_suffix (const uchar *s, size_t len)
   while (len--)
     switch (s[len])
       {
-      case 'f': case 'F': f++; break;
-      case 'l': case 'L': l++; break;
+      case 'f': case 'F':
+	if (d > 0)
+	  return 0;
+	f++;
+	break;
+      case 'l': case 'L':
+	if (d > 0)
+	  return 0;
+	l++;
+	break;
       case 'i': case 'I':
       case 'j': case 'J': i++; break;
-      case 'd': case 'D': 
-	/* Disallow fd, ld suffixes.  */
-	if (d && (f || l))
-	  return 0;
-	d++;
-	break;
+      case 'd': case 'D': d++; break;
       default:
 	return 0;
       }
@@ -494,7 +497,7 @@ append_digit (cpp_num num, int digit, int base, size_t precision)
   if (add_low + digit < add_low)
     add_high++;
   add_low += digit;
-    
+
   if (result.low + add_low < result.low)
     add_high++;
   if (result.high + add_high < result.high)
@@ -1580,7 +1583,8 @@ num_div_op (cpp_reader *pfile, cpp_num lhs, cpp_num rhs, enum cpp_ttype op)
 	{
 	  if (negate)
 	    result = num_negate (result, precision);
-	  result.overflow = num_positive (result, precision) ^ !negate;
+	  result.overflow = (num_positive (result, precision) ^ !negate
+			     && !num_zerop (result));
 	}
 
       return result;

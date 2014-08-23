@@ -1849,6 +1849,11 @@ build_component_ref (tree datum, tree component)
 	  if (TREE_DEPRECATED (subdatum))
 	    warn_deprecated_use (subdatum);
 
+	  /* APPLE LOCAL begin "unavailable" attribute (radar 2809697) */
+	  if (TREE_UNAVAILABLE (subdatum))
+	    error_unavailable_use (subdatum);
+	  /* APPLE LOCAL end "unavailable" attribute (radar 2809697) */
+
 	  datum = ref;
 
 	  field = TREE_CHAIN (field);
@@ -1876,6 +1881,19 @@ build_indirect_ref (tree ptr, const char *errorstring)
 
   if (TREE_CODE (type) == POINTER_TYPE)
     {
+      if (TREE_CODE (pointer) == CONVERT_EXPR
+          || TREE_CODE (pointer) == NOP_EXPR
+          || TREE_CODE (pointer) == VIEW_CONVERT_EXPR)
+	{
+	  /* If a warning is issued, mark it to avoid duplicates from
+	     the backend.  This only needs to be done at
+	     warn_strict_aliasing > 2.  */
+	  if (warn_strict_aliasing > 2)
+	    if (strict_aliasing_warning (TREE_TYPE (TREE_OPERAND (pointer, 0)),
+					 type, TREE_OPERAND (pointer, 0)))
+	      TREE_NO_WARNING (pointer) = 1;
+	}
+
       if (TREE_CODE (pointer) == ADDR_EXPR
 	  && (TREE_TYPE (TREE_OPERAND (pointer, 0))
 	      == TREE_TYPE (type)))
@@ -1910,7 +1928,7 @@ build_indirect_ref (tree ptr, const char *errorstring)
 	}
     }
   else if (TREE_CODE (pointer) != ERROR_MARK)
-    error ("invalid type argument of %qs", errorstring);
+    error ("invalid type argument of %qs (have %qT)", errorstring, type);
   return error_mark_node;
 }
 
@@ -2076,6 +2094,11 @@ build_external_ref (tree id, int fun, location_t loc)
 
   if (TREE_DEPRECATED (ref))
     warn_deprecated_use (ref);
+
+  /* APPLE LOCAL begin "unavailable" attribute (radar 2809697) */
+  if (TREE_UNAVAILABLE (ref))
+    error_unavailable_use (ref);
+  /* APPLE LOCAL end "unavailable" attribute (radar 2809697) */
 
   if (!skip_evaluation)
     assemble_external (ref);
@@ -2603,7 +2626,10 @@ parser_build_unary_op (enum tree_code code, struct c_expr arg)
 
   result.original_code = ERROR_MARK;
   result.value = build_unary_op (code, arg.value, 0);
-  overflow_warning (result.value);
+  
+  if (TREE_OVERFLOW_P (result.value) && !TREE_OVERFLOW_P (arg.value))
+    overflow_warning (result.value);
+
   return result;
 }
 
@@ -2647,7 +2673,10 @@ parser_build_binary_op (enum tree_code code, struct c_expr arg1,
     warning (OPT_Waddress, 
              "comparison with string literal results in unspecified behaviour");
 
-  overflow_warning (result.value);
+  if (TREE_OVERFLOW_P (result.value) 
+      && !TREE_OVERFLOW_P (arg1.value) 
+      && !TREE_OVERFLOW_P (arg2.value))
+    overflow_warning (result.value);
 
   return result;
 }
@@ -3562,7 +3591,8 @@ build_c_cast (tree type, tree expr)
 	warning (OPT_Wint_to_pointer_cast, "cast to pointer from integer "
 		 "of different size");
 
-      strict_aliasing_warning (otype, type, expr);
+      if (warn_strict_aliasing <= 2)
+        strict_aliasing_warning (otype, type, expr);
 
       /* If pedantic, warn for conversions between function and object
 	 pointer types, except for converting a null pointer constant
@@ -3833,10 +3863,7 @@ convert_for_assignment (tree type, tree rhs, enum impl_conv errtype,
     }
 
   if (TYPE_MAIN_VARIANT (type) == TYPE_MAIN_VARIANT (rhstype))
-    {
-      overflow_warning (rhs);
-      return rhs;
-    }
+    return rhs;
 
   if (coder == VOID_TYPE)
     {
@@ -3876,7 +3903,7 @@ convert_for_assignment (tree type, tree rhs, enum impl_conv errtype,
     }
   /* Some types can interconvert without explicit casts.  */
   else if (codel == VECTOR_TYPE && coder == VECTOR_TYPE
-	   && vector_types_convertible_p (type, TREE_TYPE (rhs)))
+	   && vector_types_convertible_p (type, TREE_TYPE (rhs), true))
     return convert (type, rhs);
   /* Arithmetic types all interconvert, and enum is treated like int.  */
   else if ((codel == INTEGER_TYPE || codel == REAL_TYPE
@@ -4612,7 +4639,7 @@ digest_init (tree type, tree init, bool strict_string, int require_constant)
      below and handle as a constructor.  */
   if (code == VECTOR_TYPE
       && TREE_CODE (TREE_TYPE (inside_init)) == VECTOR_TYPE
-      && vector_types_convertible_p (TREE_TYPE (inside_init), type)
+      && vector_types_convertible_p (TREE_TYPE (inside_init), type, true)
       && TREE_CONSTANT (inside_init))
     {
       if (TREE_CODE (inside_init) == VECTOR_CST
@@ -7230,15 +7257,22 @@ c_finish_if_stmt (location_t if_locus, tree cond, tree then_block,
   add_stmt (stmt);
 }
 
-/* Emit a general-purpose loop construct.  START_LOCUS is the location of
-   the beginning of the loop.  COND is the loop condition.  COND_IS_FIRST
-   is false for DO loops.  INCR is the FOR increment expression.  BODY is
-   the statement controlled by the loop.  BLAB is the break label.  CLAB is
-   the continue label.  Everything is allowed to be NULL.  */
+/* APPLE LOCAL begin for-fsf-4_4 3274130 5295549 */ \
+/* Emit a general-purpose loop construct.  START_LOCUS is the location
+   of the beginning of the loop.  COND is the loop condition.
+   COND_IS_FIRST is false for DO loops.  INCR is the FOR increment
+   expression.  BODY is the statement controlled by the loop.  BLAB is
+   the break label.  CLAB is the continue label.  ATTRS is the
+   attributes associated with the loop, which at present are
+   associated with the topmost label.  Everything is allowed to be
+   NULL.  */
 
+/* APPLE LOCAL end for-fsf-4_4 3274130 5295549 */ \
 void
 c_finish_loop (location_t start_locus, tree cond, tree incr, tree body,
-	       tree blab, tree clab, bool cond_is_first)
+/* APPLE LOCAL begin for-fsf-4_4 3274130 5295549 */ \
+	       tree blab, tree clab, tree attrs, bool cond_is_first)
+/* APPLE LOCAL end for-fsf-4_4 3274130 5295549 */ \
 {
   tree entry = NULL, exit = NULL, t;
 
@@ -8118,7 +8152,7 @@ build_binary_op (enum tree_code code, tree orig_op0, tree orig_op1,
 	  || !same_scalar_type_ignoring_signedness (TREE_TYPE (type0),
 						    TREE_TYPE (type1))))
     {
-      binary_op_error (code);
+      binary_op_error (code, type0, type1);
       return error_mark_node;
     }
 
@@ -8414,7 +8448,7 @@ build_binary_op (enum tree_code code, tree orig_op0, tree orig_op1,
 
   if (!result_type)
     {
-      binary_op_error (code);
+      binary_op_error (code, TREE_TYPE (op0), TREE_TYPE (op1));
       return error_mark_node;
     }
 

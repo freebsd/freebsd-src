@@ -64,6 +64,8 @@
 #ifndef _TREE_H
 #define _TREE_H 1
 
+#pragma GCC system_header
+
 #include <bits/stl_algobase.h>
 #include <bits/allocator.h>
 #include <bits/stl_construct.h>
@@ -997,10 +999,12 @@ _GLIBCXX_BEGIN_NAMESPACE(std)
 	}
       iterator __j = iterator(__y);
       if (__comp)
-	if (__j == begin())
-	  return pair<iterator,bool>(_M_insert(__x, __y, __v), true);
-	else
-	  --__j;
+	{
+	  if (__j == begin())
+	    return pair<iterator,bool>(_M_insert(__x, __y, __v), true);
+	  else
+	    --__j;
+	}
       if (_M_impl._M_key_compare(_S_key(__j._M_node), _KeyOfValue()(__v)))
 	return pair<iterator, bool>(_M_insert(__x, __y, __v), true);
       return pair<iterator, bool>(__j, false);

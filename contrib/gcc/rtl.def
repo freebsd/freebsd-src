@@ -139,9 +139,13 @@ DEF_RTL_EXPR(BARRIER, "barrier", "iuu000000", RTX_EXTRA)
    4: is used in jump.c for the use-count of the label.
    5: is used in flow.c to point to the chain of label_ref's to this label.
    6: is a number that is unique in the entire compilation.
-   7: is the user-given name of the label, if any.  */
-DEF_RTL_EXPR(CODE_LABEL, "code_label", "iuuB00is", RTX_EXTRA)
+   APPLE LOCAL begin for-fsf-4_4 3274130 5295549
+   7: is the user-given name of the label, if any.
+   8: is the alignment of the label, made up of two parts,
+      LABEL_ALIGNMENT and LABEL_MAX_SKIP.  */
+DEF_RTL_EXPR(CODE_LABEL, "code_label", "iuuB00isi", RTX_EXTRA)
 
+/* APPLE LOCAL end for-fsf-4_4 3274130 5295549 */ \
 #ifdef USE_MAPPED_LOCATION
 /* Say where in the code a source line starts, for symbol table's sake.
    Operand:
