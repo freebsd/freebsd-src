@@ -16,6 +16,4 @@ WARNS?=	0
 DPADD=	${LIBLPR} ${LIBEDIT} ${LIBTERMCAPW}
 LDADD=	${LIBLPR} -ledit -ltermcapw
 
-NO_PIE=	yes
-
 .include <bsd.prog.mk>

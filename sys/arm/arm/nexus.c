@@ -362,4 +362,3 @@ nexus_ofw_map_intr(device_t dev, device_t child, phandle_t iparent, int icells,
 	return (interrupt);
 }
 #endif
- 

@@ -1278,8 +1278,8 @@ proc_reparent(struct proc *child, struct proc *parent)
 			LIST_INSERT_HEAD(&child->p_pptr->p_orphans, child,
 			    p_orphan);
 		} else {
-			LIST_INSERT_AFTER(child,
-			    LIST_FIRST(&child->p_pptr->p_orphans), p_orphan);
+			LIST_INSERT_AFTER(LIST_FIRST(&child->p_pptr->p_orphans),
+			    child, p_orphan);
 		}
 		child->p_treeflag |= P_TREE_ORPHANED;
 	}

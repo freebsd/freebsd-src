@@ -1173,6 +1173,7 @@ product ASIX AX88772B_1		0x7e2b	AX88772B USB 2.0 10/100 Ethernet
 
 /* ASUS products */
 product ASUS2 USBN11		0x0b05	USB-N11
+product ASUS RT2570		0x1706	RT2500USB Wireless Adapter
 product ASUS WL167G		0x1707	WL-167g Wireless Adapter
 product ASUS WL159G		0x170c	WL-159g
 product ASUS A9T_WIFI		0x171b	A9T wireless
@@ -1186,17 +1187,17 @@ product ASUS RT2870_3		0x1742	RT2870
 product ASUS RT2870_4		0x1760	RT2870
 product ASUS RT2870_5		0x1761	RT2870
 product	ASUS USBN13		0x1784	USB-N13
-product	ASUS RT3070_1		0x1790	RT3070
 product ASUS USBN10		0x1786	USB-N10
+product ASUS RT3070_1		0x1790	RT3070
+product ASUS RTL8192SU		0x1791  RTL8192SU
+product ASUS USB_N53		0x179d	ASUS Black Diamond Dual Band USB-N53
 product ASUS RTL8192CU		0x17ab	RTL8192CU
 product ASUS USBN66		0x17ad	USB-N66
 product ASUS USBN10NANO		0x17ba	USB-N10 Nano
-product ASUS RTL8192SU		0x1791  RTL8192SU
+product ASUS USBAC51		0x17d1	USB-AC51
 product ASUS A730W		0x4202	ASUS MyPal A730W
 product ASUS P535		0x420f	ASUS P535 PDA
-product	ASUS GMSC		0x422f	ASUS Generic Mass Storage
-product ASUS RT2570		0x1706	RT2500USB Wireless Adapter
-product ASUS USB_N53		0x179d	ASUS Black Diamond Dual Band USB-N53
+product ASUS GMSC		0x422f	ASUS Generic Mass Storage
 
 /* ATen products */
 product ATEN UC1284		0x2001	Parallel printer
@@ -1592,6 +1593,7 @@ product DLINK DUBE100		0x1a00	10/100 Ethernet
 product DLINK DUBE100C1		0x1a02	DUB-E100 rev C1
 product DLINK DSB650TX4		0x200c	10/100 Ethernet
 product DLINK DWL120E		0x3200	DWL-120 rev E
+product DLINK DWA125D1		0x330f	DWA-125 rev D1
 product DLINK DWL122		0x3700	DWL-122
 product DLINK DWLG120		0x3701	DWL-G120
 product DLINK DWL120F		0x3702	DWL-120 rev F

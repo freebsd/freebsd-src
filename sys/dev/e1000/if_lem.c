@@ -32,6 +32,15 @@
 ******************************************************************************/
 /*$FreeBSD$*/
 
+/*
+ * Uncomment the following extensions for better performance in a VM,
+ * especially if you have support in the hypervisor.
+ * See http://info.iet.unipi.it/~luigi/netmap/
+ */
+// #define BATCH_DISPATCH
+// #define NIC_SEND_COMBINING
+// #define NIC_PARAVIRT	/* enable virtio-like synchronization */
+
 #include "opt_inet.h"
 #include "opt_inet6.h"
 
@@ -291,6 +300,10 @@ static int lem_tx_int_delay_dflt = EM_TICKS_TO_USECS(EM_TIDV);
 static int lem_rx_int_delay_dflt = EM_TICKS_TO_USECS(EM_RDTR);
 static int lem_tx_abs_int_delay_dflt = EM_TICKS_TO_USECS(EM_TADV);
 static int lem_rx_abs_int_delay_dflt = EM_TICKS_TO_USECS(EM_RADV);
+/*
+ * increase lem_rxd and lem_txd to at least 2048 in netmap mode
+ * for better performance.
+ */
 static int lem_rxd = EM_DEFAULT_RXD;
 static int lem_txd = EM_DEFAULT_TXD;
 static int lem_smart_pwr_down = FALSE;
@@ -460,6 +473,20 @@ lem_attach(device_t dev)
 	    "max number of rx packets to process", &adapter->rx_process_limit,
 	    lem_rx_process_limit);
 
+#ifdef NIC_SEND_COMBINING
+	/* Sysctls to control mitigation */
+	lem_add_rx_process_limit(adapter, "sc_enable",
+	    "driver TDT mitigation", &adapter->sc_enable, 0);
+#endif /* NIC_SEND_COMBINING */
+#ifdef BATCH_DISPATCH
+	lem_add_rx_process_limit(adapter, "batch_enable",
+	    "driver rx batch", &adapter->batch_enable, 0);
+#endif /* BATCH_DISPATCH */
+#ifdef NIC_PARAVIRT
+	lem_add_rx_process_limit(adapter, "rx_retries",
+	    "driver rx retries", &adapter->rx_retries, 0);
+#endif /* NIC_PARAVIRT */
+
         /* Sysctl for setting the interface flow control */
 	lem_set_flow_cntrl(adapter, "flow_control",
 	    "flow control setting",
@@ -516,6 +543,49 @@ lem_attach(device_t dev)
 	 * status.
 	 */
 	adapter->hw.mac.report_tx_early = 1;
+
+#ifdef NIC_PARAVIRT
+	device_printf(dev, "driver supports paravirt, subdev 0x%x\n",
+		adapter->hw.subsystem_device_id);
+	if (adapter->hw.subsystem_device_id == E1000_PARA_SUBDEV) {
+		uint64_t bus_addr;
+
+		device_printf(dev, "paravirt support on dev %p\n", adapter);
+		tsize = 4096; // XXX one page for the csb
+		if (lem_dma_malloc(adapter, tsize, &adapter->csb_mem, BUS_DMA_NOWAIT)) {
+			device_printf(dev, "Unable to allocate csb memory\n");
+			error = ENOMEM;
+			goto err_csb;
+		}
+		/* Setup the Base of the CSB */
+		adapter->csb = (struct paravirt_csb *)adapter->csb_mem.dma_vaddr;
+		/* force the first kick */
+		adapter->csb->host_need_txkick = 1; /* txring empty */
+		adapter->csb->guest_need_rxkick = 1; /* no rx packets */
+		bus_addr = adapter->csb_mem.dma_paddr;
+		lem_add_rx_process_limit(adapter, "csb_on",
+		    "enable paravirt.", &adapter->csb->guest_csb_on, 0);
+		lem_add_rx_process_limit(adapter, "txc_lim",
+		    "txc_lim", &adapter->csb->host_txcycles_lim, 1);
+
+		/* some stats */
+#define PA_SC(name, var, val)		\
+	lem_add_rx_process_limit(adapter, name, name, var, val)
+		PA_SC("host_need_txkick",&adapter->csb->host_need_txkick, 1);
+		PA_SC("host_rxkick_at",&adapter->csb->host_rxkick_at, ~0);
+		PA_SC("guest_need_txkick",&adapter->csb->guest_need_txkick, 0);
+		PA_SC("guest_need_rxkick",&adapter->csb->guest_need_rxkick, 1);
+		PA_SC("tdt_reg_count",&adapter->tdt_reg_count, 0);
+		PA_SC("tdt_csb_count",&adapter->tdt_csb_count, 0);
+		PA_SC("tdt_int_count",&adapter->tdt_int_count, 0);
+		PA_SC("guest_need_kick_count",&adapter->guest_need_kick_count, 0);
+		/* tell the host where the block is */
+		E1000_WRITE_REG(&adapter->hw, E1000_CSBAH,
+			(u32)(bus_addr >> 32));
+		E1000_WRITE_REG(&adapter->hw, E1000_CSBAL,
+			(u32)bus_addr);
+	}
+#endif /* NIC_PARAVIRT */
 
 	tsize = roundup2(adapter->num_tx_desc * sizeof(struct e1000_tx_desc),
 	    EM_DBA_ALIGN);
@@ -675,6 +745,11 @@ err_hw_init:
 err_rx_desc:
 	lem_dma_free(adapter, &adapter->txdma);
 err_tx_desc:
+#ifdef NIC_PARAVIRT
+	lem_dma_free(adapter, &adapter->csb_mem);
+err_csb:
+#endif /* NIC_PARAVIRT */
+
 err_pci:
 	if (adapter->ifp != (void *)NULL)
 		if_free_drv(adapter->ifp);
@@ -762,6 +837,12 @@ lem_detach(device_t dev)
 		adapter->rx_desc_base = NULL;
 	}
 
+#ifdef NIC_PARAVIRT
+	if (adapter->csb) {
+		lem_dma_free(adapter, &adapter->csb_mem);
+		adapter->csb = NULL;
+	}
+#endif /* NIC_PARAVIRT */
 	lem_release_hw_control(adapter);
 	free(adapter->mta, M_DEVBUF);
 	EM_TX_LOCK_DESTROY(adapter);
@@ -871,6 +952,16 @@ lem_start_locked(if_t ifp)
 	}
 	if (adapter->num_tx_desc_avail <= EM_TX_OP_THRESHOLD)
 		if_setdrvflagbits(ifp, IFF_DRV_OACTIVE, 0);
+#ifdef NIC_PARAVIRT
+	if (if_getdrvflags(ifp) & IFF_DRV_OACTIVE && adapter->csb &&
+	    adapter->csb->guest_csb_on &&
+	    !(adapter->csb->guest_need_txkick & 1))  {
+		adapter->csb->guest_need_txkick = 1;
+		adapter->guest_need_kick_count++;
+		// XXX memory barrier
+		lem_txeof(adapter); // XXX possibly clear IFF_DRV_OACTIVE
+	}
+#endif /* NIC_PARAVIRT */
 
 	return;
 }
@@ -1716,6 +1807,37 @@ lem_xmit(struct adapter *adapter, struct mbuf **m_headp)
 	 */
 	bus_dmamap_sync(adapter->txdma.dma_tag, adapter->txdma.dma_map,
 	    BUS_DMASYNC_PREREAD | BUS_DMASYNC_PREWRITE);
+
+#ifdef NIC_PARAVIRT
+	if (adapter->csb) {
+		adapter->csb->guest_tdt = i;
+		/* XXX memory barrier ? */
+ 		if (adapter->csb->guest_csb_on &&
+		    !(adapter->csb->host_need_txkick & 1)) {
+			/* XXX maybe useless
+			 * clean the ring. maybe do it before ?
+			 * maybe a little bit of histeresys ?
+			 */
+			if (adapter->num_tx_desc_avail <= 64) {// XXX
+				lem_txeof(adapter);
+			}
+			return (0);
+		}
+	}
+#endif /* NIC_PARAVIRT */
+
+#ifdef NIC_SEND_COMBINING
+	if (adapter->sc_enable) {
+		if (adapter->shadow_tdt & MIT_PENDING_INT) {
+			/* signal intr and data pending */
+			adapter->shadow_tdt = MIT_PENDING_TDT | (i & 0xffff);
+			return (0);
+		} else {
+			adapter->shadow_tdt = MIT_PENDING_INT;
+		}
+	}
+#endif /* NIC_SEND_COMBINING */
+
 	if (adapter->hw.mac.type == e1000_82547 &&
 	    adapter->link_duplex == HALF_DUPLEX)
 		lem_82547_move_tail(adapter);
@@ -1959,6 +2081,20 @@ lem_local_timer(void *arg)
 
 	lem_smartspeed(adapter);
 
+#ifdef NIC_PARAVIRT
+	/* recover space if needed */
+	if (adapter->csb && adapter->csb->guest_csb_on &&
+	    (adapter->watchdog_check == TRUE) &&
+	    (ticks - adapter->watchdog_time > EM_WATCHDOG) &&
+	    (adapter->num_tx_desc_avail != adapter->num_tx_desc) ) {
+		lem_txeof(adapter);
+		/*
+		 * lem_txeof() normally (except when space in the queue
+		 * runs low XXX) cleans watchdog_check so that
+		 * we do not hung.
+		 */
+	}
+#endif /* NIC_PARAVIRT */
 	/*
 	 * We check the watchdog: the time since
 	 * the last TX descriptor was cleaned.
@@ -2643,10 +2779,10 @@ lem_setup_transmit_structures(struct adapter *adapter)
 			uint64_t paddr;
 			void *addr;
 
-			addr = PNMB(slot + si, &paddr);
+			addr = PNMB(na, slot + si, &paddr);
 			adapter->tx_desc_base[i].buffer_addr = htole64(paddr);
 			/* reload the map for netmap mode */
-			netmap_load_map(adapter->txtag, tx_buffer->map, addr);
+			netmap_load_map(na, adapter->txtag, tx_buffer->map, addr);
 		}
 #endif /* DEV_NETMAP */
 		tx_buffer->next_eop = -1;
@@ -3021,6 +3157,16 @@ lem_txeof(struct adapter *adapter)
         adapter->next_tx_to_clean = first;
         adapter->num_tx_desc_avail = num_avail;
 
+#ifdef NIC_SEND_COMBINING
+	if ((adapter->shadow_tdt & MIT_PENDING_TDT) == MIT_PENDING_TDT) {
+		/* a tdt write is pending, do it */
+		E1000_WRITE_REG(&adapter->hw, E1000_TDT(0),
+			0xffff & adapter->shadow_tdt);
+		adapter->shadow_tdt = MIT_PENDING_INT;
+	} else {
+		adapter->shadow_tdt = 0; // disable
+	}
+#endif /* NIC_SEND_COMBINING */
         /*
          * If we have enough room, clear IFF_DRV_OACTIVE to
          * tell the stack that it is OK to send packets.
@@ -3028,6 +3174,12 @@ lem_txeof(struct adapter *adapter)
          */
         if (adapter->num_tx_desc_avail > EM_TX_CLEANUP_THRESHOLD) {                
                 if_setdrvflagbits(ifp, 0, IFF_DRV_OACTIVE);
+#ifdef NIC_PARAVIRT
+		if (adapter->csb) { // XXX also csb_on ?
+			adapter->csb->guest_need_txkick = 2; /* acked */
+			// XXX memory barrier
+		}
+#endif /* NIC_PARAVIRT */
                 if (adapter->num_tx_desc_avail == adapter->num_tx_desc) {
 			adapter->watchdog_check = FALSE;
 			return;
@@ -3213,8 +3365,8 @@ lem_setup_receive_structures(struct adapter *adapter)
 			uint64_t paddr;
 			void *addr;
 
-			addr = PNMB(slot + si, &paddr);
-			netmap_load_map(adapter->rxtag, rx_buffer->map, addr);
+			addr = PNMB(na, slot + si, &paddr);
+			netmap_load_map(na, adapter->rxtag, rx_buffer->map, addr);
 			/* Update descriptor */
 			adapter->rx_desc_base[i].buffer_addr = htole64(paddr);
 			continue;
@@ -3413,7 +3565,23 @@ lem_rxeof(struct adapter *adapter, int count, int *done)
 	int		i, rx_sent = 0;
 	struct e1000_rx_desc   *current_desc;
 
+#ifdef BATCH_DISPATCH
+	struct mbuf *mh = NULL, *mt = NULL;
+#endif /* BATCH_DISPATCH */
+#ifdef NIC_PARAVIRT
+	int retries = 0;
+	struct paravirt_csb* csb = adapter->csb;
+	int csb_mode = csb && csb->guest_csb_on;
+
+	//ND("clear guest_rxkick at %d", adapter->next_rx_desc_to_check);
+	if (csb_mode && csb->guest_need_rxkick)
+		csb->guest_need_rxkick = 0;
+#endif /* NIC_PARAVIRT */
 	EM_RX_LOCK(adapter);
+
+#ifdef BATCH_DISPATCH
+    batch_again:
+#endif /* BATCH_DISPATCH */
 	i = adapter->next_rx_desc_to_check;
 	current_desc = &adapter->rx_desc_base[i];
 	bus_dmamap_sync(adapter->rxdma.dma_tag, adapter->rxdma.dma_map,
@@ -3426,19 +3594,45 @@ lem_rxeof(struct adapter *adapter, int count, int *done)
 	}
 #endif /* DEV_NETMAP */
 
+#if 1 // XXX optimization ?
 	if (!((current_desc->status) & E1000_RXD_STAT_DD)) {
 		if (done != NULL)
 			*done = rx_sent;
 		EM_RX_UNLOCK(adapter);
 		return (FALSE);
 	}
+#endif /* 0 */
 
 	while (count != 0 && if_getdrvflags(ifp) & IFF_DRV_RUNNING) {
 		struct mbuf *m = NULL;
 
 		status = current_desc->status;
-		if ((status & E1000_RXD_STAT_DD) == 0)
+		if ((status & E1000_RXD_STAT_DD) == 0) {
+#ifdef NIC_PARAVIRT
+		    if (csb_mode) {
+			/* buffer not ready yet. Retry a few times before giving up */
+			if (++retries <= adapter->rx_retries) {
+				continue;
+			}
+			if (csb->guest_need_rxkick == 0) {
+				// ND("set guest_rxkick at %d", adapter->next_rx_desc_to_check);
+				csb->guest_need_rxkick = 1;
+				// XXX memory barrier, status volatile ?
+				continue; /* double check */
+			}
+		    }
+		    /* no buffer ready, give up */
+#endif /* NIC_PARAVIRT */
 			break;
+		}
+#ifdef NIC_PARAVIRT
+		if (csb_mode) {
+			if (csb->guest_need_rxkick)
+				// ND("clear again guest_rxkick at %d", adapter->next_rx_desc_to_check);
+			csb->guest_need_rxkick = 0;
+			retries = 0;
+		}
+#endif /* NIC_PARAVIRT */
 
 		mp = adapter->rx_buffer_area[i].m_head;
 		/*
@@ -3563,11 +3757,36 @@ discard:
 		bus_dmamap_sync(adapter->rxdma.dma_tag, adapter->rxdma.dma_map,
 		    BUS_DMASYNC_PREREAD | BUS_DMASYNC_PREWRITE);
 
+#ifdef NIC_PARAVIRT
+		if (csb_mode) {
+			/* the buffer at i has been already replaced by lem_get_buf()
+			 * so it is safe to set guest_rdt = i and possibly send a kick.
+			 * XXX see if we can optimize it later.
+			 */
+			csb->guest_rdt = i;
+			// XXX memory barrier
+			if (i == csb->host_rxkick_at)
+				E1000_WRITE_REG(&adapter->hw, E1000_RDT(0), i);
+		}
+#endif /* NIC_PARAVIRT */
 		/* Advance our pointers to the next descriptor. */
 		if (++i == adapter->num_rx_desc)
 			i = 0;
 		/* Call into the stack */
 		if (m != NULL) {
+#ifdef BATCH_DISPATCH
+		    if (adapter->batch_enable) {
+			if (mh == NULL)
+				mh = mt = m;
+			else
+				mt->m_nextpkt = m;
+			mt = m;
+			m->m_nextpkt = NULL;
+			rx_sent++;
+			current_desc = &adapter->rx_desc_base[i];
+			continue;
+		    }
+#endif /* BATCH_DISPATCH */
 			adapter->next_rx_desc_to_check = i;
 			EM_RX_UNLOCK(adapter);
 			if_input(ifp, m);
@@ -3578,10 +3797,27 @@ discard:
 		current_desc = &adapter->rx_desc_base[i];
 	}
 	adapter->next_rx_desc_to_check = i;
+#ifdef BATCH_DISPATCH
+	if (mh) {
+		EM_RX_UNLOCK(adapter);
+		while ( (mt = mh) != NULL) {
+			mh = mh->m_nextpkt;
+			mt->m_nextpkt = NULL;
+			if_input(ifp, mt);
+		}
+		EM_RX_LOCK(adapter);
+		i = adapter->next_rx_desc_to_check; /* in case of interrupts */
+		if (count > 0)
+			goto batch_again;
+	}
+#endif /* BATCH_DISPATCH */
 
 	/* Advance the E1000's Receive Queue #0  "Tail Pointer". */
 	if (--i < 0)
 		i = adapter->num_rx_desc - 1;
+#ifdef NIC_PARAVIRT
+	if (!csb_mode) /* filter out writes */
+#endif /* NIC_PARAVIRT */
 	E1000_WRITE_REG(&adapter->hw, E1000_RDT(0), i);
 	if (done != NULL)
 		*done = rx_sent;

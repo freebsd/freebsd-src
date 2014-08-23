@@ -540,13 +540,13 @@ ip6_ifstats(char *ifname)
 	}
 
 	strcpy(ifr.ifr_name, ifname);
-	printf("ip6 on %s:\n", ifr.ifr_name);
-
 	if (ioctl(s, SIOCGIFSTAT_IN6, (char *)&ifr) < 0) {
-		perror("Warning: ioctl(SIOCGIFSTAT_IN6)");
+		if (errno != EPFNOSUPPORT)
+			perror("Warning: ioctl(SIOCGIFSTAT_IN6)");
 		goto end;
 	}
 
+	printf("ip6 on %s:\n", ifr.ifr_name);
 	p(ifs6_in_receive, "\t%ju total input datagram%s\n");
 	p(ifs6_in_hdrerr, "\t%ju datagram%s with invalid header received\n");
 	p(ifs6_in_toobig, "\t%ju datagram%s exceeded MTU received\n");
@@ -945,13 +945,13 @@ icmp6_ifstats(char *ifname)
 	}
 
 	strcpy(ifr.ifr_name, ifname);
-	printf("icmp6 on %s:\n", ifr.ifr_name);
-
 	if (ioctl(s, SIOCGIFSTAT_ICMP6, (char *)&ifr) < 0) {
-		perror("Warning: ioctl(SIOCGIFSTAT_ICMP6)");
+		if (errno != EPFNOSUPPORT)
+			perror("Warning: ioctl(SIOCGIFSTAT_ICMP6)");
 		goto end;
 	}
 
+	printf("icmp6 on %s:\n", ifr.ifr_name);
 	p(ifs6_in_msg, "\t%ju total input message%s\n");
 	p(ifs6_in_error, "\t%ju total input error message%s\n");
 	p(ifs6_in_dstunreach, "\t%ju input destination unreachable error%s\n");

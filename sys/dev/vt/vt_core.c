@@ -134,7 +134,7 @@ extern unsigned char vt_logo_image[];
 /* Font. */
 extern struct vt_font vt_font_default;
 #ifndef SC_NO_CUTPASTE
-extern struct mouse_cursor vt_default_mouse_pointer;
+extern struct vt_mouse_cursor vt_default_mouse_pointer;
 #endif
 
 static int signal_vt_rel(struct vt_window *);
@@ -162,6 +162,12 @@ static struct vt_device	vt_consdev = {
 	.vd_curwindow = &vt_conswindow,
 	.vd_markedwin = NULL,
 	.vd_kbstate = 0,
+
+#ifndef SC_NO_CUTPASTE
+	.vd_mcursor = &vt_default_mouse_pointer,
+	.vd_mcursor_fg = TC_WHITE,
+	.vd_mcursor_bg = TC_BLACK,
+#endif
 };
 static term_char_t vt_constextbuf[(_VTDEFW) * (VBF_DEFAULT_HISTORY_SIZE)];
 static term_char_t *vt_constextbufrows[VBF_DEFAULT_HISTORY_SIZE];
@@ -225,6 +231,37 @@ vt_update_static(void *dummy)
 
 	mtx_init(&main_vd->vd_lock, "vtdev", NULL, MTX_DEF);
 	cv_init(&main_vd->vd_winswitch, "vtwswt");
+}
+
+static void
+vt_schedule_flush(struct vt_device *vd, int ms)
+{
+
+	if (ms <= 0)
+		/* Default to initial value. */
+		ms = 1000 / VT_TIMERFREQ;
+
+	callout_schedule(&vd->vd_timer, hz / (1000 / ms));
+}
+
+static void
+vt_resume_flush_timer(struct vt_device *vd, int ms)
+{
+
+	if (!atomic_cmpset_int(&vd->vd_timer_armed, 0, 1))
+		return;
+
+	vt_schedule_flush(vd, ms);
+}
+
+static void
+vt_suspend_flush_timer(struct vt_device *vd)
+{
+
+	if (!atomic_cmpset_int(&vd->vd_timer_armed, 1, 0))
+		return;
+
+	callout_drain(&vd->vd_timer);
 }
 
 static void
@@ -330,6 +367,8 @@ vt_window_switch(struct vt_window *vw)
 		return (EINVAL);
 	}
 
+	vt_suspend_flush_timer(vd);
+
 	vd->vd_curwindow = vw;
 	vd->vd_flags |= VDF_INVALID;
 	cv_broadcast(&vd->vd_winswitch);
@@ -337,6 +376,8 @@ vt_window_switch(struct vt_window *vw)
 
 	if (vd->vd_driver->vd_postswitch)
 		vd->vd_driver->vd_postswitch(vd);
+
+	vt_resume_flush_timer(vd, 0);
 
 	/* Restore per-window keyboard mode. */
 	mtx_lock(&Giant);
@@ -387,7 +428,7 @@ vt_scroll(struct vt_window *vw, int offset, int whence)
 
 	diff = vthistory_seek(&vw->vw_buf, offset, whence);
 	/*
-	 * Offset changed, please update Nth lines on sceen.
+	 * Offset changed, please update Nth lines on screen.
 	 * +N - Nth lines at top;
 	 * -N - Nth lines at bottom.
 	 */
@@ -751,7 +792,7 @@ vtterm_param(struct terminal *tm, int cmd, unsigned int arg)
 	}
 }
 
-static inline void
+void
 vt_determine_colors(term_char_t c, int cursor,
     term_color_t *fg, term_color_t *bg)
 {
@@ -777,6 +818,75 @@ vt_determine_colors(term_char_t c, int cursor,
 	}
 }
 
+#ifndef SC_NO_CUTPASTE
+int
+vt_is_cursor_in_area(const struct vt_device *vd, const term_rect_t *area)
+{
+	unsigned int mx, my, x1, y1, x2, y2;
+
+	/*
+	 * We use the cursor position saved during the current refresh,
+	 * in case the cursor moved since.
+	 */
+	mx = vd->vd_mx_drawn;
+	my = vd->vd_my_drawn;
+
+	x1 = area->tr_begin.tp_col;
+	y1 = area->tr_begin.tp_row;
+	x2 = area->tr_end.tp_col;
+	y2 = area->tr_end.tp_row;
+
+	if (((mx >= x1 && x2 - 1 >= mx) ||
+	     (mx < x1 && mx + vd->vd_mcursor->width >= x1)) &&
+	    ((my >= y1 && y2 - 1 >= my) ||
+	     (my < y1 && my + vd->vd_mcursor->height >= y1)))
+		return (1);
+
+	return (0);
+}
+
+static void
+vt_mark_mouse_position_as_dirty(struct vt_device *vd)
+{
+	term_rect_t area;
+	struct vt_window *vw;
+	struct vt_font *vf;
+	int x, y;
+
+	vw = vd->vd_curwindow;
+	vf = vw->vw_font;
+
+	x = vd->vd_mx_drawn;
+	y = vd->vd_my_drawn;
+
+	if (vf != NULL) {
+		area.tr_begin.tp_col = (x - vw->vw_offset.tp_col) /
+		    vf->vf_width;
+		area.tr_begin.tp_row = (y - vw->vw_offset.tp_row) /
+		    vf->vf_height;
+		area.tr_end.tp_col =
+		    ((x + vd->vd_mcursor->width - vw->vw_offset.tp_col) /
+		     vf->vf_width) + 1;
+		area.tr_end.tp_row =
+		    ((y + vd->vd_mcursor->height - vw->vw_offset.tp_row) /
+		     vf->vf_height) + 1;
+	} else {
+		/*
+		 * No font loaded (ie. vt_vga operating in textmode).
+		 *
+		 * FIXME: This fake area needs to be revisited once the
+		 * mouse cursor is supported in vt_vga's textmode.
+		 */
+		area.tr_begin.tp_col = x;
+		area.tr_begin.tp_row = y;
+		area.tr_end.tp_col = x + 2;
+		area.tr_end.tp_row = y + 2;
+	}
+
+	vtbuf_dirty(&vw->vw_buf, &area);
+}
+#endif
+
 static void
 vt_bitblt_char(struct vt_device *vd, struct vt_font *vf, term_char_t c,
     int iscursor, unsigned int row, unsigned int col)
@@ -796,8 +906,8 @@ vt_bitblt_char(struct vt_device *vd, struct vt_font *vf, term_char_t c,
 		 * Fonts may not always be able to fill the entire
 		 * screen.
 		 */
-		top = row * vf->vf_height + vd->vd_offset.tp_row;
-		left = col * vf->vf_width + vd->vd_offset.tp_col;
+		top = row * vf->vf_height + vd->vd_curwindow->vw_offset.tp_row;
+		left = col * vf->vf_width + vd->vd_curwindow->vw_offset.tp_col;
 
 		vd->vd_driver->vd_bitbltchr(vd, src, NULL, 0, top, left,
 		    vf->vf_width, vf->vf_height, fg, bg);
@@ -818,19 +928,57 @@ vt_flush(struct vt_device *vd)
 	term_pos_t size;
 	term_char_t *r;
 #ifndef SC_NO_CUTPASTE
-	struct mouse_cursor *m;
-	int bpl, h, w;
+	int cursor_was_shown, cursor_moved, bpl, h, w;
 #endif
 
 	vw = vd->vd_curwindow;
 	if (vw == NULL)
 		return;
+
+	if (vd->vd_flags & VDF_SPLASH || vw->vw_flags & VWF_BUSY)
+		return;
+
 	vf = vw->vw_font;
 	if (((vd->vd_flags & VDF_TEXTMODE) == 0) && (vf == NULL))
 		return;
 
-	if (vd->vd_flags & VDF_SPLASH || vw->vw_flags & VWF_BUSY)
-		return;
+#ifndef SC_NO_CUTPASTE
+	cursor_was_shown = vd->vd_mshown;
+	cursor_moved = (vd->vd_mx != vd->vd_mx_drawn ||
+	    vd->vd_my != vd->vd_my_drawn);
+
+	/* Check if the cursor should be displayed or not. */
+	if ((vd->vd_flags & VDF_MOUSECURSOR) && /* Mouse support enabled. */
+	    !(vw->vw_flags & VWF_MOUSE_HIDE) && /* Cursor displayed.      */
+	    !kdb_active && panicstr == NULL) {  /* DDB inactive.          */
+		vd->vd_mshown = 1;
+	} else {
+		vd->vd_mshown = 0;
+	}
+
+	/*
+	 * If the cursor changed display state or moved, we must mark
+	 * the old position as dirty, so that it's erased.
+	 */
+	if (cursor_was_shown != vd->vd_mshown ||
+	    (vd->vd_mshown && cursor_moved))
+		vt_mark_mouse_position_as_dirty(vd);
+
+	/*
+         * Save position of the mouse cursor. It's used by backends to
+         * know where to draw the cursor and during the next refresh to
+         * erase the previous position.
+	 */
+	vd->vd_mx_drawn = vd->vd_mx;
+	vd->vd_my_drawn = vd->vd_my;
+
+	/*
+	 * If the cursor is displayed and has moved since last refresh,
+	 * mark the new position as dirty.
+	 */
+	if (vd->vd_mshown && cursor_moved)
+		vt_mark_mouse_position_as_dirty(vd);
+#endif
 
 	vtbuf_undirty(&vw->vw_buf, &tarea, &tmask);
 	vt_termsize(vd, vf, &size);
@@ -844,58 +992,51 @@ vt_flush(struct vt_device *vd)
 		vd->vd_flags &= ~VDF_INVALID;
 	}
 
-#ifndef SC_NO_CUTPASTE
-	if ((vw->vw_flags & VWF_MOUSE_HIDE) == 0) {
-		/* Mark last mouse position as dirty to erase. */
-		vtbuf_mouse_cursor_position(&vw->vw_buf, vd->vd_mdirtyx,
-		    vd->vd_mdirtyy);
-	}
-#endif
-
-	for (row = tarea.tr_begin.tp_row; row < tarea.tr_end.tp_row; row++) {
-		if (!VTBUF_DIRTYROW(&tmask, row))
-			continue;
-		r = VTBUF_GET_ROW(&vw->vw_buf, row);
-		for (col = tarea.tr_begin.tp_col;
-		    col < tarea.tr_end.tp_col; col++) {
-			if (!VTBUF_DIRTYCOL(&tmask, col))
-				continue;
-
-			vt_bitblt_char(vd, vf, r[col],
-			    VTBUF_ISCURSOR(&vw->vw_buf, row, col), row, col);
+	if (vd->vd_driver->vd_bitblt_text != NULL) {
+		if (tarea.tr_begin.tp_col < tarea.tr_end.tp_col) {
+			vd->vd_driver->vd_bitblt_text(vd, vw, &tarea);
 		}
-	}
+	} else {
+		/*
+		 * FIXME: Once all backend drivers expose the
+		 * vd_bitblt_text_t callback, this code can be removed.
+		 */
+		for (row = tarea.tr_begin.tp_row; row < tarea.tr_end.tp_row; row++) {
+			if (!VTBUF_DIRTYROW(&tmask, row))
+				continue;
+			r = VTBUF_GET_ROW(&vw->vw_buf, row);
+			for (col = tarea.tr_begin.tp_col;
+			    col < tarea.tr_end.tp_col; col++) {
+				if (!VTBUF_DIRTYCOL(&tmask, col))
+					continue;
+
+				vt_bitblt_char(vd, vf, r[col],
+				    VTBUF_ISCURSOR(&vw->vw_buf, row, col), row, col);
+			}
+		}
 
 #ifndef SC_NO_CUTPASTE
-	/* Mouse disabled. */
-	if (vw->vw_flags & VWF_MOUSE_HIDE)
-		return;
+		if (vd->vd_mshown) {
+			/* Bytes per source line. */
+			bpl = (vd->vd_mcursor->width + 7) >> 3;
+			w = vd->vd_mcursor->width;
+			h = vd->vd_mcursor->height;
 
-	/* No mouse for DDB. */
-	if (kdb_active || panicstr != NULL)
-		return;
+			if ((vd->vd_mx + vd->vd_mcursor->width) >
+			    (size.tp_col * vf->vf_width))
+				w = (size.tp_col * vf->vf_width) - vd->vd_mx - 1;
+			if ((vd->vd_my + vd->vd_mcursor->height) >
+			    (size.tp_row * vf->vf_height))
+				h = (size.tp_row * vf->vf_height) - vd->vd_my - 1;
 
-	if ((vd->vd_flags & (VDF_MOUSECURSOR|VDF_TEXTMODE)) ==
-	    VDF_MOUSECURSOR) {
-		m = &vt_default_mouse_pointer;
-		bpl = (m->w + 7) >> 3; /* Bytes per source line. */
-		w = m->w;
-		h = m->h;
-
-		if ((vd->vd_mx + m->w) > (size.tp_col * vf->vf_width))
-			w = (size.tp_col * vf->vf_width) - vd->vd_mx - 1;
-		if ((vd->vd_my + m->h) > (size.tp_row * vf->vf_height))
-			h = (size.tp_row * vf->vf_height) - vd->vd_my - 1;
-
-		vd->vd_driver->vd_bitbltchr(vd, m->map, m->mask, bpl,
-		    vd->vd_offset.tp_row + vd->vd_my,
-		    vd->vd_offset.tp_col + vd->vd_mx,
-		    w, h, TC_WHITE, TC_BLACK);
-		/* Save point of last mouse cursor to erase it later. */
-		vd->vd_mdirtyx = vd->vd_mx / vf->vf_width;
-		vd->vd_mdirtyy = vd->vd_my / vf->vf_height;
-	}
+			vd->vd_driver->vd_bitbltchr(vd,
+			    vd->vd_mcursor->map, vd->vd_mcursor->mask, bpl,
+			    vw->vw_offset.tp_row + vd->vd_my,
+			    vw->vw_offset.tp_col + vd->vd_mx,
+			    w, h, vd->vd_mcursor_fg, vd->vd_mcursor_bg);
+		}
 #endif
+	}
 }
 
 static void
@@ -908,7 +1049,7 @@ vt_timer(void *arg)
 	vt_flush(vd);
 
 	/* Schedule for next update. */
-	callout_schedule(&vd->vd_timer, hz / VT_TIMERFREQ);
+	vt_schedule_flush(vd, 0);
 }
 
 static void
@@ -1128,6 +1269,35 @@ vtterm_opened(struct terminal *tm, int opened)
 }
 
 static int
+vt_set_border(struct vt_window *vw, struct vt_font *vf, term_color_t c)
+{
+	struct vt_device *vd = vw->vw_device;
+	int x, y, off_x, off_y;
+
+	if (vd->vd_driver->vd_drawrect == NULL)
+		return (ENOTSUP);
+
+	x = vd->vd_width - 1;
+	y = vd->vd_height - 1;
+	off_x = vw->vw_offset.tp_col;
+	off_y = vw->vw_offset.tp_row;
+
+	/* Top bar. */
+	if (off_y > 0)
+		vd->vd_driver->vd_drawrect(vd, 0, 0, x, off_y - 1, 1, c);
+	/* Left bar. */
+	if (off_x > 0)
+		vd->vd_driver->vd_drawrect(vd, 0, off_y, off_x - 1, y - off_y,
+		    1, c);
+	/* Right bar.  May be 1 pixel wider than necessary due to rounding. */
+	vd->vd_driver->vd_drawrect(vd, x - off_x, off_y, x, y - off_y, 1, c);
+	/* Bottom bar.  May be 1 mixel taller than necessary due to rounding. */
+	vd->vd_driver->vd_drawrect(vd, 0, y - off_y, x, y, 1, c);
+
+	return (0);
+}
+
+static int
 vt_change_font(struct vt_window *vw, struct vt_font *vf)
 {
 	struct vt_device *vd = vw->vw_device;
@@ -1165,8 +1335,8 @@ vt_change_font(struct vt_window *vw, struct vt_font *vf)
 	vt_termsize(vd, vf, &size);
 	vt_winsize(vd, vf, &wsz);
 	/* Save offset to font aligned area. */
-	vd->vd_offset.tp_col = (vd->vd_width % vf->vf_width) / 2;
-	vd->vd_offset.tp_row = (vd->vd_height % vf->vf_height) / 2;
+	vw->vw_offset.tp_col = (vd->vd_width % vf->vf_width) / 2;
+	vw->vw_offset.tp_row = (vd->vd_height % vf->vf_height) / 2;
 
 	/* Grow the screen buffer and terminal. */
 	terminal_mute(tm, 1);
@@ -1186,39 +1356,12 @@ vt_change_font(struct vt_window *vw, struct vt_font *vf)
 	}
 
 	/* Force a full redraw the next timer tick. */
-	if (vd->vd_curwindow == vw)
+	if (vd->vd_curwindow == vw) {
+		vt_set_border(vw, vf, TC_BLACK);
 		vd->vd_flags |= VDF_INVALID;
+	}
 	vw->vw_flags &= ~VWF_BUSY;
 	VT_UNLOCK(vd);
-	return (0);
-}
-
-static int
-vt_set_border(struct vt_window *vw, struct vt_font *vf, term_color_t c)
-{
-	struct vt_device *vd = vw->vw_device;
-	int x, y, off_x, off_y;
-
-	if (vd->vd_driver->vd_drawrect == NULL)
-		return (ENOTSUP);
-
-	x = vd->vd_width - 1;
-	y = vd->vd_height - 1;
-	off_x = vd->vd_offset.tp_col;
-	off_y = vd->vd_offset.tp_row;
-
-	/* Top bar. */
-	if (off_y > 0)
-		vd->vd_driver->vd_drawrect(vd, 0, 0, x, off_y - 1, 1, c);
-	/* Left bar. */
-	if (off_x > 0)
-		vd->vd_driver->vd_drawrect(vd, 0, off_y, off_x - 1, y - off_y,
-		    1, c);
-	/* Right bar.  May be 1 pixel wider than necessary due to rounding. */
-	vd->vd_driver->vd_drawrect(vd, x - off_x, off_y, x, y - off_y, 1, c);
-	/* Bottom bar.  May be 1 mixel taller than necessary due to rounding. */
-	vd->vd_driver->vd_drawrect(vd, 0, y - off_y, x, y, 1, c);
-
 	return (0);
 }
 
@@ -1531,6 +1674,9 @@ vt_mouse_state(int show)
 		vw->vw_flags &= ~VWF_MOUSE_HIDE;
 		break;
 	}
+
+	/* Mark mouse position as dirty. */
+	vt_mark_mouse_position_as_dirty(vd);
 }
 #endif
 
@@ -1703,7 +1849,7 @@ skip_thunk:
 		/* XXX: other fields! */
 		return (0);
 	}
-	case CONS_GETVERS: 
+	case CONS_GETVERS:
 		*(int *)data = 0x200;
 		return (0);
 	case CONS_MODEINFO:
@@ -1713,20 +1859,28 @@ skip_thunk:
 		mouse_info_t *mouse = (mouse_info_t*)data;
 
 		/*
-		 * This has no effect on vt(4).  We don't draw any mouse
-		 * cursor.  Just ignore MOUSE_HIDE and MOUSE_SHOW to
-		 * prevent excessive errors.  All the other commands
+		 * All the commands except MOUSE_SHOW nd MOUSE_HIDE
 		 * should not be applied to individual TTYs, but only to
 		 * consolectl.
 		 */
 		switch (mouse->operation) {
 		case MOUSE_HIDE:
-			vd->vd_flags &= ~VDF_MOUSECURSOR;
+			if (vd->vd_flags & VDF_MOUSECURSOR) {
+				vd->vd_flags &= ~VDF_MOUSECURSOR;
+#ifndef SC_NO_CUTPASTE
+				vt_mouse_state(VT_MOUSE_HIDE);
+#endif
+			}
 			return (0);
 		case MOUSE_SHOW:
-			vd->vd_mx = vd->vd_width / 2;
-			vd->vd_my = vd->vd_height / 2;
-			vd->vd_flags |= VDF_MOUSECURSOR;
+			if (!(vd->vd_flags & VDF_MOUSECURSOR)) {
+				vd->vd_flags |= VDF_MOUSECURSOR;
+				vd->vd_mx = vd->vd_width / 2;
+				vd->vd_my = vd->vd_height / 2;
+#ifndef SC_NO_CUTPASTE
+				vt_mouse_state(VT_MOUSE_SHOW);
+#endif
+			}
 			return (0);
 		default:
 			return (EINVAL);
@@ -1740,16 +1894,11 @@ skip_thunk:
 			return (error);
 
 		error = vt_change_font(vw, vf);
-		if (error == 0) {
-			/* XXX: replace 0 with current bg color. */
-			vt_set_border(vw, vf, 0);
-		}
 		vtfont_unref(vf);
 		return (error);
 	}
 	case GIO_SCRNMAP: {
 		scrmap_t *sm = (scrmap_t *)data;
-		int i;
 
 		/* We don't have screen maps, so return a handcrafted one. */
 		for (i = 0; i < 256; i++)
@@ -2047,6 +2196,7 @@ vt_upgrade(struct vt_device *vd)
 		/* Start timer when everything ready. */
 		vd->vd_flags |= VDF_ASYNC;
 		callout_reset(&vd->vd_timer, hz / VT_TIMERFREQ, vt_timer, vd);
+		vd->vd_timer_armed = 1;
 	}
 
 	VT_UNLOCK(vd);
@@ -2106,7 +2256,7 @@ vt_allocate(struct vt_driver *drv, void *softc)
 
 	if (vd->vd_flags & VDF_ASYNC) {
 		/* Stop vt_flush periodic task. */
-		callout_drain(&vd->vd_timer);
+		vt_suspend_flush_timer(vd);
 		/*
 		 * Mute current terminal until we done. vt_change_font (called
 		 * from vt_resize) will unmute it.
@@ -2137,7 +2287,7 @@ vt_allocate(struct vt_driver *drv, void *softc)
 		/* Allow to put chars now. */
 		terminal_mute(vd->vd_curwindow->vw_terminal, 0);
 		/* Rerun timer for screen updates. */
-		callout_schedule(&vd->vd_timer, hz / VT_TIMERFREQ);
+		vt_resume_flush_timer(vd, 0);
 	}
 
 	/*

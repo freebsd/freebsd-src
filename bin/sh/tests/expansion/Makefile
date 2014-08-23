@@ -20,6 +20,7 @@ FILES+=		arith10.0
 FILES+=		arith11.0
 FILES+=		arith12.0
 FILES+=		arith13.0
+FILES+=		arith14.0
 FILES+=		assign1.0
 FILES+=		cmdsubst1.0
 FILES+=		cmdsubst2.0

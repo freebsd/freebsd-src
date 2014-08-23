@@ -911,6 +911,7 @@ ns_sprintrrf(const u_char *msg, size_t msglen,
 			if (len > 15)
 				T(addstr(" )", 2, &buf, &buflen));
 		}
+		break;
 	}
 
 	case ns_t_ipseckey: {

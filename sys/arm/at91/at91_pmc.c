@@ -709,9 +709,9 @@ static driver_t at91_pmc_driver = {
 static devclass_t at91_pmc_devclass;
 
 #ifdef FDT
-DRIVER_MODULE(at91_pmc, simplebus, at91_pmc_driver, at91_pmc_devclass, NULL,
-    NULL);
+EARLY_DRIVER_MODULE(at91_pmc, simplebus, at91_pmc_driver, at91_pmc_devclass,
+    NULL, NULL, BUS_PASS_CPU);
 #else
-DRIVER_MODULE(at91_pmc, atmelarm, at91_pmc_driver, at91_pmc_devclass, NULL,
-    NULL);
+EARLY_DRIVER_MODULE(at91_pmc, atmelarm, at91_pmc_driver, at91_pmc_devclass,
+    NULL, NULL, BUS_PASS_CPU);
 #endif

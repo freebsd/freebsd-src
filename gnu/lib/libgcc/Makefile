@@ -28,6 +28,7 @@ CFLAGS+=	-DIN_GCC -DIN_LIBGCC2 -D__GCC_FLOAT_NOT_NEEDED \
 		-I${.CURDIR}/../../usr.bin/cc/cc_tools
 
 LDFLAGS+=	-nodefaultlibs
+DPADD+=		${LIBC}
 LDADD+=		-lc
 
 OBJS=		# added to below in various ways depending on TARGET_CPUARCH
