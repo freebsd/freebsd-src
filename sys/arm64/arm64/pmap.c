@@ -749,7 +749,6 @@ pmap_remove(pmap_t pmap, vm_offset_t sva, vm_offset_t eva)
 	pt_entry_t *l3;
 	vm_offset_t va_next;
 
-	KASSERT(pmap == pmap_kernel(), ("Only kernel mappings for now"));
 	PMAP_LOCK(pmap);
 	for (; sva < eva; sva = va_next) {
 		va_next = sva + L3_SIZE;
