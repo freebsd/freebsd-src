@@ -1290,8 +1290,16 @@ load_rc_config()
 		_rc_conf_loaded=true
 	fi
 	if [ -f /etc/rc.conf.d/"$_name" ]; then
-		debug "Sourcing /etc/rc.conf.d/${_name}"
+		debug "Sourcing /etc/rc.conf.d/$_name"
 		. /etc/rc.conf.d/"$_name"
+	elif [ -d /etc/rc.conf.d/"$_name" ] ; then
+		local _rc
+		for _rc in /etc/rc.conf.d/"$_name"/* ; do
+			if [ -f "$_rc" ] ; then
+				debug "Sourcing $_rc"
+				. "$_rc"
+			fi
+		done
 	fi
 
 	# Set defaults if defined.
