@@ -592,7 +592,7 @@ match_token(struct _s_x *table, char *string)
 	for (pt = table ; i && pt->s != NULL ; pt++)
 		if (strlen(pt->s) == i && !bcmp(string, pt->s, i))
 			return pt->x;
-	return -1;
+	return (-1);
 }
 
 /**
