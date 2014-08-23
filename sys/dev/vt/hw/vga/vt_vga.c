@@ -521,8 +521,7 @@ vga_bitblt_pixels_block_ncolors(struct vt_device *vd, const uint8_t *masks,
 
 static void
 vga_bitblt_one_text_pixels_block(struct vt_device *vd,
-    const struct vt_window *vw, unsigned int x, unsigned int y,
-    int cursor_displayed)
+    const struct vt_window *vw, unsigned int x, unsigned int y)
 {
 	const struct vt_buf *vb;
 	const struct vt_font *vf;
@@ -533,10 +532,6 @@ vga_bitblt_one_text_pixels_block(struct vt_device *vd,
 	term_char_t c;
 	term_color_t fg, bg;
 	const uint8_t *src;
-#ifndef SC_NO_CUTPASTE
-	struct vt_mouse_cursor *cursor;
-	unsigned int mx, my;
-#endif
 
 	vb = &vw->vw_buf;
 	vf = vw->vw_font;
@@ -631,15 +626,20 @@ vga_bitblt_one_text_pixels_block(struct vt_device *vd,
 	 * the current position could be different than the one used
 	 * to mark the area dirty.
 	 */
-	cursor = vd->vd_mcursor;
-	mx = vd->vd_moldx + vw->vw_offset.tp_col;
-	my = vd->vd_moldy + vw->vw_offset.tp_row;
-	if (cursor_displayed &&
-	    ((mx >= x && x + VT_VGA_PIXELS_BLOCK - 1 >= mx) ||
-	     (mx < x && mx + cursor->width >= x)) &&
-	    ((my >= y && y + vf->vf_height - 1 >= my) ||
-	     (my < y && my + cursor->height >= y))) {
+	term_rect_t drawn_area;
+
+	drawn_area.tr_begin.tp_col = x;
+	drawn_area.tr_begin.tp_row = y;
+	drawn_area.tr_end.tp_col = x + VT_VGA_PIXELS_BLOCK;
+	drawn_area.tr_end.tp_row = y + vf->vf_height;
+	if (vd->vd_mshown && vt_is_cursor_in_area(vd, &drawn_area)) {
+		struct vt_mouse_cursor *cursor;
+		unsigned int mx, my;
 		unsigned int dst_x, src_y, dst_y, y_count;
+
+		cursor = vd->vd_mcursor;
+		mx = vd->vd_mx_drawn + vw->vw_offset.tp_col;
+		my = vd->vd_my_drawn + vw->vw_offset.tp_row;
 
 		/* Compute the portion of the cursor we want to copy. */
 		src_x = x > mx ? x - mx : 0;
@@ -686,7 +686,7 @@ vga_bitblt_one_text_pixels_block(struct vt_device *vd,
 
 static void
 vga_bitblt_text_gfxmode(struct vt_device *vd, const struct vt_window *vw,
-    const term_rect_t *area, int cursor_displayed)
+    const term_rect_t *area)
 {
 	const struct vt_font *vf;
 	unsigned int col, row;
@@ -741,7 +741,11 @@ vga_bitblt_text_gfxmode(struct vt_device *vd, const struct vt_window *vw,
 	    * VT_VGA_PIXELS_BLOCK;
 	y2 = row * vf->vf_height + vw->vw_offset.tp_row;
 
-	/* Clip the area to the screen size. */
+	/*
+	 * Clip the area to the screen size.
+	 *
+	 * FIXME: Take vw_offset into account.
+	 */
 	x2 = min(x2, vd->vd_width - 1);
 	y2 = min(y2, vd->vd_height - 1);
 
@@ -762,15 +766,14 @@ vga_bitblt_text_gfxmode(struct vt_device *vd, const struct vt_window *vw,
 
 	for (y = y1; y < y2; y += vf->vf_height) {
 		for (x = x1; x < x2; x += VT_VGA_PIXELS_BLOCK) {
-			vga_bitblt_one_text_pixels_block(vd, vw, x, y,
-			    cursor_displayed);
+			vga_bitblt_one_text_pixels_block(vd, vw, x, y);
 		}
 	}
 }
 
 static void
 vga_bitblt_text_txtmode(struct vt_device *vd, const struct vt_window *vw,
-    const term_rect_t *area, int cursor_displayed)
+    const term_rect_t *area)
 {
 	struct vga_softc *sc;
 	const struct vt_buf *vb;
@@ -814,13 +817,13 @@ vga_bitblt_text_txtmode(struct vt_device *vd, const struct vt_window *vw,
 
 static void
 vga_bitblt_text(struct vt_device *vd, const struct vt_window *vw,
-    const term_rect_t *area, int cursor_displayed)
+    const term_rect_t *area)
 {
 
 	if (!(vd->vd_flags & VDF_TEXTMODE)) {
-		vga_bitblt_text_gfxmode(vd, vw, area, cursor_displayed);
+		vga_bitblt_text_gfxmode(vd, vw, area);
 	} else {
-		vga_bitblt_text_txtmode(vd, vw, area, cursor_displayed);
+		vga_bitblt_text_txtmode(vd, vw, area);
 	}
 }
 
