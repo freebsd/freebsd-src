@@ -306,8 +306,9 @@ RetryFault:;
 		    (fs.first_object->flags & OBJ_MIGHTBEDIRTY) == 0)
 			goto fast_failed;
 		m = vm_page_lookup(fs.first_object, fs.first_pindex);
-		if (m == NULL || vm_page_busied(m) ||
-		    m->valid != VM_PAGE_BITS_ALL)
+		/* A busy page can be mapped for read|execute access. */
+		if (m == NULL || ((prot & VM_PROT_WRITE) != 0 &&
+		    vm_page_busied(m)) || m->valid != VM_PAGE_BITS_ALL)
 			goto fast_failed;
 		result = pmap_enter(fs.map->pmap, vaddr, m, prot,
 		   fault_type | PMAP_ENTER_NOSLEEP | (wired ? PMAP_ENTER_WIRED :
