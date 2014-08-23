@@ -500,13 +500,19 @@ vatpic_pending_intr(struct vm *vm, int *vecptr)
 	VATPIC_LOCK(vatpic);
 
 	pin = vatpic_get_highest_irrpin(atpic);
-	if (pin == -1)
-		pin = 7;
 	if (pin == 2) {
 		atpic = &vatpic->atpic[1];
 		pin = vatpic_get_highest_irrpin(atpic);
 	}
 
+	/*
+	 * If there are no pins active at this moment then return the spurious
+	 * interrupt vector instead.
+	 */
+	if (pin == -1)
+		pin = 7;
+
+	KASSERT(pin >= 0 && pin <= 7, ("%s: invalid pin %d", __func__, pin));
 	*vecptr = atpic->irq_base + pin;
 
 	VATPIC_UNLOCK(vatpic);
