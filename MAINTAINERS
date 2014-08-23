@@ -84,7 +84,6 @@ binutils	obrien	Insists on BU blocked from unapproved commits
 file		obrien	Insists to keep file blocked from other's unapproved
 			commits
 contrib/bzip2	obrien	Pre-commit review required.
-lukemftpd	obrien	Pre-commit review required.
 geom_concat	pjd	Pre-commit review preferred.
 geom_eli	pjd	Pre-commit review preferred.
 geom_gate	pjd	Pre-commit review preferred.
