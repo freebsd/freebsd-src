@@ -800,6 +800,7 @@ pmap_protect(pmap_t pmap, vm_offset_t sva, vm_offset_t eva, vm_prot_t prot)
 	if ((prot & VM_PROT_WRITE) != 0)
 		mask |= ATTR_AP(ATTR_AP_RW);
 
+	PMAP_LOCK(pmap);
 	for (; sva < eva; sva = va_next) {
 		l1 = pmap_l1(pmap, sva);
 		if ((*l1 & ATTR_DESCR_MASK) == L1_BLOCK) {
@@ -824,6 +825,7 @@ pmap_protect(pmap_t pmap, vm_offset_t sva, vm_offset_t eva, vm_prot_t prot)
 		}
 		va_next = sva + L3_SIZE;
 	}
+	PMAP_UNLOCK(pmap);
 }
 
 /*
