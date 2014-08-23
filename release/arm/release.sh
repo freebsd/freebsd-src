@@ -92,6 +92,10 @@ install_uboot() {
 }
 
 main() {
+	# Fix broken ports that use kern.osreldate.
+	OSVERSION=$(chroot ${CHROOTDIR} /usr/bin/uname -U)
+	export OSVERSION
+
 	# Build the 'xdev' target for crochet.
 	eval chroot ${CHROOTDIR} make -C /usr/src \
 		${XDEV_FLAGS} XDEV=${XDEV} XDEV_ARCH=${XDEV_ARCH} \
