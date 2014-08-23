@@ -59,6 +59,7 @@ struct ofwfb_softc {
 static vd_probe_t	ofwfb_probe;
 static vd_init_t	ofwfb_init;
 static vd_bitblt_text_t	ofwfb_bitblt_text;
+static vd_bitblt_bmp_t	ofwfb_bitblt_bitmap;
 
 static const struct vt_driver vt_ofwfb_driver = {
 	.vd_name	= "ofwfb",
@@ -66,6 +67,7 @@ static const struct vt_driver vt_ofwfb_driver = {
 	.vd_init	= ofwfb_init,
 	.vd_blank	= vt_fb_blank,
 	.vd_bitblt_text	= ofwfb_bitblt_text,
+	.vd_bitblt_bmp	= ofwfb_bitblt_bitmap,
 	.vd_fb_ioctl	= vt_fb_ioctl,
 	.vd_fb_mmap	= vt_fb_mmap,
 	.vd_priority	= VD_PRIORITY_GENERIC+1,

@@ -46,6 +46,7 @@ static vd_probe_t	creatorfb_probe;
 static vd_init_t	creatorfb_init;
 static vd_blank_t	creatorfb_blank;
 static vd_bitblt_text_t	creatorfb_bitblt_text;
+static vd_bitblt_bmp_t	creatorfb_bitblt_bitmap;
 
 static const struct vt_driver vt_creatorfb_driver = {
 	.vd_name	= "creatorfb",
@@ -53,6 +54,7 @@ static const struct vt_driver vt_creatorfb_driver = {
 	.vd_init	= creatorfb_init,
 	.vd_blank	= creatorfb_blank,
 	.vd_bitblt_text	= creatorfb_bitblt_text,
+	.vd_bitblt_bmp	= creatorfb_bitblt_bitmap,
 	.vd_fb_ioctl	= vt_fb_ioctl,
 	.vd_fb_mmap	= vt_fb_mmap,
 	.vd_priority	= VD_PRIORITY_SPECIFIC
