@@ -69,7 +69,8 @@ void do_el1h_sync(struct trapframe *frame)
 		panic("Data abort at %#llx", frame->tf_elr);
 		break;
 	case 0x3c:
-		printf("Breakpoint %u\n", (uint32_t)(esr & 0xffffff));
+		printf("Breakpoint %x\n", (uint32_t)(esr & 0xffffff));
+		panic("breakpoint");
 		break;
 	default:
 		panic("Unknown exception %x\n", exception);
