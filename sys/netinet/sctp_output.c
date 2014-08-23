@@ -3618,6 +3618,11 @@ sctp_process_cmsgs_for_init(struct sctp_tcb *stcb, struct mbuf *control, int *er
 					struct sctp_stream_out *tmp_str;
 					unsigned int i;
 
+#if defined(SCTP_DETAILED_STR_STATS)
+					int j;
+
+#endif
+
 					/* Default is NOT correct */
 					SCTPDBG(SCTP_DEBUG_OUTPUT1, "Ok, default:%d pre_open:%d\n",
 					    stcb->asoc.streamoutcnt, stcb->asoc.pre_open_streams);
@@ -3638,6 +3643,15 @@ sctp_process_cmsgs_for_init(struct sctp_tcb *stcb, struct mbuf *control, int *er
 						TAILQ_INIT(&stcb->asoc.strmout[i].outqueue);
 						stcb->asoc.strmout[i].chunks_on_queues = 0;
 						stcb->asoc.strmout[i].next_sequence_send = 0;
+#if defined(SCTP_DETAILED_STR_STATS)
+						for (j = 0; j < SCTP_PR_SCTP_MAX + 1; j++) {
+							stcb->asoc.strmout[i].abandoned_sent[j] = 0;
+							stcb->asoc.strmout[i].abandoned_unsent[j] = 0;
+						}
+#else
+						stcb->asoc.strmout[i].abandoned_sent[0] = 0;
+						stcb->asoc.strmout[i].abandoned_unsent[0] = 0;
+#endif
 						stcb->asoc.strmout[i].stream_no = i;
 						stcb->asoc.strmout[i].last_msg_incomplete = 0;
 						stcb->asoc.ss_functions.sctp_ss_init_stream(&stcb->asoc.strmout[i], NULL);
@@ -11923,6 +11937,11 @@ sctp_send_str_reset_req(struct sctp_tcb *stcb,
 		struct sctp_stream_queue_pending *sp, *nsp;
 		int i;
 
+#if defined(SCTP_DETAILED_STR_STATS)
+		int j;
+
+#endif
+
 		oldstream = stcb->asoc.strmout;
 		/* get some more */
 		SCTP_MALLOC(stcb->asoc.strmout, struct sctp_stream_out *,
@@ -11968,6 +11987,15 @@ sctp_send_str_reset_req(struct sctp_tcb *stcb,
 		for (i = stcb->asoc.streamoutcnt; i < (stcb->asoc.streamoutcnt + adding_o); i++) {
 			TAILQ_INIT(&stcb->asoc.strmout[i].outqueue);
 			stcb->asoc.strmout[i].chunks_on_queues = 0;
+#if defined(SCTP_DETAILED_STR_STATS)
+			for (j = 0; j < SCTP_PR_SCTP_MAX + 1; j++) {
+				stcb->asoc.strmout[i].abandoned_sent[j] = 0;
+				stcb->asoc.strmout[i].abandoned_unsent[j] = 0;
+			}
+#else
+			stcb->asoc.strmout[i].abandoned_sent[0] = 0;
+			stcb->asoc.strmout[i].abandoned_unsent[0] = 0;
+#endif
 			stcb->asoc.strmout[i].next_sequence_send = 0x0;
 			stcb->asoc.strmout[i].stream_no = i;
 			stcb->asoc.strmout[i].last_msg_incomplete = 0;

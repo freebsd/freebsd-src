@@ -707,6 +707,8 @@ dev/ath/if_ath_ahb.c		optional ath_ahb \
 #
 dev/ath/if_ath.c		optional ath \
 	compile-with "${NORMAL_C} -I$S/dev/ath"
+dev/ath/if_ath_alq.c		optional ath \
+	compile-with "${NORMAL_C} -I$S/dev/ath"
 dev/ath/if_ath_beacon.c		optional ath \
 	compile-with "${NORMAL_C} -I$S/dev/ath"
 dev/ath/if_ath_btcoex.c		optional ath \
@@ -1422,22 +1424,26 @@ dev/hptiop/hptiop.c		optional hptiop scbus
 dev/hwpmc/hwpmc_logging.c	optional hwpmc
 dev/hwpmc/hwpmc_mod.c		optional hwpmc
 dev/hwpmc/hwpmc_soft.c		optional hwpmc
-dev/i40e/if_i40e.c		optional i40e inet \
-	compile-with "${NORMAL_C} -I$S/dev/i40e -DSMP"
-dev/i40e/i40e_txrx.c		optional i40e inet \
-	compile-with "${NORMAL_C} -I$S/dev/i40e -DSMP"
-dev/i40e/i40e_osdep.c		optional i40e inet \
-	compile-with "${NORMAL_C} -I$S/dev/i40e -DSMP"
-dev/i40e/i40e_nvm.c		optional i40e inet \
-	compile-with "${NORMAL_C} -I$S/dev/i40e -DSMP"
-dev/i40e/i40e_lan_hmc.c		optional i40e inet \
-	compile-with "${NORMAL_C} -I$S/dev/i40e -DSMP"
-dev/i40e/i40e_hmc.c		optional i40e inet \
-	compile-with "${NORMAL_C} -I$S/dev/i40e -DSMP"
-dev/i40e/i40e_common.c		optional i40e inet \
-	compile-with "${NORMAL_C} -I$S/dev/i40e -DSMP"
-dev/i40e/i40e_adminq.c		optional i40e inet \
-	compile-with "${NORMAL_C} -I$S/dev/i40e -DSMP"
+dev/ixl/if_ixl.c		optional ixl inet \
+	compile-with "${NORMAL_C} -I$S/dev/ixl"
+dev/ixl/if_ixlv.c		optional ixlv inet \
+	compile-with "${NORMAL_C} -I$S/dev/ixl"
+dev/ixl/ixlvc.c			optional ixlv inet \
+	compile-with "${NORMAL_C} -I$S/dev/ixl"
+dev/ixl/ixl_txrx.c		optional ixl ixlv inet \
+	compile-with "${NORMAL_C} -I$S/dev/ixl"
+dev/ixl/i40e_osdep.c		optional ixl ixlv inet \
+	compile-with "${NORMAL_C} -I$S/dev/ixl"
+dev/ixl/i40e_lan_hmc.c		optional ixl ixlv inet \
+	compile-with "${NORMAL_C} -I$S/dev/ixl"
+dev/ixl/i40e_hmc.c		optional ixl ixlv inet \
+	compile-with "${NORMAL_C} -I$S/dev/ixl"
+dev/ixl/i40e_common.c		optional ixl ixlv inet \
+	compile-with "${NORMAL_C} -I$S/dev/ixl"
+dev/ixl/i40e_nvm.c		optional ixl ixlv inet \
+	compile-with "${NORMAL_C} -I$S/dev/ixl"
+dev/ixl/i40e_adminq.c		optional ixl ixlv inet \
+	compile-with "${NORMAL_C} -I$S/dev/ixl"
 dev/ichsmb/ichsmb.c		optional ichsmb
 dev/ichsmb/ichsmb_pci.c		optional ichsmb pci
 dev/ida/ida.c			optional ida
@@ -1596,6 +1602,34 @@ iwn1000.fw			optional iwn1000fw | iwnfw		\
 	compile-with	"${NORMAL_FW}"					\
 	no-obj no-implicit-rule						\
 	clean		"iwn1000.fw"
+iwn105fw.c			optional iwn105fw | iwnfw		\
+	compile-with	"${AWK} -f $S/tools/fw_stub.awk iwn105.fw:iwn105fw -miwn105fw -c${.TARGET}" \
+	no-implicit-rule before-depend local				\
+	clean		"iwn105fw.c"
+iwn105fw.fwo			optional iwn105fw | iwnfw		\
+	dependency	"iwn105.fw"					\
+	compile-with	"${NORMAL_FWO}"					\
+	no-implicit-rule						\
+	clean		"iwn105fw.fwo"
+iwn105.fw			optional iwn105fw | iwnfw		\
+	dependency	"$S/contrib/dev/iwn/iwlwifi-105-6-18.168.6.1.fw.uu" \
+	compile-with	"${NORMAL_FW}"					\
+	no-obj no-implicit-rule						\
+	clean		"iwn105.fw"
+iwn135fw.c			optional iwn135fw | iwnfw		\
+	compile-with	"${AWK} -f $S/tools/fw_stub.awk iwn135.fw:iwn135fw -miwn135fw -c${.TARGET}" \
+	no-implicit-rule before-depend local				\
+	clean		"iwn135fw.c"
+iwn135fw.fwo			optional iwn135fw | iwnfw		\
+	dependency	"iwn135.fw"					\
+	compile-with	"${NORMAL_FWO}"					\
+	no-implicit-rule						\
+	clean		"iwn135fw.fwo"
+iwn135.fw			optional iwn135fw | iwnfw		\
+	dependency	"$S/contrib/dev/iwn/iwlwifi-135-6-18.168.6.1.fw.uu" \
+	compile-with	"${NORMAL_FW}"					\
+	no-obj no-implicit-rule						\
+	clean		"iwn135.fw"
 iwn2000fw.c			optional iwn2000fw | iwnfw		\
 	compile-with	"${AWK} -f $S/tools/fw_stub.awk iwn2000.fw:iwn2000fw -miwn2000fw -c${.TARGET}" \
 	no-implicit-rule before-depend local				\
@@ -1918,6 +1952,7 @@ dev/netmap/netmap_freebsd.c	optional netmap
 dev/netmap/netmap_generic.c	optional netmap
 dev/netmap/netmap_mbq.c		optional netmap
 dev/netmap/netmap_mem2.c	optional netmap
+dev/netmap/netmap_monitor.c	optional netmap
 dev/netmap/netmap_offloadings.c	optional netmap
 dev/netmap/netmap_pipe.c	optional netmap
 dev/netmap/netmap_vale.c	optional netmap
@@ -2596,6 +2631,9 @@ dev/xen/timer/timer.c		optional xen | xenhvm
 dev/xen/pvcpu/pvcpu.c		optional xen | xenhvm
 dev/xl/if_xl.c			optional xl pci
 dev/xl/xlphy.c			optional xl pci
+fs/autofs/autofs.c		optional autofs
+fs/autofs/autofs_vfsops.c	optional autofs
+fs/autofs/autofs_vnops.c	optional autofs
 fs/deadfs/dead_vnops.c		standard
 fs/devfs/devfs_devs.c		standard
 fs/devfs/devfs_dir.c		standard
@@ -3133,6 +3171,7 @@ libkern/strcmp.c		standard
 libkern/strcpy.c		standard
 libkern/strcspn.c		standard
 libkern/strdup.c		standard
+libkern/strndup.c		standard
 libkern/strlcat.c		standard
 libkern/strlcpy.c		standard
 libkern/strlen.c		standard

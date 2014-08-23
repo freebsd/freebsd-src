@@ -7,6 +7,7 @@
 MAN=	acct.5 \
 	ar.5 \
 	a.out.5 \
+	autofs.5 \
 	bluetooth.device.conf.5 \
 	bluetooth.hosts.5 \
 	bluetooth.protocols.5 \

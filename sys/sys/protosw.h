@@ -65,7 +65,7 @@ struct sockopt;
  */
 /* USE THESE FOR YOUR PROTOTYPES ! */
 typedef int	pr_input_t (struct mbuf **, int*, int);
-typedef int	pr_output_t (struct mbuf *, struct socket *);
+typedef int	pr_output_t (struct mbuf *, struct socket *, ...);
 typedef void	pr_ctlinput_t (int, struct sockaddr *, void *);
 typedef int	pr_ctloutput_t (struct socket *, struct sockopt *);
 typedef	void	pr_init_t (void);

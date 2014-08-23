@@ -115,6 +115,10 @@ typedef unsigned int 	vt_axis_t;
  * Per-device datastructure.
  */
 
+#ifndef SC_NO_CUTPASTE
+struct vt_mouse_cursor;
+#endif
+
 struct vt_device {
 	struct vt_window	*vd_windows[VT_MAXWINDOWS]; /* (c) Windows. */
 	struct vt_window	*vd_curwindow;	/* (d) Current window. */
@@ -122,17 +126,23 @@ struct vt_device {
 	struct vt_window	*vd_markedwin;	/* (?) Copy/paste buf owner. */
 	const struct vt_driver	*vd_driver;	/* (c) Graphics driver. */
 	void			*vd_softc;	/* (u) Driver data. */
-	uint16_t		 vd_mx;		/* (?) Mouse X. */
-	uint16_t		 vd_my;		/* (?) Mouse Y. */
-	vt_axis_t		 vd_mdirtyx;	/* (?) Screen width. */
-	vt_axis_t		 vd_mdirtyy;	/* (?) Screen height. */
+#ifndef SC_NO_CUTPASTE
+	struct vt_mouse_cursor	*vd_mcursor;	/* (?) Cursor bitmap. */
+	term_color_t		 vd_mcursor_fg;	/* (?) Cursor fg color. */
+	term_color_t		 vd_mcursor_bg;	/* (?) Cursor bg color. */
+	vt_axis_t		 vd_mx_drawn;	/* (?) Mouse X and Y      */
+	vt_axis_t		 vd_my_drawn;	/*     as of last redraw. */
+	int			 vd_mshown;	/* (?) Mouse shown during */
+#endif						/*     last redrawn.      */
+	uint16_t		 vd_mx;		/* (?) Current mouse X. */
+	uint16_t		 vd_my;		/* (?) current mouse Y. */
 	uint32_t		 vd_mstate;	/* (?) Mouse state. */
-	term_pos_t		 vd_offset;	/* (?) Pixel offset. */
 	vt_axis_t		 vd_width;	/* (?) Screen width. */
 	vt_axis_t		 vd_height;	/* (?) Screen height. */
 	struct mtx		 vd_lock;	/* Per-device lock. */
 	struct cv		 vd_winswitch;	/* (d) Window switch notify. */
 	struct callout		 vd_timer;	/* (d) Display timer. */
+	volatile unsigned int	 vd_timer_armed;/* (?) Display timer started.*/
 	int			 vd_flags;	/* (d) Device flags. */
 #define	VDF_TEXTMODE	0x01	/* Do text mode rendering. */
 #define	VDF_SPLASH	0x02	/* Splash screen active. */
@@ -194,12 +204,12 @@ void vtbuf_grow(struct vt_buf *, const term_pos_t *, int);
 void vtbuf_putchar(struct vt_buf *, const term_pos_t *, term_char_t);
 void vtbuf_cursor_position(struct vt_buf *, const term_pos_t *);
 void vtbuf_scroll_mode(struct vt_buf *vb, int yes);
+void vtbuf_dirty(struct vt_buf *vb, const term_rect_t *area);
 void vtbuf_undirty(struct vt_buf *, term_rect_t *, struct vt_bufmask *);
 void vtbuf_sethistory_size(struct vt_buf *, int);
-int vtbuf_iscursor(struct vt_buf *vb, int row, int col);
+int vtbuf_iscursor(const struct vt_buf *vb, int row, int col);
 void vtbuf_cursor_visibility(struct vt_buf *, int);
 #ifndef SC_NO_CUTPASTE
-void vtbuf_mouse_cursor_position(struct vt_buf *vb, int col, int row);
 int vtbuf_set_mark(struct vt_buf *vb, int type, int col, int row);
 int vtbuf_get_marked_len(struct vt_buf *vb);
 void vtbuf_extract_marked(struct vt_buf *vb, term_char_t *buf, int sz);
@@ -248,6 +258,7 @@ struct vt_window {
 	struct terminal		*vw_terminal;	/* (c) Terminal. */
 	struct vt_buf		 vw_buf;	/* (u) Screen buffer. */
 	struct vt_font		*vw_font;	/* (d) Graphical font. */
+	term_pos_t		 vw_offset;	/* (?) Pixel offset. */
 	unsigned int		 vw_number;	/* (c) Window number. */
 	int			 vw_kbdmode;	/* (?) Keyboard mode. */
 	char			*vw_kbdsq;	/* Escape sequence queue*/
@@ -277,21 +288,23 @@ struct vt_window {
 
 /*
  * Per-device driver routines.
- *
- * vd_bitbltchr is used when the driver operates in graphics mode, while
- * vd_putchar is used when the driver operates in text mode
- * (VDF_TEXTMODE).
  */
 
 typedef int vd_init_t(struct vt_device *vd);
 typedef int vd_probe_t(struct vt_device *vd);
 typedef void vd_postswitch_t(struct vt_device *vd);
 typedef void vd_blank_t(struct vt_device *vd, term_color_t color);
+/*
+ * FIXME: Remove vd_bitblt_t and vd_putchar_t, once vd_bitblt_text_t is
+ * provided by all drivers.
+ */
 typedef void vd_bitbltchr_t(struct vt_device *vd, const uint8_t *src,
     const uint8_t *mask, int bpl, vt_axis_t top, vt_axis_t left,
     unsigned int width, unsigned int height, term_color_t fg, term_color_t bg);
 typedef void vd_putchar_t(struct vt_device *vd, term_char_t,
     vt_axis_t top, vt_axis_t left, term_color_t fg, term_color_t bg);
+typedef void vd_bitblt_text_t(struct vt_device *vd, const struct vt_window *vw,
+    const term_rect_t *area);
 typedef int vd_fb_ioctl_t(struct vt_device *, u_long, caddr_t, struct thread *);
 typedef int vd_fb_mmap_t(struct vt_device *, vm_ooffset_t, vm_paddr_t *, int,
     vm_memattr_t *);
@@ -307,9 +320,10 @@ struct vt_driver {
 
 	/* Drawing. */
 	vd_blank_t	*vd_blank;
-	vd_bitbltchr_t	*vd_bitbltchr;
+	vd_bitbltchr_t	*vd_bitbltchr; /* FIXME: Deprecated. */
 	vd_drawrect_t	*vd_drawrect;
 	vd_setpixel_t	*vd_setpixel;
+	vd_bitblt_text_t *vd_bitblt_text;
 
 	/* Framebuffer ioctls, if present. */
 	vd_fb_ioctl_t	*vd_fb_ioctl;
@@ -318,7 +332,7 @@ struct vt_driver {
 	vd_fb_mmap_t	*vd_fb_mmap;
 
 	/* Text mode operation. */
-	vd_putchar_t	*vd_putchar;
+	vd_putchar_t	*vd_putchar; /* FIXME: Deprecated. */
 
 	/* Update display setting on vt switch. */
 	vd_postswitch_t	*vd_postswitch;
@@ -377,11 +391,11 @@ struct vt_font {
 };
 
 #ifndef SC_NO_CUTPASTE
-struct mouse_cursor {
+struct vt_mouse_cursor {
 	uint8_t map[64 * 64 / 8];
 	uint8_t mask[64 * 64 / 8];
-	uint8_t w;
-	uint8_t h;
+	uint8_t width;
+	uint8_t height;
 };
 #endif
 
@@ -398,6 +412,12 @@ void vt_mouse_state(int show);
 #endif
 #define	VT_MOUSE_SHOW 1
 #define	VT_MOUSE_HIDE 0
+
+/* Utilities. */
+void	vt_determine_colors(term_char_t c, int cursor,
+	    term_color_t *fg, term_color_t *bg);
+int	vt_is_cursor_in_area(const struct vt_device *vd,
+	    const term_rect_t *area);
 
 #endif /* !_DEV_VT_VT_H_ */
 

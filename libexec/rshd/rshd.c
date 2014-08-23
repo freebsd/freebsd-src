@@ -127,7 +127,7 @@ main(int argc, char *argv[])
 	int ch, on = 1;
 	struct sockaddr_storage from;
 
-	openlog("rshd", LOG_PID | LOG_ODELAY, LOG_DAEMON);
+	openlog("rshd", LOG_PID, LOG_DAEMON);
 
 	opterr = 0;
 	while ((ch = getopt(argc, argv, OPTIONS)) != -1)

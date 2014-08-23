@@ -148,7 +148,7 @@ vtbuf_wth(struct vt_buf *vb, int row)
 
 /* Translate history row to current view row number. */
 static int
-vtbuf_htw(struct vt_buf *vb, int row)
+vtbuf_htw(const struct vt_buf *vb, int row)
 {
 
 	/*
@@ -162,7 +162,7 @@ vtbuf_htw(struct vt_buf *vb, int row)
 }
 
 int
-vtbuf_iscursor(struct vt_buf *vb, int row, int col)
+vtbuf_iscursor(const struct vt_buf *vb, int row, int col)
 {
 	int sc, sr, ec, er, tmp;
 
@@ -246,7 +246,7 @@ vtbuf_dirty_locked(struct vt_buf *vb, const term_rect_t *area)
 	    vtbuf_dirty_axis(area->tr_begin.tp_col, area->tr_end.tp_col);
 }
 
-static inline void
+void
 vtbuf_dirty(struct vt_buf *vb, const term_rect_t *area)
 {
 
@@ -558,18 +558,6 @@ vtbuf_cursor_position(struct vt_buf *vb, const term_pos_t *p)
 }
 
 #ifndef SC_NO_CUTPASTE
-void
-vtbuf_mouse_cursor_position(struct vt_buf *vb, int col, int row)
-{
-	term_rect_t area;
-
-	area.tr_begin.tp_row = MAX(row - 1, 0);
-	area.tr_begin.tp_col = MAX(col - 1, 0);
-	area.tr_end.tp_row = MIN(row + 2, vb->vb_scr_size.tp_row);
-	area.tr_end.tp_col = MIN(col + 2, vb->vb_scr_size.tp_col);
-	vtbuf_dirty(vb, &area);
-}
-
 static void
 vtbuf_flush_mark(struct vt_buf *vb)
 {

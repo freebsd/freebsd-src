@@ -1211,11 +1211,9 @@ pmap_pinit(pmap_t pm)
 	 */
 	if (pm->pm_tsb == NULL) {
 		pm->pm_tsb = (struct tte *)kva_alloc(TSB_BSIZE);
-		if (pm->pm_tsb == NULL) {
-			PMAP_LOCK_DESTROY(pm);
+		if (pm->pm_tsb == NULL)
 			return (0);
 		}
-	}
 
 	/*
 	 * Allocate an object for it.

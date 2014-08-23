@@ -43,6 +43,7 @@
 #define	Pcreate_error strerror
 #define	Pdelbkpt proc_bkptdel
 #define	Pgrab_error strerror
+#define	Plmid(p, a, l) (-1)
 #define	Plmid_to_map(p, l, o) proc_obj2map((p), (o))
 #define	Plookup_by_addr proc_addr2sym
 #define	Pname_to_ctf(p, obj) NULL
