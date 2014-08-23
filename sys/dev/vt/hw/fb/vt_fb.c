@@ -49,6 +49,7 @@ static struct vt_driver vt_fb_driver = {
 	.vd_init = vt_fb_init,
 	.vd_blank = vt_fb_blank,
 	.vd_bitblt_text = vt_fb_bitblt_text,
+	.vd_bitblt_bmp = vt_fb_bitblt_bitmap,
 	.vd_drawrect = vt_fb_drawrect,
 	.vd_setpixel = vt_fb_setpixel,
 	.vd_postswitch = vt_fb_postswitch,
@@ -242,7 +243,7 @@ vt_fb_blank(struct vt_device *vd, term_color_t color)
 	}
 }
 
-static void
+void
 vt_fb_bitblt_bitmap(struct vt_device *vd, const struct vt_window *vw,
     const uint8_t *pattern, const uint8_t *mask,
     unsigned int width, unsigned int height,

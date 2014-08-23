@@ -39,6 +39,7 @@ void vt_fb_suspend(void);
 vd_init_t		vt_fb_init;
 vd_blank_t		vt_fb_blank;
 vd_bitblt_text_t	vt_fb_bitblt_text;
+vd_bitblt_bmp_t		vt_fb_bitblt_bitmap;
 vd_postswitch_t		vt_fb_postswitch;
 vd_fb_ioctl_t		vt_fb_ioctl;
 vd_fb_mmap_t		vt_fb_mmap;

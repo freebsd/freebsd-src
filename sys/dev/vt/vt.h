@@ -305,6 +305,10 @@ typedef void vd_putchar_t(struct vt_device *vd, term_char_t,
     vt_axis_t top, vt_axis_t left, term_color_t fg, term_color_t bg);
 typedef void vd_bitblt_text_t(struct vt_device *vd, const struct vt_window *vw,
     const term_rect_t *area);
+typedef void vd_bitblt_bmp_t(struct vt_device *vd, const struct vt_window *vw,
+    const uint8_t *pattern, const uint8_t *mask,
+    unsigned int width, unsigned int height,
+    unsigned int x, unsigned int y, term_color_t fg, term_color_t bg);
 typedef int vd_fb_ioctl_t(struct vt_device *, u_long, caddr_t, struct thread *);
 typedef int vd_fb_mmap_t(struct vt_device *, vm_ooffset_t, vm_paddr_t *, int,
     vm_memattr_t *);
@@ -324,6 +328,7 @@ struct vt_driver {
 	vd_drawrect_t	*vd_drawrect;
 	vd_setpixel_t	*vd_setpixel;
 	vd_bitblt_text_t *vd_bitblt_text;
+	vd_bitblt_bmp_t	*vd_bitblt_bmp;
 
 	/* Framebuffer ioctls, if present. */
 	vd_fb_ioctl_t	*vd_fb_ioctl;
