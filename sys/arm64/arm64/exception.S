@@ -110,48 +110,61 @@ handle_el1h_irq:
 	restore_registers
 	eret
 
+handle_el1h_error:
+	brk	0xf13
+
+handle_el0_sync:
+	save_registers
+	mov	x0, sp
+	bl	do_el0_sync
+	restore_registers
+	eret
+
+handle_el0_irq:
+	save_registers
+	mov	x0, sp
+	bl	cpu_intr
+	restore_registers
+	eret
+
+handle_el0_error:
+	save_registers
+	mov	x0, sp
+	bl	do_el0_error
+	brk	0xf23
+	1: b 1b
+
 .macro	vempty
 	.align 7
-	EMIT('Z');
+	brk	0xfff
 	1: b	1b
 .endm
 
-.macro	el1h_sync
+.macro	vector	name
 	.align 7
-	b	handle_el1h_sync
-.endm
-
-.macro	el1h_irq
-	.align 7
-	b	handle_el1h_irq
-.endm
-
-.macro	el1h_error
-	.align 7
-	EMIT('C');
-	1: b	1b
+	b	handle_\name
 .endm
 
 	.align 11
 	.globl exception_vectors
 exception_vectors:
-	vempty		/* Synchronous EL1t */
-	vempty		/* IRQ EL1t */
-	vempty		/* FIQ EL1t */
-	vempty		/* Error EL1t */
+	vempty			/* Synchronous EL1t */
+	vempty			/* IRQ EL1t */
+	vempty			/* FIQ EL1t */
+	vempty			/* Error EL1t */
 
-	el1h_sync	/* Synchronous EL1h */
-	el1h_irq	/* IRQ EL1h */
-	vempty		/* FIQ EL1h */
-	el1h_error	/* Error EL1h */
+	vector el1h_sync	/* Synchronous EL1h */
+	vector el1h_irq		/* IRQ EL1h */
+	vempty			/* FIQ EL1h */
+	vector el1h_error	/* Error EL1h */
 
-	vempty		/* Synchronous 64-bit EL0 */
-	vempty		/* IRQ 64-bit EL0 */
-	vempty		/* FIQ 64-bit EL0 */
-	vempty		/* Error 64-bit EL0 */
+	vector el0_sync		/* Synchronous 64-bit EL0 */
+	vector el0_irq		/* IRQ 64-bit EL0 */
+	vempty			/* FIQ 64-bit EL0 */
+	vector el0_error	/* Error 64-bit EL0 */
 
-	vempty		/* Synchronous 32-bit EL0 */
-	vempty		/* IRQ 32-bit EL0 */
-	vempty		/* FIQ 32-bit EL0 */
-	vempty		/* Error 32-bit EL0 */
+	vempty			/* Synchronous 32-bit EL0 */
+	vempty			/* IRQ 32-bit EL0 */
+	vempty			/* FIQ 32-bit EL0 */
+	vempty			/* Error 32-bit EL0 */
 

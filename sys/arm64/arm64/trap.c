@@ -44,6 +44,8 @@ __FBSDID("$FreeBSD$");
 
 /* Called from exception.S */
 void do_el1h_sync(struct trapframe *);
+void do_el0_sync(struct trapframe *);
+void do_el0_error(struct trapframe *);
 
 int
 cpu_fetch_syscall_args(struct thread *td, struct syscall_args *sa)
@@ -143,5 +145,49 @@ do_el1h_sync(struct trapframe *frame)
 		panic("Unknown exception %x\n", exception);
 	}
 	printf("Done do_el1h_sync\n");
+}
+
+void
+do_el0_sync(struct trapframe *frame)
+{
+	uint32_t exception;
+	uint64_t esr;
+	u_int reg;
+
+	__asm __volatile("mrs %x0, esr_el1" : "=&r"(esr));
+	exception = (esr >> 26) & 0x3f;
+	printf("In do_el0_sync %llx %llx %x\n", frame->tf_elr, esr, exception);
+
+	for (reg = 0; reg < 31; reg++) {
+		printf(" %sx%d: %llx\n", (reg < 10) ? " " : "", reg, frame->tf_x[reg]);
+	}
+	printf("  sp: %llx\n", frame->tf_sp);
+	printf("  lr: %llx\n", frame->tf_lr);
+	printf(" elr: %llx\n", frame->tf_elr);
+	printf("spsr: %llx\n", frame->tf_spsr);
+
+	switch(exception) {
+	case 0x20:
+	case 0x24:
+		data_abort(frame, esr, 1);
+		break;
+	default:
+		panic("Unknown exception %x\n", exception);
+	}
+}
+
+void
+do_el0_error(struct trapframe *frame)
+{
+	u_int reg;
+
+	for (reg = 0; reg < 31; reg++) {
+		printf(" %sx%d: %llx\n", (reg < 10) ? " " : "", reg, frame->tf_x[reg]);
+	}
+	printf("  sp: %llx\n", frame->tf_sp);
+	printf("  lr: %llx\n", frame->tf_lr);
+	printf(" elr: %llx\n", frame->tf_elr);
+	printf("spsr: %llx\n", frame->tf_spsr);
+	panic("do_el0_error");
 }
 
