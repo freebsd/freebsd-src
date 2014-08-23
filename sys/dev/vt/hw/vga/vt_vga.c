@@ -799,7 +799,7 @@ vga_bitblt_text_txtmode(struct vt_device *vd, const struct vt_window *vw,
 			 * character set used by the VGA hardware by
 			 * default.
 			 */
-			ch = vga_get_cp437(c);
+			ch = vga_get_cp437(TCHAR_CHARACTER(c));
 
 			/* Convert colors to VGA attributes. */
 			attr = bg << 4 | fg;
