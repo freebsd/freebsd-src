@@ -215,7 +215,7 @@ x86_emulate_cpuid(struct vm *vm, int vcpu_id,
 			break;
 
 		case CPUID_0000_0004:
-			do_cpuid(4, regs);
+			cpuid_count(*eax, *ecx, regs);
 
 			/*
 			 * Do not expose topology.
@@ -230,7 +230,7 @@ x86_emulate_cpuid(struct vm *vm, int vcpu_id,
 			 * Therefore 0 for both indicates 1 core per
 			 * package and no cache sharing.
 			 */
-			regs[0] &= 0xffff8000;
+			regs[0] &= 0x3ff;
 			break;
 
 		case CPUID_0000_0007:
