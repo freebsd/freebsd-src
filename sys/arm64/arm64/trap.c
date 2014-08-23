@@ -58,8 +58,12 @@ void do_el1h_sync(struct trapframe *frame)
 	printf("In do_el1h_sync %llx %llx %x\n", frame->tf_elr, esr, exception);
 
 	for (reg = 0; reg < 31; reg++) {
-		printf("x%d: %llx\n", reg, frame->tf_x[reg]);
+		printf(" %sx%d: %llx\n", (reg < 10) ? " " : "", reg, frame->tf_x[reg]);
 	}
+	printf("  sp: %llx\n", frame->tf_sp);
+	printf("  lr: %llx\n", frame->tf_lr);
+	printf(" elr: %llx\n", frame->tf_elr);
+	printf("spsr: %llx\n", frame->tf_spsr);
 	switch(exception) {
 	case 0x25:
 		panic("Data abort at %#llx", frame->tf_elr);
