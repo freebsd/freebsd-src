@@ -45,14 +45,14 @@ __FBSDID("$FreeBSD$");
 static vd_probe_t	creatorfb_probe;
 static vd_init_t	creatorfb_init;
 static vd_blank_t	creatorfb_blank;
-static vd_bitbltchr_t	creatorfb_bitbltchr;
+static vd_bitblt_text_t	creatorfb_bitblt_text;
 
 static const struct vt_driver vt_creatorfb_driver = {
 	.vd_name	= "creatorfb",
 	.vd_probe	= creatorfb_probe,
 	.vd_init	= creatorfb_init,
 	.vd_blank	= creatorfb_blank,
-	.vd_bitbltchr	= creatorfb_bitbltchr,
+	.vd_bitblt_text	= creatorfb_bitblt_text,
 	.vd_fb_ioctl	= vt_fb_ioctl,
 	.vd_fb_mmap	= vt_fb_mmap,
 	.vd_priority	= VD_PRIORITY_SPECIFIC
@@ -176,9 +176,10 @@ creatorfb_blank(struct vt_device *vd, term_color_t color)
 }
 
 static void
-creatorfb_bitbltchr(struct vt_device *vd, const uint8_t *src,
-    const uint8_t *mask, int bpl, vt_axis_t top, vt_axis_t left,
-    unsigned int width, unsigned int height, term_color_t fg, term_color_t bg)
+creatorfb_bitblt_bitmap(struct vt_device *vd, const struct vt_window *vw,
+    const uint8_t *pattern, const uint8_t *mask,
+    unsigned int width, unsigned int height,
+    unsigned int x, unsigned int y, term_color_t fg, term_color_t bg)
 {
 	struct creatorfb_softc *sc = vd->vd_softc;
 	u_long line;
@@ -191,15 +192,15 @@ creatorfb_bitbltchr(struct vt_device *vd, const uint8_t *src,
 	b = m = 0;
 
 	/* Don't try to put off screen pixels */
-	if (((left + width) > vd->vd_width) || ((top + height) >
+	if (((x + width) > vd->vd_width) || ((y + height) >
 	    vd->vd_height))
 		return;
 
-	line = (sc->fb.fb_stride * top) + 4*left;
+	line = (sc->fb.fb_stride * y) + 4*x;
 	for (; height > 0; height--) {
 		for (c = 0; c < width; c++) {
 			if (c % 8 == 0)
-				b = *src++;
+				b = *pattern++;
 			else
 				b <<= 1;
 			if (mask != NULL) {
@@ -218,3 +219,56 @@ creatorfb_bitbltchr(struct vt_device *vd, const uint8_t *src,
 	}
 }
 
+void
+creatorfb_bitblt_text(struct vt_device *vd, const struct vt_window *vw,
+    const term_rect_t *area)
+{
+	unsigned int col, row, x, y;
+	struct vt_font *vf;
+	term_char_t c;
+	term_color_t fg, bg;
+	const uint8_t *pattern;
+
+	vf = vw->vw_font;
+
+	for (row = area->tr_begin.tp_row; row < area->tr_end.tp_row; ++row) {
+		for (col = area->tr_begin.tp_col; col < area->tr_end.tp_col;
+		    ++col) {
+			x = col * vf->vf_width + vw->vw_offset.tp_col;
+			y = row * vf->vf_height + vw->vw_offset.tp_row;
+
+			c = VTBUF_GET_FIELD(&vw->vw_buf, row, col);
+			pattern = vtfont_lookup(vf, c);
+			vt_determine_colors(c,
+			    VTBUF_ISCURSOR(&vw->vw_buf, row, col), &fg, &bg);
+
+			creatorfb_bitblt_bitmap(vd, vw,
+			    pattern, NULL, vf->vf_width, vf->vf_height,
+			    x, y, fg, bg);
+		}
+	}
+
+#ifndef SC_NO_CUTPASTE
+	if (!vd->vd_mshown)
+		return;
+
+	term_rect_t drawn_area;
+
+	drawn_area.tr_begin.tp_col = area->tr_begin.tp_col * vf->vf_width +
+	    vw->vw_offset.tp_col;
+	drawn_area.tr_begin.tp_row = area->tr_begin.tp_row * vf->vf_height +
+	    vw->vw_offset.tp_row;
+	drawn_area.tr_end.tp_col = area->tr_end.tp_col * vf->vf_width +
+	    vw->vw_offset.tp_col;
+	drawn_area.tr_end.tp_row = area->tr_end.tp_row * vf->vf_height +
+	    vw->vw_offset.tp_row;
+
+	if (vt_is_cursor_in_area(vd, &drawn_area)) {
+		creatorfb_bitblt_bitmap(vd, vw,
+		    vd->vd_mcursor->map, vd->vd_mcursor->mask,
+		    vd->vd_mcursor->width, vd->vd_mcursor->height,
+		    vd->vd_mx_drawn, vd->vd_my_drawn,
+		    vd->vd_mcursor_fg, vd->vd_mcursor_bg);
+	}
+#endif
+}
