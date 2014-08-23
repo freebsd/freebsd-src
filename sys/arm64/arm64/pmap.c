@@ -1176,6 +1176,7 @@ pmap_activate(struct thread *td)
 	pcb = td->td_pcb;
 
 	pcb->pcb_l1addr = vtophys(pmap->pm_l1);
+	__asm __volatile("msr ttbr0_el1, %0" : : "r"(pcb->pcb_l1addr));
 
 	critical_exit();
 }
