@@ -819,15 +819,45 @@ vt_determine_colors(term_char_t c, int cursor,
 }
 
 #ifndef SC_NO_CUTPASTE
+int
+vt_is_cursor_in_area(const struct vt_device *vd, const term_rect_t *area)
+{
+	unsigned int mx, my, x1, y1, x2, y2;
+
+	/*
+	 * We use the cursor position saved during the current refresh,
+	 * in case the cursor moved since.
+	 */
+	mx = vd->vd_mx_drawn;
+	my = vd->vd_my_drawn;
+
+	x1 = area->tr_begin.tp_col;
+	y1 = area->tr_begin.tp_row;
+	x2 = area->tr_end.tp_col;
+	y2 = area->tr_end.tp_row;
+
+	if (((mx >= x1 && x2 - 1 >= mx) ||
+	     (mx < x1 && mx + vd->vd_mcursor->width >= x1)) &&
+	    ((my >= y1 && y2 - 1 >= my) ||
+	     (my < y1 && my + vd->vd_mcursor->height >= y1)))
+		return (1);
+
+	return (0);
+}
+
 static void
-vt_mark_mouse_position_as_dirty(struct vt_device *vd, int x, int y)
+vt_mark_mouse_position_as_dirty(struct vt_device *vd)
 {
 	term_rect_t area;
 	struct vt_window *vw;
 	struct vt_font *vf;
+	int x, y;
 
 	vw = vd->vd_curwindow;
 	vf = vw->vw_font;
+
+	x = vd->vd_mx_drawn;
+	y = vd->vd_my_drawn;
 
 	if (vf != NULL) {
 		area.tr_begin.tp_col = (x - vw->vw_offset.tp_col) /
@@ -897,9 +927,8 @@ vt_flush(struct vt_device *vd)
 	term_rect_t tarea;
 	term_pos_t size;
 	term_char_t *r;
-	int cursor_displayed;
 #ifndef SC_NO_CUTPASTE
-	int bpl, h, w;
+	int cursor_was_shown, cursor_moved, bpl, h, w;
 #endif
 
 	vw = vd->vd_curwindow;
@@ -913,34 +942,42 @@ vt_flush(struct vt_device *vd)
 	if (((vd->vd_flags & VDF_TEXTMODE) == 0) && (vf == NULL))
 		return;
 
-	cursor_displayed = 0;
-
 #ifndef SC_NO_CUTPASTE
+	cursor_was_shown = vd->vd_mshown;
+	cursor_moved = (vd->vd_mx != vd->vd_mx_drawn ||
+	    vd->vd_my != vd->vd_my_drawn);
+
+	/* Check if the cursor should be displayed or not. */
 	if ((vd->vd_flags & VDF_MOUSECURSOR) && /* Mouse support enabled. */
-	    !(vw->vw_flags & VWF_MOUSE_HIDE)) { /* Cursor displayed.      */
-		if (vd->vd_moldx != vd->vd_mx ||
-		    vd->vd_moldy != vd->vd_my) {
-			/* Mark last mouse position as dirty to erase. */
-			vt_mark_mouse_position_as_dirty(vd,
-			    vd->vd_moldx, vd->vd_moldy);
-
-			/*
-			 * Save point of last mouse cursor to erase it
-			 * later.
-			 */
-			vd->vd_moldx = vd->vd_mx;
-			vd->vd_moldy = vd->vd_my;
-		}
-
-		if (!kdb_active && panicstr == NULL) {
-			/* Mouse enabled, and DDB isn't active. */
-			cursor_displayed = 1;
-
-			/* Mark new mouse position as dirty. */
-			vt_mark_mouse_position_as_dirty(vd,
-			    vd->vd_mx, vd->vd_my);
-		}
+	    !(vw->vw_flags & VWF_MOUSE_HIDE) && /* Cursor displayed.      */
+	    !kdb_active && panicstr == NULL) {  /* DDB inactive.          */
+		vd->vd_mshown = 1;
+	} else {
+		vd->vd_mshown = 0;
 	}
+
+	/*
+	 * If the cursor changed display state or moved, we must mark
+	 * the old position as dirty, so that it's erased.
+	 */
+	if (cursor_was_shown != vd->vd_mshown ||
+	    (vd->vd_mshown && cursor_moved))
+		vt_mark_mouse_position_as_dirty(vd);
+
+	/*
+         * Save position of the mouse cursor. It's used by backends to
+         * know where to draw the cursor and during the next refresh to
+         * erase the previous position.
+	 */
+	vd->vd_mx_drawn = vd->vd_mx;
+	vd->vd_my_drawn = vd->vd_my;
+
+	/*
+	 * If the cursor is displayed and has moved since last refresh,
+	 * mark the new position as dirty.
+	 */
+	if (vd->vd_mshown && cursor_moved)
+		vt_mark_mouse_position_as_dirty(vd);
 #endif
 
 	vtbuf_undirty(&vw->vw_buf, &tarea, &tmask);
@@ -957,8 +994,7 @@ vt_flush(struct vt_device *vd)
 
 	if (vd->vd_driver->vd_bitblt_text != NULL) {
 		if (tarea.tr_begin.tp_col < tarea.tr_end.tp_col) {
-			vd->vd_driver->vd_bitblt_text(vd, vw, &tarea,
-			    cursor_displayed);
+			vd->vd_driver->vd_bitblt_text(vd, vw, &tarea);
 		}
 	} else {
 		/*
@@ -980,7 +1016,7 @@ vt_flush(struct vt_device *vd)
 		}
 
 #ifndef SC_NO_CUTPASTE
-		if (cursor_displayed) {
+		if (vd->vd_mshown) {
 			/* Bytes per source line. */
 			bpl = (vd->vd_mcursor->width + 7) >> 3;
 			w = vd->vd_mcursor->width;
@@ -1640,7 +1676,7 @@ vt_mouse_state(int show)
 	}
 
 	/* Mark mouse position as dirty. */
-	vt_mark_mouse_position_as_dirty(vd, vd->vd_mx, vd->vd_my);
+	vt_mark_mouse_position_as_dirty(vd);
 }
 #endif
 

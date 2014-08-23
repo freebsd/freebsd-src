@@ -130,11 +130,12 @@ struct vt_device {
 	struct vt_mouse_cursor	*vd_mcursor;	/* (?) Cursor bitmap. */
 	term_color_t		 vd_mcursor_fg;	/* (?) Cursor fg color. */
 	term_color_t		 vd_mcursor_bg;	/* (?) Cursor bg color. */
-#endif
+	vt_axis_t		 vd_mx_drawn;	/* (?) Mouse X and Y      */
+	vt_axis_t		 vd_my_drawn;	/*     as of last redraw. */
+	int			 vd_mshown;	/* (?) Mouse shown during */
+#endif						/*     last redrawn.      */
 	uint16_t		 vd_mx;		/* (?) Current mouse X. */
 	uint16_t		 vd_my;		/* (?) current mouse Y. */
-	vt_axis_t		 vd_moldx;	/* (?) Mouse X as of last redraw. */
-	vt_axis_t		 vd_moldy;	/* (?) Mouse Y as of last redraw. */
 	uint32_t		 vd_mstate;	/* (?) Mouse state. */
 	vt_axis_t		 vd_width;	/* (?) Screen width. */
 	vt_axis_t		 vd_height;	/* (?) Screen height. */
@@ -303,7 +304,7 @@ typedef void vd_bitbltchr_t(struct vt_device *vd, const uint8_t *src,
 typedef void vd_putchar_t(struct vt_device *vd, term_char_t,
     vt_axis_t top, vt_axis_t left, term_color_t fg, term_color_t bg);
 typedef void vd_bitblt_text_t(struct vt_device *vd, const struct vt_window *vw,
-    const term_rect_t *area, int cursor_displayed);
+    const term_rect_t *area);
 typedef int vd_fb_ioctl_t(struct vt_device *, u_long, caddr_t, struct thread *);
 typedef int vd_fb_mmap_t(struct vt_device *, vm_ooffset_t, vm_paddr_t *, int,
     vm_memattr_t *);
@@ -415,6 +416,8 @@ void vt_mouse_state(int show);
 /* Utilities. */
 void	vt_determine_colors(term_char_t c, int cursor,
 	    term_color_t *fg, term_color_t *bg);
+int	vt_is_cursor_in_area(const struct vt_device *vd,
+	    const term_rect_t *area);
 
 #endif /* !_DEV_VT_VT_H_ */
 
