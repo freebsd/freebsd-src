@@ -856,6 +856,36 @@ again:
 	}
 }
 
+/*
+ * Parse output of a special map called without argument.  This is just
+ * a list of keys.
+ */
+static void
+parse_map_keys_yyin(struct node *parent, const char *map)
+{
+	char *key = NULL;
+	int ret;
+
+	lineno = 1;
+
+	for (;;) {
+		ret = yylex();
+
+		if (ret == NEWLINE)
+			continue;
+
+		if (ret == 0) {
+			/*
+			 * End of file.
+			 */
+			break;
+		}
+
+		key = checked_strdup(yytext);
+		node_new(parent, key, NULL, NULL, map, lineno);
+	}
+}
+
 static bool
 file_is_executable(const char *path)
 {
@@ -882,11 +912,6 @@ parse_special_map(struct node *parent, const char *map, const char *key)
 
 	assert(map[0] == '-');
 
-	if (key == NULL) {
-		log_debugx("skipping map %s due to forced -nobrowse", map);
-		return;
-	}
-
 	/*
 	 * +1 to skip leading "-" in map name.
 	 */
@@ -897,7 +922,11 @@ parse_special_map(struct node *parent, const char *map, const char *key)
 	yyin = auto_popen(path, key, NULL);
 	assert(yyin != NULL);
 
-	parse_map_yyin(parent, map, key);
+	if (key == NULL) {
+		parse_map_keys_yyin(parent, map);
+	} else {
+		parse_map_yyin(parent, map, key);
+	}
 
 	error = auto_pclose(yyin);
 	yyin = NULL;
