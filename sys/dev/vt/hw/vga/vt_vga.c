@@ -89,6 +89,7 @@ static vd_probe_t	vga_probe;
 static vd_init_t	vga_init;
 static vd_blank_t	vga_blank;
 static vd_bitblt_text_t	vga_bitblt_text;
+static vd_bitblt_bmp_t	vga_bitblt_bitmap;
 static vd_drawrect_t	vga_drawrect;
 static vd_setpixel_t	vga_setpixel;
 static vd_postswitch_t	vga_postswitch;
@@ -99,6 +100,7 @@ static const struct vt_driver vt_vga_driver = {
 	.vd_init	= vga_init,
 	.vd_blank	= vga_blank,
 	.vd_bitblt_text	= vga_bitblt_text,
+	.vd_bitblt_bmp	= vga_bitblt_bitmap,
 	.vd_drawrect	= vga_drawrect,
 	.vd_setpixel	= vga_setpixel,
 	.vd_postswitch	= vga_postswitch,
@@ -824,6 +826,52 @@ vga_bitblt_text(struct vt_device *vd, const struct vt_window *vw,
 		vga_bitblt_text_gfxmode(vd, vw, area);
 	} else {
 		vga_bitblt_text_txtmode(vd, vw, area);
+	}
+}
+
+static void
+vga_bitblt_bitmap(struct vt_device *vd, const struct vt_window *vw,
+    const uint8_t *pattern, const uint8_t *mask,
+    unsigned int width, unsigned int height,
+    unsigned int x, unsigned int y, term_color_t fg, term_color_t bg)
+{
+	unsigned int x1, y1, x2, y2, i, j, src_x, dst_x, x_count;
+	uint8_t pattern_2colors, pattern_ncolors;
+
+	/* Align coordinates with the 8-pxels grid. */
+	x1 = x / VT_VGA_PIXELS_BLOCK * VT_VGA_PIXELS_BLOCK;
+	y1 = y;
+
+	x2 = (x + width + VT_VGA_PIXELS_BLOCK - 1) /
+	    VT_VGA_PIXELS_BLOCK * VT_VGA_PIXELS_BLOCK;
+	y2 = y + height;
+	x2 = min(x2, vd->vd_width - 1);
+	y2 = min(y2, vd->vd_height - 1);
+
+	pattern_ncolors = 0;
+
+	for (j = y1; j < y2; ++j) {
+		src_x = 0;
+		dst_x = x - x1;
+		x_count = VT_VGA_PIXELS_BLOCK - dst_x;
+
+		for (i = x1; i < x2; i += VT_VGA_MEMSIZE) {
+			pattern_2colors = 0;
+
+			vga_copy_bitmap_portion(
+			    &pattern_2colors, &pattern_ncolors,
+			    pattern, mask, width,
+			    src_x, dst_x, x_count,
+			    j - y1, 0, 1, fg, bg, 0);
+
+			vga_bitblt_pixels_block_2colors(vd,
+			    &pattern_2colors, fg, bg,
+			    i, j, 1);
+
+			src_x += x_count;
+			dst_x = (dst_x + x_count) % VT_VGA_PIXELS_BLOCK;
+			x_count = min(x + width - i, VT_VGA_PIXELS_BLOCK);
+		}
 	}
 }
 
