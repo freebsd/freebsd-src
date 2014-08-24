@@ -3429,7 +3429,7 @@ sigacts_alloc(void)
 	struct sigacts *ps;
 
 	ps = malloc(sizeof(struct sigacts), M_SUBPROC, M_WAITOK | M_ZERO);
-	ps->ps_refcnt = 1;
+	refcount_init(&ps->ps_refcnt, 1);
 	mtx_init(&ps->ps_mtx, "sigacts", NULL, MTX_DEF);
 	return (ps);
 }
