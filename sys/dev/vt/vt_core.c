@@ -1015,7 +1015,7 @@ vtterm_splash(struct vt_device *vd)
 			/* XXX: Unhardcode colors! */
 			vd->vd_driver->vd_bitblt_bmp(vd, vd->vd_curwindow,
 			    vt_logo_image, NULL, vt_logo_width, vt_logo_height,
-			    top, left, TC_WHITE, TC_BLACK);
+			    left, top, TC_WHITE, TC_BLACK);
 		}
 		vd->vd_flags |= VDF_SPLASH;
 	}
