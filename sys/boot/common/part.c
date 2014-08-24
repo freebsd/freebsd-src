@@ -254,8 +254,8 @@ ptable_gptread(struct ptable *table, void *dev, diskread_t dread)
 	    table->sectorsize);
 	if (phdr != NULL) {
 		/* Read the primary GPT table. */
-		size = MIN(MAXTBLSZ,
-		    phdr->hdr_entries * phdr->hdr_entsz / table->sectorsize);
+		size = MIN(MAXTBLSZ, (phdr->hdr_entries * phdr->hdr_entsz +
+		    table->sectorsize - 1) / table->sectorsize);
 		if (dread(dev, tbl, size, phdr->hdr_lba_table) == 0 &&
 		    gpt_checktbl(phdr, tbl, size * table->sectorsize,
 		    table->sectors - 1) == 0) {
@@ -287,8 +287,9 @@ ptable_gptread(struct ptable *table, void *dev, diskread_t dread)
 		    hdr.hdr_entsz != phdr->hdr_entsz ||
 		    hdr.hdr_crc_table != phdr->hdr_crc_table) {
 			/* Read the backup GPT table. */
-			size = MIN(MAXTBLSZ, phdr->hdr_entries *
-			    phdr->hdr_entsz / table->sectorsize);
+			size = MIN(MAXTBLSZ, (phdr->hdr_entries *
+			    phdr->hdr_entsz + table->sectorsize - 1) /
+			    table->sectorsize);
 			if (dread(dev, tbl, size, phdr->hdr_lba_table) == 0 &&
 			    gpt_checktbl(phdr, tbl, size * table->sectorsize,
 			    table->sectors - 1) == 0) {
