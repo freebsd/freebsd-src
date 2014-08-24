@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2003 Alan L. Cox <alc@cs.rice.edu>
+ * Copyright (c) 2003, 2005 Alan L. Cox <alc@cs.rice.edu>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -29,28 +29,23 @@
 #ifndef _MACHINE_SF_BUF_H_
 #define _MACHINE_SF_BUF_H_
 
-#include <sys/queue.h>
-
-struct vm_page;
-
-struct sf_buf {
-	SLIST_ENTRY(sf_buf) free_list;	/* list of free buffer slots */
-	struct		vm_page *m;	/* currently mapped page */
-	vm_offset_t	kva;		/* va of mapping */
-};
-
-static __inline vm_offset_t
+/*
+ * On this machine, the only purpose for which sf_buf is used is to implement
+ * an opaque pointer required by the machine-independent parts of the kernel.
+ * That pointer references the vm_page that is "mapped" by the sf_buf.  The
+ * actual mapping is provided by the direct virtual-to-physical mapping.  
+ */
+static inline vm_offset_t
 sf_buf_kva(struct sf_buf *sf)
 {
 
-	return (sf->kva);
+	return (PHYS_TO_DMAP(VM_PAGE_TO_PHYS((vm_page_t)sf)));
 }
 
-static __inline struct vm_page *
+static inline vm_page_t
 sf_buf_page(struct sf_buf *sf)
 {
 
-	return (sf->m);
+	return ((vm_page_t)sf);
 }
-
 #endif /* !_MACHINE_SF_BUF_H_ */
