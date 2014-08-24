@@ -36,14 +36,14 @@ int
 fubyte(const void *base)
 {
 
-	panic("fubyte");
+	return *(uint8_t *)base;
 }
 
 long
 fuword(const void *base)
 {
 
-	panic("fuword");
+	return *(long *)base;
 }
 
 int
@@ -78,14 +78,18 @@ int
 subyte(void *base, int byte)
 {
 
-	panic("subyte");
+	*(uint8_t *)base = byte;
+
+	return 0;
 }
 
 int
 suword(void *base, long word)
 {
 
-	panic("suword");
+	*(long *)base = word;
+
+	return 0;
 }
 
 int
@@ -99,14 +103,18 @@ int
 suword32(void *base, int32_t word)
 {
 
-	panic("suword32");
+	*(int32_t *)base = word;
+
+	return 0;
 }
 
 int
 suword64(void *base, int64_t word)
 {
 
-	panic("suword64");
+	*(int64_t *)base = word;
+
+	return 0;
 }
 
 int

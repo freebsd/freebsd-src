@@ -28,26 +28,53 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#include <sys/types.h>
+#include <sys/param.h>
 #include <sys/systm.h>
 
 int
 copyout(const void *kaddr, void *udaddr, size_t len)
 {
+	const uint8_t *k;
+	uint8_t *u;
+	size_t i;
 
-	panic("copyout");
+	k = kaddr;
+	u = udaddr;
+
+	for (i = 0; i < len; i++) {
+		u[i] = k[i];
+	}
+
+	return (0);
 }
 
 int
 copyin(const void *udaddr, void *kaddr, size_t len)
 {
 
+	memcpy(kaddr, udaddr, len);
 	panic("copyin");
 }
 
 int
 copyinstr(const void *udaddr, void *kaddr, size_t len, size_t *done)
 {
+	const uint8_t *u;
+	uint8_t *k;
+	size_t i;
 
-	panic("copyinstr");
+	u = udaddr;
+	k = kaddr;
+
+	for (i = 0; i < len; i++) {
+		k[i] = u[i];
+		if (u[i] == '\0')
+			break;
+	}
+
+	if (done != NULL)
+		*done = i + 1;
+
+	return 0;
 }
+
