@@ -160,6 +160,11 @@
     <para revision="263122">Support for &man.hwpmc.4; has been added
       for &powerpc;&nbsp;970 class processors.</para>
 
+    <para revision="263197">Support for ADT7460 and ADT7467 fan
+      controllers found in newer PowerBooks&nbsp;&trade; and
+      iBooks&nbsp;&trade; has been added to the &man.iicbus.4;
+      driver.</para>
+
     <para revision="265388" contrib="sponsor" sponsor="&lsi;">The
       &man.mpr.4; device has been added,
       providing support for LSI Fusion-MPT 3 12Gb SCSI/SATA
