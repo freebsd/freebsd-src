@@ -151,6 +151,9 @@
       during boot, or add <literal>kern.vty=vt</literal> to
       &man.loader.conf.5; and reboot the system.</para>
 
+    <para revision="262967">Support for MegaRAID Fury cards has been
+      added to the &man.mfi.4; driver.</para>
+
     <para revision="265388" contrib="sponsor" sponsor="&lsi;">The
       &man.mpr.4; device has been added,
       providing support for LSI Fusion-MPT 3 12Gb SCSI/SATA
