@@ -34,11 +34,13 @@ __FBSDID("$FreeBSD$");
 #include <sys/msgbuf.h>
 #include <sys/mutex.h>
 #include <sys/proc.h>
+#include <sys/rwlock.h>
 
 #include <vm/vm.h>
 #include <vm/vm_page.h>
 #include <vm/vm_pageout.h>
 #include <vm/vm_map.h>
+#include <vm/vm_object.h>
 
 #include <machine/devmap.h>
 #include <machine/machdep.h>
@@ -828,27 +830,18 @@ pmap_protect(pmap_t pmap, vm_offset_t sva, vm_offset_t eva, vm_prot_t prot)
 	PMAP_UNLOCK(pmap);
 }
 
-/*
- *	Insert the given physical page (p) at
- *	the specified virtual address (v) in the
- *	target physical map with the protection requested.
- *
- *	If specified, the page will be wired down, meaning
- *	that the related pte can not be reclaimed.
- *
- *	NB:  This is the only routine which MAY NOT lazy-evaluate
- *	or lose information.  That is, this routine must actually
- *	insert this page into the given map NOW.
- */
-void
-pmap_enter(pmap_t pmap, vm_offset_t va, vm_prot_t access, vm_page_t m,
+static void
+pmap_enter_locked(pmap_t pmap, vm_offset_t va, vm_prot_t access, vm_page_t m,
     vm_prot_t prot, boolean_t wired)
 {
-	pt_entry_t *l1, *l2, *l3, opte;
+	pt_entry_t *l1, *l2, *l3, opte, attr;
 	vm_paddr_t pa, pte_pa;
 	vm_page_t pte_m;
+	int user;
 
-	PMAP_LOCK(pmap);
+	PMAP_ASSERT_LOCKED(pmap);
+
+	user = (pmap != kernel_pmap);
 	l3 = pmap_l3(pmap, va);
 
 	/* TODO: This is not optimal, but should mostly work */
@@ -868,7 +861,8 @@ pmap_enter(pmap_t pmap, vm_offset_t va, vm_prot_t access, vm_page_t m,
 			*l1 = pte_pa | ATTR_AF | L1_TABLE;
 			l2 = pmap_l2(pmap, va);
 		}
-		KASSERT(l2 != NULL, ("TODO: grow l2 va"));
+
+		KASSERT(l2 != NULL, ("No l2 table after allocating one"));
 
 		pte_m = vm_page_alloc(NULL, 0, VM_ALLOC_NORMAL |
 		    VM_ALLOC_NOOBJ | VM_ALLOC_WIRED | VM_ALLOC_ZERO);
@@ -882,14 +876,44 @@ pmap_enter(pmap_t pmap, vm_offset_t va, vm_prot_t access, vm_page_t m,
 		l3 = pmap_l3(pmap, va);
 	}
 
-	KASSERT(l3 != NULL, ("TODO: grow l3 va"));
+	KASSERT(l3 != NULL, ("No l3 table after allocating one"));
 
 	opte = *l3;
 	if (opte != 0) printf("%llx\n", opte);
 	KASSERT(opte == 0, ("TODO: Update the entry"));
 	pa = VM_PAGE_TO_PHYS(m);
-	*l3 = (pa & ~L3_OFFSET) | ATTR_AF | L3_PAGE;
 
+	attr = ATTR_AF | ATTR_IDX(1) | L3_PAGE;
+	if ((prot & VM_PROT_WRITE) != 0)
+		attr |= ATTR_AP(ATTR_AP_RW);
+	else if ((prot & VM_PROT_READ) != 0)
+		attr |= ATTR_AP(ATTR_AP_RO);
+
+	if (user)
+		attr |= ATTR_AP(ATTR_AP_USER);
+
+	*l3 = (pa & ~L3_OFFSET) | attr;
+
+}
+
+/*
+ *	Insert the given physical page (p) at
+ *	the specified virtual address (v) in the
+ *	target physical map with the protection requested.
+ *
+ *	If specified, the page will be wired down, meaning
+ *	that the related pte can not be reclaimed.
+ *
+ *	NB:  This is the only routine which MAY NOT lazy-evaluate
+ *	or lose information.  That is, this routine must actually
+ *	insert this page into the given map NOW.
+ */
+void
+pmap_enter(pmap_t pmap, vm_offset_t va, vm_prot_t access, vm_page_t m,
+    vm_prot_t prot, boolean_t wired)
+{
+	PMAP_LOCK(pmap);
+	pmap_enter_locked(pmap, va, access, m, prot, wired);
 	PMAP_UNLOCK(pmap);
 }
 
@@ -909,8 +933,24 @@ void
 pmap_enter_object(pmap_t pmap, vm_offset_t start, vm_offset_t end,
     vm_page_t m_start, vm_prot_t prot)
 {
+	vm_offset_t va;
+	vm_page_t m;
+	vm_pindex_t diff, psize;
+	vm_prot_t access;
 
-	panic("pmap_enter_object");
+	VM_OBJECT_ASSERT_LOCKED(m_start->object);
+
+	psize = atop(end - start);
+	m = m_start;
+	access = prot = prot & (VM_PROT_READ | VM_PROT_EXECUTE);
+	PMAP_LOCK(pmap);
+	while (m != NULL && (diff = m->pindex - m_start->pindex) < psize) {
+		va = start + ptoa(diff);
+		pmap_enter_locked(pmap, va, access, m, prot, 0);
+
+		m = TAILQ_NEXT(m, listq);
+	}
+	PMAP_UNLOCK(pmap);
 }
 
 /*
