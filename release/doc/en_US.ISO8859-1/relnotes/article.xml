@@ -157,6 +157,9 @@
     <para revision="263024">The &man.aacraid.4; driver has been
       updated to version 3.2.5.</para>
 
+    <para revision="263122">Support for &man.hwpmc.4; has been added
+      for &powerpc;&nbsp;970 class processors.</para>
+
     <para revision="265388" contrib="sponsor" sponsor="&lsi;">The
       &man.mpr.4; device has been added,
       providing support for LSI Fusion-MPT 3 12Gb SCSI/SATA
