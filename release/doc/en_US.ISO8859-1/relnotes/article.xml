@@ -385,8 +385,11 @@
   <sect2 xml:id="releng">
     <title>Release Engineering and Integration</title>
 
-    <para>&nbsp;</para>
-
+    <para revision="263028">The &man.services.mkdb.8; utility has
+      been updated to include endianness awareness, allowing the
+      <filename>services.db</filename> database to be created as
+      part of the release build, regardless of native- or
+      cross-built releases.</para>
   </sect2>
 
   <sect2 xml:id="doc">
