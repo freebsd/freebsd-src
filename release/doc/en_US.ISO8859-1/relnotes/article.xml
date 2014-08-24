@@ -293,6 +293,10 @@
 	    <acronym>MSIX</acronym> enabled as a prerequisite for
 	    multiple queues.</para>
 	</note>
+
+	<para revision="265345">Support for the ASUS USB-N10 Nano
+	  wireless card has been added to the &man.urtwn.4;
+	  driver.</para>
       </sect4>
     </sect3>
 
