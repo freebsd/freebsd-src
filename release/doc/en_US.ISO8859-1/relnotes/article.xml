@@ -277,6 +277,16 @@
 
 	<para revision="262363">The &man.urndis.4; driver has been
 	  imported from OpenBSD.</para>
+
+	<para revision="264866">Support for multiple
+	  transmitter/receiver queues has been added to the
+	  &man.vmx.4; driver.</para>
+
+	<note>
+	  <para>The &os;&nbsp;guest operating system must have
+	    <acronym>MSIX</acronym> enabled as a prerequisite for
+	    multiple queues.</para>
+	</note>
       </sect4>
     </sect3>
 
