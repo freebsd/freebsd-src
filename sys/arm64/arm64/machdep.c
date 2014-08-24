@@ -175,8 +175,13 @@ ptrace_clear_single_step(struct thread *td)
 void
 exec_setregs(struct thread *td, struct image_params *imgp, u_long stack)
 {
+	struct trapframe *tf = td->td_frame;
 
-	panic("exec_setregs");
+	memset(tf, 0, sizeof(struct trapframe));
+
+	tf->tf_sp = stack;
+	tf->tf_lr = imgp->entry_addr;
+	tf->tf_elr = imgp->entry_addr;
 }
 
 int
