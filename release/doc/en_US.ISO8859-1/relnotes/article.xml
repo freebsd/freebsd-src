@@ -379,6 +379,9 @@
   <sect2 xml:id="contrib">
     <title>Contributed Software</title>
 
+    <para revision="263285">The &man.xz.1; utility has been updated
+      to a post-5.0.5 snapshot.</para>
+
     <para revision="264377"><application>OpenSSH</application> has
       been updated to version 6.6p1.</para>
 
