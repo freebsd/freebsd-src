@@ -334,9 +334,6 @@
     <para revision="263020">The &man.pkg.7; bootstrapping utility has
       been synced with the version in &os;-CURRENT.</para>
 
-    <para revision="263046">The timezone database has been updated to
-      version tzdata2014a.</para>
-
     <para revision="263403">The &man.zfs.8; userland utility has been
       updated to include aliases for <command>snapshot</command>,
       which allows use of <command>zfs list -t snap</command> and
@@ -388,6 +385,9 @@
 
   <sect2 xml:id="contrib">
     <title>Contributed Software</title>
+
+    <para revision="263046">The timezone database has been updated to
+      version tzdata2014a.</para>
 
     <para revision="263285">The &man.xz.1; utility has been updated
       to a post-5.0.5 snapshot.</para>
