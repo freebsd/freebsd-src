@@ -888,47 +888,15 @@ vt_mark_mouse_position_as_dirty(struct vt_device *vd)
 #endif
 
 static void
-vt_bitblt_char(struct vt_device *vd, struct vt_font *vf, term_char_t c,
-    int iscursor, unsigned int row, unsigned int col)
-{
-	term_color_t fg, bg;
-
-	vt_determine_colors(c, iscursor, &fg, &bg);
-
-	if (vf != NULL) {
-		const uint8_t *src;
-		vt_axis_t top, left;
-
-		src = vtfont_lookup(vf, c);
-
-		/*
-		 * Align the terminal to the centre of the screen.
-		 * Fonts may not always be able to fill the entire
-		 * screen.
-		 */
-		top = row * vf->vf_height + vd->vd_curwindow->vw_offset.tp_row;
-		left = col * vf->vf_width + vd->vd_curwindow->vw_offset.tp_col;
-
-		vd->vd_driver->vd_bitbltchr(vd, src, NULL, 0, top, left,
-		    vf->vf_width, vf->vf_height, fg, bg);
-	} else {
-		vd->vd_driver->vd_putchar(vd, TCHAR_CHARACTER(c),
-		    row, col, fg, bg);
-	}
-}
-
-static void
 vt_flush(struct vt_device *vd)
 {
 	struct vt_window *vw;
 	struct vt_font *vf;
 	struct vt_bufmask tmask;
-	unsigned int row, col;
 	term_rect_t tarea;
 	term_pos_t size;
-	term_char_t *r;
 #ifndef SC_NO_CUTPASTE
-	int cursor_was_shown, cursor_moved, bpl, h, w;
+	int cursor_was_shown, cursor_moved;
 #endif
 
 	vw = vd->vd_curwindow;
@@ -992,50 +960,8 @@ vt_flush(struct vt_device *vd)
 		vd->vd_flags &= ~VDF_INVALID;
 	}
 
-	if (vd->vd_driver->vd_bitblt_text != NULL) {
-		if (tarea.tr_begin.tp_col < tarea.tr_end.tp_col) {
-			vd->vd_driver->vd_bitblt_text(vd, vw, &tarea);
-		}
-	} else {
-		/*
-		 * FIXME: Once all backend drivers expose the
-		 * vd_bitblt_text_t callback, this code can be removed.
-		 */
-		for (row = tarea.tr_begin.tp_row; row < tarea.tr_end.tp_row; row++) {
-			if (!VTBUF_DIRTYROW(&tmask, row))
-				continue;
-			r = VTBUF_GET_ROW(&vw->vw_buf, row);
-			for (col = tarea.tr_begin.tp_col;
-			    col < tarea.tr_end.tp_col; col++) {
-				if (!VTBUF_DIRTYCOL(&tmask, col))
-					continue;
-
-				vt_bitblt_char(vd, vf, r[col],
-				    VTBUF_ISCURSOR(&vw->vw_buf, row, col), row, col);
-			}
-		}
-
-#ifndef SC_NO_CUTPASTE
-		if (vd->vd_mshown) {
-			/* Bytes per source line. */
-			bpl = (vd->vd_mcursor->width + 7) >> 3;
-			w = vd->vd_mcursor->width;
-			h = vd->vd_mcursor->height;
-
-			if ((vd->vd_mx + vd->vd_mcursor->width) >
-			    (size.tp_col * vf->vf_width))
-				w = (size.tp_col * vf->vf_width) - vd->vd_mx - 1;
-			if ((vd->vd_my + vd->vd_mcursor->height) >
-			    (size.tp_row * vf->vf_height))
-				h = (size.tp_row * vf->vf_height) - vd->vd_my - 1;
-
-			vd->vd_driver->vd_bitbltchr(vd,
-			    vd->vd_mcursor->map, vd->vd_mcursor->mask, bpl,
-			    vw->vw_offset.tp_row + vd->vd_my,
-			    vw->vw_offset.tp_col + vd->vd_mx,
-			    w, h, vd->vd_mcursor_fg, vd->vd_mcursor_bg);
-		}
-#endif
+	if (tarea.tr_begin.tp_col < tarea.tr_end.tp_col) {
+		vd->vd_driver->vd_bitblt_text(vd, vw, &tarea);
 	}
 }
 
