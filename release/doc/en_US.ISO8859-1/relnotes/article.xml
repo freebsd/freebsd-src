@@ -178,6 +178,9 @@
     <para revision="264522">Support for LUN-based CD changers has been
       removed from the &man.cd.4; driver.</para>
 
+    <para revision="264734">Support for 9th generation HP host bus
+      adapter cards has been added to &man.ciss.4;.</para>
+
     <para revision="265388" contrib="sponsor" sponsor="&lsi;">The
       &man.mpr.4; device has been added,
       providing support for LSI Fusion-MPT 3 12Gb SCSI/SATA
