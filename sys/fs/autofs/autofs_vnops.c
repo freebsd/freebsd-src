@@ -276,9 +276,6 @@ autofs_lookup(struct vop_lookup_args *ap)
 		}
 	}
 
-	if (cnp->cn_nameiop == RENAME)
-		return (EOPNOTSUPP);
-
 	AUTOFS_LOCK(amp);
 	error = autofs_node_find(anp, cnp->cn_nameptr, cnp->cn_namelen, &child);
 	if (error != 0) {
