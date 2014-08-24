@@ -262,6 +262,52 @@ invoke_libcheri_save_capability_in_heap(__capability void *data_input)
 }
 
 /*
+ * A series of variables whose values will be set via BSS, preinitialised data
+ * in the binary, and a constructor, along with methods to query them.  Access
+ * them through volatile pointers to ensure that constant memory accesses are
+ * not optimised to instruction immediates in code generation, and that
+ * constant initialisation is not converted from .data + a constructor to
+ * static .data.
+ */
+static register_t cheritest_var_bss;
+static register_t cheritest_var_data = CHERITEST_VALUE_DATA;
+static register_t cheritest_var_constructor = CHERITEST_VALUE_INVALID;
+
+static __attribute__ ((constructor)) void
+cheritest_helper_var_constructor_init(void)
+{
+	volatile register_t *cheritest_var_constructorp =
+	    &cheritest_var_constructor;
+
+	*cheritest_var_constructorp = CHERITEST_VALUE_CONSTRUCTOR;
+}
+
+static register_t
+invoke_get_var_bss(void)
+{
+	volatile register_t *cheritest_var_bssp = &cheritest_var_bss;
+
+	return (*cheritest_var_bssp);
+}
+
+static register_t
+invoke_get_var_data(void)
+{
+	volatile register_t *cheritest_var_datap = &cheritest_var_data;
+
+	return (*cheritest_var_datap);
+}
+
+static register_t
+invoke_get_var_constructor(void)
+{
+	volatile register_t *cheritest_var_constructorp =
+	    &cheritest_var_constructor;
+
+	return (*cheritest_var_constructorp);
+}
+
+/*
  * Demux of various cheritest test cases to run within a sandbox.
  */
 int
@@ -344,6 +390,15 @@ invoke(register_t op, register_t arg, size_t len,
 
 	case CHERITEST_HELPER_SAVE_CAPABILITY_IN_HEAP:
 		return (invoke_libcheri_save_capability_in_heap(data_input));
+
+	case CHERITEST_HELPER_GET_VAR_BSS:
+		return (invoke_get_var_bss());
+
+	case CHERITEST_HELPER_GET_VAR_DATA:
+		return (invoke_get_var_data());
+
+	case CHERITEST_HELPER_GET_VAR_CONSTRUCTOR:
+		return (invoke_get_var_constructor());
 	}
 	return (-1);
 }

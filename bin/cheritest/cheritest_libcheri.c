@@ -574,6 +574,62 @@ test_sandbox_save_ephemeral(const struct cheri_test *ctp __unused)
 	cheritest_failure_errx("Method failed to properly fail\n");
 }
 
+void
+test_sandbox_var_bss(const struct cheri_test *ctp __unused)
+{
+	__capability void *cclear;
+	register_t v;
+
+	cclear = cheri_zerocap();
+	v = sandbox_object_cinvoke(cheritest_objectp,
+	    CHERITEST_HELPER_GET_VAR_BSS, 0, 0, 0, 0, 0, 0, 0,
+	    sandbox_object_getsystemobject(cheritest_objectp).co_codecap,
+	    sandbox_object_getsystemobject(cheritest_objectp).co_datacap,
+	    cclear, cclear, cclear, cclear, cclear, cclear);
+	if (v != CHERITEST_VALUE_BSS)
+		cheritest_failure_errx(".bss returned 0x%lx (expected 0x%lx)",
+		    v, CHERITEST_VALUE_BSS);
+	cheritest_success();
+}
+
+void
+test_sandbox_var_data(const struct cheri_test *ctp __unused)
+{
+	__capability void *cclear;
+	register_t v;
+
+	cclear = cheri_zerocap();
+	v = sandbox_object_cinvoke(cheritest_objectp,
+	    CHERITEST_HELPER_GET_VAR_DATA, 0, 0, 0, 0, 0, 0, 0,
+	    sandbox_object_getsystemobject(cheritest_objectp).co_codecap,
+	    sandbox_object_getsystemobject(cheritest_objectp).co_datacap,
+	    cclear, cclear, cclear, cclear, cclear, cclear);
+	if (v != CHERITEST_VALUE_DATA)
+		cheritest_failure_errx(".data returned 0x%lx (expected 0x%lx)",
+		    v, CHERITEST_VALUE_DATA);
+	cheritest_success();
+
+}
+
+void
+test_sandbox_var_constructor(const struct cheri_test *ctp __unused)
+{
+	__capability void *cclear;
+	register_t v;
+
+	cclear = cheri_zerocap();
+	v = sandbox_object_cinvoke(cheritest_objectp,
+	    CHERITEST_HELPER_GET_VAR_CONSTRUCTOR, 0, 0, 0, 0, 0, 0, 0,
+	    sandbox_object_getsystemobject(cheritest_objectp).co_codecap,
+	    sandbox_object_getsystemobject(cheritest_objectp).co_datacap,
+	    cclear, cclear, cclear, cclear, cclear, cclear);
+	if (v != CHERITEST_VALUE_CONSTRUCTOR)
+		cheritest_failure_errx(
+		    "Constructor returned 0x%lx (expected 0x%lx)",
+		    v, CHERITEST_VALUE_CONSTRUCTOR);
+	cheritest_success();
+}
+
 int
 cheritest_libcheri_setup(void)
 {
@@ -642,6 +698,14 @@ cheritest_libcheri_setup(void)
 	(void)sandbox_class_method_declare(cheritest_classp,
 	    CHERITEST_HELPER_SAVE_CAPABILITY_IN_HEAP,
 	    "save_capability_in_heap");
+	(void)sandbox_class_method_declare(cheritest_classp,
+	    CHERITEST_HELPER_OP_CP2_PERM_LOAD, "cp2_perm_load");
+	(void)sandbox_class_method_declare(cheritest_classp,
+	    CHERITEST_HELPER_GET_VAR_BSS, "get_var_bss");
+	(void)sandbox_class_method_declare(cheritest_classp,
+	    CHERITEST_HELPER_GET_VAR_DATA, "get_var_data");
+	(void)sandbox_class_method_declare(cheritest_classp,
+	    CHERITEST_HELPER_GET_VAR_CONSTRUCTOR, "get_var_constructor");
 
 	cheri_system_user_register_fn(&cheritest_libcheri_userfn_handler);
 

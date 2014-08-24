@@ -454,6 +454,18 @@ static const struct cheri_test cheri_tests[] = {
 	  .ct_signum = SIGPROT,
 	  .ct_mips_exccode = T_C2E,
 	  .ct_cp2_exccode = CHERI_EXCCODE_STORE_EPHEM },
+
+	{ .ct_name = "test_sandbox_var_bss",
+	  .ct_desc = "Check initial value of .bss variable",
+	  .ct_func = test_sandbox_var_bss },
+
+	{ .ct_name = "test_sandbox_var_data",
+	  .ct_desc = "Check initial value of .data variable",
+	  .ct_func = test_sandbox_var_data },
+
+	{ .ct_name = "test_sandbox_var_constructor",
+	  .ct_desc = "Check initial value of constructor-initalised variable",
+	  .ct_func = test_sandbox_var_constructor },
 };
 static const u_int cheri_tests_len = sizeof(cheri_tests) /
 	    sizeof(cheri_tests[0]);

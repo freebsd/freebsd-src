@@ -59,6 +59,9 @@
 #define	CHERITEST_HELPER_LIBCHERI_USERFN_SETSTACK	25
 #define	CHERITEST_HELPER_SAVE_CAPABILITY_IN_HEAP	26
 #define	CHERITEST_HELPER_OP_CP2_PERM_LOAD	27
+#define	CHERITEST_HELPER_GET_VAR_BSS	28
+#define	CHERITEST_HELPER_GET_VAR_DATA	29
+#define	CHERITEST_HELPER_GET_VAR_CONSTRUCTOR	30
 
 /*
  * We use system-class extensions to allow cheritest-helper code to call back
@@ -68,5 +71,14 @@
 #define	CHERITEST_USERFN_RETURNARG	(CHERI_SYSTEM_USER_BASE)
 #define	CHERITEST_USERFN_GETSTACK	(CHERI_SYSTEM_USER_BASE + 1)
 #define	CHERITEST_USERFN_SETSTACK	(CHERI_SYSTEM_USER_BASE + 2)
+
+/*
+ * Constants used to test BSS, .data, and constructor-based variable
+ * initialisation in sandboxes.
+ */
+#define	CHERITEST_VALUE_BSS		0x00	/* Of course. */
+#define	CHERITEST_VALUE_DATA		0xaa
+#define	CHERITEST_VALUE_INVALID		0xbb
+#define	CHERITEST_VALUE_CONSTRUCTOR	0xcc
 
 #endif /* !_LIBEXEC_CHERITEST_CHERITEST_HELPER_H_ */
