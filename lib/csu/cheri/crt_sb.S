@@ -40,22 +40,30 @@
 # is responsible for bootstrapping MIPS-compiled C code (without CHERI
 # extensions).
 #
-# Temporary ABI conventions:
-#    $sp contains a pointer to the top of the stack; 32-byte aligned
-#    $fp contains a pointer to the top of the stack; 32-byte aligned
+# Expectations on the CCall mechanism
+#    $c1, $c2 contain the sealed invoked code and data capability
+#    $pcc contains the unsealed invoked code capability
+#    $idc contains the unsealed invoked data capability
 #
-#    $a0-$a7 contain user arguments
-#    $v0, $v1 contain user return values
+# Expectations on the caller
+#    $a0-$17 will contain non-capability arguments
+#    $c3-$c10 will contain capability arguments
 #
+# Expectations on the class code and instance setup:
 #    $c0, $pcc contain access to (100% overlapped) sandbox code and data
 #
-#    $c1, $c2 contain the invoked object capability
-#    $c3-$c10 contain user capability arguments
-#    $c11 contains the stack-segment capability -- for now, equal to $c0
+# Things that will be set up for the callee C code
+#    $c0, $c11 will be set up to match the class
+#    $c11 will have have the non-ephemeral bit cleared
+#    $sp, $fp will point into an in-sandbox stack, relative to $c11
 #
-#    $c26 contains the invoked data capability installed by CCall; the
-#      complete segment, which we will install into $c0 to allow MIPS code to
-#      access it.
+# __ccall_enter will jump to the 'invoke' symbol and arrange a CReturn when
+# that function returns.  This code also implements 'abort' and '_exit'
+# symbols that can be used to fall back out quickly and efficiently.
+#
+# On return:
+#    $v0, $v1 will contain non-capability return values
+#    $c3 will contain a capability return value
 #
 # Sandbox heap information is extracted from the sandbox metadata structure.
 # $c26 is assumed to have room for a stack at the top, although its length is
@@ -88,7 +96,7 @@ __ccall_enter:
 	move	$fp, $sp
 
 	#
-	# Install $idc as $c0.  From here on out, we can do MIPS feteches and
+	# Install $idc as $c0.  From here on out, we can do MIPS fetches and
 	# stores to memory inside the sandbox, and $c0-relative capability
 	# fetches and stores.
 	#
@@ -123,7 +131,7 @@ __ccall_enter:
 	sd	$t1, 0($t2)
 
 	#
-	# Invoke MIPS ABI C "invoke" function.
+	# Call the MIPS/CHERI-ABI C "invoke" function.
 	#
 	dla	$t9, invoke
 	jalr	$t9
