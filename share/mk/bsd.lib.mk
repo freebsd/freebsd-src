@@ -173,7 +173,7 @@ lib${LIB}.a: ${OBJS} ${STATICOBJS}
 .else
 	@${AR} ${ARFLAGS} ${.TARGET} `NM='${NM}' lorder ${OBJS} ${STATICOBJS} | tsort -q` ${ARADD}
 .endif
-	${RANLIB} ${.TARGET}
+	${RANLIB} ${RANLIBFLAGS} ${.TARGET}
 .endif
 
 .if !defined(INTERNALLIB)
@@ -190,7 +190,7 @@ lib${LIB}_p.a: ${POBJS}
 .else
 	@${AR} ${ARFLAGS} ${.TARGET} `NM='${NM}' lorder ${POBJS} | tsort -q` ${ARADD}
 .endif
-	${RANLIB} ${.TARGET}
+	${RANLIB} ${RANLIBFLAGS} ${.TARGET}
 .endif
 
 .if defined(SHLIB_NAME) || \
@@ -247,7 +247,7 @@ lib${LIB}_pic.a: ${SOBJS}
 	@${ECHO} building special pic ${LIB} library
 	@rm -f ${.TARGET}
 	@${AR} ${ARFLAGS} ${.TARGET} ${SOBJS} ${ARADD}
-	${RANLIB} ${.TARGET}
+	${RANLIB} ${RANLIBFLAGS} ${.TARGET}
 .endif
 
 .if defined(WANT_LINT) && !defined(NO_LINT) && defined(LIB) && !empty(LIB)

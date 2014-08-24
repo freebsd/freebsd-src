@@ -39,9 +39,12 @@ AR		?=	ar
 .if defined(%POSIX)
 ARFLAGS		?=	-rv
 .else
-ARFLAGS		?=	cru
+ARFLAGS		?=	-crD
 .endif
 RANLIB		?=	ranlib
+.if !defined(%POSIX)
+RANLIBFLAGS	?=	-D
+.endif
 
 AS		?=	as
 AFLAGS		?=
