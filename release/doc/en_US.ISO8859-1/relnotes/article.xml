@@ -382,7 +382,8 @@
     <para revision="263285">The &man.xz.1; utility has been updated
       to a post-5.0.5 snapshot.</para>
 
-    <para revision="263363">The &man.lldb.1; debugging library has
+    <para revision="263363" contrib="sponsor"
+      sponsor="&darpa_afrl;">The &man.lldb.1; debugging library has
       been updated to the r194122 snapshot.</para>
 
     <para revision="264377"><application>OpenSSH</application> has
