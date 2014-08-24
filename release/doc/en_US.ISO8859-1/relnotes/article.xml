@@ -172,6 +172,9 @@
       stack triggered by detaching USB devices that create character
       devices has been fixed.</para>
 
+    <para revision="263869">Support for &amd;&nbsp;Family 16h sensor
+      devices has been added to &man.amdtemp.4;.</para>
+
     <para revision="265388" contrib="sponsor" sponsor="&lsi;">The
       &man.mpr.4; device has been added,
       providing support for LSI Fusion-MPT 3 12Gb SCSI/SATA
