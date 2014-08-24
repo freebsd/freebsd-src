@@ -287,6 +287,10 @@ static device_method_t vtnet_methods[] = {
 	DEVMETHOD_END
 };
 
+#ifdef DEV_NETMAP
+#include <dev/netmap/if_vtnet_netmap.h>
+#endif /* DEV_NETMAP */
+
 static driver_t vtnet_driver = {
 	"vtnet",
 	vtnet_methods,
@@ -393,6 +397,10 @@ vtnet_attach(device_t dev)
 		goto fail;
 	}
 
+#ifdef DEV_NETMAP
+	vtnet_netmap_attach(sc);
+#endif /* DEV_NETMAP */
+
 	vtnet_start_taskqueues(sc);
 
 fail:
@@ -421,6 +429,10 @@ vtnet_detach(device_t dev)
 
 		ether_ifdetach(ifp);
 	}
+
+#ifdef DEV_NETMAP
+	netmap_detach(ifp);
+#endif /* DEV_NETMAP */
 
 	vtnet_free_taskqueues(sc);
 
@@ -1733,6 +1745,12 @@ vtnet_rxq_eof(struct vtnet_rxq *rxq)
 
 	VTNET_RXQ_LOCK_ASSERT(rxq);
 
+#ifdef DEV_NETMAP
+	if (netmap_rx_irq(ifp, 0, &deq)) {
+		return (FALSE);
+	}
+#endif /* DEV_NETMAP */
+
 	while (count-- > 0) {
 		m = virtqueue_dequeue(vq, &len);
 		if (m == NULL)
@@ -2419,6 +2437,13 @@ vtnet_txq_eof(struct vtnet_txq *txq)
 	deq = 0;
 	VTNET_TXQ_LOCK_ASSERT(txq);
 
+#ifdef DEV_NETMAP
+	if (netmap_tx_irq(txq->vtntx_sc->vtnet_ifp, txq->vtntx_id)) {
+		virtqueue_disable_intr(vq); // XXX luigi
+		return 0; // XXX or 1 ?
+	}
+#endif /* DEV_NETMAP */
+
 	while ((txhdr = virtqueue_dequeue(vq, NULL)) != NULL) {
 		m = txhdr->vth_mbuf;
 		deq++;
@@ -2893,6 +2918,11 @@ vtnet_init_rx_queues(struct vtnet_softc *sc)
 	    ("%s: too many rx mbufs %d for %d segments", __func__,
 	    sc->vtnet_rx_nmbufs, sc->vtnet_rx_nsegs));
 
+#ifdef DEV_NETMAP
+	if (vtnet_netmap_init_rx_buffers(sc))
+		return 0;
+#endif /* DEV_NETMAP */
+
 	for (i = 0; i < sc->vtnet_act_vq_pairs; i++) {
 		rxq = &sc->vtnet_rxqs[i];
 
@@ -3044,6 +3074,13 @@ vtnet_init(void *xsc)
 	struct vtnet_softc *sc;
 
 	sc = xsc;
+
+#ifdef DEV_NETMAP
+	if (!NA(sc->vtnet_ifp)) {
+		D("try to attach again");
+		vtnet_netmap_attach(sc);
+	}
+#endif /* DEV_NETMAP */
 
 	VTNET_CORE_LOCK(sc);
 	vtnet_init_locked(sc);
