@@ -403,7 +403,8 @@
     <para revision="265533">The &man.bc.1; utility has been updated to
       version 1.1, in sync with the version in OpenBSD.</para>
 
-    <para revision="265604">The &man.pmcstat.8; utility has been
+    <para revision="265604" contrib="vendor"
+      vendor="&netflix;">The &man.pmcstat.8; utility has been
       updated to include a new flag, <literal>-a</literal>, which when
       specified, produces a full stack track on the sampled
       points.</para>
