@@ -337,6 +337,11 @@
     <para revision="263046">The timezone database has been updated to
       version tzdata2014a.</para>
 
+    <para revision="263403">The &man.zfs.8; userland utility has been
+      updated to include aliases for <command>snapshot</command>,
+      which allows use of <command>zfs list -t snap</command> and
+      <command>zfs snap</command>.</para>
+
     <para revision="266279">The &man.ps.1; utility has been
       updated to include the <literal>-J</literal> flag, used to
       filter output by matching &man.jail.8; IDs and names.
