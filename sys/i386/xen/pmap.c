@@ -1459,7 +1459,6 @@ pmap_pinit(pmap_t pmap)
 	if (pmap->pm_pdir == NULL) {
 		pmap->pm_pdir = (pd_entry_t *)kva_alloc(NBPTD);
 		if (pmap->pm_pdir == NULL) {
-			PMAP_LOCK_DESTROY(pmap);
 #ifdef HAMFISTED_LOCKING
 			mtx_unlock(&createdelete_lock);
 #endif

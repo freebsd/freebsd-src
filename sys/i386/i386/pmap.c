@@ -1755,10 +1755,8 @@ pmap_pinit(pmap_t pmap)
 	 */
 	if (pmap->pm_pdir == NULL) {
 		pmap->pm_pdir = (pd_entry_t *)kva_alloc(NBPTD);
-		if (pmap->pm_pdir == NULL) {
-			PMAP_LOCK_DESTROY(pmap);
+		if (pmap->pm_pdir == NULL)
 			return (0);
-		}
 #ifdef PAE
 		pmap->pm_pdpt = uma_zalloc(pdptzone, M_WAITOK | M_ZERO);
 		KASSERT(((vm_offset_t)pmap->pm_pdpt &
