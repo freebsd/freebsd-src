@@ -190,6 +190,9 @@
       is now able to be built both directly into the kernel or as
       a &man.kldload.8; loadable module.</para>
 
+    <para revision="265610">The &man.uslcom.4; driver has been updated
+      to support 26 new devices.</para>
+
     <para revision="265922" contrib="sponsor" sponsor="&lsi;">The
       &man.mrsas.4; driver has been added,
       providing support for LSI MegaRAID SAS controllers.  The
