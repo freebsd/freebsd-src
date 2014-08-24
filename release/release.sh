@@ -263,7 +263,8 @@ if [ -d ${CHROOTDIR}/usr/ports ]; then
 		PBUILD_FLAGS="${PBUILD_FLAGS} UNAME_r=${UNAME_r}"
 		PBUILD_FLAGS="${PBUILD_FLAGS} OSREL=${REVISION}"
 		chroot ${CHROOTDIR} make -C /usr/ports/textproc/docproj \
-			${PBUILD_FLAGS} OPTIONS_UNSET="FOP IGOR" install clean distclean
+			${PBUILD_FLAGS} OPTIONS_UNSET="FOP IGOR" \
+			install clean distclean
 	fi
 fi
 
