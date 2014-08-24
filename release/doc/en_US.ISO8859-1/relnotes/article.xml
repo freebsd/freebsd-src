@@ -323,6 +323,9 @@
     <para revision="263020">The &man.pkg.7; bootstrapping utility has
       been synced with the version in &os;-CURRENT.</para>
 
+    <para revision="263046">The timezone database has been updated to
+      version tzdata2014a.</para>
+
     <para revision="266279">The &man.ps.1; utility has been
       updated to include the <literal>-J</literal> flag, used to
       filter output by matching &man.jail.8; IDs and names.
