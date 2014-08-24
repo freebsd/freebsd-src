@@ -294,15 +294,6 @@ typedef int vd_init_t(struct vt_device *vd);
 typedef int vd_probe_t(struct vt_device *vd);
 typedef void vd_postswitch_t(struct vt_device *vd);
 typedef void vd_blank_t(struct vt_device *vd, term_color_t color);
-/*
- * FIXME: Remove vd_bitblt_t and vd_putchar_t, once vd_bitblt_text_t is
- * provided by all drivers.
- */
-typedef void vd_bitbltchr_t(struct vt_device *vd, const uint8_t *src,
-    const uint8_t *mask, int bpl, vt_axis_t top, vt_axis_t left,
-    unsigned int width, unsigned int height, term_color_t fg, term_color_t bg);
-typedef void vd_putchar_t(struct vt_device *vd, term_char_t,
-    vt_axis_t top, vt_axis_t left, term_color_t fg, term_color_t bg);
 typedef void vd_bitblt_text_t(struct vt_device *vd, const struct vt_window *vw,
     const term_rect_t *area);
 typedef void vd_bitblt_bmp_t(struct vt_device *vd, const struct vt_window *vw,
@@ -324,7 +315,6 @@ struct vt_driver {
 
 	/* Drawing. */
 	vd_blank_t	*vd_blank;
-	vd_bitbltchr_t	*vd_bitbltchr; /* FIXME: Deprecated. */
 	vd_drawrect_t	*vd_drawrect;
 	vd_setpixel_t	*vd_setpixel;
 	vd_bitblt_text_t *vd_bitblt_text;
@@ -335,9 +325,6 @@ struct vt_driver {
 
 	/* Framebuffer mmap, if present. */
 	vd_fb_mmap_t	*vd_fb_mmap;
-
-	/* Text mode operation. */
-	vd_putchar_t	*vd_putchar; /* FIXME: Deprecated. */
 
 	/* Update display setting on vt switch. */
 	vd_postswitch_t	*vd_postswitch;
