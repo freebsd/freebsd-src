@@ -165,6 +165,9 @@
       iBooks&nbsp;&trade; has been added to the &man.iicbus.4;
       driver.</para>
 
+    <para revision="263256">A panic triggered by removing
+      a &man.urtwn.4; device has been fixed.</para>
+
     <para revision="265388" contrib="sponsor" sponsor="&lsi;">The
       &man.mpr.4; device has been added,
       providing support for LSI Fusion-MPT 3 12Gb SCSI/SATA
