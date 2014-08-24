@@ -396,6 +396,9 @@
       to include a new flag, <literal>-R</literal>, which prints the
       date and time output as specified in RFC 2822.</para>
 
+    <para revision="265533">The &man.bc.1; utility has been updated to
+      version 1.1, in sync with the version in OpenBSD.</para>
+
     <para revision="266279">The &man.ps.1; utility has been
       updated to include the <literal>-J</literal> flag, used to
       filter output by matching &man.jail.8; IDs and names.
