@@ -431,6 +431,9 @@ vga_copy_bitmap_portion(uint8_t *pattern_2colors, uint8_t *pattern_ncolors,
 			pattern_2colors[dst_y + i] &= ~mask;
 		pattern_2colors[dst_y + i] |= pattern;
 
+		if (pattern_ncolors == NULL)
+			continue;
+
 		/*
 		 * Set the same bits in the n-colors array. This one
 		 * supports transparency, when a given bit is cleared in
@@ -836,7 +839,7 @@ vga_bitblt_bitmap(struct vt_device *vd, const struct vt_window *vw,
     unsigned int x, unsigned int y, term_color_t fg, term_color_t bg)
 {
 	unsigned int x1, y1, x2, y2, i, j, src_x, dst_x, x_count;
-	uint8_t pattern_2colors, pattern_ncolors;
+	uint8_t pattern_2colors;
 
 	/* Align coordinates with the 8-pxels grid. */
 	x1 = x / VT_VGA_PIXELS_BLOCK * VT_VGA_PIXELS_BLOCK;
@@ -848,18 +851,16 @@ vga_bitblt_bitmap(struct vt_device *vd, const struct vt_window *vw,
 	x2 = min(x2, vd->vd_width - 1);
 	y2 = min(y2, vd->vd_height - 1);
 
-	pattern_ncolors = 0;
-
 	for (j = y1; j < y2; ++j) {
 		src_x = 0;
 		dst_x = x - x1;
 		x_count = VT_VGA_PIXELS_BLOCK - dst_x;
 
-		for (i = x1; i < x2; i += VT_VGA_MEMSIZE) {
+		for (i = x1; i < x2; i += VT_VGA_PIXELS_BLOCK) {
 			pattern_2colors = 0;
 
 			vga_copy_bitmap_portion(
-			    &pattern_2colors, &pattern_ncolors,
+			    &pattern_2colors, NULL,
 			    pattern, mask, width,
 			    src_x, dst_x, x_count,
 			    j - y1, 0, 1, fg, bg, 0);
@@ -870,7 +871,7 @@ vga_bitblt_bitmap(struct vt_device *vd, const struct vt_window *vw,
 
 			src_x += x_count;
 			dst_x = (dst_x + x_count) % VT_VGA_PIXELS_BLOCK;
-			x_count = min(x + width - i, VT_VGA_PIXELS_BLOCK);
+			x_count = min(width - src_x, VT_VGA_PIXELS_BLOCK);
 		}
 	}
 }
