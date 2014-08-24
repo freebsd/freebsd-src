@@ -227,6 +227,12 @@
       <para revision="259355">The <filename>WANDBOARD</filename>
 	kernel configuration file has been added.</para>
 
+      <para revision="265067">Boot devices may now be specified by
+	setting a u-boot environment variable.  If a boot device is
+	not specified, the probe mechanism will be used.  To specify
+	the boot device, set the
+	<literal>loaderdev=<replaceable>device</replaceable></literal>
+	u-boot environment variable.</para>
     </sect3>
 
     <sect3 xml:id="boot">
