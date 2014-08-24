@@ -313,6 +313,10 @@
     <para revision="262855">The <application>ATF</application> test
       suite has been updated to version 0.20.</para>
 
+    <para revision="263019">The <literal>libucl</literal> library
+      (Unified Configuration Library) has been merged from
+      &os;-CURRENT.</para>
+
     <para revision="266279">The &man.ps.1; utility has been
       updated to include the <literal>-J</literal> flag, used to
       filter output by matching &man.jail.8; IDs and names.
