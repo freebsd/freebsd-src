@@ -33,6 +33,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/pcpu.h>
 #include <sys/proc.h>
 
+#include <machine/frame.h>
 #include <machine/pcb.h>
 #include <machine/vmparam.h>
 
@@ -49,3 +50,4 @@ ASSYM(PCB_L1ADDR, offsetof(struct pcb, pcb_l1addr));
 ASSYM(TD_PCB, offsetof(struct thread, td_pcb));
 ASSYM(TD_LOCK, offsetof(struct thread, td_lock));
 
+ASSYM(TF_X, offsetof(struct trapframe, tf_x));
