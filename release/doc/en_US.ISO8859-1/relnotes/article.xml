@@ -168,6 +168,10 @@
     <para revision="263256">A panic triggered by removing
       a &man.urtwn.4; device has been fixed.</para>
 
+    <para revision="263799">A potential deadlock in the &man.usb.4;
+      stack triggered by detaching USB devices that create character
+      devices has been fixed.</para>
+
     <para revision="265388" contrib="sponsor" sponsor="&lsi;">The
       &man.mpr.4; device has been added,
       providing support for LSI Fusion-MPT 3 12Gb SCSI/SATA
