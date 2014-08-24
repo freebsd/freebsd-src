@@ -1693,10 +1693,15 @@ http_request_body(struct url *URL, const char *op, struct url_stat *us,
 			else
 				http_cmd(conn, "Referer: %s", p);
 		}
-		if ((p = getenv("HTTP_USER_AGENT")) != NULL && *p != '\0')
-			http_cmd(conn, "User-Agent: %s", p);
-		else
-			http_cmd(conn, "User-Agent: %s " _LIBFETCH_VER, getprogname());
+		if ((p = getenv("HTTP_USER_AGENT")) != NULL) {
+			/* no User-Agent if defined but empty */
+			if  (*p != '\0')
+				http_cmd(conn, "User-Agent: %s", p);
+		} else {
+			/* default User-Agent */
+			http_cmd(conn, "User-Agent: %s " _LIBFETCH_VER,
+			    getprogname());
+		}
 		if (url->offset > 0)
 			http_cmd(conn, "Range: bytes=%lld-", (long long)url->offset);
 		http_cmd(conn, "Connection: close");
