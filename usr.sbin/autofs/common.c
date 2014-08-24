@@ -52,6 +52,7 @@ __FBSDID("$FreeBSD$");
 #include <signal.h>
 #include <stdbool.h>
 #include <stdint.h>
+#define	_WITH_GETLINE
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -213,6 +214,7 @@ node_new(struct node *parent, char *key, char *options, char *location,
 
 	TAILQ_INIT(&n->n_children);
 	assert(key != NULL);
+	assert(key[0] != '\0');
 	n->n_key = key;
 	if (options != NULL)
 		n->n_options = options;
@@ -243,6 +245,7 @@ node_new_map(struct node *parent, char *key, char *options, char *map,
 
 	TAILQ_INIT(&n->n_children);
 	assert(key != NULL);
+	assert(key[0] != '\0');
 	n->n_key = key;
 	if (options != NULL)
 		n->n_options = options;
@@ -565,6 +568,7 @@ node_path_x(const struct node *n, char *x)
 		return (x);
 	}
 
+	assert(n->n_key[0] != '\0');
 	path = separated_concat(n->n_key, x, '/');
 	free(x);
 
@@ -857,33 +861,44 @@ again:
 }
 
 /*
- * Parse output of a special map called without argument.  This is just
- * a list of keys.
+ * Parse output of a special map called without argument.  It is a list
+ * of keys, separated by newlines.  They can contain whitespace, so use
+ * getline(3) instead of lexer used for maps.
  */
 static void
 parse_map_keys_yyin(struct node *parent, const char *map)
 {
-	char *key = NULL;
-	int ret;
+	char *line = NULL, *key;
+	size_t linecap = 0;
+	ssize_t linelen;
 
 	lineno = 1;
 
 	for (;;) {
-		ret = yylex();
-
-		if (ret == NEWLINE)
-			continue;
-
-		if (ret == 0) {
+		linelen = getline(&line, &linecap, yyin);
+		if (linelen < 0) {
 			/*
 			 * End of file.
 			 */
 			break;
 		}
+		if (linelen <= 1) {
+			/*
+			 * Empty line, consisting of just the newline.
+			 */
+			continue;
+		}
 
-		key = checked_strdup(yytext);
+		/*
+		 * "-1" to strip the trailing newline.
+		 */
+		key = strndup(line, linelen - 1);
+
+		log_debugx("adding key \"%s\"", key);
 		node_new(parent, key, NULL, NULL, map, lineno);
+		lineno++;
 	}
+	free(line);
 }
 
 static bool
