@@ -1692,20 +1692,21 @@ pmap_protect(pmap_t pmap, vm_offset_t sva, vm_offset_t eva, vm_prot_t prot)
  *	or lose information.  That is, this routine must actually
  *	insert this page into the given map NOW.
  */
-void
-pmap_enter(pmap_t pmap, vm_offset_t va, vm_prot_t access, vm_page_t m,
-    vm_prot_t prot, boolean_t wired)
+int
+pmap_enter(pmap_t pmap, vm_offset_t va, vm_page_t m, vm_prot_t prot,
+    u_int flags, int8_t psind __unused)
 {
 	pmap_t oldpmap;
 	vm_offset_t pa;
 	vm_offset_t opa;
 	struct ia64_lpte origpte;
 	struct ia64_lpte *pte;
-	boolean_t icache_inval, managed;
+	boolean_t icache_inval, managed, wired;
 
-	CTR6(KTR_PMAP, "pmap_enter(pm=%p, va=%#lx, acc=%#x, m=%p, prot=%#x, "
-	    "wired=%u)", pmap, va, access, m, prot, wired);
+	CTR5(KTR_PMAP, "pmap_enter(pm=%p, va=%#lx, m=%p, prot=%#x, "
+	    "flags=%u)", pmap, va, m, prot, flags);
 
+	wired = (flags & PMAP_ENTER_WIRED) != 0;
 	rw_wlock(&pvh_global_lock);
 	PMAP_LOCK(pmap);
 	oldpmap = pmap_switch(pmap);
@@ -1722,6 +1723,8 @@ pmap_enter(pmap_t pmap, vm_offset_t va, vm_prot_t access, vm_page_t m,
 		pmap_switch(oldpmap);
 		PMAP_UNLOCK(pmap);
 		rw_wunlock(&pvh_global_lock);
+		if ((flags & PMAP_ENTER_NOSLEEP) != 0)
+			return (KERN_RESOURCE_SHORTAGE);
 		VM_WAIT;
 		rw_wlock(&pvh_global_lock);
 		PMAP_LOCK(pmap);
@@ -1815,6 +1818,7 @@ validate:
 	rw_wunlock(&pvh_global_lock);
 	pmap_switch(oldpmap);
 	PMAP_UNLOCK(pmap);
+	return (KERN_SUCCESS);
 }
 
 /*
