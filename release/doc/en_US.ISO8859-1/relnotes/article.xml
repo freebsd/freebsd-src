@@ -161,8 +161,8 @@
       for &powerpc;&nbsp;970 class processors.</para>
 
     <para revision="263197">Support for ADT7460 and ADT7467 fan
-      controllers found in newer PowerBooks&nbsp;&trade; and
-      iBooks&nbsp;&trade; has been added to the &man.iicbus.4;
+      controllers found in newer PowerBooks&trade; and
+      iBooks&trade; has been added to the &man.iicbus.4;
       driver.</para>
 
     <para revision="263256">A panic triggered by removing
