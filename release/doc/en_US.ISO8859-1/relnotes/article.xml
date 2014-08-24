@@ -397,8 +397,14 @@
     <sect3 xml:id="rc-scripts">
       <title><filename>/etc/rc.d</filename> Scripts</title>
 
-      <para>&nbsp;</para>
-
+      <para revision="264438">The <filename>network.subr</filename>
+	&man.rc.8; script has been updated to loosen the requirement
+	of listing network aliases in numeric order.  Previously,
+	a network alias of
+	<literal>_alias<replaceable>2</replaceable></literal>
+	would not be created if
+	<literal>_alias<replaceable>1</replaceable></literal> was
+	not defined.</para>
     </sect3>
   </sect2>
 
