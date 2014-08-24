@@ -303,6 +303,10 @@
 	has been added to the &man.fsck.ffs.8; utility.  When used,
 	&man.fsck.ffs.8; will restart itself when too many critical
 	errors have been detected.</para>
+
+      <para revision="263407">The &man.zfs.8; filesystem has been
+	updated to implement <quote>bookmarks</quote>.  See
+	&man.zfs.8; for further details.</para>
     </sect3>
   </sect2>
 
