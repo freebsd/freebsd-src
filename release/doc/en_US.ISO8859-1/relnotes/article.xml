@@ -374,6 +374,11 @@
 	  <para revision="267694">A bug in the fast receiver buffer
 	    recycle path has been fixed in the &man.cxgbe.4;
 	    driver.</para>
+
+	  <para revision="267849" contrib="vendor"
+	    vendor="&chelsio;">The bundled &man.cxgbe.4; firmware for
+	    T4 and T5 cards has been updated to version
+	    1.11.27.0.</para>
 	</sect4>
       </sect3>
 
