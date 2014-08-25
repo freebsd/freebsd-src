@@ -446,6 +446,12 @@
       <para revision="265879">The &man.crypt.3; library now defaults
 	to SHA512 for password hashing.</para>
 
+      <para revision="266014">The &man.gvinum.8; utility has been
+	updated to allow forceful configuration reset with the
+	<literal>-f</literal> flag.  Additionally, a bug that would
+	prevent <literal>-f</literal> from properly creating
+	a &man.gvinum.8; configuration has been fixed.</para>
+
       <para revision="266279">The &man.ps.1; utility has been
 	updated to include the <literal>-J</literal> flag, used to
 	filter output by matching &man.jail.8; IDs and names.
