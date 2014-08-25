@@ -526,6 +526,12 @@
 	set, &man.gstat.8; will display statistics for operations
 	such as <literal>BIO_FLUSH</literal>.</para>
 
+      <para revision="266632">The &man.fetch.3; library has been
+	updated to look for root <acronym>SSL</acronym> certificates
+	in <filename class="directory">/usr/local/etc/ssl/</filename>
+	before <filename
+	  class="directory">/etc/ssl/</filename>.</para>
+
       <para revision="266890">The &man.pmcstat.8; utility has been
 	updated to include a new flag, <literal>-l</literal>, which
 	ends event collection after the specified number of
