@@ -319,8 +319,9 @@
       <sect3 xml:id="net-proto">
 	<title>Network Protocols</title>
 
-	<para>&nbsp;</para>
-
+	<para revision="265946">Support for the UDP-Lite protocol
+	  (RFC 3828) has been added to the IPv4 and IPv6
+	  stacks.</para>
       </sect3>
 
       <sect3 xml:id="disks">
