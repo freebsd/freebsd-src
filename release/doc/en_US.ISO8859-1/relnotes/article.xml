@@ -390,6 +390,9 @@
 	    vendor="&chelsio;">The bundled &man.cxgbe.4; firmware for
 	    T4 and T5 cards has been updated to version
 	    1.11.27.0.</para>
+
+	  <para revision="269196">The &man.em.4; driver has been
+	    updated to version 7.4.2.</para>
 	</sect4>
       </sect3>
 
