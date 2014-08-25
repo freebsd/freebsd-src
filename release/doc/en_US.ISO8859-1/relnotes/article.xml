@@ -718,6 +718,9 @@
 
       <para revision="268515">The &man.file.1; utility and
 	&man.libmagic.3; library have been updated to 5.19.</para>
+
+      <para revision="268899">The &man.byacc.1; parser has been
+	updated to version 20140422.</para>
     </sect2>
 
     <sect2 xml:id="ports">
