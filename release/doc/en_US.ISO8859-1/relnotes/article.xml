@@ -784,9 +784,6 @@
       <para revision="266692"><application>Sendmail</application>
 	has been updated to 8.14.9.</para>
 
-      <para revision="267258"><application>OpenSSL</application> has
-	been updated to version 1.0.1h.</para>
-
       <para revision="267477">The timezone database has been updated
 	to version tzdata2014e.</para>
 
@@ -803,6 +800,9 @@
       <para revision="269257">The &man.unbound.8; caching resolver and
 	<literal>ldns</literal> have been updated to version
 	1.4.22.</para>
+
+      <para revision="269686"><application>OpenSSL</application> has
+	been updated to version 1.0.1i.</para>
     </sect2>
 
     <sect2 xml:id="ports">
