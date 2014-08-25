@@ -541,6 +541,10 @@
       <para revision="266816">The Blowfish password format
 	has been changed to &dollar;2b&dollar; by default.</para>
 
+      <para revision="266888">The amount of data collected for
+	&man.hwpmc.4; has been updated to work with modern processors
+	and larger amounts of available memory.</para>
+
       <para revision="266890">The &man.pmcstat.8; utility has been
 	updated to include a new flag, <literal>-l</literal>, which
 	ends event collection after the specified number of
