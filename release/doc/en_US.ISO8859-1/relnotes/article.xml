@@ -393,6 +393,73 @@
 
 	  <para revision="269196">The &man.em.4; driver has been
 	    updated to version 7.4.2.</para>
+
+	  <para revision="269975">The &man.ixgbe.4; tunables have been
+	    renamed to match their &man.sysctl.8; counterparts:</para>
+
+	  <informaltable frame="none" pgwide="0">
+	    <tgroup cols="2">
+	      <colspec colwidth="1*"/>
+	      <colspec colwidth="1*"/>
+	      <thead>
+		<row>
+		  <entry>Old Name</entry>
+		  <entry>New Name</entry>
+		</row>
+	      </thead>
+
+	      <tbody>
+		<row>
+		  <entry><literal>hw.ixgbe.enable_aim</literal></entry>
+		  <entry><literal>hw.ix.enable_aim</literal></entry>
+		</row>
+
+		<row>
+		  <entry><literal>hw.ixgbe.max_interrupt_rate</literal></entry>
+		  <entry><literal>hw.ix.max_interrupt_rate</literal></entry>
+		</row>
+
+		<row>
+		  <entry><literal>hw.ixgbe.rx_process_limit</literal></entry>
+		  <entry><literal>hw.ix.rx_process_limit</literal></entry>
+		</row>
+
+		<row>
+		  <entry><literal>hw.ixgbe.tx_process_limit</literal></entry>
+		  <entry><literal>hw.ix.tx_process_limit</literal></entry>
+		</row>
+
+		<row>
+		  <entry><literal>hw.ixgbe.enable_msix</literal></entry>
+		  <entry><literal>hw.ix.enable_msix</literal></entry>
+		</row>
+
+		<row>
+		  <entry><literal>hw.ixgbe.num_queues</literal></entry>
+		  <entry><literal>hw.ix.num_queues</literal></entry>
+		</row>
+
+		<row>
+		  <entry><literal>hw.ixgbe.txd</literal></entry>
+		  <entry><literal>hw.ix.txd</literal></entry>
+		</row>
+
+		<row>
+		  <entry><literal>hw.ixgbe.rxd</literal></entry>
+		  <entry><literal>hw.ix.rxd</literal></entry>
+		</row>
+
+		<row>
+		  <entry><literal>hw.ixgbe.unsupported_sfp</literal></entry>
+		  <entry><literal>hw.ix.unsupported_sfp</literal></entry>
+		</row>
+	      </tbody>
+	    </tgroup>
+	  </informaltable>
+
+	  <para>Be sure to update &man.loader.conf.5; if using the
+	    old tunables before upgrading to
+	    &os;&nbsp;&release.current;.</para>
 	</sect4>
       </sect3>
 
