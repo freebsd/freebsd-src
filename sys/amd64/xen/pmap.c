@@ -335,7 +335,7 @@ struct pmap kernel_pmap_store;
 		      (va) <= DMAP_MAX_ADDRESS)
 #define ISKERNELVA(va) ((va) >= VM_MIN_KERNEL_ADDRESS && \
 			(va) <= VM_MAX_KERNEL_ADDRESS)
-#define ISBOOTVA(va) ((va) >= KERNBASE && (va) <= (xenstack + 512 * 1024))
+#define ISBOOTVA(va) ((va) >= KERNBASE && (va) < (virtual_avail))
 
 uintptr_t virtual_avail;	/* VA of first avail page (after kernel bss) */
 uintptr_t virtual_end;	/* VA of last avail page (end of kernel AS) */
@@ -395,12 +395,19 @@ static void _pmap_unwire_ptp(pmap_t pmap, vm_offset_t va, vm_page_t m,
     struct spglist *free);
 static int pmap_unuse_pt(pmap_t, vm_offset_t, pd_entry_t, struct spglist *);
 
-static vm_paddr_t	boot_ptphys;	/* phys addr of start of
-					 * kernel bootstrap tables
-					 */
-static vm_paddr_t	boot_ptendphys;	/* phys addr of end of kernel
-					 * bootstrap page tables
-					 */
+static long	xen_pt;	/* 
+			 * xen bootstrap page tables
+			 */
+static long	xen_pt_frames;	/* 
+				 * xen bootstrap page table end.
+				 */
+
+static long	boot_pt;	/* phys addr of start of
+				 * kernel bootstrap tables
+				 */
+static long	boot_pt_frames;	/* phys addr of end of kernel
+				 * bootstrap page tables
+				 */
 extern int gdtset;
 extern uint64_t xenstack; /* The stack Xen gives us at boot */
 extern struct xenstore_domain_interface *xen_store; /* xenstore page */
@@ -588,7 +595,7 @@ allocpages(vm_paddr_t *firstaddr, int n)
 	bzero((void *)PTOV(ret), n * PAGE_SIZE);
 	*firstaddr += n * PAGE_SIZE;
 
-	KASSERT(PTOV(*firstaddr) <= (xenstack + 512 * 1024), 
+	KASSERT(PTOV(*firstaddr) < (virtual_avail),
 		("Attempt to use unmapped va\n"));
 
 	return (ret);
@@ -656,6 +663,9 @@ pmap_xen_setpages_rw(uintptr_t va, vm_size_t npages)
 
 extern int etext;	/* End of kernel text (virtual address) */
 extern int end;		/* End of kernel binary (virtual address) */
+
+#define ISPTFN(p, min, max) ((p) >= ((min)) && (p) < ((max)))
+
 /* Return pte flags according to kernel va access restrictions */
 
 static pt_entry_t
@@ -667,18 +677,13 @@ pmap_xen_kernel_vaflags(uintptr_t va)
 	if ((va > (uintptr_t) &etext && /* .data, .bss et. al */
 	     (va < (uintptr_t) &end))
 	    ||
-	    ((va > (uintptr_t)(xen_start_info->pt_base +
-	    			xen_start_info->nr_pt_frames * PAGE_SIZE)) &&
-	     va < PTOV(boot_ptphys))
-	    ||
-	    va > PTOV(boot_ptendphys)) {
+	    !(ISPTFN(atop(VTOP(va)), xen_pt, xen_pt + xen_pt_frames) ||
+	      ISPTFN(atop(VTOP(va)), boot_pt, boot_pt + boot_pt_frames))) {
 		return PG_RW;
 	}
 
 	return 0;
 }
-
-uintptr_t tmpva;
 
 CTASSERT(powerof2(NDMPML4E));
 
@@ -713,22 +718,77 @@ nkpt_init(vm_paddr_t addr)
 	nkpt = pt_pages;
 }
 
+/* 
+ * Test to see if ndmpt_pgs + nkpt_pgs will fit within 
+ * PTOV(allocbase) and virtual_avail
+ *
+ * Global variables used and modified: virtual_avail
+ */
+   
+static bool
+dmap_table_fits(vm_paddr_t allocbase, int ndmpt_pgs)
+{
+	int nkpt_pgs = 0, nkpt_slop = 0;
 
+	/* Replicate nkpt_init() here to estimate nkpt_pgs */
+	nkpt_pgs = howmany(VTOP(virtual_avail), 1 << PDRSHIFT);
+	nkpt_pgs += NKPDPE(nkpt_pgs);
+
+	nkpt_slop = NKPDPE(nkpt_pgs) + 8;
+
+	/* Add further machdep.c mem usage to estimate */
+	nkpt_slop += KSTACK_PAGES + atop(round_page(DPCPU_SIZE));
+
+	nkpt_pgs += nkpt_slop;  /* Arbitrary slop - see nkpt_init() */
+
+	nkpt_pgs += NKPML4E;	/* pdpts for kva */
+	nkpt_pgs += 1;		/* KPML4 */
+
+	if ((allocbase + ptoa(ndmpt_pgs + nkpt_pgs)) <
+	    VTOP(virtual_avail)) {
+		return true;
+	}
+
+	/* Start at the most kva available for the next iteration. */
+	nkpt_pgs = atop(VTOP(virtual_avail) - allocbase); 
+	
+	long nkpt_l1pgs = nkpt_pgs - NKPML4E - 1 - nkpt_slop;
+
+	/* Then pare it down to the min. needed. */
+	do {
+		nkpt_l1pgs--;
+		nkpt_pgs = nkpt_l1pgs + NKPML4E + 1 + nkpt_slop;
+	} while ((nkpt_l1pgs << PDRSHIFT) >= 
+		 allocbase + ptoa(nkpt_pgs + ndmpt_pgs));
+
+	nkpt_l1pgs++;
+	nkpt_pgs++;
+
+	/* update shared variable for next iteration.
+	 * This is sucky, but I don't want to drift too much
+	 * from native templates, with a view to future
+	 * integration.
+	 */
+	virtual_avail = PTOV(nkpt_l1pgs << PDRSHIFT);
+
+	return false;
+}
 /* create a linear mapping for a span of 'nkmapped' pages */
 
 static void
-create_pagetables(vm_paddr_t *firstaddr, int nkmapped)
+create_pagetables(vm_paddr_t *firstaddr)
 {
 
-	int i, j, ndm1g, nkpdpe;
+	int i, j, ndm1g, nkpdpe, ndmpd = 0;
 	pt_entry_t *pt_p;
 	pd_entry_t *pd_p;
 	pdp_entry_t *pdp_p;
 	pml4_entry_t *p4_p;
 
-	boot_ptphys = *firstaddr; /* lowest available r/w area */
+	boot_pt = atop(*firstaddr); /* lowest available r/w area */
+	boot_pt_frames = 0; /* reset */
 
-	/* Allocate page table pages for the direct map */
+	/* Estimate page table pages for the direct map */
 	ndmpdp = (ptoa(Maxmem) + NBPDP - 1) >> PDPSHIFT;
 	if (ndmpdp < 4)		/* Minimum 4GB of dirmap */
 		ndmpdp = 4;
@@ -743,15 +803,53 @@ create_pagetables(vm_paddr_t *firstaddr, int nkmapped)
 		ndmpdpphys = NDMPML4E;
 		ndmpdp = NDMPML4E * NPDEPG;
 	}
-	DMPDPphys = allocpages(firstaddr, ndmpdpphys);
+
 	ndm1g = 0;
 	amd_feature = 0; /* XXX: revisit */
+
+#ifdef LARGEFRAMES
 	if ((amd_feature & AMDID_PAGE1GB) != 0)
 		ndm1g = ptoa(Maxmem) >> PDPSHIFT;
+#endif
 	if (ndm1g < ndmpdp)
-		DMPDphys = allocpages(firstaddr, ndmpdp - ndm1g);
+		ndmpd = ndmpdp - ndm1g;
+
 	dmaplimit = (vm_paddr_t)ndmpdp << PDPSHIFT;
 
+	/* 
+	 * Xen doesn't like aliased maps with unmatched access
+	 * rights. Also, a duplicate set of PTs is wasteful. So we
+	 * stitch together the Kernel map and the rest of unmapped RAM
+	 * into the Direct map.
+	 */
+
+	int ndmpt;
+
+	ndmpt = howmany(Maxmem, NPTEPG);
+	ndmpt += NKPDPE(ndmpt);
+
+	/* 
+	 * Estimate to see if our kva is sufficient to map the direct
+	 * map in. 
+	 *
+	 * If we can't fit the direct map tables into available kva,
+	 * we attempt to map in more kva, and we retry.
+	 */
+	bool directmap;
+	static vm_paddr_t allocbase = 0;
+
+	/* allocbase doesn't change with iterations */
+	if (!allocbase) 
+		allocbase = *firstaddr; 
+
+	directmap = dmap_table_fits(*firstaddr, ndmpdpphys + ndmpd + ndmpt);
+	if (directmap == false) goto kvasetup;
+
+	DMPDPphys = allocpages(firstaddr, ndmpdpphys);
+	DMPDphys = allocpages(firstaddr, ndmpd);
+	DMPTphys = allocpages(firstaddr, ndmpt);
+
+kvasetup:
 	/* Allocate pages */
 	KPML4phys = allocpages(firstaddr, 1);
 	KPDPphys = allocpages(firstaddr, NKPML4E);
@@ -768,30 +866,15 @@ create_pagetables(vm_paddr_t *firstaddr, int nkmapped)
 	 * pages.  (pmap_enter requires a PD page to exist for each KPML4E.)
 	 */
 
-	nkpt_init(ptoa(nkmapped));
+	nkpt_init(VTOP(virtual_avail));
 	nkpdpe = NKPDPE(nkpt);
 
 	KPTphys = allocpages(firstaddr, nkpt);
 	KPDphys = allocpages(firstaddr, nkpdpe);
+	boot_pt_frames = atop(*firstaddr) - boot_pt;
 
-	/* 
-	 * Xen doesn't like aliased maps with unmatched access
-	 * rights. Also, a duplicate set of PTs is wasteful. So we
-	 * stitch together the Kernel map and the rest of unmapped RAM
-	 * into the Direct map.
-	 */
-
-	int ndmpd;
-
-	ndmpd = howmany(Maxmem, NPTEPG);
-	ndmpd += NKPDPE(ndmpd);
-
-	DMPTphys = allocpages(firstaddr, ndmpd);
-
-	boot_ptendphys = *firstaddr - 1;
-
-	/* We can't spill over beyond the 512kB padding */
-	KASSERT(((boot_ptendphys - boot_ptphys) / 1024) <= 512,
+	/* We can't spill over beyond virtual_avail */
+	KASSERT(PTOV(ptoa(boot_pt + boot_pt_frames)) <= virtual_avail,
 		("bootstrap mapped memory insufficient.\n"));
 
 	/* Fill in the underlying page table pages */
@@ -802,7 +885,7 @@ create_pagetables(vm_paddr_t *firstaddr, int nkmapped)
 	/* Adjust for Xen */
 	pt_p = (pt_entry_t *)PTOV(KPTphys);
 
-	for (i = 0; ptoa(i) < ptoa(nkmapped); i++) {
+	for (i = 0; ptoa(i) < VTOP(virtual_avail); i++) {
 		pt_p[i] = ptoa(i) | X86_PG_RW | X86_PG_V | X86_PG_G;
 
 		/* Adjust to machine addr and attributes for Xen */
@@ -831,7 +914,7 @@ create_pagetables(vm_paddr_t *firstaddr, int nkmapped)
 #ifdef LARGEFRAMES
 	/* Map from zero to end of allocations under 2M pages */
 	/* This replaces some of the KPTphys entries above */
-	for (i = 0; (i << PDRSHIFT) < ptoa(nkmapped); i++) {
+	for (i = 0; (i << PDRSHIFT) < VTOP(virtual_avail); i++) {
 		pd_p[i] = (i << PDRSHIFT) | X86_PG_RW | X86_PG_V | PG_PS |
 		    X86_PG_G;
 
@@ -861,6 +944,8 @@ create_pagetables(vm_paddr_t *firstaddr, int nkmapped)
 
 	}
 
+	if (directmap == false) goto l4setup;
+
 	pt_p = (pt_entry_t *)PTOV(DMPTphys);
 
 	for (i = 0; ptoa(i) < ptoa(Maxmem); i++) {
@@ -871,7 +956,7 @@ create_pagetables(vm_paddr_t *firstaddr, int nkmapped)
 
 	pd_p = (pd_entry_t *)PTOV(DMPDphys);
 
-	for (i = 0; i < ndmpd; i++) {
+	for (i = 0; i < ndmpt; i++) {
 		pd_p[i] = phystomach(DMPTphys + ptoa(i));
 		pmap_xen_setpages_ro(PTOV(DMPTphys + ptoa(i)), 1);
 
@@ -932,6 +1017,7 @@ create_pagetables(vm_paddr_t *firstaddr, int nkmapped)
 		pdp_p[i] |= X86_PG_RW | X86_PG_V | X86_PG_U;
 	}
 
+l4setup:
 	/* And recursively map PML4 to itself in order to get PTmap */
 	p4_p = (pml4_entry_t *)KPML4phys;
 
@@ -945,6 +1031,7 @@ create_pagetables(vm_paddr_t *firstaddr, int nkmapped)
 	p4_p[PML4PML4I] = phystomach(KPML4phys);
 	p4_p[PML4PML4I] |= X86_PG_V |  PG_U;
 
+	if (directmap == false) goto kval4setup;
 	/* Connect the Direct Map slot(s) up to the PML4. */
 	for (i = 0; i < ndmpdpphys; i++) {
 		p4_p[DMPML4I + i] = DMPDPphys + ptoa(i);
@@ -957,6 +1044,7 @@ create_pagetables(vm_paddr_t *firstaddr, int nkmapped)
 		p4_p[DMPML4I + i] |= X86_PG_RW | X86_PG_V | PG_U;
 	}
 
+kval4setup:
 	/* Connect the KVA slots up to the PML4 */
 	for (i = 0; i < NKPML4E; i++) {
 		p4_p[KPML4BASE + i] = KPDPphys + ptoa(i);
@@ -983,7 +1071,7 @@ create_pagetables(vm_paddr_t *firstaddr, int nkmapped)
  */
 
 static void
-pmap_xen_bootpages(vm_paddr_t *firstaddr)
+pmap_xen_bootpages(void)
 {
 	uintptr_t va;
 	vm_paddr_t ma;
@@ -1051,76 +1139,80 @@ pmap_bootstrap(vm_paddr_t *firstaddr)
 
 	int nkmapped;
 
-	nkmapped = atop(VTOP(xenstack + 512 * 1024));
-
-	/* 
-	 * Converts number of pages available for backing page tables,
-	 * to maximum contiguous and aligned VA span they can serve.
-	 * We assume a maximum span of 512GB, therefore assuming 2
-	 * pages for 1 L4 and L3 table each.
-	 */
-
-#define npt_to_va_span(_npg) ((2ULL * 1024 * 1024 * 512 * ((_npg) - 2) + 513 - \
-			       4ULL * 1024 * 1024 * 512) / 513)
-
-	/* 
-	 * Converts a given aligned and contiguous span of VA to the
-	 * number of pages of backing page tables required.
-	 */
-#define va_span_to_npt(_span) (((513 * (_span) + 4ULL * 1024 * 1024 * 512 - 513) / \
-				2ULL * 1024 * 1024 * 512) + 2)
-
-	Maxmem = atop(npt_to_va_span(atop(128 * 1024)));
-
-	create_pagetables(firstaddr, nkmapped);
+	xen_pt = atop(VTOP(xen_start_info->pt_base));
+	xen_pt_frames = xen_start_info->nr_pt_frames;
+retry:
+	nkmapped = atop(VTOP(virtual_avail));
+	create_pagetables(firstaddr);
 
 	/* Switch to the new kernel tables */
 	xen_pt_switch(xpmap_ptom(KPML4phys));
 
 	/* Unpin old page table hierarchy, and mark all its pages r/w */
-	xen_pgdir_unpin(phystomach(VTOP(xen_start_info->pt_base)));
+	xen_pgdir_unpin(phystomach(ptoa(xen_pt)));
 
-	pmap_xen_setpages_rw(xen_start_info->pt_base,
-			     xen_start_info->nr_pt_frames);
 
-	bzero((void *)xen_start_info->pt_base, xen_start_info->nr_pt_frames * PAGE_SIZE);
-	/* And DMAP mappings */
-	pmap_xen_setpages_rw(PHYS_TO_DMAP(VTOP(xen_start_info->pt_base)),
-			     xen_start_info->nr_pt_frames);
-		     
+	/* Make them r/w in kva */
+	pmap_xen_setpages_rw(PTOV(ptoa(xen_pt)),
+			     xen_pt_frames);
+
+	bzero((void *)PTOV(ptoa(xen_pt)), ptoa(xen_pt_frames));
+#if 0
+	/* 
+	 * Unmap from kernel VA space, since we're going to put them
+	 * on the free list via phys_avail
+	 */
+	long i;
+	for (i = xen_pt; i < (xen_pt + xen_pt_frames);i++) {
+		PT_SET_MA(PTOV(ptoa(i)), 0);
+	}
+
 	/* 
 	 * gc newly free pages (bootstrap PTs and bootstrap stack,
 	 * mostly, I think.).
 	 * Record the pages as available to the VM via phys_avail[] 
 	 */
 
-	/* This is the first free phys segment. see: xen.h */
-	KASSERT(pa_index == 0, 
-		("reclaimed page table pages are not the lowest available!"));
-
-	dump_avail[pa_index + 1] = phys_avail[pa_index] = VTOP(xen_start_info->pt_base);
+	dump_avail[pa_index + 1] = phys_avail[pa_index] = ptoa(xen_pt);
 	dump_avail[pa_index + 2] = phys_avail[pa_index + 1] = phys_avail[pa_index] +
-		ptoa(xen_start_info->nr_pt_frames);
+		ptoa(xen_pt_frames);
 	pa_index += 2;
+#endif
+	if (ptoa(nkmapped) != VTOP(virtual_avail)) { /* Need more kva, try again */
+		xen_pt = boot_pt;
+		xen_pt_frames = boot_pt_frames;
+		goto retry;
+	}
+
+	/* 
+	 * DMAP mappings of the former pt should be r/w.
+	 * Since we couldn't mark them R/W during the
+	 * xen_pgd_pin()/xen_pgd_unpin() dance above,
+	 * and we know that at this point, DMAP has been
+	 * setup, we do a direct update to R/W
+	 */
+
+	pmap_xen_setpages_rw(PHYS_TO_DMAP(ptoa(xen_pt)),
+			     xen_pt_frames);
 
 	/*
 	 * Xen guarantees mapped virtual addresses at boot time upto
-	 * xenstack + 512KB. We want to use these for allocpages()
-	 * and therefore don't want to touch these mappings since
-	 * they're scarce resources. Move along to the end of
-	 * guaranteed mapping.
+	 * xenstack + 512KB. We want to use these to kick off
+	 * allocpages(). We then extend the boot time kva enough to be
+	 * able to map all of the kernel and all of physical ram via
+	 * the direct mappings.
 	 *
 	 * Note: Xen *may* provide mappings upto xenstack + 4MB, but
 	 * this is not guaranteed. We therefore assume that only 512KB
-	 * is available.
+	 * is available in the first iteration.
 	 */
 
-	virtual_avail = (uintptr_t) xenstack + 512 * 1024 + PAGE_SIZE;
+	virtual_avail = (uintptr_t) round_page(virtual_avail);
 	/* XXX: Check we don't overlap xen pgdir entries. */
 	virtual_end = VM_MAX_KERNEL_ADDRESS - PAGE_SIZE; 
 
 	/* Map in Xen related pages into VA space */
-	pmap_xen_bootpages(firstaddr);
+	pmap_xen_bootpages();
 
 	/*
 	 * Initialize the kernel pmap (which is statically allocated).
@@ -1144,7 +1236,6 @@ pmap_bootstrap(vm_paddr_t *firstaddr)
 	rw_init(&pvh_global_lock, "pmap pv global");
 
 	/* Steal some memory (backing physical pages, and kva) */
-	physmem = Maxmem; /* XXX: remove after > 64M support */
 	physmem -= atop(round_page(msgbufsize));
 
 	msgbufp = (struct msgbuf *)PHYS_TO_DMAP(ptoa(physmem));

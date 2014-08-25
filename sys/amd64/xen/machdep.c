@@ -332,6 +332,7 @@ static void init_event_callbacks(void)
 void xen_set_hypercall_page(vm_paddr_t);
 extern char hypercall_page[]; /* locore.s */
 extern uint64_t xenstack; /* start of Xen provided stack */
+extern uintptr_t virtual_avail; /* pmap.c */
 
 void
 force_evtchn_callback(void)
@@ -451,6 +452,22 @@ initxen(struct start_info *si)
 	/* xen variables */
 	xen_phys_machine = (xen_pfn_t *)si->mfn_list;
 
+
+	/*
+	 * Xen guarantees mapped virtual addresses at boot time upto
+	 * xenstack + 512KB. We want to use these to kick off
+	 * allocpages(). We then extend the boot time kva enough to be
+	 * able to map all of the kernel and all of physical ram via
+	 * the direct mappings.
+	 *
+	 * Note: Xen *may* provide mappings upto xenstack + 4MB, but
+	 * this is not guaranteed. We therefore assume that only 512KB
+	 * is available in the first iteration.
+	 */
+
+	/* (ab)use virtual_avail for pre vm/ boot */
+	virtual_avail = xenstack + 512 * 1024;
+
 	/* XXX: if hypervisor has FEATURE 2M SUPER pages) */
 	init_xen_super();
 
@@ -495,7 +512,7 @@ initxen(struct start_info *si)
 	physfree += kstack0_sz;
 
 	/* Make sure we are still inside of available mapped va. */
-	KASSERT(PTOV(physfree) <= (xenstack + 512 * 1024), 
+	KASSERT(PTOV(physfree) < (virtual_avail),
 		("Attempt to use unmapped va\n"));
 
 	/*
@@ -650,7 +667,6 @@ initxen(struct start_info *si)
 
         HYPERVISOR_stack_switch(GSEL(GDATA_SEL, SEL_KPL), 
 		(unsigned long) PCPU_GET(rsp0)); /* Tell xen about the kernel stack */
-
 	/* setup user mode selector glue */
 	_ucodesel = GSEL(GUCODE_SEL, SEL_UPL);
 	_udatasel = GSEL(GUDATA_SEL, SEL_UPL);
@@ -682,9 +698,10 @@ initxen(struct start_info *si)
 	if (env != NULL)
 		strlcpy(kernelname, env, sizeof(kernelname));
 
-	/* unmap unused kmem after physfree */
+	/* unmap unused kva after physfree */
+
 	intptr_t unmapva;
-	for (unmapva = PTOV(physfree); unmapva < (xenstack + 512 * 1024); unmapva += PAGE_SIZE) {
+	for (unmapva = PTOV(physfree); unmapva < (virtual_avail - PAGE_SIZE * 3 /* Compensate for virtual_avail adjustment in pmap_xen bootpages() - XXX:  fix this ugliness */); unmapva += PAGE_SIZE) {
 		PT_SET_MA(unmapva, 0);
 	}
 
