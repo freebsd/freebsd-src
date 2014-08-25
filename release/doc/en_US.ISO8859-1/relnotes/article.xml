@@ -460,6 +460,10 @@
 	  <para>Be sure to update &man.loader.conf.5; if using the
 	    old tunables before upgrading to
 	    &os;&nbsp;&release.current;.</para>
+
+	  <para revision="270061">The &man.if.nf10bmac.4; driver has
+	    been merged from &os;-CURRENT to support the NetFPGA-10G
+	    Embedded CPU Ethernet Core.</para>
 	</sect4>
       </sect3>
 
