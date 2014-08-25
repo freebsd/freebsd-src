@@ -260,6 +260,13 @@
 
 	<para revision="267399">Support for &os;/i386 guests has been
 	  added to &man.bhyve.4;.</para>
+
+	<para revision="267427">Support for virtualized
+	  <literal>XSAVE</literal> has been added to &man.bhyve.4;,
+	  allowing guest operating systems to use
+	  <literal>XSAVE</literal> and
+	  <literal>XSAVE</literal>-enabled features, such as
+	  <acronym>AVX</acronym>.</para>
       </sect3>
 
       <sect3 xml:id="kernel-arm">
