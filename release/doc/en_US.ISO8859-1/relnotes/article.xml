@@ -277,6 +277,10 @@
 
 	<para revision="268932">The &man.bhyve.4; hypervisor now
 	  supports booting from a &man.zfs.8; filesystem.</para>
+
+	<para revision="268933">A new driver, &man.virtio_random.4;,
+	  has been added, which allows &os; virtual machines to
+	  harvest entropy from the hypervisor.</para>
       </sect3>
 
       <sect3 xml:id="kernel-arm">
