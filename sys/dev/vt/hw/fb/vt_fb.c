@@ -331,8 +331,10 @@ vt_fb_bitblt_text(struct vt_device *vd, const struct vt_window *vw,
 	for (row = area->tr_begin.tp_row; row < area->tr_end.tp_row; ++row) {
 		for (col = area->tr_begin.tp_col; col < area->tr_end.tp_col;
 		    ++col) {
-			x = col * vf->vf_width + vw->vw_offset.tp_col;
-			y = row * vf->vf_height + vw->vw_offset.tp_row;
+			x = col * vf->vf_width +
+			    vw->vw_draw_area.tr_begin.tp_col;
+			y = row * vf->vf_height +
+			    vw->vw_draw_area.tr_begin.tp_row;
 
 			c = VTBUF_GET_FIELD(&vw->vw_buf, row, col);
 			pattern = vtfont_lookup(vf, c);
@@ -352,13 +354,13 @@ vt_fb_bitblt_text(struct vt_device *vd, const struct vt_window *vw,
 	term_rect_t drawn_area;
 
 	drawn_area.tr_begin.tp_col = area->tr_begin.tp_col * vf->vf_width +
-	    vw->vw_offset.tp_col;
+	    vw->vw_draw_area.tr_begin.tp_col;
 	drawn_area.tr_begin.tp_row = area->tr_begin.tp_row * vf->vf_height +
-	    vw->vw_offset.tp_row;
+	    vw->vw_draw_area.tr_begin.tp_row;
 	drawn_area.tr_end.tp_col = area->tr_end.tp_col * vf->vf_width +
-	    vw->vw_offset.tp_col;
+	    vw->vw_draw_area.tr_begin.tp_col;
 	drawn_area.tr_end.tp_row = area->tr_end.tp_row * vf->vf_height +
-	    vw->vw_offset.tp_row;
+	    vw->vw_draw_area.tr_begin.tp_row;
 
 	if (vt_is_cursor_in_area(vd, &drawn_area)) {
 		vt_fb_bitblt_bitmap(vd, vw,
