@@ -496,14 +496,14 @@
 	sponsor="&darpa_afrl;">The &man.lldb.1; debugging library has
 	been updated to the r196322 snapshot.</para>
 
-      <para revision="263906">The timezone database has been updated
-	to version tzdata2014b.</para>
-
       <para revision="264377"><application>OpenSSH</application> has
 	been updated to version 6.6p1.</para>
 
       <para revision="264911">The &man.nc.1; utility has been updated
 	to match the version in OpenBSD 5.5.</para>
+
+      <para revision="265983">The timezone database has been updated
+	to version tzdata2014c.</para>
 
       <para revision="266692"><application>Sendmail</application>
 	has been updated to 8.14.9.</para>
