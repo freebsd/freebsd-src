@@ -952,6 +952,9 @@
 
       <para revision="270026">The &man.nvi.1; editor has been
 	update to version 2.1.2-c80f493b038.</para>
+
+      <para revision="270031">The &man.fparseln.3; library has
+	been updated to version 1.7.</para>
     </sect2>
 
     <sect2 xml:id="ports">
