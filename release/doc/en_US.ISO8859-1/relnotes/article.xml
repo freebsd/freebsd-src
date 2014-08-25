@@ -617,6 +617,13 @@
       <para revision="268161">The &man.mkimg.1; utility has been
 	merged from &os;-CURRENT.</para>
 
+      <para revision="267734">The &os;&nbsp;Project has migrated
+	from the <application>GNATS</application> bug tracking system
+	to <application>Bugzilla</application>.  The &man.send-pr.1;
+	utility used for submitting problem reports has been replaced
+	with a stub shell script that instructs to use the Bugzilla
+	web interface.</para>
+
       <sect3 xml:id="rc-scripts">
 	<title><filename>/etc/rc.d</filename> Scripts</title>
 
