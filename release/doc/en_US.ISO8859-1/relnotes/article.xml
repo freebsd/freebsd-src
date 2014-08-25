@@ -8,7 +8,9 @@
 <!ENTITY % vendor PUBLIC "-//FreeBSD//ENTITIES Vendor Specification//EN" "vendor.ent">
  %vendor;
 ]>
-<article xmlns="http://docbook.org/ns/docbook" xmlns:xlink="http://www.w3.org/1999/xlink" version="5.0">
+<article xmlns="http://docbook.org/ns/docbook"
+  xmlns:xlink="http://www.w3.org/1999/xlink" version="5.0">
+
 <info>
   <title>&os; &release.current; Release Notes</title>
 
@@ -34,7 +36,8 @@
     <year>2012</year>
     <year>2013</year>
     <year>2014</year>
-    <holder role="mailto:doc@FreeBSD.org">The &os; Documentation Project</holder>
+    <holder role="mailto:doc@FreeBSD.org">The &os; Documentation
+      Project</holder>
   </copyright>
 
   <legalnotice xml:id="trademarks" role="trademarks">
