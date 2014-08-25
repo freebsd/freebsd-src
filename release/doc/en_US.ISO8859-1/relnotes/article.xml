@@ -412,6 +412,12 @@
       specified, produces a full stack track on the sampled
       points.</para>
 
+    <para revision="265701">The &man.netstat.8; and &man.route.8;
+      utilities have been updated to include a shorthand equivalent
+      to the <literal>-f inet</literal> and <literal>-f
+	inet6</literal> address specifiers, <literal>-4</literal> and
+      <literal>-6</literal>, respectively.</para>
+
     <para revision="266279">The &man.ps.1; utility has been
       updated to include the <literal>-J</literal> flag, used to
       filter output by matching &man.jail.8; IDs and names.
