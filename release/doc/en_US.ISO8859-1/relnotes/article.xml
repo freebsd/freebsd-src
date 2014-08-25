@@ -249,6 +249,10 @@
       <para revision="267457">The &man.hpt27xx.4; driver has been
 	updated with various vendor-supplied bug fixes.</para>
 
+      <para revision="268046">The &man.oce.4; driver has been updated
+	with vendor-supplied fixes for big endian support, and 20GB/s
+	and 25GB/s link speeds.</para>
+
       <sect3 xml:id="kernel-virtualization">
 	<title>Virtualization Support</title>
 
