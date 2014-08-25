@@ -515,6 +515,9 @@
 
 	  <para revision="270509">The &man.vtnet.4; driver has been
 	    updated to support &man.netmap.4;.</para>
+
+	  <para revision="270514">The &man.urtwn.4; driver has been
+	    updated to support the ASUS USB-AC51 wireless card.</para>
 	</sect4>
       </sect3>
 
