@@ -638,6 +638,10 @@
 	is equivalent to <literal>--check</literal> and
 	<literal>-C</literal>.</para>
 
+      <para revision="267878">A bug in &man.bsdgrep.1; that would
+	prevent patterns from being matched under certain conditions
+	has been fixed.</para>
+
       <sect3 xml:id="rc-scripts">
 	<title><filename>/etc/rc.d</filename> Scripts</title>
 
