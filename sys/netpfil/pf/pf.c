@@ -6069,6 +6069,9 @@ pf_test6(int dir, struct ifnet *ifp, struct mbuf **m0, struct inpcb *inp)
 	if (kif->pfik_flags & PFI_IFLAG_SKIP)
 		return (PF_PASS);
 
+	if (m->m_flags & M_SKIP_FIREWALL)
+		return (PF_PASS);
+
 	PF_RULES_RLOCK();
 
 	/* We do IP header normalization and packet reassembly here */
