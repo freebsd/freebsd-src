@@ -371,27 +371,32 @@ vmcb_seg(struct vmcb *vmcb, int type)
 /*
  * Inject an event to vcpu as described in section 15.20, "Event injection".
  */
-int
+void
 vmcb_eventinject(struct vmcb_ctrl *ctrl, int intr_type, int vector,
 		 uint32_t error, bool ec_valid)
 {
-	if (intr_type < VMCB_EVENTINJ_TYPE_INTR ||
-	    intr_type > VMCB_EVENTINJ_TYPE_INTn) {
-		ERR("Event:%d is not supported by SVM.\n", intr_type);
-		return (EINVAL);
+	KASSERT((ctrl->eventinj & VMCB_EVENTINJ_VALID) == 0,
+	    ("%s: event already pending %#lx", __func__, ctrl->eventinj));
+
+	KASSERT(vector >=0 && vector <= 255, ("%s: invalid vector %d",
+	    __func__, vector));
+
+	switch (intr_type) {
+	case VMCB_EVENTINJ_TYPE_INTR:
+	case VMCB_EVENTINJ_TYPE_NMI:
+	case VMCB_EVENTINJ_TYPE_INTn:
+		break;
+	case VMCB_EVENTINJ_TYPE_EXCEPTION:
+		if (vector >= 0 && vector <= 31 && vector != 2)
+			break;
+		/* FALLTHROUGH */
+	default:
+		panic("%s: invalid intr_type/vector: %d/%d", __func__,
+		    intr_type, vector);
 	}
-
-	if (intr_type == VMCB_EVENTINJ_TYPE_EXCEPTION && vector == IDT_NMI) {
-		ERR("NMI with Exception type is not possible.\n");
-		return (EINVAL);
+	ctrl->eventinj = vector | (intr_type << 8) | VMCB_EVENTINJ_VALID;
+	if (ec_valid) {
+		ctrl->eventinj |= VMCB_EVENTINJ_EC_VALID;
+		ctrl->eventinj |= (uint64_t)error << 32;
 	}
-
-	ctrl->eventinj = (vector & VMCB_EVENTINJ_VECTOR_MASK) |
-			 (intr_type << VMCB_EVENTINJ_INTR_TYPE_SHIFT)  |
-			 (ec_valid ? VMCB_EVENTINJ_EC_VALID : 0) |
-			 VMCB_EVENTINJ_VALID;
-
-	ctrl->eventinj |= (uint64_t)error << VMCB_EVENTINJ_ERRCODE_SHIFT;
-
-	return (0);
 }

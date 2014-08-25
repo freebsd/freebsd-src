@@ -109,10 +109,6 @@
 #define	VMCB_EVENTINJ_EC_VALID		BIT(11)	/* Error Code valid */
 #define	VMCB_EVENTINJ_VALID		BIT(31)	/* Event valid */
 
-#define	VMCB_EVENTINJ_VECTOR_MASK	0xFF
-#define	VMCB_EVENTINJ_INTR_TYPE_SHIFT	8
-#define	VMCB_EVENTINJ_ERRCODE_SHIFT	32
-
 /* Event types that can be injected */
 #define	VMCB_EVENTINJ_TYPE_INTR		0
 #define	VMCB_EVENTINJ_TYPE_NMI		2
@@ -152,11 +148,11 @@
  * EXITINTINFO, Interrupt exit info for all intrecepts.
  * Section 15.7.2, Intercepts during IDT Interrupt Delivery.
  */
-#define VMCB_EXITINTINFO_VECTOR(x)	(x & 0xFF)
-#define VMCB_EXITINTINFO_TYPE(x)	((x & 0x7) >> 8)
-#define VMCB_EXITINTINFO_EC_VALID	BIT(11)
-#define VMCB_EXITINTINFO_VALID		BIT(31)
-#define VMCB_EXITINTINFO_EC(x)		((x & 0xFFFFFFFF) >> 32)
+#define VMCB_EXITINTINFO_VECTOR(x)	((x) & 0xFF)
+#define VMCB_EXITINTINFO_TYPE(x)	(((x) >> 8) & 0x7)
+#define VMCB_EXITINTINFO_EC_VALID(x)	(((x) & BIT(11)) ? 1 : 0)
+#define VMCB_EXITINTINFO_VALID(x)	(((x) & BIT(31)) ? 1 : 0)
+#define VMCB_EXITINTINFO_EC(x)		(((x) >> 32) & 0xFFFFFFFF)
 
 /* VMCB save state area segment format */
 struct vmcb_segment {
@@ -283,7 +279,7 @@ int	svm_set_vmcb(struct vmcb *vmcb, uint8_t asid);
 int	vmcb_read(struct vmcb *vmcb, int ident, uint64_t *retval);
 int	vmcb_write(struct vmcb *vmcb, int ident, uint64_t val);
 struct vmcb_segment *vmcb_seg(struct vmcb *vmcb, int type);
-int	vmcb_eventinject(struct vmcb_ctrl *ctrl, int type, int vector,
+void	vmcb_eventinject(struct vmcb_ctrl *ctrl, int type, int vector,
 			 uint32_t error, bool ec_valid);
 
 #endif /* _VMCB_H_ */

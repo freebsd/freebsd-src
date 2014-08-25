@@ -702,6 +702,9 @@ svm_vmexit(struct svm_softc *svm_sc, int vcpu, struct vm_exit *vmexit)
 	vmexit->exitcode = VM_EXITCODE_VMX;
 	vmexit->u.vmx.status = 0;
 
+	KASSERT((ctrl->eventinj & VMCB_EVENTINJ_VALID) == 0, ("%s: event "
+	    "injection valid bit is set %#lx", __func__, ctrl->eventinj));
+
 	switch (code) {
 		case	VMCB_EXIT_MC: /* Machine Check. */
 			vmm_stat_incr(svm_sc->vm, vcpu, VMEXIT_MTRAP, 1);
@@ -930,11 +933,8 @@ svm_inject_nmi(struct svm_softc *svm_sc, int vcpu)
 	if (!vm_nmi_pending(svm_sc->vm, vcpu))
 		return (0);
 
-	 /* Inject NMI, vector number is not used.*/
-	if (vmcb_eventinject(ctrl, VMCB_EVENTINJ_TYPE_NMI, IDT_NMI, 0, false)) {
-		VCPU_CTR0(svm_sc->vm, vcpu, "SVM:NMI injection failed.\n");
-		return (EIO);
-	}
+	/* Inject NMI, vector number is not used.*/
+	vmcb_eventinject(ctrl, VMCB_EVENTINJ_TYPE_NMI, IDT_NMI, 0, false);
 
 	/* Acknowledge the request is accepted.*/
 	vm_nmi_clear(svm_sc->vm, vcpu);
@@ -961,6 +961,13 @@ svm_inj_interrupts(struct svm_softc *svm_sc, int vcpu, struct vlapic *vlapic)
 	state = svm_get_vmcb_state(svm_sc, vcpu);
 	ctrl  = svm_get_vmcb_ctrl(svm_sc, vcpu);
 
+	if (vm_exception_pending(svm_sc->vm, vcpu, &exc)) {
+		KASSERT(exc.vector >= 0 && exc.vector < 32,
+			("Exception vector% invalid", exc.vector));
+		vmcb_eventinject(ctrl, VMCB_EVENTINJ_TYPE_EXCEPTION, exc.vector,
+		    exc.error_code, exc.error_code_valid);
+	}
+
 	/* Can't inject multiple events at once. */
 	if (ctrl->eventinj & VMCB_EVENTINJ_VALID) {
 		VCPU_CTR1(svm_sc->vm, vcpu,
@@ -973,18 +980,7 @@ svm_inj_interrupts(struct svm_softc *svm_sc, int vcpu, struct vlapic *vlapic)
 		VCPU_CTR0(svm_sc->vm, vcpu, "SVM:Guest in interrupt shadow.\n");
 		return;
 	}
-	
-	if (vm_exception_pending(svm_sc->vm, vcpu, &exc)) {
-		KASSERT(exc.vector >= 0 && exc.vector < 32,
-			("Exception vector% invalid", exc.vector));
-		if (vmcb_eventinject(ctrl, VMCB_EVENTINJ_TYPE_EXCEPTION, 
-			exc.vector, exc.error_code, 
-			exc.error_code_valid)) {
-			VCPU_CTR1(svm_sc->vm, vcpu, "SVM:Exception%d injection"
-				" failed.\n", exc.vector);
-			return;
-		}
-	}
+
 	/* NMI event has priority over interrupts.*/
 	if (svm_inject_nmi(svm_sc, vcpu)) {
 		return;
@@ -1013,11 +1009,7 @@ svm_inj_interrupts(struct svm_softc *svm_sc, int vcpu, struct vlapic *vlapic)
 		return;
 	}
 
-	if (vmcb_eventinject(ctrl, VMCB_EVENTINJ_TYPE_INTR, vector, 0, false)) {
-		VCPU_CTR1(svm_sc->vm, vcpu, "SVM:Event injection failed to"
-			" vector=%d.\n", vector);
-		return;
-	}	
+	vmcb_eventinject(ctrl, VMCB_EVENTINJ_TYPE_INTR, vector, 0, false);
 
         if (!extint_pending) {
                 /* Update the Local APIC ISR */
@@ -1067,17 +1059,14 @@ svm_handle_exitintinfo(struct svm_softc *svm_sc, int vcpu)
 	 */	
 	intinfo = ctrl->exitintinfo;
 	
-	if (intinfo & VMCB_EXITINTINFO_VALID) {
+	if (VMCB_EXITINTINFO_VALID(intinfo)) {
 		vmm_stat_incr(svm_sc->vm, vcpu, VCPU_EXITINTINFO, 1);
 		VCPU_CTR1(svm_sc->vm, vcpu, "SVM:EXITINTINFO:0x%lx is valid\n", 
 			intinfo);
-		if (vmcb_eventinject(ctrl, VMCB_EXITINTINFO_TYPE(intinfo), 
-			VMCB_EXITINTINFO_VECTOR(intinfo), 
-			VMCB_EXITINTINFO_EC(intinfo), 
-			VMCB_EXITINTINFO_EC_VALID & intinfo)) {
-			VCPU_CTR1(svm_sc->vm, vcpu, "SVM:couldn't inject pending"
-				" interrupt, exitintinfo:0x%lx\n", intinfo);
-		}
+		vmcb_eventinject(ctrl, VMCB_EXITINTINFO_TYPE(intinfo), 
+		    VMCB_EXITINTINFO_VECTOR(intinfo),
+		    VMCB_EXITINTINFO_EC(intinfo), 
+		    VMCB_EXITINTINFO_EC_VALID(intinfo));
 	}
 }		
 /*
@@ -1198,7 +1187,7 @@ svm_vmrun(void *arg, int vcpu, register_t rip, pmap_t pmap,
 
 		svm_handle_exitintinfo(svm_sc, vcpu);
 
-		(void)svm_inj_interrupts(svm_sc, vcpu, vlapic);
+		svm_inj_interrupts(svm_sc, vcpu, vlapic);
 
 		/* Change TSS type to available.*/
 		setup_tss_type();
