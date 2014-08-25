@@ -745,6 +745,10 @@
       <para revision="269024" contrib="sponsor"
 	sponsor="&darpa_afrl;">The &man.lldb.1; debugging library has
 	been updated to the r202189 snapshot.</para>
+
+      <para revision="269257">The &man.unbound.8; caching resolver and
+	<literal>ldns</literal> have been updated to version
+	1.4.22.</para>
     </sect2>
 
     <sect2 xml:id="ports">
