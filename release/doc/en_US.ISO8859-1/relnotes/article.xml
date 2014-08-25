@@ -216,7 +216,7 @@
       Boost&nbsp;&trade; enabled has been fixed.</para>
 
     <sect3 xml:id="kernel-virtualization">
-      <title>Virtualization support</title>
+      <title>Virtualization Support</title>
 
       <para revision="259450">Support for &microsoft; Hyper-V
 	has been added to &os;/i386 as loadable modules, however
@@ -229,7 +229,7 @@
     </sect3>
 
     <sect3 xml:id="kernel-arm">
-      <title>ARM support</title>
+      <title>ARM Support</title>
 
       <para revision="259355">The <filename>WANDBOARD</filename>
 	kernel configuration file has been added.</para>
