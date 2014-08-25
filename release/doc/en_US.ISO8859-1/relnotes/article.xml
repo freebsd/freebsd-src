@@ -471,6 +471,12 @@
 	  OpenSolaris, and adapted for &os;.  This change allows
 	  parallel disk scanning, which can reduce &man.zpool.8;
 	  overall import time in some workloads.</para>
+
+	<para revision="269651">The &man.restore.8; utility has been
+	  updated to prevent assertion failures when restoring
+	  a <acronym>UFS</acronym> filesystem dump to
+	  a <acronym>ZFS</acronym> filesystem by writing restored
+	  files in block sizes that are a multiple of 1024.</para>
       </sect3>
     </sect2>
 
