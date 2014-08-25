@@ -299,8 +299,8 @@
 	<itemizedlist>
 	  <listitem>
 	    <para>Post-mortem debugging has been added when
-	      a guest virtual machine exits with an <quote>
-		<acronym>EPT</acronym> Misconfiguration</quote>
+	      a guest virtual machine exits with an
+	      <quote><acronym>EPT</acronym> Misconfiguration</quote>
 	      error.</para>
 	  </listitem>
 
