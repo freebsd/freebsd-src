@@ -254,6 +254,9 @@
 	  has been updated to include <quote>Flattened Device
 	    Tree</quote> support, replacing the &man.fdtbus.4; driver
 	  in most cases.</para>
+
+	<para revision="266105">The &man.gpioiic.4; and
+	  &man.gpioled.4; have been merged from &os;-CURRENT.</para>
       </sect3>
 
       <sect3 xml:id="boot">
