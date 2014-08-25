@@ -383,6 +383,10 @@
 	<para revision="265946">Support for the UDP-Lite protocol
 	  (RFC 3828) has been added to the IPv4 and IPv6
 	  stacks.</para>
+
+	<para revision="267771">A bug in &man.sctp.4; that would allow
+	  two listening sockets bound to the same port has been
+	  fixed.</para>
       </sect3>
 
       <sect3 xml:id="disks">
