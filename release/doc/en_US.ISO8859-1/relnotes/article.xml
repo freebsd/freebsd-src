@@ -585,6 +585,12 @@
 	  allows overriding the default block size.  The previous
 	  default was 65536, and default of the new &man.loader.8;
 	  tunable is 8192.</para>
+
+	<para revision="270157">The Fast File System
+	  (<acronym>FFS</acronym>) has been updated to support
+	  multi-threaded soft updates.  Previously, soft updates were
+	  handled by a single thread, and as of this change, now have
+	  one thread per <acronym>FFS</acronym> mountpoint.</para>
       </sect3>
     </sect2>
 
