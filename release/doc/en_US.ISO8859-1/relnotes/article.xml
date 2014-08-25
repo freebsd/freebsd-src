@@ -602,6 +602,11 @@
 	<acronym>PCI</acronym> devices has been removed from
 	&man.bhyve.8;.</para>
 
+      <para revision="267450">The &man.bhyve.8; userland utility
+	has been updated to include SMBIOS support.  A new flag has
+	been added, <literal>-U</literal>, which allows specifying the
+	UUID of the guest in the System Information structure.</para>
+
       <para revision="268161">The &man.mkimg.1; utility has been
 	merged from &os;-CURRENT.</para>
 
