@@ -828,8 +828,8 @@ vt_is_cursor_in_area(const struct vt_device *vd, const term_rect_t *area)
 	 * We use the cursor position saved during the current refresh,
 	 * in case the cursor moved since.
 	 */
-	mx = vd->vd_mx_drawn;
-	my = vd->vd_my_drawn;
+	mx = vd->vd_mx_drawn + vd->vd_curwindow->vw_offset.tp_col;
+	my = vd->vd_my_drawn + vd->vd_curwindow->vw_offset.tp_row;
 
 	x1 = area->tr_begin.tp_col;
 	y1 = area->tr_begin.tp_row;
