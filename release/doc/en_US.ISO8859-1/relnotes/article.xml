@@ -538,6 +538,9 @@
       <para revision="266715">The &man.clang.1;/llvm suite has been
 	updated to version 3.4.1.</para>
 
+      <para revision="266816">The Blowfish password format
+	has been changed to &dollar;2b&dollar; by default.</para>
+
       <para revision="266890">The &man.pmcstat.8; utility has been
 	updated to include a new flag, <literal>-l</literal>, which
 	ends event collection after the specified number of
