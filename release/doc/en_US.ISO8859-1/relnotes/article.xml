@@ -772,6 +772,13 @@
 	&man.ttys.5;, which either can be the serial console,
 	depending on the platform.</para>
 
+      <para revision="269800">The &man.ping6.8; utility has been
+	updated to reset <literal>itimer</literal> when the maximum
+	number of packets to send have been reached.  This prevents
+	&man.ping6.8; from exiting when the interval in set to a small
+	value and a low number of packets to send has been
+	specified.</para>
+
       <sect3 xml:id="rc-scripts">
 	<title><filename>/etc/rc.d</filename> Scripts</title>
 
