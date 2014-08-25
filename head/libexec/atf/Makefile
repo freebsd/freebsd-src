@@ -25,6 +25,6 @@
 #
 # $FreeBSD$
 
-SUBDIR=	atf-check atf-sh tests
+SUBDIR=	atf-check atf-ksh93 atf-sh tests
 
 .include <bsd.subdir.mk>

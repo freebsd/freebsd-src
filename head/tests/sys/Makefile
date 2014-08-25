@@ -4,6 +4,7 @@
 
 .PATH: ${.CURDIR}/..
 
+TESTS_SUBDIRS+=		cddl
 TESTS_SUBDIRS+=		kern
 TESTS_SUBDIRS+=		netinet
 TESTSDIR= ${TESTSBASE}/sys

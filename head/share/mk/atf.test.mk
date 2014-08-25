@@ -21,6 +21,7 @@
 ATF_TESTS_C?=
 ATF_TESTS_CXX?=
 ATF_TESTS_SH?=
+ATF_TESTS_KSH93?=
 
 # Whether to allow using the deprecated ATF tools or not.
 #
@@ -112,6 +113,25 @@ ${_T}: ${ATF_TESTS_SH_SRC_${_T}}
 .endfor
 .endif
 
+.if !empty(ATF_TESTS_KSH93)
+SCRIPTS+= ${ATF_TESTS_KSH93}
+_TESTS+= ${ATF_TESTS_KSH93}
+.for _T in ${ATF_TESTS_KSH93}
+SCRIPTSDIR_${_T}= ${TESTSDIR}
+TEST_INTERFACE.${_T}= atf
+CLEANFILES+= ${_T} ${_T}.tmp
+ATF_TESTS_KSH93_SED_${_T}?= # empty
+ATF_TESTS_KSH93_SRC_${_T}?= ${_T}.sh
+${_T}: ${ATF_TESTS_KSH93_SRC_${_T}}
+	echo '#! /usr/libexec/atf-ksh93' > ${.TARGET}.tmp
+	cat ${.ALLSRC:N*Makefile*} \
+	    | sed ${ATF_TESTS_KSH93_SED_${_T}} >>${.TARGET}.tmp
+	chmod +x ${.TARGET}.tmp
+	mv ${.TARGET}.tmp ${.TARGET}
+.endfor
+.endif
+
+
 .if ${ALLOW_DEPRECATED_ATF_TOOLS} != "no"
 
 .if ${ATFFILE:tl} != "no"
@@ -129,7 +149,7 @@ Atffile: Makefile
 	echo 'prop: test-suite = "'${TESTSUITE}'"'; \
 	echo; \
 	for tp in ${ATF_TESTS_C} ${ATF_TESTS_CXX} ${ATF_TESTS_SH} \
-	    ${TESTS_SUBDIRS}; \
+	    ${ATF_TESTS_KSH93} ${TESTS_SUBDIRS}; \
 	do \
 	    echo "tp: $${tp}"; \
 	done; } >Atffile.tmp

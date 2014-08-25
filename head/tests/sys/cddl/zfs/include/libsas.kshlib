@@ -1,0 +1,207 @@
+#
+# Copyright (c) 2010 Spectra Logic Corporation
+# All rights reserved.
+#
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions
+# are met:
+# 1. Redistributions of source code must retain the above copyright
+#    notice, this list of conditions, and the following disclaimer,
+#    without modification.
+# 2. Redistributions in binary form must reproduce at minimum a disclaimer
+#    substantially similar to the "NO WARRANTY" disclaimer below
+#    ("Disclaimer") and any redistribution must be conditioned upon
+#    including a substantially similar Disclaimer requirement for further
+#    binary redistribution.
+#
+# NO WARRANTY
+# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+# "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+# LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR
+# A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
+# HOLDERS OR CONTRIBUTORS BE LIABLE FOR SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+# DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+# OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+# HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
+# STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING
+# IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+# POSSIBILITY OF SUCH DAMAGES.
+#
+# $Id: //SpectraBSD/stable/tests/sys/cddl/zfs/include/libsas.kshlib#2 $
+# $FreeBSD$
+#
+
+#
+# Given a disk (e.g. /dev/da0 or da0), determine the following:
+#	- Does it exist in CAM?
+# 	- Is it attached to an expander and can we find that expander?
+# Returns two variables:
+# EXPANDER -- The peripheral we need to talk to to communicate with the
+#	      expander that is connected to the given disk.
+# PHY      -- The phy on the expander that we need to talk to.
+# 
+function find_verify_sas_disk
+{
+	typeset DISK=${1##*/}
+
+	if [ ! -c /dev/$DISK ]; then
+		log_fail "Cannot find device \"/dev/$DISK\", arg is \"$1\""
+	fi
+
+	# Make sure this device exists.  An inquiry should always succeed,
+	# even if there is a pending error.
+	log_must camcontrol inquiry $DISK > /dev/null 
+
+	# Pull the list of every peripheral in the system, except for
+	# peripherals that are attached to the disk we're looking for
+
+	typeset PASSLIST=`camcontrol devlist |awk '{print $NF}' |\
+		egrep -v ".*$DISK[^[:digit:]]" |tr -d '()' |awk -F, '{print $1}'`
+
+	typeset FOUND=0
+
+	for i in $PASSLIST;
+	do
+		# Make sure this particular device supports SMP.  If not,
+		# no big deal, keep going.
+		camcontrol smprg $i > /dev/null 2>&1
+		if [ $? != 0 ]; then
+			continue
+		fi
+
+		# Make sure this particular device is an Enclosure Services
+		# device.  That way, we won't wind up removing the device
+		# we're trying to operate on.
+		# XXX this will need to change once CAM is changed to
+		# include SMP targets in the topology.  This merely takes
+		# advantage of the fact that most (all?) expanders include
+		# a SES device.
+		camcontrol inquiry $i |grep "Enclosure Services" > /dev/null
+		if [ $? != 0 ]; then
+			continue
+		fi
+
+		# For every peripheral, we go through and pull out the
+		# list of devices and their phys that we can see via this
+		# peripheral.
+		IFS=","
+		for j in `camcontrol smpphylist $i -q |awk '{print $1" "$NF}' |\
+			tr -d '()' |tr ',' ' ' |tr '\n' ','`
+		do
+			IFS=", \n"
+			set -A PERIPHLIST $j
+			unset IFS
+			typeset NUMPERIPHS=${#PERIPHLIST[*]}
+			((k=1))
+			while [ $k -lt $NUMPERIPHS ]; do
+				if [ "${PERIPHLIST[$k]}" = "$DISK" ]; then
+#					echo "found $DISK PHY = ${PERIPHLIST[0]} on $i"
+					FOUND=1
+					export EXPANDER=$i
+					export PHY=${PERIPHLIST[0]}
+					break;
+				fi
+				((k=k+1))
+			done
+			if [ $FOUND != 0 ]; then
+				break;
+			fi
+		done
+
+		unset IFS
+
+		if [ $FOUND != 0 ]; then
+			break;
+		fi
+	done
+
+	if [ $FOUND = 0 ]; then
+		log_fail "Could not find PHY for disk $DISK"
+	fi
+
+}
+
+# Given an expander and phy number, find the 
+# 
+function find_disk_by_phy
+{
+	typeset EXPANDER=$1
+	typeset PHY=$2
+	typeset FOUND=0
+
+	unset FOUNDDISK
+
+	IFS=","
+	for j in `camcontrol smpphylist $1 -q |awk '{print $1" "$NF}' |\
+		tr -d '()' |tr ',' ' ' |tr '\n' ','`
+	do
+		IFS=", \n"
+		set -A PERIPHLIST $j
+		unset IFS
+		if [ ${PERIPHLIST[0]} != $2 ]; then
+			continue;
+		fi
+
+		typeset NUMPERIPHS=${#PERIPHLIST[*]}
+
+		((k=1))
+		while [ $k -lt $NUMPERIPHS ]; do 
+			((PSTOP=$NUMPERIPHS-1))
+			if [ "${PERIPHLIST[$k]%%[0-9]*}" != "pass" ] || \
+			   [ "$k" -eq $PSTOP ]; then
+				export FOUNDDISK=${PERIPHLIST[$k]}
+				break;
+			fi
+			((k=k+1))
+		done
+		FOUND=1
+		break;
+	done
+
+	if [ "$FOUND" = 0 ]; then
+		log_fail "could not find peripheral for phy $2 on expander $1"
+	fi
+}
+
+# Given an expander and phy on that expander, disable the phy.
+# This function will exit (via log_fail) if it can't send the disable
+# request.
+function disable_sas_disk
+{
+	typeset EXPANDER=$1
+	typeset PHY=$2
+
+	# Disable the phy for this particular device
+	camcontrol smppc $EXPANDER -v -p $PHY -o disable
+	if [ $? != 0 ]; then
+		log_fail "error disabling phy $PHY on $EXPANDER to remove $DISK"
+	fi
+
+	# Wait for the rescan to happen
+	if [ -z $NO_SAS_DISK_WAIT ]; then
+		log_note "waiting 10 seconds for device to go away"
+		$SLEEP 10
+	fi
+}
+
+# Given an expander and phy on that expander, enable the phy.
+# This function will exit (via log_fail) if it can't send the link reset
+# request.
+#
+# XXX KDM in tests, the link reset doesn't always cause the disk to show
+# up.  A rescan does seem to work in that situation, however.
+function enable_sas_disk
+{
+	typeset EXPANDER=$1
+	typeset PHY=$2
+
+	# Send a link reset to bring the device back
+	camcontrol smppc $EXPANDER -p $PHY -o linkreset
+	if [ $? != 0 ]; then
+		log_fail "error sending a linkreset to phy $PHY on $EXPANDER"
+	fi
+
+	if [ -z $NO_SAS_DISK_WAIT ]; then
+		$SLEEP 10
+	fi
+}

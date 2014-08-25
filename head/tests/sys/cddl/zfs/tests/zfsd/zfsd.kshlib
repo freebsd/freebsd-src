@@ -1,0 +1,133 @@
+#!/usr/local/bin/ksh93 -p
+#
+# CDDL HEADER START
+#
+# The contents of this file are subject to the terms of the
+# Common Development and Distribution License (the "License").
+# You may not use this file except in compliance with the License.
+#
+# You can obtain a copy of the license at usr/src/OPENSOLARIS.LICENSE
+# or http://www.opensolaris.org/os/licensing.
+# See the License for the specific language governing permissions
+# and limitations under the License.
+#
+# When distributing Covered Code, include this CDDL HEADER in each
+# file and include the License file at usr/src/OPENSOLARIS.LICENSE.
+# If applicable, add the following below this CDDL HEADER, with the
+# fields enclosed by brackets "[]" replaced with your own identifying
+# information: Portions Copyright [yyyy] [name of copyright owner]
+#
+# CDDL HEADER END
+#
+
+#
+# Copyright 2013 Spectra Logic.  All rights reserved.
+# Use is subject to license terms.
+#
+
+# Common routines used by multiple zfsd tests
+
+#
+# do_autoreplace
+# Common code that walks through an autoreplace scenario
+# Does not verify the final behavior
+#
+# $1	spare disk name.  Empty if no spare
+#
+function do_autoreplace
+{
+	typeset SPARE_DISK=$1
+
+	# Remove a vdev by disabling its SAS phy
+	find_verify_sas_disk $REMOVAL_DISK
+	log_note "Disabling \"$REMOVAL_DISK\" on expander $EXPANDER phy $PHY"
+	disable_sas_disk $EXPANDER $PHY
+
+	#Check to make sure the disk is gone
+	camcontrol inquiry $REMOVAL_DISK > /dev/null 2>&1
+	if [ $? = 0 ]; then
+		log_fail "Disk \"$REMOVAL_DISK\" was not removed"
+	fi
+
+	# Check to make sure ZFS sees the disk as removed
+	for ((timeout=0; $timeout<30; timeout=$timeout+1)); do
+		check_state $TESTPOOL "$REMOVAL_DISK" "REMOVED"
+		is_removed=$?
+		if [[ $is_removed == 0 ]]; then
+			break
+		fi
+		$SLEEP 3
+	done
+	log_must check_state $TESTPOOL "$REMOVAL_DISK" "REMOVED"
+
+	if [ -n "$SPARE_DISK" ]; then
+		# Verify that the spare activates
+		for ((timeout=0; $timeout<10; timeout=$timeout+1)); do
+			if check_state $TESTPOOL $SPARE_DISK "ONLINE"; then
+				break
+			fi
+			$SLEEP 6
+		done
+		log_must check_state $TESTPOOL "$SPARE_DISK" "ONLINE"
+
+		wait_until_resilvered
+	fi
+
+	# Export the pool
+	# This is to prevent REMOVAL_DISK from being added to the pool when
+	# we reenable its phy
+	log_must $ZPOOL export $TESTPOOL
+
+	# Reenable the missing dev's SAS phy
+	log_note "Reenabling phy on expander $EXPANDER phy $PHY"
+	enable_sas_disk $EXPANDER $PHY
+	# Check that the disk has returned
+	for ((timeout=0; $timeout<30; timeout=$timeout+1)); do
+		find_disk_by_phy $EXPANDER $PHY
+		if [[ -n "$FOUNDDISK" ]]; then
+			break
+		fi
+		$SLEEP 3
+	done
+
+	if [[ -z "$FOUNDDISK" ]]; then
+		log_fail "Disk $REMOVAL_DISK never reappeared"
+	fi
+
+	# Erase the missing dev's ZFS label
+	log_must $ZPOOL labelclear -f $( find_disks $FOUNDDISK )
+
+	# Disable the missing dev's SAS phy again
+	find_verify_sas_disk $FOUNDDISK
+	log_note "Disabling \"$FOUNDDISK\" on expander $EXPANDER phy $PHY"
+	disable_sas_disk $EXPANDER $PHY
+
+	#Check to make sure the disk is gone
+	camcontrol inquiry $FOUNDDISK > /dev/null 2>&1
+	if [ $? = 0 ]; then
+		log_fail "Disk \"$FOUNDDISK\" was not removed"
+	fi
+
+	# Import the pool
+	log_must $ZPOOL import $TESTPOOL
+	# Wait 5 seconds before enabling the phy so zfsd.log will be easier
+	# to interpret
+	$SLEEP 5
+
+	# Reenable the missing dev's SAS phy
+	log_note "Reenabling phy on expander $EXPANDER phy $PHY"
+	enable_sas_disk $EXPANDER $PHY
+	# Check that the disk has returned
+	for ((timeout=0; $timeout<30; timeout=$timeout+1)); do
+		find_disk_by_phy $EXPANDER $PHY
+		if [[ -n "$FOUNDDISK" ]]; then
+			break
+		fi
+		$SLEEP 3
+	done
+
+	if [[ -z "$FOUNDDISK" ]]; then
+		log_fail "Disk $FOUNDDISK never reappeared"
+	fi
+}
+

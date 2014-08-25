@@ -1,0 +1,140 @@
+#
+# CDDL HEADER START
+#
+# The contents of this file are subject to the terms of the
+# Common Development and Distribution License (the "License").
+# You may not use this file except in compliance with the License.
+#
+# You can obtain a copy of the license at usr/src/OPENSOLARIS.LICENSE
+# or http://www.opensolaris.org/os/licensing.
+# See the License for the specific language governing permissions
+# and limitations under the License.
+#
+# When distributing Covered Code, include this CDDL HEADER in each
+# file and include the License file at usr/src/OPENSOLARIS.LICENSE.
+# If applicable, add the following below this CDDL HEADER, with the
+# fields enclosed by brackets "[]" replaced with your own identifying
+# information: Portions Copyright [yyyy] [name of copyright owner]
+#
+# CDDL HEADER END
+#
+
+#
+# Copyright 2007 Sun Microsystems, Inc.  All rights reserved.
+# Use is subject to license terms.
+#
+# ident	"@(#)remote_common.kshlib	1.4	07/05/25 SMI"
+#
+
+#
+# Get the disk value from the $RDISKS variable according
+# to the hostname
+#
+# $1 remote host name
+#
+function get_disks #<remote hostname>
+{
+	typeset rhost=$1
+        typeset eachhost
+        typeset -i i=0
+        eval set -A disks $RDISKS
+
+        for eachhost in $RHOSTS; do
+                if [[ "$eachhost" != "$rhost" ]]; then
+                        (( i = i + 1 ))
+                        continue
+                else
+                        break
+                fi
+        done
+
+        $ECHO ${disks[i]}
+}
+
+#
+# print an error and exit
+# $1  exit status
+# $2... error message
+#
+function _err_exit
+{
+        typeset -i status=$1
+        shift
+        print -u2 "$@"
+
+        exit $status
+}
+
+
+#
+# Detect the available disks for use in a system
+#
+function detectdisks
+{
+	typeset sfi=$TMPDIR/swaplist.${TESTCASE_ID}
+	typeset msi=$TMPDIR/metastat.${TESTCASE_ID}
+	typeset dmpi=$TMPDIR/dumpdev.${TESTCASE_ID}
+
+	$SWAP  -l > $sfi
+	$METASTAT -c > $msi
+	$DUMPADM > $dmpi
+
+	# process the output of format
+	# to produce a list of disks we know about.
+	# -------------------
+	$CAT > $TMPDIR/find_disks.awk <<EOF
+#!/bin/nawk -f
+
+  	BEGIN { FS="."; }
+
+	/^Specify disk/{
+	searchdisks=0;
+	}
+
+	{
+	if (searchdisks && \$2 !~ "^$"){
+   	split(\$2,arr," ");
+    	print arr[1];
+   	 }
+ 	}
+
+	/^AVAILABLE DISK SELECTIONS:/{
+        searchdisks=1;
+  	}
+EOF
+  	#---------------------
+
+  	$CHMOD 755 $TMPDIR/find_disks.awk
+ 	disks=$($ECHO "" | $FORMAT | $TMPDIR/find_disks.awk)
+  	$RM $TMPDIR/find_disks.awk
+
+  	unused=""
+  	for disk in $disks; do
+    		$GREP "${disk}[sp]" /etc/mnttab >/dev/null
+    		(( $? == 0 )) && continue
+    		$GREP "${disk}[sp]" $sfi >/dev/null
+    		(( $? == 0 )) && continue
+    		$GREP "${disk}" $msi >/dev/null
+    		(( $? == 0 )) && continue
+    		$GREP "${disk}[sp]" $dmpi >/dev/null
+    		(( $? == 0 )) && continue
+    		unused_candidates="$unused_candidates $disk"
+  	done
+	$RM $sfi
+	$RM $msi
+	$RM $dmpi
+
+	# now just check to see if those disks do actually exist
+	# by looking for a device pointing to the first slice in
+	# each case.
+	for disk in $unused_candidates
+	do
+		if [ -b /dev/dsk/${disk}s0 ]
+		then
+      			unused="$unused $disk"
+   		fi
+	done
+
+	$ECHO $unused
+}
+
