@@ -739,6 +739,12 @@
       <para revision="269398">The &man.nfsd.8; server update to 4.1
 	has merged from &os;-CURRENT.</para>
 
+      <para revision="269432" arch="ia64">The serial terminals
+	<filename>ttyu0</filename> and <filename>ttyu1</filename> have
+	been updated to <literal>onifconsole</literal> by default in
+	&man.ttys.5;, which either can be the serial console,
+	depending on the platform.</para>
+
       <sect3 xml:id="rc-scripts">
 	<title><filename>/etc/rc.d</filename> Scripts</title>
 
