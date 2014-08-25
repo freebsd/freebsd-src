@@ -559,6 +559,13 @@
 	<quote><filename>/var/tmp/temproot</filename>
 	  disappeared</quote> if there is nothing to compare.</para>
 
+      <para revision="267056">The &os; installer, &man.bsdinstall.8;,
+	has been updated to include optional
+	&man.geli.8;-encrypted or &man.gmirror.8;-mirrored swap
+	devices when installing onto a full &man.zfs.8; filesystem.
+	Additionally, the parent &man.zfs.8; dataset is now configured
+	with <literal>lz4</literal> compression enabled.</para>
+
       <para revision="267113">The default &man.newsyslog.conf.5; now
 	includes files in the
 	<filename>/etc/newsyslog.conf.d/</filename> and
