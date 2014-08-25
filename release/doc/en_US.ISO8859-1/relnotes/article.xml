@@ -233,6 +233,12 @@
 	  updated to include support for the &intel;&nbsp;Lynx Point
 	  KT <acronym>AMT</acronym> serial port.</para>
 
+	<para revision="266718">A bug that would prevent
+	  a &man.jail.8; from setting the correct IPv4 source address
+	  with some operations that required
+	  <literal>security.jail.allow_raw_sockets</literal> has been
+	  fixed.</para>
+
       <sect3 xml:id="kernel-virtualization">
 	<title>Virtualization Support</title>
 
