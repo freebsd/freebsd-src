@@ -408,6 +408,12 @@
 	  a &man.zpool.8; on <quote>Advanced Format</quote> drives,
 	  set the <literal>vfs.zfs.min_auto_ashift</literal>
 	  &man.sysctl.8; accordingly.</para>
+
+	<para revision="266612">The <literal>libzfs</literal> thread
+	  pool <acronym>API</acronym> has been imported from
+	  OpenSolaris, and adapted for &os;.  This change allows
+	  parallel disk scanning, which can reduce &man.zpool.8;
+	  overall import time in some workloads.</para>
       </sect3>
     </sect2>
 
