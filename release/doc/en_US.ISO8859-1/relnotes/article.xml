@@ -477,6 +477,27 @@
 	  a <acronym>UFS</acronym> filesystem dump to
 	  a <acronym>ZFS</acronym> filesystem by writing restored
 	  files in block sizes that are a multiple of 1024.</para>
+
+	<para revision="269774">Two &man.sysctl.8;s have been added
+	  to the &man.zfs.8; filesystem:</para>
+
+	<itemizedlist>
+	  <listitem>
+	    <para>
+	      <literal>vfs.zfs.mg_fragmentation_threshold</literal>:&nbsp;The
+	      percentage of the metaslab group size that should be
+	      considered eligible for allocation, unless all metaslab
+	      groups within the metaslab class have also crossed this
+	      threshold.</para>
+	  </listitem>
+
+	  <listitem>
+	    <para>
+	      <literal>vfs.zfs.metaslab.fragmentation_threshold</literal>:&nbsp;The
+	      maximum percentage of metaslab fragmentation level to
+	      keep their active state</para>
+	  </listitem>
+	</itemizedlist>
       </sect3>
     </sect2>
 
