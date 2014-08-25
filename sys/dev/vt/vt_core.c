@@ -828,8 +828,8 @@ vt_is_cursor_in_area(const struct vt_device *vd, const term_rect_t *area)
 	 * We use the cursor position saved during the current refresh,
 	 * in case the cursor moved since.
 	 */
-	mx = vd->vd_mx_drawn + vd->vd_curwindow->vw_offset.tp_col;
-	my = vd->vd_my_drawn + vd->vd_curwindow->vw_offset.tp_row;
+	mx = vd->vd_mx_drawn + vd->vd_curwindow->vw_draw_area.tr_begin.tp_col;
+	my = vd->vd_my_drawn + vd->vd_curwindow->vw_draw_area.tr_begin.tp_row;
 
 	x1 = area->tr_begin.tp_col;
 	y1 = area->tr_begin.tp_row;
@@ -1202,8 +1202,8 @@ vt_set_border(struct vt_window *vw, struct vt_font *vf, term_color_t c)
 
 	x = vd->vd_width - 1;
 	y = vd->vd_height - 1;
-	off_x = vw->vw_offset.tp_col;
-	off_y = vw->vw_offset.tp_row;
+	off_x = vw->vw_draw_area.tr_begin.tp_col;
+	off_y = vw->vw_draw_area.tr_begin.tp_row;
 
 	/* Top bar. */
 	if (off_y > 0)
@@ -1257,9 +1257,17 @@ vt_change_font(struct vt_window *vw, struct vt_font *vf)
 
 	vt_termsize(vd, vf, &size);
 	vt_winsize(vd, vf, &wsz);
-	/* Save offset to font aligned area. */
-	vw->vw_offset.tp_col = (vd->vd_width % vf->vf_width) / 2;
-	vw->vw_offset.tp_row = (vd->vd_height % vf->vf_height) / 2;
+
+	/*
+	 * Compute the drawable area, so that the text is centered on
+	 * the screen.
+	 */
+	vw->vw_draw_area.tr_begin.tp_col = (vd->vd_width % vf->vf_width) / 2;
+	vw->vw_draw_area.tr_begin.tp_row = (vd->vd_height % vf->vf_height) / 2;
+	vw->vw_draw_area.tr_end.tp_col = vw->vw_draw_area.tr_begin.tp_col +
+	    vd->vd_width / vf->vf_width * vf->vf_width;
+	vw->vw_draw_area.tr_end.tp_row = vw->vw_draw_area.tr_begin.tp_row +
+	    vd->vd_height / vf->vf_height * vf->vf_height;
 
 	/* Grow the screen buffer and terminal. */
 	terminal_mute(tm, 1);
