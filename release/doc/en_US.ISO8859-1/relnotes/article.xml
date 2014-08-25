@@ -224,27 +224,27 @@
 	&man.sysctl.8; on &intel; processors with Turbo
 	Boost&trade; enabled has been fixed.</para>
 
-	<para revision="266220">The &man.geom.uncompress.4; module is
-	  built by default which, similar to &man.geom.uzip.4;,
-	  provides support for compressed, read-only disk
-	  images.</para>
+      <para revision="266220">The &man.geom.uncompress.4; module is
+	built by default which, similar to &man.geom.uzip.4;,
+	provides support for compressed, read-only disk
+	images.</para>
 
-	<para revision="266436">The &man.uart.4; driver has been
-	  updated to include support for the &intel;&nbsp;Lynx Point
-	  KT <acronym>AMT</acronym> serial port.</para>
+      <para revision="266436">The &man.uart.4; driver has been
+	updated to include support for the &intel;&nbsp;Lynx Point
+	KT <acronym>AMT</acronym> serial port.</para>
 
-	<para revision="266718">A bug that would prevent
-	  a &man.jail.8; from setting the correct IPv4 source address
-	  with some operations that required
-	  <literal>security.jail.allow_raw_sockets</literal> has been
-	  fixed.</para>
+      <para revision="266718">A bug that would prevent
+	a &man.jail.8; from setting the correct IPv4 source address
+	with some operations that required
+	<literal>security.jail.allow_raw_sockets</literal> has been
+	fixed.</para>
 
-	<para revision="266911">The &man.hwpmc.4; driver has been
-	  updated to support core events from the Atom&trade;
-	  Silvermont architecture.</para>
+      <para revision="266911">The &man.hwpmc.4; driver has been
+	updated to support core events from the Atom&trade;
+	Silvermont architecture.</para>
 
-	<para revision="267084">The &man.mfi.4; driver has been
-	  updated to include support for unmapped I/O.</para>
+      <para revision="267084">The &man.mfi.4; driver has been
+	updated to include support for unmapped I/O.</para>
 
       <para revision="267399">Support for &os;/i386 guests has been
 	added to &man.bhyve.4;.</para>
