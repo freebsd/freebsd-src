@@ -849,6 +849,33 @@
 
       <para revision="269686"><application>OpenSSL</application> has
 	been updated to version 1.0.1i.</para>
+
+      <para revision="269847">The <quote>lite</quote> version of
+	<application>Subversion</application> included in the
+	&os;&nbsp;base system and its dependencies have been
+	updated:</para>
+
+      <itemizedlist>
+	<listitem>
+	  <para><application>apr</application> has been
+	    updated to version 1.5.1.</para>
+	</listitem>
+
+	<listitem>
+	  <para><application>apr-util</application> has been
+	    updated to version 1.5.3.</para>
+	</listitem>
+
+	<listitem>
+	  <para><application>serf</application> has been
+	    updated to version 1.3.7.</para>
+	</listitem>
+
+	<listitem>
+	  <para><application>svnlite</application> has been
+	    updated to version 1.8.10.</para>
+	</listitem>
+      </itemizedlist>
     </sect2>
 
     <sect2 xml:id="ports">
