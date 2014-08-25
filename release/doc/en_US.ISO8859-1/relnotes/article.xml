@@ -575,6 +575,13 @@
 	<filename>/usr/local/etc/newsyslog.conf.d/</filename>
 	directories by default for &man.newsyslog.8;.</para>
 
+      <para revision="267161">The &man.realpath.1; utility has been
+	updated to return <literal>ENOTDIR</literal> on paths
+	components <quote>.</quote> and <quote>..</quote> that are
+	not directories, such as <filename
+	  class="directory">/dev/null/.</filename> or <filename
+	  class="directory">/dev/null/..</filename>.</para>
+
       <para revision="267236">A new flag, <quote>onifconsole</quote>
 	has been added to <filename>/etc/ttys</filename>.  This allows
 	the system to provide a login prompt via serial console if the
