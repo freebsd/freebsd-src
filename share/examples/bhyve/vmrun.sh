@@ -237,6 +237,14 @@ while [ 1 ]; do
 		-l com1,${console}					\
 		${installer_opt}					\
 		${vmname}
+
+	# bhyve returns the following status codes:
+	#  0 - VM has been reset
+	#  1 - VM has been powered off
+	#  2 - VM has been halted
+	#  3 - VM generated a triple fault
+	#  all other non-zero status codes are errors
+	#
 	if [ $? -ne 0 ]; then
 		break
 	fi
