@@ -246,6 +246,9 @@
       <para revision="267084">The &man.mfi.4; driver has been
 	updated to include support for unmapped I/O.</para>
 
+      <para revision="267457">The &man.hpt27xx.4; driver has been
+	updated with various vendor-supplied bug fixes.</para>
+
       <sect3 xml:id="kernel-virtualization">
 	<title>Virtualization Support</title>
 
