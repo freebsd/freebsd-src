@@ -243,6 +243,9 @@
 	  updated to support core events from the Atom&trade;
 	  Silvermont architecture.</para>
 
+	<para revision="267084">The &man.mfi.4; driver has been
+	  updated to include support for unmapped I/O.</para>
+
       <sect3 xml:id="kernel-virtualization">
 	<title>Virtualization Support</title>
 
