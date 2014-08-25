@@ -512,6 +512,9 @@
 	  <para revision="270297">The &man.cxgbe.4; driver has been
 	    updated to support &man.netmap.4; for the T5 10G/40G
 	    cards.</para>
+
+	  <para revision="270509">The &man.vtnet.4; driver has been
+	    updated to support &man.netmap.4;.</para>
 	</sect4>
       </sect3>
 
