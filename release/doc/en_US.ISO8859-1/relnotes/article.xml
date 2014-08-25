@@ -274,6 +274,9 @@
 	  <literal>XSAVE</literal> and
 	  <literal>XSAVE</literal>-enabled features, such as
 	  <acronym>AVX</acronym>.</para>
+
+	<para revision="268932">The &man.bhyve.4; hypervisor now
+	  supports booting from a &man.zfs.8; filesystem.</para>
       </sect3>
 
       <sect3 xml:id="kernel-arm">
