@@ -239,6 +239,10 @@
 	  <literal>security.jail.allow_raw_sockets</literal> has been
 	  fixed.</para>
 
+	<para revision="266911">The &man.hwpmc.4; driver has been
+	  updated to support core events from the Atom&trade;
+	  Silvermont architecture.</para>
+
       <sect3 xml:id="kernel-virtualization">
 	<title>Virtualization Support</title>
 
