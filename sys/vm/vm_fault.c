@@ -656,6 +656,8 @@ vnode_locked:
 			}
 			PCPU_INC(cnt.v_zfod);
 			fs.m->valid = VM_PAGE_BITS_ALL;
+			/* Don't try to prefault neighboring pages. */
+			faultcount = 1;
 			break;	/* break to PAGE HAS BEEN FOUND */
 		} else {
 			KASSERT(fs.object != next_object,
@@ -903,7 +905,8 @@ vnode_locked:
 	 */
 	pmap_enter(fs.map->pmap, vaddr, fs.m, prot,
 	    fault_type | (wired ? PMAP_ENTER_WIRED : 0), 0);
-	if ((fault_flags & VM_FAULT_CHANGE_WIRING) == 0 && wired == 0)
+	if (faultcount != 1 && (fault_flags & VM_FAULT_CHANGE_WIRING) == 0 &&
+	    wired == 0)
 		vm_fault_prefault(&fs, vaddr, faultcount, reqpage);
 	VM_OBJECT_WLOCK(fs.object);
 	vm_page_lock(fs.m);
