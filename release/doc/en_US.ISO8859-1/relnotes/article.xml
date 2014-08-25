@@ -257,6 +257,10 @@
 	sponsor="&citrix.rd;">Support for unmapped I/O has been added
 	to the &man.xen.4; <literal>blkfront</literal> driver.</para>
 
+      <para revision="270630">The &os;&nbsp;virtual memory subsystem
+	has been updated to implement <quote>fast path</quote> for
+	the page fault handler.</para>
+
       <sect3 xml:id="kernel-virtualization">
 	<title>Virtualization Support</title>
 
