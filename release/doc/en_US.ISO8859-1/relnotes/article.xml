@@ -430,6 +430,9 @@
 	  inet6</literal> address specifiers, <literal>-4</literal>
 	and <literal>-6</literal>, respectively.</para>
 
+      <para revision="265879">The &man.crypt.3; library now defaults
+	to SHA512 for password hashing.</para>
+
       <para revision="266279">The &man.ps.1; utility has been
 	updated to include the <literal>-J</literal> flag, used to
 	filter output by matching &man.jail.8; IDs and names.
