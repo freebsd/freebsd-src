@@ -664,6 +664,11 @@
       <para revision="268161">The &man.mkimg.1; utility has been
 	merged from &os;-CURRENT.</para>
 
+      <para revision="268700">The &man.camcontrol.8; has been updated
+	to include a new <literal>persist</literal> command, which
+	allows issuing <command>SCSI PERSISTENT RESERVE IN</command>
+	and <command>SCSI PERSISTENT RESERVE OUT</command>.</para>
+
       <sect3 xml:id="rc-scripts">
 	<title><filename>/etc/rc.d</filename> Scripts</title>
 
