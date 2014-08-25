@@ -54,6 +54,7 @@ struct vga_softc {
 	bus_space_handle_t	 vga_fb_handle;
 	bus_space_tag_t		 vga_reg_tag;
 	bus_space_handle_t	 vga_reg_handle;
+	int			 vga_wmode;
 	term_color_t		 vga_curfg, vga_curbg;
 };
 
@@ -115,15 +116,40 @@ static struct vga_softc vga_conssoftc;
 VT_DRIVER_DECLARE(vt_vga, vt_vga_driver);
 
 static inline void
+vga_setwmode(struct vt_device *vd, int wmode)
+{
+	struct vga_softc *sc = vd->vd_softc;
+
+	if (sc->vga_wmode == wmode)
+		return;
+
+	REG_WRITE1(sc, VGA_GC_ADDRESS, VGA_GC_MODE);
+	REG_WRITE1(sc, VGA_GC_DATA, wmode);
+	sc->vga_wmode = wmode;
+
+	switch (wmode) {
+	case 3:
+		/* Re-enable all plans. */
+		REG_WRITE1(sc, VGA_SEQ_ADDRESS, VGA_SEQ_MAP_MASK);
+		REG_WRITE1(sc, VGA_SEQ_DATA, VGA_SEQ_MM_EM3 | VGA_SEQ_MM_EM2 |
+		    VGA_SEQ_MM_EM1 | VGA_SEQ_MM_EM0);
+		break;
+	}
+}
+
+static inline void
 vga_setfg(struct vt_device *vd, term_color_t color)
 {
 	struct vga_softc *sc = vd->vd_softc;
 
-	if (sc->vga_curfg != color) {
-		REG_WRITE1(sc, VGA_GC_ADDRESS, VGA_GC_SET_RESET);
-		REG_WRITE1(sc, VGA_GC_DATA, color);
-		sc->vga_curfg = color;
-	}
+	vga_setwmode(vd, 3);
+
+	if (sc->vga_curfg == color)
+		return;
+
+	REG_WRITE1(sc, VGA_GC_ADDRESS, VGA_GC_SET_RESET);
+	REG_WRITE1(sc, VGA_GC_DATA, color);
+	sc->vga_curfg = color;
 }
 
 static inline void
@@ -131,30 +157,33 @@ vga_setbg(struct vt_device *vd, term_color_t color)
 {
 	struct vga_softc *sc = vd->vd_softc;
 
-	if (sc->vga_curbg != color) {
-		REG_WRITE1(sc, VGA_GC_ADDRESS, VGA_GC_SET_RESET);
-		REG_WRITE1(sc, VGA_GC_DATA, color);
+	vga_setwmode(vd, 3);
 
-		/*
-		 * Write 8 pixels using the background color to an
-		 * off-screen byte in the video memory.
-		 */
-		MEM_WRITE1(sc, VT_VGA_BGCOLOR_OFFSET, 0xff);
+	if (sc->vga_curbg == color)
+		return;
 
-		/*
-		 * Read those 8 pixels back to load the background color
-		 * in the latches register.
-		 */
-		MEM_READ1(sc, VT_VGA_BGCOLOR_OFFSET);
+	REG_WRITE1(sc, VGA_GC_ADDRESS, VGA_GC_SET_RESET);
+	REG_WRITE1(sc, VGA_GC_DATA, color);
 
-		sc->vga_curbg = color;
+	/*
+	 * Write 8 pixels using the background color to an off-screen
+	 * byte in the video memory.
+	 */
+	MEM_WRITE1(sc, VT_VGA_BGCOLOR_OFFSET, 0xff);
 
-		/*
-		 * The Set/Reset register doesn't contain the fg color
-		 * anymore, store an invalid color.
-		 */
-		sc->vga_curfg = 0xff;
-	}
+	/*
+	 * Read those 8 pixels back to load the background color in the
+	 * latches register.
+	 */
+	MEM_READ1(sc, VT_VGA_BGCOLOR_OFFSET);
+
+	sc->vga_curbg = color;
+
+	/*
+         * The Set/Reset register doesn't contain the fg color anymore,
+         * store an invalid color.
+	 */
+	sc->vga_curfg = 0xff;
 }
 
 /*
@@ -486,40 +515,75 @@ static void
 vga_bitblt_pixels_block_ncolors(struct vt_device *vd, const uint8_t *masks,
     unsigned int x, unsigned int y, unsigned int height)
 {
-	unsigned int i, j, offset;
+	unsigned int i, j, plan, color, offset;
 	struct vga_softc *sc;
-	uint8_t mask;
+	uint8_t mask, plans[height * 4];
 
 	sc = vd->vd_softc;
 
+	memset(plans, 0, sizeof(plans));
+
 	/*
-	 * To draw a pixels block with N colors (N > 2), we write each
-	 * color one by one:
-	 *     1. Use the color as the foreground color
-	 *     2. Read the pixels block into the latches
-	 *     3. Draw the calculated mask
-	 *     4. Go back to #1 for subsequent colors.
+         * To write a group of pixels using 3 or more colors, we select
+         * Write Mode 0 and write one byte to each plan separately.
+	 */
+
+	/*
+	 * We first compute each byte: each plan contains one bit of the
+	 * color code for each of the 8 pixels.
 	 *
-	 * FIXME: Use Write Mode 0 to remove the need to read from video
-	 * memory.
+	 * For example, if the 8 pixels are like this:
+	 *     GBBBBBBY
+	 * where:
+	 *     G (gray)   = 0b0111
+	 *     B (black)  = 0b0000
+	 *     Y (yellow) = 0b0011
+	 *
+	 * The corresponding for bytes are:
+	 *             GBBBBBBY
+	 *     Plan 0: 10000001 = 0x81
+	 *     Plan 1: 10000001 = 0x81
+	 *     Plan 2: 10000000 = 0x80
+	 *     Plan 3: 00000000 = 0x00
+	 *             |  |   |
+	 *             |  |   +-> 0b0011 (Y)
+	 *             |  +-----> 0b0000 (B)
+	 *             +--------> 0b0111 (G)
 	 */
 
 	for (i = 0; i < height; ++i) {
-		for (j = 0; j < 16; ++j) {
-			mask = masks[i * 16 + j];
-			if (mask == 0)
+		for (color = 0; color < 16; ++color) {
+			mask = masks[i * 16 + color];
+			if (mask == 0x00)
 				continue;
 
-			vga_setfg(vd, j);
+			for (j = 0; j < 8; ++j) {
+				if (!((mask >> (7 - j)) & 0x1))
+					continue;
 
-			offset = (VT_VGA_WIDTH * (y + i) + x) / 8;
-			if (mask != 0xff) {
-				MEM_READ1(sc, offset);
-
-				/* The bg color was trashed by the reads. */
-				sc->vga_curbg = 0xff;
+				/* The pixel "j" uses color "color". */
+				for (plan = 0; plan < 4; ++plan)
+					plans[i * 4 + plan] |=
+					    ((color >> plan) & 0x1) << (7 - j);
 			}
-			MEM_WRITE1(sc, offset, mask);
+		}
+	}
+
+	/*
+	 * The bytes are ready: we now switch to Write Mode 0 and write
+	 * all bytes, one plan at a time.
+	 */
+	vga_setwmode(vd, 0);
+
+	REG_WRITE1(sc, VGA_SEQ_ADDRESS, VGA_SEQ_MAP_MASK);
+	for (plan = 0; plan < 4; ++plan) {
+		/* Select plan. */
+		REG_WRITE1(sc, VGA_SEQ_DATA, 1 << plan);
+
+		/* Write all bytes for this plan, from Y to Y+height. */
+		for (i = 0; i < height; ++i) {
+			offset = (VT_VGA_WIDTH * (y + i) + x) / 8;
+			MEM_WRITE1(sc, offset, plans[i * 4 + plan]);
 		}
 	}
 }
@@ -1102,8 +1166,16 @@ vga_initialize(struct vt_device *vd, int textmode)
 		/* Switch to write mode 3, because we'll mainly do bitblt. */
 		REG_WRITE1(sc, VGA_GC_ADDRESS, VGA_GC_MODE);
 		REG_WRITE1(sc, VGA_GC_DATA, 3);
+		sc->vga_wmode = 3;
+
+		/*
+		 * In Write Mode 3, Enable Set/Reset is ignored, but we
+		 * use Write Mode 0 to write a group of 8 pixels using
+		 * 3 or more colors. In this case, we want to disable
+		 * Set/Reset: set Enable Set/Reset to 0.
+		 */
 		REG_WRITE1(sc, VGA_GC_ADDRESS, VGA_GC_ENABLE_SET_RESET);
-		REG_WRITE1(sc, VGA_GC_DATA, 0x0f);
+		REG_WRITE1(sc, VGA_GC_DATA, 0x00);
 
 		/*
 		 * Clear the colors we think are loaded into Set/Reset or
