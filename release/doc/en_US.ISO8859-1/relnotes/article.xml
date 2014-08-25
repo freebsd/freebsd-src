@@ -253,6 +253,9 @@
 	with vendor-supplied fixes for big endian support, and 20GB/s
 	and 25GB/s link speeds.</para>
 
+      <para revision="270130">Support for unmapped I/O has been added
+	to the &man.xen.4; <literal>blkfront</literal> driver.</para>
+
       <sect3 xml:id="kernel-virtualization">
 	<title>Virtualization Support</title>
 
