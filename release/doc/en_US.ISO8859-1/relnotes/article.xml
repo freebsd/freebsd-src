@@ -439,6 +439,10 @@
 	  driver has been updated to include 32-bit &man.ioctl.2;
 	  support, allowing 32-bit applications to run on a 64-bit
 	  system.</para>
+
+	<para revision="269298">The maximum number of
+	  <acronym>SCSI</acronym> ports in the &man.ctl.4; driver has
+	  been increased from 32 to 128.</para>
       </sect3>
 
       <sect3 xml:id="fs">
