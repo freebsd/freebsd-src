@@ -870,6 +870,13 @@
 	parameters without requiring the session to be removed and
 	added back.</para>
 
+      <para revision="270043">The &man.mount.nfs.8; utility has been
+	updated to support specifying the NFS version as
+	a <literal>key=<replaceable>value</replaceable></literal> pair
+	argument to the <literal>-o</literal> flag.  For example, to
+	specify NFS version 4, the syntax to use is
+	<literal>-o vers=4</literal>.</para>
+
       <sect3 xml:id="rc-scripts">
 	<title><filename>/etc/rc.d</filename> Scripts</title>
 
