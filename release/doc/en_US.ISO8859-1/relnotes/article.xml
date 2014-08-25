@@ -222,7 +222,7 @@
       <para revision="266165">A kernel bug that inhibited proper
 	functionality of the <literal>dev.cpu.0.freq</literal>
 	&man.sysctl.8; on &intel; processors with Turbo
-	Boost&nbsp;&trade; enabled has been fixed.</para>
+	Boost&trade; enabled has been fixed.</para>
 
       <sect3 xml:id="kernel-virtualization">
 	<title>Virtualization Support</title>
