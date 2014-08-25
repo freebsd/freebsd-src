@@ -132,6 +132,7 @@ LIBSBUF?=	${DESTDIR}${LIBDIR}/libsbuf.a
 LIBSDP?=	${DESTDIR}${LIBDIR}/libsdp.a
 LIBSMB?=	${DESTDIR}${LIBDIR}/libsmb.a
 LIBSSL?=	${DESTDIR}${LIBDIR}/libssl.a
+LIBSSP_NONSHARED?=	${DESTDIR}${LIBDIR}/libssp_nonshared.a
 LIBSTAND?=	${DESTDIR}${LIBDIR}/libstand.a
 LIBSTDCPLUSPLUS?= ${DESTDIR}${LIBDIR}/libstdc++.a
 LIBTACPLUS?=	${DESTDIR}${LIBDIR}/libtacplus.a
