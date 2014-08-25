@@ -1729,6 +1729,26 @@ dev/ixgbe/ixgbe_dcb_82598.c	optional ixgbe inet \
 	compile-with "${NORMAL_C} -I$S/dev/ixgbe"
 dev/ixgbe/ixgbe_dcb_82599.c	optional ixgbe inet \
 	compile-with "${NORMAL_C} -I$S/dev/ixgbe"
+dev/ixl/if_ixl.c		optional ixl inet \
+	compile-with "${NORMAL_C} -I$S/dev/ixl"
+dev/ixl/if_ixlv.c		optional ixlv inet \
+	compile-with "${NORMAL_C} -I$S/dev/ixl"
+dev/ixl/ixlvc.c			optional ixlv inet \
+	compile-with "${NORMAL_C} -I$S/dev/ixl"
+dev/ixl/ixl_txrx.c		optional ixl ixlv inet \
+	compile-with "${NORMAL_C} -I$S/dev/ixl"
+dev/ixl/i40e_osdep.c		optional ixl ixlv inet \
+	compile-with "${NORMAL_C} -I$S/dev/ixl"
+dev/ixl/i40e_lan_hmc.c		optional ixl ixlv inet \
+	compile-with "${NORMAL_C} -I$S/dev/ixl"
+dev/ixl/i40e_hmc.c		optional ixl ixlv inet \
+	compile-with "${NORMAL_C} -I$S/dev/ixl"
+dev/ixl/i40e_common.c		optional ixl ixlv inet \
+	compile-with "${NORMAL_C} -I$S/dev/ixl"
+dev/ixl/i40e_nvm.c		optional ixl ixlv inet \
+	compile-with "${NORMAL_C} -I$S/dev/ixl"
+dev/ixl/i40e_adminq.c		optional ixl ixlv inet \
+	compile-with "${NORMAL_C} -I$S/dev/ixl"
 dev/jme/if_jme.c		optional jme pci
 dev/joy/joy.c			optional joy
 dev/joy/joy_isa.c		optional joy isa
