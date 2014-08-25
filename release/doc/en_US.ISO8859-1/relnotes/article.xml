@@ -675,6 +675,10 @@
 	  would not be created if
 	  <literal>_alias<replaceable>1</replaceable></literal> was
 	  not defined.</para>
+
+	<para revision="268098">The &man.service.8; utility has been
+	  updated to check that the &man.rc.d.8; directory exists
+	  before traversing the directory.</para>
       </sect3>
     </sect2>
 
