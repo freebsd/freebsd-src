@@ -452,6 +452,15 @@
 	prevent <literal>-f</literal> from properly creating
 	a &man.gvinum.8; configuration has been fixed.</para>
 
+      <para revision="266029">The &man.login.conf.5; file now takes
+	precedence over the shell-specific environment files.  In
+	particular, the <literal>PATH</literal>,
+	<literal>BLOCKSIZE</literal> variables are commented from
+	<filename>/usr/share/skel/dot.profile</filename>, and the
+	<literal>path</literal>, <literal>BLOCKSIZE</literal>, and
+	<literal>umask</literal> variables have been commented from
+	<filename>/usr/share/skel/dot.cshrc</filename>.</para>
+
       <para revision="266279">The &man.ps.1; utility has been
 	updated to include the <literal>-J</literal> flag, used to
 	filter output by matching &man.jail.8; IDs and names.
