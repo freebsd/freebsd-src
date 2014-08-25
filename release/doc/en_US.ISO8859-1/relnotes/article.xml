@@ -249,6 +249,11 @@
 	  the boot device, set the
 	  <literal>loaderdev=<replaceable>device</replaceable></literal>
 	  u-boot environment variable.</para>
+
+	<para revision="266000">The <literal>nexus(4)</literal> driver
+	  has been updated to include <quote>Flattened Device
+	    Tree</quote> support, replacing the &man.fdtbus.4; driver
+	  in most cases.</para>
       </sect3>
 
       <sect3 xml:id="boot">
