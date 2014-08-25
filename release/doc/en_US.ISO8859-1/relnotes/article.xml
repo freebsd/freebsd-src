@@ -262,6 +262,10 @@
 
 	<para revision="266105">The &man.gpioiic.4; and
 	  &man.gpioled.4; have been merged from &os;-CURRENT.</para>
+
+	<para revision="266379">The <literal>ZEDBOARD</literal> kernel
+	  configuration file has been updated to include
+	  <acronym>SMP</acronym> support.</para>
       </sect3>
 
       <sect3 xml:id="boot">
