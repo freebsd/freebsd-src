@@ -285,6 +285,46 @@
 	<para revision="268933">A new driver, &man.virtio_random.4;,
 	  has been added, which allows &os; virtual machines to
 	  harvest entropy from the hypervisor.</para>
+
+	<para revision="270159">The &man.bhyve.4; hypervisor has been
+	  synced with the version in &os;-CURRENT.</para>
+
+	<para>A number of enhancements have been added, and several
+	  bug fixes, including:</para>
+
+	<itemizedlist>
+	  <listitem>
+	    <para>Post-mortem debugging has been added when
+	      a guest virtual machine exits with an <quote>
+		<acronym>EPT</acronym> Misconfiguration</quote>
+	      error.</para>
+	  </listitem>
+
+	  <listitem>
+	    <para>The hypervisor &man.virtio.4; <acronym>API</acronym>
+	      has been expanded from 32- to 64-bit.</para>
+	  </listitem>
+
+	  <listitem>
+	    <para>Support for identifying capabilities of the virtual
+	      <acronym>CPU</acronym> has been added.</para>
+	  </listitem>
+
+	  <listitem>
+	    <para>Support for emulating legacy x86 task
+	      switching has been added.</para>
+	  </listitem>
+
+	  <listitem>
+	    <para>Support to list the VT-x features in base kernel
+	      &man.dmesg.8; has been added.</para>
+	  </listitem>
+
+	  <listitem>
+	    <para>Support for extended PCI configuration space
+	      has been added.</para>
+	  </listitem>
+	</itemizedlist>
       </sect3>
 
       <sect3 xml:id="kernel-arm">
