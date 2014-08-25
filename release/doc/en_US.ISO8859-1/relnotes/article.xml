@@ -457,9 +457,6 @@
 	  list</command>, <literal>-p</literal>, which when specified,
 	prints the output in a parsable format.</para>
 
-      <para revision="263508">The &man.clang.1;/llvm suite has been
-	updated to version 3.4.</para>
-
       <para revision="263783">The Blowfish password format
 	implementation updated.  Support for &dollar;2b&dollar; has
 	been added, allowing use of passwords greater than 256
@@ -531,6 +528,9 @@
 	in <filename class="directory">/usr/local/etc/ssl/</filename>
 	before <filename
 	  class="directory">/etc/ssl/</filename>.</para>
+
+      <para revision="266715">The &man.clang.1;/llvm suite has been
+	updated to version 3.4.1.</para>
 
       <para revision="266890">The &man.pmcstat.8; utility has been
 	updated to include a new flag, <literal>-l</literal>, which
