@@ -709,10 +709,6 @@
       <para revision="263285">The &man.xz.1; utility has been updated
 	to a post-5.0.5 snapshot.</para>
 
-      <para revision="263369" contrib="sponsor"
-	sponsor="&darpa_afrl;">The &man.lldb.1; debugging library has
-	been updated to the r196322 snapshot.</para>
-
       <para revision="264377"><application>OpenSSH</application> has
 	been updated to version 6.6p1.</para>
 
@@ -733,6 +729,10 @@
 
       <para revision="268899">The &man.byacc.1; parser has been
 	updated to version 20140422.</para>
+
+      <para revision="269024" contrib="sponsor"
+	sponsor="&darpa_afrl;">The &man.lldb.1; debugging library has
+	been updated to the r202189 snapshot.</para>
     </sect2>
 
     <sect2 xml:id="ports">
