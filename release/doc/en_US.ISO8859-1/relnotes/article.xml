@@ -246,9 +246,6 @@
       <para revision="267084">The &man.mfi.4; driver has been
 	updated to include support for unmapped I/O.</para>
 
-      <para revision="267399">Support for &os;/i386 guests has been
-	added to &man.bhyve.4;.</para>
-
       <sect3 xml:id="kernel-virtualization">
 	<title>Virtualization Support</title>
 
@@ -260,6 +257,9 @@
 	<para revision="261090">The &man.bhyve.4; hypervisor now
 	  supports soft power-off functionality via the ACPI S5
 	  state.</para>
+
+	<para revision="267399">Support for &os;/i386 guests has been
+	  added to &man.bhyve.4;.</para>
       </sect3>
 
       <sect3 xml:id="kernel-arm">
