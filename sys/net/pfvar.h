@@ -1123,27 +1123,6 @@ struct pf_pdesc {
 #define PF_DPORT_RANGE	0x01		/* Dest port uses range */
 #define PF_RPORT_RANGE	0x02		/* RDR'ed port uses range */
 
-/* Counters for other things we want to keep track of */
-#define LCNT_STATES		0	/* states */
-#define LCNT_SRCSTATES		1	/* max-src-states */
-#define LCNT_SRCNODES		2	/* max-src-nodes */
-#define LCNT_SRCCONN		3	/* max-src-conn */
-#define LCNT_SRCCONNRATE	4	/* max-src-conn-rate */
-#define LCNT_OVERLOAD_TABLE	5	/* entry added to overload table */
-#define LCNT_OVERLOAD_FLUSH	6	/* state entries flushed */
-#define LCNT_MAX		7	/* total+1 */
-
-#define LCNT_NAMES { \
-	"max states per rule", \
-	"max-src-states", \
-	"max-src-nodes", \
-	"max-src-conn", \
-	"max-src-conn-rate", \
-	"overload table insertion", \
-	"overload flush states", \
-	NULL \
-}
-
 /* UDP state enumeration */
 #define PFUDPS_NO_TRAFFIC	0
 #define PFUDPS_SINGLE		1
@@ -1172,16 +1151,6 @@ struct pf_pdesc {
 	NULL \
 }
 
-#define FCNT_STATE_SEARCH	0
-#define FCNT_STATE_INSERT	1
-#define FCNT_STATE_REMOVALS	2
-#define FCNT_MAX		3
-
-#define SCNT_SRC_NODE_SEARCH	0
-#define SCNT_SRC_NODE_INSERT	1
-#define SCNT_SRC_NODE_REMOVALS	2
-#define SCNT_MAX		3
-
 #define ACTION_SET(a, x) \
 	do { \
 		if ((a) != NULL) \
@@ -1193,24 +1162,22 @@ struct pf_pdesc {
 		if ((a) != NULL) \
 			*(a) = (x); \
 		if (x < PFRES_MAX) \
-			V_pf_status.counters[x]++; \
+			counter_u64_add(V_pf_status.counters[x], 1); \
 	} while (0)
 
-struct pf_status {
-	u_int64_t	counters[PFRES_MAX];
-	u_int64_t	lcounters[LCNT_MAX];	/* limit counters */
-	u_int64_t	fcounters[FCNT_MAX];
-	u_int64_t	scounters[SCNT_MAX];
-	u_int64_t	pcounters[2][2][3];
-	u_int64_t	bcounters[2][2];
-	u_int32_t	running;
-	u_int32_t	states;
-	u_int32_t	src_nodes;
-	u_int32_t	since;
-	u_int32_t	debug;
-	u_int32_t	hostid;
+struct pf_kstatus {
+	counter_u64_t	counters[PFRES_MAX]; /* reason for passing/dropping */
+	counter_u64_t	lcounters[LCNT_MAX]; /* limit counters */
+	counter_u64_t	fcounters[FCNT_MAX]; /* state operation counters */
+	counter_u64_t	scounters[SCNT_MAX]; /* src_node operation counters */
+	uint32_t	states;
+	uint32_t	src_nodes;
+	uint32_t	running;
+	uint32_t	since;
+	uint32_t	debug;
+	uint32_t	hostid;
 	char		ifname[IFNAMSIZ];
-	u_int8_t	pf_chksum[PF_MD5_DIGEST_LENGTH];
+	uint8_t		pf_chksum[PF_MD5_DIGEST_LENGTH];
 };
 
 struct pf_divert {
@@ -1706,8 +1673,8 @@ int		 pf_match_tag(struct mbuf *, struct pf_rule *, int *, int);
 int		 pf_tag_packet(struct mbuf *, struct pf_pdesc *, int);
 void		 pf_qid2qname(u_int32_t, char *);
 
-VNET_DECLARE(struct pf_status,		 pf_status);
-#define	V_pf_status			 VNET(pf_status)
+VNET_DECLARE(struct pf_kstatus, pf_status);
+#define	V_pf_status	VNET(pf_status)
 
 struct pf_limit {
 	uma_zone_t	zone;
