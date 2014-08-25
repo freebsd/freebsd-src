@@ -307,22 +307,30 @@ pf_map_addr(sa_family_t af, struct pf_rule *r, struct pf_addr *saddr,
 	struct pf_pool		*rpool = &r->rpool;
 	struct pf_addr		*raddr = NULL, *rmask = NULL;
 
+	/* Try to find a src_node if none was given and this
+	   is a sticky-address rule. */
 	if (*sn == NULL && r->rpool.opts & PF_POOL_STICKYADDR &&
-	    (r->rpool.opts & PF_POOL_TYPEMASK) != PF_POOL_NONE) {
+	    (r->rpool.opts & PF_POOL_TYPEMASK) != PF_POOL_NONE)
 		*sn = pf_find_src_node(saddr, r, af, 0);
-		if (*sn != NULL && !PF_AZERO(&(*sn)->raddr, af)) {
-			PF_ACPY(naddr, &(*sn)->raddr, af);
-			if (V_pf_status.debug >= PF_DEBUG_MISC) {
-				printf("pf_map_addr: src tracking maps ");
-				pf_print_host(saddr, 0, af);
-				printf(" to ");
-				pf_print_host(naddr, 0, af);
-				printf("\n");
-			}
-			return (0);
+
+	/* If a src_node was found or explicitly given and it has a non-zero
+	   route address, use this address. A zeroed address is found if the
+	   src node was created just a moment ago in pf_create_state and it
+	   needs to be filled in with routing decision calculated here. */
+	if (*sn != NULL && !PF_AZERO(&(*sn)->raddr, af)) {
+		PF_ACPY(naddr, &(*sn)->raddr, af);
+		if (V_pf_status.debug >= PF_DEBUG_MISC) {
+			printf("pf_map_addr: src tracking maps ");
+			pf_print_host(saddr, 0, af);
+			printf(" to ");
+			pf_print_host(naddr, 0, af);
+			printf("\n");
 		}
+		return (0);
 	}
 
+	/* Find the route using chosen algorithm. Store the found route
+	   in src_node if it was given or found. */
 	if (rpool->cur->addr.type == PF_ADDR_NOROUTE)
 		return (1);
 	if (rpool->cur->addr.type == PF_ADDR_DYNIFTL) {
