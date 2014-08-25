@@ -779,6 +779,12 @@
 	value and a low number of packets to send has been
 	specified.</para>
 
+      <para revision="269805">The &man.jail.8; utility has been
+	updated to support extra &man.ifconfig.8; arguments for the
+	<literal>ip4.addr</literal> and <literal>ip6.addr</literal>
+	parameters.  This change allows &man.carp.4; interfaces to
+	be used within the &man.jail.8;.</para>
+
       <sect3 xml:id="rc-scripts">
 	<title><filename>/etc/rc.d</filename> Scripts</title>
 
