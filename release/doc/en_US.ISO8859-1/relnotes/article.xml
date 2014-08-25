@@ -498,6 +498,18 @@
 	      keep their active state</para>
 	  </listitem>
 	</itemizedlist>
+
+	<para revision="269846">The default &man.zfs.8;
+	  <acronym>ARC</acronym> hash table size has been increased,
+	  and a new &man.loader.8; tunable,
+	  <literal>vfs.zfs.arc_average_blocksize</literal>, has been
+	  added.  Previously, the hash table could be too small, which
+	  would lead to long hash chains and limit performance for
+	  cached reads.  The
+	  <literal>vfs.zfs.arc_average_blocksize</literal> tunable
+	  allows overriding the default block size.  The previous
+	  default was 65536, and default of the new &man.loader.8;
+	  tunable is 8192.</para>
       </sect3>
     </sect2>
 
