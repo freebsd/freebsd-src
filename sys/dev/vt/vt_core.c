@@ -860,16 +860,12 @@ vt_mark_mouse_position_as_dirty(struct vt_device *vd)
 	y = vd->vd_my_drawn;
 
 	if (vf != NULL) {
-		area.tr_begin.tp_col = (x - vw->vw_offset.tp_col) /
-		    vf->vf_width;
-		area.tr_begin.tp_row = (y - vw->vw_offset.tp_row) /
-		    vf->vf_height;
+		area.tr_begin.tp_col = x / vf->vf_width;
+		area.tr_begin.tp_row = y / vf->vf_height;
 		area.tr_end.tp_col =
-		    ((x + vd->vd_mcursor->width - vw->vw_offset.tp_col) /
-		     vf->vf_width) + 1;
+		    ((x + vd->vd_mcursor->width) / vf->vf_width) + 1;
 		area.tr_end.tp_row =
-		    ((y + vd->vd_mcursor->height - vw->vw_offset.tp_row) /
-		     vf->vf_height) + 1;
+		    ((y + vd->vd_mcursor->height) / vf->vf_height) + 1;
 	} else {
 		/*
 		 * No font loaded (ie. vt_vga operating in textmode).
