@@ -508,6 +508,10 @@
 	  <para revision="270061">The &man.if.nf10bmac.4; driver has
 	    been merged from &os;-CURRENT to support the NetFPGA-10G
 	    Embedded CPU Ethernet Core.</para>
+
+	  <para revision="270297">The &man.cxgbe.4; driver has been
+	    updated to support &man.netmap.4; for the T5 10G/40G
+	    cards.</para>
 	</sect4>
       </sect3>
 
