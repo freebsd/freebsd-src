@@ -370,6 +370,10 @@
 	  <para revision="266578">Preliminary support has been added
 	    to the &man.urtwn.4; driver for the Realtek RTL8188EUS and
 	    RTL8188ETV chipsets.</para>
+
+	  <para revision="267694">A bug in the fast receiver buffer
+	    recycle path has been fixed in the &man.cxgbe.4;
+	    driver.</para>
 	</sect4>
       </sect3>
 
