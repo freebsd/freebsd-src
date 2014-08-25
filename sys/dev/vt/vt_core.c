@@ -415,6 +415,31 @@ vt_winsize(struct vt_device *vd, struct vt_font *vf, struct winsize *size)
 	}
 }
 
+static inline void
+vt_compute_drawable_area(struct vt_window *vw)
+{
+	struct vt_device *vd;
+	struct vt_font *vf;
+
+	if (vw->vw_font == NULL)
+		return;
+
+	vd = vw->vw_device;
+	vf = vw->vw_font;
+
+	/*
+	 * Compute the drawable area, so that the text is centered on
+	 * the screen.
+	 */
+
+	vw->vw_draw_area.tr_begin.tp_col = (vd->vd_width % vf->vf_width) / 2;
+	vw->vw_draw_area.tr_begin.tp_row = (vd->vd_height % vf->vf_height) / 2;
+	vw->vw_draw_area.tr_end.tp_col = vw->vw_draw_area.tr_begin.tp_col +
+	    vd->vd_width / vf->vf_width * vf->vf_width;
+	vw->vw_draw_area.tr_end.tp_row = vw->vw_draw_area.tr_begin.tp_row +
+	    vd->vd_height / vf->vf_height * vf->vf_height;
+}
+
 static void
 vt_scroll(struct vt_window *vw, int offset, int whence)
 {
@@ -1067,8 +1092,10 @@ vtterm_cnprobe(struct terminal *tm, struct consdev *cp)
 	sprintf(cp->cn_name, "ttyv%r", VT_UNIT(vw));
 
 	/* Attach default font if not in TEXTMODE. */
-	if ((vd->vd_flags & VDF_TEXTMODE) == 0)
+	if ((vd->vd_flags & VDF_TEXTMODE) == 0) {
 		vw->vw_font = vtfont_ref(&vt_font_default);
+		vt_compute_drawable_area(vw);
+	}
 
 	vtbuf_init_early(&vw->vw_buf);
 	vt_winsize(vd, vw->vw_font, &wsz);
@@ -1258,17 +1285,6 @@ vt_change_font(struct vt_window *vw, struct vt_font *vf)
 	vt_termsize(vd, vf, &size);
 	vt_winsize(vd, vf, &wsz);
 
-	/*
-	 * Compute the drawable area, so that the text is centered on
-	 * the screen.
-	 */
-	vw->vw_draw_area.tr_begin.tp_col = (vd->vd_width % vf->vf_width) / 2;
-	vw->vw_draw_area.tr_begin.tp_row = (vd->vd_height % vf->vf_height) / 2;
-	vw->vw_draw_area.tr_end.tp_col = vw->vw_draw_area.tr_begin.tp_col +
-	    vd->vd_width / vf->vf_width * vf->vf_width;
-	vw->vw_draw_area.tr_end.tp_row = vw->vw_draw_area.tr_begin.tp_row +
-	    vd->vd_height / vf->vf_height * vf->vf_height;
-
 	/* Grow the screen buffer and terminal. */
 	terminal_mute(tm, 1);
 	vtbuf_grow(&vw->vw_buf, &size, vw->vw_buf.vb_history_size);
@@ -1284,6 +1300,7 @@ vt_change_font(struct vt_window *vw, struct vt_font *vf)
 		 */
 		vtfont_unref(vw->vw_font);
 		vw->vw_font = vtfont_ref(vf);
+		vt_compute_drawable_area(vw);
 	}
 
 	/* Force a full redraw the next timer tick. */
@@ -2071,8 +2088,10 @@ vt_allocate_window(struct vt_device *vd, unsigned int window)
 	vw->vw_number = window;
 	vw->vw_kbdmode = K_XLATE;
 
-	if ((vd->vd_flags & VDF_TEXTMODE) == 0)
+	if ((vd->vd_flags & VDF_TEXTMODE) == 0) {
 		vw->vw_font = vtfont_ref(&vt_font_default);
+		vt_compute_drawable_area(vw);
+	}
 
 	vt_termsize(vd, vw->vw_font, &size);
 	vt_winsize(vd, vw->vw_font, &wsz);
@@ -2146,8 +2165,10 @@ vt_resize(struct vt_device *vd)
 		vw = vd->vd_windows[i];
 		VT_LOCK(vd);
 		/* Assign default font to window, if not textmode. */
-		if (!(vd->vd_flags & VDF_TEXTMODE) && vw->vw_font == NULL)
+		if (!(vd->vd_flags & VDF_TEXTMODE) && vw->vw_font == NULL) {
 			vw->vw_font = vtfont_ref(&vt_font_default);
+			vt_compute_drawable_area(vw);
+		}
 		VT_UNLOCK(vd);
 		/* Resize terminal windows */
 		while (vt_change_font(vw, vw->vw_font) == EBUSY) {
