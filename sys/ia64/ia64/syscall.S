@@ -296,7 +296,7 @@ ENTRY_NOPROFILE(epc_syscall, 8)
 {	.mmi
 	st8		[r30]=r19,16		// rnat
 	st8		[r31]=r0,16		// __spare
-	nop		0
+	dep		r11=-1,r11,44,1		// Set psr.bn=1
 	;;
 }
 {	.mmi
