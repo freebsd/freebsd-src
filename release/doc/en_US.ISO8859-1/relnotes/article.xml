@@ -229,6 +229,10 @@
 	  provides support for compressed, read-only disk
 	  images.</para>
 
+	<para revision="266436">The &man.uart.4; driver has been
+	  updated to include support for the &intel;&nbsp;Lynx Point
+	  KT <acronym>AMT</acronym> serial port.</para>
+
       <sect3 xml:id="kernel-virtualization">
 	<title>Virtualization Support</title>
 
