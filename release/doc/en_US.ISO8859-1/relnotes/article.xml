@@ -568,6 +568,15 @@
 	<para revision="269298">The maximum number of
 	  <acronym>SCSI</acronym> ports in the &man.ctl.4; driver has
 	  been increased from 32 to 128.</para>
+
+	<para revision="270552">A new &man.sysctl.8; and
+	  &man.loader.8; tunable,
+	  <literal>kern.geom.part.mbr.enforce_chs</literal> has been
+	  added to the &man.geom.8; <literal>MBR</literal> partition
+	  class.  When set to a non-zero value,
+	  <literal>GEOM_PART_MBR</literal> will automatically
+	  recalculate the user-specified offset and size for alignment
+	  with the disk geometry.</para>
       </sect3>
 
       <sect3 xml:id="fs">
