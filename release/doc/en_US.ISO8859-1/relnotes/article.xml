@@ -339,6 +339,13 @@
 	  it easier to resize the size of a mirror when all of its
 	  components have been replaced.</para>
 
+	<para revision="265912">The &man.geom.8;
+	  <literal>GEOM_PART</literal> class has been updated to
+	  support automatic partition resizing.  Changes to the
+	  partition size are not saved to disk until
+	  <command>gpart commit</command> is run, and prior to saving,
+	  can be reverted with <command>gpart undo</command>.</para>
+
 	<para revision="268091">Support for the
 	  <literal>disklabel64</literal> partitioning scheme has been
 	  added to &man.gpart.8;.</para>
