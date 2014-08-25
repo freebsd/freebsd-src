@@ -522,6 +522,10 @@
 
 	  <para revision="270514">The &man.urtwn.4; driver has been
 	    updated to support the ASUS USB-AC51 wireless card.</para>
+
+	  <para revision="270631">The &intel;&nbsp;XL710 ethernet
+	    controller driver, <literal>ixlv(4)</literal>, has been
+	    merged from &os;-CURRENT.</para>
 	</sect4>
       </sect3>
 
