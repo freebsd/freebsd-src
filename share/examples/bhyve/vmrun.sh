@@ -173,8 +173,9 @@ echo "Launching virtual machine \"$vmname\" ..."
 
 virtio_diskdev="$disk_dev0"
 
+${BHYVECTL} --vm=${vmname} --destroy > /dev/null 2>&1
+
 while [ 1 ]; do
-	${BHYVECTL} --vm=${vmname} --destroy > /dev/null 2>&1
 
 	file ${virtio_diskdev} | grep "boot sector" > /dev/null
 	rc=$?
