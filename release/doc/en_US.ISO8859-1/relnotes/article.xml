@@ -627,9 +627,6 @@
 	been added, <literal>-U</literal>, which allows specifying the
 	UUID of the guest in the System Information structure.</para>
 
-      <para revision="268161">The &man.mkimg.1; utility has been
-	merged from &os;-CURRENT.</para>
-
       <para revision="267734">The &os;&nbsp;Project has migrated
 	from the <application>GNATS</application> bug tracking system
 	to <application>Bugzilla</application>.  The &man.send-pr.1;
@@ -663,6 +660,9 @@
       <para revision="268019">The &man.sed.1; utility has been
 	updated to include a new flag, <literal>-u</literal>, which
 	enables unbuffered output when specified.</para>
+
+      <para revision="268161">The &man.mkimg.1; utility has been
+	merged from &os;-CURRENT.</para>
 
       <sect3 xml:id="rc-scripts">
 	<title><filename>/etc/rc.d</filename> Scripts</title>
