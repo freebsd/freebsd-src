@@ -701,6 +701,41 @@
 	script, <filename>/usr/libexec/save-entropy</filename>, no
 	longer runs within &man.jail.8; environments.</para>
 
+      <para revision="269397">The &man.bhyve.8; wrapper script,
+	<filename>/usr/share/examples/bhyve/vmrun.sh</filename>,
+	has been synced with &os;-CURRENT.</para>
+
+      <para>This update includes:</para>
+
+      <itemizedlist>
+	<listitem>
+	  <para>A new flag, <literal>-e</literal>, has been added,
+	    which is used to set &man.loader.8; environment
+	    variables.</para>
+	</listitem>
+
+	<listitem>
+	  <para>A new flag, <literal>-C</literal>, has been added,
+	    which is used to specify the guest console device.</para>
+	</listitem>
+
+	<listitem>
+	  <para>A new flag, <literal>-H</literal>, has been added,
+	    which is used to pass the host path to
+	    &man.bhyveload.8;.</para>
+	</listitem>
+
+	<listitem>
+	  <para>Support for multiple disk and &man.tap.4; devices
+	    has been added.</para>
+	</listitem>
+
+	<listitem>
+	  <para>The <literal>-I</literal> flag has been
+	    removed.</para>
+	</listitem>
+      </itemizedlist>
+
       <sect3 xml:id="rc-scripts">
 	<title><filename>/etc/rc.d</filename> Scripts</title>
 
