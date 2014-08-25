@@ -797,6 +797,12 @@
 	parameters.  This change allows &man.carp.4; interfaces to
 	be used within the &man.jail.8;.</para>
 
+      <para revision="269968">The &man.iscsictl.8; utility has been
+	updated to include a new flag, <literal>-M</literal>, which
+	allows modifying the <acronym>iSCSI</acronym> session
+	parameters without requiring the session to be removed and
+	added back.</para>
+
       <sect3 xml:id="rc-scripts">
 	<title><filename>/etc/rc.d</filename> Scripts</title>
 
