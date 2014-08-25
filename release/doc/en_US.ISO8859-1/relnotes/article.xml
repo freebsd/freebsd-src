@@ -554,6 +554,11 @@
 	ends event collection after the specified number of
 	seconds.</para>
 
+      <para revision="266953">The &man.mergemaster.8; utility has
+	been updated to avoid printing
+	<quote><filename>/var/tmp/temproot</filename>
+	  disappeared</quote> if there is nothing to compare.</para>
+
       <para revision="267113">The default &man.newsyslog.conf.5; now
 	includes files in the
 	<filename>/etc/newsyslog.conf.d/</filename> and
