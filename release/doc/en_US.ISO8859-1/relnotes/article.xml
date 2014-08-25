@@ -340,6 +340,10 @@
 	    the &man.re.4; driver for TCP and UDP frames.  This is
 	    due to a report of UDP datagrams with IP options
 	    generating corrupt frames.</para>
+
+	  <para revision="266578">Preliminary support has been added
+	    to the &man.urtwn.4; driver for the Realtek RTL8188EUS and
+	    RTL8188ETV chipsets.</para>
 	</sect4>
       </sect3>
 
