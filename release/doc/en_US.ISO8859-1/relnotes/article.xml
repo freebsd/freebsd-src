@@ -1023,6 +1023,9 @@
 
       <para revision="270031">The &man.fparseln.3; library has
 	been updated to version 1.7.</para>
+
+      <para revision="270415">The <application>lukemftpd</application>
+	has been removed from the &os;&nbsp;base system.</para>
     </sect2>
 
     <sect2 xml:id="ports">
