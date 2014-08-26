@@ -50,7 +50,7 @@
 .ds doc-str-Lb-libstdthreads C11 Threads Library (libstdthreads, \-lstdthreads)
 .
 .\" Default .Os value
-.ds doc-default-operating-system FreeBSD\~10.0
+.ds doc-default-operating-system FreeBSD\~10.1
 .
 .\" FreeBSD releases not found in doc-common
 .ds doc-operating-system-FreeBSD-7.4    7.4
