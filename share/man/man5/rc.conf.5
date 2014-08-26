@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd February 15, 2014
+.Dd August 27, 2014
 .Dt RC.CONF 5
 .Os
 .Sh NAME
@@ -69,6 +69,8 @@ you can also place smaller configuration files for each
 .Xr rc 8
 script in the
 .Pa /etc/rc.conf.d
+directory or in the
+.Pa ${LOCALBASE}/etc/rc.conf.d
 directory, which will be included by the
 .Va load_rc_config
 function.
