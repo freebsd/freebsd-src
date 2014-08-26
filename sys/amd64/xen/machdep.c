@@ -594,11 +594,13 @@ initxen(struct start_info *si)
 	DPCPU_ID_SET(0, vcpu_info, &HYPERVISOR_shared_info->vcpu_info[0]);
 
 	/* Register the rest of free physical memory with phys_avail[] */
-	/* dump_avail[] starts at index 1 */
 	phys_avail[pa_index++] = physfree; 
-	dump_avail[pa_index] = physfree;
 	phys_avail[pa_index++] = ptoa(physmem);
-	dump_avail[pa_index] = ptoa(physmem);
+
+	/* We dump all of our given RAM */
+	/* XXX: revise this for dom0 */
+	dump_avail[1] = 0;
+	dump_avail[2] = ptoa(physmem);
 
 	PCPU_SET(prvspace, pc);
 	PCPU_SET(curthread, &thread0);

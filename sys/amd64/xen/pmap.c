@@ -1157,7 +1157,7 @@ retry:
 			     xen_pt_frames);
 
 	bzero((void *)PTOV(ptoa(xen_pt)), ptoa(xen_pt_frames));
-#if 0
+#if 1
 	/* 
 	 * Unmap from kernel VA space, since we're going to put them
 	 * on the free list via phys_avail
@@ -1173,8 +1173,8 @@ retry:
 	 * Record the pages as available to the VM via phys_avail[] 
 	 */
 
-	dump_avail[pa_index + 1] = phys_avail[pa_index] = ptoa(xen_pt);
-	dump_avail[pa_index + 2] = phys_avail[pa_index + 1] = phys_avail[pa_index] +
+	phys_avail[pa_index] = ptoa(xen_pt);
+	phys_avail[pa_index + 1] = phys_avail[pa_index] +
 		ptoa(xen_pt_frames);
 	pa_index += 2;
 #endif
