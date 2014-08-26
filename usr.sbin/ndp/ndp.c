@@ -97,6 +97,7 @@
 
 #include <arpa/inet.h>
 
+#include <ctype.h>
 #include <netdb.h>
 #include <errno.h>
 #include <nlist.h>
@@ -131,7 +132,7 @@ char host_buf[NI_MAXHOST];		/* getnameinfo() */
 char ifix_buf[IFNAMSIZ];		/* if_indextoname() */
 
 int main(int, char **);
-int file(char *);
+static int file(char *);
 void getsocket(void);
 int set(int, char **);
 void get(char *);
@@ -194,9 +195,10 @@ main(argc, argv)
 			mode = ch;
 			arg = NULL;
 			break;
-		case 'd':
 		case 'f':
-		case 'i' :
+			exit(file(optarg) ? 1 : 0);
+		case 'd':
+		case 'i':
 			if (mode) {
 				usage();
 				/*NOTREACHED*/
@@ -319,18 +321,16 @@ main(argc, argv)
 /*
  * Process a file to set standard ndp entries
  */
-int
+static int
 file(name)
 	char *name;
 {
 	FILE *fp;
 	int i, retval;
-	char line[100], arg[5][50], *args[5];
+	char line[100], arg[5][50], *args[5], *p;
 
-	if ((fp = fopen(name, "r")) == NULL) {
-		fprintf(stderr, "ndp: cannot open %s\n", name);
-		exit(1);
-	}
+	if ((fp = fopen(name, "r")) == NULL)
+		err(1, "cannot open %s", name);
 	args[0] = &arg[0][0];
 	args[1] = &arg[1][0];
 	args[2] = &arg[2][0];
@@ -338,10 +338,15 @@ file(name)
 	args[4] = &arg[4][0];
 	retval = 0;
 	while (fgets(line, sizeof(line), fp) != NULL) {
+		if ((p = strchr(line, '#')) != NULL)
+			*p = '\0';
+		for (p = line; isblank(*p); p++);
+		if (*p == '\n' || *p == '\0')
+			continue;
 		i = sscanf(line, "%49s %49s %49s %49s %49s",
 		    arg[0], arg[1], arg[2], arg[3], arg[4]);
 		if (i < 2) {
-			fprintf(stderr, "ndp: bad line: %s\n", line);
+			warnx("bad line: %s", line);
 			retval = 1;
 			continue;
 		}
