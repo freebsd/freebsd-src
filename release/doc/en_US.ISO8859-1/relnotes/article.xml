@@ -956,7 +956,7 @@
 	a <literal>key=<replaceable>value</replaceable></literal> pair
 	argument to the <literal>-o</literal> flag.  For example, to
 	specify NFS version 4, the syntax to use is
-	<literal>-o vers=4</literal>.</para>
+	<literal>-o&nbsp;vers=4</literal>.</para>
 
       <para revision="270401">Support for the <quote>account</quote>
 	facility has been added to &man.pam.3; library.</para>
