@@ -1301,6 +1301,10 @@ load_rc_config()
 			fi
 		done
 	fi
+	if [ -f ${LOCALBASE:-/usr/local}/etc/rc.conf.d/"$_name" ]; then
+		debug "Sourcing ${LOCALBASE:-/usr/local}/etc/rc.conf.d/${_name}"
+		. ${LOCALBASE:-/usr/local}/etc/rc.conf.d/"$_name"
+	fi
 
 	# Set defaults if defined.
 	for _var in $rcvar; do
