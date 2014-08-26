@@ -231,23 +231,10 @@ int fget_write(struct thread *td, int fd, cap_rights_t *rightsp,
     struct file **fpp);
 int _fdrop(struct file *fp, struct thread *td);
 
-/*
- * The socket operations are used a couple of places.
- * XXX: This is wrong, they should go through the operations vector for
- * XXX: sockets instead of going directly for the individual functions. /phk
- */
-fo_rdwr_t	soo_read;
-fo_rdwr_t	soo_write;
-fo_truncate_t	soo_truncate;
-fo_ioctl_t	soo_ioctl;
-fo_poll_t	soo_poll;
-fo_kqfilter_t	soo_kqfilter;
-fo_stat_t	soo_stat;
-fo_close_t	soo_close;
-
 fo_chmod_t	invfo_chmod;
 fo_chown_t	invfo_chown;
 fo_sendfile_t	invfo_sendfile;
+fo_truncate_t	invfo_truncate;
 
 fo_sendfile_t	vn_sendfile;
 fo_seek_t	vn_seek;

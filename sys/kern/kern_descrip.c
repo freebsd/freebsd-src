@@ -3944,6 +3944,14 @@ struct fileops badfileops = {
 };
 
 int
+invfo_truncate(struct file *fp, off_t length, struct ucred *active_cred,
+    struct thread *td)
+{
+
+	return (EINVAL);
+}
+
+int
 invfo_chmod(struct file *fp, mode_t mode, struct ucred *active_cred,
     struct thread *td)
 {
