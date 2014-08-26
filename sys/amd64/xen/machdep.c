@@ -599,8 +599,8 @@ initxen(struct start_info *si)
 
 	/* We dump all of our given RAM */
 	/* XXX: revise this for dom0 */
-	dump_avail[1] = 0;
-	dump_avail[2] = ptoa(physmem);
+	dump_avail[0] = 0;
+	dump_avail[1] = ptoa(physmem);
 
 	PCPU_SET(prvspace, pc);
 	PCPU_SET(curthread, &thread0);
