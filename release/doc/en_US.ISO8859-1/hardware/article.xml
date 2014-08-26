@@ -821,9 +821,9 @@
 
       &hwlist.age;
 
-      &hwlist.ale;
-
       &hwlist.alc;
+
+      &hwlist.ale;
 
       &hwlist.aue;
 
@@ -1591,10 +1591,6 @@
 	</listitem>
 
 	<listitem>
-	  &hwlist.atp;
-	</listitem>
-
-	<listitem>
 	  <para>[&arch.amd64;, &arch.i386;] PS/2 keyboards
 	    (&man.atkbd.4; driver)</para>
 	</listitem>
@@ -1613,6 +1609,10 @@
 	Pointing devices including:</para>
 
       <itemizedlist>
+	<listitem>
+	  &hwlist.atp;
+	</listitem>
+
 	<listitem>
 	  <para>[&arch.amd64;, &arch.i386;, &arch.pc98;] Bus mice and
 	    compatible devices (&man.mse.4; driver)</para>
