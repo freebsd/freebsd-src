@@ -16,8 +16,8 @@ SRCS=	Driver.cpp \
 lldb.1:
 	ln -fs ${LLDB_SRCS}/docs/lldb.1 ${.TARGET}
 
-DPADD=	${LIBEDIT} ${LIBCURSES} ${LIBEXECINFO}
-LDADD=	-lcurses -ledit -lexecinfo -lpanel
+DPADD=	${LIBEDIT} ${LIBNCURSESW} ${LIBEXECINFO} ${LIBPANEL}
+LDADD=	-ledit -lncursesw -lexecinfo -lpanel
 
 LLDB_LIBS=\
 	lldb \
