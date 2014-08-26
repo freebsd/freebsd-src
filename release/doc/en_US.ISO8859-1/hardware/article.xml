@@ -665,6 +665,8 @@
 
       &hwlist.aac;
 
+      &hwlist.aacraid;
+
       &hwlist.adv;
 
       &hwlist.adw;
@@ -708,6 +710,8 @@
       &hwlist.hptiop;
 
       &hwlist.hptmv;
+
+      &hwlist.hptnr;
 
       &hwlist.hptrr;
 
@@ -819,6 +823,8 @@
 
       &hwlist.ale;
 
+      &hwlist.alc;
+
       &hwlist.aue;
 
       &hwlist.axe;
@@ -845,6 +851,8 @@
       &hwlist.cue;
 
       &hwlist.cxgb;
+
+      &hwlist.cxgbe;
 
       &hwlist.dc;
 
@@ -997,6 +1005,8 @@
 	802.11b wireless adapters (&man.an.4; driver)</para>
 
       &hwlist.ath;
+
+      &hwlist.ath.hal;
 
       &hwlist.bwi;
 
@@ -1578,6 +1588,10 @@
 	<listitem>
 	  <para>[&arch.i386;] AT-style keyboards (&man.atkbd.4;
 	    driver)</para>
+	</listitem>
+
+	<listitem>
+	  &hwlist.atp;
 	</listitem>
 
 	<listitem>
