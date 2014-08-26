@@ -5490,7 +5490,7 @@ run_rt3070_rf_init(struct run_softc *sc)
 		run_rt3070_rf_write(sc, 17, rf);
 	}
 
-	if (sc->mac_rev == 0x3071) {
+	if (sc->mac_ver == 0x3071) {
 		run_rt3070_rf_read(sc, 1, &rf);
 		rf &= ~(RT3070_RX0_PD | RT3070_TX0_PD);
 		rf |= RT3070_RF_BLOCK | RT3070_RX1_PD | RT3070_TX1_PD;
