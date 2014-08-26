@@ -211,13 +211,17 @@ Power down.
 Default is 15, all enabled.
 .El
 .Sh FILES
-.Bl -tag -width /usr/share/syscons/keymaps/* -compact
+.Bl -tag -width /usr/share/vt/keymaps/* -compact
 .It Pa /dev/console
 .It Pa /dev/consolectl
 .It Pa /dev/ttyv*
 virtual terminals
 .It Pa /etc/ttys
 terminal initialization information
+.It Pa /usr/share/vt/fonts/*.fnt
+console fonts
+.It Pa /usr/share/vt/keymaps/*.kbd
+keyboard layouts
 .El
 .Sh EXAMPLES
 This example changes the default color of normal text to green on a
@@ -243,7 +247,6 @@ on a black background, or black on a bright red background when reversed.
 .Xr splash 4 ,
 .Xr syscons 4 ,
 .Xr ukbd 4 ,
-.Xr vga 4 ,
 .Xr kbdmap 5 ,
 .Xr rc.conf 5 ,
 .Xr ttys 5 ,
