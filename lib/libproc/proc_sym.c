@@ -90,17 +90,25 @@ proc_obj2map(struct proc_handle *p, const char *objname)
 	rd_loadobj_t *rdl;
 	char path[MAXPATHLEN];
 
+	rdl = NULL;
 	for (i = 0; i < p->nobjs; i++) {
-		rdl = &p->rdobjs[i];
-		basename_r(rdl->rdl_path, path);
+		basename_r(p->rdobjs[i].rdl_path, path);
 		if (strcmp(path, objname) == 0) {
-			if ((map = malloc(sizeof(*map))) == NULL)
-				return (NULL);
-			proc_rdl2prmap(rdl, map);
-			return (map);
+			rdl = &p->rdobjs[i];
+			break;
 		}
 	}
-	return (NULL);
+	if (rdl == NULL) {
+		if (strcmp(objname, "a.out") == 0 && p->rdexec != NULL)
+			rdl = p->rdexec;
+		else
+			return (NULL);
+	}
+
+	if ((map = malloc(sizeof(*map))) == NULL)
+		return (NULL);
+	proc_rdl2prmap(rdl, map);
+	return (map);
 }
 
 int
@@ -358,8 +366,9 @@ proc_name2map(struct proc_handle *p, const char *name)
 		free(kves);
 		return (NULL);
 	}
-	if (name == NULL || strcmp(name, "a.out") == 0) {
-		map = proc_addr2map(p, p->rdobjs[0].rdl_saddr);
+	if ((name == NULL || strcmp(name, "a.out") == 0) &&
+	    p->rdexec != NULL) {
+		map = proc_addr2map(p, p->rdexec->rdl_saddr);
 		return (map);
 	}
 	for (i = 0; i < p->nobjs; i++) {

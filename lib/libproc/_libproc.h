@@ -46,6 +46,8 @@ struct proc_handle {
 	size_t	rdobjsz;
 	size_t	nobjs;
 	struct lwpstatus lwps;
+	rd_loadobj_t *rdexec;		/* rdobj index of program executable. */
+	char	execname[MAXPATHLEN];	/* Path to program executable. */
 };
 
 #ifdef DEBUG
