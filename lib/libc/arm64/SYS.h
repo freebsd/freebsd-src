@@ -33,7 +33,8 @@
 #include <machine/asm.h>
 
 #define	_SYSCALL(name)						\
-	1: b 1b;
+	mov	x8, SYS_ ## name;				\
+	svc	0
 
 #define	SYSCALL(name)						\
 ENTRY(__sys_##name);						\
@@ -46,7 +47,7 @@ END(__sys_##name)
 #define	PSEUDO(name)						\
 ENTRY(__sys_##name);						\
 	WEAK_REFERENCE(__sys_##name, _##name);			\
-	_SYSCALL(name)						\
+	_SYSCALL(name);						\
 	ret;							\
 END(__sys_##name)
 
@@ -54,6 +55,7 @@ END(__sys_##name)
 ENTRY(__sys_##name);						\
 	WEAK_REFERENCE(__sys_##name, name);			\
 	WEAK_REFERENCE(__sys_##name, _##name);			\
-	_SYSCALL(name)						\
+	_SYSCALL(name);						\
 	ret;							\
 END(__sys_##name)
+
