@@ -87,6 +87,8 @@
             ..
             libmp
             ..
+            libutil
+            ..
         ..
         libexec
             atf
