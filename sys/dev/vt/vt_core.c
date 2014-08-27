@@ -70,6 +70,9 @@ static tc_done_t	vtterm_done;
 static tc_cnprobe_t	vtterm_cnprobe;
 static tc_cngetc_t	vtterm_cngetc;
 
+static tc_cngrab_t	vtterm_cngrab;
+static tc_cnungrab_t	vtterm_cnungrab;
+
 static tc_opened_t	vtterm_opened;
 static tc_ioctl_t	vtterm_ioctl;
 static tc_mmap_t	vtterm_mmap;
@@ -85,6 +88,9 @@ const struct terminal_class vt_termclass = {
 
 	.tc_cnprobe	= vtterm_cnprobe,
 	.tc_cngetc	= vtterm_cngetc,
+
+	.tc_cngrab	= vtterm_cngrab,
+	.tc_cnungrab	= vtterm_cnungrab,
 
 	.tc_opened	= vtterm_opened,
 	.tc_ioctl	= vtterm_ioctl,
@@ -191,6 +197,7 @@ static struct vt_window	vt_conswindow = {
 	.vw_device = &vt_consdev,
 	.vw_terminal = &vt_consterm,
 	.vw_kbdmode = K_XLATE,
+	.vw_grabbed = 0,
 };
 static struct terminal vt_consterm = {
 	.tm_class = &vt_termclass,
@@ -1199,6 +1206,64 @@ vtterm_cngetc(struct terminal *tm)
 		return (*vw->vw_kbdsq++);
 
 	return (-1);
+}
+
+static void
+vtterm_cngrab(struct terminal *tm)
+{
+	struct vt_device *vd;
+	struct vt_window *vw;
+	keyboard_t *kbd;
+
+	vw = tm->tm_softc;
+	vd = vw->vw_device;
+
+	if (!cold)
+		vt_window_switch(vw);
+
+	kbd = kbd_get_keyboard(vd->vd_keyboard);
+	if (kbd == NULL)
+		return;
+
+	if (vw->vw_grabbed++ > 0)
+		return;
+
+	/*
+	 * Make sure the keyboard is accessible even when the kbd device
+	 * driver is disabled.
+	 */
+	kbdd_enable(kbd);
+
+	/* We shall always use the keyboard in the XLATE mode here. */
+	vw->vw_prev_kbdmode = vw->vw_kbdmode;
+	vw->vw_kbdmode = K_XLATE;
+	(void)kbdd_ioctl(kbd, KDSKBMODE, (caddr_t)&vw->vw_kbdmode);
+
+	kbdd_poll(kbd, TRUE);
+}
+
+static void
+vtterm_cnungrab(struct terminal *tm)
+{
+	struct vt_device *vd;
+	struct vt_window *vw;
+	keyboard_t *kbd;
+
+	vw = tm->tm_softc;
+	vd = vw->vw_device;
+
+	kbd = kbd_get_keyboard(vd->vd_keyboard);
+	if (kbd == NULL)
+		return;
+
+	if (--vw->vw_grabbed > 0)
+		return;
+
+	kbdd_poll(kbd, FALSE);
+
+	vw->vw_kbdmode = vw->vw_prev_kbdmode;
+	(void)kbdd_ioctl(kbd, KDSKBMODE, (caddr_t)&vw->vw_kbdmode);
+	kbdd_disable(kbd);
 }
 
 static void
