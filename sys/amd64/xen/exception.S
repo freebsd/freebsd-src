@@ -97,12 +97,16 @@
 	movq	TF_R15(%rsp), %r15
 
 /* Note: %fs/%gs are saved/restored by the hypervisor */
-/* Save generic data segment registers to the stack */	
+/*
+ * Save generic data segment registers to the stack
+ * Indicate that segments have been saved.
+ */
 #define SAVE_SEGMENT_REGS \
 	movw	%es, TF_ES(%rsp) ; \
 	movw	%ds, TF_DS(%rsp) ; \
 	movw	%fs, TF_FS(%rsp) ; \
 	movw	%gs, TF_FS(%rsp) ; \
+	movl	$TF_HASSEGS,TF_FLAGS(%rsp) ; \
 
 /* Restore generic data segment registers from the stack */
 /* This macro overwrites some general registers */
