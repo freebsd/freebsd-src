@@ -255,7 +255,8 @@ static void
 vt_resume_flush_timer(struct vt_device *vd, int ms)
 {
 
-	if (!atomic_cmpset_int(&vd->vd_timer_armed, 0, 1))
+	if (!(vd->vd_flags & VDF_ASYNC) ||
+	    !atomic_cmpset_int(&vd->vd_timer_armed, 0, 1))
 		return;
 
 	vt_schedule_flush(vd, ms);
@@ -265,7 +266,8 @@ static void
 vt_suspend_flush_timer(struct vt_device *vd)
 {
 
-	if (!atomic_cmpset_int(&vd->vd_timer_armed, 1, 0))
+	if (!(vd->vd_flags & VDF_ASYNC) ||
+	    !atomic_cmpset_int(&vd->vd_timer_armed, 1, 0))
 		return;
 
 	callout_drain(&vd->vd_timer);
@@ -467,9 +469,11 @@ vt_scroll(struct vt_window *vw, int offset, int whence)
 
 	if (diff < -size.tp_row || diff > size.tp_row) {
 		vw->vw_device->vd_flags |= VDF_INVALID;
+		vt_resume_flush_timer(vw->vw_device, 0);
 		return;
 	}
 	vw->vw_device->vd_flags |= VDF_INVALID; /*XXX*/
+	vt_resume_flush_timer(vw->vw_device, 0);
 }
 
 static int
@@ -782,6 +786,7 @@ vtterm_cursor(struct terminal *tm, const term_pos_t *p)
 	struct vt_window *vw = tm->tm_softc;
 
 	vtbuf_cursor_position(&vw->vw_buf, p);
+	vt_resume_flush_timer(vw->vw_device, 0);
 }
 
 static void
@@ -790,6 +795,7 @@ vtterm_putchar(struct terminal *tm, const term_pos_t *p, term_char_t c)
 	struct vt_window *vw = tm->tm_softc;
 
 	vtbuf_putchar(&vw->vw_buf, p, c);
+	vt_resume_flush_timer(vw->vw_device, 0);
 }
 
 static void
@@ -798,6 +804,7 @@ vtterm_fill(struct terminal *tm, const term_rect_t *r, term_char_t c)
 	struct vt_window *vw = tm->tm_softc;
 
 	vtbuf_fill_locked(&vw->vw_buf, r, c);
+	vt_resume_flush_timer(vw->vw_device, 0);
 }
 
 static void
@@ -807,6 +814,7 @@ vtterm_copy(struct terminal *tm, const term_rect_t *r,
 	struct vt_window *vw = tm->tm_softc;
 
 	vtbuf_copy(&vw->vw_buf, r, p);
+	vt_resume_flush_timer(vw->vw_device, 0);
 }
 
 static void
@@ -817,6 +825,7 @@ vtterm_param(struct terminal *tm, int cmd, unsigned int arg)
 	switch (cmd) {
 	case TP_SHOWCURSOR:
 		vtbuf_cursor_visibility(&vw->vw_buf, arg);
+		vt_resume_flush_timer(vw->vw_device, 0);
 		break;
 	case TP_MOUSE:
 		vw->vw_mouse_level = arg;
@@ -915,7 +924,7 @@ vt_mark_mouse_position_as_dirty(struct vt_device *vd)
 }
 #endif
 
-static void
+static int
 vt_flush(struct vt_device *vd)
 {
 	struct vt_window *vw;
@@ -929,14 +938,14 @@ vt_flush(struct vt_device *vd)
 
 	vw = vd->vd_curwindow;
 	if (vw == NULL)
-		return;
+		return (0);
 
 	if (vd->vd_flags & VDF_SPLASH || vw->vw_flags & VWF_BUSY)
-		return;
+		return (0);
 
 	vf = vw->vw_font;
 	if (((vd->vd_flags & VDF_TEXTMODE) == 0) && (vf == NULL))
-		return;
+		return (0);
 
 #ifndef SC_NO_CUTPASTE
 	cursor_was_shown = vd->vd_mshown;
@@ -990,20 +999,27 @@ vt_flush(struct vt_device *vd)
 
 	if (tarea.tr_begin.tp_col < tarea.tr_end.tp_col) {
 		vd->vd_driver->vd_bitblt_text(vd, vw, &tarea);
+		return (1);
 	}
+
+	return (0);
 }
 
 static void
 vt_timer(void *arg)
 {
 	struct vt_device *vd;
+	int changed;
 
 	vd = arg;
 	/* Update screen if required. */
-	vt_flush(vd);
+	changed = vt_flush(vd);
 
 	/* Schedule for next update. */
-	vt_schedule_flush(vd, 0);
+	if (changed)
+		vt_schedule_flush(vd, 0);
+	else
+		vd->vd_timer_armed = 0;
 }
 
 static void
@@ -1372,6 +1388,7 @@ vt_change_font(struct vt_window *vw, struct vt_font *vf)
 	if (vd->vd_curwindow == vw) {
 		vt_set_border(vw, vf, TC_BLACK);
 		vd->vd_flags |= VDF_INVALID;
+		vt_resume_flush_timer(vw->vw_device, 0);
 	}
 	vw->vw_flags &= ~VWF_BUSY;
 	VT_UNLOCK(vd);
@@ -1588,6 +1605,8 @@ vt_mouse_event(int type, int x, int y, int event, int cnt, int mlevel)
 			 */
 			vd->vd_markedwin = vw;
 		}
+
+		vt_resume_flush_timer(vw->vw_device, 0);
 		return; /* Done */
 	case MOUSE_BUTTON_EVENT:
 		/* Buttons */
@@ -1672,6 +1691,7 @@ vt_mouse_event(int type, int x, int y, int event, int cnt, int mlevel)
 		 * window with selection.
 		 */
 		vd->vd_markedwin = vw;
+		vt_resume_flush_timer(vw->vw_device, 0);
 	}
 }
 
@@ -1695,6 +1715,7 @@ vt_mouse_state(int show)
 
 	/* Mark mouse position as dirty. */
 	vt_mark_mouse_position_as_dirty(vd);
+	vt_resume_flush_timer(vw->vw_device, 0);
 }
 #endif
 
