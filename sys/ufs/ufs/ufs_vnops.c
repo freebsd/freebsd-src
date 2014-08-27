@@ -1142,11 +1142,6 @@ ufs_rename(ap)
 		mp = NULL;
 		goto releout;
 	}
-	error = vfs_busy(mp, 0);
-	if (error) {
-		mp = NULL;
-		goto releout;
-	}
 relock:
 	/* 
 	 * We need to acquire 2 to 4 locks depending on whether tvp is NULL
@@ -1546,8 +1541,6 @@ unlockout:
 	if (error == 0 && tdp->i_flag & IN_NEEDSYNC)
 		error = VOP_FSYNC(tdvp, MNT_WAIT, td);
 	vput(tdvp);
-	if (mp)
-		vfs_unbusy(mp);
 	return (error);
 
 bad:
@@ -1565,8 +1558,6 @@ releout:
 	vrele(tdvp);
 	if (tvp)
 		vrele(tvp);
-	if (mp)
-		vfs_unbusy(mp);
 
 	return (error);
 }
