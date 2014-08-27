@@ -50,7 +50,7 @@ sintrcnt:
 	mov	x1, 0x1c090000; \
 	str	x0, [x1];
 
-.macro	save_registers
+.macro	save_registers el
 	stp	x28, x29, [sp, #-16]!
 	stp	x26, x27, [sp, #-16]!
 	stp	x24, x25, [sp, #-16]!
@@ -68,15 +68,23 @@ sintrcnt:
 	stp	x0, x1, [sp, #-16]!
 	mrs	x10, elr_el1
 	mrs	x11, spsr_el1
+.if \el == 0
+	mrs	x12, sp_el0
+.else
 	mov	x12, sp
+.endif
 	stp	x10, x11, [sp, #-16]!
 	stp	x12, lr, [sp, #-16]!
 .endm
 
-.macro	restore_registers
+.macro	restore_registers el
 	ldp	x12, lr, [sp], #16
 	ldp	x10, x11, [sp], #16
+.if \el == 0
+	msr	sp_el0, x12
+.else
 	mov	sp, x12
+.endif
 	msr	spsr_el1, x11
 	msr	elr_el1, x10
 	ldp	x0, x1, [sp], #16
@@ -97,38 +105,38 @@ sintrcnt:
 .endm
 
 handle_el1h_sync:
-	save_registers
+	save_registers 1
 	mov	x0, sp
 	bl	do_el1h_sync
-	restore_registers
+	restore_registers 1
 	eret
 
 handle_el1h_irq:
-	save_registers
+	save_registers 1
 	mov	x0, sp
 	bl	cpu_intr
-	restore_registers
+	restore_registers 1
 	eret
 
 handle_el1h_error:
 	brk	0xf13
 
 handle_el0_sync:
-	save_registers
+	save_registers 0
 	mov	x0, sp
 	bl	do_el0_sync
-	restore_registers
+	restore_registers 0
 	eret
 
 handle_el0_irq:
-	save_registers
+	save_registers 0
 	mov	x0, sp
 	bl	cpu_intr
-	restore_registers
+	restore_registers 0
 	eret
 
 handle_el0_error:
-	save_registers
+	save_registers 0
 	mov	x0, sp
 	bl	do_el0_error
 	brk	0xf23
