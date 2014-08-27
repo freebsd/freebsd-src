@@ -1381,8 +1381,19 @@ vt_change_font(struct vt_window *vw, struct vt_font *vf)
 		 */
 		vtfont_unref(vw->vw_font);
 		vw->vw_font = vtfont_ref(vf);
-		vt_compute_drawable_area(vw);
 	}
+
+	/*
+	 * Compute the drawable area and move the mouse cursor inside
+	 * it, in case the new area is smaller than the previous one.
+	 */
+	vt_compute_drawable_area(vw);
+	vd->vd_mx = min(vd->vd_mx,
+	    vw->vw_draw_area.tr_end.tp_col -
+	    vw->vw_draw_area.tr_begin.tp_col - 1);
+	vd->vd_my = min(vd->vd_my,
+	    vw->vw_draw_area.tr_end.tp_row -
+	    vw->vw_draw_area.tr_begin.tp_row - 1);
 
 	/* Force a full redraw the next timer tick. */
 	if (vd->vd_curwindow == vw) {
@@ -2272,8 +2283,8 @@ vt_resize(struct vt_device *vd)
 		if (!(vd->vd_flags & VDF_TEXTMODE) && vw->vw_font == NULL)
 			vw->vw_font = vtfont_ref(&vt_font_default);
 		VT_UNLOCK(vd);
+
 		/* Resize terminal windows */
-		vt_compute_drawable_area(vw);
 		while (vt_change_font(vw, vw->vw_font) == EBUSY) {
 			DPRINTF(100, "%s: vt_change_font() is busy, "
 			    "window %d\n", __func__, i);
