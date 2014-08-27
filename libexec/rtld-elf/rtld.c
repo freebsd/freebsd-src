@@ -2784,7 +2784,7 @@ search_library_pathfds(const char *name, const char *path, int *fdp)
 	size_t len;
 	int dirfd, fd;
 
-	dbg("%s('%s', '%s', fdp)\n", __func__, name, path);
+	dbg("%s('%s', '%s', fdp)", __func__, name, path);
 
 	/* Don't load from user-specified libdirs into setuid binaries. */
 	if (!trust)
