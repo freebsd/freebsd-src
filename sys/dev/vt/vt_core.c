@@ -2269,12 +2269,11 @@ vt_resize(struct vt_device *vd)
 		vw = vd->vd_windows[i];
 		VT_LOCK(vd);
 		/* Assign default font to window, if not textmode. */
-		if (!(vd->vd_flags & VDF_TEXTMODE) && vw->vw_font == NULL) {
+		if (!(vd->vd_flags & VDF_TEXTMODE) && vw->vw_font == NULL)
 			vw->vw_font = vtfont_ref(&vt_font_default);
-			vt_compute_drawable_area(vw);
-		}
 		VT_UNLOCK(vd);
 		/* Resize terminal windows */
+		vt_compute_drawable_area(vw);
 		while (vt_change_font(vw, vw->vw_font) == EBUSY) {
 			DPRINTF(100, "%s: vt_change_font() is busy, "
 			    "window %d\n", __func__, i);
