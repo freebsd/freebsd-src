@@ -152,22 +152,6 @@ METHOD void advise {
 
 
 /**
- * @brief Change the wiring attribute for the page in the given physical
- * map and virtual address.
- *
- * @param _pmap		physical map of page
- * @param _va		page virtual address
- * @param _wired	TRUE to increment wired count, FALSE to decrement
- */
-METHOD void change_wiring {
-	mmu_t		_mmu;
-	pmap_t		_pmap;
-	vm_offset_t	_va;
-	boolean_t	_wired;
-};
-
-
-/**
  * @brief Clear the 'modified' bit on the given physical page
  *
  * @param _pg		physical page
@@ -240,15 +224,17 @@ METHOD void copy_pages {
  * @param _va		mapping virtual address
  * @param _p		mapping physical page
  * @param _prot		mapping page protection
- * @param _wired	TRUE if page will be wired
+ * @param _flags	pmap_enter flags
+ * @param _psind	superpage size index
  */
-METHOD void enter {
+METHOD int enter {
 	mmu_t		_mmu;
 	pmap_t		_pmap;
 	vm_offset_t	_va;
 	vm_page_t	_p;
 	vm_prot_t	_prot;
-	boolean_t	_wired;
+	u_int		_flags;
+	int8_t		_psind;
 };
 
 

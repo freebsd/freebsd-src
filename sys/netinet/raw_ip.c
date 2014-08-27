@@ -74,6 +74,7 @@ __FBSDID("$FreeBSD$");
 #include <netipsec/ipsec.h>
 #endif /*IPSEC*/
 
+#include <machine/stdarg.h>
 #include <security/mac/mac_framework.h>
 
 VNET_DEFINE(int, ip_defttl) = IPDEFTTL;
@@ -124,7 +125,7 @@ int (*mrt_ioctl)(u_long, caddr_t, int);
 int (*legal_vif_num)(int);
 u_long (*ip_mcast_src)(int);
 
-void (*rsvp_input_p)(struct mbuf *m, int off);
+int (*rsvp_input_p)(struct mbuf **, int *, int);
 int (*ip_rsvp_vif)(struct socket *, struct sockopt *);
 void (*ip_rsvp_force_done)(struct socket *);
 #endif /* INET */
@@ -270,15 +271,17 @@ rip_append(struct inpcb *last, struct ip *ip, struct mbuf *n,
  * Setup generic address and protocol structures for raw_input routine, then
  * pass them along with mbuf chain.
  */
-void
-rip_input(struct mbuf *m, int off)
+int
+rip_input(struct mbuf **mp, int *offp, int proto)
 {
 	struct ifnet *ifp;
+	struct mbuf *m = *mp;
 	struct ip *ip = mtod(m, struct ip *);
-	int proto = ip->ip_p;
 	struct inpcb *inp, *last;
 	struct sockaddr_in ripsrc;
 	int hash;
+
+	*mp = NULL;
 
 	bzero(&ripsrc, sizeof(ripsrc));
 	ripsrc.sin_len = sizeof(ripsrc);
@@ -416,6 +419,7 @@ rip_input(struct mbuf *m, int off)
 		IPSTAT_INC(ips_noproto);
 		IPSTAT_DEC(ips_delivered);
 	}
+	return (IPPROTO_DONE);
 }
 
 /*
@@ -423,13 +427,19 @@ rip_input(struct mbuf *m, int off)
  * have setup with control call.
  */
 int
-rip_output(struct mbuf *m, struct socket *so, u_long dst)
+rip_output(struct mbuf *m, struct socket *so, ...)
 {
 	struct ip *ip;
 	int error;
 	struct inpcb *inp = sotoinpcb(so);
+	va_list ap;
+	u_long dst;
 	int flags = ((so->so_options & SO_DONTROUTE) ? IP_ROUTETOIF : 0) |
 	    IP_ALLOWBROADCAST;
+
+	va_start(ap, so);
+	dst = va_arg(ap, u_long);
+	va_end(ap);
 
 	/*
 	 * If the user handed us a complete IP packet, use it.  Otherwise,

@@ -25,4 +25,4 @@ ident		CHROMEBOOK-SPRING
 #FDT
 options 	FDT
 options 	FDT_DTB_STATIC
-makeoptions	FDT_DTS_FILE=exynos5250-chromebook-spring.dts
+makeoptions	FDT_DTS_FILE=exynos5250-spring.dts

@@ -110,6 +110,7 @@ int	kern_getfsstat(struct thread *td, struct statfs **buf, size_t bufsize,
 	    enum uio_seg bufseg, int flags);
 int	kern_getgroups(struct thread *td, u_int *ngrp, gid_t *groups);
 int	kern_getitimer(struct thread *, u_int, struct itimerval *);
+int	kern_getppid(struct thread *);
 int	kern_getpeername(struct thread *td, int fd, struct sockaddr **sa,
 	    socklen_t *alen);
 int	kern_getrusage(struct thread *td, int who, struct rusage *rup);
@@ -239,6 +240,7 @@ int	kern_ktimer_settime(struct thread *td, int timer_id, int flags,
 	    struct itimerspec *val, struct itimerspec *oval);
 int	kern_ktimer_gettime(struct thread *td, int timer_id,
 	    struct itimerspec *val);
+int	kern_ktimer_getoverrun(struct thread *td, int timer_id);
 int	kern_thr_new(struct thread *td, struct thr_param *param);
 int	kern_thr_suspend(struct thread *td, struct timespec *tsp);
 int	kern_truncate(struct thread *td, char *path, enum uio_seg pathseg,

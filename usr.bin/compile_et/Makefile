@@ -12,6 +12,4 @@ CFLAGS+=-I. -I${.CURDIR}/../../contrib/com_err
 
 WARNS?=	0
 
-NO_PIE=	yes
-
 .include <bsd.prog.mk>

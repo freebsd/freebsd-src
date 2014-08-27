@@ -29,31 +29,9 @@
 #ifndef _MACHINE_SF_BUF_H_
 #define _MACHINE_SF_BUF_H_
 
-#ifdef __mips_n64
-#include <vm/vm.h>
-#include <vm/vm_param.h>
-#include <vm/vm_page.h>
-#else
-#include <sys/queue.h>
-#endif
+#ifdef __mips_n64	/* In 64 bit the whole memory is directly mapped */
 
-#ifdef __mips_n64
-/* In 64 bit the whole memory is directly mapped */
-struct	sf_buf;
-
-static inline struct sf_buf *
-sf_buf_alloc(struct vm_page *m, int pri)
-{
-
-	return ((struct sf_buf *)m);
-}
-
-static inline void
-sf_buf_free(struct sf_buf *sf)
-{
-}
-
-static __inline vm_offset_t
+static inline vm_offset_t
 sf_buf_kva(struct sf_buf *sf)
 {
 	vm_page_t	m;
@@ -62,38 +40,12 @@ sf_buf_kva(struct sf_buf *sf)
 	return (MIPS_PHYS_TO_DIRECT(VM_PAGE_TO_PHYS(m)));
 }
 
-static __inline struct vm_page *
+static inline struct vm_page *
 sf_buf_page(struct sf_buf *sf)
 {
 
 	return ((vm_page_t)sf);
 }
 
-#else /* ! __mips_n64 */
-struct vm_page;
-
-struct sf_buf {
-	SLIST_ENTRY(sf_buf) free_list;	/* list of free buffer slots */
-	struct		vm_page *m;	/* currently mapped page */
-	vm_offset_t	kva;		/* va of mapping */
-};
-
-struct sf_buf * sf_buf_alloc(struct vm_page *m, int flags);
-void sf_buf_free(struct sf_buf *sf);
-
-static __inline vm_offset_t
-sf_buf_kva(struct sf_buf *sf)
-{
-
-	return (sf->kva);
-}
-
-static __inline struct vm_page *
-sf_buf_page(struct sf_buf *sf)
-{
-
-	return (sf->m);
-}
 #endif /* __mips_n64 */
-
 #endif /* !_MACHINE_SF_BUF_H_ */

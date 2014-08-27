@@ -1,12 +1,16 @@
 # $FreeBSD$
 
-.include <src.opts.mk>
+SYSDIR?=${.CURDIR}/..
+.include "${SYSDIR}/conf/kern.opts.mk"
 
 SUBDIR_PARALLEL=
 
 # Modules that include binary-only blobs of microcode should be selectable by
 # MK_SOURCELESS_UCODE option (see below).
 
+.if defined(MODULES_OVERRIDE) && !defined(ALL_MODULES)
+SUBDIR=${MODULES_OVERRIDE}
+.else
 SUBDIR=	\
 	${_3dfx} \
 	${_3dfx_linux} \
@@ -44,6 +48,7 @@ SUBDIR=	\
 	ata \
 	ath \
 	ath_pci \
+	autofs \
 	${_auxio} \
 	${_bce} \
 	bfe \
@@ -305,6 +310,7 @@ SUBDIR=	\
 	${_sf} \
 	${_sfxge} \
 	sge \
+	${_si} \
 	siba_bwn \
 	siftr \
 	siis \
@@ -359,7 +365,9 @@ SUBDIR=	\
 	${_vxge} \
 	wb \
 	${_wbwd} \
+	${_wds} \
 	${_wi} \
+	${_wl} \
 	wlan \
 	wlan_acl \
 	wlan_amrr \
@@ -542,6 +550,7 @@ _rdma=		rdma
 _safe=		safe
 _sbni=		sbni
 _scsi_low=	scsi_low
+_si=		si
 _smbfs=		smbfs
 _sound=		sound
 _speaker=	speaker
@@ -552,6 +561,7 @@ _streams=	streams
 _svr4=		svr4
 _vxge=  	vxge
 _wbwd=		wbwd
+_wds=		wds
 _wi=		wi
 _xe=		xe
 .if ${MK_ZFS} != "no" || defined(ALL_MODULES)
@@ -620,6 +630,7 @@ _nvram=		nvram
 _nxge=		nxge
 _tpm=		tpm
 _viawd=		viawd
+_wl=		wl
 _wpi=		wpi
 .if ${MK_SOURCELESS_UCODE} != "no"
 _wpifw=		wpifw
@@ -752,6 +763,7 @@ _s3=		s3
 _safe=		safe
 _scsi_low=	scsi_low
 _sfxge=		sfxge
+_si=		si
 _smbfs=		smbfs
 _sound=		sound
 _speaker=	speaker
@@ -829,9 +841,6 @@ _sound=		sound
 _zfs=		zfs
 .endif
 .endif
-
-.if defined(MODULES_OVERRIDE) && !defined(ALL_MODULES)
-SUBDIR=${MODULES_OVERRIDE}
 .endif
 
 .for reject in ${WITHOUT_MODULES}

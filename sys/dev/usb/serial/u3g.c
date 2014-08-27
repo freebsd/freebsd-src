@@ -76,15 +76,6 @@ SYSCTL_INT(_hw_usb_u3g, OID_AUTO, debug, CTLFLAG_RW,
 #define	U3G_CONFIG_INDEX	0
 #define	U3G_BSIZE		2048
 
-#define	U3GSP_GPRS		0
-#define	U3GSP_EDGE		1
-#define	U3GSP_CDMA		2
-#define	U3GSP_UMTS		3
-#define	U3GSP_HSDPA		4
-#define	U3GSP_HSUPA		5
-#define	U3GSP_HSPA		6
-#define	U3GSP_MAX		7
-
 /* Eject methods; See also usb_quirks.h:UQ_MSC_EJECT_* */
 #define	U3GINIT_HUAWEI		1	/* Requires Huawei init command */
 #define	U3GINIT_SIERRA		2	/* Requires Sierra init command */
@@ -95,7 +86,8 @@ SYSCTL_INT(_hw_usb_u3g, OID_AUTO, debug, CTLFLAG_RW,
 #define	U3GINIT_WAIT		7	/* Device reappears after a delay */
 #define	U3GINIT_SAEL_M460	8	/* Requires vendor init */
 #define	U3GINIT_HUAWEISCSI	9	/* Requires Huawei SCSI init command */
-#define	U3GINIT_TCT		10	/* Requires TCT Mobile init command */
+#define	U3GINIT_HUAWEISCSI2	10	/* Requires Huawei SCSI init command (2) */
+#define	U3GINIT_TCT		11	/* Requires TCT Mobile init command */
 
 enum {
 	U3G_BULK_WR,
@@ -345,6 +337,7 @@ static const STRUCT_USB_HOST_ID u3g_devs[] = {
 	U3G_DEV(NOVATEL, MC547, 0),
 	U3G_DEV(NOVATEL, MC679, 0),
 	U3G_DEV(NOVATEL, MC950D, 0),
+	U3G_DEV(NOVATEL, MC990D, 0),
 	U3G_DEV(NOVATEL, MIFI2200, U3GINIT_SCSIEJECT),
 	U3G_DEV(NOVATEL, MIFI2200V, U3GINIT_SCSIEJECT),
 	U3G_DEV(NOVATEL, U720, 0),
@@ -728,6 +721,8 @@ u3g_test_autoinst(void *arg, struct usb_device *udev,
 		method = U3GINIT_WAIT;
 	else if (usb_test_quirk(uaa, UQ_MSC_EJECT_HUAWEISCSI))
 		method = U3GINIT_HUAWEISCSI;
+	else if (usb_test_quirk(uaa, UQ_MSC_EJECT_HUAWEISCSI2))
+		method = U3GINIT_HUAWEISCSI2;
 	else if (usb_test_quirk(uaa, UQ_MSC_EJECT_TCT))
 		method = U3GINIT_TCT;
 	else if (usbd_lookup_id_by_uaa(u3g_devs, sizeof(u3g_devs), uaa) == 0)
@@ -748,6 +743,9 @@ u3g_test_autoinst(void *arg, struct usb_device *udev,
 		case U3GINIT_HUAWEISCSI:
 			error = usb_msc_eject(udev, 0, MSC_EJECT_HUAWEI);
 			break;
+		case U3GINIT_HUAWEISCSI2:
+			error = usb_msc_eject(udev, 0, MSC_EJECT_HUAWEI2);
+			break;
 		case U3GINIT_SCSIEJECT:
 			error = usb_msc_eject(udev, 0, MSC_EJECT_STOPUNIT);
 			break;
@@ -756,7 +754,8 @@ u3g_test_autoinst(void *arg, struct usb_device *udev,
 			break;
 		case U3GINIT_ZTESTOR:
 			error = usb_msc_eject(udev, 0, MSC_EJECT_STOPUNIT);
-			error |= usb_msc_eject(udev, 0, MSC_EJECT_ZTESTOR);
+			if (error == 0)
+			    error = usb_msc_eject(udev, 0, MSC_EJECT_ZTESTOR);
 			break;
 		case U3GINIT_CMOTECH:
 			error = usb_msc_eject(udev, 0, MSC_EJECT_CMOTECH);
@@ -890,7 +889,7 @@ u3g_attach(device_t dev)
 		sc->sc_iface[nports] = id->bInterfaceNumber;
 
 		if (bootverbose && sc->sc_xfer[nports][U3G_INTR]) {
-			device_printf(dev, "port %d supports modem control",
+			device_printf(dev, "port %d supports modem control\n",
 				      nports);
 		}
 

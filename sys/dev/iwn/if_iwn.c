@@ -8465,9 +8465,10 @@ iwn_panicked(void *arg0, int pending)
 	device_printf(sc->sc_dev, "%s: controller panicked, iv_state = %d; "
 	    "resetting...\n", __func__, vap->iv_state);
 
-	iwn_stop(sc);
-	iwn_init(sc);
-	iwn_start(sc->sc_ifp);
+	IWN_LOCK(sc);
+
+	iwn_stop_locked(sc);
+	iwn_init_locked(sc);
 	if (vap->iv_state >= IEEE80211_S_AUTH &&
 	    (error = iwn_auth(sc, vap)) != 0) {
 		device_printf(sc->sc_dev,
@@ -8478,6 +8479,11 @@ iwn_panicked(void *arg0, int pending)
 		device_printf(sc->sc_dev,
 		    "%s: could not move to run state\n", __func__);
 	}
+
+	/* Only run start once the NIC is in a useful state, like associated */
+	iwn_start_locked(sc->sc_ifp);
+
+	IWN_UNLOCK(sc);
 }
 
 static void

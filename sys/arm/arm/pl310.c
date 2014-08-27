@@ -378,6 +378,44 @@ pl310_set_way_sizes(struct pl310_softc *sc)
 	g_l2cache_size = g_way_size * g_ways_assoc;
 }
 
+/*
+ * Setup interrupt handling.  This is done only if the cache controller is
+ * disabled, for debugging.  We set counters so when a cache event happens we'll
+ * get interrupted and be warned that something is wrong, because no cache
+ * events should happen if we're disabled.
+ */
+static void
+pl310_config_intr(void *arg)
+{
+	struct pl310_softc * sc;
+
+	sc = arg;
+
+	/* activate the interrupt */
+	bus_setup_intr(sc->sc_dev, sc->sc_irq_res, INTR_TYPE_MISC | INTR_MPSAFE,
+	    pl310_filter, NULL, sc, &sc->sc_irq_h);
+
+	/* Cache Line Eviction for Counter 0 */
+	pl310_write4(sc, PL310_EVENT_COUNTER0_CONF, 
+	    EVENT_COUNTER_CONF_INCR | EVENT_COUNTER_CONF_CO);
+	/* Data Read Request for Counter 1 */
+	pl310_write4(sc, PL310_EVENT_COUNTER1_CONF, 
+	    EVENT_COUNTER_CONF_INCR | EVENT_COUNTER_CONF_DRREQ);
+
+	/* Enable and clear pending interrupts */
+	pl310_write4(sc, PL310_INTR_CLEAR, INTR_MASK_ECNTR);
+	pl310_write4(sc, PL310_INTR_MASK, INTR_MASK_ALL);
+
+	/* Enable counters and reset C0 and C1 */
+	pl310_write4(sc, PL310_EVENT_COUNTER_CTRL, 
+	    EVENT_COUNTER_CTRL_ENABLED | 
+	    EVENT_COUNTER_CTRL_C0_RESET | 
+	    EVENT_COUNTER_CTRL_C1_RESET);
+
+	config_intrhook_disestablish(sc->sc_ich);
+	free(sc->sc_ich, M_DEVBUF);
+}
+
 static int
 pl310_probe(device_t dev)
 {
@@ -415,10 +453,6 @@ pl310_attach(device_t dev)
 
 	pl310_softc = sc;
 	mtx_init(&sc->sc_mtx, "pl310lock", NULL, MTX_SPIN);
-
-	/* activate the interrupt */
-	bus_setup_intr(dev, sc->sc_irq_res, INTR_TYPE_MISC | INTR_MPSAFE,
-				pl310_filter, NULL, sc, &sc->sc_irq_h);
 
 	cache_id = pl310_read4(sc, PL310_CACHE_ID);
 	sc->sc_rtl_revision = (cache_id >> CACHE_ID_RELEASE_SHIFT) &
@@ -466,28 +500,14 @@ pl310_attach(device_t dev)
 		if (bootverbose)
 			pl310_print_config(sc);
 	} else {
-		/*
-		 * Set counters so when cache event happens we'll get interrupt
-		 * and be warned that something is off.
-		 */
-
-		/* Cache Line Eviction for Counter 0 */
-		pl310_write4(sc, PL310_EVENT_COUNTER0_CONF, 
-		    EVENT_COUNTER_CONF_INCR | EVENT_COUNTER_CONF_CO);
-		/* Data Read Request for Counter 1 */
-		pl310_write4(sc, PL310_EVENT_COUNTER1_CONF, 
-		    EVENT_COUNTER_CONF_INCR | EVENT_COUNTER_CONF_DRREQ);
-
-		/* Enable and clear pending interrupts */
-		pl310_write4(sc, PL310_INTR_CLEAR, INTR_MASK_ECNTR);
-		pl310_write4(sc, PL310_INTR_MASK, INTR_MASK_ALL);
-
-		/* Enable counters and reset C0 and C1 */
-		pl310_write4(sc, PL310_EVENT_COUNTER_CTRL, 
-		    EVENT_COUNTER_CTRL_ENABLED | 
-		    EVENT_COUNTER_CTRL_C0_RESET | 
-		    EVENT_COUNTER_CTRL_C1_RESET);
-
+		malloc(sizeof(*sc->sc_ich), M_DEVBUF, M_WAITOK);
+		sc->sc_ich->ich_func = pl310_config_intr;
+		sc->sc_ich->ich_arg = sc;
+		if (config_intrhook_establish(sc->sc_ich) != 0) {
+			device_printf(dev,
+			    "config_intrhook_establish failed\n");
+			return(ENXIO);
+		}
 		device_printf(dev, "L2 Cache disabled\n");
 	}
 
@@ -514,4 +534,6 @@ static driver_t pl310_driver = {
 };
 static devclass_t pl310_devclass;
 
-DRIVER_MODULE(pl310, simplebus, pl310_driver, pl310_devclass, 0, 0);
+EARLY_DRIVER_MODULE(pl310, simplebus, pl310_driver, pl310_devclass, 0, 0,
+    BUS_PASS_CPU + BUS_PASS_ORDER_MIDDLE);
+

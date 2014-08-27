@@ -724,13 +724,11 @@ sctp_handle_asconf(struct mbuf *m, unsigned int offset,
 		}
 		switch (param_type) {
 		case SCTP_ADD_IP_ADDRESS:
-			asoc->peer_supports_asconf = 1;
 			m_result = sctp_process_asconf_add_ip(src, aph, stcb,
 			    (cnt < SCTP_BASE_SYSCTL(sctp_hb_maxburst)), error);
 			cnt++;
 			break;
 		case SCTP_DEL_IP_ADDRESS:
-			asoc->peer_supports_asconf = 1;
 			m_result = sctp_process_asconf_delete_ip(src, aph, stcb,
 			    error);
 			break;
@@ -738,7 +736,6 @@ sctp_handle_asconf(struct mbuf *m, unsigned int offset,
 			/* not valid in an ASCONF chunk */
 			break;
 		case SCTP_SET_PRIM_ADDR:
-			asoc->peer_supports_asconf = 1;
 			m_result = sctp_process_asconf_set_primary(src, aph,
 			    stcb, error);
 			break;
@@ -930,8 +927,6 @@ sctp_addr_match(struct sctp_paramhdr *ph, struct sockaddr *sa)
 void
 sctp_asconf_cleanup(struct sctp_tcb *stcb, struct sctp_nets *net)
 {
-	/* mark peer as ASCONF incapable */
-	stcb->asoc.peer_supports_asconf = 0;
 	/*
 	 * clear out any existing asconfs going out
 	 */
@@ -1340,7 +1335,7 @@ sctp_asconf_queue_add(struct sctp_tcb *stcb, struct sctp_ifa *ifa,
 	int pending_delete_queued = 0;
 
 	/* see if peer supports ASCONF */
-	if (stcb->asoc.peer_supports_asconf == 0) {
+	if (stcb->asoc.asconf_supported == 0) {
 		return (-1);
 	}
 	/*
@@ -1430,7 +1425,7 @@ sctp_asconf_queue_sa_delete(struct sctp_tcb *stcb, struct sockaddr *sa)
 		return (-1);
 	}
 	/* see if peer supports ASCONF */
-	if (stcb->asoc.peer_supports_asconf == 0) {
+	if (stcb->asoc.asconf_supported == 0) {
 		return (-1);
 	}
 	/* make sure the request isn't already in the queue */
@@ -1550,7 +1545,7 @@ sctp_asconf_find_param(struct sctp_tcb *stcb, uint32_t correlation_id)
  * notifications based on the error response
  */
 static void
-sctp_asconf_process_error(struct sctp_tcb *stcb,
+sctp_asconf_process_error(struct sctp_tcb *stcb SCTP_UNUSED,
     struct sctp_asconf_paramhdr *aph)
 {
 	struct sctp_error_cause *eh;
@@ -1588,10 +1583,7 @@ sctp_asconf_process_error(struct sctp_tcb *stcb,
 		switch (param_type) {
 		case SCTP_ADD_IP_ADDRESS:
 		case SCTP_DEL_IP_ADDRESS:
-			stcb->asoc.peer_supports_asconf = 0;
-			break;
 		case SCTP_SET_PRIM_ADDR:
-			stcb->asoc.peer_supports_asconf = 0;
 			break;
 		default:
 			break;
@@ -1627,8 +1619,6 @@ sctp_asconf_process_param_ack(struct sctp_tcb *stcb,
 		SCTPDBG(SCTP_DEBUG_ASCONF1,
 		    "process_param_ack: set primary IP address\n");
 		/* nothing to do... peer may start using this addr */
-		if (flag == 0)
-			stcb->asoc.peer_supports_asconf = 0;
 		break;
 	default:
 		/* should NEVER happen */
@@ -1646,11 +1636,11 @@ sctp_asconf_process_param_ack(struct sctp_tcb *stcb,
  * cleanup from a bad asconf ack parameter
  */
 static void
-sctp_asconf_ack_clear(struct sctp_tcb *stcb)
+sctp_asconf_ack_clear(struct sctp_tcb *stcb SCTP_UNUSED)
 {
 	/* assume peer doesn't really know how to do asconfs */
-	stcb->asoc.peer_supports_asconf = 0;
 	/* XXX we could free the pending queue here */
+
 }
 
 void
@@ -1988,7 +1978,7 @@ sctp_addr_mgmt_assoc(struct sctp_inpcb *inp, struct sctp_tcb *stcb,
 	/* queue an asconf for this address add/delete */
 	if (sctp_is_feature_on(inp, SCTP_PCB_FLAGS_DO_ASCONF)) {
 		/* does the peer do asconf? */
-		if (stcb->asoc.peer_supports_asconf) {
+		if (stcb->asoc.asconf_supported) {
 			/* queue an asconf for this addr */
 			status = sctp_asconf_queue_add(stcb, ifa, type);
 
@@ -2238,7 +2228,7 @@ sctp_asconf_iterator_stcb(struct sctp_inpcb *inp, struct sctp_tcb *stcb,
 		}
 		/* queue an asconf for this address add/delete */
 		if (sctp_is_feature_on(inp, SCTP_PCB_FLAGS_DO_ASCONF) &&
-		    stcb->asoc.peer_supports_asconf) {
+		    stcb->asoc.asconf_supported == 1) {
 			/* queue an asconf for this addr */
 			status = sctp_asconf_queue_add(stcb, ifa, type);
 			/*
@@ -2886,7 +2876,7 @@ sctp_process_initack_addresses(struct sctp_tcb *stcb, struct mbuf *m,
 			/* are ASCONFs allowed ? */
 			if ((sctp_is_feature_on(stcb->sctp_ep,
 			    SCTP_PCB_FLAGS_DO_ASCONF)) &&
-			    stcb->asoc.peer_supports_asconf) {
+			    stcb->asoc.asconf_supported) {
 				/* queue an ASCONF DEL_IP_ADDRESS */
 				status = sctp_asconf_queue_sa_delete(stcb, sa);
 				/*

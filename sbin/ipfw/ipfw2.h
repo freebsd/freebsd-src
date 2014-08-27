@@ -71,6 +71,8 @@ struct _s_x {
 	int x;
 };
 
+extern struct _s_x f_ipdscp[];
+
 enum tokens {
 	TOK_NULL=0,
 
@@ -213,7 +215,19 @@ enum tokens {
 #define NEED(_p, msg)      {if (!_p) errx(EX_USAGE, msg);}
 #define NEED1(msg)      {if (!(*av)) errx(EX_USAGE, msg);}
 
-int pr_u64(uint64_t *pd, int width);
+struct buf_pr {
+	char	*buf;	/* allocated buffer */
+	char	*ptr;	/* current pointer */
+	size_t	size;	/* total buffer size */
+	size_t	avail;	/* available storage */
+	size_t	needed;	/* length needed */
+};
+
+int pr_u64(struct buf_pr *bp, uint64_t *pd, int width);
+int bp_alloc(struct buf_pr *b, size_t size);
+void bp_free(struct buf_pr *b);
+int bprintf(struct buf_pr *b, char *format, ...);
+
 
 /* memory allocation support */
 void *safe_calloc(size_t number, size_t size);
@@ -273,7 +287,7 @@ void ipfw_list(int ac, char *av[], int show_counters);
 /* altq.c */
 void altq_set_enabled(int enabled);
 u_int32_t altq_name_to_qid(const char *name);
-void print_altq_cmd(struct _ipfw_insn_altq *altqptr);
+void print_altq_cmd(struct buf_pr *bp, struct _ipfw_insn_altq *altqptr);
 #else
 #define NO_ALTQ
 #endif
@@ -285,10 +299,10 @@ int ipfw_delete_pipe(int pipe_or_queue, int n);
 
 /* ipv6.c */
 void print_unreach6_code(uint16_t code);
-void print_ip6(struct _ipfw_insn_ip6 *cmd, char const *s);
-void print_flow6id(struct _ipfw_insn_u32 *cmd);
-void print_icmp6types(struct _ipfw_insn_u32 *cmd);
-void print_ext6hdr(struct _ipfw_insn *cmd );
+void print_ip6(struct buf_pr *bp, struct _ipfw_insn_ip6 *cmd, char const *s);
+void print_flow6id(struct buf_pr *bp, struct _ipfw_insn_u32 *cmd);
+void print_icmp6types(struct buf_pr *bp, struct _ipfw_insn_u32 *cmd);
+void print_ext6hdr(struct buf_pr *bp, struct _ipfw_insn *cmd );
 
 struct _ipfw_insn *add_srcip6(struct _ipfw_insn *cmd, char *av, int cblen);
 struct _ipfw_insn *add_dstip6(struct _ipfw_insn *cmd, char *av, int cblen);

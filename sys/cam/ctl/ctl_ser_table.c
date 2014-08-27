@@ -69,7 +69,7 @@ ctl_serialize_table[CTL_SERIDX_COUNT][CTL_SERIDX_COUNT] = {
 /*MD_SEL  */{   bK, bK, bK, bK, bK,  bK,  bK,  pS, pS,  bK, pS,  bK, bK},
 /*RQ_SNS  */{   pS, pS, pS, pS, pS,  pS,  bK,  pS, pS,  bK, pS,  bK, bK},
 /*INQ     */{   pS, pS, pS, pS, pS,  pS,  bK,  pS, pS,  pS, pS,  bK, bK},
-/*RD_CAP  */{   pS, pS, pS, pS, pS,  pS,  bK,  pS, pS,  pS, pS,  bK, bK},
+/*RD_CAP  */{   pS, pS, pS, pS, pS,  pS,  bK,  pS, pS,  pS, pS,  bK, pS},
 /*RES     */{   bK, bK, bK, bK, bK,  bK,  bK,  pS, bK,  bK, bK,  bK, bK},
 /*LOG_SNS */{   pS, pS, pS, pS, pS,  bK,  bK,  pS, pS,  bK, pS,  bK, bK},
 /*FORMAT  */{   pS, bK, bK, bK, bK,  bK,  pS,  pS, bK,  bK, bK,  bK, bK},

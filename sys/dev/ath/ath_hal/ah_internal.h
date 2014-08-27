@@ -50,8 +50,8 @@
 #endif
 
 typedef struct {
-	uint16_t	start;		/* first register */
-	uint16_t	end;		/* ending register or zero */
+	uint32_t	start;		/* first register */
+	uint32_t	end;		/* ending register or zero */
 } HAL_REGRANGE;
 
 typedef struct {

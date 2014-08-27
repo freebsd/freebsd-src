@@ -1178,7 +1178,7 @@ cxgbe_init(void *arg)
 static int
 cxgbe_ioctl(struct ifnet *ifp, unsigned long cmd, caddr_t data)
 {
-	int rc = 0, mtu, flags;
+	int rc = 0, mtu, flags, can_sleep;
 	struct port_info *pi = ifp->if_softc;
 	struct adapter *sc = pi->adapter;
 	struct ifreq *ifr = (struct ifreq *)data;
@@ -1203,7 +1203,10 @@ cxgbe_ioctl(struct ifnet *ifp, unsigned long cmd, caddr_t data)
 		break;
 
 	case SIOCSIFFLAGS:
-		rc = begin_synchronized_op(sc, pi, SLEEP_OK | INTR_OK, "t4flg");
+		can_sleep = 0;
+redo_sifflags:
+		rc = begin_synchronized_op(sc, pi,
+		    can_sleep ? (SLEEP_OK | INTR_OK) : HOLD_LOCK, "t4flg");
 		if (rc)
 			return (rc);
 
@@ -1212,15 +1215,32 @@ cxgbe_ioctl(struct ifnet *ifp, unsigned long cmd, caddr_t data)
 				flags = pi->if_flags;
 				if ((ifp->if_flags ^ flags) &
 				    (IFF_PROMISC | IFF_ALLMULTI)) {
+					if (can_sleep == 1) {
+						end_synchronized_op(sc, 0);
+						can_sleep = 0;
+						goto redo_sifflags;
+					}
 					rc = update_mac_settings(ifp,
 					    XGMAC_PROMISC | XGMAC_ALLMULTI);
 				}
-			} else
+			} else {
+				if (can_sleep == 0) {
+					end_synchronized_op(sc, LOCK_HELD);
+					can_sleep = 1;
+					goto redo_sifflags;
+				}
 				rc = cxgbe_init_synchronized(pi);
+			}
 			pi->if_flags = ifp->if_flags;
-		} else if (ifp->if_drv_flags & IFF_DRV_RUNNING)
+		} else if (ifp->if_drv_flags & IFF_DRV_RUNNING) {
+			if (can_sleep == 0) {
+				end_synchronized_op(sc, LOCK_HELD);
+				can_sleep = 1;
+				goto redo_sifflags;
+			}
 			rc = cxgbe_uninit_synchronized(pi);
-		end_synchronized_op(sc, 0);
+		}
+		end_synchronized_op(sc, can_sleep ? 0 : LOCK_HELD);
 		break;
 
 	case SIOCADDMULTI:
@@ -7597,7 +7617,7 @@ set_sched_class(struct adapter *sc, struct t4_sched_params *p)
 		}
 
 		/* And pass the request to the firmware ...*/
-		rc = -t4_sched_config(sc, fw_type, p->u.config.minmax);
+		rc = -t4_sched_config(sc, fw_type, p->u.config.minmax, 1);
 		goto done;
 	}
 
@@ -7695,7 +7715,7 @@ set_sched_class(struct adapter *sc, struct t4_sched_params *p)
 		rc = -t4_sched_params(sc, fw_type, fw_level, fw_mode,
 		    fw_rateunit, fw_ratemode, p->u.params.channel,
 		    p->u.params.cl, p->u.params.minrate, p->u.params.maxrate,
-		    p->u.params.weight, p->u.params.pktsize);
+		    p->u.params.weight, p->u.params.pktsize, 1);
 		goto done;
 	}
 

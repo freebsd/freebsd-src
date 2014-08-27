@@ -132,7 +132,9 @@ __FBSDID("$FreeBSD$");
 /* Define this to check for blessed mutexes */
 #undef BLESSING
 
+#ifndef WITNESS_COUNT
 #define	WITNESS_COUNT 		1536
+#endif
 #define	WITNESS_CHILDCOUNT 	(WITNESS_COUNT * 4)
 #define	WITNESS_HASH_SIZE	251	/* Prime, gives load factor < 2 */
 #define	WITNESS_PENDLIST	(1024 + MAXCPU)

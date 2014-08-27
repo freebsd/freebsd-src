@@ -124,7 +124,7 @@
 .\" ========================================================================
 .\"
 .IX Title "S_CLIENT 1"
-.TH S_CLIENT 1 "2014-06-05" "1.0.1h" "OpenSSL"
+.TH S_CLIENT 1 "2014-08-06" "1.0.1i" "OpenSSL"
 .\" For nroff, turn off justification.  Always turn off hyphenation; it makes
 .\" way too many mistakes in technical documents.
 .if n .ad l
@@ -135,6 +135,7 @@ s_client \- SSL/TLS client program
 .IX Header "SYNOPSIS"
 \&\fBopenssl\fR \fBs_client\fR
 [\fB\-connect host:port\fR]
+[\fB\-servername name\fR]
 [\fB\-verify depth\fR]
 [\fB\-verify_return_error\fR]
 [\fB\-cert filename\fR]
@@ -154,6 +155,7 @@ s_client \- SSL/TLS client program
 [\fB\-nbio\fR]
 [\fB\-crlf\fR]
 [\fB\-ign_eof\fR]
+[\fB\-no_ign_eof\fR]
 [\fB\-quiet\fR]
 [\fB\-ssl2\fR]
 [\fB\-ssl3\fR]
@@ -163,6 +165,7 @@ s_client \- SSL/TLS client program
 [\fB\-no_tls1\fR]
 [\fB\-bugs\fR]
 [\fB\-cipher cipherlist\fR]
+[\fB\-serverpref\fR]
 [\fB\-starttls protocol\fR]
 [\fB\-engine id\fR]
 [\fB\-tlsextdebug\fR]
@@ -170,6 +173,8 @@ s_client \- SSL/TLS client program
 [\fB\-sess_out filename\fR]
 [\fB\-sess_in filename\fR]
 [\fB\-rand file(s)\fR]
+[\fB\-status\fR]
+[\fB\-nextprotoneg protocols\fR]
 .SH "DESCRIPTION"
 .IX Header "DESCRIPTION"
 The \fBs_client\fR command implements a generic \s-1SSL/TLS\s0 client which connects
@@ -181,6 +186,9 @@ to a remote host using \s-1SSL/TLS\s0. It is a \fIvery\fR useful diagnostic tool
 .IX Item "-connect host:port"
 This specifies the host and optional port to connect to. If not specified
 then an attempt is made to connect to the local host on port 4433.
+.IP "\fB\-servername name\fR" 4
+.IX Item "-servername name"
+Set the \s-1TLS\s0 \s-1SNI\s0 (Server Name Indication) extension in the ClientHello message.
 .IP "\fB\-cert certname\fR" 4
 .IX Item "-cert certname"
 The certificate to use, if one is requested by the server. The default is
@@ -271,6 +279,10 @@ input.
 .IX Item "-quiet"
 inhibit printing of session and certificate information.  This implicitly
 turns on \fB\-ign_eof\fR as well.
+.IP "\fB\-no_ign_eof\fR" 4
+.IX Item "-no_ign_eof"
+shut down the connection when end of file is reached in the input.
+Can be used to override the implicit \fB\-ign_eof\fR after \fB\-quiet\fR.
 .IP "\fB\-psk_identity identity\fR" 4
 .IX Item "-psk_identity identity"
 Use the \s-1PSK\s0 identity \fBidentity\fR when using a \s-1PSK\s0 cipher suite.
@@ -299,6 +311,9 @@ this allows the cipher list sent by the client to be modified. Although
 the server determines which cipher suite is used it should take the first
 supported cipher in the list sent by the client. See the \fBciphers\fR
 command for more information.
+.IP "\fB\-serverpref\fR" 4
+.IX Item "-serverpref"
+use the server's cipher preferences; only used for \s-1SSLV2\s0.
 .IP "\fB\-starttls protocol\fR" 4
 .IX Item "-starttls protocol"
 send the protocol-specific message(s) to switch to \s-1TLS\s0 for communication.
@@ -330,6 +345,20 @@ generator, or an \s-1EGD\s0 socket (see \fIRAND_egd\fR\|(3)).
 Multiple files can be specified separated by a OS-dependent character.
 The separator is \fB;\fR for MS-Windows, \fB,\fR for OpenVMS, and \fB:\fR for
 all others.
+.IP "\fB\-status\fR" 4
+.IX Item "-status"
+sends a certificate status request to the server (\s-1OCSP\s0 stapling). The server
+response (if any) is printed out.
+.IP "\fB\-nextprotoneg protocols\fR" 4
+.IX Item "-nextprotoneg protocols"
+enable Next Protocol Negotiation \s-1TLS\s0 extension and provide a list of
+comma-separated protocol names that the client should advertise
+support for. The list should contain most wanted protocols first.
+Protocol names are printable \s-1ASCII\s0 strings, for example \*(L"http/1.1\*(R" or
+\&\*(L"spdy/3\*(R".
+Empty list of protocols is treated specially and will cause the client to
+advertise support for the \s-1TLS\s0 extension but disconnect just after
+reciving ServerHello with a list of server supported protocols.
 .SH "CONNECTED COMMANDS"
 .IX Header "CONNECTED COMMANDS"
 If a connection is established with an \s-1SSL\s0 server then any data received

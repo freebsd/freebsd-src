@@ -897,7 +897,7 @@ uipc_send(struct socket *so, int flags, struct mbuf *m, struct sockaddr *nam,
 			from = &sun_noname;
 		so2 = unp2->unp_socket;
 		SOCKBUF_LOCK(&so2->so_rcv);
-		if (sbappendaddr_nospacecheck_locked(&so2->so_rcv, from, m,
+		if (sbappendaddr_locked(&so2->so_rcv, from, m,
 		    control)) {
 			sorwakeup_locked(so2);
 			m = NULL;

@@ -294,6 +294,19 @@ __elfN(get_brandinfo)(struct image_params *imgp, const char *interp,
 			return (bi);
 	}
 
+	/* No known brand, see if the header is recognized by any brand */
+	for (i = 0; i < MAX_BRANDS; i++) {
+		bi = elf_brand_list[i];
+		if (bi == NULL || bi->flags & BI_BRAND_NOTE_MANDATORY ||
+		    bi->header_supported == NULL)
+			continue;
+		if (hdr->e_machine == bi->machine) {
+			ret = bi->header_supported(imgp);
+			if (ret)
+				return (bi);
+		}
+	}
+
 	/* Lacking a known brand, search for a recognized interpreter. */
 	if (interp != NULL) {
 		for (i = 0; i < MAX_BRANDS; i++) {

@@ -3134,6 +3134,24 @@ vm_page_object_lock_assert(vm_page_t m)
 	if (m->object != NULL && !vm_page_xbusied(m))
 		VM_OBJECT_ASSERT_WLOCKED(m->object);
 }
+
+void
+vm_page_assert_pga_writeable(vm_page_t m, uint8_t bits)
+{
+
+	if ((bits & PGA_WRITEABLE) == 0)
+		return;
+
+	/*
+	 * The PGA_WRITEABLE flag can only be set if the page is
+	 * managed, is exclusively busied or the object is locked.
+	 * Currently, this flag is only set by pmap_enter().
+	 */
+	KASSERT((m->oflags & VPO_UNMANAGED) == 0,
+	    ("PGA_WRITEABLE on unmanaged page"));
+	if (!vm_page_xbusied(m))
+		VM_OBJECT_ASSERT_LOCKED(m->object);
+}
 #endif
 
 #include "opt_ddb.h"

@@ -159,7 +159,7 @@ static int	rt_xaddrs(caddr_t cp, caddr_t cplim,
 static int	sysctl_dumpentry(struct radix_node *rn, void *vw);
 static int	sysctl_iflist(int af, struct walkarg *w);
 static int	sysctl_ifmalist(int af, struct walkarg *w);
-static int	route_output(struct mbuf *m, struct socket *so);
+static int	route_output(struct mbuf *m, struct socket *so, ...);
 static void	rt_getmetrics(const struct rtentry *rt, struct rt_metrics *out);
 static void	rt_dispatch(struct mbuf *, sa_family_t);
 static struct sockaddr	*rtsock_fix_netmask(struct sockaddr *dst,
@@ -516,7 +516,7 @@ rtm_get_jailed(struct rt_addrinfo *info, struct ifnet *ifp,
 
 /*ARGSUSED*/
 static int
-route_output(struct mbuf *m, struct socket *so)
+route_output(struct mbuf *m, struct socket *so, ...)
 {
 	struct rt_msghdr *rtm = NULL;
 	struct rtentry *rt = NULL;

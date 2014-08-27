@@ -58,15 +58,16 @@ struct ofwfb_softc {
 
 static vd_probe_t	ofwfb_probe;
 static vd_init_t	ofwfb_init;
-static vd_bitbltchr_t	ofwfb_bitbltchr;
+static vd_bitblt_text_t	ofwfb_bitblt_text;
+static vd_bitblt_bmp_t	ofwfb_bitblt_bitmap;
 
 static const struct vt_driver vt_ofwfb_driver = {
 	.vd_name	= "ofwfb",
 	.vd_probe	= ofwfb_probe,
 	.vd_init	= ofwfb_init,
 	.vd_blank	= vt_fb_blank,
-	.vd_bitbltchr	= ofwfb_bitbltchr,
-	.vd_maskbitbltchr = ofwfb_bitbltchr,
+	.vd_bitblt_text	= ofwfb_bitblt_text,
+	.vd_bitblt_bmp	= ofwfb_bitblt_bitmap,
 	.vd_fb_ioctl	= vt_fb_ioctl,
 	.vd_fb_mmap	= vt_fb_mmap,
 	.vd_priority	= VD_PRIORITY_GENERIC+1,
@@ -101,9 +102,10 @@ ofwfb_probe(struct vt_device *vd)
 }
 
 static void
-ofwfb_bitbltchr(struct vt_device *vd, const uint8_t *src, const uint8_t *mask,
-    int bpl, vt_axis_t top, vt_axis_t left, unsigned int width,
-    unsigned int height, term_color_t fg, term_color_t bg)
+ofwfb_bitblt_bitmap(struct vt_device *vd, const struct vt_window *vw,
+    const uint8_t *pattern, const uint8_t *mask,
+    unsigned int width, unsigned int height,
+    unsigned int x, unsigned int y, term_color_t fg, term_color_t bg)
 {
 	struct fb_info *sc = vd->vd_softc;
 	u_long line;
@@ -120,15 +122,15 @@ ofwfb_bitbltchr(struct vt_device *vd, const uint8_t *src, const uint8_t *mask,
 	b = m = 0;
 
 	/* Don't try to put off screen pixels */
-	if (((left + width) > vd->vd_width) || ((top + height) >
+	if (((x + width) > vd->vd_width) || ((y + height) >
 	    vd->vd_height))
 		return;
 
-	line = (sc->fb_stride * top) + left * sc->fb_bpp/8;
+	line = (sc->fb_stride * y) + x * sc->fb_bpp/8;
 	if (mask == NULL && sc->fb_bpp == 8 && (width % 8 == 0)) {
 		for (; height > 0; height--) {
 			for (c = 0; c < width; c += 8) {
-				b = *src++;
+				b = *pattern++;
 
 				/*
 				 * Assume that there is more background than
@@ -161,7 +163,7 @@ ofwfb_bitbltchr(struct vt_device *vd, const uint8_t *src, const uint8_t *mask,
 		for (; height > 0; height--) {
 			for (c = 0; c < width; c++) {
 				if (c % 8 == 0)
-					b = *src++;
+					b = *pattern++;
 				else
 					b <<= 1;
 				if (mask != NULL) {
@@ -192,6 +194,62 @@ ofwfb_bitbltchr(struct vt_device *vd, const uint8_t *src, const uint8_t *mask,
 	}
 }
 
+void
+ofwfb_bitblt_text(struct vt_device *vd, const struct vt_window *vw,
+    const term_rect_t *area)
+{
+	unsigned int col, row, x, y;
+	struct vt_font *vf;
+	term_char_t c;
+	term_color_t fg, bg;
+	const uint8_t *pattern;
+
+	vf = vw->vw_font;
+
+	for (row = area->tr_begin.tp_row; row < area->tr_end.tp_row; ++row) {
+		for (col = area->tr_begin.tp_col; col < area->tr_end.tp_col;
+		    ++col) {
+			x = col * vf->vf_width +
+			    vw->vw_draw_area.tr_begin.tp_col;
+			y = row * vf->vf_height +
+			    vw->vw_draw_area.tr_begin.tp_row;
+
+			c = VTBUF_GET_FIELD(&vw->vw_buf, row, col);
+			pattern = vtfont_lookup(vf, c);
+			vt_determine_colors(c,
+			    VTBUF_ISCURSOR(&vw->vw_buf, row, col), &fg, &bg);
+
+			ofwfb_bitblt_bitmap(vd, vw,
+			    pattern, NULL, vf->vf_width, vf->vf_height,
+			    x, y, fg, bg);
+		}
+	}
+
+#ifndef SC_NO_CUTPASTE
+	if (!vd->vd_mshown)
+		return;
+
+	term_rect_t drawn_area;
+
+	drawn_area.tr_begin.tp_col = area->tr_begin.tp_col * vf->vf_width +
+	    vw->vw_draw_area.tr_begin.tp_col;
+	drawn_area.tr_begin.tp_row = area->tr_begin.tp_row * vf->vf_height +
+	    vw->vw_draw_area.tr_begin.tp_row;
+	drawn_area.tr_end.tp_col = area->tr_end.tp_col * vf->vf_width +
+	    vw->vw_draw_area.tr_begin.tp_col;
+	drawn_area.tr_end.tp_row = area->tr_end.tp_row * vf->vf_height +
+	    vw->vw_draw_area.tr_begin.tp_row;
+
+	if (vt_is_cursor_in_area(vd, &drawn_area)) {
+		ofwfb_bitblt_bitmap(vd, vw,
+		    vd->vd_mcursor->map, vd->vd_mcursor->mask,
+		    vd->vd_mcursor->width, vd->vd_mcursor->height,
+		    vd->vd_mx_drawn, vd->vd_my_drawn,
+		    vd->vd_mcursor_fg, vd->vd_mcursor_bg);
+	}
+#endif
+}
+
 static void
 ofwfb_initialize(struct vt_device *vd)
 {
@@ -206,8 +264,8 @@ ofwfb_initialize(struct vt_device *vd)
 
 	switch (sc->fb.fb_bpp) {
 	case 8:
-		vt_generate_vga_palette(sc->fb.fb_cmap, COLOR_FORMAT_RGB, 255,
-		    0, 255, 8, 255, 16);
+		vt_generate_cons_palette(sc->fb.fb_cmap, COLOR_FORMAT_RGB, 255,
+		    16, 255, 8, 255, 0);
 
 		for (i = 0; i < 16; i++) {
 			OF_call_method("color!", sc->sc_handle, 4, 1,
@@ -229,11 +287,11 @@ ofwfb_initialize(struct vt_device *vd)
 		oldpix = bus_space_read_4(sc->sc_memt, sc->fb.fb_vbase, 0);
 		bus_space_write_4(sc->sc_memt, sc->fb.fb_vbase, 0, 0xff000000);
 		if (*(uint8_t *)(sc->fb.fb_vbase) == 0xff)
-			vt_generate_vga_palette(sc->fb.fb_cmap,
-			    COLOR_FORMAT_RGB, 255, 16, 255, 8, 255, 0);
-		else
-			vt_generate_vga_palette(sc->fb.fb_cmap,
+			vt_generate_cons_palette(sc->fb.fb_cmap,
 			    COLOR_FORMAT_RGB, 255, 0, 255, 8, 255, 16);
+		else
+			vt_generate_cons_palette(sc->fb.fb_cmap,
+			    COLOR_FORMAT_RGB, 255, 16, 255, 8, 255, 0);
 		bus_space_write_4(sc->sc_memt, sc->fb.fb_vbase, 0, oldpix);
 		break;
 
@@ -337,6 +395,8 @@ ofwfb_init(struct vt_device *vd)
 	#else
 		#error Unsupported platform!
 	#endif
+
+		sc->fb.fb_pbase = fb_phys;
 	} else {
 		/*
 		 * Some IBM systems don't have an address property. Try to
@@ -386,20 +446,15 @@ ofwfb_init(struct vt_device *vd)
 
 	#if defined(__powerpc__)
 		OF_decode_addr(node, fb_phys, &sc->sc_memt, &sc->fb.fb_vbase);
-	#elif defined(__sparc64__)
-		OF_decode_addr(node, fb_phys, &space, &phys);
-		sc->sc_memt = &ofwfb_memt[0];
-		sc->fb.fb_vbase = sparc64_fake_bustag(space, phys, sc->sc_memt);
+		sc->fb.fb_pbase = sc->fb.fb_vbase; /* 1:1 mapped */
 	#else
 		/* No ability to interpret assigned-addresses otherwise */
 		return (CN_DEAD);
 	#endif
         }
 
-	sc->fb.fb_pbase = fb_phys;
 
 	ofwfb_initialize(vd);
-	fb_probe(&sc->fb);
 	vt_fb_init(vd);
 
 	return (CN_INTERNAL);

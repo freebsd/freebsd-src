@@ -13,8 +13,6 @@ SRCS=		commands.c main.c network.c ring.c sys_bsd.c \
 CFLAGS+=	-DKLUDGELINEMODE -DUSE_TERMIO -DENV_HACK -DOPIE \
 		-I${TELNETDIR} -I${TELNETDIR}/libtelnet/
 
-NO_PIE=	yes
-
 .if ${MK_INET6_SUPPORT} != "no"
 CFLAGS+=	-DINET6
 .endif

@@ -5,6 +5,7 @@
 
 SUBDIR=	adduser \
 	arp \
+	autofs \
 	binmiscctl \
 	bootparamd \
 	bsdconfig \
