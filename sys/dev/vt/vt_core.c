@@ -1476,8 +1476,13 @@ vt_mouse_event(int type, int x, int y, int event, int cnt, int mlevel)
 	vf = vw->vw_font;
 	mark = 0;
 
-	if (vw->vw_flags & VWF_MOUSE_HIDE)
-		return; /* Mouse disabled. */
+	if (vw->vw_flags & (VWF_MOUSE_HIDE | VWF_GRAPHICS))
+		/*
+		 * Either the mouse is disabled, or the window is in
+		 * "graphics mode". The graphics mode is usually set by
+		 * an X server, using the KDSETMODE ioctl.
+		 */
+		return;
 
 	if (vf == NULL)	/* Text mode. */
 		return;
@@ -1509,7 +1514,7 @@ vt_mouse_event(int type, int x, int y, int event, int cnt, int mlevel)
 		vd->vd_my = y;
 		if ((vd->vd_mstate & MOUSE_BUTTON1DOWN) &&
 		    (vtbuf_set_mark(&vw->vw_buf, VTB_MARK_MOVE,
-			vd->vd_mx / vf->vf_width, 
+			vd->vd_mx / vf->vf_width,
 			vd->vd_my / vf->vf_height) == 1)) {
 
 			/*
@@ -1854,7 +1859,20 @@ skip_thunk:
 		return (0);
 	}
 	case KDSETMODE:
-		/* XXX */
+		/*
+		 * FIXME: This implementation is incomplete compared to
+		 * syscons.
+		 */
+		switch (*(int *)data) {
+		case KD_TEXT:
+		case KD_TEXT1:
+		case KD_PIXEL:
+			vw->vw_flags &= ~VWF_GRAPHICS;
+			break;
+		case KD_GRAPHICS:
+			vw->vw_flags |= VWF_GRAPHICS;
+			break;
+		}
 		return (0);
 	case KDENABIO:      	/* allow io operations */
 		error = priv_check(td, PRIV_IO);
