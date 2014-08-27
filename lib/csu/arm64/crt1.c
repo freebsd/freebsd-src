@@ -84,6 +84,15 @@ __asm("	.text			\n"
 "	mov	x3, xzr		\n"
 "	mov	x4, xzr		\n"
 "	mov	x5, xzr		\n"
+"	ldr	x0, [sp]	\n" /* Load argc */
+"	add	x1, sp, #8	\n" /* load argv */
+"	add	x2, x1, x0, lsl #3 \n" /* env is after argv */
+"	add	x2, x2, #8	\n" /* argv is null terminated */
+/* Align the stack to a 16-bit address */
+"	mov	x10, sp		\n"
+"	mov	x11, #15	\n"
+"	bic	x10, x10, x11	\n"
+"	mov	sp, x10		\n"
 #if 0
 "	mov	r5, r2		/* cleanup */		\n"
 "	mov	r4, r1		/* obj_main */		\n"
