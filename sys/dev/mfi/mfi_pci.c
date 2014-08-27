@@ -112,6 +112,11 @@ TUNABLE_INT("hw.mfi.msi", &mfi_msi);
 SYSCTL_INT(_hw_mfi, OID_AUTO, msi, CTLFLAG_RDTUN, &mfi_msi, 0,
     "Enable use of MSI interrupts");
 
+static int	mfi_mrsas_enable = 0;
+TUNABLE_INT("hw.mfi.mrsas_enable", &mfi_mrsas_enable);
+SYSCTL_INT(_hw_mfi, OID_AUTO, mrsas_enable, CTLFLAG_RDTUN, &mfi_mrsas_enable,
+     0, "Allow mrasas to take newer cards");
+
 struct mfi_ident {
 	uint16_t	vendor;
 	uint16_t	device;
@@ -120,19 +125,19 @@ struct mfi_ident {
 	int		flags;
 	const char	*desc;
 } mfi_identifiers[] = {
-	{0x1000, 0x005b, 0x1028, 0x1f2d, MFI_FLAGS_SKINNY| MFI_FLAGS_TBOLT, "Dell PERC H810 Adapter"},
-	{0x1000, 0x005b, 0x1028, 0x1f30, MFI_FLAGS_SKINNY| MFI_FLAGS_TBOLT, "Dell PERC H710 Embedded"},
-	{0x1000, 0x005b, 0x1028, 0x1f31, MFI_FLAGS_SKINNY| MFI_FLAGS_TBOLT, "Dell PERC H710P Adapter"},
-	{0x1000, 0x005b, 0x1028, 0x1f33, MFI_FLAGS_SKINNY| MFI_FLAGS_TBOLT, "Dell PERC H710P Mini (blades)"},
-	{0x1000, 0x005b, 0x1028, 0x1f34, MFI_FLAGS_SKINNY| MFI_FLAGS_TBOLT, "Dell PERC H710P Mini (monolithics)"},
-	{0x1000, 0x005b, 0x1028, 0x1f35, MFI_FLAGS_SKINNY| MFI_FLAGS_TBOLT, "Dell PERC H710 Adapter"},
-	{0x1000, 0x005b, 0x1028, 0x1f37, MFI_FLAGS_SKINNY| MFI_FLAGS_TBOLT, "Dell PERC H710 Mini (blades)"},
-	{0x1000, 0x005b, 0x1028, 0x1f38, MFI_FLAGS_SKINNY| MFI_FLAGS_TBOLT, "Dell PERC H710 Mini (monolithics)"},
-	{0x1000, 0x005b, 0x8086, 0x9265, MFI_FLAGS_SKINNY| MFI_FLAGS_TBOLT, "Intel (R) RAID Controller RS25DB080"},
-	{0x1000, 0x005b, 0x8086, 0x9285, MFI_FLAGS_SKINNY| MFI_FLAGS_TBOLT, "Intel (R) RAID Controller RS25NB008"},
-	{0x1000, 0x005b, 0xffff, 0xffff, MFI_FLAGS_SKINNY| MFI_FLAGS_TBOLT, "ThunderBolt"},
-	{0x1000, 0x005d, 0xffff, 0xffff, MFI_FLAGS_SKINNY| MFI_FLAGS_TBOLT| MFI_FLAGS_INVADER, "Invader"},
-	{0x1000, 0x005f, 0xffff, 0xffff, MFI_FLAGS_SKINNY| MFI_FLAGS_TBOLT| MFI_FLAGS_FURY, "Fury"},
+	{0x1000, 0x005b, 0x1028, 0x1f2d, MFI_FLAGS_SKINNY| MFI_FLAGS_TBOLT| MFI_FLAGS_MRSAS, "Dell PERC H810 Adapter"},
+	{0x1000, 0x005b, 0x1028, 0x1f30, MFI_FLAGS_SKINNY| MFI_FLAGS_TBOLT| MFI_FLAGS_MRSAS, "Dell PERC H710 Embedded"},
+	{0x1000, 0x005b, 0x1028, 0x1f31, MFI_FLAGS_SKINNY| MFI_FLAGS_TBOLT| MFI_FLAGS_MRSAS, "Dell PERC H710P Adapter"},
+	{0x1000, 0x005b, 0x1028, 0x1f33, MFI_FLAGS_SKINNY| MFI_FLAGS_TBOLT| MFI_FLAGS_MRSAS, "Dell PERC H710P Mini (blades)"},
+	{0x1000, 0x005b, 0x1028, 0x1f34, MFI_FLAGS_SKINNY| MFI_FLAGS_TBOLT| MFI_FLAGS_MRSAS, "Dell PERC H710P Mini (monolithics)"},
+	{0x1000, 0x005b, 0x1028, 0x1f35, MFI_FLAGS_SKINNY| MFI_FLAGS_TBOLT| MFI_FLAGS_MRSAS, "Dell PERC H710 Adapter"},
+	{0x1000, 0x005b, 0x1028, 0x1f37, MFI_FLAGS_SKINNY| MFI_FLAGS_TBOLT| MFI_FLAGS_MRSAS, "Dell PERC H710 Mini (blades)"},
+	{0x1000, 0x005b, 0x1028, 0x1f38, MFI_FLAGS_SKINNY| MFI_FLAGS_TBOLT| MFI_FLAGS_MRSAS, "Dell PERC H710 Mini (monolithics)"},
+	{0x1000, 0x005b, 0x8086, 0x9265, MFI_FLAGS_SKINNY| MFI_FLAGS_TBOLT| MFI_FLAGS_MRSAS, "Intel (R) RAID Controller RS25DB080"},
+	{0x1000, 0x005b, 0x8086, 0x9285, MFI_FLAGS_SKINNY| MFI_FLAGS_TBOLT| MFI_FLAGS_MRSAS, "Intel (R) RAID Controller RS25NB008"},
+	{0x1000, 0x005b, 0xffff, 0xffff, MFI_FLAGS_SKINNY| MFI_FLAGS_TBOLT| MFI_FLAGS_MRSAS, "ThunderBolt"},
+	{0x1000, 0x005d, 0xffff, 0xffff, MFI_FLAGS_SKINNY| MFI_FLAGS_TBOLT| MFI_FLAGS_MRSAS| MFI_FLAGS_INVADER, "Invader"},
+	{0x1000, 0x005f, 0xffff, 0xffff, MFI_FLAGS_SKINNY| MFI_FLAGS_TBOLT| MFI_FLAGS_MRSAS| MFI_FLAGS_FURY, "Fury"},
 	{0x1000, 0x0060, 0x1028, 0xffff, MFI_FLAGS_1078,  "Dell PERC 6"},
 	{0x1000, 0x0060, 0xffff, 0xffff, MFI_FLAGS_1078,  "LSI MegaSAS 1078"},
 	{0x1000, 0x0071, 0xffff, 0xffff, MFI_FLAGS_SKINNY, "Drake Skinny"},
@@ -179,7 +184,13 @@ mfi_pci_probe(device_t dev)
 
 	if ((id = mfi_find_ident(dev)) != NULL) {
 		device_set_desc(dev, id->desc);
-		return (BUS_PROBE_DEFAULT);
+
+		/* give priority to mrsas if tunable set */
+		TUNABLE_INT_FETCH("hw.mfi.mrsas_enable", &mfi_mrsas_enable);
+		if ((id->flags & MFI_FLAGS_MRSAS) && mfi_mrsas_enable)
+			return (BUS_PROBE_LOW_PRIORITY);
+		else
+			return (BUS_PROBE_DEFAULT);
 	}
 	return (ENXIO);
 }
