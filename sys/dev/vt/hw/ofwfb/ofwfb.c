@@ -110,7 +110,7 @@ ofwfb_bitblt_bitmap(struct vt_device *vd, const struct vt_window *vw,
 	struct fb_info *sc = vd->vd_softc;
 	u_long line;
 	uint32_t fgc, bgc;
-	int c;
+	int c, l;
 	uint8_t b, m;
 	union {
 		uint32_t l;
@@ -121,13 +121,13 @@ ofwfb_bitblt_bitmap(struct vt_device *vd, const struct vt_window *vw,
 	bgc = sc->fb_cmap[bg];
 	b = m = 0;
 
-	/* Don't try to put off screen pixels */
-	if (((x + width) > vd->vd_width) || ((y + height) >
-	    vd->vd_height))
-		return;
-
 	line = (sc->fb_stride * y) + x * sc->fb_bpp/8;
 	if (mask == NULL && sc->fb_bpp == 8 && (width % 8 == 0)) {
+		/* Don't try to put off screen pixels */
+		if (((x + width) > vd->vd_width) || ((y + height) >
+		    vd->vd_height))
+			return;
+
 		for (; height > 0; height--) {
 			for (c = 0; c < width; c += 8) {
 				b = *pattern++;
@@ -160,8 +160,12 @@ ofwfb_bitblt_bitmap(struct vt_device *vd, const struct vt_window *vw,
 			line += sc->fb_stride;
 		}
 	} else {
-		for (; height > 0; height--) {
-			for (c = 0; c < width; c++) {
+		for (l = 0;
+		    l < height && y + l < vw->vw_draw_area.tr_end.tp_row;
+		    l++) {
+			for (c = 0;
+			    c < width && x + c < vw->vw_draw_area.tr_end.tp_col;
+			    c++) {
 				if (c % 8 == 0)
 					b = *pattern++;
 				else
@@ -231,20 +235,17 @@ ofwfb_bitblt_text(struct vt_device *vd, const struct vt_window *vw,
 
 	term_rect_t drawn_area;
 
-	drawn_area.tr_begin.tp_col = area->tr_begin.tp_col * vf->vf_width +
-	    vw->vw_draw_area.tr_begin.tp_col;
-	drawn_area.tr_begin.tp_row = area->tr_begin.tp_row * vf->vf_height +
-	    vw->vw_draw_area.tr_begin.tp_row;
-	drawn_area.tr_end.tp_col = area->tr_end.tp_col * vf->vf_width +
-	    vw->vw_draw_area.tr_begin.tp_col;
-	drawn_area.tr_end.tp_row = area->tr_end.tp_row * vf->vf_height +
-	    vw->vw_draw_area.tr_begin.tp_row;
+	drawn_area.tr_begin.tp_col = area->tr_begin.tp_col * vf->vf_width;
+	drawn_area.tr_begin.tp_row = area->tr_begin.tp_row * vf->vf_height;
+	drawn_area.tr_end.tp_col = area->tr_end.tp_col * vf->vf_width;
+	drawn_area.tr_end.tp_row = area->tr_end.tp_row * vf->vf_height;
 
 	if (vt_is_cursor_in_area(vd, &drawn_area)) {
 		ofwfb_bitblt_bitmap(vd, vw,
 		    vd->vd_mcursor->map, vd->vd_mcursor->mask,
 		    vd->vd_mcursor->width, vd->vd_mcursor->height,
-		    vd->vd_mx_drawn, vd->vd_my_drawn,
+		    vd->vd_mx_drawn + vw->vw_draw_area.tr_begin.tp_col,
+		    vd->vd_my_drawn + vw->vw_draw_area.tr_begin.tp_row,
 		    vd->vd_mcursor_fg, vd->vd_mcursor_bg);
 	}
 #endif
