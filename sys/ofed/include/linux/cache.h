@@ -2,6 +2,7 @@
  * Copyright (c) 2010 Isilon Systems, Inc.
  * Copyright (c) 2010 iX Systems, Inc.
  * Copyright (c) 2010 Panasas, Inc.
+ * Copyright (c) 2013, 2014 Mellanox Technologies, Ltd.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -26,9 +27,11 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef	_LINUX_CTYPE_H_
-#define	_LINUX_CTYPE_H_
+#ifndef	_LINUX_CACHE_H_
+#define _LINUX_CACHE_H_
 
-#include <sys/ctype.h>
 
-#endif	/* _LINUX_CTYPE_H_ */
+#define	cache_line_size()	CACHE_LINE_SIZE
+
+
+#endif	/* _LINUX_CACHE_H_ */
