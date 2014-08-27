@@ -32,7 +32,11 @@ __FBSDID("$FreeBSD$");
 #include <sys/systm.h>
 #include <sys/lock.h>
 #include <sys/mutex.h>
+#include <sys/pioctl.h>
 #include <sys/proc.h>
+#include <sys/ptrace.h>
+#include <sys/syscall.h>
+#include <sys/sysent.h>
 
 #include <vm/vm.h>
 #include <vm/pmap.h>
@@ -50,8 +54,52 @@ void do_el0_error(struct trapframe *);
 int
 cpu_fetch_syscall_args(struct thread *td, struct syscall_args *sa)
 {
+	struct proc *p;
+	register_t *ap;
+	int nap;
 
-	panic("cpu_fetch_syscall_args");
+	nap = 8;
+	p = td->td_proc;
+	ap = td->td_frame->tf_x;
+
+	sa->code = td->td_frame->tf_x[8];
+
+	if (sa->code == SYS_syscall || sa->code == SYS___syscall) {
+		panic("TODO: syscall/__syscall");
+	}
+
+	if (p->p_sysent->sv_mask)
+		sa->code &= p->p_sysent->sv_mask;
+	if (sa->code >= p->p_sysent->sv_size)
+		sa->callp = &p->p_sysent->sv_table[0];
+	else
+		sa->callp = &p->p_sysent->sv_table[sa->code];
+
+	sa->narg = sa->callp->sy_narg;
+	memcpy(sa->args, ap, nap * sizeof(register_t));
+	if (sa->narg > nap)
+		panic("TODO: Could we have more then 8 args?");
+
+	td->td_retval[0] = 0;
+	td->td_retval[1] = 0;
+
+	return (0);
+}
+
+#include "../../kern/subr_syscall.c"
+
+static void
+svc_handler(struct trapframe *frame)
+{
+	struct syscall_args sa;
+	struct thread *td;
+	int error;
+
+	td = curthread;
+	td->td_frame = frame;
+
+	error = syscallenter(td, &sa);
+	syscallret(td, error, &sa);
 }
 
 static void
@@ -167,6 +215,9 @@ do_el0_sync(struct trapframe *frame)
 	printf("spsr: %llx\n", frame->tf_spsr);
 
 	switch(exception) {
+	case 0x15:
+		svc_handler(frame);
+		break;
 	case 0x20:
 	case 0x24:
 		data_abort(frame, esr, 1);

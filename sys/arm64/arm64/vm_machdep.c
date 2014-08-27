@@ -98,8 +98,25 @@ cpu_thread_swapout(struct thread *td)
 void
 cpu_set_syscall_retval(struct thread *td, int error)
 {
+	struct trapframe *frame;
 
-	panic("cpu_set_syscall_retval");
+	frame = td->td_frame;
+
+	printf("cpu_set_syscall_retval %d\n", error);
+	switch (error) {
+	case 0:
+		frame->tf_x[0] = td->td_retval[0];
+		frame->tf_x[1] = td->td_retval[1];
+		break;
+	case ERESTART:
+		frame->tf_elr -= 4;
+		break;
+	case EJUSTRETURN:
+		break;
+	default:
+		frame->tf_x[0] = error;
+		break;
+	}
 }
 
 /*
