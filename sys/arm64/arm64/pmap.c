@@ -625,7 +625,8 @@ pmap_qenter(vm_offset_t sva, vm_page_t *m, int count)
 
 	va = sva;
 	for (i = 0; i < count; i++) {
-		pmap_kenter(va, VM_PAGE_TO_PHYS(m[i]));
+		pmap_kenter_internal(va, VM_PAGE_TO_PHYS(m[i]),
+		    UNCACHED_MEMORY);
 		va += PAGE_SIZE;
 	}
 }
