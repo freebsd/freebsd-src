@@ -253,11 +253,16 @@ if [ -d ${CHROOTDIR}/usr/ports ]; then
 
 	## Trick the ports 'run-autotools-fixup' target to do the right thing.
 	_OSVERSION=$(sysctl -n kern.osreldate)
+	REVISION=$(chroot ${CHROOTDIR} make -C /usr/src/release -V REVISION)
+	BRANCH=$(chroot ${CHROOTDIR} make -C /usr/src/release -V BRANCH)
+	UNAME_r=${REVISION}-${BRANCH}
 	if [ -d ${CHROOTDIR}/usr/doc ] && [ -z "${NODOC}" ]; then
 		PBUILD_FLAGS="OSVERSION=${_OSVERSION} BATCH=yes"
-		PBUILD_FLAGS="${PBUILD_FLAGS}"
+		PBUILD_FLAGS="${PBUILD_FLAGS} UNAME_r=${UNAME_r}"
+		PBUILD_FLAGS="${PBUILD_FLAGS} OSREL=${REVISION}"
 		chroot ${CHROOTDIR} make -C /usr/ports/textproc/docproj \
-			${PBUILD_FLAGS} OPTIONS_UNSET="FOP IGOR" install clean distclean
+			${PBUILD_FLAGS} OPTIONS_UNSET="FOP IGOR" \
+			install clean distclean
 	fi
 fi
 
