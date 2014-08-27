@@ -1,14 +1,14 @@
 <?xml version="1.0" encoding="iso-8859-1"?>
 <!DOCTYPE article PUBLIC "-//FreeBSD//DTD DocBook XML V5.0-Based Extension//EN"
-        "http://www.FreeBSD.org/XML/share/xml/freebsd50.dtd" [
+  "http://www.FreeBSD.org/XML/share/xml/freebsd50.dtd" [
 <!ENTITY % release PUBLIC "-//FreeBSD//ENTITIES Release Specification//EN"
-        "http://www.FreeBSD.org/release/XML/release.ent">
+  "http://www.FreeBSD.org/release/XML/release.ent">
 %release;
 ]>
 
 <article xmlns="http://docbook.org/ns/docbook"
-	 xmlns:xlink="http://www.w3.org/1999/xlink"
-	 version="5.0">
+  xmlns:xlink="http://www.w3.org/1999/xlink" version="5.0">
+
   <info>
     <title>&os; &release.prev; Errata </title>
 
@@ -19,7 +19,8 @@
     <copyright>
       <year>2014</year>
 
-      <holder role="mailto:doc@FreeBSD.org">The &os; Documentation Project</holder>
+      <holder role="mailto:doc@FreeBSD.org">The &os; Documentation
+	Project</holder>
     </copyright>
 
     <legalnotice xml:id="trademarks" role="trademarks">
@@ -31,46 +32,45 @@
 
     <abstract>
       <para>This document lists errata items for &os; &release.prev;,
-	containing significant information discovered after the release
-	or too late in the release cycle to be otherwise included in the
-	release documentation.
-	This information includes security advisories, as well as news
-	relating to the software or documentation that could affect its
-	operation or usability.  An up-to-date version of this document
-	should always be consulted before installing this version of
+	containing significant information discovered after the
+	release or too late in the release cycle to be otherwise
+	included in the release documentation.  This information
+	includes security advisories, as well as news relating to the
+	software or documentation that could affect its operation or
+	usability.  An up-to-date version of this document should
+	always be consulted before installing this version of
 	&os;.</para>
 
-      <para>This errata document for &os; &release.prev;
-	will be maintained until the release of &os; &release.next;.</para>
+      <para>This errata document for &os; &release.prev; will be
+	maintained until the release of &os; &release.next;.</para>
     </abstract>
   </info>
 
   <sect1 xml:id="intro">
     <title>Introduction</title>
 
-    <para>This errata document contains <quote>late-breaking news</quote>
-      about &os; &release.prev;
-      Before installing this version, it is important to consult this
-      document to learn about any post-release discoveries or problems
-      that may already have been found and fixed.</para>
+    <para>This errata document contains <quote>late-breaking
+	news</quote> about &os; &release.prev; Before installing this
+      version, it is important to consult this document to learn about
+      any post-release discoveries or problems that may already have
+      been found and fixed.</para>
 
     <para>Any version of this errata document actually distributed
       with the release (for example, on a CDROM distribution) will be
       out of date by definition, but other copies are kept updated on
       the Internet and should be consulted as the <quote>current
-      errata</quote> for this release.  These other copies of the
-      errata are located at
-      <link xlink:href="http://www.FreeBSD.org/releases/" />,
-      plus any sites
-      which keep up-to-date mirrors of this location.</para>
+	errata</quote> for this release.  These other copies of the
+      errata are located at <link
+	xlink:href="http://www.FreeBSD.org/releases/" />, plus any
+      sites which keep up-to-date mirrors of this location.</para>
 
     <para>Source and binary snapshots of &os; &release.branch; also
       contain up-to-date copies of this document (as of the time of
       the snapshot).</para>
 
-    <para>For a list of all &os; CERT security advisories, see
-      <link xlink:href="http://www.FreeBSD.org/security/" />
-      or <link xlink:href="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/" />.</para>
+    <para>For a list of all &os; CERT security advisories, see <link
+	xlink:href="http://www.FreeBSD.org/security/"/> or <link
+      xlink:href="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/"/>.</para>
   </sect1>
 
   <sect1 xml:id="security">
@@ -240,17 +240,17 @@
 
 	<para>It causes various errors and makes &os; quite unstable.
 	  Although the cause is still unclear, disabling unmapped I/O
-	  works as a workaround.  To disable it, choose <literal>Escape to
-	    loader prompt</literal> in the boot menu and enter the following
-	  lines from &man.loader.8; prompt, after
-	  an <literal>OK</literal>:</para>
+	  works as a workaround.  To disable it, choose
+	  <literal>Escape to loader prompt</literal> in the boot menu
+	  and enter the following lines from &man.loader.8; prompt,
+	  after an <literal>OK</literal>:</para>
 
 	<screen>set vfs.unmapped_buf_allowed=0
 boot</screen>
 
 	<para>Note that the following line has to be added to
-	  <filename>/boot/loader.conf</filename> after a boot.
-          It disables unmapped I/O at every boot:</para>
+	  <filename>/boot/loader.conf</filename> after a boot.  It
+	  disables unmapped I/O at every boot:</para>
 
 	<programlisting>vfs.unmapped_buf_allowed=0</programlisting>
 
@@ -295,7 +295,8 @@ boot</screen>
 
 	<programlisting>ifconfig_bxe0="DHCP -tso"</programlisting>
 
-	<para>This bug has been fixed on &os; &release.current;.</para>
+	<para>This bug has been fixed on &os;
+	  &release.current;.</para>
       </listitem>
 
       <listitem>
@@ -327,7 +328,7 @@ boot</screen>
       <listitem>
 	<para>The &man.mount.udf.8; utility has a bug which prevents
 	  it from mounting any UDF file system.  This has been fixed
-  	  in &os;-CURRENT and &os; &release.current;.</para>
+	  in &os;-CURRENT and &os; &release.current;.</para>
       </listitem>
 
       <listitem>
