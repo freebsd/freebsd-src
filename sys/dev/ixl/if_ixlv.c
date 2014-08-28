@@ -2311,7 +2311,7 @@ ixlv_update_link_status(struct ixlv_sc *sc)
 static void
 ixlv_stop(struct ixlv_sc *sc)
 {
-	mtx_assert(&sc->sc_mtx, MA_OWNED);
+	mtx_assert(&sc->mtx, MA_OWNED);
 
 	INIT_DBG_IF(&sc->vsi->ifp, "begin");
 
