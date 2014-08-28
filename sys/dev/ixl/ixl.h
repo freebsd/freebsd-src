@@ -295,9 +295,6 @@ struct ixl_rx_buf {
 	struct mbuf	*fmp;
 	bus_dmamap_t	hmap;
 	bus_dmamap_t	pmap;
-#ifdef DEV_NETMAP
-	u64		addr;
-#endif
 };
 
 /*
