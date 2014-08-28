@@ -213,7 +213,7 @@ static void	iwn5000_tx_done(struct iwn_softc *, struct iwn_rx_desc *,
 		    struct iwn_rx_data *);
 static void	iwn_tx_done(struct iwn_softc *, struct iwn_rx_desc *, int,
 		    uint8_t);
-static void	iwn_ampdu_tx_done(struct iwn_softc *, int, int, int, void *);
+static void	iwn_ampdu_tx_done(struct iwn_softc *, int, int, int, int, void *);
 static void	iwn_cmd_done(struct iwn_softc *, struct iwn_rx_desc *);
 static void	iwn_notif_intr(struct iwn_softc *);
 static void	iwn_wakeup_intr(struct iwn_softc *);
@@ -3150,6 +3150,11 @@ iwn_rx_compressed_ba(struct iwn_softc *sc, struct iwn_rx_desc *desc,
 	if (wn->agg[tid].nframes > (64 - shift))
 		return;
 
+	/*
+	 * XXX does this correctly process an almost empty bitmap?
+	 * (since it bails out when it sees an empty bitmap, but there
+	 * may be failed bits there..)
+	 */
 	ni = tap->txa_ni;
 	bitmap = (le64toh(ba->bitmap) >> shift) & wn->agg[tid].bitmap;
 	for (i = 0; bitmap; i++) {
@@ -3426,7 +3431,7 @@ iwn4965_tx_done(struct iwn_softc *sc, struct iwn_rx_desc *desc,
 	bus_dmamap_sync(ring->data_dmat, data->map, BUS_DMASYNC_POSTREAD);
 	if (qid >= sc->firstaggqueue) {
 		iwn_ampdu_tx_done(sc, qid, desc->idx, stat->nframes,
-		    &stat->status);
+		    stat->ackfailcnt, &stat->status);
 	} else {
 		iwn_tx_done(sc, desc, stat->ackfailcnt,
 		    le32toh(stat->status) & 0xff);
@@ -3458,7 +3463,7 @@ iwn5000_tx_done(struct iwn_softc *sc, struct iwn_rx_desc *desc,
 	bus_dmamap_sync(ring->data_dmat, data->map, BUS_DMASYNC_POSTREAD);
 	if (qid >= sc->firstaggqueue) {
 		iwn_ampdu_tx_done(sc, qid, desc->idx, stat->nframes,
-		    &stat->status);
+		    stat->ackfailcnt, &stat->status);
 	} else {
 		iwn_tx_done(sc, desc, stat->ackfailcnt,
 		    le16toh(stat->status) & 0xff);
@@ -3573,7 +3578,7 @@ iwn_cmd_done(struct iwn_softc *sc, struct iwn_rx_desc *desc)
 
 static void
 iwn_ampdu_tx_done(struct iwn_softc *sc, int qid, int idx, int nframes,
-    void *stat)
+    int ackfailcnt, void *stat)
 {
 	struct iwn_ops *ops = &sc->ops;
 	struct ifnet *ifp = sc->sc_ifp;
@@ -3591,6 +3596,15 @@ iwn_ampdu_tx_done(struct iwn_softc *sc, int qid, int idx, int nframes,
 	int bit, i, lastidx, *res, seqno, shift, start;
 
 	DPRINTF(sc, IWN_DEBUG_TRACE, "->%s begin\n", __func__);
+	DPRINTF(sc, IWN_DEBUG_XMIT, "%s: nframes=%d, status=0x%08x\n",
+	    __func__,
+	    nframes,
+	    *status);
+
+	tap = sc->qid2tap[qid];
+	tid = tap->txa_tid;
+	wn = (void *)tap->txa_ni;
+	ni = tap->txa_ni;
 
 	if (nframes == 1) {
 		if ((*status & 0xff) != 1 && (*status & 0xff) != 2) {
@@ -3602,14 +3616,23 @@ iwn_ampdu_tx_done(struct iwn_softc *sc, int qid, int idx, int nframes,
 			 * notification is pushed up to the rate control
 			 * layer.
 			 */
-			tap = sc->qid2tap[qid];
-			tid = tap->txa_tid;
-			wn = (void *)tap->txa_ni;
-			ni = tap->txa_ni;
 			ieee80211_ratectl_tx_complete(ni->ni_vap, ni,
 			    IEEE80211_RATECTL_TX_FAILURE, &nframes, NULL);
 		}
 	}
+
+	/*
+	 * We succeeded with some frames, so let's update how many
+	 * retries were needed for this frame.
+	 *
+	 * XXX we can't yet pass tx_complete tx_cnt and success_cnt,
+	 * le sigh.
+	 */
+	ieee80211_ratectl_tx_complete(ni->ni_vap,
+	    ni,
+	    IEEE80211_RATECTL_TX_SUCCESS,
+	    &ackfailcnt,
+	    NULL);
 
 	bitmap = 0;
 	start = idx;
