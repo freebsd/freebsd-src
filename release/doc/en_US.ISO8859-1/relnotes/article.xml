@@ -959,7 +959,8 @@
 	<literal>-o&nbsp;vers=4</literal>.</para>
 
       <para revision="270401">Support for the <quote>account</quote>
-	facility has been added to &man.pam.3; library.</para>
+	facility has been added to the &man.pam.group.8;
+	module.</para>
 
       <sect3 xml:id="rc-scripts">
 	<title><filename>/etc/rc.d</filename> Scripts</title>
