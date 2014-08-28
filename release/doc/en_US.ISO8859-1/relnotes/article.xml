@@ -918,10 +918,12 @@
       <para revision="268161">The &man.mkimg.1; utility has been
 	merged from &os;-CURRENT.</para>
 
-      <para revision="268700">The &man.camcontrol.8; has been updated
-	to include a new <literal>persist</literal> command, which
-	allows issuing <command>SCSI PERSISTENT RESERVE IN</command>
-	and <command>SCSI PERSISTENT RESERVE OUT</command>.</para>
+      <para revision="268700" contrib="sponsor"
+	sponsor="&spectralogic;">The &man.camcontrol.8; has been
+	updated to include a new <literal>persist</literal> command,
+	which allows issuing <command>SCSI PERSISTENT RESERVE
+	  IN</command> and <command>SCSI PERSISTENT RESERVE
+	  OUT</command>.</para>
 
       <para revision="268791">The &man.gstat.8; utility has been
 	updated to include a new flag, <literal>-p</literal>, which
