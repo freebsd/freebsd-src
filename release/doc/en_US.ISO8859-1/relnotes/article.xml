@@ -472,6 +472,13 @@
 	<para revision="267771">A bug in &man.sctp.4; that would allow
 	  two listening sockets bound to the same port has been
 	  fixed.</para>
+
+	<para contrib="sponsor" sponsor="&ix;">Kernel RPC code, which is a
+	  base of NFS server took multiple optimizations, that significantly
+	  improved its performance and SMP scapability.</para>
+
+	<para>New kernel-based iSCSI target and initiator code took many
+	  fixes and performance optimizations.</para>
       </sect3>
 
       <sect3 xml:id="disks">
