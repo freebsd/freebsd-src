@@ -141,12 +141,6 @@
 	prompt during boot, or add <literal>kern.vty=vt</literal> to
 	&man.loader.conf.5; and reboot the system.</para>
 
-      <para revision="262967">Support for MegaRAID Fury cards has been
-	added to the &man.mfi.4; driver.</para>
-
-      <para revision="263024">The &man.aacraid.4; driver has been
-	updated to version 3.2.5.</para>
-
       <para revision="263122">Support for &man.hwpmc.4; has been added
 	for &powerpc;&nbsp;970 class processors.</para>
 
@@ -165,50 +159,13 @@
       <para revision="263869">Support for &amd;&nbsp;Family 16h sensor
 	devices has been added to &man.amdtemp.4;.</para>
 
-      <para revision="264522">Support for LUN-based CD changers has
-	been removed from the &man.cd.4; driver.</para>
-
-      <para revision="264734">Support for 9th generation HP host bus
-	adapter cards has been added to &man.ciss.4;.</para>
-
-      <para revision="265388" contrib="sponsor" sponsor="&lsi;">The
-	&man.mpr.4; device has been added,
-	providing support for LSI Fusion-MPT 3 12Gb SCSI/SATA
-	controllers.</para>
-
-      <para revision="265536">The <literal>GEOM_VINUM</literal> option
-	is now able to be built both directly into the kernel or as
-	a &man.kldload.8; loadable module.</para>
-
       <para revision="265610">The &man.uslcom.4; driver has been
 	updated to support 26 new devices.</para>
-
-      <para revision="265922" contrib="sponsor" sponsor="&lsi;">The
-	&man.mrsas.4; driver has been added,
-	providing support for LSI MegaRAID SAS controllers.  The
-	&man.mfi.4; driver will attach to the controller, by default.
-	To enable &man.mrsas.4; add
-	<literal>hw.mfi.mrsas_enable=1</literal> to
-	<filename>/boot/loader.conf</filename>, which turns off
-	&man.mfi.4; device probing.</para>
-
-      <note>
-	<para>At this time, the &man.mfiutil.8; utility and
-	  the &os; version of
-	  <application>MegaCLI</application> and
-	  <application>StorCli</application> do not work with
-	  &man.mrsas.4;.</para>
-      </note>
 
       <para revision="266165">A kernel bug that inhibited proper
 	functionality of the <literal>dev.cpu.0.freq</literal>
 	&man.sysctl.8; on &intel; processors with Turbo
 	Boost&trade; enabled has been fixed.</para>
-
-      <para revision="266220">The &man.geom.uncompress.4; module is
-	built by default which, similar to &man.geom.uzip.4;,
-	provides support for compressed, read-only disk
-	images.</para>
 
       <para revision="266436">The &man.uart.4; driver has been
 	updated to include support for the &intel;&nbsp;Lynx Point
@@ -530,6 +487,34 @@
 	<para revision="260858">The &man.virtio_scsi.4; driver has been
 	  updated to support unmapped I/O.</para>
 
+	<para revision="264522">Support for LUN-based CD changers has
+	  been removed from the &man.cd.4; driver.</para>
+
+	<para revision="264734">Support for 9th generation HP host bus
+	  adapter cards has been added to &man.ciss.4;.</para>
+
+	<para revision="265388" contrib="sponsor" sponsor="&lsi;">The
+	  &man.mpr.4; device has been added,
+	  providing support for LSI Fusion-MPT 3 12Gb SCSI/SATA
+	  controllers.</para>
+
+	<para revision="265922" contrib="sponsor" sponsor="&lsi;">The
+	  &man.mrsas.4; driver has been added,
+	  providing support for LSI MegaRAID SAS controllers.  The
+	  &man.mfi.4; driver will attach to the controller, by default.
+	  To enable &man.mrsas.4; add
+	  <literal>hw.mfi.mrsas_enable=1</literal> to
+	  <filename>/boot/loader.conf</filename>, which turns off
+	  &man.mfi.4; device probing.</para>
+
+	<note>
+	  <para>At this time, the &man.mfiutil.8; utility and
+	    the &os; version of
+	    <application>MegaCLI</application> and
+	    <application>StorCli</application> do not work with
+	    &man.mrsas.4;.</para>
+	</note>
+
 	<para revision="267084">The &man.mfi.4; driver has been
 	  updated to include support for unmapped I/O.</para>
 
@@ -553,12 +538,27 @@
 	  it easier to resize the size of a mirror when all of its
 	  components have been replaced.</para>
 
+	<para revision="262967">Support for MegaRAID Fury cards has been
+	  added to the &man.mfi.4; driver.</para>
+
+	<para revision="263024">The &man.aacraid.4; driver has been
+	  updated to version 3.2.5.</para>
+
+	<para revision="265536">The <literal>GEOM_VINUM</literal> option
+	  is now able to be built both directly into the kernel or as
+	  a &man.kldload.8; loadable module.</para>
+
 	<para revision="265912">The &man.geom.8;
 	  <literal>GEOM_PART</literal> class has been updated to
 	  support automatic partition resizing.  Changes to the
 	  partition size are not saved to disk until
 	  <command>gpart commit</command> is run, and prior to saving,
 	  can be reverted with <command>gpart undo</command>.</para>
+
+	<para revision="266220">The &man.geom.uncompress.4; module is
+	  built by default which, similar to &man.geom.uzip.4;,
+	  provides support for compressed, read-only disk
+	  images.</para>
 
 	<para revision="268091">Support for the
 	  <literal>disklabel64</literal> partitioning scheme has been
