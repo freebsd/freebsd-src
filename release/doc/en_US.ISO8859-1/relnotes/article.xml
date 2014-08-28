@@ -978,8 +978,9 @@
 	</listitem>
       </itemizedlist>
 
-      <para revision="269398">The &man.nfsd.8; server update to 4.1
-	has merged from &os;-CURRENT.</para>
+      <para revision="269398">The &man.nfsd.8; server update to 4.1,
+	adding support for RFC5661, has merged from
+	&os;-CURRENT.</para>
 
       <para revision="269432" arch="ia64">The serial terminals
 	<filename>ttyu0</filename> and <filename>ttyu1</filename> have
