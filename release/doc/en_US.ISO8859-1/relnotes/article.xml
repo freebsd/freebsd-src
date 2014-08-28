@@ -559,7 +559,7 @@
 	<title>Disks and Storage</title>
 
 	<para revision="260385" contrib="sponsor" sponsor="&ix;">The
-	  &man.geom.4; got I/O direct dispatch support.
+	  &man.geom.4; subsystem has been updated to support I/O direct dispatch.
 	  When safety requirements are met, it allows to avoid passing
 	  I/O requests to GEOM <literal>g_up</literal>/<literal>g_down</literal> thread, executing them directly
 	  in the caller context. That allows to avoid CPU bottlenecks in
@@ -571,16 +571,16 @@
 	  updated to support unmapped I/O.</para>
 
 	<para revision="260387" contrib="sponsor" sponsor="&ix;">The
-	  &man.cam.4; got finer-grained locking, direct dispatch and
-	  multi-queue support.
+	  &man.cam.4; subsystem has been updated to support
+	  finer-grained locking, direct dispatch and multi-queue.
 	  Combined with &man.geom.4; direct dispatch that allows to
 	  reduce lock congestion and improve <acronym>SMP</acronym> scalability of the
 	  SCSI/ATA stack.
 	  </para>
 
 	<para revision="260478">The &man.geom.8;
-	  <literal>GEOM_MULTIPATH</literal> class got automatic live
-	  resize support.</para>
+	  <literal>GEOM_MULTIPATH</literal> class has been updated to
+	  support automatic live partition resizing.</para>
 
 	<para revision="260857">The &man.virtio_blk.4; driver has been
 	  updated to support unmapped I/O.</para>
