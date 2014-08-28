@@ -191,7 +191,7 @@ rd32_osdep(struct i40e_osdep *osdep, uint32_t reg)
 
 	KASSERT(reg < osdep->mem_bus_space_size,
 	    ("ixl: register offset %#jx too large (max is %#jx",
-	    (uintmax_t)a, (uintmax_t)osdep->mem_bus_space_size));
+	    (uintmax_t)reg, (uintmax_t)osdep->mem_bus_space_size));
 
 	return (bus_space_read_4(osdep->mem_bus_space_tag,
 	    osdep->mem_bus_space_handle, reg));
@@ -203,7 +203,7 @@ wr32_osdep(struct i40e_osdep *osdep, uint32_t reg, uint32_t value)
 
 	KASSERT(reg < osdep->mem_bus_space_size,
 	    ("ixl: register offset %#jx too large (max is %#jx",
-	    (uintmax_t)a, (uintmax_t)osdep->mem_bus_space_size));
+	    (uintmax_t)reg, (uintmax_t)osdep->mem_bus_space_size));
 
 	bus_space_write_4(osdep->mem_bus_space_tag,
 	    osdep->mem_bus_space_handle, reg, value);
