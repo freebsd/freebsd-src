@@ -276,10 +276,6 @@ int ixl_atr_rate = 20;
 TUNABLE_INT("hw.ixl.atr_rate", &ixl_atr_rate);
 #endif
 
-#ifdef DEV_NETMAP
-#include <dev/netmap/if_ixl_netmap.h>
-#endif /* DEV_NETMAP */
-
 static char *ixl_fc_string[6] = {
 	"None",
 	"Rx",
@@ -652,10 +648,6 @@ ixl_attach(device_t dev)
 	vsi->vlan_detach = EVENTHANDLER_REGISTER(vlan_unconfig,
 	    ixl_unregister_vlan, vsi, EVENTHANDLER_PRI_FIRST);
 
-#ifdef DEV_NETMAP
-	ixl_netmap_attach(pf);
-#endif /* DEV_NETMAP */
-
 	INIT_DEBUGOUT("ixl_attach: end");
 	return (0);
 
@@ -732,10 +724,6 @@ ixl_detach(device_t dev)
 
 	ether_ifdetach(vsi->ifp);
 	callout_drain(&pf->timer);
-
-#ifdef DEV_NETMAP
-	netmap_detach(vsi->ifp);
-#endif /* DEV_NETMAP */
 
 	ixl_free_pci_resources(pf);
 	bus_generic_detach(dev);
@@ -2552,12 +2540,6 @@ ixl_initialize_vsi(struct ixl_vsi *vsi)
 		rctx.tphdata_ena = 0;
 		rctx.tphhead_ena = 0;
 		rctx.lrxqthresh = 2;
-#ifdef DEV_NETMAP
-		/* "CRC strip in netmap is conditional" */
-		if (vsi->ifp->if_capenable & IFCAP_NETMAP && !ixl_crcstrip)
-			rctx.crcstrip = 0;
-		else
-#endif /* DEV_NETMAP */
 		rctx.crcstrip = 1;
 		rctx.l2tsel = 1;
 		rctx.showiv = 1;
@@ -2581,21 +2563,6 @@ ixl_initialize_vsi(struct ixl_vsi *vsi)
 			break;
 		}
 		wr32(vsi->hw, I40E_QRX_TAIL(que->me), 0);
-#ifdef DEV_NETMAP
-		/* TODO appropriately comment
-		 * Code based on netmap code in ixgbe_init_locked()
-		 * Messes with what the software sets as queue
-		 * descriptor tail in hardware.
-		 */
-		if (vsi->ifp->if_capenable & IFCAP_NETMAP)
-		{
-			struct netmap_adapter *na = NA(vsi->ifp);
-			struct netmap_kring *kring = &na->rx_rings[que->me];
-			int t = na->num_rx_desc - 1 - kring->nr_hwavail;
-
-			wr32(vsi->hw, I40E_QRX_TAIL(que->me), t);
-		} else
-#endif /* DEV_NETMAP */
 		wr32(vsi->hw, I40E_QRX_TAIL(que->me), que->num_desc - 1);
 	}
 	return (err);
