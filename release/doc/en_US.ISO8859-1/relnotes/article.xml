@@ -549,7 +549,7 @@
 
 	<para contrib="sponsor" sponsor="&ix;">Kernel RPC code, which is a
 	  base of NFS server took multiple optimizations, that significantly
-	  improved its performance and SMP scapability.</para>
+	  improved its performance and <acronym>SMP</acronym> scapability.</para>
 
 	<para>New kernel-based iSCSI target and initiator code took many
 	  fixes and performance optimizations.</para>
@@ -561,9 +561,9 @@
 	<para revision="260385" contrib="sponsor" sponsor="&ix;">The
 	  &man.geom.4; got I/O direct dispatch support.
 	  When safety requirements are met, it allows to avoid passing
-	  I/O requests to GEOM g_up/g_down thread, executing them directly
+	  I/O requests to GEOM <literal>g_up</literal>/<literal>g_down</literal> thread, executing them directly
 	  in the caller context. That allows to avoid CPU bottlenecks in
-	  g_up/g_down threads, plus avoid several context switches per I/O.
+	  <literal>g_up</literal>/<literal>g_down</literal> threads, plus avoid several context switches per I/O.
 	  </para>
 
 	<para revision="260385" contrib="sponsor" sponsor="&ix;">The
@@ -574,7 +574,7 @@
 	  &man.cam.4; got finer-grained locking, direct dispatch and
 	  multi-queue support.
 	  Combined with &man.geom.4; direct dispatch that allows to
-	  reduce lock congestion and improve SMP scalability of the
+	  reduce lock congestion and improve <acronym>SMP</acronym> scalability of the
 	  SCSI/ATA stack.
 	  </para>
 
@@ -591,7 +591,7 @@
 	<para revision="264522">Support for LUN-based CD changers has
 	  been removed from the &man.cd.4; driver.</para>
 
-	<para revision="264732">ZVOLs got BIO_DELETE support.</para>
+	<para revision="264732">Support for <literal>BIO_DELETE</literal> has been added to &man.zfs.8; <literal>zvol</literal> volumes.</para>
 
 	<para revision="264734">Support for 9th generation HP host bus
 	  adapter cards has been added to &man.ciss.4;.</para>
@@ -601,9 +601,9 @@
 	  providing support for LSI Fusion-MPT 3 12Gb SCSI/SATA
 	  controllers.</para>
 
-	<para revision="265678">A new ZVOL property <literal>volmode</literal>
+	<para revision="265678">A new <literal>zvol</literal> property <literal>volmode</literal>
 	  and  &man.sysctl.8; <literal>vfs.zfs.vol.mode</literal> has been
-	  added to allow switching ZVOL between three different ways of
+	  added to allow switching <literal>zvol</literal> between three different ways of
 	  exposing it to a user: <literal>geom</literal>,
 	  <literal>dev</literal> and <literal>none</literal>.</para>
 
@@ -624,12 +624,12 @@
 	    &man.mrsas.4;.</para>
 	</note>
 
-	<para revision="266608">Fixed accounting of BIO_FLUSH operation
+	<para revision="266608">Fixed accounting of <literal>BIO_FLUSH</literal> operation
 	  in &man.geom.8; <literal>GEOM_DISK</literal> class</para>
 
 	<para revision="266610">The &man.gstat.8;
 	  utility now has a <literal>-o</literal> option, to
-	  display "other" operatins (e.g. BIO_FLUSH).</para>
+	  display "other" operatins (e.g. <literal>BIO_FLUSH</literal>).</para>
 
 	<para revision="267084">The &man.mfi.4; driver has been
 	  updated to include support for unmapped I/O.</para>
@@ -693,17 +693,17 @@
 	  CAM Target Layer (CTL):</para>
 	<itemizedlist>
 	  <listitem>
-	    <para>Support for UNMAP, WRITE SAME, COMPARE AND WRITE, XCOPY
+	    <para>Support for <literal>UNMAP</literal>, <literal>WRITE SAME</literal>, <literal>COMPARE AND WRITE</literal>, <literal>XCOPY</literal>
 		and some other SCSI commands was added to support VMWare VAAI
 		and Microsoft ODX storage acceleration.</para>
 	  </listitem>
 	  <listitem>
-	    <para revision="265642">READ/WRITE size limitations were removed
+	    <para revision="265642"><literal>READ</literal>/<literal>WRITE</literal> size limitations were removed
 		by supporting multiple data moves per command.</para>
 	  </listitem>
 	  <listitem>
 	    <para revision="268556">Finer-grained per-LUN locking and
-		multiple worker threads for better SMP scapability.</para>
+		multiple worker threads for better <acronym>SMP</acronym> scapability.</para>
 	  </listitem>
 	  <listitem>
 	    <para revision="269297">Memory consumption reduced by several
@@ -714,7 +714,7 @@
 		<acronym>SCSI</acronym> ports increased from 32 to 128</para>
 	  </listitem>
 	  <listitem>
-	    <para revision="269429">Improved ZVOL integration for better
+	    <para revision="269429">Improved <literal>zvol</literal> integration for better
 		performance.</para>
 	  </listitem>
 	</itemizedlist>
@@ -1244,7 +1244,7 @@
       (and snapshots of the various security branches) are supported
       using the &man.freebsd-update.8; utility.  The binary upgrade
       procedure will update unmodified userland utilities, as well as
-      unmodified GENERIC or SMP kernels distributed as a part of an
+      unmodified <filename>GENERIC</filename> or <acronym>SMP</acronym> kernels distributed as a part of an
       official &os; release.  The &man.freebsd-update.8; utility
       requires that the host being upgraded have Internet
       connectivity.</para>
