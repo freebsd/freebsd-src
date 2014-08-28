@@ -285,9 +285,83 @@
 	<para revision="266105">The &man.gpioiic.4; and
 	  &man.gpioled.4; have been merged from &os;-CURRENT.</para>
 
-	<para revision="266379">The <literal>ZEDBOARD</literal> kernel
-	  configuration file has been updated to include
-	  <acronym>SMP</acronym> support.</para>
+	<para>Support for hardware floating point was added to the
+	  kernel, and enabled by default in the configuration files
+	  for all platforms that contain the required hardware.</para>
+
+	<para><application>C++</application> exception handling now
+	  works with <application>GCC</application>.</para>
+
+	<para>Support for <acronym>SMP</acronym> was added to the
+	  kernel, and enabled by default in the configuration files
+	  for all platforms that contain multi-core CPUs.</para>
+
+	<para>Support was added for:</para>
+
+	<itemizedlist>
+	  <listitem>
+	    <para>CHROMEBOOK (Samsung Exynos 5250)</para>
+	  </listitem>
+
+	  <listitem>
+	    <para>COLIBRI (Freescale Vybrid)</para>
+	  </listitem>
+
+	  <listitem>
+	    <para>COSMIC (Freescale Vybrid)</para>
+	  </listitem>
+
+	  <listitem>
+	    <para>IMX53-QSB (Freescale i.MX53)</para>
+	  </listitem>
+
+	  <listitem>
+	    <para>QUARTZ (Freescale Vybrid)</para>
+	  </listitem>
+
+	  <listitem>
+	    <para>RADXA (Rockchip rk30xx)</para>
+	  </listitem>
+
+	  <listitem>
+	    <para>WANDBOARD (Freescale i.MX6)</para>
+	  </listitem>
+	</itemizedlist>
+
+	<para>An <acronym>I2C</acronym> driver was added for
+	  the RaspberryPi.</para>
+
+	<para>Drivers have been added to support <acronym>TI</acronym>
+	  platforms, such as BEAGLEBONE and PANDABOARD:</para>
+
+	<itemizedlist>
+	  <listitem>
+	    <para>PRUSS (Programmable Realtime Unit Subsystem)</para>
+	  </listitem>
+
+	  <listitem>
+	    <para>MBOX (Mailbox hardware)</para>
+	  </listitem>
+
+	  <listitem>
+	    <para>SDHCI (new faster driver for
+	      <acronym>MMC</acronym>/<acronym>SD</acronym>
+	      storage)</para>
+	  </listitem>
+
+	  <listitem>
+	    <para>PPS (Pulse Per Second input on a
+	      <acronym>GPIO</acronym>/timer pin)</para>
+	  </listitem>
+
+	  <listitem>
+	    <para>PWM (Pulse Width Modulation output)</para>
+	  </listitem>
+
+	  <listitem>
+	    <para>ADC (Analog to Digital converter)</para>
+	  </listitem>
+	</itemizedlist>
       </sect3>
 
       <sect3 xml:id="boot">
