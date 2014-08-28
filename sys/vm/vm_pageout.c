@@ -115,9 +115,13 @@ __FBSDID("$FreeBSD$");
 
 /* the kernel process "vm_pageout"*/
 static void vm_pageout(void);
+static void vm_pageout_init(void);
 static int vm_pageout_clean(vm_page_t);
 static void vm_pageout_scan(struct vm_domain *vmd, int pass);
 static void vm_pageout_mightbe_oom(struct vm_domain *vmd, int pass);
+
+SYSINIT(pagedaemon_init, SI_SUB_KTHREAD_PAGE, SI_ORDER_FIRST, vm_pageout_init,
+    NULL);
 
 struct proc *pageproc;
 
@@ -126,7 +130,7 @@ static struct kproc_desc page_kp = {
 	vm_pageout,
 	&pageproc
 };
-SYSINIT(pagedaemon, SI_SUB_KTHREAD_PAGE, SI_ORDER_FIRST, kproc_start,
+SYSINIT(pagedaemon, SI_SUB_KTHREAD_PAGE, SI_ORDER_SECOND, kproc_start,
     &page_kp);
 
 #if !defined(NO_SWAPPING)
@@ -1640,15 +1644,11 @@ vm_pageout_worker(void *arg)
 }
 
 /*
- *	vm_pageout is the high level pageout daemon.
+ *	vm_pageout_init initialises basic pageout daemon settings.
  */
 static void
-vm_pageout(void)
+vm_pageout_init(void)
 {
-#if MAXMEMDOM > 1
-	int error, i;
-#endif
-
 	/*
 	 * Initialize some paging parameters.
 	 */
@@ -1694,6 +1694,17 @@ vm_pageout(void)
 	/* XXX does not really belong here */
 	if (vm_page_max_wired == 0)
 		vm_page_max_wired = vm_cnt.v_free_count / 3;
+}
+
+/*
+ *     vm_pageout is the high level pageout daemon.
+ */
+static void
+vm_pageout(void)
+{
+#if MAXMEMDOM > 1
+	int error, i;
+#endif
 
 	swap_pager_swap_init();
 #if MAXMEMDOM > 1
