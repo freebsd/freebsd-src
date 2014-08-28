@@ -631,9 +631,10 @@
 	  <literal>BIO_FLUSH</literal> operation in &man.geom.8;
 	  <literal>GEOM_DISK</literal> class</para>
 
-	<para revision="266610">The &man.gstat.8; utility now has
-	  a <literal>-o</literal> option, to display "other" operatins
-	  (e.g. <literal>BIO_FLUSH</literal>).</para>
+	<para revision="266610">The &man.gstat.8; utility now has an
+	  <literal>-o</literal> option, to display
+	  <quote>other</quote> operations, such as
+	  <literal>BIO_FLUSH</literal>.</para>
 
 	<para revision="267084">The &man.mfi.4; driver has been
 	  updated to include support for unmapped I/O.</para>
