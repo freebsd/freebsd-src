@@ -47,6 +47,7 @@ LDFLAGS+= -nodefaultlibs
 LDADD+= -lgcc
 
 .if ${MK_SSP} != "no"
+DPADD+= ${LIBSSP_NONSHARED}
 LDADD+= -lssp_nonshared
 .endif
 
