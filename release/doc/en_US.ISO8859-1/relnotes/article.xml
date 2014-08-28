@@ -478,8 +478,20 @@
 	<title>Disks and Storage</title>
 
 	<para revision="260385" contrib="sponsor" sponsor="&ix;">The
+	  &man.geom.4; got I/O direct dispatch support.
+	  When safety requirements are met, it allows to avoid passing
+	  I/O requests to GEOM g_up/g_down thread, executing them directly
+	  in the caller context. That allows to avoid CPU bottlenecks in
+	  g_up/g_down threads, plus avoid several context switches per I/O.
+	  </para>
+
+	<para revision="260385" contrib="sponsor" sponsor="&ix;">The
 	  &man.geom.4; RAID driver has been
 	  updated to support unmapped I/O.</para>
+
+	<para revision="260478">The &man.geom.8;
+	  <literal>GEOM_MULTIPATH</literal> class got automatic live
+	  resize support.</para>
 
 	<para revision="260857">The &man.virtio_blk.4; driver has been
 	  updated to support unmapped I/O.</para>
@@ -514,6 +526,13 @@
 	    <application>StorCli</application> do not work with
 	    &man.mrsas.4;.</para>
 	</note>
+
+	<para revision="266608">Fixed accounting of BIO_FLUSH operation
+	  in &man.geom.8; <literal>GEOM_DISK</literal> class</para>
+
+	<para revision="266610">The &man.gstat.8;
+	  utility now has a <literal>-o</literal> option, to
+	  display "other" operatins (e.g. BIO_FLUSH).</para>
 
 	<para revision="267084">The &man.mfi.4; driver has been
 	  updated to include support for unmapped I/O.</para>
