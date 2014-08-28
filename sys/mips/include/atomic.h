@@ -77,6 +77,14 @@ void atomic_clear_16(__volatile uint16_t *, uint16_t);
 void atomic_add_16(__volatile uint16_t *, uint16_t);
 void atomic_subtract_16(__volatile uint16_t *, uint16_t);
 
+#ifdef __CHERI_SANDBOX__
+/* XXX-BD: not actually implemented, need cll */
+void atomic_set_32(__volatile uint32_t *, uint32_t);
+void atomic_clear_32(__volatile uint32_t *, uint32_t);
+void atomic_add_32(__volatile uint32_t *, uint32_t);
+void atomic_subtract_32(__volatile uint32_t *, uint32_t);
+#else
+
 static __inline void
 atomic_set_32(__volatile uint32_t *p, uint32_t v)
 {
@@ -172,6 +180,7 @@ atomic_readandset_32(__volatile uint32_t *addr, uint32_t value)
 
 	return result;
 }
+#endif /* !__CHERI_SANDBOX__ */
 
 #if defined(__mips_n64) || defined(__mips_n32)
 static __inline void
@@ -179,6 +188,17 @@ atomic_set_64(__volatile uint64_t *p, uint64_t v)
 {
 	uint64_t temp;
 
+#ifdef __CHERI_SANDBOX__
+	__asm __volatile (
+		"1:\n\t"
+		"clld	%0, $0, 0(%3)\n\t"	/* load old value */
+		"or	%0, %2, %0\n\t"		/* calculate new value */
+		"cscd	%0, $0, 0(%1)\n\t"	/* attempt to store */
+		"beqz	%0, 1b\n\t"		/* spin if failed */
+		: "=&r" (temp), "=C" (p)
+		: "r" (v), "C" (p)
+		: "memory");
+#else
 	__asm __volatile (
 		"1:\n\t"
 		"lld	%0, %3\n\t"		/* load old value */
@@ -188,6 +208,7 @@ atomic_set_64(__volatile uint64_t *p, uint64_t v)
 		: "=&r" (temp), "=m" (*p)
 		: "r" (v), "m" (*p)
 		: "memory");
+#endif
 
 }
 
@@ -197,6 +218,17 @@ atomic_clear_64(__volatile uint64_t *p, uint64_t v)
 	uint64_t temp;
 	v = ~v;
 
+#ifdef __CHERI_SANDBOX__
+	__asm __volatile (
+		"1:\n\t"
+		"clld	%0, $0, 0(%3)\n\t"	/* load old value */
+		"and	%0, %2, %0\n\t"		/* calculate new value */
+		"cscd	%0, $0, 0(%1)\n\t"	/* attempt to store */
+		"beqz	%0, 1b\n\t"		/* spin if failed */
+		: "=&r" (temp), "=C" (p)
+		: "r" (v), "C" (p)
+		: "memory");
+#else
 	__asm __volatile (
 		"1:\n\t"
 		"lld	%0, %3\n\t"		/* load old value */
@@ -206,6 +238,7 @@ atomic_clear_64(__volatile uint64_t *p, uint64_t v)
 		: "=&r" (temp), "=m" (*p)
 		: "r" (v), "m" (*p)
 		: "memory");
+#endif
 }
 
 static __inline void
@@ -213,6 +246,17 @@ atomic_add_64(__volatile uint64_t *p, uint64_t v)
 {
 	uint64_t temp;
 
+#ifdef __CHERI_SANDBOX__
+	__asm __volatile (
+		"1:\n\t"
+		"clld	%0, $0, 0(%3)\n\t"	/* load old value */
+		"daddu	%0, %2, %0\n\t"		/* calculate new value */
+		"cscd	%0, $0, 0(%1)\n\t"	/* attempt to store */
+		"beqz	%0, 1b\n\t"		/* spin if failed */
+		: "=&r" (temp), "=C" (p)
+		: "r" (v), "C" (p)
+		: "memory");
+#else
 	__asm __volatile (
 		"1:\n\t"
 		"lld	%0, %3\n\t"		/* load old value */
@@ -222,6 +266,7 @@ atomic_add_64(__volatile uint64_t *p, uint64_t v)
 		: "=&r" (temp), "=m" (*p)
 		: "r" (v), "m" (*p)
 		: "memory");
+#endif
 }
 
 static __inline void
@@ -229,6 +274,17 @@ atomic_subtract_64(__volatile uint64_t *p, uint64_t v)
 {
 	uint64_t temp;
 
+#ifdef __CHERI_SANDBOX__
+	__asm __volatile (
+		"1:\n\t"
+		"clld	%0, $0, 0(%3)\n\t"	/* load old value */
+		"dsubu	%0, %2\n\t"		/* calculate new value */
+		"cscd	%0, $0, 0(%1)\n\t"	/* attempt to store */
+		"beqz	%0, 1b\n\t"		/* spin if failed */
+		: "=&r" (temp), "=C" (p)
+		: "r" (v), "C" (p)
+		: "memory");
+#else
 	__asm __volatile (
 		"1:\n\t"
 		"lld	%0, %3\n\t"		/* load old value */
@@ -238,6 +294,7 @@ atomic_subtract_64(__volatile uint64_t *p, uint64_t v)
 		: "=&r" (temp), "=m" (*p)
 		: "r" (v), "m" (*p)
 		: "memory");
+#endif
 }
 
 static __inline uint64_t
@@ -245,6 +302,17 @@ atomic_readandclear_64(__volatile uint64_t *addr)
 {
 	uint64_t result,temp;
 
+#ifdef __CHERI_SANDBOX__
+	__asm __volatile (
+		"1:\n\t"
+		"clld	 %0, $0, 0(%3)\n\t"	/* load old value */
+		"li	 %1, 0\n\t"		/* value to store */
+		"cscd	 %1, $0, 0(%2)\n\t"	/* attempt to store */
+		"beqz	 %1, 1b\n\t"		/* if the store failed, spin */
+		: "=&r"(result), "=&r"(temp), "=C" (addr)
+		: "C" (addr)
+		: "memory");
+#else
 	__asm __volatile (
 		"1:\n\t"
 		"lld	 %0, %3\n\t"		/* load old value */
@@ -254,6 +322,7 @@ atomic_readandclear_64(__volatile uint64_t *addr)
 		: "=&r"(result), "=&r"(temp), "=m" (*addr)
 		: "m" (*addr)
 		: "memory");
+#endif
 
 	return result;
 }
@@ -263,6 +332,17 @@ atomic_readandset_64(__volatile uint64_t *addr, uint64_t value)
 {
 	uint64_t result,temp;
 
+#ifdef __CHERI_SANDBOX__
+	__asm __volatile (
+		"1:\n\t"
+		"clld	 %0, $0, 0(%3)\n\t"	/* load old value*/
+		"or      %1, $0, %4\n\t"
+		"cscd	 %1, $0, 0(%2)\n\t"	/* attempt to store */
+		"beqz	 %1, 1b\n\t"		/* if the store failed, spin */
+		: "=&r"(result), "=&r"(temp), "=C" (addr)
+		: "C" (addr), "r" (value)
+		: "memory");
+#else
 	__asm __volatile (
 		"1:\n\t"
 		"lld	 %0,%3\n\t"		/* Load old value*/
@@ -272,6 +352,7 @@ atomic_readandset_64(__volatile uint64_t *addr, uint64_t value)
 		: "=&r"(result), "=&r"(temp), "=m" (*addr)
 		: "m" (*addr), "r" (value)
 		: "memory");
+#endif
 
 	return result;
 }
@@ -356,6 +437,16 @@ atomic_load_64(__volatile uint64_t *p, uint64_t *v)
 
 #undef ATOMIC_STORE_LOAD
 
+#ifdef __CHERI_SANDBOX__
+uint32_t	atomic_cmpset_32(__volatile uint32_t* p, uint32_t cmpval,
+		    uint32_t newval);
+uint32_t	atomic_cmpset_acq_32(__volatile uint32_t *p, uint32_t cmpval,
+		    uint32_t newval);
+uint32_t	atomic_fetchadd_32(__volatile uint32_t *p, uint32_t v);
+uint32_t	atomic_cmpset_rel_32(__volatile uint32_t *p, uint32_t cmpval,
+		    uint32_t newval);
+#else
+
 /*
  * Atomically compare the value stored at *p with cmpval and if the
  * two values are equal, update the value of *p with newval. Returns
@@ -423,6 +514,7 @@ atomic_fetchadd_32(__volatile uint32_t *p, uint32_t v)
 		: "r" (v), "m" (*p));
 	return (value);
 }
+#endif
 
 #if defined(__mips_n64) || defined(__mips_n32)
 /*
@@ -435,6 +527,22 @@ atomic_cmpset_64(__volatile uint64_t* p, uint64_t cmpval, uint64_t newval)
 {
 	uint64_t ret;
 
+#ifdef __CHERI_SANDBOX__
+	__asm __volatile (
+		"1:\n\t"
+		"clld	%0, $0, 0(%4)\n\t"	/* load old value */
+		"bne	%0, %2, 2f\n\t"		/* compare */
+		"move	%0, %3\n\t"		/* value to store */
+		"cscd	%0, $0, 0(%1)\n\t"	/* attempt to store */
+		"beqz	%0, 1b\n\t"		/* if it failed, spin */
+		"j	3f\n\t"
+		"2:\n\t"
+		"li	%0, 0\n\t"
+		"3:\n"
+		: "=&r" (ret), "=C" (p)
+		: "r" (cmpval), "r" (newval), "C" (p)
+		: "memory");
+#else
 	__asm __volatile (
 		"1:\n\t"
 		"lld	%0, %4\n\t"		/* load old value */
@@ -449,6 +557,7 @@ atomic_cmpset_64(__volatile uint64_t* p, uint64_t cmpval, uint64_t newval)
 		: "=&r" (ret), "=m" (*p)
 		: "r" (cmpval), "r" (newval), "m" (*p)
 		: "memory");
+#endif
 
 	return ret;
 }
@@ -484,6 +593,16 @@ atomic_fetchadd_64(__volatile uint64_t *p, uint64_t v)
 {
 	uint64_t value, temp;
 
+#ifdef __CHERI_SANDBOX__
+	__asm __volatile (
+		"1:\n\t"
+		"clld	%0, $0, 0(%1)\n\t"		/* load old value */
+		"daddu	%2, %3, %0\n\t"		/* calculate new value */
+		"cscd	%2, $0, 0(%1)\n\t"		/* attempt to store */
+		"beqz	%2, 1b\n\t"		/* spin if failed */
+		: "=&r" (value), "=C" (p), "=&r" (temp)
+		: "r" (v), "C" (p));
+#else
 	__asm __volatile (
 		"1:\n\t"
 		"lld	%0, %1\n\t"		/* load old value */
@@ -492,6 +611,7 @@ atomic_fetchadd_64(__volatile uint64_t *p, uint64_t v)
 		"beqz	%2, 1b\n\t"		/* spin if failed */
 		: "=&r" (value), "=m" (*p), "=&r" (temp)
 		: "r" (v), "m" (*p));
+#endif
 	return (value);
 }
 #endif
