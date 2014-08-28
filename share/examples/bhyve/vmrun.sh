@@ -177,10 +177,10 @@ ${BHYVECTL} --vm=${vmname} --destroy > /dev/null 2>&1
 
 while [ 1 ]; do
 
-	file ${virtio_diskdev} | grep "boot sector" > /dev/null
+	file -s ${virtio_diskdev} | grep "boot sector" > /dev/null
 	rc=$?
 	if [ $rc -ne 0 ]; then
-		file ${virtio_diskdev} | grep ": Unix Fast File sys" > /dev/null
+		file -s ${virtio_diskdev} | grep ": Unix Fast File sys" > /dev/null
 		rc=$?
 	fi
 	if [ $rc -ne 0 ]; then
