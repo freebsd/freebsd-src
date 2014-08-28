@@ -525,6 +525,12 @@
 	  providing support for LSI Fusion-MPT 3 12Gb SCSI/SATA
 	  controllers.</para>
 
+	<para revision="265678">A new ZVOL property <literal>volmode</literal>
+	  and  &man.sysctl.8; <literal>vfs.zfs.vol.mode</literal> has been
+	  added to allow switching ZVOL between three different ways of
+	  exposing it to a user: <literal>geom</literal>,
+	  <literal>dev</literal> and <literal>none</literal>.</para>
+
 	<para revision="265922" contrib="sponsor" sponsor="&lsi;">The
 	  &man.mrsas.4; driver has been added,
 	  providing support for LSI MegaRAID SAS controllers.  The
