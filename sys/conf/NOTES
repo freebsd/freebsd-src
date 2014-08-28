@@ -2094,6 +2094,8 @@ device		em		# Intel Pro/1000 Gigabit Ethernet
 device		igb		# Intel Pro/1000 PCIE Gigabit Ethernet
 device		ixgb		# Intel Pro/10Gbe PCI-X Ethernet
 device		ixgbe		# Intel Pro/10Gbe PCIE Ethernet
+device		ixl		# Intel XL710 40Gbe PCIE Ethernet
+device		ixlv		# Intel XL710 40Gbe VF PCIE Ethernet
 device		le		# AMD Am7900 LANCE and Am79C9xx PCnet
 device		mxge		# Myricom Myri-10G 10GbE NIC
 device		nxge		# Neterion Xframe 10GbE Server/Storage Adapter
