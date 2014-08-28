@@ -689,8 +689,8 @@
 	  recalculate the user-specified offset and size for alignment
 	  with the disk geometry.</para>
 
-	<para contrib="sponsor" sponsor="&ix;">CAM Target Layer (CTL)
-	 got many impromenets:</para>
+	<para contrib="sponsor" sponsor="&ix;">Many improvements to the
+	  CAM Target Layer (CTL):</para>
 	<itemizedlist>
 	  <listitem>
 	    <para>Support for UNMAP, WRITE SAME, COMPARE AND WRITE, XCOPY
