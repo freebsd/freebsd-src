@@ -945,6 +945,15 @@
 	parameters.  This change allows &man.carp.4; interfaces to
 	be used within the &man.jail.8;.</para>
 
+      <para revision="269946">Support for generating and compiling
+	<acronym>USDT</acronym> <application>DTrace</application>
+	probes has been improved.  <application>DTrace</application>
+	<acronym>USDT</acronym> files are now handled similar to
+	&man.lex.1; and &man.yacc.1; files, meaning support for
+	handling <application>D</application> files as part of the
+	build process is built into the <literal>SRCS</literal>
+	&man.make.1; environment variable.</para>
+
       <para revision="269968">The &man.iscsictl.8; utility has been
 	updated to include a new flag, <literal>-M</literal>, which
 	allows modifying the <acronym>iSCSI</acronym> session
