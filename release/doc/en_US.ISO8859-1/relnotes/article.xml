@@ -489,6 +489,14 @@
 	  &man.geom.4; RAID driver has been
 	  updated to support unmapped I/O.</para>
 
+	<para revision="260387" contrib="sponsor" sponsor="&ix;">The
+	  &man.cam.4; got finer-grained locking, direct dispatch and
+	  multi-queue support.
+	  Combined with &man.geom.4; direct dispatch that allows to
+	  reduce lock congestion and improve SMP scalability of the
+	  SCSI/ATA stack.
+	  </para>
+
 	<para revision="260478">The &man.geom.8;
 	  <literal>GEOM_MULTIPATH</literal> class got automatic live
 	  resize support.</para>
