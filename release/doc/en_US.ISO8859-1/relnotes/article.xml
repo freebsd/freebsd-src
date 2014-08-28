@@ -1022,6 +1022,11 @@
 	specify NFS version 4, the syntax to use is
 	<literal>-o&nbsp;vers=4</literal>.</para>
 
+      <para revision="270242" contrib="sponsor"
+	sponsor="&spectralogic;">The &man.devd.8; client socket type
+	has been changed to <literal>SOCK_SEQPACKET</literal>,
+	providing sequential packet support.</para>
+
       <para revision="270401">Support for the <quote>account</quote>
 	facility has been added to the &man.pam.group.8;
 	module.</para>
