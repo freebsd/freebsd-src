@@ -130,29 +130,10 @@
     <sect2 xml:id="kernel">
       <title>Kernel Changes</title>
 
-      <para revision="260338">The
-	<literal>vfs.zfs.zio.use_uma</literal> &man.sysctl.8; has been
-	re-enabled.  On multi-CPU machines with enough RAM, this can
-	easily double &man.zfs.8; performance or reduce CPU usage in
-	half.  It was originally disabled due to memory and
-	<acronym>KVA</acronym> exhaustion problem reports, which
-	should be resolved due to several change in the VM
-	subsystem.</para>
-
-      <para revision="260385" contrib="sponsor" sponsor="&ix;">The
-	&man.geom.4; RAID driver has been
-	updated to support unmapped I/O.</para>
-
       <para revision="260431">A new &man.sysctl.8;,
 	<literal>kern.panic_reboot_wait_time</literal>, has been
 	added, which allows controlling how long the system will wait
 	after &man.panic.9; before rebooting.</para>
-
-      <para revision="260857">The &man.virtio_blk.4; driver has been
-	updated to support unmapped I/O.</para>
-
-      <para revision="260858">The &man.virtio_scsi.4; driver has been
-	updated to support unmapped I/O.</para>
 
       <para revision="262861">The &man.vt.4; driver has been merged
 	from &os;-CURRENT.  To enable &man.vt.4;, enter
@@ -233,6 +214,11 @@
 	updated to include support for the &intel;&nbsp;Lynx Point
 	KT <acronym>AMT</acronym> serial port.</para>
 
+      <para revision="266594">The <literal>radeonkms(4)</literal>
+	driver has been updated to include 32-bit &man.ioctl.2;
+	support, allowing 32-bit applications to run on a 64-bit
+	system.</para>
+
       <para revision="266718">A bug that would prevent
 	a &man.jail.8; from setting the correct IPv4 source address
 	with some operations that required
@@ -243,19 +229,9 @@
 	updated to support core events from the Atom&trade;
 	Silvermont architecture.</para>
 
-      <para revision="267084">The &man.mfi.4; driver has been
-	updated to include support for unmapped I/O.</para>
-
-      <para revision="267457">The &man.hpt27xx.4; driver has been
-	updated with various vendor-supplied bug fixes.</para>
-
       <para revision="268046">The &man.oce.4; driver has been updated
 	with vendor-supplied fixes for big endian support, and 20GB/s
 	and 25GB/s link speeds.</para>
-
-      <para revision="270130" contrib="sponsor"
-	sponsor="&citrix.rd;">Support for unmapped I/O has been added
-	to the &man.xen.4; <literal>blkfront</literal> driver.</para>
 
       <para revision="270630">The &os;&nbsp;virtual memory subsystem
 	has been updated to implement <quote>fast path</quote> for
@@ -544,6 +520,26 @@
       <sect3 xml:id="disks">
 	<title>Disks and Storage</title>
 
+	<para revision="260385" contrib="sponsor" sponsor="&ix;">The
+	  &man.geom.4; RAID driver has been
+	  updated to support unmapped I/O.</para>
+
+	<para revision="260857">The &man.virtio_blk.4; driver has been
+	  updated to support unmapped I/O.</para>
+
+	<para revision="260858">The &man.virtio_scsi.4; driver has been
+	  updated to support unmapped I/O.</para>
+
+	<para revision="267084">The &man.mfi.4; driver has been
+	  updated to include support for unmapped I/O.</para>
+
+	<para revision="267457">The &man.hpt27xx.4; driver has been
+	  updated with various vendor-supplied bug fixes.</para>
+
+	<para revision="270130" contrib="sponsor"
+	  sponsor="&citrix.rd;">Support for unmapped I/O has been added
+	  to the &man.xen.4; <literal>blkfront</literal> driver.</para>
+
 	<para revision="259328" contrib="sponsor" sponsor="&ff;">The
 	  &man.geom.8; <literal>label</literal> class is now aware of
 	  resized partitions.  This corrects an issue where
@@ -568,11 +564,6 @@
 	  <literal>disklabel64</literal> partitioning scheme has been
 	  added to &man.gpart.8;.</para>
 
-	<para revision="266594">The <literal>radeonkms(4)</literal>
-	  driver has been updated to include 32-bit &man.ioctl.2;
-	  support, allowing 32-bit applications to run on a 64-bit
-	  system.</para>
-
 	<para revision="269298">The maximum number of
 	  <acronym>SCSI</acronym> ports in the &man.ctl.4; driver has
 	  been increased from 32 to 128.</para>
@@ -589,6 +580,15 @@
 
       <sect3 xml:id="fs">
 	<title>File Systems</title>
+
+	<para revision="260338">The
+	  <literal>vfs.zfs.zio.use_uma</literal> &man.sysctl.8; has been
+	  re-enabled.  On multi-CPU machines with enough RAM, this can
+	  easily double &man.zfs.8; performance or reduce CPU usage in
+	  half.  It was originally disabled due to memory and
+	  <acronym>KVA</acronym> exhaustion problem reports, which
+	  should be resolved due to several change in the VM
+	  subsystem.</para>
 
 	<para revision="260178" contrib="vendor"
 	  vendor="&netflix;">A new flag, <literal>-R</literal>,
