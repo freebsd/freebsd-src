@@ -1257,7 +1257,7 @@ _lex=		usr.bin/lex
 _awk=		usr.bin/awk
 .endif
 
-.if ${MK_BSNMP} != "no" && !exists(/usr/sbin/gensnmptree)
+.if ${MK_BSNMP} != "no"
 _gensnmptree=	usr.sbin/bsnmpd/gensnmptree
 .endif
 
