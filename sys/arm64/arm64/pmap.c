@@ -1472,6 +1472,7 @@ pmap_update_pde_invalidate(pmap_t pmap, vm_offset_t va, pd_entry_t newpde)
 		invltlb_globpcid();
 	}
 }
+#endif /* 0 */
 
 /*
  * Normal, non-SMP, invalidation functions.
@@ -1481,19 +1482,13 @@ PMAP_INLINE void
 pmap_invalidate_page(pmap_t pmap, vm_offset_t va)
 {
 
-	switch (pmap->pm_type) {
-	case PT_X86:
-		if (pmap == kernel_pmap || !CPU_EMPTY(&pmap->pm_active))
-			invlpg(va);
-		break;
-	case PT_EPT:
-		pmap->pm_eptgen++;
-		break;
-	default:
-		panic("pmap_invalidate_page: unknown type: %d", pmap->pm_type);
-	}
+	__asm __volatile(
+	    "dsb  sy		\n"
+	    "tlbi vae1, %0	\n"
+	    "dsb  sy		\n"
+	    "isb		\n"
+	    : : "r"(va));
 }
-#endif /* 0 */
 
 PMAP_INLINE void
 pmap_invalidate_range(pmap_t pmap, vm_offset_t sva, vm_offset_t eva)
@@ -3954,26 +3949,31 @@ pmap_enter(pmap_t pmap, vm_offset_t va, vm_prot_t access, vm_page_t m,
 	 */
 	if ((orig_l3 & ATTR_AF) != 0) {
 validate:
-		panic("pmap_enter: Update l3");
-#if 0
-		origpte = pte_load_store(pte, newpte);
-		opa = origpte & PG_FRAME;
+		orig_l3 = *l3;
+		*l3 = new_l3;
+		opa = orig_l3 & ~ATTR_MASK;
+
 		if (opa != pa) {
-			if ((origpte & PG_MANAGED) != 0) {
+			if ((orig_l3 & ATTR_SW_MANAGED) != 0) {
 				om = PHYS_TO_VM_PAGE(opa);
+#if 0
 				if ((origpte & (PG_M | PG_RW)) == (PG_M |
 				    PG_RW))
 					vm_page_dirty(om);
 				if ((origpte & PG_A) != 0)
 					vm_page_aflag_set(om, PGA_REFERENCED);
+#endif
 				CHANGE_PV_LIST_LOCK_TO_PHYS(&lock, opa);
 				pmap_pvh_free(&om->md, pmap, va);
+#if 0
 				if ((om->aflags & PGA_WRITEABLE) != 0 &&
 				    TAILQ_EMPTY(&om->md.pv_list) &&
 				    ((om->flags & PG_FICTITIOUS) != 0 ||
 				    TAILQ_EMPTY(&pa_to_pvh(opa)->pv_list)))
 					vm_page_aflag_clear(om, PGA_WRITEABLE);
+#endif
 			}
+#if 0
 		} else if ((newpte & PG_M) == 0 && (origpte & (PG_M |
 		    PG_RW)) == (PG_M | PG_RW)) {
 			if ((origpte & PG_MANAGED) != 0)
@@ -3989,10 +3989,12 @@ validate:
 			 * This PTE change does not require TLB invalidation.
 			 */
 			goto unchanged;
-		}
-		if ((origpte & PG_A) != 0)
-			pmap_invalidate_page(pmap, va);
 #endif
+		}
+#if 0
+		if ((origpte & PG_A) != 0)
+#endif
+			pmap_invalidate_page(pmap, va);
 	} else
 		*l3 = new_l3;
 
