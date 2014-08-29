@@ -53,6 +53,7 @@ void
 cpu_fork(struct thread *td1, struct proc *p2, struct thread *td2, int flags)
 {
 	struct pcb *pcb2;
+	struct trapframe *tf;
 
 	if ((flags & RFPROC) == 0)
 		return;
@@ -64,6 +65,14 @@ cpu_fork(struct thread *td1, struct proc *p2, struct thread *td2, int flags)
 	bcopy(td1->td_pcb, pcb2, sizeof(*pcb2));
 
 	pmap_activate(td2);
+
+	tf = (struct trapframe *)STACKALIGN((struct trapframe *)pcb2 - 1);
+	bcopy(td1->td_frame, tf, sizeof(*tf));
+	tf->tf_x[0] = 0;
+	tf->tf_x[1] = 0;
+	tf->tf_spsr = 0;
+
+	td2->td_frame = tf;
 
 	/* Set the return value registers for fork() */
 	td2->td_pcb->pcb_x[8] = (uintptr_t)fork_return;

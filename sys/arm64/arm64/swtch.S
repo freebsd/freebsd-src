@@ -174,7 +174,7 @@ ENTRY(fork_trampoline)
 	ldp	x24, x25, [x0, #TF_X + 24 * 8]
 	ldp	x26, x27, [x0, #TF_X + 26 * 8]
 	ldp	x28, x29, [x0, #TF_X + 28 * 8]
-	ldr	x30, [x0, #TF_X + 30 * 8]
+	/* Skip x30 as it was restored above as lr */
 
 	/* Finally x0 and x1 */
 	ldp	x0, x1, [x0, #TF_X + 0 * 8]
