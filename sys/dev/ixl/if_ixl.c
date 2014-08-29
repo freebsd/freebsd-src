@@ -3983,11 +3983,11 @@ ixl_print_debug_info(struct ixl_pf *pf)
 	u32			reg;	
 
 
-	printf("Queue irqs = %lx\n", que->irqs);
-	printf("AdminQ irqs = %lx\n", pf->admin_irq);
+	printf("Queue irqs = %jx\n", (uintmax_t)que->irqs);
+	printf("AdminQ irqs = %jx\n", (uintmax_t)pf->admin_irq);
 	printf("RX next check = %x\n", rxr->next_check);
-	printf("RX not ready = %lx\n", rxr->not_done);
-	printf("RX packets = %lx\n", rxr->rx_packets);
+	printf("RX not ready = %jx\n", (uintmax_t)rxr->not_done);
+	printf("RX packets = %jx\n", (uintmax_t)rxr->rx_packets);
 	printf("TX desc avail = %x\n", txr->avail);
 
 	reg = rd32(hw, I40E_GLV_GORCL(0xc));
@@ -4128,7 +4128,7 @@ ixl_stat_update48(struct i40e_hw *hw, u32 hireg, u32 loreg,
 {
 	u64 new_data;
 
-#if __FreeBSD__ >= 10 && __amd64__
+#if defined(__FreeBSD__) && (__FreeBSD_version >= 1000000) && defined(__amd64__)
 	new_data = rd64(hw, loreg);
 #else
 	/*
