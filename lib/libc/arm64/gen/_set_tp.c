@@ -37,6 +37,5 @@ void
 _set_tp(void *tp)
 {
 
-	abort();
 	//sysarch(ARM_SET_TP, tp);
 }
