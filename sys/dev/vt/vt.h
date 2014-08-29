@@ -182,7 +182,7 @@ struct vt_buf {
 #define	VBF_MTX_INIT	0x4	/* Mutex initialized. */
 #define	VBF_SCROLL	0x8	/* scroll locked mode. */
 #define	VBF_HISTORY_FULL 0x10	/* All rows filled. */
-	int			 vb_history_size;
+	unsigned int		 vb_history_size;
 #define	VBF_DEFAULT_HISTORY_SIZE	500
 	int			 vb_roffset;	/* (b) History rows offset. */
 	int			 vb_curroffset;	/* (b) Saved rows offset. */
@@ -200,7 +200,7 @@ void vtbuf_copy(struct vt_buf *, const term_rect_t *, const term_pos_t *);
 void vtbuf_fill_locked(struct vt_buf *, const term_rect_t *, term_char_t);
 void vtbuf_init_early(struct vt_buf *);
 void vtbuf_init(struct vt_buf *, const term_pos_t *);
-void vtbuf_grow(struct vt_buf *, const term_pos_t *, int);
+void vtbuf_grow(struct vt_buf *, const term_pos_t *, unsigned int);
 void vtbuf_putchar(struct vt_buf *, const term_pos_t *, term_char_t);
 void vtbuf_cursor_position(struct vt_buf *, const term_pos_t *);
 void vtbuf_scroll_mode(struct vt_buf *vb, int yes);
