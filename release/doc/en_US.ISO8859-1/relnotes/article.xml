@@ -1168,7 +1168,7 @@
 	has been updated to 8.14.9.</para>
 
       <para revision="267477">The timezone database has been updated
-	to version tzdata2014e.</para>
+	to version tzdata2014f.</para>
 
       <para revision="268515">The &man.file.1; utility and
 	&man.libmagic.3; library have been updated to 5.19.</para>
