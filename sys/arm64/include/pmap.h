@@ -69,7 +69,9 @@ void pmap_page_set_memattr(vm_page_t m, vm_memattr_t ma);
  */
 
 struct md_page {
-	vm_memattr_t pv_memattr;
+	TAILQ_HEAD(,pv_entry)	pv_list;
+	int			pv_gen;
+	vm_memattr_t		pv_memattr;
 };
 
 /*
@@ -87,6 +89,26 @@ struct pmap {
 	struct mtx		pm_mtx;
 	struct pmap_statistics	pm_stats;	/* pmap statictics */
 	pd_entry_t		*pm_l1;
+	TAILQ_HEAD(,pv_chunk)	pm_pvchunk;	/* list of mappings in pmap */
+};
+
+typedef struct pv_entry {
+	vm_offset_t		pv_va;	/* virtual address for mapping */
+	TAILQ_ENTRY(pv_entry)	pv_next;
+} *pv_entry_t;
+
+/*
+ * pv_entries are allocated in chunks per-process.  This avoids the
+ * need to track per-pmap assignments.
+ */
+#define	_NPCM	3
+#define	_NPCPV	168
+struct pv_chunk {
+	struct pmap *		pc_pmap;
+	TAILQ_ENTRY(pv_chunk)	pc_list;
+	uint64_t		pc_map[_NPCM];  /* bitmap; 1 = free */
+	TAILQ_ENTRY(pv_chunk)	pc_lru;
+	struct pv_entry		pc_pventry[_NPCPV];
 };
 
 typedef struct pmap *pmap_t;
@@ -99,6 +121,8 @@ extern struct pmap	kernel_pmap_store;
 #define	PMAP_ASSERT_LOCKED(pmap) \
 				mtx_assert(&(pmap)->pm_mtx, MA_OWNED)
 #define	PMAP_LOCK(pmap)		mtx_lock(&(pmap)->pm_mtx)
+#define	PMAP_LOCK_ASSERT(pmap, type) \
+				mtx_assert(&(pmap)->pm_mtx, (type))
 #define	PMAP_LOCK_DESTROY(pmap)	mtx_destroy(&(pmap)->pm_mtx)
 #define	PMAP_LOCK_INIT(pmap)	mtx_init(&(pmap)->pm_mtx, "pmap", \
 				    NULL, MTX_DEF | MTX_DUPOK)

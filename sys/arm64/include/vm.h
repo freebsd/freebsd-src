@@ -30,7 +30,10 @@
 #define	_MACHINE_VM_H_
 
 /* Memory attribute configuration. */
-#define	VM_MEMATTR_DEFAULT	0
+#define	VM_MEMATTR_DEVICE	0
 #define	VM_MEMATTR_UNCACHEABLE	1
+#define	VM_MEMATTR_WRITE_BACK	2
+
+#define	VM_MEMATTR_DEFAULT	VM_MEMATTR_UNCACHEABLE
 
 #endif /* !_MACHINE_VM_H_ */

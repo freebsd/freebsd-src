@@ -47,6 +47,9 @@ typedef	uint64_t	pt_entry_t;		/* page table entry */
 #define	ATTR_MASK_H	UINT64_C(0xfff0000000000000)
 #define	ATTR_MASK_L	UINT64_C(0x0000000000000fff)
 #define	ATTR_MASK	(ATTR_MASK_H | ATTR_MASK_L)
+/* Bits 58:55 are reserved for software */
+#define	ATTR_SW_MANAGED	(1UL << 56)
+#define	ATTR_SW_W	(1UL << 55)
 #define	ATTR_nG		(1 << 11)
 #define	ATTR_AF		(1 << 10)
 #define	ATTR_SH(x)	((x) << 8)
