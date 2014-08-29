@@ -76,6 +76,8 @@ char *
 __hldtoa(long double e, const char *xdigs, int ndigits, int *decpt, int *sign,
     char **rve)
 {
+	abort();
+#if 0
 	union IEEEl2bits u;
 	char *s, *s0;
 	manh_t manh;
@@ -162,6 +164,7 @@ __hldtoa(long double e, const char *xdigs, int ndigits, int *decpt, int *sign,
 	if (rve != NULL)
 		*rve = s;
 	return (s0);
+#endif
 }
 
 #else	/* (LDBL_MANT_DIG == DBL_MANT_DIG) */
