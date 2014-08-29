@@ -53,7 +53,7 @@ copyin(const void *udaddr, void *kaddr, size_t len)
 {
 
 	memcpy(kaddr, udaddr, len);
-	panic("copyin");
+	return (0);
 }
 
 int
