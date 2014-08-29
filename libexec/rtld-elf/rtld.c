@@ -2576,7 +2576,8 @@ relocate_object(Obj_Entry *obj, bool bind_now, Obj_Entry *rtldobj,
 	 * reference other symbols, which must be readily processed
 	 * before resolvers are called.
 	 */
-	if (reloc_non_plt(obj, rtldobj, flags | SYMLOOK_IFUNC, lockstate))
+	if (obj->non_plt_gnu_ifunc &&
+	    reloc_non_plt(obj, rtldobj, flags | SYMLOOK_IFUNC, lockstate))
 		return (-1);
 
 	if (obj->relro_size > 0) {
