@@ -31,7 +31,8 @@ __FBSDID("$FreeBSD$");
 	.globl	_init
 	.type	_init,@function
 _init:
-	1: b 1b
+	sub	sp, sp, #16
+	str	lr, [sp]
 
 	.section .fini,"ax",@progbits
 	.align 4
