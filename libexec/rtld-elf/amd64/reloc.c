@@ -176,8 +176,10 @@ reloc_non_plt(Obj_Entry *obj, Obj_Entry *obj_rtld, int flags,
 				case R_X86_64_64:
 				case R_X86_64_PC32:
 				case R_X86_64_GLOB_DAT:
-					if ((flags & SYMLOOK_IFUNC) == 0)
+					if ((flags & SYMLOOK_IFUNC) == 0) {
+						obj->non_plt_gnu_ifunc = true;
 						continue;
+					}
 					symval = (Elf_Addr)rtld_resolve_ifunc(
 					    defobj, def);
 					break;

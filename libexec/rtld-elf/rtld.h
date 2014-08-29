@@ -271,6 +271,7 @@ typedef struct Struct_Obj_Entry {
     bool filtees_loaded : 1;	/* Filtees loaded */
     bool irelative : 1;		/* Object has R_MACHDEP_IRELATIVE relocs */
     bool gnu_ifunc : 1;		/* Object has references to STT_GNU_IFUNC */
+    bool non_plt_gnu_ifunc : 1;	/* Object has non-plt IFUNC references */
     bool crt_no_init : 1;	/* Object' crt does not call _init/_fini */
     bool valid_hash_sysv : 1;	/* A valid System V hash hash tag is available */
     bool valid_hash_gnu : 1;	/* A valid GNU hash tag is available */
