@@ -65,6 +65,12 @@ generic_bs_unmap(void *t, bus_space_handle_t bsh, bus_size_t size)
 	pmap_unmapdev(bsh, size);
 }
 
+static void
+generic_bs_barrier(void *t, bus_space_handle_t bsh, bus_size_t offset,
+    bus_size_t size, int flags)
+{
+}
+
 struct bus_space memmap_bus = {
 	/* cookie */
 	.bs_cookie = NULL,
@@ -79,7 +85,7 @@ struct bus_space memmap_bus = {
 	.bs_free = NULL,
 
 	/* barrier */
-	.bs_barrier = NULL,
+	.bs_barrier = generic_bs_barrier,
 
 	/* read single */
 	.bs_r_1 = generic_bs_r_1,
