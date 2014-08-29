@@ -293,6 +293,8 @@ typedef struct Struct_Obj_Entry {
 #define SYMLOOK_DLSYM	0x02	/* Return newest versioned symbol. Used by
 				   dlsym. */
 #define	SYMLOOK_EARLY	0x04	/* Symlook is done during initialization. */
+#define	SYMLOOK_IFUNC	0x08	/* Allow IFUNC processing in
+				   reloc_non_plt(). */
 
 /* Flags for load_object(). */
 #define	RTLD_LO_NOLOAD	0x01	/* dlopen() specified RTLD_NOLOAD. */
