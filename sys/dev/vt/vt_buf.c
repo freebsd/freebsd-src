@@ -451,7 +451,7 @@ vtbuf_sethistory_size(struct vt_buf *vb, int size)
 }
 
 void
-vtbuf_grow(struct vt_buf *vb, const term_pos_t *p, int history_size)
+vtbuf_grow(struct vt_buf *vb, const term_pos_t *p, unsigned int history_size)
 {
 	term_char_t *old, *new, **rows, **oldrows, **copyrows, *row;
 	int bufsize, rowssize, w, h, c, r;
