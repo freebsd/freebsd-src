@@ -2197,7 +2197,6 @@ _pmap_alloc_l3(pmap_t pmap, vm_pindex_t ptepindex, struct rwlock **lockp)
 
 	pmap_resident_count_inc(pmap, 1);
 
-	printf("_pmap_alloc_l3: %p %u\n", m, m->wire_count);
 	return (m);
 }
 

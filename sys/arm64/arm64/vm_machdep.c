@@ -102,7 +102,6 @@ cpu_set_syscall_retval(struct thread *td, int error)
 
 	frame = td->td_frame;
 
-	printf("cpu_set_syscall_retval %d\n", error);
 	switch (error) {
 	case 0:
 		frame->tf_x[0] = td->td_retval[0];
