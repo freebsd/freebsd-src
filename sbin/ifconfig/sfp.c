@@ -624,53 +624,41 @@ get_qsfp_tx_power(struct i2c_info *ii, char *buf, size_t size, int chan)
 	convert_sff_power(ii, buf, size, xbuf);
 }
 
-/* Intel ixgbe-specific structures and handlers */
-struct ixgbe_i2c_req {
-	uint8_t dev_addr;
-	uint8_t	offset;
-	uint8_t len;
-	uint8_t data[8];
-};
-#define	SIOCGI2C	SIOCGIFGENERIC
-
-static int
-read_i2c_ixgbe(struct i2c_info *ii, uint8_t addr, uint8_t off, uint8_t len,
-    caddr_t buf)
-{
-	struct ixgbe_i2c_req ixreq;
-	int i;
-
-	if (ii->error != 0)
-		return (ii->error);
-
-	ii->ifr->ifr_data = (caddr_t)&ixreq;
-
-	memset(&ixreq, 0, sizeof(ixreq));
-	ixreq.dev_addr = addr;
-
-	for (i = 0; i < len; i += 1) {
-		ixreq.offset = off + i;
-		ixreq.len = 1;
-		ixreq.data[0] = '\0';
-
-		if (ioctl(ii->s, SIOCGI2C, ii->ifr) != 0) {
-			ii->error = errno;
-			return (errno);
-		}
-		memcpy(&buf[i], ixreq.data, 1);
-	}
-
-	return (0);
-}
-
 /* Generic handler */
 static int
 read_i2c_generic(struct i2c_info *ii, uint8_t addr, uint8_t off, uint8_t len,
     caddr_t buf)
 {
+	struct ifi2creq req;
+	int i, l;
 
-	ii->error = EINVAL;
-	return (-1);
+	if (ii->error != 0)
+		return (ii->error);
+
+	ii->ifr->ifr_data = (caddr_t)&req;
+
+	i = 0;
+	l = 0;
+	memset(&req, 0, sizeof(req));
+	req.dev_addr = addr;
+	req.offset = off;
+	req.len = len;
+
+	while (len > 0) {
+		l = (len > sizeof(req.data)) ? sizeof(req.data) : len;
+		req.len = l;
+		if (ioctl(ii->s, SIOCGI2C, ii->ifr) != 0) {
+			ii->error = errno;
+			return (errno);
+		}
+
+		memcpy(&buf[i], req.data, l);
+		len -= l;
+		i += l;
+		req.offset += l;
+	}
+
+	return (0);
 }
 
 static void
@@ -766,6 +754,7 @@ sfp_status(int s, struct ifreq *ifr, int verbose)
 {
 	struct i2c_info ii;
 
+	memset(&ii, 0, sizeof(ii));
 	/* Prepare necessary into to pass to NIC handler */
 	ii.s = s;
 	ii.ifr = ifr;
@@ -774,9 +763,8 @@ sfp_status(int s, struct ifreq *ifr, int verbose)
 	 * Check if we have i2c support for particular driver.
 	 * TODO: Determine driver by original name.
 	 */
-	memset(&ii, 0, sizeof(ii));
 	if (strncmp(ifr->ifr_name, "ix", 2) == 0) {
-		ii.f = read_i2c_ixgbe;
+		ii.f = read_i2c_generic;
 		print_sfp_status(&ii, verbose);
 	} else if (strncmp(ifr->ifr_name, "cxl", 3) == 0) {
 		ii.port_id = atoi(&ifr->ifr_name[3]);
