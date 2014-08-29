@@ -121,7 +121,7 @@ static int kmemcount;
 #define KMEM_ZBASE	16
 #define KMEM_ZMASK	(KMEM_ZBASE - 1)
 
-#define KMEM_ZMAX	PAGE_SIZE
+#define KMEM_ZMAX	65536
 #define KMEM_ZSIZE	(KMEM_ZMAX >> KMEM_ZSHIFT)
 static uint8_t kmemsize[KMEM_ZSIZE + 1];
 
@@ -152,21 +152,10 @@ struct {
 	{1024, "1024", },
 	{2048, "2048", },
 	{4096, "4096", },
-#if PAGE_SIZE > 4096
 	{8192, "8192", },
-#if PAGE_SIZE > 8192
 	{16384, "16384", },
-#if PAGE_SIZE > 16384
 	{32768, "32768", },
-#if PAGE_SIZE > 32768
 	{65536, "65536", },
-#if PAGE_SIZE > 65536
-#error	"Unsupported PAGE_SIZE"
-#endif	/* 65536 */
-#endif	/* 32768 */
-#endif	/* 16384 */
-#endif	/* 8192 */
-#endif	/* 4096 */
 	{0, NULL},
 };
 
@@ -183,6 +172,10 @@ static uma_zone_t mt_zone;
 u_long vm_kmem_size;
 SYSCTL_ULONG(_vm, OID_AUTO, kmem_size, CTLFLAG_RDTUN, &vm_kmem_size, 0,
     "Size of kernel memory");
+
+static u_long kmem_zmax = KMEM_ZMAX;
+SYSCTL_ULONG(_vm, OID_AUTO, kmem_zmax, CTLFLAG_RDTUN, &kmem_zmax, 0,
+    "Maximum allocation size that malloc(9) would use UMA as backend");
 
 static u_long vm_kmem_size_min;
 SYSCTL_ULONG(_vm, OID_AUTO, kmem_size_min, CTLFLAG_RDTUN, &vm_kmem_size_min, 0,
@@ -498,7 +491,7 @@ malloc(unsigned long size, struct malloc_type *mtp, int flags)
 	size = redzone_size_ntor(size);
 #endif
 
-	if (size <= KMEM_ZMAX) {
+	if (size <= kmem_zmax) {
 		mtip = mtp->ks_handle;
 		if (size & KMEM_ZMASK)
 			size = (size & ~KMEM_ZMASK) + KMEM_ZBASE;
@@ -783,6 +776,9 @@ mallocinit(void *dummy)
 
 	uma_startup2();
 
+	if (kmem_zmax < PAGE_SIZE || kmem_zmax > KMEM_ZMAX)
+		kmem_zmax = KMEM_ZMAX;
+
 	mt_zone = uma_zcreate("mt_zone", sizeof(struct malloc_type_internal),
 #ifdef INVARIANTS
 	    mtrash_ctor, mtrash_dtor, mtrash_init, mtrash_fini,
@@ -807,7 +803,7 @@ mallocinit(void *dummy)
 		}		    
 		for (;i <= size; i+= KMEM_ZBASE)
 			kmemsize[i >> KMEM_ZSHIFT] = indx;
-		
+
 	}
 }
 SYSINIT(kmem, SI_SUB_KMEM, SI_ORDER_FIRST, mallocinit, NULL);
