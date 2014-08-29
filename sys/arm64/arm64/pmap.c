@@ -4155,8 +4155,6 @@ pmap_enter_object(pmap_t pmap, vm_offset_t start, vm_offset_t end,
 void
 pmap_enter_quick(pmap_t pmap, vm_offset_t va, vm_page_t m, vm_prot_t prot)
 {
-	panic("pmap_enter_quick");
-#if 0
 	struct rwlock *lock;
 
 	lock = NULL;
@@ -4167,7 +4165,6 @@ pmap_enter_quick(pmap_t pmap, vm_offset_t va, vm_page_t m, vm_prot_t prot)
 		rw_wunlock(lock);
 	rw_runlock(&pvh_global_lock);
 	PMAP_UNLOCK(pmap);
-#endif
 }
 
 static vm_page_t
