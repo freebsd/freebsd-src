@@ -2071,10 +2071,12 @@ do_lock_pi(struct thread *td, struct umutex *m, uint32_t flags,
 		 * and we need to retry or we lost a race to the thread
 		 * unlocking the umtx.
 		 */
-		if (old == owner)
+		if (old == owner) {
 			error = umtxq_sleep_pi(uq, pi, owner & ~UMUTEX_CONTESTED,
 			    "umtxpi", timeout == NULL ? NULL : &timo);
-		else {
+			if (error != 0)
+				continue;
+		} else {
 			umtxq_unbusy(&uq->uq_key);
 			umtxq_unlock(&uq->uq_key);
 		}
