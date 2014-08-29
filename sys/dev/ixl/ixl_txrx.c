@@ -596,6 +596,7 @@ ixl_tx_setup_offload(struct ixl_queue *que,
 
 	switch (etype) {
 		case ETHERTYPE_IP:
+#ifdef INET
 			ip = (struct ip *)(mp->m_data + elen);
 			ip_hlen = ip->ip_hl << 2;
 			ipproto = ip->ip_p;
@@ -605,14 +606,17 @@ ixl_tx_setup_offload(struct ixl_queue *que,
 				*cmd |= I40E_TX_DESC_CMD_IIPT_IPV4_CSUM;
 			else
 				*cmd |= I40E_TX_DESC_CMD_IIPT_IPV4;
+#endif
 			break;
 		case ETHERTYPE_IPV6:
+#ifdef INET6
 			ip6 = (struct ip6_hdr *)(mp->m_data + elen);
 			ip_hlen = sizeof(struct ip6_hdr);
 			ipproto = ip6->ip6_nxt;
 			th = (struct tcphdr *)((caddr_t)ip6 + ip_hlen);
 			*cmd |= I40E_TX_DESC_CMD_IIPT_IPV6;
 			/* Falls thru */
+#endif
 		default:
 			break;
 	}
