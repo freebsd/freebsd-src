@@ -137,11 +137,15 @@ struct i40e_spinlock {
 
 #define le16_to_cpu 
 
+#if defined(__amd64__) || defined(i386)
 static __inline
 void prefetch(void *x)
 {
 	__asm volatile("prefetcht0 %0" :: "m" (*(unsigned long *)x));
 }
+#else
+#define	prefetch(x)
+#endif
 
 struct i40e_osdep
 {
