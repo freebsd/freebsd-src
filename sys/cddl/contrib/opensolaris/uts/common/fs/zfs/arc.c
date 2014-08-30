@@ -2563,6 +2563,14 @@ arc_reclaim_needed(void)
 #endif	/* sun */
 
 #else
+#ifdef __i386__
+	/* i386 has KVA limits that the raw page counts above don't consider */
+	if (kmem_used() > (kmem_size() * 3) / 4) {
+		DTRACE_PROBE2(arc__reclaim_used, uint64_t,
+		    kmem_used(), uint64_t, (kmem_size() * 3) / 4);
+		return (1);
+	}
+#endif
 	if (spa_get_random(100) == 0)
 		return (1);
 #endif
