@@ -675,10 +675,9 @@ nfsrvd_compound(struct nfsrv_descript *nd, int isdgram,
 		if (i == 0 && nd->nd_rp->rc_refcnt == 0 &&
 		    (nfsrv_mallocmget_limit() ||
 		     nfsrc_tcpsavedreplies > nfsrc_floodlevel)) {
-			if (nfsrc_tcpsavedreplies > nfsrc_floodlevel) {
-				printf("nfsd server cache flooded, try to");
-				printf(" increase nfsrc_floodlevel\n");
-			}
+			if (nfsrc_tcpsavedreplies > nfsrc_floodlevel)
+				printf("nfsd server cache flooded, try "
+				    "increasing vfs.nfsd.tcphighwater\n");
 			nd->nd_repstat = NFSERR_RESOURCE;
 			*repp = nfsd_errmap(nd);
 			if (op == NFSV4OP_SETATTR) {
