@@ -1708,7 +1708,7 @@ atse_attach(device_t dev)
 	ether_ifattach(ifp, sc->atse_eth_addr);
 
 	/* Tell the upper layer(s) about vlan mtu support. */
-	ifp->if_data.ifi_hdrlen = sizeof(struct ether_vlan_header);
+	ifp->if_hdrlen = sizeof(struct ether_vlan_header);
 	ifp->if_capabilities |= IFCAP_VLAN_MTU;
 	ifp->if_capenable = ifp->if_capabilities;
 #ifdef DEVICE_POLLING
