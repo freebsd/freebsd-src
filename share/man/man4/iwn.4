@@ -25,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd August 14, 2014
+.Dd August 30, 2014
 .Dt IWN 4
 .Os
 .Sh NAME
@@ -46,6 +46,7 @@ You also need to select a firmware for your device.
 Choose one from:
 .Bd -ragged -offset indent
 .Cd "device iwn1000fw"
+.Cd "device iwn100fw"
 .Cd "device iwn105fw"
 .Cd "device iwn135fw"
 .Cd "device iwn2000fw"
@@ -72,6 +73,7 @@ module at boot time, place the following lines in
 .Bd -literal -offset indent
 if_iwn_load="YES"
 iwn1000fw_load="YES"
+iwn100fw_load="YES"
 iwn105fw_load="YES"
 iwn135fw_load="YES"
 iwn2000fw_load="YES"
