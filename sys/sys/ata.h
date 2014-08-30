@@ -370,6 +370,7 @@ struct ata_params {
 #define ATA_READ_LOG_DMA_EXT            0x47    /* read log DMA ext - PIO Data-In */
 #define ATA_READ_FPDMA_QUEUED           0x60    /* read DMA NCQ */
 #define ATA_WRITE_FPDMA_QUEUED          0x61    /* write DMA NCQ */
+#define ATA_NCQ_NON_DATA		0x63	/* NCQ non-data command */
 #define ATA_SEND_FPDMA_QUEUED           0x64    /* send DMA NCQ */
 #define ATA_RECV_FPDMA_QUEUED           0x65    /* recieve DMA NCQ */
 #define ATA_SEP_ATTN                    0x67    /* SEP request */
