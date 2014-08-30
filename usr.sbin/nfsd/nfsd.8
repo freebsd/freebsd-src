@@ -28,7 +28,7 @@
 .\"	@(#)nfsd.8	8.4 (Berkeley) 3/29/95
 .\" $FreeBSD$
 .\"
-.Dd April 23, 2011
+.Dd August 10, 2014
 .Dt NFSD 8
 .Os
 .Sh NAME
@@ -163,6 +163,24 @@ The
 utility
 would then be used to block nfs-related packets that come in on the outside
 interface.
+.Pp
+If the server has stopped servicing clients and has generated a console message
+like
+.Dq Li "nfsd server cache flooded..." ,
+the value for vfs.nfsd.tcphighwater needs to be increased.
+This should allow the server to again handle requests without a reboot.
+Also, you may want to consider decreasing the value for
+vfs.nfsd.tcpcachetimeo to several minutes (in seconds) instead of 12 hours
+when this occurs.
+.Pp
+Unfortunately making vfs.nfsd.tcphighwater too large can result in the mbuf
+limit being reached, as indicated by a console message
+like
+.Dq Li "kern.ipc.nmbufs limit reached" .
+If you cannot find values of the above
+.Nm sysctl
+values that work, you can disable the DRC cache for TCP by setting
+vfs.nfsd.cachetcp to 0.
 .Pp
 The
 .Nm
