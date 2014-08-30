@@ -1602,6 +1602,20 @@ iwn1000.fw			optional iwn1000fw | iwnfw		\
 	compile-with	"${NORMAL_FW}"					\
 	no-obj no-implicit-rule						\
 	clean		"iwn1000.fw"
+iwn100fw.c			optional iwn100fw | iwnfw		\
+	compile-with	"${AWK} -f $S/tools/fw_stub.awk iwn100.fw:iwn100fw -miwn100fw -c${.TARGET}" \
+	no-implicit-rule before-depend local				\
+	clean		"iwn100fw.c"
+iwn100fw.fwo			optional iwn100fw | iwnfw		\
+	dependency	"iwn100.fw"					\
+	compile-with	"${NORMAL_FWO}"					\
+	no-implicit-rule						\
+	clean		"iwn100fw.fwo"
+iwn100.fw			optional iwn100fw | iwnfw		\
+	dependency	"$S/contrib/dev/iwn/iwlwifi-100-39.31.5.1.fw.uu" \
+	compile-with	"${NORMAL_FW}"					\
+	no-obj no-implicit-rule						\
+	clean		"iwn100.fw"
 iwn105fw.c			optional iwn105fw | iwnfw		\
 	compile-with	"${AWK} -f $S/tools/fw_stub.awk iwn105.fw:iwn105fw -miwn105fw -c${.TARGET}" \
 	no-implicit-rule before-depend local				\
