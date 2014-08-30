@@ -2311,9 +2311,11 @@ fasttrap_ioctl(struct cdev *dev, u_long cmd, caddr_t arg, int fflag,
 			 * Report an error if the process doesn't exist
 			 * or is actively being birthed.
 			 */
+			sx_slock(&proctree_lock);
 			p = pfind(pid);
 			if (p)
 				fill_kinfo_proc(p, &kp);
+			sx_sunlock(&proctree_lock);
 			if (p == NULL || kp.ki_stat == SIDL) {
 #if defined(sun)
 				mutex_exit(&pidlock);
@@ -2377,9 +2379,11 @@ err:
 			 * Report an error if the process doesn't exist
 			 * or is actively being birthed.
 			 */
+			sx_slock(&proctree_lock);
 			p = pfind(pid);
 			if (p)
 				fill_kinfo_proc(p, &kp);
+			sx_sunlock(&proctree_lock);
 			if (p == NULL || kp.ki_stat == SIDL) {
 #if defined(sun)
 				mutex_exit(&pidlock);
