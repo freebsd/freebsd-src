@@ -106,6 +106,9 @@ __FBSDID("$FreeBSD: projects/ipfw/sys/netpfil/ipfw/ip_fw_table.c 267384 2014-06-
  *     void *ta_buf);
  * MANDATORY, unlocked. (M_WAITOK). Returns 0 on success.
  *
+ * Allocates state and fills it in with all necessary data (EXCEPT value)
+ * from @tei to minimize operations needed to be done under WLOCK.
+ * "value" field has to be copied to new entry in @add callback.
  * Buffer ta_buf of size ta->ta_buf_sz may be used to store
  * allocated state.
  *
@@ -132,6 +135,7 @@ __FBSDID("$FreeBSD: projects/ipfw/sys/netpfil/ipfw/ip_fw_table.c 267384 2014-06-
  *   TEI_FLAGS_UPDATE: request to add or update entry.
  *   TEI_FLAGS_DONTADD: request to update (but not add) entry.
  * * Caller is required to do the following:
+ *   copy real entry value from @tei
  *   entry added: return 0, set 1 to @pnum
  *   entry updated: return 0, store 0 to @pnum, store old value in @tei,
  *     add TEI_FLAGS_UPDATED flag to @tei.
@@ -148,7 +152,7 @@ __FBSDID("$FreeBSD: projects/ipfw/sys/netpfil/ipfw/ip_fw_table.c 267384 2014-06-
  *
  *  Delete entry using previously set up in @ta_buf.
  * * Caller is required to do the following:
- *   entry deleted: return 0, set 1 to @pnum
+ *   entry deleted: return 0, set 1 to @pnum, store old value in @tei.
  *   entry not found: return ENOENT
  *   other error: return non-zero error code.
  *
@@ -620,7 +624,6 @@ ta_prepare_add_radix(struct ip_fw_chain *ch, struct tentry_info *tei,
 		if (mlen > 32)
 			return (EINVAL);
 		ent = malloc(sizeof(*ent), M_IPFW_TBL, M_WAITOK | M_ZERO);
-		ent->value = tei->value;
 		ent->masklen = mlen;
 
 		addr = (struct sockaddr *)&ent->addr;
@@ -633,7 +636,6 @@ ta_prepare_add_radix(struct ip_fw_chain *ch, struct tentry_info *tei,
 		if (mlen > 128)
 			return (EINVAL);
 		xent = malloc(sizeof(*xent), M_IPFW_TBL, M_WAITOK | M_ZERO);
-		xent->value = tei->value;
 		xent->masklen = mlen;
 
 		addr = (struct sockaddr *)&xent->addr6;
@@ -667,10 +669,14 @@ ta_add_radix(void *ta_state, struct table_info *ti, struct tentry_info *tei,
 	cfg = (struct radix_cfg *)ta_state;
 	tb = (struct ta_buf_radix *)ta_buf;
 
-	if (tei->subtype == AF_INET)
+	/* Save current entry value from @tei */
+	if (tei->subtype == AF_INET) {
 		rnh = ti->state;
-	else
+		((struct radix_addr_entry *)tb->ent_ptr)->value = tei->value;
+	} else {
 		rnh = ti->xstate;
+		((struct radix_addr_xentry *)tb->ent_ptr)->value = tei->value;
+	}
 
 	/* Search for an entry first */
 	rn = rnh->rnh_lookup(tb->addr_ptr, tb->mask_ptr, rnh);
@@ -1320,7 +1326,6 @@ tei_to_chash_ent(struct tentry_info *tei, struct chashentry *ent)
 		/* Unknown CIDR type */
 		return (EINVAL);
 	}
-	ent->value = tei->value;
 
 	return (0);
 }
@@ -1439,6 +1444,10 @@ ta_add_chash(void *ta_state, struct table_info *ti, struct tentry_info *tei,
 	hash = 0;
 	exists = 0;
 
+	/* Read current value from @tei */
+	ent->value = tei->value;
+
+	/* Read cuurrent value */
 	if (tei->subtype == AF_INET) {
 		if (tei->masklen != cfg->mask4)
 			return (EINVAL);
@@ -2030,7 +2039,6 @@ ta_prepare_add_ifidx(struct ip_fw_chain *ch, struct tentry_info *tei,
 		return (EINVAL);
 
 	ife = malloc(sizeof(struct ifentry), M_IPFW_TBL, M_WAITOK | M_ZERO);
-	ife->value = tei->value;
 	ife->ic.cb = if_notifier;
 	ife->ic.cbdata = ife;
 
@@ -2063,6 +2071,7 @@ ta_add_ifidx(void *ta_state, struct table_info *ti, struct tentry_info *tei,
 	ife = tb->ife;
 
 	ife->icfg = icfg;
+	ife->value = tei->value;
 
 	tmp = (struct ifentry *)ipfw_objhash_lookup_name(icfg->ii, 0, ifname);
 
@@ -2577,7 +2586,6 @@ ta_prepare_add_numarray(struct ip_fw_chain *ch, struct tentry_info *tei,
 	tb = (struct ta_buf_numarray *)ta_buf;
 
 	tb->na.number = *((uint32_t *)tei->paddr);
-	tb->na.value = tei->value;
 
 	return (0);
 }
@@ -2594,6 +2602,9 @@ ta_add_numarray(void *ta_state, struct table_info *ti, struct tentry_info *tei,
 
 	tb = (struct ta_buf_numarray *)ta_buf;
 	cfg = (struct numarray_cfg *)ta_state;
+
+	/* Read current value from @tei */
+	tb->na.value = tei->value;
 
 	ri = numarray_find(ti, &tb->na.number);
 	
@@ -3155,7 +3166,6 @@ tei_to_fhash_ent(struct tentry_info *tei, struct fhashentry *ent)
 
 	ent->af = tei->subtype;
 	ent->proto = tfe->proto;
-	ent->value = tei->value;
 	ent->dport = ntohs(tfe->dport);
 	ent->sport = ntohs(tfe->sport);
 
@@ -3286,6 +3296,9 @@ ta_add_fhash(void *ta_state, struct table_info *ti, struct tentry_info *tei,
 	tb = (struct ta_buf_fhash *)ta_buf;
 	ent = (struct fhashentry *)tb->ent_ptr;
 	exists = 0;
+
+	/* Read current value from @tei */
+	ent->value = tei->value;
 
 	head = cfg->head;
 	hash = hash_flow_ent(ent, cfg->size);
