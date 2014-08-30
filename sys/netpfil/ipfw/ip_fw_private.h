@@ -267,7 +267,7 @@ struct ip_fw_chain {
 	uint32_t	id;		/* ruleset id */
 	int		n_rules;	/* number of static rules */
 	LIST_HEAD(nat_list, cfg_nat) nat;       /* list of nat entries */
-	void		*tablestate;		/* runtime table info */
+	void		*tablestate;	/* runtime table info */
 	int		*idxmap;	/* skipto array of rules */
 #if defined( __linux__ ) || defined( _WIN32 )
 	spinlock_t rwmtx;
@@ -519,6 +519,9 @@ caddr_t ipfw_get_sopt_header(struct sockopt_data *sd, size_t needed);
 
 typedef void (objhash_cb_t)(struct namedobj_instance *ni, struct named_object *,
     void *arg);
+typedef uint32_t (objhash_hash_f)(struct namedobj_instance *ni, void *key,
+    uint32_t kopt);
+typedef int (objhash_cmp_f)(struct named_object *no, void *key, uint32_t kopt);
 struct namedobj_instance *ipfw_objhash_create(uint32_t items);
 void ipfw_objhash_destroy(struct namedobj_instance *);
 void ipfw_objhash_bitmap_alloc(uint32_t items, void **idx, int *pblocks);
@@ -527,6 +530,7 @@ void ipfw_objhash_bitmap_merge(struct namedobj_instance *ni,
 void ipfw_objhash_bitmap_swap(struct namedobj_instance *ni,
     void **idx, int *blocks);
 void ipfw_objhash_bitmap_free(void *idx, int blocks);
+void ipfw_objhash_set_hashf(struct namedobj_instance *ni, objhash_hash_f *f);
 struct named_object *ipfw_objhash_lookup_name(struct namedobj_instance *ni,
     uint32_t set, char *name);
 struct named_object *ipfw_objhash_lookup_kidx(struct namedobj_instance *ni,
@@ -540,6 +544,8 @@ void ipfw_objhash_foreach(struct namedobj_instance *ni, objhash_cb_t *f,
     void *arg);
 int ipfw_objhash_free_idx(struct namedobj_instance *ni, uint16_t idx);
 int ipfw_objhash_alloc_idx(void *n, uint16_t *pidx);
+void ipfw_objhash_set_funcs(struct namedobj_instance *ni,
+    objhash_hash_f *hash_f, objhash_cmp_f *cmp_f);
 
 /* In ip_fw_table.c */
 struct table_info;

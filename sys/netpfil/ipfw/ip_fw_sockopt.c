@@ -88,12 +88,15 @@ struct namedobj_instance {
 	uint32_t max_blocks;		/* number of "long" blocks in bitmask */
 	uint32_t count;			/* number of items */
 	uint16_t free_off[IPFW_MAX_SETS];	/* first possible free offset */
+	objhash_hash_f	*hash_f;
+	objhash_cmp_f	*cmp_f;
 };
 #define	BLOCK_ITEMS	(8 * sizeof(u_long))	/* Number of items for ffsl() */
 
-static uint32_t objhash_hash_name(struct namedobj_instance *ni, uint32_t set,
-    char *name);
-static uint32_t objhash_hash_val(struct namedobj_instance *ni, uint32_t val);
+static uint32_t objhash_hash_name(struct namedobj_instance *ni, void *key,
+    uint32_t kopt);
+static uint32_t objhash_hash_idx(struct namedobj_instance *ni, uint32_t val);
+static int objhash_cmp_name(struct named_object *no, void *name, uint32_t set);
 
 static int ipfw_flush_sopt_data(struct sockopt_data *sd);
 
@@ -3078,6 +3081,10 @@ ipfw_objhash_create(uint32_t items)
 	for (i = 0; i < ni->nv_size; i++)
 		TAILQ_INIT(&ni->values[i]);
 
+	/* Set default hashing/comparison functions */
+	ni->hash_f = objhash_hash_name;
+	ni->cmp_f = objhash_cmp_name;
+
 	/* Allocate bitmask separately due to possible resize */
 	ipfw_objhash_bitmap_alloc(items, (void*)&ni->idx_mask, &ni->max_blocks);
 
@@ -3092,18 +3099,37 @@ ipfw_objhash_destroy(struct namedobj_instance *ni)
 	free(ni, M_IPFW);
 }
 
+void
+ipfw_objhash_set_funcs(struct namedobj_instance *ni, objhash_hash_f *hash_f,
+    objhash_cmp_f *cmp_f)
+{
+
+	ni->hash_f = hash_f;
+	ni->cmp_f = cmp_f;
+}
+
 static uint32_t
-objhash_hash_name(struct namedobj_instance *ni, uint32_t set, char *name)
+objhash_hash_name(struct namedobj_instance *ni, void *name, uint32_t set)
 {
 	uint32_t v;
 
-	v = fnv_32_str(name, FNV1_32_INIT);
+	v = fnv_32_str((char *)name, FNV1_32_INIT);
 
 	return (v % ni->nn_size);
 }
 
+static int
+objhash_cmp_name(struct named_object *no, void *name, uint32_t set)
+{
+
+	if ((strcmp(no->name, (char *)name) == 0) && (no->set == set))
+		return (0);
+
+	return (1);
+}
+
 static uint32_t
-objhash_hash_val(struct namedobj_instance *ni, uint32_t val)
+objhash_hash_idx(struct namedobj_instance *ni, uint32_t val)
 {
 	uint32_t v;
 
@@ -3118,10 +3144,10 @@ ipfw_objhash_lookup_name(struct namedobj_instance *ni, uint32_t set, char *name)
 	struct named_object *no;
 	uint32_t hash;
 
-	hash = objhash_hash_name(ni, set, name);
+	hash = ni->hash_f(ni, name, set);
 	
 	TAILQ_FOREACH(no, &ni->names[hash], nn_next) {
-		if ((strcmp(no->name, name) == 0) && (no->set == set))
+		if (ni->cmp_f(no, name, set) == 0)
 			return (no);
 	}
 
@@ -3134,7 +3160,7 @@ ipfw_objhash_lookup_kidx(struct namedobj_instance *ni, uint16_t kidx)
 	struct named_object *no;
 	uint32_t hash;
 
-	hash = objhash_hash_val(ni, kidx);
+	hash = objhash_hash_idx(ni, kidx);
 	
 	TAILQ_FOREACH(no, &ni->values[hash], nv_next) {
 		if (no->kidx == kidx)
@@ -3160,10 +3186,10 @@ ipfw_objhash_add(struct namedobj_instance *ni, struct named_object *no)
 {
 	uint32_t hash;
 
-	hash = objhash_hash_name(ni, no->set, no->name);
+	hash = ni->hash_f(ni, no->name, no->set);
 	TAILQ_INSERT_HEAD(&ni->names[hash], no, nn_next);
 
-	hash = objhash_hash_val(ni, no->kidx);
+	hash = objhash_hash_idx(ni, no->kidx);
 	TAILQ_INSERT_HEAD(&ni->values[hash], no, nv_next);
 
 	ni->count++;
@@ -3174,10 +3200,10 @@ ipfw_objhash_del(struct namedobj_instance *ni, struct named_object *no)
 {
 	uint32_t hash;
 
-	hash = objhash_hash_name(ni, no->set, no->name);
+	hash = ni->hash_f(ni, no->name, no->set);
 	TAILQ_REMOVE(&ni->names[hash], no, nn_next);
 
-	hash = objhash_hash_val(ni, no->kidx);
+	hash = objhash_hash_idx(ni, no->kidx);
 	TAILQ_REMOVE(&ni->values[hash], no, nv_next);
 
 	ni->count--;
@@ -3238,7 +3264,7 @@ ipfw_objhash_free_idx(struct namedobj_instance *ni, uint16_t idx)
 }
 
 /*
- * Allocate new index in given set and stores in in @pidx.
+ * Allocate new index in given instance and stores in in @pidx.
  * Returns 0 on success.
  */
 int
