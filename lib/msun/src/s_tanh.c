@@ -42,7 +42,7 @@ __FBSDID("$FreeBSD$");
 #include "math.h"
 #include "math_private.h"
 
-static volatile const double tiny = 1.0e-300;
+static const volatile double tiny = 1.0e-300;
 static const double one = 1.0, two = 2.0, huge = 1.0e300;
 
 double
