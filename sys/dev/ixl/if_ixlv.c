@@ -1367,7 +1367,7 @@ ixlv_setup_interface(device_t dev, struct ixlv_sc *sc)
 	/*
 	 * Tell the upper layer(s) we support long frames.
 	 */
-	ifp->if_data.ifi_hdrlen = sizeof(struct ether_vlan_header);
+	ifp->if_hdrlen = sizeof(struct ether_vlan_header);
 
 	ifp->if_capabilities |= IFCAP_HWCSUM;
 	ifp->if_capabilities |= IFCAP_HWCSUM_IPV6;
