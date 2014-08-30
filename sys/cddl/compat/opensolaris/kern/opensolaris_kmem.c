@@ -152,7 +152,7 @@ u_int
 kmem_free_count(void)
 {
 
-	return (vm_cnt.v_free_count);
+	return (vm_cnt.v_free_count + vm_cnt.v_cache_count);
 }
 
 u_int
@@ -167,6 +167,13 @@ kmem_size(void)
 {
 
 	return (kmem_size_val);
+}
+
+uint64_t
+kmem_used(void)
+{
+
+	return (vmem_size(kmem_arena, VMEM_ALLOC));
 }
 
 static int
