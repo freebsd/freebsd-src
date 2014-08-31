@@ -44,6 +44,7 @@ SUBDIR=	\
 	ata \
 	ath \
 	ath_pci \
+	autofs \
 	${_auxio} \
 	${_bce} \
 	bfe \
