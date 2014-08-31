@@ -146,11 +146,11 @@ struct ifnet {
 
 	/* Variable fields that are touched by the stack and drivers. */
 	int	if_flags;		/* up/down, broadcast, etc. */
+	int	if_drv_flags;		/* driver-managed status flags */
 	int	if_capabilities;	/* interface features & capabilities */
 	int	if_capenable;		/* enabled features & capabilities */
 	void	*if_linkmib;		/* link-type-specific MIB data */
 	size_t	if_linkmiblen;		/* length of above data */
-	int	if_drv_flags;		/* driver-managed status flags */
 	u_int	if_refcount;		/* reference count */
 
 	/* These fields are shared with struct if_data. */
@@ -158,7 +158,6 @@ struct ifnet {
 	uint8_t		if_addrlen;	/* media address length */
 	uint8_t		if_hdrlen;	/* media header length */
 	uint8_t		if_link_state;	/* current link state */
-	uint32_t	if_spare32;
 	uint32_t	if_mtu;		/* maximum transmission unit */
 	uint32_t	if_metric;	/* routing metric (external only) */
 	uint64_t	if_baudrate;	/* linespeed */
