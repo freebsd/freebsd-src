@@ -147,6 +147,7 @@ device  	u3g			# USB modems
 options  	ROOTDEVNAME=\"ufs:mmcsd0s2a\"
 
 # ARM and SoC-specific options
+options  	FDT			# Configure using FDT/DTB data.
 options  	SMP			# Enable multiple cores
 options  	VFP			# Enable floating point hardware support
 options  	FREEBSD_BOOT_LOADER	# Process metadata passed from loader(8)
