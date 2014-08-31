@@ -817,7 +817,7 @@ jump_fast(struct ip_fw_chain *chain, struct ip_fw *f, int num,
 	if (num != IP_FW_TARG && f->cached_id == chain->id)
 		f_pos = f->cached_pos;
 	else {
-		int i = IP_FW_ARG_TABLEARG(num);
+		int i = IP_FW_ARG_TABLEARG(chain, num, skipto);
 		/* make sure we do not jump backward */
 		if (jump_backwards == 0 && i <= f->rulenum)
 			i = f->rulenum + 1;
@@ -844,7 +844,7 @@ jump_linear(struct ip_fw_chain *chain, struct ip_fw *f, int num,
 {
 	int f_pos;
 
-	num = IP_FW_ARG_TABLEARG(num);
+	num = IP_FW_ARG_TABLEARG(chain, num, skipto);
 	/* make sure we do not jump backward */
 	if (jump_backwards == 0 && num <= f->rulenum)
 		num = f->rulenum + 1;
@@ -853,6 +853,7 @@ jump_linear(struct ip_fw_chain *chain, struct ip_fw *f, int num,
 	return (f_pos);
 }
 
+#define	TARG(k, f)	IP_FW_ARG_TABLEARG(chain, k, f)
 /*
  * The main check routine for the firewall.
  *
@@ -1841,7 +1842,7 @@ do {								\
 			}
 
 			case O_LOG:
-				ipfw_log(f, hlen, args, m,
+				ipfw_log(chain, f, hlen, args, m,
 				    oif, offset | ip6f_mf, tablearg, ip);
 				match = 1;
 				break;
@@ -1963,7 +1964,7 @@ do {								\
 
 			case O_TAG: {
 				struct m_tag *mtag;
-				uint32_t tag = IP_FW_ARG_TABLEARG(cmd->arg1);
+				uint32_t tag = TARG(cmd->arg1, tag);
 
 				/* Packet is already tagged with this tag? */
 				mtag = m_tag_locate(m, MTAG_IPFW, tag, NULL);
@@ -2044,7 +2045,7 @@ do {								\
 
 			case O_TAGGED: {
 				struct m_tag *mtag;
-				uint32_t tag = IP_FW_ARG_TABLEARG(cmd->arg1);
+				uint32_t tag = TARG(cmd->arg1, tag);
 
 				if (cmdlen == 1) {
 					match = m_tag_locate(m, MTAG_IPFW,
@@ -2115,7 +2116,7 @@ do {								\
 			 */
 			case O_LIMIT:
 			case O_KEEP_STATE:
-				if (ipfw_install_state(f,
+				if (ipfw_install_state(chain, f,
 				    (ipfw_insn_limit *)cmd, args, tablearg)) {
 					/* error or limit violation */
 					retval = IP_FW_DENY;
@@ -2182,7 +2183,7 @@ do {								\
 			case O_PIPE:
 			case O_QUEUE:
 				set_match(args, f_pos, chain);
-				args->rule.info = IP_FW_ARG_TABLEARG(cmd->arg1);
+				args->rule.info = TARG(cmd->arg1, pipe);
 				if (cmd->opcode == O_PIPE)
 					args->rule.info |= IPFW_IS_PIPE;
 				if (V_fw_one_pass)
@@ -2202,7 +2203,7 @@ do {								\
 				retval = (cmd->opcode == O_DIVERT) ?
 					IP_FW_DIVERT : IP_FW_TEE;
 				set_match(args, f_pos, chain);
-				args->rule.info = IP_FW_ARG_TABLEARG(cmd->arg1);
+				args->rule.info = TARG(cmd->arg1, divert);
 				break;
 
 			case O_COUNT:
@@ -2409,7 +2410,7 @@ do {								\
 			case O_NETGRAPH:
 			case O_NGTEE:
 				set_match(args, f_pos, chain);
-				args->rule.info = IP_FW_ARG_TABLEARG(cmd->arg1);
+				args->rule.info = TARG(cmd->arg1, netgraph);
 				if (V_fw_one_pass)
 					args->rule.info |= IPFW_ONEPASS;
 				retval = (cmd->opcode == O_NETGRAPH) ?
@@ -2422,7 +2423,7 @@ do {								\
 				uint32_t fib;
 
 				IPFW_INC_RULE_COUNTER(f, pktlen);
-				fib = IP_FW_ARG_TABLEARG(cmd->arg1) & 0x7FFFF;
+				fib = TARG(cmd->arg1, fib) & 0x7FFFF;
 				if (fib >= rt_numfibs)
 					fib = 0;
 				M_SETFIB(m, fib);
@@ -2434,7 +2435,7 @@ do {								\
 			case O_SETDSCP: {
 				uint16_t code;
 
-				code = IP_FW_ARG_TABLEARG(cmd->arg1) & 0x3F;
+				code = TARG(cmd->arg1, dscp) & 0x3F;
 				l = 0;		/* exit inner loop */
 				if (is_ipv4) {
 					uint16_t a;
@@ -2476,7 +2477,7 @@ do {								\
 				}
 				t = ((ipfw_insn_nat *)cmd)->nat;
 				if (t == NULL) {
-					nat_id = IP_FW_ARG_TABLEARG(cmd->arg1);
+					nat_id = TARG(cmd->arg1, nat);
 					t = (*lookup_nat_ptr)(&chain->nat, nat_id);
 
 					if (t == NULL) {

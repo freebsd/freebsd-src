@@ -67,9 +67,11 @@ static void table_show_list(ipfw_obj_header *oh, int need_header);
 static void table_show_entry(ipfw_xtable_info *i, ipfw_obj_tentry *tent);
 
 static void tentry_fill_key(ipfw_obj_header *oh, ipfw_obj_tentry *tent,
-    char *key, int add, uint8_t *ptype, uint8_t *pvtype, ipfw_xtable_info *xi);
+    char *key, int add, uint8_t *ptype, uint32_t *pvmask, ipfw_xtable_info *xi);
 static void tentry_fill_value(ipfw_obj_header *oh, ipfw_obj_tentry *tent,
-    char *arg, uint8_t type, uint8_t vtype);
+    char *arg, uint8_t type, uint32_t vmask);
+static void table_show_value(char *buf, size_t bufsize, ipfw_table_value *v,
+    uint32_t vmask, int print_ip);
 
 typedef int (table_cb_t)(ipfw_xtable_info *i, void *arg);
 static int tables_foreach(table_cb_t *f, void *arg, int sort);
@@ -87,13 +89,17 @@ static struct _s_x tabletypes[] = {
 };
 
 static struct _s_x tablevaltypes[] = {
-      { "number",	IPFW_VTYPE_U32 },
-      { NULL, 0 }
-};
-
-static struct _s_x tablefvaltypes[] = {
-      { "ip",		IPFW_VFTYPE_IP },
-      { "number",	IPFW_VFTYPE_U32 },
+      { "skipto",	IPFW_VTYPE_SKIPTO },
+      { "pipe",		IPFW_VTYPE_PIPE },
+      { "fib",		IPFW_VTYPE_FIB },
+      { "nat",		IPFW_VTYPE_NAT },
+      { "dscp",		IPFW_VTYPE_DSCP },
+      { "tag",		IPFW_VTYPE_TAG },
+      { "divert",	IPFW_VTYPE_DIVERT },
+      { "netgraph",	IPFW_VTYPE_NETGRAPH },
+      { "limit",	IPFW_VTYPE_LIMIT },
+      { "ipv4",		IPFW_VTYPE_NH4 },
+      { "ipv6",		IPFW_VTYPE_NH6 },
       { NULL, 0 }
 };
 
@@ -311,7 +317,6 @@ table_fill_objheader(ipfw_obj_header *oh, ipfw_xtable_info *i)
 
 static struct _s_x tablenewcmds[] = {
       { "type",		TOK_TYPE },
-      { "ftype",	TOK_FTYPE },
       { "valtype",	TOK_VALTYPE },
       { "algo",		TOK_ALGO },
       { "limit",	TOK_LIMIT },
@@ -331,14 +336,16 @@ static struct _s_x flowtypecmds[] = {
 int
 table_parse_type(uint8_t ttype, char *p, uint8_t *tflags)
 {
-	uint8_t fset, fclear;
+	uint32_t fset, fclear;
+	char *e;
 
 	/* Parse type options */
 	switch(ttype) {
 	case IPFW_TABLE_FLOW:
 		fset = fclear = 0;
-		fill_flags(flowtypecmds, p, &fset,
-		    &fclear);
+		if (fill_flags(flowtypecmds, p, &e, &fset, &fclear) != 0)
+			errx(EX_USAGE,
+			    "unable to parse flow option %s", e);
 		*tflags = fset;
 		break;
 	default:
@@ -383,8 +390,9 @@ table_create(ipfw_obj_header *oh, int ac, char *av[])
 {
 	ipfw_xtable_info xi;
 	int error, tcmd, val;
+	uint32_t fset, fclear;
 	size_t sz;
-	char *p;
+	char *e, *p;
 	char tbuf[128];
 
 	sz = sizeof(tbuf);
@@ -424,27 +432,16 @@ table_create(ipfw_obj_header *oh, int ac, char *av[])
 			break;
 		case TOK_VALTYPE:
 			NEED1("table value type required");
-			val = match_token(tablevaltypes, *av);
+			fset = fclear = 0;
+			val = fill_flags(tablevaltypes, *av, &e, &fset, &fclear);
 			if (val != -1) {
-				xi.vtype = val;
+				xi.vmask = fset;
 				ac--; av++;
 				break;
 			}
 			concat_tokens(tbuf, sizeof(tbuf), tablevaltypes, ", ");
 			errx(EX_USAGE, "Unknown value type: %s. Supported: %s",
-			    *av, tbuf);
-			break;
-		case TOK_FTYPE:
-			NEED1("table value format type required");
-			val = match_token(tablefvaltypes, *av);
-			if (val != -1) {
-				xi.vftype = val;
-				ac--; av++;
-				break;
-			}
-			concat_tokens(tbuf, sizeof(tbuf), tablefvaltypes, ", ");
-			errx(EX_USAGE, "Unknown format type: %s. Supported: %s",
-			    *av, tbuf);
+			    e, tbuf);
 			break;
 		case TOK_ALGO:
 			NEED1("table algorithm name required");
@@ -462,8 +459,8 @@ table_create(ipfw_obj_header *oh, int ac, char *av[])
 	/* Set some defaults to preserve compability */
 	if (xi.algoname[0] == '\0' && xi.type == 0)
 		xi.type = IPFW_TABLE_ADDR;
-	if (xi.vtype == 0)
-		xi.vtype = IPFW_VTYPE_U32;
+	if (xi.vmask == 0)
+		xi.vmask = IPFW_VTYPE_LEGACY;
 
 	if ((error = table_do_create(oh, &xi)) != 0)
 		err(EX_OSERR, "Table creation failed");
@@ -494,13 +491,13 @@ table_do_create(ipfw_obj_header *oh, ipfw_xtable_info *i)
 /*
  * Modifies existing table
  *
- * ipfw table NAME modify [ limit number ] [ ftype { number | ip } ]
+ * ipfw table NAME modify [ limit number ]
  */
 static void
 table_modify(ipfw_obj_header *oh, int ac, char *av[])
 {
 	ipfw_xtable_info xi;
-	int error, tcmd, val;
+	int error, tcmd;
 	size_t sz;
 	char tbuf[128];
 
@@ -518,19 +515,8 @@ table_modify(ipfw_obj_header *oh, int ac, char *av[])
 			xi.mflags |= IPFW_TMFLAGS_LIMIT;
 			ac--; av++;
 			break;
-		case TOK_FTYPE:
-			NEED1("table value format type required");
-			val = match_token(tablefvaltypes, *av);
-			if (val != -1) {
-				xi.vftype = val;
-				xi.mflags |= IPFW_TMFLAGS_FTYPE;
-				ac--; av++;
-				break;
-			}
-			concat_tokens(tbuf, sizeof(tbuf), tablefvaltypes, ", ");
-			errx(EX_USAGE, "Unknown value type: %s. Supported: %s",
-			    *av, tbuf);
-			break;
+		default:
+			errx(EX_USAGE, "cmd is not supported for modificatiob");
 		}
 	}
 
@@ -726,34 +712,39 @@ table_show_tainfo(ipfw_xtable_info *i, struct ta_cldata *d,
 	}
 }
 
+static void
+table_print_valheader(char *buf, size_t bufsize, uint32_t vmask)
+{
+
+	if (vmask == IPFW_VTYPE_LEGACY) {
+		snprintf(buf, bufsize, "legacy");
+		return;
+	}
+
+	print_flags_buffer(buf, bufsize, tablevaltypes, vmask);
+}
+
 /*
  * Prints table info struct @i in human-readable form.
  */
 static int
 table_show_info(ipfw_xtable_info *i, void *arg)
 {
-	const char *vtype, *vftype;
+	const char *vtype;
 	ipfw_ta_tinfo *tainfo;
 	int afdata, afitem;
 	struct ta_cldata d;
 	char ttype[64], tvtype[64];
 
 	table_print_type(ttype, sizeof(ttype), i->type, i->tflags);
-	if ((vtype = match_value(tablevaltypes, i->vtype)) == NULL)
-		vtype = "unknown";
-	if ((vftype = match_value(tablefvaltypes, i->vftype)) == NULL)
-		vftype = "unknown";
-	if (strcmp(vtype, vftype) != 0)
-		snprintf(tvtype, sizeof(tvtype), "%s(%s)", vtype, vftype);
-	else
-		snprintf(tvtype, sizeof(tvtype), "%s", vtype);
+	table_print_valheader(tvtype, sizeof(tvtype), i->vmask);
 
 	printf("--- table(%s), set(%u) ---\n", i->tablename, i->set);
 	if ((i->flags & IPFW_TGFLAGS_LOCKED) != 0)
 		printf(" kindex: %d, type: %s, locked\n", i->kidx, ttype);
 	else
 		printf(" kindex: %d, type: %s\n", i->kidx, ttype);
-	printf(" valtype: %s, references: %u\n", tvtype, i->refcnt);
+	printf(" references: %u, valtype: %s\n", i->refcnt, tvtype);
 	printf(" algorithm: %s\n", i->algoname);
 	printf(" items: %u, size: %u\n", i->count, i->size);
 	if (i->limit > 0)
@@ -895,7 +886,8 @@ table_modify_record(ipfw_obj_header *oh, int ac, char *av[], int add,
 {
 	ipfw_obj_tentry *ptent, tent, *tent_buf;
 	ipfw_xtable_info xi;
-	uint8_t type, vtype;
+	uint8_t type;
+	uint32_t vmask;
 	int cmd, count, error, i, ignored;
 	char *texterr, *etxt, *px;
 
@@ -933,14 +925,14 @@ table_modify_record(ipfw_obj_header *oh, int ac, char *av[], int add,
 	memset(&xi, 0, sizeof(xi));
 	count = 0;
 	while (ac > 0) {
-		tentry_fill_key(oh, ptent, *av, add, &type, &vtype, &xi);
+		tentry_fill_key(oh, ptent, *av, add, &type, &vmask, &xi);
 
 		/*
 		 * compability layer: auto-create table if not exists
 		 */
 		if (xi.tablename[0] == '\0') {
 			xi.type = type;
-			xi.vtype = vtype;
+			xi.vmask = vmask;
 			strlcpy(xi.tablename, oh->ntlv.name,
 			    sizeof(xi.tablename));
 			fprintf(stderr, "DEPRECATED: inserting data info "
@@ -953,7 +945,7 @@ table_modify_record(ipfw_obj_header *oh, int ac, char *av[], int add,
 		ac--; av++;
 	
 		if (add != 0 && ac > 0) {
-			tentry_fill_value(oh, ptent, *av, type, vtype);
+			tentry_fill_value(oh, ptent, *av, type, vmask);
 			ac--; av++;
 		}
 
@@ -965,6 +957,8 @@ table_modify_record(ipfw_obj_header *oh, int ac, char *av[], int add,
 	}
 
 	error = table_do_modify_record(cmd, oh, tent_buf, count, atomic);
+
+	quiet = 0;
 
 	/*
 	 * Compatibility stuff: do not yell on duplicate keys or
@@ -1062,7 +1056,8 @@ table_do_lookup(ipfw_obj_header *oh, char *key, ipfw_xtable_info *xi,
 {
 	char xbuf[sizeof(ipfw_obj_header) + sizeof(ipfw_obj_tentry)];
 	ipfw_obj_tentry *tent;
-	uint8_t type, vtype;
+	uint8_t type;
+	uint32_t vmask;
 	int error;
 	size_t sz;
 
@@ -1074,7 +1069,7 @@ table_do_lookup(ipfw_obj_header *oh, char *key, ipfw_xtable_info *xi,
 	tent->head.length = sizeof(*tent);
 	tent->idx = 1;
 
-	tentry_fill_key(oh, tent, key, 0, &type, &vtype, xi);
+	tentry_fill_key(oh, tent, key, 0, &type, &vmask, xi);
 	oh->ntlv.type = type;
 
 	sz = sizeof(xbuf);
@@ -1321,15 +1316,16 @@ tentry_fill_key_type(char *arg, ipfw_obj_tentry *tentry, uint8_t type,
 
 static void
 tentry_fill_key(ipfw_obj_header *oh, ipfw_obj_tentry *tent, char *key,
-    int add, uint8_t *ptype, uint8_t *pvtype, ipfw_xtable_info *xi)
+    int add, uint8_t *ptype, uint32_t *pvmask, ipfw_xtable_info *xi)
 {
-	uint8_t type, tflags, vtype;
+	uint8_t type, tflags;
+	uint32_t vmask;
 	int error;
 	char *del;
 
 	type = 0;
 	tflags = 0;
-	vtype = 0;
+	vmask = 0;
 
 	if (xi->tablename[0] == '\0')
 		error = table_get_info(oh, xi);
@@ -1340,7 +1336,7 @@ tentry_fill_key(ipfw_obj_header *oh, ipfw_obj_tentry *tent, char *key,
 		/* Table found. */
 		type = xi->type;
 		tflags = xi->tflags;
-		vtype = xi->vtype;
+		vmask = xi->vmask;
 	} else {
 		if (error != ESRCH)
 			errx(EX_OSERR, "Error requesting table %s info",
@@ -1359,11 +1355,7 @@ tentry_fill_key(ipfw_obj_header *oh, ipfw_obj_tentry *tent, char *key,
 		    inet_pton(AF_INET6, key, &tent->k.addr6) == 1) {
 			/* OK Prepare and send */
 			type = IPFW_TABLE_ADDR;
-			/*
-			 * XXX: Value type is forced to be u32.
-			 * This should be changed for MFC.
-			 */
-			vtype = IPFW_VTYPE_U32;
+			vmask = IPFW_VTYPE_LEGACY;
 		} else {
 			/* Inknown key */
 			errx(EX_USAGE, "Table %s does not exist, cannot guess "
@@ -1376,57 +1368,156 @@ tentry_fill_key(ipfw_obj_header *oh, ipfw_obj_tentry *tent, char *key,
 	tentry_fill_key_type(key, tent, type, tflags);
 
 	*ptype = type;
-	*pvtype = vtype;
+	*pvmask = vmask;
+}
+
+static void
+set_legacy_value(uint32_t val, ipfw_table_value *v)
+{
+	v->tag = val;
+	v->pipe = val;
+	v->divert = val;
+	v->skipto = val;
+	v->netgraph = val;
+	v->fib = val;
+	v->nat = val;
+	v->nh4 = val;
+	v->dscp = (uint8_t)val;
+	v->limit = val;
 }
 
 static void
 tentry_fill_value(ipfw_obj_header *oh, ipfw_obj_tentry *tent, char *arg,
-    uint8_t type, uint8_t vtype)
+    uint8_t type, uint32_t vmask)
 {
-	uint32_t val;
-	char *p;
+	uint32_t a4, flag, val, vm;
+	ipfw_table_value *v;
+	uint32_t i;
+	char *comma, *e, *etype, *n, *p;
 
-	/* Try to interpret as number first */
-	tent->v.value = strtoul(arg, &p, 0);
-	if (*p == '\0')
-		return;
-	if (inet_pton(AF_INET, arg, &val) == 1) {
-		tent->v.value = ntohl(val);
-		return;
-	}
-	/* Try hostname */
-	if (lookup_host(arg, (struct in_addr *)&tent->v.value) == 0)
-		return;
-	errx(EX_OSERR, "Unable to parse value %s", arg);
-#if 0
-	switch (vtype) {
-	case IPFW_VTYPE_U32:
-		tent->value = strtoul(arg, &p, 0);
-		if (*p != '\0')
-			errx(EX_USAGE, "Invalid number: %s", arg);
-		break;
-	case IPFW_VTYPE_IP:
-		if (inet_pton(AF_INET, arg, &tent->value) == 1)
-			break;
-		/* Try hostname */
-		if (lookup_host(arg, (struct in_addr *)&tent->value) != 0)
-			errx(EX_USAGE, "Invalid IPv4 address: %s", arg);
-		break;
-	case IPFW_VTYPE_DSCP:
-		if (isalpha(*arg)) {
-			if ((code = match_token(f_ipdscp, arg)) == -1)
-				errx(EX_DATAERR, "Unknown DSCP code");
-		} else {
-			code = strtoul(arg, NULL, 10);
-			if (code < 0 || code > 63)
-				errx(EX_DATAERR, "Invalid DSCP value");
+	v = &tent->v.value;
+	vm = vmask;
+
+	/* Compat layer: keep old behavior for legacy value types */
+	if (vmask == IPFW_VTYPE_LEGACY) {
+		/* Try to interpret as number first */
+		val = strtoul(arg, &p, 0);
+		if (*p == '\0') {
+			set_legacy_value(val, v);
+			return;
 		}
-		tent->value = code;
-		break;
-	default:
-		errx(EX_OSERR, "Unsupported format type %d", vtype);
+		if (inet_pton(AF_INET, arg, &val) == 1) {
+			set_legacy_value(ntohl(val), v);
+			return;
+		}
+		/* Try hostname */
+		if (lookup_host(arg, (struct in_addr *)&val) == 0) {
+			set_legacy_value(val, v);
+			return;
+		}
+		errx(EX_OSERR, "Unable to parse value %s", arg);
 	}
-#endif
+
+	/*
+	 * Shorthands: handle single value if vmask consists
+	 * of numbers only. e.g.:
+	 * vmask = "fib,skipto" -> treat input "1" as "1,1"
+	 */
+
+	n = arg;
+	etype = NULL;
+	for (i = 1; i < (1 << 31); i *= 2) {
+		if ((flag = (vmask & i)) == 0)
+			continue;
+		vmask &= ~flag;
+
+		if ((comma = strchr(n, ',')) != NULL)
+			*comma = '\0';
+
+		switch (flag) {
+		case IPFW_VTYPE_TAG:
+			v->tag = strtol(n, &e, 10);
+			if (*e != '\0')
+				etype = "tag";
+			break;
+		case IPFW_VTYPE_PIPE:
+			v->pipe = strtol(n, &e, 10);
+			if (*e != '\0')
+				etype = "pipe";
+			break;
+		case IPFW_VTYPE_DIVERT:
+			v->divert = strtol(n, &e, 10);
+			if (*e != '\0')
+				etype = "divert";
+			break;
+		case IPFW_VTYPE_SKIPTO:
+			v->skipto = strtol(n, &e, 10);
+			if (*e != '\0')
+				etype = "skipto";
+			break;
+		case IPFW_VTYPE_NETGRAPH:
+			v->netgraph = strtol(n, &e, 10);
+			if (*e != '\0')
+				etype = "netgraph";
+			break;
+		case IPFW_VTYPE_FIB:
+			v->fib = strtol(n, &e, 10);
+			if (*e != '\0')
+				etype = "fib";
+			break;
+		case IPFW_VTYPE_NAT:
+			v->nat = strtol(n, &e, 10);
+			if (*e != '\0')
+				etype = "nat";
+			break;
+		case IPFW_VTYPE_LIMIT:
+			v->limit = strtol(n, &e, 10);
+			if (*e != '\0')
+				etype = "limit";
+			break;
+		case IPFW_VTYPE_NH4:
+			if (strchr(n, '.') != NULL &&
+			    inet_pton(AF_INET, n, &a4) == 1) {
+				v->nh4 = ntohl(a4);
+				break;
+			}
+			if (lookup_host(n, (struct in_addr *)&v->nh4) == 0)
+				break;
+			etype = "ipv4";
+			break;
+		case IPFW_VTYPE_DSCP:
+			if (isalpha(*n)) {
+				if ((v->dscp = match_token(f_ipdscp, n)) != -1)
+					break;
+				else
+					etype = "DSCP code";
+			} else {
+				v->dscp = strtol(n, &e, 10);
+				if (v->dscp > 63 || *e != '\0')
+					etype = "DSCP value";
+			}
+			break;
+		case IPFW_VTYPE_NH6:
+			if (strchr(n, ':') != NULL &&
+			    inet_pton(AF_INET6, n, &v->nh6) == 1)
+				break;
+			etype = "ipv6";
+			break;
+		}
+
+		if (etype != NULL)
+			errx(EX_USAGE, "Unable to parse %s as %s", n, etype);
+
+		if (comma != NULL)
+			*comma++ = ',';
+
+		if ((n = comma) != NULL)
+			continue;
+
+		/* End of input. */
+		if (vmask != 0)
+			errx(EX_USAGE, "Not enough fields inside value");
+	}
 }
 
 /*
@@ -1558,20 +1649,90 @@ table_show_list(ipfw_obj_header *oh, int need_header)
 }
 
 static void
+table_show_value(char *buf, size_t bufsize, ipfw_table_value *v,
+    uint32_t vmask, int print_ip)
+{
+	uint32_t flag, i, l;
+	size_t sz;
+	struct in_addr a4;
+	char abuf[INET6_ADDRSTRLEN];
+
+	sz = bufsize;
+
+	/*
+	 * Some shorthands for printing values:
+	 * legacy assumes all values are equal, so keep the first one.
+	 */
+	if (vmask == IPFW_VTYPE_LEGACY) {
+		if (print_ip != 0) {
+			flag = htonl(v->tag);
+			inet_ntop(AF_INET, &flag, buf, sz);
+		} else
+			snprintf(buf, sz, "%u", v->tag);
+		return;
+	}
+
+	for (i = 1; i < (1 << 31); i *= 2) {
+		if ((flag = (vmask & i)) == 0)
+			continue;
+		l = 0;
+
+		switch (flag) {
+		case IPFW_VTYPE_TAG:
+			l = snprintf(buf, sz, "%u,", v->tag);
+			break;
+		case IPFW_VTYPE_PIPE:
+			l = snprintf(buf, sz, "%u,", v->pipe);
+			break;
+		case IPFW_VTYPE_DIVERT:
+			l = snprintf(buf, sz, "%d,", v->divert);
+			break;
+		case IPFW_VTYPE_SKIPTO:
+			l = snprintf(buf, sz, "%d,", v->skipto);
+			break;
+		case IPFW_VTYPE_NETGRAPH:
+			l = snprintf(buf, sz, "%u,", v->netgraph);
+			break;
+		case IPFW_VTYPE_FIB:
+			l = snprintf(buf, sz, "%u,", v->fib);
+			break;
+		case IPFW_VTYPE_NAT:
+			l = snprintf(buf, sz, "%u,", v->nat);
+			break;
+		case IPFW_VTYPE_LIMIT:
+			l = snprintf(buf, sz, "%u,", v->limit);
+			break;
+		case IPFW_VTYPE_NH4:
+			a4.s_addr = htonl(v->nh4);
+			inet_ntop(AF_INET, &a4, abuf, sizeof(abuf));
+			l = snprintf(buf, sz, "%s,", abuf);
+			break;
+		case IPFW_VTYPE_DSCP:
+			l = snprintf(buf, sz, "%d,", v->dscp);
+			break;
+		case IPFW_VTYPE_NH6:
+			inet_ntop(AF_INET6, &v->nh6, abuf, sizeof(abuf));
+			l = snprintf(buf, sz, "%s,", abuf);
+			break;
+		}
+
+		buf += l;
+		sz -= l;
+	}
+
+	if (sz != bufsize)
+		*(buf - 1) = '\0';
+}
+
+static void
 table_show_entry(ipfw_xtable_info *i, ipfw_obj_tentry *tent)
 {
-	char *comma, tbuf[128], pval[32];
+	char *comma, tbuf[128], pval[128];
 	void *paddr;
-	uint32_t tval;
 	struct tflow_entry *tfe;
 
-	tval = tent->v.value;
-
-	if (co.do_value_as_ip || i->vftype == IPFW_VFTYPE_IP) {
-		tval = htonl(tval);
-		inet_ntop(AF_INET, &tval, pval, sizeof(pval));
-	} else
-		snprintf(pval, sizeof(pval), "%u", tval);
+	table_show_value(pval, sizeof(pval), &tent->v.value, i->vmask,
+	    co.do_value_as_ip);
 
 	switch (i->type) {
 	case IPFW_TABLE_ADDR:
@@ -1633,7 +1794,7 @@ table_show_entry(ipfw_xtable_info *i, ipfw_obj_tentry *tent)
 }
 
 static int
-table_do_get_algolist(ipfw_obj_lheader **polh)
+table_do_get_stdlist(uint16_t opcode, ipfw_obj_lheader **polh)
 {
 	ipfw_obj_lheader req, *olh;
 	size_t sz;
@@ -1642,7 +1803,7 @@ table_do_get_algolist(ipfw_obj_lheader **polh)
 	memset(&req, 0, sizeof(req));
 	sz = sizeof(req);
 
-	error = do_get3(IP_FW_TABLES_ALIST, &req.opheader, &sz);
+	error = do_get3(opcode, &req.opheader, &sz);
 	if (error != 0 && error != ENOMEM)
 		return (error);
 
@@ -1651,13 +1812,27 @@ table_do_get_algolist(ipfw_obj_lheader **polh)
 		return (ENOMEM);
 
 	olh->size = sz;
-	if ((error = do_get3(IP_FW_TABLES_ALIST, &olh->opheader, &sz)) != 0) {
+	if ((error = do_get3(opcode, &olh->opheader, &sz)) != 0) {
 		free(olh);
 		return (error);
 	}
 
 	*polh = olh;
 	return (0);
+}
+
+static int
+table_do_get_algolist(ipfw_obj_lheader **polh)
+{
+
+	return (table_do_get_stdlist(IP_FW_TABLES_ALIST, polh));
+}
+
+static int
+table_do_get_vlist(ipfw_obj_lheader **polh)
+{
+
+	return (table_do_get_stdlist(IP_FW_TABLE_VLIST, polh));
 }
 
 void
@@ -1680,6 +1855,71 @@ ipfw_list_ta(int ac, char *av[])
 		printf(" type: %s\n refcount: %u\n", atype, info->refcnt);
 
 		info = (ipfw_ta_info *)((caddr_t)info + olh->objsize);
+	}
+
+	free(olh);
+}
+
+
+/* Copy of current kernel table_value structure */
+struct _table_value {
+	uint32_t	tag;		/* O_TAG/O_TAGGED */
+	uint32_t	pipe;		/* O_PIPE/O_QUEUE */
+	uint16_t	divert;		/* O_DIVERT/O_TEE */
+	uint16_t	skipto;		/* skipto, CALLRET */
+	uint32_t	netgraph;	/* O_NETGRAPH/O_NGTEE */
+	uint32_t	fib;		/* O_SETFIB */
+	uint32_t	nat;		/* O_NAT */
+	uint32_t	nh4;
+	uint8_t		dscp;
+	uint8_t		spare0[3];
+	/* -- 32 bytes -- */
+	struct in6_addr	nh6;
+	uint32_t	limit;		/* O_LIMIT */
+	uint32_t	spare1;
+	uint64_t	refcnt;		/* Number of references */
+};
+
+int
+compare_values(const void *_a, const void *_b)
+{
+	struct _table_value *a, *b;
+
+	a = (struct _table_value *)_a;
+	b = (struct _table_value *)_b;
+
+	if (a->spare1 < b->spare1)
+		return (-1);
+	else if (a->spare1 > b->spare1)
+		return (1);
+
+	return (0);
+}
+
+void
+ipfw_list_values(int ac, char *av[])
+{
+	ipfw_obj_lheader *olh;
+	struct _table_value *v;
+	int error, i;
+	uint32_t vmask;
+	char buf[128];
+
+	error = table_do_get_vlist(&olh);
+	if (error != 0)
+		err(EX_OSERR, "Unable to request value list");
+
+	vmask = 0x7FFFFFFF; /* Similar to IPFW_VTYPE_LEGACY */
+
+	table_print_valheader(buf, sizeof(buf), vmask);
+	printf("HEADER: %s\n", buf);
+	v = (struct _table_value *)(olh + 1);
+	qsort(v, olh->count, olh->objsize, compare_values);
+	for (i = 0; i < olh->count; i++) {
+		table_show_value(buf, sizeof(buf), (ipfw_table_value *)v,
+		    vmask, 0);
+		printf("[%u] refs=%lu %s\n", v->spare1, v->refcnt, buf);
+		v = (struct _table_value *)((caddr_t)v + olh->objsize);
 	}
 
 	free(olh);
