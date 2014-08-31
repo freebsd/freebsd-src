@@ -80,8 +80,8 @@
 #include <machine/atomic.h>
 #include <vm/uma.h>
 
-#include "autofs.h"
-#include "autofs_ioctl.h"
+#include <fs/autofs/autofs.h>
+#include <fs/autofs/autofs_ioctl.h>
 
 MALLOC_DEFINE(M_AUTOFS, "autofs", "Automounter filesystem");
 
