@@ -156,37 +156,35 @@ w6  = -1.63092934096575273989e-03; /* 0xBF5AB89D, 0x0B9E43E4 */
 
 static const double zero=  0.00000000000000000000e+00;
 
-	static double sin_pi(double x)
+/*
+ * Compute sin(pi*x) without actually doing the pi*x multiplication.
+ * sin_pi(x) is only called for x < 0 and |x| < 2**(p-1) where p is
+ * the precision of x.
+ */
+static double
+sin_pi(double x)
 {
+	volatile double vz;
 	double y,z;
-	int n,ix;
+	int n;
 
-	GET_HIGH_WORD(ix,x);
-	ix &= 0x7fffffff;
+	y = -x;
 
-	if(ix<0x3fd00000) return __kernel_sin(pi*x,zero,0);
-	y = -x;		/* x is assume negative */
+	vz = y+0x1p52;			/* depend on 0 <= y < 0x1p52 */
+        z = vz-0x1p52;			/* rint(y) for the above range */
+	if (z == y)
+	    return (zero);
 
-    /*
-     * argument reduction, make sure inexact flag not raised if input
-     * is an integer
-     */
-	z = floor(y);
-	if(z!=y) {				/* inexact anyway */
-	    y  *= 0.5;
-	    y   = 2.0*(y - floor(y));		/* y = |x| mod 2.0 */
-	    n   = (int) (y*4.0);
-	} else {
-            if(ix>=0x43400000) {
-                y = zero; n = 0;                 /* y must be even */
-            } else {
-                if(ix<0x43300000) z = y+two52;	/* exact */
-		GET_LOW_WORD(n,z);
-		n &= 1;
-                y  = n;
-                n<<= 2;
-            }
-        }
+	vz = y+0x1p50;
+	GET_LOW_WORD(n,vz);		/* bits for rounded y (units 0.25) */
+	z = vz-0x1p50;			/* y rounded to a multiple of 0.25 */
+	if (z > y) {
+	    z -= 0.25;			/* adjust to round down */
+	    n--;
+	}
+	n &= 7;				/* octant of y mod 2 */
+	y = y - z + n * 0.25;		/* y mod 2 */
+
 	switch (n) {
 	    case 0:   y =  __kernel_sin(pi*y,zero,0); break;
 	    case 1:   
