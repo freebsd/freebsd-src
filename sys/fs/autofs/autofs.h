@@ -32,9 +32,6 @@
 #ifndef AUTOFS_H
 #define	AUTOFS_H
 
-#include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
-
 #define VFSTOAUTOFS(mp)    ((struct autofs_mount *)((mp)->mnt_data))
 
 MALLOC_DECLARE(M_AUTOFS);
