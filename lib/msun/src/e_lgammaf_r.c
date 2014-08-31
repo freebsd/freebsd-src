@@ -89,37 +89,35 @@ w6  = -1.6309292987e-03; /* 0xbad5c4e8 */
 
 static const float zero=  0.0000000000e+00;
 
-	static float sin_pif(float x)
+/*
+ * Compute sin(pi*x) without actually doing the pi*x multiplication.
+ * sin_pi(x) is only called for x < 0 and |x| < 2**(p-1) where p is
+ * the precision of x.
+ */
+static float
+sin_pi(float x)
 {
+	volatile float vz;
 	float y,z;
-	int n,ix;
+	int n;
 
-	GET_FLOAT_WORD(ix,x);
-	ix &= 0x7fffffff;
+	y = -x;
 
-	if(ix<0x3e800000) return __kernel_sindf(pi*x);
-	y = -x;		/* x is assume negative */
+	vz = y+0x1p23F;			/* depend on 0 <= y < 0x1p23 */
+	z = vz-0x1p23F;			/* rintf(y) for the above range */
+	if (z == y)
+	    return (zero);
 
-    /*
-     * argument reduction, make sure inexact flag not raised if input
-     * is an integer
-     */
-	z = floorf(y);
-	if(z!=y) {				/* inexact anyway */
-	    y  *= (float)0.5;
-	    y   = (float)2.0*(y - floorf(y));	/* y = |x| mod 2.0 */
-	    n   = (int) (y*(float)4.0);
-	} else {
-            if(ix>=0x4b800000) {
-                y = zero; n = 0;                 /* y must be even */
-            } else {
-                if(ix<0x4b000000) z = y+two23;	/* exact */
-		GET_FLOAT_WORD(n,z);
-		n &= 1;
-                y  = n;
-                n<<= 2;
-            }
-        }
+	vz = y+0x1p21F;
+	GET_FLOAT_WORD(n,vz);		/* bits for rounded y (units 0.25) */
+	z = vz-0x1p21F;			/* y rounded to a multiple of 0.25 */
+	if (z > y) {
+	    z -= 0.25F;			/* adjust to round down */
+	    n--;
+	}
+	n &= 7;				/* octant of y mod 2 */
+	y = y - z + n * 0.25F;		/* y mod 2 */
+
 	switch (n) {
 	    case 0:   y =  __kernel_sindf(pi*y); break;
 	    case 1:
@@ -157,7 +155,7 @@ __ieee754_lgammaf_r(float x, int *signgamp)
 	if(hx<0) {
 	    if(ix>=0x4b000000) 	/* |x|>=2**23, must be -integer */
 		return one/zero;
-	    t = sin_pif(x);
+	    t = sin_pi(x);
 	    if(t==zero) return one/zero; /* -integer */
 	    nadj = __ieee754_logf(pi/fabsf(t*x));
 	    if(t<zero) *signgamp = -1;
