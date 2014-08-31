@@ -67,6 +67,7 @@ struct  ifvlantrunk;
 struct	route;			/* if_output */
 struct	vnet;
 struct	ifmedia;
+struct	netmap_adapter;
 
 #ifdef _KERNEL
 #include <sys/mbuf.h>		/* ifqueue only? */
@@ -202,6 +203,7 @@ struct ifnet {
 	void	*if_pf_kif;		/* pf glue */
 	struct	carp_if *if_carp;	/* carp interface structure */
 	struct	label *if_label;	/* interface MAC label */
+	struct	netmap_adapter *if_netmap; /* netmap(4) softc */
 
 	/* Various procedures of the layer2 encapsulation and drivers. */
 	int	(*if_output)		/* output routine (enqueue) */
