@@ -109,27 +109,8 @@ sysctl_ifdata(SYSCTL_HANDLER_ARGS) /* XXX bad syntax! */
 		ifmd.ifmd_snd_drops = ifp->if_snd.ifq_drops;
 
 		error = SYSCTL_OUT(req, &ifmd, sizeof ifmd);
-		if (error || !req->newptr)
-			goto out;
-
-		error = SYSCTL_IN(req, &ifmd, sizeof ifmd);
 		if (error)
 			goto out;
-
-#define DONTCOPY(fld) ifmd.ifmd_data.ifi_##fld = ifp->if_data.ifi_##fld
-		DONTCOPY(type);
-		DONTCOPY(physical);
-		DONTCOPY(addrlen);
-		DONTCOPY(hdrlen);
-		DONTCOPY(mtu);
-		DONTCOPY(metric);
-		DONTCOPY(baudrate);
-#undef DONTCOPY
-#define COPY(fld) ifp->if_##fld = ifmd.ifmd_##fld
-		COPY(data);
-		ifp->if_snd.ifq_maxlen = ifmd.ifmd_snd_maxlen;
-		ifp->if_snd.ifq_drops = ifmd.ifmd_snd_drops;
-#undef COPY
 		break;
 
 	case IFDATA_LINKSPECIFIC:
