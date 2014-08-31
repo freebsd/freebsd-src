@@ -51,6 +51,8 @@ __FBSDID("$FreeBSD$");
 static int	autofs_trigger_vn(struct vnode *vp, const char *path,
 		    int pathlen, struct vnode **newvp);
 
+extern struct autofs_softc	*autofs_softc;
+
 static int
 autofs_access(struct vop_access_args *ap)
 {
@@ -134,12 +136,10 @@ autofs_trigger_vn(struct vnode *vp, const char *path, int pathlen,
 {
 	struct autofs_node *anp;
 	struct autofs_mount *amp;
-	struct autofs_softc *sc;
 	int error, lock_flags;
 
 	anp = vp->v_data;
 	amp = VFSTOAUTOFS(vp->v_mount);
-	sc = amp->am_softc;
 
 	/*
 	 * Release the vnode lock, so that other operations, in partcular
@@ -151,7 +151,7 @@ autofs_trigger_vn(struct vnode *vp, const char *path, int pathlen,
 	vref(vp);
 	VOP_UNLOCK(vp, 0);
 
-	sx_xlock(&sc->sc_lock);
+	sx_xlock(&autofs_softc->sc_lock);
 
 	/*
 	 * XXX: Workaround for mounting the same thing multiple times; revisit.
@@ -163,7 +163,7 @@ autofs_trigger_vn(struct vnode *vp, const char *path, int pathlen,
 
 	error = autofs_trigger(anp, path, pathlen);
 mounted:
-	sx_xunlock(&sc->sc_lock);
+	sx_xunlock(&autofs_softc->sc_lock);
 	vn_lock(vp, lock_flags | LK_RETRY);
 	vunref(vp);
 	if ((vp->v_iflag & VI_DOOMED) != 0) {
