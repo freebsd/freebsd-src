@@ -198,6 +198,15 @@ mounted:
 }
 
 static int
+autofs_vget_callback(struct mount *mp, void *arg, int lkflags __unused,
+    struct vnode **vpp)
+{
+
+
+	return (autofs_node_vn(arg, mp, vpp));
+}
+
+static int
 autofs_lookup(struct vop_lookup_args *ap)
 {
 	struct vnode *dvp, *newvp, **vpp;
@@ -217,24 +226,19 @@ autofs_lookup(struct vop_lookup_args *ap)
 	if (cnp->cn_flags & ISDOTDOT) {
 		KASSERT(anp->an_parent != NULL, ("NULL parent"));
 		/*
-		 * Note that in this case, dvp is the child vnode, and we are
-		 * looking up the parent vnode - exactly reverse from normal
-		 * operation.  To preserve lock order, we unlock the child
-		 * (dvp), obtain the lock on parent (*vpp) in autofs_node_vn(),
-		 * then relock the child.  We use vhold()/vdrop() to prevent
-		 * dvp from being freed in the meantime.
+		 * Note that in this case, dvp is the child vnode, and we
+		 * are looking up the parent vnode - exactly reverse from
+		 * normal operation.  Unlocking dvp requires some rather
+		 * tricky unlock/relock dance to prevent mp from being freed;
+		 * use vn_vget_ino_gen() which takes care of all that.
 		 */
-		lock_flags = VOP_ISLOCKED(dvp);
-		vhold(dvp);
-		VOP_UNLOCK(dvp, 0);
-		error = autofs_node_vn(anp->an_parent, mp, vpp);
+		error = vn_vget_ino_gen(dvp, autofs_vget_callback,
+		    anp->an_parent, 0, vpp);
 		if (error != 0) {
-			AUTOFS_WARN("autofs_node_vn() failed with error %d",
+			AUTOFS_WARN("vn_vget_ino_gen() failed with error %d",
 			    error);
+			return (error);
 		}
-		vn_lock(dvp, lock_flags | LK_RETRY);
-		vdrop(dvp);
-
 		return (error);
 	}
 
