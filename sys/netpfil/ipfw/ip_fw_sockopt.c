@@ -2509,6 +2509,10 @@ ipfw_ctl3(struct sockopt *sopt)
 		error = ipfw_list_table_algo(chain, &sdata);
 		break;
 
+	case IP_FW_TABLE_VLIST:
+		error = ipfw_list_table_values(chain, op3, &sdata);
+		break;
+
 	case IP_FW_TABLE_XGETSIZE:
 		{
 			uint32_t *tbl;
@@ -2729,6 +2733,7 @@ ipfw_ctl(struct sockopt *sopt)
 			ipfw_table_entry ent;
 			struct tentry_info tei;
 			struct tid_info ti;
+			struct table_value v;
 
 			error = sooptcopyin(sopt, &ent,
 			    sizeof(ent), sizeof(ent));
@@ -2739,7 +2744,8 @@ ipfw_ctl(struct sockopt *sopt)
 			tei.paddr = &ent.addr;
 			tei.subtype = AF_INET;
 			tei.masklen = ent.masklen;
-			tei.value = ent.value;
+			ipfw_import_table_value_legacy(ent.value, &v);
+			tei.pvalue = &v;
 			memset(&ti, 0, sizeof(ti));
 			ti.uidx = ent.tbl;
 			ti.type = IPFW_TABLE_CIDR;
@@ -2992,7 +2998,10 @@ ipfw_objhash_bitmap_alloc(uint32_t items, void **idx, int *pblocks)
 	int max_blocks;
 	u_long *idx_mask;
 
-	items = roundup2(items, BLOCK_ITEMS);	/* Align to block size */
+	KASSERT((items % BLOCK_ITEMS) == 0,
+	   ("bitmask size needs to power of 2 and greater or equal to %d",
+	    BLOCK_ITEMS));
+
 	max_blocks = items / BLOCK_ITEMS;
 	size = items / 8;
 	idx_mask = malloc(size * IPFW_MAX_SETS, M_IPFW, M_WAITOK);
@@ -3111,11 +3120,8 @@ ipfw_objhash_set_funcs(struct namedobj_instance *ni, objhash_hash_f *hash_f,
 static uint32_t
 objhash_hash_name(struct namedobj_instance *ni, void *name, uint32_t set)
 {
-	uint32_t v;
 
-	v = fnv_32_str((char *)name, FNV1_32_INIT);
-
-	return (v % ni->nn_size);
+	return (fnv_32_str((char *)name, FNV1_32_INIT));
 }
 
 static int
@@ -3144,7 +3150,7 @@ ipfw_objhash_lookup_name(struct namedobj_instance *ni, uint32_t set, char *name)
 	struct named_object *no;
 	uint32_t hash;
 
-	hash = ni->hash_f(ni, name, set);
+	hash = ni->hash_f(ni, name, set) % ni->nn_size;
 	
 	TAILQ_FOREACH(no, &ni->names[hash], nn_next) {
 		if (ni->cmp_f(no, name, set) == 0)
@@ -3186,7 +3192,7 @@ ipfw_objhash_add(struct namedobj_instance *ni, struct named_object *no)
 {
 	uint32_t hash;
 
-	hash = ni->hash_f(ni, no->name, no->set);
+	hash = ni->hash_f(ni, no->name, no->set) % ni->nn_size;
 	TAILQ_INSERT_HEAD(&ni->names[hash], no, nn_next);
 
 	hash = objhash_hash_idx(ni, no->kidx);
@@ -3200,7 +3206,7 @@ ipfw_objhash_del(struct namedobj_instance *ni, struct named_object *no)
 {
 	uint32_t hash;
 
-	hash = ni->hash_f(ni, no->name, no->set);
+	hash = ni->hash_f(ni, no->name, no->set) % ni->nn_size;
 	TAILQ_REMOVE(&ni->names[hash], no, nn_next);
 
 	hash = objhash_hash_idx(ni, no->kidx);

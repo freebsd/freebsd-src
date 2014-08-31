@@ -96,6 +96,7 @@ typedef struct _ip_fw3_opheader {
 #define	IP_FW_XIFLIST		107	/* list tracked interfaces */
 #define	IP_FW_TABLES_ALIST	108	/* list table algorithms */
 #define	IP_FW_TABLE_XSWAP	109	/* swap two tables */
+#define	IP_FW_TABLE_VLIST	110	/* dump table value hash */
 
 /*
  * The kernel representation of ipfw rules is made of a list of
@@ -663,11 +664,18 @@ struct _ipfw_dyn_rule {
 #define	IPFW_TABLE_CIDR	IPFW_TABLE_ADDR	/* compat */
 
 /* Value types */
-#define	IPFW_VTYPE_U32		1	/* Skipto/tablearg integer */
-
-/* Value format types */
-#define	IPFW_VFTYPE_U32		0	/* Skipto/tablearg integer */
-#define	IPFW_VFTYPE_IP		1	/* Nexthop IP address */
+#define	IPFW_VTYPE_LEGACY	0xFFFFFFFF	/* All data is filled in */
+#define	IPFW_VTYPE_SKIPTO	0x00000001	/* skipto/call/callreturn */
+#define	IPFW_VTYPE_PIPE		0x00000002	/* pipe/queue */
+#define	IPFW_VTYPE_FIB		0x00000004	/* setfib */
+#define	IPFW_VTYPE_NAT		0x00000008	/* nat */
+#define	IPFW_VTYPE_DSCP		0x00000010	/* dscp */
+#define	IPFW_VTYPE_TAG		0x00000020	/* tag/untag */
+#define	IPFW_VTYPE_DIVERT	0x00000040	/* divert/tee */
+#define	IPFW_VTYPE_NETGRAPH	0x00000080	/* netgraph/ngtee */
+#define	IPFW_VTYPE_LIMIT	0x00000100	/* IPv6 nexthop */
+#define	IPFW_VTYPE_NH4		0x00000200	/* IPv4 nexthop */
+#define	IPFW_VTYPE_NH6		0x00000400	/* IPv6 nexthop */
 
 typedef struct	_ipfw_table_entry {
 	in_addr_t	addr;		/* network address		*/
@@ -751,6 +759,23 @@ struct tflow_entry {
 	} a;
 };
 
+typedef struct _ipfw_table_value {
+	uint32_t	tag;		/* O_TAG/O_TAGGED */
+	uint32_t	pipe;		/* O_PIPE/O_QUEUE */
+	uint16_t	divert;		/* O_DIVERT/O_TEE */
+	uint16_t	skipto;		/* skipto, CALLRET */
+	uint32_t	netgraph;	/* O_NETGRAPH/O_NGTEE */
+	uint32_t	fib;		/* O_SETFIB */
+	uint32_t	nat;		/* O_NAT */
+	uint32_t	nh4;
+	uint8_t		dscp;
+	uint8_t		spare0[3];
+	struct in6_addr	nh6;
+	uint32_t	limit;		/* O_LIMIT */
+	uint32_t	spare1;
+	uint64_t	reserved;
+} ipfw_table_value;
+
 /* Table entry TLV */
 typedef struct	_ipfw_obj_tentry {
 	ipfw_obj_tlv	head;		/* TLV header			*/
@@ -769,8 +794,8 @@ typedef struct	_ipfw_obj_tentry {
 		struct tflow_entry	flow;	
 	} k;
 	union {
-		uint32_t		value;	/* 32-bit value */
-		char			storage[64]; /* Future needs	*/
+		ipfw_table_value	value;	/* value data */
+		uint32_t		kidx;	/* value kernel index */
 	} v;
 } ipfw_obj_tentry;
 #define	IPFW_TF_UPDATE	0x01		/* Update record if exists	*/
@@ -839,10 +864,10 @@ typedef struct _ipfw_ta_tinfo {
 typedef struct _ipfw_xtable_info {
 	uint8_t		type;		/* table type (addr,iface,..)	*/
 	uint8_t		tflags;		/* type flags			*/
-	uint8_t		vtype;		/* value type (u32)		*/
-	uint8_t		vftype;		/* value format type (ip,number)*/
 	uint16_t	mflags;		/* modification flags		*/
 	uint16_t	flags;		/* generic table flags		*/
+	uint16_t	spare[3];
+	uint32_t	vmask;		/* bitmask with value types 	*/
 	uint32_t	set;		/* set table is in		*/
 	uint32_t	kidx;		/* kernel index			*/
 	uint32_t	refcnt;		/* number of references		*/
@@ -862,7 +887,6 @@ typedef struct _ipfw_xtable_info {
 #define	IPFW_TFFLAG_DSTPORT	0x08
 #define	IPFW_TFFLAG_PROTO	0x10
 /* Table modification flags */
-#define	IPFW_TMFLAGS_FTYPE	0x0001	/* Change ftype field		*/
 #define	IPFW_TMFLAGS_LIMIT	0x0002	/* Change limit value		*/
 #define	IPFW_TMFLAGS_LOCK	0x0004	/* Change table lock state	*/
 

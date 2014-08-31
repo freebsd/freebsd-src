@@ -712,12 +712,13 @@ concat_tokens(char *buf, size_t bufsize, struct _s_x *table, char *delimiter)
  * helper function to process a set of flags and set bits in the
  * appropriate masks.
  */
-void
-fill_flags(struct _s_x *flags, char *p, uint8_t *set, uint8_t *clear)
+int
+fill_flags(struct _s_x *flags, char *p, char **e, uint32_t *set,
+    uint32_t *clear)
 {
 	char *q;	/* points to the separator */
 	int val;
-	uint8_t *which;	/* mask we are working on */
+	uint32_t *which;	/* mask we are working on */
 
 	while (p && *p) {
 		if (*p == '!') {
@@ -729,15 +730,19 @@ fill_flags(struct _s_x *flags, char *p, uint8_t *set, uint8_t *clear)
 		if (q)
 			*q++ = '\0';
 		val = match_token(flags, p);
-		if (val <= 0)
-			errx(EX_DATAERR, "invalid flag %s", p);
-		*which |= (uint8_t)val;
+		if (val <= 0) {
+			if (e != NULL)
+				*e = p;
+			return (-1);
+		}
+		*which |= (uint32_t)val;
 		p = q;
 	}
+	return (0);
 }
 
 void
-print_flags_buffer(char *buf, size_t sz, struct _s_x *list, uint8_t set)
+print_flags_buffer(char *buf, size_t sz, struct _s_x *list, uint32_t set)
 {
 	char const *comma = "";
 	int i, l;
@@ -2992,9 +2997,11 @@ static void
 fill_flags_cmd(ipfw_insn *cmd, enum ipfw_opcodes opcode,
 	struct _s_x *flags, char *p)
 {
-	uint8_t set = 0, clear = 0;
+	char *e;
+	uint32_t set = 0, clear = 0;
 
-	fill_flags(flags, p, &set, &clear);
+	if (fill_flags(flags, p, &e, &set, &clear) != 0)
+		errx(EX_DATAERR, "invalid flag %s", e);
 
 	cmd->opcode = opcode;
 	cmd->len =  (cmd->len & (F_NOT | F_OR)) | 1;
@@ -4825,6 +4832,7 @@ ipfw_flush(int force)
 static struct _s_x intcmds[] = {
       { "talist",	TOK_TALIST },
       { "iflist",	TOK_IFLIST },
+      { "vlist",	TOK_VLIST },
       { NULL, 0 }
 };
 
@@ -4845,6 +4853,9 @@ ipfw_internal_handler(int ac, char *av[])
 		break;
 	case TOK_TALIST:
 		ipfw_list_ta(ac, av);
+		break;
+	case TOK_VLIST:
+		ipfw_list_values(ac, av);
 		break;
 	}
 }

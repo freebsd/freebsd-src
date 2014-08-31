@@ -672,8 +672,8 @@ lookup_dyn_parent(struct ipfw_flow_id *pkt, int *pindex, struct ip_fw *rule)
  * session limitations are enforced.
  */
 int
-ipfw_install_state(struct ip_fw *rule, ipfw_insn_limit *cmd,
-    struct ip_fw_args *args, uint32_t tablearg)
+ipfw_install_state(struct ip_fw_chain *chain, struct ip_fw *rule,
+    ipfw_insn_limit *cmd, struct ip_fw_args *args, uint32_t tablearg)
 {
 	ipfw_dyn_rule *q;
 	int i;
@@ -716,7 +716,7 @@ ipfw_install_state(struct ip_fw *rule, ipfw_insn_limit *cmd,
 		uint16_t limit_mask = cmd->limit_mask;
 		int pindex;
 
-		conn_limit = IP_FW_ARG_TABLEARG(cmd->conn_limit);
+		conn_limit = IP_FW_ARG_TABLEARG(chain, cmd->conn_limit, limit);
 		  
 		DEB(
 		if (cmd->conn_limit == IP_FW_TARG)

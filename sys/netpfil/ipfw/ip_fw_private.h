@@ -152,10 +152,11 @@ void ipfw_nat_destroy(void);
 
 /* In ip_fw_log.c */
 struct ip;
+struct ip_fw_chain;
 void ipfw_log_bpf(int);
-void ipfw_log(struct ip_fw *f, u_int hlen, struct ip_fw_args *args,
-	struct mbuf *m, struct ifnet *oif, u_short offset, uint32_t tablearg,
-	struct ip *ip);
+void ipfw_log(struct ip_fw_chain *chain, struct ip_fw *f, u_int hlen,
+    struct ip_fw_args *args, struct mbuf *m, struct ifnet *oif,
+    u_short offset, uint32_t tablearg, struct ip *ip);
 VNET_DECLARE(u_int64_t, norule_counter);
 #define	V_norule_counter	VNET(norule_counter)
 VNET_DECLARE(int, verbose_limit);
@@ -184,8 +185,8 @@ void ipfw_dyn_unlock(ipfw_dyn_rule *q);
 struct tcphdr;
 struct mbuf *ipfw_send_pkt(struct mbuf *, struct ipfw_flow_id *,
     u_int32_t, u_int32_t, int);
-int ipfw_install_state(struct ip_fw *rule, ipfw_insn_limit *cmd,
-    struct ip_fw_args *args, uint32_t tablearg);
+int ipfw_install_state(struct ip_fw_chain *chain, struct ip_fw *rule,
+    ipfw_insn_limit *cmd, struct ip_fw_args *args, uint32_t tablearg);
 ipfw_dyn_rule *ipfw_lookup_dyn_rule(struct ipfw_flow_id *pkt,
 	int *match_direction, struct tcphdr *tcp);
 void ipfw_remove_dyn_children(struct ip_fw *rule);
@@ -268,6 +269,7 @@ struct ip_fw_chain {
 	int		n_rules;	/* number of static rules */
 	LIST_HEAD(nat_list, cfg_nat) nat;       /* list of nat entries */
 	void		*tablestate;	/* runtime table info */
+	void		*valuestate;	/* runtime table value info */
 	int		*idxmap;	/* skipto array of rules */
 #if defined( __linux__ ) || defined( _WIN32 )
 	spinlock_t rwmtx;
@@ -285,6 +287,25 @@ struct ip_fw_chain {
 #else
 	struct rwlock	uh_lock;	/* lock for upper half */
 #endif
+};
+
+/* 64-byte structure representing multi-field table value */
+struct table_value {
+	uint32_t	tag;		/* O_TAG/O_TAGGED */
+	uint32_t	pipe;		/* O_PIPE/O_QUEUE */
+	uint16_t	divert;		/* O_DIVERT/O_TEE */
+	uint16_t	skipto;		/* skipto, CALLRET */
+	uint32_t	netgraph;	/* O_NETGRAPH/O_NGTEE */
+	uint32_t	fib;		/* O_SETFIB */
+	uint32_t	nat;		/* O_NAT */
+	uint32_t	nh4;
+	uint8_t		dscp;
+	uint8_t		spare0[3];
+	/* -- 32 bytes -- */
+	struct in6_addr	nh6;
+	uint32_t	limit;		/* O_LIMIT */
+	uint32_t	spare1;
+	uint64_t	refcnt;		/* Number of references */
 };
 
 struct namedobj_instance;
@@ -386,8 +407,9 @@ struct ipfw_ifc {
 	} while (0)
 #endif
 
-
-#define	IP_FW_ARG_TABLEARG(a)	(((a) == IP_FW_TARG) ? tablearg : (a))
+#define	TARG_VAL(ch, k, f)	((struct table_value *)((ch)->valuestate))[k].f
+#define	IP_FW_ARG_TABLEARG(ch, a, f)	\
+	(((a) == IP_FW_TARG) ? TARG_VAL(ch, tablearg, f) : (a))
 /*
  * The lock is heavily used by ip_fw2.c (the main file) and ip_fw_nat.c
  * so the variable and the macros must be here.

@@ -223,10 +223,10 @@ enum tokens {
 	TOK_VALTYPE,
 	TOK_ALGO,
 	TOK_TALIST,
-	TOK_FTYPE,
 	TOK_ATOMIC,
 	TOK_LOCK,
 	TOK_UNLOCK,
+	TOK_VLIST,
 };
 
 /*
@@ -265,8 +265,9 @@ int match_token_relaxed(struct _s_x *table, char *string);
 char const *match_value(struct _s_x *p, int value);
 size_t concat_tokens(char *buf, size_t bufsize, struct _s_x *table,
     char *delimiter);
-void fill_flags(struct _s_x *flags, char *p, uint8_t *set, uint8_t *clear);
-void print_flags_buffer(char *buf, size_t sz, struct _s_x *list, uint8_t set);
+int fill_flags(struct _s_x *flags, char *p, char **e, uint32_t *set,
+    uint32_t *clear);
+void print_flags_buffer(char *buf, size_t sz, struct _s_x *list, uint32_t set);
 
 struct _ip_fw3_opheader;
 int do_cmd(int optname, void *optval, uintptr_t optlen);
@@ -347,4 +348,5 @@ char *table_search_ctlv(struct _ipfw_obj_ctlv *ctlv, uint16_t idx);
 void table_sort_ctlv(struct _ipfw_obj_ctlv *ctlv);
 int table_check_name(char *tablename);
 void ipfw_list_ta(int ac, char *av[]);
+void ipfw_list_values(int ac, char *av[]);
 

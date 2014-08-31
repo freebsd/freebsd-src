@@ -486,14 +486,14 @@ ta_dump_radix_tentry(void *ta_state, struct table_info *ti, void *e,
 		tent->k.addr.s_addr = n->addr.sin_addr.s_addr;
 		tent->masklen = n->masklen;
 		tent->subtype = AF_INET;
-		tent->v.value = n->value;
+		tent->v.kidx = n->value;
 #ifdef INET6
 	} else {
 		xn = (struct radix_addr_xentry *)e;
 		memcpy(&tent->k, &xn->addr6.sin6_addr, sizeof(struct in6_addr));
 		tent->masklen = xn->masklen;
 		tent->subtype = AF_INET6;
-		tent->v.value = xn->value;
+		tent->v.kidx = xn->value;
 #endif
 	}
 
@@ -1263,13 +1263,13 @@ ta_dump_chash_tentry(void *ta_state, struct table_info *ti, void *e,
 		tent->k.addr.s_addr = htonl(ent->a.a4 << (32 - cfg->mask4));
 		tent->masklen = cfg->mask4;
 		tent->subtype = AF_INET;
-		tent->v.value = ent->value;
+		tent->v.kidx = ent->value;
 #ifdef INET6
 	} else {
 		memcpy(&tent->k, &ent->a.a6, sizeof(struct in6_addr));
 		tent->masklen = cfg->mask6;
 		tent->subtype = AF_INET6;
-		tent->v.value = ent->value;
+		tent->v.kidx = ent->value;
 #endif
 	}
 
@@ -1784,6 +1784,7 @@ struct ifidx {
 	uint16_t	spare;
 	uint32_t	value;
 };
+#define	DEFAULT_IFIDX_SIZE	64
 
 struct iftable_cfg;
 
@@ -1941,8 +1942,8 @@ ta_init_ifidx(struct ip_fw_chain *ch, void **ta_state, struct table_info *ti,
 
 	icfg = malloc(sizeof(struct iftable_cfg), M_IPFW, M_WAITOK | M_ZERO);
 
-	icfg->ii = ipfw_objhash_create(16);
-	icfg->size = 16;
+	icfg->ii = ipfw_objhash_create(DEFAULT_IFIDX_SIZE);
+	icfg->size = DEFAULT_IFIDX_SIZE;
 	icfg->main_ptr = malloc(sizeof(struct ifidx) * icfg->size, M_IPFW,
 	    M_WAITOK | M_ZERO);
 	icfg->ch = ch;
@@ -2363,7 +2364,7 @@ ta_dump_ifidx_tentry(void *ta_state, struct table_info *ti, void *e,
 
 	tent->masklen = 8 * IF_NAMESIZE;
 	memcpy(&tent->k, ife->no.name, IF_NAMESIZE);
-	tent->v.value = ife->value;
+	tent->v.kidx = ife->value;
 
 	return (0);
 }
@@ -2789,7 +2790,7 @@ ta_dump_numarray_tentry(void *ta_state, struct table_info *ti, void *e,
 	na = (struct numarray *)e;
 
 	tent->k.key = na->number;
-	tent->v.value = na->value;
+	tent->v.kidx = na->value;
 
 	return (0);
 }
@@ -3135,7 +3136,7 @@ ta_dump_fhash_tentry(void *ta_state, struct table_info *ti, void *e,
 	tfe->proto = ent->proto;
 	tfe->dport = htons(ent->dport);
 	tfe->sport = htons(ent->sport);
-	tent->v.value = ent->value;
+	tent->v.kidx = ent->value;
 	tent->subtype = ent->af;
 
 	if (ent->af == AF_INET) {
@@ -3706,7 +3707,7 @@ ta_dump_kfib_tentry(void *ta_state, struct table_info *ti, void *e,
 			len = 0;
 		tent->masklen = len;
 		tent->subtype = AF_INET;
-		tent->v.value = 0; /* Do we need to put GW here? */
+		tent->v.kidx = 0; /* Do we need to put GW here? */
 #ifdef INET6
 	} else if (addr->sin_family == AF_INET6) {
 		addr6 = (struct sockaddr_in6 *)addr;
@@ -3719,7 +3720,7 @@ ta_dump_kfib_tentry(void *ta_state, struct table_info *ti, void *e,
 			len = 0;
 		tent->masklen = len;
 		tent->subtype = AF_INET6;
-		tent->v.value = 0;
+		tent->v.kidx = 0;
 #endif
 	}
 

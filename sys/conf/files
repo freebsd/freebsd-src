@@ -3494,6 +3494,7 @@ netpfil/ipfw/ip_fw_pfil.c	optional inet ipfirewall
 netpfil/ipfw/ip_fw_sockopt.c	optional inet ipfirewall
 netpfil/ipfw/ip_fw_table.c	optional inet ipfirewall
 netpfil/ipfw/ip_fw_table_algo.c	optional inet ipfirewall
+netpfil/ipfw/ip_fw_table_value.c	optional inet ipfirewall
 netpfil/ipfw/ip_fw_iface.c	optional inet ipfirewall
 netpfil/ipfw/ip_fw_nat.c	optional inet ipfirewall_nat
 netpfil/pf/if_pflog.c		optional pflog pf inet
