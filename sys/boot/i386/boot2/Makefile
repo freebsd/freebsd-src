@@ -22,8 +22,6 @@ BOOT2_UFS?=	UFS1_AND_UFS2
 #BOOT2_UFS?=	UFS2_ONLY
 #BOOT2_UFS?=	UFS1_ONLY
 
-NO_PIE=	yes
-
 CFLAGS=	-Os \
 	-fomit-frame-pointer \
 	-mrtd \

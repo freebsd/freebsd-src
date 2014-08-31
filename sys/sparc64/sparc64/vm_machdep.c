@@ -54,6 +54,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/proc.h>
 #include <sys/sysent.h>
 #include <sys/sched.h>
+#include <sys/sf_buf.h>
 #include <sys/sysctl.h>
 #include <sys/unistd.h>
 #include <sys/vmmeter.h>
@@ -442,4 +443,19 @@ uma_small_free(void *mem, int size, u_int8_t flags)
 	m->wire_count--;
 	vm_page_free(m);
 	atomic_subtract_int(&vm_cnt.v_wire_count, 1);
+}
+
+void
+sf_buf_map(struct sf_buf *sf, int flags)
+{
+
+	pmap_qenter(sf->kva, &sf->m, 1);
+}
+
+int
+sf_buf_unmap(struct sf_buf *sf)
+{
+
+	pmap_qremove(sf->kva, 1);
+	return (1);
 }

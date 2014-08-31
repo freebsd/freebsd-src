@@ -242,19 +242,26 @@ in_control(struct socket *so, u_long cmd, caddr_t data, struct ifnet *ifp,
 		return (EADDRNOTAVAIL);
 
 	/*
-	 * For SIOCGIFADDR, pick the first address.  For the rest of
-	 * ioctls, try to find specified address.
+	 * Find address for this interface, if it exists.  If an
+	 * address was specified, find that one instead of the
+	 * first one on the interface, if possible.
 	 */
 	IF_ADDR_RLOCK(ifp);
 	TAILQ_FOREACH(ifa, &ifp->if_addrhead, ifa_link) {
 		if (ifa->ifa_addr->sa_family != AF_INET)
 			continue;
 		ia = (struct in_ifaddr *)ifa;
-		if (cmd == SIOCGIFADDR || addr->sin_addr.s_addr == INADDR_ANY)
-			break;
 		if (ia->ia_addr.sin_addr.s_addr == addr->sin_addr.s_addr)
 			break;
 	}
+	if (ifa == NULL)
+		TAILQ_FOREACH(ifa, &ifp->if_addrhead, ifa_link)
+			if (ifa->ifa_addr->sa_family == AF_INET) {
+				ia = (struct in_ifaddr *)ifa;
+				if (prison_check_ip4(td->td_ucred,
+				    &ia->ia_addr.sin_addr) == 0)
+					break;
+			}
 
 	if (ifa == NULL) {
 		IF_ADDR_RUNLOCK(ifp);

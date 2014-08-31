@@ -751,7 +751,7 @@ err_late:
 	em_free_receive_structures(adapter);
 	em_release_hw_control(adapter);
 	if (adapter->ifp != (void *)NULL)
-		if_free_drv(adapter->ifp);
+		if_free(adapter->ifp);
 err_pci:
 	em_free_pci_resources(adapter);
 	free(adapter->mta, M_DEVBUF);
@@ -809,7 +809,7 @@ em_detach(device_t dev)
 	if (adapter->vlan_detach != NULL)
 		EVENTHANDLER_DEREGISTER(vlan_unconfig, adapter->vlan_detach); 
 
-	ether_ifdetach_drv(adapter->ifp);
+	ether_ifdetach(adapter->ifp);
 	callout_drain(&adapter->timer);
 
 #ifdef DEV_NETMAP
@@ -818,7 +818,7 @@ em_detach(device_t dev)
 
 	em_free_pci_resources(adapter);
 	bus_generic_detach(dev);
-	if_free_drv(ifp);
+	if_free(ifp);
 
 	em_free_transmit_structures(adapter);
 	em_free_receive_structures(adapter);
@@ -1100,10 +1100,10 @@ em_ioctl(if_t ifp, u_long command, caddr_t data)
 				em_init(adapter);
 #ifdef INET
 			if (!(if_getflags(ifp) & IFF_NOARP))
-				arp_ifinit_drv(ifp, ifa);
+				arp_ifinit(ifp, ifa);
 #endif
 		} else
-			error = ether_ioctl_drv(ifp, command, data);
+			error = ether_ioctl(ifp, command, data);
 		break;
 	case SIOCSIFMTU:
 	    {
@@ -1195,7 +1195,7 @@ em_ioctl(if_t ifp, u_long command, caddr_t data)
 	case SIOCGIFMEDIA:
 		IOCTL_DEBUGOUT("ioctl rcv'd: \
 		    SIOCxIFMEDIA (Get/Set Interface Media)");
-		error = ifmedia_ioctl_drv(ifp, ifr, &adapter->media, command);
+		error = ifmedia_ioctl(ifp, ifr, &adapter->media, command);
 		break;
 	case SIOCSIFCAP:
 	    {
@@ -1258,7 +1258,7 @@ em_ioctl(if_t ifp, u_long command, caddr_t data)
 	    }
 
 	default:
-		error = ether_ioctl_drv(ifp, command, data);
+		error = ether_ioctl(ifp, command, data);
 		break;
 	}
 
@@ -2331,7 +2331,7 @@ em_update_link_status(struct adapter *adapter)
 		adapter->link_active = 1;
 		adapter->smartspeed = 0;
 		if_setbaudrate(ifp, adapter->link_speed * 1000000);
-		if_linkstate_change_drv(ifp, LINK_STATE_UP);
+		if_link_state_change(ifp, LINK_STATE_UP);
 	} else if (!link_check && (adapter->link_active == 1)) {
 		if_setbaudrate(ifp, 0);
 		adapter->link_speed = 0;
@@ -2342,7 +2342,7 @@ em_update_link_status(struct adapter *adapter)
 		/* Link down, disable watchdog */
 		for (int i = 0; i < adapter->num_queues; i++, txr++)
 			txr->queue_status = EM_QUEUE_IDLE;
-		if_linkstate_change_drv(ifp, LINK_STATE_DOWN);
+		if_link_state_change(ifp, LINK_STATE_DOWN);
 	}
 }
 
@@ -2934,7 +2934,7 @@ em_setup_interface(device_t dev, struct adapter *adapter)
 		device_printf(dev, "can not allocate ifnet structure\n");
 		return (-1);
 	}
-	if_initname_drv(ifp, device_get_name(dev), device_get_unit(dev));
+	if_initname(ifp, device_get_name(dev), device_get_unit(dev));
 	if_setdev(ifp, dev);
 	if_setinitfn(ifp, em_init);
 	if_setsoftc(ifp, adapter);
@@ -2950,7 +2950,7 @@ em_setup_interface(device_t dev, struct adapter *adapter)
 	if_setsendqready(ifp);
 #endif	
 
-	ether_ifattach_drv(ifp, adapter->hw.mac.addr);
+	ether_ifattach(ifp, adapter->hw.mac.addr);
 
 	if_setcapabilities(ifp, 0);
 	if_setcapenable(ifp, 0);
@@ -2991,7 +2991,7 @@ em_setup_interface(device_t dev, struct adapter *adapter)
 	 * Specify the media types supported by this adapter and register
 	 * callbacks to update media and link information
 	 */
-	ifmedia_init_drv(&adapter->media, IFM_IMASK,
+	ifmedia_init(&adapter->media, IFM_IMASK,
 	    em_media_change, em_media_status);
 	if ((adapter->hw.phy.media_type == e1000_media_type_fiber) ||
 	    (adapter->hw.phy.media_type == e1000_media_type_internal_serdes)) {
@@ -3340,10 +3340,10 @@ em_setup_transmit_ring(struct tx_ring *txr)
 			uint64_t paddr;
 			void *addr;
 
-			addr = PNMB(slot + si, &paddr);
+			addr = PNMB(na, slot + si, &paddr);
 			txr->tx_base[i].buffer_addr = htole64(paddr);
 			/* reload the map for netmap mode */
-			netmap_load_map(txr->txtag, txbuf->map, addr);
+			netmap_load_map(na, txr->txtag, txbuf->map, addr);
 		}
 #endif /* DEV_NETMAP */
 
@@ -4082,8 +4082,8 @@ em_setup_receive_ring(struct rx_ring *rxr)
 			uint64_t paddr;
 			void *addr;
 
-			addr = PNMB(slot + si, &paddr);
-			netmap_load_map(rxr->rxtag, rxbuf->map, addr);
+			addr = PNMB(na, slot + si, &paddr);
+			netmap_load_map(na, rxr->rxtag, rxbuf->map, addr);
 			/* Update descriptor */
 			rxr->rx_base[j].buffer_addr = htole64(paddr);
 			continue;

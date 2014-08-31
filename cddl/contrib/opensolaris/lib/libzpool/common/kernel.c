@@ -687,7 +687,7 @@ __dprintf(const char *file, const char *func, int line, const char *fmt, ...)
 		if (dprintf_find_string("pid"))
 			(void) printf("%d ", getpid());
 		if (dprintf_find_string("tid"))
-			(void) printf("%ul ", thr_self());
+			(void) printf("%lu ", thr_self());
 #if 0
 		if (dprintf_find_string("cpu"))
 			(void) printf("%u ", getcpuid());

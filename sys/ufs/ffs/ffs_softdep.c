@@ -931,6 +931,7 @@ static	inline struct jsegdep *inoref_jseg(struct inoref *);
 static	struct jmvref *newjmvref(struct inode *, ino_t, off_t, off_t);
 static	struct jfreeblk *newjfreeblk(struct freeblks *, ufs_lbn_t,
 	    ufs2_daddr_t, int);
+static	void adjust_newfreework(struct freeblks *, int);
 static	struct jtrunc *newjtrunc(struct freeblks *, off_t, int);
 static	void move_newblock_dep(struct jaddref *, struct inodedep *);
 static	void cancel_jfreeblk(struct freeblks *, ufs2_daddr_t);
@@ -2452,7 +2453,6 @@ softdep_mount(devvp, mp, fs, cred)
 	ump->um_softdep = sdp;
 	MNT_IUNLOCK(mp);
 	rw_init(LOCK_PTR(ump), "Per-Filesystem Softdep Lock");
-	TAILQ_INSERT_TAIL(&softdepmounts, sdp, sd_next);
 	sdp->sd_ump = ump;
 	LIST_INIT(&ump->softdep_workitem_pending);
 	LIST_INIT(&ump->softdep_journal_pending);
@@ -2478,6 +2478,9 @@ softdep_mount(devvp, mp, fs, cred)
 	ump->indir_hash_size = i - 1;
 	for (i = 0; i <= ump->indir_hash_size; i++)
 		TAILQ_INIT(&ump->indir_hashtbl[i]);
+	ACQUIRE_GBLLOCK(&lk);
+	TAILQ_INSERT_TAIL(&softdepmounts, sdp, sd_next);
+	FREE_GBLLOCK(&lk);
 	if ((fs->fs_flags & FS_SUJ) &&
 	    (error = journal_mount(mp, fs, cred)) != 0) {
 		printf("Failed to start journal: %d\n", error);
@@ -2561,8 +2564,10 @@ softdep_unmount(mp)
 	/*
 	 * Free up our resources.
 	 */
-	rw_destroy(LOCK_PTR(ump));
+	ACQUIRE_GBLLOCK(&lk);
 	TAILQ_REMOVE(&softdepmounts, ump->um_softdep, sd_next);
+	FREE_GBLLOCK(&lk);
+	rw_destroy(LOCK_PTR(ump));
 	hashdestroy(ump->pagedep_hashtbl, M_PAGEDEP, ump->pagedep_hash_size);
 	hashdestroy(ump->inodedep_hashtbl, M_INODEDEP, ump->inodedep_hash_size);
 	hashdestroy(ump->newblk_hashtbl, M_NEWBLK, ump->newblk_hash_size);
@@ -4160,6 +4165,33 @@ newjfreeblk(freeblks, lbn, blkno, frags)
 	LIST_INSERT_HEAD(&freeblks->fb_jblkdephd, &jfreeblk->jf_dep, jb_deps);
 
 	return (jfreeblk);
+}
+
+/*
+ * The journal is only prepared to handle full-size block numbers, so we
+ * have to adjust the record to reflect the change to a full-size block.
+ * For example, suppose we have a block made up of fragments 8-15 and
+ * want to free its last two fragments. We are given a request that says:
+ *     FREEBLK ino=5, blkno=14, lbn=0, frags=2, oldfrags=0
+ * where frags are the number of fragments to free and oldfrags are the
+ * number of fragments to keep. To block align it, we have to change it to
+ * have a valid full-size blkno, so it becomes:
+ *     FREEBLK ino=5, blkno=8, lbn=0, frags=2, oldfrags=6
+ */
+static void
+adjust_newfreework(freeblks, frag_offset)
+	struct freeblks *freeblks;
+	int frag_offset;
+{
+	struct jfreeblk *jfreeblk;
+
+	KASSERT((LIST_FIRST(&freeblks->fb_jblkdephd) != NULL &&
+	    LIST_FIRST(&freeblks->fb_jblkdephd)->jb_list.wk_type == D_JFREEBLK),
+	    ("adjust_newfreework: Missing freeblks dependency"));
+
+	jfreeblk = WK_JFREEBLK(LIST_FIRST(&freeblks->fb_jblkdephd));
+	jfreeblk->jf_blkno -= frag_offset;
+	jfreeblk->jf_frags += frag_offset;
 }
 
 /*
@@ -6529,6 +6561,9 @@ softdep_journal_freeblocks(ip, cred, length, flags)
 				blkno += numfrags(ip->i_fs, frags);
 				newfreework(ump, freeblks, NULL, lastlbn,
 				    blkno, oldfrags, 0, needj);
+				if (needj)
+					adjust_newfreework(freeblks,
+					    numfrags(ip->i_fs, frags));
 			} else if (blkno == 0)
 				allocblock = 1;
 		}

@@ -133,11 +133,6 @@ sctp_auth_delete_chunk(uint8_t chunk, sctp_auth_chklist_t * list)
 	if (list == NULL)
 		return (-1);
 
-	/* is chunk restricted? */
-	if ((chunk == SCTP_ASCONF) ||
-	    (chunk == SCTP_ASCONF_ACK)) {
-		return (-1);
-	}
 	if (list->chunks[chunk] == 1) {
 		list->chunks[chunk] = 0;
 		list->num_chunks--;
@@ -155,16 +150,6 @@ sctp_auth_get_chklist_size(const sctp_auth_chklist_t * list)
 		return (0);
 	else
 		return (list->num_chunks);
-}
-
-/*
- * set the default list of chunks requiring AUTH
- */
-void
-sctp_auth_set_default_chunks(sctp_auth_chklist_t * list)
-{
-	(void)sctp_auth_add_chunk(SCTP_ASCONF, list);
-	(void)sctp_auth_add_chunk(SCTP_ASCONF_ACK, list);
 }
 
 /*

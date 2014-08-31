@@ -400,7 +400,7 @@ repeat:
 	if (rx_stat & (USS820_RXSTAT_RXSETUP |
 	    USS820_RXSTAT_RXSOVW |
 	    USS820_RXSTAT_EDOVW)) {
-		if (td->remainder == 0) {
+		if (td->remainder == 0 && td->ep_index == 0) {
 			/*
 			 * We are actually complete and have
 			 * received the next SETUP
@@ -515,21 +515,24 @@ repeat:
 	/* read out TX FIFO flags */
 	tx_flag = USS820_READ_1(sc, USS820_TXFLG);
 
-	/* read out RX FIFO status last */
-	rx_stat = USS820_READ_1(sc, USS820_RXSTAT);
+	DPRINTFN(5, "tx_flag=0x%02x rem=%u\n", tx_flag, td->remainder);
 
-	DPRINTFN(5, "rx_stat=0x%02x tx_flag=0x%02x rem=%u\n",
-	    rx_stat, tx_flag, td->remainder);
+	if (td->ep_index == 0) {
+		/* read out RX FIFO status last */
+		rx_stat = USS820_READ_1(sc, USS820_RXSTAT);
 
-	if (rx_stat & (USS820_RXSTAT_RXSETUP |
-	    USS820_RXSTAT_RXSOVW |
-	    USS820_RXSTAT_EDOVW)) {
-		/*
-	         * The current transfer was aborted
-	         * by the USB Host
-	         */
-		td->error = 1;
-		return (0);		/* complete */
+		DPRINTFN(5, "rx_stat=0x%02x\n", rx_stat);
+
+		if (rx_stat & (USS820_RXSTAT_RXSETUP |
+		    USS820_RXSTAT_RXSOVW |
+		    USS820_RXSTAT_EDOVW)) {
+			/*
+			 * The current transfer was aborted by the USB
+			 * Host:
+			 */
+			td->error = 1;
+			return (0);		/* complete */
+		}
 	}
 	if (tx_flag & (USS820_TXFLG_TXOVF |
 	    USS820_TXFLG_TXURF)) {
@@ -611,20 +614,21 @@ uss820dci_data_tx_sync(struct uss820dci_softc *sc, struct uss820dci_td *td)
 	/* read out TX FIFO flag */
 	tx_flag = USS820_READ_1(sc, USS820_TXFLG);
 
-	/* read out RX FIFO status last */
-	rx_stat = USS820_READ_1(sc, USS820_RXSTAT);
+	if (td->ep_index == 0) {
+		/* read out RX FIFO status last */
+		rx_stat = USS820_READ_1(sc, USS820_RXSTAT);
 
-	DPRINTFN(5, "rx_stat=0x%02x rem=%u\n", rx_stat, td->remainder);
+		DPRINTFN(5, "rx_stat=0x%02x rem=%u\n", rx_stat, td->remainder);
 
-	if (rx_stat & (USS820_RXSTAT_RXSETUP |
-	    USS820_RXSTAT_RXSOVW |
-	    USS820_RXSTAT_EDOVW)) {
-		DPRINTFN(5, "faking complete\n");
-		/* Race condition */
-		return (0);		/* complete */
+		if (rx_stat & (USS820_RXSTAT_RXSETUP |
+		    USS820_RXSTAT_RXSOVW |
+		    USS820_RXSTAT_EDOVW)) {
+			DPRINTFN(5, "faking complete\n");
+			/* Race condition */
+			return (0);		/* complete */
+		}
 	}
-	DPRINTFN(5, "tx_flag=0x%02x rem=%u\n",
-	    tx_flag, td->remainder);
+	DPRINTFN(5, "tx_flag=0x%02x rem=%u\n", tx_flag, td->remainder);
 
 	if (tx_flag & (USS820_TXFLG_TXOVF |
 	    USS820_TXFLG_TXURF)) {
@@ -635,7 +639,7 @@ uss820dci_data_tx_sync(struct uss820dci_softc *sc, struct uss820dci_td *td)
 	    USS820_TXFLG_TXFIF1)) {
 		return (1);		/* not complete */
 	}
-	if (sc->sc_dv_addr != 0xFF) {
+	if (td->ep_index == 0 && sc->sc_dv_addr != 0xFF) {
 		/* write function address */
 		uss820dci_set_address(sc, sc->sc_dv_addr);
 	}
@@ -1528,7 +1532,7 @@ uss820dci_init(struct uss820dci_softc *sc)
 			temp = USS820_EPCON_RXEPEN | USS820_EPCON_TXEPEN;
 		}
 
-		uss820dci_update_shared_1(sc, USS820_EPCON, 0xFF, temp);
+		uss820dci_update_shared_1(sc, USS820_EPCON, 0, temp);
 	}
 
 	USB_BUS_UNLOCK(&sc->sc_bus);

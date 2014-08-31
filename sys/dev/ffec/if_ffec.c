@@ -1676,7 +1676,7 @@ ffec_attach(device_t dev)
 	IFQ_SET_MAXLEN(&ifp->if_snd, TX_DESC_COUNT - 1);
 	ifp->if_snd.ifq_drv_maxlen = TX_DESC_COUNT - 1;
 	IFQ_SET_READY(&ifp->if_snd);
-	ifp->if_data.ifi_hdrlen = sizeof(struct ether_vlan_header);
+	ifp->if_hdrlen = sizeof(struct ether_vlan_header);
 
 #if 0 /* XXX The hardware keeps stats we could use for these. */
 	ifp->if_linkmib = &sc->mibdata;

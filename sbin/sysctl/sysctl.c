@@ -48,6 +48,10 @@ static const char rcsid[] =
 #include <sys/sysctl.h>
 #include <sys/vmmeter.h>
 
+#if defined(__amd64__) || defined(__i386__)
+#include <machine/pc/bios.h>
+#endif
+
 #include <ctype.h>
 #include <err.h>
 #include <errno.h>
@@ -541,6 +545,27 @@ S_vmtotal(int l2, void *p)
 	return (0);
 }
 
+#if defined(__amd64__) || defined(__i386__)
+static int
+S_bios_smap_xattr(int l2, void *p)
+{
+	struct bios_smap_xattr *smap, *end;
+
+	if (l2 % sizeof(*smap) != 0) {
+		warnx("S_bios_smap_xattr %d is not a multiple of %zu", l2,
+		    sizeof(*smap));
+		return (1);
+	}
+
+	end = (struct bios_smap_xattr *)((char *)p + l2);
+	for (smap = p; smap < end; smap++)
+		printf("\nSMAP type=%02x, xattr=%02x, base=%016jx, len=%016jx",
+		    smap->type, smap->xattr, (uintmax_t)smap->base,
+		    (uintmax_t)smap->length);
+	return (0);
+}
+#endif
+
 static int
 set_IK(const char *str, int *val)
 {
@@ -793,6 +818,10 @@ show_var(int *oid, int nlen)
 			func = S_loadavg;
 		else if (strcmp(fmt, "S,vmtotal") == 0)
 			func = S_vmtotal;
+#if defined(__amd64__) || defined(__i386__)
+		else if (strcmp(fmt, "S,bios_smap_xattr") == 0)
+			func = S_bios_smap_xattr;
+#endif
 		else
 			func = NULL;
 		if (func) {

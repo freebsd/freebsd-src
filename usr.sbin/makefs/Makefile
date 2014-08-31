@@ -38,6 +38,4 @@ LDADD+=		${LIBNETBSD}
 DPADD+=  ${LIBSBUF} ${LIBUTIL}
 LDADD+=  -lsbuf -lutil
 
-NO_PIE=	yes
-
 .include <bsd.prog.mk>

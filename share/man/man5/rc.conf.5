@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd February 15, 2014
+.Dd August 27, 2014
 .Dt RC.CONF 5
 .Os
 .Sh NAME
@@ -63,18 +63,37 @@ The file
 is used to override settings in
 .Pa /etc/rc.conf
 for historical reasons.
+.Pp
 In addition to
 .Pa /etc/rc.conf.local
 you can also place smaller configuration files for each
 .Xr rc 8
 script in the
 .Pa /etc/rc.conf.d
-directory, which will be included by the
+directory or
+.Ao Ar dir Ac Ns Pa /rc.conf.d
+directories specified in
+.Va local_startup ,
+which will be included by the
 .Va load_rc_config
 function.
 For jail configurations you could use the file
 .Pa /etc/rc.conf.d/jail
 to store jail specific configuration options.
+If
+.Va local_startup
+contains
+.Pa /usr/local/etc/rc.d
+and
+.Pa /opt/conf ,
+.Pa /usr/local/rc.conf.d/jail
+and
+.Pa /opt/conf/rc.conf.d/jail
+will be loaded.
+If
+.Ao Ar dir Ac Ns Pa /rc.conf.d/ Ns Ao Ar name Ac
+is a directory,
+all of files in the directory will be loaded.
 Also see the
 .Va rc_conf_files
 variable below.
@@ -3111,8 +3130,13 @@ set to this device.
 If set to
 .Dq Li NO ,
 no keymap is installed, otherwise the value is used to install
-the keymap file in
-.Pa /usr/share/syscons/keymaps/ Ns Ao Ar value Ac Ns Pa .kbd .
+the keymap file found in
+.Pa /usr/share/syscons/keymaps/ Ns Ao Ar value Ac Ns Pa .kbd
+(if using
+.Xr syscons 4 ) or
+.Pa /usr/share/vt/keymaps/ Ns Ao Ar value Ac Ns Pa .kbd
+(if using
+.Xr vt 4 ) .
 .It Va keyrate
 .Pq Vt str
 The keyboard repeat speed.
@@ -3147,6 +3171,9 @@ If set to
 no screen map is installed, otherwise the value is used to install
 the screen map file in
 .Pa /usr/share/syscons/scrnmaps/ Ns Aq Ar value .
+This parameter is ignored when using
+.Xr vt 4
+as the console driver.
 .It Va font8x16
 .Pq Vt str
 If set to
@@ -3154,7 +3181,9 @@ If set to
 the default 8x16 font value is used for screen size requests, otherwise
 the value in
 .Pa /usr/share/syscons/fonts/ Ns Aq Ar value
-is used.
+or
+.Pa /usr/share/vt/fonts/ Ns Aq Ar value
+is used (depending on the console driver being used).
 .It Va font8x14
 .Pq Vt str
 If set to
@@ -3162,7 +3191,9 @@ If set to
 the default 8x14 font value is used for screen size requests, otherwise
 the value in
 .Pa /usr/share/syscons/fonts/ Ns Aq Ar value
-is used.
+or
+.Pa /usr/share/vt/fonts/ Ns Aq Ar value
+is used (depending on the console driver being used).
 .It Va font8x8
 .Pq Vt str
 If set to
@@ -3170,7 +3201,9 @@ If set to
 the default 8x8 font value is used for screen size requests, otherwise
 the value in
 .Pa /usr/share/syscons/fonts/ Ns Aq Ar value
-is used.
+or
+.Pa /usr/share/vt/fonts/ Ns Aq Ar value
+is used (depending on the console driver being used).
 .It Va blanktime
 .Pq Vt int
 If set to
@@ -3377,6 +3410,8 @@ For example,
 .Dq Fl h Li 200
 will set the
 .Xr syscons 4
+or
+.Xr vt 4
 scrollback (history) buffer to 200 lines.
 .It Va cron_enable
 .Pq Vt bool

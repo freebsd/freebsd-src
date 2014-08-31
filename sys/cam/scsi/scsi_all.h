@@ -2315,6 +2315,27 @@ struct scsi_vpd_block_characteristics
 };
 
 /*
+ * Block Device Characteristics VPD Page
+ */
+struct scsi_vpd_block_device_characteristics
+{
+	uint8_t device;
+	uint8_t page_code;
+#define	SVPD_BDC		0xB1
+	uint8_t page_length[2];
+	uint8_t medium_rotation_rate[2];
+#define	SVPD_NOT_REPORTED	0x0000
+#define	SVPD_NON_ROTATING	0x0001
+	uint8_t product_type;
+	uint8_t wab_wac_ff;
+	uint8_t flags;
+#define	SVPD_VBULS		0x01
+#define	SVPD_FUAB		0x02
+#define	SVPD_HAW_ZBC		0x10
+	uint8_t reserved[55];
+};
+
+/*
  * Logical Block Provisioning VPD Page based on
  * T10/1799-D Revision 31
  */

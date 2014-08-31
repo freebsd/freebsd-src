@@ -87,6 +87,10 @@
             ..
             libmp
             ..
+            libnv
+            ..
+            libutil
+            ..
         ..
         libexec
             atf
@@ -100,6 +104,8 @@
         ..
         sbin
             dhclient
+            ..
+            devd
             ..
             growfs
             ..

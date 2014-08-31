@@ -12,9 +12,7 @@ GDBLIBS= ${OBJ_GDB}/libgdb/libgdb.a
 LDFLAGS+= -Wl,-E
 
 DPADD=	${GDBLIBS} ${BULIBS} ${LIBM} ${LIBREADLINE} ${LIBTERMCAPW} ${LIBGNUREGEX}
-LDADD=	${GDBLIBS} ${BULIBS} -lm ${LIBREADLINE} -ltermcapw -lgnuregex
-
-NO_PIE=	yes
+LDADD=	${GDBLIBS} ${BULIBS} -lm ${LDREADLINE} -ltermcapw -lgnuregex
 
 .include <bsd.prog.mk>
 CFLAGS+=	-DDEBUGDIR=\"${DEBUGDIR}\"

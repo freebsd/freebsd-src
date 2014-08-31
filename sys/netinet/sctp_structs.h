@@ -587,6 +587,14 @@ struct sctp_stream_out {
 	struct sctp_streamhead outqueue;
 	union scheduling_parameters ss_params;
 	uint32_t chunks_on_queues;
+#if defined(SCTP_DETAILED_STR_STATS)
+	uint32_t abandoned_unsent[SCTP_PR_SCTP_MAX + 1];
+	uint32_t abandoned_sent[SCTP_PR_SCTP_MAX + 1];
+#else
+	/* Only the aggregation */
+	uint32_t abandoned_unsent[1];
+	uint32_t abandoned_sent[1];
+#endif
 	uint16_t stream_no;
 	uint16_t next_sequence_send;	/* next one I expect to send out */
 	uint8_t last_msg_incomplete;
@@ -1153,6 +1161,8 @@ struct sctp_association {
 	/* Flags whether an extension is supported or not */
 	uint8_t ecn_supported;
 	uint8_t prsctp_supported;
+	uint8_t auth_supported;
+	uint8_t asconf_supported;
 	uint8_t reconfig_supported;
 	uint8_t nrsack_supported;
 	uint8_t pktdrop_supported;
@@ -1160,10 +1170,6 @@ struct sctp_association {
 	/* Did the peer make the stream config (add out) request */
 	uint8_t peer_req_out;
 
-	/* flag to indicate if peer can do asconf */
-	uint8_t peer_supports_asconf;
-	/* peer authentication support flag */
-	uint8_t peer_supports_auth;
 	uint8_t local_strreset_support;
 
 	uint8_t peer_supports_nat;
@@ -1213,6 +1219,8 @@ struct sctp_association {
 	uint32_t timoshutdownack;
 	struct timeval start_time;
 	struct timeval discontinuity_time;
+	uint64_t abandoned_unsent[SCTP_PR_SCTP_MAX + 1];
+	uint64_t abandoned_sent[SCTP_PR_SCTP_MAX + 1];
 };
 
 #endif

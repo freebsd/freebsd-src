@@ -3348,6 +3348,60 @@ flags_out:
 			}
 			break;
 		}
+	case SCTP_AUTH_SUPPORTED:
+		{
+			struct sctp_assoc_value *av;
+
+			SCTP_CHECK_AND_CAST(av, optval, struct sctp_assoc_value, *optsize);
+			SCTP_FIND_STCB(inp, stcb, av->assoc_id);
+
+			if (stcb) {
+				av->assoc_value = stcb->asoc.auth_supported;
+				SCTP_TCB_UNLOCK(stcb);
+			} else {
+				if ((inp->sctp_flags & SCTP_PCB_FLAGS_TCPTYPE) ||
+				    (inp->sctp_flags & SCTP_PCB_FLAGS_IN_TCPPOOL) ||
+				    (av->assoc_id == SCTP_FUTURE_ASSOC)) {
+					SCTP_INP_RLOCK(inp);
+					av->assoc_value = inp->auth_supported;
+					SCTP_INP_RUNLOCK(inp);
+				} else {
+					SCTP_LTRACE_ERR_RET(inp, NULL, NULL, SCTP_FROM_SCTP_USRREQ, EINVAL);
+					error = EINVAL;
+				}
+			}
+			if (error == 0) {
+				*optsize = sizeof(struct sctp_assoc_value);
+			}
+			break;
+		}
+	case SCTP_ASCONF_SUPPORTED:
+		{
+			struct sctp_assoc_value *av;
+
+			SCTP_CHECK_AND_CAST(av, optval, struct sctp_assoc_value, *optsize);
+			SCTP_FIND_STCB(inp, stcb, av->assoc_id);
+
+			if (stcb) {
+				av->assoc_value = stcb->asoc.asconf_supported;
+				SCTP_TCB_UNLOCK(stcb);
+			} else {
+				if ((inp->sctp_flags & SCTP_PCB_FLAGS_TCPTYPE) ||
+				    (inp->sctp_flags & SCTP_PCB_FLAGS_IN_TCPPOOL) ||
+				    (av->assoc_id == SCTP_FUTURE_ASSOC)) {
+					SCTP_INP_RLOCK(inp);
+					av->assoc_value = inp->asconf_supported;
+					SCTP_INP_RUNLOCK(inp);
+				} else {
+					SCTP_LTRACE_ERR_RET(inp, NULL, NULL, SCTP_FROM_SCTP_USRREQ, EINVAL);
+					error = EINVAL;
+				}
+			}
+			if (error == 0) {
+				*optsize = sizeof(struct sctp_assoc_value);
+			}
+			break;
+		}
 	case SCTP_RECONFIG_SUPPORTED:
 		{
 			struct sctp_assoc_value *av;
@@ -3453,6 +3507,72 @@ flags_out:
 			}
 			if (error == 0) {
 				*optsize = sizeof(struct sctp_assoc_value);
+			}
+			break;
+		}
+	case SCTP_PR_STREAM_STATUS:
+		{
+			struct sctp_prstatus *sprstat;
+			uint16_t sid;
+			uint16_t policy;
+
+			SCTP_CHECK_AND_CAST(sprstat, optval, struct sctp_prstatus, *optsize);
+			SCTP_FIND_STCB(inp, stcb, sprstat->sprstat_assoc_id);
+
+			sid = sprstat->sprstat_sid;
+			policy = sprstat->sprstat_policy;
+#if defined(SCTP_DETAILED_STR_STATS)
+			if ((stcb != NULL) &&
+			    (policy != SCTP_PR_SCTP_NONE) &&
+			    (sid < stcb->asoc.streamoutcnt) &&
+			    ((policy == SCTP_PR_SCTP_ALL) ||
+			    (PR_SCTP_VALID_POLICY(policy)))) {
+#else
+			if ((stcb != NULL) &&
+			    (policy != SCTP_PR_SCTP_NONE) &&
+			    (sid < stcb->asoc.streamoutcnt) &&
+			    (policy == SCTP_PR_SCTP_ALL)) {
+#endif
+				if (policy == SCTP_PR_SCTP_ALL) {
+					sprstat->sprstat_abandoned_unsent = stcb->asoc.strmout[sid].abandoned_unsent[0];
+					sprstat->sprstat_abandoned_sent = stcb->asoc.strmout[sid].abandoned_sent[0];
+				} else {
+					sprstat->sprstat_abandoned_unsent = stcb->asoc.strmout[sid].abandoned_unsent[policy];
+					sprstat->sprstat_abandoned_sent = stcb->asoc.strmout[sid].abandoned_sent[policy];
+				}
+				SCTP_TCB_UNLOCK(stcb);
+				*optsize = sizeof(struct sctp_prstatus);
+			} else {
+				SCTP_LTRACE_ERR_RET(inp, NULL, NULL, SCTP_FROM_SCTP_USRREQ, EINVAL);
+				error = EINVAL;
+			}
+			break;
+		}
+	case SCTP_PR_ASSOC_STATUS:
+		{
+			struct sctp_prstatus *sprstat;
+			uint16_t policy;
+
+			SCTP_CHECK_AND_CAST(sprstat, optval, struct sctp_prstatus, *optsize);
+			SCTP_FIND_STCB(inp, stcb, sprstat->sprstat_assoc_id);
+
+			policy = sprstat->sprstat_policy;
+			if ((stcb != NULL) &&
+			    (policy != SCTP_PR_SCTP_NONE) &&
+			    ((policy == SCTP_PR_SCTP_ALL) ||
+			    (PR_SCTP_VALID_POLICY(policy)))) {
+				if (policy == SCTP_PR_SCTP_ALL) {
+					sprstat->sprstat_abandoned_unsent = stcb->asoc.abandoned_unsent[0];
+					sprstat->sprstat_abandoned_sent = stcb->asoc.abandoned_sent[0];
+				} else {
+					sprstat->sprstat_abandoned_unsent = stcb->asoc.abandoned_unsent[policy];
+					sprstat->sprstat_abandoned_sent = stcb->asoc.abandoned_sent[policy];
+				}
+				SCTP_TCB_UNLOCK(stcb);
+				*optsize = sizeof(struct sctp_prstatus);
+			} else {
+				SCTP_LTRACE_ERR_RET(inp, NULL, NULL, SCTP_FROM_SCTP_USRREQ, EINVAL);
+				error = EINVAL;
 			}
 			break;
 		}
@@ -6043,6 +6163,92 @@ sctp_setopt(struct socket *so, int optname, void *optval, size_t optsize,
 						inp->prsctp_supported = 1;
 					}
 					SCTP_INP_WUNLOCK(inp);
+				} else {
+					SCTP_LTRACE_ERR_RET(inp, NULL, NULL, SCTP_FROM_SCTP_USRREQ, EINVAL);
+					error = EINVAL;
+				}
+			}
+			break;
+		}
+	case SCTP_AUTH_SUPPORTED:
+		{
+			struct sctp_assoc_value *av;
+
+			SCTP_CHECK_AND_CAST(av, optval, struct sctp_assoc_value, optsize);
+			SCTP_FIND_STCB(inp, stcb, av->assoc_id);
+
+			if (stcb) {
+				SCTP_LTRACE_ERR_RET(inp, NULL, NULL, SCTP_FROM_SCTP_USRREQ, EINVAL);
+				error = EINVAL;
+				SCTP_TCB_UNLOCK(stcb);
+			} else {
+				if ((inp->sctp_flags & SCTP_PCB_FLAGS_TCPTYPE) ||
+				    (inp->sctp_flags & SCTP_PCB_FLAGS_IN_TCPPOOL) ||
+				    (av->assoc_id == SCTP_FUTURE_ASSOC)) {
+					if ((av->assoc_value == 0) &&
+					    (inp->asconf_supported == 1)) {
+						/*
+						 * AUTH is required for
+						 * ASCONF
+						 */
+						SCTP_LTRACE_ERR_RET(inp, NULL, NULL, SCTP_FROM_SCTP_USRREQ, EINVAL);
+						error = EINVAL;
+					} else {
+						SCTP_INP_WLOCK(inp);
+						if (av->assoc_value == 0) {
+							inp->auth_supported = 0;
+						} else {
+							inp->auth_supported = 1;
+						}
+						SCTP_INP_WUNLOCK(inp);
+					}
+				} else {
+					SCTP_LTRACE_ERR_RET(inp, NULL, NULL, SCTP_FROM_SCTP_USRREQ, EINVAL);
+					error = EINVAL;
+				}
+			}
+			break;
+		}
+	case SCTP_ASCONF_SUPPORTED:
+		{
+			struct sctp_assoc_value *av;
+
+			SCTP_CHECK_AND_CAST(av, optval, struct sctp_assoc_value, optsize);
+			SCTP_FIND_STCB(inp, stcb, av->assoc_id);
+
+			if (stcb) {
+				SCTP_LTRACE_ERR_RET(inp, NULL, NULL, SCTP_FROM_SCTP_USRREQ, EINVAL);
+				error = EINVAL;
+				SCTP_TCB_UNLOCK(stcb);
+			} else {
+				if ((inp->sctp_flags & SCTP_PCB_FLAGS_TCPTYPE) ||
+				    (inp->sctp_flags & SCTP_PCB_FLAGS_IN_TCPPOOL) ||
+				    (av->assoc_id == SCTP_FUTURE_ASSOC)) {
+					if ((av->assoc_value != 0) &&
+					    (inp->auth_supported == 0)) {
+						/*
+						 * AUTH is required for
+						 * ASCONF
+						 */
+						SCTP_LTRACE_ERR_RET(inp, NULL, NULL, SCTP_FROM_SCTP_USRREQ, EINVAL);
+						error = EINVAL;
+					} else {
+						SCTP_INP_WLOCK(inp);
+						if (av->assoc_value == 0) {
+							inp->asconf_supported = 0;
+							sctp_auth_delete_chunk(SCTP_ASCONF,
+							    inp->sctp_ep.local_auth_chunks);
+							sctp_auth_delete_chunk(SCTP_ASCONF_ACK,
+							    inp->sctp_ep.local_auth_chunks);
+						} else {
+							inp->asconf_supported = 1;
+							sctp_auth_add_chunk(SCTP_ASCONF,
+							    inp->sctp_ep.local_auth_chunks);
+							sctp_auth_add_chunk(SCTP_ASCONF_ACK,
+							    inp->sctp_ep.local_auth_chunks);
+						}
+						SCTP_INP_WUNLOCK(inp);
+					}
 				} else {
 					SCTP_LTRACE_ERR_RET(inp, NULL, NULL, SCTP_FROM_SCTP_USRREQ, EINVAL);
 					error = EINVAL;

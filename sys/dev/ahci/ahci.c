@@ -2764,7 +2764,7 @@ ahci_setup_fis(device_t dev, struct ahci_cmd_tab *ctp, union ccb *ccb, int tag)
 	struct ahci_channel *ch = device_get_softc(dev);
 	u_int8_t *fis = &ctp->cfis[0];
 
-	bzero(ctp->cfis, 16);
+	bzero(fis, 20);
 	fis[0] = 0x27;  		/* host to device */
 	fis[1] = (ccb->ccb_h.target_id & 0x0f);
 	if (ccb->ccb_h.func_code == XPT_SCSI_IO) {
