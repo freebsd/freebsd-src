@@ -42,7 +42,7 @@
 #include <sys/sx.h>
 #include <sys/vnode.h>
 
-#include "autofs.h"
+#include <fs/autofs/autofs.h>
 
 static const char *autofs_opts[] = {
 	"from", "master_options", "master_prefix", NULL
