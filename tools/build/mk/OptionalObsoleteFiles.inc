@@ -1216,6 +1216,11 @@ OLD_FILES+=usr/share/man/man1/nc.1.gz
 # to be filled in
 #.endif
 
+.if ${MK_PKGBOOTSTRAP} == no
+OLD_FILES+=usr/sbin/pkg
+OLD_FILES+=usr/share/man/man7/pkg.7.gz
+.endif
+
 .if ${MK_PKGTOOLS} == no
 OLD_FILES+=etc/periodic/security/460.chkportsum
 OLD_FILES+=etc/periodic/weekly/400.status-pkg

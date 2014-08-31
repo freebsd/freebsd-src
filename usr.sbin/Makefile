@@ -361,9 +361,12 @@ _keyserv=	keyserv
 _ftp-proxy=	ftp-proxy
 .endif
 
+.if ${MK_PKGBOOTSTRAP} != "no"
+SUBDIR+=	pkg
+.endif
+
 .if ${MK_PKGTOOLS} != "no"
 _pkg_install=	pkg_install
-SUBDIR+=	pkg
 .endif
 
 # XXX MK_TOOLCHAIN?

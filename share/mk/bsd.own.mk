@@ -383,6 +383,7 @@ WITH_IDEA=
     OPENSSL \
     PAM \
     PF \
+    PKGBOOTSTRAP \
     PKGTOOLS \
     PMC \
     PORTSNAP \
