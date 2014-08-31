@@ -330,3 +330,4 @@ ENTRY(memcpy)
 .Lmemcpy_srcul3l4:
 	sub	r1, r1, #1
 	b	.Lmemcpy_l4
+END(memcpy)
