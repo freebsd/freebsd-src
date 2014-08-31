@@ -1187,7 +1187,7 @@ extern int netmap_generic_rings;
  * WNA is used to write it.
  */
 #ifndef WNA
-#define	WNA(_ifp)	(_ifp)->if_pspare[0]
+#define	WNA(_ifp)	(_ifp)->if_netmap
 #endif
 #define	NA(_ifp)	((struct netmap_adapter *)WNA(_ifp))
 
