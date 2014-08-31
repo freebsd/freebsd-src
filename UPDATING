@@ -16,6 +16,22 @@ from older versions of FreeBSD, try WITHOUT_CLANG to bootstrap to the tip of
 stable/10, and then rebuild without this option. The bootstrap process from
 older version of current is a bit fragile.
 
+20140831:
+	The libatf-c and libatf-c++ major versions were downgraded to 0 and
+	1 respectively to match the upstream numbers.  They were out of
+	sync because, when they were originally added to FreeBSD, the
+	upstream versions were not respected.  These libraries are private
+	and not yet built by default, so renumbering them should be a
+	non-issue.  However, unclean source trees will yield broken test
+	programs once the operator executes "make delete-old-libs" after a
+	"make installworld".
+
+	If you are using WITH_TESTS=yes (not the default), wipe the object
+	tree and rebuild from scratch to prevent spurious test failures.
+	This is only needed once: the old, misnumbered libraries have been
+	added to OptionalObsoleteFiles.inc so they will be removed during a
+	clean upgrade.
+
 20140814:
 	The ixgbe tunables now match their sysctl counterparts, for example:
 	hw.ixgbe.enable_aim => hw.ix.enable_aim
