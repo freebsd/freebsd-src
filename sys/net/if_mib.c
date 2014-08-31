@@ -99,10 +99,9 @@ sysctl_ifdata(SYSCTL_HANDLER_ARGS) /* XXX bad syntax! */
 		bzero(&ifmd, sizeof(ifmd));
 		strlcpy(ifmd.ifmd_name, ifp->if_xname, sizeof(ifmd.ifmd_name));
 
-#define COPY(fld) ifmd.ifmd_##fld = ifp->if_##fld
-		COPY(pcount);
-		COPY(data);
-#undef COPY
+		ifmd.ifmd_pcount = ifp->if_pcount;
+		if_data_copy(ifp, &ifmd.ifmd_data);
+
 		ifmd.ifmd_flags = ifp->if_flags | ifp->if_drv_flags;
 		ifmd.ifmd_snd_len = ifp->if_snd.ifq_len;
 		ifmd.ifmd_snd_maxlen = ifp->if_snd.ifq_maxlen;
