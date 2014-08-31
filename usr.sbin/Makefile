@@ -265,9 +265,12 @@ _pc_sysinstall=	pc-sysinstall
 SUBDIR+=	ftp-proxy
 .endif
 
+.if ${MK_PKGBOOTSTRAP} != "no"
+SUBDIR+=	pkg
+.endif
+
 .if ${MK_PKGTOOLS} != "no"
 SUBDIR+=	pkg_install
-SUBDIR+=	pkg
 .endif
 
 # XXX MK_TOOLCHAIN?
