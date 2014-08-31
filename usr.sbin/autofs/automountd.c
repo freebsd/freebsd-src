@@ -182,7 +182,7 @@ handle_request(const struct autofs_daemon_request *adr, char *cmdline_options,
 	const char *map;
 	struct node *root, *parent, *node;
 	FILE *f;
-	char *options, *fstype, *retrycnt, *tmp;
+	char *options, *fstype, *nobrowse, *retrycnt, *tmp;
 	int error;
 
 	log_debugx("got request %d: from %s, path %s, prefix \"%s\", "
@@ -222,6 +222,28 @@ handle_request(const struct autofs_daemon_request *adr, char *cmdline_options,
 		log_debugx("found node defined at %s:%d; not a mountpoint",
 		    node->n_config_file, node->n_config_line);
 
+		options = node_options(node);
+
+		/*
+		 * Prepend options passed via automountd(8) command line.
+		 */
+		if (cmdline_options != NULL) {
+			options =
+			    separated_concat(cmdline_options, options, ',');
+		}
+
+		nobrowse = pick_option("nobrowse", &options);
+		if (nobrowse != NULL && adr->adr_key[0] == '\0') {
+			log_debugx("skipping map %s due to \"nobrowse\" "
+			    "option; exiting", map);
+			done(0);
+
+			/*
+			 * Exit without calling exit_callback().
+			 */
+			quick_exit(0);
+		}
+
 		/*
 		 * Not a mountpoint; create directories in the autofs mount
 		 * and complete the request.
@@ -239,9 +261,9 @@ handle_request(const struct autofs_daemon_request *adr, char *cmdline_options,
 			if (node != NULL)
 				create_subtree(node, false);
 		}
-		done(0);
 
 		log_debugx("nothing to mount; exiting");
+		done(0);
 
 		/*
 		 * Exit without calling exit_callback().
@@ -272,6 +294,11 @@ handle_request(const struct autofs_daemon_request *adr, char *cmdline_options,
 	 * Append "automounted".
 	 */
 	options = separated_concat(options, "automounted", ',');
+
+	/*
+	 * Remove "nobrowse", mount(8) doesn't understand it.
+	 */
+	pick_option("nobrowse", &options);
 
 	/*
 	 * Figure out fstype.
@@ -309,8 +336,8 @@ handle_request(const struct autofs_daemon_request *adr, char *cmdline_options,
 	if (error != 0)
 		log_errx(1, "mount failed");
 
-	done(0);
 	log_debugx("mount done; exiting");
+	done(0);
 
 	/*
 	 * Exit without calling exit_callback().
