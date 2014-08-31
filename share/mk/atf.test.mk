@@ -72,6 +72,7 @@ MAN.${_T}?= # empty
 SRCS.${_T}?= ${_T}.c
 DPADD.${_T}+= ${LIBATF_C}
 LDADD.${_T}+= -latf-c
+USEPRIVATELIB+= atf-c
 TEST_INTERFACE.${_T}= atf
 .endfor
 .endif
@@ -85,6 +86,7 @@ MAN.${_T}?= # empty
 SRCS.${_T}?= ${_T}${CXX_SUFFIX:U.cc}
 DPADD.${_T}+= ${LIBATF_CXX} ${LIBATF_C}
 LDADD.${_T}+= -latf-c++ -latf-c
+USEPRIVATELIB+= atf-c++
 TEST_INTERFACE.${_T}= atf
 .endfor
 .endif
