@@ -182,7 +182,6 @@ expire_automounted(double expiration_time)
 	time_t now;
 	double mounted_for, mounted_max = 0;
 	int error;
-	bool unmounted = false;
 
 	now = time(NULL);
 
@@ -211,18 +210,7 @@ expire_automounted(double expiration_time)
 		if (error != 0) {
 			if (mounted_for > mounted_max)
 				mounted_max = mounted_for;
-		} else {
-			unmounted = true;
 		}
-	}
-
-	if (unmounted) {
-		/*
-		 * Successful unmount of a filesystem could unbusy its parent
-		 * filesystem that can now be unmounted.
-		 */
-		log_debugx("filesystem got unmounted; go around");
-		return (expire_automounted(expiration_time));
 	}
 
 	return (mounted_max);
