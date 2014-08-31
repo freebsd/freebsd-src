@@ -3138,16 +3138,26 @@ retry_space:
 			}
 
 			/*
-			 * Get an mbuf and set it up as having
-			 * EXT_SFBUF/EXT_SFBUF_NOCACHE external storage.
+			 * Get an mbuf and set it up.
+			 *
+			 * SF_NOCACHE sets the page as being freed upon send.
+			 * However, we ignore it for the last page in 'space',
+			 * if the page is truncated, and we got more data to
+			 * send (rem > space), or if we have readahead
+			 * configured (rhpages > 0).
 			 */
 			m0 = m_get(M_WAITOK, MT_DATA);
 			m0->m_ext.ext_buf = (char *)sf_buf_kva(sf);
 			m0->m_ext.ext_size = PAGE_SIZE;
 			m0->m_ext.ext_arg1 = sf;
 			m0->m_ext.ext_arg2 = sfs;
-			m0->m_ext.ext_type = (flags & SF_NOCACHE) ?
-			    EXT_SFBUF_NOCACHE : EXT_SFBUF;
+			if ((flags & SF_NOCACHE) == 0 ||
+			    (i == npages - 1 &&
+			    ((off + space) & PAGE_MASK) &&
+			    (rem > space || rhpages > 0)))
+				m0->m_ext.ext_type = EXT_SFBUF;
+			else
+				m0->m_ext.ext_type = EXT_SFBUF_NOCACHE;
 			m0->m_ext.ext_flags = 0;
 			m0->m_flags |= (M_EXT | M_RDONLY);
 			if (nios)
