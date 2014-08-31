@@ -3529,9 +3529,8 @@ if_deregister_com_alloc(u_char type)
 
 /* API for driver access to network stack owned ifnet.*/
 uint64_t
-if_setbaudrate(void *arg, uint64_t baudrate)
+if_setbaudrate(struct ifnet *ifp, uint64_t baudrate)
 {
-	struct ifnet *ifp = arg;
 	uint64_t oldbrate;
 
 	oldbrate = ifp->if_baudrate;
@@ -4035,13 +4034,13 @@ if_setinitfn(if_t ifp, void (*init_fn)(void *))
 }
 
 void
-if_setioctlfn(if_t ifp, int (*ioctl_fn)(void *, u_long, caddr_t))
+if_setioctlfn(if_t ifp, int (*ioctl_fn)(if_t, u_long, caddr_t))
 {
 	((struct ifnet *)ifp)->if_ioctl = (void *)ioctl_fn;
 }
 
 void
-if_setstartfn(if_t ifp, void (*start_fn)(void *))
+if_setstartfn(if_t ifp, void (*start_fn)(if_t))
 {
 	((struct ifnet *)ifp)->if_start = (void *)start_fn;
 }
@@ -4056,90 +4055,6 @@ void if_setqflushfn(if_t ifp, if_qflush_fn_t flush_fn)
 {
 	((struct ifnet *)ifp)->if_qflush = flush_fn;
 	
-}
-
-/* These wrappers are hopefully temporary, till all drivers use drvapi */
-#ifdef INET
-void
-arp_ifinit_drv(if_t ifh, struct ifaddr *ifa)
-{
-	arp_ifinit((struct ifnet *)ifh, ifa);
-}
-#endif
-
-void
-ether_ifattach_drv(if_t ifh, const u_int8_t *lla)
-{
-	ether_ifattach((struct ifnet *)ifh, lla);
-}
-
-void
-ether_ifdetach_drv(if_t ifh)
-{
-	ether_ifdetach((struct ifnet *)ifh);
-}
-
-int
-ether_ioctl_drv(if_t ifh, u_long cmd, caddr_t data)
-{
-	struct ifnet *ifp = (struct ifnet *)ifh;
-
-	return (ether_ioctl(ifp, cmd, data));
-}
-
-int
-ifmedia_ioctl_drv(if_t ifh, struct ifreq *ifr, struct ifmedia *ifm,
-    u_long cmd)
-{
-	struct ifnet *ifp = (struct ifnet *)ifh;
-
-	return (ifmedia_ioctl(ifp, ifr, ifm, cmd));
-}
-
-void
-if_free_drv(if_t ifh)
-{
-	if_free((struct ifnet *)ifh);	
-}
-
-void
-if_initname_drv(if_t ifh, const char *name, int unit)
-{
-	if_initname((struct ifnet *)ifh, name, unit);	
-}
-
-void
-if_linkstate_change_drv(if_t ifh, int link_state)
-{
-	if_link_state_change((struct ifnet *)ifh, link_state);
-}
-
-void
-ifmedia_init_drv(struct ifmedia *ifm, int ncmask, int (*chg_cb)(void *),
-    void (*sts_cb)(void *, struct ifmediareq *))
-{
-	ifmedia_init(ifm, ncmask, (ifm_change_cb_t)chg_cb,
-	    (ifm_stat_cb_t)sts_cb);
-}
-
-void
-if_addr_rlock_drv(if_t ifh)
-{
-
-	if_addr_runlock((struct ifnet *)ifh);
-}
-
-void
-if_addr_runlock_drv(if_t ifh)
-{
-	if_addr_runlock((struct ifnet *)ifh);
-}
-
-void
-if_qflush_drv(if_t ifh)
-{
-	if_qflush((struct ifnet *)ifh);
-
 }
 
 /* Revisit these - These are inline functions originally. */
