@@ -2560,9 +2560,7 @@ arc_reclaim_needed(void)
 	    (btop(vmem_size(heap_arena, VMEM_FREE | VMEM_ALLOC)) >> 2))
 		return (1);
 #endif
-#endif	/* sun */
-
-#else
+#else	/* sun */
 #ifdef __i386__
 	/* i386 has KVA limits that the raw page counts above don't consider */
 	if (kmem_used() > (kmem_size() * 3) / 4) {
@@ -2571,6 +2569,9 @@ arc_reclaim_needed(void)
 		return (1);
 	}
 #endif
+#endif	/* sun */
+
+#else
 	if (spa_get_random(100) == 0)
 		return (1);
 #endif
