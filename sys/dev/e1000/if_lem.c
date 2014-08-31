@@ -752,7 +752,7 @@ err_csb:
 
 err_pci:
 	if (adapter->ifp != (void *)NULL)
-		if_free_drv(adapter->ifp);
+		if_free(adapter->ifp);
 	lem_free_pci_resources(adapter);
 	free(adapter->mta, M_DEVBUF);
 	EM_TX_LOCK_DESTROY(adapter);
@@ -811,7 +811,7 @@ lem_detach(device_t dev)
 	if (adapter->vlan_detach != NULL)
 		EVENTHANDLER_DEREGISTER(vlan_unconfig, adapter->vlan_detach); 
 
-	ether_ifdetach_drv(adapter->ifp);
+	ether_ifdetach(adapter->ifp);
 	callout_drain(&adapter->timer);
 	callout_drain(&adapter->tx_fifo_timer);
 
@@ -820,7 +820,7 @@ lem_detach(device_t dev)
 #endif /* DEV_NETMAP */
 	lem_free_pci_resources(adapter);
 	bus_generic_detach(dev);
-	if_free_drv(ifp);
+	if_free(ifp);
 
 	lem_free_transmit_structures(adapter);
 	lem_free_receive_structures(adapter);
@@ -1020,10 +1020,10 @@ lem_ioctl(if_t ifp, u_long command, caddr_t data)
 				lem_init(adapter);
 #ifdef INET
 			if (!(if_getflags(ifp) & IFF_NOARP))
-				arp_ifinit_drv(ifp, ifa);
+				arp_ifinit(ifp, ifa);
 #endif
 		} else
-			error = ether_ioctl_drv(ifp, command, data);
+			error = ether_ioctl(ifp, command, data);
 		break;
 	case SIOCSIFMTU:
 	    {
@@ -1106,7 +1106,7 @@ lem_ioctl(if_t ifp, u_long command, caddr_t data)
 	case SIOCGIFMEDIA:
 		IOCTL_DEBUGOUT("ioctl rcv'd: \
 		    SIOCxIFMEDIA (Get/Set Interface Media)");
-		error = ifmedia_ioctl_drv(ifp, ifr, &adapter->media, command);
+		error = ifmedia_ioctl(ifp, ifr, &adapter->media, command);
 		break;
 	case SIOCSIFCAP:
 	    {
@@ -1157,7 +1157,7 @@ lem_ioctl(if_t ifp, u_long command, caddr_t data)
 	    }
 
 	default:
-		error = ether_ioctl_drv(ifp, command, data);
+		error = ether_ioctl(ifp, command, data);
 		break;
 	}
 
@@ -2159,7 +2159,7 @@ lem_update_link_status(struct adapter *adapter)
 		adapter->link_active = 1;
 		adapter->smartspeed = 0;
 		if_setbaudrate(ifp, adapter->link_speed * 1000000);
-		if_linkstate_change_drv(ifp, LINK_STATE_UP);
+		if_link_state_change(ifp, LINK_STATE_UP);
 	} else if (!link_check && (adapter->link_active == 1)) {
 		if_setbaudrate(ifp, 0);
 		adapter->link_speed = 0;
@@ -2169,7 +2169,7 @@ lem_update_link_status(struct adapter *adapter)
 		adapter->link_active = 0;
 		/* Link down, disable watchdog */
 		adapter->watchdog_check = FALSE;
-		if_linkstate_change_drv(ifp, LINK_STATE_DOWN);
+		if_link_state_change(ifp, LINK_STATE_DOWN);
 	}
 }
 
@@ -2458,7 +2458,7 @@ lem_setup_interface(device_t dev, struct adapter *adapter)
 		device_printf(dev, "can not allocate ifnet structure\n");
 		return (-1);
 	}
-	if_initname_drv(ifp, device_get_name(dev), device_get_unit(dev));
+	if_initname(ifp, device_get_name(dev), device_get_unit(dev));
 	if_setinitfn(ifp,  lem_init);
 	if_setsoftc(ifp, adapter);
 	if_setflags(ifp, IFF_BROADCAST | IFF_SIMPLEX | IFF_MULTICAST);
@@ -2467,7 +2467,7 @@ lem_setup_interface(device_t dev, struct adapter *adapter)
 	if_setsendqlen(ifp, adapter->num_tx_desc - 1);
 	if_setsendqready(ifp);
 
-	ether_ifattach_drv(ifp, adapter->hw.mac.addr);
+	ether_ifattach(ifp, adapter->hw.mac.addr);
 
 	if_setcapabilities(ifp, 0);
 
@@ -2507,7 +2507,7 @@ lem_setup_interface(device_t dev, struct adapter *adapter)
 	 * Specify the media types supported by this adapter and register
 	 * callbacks to update media and link information
 	 */
-	ifmedia_init_drv(&adapter->media, IFM_IMASK,
+	ifmedia_init(&adapter->media, IFM_IMASK,
 	    lem_media_change, lem_media_status);
 	if ((adapter->hw.phy.media_type == e1000_media_type_fiber) ||
 	    (adapter->hw.phy.media_type == e1000_media_type_internal_serdes)) {
