@@ -298,6 +298,9 @@ interrupt_polarity(UINT16 IntiFlags, UINT8 Source)
 {
 
 	switch (IntiFlags & ACPI_MADT_POLARITY_MASK) {
+	default:
+		printf("WARNING: Bogus Interrupt Polarity. Assume CONFORMS\n");
+		/* FALLTHROUGH*/
 	case ACPI_MADT_POLARITY_CONFORMS:
 		if (Source == AcpiGbl_FADT.SciInterrupt)
 			return (INTR_POLARITY_LOW);
@@ -306,11 +309,8 @@ interrupt_polarity(UINT16 IntiFlags, UINT8 Source)
 	case ACPI_MADT_POLARITY_ACTIVE_HIGH:
 		return (INTR_POLARITY_HIGH);
 	case ACPI_MADT_POLARITY_ACTIVE_LOW:
-		break;
-	default:
-		printf("WARNING: Bogus Interrupt Polarity. Assume POLALITY LOW");
+		return (INTR_POLARITY_LOW);
 	}
-	return (INTR_POLARITY_LOW);
 }
 
 static enum intr_trigger
@@ -318,6 +318,9 @@ interrupt_trigger(UINT16 IntiFlags, UINT8 Source)
 {
 
 	switch (IntiFlags & ACPI_MADT_TRIGGER_MASK) {
+	default:
+		printf("WARNING: Bogus Interrupt Trigger Mode. Assume CONFORMS.\n");
+		/*FALLTHROUGH*/
 	case ACPI_MADT_TRIGGER_CONFORMS:
 		if (Source == AcpiGbl_FADT.SciInterrupt)
 			return (INTR_TRIGGER_LEVEL);
@@ -326,13 +329,8 @@ interrupt_trigger(UINT16 IntiFlags, UINT8 Source)
 	case ACPI_MADT_TRIGGER_EDGE:
 		return (INTR_TRIGGER_EDGE);
 	case ACPI_MADT_TRIGGER_LEVEL:
-		break;
-	default:
-		printf("WARNING: Bogus Interrupt Trigger Mode. Assume Level trigger.");
-		
-		break;
+		return (INTR_TRIGGER_LEVEL);
 	}
-	return (INTR_TRIGGER_LEVEL);
 }
 
 /*
