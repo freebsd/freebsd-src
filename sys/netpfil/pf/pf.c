@@ -3522,7 +3522,7 @@ pf_create_state(struct pf_rule *r, struct pf_rule *nr, struct pf_rule *a,
 
 	if (r->rt && r->rt != PF_FASTROUTE) {
 		if (pf_map_addr(pd->af, r, pd->src, &s->rt_addr, NULL, &sn)) {
-			REASON_SET(&reason, PFRES_MAPFAILED);
+			REASON_SET(&reason, PFRES_BADSTATE);
 			pf_src_tree_remove_state(s);
 			STATE_DEC_COUNTERS(s);
 			uma_zfree(V_pf_state_z, s);
