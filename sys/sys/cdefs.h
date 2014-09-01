@@ -749,12 +749,13 @@
  * Furthermore, it is also possible to annotate variables and structure
  * members to enforce that they are only accessed when certain locks are
  * held.
- *
- * Note: These annotations have no effect on this version of FreeBSD.
- * They are merely provided for forward compatibilty.
  */
 
+#ifdef __clang__
+#define	__lock_annotate(x)	__attribute__((x))
+#else
 #define	__lock_annotate(x)
+#endif
 
 /* Structure implements a lock. */
 #define	__lockable		__lock_annotate(lockable)
