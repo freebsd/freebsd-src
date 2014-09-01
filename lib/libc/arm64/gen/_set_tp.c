@@ -37,5 +37,5 @@ void
 _set_tp(void *tp)
 {
 
-	//sysarch(ARM_SET_TP, tp);
+	asm volatile("msr	tpidr_el0, %0" : : "r"(tp));
 }

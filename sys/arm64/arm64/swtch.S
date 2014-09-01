@@ -90,9 +90,8 @@ ENTRY(cpu_switch)
 	str	x30, [x4, #PCB_REGS + 30 * 8]
 	/* And the old stack pointer */
 	mov	x5, sp
-	str	x5, [x4, #PCB_SP]
-
-	/* TODO: Save/restore the tls thread pointer */
+	mrs	x6, tpidr_el0
+	stp	x5, x6, [x4, #PCB_SP]
 
 	/*
 	 * Restore the saved context.
@@ -119,8 +118,9 @@ ENTRY(cpu_switch)
 #endif
 
 	/* Restore the registers */
-	ldr	x5, [x4, #PCB_SP]
+	ldp	x5, x6, [x4, #PCB_SP]
 	mov	sp, x5
+	msr	tpidr_el0, x6
 	ldp	x8, x9, [x4, #PCB_REGS + 8 * 8]
 	ldp	x10, x11, [x4, #PCB_REGS + 10 * 8]
 	ldp	x12, x13, [x4, #PCB_REGS + 12 * 8]
