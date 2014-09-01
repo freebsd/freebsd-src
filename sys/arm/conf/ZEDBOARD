@@ -91,7 +91,7 @@ options 	USB_DEBUG
 #options 	USB_VERBOSE
 device		ehci
 device		umass
-device		scbus			# SCSI bus (required for SCSI)
+device		scbus			# SCSI bus (required for ATA/SCSI)
 device		da			# Direct Access (disks)
 device		axe			# USB-Ethernet
 
