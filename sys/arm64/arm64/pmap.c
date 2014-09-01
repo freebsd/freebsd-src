@@ -1484,10 +1484,10 @@ pmap_invalidate_page(pmap_t pmap, vm_offset_t va)
 
 	__asm __volatile(
 	    "dsb  sy		\n"
-	    "tlbi vae1, %0	\n"
+	    "tlbi vaae1, %0	\n"
 	    "dsb  sy		\n"
 	    "isb		\n"
-	    : : "r"(va));
+	    : : "r"(va >> PAGE_SHIFT));
 }
 
 PMAP_INLINE void
@@ -1496,10 +1496,12 @@ pmap_invalidate_range(pmap_t pmap, vm_offset_t sva, vm_offset_t eva)
 	vm_offset_t addr;
 
 	if (pmap == kernel_pmap) {
+		sva >>= PAGE_SHIFT;
+		eva >>= PAGE_SHIFT;
 		__asm __volatile("dsb	sy");
-		for (addr = sva; addr < eva; addr += PAGE_SIZE) {
+		for (addr = sva; addr < eva; addr++) {
 			__asm __volatile(
-			    "tlbi vae1, %0" : : "r"(addr));
+			    "tlbi vaae1, %0" : : "r"(addr));
 		}
 		__asm __volatile(
 		    "dsb  sy	\n"
