@@ -233,5 +233,5 @@ Checkers.inc.h: ${CLANG_SRCS}/lib/StaticAnalyzer/Checkers/Checkers.td
 .endfor
 
 SRCS+=		${TGHDRS:C/$/.inc.h/}
-DPADD+=		${TGHDRS:C/$/.inc.h/}
+DPSRCS+=	${TGHDRS:C/$/.inc.h/}
 CLEANFILES+=	${TGHDRS:C/$/.inc.h/} ${TGHDRS:C/$/.inc.d/}
