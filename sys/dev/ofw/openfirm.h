@@ -133,6 +133,16 @@ ssize_t		OF_package_to_path(phandle_t node, char *buf, size_t len);
 phandle_t	OF_node_from_xref(phandle_t xref);
 phandle_t	OF_xref_from_node(phandle_t node);
 
+/*
+ * When properties contain references to other nodes using xref handles it is
+ * often necessary to use interfaces provided by the driver for the referenced
+ * instance.  These routines allow a driver that provides such an interface to
+ * register its association with an xref handle, and for other drivers to obtain
+ * the device_t associated with an xref handle.
+ */
+device_t	OF_device_from_xref(phandle_t xref);
+int		OF_device_register_xref(phandle_t xref, device_t dev);
+
 /* Device I/O functions */
 ihandle_t	OF_open(const char *path);
 void		OF_close(ihandle_t instance);
