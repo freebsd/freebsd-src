@@ -3856,7 +3856,7 @@ pmap_enter(pmap_t pmap, vm_offset_t va, vm_prot_t access, vm_page_t m,
 
 				l2_pa = VM_PAGE_TO_PHYS(l2_m);
 				l1 = pmap_l1(pmap, va);
-				*l1 = l2_pa | ATTR_AF | L1_TABLE;
+				*l1 = l2_pa | L1_TABLE;
 				l2 = pmap_l1_to_l2(l1, va);
 			}
 
@@ -3871,7 +3871,7 @@ pmap_enter(pmap_t pmap, vm_offset_t va, vm_prot_t access, vm_page_t m,
 				pmap_zero_page(l3_m);
 
 			l3_pa = VM_PAGE_TO_PHYS(l3_m);
-			*l2 = l3_pa | ATTR_AF | L2_TABLE;
+			*l2 = l3_pa | L2_TABLE;
 			l3 = pmap_l2_to_l3(l2, va);
 		}
 	}
