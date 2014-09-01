@@ -463,7 +463,7 @@ OF_child_xref_phandle(phandle_t parent, phandle_t xref)
 }
 
 phandle_t
-OF_xref_phandle(phandle_t xref)
+OF_node_from_xref(phandle_t xref)
 {
 	phandle_t node;
 
@@ -472,6 +472,20 @@ OF_xref_phandle(phandle_t xref)
 		return (xref);
 
 	return (node);
+}
+
+phandle_t
+OF_xref_from_node(phandle_t node)
+{
+	phandle_t xref;
+
+	if (OF_getencprop(node, "phandle", &xref, sizeof(xref)) ==
+	    -1 && OF_getencprop(node, "ibm,phandle", &xref,
+	    sizeof(xref)) == -1 && OF_getencprop(node,
+	    "linux,phandle", &xref, sizeof(xref)) == -1)
+		return (node);
+
+	return (xref);
 }
 
 /*  Call the method in the scope of a given instance. */
