@@ -1,7 +1,0 @@
-#EP80219 board configuration
-#$FreeBSD$
-include	"../xscale/i80321/std.i80219"
-files		"../xscale/i80321/files.ep80219"
-makeoptions	KERNPHYSADDR=0xa0200000
-makeoptions	KERNVIRTADDR=0xc0200000
-options	COUNTS_PER_SEC=198000000

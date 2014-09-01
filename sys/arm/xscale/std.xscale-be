@@ -1,5 +1,0 @@
-#Big-Endian XScale generic configuration
-#$FreeBSD$
-
-include		"../xscale/std.xscale"
-machine 	arm	armeb

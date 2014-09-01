@@ -1,7 +1,0 @@
-# $FreeBSD$
-# Standard include file for RT305XF SoC
-
-files	"../rt305x/files.rt305x"
-
-cpu		CPU_MIPS4KC
-
