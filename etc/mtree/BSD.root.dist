@@ -24,6 +24,8 @@
     etc
         X11
         ..
+        autofs
+        ..
         bluetooth
         ..
         casper
@@ -59,6 +61,8 @@
         pkg
         ..
         ppp
+        ..
+        rc.conf.d
         ..
         rc.d
         ..

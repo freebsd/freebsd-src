@@ -199,7 +199,6 @@ MAN=	accept_filter.9 \
 	physio.9 \
 	pmap.9 \
 	pmap_activate.9 \
-	pmap_change_wiring.9 \
 	pmap_clear_modify.9 \
 	pmap_copy.9 \
 	pmap_enter.9 \
@@ -1380,7 +1379,8 @@ MLINKS+=sysctl.9 SYSCTL_DECL.9 \
 	sysctl.9 SYSCTL_ULONG.9 \
 	sysctl.9 SYSCTL_UQUAD.9
 MLINKS+=sysctl_add_oid.9 sysctl_move_oid.9 \
-	sysctl_add_oid.9 sysctl_remove_oid.9
+	sysctl_add_oid.9 sysctl_remove_oid.9 \
+	sysctl_add_oid.9 sysctl_remove_name.9
 MLINKS+=sysctl_ctx_init.9 sysctl_ctx_entry_add.9 \
 	sysctl_ctx_init.9 sysctl_ctx_entry_del.9 \
 	sysctl_ctx_init.9 sysctl_ctx_entry_find.9 \

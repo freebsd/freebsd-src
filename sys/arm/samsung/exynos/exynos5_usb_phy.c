@@ -43,13 +43,11 @@ __FBSDID("$FreeBSD$");
 #include <sys/watchdog.h>
 #include <sys/gpio.h>
 
-#include <dev/fdt/fdt_common.h>
 #include <dev/ofw/openfirm.h>
 #include <dev/ofw/ofw_bus.h>
 #include <dev/ofw/ofw_bus_subr.h>
 
 #include <machine/bus.h>
-#include <machine/fdt.h>
 #include <machine/cpu.h>
 #include <machine/intr.h>
 
@@ -158,8 +156,8 @@ vbus_on(struct usb_phy_softc *sc)
 	/* Power pin */
 	if ((len = OF_getproplen(node, "vbus-supply")) <= 0)
 		return (-1);
-	OF_getprop(node, "vbus-supply", &dts_value, len);
-	pin = fdt32_to_cpu(dts_value[0]);
+	OF_getencprop(node, "vbus-supply", dts_value, len);
+	pin = dts_value[0];
 
 	gpio_dev = devclass_get_device(devclass_find("gpio"), 0);
 	if (gpio_dev == NULL) {

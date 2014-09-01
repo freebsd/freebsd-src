@@ -124,7 +124,7 @@
 .\" ========================================================================
 .\"
 .IX Title "RSA_sign 3"
-.TH RSA_sign 3 "2014-06-05" "1.0.1h" "OpenSSL"
+.TH RSA_sign 3 "2014-08-06" "1.0.1i" "OpenSSL"
 .\" For nroff, turn off justification.  Always turn off hyphenation; it makes
 .\" way too many mistakes in technical documents.
 .if n .ad l
@@ -148,6 +148,10 @@ RSA_sign, RSA_verify \- RSA signatures
 private key \fBrsa\fR as specified in \s-1PKCS\s0 #1 v2.0. It stores the
 signature in \fBsigret\fR and the signature size in \fBsiglen\fR. \fBsigret\fR
 must point to RSA_size(\fBrsa\fR) bytes of memory.
+Note that \s-1PKCS\s0 #1 adds meta-data, placing limits on the size of the
+key that can be used.
+See \fIRSA_private_encrypt\fR\|(3) for lower-level
+operations.
 .PP
 \&\fBtype\fR denotes the message digest algorithm that was used to generate
 \&\fBm\fR. It usually is one of \fBNID_sha1\fR, \fBNID_ripemd160\fR and \fBNID_md5\fR;

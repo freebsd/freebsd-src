@@ -20,6 +20,9 @@ FILES=	DAEMON \
 	atm3 \
 	auditd \
 	auditdistd \
+	automount \
+	automountd \
+	autounmountd \
 	bgfsck \
 	${_bluetooth} \
 	bootparams \
@@ -63,12 +66,14 @@ FILES=	DAEMON \
 	ipfw \
 	ipmon \
 	ipnat \
+	ipropd_master \
+	ipropd_slave \
 	ipsec \
 	iscsictl \
 	iscsid \
 	jail \
 	kadmind \
-	kerberos \
+	kdc \
 	keyserv \
 	kfd \
 	kld \

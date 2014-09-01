@@ -10,13 +10,11 @@ GDBLIBS= ${OBJ_GDB}/libgdb/libgdb.a
 
 DPADD=	${GDBLIBS} ${BULIBS} ${LIBKVM} ${LIBM} ${LIBREADLINE} ${LIBTERMCAPW} \
 	${LIBGNUREGEX}
-LDADD=	${GDBLIBS} ${BULIBS} -lkvm${GDB_SUFFIX} -lm ${LIBREADLINE} -ltermcapw \
+LDADD=	${GDBLIBS} ${BULIBS} -lkvm${GDB_SUFFIX} -lm ${LDREADLINE} -ltermcapw \
 	-lgnuregex
 
 .if defined(GDB_CROSS_DEBUGGER)
 CFLAGS+= -Wl,-export-dynamic
 .endif
-
-NO_PIE=	yes
 
 .include <bsd.prog.mk>

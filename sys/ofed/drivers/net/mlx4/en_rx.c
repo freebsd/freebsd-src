@@ -136,7 +136,7 @@ static void mlx4_en_free_rx_desc(struct mlx4_en_priv *priv,
  		frag_info = &priv->frag_info[nr];
 		dma = be64_to_cpu(rx_desc->data[nr].addr);
 
-		en_dbg(DRV, priv, "Unmaping buffer at dma:0x%llx\n", (u64) dma);
+		en_dbg(DRV, priv, "Unmaping buffer at dma:0x%llx\n", (long long) dma);
 		pci_unmap_single(mdev->pdev, dma, frag_info->frag_size,
 				 PCI_DMA_FROMDEVICE);
 		m_free(mb_list[nr]);

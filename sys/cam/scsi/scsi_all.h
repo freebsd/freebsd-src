@@ -1351,7 +1351,7 @@ struct scsi_receive_copy_status_lid4_data
 	uint8_t  transfer_count_units;
 	uint8_t  transfer_count[8];
 	uint8_t  segments_processed[2];
-	uint8_t  reserved[2];
+	uint8_t  reserved[6];
 	uint8_t  sense_data[];
 };
 
@@ -1531,6 +1531,110 @@ struct scsi_copy_operation_abort
 	uint8_t  list_identifier[4];
 	uint8_t  reserved[9];
 	uint8_t  control;
+};
+
+struct scsi_populate_token
+{
+	uint8_t  opcode;
+	uint8_t  service_action;
+#define EC_PT			0x10
+	uint8_t  reserved[4];
+	uint8_t  list_identifier[4];
+	uint8_t  length[4];
+	uint8_t  group_number;
+	uint8_t  control;
+};
+
+struct scsi_range_desc
+{
+	uint8_t	lba[8];
+	uint8_t	length[4];
+	uint8_t	reserved[4];
+};
+
+struct scsi_populate_token_data
+{
+	uint8_t  length[2];
+	uint8_t  flags;
+#define EC_PT_IMMED			0x01
+#define EC_PT_RTV			0x02
+	uint8_t  reserved;
+	uint8_t  inactivity_timeout[4];
+	uint8_t  rod_type[4];
+	uint8_t  reserved2[2];
+	uint8_t  range_descriptor_length[2];
+	struct scsi_range_desc desc[];
+};
+
+struct scsi_write_using_token
+{
+	uint8_t  opcode;
+	uint8_t  service_action;
+#define EC_WUT			0x11
+	uint8_t  reserved[4];
+	uint8_t  list_identifier[4];
+	uint8_t  length[4];
+	uint8_t  group_number;
+	uint8_t  control;
+};
+
+struct scsi_write_using_token_data
+{
+	uint8_t  length[2];
+	uint8_t  flags;
+#define EC_WUT_IMMED			0x01
+#define EC_WUT_DEL_TKN			0x02
+	uint8_t  reserved[5];
+	uint8_t  offset_into_rod[8];
+	uint8_t  rod_token[512];
+	uint8_t  reserved2[6];
+	uint8_t  range_descriptor_length[2];
+	struct scsi_range_desc desc[];
+};
+
+struct scsi_receive_rod_token_information
+{
+	uint8_t  opcode;
+	uint8_t  service_action;
+#define RCS_RRTI		0x07
+	uint8_t  list_identifier[4];
+	uint8_t  reserved[4];
+	uint8_t  length[4];
+	uint8_t  reserved2;
+	uint8_t  control;
+};
+
+struct scsi_token
+{
+	uint8_t  type[4];
+#define ROD_TYPE_INTERNAL	0x00000000
+#define ROD_TYPE_AUR		0x00001000
+#define ROD_TYPE_PIT_DEF	0x00080000
+#define ROD_TYPE_PIT_VULN	0x00080001
+#define ROD_TYPE_PIT_PERS	0x00080002
+#define ROD_TYPE_PIT_ANY	0x0008FFFF
+#define ROD_TYPE_BLOCK_ZERO	0xFFFF0001
+	uint8_t  reserved[2];
+	uint8_t  length[2];
+	uint8_t  body[0];
+};
+
+struct scsi_report_all_rod_tokens
+{
+	uint8_t  opcode;
+	uint8_t  service_action;
+#define RCS_RART		0x08
+	uint8_t  reserved[8];
+	uint8_t  length[4];
+	uint8_t  reserved2;
+	uint8_t  control;
+};
+
+struct scsi_report_all_rod_tokens_data
+{
+	uint8_t  available_data[4];
+	uint8_t  reserved[4];
+	uint8_t  rod_management_token_list[];
 };
 
 struct ata_pass_16 {
@@ -2052,6 +2156,19 @@ struct scsi_vpd_tpc_descriptor
 	uint8_t parameters[];
 };
 
+struct scsi_vpd_tpc_descriptor_bdrl
+{
+	uint8_t desc_type[2];
+#define	SVPD_TPC_BDRL			0x0000
+	uint8_t desc_length[2];
+	uint8_t vendor_specific[6];
+	uint8_t maximum_ranges[2];
+	uint8_t maximum_inactivity_timeout[4];
+	uint8_t default_inactivity_timeout[4];
+	uint8_t maximum_token_transfer_size[8];
+	uint8_t optimal_transfer_count[8];
+};
+
 struct scsi_vpd_tpc_descriptor_sc_descr
 {
 	uint8_t opcode;
@@ -2099,6 +2216,58 @@ struct scsi_vpd_tpc_descriptor_sdid
 	uint8_t supported_descriptor_ids[];
 };
 
+struct scsi_vpd_tpc_descriptor_rtf_block
+{
+	uint8_t type_format;
+#define	SVPD_TPC_RTF_BLOCK			0x00
+	uint8_t reserved;
+	uint8_t desc_length[2];
+	uint8_t reserved2[2];
+	uint8_t optimal_length_granularity[2];
+	uint8_t maximum_bytes[8];
+	uint8_t optimal_bytes[8];
+	uint8_t optimal_bytes_to_token_per_segment[8];
+	uint8_t optimal_bytes_from_token_per_segment[8];
+	uint8_t reserved3[8];
+};
+
+struct scsi_vpd_tpc_descriptor_rtf
+{
+	uint8_t desc_type[2];
+#define	SVPD_TPC_RTF			0x0106
+	uint8_t desc_length[2];
+	uint8_t remote_tokens;
+	uint8_t reserved[11];
+	uint8_t minimum_token_lifetime[4];
+	uint8_t maximum_token_lifetime[4];
+	uint8_t maximum_token_inactivity_timeout[4];
+	uint8_t reserved2[18];
+	uint8_t type_specific_features_length[2];
+	uint8_t type_specific_features[0];
+};
+
+struct scsi_vpd_tpc_descriptor_srtd
+{
+	uint8_t rod_type[4];
+	uint8_t flags;
+#define	SVPD_TPC_SRTD_TOUT		0x01
+#define	SVPD_TPC_SRTD_TIN		0x02
+#define	SVPD_TPC_SRTD_ECPY		0x80
+	uint8_t reserved;
+	uint8_t preference_indicator[2];
+	uint8_t reserved2[56];
+};
+
+struct scsi_vpd_tpc_descriptor_srt
+{
+	uint8_t desc_type[2];
+#define	SVPD_TPC_SRT			0x0108
+	uint8_t desc_length[2];
+	uint8_t reserved[2];
+	uint8_t rod_type_descriptors_length[2];
+	uint8_t rod_type_descriptors[0];
+};
+
 struct scsi_vpd_tpc_descriptor_gco
 {
 	uint8_t desc_type[2];
@@ -2143,6 +2312,27 @@ struct scsi_vpd_block_characteristics
 #define SVPD_BDC_FORM_1_5INCH		0x04
 #define SVPD_BDC_FORM_LESSTHAN_1_5INCH	0x05
 	u_int8_t reserved2[56];
+};
+
+/*
+ * Block Device Characteristics VPD Page
+ */
+struct scsi_vpd_block_device_characteristics
+{
+	uint8_t device;
+	uint8_t page_code;
+#define	SVPD_BDC		0xB1
+	uint8_t page_length[2];
+	uint8_t medium_rotation_rate[2];
+#define	SVPD_NOT_REPORTED	0x0000
+#define	SVPD_NON_ROTATING	0x0001
+	uint8_t product_type;
+	uint8_t wab_wac_ff;
+	uint8_t flags;
+#define	SVPD_VBULS		0x01
+#define	SVPD_FUAB		0x02
+#define	SVPD_HAW_ZBC		0x10
+	uint8_t reserved[55];
 };
 
 /*
@@ -3026,6 +3216,9 @@ int		scsi_devid_is_lun_name(uint8_t *bufp);
 int		scsi_devid_is_lun_t10(uint8_t *bufp);
 struct scsi_vpd_id_descriptor *
 		scsi_get_devid(struct scsi_vpd_device_id *id, uint32_t len,
+			       scsi_devid_checkfn_t ck_fn);
+struct scsi_vpd_id_descriptor *
+		scsi_get_devid_desc(struct scsi_vpd_id_descriptor *desc, uint32_t len,
 			       scsi_devid_checkfn_t ck_fn);
 
 int		scsi_transportid_sbuf(struct sbuf *sb,

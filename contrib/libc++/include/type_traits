@@ -301,7 +301,7 @@ template <class _Tp> struct _LIBCPP_TYPE_VIS_ONLY __is_nullptr_t
 
 #if _LIBCPP_STD_VER > 11
 template <class _Tp> struct _LIBCPP_TYPE_VIS_ONLY is_null_pointer
-    : public ____is_nullptr_t<typename remove_cv<_Tp>::type> {};
+    : public __libcpp___is_nullptr<typename remove_cv<_Tp>::type> {};
 #endif
 
 // is_integral

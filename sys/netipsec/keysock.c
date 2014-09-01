@@ -88,7 +88,7 @@ VNET_PCPUSTAT_SYSUNINIT(pfkeystat);
  * key_output()
  */
 int
-key_output(struct mbuf *m, struct socket *so)
+key_output(struct mbuf *m, struct socket *so, ...)
 {
 	struct sadb_msg *msg;
 	int len, error = 0;

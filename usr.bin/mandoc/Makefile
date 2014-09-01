@@ -19,6 +19,4 @@ CFLAGS+= -DHAVE_CONFIG_H
 DPADD=	${LIBMANDOC}
 LDADD=	${LIBMANDOC}
 
-NO_PIE=	yes
-
 .include <bsd.prog.mk>

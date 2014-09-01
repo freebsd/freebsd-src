@@ -368,10 +368,9 @@ udp_append(struct inpcb *inp, struct ip *ip, struct mbuf *n, int off,
 		sorwakeup_locked(so);
 }
 
-void
-udp_input(struct mbuf *m, int off)
+int
+udp_input(struct mbuf **mp, int *offp, int proto)
 {
-	int iphlen = off;
 	struct ip *ip;
 	struct udphdr *uh;
 	struct ifnet *ifp;
@@ -380,11 +379,14 @@ udp_input(struct mbuf *m, int off)
 	struct inpcbinfo *pcbinfo;
 	struct ip save_ip;
 	struct sockaddr_in udp_in;
+	struct mbuf *m;
 	struct m_tag *fwd_tag;
-	int cscov_partial;
-	uint8_t pr;
+	int cscov_partial, iphlen;
 
+	m = *mp;
+	iphlen = *offp;
 	ifp = m->m_pkthdr.rcvif;
+	*mp = NULL;
 	UDPSTAT_INC(udps_ipackets);
 
 	/*
@@ -404,13 +406,12 @@ udp_input(struct mbuf *m, int off)
 	if (m->m_len < iphlen + sizeof(struct udphdr)) {
 		if ((m = m_pullup(m, iphlen + sizeof(struct udphdr))) == NULL) {
 			UDPSTAT_INC(udps_hdrops);
-			return;
+			return (IPPROTO_DONE);
 		}
 		ip = mtod(m, struct ip *);
 	}
 	uh = (struct udphdr *)((caddr_t)ip + iphlen);
-	pr = ip->ip_p;
-	cscov_partial = (pr == IPPROTO_UDPLITE) ? 1 : 0;
+	cscov_partial = (proto == IPPROTO_UDPLITE) ? 1 : 0;
 
 	/*
 	 * Destination port of 0 is illegal, based on RFC768.
@@ -434,7 +435,7 @@ udp_input(struct mbuf *m, int off)
 	 */
 	len = ntohs((u_short)uh->uh_ulen);
 	ip_len = ntohs(ip->ip_len) - iphlen;
-	if (pr == IPPROTO_UDPLITE && len == 0) {
+	if (proto == IPPROTO_UDPLITE && len == 0) {
 		/* Zero means checksum over the complete packet. */
 		len = ip_len;
 		cscov_partial = 0;
@@ -444,7 +445,7 @@ udp_input(struct mbuf *m, int off)
 			UDPSTAT_INC(udps_badlen);
 			goto badunlocked;
 		}
-		if (pr == IPPROTO_UDP)
+		if (proto == IPPROTO_UDP)
 			m_adj(m, len - ip_len);
 	}
 
@@ -470,14 +471,14 @@ udp_input(struct mbuf *m, int off)
 			else
 				uh_sum = in_pseudo(ip->ip_src.s_addr,
 				    ip->ip_dst.s_addr, htonl((u_short)len +
-				    m->m_pkthdr.csum_data + pr));
+				    m->m_pkthdr.csum_data + proto));
 			uh_sum ^= 0xffff;
 		} else {
 			char b[9];
 
 			bcopy(((struct ipovly *)ip)->ih_x1, b, 9);
 			bzero(((struct ipovly *)ip)->ih_x1, 9);
-			((struct ipovly *)ip)->ih_len = (pr == IPPROTO_UDP) ?
+			((struct ipovly *)ip)->ih_len = (proto == IPPROTO_UDP) ?
 			    uh->uh_ulen : htons(ip_len);
 			uh_sum = in_cksum(m, len + sizeof (struct ip));
 			bcopy(b, ((struct ipovly *)ip)->ih_x1, 9);
@@ -485,12 +486,12 @@ udp_input(struct mbuf *m, int off)
 		if (uh_sum) {
 			UDPSTAT_INC(udps_badsum);
 			m_freem(m);
-			return;
+			return (IPPROTO_DONE);
 		}
 	} else
 		UDPSTAT_INC(udps_nosum);
 
-	pcbinfo = get_inpcbinfo(pr);
+	pcbinfo = get_inpcbinfo(proto);
 	if (IN_MULTICAST(ntohl(ip->ip_dst.s_addr)) ||
 	    in_broadcast(ip->ip_dst, ifp)) {
 		struct inpcb *last;
@@ -498,7 +499,7 @@ udp_input(struct mbuf *m, int off)
 		struct ip_moptions *imo;
 
 		INP_INFO_RLOCK(pcbinfo);
-		pcblist = get_pcblist(pr);
+		pcblist = get_pcblist(proto);
 		last = NULL;
 		LIST_FOREACH(inp, pcblist, inp_list) {
 			if (inp->inp_lport != uh->uh_dport)
@@ -592,7 +593,7 @@ udp_input(struct mbuf *m, int off)
 		udp_append(last, ip, m, iphlen, &udp_in);
 		INP_RUNLOCK(last);
 		INP_INFO_RUNLOCK(pcbinfo);
-		return;
+		return (IPPROTO_DONE);
 	}
 
 	/*
@@ -654,7 +655,7 @@ udp_input(struct mbuf *m, int off)
 			goto badunlocked;
 		*ip = save_ip;
 		icmp_error(m, ICMP_UNREACH, ICMP_UNREACH_PORT, 0, 0);
-		return;
+		return (IPPROTO_DONE);
 	}
 
 	/*
@@ -664,7 +665,7 @@ udp_input(struct mbuf *m, int off)
 	if (inp->inp_ip_minttl && inp->inp_ip_minttl > ip->ip_ttl) {
 		INP_RUNLOCK(inp);
 		m_freem(m);
-		return;
+		return (IPPROTO_DONE);
 	}
 	if (cscov_partial) {
 		struct udpcb *up;
@@ -673,17 +674,18 @@ udp_input(struct mbuf *m, int off)
 		if (up->u_rxcslen > len) {
 			INP_RUNLOCK(inp);
 			m_freem(m);
-			return;
+			return (IPPROTO_DONE);
 		}
 	}
 
 	UDP_PROBE(receive, NULL, inp, ip, inp, uh);
 	udp_append(inp, ip, m, iphlen, &udp_in);
 	INP_RUNLOCK(inp);
-	return;
+	return (IPPROTO_DONE);
 
 badunlocked:
 	m_freem(m);
+	return (IPPROTO_DONE);
 }
 #endif /* INET */
 

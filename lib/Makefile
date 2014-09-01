@@ -72,6 +72,7 @@ SUBDIR=	${SUBDIR_ORDERED} \
 	${_libnetgraph} \
 	${_libngatm} \
 	libnv \
+	libohash \
 	libopie \
 	libpam \
 	libpcap \

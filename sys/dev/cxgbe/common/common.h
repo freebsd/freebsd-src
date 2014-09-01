@@ -581,8 +581,6 @@ int t4_set_addr_hash(struct adapter *adap, unsigned int mbox, unsigned int viid,
 		     bool ucast, u64 vec, bool sleep_ok);
 int t4_enable_vi(struct adapter *adap, unsigned int mbox, unsigned int viid,
 		 bool rx_en, bool tx_en);
-int t4_enable_vi_ns(struct adapter *adap, unsigned int mbox, unsigned int viid,
-		 bool rx_en, bool tx_en);
 int t4_identify_port(struct adapter *adap, unsigned int mbox, unsigned int viid,
 		     unsigned int nblinks);
 int t4_mdio_rd(struct adapter *adap, unsigned int mbox, unsigned int phy_addr,
@@ -616,8 +614,10 @@ int t4_sge_ctxt_rd_bd(struct adapter *adap, unsigned int cid, enum ctxt_type cty
 int t4_sge_ctxt_flush(struct adapter *adap, unsigned int mbox);
 int t4_handle_fw_rpl(struct adapter *adap, const __be64 *rpl);
 int t4_fwaddrspace_write(struct adapter *adap, unsigned int mbox, u32 addr, u32 val);
-int t4_sched_config(struct adapter *adapter, int type, int minmaxen);
+int t4_sched_config(struct adapter *adapter, int type, int minmaxen,
+		    int sleep_ok);
 int t4_sched_params(struct adapter *adapter, int type, int level, int mode,
 		    int rateunit, int ratemode, int channel, int cl,
-		    int minrate, int maxrate, int weight, int pktsize);
+		    int minrate, int maxrate, int weight, int pktsize,
+		    int sleep_ok);
 #endif /* __CHELSIO_COMMON_H */

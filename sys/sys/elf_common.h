@@ -426,7 +426,7 @@ typedef struct {
 #define	DT_PLTPADSZ	0x6ffffdf9	/* pltpadding size */
 #define	DT_MOVEENT	0x6ffffdfa	/* move table entry size */
 #define	DT_MOVESZ	0x6ffffdfb	/* move table size */
-#define	DT_FEATURE_1	0x6ffffdfc	/* feature holder */
+#define	DT_FEATURE	0x6ffffdfc	/* feature holder */
 #define	DT_POSFLAG_1	0x6ffffdfd	/* flags for DT_* entries, effecting */
 					/*	the following DT_* entry. */
 					/*	See DF_P1_* definitions */

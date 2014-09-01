@@ -59,7 +59,8 @@ static struct vt_driver vt_fb_early_driver = {
 	.vd_probe = vt_efb_probe,
 	.vd_init = vt_efb_init,
 	.vd_blank = vt_fb_blank,
-	.vd_bitbltchr = vt_fb_bitbltchr,
+	.vd_bitblt_text = vt_fb_bitblt_text,
+	.vd_bitblt_bmp = vt_fb_bitblt_bitmap,
 	.vd_priority = VD_PRIORITY_GENERIC,
 };
 
@@ -296,7 +297,6 @@ vt_efb_init(struct vt_device *vd)
 #else
 	vt_efb_initialize(info);
 #endif
-	fb_probe(info);
 	vt_fb_init(vd);
 
 	return (CN_INTERNAL);

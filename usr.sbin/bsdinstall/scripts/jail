@@ -38,9 +38,13 @@ f_dprintf "Began Installation at %s" "$( date )"
 export BSDINSTALL_CHROOT=$1
 
 error() {
+	local msg
+	if [ -n "$1" ]; then
+		msg="$1\n\n"
+	fi
 	dialog --backtitle "FreeBSD Installer" --title "Abort" \
 	    --no-label "Exit" --yes-label "Restart" --yesno \
-	    "An installation step has been aborted. Would you like to restart the installation or exit the installer?" 0 0
+	    "${msg}An installation step has been aborted. Would you like to restart the installation or exit the installer?" 0 0
 	if [ $? -ne 0 ]; then
 		exit
 	else
@@ -51,7 +55,7 @@ error() {
 
 rm -rf $BSDINSTALL_TMPETC
 mkdir $BSDINSTALL_TMPETC
-mkdir -p $1 || error
+mkdir -p $1 || error "mkdir failed for $1"
 
 test ! -d $BSDINSTALL_DISTDIR && mkdir -p $BSDINSTALL_DISTDIR
 
@@ -60,9 +64,9 @@ if [ ! -f $BSDINSTALL_DISTDIR/MANIFEST -a -z "$BSDINSTALL_DISTSITE" ]; then
 	BSDINSTALL_DISTSITE=$(`dirname $0`/mirrorselect 2>&1 1>&3)
 	MIRROR_BUTTON=$?
 	exec 3>&-
-	test $MIRROR_BUTTON -eq 0 || error
+	test $MIRROR_BUTTON -eq 0 || error "No mirror selected"
 	export BSDINSTALL_DISTSITE
-	fetch -o $BSDINSTALL_DISTDIR/MANIFEST $BSDINSTALL_DISTSITE/MANIFEST || error
+	fetch -o $BSDINSTALL_DISTDIR/MANIFEST $BSDINSTALL_DISTSITE/MANIFEST || error "Could not download $BSDINSTALL_DISTSITE/MANIFEST"
 fi
 
 export DISTRIBUTIONS="base.txz"
@@ -94,17 +98,17 @@ if [ -n "$FETCH_DISTRIBUTIONS" -a -z "$BSDINSTALL_DISTSITE" ]; then
 	BSDINSTALL_DISTSITE=`bsdinstall mirrorselect 2>&1 1>&3`
 	MIRROR_BUTTON=$?
 	exec 3>&-
-	test $MIRROR_BUTTON -eq 0 || error
+	test $MIRROR_BUTTON -eq 0 || error "No mirror selected"
 	export BSDINSTALL_DISTSITE
 fi
 
 if [ ! -z "$FETCH_DISTRIBUTIONS" ]; then
-	bsdinstall distfetch || error
+	bsdinstall distfetch || error "Failed to fetch distribution"
 fi
 
-bsdinstall checksum || error
-bsdinstall distextract || error
-bsdinstall rootpass || error
+bsdinstall checksum || error "Distribution checksum failed"
+bsdinstall distextract || error "Distribution extract failed"
+bsdinstall rootpass || error "Could not set root password"
 
 trap true SIGINT	# This section is optional
 bsdinstall services
@@ -114,7 +118,7 @@ dialog --backtitle "FreeBSD Installer" --title "Add User Accounts" --yesno \
     bsdinstall adduser
 
 trap error SIGINT	# SIGINT is bad again
-bsdinstall config  || error
+bsdinstall config  || error "Failed to save config"
 cp /etc/resolv.conf $1/etc
 cp /etc/localtime $1/etc
 
