@@ -39,7 +39,7 @@ CFLAGS+=${CANCELPOINTS_CFLAGS}
 #
 # Only link with static libgcc.a (no libgcc_eh.a).
 #
-DPADD+=	${LIBGCC}
+DPADD+=	${LIBGCC} ${LIBSSP_NONSHARED}
 LDFLAGS+= -nodefaultlibs
 LDADD+= -lgcc -lssp_nonshared
 
