@@ -47,8 +47,10 @@
 #include <sys/kernel.h>
 #include <sys/module.h>
 #include <sys/sockio.h>
+#include <sys/eventhandler.h>
 
 #include <net/if.h>
+#include <net/if_var.h>
 #include <net/if_arp.h>
 #include <net/bpf.h>
 #include <net/ethernet.h>
@@ -293,9 +295,6 @@ struct ixl_rx_buf {
 	struct mbuf	*fmp;
 	bus_dmamap_t	hmap;
 	bus_dmamap_t	pmap;
-#ifdef DEV_NETMAP
-	u64		addr;
-#endif
 };
 
 /*
