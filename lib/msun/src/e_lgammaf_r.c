@@ -89,13 +89,8 @@ w6  = -1.6309292987e-03; /* 0xbad5c4e8 */
 
 static const float zero=  0.0000000000e+00;
 
-/*
- * Compute sin(pi*x) without actually doing the pi*x multiplication.
- * sin_pi(x) is only called for x < 0 and |x| < 2**(p-1) where p is
- * the precision of x.
- */
 static float
-sin_pi(float x)
+sin_pif(float x)
 {
 	volatile float vz;
 	float y,z;
@@ -106,7 +101,7 @@ sin_pi(float x)
 	vz = y+0x1p23F;			/* depend on 0 <= y < 0x1p23 */
 	z = vz-0x1p23F;			/* rintf(y) for the above range */
 	if (z == y)
-	    return (zero);
+	    return zero;
 
 	vz = y+0x1p21F;
 	GET_FLOAT_WORD(n,vz);		/* bits for rounded y (units 0.25) */
@@ -155,7 +150,7 @@ __ieee754_lgammaf_r(float x, int *signgamp)
 	if(hx<0) {
 	    if(ix>=0x4b000000) 	/* |x|>=2**23, must be -integer */
 		return one/zero;
-	    t = sin_pi(x);
+	    t = sin_pif(x);
 	    if(t==zero) return one/zero; /* -integer */
 	    nadj = __ieee754_logf(pi/fabsf(t*x));
 	    if(t<zero) *signgamp = -1;
