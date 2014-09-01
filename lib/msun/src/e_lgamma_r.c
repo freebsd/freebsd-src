@@ -171,9 +171,9 @@ sin_pi(double x)
 	y = -x;
 
 	vz = y+0x1p52;			/* depend on 0 <= y < 0x1p52 */
-        z = vz-0x1p52;			/* rint(y) for the above range */
+	z = vz-0x1p52;			/* rint(y) for the above range */
 	if (z == y)
-	    return (zero);
+	    return zero;
 
 	vz = y+0x1p50;
 	GET_LOW_WORD(n,vz);		/* bits for rounded y (units 0.25) */
