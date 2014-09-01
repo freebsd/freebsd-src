@@ -39,11 +39,51 @@ __FBSDID("$FreeBSD$");
  * void cpu_throw(struct thread *old, struct thread *new)
  */
 ENTRY(cpu_throw)
-	adr	x0, .Lcpu_throw_panic_str
-	bl	_C_LABEL(panic)
+#ifdef SMP
+#error cpu_throw needs to be ported to support SMP
+#endif
+
+	/* Load the PCPU area */
+	/* TODO: Adjust for the core we are on */
+	ldr	x3, .Lcurpcpu
+
+	/* Store the new curthread */
+	str	x1, [x3, #PC_CURTHREAD]
+	msr	tpidr_el1, x1
+	/* And the new pcb */
+	ldr	x4, [x1, #TD_PCB]
+	str	x4, [x3, #PC_CURPCB]
+
+	/*
+	 * TODO: We may need to flush the cache here.
+	 */
+
+	/* Switch to the new pmap */
+	ldr	x5, [x4, #PCB_L1ADDR]
+	msr	ttbr0_el1, x5
+	isb
+
+	/* Invalidate the TLB */
+	tlbi	vmalle1
+
+	/* Restore the registers */
+	ldp	x5, x6, [x4, #PCB_SP]
+	mov	sp, x5
+	msr	tpidr_el0, x6
+	ldp	x8, x9, [x4, #PCB_REGS + 8 * 8]
+	ldp	x10, x11, [x4, #PCB_REGS + 10 * 8]
+	ldp	x12, x13, [x4, #PCB_REGS + 12 * 8]
+	ldp	x14, x15, [x4, #PCB_REGS + 14 * 8]
+	ldp	x16, x17, [x4, #PCB_REGS + 16 * 8]
+	ldp	x18, x19, [x4, #PCB_REGS + 18 * 8]
+	ldp	x20, x21, [x4, #PCB_REGS + 20 * 8]
+	ldp	x22, x23, [x4, #PCB_REGS + 22 * 8]
+	ldp	x24, x25, [x4, #PCB_REGS + 24 * 8]
+	ldp	x26, x27, [x4, #PCB_REGS + 26 * 8]
+	ldp	x28, x29, [x4, #PCB_REGS + 28 * 8]
+	ldr	x30, [x4, #PCB_REGS + 30 * 8]
+
 	ret
-.Lcpu_throw_panic_str:
-	.asciz "cpu_throw\0\0"
 END(cpu_throw)
 
 /*
