@@ -3539,9 +3539,7 @@ pmap_remove_all(vm_page_t m)
 			vm_page_dirty(m);
 #endif
 		pmap_unuse_l3(pmap, pv->pv_va, *l2, &free);
-#if 0
 		pmap_invalidate_page(pmap, pv->pv_va);
-#endif
 		TAILQ_REMOVE(&m->md.pv_list, pv, pv_next);
 		m->md.pv_gen++;
 		free_pv_entry(pmap, pv);
@@ -4245,9 +4243,7 @@ pmap_enter_quick_locked(pmap_t pmap, vm_offset_t va, vm_page_t m,
 		if (mpte != NULL) {
 			SLIST_INIT(&free);
 			if (pmap_unwire_l3(pmap, va, mpte, &free)) {
-#if 0
 				pmap_invalidate_page(pmap, va);
-#endif
 				pmap_free_zero_pages(&free);
 			}
 			mpte = NULL;
