@@ -47,6 +47,8 @@ OLD_FILES+=usr/share/man/man1/otp-sha.1.gz
 # 20140812: example files removed
 OLD_FILES+=usr/share/examples/libusb20/aux.c
 OLD_FILES+=usr/share/examples/libusb20/aux.h
+# 20140803: Remove an obsolete man page
+OLD_FILES+=usr/share/man/man9/pmap_change_wiring.9.gz
 # 20140728: Remove an obsolete man page
 OLD_FILES+=usr/share/man/man9/VOP_GETVOBJECT.9.gz
 OLD_FILES+=usr/share/man/man9/VOP_CREATEVOBJECT.9.gz

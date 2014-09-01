@@ -3169,38 +3169,56 @@ pmap_object_init_pt(pmap_t pmap, vm_offset_t addr, vm_object_t object,
 }
 
 /*
- *	Routine:	pmap_change_wiring
- *	Function:	Change the wiring attribute for a map/virtual-address
- *			pair.
- *	In/out conditions:
- *			The mapping must already exist in the pmap.
+ *	Clear the wired attribute from the mappings for the specified range of
+ *	addresses in the given pmap.  Every valid mapping within that range
+ *	must have the wired attribute set.  In contrast, invalid mappings
+ *	cannot have the wired attribute set, so they are ignored.
+ *
+ *	The wired attribute of the page table entry is not a hardware feature,
+ *	so there is no need to invalidate any TLB entries.
  */
 void
-pmap_change_wiring(pmap_t pmap, vm_offset_t va, boolean_t wired)
+pmap_unwire(pmap_t pmap, vm_offset_t sva, vm_offset_t eva)
 {
+	vm_offset_t pdnxt;
+	pd_entry_t *pde;
 	pt_entry_t *pte;
 
+	CTR3(KTR_PMAP, "pmap_unwire: pmap=%p sva=0x%x eva=0x%x", pmap, sva,
+	    eva);
 	rw_wlock(&pvh_global_lock);
+	sched_pin();
 	PMAP_LOCK(pmap);
-	pte = pmap_pte(pmap, va);
-
-	if (wired && !pmap_pte_w(pte)) {
-		PT_SET_VA_MA((pte), *(pte) | PG_W, TRUE);
-		pmap->pm_stats.wired_count++;
-	} else if (!wired && pmap_pte_w(pte)) {
-		PT_SET_VA_MA((pte), *(pte) & ~PG_W, TRUE);
-		pmap->pm_stats.wired_count--;
+	for (; sva < eva; sva = pdnxt) {
+		pdnxt = (sva + NBPDR) & ~PDRMASK;
+		if (pdnxt < sva)
+			pdnxt = eva;
+		pde = pmap_pde(pmap, sva);
+		if ((*pde & PG_V) == 0)
+			continue;
+		if ((*pde & PG_PS) != 0)
+			panic("pmap_unwire: unexpected PG_PS in pde %#jx",
+			    (uintmax_t)*pde);
+		if (pdnxt > eva)
+			pdnxt = eva;
+		for (pte = pmap_pte_quick(pmap, sva); sva != pdnxt; pte++,
+		    sva += PAGE_SIZE) {
+			if ((*pte & PG_V) == 0)
+				continue;
+			if ((*pte & PG_W) == 0)
+				panic("pmap_unwire: pte %#jx is missing PG_W",
+				    (uintmax_t)*pte);
+			PT_SET_VA_MA(pte, *pte & ~PG_W, FALSE);
+			pmap->pm_stats.wired_count--;
+		}
 	}
-	
-	/*
-	 * Wiring is not a hardware characteristic so there is no need to
-	 * invalidate TLB.
-	 */
-	pmap_pte_release(pte);
-	PMAP_UNLOCK(pmap);
+	if (*PMAP1)
+		PT_CLEAR_VA(PMAP1, FALSE);
+	PT_UPDATES_FLUSH();
+	sched_unpin();
 	rw_wunlock(&pvh_global_lock);
+	PMAP_UNLOCK(pmap);
 }
-
 
 
 /*
