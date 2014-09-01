@@ -739,4 +739,60 @@
 #define __NO_TLS 1
 #endif
 
+/*
+ * Lock annotations.
+ *
+ * Clang provides support for doing basic thread-safety tests at
+ * compile-time, by marking which locks will/should be held when
+ * entering/leaving a functions.
+ *
+ * Furthermore, it is also possible to annotate variables and structure
+ * members to enforce that they are only accessed when certain locks are
+ * held.
+ *
+ * Note: These annotations have no effect on this version of FreeBSD.
+ * They are merely provided for forward compatibilty.
+ */
+
+#define	__lock_annotate(x)
+
+/* Structure implements a lock. */
+#define	__lockable		__lock_annotate(lockable)
+
+/* Function acquires an exclusive or shared lock. */
+#define	__locks_exclusive(...) \
+	__lock_annotate(exclusive_lock_function(__VA_ARGS__))
+#define	__locks_shared(...) \
+	__lock_annotate(shared_lock_function(__VA_ARGS__))
+
+/* Function attempts to acquire an exclusive or shared lock. */
+#define	__trylocks_exclusive(...) \
+	__lock_annotate(exclusive_trylock_function(__VA_ARGS__))
+#define	__trylocks_shared(...) \
+	__lock_annotate(shared_trylock_function(__VA_ARGS__))
+
+/* Function releases a lock. */
+#define	__unlocks(...)		__lock_annotate(unlock_function(__VA_ARGS__))
+
+/* Function asserts that an exclusive or shared lock is held. */
+#define	__asserts_exclusive(...) \
+	__lock_annotate(assert_exclusive_lock(__VA_ARGS__))
+#define	__asserts_shared(...) \
+	__lock_annotate(assert_shared_lock(__VA_ARGS__))
+
+/* Function requires that an exclusive or shared lock is or is not held. */
+#define	__requires_exclusive(...) \
+	__lock_annotate(exclusive_locks_required(__VA_ARGS__))
+#define	__requires_shared(...) \
+	__lock_annotate(shared_locks_required(__VA_ARGS__))
+#define	__requires_unlocked(...) \
+	__lock_annotate(locks_excluded(__VA_ARGS__))
+
+/* Function should not be analyzed. */
+#define	__no_lock_analysis	__lock_annotate(no_thread_safety_analysis)
+
+/* Guard variables and structure members by lock. */
+#define	__guarded_by(x)		__lock_annotate(guarded_by(x))
+#define	__pt_guarded_by(x)	__lock_annotate(pt_guarded_by(x))
+
 #endif /* !_SYS_CDEFS_H_ */
