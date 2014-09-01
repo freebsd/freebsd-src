@@ -3542,28 +3542,47 @@ pmap_enter_quick(pmap_t pmap, vm_offset_t va, vm_page_t m, vm_prot_t prot)
 }
 
 /*
- *	Routine:	pmap_change_wiring
- *	Function:	Change the wiring attribute for a map/virtual-address
- *			pair.
- *	In/out conditions:
- *			The mapping must already exist in the pmap.
+ *	Clear the wired attribute from the mappings for the specified range of
+ *	addresses in the given pmap.  Every valid mapping within that range
+ *	must have the wired attribute set.  In contrast, invalid mappings
+ *	cannot have the wired attribute set, so they are ignored.
+ *
+ *	XXX Wired mappings of unmanaged pages cannot be counted by this pmap
+ *	implementation.
  */
 void
-pmap_change_wiring(pmap_t pmap, vm_offset_t va, boolean_t wired)
+pmap_unwire(pmap_t pmap, vm_offset_t sva, vm_offset_t eva)
 {
 	struct l2_bucket *l2b;
 	pt_entry_t *ptep, pte;
-	vm_page_t pg;
-
+	pv_entry_t pv;
+	vm_offset_t next_bucket;
+	vm_page_t m;
+ 
 	rw_wlock(&pvh_global_lock);
- 	PMAP_LOCK(pmap);
-	l2b = pmap_get_l2_bucket(pmap, va);
-	KASSERT(l2b, ("No l2b bucket in pmap_change_wiring"));
-	ptep = &l2b->l2b_kva[l2pte_index(va)];
-	pte = *ptep;
-	pg = PHYS_TO_VM_PAGE(l2pte_pa(pte));
-	if (pg)
-		pmap_modify_pv(pg, pmap, va, PVF_WIRED, wired ? PVF_WIRED : 0);
+	PMAP_LOCK(pmap);
+	while (sva < eva) {
+		next_bucket = L2_NEXT_BUCKET(sva);
+		if (next_bucket > eva)
+			next_bucket = eva;
+		l2b = pmap_get_l2_bucket(pmap, sva);
+		if (l2b == NULL) {
+			sva = next_bucket;
+			continue;
+		}
+		for (ptep = &l2b->l2b_kva[l2pte_index(sva)]; sva < next_bucket;
+		    sva += PAGE_SIZE, ptep++) {
+			if ((pte = *ptep) == 0 ||
+			    (m = PHYS_TO_VM_PAGE(l2pte_pa(pte))) == NULL ||
+			    (m->oflags & VPO_UNMANAGED) != 0)
+				continue;
+			pv = pmap_find_pv(m, pmap, sva);
+			if ((pv->pv_flags & PVF_WIRED) == 0)
+				panic("pmap_unwire: pv %p isn't wired", pv);
+			pv->pv_flags &= ~PVF_WIRED;
+			pmap->pm_stats.wired_count--;
+		}
+	}
 	rw_wunlock(&pvh_global_lock);
  	PMAP_UNLOCK(pmap);
 }

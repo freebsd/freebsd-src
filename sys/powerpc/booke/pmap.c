@@ -266,7 +266,6 @@ void pmap_bootstrap_ap(volatile uint32_t *);
 /*
  * Kernel MMU interface
  */
-static void		mmu_booke_change_wiring(mmu_t, pmap_t, vm_offset_t, boolean_t);
 static void		mmu_booke_clear_modify(mmu_t, vm_page_t);
 static void		mmu_booke_copy(mmu_t, pmap_t, pmap_t, vm_offset_t,
     vm_size_t, vm_offset_t);
@@ -306,6 +305,7 @@ static void		mmu_booke_release(mmu_t, pmap_t);
 static void		mmu_booke_remove(mmu_t, pmap_t, vm_offset_t, vm_offset_t);
 static void		mmu_booke_remove_all(mmu_t, vm_page_t);
 static void		mmu_booke_remove_write(mmu_t, vm_page_t);
+static void		mmu_booke_unwire(mmu_t, pmap_t, vm_offset_t, vm_offset_t);
 static void		mmu_booke_zero_page(mmu_t, vm_page_t);
 static void		mmu_booke_zero_page_area(mmu_t, vm_page_t, int, int);
 static void		mmu_booke_zero_page_idle(mmu_t, vm_page_t);
@@ -330,7 +330,6 @@ static struct pmap_md	*mmu_booke_scan_md(mmu_t, struct pmap_md *);
 
 static mmu_method_t mmu_booke_methods[] = {
 	/* pmap dispatcher interface */
-	MMUMETHOD(mmu_change_wiring,	mmu_booke_change_wiring),
 	MMUMETHOD(mmu_clear_modify,	mmu_booke_clear_modify),
 	MMUMETHOD(mmu_copy,		mmu_booke_copy),
 	MMUMETHOD(mmu_copy_page,	mmu_booke_copy_page),
@@ -361,6 +360,7 @@ static mmu_method_t mmu_booke_methods[] = {
 	MMUMETHOD(mmu_remove_all,	mmu_booke_remove_all),
 	MMUMETHOD(mmu_remove_write,	mmu_booke_remove_write),
 	MMUMETHOD(mmu_sync_icache,	mmu_booke_sync_icache),
+	MMUMETHOD(mmu_unwire,		mmu_booke_unwire),
 	MMUMETHOD(mmu_zero_page,	mmu_booke_zero_page),
 	MMUMETHOD(mmu_zero_page_area,	mmu_booke_zero_page_area),
 	MMUMETHOD(mmu_zero_page_idle,	mmu_booke_zero_page_idle),
@@ -2432,28 +2432,33 @@ mmu_booke_ts_referenced(mmu_t mmu, vm_page_t m)
 }
 
 /*
- * Change wiring attribute for a map/virtual-address pair.
+ * Clear the wired attribute from the mappings for the specified range of
+ * addresses in the given pmap.  Every valid mapping within that range must
+ * have the wired attribute set.  In contrast, invalid mappings cannot have
+ * the wired attribute set, so they are ignored.
+ *
+ * The wired attribute of the page table entry is not a hardware feature, so
+ * there is no need to invalidate any TLB entries.
  */
 static void
-mmu_booke_change_wiring(mmu_t mmu, pmap_t pmap, vm_offset_t va, boolean_t wired)
+mmu_booke_unwire(mmu_t mmu, pmap_t pmap, vm_offset_t sva, vm_offset_t eva)
 {
+	vm_offset_t va;
 	pte_t *pte;
 
 	PMAP_LOCK(pmap);
-	if ((pte = pte_find(mmu, pmap, va)) != NULL) {
-		if (wired) {
-			if (!PTE_ISWIRED(pte)) {
-				pte->flags |= PTE_WIRED;
-				pmap->pm_stats.wired_count++;
-			}
-		} else {
-			if (PTE_ISWIRED(pte)) {
-				pte->flags &= ~PTE_WIRED;
-				pmap->pm_stats.wired_count--;
-			}
+	for (va = sva; va < eva; va += PAGE_SIZE) {
+		if ((pte = pte_find(mmu, pmap, va)) != NULL &&
+		    PTE_ISVALID(pte)) {
+			if (!PTE_ISWIRED(pte))
+				panic("mmu_booke_unwire: pte %p isn't wired",
+				    pte);
+			pte->flags &= ~PTE_WIRED;
+			pmap->pm_stats.wired_count--;
 		}
 	}
 	PMAP_UNLOCK(pmap);
+
 }
 
 /*

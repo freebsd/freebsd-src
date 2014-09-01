@@ -269,7 +269,6 @@ int		moea_pte_spill(vm_offset_t);
 /*
  * Kernel MMU interface
  */
-void moea_change_wiring(mmu_t, pmap_t, vm_offset_t, boolean_t);
 void moea_clear_modify(mmu_t, vm_page_t);
 void moea_copy_page(mmu_t, vm_page_t, vm_page_t);
 void moea_copy_pages(mmu_t mmu, vm_page_t *ma, vm_offset_t a_offset,
@@ -298,6 +297,7 @@ void moea_release(mmu_t, pmap_t);
 void moea_remove(mmu_t, pmap_t, vm_offset_t, vm_offset_t);
 void moea_remove_all(mmu_t, vm_page_t);
 void moea_remove_write(mmu_t, vm_page_t);
+void moea_unwire(mmu_t, pmap_t, vm_offset_t, vm_offset_t);
 void moea_zero_page(mmu_t, vm_page_t);
 void moea_zero_page_area(mmu_t, vm_page_t, int, int);
 void moea_zero_page_idle(mmu_t, vm_page_t);
@@ -319,7 +319,6 @@ vm_offset_t moea_dumpsys_map(mmu_t mmu, struct pmap_md *md, vm_size_t ofs,
 struct pmap_md * moea_scan_md(mmu_t mmu, struct pmap_md *prev);
 
 static mmu_method_t moea_methods[] = {
-	MMUMETHOD(mmu_change_wiring,	moea_change_wiring),
 	MMUMETHOD(mmu_clear_modify,	moea_clear_modify),
 	MMUMETHOD(mmu_copy_page,	moea_copy_page),
 	MMUMETHOD(mmu_copy_pages,	moea_copy_pages),
@@ -346,6 +345,7 @@ static mmu_method_t moea_methods[] = {
 	MMUMETHOD(mmu_remove_all,      	moea_remove_all),
 	MMUMETHOD(mmu_remove_write,	moea_remove_write),
 	MMUMETHOD(mmu_sync_icache,	moea_sync_icache),
+	MMUMETHOD(mmu_unwire,		moea_unwire),
 	MMUMETHOD(mmu_zero_page,       	moea_zero_page),
 	MMUMETHOD(mmu_zero_page_area,	moea_zero_page_area),
 	MMUMETHOD(mmu_zero_page_idle,	moea_zero_page_idle),
@@ -1015,23 +1015,19 @@ moea_deactivate(mmu_t mmu, struct thread *td)
 }
 
 void
-moea_change_wiring(mmu_t mmu, pmap_t pm, vm_offset_t va, boolean_t wired)
+moea_unwire(mmu_t mmu, pmap_t pm, vm_offset_t sva, vm_offset_t eva)
 {
-	struct	pvo_entry *pvo;
+	struct	pvo_entry key, *pvo;
 
 	PMAP_LOCK(pm);
-	pvo = moea_pvo_find_va(pm, va & ~ADDR_POFF, NULL);
-
-	if (pvo != NULL) {
-		if (wired) {
-			if ((pvo->pvo_vaddr & PVO_WIRED) == 0)
-				pm->pm_stats.wired_count++;
-			pvo->pvo_vaddr |= PVO_WIRED;
-		} else {
-			if ((pvo->pvo_vaddr & PVO_WIRED) != 0)
-				pm->pm_stats.wired_count--;
-			pvo->pvo_vaddr &= ~PVO_WIRED;
-		}
+	key.pvo_vaddr = sva;
+	for (pvo = RB_NFIND(pvo_tree, &pm->pmap_pvo, &key);
+	    pvo != NULL && PVO_VADDR(pvo) < eva;
+	    pvo = RB_NEXT(pvo_tree, &pm->pmap_pvo, pvo)) {
+		if ((pvo->pvo_vaddr & PVO_WIRED) == 0)
+			panic("moea_unwire: pvo %p is missing PVO_WIRED", pvo);
+		pvo->pvo_vaddr &= ~PVO_WIRED;
+		pm->pm_stats.wired_count--;
 	}
 	PMAP_UNLOCK(pm);
 }
@@ -1941,7 +1937,21 @@ moea_pvo_enter(pmap_t pm, uma_zone_t zone, struct pvo_head *pvo_head,
 			if ((pvo->pvo_pte.pte.pte_lo & PTE_RPGN) == pa &&
 			    (pvo->pvo_pte.pte.pte_lo & PTE_PP) ==
 			    (pte_lo & PTE_PP)) {
+				/*
+				 * The PTE is not changing.  Instead, this may
+				 * be a request to change the mapping's wired
+				 * attribute.
+				 */
 				mtx_unlock(&moea_table_mutex);
+				if ((flags & PVO_WIRED) != 0 &&
+				    (pvo->pvo_vaddr & PVO_WIRED) == 0) {
+					pvo->pvo_vaddr |= PVO_WIRED;
+					pm->pm_stats.wired_count++;
+				} else if ((flags & PVO_WIRED) == 0 &&
+				    (pvo->pvo_vaddr & PVO_WIRED) != 0) {
+					pvo->pvo_vaddr &= ~PVO_WIRED;
+					pm->pm_stats.wired_count--;
+				}
 				return (0);
 			}
 			moea_pvo_remove(pvo, -1);
