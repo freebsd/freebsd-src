@@ -86,7 +86,10 @@ __FBSDID("$FreeBSD$");
 #include "math.h"
 #include "math_private.h"
 
+static const volatile double vzero = 0;
+
 static const double
+zero=  0.00000000000000000000e+00,
 two52=  4.50359962737049600000e+15, /* 0x43300000, 0x00000000 */
 half=  5.00000000000000000000e-01, /* 0x3FE00000, 0x00000000 */
 one =  1.00000000000000000000e+00, /* 0x3FF00000, 0x00000000 */
@@ -154,8 +157,6 @@ w4  = -5.95187557450339963135e-04, /* 0xBF4380CB, 0x8C0FE741 */
 w5  =  8.36339918996282139126e-04, /* 0x3F4B67BA, 0x4CDAD5D1 */
 w6  = -1.63092934096575273989e-03; /* 0xBF5AB89D, 0x0B9E43E4 */
 
-static const double zero=  0.00000000000000000000e+00;
-
 /*
  * Compute sin(pi*x) without actually doing the pi*x multiplication.
  * sin_pi(x) is only called for x < 0 and |x| < 2**(p-1) where p is
@@ -204,7 +205,7 @@ __ieee754_lgamma_r(double x, int *signgamp)
 {
 	double t,y,z,nadj,p,p1,p2,p3,q,r,w;
 	int32_t hx;
-	int i,lx,ix;
+	int i,ix,lx;
 
 	EXTRACT_WORDS(hx,lx,x);
 
@@ -212,7 +213,7 @@ __ieee754_lgamma_r(double x, int *signgamp)
 	*signgamp = 1;
 	ix = hx&0x7fffffff;
 	if(ix>=0x7ff00000) return x*x;
-	if((ix|lx)==0) return one/zero;
+	if((ix|lx)==0) return one/vzero;
 	if(ix<0x3b900000) {	/* |x|<2**-70, return -log(|x|) */
 	    if(hx<0) {
 	        *signgamp = -1;
@@ -221,9 +222,9 @@ __ieee754_lgamma_r(double x, int *signgamp)
 	}
 	if(hx<0) {
 	    if(ix>=0x43300000) 	/* |x|>=2**52, must be -integer */
-		return one/zero;
+		return one/vzero;
 	    t = sin_pi(x);
-	    if(t==zero) return one/zero; /* -integer */
+	    if(t==zero) return one/vzero; /* -integer */
 	    nadj = __ieee754_log(pi/fabs(t*x));
 	    if(t<zero) *signgamp = -1;
 	    x = -x;
