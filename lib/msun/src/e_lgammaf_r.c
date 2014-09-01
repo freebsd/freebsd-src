@@ -19,7 +19,10 @@ __FBSDID("$FreeBSD$");
 #include "math.h"
 #include "math_private.h"
 
+static const volatile float vzero = 0;
+
 static const float
+zero=  0.0000000000e+00,
 two23=  8.3886080000e+06, /* 0x4b000000 */
 half=  5.0000000000e-01, /* 0x3f000000 */
 one =  1.0000000000e+00, /* 0x3f800000 */
@@ -87,8 +90,6 @@ w4  = -5.9518753551e-04, /* 0xba1c065c */
 w5  =  8.3633989561e-04, /* 0x3a5b3dd2 */
 w6  = -1.6309292987e-03; /* 0xbad5c4e8 */
 
-static const float zero=  0.0000000000e+00;
-
 static float
 sin_pif(float x)
 {
@@ -140,7 +141,7 @@ __ieee754_lgammaf_r(float x, int *signgamp)
 	*signgamp = 1;
 	ix = hx&0x7fffffff;
 	if(ix>=0x7f800000) return x*x;
-	if(ix==0) return one/zero;
+	if(ix==0) return one/vzero;
 	if(ix<0x35000000) {	/* |x|<2**-21, return -log(|x|) */
 	    if(hx<0) {
 	        *signgamp = -1;
@@ -149,9 +150,9 @@ __ieee754_lgammaf_r(float x, int *signgamp)
 	}
 	if(hx<0) {
 	    if(ix>=0x4b000000) 	/* |x|>=2**23, must be -integer */
-		return one/zero;
+		return one/vzero;
 	    t = sin_pif(x);
-	    if(t==zero) return one/zero; /* -integer */
+	    if(t==zero) return one/vzero; /* -integer */
 	    nadj = __ieee754_logf(pi/fabsf(t*x));
 	    if(t<zero) *signgamp = -1;
 	    x = -x;
