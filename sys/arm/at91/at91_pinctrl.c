@@ -136,7 +136,7 @@ at91_pinctrl_setup_dinfo(device_t dev, phandle_t node)
 			    "assuming direct parent\n");
 			iparent = OF_parent(node);
 		}
-		if (OF_searchencprop(OF_xref_phandle(iparent), 
+		if (OF_searchencprop(OF_node_from_xref(iparent), 
 		    "#interrupt-cells", &icells, sizeof(icells)) == -1) {
 			device_printf(dev, "Missing #interrupt-cells property, "
 			    "assuming <1>\n");
@@ -399,7 +399,7 @@ pinctrl_walk_tree(device_t bus, phandle_t node)
 		len /= sizeof(phandle_t);
 		printf("pinctrl: Found active node %s\n", name);
 		for (i = 0; i < len; i++) {
-			scratch = OF_xref_phandle(pinctrl[i]);
+			scratch = OF_node_from_xref(pinctrl[i]);
 			npins = OF_getencprop(scratch, "atmel,pins", pins, sizeof(pins));
 			if (npins <= 0) {
 				printf("We're doing it wrong %s\n", name);

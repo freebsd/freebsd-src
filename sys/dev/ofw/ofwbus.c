@@ -494,7 +494,7 @@ ofwbus_setup_dinfo(device_t dev, phandle_t node)
 			    "assuming nexus on <%s>\n", nodename);
 			iparent = 0xffffffff;
 		}
-		if (OF_searchencprop(OF_xref_phandle(iparent), 
+		if (OF_searchencprop(OF_node_from_xref(iparent), 
 		    "#interrupt-cells", &icells, sizeof(icells)) == -1) {
 			device_printf(dev, "Missing #interrupt-cells property, "
 			    "assuming <1> on <%s>\n", nodename);
