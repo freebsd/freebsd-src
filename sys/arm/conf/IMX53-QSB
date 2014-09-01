@@ -129,10 +129,10 @@ device		iic
 device		iicbus
 
 # SCSI peripherals
-device		scbus			# SCSI bus (required for SCSI)
+device		scbus			# SCSI bus (required for ATA/SCSI)
 device		da			# Direct Access (disks)
 device		cd			# CD
-device		pass			# Passthrough device (direct SCSI access)
+device		pass			# Passthrough device (direct ATA/SCSI access)
 
 # USB support
 options 	USB_HOST_ALIGN=64	# Align usb buffers to cache line size.
