@@ -140,7 +140,7 @@ rollback_toperation_state(struct ip_fw_chain *ch, void *object)
 
 	tcfg = CHAIN_TO_TCFG(ch);
 	TAILQ_FOREACH(os, &tcfg->state_list, next)
-		os->func(os, object);
+		os->func(object, os);
 }
 
 void
@@ -576,6 +576,8 @@ restart:
 		return (error);
 	}
 	ta = tc->ta;
+
+	/* Fill in tablestate */
 	ts.ch = ch;
 	ts.opstate.func = rollback_add_entry;
 	ts.tc = tc;
@@ -1185,12 +1187,26 @@ ipfw_flush_table(struct ip_fw_chain *ch, ip_fw3_opheader *op3,
 	return (error);
 }
 
+static void
+restart_flush(void *object, struct op_state *_state)
+{
+	struct tableop_state *ts;
+
+	ts = (struct tableop_state *)_state;
+
+	if (ts->tc != object)
+		return;
+
+	/* Indicate we've called */
+	ts->modified = 1;
+}
+
 /*
  * Flushes given table.
  *
  * Function create new table instance with the same
  * parameters, swaps it with old one and
- * flushes state without holding any locks.
+ * flushes state without holding runtime WLOCK.
  *
  * Returns 0 on success.
  */
@@ -1203,6 +1219,7 @@ flush_table(struct ip_fw_chain *ch, struct tid_info *ti)
 	struct table_info ti_old, ti_new, *tablestate;
 	void *astate_old, *astate_new;
 	char algostate[64], *pstate;
+	struct tableop_state ts;
 	int error;
 	uint16_t kidx;
 	uint8_t tflags;
@@ -1217,13 +1234,18 @@ flush_table(struct ip_fw_chain *ch, struct tid_info *ti)
 		IPFW_UH_WUNLOCK(ch);
 		return (ESRCH);
 	}
+restart:
+	/* Set up swap handler */
+	memset(&ts, 0, sizeof(ts));
+	ts.opstate.func = restart_flush;
+	ts.tc = tc;
+
 	ta = tc->ta;
 	/* Do not flush readonly tables */
 	if ((ta->flags & TA_FLAG_READONLY) != 0) {
 		IPFW_UH_WUNLOCK(ch);
 		return (EACCES);
 	}
-	tc->no.refcnt++;
 	/* Save startup algo parameters */
 	if (ta->print_config != NULL) {
 		ta->print_config(tc->astate, KIDX_TO_TI(ch, tc->no.kidx),
@@ -1232,24 +1254,39 @@ flush_table(struct ip_fw_chain *ch, struct tid_info *ti)
 	} else
 		pstate = NULL;
 	tflags = tc->tflags;
+	tc->no.refcnt++;
+	add_toperation_state(ch, &ts);
 	IPFW_UH_WUNLOCK(ch);
 
 	/*
 	 * Stage 2: allocate new table instance using same algo.
 	 */
 	memset(&ti_new, 0, sizeof(struct table_info));
-	if ((error = ta->init(ch, &astate_new, &ti_new, pstate, tflags)) != 0) {
-		IPFW_UH_WLOCK(ch);
-		tc->no.refcnt--;
-		IPFW_UH_WUNLOCK(ch);
-		return (error);
-	}
+	error = ta->init(ch, &astate_new, &ti_new, pstate, tflags);
 
 	/*
 	 * Stage 3: swap old state pointers with newly-allocated ones.
 	 * Decrease refcount.
 	 */
 	IPFW_UH_WLOCK(ch);
+	tc->no.refcnt--;
+	del_toperation_state(ch, &ts);
+
+	if (error != 0) {
+		IPFW_UH_WUNLOCK(ch);
+		return (error);
+	}
+
+	/*
+	 * Restart operation if table swap has happened:
+	 * even if algo may be the same, algo init parameters
+	 * may change. Restart operation instead of doing
+	 * complex checks.
+	 */
+	if (ts.modified != 0) {
+		ta->destroy(astate_new, &ti_new);
+		goto restart;
+	}
 
 	ni = CHAIN_TO_NI(ch);
 	kidx = tc->no.kidx;
@@ -1264,7 +1301,6 @@ flush_table(struct ip_fw_chain *ch, struct tid_info *ti)
 	tc->astate = astate_new;
 	tc->ti = ti_new;
 	tc->count = 0;
-	tc->no.refcnt--;
 
 	/*
 	 * Stage 4: unref values.
