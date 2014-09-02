@@ -481,8 +481,59 @@ flush_batch_buffer(struct ip_fw_chain *ch, struct table_algo *ta,
 		free(ta_buf_m, M_TEMP);
 }
 
+
+static void
+rollback_add_entry(void *object, struct op_state *_state)
+{
+	struct ip_fw_chain *ch;
+	struct tableop_state *ts;
+
+	ts = (struct tableop_state *)_state;
+
+	if (ts->tc != object && ts->ch != object)
+		return;
+
+	ch = ts->ch;
+
+	IPFW_UH_WLOCK_ASSERT(ch);
+
+	/* Call specifid unlockers */
+	rollback_table_values(ts);
+
+	/* Indicate we've called */
+	ts->modified = 1;
+}
+
 /*
  * Adds/updates one or more entries in table @ti.
+ *
+ * Function may drop/reacquire UH wlock multiple times due to
+ * items alloc, algorithm callbacks (check_space), value linkage
+ * (new values, value storage realloc), etc..
+ * Other processes like other adds (which may involve storage resize),
+ * table swaps (which changes table data and may change algo type),
+ * table modify (which may change value mask) may be executed
+ * simultaneously so we need to deal with it.
+ *
+ * The following approach was implemented:
+ * we have per-chain linked list, protected with UH lock.
+ * add_table_entry prepares special on-stack structure wthich is passed
+ * to its descendants. Users add this structure to this list before unlock.
+ * After performing needed operations and acquiring UH lock back, each user
+ * checks if structure has changed. If true, it rolls local state back and
+ * returns without error to the caller.
+ * add_table_entry() on its own checks if structure has changed and restarts
+ * its operation from the beginning (goto restart).
+ *
+ * Functions which are modifying fields of interest (currently
+ *   resize_shared_value_storage() and swap_tables() )
+ * traverses given list while holding UH lock immediately before
+ * performing their operations calling function provided be list entry
+ * ( currently rollback_add_entry  ) which performs rollback for all necessary
+ * state and sets appropriate values in structure indicating rollback
+ * has happened.
+ *
+ * Algo interaction:
  * Function references @ti first to ensure table won't
  * disappear or change its type.
  * After that, prepare_add callback is called for each @tei entry.
@@ -526,6 +577,7 @@ restart:
 	}
 	ta = tc->ta;
 	ts.ch = ch;
+	ts.opstate.func = rollback_add_entry;
 	ts.tc = tc;
 	ts.vshared = tc->vshared;
 	ts.vmask = tc->vmask;
@@ -624,7 +676,7 @@ restart:
 
 	IPFW_WUNLOCK(ch);
 
-	ipfw_finalize_table_values(ch, tc, tei, count, rollback);
+	ipfw_garbage_table_values(ch, tc, tei, count, rollback);
 
 	/* Permit post-add algorithm grow/rehash. */
 	if (numadd != 0)
@@ -714,7 +766,7 @@ del_table_entry(struct ip_fw_chain *ch, struct tid_info *ti,
 	IPFW_WUNLOCK(ch);
 
 	/* Unlink non-used values */
-	ipfw_finalize_table_values(ch, tc, tei, count, 0);
+	ipfw_garbage_table_values(ch, tc, tei, count, 0);
 
 	if (numdel != 0) {
 		/* Run post-del hook to permit shrinking */

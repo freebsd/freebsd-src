@@ -198,12 +198,13 @@ struct tableop_state;
 void ipfw_table_value_init(struct ip_fw_chain *ch);
 void ipfw_table_value_destroy(struct ip_fw_chain *ch);
 int ipfw_link_table_values(struct ip_fw_chain *ch, struct tableop_state *ts);
-void ipfw_finalize_table_values(struct ip_fw_chain *ch, struct table_config *tc,
+void ipfw_garbage_table_values(struct ip_fw_chain *ch, struct table_config *tc,
     struct tentry_info *tei, uint32_t count, int rollback);
 void ipfw_import_table_value_v1(ipfw_table_value *iv);
 void ipfw_export_table_value_v1(struct table_value *v, ipfw_table_value *iv);
 void ipfw_unref_table_values(struct ip_fw_chain *ch, struct table_config *tc,
     struct table_algo *ta, void *astate, struct table_info *ti);
+void rollback_table_values(struct tableop_state *ts);
 
 int ipfw_rewrite_table_uidx(struct ip_fw_chain *chain,
     struct rule_check_info *ci);
