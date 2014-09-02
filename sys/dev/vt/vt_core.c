@@ -2025,9 +2025,8 @@ vt_upgrade(struct vt_device *vd)
 		vd->vd_curwindow = vd->vd_windows[VT_CONSWINDOW];
 
 	if (!(vd->vd_flags & VDF_ASYNC)) {
-	/* Attach keyboard. */
-	vt_allocate_keyboard(vd);
-	DPRINTF(20, "%s: vd_keyboard = %d\n", __func__, vd->vd_keyboard);
+		/* Attach keyboard. */
+		vt_allocate_keyboard(vd);
 
 		/* Init 25 Hz timer. */
 		callout_init_mtx(&vd->vd_timer, &vd->vd_lock, 0);
