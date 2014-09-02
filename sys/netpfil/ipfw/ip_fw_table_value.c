@@ -531,8 +531,8 @@ ipfw_link_table_values(struct ip_fw_chain *ch, struct tableop_state *ts)
 
 		/* Value found. Bump refcount */
 		ptv->pval->refcnt++;
-		found++;
 		ptei->value = ptv->no.kidx;
+		found++;
 	}
 
 	if (ts->count == found) {
@@ -585,6 +585,7 @@ ipfw_link_table_values(struct ip_fw_chain *ch, struct tableop_state *ts)
 		ptv = (struct table_val_link *)ipfw_objhash_lookup_name(vi, 0,
 		    (char *)&tval);
 		if (ptv != NULL) {
+			ptv->pval->refcnt++;
 			ptei->value = ptv->no.kidx;
 			continue;
 		}
