@@ -125,7 +125,7 @@ ${_YC:R}.o: ${_YC}
 .if ${SRCS:M*.d}
 LDFLAGS+=	-lelf
 LDADD+=		${LIBELF}
-CFLAGS+=	-D_DTRACE_VERSION=1 -I${.OBJDIR}
+CFLAGS+=	-I${.OBJDIR}
 .endif
 .for _DSRC in ${SRCS:M*.d:N*/*}
 .for _D in ${_DSRC:R}
