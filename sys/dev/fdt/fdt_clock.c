@@ -32,6 +32,7 @@
 #include <sys/lock.h>
 #include <sys/mutex.h>
 #include <sys/queue.h>
+#include <sys/systm.h>
 
 #include <dev/ofw/ofw_bus.h>
 #include <dev/ofw/ofw_bus_subr.h>
@@ -119,7 +120,7 @@ fdt_clock_get_info(device_t consumer, int n, struct fdt_clock_info *info)
 			 * override anything it wants to).
 			 */
 			clocknum = clks[n + 1];
-			memset(info, 0, sizeof(*info));
+			bzero(info, sizeof(*info));
 			info->provider = clockdev;
 			info->index = clocknum;
 			info->name = "";
@@ -148,13 +149,13 @@ void
 fdt_clock_register_provider(device_t provider)
 {
 
-	OF_device_register_xref(OF_xref_from_node(provider), provider);
+	OF_device_register_xref(OF_xref_from_device(provider), provider);
 }
 
 void
 fdt_clock_unregister_provider(device_t provider)
 {
 
-	OF_device_register_xref(OF_xref_from_node(provider), NULL);
+	OF_device_register_xref(OF_xref_from_device(provider), NULL);
 }
 
