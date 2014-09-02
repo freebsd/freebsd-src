@@ -298,8 +298,7 @@
 #endif
 
 #if !__has_extension(c_thread_local)
-/* XXX: Change this to test against C++11 when clang in base supports it. */
-#if /* (defined(__cplusplus) && __cplusplus >= 201103L) || */ \
+#if (defined(__cplusplus) && __cplusplus >= 201103L) || \
     __has_extension(cxx_thread_local)
 #define	_Thread_local		thread_local
 #else
@@ -751,7 +750,7 @@
  * held.
  */
 
-#ifdef __clang__
+#if __has_extension(c_thread_safety_attributes)
 #define	__lock_annotate(x)	__attribute__((x))
 #else
 #define	__lock_annotate(x)
