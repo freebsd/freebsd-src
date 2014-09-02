@@ -96,6 +96,7 @@ static boolean_t xref_init_done;
 
 #define	FIND_BY_XREF	0
 #define	FIND_BY_NODE	1
+#define	FIND_BY_DEV	1
 
 /*
  * xref-phandle-device lookup helper routines.
@@ -151,6 +152,8 @@ xrefinfo_find(phandle_t phandle, int find_by)
 		if (find_by == FIND_BY_XREF && phandle == xi->xref)
 			return (xi);
 		else if (find_by == FIND_BY_NODE && phandle == xi->node)
+			return (xi);
+		else if (find_by == FIND_BY_DEV && phandle == (uintptr_t)xi->dev)
 			return (xi);
 	}
 	return (NULL);
@@ -582,6 +585,19 @@ OF_device_from_xref(phandle_t xref)
 		return (xi->dev);
 	}
 	panic("Attempt to find device before xreflist_init");
+}
+
+phandle_t
+OF_xref_from_device(device_t dev)
+{
+	struct xrefinfo *xi;
+
+	if (xref_init_done) {
+		if ((xi = xrefinfo_find((uintptr_t)dev, FIND_BY_DEV)) == NULL)
+			return (0);
+		return (xi->xref);
+	}
+	panic("Attempt to find xref before xreflist_init");
 }
 
 int
