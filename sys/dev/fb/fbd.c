@@ -257,9 +257,6 @@ fb_probe(struct fb_info *info)
 	} else if (info->fb_vbase != 0) {
 		if (info->fb_pbase == 0) {
 			info->fb_flags |= FB_FLAG_NOMMAP;
-		} else {
-			if (info->fb_mmap == NULL)
-				info->fb_mmap = &fb_mmap;
 		}
 		info->wr1 = &vt_fb_mem_wr1;
 		info->wr2 = &vt_fb_mem_wr2;
@@ -267,10 +264,6 @@ fb_probe(struct fb_info *info)
 		info->copy = &vt_fb_mem_copy;
 	} else
 		return (ENXIO);
-
-	if (info->fb_ioctl == NULL)
-		info->fb_ioctl = &fb_ioctl;
-
 
 	return (0);
 }
