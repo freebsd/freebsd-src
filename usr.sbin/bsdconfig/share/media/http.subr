@@ -515,10 +515,7 @@ f_media_init_http()
 			fi
 		esac
 
-		if [ $http_found -eq $SUCCESS ]; then
-			HTTP_INITIALIZED=YES
-			break
-		fi
+		[ $http_found -eq $SUCCESS ] && HTTP_INITIALIZED=YES break
 
 		f_getvar $VAR_HTTP_PATH http_path
 		f_show_msg "$msg_please_check_the_url_and_try_again" \
@@ -668,7 +665,7 @@ f_media_get_http()
 	 44) f_show_msg "$msg_url_was_not_found" "$url" ;;
 	  4) f_show_msg "$msg_client_error" ;;
 	  *) f_show_msg "$msg_error_when_requesting_url" "$url" ;;
-	esac
+	esac 2>&1 >&$DIALOG_TERMINAL_PASSTHRU_FD
 	return $FAILURE
 }
 

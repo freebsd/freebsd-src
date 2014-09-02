@@ -166,8 +166,9 @@ gic_init_secondary(void)
 	/* Enable interrupt distribution */
 	gic_d_write_4(GICD_CTLR, 0x01);
 
-	/* Activate IRQ 29, ie private timer IRQ*/
+	/* Activate IRQ 29-30, ie private timer (secure & non-secure) IRQs */
 	gic_d_write_4(GICD_ISENABLER(29 >> 5), (1UL << (29 & 0x1F)));
+	gic_d_write_4(GICD_ISENABLER(30 >> 5), (1UL << (30 & 0x1F)));
 }
 
 static int
@@ -263,7 +264,8 @@ static driver_t arm_gic_driver = {
 
 static devclass_t arm_gic_devclass;
 
-DRIVER_MODULE(gic, simplebus, arm_gic_driver, arm_gic_devclass, 0, 0);
+EARLY_DRIVER_MODULE(gic, simplebus, arm_gic_driver, arm_gic_devclass, 0, 0,
+    BUS_PASS_INTERRUPT + BUS_PASS_ORDER_MIDDLE);
 
 static void
 gic_post_filter(void *arg)

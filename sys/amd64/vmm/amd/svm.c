@@ -117,7 +117,8 @@ static uint8_t hsave[MAXCPU][PAGE_SIZE] __aligned(PAGE_SIZE);
  */
 static struct svm_regctx host_ctx[MAXCPU];
 
-static VMM_STAT_AMD(VCPU_EXITINTINFO, "Valid EXITINTINFO");
+static VMM_STAT_AMD(VCPU_EXITINTINFO, "Valid VMCB EXITINTINFO");
+static VMM_STAT_AMD(VCPU_INTINFO_INJECTED, "VMM pending exception injected");
 
 /* 
  * Common function to enable or disabled SVM for a CPU.
@@ -486,13 +487,28 @@ svm_cpl(struct vmcb_state *state)
 }
 
 static enum vm_cpu_mode
-svm_vcpu_mode(uint64_t efer)
+svm_vcpu_mode(struct vmcb *vmcb)
 {
+	struct vmcb_segment *seg;
+	struct vmcb_state *state;
 
-	if (efer & EFER_LMA)
-		return (CPU_MODE_64BIT);
-	else
-		return (CPU_MODE_COMPATIBILITY);
+	state = &vmcb->state;
+
+	if (state->efer & EFER_LMA) {
+		seg = vmcb_seg(vmcb, VM_REG_GUEST_CS);
+		/*
+		 * Section 4.8.1 for APM2, check if Code Segment has
+		 * Long attribute set in descriptor.
+		 */
+		if (seg->attrib & VMCB_CS_ATTRIB_L)
+			return (CPU_MODE_64BIT);
+		else
+			return (CPU_MODE_COMPATIBILITY);
+	} else  if (state->cr0 & CR0_PE) {
+		return (CPU_MODE_PROTECTED);
+	} else {
+		return (CPU_MODE_REAL);
+	}
 }
 
 static enum vm_paging_mode
@@ -569,15 +585,18 @@ svm_inout_str_addrsize(uint64_t info1)
 }
 
 static void
-svm_paging_info(struct vmcb_state *state, struct vm_guest_paging *paging)
+svm_paging_info(struct vmcb *vmcb, struct vm_guest_paging *paging)
 {
+	struct vmcb_state *state;
 
+	state = &vmcb->state;
 	paging->cr3 = state->cr3;
 	paging->cpl = svm_cpl(state);
-	paging->cpu_mode = svm_vcpu_mode(state->efer);
+	paging->cpu_mode = svm_vcpu_mode(vmcb);
 	paging->paging_mode = svm_paging_mode(state->cr0, state->cr4,
-		   	          state->efer);
+	    state->efer);
 }
+
 
 /*
  * Handle guest I/O intercept.
@@ -607,7 +626,7 @@ svm_handle_io(struct svm_softc *svm_sc, int vcpu, struct vm_exit *vmexit)
 	if (vmexit->u.inout.string) {
 		vmexit->exitcode = VM_EXITCODE_INOUT_STR;
 		vis = &vmexit->u.inout_str;
-		svm_paging_info(state, &vis->paging);
+		svm_paging_info(svm_get_vmcb(svm_sc, vcpu), &vis->paging);
 		vis->rflags = state->rflags;
 		vis->cr0 = state->cr0;
 		vis->index = svm_inout_str_index(regs, vmexit->u.inout.in);
@@ -649,6 +668,41 @@ svm_npf_emul_fault(uint64_t exitinfo1)
 	return (true);	
 }
 
+static void
+svm_handle_inst_emul(struct vmcb *vmcb, uint64_t gpa, struct vm_exit *vmexit)
+{
+	struct vm_guest_paging *paging;
+	struct vmcb_segment *seg;
+
+	paging = &vmexit->u.inst_emul.paging;
+	vmexit->exitcode = VM_EXITCODE_INST_EMUL;
+	vmexit->u.inst_emul.gpa = gpa;
+	vmexit->u.inst_emul.gla = VIE_INVALID_GLA;
+	svm_paging_info(vmcb, paging);
+
+	/*
+	 * If DecodeAssist SVM feature doesn't exist, we don't have NPF 
+	 * instuction length. RIP will be calculated based on the length 
+	 * determined by instruction emulation.
+	 */
+	vmexit->inst_length = VIE_INST_SIZE;
+
+	seg = vmcb_seg(vmcb, VM_REG_GUEST_CS);
+	switch(paging->cpu_mode) {
+	case CPU_MODE_PROTECTED:
+	case CPU_MODE_COMPATIBILITY:
+		/*
+		 * Section 4.8.1 of APM2, Default Operand Size or D bit.
+		 */
+		vmexit->u.inst_emul.cs_d = (seg->attrib & VMCB_CS_ATTRIB_D) ?
+		    1 : 0;
+		break;
+	default:
+		vmexit->u.inst_emul.cs_d = 0;
+		break;	
+	}
+}
+
 /*
  * Special handling of EFER MSR.
  * SVM guest must have SVM EFER bit set, prohibit guest from cleareing SVM
@@ -670,6 +724,29 @@ svm_efer(struct svm_softc *svm_sc, int vcpu, boolean_t write)
 		state->rax = (uint32_t)state->efer;
 		swctx->e.g.sctx_rdx = (uint32_t)(state->efer >> 32);
 	}
+}
+
+static void
+svm_save_intinfo(struct svm_softc *svm_sc, int vcpu)
+{
+	struct vmcb_ctrl *ctrl;
+	uint64_t intinfo;
+
+	ctrl  = svm_get_vmcb_ctrl(svm_sc, vcpu);
+	intinfo = ctrl->exitintinfo;	
+	if (!VMCB_EXITINTINFO_VALID(intinfo))
+		return;
+
+	/*
+	 * From APMv2, Section "Intercepts during IDT interrupt delivery"
+	 *
+	 * If a #VMEXIT happened during event delivery then record the event
+	 * that was being delivered.
+	 */
+	VCPU_CTR2(svm_sc->vm, vcpu, "SVM:Pending INTINFO(0x%lx), vector=%d.\n",
+		intinfo, VMCB_EXITINTINFO_VECTOR(intinfo));
+	vmm_stat_incr(svm_sc->vm, vcpu, VCPU_EXITINTINFO, 1);
+	vm_exit_intinfo(svm_sc->vm, vcpu, intinfo);
 }
 
 /*
@@ -704,6 +781,8 @@ svm_vmexit(struct svm_softc *svm_sc, int vcpu, struct vm_exit *vmexit)
 
 	KASSERT((ctrl->eventinj & VMCB_EVENTINJ_VALID) == 0, ("%s: event "
 	    "injection valid bit is set %#lx", __func__, ctrl->eventinj));
+
+	svm_save_intinfo(svm_sc, vcpu);
 
 	switch (code) {
 		case	VMCB_EXIT_MC: /* Machine Check. */
@@ -782,7 +861,6 @@ svm_vmexit(struct svm_softc *svm_sc, int vcpu, struct vm_exit *vmexit)
 		case VMCB_EXIT_IO:
 			loop = svm_handle_io(svm_sc, vcpu, vmexit);
 			vmm_stat_incr(svm_sc->vm, vcpu, VMEXIT_INOUT, 1);
-			update_rip = true;
 			break;
 
 		case VMCB_EXIT_CPUID:
@@ -847,24 +925,8 @@ svm_vmexit(struct svm_softc *svm_sc, int vcpu, struct vm_exit *vmexit)
  				VCPU_CTR3(svm_sc->vm, vcpu, "SVM:NPF inst_emul,"
 					"RIP:0x%lx INFO1:0x%lx INFO2:0x%lx .\n",
 					state->rip, info1, info2);
-				vmexit->exitcode = VM_EXITCODE_INST_EMUL;
-				vmexit->u.inst_emul.gpa = info2;
-				vmexit->u.inst_emul.gla = VIE_INVALID_GLA;
-				vmexit->u.inst_emul.paging.cr3 = state->cr3;
-				vmexit->u.inst_emul.paging.cpu_mode = 
-					svm_vcpu_mode(state->efer);
-				vmexit->u.inst_emul.paging.paging_mode =
-					svm_paging_mode(state->cr0, state->cr4,
-                                                 state->efer);
-				/* XXX: get CPL from SS */
-				vmexit->u.inst_emul.paging.cpl = 0;
-				/*
-				 * If DecodeAssist SVM feature doesn't exist,
-				 * we don't have faulty instuction length. New
-				 * RIP will be calculated based on software 
-				 * instruction emulation.
-				 */
-				vmexit->inst_length = VIE_INST_SIZE;
+				svm_handle_inst_emul(svm_get_vmcb(svm_sc, vcpu),
+					info2, vmexit);
 				vmm_stat_incr(svm_sc->vm, vcpu, 
 					VMEXIT_INST_EMUL, 1);
 			}
@@ -944,6 +1006,28 @@ svm_inject_nmi(struct svm_softc *svm_sc, int vcpu)
 	return (1);
 }
 
+static void
+svm_inj_intinfo(struct svm_softc *svm_sc, int vcpu)
+{
+	struct vmcb_ctrl *ctrl;
+	uint64_t intinfo;
+
+	ctrl = svm_get_vmcb_ctrl(svm_sc, vcpu);
+
+	if (!vm_entry_intinfo(svm_sc->vm, vcpu, &intinfo))
+		return;
+
+	KASSERT(VMCB_EXITINTINFO_VALID(intinfo), ("%s: entry intinfo is not "
+	    "valid: %#lx", __func__, intinfo));
+
+	vmcb_eventinject(ctrl, VMCB_EXITINTINFO_TYPE(intinfo),
+		VMCB_EXITINTINFO_VECTOR(intinfo),
+		VMCB_EXITINTINFO_EC(intinfo),
+		VMCB_EXITINTINFO_EC_VALID(intinfo));
+	vmm_stat_incr(svm_sc->vm, vcpu, VCPU_INTINFO_INJECTED, 1);
+	VCPU_CTR1(svm_sc->vm, vcpu, "Injected entry intinfo: %#lx", intinfo);
+}
+
 /*
  * Inject event to virtual cpu.
  */
@@ -952,7 +1036,6 @@ svm_inj_interrupts(struct svm_softc *svm_sc, int vcpu, struct vlapic *vlapic)
 {
 	struct vmcb_ctrl *ctrl;
 	struct vmcb_state *state;
-	struct vm_exception exc;
 	int extint_pending;
 	int vector;
 	
@@ -961,12 +1044,7 @@ svm_inj_interrupts(struct svm_softc *svm_sc, int vcpu, struct vlapic *vlapic)
 	state = svm_get_vmcb_state(svm_sc, vcpu);
 	ctrl  = svm_get_vmcb_ctrl(svm_sc, vcpu);
 
-	if (vm_exception_pending(svm_sc->vm, vcpu, &exc)) {
-		KASSERT(exc.vector >= 0 && exc.vector < 32,
-			("Exception vector% invalid", exc.vector));
-		vmcb_eventinject(ctrl, VMCB_EVENTINJ_TYPE_EXCEPTION, exc.vector,
-		    exc.error_code, exc.error_code_valid);
-	}
+	svm_inj_intinfo(svm_sc, vcpu);
 
 	/* Can't inject multiple events at once. */
 	if (ctrl->eventinj & VMCB_EVENTINJ_VALID) {
@@ -1044,31 +1122,6 @@ setup_tss_type(void)
 	desc->sd_type = 9;
 }
 
-static void
-svm_handle_exitintinfo(struct svm_softc *svm_sc, int vcpu)
-{
-	struct vmcb_ctrl *ctrl;
-	uint64_t intinfo;
-	
-	ctrl  	= svm_get_vmcb_ctrl(svm_sc, vcpu);
-
-	/*
-	 * VMEXIT while delivering an exception or interrupt.
-	 * Inject it as virtual interrupt.
-	 * Section 15.7.2 Intercepts during IDT interrupt delivery.
-	 */	
-	intinfo = ctrl->exitintinfo;
-	
-	if (VMCB_EXITINTINFO_VALID(intinfo)) {
-		vmm_stat_incr(svm_sc->vm, vcpu, VCPU_EXITINTINFO, 1);
-		VCPU_CTR1(svm_sc->vm, vcpu, "SVM:EXITINTINFO:0x%lx is valid\n", 
-			intinfo);
-		vmcb_eventinject(ctrl, VMCB_EXITINTINFO_TYPE(intinfo), 
-		    VMCB_EXITINTINFO_VECTOR(intinfo),
-		    VMCB_EXITINTINFO_EC(intinfo), 
-		    VMCB_EXITINTINFO_EC_VALID(intinfo));
-	}
-}		
 /*
  * Start vcpu with specified RIP.
  */
@@ -1106,8 +1159,9 @@ svm_vmrun(void *arg, int vcpu, register_t rip, pmap_t pmap,
 		vmm_stat_incr(vm, vcpu, VCPU_MIGRATIONS, 1);
 
 		/*
-		 * Flush all TLB mapping for this guest on this CPU,
-		 * it might have stale entries.
+		 * Flush all TLB mappings for this guest on this CPU,
+		 * it might have stale entries since vcpu has migrated
+		 * or vmm is restarted.
 		 */
 		ctrl->tlb_ctrl = VMCB_TLB_FLUSH_GUEST;
 
@@ -1184,8 +1238,6 @@ svm_vmrun(void *arg, int vcpu, register_t rip, pmap_t pmap,
 		}
 
 		(void)svm_set_vmcb(svm_get_vmcb(svm_sc, vcpu), svm_sc->asid);
-
-		svm_handle_exitintinfo(svm_sc, vcpu);
 
 		svm_inj_interrupts(svm_sc, vcpu, vlapic);
 

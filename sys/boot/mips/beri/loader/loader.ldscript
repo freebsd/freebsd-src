@@ -58,11 +58,16 @@ SECTIONS
 	. += SIZEOF_HEADERS;
 
 	.text ALIGN(0x8): {
-		start.o(.text)
-		*(EXCLUDE_FILE (start.o) .text)
+		start.o(.text*)
+		*(EXCLUDE_FILE (start.o) .text*)
+		*(.rodata*)
+
+		__start_set_Xcommand_set = .;
+		KEEP(*(set_Xcommand_set))
+		__stop_set_Xcommand_set = .;
 	}
-	.data ALIGN(0x8): { *(.data)}
-	.bss ALIGN(0x8): { *(.bss) }
+	.data ALIGN(0x8): { *(.data*)}
+	.bss ALIGN(0x8): { *(.bss*) }
 
 	__heap = ALIGN(0x8);	/* 64-bit aligned heap pointer */
 	__data_end = .;

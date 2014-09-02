@@ -39,6 +39,9 @@ __FBSDID("$FreeBSD$");
 #include "mkimg.h"
 #include "scheme.h"
 
+#ifndef APM_ENT_TYPE_APPLE_BOOT
+#define	APM_ENT_TYPE_APPLE_BOOT		"Apple_Bootstrap"
+#endif
 #ifndef APM_ENT_TYPE_FREEBSD_NANDFS
 #define	APM_ENT_TYPE_FREEBSD_NANDFS	"FreeBSD-nandfs"
 #endif

@@ -93,15 +93,15 @@ static device_method_t saf1761_otg_methods[] = {
 };
 
 static driver_t saf1761_otg_driver = {
-	.name = "saf1761",
+	.name = "saf1761otg",
 	.methods = saf1761_otg_methods,
 	.size = sizeof(struct saf1761_otg_softc),
 };
 
 static devclass_t saf1761_otg_devclass;
 
-DRIVER_MODULE(saf1761, simplebus, saf1761_otg_driver, saf1761_otg_devclass, 0, 0);
-MODULE_DEPEND(saf1761, usb, 1, 1, 1);
+DRIVER_MODULE(saf1761otg, simplebus, saf1761_otg_driver, saf1761_otg_devclass, 0, 0);
+MODULE_DEPEND(saf1761otg, usb, 1, 1, 1);
 
 static int
 saf1761_otg_fdt_probe(device_t dev)
@@ -156,6 +156,20 @@ saf1761_otg_fdt_attach(device_t dev)
 		sc->sc_hw_mode |= SOTG_HW_MODE_CTRL_DREQ_POL;
 	}
 
+	/* get IRQ polarity */
+	if (OF_getprop(ofw_bus_get_node(dev), "int-polarity",
+	    &param, sizeof(param)) > 0) {
+		sc->sc_interrupt_cfg |= SOTG_INTERRUPT_CFG_INTPOL;
+		sc->sc_hw_mode |= SOTG_HW_MODE_CTRL_INTR_POL;
+	}
+
+	/* get IRQ level triggering */
+	if (OF_getprop(ofw_bus_get_node(dev), "int-level",
+	    &param, sizeof(param)) > 0) {
+		sc->sc_interrupt_cfg |= SOTG_INTERRUPT_CFG_INTLVL;
+		sc->sc_hw_mode |= SOTG_HW_MODE_CTRL_INTR_LEVEL;
+	}
+
 	/* initialise some bus fields */
 	sc->sc_bus.parent = dev;
 	sc->sc_bus.devices = sc->sc_devices;
@@ -168,29 +182,36 @@ saf1761_otg_fdt_attach(device_t dev)
 	}
 	rid = 0;
 	sc->sc_io_res =
-	    bus_alloc_resource_any(dev, SYS_RES_IOPORT, &rid, RF_ACTIVE);
+	    bus_alloc_resource_any(dev, SYS_RES_MEMORY, &rid, RF_ACTIVE);
 
-	if (!sc->sc_io_res) {
+	if (sc->sc_io_res == NULL) 
 		goto error;
-	}
+
 	sc->sc_io_tag = rman_get_bustag(sc->sc_io_res);
 	sc->sc_io_hdl = rman_get_bushandle(sc->sc_io_res);
 	sc->sc_io_size = rman_get_size(sc->sc_io_res);
 
-	rid = 0;
+	/* try to allocate the HC interrupt first */
+	rid = 1;
 	sc->sc_irq_res = bus_alloc_resource_any(dev, SYS_RES_IRQ, &rid,
 	    RF_SHAREABLE | RF_ACTIVE);
 	if (sc->sc_irq_res == NULL) {
-		goto error;
+		/* try to allocate a common IRQ second */
+		rid = 0;
+		sc->sc_irq_res = bus_alloc_resource_any(dev, SYS_RES_IRQ, &rid,
+		    RF_SHAREABLE | RF_ACTIVE);
+		if (sc->sc_irq_res == NULL)
+			goto error;
 	}
+
 	sc->sc_bus.bdev = device_add_child(dev, "usbus", -1);
-	if (!(sc->sc_bus.bdev)) {
+	if (sc->sc_bus.bdev == NULL)
 		goto error;
-	}
+
 	device_set_ivars(sc->sc_bus.bdev, &sc->sc_bus);
 
-	err = bus_setup_intr(dev, sc->sc_irq_res, INTR_TYPE_BIO | INTR_MPSAFE,
-	    NULL, (driver_intr_t *)saf1761_otg_interrupt, sc, &sc->sc_intr_hdl);
+	err = bus_setup_intr(dev, sc->sc_irq_res, INTR_TYPE_TTY | INTR_MPSAFE,
+	    &saf1761_otg_filter_interrupt, &saf1761_otg_interrupt, sc, &sc->sc_intr_hdl);
 	if (err) {
 		sc->sc_intr_hdl = NULL;
 		goto error;
@@ -243,7 +264,7 @@ saf1761_otg_fdt_detach(device_t dev)
 		sc->sc_irq_res = NULL;
 	}
 	if (sc->sc_io_res) {
-		bus_release_resource(dev, SYS_RES_IOPORT, 0,
+		bus_release_resource(dev, SYS_RES_MEMORY, 0,
 		    sc->sc_io_res);
 		sc->sc_io_res = NULL;
 	}

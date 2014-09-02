@@ -22,11 +22,13 @@
  * Copyright 2007 Sun Microsystems, Inc.  All rights reserved.
  * Use is subject to license terms.
  */
+/*
+ * Copyright (c) 2013 by Delphix. All rights reserved.
+ * Copyright (c) 2013 Joyent, Inc. All rights reserved.
+ */
 
 #ifndef	_DT_PARSER_H
 #define	_DT_PARSER_H
-
-#pragma ident	"%Z%%M%	%I%	%E% SMI"
 
 #include <sys/types.h>
 #include <sys/dtrace.h>
@@ -223,7 +225,7 @@ extern void dt_node_list_free(dt_node_t **);
 extern void dt_node_link_free(dt_node_t **);
 
 extern void dt_node_attr_assign(dt_node_t *, dtrace_attribute_t);
-extern void dt_node_type_assign(dt_node_t *, ctf_file_t *, ctf_id_t);
+extern void dt_node_type_assign(dt_node_t *, ctf_file_t *, ctf_id_t, boolean_t);
 extern void dt_node_type_propagate(const dt_node_t *, dt_node_t *);
 extern const char *dt_node_type_name(const dt_node_t *, char *, size_t);
 extern size_t dt_node_type_size(const dt_node_t *);

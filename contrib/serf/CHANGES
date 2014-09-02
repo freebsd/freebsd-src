@@ -1,4 +1,18 @@
-Serf 1.3.4 [2014-02-08, from /tags/1.3.4, rxxxx]
+Serf 1.3.7 [2014-08-11, from /tags/1.3.7, r2411]
+  Handle NUL bytes in fields of an X.509 certificate. (r2393, r2399)
+
+Serf 1.3.6 [2014-06-09, from /tags/1.3.6, r2372]
+  Revert r2319 from serf 1.3.5: this change was making serf call handle_response
+    multiple times in case of an error response, leading to unexpected behavior.
+
+Serf 1.3.5 [2014-04-27, from /tags/1.3.5, r2355]
+  Fix issue #125: no reverse lookup during Negotiate authentication for proxies.
+  Fix a crash caused by incorrect reuse of the ssltunnel CONNECT request (r2316)
+  Cancel request if response parsing failed + authn callback set (r2319)
+  Update the expired certificates in the test suite.
+
+
+Serf 1.3.4 [2014-02-08, from /tags/1.3.4, r2310]
   Fix issue #119: Endless loop during ssl tunnel setup with Negotiate authn
   Fix issue #123: Can't setup ssl tunnel which sends Connection close header
   Fix a race condition when initializing OpenSSL from multiple threads (r2263)

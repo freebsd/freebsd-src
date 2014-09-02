@@ -43,7 +43,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/sysctl.h>
 #include <sys/systm.h>
 
-#if defined(__amd64__) || defined(__i386__) || defined(__ia64__)
+#if defined(__amd64__) || defined(__i386__)
 #include <vm/vm.h>
 #include <vm/pmap.h>
 #endif
@@ -71,7 +71,6 @@ static int	vga_pci_release_resource(device_t dev, device_t child, int type,
     int rid, struct resource *r);
 
 int vga_pci_default_unit = -1;
-TUNABLE_INT("hw.pci.default_vgapci_unit", &vga_pci_default_unit);
 SYSCTL_INT(_hw_pci, OID_AUTO, default_vgapci_unit, CTLFLAG_RDTUN,
     &vga_pci_default_unit, -1, "Default VGA-compatible display");
 
@@ -138,7 +137,7 @@ vga_pci_map_bios(device_t dev, size_t *size)
 	int rid;
 	struct resource *res;
 
-#if defined(__amd64__) || defined(__i386__) || defined(__ia64__)
+#if defined(__amd64__) || defined(__i386__)
 	if (vga_pci_is_boot_display(dev)) {
 		/*
 		 * On x86, the System BIOS copy the default display
@@ -174,7 +173,7 @@ vga_pci_unmap_bios(device_t dev, void *bios)
 		return;
 	}
 
-#if defined(__amd64__) || defined(__i386__) || defined(__ia64__)
+#if defined(__amd64__) || defined(__i386__)
 	if (vga_pci_is_boot_display(dev)) {
 		/* We mapped the BIOS shadow copy located at 0xC0000. */
 		pmap_unmapdev((vm_offset_t)bios, VGA_PCI_BIOS_SHADOW_SIZE);

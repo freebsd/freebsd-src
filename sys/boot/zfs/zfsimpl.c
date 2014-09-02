@@ -56,6 +56,7 @@ static const char *features_for_read[] = {
 	"org.illumos:lz4_compress",
 	"com.delphix:hole_birth",
 	"com.delphix:extensible_dataset",
+	"com.delphix:embedded_data",
 	NULL
 };
 
@@ -1132,6 +1133,34 @@ zio_read(const spa_t *spa, const blkptr_t *bp, void *buf)
 	uint64_t align, size;
 	void *pbuf;
 	int i, error;
+
+	/*
+	 * Process data embedded in block pointer
+	 */
+	if (BP_IS_EMBEDDED(bp)) {
+		ASSERT(BPE_GET_ETYPE(bp) == BP_EMBEDDED_TYPE_DATA);
+
+		size = BPE_GET_PSIZE(bp);
+		ASSERT(size <= BPE_PAYLOAD_SIZE);
+
+		if (cpfunc != ZIO_COMPRESS_OFF)
+			pbuf = zfs_alloc(size);
+		else
+			pbuf = buf;
+
+		decode_embedded_bp_compressed(bp, pbuf);
+		error = 0;
+
+		if (cpfunc != ZIO_COMPRESS_OFF) {
+			error = zio_decompress_data(cpfunc, pbuf,
+			    size, buf, BP_GET_LSIZE(bp));
+			zfs_free(pbuf, size);
+		}
+		if (error != 0)
+			printf("ZFS: i/o error - unable to decompress block pointer data, error %d\n",
+			    error);
+		return (error);
+	}
 
 	error = EIO;
 

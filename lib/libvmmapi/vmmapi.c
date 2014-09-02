@@ -29,12 +29,14 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#include <sys/types.h>
+#include <sys/param.h>
 #include <sys/sysctl.h>
 #include <sys/ioctl.h>
 #include <sys/mman.h>
 #include <sys/_iovec.h>
+#include <sys/cpuset.h>
 
+#include <x86/segments.h>
 #include <machine/specialreg.h>
 #include <machine/param.h>
 
@@ -273,6 +275,20 @@ vm_map_gpa(struct vmctx *ctx, vm_paddr_t gaddr, size_t len)
 	return (NULL);
 }
 
+size_t
+vm_get_lowmem_size(struct vmctx *ctx)
+{
+
+	return (ctx->lowmem);
+}
+
+size_t
+vm_get_highmem_size(struct vmctx *ctx)
+{
+
+	return (ctx->highmem);
+}
+
 int
 vm_set_desc(struct vmctx *ctx, int vcpu, int reg,
 	    uint64_t base, uint32_t limit, uint32_t access)
@@ -308,6 +324,16 @@ vm_get_desc(struct vmctx *ctx, int vcpu, int reg,
 		*limit = vmsegdesc.desc.limit;
 		*access = vmsegdesc.desc.access;
 	}
+	return (error);
+}
+
+int
+vm_get_seg_desc(struct vmctx *ctx, int vcpu, int reg, struct seg_desc *seg_desc)
+{
+	int error;
+
+	error = vm_get_desc(ctx, vcpu, reg, &seg_desc->base, &seg_desc->limit,
+	    &seg_desc->access);
 	return (error);
 }
 
@@ -364,6 +390,13 @@ vm_suspend(struct vmctx *ctx, enum vm_suspend_how how)
 	bzero(&vmsuspend, sizeof(vmsuspend));
 	vmsuspend.how = how;
 	return (ioctl(ctx->fd, VM_SUSPEND, &vmsuspend));
+}
+
+int
+vm_reinit(struct vmctx *ctx)
+{
+
+	return (ioctl(ctx->fd, VM_REINIT, 0));
 }
 
 static int
@@ -966,7 +999,7 @@ gla2gpa(struct vmctx *ctx, int vcpu, struct vm_guest_paging *paging,
 #endif
 
 int
-vm_gla2gpa(struct vmctx *ctx, int vcpu, struct vm_guest_paging *paging,
+vm_copy_setup(struct vmctx *ctx, int vcpu, struct vm_guest_paging *paging,
     uint64_t gla, size_t len, int prot, struct iovec *iov, int iovcnt)
 {
 	uint64_t gpa;
@@ -1042,4 +1075,74 @@ vm_copyout(struct vmctx *ctx, int vcpu, const void *vp, struct iovec *iov,
 		src += n;
 		len -= n;
 	}
+}
+
+static int
+vm_get_cpus(struct vmctx *ctx, int which, cpuset_t *cpus)
+{
+	struct vm_cpuset vm_cpuset;
+	int error;
+
+	bzero(&vm_cpuset, sizeof(struct vm_cpuset));
+	vm_cpuset.which = which;
+	vm_cpuset.cpusetsize = sizeof(cpuset_t);
+	vm_cpuset.cpus = cpus;
+
+	error = ioctl(ctx->fd, VM_GET_CPUS, &vm_cpuset);
+	return (error);
+}
+
+int
+vm_active_cpus(struct vmctx *ctx, cpuset_t *cpus)
+{
+
+	return (vm_get_cpus(ctx, VM_ACTIVE_CPUS, cpus));
+}
+
+int
+vm_suspended_cpus(struct vmctx *ctx, cpuset_t *cpus)
+{
+
+	return (vm_get_cpus(ctx, VM_SUSPENDED_CPUS, cpus));
+}
+
+int
+vm_activate_cpu(struct vmctx *ctx, int vcpu)
+{
+	struct vm_activate_cpu ac;
+	int error;
+
+	bzero(&ac, sizeof(struct vm_activate_cpu));
+	ac.vcpuid = vcpu;
+	error = ioctl(ctx->fd, VM_ACTIVATE_CPU, &ac);
+	return (error);
+}
+
+int
+vm_get_intinfo(struct vmctx *ctx, int vcpu, uint64_t *info1, uint64_t *info2)
+{
+	struct vm_intinfo vmii;
+	int error;
+
+	bzero(&vmii, sizeof(struct vm_intinfo));
+	vmii.vcpuid = vcpu;
+	error = ioctl(ctx->fd, VM_GET_INTINFO, &vmii);
+	if (error == 0) {
+		*info1 = vmii.info1;
+		*info2 = vmii.info2;
+	}
+	return (error);
+}
+
+int
+vm_set_intinfo(struct vmctx *ctx, int vcpu, uint64_t info1)
+{
+	struct vm_intinfo vmii;
+	int error;
+
+	bzero(&vmii, sizeof(struct vm_intinfo));
+	vmii.vcpuid = vcpu;
+	vmii.info1 = info1;
+	error = ioctl(ctx->fd, VM_SET_INTINFO, &vmii);
+	return (error);
 }

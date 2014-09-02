@@ -71,13 +71,14 @@ spans the initial part of the null-terminated string
 .Fa s
 as long as the characters from
 .Fa s
-do not occur in the null-terminated string
+.Sy do not 
+occur in the null-terminated string
 .Fa charset
-(it
-spans the
-.Em complement
+.Po it spans the
+.Sy complement
 of
-.Fa charset ) .
+.Fa charset
+.Pc .
 In other words, it computes the string array index
 of the first character of
 .Fa s

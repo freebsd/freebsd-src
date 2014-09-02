@@ -1226,43 +1226,37 @@ ae_dma_free(ae_softc_t *sc)
 {
 
 	if (sc->dma_txd_tag != NULL) {
-		if (sc->dma_txd_map != NULL) {
+		if (sc->dma_txd_busaddr != 0)
 			bus_dmamap_unload(sc->dma_txd_tag, sc->dma_txd_map);
-			if (sc->txd_base != NULL)
-				bus_dmamem_free(sc->dma_txd_tag, sc->txd_base,
-				    sc->dma_txd_map);
-
-		}
+		if (sc->txd_base != NULL)
+			bus_dmamem_free(sc->dma_txd_tag, sc->txd_base,
+			    sc->dma_txd_map);
 		bus_dma_tag_destroy(sc->dma_txd_tag);
-		sc->dma_txd_map = NULL;
 		sc->dma_txd_tag = NULL;
 		sc->txd_base = NULL;
+		sc->dma_txd_busaddr = 0;
 	}
 	if (sc->dma_txs_tag != NULL) {
-		if (sc->dma_txs_map != NULL) {
+		if (sc->dma_txs_busaddr != 0)
 			bus_dmamap_unload(sc->dma_txs_tag, sc->dma_txs_map);
-			if (sc->txs_base != NULL)
-				bus_dmamem_free(sc->dma_txs_tag, sc->txs_base,
-				    sc->dma_txs_map);
-
-		}
+		if (sc->txs_base != NULL)
+			bus_dmamem_free(sc->dma_txs_tag, sc->txs_base,
+			    sc->dma_txs_map);
 		bus_dma_tag_destroy(sc->dma_txs_tag);
-		sc->dma_txs_map = NULL;
 		sc->dma_txs_tag = NULL;
 		sc->txs_base = NULL;
+		sc->dma_txs_busaddr = 0;
 	}
 	if (sc->dma_rxd_tag != NULL) {
-		if (sc->dma_rxd_map != NULL) {
+		if (sc->dma_rxd_busaddr != 0)
 			bus_dmamap_unload(sc->dma_rxd_tag, sc->dma_rxd_map);
-			if (sc->rxd_base_dma != NULL)
-				bus_dmamem_free(sc->dma_rxd_tag,
-				    sc->rxd_base_dma, sc->dma_rxd_map);
-
-		}
+		if (sc->rxd_base_dma != NULL)
+			bus_dmamem_free(sc->dma_rxd_tag, sc->rxd_base_dma,
+			    sc->dma_rxd_map);
 		bus_dma_tag_destroy(sc->dma_rxd_tag);
-		sc->dma_rxd_map = NULL;
 		sc->dma_rxd_tag = NULL;
 		sc->rxd_base_dma = NULL;
+		sc->dma_rxd_busaddr = 0;
 	}
 	if (sc->dma_parent_tag != NULL) {
 		bus_dma_tag_destroy(sc->dma_parent_tag);

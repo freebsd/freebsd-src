@@ -51,12 +51,12 @@ int
 puts(char const *s)
 {
 	int retval;
-	size_t c = strlen(s);
+	size_t c;
 	struct __suio uio;
 	struct __siov iov[2];
 
 	iov[0].iov_base = (void *)s;
-	iov[0].iov_len = c;
+	iov[0].iov_len = c = strlen(s);
 	iov[1].iov_base = "\n";
 	iov[1].iov_len = 1;
 	uio.uio_resid = c + 1;

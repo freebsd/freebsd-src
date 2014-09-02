@@ -6,12 +6,13 @@
 cpu		I686_CPU
 ident		XEN
 
-makeoptions	DEBUG=-g
-makeoptions	WITHOUT_MODULES="aha ahb amd ctl cxgb dpt drm drm2 hptnr hptmv ida malo mpr mps mwl rdma sound sym trm xfs"
+makeoptions	DEBUG=-g		# Build kernel with gdb(1) debug symbols
+
+# The following modules don't build with PAE and XEN enabled.
+makeoptions	WITHOUT_MODULES="ctl dpt drm drm2 hptmv ida malo mwl"
 
 options 	SCHED_ULE		# ULE scheduler
 options 	PREEMPTION		# Enable kernel thread preemption
-#options 	SCHED_4BSD		 
 
 options 	INET			# InterNETworking
 options 	INET6			# IPv6 communications protocols
@@ -65,7 +66,6 @@ options 	MCLSHIFT=12
 options 	SMP			# Symmetric MultiProcessor Kernel
 device		apic			# I/O APIC
 
-
 #device		atkbdc		# AT keyboard controller
 #device		atkbd		# AT keyboard
 device		psm		# PS/2 mouse
@@ -90,4 +90,3 @@ options 	AH_SUPPORT_AR5416
 # Be aware of the administrative consequences of enabling this!
 # Note that 'bpf' is required for DHCP.
 device		bpf		# Berkeley packet filter
-

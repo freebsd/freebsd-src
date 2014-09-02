@@ -330,12 +330,13 @@ job-creation lock file
 .Xr cron 8 ,
 .Xr sendmail 8
 .Sh AUTHORS
+.An -nosplit
 At was mostly written by
-.An Thomas Koenig Aq ig25@rz.uni-karlsruhe.de .
+.An Thomas Koenig Aq Mt ig25@rz.uni-karlsruhe.de .
 The time parsing routines are by
-.An David Parsons Aq orc@pell.chi.il.us ,
+.An David Parsons Aq Mt orc@pell.chi.il.us ,
 with minor enhancements by
-.An Joe Halpin Aq joe.halpin@attbi.com .
+.An Joe Halpin Aq Mt joe.halpin@attbi.com .
 .Sh BUGS
 If the file
 .Pa /var/run/utx.active

@@ -56,9 +56,6 @@
 #define I40E_DEV_ID_QSFP_A		0x1583
 #define I40E_DEV_ID_QSFP_B		0x1584
 #define I40E_DEV_ID_QSFP_C		0x1585
-#ifdef FORTVILLE_A0_SUPPORT
-#define I40E_DEV_ID_10G_BASE_T		0x1586
-#endif
 #define I40E_DEV_ID_VF			0x154C
 #define I40E_DEV_ID_VF_HV		0x1571
 
@@ -66,8 +63,10 @@
 					 (d) == I40E_DEV_ID_QSFP_B  || \
 					 (d) == I40E_DEV_ID_QSFP_C)
 
+#ifndef I40E_MASK
 /* I40E_MASK is a macro used on 32 bit registers */
 #define I40E_MASK(mask, shift) (mask << shift)
+#endif
 
 #define I40E_MAX_PF			16
 #define I40E_MAX_PF_VSI			64
@@ -214,10 +213,10 @@ enum i40e_fc_mode {
 
 enum i40e_set_fc_aq_failures {
 	I40E_SET_FC_AQ_FAIL_NONE = 0,
-	I40E_SET_FC_AQ_FAIL_GET1 = 1,
+	I40E_SET_FC_AQ_FAIL_GET = 1,
 	I40E_SET_FC_AQ_FAIL_SET = 2,
-	I40E_SET_FC_AQ_FAIL_GET2 = 4,
-	I40E_SET_FC_AQ_FAIL_SET_GET = 6
+	I40E_SET_FC_AQ_FAIL_UPDATE = 4,
+	I40E_SET_FC_AQ_FAIL_SET_UPDATE = 6
 };
 
 enum i40e_vsi_type {
@@ -533,6 +532,10 @@ struct i40e_hw {
 
 	/* Admin Queue info */
 	struct i40e_adminq_info aq;
+#ifdef I40E_QV
+	bool aq_dbg_ena; /* use Tools AQ instead of PF AQ */
+	bool qv_force_init;
+#endif
 
 	/* state of nvm update process */
 	enum i40e_nvmupd_state nvmupd_state;

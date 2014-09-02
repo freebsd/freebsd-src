@@ -146,7 +146,8 @@ static int
 vmmdev_ioctl(struct cdev *cdev, u_long cmd, caddr_t data, int fflag,
 	     struct thread *td)
 {
-	int error, vcpu, state_changed;
+	int error, vcpu, state_changed, size;
+	cpuset_t *cpuset;
 	struct vmmdev_softc *sc;
 	struct vm_memory_segment *seg;
 	struct vm_register *vmreg;
@@ -170,6 +171,9 @@ vmmdev_ioctl(struct cdev *cdev, u_long cmd, caddr_t data, int fflag,
 	struct vm_gpa_pte *gpapte;
 	struct vm_suspend *vmsuspend;
 	struct vm_gla2gpa *gg;
+	struct vm_activate_cpu *vac;
+	struct vm_cpuset *vm_cpuset;
+	struct vm_intinfo *vmii;
 
 	sc = vmmdev_lookup2(cdev);
 	if (sc == NULL)
@@ -195,6 +199,9 @@ vmmdev_ioctl(struct cdev *cdev, u_long cmd, caddr_t data, int fflag,
 	case VM_PPTDEV_MSIX:
 	case VM_SET_X2APIC_STATE:
 	case VM_GLA2GPA:
+	case VM_ACTIVATE_CPU:
+	case VM_SET_INTINFO:
+	case VM_GET_INTINFO:
 		/*
 		 * XXX fragile, handle with care
 		 * Assumes that the first field of the ioctl data is the vcpu.
@@ -216,6 +223,7 @@ vmmdev_ioctl(struct cdev *cdev, u_long cmd, caddr_t data, int fflag,
 	case VM_BIND_PPTDEV:
 	case VM_UNBIND_PPTDEV:
 	case VM_MAP_MEMORY:
+	case VM_REINIT:
 		/*
 		 * ioctls that operate on the entire virtual machine must
 		 * prevent all vcpus from running.
@@ -248,6 +256,9 @@ vmmdev_ioctl(struct cdev *cdev, u_long cmd, caddr_t data, int fflag,
 	case VM_SUSPEND:
 		vmsuspend = (struct vm_suspend *)data;
 		error = vm_suspend(sc->vm, vmsuspend->how);
+		break;
+	case VM_REINIT:
+		error = vm_reinit(sc->vm);
 		break;
 	case VM_STAT_DESC: {
 		statdesc = (struct vm_stat_desc *)data;
@@ -439,6 +450,38 @@ vmmdev_ioctl(struct cdev *cdev, u_long cmd, caddr_t data, int fflag,
 		}
 		break;
 	}
+	case VM_ACTIVATE_CPU:
+		vac = (struct vm_activate_cpu *)data;
+		error = vm_activate_cpu(sc->vm, vac->vcpuid);
+		break;
+	case VM_GET_CPUS:
+		error = 0;
+		vm_cpuset = (struct vm_cpuset *)data;
+		size = vm_cpuset->cpusetsize;
+		if (size < sizeof(cpuset_t) || size > CPU_MAXSIZE / NBBY) {
+			error = ERANGE;
+			break;
+		}
+		cpuset = malloc(size, M_TEMP, M_WAITOK | M_ZERO);
+		if (vm_cpuset->which == VM_ACTIVE_CPUS)
+			*cpuset = vm_active_cpus(sc->vm);
+		else if (vm_cpuset->which == VM_SUSPENDED_CPUS)
+			*cpuset = vm_suspended_cpus(sc->vm);
+		else
+			error = EINVAL;
+		if (error == 0)
+			error = copyout(cpuset, vm_cpuset->cpus, size);
+		free(cpuset, M_TEMP);
+		break;
+	case VM_SET_INTINFO:
+		vmii = (struct vm_intinfo *)data;
+		error = vm_exit_intinfo(sc->vm, vmii->vcpuid, vmii->info1);
+		break;
+	case VM_GET_INTINFO:
+		vmii = (struct vm_intinfo *)data;
+		error = vm_get_intinfo(sc->vm, vmii->vcpuid, &vmii->info1,
+		    &vmii->info2);
+		break;
 	default:
 		error = ENOTTY;
 		break;

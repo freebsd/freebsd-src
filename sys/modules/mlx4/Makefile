@@ -1,8 +1,5 @@
 # $FreeBSD$
 .PATH:  ${.CURDIR}/../../ofed/drivers/net/mlx4
-
-.include <src.opts.mk>
-
 .PATH:  ${.CURDIR}/../../ofed/include/linux
 KMOD    = mlx4
 SRCS    = device_if.h bus_if.h pci_if.h vnode_if.h
@@ -11,18 +8,6 @@ SRCS+=	pd.c port.c profile.c qp.c reset.c sense.c srq.c resource_tracker.c sys_t
 
 CFLAGS+= -I${.CURDIR}/../../ofed/drivers/net/mlx4
 CFLAGS+= -I${.CURDIR}/../../ofed/include/
-
-.if !defined(KERNBUILDDIR)
-.if ${MK_INET_SUPPORT} != "no"
-opt_inet.h:
-	@echo "#define INET 1" > ${.TARGET}
-.endif
-
-.if ${MK_INET6_SUPPORT} != "no"
-opt_inet6.h:
-	@echo "#define INET6 1" > ${.TARGET}
-.endif
-.endif
 
 .include <bsd.kmod.mk>
 

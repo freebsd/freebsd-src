@@ -47,13 +47,11 @@ __FBSDID("$FreeBSD$");
 
 #include "iicbus_if.h"
 
-#include <dev/fdt/fdt_common.h>
 #include <dev/ofw/openfirm.h>
 #include <dev/ofw/ofw_bus.h>
 #include <dev/ofw/ofw_bus_subr.h>
 
 #include <machine/bus.h>
-#include <machine/fdt.h>
 #include <machine/cpu.h>
 #include <machine/intr.h>
 
@@ -372,6 +370,13 @@ i2c_read(device_t dev, char *buf, int len,
 	mtx_lock(&sc->mutex);
 
 	/* dummy read */
+	clear_ipend(sc);
+	error = wait_for_iif(sc);
+	if (error) {
+		DPRINTF("cant i2c read: iif error\n");
+		mtx_unlock(&sc->mutex);
+		return (error);
+	}
 	READ1(sc, I2CDS);
 
 	DPRINTF("Read ");

@@ -258,8 +258,8 @@ static struct	pte *moea_pvo_to_pte(const struct pvo_entry *, int);
 /*
  * Utility routines.
  */
-static void		moea_enter_locked(pmap_t, vm_offset_t, vm_page_t,
-			    vm_prot_t, boolean_t);
+static int		moea_enter_locked(pmap_t, vm_offset_t, vm_page_t,
+			    vm_prot_t, u_int, int8_t);
 static void		moea_syncicache(vm_offset_t, vm_size_t);
 static boolean_t	moea_query_bit(vm_page_t, int);
 static u_int		moea_clear_bit(vm_page_t, int);
@@ -269,12 +269,12 @@ int		moea_pte_spill(vm_offset_t);
 /*
  * Kernel MMU interface
  */
-void moea_change_wiring(mmu_t, pmap_t, vm_offset_t, boolean_t);
 void moea_clear_modify(mmu_t, vm_page_t);
 void moea_copy_page(mmu_t, vm_page_t, vm_page_t);
 void moea_copy_pages(mmu_t mmu, vm_page_t *ma, vm_offset_t a_offset,
     vm_page_t *mb, vm_offset_t b_offset, int xfersize);
-void moea_enter(mmu_t, pmap_t, vm_offset_t, vm_page_t, vm_prot_t, boolean_t);
+int moea_enter(mmu_t, pmap_t, vm_offset_t, vm_page_t, vm_prot_t, u_int,
+    int8_t);
 void moea_enter_object(mmu_t, pmap_t, vm_offset_t, vm_offset_t, vm_page_t,
     vm_prot_t);
 void moea_enter_quick(mmu_t, pmap_t, vm_offset_t, vm_page_t, vm_prot_t);
@@ -297,6 +297,7 @@ void moea_release(mmu_t, pmap_t);
 void moea_remove(mmu_t, pmap_t, vm_offset_t, vm_offset_t);
 void moea_remove_all(mmu_t, vm_page_t);
 void moea_remove_write(mmu_t, vm_page_t);
+void moea_unwire(mmu_t, pmap_t, vm_offset_t, vm_offset_t);
 void moea_zero_page(mmu_t, vm_page_t);
 void moea_zero_page_area(mmu_t, vm_page_t, int, int);
 void moea_zero_page_idle(mmu_t, vm_page_t);
@@ -318,7 +319,6 @@ vm_offset_t moea_dumpsys_map(mmu_t mmu, struct pmap_md *md, vm_size_t ofs,
 struct pmap_md * moea_scan_md(mmu_t mmu, struct pmap_md *prev);
 
 static mmu_method_t moea_methods[] = {
-	MMUMETHOD(mmu_change_wiring,	moea_change_wiring),
 	MMUMETHOD(mmu_clear_modify,	moea_clear_modify),
 	MMUMETHOD(mmu_copy_page,	moea_copy_page),
 	MMUMETHOD(mmu_copy_pages,	moea_copy_pages),
@@ -345,6 +345,7 @@ static mmu_method_t moea_methods[] = {
 	MMUMETHOD(mmu_remove_all,      	moea_remove_all),
 	MMUMETHOD(mmu_remove_write,	moea_remove_write),
 	MMUMETHOD(mmu_sync_icache,	moea_sync_icache),
+	MMUMETHOD(mmu_unwire,		moea_unwire),
 	MMUMETHOD(mmu_zero_page,       	moea_zero_page),
 	MMUMETHOD(mmu_zero_page_area,	moea_zero_page_area),
 	MMUMETHOD(mmu_zero_page_idle,	moea_zero_page_idle),
@@ -1014,23 +1015,19 @@ moea_deactivate(mmu_t mmu, struct thread *td)
 }
 
 void
-moea_change_wiring(mmu_t mmu, pmap_t pm, vm_offset_t va, boolean_t wired)
+moea_unwire(mmu_t mmu, pmap_t pm, vm_offset_t sva, vm_offset_t eva)
 {
-	struct	pvo_entry *pvo;
+	struct	pvo_entry key, *pvo;
 
 	PMAP_LOCK(pm);
-	pvo = moea_pvo_find_va(pm, va & ~ADDR_POFF, NULL);
-
-	if (pvo != NULL) {
-		if (wired) {
-			if ((pvo->pvo_vaddr & PVO_WIRED) == 0)
-				pm->pm_stats.wired_count++;
-			pvo->pvo_vaddr |= PVO_WIRED;
-		} else {
-			if ((pvo->pvo_vaddr & PVO_WIRED) != 0)
-				pm->pm_stats.wired_count--;
-			pvo->pvo_vaddr &= ~PVO_WIRED;
-		}
+	key.pvo_vaddr = sva;
+	for (pvo = RB_NFIND(pvo_tree, &pm->pmap_pvo, &key);
+	    pvo != NULL && PVO_VADDR(pvo) < eva;
+	    pvo = RB_NEXT(pvo_tree, &pm->pmap_pvo, pvo)) {
+		if ((pvo->pvo_vaddr & PVO_WIRED) == 0)
+			panic("moea_unwire: pvo %p is missing PVO_WIRED", pvo);
+		pvo->pvo_vaddr &= ~PVO_WIRED;
+		pm->pm_stats.wired_count--;
 	}
 	PMAP_UNLOCK(pm);
 }
@@ -1104,16 +1101,25 @@ moea_zero_page_idle(mmu_t mmu, vm_page_t m)
  * target pmap with the protection requested.  If specified the page
  * will be wired down.
  */
-void
+int
 moea_enter(mmu_t mmu, pmap_t pmap, vm_offset_t va, vm_page_t m, vm_prot_t prot,
-	   boolean_t wired)
+    u_int flags, int8_t psind)
 {
+	int error;
 
-	rw_wlock(&pvh_global_lock);
-	PMAP_LOCK(pmap);
-	moea_enter_locked(pmap, va, m, prot, wired);
-	rw_wunlock(&pvh_global_lock);
-	PMAP_UNLOCK(pmap);
+	for (;;) {
+		rw_wlock(&pvh_global_lock);
+		PMAP_LOCK(pmap);
+		error = moea_enter_locked(pmap, va, m, prot, flags, psind);
+		rw_wunlock(&pvh_global_lock);
+		PMAP_UNLOCK(pmap);
+		if (error != ENOMEM)
+			return (KERN_SUCCESS);
+		if ((flags & PMAP_ENTER_NOSLEEP) != 0)
+			return (KERN_RESOURCE_SHORTAGE);
+		VM_OBJECT_ASSERT_UNLOCKED(m->object);
+		VM_WAIT;
+	}
 }
 
 /*
@@ -1121,40 +1127,31 @@ moea_enter(mmu_t mmu, pmap_t pmap, vm_offset_t va, vm_page_t m, vm_prot_t prot,
  * target pmap with the protection requested.  If specified the page
  * will be wired down.
  *
- * The page queues and pmap must be locked.
+ * The global pvh and pmap must be locked.
  */
-static void
+static int
 moea_enter_locked(pmap_t pmap, vm_offset_t va, vm_page_t m, vm_prot_t prot,
-    boolean_t wired)
+    u_int flags, int8_t psind __unused)
 {
 	struct		pvo_head *pvo_head;
 	uma_zone_t	zone;
-	vm_page_t	pg;
 	u_int		pte_lo, pvo_flags;
 	int		error;
 
-	if (!moea_initialized) {
-		pvo_head = &moea_pvo_kunmanaged;
-		zone = moea_upvo_zone;
-		pvo_flags = 0;
-		pg = NULL;
-	} else {
-		pvo_head = vm_page_to_pvoh(m);
-		pg = m;
-		zone = moea_mpvo_zone;
-		pvo_flags = PVO_MANAGED;
-	}
 	if (pmap_bootstrapped)
 		rw_assert(&pvh_global_lock, RA_WLOCKED);
 	PMAP_LOCK_ASSERT(pmap, MA_OWNED);
 	if ((m->oflags & VPO_UNMANAGED) == 0 && !vm_page_xbusied(m))
 		VM_OBJECT_ASSERT_LOCKED(m->object);
 
-	/* XXX change the pvo head for fake pages */
-	if ((m->oflags & VPO_UNMANAGED) != 0) {
-		pvo_flags &= ~PVO_MANAGED;
+	if ((m->oflags & VPO_UNMANAGED) != 0 || !moea_initialized) {
 		pvo_head = &moea_pvo_kunmanaged;
 		zone = moea_upvo_zone;
+		pvo_flags = 0;
+	} else {
+		pvo_head = vm_page_to_pvoh(m);
+		zone = moea_mpvo_zone;
+		pvo_flags = PVO_MANAGED;
 	}
 
 	pte_lo = moea_calc_wimg(VM_PAGE_TO_PHYS(m), pmap_page_get_memattr(m));
@@ -1167,10 +1164,7 @@ moea_enter_locked(pmap_t pmap, vm_offset_t va, vm_page_t m, vm_prot_t prot,
 	} else
 		pte_lo |= PTE_BR;
 
-	if (prot & VM_PROT_EXECUTE)
-		pvo_flags |= PVO_EXECUTABLE;
-
-	if (wired)
+	if ((flags & PMAP_ENTER_WIRED) != 0)
 		pvo_flags |= PVO_WIRED;
 
 	error = moea_pvo_enter(pmap, zone, pvo_head, va, VM_PAGE_TO_PHYS(m),
@@ -1185,6 +1179,8 @@ moea_enter_locked(pmap_t pmap, vm_offset_t va, vm_page_t m, vm_prot_t prot,
 	if (pmap != kernel_pmap && error == ENOENT &&
 	    (pte_lo & (PTE_I | PTE_G)) == 0)
 		moea_syncicache(VM_PAGE_TO_PHYS(m), PAGE_SIZE);
+
+	return (error);
 }
 
 /*
@@ -1214,7 +1210,7 @@ moea_enter_object(mmu_t mmu, pmap_t pm, vm_offset_t start, vm_offset_t end,
 	PMAP_LOCK(pm);
 	while (m != NULL && (diff = m->pindex - m_start->pindex) < psize) {
 		moea_enter_locked(pm, start + ptoa(diff), m, prot &
-		    (VM_PROT_READ | VM_PROT_EXECUTE), FALSE);
+		    (VM_PROT_READ | VM_PROT_EXECUTE), 0, 0);
 		m = TAILQ_NEXT(m, listq);
 	}
 	rw_wunlock(&pvh_global_lock);
@@ -1229,7 +1225,7 @@ moea_enter_quick(mmu_t mmu, pmap_t pm, vm_offset_t va, vm_page_t m,
 	rw_wlock(&pvh_global_lock);
 	PMAP_LOCK(pm);
 	moea_enter_locked(pm, va, m, prot & (VM_PROT_READ | VM_PROT_EXECUTE),
-	    FALSE);
+	    0, 0);
 	rw_wunlock(&pvh_global_lock);
 	PMAP_UNLOCK(pm);
 }
@@ -1725,8 +1721,6 @@ moea_protect(mmu_t mmu, pmap_t pm, vm_offset_t sva, vm_offset_t eva,
 	for (pvo = RB_NFIND(pvo_tree, &pm->pmap_pvo, &key);
 	    pvo != NULL && PVO_VADDR(pvo) < eva; pvo = tpvo) {
 		tpvo = RB_NEXT(pvo_tree, &pm->pmap_pvo, pvo);
-		if ((prot & VM_PROT_EXECUTE) == 0)
-			pvo->pvo_vaddr &= ~PVO_EXECUTABLE;
 
 		/*
 		 * Grab the PTE pointer before we diddle with the cached PTE
@@ -1934,7 +1928,21 @@ moea_pvo_enter(pmap_t pm, uma_zone_t zone, struct pvo_head *pvo_head,
 			if ((pvo->pvo_pte.pte.pte_lo & PTE_RPGN) == pa &&
 			    (pvo->pvo_pte.pte.pte_lo & PTE_PP) ==
 			    (pte_lo & PTE_PP)) {
+				/*
+				 * The PTE is not changing.  Instead, this may
+				 * be a request to change the mapping's wired
+				 * attribute.
+				 */
 				mtx_unlock(&moea_table_mutex);
+				if ((flags & PVO_WIRED) != 0 &&
+				    (pvo->pvo_vaddr & PVO_WIRED) == 0) {
+					pvo->pvo_vaddr |= PVO_WIRED;
+					pm->pm_stats.wired_count++;
+				} else if ((flags & PVO_WIRED) == 0 &&
+				    (pvo->pvo_vaddr & PVO_WIRED) != 0) {
+					pvo->pvo_vaddr &= ~PVO_WIRED;
+					pm->pm_stats.wired_count--;
+				}
 				return (0);
 			}
 			moea_pvo_remove(pvo, -1);
@@ -1968,8 +1976,6 @@ moea_pvo_enter(pmap_t pm, uma_zone_t zone, struct pvo_head *pvo_head,
 	pvo->pvo_pmap = pm;
 	LIST_INSERT_HEAD(&moea_pvo_table[ptegidx], pvo, pvo_olink);
 	pvo->pvo_vaddr &= ~ADDR_POFF;
-	if (flags & VM_PROT_EXECUTE)
-		pvo->pvo_vaddr |= PVO_EXECUTABLE;
 	if (flags & PVO_WIRED)
 		pvo->pvo_vaddr |= PVO_WIRED;
 	if (pvo_head != &moea_pvo_kunmanaged)
@@ -1992,7 +1998,7 @@ moea_pvo_enter(pmap_t pm, uma_zone_t zone, struct pvo_head *pvo_head,
 		first = 1;
 	LIST_INSERT_HEAD(pvo_head, pvo, pvo_vlink);
 
-	if (pvo->pvo_pte.pte.pte_lo & PVO_WIRED)
+	if (pvo->pvo_vaddr & PVO_WIRED)
 		pm->pm_stats.wired_count++;
 	pm->pm_stats.resident_count++;
 
@@ -2031,7 +2037,7 @@ moea_pvo_remove(struct pvo_entry *pvo, int pteidx)
 	 * Update our statistics.
 	 */
 	pvo->pvo_pmap->pm_stats.resident_count--;
-	if (pvo->pvo_pte.pte.pte_lo & PVO_WIRED)
+	if (pvo->pvo_vaddr & PVO_WIRED)
 		pvo->pvo_pmap->pm_stats.wired_count--;
 
 	/*

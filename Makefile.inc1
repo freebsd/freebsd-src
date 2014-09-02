@@ -17,6 +17,7 @@
 #	-DNO_DOCUPDATE do not update doc in ${MAKE} update
 #	-DWITHOUT_CTF do not run the DTrace CTF conversion tools on built objects
 #	LOCAL_DIRS="list of dirs" to add additional dirs to the SUBDIR list
+#	LOCAL_ITOOLS="list of tools" to add additional tools to the ITOOLS list
 #	LOCAL_LIB_DIRS="list of dirs" to add additional dirs to libraries target
 #	LOCAL_MTREE="list of mtree files" to process to allow local directories
 #	    to be created before files are installed
@@ -139,7 +140,7 @@ SRCRELDATE!=	awk '/^\#define[[:space:]]*__FreeBSD_version/ { print $$3 }' \
 VERSION=	FreeBSD ${REVISION}-${BRANCH:C/-p[0-9]+$//} ${TARGET_ARCH} ${SRCRELDATE}
 .endif
 
-KNOWN_ARCHES?=	amd64 arm armeb/arm armv6/arm armv6hf/arm i386 i386/pc98 ia64 mips mipsel/mips mips64el/mips mips64/mips mipsn32el/mips mipsn32/mips powerpc powerpc64/powerpc sparc64
+KNOWN_ARCHES?=	amd64 arm armeb/arm armv6/arm armv6hf/arm i386 i386/pc98 mips mipsel/mips mips64el/mips mips64/mips mipsn32el/mips mipsn32/mips powerpc powerpc64/powerpc sparc64
 .if ${TARGET} == ${TARGET_ARCH}
 _t=		${TARGET}
 .else
@@ -245,7 +246,7 @@ BMAKE=		MAKEOBJDIRPREFIX=${WORLDTMP} \
 		${BMAKEENV} ${MAKE} ${WORLD_FLAGS} -f Makefile.inc1 \
 		DESTDIR= \
 		BOOTSTRAPPING=${OSRELDATE} \
-		SSP_CFLAGS= \
+		SSP_CFLAGS= MK_PIE=no \
 		MK_HTML=no MK_INFO=no NO_LINT=yes MK_MAN=no \
 		-DNO_PIC MK_PROFILE=no -DNO_SHARED \
 		-DNO_CPU_CFLAGS MK_WARNS=no MK_CTF=no \
@@ -257,7 +258,7 @@ TMAKE=		MAKEOBJDIRPREFIX=${OBJTREE} \
 		TARGET=${TARGET} TARGET_ARCH=${TARGET_ARCH} \
 		DESTDIR= \
 		BOOTSTRAPPING=${OSRELDATE} \
-		SSP_CFLAGS= \
+		SSP_CFLAGS= MK_PIE=no \
 		-DNO_LINT \
 		-DNO_CPU_CFLAGS MK_WARNS=no MK_CTF=no MK_CLANG_FULL=no MK_LLDB=no MK_TESTS=no
 
@@ -275,7 +276,7 @@ KTMAKE=		TOOLS_PREFIX=${WORLDTMP} MAKEOBJDIRPREFIX=${WORLDTMP} \
 		${KTMAKEENV} ${MAKE} ${WORLD_FLAGS} -f Makefile.inc1 \
 		DESTDIR= \
 		BOOTSTRAPPING=${OSRELDATE} \
-		SSP_CFLAGS= \
+		SSP_CFLAGS= MK_PIE=no \
 		MK_HTML=no MK_INFO=no -DNO_LINT MK_MAN=no \
 		-DNO_PIC MK_PROFILE=no -DNO_SHARED \
 		-DNO_CPU_CFLAGS MK_WARNS=no MK_CTF=no
@@ -394,7 +395,8 @@ LIB32WMAKEENV+=	MAKEOBJDIRPREFIX=${OBJTREE}/lib32 \
 		PATH=${TMPPATH} \
 		LIBDIR=/usr/lib32 \
 		SHLIBDIR=/usr/lib32 \
-		LIBPRIVATEDIR=/usr/lib32/private
+		LIBPRIVATEDIR=/usr/lib32/private \
+		DTRACE="${DTRACE} -32"
 LIB32WMAKEFLAGS+= CC="${XCC} ${LIB32FLAGS}" \
 		CXX="${XCXX} ${LIB32FLAGS}" \
 		DESTDIR=${LIB32TMP} \
@@ -756,7 +758,8 @@ _zoneinfo=	zic tzsetup
 ITOOLS=	[ awk cap_mkdb cat chflags chmod chown \
 	date echo egrep find grep id install ${_install-info} \
 	ln lockf make mkdir mtree mv pwd_mkdb \
-	rm sed services_mkdb sh sysctl test true uname wc ${_zoneinfo}
+	rm sed services_mkdb sh sysctl test true uname wc ${_zoneinfo} \
+	${LOCAL_ITOOLS}
 
 #
 # distributeworld
@@ -775,6 +778,14 @@ EXTRA_DISTRIBUTIONS+=	games
 .endif
 .if defined(LIB32TMP) && ${MK_LIB32} != "no"
 EXTRA_DISTRIBUTIONS+=	lib32
+.endif
+.if ${MK_TESTS} != "no"
+EXTRA_DISTRIBUTIONS+=	tests
+.endif
+
+DEBUG_DISTRIBUTIONS=
+.if ${MK_DEBUG_FILES} != "no"
+DEBUG_DISTRIBUTIONS+=	base ${EXTRA_DISTRIBUTIONS:S,doc,,}
 .endif
 
 MTREE_MAGIC?=	mtree 2.0
@@ -817,6 +828,10 @@ distributeworld installworld: _installcheck_world
 	mtree -deU -f ${.CURDIR}/etc/mtree/BSD.debug.dist \
 	    -p ${DESTDIR}/${DISTDIR}/${dist}/usr/lib >/dev/null
 .endif
+.if ${MK_TESTS} != "no" && ${dist} == "tests"
+	mtree -deU -f ${.CURDIR}/etc/mtree/BSD.tests.dist \
+	    -p ${DESTDIR}/${DISTDIR}/${dist}/usr >/dev/null
+.endif
 .if defined(NO_ROOT)
 	${IMAKEENV} mtree -C -f ${.CURDIR}/etc/mtree/BSD.root.dist | \
 	    sed -e 's#^\./#./${dist}/#' >> ${METALOG}
@@ -849,8 +864,7 @@ distributeworld installworld: _installcheck_world
 	awk 'BEGIN { print "#${MTREE_MAGIC}" } !/ type=/ { file = $$1 } / type=/ { if ($$1 == file) { sub(/^\.\/${dist}\//, "./"); print } }' > \
 	${DESTDIR}/${DISTDIR}/${dist}.meta
 .endfor
-.if ${MK_DEBUG_FILES} != "no"
-. for dist in base ${EXTRA_DISTRIBUTIONS}
+.for dist in ${DEBUG_DISTRIBUTIONS}
 	@# For each file that exists in this dist, print the corresponding
 	@# line from the METALOG.  This relies on the fact that
 	@# a line containing only the filename will sort immediatly before
@@ -859,8 +873,7 @@ distributeworld installworld: _installcheck_world
 	find ./${dist}/usr/lib/debug | sort -u ${METALOG} - | \
 	awk 'BEGIN { print "#${MTREE_MAGIC}" } !/ type=/ { file = $$1 } / type=/ { if ($$1 == file) { sub(/^\.\/${dist}\//, "./"); print } }' > \
 	${DESTDIR}/${DISTDIR}/${dist}.debug.meta
-. endfor
-.endif
+.endfor
 .endif
 .endif
 
@@ -878,19 +891,17 @@ packageworld:
 .endif
 .endfor
 
-.if ${MK_DEBUG_FILES} != "no"
-. for dist in base ${EXTRA_DISTRIBUTIONS}
-.  if defined(NO_ROOT)
+.for dist in ${DEBUG_DISTRIBUTIONS}
+. if defined(NO_ROOT)
 	${_+_}cd ${DESTDIR}/${DISTDIR}/${dist}; \
-	    tar cvJf ${DESTDIR}/${DISTDIR}/${dist}.debug.txz \
+	    tar cvJf ${DESTDIR}/${DISTDIR}/${dist}-dbg.txz \
 	    @${DESTDIR}/${DISTDIR}/${dist}.debug.meta
-.  else
+. else
 	${_+_}cd ${DESTDIR}/${DISTDIR}/${dist}; \
-	    tar cvJfL ${DESTDIR}/${DISTDIR}/${dist}.debug.txz \
+	    tar cvJfL ${DESTDIR}/${DISTDIR}/${dist}-dbg.txz \
 	    usr/lib/debug
-.  endif
-. endfor
-.endif
+. endif
+.endfor
 
 #
 # reinstall
@@ -1189,16 +1200,17 @@ _gperf=		gnu/usr.bin/gperf
 _groff=		gnu/usr.bin/groff
 .endif
 
+.if ${MK_VT} != "no"
+_vtfontcvt=	usr.bin/vtfontcvt
+.endif
+
 .if ${BOOTSTRAPPING} < 900002
 _sed=		usr.bin/sed
 .endif
 
-.if ${BOOTSTRAPPING} < 900006
-_lex=		usr.bin/lex
-.endif
-
 .if ${BOOTSTRAPPING} < 1000002
-_m4=		usr.bin/m4
+_m4=		lib/libohash \
+		usr.bin/m4
 .endif
 
 .if ${BOOTSTRAPPING} < 1000013
@@ -1217,6 +1229,10 @@ _nmtree=	lib/libnetbsd \
 
 .if ${BOOTSTRAPPING} < 1000027
 _cat=		bin/cat
+.endif
+
+.if ${BOOTSTRAPPING} < 1000033
+_lex=		usr.bin/lex
 .endif
 
 .if ${BOOTSTRAPPING} >= 900040 && ${BOOTSTRAPPING} < 900041
@@ -1288,7 +1304,8 @@ bootstrap-tools: .MAKE
     ${_gensnmptree} \
     usr.sbin/config \
     ${_crunch} \
-    ${_nmtree}
+    ${_nmtree} \
+    ${_vtfontcvt}
 	${_+_}@${ECHODIR} "===> ${_tool} (obj,depend,all,install)"; \
 		cd ${.CURDIR}/${_tool} && \
 		${MAKE} DIRPRFX=${_tool}/ obj && \
@@ -1351,9 +1368,6 @@ kernel-tools: .MAKE
 #
 # cross-tools: Build cross-building tools
 #
-.if !defined(TARGET_ARCH) && defined(XDEV_ARCH)
-TARGET_ARCH=	${XDEV_ARCH}
-.endif
 .if ${TARGET_ARCH} != ${MACHINE_ARCH}
 .if ${TARGET_ARCH} == "amd64" || ${TARGET_ARCH} == "i386"
 _btxld=		usr.sbin/btxld
@@ -1394,7 +1408,8 @@ cross-tools: .MAKE
     usr.bin/xlint/lint1 usr.bin/xlint/lint2 usr.bin/xlint/xlint \
     ${_btxld} \
     ${_crunchide} \
-    ${_kgzip}
+    ${_kgzip} \
+    sys/boot/usb/tools
 	${_+_}@${ECHODIR} "===> ${_tool} (obj,depend,all,install)"; \
 		cd ${.CURDIR}/${_tool} && \
 		${MAKE} DIRPRFX=${_tool}/ obj && \
@@ -1479,9 +1494,10 @@ _prebuild_libs=	${_kerberos5_lib_libasn1} \
 		lib/libutil lib/libpjdlog ${_lib_libypclnt} lib/libz lib/msun \
 		${_secure_lib_libcrypto} ${_lib_libldns} \
 		${_secure_lib_libssh} ${_secure_lib_libssl}
-.if ${MK_GNUCXX} != "no" && ${MK_CXX} != "no"
+.if ${MK_GNUCXX} != "no"
 _prebuild_libs+= gnu/lib/libstdc++ gnu/lib/libsupc++
 gnu/lib/libstdc++__L: lib/msun__L
+gnu/lib/libsupc++__L: gnu/lib/libstdc++__L
 .endif
 
 .if defined(WITH_ATF) || ${MK_TESTS} != "no"
@@ -1838,9 +1854,9 @@ builddtb:
 
 ###############
 
-.if defined(XDEV) && defined(XDEV_ARCH)
+.if defined(TARGET) && defined(TARGET_ARCH)
 
-.if ${XDEV} == ${MACHINE} && ${XDEV_ARCH} == ${MACHINE_ARCH}
+.if ${TARGET} == ${MACHINE} && ${TARGET_ARCH} == ${MACHINE_ARCH}
 XDEV_CPUTYPE?=${CPUTYPE}
 .else
 XDEV_CPUTYPE?=${TARGET_CPUTYPE}
@@ -1849,10 +1865,10 @@ XDEV_CPUTYPE?=${TARGET_CPUTYPE}
 NOFUN=-DNO_FSCHG MK_HTML=no MK_INFO=no -DNO_LINT \
 	MK_MAN=no MK_NLS=no MK_PROFILE=no \
 	MK_KERBEROS=no MK_RESCUE=no MK_TESTS=no MK_WARNS=no \
-	TARGET=${XDEV} TARGET_ARCH=${XDEV_ARCH} \
+	TARGET=${TARGET} TARGET_ARCH=${TARGET_ARCH} \
 	CPUTYPE=${XDEV_CPUTYPE}
 
-XDDIR=${XDEV_ARCH}-freebsd
+XDDIR=${TARGET_ARCH}-freebsd
 XDTP?=/usr/${XDDIR}
 .if ${XDTP:N/*}
 .error XDTP variable should be an absolute path
@@ -1868,7 +1884,7 @@ CD2CFLAGS=-isystem ${XDDESTDIR}/usr/include -L${XDDESTDIR}/usr/lib \
 	-B${XDDESTDIR}/usr/bin -B${XDDESTDIR}/usr/lib
 CD2ENV=${CDENV} CC="${CC} ${CD2CFLAGS}" CXX="${CXX} ${CD2CFLAGS}" \
 	CPP="${CPP} ${CD2CFLAGS}" \
-	MACHINE=${XDEV} MACHINE_ARCH=${XDEV_ARCH}
+	MACHINE=${TARGET} MACHINE_ARCH=${TARGET_ARCH}
 
 CDTMP=	${MAKEOBJDIRPREFIX}/${XDDIR}/${.CURDIR}/tmp
 CDMAKE=${CDENV} PATH=${CDTMP}/usr/bin:${PATH} ${MAKE} ${NOFUN}
@@ -1878,7 +1894,7 @@ XDDESTDIR=${DESTDIR}/${XDTP}
 OSREL!= uname -r | sed -e 's/[-(].*//'
 .endif
 
-.ORDER: xdev-build xdev-install
+.ORDER: xdev-build xdev-install xdev-links
 xdev: xdev-build xdev-install
 
 .ORDER: _xb-worldtmp _xb-bootstrap-tools _xb-build-tools _xb-cross-tools
@@ -1927,9 +1943,13 @@ _xi-mtree:
 	    -p ${XDDESTDIR}/usr >/dev/null
 	mtree -deU -f ${.CURDIR}/etc/mtree/BSD.include.dist \
 	    -p ${XDDESTDIR}/usr/include >/dev/null
+.if ${MK_TESTS} != "no"
+	mtree -deU -f ${.CURDIR}/etc/mtree/BSD.tests.dist \
+	    -p ${XDDESTDIR}/usr >/dev/null
+.endif
 
-.ORDER: xdev-build _xi-mtree _xi-cross-tools _xi-includes _xi-libraries _xi-links
-xdev-install: xdev-build _xi-mtree _xi-cross-tools _xi-includes _xi-libraries _xi-links
+.ORDER: xdev-build _xi-mtree _xi-cross-tools _xi-includes _xi-libraries
+xdev-install: xdev-build _xi-mtree _xi-cross-tools _xi-includes _xi-libraries
 
 _xi-cross-tools:
 	@echo "_xi-cross-tools"
@@ -1952,9 +1972,9 @@ _xi-libraries:
 	${_+_}cd ${.CURDIR}; ${CD2MAKE} -f Makefile.inc1 libraries \
 		DESTDIR=${XDDESTDIR}
 
-_xi-links:
+xdev-links:
 	${_+_}cd ${XDDESTDIR}/usr/bin; \
-       mkdir -p ../../../../usr/bin; \
+	mkdir -p ../../../../usr/bin; \
 		for i in *; do \
 			ln -sf ../../${XDTP}/usr/bin/$$i \
 			    ../../../../usr/bin/${XDDIR}-$$i; \
@@ -1962,6 +1982,6 @@ _xi-links:
 			    ../../../../usr/bin/${XDDIR}${OSREL}-$$i; \
 		done
 .else
-xdev xdev-build xdev-install:
-	@echo "*** Error: Both XDEV and XDEV_ARCH must be defined for \"${.TARGET}\" target"
+xdev xdev-build xdev-install xdev-links:
+	@echo "*** Error: Both TARGET and TARGET_ARCH must be defined for \"${.TARGET}\" target"
 .endif

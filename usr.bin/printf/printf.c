@@ -456,8 +456,7 @@ mknum(char *str, char ch)
 	len = strlen(str) + 2;
 	if (len > copy_size) {
 		newlen = ((len + 1023) >> 10) << 10;
-		if ((newcopy = realloc(copy, newlen)) == NULL)
-		{
+		if ((newcopy = realloc(copy, newlen)) == NULL) {
 			warnx("%s", strerror(ENOMEM));
 			return (NULL);
 		}

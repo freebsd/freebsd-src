@@ -329,7 +329,7 @@ aesni_decrypt_xts(int rounds, const void *data_schedule,
 	    iv, 0);
 }
 
-static int
+int
 aesni_cipher_setup_common(struct aesni_session *ses, const uint8_t *key,
     int keylen)
 {
@@ -376,103 +376,4 @@ aesni_cipher_setup_common(struct aesni_session *ses, const uint8_t *key,
 	}
 
 	return (0);
-}
-
-int
-aesni_cipher_setup(struct aesni_session *ses, struct cryptoini *encini)
-{
-	struct thread *td;
-	int error, saved_ctx;
-
-	td = curthread;
-	if (!is_fpu_kern_thread(0)) {
-		error = fpu_kern_enter(td, ses->fpu_ctx, FPU_KERN_NORMAL);
-		saved_ctx = 1;
-	} else {
-		error = 0;
-		saved_ctx = 0;
-	}
-	if (error == 0) {
-		error = aesni_cipher_setup_common(ses, encini->cri_key,
-		    encini->cri_klen);
-		if (saved_ctx)
-			fpu_kern_leave(td, ses->fpu_ctx);
-	}
-	return (error);
-}
-
-int
-aesni_cipher_process(struct aesni_session *ses, struct cryptodesc *enccrd,
-    struct cryptop *crp)
-{
-	struct thread *td;
-	uint8_t *buf;
-	int error, allocated, saved_ctx;
-
-	buf = aesni_cipher_alloc(enccrd, crp, &allocated);
-	if (buf == NULL)
-		return (ENOMEM);
-
-	td = curthread;
-	if (!is_fpu_kern_thread(0)) {
-		error = fpu_kern_enter(td, ses->fpu_ctx, FPU_KERN_NORMAL);
-		if (error != 0)
-			goto out;
-		saved_ctx = 1;
-	} else {
-		saved_ctx = 0;
-		error = 0;
-	}
-
-	if ((enccrd->crd_flags & CRD_F_KEY_EXPLICIT) != 0) {
-		error = aesni_cipher_setup_common(ses, enccrd->crd_key,
-		    enccrd->crd_klen);
-		if (error != 0)
-			goto out;
-	}
-
-	if ((enccrd->crd_flags & CRD_F_ENCRYPT) != 0) {
-		if ((enccrd->crd_flags & CRD_F_IV_EXPLICIT) != 0)
-			bcopy(enccrd->crd_iv, ses->iv, AES_BLOCK_LEN);
-		if ((enccrd->crd_flags & CRD_F_IV_PRESENT) == 0)
-			crypto_copyback(crp->crp_flags, crp->crp_buf,
-			    enccrd->crd_inject, AES_BLOCK_LEN, ses->iv);
-		if (ses->algo == CRYPTO_AES_CBC) {
-			aesni_encrypt_cbc(ses->rounds, ses->enc_schedule,
-			    enccrd->crd_len, buf, buf, ses->iv);
-		} else /* if (ses->algo == CRYPTO_AES_XTS) */ {
-			aesni_encrypt_xts(ses->rounds, ses->enc_schedule,
-			    ses->xts_schedule, enccrd->crd_len, buf, buf,
-			    ses->iv);
-		}
-	} else {
-		if ((enccrd->crd_flags & CRD_F_IV_EXPLICIT) != 0)
-			bcopy(enccrd->crd_iv, ses->iv, AES_BLOCK_LEN);
-		else
-			crypto_copydata(crp->crp_flags, crp->crp_buf,
-			    enccrd->crd_inject, AES_BLOCK_LEN, ses->iv);
-		if (ses->algo == CRYPTO_AES_CBC) {
-			aesni_decrypt_cbc(ses->rounds, ses->dec_schedule,
-			    enccrd->crd_len, buf, ses->iv);
-		} else /* if (ses->algo == CRYPTO_AES_XTS) */ {
-			aesni_decrypt_xts(ses->rounds, ses->dec_schedule,
-			    ses->xts_schedule, enccrd->crd_len, buf, buf,
-			    ses->iv);
-		}
-	}
-	if (saved_ctx)
-		fpu_kern_leave(td, ses->fpu_ctx);
-	if (allocated)
-		crypto_copyback(crp->crp_flags, crp->crp_buf, enccrd->crd_skip,
-		    enccrd->crd_len, buf);
-	if ((enccrd->crd_flags & CRD_F_ENCRYPT) != 0)
-		crypto_copydata(crp->crp_flags, crp->crp_buf,
-		    enccrd->crd_skip + enccrd->crd_len - AES_BLOCK_LEN,
-		    AES_BLOCK_LEN, ses->iv);
- out:
-	if (allocated) {
-		bzero(buf, enccrd->crd_len);
-		free(buf, M_AESNI);
-	}
-	return (error);
 }

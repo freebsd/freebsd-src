@@ -1222,6 +1222,7 @@ SCI_STATUS scic_sds_stp_request_pio_data_in_copy_data_buffer(
          length -= copy_length;
          sgl_offset += copy_length;
          data_offset += copy_length;
+         source_address += copy_length;
 #endif
       }
    }

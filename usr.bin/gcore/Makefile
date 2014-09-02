@@ -6,6 +6,10 @@ SRCS=	elfcore.c gcore.c
 DPADD=	${LIBSBUF} ${LIBUTIL}
 LDADD=	-lsbuf -lutil
 
+.if ${MACHINE_ARCH} == "amd64"
+SRCS+=	elf32core.c
+.endif
+
 WARNS?=	1
 
 .include <bsd.prog.mk>

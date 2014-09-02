@@ -53,14 +53,12 @@ DECLARE_GEOM_CLASS(zfs_vdev_class, zfs_vdev);
 
 SYSCTL_DECL(_vfs_zfs_vdev);
 /* Don't send BIO_FLUSH. */
-static int vdev_geom_bio_flush_disable = 0;
-TUNABLE_INT("vfs.zfs.vdev.bio_flush_disable", &vdev_geom_bio_flush_disable);
-SYSCTL_INT(_vfs_zfs_vdev, OID_AUTO, bio_flush_disable, CTLFLAG_RW,
+static int vdev_geom_bio_flush_disable;
+SYSCTL_INT(_vfs_zfs_vdev, OID_AUTO, bio_flush_disable, CTLFLAG_RWTUN,
     &vdev_geom_bio_flush_disable, 0, "Disable BIO_FLUSH");
 /* Don't send BIO_DELETE. */
-static int vdev_geom_bio_delete_disable = 0;
-TUNABLE_INT("vfs.zfs.vdev.bio_delete_disable", &vdev_geom_bio_delete_disable);
-SYSCTL_INT(_vfs_zfs_vdev, OID_AUTO, bio_delete_disable, CTLFLAG_RW,
+static int vdev_geom_bio_delete_disable;
+SYSCTL_INT(_vfs_zfs_vdev, OID_AUTO, bio_delete_disable, CTLFLAG_RWTUN,
     &vdev_geom_bio_delete_disable, 0, "Disable BIO_DELETE");
 
 static void
@@ -751,7 +749,7 @@ vdev_geom_io_intr(struct bio *bp)
 	vd = zio->io_vd;
 	zio->io_error = bp->bio_error;
 	if (zio->io_error == 0 && bp->bio_resid != 0)
-		zio->io_error = EIO;
+		zio->io_error = SET_ERROR(EIO);
 
 	switch(zio->io_error) {
 	case ENOTSUP:
@@ -805,37 +803,38 @@ vdev_geom_io_start(zio_t *zio)
 		/* XXPOLICY */
 		if (!vdev_readable(vd)) {
 			zio->io_error = SET_ERROR(ENXIO);
-			return (ZIO_PIPELINE_CONTINUE);
-		}
-
-		switch (zio->io_cmd) {
-		case DKIOCFLUSHWRITECACHE:
-			if (zfs_nocacheflush || vdev_geom_bio_flush_disable)
-				break;
-			if (vd->vdev_nowritecache) {
+		} else {
+			switch (zio->io_cmd) {
+			case DKIOCFLUSHWRITECACHE:
+				if (zfs_nocacheflush || vdev_geom_bio_flush_disable)
+					break;
+				if (vd->vdev_nowritecache) {
+					zio->io_error = SET_ERROR(ENOTSUP);
+					break;
+				}
+				goto sendreq;
+			default:
 				zio->io_error = SET_ERROR(ENOTSUP);
-				break;
 			}
-			goto sendreq;
-		default:
-			zio->io_error = SET_ERROR(ENOTSUP);
 		}
 
-		return (ZIO_PIPELINE_CONTINUE);
+		zio_interrupt(zio);
+		return (ZIO_PIPELINE_STOP);
 	case ZIO_TYPE_FREE:
-		if (vdev_geom_bio_delete_disable)
-			return (ZIO_PIPELINE_CONTINUE);
-
 		if (vd->vdev_notrim) {
 			zio->io_error = SET_ERROR(ENOTSUP);
-			return (ZIO_PIPELINE_CONTINUE);
+		} else if (!vdev_geom_bio_delete_disable) {
+			goto sendreq;
 		}
+		zio_interrupt(zio);
+		return (ZIO_PIPELINE_STOP);
 	}
 sendreq:
 	cp = vd->vdev_tsd;
 	if (cp == NULL) {
 		zio->io_error = SET_ERROR(ENXIO);
-		return (ZIO_PIPELINE_CONTINUE);
+		zio_interrupt(zio);
+		return (ZIO_PIPELINE_STOP);
 	}
 	bp = g_alloc_bio();
 	bp->bio_caller1 = zio;
@@ -854,14 +853,11 @@ sendreq:
 		bp->bio_length = zio->io_size;
 		break;
 	case ZIO_TYPE_IOCTL:
-		if (zio->io_cmd == DKIOCFLUSHWRITECACHE) {
-			bp->bio_cmd = BIO_FLUSH;
-			bp->bio_flags |= BIO_ORDERED;
-			bp->bio_data = NULL;
-			bp->bio_offset = cp->provider->mediasize;
-			bp->bio_length = 0;
-			break;
-		}
+		bp->bio_cmd = BIO_FLUSH;
+		bp->bio_flags |= BIO_ORDERED;
+		bp->bio_data = NULL;
+		bp->bio_offset = cp->provider->mediasize;
+		bp->bio_length = 0;
 		break;
 	}
 	bp->bio_done = vdev_geom_io_intr;

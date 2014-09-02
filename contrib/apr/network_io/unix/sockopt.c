@@ -141,6 +141,18 @@ apr_status_t apr_socket_opt_set(apr_socket_t *sock,
             apr_set_option(sock, APR_SO_DEBUG, on);
         }
         break;
+    case APR_SO_BROADCAST:
+#ifdef SO_BROADCAST
+        if (on != apr_is_option_set(sock, APR_SO_BROADCAST)) {
+            if (setsockopt(sock->socketdes, SOL_SOCKET, SO_BROADCAST, (void *)&one, sizeof(int)) == -1) {
+                return errno;
+            }
+            apr_set_option(sock, APR_SO_BROADCAST, on);
+        }
+#else
+        return APR_ENOTIMPL;
+#endif
+        break;
     case APR_SO_REUSEADDR:
         if (on != apr_is_option_set(sock, APR_SO_REUSEADDR)) {
             if (setsockopt(sock->socketdes, SOL_SOCKET, SO_REUSEADDR, (void *)&one, sizeof(int)) == -1) {

@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2012 Chelsio Communications, Inc.
+ * Copyright (c) 2012-2014 Chelsio Communications, Inc.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -100,7 +100,7 @@ enum fw_wr_opcodes {
 	FW_ETH_TX_PKT_WR	= 0x08,
 	FW_ETH_TX_PKT2_WR	= 0x44,
 	FW_ETH_TX_PKTS_WR	= 0x09,
-	FW_ETH_TX_UO_WR		= 0x1c,
+	FW_ETH_TX_EO_WR		= 0x1c,
 	FW_EQ_FLUSH_WR		= 0x1b,
 	FW_OFLD_CONNECTION_WR	= 0x2f,
 	FW_FLOWC_WR		= 0x0a,
@@ -647,20 +647,69 @@ struct fw_eth_tx_pkts_wr {
 	__u8   type;
 };
 
-struct fw_eth_tx_uo_wr {
+enum fw_eth_tx_eo_type {
+	FW_ETH_TX_EO_TYPE_UDPSEG,
+	FW_ETH_TX_EO_TYPE_TCPSEG,
+	FW_ETH_TX_EO_TYPE_NVGRESEG,
+};
+
+struct fw_eth_tx_eo_wr {
 	__be32 op_immdlen;
 	__be32 equiq_to_len16;
 	__be64 r3;
-	__u8   r4;
-	__u8   ethlen;
-	__be16 iplen;
-	__u8   udplen;
-	__u8   rtplen;
-	__be16 r5;
-	__be16 mss;
-	__be16 schedpktsize;
-	__be32 length;
+	union fw_eth_tx_eo {
+		struct fw_eth_tx_eo_udpseg {
+			__u8   type;
+			__u8   ethlen;
+			__be16 iplen;
+			__u8   udplen;
+			__u8   rtplen;
+			__be16 r4;
+			__be16 mss;
+			__be16 schedpktsize;
+			__be32 plen;
+		} udpseg;
+		struct fw_eth_tx_eo_tcpseg {
+			__u8   type;
+			__u8   ethlen;
+			__be16 iplen;
+			__u8   tcplen;
+			__u8   tsclk_tsoff;
+			__be16 r4;
+			__be16 mss;
+			__be16 r5;
+			__be32 plen;
+		} tcpseg;
+		struct fw_eth_tx_eo_nvgreseg {
+			__u8   type;
+			__u8   iphdroffout;
+			__be16 grehdroff;
+			__be16 iphdroffin;
+			__be16 tcphdroffin;
+			__be16 mss;
+			__be16 r4;
+			__be32 plen;
+		} nvgreseg;
+	} u;
 };
+
+#define S_FW_ETH_TX_EO_WR_IMMDLEN	0
+#define M_FW_ETH_TX_EO_WR_IMMDLEN	0x1ff
+#define V_FW_ETH_TX_EO_WR_IMMDLEN(x)	((x) << S_FW_ETH_TX_EO_WR_IMMDLEN)
+#define G_FW_ETH_TX_EO_WR_IMMDLEN(x)	\
+    (((x) >> S_FW_ETH_TX_EO_WR_IMMDLEN) & M_FW_ETH_TX_EO_WR_IMMDLEN)
+
+#define S_FW_ETH_TX_EO_WR_TSCLK		6
+#define M_FW_ETH_TX_EO_WR_TSCLK		0x3
+#define V_FW_ETH_TX_EO_WR_TSCLK(x)	((x) << S_FW_ETH_TX_EO_WR_TSCLK)
+#define G_FW_ETH_TX_EO_WR_TSCLK(x)	\
+    (((x) >> S_FW_ETH_TX_EO_WR_TSCLK) & M_FW_ETH_TX_EO_WR_TSCLK)
+
+#define S_FW_ETH_TX_EO_WR_TSOFF		0
+#define M_FW_ETH_TX_EO_WR_TSOFF		0x3f
+#define V_FW_ETH_TX_EO_WR_TSOFF(x)	((x) << S_FW_ETH_TX_EO_WR_TSOFF)
+#define G_FW_ETH_TX_EO_WR_TSOFF(x)	\
+    (((x) >> S_FW_ETH_TX_EO_WR_TSOFF) & M_FW_ETH_TX_EO_WR_TSOFF)
 
 struct fw_eq_flush_wr {
 	__u8   opcode;
@@ -794,13 +843,13 @@ enum fw_flowc_mnem_tcpstate {
 	FW_FLOWC_MNEM_TCPSTATE_TIMEWAIT	= 10, /* not expected */
 };
 
-enum fw_flowc_mnem_uostate {
-	FW_FLOWC_MNEM_UOSTATE_CLOSED	= 0, /* illegal */
-	FW_FLOWC_MNEM_UOSTATE_ESTABLISHED = 1, /* default */
-	FW_FLOWC_MNEM_UOSTATE_CLOSING	= 2, /* graceful close, after sending
+enum fw_flowc_mnem_eostate {
+	FW_FLOWC_MNEM_EOSTATE_CLOSED	= 0, /* illegal */
+	FW_FLOWC_MNEM_EOSTATE_ESTABLISHED = 1, /* default */
+	FW_FLOWC_MNEM_EOSTATE_CLOSING	= 2, /* graceful close, after sending
 					      * outstanding payload
 					      */
-	FW_FLOWC_MNEM_UOSTATE_ABORTING	= 3, /* immediate close, after
+	FW_FLOWC_MNEM_EOSTATE_ABORTING	= 3, /* immediate close, after
 					      * discarding outstanding payload
 					      */
 };
@@ -816,7 +865,7 @@ enum fw_flowc_mnem {
 	FW_FLOWC_MNEM_MSS		= 7,
 	FW_FLOWC_MNEM_TXDATAPLEN_MAX	= 8,
 	FW_FLOWC_MNEM_TCPSTATE		= 9,
-	FW_FLOWC_MNEM_UOSTATE		= 10,
+	FW_FLOWC_MNEM_EOSTATE		= 10,
 	FW_FLOWC_MNEM_SCHEDCLASS	= 11,
 	FW_FLOWC_MNEM_DCBPRIO		= 12,
 };
@@ -3525,6 +3574,15 @@ enum fw_caps_config_fcoe {
 	FW_CAPS_CONFIG_POFCOE_TARGET    = 0x00000010,
 };
 
+enum fw_memtype_cf {
+	FW_MEMTYPE_CF_EDC0		= FW_MEMTYPE_EDC0,
+	FW_MEMTYPE_CF_EDC1		= FW_MEMTYPE_EDC1,
+	FW_MEMTYPE_CF_EXTMEM		= FW_MEMTYPE_EXTMEM,
+	FW_MEMTYPE_CF_FLASH		= FW_MEMTYPE_FLASH,
+	FW_MEMTYPE_CF_INTERNAL		= FW_MEMTYPE_INTERNAL,
+	FW_MEMTYPE_CF_EXTMEM1		= FW_MEMTYPE_EXTMEM1,
+};
+
 struct fw_caps_config_cmd {
 	__be32 op_to_write;
 	__be32 cfvalid_to_len16;
@@ -3612,6 +3670,7 @@ enum fw_params_param_dev {
 	FW_PARAMS_PARAM_DEV_INTFVER_FCOEPDU = 0x15,
 	FW_PARAMS_PARAM_DEV_MCINIT	= 0x16,
 	FW_PARAMS_PARAM_DEV_ULPTX_MEMWRITE_DSGL = 0x17,
+	FW_PARAMS_PARAM_DEV_FWCACHE	= 0x18,
 };
 
 /*
@@ -3691,14 +3750,19 @@ enum fw_params_param_dev_bypass {
 	FW_PARAMS_PARAM_DEV_BYPASS_BYPASS = 0x2,
 };
 
-enum fw_params_phyfw_actions {
-	FW_PARAMS_PARAM_PHYFW_DOWNLOAD	= 0x00,
-	FW_PARAMS_PARAM_PHYFW_VERSION	= 0x01,
+enum fw_params_param_dev_phyfw {
+	FW_PARAMS_PARAM_DEV_PHYFW_DOWNLOAD = 0x00,
+	FW_PARAMS_PARAM_DEV_PHYFW_VERSION = 0x01,
 };
 
 enum fw_params_param_dev_diag {
-	FW_PARAM_DEV_DIAG_TMP = 0x00,
-	FW_PARAM_DEV_DIAG_VDD = 0x01,
+	FW_PARAM_DEV_DIAG_TMP		= 0x00,
+	FW_PARAM_DEV_DIAG_VDD		= 0x01,
+};
+
+enum fw_params_param_dev_fwcache {
+	FW_PARAM_DEV_FWCACHE_FLUSH	= 0x00,
+	FW_PARAM_DEV_FWCACHE_FLUSHINV	= 0x01,
 };
 
 #define S_FW_PARAMS_MNEM	24
@@ -4553,7 +4617,7 @@ struct fw_eq_eth_cmd {
 	__be32 fetchszm_to_iqid;
 	__be32 dcaen_to_eqsize;
 	__be64 eqaddr;
-	__be32 viid_pkd;
+	__be32 autoequiqe_to_viid;
 	__be32 r8_lo;
 	__be64 r9;
 };
@@ -4727,6 +4791,20 @@ struct fw_eq_eth_cmd {
 #define V_FW_EQ_ETH_CMD_EQSIZE(x)	((x) << S_FW_EQ_ETH_CMD_EQSIZE)
 #define G_FW_EQ_ETH_CMD_EQSIZE(x)	\
     (((x) >> S_FW_EQ_ETH_CMD_EQSIZE) & M_FW_EQ_ETH_CMD_EQSIZE)
+
+#define S_FW_EQ_ETH_CMD_AUTOEQUIQE	31
+#define M_FW_EQ_ETH_CMD_AUTOEQUIQE	0x1
+#define V_FW_EQ_ETH_CMD_AUTOEQUIQE(x)	((x) << S_FW_EQ_ETH_CMD_AUTOEQUIQE)
+#define G_FW_EQ_ETH_CMD_AUTOEQUIQE(x)	\
+    (((x) >> S_FW_EQ_ETH_CMD_AUTOEQUIQE) & M_FW_EQ_ETH_CMD_AUTOEQUIQE)
+#define F_FW_EQ_ETH_CMD_AUTOEQUIQE	V_FW_EQ_ETH_CMD_AUTOEQUIQE(1U)
+
+#define S_FW_EQ_ETH_CMD_AUTOEQUEQE	30
+#define M_FW_EQ_ETH_CMD_AUTOEQUEQE	0x1
+#define V_FW_EQ_ETH_CMD_AUTOEQUEQE(x)	((x) << S_FW_EQ_ETH_CMD_AUTOEQUEQE)
+#define G_FW_EQ_ETH_CMD_AUTOEQUEQE(x)	\
+    (((x) >> S_FW_EQ_ETH_CMD_AUTOEQUEQE) & M_FW_EQ_ETH_CMD_AUTOEQUEQE)
+#define F_FW_EQ_ETH_CMD_AUTOEQUEQE	V_FW_EQ_ETH_CMD_AUTOEQUEQE(1U)
 
 #define S_FW_EQ_ETH_CMD_VIID	16
 #define M_FW_EQ_ETH_CMD_VIID	0xfff
@@ -5680,18 +5758,19 @@ enum fw_port_action {
 	FW_PORT_ACTION_L1_LOW_PWR_EN	= 0x0011,
 	FW_PORT_ACTION_L2_WOL_MODE_EN	= 0x0012,
 	FW_PORT_ACTION_LPBK_TO_NORMAL	= 0x0020,
-	FW_PORT_ACTION_L1_SS_LPBK_ASIC	= 0x0021,
-	FW_PORT_ACTION_MAC_LPBK		= 0x0022,
-	FW_PORT_ACTION_L1_WS_LPBK_ASIC	= 0x0023,
-	FW_PORT_ACTION_L1_EXT_LPBK      = 0x0026,
+	FW_PORT_ACTION_LPBK_SS_ASIC	= 0x0022,
+	FW_PORT_ACTION_LPBK_WS_ASIC	= 0x0023,
+	FW_PORT_ACTION_LPBK_WS_EXT_PHY	= 0x0025,
+	FW_PORT_ACTION_LPBK_SS_EXT	= 0x0026,
 	FW_PORT_ACTION_DIAGNOSTICS	= 0x0027,
-	FW_PORT_ACTION_PCS_LPBK		= 0x0028,
+	FW_PORT_ACTION_LPBK_SS_EXT_PHY	= 0x0028,
 	FW_PORT_ACTION_PHY_RESET	= 0x0040,
 	FW_PORT_ACTION_PMA_RESET	= 0x0041,
 	FW_PORT_ACTION_PCS_RESET	= 0x0042,
 	FW_PORT_ACTION_PHYXS_RESET	= 0x0043,
 	FW_PORT_ACTION_DTEXS_REEST	= 0x0044,
 	FW_PORT_ACTION_AN_RESET		= 0x0045,
+
 };
 
 enum fw_port_l2cfg_ctlbf {
@@ -5702,6 +5781,20 @@ enum fw_port_l2cfg_ctlbf {
 	FW_PORT_L2_CTLBF_IVLAN	= 0x10,
 	FW_PORT_L2_CTLBF_TXIPG	= 0x20,
 	FW_PORT_L2_CTLBF_MTU	= 0x40
+};
+
+enum fw_dcb_app_tlv_sf {
+	FW_DCB_APP_SF_ETHERTYPE,
+	FW_DCB_APP_SF_SOCKET_TCP,
+	FW_DCB_APP_SF_SOCKET_UDP,
+	FW_DCB_APP_SF_SOCKET_ALL,
+};
+
+enum fw_port_dcb_versions {
+	FW_PORT_DCB_VER_CEE1D0,
+	FW_PORT_DCB_VER_CEE1D01,
+	FW_PORT_DCB_VER_IEEE,
+	FW_PORT_DCB_VER_UNKNOWN=7
 };
 
 enum fw_port_dcb_cfg {
@@ -5724,10 +5817,18 @@ enum fw_port_dcb_type {
 	FW_PORT_DCB_TYPE_CONTROL	= 0x05,
 };
 
+enum fw_port_dcb_feature_state {
+	FW_PORT_DCB_FEATURE_STATE_PENDING = 0x0,
+	FW_PORT_DCB_FEATURE_STATE_SUCCESS = 0x1,
+	FW_PORT_DCB_FEATURE_STATE_ERROR	= 0x2,
+	FW_PORT_DCB_FEATURE_STATE_TIMEOUT = 0x3,
+};
+
 enum fw_port_diag_ops {
 	FW_PORT_DIAGS_TEMP		= 0x00,
 	FW_PORT_DIAGS_TX_POWER		= 0x01,
 	FW_PORT_DIAGS_RX_POWER		= 0x02,
+	FW_PORT_DIAGS_TX_DIS		= 0x03,
 };
 
 struct fw_port_cmd {
@@ -5760,7 +5861,9 @@ struct fw_port_cmd {
 			__be16 mtu;
 			__u8   cbllen;
 			__u8   auxlinfo;
-			__be32 r8;
+			__u8   dcbxdis_pkd;
+			__u8   r8_lo;
+			__be16 lpcap;
 			__be64 r9;
 		} info;
 		struct fw_port_diags {
@@ -5792,7 +5895,8 @@ struct fw_port_cmd {
 			struct fw_port_dcb_pfc {
 				__u8   type;
 				__u8   pfcen;
-				__be16 r10[3];
+				__u8   r10[5];
+				__u8   max_pfc_tcs;
 				__be64 r11;
 			} pfc;
 			struct fw_port_app_priority {
@@ -5807,8 +5911,9 @@ struct fw_port_cmd {
 			struct fw_port_dcb_control {
 				__u8   type;
 				__u8   all_syncd_pkd;
-				__be16 r10_lo[3];
-				__be64 r11;
+				__be16 pfc_state_to_app_state;
+				__be32 r11;
+				__be64 r12;
 			} control;
 		} dcb;
 	} u;
@@ -5953,6 +6058,13 @@ struct fw_port_cmd {
 #define G_FW_PORT_CMD_MODTYPE(x)	\
     (((x) >> S_FW_PORT_CMD_MODTYPE) & M_FW_PORT_CMD_MODTYPE)
 
+#define S_FW_PORT_CMD_DCBXDIS		7
+#define M_FW_PORT_CMD_DCBXDIS		0x1
+#define V_FW_PORT_CMD_DCBXDIS(x)	((x) << S_FW_PORT_CMD_DCBXDIS)
+#define G_FW_PORT_CMD_DCBXDIS(x)	\
+    (((x) >> S_FW_PORT_CMD_DCBXDIS) & M_FW_PORT_CMD_DCBXDIS)
+#define F_FW_PORT_CMD_DCBXDIS	V_FW_PORT_CMD_DCBXDIS(1U)
+
 #define S_FW_PORT_CMD_APPLY	7
 #define M_FW_PORT_CMD_APPLY	0x1
 #define V_FW_PORT_CMD_APPLY(x)	((x) << S_FW_PORT_CMD_APPLY)
@@ -5967,10 +6079,32 @@ struct fw_port_cmd {
     (((x) >> S_FW_PORT_CMD_ALL_SYNCD) & M_FW_PORT_CMD_ALL_SYNCD)
 #define F_FW_PORT_CMD_ALL_SYNCD	V_FW_PORT_CMD_ALL_SYNCD(1U)
 
+#define S_FW_PORT_CMD_PFC_STATE		8
+#define M_FW_PORT_CMD_PFC_STATE		0xf
+#define V_FW_PORT_CMD_PFC_STATE(x)	((x) << S_FW_PORT_CMD_PFC_STATE)
+#define G_FW_PORT_CMD_PFC_STATE(x)	\
+    (((x) >> S_FW_PORT_CMD_PFC_STATE) & M_FW_PORT_CMD_PFC_STATE)
+
+#define S_FW_PORT_CMD_ETS_STATE		4
+#define M_FW_PORT_CMD_ETS_STATE		0xf
+#define V_FW_PORT_CMD_ETS_STATE(x)	((x) << S_FW_PORT_CMD_ETS_STATE)
+#define G_FW_PORT_CMD_ETS_STATE(x)	\
+    (((x) >> S_FW_PORT_CMD_ETS_STATE) & M_FW_PORT_CMD_ETS_STATE)
+
+#define S_FW_PORT_CMD_APP_STATE		0
+#define M_FW_PORT_CMD_APP_STATE		0xf
+#define V_FW_PORT_CMD_APP_STATE(x)	((x) << S_FW_PORT_CMD_APP_STATE)
+#define G_FW_PORT_CMD_APP_STATE(x)	\
+    (((x) >> S_FW_PORT_CMD_APP_STATE) & M_FW_PORT_CMD_APP_STATE)
+
 /*
  *	These are configured into the VPD and hence tools that generate
  *	VPD may use this enumeration.
  *	extPHY	#lanes	T4_I2C	extI2C	BP_Eq	BP_ANEG	Speed
+ *
+ *	REMEMBER:
+ *	    Update the Common Code t4_hw.c:t4_get_port_type_description()
+ *	    with any new Firmware Port Technology Types!
  */
 enum fw_port_type {
 	FW_PORT_TYPE_FIBER_XFI	=  0,	/* Y, 1, N, Y, N, N, 10G */
@@ -7658,6 +7792,17 @@ enum pcie_fw_eval {
 
 
 /******************************************************************************
+ *   P C I E   F W   P F 0   R E G I S T E R
+ **********************************************/
+
+/*
+ *	this register is available as 32-bit of persistent storage (accross
+ *	PL_RST based chip-reset) for boot drivers (i.e. firmware and driver
+ *	will not write it)
+ */
+
+
+/******************************************************************************
  *   B I N A R Y   H E A D E R   F O R M A T
  **********************************************/
 
@@ -7720,13 +7865,13 @@ enum fw_hdr_chip {
 
 enum {
 	T4FW_VERSION_MAJOR	= 0x01,
-	T4FW_VERSION_MINOR	= 0x09,
-	T4FW_VERSION_MICRO	= 0x0c,
+	T4FW_VERSION_MINOR	= 0x0b,
+	T4FW_VERSION_MICRO	= 0x1b,
 	T4FW_VERSION_BUILD	= 0x00,
 
 	T5FW_VERSION_MAJOR	= 0x01,
-	T5FW_VERSION_MINOR	= 0x09,
-	T5FW_VERSION_MICRO	= 0x0c,
+	T5FW_VERSION_MINOR	= 0x0b,
+	T5FW_VERSION_MICRO	= 0x1b,
 	T5FW_VERSION_BUILD	= 0x00,
 };
 

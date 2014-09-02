@@ -51,6 +51,9 @@
 #include <sys/socketvar.h>
 #include <sys/sysctl.h>
 #include <sys/taskqueue.h>
+
+#include <net/vnet.h>
+
 #include <netgraph/ng_message.h>
 #include <netgraph/netgraph.h>
 #include <netgraph/bluetooth/include/ng_bluetooth.h>
@@ -727,6 +730,10 @@ ng_btsocket_hci_raw_init(void)
 {
 	bitstr_t	*f = NULL;
 	int		 error = 0;
+
+	/* Skip initialization of globals for non-default instances. */
+	if (!IS_DEFAULT_VNET(curvnet))
+		return;
 
 	ng_btsocket_hci_raw_node = NULL;
 	ng_btsocket_hci_raw_debug_level = NG_BTSOCKET_WARN_LEVEL;

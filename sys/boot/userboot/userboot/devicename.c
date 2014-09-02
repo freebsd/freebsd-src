@@ -91,7 +91,7 @@ userboot_parsedev(struct disk_devdesc **dev, const char *devspec, const char **p
     struct disk_devdesc *idev;
     struct devsw	*dv;
     int			i, unit, err;
-    char		*cp;
+    const char		*cp;
     const char		*np;
 
     /* minimum length check */
@@ -126,7 +126,7 @@ userboot_parsedev(struct disk_devdesc **dev, const char *devspec, const char **p
 	unit = 0;
 
 	if (*np && (*np != ':')) {
-	    unit = strtol(np, &cp, 0);	/* get unit number if present */
+	    unit = strtol(np, (char **)&cp, 0);	/* get unit number if present */
 	    if (cp == np) {
 		err = EUNIT;
 		goto fail;

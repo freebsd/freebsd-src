@@ -52,8 +52,10 @@ __FBSDID("$FreeBSD$");
 #include <sys/proc.h>
 #endif
 #include <sys/queue.h>
+#include <sys/rwlock.h>
 #include <sys/sbuf.h>
 #include <sys/sysctl.h>
+#include <sys/tree.h>
 #include <sys/vmmeter.h>
 
 #include <ddb/ddb.h>
@@ -75,13 +77,25 @@ int vm_ndomains = 1;
 struct vm_phys_seg vm_phys_segs[VM_PHYSSEG_MAX];
 int vm_phys_nsegs;
 
-#define VM_PHYS_FICTITIOUS_NSEGS	8
-static struct vm_phys_fictitious_seg {
+struct vm_phys_fictitious_seg;
+static int vm_phys_fictitious_cmp(struct vm_phys_fictitious_seg *,
+    struct vm_phys_fictitious_seg *);
+
+RB_HEAD(fict_tree, vm_phys_fictitious_seg) vm_phys_fictitious_tree =
+    RB_INITIALIZER(_vm_phys_fictitious_tree);
+
+struct vm_phys_fictitious_seg {
+	RB_ENTRY(vm_phys_fictitious_seg) node;
+	/* Memory region data */
 	vm_paddr_t	start;
 	vm_paddr_t	end;
 	vm_page_t	first_page;
-} vm_phys_fictitious_segs[VM_PHYS_FICTITIOUS_NSEGS];
-static struct mtx vm_phys_fictitious_reg_mtx;
+};
+
+RB_GENERATE_STATIC(fict_tree, vm_phys_fictitious_seg, node,
+    vm_phys_fictitious_cmp);
+
+static struct rwlock vm_phys_fictitious_reg_lock;
 MALLOC_DEFINE(M_FICT_PAGES, "vm_fictitious", "Fictitious VM pages");
 
 static struct vm_freelist
@@ -112,6 +126,47 @@ static void vm_phys_create_seg(vm_paddr_t start, vm_paddr_t end, int flind);
 static int vm_phys_paddr_to_segind(vm_paddr_t pa);
 static void vm_phys_split_pages(vm_page_t m, int oind, struct vm_freelist *fl,
     int order);
+
+/*
+ * Red-black tree helpers for vm fictitious range management.
+ */
+static inline int
+vm_phys_fictitious_in_range(struct vm_phys_fictitious_seg *p,
+    struct vm_phys_fictitious_seg *range)
+{
+
+	KASSERT(range->start != 0 && range->end != 0,
+	    ("Invalid range passed on search for vm_fictitious page"));
+	if (p->start >= range->end)
+		return (1);
+	if (p->start < range->start)
+		return (-1);
+
+	return (0);
+}
+
+static int
+vm_phys_fictitious_cmp(struct vm_phys_fictitious_seg *p1,
+    struct vm_phys_fictitious_seg *p2)
+{
+
+	/* Check if this is a search for a page */
+	if (p1->end == 0)
+		return (vm_phys_fictitious_in_range(p1, p2));
+
+	KASSERT(p2->end != 0,
+    ("Invalid range passed as second parameter to vm fictitious comparison"));
+
+	/* Searching to add a new range */
+	if (p1->end <= p2->start)
+		return (-1);
+	if (p1->start >= p2->end)
+		return (1);
+
+	panic("Trying to add overlapping vm fictitious ranges:\n"
+	    "[%#jx:%#jx] and [%#jx:%#jx]", (uintmax_t)p1->start,
+	    (uintmax_t)p1->end, (uintmax_t)p2->start, (uintmax_t)p2->end);
+}
 
 static __inline int
 vm_rr_selectdomain(void)
@@ -353,7 +408,7 @@ vm_phys_init(void)
 			}
 		}
 	}
-	mtx_init(&vm_phys_fictitious_reg_mtx, "vmfctr", NULL, MTX_DEF);
+	rw_init(&vm_phys_fictitious_reg_lock, "vmfctr");
 }
 
 /*
@@ -517,21 +572,36 @@ vm_phys_paddr_to_vm_page(vm_paddr_t pa)
 vm_page_t
 vm_phys_fictitious_to_vm_page(vm_paddr_t pa)
 {
-	struct vm_phys_fictitious_seg *seg;
+	struct vm_phys_fictitious_seg tmp, *seg;
 	vm_page_t m;
-	int segind;
 
 	m = NULL;
-	for (segind = 0; segind < VM_PHYS_FICTITIOUS_NSEGS; segind++) {
-		seg = &vm_phys_fictitious_segs[segind];
-		if (pa >= seg->start && pa < seg->end) {
-			m = &seg->first_page[atop(pa - seg->start)];
-			KASSERT((m->flags & PG_FICTITIOUS) != 0,
-			    ("%p not fictitious", m));
-			break;
-		}
-	}
+	tmp.start = pa;
+	tmp.end = 0;
+
+	rw_rlock(&vm_phys_fictitious_reg_lock);
+	seg = RB_FIND(fict_tree, &vm_phys_fictitious_tree, &tmp);
+	rw_runlock(&vm_phys_fictitious_reg_lock);
+	if (seg == NULL)
+		return (NULL);
+
+	m = &seg->first_page[atop(pa - seg->start)];
+	KASSERT((m->flags & PG_FICTITIOUS) != 0, ("%p not fictitious", m));
+
 	return (m);
+}
+
+static inline void
+vm_phys_fictitious_init_range(vm_page_t range, vm_paddr_t start,
+    long page_count, vm_memattr_t memattr)
+{
+	long i;
+
+	for (i = 0; i < page_count; i++) {
+		vm_page_initfake(&range[i], start + PAGE_SIZE * i, memattr);
+		range[i].oflags &= ~VPO_UNMANAGED;
+		range[i].busy_lock = VPB_UNBUSIED;
+	}
 }
 
 int
@@ -540,86 +610,145 @@ vm_phys_fictitious_reg_range(vm_paddr_t start, vm_paddr_t end,
 {
 	struct vm_phys_fictitious_seg *seg;
 	vm_page_t fp;
-	long i, page_count;
-	int segind;
+	long page_count;
 #ifdef VM_PHYSSEG_DENSE
-	long pi;
-	boolean_t malloced;
+	long pi, pe;
+	long dpage_count;
 #endif
+
+	KASSERT(start < end,
+	    ("Start of segment isn't less than end (start: %jx end: %jx)",
+	    (uintmax_t)start, (uintmax_t)end));
 
 	page_count = (end - start) / PAGE_SIZE;
 
 #ifdef VM_PHYSSEG_DENSE
 	pi = atop(start);
-	if (pi >= first_page && pi < vm_page_array_size + first_page) {
-		if (atop(end) >= vm_page_array_size + first_page)
-			return (EINVAL);
+	pe = atop(end);
+	if (pi >= first_page && (pi - first_page) < vm_page_array_size) {
 		fp = &vm_page_array[pi - first_page];
-		malloced = FALSE;
-	} else
+		if ((pe - first_page) > vm_page_array_size) {
+			/*
+			 * We have a segment that starts inside
+			 * of vm_page_array, but ends outside of it.
+			 *
+			 * Use vm_page_array pages for those that are
+			 * inside of the vm_page_array range, and
+			 * allocate the remaining ones.
+			 */
+			dpage_count = vm_page_array_size - (pi - first_page);
+			vm_phys_fictitious_init_range(fp, start, dpage_count,
+			    memattr);
+			page_count -= dpage_count;
+			start += ptoa(dpage_count);
+			goto alloc;
+		}
+		/*
+		 * We can allocate the full range from vm_page_array,
+		 * so there's no need to register the range in the tree.
+		 */
+		vm_phys_fictitious_init_range(fp, start, page_count, memattr);
+		return (0);
+	} else if (pe > first_page && (pe - first_page) < vm_page_array_size) {
+		/*
+		 * We have a segment that ends inside of vm_page_array,
+		 * but starts outside of it.
+		 */
+		fp = &vm_page_array[0];
+		dpage_count = pe - first_page;
+		vm_phys_fictitious_init_range(fp, ptoa(first_page), dpage_count,
+		    memattr);
+		end -= ptoa(dpage_count);
+		page_count -= dpage_count;
+		goto alloc;
+	} else if (pi < first_page && pe > (first_page + vm_page_array_size)) {
+		/*
+		 * Trying to register a fictitious range that expands before
+		 * and after vm_page_array.
+		 */
+		return (EINVAL);
+	} else {
+alloc:
 #endif
-	{
 		fp = malloc(page_count * sizeof(struct vm_page), M_FICT_PAGES,
 		    M_WAITOK | M_ZERO);
 #ifdef VM_PHYSSEG_DENSE
-		malloced = TRUE;
+	}
 #endif
-	}
-	for (i = 0; i < page_count; i++) {
-		vm_page_initfake(&fp[i], start + PAGE_SIZE * i, memattr);
-		fp[i].oflags &= ~VPO_UNMANAGED;
-		fp[i].busy_lock = VPB_UNBUSIED;
-	}
-	mtx_lock(&vm_phys_fictitious_reg_mtx);
-	for (segind = 0; segind < VM_PHYS_FICTITIOUS_NSEGS; segind++) {
-		seg = &vm_phys_fictitious_segs[segind];
-		if (seg->start == 0 && seg->end == 0) {
-			seg->start = start;
-			seg->end = end;
-			seg->first_page = fp;
-			mtx_unlock(&vm_phys_fictitious_reg_mtx);
-			return (0);
-		}
-	}
-	mtx_unlock(&vm_phys_fictitious_reg_mtx);
-#ifdef VM_PHYSSEG_DENSE
-	if (malloced)
-#endif
-		free(fp, M_FICT_PAGES);
-	return (EBUSY);
+	vm_phys_fictitious_init_range(fp, start, page_count, memattr);
+
+	seg = malloc(sizeof(*seg), M_FICT_PAGES, M_WAITOK | M_ZERO);
+	seg->start = start;
+	seg->end = end;
+	seg->first_page = fp;
+
+	rw_wlock(&vm_phys_fictitious_reg_lock);
+	RB_INSERT(fict_tree, &vm_phys_fictitious_tree, seg);
+	rw_wunlock(&vm_phys_fictitious_reg_lock);
+
+	return (0);
 }
 
 void
 vm_phys_fictitious_unreg_range(vm_paddr_t start, vm_paddr_t end)
 {
-	struct vm_phys_fictitious_seg *seg;
-	vm_page_t fp;
-	int segind;
+	struct vm_phys_fictitious_seg *seg, tmp;
 #ifdef VM_PHYSSEG_DENSE
-	long pi;
+	long pi, pe;
 #endif
+
+	KASSERT(start < end,
+	    ("Start of segment isn't less than end (start: %jx end: %jx)",
+	    (uintmax_t)start, (uintmax_t)end));
 
 #ifdef VM_PHYSSEG_DENSE
 	pi = atop(start);
-#endif
-
-	mtx_lock(&vm_phys_fictitious_reg_mtx);
-	for (segind = 0; segind < VM_PHYS_FICTITIOUS_NSEGS; segind++) {
-		seg = &vm_phys_fictitious_segs[segind];
-		if (seg->start == start && seg->end == end) {
-			seg->start = seg->end = 0;
-			fp = seg->first_page;
-			seg->first_page = NULL;
-			mtx_unlock(&vm_phys_fictitious_reg_mtx);
-#ifdef VM_PHYSSEG_DENSE
-			if (pi < first_page || atop(end) >= vm_page_array_size)
-#endif
-				free(fp, M_FICT_PAGES);
+	pe = atop(end);
+	if (pi >= first_page && (pi - first_page) < vm_page_array_size) {
+		if ((pe - first_page) <= vm_page_array_size) {
+			/*
+			 * This segment was allocated using vm_page_array
+			 * only, there's nothing to do since those pages
+			 * were never added to the tree.
+			 */
 			return;
 		}
+		/*
+		 * We have a segment that starts inside
+		 * of vm_page_array, but ends outside of it.
+		 *
+		 * Calculate how many pages were added to the
+		 * tree and free them.
+		 */
+		start = ptoa(first_page + vm_page_array_size);
+	} else if (pe > first_page && (pe - first_page) < vm_page_array_size) {
+		/*
+		 * We have a segment that ends inside of vm_page_array,
+		 * but starts outside of it.
+		 */
+		end = ptoa(first_page);
+	} else if (pi < first_page && pe > (first_page + vm_page_array_size)) {
+		/* Since it's not possible to register such a range, panic. */
+		panic(
+		    "Unregistering not registered fictitious range [%#jx:%#jx]",
+		    (uintmax_t)start, (uintmax_t)end);
 	}
-	mtx_unlock(&vm_phys_fictitious_reg_mtx);
-	KASSERT(0, ("Unregistering not registered fictitious range"));
+#endif
+	tmp.start = start;
+	tmp.end = 0;
+
+	rw_wlock(&vm_phys_fictitious_reg_lock);
+	seg = RB_FIND(fict_tree, &vm_phys_fictitious_tree, &tmp);
+	if (seg->start != start || seg->end != end) {
+		rw_wunlock(&vm_phys_fictitious_reg_lock);
+		panic(
+		    "Unregistering not registered fictitious range [%#jx:%#jx]",
+		    (uintmax_t)start, (uintmax_t)end);
+	}
+	RB_REMOVE(fict_tree, &vm_phys_fictitious_tree, seg);
+	rw_wunlock(&vm_phys_fictitious_reg_lock);
+	free(seg->first_page, M_FICT_PAGES);
+	free(seg, M_FICT_PAGES);
 }
 
 /*

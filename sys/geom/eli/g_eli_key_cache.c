@@ -47,7 +47,6 @@ SYSCTL_DECL(_kern_geom_eli);
  * provider with 512 bytes sectors and will take around 1MB of memory.
  */
 static u_int g_eli_key_cache_limit = 8192;
-TUNABLE_INT("kern.geom.eli.key_cache_limit", &g_eli_key_cache_limit);
 SYSCTL_UINT(_kern_geom_eli, OID_AUTO, key_cache_limit, CTLFLAG_RDTUN,
     &g_eli_key_cache_limit, 0, "Maximum number of encryption keys to cache");
 static uint64_t g_eli_key_cache_hits;

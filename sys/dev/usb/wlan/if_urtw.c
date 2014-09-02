@@ -65,9 +65,8 @@ __FBSDID("$FreeBSD$");
 static SYSCTL_NODE(_hw_usb, OID_AUTO, urtw, CTLFLAG_RW, 0, "USB Realtek 8187L");
 #ifdef URTW_DEBUG
 int urtw_debug = 0;
-SYSCTL_INT(_hw_usb_urtw, OID_AUTO, debug, CTLFLAG_RW | CTLFLAG_TUN, &urtw_debug, 0,
+SYSCTL_INT(_hw_usb_urtw, OID_AUTO, debug, CTLFLAG_RWTUN, &urtw_debug, 0,
     "control debugging printfs");
-TUNABLE_INT("hw.usb.urtw.debug", &urtw_debug);
 enum {
 	URTW_DEBUG_XMIT		= 0x00000001,	/* basic xmit operation */
 	URTW_DEBUG_RECV		= 0x00000002,	/* basic recv operation */
@@ -90,9 +89,8 @@ enum {
 } while (0)
 #endif
 static int urtw_preamble_mode = URTW_PREAMBLE_MODE_LONG;
-SYSCTL_INT(_hw_usb_urtw, OID_AUTO, preamble_mode, CTLFLAG_RW | CTLFLAG_TUN,
+SYSCTL_INT(_hw_usb_urtw, OID_AUTO, preamble_mode, CTLFLAG_RWTUN,
     &urtw_preamble_mode, 0, "set the preable mode (long or short)");
-TUNABLE_INT("hw.usb.urtw.preamble_mode", &urtw_preamble_mode);
 
 /* recognized device vendors/products */
 #define urtw_lookup(v, p)						\

@@ -538,7 +538,7 @@ _taskqueue_start_threads(struct taskqueue **tqp, int count, int pri,
 			continue;
 		td = tq->tq_threads[i];
 		if (mask) {
-			error = cpuset_setthread(curthread->td_tid, mask);
+			error = cpuset_setthread(td->td_tid, mask);
 			/*
 			 * Failing to pin is rarely an actual fatal error;
 			 * it'll just affect performance.

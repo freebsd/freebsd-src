@@ -16,9 +16,11 @@ CFLAGS+= -I${.CURDIR}/../../../contrib/ntp/include -I${.CURDIR}/../ \
 DPADD=	${LIBNTP} ${LIBOPTS}
 LDADD=	${LIBNTP} ${LIBOPTS}
 
-.if ${MK_OPENSSL} != "no" && !defined(RELEASE_CRUNCH)
+.if ${MK_OPENSSL} != "no"
 DPADD+=	${LIBMD} ${LIBCRYPTO}
 LDADD+=	-lmd -lcrypto
 .endif
+
+NO_PIE=	yes
 
 .include <bsd.prog.mk>

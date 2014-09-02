@@ -53,49 +53,38 @@ static MALLOC_DEFINE(M_RAID, "raid_data", "GEOM_RAID Data");
 SYSCTL_DECL(_kern_geom);
 SYSCTL_NODE(_kern_geom, OID_AUTO, raid, CTLFLAG_RW, 0, "GEOM_RAID stuff");
 int g_raid_enable = 1;
-TUNABLE_INT("kern.geom.raid.enable", &g_raid_enable);
-SYSCTL_INT(_kern_geom_raid, OID_AUTO, enable, CTLFLAG_RW,
+SYSCTL_INT(_kern_geom_raid, OID_AUTO, enable, CTLFLAG_RWTUN,
     &g_raid_enable, 0, "Enable on-disk metadata taste");
 u_int g_raid_aggressive_spare = 0;
-TUNABLE_INT("kern.geom.raid.aggressive_spare", &g_raid_aggressive_spare);
-SYSCTL_UINT(_kern_geom_raid, OID_AUTO, aggressive_spare, CTLFLAG_RW,
+SYSCTL_UINT(_kern_geom_raid, OID_AUTO, aggressive_spare, CTLFLAG_RWTUN,
     &g_raid_aggressive_spare, 0, "Use disks without metadata as spare");
 u_int g_raid_debug = 0;
-TUNABLE_INT("kern.geom.raid.debug", &g_raid_debug);
-SYSCTL_UINT(_kern_geom_raid, OID_AUTO, debug, CTLFLAG_RW, &g_raid_debug, 0,
+SYSCTL_UINT(_kern_geom_raid, OID_AUTO, debug, CTLFLAG_RWTUN, &g_raid_debug, 0,
     "Debug level");
 int g_raid_read_err_thresh = 10;
-TUNABLE_INT("kern.geom.raid.read_err_thresh", &g_raid_read_err_thresh);
-SYSCTL_UINT(_kern_geom_raid, OID_AUTO, read_err_thresh, CTLFLAG_RW,
+SYSCTL_UINT(_kern_geom_raid, OID_AUTO, read_err_thresh, CTLFLAG_RWTUN,
     &g_raid_read_err_thresh, 0,
     "Number of read errors equated to disk failure");
 u_int g_raid_start_timeout = 30;
-TUNABLE_INT("kern.geom.raid.start_timeout", &g_raid_start_timeout);
-SYSCTL_UINT(_kern_geom_raid, OID_AUTO, start_timeout, CTLFLAG_RW,
+SYSCTL_UINT(_kern_geom_raid, OID_AUTO, start_timeout, CTLFLAG_RWTUN,
     &g_raid_start_timeout, 0,
     "Time to wait for all array components");
 static u_int g_raid_clean_time = 5;
-TUNABLE_INT("kern.geom.raid.clean_time", &g_raid_clean_time);
-SYSCTL_UINT(_kern_geom_raid, OID_AUTO, clean_time, CTLFLAG_RW,
+SYSCTL_UINT(_kern_geom_raid, OID_AUTO, clean_time, CTLFLAG_RWTUN,
     &g_raid_clean_time, 0, "Mark volume as clean when idling");
 static u_int g_raid_disconnect_on_failure = 1;
-TUNABLE_INT("kern.geom.raid.disconnect_on_failure",
-    &g_raid_disconnect_on_failure);
-SYSCTL_UINT(_kern_geom_raid, OID_AUTO, disconnect_on_failure, CTLFLAG_RW,
+SYSCTL_UINT(_kern_geom_raid, OID_AUTO, disconnect_on_failure, CTLFLAG_RWTUN,
     &g_raid_disconnect_on_failure, 0, "Disconnect component on I/O failure.");
 static u_int g_raid_name_format = 0;
-TUNABLE_INT("kern.geom.raid.name_format", &g_raid_name_format);
-SYSCTL_UINT(_kern_geom_raid, OID_AUTO, name_format, CTLFLAG_RW,
+SYSCTL_UINT(_kern_geom_raid, OID_AUTO, name_format, CTLFLAG_RWTUN,
     &g_raid_name_format, 0, "Providers name format.");
 static u_int g_raid_idle_threshold = 1000000;
-TUNABLE_INT("kern.geom.raid.idle_threshold", &g_raid_idle_threshold);
-SYSCTL_UINT(_kern_geom_raid, OID_AUTO, idle_threshold, CTLFLAG_RW,
+SYSCTL_UINT(_kern_geom_raid, OID_AUTO, idle_threshold, CTLFLAG_RWTUN,
     &g_raid_idle_threshold, 1000000,
     "Time in microseconds to consider a volume idle.");
 static u_int ar_legacy_aliases = 1;
-SYSCTL_INT(_kern_geom_raid, OID_AUTO, legacy_aliases, CTLFLAG_RW,
+SYSCTL_INT(_kern_geom_raid, OID_AUTO, legacy_aliases, CTLFLAG_RWTUN,
            &ar_legacy_aliases, 0, "Create aliases named as the legacy ataraid style.");
-TUNABLE_INT("kern.geom_raid.legacy_aliases", &ar_legacy_aliases);
 
 
 #define	MSLEEP(rv, ident, mtx, priority, wmesg, timeout)	do {	\

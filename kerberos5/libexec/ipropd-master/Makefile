@@ -11,6 +11,8 @@ LDADD=	-lkadm5srv -lhdb -lkrb5 -lhx509 -lroken ${LIBVERS} \
 	-lasn1 -lcrypto -lcrypt -lcom_err ${LDAPLDADD}
 LDFLAGS=${LDAPLDFLAGS}
 
+NO_PIE=	yes
+
 foo::
 	echo ${LIBHX509}
 

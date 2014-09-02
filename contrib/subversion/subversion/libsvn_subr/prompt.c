@@ -177,7 +177,7 @@ terminal_open(terminal_handle_t **terminal, svn_boolean_t noecho,
      and stderr for prompting. */
   apr_file_t *tmpfd;
   status = apr_file_open(&tmpfd, "/dev/tty",
-                         APR_FOPEN_READ | APR_FOPEN_WRITE,
+                         APR_READ | APR_WRITE,
                          APR_OS_DEFAULT, pool);
   *terminal = apr_palloc(pool, sizeof(terminal_handle_t));
   if (!status)

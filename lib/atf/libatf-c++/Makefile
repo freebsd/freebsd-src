@@ -30,7 +30,7 @@
 
 LIB=		atf-c++
 PRIVATELIB=	true
-SHLIB_MAJOR=	2
+SHLIB_MAJOR=	1
 
 # libatf-c++ depends on the C version of the ATF library to build.
 DPADD=		${LIBATFC}

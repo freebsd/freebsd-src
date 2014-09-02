@@ -16,4 +16,8 @@ CFLAGS+= -I${.CURDIR}/../../../../lib/libstand
 # Pick up the bootstrap header for some interface items
 CFLAGS+= -I${.CURDIR}/../../common
 
+ 
+# Suppress warning from clang for FreeBSD %b and %D formats
+CFLAGS+= -fformat-extensions
+
 .include <bsd.lib.mk>

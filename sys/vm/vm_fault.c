@@ -755,7 +755,7 @@ vnode_locked:
 					vm_page_unlock(fs.first_m);
 					
 					vm_page_lock(fs.m);
-					vm_page_unwire(fs.m, FALSE);
+					vm_page_unwire(fs.m, PQ_INACTIVE);
 					vm_page_unlock(fs.m);
 				}
 				/*
@@ -902,7 +902,8 @@ vnode_locked:
 	 * back on the active queue until later so that the pageout daemon
 	 * won't find it (yet).
 	 */
-	pmap_enter(fs.map->pmap, vaddr, fault_type, fs.m, prot, wired);
+	pmap_enter(fs.map->pmap, vaddr, fs.m, prot,
+	    fault_type | (wired ? PMAP_ENTER_WIRED : 0), 0);
 	if (faultcount != 1 && (fault_flags & VM_FAULT_CHANGE_WIRING) == 0 &&
 	    wired == 0)
 		vm_fault_prefault(&fs, vaddr, faultcount, reqpage);
@@ -917,7 +918,7 @@ vnode_locked:
 		if (wired)
 			vm_page_wire(fs.m);
 		else
-			vm_page_unwire(fs.m, 1);
+			vm_page_unwire(fs.m, PQ_ACTIVE);
 	} else
 		vm_page_activate(fs.m);
 	if (m_hold != NULL) {
@@ -1154,68 +1155,6 @@ error:
 }
 
 /*
- *	vm_fault_wire:
- *
- *	Wire down a range of virtual addresses in a map.
- */
-int
-vm_fault_wire(vm_map_t map, vm_offset_t start, vm_offset_t end,
-    boolean_t fictitious)
-{
-	vm_offset_t va;
-	int rv;
-
-	/*
-	 * We simulate a fault to get the page and enter it in the physical
-	 * map.  For user wiring, we only ask for read access on currently
-	 * read-only sections.
-	 */
-	for (va = start; va < end; va += PAGE_SIZE) {
-		rv = vm_fault(map, va, VM_PROT_NONE, VM_FAULT_CHANGE_WIRING);
-		if (rv) {
-			if (va != start)
-				vm_fault_unwire(map, start, va, fictitious);
-			return (rv);
-		}
-	}
-	return (KERN_SUCCESS);
-}
-
-/*
- *	vm_fault_unwire:
- *
- *	Unwire a range of virtual addresses in a map.
- */
-void
-vm_fault_unwire(vm_map_t map, vm_offset_t start, vm_offset_t end,
-    boolean_t fictitious)
-{
-	vm_paddr_t pa;
-	vm_offset_t va;
-	vm_page_t m;
-	pmap_t pmap;
-
-	pmap = vm_map_pmap(map);
-
-	/*
-	 * Since the pages are wired down, we must be able to get their
-	 * mappings from the physical map system.
-	 */
-	for (va = start; va < end; va += PAGE_SIZE) {
-		pa = pmap_extract(pmap, va);
-		if (pa != 0) {
-			pmap_change_wiring(pmap, va, FALSE);
-			if (!fictitious) {
-				m = PHYS_TO_VM_PAGE(pa);
-				vm_page_lock(m);
-				vm_page_unwire(m, TRUE);
-				vm_page_unlock(m);
-			}
-		}
-	}
-}
-
-/*
  *	Routine:
  *		vm_fault_copy_entry
  *	Function:
@@ -1380,7 +1319,8 @@ again:
 		 * mapping is being replaced by a write-enabled
 		 * mapping, then wire that new mapping.
 		 */
-		pmap_enter(dst_map->pmap, vaddr, access, dst_m, prot, upgrade);
+		pmap_enter(dst_map->pmap, vaddr, dst_m, prot,
+		    access | (upgrade ? PMAP_ENTER_WIRED : 0), 0);
 
 		/*
 		 * Mark it no longer busy, and put it on the active list.
@@ -1390,7 +1330,7 @@ again:
 		if (upgrade) {
 			if (src_m != dst_m) {
 				vm_page_lock(src_m);
-				vm_page_unwire(src_m, 0);
+				vm_page_unwire(src_m, PQ_INACTIVE);
 				vm_page_unlock(src_m);
 				vm_page_lock(dst_m);
 				vm_page_wire(dst_m);

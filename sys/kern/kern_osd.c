@@ -47,8 +47,7 @@ __FBSDID("$FreeBSD$");
 static MALLOC_DEFINE(M_OSD, "osd", "Object Specific Data");
 
 static int osd_debug = 0;
-TUNABLE_INT("debug.osd", &osd_debug);
-SYSCTL_INT(_debug, OID_AUTO, osd, CTLFLAG_RW, &osd_debug, 0, "OSD debug level");
+SYSCTL_INT(_debug, OID_AUTO, osd, CTLFLAG_RWTUN, &osd_debug, 0, "OSD debug level");
 
 #define	OSD_DEBUG(...)	do {						\
 	if (osd_debug) {						\

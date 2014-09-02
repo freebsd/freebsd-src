@@ -63,6 +63,7 @@
 		slcr: slcr@7000 {
 			compatible = "xlnx,zy7_slcr";
 			reg = <0x0 0x1000>;
+			clock-frequency = <33333333>; // 33Mhz PS_CLK
 		};
 
 		// Interrupt controller
@@ -175,6 +176,7 @@
 		 	reg = <0xb000 0x1000>;
 			interrupts = <54 55>;
 			interrupt-parent = <&GIC>;
+			ref-clock-num = <0>;
 		};
 
 		// SDIO

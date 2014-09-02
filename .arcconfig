@@ -1,4 +1,5 @@
 {
 	"project.name": "S",
-	"phabricator.uri" : "https://phabric.freebsd.org/"
+	"phabricator.uri" : "https://phabric.freebsd.org/",
+	"history.immutable" : true
 }

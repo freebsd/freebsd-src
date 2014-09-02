@@ -378,11 +378,9 @@ sodealloc(struct socket *so)
 	if (so->so_snd.sb_hiwat)
 		(void)chgsbsize(so->so_cred->cr_uidinfo,
 		    &so->so_snd.sb_hiwat, 0, RLIM_INFINITY);
-#ifdef INET
 	/* remove acccept filter if one is present. */
 	if (so->so_accf != NULL)
 		do_setopt_accept_filter(so, NULL);
-#endif
 #ifdef MAC
 	mac_socket_destroy(so);
 #endif
@@ -2402,13 +2400,12 @@ sosetopt(struct socket *so, struct sockopt *sopt)
 		error = ENOPROTOOPT;
 	} else {
 		switch (sopt->sopt_name) {
-#ifdef INET
 		case SO_ACCEPTFILTER:
 			error = do_setopt_accept_filter(so, sopt);
 			if (error)
 				goto bad;
 			break;
-#endif
+
 		case SO_LINGER:
 			error = sooptcopyin(sopt, &l, sizeof l, sizeof l);
 			if (error)
@@ -2547,8 +2544,10 @@ sosetopt(struct socket *so, struct sockopt *sopt)
 				error = EDOM;
 				goto bad;
 			}
-			val = tvtosbt(tv);
-
+			if (tv.tv_sec > INT32_MAX)
+				val = SBT_MAX;
+			else
+				val = tvtosbt(tv);
 			switch (sopt->sopt_name) {
 			case SO_SNDTIMEO:
 				so->so_snd.sb_timeo = val;
@@ -2635,11 +2634,10 @@ sogetopt(struct socket *so, struct sockopt *sopt)
 		return (error);
 	} else {
 		switch (sopt->sopt_name) {
-#ifdef INET
 		case SO_ACCEPTFILTER:
 			error = do_getopt_accept_filter(so, sopt);
 			break;
-#endif
+
 		case SO_LINGER:
 			SOCK_LOCK(so);
 			l.l_onoff = so->so_options & SO_LINGER;
@@ -2698,10 +2696,8 @@ integer:
 
 		case SO_SNDTIMEO:
 		case SO_RCVTIMEO:
-			optval = (sopt->sopt_name == SO_SNDTIMEO ?
-				  so->so_snd.sb_timeo : so->so_rcv.sb_timeo);
-
-			tv = sbttotv(optval);
+			tv = sbttotv(sopt->sopt_name == SO_SNDTIMEO ?
+			    so->so_snd.sb_timeo : so->so_rcv.sb_timeo);
 #ifdef COMPAT_FREEBSD32
 			if (SV_CURPROC_FLAG(SV_ILP32)) {
 				struct timeval32 tv32;

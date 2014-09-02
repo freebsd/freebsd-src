@@ -76,8 +76,6 @@ __FBSDID("$FreeBSD$");
 #include <netipsec/key.h>
 #endif /* IPSEC */
 
-#include <netinet6/ip6protosw.h>
-
 /*
  * Forward a packet.  If some error occurs return the sender
  * an icmp packet.  Note we can't always generate a meaningful
@@ -104,7 +102,6 @@ ip6_forward(struct mbuf *m, int srcrt)
 	struct in6_addr src_in6, dst_in6, odst;
 #ifdef IPSEC
 	struct secpolicy *sp = NULL;
-	int ipsecrt = 0;
 #endif
 #ifdef SCTP
 	int sw_csum;
@@ -252,7 +249,6 @@ ip6_forward(struct mbuf *m, int srcrt)
 
     {
 	struct ipsecrequest *isr = NULL;
-	struct ipsec_output_state state;
 
 	/*
 	 * when the kernel forwards a packet, it is not proper to apply
@@ -285,18 +281,27 @@ ip6_forward(struct mbuf *m, int srcrt)
 	 *
 	 * IPv6 [ESP|AH] IPv6 [extension headers] payload
 	 */
-	bzero(&state, sizeof(state));
-	state.m = m;
-	state.ro = NULL;	/* update at ipsec6_output_tunnel() */
-	state.dst = NULL;	/* update at ipsec6_output_tunnel() */
 
-	error = ipsec6_output_tunnel(&state, sp, 0);
+	/*
+	 * If we need to encapsulate the packet, do it here
+	 * ipsec6_proces_packet will send the packet using ip6_output
+	 */
+	error = ipsec6_process_packet(m, sp->req);
 
-	m = state.m;
 	KEY_FREESP(&sp);
 
+	if (error == EJUSTRETURN) {
+		/*
+		 * We had a SP with a level of 'use' and no SA. We
+		 * will just continue to process the packet without
+		 * IPsec processing.
+		 */
+		error = 0;
+		goto skip_ipsec;
+	}
+
 	if (error) {
-		/* mbuf is already reclaimed in ipsec6_output_tunnel. */
+		/* mbuf is already reclaimed in ipsec6_process_packet. */
 		switch (error) {
 		case EHOSTUNREACH:
 		case ENETUNREACH:
@@ -319,7 +324,6 @@ ip6_forward(struct mbuf *m, int srcrt)
 			m_freem(mcopy);
 #endif
 		}
-		m_freem(m);
 		return;
 	} else {
 		/*
@@ -331,25 +335,7 @@ ip6_forward(struct mbuf *m, int srcrt)
 		m = NULL;
 		goto freecopy;
 	}
-
-	if ((m != NULL) && (ip6 != mtod(m, struct ip6_hdr *)) ){
-		/*
-		 * now tunnel mode headers are added.  we are originating
-		 * packet instead of forwarding the packet.
-		 */
-		ip6_output(m, NULL, NULL, IPV6_FORWARDING/*XXX*/, NULL, NULL,
-		    NULL);
-		goto freecopy;
-	}
-
-	/* adjust pointer */
-	dst = (struct sockaddr_in6 *)state.dst;
-	rt = state.ro ? state.ro->ro_rt : NULL;
-	if (dst != NULL && rt != NULL)
-		ipsecrt = 1;
     }
-	if (ipsecrt)
-		goto skip_routing;
 skip_ipsec:
 #endif
 again:
@@ -372,9 +358,6 @@ again2:
 		goto bad;
 	}
 	rt = rin6.ro_rt;
-#ifdef IPSEC
-skip_routing:
-#endif
 
 	/*
 	 * Source scope check: if a packet can't be delivered to its
@@ -397,11 +380,7 @@ skip_routing:
 		IP6STAT_INC(ip6s_badscope);
 		goto bad;
 	}
-	if (inzone != outzone
-#ifdef IPSEC
-	    && !ipsecrt
-#endif
-	    ) {
+	if (inzone != outzone) {
 		IP6STAT_INC(ip6s_cantforward);
 		IP6STAT_INC(ip6s_badscope);
 		in6_ifstat_inc(rt->rt_ifp, ifs6_in_discard);
@@ -491,9 +470,6 @@ skip_routing:
 	 * modified by a redirect.
 	 */
 	if (V_ip6_sendredirects && rt->rt_ifp == m->m_pkthdr.rcvif && !srcrt &&
-#ifdef IPSEC
-	    !ipsecrt &&
-#endif /* IPSEC */
 	    (rt->rt_flags & (RTF_DYNAMIC|RTF_MODIFIED)) == 0) {
 		if ((rt->rt_ifp->if_flags & IFF_POINTOPOINT) != 0) {
 			/*
@@ -670,10 +646,6 @@ pass:
 bad:
 	m_freem(m);
 out:
-	if (rt != NULL
-#ifdef IPSEC
-	    && !ipsecrt
-#endif
-	    )
+	if (rt != NULL)
 		RTFREE(rt);
 }

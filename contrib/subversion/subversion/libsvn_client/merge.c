@@ -322,6 +322,10 @@ typedef struct merge_cmd_baton_t {
   const char *diff3_cmd;
   const apr_array_header_t *merge_options;
 
+  /* Array of file extension patterns to preserve as extensions in
+     generated conflict files. */
+  const apr_array_header_t *ext_patterns;
+
   /* RA sessions used throughout a merge operation.  Opened/re-parented
      as needed.
 
@@ -2023,17 +2027,36 @@ merge_file_changed(const char *relpath,
     {
       svn_boolean_t has_local_mods;
       enum svn_wc_merge_outcome_t content_outcome;
+      const char *target_label;
+      const char *left_label;
+      const char *right_label;
+      const char *path_ext = "";
+
+      if (merge_b->ext_patterns && merge_b->ext_patterns->nelts)
+        {
+          svn_path_splitext(NULL, &path_ext, local_abspath, scratch_pool);
+          if (! (*path_ext
+                 && svn_cstring_match_glob_list(path_ext,
+                                                merge_b->ext_patterns)))
+            {
+              path_ext = "";
+            }
+        }
 
       /* xgettext: the '.working', '.merge-left.r%ld' and
          '.merge-right.r%ld' strings are used to tag onto a file
          name in case of a merge conflict */
-      const char *target_label = _(".working");
-      const char *left_label = apr_psprintf(scratch_pool,
-                                            _(".merge-left.r%ld"),
-                                            left_source->revision);
-      const char *right_label = apr_psprintf(scratch_pool,
-                                             _(".merge-right.r%ld"),
-                                             right_source->revision);
+
+      target_label = apr_psprintf(scratch_pool, _(".working%s%s"),
+                                  *path_ext ? "." : "", path_ext);
+      left_label = apr_psprintf(scratch_pool,
+                                _(".merge-left.r%ld%s%s"),
+                                left_source->revision,
+                                *path_ext ? "." : "", path_ext);
+      right_label = apr_psprintf(scratch_pool,
+                                 _(".merge-right.r%ld%s%s"),
+                                 right_source->revision,
+                                 *path_ext ? "." : "", path_ext);
 
       SVN_ERR(svn_wc_text_modified_p2(&has_local_mods, ctx->wc_ctx,
                                       local_abspath, FALSE, scratch_pool));
@@ -3062,7 +3085,6 @@ merge_dir_deleted(const char *relpath,
   struct merge_dir_baton_t *db = dir_baton;
   const char *local_abspath = svn_dirent_join(merge_b->target->abspath,
                                               relpath, scratch_pool);
-  struct dir_delete_baton_t *delb;
   svn_boolean_t same;
   apr_hash_t *working_props;
 
@@ -3093,66 +3115,69 @@ merge_dir_deleted(const char *relpath,
                             scratch_pool, scratch_pool));
 
   if (merge_b->force_delete)
-    same = TRUE;
+    {
+      /* In this legacy mode we just assume that a directory delete
+         matches any directory. db->delete_state is NULL */
+      same = TRUE;
+    }
   else
     {
+      struct dir_delete_baton_t *delb;
+
       /* Compare the properties */
       SVN_ERR(properties_same_p(&same, left_props, working_props,
                                 scratch_pool));
-    }
+      delb = db->delete_state;
+      assert(delb != NULL);
 
-  delb = db->delete_state;
-  assert(delb != NULL);
-
-  if (! same)
-    {
-      delb->found_edit = TRUE;
-    }
-  else
-    {
-      store_path(delb->compared_abspaths, local_abspath);
-    }
-
-  if (delb->del_root != db)
-    return SVN_NO_ERROR;
-
-  if (delb->found_edit)
-    same = FALSE;
-  else if (merge_b->force_delete)
-    same = TRUE;
-  else
-    {
-      apr_array_header_t *ignores;
-      svn_error_t *err;
-      same = TRUE;
-
-      SVN_ERR(svn_wc_get_default_ignores(&ignores, merge_b->ctx->config,
-                                         scratch_pool));
-
-      /* None of the descendants was modified, but maybe there are
-         descendants we haven't walked?
-
-         Note that we aren't interested in changes, as we already verified
-         changes in the paths touched by the merge. And the existance of
-         other paths is enough to mark the directory edited */
-      err = svn_wc_walk_status(merge_b->ctx->wc_ctx, local_abspath,
-                               svn_depth_infinity, TRUE /* get-all */,
-                               FALSE /* no-ignore */,
-                               TRUE /* ignore-text-mods */, ignores,
-                               verify_touched_by_del_check, delb,
-                               merge_b->ctx->cancel_func,
-                               merge_b->ctx->cancel_baton,
-                               scratch_pool);
-
-      if (err)
+      if (! same)
         {
-          if (err->apr_err != SVN_ERR_CEASE_INVOCATION)
-            return svn_error_trace(err);
-
-          svn_error_clear(err);
+          delb->found_edit = TRUE;
+        }
+      else
+        {
+          store_path(delb->compared_abspaths, local_abspath);
         }
 
-      same = ! delb->found_edit;
+      if (delb->del_root != db)
+        return SVN_NO_ERROR;
+
+      if (delb->found_edit)
+        same = FALSE;
+      else
+        {
+          apr_array_header_t *ignores;
+          svn_error_t *err;
+          same = TRUE;
+
+          SVN_ERR(svn_wc_get_default_ignores(&ignores, merge_b->ctx->config,
+                                             scratch_pool));
+
+          /* None of the descendants was modified, but maybe there are
+             descendants we haven't walked?
+
+             Note that we aren't interested in changes, as we already verified
+             changes in the paths touched by the merge. And the existence of
+             other paths is enough to mark the directory edited */
+          err = svn_wc_walk_status(merge_b->ctx->wc_ctx, local_abspath,
+                                   svn_depth_infinity, TRUE /* get-all */,
+                                   FALSE /* no-ignore */,
+                                   TRUE /* ignore-text-mods */, ignores,
+                                   verify_touched_by_del_check, delb,
+                                   merge_b->ctx->cancel_func,
+                                   merge_b->ctx->cancel_baton,
+                                   scratch_pool);
+
+          if (err)
+            {
+              if (err->apr_err != SVN_ERR_CEASE_INVOCATION)
+                return svn_error_trace(err);
+
+              svn_error_clear(err);
+            }
+
+          same = ! delb->found_edit;
+        }
     }
 
   if (same && !merge_b->dry_run)
@@ -9668,6 +9693,7 @@ do_merge(apr_hash_t **modified_subtrees,
   merge_cmd_baton_t merge_cmd_baton = { 0 };
   svn_config_t *cfg;
   const char *diff3_cmd;
+  const char *preserved_exts_str;
   int i;
   svn_boolean_t checked_mergeinfo_capability = FALSE;
   svn_ra_session_t *ra_session1 = NULL, *ra_session2 = NULL;
@@ -9728,6 +9754,11 @@ do_merge(apr_hash_t **modified_subtrees,
   if (diff3_cmd != NULL)
     SVN_ERR(svn_path_cstring_to_utf8(&diff3_cmd, diff3_cmd, scratch_pool));
 
+    /* See which files the user wants to preserve the extension of when
+     conflict files are made. */
+  svn_config_get(cfg, &preserved_exts_str, SVN_CONFIG_SECTION_MISCELLANY,
+                 SVN_CONFIG_OPTION_PRESERVED_CF_EXTS, "");
+
   /* Build the merge context baton (or at least the parts of it that
      don't need to be reset for each merge source).  */
   merge_cmd_baton.force_delete = force_delete;
@@ -9743,6 +9774,11 @@ do_merge(apr_hash_t **modified_subtrees,
   merge_cmd_baton.pool = iterpool;
   merge_cmd_baton.merge_options = merge_options;
   merge_cmd_baton.diff3_cmd = diff3_cmd;
+  merge_cmd_baton.ext_patterns = *preserved_exts_str
+                          ? svn_cstring_split(preserved_exts_str, "\n\r\t\v ",
+                                              FALSE, scratch_pool)
+                          : NULL;
+
   merge_cmd_baton.use_sleep = use_sleep;
 
   /* Do we already know the specific subtrees with mergeinfo we want
@@ -10447,15 +10483,10 @@ merge_locked(conflict_report_t **conflict_report,
     }
   else
     {
-      merge_source_t source;
-
-      source.loc1 = source1_loc;
-      source.loc2 = source2_loc;
-      source.ancestral = FALSE;
-
       /* Build a single-item merge_source_t array. */
       merge_sources = apr_array_make(scratch_pool, 1, sizeof(merge_source_t *));
-      APR_ARRAY_PUSH(merge_sources, merge_source_t *) = &source;
+      APR_ARRAY_PUSH(merge_sources, merge_source_t *)
+        = merge_source_create(source1_loc, source2_loc, FALSE, scratch_pool);
     }
 
   err = do_merge(NULL, NULL, conflict_report, &use_sleep,
@@ -10761,7 +10792,7 @@ log_find_operative_revs(void *baton,
    UNMERGED_CATALOG represents the history (as mergeinfo) from
    TARGET_LOC that is not represented in SOURCE_LOC's
    explicit/inherited mergeinfo as represented by MERGED_CATALOG.
-   MERGEINFO_CATALOG may be empty if the source has no explicit or inherited
+   MERGED_CATALOG may be empty if the source has no explicit or inherited
    mergeinfo.
 
    Check that all of the unmerged revisions in UNMERGED_CATALOG's
@@ -11464,7 +11495,7 @@ find_reintegrate_merge(merge_source_t **source_p,
          prefix. */
       svn_mergeinfo_catalog_t final_unmerged_catalog = apr_hash_make(scratch_pool);
 
-      SVN_ERR(find_unsynced_ranges(source_loc, yc_ancestor,
+      SVN_ERR(find_unsynced_ranges(source_loc, &target->loc,
                                    unmerged_to_source_mergeinfo_catalog,
                                    merged_to_source_mergeinfo_catalog,
                                    final_unmerged_catalog,

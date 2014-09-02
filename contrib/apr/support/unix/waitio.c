@@ -22,7 +22,7 @@
 
 /* The only case where we don't use wait_for_io_or_timeout is on
  * pre-BONE BeOS, so this check should be sufficient and simpler */
-#if !BEOS_R5
+#if !defined(BEOS_R5) && !defined(OS2) && APR_FILES_AS_SOCKETS
 #define USE_WAIT_FOR_IO
 #endif
 

@@ -76,9 +76,8 @@ static SYSCTL_NODE(_hw, OID_AUTO, upgt, CTLFLAG_RD, 0,
 
 #ifdef UPGT_DEBUG
 int upgt_debug = 0;
-SYSCTL_INT(_hw_upgt, OID_AUTO, debug, CTLFLAG_RW | CTLFLAG_TUN, &upgt_debug,
+SYSCTL_INT(_hw_upgt, OID_AUTO, debug, CTLFLAG_RWTUN, &upgt_debug,
 	    0, "control debugging printfs");
-TUNABLE_INT("hw.upgt.debug", &upgt_debug);
 enum {
 	UPGT_DEBUG_XMIT		= 0x00000001,	/* basic xmit operation */
 	UPGT_DEBUG_RECV		= 0x00000002,	/* basic recv operation */
@@ -429,7 +428,7 @@ upgt_get_stats(struct upgt_softc *sc)
 
 	data_cmd = upgt_getbuf(sc);
 	if (data_cmd == NULL) {
-		device_printf(sc->sc_dev, "%s: out of buffer.\n", __func__);
+		device_printf(sc->sc_dev, "%s: out of buffers.\n", __func__);
 		return;
 	}
 

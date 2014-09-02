@@ -1,0 +1,342 @@
+FreeBSD Base Driver for the Intel® XL710 Ethernet Controller Family
+================================================================
+
+/*$FreeBSD$*/
+
+July 21, 2014
+
+
+Contents
+========
+
+- Overview
+- Supported Adapters
+- Building and Installation
+- Additional Configurations
+- Known Limitations
+
+
+Overview
+========
+
+This file describes the i40e FreeBSD* Base driver for the XL710 Ethernet Family of Adapters. The Driver has been developed for use with FreeBSD 10.0 or later,  but should be compatible with any supported release.
+
+For questions related to hardware requirements, refer to the documentation      supplied with your Intel XL710 adapter. All hardware requirements listed apply  for use with FreeBSD.
+
+
+Supported Adapters
+==================
+
+The driver in this release is compatible with XL710 and X710-based Intel        Ethernet Network Connections.
+
+
+SFP+ Devices with Pluggable Optics
+----------------------------------
+
+SR Modules
+----------
+  Intel     DUAL RATE 1G/10G SFP+ SR (bailed)    FTLX8571D3BCV-IT
+  Intel     DUAL RATE 1G/10G SFP+ SR (bailed)    AFBR-703SDZ-IN2
+
+LR Modules
+----------
+  Intel     DUAL RATE 1G/10G SFP+ LR (bailed)    FTLX1471D3BCV-IT
+  Intel     DUAL RATE 1G/10G SFP+ LR (bailed)    AFCT-701SDZ-IN2
+
+QSFP+ Modules
+-------------
+  Intel     TRIPLE RATE 1G/10G/40G QSFP+ SR (bailed)    E40GQSFPSR
+  Intel     TRIPLE RATE 1G/10G/40G QSFP+ LR (bailed)    E40GQSFPLR
+    QSFP+ 1G speed is not supported on XL710 based devices.
+
+X710/XL710 Based SFP+ adapters support all passive and active limiting direct   attach cables that comply with SFF-8431 v4.1 and SFF-8472 v10.4 specifications.
+              
+
+Building and Installation
+=========================
+
+NOTE: You must have kernel sources installed to compile the driver module.
+
+In the instructions below, x.x.x is the driver version
+as indicated in thename of the driver tar. 
+
+1. Move the base driver tar file to the directory of your choice. For example,  use /home/username/i40e or /usr/local/src/i40e.
+
+2. Untar/unzip the archive:
+     tar xfz i40e-x.x.x.tar.gz
+
+3. To install man page:
+     cd i40e-x.x.x
+     gzip -c i40e.4 > /usr/share/man/man4/i40e.4.gz
+
+4. To load the driver onto a running system:
+     cd i40e-x.x.x/src
+     make load
+
+5. To assign an IP address to the interface, enter the following:
+     ifconfig ixl<interface_num> <IP_address>
+
+6. Verify that the interface works. Enter the following, where <IP_address> is  the IP address for another machine on the same subnet as the interface that is  being tested:
+
+     ping <IP_address>
+
+7. If you want the driver to load automatically when the system is booted:
+
+     cd i40e-x.x.x/src
+     make
+     make install
+        
+    Edit /boot/loader.conf, and add the following line:
+     if_i40e_load="YES"
+
+    Edit /etc/rc.conf, and create the appropriate
+    ifconfig_ixl<interface_num> entry:
+
+     ifconfig_ixl<interface_num>="<ifconfig_settings>"
+
+     Example usage:
+
+     ifconfig_ixl0="inet 192.168.10.1 netmask 255.255.255.0"
+
+     NOTE: For assistance, see the ifconfig man page.
+
+
+
+Configuration and Tuning
+=========================
+
+The driver supports Transmit/Receive Checksum Offload for IPv4 and IPv6,
+TSO forIPv4 and IPv6, LRO, and Jumbo Frames on all 40 Gigabit adapters. 
+
+  Jumbo Frames
+  ------------
+  To enable Jumbo Frames, use the ifconfig utility to increase
+  the MTU beyond 1500 bytes.
+
+       - The Jumbo Frames setting on the switch must be set to at least
+         22 byteslarger than that of the adapter.
+
+       - The maximum MTU setting for Jumbo Frames is 9706. This value
+         coincides with the maximum jumbo frames size of 9728.
+         To modify the setting, enter the following:
+
+        ifconfig ixl<interface_num> <hostname or IP address> mtu 9000
+
+       - To confirm an interface's MTU value, use the ifconfig command.
+         To confirm the MTU used between two specific devices, use:
+
+        route get <destination_IP_address>
+
+  VLANs
+  -----
+  To create a new VLAN pseudo-interface:
+
+        ifconfig <vlan_name> create
+
+  To associate the VLAN pseudo-interface with a physical interface
+  and assign a VLAN ID, IP address, and netmask:
+
+        ifconfig <vlan_name> <ip_address> netmask <subnet_mask> vlan
+           <vlan_id> vlandev <physical_interface>
+
+  Example:
+
+        ifconfig vlan10 10.0.0.1 netmask 255.255.255.0 vlan 10 vlandev ixl0
+
+  In this example, all packets will be marked on egress with
+  802.1Q VLAN tags, specifying a VLAN ID of 10.
+
+  To remove a VLAN pseudo-interface:
+
+        ifconfig <vlan_name> destroy
+
+
+  Checksum Offload
+  ----------------
+    
+  Checksum offloading supports IPv4 and IPv6 with TCP and UDP packets
+  and is supported for both transmit and receive. Checksum offloading
+  for transmit and recieve is enabled by default for both IPv4 and IPv6.
+
+  Checksum offloading can be enabled or disabled using ifconfig.
+  Transmit and receive offloading for IPv4 and Ipv6 are enabled
+  and disabled seperately.
+
+  NOTE: TSO requires Tx checksum, so when Tx checksum
+        is disabled, TSO will also  be disabled. 
+
+  To enable Tx checksum offloading for ipv4:
+
+         ifconfig ixl<interface_num> txcsum4 
+
+  To disable Tx checksum offloading for ipv4:
+         
+         ifconfig ixl<interface_num> -txcsum4 
+         (NOTE: This will disable TSO4)
+
+  To enable Rx checksum offloading for ipv6:
+ 
+         ifconfig ixl<interface_num> rxcsum6 
+         
+  To disable Rx checksum offloading for ipv6:
+
+         ifconfig ixl<interface_num> -rxcsum6 
+         (NOTE: This will disable TSO6)
+
+  
+  To confirm the current settings:
+
+         ifconfig ixl<interface_num>
+
+  
+  TSO
+  ---
+
+  TSO supports both IPv4 and IPv6 and is enabled by default. TSO can
+  be disabled and enabled using the ifconfig utility.
+
+  NOTE: TSO requires Tx checksum, so when Tx checksum is
+      disabled, TSO will also be disabled. 
+
+  To disable TSO IPv4:
+
+         ifconfig ixl<interface_num> -tso4
+         
+  To enable TSO IPv4:
+
+         ifconfig ixl<interface_num> tso4 
+
+  To disable TSO IPv6:
+
+         ifconfig ixl<interface_num> -tso6
+
+  To enable TSO IPv6:
+        
+         ifconfig ixl<interface_num> tso6
+
+  To disable BOTH TSO IPv4 and IPv6:
+
+         ifconfig ixl<interface_num> -tso
+
+  To enable BOTH TSO IPv4 and IPv6:
+  
+         ifconfig ixl<interface_num> tso
+
+
+  LRO
+  ---
+
+  Large Receive Offload is enabled by default. It can be enabled
+  or disabled by using the ifconfig utility.
+
+  NOTE: LRO should be disabled when forwarding packets.
+
+  To disable LRO:	
+
+         ifconfig ixl<interface_num> -lro 
+
+  To enable LRO:
+
+         ifconfig ixl<interface_num> lro 
+
+
+Flow Control
+------------
+Flow control is disabled by default. To change flow control settings use sysctl.
+
+To enable flow control to Rx pause frames:     
+
+         sysctl dev.ixl.<interface_num>.fc=1
+
+To enable flow control to Tx pause frames: 
+
+         sysctl dev.ixl.<interface_num>.fc=2
+
+To enable flow control to Rx and Tx pause frames:
+
+         sysctl dev.ixl.<interface_num>.fc=3
+
+To disable flow control:
+
+         sysctl dev.ixl.<interface_num>.fc=0
+    
+
+NOTE: You must have a flow control capable link partner.
+
+
+   
+  Important system configuration changes:
+  =======================================
+ 
+  
+-Change the file /etc/sysctl.conf, and add the line:  
+ 
+         hw.intr_storm_threshold: 0 (the default is 1000)
+
+-Best throughput results are seen with a large MTU; use 9706 if possible. 
+
+-The default number of descriptors per ring is 1024, increasing this may        improve performance depending on the use case.
+
+
+Known Limitations
+=================
+
+Network Memory Buffer allocation
+--------------------------------
+  FreeBSD may have a low number of network memory buffers (mbufs) by default. Ifyour mbuf value is too low, it may cause the driver to fail to initialize and/orcause the system to become unresponsive. You can check to see if the system is  mbuf-starved by running 'netstat -m'. Increase the number of mbufs by editing   the lines below in /etc/sysctl.conf:
+
+         kern.ipc.nmbclusters
+         kern.ipc.nmbjumbop    
+         kern.ipc.nmbjumbo9
+         kern.ipc.nmbjumbo16
+         kern.ipc.nmbufs
+
+The amount of memory that you allocate is system specific, and may require some trial and error.
+
+Also, increasing the follwing in /etc/sysctl.conf could help increase network   performance:
+         
+         kern.ipc.maxsockbuf
+         net.inet.tcp.sendspace
+         net.inet.tcp.recvspace
+         net.inet.udp.maxdgram
+         net.inet.udp.recvspace
+                  
+
+UDP Stress Test Dropped Packet Issue
+------------------------------------
+  Under small packet UDP stress test with the i40e driver, the FreeBSD system   will drop UDP packets due to the fullness of socket buffers. You may want to    change the driver's Flow Control variables to the minimum value for controlling packet reception.
+
+
+Disable LRO when routing/bridging
+---------------------------------
+LRO must be turned off when forwarding traffic.
+
+
+Lower than expected performance
+-------------------------------
+  Some PCIe x8 slots are actually configured as x4 slots. These slots have      insufficient bandwidth for full line rate with dual port and quad port devices. In addition, if you put a PCIe Generation 3-capable adapter into a PCIe         Generation 2 slot, you cannot get full bandwidth. The driver detects this       situation and writes the following message in the system log:
+
+  "PCI-Express bandwidth available for this card is not sufficient for optimal  performance. For optimal performance a x8 PCI-Express slot is required."
+
+If this error occurs, moving your adapter to a true PCIe Generation 3 x8 slot   will resolve the issue.
+
+
+Support
+=======
+
+For general information and support, go to the Intel support website at:
+
+        http://support.intel.com
+
+If an issue is identified with the released source code on the supported kernel with a supported adapter, email the specific information related to the issue tofreebsdnic@mailbox.intel.com.
+
+
+License
+=======
+
+This software program is released under the terms of a license agreement betweenyou ('Licensee') and Intel. Do not use or load this software or any associated  materials (collectively, the 'Software') until you have carefully read the full terms and conditions of the LICENSE located in this software package. By loadingor using the Software, you agree to the terms of this Agreement. If you do not 
+agree with the terms of this Agreement, do not install or use the Software.
+
+* Other names and brands may be claimed as the property of others.
+
+
