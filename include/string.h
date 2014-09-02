@@ -149,7 +149,8 @@ void	*memcpy_c_fromcap(void * __restrict,
 __capability void
 	*memcpy_c_tocap(__capability void * __restrict,
 	    const void * __restrict, size_t);
-void	*memset_c(__capability void *, int, size_t);
+__capability void
+	*memset_c(__capability void *, int, size_t);
 
 __capability char
 	*strchr_c(__capability const char *, int) __pure;

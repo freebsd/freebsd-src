@@ -39,6 +39,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/types.h>
 
 #include <limits.h>
+#include "cheri_private.h"
 
 #define	wsize	sizeof(u_int)
 #define	wmask	(wsize - 1)
@@ -59,15 +60,15 @@ bzero(void *dst0, size_t length)
 #define	VAL	c0
 #define	WIDEVAL	c
 
-void *
-memset(void *dst0, int c0, size_t length)
+__CAPABILITY void *
+__CAPSUFFIX(memset)(__CAPABILITY void *dst0, int c0, size_t length)
 #endif
 {
 	size_t t;
 #ifndef BZERO
 	u_int c;
 #endif
-	u_char *dst;
+	__CAPABILITY u_char *dst;
 
 	dst = dst0;
 	/*
@@ -114,7 +115,7 @@ memset(void *dst0, int c0, size_t length)
 	/* Fill words.  Length was >= 2*words so we know t >= 1 here. */
 	t = length / wsize;
 	do {
-		*(u_int *)(void *)dst = WIDEVAL;
+		*(__CAPABILITY u_int *)(__CAPABILITY void *)dst = WIDEVAL;
 		dst += wsize;
 	} while (--t != 0);
 

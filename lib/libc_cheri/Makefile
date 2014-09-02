@@ -138,6 +138,7 @@ SRCS+=		bcopy.S			\
 		memcpy_c.s		\
 		memcpy_c_tofrom.c	\
 		memset.c		\
+		memset_c.c		\
 		memmove.S		\
 		strcat.c		\
 		strchr.S		\
