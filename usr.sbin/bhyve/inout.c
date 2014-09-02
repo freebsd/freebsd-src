@@ -109,7 +109,7 @@ emulate_inout(struct vmctx *ctx, int vcpu, struct vm_exit *vmexit, int strict)
 	void *arg;
 	int error, retval;
 	enum vm_reg_name idxreg;
-	uint64_t gla, index, count;
+	uint64_t gla, index, iterations, count;
 	struct vm_inout_str *vis;
 	struct iovec iov[2];
 
@@ -151,31 +151,31 @@ emulate_inout(struct vmctx *ctx, int vcpu, struct vm_exit *vmexit, int strict)
 		/* Count register */
 		count = vis->count & vie_size2mask(addrsize);
 
-		while (count) {
+		/* Limit number of back-to-back in/out emulations to 16 */
+		iterations = MIN(count, 16);
+		while (iterations > 0) {
+			assert(retval == 0);
 			if (vie_calculate_gla(vis->paging.cpu_mode,
 			    vis->seg_name, &vis->seg_desc, index, bytes,
 			    addrsize, prot, &gla)) {
-				error = vm_inject_exception2(ctx, vcpu,
-				    IDT_GP, 0);
-				assert(error == 0);
-				return (INOUT_RESTART);
+				vm_inject_gp(ctx, vcpu);
+				break;
 			}
 
-			error = vm_gla2gpa(ctx, vcpu, &vis->paging, gla, bytes,
-			    prot, iov, nitems(iov));
-			assert(error == 0 || error == 1 || error == -1);
-			if (error) {
-				retval = (error == 1) ? INOUT_RESTART :
-				    INOUT_ERROR;
+			error = vm_copy_setup(ctx, vcpu, &vis->paging, gla,
+			    bytes, prot, iov, nitems(iov));
+			if (error == -1) {
+				retval = -1;  /* Unrecoverable error */
+				break;
+			} else if (error == 1) {
+				retval = 0;  /* Resume guest to handle fault */
 				break;
 			}
 
 			if (vie_alignment_check(vis->paging.cpl, bytes,
 			    vis->cr0, vis->rflags, gla)) {
-				error = vm_inject_exception2(ctx, vcpu,
-				    IDT_AC, 0);
-				assert(error == 0);
-				return (INOUT_RESTART);
+				vm_inject_ac(ctx, vcpu, 0);
+				break;
 			}
 
 			val = 0;
@@ -196,6 +196,7 @@ emulate_inout(struct vmctx *ctx, int vcpu, struct vm_exit *vmexit, int strict)
 				index += bytes;
 
 			count--;
+			iterations--;
 		}
 
 		/* Update index register */
@@ -213,8 +214,8 @@ emulate_inout(struct vmctx *ctx, int vcpu, struct vm_exit *vmexit, int strict)
 		}
 
 		/* Restart the instruction if more iterations remain */
-		if (retval == INOUT_OK && count != 0)
-			retval = INOUT_RESTART;
+		if (retval == 0 && count != 0)
+			vmexit->inst_length = 0;
 	} else {
 		if (!in) {
 			val = vmexit->u.inout.eax & vie_size2mask(bytes);

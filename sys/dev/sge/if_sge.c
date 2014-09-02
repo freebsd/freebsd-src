@@ -916,25 +916,25 @@ sge_dma_free(struct sge_softc *sc)
 	ld = &sc->sge_ldata;
 	/* Rx ring. */
 	if (cd->sge_rx_tag != NULL) {
-		if (cd->sge_rx_dmamap != NULL)
+		if (ld->sge_rx_paddr != 0)
 			bus_dmamap_unload(cd->sge_rx_tag, cd->sge_rx_dmamap);
-		if (cd->sge_rx_dmamap != NULL && ld->sge_rx_ring != NULL)
+		if (ld->sge_rx_ring != NULL)
 			bus_dmamem_free(cd->sge_rx_tag, ld->sge_rx_ring,
 			    cd->sge_rx_dmamap);
 		ld->sge_rx_ring = NULL;
-		cd->sge_rx_dmamap = NULL;
+		ld->sge_rx_paddr = 0;
 		bus_dma_tag_destroy(cd->sge_rx_tag);
 		cd->sge_rx_tag = NULL;
 	}
 	/* Tx ring. */
 	if (cd->sge_tx_tag != NULL) {
-		if (cd->sge_tx_dmamap != NULL)
+		if (ld->sge_tx_paddr != 0)
 			bus_dmamap_unload(cd->sge_tx_tag, cd->sge_tx_dmamap);
-		if (cd->sge_tx_dmamap != NULL && ld->sge_tx_ring != NULL)
+		if (ld->sge_tx_ring != NULL)
 			bus_dmamem_free(cd->sge_tx_tag, ld->sge_tx_ring,
 			    cd->sge_tx_dmamap);
 		ld->sge_tx_ring = NULL;
-		cd->sge_tx_dmamap = NULL;
+		ld->sge_tx_paddr = 0;
 		bus_dma_tag_destroy(cd->sge_tx_tag);
 		cd->sge_tx_tag = NULL;
 	}

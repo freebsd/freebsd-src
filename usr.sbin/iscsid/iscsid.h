@@ -51,6 +51,7 @@ struct connection {
 	struct iscsi_session_conf	conn_conf;
 	char			conn_target_alias[ISCSI_ADDR_LEN];
 	uint8_t			conn_isid[6];
+	uint16_t		conn_tsih;
 	uint32_t		conn_statsn;
 	int			conn_header_digest;
 	int			conn_data_digest;

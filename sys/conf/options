@@ -111,6 +111,7 @@ GEOM_MULTIPATH	opt_geom.h
 GEOM_NOP	opt_geom.h
 GEOM_PART_APM	opt_geom.h
 GEOM_PART_BSD	opt_geom.h
+GEOM_PART_BSD64	opt_geom.h
 GEOM_PART_EBR	opt_geom.h
 GEOM_PART_EBR_COMPAT	opt_geom.h
 GEOM_PART_GPT	opt_geom.h
@@ -453,8 +454,10 @@ SCTP_MBCNT_LOGGING	opt_sctp.h # Log to KTR mbcnt activity
 SCTP_PACKET_LOGGING	opt_sctp.h # Log to a packet buffer last N packets
 SCTP_LTRACE_CHUNKS	opt_sctp.h # Log to KTR chunks processed
 SCTP_LTRACE_ERRORS	opt_sctp.h # Log to KTR error returns.
-SCTP_USE_PERCPU_STAT    opt_sctp.h # Use per cpu stats.
-SCTP_MCORE_INPUT        opt_sctp.h # Have multiple input threads for input mbufs
+SCTP_USE_PERCPU_STAT	opt_sctp.h # Use per cpu stats.
+SCTP_MCORE_INPUT	opt_sctp.h # Have multiple input threads for input mbufs
+SCTP_LOCAL_TRACE_BUF	opt_sctp.h # Use tracebuffer exported via sysctl
+SCTP_DETAILED_STR_STATS	opt_sctp.h # Use per PR-SCTP policy stream stats
 #
 #
 #
@@ -683,6 +686,7 @@ WITNESS			opt_global.h
 WITNESS_KDB		opt_witness.h
 WITNESS_NO_VNODE	opt_witness.h
 WITNESS_SKIPSPIN	opt_witness.h
+WITNESS_COUNT		opt_witness.h
 OPENSOLARIS_WITNESS	opt_global.h
 
 # options for ACPI support
@@ -734,8 +738,6 @@ SAFE_RNDTEST		opt_safe.h
 
 # syscons/vt options
 MAXCONS			opt_syscons.h
-VT_FB_DEFAULT_WIDTH	opt_syscons.h
-VT_FB_DEFAULT_HEIGHT	opt_syscons.h
 SC_ALT_MOUSE_IMAGE	opt_syscons.h
 SC_CUT_SPACES2TABS	opt_syscons.h
 SC_CUT_SEPCHARS		opt_syscons.h
@@ -758,13 +760,19 @@ SC_NORM_REV_ATTR	opt_syscons.h
 SC_PIXEL_MODE		opt_syscons.h
 SC_RENDER_DEBUG		opt_syscons.h
 SC_TWOBUTTON_MOUSE	opt_syscons.h
+VT_ALT_TO_ESC_HACK	opt_syscons.h
+VT_FB_DEFAULT_WIDTH	opt_syscons.h
+VT_FB_DEFAULT_HEIGHT	opt_syscons.h
+VT_MAXWINDOWS		opt_syscons.h
+VT_TWOBUTTON_MOUSE	opt_syscons.h
 DEV_SC			opt_syscons.h
 DEV_VT			opt_syscons.h
-
 
 # teken terminal emulator options
 TEKEN_CONS25		opt_teken.h
 TEKEN_UTF8		opt_teken.h
+TERMINAL_KERN_ATTR	opt_teken.h
+TERMINAL_NORM_ATTR	opt_teken.h
 
 # options for printf
 PRINTF_BUFR_SIZE	opt_printf.h

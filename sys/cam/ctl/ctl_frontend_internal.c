@@ -173,7 +173,7 @@ typedef enum {
 } cfi_flags;
 
 struct cfi_softc {
-	struct ctl_frontend fe;
+	struct ctl_port port;
 	char fe_name[40];
 	struct mtx lock;
 	cfi_flags flags;
@@ -192,8 +192,6 @@ int cfi_init(void);
 void cfi_shutdown(void) __unused;
 static void cfi_online(void *arg);
 static void cfi_offline(void *arg);
-static int cfi_targ_enable(void *arg, struct ctl_id targ_id);
-static int cfi_targ_disable(void *arg, struct ctl_id targ_id);
 static int cfi_lun_enable(void *arg, struct ctl_id target_id, int lun_id);
 static int cfi_lun_disable(void *arg, struct ctl_id target_id, int lun_id);
 static void cfi_datamove(union ctl_io *io);
@@ -216,28 +214,24 @@ static void cfi_metatask_io_done(union ctl_io *io);
 static void cfi_err_recovery_done(union ctl_io *io);
 static void cfi_lun_io_done(union ctl_io *io);
 
-static int cfi_module_event_handler(module_t, int /*modeventtype_t*/, void *);
-
-static moduledata_t cfi_moduledata = {
-	"ctlcfi",
-	cfi_module_event_handler,
-	NULL
+static struct ctl_frontend cfi_frontend =
+{
+	.name = "kernel",
+	.init = cfi_init,
+	.shutdown = cfi_shutdown,
 };
-
-DECLARE_MODULE(ctlcfi, cfi_moduledata, SI_SUB_CONFIGURE, SI_ORDER_FOURTH);
-MODULE_VERSION(ctlcfi, 1);
-MODULE_DEPEND(ctlcfi, ctl, 1, 1, 1);
+CTL_FRONTEND_DECLARE(ctlcfi, cfi_frontend);
 
 int
 cfi_init(void)
 {
 	struct cfi_softc *softc;
-	struct ctl_frontend *fe;
+	struct ctl_port *port;
 	int retval;
 
 	softc = &fetd_internal_softc;
 
-	fe = &softc->fe;
+	port = &softc->port;
 
 	retval = 0;
 
@@ -254,24 +248,23 @@ cfi_init(void)
 
 	STAILQ_INIT(&softc->lun_list);
 	STAILQ_INIT(&softc->metatask_list);
-	sprintf(softc->fe_name, "CTL internal");
-	fe->port_type = CTL_PORT_INTERNAL;
-	fe->num_requested_ctl_io = 100;
-	fe->port_name = softc->fe_name;
-	fe->port_online = cfi_online;
-	fe->port_offline = cfi_offline;
-	fe->onoff_arg = softc;
-	fe->targ_enable = cfi_targ_enable;
-	fe->targ_disable = cfi_targ_disable;
-	fe->lun_enable = cfi_lun_enable;
-	fe->lun_disable = cfi_lun_disable;
-	fe->targ_lun_arg = softc;
-	fe->fe_datamove = cfi_datamove;
-	fe->fe_done = cfi_done;
-	fe->max_targets = 15;
-	fe->max_target_id = 15;
+	sprintf(softc->fe_name, "kernel");
+	port->frontend = &cfi_frontend;
+	port->port_type = CTL_PORT_INTERNAL;
+	port->num_requested_ctl_io = 100;
+	port->port_name = softc->fe_name;
+	port->port_online = cfi_online;
+	port->port_offline = cfi_offline;
+	port->onoff_arg = softc;
+	port->lun_enable = cfi_lun_enable;
+	port->lun_disable = cfi_lun_disable;
+	port->targ_lun_arg = softc;
+	port->fe_datamove = cfi_datamove;
+	port->fe_done = cfi_done;
+	port->max_targets = 15;
+	port->max_target_id = 15;
 
-	if (ctl_frontend_register(fe, (softc->flags & CTL_FLAG_MASTER_SHELF)) != 0) 
+	if (ctl_port_register(port, (softc->flags & CTL_FLAG_MASTER_SHELF)) != 0) 
 	{
 		printf("%s: internal frontend registration failed\n", __func__);
 		return (0);
@@ -295,25 +288,11 @@ cfi_shutdown(void)
 	/*
 	 * XXX KDM need to clear out any I/O pending on each LUN.
 	 */
-	if (ctl_frontend_deregister(&softc->fe) != 0)
+	if (ctl_port_deregister(&softc->port) != 0)
 		printf("%s: ctl_frontend_deregister() failed\n", __func__);
 
 	uma_zdestroy(cfi_lun_zone);
 	uma_zdestroy(cfi_metatask_zone);
-}
-
-static int
-cfi_module_event_handler(module_t mod, int what, void *arg)
-{
-
-	switch (what) {
-	case MOD_LOAD:
-		return (cfi_init());
-	case MOD_UNLOAD:
-		return (EBUSY);
-	default:
-		return (EOPNOTSUPP);
-	}
 }
 
 static void
@@ -344,18 +323,6 @@ cfi_offline(void *arg)
 	softc = (struct cfi_softc *)arg;
 
 	softc->flags &= ~CFI_ONLINE;
-}
-
-static int
-cfi_targ_enable(void *arg, struct ctl_id targ_id)
-{
-	return (0);
-}
-
-static int
-cfi_targ_disable(void *arg, struct ctl_id targ_id)
-{
-	return (0);
 }
 
 static int
@@ -734,7 +701,7 @@ cfi_init_io(union ctl_io *io, struct cfi_lun *lun,
 	struct cfi_lun_io *lun_io;
 
 	io->io_hdr.nexus.initid.id = 7;
-	io->io_hdr.nexus.targ_port = lun->softc->fe.targ_port;
+	io->io_hdr.nexus.targ_port = lun->softc->port.targ_port;
 	io->io_hdr.nexus.targ_target.id = lun->target_id.id;
 	io->io_hdr.nexus.targ_lun = lun->lun_id;
 	io->io_hdr.retries = retries;
@@ -795,7 +762,7 @@ cfi_done(union ctl_io *io)
 			union ctl_io *new_io;
 			struct cfi_lun_io *new_lun_io;
 
-			new_io = ctl_alloc_io(softc->fe.ctl_pool_ref);
+			new_io = ctl_alloc_io(softc->port.ctl_pool_ref);
 			if (new_io == NULL) {
 				printf("%s: unable to allocate ctl_io for "
 				       "error recovery\n", __func__);
@@ -1001,7 +968,7 @@ cfi_lun_probe(struct cfi_lun *lun, int have_lock)
 		struct cfi_lun_io *lun_io;
 		union ctl_io *io;
 
-		io = ctl_alloc_io(lun->softc->fe.ctl_pool_ref);
+		io = ctl_alloc_io(lun->softc->port.ctl_pool_ref);
 		if (io == NULL) {
 			printf("%s: unable to alloc ctl_io for target %ju "
 			       "lun %d probe\n", __func__,
@@ -1048,7 +1015,7 @@ cfi_lun_probe(struct cfi_lun *lun, int have_lock)
 		uint8_t *dataptr;
 		union ctl_io *io;
 
-		io = ctl_alloc_io(lun->softc->fe.ctl_pool_ref);
+		io = ctl_alloc_io(lun->softc->port.ctl_pool_ref);
 		if (io == NULL) {
 			printf("%s: unable to alloc ctl_io for target %ju "
 			       "lun %d probe\n", __func__,
@@ -1429,7 +1396,7 @@ cfi_action(struct cfi_metatask *metatask)
 			if (SID_TYPE(&lun->inq_data) != T_DIRECT)
 				continue;
 			da_luns++;
-			io = ctl_alloc_io(softc->fe.ctl_pool_ref);
+			io = ctl_alloc_io(softc->port.ctl_pool_ref);
 			if (io != NULL) {
 				ios_allocated++;
 				STAILQ_INSERT_TAIL(&tmp_io_list, &io->io_hdr,
@@ -1583,7 +1550,7 @@ cfi_action(struct cfi_metatask *metatask)
 
 		}
 
-		io = ctl_alloc_io(softc->fe.ctl_pool_ref);
+		io = ctl_alloc_io(softc->port.ctl_pool_ref);
 		if (io == NULL) {
 			metatask->status = CFI_MT_ERROR;
 			metatask->taskinfo.bbrread.status = CFI_BBR_NO_MEM;

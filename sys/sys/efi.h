@@ -151,27 +151,4 @@ struct efi_systbl {
 	uint64_t	st_cfgtbl;
 };
 
-#if defined(_KERNEL) && defined(__ia64__)
-
-typedef u_long (*ia64_efi_f)(u_long, u_long, u_long, u_long);
-
-u_long ia64_efi_physical(ia64_efi_f, u_long, u_long, u_long, u_long);
-
-void efi_boot_finish(void);
-int efi_boot_minimal(uint64_t);
-void *efi_get_table(struct uuid *);
-void efi_get_time(struct efi_tm *);
-struct efi_md *efi_md_find(vm_paddr_t);
-struct efi_md *efi_md_first(void);
-struct efi_md *efi_md_last(void);
-struct efi_md *efi_md_next(struct efi_md *);
-struct efi_md *efi_md_prev(struct efi_md *);
-void efi_reset_system(void);
-int efi_set_time(struct efi_tm *);
-int efi_var_get(efi_char *, struct uuid *, uint32_t *, size_t *, void *);
-int efi_var_nextname(size_t *, efi_char *, struct uuid *);
-int efi_var_set(efi_char *, struct uuid *, uint32_t, size_t, void *);
-
-#endif /* _KERNEL && __ia64__ */
-
 #endif /* _SYS_EFI_H_ */

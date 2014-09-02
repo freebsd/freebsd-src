@@ -126,6 +126,18 @@
 #define ZY7_SLCR_GEM1_RCLK_CTRL		0x013c
 #define ZY7_SLCR_GEM0_CLK_CTRL		0x0140
 #define ZY7_SLCR_GEM1_CLK_CTRL		0x0144
+#define   ZY7_SLCR_GEM_CLK_CTRL_DIVISOR1_MASK		(0x3f<<20)
+#define   ZY7_SLCR_GEM_CLK_CTRL_DIVISOR1_SHIFT		20
+#define   ZY7_SLCR_GEM_CLK_CTRL_DIVISOR1_MAX		0x3f
+#define   ZY7_SLCR_GEM_CLK_CTRL_DIVISOR_MASK		(0x3f<<8)
+#define   ZY7_SLCR_GEM_CLK_CTRL_DIVISOR_SHIFT		8
+#define   ZY7_SLCR_GEM_CLK_CTRL_DIVISOR_MAX		0x3f
+#define   ZY7_SLCR_GEM_CLK_CTRL_SRCSEL_MASK		(7<<4)
+#define   ZY7_SLCR_GEM_CLK_CTRL_SRCSEL_IO_PLL		(0<<4)
+#define   ZY7_SLCR_GEM_CLK_CTRL_SRCSEL_ARM_PLL		(2<<4)
+#define   ZY7_SLCR_GEM_CLK_CTRL_SRCSEL_DDR_PLL		(3<<4)
+#define   ZY7_SLCR_GEM_CLK_CTRL_SRCSEL_EMIO_CLK		(4<<4)
+#define   ZY7_SLCR_GEM_CLK_CTRL_CLKACT			1
 #define ZY7_SLCR_SMC_CLK_CTRL		0x0148
 #define ZY7_SLCR_LQSPI_CLK_CTRL		0x014c
 #define ZY7_SLCR_SDIO_CLK_CTRL		0x0150
@@ -274,6 +286,7 @@
 
 #ifdef _KERNEL
 extern void zy7_slcr_preload_pl(void);
-extern void zy7_slcr_postload_pl(int);
+extern void zy7_slcr_postload_pl(int en_level_shifters);
+extern int cgem_set_ref_clk(int unit, int frequency);
 #endif
 #endif /* _ZY7_SLCR_H_ */

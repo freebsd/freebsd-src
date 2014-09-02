@@ -208,7 +208,6 @@ static SLIST_HEAD(, uld_info) t3_uld_list;
  */
 static int msi_allowed = 2;
 
-TUNABLE_INT("hw.cxgb.msi_allowed", &msi_allowed);
 SYSCTL_NODE(_hw, OID_AUTO, cxgb, CTLFLAG_RD, 0, "CXGB driver parameters");
 SYSCTL_INT(_hw_cxgb, OID_AUTO, msi_allowed, CTLFLAG_RDTUN, &msi_allowed, 0,
     "MSI-X, MSI, INTx selector");
@@ -218,7 +217,6 @@ SYSCTL_INT(_hw_cxgb, OID_AUTO, msi_allowed, CTLFLAG_RDTUN, &msi_allowed, 0,
  * To disable it and force a single queue-set per port, use multiq = 0
  */
 static int multiq = 1;
-TUNABLE_INT("hw.cxgb.multiq", &multiq);
 SYSCTL_INT(_hw_cxgb, OID_AUTO, multiq, CTLFLAG_RDTUN, &multiq, 0,
     "use min(ncpus/ports, 8) queue-sets per port");
 
@@ -228,17 +226,14 @@ SYSCTL_INT(_hw_cxgb, OID_AUTO, multiq, CTLFLAG_RDTUN, &multiq, 0,
  * 
  */
 static int force_fw_update = 0;
-TUNABLE_INT("hw.cxgb.force_fw_update", &force_fw_update);
 SYSCTL_INT(_hw_cxgb, OID_AUTO, force_fw_update, CTLFLAG_RDTUN, &force_fw_update, 0,
     "update firmware even if up to date");
 
 int cxgb_use_16k_clusters = -1;
-TUNABLE_INT("hw.cxgb.use_16k_clusters", &cxgb_use_16k_clusters);
 SYSCTL_INT(_hw_cxgb, OID_AUTO, use_16k_clusters, CTLFLAG_RDTUN,
     &cxgb_use_16k_clusters, 0, "use 16kB clusters for the jumbo queue ");
 
 static int nfilters = -1;
-TUNABLE_INT("hw.cxgb.nfilters", &nfilters);
 SYSCTL_INT(_hw_cxgb, OID_AUTO, nfilters, CTLFLAG_RDTUN,
     &nfilters, 0, "max number of entries in the filter table");
 

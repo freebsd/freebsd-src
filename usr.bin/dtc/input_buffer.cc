@@ -151,7 +151,7 @@ input_buffer::next_token()
 		start = cursor;
 		skip_spaces();
 		// Parse /* comments
-		if (((*this)[0] == '/') && ((*this)[1] == '*'))
+		if ((*this)[0] == '/' && (*this)[1] == '*')
 		{
 			// eat the start of the comment
 			++(*this);
@@ -168,13 +168,14 @@ input_buffer::next_token()
 			// Eat the /
 			++(*this);
 		}
-		// Parse // comments
-		if (((*this)[0] == '/') && ((*this)[1] == '/'))
+		// Parse // comments and # comments
+		if (((*this)[0] == '/' && (*this)[1] == '/') || 
+		     (*this)[0] == '#')
 		{
 			// eat the start of the comment
 			++(*this);
 			++(*this);
-			// Find the ending * of */
+			// Find the ending of the line
 			while (**this != '\n')
 			{
 				++(*this);

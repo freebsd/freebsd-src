@@ -828,14 +828,16 @@ usage(void)
 "               [-M core] [-N system]",
 "       netstat -i | -I interface [-46abdhnW] [-f address_family]\n"
 "               [-M core] [-N system]",
-"       netstat -w wait [-I interface] [-46d] [-M core] [-N system] [-q howmany]",
-"       netstat -s [-s] [-46z] [-f protocol_family | -p protocol]\n"
+"       netstat -w wait [-I interface] [-46d] [-M core] [-N system]\n"
+"               [-q howmany]",
+"       netstat -s [-46sz] [-f protocol_family | -p protocol]\n"
 "               [-M core] [-N system]",
-"       netstat -i | -I interface [-46s] [-f protocol_family | -p protocol]\n"
-"               [-M core] [-N system]",
+"       netstat -i | -I interface -s [-46s]\n"
+"               [-f protocol_family | -p protocol] [-M core] [-N system]",
 "       netstat -m [-M core] [-N system]",
-"       netstat -B [-I interface]",
-"       netstat -r [-46AanW] [-f address_family] [-M core] [-N system]",
+"       netstat -B [-z] [-I interface]",
+"       netstat -r [-46AnW] [-F fibnum] [-f address_family]\n"
+"               [-M core] [-N system]",
 "       netstat -rs [-s] [-M core] [-N system]",
 "       netstat -g [-46W] [-f address_family] [-M core] [-N system]",
 "       netstat -gs [-46s] [-f address_family] [-M core] [-N system]",

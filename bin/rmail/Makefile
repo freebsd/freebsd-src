@@ -14,6 +14,8 @@ MAN=	rmail.8
 WARNS?=	2
 CFLAGS+=-I${SENDMAIL_DIR}/include -I.
 
+NO_PIE=	yes
+
 LIBSMDIR=	${.OBJDIR}/../../lib/libsm
 LIBSM=		${LIBSMDIR}/libsm.a
 

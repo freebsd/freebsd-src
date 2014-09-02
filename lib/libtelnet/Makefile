@@ -15,7 +15,6 @@ CFLAGS+=	-I${TELNETDIR}
 
 WARNS?=		2
 
-.if !defined(RELEASE_CRUNCH)
 .if ${MK_OPENSSL} != "no"
 SRCS+=		encrypt.c auth.c enc_des.c sra.c pk.c
 CFLAGS+=	-DENCRYPTION -DAUTHENTICATION -DSRA
@@ -25,7 +24,6 @@ CFLAGS+=	-DENCRYPTION -DAUTHENTICATION -DSRA
 SRCS+=		kerberos5.c
 CFLAGS+=	-DKRB5 -I${KRB5DIR}/lib/krb5 -I${KRB5OBJDIR} -I${ASN1OBJDIR}
 CFLAGS+=	-DFORWARD -Dnet_write=telnet_net_write
-.endif
 .endif
 
 INCS=		${TELNETDIR}/arpa/telnet.h

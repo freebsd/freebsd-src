@@ -105,10 +105,8 @@ SYSCTL_INT(_debug, OID_AUTO, if_fwip_debug, CTLFLAG_RW, &fwipdebug, 0, "");
 SYSCTL_DECL(_hw_firewire);
 static SYSCTL_NODE(_hw_firewire, OID_AUTO, fwip, CTLFLAG_RD, 0,
 	"Firewire ip subsystem");
-SYSCTL_INT(_hw_firewire_fwip, OID_AUTO, rx_queue_len, CTLFLAG_RW, &rx_queue_len,
+SYSCTL_INT(_hw_firewire_fwip, OID_AUTO, rx_queue_len, CTLFLAG_RWTUN, &rx_queue_len,
 	0, "Length of the receive queue");
-
-TUNABLE_INT("hw.firewire.fwip.rx_queue_len", &rx_queue_len);
 
 #ifdef DEVICE_POLLING
 static poll_handler_t fwip_poll;

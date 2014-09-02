@@ -136,10 +136,6 @@ void libworker_delete_event(struct libworker* w);
 /** cleanup the cache to remove all rrset IDs from it, arg is libworker */
 void libworker_alloc_cleanup(void* arg);
 
-/** mesh callback with event results */
-void libworker_event_done_cb(void* arg, int rcode, struct sldns_buffer* buf, 
-	enum sec_status s, char* why_bogus);
-
 /** 
  * fill result from parsed message, on error fills servfail 
  * @param res: is clear at start, filled in at end.

@@ -163,6 +163,10 @@ struct vmcb_segment {
 } __attribute__ ((__packed__));
 CTASSERT(sizeof(struct vmcb_segment) == 16);
 
+/* Code segment descriptor attribute in 12 bit format as saved by VMCB. */
+#define	VMCB_CS_ATTRIB_L		BIT(9)	/* Long mode. */
+#define	VMCB_CS_ATTRIB_D		BIT(10)	/* OPerand size bit. */
+
 /*
  * The VMCB is divided into two areas - the first one contains various
  * control bits including the intercept vector and the second one contains

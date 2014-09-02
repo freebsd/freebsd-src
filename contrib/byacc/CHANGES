@@ -1,3 +1,38 @@
+2014-07-15  Thomas E. Dickey  <tom@invisible-island.net>
+
+	* aclocal.m4: resync with my-autoconf (no change to configure script)
+
+	* VERSION, package/byacc.spec, package/debian/changelog, package/mingw-byacc.spec, package/pkgsrc/Makefile:
+	bump
+
+	* test/run_test.sh:
+	make top-level "make check" work again, by adding another step to filtering
+	the test results.
+
+2014-07-14  Thomas E. Dickey  <tom@invisible-island.net>
+
+	* test/run_test.sh: changes from Garrett Cooper's patch:
+		a) ensure that the script returns an error-code if there are differences
+		b) escape "." character in left side of sed expression for $YACC
+		c) ensure that $ifBTYACC has a value
+
+	* test/btyacc/big_b.output, test/btyacc/big_l.output, test/btyacc/help.output, test/btyacc/no_b_opt.output, test/btyacc/no_output2.output, test/btyacc/no_p_opt.output, test/btyacc/nostdin.output:
+	regen (reminder by Garrett Cooper)
+
+2014-07-14  Garrett.Cooper
+
+	* test/btyacc/err_inherit1.error, test/btyacc/err_inherit2.error, test/btyacc/err_inherit3.error, test/btyacc/err_inherit4.error, test/btyacc/err_inherit5.error, test/btyacc/err_syntax1.error, test/btyacc/err_syntax10.error, test/btyacc/err_syntax11.error, test/btyacc/err_syntax12.error, test/btyacc/err_syntax13.error, test/btyacc/err_syntax14.error, test/btyacc/err_syntax15.error, test/btyacc/err_syntax16.error, test/btyacc/err_syntax17.error, test/btyacc/err_syntax18.error, test/btyacc/err_syntax19.error, test/btyacc/err_syntax2.error, test/btyacc/err_syntax21.error, test/btyacc/err_syntax22.error, test/btyacc/err_syntax23.error, test/btyacc/err_syntax24.error, test/btyacc/err_syntax25.error, test/btyacc/err_syntax26.error, test/btyacc/err_syntax27.error, test/btyacc/err_syntax3.error, test/btyacc/err_syntax4.error, test/btyacc/err_syntax5.error, test/btyacc/err_syntax6.error, test/btyacc/err_syntax7.error, test/btyacc/err_syntax7a.error, test/btyacc/err_syntax7b.error, test/btyacc/err_syntax8.error, test/btyacc/err_syntax8a.error, test/btyacc/err_syntax9.error, test/yacc/err_syntax1.error, test/yacc/err_syntax10.error, test/yacc/err_syntax11.error, test/yacc/err_syntax12.error, test/yacc/err_syntax13.error, test/yacc/err_syntax14.error, test/yacc/err_syntax15.error, test/yacc/err_syntax16.error, test/yacc/err_syntax17.error, test/yacc/err_syntax18.error, test/yacc/err_syntax19.error, test/yacc/err_syntax2.error, test/yacc/err_syntax21.error, test/yacc/err_syntax22.error, test/yacc/err_syntax23.error, test/yacc/err_syntax24.error, test/yacc/err_syntax25.error, test/yacc/err_syntax26.error, test/yacc/err_syntax27.error, test/yacc/err_syntax3.error, test/yacc/err_syntax4.error, test/yacc/err_syntax5.error, test/yacc/err_syntax6.error, test/yacc/err_syntax7.error, test/yacc/err_syntax7a.error, test/yacc/err_syntax7b.error, test/yacc/err_syntax8.error, test/yacc/err_syntax8a.error, test/yacc/err_syntax9.error:
+	regen
+
+2014-05-27  Tom.Shields
+
+	* main.c: remove obsolete -D option from usage message
+
+2014-05-27  Thomas E. Dickey  <tom@invisible-island.net>
+
+	* VERSION, package/byacc.spec, package/debian/changelog, test/yacc/big_b.output, test/yacc/big_l.output, test/yacc/help.output, test/yacc/no_b_opt.output, test/yacc/no_output2.output, test/yacc/no_p_opt.output, test/yacc/nostdin.output:
+	bump
+
 2014-04-22  Thomas E. Dickey  <tom@invisible-island.net>
 
 	* mstring.c:

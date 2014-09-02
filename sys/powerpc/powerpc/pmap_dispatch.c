@@ -100,14 +100,6 @@ pmap_advise(pmap_t pmap, vm_offset_t start, vm_offset_t end, int advice)
 }
 
 void
-pmap_change_wiring(pmap_t pmap, vm_offset_t va, boolean_t wired)
-{
-
-	CTR4(KTR_PMAP, "%s(%p, %#x, %u)", __func__, pmap, va, wired);
-	MMU_CHANGE_WIRING(mmu_obj, pmap, va, wired);
-}
-
-void
 pmap_clear_modify(vm_page_t m)
 {
 
@@ -143,14 +135,14 @@ pmap_copy_pages(vm_page_t ma[], vm_offset_t a_offset, vm_page_t mb[],
 	MMU_COPY_PAGES(mmu_obj, ma, a_offset, mb, b_offset, xfersize);
 }
 
-void
-pmap_enter(pmap_t pmap, vm_offset_t va, vm_prot_t access, vm_page_t p,
-    vm_prot_t prot, boolean_t wired)
+int
+pmap_enter(pmap_t pmap, vm_offset_t va, vm_page_t p, vm_prot_t prot,
+    u_int flags, int8_t psind)
 {
 
-	CTR6(KTR_PMAP, "pmap_enter(%p, %#x, %#x, %p, %#x, %u)", pmap, va,
-	    access, p, prot, wired);
-	MMU_ENTER(mmu_obj, pmap, va, p, prot, wired);
+	CTR6(KTR_PMAP, "pmap_enter(%p, %#x, %p, %#x, %x, %d)", pmap, va,
+	    p, prot, flags, psind);
+	return (MMU_ENTER(mmu_obj, pmap, va, p, prot, flags, psind));
 }
 
 void
@@ -358,6 +350,14 @@ pmap_remove_write(vm_page_t m)
 
 	CTR2(KTR_PMAP, "%s(%p)", __func__, m);
 	MMU_REMOVE_WRITE(mmu_obj, m);
+}
+
+void
+pmap_unwire(pmap_t pmap, vm_offset_t start, vm_offset_t end)
+{
+
+	CTR4(KTR_PMAP, "%s(%p, %#x, %#x)", __func__, pmap, start, end);
+	MMU_UNWIRE(mmu_obj, pmap, start, end);
 }
 
 void

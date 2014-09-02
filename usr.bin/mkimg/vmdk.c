@@ -28,7 +28,6 @@
 __FBSDID("$FreeBSD$");
 
 #include <sys/types.h>
-#include <sys/apm.h>
 #include <sys/endian.h>
 #include <sys/errno.h>
 #include <stdint.h>
@@ -111,12 +110,13 @@ static int
 vmdk_write(int fd)
 {
 	struct vmdk_header hdr;
-	uint32_t *gt, *gd;
+	uint32_t *gt, *gd, *rgd;
 	char *buf, *desc;
 	off_t cur, lim;
 	uint64_t imagesz;
+	lba_t blkofs, blkcnt;
 	size_t gdsz, gtsz;
-	uint32_t sec;
+	uint32_t sec, cursec;
 	int error, desc_len, n, ngrains, ngts;
 
 	imagesz = (image_get_size() * secsz) / VMDK_SECTOR_SIZE;
@@ -143,22 +143,34 @@ vmdk_write(int fd)
 	le32enc(&hdr.ngtes, VMDK_NGTES);
 
 	sec = desc_len / VMDK_SECTOR_SIZE + 1;
-	le64enc(&hdr.rgd_offset, sec);
-	le64enc(&hdr.gd_offset, sec);
 
 	ngrains = imagesz / grainsz;
 	ngts = (ngrains + VMDK_NGTES - 1) / VMDK_NGTES;
 	gdsz = (ngts * sizeof(uint32_t) + VMDK_SECTOR_SIZE - 1) &
 	    ~(VMDK_SECTOR_SIZE - 1);
+
 	gd = calloc(gdsz, 1);
 	if (gd == NULL) {
 		free(desc);
 		return (ENOMEM);
 	}
-
+	le64enc(&hdr.gd_offset, sec);
 	sec += gdsz / VMDK_SECTOR_SIZE;
 	for (n = 0; n < ngts; n++) {
 		le32enc(gd + n, sec);
+		sec += VMDK_NGTES * sizeof(uint32_t) / VMDK_SECTOR_SIZE;
+	}
+
+	rgd = calloc(gdsz, 1);
+	if (rgd == NULL) {
+		free(gd);
+		free(desc);
+		return (ENOMEM);
+	}
+	le64enc(&hdr.rgd_offset, sec);
+	sec += gdsz / VMDK_SECTOR_SIZE;
+	for (n = 0; n < ngts; n++) {
+		le32enc(rgd + n, sec);
 		sec += VMDK_NGTES * sizeof(uint32_t) / VMDK_SECTOR_SIZE;
 	}
 
@@ -174,13 +186,21 @@ vmdk_write(int fd)
 	gtsz = ngts * VMDK_NGTES * sizeof(uint32_t);
 	gt = calloc(gtsz, 1);
 	if (gt == NULL) {
+		free(rgd);
 		free(gd);
 		free(desc);
 		return (ENOMEM);
 	}
 
-	for (n = 0; n < ngrains; n++)
-		le32enc(gt + n, sec + n * grainsz);
+	cursec = sec;
+	blkcnt = (grainsz * VMDK_SECTOR_SIZE) / secsz;
+	for (n = 0; n < ngrains; n++) {
+		blkofs = n * blkcnt;
+		if (image_data(blkofs, blkcnt)) {
+			le32enc(gt + n, cursec);
+			cursec += grainsz;
+		}
+	}
 
 	error = 0;
 	if (!error && sparse_write(fd, &hdr, VMDK_SECTOR_SIZE) < 0)
@@ -191,13 +211,18 @@ vmdk_write(int fd)
 		error = errno;
 	if (!error && sparse_write(fd, gt, gtsz) < 0)
 		error = errno;
+	if (!error && sparse_write(fd, rgd, gdsz) < 0)
+		error = errno;
+	if (!error && sparse_write(fd, gt, gtsz) < 0)
+		error = errno;
 	free(gt);
+	free(rgd);
 	free(gd);
 	free(desc);
 	if (error)
 		return (error);
 
-	cur = VMDK_SECTOR_SIZE + desc_len + gdsz + gtsz;
+	cur = VMDK_SECTOR_SIZE + desc_len + (gdsz + gtsz) * 2;
 	lim = sec * VMDK_SECTOR_SIZE;
 	if (cur < lim) {
 		buf = calloc(VMDK_SECTOR_SIZE, 1);
@@ -211,9 +236,19 @@ vmdk_write(int fd)
 		if (buf != NULL)
 			free(buf);
 	}
-	if (!error)
-		error = image_copyout(fd);
-	return (error);
+	if (error)
+		return (error);
+
+	blkcnt = (grainsz * VMDK_SECTOR_SIZE) / secsz;
+	for (n = 0; n < ngrains; n++) {
+		blkofs = n * blkcnt;
+		if (image_data(blkofs, blkcnt)) {
+			error = image_copyout_region(fd, blkofs, blkcnt);
+			if (error)
+				return (error);
+		}
+	}
+	return (image_copyout_done(fd));
 }
 
 static struct mkimg_format vmdk_format = {

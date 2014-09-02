@@ -1249,9 +1249,6 @@ in6_update_ifa_internal(struct ifnet *ifp, struct in6_aliasreq *ifra,
 		ia->ia6_lifetime.ia6t_preferred = time_uptime;
 	}
 
-	/* Update metric */
-	ia->ia_ifa.ifa_metric = ifp->if_metric;
-
 	/*
 	 * configure address flags.
 	 */

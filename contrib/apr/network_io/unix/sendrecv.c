@@ -552,7 +552,7 @@ apr_status_t apr_socket_sendfile(apr_socket_t * sock, apr_file_t * file,
 
         /* On early versions of FreeBSD sendfile, the number of bytes to send 
          * must include the length of the headers.  Don't look at the man page 
-         * for this :(  Instead, look at the the logic in 
+         * for this :(  Instead, look at the logic in 
          * src/sys/kern/uipc_syscalls::sendfile().
          *
          * This was fixed in the middle of 4.6-STABLE

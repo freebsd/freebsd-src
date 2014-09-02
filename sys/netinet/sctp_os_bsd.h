@@ -166,19 +166,19 @@ MALLOC_DECLARE(SCTP_M_MCORE);
 #if defined(SCTP_DEBUG)
 #define SCTPDBG(level, params...)					\
 {									\
-    do {								\
-	if (SCTP_BASE_SYSCTL(sctp_debug_on) & level ) {			\
-	    SCTP_PRINTF(params);						\
-	}								\
-    } while (0);							\
+	do {								\
+		if (SCTP_BASE_SYSCTL(sctp_debug_on) & level ) {		\
+			SCTP_PRINTF(params);				\
+		}							\
+	} while (0);							\
 }
 #define SCTPDBG_ADDR(level, addr)					\
 {									\
-    do {								\
+	do {								\
 	if (SCTP_BASE_SYSCTL(sctp_debug_on) & level ) {			\
-	    sctp_print_address(addr);					\
+		sctp_print_address(addr);				\
 	}								\
-    } while (0);							\
+	} while (0);							\
 }
 #else
 #define SCTPDBG(level, params...)
@@ -194,11 +194,11 @@ MALLOC_DECLARE(SCTP_M_MCORE);
 #ifdef SCTP_LTRACE_ERRORS
 #define SCTP_LTRACE_ERR_RET_PKT(m, inp, stcb, net, file, err) \
 	if (SCTP_BASE_SYSCTL(sctp_logging_level) & SCTP_LTRACE_ERROR_ENABLE) \
-        	SCTP_PRINTF("mbuf:%p inp:%p stcb:%p net:%p file:%x line:%d error:%d\n", \
+		SCTP_PRINTF("mbuf:%p inp:%p stcb:%p net:%p file:%x line:%d error:%d\n", \
 		            m, inp, stcb, net, file, __LINE__, err);
 #define SCTP_LTRACE_ERR_RET(inp, stcb, net, file, err) \
 	if (SCTP_BASE_SYSCTL(sctp_logging_level) & SCTP_LTRACE_ERROR_ENABLE) \
-        	SCTP_PRINTF("inp:%p stcb:%p net:%p file:%x line:%d error:%d\n", \
+		SCTP_PRINTF("inp:%p stcb:%p net:%p file:%x line:%d error:%d\n", \
 		            inp, stcb, net, file, __LINE__, err);
 #else
 #define SCTP_LTRACE_ERR_RET_PKT(m, inp, stcb, net, file, err)
@@ -232,16 +232,16 @@ MALLOC_DECLARE(SCTP_M_MCORE);
  * general memory allocation
  */
 #define SCTP_MALLOC(var, type, size, name) \
-    do { \
-	var = (type)malloc(size, name, M_NOWAIT); \
-    } while (0)
+	do { \
+		var = (type)malloc(size, name, M_NOWAIT); \
+	} while (0)
 
 #define SCTP_FREE(var, type)	free(var, type)
 
 #define SCTP_MALLOC_SONAME(var, type, size) \
-    do { \
-	var = (type)malloc(size, M_SONAME, M_WAITOK | M_ZERO); \
-    } while (0)
+	do { \
+		var = (type)malloc(size, M_SONAME, M_WAITOK | M_ZERO); \
+	} while (0)
 
 #define SCTP_FREE_SONAME(var)	free(var, M_SONAME)
 
@@ -346,7 +346,7 @@ typedef struct callout sctp_os_timer_t;
 /* return the base ext data pointer */
 #define SCTP_BUF_EXTEND_BASE(m) (m->m_ext.ext_buf)
  /* return the refcnt of the data pointer */
-#define SCTP_BUF_EXTEND_REFCNT(m) (*m->m_ext.ref_cnt)
+#define SCTP_BUF_EXTEND_REFCNT(m) (*m->m_ext.ext_cnt)
 /* return any buffer related flags, this is
  * used beyond logging for apple only.
  */

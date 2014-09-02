@@ -24,12 +24,12 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd May 22, 2014
+.Dd July 4, 2014
 .Dt MKIMG 1
 .Os
 .Sh NAME
 .Nm mkimg
-.Nd "utility to make a disk image"
+.Nd "utility to make disk images"
 .Sh SYNOPSIS
 .Nm
 .Op Fl H Ar heads
@@ -40,6 +40,7 @@
 .Op Fl f Ar format
 .Op Fl o Ar outfile
 .Op Fl v
+.Op Fl y
 .Fl s Ar scheme
 .Fl p Ar partition
 .Op Fl p Ar partition ...
@@ -111,10 +112,26 @@ option increases the level of output that the
 .Nm
 utility prints.
 .Pp
+The
+.Op Fl y
+option is used for testing purposes only and is not to be used in production.
+When present, the
+.Nm
+utility will generate predictable values for Universally Unique Identifiers
+(UUIDs) and time stamps so that consecutive runs of the
+.Nm
+utility will create images that are identical.
+.Pp
 For a complete list of supported partitioning schemes or supported output
 format, or for a detailed description of how to specify partitions, run the
 .Nm
 utility without any arguments.
+.Sh ENVIRONMENT
+.Bl -tag -width "TMPDIR" -compact
+.It Ev TMPDIR
+Directory to put temporary files in; default is
+.Pa /tmp .
+.El
 .Sh EXAMPLES
 To create a bootable disk image that is partitioned using the GPT scheme and
 containing a root file system that was previously created using
@@ -159,11 +176,6 @@ For partitioning schemes that feature partition labels, the
 utility supports assigning labels to the partitions specified.
 In the following example the file system partition is labeled as 'backup':
 .Dl % mkimg -s gpt -p freebsd-ufs/backup:=file-system.ufs -o gpt.img
-.Sh ENVIRONMENT
-.Bl -tag -width "TMPDIR" -compact
-.It Ev TMPDIR
-Directory to put temporary files in; default is
-.Pa /tmp .
 .Sh SEE ALSO
 .Xr gpart 8
 .Xr makefs 8
@@ -172,8 +184,8 @@ Directory to put temporary files in; default is
 .Sh HISTORY
 The
 .Nm
-utility appeared in
-.Fx 11.0
+utility first appeared in
+.Fx 10.1 .
 .Sh AUTHORS
 The
 .Nm

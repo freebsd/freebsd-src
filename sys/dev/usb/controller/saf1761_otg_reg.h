@@ -34,10 +34,12 @@
 
 /* Global registers */
 
-#define	SOTG_VEND_ID 0x370
-#define	SOTG_PROD_ID 0x372
-#define	SOTG_CTRL_SET 0x374
-#define	SOTG_CTRL_CLR 0x376
+#define	SOTG_VEND_PROD_ID 0x370
+#define	SOTG_VEND_ID(x) ((x) & 0xFFFF)
+#define	SOTG_PROD_ID(x) (((x) >> 16) & 0xFFFF)
+#define	SOTG_CTRL_SET_CLR 0x374
+#define	SOTG_CTRL_SET(x) ((x) & 0xFFFF)
+#define	SOTG_CTRL_CLR(x) (((x) << 16) & 0xFFFF0000)
 #define	SOTG_CTRL_OTG_DISABLE (1 << 10)
 #define	SOTG_CTRL_OTG_SE0_EN (1 << 9)
 #define	SOTG_CTRL_BDIS_ACON_EN (1 << 8)
@@ -57,12 +59,15 @@
 #define	SOTG_STATUS_DP_SRP (1 << 2)
 #define	SOTG_STATUS_A_B_SESS_VLD (1 << 1)
 #define	SOTG_STATUS_VBUS_VLD (1 << 0)
-#define	SOTG_IRQ_LATCH_SET 0x37C
-#define	SOTG_IRQ_LATCH_CLR 0x37E
-#define	SOTG_IRQ_ENABLE_SET 0x380
-#define	SOTG_IRQ_ENABLE_CLR 0x382
-#define	SOTG_IRQ_RISE_SET 0x384
-#define	SOTG_IRQ_RISE_CLR 0x386
+#define	SOTG_IRQ_LATCH_SET_CLR 0x37C
+#define	SOTG_IRQ_LATCH_SET(x) ((x) & 0xFFFF)
+#define	SOTG_IRQ_LATCH_CLR(x) (((x) << 16) & 0xFFFF0000)
+#define	SOTG_IRQ_ENABLE_SET_CLR 0x380
+#define	SOTG_IRQ_ENABLE_SET(x) ((x) & 0xFFFF)
+#define	SOTG_IRQ_ENABLE_CLR(x) (((x) << 16) & 0xFFFF0000)
+#define	SOTG_IRQ_RISE_SET_CLR 0x384
+#define	SOTG_IRQ_RISE_SET(x) ((x) & 0xFFFF)
+#define	SOTG_IRQ_RISE_CLR(x) (((x) << 16) & 0xFFFF0000)
 #define	SOTG_IRQ_OTG_TMR_TIMEOUT (1 << 9)
 #define	SOTG_IRQ_B_SE0_SRP (1 << 8)
 #define	SOTG_IRQ_B_SESS_END (1 << 7)
@@ -73,11 +78,13 @@
 #define	SOTG_IRQ_DP_SRP (1 << 2)
 #define	SOTG_IRQ_A_B_SESS_VLD (1 << 1)
 #define	SOTG_IRQ_VBUS_VLD (1 << 0)
-#define	SOTG_TIMER_LOW_SET 0x388
-#define	SOTG_TIMER_LOW_CLR 0x38A
-#define	SOTG_TIMER_HIGH_SET 0x38C
-#define	SOTG_TIMER_HIGH_CLR 0x38E
-#define	SOTG_TIMER_START_TMR (1U << 15)
+#define	SOTG_TIMER_LOW_SET_CLR 0x388
+#define	SOTG_TIMER_LOW_SET(x) ((x) & 0xFFFF)
+#define	SOTG_TIMER_LOW_CLR(x) (((x) << 16) & 0xFFFF0000)
+#define	SOTG_TIMER_HIGH_SET_CLR 0x38C
+#define	SOTG_TIMER_HIGH_SET(x) ((x) & 0xFFFF)
+#define	SOTG_TIMER_HIGH_CLR(x) (((x) << 16) & 0xFFFF0000)
+#define	SOTG_TIMER_HIGH_START (1U << 15)
 #define	SOTG_MEMORY_REG 0x33c
 
 /* Peripheral controller specific registers */
@@ -94,13 +101,12 @@
 #define	SOTG_MODE_GLINTENA (1 << 3)
 #define	SOTG_MODE_WKUPCS (1 << 2)
 #define	SOTG_INTERRUPT_CFG  0x210
-#define	SOTG_INTERRUPT_CFG_CDBGMOD (3 << 6)
-#define	SOTG_INTERRUPT_CFG_DDBGMODIN (3 << 4)
-#define	SOTG_INTERRUPT_CFG_DDBGMODOUT (3 << 2)
+#define	SOTG_INTERRUPT_CFG_DEBUG_SET (1 << 16)
+#define	SOTG_INTERRUPT_CFG_CDBGMOD (1 << 6)	/* ACK only */
+#define	SOTG_INTERRUPT_CFG_DDBGMODIN (1 << 4)	/* ACK only */
+#define	SOTG_INTERRUPT_CFG_DDBGMODOUT (1 << 2)	/* ACK and NYET only */
 #define	SOTG_INTERRUPT_CFG_INTLVL (1 << 1)
 #define	SOTG_INTERRUPT_CFG_INTPOL (1 << 0)
-#define	SOTG_DEBUG 0x212
-#define	SOTG_DEBUG_SET (1 << 0)
 #define	SOTG_DCINTERRUPT_EN 0x214
 #define	SOTG_HW_MODE_CTRL 0x300
 #define	SOTG_HW_MODE_CTRL_ALL_ATX_RESET (1 << 31)
@@ -129,8 +135,8 @@
 #define	SOTG_CTRL_FUNC_STALL (1 << 0)
 #define	SOTG_DATA_PORT 0x220
 #define	SOTG_BUF_LENGTH 0x21C
-#define	SOTG_DCBUFFERSTATUS 0x21E
-#define	SOTG_DCBUFFERSTATUS_FILLED_MASK (3 << 0)
+#define	SOTG_BUF_LENGTH_BUFLEN_MASK 0xFFFF
+#define	SOTG_BUF_LENGTH_FILLED_MASK (3 << 16)
 #define	SOTG_EP_MAXPACKET 0x204
 #define	SOTG_EP_TYPE 0x208
 #define	SOTG_EP_TYPE_NOEMPPKT (1 << 4)
@@ -176,6 +182,8 @@
 
 /* Host controller specific registers */
 
+#define	SOTG_FRINDEX 0x002c
+#define	SOTG_FRINDEX_MASK 0x3fff
 #define	SOTG_CONFIGFLAG 0x0060
 #define	SOTG_CONFIGFLAG_ENABLE (1 << 0)
 #define	SOTG_PORTSC1 0x0064
@@ -189,25 +197,30 @@
 #define	SOTG_PORTSC1_PED (1 << 2)
 #define	SOTG_PORTSC1_ECSC (1 << 1)
 #define	SOTG_PORTSC1_ECCS (1 << 0)
-#define	SOTG_PDT_DW0 0
-#define	SOTG_PDT_DW0_VALID 1U
-#define	SOTG_PDT_DW1 4
-#define	SOTG_PDT_DW2 8
-#define	SOTG_PDT_DW3 12
-#define	SOTG_PDT_DW3_ACTIVE (1U << 31)
-#define	SOTG_PDT_DW3_HALTED (1U << 30)
-#define	SOTG_PDT_DW3_ERRORS (3U << 28)
-#define	SOTG_PDT_DW3_CERR (3U << 23)
-#define	SOTG_PDT_DW3_XFER_COUNT 0x7FFF
-#define	SOTG_PDT_DW4 16
-#define	SOTG_PDT_DW5 20
-#define	SOTG_PDT_DW6 24
-#define	SOTG_PDT_DW7 28
+#define	SOTG_PTD_DW0 0
+#define	SOTG_PTD_DW0_VALID 1U
+#define	SOTG_PTD_DW1 4
+#define	SOTG_PTD_DW1_ENABLE_SPLIT (1 << 14)
+#define	SOTG_PTD_DW2 8
+#define	SOTG_PTD_DW2_RL (0xf << 25)
+#define	SOTG_PTD_DW3 12
+#define	SOTG_PTD_DW3_NRL (0xf << 19)
+#define	SOTG_PTD_DW3_ACTIVE (1U << 31)
+#define	SOTG_PTD_DW3_HALTED (1U << 30)
+#define	SOTG_PTD_DW3_ERRORS (3U << 28)
+#define	SOTG_PTD_DW3_CERR_3 (3U << 23)
+#define	SOTG_PTD_DW3_CERR_2 (2U << 23)	/* infinite NAKs */
+#define	SOTG_PTD_DW3_CERR_1 (1U << 23)
+#define	SOTG_PTD_DW3_XFER_COUNT 0x7FFF
+#define	SOTG_PTD_DW4 16
+#define	SOTG_PTD_DW5 20
+#define	SOTG_PTD_DW6 24
+#define	SOTG_PTD_DW7 28
 #define	SOTG_DATA_ADDR(x) (0x1000 + (512 * (x)))
-#define	SOTG_ASYNC_PDT(x) (0xC00 + ((x) * 32))
-#define	SOTG_INTR_PDT(x) (0x800 + ((x) * 32))
-#define	SOTG_ISOC_PDT(x) (0x400 + ((x) * 32))
-#define	SOTG_PDT(x) (0x400 + ((x) * 32))
+#define	SOTG_ASYNC_PTD(x) (0xC00 + ((x) * 32))
+#define	SOTG_INTR_PTD(x) (0x800 + ((x) * 32))
+#define	SOTG_ISOC_PTD(x) (0x400 + ((x) * 32))
+#define	SOTG_PTD(x) (0x400 + ((x) * 32))
 #define	SOTG_HC_MEMORY_ADDR(x) (((x) - 0x400) >> 3)
 #define	SOTG_SW_RESET 0x30C
 #define	SOTG_SW_RESET_HC (1 << 1)
@@ -237,5 +250,24 @@
 #define	SOTG_HCINTERRUPT_DMAEOTINT (1 << 3)
 #define	SOTG_HCINTERRUPT_SOFITLINT (1 << 1)
 #define	SOTG_HCINTERRUPT_ENABLE 0x314
+#define	SOTG_ATL_PTD_DONE_PTD 0x150
+#define	SOTG_ATL_PTD_SKIP_PTD 0x154
+#define	SOTG_ATL_PTD_LAST_PTD 0x158
+#define	SOTG_INT_PTD_DONE_PTD 0x140
+#define	SOTG_INT_PTD_SKIP_PTD 0x144
+#define	SOTG_INT_PTD_LAST_PTD 0x148
+#define	SOTG_ISO_PTD_DONE_PTD 0x130
+#define	SOTG_ISO_PTD_SKIP_PTD 0x134
+#define	SOTG_ISO_PTD_LAST_PTD 0x138
+#define	SOTG_HCBUFFERSTATUS 0x334
+#define	SOTG_HCBUFFERSTATUS_ISO_BUF_FILL (1 << 2)
+#define	SOTG_HCBUFFERSTATUS_INT_BUF_FILL (1 << 1)
+#define	SOTG_HCBUFFERSTATUS_ATL_BUF_FILL (1 << 0)
+#define	SOTG_ISO_IRQ_MASK_OR 0x318
+#define	SOTG_INT_IRQ_MASK_OR 0x31C
+#define	SOTG_ATL_IRQ_MASK_OR 0x320
+#define	SOTG_ISO_IRQ_MASK_AND 0x324
+#define	SOTG_INT_IRQ_MASK_AND 0x328
+#define	SOTG_ATL_IRQ_MASK_AND 0x32C
 
 #endif					/* _SAF1761_OTG_REG_H_ */

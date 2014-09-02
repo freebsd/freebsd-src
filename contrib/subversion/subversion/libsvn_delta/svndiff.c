@@ -723,8 +723,6 @@ decode_window(svn_txdelta_window_t *window, svn_filesize_t sview_offset,
       svn_stringbuf_t *instout = svn_stringbuf_create_empty(pool);
       svn_stringbuf_t *ndout = svn_stringbuf_create_empty(pool);
 
-      /* these may in fact simply return references to insend */
-
       SVN_ERR(zlib_decode(insend, newlen, ndout,
                           SVN_DELTA_WINDOW_SIZE));
       SVN_ERR(zlib_decode(data, insend - data, instout,
@@ -739,7 +737,13 @@ decode_window(svn_txdelta_window_t *window, svn_filesize_t sview_offset,
     }
   else
     {
-      new_data->data = (const char *) insend;
+      /* Copy the data because an svn_string_t must have the invariant
+         data[len]=='\0'. */
+      char *buf = apr_palloc(pool, newlen + 1);
+
+      memcpy(buf, insend, newlen);
+      buf[newlen] = '\0';
+      new_data->data = buf;
       new_data->len = newlen;
     }
 

@@ -69,7 +69,6 @@ static char *mem_owner_bios = "BIOS";
 	(((curr) & ~MDF_ATTRMASK) | ((new) & MDF_ATTRMASK))
 
 static int mtrrs_disabled;
-TUNABLE_INT("machdep.disable_mtrrs", &mtrrs_disabled);
 SYSCTL_INT(_machdep, OID_AUTO, disable_mtrrs, CTLFLAG_RDTUN,
     &mtrrs_disabled, 0, "Disable amd64 MTRRs.");
 

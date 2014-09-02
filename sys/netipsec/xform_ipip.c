@@ -133,8 +133,8 @@ ip4_input6(struct mbuf **m, int *offp, int proto)
 /*
  * Really only a wrapper for ipip_input(), for use with IPv4.
  */
-void
-ip4_input(struct mbuf *m, int off)
+int
+ip4_input(struct mbuf **mp, int *offp, int proto)
 {
 #if 0
 	/* If we do not accept IP-in-IP explicitly, drop.  */
@@ -145,7 +145,8 @@ ip4_input(struct mbuf *m, int off)
 		return;
 	}
 #endif
-	_ipip_input(m, off, NULL);
+	_ipip_input(*mp, *offp, NULL);
+	return (IPPROTO_DONE);
 }
 #endif /* INET */
 
@@ -308,26 +309,6 @@ _ipip_input(struct mbuf *m, int iphlen, struct ifnet *gifp)
 
 	/* Statistics */
 	IPIPSTAT_ADD(ipips_ibytes, m->m_pkthdr.len - iphlen);
-
-#ifdef DEV_ENC
-	switch (v >> 4) {
-#ifdef INET
-	case 4:
-		ipsec_bpf(m, NULL, AF_INET, ENC_IN|ENC_AFTER);
-		break;
-#endif
-#ifdef INET6
-	case 6:
-		ipsec_bpf(m, NULL, AF_INET6, ENC_IN|ENC_AFTER);
-		break;
-#endif
-	default:
-		panic("%s: bogus ip version %u", __func__, v>>4);
-	}
-	/* pass the mbuf to enc0 for packet filtering */
-	if (ipsec_filter(&m, PFIL_IN, ENC_IN|ENC_AFTER) != 0)
-		return;
-#endif
 
 	/*
 	 * Interface pointer stays the same; if no IPsec processing has
@@ -508,9 +489,12 @@ ipip_output(
 		ip6o->ip6_vfc &= ~IPV6_VERSION_MASK;
 		ip6o->ip6_vfc |= IPV6_VERSION;
 		ip6o->ip6_plen = htons(m->m_pkthdr.len);
-		ip6o->ip6_hlim = V_ip_defttl;
+		ip6o->ip6_hlim = IPV6_DEFHLIM;
 		ip6o->ip6_dst = saidx->dst.sin6.sin6_addr;
 		ip6o->ip6_src = saidx->src.sin6.sin6_addr;
+
+		/* Fix payload length */
+		ip6o->ip6_plen = htons(m->m_pkthdr.len - sizeof(*ip6));
 
 		switch (tp) {
 #ifdef INET
@@ -542,7 +526,7 @@ ipip_output(
 		}
 
 		otos = 0;
-		ip_ecn_ingress(ECN_ALLOWED, &otos, &itos);
+		ip_ecn_ingress(V_ip6_ipsec_ecn, &otos, &itos);
 		ip6o->ip6_flow |= htonl((u_int32_t) otos << 20);
 		break;
 #endif /* INET6 */
@@ -636,7 +620,7 @@ static struct protosw ipe4_protosw = {
 };
 #endif /* INET */
 #if defined(INET6) && defined(INET)
-static struct ip6protosw ipe6_protosw = {
+static struct protosw ipe6_protosw = {
 	.pr_type =	SOCK_RAW,
 	.pr_domain =	&inetdomain,
 	.pr_protocol =	IPPROTO_IPV6,

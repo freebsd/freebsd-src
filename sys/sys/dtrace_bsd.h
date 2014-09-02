@@ -48,21 +48,22 @@ extern cyclic_clock_func_t	cyclic_clock_func;
 
 void clocksource_cyc_set(const struct bintime *t);
 
+int dtrace_trap(struct trapframe *);
+
 /*
  * The dtrace module handles traps that occur during a DTrace probe.
  * This type definition is used in the trap handler to provide a
- * hook for the dtrace module to register it's handler with.
+ * hook for the dtrace module to register its handler with.
  */
-typedef int (*dtrace_trap_func_t)(struct trapframe *, u_int);
-
-int	dtrace_trap(struct trapframe *, u_int);
-
+typedef int (*dtrace_trap_func_t)(struct trapframe *);
 extern dtrace_trap_func_t	dtrace_trap_func;
 
-/* Used by the machine dependent trap() code. */
+/*
+ * A hook which removes active FBT probes before executing the double fault
+ * handler. We want to ensure that DTrace doesn't trigger another trap, which
+ * would result in a reset.
+ */
 typedef void (*dtrace_doubletrap_func_t)(void);
-
-/* Global variables in trap.c */
 extern	dtrace_doubletrap_func_t	dtrace_doubletrap_func;
 
 /* Pid provider hooks */

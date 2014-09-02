@@ -60,7 +60,5 @@ DECLARE_WEAK(powl);
 	long double imprecise_ ## f ## l(long double v) { return f(v); }\
 	DECLARE_WEAK(f ## l)
 
-DECLARE_IMPRECISE(erfc);
-DECLARE_IMPRECISE(erf);
 DECLARE_IMPRECISE(lgamma);
 DECLARE_IMPRECISE(tgamma);

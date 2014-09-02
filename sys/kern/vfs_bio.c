@@ -77,7 +77,6 @@ __FBSDID("$FreeBSD$");
 #include <vm/vm_extern.h>
 #include <vm/vm_map.h>
 #include "opt_compat.h"
-#include "opt_directio.h"
 #include "opt_swap.h"
 
 static MALLOC_DEFINE(M_BIOBUF, "biobuf", "BIO buffer");
@@ -99,7 +98,8 @@ struct	buf_ops buf_ops_bio = {
 struct buf *buf;		/* buffer header pool */
 caddr_t unmapped_buf;
 
-static struct proc *bufdaemonproc;
+/* Used below and for softdep flushing threads in ufs/ffs/ffs_softdep.c */
+struct proc *bufdaemonproc;
 
 static int inmem(struct vnode *vp, daddr_t blkno);
 static void vm_hold_free_pages(struct buf *bp, int newbsize);
@@ -255,7 +255,7 @@ static struct mtx_padalign rbreqlock;
 /*
  * Lock that protects needsbuffer and the sleeps/wakeups surrounding it.
  */
-static struct mtx_padalign nblock;
+static struct rwlock_padalign nblock;
 
 /*
  * Lock that protects bdirtywait.
@@ -300,7 +300,7 @@ static int runningbufreq;
  * Used in numdirtywakeup(), bufspacewakeup(), bufcountadd(), bwillwrite(),
  * getnewbuf(), and getblk().
  */
-static int needsbuffer;
+static volatile int needsbuffer;
 
 /*
  * Synchronization for bwillwrite() waiters.
@@ -382,10 +382,6 @@ sysctl_bufspace(SYSCTL_HANDLER_ARGS)
 }
 #endif
 
-#ifdef DIRECTIO
-extern void ffs_rawread_setup(void);
-#endif /* DIRECTIO */
-
 /*
  *	bqlock:
  *
@@ -462,18 +458,27 @@ bdirtyadd(void)
 static __inline void
 bufspacewakeup(void)
 {
+	int need_wakeup, on;
 
 	/*
 	 * If someone is waiting for BUF space, wake them up.  Even
 	 * though we haven't freed the kva space yet, the waiting
 	 * process will be able to now.
 	 */
-	mtx_lock(&nblock);
-	if (needsbuffer & VFS_BIO_NEED_BUFSPACE) {
-		needsbuffer &= ~VFS_BIO_NEED_BUFSPACE;
-		wakeup(&needsbuffer);
+	rw_rlock(&nblock);
+	for (;;) {
+		need_wakeup = 0;
+		on = needsbuffer;
+		if ((on & VFS_BIO_NEED_BUFSPACE) == 0)
+			break;
+		need_wakeup = 1;
+		if (atomic_cmpset_rel_int(&needsbuffer, on,
+		    on & ~VFS_BIO_NEED_BUFSPACE))
+			break;
 	}
-	mtx_unlock(&nblock);
+	if (need_wakeup)
+		wakeup(__DEVOLATILE(void *, &needsbuffer));
+	rw_runlock(&nblock);
 }
 
 /*
@@ -533,7 +538,7 @@ runningbufwakeup(struct buf *bp)
 static __inline void
 bufcountadd(struct buf *bp)
 {
-	int old;
+	int mask, need_wakeup, old, on;
 
 	KASSERT((bp->b_flags & B_INFREECNT) == 0,
 	    ("buf %p already counted as free", bp));
@@ -541,14 +546,22 @@ bufcountadd(struct buf *bp)
 	old = atomic_fetchadd_int(&numfreebuffers, 1);
 	KASSERT(old >= 0 && old < nbuf,
 	    ("numfreebuffers climbed to %d", old + 1));
-	mtx_lock(&nblock);
-	if (needsbuffer) {
-		needsbuffer &= ~VFS_BIO_NEED_ANY;
-		if (numfreebuffers >= hifreebuffers)
-			needsbuffer &= ~VFS_BIO_NEED_FREE;
-		wakeup(&needsbuffer);
+	mask = VFS_BIO_NEED_ANY;
+	if (numfreebuffers >= hifreebuffers)
+		mask |= VFS_BIO_NEED_FREE;
+	rw_rlock(&nblock);
+	for (;;) {
+		need_wakeup = 0;
+		on = needsbuffer;
+		if (on == 0)
+			break;
+		need_wakeup = 1;
+		if (atomic_cmpset_rel_int(&needsbuffer, on, on & ~mask))
+			break;
 	}
-	mtx_unlock(&nblock);
+	if (need_wakeup)
+		wakeup(__DEVOLATILE(void *, &needsbuffer));
+	rw_runlock(&nblock);
 }
 
 /*
@@ -770,9 +783,6 @@ kern_vfs_bio_buffer_alloc(caddr_t v, long physmem_est)
 	if (nswbuf < NSWBUF_MIN)
 		nswbuf = NSWBUF_MIN;
 #endif
-#ifdef DIRECTIO
-	ffs_rawread_setup();
-#endif
 
 	/*
 	 * Reserve space for the buffer cache buffers
@@ -795,7 +805,7 @@ bufinit(void)
 	mtx_init(&bqclean, "bufq clean lock", NULL, MTX_DEF);
 	mtx_init(&bqdirty, "bufq dirty lock", NULL, MTX_DEF);
 	mtx_init(&rbreqlock, "runningbufspace lock", NULL, MTX_DEF);
-	mtx_init(&nblock, "needsbuffer lock", NULL, MTX_DEF);
+	rw_init(&nblock, "needsbuffer lock");
 	mtx_init(&bdlock, "buffer daemon lock", NULL, MTX_DEF);
 	mtx_init(&bdirtylock, "dirty buf lock", NULL, MTX_DEF);
 
@@ -1887,7 +1897,7 @@ vfs_vmio_release(struct buf *bp)
 		 * everything on the inactive queue.
 		 */
 		vm_page_lock(m);
-		vm_page_unwire(m, 0);
+		vm_page_unwire(m, PQ_INACTIVE);
 
 		/*
 		 * Might as well free the page if we can and it has
@@ -2093,9 +2103,7 @@ getnewbuf_bufd_help(struct vnode *vp, int gbflags, int slpflag, int slptimeo,
 		waitmsg = "newbuf";
 		flags = VFS_BIO_NEED_ANY;
 	}
-	mtx_lock(&nblock);
-	needsbuffer |= flags;
-	mtx_unlock(&nblock);
+	atomic_set_int(&needsbuffer, flags);
 	mtx_unlock(&bqclean);
 
 	bd_speedup();	/* heeeelp */
@@ -2105,12 +2113,11 @@ getnewbuf_bufd_help(struct vnode *vp, int gbflags, int slpflag, int slptimeo,
 	td = curthread;
 	cnt = 0;
 	wait = MNT_NOWAIT;
-	mtx_lock(&nblock);
-	while (needsbuffer & flags) {
+	rw_wlock(&nblock);
+	while ((needsbuffer & flags) != 0) {
 		if (vp != NULL && vp->v_type != VCHR &&
 		    (td->td_pflags & TDP_BUFNEED) == 0) {
-			mtx_unlock(&nblock);
-
+			rw_wunlock(&nblock);
 			/*
 			 * getblk() is called with a vnode locked, and
 			 * some majority of the dirty buffers may as
@@ -2132,15 +2139,16 @@ getnewbuf_bufd_help(struct vnode *vp, int gbflags, int slpflag, int slptimeo,
 				atomic_add_long(&notbufdflushes, 1);
 				curthread_pflags_restore(norunbuf);
 			}
-			mtx_lock(&nblock);
+			rw_wlock(&nblock);
 			if ((needsbuffer & flags) == 0)
 				break;
 		}
-		if (msleep(&needsbuffer, &nblock, (PRIBIO + 4) | slpflag,
-		    waitmsg, slptimeo))
+		error = rw_sleep(__DEVOLATILE(void *, &needsbuffer), &nblock,
+		    (PRIBIO + 4) | slpflag, waitmsg, slptimeo);
+		if (error != 0)
 			break;
 	}
-	mtx_unlock(&nblock);
+	rw_wunlock(&nblock);
 }
 
 static void
@@ -3476,7 +3484,7 @@ allocbuf(struct buf *bp, int size)
 
 					bp->b_pages[i] = NULL;
 					vm_page_lock(m);
-					vm_page_unwire(m, 0);
+					vm_page_unwire(m, PQ_INACTIVE);
 					vm_page_unlock(m);
 				}
 				VM_OBJECT_WUNLOCK(bp->b_bufobj->bo_object);

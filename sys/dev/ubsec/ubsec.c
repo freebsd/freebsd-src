@@ -1856,13 +1856,6 @@ ubsec_dma_malloc(
 	if (r != 0) {
 		device_printf(sc->sc_dev, "ubsec_dma_malloc: "
 			"bus_dma_tag_create failed; error %u\n", r);
-		goto fail_0;
-	}
-
-	r = bus_dmamap_create(dma->dma_tag, BUS_DMA_NOWAIT, &dma->dma_map);
-	if (r != 0) {
-		device_printf(sc->sc_dev, "ubsec_dma_malloc: "
-			"bus_dmamap_create failed; error %u\n", r);
 		goto fail_1;
 	}
 
@@ -1894,10 +1887,7 @@ fail_3:
 fail_2:
 	bus_dmamem_free(dma->dma_tag, dma->dma_vaddr, dma->dma_map);
 fail_1:
-	bus_dmamap_destroy(dma->dma_tag, dma->dma_map);
 	bus_dma_tag_destroy(dma->dma_tag);
-fail_0:
-	dma->dma_map = NULL;
 	dma->dma_tag = NULL;
 	return (r);
 }
@@ -1907,7 +1897,6 @@ ubsec_dma_free(struct ubsec_softc *sc, struct ubsec_dma_alloc *dma)
 {
 	bus_dmamap_unload(dma->dma_tag, dma->dma_map);
 	bus_dmamem_free(dma->dma_tag, dma->dma_vaddr, dma->dma_map);
-	bus_dmamap_destroy(dma->dma_tag, dma->dma_map);
 	bus_dma_tag_destroy(dma->dma_tag);
 }
 
@@ -2312,25 +2301,25 @@ ubsec_kprocess_modexp_sw(struct ubsec_softc *sc, struct cryptkop *krp, int hint)
 
 errout:
 	if (me != NULL) {
-		if (me->me_q.q_mcr.dma_map != NULL)
+		if (me->me_q.q_mcr.dma_tag != NULL)
 			ubsec_dma_free(sc, &me->me_q.q_mcr);
-		if (me->me_q.q_ctx.dma_map != NULL) {
+		if (me->me_q.q_ctx.dma_tag != NULL) {
 			bzero(me->me_q.q_ctx.dma_vaddr, me->me_q.q_ctx.dma_size);
 			ubsec_dma_free(sc, &me->me_q.q_ctx);
 		}
-		if (me->me_M.dma_map != NULL) {
+		if (me->me_M.dma_tag != NULL) {
 			bzero(me->me_M.dma_vaddr, me->me_M.dma_size);
 			ubsec_dma_free(sc, &me->me_M);
 		}
-		if (me->me_E.dma_map != NULL) {
+		if (me->me_E.dma_tag != NULL) {
 			bzero(me->me_E.dma_vaddr, me->me_E.dma_size);
 			ubsec_dma_free(sc, &me->me_E);
 		}
-		if (me->me_C.dma_map != NULL) {
+		if (me->me_C.dma_tag != NULL) {
 			bzero(me->me_C.dma_vaddr, me->me_C.dma_size);
 			ubsec_dma_free(sc, &me->me_C);
 		}
-		if (me->me_epb.dma_map != NULL)
+		if (me->me_epb.dma_tag != NULL)
 			ubsec_dma_free(sc, &me->me_epb);
 		free(me, M_DEVBUF);
 	}
@@ -2513,25 +2502,25 @@ ubsec_kprocess_modexp_hw(struct ubsec_softc *sc, struct cryptkop *krp, int hint)
 
 errout:
 	if (me != NULL) {
-		if (me->me_q.q_mcr.dma_map != NULL)
+		if (me->me_q.q_mcr.dma_tag != NULL)
 			ubsec_dma_free(sc, &me->me_q.q_mcr);
-		if (me->me_q.q_ctx.dma_map != NULL) {
+		if (me->me_q.q_ctx.dma_tag != NULL) {
 			bzero(me->me_q.q_ctx.dma_vaddr, me->me_q.q_ctx.dma_size);
 			ubsec_dma_free(sc, &me->me_q.q_ctx);
 		}
-		if (me->me_M.dma_map != NULL) {
+		if (me->me_M.dma_tag != NULL) {
 			bzero(me->me_M.dma_vaddr, me->me_M.dma_size);
 			ubsec_dma_free(sc, &me->me_M);
 		}
-		if (me->me_E.dma_map != NULL) {
+		if (me->me_E.dma_tag != NULL) {
 			bzero(me->me_E.dma_vaddr, me->me_E.dma_size);
 			ubsec_dma_free(sc, &me->me_E);
 		}
-		if (me->me_C.dma_map != NULL) {
+		if (me->me_C.dma_tag != NULL) {
 			bzero(me->me_C.dma_vaddr, me->me_C.dma_size);
 			ubsec_dma_free(sc, &me->me_C);
 		}
-		if (me->me_epb.dma_map != NULL)
+		if (me->me_epb.dma_tag != NULL)
 			ubsec_dma_free(sc, &me->me_epb);
 		free(me, M_DEVBUF);
 	}
@@ -2707,13 +2696,13 @@ ubsec_kprocess_rsapriv(struct ubsec_softc *sc, struct cryptkop *krp, int hint)
 
 errout:
 	if (rp != NULL) {
-		if (rp->rpr_q.q_mcr.dma_map != NULL)
+		if (rp->rpr_q.q_mcr.dma_tag != NULL)
 			ubsec_dma_free(sc, &rp->rpr_q.q_mcr);
-		if (rp->rpr_msgin.dma_map != NULL) {
+		if (rp->rpr_msgin.dma_tag != NULL) {
 			bzero(rp->rpr_msgin.dma_vaddr, rp->rpr_msgin.dma_size);
 			ubsec_dma_free(sc, &rp->rpr_msgin);
 		}
-		if (rp->rpr_msgout.dma_map != NULL) {
+		if (rp->rpr_msgout.dma_tag != NULL) {
 			bzero(rp->rpr_msgout.dma_vaddr, rp->rpr_msgout.dma_size);
 			ubsec_dma_free(sc, &rp->rpr_msgout);
 		}

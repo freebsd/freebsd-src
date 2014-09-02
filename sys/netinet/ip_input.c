@@ -726,7 +726,7 @@ ours:
 	 */
 	IPSTAT_INC(ips_delivered);
 
-	(*inetsw[ip_protox[ip->ip_p]].pr_input)(m, hlen);
+	(*inetsw[ip_protox[ip->ip_p]].pr_input)(&m, &hlen, ip->ip_p);
 	return;
 bad:
 	m_freem(m);
@@ -1715,13 +1715,18 @@ ip_rsvp_done(void)
 	return 0;
 }
 
-void
-rsvp_input(struct mbuf *m, int off)	/* XXX must fixup manually */
+int
+rsvp_input(struct mbuf **mp, int *offp, int proto)
 {
+	struct mbuf *m;
+
+	m = *mp;
+	*mp = NULL;
 
 	if (rsvp_input_p) { /* call the real one if loaded */
-		rsvp_input_p(m, off);
-		return;
+		*mp = m;
+		rsvp_input_p(mp, offp, proto);
+		return (IPPROTO_DONE);
 	}
 
 	/* Can still get packets with rsvp_on = 0 if there is a local member
@@ -1731,13 +1736,15 @@ rsvp_input(struct mbuf *m, int off)	/* XXX must fixup manually */
 	
 	if (!V_rsvp_on) {
 		m_freem(m);
-		return;
+		return (IPPROTO_DONE);
 	}
 
 	if (V_ip_rsvpd != NULL) { 
-		rip_input(m, off);
-		return;
+		*mp = m;
+		rip_input(mp, offp, proto);
+		return (IPPROTO_DONE);
 	}
 	/* Drop the packet */
 	m_freem(m);
+	return (IPPROTO_DONE);
 }

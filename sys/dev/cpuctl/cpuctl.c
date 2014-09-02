@@ -67,7 +67,9 @@ static d_ioctl_t cpuctl_ioctl;
 
 static int cpuctl_do_msr(int cpu, cpuctl_msr_args_t *data, u_long cmd,
     struct thread *td);
-static int cpuctl_do_cpuid(int cpu, cpuctl_cpuid_args_t *data,
+static void cpuctl_do_cpuid(int cpu, cpuctl_cpuid_args_t *data,
+    struct thread *td);
+static void cpuctl_do_cpuid_count(int cpu, cpuctl_cpuid_count_args_t *data,
     struct thread *td);
 static int cpuctl_do_update(int cpu, cpuctl_update_args_t *data,
     struct thread *td);
@@ -169,13 +171,19 @@ cpuctl_ioctl(struct cdev *dev, u_long cmd, caddr_t data,
 		ret = cpuctl_do_msr(cpu, (cpuctl_msr_args_t *)data, cmd, td);
 		break;
 	case CPUCTL_CPUID:
-		ret = cpuctl_do_cpuid(cpu, (cpuctl_cpuid_args_t *)data, td);
+		cpuctl_do_cpuid(cpu, (cpuctl_cpuid_args_t *)data, td);
+		ret = 0;
 		break;
 	case CPUCTL_UPDATE:
 		ret = priv_check(td, PRIV_CPUCTL_UPDATE);
 		if (ret != 0)
 			goto fail;
 		ret = cpuctl_do_update(cpu, (cpuctl_update_args_t *)data, td);
+		break;
+	case CPUCTL_CPUID_COUNT:
+		cpuctl_do_cpuid_count(cpu, (cpuctl_cpuid_count_args_t *)data,
+		    td);
+		ret = 0;
 		break;
 	default:
 		ret = EINVAL;
@@ -188,8 +196,9 @@ fail:
 /*
  * Actually perform cpuid operation.
  */
-static int
-cpuctl_do_cpuid(int cpu, cpuctl_cpuid_args_t *data, struct thread *td)
+static void
+cpuctl_do_cpuid_count(int cpu, cpuctl_cpuid_count_args_t *data,
+    struct thread *td)
 {
 	int is_bound = 0;
 	int oldcpu;
@@ -199,14 +208,25 @@ cpuctl_do_cpuid(int cpu, cpuctl_cpuid_args_t *data, struct thread *td)
 
 	/* Explicitly clear cpuid data to avoid returning stale info. */
 	bzero(data->data, sizeof(data->data));
-	DPRINTF("[cpuctl,%d]: retriving cpuid level %#0x for %d cpu\n",
-	    __LINE__, data->level, cpu);
+	DPRINTF("[cpuctl,%d]: retrieving cpuid lev %#0x type %#0x for %d cpu\n",
+	    __LINE__, data->level, data->level_type, cpu);
 	oldcpu = td->td_oncpu;
 	is_bound = cpu_sched_is_bound(td);
 	set_cpu(cpu, td);
-	cpuid_count(data->level, 0, data->data);
+	cpuid_count(data->level, data->level_type, data->data);
 	restore_cpu(oldcpu, is_bound, td);
-	return (0);
+}
+
+static void
+cpuctl_do_cpuid(int cpu, cpuctl_cpuid_args_t *data, struct thread *td)
+{
+	cpuctl_cpuid_count_args_t cdata;
+
+	cdata.level = data->level;
+	/* Override the level type. */
+	cdata.level_type = 0;
+	cpuctl_do_cpuid_count(cpu, &cdata, td);
+	bcopy(cdata.data, data->data, sizeof(data->data)); /* Ignore error */
 }
 
 /*
@@ -271,12 +291,7 @@ cpuctl_do_update(int cpu, cpuctl_update_args_t *data, struct thread *td)
 	    ("[cpuctl,%d]: bad cpu number %d", __LINE__, cpu));
 	DPRINTF("[cpuctl,%d]: XXX %d", __LINE__, cpu);
 
-	ret = cpuctl_do_cpuid(cpu, &args, td);
-	if (ret != 0) {
-		DPRINTF("[cpuctl,%d]: cannot retrive cpuid info for cpu %d",
-		    __LINE__, cpu);
-		return (ENXIO);
-	}
+	cpuctl_do_cpuid(cpu, &args, td);
 	((uint32_t *)vendor)[0] = args.data[1];
 	((uint32_t *)vendor)[1] = args.data[3];
 	((uint32_t *)vendor)[2] = args.data[2];

@@ -109,6 +109,8 @@ static const struct iwn_ident iwn_ident_table[] = {
 	{ 0x8086, IWN_DID_130_2, "Intel Centrino Wireless-N 130"		},
 	{ 0x8086, IWN_DID_100_1, "Intel Centrino Wireless-N 100"		},
 	{ 0x8086, IWN_DID_100_2, "Intel Centrino Wireless-N 100"		},
+	{ 0x8086, IWN_DID_105_1, "Intel Centrino Wireless-N 105"		},
+	{ 0x8086, IWN_DID_105_2, "Intel Centrino Wireless-N 105"		},
 	{ 0x8086, IWN_DID_135_1, "Intel Centrino Wireless-N 135"		},
 	{ 0x8086, IWN_DID_135_2, "Intel Centrino Wireless-N 135"		},
 	{ 0x8086, IWN_DID_4965_1, "Intel Wireless WiFi Link 4965"		},
@@ -986,6 +988,31 @@ iwn_config_specific(struct iwn_softc *sc, uint16_t pid)
 		}
 		break;
 
+/* 105 Series */
+/* XXX: This series will need adjustment for rate.
+ * see rx_with_siso_diversity in linux kernel
+ */
+	case IWN_DID_105_1:
+	case IWN_DID_105_2:
+		switch(sc->subdevice_id) {
+			case IWN_SDID_105_1:
+			case IWN_SDID_105_2:
+			case IWN_SDID_105_3:
+			//iwl105_bgn_cfg
+			case IWN_SDID_105_4:
+			//iwl105_bgn_d_cfg
+				sc->limits = &iwn2030_sensitivity_limits;
+				sc->base_params = &iwn2000_base_params;
+				sc->fwname = "iwn105fw";
+				break;
+			default:
+				device_printf(sc->sc_dev, "adapter type id : 0x%04x sub id :"
+				    "0x%04x rev %d not supported (subdevice)\n", pid,
+				    sc->subdevice_id,sc->hw_type);
+				return ENOTSUP;
+		}
+		break;
+
 /* 135 Series */
 /* XXX: This series will need adjustment for rate.
  * see rx_with_siso_diversity in linux kernel
@@ -1706,16 +1733,12 @@ fail:	iwn_dma_contig_free(dma);
 static void
 iwn_dma_contig_free(struct iwn_dma_info *dma)
 {
-	if (dma->map != NULL) {
-		if (dma->vaddr != NULL) {
-			bus_dmamap_sync(dma->tag, dma->map,
-			    BUS_DMASYNC_POSTREAD | BUS_DMASYNC_POSTWRITE);
-			bus_dmamap_unload(dma->tag, dma->map);
-			bus_dmamem_free(dma->tag, dma->vaddr, dma->map);
-			dma->vaddr = NULL;
-		}
-		bus_dmamap_destroy(dma->tag, dma->map);
-		dma->map = NULL;
+	if (dma->vaddr != NULL) {
+		bus_dmamap_sync(dma->tag, dma->map,
+		    BUS_DMASYNC_POSTREAD | BUS_DMASYNC_POSTWRITE);
+		bus_dmamap_unload(dma->tag, dma->map);
+		bus_dmamem_free(dma->tag, dma->vaddr, dma->map);
+		dma->vaddr = NULL;
 	}
 	if (dma->tag != NULL) {
 		bus_dma_tag_destroy(dma->tag);
@@ -8442,9 +8465,10 @@ iwn_panicked(void *arg0, int pending)
 	device_printf(sc->sc_dev, "%s: controller panicked, iv_state = %d; "
 	    "resetting...\n", __func__, vap->iv_state);
 
-	iwn_stop(sc);
-	iwn_init(sc);
-	iwn_start(sc->sc_ifp);
+	IWN_LOCK(sc);
+
+	iwn_stop_locked(sc);
+	iwn_init_locked(sc);
 	if (vap->iv_state >= IEEE80211_S_AUTH &&
 	    (error = iwn_auth(sc, vap)) != 0) {
 		device_printf(sc->sc_dev,
@@ -8455,6 +8479,11 @@ iwn_panicked(void *arg0, int pending)
 		device_printf(sc->sc_dev,
 		    "%s: could not move to run state\n", __func__);
 	}
+
+	/* Only run start once the NIC is in a useful state, like associated */
+	iwn_start_locked(sc->sc_ifp);
+
+	IWN_UNLOCK(sc);
 }
 
 static void

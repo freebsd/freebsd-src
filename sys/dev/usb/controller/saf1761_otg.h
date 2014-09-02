@@ -32,7 +32,7 @@
 #ifndef _SAF1761_OTG_H_
 #define	_SAF1761_OTG_H_
 
-#define	SOTG_MAX_DEVICES (USB_MIN_DEVICES + 1)
+#define	SOTG_MAX_DEVICES MIN(USB_MAX_DEVICES, 32)
 #define	SOTG_FS_MAX_PACKET_SIZE 64
 #define	SOTG_HS_MAX_PACKET_SIZE 512
 #define	SOTG_NUM_PORTS 2	/* one Device and one Host port */
@@ -40,26 +40,24 @@
 #define	SOTG_DEVICE_PORT_NUM 2
 #define	SOTG_HOST_CHANNEL_MAX (3 * 32)
 
-/* Macros used for reading and writing registers */
+/* Macros used for reading and writing little endian registers */
 
-#define	SAF1761_READ_1(sc, reg) \
-  bus_space_read_1((sc)->sc_io_tag, (sc)->sc_io_hdl, (reg))
-#define	SAF1761_READ_2(sc, reg)	({ uint16_t _temp; \
-  _temp = bus_space_read_2((sc)->sc_io_tag, (sc)->sc_io_hdl, (reg)); \
-  le16toh(_temp); })
-#define	SAF1761_READ_4(sc, reg)	({ uint32_t _temp; \
+#define	SAF1761_READ_LE_4(sc, reg) ({ uint32_t _temp; \
   _temp = bus_space_read_4((sc)->sc_io_tag, (sc)->sc_io_hdl, (reg)); \
   le32toh(_temp); })
 
-#define	SAF1761_WRITE_1(sc, reg, data)	\
-  bus_space_write_1((sc)->sc_io_tag, (sc)->sc_io_hdl, (reg), data)
-#define	SAF1761_WRITE_2(sc, reg, data)	do { \
-  uint16_t _temp = (data); \
-  bus_space_write_2((sc)->sc_io_tag, (sc)->sc_io_hdl, (reg), htole16(_temp)); \
-} while (0)
-#define	SAF1761_WRITE_4(sc, reg, data)	do { \
+#define	SAF1761_WRITE_LE_4(sc, reg, data) do { \
   uint32_t _temp = (data); \
   bus_space_write_4((sc)->sc_io_tag, (sc)->sc_io_hdl, (reg), htole32(_temp)); \
+} while (0)
+
+/* 90ns delay macro */
+
+#define	SAF1761_90NS_DELAY(sc) do { \
+	(void) SAF1761_READ_LE_4(sc, SOTG_VEND_PROD_ID); \
+	(void) SAF1761_READ_LE_4(sc, SOTG_VEND_PROD_ID); \
+	(void) SAF1761_READ_LE_4(sc, SOTG_VEND_PROD_ID); \
+	(void) SAF1761_READ_LE_4(sc, SOTG_VEND_PROD_ID); \
 } while (0)
 
 struct saf1761_otg_softc;
@@ -142,12 +140,18 @@ struct saf1761_otg_softc {
 	bus_space_handle_t sc_io_hdl;
 
 	uint32_t sc_host_async_map;
+	uint32_t sc_host_async_suspend_map;
 	uint32_t sc_host_intr_map;
+	uint32_t sc_host_intr_suspend_map;
 	uint32_t sc_host_isoc_map;
+	uint32_t sc_host_isoc_suspend_map;
 	uint32_t sc_intr_enable;	/* enabled interrupts */
 	uint32_t sc_hw_mode;		/* hardware mode */
+	uint32_t sc_interrupt_cfg;	/* interrupt configuration */
+	uint32_t sc_xfer_complete;
 
-	uint8_t sc_bounce_buffer[1024] __aligned(4);
+	uint32_t sc_bounce_buffer[1024 / 4];
+
 	uint8_t	sc_rt_addr;		/* root HUB address */
 	uint8_t	sc_dv_addr;		/* device address */
 	uint8_t	sc_conf;		/* root HUB config */
@@ -162,6 +166,7 @@ struct saf1761_otg_softc {
 
 usb_error_t saf1761_otg_init(struct saf1761_otg_softc *sc);
 void	saf1761_otg_uninit(struct saf1761_otg_softc *sc);
-void	saf1761_otg_interrupt(struct saf1761_otg_softc *sc);
+driver_filter_t saf1761_otg_filter_interrupt;
+driver_intr_t saf1761_otg_interrupt;
 
 #endif					/* _SAF1761_OTG_H_ */

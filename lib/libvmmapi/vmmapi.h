@@ -29,6 +29,9 @@
 #ifndef _VMMAPI_H_
 #define	_VMMAPI_H_
 
+#include <sys/param.h>
+#include <sys/cpuset.h>
+
 struct iovec;
 struct vmctx;
 enum x2apic_state;
@@ -57,15 +60,20 @@ int	vm_get_gpa_pmap(struct vmctx *, uint64_t gpa, uint64_t *pte, int *num);
 uint32_t vm_get_lowmem_limit(struct vmctx *ctx);
 void	vm_set_lowmem_limit(struct vmctx *ctx, uint32_t limit);
 void	vm_set_memflags(struct vmctx *ctx, int flags);
+size_t	vm_get_lowmem_size(struct vmctx *ctx);
+size_t	vm_get_highmem_size(struct vmctx *ctx);
 int	vm_set_desc(struct vmctx *ctx, int vcpu, int reg,
 		    uint64_t base, uint32_t limit, uint32_t access);
 int	vm_get_desc(struct vmctx *ctx, int vcpu, int reg,
 		    uint64_t *base, uint32_t *limit, uint32_t *access);
+int	vm_get_seg_desc(struct vmctx *ctx, int vcpu, int reg,
+			struct seg_desc *seg_desc);
 int	vm_set_register(struct vmctx *ctx, int vcpu, int reg, uint64_t val);
 int	vm_get_register(struct vmctx *ctx, int vcpu, int reg, uint64_t *retval);
 int	vm_run(struct vmctx *ctx, int vcpu, uint64_t rip,
 	       struct vm_exit *ret_vmexit);
 int	vm_suspend(struct vmctx *ctx, enum vm_suspend_how how);
+int	vm_reinit(struct vmctx *ctx);
 int	vm_apicid2vcpu(struct vmctx *ctx, int apicid);
 int	vm_inject_exception(struct vmctx *ctx, int vcpu, int vec);
 int	vm_inject_exception2(struct vmctx *ctx, int vcpu, int vec, int errcode);
@@ -98,6 +106,9 @@ int	vm_setup_pptdev_msix(struct vmctx *ctx, int vcpu, int bus, int slot,
 	    int func, int idx, uint64_t addr, uint64_t msg,
 	    uint32_t vector_control);
 
+int	vm_get_intinfo(struct vmctx *ctx, int vcpu, uint64_t *i1, uint64_t *i2);
+int	vm_set_intinfo(struct vmctx *ctx, int vcpu, uint64_t exit_intinfo);
+
 /*
  * Return a pointer to the statistics buffer. Note that this is not MT-safe.
  */
@@ -115,7 +126,7 @@ int	vm_get_hpet_capabilities(struct vmctx *ctx, uint32_t *capabilities);
  * The 'iovcnt' should be big enough to accomodate all GPA segments.
  * Returns 0 on success, 1 on a guest fault condition and -1 otherwise.
  */
-int	vm_gla2gpa(struct vmctx *ctx, int vcpu, struct vm_guest_paging *paging,
+int	vm_copy_setup(struct vmctx *ctx, int vcpu, struct vm_guest_paging *pg,
 	    uint64_t gla, size_t len, int prot, struct iovec *iov, int iovcnt);
 void	vm_copyin(struct vmctx *ctx, int vcpu, struct iovec *guest_iov,
 	    void *host_dst, size_t len);
@@ -124,6 +135,10 @@ void	vm_copyout(struct vmctx *ctx, int vcpu, const void *host_src,
 
 /* Reset vcpu register state */
 int	vcpu_reset(struct vmctx *ctx, int vcpu);
+
+int	vm_active_cpus(struct vmctx *ctx, cpuset_t *cpus);
+int	vm_suspended_cpus(struct vmctx *ctx, cpuset_t *cpus);
+int	vm_activate_cpu(struct vmctx *ctx, int vcpu);
 
 /*
  * FreeBSD specific APIs

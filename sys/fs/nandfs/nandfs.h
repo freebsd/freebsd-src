@@ -303,8 +303,8 @@ struct nandfs_node {
 #define	PRINT_NODE_FLAGS \
 	"\10\1IN_ACCESS\2IN_CHANGE\3IN_UPDATE\4IN_MODIFIED\5IN_RENAME"
 
-#define	NANDFS_GATHER(x) ((x)->b_flags |= B_00800000)
-#define	NANDFS_UNGATHER(x) ((x)->b_flags &= ~B_00800000)
-#define	NANDFS_ISGATHERED(x) ((x)->b_flags & B_00800000)
+#define	NANDFS_GATHER(x) ((x)->b_flags |= B_FS_FLAG1)
+#define	NANDFS_UNGATHER(x) ((x)->b_flags &= ~B_FS_FLAG1)
+#define	NANDFS_ISGATHERED(x) ((x)->b_flags & B_FS_FLAG1)
 
 #endif /* !_FS_NANDFS_NANDFS_H_ */

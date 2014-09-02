@@ -169,10 +169,6 @@ On the
 .Tn i386
 architecture, the cache coherency model requires that the hardware perform
 this task, thus the atomic operations are atomic across multiple processors.
-On the
-.Tn ia64
-architecture, coherency is only guaranteed for pages that are configured to
-using a caching policy of either uncached or write back.
 .Ss Semantics
 This section describes the semantics of each operation using a C like notation.
 .Bl -hang

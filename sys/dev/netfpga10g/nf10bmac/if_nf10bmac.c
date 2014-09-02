@@ -40,6 +40,7 @@
 __FBSDID("$FreeBSD$");
 
 #include "opt_device_polling.h"
+#include "opt_netfpga.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -117,70 +118,92 @@ static poll_handler_t nf10bmac_poll;
 #define	NF10BMAC_DATA_SPORT_MASK	0x00ff0000
 #define	NF10BMAC_DATA_SPORT_SHIFT	16
 #define	NF10BMAC_DATA_LAST		0x00008000
+#ifdef NF10BMAC_64BIT
+#define	NF10BMAC_DATA_STRB		0x000000ff
+#define	REGWTYPE			uint64_t
+#else
 #define	NF10BMAC_DATA_STRB		0x0000000f
+#define	REGWTYPE			uint32_t
+#endif
 
 
 static inline void
-nf10bmac_write_4(struct resource *res, uint32_t reg, uint32_t val4,
+nf10bmac_write(struct resource *res, REGWTYPE reg, REGWTYPE val,
     const char *f __unused, const int l __unused)
 {
 
-	bus_write_4(res, reg, htole32(val4));
+#ifdef NF10BMAC_64BIT
+	bus_write_8(res, reg, htole64(val));
+#else
+	bus_write_4(res, reg, htole32(val));
+#endif
 }
 
-static inline uint32_t
-nf10bmac_read_4(struct resource *res, uint32_t reg,
+static inline REGWTYPE
+nf10bmac_read(struct resource *res, REGWTYPE reg,
     const char *f __unused, const int l __unused)
 {
 
+#ifdef NF10BMAC_64BIT
+	return (le64toh(bus_read_8(res, reg)));
+#else
 	return (le32toh(bus_read_4(res, reg)));
+#endif
 }
 
 static inline void
-nf10bmac_write_4_be(struct resource *res, uint32_t reg, uint32_t val4,
+nf10bmac_write_be(struct resource *res, REGWTYPE reg, REGWTYPE val,
     const char *f __unused, const int l __unused)
 {
 
-	bus_write_4(res, reg, htobe32(val4));
+#ifdef NF10BMAC_64BIT
+	bus_write_8(res, reg, htobe64(val));
+#else
+	bus_write_4(res, reg, htobe32(val));
+#endif
 }
 
 
-static inline uint32_t
-nf10bmac_read_4_be(struct resource *res, uint32_t reg,
+static inline REGWTYPE
+nf10bmac_read_be(struct resource *res, REGWTYPE reg,
     const char *f __unused, const int l __unused)
 {
 
+#ifdef NF10BMAC_64BIT
+	return (be64toh(bus_read_8(res, reg)));
+#else
 	return (be32toh(bus_read_4(res, reg)));
+#endif
 }
 
-#define	NF10BMAC_WRITE_CTRL_4(sc, reg, val)				\
-	nf10bmac_write_4((sc)->nf10bmac_ctrl_res, (reg), (val),		\
+#define	NF10BMAC_WRITE_CTRL(sc, reg, val)				\
+	nf10bmac_write((sc)->nf10bmac_ctrl_res, (reg), (val),		\
 	    __func__, __LINE__)
-#define	NF10BMAC_WRITE_4(sc, reg, val)					\
-	nf10bmac_write_4((sc)->nf10bmac_tx_mem_res, (reg), (val),	\
+#define	NF10BMAC_WRITE(sc, reg, val)					\
+	nf10bmac_write((sc)->nf10bmac_tx_mem_res, (reg), (val),		\
 	    __func__, __LINE__)
-#define	NF10BMAC_READ_4(sc, reg)					\
-	nf10bmac_read_4((sc)->nf10bmac_rx_mem_res, (reg),		\
+#define	NF10BMAC_READ(sc, reg)						\
+	nf10bmac_read((sc)->nf10bmac_rx_mem_res, (reg),			\
 	    __func__, __LINE__)
-#define	NF10BMAC_WRITE_4_BE(sc, reg, val)				\
-	nf10bmac_write_4_be((sc)->nf10bmac_tx_mem_res, (reg), (val),	\
+#define	NF10BMAC_WRITE_BE(sc, reg, val)					\
+	nf10bmac_write_be((sc)->nf10bmac_tx_mem_res, (reg), (val),	\
 	    __func__, __LINE__)
-#define	NF10BMAC_READ_4_BE(sc, reg)					\
-	nf10bmac_read_4_be((sc)->nf10bmac_rx_mem_res, (reg),		\
+#define	NF10BMAC_READ_BE(sc, reg)					\
+	nf10bmac_read_be((sc)->nf10bmac_rx_mem_res, (reg),		\
 	    __func__, __LINE__)
 
-#define	NF10BMAC_WRITE_INTR_4(sc, reg, val, _f, _l)			\
-	nf10bmac_write_4((sc)->nf10bmac_intr_res, (reg), (val),		\
+#define	NF10BMAC_WRITE_INTR(sc, reg, val, _f, _l)			\
+	nf10bmac_write((sc)->nf10bmac_intr_res, (reg), (val),		\
 	    (_f), (_l))
 
 #define	NF10BMAC_RX_INTR_CLEAR_DIS(sc)					\
-	NF10BMAC_WRITE_INTR_4((sc), NF10BMAC_INTR_CLEAR_DIS, 1,		\
+	NF10BMAC_WRITE_INTR((sc), NF10BMAC_INTR_CLEAR_DIS, 1,		\
 	__func__, __LINE__)
 #define	NF10BMAC_RX_INTR_ENABLE(sc)					\
-	NF10BMAC_WRITE_INTR_4((sc), NF10BMAC_INTR_CTRL, 1,		\
+	NF10BMAC_WRITE_INTR((sc), NF10BMAC_INTR_CTRL, 1,		\
 	__func__, __LINE__)
 #define	NF10BMAC_RX_INTR_DISABLE(sc)					\
-	NF10BMAC_WRITE_INTR_4((sc), NF10BMAC_INTR_CTRL, 0,		\
+	NF10BMAC_WRITE_INTR((sc), NF10BMAC_INTR_CTRL, 0,		\
 	__func__, __LINE__)
 
 
@@ -196,7 +219,7 @@ static int
 nf10bmac_tx_locked(struct nf10bmac_softc *sc, struct mbuf *m)
 {
 	int32_t len, l, ml;
-	uint32_t m4, val4;
+	REGWTYPE md, val;
 
 	NF10BMAC_LOCK_ASSERT(sc);
 
@@ -211,16 +234,16 @@ nf10bmac_tx_locked(struct nf10bmac_softc *sc, struct mbuf *m)
 	len = m->m_pkthdr.len;
 
 	/* Write the length at start of packet. */
-	NF10BMAC_WRITE_4(sc, NF10BMAC_TX_LEN, len);
+	NF10BMAC_WRITE(sc, NF10BMAC_TX_LEN, len);
 
 	/* Write the meta data and data. */
-	ml = len / sizeof(val4);
-	len -= (ml * sizeof(val4));
+	ml = len / sizeof(val);
+	len -= (ml * sizeof(val));
 	for (l = 0; l <= ml; l++) {
 		int32_t cl;
 
-		cl = sizeof(val4);
-		m4 = (NF10BMAC_TUSER_CPU0 << NF10BMAC_DATA_SPORT_SHIFT);
+		cl = sizeof(val);
+		md = (NF10BMAC_TUSER_CPU0 << NF10BMAC_DATA_SPORT_SHIFT);
 		if (l == ml || (len == 0 && l == (ml - 1))) {
 			if (l == ml && len == 0) {
 				break;
@@ -229,20 +252,20 @@ nf10bmac_tx_locked(struct nf10bmac_softc *sc, struct mbuf *m)
 				int sl;
 
 				if (l == (ml - 1))
-					len = 4;
+					len = sizeof(val);
 				cl = len;
 
 				for (s = 0, sl = len; sl > 0; sl--)
 					s |= (1 << (sl - 1));
-				m4 |= (s & NF10BMAC_DATA_STRB);
-				m4 |= NF10BMAC_DATA_LAST;
+				md |= (s & NF10BMAC_DATA_STRB);
+				md |= NF10BMAC_DATA_LAST;
 			}
 		} else {
-			m4 |= NF10BMAC_DATA_STRB;
+			md |= NF10BMAC_DATA_STRB;
 		}
-		NF10BMAC_WRITE_4(sc, NF10BMAC_TX_META, m4);
-		bcopy(&sc->nf10bmac_tx_buf[l*sizeof(val4)], &val4, cl);
-		NF10BMAC_WRITE_4_BE(sc, NF10BMAC_TX_DATA, val4);	
+		NF10BMAC_WRITE(sc, NF10BMAC_TX_META, md);
+		bcopy(&sc->nf10bmac_tx_buf[l*sizeof(val)], &val, cl);
+		NF10BMAC_WRITE_BE(sc, NF10BMAC_TX_DATA, val);	
 	}
 
 	/* If anyone is interested give them a copy. */
@@ -311,14 +334,14 @@ nf10bmac_start(struct ifnet *ifp)
 static void
 nf10bmac_eat_packet_munch_munch(struct nf10bmac_softc *sc)
 {
-	uint32_t m4, val4;
+	REGWTYPE md, val;
 
 	do {
-		m4 = NF10BMAC_READ_4_BE(sc, NF10BMAC_RX_META);
-		if ((m4 & NF10BMAC_DATA_STRB) != 0)
-			val4 = NF10BMAC_READ_4_BE(sc, NF10BMAC_RX_DATA);
-	} while ((m4 & NF10BMAC_DATA_STRB) != 0 &&
-	    (m4 & NF10BMAC_DATA_LAST) == 0);
+		md = NF10BMAC_READ_BE(sc, NF10BMAC_RX_META);
+		if ((md & NF10BMAC_DATA_STRB) != 0)
+			val = NF10BMAC_READ_BE(sc, NF10BMAC_RX_DATA);
+	} while ((md & NF10BMAC_DATA_STRB) != 0 &&
+	    (md & NF10BMAC_DATA_LAST) == 0);
 }
 
 static int
@@ -326,7 +349,7 @@ nf10bmac_rx_locked(struct nf10bmac_softc *sc)
 {
 	struct ifnet *ifp;
 	struct mbuf *m;
-	uint32_t m4, val4;
+	REGWTYPE md, val;
 	int32_t len, l;
 
 	/*
@@ -336,21 +359,21 @@ nf10bmac_rx_locked(struct nf10bmac_softc *sc)
 	 * skip to tlast).
 	 */
 
-	len = NF10BMAC_READ_4(sc, NF10BMAC_RX_LEN) & NF10BMAC_DATA_LEN_MASK;
+	len = NF10BMAC_READ(sc, NF10BMAC_RX_LEN) & NF10BMAC_DATA_LEN_MASK;
 	if (len > (MCLBYTES - ETHER_ALIGN)) {
 		nf10bmac_eat_packet_munch_munch(sc);
 		return (0);
 	}
 
-	m4 = NF10BMAC_READ_4(sc, NF10BMAC_RX_META);
-	if (len == 0 && (m4 & NF10BMAC_DATA_STRB) == 0) {
+	md = NF10BMAC_READ(sc, NF10BMAC_RX_META);
+	if (len == 0 && (md & NF10BMAC_DATA_STRB) == 0) {
 		/* No packet data available. */
 		return (0);
-	} else if (len == 0 && (m4 & NF10BMAC_DATA_STRB) != 0) {
+	} else if (len == 0 && (md & NF10BMAC_DATA_STRB) != 0) {
 		/* We are in the middle of a packet. */
 		nf10bmac_eat_packet_munch_munch(sc);
 		return (0);
-	} else if ((m4 & NF10BMAC_DATA_STRB) == 0) {
+	} else if ((md & NF10BMAC_DATA_STRB) == 0) {
 		/* Invalid length "hint". */
 		device_printf(sc->nf10bmac_dev,
 		    "Unexpected length %d on zero strb\n", len);
@@ -377,13 +400,13 @@ nf10bmac_rx_locked(struct nf10bmac_softc *sc)
 	ifp = sc->nf10bmac_ifp;
 	l = 0;
 /*
-	while ((m4 & NF10BMAC_DATA_STRB) != 0 && l < len) {
+	while ((md & NF10BMAC_DATA_STRB) != 0 && l < len) {
 */
 	while (l < len) {
 		size_t cl;
 
-		if ((m4 & NF10BMAC_DATA_LAST) == 0 &&
-		    (len - l) < sizeof(val4)) {
+		if ((md & NF10BMAC_DATA_LAST) == 0 &&
+		    (len - l) < sizeof(val)) {
 			/*
 			 * Our length and LAST disagree. We have a valid STRB.
 			 * We could continue until we fill the mbuf and just
@@ -394,34 +417,34 @@ nf10bmac_rx_locked(struct nf10bmac_softc *sc)
 			ifp->if_ierrors++;
 			m_freem(m);
 			return (0);
-		} else if ((len - l) <= sizeof(val4)) {
+		} else if ((len - l) <= sizeof(val)) {
 			cl = len - l;
 		} else {
-			cl = sizeof(val4);
+			cl = sizeof(val);
 		}
 
 		/* Read the first bytes of data as well. */
-		val4 = NF10BMAC_READ_4_BE(sc, NF10BMAC_RX_DATA);
-		bcopy(&val4, (uint8_t *)(m->m_data + l), cl);
+		val = NF10BMAC_READ_BE(sc, NF10BMAC_RX_DATA);
+		bcopy(&val, (uint8_t *)(m->m_data + l), cl);
 		l += cl;
 
-		if ((m4 & NF10BMAC_DATA_LAST) != 0 || l >= len)
+		if ((md & NF10BMAC_DATA_LAST) != 0 || l >= len)
 			break;
 		else {
 			DELAY(50);
-			m4 = NF10BMAC_READ_4(sc, NF10BMAC_RX_META);
+			md = NF10BMAC_READ(sc, NF10BMAC_RX_META);
 		}
 
 		cl = 10;
-		while ((m4 & NF10BMAC_DATA_STRB) == 0 && cl-- > 0) {
+		while ((md & NF10BMAC_DATA_STRB) == 0 && cl-- > 0) {
 			DELAY(10);
-			m4 = NF10BMAC_READ_4(sc, NF10BMAC_RX_META);
+			md = NF10BMAC_READ(sc, NF10BMAC_RX_META);
 		}
 	}
 	/* We should get out of this loop with tlast and tsrb. */
-	if ((m4 & NF10BMAC_DATA_LAST) == 0 || (m4 & NF10BMAC_DATA_STRB) == 0) {
+	if ((md & NF10BMAC_DATA_LAST) == 0 || (md & NF10BMAC_DATA_STRB) == 0) {
 		device_printf(sc->nf10bmac_dev, "Unexpected rx loop end state: "
-		    "m4=0x%08x len=%d l=%d\n", m4, len, l);
+		    "md=0x%08jx len=%d l=%d\n", (uintmax_t)md, len, l);
 		ifp->if_ierrors++;
 		m_freem(m);
 		return (0);

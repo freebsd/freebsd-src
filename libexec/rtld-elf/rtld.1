@@ -28,7 +28,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd June 28, 2012
+.Dd June 20, 2014
 .Dt RTLD 1
 .Os
 .Sh NAME
@@ -192,6 +192,13 @@ the directories specified by
 will be searched first
 followed by the set of built-in standard directories.
 This variable is unset for set-user-ID and set-group-ID programs.
+.Ev LD_LIBRARY_PATH_FDS
+A colon separated list of file descriptor numbers for library directories.
+This is intended for use within
+.Xr capsicum 4
+sandboxes, when global namespaces such as the filesystem are unavailable.
+It is consulted just after LD_LIBRARY_PATH.
+This variable is unset for set-user-ID and set-group-ID programs.
 .It Ev LD_BIND_NOW
 When set to a nonempty string, causes
 .Nm
@@ -260,7 +267,6 @@ If set,
 .Nm
 will log events such as the loading and unloading of shared objects via
 .Xr utrace 2 .
-.Pp
 .It Ev LD_LOADFLTR
 If set,
 .Nm
@@ -283,6 +289,7 @@ The libmap configuration file for 32-bit binaries on 64-bit system.
 .Sh SEE ALSO
 .Xr ld 1 ,
 .Xr ldd 1 ,
+.Xr capsicum 4 ,
 .Xr elf 5 ,
 .Xr libmap.conf 5 ,
 .Xr ldconfig 8

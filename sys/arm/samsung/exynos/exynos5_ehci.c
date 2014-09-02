@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2013 Ruslan Bukin <br@bsdpad.com>
+ * Copyright (c) 2013-2014 Ruslan Bukin <br@bsdpad.com>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -50,10 +50,11 @@ __FBSDID("$FreeBSD$");
 #include <dev/usb/controller/ehci.h>
 #include <dev/usb/controller/ehcireg.h>
 
-#include <dev/fdt/fdt_common.h>
-
 #include <machine/bus.h>
 #include <machine/resource.h>
+
+#include <arm/samsung/exynos/exynos5_common.h>
+#include <arm/samsung/exynos/exynos5_pmu.h>
 
 #include "gpio_if.h"
 
@@ -63,11 +64,6 @@ __FBSDID("$FreeBSD$");
 #define	GPIO_OUTPUT	1
 #define	GPIO_INPUT	0
 #define	PIN_USB		161
-
-/* PWR control */
-#define	EXYNOS5_PWR_USBHOST_PHY		0x708
-#define	PHY_POWER_ON			1
-#define	PHY_POWER_OFF			0
 
 /* SYSREG */
 #define	EXYNOS5_SYSREG_USB2_PHY	0x0
@@ -91,12 +87,10 @@ static int	exynos_ehci_probe(device_t dev);
 struct exynos_ehci_softc {
 	device_t		dev;
 	ehci_softc_t		base;
-	struct resource		*res[5];
+	struct resource		*res[4];
 	bus_space_tag_t		host_bst;
-	bus_space_tag_t		pwr_bst;
 	bus_space_tag_t		sysreg_bst;
 	bus_space_handle_t	host_bsh;
-	bus_space_handle_t	pwr_bsh;
 	bus_space_handle_t	sysreg_bsh;
 
 };
@@ -105,7 +99,6 @@ static struct resource_spec exynos_ehci_spec[] = {
 	{ SYS_RES_MEMORY,	0,	RF_ACTIVE },
 	{ SYS_RES_MEMORY,	1,	RF_ACTIVE },
 	{ SYS_RES_MEMORY,	2,	RF_ACTIVE },
-	{ SYS_RES_MEMORY,	3,	RF_ACTIVE },
 	{ SYS_RES_IRQ,		0,	RF_ACTIVE },
 	{ -1, 0 }
 };
@@ -180,9 +173,41 @@ gpio_ctrl(struct exynos_ehci_softc *esc, int dir, int power)
 }
 
 static int
+reset_hsic_hub(struct exynos_ehci_softc *esc, phandle_t hub)
+{
+	device_t gpio_dev;
+	pcell_t pin;
+
+	/* TODO: check that hub is compatible with "smsc,usb3503" */
+	if (!OF_hasprop(hub, "freebsd,reset-gpio")) {
+		return (1);
+	}
+
+	if (OF_getencprop(hub, "freebsd,reset-gpio", &pin, sizeof(pin)) < 0) {
+		device_printf(esc->dev,
+		    "failed to decode reset GPIO pin number for HSIC hub\n");
+		return (1);
+	}
+
+	/* Get the GPIO device, we need this to give power to USB */
+	gpio_dev = devclass_get_device(devclass_find("gpio"), 0);
+	if (gpio_dev == NULL) {
+		device_printf(esc->dev, "Cant find gpio device\n");
+		return (1);
+	}
+
+	GPIO_PIN_SET(gpio_dev, pin, GPIO_PIN_LOW);
+	DELAY(100);
+	GPIO_PIN_SET(gpio_dev, pin, GPIO_PIN_HIGH);
+
+	return (0);
+}
+
+static int
 phy_init(struct exynos_ehci_softc *esc)
 {
 	int reg;
+	phandle_t hub;
 
 	gpio_ctrl(esc, GPIO_INPUT, 1);
 
@@ -191,8 +216,7 @@ phy_init(struct exynos_ehci_softc *esc)
 	    EXYNOS5_SYSREG_USB2_PHY, USB2_MODE_HOST);
 
 	/* Power ON phy */
-	bus_space_write_4(esc->pwr_bst, esc->pwr_bsh,
-	    EXYNOS5_PWR_USBHOST_PHY, PHY_POWER_ON);
+	usb2_phy_power_on();
 
 	reg = bus_space_read_4(esc->host_bst, esc->host_bsh, 0x0);
 	reg &= ~(HOST_CTRL_CLK_MASK |
@@ -211,6 +235,10 @@ phy_init(struct exynos_ehci_softc *esc)
 	reg = bus_space_read_4(esc->host_bst, esc->host_bsh, 0x0);
 	reg &= ~(HOST_CTRL_RESET_LINK);
 	bus_space_write_4(esc->host_bst, esc->host_bsh, 0x0, reg);
+
+	if ((hub = OF_finddevice("/hsichub")) != 0) {
+		reset_hsic_hub(esc, hub);
+	}
 
 	gpio_ctrl(esc, GPIO_OUTPUT, 1);
 
@@ -246,13 +274,9 @@ exynos_ehci_attach(device_t dev)
 	esc->host_bst = rman_get_bustag(esc->res[1]);
 	esc->host_bsh = rman_get_bushandle(esc->res[1]);
 
-	/* PWR registers */
-	esc->pwr_bst = rman_get_bustag(esc->res[2]);
-	esc->pwr_bsh = rman_get_bushandle(esc->res[2]);
-
 	/* SYSREG */
-	esc->sysreg_bst = rman_get_bustag(esc->res[3]);
-	esc->sysreg_bsh = rman_get_bushandle(esc->res[3]);
+	esc->sysreg_bst = rman_get_bustag(esc->res[2]);
+	esc->sysreg_bsh = rman_get_bushandle(esc->res[2]);
 
 	/* get all DMA memory */
 	if (usb_bus_mem_alloc_all(&sc->sc_bus, USB_GET_DMA_TAG(dev),
@@ -271,7 +295,7 @@ exynos_ehci_attach(device_t dev)
 	phy_init(esc);
 
 	/* Setup interrupt handler */
-	err = bus_setup_intr(dev, esc->res[4], INTR_TYPE_BIO | INTR_MPSAFE,
+	err = bus_setup_intr(dev, esc->res[3], INTR_TYPE_BIO | INTR_MPSAFE,
 	    NULL, (driver_intr_t *)ehci_interrupt, sc,
 	    &sc->sc_intr_hdl);
 	if (err) {
@@ -284,7 +308,7 @@ exynos_ehci_attach(device_t dev)
 	sc->sc_bus.bdev = device_add_child(dev, "usbus", -1);
 	if (!sc->sc_bus.bdev) {
 		device_printf(dev, "Could not add USB device\n");
-		err = bus_teardown_intr(dev, esc->res[4],
+		err = bus_teardown_intr(dev, esc->res[3],
 		    sc->sc_intr_hdl);
 		if (err)
 			device_printf(dev, "Could not tear down irq,"
@@ -305,7 +329,7 @@ exynos_ehci_attach(device_t dev)
 		device_delete_child(dev, sc->sc_bus.bdev);
 		sc->sc_bus.bdev = NULL;
 
-		err = bus_teardown_intr(dev, esc->res[4],
+		err = bus_teardown_intr(dev, esc->res[3],
 		    sc->sc_intr_hdl);
 		if (err)
 			device_printf(dev, "Could not tear down irq,"
@@ -344,8 +368,8 @@ exynos_ehci_detach(device_t dev)
 		bus_space_write_4(sc->sc_io_tag, sc->sc_io_hdl,
 		    EHCI_USBINTR, 0);
 
-	if (esc->res[4] && sc->sc_intr_hdl) {
-		err = bus_teardown_intr(dev, esc->res[4],
+	if (esc->res[3] && sc->sc_intr_hdl) {
+		err = bus_teardown_intr(dev, esc->res[3],
 		    sc->sc_intr_hdl);
 		if (err) {
 			device_printf(dev, "Could not tear down irq,"

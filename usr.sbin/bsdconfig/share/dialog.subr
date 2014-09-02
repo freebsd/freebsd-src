@@ -1557,12 +1557,22 @@ f_dialog_info()
 # EOF. This implies that you must execute this either as an rvalue to a pipe,
 # lvalue to indirection or in a sub-shell that provides data on stdin.
 #
+# To open an Xdialog(1) infobox that does not disappear until expeclitly dis-
+# missed, use the following:
+#
+# 	f_xdialog_info "$info_text" < /dev/tty &
+# 	pid=$!
+# 	# Perform some lengthy actions
+# 	kill $pid
+#
+# NB: Check $USE_XDIALOG if you need to support both dialog(1) and Xdialog(1).
+#
 f_xdialog_info()
 {
 	local info_text="$*" height width
 	f_dialog_infobox_size height width \
 		"$DIALOG_TITLE" "$DIALOG_BACKTITLE" "$info_text"
-	$DIALOG \
+	exec $DIALOG \
 		--title "$DIALOG_TITLE"               \
 		--backtitle "$DIALOG_BACKTITLE"       \
 		--no-close --no-buttons               \
@@ -2099,9 +2109,13 @@ f_dialog_init()
 	#
 	# Process stored command-line arguments
 	#
+	# NB: Using backticks instead of $(...) for portability since Linux
+	#     bash(1) balks at the right parentheses encountered in the case-
+	#     statement (incorrectly interpreting it as the close of $(...)).
+	#
 	f_dprintf "f_dialog_init: ARGV=[%s] GETOPTS_STDARGS=[%s]" \
 	          "$ARGV" "$GETOPTS_STDARGS"
-	SECURE=$( set -- $ARGV
+	SECURE=`set -- $ARGV
 		while getopts \
 			"$GETOPTS_STDARGS$GETOPTS_EXTRA$GETOPTS_ALLFLAGS" \
 		flag > /dev/null; do
@@ -2109,8 +2123,8 @@ f_dialog_init()
 			S) echo 1 ;;
 			esac
 		done
-	)
-	USE_XDIALOG=$( set -- $ARGV
+	` # END-BACKTICK
+	USE_XDIALOG=`set -- $ARGV
 		while getopts \
 			"$GETOPTS_STDARGS$GETOPTS_EXTRA$GETOPTS_ALLFLAGS" \
 		flag > /dev/null; do
@@ -2118,7 +2132,7 @@ f_dialog_init()
 			S|X) echo 1 ;;
 			esac
 		done
-	)
+	` # END-BACKTICK
 	f_dprintf "f_dialog_init: SECURE=[%s] USE_XDIALOG=[%s]" \
 	          "$SECURE" "$USE_XDIALOG"
 

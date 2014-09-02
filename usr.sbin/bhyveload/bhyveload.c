@@ -505,8 +505,8 @@ static void
 cb_getmem(void *arg, uint64_t *ret_lowmem, uint64_t *ret_highmem)
 {
 
-	vm_get_memory_seg(ctx, 0, ret_lowmem, NULL);
-	vm_get_memory_seg(ctx, 4 * GB, ret_highmem, NULL);
+	*ret_lowmem = vm_get_lowmem_size(ctx);
+	*ret_highmem = vm_get_highmem_size(ctx);
 }
 
 struct env {
@@ -629,8 +629,8 @@ usage(void)
 {
 
 	fprintf(stderr,
-	    "usage: %s [-m mem-size] [-d <disk-path>] [-h <host-path>]\n"
-	    "       %*s [-e <name=value>] [-c <console-device>] <vmname>\n",
+	    "usage: %s [-c <console-device>] [-d <disk-path>] [-e <name=value>]\n"
+	    "       %*s [-h <host-path>] [-m mem-size] <vmname>\n",
 	    progname,
 	    (int)strlen(progname), "");
 	exit(1);
@@ -642,7 +642,7 @@ main(int argc, char** argv)
 	void *h;
 	void (*func)(struct loader_callbacks *, void *, int, int);
 	uint64_t mem_size;
-	int opt, error;
+	int opt, error, need_reinit;
 
 	progname = basename(argv[0]);
 
@@ -691,17 +691,28 @@ main(int argc, char** argv)
 
 	vmname = argv[0];
 
+	need_reinit = 0;
 	error = vm_create(vmname);
-	if (error != 0 && errno != EEXIST) {
-		perror("vm_create");
-		exit(1);
-
+	if (error) {
+		if (errno != EEXIST) {
+			perror("vm_create");
+			exit(1);
+		}
+		need_reinit = 1;
 	}
 
 	ctx = vm_open(vmname);
 	if (ctx == NULL) {
 		perror("vm_open");
 		exit(1);
+	}
+
+	if (need_reinit) {
+		error = vm_reinit(ctx);
+		if (error) {
+			perror("vm_reinit");
+			exit(1);
+		}
 	}
 
 	error = vm_setup_memory(ctx, mem_size, VM_MMAP_ALL);

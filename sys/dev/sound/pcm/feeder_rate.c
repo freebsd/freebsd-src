@@ -168,8 +168,7 @@ TUNABLE_INT("hw.snd.feeder_rate_max", &feeder_rate_max);
 TUNABLE_INT("hw.snd.feeder_rate_round", &feeder_rate_round);
 TUNABLE_INT("hw.snd.feeder_rate_quality", &feeder_rate_quality);
 
-TUNABLE_INT("hw.snd.feeder_rate_polyphase_max", &feeder_rate_polyphase_max);
-SYSCTL_INT(_hw_snd, OID_AUTO, feeder_rate_polyphase_max, CTLFLAG_RW,
+SYSCTL_INT(_hw_snd, OID_AUTO, feeder_rate_polyphase_max, CTLFLAG_RWTUN,
     &feeder_rate_polyphase_max, 0, "maximum allowable polyphase entries");
 
 static int

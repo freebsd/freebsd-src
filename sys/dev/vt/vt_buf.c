@@ -38,6 +38,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/lock.h>
 #include <sys/malloc.h>
 #include <sys/mutex.h>
+#include <sys/reboot.h>
 #include <sys/systm.h>
 
 #include <dev/vt/vt.h>
@@ -228,10 +229,9 @@ vtbuf_dirty_axis(unsigned int begin, unsigned int end)
 }
 
 static inline void
-vtbuf_dirty(struct vt_buf *vb, const term_rect_t *area)
+vtbuf_dirty_locked(struct vt_buf *vb, const term_rect_t *area)
 {
 
-	VTBUF_LOCK(vb);
 	if (vb->vb_dirtyrect.tr_begin.tp_row > area->tr_begin.tp_row)
 		vb->vb_dirtyrect.tr_begin.tp_row = area->tr_begin.tp_row;
 	if (vb->vb_dirtyrect.tr_begin.tp_col > area->tr_begin.tp_col)
@@ -244,18 +244,26 @@ vtbuf_dirty(struct vt_buf *vb, const term_rect_t *area)
 	    vtbuf_dirty_axis(area->tr_begin.tp_row, area->tr_end.tp_row);
 	vb->vb_dirtymask.vbm_col |=
 	    vtbuf_dirty_axis(area->tr_begin.tp_col, area->tr_end.tp_col);
+}
+
+static inline void
+vtbuf_dirty(struct vt_buf *vb, const term_rect_t *area)
+{
+
+	VTBUF_LOCK(vb);
+	vtbuf_dirty_locked(vb, area);
 	VTBUF_UNLOCK(vb);
 }
 
 static inline void
-vtbuf_dirty_cell(struct vt_buf *vb, const term_pos_t *p)
+vtbuf_dirty_cell_locked(struct vt_buf *vb, const term_pos_t *p)
 {
 	term_rect_t area;
 
 	area.tr_begin = *p;
 	area.tr_end.tp_row = p->tp_row + 1;
 	area.tr_end.tp_col = p->tp_col + 1;
-	vtbuf_dirty(vb, &area);
+	vtbuf_dirty_locked(vb, &area);
 }
 
 static void
@@ -357,24 +365,23 @@ void
 vtbuf_fill_locked(struct vt_buf *vb, const term_rect_t *r, term_char_t c)
 {
 	KASSERT(r->tr_begin.tp_row < vb->vb_scr_size.tp_row,
-	    ("vtbuf_fill_locked begin.tp_row %d must be < screen width %d",
+	    ("vtbuf_fill_locked begin.tp_row %d must be < screen height %d",
 		r->tr_begin.tp_row, vb->vb_scr_size.tp_row));
 	KASSERT(r->tr_begin.tp_col < vb->vb_scr_size.tp_col,
-	    ("vtbuf_fill_locked begin.tp_col %d must be < screen height %d",
+	    ("vtbuf_fill_locked begin.tp_col %d must be < screen width %d",
 		r->tr_begin.tp_col, vb->vb_scr_size.tp_col));
 
 	KASSERT(r->tr_end.tp_row <= vb->vb_scr_size.tp_row,
-	    ("vtbuf_fill_locked end.tp_row %d must be <= screen width %d",
+	    ("vtbuf_fill_locked end.tp_row %d must be <= screen height %d",
 		r->tr_end.tp_row, vb->vb_scr_size.tp_row));
 	KASSERT(r->tr_end.tp_col <= vb->vb_scr_size.tp_col,
-	    ("vtbuf_fill_locked end.tp_col %d must be <= screen height %d",
+	    ("vtbuf_fill_locked end.tp_col %d must be <= screen width %d",
 		r->tr_end.tp_col, vb->vb_scr_size.tp_col));
 
 	VTBUF_LOCK(vb);
 	vtbuf_fill(vb, r, c);
+	vtbuf_dirty_locked(vb, r);
 	VTBUF_UNLOCK(vb);
-
-	vtbuf_dirty(vb, r);
 }
 
 static void
@@ -385,13 +392,13 @@ vtbuf_init_rows(struct vt_buf *vb)
 	vb->vb_history_size = MAX(vb->vb_history_size, vb->vb_scr_size.tp_row);
 
 	for (r = 0; r < vb->vb_history_size; r++)
-		vb->vb_rows[r] = &vb->vb_buffer[r *
-		    vb->vb_scr_size.tp_col];
+		vb->vb_rows[r] = &vb->vb_buffer[r * vb->vb_scr_size.tp_col];
 }
 
 void
 vtbuf_init_early(struct vt_buf *vb)
 {
+	term_rect_t rect;
 
 	vb->vb_flags |= VBF_CURSOR;
 	vb->vb_roffset = 0;
@@ -402,6 +409,10 @@ vtbuf_init_early(struct vt_buf *vb)
 	vb->vb_mark_end.tp_col = 0;
 
 	vtbuf_init_rows(vb);
+	rect.tr_begin.tp_row = rect.tr_begin.tp_col = 0;
+	rect.tr_end = vb->vb_scr_size;
+	vtbuf_fill(vb, &rect, VTBUF_SPACE_CHAR((boothowto & RB_MUTE) == 0 ?
+	    TERMINAL_KERN_ATTR : TERMINAL_NORM_ATTR));
 	vtbuf_make_undirty(vb);
 	if ((vb->vb_flags & VBF_MTX_INIT) == 0) {
 		mtx_init(&vb->vb_lock, "vtbuf", NULL, MTX_SPIN);
@@ -474,20 +485,27 @@ vtbuf_grow(struct vt_buf *vb, const term_pos_t *p, int history_size)
 
 		/* Copy history and fill extra space. */
 		for (r = 0; r < history_size; r ++) {
+			/*
+			 * XXX VTBUF_SPACE_CHAR(TERMINAL_NORM_ATTR) will
+			 * extended lines of kernel text using the wrong
+			 * background color.
+			 */
 			row = rows[r];
 			if (r < h) { /* Copy. */
 				memmove(rows[r], copyrows[r],
 				    MIN(p->tp_col, w) * sizeof(term_char_t));
 				for (c = MIN(p->tp_col, w); c < p->tp_col;
 				    c++) {
-					row[c] = VTBUF_SPACE_CHAR;
+					row[c] = VTBUF_SPACE_CHAR(
+					    TERMINAL_NORM_ATTR);
 				}
 			} else { /* Just fill. */
 				rect.tr_begin.tp_col = 0;
 				rect.tr_begin.tp_row = r;
 				rect.tr_end.tp_col = p->tp_col;
 				rect.tr_end.tp_row = p->tp_row;
-				vtbuf_fill(vb, &rect, VTBUF_SPACE_CHAR);
+				vtbuf_fill(vb, &rect,
+				    VTBUF_SPACE_CHAR(TERMINAL_NORM_ATTR));
 				break;
 			}
 		}
@@ -496,6 +514,9 @@ vtbuf_grow(struct vt_buf *vb, const term_pos_t *p, int history_size)
 		/* Deallocate old buffer. */
 		free(old, M_VTBUF);
 		free(oldrows, M_VTBUF);
+	} else {
+		/* Just update the size. */
+		vb->vb_scr_size = *p;
 	}
 }
 
@@ -516,8 +537,8 @@ vtbuf_putchar(struct vt_buf *vb, const term_pos_t *p, term_char_t c)
 	if (row[p->tp_col] != c) {
 		VTBUF_LOCK(vb);
 		row[p->tp_col] = c;
+		vtbuf_dirty_cell_locked(vb, p);
 		VTBUF_UNLOCK(vb);
-		vtbuf_dirty_cell(vb, p);
 	}
 }
 
@@ -526,9 +547,11 @@ vtbuf_cursor_position(struct vt_buf *vb, const term_pos_t *p)
 {
 
 	if (vb->vb_flags & VBF_CURSOR) {
-		vtbuf_dirty_cell(vb, &vb->vb_cursor);
+		VTBUF_LOCK(vb);
+		vtbuf_dirty_cell_locked(vb, &vb->vb_cursor);
 		vb->vb_cursor = *p;
-		vtbuf_dirty_cell(vb, &vb->vb_cursor);
+		vtbuf_dirty_cell_locked(vb, &vb->vb_cursor);
+		VTBUF_UNLOCK(vb);
 	} else {
 		vb->vb_cursor = *p;
 	}
@@ -709,10 +732,10 @@ vtbuf_cursor_visibility(struct vt_buf *vb, int yes)
 	else
 		vb->vb_flags &= ~VBF_CURSOR;
 	nflags = vb->vb_flags;
-	VTBUF_UNLOCK(vb);
 
 	if (oflags != nflags)
-		vtbuf_dirty_cell(vb, &vb->vb_cursor);
+		vtbuf_dirty_cell_locked(vb, &vb->vb_cursor);
+	VTBUF_UNLOCK(vb);
 }
 
 void
@@ -727,9 +750,9 @@ vtbuf_scroll_mode(struct vt_buf *vb, int yes)
 	else
 		vb->vb_flags &= ~VBF_SCROLL;
 	nflags = vb->vb_flags;
-	VTBUF_UNLOCK(vb);
 
 	if (oflags != nflags)
-		vtbuf_dirty_cell(vb, &vb->vb_cursor);
+		vtbuf_dirty_cell_locked(vb, &vb->vb_cursor);
+	VTBUF_UNLOCK(vb);
 }
 

@@ -192,7 +192,7 @@ opmark(FILE *fd, int i, const struct athregrec *r)
 		fprintf(fd, "mark #%u value %u/0x%x", r->reg, r->val, r->val);
 		break;
 	}
-	exit(0);
+	return (NULL);
 }
 
 #include "ah_devid.h"
@@ -260,6 +260,9 @@ opdevice(const struct athregrec *r)
 	case AR9280_DEVID_PCI:
 	case AR9280_DEVID_PCIE:
 	case AR9285_DEVID_PCIE:
+	case AR9287_DEVID_PCI:
+	case AR9287_DEVID_PCIE:
+	case AR9300_DEVID_AR9330:
 		state.chipnum = 5416;
 		state.revs.ah_macVersion = 13;
 		state.revs.ah_macRev = 8;

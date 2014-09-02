@@ -570,6 +570,9 @@ new_node_record(void **node_baton,
     }
   else
     {
+      const char *kind;
+      const char *action;
+
       tcl = svn_hash_gets(headers, SVN_REPOS_DUMPFILE_TEXT_CONTENT_LENGTH);
 
       /* Test if this node was copied from dropped source. */
@@ -584,7 +587,6 @@ new_node_record(void **node_baton,
              dumpfile should contain the new contents of the file.  In this
              scenario, we'll just do an add without history using the new
              contents.  */
-          const char *kind;
           kind = svn_hash_gets(headers, SVN_REPOS_DUMPFILE_NODE_KIND);
 
           /* If there is a Text-content-length header, and the kind is
@@ -623,6 +625,30 @@ new_node_record(void **node_baton,
       if (! nb->rb->writing_begun)
         SVN_ERR(output_revision(nb->rb));
 
+      /* A node record is required to begin with 'Node-path', skip the
+         leading '/' to match the form used by 'svnadmin dump'. */
+      SVN_ERR(svn_stream_printf(nb->rb->pb->out_stream,
+                                pool, "%s: %s\n",
+                                SVN_REPOS_DUMPFILE_NODE_PATH, node_path + 1));
+
+      /* Node-kind is next and is optional. */
+      kind = svn_hash_gets(headers, SVN_REPOS_DUMPFILE_NODE_KIND);
+      if (kind)
+        SVN_ERR(svn_stream_printf(nb->rb->pb->out_stream,
+                                  pool, "%s: %s\n",
+                                  SVN_REPOS_DUMPFILE_NODE_KIND, kind));
+
+      /* Node-action is next and required. */
+      action = svn_hash_gets(headers, SVN_REPOS_DUMPFILE_NODE_ACTION);
+      if (action)
+        SVN_ERR(svn_stream_printf(nb->rb->pb->out_stream,
+                                  pool, "%s: %s\n",
+                                  SVN_REPOS_DUMPFILE_NODE_ACTION, action));
+      else
+        return svn_error_createf(SVN_ERR_INCOMPLETE_DATA, 0,
+                                 _("Missing Node-action for path '%s'"),
+                                 node_path);
+
       for (hi = apr_hash_first(pool, headers); hi; hi = apr_hash_next(hi))
         {
           const char *key = svn__apr_hash_index_key(hi);
@@ -638,7 +664,10 @@ new_node_record(void **node_baton,
 
           if ((!strcmp(key, SVN_REPOS_DUMPFILE_CONTENT_LENGTH))
               || (!strcmp(key, SVN_REPOS_DUMPFILE_PROP_CONTENT_LENGTH))
-              || (!strcmp(key, SVN_REPOS_DUMPFILE_TEXT_CONTENT_LENGTH)))
+              || (!strcmp(key, SVN_REPOS_DUMPFILE_TEXT_CONTENT_LENGTH))
+              || (!strcmp(key, SVN_REPOS_DUMPFILE_NODE_PATH))
+              || (!strcmp(key, SVN_REPOS_DUMPFILE_NODE_KIND))
+              || (!strcmp(key, SVN_REPOS_DUMPFILE_NODE_ACTION)))
             continue;
 
           /* Rewrite Node-Copyfrom-Rev if we are renumbering revisions.

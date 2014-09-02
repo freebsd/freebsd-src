@@ -23,6 +23,7 @@
  * Copyright (c) 2013 by Delphix. All rights reserved.
  * Copyright (c) 2013 by Saso Kiselkov. All rights reserved.
  * Copyright (c) 2013, Joyent, Inc. All rights reserved.
+ * Copyright (c) 2014, Nexenta Systems, Inc. All rights reserved.
  */
 
 #ifdef _KERNEL
@@ -168,7 +169,7 @@ zpool_feature_init(void)
 	zfeature_register(SPA_FEATURE_LZ4_COMPRESS,
 	    "org.illumos:lz4_compress", "lz4_compress",
 	    "LZ4 compression algorithm support.", B_FALSE, B_FALSE,
-	    B_FALSE, NULL);
+	    B_TRUE, NULL);
 
 	zfeature_register(SPA_FEATURE_MULTI_VDEV_CRASH_DUMP,
 	    "com.joyent:multi_vdev_crash_dump", "multi_vdev_crash_dump",
@@ -214,4 +215,9 @@ zpool_feature_init(void)
 	    "com.joyent:filesystem_limits", "filesystem_limits",
 	    "Filesystem and snapshot limits.", B_TRUE, B_FALSE, B_FALSE,
 	    filesystem_limits_deps);
+
+	zfeature_register(SPA_FEATURE_EMBEDDED_DATA,
+	    "com.delphix:embedded_data", "embedded_data",
+	    "Blocks which compress very well use even less space.",
+	    B_FALSE, B_TRUE, B_TRUE, NULL);
 }
