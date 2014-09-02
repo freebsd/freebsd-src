@@ -40,7 +40,6 @@ __FBSDID("$FreeBSD$");
 
 #include "opt_platform.h"
 
-#include <machine/efi.h>
 #include <machine/metadata.h>
 #include <machine/vm.h>
 #include <machine/vmparam.h>
@@ -107,8 +106,8 @@ vt_efifb_init(struct vt_device *vd)
 	kmdp = preload_search_by_type("elf kernel");
 	if (kmdp == NULL)
 		kmdp = preload_search_by_type("elf64 kernel");
-        efifb = (struct efi_fb *)preload_search_info(kmdp,
-            MODINFO_METADATA | MODINFOMD_EFI_FB);
+	efifb = (struct efi_fb *)preload_search_info(kmdp,
+	    MODINFO_METADATA | MODINFOMD_EFI_FB);
 	if (efifb == NULL)
 		return (CN_DEAD);
 
