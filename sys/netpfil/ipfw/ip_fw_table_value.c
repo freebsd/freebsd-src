@@ -166,6 +166,9 @@ get_value_ptrs(struct ip_fw_chain *ch, struct table_config *tc, int vshared,
 		*pvi = vi;
 }
 
+/*
+ * Update pointers to real vaues after @pval change.
+ */
 static void
 update_tvalue(struct namedobj_instance *ni, struct named_object *no, void *arg)
 {
@@ -184,9 +187,12 @@ update_tvalue(struct namedobj_instance *ni, struct named_object *no, void *arg)
 /*
  * Grows value storage shared among all tables.
  * Drops/reacquires UH locks.
+ * Notifies other running adds on @ch shared storage resize.
+ * Note function does not guarantee that free space
+ * will be available after invocation, so one caller needs
+ * to roll cycle himself.
  *
- * Returns 0 on success.
- * Note caller has to check @ts "modified" field.
+ * Returns 0 if case of no errors.
  */
 static int
 resize_shared_value_storage(struct ip_fw_chain *ch)
@@ -259,6 +265,10 @@ done:
 	return (0);
 }
 
+/*
+ * Drops reference for table value with index @kidx, stored in @pval and
+ * @vi. Frees value if it has no references.
+ */
 static void
 unref_table_value(struct namedobj_instance *vi, struct table_value *pval,
     uint32_t kidx)
@@ -339,20 +349,14 @@ ipfw_unref_table_values(struct ip_fw_chain *ch, struct table_config *tc,
  * and set "modified" field to non-zero value to indicate
  * that we need to restart original operation.
  */
-static void
-rollback_table_values(void *object, struct op_state *_state)
+void
+rollback_table_values(struct tableop_state *ts)
 {
 	struct ip_fw_chain *ch;
-	struct tableop_state *ts;
 	struct table_value *pval;
 	struct tentry_info *ptei;
 	struct namedobj_instance *vi;
 	int i;
-
-	ts = (struct tableop_state *)_state;
-
-	if (ts->tc != object && ts->ch != object)
-		return;
 
 	ch = ts->ch;
 
@@ -369,8 +373,6 @@ rollback_table_values(void *object, struct op_state *_state)
 
 		unref_table_value(vi, pval, ptei->value);
 	}
-
-	ts->modified = 1;
 }
 
 /*
@@ -378,7 +380,6 @@ rollback_table_values(void *object, struct op_state *_state)
  * Function may drop/reacquire UH lock.
  *
  * Returns 0 on success.
- * Note that called has to check @ts "modified" value.
  */
 static int
 alloc_table_vidx(struct ip_fw_chain *ch, struct tableop_state *ts,
@@ -397,7 +398,7 @@ alloc_table_vidx(struct ip_fw_chain *ch, struct tableop_state *ts,
 		 * lock/unlock, so we need to check "modified"
 		 * state.
 		 */
-		rollback_table_values(ts->tc, &ts->opstate);
+		ts->opstate.func(ts->tc, &ts->opstate);
 		error = resize_shared_value_storage(ch);
 		return (error); /* ts->modified should be set, we will restart */
 	}
@@ -428,11 +429,11 @@ alloc_table_vidx(struct ip_fw_chain *ch, struct tableop_state *ts,
 }
 
 /*
- * Drops value reference for unused values (updates, partially
+ * Drops value reference for unused values (updates, deletes, partially
  * successful adds or rollbacks).
  */
 void
-ipfw_finalize_table_values(struct ip_fw_chain *ch, struct table_config *tc,
+ipfw_garbage_table_values(struct ip_fw_chain *ch, struct table_config *tc,
     struct tentry_info *tei, uint32_t count, int rollback)
 {
 	int i;
@@ -441,7 +442,7 @@ ipfw_finalize_table_values(struct ip_fw_chain *ch, struct table_config *tc,
 	struct namedobj_instance *vi;
 
 	/*
-	 * We have two slightly different cases here:
+	 * We have two slightly different ADD cases here:
 	 * either (1) we are successful / partially successful,
 	 * in that case we need
 	 * * to ignore ADDED entries values
@@ -452,6 +453,8 @@ ipfw_finalize_table_values(struct ip_fw_chain *ch, struct table_config *tc,
 	 * (2): atomic rollback of partially successful operation
 	 * in that case we simply need to unref all entries.
 	 *
+	 * DELETE case is simpler: no atomic support there, so
+	 * we simply unref all non-zero values.
 	 */
 
 	/*
@@ -482,6 +485,13 @@ ipfw_finalize_table_values(struct ip_fw_chain *ch, struct table_config *tc,
 	}
 }
 
+/*
+ * Main function used to link values of entries going to be added,
+ * to the index. Since we may perform many UH locks drops/acquires,
+ * handle changes by checking tablestate "modified" field.
+ *
+ * Success: return 0.
+ */
 int
 ipfw_link_table_values(struct ip_fw_chain *ch, struct tableop_state *ts)
 {
@@ -496,7 +506,7 @@ ipfw_link_table_values(struct ip_fw_chain *ch, struct tableop_state *ts)
 
 	/*
 	 * Stage 1: reference all existing values and
-	 * save them inside the bitmask.
+	 * save their indices.
 	 */
 	IPFW_UH_WLOCK_ASSERT(ch);
 	get_value_ptrs(ch, ts->tc, ts->vshared, &pval, &vi);
@@ -582,9 +592,10 @@ ipfw_link_table_values(struct ip_fw_chain *ch, struct tableop_state *ts)
 		/* May perform UH unlock/lock */
 		error = alloc_table_vidx(ch, ts, vi, &vidx);
 		if (error != 0) {
-			rollback_table_values(tc, &ts->opstate);
+			ts->opstate.func(ts->tc, &ts->opstate);
 			return (error);
 		}
+		/* value storage resize has happened, return */
 		if (ts->modified != 0)
 			return (0);
 
@@ -625,6 +636,9 @@ ipfw_import_table_value_legacy(uint32_t value, struct table_value *v)
 	v->limit = value;
 }
 
+/*
+ * Export data to legacy table dumps opcodes.
+ */
 uint32_t
 ipfw_export_table_value_legacy(struct table_value *v)
 {
@@ -636,6 +650,10 @@ ipfw_export_table_value_legacy(struct table_value *v)
 	return (v->tag);
 }
 
+/*
+ * Imports table value from current userland format.
+ * Saves value in kernel format to the same place.
+ */
 void
 ipfw_import_table_value_v1(ipfw_table_value *iv)
 {
@@ -657,6 +675,10 @@ ipfw_import_table_value_v1(ipfw_table_value *iv)
 	memcpy(iv, &v, sizeof(ipfw_table_value));
 }
 
+/*
+ * Export real table value @v to current userland format.
+ * Note that @v and @piv may point to the same memory.
+ */
 void
 ipfw_export_table_value_v1(struct table_value *v, ipfw_table_value *piv)
 {
@@ -678,6 +700,10 @@ ipfw_export_table_value_v1(struct table_value *v, ipfw_table_value *piv)
 	memcpy(piv, &iv, sizeof(iv));
 }
 
+/*
+ * Exports real value data into ipfw_table_value structure.
+ * Utilizes "spare1" field to store kernel index.
+ */
 static void
 dump_tvalue(struct namedobj_instance *ni, struct named_object *no, void *arg)
 {
