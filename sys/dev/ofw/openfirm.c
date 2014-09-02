@@ -96,7 +96,7 @@ static boolean_t xref_init_done;
 
 #define	FIND_BY_XREF	0
 #define	FIND_BY_NODE	1
-#define	FIND_BY_DEV	1
+#define	FIND_BY_DEV	2
 
 /*
  * xref-phandle-device lookup helper routines.
