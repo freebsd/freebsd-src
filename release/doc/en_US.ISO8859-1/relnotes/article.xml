@@ -580,9 +580,6 @@
 	  deferring wakeup until enough data has been received to
 	  read or write a file, reducing <acronym>CPU</acronym> usage
 	  and throughput performance with large I/O workloads.</para>
-
-	<para>New kernel-based iSCSI target and initiator code took
-	  many fixes and performance optimizations.</para>
       </sect3>
 
       <sect3 xml:id="disks">
