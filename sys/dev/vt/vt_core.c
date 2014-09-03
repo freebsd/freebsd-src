@@ -166,8 +166,8 @@ static struct vt_window	vt_conswindow = {
 	.vw_number = VT_CONSWINDOW,
 	.vw_flags = VWF_CONSOLE,
 	.vw_buf = {
-		.vb_buffer = vt_constextbuf,
-		.vb_rows = vt_constextbufrows,
+		.vb_buffer = &vt_constextbuf[0],
+		.vb_rows = &vt_constextbufrows[0],
 		.vb_history_size = VBF_DEFAULT_HISTORY_SIZE,
 		.vb_curroffset = 0,
 		.vb_roffset = 0,
@@ -996,7 +996,7 @@ vtterm_cnprobe(struct terminal *tm, struct consdev *cp)
 	sprintf(cp->cn_name, "ttyv%r", VT_UNIT(vw));
 
 	/* Attach default font if not in TEXTMODE. */
-	if (!(vd->vd_flags & VDF_TEXTMODE))
+	if ((vd->vd_flags & VDF_TEXTMODE) == 0)
 		vw->vw_font = vtfont_ref(&vt_font_default);
 
 	vtbuf_init_early(&vw->vw_buf);
@@ -1147,7 +1147,7 @@ vt_change_font(struct vt_window *vw, struct vt_font *vf)
 		VT_UNLOCK(vd);
 		return (EBUSY);
 	}
-	if (vw->vw_font == NULL) {
+	if (vd->vd_flags & VDF_TEXTMODE) {
 		/* Our device doesn't need fonts. */
 		VT_UNLOCK(vd);
 		return (ENOTTY);
@@ -1169,8 +1169,14 @@ vt_change_font(struct vt_window *vw, struct vt_font *vf)
 
 	/* Actually apply the font to the current window. */
 	VT_LOCK(vd);
-	vtfont_unref(vw->vw_font);
-	vw->vw_font = vtfont_ref(vf);
+	if (vw->vw_font != vf) {
+		/*
+		 * In case vt_change_font called to update size we don't need
+		 * to update font link.
+		 */
+		vtfont_unref(vw->vw_font);
+		vw->vw_font = vtfont_ref(vf);
+	}
 
 	/* Force a full redraw the next timer tick. */
 	if (vd->vd_curwindow == vw)
@@ -1978,7 +1984,7 @@ vt_allocate_window(struct vt_device *vd, unsigned int window)
 	vw->vw_number = window;
 	vw->vw_kbdmode = K_XLATE;
 
-	if (!(vd->vd_flags & VDF_TEXTMODE))
+	if ((vd->vd_flags & VDF_TEXTMODE) == 0)
 		vw->vw_font = vtfont_ref(&vt_font_default);
 
 	vt_termsize(vd, vw->vw_font, &size);
@@ -2056,7 +2062,10 @@ vt_resize(struct vt_device *vd)
 			vw->vw_font = vtfont_ref(&vt_font_default);
 		VT_UNLOCK(vd);
 		/* Resize terminal windows */
-		vt_change_font(vw, vw->vw_font);
+		while (vt_change_font(vw, vw->vw_font) == EBUSY) {
+			DPRINTF(100, "%s: vt_change_font() is busy, "
+			    "window %d\n", __func__, i);
+		}
 	}
 }
 
@@ -2064,7 +2073,6 @@ void
 vt_allocate(struct vt_driver *drv, void *softc)
 {
 	struct vt_device *vd;
-	struct winsize wsz;
 
 	if (!vty_enabled(VTY_VT))
 		return;
@@ -2112,6 +2120,7 @@ vt_allocate(struct vt_driver *drv, void *softc)
 	vd->vd_driver->vd_init(vd);
 	VT_UNLOCK(vd);
 
+	/* Update windows sizes and initialize last items. */
 	vt_upgrade(vd);
 
 #ifdef DEV_SPLASH
@@ -2120,16 +2129,17 @@ vt_allocate(struct vt_driver *drv, void *softc)
 #endif
 
 	if (vd->vd_flags & VDF_ASYNC) {
+		/* Allow to put chars now. */
 		terminal_mute(vd->vd_curwindow->vw_terminal, 0);
+		/* Rerun timer for screen updates. */
 		callout_schedule(&vd->vd_timer, hz / VT_TIMERFREQ);
 	}
 
+	/*
+	 * Register as console. If it already registered, cnadd() will ignore
+	 * it.
+	 */
 	termcn_cnregister(vd->vd_windows[VT_CONSWINDOW]->vw_terminal);
-
-	/* Update console window sizes to actual. */
-	vt_winsize(vd, vd->vd_windows[VT_CONSWINDOW]->vw_font, &wsz);
-	terminal_set_winsize_blank(vd->vd_windows[VT_CONSWINDOW]->vw_terminal,
-	    &wsz, 0, NULL);
 }
 
 void
