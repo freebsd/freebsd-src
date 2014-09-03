@@ -749,7 +749,7 @@ aue_intr_callback(struct usb_xfer *xfer, usb_error_t error)
 
 			if (pkt.aue_txstat0)
 				ifp->if_oerrors++;
-			if (pkt.aue_txstat0 & (AUE_TXSTAT0_LATECOLL &
+			if (pkt.aue_txstat0 & (AUE_TXSTAT0_LATECOLL |
 			    AUE_TXSTAT0_EXCESSCOLL))
 				ifp->if_collisions++;
 		}
