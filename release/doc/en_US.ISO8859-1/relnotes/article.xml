@@ -601,9 +601,9 @@
 
 	<para revision="260387" contrib="sponsor" sponsor="&ix;">The
 	  &man.cam.4; subsystem has been updated to support
-	  finer-grained locking, direct dispatch and multi-queue.
-	  Combined with &man.geom.4; direct dispatch that allows to
-	  reduce lock congestion and improve <acronym>SMP</acronym>
+	  finer-grained locking, direct dispatch and multi-queue,
+	  which combined with &man.geom.4; direct dispatch, reduces
+	  lock congestion and improves <acronym>SMP</acronym>
 	  scalability of the SCSI/ATA stack.</para>
 
 	<para revision="260478">The &man.geom.8;
