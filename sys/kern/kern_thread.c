@@ -507,8 +507,8 @@ thread_wait(struct proc *p)
 	struct thread *td;
 
 	mtx_assert(&Giant, MA_NOTOWNED);
-	KASSERT((p->p_numthreads == 1), ("multiple threads in thread_wait()"));
-	KASSERT((p->p_exitthreads == 0), ("p_exitthreads leaking"));
+	KASSERT(p->p_numthreads == 1, ("multiple threads in thread_wait()"));
+	KASSERT(p->p_exitthreads == 0, ("p_exitthreads leaking"));
 	td = FIRST_THREAD_IN_PROC(p);
 	/* Lock the last thread so we spin until it exits cpu_throw(). */
 	thread_lock(td);
