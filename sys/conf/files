@@ -14,11 +14,11 @@ acpi_quirks.h			optional acpi				   \
 # from the specified source (DTS) file: <platform>.dts -> <platform>.dtb
 #
 fdt_dtb_file			optional fdt fdt_dtb_static \
-	compile-with "sh $S/tools/fdt/make_dtb.sh $S ${FDT_DTS_FILE} ${.CURDIR}" \
+	compile-with "sh MACHINE=${MACHINE} $S/tools/fdt/make_dtb.sh $S ${FDT_DTS_FILE} ${.CURDIR}" \
 	no-obj no-implicit-rule before-depend	\
 	clean		"${FDT_DTS_FILE:R}.dtb"
 fdt_static_dtb.h		optional fdt fdt_dtb_static \
-	compile-with "sh $S/tools/fdt/make_dtbh.sh ${FDT_DTS_FILE} ${.CURDIR}" \
+	compile-with "sh MACHINE=${MACHINE} $S/tools/fdt/make_dtbh.sh ${FDT_DTS_FILE} ${.CURDIR}" \
 	dependency	"fdt_dtb_file" \
 	no-obj no-implicit-rule before-depend \
 	clean		"fdt_static_dtb.h"
