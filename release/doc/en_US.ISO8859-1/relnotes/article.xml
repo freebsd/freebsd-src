@@ -757,6 +757,10 @@
 	      integration for better performance.</para>
 	  </listitem>
 	</itemizedlist>
+
+	<para revision="270810" contrib="vendor"
+	  vendor="&highpoint;">The &man.hptnr.4; driver has been
+	  updated to version 1.0.1.</para>
       </sect3>
 
       <sect3 xml:id="fs">
