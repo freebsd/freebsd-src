@@ -865,7 +865,10 @@
 	location of the file.</para>
 
       <para revision="262855">The <application>ATF</application> test
-	suite has been updated to version 0.20.</para>
+	suite has been updated to version 0.20.  The test suite is
+	disabled by default in &os;&nbsp;10.1, and can be enabled by
+	adding <literal>WITH_TESTS=yes</literal> to
+	&man.src.conf.5;.</para>
 
       <para revision="263019">The <literal>libucl</literal> library
 	(Unified Configuration Library) has been merged from
