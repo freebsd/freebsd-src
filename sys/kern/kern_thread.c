@@ -549,18 +549,6 @@ thread_link(struct thread *td, struct proc *p)
 }
 
 /*
- * Convert a process with one thread to an unthreaded process.
- */
-void
-thread_unthread(struct thread *td)
-{
-	struct proc *p = td->td_proc;
-
-	KASSERT((p->p_numthreads == 1), ("Unthreading with >1 threads"));
-	p->p_flag &= ~P_HADTHREADS;
-}
-
-/*
  * Called from:
  *  thread_exit()
  */
@@ -712,14 +700,13 @@ stopme:
 	}
 	if (mode == SINGLE_EXIT) {
 		/*
-		 * We have gotten rid of all the other threads and we
-		 * are about to either exit or exec. In either case,
-		 * we try our utmost to revert to being a non-threaded
-		 * process.
+		 * Convert the process to an unthreaded process.  The
+		 * SINGLE_EXIT is called by exit1() or execve(), in
+		 * both cases other threads must be retired.
 		 */
+		KASSERT(p->p_numthreads == 1, ("Unthreading with >1 threads"));
 		p->p_singlethread = NULL;
-		p->p_flag &= ~(P_STOPPED_SINGLE | P_SINGLE_EXIT);
-		thread_unthread(td);
+		p->p_flag &= ~(P_STOPPED_SINGLE | P_SINGLE_EXIT | P_HADTHREADS);
 
 		/*
 		 * Wait for any remaining threads to exit cpu_throw().
