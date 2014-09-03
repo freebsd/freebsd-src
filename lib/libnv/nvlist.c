@@ -760,8 +760,11 @@ nvlist_recv(int sock)
 	}
 
 	nvl = nvlist_xunpack(buf, size, fds, nfds);
-	if (nvl == NULL)
+	if (nvl == NULL) {
+		for (i = 0; i < nfds; i++)
+			close(fds[i]);
 		goto out;
+	}
 
 	ret = nvl;
 out:
