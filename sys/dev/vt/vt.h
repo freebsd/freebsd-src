@@ -117,10 +117,10 @@ struct vt_device {
 	struct vt_window	*vd_markedwin;	/* (?) Copy/paste buf owner. */
 	const struct vt_driver	*vd_driver;	/* (c) Graphics driver. */
 	void			*vd_softc;	/* (u) Driver data. */
-	uint16_t		 vd_mx;		/* (?) Mouse X. */
-	uint16_t		 vd_my;		/* (?) Mouse Y. */
-	vt_axis_t		 vd_mdirtyx;	/* (?) Screen width. */
-	vt_axis_t		 vd_mdirtyy;	/* (?) Screen height. */
+	uint16_t		 vd_mx;		/* (?) Current mouse X. */
+	uint16_t		 vd_my;		/* (?) current mouse Y. */
+	vt_axis_t		 vd_moldx;	/* (?) Mouse X as of last redraw. */
+	vt_axis_t		 vd_moldy;	/* (?) Mouse Y as of last redraw. */
 	uint32_t		 vd_mstate;	/* (?) Mouse state. */
 	term_pos_t		 vd_offset;	/* (?) Pixel offset. */
 	vt_axis_t		 vd_width;	/* (?) Screen width. */
