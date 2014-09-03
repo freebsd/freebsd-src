@@ -574,6 +574,13 @@
 	  to coalesce <acronym>PDUs</acronym> and avoid lock
 	  contention.</para>
 
+	<para revision="265524" contrib="sponsor"
+	  sponsor="&ix;">Several performance optimizations have been
+	  made to the <acronym>iSCSI</acronym> subsystem, including
+	  deferring wakeup until enough data has been received to
+	  read or write a file, reducing <acronym>CPU</acronym> usage
+	  and throughput performance with large I/O workloads.</para>
+
 	<para>New kernel-based iSCSI target and initiator code took
 	  many fixes and performance optimizations.</para>
       </sect3>
