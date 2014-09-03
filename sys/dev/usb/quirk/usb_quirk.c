@@ -130,7 +130,7 @@ static struct usb_quirk_entry usb_quirks[USB_DEV_QUIRKS_MAX] = {
 	USB_QUIRK(MICROSOFT, WLINTELLIMOUSE, 0x0000, 0xffff, UQ_MS_LEADING_BYTE),
 	/* Quirk for Corsair Vengeance K60 keyboard */
 	USB_QUIRK(CORSAIR, K60, 0x0000, 0xffff, UQ_KBD_BOOTPROTO),
-	/* Quirk for Corsair Vengeance K60 keyboard */
+	/* Quirk for Corsair Vengeance K70 keyboard */
 	USB_QUIRK(CORSAIR, K70, 0x0000, 0xffff, UQ_KBD_BOOTPROTO),
 	/* umodem(4) device quirks */
 	USB_QUIRK(METRICOM, RICOCHET_GS, 0x100, 0x100, UQ_ASSUME_CM_OVER_DATA),
