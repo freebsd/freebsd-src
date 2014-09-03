@@ -298,7 +298,12 @@
 #endif
 
 #if !__has_extension(c_thread_local)
-#if (defined(__cplusplus) && __cplusplus >= 201103L) || \
+/*
+ * XXX: Some compilers (Clang 3.3, GCC 4.7) falsely announce C++11 mode
+ * without actually supporting the thread_local keyword. Don't check for
+ * the presence of C++11 when defining _Thread_local.
+ */
+#if /* (defined(__cplusplus) && __cplusplus >= 201103L) || */ \
     __has_extension(cxx_thread_local)
 #define	_Thread_local		thread_local
 #else
