@@ -1321,8 +1321,8 @@ relock_queues:
 	 * Wakeup the sync daemon if we skipped a vnode in a writeable object
 	 * and we didn't cache or free enough pages.
 	 */
-	if (vnodes_skipped > 0 && page_shortage > vm_cnt.v_free_target -
-	    vm_cnt.v_free_min)
+	if (vnodes_skipped > 0 && page_shortage > cnt.v_free_target -
+	    cnt.v_free_min)
 		(void)speedup_syncer();
 
 	/*
