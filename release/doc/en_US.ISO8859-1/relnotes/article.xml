@@ -1177,6 +1177,10 @@
 	facility has been added to the &man.pam.group.8;
 	module.</para>
 
+      <para revision="270890">The &man.pathchk.1; utility has been
+	updated to ensure bytes greater than or equal to 128 are
+	considered non-portable.</para>
+
       <para revision="270997" contrib="vendor" vendor="&freenas;">The
 	&man.zdb.8; utility is now included in the set of applications
 	installed in the <filename
