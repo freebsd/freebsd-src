@@ -1177,6 +1177,13 @@
 	facility has been added to the &man.pam.group.8;
 	module.</para>
 
+      <para revision="270997" contrib="vendor" vendor="&freenas;">The
+	&man.zdb.8; utility is now included in the set of applications
+	installed in the <filename
+	  class="directory">/rescue</filename> environment, making it
+	possible to examine &man.zfs.8; filesystems when <filename
+	  class="directory">/usr</filename> is unavailable.</para>
+
       <sect3 xml:id="rc-scripts">
 	<title><filename>/etc/rc.d</filename> Scripts</title>
 
