@@ -588,10 +588,10 @@
 	<para revision="260385" contrib="sponsor" sponsor="&ix;">The
 	  &man.geom.4; subsystem has been updated to support I/O
 	  direct dispatch.  When safety requirements are met, it
-	  allows to avoid passing I/O requests to GEOM
+	  enables avoiding passing I/O requests to GEOM
 	  <literal>g_up</literal>/<literal>g_down</literal> thread,
-	  executing them directly in the caller context.  That allows
-	  to avoid CPU bottlenecks in
+	  executing them directly in the caller context, avoiding
+	  CPU bottlenecks in
 	  <literal>g_up</literal>/<literal>g_down</literal> threads,
 	  plus avoid several context switches per I/O.</para>
 
