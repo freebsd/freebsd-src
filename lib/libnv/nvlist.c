@@ -727,8 +727,8 @@ nvlist_recv(int sock)
 	struct nvlist_header nvlhdr;
 	nvlist_t *nvl, *ret;
 	unsigned char *buf;
-	size_t nfds, size;
-	int serrno, i, *fds;
+	size_t nfds, size, i;
+	int serrno, *fds;
 
 	if (buf_recv(sock, &nvlhdr, sizeof(nvlhdr)) == -1)
 		return (NULL);
