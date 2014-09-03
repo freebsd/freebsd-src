@@ -921,10 +921,11 @@ fill_kinfo_proc_only(struct proc *p, struct kinfo_proc *kp)
 	kp->ki_xstat = p->p_xstat;
 	kp->ki_acflag = p->p_acflag;
 	kp->ki_lock = p->p_lock;
-	if (p->p_pptr)
+	if (p->p_pptr) {
 		kp->ki_ppid = proc_realparent(p)->p_pid;
-	if (p->p_flag & P_TRACED)
-		kp->ki_tracer = p->p_pptr->p_pid;
+		if (p->p_flag & P_TRACED)
+			kp->ki_tracer = p->p_pptr->p_pid;
+	}
 }
 
 /*
