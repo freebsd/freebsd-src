@@ -1926,7 +1926,8 @@ dump_static_rules(struct ip_fw_chain *chain, struct dump_args *da,
  * Returns 0 on success.
  */
 static int
-dump_config(struct ip_fw_chain *chain, struct sockopt_data *sd)
+dump_config(struct ip_fw_chain *chain, ip_fw3_opheader *op3,
+    struct sockopt_data *sd)
 {
 	ipfw_cfg_lheader *hdr;
 	struct ip_fw *rule;
@@ -2436,7 +2437,7 @@ ipfw_ctl3(struct sockopt *sopt)
 
 	switch (opt) {
 	case IP_FW_XGET:
-		error = dump_config(chain, &sdata);
+		error = dump_config(chain, op3, &sdata);
 		break;
 
 	case IP_FW_XADD:
@@ -2463,7 +2464,7 @@ ipfw_ctl3(struct sockopt *sopt)
 		break;
 
 	case IP_FW_XIFLIST:
-		error = ipfw_list_ifaces(chain, &sdata);
+		error = ipfw_list_ifaces(chain, op3, &sdata);
 		break;
 
 	/*--- TABLE opcodes ---*/
@@ -2481,11 +2482,11 @@ ipfw_ctl3(struct sockopt *sopt)
 		break;
 
 	case IP_FW_TABLE_XINFO:
-		error = ipfw_describe_table(chain, &sdata);
+		error = ipfw_describe_table(chain, op3, &sdata);
 		break;
 
 	case IP_FW_TABLES_XLIST:
-		error = ipfw_list_tables(chain, &sdata);
+		error = ipfw_list_tables(chain, op3, &sdata);
 		break;
 
 	case IP_FW_TABLE_XLIST:
@@ -2506,7 +2507,7 @@ ipfw_ctl3(struct sockopt *sopt)
 		break;
 
 	case IP_FW_TABLES_ALIST:
-		error = ipfw_list_table_algo(chain, &sdata);
+		error = ipfw_list_table_algo(chain, op3, &sdata);
 		break;
 
 	case IP_FW_TABLE_VLIST:
@@ -2514,26 +2515,7 @@ ipfw_ctl3(struct sockopt *sopt)
 		break;
 
 	case IP_FW_TABLE_XGETSIZE:
-		{
-			uint32_t *tbl;
-			struct tid_info ti;
-
-			if (IP_FW3_OPLENGTH(sopt) < sizeof(uint32_t)) {
-				error = EINVAL;
-				break;
-			}
-
-			tbl = (uint32_t *)(op3 + 1);
-
-			memset(&ti, 0, sizeof(ti));
-			ti.uidx = *tbl;
-			IPFW_UH_RLOCK(chain);
-			error = ipfw_count_xtable(chain, &ti, tbl);
-			IPFW_UH_RUNLOCK(chain);
-			if (error)
-				break;
-			error = sooptcopyout(sopt, op3, sopt->sopt_valsize);
-		}
+		error = ipfw_get_table_size(chain, op3, &sdata);
 		break;
 
 	default:

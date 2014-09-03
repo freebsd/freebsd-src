@@ -484,7 +484,8 @@ export_iface_internal(struct namedobj_instance *ii, struct named_object *no,
  * Returns 0 on success
  */
 int
-ipfw_list_ifaces(struct ip_fw_chain *ch, struct sockopt_data *sd)
+ipfw_list_ifaces(struct ip_fw_chain *ch, ip_fw3_opheader *op3,
+    struct sockopt_data *sd)
 {
 	struct namedobj_instance *ii;
 	struct _ipfw_obj_lheader *olh;

@@ -520,7 +520,8 @@ int ipfw_iface_ref(struct ip_fw_chain *ch, char *name,
 void ipfw_iface_unref(struct ip_fw_chain *ch, struct ipfw_ifc *ic);
 void ipfw_iface_add_notify(struct ip_fw_chain *ch, struct ipfw_ifc *ic);
 void ipfw_iface_del_notify(struct ip_fw_chain *ch, struct ipfw_ifc *ic);
-int ipfw_list_ifaces(struct ip_fw_chain *ch, struct sockopt_data *sd);
+int ipfw_list_ifaces(struct ip_fw_chain *ch, ip_fw3_opheader *op3,
+    struct sockopt_data *sd);
 
 /* In ip_fw_sockopt.c */
 void ipfw_init_skipto_cache(struct ip_fw_chain *chain);

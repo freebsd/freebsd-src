@@ -163,10 +163,12 @@ void ipfw_table_algo_destroy(struct ip_fw_chain *chain);
 
 
 /* direct ipfw_ctl handlers */
-int ipfw_list_tables(struct ip_fw_chain *ch, struct sockopt_data *sd);
+int ipfw_list_tables(struct ip_fw_chain *ch, ip_fw3_opheader *op3,
+    struct sockopt_data *sd);
 int ipfw_dump_table(struct ip_fw_chain *ch, ip_fw3_opheader *op3,
     struct sockopt_data *sd);
-int ipfw_describe_table(struct ip_fw_chain *ch, struct sockopt_data *sd);
+int ipfw_describe_table(struct ip_fw_chain *ch, ip_fw3_opheader *op3,
+    struct sockopt_data *sd);
 
 int ipfw_find_table_entry(struct ip_fw_chain *ch, ip_fw3_opheader *op3,
     struct sockopt_data *sd);
@@ -178,7 +180,8 @@ int ipfw_manage_table_ent(struct ip_fw_chain *ch, ip_fw3_opheader *op3,
     struct sockopt_data *sd);
 int ipfw_flush_table(struct ip_fw_chain *ch, ip_fw3_opheader *op3,
     struct sockopt_data *sd);
-int ipfw_list_table_algo(struct ip_fw_chain *ch, struct sockopt_data *sd);
+int ipfw_list_table_algo(struct ip_fw_chain *ch, ip_fw3_opheader *op3,
+    struct sockopt_data *sd);
 int ipfw_swap_table(struct ip_fw_chain *ch, ip_fw3_opheader *op3,
     struct sockopt_data *sd);
 /* Exported to support legacy opcodes */
@@ -189,6 +192,8 @@ int del_table_entry(struct ip_fw_chain *ch, struct tid_info *ti,
 int flush_table(struct ip_fw_chain *ch, struct tid_info *ti);
 void ipfw_import_table_value_legacy(uint32_t value, struct table_value *v);
 uint32_t ipfw_export_table_value_legacy(struct table_value *v);
+int ipfw_get_table_size(struct ip_fw_chain *ch, ip_fw3_opheader *op3,
+    struct sockopt_data *sd);
 
 /* ipfw_table_value.c functions */
 int ipfw_list_table_values(struct ip_fw_chain *ch, ip_fw3_opheader *op3,
