@@ -561,6 +561,14 @@
 	  such <acronym>iSCSI</acronym> devices could require
 	  additional client-side configuration.</para>
 
+	<para revision="265523" contrib="sponsor" sponsor="&ff;">A new
+	  &man.sysctl.8;,
+	  <literal>kern.iscsi.fail_on_disconnection</literal>, has
+	  been added, which allows <acronym>iSCSI</acronym> clients to
+	  remove the attached disk device when the connection to the
+	  target is dropped, where previously I/O would stop until the
+	  connection is restored.</para>
+
 	<para>New kernel-based iSCSI target and initiator code took
 	  many fixes and performance optimizations.</para>
       </sect3>
