@@ -839,6 +839,16 @@
 	  multi-threaded soft updates.  Previously, soft updates were
 	  handled by a single thread, and as of this change, now have
 	  one thread per <acronym>FFS</acronym> mountpoint.</para>
+
+	<para revision="270892" contrib="sponsor" sponsor="&ff;">The
+	  new filesystem automount facility, &man.autofs.5;, has been
+	  merged from &os;-CURRENT.  The new &man.autofs.5; facility
+	  is similar to that found in other &unix;-like operating
+	  systems, such as OS&nbsp;X&trade; and Solaris&trade;.  The
+	  &man.autofs.5; facility uses a &sun;-compatible
+	  &man.auto.master.5; configuration file, and is administered
+	  with the &man.automount.8; userland utility, and the
+	  &man.automountd.8; and &man.autounmountd.8; daemons.</para>
       </sect3>
     </sect2>
 
