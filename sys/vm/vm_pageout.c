@@ -1308,6 +1308,23 @@ relock_queues:
 	}
 	vm_pagequeue_unlock(pq);
 
+#if !defined(NO_SWAPPING)
+	/*
+	 * Wakeup the swapout daemon if we didn't cache or free the targeted
+	 * number of pages. 
+	 */
+	if (vm_swap_enabled && page_shortage > 0)
+		vm_req_vmdaemon(VM_SWAP_NORMAL);
+#endif
+
+	/*
+	 * Wakeup the sync daemon if we skipped a vnode in a writeable object
+	 * and we didn't cache or free enough pages.
+	 */
+	if (vnodes_skipped > 0 && page_shortage > vm_cnt.v_free_target -
+	    vm_cnt.v_free_min)
+		(void)speedup_syncer();
+
 	/*
 	 * Compute the number of pages we want to try to move from the
 	 * active queue to the inactive queue.
@@ -1418,20 +1435,6 @@ relock_queues:
 		}
 	}
 #endif
-		
-	/*
-	 * If we didn't get enough free pages, and we have skipped a vnode
-	 * in a writeable object, wakeup the sync daemon.  And kick swapout
-	 * if we did not get enough free pages.
-	 */
-	if (vm_paging_target() > 0) {
-		if (vnodes_skipped && vm_page_count_min())
-			(void) speedup_syncer();
-#if !defined(NO_SWAPPING)
-		if (vm_swap_enabled && vm_page_count_target())
-			vm_req_vmdaemon(VM_SWAP_NORMAL);
-#endif
-	}
 
 	/*
 	 * If we are critically low on one of RAM or swap and low on
