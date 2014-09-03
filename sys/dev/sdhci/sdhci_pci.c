@@ -78,7 +78,7 @@ __FBSDID("$FreeBSD$");
 static const struct sdhci_device {
 	uint32_t	model;
 	uint16_t	subvendor;
-	char		*desc;
+	const char	*desc;
 	u_int		quirks;
 } sdhci_devices[] = {
 	{ 0x08221180, 	0xffff,	"RICOH R5C822 SD",
@@ -112,20 +112,17 @@ struct sdhci_pci_softc {
 	device_t	dev;		/* Controller device */
 	u_int		quirks;		/* Chip specific quirks */
 	struct resource *irq_res;	/* IRQ resource */
-	int 		irq_rid;
 	void 		*intrhand;	/* Interrupt handle */
 
 	int		num_slots;	/* Number of slots on this controller */
 	struct sdhci_slot slots[6];
 	struct resource	*mem_res[6];	/* Memory resource */
-	int		mem_rid[6];
 };
 
-static SYSCTL_NODE(_hw, OID_AUTO, sdhci_pci, CTLFLAG_RD, 0, "sdhci PCI driver");
-
-int	sdhci_pci_debug;
-TUNABLE_INT("hw.sdhci_pci.debug", &sdhci_pci_debug);
-SYSCTL_INT(_hw_sdhci_pci, OID_AUTO, debug, CTLFLAG_RW, &sdhci_pci_debug, 0, "Debug level");
+static int sdhci_enable_msi = 1;
+TUNABLE_INT("hw.sdhci.enable_msi", &sdhci_enable_msi);
+SYSCTL_INT(_hw_sdhci, OID_AUTO, enable_msi, CTLFLAG_RDTUN, &sdhci_enable_msi,
+    0, "Enable MSI interrupts");
 
 static uint8_t
 sdhci_pci_read_1(device_t dev, struct sdhci_slot *slot, bus_size_t off)
@@ -232,13 +229,13 @@ sdhci_pci_probe(device_t dev)
 	uint16_t subvendor;
 	uint8_t class, subclass;
 	int i, result;
-	
+
 	model = (uint32_t)pci_get_device(dev) << 16;
 	model |= (uint32_t)pci_get_vendor(dev) & 0x0000ffff;
 	subvendor = pci_get_subvendor(dev);
 	class = pci_get_class(dev);
 	subclass = pci_get_subclass(dev);
-	
+
 	result = ENXIO;
 	for (i = 0; sdhci_devices[i].model != 0; i++) {
 		if (sdhci_devices[i].model == model &&
@@ -254,7 +251,7 @@ sdhci_pci_probe(device_t dev)
 		device_set_desc(dev, "Generic SD HCI");
 		result = BUS_PROBE_GENERIC;
 	}
-	
+
 	return (result);
 }
 
@@ -265,7 +262,7 @@ sdhci_pci_attach(device_t dev)
 	uint32_t model;
 	uint16_t subvendor;
 	uint8_t class, subclass, progif;
-	int err, slots, bar, i;
+	int bar, err, rid, slots, i;
 
 	sc->dev = dev;
 	model = (uint32_t)pci_get_device(dev) << 16;
@@ -296,11 +293,15 @@ sdhci_pci_attach(device_t dev)
 		return (EINVAL);
 	}
 	/* Allocate IRQ. */
-	sc->irq_rid = 0;
-	sc->irq_res = bus_alloc_resource_any(dev, SYS_RES_IRQ, &sc->irq_rid,
-	    RF_SHAREABLE | RF_ACTIVE);
+	i = 1;
+	rid = 0;
+	if (sdhci_enable_msi != 0 && pci_alloc_msi(dev, &i) == 0)
+		rid = 1;
+	sc->irq_res = bus_alloc_resource_any(dev, SYS_RES_IRQ, &rid,
+		RF_ACTIVE | (rid != 0 ? 0 : RF_SHAREABLE));
 	if (sc->irq_res == NULL) {
 		device_printf(dev, "Can't allocate IRQ\n");
+		pci_release_msi(dev);
 		return (ENOMEM);
 	}
 	/* Scan all slots. */
@@ -308,9 +309,9 @@ sdhci_pci_attach(device_t dev)
 		struct sdhci_slot *slot = &sc->slots[sc->num_slots];
 
 		/* Allocate memory. */
-		sc->mem_rid[i] = PCIR_BAR(bar + i);
-		sc->mem_res[i] = bus_alloc_resource(dev,
-		    SYS_RES_MEMORY, &(sc->mem_rid[i]), 0ul, ~0ul, 0x100, RF_ACTIVE);
+		rid = PCIR_BAR(bar + i);
+		sc->mem_res[i] = bus_alloc_resource(dev, SYS_RES_MEMORY,
+		    &rid, 0ul, ~0ul, 0x100, RF_ACTIVE);
 		if (sc->mem_res[i] == NULL) {
 			device_printf(dev, "Can't allocate memory for slot %d\n", i);
 			continue;
@@ -318,7 +319,6 @@ sdhci_pci_attach(device_t dev)
 
 		if (sdhci_init_slot(dev, slot, i) != 0)
 			continue;
-
 
 		sc->num_slots++;
 	}
@@ -335,7 +335,7 @@ sdhci_pci_attach(device_t dev)
 
 		sdhci_start_slot(slot);
 	}
-		
+
 	return (0);
 }
 
@@ -347,14 +347,15 @@ sdhci_pci_detach(device_t dev)
 
 	bus_teardown_intr(dev, sc->irq_res, sc->intrhand);
 	bus_release_resource(dev, SYS_RES_IRQ,
-	    sc->irq_rid, sc->irq_res);
+	    rman_get_rid(sc->irq_res), sc->irq_res);
+	pci_release_msi(dev);
 
 	for (i = 0; i < sc->num_slots; i++) {
 		struct sdhci_slot *slot = &sc->slots[i];
 
 		sdhci_cleanup_slot(slot);
 		bus_release_resource(dev, SYS_RES_MEMORY,
-		    sc->mem_rid[i], sc->mem_res[i]);
+		    rman_get_rid(sc->mem_res[i]), sc->mem_res[i]);
 	}
 	return (0);
 }
@@ -369,7 +370,7 @@ sdhci_pci_suspend(device_t dev)
 	if (err)
 		return (err);
 	for (i = 0; i < sc->num_slots; i++)
-		 sdhci_generic_suspend(&sc->slots[i]);
+		sdhci_generic_suspend(&sc->slots[i]);
 	return (0);
 }
 
@@ -383,7 +384,6 @@ sdhci_pci_resume(device_t dev)
 		sdhci_generic_resume(&sc->slots[i]);
 	return (bus_generic_resume(dev));
 }
-
 
 static void
 sdhci_pci_intr(void *arg)
@@ -436,5 +436,6 @@ static driver_t sdhci_pci_driver = {
 };
 static devclass_t sdhci_pci_devclass;
 
-DRIVER_MODULE(sdhci_pci, pci, sdhci_pci_driver, sdhci_pci_devclass, 0, 0);
+DRIVER_MODULE(sdhci_pci, pci, sdhci_pci_driver, sdhci_pci_devclass, NULL,
+    NULL);
 MODULE_DEPEND(sdhci_pci, sdhci, 1, 1, 1);
