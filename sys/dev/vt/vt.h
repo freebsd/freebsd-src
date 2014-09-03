@@ -128,6 +128,7 @@ struct vt_device {
 	struct mtx		 vd_lock;	/* Per-device lock. */
 	struct cv		 vd_winswitch;	/* (d) Window switch notify. */
 	struct callout		 vd_timer;	/* (d) Display timer. */
+	volatile unsigned int	 vd_timer_armed;/* (?) Display timer started.*/
 	int			 vd_flags;	/* (d) Device flags. */
 #define	VDF_TEXTMODE	0x01	/* Do text mode rendering. */
 #define	VDF_SPLASH	0x02	/* Splash screen active. */
