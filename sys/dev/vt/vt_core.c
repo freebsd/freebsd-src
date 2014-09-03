@@ -225,6 +225,37 @@ vt_update_static(void *dummy)
 }
 
 static void
+vt_schedule_flush(struct vt_device *vd, int ms)
+{
+
+	if (ms <= 0)
+		/* Default to initial value. */
+		ms = 1000 / VT_TIMERFREQ;
+
+	callout_schedule(&vd->vd_timer, hz / (1000 / ms));
+}
+
+static void
+vt_resume_flush_timer(struct vt_device *vd, int ms)
+{
+
+	if (!atomic_cmpset_int(&vd->vd_timer_armed, 0, 1))
+		return;
+
+	vt_schedule_flush(vd, ms);
+}
+
+static void
+vt_suspend_flush_timer(struct vt_device *vd)
+{
+
+	if (!atomic_cmpset_int(&vd->vd_timer_armed, 1, 0))
+		return;
+
+	callout_drain(&vd->vd_timer);
+}
+
+static void
 vt_switch_timer(void *arg)
 {
 
@@ -327,6 +358,8 @@ vt_window_switch(struct vt_window *vw)
 		return (EINVAL);
 	}
 
+	vt_suspend_flush_timer(vd);
+
 	vd->vd_curwindow = vw;
 	vd->vd_flags |= VDF_INVALID;
 	cv_broadcast(&vd->vd_winswitch);
@@ -334,6 +367,8 @@ vt_window_switch(struct vt_window *vw)
 
 	if (vd->vd_driver->vd_postswitch)
 		vd->vd_driver->vd_postswitch(vd);
+
+	vt_resume_flush_timer(vd, 0);
 
 	/* Restore per-window keyboard mode. */
 	mtx_lock(&Giant);
@@ -929,7 +964,7 @@ vt_timer(void *arg)
 	vt_flush(vd);
 
 	/* Schedule for next update. */
-	callout_schedule(&vd->vd_timer, hz / VT_TIMERFREQ);
+	vt_schedule_flush(vd, 0);
 }
 
 static void
@@ -2084,6 +2119,7 @@ vt_upgrade(struct vt_device *vd)
 		/* Start timer when everything ready. */
 		vd->vd_flags |= VDF_ASYNC;
 		callout_reset(&vd->vd_timer, hz / VT_TIMERFREQ, vt_timer, vd);
+		vd->vd_timer_armed = 1;
 	}
 
 	VT_UNLOCK(vd);
@@ -2145,7 +2181,7 @@ vt_allocate(struct vt_driver *drv, void *softc)
 
 	if (vd->vd_flags & VDF_ASYNC) {
 		/* Stop vt_flush periodic task. */
-		callout_drain(&vd->vd_timer);
+		vt_suspend_flush_timer(vd);
 		/*
 		 * Mute current terminal until we done. vt_change_font (called
 		 * from vt_resize) will unmute it.
@@ -2176,7 +2212,7 @@ vt_allocate(struct vt_driver *drv, void *softc)
 		/* Allow to put chars now. */
 		terminal_mute(vd->vd_curwindow->vw_terminal, 0);
 		/* Rerun timer for screen updates. */
-		callout_schedule(&vd->vd_timer, hz / VT_TIMERFREQ);
+		vt_resume_flush_timer(vd, 0);
 	}
 
 	/*
