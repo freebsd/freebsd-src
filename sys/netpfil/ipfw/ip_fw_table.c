@@ -1754,7 +1754,8 @@ ipfw_lookup_table_extended(struct ip_fw_chain *ch, uint16_t tbl, uint16_t plen,
  * Returns 0 on success
  */
 int
-ipfw_list_tables(struct ip_fw_chain *ch, struct sockopt_data *sd)
+ipfw_list_tables(struct ip_fw_chain *ch, ip_fw3_opheader *op3,
+    struct sockopt_data *sd)
 {
 	struct _ipfw_obj_lheader *olh;
 	int error;
@@ -1781,7 +1782,8 @@ ipfw_list_tables(struct ip_fw_chain *ch, struct sockopt_data *sd)
  * Returns 0 on success.
  */
 int
-ipfw_describe_table(struct ip_fw_chain *ch, struct sockopt_data *sd)
+ipfw_describe_table(struct ip_fw_chain *ch, ip_fw3_opheader *op3,
+    struct sockopt_data *sd)
 {
 	struct _ipfw_obj_header *oh;
 	struct table_config *tc;
@@ -2390,6 +2392,32 @@ ipfw_dump_table_v0(struct ip_fw_chain *ch, struct sockopt_data *sd)
 }
 
 /*
+ * Legacy function to retrieve number of items in table.
+ */
+int
+ipfw_get_table_size(struct ip_fw_chain *ch, ip_fw3_opheader *op3,
+    struct sockopt_data *sd)
+{
+	uint32_t *tbl;
+	struct tid_info ti;
+	size_t sz;
+	int error;
+
+	sz = sizeof(*op3) + sizeof(uint32_t);
+	op3 = (ip_fw3_opheader *)ipfw_get_sopt_header(sd, sz);
+	if (op3 == NULL)
+		return (EINVAL);
+
+	tbl = (uint32_t *)(op3 + 1);
+	memset(&ti, 0, sizeof(ti));
+	ti.uidx = *tbl;
+	IPFW_UH_RLOCK(ch);
+	error = ipfw_count_xtable(ch, &ti, tbl);
+	IPFW_UH_RUNLOCK(ch);
+	return (error);
+}
+
+/*
  * Legacy IP_FW_TABLE_GETSIZE handler
  */
 int
@@ -2773,7 +2801,8 @@ ipfw_del_table_algo(struct ip_fw_chain *ch, int idx)
  * Returns 0 on success
  */
 int
-ipfw_list_table_algo(struct ip_fw_chain *ch, struct sockopt_data *sd)
+ipfw_list_table_algo(struct ip_fw_chain *ch, ip_fw3_opheader *op3,
+    struct sockopt_data *sd)
 {
 	struct _ipfw_obj_lheader *olh;
 	struct tables_config *tcfg;
