@@ -569,6 +569,11 @@
 	  target is dropped, where previously I/O would stop until the
 	  connection is restored.</para>
 
+	<para revision="265524" contrib="sponsor" sponsor="&ff;">The
+	  <acronym>iSCSI</acronym> transmit code has been optimized
+	  to coalesce <acronym>PDUs</acronym> and avoid lock
+	  contention.</para>
+
 	<para>New kernel-based iSCSI target and initiator code took
 	  many fixes and performance optimizations.</para>
       </sect3>
