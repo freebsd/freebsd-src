@@ -445,7 +445,6 @@ void sf_ext_free(void *, void *);
 #define	CSUM_UDP_IPV6		CSUM_IP6_UDP
 #define	CSUM_TCP_IPV6		CSUM_IP6_TCP
 #define	CSUM_SCTP_IPV6		CSUM_IP6_SCTP
-#define	CSUM_FRAGMENT		0x0		/* Unused */
 
 /*
  * mbuf types describing the content of the mbuf (including external storage).

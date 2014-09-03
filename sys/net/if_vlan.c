@@ -1501,7 +1501,7 @@ vlan_capabilities(struct ifvlan *ifv)
 	    p->if_capenable & IFCAP_VLAN_HWTAGGING) {
 		ifp->if_capenable = p->if_capenable & IFCAP_HWCSUM;
 		ifp->if_hwassist = p->if_hwassist & (CSUM_IP | CSUM_TCP |
-		    CSUM_UDP | CSUM_SCTP | CSUM_FRAGMENT);
+		    CSUM_UDP | CSUM_SCTP);
 	} else {
 		ifp->if_capenable = 0;
 		ifp->if_hwassist = 0;
