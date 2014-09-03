@@ -254,7 +254,7 @@
 
 #if !defined(__STDC_VERSION__) || __STDC_VERSION__ < 201112L
 
-#if !__has_extension(c_alignas)
+#if !__has_extension(c_alignas) && !__GNUC_PREREQ__(4, 7)
 #if (defined(__cplusplus) && __cplusplus >= 201103L) || \
     __has_extension(cxx_alignas)
 #define	_Alignas(x)		alignas(x)
@@ -264,10 +264,12 @@
 #endif
 #endif
 
+#if !__GNUC_PREREQ__(4, 7)
 #if defined(__cplusplus) && __cplusplus >= 201103L
 #define	_Alignof(x)		alignof(x)
 #else
 #define	_Alignof(x)		__alignof(x)
+#endif
 #endif
 
 #if !__has_extension(c_atomic) && !__has_extension(cxx_atomic)
@@ -278,13 +280,15 @@
 #define	_Atomic(T)		struct { T volatile __val; }
 #endif
 
+#if !__GNUC_PREREQ__(4, 7)
 #if defined(__cplusplus) && __cplusplus >= 201103L
 #define	_Noreturn		[[noreturn]]
 #else
 #define	_Noreturn		__dead2
 #endif
+#endif
 
-#if !__has_extension(c_static_assert)
+#if !__has_extension(c_static_assert) && !__GNUC_PREREQ__(4, 7)
 #if (defined(__cplusplus) && __cplusplus >= 201103L) || \
     __has_extension(cxx_static_assert)
 #define	_Static_assert(x, y)	static_assert(x, y)
@@ -297,7 +301,7 @@
 #endif
 #endif
 
-#if !__has_extension(c_thread_local)
+#if !__has_extension(c_thread_local) && !__GNUC_PREREQ__(4, 9)
 /*
  * XXX: Some compilers (Clang 3.3, GCC 4.7) falsely announce C++11 mode
  * without actually supporting the thread_local keyword. Don't check for
@@ -322,7 +326,8 @@
  * distinguish multiple cases.
  */
 
-#if defined(__STDC_VERSION__) && __STDC_VERSION__ >= 201112L
+#if (defined(__STDC_VERSION__) && __STDC_VERSION__ >= 201112L) || \
+    __has_extension(c_generic_selections) || __GNUC_PREREQ__(4, 9)
 #define	__generic(expr, t, yes, no)					\
 	_Generic(expr, t: yes, default: no)
 #elif __GNUC_PREREQ__(3, 1) && !defined(__cplusplus)
