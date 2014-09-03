@@ -29,7 +29,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd August 23, 2013
+.Dd August 21, 2014
 .Dt TIMEOUT 9
 .Os
 .Sh NAME
@@ -74,7 +74,7 @@ struct callout_handle handle = CALLOUT_HANDLE_INITIALIZER(&handle);
 .Fn callout_init "struct callout *c" "int mpsafe"
 .Ft void
 .Fn callout_init_mtx "struct callout *c" "struct mtx *mtx" "int flags"
-.Fn void
+.Ft void
 .Fn callout_init_rm "struct callout *c" "struct rmlock *rm" "int flags"
 .Ft void
 .Fn callout_init_rw "struct callout *c" "struct rwlock *rw" "int flags"
@@ -103,6 +103,7 @@ struct callout_handle handle = CALLOUT_HANDLE_INITIALIZER(&handle);
 .Fn callout_pending "struct callout *c"
 .Ft int
 .Fn callout_active "struct callout *c"
+.Ft void
 .Fn callout_deactivate "struct callout *c"
 .Sh DESCRIPTION
 The function
