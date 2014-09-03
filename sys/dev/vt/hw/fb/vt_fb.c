@@ -401,7 +401,7 @@ vt_fb_init(struct vt_device *vd)
 	}
 
 	/* Clear the screen. */
-	vt_fb_blank(vd, TC_BLACK);
+	vd->vd_driver->vd_blank(vd, TC_BLACK);
 
 	/* Wakeup screen. KMS need this. */
 	vt_fb_postswitch(vd);
