@@ -42,7 +42,7 @@ SECTIONS
 	. = __code_base__;
 
 	.text ALIGN(CAP_ALIGN): {
-		crt_sb.o
+		crt_sb.o(.text .data .bss)
 	}
 	.MIPS.options ALIGN(CAP_ALIGN): {
 		*(.MIPS.options)
