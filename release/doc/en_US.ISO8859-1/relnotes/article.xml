@@ -552,6 +552,15 @@
 	  significantly improved its performance and
 	  <acronym>SMP</acronym> scapability.</para>
 
+	<para revision="269065" contrib="sponsor" sponsor="&ff;">The
+	  <acronym>iSCSI</acronym> initiator has been updated to
+	  support redirection handling when an
+	  <acronym>iSCSI</acronym> device is configured with multiple
+	  <acronym>IP</acronym> addresses across different network
+	  interfaces.  Previously, clients connecting to
+	  such <acronym>iSCSI</acronym> devices could require
+	  additional client-side configuration.</para>
+
 	<para>New kernel-based iSCSI target and initiator code took
 	  many fixes and performance optimizations.</para>
       </sect3>
