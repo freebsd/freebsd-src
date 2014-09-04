@@ -40,7 +40,6 @@ static	int ipoib_resolvemulti(struct ifnet *, struct sockaddr **,
 
 #include <linux/module.h>
 
-#include <linux/init.h>
 #include <linux/slab.h>
 #include <linux/kernel.h>
 #include <linux/vmalloc.h>

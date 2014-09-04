@@ -2,6 +2,7 @@
  * Copyright (c) 2010 Isilon Systems, Inc.
  * Copyright (c) 2010 iX Systems, Inc.
  * Copyright (c) 2010 Panasas, Inc.
+ * Copyright (c) 2013, 2014 Mellanox Technologies, Ltd.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -26,7 +27,21 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef	_ASM_CURRENT_H_
-#define	_ASM_CURRENT_H_
+#ifndef _NET_IF_INET6_H_
+#define	_NET_IF_INET6_H_
 
-#endif	/* _ASM_CURRENT_H_ */
+static inline void ipv6_eth_mc_map(const struct in6_addr *addr, char *buf)
+{
+/*
+ *      +-------+-------+-------+-------+-------+-------+
+ *      |   33  |   33  | DST13 | DST14 | DST15 | DST16 |
+ *      +-------+-------+-------+-------+-------+-------+
+ */
+
+        buf[0]= 0x33;
+        buf[1]= 0x33;
+
+        memcpy(buf + 2, &addr->s6_addr32[3], sizeof(__u32));
+}
+
+#endif	/* _NET_IF_INET6_H_ */
