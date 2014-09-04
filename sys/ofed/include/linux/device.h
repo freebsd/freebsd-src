@@ -2,6 +2,7 @@
  * Copyright (c) 2010 Isilon Systems, Inc.
  * Copyright (c) 2010 iX Systems, Inc.
  * Copyright (c) 2010 Panasas, Inc.
+ * Copyright (c) 2013, 2014 Mellanox Technologies, Ltd.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -51,6 +52,7 @@ struct class {
 	devclass_t	bsdclass;
 	void		(*class_release)(struct class *class);
 	void		(*dev_release)(struct device *dev);
+	char *		(*devnode)(struct device *dev, umode_t *mode);
 };
 
 struct device {
@@ -72,10 +74,12 @@ extern struct device linux_rootdev;
 extern struct kobject class_root;
 
 struct class_attribute {
-	struct attribute	attr;
-        ssize_t			(*show)(struct class *, char *);
-        ssize_t			(*store)(struct class *, const char *, size_t);
+        struct attribute attr;
+        ssize_t (*show)(struct class *, struct class_attribute *, char *);
+        ssize_t (*store)(struct class *, struct class_attribute *, const char *, size_t);
+        const void *(*namespace)(struct class *, const struct class_attribute *);
 };
+
 #define	CLASS_ATTR(_name, _mode, _show, _store)				\
 	struct class_attribute class_attr_##_name =			\
 	    { { #_name, NULL, _mode }, _show, _store }
@@ -83,15 +87,37 @@ struct class_attribute {
 struct device_attribute {
 	struct attribute	attr;
 	ssize_t			(*show)(struct device *,
-				    struct device_attribute *, char *);
+					struct device_attribute *, char *);
 	ssize_t			(*store)(struct device *,
-				    struct device_attribute *, const char *,
-				    size_t);
+					struct device_attribute *, const char *,
+					size_t);
 };
 
 #define	DEVICE_ATTR(_name, _mode, _show, _store)			\
 	struct device_attribute dev_attr_##_name =			\
 	    { { #_name, NULL, _mode }, _show, _store }
+
+/* Simple class attribute that is just a static string */
+struct class_attribute_string {
+	struct class_attribute attr;
+	char *str;
+};
+
+static inline ssize_t
+show_class_attr_string(struct class *class,
+				struct class_attribute *attr, char *buf)
+{
+	struct class_attribute_string *cs;
+	cs = container_of(attr, struct class_attribute_string, attr);
+	return snprintf(buf, PAGE_SIZE, "%s\n", cs->str);
+}
+
+/* Currently read-only only */
+#define _CLASS_ATTR_STRING(_name, _mode, _str) \
+	{ __ATTR(_name, _mode, show_class_attr_string, NULL), _str }
+#define CLASS_ATTR_STRING(_name, _mode, _str) \
+	struct class_attribute_string class_attr_##_name = \
+		_CLASS_ATTR_STRING(_name, _mode, _str)
 
 #define	dev_err(dev, fmt, ...)	device_printf((dev)->bsddev, fmt, ##__VA_ARGS__)
 #define	dev_warn(dev, fmt, ...)	device_printf((dev)->bsddev, fmt, ##__VA_ARGS__)
@@ -151,7 +177,7 @@ class_show(struct kobject *kobj, struct attribute *attr, char *buf)
 	error = -EIO;
 	if (dattr->show)
 		error = dattr->show(container_of(kobj, struct class, kobj),
-		    buf);
+		    dattr, buf);
 	return (error);
 }
 
@@ -166,7 +192,7 @@ class_store(struct kobject *kobj, struct attribute *attr, const char *buf,
 	error = -EIO;
 	if (dattr->store)
 		error = dattr->store(container_of(kobj, struct class, kobj),
-		    buf, count);
+		    dattr, buf, count);
 	return (error);
 }
 
@@ -388,6 +414,33 @@ class_remove_file(struct class *class, const struct class_attribute *attr)
 static inline int dev_to_node(struct device *dev)
 {
                 return -1;
+}
+
+static inline char *kvasprintf(gfp_t gfp, const char *fmt, va_list ap)
+{
+	unsigned int len;
+	char *p = NULL;
+	va_list aq;
+
+	va_copy(aq, ap);
+	len = vsnprintf(NULL, 0, fmt, aq);
+	va_end(aq);
+
+	vsnprintf(p, len+1, fmt, ap);
+
+	return p;
+}
+
+static inline char *kasprintf(gfp_t gfp, const char *fmt, ...)
+{
+	va_list ap;
+	char *p;
+
+	va_start(ap, fmt);
+	p = kvasprintf(gfp, fmt, ap);
+	va_end(ap);
+
+	return p;
 }
 
 

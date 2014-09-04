@@ -1078,14 +1078,14 @@ int mlx4_QUERY_FW(struct mlx4_dev *dev)
 	MLX4_GET(fw->comm_bar,  outbox, QUERY_FW_COMM_BAR_OFFSET);
 	fw->comm_bar = (fw->comm_bar >> 6) * 2;
 	mlx4_dbg(dev, "Communication vector bar:%d offset:0x%llx\n",
-		 fw->comm_bar, fw->comm_base);
+		 fw->comm_bar, (long long)fw->comm_base);
 	mlx4_dbg(dev, "FW size %d KB\n", fw->fw_pages >> 2);
 
 	MLX4_GET(fw->clock_offset, outbox, QUERY_FW_CLOCK_OFFSET);
 	MLX4_GET(fw->clock_bar,    outbox, QUERY_FW_CLOCK_BAR);
 	fw->clock_bar = (fw->clock_bar >> 6) * 2;
 	mlx4_dbg(dev, "Internal clock bar:%d offset:0x%llx\n",
-		 fw->comm_bar, fw->comm_base);
+		 fw->comm_bar, (long long)fw->comm_base);
 
 	/*
 	 * Round up number of system pages needed in case

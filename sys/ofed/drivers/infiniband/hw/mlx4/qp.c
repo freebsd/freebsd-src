@@ -34,7 +34,6 @@
 #include <linux/log2.h>
 #include <linux/slab.h>
 #include <linux/netdevice.h>
-#include <linux/bitmap.h>
 #include <linux/bitops.h>
 
 #include <rdma/ib_cache.h>
