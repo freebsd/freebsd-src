@@ -111,12 +111,9 @@ device		sa		# Sequential Access (tape etc)
 device		cd		# CD
 device		pass		# Passthrough device (direct ATA/SCSI access)
 
-# syscons is the default console driver, resembling an SCO console
-device		sc
+# vt is the default console driver, resembling an SCO console
+device		vt		# Core console driver
 device		kbdmux
-options 	SC_OFWFB	# OFW frame buffer
-options 	SC_DFLT_FONT	# compile font in
-makeoptions	SC_DFLT_FONT=cp437
 
 # Serial (COM) ports
 device		scc
