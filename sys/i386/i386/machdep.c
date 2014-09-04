@@ -180,10 +180,6 @@ CTASSERT(offsetof(struct pcpu, pc_curthread) == 0);
 extern void init386(int first);
 extern void dblfault_handler(void);
 
-extern void printcpuinfo(void);	/* XXX header file */
-extern void finishidentcpu(void);
-extern void panicifcpuunsupported(void);
-
 #define	CS_SECURE(cs)		(ISPL(cs) == SEL_UPL)
 #define	EFL_SECURE(ef, oef)	((((ef) ^ (oef)) & ~PSL_USERCHANGE) == 0)
 
@@ -1664,10 +1660,6 @@ static struct gate_descriptor idt0[NIDT];
 struct gate_descriptor *idt = &idt0[0];	/* interrupt descriptor table */
 struct region_descriptor r_gdt, r_idt;	/* table descriptors */
 struct mtx dt_lock;			/* lock for GDT and LDT */
-
-#if defined(I586_CPU) && !defined(NO_F00F_HACK)
-extern int has_f00f_bug;
-#endif
 
 static struct i386tss dblfault_tss;
 static char dblfault_stack[PAGE_SIZE];
