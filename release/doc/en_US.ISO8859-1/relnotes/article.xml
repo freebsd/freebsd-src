@@ -194,6 +194,9 @@
 	has been updated to implement <quote>fast path</quote> for
 	the page fault handler.</para>
 
+      <para revision="271069">The &man.asmc.4; driver has been updated
+	to support the &apple;&nbsp;Mac Mini 3,1.</para>
+
       <sect3 xml:id="kernel-virtualization">
 	<title>Virtualization Support</title>
 
