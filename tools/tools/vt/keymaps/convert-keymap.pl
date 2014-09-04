@@ -51,7 +51,7 @@ sub local_to_UCS_code
 
     my $ucs_char = ord(Encode::decode("UTF-8", local_to_UCS_string($char)));
 
-    $current_char = lc(chr($ucs_char)), print("SETCUR: $ucs_char\n")
+    $current_char = lc(chr($ucs_char))
 	if $current_char eq "";
 
     $ucs_char = 0x20ac	# replace with Euro character
