@@ -154,11 +154,7 @@ vt_efifb_init(struct vt_device *vd)
 	info->fb_width = MIN(info->fb_width, VT_FB_DEFAULT_WIDTH);
 	info->fb_height = MIN(info->fb_height, VT_FB_DEFAULT_HEIGHT);
 
-	fb_probe(info);
 	vt_fb_init(vd);
-
-	/* Clear the screen. */
-	vt_fb_blank(vd, TC_BLACK);
 
 	return (CN_INTERNAL);
 }

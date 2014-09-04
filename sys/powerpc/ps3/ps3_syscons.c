@@ -188,12 +188,8 @@ ps3fb_init(struct vt_device *vd)
 	lv1_gpu_context_attribute(sc->sc_fbcontext,
 	    L1GPU_CONTEXT_ATTRIBUTE_DISPLAY_FLIP, 1, 0, 0, 0);
 
-	fb_probe(&sc->fb_info);
-	sc->fb_info.fb_flags &= ~FB_FLAG_NOMMAP; /* Set wrongly by fb_probe */
 	vt_fb_init(vd);
-
-	/* Clear the screen. */
-	vt_fb_blank(vd, TC_BLACK);
+	sc->fb_info.fb_flags &= ~FB_FLAG_NOMMAP; /* Set wrongly by vt_fb_init */
 
 	return (CN_INTERNAL);
 }
