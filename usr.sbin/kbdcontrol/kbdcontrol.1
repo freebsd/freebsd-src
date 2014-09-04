@@ -1,5 +1,5 @@
 .\"
-.\" kbdcontrol - a utility for manipulating the syscons keyboard driver section
+.\" kbdcontrol - a utility for manipulating the syscons or vt keyboard driver section
 .\"
 .\" Redistribution and use in source and binary forms, with or without
 .\" modification, are permitted provided that the following conditions
@@ -41,6 +41,8 @@ The
 .Nm
 command is used to set various keyboard related options for the
 .Xr syscons 4
+or
+.Xr vt 4
 console driver and the keyboard drivers,
 such as key map, keyboard repeat and delay rates, bell
 characteristics etc.
@@ -213,7 +215,9 @@ for details.
 .Sh FILES
 .Bl -tag -width /usr/share/syscons/keymaps/foo_bar -compact
 .It Pa /usr/share/syscons/keymaps/*
-keyboard map files
+keyboard map files for syscons
+.It Pa /usr/share/vt/keymaps/*
+keyboard map files for vt
 .El
 .Sh EXAMPLES
 The following command will load the keyboard map file
@@ -222,9 +226,19 @@ The following command will load the keyboard map file
 .Dl kbdcontrol -l /usr/share/syscons/keymaps/ru.koi8-r.kbd
 .Pp
 So long as the keyboard map file resides in
-.Pa /usr/share/syscons/keymaps ,
+.Pa /usr/share/syscons/keymaps
+(if using
+.Xr syscons 4 ) or
+.Pa /usr/share/vt/keymaps
+(if using 
+.Xr vt 4 ) ,
 you may abbreviate the file name as
 .Pa ru.koi8-r .
+Since
+.Xr vt 4
+uses Unicode, the corresponding keyboard file names omit the encoding
+and typically are just a country code, e.g.\&
+.Pa ru .
 .Pp
 .Dl kbdcontrol -l ru.koi8-r
 .Pp
@@ -268,6 +282,7 @@ kbdcontrol -k /dev/kbdmux0 < /dev/console
 .Xr screen 4 ,
 .Xr syscons 4 ,
 .Xr ukbd 4 ,
+.Xr vt 4 ,
 .Xr kbdmap 5 ,
 .Xr rc.conf 5
 .Sh AUTHORS
