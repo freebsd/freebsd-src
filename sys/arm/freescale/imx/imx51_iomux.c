@@ -74,6 +74,7 @@ __FBSDID("$FreeBSD$");
 #include <dev/ofw/ofw_bus.h>
 #include <dev/ofw/ofw_bus_subr.h>
 
+#include <arm/freescale/imx/imx_iomuxvar.h>
 #include <arm/freescale/imx/imx51_iomuxvar.h>
 #include <arm/freescale/imx/imx51_iomuxreg.h>
 
@@ -215,6 +216,41 @@ iomux_input_config(const struct iomux_input_conf *conflist)
 	}
 }
 #endif
+
+uint32_t
+imx_iomux_gpr_get(u_int regnum)
+{
+
+	KASSERT(iomuxsc != NULL, ("imx_iomux_gpr_get() called before attach"));
+	KASSERT(regnum >= 0 && renum <= 1, 
+	    ("imx_iomux_gpr_get bad regnum %u", regnum));
+	return (IOMUX_READ(iomuxsc, IOMUXC_GPR0 + regnum));
+}
+
+void
+imx_iomux_gpr_set(u_int regnum, uint32_t val)
+{
+
+	KASSERT(iomuxsc != NULL, ("imx_iomux_gpr_set() called before attach"));
+	KASSERT(regnum >= 0 && renum <= 1, 
+	    ("imx_iomux_gpr_set bad regnum %u", regnum));
+	IOMUX_WRITE(iomuxsc, IOMUXC_GPR0 + regnum, val);
+}
+
+void
+imx_iomux_gpr_set_masked(u_int regnum, uint32_t clrbits, uint32_t setbits)
+{
+	uint32_t val;
+
+	KASSERT(iomuxsc != NULL, 
+	    ("imx_iomux_gpr_set_masked called before attach"));
+	KASSERT(regnum >= 0 && renum <= 1, 
+	    ("imx_iomux_gpr_set_masked bad regnum %u", regnum));
+
+	val = IOMUX_READ(iomuxsc, IOMUXC_GPR0 + regnum);
+	val = (val & ~clrbits) | setbits;
+	IOMUX_WRITE(iomuxsc, IOMUXC_GPR0 + regnum, val);
+}
 
 static device_method_t imx_iomux_methods[] = {
 	DEVMETHOD(device_probe,		iomux_probe),
