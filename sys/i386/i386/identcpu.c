@@ -65,7 +65,6 @@ __FBSDID("$FreeBSD$");
 #define	IDENTBLUE_CYRIXM2	2
 
 static void identifycyrix(void);
-static void init_exthigh(void);
 static u_int find_cpu_vendor_id(void);
 static void print_AMD_info(void);
 static void print_INTEL_info(void);
@@ -147,28 +146,6 @@ static struct {
 #endif
 };
 
-static void
-init_exthigh(void)
-{
-	static int done = 0;
-	u_int regs[4];
-
-	if (done == 0) {
-		if (cpu_high > 0 &&
-		    (cpu_vendor_id == CPU_VENDOR_INTEL ||
-		    cpu_vendor_id == CPU_VENDOR_AMD ||
-		    cpu_vendor_id == CPU_VENDOR_TRANSMETA ||
-		    cpu_vendor_id == CPU_VENDOR_CENTAUR ||
-		    cpu_vendor_id == CPU_VENDOR_NSC)) {
-			do_cpuid(0x80000000, regs);
-			if (regs[0] >= 0x80000000)
-				cpu_exthigh = regs[0];
-		}
-
-		done = 1;
-	}
-}
-
 void
 printcpuinfo(void)
 {
@@ -180,7 +157,6 @@ printcpuinfo(void)
 	strncpy(cpu_model, i386_cpus[cpu].cpu_name, sizeof (cpu_model));
 
 	/* Check for extended CPUID information and a processor name. */
-	init_exthigh();
 	if (cpu_exthigh >= 0x80000004) {
 		brand = cpu_brand;
 		for (i = 0x80000002; i < 0x80000005; i++) {
@@ -354,7 +330,6 @@ printcpuinfo(void)
 			break;
 		case 0x500:
 			strcat(cpu_model, "K5 model 0");
-			tsc_freq = 0;
 			break;
 		case 0x510:
 			strcat(cpu_model, "K5 model 1");
@@ -553,13 +528,6 @@ printcpuinfo(void)
 		switch (cpu_id & 0xff0) {
 		case 0x540:
 			strcpy(cpu_model, "IDT WinChip C6");
-			/*
-			 * http://www.centtech.com/c6_data_sheet.pdf
-			 *
-			 * I-12 RDTSC may return incoherent values in EDX:EAX
-			 * I-13 RDTSC hangs when certain event counters are used
-			 */
-			tsc_freq = 0;
 			break;
 		case 0x580:
 			strcpy(cpu_model, "IDT WinChip 2");
@@ -599,8 +567,6 @@ printcpuinfo(void)
 		case 0x540:
 			strcpy(cpu_model, "Geode SC1100");
 			cpu = CPU_GEODE1100;
-			if ((cpu_id & CPUID_STEPPING) == 0)
-				tsc_freq = 0;
 			break;
 		default:
 			strcpy(cpu_model, "Geode/NSC unknown");
@@ -1110,10 +1076,20 @@ finishidentcpu(void)
 		cpu_mon_max_size = regs[1] &  CPUID5_MON_MAX_SIZE;
 	}
 
+	if (cpu_high > 0 &&
+	    (cpu_vendor_id == CPU_VENDOR_INTEL ||
+	     cpu_vendor_id == CPU_VENDOR_AMD ||
+	     cpu_vendor_id == CPU_VENDOR_TRANSMETA ||
+	     cpu_vendor_id == CPU_VENDOR_CENTAUR ||
+	     cpu_vendor_id == CPU_VENDOR_NSC)) {
+		do_cpuid(0x80000000, regs);
+		if (regs[0] >= 0x80000000)
+			cpu_exthigh = regs[0];
+	}
+
 	/* Detect AMD features (PTE no-execute bit, 3dnow, 64 bit mode etc) */
 	if (cpu_vendor_id == CPU_VENDOR_INTEL ||
 	    cpu_vendor_id == CPU_VENDOR_AMD) {
-		init_exthigh();
 		if (cpu_exthigh >= 0x80000001) {
 			do_cpuid(0x80000001, regs);
 			amd_feature = regs[3] & ~(cpu_feature & 0x0183f3ff);
@@ -1128,7 +1104,6 @@ finishidentcpu(void)
 			cpu_procinfo2 = regs[2];
 		}
 	} else if (cpu_vendor_id == CPU_VENDOR_CENTAUR) {
-		init_exthigh();
 		if (cpu_exthigh >= 0x80000001) {
 			do_cpuid(0x80000001, regs);
 			amd_feature = regs[3] & ~(cpu_feature & 0x0183f3ff);
