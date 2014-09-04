@@ -52,6 +52,4 @@ arm/freescale/imx/imx6_usbphy.c		optional ehci
 #
 # Not ready yet...
 #
-#arm/freescale/imx/imx51_iomux.c  	optional iomux
-#dev/ata/chipsets/ata-fsl.c  		optional imxata
 #arm/freescale/imx/imx51_ipuv3.c  	optional sc
