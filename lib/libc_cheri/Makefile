@@ -215,6 +215,7 @@ SRCS+=	adddf3.c			\
 	floatundidf.c			\
 	floatundisf.c			\
 	floatunsidf.c			\
+	floatunsisf.c			\
 	muldf3.c			\
 	mulsf3.c			\
 	subdf3.c			\
@@ -223,6 +224,7 @@ SRCS+=	adddf3.c			\
 
 # lib/libc/softfloat
 SRCS+=	gedf2.c				\
+	gesf2.c				\
 	gtdf2.c				\
 	gtsf2.c				\
 	ledf2.c				\
@@ -233,7 +235,8 @@ SRCS+=	gedf2.c				\
 	nedf2.c				\
 	nesf2.c				\
 	softfloat.c			\
-	unorddf2.c
+	unorddf2.c			\
+	unordsf2.c
 
 # sys/kern
 CFLAGS.subr_scanf.c=	-Wno-sign-compare
