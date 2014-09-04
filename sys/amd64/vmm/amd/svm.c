@@ -1104,22 +1104,21 @@ svm_inj_interrupts(struct svm_softc *svm_sc, int vcpu, struct vlapic *vlapic)
 	VCPU_CTR1(svm_sc->vm, vcpu, "SVM:event injected,vector=%d.\n", vector);
 }
 
-/*
- * Restore host Task Register selector type after every vcpu exit.
- */
 static void
-setup_tss_type(void)
+restore_host_tss(void)
 {
-	struct system_segment_descriptor *desc;
+	struct system_segment_descriptor *tss_sd;
 
-	desc = (struct system_segment_descriptor *)&gdt[curcpu * NGDT +
-		GPROC0_SEL];
 	/*
-	 * Task selector that should be restored in host is
-	 * 64-bit available(9), not what is read(0xb), see
-	 * APMvol2 Rev3.21 4.8.3 System Descriptors table.
+	 * The TSS descriptor was in use prior to launching the guest so it
+	 * has been marked busy.
+	 *
+	 * 'ltr' requires the descriptor to be marked available so change the
+	 * type to "64-bit available TSS".
 	 */
-	desc->sd_type = 9;
+	tss_sd = PCPU_GET(tss);
+	tss_sd->sd_type = SDT_SYSTSS;
+	ltr(GSEL(GPROC0_SEL, SEL_KPL));
 }
 
 /*
@@ -1241,32 +1240,27 @@ svm_vmrun(void *arg, int vcpu, register_t rip, pmap_t pmap,
 
 		svm_inj_interrupts(svm_sc, vcpu, vlapic);
 
-		/* Change TSS type to available.*/
-		setup_tss_type();
-
 		/* Launch Virtual Machine. */
 		svm_launch(vmcb_pa, gctx, hctx);
 
 		/*
-		 * Only GDTR and IDTR of host is saved and restore by SVM,
-		 * LDTR and TR need to be restored by VMM.
-		 * XXX: kernel doesn't use LDT, only user space.
-		 */
-		ltr(GSEL(GPROC0_SEL, SEL_KPL));
-
-		/*
-		 * Guest FS and GS selector are stashed by vmload and vmsave.
-		 * Host FS and GS selector are stashed by svm_launch().
-		 * Host GS base that holds per-cpu need to be restored before
-		 * enabling global interrupt.
-		 * FS is not used by FreeBSD kernel and kernel does restore
-		 * back FS selector and base of user before returning to
-		 * userland.
+		 * Restore MSR_GSBASE to point to the pcpu data area.
 		 *
-		 * Note: You can't use 'curcpu' which uses pcpu.
+		 * Note that accesses done via PCPU_GET/PCPU_SET will work
+		 * only after MSR_GSBASE is restored.
+		 *
+		 * Also note that we don't bother restoring MSR_KGSBASE
+		 * since it is not used in the kernel and will be restored
+		 * when the VMRUN ioctl returns to userspace.
 		 */
 		wrmsr(MSR_GSBASE, (uint64_t)&__pcpu[vcpustate->lastcpu]);
-		wrmsr(MSR_KGSBASE, (uint64_t)&__pcpu[vcpustate->lastcpu]);
+
+		/*
+		 * The host GDTR and IDTR is saved by VMRUN and restored
+		 * automatically on #VMEXIT. However, the host TSS needs
+		 * to be restored explicitly.
+		 */
+		restore_host_tss();
 
 		/* #VMEXIT disables interrupts so re-enable them here. */ 
 		enable_gintr();
