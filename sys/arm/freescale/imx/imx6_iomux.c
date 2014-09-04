@@ -166,6 +166,42 @@ iomux_get_pad_config(unsigned int pin)
 	return(iomux_get_pad_config_sub(iomuxsc, pin));
 }
 
+
+uint32_t
+imx_iomux_gpr_get(u_int regnum)
+{
+
+	KASSERT(iomuxsc != NULL, ("imx_iomux_gpr_get() called before attach"));
+	KASSERT(regnum >= 0 && regnum <= 13, 
+	    ("imx_iomux_gpr_get bad regnum %u", regnum));
+	return (IOMUX_READ(iomuxsc, IOMUXC_GPR0 + regnum));
+}
+
+void
+imx_iomux_gpr_set(u_int regnum, uint32_t val)
+{
+
+	KASSERT(iomuxsc != NULL, ("imx_iomux_gpr_set() called before attach"));
+	KASSERT(regnum >= 0 && regnum <= 13, 
+	    ("imx_iomux_gpr_set bad regnum %u", regnum));
+	IOMUX_WRITE(iomuxsc, IOMUXC_GPR0 + regnum, val);
+}
+
+void
+imx_iomux_gpr_set_masked(u_int regnum, uint32_t clrbits, uint32_t setbits)
+{
+	uint32_t val;
+
+	KASSERT(iomuxsc != NULL, 
+	    ("imx_iomux_gpr_set_masked called before attach"));
+	KASSERT(regnum >= 0 && regnum <= 13, 
+	    ("imx_iomux_gpr_set_masked bad regnum %u", regnum));
+
+	val = IOMUX_READ(iomuxsc, IOMUXC_GPR0 + regnum);
+	val = (val & ~clrbits) | setbits;
+	IOMUX_WRITE(iomuxsc, IOMUXC_GPR0 + regnum, val);
+}
+
 static device_method_t imx6_iomux_methods[] = {
 	/* Device interface */
 	DEVMETHOD(device_probe,         imx6_iomux_probe),
