@@ -60,6 +60,7 @@ loader.efi: loader.sym
 	    --target=efi-app-ia32 ${.ALLSRC} ${.TARGET}
 
 LIBEFI=		${.OBJDIR}/../../efi/libefi/libefi.a
+LIBSTAND=	${.OBJDIR}/../../libstand32/libstand.a
 CFLAGS+=	-I${.CURDIR}/../libi386
 CFLAGS+=	-I${.CURDIR}/../btx/lib
 
