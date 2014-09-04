@@ -1,6 +1,6 @@
 # $FreeBSD$
 
-FICL64=
+FICL32=
 FICLDIR=	${.CURDIR}/../ficl
 
 .PATH:	${FICLDIR}

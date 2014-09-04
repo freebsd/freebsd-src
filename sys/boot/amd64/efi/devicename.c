@@ -36,7 +36,7 @@ __FBSDID("$FreeBSD$");
 #include <efi.h>
 #include <efilib.h>
 
-static int i386_parsedev(struct devdesc **, const char *, const char **);
+static int x86_efi_parsedev(struct devdesc **, const char *, const char **);
 
 /* 
  * Point (dev) at an allocated device specifier for the device matching the
@@ -44,7 +44,7 @@ static int i386_parsedev(struct devdesc **, const char *, const char **);
  * use that.  If not, use the default device.
  */
 int
-i386_getdev(void **vdev, const char *devspec, const char **path)
+x86_efi_getdev(void **vdev, const char *devspec, const char **path)
 {
 	struct devdesc **dev = (struct devdesc **)vdev;
 	int rv;
@@ -54,14 +54,14 @@ i386_getdev(void **vdev, const char *devspec, const char **path)
 	 * use the current device instead.
 	 */
 	if (devspec == NULL || *devspec == '/' || !strchr(devspec, ':')) {
-		rv = i386_parsedev(dev, getenv("currdev"), NULL);
+		rv = x86_efi_parsedev(dev, getenv("currdev"), NULL);
 		if (rv == 0 && path != NULL)
 			*path = devspec;
 		return (rv);
 	}
 
 	/* Parse the device name off the beginning of the devspec. */
-	return (i386_parsedev(dev, devspec, path));
+	return (x86_efi_parsedev(dev, devspec, path));
 }
 
 /*
@@ -78,7 +78,7 @@ i386_getdev(void **vdev, const char *devspec, const char **path)
  * fs<unit>:
  */
 static int
-i386_parsedev(struct devdesc **dev, const char *devspec, const char **path)
+x86_efi_parsedev(struct devdesc **dev, const char *devspec, const char **path)
 {
 	struct devdesc *idev;
 	struct devsw *dv;
@@ -132,7 +132,7 @@ i386_parsedev(struct devdesc **dev, const char *devspec, const char **path)
 }
 
 char *
-i386_fmtdev(void *vdev)
+x86_efi_fmtdev(void *vdev)
 {
 	struct devdesc *dev = (struct devdesc *)vdev;
 	static char buf[32];	/* XXX device length constant? */
@@ -154,12 +154,12 @@ i386_fmtdev(void *vdev)
  * Set currdev to suit the value being supplied in (value)
  */
 int
-i386_setcurrdev(struct env_var *ev, int flags, const void *value)
+x86_efi_setcurrdev(struct env_var *ev, int flags, const void *value)
 {
 	struct devdesc *ncurr;
 	int rv;
 
-	rv = i386_parsedev(&ncurr, value, NULL);
+	rv = x86_efi_parsedev(&ncurr, value, NULL);
 	if (rv != 0)
 		return(rv);
 

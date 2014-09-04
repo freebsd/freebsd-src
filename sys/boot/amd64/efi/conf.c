@@ -52,20 +52,12 @@ struct netif_driver *netif_drivers[] = {
 	NULL
 };
 
-#ifdef notyet
 extern struct file_format amd64_elf;
 extern struct file_format amd64_elf_obj;
-#endif
-extern struct file_format i386_elf;
-extern struct file_format i386_elf_obj;
 
 struct file_format *file_formats[] = {
-#ifdef notyet
 	&amd64_elf,
 	&amd64_elf_obj,
-#endif
-	&i386_elf,
-	&i386_elf_obj,
 	NULL
 };
 

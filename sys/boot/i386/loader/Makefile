@@ -41,7 +41,11 @@ HAVE_ISABUS=	yes
 # Enable BootForth
 BOOT_FORTH=	yes
 CFLAGS+=	-DBOOT_FORTH -I${.CURDIR}/../../ficl -I${.CURDIR}/../../ficl/i386
+.if ${MACHINE_CPUARCH} == "amd64"
+LIBFICL=	${.OBJDIR}/../../ficl32/libficl.a
+.else
 LIBFICL=	${.OBJDIR}/../../ficl/libficl.a
+.endif
 .endif
 
 .if defined(LOADER_BZIP2_SUPPORT)
