@@ -222,7 +222,7 @@ imx_iomux_gpr_get(u_int regnum)
 {
 
 	KASSERT(iomuxsc != NULL, ("imx_iomux_gpr_get() called before attach"));
-	KASSERT(regnum >= 0 && renum <= 1, 
+	KASSERT(regnum >= 0 && regnum <= 1, 
 	    ("imx_iomux_gpr_get bad regnum %u", regnum));
 	return (IOMUX_READ(iomuxsc, IOMUXC_GPR0 + regnum));
 }
@@ -232,7 +232,7 @@ imx_iomux_gpr_set(u_int regnum, uint32_t val)
 {
 
 	KASSERT(iomuxsc != NULL, ("imx_iomux_gpr_set() called before attach"));
-	KASSERT(regnum >= 0 && renum <= 1, 
+	KASSERT(regnum >= 0 && regnum <= 1, 
 	    ("imx_iomux_gpr_set bad regnum %u", regnum));
 	IOMUX_WRITE(iomuxsc, IOMUXC_GPR0 + regnum, val);
 }
@@ -244,7 +244,7 @@ imx_iomux_gpr_set_masked(u_int regnum, uint32_t clrbits, uint32_t setbits)
 
 	KASSERT(iomuxsc != NULL, 
 	    ("imx_iomux_gpr_set_masked called before attach"));
-	KASSERT(regnum >= 0 && renum <= 1, 
+	KASSERT(regnum >= 0 && regnum <= 1, 
 	    ("imx_iomux_gpr_set_masked bad regnum %u", regnum));
 
 	val = IOMUX_READ(iomuxsc, IOMUXC_GPR0 + regnum);
