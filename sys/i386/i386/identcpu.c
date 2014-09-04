@@ -75,15 +75,15 @@ static void print_via_padlock_info(void);
 
 int	cpu_class;
 char machine[] = MACHINE;
-SYSCTL_STRING(_hw, HW_MACHINE, machine, CTLFLAG_RD, 
+SYSCTL_STRING(_hw, HW_MACHINE, machine, CTLFLAG_RD,
     machine, 0, "Machine class");
 
 static char cpu_model[128];
-SYSCTL_STRING(_hw, HW_MODEL, model, CTLFLAG_RD, 
+SYSCTL_STRING(_hw, HW_MODEL, model, CTLFLAG_RD,
     cpu_model, 0, "Machine model");
 
 static int hw_clockrate;
-SYSCTL_INT(_hw, OID_AUTO, clockrate, CTLFLAG_RD, 
+SYSCTL_INT(_hw, OID_AUTO, clockrate, CTLFLAG_RD,
     &hw_clockrate, 0, "CPU instruction clock rate");
 
 static eventhandler_tag tsc_post_tag;
@@ -1270,7 +1270,7 @@ print_AMD_info(void)
 			printf("L2 internal cache: %d kbytes", regs[2] >> 16);
 			printf(", %d bytes/line", regs[2] & 0xff);
 			printf(", %d lines/tag", (regs[2] >> 8) & 0x0f);
-			print_AMD_assoc((regs[2] >> 12) & 0x0f);	
+			print_AMD_assoc((regs[2] >> 12) & 0x0f);
 		}
 	}
 	if (((cpu_id & 0xf00) == 0x500)
