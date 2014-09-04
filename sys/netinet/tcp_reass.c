@@ -231,6 +231,7 @@ tcp_reass(struct tcpcb *tp, struct tcphdr *th, int *tlenp, struct mbuf *m)
 		tp->t_segq = m;
 		if (mq && th->th_seq + *tlenp == M_TCPHDR(mq)->th_seq) {
 			m->m_nextpkt = mq->m_nextpkt;
+			mq->m_nextpkt = NULL;
 			m_catpkt(m, mq);
 		} else
 			m->m_nextpkt = mq;
