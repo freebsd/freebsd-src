@@ -64,30 +64,16 @@ __FBSDID("$FreeBSD$");
 #define	IDENTBLUE_IBMCPU	1
 #define	IDENTBLUE_CYRIXM2	2
 
-/* XXX - should be in header file: */
-void printcpuinfo(void);
-void finishidentcpu(void);
-void earlysetcpuclass(void);
-#if defined(I586_CPU) && defined(CPU_WT_ALLOC)
-void	enable_K5_wt_alloc(void);
-void	enable_K6_wt_alloc(void);
-void	enable_K6_2_wt_alloc(void);
-#endif
-void panicifcpuunsupported(void);
-
 static void identifycyrix(void);
 static void init_exthigh(void);
 static u_int find_cpu_vendor_id(void);
 static void print_AMD_info(void);
 static void print_INTEL_info(void);
 static void print_INTEL_TLB(u_int data);
-static void print_AMD_assoc(int i);
 static void print_transmeta_info(void);
 static void print_via_padlock_info(void);
 
 int	cpu_class;
-u_int	cpu_exthigh;		/* Highest arg to extended CPUID */
-u_int	cyrix_did;		/* Device ID of Cyrix CPU */
 char machine[] = MACHINE;
 SYSCTL_STRING(_hw, HW_MACHINE, machine, CTLFLAG_RD, 
     machine, 0, "Machine class");
@@ -160,10 +146,6 @@ static struct {
 	{ "TransmetaCPU",	CPU_VENDOR_TRANSMETA },
 #endif
 };
-
-#if defined(I586_CPU) && !defined(NO_F00F_HACK)
-int has_f00f_bug = 0;		/* Initialized so that it can be patched. */
-#endif
 
 static void
 init_exthigh(void)

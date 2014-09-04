@@ -64,15 +64,8 @@ __FBSDID("$FreeBSD$");
 #include <amd64/vmm/intel/vmx_controls.h>
 #include <x86/isa/icu.h>
 
-/* XXX - should be in header file: */
-void printcpuinfo(void);
-void identify_cpu(void);
-void earlysetcpuclass(void);
-void panicifcpuunsupported(void);
-
 static u_int find_cpu_vendor_id(void);
 static void print_AMD_info(void);
-static void print_AMD_assoc(int i);
 static void print_via_padlock_info(void);
 static void print_vmx_info(void);
 

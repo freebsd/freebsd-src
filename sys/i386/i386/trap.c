@@ -153,7 +153,7 @@ static char *trap_msg[] = {
 };
 
 #if defined(I586_CPU) && !defined(NO_F00F_HACK)
-extern int has_f00f_bug;
+int has_f00f_bug = 0;		/* Initialized so that it can be patched. */
 #endif
 
 #ifdef KDB
