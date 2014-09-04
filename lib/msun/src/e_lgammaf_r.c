@@ -23,7 +23,6 @@ static const volatile float vzero = 0;
 
 static const float
 zero=  0.0000000000e+00,
-two23=  8.3886080000e+06, /* 0x4b000000 */
 half=  5.0000000000e-01, /* 0x3f000000 */
 one =  1.0000000000e+00, /* 0x3f800000 */
 pi  =  3.1415927410e+00, /* 0x40490fdb */
