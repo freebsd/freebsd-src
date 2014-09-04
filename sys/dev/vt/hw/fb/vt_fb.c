@@ -41,15 +41,15 @@ __FBSDID("$FreeBSD$");
 #include <dev/vt/hw/fb/vt_fb.h>
 #include <dev/vt/colors/vt_termcolors.h>
 
-void vt_fb_drawrect(struct vt_device *vd, int x1, int y1, int x2, int y2,
-    int fill, term_color_t color);
-void vt_fb_setpixel(struct vt_device *vd, int x, int y, term_color_t color);
+static vd_drawrect_t	vt_fb_drawrect;
+static vd_setpixel_t	vt_fb_setpixel;
 
 static struct vt_driver vt_fb_driver = {
 	.vd_name = "fb",
 	.vd_init = vt_fb_init,
 	.vd_blank = vt_fb_blank,
-	.vd_bitbltchr = vt_fb_bitbltchr,
+	.vd_bitblt_text = vt_fb_bitblt_text,
+	.vd_bitblt_bmp = vt_fb_bitblt_bitmap,
 	.vd_drawrect = vt_fb_drawrect,
 	.vd_setpixel = vt_fb_setpixel,
 	.vd_postswitch = vt_fb_postswitch,
@@ -146,7 +146,7 @@ vt_fb_mmap(struct vt_device *vd, vm_ooffset_t offset, vm_paddr_t *paddr,
 	return (EINVAL);
 }
 
-void
+static void
 vt_fb_setpixel(struct vt_device *vd, int x, int y, term_color_t color)
 {
 	struct fb_info *info;
@@ -181,7 +181,7 @@ vt_fb_setpixel(struct vt_device *vd, int x, int y, term_color_t color)
 
 }
 
-void
+static void
 vt_fb_drawrect(struct vt_device *vd, int x1, int y1, int x2, int y2, int fill,
     term_color_t color)
 {
@@ -244,13 +244,14 @@ vt_fb_blank(struct vt_device *vd, term_color_t color)
 }
 
 void
-vt_fb_bitbltchr(struct vt_device *vd, const uint8_t *src, const uint8_t *mask,
-    int bpl, vt_axis_t top, vt_axis_t left, unsigned int width,
-    unsigned int height, term_color_t fg, term_color_t bg)
+vt_fb_bitblt_bitmap(struct vt_device *vd, const struct vt_window *vw,
+    const uint8_t *pattern, const uint8_t *mask,
+    unsigned int width, unsigned int height,
+    unsigned int x, unsigned int y, term_color_t fg, term_color_t bg)
 {
 	struct fb_info *info;
 	uint32_t fgc, bgc, cc, o;
-	int c, l, bpp;
+	int c, l, bpp, bpl;
 	u_long line;
 	uint8_t b, m;
 	const uint8_t *ch;
@@ -260,20 +261,18 @@ vt_fb_bitbltchr(struct vt_device *vd, const uint8_t *src, const uint8_t *mask,
 	fgc = info->fb_cmap[fg];
 	bgc = info->fb_cmap[bg];
 	b = m = 0;
-	if (bpl == 0)
-		bpl = (width + 7) >> 3; /* Bytes per sorce line. */
-
-	/* Don't try to put off screen pixels */
-	if (((left + width) > info->fb_width) || ((top + height) >
-	    info->fb_height))
-		return;
+	bpl = (width + 7) >> 3; /* Bytes per source line. */
 
 	KASSERT((info->fb_vbase != 0), ("Unmapped framebuffer"));
 
-	line = (info->fb_stride * top) + (left * bpp);
-	for (l = 0; l < height; l++) {
-		ch = src;
-		for (c = 0; c < width; c++) {
+	line = (info->fb_stride * y) + (x * bpp);
+	for (l = 0;
+	    l < height && y + l < vw->vw_draw_area.tr_end.tp_row;
+	    l++) {
+		ch = pattern;
+		for (c = 0;
+		    c < width && x + c < vw->vw_draw_area.tr_end.tp_col;
+		    c++) {
 			if (c % 8 == 0)
 				b = *ch++;
 			else
@@ -312,8 +311,61 @@ vt_fb_bitbltchr(struct vt_device *vd, const uint8_t *src, const uint8_t *mask,
 			}
 		}
 		line += info->fb_stride;
-		src += bpl;
+		pattern += bpl;
 	}
+}
+
+void
+vt_fb_bitblt_text(struct vt_device *vd, const struct vt_window *vw,
+    const term_rect_t *area)
+{
+	unsigned int col, row, x, y;
+	struct vt_font *vf;
+	term_char_t c;
+	term_color_t fg, bg;
+	const uint8_t *pattern;
+
+	vf = vw->vw_font;
+
+	for (row = area->tr_begin.tp_row; row < area->tr_end.tp_row; ++row) {
+		for (col = area->tr_begin.tp_col; col < area->tr_end.tp_col;
+		    ++col) {
+			x = col * vf->vf_width +
+			    vw->vw_draw_area.tr_begin.tp_col;
+			y = row * vf->vf_height +
+			    vw->vw_draw_area.tr_begin.tp_row;
+
+			c = VTBUF_GET_FIELD(&vw->vw_buf, row, col);
+			pattern = vtfont_lookup(vf, c);
+			vt_determine_colors(c,
+			    VTBUF_ISCURSOR(&vw->vw_buf, row, col), &fg, &bg);
+
+			vt_fb_bitblt_bitmap(vd, vw,
+			    pattern, NULL, vf->vf_width, vf->vf_height,
+			    x, y, fg, bg);
+		}
+	}
+
+#ifndef SC_NO_CUTPASTE
+	if (!vd->vd_mshown)
+		return;
+
+	term_rect_t drawn_area;
+
+	drawn_area.tr_begin.tp_col = area->tr_begin.tp_col * vf->vf_width;
+	drawn_area.tr_begin.tp_row = area->tr_begin.tp_row * vf->vf_height;
+	drawn_area.tr_end.tp_col = area->tr_end.tp_col * vf->vf_width;
+	drawn_area.tr_end.tp_row = area->tr_end.tp_row * vf->vf_height;
+
+	if (vt_is_cursor_in_area(vd, &drawn_area)) {
+		vt_fb_bitblt_bitmap(vd, vw,
+		    vd->vd_mcursor->map, vd->vd_mcursor->mask,
+		    vd->vd_mcursor->width, vd->vd_mcursor->height,
+		    vd->vd_mx_drawn + vw->vw_draw_area.tr_begin.tp_col,
+		    vd->vd_my_drawn + vw->vw_draw_area.tr_begin.tp_row,
+		    vd->vd_mcursor_fg, vd->vd_mcursor_bg);
+	}
+#endif
 }
 
 void
