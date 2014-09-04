@@ -2567,7 +2567,7 @@ static void setObjectFlag(FICL_VM *pVM)
 
 static void isObject(FICL_VM *pVM)
 {
-    int flag;
+    FICL_INT flag;
     FICL_WORD *pFW = (FICL_WORD *)stackPopPtr(pVM->pStack);
     
     flag = ((pFW != NULL) && (pFW->flags & FW_ISOBJECT)) ? FICL_TRUE : FICL_FALSE;

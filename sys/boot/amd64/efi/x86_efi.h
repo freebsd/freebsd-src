@@ -1,8 +1,9 @@
 /*-
- * Copyright (c) 2000 Doug Rabson
- * Copyright (c) 2006 Marcel Moolenaar
+ * Copyright (c) 2013 The FreeBSD Foundation
  * All rights reserved.
  *
+ * This software was developed by Benno Rice under sponsorship from
+ * the FreeBSD Foundation.
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
  * are met:
@@ -15,7 +16,7 @@
  * THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
  * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
- * ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+ * ARE DISCLAIMED. IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
  * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
  * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
  * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
@@ -27,26 +28,22 @@
  * $FreeBSD$
  */
 
-#include <stand.h>
+#ifndef	_X86_EFI_COPY_H_
+#define	_X86_EFI_COPY_H_
 
-extern EFI_HANDLE		IH;
-extern EFI_SYSTEM_TABLE		*ST;
-extern EFI_BOOT_SERVICES	*BS;
-extern EFI_RUNTIME_SERVICES	*RS;
+int	x86_efi_autoload(void);
 
-extern struct devsw efipart_dev;
-extern struct devsw efinet_dev;
-extern struct netif_driver efinetif;
+int	x86_efi_getdev(void **vdev, const char *devspec, const char **path);
+char	*x86_efi_fmtdev(void *vdev);
+int	x86_efi_setcurrdev(struct env_var *ev, int flags, const void *value);
 
-void *efi_get_table(EFI_GUID *tbl);
-void efi_main(EFI_HANDLE image_handle, EFI_SYSTEM_TABLE *system_table);
+int	x86_efi_copy_init(void);
+void	x86_efi_copy_finish(void);
 
-int efi_register_handles(struct devsw *, EFI_HANDLE *, EFI_HANDLE *, int);
-EFI_HANDLE efi_find_handle(struct devsw *, int);
-int efi_handle_lookup(EFI_HANDLE, struct devsw **, int *);
+ssize_t	x86_efi_copyin(const void *src, vm_offset_t dest, const size_t len);
+ssize_t	x86_efi_copyout(const vm_offset_t src, void *dest, const size_t len);
+ssize_t	x86_efi_readin(const int fd, vm_offset_t dest, const size_t len);
 
-int efi_status_to_errno(EFI_STATUS);
-time_t efi_time(EFI_TIME *);
+extern UINTN x86_efi_mapkey;
 
-EFI_STATUS main(int argc, CHAR16 *argv[]);
-void exit(EFI_STATUS status);
+#endif	/* _X86_EFI_COPY_H_ */
