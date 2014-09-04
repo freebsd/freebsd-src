@@ -16,6 +16,7 @@ SRCS=		cheri_clock_gettime.c	\
 		cheri_invoke.S		\
 		cheri_printf.c		\
 		cheri_put.c		\
+		cheri_raise.c		\
 		cheri_stdio.c		\
 		malloc.c
 
