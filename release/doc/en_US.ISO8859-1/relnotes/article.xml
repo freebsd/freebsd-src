@@ -1212,6 +1212,10 @@
 	  &os;&nbsp;10.0-RELEASE that would prevent proper IPv6
 	  allocation via the &man.jail.8; &man.rc.8; startup script
 	  has been fixed.</para>
+
+	<para revision="264438">The &man.rc.8; restriction requiring
+	  &man.mdconfig.8; devices defined in &man.rc.conf.5; to be
+	  listed sequentially has been removed.</para>
       </sect3>
     </sect2>
 
