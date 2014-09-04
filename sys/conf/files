@@ -622,8 +622,9 @@ dev/aha/aha.c			optional aha
 dev/aha/aha_isa.c		optional aha isa
 dev/aha/aha_mca.c		optional aha mca
 dev/ahb/ahb.c			optional ahb eisa
-dev/ahci/ahci.c			optional ahci pci
-dev/ahci/ahciem.c		optional ahci pci
+dev/ahci/ahci.c			optional ahci
+dev/ahci/ahciem.c		optional ahci
+dev/ahci/ahci_pci.c		optional ahci pci
 dev/aic/aic.c			optional aic
 dev/aic/aic_pccard.c		optional aic pccard
 dev/aic7xxx/ahc_eisa.c		optional ahc eisa
