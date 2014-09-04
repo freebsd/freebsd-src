@@ -2508,6 +2508,7 @@ sysctl_kern_proc_groups(SYSCTL_HANDLER_ARGS)
 		return (EINVAL);
 	if (*pidp == -1) {	/* -1 means this process */
 		p = req->td->td_proc;
+		PROC_LOCK(p);
 	} else {
 		error = pget(*pidp, PGET_CANSEE, &p);
 		if (error != 0)
@@ -2515,8 +2516,7 @@ sysctl_kern_proc_groups(SYSCTL_HANDLER_ARGS)
 	}
 
 	cred = crhold(p->p_ucred);
-	if (*pidp != -1)
-		PROC_UNLOCK(p);
+	PROC_UNLOCK(p);
 
 	error = SYSCTL_OUT(req, cred->cr_groups,
 	    cred->cr_ngroups * sizeof(gid_t));
