@@ -69,6 +69,8 @@ LDFLAGS=	-static -Ttext 0x0
 LIBI386=	${.OBJDIR}/../libi386/libi386.a
 CFLAGS+=	-I${.CURDIR}/..
 
+LIBSTAND=	${.OBJDIR}/../../libstand32/libstand.a
+
 # BTX components
 CFLAGS+=	-I${.CURDIR}/../btx/lib
 
