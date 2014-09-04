@@ -97,11 +97,11 @@ SYSCTL_PROC(_hw, HW_MACHINE, machine, CTLTYPE_STRING | CTLFLAG_RD,
     NULL, 0, sysctl_hw_machine, "A", "Machine class");
 
 static char cpu_model[128];
-SYSCTL_STRING(_hw, HW_MODEL, model, CTLFLAG_RD, 
+SYSCTL_STRING(_hw, HW_MODEL, model, CTLFLAG_RD,
     cpu_model, 0, "Machine model");
 
 static int hw_clockrate;
-SYSCTL_INT(_hw, OID_AUTO, clockrate, CTLFLAG_RD, 
+SYSCTL_INT(_hw, OID_AUTO, clockrate, CTLFLAG_RD,
     &hw_clockrate, 0, "CPU instruction clock rate");
 
 static eventhandler_tag tsc_post_tag;
@@ -686,15 +686,15 @@ print_AMD_info(void)
 		printf("L2 unified cache: %d kbytes", regs[2] >> 16);
 		printf(", %d bytes/line", regs[2] & 0xff);
 		printf(", %d lines/tag", (regs[2] >> 8) & 0x0f);
-		print_AMD_l2_assoc((regs[2] >> 12) & 0x0f);	
+		print_AMD_l2_assoc((regs[2] >> 12) & 0x0f);
 	}
 
 	/*
-	 * Opteron Rev E shows a bug as in very rare occasions a read memory 
-	 * barrier is not performed as expected if it is followed by a 
-	 * non-atomic read-modify-write instruction.  
+	 * Opteron Rev E shows a bug as in very rare occasions a read memory
+	 * barrier is not performed as expected if it is followed by a
+	 * non-atomic read-modify-write instruction.
 	 * As long as that bug pops up very rarely (intensive machine usage
-	 * on other operating systems generally generates one unexplainable 
+	 * on other operating systems generally generates one unexplainable
 	 * crash any 2 months) and as long as a model specific fix would be
 	 * impratical at this stage, print out a warning string if the broken
 	 * model and family are identified.
@@ -910,7 +910,7 @@ print_vmx_info(void)
 		"\012single"		/* INVVPID single-context type */
 		"\013all"		/* INVVPID all-context type */
 		 /* INVVPID single-context-retaining-globals type */
-		"\014single-globals"	
+		"\014single-globals"
 		);
 	}
 }
