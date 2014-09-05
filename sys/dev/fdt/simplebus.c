@@ -298,7 +298,7 @@ simplebus_setup_dinfo(device_t dev, phandle_t node)
 			    "assuming direct parent\n");
 			iparent = OF_parent(node);
 		}
-		if (OF_searchencprop(OF_xref_phandle(iparent), 
+		if (OF_searchencprop(OF_node_from_xref(iparent), 
 		    "#interrupt-cells", &icells, sizeof(icells)) == -1) {
 			device_printf(dev, "Missing #interrupt-cells property, "
 			    "assuming <1>\n");

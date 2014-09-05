@@ -625,9 +625,14 @@ static bool
 sigact_flag_test(struct sigaction *act, int flag)
 {
 
-	return ((act->sa_flags & flag) != 0 &&
-	    (__sighandler_t *)act->sa_sigaction != SIG_IGN &&
-	    (__sighandler_t *)act->sa_sigaction != SIG_DFL);
+	/*
+	 * SA_SIGINFO is reset when signal disposition is set to
+	 * ignore or default.  Other flags are kept according to user
+	 * settings.
+	 */
+	return ((act->sa_flags & flag) != 0 && (flag != SA_SIGINFO ||
+	    ((__sighandler_t *)act->sa_sigaction != SIG_IGN &&
+	    (__sighandler_t *)act->sa_sigaction != SIG_DFL)));
 }
 
 /*
@@ -916,7 +921,6 @@ siginit(p)
 	for (i = 1; i <= NSIG; i++) {
 		if (sigprop(i) & SA_IGNORE && i != SIGCONT) {
 			SIGADDSET(ps->ps_sigignore, i);
-			SIGADDSET(ps->ps_sigintr, i);
 		}
 	}
 	mtx_unlock(&ps->ps_mtx);
@@ -936,10 +940,6 @@ sigdflt(struct sigacts *ps, int sig)
 		SIGADDSET(ps->ps_sigignore, sig);
 	ps->ps_sigact[_SIG_IDX(sig)] = SIG_DFL;
 	SIGDELSET(ps->ps_siginfo, sig);
-	SIGADDSET(ps->ps_sigintr, sig);
-	SIGDELSET(ps->ps_sigonstack, sig);
-	SIGDELSET(ps->ps_sigreset, sig);
-	SIGDELSET(ps->ps_signodefer, sig);
 }
 
 /*
@@ -3429,7 +3429,7 @@ sigacts_alloc(void)
 	struct sigacts *ps;
 
 	ps = malloc(sizeof(struct sigacts), M_SUBPROC, M_WAITOK | M_ZERO);
-	ps->ps_refcnt = 1;
+	refcount_init(&ps->ps_refcnt, 1);
 	mtx_init(&ps->ps_mtx, "sigacts", NULL, MTX_DEF);
 	return (ps);
 }

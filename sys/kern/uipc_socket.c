@@ -160,6 +160,7 @@ static void	filt_sowdetach(struct knote *kn);
 static int	filt_sowrite(struct knote *kn, long hint);
 static int	filt_solisten(struct knote *kn, long hint);
 static int inline hhook_run_socket(struct socket *so, void *hctx, int32_t h_id);
+fo_kqfilter_t	soo_kqfilter;
 
 static struct filterops solisten_filtops = {
 	.f_isfd = 1,

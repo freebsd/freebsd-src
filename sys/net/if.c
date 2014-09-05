@@ -605,8 +605,7 @@ if_attach_internal(struct ifnet *ifp, int vmove)
 	if_addgroup(ifp, IFG_ALL);
 
 	getmicrotime(&ifp->if_lastchange);
-	ifp->if_data.ifi_epoch = time_uptime;
-	ifp->if_data.ifi_datalen = sizeof(struct if_data);
+	ifp->if_epoch = time_uptime;
 
 	KASSERT((ifp->if_transmit == NULL && ifp->if_qflush == NULL) ||
 	    (ifp->if_transmit != NULL && ifp->if_qflush != NULL),
@@ -615,7 +614,10 @@ if_attach_internal(struct ifnet *ifp, int vmove)
 		ifp->if_transmit = if_transmit;
 		ifp->if_qflush = if_qflush;
 	}
-	
+
+	if (ifp->if_get_counter == NULL)
+		ifp->if_get_counter = if_get_counter_compat;
+
 	if (!vmove) {
 #ifdef MAC
 		mac_ifnet_create(ifp);
@@ -1381,6 +1383,77 @@ if_rtdel(struct radix_node *rn, void *arg)
 	}
 
 	return (0);
+}
+
+/*
+ * Return counter values from old racy non-pcpu counters.
+ */
+uint64_t
+if_get_counter_compat(struct ifnet *ifp, ifnet_counter cnt)
+{
+
+	switch (cnt) {
+		case IFCOUNTER_IPACKETS:
+			return (ifp->if_ipackets);
+		case IFCOUNTER_IERRORS:
+			return (ifp->if_ierrors);
+		case IFCOUNTER_OPACKETS:
+			return (ifp->if_opackets);
+		case IFCOUNTER_OERRORS:
+			return (ifp->if_oerrors);
+		case IFCOUNTER_COLLISIONS:
+			return (ifp->if_collisions);
+		case IFCOUNTER_IBYTES:
+			return (ifp->if_ibytes);
+		case IFCOUNTER_OBYTES:
+			return (ifp->if_obytes);
+		case IFCOUNTER_IMCASTS:
+			return (ifp->if_imcasts);
+		case IFCOUNTER_OMCASTS:
+			return (ifp->if_omcasts);
+		case IFCOUNTER_IQDROPS:
+			return (ifp->if_iqdrops);
+		case IFCOUNTER_OQDROPS:
+			return (ifp->if_oqdrops);
+		case IFCOUNTER_NOPROTO:
+			return (ifp->if_noproto);
+	}
+	panic("%s: unknown counter %d", __func__, cnt);
+}
+
+/*
+ * Copy data from ifnet to userland API structure if_data.
+ */
+void
+if_data_copy(struct ifnet *ifp, struct if_data *ifd)
+{
+
+	ifd->ifi_type = ifp->if_type;
+	ifd->ifi_physical = 0;
+	ifd->ifi_addrlen = ifp->if_addrlen;
+	ifd->ifi_hdrlen = ifp->if_hdrlen;
+	ifd->ifi_link_state = ifp->if_link_state;
+	ifd->ifi_vhid = 0;
+	ifd->ifi_datalen = sizeof(struct if_data);
+	ifd->ifi_mtu = ifp->if_mtu;
+	ifd->ifi_metric = ifp->if_metric;
+	ifd->ifi_baudrate = ifp->if_baudrate;
+	ifd->ifi_hwassist = ifp->if_hwassist;
+	ifd->ifi_epoch = ifp->if_epoch;
+	ifd->ifi_lastchange = ifp->if_lastchange;
+
+	ifd->ifi_ipackets = ifp->if_get_counter(ifp, IFCOUNTER_IPACKETS);
+	ifd->ifi_ierrors = ifp->if_get_counter(ifp, IFCOUNTER_IERRORS);
+	ifd->ifi_opackets = ifp->if_get_counter(ifp, IFCOUNTER_OPACKETS);
+	ifd->ifi_oerrors = ifp->if_get_counter(ifp, IFCOUNTER_OERRORS);
+	ifd->ifi_collisions = ifp->if_get_counter(ifp, IFCOUNTER_COLLISIONS);
+	ifd->ifi_ibytes = ifp->if_get_counter(ifp, IFCOUNTER_IBYTES);
+	ifd->ifi_obytes = ifp->if_get_counter(ifp, IFCOUNTER_OBYTES);
+	ifd->ifi_imcasts = ifp->if_get_counter(ifp, IFCOUNTER_IMCASTS);
+	ifd->ifi_omcasts = ifp->if_get_counter(ifp, IFCOUNTER_OMCASTS);
+	ifd->ifi_iqdrops = ifp->if_get_counter(ifp, IFCOUNTER_IQDROPS);
+	ifd->ifi_oqdrops = ifp->if_get_counter(ifp, IFCOUNTER_OQDROPS);
+	ifd->ifi_noproto = ifp->if_get_counter(ifp, IFCOUNTER_NOPROTO);
 }
 
 /*
@@ -2167,7 +2240,8 @@ ifhwioctl(u_long cmd, struct ifnet *ifp, caddr_t data, struct thread *td)
 		break;
 
 	case SIOCGIFPHYS:
-		ifr->ifr_phys = ifp->if_physical;
+		/* XXXGL: did this ever worked? */
+		ifr->ifr_phys = 0;
 		break;
 
 	case SIOCGIFDESCR:
@@ -3455,9 +3529,8 @@ if_deregister_com_alloc(u_char type)
 
 /* API for driver access to network stack owned ifnet.*/
 uint64_t
-if_setbaudrate(void *arg, uint64_t baudrate)
+if_setbaudrate(struct ifnet *ifp, uint64_t baudrate)
 {
-	struct ifnet *ifp = arg;
 	uint64_t oldbrate;
 
 	oldbrate = ifp->if_baudrate;
@@ -3915,7 +3988,7 @@ if_sendq_prepend(if_t ifp, struct mbuf *m)
 int
 if_setifheaderlen(if_t ifp, int len)
 {
-	((struct ifnet *)ifp)->if_data.ifi_hdrlen = len;
+	((struct ifnet *)ifp)->if_hdrlen = len;
 	return (0);
 }
 
@@ -3961,13 +4034,13 @@ if_setinitfn(if_t ifp, void (*init_fn)(void *))
 }
 
 void
-if_setioctlfn(if_t ifp, int (*ioctl_fn)(void *, u_long, caddr_t))
+if_setioctlfn(if_t ifp, int (*ioctl_fn)(if_t, u_long, caddr_t))
 {
 	((struct ifnet *)ifp)->if_ioctl = (void *)ioctl_fn;
 }
 
 void
-if_setstartfn(if_t ifp, void (*start_fn)(void *))
+if_setstartfn(if_t ifp, void (*start_fn)(if_t))
 {
 	((struct ifnet *)ifp)->if_start = (void *)start_fn;
 }
@@ -3982,90 +4055,6 @@ void if_setqflushfn(if_t ifp, if_qflush_fn_t flush_fn)
 {
 	((struct ifnet *)ifp)->if_qflush = flush_fn;
 	
-}
-
-/* These wrappers are hopefully temporary, till all drivers use drvapi */
-#ifdef INET
-void
-arp_ifinit_drv(if_t ifh, struct ifaddr *ifa)
-{
-	arp_ifinit((struct ifnet *)ifh, ifa);
-}
-#endif
-
-void
-ether_ifattach_drv(if_t ifh, const u_int8_t *lla)
-{
-	ether_ifattach((struct ifnet *)ifh, lla);
-}
-
-void
-ether_ifdetach_drv(if_t ifh)
-{
-	ether_ifdetach((struct ifnet *)ifh);
-}
-
-int
-ether_ioctl_drv(if_t ifh, u_long cmd, caddr_t data)
-{
-	struct ifnet *ifp = (struct ifnet *)ifh;
-
-	return (ether_ioctl(ifp, cmd, data));
-}
-
-int
-ifmedia_ioctl_drv(if_t ifh, struct ifreq *ifr, struct ifmedia *ifm,
-    u_long cmd)
-{
-	struct ifnet *ifp = (struct ifnet *)ifh;
-
-	return (ifmedia_ioctl(ifp, ifr, ifm, cmd));
-}
-
-void
-if_free_drv(if_t ifh)
-{
-	if_free((struct ifnet *)ifh);	
-}
-
-void
-if_initname_drv(if_t ifh, const char *name, int unit)
-{
-	if_initname((struct ifnet *)ifh, name, unit);	
-}
-
-void
-if_linkstate_change_drv(if_t ifh, int link_state)
-{
-	if_link_state_change((struct ifnet *)ifh, link_state);
-}
-
-void
-ifmedia_init_drv(struct ifmedia *ifm, int ncmask, int (*chg_cb)(void *),
-    void (*sts_cb)(void *, struct ifmediareq *))
-{
-	ifmedia_init(ifm, ncmask, (ifm_change_cb_t)chg_cb,
-	    (ifm_stat_cb_t)sts_cb);
-}
-
-void
-if_addr_rlock_drv(if_t ifh)
-{
-
-	if_addr_runlock((struct ifnet *)ifh);
-}
-
-void
-if_addr_runlock_drv(if_t ifh)
-{
-	if_addr_runlock((struct ifnet *)ifh);
-}
-
-void
-if_qflush_drv(if_t ifh)
-{
-	if_qflush((struct ifnet *)ifh);
-
 }
 
 /* Revisit these - These are inline functions originally. */

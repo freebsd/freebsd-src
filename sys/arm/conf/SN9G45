@@ -95,10 +95,10 @@ option 		AT91_ATE_USE_RMII
 device		at91_wdt		# WDT: Watchdog timer
 
 # SCSI peripherals
-device		scbus			# SCSI bus (required for SCSI)
+device		scbus			# SCSI bus (required for ATA/SCSI)
 device		da			# Direct Access (disks)
 device		cd			# CD
-device		pass			# Passthrough device (direct SCSI access)
+device		pass			# Passthrough device (direct ATA/SCSI access)
 
 # USB support
 device		ohci			# OHCI localbus->USB interface

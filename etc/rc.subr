@@ -1270,7 +1270,7 @@ run_rc_script()
 #
 load_rc_config()
 {
-	local _name _rcvar_val _var _defval _v _msg _new
+	local _name _rcvar_val _var _defval _v _msg _new _d
 	_name=$1
 	if [ -z "$_name" ]; then
 		err 3 'USAGE: load_rc_config name'
@@ -1289,18 +1289,21 @@ load_rc_config()
 		fi
 		_rc_conf_loaded=true
 	fi
-	if [ -f /etc/rc.conf.d/"$_name" ]; then
-		debug "Sourcing /etc/rc.conf.d/$_name"
-		. /etc/rc.conf.d/"$_name"
-	elif [ -d /etc/rc.conf.d/"$_name" ] ; then
-		local _rc
-		for _rc in /etc/rc.conf.d/"$_name"/* ; do
-			if [ -f "$_rc" ] ; then
-				debug "Sourcing $_rc"
-				. "$_rc"
-			fi
-		done
-	fi
+
+	for _d in /etc ${local_startup%*/rc.d}; do
+		if [ -f ${_d}/rc.conf.d/"$_name" ]; then
+			debug "Sourcing ${_d}/rc.conf.d/$_name"
+			. ${_d}/rc.conf.d/"$_name"
+		elif [ -d ${_d}/rc.conf.d/"$_name" ] ; then
+			local _rc
+			for _rc in ${_d}/rc.conf.d/"$_name"/* ; do
+				if [ -f "$_rc" ] ; then
+					debug "Sourcing $_rc"
+					. "$_rc"
+				fi
+			done
+		fi
+	done
 
 	# Set defaults if defined.
 	for _var in $rcvar; do

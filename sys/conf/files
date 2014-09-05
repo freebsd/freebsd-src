@@ -14,11 +14,11 @@ acpi_quirks.h			optional acpi				   \
 # from the specified source (DTS) file: <platform>.dts -> <platform>.dtb
 #
 fdt_dtb_file			optional fdt fdt_dtb_static \
-	compile-with "sh $S/tools/fdt/make_dtb.sh $S ${FDT_DTS_FILE} ${.CURDIR}" \
+	compile-with "sh -c 'MACHINE=${MACHINE} $S/tools/fdt/make_dtb.sh $S ${FDT_DTS_FILE} ${.CURDIR}'" \
 	no-obj no-implicit-rule before-depend	\
 	clean		"${FDT_DTS_FILE:R}.dtb"
 fdt_static_dtb.h		optional fdt fdt_dtb_static \
-	compile-with "sh $S/tools/fdt/make_dtbh.sh ${FDT_DTS_FILE} ${.CURDIR}" \
+	compile-with "sh -c 'MACHINE=${MACHINE} $S/tools/fdt/make_dtbh.sh ${FDT_DTS_FILE} ${.CURDIR}'" \
 	dependency	"fdt_dtb_file" \
 	no-obj no-implicit-rule before-depend \
 	clean		"fdt_static_dtb.h"
@@ -622,8 +622,9 @@ dev/aha/aha.c			optional aha
 dev/aha/aha_isa.c		optional aha isa
 dev/aha/aha_mca.c		optional aha mca
 dev/ahb/ahb.c			optional ahb eisa
-dev/ahci/ahci.c			optional ahci pci
-dev/ahci/ahciem.c		optional ahci pci
+dev/ahci/ahci.c			optional ahci
+dev/ahci/ahciem.c		optional ahci
+dev/ahci/ahci_pci.c		optional ahci pci
 dev/aic/aic.c			optional aic
 dev/aic/aic_pccard.c		optional aic pccard
 dev/aic7xxx/ahc_eisa.c		optional ahc eisa
@@ -1376,6 +1377,8 @@ dev/fatm/if_fatm.c		optional fatm pci
 dev/fb/fbd.c			optional fbd | vt
 dev/fb/fb_if.m			standard
 dev/fb/splash.c			optional sc splash
+dev/fdt/fdt_clock.c		optional fdt
+dev/fdt/fdt_clock_if.m		optional fdt
 dev/fdt/fdt_common.c		optional fdt
 dev/fdt/fdt_slicer.c		optional fdt cfi | fdt nand
 dev/fdt/fdt_static_dtb.S	optional fdt fdt_dtb_static \
@@ -1602,6 +1605,20 @@ iwn1000.fw			optional iwn1000fw | iwnfw		\
 	compile-with	"${NORMAL_FW}"					\
 	no-obj no-implicit-rule						\
 	clean		"iwn1000.fw"
+iwn100fw.c			optional iwn100fw | iwnfw		\
+	compile-with	"${AWK} -f $S/tools/fw_stub.awk iwn100.fw:iwn100fw -miwn100fw -c${.TARGET}" \
+	no-implicit-rule before-depend local				\
+	clean		"iwn100fw.c"
+iwn100fw.fwo			optional iwn100fw | iwnfw		\
+	dependency	"iwn100.fw"					\
+	compile-with	"${NORMAL_FWO}"					\
+	no-implicit-rule						\
+	clean		"iwn100fw.fwo"
+iwn100.fw			optional iwn100fw | iwnfw		\
+	dependency	"$S/contrib/dev/iwn/iwlwifi-100-39.31.5.1.fw.uu" \
+	compile-with	"${NORMAL_FW}"					\
+	no-obj no-implicit-rule						\
+	clean		"iwn100.fw"
 iwn105fw.c			optional iwn105fw | iwnfw		\
 	compile-with	"${AWK} -f $S/tools/fw_stub.awk iwn105.fw:iwn105fw -miwn105fw -c${.TARGET}" \
 	no-implicit-rule before-depend local				\
@@ -2525,6 +2542,7 @@ dev/usb/serial/usb_serial.c 	optional ucom | u3g | uark | ubsa | ubser | \
 #
 dev/usb/misc/ufm.c		optional ufm
 dev/usb/misc/udbp.c		optional udbp
+dev/usb/misc/uled.c		optional uled
 #
 # USB input drivers
 #

@@ -640,7 +640,7 @@ static int mlx4_ACCESS_MEM(struct mlx4_dev *dev, u64 master_addr,
 	    (slave & ~0x7f) | (size & 0xff)) {
 		mlx4_err(dev, "Bad access mem params - slave_addr:0x%llx "
 			      "master_addr:0x%llx slave_id:%d size:%d\n",
-			      slave_addr, master_addr, slave, size);
+			      (long long)slave_addr, (long long)master_addr, slave, size);
 		return -EINVAL;
 	}
 
@@ -1553,7 +1553,7 @@ static int mlx4_master_activate_admin_state(struct mlx4_priv *priv, int slave)
 				return err;
 			}
 			mlx4_dbg((&(priv->dev)), "alloc mac %llx idx  %d slave %d port %d\n",
-				 vp_oper->state.mac, vp_oper->mac_idx, slave, port);
+				 (long long)vp_oper->state.mac, vp_oper->mac_idx, slave, port);
 		}
 	}
 	return 0;
@@ -2117,7 +2117,7 @@ int mlx4_set_vf_mac(struct mlx4_dev *dev, int port, int vf, u8 *mac)
 	s_info = &priv->mfunc.master.vf_admin[vf].vport[port];
 	s_info->mac = mlx4_mac_to_u64(mac);
 	mlx4_info(dev, "default mac on vf %d port %d to %llX will take afect only after vf restart\n",
-		  vf, port, s_info->mac);
+		  vf, port, (long long)s_info->mac);
 	return 0;
 }
 EXPORT_SYMBOL_GPL(mlx4_set_vf_mac);

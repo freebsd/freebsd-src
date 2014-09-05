@@ -351,7 +351,7 @@ simplebus_get_interrupt_parent(device_t dev)
 
 	if (OF_getencprop(di->di_ofw.obd_node, "interrupt-parent", &iph,
 	    sizeof(iph)) > 0) {
-		ph = OF_xref_phandle(iph);
+		ph = OF_node_from_xref(iph);
 		SLIST_FOREACH(ic, &fdt_ic_list_head, fdt_ics) {
 			if (ic->iph == ph) {
 				ip = ic->dev;

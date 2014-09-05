@@ -641,7 +641,7 @@ sge_attach(device_t dev)
 	    IFCAP_VLAN_HWTSO | IFCAP_VLAN_MTU;
 	ifp->if_capenable = ifp->if_capabilities;
 	/* Tell the upper layer(s) we support long frames. */
-	ifp->if_data.ifi_hdrlen = sizeof(struct ether_vlan_header);
+	ifp->if_hdrlen = sizeof(struct ether_vlan_header);
 
 	/* Hook interrupt last to avoid having to lock softc */
 	error = bus_setup_intr(dev, sc->sge_irq, INTR_TYPE_NET | INTR_MPSAFE,

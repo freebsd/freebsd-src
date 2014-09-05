@@ -2,6 +2,7 @@
  * Copyright (c) 2010 Isilon Systems, Inc.
  * Copyright (c) 2010 iX Systems, Inc.
  * Copyright (c) 2010 Panasas, Inc.
+ * Copyright (c) 2013, 2014 Mellanox Technologies, Ltd.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -34,6 +35,9 @@
 #include <linux/slab.h>
 
 #include <sys/libkern.h>
+
+#define strnicmp strncasecmp
+
 
 static inline void *
 kmemdup(const void *src, size_t len, gfp_t gfp)

@@ -2501,7 +2501,7 @@ vm_page_cache(vm_page_t m)
 	    (object->type == OBJT_SWAP &&
 	    !vm_pager_has_page(object, m->pindex, NULL, NULL))) {
 		/*
-		 * Hypothesis: A cache-elgible page belonging to a
+		 * Hypothesis: A cache-eligible page belonging to a
 		 * default object or swap object but without a backing
 		 * store must be zero filled.
 		 */

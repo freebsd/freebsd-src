@@ -51,7 +51,7 @@
     defined(CPU_XSCALE_IXP435)
 #define NIRQ		64
 #elif defined(CPU_CORTEXA)
-#define NIRQ		160
+#define NIRQ		1020
 #elif defined(CPU_KRAIT)
 #define NIRQ		288
 #elif defined(CPU_ARM1136) || defined(CPU_ARM1176)

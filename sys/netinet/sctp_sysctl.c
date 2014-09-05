@@ -41,6 +41,9 @@ __FBSDID("$FreeBSD$");
 #include <netinet/sctputil.h>
 #include <netinet/sctp_output.h>
 #include <sys/smp.h>
+#include <sys/sysctl.h>
+
+FEATURE(sctp, "Stream Control Transmission Protocol");
 
 /*
  * sysctl tunable variables
