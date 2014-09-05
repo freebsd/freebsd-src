@@ -10,8 +10,14 @@
 . /etc/rc.subr
 
 name=kfd
-rcvar=kfd_enable
-load_rc_config $name
-command_args="-i &"
+rcvar=${name}_enable
+start_precmd=${name}_start_precmd
 
+kfd_start_precmd()
+{
+
+	command_args="$command_args -i &"
+}
+
+load_rc_config $name
 run_rc_command "$1"

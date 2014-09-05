@@ -77,6 +77,7 @@ void	 lockallowrecurse(struct lock *lk);
 void	 lockallowshare(struct lock *lk);
 void	 lockdestroy(struct lock *lk);
 void	 lockdisablerecurse(struct lock *lk);
+void	 lockdisableshare(struct lock *lk);
 void	 lockinit(struct lock *lk, int prio, const char *wmesg, int timo,
 	    int flags);
 #ifdef DDB

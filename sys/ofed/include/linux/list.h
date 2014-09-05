@@ -2,6 +2,7 @@
  * Copyright (c) 2010 Isilon Systems, Inc.
  * Copyright (c) 2010 iX Systems, Inc.
  * Copyright (c) 2010 Panasas, Inc.
+ * Copyright (c) 2013, 2014 Mellanox Technologies, Ltd.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -308,6 +309,66 @@ hlist_move_list(struct hlist_head *old, struct hlist_head *new)
 		new->first->pprev = &new->first;
 	old->first = NULL;
 }
+
+/**
+ * list_is_singular - tests whether a list has just one entry.
+ * @head: the list to test.
+ */
+static inline int list_is_singular(const struct list_head *head)
+{
+	return !list_empty(head) && (head->next == head->prev);
+}
+
+static inline void __list_cut_position(struct list_head *list,
+		struct list_head *head, struct list_head *entry)
+{
+	struct list_head *new_first = entry->next;
+	list->next = head->next;
+	list->next->prev = list;
+	list->prev = entry;
+	entry->next = list;
+	head->next = new_first;
+	new_first->prev = head;
+}
+
+/**
+ * list_cut_position - cut a list into two
+ * @list: a new list to add all removed entries
+ * @head: a list with entries
+ * @entry: an entry within head, could be the head itself
+ *	and if so we won't cut the list
+ *
+ * This helper moves the initial part of @head, up to and
+ * including @entry, from @head to @list. You should
+ * pass on @entry an element you know is on @head. @list
+ * should be an empty list or a list you do not care about
+ * losing its data.
+ *
+ */
+static inline void list_cut_position(struct list_head *list,
+		struct list_head *head, struct list_head *entry)
+{
+	if (list_empty(head))
+		return;
+	if (list_is_singular(head) &&
+		(head->next != entry && head != entry))
+		return;
+	if (entry == head)
+		INIT_LIST_HEAD(list);
+	else
+		__list_cut_position(list, head, entry);
+}
+
+/**
+ *  list_is_last - tests whether @list is the last entry in list @head
+ *   @list: the entry to test
+ *    @head: the head of the list
+ */
+static inline int list_is_last(const struct list_head *list,
+                                const struct list_head *head)
+{
+        return list->next == head;
+}
  
 #define	hlist_entry(ptr, type, field)	container_of(ptr, type, field)
 
@@ -328,9 +389,10 @@ hlist_move_list(struct hlist_head *old, struct hlist_head *new)
 #define	hlist_for_each_entry_from(tp, p, field)				\
 	for (; p ? (tp = hlist_entry(p, typeof(*tp), field)): NULL; p = p->next)
 
-#define	hlist_for_each_entry_safe(tp, p, n, head, field)		\
-	for (p = (head)->first;	p ?					\
-	    (n = p->next) | (tp = hlist_entry(p, typeof(*tp), field)) :	\
-	    NULL; p = n)
+#define hlist_for_each_entry_safe(tpos, pos, n, head, member) 		 \
+	for (pos = (head)->first;					 \
+	     (pos) != 0 && ({ n = (pos)->next; \
+		 tpos = hlist_entry((pos), typeof(*(tpos)), member); 1;}); \
+	     pos = (n))
 
 #endif /* _LINUX_LIST_H_ */

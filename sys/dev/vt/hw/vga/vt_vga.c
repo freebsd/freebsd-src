@@ -54,6 +54,7 @@ struct vga_softc {
 	bus_space_handle_t	 vga_fb_handle;
 	bus_space_tag_t		 vga_reg_tag;
 	bus_space_handle_t	 vga_reg_handle;
+	int			 vga_wmode;
 	term_color_t		 vga_curfg, vga_curbg;
 };
 
@@ -89,6 +90,7 @@ static vd_probe_t	vga_probe;
 static vd_init_t	vga_init;
 static vd_blank_t	vga_blank;
 static vd_bitblt_text_t	vga_bitblt_text;
+static vd_bitblt_bmp_t	vga_bitblt_bitmap;
 static vd_drawrect_t	vga_drawrect;
 static vd_setpixel_t	vga_setpixel;
 static vd_postswitch_t	vga_postswitch;
@@ -99,6 +101,7 @@ static const struct vt_driver vt_vga_driver = {
 	.vd_init	= vga_init,
 	.vd_blank	= vga_blank,
 	.vd_bitblt_text	= vga_bitblt_text,
+	.vd_bitblt_bmp	= vga_bitblt_bitmap,
 	.vd_drawrect	= vga_drawrect,
 	.vd_setpixel	= vga_setpixel,
 	.vd_postswitch	= vga_postswitch,
@@ -113,15 +116,40 @@ static struct vga_softc vga_conssoftc;
 VT_DRIVER_DECLARE(vt_vga, vt_vga_driver);
 
 static inline void
+vga_setwmode(struct vt_device *vd, int wmode)
+{
+	struct vga_softc *sc = vd->vd_softc;
+
+	if (sc->vga_wmode == wmode)
+		return;
+
+	REG_WRITE1(sc, VGA_GC_ADDRESS, VGA_GC_MODE);
+	REG_WRITE1(sc, VGA_GC_DATA, wmode);
+	sc->vga_wmode = wmode;
+
+	switch (wmode) {
+	case 3:
+		/* Re-enable all plans. */
+		REG_WRITE1(sc, VGA_SEQ_ADDRESS, VGA_SEQ_MAP_MASK);
+		REG_WRITE1(sc, VGA_SEQ_DATA, VGA_SEQ_MM_EM3 | VGA_SEQ_MM_EM2 |
+		    VGA_SEQ_MM_EM1 | VGA_SEQ_MM_EM0);
+		break;
+	}
+}
+
+static inline void
 vga_setfg(struct vt_device *vd, term_color_t color)
 {
 	struct vga_softc *sc = vd->vd_softc;
 
-	if (sc->vga_curfg != color) {
-		REG_WRITE1(sc, VGA_GC_ADDRESS, VGA_GC_SET_RESET);
-		REG_WRITE1(sc, VGA_GC_DATA, color);
-		sc->vga_curfg = color;
-	}
+	vga_setwmode(vd, 3);
+
+	if (sc->vga_curfg == color)
+		return;
+
+	REG_WRITE1(sc, VGA_GC_ADDRESS, VGA_GC_SET_RESET);
+	REG_WRITE1(sc, VGA_GC_DATA, color);
+	sc->vga_curfg = color;
 }
 
 static inline void
@@ -129,30 +157,33 @@ vga_setbg(struct vt_device *vd, term_color_t color)
 {
 	struct vga_softc *sc = vd->vd_softc;
 
-	if (sc->vga_curbg != color) {
-		REG_WRITE1(sc, VGA_GC_ADDRESS, VGA_GC_SET_RESET);
-		REG_WRITE1(sc, VGA_GC_DATA, color);
+	vga_setwmode(vd, 3);
 
-		/*
-		 * Write 8 pixels using the background color to an
-		 * off-screen byte in the video memory.
-		 */
-		MEM_WRITE1(sc, VT_VGA_BGCOLOR_OFFSET, 0xff);
+	if (sc->vga_curbg == color)
+		return;
 
-		/*
-		 * Read those 8 pixels back to load the background color
-		 * in the latches register.
-		 */
-		MEM_READ1(sc, VT_VGA_BGCOLOR_OFFSET);
+	REG_WRITE1(sc, VGA_GC_ADDRESS, VGA_GC_SET_RESET);
+	REG_WRITE1(sc, VGA_GC_DATA, color);
 
-		sc->vga_curbg = color;
+	/*
+	 * Write 8 pixels using the background color to an off-screen
+	 * byte in the video memory.
+	 */
+	MEM_WRITE1(sc, VT_VGA_BGCOLOR_OFFSET, 0xff);
 
-		/*
-		 * The Set/Reset register doesn't contain the fg color
-		 * anymore, store an invalid color.
-		 */
-		sc->vga_curfg = 0xff;
-	}
+	/*
+	 * Read those 8 pixels back to load the background color in the
+	 * latches register.
+	 */
+	MEM_READ1(sc, VT_VGA_BGCOLOR_OFFSET);
+
+	sc->vga_curbg = color;
+
+	/*
+         * The Set/Reset register doesn't contain the fg color anymore,
+         * store an invalid color.
+	 */
+	sc->vga_curfg = 0xff;
 }
 
 /*
@@ -429,6 +460,9 @@ vga_copy_bitmap_portion(uint8_t *pattern_2colors, uint8_t *pattern_ncolors,
 			pattern_2colors[dst_y + i] &= ~mask;
 		pattern_2colors[dst_y + i] |= pattern;
 
+		if (pattern_ncolors == NULL)
+			continue;
+
 		/*
 		 * Set the same bits in the n-colors array. This one
 		 * supports transparency, when a given bit is cleared in
@@ -481,40 +515,75 @@ static void
 vga_bitblt_pixels_block_ncolors(struct vt_device *vd, const uint8_t *masks,
     unsigned int x, unsigned int y, unsigned int height)
 {
-	unsigned int i, j, offset;
+	unsigned int i, j, plan, color, offset;
 	struct vga_softc *sc;
-	uint8_t mask;
+	uint8_t mask, plans[height * 4];
 
 	sc = vd->vd_softc;
 
+	memset(plans, 0, sizeof(plans));
+
 	/*
-	 * To draw a pixels block with N colors (N > 2), we write each
-	 * color one by one:
-	 *     1. Use the color as the foreground color
-	 *     2. Read the pixels block into the latches
-	 *     3. Draw the calculated mask
-	 *     4. Go back to #1 for subsequent colors.
+         * To write a group of pixels using 3 or more colors, we select
+         * Write Mode 0 and write one byte to each plan separately.
+	 */
+
+	/*
+	 * We first compute each byte: each plan contains one bit of the
+	 * color code for each of the 8 pixels.
 	 *
-	 * FIXME: Use Write Mode 0 to remove the need to read from video
-	 * memory.
+	 * For example, if the 8 pixels are like this:
+	 *     GBBBBBBY
+	 * where:
+	 *     G (gray)   = 0b0111
+	 *     B (black)  = 0b0000
+	 *     Y (yellow) = 0b0011
+	 *
+	 * The corresponding for bytes are:
+	 *             GBBBBBBY
+	 *     Plan 0: 10000001 = 0x81
+	 *     Plan 1: 10000001 = 0x81
+	 *     Plan 2: 10000000 = 0x80
+	 *     Plan 3: 00000000 = 0x00
+	 *             |  |   |
+	 *             |  |   +-> 0b0011 (Y)
+	 *             |  +-----> 0b0000 (B)
+	 *             +--------> 0b0111 (G)
 	 */
 
 	for (i = 0; i < height; ++i) {
-		for (j = 0; j < 16; ++j) {
-			mask = masks[i * 16 + j];
-			if (mask == 0)
+		for (color = 0; color < 16; ++color) {
+			mask = masks[i * 16 + color];
+			if (mask == 0x00)
 				continue;
 
-			vga_setfg(vd, j);
+			for (j = 0; j < 8; ++j) {
+				if (!((mask >> (7 - j)) & 0x1))
+					continue;
 
-			offset = (VT_VGA_WIDTH * (y + i) + x) / 8;
-			if (mask != 0xff) {
-				MEM_READ1(sc, offset);
-
-				/* The bg color was trashed by the reads. */
-				sc->vga_curbg = 0xff;
+				/* The pixel "j" uses color "color". */
+				for (plan = 0; plan < 4; ++plan)
+					plans[i * 4 + plan] |=
+					    ((color >> plan) & 0x1) << (7 - j);
 			}
-			MEM_WRITE1(sc, offset, mask);
+		}
+	}
+
+	/*
+	 * The bytes are ready: we now switch to Write Mode 0 and write
+	 * all bytes, one plan at a time.
+	 */
+	vga_setwmode(vd, 0);
+
+	REG_WRITE1(sc, VGA_SEQ_ADDRESS, VGA_SEQ_MAP_MASK);
+	for (plan = 0; plan < 4; ++plan) {
+		/* Select plan. */
+		REG_WRITE1(sc, VGA_SEQ_DATA, 1 << plan);
+
+		/* Write all bytes for this plan, from Y to Y+height. */
+		for (i = 0; i < height; ++i) {
+			offset = (VT_VGA_WIDTH * (y + i) + x) / 8;
+			MEM_WRITE1(sc, offset, plans[i * 4 + plan]);
 		}
 	}
 }
@@ -551,16 +620,17 @@ vga_bitblt_one_text_pixels_block(struct vt_device *vd,
 	memset(pattern_2colors, 0, sizeof(pattern_2colors));
 	memset(pattern_ncolors, 0, sizeof(pattern_ncolors));
 
-	if (i < vw->vw_offset.tp_col) {
+	if (i < vw->vw_draw_area.tr_begin.tp_col) {
 		/*
 		 * i is in the margin used to center the text area on
 		 * the screen.
 		 */
 
-		i = vw->vw_offset.tp_col;
+		i = vw->vw_draw_area.tr_begin.tp_col;
 	}
 
-	while (i < x + VT_VGA_PIXELS_BLOCK) {
+	while (i < x + VT_VGA_PIXELS_BLOCK &&
+	    i < vw->vw_draw_area.tr_end.tp_col) {
 		/*
 		 * Find which character is drawn on this pixel in the
 		 * pixels block.
@@ -568,8 +638,8 @@ vga_bitblt_one_text_pixels_block(struct vt_device *vd,
 		 * While here, record what colors it uses.
 		 */
 
-		col = (i - vw->vw_offset.tp_col) / vf->vf_width;
-		row = (y - vw->vw_offset.tp_row) / vf->vf_height;
+		col = (i - vw->vw_draw_area.tr_begin.tp_col) / vf->vf_width;
+		row = (y - vw->vw_draw_area.tr_begin.tp_row) / vf->vf_height;
 
 		c = VTBUF_GET_FIELD(vb, row, col);
 		src = vtfont_lookup(vf, c);
@@ -600,11 +670,15 @@ vga_bitblt_one_text_pixels_block(struct vt_device *vd,
 		 * character.
 		 */
 
-		src_x = i - (col * vf->vf_width + vw->vw_offset.tp_col);
-		x_count = min(
-		    (col + 1) * vf->vf_width + vw->vw_offset.tp_col,
-		    x + VT_VGA_PIXELS_BLOCK);
-		x_count -= col * vf->vf_width + vw->vw_offset.tp_col;
+		src_x = i -
+		    (col * vf->vf_width + vw->vw_draw_area.tr_begin.tp_col);
+		x_count = min(min(
+		    (col + 1) * vf->vf_width +
+		    vw->vw_draw_area.tr_begin.tp_col,
+		    x + VT_VGA_PIXELS_BLOCK),
+		    vw->vw_draw_area.tr_end.tp_col);
+		x_count -= col * vf->vf_width +
+		    vw->vw_draw_area.tr_begin.tp_col;
 		x_count -= src_x;
 
 		/* Copy a portion of the character. */
@@ -638,14 +712,16 @@ vga_bitblt_one_text_pixels_block(struct vt_device *vd,
 		unsigned int dst_x, src_y, dst_y, y_count;
 
 		cursor = vd->vd_mcursor;
-		mx = vd->vd_mx_drawn + vw->vw_offset.tp_col;
-		my = vd->vd_my_drawn + vw->vw_offset.tp_row;
+		mx = vd->vd_mx_drawn + vw->vw_draw_area.tr_begin.tp_col;
+		my = vd->vd_my_drawn + vw->vw_draw_area.tr_begin.tp_row;
 
 		/* Compute the portion of the cursor we want to copy. */
 		src_x = x > mx ? x - mx : 0;
 		dst_x = mx > x ? mx - x : 0;
-		x_count = min(
-		    min(cursor->width - src_x, x + VT_VGA_PIXELS_BLOCK - mx),
+		x_count = min(min(min(
+		    cursor->width - src_x,
+		    x + VT_VGA_PIXELS_BLOCK - mx),
+		    vw->vw_draw_area.tr_end.tp_col - mx),
 		    VT_VGA_PIXELS_BLOCK);
 
 		/*
@@ -720,10 +796,10 @@ vga_bitblt_text_gfxmode(struct vt_device *vd, const struct vt_window *vw,
 
 	col = area->tr_begin.tp_col;
 	row = area->tr_begin.tp_row;
-	x1 = (int)((col * vf->vf_width + vw->vw_offset.tp_col)
+	x1 = (int)((col * vf->vf_width + vw->vw_draw_area.tr_begin.tp_col)
 	     / VT_VGA_PIXELS_BLOCK)
 	    * VT_VGA_PIXELS_BLOCK;
-	y1 = row * vf->vf_height + vw->vw_offset.tp_row;
+	y1 = row * vf->vf_height + vw->vw_draw_area.tr_begin.tp_row;
 
 	/*
 	 * Compute the bottom right pixel position, again, aligned with
@@ -735,19 +811,15 @@ vga_bitblt_text_gfxmode(struct vt_device *vd, const struct vt_window *vw,
 
 	col = area->tr_end.tp_col;
 	row = area->tr_end.tp_row;
-	x2 = (int)((col * vf->vf_width + vw->vw_offset.tp_col
+	x2 = (int)((col * vf->vf_width + vw->vw_draw_area.tr_begin.tp_col
 	      + VT_VGA_PIXELS_BLOCK - 1)
 	     / VT_VGA_PIXELS_BLOCK)
 	    * VT_VGA_PIXELS_BLOCK;
-	y2 = row * vf->vf_height + vw->vw_offset.tp_row;
+	y2 = row * vf->vf_height + vw->vw_draw_area.tr_begin.tp_row;
 
-	/*
-	 * Clip the area to the screen size.
-	 *
-	 * FIXME: Take vw_offset into account.
-	 */
-	x2 = min(x2, vd->vd_width - 1);
-	y2 = min(y2, vd->vd_height - 1);
+	/* Clip the area to the screen size. */
+	x2 = min(x2, vw->vw_draw_area.tr_end.tp_col);
+	y2 = min(y2, vw->vw_draw_area.tr_end.tp_row);
 
 	/*
 	 * Now, we take care of N pixels line at a time (the first for
@@ -824,6 +896,50 @@ vga_bitblt_text(struct vt_device *vd, const struct vt_window *vw,
 		vga_bitblt_text_gfxmode(vd, vw, area);
 	} else {
 		vga_bitblt_text_txtmode(vd, vw, area);
+	}
+}
+
+static void
+vga_bitblt_bitmap(struct vt_device *vd, const struct vt_window *vw,
+    const uint8_t *pattern, const uint8_t *mask,
+    unsigned int width, unsigned int height,
+    unsigned int x, unsigned int y, term_color_t fg, term_color_t bg)
+{
+	unsigned int x1, y1, x2, y2, i, j, src_x, dst_x, x_count;
+	uint8_t pattern_2colors;
+
+	/* Align coordinates with the 8-pxels grid. */
+	x1 = x / VT_VGA_PIXELS_BLOCK * VT_VGA_PIXELS_BLOCK;
+	y1 = y;
+
+	x2 = (x + width + VT_VGA_PIXELS_BLOCK - 1) /
+	    VT_VGA_PIXELS_BLOCK * VT_VGA_PIXELS_BLOCK;
+	y2 = y + height;
+	x2 = min(x2, vd->vd_width - 1);
+	y2 = min(y2, vd->vd_height - 1);
+
+	for (j = y1; j < y2; ++j) {
+		src_x = 0;
+		dst_x = x - x1;
+		x_count = VT_VGA_PIXELS_BLOCK - dst_x;
+
+		for (i = x1; i < x2; i += VT_VGA_PIXELS_BLOCK) {
+			pattern_2colors = 0;
+
+			vga_copy_bitmap_portion(
+			    &pattern_2colors, NULL,
+			    pattern, mask, width,
+			    src_x, dst_x, x_count,
+			    j - y1, 0, 1, fg, bg, 0);
+
+			vga_bitblt_pixels_block_2colors(vd,
+			    &pattern_2colors, fg, bg,
+			    i, j, 1);
+
+			src_x += x_count;
+			dst_x = (dst_x + x_count) % VT_VGA_PIXELS_BLOCK;
+			x_count = min(width - src_x, VT_VGA_PIXELS_BLOCK);
+		}
 	}
 }
 
@@ -1050,8 +1166,16 @@ vga_initialize(struct vt_device *vd, int textmode)
 		/* Switch to write mode 3, because we'll mainly do bitblt. */
 		REG_WRITE1(sc, VGA_GC_ADDRESS, VGA_GC_MODE);
 		REG_WRITE1(sc, VGA_GC_DATA, 3);
+		sc->vga_wmode = 3;
+
+		/*
+		 * In Write Mode 3, Enable Set/Reset is ignored, but we
+		 * use Write Mode 0 to write a group of 8 pixels using
+		 * 3 or more colors. In this case, we want to disable
+		 * Set/Reset: set Enable Set/Reset to 0.
+		 */
 		REG_WRITE1(sc, VGA_GC_ADDRESS, VGA_GC_ENABLE_SET_RESET);
-		REG_WRITE1(sc, VGA_GC_DATA, 0x0f);
+		REG_WRITE1(sc, VGA_GC_DATA, 0x00);
 
 		/*
 		 * Clear the colors we think are loaded into Set/Reset or

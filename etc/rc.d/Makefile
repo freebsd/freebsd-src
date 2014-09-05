@@ -65,12 +65,14 @@ FILES=	DAEMON \
 	ipfw \
 	ipmon \
 	ipnat \
+	ipropd_master \
+	ipropd_slave \
 	ipsec \
 	iscsictl \
 	iscsid \
 	jail \
 	kadmind \
-	kerberos \
+	kdc \
 	keyserv \
 	kfd \
 	kld \

@@ -713,6 +713,7 @@ vendor LONGCHEER	0x1c9e	Longcheer Holdings, Ltd.
 vendor MPMAN		0x1cae	MpMan
 vendor DRESDENELEKTRONIK 0x1cf1 dresden elektronik
 vendor NEOTEL		0x1d09	Neotel
+vendor DREAMLINK	0x1d34	Dream Link
 vendor PEGATRON		0x1d4d	Pegatron
 vendor QISDA		0x1da5  Qisda
 vendor METAGEEK2	0x1dd5	MetaGeek
@@ -1486,6 +1487,7 @@ product COREGA FETHER_USB_TXC	0x9601	FEther USB-TXC
 
 /* Corsair products */
 product CORSAIR K60		0x0a60	Corsair Vengeance K60 keyboard
+product CORSAIR K70		0x1b09	Corsair Vengeance K70 keyboard
 
 /* Creative products */
 product CREATIVE NOMAD_II	0x1002	Nomad II MP3 player
@@ -1655,6 +1657,9 @@ product DMI DISK		0x2bcf	Generic Disk
 
 /* DrayTek products */
 product DRAYTEK VIGOR550	0x0550	Vigor550
+
+/* Dream Link products */
+product DREAMLINK DL100B	0x0004	USB Webmail Notifier
 
 /* dresden elektronik products */
 product DRESDENELEKTRONIK SENSORTERMINALBOARD  0x0001 SensorTerminalBoard

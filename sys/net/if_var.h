@@ -67,6 +67,7 @@ struct  ifvlantrunk;
 struct	route;			/* if_output */
 struct	vnet;
 struct	ifmedia;
+struct	netmap_adapter;
 
 #ifdef _KERNEL
 #include <sys/mbuf.h>		/* ifqueue only? */
@@ -94,14 +95,29 @@ VNET_DECLARE(struct pfil_head, link_pfil_hook);	/* packet filter hooks */
 #define	V_link_pfil_hook	VNET(link_pfil_hook)
 #endif /* _KERNEL */
 
-typedef	void (*if_start_fn_t)(struct ifnet *);
-typedef	int (*if_ioctl_fn_t)(struct ifnet *, u_long, caddr_t);
-typedef	void (*if_init_fn_t)(void *);
-typedef void (*if_qflush_fn_t)(struct ifnet *);
-typedef int (*if_transmit_fn_t)(struct ifnet *, struct mbuf *);
+typedef enum {
+	IFCOUNTER_IPACKETS = 1,
+	IFCOUNTER_IERRORS,
+	IFCOUNTER_OPACKETS,
+	IFCOUNTER_OERRORS,
+	IFCOUNTER_COLLISIONS,
+	IFCOUNTER_IBYTES,
+	IFCOUNTER_OBYTES,
+	IFCOUNTER_IMCASTS,
+	IFCOUNTER_OMCASTS,
+	IFCOUNTER_IQDROPS,
+	IFCOUNTER_OQDROPS,
+	IFCOUNTER_NOPROTO,
+} ifnet_counter;
 
-/* Opaque object pointing to interface structure (ifnet) */
-typedef void *if_t;
+typedef struct ifnet * if_t;
+
+typedef	void (*if_start_fn_t)(if_t);
+typedef	int (*if_ioctl_fn_t)(if_t, u_long, caddr_t);
+typedef	void (*if_init_fn_t)(void *);
+typedef void (*if_qflush_fn_t)(if_t);
+typedef int (*if_transmit_fn_t)(if_t, struct mbuf *);
+typedef	uint64_t (*if_get_counter_t)(if_t, ifnet_counter);
 
 /*
  * Structure defining a network interface.
@@ -130,14 +146,26 @@ struct ifnet {
 
 	/* Variable fields that are touched by the stack and drivers. */
 	int	if_flags;		/* up/down, broadcast, etc. */
+	int	if_drv_flags;		/* driver-managed status flags */
 	int	if_capabilities;	/* interface features & capabilities */
 	int	if_capenable;		/* enabled features & capabilities */
 	void	*if_linkmib;		/* link-type-specific MIB data */
 	size_t	if_linkmiblen;		/* length of above data */
-	int	if_drv_flags;		/* driver-managed status flags */
 	u_int	if_refcount;		/* reference count */
+
+	/* These fields are shared with struct if_data. */
+	uint8_t		if_type;	/* ethernet, tokenring, etc */
+	uint8_t		if_addrlen;	/* media address length */
+	uint8_t		if_hdrlen;	/* media header length */
+	uint8_t		if_link_state;	/* current link state */
+	uint32_t	if_mtu;		/* maximum transmission unit */
+	uint32_t	if_metric;	/* routing metric (external only) */
+	uint64_t	if_baudrate;	/* linespeed */
+	uint64_t	if_hwassist;	/* HW offload capabilities, see IFCAP */
+	time_t		if_epoch;	/* uptime at attach or stat reset */
+	struct timeval	if_lastchange;	/* time of last administrative change */
+
 	struct  ifaltq if_snd;		/* output queue (includes altq) */
-	struct	if_data if_data;	/* type information and statistics */
 	struct	task if_linktask;	/* task for link change events */
 
 	/* Addresses of different protocol families assigned to this if. */
@@ -173,6 +201,7 @@ struct ifnet {
 	void	*if_pf_kif;		/* pf glue */
 	struct	carp_if *if_carp;	/* carp interface structure */
 	struct	label *if_label;	/* interface MAC label */
+	struct	netmap_adapter *if_netmap; /* netmap(4) softc */
 
 	/* Various procedures of the layer2 encapsulation and drivers. */
 	int	(*if_output)		/* output routine (enqueue) */
@@ -190,6 +219,7 @@ struct ifnet {
 
 	void	(*if_reassign)		/* reassign to vnet routine */
 		(struct ifnet *, struct vnet *, char *);
+	if_get_counter_t if_get_counter; /* get counter values */
 
 	/* Stuff that's only temporary and doesn't belong here. */
 	u_int	if_hw_tsomax;		/* tso burst length limit, the minimum
@@ -197,44 +227,30 @@ struct ifnet {
 					 * XXXAO: Have to find a better place
 					 * for it eventually. */
 	/*
-	 * Spare fields are added so that we can modify sensitive data
-	 * structures without changing the kernel binary interface, and must
-	 * be used with care where binary compatibility is required.
+	 * Old, racy and expensive statistics, should not be used in
+	 * new drivers.
 	 */
-	char	if_cspare[3];
-	int	if_ispare[4];
-	void	*if_unused[2];
-	void	*if_pspare[8];		/* 1 netmap, 7 TDB */
+	uint64_t	if_ipackets;	/* packets received on interface */
+	uint64_t	if_ierrors;	/* input errors on interface */
+	uint64_t	if_opackets;	/* packets sent on interface */
+	uint64_t	if_oerrors;	/* output errors on interface */
+	uint64_t	if_collisions;	/* collisions on csma interfaces */
+	uint64_t	if_ibytes;	/* total number of octets received */
+	uint64_t	if_obytes;	/* total number of octets sent */
+	uint64_t	if_imcasts;	/* packets received via multicast */
+	uint64_t	if_omcasts;	/* packets sent via multicast */
+	uint64_t	if_iqdrops;	/* dropped on input */
+	uint64_t	if_oqdrops;	/* dropped on output */
+	uint64_t	if_noproto;	/* destined for unsupported protocol */
+
+	/*
+	 * Spare fields to be added before branching a stable branch, so
+	 * that structure can be enhanced without changing the kernel
+	 * binary interface.
+	 */
 };
 
 #include <net/ifq.h>	/* XXXAO: temporary unconditional include */
-
-/*
- * XXX These aliases are terribly dangerous because they could apply
- * to anything.
- */
-#define	if_mtu		if_data.ifi_mtu
-#define	if_type		if_data.ifi_type
-#define if_physical	if_data.ifi_physical
-#define	if_addrlen	if_data.ifi_addrlen
-#define	if_hdrlen	if_data.ifi_hdrlen
-#define	if_metric	if_data.ifi_metric
-#define	if_link_state	if_data.ifi_link_state
-#define	if_baudrate	if_data.ifi_baudrate
-#define	if_hwassist	if_data.ifi_hwassist
-#define	if_ipackets	if_data.ifi_ipackets
-#define	if_ierrors	if_data.ifi_ierrors
-#define	if_opackets	if_data.ifi_opackets
-#define	if_oerrors	if_data.ifi_oerrors
-#define	if_collisions	if_data.ifi_collisions
-#define	if_ibytes	if_data.ifi_ibytes
-#define	if_obytes	if_data.ifi_obytes
-#define	if_imcasts	if_data.ifi_imcasts
-#define	if_omcasts	if_data.ifi_omcasts
-#define	if_iqdrops	if_data.ifi_iqdrops
-#define	if_oqdrops	if_data.ifi_oqdrops
-#define	if_noproto	if_data.ifi_noproto
-#define	if_lastchange	if_data.ifi_lastchange
 
 /* for compatibility with other BSDs */
 #define	if_addrlist	if_addrhead
@@ -513,6 +529,8 @@ typedef	void *if_com_alloc_t(u_char type, struct ifnet *ifp);
 typedef	void if_com_free_t(void *com, u_char type);
 void	if_register_com_alloc(u_char type, if_com_alloc_t *a, if_com_free_t *f);
 void	if_deregister_com_alloc(u_char type);
+void	if_data_copy(struct ifnet *, struct if_data *);
+uint64_t if_get_counter_compat(struct ifnet *, ifnet_counter);
 
 #define IF_LLADDR(ifp)							\
     LLADDR((struct sockaddr_dl *)((ifp)->if_addr->ifa_addr))
@@ -565,9 +583,6 @@ int if_multiaddr_count(if_t ifp, int max);
 
 int if_getamcount(if_t ifp);
 struct ifaddr * if_getifaddr(if_t ifp);
-/* Shim for drivers using drvapi */
-int ifmedia_ioctl_drv(if_t ifp, struct ifreq *ifr, struct ifmedia *ifm,
-    u_long cmd);
 
 /* Statistics */
 
@@ -592,29 +607,11 @@ int if_setimcasts(if_t ifp, int pkts);
 
 /* Functions */
 void if_setinitfn(if_t ifp, void (*)(void *));
-void if_setioctlfn(if_t ifp, int (*)(void *, u_long, caddr_t));
-void if_setstartfn(if_t ifp, void (*)(void *));
+void if_setioctlfn(if_t ifp, int (*)(if_t, u_long, caddr_t));
+void if_setstartfn(if_t ifp, void (*)(if_t));
 void if_settransmitfn(if_t ifp, if_transmit_fn_t);
 void if_setqflushfn(if_t ifp, if_qflush_fn_t);
  
-
-/* Shim functions till all drivers use drvapi */
-void arp_ifinit_drv(if_t ifp, struct ifaddr *ifa);
-void ether_ifattach_drv(if_t ifp, const u_int8_t *lla);
-void ether_ifdetach_drv(if_t ifp);
-int ether_ioctl_drv(if_t ifp, u_long cmd, caddr_t data);
-void if_free_drv(if_t ifp);
-void if_initname_drv(if_t ifp, const char *name, int unit);
-void if_linkstate_change_drv(if_t ifp, int link_state);
-
-struct ifmedia;
-void ifmedia_init_drv(struct ifmedia *, int, int (*)(void *),
-	void (*)(void *, struct ifmediareq *));
-
-void if_addr_rlock_drv(if_t ifp);
-void if_addr_runlock_drv(if_t ifp);
-void if_qflush_drv(if_t ifp);
-
 /* Revisit the below. These are inline functions originally */
 int drbr_inuse_drv(if_t ifp, struct buf_ring *br);
 struct mbuf* drbr_dequeue_drv(if_t ifp, struct buf_ring *br);

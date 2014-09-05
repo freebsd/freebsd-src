@@ -25,7 +25,7 @@ options  	SCHED_ULE		# ULE scheduler
 options  	PREEMPTION		# Enable kernel thread preemption
 options  	INET			# InterNETworking
 options  	INET6			# IPv6 communications protocols
-#options  	SCTP			# Stream Control Transmission Protocol
+options  	SCTP			# Stream Control Transmission Protocol
 options  	FFS			# Berkeley Fast Filesystem
 options  	SOFTUPDATES		# Enable FFS soft updates support
 options  	UFS_ACL			# Support for access control lists
@@ -80,7 +80,6 @@ device  	md			# Memory "disks"
 device  	ether			# Ethernet support
 device  	miibus			# Required for ethernet
 device  	bpf			# Berkeley packet filter (required for DHCP)
-#device  	iomux			# IO Multiplexor
 
 # General-purpose input/output
 device  	gpio
@@ -94,10 +93,10 @@ device  	mmc			# SD/MMC protocol
 device  	mmcsd			# SDCard disk device
 
 # SCSI peripherals
-device  	scbus			# SCSI bus (required for SCSI)
+device  	scbus			# SCSI bus (required for ATA/SCSI)
 device  	da			# Direct Access (disks)
 device  	cd			# CD
-device  	pass			# Passthrough device (direct SCSI access)
+device  	pass			# Passthrough device (direct ATA/SCSI access)
 
 # USB support
 #options  	USB_DEBUG		# enable debug msgs

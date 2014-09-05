@@ -1,5 +1,9 @@
 # $FreeBSD$
 
+# Use the following command to build local debug version of dynamic
+# linker:
+# make DEBUG_FLAGS=-g DEBUG=-DDEBUG MK_TESTS=no all
+
 .include <src.opts.mk>
 MK_SSP=		no
 

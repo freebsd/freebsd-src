@@ -34,8 +34,7 @@
 #include <linux/errno.h>
 #include <linux/slab.h>
 #include <linux/mm.h>
-//#include <linux/export.h>  /* XXX SK probabaly not needed in freeBSD XXX */
-#include <linux/bitmap.h>
+#include <linux/bitops.h>
 #include <linux/dma-mapping.h>
 #include <linux/vmalloc.h>
 

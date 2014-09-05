@@ -115,9 +115,13 @@ __FBSDID("$FreeBSD$");
 
 /* the kernel process "vm_pageout"*/
 static void vm_pageout(void);
+static void vm_pageout_init(void);
 static int vm_pageout_clean(vm_page_t);
 static void vm_pageout_scan(struct vm_domain *vmd, int pass);
 static void vm_pageout_mightbe_oom(struct vm_domain *vmd, int pass);
+
+SYSINIT(pagedaemon_init, SI_SUB_KTHREAD_PAGE, SI_ORDER_FIRST, vm_pageout_init,
+    NULL);
 
 struct proc *pageproc;
 
@@ -126,7 +130,7 @@ static struct kproc_desc page_kp = {
 	vm_pageout,
 	&pageproc
 };
-SYSINIT(pagedaemon, SI_SUB_KTHREAD_PAGE, SI_ORDER_FIRST, kproc_start,
+SYSINIT(pagedaemon, SI_SUB_KTHREAD_PAGE, SI_ORDER_SECOND, kproc_start,
     &page_kp);
 
 #if !defined(NO_SWAPPING)
@@ -1299,6 +1303,23 @@ relock_queues:
 	}
 	vm_pagequeue_unlock(pq);
 
+#if !defined(NO_SWAPPING)
+	/*
+	 * Wakeup the swapout daemon if we didn't cache or free the targeted
+	 * number of pages. 
+	 */
+	if (vm_swap_enabled && page_shortage > 0)
+		vm_req_vmdaemon(VM_SWAP_NORMAL);
+#endif
+
+	/*
+	 * Wakeup the sync daemon if we skipped a vnode in a writeable object
+	 * and we didn't cache or free enough pages.
+	 */
+	if (vnodes_skipped > 0 && page_shortage > vm_cnt.v_free_target -
+	    vm_cnt.v_free_min)
+		(void)speedup_syncer();
+
 	/*
 	 * Compute the number of pages we want to try to move from the
 	 * active queue to the inactive queue.
@@ -1408,20 +1429,6 @@ relock_queues:
 		}
 	}
 #endif
-		
-	/*
-	 * If we didn't get enough free pages, and we have skipped a vnode
-	 * in a writeable object, wakeup the sync daemon.  And kick swapout
-	 * if we did not get enough free pages.
-	 */
-	if (vm_paging_target() > 0) {
-		if (vnodes_skipped && vm_page_count_min())
-			(void) speedup_syncer();
-#if !defined(NO_SWAPPING)
-		if (vm_swap_enabled && vm_page_count_target())
-			vm_req_vmdaemon(VM_SWAP_NORMAL);
-#endif
-	}
 
 	/*
 	 * If we are critically low on one of RAM or swap and low on
@@ -1637,15 +1644,11 @@ vm_pageout_worker(void *arg)
 }
 
 /*
- *	vm_pageout is the high level pageout daemon.
+ *	vm_pageout_init initialises basic pageout daemon settings.
  */
 static void
-vm_pageout(void)
+vm_pageout_init(void)
 {
-#if MAXMEMDOM > 1
-	int error, i;
-#endif
-
 	/*
 	 * Initialize some paging parameters.
 	 */
@@ -1691,6 +1694,17 @@ vm_pageout(void)
 	/* XXX does not really belong here */
 	if (vm_page_max_wired == 0)
 		vm_page_max_wired = vm_cnt.v_free_count / 3;
+}
+
+/*
+ *     vm_pageout is the high level pageout daemon.
+ */
+static void
+vm_pageout(void)
+{
+#if MAXMEMDOM > 1
+	int error, i;
+#endif
 
 	swap_pager_swap_init();
 #if MAXMEMDOM > 1

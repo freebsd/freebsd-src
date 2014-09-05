@@ -454,17 +454,9 @@ ixl_init_tx_ring(struct ixl_queue *que)
 {
 	struct tx_ring *txr = &que->txr;
 	struct ixl_tx_buf *buf;
-#ifdef DEV_NETMAP
-	struct ixl_vsi *vsi = que->vsi;
-	struct netmap_adapter *na = NA(vsi->ifp);
-	struct netmap_slot *slot;
-#endif /* DEV_NETMAP */
 
 	/* Clear the old ring contents */
 	IXL_TX_LOCK(txr);
-#ifdef DEV_NETMAP
-	slot = netmap_reset(na, NR_TX, que->me, 0);
-#endif
 	bzero((void *)txr->base,
 	      (sizeof(struct i40e_tx_desc)) * que->num_desc);
 
@@ -488,13 +480,6 @@ ixl_init_tx_ring(struct ixl_queue *que)
 			m_freem(buf->m_head);
 			buf->m_head = NULL;
 		}
-#ifdef DEV_NETMAP
-		if (slot)
-		{
-			int si = netmap_idx_n2k(&na->tx_rings[que->me], i);
-			netmap_load_map(txr->tag, buf->map, NMB(slot + si));
-		}
-#endif
 		/* Clear the EOP index */
 		buf->eop_index = -1;
         }
@@ -573,9 +558,13 @@ ixl_tx_setup_offload(struct ixl_queue *que,
     struct mbuf *mp, u32 *cmd, u32 *off)
 {
 	struct ether_vlan_header	*eh;
+#ifdef INET
 	struct ip			*ip = NULL;
+#endif
 	struct tcphdr			*th = NULL;
+#ifdef INET6
 	struct ip6_hdr			*ip6;
+#endif
 	int				elen, ip_hlen = 0, tcp_hlen;
 	u16				etype;
 	u8				ipproto = 0;
@@ -606,6 +595,7 @@ ixl_tx_setup_offload(struct ixl_queue *que,
 	}
 
 	switch (etype) {
+#ifdef INET
 		case ETHERTYPE_IP:
 			ip = (struct ip *)(mp->m_data + elen);
 			ip_hlen = ip->ip_hl << 2;
@@ -617,13 +607,16 @@ ixl_tx_setup_offload(struct ixl_queue *que,
 			else
 				*cmd |= I40E_TX_DESC_CMD_IIPT_IPV4;
 			break;
+#endif
+#ifdef INET6
 		case ETHERTYPE_IPV6:
 			ip6 = (struct ip6_hdr *)(mp->m_data + elen);
 			ip_hlen = sizeof(struct ip6_hdr);
 			ipproto = ip6->ip6_nxt;
 			th = (struct tcphdr *)((caddr_t)ip6 + ip_hlen);
 			*cmd |= I40E_TX_DESC_CMD_IIPT_IPV6;
-			/* Falls thru */
+			break;
+#endif
 		default:
 			break;
 	}
@@ -681,9 +674,15 @@ ixl_tso_setup(struct ixl_queue *que, struct mbuf *mp)
 	u16				etype;
 	int				idx, elen, ip_hlen, tcp_hlen;
 	struct ether_vlan_header	*eh;
+#ifdef INET
 	struct ip			*ip;
+#endif
+#ifdef INET6
 	struct ip6_hdr			*ip6;
+#endif
+#if defined(INET6) || defined(INET)
 	struct tcphdr			*th;
+#endif
 	u64				type_cmd_tso_mss;
 
 	/*
@@ -725,9 +724,9 @@ ixl_tso_setup(struct ixl_queue *que, struct mbuf *mp)
 		break;
 #endif
 	default:
-		panic("%s: CSUM_TSO but no supported IP version (0x%04x)",
+		printf("%s: CSUM_TSO but no supported IP version (0x%04x)",
 		    __func__, ntohs(etype));
-		break;
+		return FALSE;
         }
 
         /* Ensure we have at least the IP+TCP header in the first mbuf. */
@@ -793,36 +792,6 @@ ixl_txeof(struct ixl_queue *que)
 
 
 	mtx_assert(&txr->mtx, MA_OWNED);
-
-#ifdef DEV_NETMAP
-	if (ifp->if_capenable & IFCAP_NETMAP) {
-		struct netmap_adapter *na = NA(ifp);
-		struct netmap_kring *kring = &na->tx_rings[que->me];
-		tx_desc = txr->base;
-		bus_dmamap_sync(txr->dma.tag, txr->dma.map,
-		     BUS_DMASYNC_POSTREAD);
-		if (!netmap_mitigate ||
-		    (kring->nr_kflags < kring->nkr_num_slots &&
-		    tx_desc[kring->nr_kflags].cmd_type_offset_bsz &
-		        htole32(I40E_TX_DESC_DTYPE_DESC_DONE)))
-		{
-#if NETMAP_API < 4
-			struct ixl_pf *pf = vsi->pf;
-			kring->nr_kflags = kring->nkr_num_slots;
-			selwakeuppri(&na->tx_rings[que->me].si, PI_NET);
-			IXL_TX_UNLOCK(txr);
-			IXL_PF_LOCK(pf);
-			selwakeuppri(&na->tx_si, PI_NET);
-			IXL_PF_UNLOCK(pf);
-			IXL_TX_LOCK(txr);
-#else /* NETMAP_API >= 4 */
-			netmap_tx_irq(ifp, txr->que->me);
-#endif /* NETMAP_API */
-		}
-		// XXX guessing there is no more work to be done
-		return FALSE;
-	}
-#endif /* DEV_NETMAP */
 
 	/* These are not the descriptors you seek, move along :) */
 	if (txr->avail == que->num_desc) {
@@ -1011,12 +980,8 @@ no_split:
 		buf->m_pack = mp;
 		bus_dmamap_sync(rxr->ptag, buf->pmap,
 		    BUS_DMASYNC_PREREAD);
-#ifdef DEV_NETMAP
-		rxr->base[i].read.pkt_addr = buf->addr;
-#else /* !DEV_NETMAP */
 		rxr->base[i].read.pkt_addr =
 		   htole64(pseg[0].ds_addr);
-#endif /* DEV_NETMAP */
 		/* Used only when doing header split */
 		rxr->base[i].read.hdr_addr = 0;
 
@@ -1127,15 +1092,8 @@ ixl_init_rx_ring(struct ixl_queue *que)
 	struct ixl_rx_buf	*buf;
 	bus_dma_segment_t	pseg[1], hseg[1];
 	int			rsize, nsegs, error = 0;
-#ifdef DEV_NETMAP
-	struct netmap_adapter *na = NA(ifp);
-	struct netmap_slot *slot;
-#endif /* DEV_NETMAP */
 
 	IXL_RX_LOCK(rxr);
-#ifdef DEV_NETMAP
-	slot = netmap_reset(na, NR_RX, que->me, 0);
-#endif
 	/* Clear the ring contents */
 	rsize = roundup2(que->num_desc *
 	    sizeof(union i40e_rx_desc), DBA_ALIGN);
@@ -1169,21 +1127,6 @@ ixl_init_rx_ring(struct ixl_queue *que)
 		struct mbuf	*mh, *mp;
 
 		buf = &rxr->buffers[j];
-#ifdef DEV_NETMAP
-		if (slot)
-		{
-			int sj = netmap_idx_n2k(&na->rx_rings[que->me], j);
-			u64 paddr;
-			void *addr;
-
-			addr = PNMB(slot + sj, &paddr);
-			netmap_load_map(rxr->ptag, buf->pmap, addr);
-			/* Update descriptor and cached value */
-			rxr->base[j].read.pkt_addr = htole64(paddr);
-			buf->addr = htole64(paddr);
-			continue;
-		}
-#endif /* DEV_NETMAP */
 		/*
 		** Don't allocate mbufs if not
 		** doing header split, its wasteful
@@ -1415,29 +1358,6 @@ ixl_rxeof(struct ixl_queue *que, int count)
 
 
 	IXL_RX_LOCK(rxr);
-
-#ifdef DEV_NETMAP
-#if NETMAP_API < 4
-	if (ifp->if_capenable & IFCAP_NETMAP)
-	{
-		struct netmap_adapter *na = NA(ifp);
-
-		na->rx_rings[que->me].nr_kflags |= NKR_PENDINTR;
-		selwakeuppri(&na->rx_rings[que->me].si, PI_NET);
-		IXL_RX_UNLOCK(rxr);
-		IXL_PF_LOCK(vsi->pf);
-		selwakeuppri(&na->rx_si, PI_NET);
-		IXL_PF_UNLOCK(vsi->pf);
-		return (FALSE);
-	}
-#else /* NETMAP_API >= 4 */
-	if (netmap_rx_irq(ifp, que->me, &processed))
-	{
-		IXL_RX_UNLOCK(rxr);
-		return (FALSE);
-	}
-#endif /* NETMAP_API */
-#endif /* DEV_NETMAP */
 
 	for (i = rxr->next_check; count != 0;) {
 		struct mbuf	*sendmp, *mh, *mp;

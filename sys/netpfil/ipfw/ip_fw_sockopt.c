@@ -3112,7 +3112,7 @@ ipfw_objhash_bitmap_alloc(uint32_t items, void **idx, int *pblocks)
 	u_long *idx_mask;
 
 	KASSERT((items % BLOCK_ITEMS) == 0,
-	   ("bitmask size needs to power of 2 and greater or equal to %d",
+	   ("bitmask size needs to power of 2 and greater or equal to %lu",
 	    BLOCK_ITEMS));
 
 	max_blocks = items / BLOCK_ITEMS;

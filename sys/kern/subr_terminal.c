@@ -476,13 +476,17 @@ termcn_cnregister(struct terminal *tm)
 static void
 termcn_cngrab(struct consdev *cp)
 {
+	struct terminal *tm = cp->cn_arg;
 
+	tm->tm_class->tc_cngrab(tm);
 }
 
 static void
 termcn_cnungrab(struct consdev *cp)
 {
+	struct terminal *tm = cp->cn_arg;
 
+	tm->tm_class->tc_cnungrab(tm);
 }
 
 static void

@@ -223,6 +223,8 @@
 #define	SDHCI_SPEC_200		1
 #define	SDHCI_SPEC_300		2
 
+SYSCTL_DECL(_hw_sdhci);
+
 struct sdhci_slot {
 	u_int		quirks;		/* Chip specific quirks */
 	u_int		caps;		/* Override SDHCI_CAPABILITIES */

@@ -5332,8 +5332,7 @@ pf_route(struct mbuf **m, struct pf_rule *r, int dir, struct ifnet *oifp,
 	 * care of the fragmentation for us, we can just send directly.
 	 */
 	if (ip_len <= ifp->if_mtu ||
-	    (m0->m_pkthdr.csum_flags & ifp->if_hwassist & CSUM_TSO) != 0 ||
-	    ((ip_off & IP_DF) == 0 && (ifp->if_hwassist & CSUM_FRAGMENT))) {
+	    (m0->m_pkthdr.csum_flags & ifp->if_hwassist & CSUM_TSO) != 0) {
 		ip->ip_sum = 0;
 		if (m0->m_pkthdr.csum_flags & CSUM_IP & ~ifp->if_hwassist) {
 			ip->ip_sum = in_cksum(m0, ip->ip_hl << 2);
@@ -6000,6 +5999,10 @@ done:
 		*m0 = NULL;
 		action = PF_PASS;
 		break;
+	case PF_DROP:
+		m_freem(*m0);
+		*m0 = NULL;
+		break;
 	default:
 		/* pf_route() returns unlocked. */
 		if (r->rt) {
@@ -6375,6 +6378,10 @@ done:
 	case PF_DEFER:
 		*m0 = NULL;
 		action = PF_PASS;
+		break;
+	case PF_DROP:
+		m_freem(*m0);
+		*m0 = NULL;
 		break;
 	default:
 		/* pf_route6() returns unlocked. */

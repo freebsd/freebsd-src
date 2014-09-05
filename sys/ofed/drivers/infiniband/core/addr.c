@@ -36,12 +36,8 @@
 #include <linux/mutex.h>
 #include <linux/inetdevice.h>
 #include <linux/workqueue.h>
-#include <net/arp.h>
-#include <net/neighbour.h>
 #include <net/route.h>
 #include <net/netevent.h>
-#include <net/addrconf.h>
-#include <net/ip6_route.h>
 #include <rdma/ib_addr.h>
 
 MODULE_AUTHOR("Sean Hefty");

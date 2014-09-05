@@ -410,9 +410,9 @@ vtbuf_init_early(struct vt_buf *vb)
 
 	vtbuf_init_rows(vb);
 	rect.tr_begin.tp_row = rect.tr_begin.tp_col = 0;
-	rect.tr_end = vb->vb_scr_size;
-	vtbuf_fill(vb, &rect, VTBUF_SPACE_CHAR((boothowto & RB_MUTE) == 0 ?
-	    TERMINAL_KERN_ATTR : TERMINAL_NORM_ATTR));
+	rect.tr_end.tp_col = vb->vb_scr_size.tp_col;
+	rect.tr_end.tp_row = vb->vb_history_size;
+	vtbuf_fill(vb, &rect, VTBUF_SPACE_CHAR(TERMINAL_NORM_ATTR));
 	vtbuf_make_undirty(vb);
 	if ((vb->vb_flags & VBF_MTX_INIT) == 0) {
 		mtx_init(&vb->vb_lock, "vtbuf", NULL, MTX_SPIN);
@@ -451,7 +451,7 @@ vtbuf_sethistory_size(struct vt_buf *vb, int size)
 }
 
 void
-vtbuf_grow(struct vt_buf *vb, const term_pos_t *p, int history_size)
+vtbuf_grow(struct vt_buf *vb, const term_pos_t *p, unsigned int history_size)
 {
 	term_char_t *old, *new, **rows, **oldrows, **copyrows, *row;
 	int bufsize, rowssize, w, h, c, r;

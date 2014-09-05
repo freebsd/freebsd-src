@@ -29,9 +29,7 @@ CTFFLAGS+= -g
 PROG=	${PROG_CXX}
 .endif
 
-.if defined(PROG) && target(${PROG})
-MK_DEBUG_FILES=	no
-.elif !empty(LDFLAGS:M-Wl,*--oformat,*) || !empty(LDFLAGS:M-static)
+.if !empty(LDFLAGS:M-Wl,*--oformat,*) || !empty(LDFLAGS:M-static)
 MK_DEBUG_FILES=	no
 .endif
 
