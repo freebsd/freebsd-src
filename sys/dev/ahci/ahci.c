@@ -187,10 +187,9 @@ ahci_attach(device_t dev)
 	ctlr->ichannels = ATA_INL(ctlr->r_mem, AHCI_PI);
 
 	/* Identify and set separate quirks for HBA and RAID f/w Marvells. */
-	if ((ctlr->quirks & AHCI_Q_NOBSYRES) &&
-	    (ctlr->quirks & AHCI_Q_ALTSIG) &&
+	if ((ctlr->quirks & AHCI_Q_ALTSIG) &&
 	    (ctlr->caps & AHCI_CAP_SPM) == 0)
-		ctlr->quirks &= ~AHCI_Q_NOBSYRES;
+		ctlr->quirks |= AHCI_Q_NOBSYRES;
 
 	if (ctlr->quirks & AHCI_Q_1CH) {
 		ctlr->caps &= ~AHCI_CAP_NPMASK;
@@ -1533,9 +1532,15 @@ ahci_execute_transaction(struct ahci_slot *slot)
 			}
 		}
 
-		/* Marvell controllers do not wait for readyness. */
-		if ((ch->quirks & AHCI_Q_NOBSYRES) && softreset == 2 &&
-		    et == AHCI_ERR_NONE) {
+		/*
+		 * Marvell HBAs with non-RAID firmware do not wait for
+		 * readiness after soft reset, so we have to wait here.
+		 * Marvell RAIDs have no this problem, but instead sometimes
+		 * forget to update FIS receive area, breaking this wait.
+		 */
+		if ((ch->quirks & AHCI_Q_NOBSYRES) == 0 &&
+		    (ch->quirks & AHCI_Q_ATI_PMP_BUG) == 0 &&
+		    softreset == 2 && et == AHCI_ERR_NONE) {
 			while ((val = fis[2]) & ATA_S_BUSY) {
 				DELAY(10);
 				if (count++ >= timeout)
