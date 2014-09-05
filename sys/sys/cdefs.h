@@ -280,12 +280,10 @@
 #define	_Atomic(T)		struct { T volatile __val; }
 #endif
 
-#if !__GNUC_PREREQ__(4, 7)
 #if defined(__cplusplus) && __cplusplus >= 201103L
 #define	_Noreturn		[[noreturn]]
 #else
 #define	_Noreturn		__dead2
-#endif
 #endif
 
 #if !__has_extension(c_static_assert) && !__GNUC_PREREQ__(4, 7)
@@ -301,7 +299,7 @@
 #endif
 #endif
 
-#if !__has_extension(c_thread_local) && !__GNUC_PREREQ__(4, 9)
+#if !__has_extension(c_thread_local)
 /*
  * XXX: Some compilers (Clang 3.3, GCC 4.7) falsely announce C++11 mode
  * without actually supporting the thread_local keyword. Don't check for
