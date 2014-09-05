@@ -162,14 +162,6 @@ getline(char **linep __unused, size_t *linecapp __unused, FILE *stream __unused)
 }
 
 int
-fclose(FILE *stream __unused)
-{
-
-	errno = ECAPMODE;
-	return (-1);
-}
-
-int
 fcntl(int fd __unused, int cmd __unused, ...)
 {
 	
@@ -177,59 +169,8 @@ fcntl(int fd __unused, int cmd __unused, ...)
 	return EOF;
 }
 
-int
-fflush(FILE *stream __unused)
-{
-
-	errno = ECAPMODE;
-	return (EOF);
-}
-
-FILE *
-fopen(const char *path __unused, const char *mode __unused)
-{
-
-	errno = ECAPMODE;
-	return (NULL);
-}
-
 pid_t
 fork(void)
-{
-
-	errno = ECAPMODE;
-	return (-1);
-}
-
-int
-fprintf(FILE *stream __unused, const char *format __unused, ...)
-{
-
-	errno = ECAPMODE;
-	return (-1);
-}
-
-int fprintf_l(FILE *stream __unused, locale_t loc __unused, const char *format __unused, ...);
-int
-fprintf_l(FILE *stream __unused, locale_t loc __unused,
-    const char *format __unused, ...)
-{
-
-	errno = ECAPMODE;
-	return (-1);
-}
-
-int
-fputc(int c __unused, FILE *stream __unused)
-{
-
-	errno = ECAPMODE;
-	return (-1);
-}
-
-size_t
-fread(void *ptr __unused, size_t size __unused, size_t nmemb __unused,
-	      FILE *stream __unused)
 {
 
 	errno = ECAPMODE;
@@ -251,15 +192,6 @@ fstat(int fd __unused, struct stat *sb __unused)
 
 	errno = ECAPMODE;
 	return (-1);
-}
-
-size_t
-fwrite(const void *ptr __unused, size_t size __unused, size_t nitems __unused,
-    FILE *stream __unused)
-{
-	
-	errno = ECAPMODE;
-	return (0);
 }
 
 int
@@ -369,13 +301,6 @@ pread(int fd __unused, void *buf __unused, size_t nbytes __unused,
 }
 
 int
-printf(const char *format __unused, ...)
-{
-
-	return(0);
-}
-
-int
 puts(const char *str __unused)
 {
 
@@ -425,13 +350,6 @@ readlink(const char *path __unused, char *buf __unused, size_t bufsiz __unused)
 	return (-1);
 }
 
-void
-rewind(FILE *stream __unused)
-{
-
-	return;
-}
-
 int
 select(int nfds __unused, fd_set *readfds __unused, fd_set *writefds __unused,
     fd_set *exceptfds __unused, struct timeval *timeout __unused)
@@ -477,15 +395,6 @@ int
 utimes(const char *path __unused, const struct timeval *times __unused)
 {
 	
-	errno = ECAPMODE;
-	return (-1);
-}
-
-int
-vfprintf(FILE *stream __unused, const char *format __unused, va_list ap
-__unused)
-{
-
 	errno = ECAPMODE;
 	return (-1);
 }
