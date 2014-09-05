@@ -1,5 +1,7 @@
 /*-
  * Copyright (c) 2002-2009 Luigi Rizzo, Universita` di Pisa
+ * Copyright (c) 2014 Yandex LLC
+ * Copyright (c) 2014 Alexander V. Chernikov
  *
  * Supported by: Valeria Paoli
  *
@@ -29,8 +31,8 @@
 __FBSDID("$FreeBSD$");
 
 /*
- * Sockopt support for ipfw. The routines here implement
- * the upper half of the ipfw code.
+ * Control socket and rule management routines for ipfw.
+ * Control is currently implemented via IP_FW3 setsockopt() code.
  */
 
 #include "opt_ipfw.h"

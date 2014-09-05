@@ -1,10 +1,6 @@
 /*
- * Copyright (c) 2002-2003 Luigi Rizzo
- * Copyright (c) 1996 Alex Nash, Paul Traina, Poul-Henning Kamp
- * Copyright (c) 1994 Ugen J.S.Antsilevich
- *
- * Idea and grammar partially left from:
- * Copyright (c) 1993 Daniel Boulet
+ * Copyright (c) 2014 Yandex LLC
+ * Copyright (c) 2014 Alexander V. Chernikov
  *
  * Redistribution and use in source forms, with and without modification,
  * are permitted provided that this entire comment appears intact.
@@ -15,7 +11,7 @@
  *
  * This software is provided ``AS IS'' without any warranties of any kind.
  *
- * in-kernel tables support
+ * in-kernel ipfw tables support.
  *
  * $FreeBSD: projects/ipfw/sbin/ipfw/ipfw2.c 267467 2014-06-14 10:58:39Z melifaro $
  */

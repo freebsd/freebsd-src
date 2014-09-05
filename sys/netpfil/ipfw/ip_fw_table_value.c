@@ -1,5 +1,6 @@
 /*-
- * Copyright (c) 2004 Ruslan Ermilov and Vsevolod Lobko.
+ * Copyright (c) 2014 Yandex LLC
+ * Copyright (c) 2014 Alexander V. Chernikov
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
