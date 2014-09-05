@@ -1760,9 +1760,7 @@ main_loop(struct conf *conf, bool dont_fork)
 			client_salen = sizeof(client_sa);
 			kernel_accept(&connection_id, &portal_id,
 			    (struct sockaddr *)&client_sa, &client_salen);
-			if (client_salen < client_sa.ss_len)
-				log_errx(1, "salen %u < %u",
-				    client_salen, client_sa.ss_len);
+			assert(client_salen >= client_sa.ss_len);
 
 			log_debugx("incoming connection, id %d, portal id %d",
 			    connection_id, portal_id);
@@ -1806,10 +1804,8 @@ found:
 					    &client_salen);
 					if (client_fd < 0)
 						log_err(1, "accept");
-					if (client_salen < client_sa.ss_len)
-						log_errx(1, "salen %u < %u",
-						    client_salen,
-						    client_sa.ss_len);
+					assert(client_salen >= client_sa.ss_len);
+
 					handle_connection(portal, client_fd,
 					    (struct sockaddr *)&client_sa,
 					    dont_fork);
