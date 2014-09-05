@@ -52,11 +52,12 @@ __FBSDID("$FreeBSD$");
  * Initialize SVM h/w context i.e. the VMCB control and saved state areas.
  */
 int
-svm_init_vmcb(struct vmcb *vmcb, uint64_t iopm_base_pa,
-	      uint64_t msrpm_base_pa, uint64_t np_pml4)
+svm_init_vmcb(struct vmcb *vmcb, uint64_t iopm_base_pa, uint64_t msrpm_base_pa,
+    uint64_t np_pml4, uint32_t asid)
 {
 	struct vmcb_ctrl *ctrl;
 	struct vmcb_state *state;
+	uint16_t cr_shadow;
 
 	ctrl = &vmcb->ctrl;
 	state = &vmcb->state;
@@ -67,38 +68,6 @@ svm_init_vmcb(struct vmcb *vmcb, uint64_t iopm_base_pa,
 	/* Enable nested paging */
 	ctrl->np_enable = 1;
 	ctrl->n_cr3 = np_pml4;
-	
-	/* EFER_SVM must always be set when the guest is executing */
-	state->efer = EFER_SVM;
-
-	/* Set up the PAT to power-on state */
-	state->g_pat = PAT_VALUE(0, PAT_WRITE_BACK)	|
-	    PAT_VALUE(1, PAT_WRITE_THROUGH)	|
-	    PAT_VALUE(2, PAT_UNCACHED)		|
-	    PAT_VALUE(3, PAT_UNCACHEABLE)	|
-	    PAT_VALUE(4, PAT_WRITE_BACK)	|
-	    PAT_VALUE(5, PAT_WRITE_THROUGH)	|
-	    PAT_VALUE(6, PAT_UNCACHED)		|
-	    PAT_VALUE(7, PAT_UNCACHEABLE);
-
-	return (0);
-}
-
-/*
- * Set non-persistent fields of VMCB that are cleared by VMEXIT and must
- * be set before restarting the guest (e.g. ASID, intercepts etc).
- *
- * APM2, Section 15.6, VMEXIT
- */
-int
-svm_set_vmcb(struct vmcb *vmcb, uint8_t asid)
-{
-	struct vmcb_ctrl *ctrl;
-	struct vmcb_state *state;
-	uint16_t cr_shadow;
-
-	ctrl = &vmcb->ctrl;
-	state = &vmcb->state;
 
 	/*
 	 * Intercept accesses to the control registers that are not shadowed
@@ -110,7 +79,7 @@ svm_set_vmcb(struct vmcb *vmcb, uint8_t asid)
 	/* Intercept Machine Check exceptions. */
 	ctrl->exception = BIT(IDT_MC);
 
-	 /* Intercept various events (for e.g. I/O, MSR and CPUID accesses) */
+	/* Intercept various events (for e.g. I/O, MSR and CPUID accesses) */
 	ctrl->ctrl1 =  VMCB_INTCPT_IO |
 		       VMCB_INTCPT_MSR |
 		       VMCB_INTCPT_HLT |
@@ -123,10 +92,12 @@ svm_set_vmcb(struct vmcb *vmcb, uint8_t asid)
 		       VMCB_INTCPT_FERR_FREEZE |
 		       VMCB_INTCPT_SHUTDOWN;
 
-	/* VMRUN intercept is required, see APM2 */
+	/*
+	 * From section "Canonicalization and Consistency Checks" in APMv2
+	 * the VMRUN intercept bit must be set to pass the consistency check.
+	 */
 	ctrl->ctrl2 = VMCB_INTCPT_VMRUN;
 
-	/* ASID is cleared after every #VMEXIT. */
 	ctrl->asid = asid;
 
 	/*
@@ -137,9 +108,22 @@ svm_set_vmcb(struct vmcb *vmcb, uint8_t asid)
 	 */
 	ctrl->v_intr_masking = 1;
 
-	 /* Enable Last Branch Record aka LBR for debugging */
+	/* Enable Last Branch Record aka LBR for debugging */
 	ctrl->lbr_virt_en = 1;
 	state->dbgctl = BIT(0);
+
+	/* EFER_SVM must always be set when the guest is executing */
+	state->efer = EFER_SVM;
+
+	/* Set up the PAT to power-on state */
+	state->g_pat = PAT_VALUE(0, PAT_WRITE_BACK)	|
+	    PAT_VALUE(1, PAT_WRITE_THROUGH)	|
+	    PAT_VALUE(2, PAT_UNCACHED)		|
+	    PAT_VALUE(3, PAT_UNCACHEABLE)	|
+	    PAT_VALUE(4, PAT_WRITE_BACK)	|
+	    PAT_VALUE(5, PAT_WRITE_THROUGH)	|
+	    PAT_VALUE(6, PAT_UNCACHED)		|
+	    PAT_VALUE(7, PAT_UNCACHEABLE);
 
 	return (0);
 }

@@ -373,29 +373,7 @@ svm_msr_rd_ok(uint8_t *perm_bitmap, uint64_t msr)
 {
 	return svm_msr_perm(perm_bitmap, msr, true, false);
 }
-/*
- * Initialise VCPU.
- */
-static int
-svm_init_vcpu(struct svm_vcpu *vcpu, vm_paddr_t iopm_pa, vm_paddr_t msrpm_pa,
-		vm_paddr_t pml4_pa, uint8_t asid)
-{
-	
-	vcpu->lastcpu = NOCPU;
-	vcpu->vmcb_pa = vtophys(&vcpu->vmcb);
-	
-	/* 
-	 * Initiaise VMCB persistent area of vcpu.
-	 * 1. Permission bitmap for MSR and IO space.
-	 * 2. Nested paging.
-	 * 3. ASID of virtual machine. 
-	 */
-	if (svm_init_vmcb(&vcpu->vmcb, iopm_pa, msrpm_pa, pml4_pa)) {
-			return (EIO);
-	}
-	
-	return (0);
-}
+
 /*
  * Initialise a virtual machine.
  */
@@ -403,8 +381,9 @@ static void *
 svm_vminit(struct vm *vm, pmap_t pmap)
 {
 	struct svm_softc *svm_sc;
+	struct svm_vcpu *vcpu;
 	vm_paddr_t msrpm_pa, iopm_pa, pml4_pa;	
-	int i;
+	int i, error;
 
 	if (guest_asid >= max_asid) {
 		ERR("Host support max ASID:%d, can't create more guests.\n",
@@ -460,13 +439,15 @@ svm_vminit(struct vm *vm, pmap_t pmap)
 	pml4_pa = svm_sc->nptp;
 
 	for (i = 0; i < svm_sc->vcpu_cnt; i++) {
-		if (svm_init_vcpu(svm_get_vcpu(svm_sc, i), iopm_pa, msrpm_pa,
-				pml4_pa, svm_sc->asid)) {
-			ERR("SVM couldn't initialise VCPU%d\n", i);
+		vcpu = svm_get_vcpu(svm_sc, i);
+		vcpu->lastcpu = NOCPU;
+		vcpu->vmcb_pa = vtophys(&vcpu->vmcb);
+		error = svm_init_vmcb(&vcpu->vmcb, iopm_pa, msrpm_pa, pml4_pa,
+		    svm_sc->asid);
+		if (error)
 			goto cleanup;
-		}
 	}
-	
+
 	return (svm_sc);
 
 cleanup:
@@ -1235,8 +1216,6 @@ svm_vmrun(void *arg, int vcpu, register_t rip, pmap_t pmap,
 			vmexit->rip = state->rip;
 			break;
 		}
-
-		(void)svm_set_vmcb(svm_get_vmcb(svm_sc, vcpu), svm_sc->asid);
 
 		svm_inj_interrupts(svm_sc, vcpu, vlapic);
 
