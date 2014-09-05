@@ -720,8 +720,8 @@ login_negotiate_key(struct pdu *request, const char *name,
 			    "MaxRecvDataSegmentLength");
 		}
 		if (tmp > MAX_DATA_SEGMENT_LENGTH) {
-			log_debugx("capping MaxDataSegmentLength from %d to %d",
-			    tmp, MAX_DATA_SEGMENT_LENGTH);
+			log_debugx("capping MaxRecvDataSegmentLength "
+			    "from %d to %d", tmp, MAX_DATA_SEGMENT_LENGTH);
 			tmp = MAX_DATA_SEGMENT_LENGTH;
 		}
 		conn->conn_max_data_segment_length = tmp;
