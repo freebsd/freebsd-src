@@ -672,7 +672,7 @@ m_clget(struct mbuf *m, int how)
 {
 
 	if (m->m_flags & M_EXT)
-		printf("%s: %p mbuf already has cluster\n", __func__, m);
+		printf("%s: %p mbuf already has external storage\n", __func__, m);
 	m->m_ext.ext_buf = (char *)NULL;
 	uma_zalloc_arg(zone_clust, m, how);
 	/*
@@ -698,7 +698,7 @@ m_cljget(struct mbuf *m, int how, int size)
 	uma_zone_t zone;
 
 	if (m && m->m_flags & M_EXT)
-		printf("%s: %p mbuf already has cluster\n", __func__, m);
+		printf("%s: %p mbuf already has external storage\n", __func__, m);
 	if (m != NULL)
 		m->m_ext.ext_buf = NULL;
 
