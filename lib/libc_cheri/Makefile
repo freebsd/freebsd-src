@@ -20,27 +20,6 @@ SRCS=		cheri_clock_gettime.c	\
 		cheri_stdio.c		\
 		malloc.c
 
-# libc/gen
-#SRCS+=		_spinlock_stub.c
-
-# libc/stdio
-#
-# findfp.c, stdio.c: strong FD assumptions will need fixing
-#SRCS+=		fflush.c		\
-#		findfp.c		\
-#		fprintf.c		\
-#		fputc.c			\
-#		fputs.c			\
-#		fvwrite.c		\
-#		fwalk.c			\
-#		makebuf.c		\
-#		printf.c		\
-#		putc.c			\
-#		puts.c			\
-#		stdio.c			\
-#		vfprintf.c		\
-#		wsetup.c
-
 CFLAGS+=	-I${.CURDIR}/../libc/include \
 		-I${.CURDIR}/../libc/locale \
 		-I${.CURDIR}/../libc/mips \
@@ -54,6 +33,7 @@ SRCS+=		glue.c			\
 		misc.c
 # libc/gen
 SRCS+=		assert.c		\
+		fmtcheck.c		\
 		getprogname.c		\
 		errlst.c		\
 		errno.c			\
@@ -143,6 +123,8 @@ SRCS+=		bcopy.S			\
 		memmove.S		\
 		memmove_c.c		\
 		strcat.c		\
+		strcasecmp.c		\
+		strcasestr.c		\
 		strchr.S		\
 		strchr_c.c		\
 		strcmp.S		\

@@ -49,6 +49,7 @@
 #include <stdarg.h>
 #include <stddef.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 
 /*
@@ -545,6 +546,36 @@ printf(const char *fmt, ...)
 
 	va_start(ap, fmt);
 	retval = vprintf(fmt, ap);
+	va_end(ap);
+
+	return (retval);
+}
+
+int
+vasprintf(char **ret, const char *format, va_list ap)
+{
+	int len;
+
+	len = vsnprintf(NULL, 0, format, ap);
+	if (len < 0) {
+		*ret = NULL;
+		return (-1);
+	}
+	*ret = malloc(len + 1);
+	if (*ret == NULL)
+		return (-1);
+
+	return (vsnprintf(*ret, len+1, format, ap));
+}
+
+int
+asprintf(char **ret, const char *format, ...)
+{
+	va_list ap;
+	int retval;
+
+	va_start(ap, format);
+	retval = vasprintf(ret, format, ap);
 	va_end(ap);
 
 	return (retval);
