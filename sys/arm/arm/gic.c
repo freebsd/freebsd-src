@@ -166,7 +166,10 @@ gic_init_secondary(void)
 	/* Enable interrupt distribution */
 	gic_d_write_4(GICD_CTLR, 0x01);
 
-	/* Activate IRQ 29-30, ie private timer (secure & non-secure) IRQs */
+	/*
+	 * Activate the timer interrupts: virtual, secure, and non-secure.
+	 */
+	gic_d_write_4(GICD_ISENABLER(27 >> 5), (1UL << (27 & 0x1F)));
 	gic_d_write_4(GICD_ISENABLER(29 >> 5), (1UL << (29 & 0x1F)));
 	gic_d_write_4(GICD_ISENABLER(30 >> 5), (1UL << (30 & 0x1F)));
 }
