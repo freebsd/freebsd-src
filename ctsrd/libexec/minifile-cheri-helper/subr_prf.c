@@ -36,11 +36,12 @@
 
 /* __FBSDID("$FreeBSD: stable/8/sys/kern/subr_prf.c 210305 2010-07-20 18:55:13Z jkim $"); */
 
-#include "include/mips.h"
-#include "include/lib.h"
-#include "include/stdarg.h"
+#include <sys/types.h>
 
+#include <stdarg.h>
+#include <stddef.h>
 #include <stdio.h>
+#include <stdint.h>
 #include <stdlib.h>
 
 /*
@@ -50,6 +51,7 @@
 #define	toupper(c)	((c) - 0x20 * (((c) >= 'a') && ((c) <= 'z')))
 static char const hex2ascii_data[] = "0123456789abcdefghijklmnopqrstuvwxyz";
 
+#define  NBBY            8       /* Number of bits per byte. */
 /* Max number conversion buffer length: a u_quad_t in base 2, plus NUL byte. */
 #define MAXNBUF	(sizeof(intmax_t) * NBBY + 1)
 
@@ -61,8 +63,21 @@ struct snprintf_arg {
 extern	int log_open;
 
 static char *ksprintn(char *nbuf, uintmax_t num, int base, int *len, int upper);
+static int   kvprintf(char const *fmt, void (*func)(int, void*), void *arg,
+		int radix, va_list ap);
 static void  snprintf_func(int ch, void *arg);
 static void  nop_func(int ch, void *arg);
+
+/*
+ * General-purpose inlines.
+ */
+static inline int
+imax(int a, int b)
+{
+
+	return (a > b ? a : b);
+}
+
 
 /*
  * Scaled down version of sprintf(3).
@@ -221,7 +236,7 @@ ksprintn(char *nbuf, uintmax_t num, int base, int *lenp, int upper)
  *		("%6D", ptr, ":")   -> XX:XX:XX:XX:XX:XX
  *		("%*D", len, ptr, " " -> XX XX XX XX ...
  */
-int
+static int
 kvprintf(char const *fmt, void (*func)(int, void*), void *arg, int radix, va_list ap)
 {
 #define PCHAR(c) {int cc=(c); if (func) (*func)(cc,arg); else *d++ = cc; retval++; }
