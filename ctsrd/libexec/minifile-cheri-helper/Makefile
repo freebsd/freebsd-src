@@ -142,15 +142,10 @@ SRCS+=	gethex.c				\
 
 .PATH: ${.CURDIR}/../../../lib/libc/softfloat
 .PATH: ${.CURDIR}/../../../lib/libc/softfloat/bits64
-SRCS+=	gedf2.c					\
-	gtdf2.c					\
+SRCS+=	\
 	gtsf2.c					\
-	ledf2.c					\
-	ltdf2.c					\
 	ltsf2.c					\
-	eqdf2.c					\
 	eqsf2.c					\
-	nedf2.c					\
 	nesf2.c					\
 	softfloat.c
 
