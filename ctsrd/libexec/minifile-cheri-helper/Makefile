@@ -35,8 +35,11 @@ SRCS+=	_flock_stub.c				\
 	memchr.c				\
 	memcmp.c				\
 	memcpy.S				\
+	memcpy_c.s				\
 	memmove.S				\
+	memmove_c.c				\
 	memset.c				\
+	memset_c.c				\
 	qsort.c					\
 	setprogname.c				\
 	strcasecmp.c				\
