@@ -497,7 +497,7 @@ static void
 table_modify(ipfw_obj_header *oh, int ac, char *av[])
 {
 	ipfw_xtable_info xi;
-	int error, tcmd;
+	int tcmd;
 	size_t sz;
 	char tbuf[128];
 
@@ -520,7 +520,7 @@ table_modify(ipfw_obj_header *oh, int ac, char *av[])
 		}
 	}
 
-	if ((error = table_do_modify(oh, &xi)) != 0)
+	if (table_do_modify(oh, &xi) != 0)
 		err(EX_OSERR, "Table modification failed");
 }
 
@@ -553,14 +553,13 @@ static void
 table_lock(ipfw_obj_header *oh, int lock)
 {
 	ipfw_xtable_info xi;
-	int error;
 
 	memset(&xi, 0, sizeof(xi));
 
 	xi.mflags |= IPFW_TMFLAGS_LOCK;
 	xi.flags |= (lock != 0) ? IPFW_TGFLAGS_LOCKED : 0;
 
-	if ((error = table_do_modify(oh, &xi)) != 0)
+	if (table_do_modify(oh, &xi) != 0)
 		err(EX_OSERR, "Table %s failed", lock != 0 ? "lock" : "unlock");
 }
 
@@ -641,7 +640,6 @@ static int
 table_get_info(ipfw_obj_header *oh, ipfw_xtable_info *i)
 {
 	char tbuf[sizeof(ipfw_obj_header) + sizeof(ipfw_xtable_info)];
-	int error;
 	size_t sz;
 
 	sz = sizeof(tbuf);
@@ -649,8 +647,8 @@ table_get_info(ipfw_obj_header *oh, ipfw_xtable_info *i)
 	memcpy(tbuf, oh, sizeof(*oh));
 	oh = (ipfw_obj_header *)tbuf;
 
-	if ((error = do_get3(IP_FW_TABLE_XINFO, &oh->opheader, &sz)) != 0)
-		return (error);
+	if (do_get3(IP_FW_TABLE_XINFO, &oh->opheader, &sz) != 0)
+		return (errno);
 
 	if (sz < sizeof(tbuf))
 		return (EINVAL);
@@ -1058,7 +1056,6 @@ table_do_lookup(ipfw_obj_header *oh, char *key, ipfw_xtable_info *xi,
 	ipfw_obj_tentry *tent;
 	uint8_t type;
 	uint32_t vmask;
-	int error;
 	size_t sz;
 
 	memcpy(xbuf, oh, sizeof(*oh));
@@ -1073,8 +1070,8 @@ table_do_lookup(ipfw_obj_header *oh, char *key, ipfw_xtable_info *xi,
 	oh->ntlv.type = type;
 
 	sz = sizeof(xbuf);
-	if ((error = do_get3(IP_FW_TABLE_XFIND, &oh->opheader, &sz)) != 0)
-		return (error);
+	if (do_get3(IP_FW_TABLE_XFIND, &oh->opheader, &sz) != 0)
+		return (errno);
 
 	if (sz < sizeof(xbuf))
 		return (EINVAL);
@@ -1556,14 +1553,13 @@ tables_foreach(table_cb_t *f, void *arg, int sort)
 			return (ENOMEM);
 
 		olh->size = sz;
-		error = do_get3(IP_FW_TABLES_XLIST, &olh->opheader, &sz);
-		if (error == ENOMEM) {
-			sz = olh->size;
+		if (do_get3(IP_FW_TABLES_XLIST, &olh->opheader, &sz) != 0) {
 			free(olh);
-			continue;
-		} else if (error != 0) {
-			free(olh);
-			return (error);
+			if (errno == ENOMEM) {
+				sz = olh->size;
+				continue;
+			}
+			return (errno);
 		}
 
 		if (sort != 0)
@@ -1595,11 +1591,10 @@ table_do_get_list(ipfw_xtable_info *i, ipfw_obj_header **poh)
 {
 	ipfw_obj_header *oh;
 	size_t sz;
-	int error, c;
+	int c;
 
 	sz = 0;
 	oh = NULL;
-	error = 0;
 	for (c = 0; c < 8; c++) {
 		if (sz < i->size)
 			sz = i->size + 44;
@@ -1609,19 +1604,17 @@ table_do_get_list(ipfw_xtable_info *i, ipfw_obj_header **poh)
 			continue;
 		table_fill_objheader(oh, i);
 		oh->opheader.version = 1; /* Current version */
-		error = do_get3(IP_FW_TABLE_XLIST, &oh->opheader, &sz);
-
-		if (error == 0) {
+		if (do_get3(IP_FW_TABLE_XLIST, &oh->opheader, &sz) == 0) {
 			*poh = oh;
 			return (0);
 		}
 
-		if (error != ENOMEM)
+		if (errno != ENOMEM)
 			break;
 	}
 	free(oh);
 
-	return (error);
+	return (errno);
 }
 
 /*
@@ -1798,23 +1791,22 @@ table_do_get_stdlist(uint16_t opcode, ipfw_obj_lheader **polh)
 {
 	ipfw_obj_lheader req, *olh;
 	size_t sz;
-	int error;
 
 	memset(&req, 0, sizeof(req));
 	sz = sizeof(req);
 
-	error = do_get3(opcode, &req.opheader, &sz);
-	if (error != 0 && error != ENOMEM)
-		return (error);
+	if (do_get3(opcode, &req.opheader, &sz) != 0)
+		if (errno != ENOMEM)
+			return (errno);
 
 	sz = req.size;
 	if ((olh = calloc(1, sz)) == NULL)
 		return (ENOMEM);
 
 	olh->size = sz;
-	if ((error = do_get3(opcode, &olh->opheader, &sz)) != 0) {
+	if (do_get3(opcode, &olh->opheader, &sz) != 0) {
 		free(olh);
-		return (error);
+		return (errno);
 	}
 
 	*polh = olh;

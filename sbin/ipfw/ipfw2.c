@@ -575,7 +575,7 @@ do_cmd(int optname, void *optval, uintptr_t optlen)
 int
 do_set3(int optname, ip_fw3_opheader *op3, uintptr_t optlen)
 {
-	int errno;
+	int error;
 
 	if (co.test_only)
 		return (0);
@@ -587,10 +587,9 @@ do_set3(int optname, ip_fw3_opheader *op3, uintptr_t optlen)
 
 	op3->opcode = optname;
 
-	if (setsockopt(ipfw_socket, IPPROTO_IP, IP_FW3, op3, optlen) != 0)
-		return (errno);
+	error = setsockopt(ipfw_socket, IPPROTO_IP, IP_FW3, op3, optlen);
 
-	return (0);
+	return (error);
 }
 
 /*
@@ -620,11 +619,6 @@ do_get3(int optname, ip_fw3_opheader *op3, size_t *optlen)
 
 	error = getsockopt(ipfw_socket, IPPROTO_IP, IP_FW3, op3,
 	    (socklen_t *)optlen);
-
-	if (error == -1) {
-		if (errno != 0)
-			error = errno;
-	}
 
 	return (error);
 }
@@ -2511,7 +2505,7 @@ ipfw_list(int ac, char *av[], int show_counters)
 		sfo.flags |= IPFW_CFG_GET_STATES;
 	if (sfo.show_counters != 0)
 		sfo.flags |= IPFW_CFG_GET_COUNTERS;
-	if ((error = ipfw_get_config(&co, &sfo, &cfg, &sz)) != 0)
+	if (ipfw_get_config(&co, &sfo, &cfg, &sz) != 0)
 		err(EX_OSERR, "retrieving config failed");
 
 	error = ipfw_show_config(&co, &sfo, cfg, sz, ac, av);
@@ -2654,7 +2648,7 @@ ipfw_get_config(struct cmdline_opts *co, struct format_opts *fo,
 {
 	ipfw_cfg_lheader *cfg;
 	size_t sz;
-	int error, i;
+	int i;
 
 
 	if (co->test_only != 0) {
@@ -2676,10 +2670,10 @@ ipfw_get_config(struct cmdline_opts *co, struct format_opts *fo,
 		cfg->start_rule = fo->first;
 		cfg->end_rule = fo->last;
 
-		if ((error = do_get3(IP_FW_XGET, &cfg->opheader, &sz)) != 0) {
-			if (error != ENOMEM) {
+		if (do_get3(IP_FW_XGET, &cfg->opheader, &sz) != 0) {
+			if (errno != ENOMEM) {
 				free(cfg);
-				return (error);
+				return (errno);
 			}
 
 			/* Buffer size is not enough. Try to increase */
@@ -4865,23 +4859,23 @@ ipfw_get_tracked_ifaces(ipfw_obj_lheader **polh)
 {
 	ipfw_obj_lheader req, *olh;
 	size_t sz;
-	int error;
 
 	memset(&req, 0, sizeof(req));
 	sz = sizeof(req);
 
-	error = do_get3(IP_FW_XIFLIST, &req.opheader, &sz);
-	if (error != 0 && error != ENOMEM)
-		return (error);
+	if (do_get3(IP_FW_XIFLIST, &olh->opheader, &sz) != 0) {
+		if (errno != ENOMEM)
+			return (errno);
+	}
 
 	sz = req.size;
 	if ((olh = calloc(1, sz)) == NULL)
 		return (ENOMEM);
 
 	olh->size = sz;
-	if ((error = do_get3(IP_FW_XIFLIST, &olh->opheader, &sz)) != 0) {
+	if (do_get3(IP_FW_XIFLIST, &olh->opheader, &sz) != 0) {
 		free(olh);
-		return (error);
+		return (errno);
 	}
 
 	*polh = olh;
