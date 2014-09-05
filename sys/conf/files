@@ -2542,6 +2542,7 @@ dev/usb/serial/usb_serial.c 	optional ucom | u3g | uark | ubsa | ubser | \
 #
 dev/usb/misc/ufm.c		optional ufm
 dev/usb/misc/udbp.c		optional udbp
+dev/usb/misc/uled.c		optional uled
 #
 # USB input drivers
 #
