@@ -575,7 +575,6 @@ do_cmd(int optname, void *optval, uintptr_t optlen)
 int
 do_set3(int optname, ip_fw3_opheader *op3, uintptr_t optlen)
 {
-	int error;
 
 	if (co.test_only)
 		return (0);
@@ -587,9 +586,7 @@ do_set3(int optname, ip_fw3_opheader *op3, uintptr_t optlen)
 
 	op3->opcode = optname;
 
-	error = setsockopt(ipfw_socket, IPPROTO_IP, IP_FW3, op3, optlen);
-
-	return (error);
+	return (setsockopt(ipfw_socket, IPPROTO_IP, IP_FW3, op3, optlen));
 }
 
 /*
