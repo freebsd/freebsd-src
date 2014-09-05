@@ -107,12 +107,6 @@ static void export_table_info(struct ip_fw_chain *ch, struct table_config *tc,
 static int dump_table_tentry(void *e, void *arg);
 static int dump_table_xentry(void *e, void *arg);
 
-static int ipfw_dump_table_v0(struct ip_fw_chain *ch, struct sockopt_data *sd);
-static int ipfw_dump_table_v1(struct ip_fw_chain *ch, struct sockopt_data *sd);
-static int ipfw_manage_table_ent_v0(struct ip_fw_chain *ch, ip_fw3_opheader *op3,
-    struct sockopt_data *sd);
-static int ipfw_manage_table_ent_v1(struct ip_fw_chain *ch, ip_fw3_opheader *op3,
-    struct sockopt_data *sd);
 static int swap_tables(struct ip_fw_chain *ch, struct tid_info *a,
     struct tid_info *b);
 
@@ -887,30 +881,6 @@ check_table_space(struct ip_fw_chain *ch, struct tableop_state *ts,
 }
 
 /*
- * Selects appropriate table operation handler
- * depending on opcode version.
- */
-int
-ipfw_manage_table_ent(struct ip_fw_chain *ch, ip_fw3_opheader *op3,
-    struct sockopt_data *sd)
-{
-	int error;
-
-	switch (op3->version) {
-	case 0:
-		error = ipfw_manage_table_ent_v0(ch, op3, sd);
-		break;
-	case 1:
-		error = ipfw_manage_table_ent_v1(ch, op3, sd);
-		break;
-	default:
-		error = ENOTSUP;
-	}
-
-	return (error);
-}
-
-/*
  * Adds or deletes record in table.
  * Data layout (v0):
  * Request: [ ip_fw3_opheader ipfw_table_xentry ]
@@ -918,7 +888,7 @@ ipfw_manage_table_ent(struct ip_fw_chain *ch, ip_fw3_opheader *op3,
  * Returns 0 on success
  */
 static int
-ipfw_manage_table_ent_v0(struct ip_fw_chain *ch, ip_fw3_opheader *op3,
+manage_table_ent_v0(struct ip_fw_chain *ch, ip_fw3_opheader *op3,
     struct sockopt_data *sd)
 {
 	ipfw_table_xentry *xent;
@@ -975,7 +945,7 @@ ipfw_manage_table_ent_v0(struct ip_fw_chain *ch, ip_fw3_opheader *op3,
  * Returns 0 on success
  */
 static int
-ipfw_manage_table_ent_v1(struct ip_fw_chain *ch, ip_fw3_opheader *op3,
+manage_table_ent_v1(struct ip_fw_chain *ch, ip_fw3_opheader *op3,
     struct sockopt_data *sd)
 {
 	ipfw_obj_tentry *tent, *ptent;
@@ -1095,8 +1065,8 @@ ipfw_manage_table_ent_v1(struct ip_fw_chain *ch, ip_fw3_opheader *op3,
  *
  * Returns 0 on success
  */
-int
-ipfw_find_table_entry(struct ip_fw_chain *ch, ip_fw3_opheader *op3,
+static int
+find_table_entry(struct ip_fw_chain *ch, ip_fw3_opheader *op3,
     struct sockopt_data *sd)
 {
 	ipfw_obj_tentry *tent;
@@ -1163,8 +1133,8 @@ ipfw_find_table_entry(struct ip_fw_chain *ch, ip_fw3_opheader *op3,
  *
  * Returns 0 on success
  */
-int
-ipfw_flush_table(struct ip_fw_chain *ch, ip_fw3_opheader *op3,
+static int
+flush_table_v0(struct ip_fw_chain *ch, ip_fw3_opheader *op3,
     struct sockopt_data *sd)
 {
 	int error;
@@ -1323,8 +1293,8 @@ restart:
  *
  * Returns 0 on success
  */
-int
-ipfw_swap_table(struct ip_fw_chain *ch, ip_fw3_opheader *op3,
+static int
+swap_table(struct ip_fw_chain *ch, ip_fw3_opheader *op3,
     struct sockopt_data *sd)
 {
 	int error;
@@ -1504,64 +1474,6 @@ destroy_table(struct ip_fw_chain *ch, struct tid_info *ti)
 	IPFW_UH_WUNLOCK(ch);
 
 	free_table_config(ni, tc);
-
-	return (0);
-}
-
-static void
-destroy_table_locked(struct namedobj_instance *ni, struct named_object *no,
-    void *arg)
-{
-
-	unlink_table((struct ip_fw_chain *)arg, (struct table_config *)no);
-	if (ipfw_objhash_free_idx(ni, no->kidx) != 0)
-		printf("Error unlinking kidx %d from table %s\n",
-		    no->kidx, no->name);
-	free_table_config(ni, (struct table_config *)no);
-}
-
-/*
- * Shuts tables module down.
- */
-void
-ipfw_destroy_tables(struct ip_fw_chain *ch)
-{
-
-	/* Remove all tables from working set */
-	IPFW_UH_WLOCK(ch);
-	IPFW_WLOCK(ch);
-	ipfw_objhash_foreach(CHAIN_TO_NI(ch), destroy_table_locked, ch);
-	IPFW_WUNLOCK(ch);
-	IPFW_UH_WUNLOCK(ch);
-
-	/* Free pointers itself */
-	free(ch->tablestate, M_IPFW);
-
-	ipfw_table_value_destroy(ch);
-	ipfw_table_algo_destroy(ch);
-
-	ipfw_objhash_destroy(CHAIN_TO_NI(ch));
-	free(CHAIN_TO_TCFG(ch), M_IPFW);
-}
-
-/*
- * Starts tables module.
- */
-int
-ipfw_init_tables(struct ip_fw_chain *ch)
-{
-	struct tables_config *tcfg;
-
-	/* Allocate pointers */
-	ch->tablestate = malloc(V_fw_tables_max * sizeof(struct table_info),
-	    M_IPFW, M_WAITOK | M_ZERO);
-
-	tcfg = malloc(sizeof(struct tables_config), M_IPFW, M_WAITOK | M_ZERO);
-	tcfg->namehash = ipfw_objhash_create(V_fw_tables_max);
-	ch->tblcfg = tcfg;
-
-	ipfw_table_value_init(ch);
-	ipfw_table_algo_init(ch);
 
 	return (0);
 }
@@ -1753,8 +1665,8 @@ ipfw_lookup_table_extended(struct ip_fw_chain *ch, uint16_t tbl, uint16_t plen,
  *
  * Returns 0 on success
  */
-int
-ipfw_list_tables(struct ip_fw_chain *ch, ip_fw3_opheader *op3,
+static int
+list_tables(struct ip_fw_chain *ch, ip_fw3_opheader *op3,
     struct sockopt_data *sd)
 {
 	struct _ipfw_obj_lheader *olh;
@@ -1781,8 +1693,8 @@ ipfw_list_tables(struct ip_fw_chain *ch, ip_fw3_opheader *op3,
  *
  * Returns 0 on success.
  */
-int
-ipfw_describe_table(struct ip_fw_chain *ch, ip_fw3_opheader *op3,
+static int
+describe_table(struct ip_fw_chain *ch, ip_fw3_opheader *op3,
     struct sockopt_data *sd)
 {
 	struct _ipfw_obj_header *oh;
@@ -1816,8 +1728,8 @@ ipfw_describe_table(struct ip_fw_chain *ch, ip_fw3_opheader *op3,
  *
  * Returns 0 on success
  */
-int
-ipfw_modify_table(struct ip_fw_chain *ch, ip_fw3_opheader *op3,
+static int
+modify_table(struct ip_fw_chain *ch, ip_fw3_opheader *op3,
     struct sockopt_data *sd)
 {
 	struct _ipfw_obj_header *oh;
@@ -1873,8 +1785,8 @@ ipfw_modify_table(struct ip_fw_chain *ch, ip_fw3_opheader *op3,
  *
  * Returns 0 on success
  */
-int
-ipfw_create_table(struct ip_fw_chain *ch, ip_fw3_opheader *op3,
+static int
+create_table(struct ip_fw_chain *ch, ip_fw3_opheader *op3,
     struct sockopt_data *sd)
 {
 	struct _ipfw_obj_header *oh;
@@ -2243,26 +2155,6 @@ export_tables(struct ip_fw_chain *ch, ipfw_obj_lheader *olh,
 	return (0);
 }
 
-int
-ipfw_dump_table(struct ip_fw_chain *ch, ip_fw3_opheader *op3,
-    struct sockopt_data *sd)
-{
-	int error;
-
-	switch (op3->version) {
-	case 0:
-		error = ipfw_dump_table_v0(ch, sd);
-		break;
-	case 1:
-		error = ipfw_dump_table_v1(ch, sd);
-		break;
-	default:
-		error = ENOTSUP;
-	}
-
-	return (error);
-}
-
 /*
  * Dumps all table data
  * Data layout (v1)(current):
@@ -2272,7 +2164,8 @@ ipfw_dump_table(struct ip_fw_chain *ch, ip_fw3_opheader *op3,
  * Returns 0 on success
  */
 static int
-ipfw_dump_table_v1(struct ip_fw_chain *ch, struct sockopt_data *sd)
+dump_table_v1(struct ip_fw_chain *ch, ip_fw3_opheader *op3,
+    struct sockopt_data *sd)
 {
 	struct _ipfw_obj_header *oh;
 	ipfw_xtable_info *i;
@@ -2335,7 +2228,8 @@ ipfw_dump_table_v1(struct ip_fw_chain *ch, struct sockopt_data *sd)
  * Returns 0 on success
  */
 static int
-ipfw_dump_table_v0(struct ip_fw_chain *ch, struct sockopt_data *sd)
+dump_table_v0(struct ip_fw_chain *ch, ip_fw3_opheader *op3,
+    struct sockopt_data *sd)
 {
 	ipfw_xtable *xtbl;
 	struct tid_info ti;
@@ -2394,8 +2288,8 @@ ipfw_dump_table_v0(struct ip_fw_chain *ch, struct sockopt_data *sd)
 /*
  * Legacy function to retrieve number of items in table.
  */
-int
-ipfw_get_table_size(struct ip_fw_chain *ch, ip_fw3_opheader *op3,
+static int
+get_table_size(struct ip_fw_chain *ch, ip_fw3_opheader *op3,
     struct sockopt_data *sd)
 {
 	uint32_t *tbl;
@@ -2800,8 +2694,8 @@ ipfw_del_table_algo(struct ip_fw_chain *ch, int idx)
  *
  * Returns 0 on success
  */
-int
-ipfw_list_table_algo(struct ip_fw_chain *ch, ip_fw3_opheader *op3,
+static int
+list_table_algo(struct ip_fw_chain *ch, ip_fw3_opheader *op3,
     struct sockopt_data *sd)
 {
 	struct _ipfw_obj_lheader *olh;
@@ -3665,4 +3559,86 @@ free:
 
 	return (error);
 }
+
+static struct ipfw_sopt_handler	scodes[] = {
+	{ IP_FW_TABLE_XCREATE,	0,	HDIR_SET,	create_table },
+	{ IP_FW_TABLE_XDESTROY,	0,	HDIR_SET,	flush_table_v0 },
+	{ IP_FW_TABLE_XFLUSH,	0,	HDIR_SET,	flush_table_v0 },
+	{ IP_FW_TABLE_XMODIFY,	0,	HDIR_BOTH,	modify_table },
+	{ IP_FW_TABLE_XINFO,	0,	HDIR_GET,	describe_table },
+	{ IP_FW_TABLES_XLIST,	0,	HDIR_GET,	list_tables },
+	{ IP_FW_TABLE_XLIST,	0,	HDIR_GET,	dump_table_v0 },
+	{ IP_FW_TABLE_XLIST,	1,	HDIR_GET,	dump_table_v1 },
+	{ IP_FW_TABLE_XADD,	0,	HDIR_BOTH,	manage_table_ent_v0 },
+	{ IP_FW_TABLE_XADD,	1,	HDIR_BOTH,	manage_table_ent_v1 },
+	{ IP_FW_TABLE_XDEL,	0,	HDIR_BOTH,	manage_table_ent_v0 },
+	{ IP_FW_TABLE_XDEL,	1,	HDIR_BOTH,	manage_table_ent_v1 },
+	{ IP_FW_TABLE_XFIND,	0,	HDIR_GET,	find_table_entry },
+	{ IP_FW_TABLE_XSWAP,	0,	HDIR_SET,	swap_table },
+	{ IP_FW_TABLES_ALIST,	0,	HDIR_GET,	list_table_algo },
+	{ IP_FW_TABLE_XGETSIZE,	0,	HDIR_GET,	get_table_size },
+};
+
+static void
+destroy_table_locked(struct namedobj_instance *ni, struct named_object *no,
+    void *arg)
+{
+
+	unlink_table((struct ip_fw_chain *)arg, (struct table_config *)no);
+	if (ipfw_objhash_free_idx(ni, no->kidx) != 0)
+		printf("Error unlinking kidx %d from table %s\n",
+		    no->kidx, no->name);
+	free_table_config(ni, (struct table_config *)no);
+}
+
+/*
+ * Shuts tables module down.
+ */
+void
+ipfw_destroy_tables(struct ip_fw_chain *ch, int last)
+{
+
+	IPFW_DEL_SOPT_HANDLER(last, scodes);
+
+	/* Remove all tables from working set */
+	IPFW_UH_WLOCK(ch);
+	IPFW_WLOCK(ch);
+	ipfw_objhash_foreach(CHAIN_TO_NI(ch), destroy_table_locked, ch);
+	IPFW_WUNLOCK(ch);
+	IPFW_UH_WUNLOCK(ch);
+
+	/* Free pointers itself */
+	free(ch->tablestate, M_IPFW);
+
+	ipfw_table_value_destroy(ch, last);
+	ipfw_table_algo_destroy(ch);
+
+	ipfw_objhash_destroy(CHAIN_TO_NI(ch));
+	free(CHAIN_TO_TCFG(ch), M_IPFW);
+}
+
+/*
+ * Starts tables module.
+ */
+int
+ipfw_init_tables(struct ip_fw_chain *ch, int first)
+{
+	struct tables_config *tcfg;
+
+	/* Allocate pointers */
+	ch->tablestate = malloc(V_fw_tables_max * sizeof(struct table_info),
+	    M_IPFW, M_WAITOK | M_ZERO);
+
+	tcfg = malloc(sizeof(struct tables_config), M_IPFW, M_WAITOK | M_ZERO);
+	tcfg->namehash = ipfw_objhash_create(V_fw_tables_max);
+	ch->tblcfg = tcfg;
+
+	ipfw_table_value_init(ch, first);
+	ipfw_table_algo_init(ch);
+
+	IPFW_ADD_SOPT_HANDLER(first, scodes);
+	return (0);
+}
+
+
 

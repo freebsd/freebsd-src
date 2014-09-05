@@ -520,8 +520,6 @@ int ipfw_iface_ref(struct ip_fw_chain *ch, char *name,
 void ipfw_iface_unref(struct ip_fw_chain *ch, struct ipfw_ifc *ic);
 void ipfw_iface_add_notify(struct ip_fw_chain *ch, struct ipfw_ifc *ic);
 void ipfw_iface_del_notify(struct ip_fw_chain *ch, struct ipfw_ifc *ic);
-int ipfw_list_ifaces(struct ip_fw_chain *ch, ip_fw3_opheader *op3,
-    struct sockopt_data *sd);
 
 /* In ip_fw_sockopt.c */
 void ipfw_init_skipto_cache(struct ip_fw_chain *chain);
@@ -537,8 +535,35 @@ void ipfw_destroy_counters(void);
 struct ip_fw *ipfw_alloc_rule(struct ip_fw_chain *chain, size_t rulesize);
 int ipfw_match_range(struct ip_fw *rule, ipfw_range_tlv *rt);
 
+typedef int (sopt_handler_f)(struct ip_fw_chain *ch,
+    ip_fw3_opheader *op3, struct sockopt_data *sd);
+struct ipfw_sopt_handler {
+	uint16_t	opcode;
+	uint8_t		version;
+	uint8_t		dir;
+	sopt_handler_f	*handler;
+	uint64_t	refcnt;
+};
+#define	HDIR_SET	0x01	/* Handler is used to set some data */
+#define	HDIR_GET	0x02	/* Handler is used to retrieve data */
+#define	HDIR_BOTH	HDIR_GET|HDIR_SET
+
+void ipfw_init_sopt_handler(void);
+void ipfw_destroy_sopt_handler(void);
+void ipfw_add_sopt_handler(struct ipfw_sopt_handler *sh, size_t count);
+int ipfw_del_sopt_handler(struct ipfw_sopt_handler *sh, size_t count);
 caddr_t ipfw_get_sopt_space(struct sockopt_data *sd, size_t needed);
 caddr_t ipfw_get_sopt_header(struct sockopt_data *sd, size_t needed);
+#define	IPFW_ADD_SOPT_HANDLER(f, c)	do {	\
+	if ((f) != 0) 				\
+		ipfw_add_sopt_handler(c,	\
+		    sizeof(c) / sizeof(c[0]));	\
+	} while(0)
+#define	IPFW_DEL_SOPT_HANDLER(l, c)	do {	\
+	if ((l) != 0) 				\
+		ipfw_del_sopt_handler(c,	\
+		    sizeof(c) / sizeof(c[0]));	\
+	} while(0)
 
 typedef void (objhash_cb_t)(struct namedobj_instance *ni, struct named_object *,
     void *arg);
@@ -580,10 +605,10 @@ int ipfw_lookup_table(struct ip_fw_chain *ch, uint16_t tbl, in_addr_t addr,
     uint32_t *val);
 int ipfw_lookup_table_extended(struct ip_fw_chain *ch, uint16_t tbl, uint16_t plen,
     void *paddr, uint32_t *val);
-int ipfw_init_tables(struct ip_fw_chain *ch);
+int ipfw_init_tables(struct ip_fw_chain *ch, int first);
 int ipfw_resize_tables(struct ip_fw_chain *ch, unsigned int ntables);
 int ipfw_switch_tables_namespace(struct ip_fw_chain *ch, unsigned int nsets);
-void ipfw_destroy_tables(struct ip_fw_chain *ch);
+void ipfw_destroy_tables(struct ip_fw_chain *ch, int last);
 
 /* In ip_fw_nat.c -- XXX to be moved to ip_var.h */
 

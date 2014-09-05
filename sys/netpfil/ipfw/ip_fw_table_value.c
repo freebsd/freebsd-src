@@ -60,6 +60,13 @@ static uint32_t hash_table_value(struct namedobj_instance *ni, void *key,
     uint32_t kopt);
 static int cmp_table_value(struct named_object *no, void *key, uint32_t kopt);
 
+static int list_table_values(struct ip_fw_chain *ch, ip_fw3_opheader *op3,
+    struct sockopt_data *sd);
+
+static struct ipfw_sopt_handler	scodes[] = {
+	{ IP_FW_TABLE_VLIST,	0,	HDIR_GET,	list_table_values },
+};
+
 #define	CHAIN_TO_VI(chain)	(CHAIN_TO_TCFG(chain)->valhash)
 
 struct table_val_link
@@ -76,39 +83,6 @@ struct vdump_args {
 	int error;
 };
 
-
-void
-ipfw_table_value_init(struct ip_fw_chain *ch)
-{
-	struct tables_config *tcfg;
-
-	ch->valuestate = malloc(VALDATA_START_SIZE * sizeof(struct table_value),
-	    M_IPFW, M_WAITOK | M_ZERO);
-
-	tcfg = ch->tblcfg;
-
-	tcfg->val_size = VALDATA_START_SIZE;
-	tcfg->valhash = ipfw_objhash_create(tcfg->val_size);
-	ipfw_objhash_set_funcs(tcfg->valhash, hash_table_value,
-	    cmp_table_value);
-}
-
-static void
-destroy_value(struct namedobj_instance *ni, struct named_object *no,
-    void *arg)
-{
-
-	free(no, M_IPFW);
-}
-
-void
-ipfw_table_value_destroy(struct ip_fw_chain *ch)
-{
-
-	free(ch->valuestate, M_IPFW);
-	ipfw_objhash_foreach(CHAIN_TO_VI(ch), destroy_value, ch);
-	ipfw_objhash_destroy(CHAIN_TO_VI(ch));
-}
 
 static uint32_t
 hash_table_value(struct namedobj_instance *ni, void *key, uint32_t kopt)
@@ -734,8 +708,8 @@ dump_tvalue(struct namedobj_instance *ni, struct named_object *no, void *arg)
  *
  * Returns 0 on success
  */
-int
-ipfw_list_table_values(struct ip_fw_chain *ch, ip_fw3_opheader *op3,
+static int
+list_table_values(struct ip_fw_chain *ch, ip_fw3_opheader *op3,
     struct sockopt_data *sd)
 {
 	struct _ipfw_obj_lheader *olh;
@@ -777,5 +751,42 @@ ipfw_list_table_values(struct ip_fw_chain *ch, ip_fw3_opheader *op3,
 	IPFW_UH_RUNLOCK(ch);
 
 	return (0);
+}
+
+void
+ipfw_table_value_init(struct ip_fw_chain *ch, int first)
+{
+	struct tables_config *tcfg;
+
+	ch->valuestate = malloc(VALDATA_START_SIZE * sizeof(struct table_value),
+	    M_IPFW, M_WAITOK | M_ZERO);
+
+	tcfg = ch->tblcfg;
+
+	tcfg->val_size = VALDATA_START_SIZE;
+	tcfg->valhash = ipfw_objhash_create(tcfg->val_size);
+	ipfw_objhash_set_funcs(tcfg->valhash, hash_table_value,
+	    cmp_table_value);
+
+	IPFW_ADD_SOPT_HANDLER(first, scodes);
+}
+
+static void
+destroy_value(struct namedobj_instance *ni, struct named_object *no,
+    void *arg)
+{
+
+	free(no, M_IPFW);
+}
+
+void
+ipfw_table_value_destroy(struct ip_fw_chain *ch, int last)
+{
+
+	IPFW_DEL_SOPT_HANDLER(last, scodes);
+
+	free(ch->valuestate, M_IPFW);
+	ipfw_objhash_foreach(CHAIN_TO_VI(ch), destroy_value, ch);
+	ipfw_objhash_destroy(CHAIN_TO_VI(ch));
 }
 

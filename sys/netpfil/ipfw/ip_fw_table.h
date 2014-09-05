@@ -161,29 +161,6 @@ void ipfw_del_table_algo(struct ip_fw_chain *ch, int idx);
 void ipfw_table_algo_init(struct ip_fw_chain *chain);
 void ipfw_table_algo_destroy(struct ip_fw_chain *chain);
 
-
-/* direct ipfw_ctl handlers */
-int ipfw_list_tables(struct ip_fw_chain *ch, ip_fw3_opheader *op3,
-    struct sockopt_data *sd);
-int ipfw_dump_table(struct ip_fw_chain *ch, ip_fw3_opheader *op3,
-    struct sockopt_data *sd);
-int ipfw_describe_table(struct ip_fw_chain *ch, ip_fw3_opheader *op3,
-    struct sockopt_data *sd);
-
-int ipfw_find_table_entry(struct ip_fw_chain *ch, ip_fw3_opheader *op3,
-    struct sockopt_data *sd);
-int ipfw_create_table(struct ip_fw_chain *ch, ip_fw3_opheader *op3,
-    struct sockopt_data *sd);
-int ipfw_modify_table(struct ip_fw_chain *ch, ip_fw3_opheader *op3,
-    struct sockopt_data *sd);
-int ipfw_manage_table_ent(struct ip_fw_chain *ch, ip_fw3_opheader *op3,
-    struct sockopt_data *sd);
-int ipfw_flush_table(struct ip_fw_chain *ch, ip_fw3_opheader *op3,
-    struct sockopt_data *sd);
-int ipfw_list_table_algo(struct ip_fw_chain *ch, ip_fw3_opheader *op3,
-    struct sockopt_data *sd);
-int ipfw_swap_table(struct ip_fw_chain *ch, ip_fw3_opheader *op3,
-    struct sockopt_data *sd);
 /* Exported to support legacy opcodes */
 int add_table_entry(struct ip_fw_chain *ch, struct tid_info *ti,
     struct tentry_info *tei, uint8_t flags, uint32_t count);
@@ -196,12 +173,10 @@ int ipfw_get_table_size(struct ip_fw_chain *ch, ip_fw3_opheader *op3,
     struct sockopt_data *sd);
 
 /* ipfw_table_value.c functions */
-int ipfw_list_table_values(struct ip_fw_chain *ch, ip_fw3_opheader *op3,
-    struct sockopt_data *sd);
 struct table_config;
 struct tableop_state;
-void ipfw_table_value_init(struct ip_fw_chain *ch);
-void ipfw_table_value_destroy(struct ip_fw_chain *ch);
+void ipfw_table_value_init(struct ip_fw_chain *ch, int first);
+void ipfw_table_value_destroy(struct ip_fw_chain *ch, int last);
 int ipfw_link_table_values(struct ip_fw_chain *ch, struct tableop_state *ts);
 void ipfw_garbage_table_values(struct ip_fw_chain *ch, struct table_config *tc,
     struct tentry_info *tei, uint32_t count, int rollback);

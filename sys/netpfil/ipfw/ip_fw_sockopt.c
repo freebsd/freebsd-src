@@ -98,9 +98,47 @@ static uint32_t objhash_hash_name(struct namedobj_instance *ni, void *key,
 static uint32_t objhash_hash_idx(struct namedobj_instance *ni, uint32_t val);
 static int objhash_cmp_name(struct named_object *no, void *name, uint32_t set);
 
+MALLOC_DEFINE(M_IPFW, "IpFw/IpAcct", "IpFw/IpAcct chain's");
+
+static int dump_config(struct ip_fw_chain *chain, ip_fw3_opheader *op3,
+    struct sockopt_data *sd);
+static int add_rules(struct ip_fw_chain *chain, ip_fw3_opheader *op3,
+    struct sockopt_data *sd);
+static int del_rules(struct ip_fw_chain *chain, ip_fw3_opheader *op3,
+    struct sockopt_data *sd);
+static int clear_rules(struct ip_fw_chain *chain, ip_fw3_opheader *op3,
+    struct sockopt_data *sd);
+static int move_rules(struct ip_fw_chain *chain, ip_fw3_opheader *op3,
+    struct sockopt_data *sd);
+static int manage_sets(struct ip_fw_chain *chain, ip_fw3_opheader *op3,
+    struct sockopt_data *sd);
+
+/* ctl3 handler data */
+struct mtx ctl3_lock;
+#define	CTL3_LOCK_INIT()	mtx_init(&ctl3_lock, "ctl3_lock", NULL, MTX_DEF)
+#define	CTL3_LOCK_DESTROY()	mtx_destroy(&ctl3_lock)
+#define	CTL3_LOCK()		mtx_lock(&ctl3_lock)
+#define	CTL3_UNLOCK()		mtx_unlock(&ctl3_lock)
+
+static struct ipfw_sopt_handler *ctl3_handlers;
+static size_t ctl3_hsize;
+static uint64_t ctl3_refct, ctl3_gencnt;
+#define	CTL3_SMALLBUF	4096			/* small page-size write buffer */
+#define	CTL3_LARGEBUF	16 * 1024 * 1024	/* handle large rulesets */
+
 static int ipfw_flush_sopt_data(struct sockopt_data *sd);
 
-MALLOC_DEFINE(M_IPFW, "IpFw/IpAcct", "IpFw/IpAcct chain's");
+static struct ipfw_sopt_handler	scodes[] = {
+	{ IP_FW_XGET,		0,	HDIR_GET,	dump_config },
+	{ IP_FW_XADD,		0,	HDIR_BOTH,	add_rules },
+	{ IP_FW_XDEL,		0,	HDIR_BOTH,	del_rules },
+	{ IP_FW_XZERO,		0,	HDIR_SET,	clear_rules },
+	{ IP_FW_XRESETLOG,	0,	HDIR_SET,	clear_rules },
+	{ IP_FW_XMOVE,		0,	HDIR_SET,	move_rules },
+	{ IP_FW_SET_SWAP,	0,	HDIR_SET,	manage_sets },
+	{ IP_FW_SET_MOVE,	0,	HDIR_SET,	manage_sets },
+	{ IP_FW_SET_ENABLE,	0,	HDIR_SET,	manage_sets },
+};
 
 /*
  * static variables followed by global ones
@@ -2027,11 +2065,6 @@ cleanup:
 	return (error);
 }
 
-#define IP_FW3_OPLENGTH(x)	((x)->sopt_valsize - sizeof(ip_fw3_opheader))
-#define	IP_FW3_WRITEBUF	4096			/* small page-size write buffer */
-#define	IP_FW3_READBUF	16 * 1024 * 1024	/* handle large rulesets */
-
-
 static int
 check_object_name(ipfw_obj_ntlv *ntlv)
 {
@@ -2084,9 +2117,6 @@ add_rules(struct ip_fw_chain *chain, ip_fw3_opheader *op3,
 	struct ip_fw_rule *r;
 	struct rule_check_info rci, *ci, *cbuf;
 	int i, rsize;
-
-	if (sd->valsize > IP_FW3_READBUF)
-		return (EINVAL);
 
 	op3 = (ip_fw3_opheader *)ipfw_get_sopt_space(sd, sd->valsize);
 	ctlv = (ipfw_obj_ctlv *)(op3 + 1);
@@ -2252,6 +2282,189 @@ add_rules(struct ip_fw_chain *chain, ip_fw3_opheader *op3,
 }
 
 /*
+ * Compares two sopt handlers (code, version and handler ptr).
+ * Used both as qsort() and bsearch().
+ * Does not compare handler for latter case.
+ *
+ * Returns 0 if match is found.
+ */
+static int
+compare_sh(const void *_a, const void *_b)
+{
+	struct ipfw_sopt_handler *a, *b;
+
+	a = (struct ipfw_sopt_handler *)_a;
+	b = (struct ipfw_sopt_handler *)_b;
+
+	if (a->opcode < b->opcode)
+		return (-1);
+	else if (a->opcode > b->opcode)
+		return (1);
+
+	if (a->version < b->version)
+		return (-1);
+	else if (a->version > b->version)
+		return (1);
+
+	/* bsearch helper */
+	if (a->handler == NULL)
+		return (0);
+
+	if ((uintptr_t)a->handler < (uintptr_t)b->handler)
+		return (-1);
+	else if ((uintptr_t)b->handler > (uintptr_t)b->handler)
+		return (1);
+
+	return (0);
+}
+
+/*
+ * Finds sopt handler based on @code and @version.
+ *
+ * Returns pointer to handler or NULL.
+ */
+static struct ipfw_sopt_handler *
+find_sh(uint16_t code, uint8_t version, void *handler)
+{
+	struct ipfw_sopt_handler *sh, h;
+
+	memset(&h, 0, sizeof(h));
+	h.opcode = code;
+	h.version = version;
+	h.handler = handler;
+
+	sh = (struct ipfw_sopt_handler *)bsearch(&h, ctl3_handlers,
+	    ctl3_hsize, sizeof(h), compare_sh);
+
+	return (sh);
+}
+
+static int
+find_ref_sh(uint16_t opcode, uint8_t version, struct ipfw_sopt_handler *psh)
+{
+	struct ipfw_sopt_handler *sh;
+
+	CTL3_LOCK();
+	if ((sh = find_sh(opcode, version, NULL)) == NULL) {
+		CTL3_UNLOCK();
+		printf("ipfw: ipfw_ctl3 invalid option %d""v""%d\n",
+		    opcode, version);
+		return (EINVAL);
+	}
+	sh->refcnt++;
+	ctl3_refct++;
+	/* Copy handler data to requested buffer */
+	*psh = *sh; 
+	CTL3_UNLOCK();
+
+	return (0);
+}
+
+static void
+find_unref_sh(struct ipfw_sopt_handler *psh)
+{
+	struct ipfw_sopt_handler *sh;
+
+	CTL3_LOCK();
+	sh = find_sh(psh->opcode, psh->version, NULL);
+	KASSERT(sh != NULL, ("ctl3 handler disappeared"));
+	sh->refcnt--;
+	ctl3_refct--;
+	CTL3_UNLOCK();
+}
+
+void
+ipfw_init_sopt_handler()
+{
+
+	CTL3_LOCK_INIT();
+	IPFW_ADD_SOPT_HANDLER(1, scodes);
+}
+
+void
+ipfw_destroy_sopt_handler()
+{
+
+	IPFW_DEL_SOPT_HANDLER(1, scodes);
+	CTL3_LOCK_DESTROY();
+}
+
+/*
+ * Adds one or more sockopt handlers to the global array.
+ * Function may sleep.
+ */
+void
+ipfw_add_sopt_handler(struct ipfw_sopt_handler *sh, size_t count)
+{
+	size_t sz;
+	struct ipfw_sopt_handler *tmp;
+
+	CTL3_LOCK();
+
+	for (;;) {
+		sz = ctl3_hsize + count;
+		CTL3_UNLOCK();
+		tmp = malloc(sizeof(*sh) * sz, M_IPFW, M_WAITOK | M_ZERO);
+		CTL3_LOCK();
+		if (ctl3_hsize + count <= sz)
+			break;
+
+		/* Retry */
+		free(tmp, M_IPFW);
+	}
+
+	/* Merge old & new arrays */
+	sz = ctl3_hsize + count;
+	memcpy(tmp, ctl3_handlers, ctl3_hsize * sizeof(*sh));
+	memcpy(&tmp[ctl3_hsize], sh, count * sizeof(*sh));
+	qsort(tmp, sz, sizeof(*sh), compare_sh);
+	/* Switch new and free old */
+	if (ctl3_handlers != NULL)
+		free(ctl3_handlers, M_IPFW);
+	ctl3_handlers = tmp;
+	ctl3_hsize = sz;
+	ctl3_gencnt++;
+
+	CTL3_UNLOCK();
+}
+
+/*
+ * Removes one or more sockopt handlers from the global array.
+ */
+int
+ipfw_del_sopt_handler(struct ipfw_sopt_handler *sh, size_t count)
+{
+	size_t sz;
+	struct ipfw_sopt_handler *tmp, *h;
+	int i;
+
+	CTL3_LOCK();
+
+	for (i = 0; i < count; i++) {
+		tmp = &sh[i];
+		h = find_sh(tmp->opcode, tmp->version, tmp->handler);
+		if (h == NULL)
+			continue;
+
+		sz = (ctl3_handlers + ctl3_hsize - (h + 1)) * sizeof(*h);
+		memmove(h, h + 1, sz);
+		ctl3_hsize--;
+	}
+
+	if (ctl3_hsize == 0) {
+		if (ctl3_handlers != NULL)
+			free(ctl3_handlers, M_IPFW);
+		ctl3_handlers = NULL;
+	}
+
+	ctl3_gencnt++;
+
+	CTL3_UNLOCK();
+
+	return (0);
+}
+
+/*
  * Writes data accumulated in @sd to sockopt buffer.
  * Zeroes internal @sd buffer.
  */
@@ -2341,12 +2554,12 @@ ipfw_get_sopt_header(struct sockopt_data *sd, size_t needed)
 int
 ipfw_ctl3(struct sockopt *sopt)
 {
-	int error, ctype;
-	size_t bsize_max, size, valsize;
+	int error;
+	size_t size, valsize;
 	struct ip_fw_chain *chain;
-	uint32_t opt;
 	char xbuf[256];
 	struct sockopt_data sdata;
+	struct ipfw_sopt_handler h;
 	ip_fw3_opheader *op3 = NULL;
 
 	error = priv_check(sopt->sopt_td, PRIV_NETINET_IPFW);
@@ -2367,52 +2580,55 @@ ipfw_ctl3(struct sockopt *sopt)
 	error = sooptcopyin(sopt, op3, sizeof(*op3), sizeof(*op3));
 	if (error != 0)
 		return (error);
-	opt = op3->opcode;
 	sopt->sopt_valsize = valsize;
 
 	/*
-	 * Determine opcode type/buffer size:
-	 * use on-stack xbuf for short request,
-	 * allocate sliding-window buf for data export or
-	 * contigious buffer for special ops.
+	 * Find and reference command.
 	 */
-	ctype = (sopt->sopt_dir == SOPT_GET) ? SOPT_GET : SOPT_SET;
-	switch (opt) {
-	case IP_FW_XADD:
-	case IP_FW_XDEL:
-	case IP_FW_TABLE_XADD:
-	case IP_FW_TABLE_XDEL:
-		ctype = SOPT_SET;
-		bsize_max = IP_FW3_READBUF;
-		break;
-	default:
-		bsize_max = IP_FW3_WRITEBUF;
-	}
+	error = find_ref_sh(op3->opcode, op3->version, &h);
+	if (error != 0)
+		return (error);
 
 	/*
 	 * Disallow modifications in really-really secure mode, but still allow
 	 * the logging counters to be reset.
 	 */
-	if (ctype == SOPT_SET && opt != IP_FW_XRESETLOG) {
+	if ((h.dir & HDIR_SET) != 0 && h.opcode != IP_FW_XRESETLOG) {
 		error = securelevel_ge(sopt->sopt_td->td_ucred, 3);
-		if (error != 0)
+		if (error != 0) {
+			find_unref_sh(&h);
 			return (error);
+		}
 	}
 
 	/*
 	 * Fill in sockopt_data structure that may be useful for
 	 * IP_FW3 get requests.
 	 */
-
 	if (valsize <= sizeof(xbuf)) {
+		/* use on-stack buffer */
 		sdata.kbuf = xbuf;
 		sdata.ksize = sizeof(xbuf);
 		sdata.kavail = valsize;
 	} else {
-		if (valsize < bsize_max)
+
+		/*
+		 * Determine opcode type/buffer size:
+		 * allocate sliding-window buf for data export or
+		 * contigious buffer for special ops.
+		 */
+		if ((h.dir & HDIR_SET) != 0) {
+			/* Set request. Allocate contigous buffer. */
+			if (valsize > CTL3_LARGEBUF) {
+				find_unref_sh(&h);
+				return (EFBIG);
+			}
+
 			size = valsize;
-		else
-			size = bsize_max;
+		} else {
+			/* Get request. Allocate sliding window buffer */
+			size = (valsize<CTL3_SMALLBUF) ? valsize:CTL3_SMALLBUF;
+		}
 
 		sdata.kbuf = malloc(size, M_TEMP, M_WAITOK | M_ZERO);
 		sdata.ksize = size;
@@ -2433,95 +2649,10 @@ ipfw_ctl3(struct sockopt *sopt)
 	    sizeof(ip_fw3_opheader))) != 0)
 		return (error);
 	op3 = (ip_fw3_opheader *)sdata.kbuf;
-	opt = op3->opcode;
 
-	switch (opt) {
-	case IP_FW_XGET:
-		error = dump_config(chain, op3, &sdata);
-		break;
-
-	case IP_FW_XADD:
-		error = add_rules(chain, op3, &sdata);
-		break;
-
-	case IP_FW_XDEL:
-		error = del_rules(chain, op3, &sdata);
-		break;
-
-	case IP_FW_XZERO:
-	case IP_FW_XRESETLOG:
-		error = clear_rules(chain, op3, &sdata);
-		break;
-
-	case IP_FW_XMOVE:
-		error = move_rules(chain, op3, &sdata);
-		break;
-
-	case IP_FW_SET_SWAP:
-	case IP_FW_SET_MOVE:
-	case IP_FW_SET_ENABLE:
-		error = manage_sets(chain, op3, &sdata);
-		break;
-
-	case IP_FW_XIFLIST:
-		error = ipfw_list_ifaces(chain, op3, &sdata);
-		break;
-
-	/*--- TABLE opcodes ---*/
-	case IP_FW_TABLE_XCREATE:
-		error = ipfw_create_table(chain, op3, &sdata);
-		break;
-
-	case IP_FW_TABLE_XDESTROY:
-	case IP_FW_TABLE_XFLUSH:
-		error = ipfw_flush_table(chain, op3, &sdata);
-		break;
-
-	case IP_FW_TABLE_XMODIFY:
-		error = ipfw_modify_table(chain, op3, &sdata);
-		break;
-
-	case IP_FW_TABLE_XINFO:
-		error = ipfw_describe_table(chain, op3, &sdata);
-		break;
-
-	case IP_FW_TABLES_XLIST:
-		error = ipfw_list_tables(chain, op3, &sdata);
-		break;
-
-	case IP_FW_TABLE_XLIST:
-		error = ipfw_dump_table(chain, op3, &sdata);
-		break;
-
-	case IP_FW_TABLE_XADD:
-	case IP_FW_TABLE_XDEL:
-		error = ipfw_manage_table_ent(chain, op3, &sdata);
-		break;
-
-	case IP_FW_TABLE_XFIND:
-		error = ipfw_find_table_entry(chain, op3, &sdata);
-		break;
-
-	case IP_FW_TABLE_XSWAP:
-		error = ipfw_swap_table(chain, op3, &sdata);
-		break;
-
-	case IP_FW_TABLES_ALIST:
-		error = ipfw_list_table_algo(chain, op3, &sdata);
-		break;
-
-	case IP_FW_TABLE_VLIST:
-		error = ipfw_list_table_values(chain, op3, &sdata);
-		break;
-
-	case IP_FW_TABLE_XGETSIZE:
-		error = ipfw_get_table_size(chain, op3, &sdata);
-		break;
-
-	default:
-		printf("ipfw: ipfw_ctl3 invalid option %d\n", opt);
-		error = EINVAL;
-	}
+	/* Finally, run handler */
+	error = h.handler(chain, op3, &sdata);
+	find_unref_sh(&h);
 
 	/* Flush state and free buffers */
 	if (error == 0)

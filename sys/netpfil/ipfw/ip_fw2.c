@@ -2667,6 +2667,7 @@ ipfw_init(void)
 	if (default_fw_tables > IPFW_TABLES_MAX)
 	  default_fw_tables = IPFW_TABLES_MAX;
 
+	ipfw_init_sopt_handler();
 	ipfw_log_bpf(1); /* init */
 	ipfw_iface_init();
 	return (error);
@@ -2681,6 +2682,7 @@ ipfw_destroy(void)
 
 	ipfw_iface_destroy();
 	ipfw_log_bpf(0); /* uninit */
+	ipfw_destroy_sopt_handler();
 	printf("IP firewall unloaded\n");
 }
 
@@ -2691,11 +2693,13 @@ ipfw_destroy(void)
 static int
 vnet_ipfw_init(const void *unused)
 {
-	int error;
+	int error, first;
 	struct ip_fw *rule = NULL;
 	struct ip_fw_chain *chain;
 
 	chain = &V_layer3_chain;
+
+	first = IS_DEFAULT_VNET(curvnet) ? 1 : 0;
 
 	/* First set up some values that are compile time options */
 	V_autoinc_step = 100;	/* bounded to 1..1000 in add_rule() */
@@ -2718,7 +2722,7 @@ vnet_ipfw_init(const void *unused)
 
 	/* Set initial number of tables */
 	V_fw_tables_max = default_fw_tables;
-	error = ipfw_init_tables(chain);
+	error = ipfw_init_tables(chain, first);
 	if (error) {
 		printf("ipfw2: setting up tables failed\n");
 		free(chain->map, M_IPFW);
@@ -2771,7 +2775,7 @@ vnet_ipfw_uninit(const void *unused)
 {
 	struct ip_fw *reap;
 	struct ip_fw_chain *chain = &V_layer3_chain;
-	int i;
+	int i, last;
 
 	V_ipfw_vnet_ready = 0; /* tell new callers to go away */
 	/*
@@ -2781,6 +2785,9 @@ vnet_ipfw_uninit(const void *unused)
 	 */
 	(void)ipfw_attach_hooks(0 /* detach */);
 	V_ip_fw_ctl_ptr = NULL;
+
+	last = IS_DEFAULT_VNET(curvnet) ? 1 : 0;
+
 	IPFW_UH_WLOCK(chain);
 	IPFW_UH_WUNLOCK(chain);
 	IPFW_UH_WLOCK(chain);
@@ -2797,7 +2804,7 @@ vnet_ipfw_uninit(const void *unused)
 	ipfw_destroy_skipto_cache(chain);
 	IPFW_WUNLOCK(chain);
 	IPFW_UH_WUNLOCK(chain);
-	ipfw_destroy_tables(chain);
+	ipfw_destroy_tables(chain, last);
 	if (reap != NULL)
 		ipfw_reap_rules(reap);
 	vnet_ipfw_iface_destroy(chain);
