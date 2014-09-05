@@ -1,5 +1,7 @@
 /*-
  * Copyright (c) 2004 Ruslan Ermilov and Vsevolod Lobko.
+ * Copyright (c) 2014 Yandex LLC
+ * Copyright (c) 2014 Alexander V. Chernikov
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -32,7 +34,7 @@ __FBSDID("$FreeBSD$");
  * This file contains handlers for all generic tables' operations:
  * add/del/flush entries, list/dump tables etc..
  *
- * Table data modification is protected by both UH and runtimg lock
+ * Table data modification is protected by both UH and runtime lock
  * while reading configuration/data is protected by UH lock.
  *
  * Lookup algorithms for all table types are located in ip_fw_table_algo.c
