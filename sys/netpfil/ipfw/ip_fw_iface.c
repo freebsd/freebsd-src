@@ -65,6 +65,12 @@ static void handle_ifdetach(struct ip_fw_chain *ch, struct ipfw_iface *iif,
     uint16_t ifindex);
 static void handle_ifattach(struct ip_fw_chain *ch, struct ipfw_iface *iif,
     uint16_t ifindex);
+static int list_ifaces(struct ip_fw_chain *ch, ip_fw3_opheader *op3,
+    struct sockopt_data *sd);
+
+static struct ipfw_sopt_handler	scodes[] = {
+	{ IP_FW_XIFLIST,	0,	HDIR_GET,	list_ifaces },
+};
 
 /*
  * FreeBSD Kernel interface.
@@ -200,6 +206,7 @@ ipfw_iface_init()
 {
 
 	mtx_init(&vnet_mtx, "IPFW ifhandler mtx", NULL, MTX_DEF);
+	IPFW_ADD_SOPT_HANDLER(1, scodes);
 	return (0);
 }
 
@@ -211,6 +218,7 @@ void
 ipfw_iface_destroy()
 {
 
+	IPFW_DEL_SOPT_HANDLER(1, scodes);
 	mtx_destroy(&vnet_mtx);
 }
 
@@ -483,8 +491,8 @@ export_iface_internal(struct namedobj_instance *ii, struct named_object *no,
  *
  * Returns 0 on success
  */
-int
-ipfw_list_ifaces(struct ip_fw_chain *ch, ip_fw3_opheader *op3,
+static int
+list_ifaces(struct ip_fw_chain *ch, ip_fw3_opheader *op3,
     struct sockopt_data *sd)
 {
 	struct namedobj_instance *ii;
