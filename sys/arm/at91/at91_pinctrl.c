@@ -136,10 +136,10 @@ at91_pinctrl_setup_dinfo(device_t dev, phandle_t node)
 			    "assuming direct parent\n");
 			iparent = OF_parent(node);
 		}
-		if (OF_searchencprop(OF_xref_phandle(iparent), 
+		if (OF_searchencprop(OF_node_from_xref(iparent), 
 		    "#interrupt-cells", &icells, sizeof(icells)) == -1) {
-			device_printf(dev, "Missing #interrupt-cells property, "
-			    "assuming <1>\n");
+			device_printf(dev, "Missing #interrupt-cells property,"
+			    " assuming <1>\n");
 			icells = 1;
 		}
 		if (icells < 1 || icells > nintr) {
@@ -388,19 +388,22 @@ pinctrl_walk_tree(device_t bus, phandle_t node)
 		OF_getprop(node, "status", status, sizeof(status));
 		OF_getprop(node, "name", name, sizeof(name));
 		if (strcmp(status, "okay") != 0) {
-//			printf("pinctrl: omitting node %s since it isn't active\n", name);
+//			printf("pinctrl: skipping node %s status %s\n", name,
+//			    status);
 			continue;
 		}
 		len = OF_getencprop(node, "pinctrl-0", pinctrl, sizeof(pinctrl));
 		if (len <= 0) {
-//			printf("pinctrl: no pinctrl-0 property for node %s, omitting\n", name);
+//			printf("pinctrl: skipping node %s no pinctrl-0\n",
+//			    name, status);
 			continue;
 		}
 		len /= sizeof(phandle_t);
 		printf("pinctrl: Found active node %s\n", name);
 		for (i = 0; i < len; i++) {
-			scratch = OF_xref_phandle(pinctrl[i]);
-			npins = OF_getencprop(scratch, "atmel,pins", pins, sizeof(pins));
+			scratch = OF_node_from_xref(pinctrl[i]);
+			npins = OF_getencprop(scratch, "atmel,pins", pins,
+			    sizeof(pins));
 			if (npins <= 0) {
 				printf("We're doing it wrong %s\n", name);
 				continue;
@@ -408,29 +411,40 @@ pinctrl_walk_tree(device_t bus, phandle_t node)
 			memset(name, 0, sizeof(name));
 			OF_getprop(scratch, "name", name, sizeof(name));
 			npins /= (4 * 4);
-			printf("----> need to cope with %d more pins for %s\n", npins, name);
+			printf("----> need to cope with %d more pins for %s\n",
+			    npins, name);
 			for (j = 0; j < npins; j++) {
 				uint32_t unit = pins[j * 4];
 				uint32_t pin = pins[j * 4 + 1];
 				uint32_t periph = pins[j * 4 + 2];
 				uint32_t flags = pins[j * 4 + 3];
-				uint32_t pio = (0xfffffff & sc->ranges[0].bus) + 0x200 * unit;
-				printf("P%c%d %s %#x\n", unit + 'A', pin, periphs[periph],
-				       flags);
+				uint32_t pio;
+
+				pio = (0xfffffff & sc->ranges[0].bus) +
+				    0x200 * unit;
+				printf("P%c%d %s %#x\n", unit + 'A', pin,
+				    periphs[periph], flags);
 				switch (periph) {
 				case 0:
 					at91_pio_use_gpio(pio, 1u << pin);
-					at91_pio_gpio_pullup(pio, 1u << pin, !!(flags & 1));
-					at91_pio_gpio_high_z(pio, 1u << pin, !!(flags & 2));
-					at91_pio_gpio_set_deglitch(pio, 1u << pin, !!(flags & 4));
-					// at91_pio_gpio_pulldown(pio, 1u << pin, !!(flags & 8));
-					// at91_pio_gpio_dis_schmidt(pio, 1u << pin, !!(flags & 16));
+					at91_pio_gpio_pullup(pio, 1u << pin,
+					    !!(flags & 1));
+					at91_pio_gpio_high_z(pio, 1u << pin,
+					    !!(flags & 2));
+					at91_pio_gpio_set_deglitch(pio,
+					    1u << pin, !!(flags & 4));
+//					at91_pio_gpio_pulldown(pio, 1u << pin,
+//					    !!(flags & 8));
+//					at91_pio_gpio_dis_schmidt(pio,
+//					    1u << pin, !!(flags & 16));
 					break;
 				case 1:
-					at91_pio_use_periph_a(pio, 1u << pin, flags);
+					at91_pio_use_periph_a(pio, 1u << pin,
+					    flags);
 					break;
 				case 2:
-					at91_pio_use_periph_b(pio, 1u << pin, flags);
+					at91_pio_use_periph_b(pio, 1u << pin,
+					    flags);
 					break;
 				}
 			}
@@ -493,8 +507,8 @@ static driver_t at91_pinctrl_driver = {
 
 static devclass_t at91_pinctrl_devclass;
 
-EARLY_DRIVER_MODULE(at91_pinctrl, simplebus, at91_pinctrl_driver, at91_pinctrl_devclass,
-    NULL, NULL, BUS_PASS_BUS);
+EARLY_DRIVER_MODULE(at91_pinctrl, simplebus, at91_pinctrl_driver,
+    at91_pinctrl_devclass, NULL, NULL, BUS_PASS_BUS);
 
 /*
  * dummy driver to force pass BUS_PASS_PINMUX to happen.
@@ -520,5 +534,5 @@ static driver_t at91_pingroup_driver = {
 
 static devclass_t at91_pingroup_devclass;
 
-EARLY_DRIVER_MODULE(at91_pingroup, at91_pinctrl, at91_pingroup_driver, at91_pingroup_devclass,
-    NULL, NULL, BUS_PASS_PINMUX);
+EARLY_DRIVER_MODULE(at91_pingroup, at91_pinctrl, at91_pingroup_driver,
+    at91_pingroup_devclass, NULL, NULL, BUS_PASS_PINMUX);

@@ -1677,6 +1677,7 @@ device		amrp		# SCSI Passthrough interface (optional, CAM req.)
 device		mfi		# LSI MegaRAID SAS
 device		mfip		# LSI MegaRAID SAS passthrough, requires CAM
 options 	MFI_DEBUG
+device		mrsas		# LSI/Avago MegaRAID SAS/SATA, 6Gb/s and 12Gb/s
 
 #
 # 3ware ATA RAID
@@ -2652,6 +2653,8 @@ device		usb
 device		udbp
 # USB Fm Radio
 device		ufm
+# USB LED
+device		uled
 # Human Interface Device (anything with buttons and dials)
 device		uhid
 # USB keyboard

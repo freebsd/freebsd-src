@@ -921,10 +921,11 @@ fill_kinfo_proc_only(struct proc *p, struct kinfo_proc *kp)
 	kp->ki_xstat = p->p_xstat;
 	kp->ki_acflag = p->p_acflag;
 	kp->ki_lock = p->p_lock;
-	if (p->p_pptr)
+	if (p->p_pptr) {
 		kp->ki_ppid = proc_realparent(p)->p_pid;
-	if (p->p_flag & P_TRACED)
-		kp->ki_tracer = p->p_pptr->p_pid;
+		if (p->p_flag & P_TRACED)
+			kp->ki_tracer = p->p_pptr->p_pid;
+	}
 }
 
 /*
@@ -2507,6 +2508,7 @@ sysctl_kern_proc_groups(SYSCTL_HANDLER_ARGS)
 		return (EINVAL);
 	if (*pidp == -1) {	/* -1 means this process */
 		p = req->td->td_proc;
+		PROC_LOCK(p);
 	} else {
 		error = pget(*pidp, PGET_CANSEE, &p);
 		if (error != 0)
@@ -2514,8 +2516,7 @@ sysctl_kern_proc_groups(SYSCTL_HANDLER_ARGS)
 	}
 
 	cred = crhold(p->p_ucred);
-	if (*pidp != -1)
-		PROC_UNLOCK(p);
+	PROC_UNLOCK(p);
 
 	error = SYSCTL_OUT(req, cred->cr_groups,
 	    cred->cr_ngroups * sizeof(gid_t));

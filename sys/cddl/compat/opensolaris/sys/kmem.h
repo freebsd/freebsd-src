@@ -66,6 +66,7 @@ typedef struct kmem_cache {
 void *zfs_kmem_alloc(size_t size, int kmflags);
 void zfs_kmem_free(void *buf, size_t size);
 uint64_t kmem_size(void);
+uint64_t kmem_used(void);
 u_int kmem_page_count(void);
 
 /*

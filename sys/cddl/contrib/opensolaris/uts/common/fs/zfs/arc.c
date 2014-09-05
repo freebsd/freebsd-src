@@ -2560,6 +2560,15 @@ arc_reclaim_needed(void)
 	    (btop(vmem_size(heap_arena, VMEM_FREE | VMEM_ALLOC)) >> 2))
 		return (1);
 #endif
+#else	/* sun */
+#ifdef __i386__
+	/* i386 has KVA limits that the raw page counts above don't consider */
+	if (kmem_used() > (kmem_size() * 3) / 4) {
+		DTRACE_PROBE2(arc__reclaim_used, uint64_t,
+		    kmem_used(), uint64_t, (kmem_size() * 3) / 4);
+		return (1);
+	}
+#endif
 #endif	/* sun */
 
 #else

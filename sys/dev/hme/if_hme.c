@@ -367,7 +367,7 @@ hme_config(struct hme_softc *sc)
 	/*
 	 * Tell the upper layer(s) we support long frames/checksum offloads.
 	 */
-	ifp->if_data.ifi_hdrlen = sizeof(struct ether_vlan_header);
+	ifp->if_hdrlen = sizeof(struct ether_vlan_header);
 	ifp->if_capabilities |= IFCAP_VLAN_MTU | IFCAP_HWCSUM;
 	ifp->if_hwassist |= sc->sc_csum_features;
 	ifp->if_capenable |= IFCAP_VLAN_MTU | IFCAP_HWCSUM;

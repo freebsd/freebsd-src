@@ -316,46 +316,36 @@ vie_update_register(void *vm, int vcpuid, enum vm_reg_name reg,
 	return (error);
 }
 
+#define	RFLAGS_STATUS_BITS    (PSL_C | PSL_PF | PSL_AF | PSL_Z | PSL_N | PSL_V)
+
 /*
  * Return the status flags that would result from doing (x - y).
  */
-static u_long
-getcc16(uint16_t x, uint16_t y)
-{
-	u_long rflags;
+#define	GETCC(sz)							\
+static u_long								\
+getcc##sz(uint##sz##_t x, uint##sz##_t y)				\
+{									\
+	u_long rflags;							\
+									\
+	__asm __volatile("sub %2,%1; pushfq; popq %0" :			\
+	    "=r" (rflags), "+r" (x) : "m" (y));				\
+	return (rflags);						\
+} struct __hack
 
-	__asm __volatile("sub %1,%2; pushfq; popq %0" :
-	    "=r" (rflags) : "m" (y), "r" (x));
-	return (rflags);
-}
-
-static u_long
-getcc32(uint32_t x, uint32_t y)
-{
-	u_long rflags;
-
-	__asm __volatile("sub %1,%2; pushfq; popq %0" :
-	    "=r" (rflags) : "m" (y), "r" (x));
-	return (rflags);
-}
-
-static u_long
-getcc64(uint64_t x, uint64_t y)
-{
-	u_long rflags;
-
-	__asm __volatile("sub %1,%2; pushfq; popq %0" :
-	    "=r" (rflags) : "m" (y), "r" (x));
-	return (rflags);
-}
+GETCC(8);
+GETCC(16);
+GETCC(32);
+GETCC(64);
 
 static u_long
 getcc(int opsize, uint64_t x, uint64_t y)
 {
-	KASSERT(opsize == 2 || opsize == 4 || opsize == 8,
+	KASSERT(opsize == 1 || opsize == 2 || opsize == 4 || opsize == 8,
 	    ("getcc: invalid operand size %d", opsize));
 
-	if (opsize == 2)
+	if (opsize == 1)
+		return (getcc8(x, y));
+	else if (opsize == 2)
 		return (getcc16(x, y));
 	else if (opsize == 4)
 		return (getcc32(x, y));
@@ -569,7 +559,7 @@ emulate_and(void *vm, int vcpuid, uint64_t gpa, struct vie *vie,
 {
 	int error, size;
 	enum vm_reg_name reg;
-	uint64_t val1, val2;
+	uint64_t result, rflags, rflags2, val1, val2;
 
 	size = vie->opsize;
 	error = EINVAL;
@@ -597,8 +587,8 @@ emulate_and(void *vm, int vcpuid, uint64_t gpa, struct vie *vie,
 			break;
 
 		/* perform the operation and write the result */
-		val1 &= val2;
-		error = vie_update_register(vm, vcpuid, reg, val1, size);
+		result = val1 & val2;
+		error = vie_update_register(vm, vcpuid, reg, result, size);
 		break;
 	case 0x81:
 		/*
@@ -625,11 +615,11 @@ emulate_and(void *vm, int vcpuid, uint64_t gpa, struct vie *vie,
 		switch (vie->reg & 7) {
 		case 0x4:
 			/* modrm:reg == b100, AND */
-			val1 &= vie->immediate;
+			result = val1 & vie->immediate;
 			break;
 		case 0x1:
 			/* modrm:reg == b001, OR */
-			val1 |= vie->immediate;
+			result = val1 | vie->immediate;
 			break;
 		default:
 			error = EINVAL;
@@ -638,11 +628,29 @@ emulate_and(void *vm, int vcpuid, uint64_t gpa, struct vie *vie,
 		if (error)
 			break;
 
-		error = memwrite(vm, vcpuid, gpa, val1, size, arg);
+		error = memwrite(vm, vcpuid, gpa, result, size, arg);
 		break;
 	default:
 		break;
 	}
+	if (error)
+		return (error);
+
+	error = vie_read_register(vm, vcpuid, VM_REG_GUEST_RFLAGS, &rflags);
+	if (error)
+		return (error);
+
+	/*
+	 * OF and CF are cleared; the SF, ZF and PF flags are set according
+	 * to the result; AF is undefined.
+	 *
+	 * The updated status flags are obtained by subtracting 0 from 'result'.
+	 */
+	rflags2 = getcc(size, result, 0);
+	rflags &= ~RFLAGS_STATUS_BITS;
+	rflags |= rflags2 & (PSL_PF | PSL_Z | PSL_N);
+
+	error = vie_update_register(vm, vcpuid, VM_REG_GUEST_RFLAGS, rflags, 8);
 	return (error);
 }
 
@@ -651,7 +659,7 @@ emulate_or(void *vm, int vcpuid, uint64_t gpa, struct vie *vie,
 	    mem_region_read_t memread, mem_region_write_t memwrite, void *arg)
 {
 	int error, size;
-	uint64_t val1;
+	uint64_t val1, result, rflags, rflags2;
 
 	size = vie->opsize;
 	error = EINVAL;
@@ -681,16 +689,32 @@ emulate_or(void *vm, int vcpuid, uint64_t gpa, struct vie *vie,
 		 * perform the operation with the pre-fetched immediate
 		 * operand and write the result
 		 */
-                val1 |= vie->immediate;
-                error = memwrite(vm, vcpuid, gpa, val1, size, arg);
+                result = val1 | vie->immediate;
+                error = memwrite(vm, vcpuid, gpa, result, size, arg);
 		break;
 	default:
 		break;
 	}
+	if (error)
+		return (error);
+
+	error = vie_read_register(vm, vcpuid, VM_REG_GUEST_RFLAGS, &rflags);
+	if (error)
+		return (error);
+
+	/*
+	 * OF and CF are cleared; the SF, ZF and PF flags are set according
+	 * to the result; AF is undefined.
+	 *
+	 * The updated status flags are obtained by subtracting 0 from 'result'.
+	 */
+	rflags2 = getcc(size, result, 0);
+	rflags &= ~RFLAGS_STATUS_BITS;
+	rflags |= rflags2 & (PSL_PF | PSL_Z | PSL_N);
+
+	error = vie_update_register(vm, vcpuid, VM_REG_GUEST_RFLAGS, rflags, 8);
 	return (error);
 }
-
-#define	RFLAGS_STATUS_BITS    (PSL_C | PSL_PF | PSL_AF | PSL_Z | PSL_N | PSL_V)
 
 static int
 emulate_cmp(void *vm, int vcpuid, uint64_t gpa, struct vie *vie,
