@@ -63,7 +63,6 @@ SRCS+=	_flock_stub.c				\
 	strtol.c				\
 	strtoul.c				\
 	strtoull.c				\
-	sysarch.S
 #	memcpy.S				\
 
 # Locale support
