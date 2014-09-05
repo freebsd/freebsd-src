@@ -37,6 +37,7 @@ static char sccsid[] = "@(#)bcopy.c	8.1 (Berkeley) 6/4/93";
 __FBSDID("$FreeBSD$");
 
 #include <sys/types.h>
+#include "cheri_private.h"
 
 /*
  * sizeof(word) MUST BE A POWER OF TWO
@@ -55,13 +56,13 @@ typedef	int word;		/* "word" used for optimal copy speed */
 #if defined(MEMCOPY) || defined(MEMMOVE)
 #include <string.h>
 
-void *
+__CAPABILITY void *
 #ifdef MEMCOPY
 memcpy
 #else
-memmove
+__CAPSUFFIX(memmove)
 #endif
-(void *dst0, const void *src0, size_t length)
+(__CAPABILITY void *dst0, __CAPABILITY const void *src0, size_t length)
 #else
 #include <strings.h>
 
@@ -69,8 +70,8 @@ void
 bcopy(const void *src0, void *dst0, size_t length)
 #endif
 {
-	char *dst = dst0;
-	const char *src = src0;
+	__CAPABILITY char *dst = dst0;
+	__CAPABILITY const char *src = src0;
 	size_t t;
 
 	if (length == 0 || dst == src)		/* nothing to do */
