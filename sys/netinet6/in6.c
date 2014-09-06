@@ -293,7 +293,7 @@ in6_control(struct socket *so, u_long cmd, caddr_t data,
 		return (mrt6_ioctl ? mrt6_ioctl(cmd, data) : EOPNOTSUPP);
 	}
 
-	switch(cmd) {
+	switch (cmd) {
 	case SIOCAADDRCTL_POLICY:
 	case SIOCDADDRCTL_POLICY:
 		if (td != NULL) {
@@ -365,14 +365,10 @@ in6_control(struct socket *so, u_long cmd, caddr_t data,
 			if (error)
 				return (error);
 		}
-		return (scope6_set(ifp,
-		    (struct scope6_id *)ifr->ifr_ifru.ifru_scope_id));
+		/* FALLTHROUGH */
 	case SIOCGSCOPE6:
-		return (scope6_get(ifp,
-		    (struct scope6_id *)ifr->ifr_ifru.ifru_scope_id));
 	case SIOCGSCOPE6DEF:
-		return (scope6_get_default((struct scope6_id *)
-		    ifr->ifr_ifru.ifru_scope_id));
+		return (scope6_ioctl(cmd, data, ifp));
 	}
 
 	switch (cmd) {
@@ -503,6 +499,13 @@ in6_control(struct socket *so, u_long cmd, caddr_t data,
 			if (error)
 				goto out;
 		}
+		/* FALLTHROUGH */
+	case SIOCGIFSTAT_IN6:
+	case SIOCGIFSTAT_ICMP6:
+		if (ifp->if_afdata[AF_INET6] == NULL) {
+			error = EPFNOSUPPORT;
+			goto out;
+		}
 		break;
 
 	case SIOCGIFADDR_IN6:
@@ -578,10 +581,6 @@ in6_control(struct socket *so, u_long cmd, caddr_t data,
 		break;
 
 	case SIOCGIFSTAT_IN6:
-		if (ifp == NULL) {
-			error = EINVAL;
-			goto out;
-		}
 		COUNTER_ARRAY_COPY(((struct in6_ifextra *)
 		    ifp->if_afdata[AF_INET6])->in6_ifstat,
 		    &ifr->ifr_ifru.ifru_stat,
@@ -589,10 +588,6 @@ in6_control(struct socket *so, u_long cmd, caddr_t data,
 		break;
 
 	case SIOCGIFSTAT_ICMP6:
-		if (ifp == NULL) {
-			error = EINVAL;
-			goto out;
-		}
 		COUNTER_ARRAY_COPY(((struct in6_ifextra *)
 		    ifp->if_afdata[AF_INET6])->icmp6_ifstat,
 		    &ifr->ifr_ifru.ifru_icmp6stat,
@@ -825,7 +820,7 @@ in6_control(struct socket *so, u_long cmd, caddr_t data,
 	}
 
 	default:
-		if (ifp == NULL || ifp->if_ioctl == 0) {
+		if (ifp->if_ioctl == NULL) {
 			error = EOPNOTSUPP;
 			goto out;
 		}
