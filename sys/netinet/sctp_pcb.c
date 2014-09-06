@@ -5976,6 +5976,9 @@ sctp_pcb_finish(void)
 	LIST_FOREACH_SAFE(wi, &SCTP_BASE_INFO(addr_wq), sctp_nxt_addr, nwi) {
 		LIST_REMOVE(wi, sctp_nxt_addr);
 		SCTP_DECR_LADDR_COUNT();
+		if (wi->action == SCTP_DEL_IP_ADDRESS) {
+			SCTP_FREE(wi->ifa, SCTP_M_IFA);
+		}
 		SCTP_ZONE_FREE(SCTP_BASE_INFO(ipi_zone_laddr), wi);
 	}
 	SCTP_WQ_ADDR_UNLOCK();
