@@ -417,13 +417,6 @@ ahci_pci_attach(device_t dev)
 		ctlr->numirqs = 1;
 	}
 
-	if (ahci_setup_interrupt(dev)) {
-		if (ctlr->msi)
-			pci_release_msi(dev);
-		bus_release_resource(dev, SYS_RES_MEMORY, ctlr->r_rid, ctlr->r_mem);
-		return ENXIO;
-	}
-
 	error = ahci_attach(dev);
 	if (error != 0)
 		if (ctlr->msi)

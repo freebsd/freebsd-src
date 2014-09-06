@@ -229,6 +229,15 @@ ahci_attach(device_t dev)
 
 	ahci_ctlr_setup(dev);
 
+	/* Setup interrupts. */
+	if (ahci_setup_interrupt(dev)) {
+		bus_dma_tag_destroy(ctlr->dma_tag);
+		bus_release_resource(dev, SYS_RES_MEMORY, ctlr->r_rid,
+		    ctlr->r_mem);
+		rman_fini(&ctlr->sc_iomem);
+		return ENXIO;
+	}
+
 	i = 0;
 	for (u = ctlr->ichannels; u != 0; u >>= 1)
 		i += (u & 1);
