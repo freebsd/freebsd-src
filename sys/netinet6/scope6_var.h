@@ -45,8 +45,7 @@ struct scope6_id {
 void	scope6_init(void);
 struct scope6_id *scope6_ifattach(struct ifnet *);
 void	scope6_ifdetach(struct scope6_id *);
-int	scope6_set(struct ifnet *, struct scope6_id *);
-int	scope6_get(struct ifnet *, struct scope6_id *);
+int	scope6_ioctl(u_long cmd, caddr_t data, struct ifnet *);
 void	scope6_setdefault(struct ifnet *);
 int	scope6_get_default(struct scope6_id *);
 u_int32_t scope6_addr2default(struct in6_addr *);
