@@ -359,7 +359,9 @@ ahci_setup_interrupt(device_t dev)
 	for (i = 0; i < ctlr->numirqs; i++) {
 		ctlr->irqs[i].ctlr = ctlr;
 		ctlr->irqs[i].r_irq_rid = i + (ctlr->msi ? 1 : 0);
-		if (ctlr->numirqs == 1 || i >= ctlr->channels ||
+		if (ctlr->channels == 1 && !ctlr->ccc)
+			ctlr->irqs[i].mode = AHCI_IRQ_MODE_ONE;
+		else if (ctlr->numirqs == 1 || i >= ctlr->channels ||
 		    (ctlr->ccc && i == ctlr->cccv))
 			ctlr->irqs[i].mode = AHCI_IRQ_MODE_ALL;
 		else if (i == ctlr->numirqs - 1)
