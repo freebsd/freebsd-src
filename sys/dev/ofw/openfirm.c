@@ -554,15 +554,15 @@ OF_node_from_xref(phandle_t xref)
 	return (node);
 }
 
-phandle_t
-OF_xref_from_node(phandle_t node)
+static phandle_t
+xref_from_node(phandle_t node, phandle_t notfoundvalue)
 {
 	struct xrefinfo *xi;
 	phandle_t xref;
 
 	if (xref_init_done) {
 		if ((xi = xrefinfo_find(node, FIND_BY_NODE)) == NULL)
-			return (node);
+			return (notfoundvalue);
 		return (xi->xref);
 	}
 
@@ -570,8 +570,22 @@ OF_xref_from_node(phandle_t node)
 	    -1 && OF_getencprop(node, "ibm,phandle", &xref,
 	    sizeof(xref)) == -1 && OF_getencprop(node,
 	    "linux,phandle", &xref, sizeof(xref)) == -1)
-		return (node);
+		return (notfoundvalue);
 	return (xref);
+}
+
+phandle_t
+OF_xref_from_node(phandle_t node)
+{
+
+	return (xref_from_node(node, node));
+}
+
+phandle_t
+OF_xref_from_node_strict(phandle_t node)
+{
+
+	return (xref_from_node(node, -1));
 }
 
 device_t
