@@ -75,10 +75,13 @@ __FBSDID("$FreeBSD$");
 #define AMD_CPUID_SVM_NRIP_SAVE		BIT(3)  /* Next RIP is saved */
 #define AMD_CPUID_SVM_TSC_RATE		BIT(4)  /* TSC rate control. */
 #define AMD_CPUID_SVM_VMCB_CLEAN	BIT(5)  /* VMCB state caching */
-#define AMD_CPUID_SVM_ASID_FLUSH	BIT(6)  /* Flush by ASID */
+#define AMD_CPUID_SVM_FLUSH_BY_ASID	BIT(6)  /* Flush by ASID */
 #define AMD_CPUID_SVM_DECODE_ASSIST	BIT(7)  /* Decode assist */
 #define AMD_CPUID_SVM_PAUSE_INC		BIT(10) /* Pause intercept filter. */
 #define AMD_CPUID_SVM_PAUSE_FTH		BIT(12) /* Pause filter threshold */
+
+#define	VMCB_CACHE_DEFAULT	\
+	(VMCB_CACHE_ASID | VMCB_CACHE_IOPM | VMCB_CACHE_NP)
 
 MALLOC_DEFINE(M_SVM, "svm", "svm");
 MALLOC_DEFINE(M_SVM_VLAPIC, "svm-vlapic", "svm-vlapic");
@@ -93,19 +96,13 @@ static int svm_msr_rd_ok(uint8_t *btmap, uint64_t msr);
 static int svm_msr_index(uint64_t msr, int *index, int *bit);
 static int svm_getdesc(void *arg, int vcpu, int type, struct seg_desc *desc);
 
-static uint32_t svm_feature; /* AMD SVM features. */
+static uint32_t svm_feature;	/* AMD SVM features. */
 
-/*
- * Starting guest ASID, 0 is reserved for host.
- * Each guest will have its own unique ASID.
- */
-static uint32_t guest_asid = 1;
+/* Maximum ASIDs supported by the processor */
+static uint32_t nasid;
 
-/*
- * Max ASID processor can support.
- * This limit the maximum number of virtual machines that can be created.
- */
-static int max_asid;
+/* Current ASID generation for each host cpu */
+static struct asid asid[MAXCPU];
 
 /* 
  * SVM host state saved area of size 4KB for each core.
@@ -174,8 +171,9 @@ svm_cpuid_features(void)
 	svm_feature = regs[3];
 
 	printf("SVM rev: 0x%x NASID:0x%x\n", regs[0] & 0xFF, regs[1]);
-	max_asid = regs[1];
-	
+	nasid = regs[1];
+	KASSERT(nasid > 1, ("Insufficient ASIDs for guests: %#x", nasid));
+
 	printf("SVM Features:0x%b\n", svm_feature,
 		"\020"
 		"\001NP"		/* Nested paging */
@@ -212,6 +210,12 @@ svm_cpuid_features(void)
 		return (0);
 	
 	return (EIO);
+}
+
+static __inline int
+flush_by_asid(void)
+{
+	return (svm_feature & AMD_CPUID_SVM_FLUSH_BY_ASID);
 }
 
 /*
@@ -262,18 +266,28 @@ is_svm_enabled(void)
 static int
 svm_init(int ipinum)
 {
-	int err;
+	int err, cpu;
 
 	err = is_svm_enabled();
 	if (err) 
 		return (err);
 	
+	for (cpu = 0; cpu < MAXCPU; cpu++) {
+		/*
+		 * Initialize the host ASIDs to their "highest" valid values.
+		 *
+		 * The next ASID allocation will rollover both 'gen' and 'num'
+		 * and start off the sequence at {1,1}.
+		 */
+		asid[cpu].gen = ~0UL;
+		asid[cpu].num = nasid - 1;
+	}
 
 	svm_npt_init(ipinum);
 	
 	/* Start SVM on all CPUs */
 	smp_rendezvous(NULL, svm_enable, NULL, NULL);
-		
+
 	return (0);
 }
 
@@ -374,6 +388,12 @@ svm_msr_rd_ok(uint8_t *perm_bitmap, uint64_t msr)
 	return svm_msr_perm(perm_bitmap, msr, true, false);
 }
 
+static __inline void
+vcpu_set_dirty(struct svm_vcpu *vcpustate, uint32_t dirtybits)
+{
+	vcpustate->dirty |= dirtybits;
+}
+
 /*
  * Initialise a virtual machine.
  */
@@ -383,14 +403,8 @@ svm_vminit(struct vm *vm, pmap_t pmap)
 	struct svm_softc *svm_sc;
 	struct svm_vcpu *vcpu;
 	vm_paddr_t msrpm_pa, iopm_pa, pml4_pa;	
-	int i, error;
+	int i;
 
-	if (guest_asid >= max_asid) {
-		ERR("Host support max ASID:%d, can't create more guests.\n",
-			max_asid);
-		return (NULL);
-	}
-	
 	svm_sc = (struct svm_softc *)malloc(sizeof (struct svm_softc),
 			M_SVM, M_WAITOK | M_ZERO);
 
@@ -398,12 +412,7 @@ svm_vminit(struct vm *vm, pmap_t pmap)
 	svm_sc->svm_feature = svm_feature;
 	svm_sc->vcpu_cnt = VM_MAXCPU;
 	svm_sc->nptp = (vm_offset_t)vtophys(pmap->pm_pml4);
-	/*
-	 * Each guest has its own unique ASID.
-	 * ASID(Address Space Identifier) is used by TLB entry.
-	 */
-	svm_sc->asid = guest_asid++;
-	
+
 	/*
 	 * Intercept MSR access to all MSRs except GSBASE, FSBASE,... etc.
 	 */	
@@ -442,17 +451,9 @@ svm_vminit(struct vm *vm, pmap_t pmap)
 		vcpu = svm_get_vcpu(svm_sc, i);
 		vcpu->lastcpu = NOCPU;
 		vcpu->vmcb_pa = vtophys(&vcpu->vmcb);
-		error = svm_init_vmcb(&vcpu->vmcb, iopm_pa, msrpm_pa, pml4_pa,
-		    svm_sc->asid);
-		if (error)
-			goto cleanup;
+		svm_init_vmcb(&vcpu->vmcb, iopm_pa, msrpm_pa, pml4_pa);
 	}
-
 	return (svm_sc);
-
-cleanup:
-	free(svm_sc, M_SVM);
-	return (NULL);
 }
 
 static int
@@ -1085,7 +1086,7 @@ svm_inj_interrupts(struct svm_softc *svm_sc, int vcpu, struct vlapic *vlapic)
 	VCPU_CTR1(svm_sc->vm, vcpu, "SVM:event injected,vector=%d.\n", vector);
 }
 
-static void
+static __inline void
 restore_host_tss(void)
 {
 	struct system_segment_descriptor *tss_sd;
@@ -1100,6 +1101,109 @@ restore_host_tss(void)
 	tss_sd = PCPU_GET(tss);
 	tss_sd->sd_type = SDT_SYSTSS;
 	ltr(GSEL(GPROC0_SEL, SEL_KPL));
+}
+
+static void
+check_asid(struct svm_softc *sc, int vcpuid, pmap_t pmap, u_int thiscpu)
+{
+	struct svm_vcpu *vcpustate;
+	struct vmcb_ctrl *ctrl;
+	long eptgen;
+	bool alloc_asid;
+
+	KASSERT(CPU_ISSET(thiscpu, &pmap->pm_active), ("%s: nested pmap not "
+	    "active on cpu %u", __func__, thiscpu));
+
+	vcpustate = svm_get_vcpu(sc, vcpuid);
+	ctrl = svm_get_vmcb_ctrl(sc, vcpuid);
+
+	/*
+	 * The TLB entries associated with the vcpu's ASID are not valid
+	 * if either of the following conditions is true:
+	 *
+	 * 1. The vcpu's ASID generation is different than the host cpu's
+	 *    ASID generation. This happens when the vcpu migrates to a new
+	 *    host cpu. It can also happen when the number of vcpus executing
+	 *    on a host cpu is greater than the number of ASIDs available.
+	 *
+	 * 2. The pmap generation number is different than the value cached in
+	 *    the 'vcpustate'. This happens when the host invalidates pages
+	 *    belonging to the guest.
+	 *
+	 *	asidgen		eptgen	      Action
+	 *	mismatch	mismatch
+	 *	   0		   0		(a)
+	 *	   0		   1		(b1) or (b2)
+	 *	   1		   0		(c)
+	 *	   1		   1		(d)
+	 *
+	 * (a) There is no mismatch in eptgen or ASID generation and therefore
+	 *     no further action is needed.
+	 *
+	 * (b1) If the cpu supports FlushByAsid then the vcpu's ASID is
+	 *      retained and the TLB entries associated with this ASID
+	 *      are flushed by VMRUN.
+	 *
+	 * (b2) If the cpu does not support FlushByAsid then a new ASID is
+	 *      allocated.
+	 *
+	 * (c) A new ASID is allocated.
+	 *
+	 * (d) A new ASID is allocated.
+	 */
+
+	alloc_asid = false;
+	eptgen = pmap->pm_eptgen;
+	ctrl->tlb_ctrl = VMCB_TLB_FLUSH_NOTHING;
+
+	if (vcpustate->asid.gen != asid[thiscpu].gen) {
+		alloc_asid = true;	/* (c) and (d) */
+	} else if (vcpustate->eptgen != eptgen) {
+		if (flush_by_asid())
+			ctrl->tlb_ctrl = VMCB_TLB_FLUSH_GUEST;	/* (b1) */
+		else
+			alloc_asid = true;			/* (b2) */
+	} else {
+		/*
+		 * This is the common case (a).
+		 */
+		KASSERT(!alloc_asid, ("ASID allocation not necessary"));
+		KASSERT(ctrl->tlb_ctrl == VMCB_TLB_FLUSH_NOTHING,
+		    ("Invalid VMCB tlb_ctrl: %#x", ctrl->tlb_ctrl));
+	}
+
+	if (alloc_asid) {
+		if (++asid[thiscpu].num >= nasid) {
+			asid[thiscpu].num = 1;
+			if (++asid[thiscpu].gen == 0)
+				asid[thiscpu].gen = 1;
+			/*
+			 * If this cpu does not support "flush-by-asid"
+			 * then flush the entire TLB on a generation
+			 * bump. Subsequent ASID allocation in this
+			 * generation can be done without a TLB flush.
+			 */
+			if (!flush_by_asid())
+				ctrl->tlb_ctrl = VMCB_TLB_FLUSH_ALL;
+		}
+		vcpustate->asid.gen = asid[thiscpu].gen;
+		vcpustate->asid.num = asid[thiscpu].num;
+
+		ctrl->asid = vcpustate->asid.num;
+		vcpu_set_dirty(vcpustate, VMCB_CACHE_ASID);
+		/*
+		 * If this cpu supports "flush-by-asid" then the TLB
+		 * was not flushed after the generation bump. The TLB
+		 * is flushed selectively after every new ASID allocation.
+		 */
+		if (flush_by_asid())
+			ctrl->tlb_ctrl = VMCB_TLB_FLUSH_GUEST;
+	}
+	vcpustate->eptgen = eptgen;
+
+	KASSERT(ctrl->asid != 0, ("Guest ASID must be non-zero"));
+	KASSERT(ctrl->asid == vcpustate->asid.num,
+	    ("ASID mismatch: %u/%u", ctrl->asid, vcpustate->asid.num));
 }
 
 /*
@@ -1118,6 +1222,7 @@ svm_vmrun(void *arg, int vcpu, register_t rip, pmap_t pmap,
 	struct vlapic *vlapic;
 	struct vm *vm;
 	uint64_t vmcb_pa;
+	u_int thiscpu;
 	bool loop;	/* Continue vcpu execution loop. */
 
 	loop = true;
@@ -1130,53 +1235,51 @@ svm_vmrun(void *arg, int vcpu, register_t rip, pmap_t pmap,
 	vmexit = vm_exitinfo(vm, vcpu);
 	vlapic = vm_lapic(vm, vcpu);
 
+	/*
+	 * Stash 'curcpu' on the stack as 'thiscpu'.
+	 *
+	 * The per-cpu data area is not accessible until MSR_GSBASE is restored
+	 * after the #VMEXIT. Since VMRUN is executed inside a critical section
+	 * 'curcpu' and 'thiscpu' are guaranteed to identical.
+	 */
+	thiscpu = curcpu;
+
 	gctx = svm_get_guest_regctx(svm_sc, vcpu);
-	hctx = &host_ctx[curcpu]; 
+	hctx = &host_ctx[thiscpu]; 
 	vmcb_pa = svm_sc->vcpu[vcpu].vmcb_pa;
 
-	if (vcpustate->lastcpu != curcpu) {
-		/* Virtual CPU is running on a diiferent CPU now.*/
-		vmm_stat_incr(vm, vcpu, VCPU_MIGRATIONS, 1);
+	if (vcpustate->lastcpu != thiscpu) {
+		/*
+		 * Force new ASID allocation by invalidating the generation.
+		 */
+		vcpustate->asid.gen = 0;
 
 		/*
-		 * Flush all TLB mappings for this guest on this CPU,
-		 * it might have stale entries since vcpu has migrated
-		 * or vmm is restarted.
+		 * Invalidate the VMCB state cache by marking all fields dirty.
 		 */
-		ctrl->tlb_ctrl = VMCB_TLB_FLUSH_GUEST;
+		vcpu_set_dirty(vcpustate, 0xffffffff);
 
-		/* Can't use any cached VMCB state by cpu.*/
-		ctrl->vmcb_clean = VMCB_CACHE_NONE;
-	} else {
 		/*
-		 * XXX: Using same ASID for all vcpus of a VM will cause TLB
-		 * corruption. This can easily be produced by muxing two vcpus
-		 * on same core.
-		 * For now, flush guest TLB for every vmrun.
-		 */
-		ctrl->tlb_ctrl = VMCB_TLB_FLUSH_GUEST;
-		
-		/* 
-		 * This is the same cpu on which vcpu last ran so don't
-		 * need to reload all VMCB state.
-		 * ASID is unique for a guest.
-		 * IOPM is unchanged.
-		 * RVI/EPT is unchanged.
+		 * XXX
+		 * Setting 'vcpustate->lastcpu' here is bit premature because
+		 * we may return from this function without actually executing
+		 * the VMRUN  instruction. This could happen if a rendezvous
+		 * or an AST is pending on the first time through the loop.
 		 *
+		 * This works for now but any new side-effects of vcpu
+		 * migration should take this case into account.
 		 */
-		ctrl->vmcb_clean = VMCB_CACHE_ASID |
-				VMCB_CACHE_IOPM |
-				VMCB_CACHE_NP;
+		vcpustate->lastcpu = thiscpu;
+		vmm_stat_incr(vm, vcpu, VCPU_MIGRATIONS, 1);
 	}
 
-	vcpustate->lastcpu = curcpu;
 	VCPU_CTR3(vm, vcpu, "SVM:Enter vmrun RIP:0x%lx"
 		" inst len=%d/%d\n",
 		rip, vmexit->inst_length, 
 		vmexit->u.inst_emul.vie.num_valid);
 	/* Update Guest RIP */
 	state->rip = rip;
-	
+
 	do {
 		vmexit->inst_length = 0;
 
@@ -1219,8 +1322,22 @@ svm_vmrun(void *arg, int vcpu, register_t rip, pmap_t pmap,
 
 		svm_inj_interrupts(svm_sc, vcpu, vlapic);
 
+		/* Activate the nested pmap on 'thiscpu' */
+		CPU_SET_ATOMIC_ACQ(thiscpu, &pmap->pm_active);
+
+		/*
+		 * Check the pmap generation and the ASID generation to
+		 * ensure that the vcpu does not use stale TLB mappings.
+		 */
+		check_asid(svm_sc, vcpu, pmap, thiscpu);
+
+		ctrl->vmcb_clean = VMCB_CACHE_DEFAULT & ~vcpustate->dirty;
+		vcpustate->dirty = 0;
+
 		/* Launch Virtual Machine. */
 		svm_launch(vmcb_pa, gctx, hctx);
+
+		CPU_CLR_ATOMIC(thiscpu, &pmap->pm_active);
 
 		/*
 		 * Restore MSR_GSBASE to point to the pcpu data area.
@@ -1232,7 +1349,9 @@ svm_vmrun(void *arg, int vcpu, register_t rip, pmap_t pmap,
 		 * since it is not used in the kernel and will be restored
 		 * when the VMRUN ioctl returns to userspace.
 		 */
-		wrmsr(MSR_GSBASE, (uint64_t)&__pcpu[vcpustate->lastcpu]);
+		wrmsr(MSR_GSBASE, (uint64_t)&__pcpu[thiscpu]);
+		KASSERT(curcpu == thiscpu, ("thiscpu/curcpu (%u/%u) mismatch",
+		    thiscpu, curcpu));
 
 		/*
 		 * The host GDTR and IDTR is saved by VMRUN and restored
@@ -1363,11 +1482,17 @@ svm_setreg(void *arg, int vcpu, int ident, uint64_t val)
 	}
 
 	reg = swctx_regptr(svm_get_guest_regctx(svm_sc, vcpu), ident);
-	
+
 	if (reg != NULL) {
 		*reg = val;
 		return (0);
 	}
+
+	/*
+	 * XXX deal with CR3 and invalidate TLB entries tagged with the
+	 * vcpu's ASID. This needs to be treated differently depending on
+	 * whether 'running' is true/false.
+	 */
 
  	ERR("SVM_ERR:reg type %x is not saved in VMCB.\n", ident);
 	return (EINVAL);

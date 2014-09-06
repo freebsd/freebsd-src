@@ -32,15 +32,23 @@
 #define SVM_IO_BITMAP_SIZE	(3 * PAGE_SIZE)
 #define SVM_MSR_BITMAP_SIZE	(2 * PAGE_SIZE)
 
+struct asid {
+	uint64_t	gen;	/* range is [1, ~0UL] */
+	uint32_t	num;	/* range is [1, nasid - 1] */
+};
+
 /*
  * svm_vpcu contains SVM VMCB state and vcpu register state.
  */
 struct svm_vcpu {
-	struct vmcb	 vmcb;	  /* hardware saved vcpu context */
-	struct svm_regctx swctx;  /* software saved vcpu context */
-	uint64_t	 vmcb_pa; /* VMCB physical address */
-	uint64_t	 loop;	  /* loop count for vcpu */
-        int		 lastcpu; /* host cpu that the vcpu last ran on */
+	struct vmcb	vmcb;	 /* hardware saved vcpu context */
+	struct svm_regctx swctx; /* software saved vcpu context */
+	uint64_t	vmcb_pa; /* VMCB physical address */
+	uint64_t	loop;	 /* loop count for vcpu */
+        int		lastcpu; /* host cpu that the vcpu last ran on */
+	uint32_t	dirty;	 /* state cache bits that must be cleared */
+	long		eptgen;	 /* pmap->pm_eptgen when the vcpu last ran */
+	struct asid	asid;
 } __aligned(PAGE_SIZE);
 
 /*
@@ -73,7 +81,6 @@ struct svm_softc {
 
 	uint32_t	svm_feature;	/* SVM features from CPUID.*/
 
-	int		asid;		/* Guest Address Space Identifier */
 	int 		vcpu_cnt;	/* number of VCPUs for this guest.*/
 } __aligned(PAGE_SIZE);
 
