@@ -37,7 +37,7 @@ dev/ata/chipsets/ata-fsl.c		optional imxata
 dev/uart/uart_dev_imx.c			optional uart
 
 # USB OH3 controller (1 OTG, 3 EHCI)
-arm/freescale/imx/imx_nop_usbphy.c	optional echi
+arm/freescale/imx/imx_nop_usbphy.c	optional ehci
 dev/usb/controller/ehci_imx.c		optional ehci
 
 # Watchdog
