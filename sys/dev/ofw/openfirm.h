@@ -128,10 +128,12 @@ ssize_t		OF_package_to_path(phandle_t node, char *buf, size_t len);
  * Some OF implementations (IBM, FDT) have a concept of effective phandles
  * used for device-tree cross-references. Given one of these, returns the
  * real phandle. If one can't be found (or running on OF implementations
- * without this property), returns its input.
+ * without this property), OF_xref_from_node() returns its input, while the
+ * strict version returns -1.
  */
 phandle_t	OF_node_from_xref(phandle_t xref);
 phandle_t	OF_xref_from_node(phandle_t node);
+phandle_t	OF_xref_from_node_strict(phandle_t node);
 
 /*
  * When properties contain references to other nodes using xref handles it is
