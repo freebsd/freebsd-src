@@ -490,6 +490,8 @@
 #define	MSR_APIC_DCR_TIMER	0x83e
 #define	MSR_APIC_SELF_IPI	0x83f
 
+#define	MSR_IA32_XSS		0xda0
+
 /*
  * Constants related to MSR's.
  */
