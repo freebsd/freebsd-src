@@ -36,6 +36,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/malloc.h>
 #include <sys/mbuf.h>
 #include <sys/socket.h>
+#include <sys/sockio.h>
 #include <sys/systm.h>
 #include <sys/queue.h>
 #include <sys/syslog.h>
@@ -71,6 +72,9 @@ static VNET_DEFINE(struct scope6_id, sid_default);
 
 #define SID(ifp) \
 	(((struct in6_ifextra *)(ifp)->if_afdata[AF_INET6])->scope6_id)
+
+static int	scope6_get(struct ifnet *, struct scope6_id *);
+static int	scope6_set(struct ifnet *, struct scope6_id *);
 
 void
 scope6_init(void)
@@ -115,6 +119,30 @@ scope6_ifdetach(struct scope6_id *sid)
 }
 
 int
+scope6_ioctl(u_long cmd, caddr_t data, struct ifnet *ifp)
+{
+	struct in6_ifreq *ifr;
+
+	if (ifp->if_afdata[AF_INET6] == NULL)
+		return (EPFNOSUPPORT);
+
+	ifr = (struct in6_ifreq *)data;
+	switch (cmd) {
+	case SIOCSSCOPE6:
+		return (scope6_set(ifp,
+		    (struct scope6_id *)ifr->ifr_ifru.ifru_scope_id));
+	case SIOCGSCOPE6:
+		return (scope6_get(ifp,
+		    (struct scope6_id *)ifr->ifr_ifru.ifru_scope_id));
+	case SIOCGSCOPE6DEF:
+		return (scope6_get_default(
+		    (struct scope6_id *)ifr->ifr_ifru.ifru_scope_id));
+	default:
+		return (EOPNOTSUPP);
+	}
+}
+
+static int
 scope6_set(struct ifnet *ifp, struct scope6_id *idlist)
 {
 	int i;
@@ -177,7 +205,7 @@ scope6_set(struct ifnet *ifp, struct scope6_id *idlist)
 	return (error);
 }
 
-int
+static int
 scope6_get(struct ifnet *ifp, struct scope6_id *idlist)
 {
 	struct scope6_id *sid;
@@ -195,7 +223,6 @@ scope6_get(struct ifnet *ifp, struct scope6_id *idlist)
 	IF_AFDATA_RUNLOCK(ifp);
 	return (0);
 }
-
 
 /*
  * Get a scope of the address. Node-local, link-local, site-local or global.
