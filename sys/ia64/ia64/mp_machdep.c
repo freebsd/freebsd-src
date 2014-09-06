@@ -222,7 +222,7 @@ ia64_ap_startup(void)
 
 	ia64_ap_state.as_trace = 0x108;
 
-	vhpt = PCPU_GET(md.vhpt);
+	vhpt = pcpup->pc_md.vhpt;
 	map_vhpt(vhpt);
 	ia64_set_pta(vhpt + (1 << 8) + (pmap_vhpt_log2size << 2) + 1);
 	ia64_srlz_i();
@@ -246,8 +246,8 @@ ia64_ap_startup(void)
 		cpu_spinwait();
 
 	/* Initialize curthread. */
-	KASSERT(PCPU_GET(idlethread) != NULL, ("no idle thread"));
-	PCPU_SET(curthread, PCPU_GET(idlethread));
+	KASSERT(pcpup->pc_idlethread != NULL, ("no idle thread"));
+	pcpup->pc_curthread = pcpup->pc_idlethread;
 
 	pmap_invalidate_all();
 

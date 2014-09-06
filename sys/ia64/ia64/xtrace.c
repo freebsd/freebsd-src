@@ -94,7 +94,7 @@ ia64_xtrace_init_common(vm_paddr_t pa)
 	__asm __volatile("mov   psr.l=%0" :: "r" (psr));
 	ia64_srlz_i();
 
-	PCPU_SET(md.xtrace_tail, ia64_xtrace_base);
+	pcpup->pc_md.xtrace_tail = ia64_xtrace_base;
 	ia64_set_k3(ia64_xtrace_base);
 }
 
@@ -119,7 +119,7 @@ ia64_xtrace_init_ap(void *buf)
 		ia64_set_k3(0);
 		return;
 	}
-	PCPU_SET(md.xtrace_buffer, buf);
+	pcpup->pc_md.xtrace_buffer = buf;
 	pa = ia64_tpa((uintptr_t)buf);
 	ia64_xtrace_init_common(pa);
 }
@@ -140,7 +140,7 @@ ia64_xtrace_init_bsp(void)
 		ia64_set_k3(0);
 		return;
 	}
-	PCPU_SET(md.xtrace_buffer, buf);
+	pcpup->pc_md.xtrace_buffer = buf;
 	pa = IA64_RR_MASK((uintptr_t)buf);
 	ia64_xtrace_init_common(pa);
 }

@@ -171,8 +171,8 @@ ia64_highfp_save_ipi(void)
 		td->td_pcb->pcb_fpcpu = NULL;
 		PCPU_SET(fpcurthread, NULL);
 	}
+	wakeup(PCPU_PTR(fpcurthread));
 	mtx_unlock_spin(&ia64_highfp_mtx);
-	wakeup(&PCPU_GET(fpcurthread));
 
 	return ((td != NULL) ? 1 : 0);
 }
