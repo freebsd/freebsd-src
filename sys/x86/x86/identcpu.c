@@ -932,6 +932,19 @@ printcpuinfo(void)
 				       );
 			}
 
+			if ((cpu_feature2 & CPUID2_XSAVE) != 0) {
+				cpuid_count(0xd, 0x1, regs);
+				if (regs[0] != 0) {
+					printf("\n  XSAVE Features=0x%b",
+					    regs[0],
+					    "\020"
+					    "\001XSAVEOPT"
+					    "\002XSAVEC"
+					    "\003XINUSE"
+					    "\004XSAVES");
+				}
+			}
+
 			if (via_feature_rng != 0 || via_feature_xcrypt != 0)
 				print_via_padlock_info();
 
