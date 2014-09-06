@@ -1535,8 +1535,9 @@ ahci_execute_transaction(struct ahci_slot *slot)
 		/*
 		 * Marvell HBAs with non-RAID firmware do not wait for
 		 * readiness after soft reset, so we have to wait here.
-		 * Marvell RAIDs have no this problem, but instead sometimes
-		 * forget to update FIS receive area, breaking this wait.
+		 * Marvell RAIDs do not have this problem, but instead
+		 * sometimes forget to update FIS receive area, breaking
+		 * this wait.
 		 */
 		if ((ch->quirks & AHCI_Q_NOBSYRES) == 0 &&
 		    (ch->quirks & AHCI_Q_ATI_PMP_BUG) == 0 &&
