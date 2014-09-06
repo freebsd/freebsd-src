@@ -75,10 +75,10 @@ extern int		acpi_resume_beep;
 extern int		acpi_reset_video;
 
 #ifdef SMP
-extern struct pcb	**susppcbs;
+extern struct susppcb	**susppcbs;
 static cpuset_t		suspcpus;
 #else
-static struct pcb	**susppcbs;
+static struct susppcb	**susppcbs;
 #endif
 
 static void		*acpi_alloc_wakeup_handler(void);
@@ -117,14 +117,15 @@ acpi_stop_beep(void *arg)
 static int
 acpi_wakeup_ap(struct acpi_softc *sc, int cpu)
 {
+	struct pcb *pcb;
 	int		vector = (WAKECODE_PADDR(sc) >> 12) & 0xff;
 	int		apic_id = cpu_apic_ids[cpu];
 	int		ms;
 
-	WAKECODE_FIXUP(wakeup_pcb, struct pcb *, susppcbs[cpu]);
-	WAKECODE_FIXUP(wakeup_gdt, uint16_t, susppcbs[cpu]->pcb_gdt.rd_limit);
-	WAKECODE_FIXUP(wakeup_gdt + 2, uint64_t,
-	    susppcbs[cpu]->pcb_gdt.rd_base);
+	pcb = &susppcbs[cpu]->sp_pcb;
+	WAKECODE_FIXUP(wakeup_pcb, struct pcb *, pcb);
+	WAKECODE_FIXUP(wakeup_gdt, uint16_t, pcb->pcb_gdt.rd_limit);
+	WAKECODE_FIXUP(wakeup_gdt + 2, uint64_t, pcb->pcb_gdt.rd_base);
 
 	ipi_startup(apic_id, vector);
 
@@ -188,6 +189,7 @@ int
 acpi_sleep_machdep(struct acpi_softc *sc, int state)
 {
 	ACPI_STATUS	status;
+	struct pcb	*pcb;
 
 	if (sc->acpi_wakeaddr == 0ul)
 		return (-1);	/* couldn't alloc wake memory */
@@ -204,11 +206,12 @@ acpi_sleep_machdep(struct acpi_softc *sc, int state)
 
 	intr_suspend();
 
-	if (savectx(susppcbs[0])) {
+	pcb = &susppcbs[0]->sp_pcb;
+	if (savectx(pcb)) {
 #ifdef __amd64__
-		fpususpend(susppcbs[0]->pcb_fpususpend);
+		fpususpend(susppcbs[0]->sp_fpususpend);
 #elif defined(DEV_NPX)
-		npxsuspend(&susppcbs[0]->pcb_fpususpend);
+		npxsuspend(&susppcbs[0]->sp_fpususpend);
 #endif
 #ifdef SMP
 		if (!CPU_EMPTY(&suspcpus) && suspend_cpus(suspcpus) == 0) {
@@ -221,13 +224,11 @@ acpi_sleep_machdep(struct acpi_softc *sc, int state)
 		WAKECODE_FIXUP(reset_video, uint8_t, (acpi_reset_video != 0));
 
 #ifndef __amd64__
-		WAKECODE_FIXUP(wakeup_cr4, register_t, susppcbs[0]->pcb_cr4);
+		WAKECODE_FIXUP(wakeup_cr4, register_t, pcb->pcb_cr4);
 #endif
-		WAKECODE_FIXUP(wakeup_pcb, struct pcb *, susppcbs[0]);
-		WAKECODE_FIXUP(wakeup_gdt, uint16_t,
-		    susppcbs[0]->pcb_gdt.rd_limit);
-		WAKECODE_FIXUP(wakeup_gdt + 2, uint64_t,
-		    susppcbs[0]->pcb_gdt.rd_base);
+		WAKECODE_FIXUP(wakeup_pcb, struct pcb *, pcb);
+		WAKECODE_FIXUP(wakeup_gdt, uint16_t, pcb->pcb_gdt.rd_limit);
+		WAKECODE_FIXUP(wakeup_gdt + 2, uint64_t, pcb->pcb_gdt.rd_base);
 
 		/* Call ACPICA to enter the desired sleep state */
 		if (state == ACPI_STATE_S4 && sc->acpi_s4bios)
@@ -244,8 +245,10 @@ acpi_sleep_machdep(struct acpi_softc *sc, int state)
 		for (;;)
 			ia32_pause();
 	} else {
-#ifdef DEV_NPX
-		npxresume(&susppcbs[0]->pcb_fpususpend);
+#ifdef __amd64__
+		fpuresume(susppcbs[0]->sp_fpususpend);
+#elif defined(DEV_NPX)
+		npxresume(&susppcbs[0]->sp_fpususpend);
 #endif
 	}
 
@@ -325,7 +328,7 @@ acpi_alloc_wakeup_handler(void)
 	for (i = 0; i < mp_ncpus; i++) {
 		susppcbs[i] = malloc(sizeof(**susppcbs), M_DEVBUF, M_WAITOK);
 #ifdef __amd64__
-		susppcbs[i]->pcb_fpususpend = alloc_fpusave(M_WAITOK);
+		susppcbs[i]->sp_fpususpend = alloc_fpusave(M_WAITOK);
 #endif
 	}
 
