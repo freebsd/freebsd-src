@@ -91,6 +91,7 @@ __FBSDID("$FreeBSD$");
 #define	GPIO_PORTA_EOI		0x84C	/* Clear Interrupt Register */
 #define	 PORTA_EOI_NS		(1 << 0)
 #define	GPIO_EXT_PORTA		0x850	/* External Port A Register */
+#define	 EXT_PORTA_CDP		(1 << 10) /* Configuration done */
 #define	GPIO_LS_SYNC		0x860	/* Synchronization Level Register */
 #define	GPIO_VER_ID_CODE	0x86C	/* GPIO Version Register */
 #define	GPIO_CONFIG_REG2	0x870	/* Configuration Register 2 */
@@ -147,8 +148,6 @@ static struct cfgmgr_mode cfgmgr_modes[] = {
 
 struct fpgamgr_softc {
 	struct resource		*res[3];
-	bus_space_tag_t		bst;
-	bus_space_handle_t	bsh;
 	bus_space_tag_t		bst_data;
 	bus_space_handle_t	bsh_data;
 	struct cdev		*mgr_cdev;
@@ -161,20 +160,6 @@ static struct resource_spec fpgamgr_spec[] = {
 	{ SYS_RES_IRQ,		0,	RF_ACTIVE },
 	{ -1, 0 }
 };
-
-static int
-fpgamgr_probe(device_t dev)
-{
-
-	if (!ofw_bus_status_okay(dev))
-		return (ENXIO);
-
-	if (!ofw_bus_is_compatible(dev, "altr,fpga-mgr"))
-		return (ENXIO);
-
-	device_set_desc(dev, "FPGA Manager");
-	return (BUS_PROBE_DEFAULT);
-}
 
 static int
 fpgamgr_state_get(struct fpgamgr_softc *sc)
@@ -208,7 +193,7 @@ fpgamgr_state_wait(struct fpgamgr_softc *sc, int state)
 }
 
 static int
-fpga_open(struct cdev *dev __unused, int flags __unused,
+fpga_open(struct cdev *dev, int flags __unused,
     int fmt __unused, struct thread *td __unused)
 {
 	struct fpgamgr_softc *sc;
@@ -310,7 +295,7 @@ fpga_wait_dclk_pulses(struct fpgamgr_softc *sc, int npulses)
 }
 
 static int
-fpga_close(struct cdev *dev __unused, int flags __unused,
+fpga_close(struct cdev *dev, int flags __unused,
     int fmt __unused, struct thread *td __unused)
 {
 	struct fpgamgr_softc *sc;
@@ -319,7 +304,7 @@ fpga_close(struct cdev *dev __unused, int flags __unused,
 	sc = dev->si_drv1;
 
 	reg = READ4(sc, GPIO_EXT_PORTA);
-	if ((reg & (1 << 10)) == 0) {
+	if ((reg & EXT_PORTA_CDP) == 0) {
 		device_printf(sc->dev, "Err: configuration failed\n");
 		return (ENXIO);
 	}
@@ -388,6 +373,20 @@ static struct cdevsw fpga_cdevsw = {
 };
 
 static int
+fpgamgr_probe(device_t dev)
+{
+
+	if (!ofw_bus_status_okay(dev))
+		return (ENXIO);
+
+	if (!ofw_bus_is_compatible(dev, "altr,fpga-mgr"))
+		return (ENXIO);
+
+	device_set_desc(dev, "FPGA Manager");
+	return (BUS_PROBE_DEFAULT);
+}
+
+static int
 fpgamgr_attach(device_t dev)
 {
 	struct fpgamgr_softc *sc;
@@ -401,8 +400,6 @@ fpgamgr_attach(device_t dev)
 	}
 
 	/* Memory interface */
-	sc->bst = rman_get_bustag(sc->res[0]);
-	sc->bsh = rman_get_bushandle(sc->res[0]);
 	sc->bst_data = rman_get_bustag(sc->res[1]);
 	sc->bsh_data = rman_get_bushandle(sc->res[1]);
 
