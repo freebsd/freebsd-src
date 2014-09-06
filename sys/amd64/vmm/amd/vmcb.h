@@ -104,7 +104,6 @@
 #define	VMCB_CACHE_CR2			BIT(9)	/* page fault address */
 #define	VMCB_CACHE_LBR			BIT(10)	/* Last branch */
 
-
 /* VMCB control event injection */
 #define	VMCB_EVENTINJ_EC_VALID		BIT(11)	/* Error Code valid */
 #define	VMCB_EVENTINJ_VALID		BIT(31)	/* Event valid */
@@ -277,8 +276,8 @@ struct vmcb {
 CTASSERT(sizeof(struct vmcb) == PAGE_SIZE);
 CTASSERT(offsetof(struct vmcb, state) == 0x400);
 
-int	svm_init_vmcb(struct vmcb *vmcb, uint64_t iopm_base_pa,
-		      uint64_t msrpm_base_pa, uint64_t np_pml4, uint32_t asid);
+void	svm_init_vmcb(struct vmcb *vmcb, uint64_t iopm_base_pa,
+		      uint64_t msrpm_base_pa, uint64_t np_pml4);
 int	vmcb_read(struct vmcb *vmcb, int ident, uint64_t *retval);
 int	vmcb_write(struct vmcb *vmcb, int ident, uint64_t val);
 struct vmcb_segment *vmcb_seg(struct vmcb *vmcb, int type);

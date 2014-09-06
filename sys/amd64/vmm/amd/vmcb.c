@@ -51,9 +51,9 @@ __FBSDID("$FreeBSD$");
 /*
  * Initialize SVM h/w context i.e. the VMCB control and saved state areas.
  */
-int
+void
 svm_init_vmcb(struct vmcb *vmcb, uint64_t iopm_base_pa, uint64_t msrpm_base_pa,
-    uint64_t np_pml4, uint32_t asid)
+    uint64_t np_pml4)
 {
 	struct vmcb_ctrl *ctrl;
 	struct vmcb_state *state;
@@ -98,7 +98,10 @@ svm_init_vmcb(struct vmcb *vmcb, uint64_t iopm_base_pa, uint64_t msrpm_base_pa,
 	 */
 	ctrl->ctrl2 = VMCB_INTCPT_VMRUN;
 
-	ctrl->asid = asid;
+	/*
+	 * The ASID will be set to a non-zero value just before VMRUN.
+	 */
+	ctrl->asid = 0;
 
 	/*
 	 * Section 15.21.1, Interrupt Masking in EFLAGS
@@ -124,8 +127,6 @@ svm_init_vmcb(struct vmcb *vmcb, uint64_t iopm_base_pa, uint64_t msrpm_base_pa,
 	    PAT_VALUE(5, PAT_WRITE_THROUGH)	|
 	    PAT_VALUE(6, PAT_UNCACHED)		|
 	    PAT_VALUE(7, PAT_UNCACHEABLE);
-
-	return (0);
 }
 
 /*
