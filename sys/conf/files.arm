@@ -26,6 +26,7 @@ arm/arm/gdb_machdep.c		optional	gdb
 arm/arm/identcpu.c		standard
 arm/arm/in_cksum.c		optional	inet | inet6
 arm/arm/in_cksum_arm.S		optional	inet | inet6
+arm/arm/intr.c			optional	!arm_intrng
 arm/arm/intrng.c		optional	arm_intrng
 arm/arm/locore.S		standard	no-obj
 arm/arm/machdep.c		standard
