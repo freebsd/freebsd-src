@@ -3245,6 +3245,7 @@ static int
 filt_soread(struct knote *kn, long hint)
 {
 	struct socket *so;
+	int ret;
 
 	so = kn->kn_fp->f_data;
 	SOCKBUF_LOCK_ASSERT(&so->so_rcv);
@@ -3267,11 +3268,12 @@ filt_soread(struct knote *kn, long hint)
 
 	CURVNET_SET(so->so_vnet);
 	if (V_socket_hhh[HHOOK_FILT_SOREAD]->hhh_nhooks > 0)
-		/* This hook returning non-zero indicates an event, not error */
-		return (hhook_run_socket(so, NULL, HHOOK_FILT_SOREAD));
+		ret = hhook_run_socket(so, NULL, HHOOK_FILT_SOREAD);
+	else
+		ret = 0;
 	CURVNET_RESTORE();
-	
-	return (0);
+
+	return (ret);
 }
 
 static void
