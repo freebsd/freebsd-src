@@ -1779,8 +1779,6 @@ in6p_lookup_mcast_ifp(const struct inpcb *in6p,
 	    ("%s: not INP_IPV6 inpcb", __func__));
 	KASSERT(gsin6->sin6_family == AF_INET6,
 	    ("%s: not AF_INET6 group", __func__));
-	KASSERT(IN6_IS_ADDR_MULTICAST(&gsin6->sin6_addr),
-	    ("%s: not multicast", __func__));
 
 	ifp = NULL;
 	memset(&ro6, 0, sizeof(struct route_in6));
