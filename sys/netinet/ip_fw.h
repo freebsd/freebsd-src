@@ -98,6 +98,12 @@ typedef struct _ip_fw3_opheader {
 #define	IP_FW_TABLE_XSWAP	109	/* swap two tables */
 #define	IP_FW_TABLE_VLIST	110	/* dump table value hash */
 
+#define	IP_FW_NAT44_XCONFIG	111	/* Create/modify NAT44 instance */
+#define	IP_FW_NAT44_DESTROY	112	/* Destroys NAT44 instance */
+#define	IP_FW_NAT44_XGETCONFIG	113	/* Get NAT44 instance config */
+#define	IP_FW_NAT44_LIST_NAT	114	/* List all NAT44 instances */
+#define	IP_FW_NAT44_XGETLOG	115	/* Get log from NAT44 instance */
+
 /*
  * The kernel representation of ipfw rules is made of a list of
  * 'instructions' (for all practical purposes equivalent to BPF
@@ -402,6 +408,8 @@ typedef struct  _ipfw_insn_log {
 	u_int32_t log_left;	/* how many left to log 	*/
 } ipfw_insn_log;
 
+/* Legacy NAT structures, compat only */
+#ifndef	_KERNEL
 /*
  * Data structures required by both ipfw(8) and ipfw(4) but not part of the
  * management API are protected by IPFW_INTERNAL.
@@ -462,6 +470,44 @@ struct cfg_nat {
 #define SOF_NAT         sizeof(struct cfg_nat)
 #define SOF_REDIR       sizeof(struct cfg_redir)
 #define SOF_SPOOL       sizeof(struct cfg_spool)
+
+#endif	/* ifndef _KERNEL */
+
+
+struct nat44_cfg_spool {
+	struct in_addr	addr;
+	uint16_t	port;
+	uint16_t	spare;
+};
+#define NAT44_REDIR_ADDR	0x01
+#define NAT44_REDIR_PORT	0x02
+#define NAT44_REDIR_PROTO	0x04
+
+/* Nat redirect configuration. */
+struct nat44_cfg_redir {
+	struct in_addr	laddr;		/* local ip address */
+	struct in_addr	paddr;		/* public ip address */
+	struct in_addr	raddr;		/* remote ip address */
+	uint16_t	lport;		/* local port */
+	uint16_t	pport;		/* public port */
+	uint16_t	rport;		/* remote port  */
+	uint16_t	pport_cnt;	/* number of public ports */
+	uint16_t	rport_cnt;	/* number of remote ports */
+	uint16_t	mode;		/* type of redirect mode */
+	uint16_t	spool_cnt;	/* num of entry in spool chain */ 
+	uint16_t	spare;
+	uint32_t	proto;		/* protocol: tcp/udp */
+};
+
+/* Nat configuration data struct. */
+struct nat44_cfg_nat {
+	char		name[64];	/* nat name */
+	char		if_name[64];	/* interface name */
+	uint32_t	size;		/* structure size incl. redirs */
+	struct in_addr	ip;		/* nat IPv4 address */
+	uint32_t	mode;		/* aliasing mode */
+	uint32_t	redir_cnt;	/* number of entry in spool chain */
+};
 
 /* Nat command. */
 typedef struct	_ipfw_insn_nat {
