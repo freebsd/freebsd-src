@@ -127,10 +127,6 @@ Lram_offset:	.word from_ram-_C_LABEL(_start)
 from_ram:
 	nop
 #endif
-	adr	r7, Lunmapped
-	bic     r7, r7, #0xf0000000
-	orr     r7, r7, #PHYSADDR
-
 
 disable_mmu:
 	/* Disable MMU for a while */
@@ -144,7 +140,8 @@ disable_mmu:
 	nop
 	nop
 	nop
-	mov	pc, r7
+	CPWAIT(r0)
+
 Lunmapped:
 	/*
 	 * Build page table from scratch.
