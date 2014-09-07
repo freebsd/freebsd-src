@@ -343,10 +343,6 @@ build_pagetables:
 
 VA_TO_PA_POINTER(Lpagetable, pagetable)
 
-Lvirtaddr:
-	.word	KERNVIRTADDR
-Lphysaddr:
-	.word	KERNPHYSADDR
 Lreal_start:
 	.word	_start
 Lend:
