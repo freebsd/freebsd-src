@@ -1229,12 +1229,13 @@ adaregister(struct cam_periph *periph, void *arg)
 	    "kern.cam.ada.%d.write_cache", periph->unit_number);
 	TUNABLE_INT_FETCH(announce_buf, &softc->write_cache);
 	/* Disable queue sorting for non-rotational media by default. */
-	if (cgd->ident_data.media_rotation_rate == 1)
+	if (cgd->ident_data.media_rotation_rate == ATA_RATE_NON_ROTATING)
 		softc->sort_io_queue = 0;
 	else
 		softc->sort_io_queue = -1;
 	adagetparams(periph, cgd);
 	softc->disk = disk_alloc();
+	softc->disk->d_rotation_rate = cgd->ident_data.media_rotation_rate;
 	softc->disk->d_devstat = devstat_new_entry(periph->periph_name,
 			  periph->unit_number, softc->params.secsize,
 			  DEVSTAT_ALL_SUPPORTED,
