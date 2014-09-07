@@ -3390,9 +3390,18 @@ dadone(struct cam_periph *periph, union ccb *done_ccb)
 			 * Disable queue sorting for non-rotational media
 			 * by default.
 			 */
-			if (scsi_2btoul(bdc->medium_rotation_rate) ==
-			    SVPD_BDC_RATE_NONE_ROTATING)
+			u_int old_rate = softc->disk->d_rotation_rate;
+
+			softc->disk->d_rotation_rate =
+				scsi_2btoul(bdc->medium_rotation_rate);
+			if (softc->disk->d_rotation_rate ==
+			    SVPD_BDC_RATE_NON_ROTATING) {
 				softc->sort_io_queue = 0;
+			}
+			if (softc->disk->d_rotation_rate != old_rate) {
+				disk_attr_changed(softc->disk,
+				    "GEOM::rotation_rate", M_NOWAIT);
+			}
 		} else {
 			int error;
 			error = daerror(done_ccb, CAM_RETRY_SELTO,
@@ -3427,6 +3436,8 @@ dadone(struct cam_periph *periph, union ccb *done_ccb)
 		ptr = (uint16_t *)ata_params;
 
 		if ((csio->ccb_h.status & CAM_STATUS_MASK) == CAM_REQ_CMP) {
+			uint16_t old_rate;
+
 			for (i = 0; i < sizeof(*ata_params) / 2; i++)
 				ptr[i] = le16toh(ptr[i]);
 			if (ata_params->support_dsm & ATA_SUPPORT_DSM_TRIM &&
@@ -3442,8 +3453,18 @@ dadone(struct cam_periph *periph, union ccb *done_ccb)
 			 * Disable queue sorting for non-rotational media
 			 * by default.
 			 */
-			if (ata_params->media_rotation_rate == 1)
+			old_rate = softc->disk->d_rotation_rate;
+			softc->disk->d_rotation_rate =
+			    ata_params->media_rotation_rate;
+			if (softc->disk->d_rotation_rate ==
+			    ATA_RATE_NON_ROTATING) {
 				softc->sort_io_queue = 0;
+			}
+
+			if (softc->disk->d_rotation_rate != old_rate) {
+				disk_attr_changed(softc->disk,
+				    "GEOM::rotation_rate", M_NOWAIT);
+			}
 		} else {
 			int error;
 			error = daerror(done_ccb, CAM_RETRY_SELTO,

@@ -2302,7 +2302,7 @@ struct scsi_vpd_block_characteristics
 	u_int8_t page_length[2];
 	u_int8_t medium_rotation_rate[2];
 #define SVPD_BDC_RATE_NOT_REPORTED	0x00
-#define SVPD_BDC_RATE_NONE_ROTATING	0x01
+#define SVPD_BDC_RATE_NON_ROTATING	0x01
 	u_int8_t reserved1;
 	u_int8_t nominal_form_factor;
 #define SVPD_BDC_FORM_NOT_REPORTED	0x00

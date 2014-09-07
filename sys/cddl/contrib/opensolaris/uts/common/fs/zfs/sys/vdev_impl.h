@@ -116,6 +116,7 @@ struct vdev_queue {
 	uint64_t	vq_last_offset;
 	hrtime_t	vq_io_complete_ts; /* time last i/o completed */
 	kmutex_t	vq_lock;
+	uint64_t	vq_lastoffset;
 };
 
 /*
@@ -227,7 +228,10 @@ struct vdev {
 	spa_aux_vdev_t	*vdev_aux;	/* for l2cache vdevs		*/
 	zio_t		*vdev_probe_zio; /* root of current probe	*/
 	vdev_aux_t	vdev_label_aux;	/* on-disk aux state		*/
-	struct trim_map	*vdev_trimmap;
+	struct trim_map	*vdev_trimmap;	/* map on outstanding trims	*/ 
+	uint16_t	vdev_rotation_rate; /* rotational rate of the media */
+#define	VDEV_RATE_UNKNOWN	0
+#define	VDEV_RATE_NON_ROTATING	1
 
 	/*
 	 * For DTrace to work in userland (libzpool) context, these fields must
