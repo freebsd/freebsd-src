@@ -5921,8 +5921,8 @@ do_a_abort:
 		parameter_len = (uint16_t) sizeof(struct sctp_paramhdr);
 		ph = (struct sctp_paramhdr *)(mtod(m, caddr_t)+chunk_len);
 		ph->param_type = htons(SCTP_HAS_NAT_SUPPORT);
-		ph->param_length = htons(sizeof(struct sctp_paramhdr));
-		chunk_len += sizeof(struct sctp_paramhdr);
+		ph->param_length = htons(parameter_len);
+		chunk_len += parameter_len;
 	}
 	/* And now tell the peer which extensions we support */
 	num_ext = 0;
