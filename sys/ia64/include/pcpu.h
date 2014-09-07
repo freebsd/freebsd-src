@@ -31,7 +31,6 @@
 #define	_MACHINE_PCPU_H_
 
 #include <sys/sysctl.h>
-#include <sys/systm.h>
 #include <machine/pcb.h>
 
 struct pcpu_stats {
@@ -71,6 +70,8 @@ struct pcpu_md {
 	char		__pad[10*128]
 
 #ifdef _KERNEL
+
+#include <sys/systm.h>
 
 struct pcpu;
 
