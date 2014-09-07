@@ -1,9 +1,10 @@
 # $FreeBSD$
 
+SHLIBDIR?= /lib
+
 .include <src.opts.mk>
 
 LIB=	nv
-SHLIBDIR?= /lib
 SHLIB_MAJOR= 0
 
 SRCS=	dnvlist.c
