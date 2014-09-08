@@ -514,7 +514,7 @@ ixgbe_attach(device_t dev)
 	}
 
 	if (((ixgbe_rxd * sizeof(union ixgbe_adv_rx_desc)) % DBA_ALIGN) != 0 ||
-	    ixgbe_rxd < MIN_TXD || ixgbe_rxd > MAX_TXD) {
+	    ixgbe_rxd < MIN_RXD || ixgbe_rxd > MAX_RXD) {
 		device_printf(dev, "RXD config issue, using default!\n");
 		adapter->num_rx_desc = DEFAULT_RXD;
 	} else
