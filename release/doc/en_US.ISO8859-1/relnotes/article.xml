@@ -216,6 +216,10 @@
 	  must be updated to version 1.12.4_8 or newer.</para>
       </note>
 
+      <para revision="271128" contrib="sponsor" sponsor="&ff;">Several
+	performance enchancements to the &man.vt.4; driver have been
+	merged from &os;-CURRENT.</para>
+
       <sect3 xml:id="kernel-virtualization">
 	<title>Virtualization Support</title>
 
