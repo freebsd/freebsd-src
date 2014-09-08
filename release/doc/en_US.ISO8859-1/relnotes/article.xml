@@ -400,6 +400,13 @@
 	  &man.loader.conf.5; as a comma- or space-separated list.  By
 	  default, <literal>kernel</literal> and
 	  <literal>kernel.old</literal> are listed.</para>
+
+	<para revision="271130" contrib="sponsor" sponsor="&ff;">The
+	  <filename class="directory">sys/boot/</filename> sources
+	  have been rearranged, moving &man.libstand.3; to a directory
+	  indicating the library is built as 32-bit.  A 64-bit version
+	  of &man.libstand.3; will be added in a future &os;
+	  release.</para>
       </sect3>
 
       <sect3 xml:id="proc">
