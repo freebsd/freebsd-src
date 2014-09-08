@@ -835,6 +835,11 @@
 	<para revision="270810" contrib="vendor"
 	  vendor="&highpoint;">The &man.hptnr.4; driver has been
 	  updated to version 1.0.1.</para>
+
+	<para revision="271234">The &man.mrsas.4; driver has been
+	  added to the <filename>GENERIC</filename> kernel
+	  configuration on &arch.amd64; and &arch.i386;
+	  architectures.</para>
       </sect3>
 
       <sect3 xml:id="fs">
