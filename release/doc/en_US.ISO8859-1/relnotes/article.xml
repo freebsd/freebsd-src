@@ -225,6 +225,11 @@
 	<literal>4</literal> to <literal>8</literal> for the
 	&arch.powerpc64; architecture.</para>
 
+      <para revision="271205">The &os;/&arch.powerpc; ATI driver
+	has been updated to support enabling and disabling the
+	Radeon&nbsp;9700 backlight, found in the
+	&apple;&nbsp;PowerBook&trade;&nbsp;G4.</para>
+
       <sect3 xml:id="kernel-virtualization">
 	<title>Virtualization Support</title>
 
