@@ -404,9 +404,40 @@
 	<para revision="271130" contrib="sponsor" sponsor="&ff;">The
 	  <filename class="directory">sys/boot/</filename> sources
 	  have been rearranged, moving &man.libstand.3; to a directory
-	  indicating the library is built as 32-bit.  A 64-bit version
-	  of &man.libstand.3; will be added in a future &os;
-	  release.</para>
+	  indicating the library is built as 32-bit.</para>
+
+	<para revision="271135" contrib="sponsor" sponsor="&ff;">The
+	  &man.libstand.3; library has been updated to produce
+	  a 64-bit shared library for the &os;/&arch.amd64; and
+	  &os;/&arch.powerpc64; architectures.</para>
+
+	<para revision="271135" contrib="sponsor"
+	  sponsor="&ff;">Initial support for <acronym>UEFI</acronym>
+	  boot has been added.</para>
+
+	<para revision="271136" contrib="sponsor" sponsor="&ff;">Three
+	  new files are installed to <filename
+	    class="directory">/boot</filename>, supporting
+	  <acronym>UEFI</acronym> boot:</para>
+
+	<itemizedlist>
+	  <listitem>
+	    <para><filename>boot1.efi</filename>: The
+	      <acronym>UEFI</acronym> first stage bootstrap
+	      file.</para>
+	  </listitem>
+
+	  <listitem>
+	    <para><filename>boot1.efifat</filename>:
+	      A <acronym>FAT</acronym> filesystem image containing
+	      an <acronym>EFI</acronym> system partition.</para>
+	  </listitem>
+
+	  <listitem>
+	    <para><filename>loader.efi</filename>: The third stage
+	      bootstrap file.</para>
+	  </listitem>
+	</itemizedlist>
       </sect3>
 
       <sect3 xml:id="proc">
