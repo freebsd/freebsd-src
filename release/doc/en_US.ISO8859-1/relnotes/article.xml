@@ -654,6 +654,11 @@
 	  deferring wakeup until enough data has been received to
 	  read or write a file, reducing <acronym>CPU</acronym> usage
 	  and throughput performance with large I/O workloads.</para>
+
+	<para revision="263720" contrib="sponsor"
+	  sponsor="&ff;">Support for hostname- and IP-based access
+	  restriction has been added to the <acronym>iSCSI</acronym>
+	  &man.ctld.8; daemon.</para>
       </sect3>
 
       <sect3 xml:id="disks">
