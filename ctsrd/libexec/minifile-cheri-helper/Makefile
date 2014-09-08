@@ -5,7 +5,8 @@ PROG=	minifile-cheri-helper
 .PATH: ${.CURDIR}/${MACHINE_ARCH}
 SRCS=	minifile-cheri.c			\
 	chsbrt.S				\
-	stub.c
+	stub.c					\
+	sysarch.S
 
 MAN=
 
@@ -13,6 +14,8 @@ LDFLAGS+=	-Wl,--script=${.CURDIR}/sandbox.ld -nostdlib -Wl,-dead_strip
 NO_MAN=
 #STRIP=
 CFLAGS+=	-I${.CURDIR}
+CFLAGS+=	-I${.CURDIR}/../../../lib/libc/include
+CFLAGS+=	-I${.CURDIR}/../../../lib/libc/mips
 CFLAGS+=	-I${.CURDIR}/../../usr.bin/minifile
 LDADD+=		-lvuln_magic -lz -lc_cheri
 

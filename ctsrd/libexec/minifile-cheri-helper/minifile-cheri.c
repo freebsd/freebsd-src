@@ -69,11 +69,7 @@ invoke(register_t a0, register_t a1, register_t a2, register_t a3)
 	dotimings = a3;
 
 	if (dotimings)
-#if 0
 		timings[0] = sysarch(MIPS_GET_COUNT, NULL);
-#else
-		timings[0] = 0;
-#endif
 
 	if ((magicbuf = malloc(magicsize)) == NULL)
 		return (-1);
@@ -91,11 +87,7 @@ invoke(register_t a0, register_t a1, register_t a2, register_t a3)
 	memcpy_fromcap(filebuf, MINIFILE_FILE_CAP, 0, filesize);
 
 	if (dotimings)
-#if 0
 		timings[1] = sysarch(MIPS_GET_COUNT, NULL);
-#else
-		timings[1] = 0;
-#endif
 
         type = magic_buffer(magic, filebuf, filesize);
 	if (type == NULL) {
@@ -105,20 +97,12 @@ invoke(register_t a0, register_t a1, register_t a2, register_t a3)
 	}
 
 	if (dotimings)
-#if 0
 		timings[2] = sysarch(MIPS_GET_COUNT, NULL);
-#else
-		timings[2] = 0;
-#endif
 
 	memcpy_tocap(MINIFILE_OUT_CAP, type, 0, MIN(strlen(type) + 1, outsize));
 
 	if (dotimings) {
-#if 0
 		timings[3] = sysarch(MIPS_GET_COUNT, NULL);
-#else
-		timings[3] = 0;
-#endif
 
 		memcpy_tocap(MINIFILE_TIMING_CAP, timings, 0,
 		    (4 * sizeof(uint32_t)));
