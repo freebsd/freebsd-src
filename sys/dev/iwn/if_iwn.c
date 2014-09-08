@@ -4206,11 +4206,11 @@ iwn_check_rate_needs_protection(struct iwn_softc *sc,
 		return (0);
 
 	/*
-	 * If it's an 11n rate, then for now we enable
-	 * protection.
+	 * If it's an 11n rate - no protection.
+	 * We'll do it via a specific 11n check.
 	 */
 	if (rate & IEEE80211_RATE_MCS) {
-		return (1);
+		return (0);
 	}
 
 	/*
@@ -4440,6 +4440,9 @@ iwn_tx_data(struct iwn_softc *sc, struct mbuf *m, struct ieee80211_node *ni)
 				flags |= IWN_TX_NEED_CTS;
 			else if (ic->ic_protmode == IEEE80211_PROT_RTSCTS)
 				flags |= IWN_TX_NEED_RTS;
+		} else if ((rate & IEEE80211_RATE_MCS) &&
+			(ic->ic_htprotmode == IEEE80211_PROT_RTSCTS)) {
+			flags |= IWN_TX_NEED_RTS;
 		}
 
 		/* XXX HT protection? */
