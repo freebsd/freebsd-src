@@ -1519,6 +1519,10 @@ add_efi_map_entries(struct efi_map_header *efihdr, vm_paddr_t *physmap,
 	}
 }
 
+static char bootmethod[16] = "";
+SYSCTL_STRING(_machdep, OID_AUTO, bootmethod, CTLFLAG_RD, bootmethod, 0,
+    "System firmware boot method");
+
 /*
  * Populate the (physmap) array with base/bound pairs describing the
  * available physical memory in the system, then test this memory and
@@ -1549,12 +1553,15 @@ getmemsize(caddr_t kmdp, u_int64_t first)
 	smapbase = (struct bios_smap *)preload_search_info(kmdp,
 	    MODINFO_METADATA | MODINFOMD_SMAP);
 
-	if (efihdr != NULL)
+	if (efihdr != NULL) {
 		add_efi_map_entries(efihdr, physmap, &physmap_idx);
-	else if (smapbase != NULL)
+		strlcpy(bootmethod, "UEFI", sizeof(bootmethod));
+	} else if (smapbase != NULL) {
 		add_smap_entries(smapbase, physmap, &physmap_idx);
-	else
+		strlcpy(bootmethod, "BIOS", sizeof(bootmethod));
+	} else {
 		panic("No BIOS smap or EFI map info from loader!");
+	}
 
 	/*
 	 * Find the 'base memory' segment for SMP
