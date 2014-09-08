@@ -79,7 +79,14 @@ pam_sm_acct_mgmt(pam_handle_t *pamh, int flags __unused,
 
 	gethostname(hostname, sizeof hostname);
 
-	if (rhost == NULL || *(const char *)rhost == '\0') {
+	if (rhost != NULL && *(const char *)rhost != '\0') {
+		PAM_LOG("Checking login.access for user %s from host %s",
+		    (const char *)user, (const char *)rhost);
+		if (login_access(user, rhost) != 0)
+			return (PAM_SUCCESS);
+		PAM_VERBOSE_ERROR("%s is not allowed to log in from %s",
+		    user, rhost);
+	} else if (tty != NULL || *(const char *)tty != '\0') {
 		PAM_LOG("Checking login.access for user %s on tty %s",
 		    (const char *)user, (const char *)tty);
 		if (login_access(user, tty) != 0)
@@ -87,12 +94,8 @@ pam_sm_acct_mgmt(pam_handle_t *pamh, int flags __unused,
 		PAM_VERBOSE_ERROR("%s is not allowed to log in on %s",
 		    user, tty);
 	} else {
-		PAM_LOG("Checking login.access for user %s from host %s",
-		    (const char *)user, (const char *)rhost);
-		if (login_access(user, rhost) != 0)
-			return (PAM_SUCCESS);
-		PAM_VERBOSE_ERROR("%s is not allowed to log in from %s",
-		    user, rhost);
+		PAM_VERBOSE_ERROR("PAM_RHOST or PAM_TTY required");
+		return (PAM_AUTHINFO_UNAVAIL);
 	}
 
 	return (PAM_AUTH_ERR);
