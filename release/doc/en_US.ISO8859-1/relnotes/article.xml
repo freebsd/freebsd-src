@@ -1224,6 +1224,10 @@
 	  script now generates <literal>ED25519</literal> &man.sshd.8;
 	  host keys if keys do not already exist when
 	  <literal>ssh_keygen_alg()</literal> is invoked.</para>
+
+	<para revision="271095">Support for &man.vt.4; keyboard maps
+	  has been added to the <filename>syscons</filename>
+	  &man.rc.d.8; startup script.</para>
       </sect3>
     </sect2>
 
