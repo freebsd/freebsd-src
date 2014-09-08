@@ -659,6 +659,17 @@
 	  sponsor="&ff;">Support for hostname- and IP-based access
 	  restriction has been added to the <acronym>iSCSI</acronym>
 	  &man.ctld.8; daemon.</para>
+
+	<para revision="263725" contrib="sponsor"
+	  sponsor="&ff;">The &man.ctld.8; daemon has been updated
+	  to allow overriding the <quote>default</quote>
+	  <literal>portal-group</literal> configuration.</para>
+
+	<para revision="263726" contrib="sponsor"
+	  sponsor="&ff;">The &man.ctld.8; daemon now includes a new
+	  <literal>auth-group</literal>, <quote>default</quote>,
+	  defaulting to <literal>deny</literal>, which is possible
+	  to override.</para>
       </sect3>
 
       <sect3 xml:id="disks">
