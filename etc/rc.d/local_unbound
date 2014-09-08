@@ -13,6 +13,7 @@ name="local_unbound"
 desc="local caching forwarding resolver"
 rcvar="local_unbound_enable"
 
+command="/usr/sbin/unbound"
 extra_commands="anchor configtest reload setup"
 start_precmd="local_unbound_prestart"
 reload_precmd="local_unbound_configtest"
@@ -21,9 +22,18 @@ configtest_cmd="local_unbound_configtest"
 setup_cmd="local_unbound_setup"
 pidfile="/var/run/${name}.pid"
 
+: ${local_unbound_workdir:=/var/unbound}
+: ${local_unbound_config:=${local_unbound_workdir}/unbound.conf}
+: ${local_unbound_flags:=-c${local_unbound_config}}
+: ${local_unbound_forwardconf:=${local_unbound_workdir}/forward.conf}
+: ${local_unbound_anchor:=${local_unbound_workdir}/root.key}
+: ${local_unbound_forwarders:=}
+
+load_rc_config $name
+
 do_as_unbound()
 {
-	echo "$@" | /usr/bin/su -m unbound
+	echo "$@" | su -m unbound
 }
 
 #
@@ -31,8 +41,7 @@ do_as_unbound()
 #
 local_unbound_anchor()
 {
-	do_as_unbound ${local_unbound_program%/*}/unbound-anchor \
-	    -a ${local_unbound_anchor}
+	do_as_unbound /usr/sbin/unbound-anchor -a ${local_unbound_anchor}
 	# we can't trust the exit code - check if the file exists
 	[ -f ${local_unbound_anchor} ]
 }
@@ -42,8 +51,7 @@ local_unbound_anchor()
 #
 local_unbound_configtest()
 {
-	do_as_unbound ${local_unbound_program%/*}/unbound-checkconf \
-	    ${local_unbound_config}
+	do_as_unbound /usr/sbin/unbound-checkconf ${local_unbound_config}
 }
 
 #
@@ -53,7 +61,7 @@ local_unbound_configtest()
 local_unbound_setup()
 {
 	echo "Performing initial setup."
-	${local_unbound_program%/*}/local-unbound-setup -n \
+	/usr/sbin/local-unbound-setup -n \
 	    -u unbound \
 	    -w ${local_unbound_workdir} \
 	    -c ${local_unbound_config} \
