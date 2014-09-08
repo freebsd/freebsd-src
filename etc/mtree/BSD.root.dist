@@ -58,6 +58,8 @@
         ..
         ppp
         ..
+        rc.conf.d
+        ..
         rc.d
         ..
         security
