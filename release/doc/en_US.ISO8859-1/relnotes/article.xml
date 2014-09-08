@@ -220,6 +220,11 @@
 	performance enchancements to the &man.vt.4; driver have been
 	merged from &os;-CURRENT.</para>
 
+      <para revision="271153">The default stack size
+	(<literal>KSTACK_PAGES</literal>) has been increased from
+	<literal>4</literal> to <literal>8</literal> for the
+	&arch.powerpc64; architecture.</para>
+
       <sect3 xml:id="kernel-virtualization">
 	<title>Virtualization Support</title>
 
