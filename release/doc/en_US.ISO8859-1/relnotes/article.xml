@@ -1304,6 +1304,14 @@
 	<para revision="271095">Support for &man.vt.4; keyboard maps
 	  has been added to the <filename>syscons</filename>
 	  &man.rc.d.8; startup script.</para>
+
+	<para revision="271260">Support for subdirectories within
+	  <filename
+	    class="directory">/etc/rc.conf.d/<replaceable>service</replaceable>/</filename>
+	  has been added the &man.rc.d.8;.  This allows creating
+	  separate configuration files for services such as
+	  <filename>netif</filename>, for example, where each network
+	  interface can have a separate configuration file.</para>
       </sect3>
     </sect2>
 
