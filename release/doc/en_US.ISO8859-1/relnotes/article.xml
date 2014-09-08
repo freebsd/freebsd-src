@@ -202,6 +202,20 @@
 	updated to enable the &man.vt.4; console driver for the
 	Sony&reg;&nbsp;Playstation&nbsp;3&trade; platform.</para>
 
+      <para revision="271116" contrib="sponsor" sponsor="&ff;">The
+	&os;/&arch.powerpc; <literal>ofwfb</literal> driver, used to
+	provide a graphics console when the &man.vt.4; console driver
+	is used, has been modified to work with the <filename
+	  role="package">x11-drivers/xf86-video-scfb</filename>
+	port.</para>
+
+      <note>
+	<para>If using an <acronym>ATI</acronym> graphics card with
+	  the &man.vt.4; driver, the <filename
+	    role="package">x11-servers/xorg-server</filename> package
+	  must be updated to version 1.12.4_8 or newer.</para>
+      </note>
+
       <sect3 xml:id="kernel-virtualization">
 	<title>Virtualization Support</title>
 
