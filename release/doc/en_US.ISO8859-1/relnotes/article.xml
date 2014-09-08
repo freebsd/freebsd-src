@@ -197,6 +197,11 @@
       <para revision="271069">The &man.asmc.4; driver has been updated
 	to support the &apple;&nbsp;Mac Mini 3,1.</para>
 
+      <para revision="271111">The &os;/&arch.powerpc64; default kernel
+	configuration, <filename>GENERIC64</filename>, has been
+	updated to enable the &man.vt.4; console driver for the
+	Sony&reg;&nbsp;Playstation&nbsp;3&trade; platform.</para>
+
       <sect3 xml:id="kernel-virtualization">
 	<title>Virtualization Support</title>
 
