@@ -3,8 +3,9 @@
 PROG=	readpng-cheri-helper
 SRCS=	readpng-cheri.c				\
 	chsbrt.S				\
+	execve.S				\
 	setjmp.S				\
-	stub.c
+	sysarch.S
 
 USE_CHERI=      yes
 USE_CHERI_STACK=yes
