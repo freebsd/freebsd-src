@@ -430,10 +430,16 @@ vt_compute_drawable_area(struct vt_window *vw)
 	struct vt_device *vd;
 	struct vt_font *vf;
 
-	if (vw->vw_font == NULL)
-		return;
-
 	vd = vw->vw_device;
+
+	if (vw->vw_font == NULL) {
+		vw->vw_draw_area.tr_begin.tp_col = 0;
+		vw->vw_draw_area.tr_begin.tp_row = 0;
+		vw->vw_draw_area.tr_end.tp_col = vd->vd_width;
+		vw->vw_draw_area.tr_end.tp_row = vd->vd_height;
+		return;
+	}
+
 	vf = vw->vw_font;
 
 	/*
@@ -1300,30 +1306,40 @@ vtterm_opened(struct terminal *tm, int opened)
 }
 
 static int
-vt_set_border(struct vt_window *vw, struct vt_font *vf, term_color_t c)
+vt_set_border(struct vt_window *vw, term_color_t c)
 {
 	struct vt_device *vd = vw->vw_device;
-	int x, y, off_x, off_y;
 
 	if (vd->vd_driver->vd_drawrect == NULL)
 		return (ENOTSUP);
 
-	x = vd->vd_width - 1;
-	y = vd->vd_height - 1;
-	off_x = vw->vw_draw_area.tr_begin.tp_col;
-	off_y = vw->vw_draw_area.tr_begin.tp_row;
-
 	/* Top bar. */
-	if (off_y > 0)
-		vd->vd_driver->vd_drawrect(vd, 0, 0, x, off_y - 1, 1, c);
-	/* Left bar. */
-	if (off_x > 0)
-		vd->vd_driver->vd_drawrect(vd, 0, off_y, off_x - 1, y - off_y,
+	if (vw->vw_draw_area.tr_begin.tp_row > 0)
+		vd->vd_driver->vd_drawrect(vd,
+		    0, 0,
+		    vd->vd_width - 1, vw->vw_draw_area.tr_begin.tp_row - 1,
 		    1, c);
-	/* Right bar.  May be 1 pixel wider than necessary due to rounding. */
-	vd->vd_driver->vd_drawrect(vd, x - off_x, off_y, x, y - off_y, 1, c);
-	/* Bottom bar.  May be 1 mixel taller than necessary due to rounding. */
-	vd->vd_driver->vd_drawrect(vd, 0, y - off_y, x, y, 1, c);
+
+	/* Left bar. */
+	if (vw->vw_draw_area.tr_begin.tp_col > 0)
+		vd->vd_driver->vd_drawrect(vd,
+		    0, 0,
+		    vw->vw_draw_area.tr_begin.tp_col - 1, vd->vd_height - 1,
+		    1, c);
+
+	/* Right bar. */
+	if (vw->vw_draw_area.tr_end.tp_col < vd->vd_width)
+		vd->vd_driver->vd_drawrect(vd,
+		    vw->vw_draw_area.tr_end.tp_col - 1, 0,
+		    vd->vd_width - 1, vd->vd_height - 1,
+		    1, c);
+
+	/* Bottom bar. */
+	if (vw->vw_draw_area.tr_end.tp_row < vd->vd_height)
+		vd->vd_driver->vd_drawrect(vd,
+		    0, vw->vw_draw_area.tr_end.tp_row - 1,
+		    vd->vd_width - 1, vd->vd_height - 1,
+		    1, c);
 
 	return (0);
 }
@@ -1355,11 +1371,6 @@ vt_change_font(struct vt_window *vw, struct vt_font *vf)
 		VT_UNLOCK(vd);
 		return (EBUSY);
 	}
-	if (vd->vd_flags & VDF_TEXTMODE) {
-		/* Our device doesn't need fonts. */
-		VT_UNLOCK(vd);
-		return (ENOTTY);
-	}
 	vw->vw_flags |= VWF_BUSY;
 	VT_UNLOCK(vd);
 
@@ -1374,7 +1385,7 @@ vt_change_font(struct vt_window *vw, struct vt_font *vf)
 
 	/* Actually apply the font to the current window. */
 	VT_LOCK(vd);
-	if (vw->vw_font != vf) {
+	if (vw->vw_font != vf && vw->vw_font != NULL && vf != NULL) {
 		/*
 		 * In case vt_change_font called to update size we don't need
 		 * to update font link.
@@ -1397,7 +1408,7 @@ vt_change_font(struct vt_window *vw, struct vt_font *vf)
 
 	/* Force a full redraw the next timer tick. */
 	if (vd->vd_curwindow == vw) {
-		vt_set_border(vw, vf, TC_BLACK);
+		vt_set_border(vw, TC_BLACK);
 		vd->vd_flags |= VDF_INVALID;
 		vt_resume_flush_timer(vw->vw_device, 0);
 	}
