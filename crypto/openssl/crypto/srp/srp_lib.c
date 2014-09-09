@@ -85,6 +85,9 @@ static BIGNUM *srp_Calc_k(BIGNUM *N, BIGNUM *g)
 	int longg ;
 	int longN = BN_num_bytes(N);
 
+	if (BN_ucmp(g, N) >= 0)
+		return NULL;
+
 	if ((tmp = OPENSSL_malloc(longN)) == NULL)
 		return NULL;
 	BN_bn2bin(N,tmp) ;
@@ -115,6 +118,9 @@ BIGNUM *SRP_Calc_u(BIGNUM *A, BIGNUM *B, BIGNUM *N)
 	EVP_MD_CTX ctxt;
 	int longN;  
 	if ((A == NULL) ||(B == NULL) || (N == NULL))
+		return NULL;
+
+	if (BN_ucmp(A, N) >= 0 || BN_ucmp(B, N) >= 0)
 		return NULL;
 
 	longN= BN_num_bytes(N);

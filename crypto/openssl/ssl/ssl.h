@@ -264,6 +264,7 @@ extern "C" {
 #define SSL_TXT_aGOST94	"aGOST94"
 #define SSL_TXT_aGOST01 "aGOST01"
 #define SSL_TXT_aGOST  "aGOST"
+#define SSL_TXT_aSRP            "aSRP"
 
 #define	SSL_TXT_DSS		"DSS"
 #define SSL_TXT_DH		"DH"
@@ -2309,6 +2310,7 @@ void ERR_load_SSL_strings(void);
 #define SSL_R_BAD_SRP_B_LENGTH				 348
 #define SSL_R_BAD_SRP_G_LENGTH				 349
 #define SSL_R_BAD_SRP_N_LENGTH				 350
+#define SSL_R_BAD_SRP_PARAMETERS			 371
 #define SSL_R_BAD_SRP_S_LENGTH				 351
 #define SSL_R_BAD_SRTP_MKI_VALUE			 352
 #define SSL_R_BAD_SRTP_PROTECTION_PROFILE_LIST		 353

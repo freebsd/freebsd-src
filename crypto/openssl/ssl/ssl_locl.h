@@ -311,6 +311,7 @@
 #define SSL_aPSK                0x00000080L /* PSK auth */
 #define SSL_aGOST94				0x00000100L /* GOST R 34.10-94 signature auth */
 #define SSL_aGOST01 			0x00000200L /* GOST R 34.10-2001 signature auth */
+#define SSL_aSRP 		0x00000400L /* SRP auth */
 
 
 /* Bits for algorithm_enc (symmetric encryption) */
@@ -1172,5 +1173,7 @@ void ssl3_cbc_digest_record(
 void tls_fips_digest_extra(
 	const EVP_CIPHER_CTX *cipher_ctx, EVP_MD_CTX *mac_ctx,
 	const unsigned char *data, size_t data_len, size_t orig_len);
+
+int srp_verify_server_param(SSL *s, int *al);
 
 #endif
