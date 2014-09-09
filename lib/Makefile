@@ -116,6 +116,7 @@ SUBDIR=	${SUBDIR_ORDERED} \
 	libz \
 	${_libz_cheri} \
 	ncurses \
+	${_netsurf} \
 	${_atf} \
 	${_clang} \
 	${_cuse} \
@@ -197,6 +198,7 @@ _libz_cheri=	libz-cheri
 _libcurl=	libcurl
 _libjpeg=	libjpeg
 _libpng=	libpng
+_netsurf=	netsurf
 .endif
 
 .if ${MK_CLANG} != "no" && !defined(COMPAT_32BIT)

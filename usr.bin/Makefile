@@ -227,6 +227,10 @@ SUBDIR+=	cpio
 SUBDIR+=	calendar
 .endif
 
+.if ${MK_CHERI} != "no"
+SUBDIR+=	nsfb
+.endif
+
 .if ${MK_CLANG} != "no"
 _clang=		clang
 .endif
