@@ -49,7 +49,7 @@
         &os;.</para>
 
       <para>This errata document for &os; &release.current;
-        will be maintained until the release of &os; &release.next;.</para>
+        will be maintained until the EoL of &os; &release.branch;.</para>
     </abstract>
   </info>
 
@@ -100,86 +100,6 @@
 	</thead>
 
 	<tbody>
-	  <row>
-	    <entry><link xlink:href="http://www.freebsd.org/security/advisories/FreeBSD-SA-14:01.bsnmpd.asc">SA-14:01.bsnmpd</link></entry>
-	    <entry>1&nbsp;January&nbsp;2014</entry>
-	    <entry><para>Fix bsnmpd remote denial of service
-		vulnerability</para></entry>
-	  </row>
-
-	  <row>
-	    <entry><link xlink:href="http://www.freebsd.org/security/advisories/FreeBSD-SA-14:02.ntpd.asc">SA-14:02.ntpd</link></entry>
-	    <entry>1&nbsp;January&nbsp;2014</entry>
-	    <entry><para>Fix ntpd distributed reflection Denial of
-		Service vulnerability</para></entry>
-	  </row>
-
-	  <row>
-	    <entry><link xlink:href="http://www.freebsd.org/security/advisories/FreeBSD-SA-14:03.bind.asc">SA-14:03.ntpd</link></entry>
-	    <entry>1&nbsp;January&nbsp;2014</entry>
-	    <entry><para>Fix BIND remote denial of service
-		vulnerability</para></entry>
-	  </row>
-
-	  <row>
-	    <entry><link xlink:href="http://www.freebsd.org/security/advisories/FreeBSD-SA-14:05.nfsserver.asc">SA-14:05.nfsserver</link></entry>
-	    <entry>8&nbsp;April&nbsp;2014</entry>
-	    <entry><para>Fix NFS deadlock vulnerability</para></entry>
-	  </row>
-
-	  <row>
-	    <entry><link xlink:href="http://www.freebsd.org/security/advisories/FreeBSD-SA-14:06.openssl.asc">SA-14:06.openssl</link></entry>
-	    <entry>8&nbsp;April&nbsp;2014</entry>
-	    <entry><para>Fix ECDSA Cache Side-channel
-		Attack</para></entry>
-	  </row>
-
-	  <row>
-	    <entry><link xlink:href="http://www.freebsd.org/security/advisories/FreeBSD-SA-14:08.tcp.asc">SA-14:08.tcp</link></entry>
-	    <entry>30&nbsp;April&nbsp;2014</entry>
-	    <entry><para>Fix TCP reassembly
-		vulnerability</para></entry>
-	  </row>
-
-	  <row>
-	    <entry><link xlink:href="http://www.freebsd.org/security/advisories/FreeBSD-SA-14:11.sendmail.asc">SA-14:11.sendmail</link></entry>
-	    <entry>3&nbsp;June&nbsp;2014</entry>
-	    <entry><para>Fix sendmail improper close-on-exec flag
-		handling</para></entry>
-	  </row>
-
-	  <row>
-	    <entry><link xlink:href="http://www.freebsd.org/security/advisories/FreeBSD-SA-14:12.ktrace.asc">SA-14:12.ktrace</link></entry>
-	    <entry>3&nbsp;June&nbsp;2014</entry>
-	    <entry><para>Fix ktrace memory disclosure</para></entry>
-	  </row>
-
-	  <row>
-	    <entry><link xlink:href="http://www.freebsd.org/security/advisories/FreeBSD-SA-14:13.pam.asc">SA-14:13.pam</link></entry>
-	    <entry>3&nbsp;June&nbsp;2014</entry>
-	    <entry><para>Fix incorrect error handling in PAM policy
-		parser</para></entry>
-	  </row>
-
-	  <row>
-	    <entry><link xlink:href="http://www.freebsd.org/security/advisories/FreeBSD-SA-14:14.openssl.asc">SA-14:14.openssl</link></entry>
-	    <entry>5&nbsp;June&nbsp;2014</entry>
-	    <entry><para>Multiple vulnerabilities</para></entry>
-	  </row>
-
-	  <row>
-	    <entry><link xlink:href="http://www.freebsd.org/security/advisories/FreeBSD-SA-14:16.file.asc">SA-14:16.file</link></entry>
-	    <entry>24&nbsp;June&nbsp;2014</entry>
-	    <entry><para>Multiple vulnerabilities</para></entry>
-	  </row>
-
-	  <row>
-	    <entry><link xlink:href="http://www.freebsd.org/security/advisories/FreeBSD-SA-14:17.kmem.asc">SA-14:17.kmem</link></entry>
-	    <entry>8&nbsp;July&nbsp;2014</entry>
-	    <entry><para>Kernel memory disclosure in control messages
-		and SCTP notifications</para></entry>
-	  </row>
-
 	  <row>
 	    <entry><link xlink:href="http://www.freebsd.org/security/advisories/FreeBSD-SA-14:18.openssl.asc">SA-14:18.openssl</link></entry>
 	    <entry>9&nbsp;September&nbsp;2014</entry>
