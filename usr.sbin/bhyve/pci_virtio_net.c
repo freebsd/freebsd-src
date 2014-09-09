@@ -160,6 +160,7 @@ static struct virtio_consts vtnet_vi_consts = {
 	NULL,			/* device-wide qnotify -- not used */
 	pci_vtnet_cfgread,	/* read PCI config */
 	pci_vtnet_cfgwrite,	/* write PCI config */
+	NULL,			/* apply negotiated features */
 	VTNET_S_HOSTCAPS,	/* our capabilities */
 };
 
