@@ -4070,6 +4070,7 @@ OLD_FILES+=usr/share/man/man8/telnetd.8.gz
 .endif
 
 .if ${MK_TESTS} == yes
+OLD_FILES+=usr/bin/atf-sh
 OLD_LIBS+=usr/lib/libatf-c++.a
 OLD_LIBS+=usr/lib/libatf-c++.so
 OLD_LIBS+=usr/lib/libatf-c++.so.1
@@ -4130,6 +4131,17 @@ OLD_FILES+=usr/tests/lib/atf/libatf-c/process_test
 OLD_FILES+=usr/tests/lib/atf/libatf-c/sanity_test
 OLD_FILES+=usr/tests/lib/atf/libatf-c/text_test
 OLD_FILES+=usr/tests/lib/atf/libatf-c/user_test
+OLD_FILES+=usr/tests/usr.bin/atf/Kyuafile
+OLD_FILES+=usr/tests/usr.bin/atf/atf-sh/Kyuafile
+OLD_FILES+=usr/tests/usr.bin/atf/atf-sh/atf_check_test
+OLD_FILES+=usr/tests/usr.bin/atf/atf-sh/config_test
+OLD_FILES+=usr/tests/usr.bin/atf/atf-sh/integration_test
+OLD_FILES+=usr/tests/usr.bin/atf/atf-sh/misc_helpers
+OLD_FILES+=usr/tests/usr.bin/atf/atf-sh/normalize_test
+OLD_FILES+=usr/tests/usr.bin/atf/atf-sh/tc_test
+OLD_FILES+=usr/tests/usr.bin/atf/atf-sh/tp_test
+OLD_DIRS+=usr/tests/usr.bin/atf/atf-sh
+OLD_DIRS+=usr/tests/usr.bin/atf
 .if ${MK_MAKE} == yes && ${MK_BMAKE} == yes
 OLD_FILES+=usr/tests/usr.bin/make/archives/fmt_44bsd/legacy_test
 OLD_FILES+=usr/tests/usr.bin/make/archives/fmt_44bsd/Kyuafile

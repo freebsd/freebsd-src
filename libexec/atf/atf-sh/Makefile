@@ -25,8 +25,30 @@
 #
 # $FreeBSD$
 
+.include <bsd.init.mk>
+
+ATF=		${.CURDIR:H:H:H}/contrib/atf
+.PATH:		${ATF}/atf-sh
+
+PROG_CXX=	atf-sh
+SRCS=		atf-sh.cpp
+MAN=            atf-sh.1 atf-sh-api.3
+
 CFLAGS+=	-DHAVE_CONFIG_H
+CFLAGS+=	-I${ATF}
 
-WARNS?=		3
+DPADD+=		${LIBATF_C} ${LIBATF_CXX}
+LDADD+=		-latf-c++ -latf-c
+USEPRIVATELIB=	atf-c++ atf-c
 
-.include "../Makefile.inc"
+FILESGROUPS=	SUBR
+
+SUBRDIR=	${SHAREDIR}/atf
+SUBR=		libatf-sh.subr
+
+.if ${MK_TESTS} != "no"
+SUBDIR+=	tests
+.endif
+
+.include "../../../lib/atf/common.mk"
+.include <bsd.prog.mk>
