@@ -549,6 +549,8 @@ short	inp_so_options(const struct inpcb *inp);
 #define	INP_REUSEADDR		0x00000020 /* SO_REUSEADDR option is set */
 #define	INP_BINDMULTI		0x00000040 /* IP_BINDMULTI option is set */
 #define	INP_RSS_BUCKET_SET	0x00000080 /* IP_RSS_LISTEN_BUCKET is set */
+#define	INP_RECVFLOWID		0x00000100 /* populate recv datagram with flow info */
+#define	INP_RECVRSSBUCKETID	0x00000200 /* populate recv datagram with bucket id */
 
 /*
  * Flags passed to in_pcblookup*() functions.
