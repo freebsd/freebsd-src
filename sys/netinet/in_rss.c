@@ -57,6 +57,11 @@ __FBSDID("$FreeBSD$");
 #include <netinet/in_var.h>
 #include <netinet/toeplitz.h>
 
+/* for software rss hash support */
+#include <netinet/ip.h>
+#include <netinet/tcp.h>
+#include <netinet/udp.h>
+
 /*-
  * Operating system parts of receiver-side scaling (RSS), which allows
  * network cards to direct flows to particular receive queues based on hashes
@@ -169,6 +174,8 @@ struct rss_table_entry {
 	uint8_t		rte_cpu;	/* CPU affinity of bucket. */
 };
 static struct rss_table_entry	rss_table[RSS_TABLE_MAXLEN];
+
+static inline u_int rss_gethashconfig_local(void);
 
 static void
 rss_init(__unused void *arg)
@@ -491,6 +498,254 @@ rss_m2bucket(struct mbuf *m, uint32_t *bucket_id)
 }
 
 /*
+ * Calculate an appropriate ipv4 2-tuple or 4-tuple given the given
+ * IPv4 source/destination address, UDP or TCP source/destination ports
+ * and the protocol type.
+ *
+ * The protocol code may wish to do a software hash of the given
+ * tuple.  This depends upon the currently configured RSS hash types.
+ *
+ * This assumes that the packet in question isn't a fragment.
+ *
+ * It also assumes the packet source/destination address
+ * are in "incoming" packet order (ie, source is "far" address.)
+ */
+int
+rss_proto_software_hash_v4(struct in_addr s, struct in_addr d,
+    u_short sp, u_short dp, int proto,
+    uint32_t *hashval, uint32_t *hashtype)
+{
+	uint32_t hash;
+
+	/*
+	 * Next, choose the hash type depending upon the protocol
+	 * identifier.
+	 */
+	if ((proto == IPPROTO_TCP) &&
+	    (rss_gethashconfig_local() & RSS_HASHTYPE_RSS_TCP_IPV4)) {
+		hash = rss_hash_ip4_4tuple(s, sp, d, dp);
+		*hashval = hash;
+		*hashtype = M_HASHTYPE_RSS_TCP_IPV4;
+		return (0);
+	} else if ((proto == IPPROTO_UDP) &&
+	    (rss_gethashconfig_local() & RSS_HASHTYPE_RSS_UDP_IPV4)) {
+		hash = rss_hash_ip4_4tuple(s, sp, d, dp);
+		*hashval = hash;
+		*hashtype = M_HASHTYPE_RSS_UDP_IPV4;
+		return (0);
+	} else if (rss_gethashconfig_local() & RSS_HASHTYPE_RSS_IPV4) {
+		/* RSS doesn't hash on other protocols like SCTP; so 2-tuple */
+		hash = rss_hash_ip4_2tuple(s, d);
+		*hashval = hash;
+		*hashtype = M_HASHTYPE_RSS_IPV4;
+		return (0);
+	}
+
+	/* No configured available hashtypes! */
+	printf("%s: no available hashtypes!\n", __func__);
+	return (-1);
+}
+
+/*
+ * Do a software calculation of the RSS for the given mbuf.
+ *
+ * This is typically used by the input path to recalculate the RSS after
+ * some form of packet processing (eg de-capsulation, IP fragment reassembly.)
+ *
+ * dir is the packet direction - RSS_HASH_PKT_INGRESS for incoming and
+ * RSS_HASH_PKT_EGRESS for outgoing.
+ *
+ * Returns 0 if a hash was done, -1 if no hash was done, +1 if
+ * the mbuf already had a valid RSS flowid.
+ *
+ * This function doesn't modify the mbuf.  It's up to the caller to
+ * assign flowid/flowtype as appropriate.
+ */
+int
+rss_mbuf_software_hash_v4(const struct mbuf *m, int dir, uint32_t *hashval,
+    uint32_t *hashtype)
+{
+	const struct ip *ip;
+	const struct tcphdr *th;
+	const struct udphdr *uh;
+	uint8_t proto;
+	int iphlen;
+	int is_frag = 0;
+
+	/*
+	 * XXX For now this only handles hashing on incoming mbufs.
+	 */
+	if (dir != RSS_HASH_PKT_INGRESS) {
+		printf("%s: called on EGRESS packet!\n", __func__);
+		return (-1);
+	}
+
+	/*
+	 * First, validate that the mbuf we have is long enough
+	 * to have an IPv4 header in it.
+	 */
+	if (m->m_pkthdr.len < (sizeof(struct ip))) {
+		printf("%s: short mbuf pkthdr\n", __func__);
+		return (-1);
+	}
+	if (m->m_len < (sizeof(struct ip))) {
+		printf("%s: short mbuf len\n", __func__);
+		return (-1);
+	}
+
+	/* Ok, let's dereference that */
+	ip = mtod(m, struct ip *);
+	proto = ip->ip_p;
+	iphlen = ip->ip_hl << 2;
+
+	/*
+	 * If this is a fragment then it shouldn't be four-tuple
+	 * hashed just yet.  Once it's reassembled into a full
+	 * frame it should be re-hashed.
+	 */
+	if (ip->ip_off & htons(IP_MF | IP_OFFMASK))
+		is_frag = 1;
+
+	/*
+	 * If the mbuf flowid/flowtype matches the packet type,
+	 * and we don't support the 4-tuple version of the given protocol,
+	 * then signal to the owner that it can trust the flowid/flowtype
+	 * details.
+	 *
+	 * This is a little picky - eg, if TCPv4 / UDPv4 hashing
+	 * is supported but we got a TCP/UDP frame only 2-tuple hashed,
+	 * then we shouldn't just "trust" the 2-tuple hash.  We need
+	 * a 4-tuple hash.
+	 */
+	if (m->m_flags & M_FLOWID) {
+		uint32_t flowid, flowtype;
+
+		flowid = m->m_pkthdr.flowid;
+		flowtype = M_HASHTYPE_GET(m);
+
+		switch (proto) {
+		case IPPROTO_UDP:
+			if ((rss_gethashconfig_local() & RSS_HASHTYPE_RSS_UDP_IPV4) &&
+			    (flowtype == M_HASHTYPE_RSS_UDP_IPV4) &&
+			    (is_frag == 0)) {
+				return (1);
+			}
+			/*
+			 * Only allow 2-tuple for UDP frames if we don't also
+			 * support 4-tuple for UDP.
+			 */
+			if ((rss_gethashconfig_local() & RSS_HASHTYPE_RSS_IPV4) &&
+			    ((rss_gethashconfig_local() & RSS_HASHTYPE_RSS_UDP_IPV4) == 0) &&
+			    flowtype == M_HASHTYPE_RSS_IPV4) {
+				return (1);
+			}
+			break;
+		case IPPROTO_TCP:
+			if ((rss_gethashconfig_local() & RSS_HASHTYPE_RSS_TCP_IPV4) &&
+			    (flowtype == M_HASHTYPE_RSS_TCP_IPV4) &&
+			    (is_frag == 0)) {
+				return (1);
+			}
+			/*
+			 * Only allow 2-tuple for TCP frames if we don't also
+			 * support 2-tuple for TCP.
+			 */
+			if ((rss_gethashconfig_local() & RSS_HASHTYPE_RSS_IPV4) &&
+			    ((rss_gethashconfig_local() & RSS_HASHTYPE_RSS_TCP_IPV4) == 0) &&
+			    flowtype == M_HASHTYPE_RSS_IPV4) {
+				return (1);
+			}
+			break;
+		default:
+			if ((rss_gethashconfig_local() & RSS_HASHTYPE_RSS_IPV4) &&
+			    flowtype == M_HASHTYPE_RSS_IPV4) {
+				return (1);
+			}
+			break;
+		}
+	}
+
+	/*
+	 * Decode enough information to make a hash decision.
+	 *
+	 * XXX TODO: does the hardware hash on 4-tuple if IP
+	 *    options are present?
+	 */
+	if (proto == IPPROTO_TCP && is_frag == 0) {
+		if (m->m_len < iphlen + sizeof(struct tcphdr)) {
+			printf("%s: short TCP frame?\n", __func__);
+			return (-1);
+		}
+		th = (struct tcphdr *)((caddr_t)ip + iphlen);
+		return rss_proto_software_hash_v4(ip->ip_src, ip->ip_dst,
+		    th->th_sport,
+		    th->th_dport,
+		    proto,
+		    hashval,
+		    hashtype);
+	} else if (proto == IPPROTO_UDP && is_frag == 0) {
+		uh = (struct udphdr *)((caddr_t)ip + iphlen);
+		if (m->m_len < iphlen + sizeof(struct udphdr)) {
+			printf("%s: short UDP frame?\n", __func__);
+			return (-1);
+		}
+		return rss_proto_software_hash_v4(ip->ip_src, ip->ip_dst,
+		    uh->uh_sport,
+		    uh->uh_dport,
+		    proto,
+		    hashval,
+		    hashtype);
+	} else {
+		/* Default to 2-tuple hash */
+		return rss_proto_software_hash_v4(ip->ip_src, ip->ip_dst,
+		    0,	/* source port */
+		    0,	/* destination port */
+		    0,	/* IPPROTO_IP */
+		    hashval,
+		    hashtype);
+	}
+}
+
+/*
+ * Similar to rss_m2cpuid, but designed to be used by the IP NETISR
+ * on incoming frames.
+ *
+ * If an existing RSS hash exists and it matches what the configured
+ * hashing is, then use it.
+ *
+ * If there's an existing RSS hash but the desired hash is different,
+ * or if there's no useful RSS hash, then calculate it via
+ * the software path.
+ *
+ * XXX TODO: definitely want statistics here!
+ */
+struct mbuf *
+rss_soft_m2cpuid(struct mbuf *m, uintptr_t source, u_int *cpuid)
+{
+	uint32_t hash_val, hash_type;
+	int ret;
+
+	M_ASSERTPKTHDR(m);
+
+	ret = rss_mbuf_software_hash_v4(m, RSS_HASH_PKT_INGRESS,
+	    &hash_val, &hash_type);
+	if (ret > 0) {
+		/* mbuf has a valid hash already; don't need to modify it */
+		*cpuid = rss_hash2cpuid(m->m_pkthdr.flowid, M_HASHTYPE_GET(m));
+	} else if (ret == 0) {
+		/* hash was done; update */
+		m->m_pkthdr.flowid = hash_val;
+		M_HASHTYPE_SET(m, hash_type);
+		m->m_flags |= M_FLOWID;
+		*cpuid = rss_hash2cpuid(m->m_pkthdr.flowid, M_HASHTYPE_GET(m));
+	} else { /* ret < 0 */
+		/* no hash was done */
+		*cpuid = NETISR_CPUID_NONE;
+	}
+	return (m);
+}
+
+/*
  * Query the RSS hash algorithm.
  */
 u_int
@@ -538,15 +793,10 @@ rss_getnumcpus(void)
 	return (rss_ncpus);
 }
 
-/*
- * Return the supported RSS hash configuration.
- *
- * NICs should query this to determine what to configure in their redirection
- * matching table.
- */
-u_int
-rss_gethashconfig(void)
+static inline u_int
+rss_gethashconfig_local(void)
 {
+
 	/* Return 4-tuple for TCP; 2-tuple for others */
 	/*
 	 * UDP may fragment more often than TCP and thus we'll end up with
@@ -570,6 +820,19 @@ rss_gethashconfig(void)
 	|    RSS_HASHTYPE_RSS_UDP_IPV6_EX
 #endif
 	);
+}
+
+/*
+ * Return the supported RSS hash configuration.
+ *
+ * NICs should query this to determine what to configure in their redirection
+ * matching table.
+ */
+u_int
+rss_gethashconfig(void)
+{
+
+	return (rss_gethashconfig_local());
 }
 
 /*
