@@ -105,7 +105,7 @@
 .Fa "void *ptr"
 .Fa "intptr_t len"
 .Fa "const char *format"
-.Fa "const char *descr
+.Fa "const char *descr"
 .Fc
 .Ft struct sysctl_oid *
 .Fo SYSCTL_ADD_PROC
@@ -505,49 +505,6 @@ enviroment early during module load or system boot.
 .It Dv CTLFLAG_DYN
 Dynamically created OIDs automatically get this flag set.
 .El
-.Sh SECURITY CONSIDERATIONS
-When creating new sysctls, careful attention should be paid to the security
-implications of the monitoring or management interface being created.
-Most sysctls present in the kernel are read-only or writable only by the
-superuser.
-Sysctls exporting extensive information on system data structures and
-operation, especially those implemented using procedures, will wish to
-implement access control to limit the undesired exposure of information about
-other processes, network connections, etc.
-.Pp
-The following top level sysctl name spaces are commonly used:
-.Bl -tag -width ".Va regression"
-.It Va compat
-Compatibility layer information.
-.It Va debug
-Debugging information.
-Various name spaces exist under
-.Va debug .
-.It Va hw
-Hardware and device driver information.
-.It Va kern
-Kernel behavior tuning; generally deprecated in favor of more specific
-name spaces.
-.It Va machdep
-Machine-dependent configuration parameters.
-.It Va net
-Network subsystem.
-Various protocols have name spaces under
-.Va net .
-.It Va regression
-Regression test configuration and information.
-.It Va security
-Security and security-policy configuration and information.
-.It Va sysctl
-Reserved name space for the implementation of sysctl.
-.It Va user
-Configuration settings relating to user application behavior.
-Generally, configuring applications using kernel sysctls is discouraged.
-.It Va vfs
-Virtual file system configuration and information.
-.It Va vm
-Virtual memory subsystem configuration and information.
-.El
 .Sh EXAMPLES
 Sample use of
 .Fn SYSCTL_DECL
@@ -702,3 +659,46 @@ addition of MIB nodes.
 .Pp
 This man page was written by
 .An Robert N. M. Watson .
+.Sh SECURITY CONSIDERATIONS
+When creating new sysctls, careful attention should be paid to the security
+implications of the monitoring or management interface being created.
+Most sysctls present in the kernel are read-only or writable only by the
+superuser.
+Sysctls exporting extensive information on system data structures and
+operation, especially those implemented using procedures, will wish to
+implement access control to limit the undesired exposure of information about
+other processes, network connections, etc.
+.Pp
+The following top level sysctl name spaces are commonly used:
+.Bl -tag -width ".Va regression"
+.It Va compat
+Compatibility layer information.
+.It Va debug
+Debugging information.
+Various name spaces exist under
+.Va debug .
+.It Va hw
+Hardware and device driver information.
+.It Va kern
+Kernel behavior tuning; generally deprecated in favor of more specific
+name spaces.
+.It Va machdep
+Machine-dependent configuration parameters.
+.It Va net
+Network subsystem.
+Various protocols have name spaces under
+.Va net .
+.It Va regression
+Regression test configuration and information.
+.It Va security
+Security and security-policy configuration and information.
+.It Va sysctl
+Reserved name space for the implementation of sysctl.
+.It Va user
+Configuration settings relating to user application behavior.
+Generally, configuring applications using kernel sysctls is discouraged.
+.It Va vfs
+Virtual file system configuration and information.
+.It Va vm
+Virtual memory subsystem configuration and information.
+.El
