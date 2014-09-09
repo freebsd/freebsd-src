@@ -93,6 +93,10 @@ RELEASE_TARGETS+= mini-memstick.img
 IMAGES+=	memstick.img
 IMAGES+=	mini-memstick.img
 .endif
+.if exists(${.CURDIR}/${TARGET}/make-uefi-memstick.sh)
+RELEASE_TARGETS+=uefi-memstick.img
+IMAGES+=	uefi-memstick.img
+.endif
 
 CLEANFILES=	packagesystem *.txz MANIFEST system ${IMAGES}
 .if defined(WITH_COMPRESSED_IMAGES) && !empty(WITH_COMPRESSED_IMAGES)
@@ -229,6 +233,12 @@ memstick.img: system
 mini-memstick: mini-memstick.img
 mini-memstick.img: system
 	sh ${.CURDIR}/${TARGET}/make-memstick.sh bootonly ${.TARGET}
+
+uefi-memstick: uefi-memstick.img
+uefi-memstick.img: system
+.if exists(${.CURDIR}/${TARGET}/make-uefi-memstick.sh)
+	sh ${.CURDIR}/${TARGET}/make-uefi-memstick.sh release ${.TARGET}
+.endif
 
 packagesystem: base.txz kernel.txz ${EXTRA_PACKAGES}
 	sh ${.CURDIR}/scripts/make-manifest.sh *.txz > MANIFEST
