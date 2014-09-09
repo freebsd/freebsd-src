@@ -9,6 +9,9 @@ handbook.
 Items affecting the ports and packages system can be found in
 /usr/ports/UPDATING.  Please read that file before running portupgrade.
 
+20140909:	p18	FreeBSD-SA-14:18.openssl
+	Fix OpenSSL multiple vulnerabilities. [SA-14:18]
+
 20140708:	p17	FreeBSD-SA-14:17.kmem
 	Fix kernel memory disclosure in control messages and SCTP
 	notifications. [SA-14:17]
