@@ -92,6 +92,8 @@
             atf
                 atf-check
                 ..
+                atf-sh
+                ..
             ..
         ..
         sbin
@@ -132,10 +134,6 @@
         ..
         usr.bin
             apply
-            ..
-            atf
-                atf-sh
-                ..
             ..
             calendar
             ..

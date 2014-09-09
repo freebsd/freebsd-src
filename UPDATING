@@ -33,11 +33,16 @@ older version of current is a bit fragile.
 	programs once the operator executes "make delete-old-libs" after a
 	"make installworld".
 
+	Additionally, the atf-sh binary was made private by moving it into
+	/usr/libexec/.  Already-built shell test programs will keep the
+	path to the old binary so they will break after "make delete-old"
+	is run.
+
 	If you are using WITH_TESTS=yes (not the default), wipe the object
 	tree and rebuild from scratch to prevent spurious test failures.
-	This is only needed once: the old, misnumbered libraries have been
-	added to OptionalObsoleteFiles.inc so they will be removed during a
-	clean upgrade.
+	This is only needed once: the misnumbered libraries and misplaced
+	binaries have been added to OptionalObsoleteFiles.inc so they will
+	be removed during a clean upgrade.
 
 20140814:
 	The ixgbe tunables now match their sysctl counterparts, for example:
