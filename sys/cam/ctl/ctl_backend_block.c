@@ -203,7 +203,6 @@ struct ctl_be_block_io {
 	struct ctl_sg_entry		sg_segs[CTLBLK_MAX_SEGS];
 	struct iovec			xiovecs[CTLBLK_MAX_SEGS];
 	int				bio_cmd;
-	int				bio_flags;
 	int				num_segs;
 	int				num_bios_sent;
 	int				num_bios_done;
@@ -599,7 +598,11 @@ ctl_be_block_dispatch_file(struct ctl_be_block_lun *be_lun,
 
 	file_data = &be_lun->backend.file;
 	io = beio->io;
-	flags = beio->bio_flags;
+	flags = 0;
+	if (ARGS(io)->flags & CTL_LLF_DPO)
+		flags |= IO_DIRECT;
+	if (beio->bio_cmd == BIO_WRITE && ARGS(io)->flags & CTL_LLF_FUA)
+		flags |= IO_SYNC;
 
 	bzero(&xuio, sizeof(xuio));
 	if (beio->bio_cmd == BIO_READ) {
@@ -649,8 +652,7 @@ ctl_be_block_dispatch_file(struct ctl_be_block_lun *be_lun,
 		 * So, to attempt to provide some barrier semantics in the
 		 * BIO_ORDERED case, set both IO_DIRECT and IO_SYNC.
 		 */
-		error = VOP_READ(be_lun->vn, &xuio, (flags & BIO_ORDERED) ?
-				 (IO_DIRECT|IO_SYNC) : 0, file_data->cred);
+		error = VOP_READ(be_lun->vn, &xuio, flags, file_data->cred);
 
 		VOP_UNLOCK(be_lun->vn, 0);
 		SDT_PROBE(cbb, kernel, read, file_done, 0, 0, 0, 0, 0);
@@ -687,8 +689,7 @@ ctl_be_block_dispatch_file(struct ctl_be_block_lun *be_lun,
 		 * So if we've got the BIO_ORDERED flag set, we want
 		 * IO_SYNC in either the UFS or ZFS case.
 		 */
-		error = VOP_WRITE(be_lun->vn, &xuio, (flags & BIO_ORDERED) ?
-				  IO_SYNC : 0, file_data->cred);
+		error = VOP_WRITE(be_lun->vn, &xuio, flags, file_data->cred);
 		VOP_UNLOCK(be_lun->vn, 0);
 
 		vn_finished_write(mountpoint);
@@ -752,7 +753,11 @@ ctl_be_block_dispatch_zvol(struct ctl_be_block_lun *be_lun,
 
 	dev_data = &be_lun->backend.dev;
 	io = beio->io;
-	flags = beio->bio_flags;
+	flags = 0;
+	if (ARGS(io)->flags & CTL_LLF_DPO)
+		flags |= IO_DIRECT;
+	if (beio->bio_cmd == BIO_WRITE && ARGS(io)->flags & CTL_LLF_FUA)
+		flags |= IO_SYNC;
 
 	bzero(&xuio, sizeof(xuio));
 	if (beio->bio_cmd == BIO_READ) {
@@ -780,10 +785,10 @@ ctl_be_block_dispatch_zvol(struct ctl_be_block_lun *be_lun,
 	mtx_unlock(&be_lun->io_lock);
 
 	if (beio->bio_cmd == BIO_READ) {
-		error = (*dev_data->csw->d_read)(dev_data->cdev, &xuio, 0);
+		error = (*dev_data->csw->d_read)(dev_data->cdev, &xuio, flags);
 		SDT_PROBE(cbb, kernel, read, file_done, 0, 0, 0, 0, 0);
 	} else {
-		error = (*dev_data->csw->d_write)(dev_data->cdev, &xuio, 0);
+		error = (*dev_data->csw->d_write)(dev_data->cdev, &xuio, flags);
 		SDT_PROBE(cbb, kernel, write, file_done, 0, 0, 0, 0, 0);
 	}
 
@@ -874,7 +879,6 @@ ctl_be_block_unmap_dev_range(struct ctl_be_block_lun *be_lun,
 	while (len > 0) {
 		bio = g_alloc_bio();
 		bio->bio_cmd	    = BIO_DELETE;
-		bio->bio_flags	   |= beio->bio_flags;
 		bio->bio_dev	    = dev_data->cdev;
 		bio->bio_offset	    = off;
 		bio->bio_length	    = MIN(len, maxlen);
@@ -973,7 +977,6 @@ ctl_be_block_dispatch_dev(struct ctl_be_block_lun *be_lun,
 			KASSERT(bio != NULL, ("g_alloc_bio() failed!\n"));
 
 			bio->bio_cmd = beio->bio_cmd;
-			bio->bio_flags |= beio->bio_flags;
 			bio->bio_dev = dev_data->cdev;
 			bio->bio_caller1 = beio;
 			bio->bio_length = min(cur_size, max_iosize);
@@ -1051,15 +1054,6 @@ ctl_be_block_cw_dispatch_ws(struct ctl_be_block_lun *be_lun,
 		ctl_config_write_done(io);
 		return;
 	}
-
-	/*
-	 * If the I/O came down with an ordered or head of queue tag, set
-	 * the BIO_ORDERED attribute.  For head of queue tags, that's
-	 * pretty much the best we can do.
-	 */
-	if ((io->scsiio.tag_type == CTL_TAG_ORDERED)
-	 || (io->scsiio.tag_type == CTL_TAG_HEAD_OF_QUEUE))
-		beio->bio_flags = BIO_ORDERED;
 
 	switch (io->scsiio.tag_type) {
 	case CTL_TAG_ORDERED:
@@ -1157,15 +1151,6 @@ ctl_be_block_cw_dispatch_unmap(struct ctl_be_block_lun *be_lun,
 		ctl_config_write_done(io);
 		return;
 	}
-
-	/*
-	 * If the I/O came down with an ordered or head of queue tag, set
-	 * the BIO_ORDERED attribute.  For head of queue tags, that's
-	 * pretty much the best we can do.
-	 */
-	if ((io->scsiio.tag_type == CTL_TAG_ORDERED)
-	 || (io->scsiio.tag_type == CTL_TAG_HEAD_OF_QUEUE))
-		beio->bio_flags = BIO_ORDERED;
 
 	switch (io->scsiio.tag_type) {
 	case CTL_TAG_ORDERED:
@@ -1304,20 +1289,6 @@ ctl_be_block_dispatch(struct ctl_be_block_lun *be_lun,
 	beio->lun = be_lun;
 	bptrlen = PRIV(io);
 	bptrlen->ptr = (void *)beio;
-
-	/*
-	 * If the I/O came down with an ordered or head of queue tag, set
-	 * the BIO_ORDERED attribute.  For head of queue tags, that's
-	 * pretty much the best we can do.
-	 *
-	 * XXX KDM we don't have a great way to easily know about the FUA
-	 * bit right now (it is decoded in ctl_read_write(), but we don't
-	 * pass that knowledge to the backend), and in any case we would
-	 * need to determine how to handle it.  
-	 */
-	if ((io->scsiio.tag_type == CTL_TAG_ORDERED)
-	 || (io->scsiio.tag_type == CTL_TAG_HEAD_OF_QUEUE))
-		beio->bio_flags = BIO_ORDERED;
 
 	switch (io->scsiio.tag_type) {
 	case CTL_TAG_ORDERED:
