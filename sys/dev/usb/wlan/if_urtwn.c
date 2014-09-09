@@ -660,6 +660,10 @@ urtwn_rx_frame(struct urtwn_softc *sc, uint8_t *buf, int pktlen, int *rssi_p)
 		ifp->if_ierrors++;
 		return (NULL);
 	}
+	if (pktlen < sizeof(*wh) || pktlen > MCLBYTES) {
+		ifp->if_ierrors++;
+		return (NULL);
+	}
 
 	rate = MS(rxdw3, R92C_RXDW3_RATE);
 	infosz = MS(rxdw0, R92C_RXDW0_INFOSZ) * 8;
