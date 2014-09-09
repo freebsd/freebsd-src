@@ -452,6 +452,16 @@ in6_selectsrc(struct sockaddr_in6 *dstsock, struct ip6_pktopts *opts,
 			NEXT(9);
 
 		/*
+		 * Rule 10: prefer address with `prefer_source' flag.
+		 */
+		if ((ia_best->ia6_flags & IN6_IFF_PREFER_SOURCE) == 0 &&
+		    (ia->ia6_flags & IN6_IFF_PREFER_SOURCE) != 0)
+			REPLACE(10);
+		if ((ia_best->ia6_flags & IN6_IFF_PREFER_SOURCE) != 0 &&
+		    (ia->ia6_flags & IN6_IFF_PREFER_SOURCE) == 0)
+			NEXT(10);
+
+		/*
 		 * Rule 14: Use longest matching prefix.
 		 * Note: in the address selection draft, this rule is
 		 * documented as "Rule 8".  However, since it is also
