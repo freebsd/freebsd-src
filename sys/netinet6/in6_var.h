@@ -498,6 +498,7 @@ struct	in6_rrenumreq {
 					 */
 #define IN6_IFF_AUTOCONF	0x40	/* autoconfigurable address. */
 #define IN6_IFF_TEMPORARY	0x80	/* temporary (anonymous) address. */
+#define	IN6_IFF_PREFER_SOURCE	0x0100	/* preferred address for SAS */
 #define IN6_IFF_NOPFX		0x8000	/* skip kernel prefix management.
 					 * XXX: this should be temporary.
 					 */
