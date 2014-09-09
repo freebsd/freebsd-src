@@ -7057,7 +7057,8 @@ ctl_mode_sense(struct ctl_scsiio *ctsio)
 		header = (struct scsi_mode_hdr_6 *)ctsio->kern_data_ptr;
 
 		header->datalen = ctl_min(total_len - 1, 254);
-
+		if (control_dev == 0)
+			header->dev_specific = 0x10; /* DPOFUA */
 		if (dbd)
 			header->block_descr_len = 0;
 		else
@@ -7074,6 +7075,8 @@ ctl_mode_sense(struct ctl_scsiio *ctsio)
 
 		datalen = ctl_min(total_len - 2, 65533);
 		scsi_ulto2b(datalen, header->datalen);
+		if (control_dev == 0)
+			header->dev_specific = 0x10; /* DPOFUA */
 		if (dbd)
 			scsi_ulto2b(0, header->block_descr_len);
 		else
