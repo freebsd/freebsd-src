@@ -56,8 +56,6 @@ linux${SFX}_genassym.o: linux${SFX}_genassym.c linux.h @ machine x86
 	${CC} -c ${CFLAGS:N-fno-common} ${.IMPSRC}
 
 .if !defined(KERNBUILDDIR)
-opt_inet6.h:
-	echo "#define INET6 1" > ${.TARGET}
 .if defined(KTR)
 CFLAGS+=	-DKTR
 .endif

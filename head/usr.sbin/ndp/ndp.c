@@ -188,9 +188,9 @@ main(int argc, char **argv)
 			mode = ch;
 			arg = NULL;
 			break;
-		case 'd':
 		case 'f':
 			exit(file(optarg) ? 1 : 0);
+		case 'd':
 		case 'i':
 			if (mode) {
 				usage();

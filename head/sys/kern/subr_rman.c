@@ -109,9 +109,6 @@ static MALLOC_DEFINE(M_RMAN, "rman", "Resource manager");
 
 struct rman_head rman_head;
 static struct mtx rman_mtx; /* mutex to protect rman_head */
-static int int_rman_activate_resource(struct rman *rm, struct resource_i *r,
-				       struct resource_i **whohas);
-static int int_rman_deactivate_resource(struct resource_i *r);
 static int int_rman_release_resource(struct rman *rm, struct resource_i *r);
 
 static __inline struct resource_i *
@@ -321,7 +318,7 @@ rman_adjust_resource(struct resource *rr, u_long start, u_long end)
 
 	/* Not supported for shared resources. */
 	r = rr->__r_i;
-	if (r->r_flags & (RF_TIMESHARE | RF_SHAREABLE))
+	if (r->r_flags & RF_SHAREABLE)
 		return (EINVAL);
 
 	/*
@@ -434,7 +431,7 @@ rman_adjust_resource(struct resource *rr, u_long start, u_long end)
 	return (0);
 }
 
-#define	SHARE_TYPE(f)	(f & (RF_SHAREABLE | RF_TIMESHARE | RF_PREFETCHABLE))
+#define	SHARE_TYPE(f)	(f & (RF_SHAREABLE | RF_PREFETCHABLE))
 
 struct resource *
 rman_reserve_resource_bound(struct rman *rm, u_long start, u_long end,
@@ -451,10 +448,9 @@ rman_reserve_resource_bound(struct rman *rm, u_long start, u_long end,
 	       "length %#lx, flags %u, device %s\n", rm->rm_descr, start, end,
 	       count, flags,
 	       dev == NULL ? "<null>" : device_get_nameunit(dev)));
-	KASSERT((flags & (RF_WANTED | RF_FIRSTSHARE)) == 0,
+	KASSERT((flags & RF_FIRSTSHARE) == 0,
 	    ("invalid flags %#x", flags));
-	new_rflags = (flags & ~(RF_ACTIVE | RF_WANTED | RF_FIRSTSHARE)) |
-	    RF_ALLOCATED;
+	new_rflags = (flags & ~RF_FIRSTSHARE) | RF_ALLOCATED;
 
 	mtx_lock(rm->rm_mtx);
 
@@ -600,7 +596,7 @@ rman_reserve_resource_bound(struct rman *rm, u_long start, u_long end,
 	 * additional work, but this does not seem warranted.)
 	 */
 	DPRINTF(("no unshared regions found\n"));
-	if ((flags & (RF_SHAREABLE | RF_TIMESHARE)) == 0)
+	if ((flags & RF_SHAREABLE) == 0)
 		goto out;
 
 	for (s = r; s && s->r_end <= end; s = TAILQ_NEXT(s, r_link)) {
@@ -635,25 +631,11 @@ rman_reserve_resource_bound(struct rman *rm, u_long start, u_long end,
 			goto out;
 		}
 	}
-
 	/*
 	 * We couldn't find anything.
 	 */
-out:
-	/*
-	 * If the user specified RF_ACTIVE in flags, we attempt to atomically
-	 * activate the resource.  If this fails, we release the resource
-	 * and indicate overall failure.  (This behavior probably doesn't
-	 * make sense for RF_TIMESHARE-type resources.)
-	 */
-	if (rv && (flags & RF_ACTIVE) != 0) {
-		struct resource_i *whohas;
-		if (int_rman_activate_resource(rm, rv, &whohas)) {
-			int_rman_release_resource(rm, rv);
-			rv = NULL;
-		}
-	}
 
+out:
 	mtx_unlock(rm->rm_mtx);
 	return (rv == NULL ? NULL : &rv->r_r);
 }
@@ -667,91 +649,17 @@ rman_reserve_resource(struct rman *rm, u_long start, u_long end, u_long count,
 	    dev));
 }
 
-static int
-int_rman_activate_resource(struct rman *rm, struct resource_i *r,
-			   struct resource_i **whohas)
-{
-	struct resource_i *s;
-	int ok;
-
-	/*
-	 * If we are not timesharing, then there is nothing much to do.
-	 * If we already have the resource, then there is nothing at all to do.
-	 * If we are not on a sharing list with anybody else, then there is
-	 * little to do.
-	 */
-	if ((r->r_flags & RF_TIMESHARE) == 0
-	    || (r->r_flags & RF_ACTIVE) != 0
-	    || r->r_sharehead == NULL) {
-		r->r_flags |= RF_ACTIVE;
-		return 0;
-	}
-
-	ok = 1;
-	for (s = LIST_FIRST(r->r_sharehead); s && ok;
-	     s = LIST_NEXT(s, r_sharelink)) {
-		if ((s->r_flags & RF_ACTIVE) != 0) {
-			ok = 0;
-			*whohas = s;
-		}
-	}
-	if (ok) {
-		r->r_flags |= RF_ACTIVE;
-		return 0;
-	}
-	return EBUSY;
-}
-
 int
 rman_activate_resource(struct resource *re)
 {
-	int rv;
-	struct resource_i *r, *whohas;
+	struct resource_i *r;
 	struct rman *rm;
 
 	r = re->__r_i;
 	rm = r->r_rm;
 	mtx_lock(rm->rm_mtx);
-	rv = int_rman_activate_resource(rm, r, &whohas);
+	r->r_flags |= RF_ACTIVE;
 	mtx_unlock(rm->rm_mtx);
-	return rv;
-}
-
-int
-rman_await_resource(struct resource *re, int pri, int timo)
-{
-	int rv;
-	struct resource_i *r, *whohas;
-	struct rman *rm;
-
-	r = re->__r_i;
-	rm = r->r_rm;
-	mtx_lock(rm->rm_mtx);
-	for (;;) {
-		rv = int_rman_activate_resource(rm, r, &whohas);
-		if (rv != EBUSY)
-			return (rv);	/* returns with mutex held */
-
-		if (r->r_sharehead == NULL)
-			panic("rman_await_resource");
-		whohas->r_flags |= RF_WANTED;
-		rv = msleep(r->r_sharehead, rm->rm_mtx, pri, "rmwait", timo);
-		if (rv) {
-			mtx_unlock(rm->rm_mtx);
-			return (rv);
-		}
-	}
-}
-
-static int
-int_rman_deactivate_resource(struct resource_i *r)
-{
-
-	r->r_flags &= ~RF_ACTIVE;
-	if (r->r_flags & RF_WANTED) {
-		r->r_flags &= ~RF_WANTED;
-		wakeup(r->r_sharehead);
-	}
 	return 0;
 }
 
@@ -762,7 +670,7 @@ rman_deactivate_resource(struct resource *r)
 
 	rm = r->__r_i->r_rm;
 	mtx_lock(rm->rm_mtx);
-	int_rman_deactivate_resource(r->__r_i);
+	r->__r_i->r_flags &= ~RF_ACTIVE;
 	mtx_unlock(rm->rm_mtx);
 	return 0;
 }
@@ -773,7 +681,7 @@ int_rman_release_resource(struct rman *rm, struct resource_i *r)
 	struct resource_i *s, *t;
 
 	if (r->r_flags & RF_ACTIVE)
-		int_rman_deactivate_resource(r);
+		r->r_flags &= ~RF_ACTIVE;
 
 	/*
 	 * Check for a sharing list first.  If there is one, then we don't

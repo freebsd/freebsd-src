@@ -411,12 +411,32 @@ static const struct limits limits[] = {
 	{ (char *) 0,		(char *)0,	0,		   0, '\0' }
 };
 
+enum limithow { SOFT = 0x1, HARD = 0x2 };
+
+static void
+printlimit(enum limithow how, const struct rlimit *limit,
+    const struct limits *l)
+{
+	rlim_t val = 0;
+
+	if (how & SOFT)
+		val = limit->rlim_cur;
+	else if (how & HARD)
+		val = limit->rlim_max;
+	if (val == RLIM_INFINITY)
+		out1str("unlimited\n");
+	else
+	{
+		val /= l->factor;
+		out1fmt("%jd\n", (intmax_t)val);
+	}
+}
+
 int
 ulimitcmd(int argc __unused, char **argv __unused)
 {
 	rlim_t val = 0;
-	enum { SOFT = 0x1, HARD = 0x2 }
-			how = SOFT | HARD;
+	enum limithow how = SOFT | HARD;
 	const struct limits	*l;
 	int		set, all = 0;
 	int		optc, what;
@@ -475,10 +495,6 @@ ulimitcmd(int argc __unused, char **argv __unused)
 			char optbuf[40];
 			if (getrlimit(l->cmd, &limit) < 0)
 				error("can't get limit: %s", strerror(errno));
-			if (how & SOFT)
-				val = limit.rlim_cur;
-			else if (how & HARD)
-				val = limit.rlim_max;
 
 			if (l->units)
 				snprintf(optbuf, sizeof(optbuf),
@@ -487,13 +503,7 @@ ulimitcmd(int argc __unused, char **argv __unused)
 				snprintf(optbuf, sizeof(optbuf),
 					"(-%c) ", l->option);
 			out1fmt("%-18s %18s ", l->name, optbuf);
-			if (val == RLIM_INFINITY)
-				out1str("unlimited\n");
-			else
-			{
-				val /= l->factor;
-				out1fmt("%jd\n", (intmax_t)val);
-			}
+			printlimit(how, &limit, l);
 		}
 		return 0;
 	}
@@ -507,19 +517,7 @@ ulimitcmd(int argc __unused, char **argv __unused)
 			limit.rlim_max = val;
 		if (setrlimit(l->cmd, &limit) < 0)
 			error("bad limit: %s", strerror(errno));
-	} else {
-		if (how & SOFT)
-			val = limit.rlim_cur;
-		else if (how & HARD)
-			val = limit.rlim_max;
-
-		if (val == RLIM_INFINITY)
-			out1str("unlimited\n");
-		else
-		{
-			val /= l->factor;
-			out1fmt("%jd\n", (intmax_t)val);
-		}
-	}
+	} else
+		printlimit(how, &limit, l);
 	return 0;
 }

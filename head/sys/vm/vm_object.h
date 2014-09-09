@@ -225,6 +225,8 @@ extern struct vm_object kmem_object_store;
 	rw_assert(&(object)->lock, RA_RLOCKED)
 #define	VM_OBJECT_ASSERT_WLOCKED(object)				\
 	rw_assert(&(object)->lock, RA_WLOCKED)
+#define	VM_OBJECT_ASSERT_UNLOCKED(object)				\
+	rw_assert(&(object)->lock, RA_UNLOCKED)
 #define	VM_OBJECT_LOCK_DOWNGRADE(object)				\
 	rw_downgrade(&(object)->lock)
 #define	VM_OBJECT_RLOCK(object)						\
@@ -237,6 +239,8 @@ extern struct vm_object kmem_object_store;
 	rw_try_rlock(&(object)->lock)
 #define	VM_OBJECT_TRYWLOCK(object)					\
 	rw_try_wlock(&(object)->lock)
+#define	VM_OBJECT_TRYUPGRADE(object)					\
+	rw_try_upgrade(&(object)->lock)
 #define	VM_OBJECT_WLOCK(object)						\
 	rw_wlock(&(object)->lock)
 #define	VM_OBJECT_WUNLOCK(object)					\
@@ -291,6 +295,8 @@ void vm_object_shadow (vm_object_t *, vm_ooffset_t *, vm_size_t);
 void vm_object_split(vm_map_entry_t);
 boolean_t vm_object_sync(vm_object_t, vm_ooffset_t, vm_size_t, boolean_t,
     boolean_t);
+void vm_object_unwire(vm_object_t object, vm_ooffset_t offset,
+    vm_size_t length, uint8_t queue);
 #endif				/* _KERNEL */
 
 #endif				/* _VM_OBJECT_ */

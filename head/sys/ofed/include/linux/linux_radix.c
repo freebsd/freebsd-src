@@ -2,6 +2,7 @@
  * Copyright (c) 2010 Isilon Systems, Inc.
  * Copyright (c) 2010 iX Systems, Inc.
  * Copyright (c) 2010 Panasas, Inc.
+ * Copyright (c) 2013, 2014 Mellanox Technologies, Ltd.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -123,40 +124,84 @@ int
 radix_tree_insert(struct radix_tree_root *root, unsigned long index, void *item)
 {
 	struct radix_tree_node *node;
+	struct radix_tree_node *temp[RADIX_TREE_MAX_HEIGHT - 1];
 	int height;
 	int idx;
 
-	/*
- 	 * Expand the tree to fit indexes as big as requested.
-	 */
-	while (root->rnode == NULL || radix_max(root) < index) {
+	/* bail out upon insertion of a NULL item */
+	if (item == NULL)
+		return (-EINVAL);
+
+	/* get root node, if any */
+	node = root->rnode;
+
+	/* allocate root node, if any */
+	if (node == NULL) {
 		node = malloc(sizeof(*node), M_RADIX, root->gfp_mask | M_ZERO);
 		if (node == NULL)
 			return (-ENOMEM);
-		node->slots[0] = root->rnode;
-		if (root->rnode)
-			node->count++;
 		root->rnode = node;
 		root->height++;
 	}
-	node = root->rnode;
-	height = root->height - 1;
-	/*
-	 * Walk down the tree finding the correct node and allocating any
-	 * missing nodes along the way.
-	 */
-	while (height) {
-		idx = radix_pos(index, height);
-		if (node->slots[idx] == NULL) {
-			node->slots[idx] = malloc(sizeof(*node), M_RADIX,
-			    root->gfp_mask | M_ZERO);
-			if (node->slots[idx] == NULL)
+
+	/* expand radix tree as needed */
+	while (radix_max(root) < index) {
+
+		/* check if the radix tree is getting too big */
+		if (root->height == RADIX_TREE_MAX_HEIGHT)
+			return (-E2BIG);
+
+		/*
+		 * If the root radix level is not empty, we need to
+		 * allocate a new radix level:
+		 */
+		if (node->count != 0) {
+			node = malloc(sizeof(*node), M_RADIX, root->gfp_mask | M_ZERO);
+			if (node == NULL)
 				return (-ENOMEM);
+			node->slots[0] = root->rnode;
 			node->count++;
+			root->rnode = node;
 		}
-		node = node->slots[idx];
-		height--;
+		root->height++;
 	}
+
+	/* get radix tree height index */
+	height = root->height - 1;
+
+	/* walk down the tree until the first missing node, if any */
+	for ( ; height != 0; height--) {
+		idx = radix_pos(index, height);
+		if (node->slots[idx] == NULL)
+			break;
+		node = node->slots[idx];
+	}
+
+	/* allocate the missing radix levels, if any */
+	for (idx = 0; idx != height; idx++) {
+		temp[idx] = malloc(sizeof(*node), M_RADIX,
+		    root->gfp_mask | M_ZERO);
+		if (temp[idx] == NULL) {
+			while(idx--)
+				free(temp[idx], M_RADIX);
+			/* check if we should free the root node aswell */
+			if (root->rnode->count == 0) {
+				free(root->rnode, M_RADIX);
+				root->rnode = NULL;
+				root->height = 0;
+			}
+			return (-ENOMEM);
+		}
+	}
+
+	/* setup new radix levels, if any */
+	for ( ; height != 0; height--) {
+		idx = radix_pos(index, height);
+		node->slots[idx] = temp[height - 1];
+		node->count++;
+		node = node->slots[idx];
+	}
+
 	/*
 	 * Insert and adjust count if the item does not already exist.
 	 */

@@ -67,9 +67,9 @@ __FBSDID("$FreeBSD$");
 #include <cam/ctl/ctl_ioctl.h>
 #include <cam/ctl/ctl_private.h>
 
-#include "../../dev/iscsi/icl.h"
-#include "../../dev/iscsi/iscsi_proto.h"
-#include "ctl_frontend_iscsi.h"
+#include <dev/iscsi/icl.h>
+#include <dev/iscsi/iscsi_proto.h>
+#include <cam/ctl/ctl_frontend_iscsi.h>
 
 #ifdef ICL_KERNEL_PROXY
 #include <sys/socketvar.h>
@@ -179,6 +179,7 @@ static struct ctl_frontend cfiscsi_frontend =
 	.ioctl = cfiscsi_ioctl,
 };
 CTL_FRONTEND_DECLARE(ctlcfiscsi, cfiscsi_frontend);
+MODULE_DEPEND(ctlcfiscsi, icl, 1, 1, 1);
 
 static struct icl_pdu *
 cfiscsi_pdu_new_response(struct icl_pdu *request, int flags)
@@ -2702,7 +2703,7 @@ cfiscsi_scsi_command_done(union ctl_io *io)
 	 * Do not return status for aborted commands.
 	 * There are exceptions, but none supported by CTL yet.
 	 */
-	if (io->io_hdr.status == CTL_CMD_ABORTED &&
+	if ((io->io_hdr.flags & CTL_FLAG_ABORT) &&
 	    (io->io_hdr.flags & CTL_FLAG_ABORT_STATUS) == 0) {
 		ctl_free_io(io);
 		icl_pdu_free(request);

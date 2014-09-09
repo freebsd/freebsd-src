@@ -6,8 +6,6 @@
 #CC:=		gcc
 #COMPILER_TYPE:=	gcc
 
-NO_PIE=	yes
-
 FILES=		boot boot1 boot2
 
 NM?=		nm

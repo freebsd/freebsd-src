@@ -125,7 +125,12 @@ static driver_t nexus_driver = {
 	nexus_methods,
 	1			/* no softc */
 };
+#ifdef ARM_DEVICE_MULTIPASS
+EARLY_DRIVER_MODULE(nexus, root, nexus_driver, nexus_devclass, 0, 0, 
+    BUS_PASS_BUS + BUS_PASS_ORDER_EARLY);
+#else
 DRIVER_MODULE(nexus, root, nexus_driver, nexus_devclass, 0, 0);
+#endif
 
 static int
 nexus_probe(device_t dev)
@@ -336,7 +341,7 @@ nexus_ofw_map_intr(device_t dev, device_t child, phandle_t iparent, int icells,
 	phandle_t intr_offset;
 	int i, rv, interrupt, trig, pol;
 
-	intr_offset = OF_xref_phandle(iparent);
+	intr_offset = OF_node_from_xref(iparent);
 	for (i = 0; i < icells; i++)
 		intr[i] = cpu_to_fdt32(intr[i]);
 
@@ -357,4 +362,3 @@ nexus_ofw_map_intr(device_t dev, device_t child, phandle_t iparent, int icells,
 	return (interrupt);
 }
 #endif
- 

@@ -44,6 +44,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 typedef struct {
     char *d;
+    void **pd;
     size_t n; /* allocd size */
     size_t i; /* index of first unused byte */
 } UT_string;
@@ -54,6 +55,7 @@ do {                                                       \
      (s)->d = (char*)realloc((s)->d, (s)->n + amt);        \
      if ((s)->d == NULL) oom();                            \
      (s)->n += amt;                                        \
+     if ((s)->pd) *((s)->pd) = (s)->d;                     \
   }                                                        \
 } while(0)
 
@@ -78,7 +80,7 @@ do {                                                       \
 
 #define utstring_new(s)                                    \
 do {                                                       \
-   s = (UT_string*)calloc(sizeof(UT_string),1);            \
+   s = (UT_string*)calloc(1, sizeof(UT_string));          \
    if (!s) oom();                                          \
    utstring_init(s);                                       \
 } while(0)

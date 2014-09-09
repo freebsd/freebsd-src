@@ -304,7 +304,7 @@ static const struct ctl_page_index page_index_template[] = {
 	{SMS_RIGID_DISK_PAGE, 0, sizeof(struct scsi_rigid_disk_page), NULL,
 	 CTL_PAGE_FLAG_DISK_ONLY, NULL, NULL},
 	{SMS_CACHING_PAGE, 0, sizeof(struct scsi_caching_page), NULL,
-	 CTL_PAGE_FLAG_DISK_ONLY, NULL, NULL},
+	 CTL_PAGE_FLAG_DISK_ONLY, NULL, ctl_caching_sp_handler},
 	{SMS_CONTROL_MODE_PAGE, 0, sizeof(struct scsi_control_page), NULL,
 	 CTL_PAGE_FLAG_NONE, NULL, ctl_control_page_handler},
    	{SMS_VENDOR_SPECIFIC_PAGE | SMPH_SPF, PWR_SUBPAGE_CODE,
@@ -332,11 +332,6 @@ struct ctl_mode_pages {
 	struct ctl_page_index		index[CTL_NUM_MODE_PAGES];
 };
 
-struct ctl_pending_sense {
-	ctl_ua_type		ua_pending;
-	struct scsi_sense_data	sense;
-};
-
 struct ctl_lun_delay_info {
 	ctl_delay_type		datamove_type;
 	uint32_t		datamove_delay;
@@ -360,8 +355,8 @@ struct ctl_per_res_info {
 	uint8_t  registered;
 };
 
-#define CTL_PR_ALL_REGISTRANTS  0xFFFF
-#define CTL_PR_NO_RESERVATION   0xFFF0
+#define CTL_PR_ALL_REGISTRANTS  0xFFFFFFFF
+#define CTL_PR_NO_RESERVATION   0xFFFFFFF0
 
 struct ctl_devid {
 	int		len;
@@ -373,6 +368,7 @@ struct ctl_devid {
  */
 #define NUM_TARGET_PORT_GROUPS	2
 
+struct tpc_list;
 struct ctl_lun {
 	struct mtx			lun_lock;
 	struct ctl_id			target;
@@ -392,17 +388,21 @@ struct ctl_lun {
 	STAILQ_ENTRY(ctl_lun)		links;
 	STAILQ_ENTRY(ctl_lun)		run_links;
 	struct ctl_nexus		rsv_nexus;
+#ifdef CTL_WITH_CA
 	uint32_t			have_ca[CTL_MAX_INITIATORS >> 5];
-	struct ctl_pending_sense	pending_sense[CTL_MAX_INITIATORS];
+	struct scsi_sense_data		pending_sense[CTL_MAX_INITIATORS];
+#endif
+	ctl_ua_type			pending_ua[CTL_MAX_INITIATORS];
 	struct ctl_mode_pages		mode_pages;
 	struct ctl_lun_io_stats		stats;
 	struct ctl_per_res_info		per_res[2*CTL_MAX_INITIATORS];
 	unsigned int			PRGeneration;
 	int				pr_key_count;
-	uint16_t        		pr_res_idx;
+	uint32_t			pr_res_idx;
 	uint8_t				res_type;
-	uint8_t				write_buffer[524288];
+	uint8_t				write_buffer[262144];
 	struct ctl_devid		*lun_devid;
+	TAILQ_HEAD(tpc_lists, tpc_list) tpc_lists;
 };
 
 typedef enum {
@@ -422,6 +422,7 @@ struct ctl_thread {
 	STAILQ_HEAD(, ctl_io_hdr) isc_queue;
 };
 
+struct tpc_token;
 struct ctl_softc {
 	struct mtx ctl_lock;
 	struct cdev *dev;
@@ -460,6 +461,8 @@ struct ctl_softc {
 	time_t last_print_jiffies;
 	uint32_t skipped_prints;
 	struct ctl_thread threads[CTL_MAX_THREADS];
+	TAILQ_HEAD(tpc_tokens, tpc_token) tpc_tokens;
+	struct callout tpc_timeout;
 };
 
 #ifdef _KERNEL
@@ -467,6 +470,8 @@ struct ctl_softc {
 extern const struct ctl_cmd_entry ctl_cmd_table[256];
 
 uint32_t ctl_get_initindex(struct ctl_nexus *nexus);
+uint32_t ctl_get_resindex(struct ctl_nexus *nexus);
+uint32_t ctl_port_idx(int port_num);
 int ctl_pool_create(struct ctl_softc *ctl_softc, ctl_pool_type pool_type,
 		    uint32_t total_ctl_io, struct ctl_io_pool **npool);
 void ctl_pool_free(struct ctl_io_pool *pool);
@@ -497,6 +502,23 @@ int ctl_report_supported_opcodes(struct ctl_scsiio *ctsio);
 int ctl_report_supported_tmf(struct ctl_scsiio *ctsio);
 int ctl_report_timestamp(struct ctl_scsiio *ctsio);
 int ctl_isc(struct ctl_scsiio *ctsio);
+
+void ctl_tpc_init(struct ctl_softc *softc);
+void ctl_tpc_shutdown(struct ctl_softc *softc);
+void ctl_tpc_lun_init(struct ctl_lun *lun);
+void ctl_tpc_lun_shutdown(struct ctl_lun *lun);
+int ctl_inquiry_evpd_tpc(struct ctl_scsiio *ctsio, int alloc_len);
+int ctl_receive_copy_status_lid1(struct ctl_scsiio *ctsio);
+int ctl_receive_copy_failure_details(struct ctl_scsiio *ctsio);
+int ctl_receive_copy_status_lid4(struct ctl_scsiio *ctsio);
+int ctl_receive_copy_operating_parameters(struct ctl_scsiio *ctsio);
+int ctl_extended_copy_lid1(struct ctl_scsiio *ctsio);
+int ctl_extended_copy_lid4(struct ctl_scsiio *ctsio);
+int ctl_copy_operation_abort(struct ctl_scsiio *ctsio);
+int ctl_populate_token(struct ctl_scsiio *ctsio);
+int ctl_write_using_token(struct ctl_scsiio *ctsio);
+int ctl_receive_rod_token_information(struct ctl_scsiio *ctsio);
+int ctl_report_all_rod_tokens(struct ctl_scsiio *ctsio);
 
 #endif	/* _KERNEL */
 

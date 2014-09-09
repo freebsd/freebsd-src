@@ -30,9 +30,35 @@
 #ifndef __SD_CARD_H
 #define __SD_CARD_H
 
-int MCI_write (unsigned dest, char* source, unsigned length);
-int MCI_read (char* dest, unsigned source, unsigned length);
+/* MCI_read() is the original read function, taking a byte offset and byte
+ * count.  It is preserved to support existing customized boot code that still
+ * refers to it; it will work fine even on SDHC cards as long as the kernel and
+ * the metadata for locating it all exist within the first 4GB of the card.
+ *
+ * MCI_readblocks() is the new read function, taking offset and length in terms
+ * of block counts (where the SD spec defines a block as 512 bytes), allowing
+ * the kernel and filesystem metadata to be located anywhere on an SDHC card.
+ *
+ * Returns 0 on success, non-zero on failure.
+ */
+
+int MCI_read (char* dest, unsigned bytenum, unsigned length);
+int MCI_readblocks (char* dest, unsigned blknum, unsigned blkcount);
+
+/* sdcard_init() - get things set up to read from an SD or SDHC card.
+ *
+ * Returns 0 on failure, non-zero on success.
+ */
+
 int sdcard_init(void);
+
+/* By default sdcard_init() sets things up for a 1-wire interface to the
+ * SD card.  Calling sdcard_4wire(true) after sdcard_init() allows customized
+ * boot code to change to 4-bit transfers when the hardware supports it.
+ *
+ * Returns 0 on failure, non-zero on success.
+ */
+int sdcard_use4wire(int use4wire);
 
 #endif
 

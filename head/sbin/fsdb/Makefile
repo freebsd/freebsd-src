@@ -9,8 +9,8 @@ SRCS=	fsdb.c fsdbutil.c \
 	pass5.c setup.c utilities.c ffs_subr.c ffs_tables.c globs.c
 CFLAGS+= -I${.CURDIR}/../fsck_ffs
 WARNS?= 2
-LDADD=	-ledit -ltermcap
-DPADD=	${LIBEDIT} ${LIBTERMCAP}
+LDADD=	-ledit -ltermcapw
+DPADD=	${LIBEDIT} ${LIBTERMCAPW}
 .PATH:	${.CURDIR}/../fsck_ffs ${.CURDIR}/../../sys/ufs/ffs
 
 .include <bsd.prog.mk>

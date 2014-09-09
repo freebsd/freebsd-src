@@ -188,6 +188,7 @@ MAN=	accept_filter.9 \
 	osd.9 \
 	panic.9 \
 	pbuf.9 \
+	PCBGROUP.9 \
 	p_candebug.9 \
 	p_cansee.9 \
 	pci.9 \
@@ -198,7 +199,6 @@ MAN=	accept_filter.9 \
 	physio.9 \
 	pmap.9 \
 	pmap_activate.9 \
-	pmap_change_wiring.9 \
 	pmap_clear_modify.9 \
 	pmap_copy.9 \
 	pmap_enter.9 \
@@ -212,12 +212,13 @@ MAN=	accept_filter.9 \
 	pmap_object_init_pt.9 \
 	pmap_page_exists_quick.9 \
 	pmap_page_init.9 \
-	pmap_page_protect.9 \
 	pmap_pinit.9 \
+	pmap_protect.9 \
 	pmap_qenter.9 \
 	pmap_release.9 \
 	pmap_remove.9 \
 	pmap_resident_count.9 \
+	pmap_unwire.9 \
 	pmap_zero_page.9 \
 	printf.9 \
 	prison_check.9 \
@@ -356,7 +357,6 @@ MAN=	accept_filter.9 \
 	VOP_GETACL.9 \
 	VOP_GETEXTATTR.9 \
 	VOP_GETPAGES.9 \
-	VOP_GETVOBJECT.9 \
 	VOP_INACTIVE.9 \
 	VOP_IOCTL.9 \
 	VOP_LINK.9 \
@@ -383,7 +383,6 @@ MAN=	accept_filter.9 \
 	vrele.9 \
 	vslock.9 \
 	watchdog.9 \
-	zero_copy.9 \
 	zone.9
 
 MLINKS=	unr.9 alloc_unr.9 \
@@ -1044,12 +1043,10 @@ MLINKS+=pfil.9 pfil_add_hook.9 \
 	pfil.9 pfil_hook_get.9 \
 	pfil.9 pfil_remove_hook.9
 MLINKS+=pfind.9 zpfind.9
-MLINKS+=pmap_clear_modify.9 pmap_clear_reference.9
 MLINKS+=pmap_copy.9 pmap_copy_page.9
 MLINKS+=pmap_extract.9 pmap_extract_and_hold.9
 MLINKS+=pmap_init.9 pmap_init2.9
-MLINKS+=pmap_is_modified.9 pmap_ts_modified.9
-MLINKS+=pmap_page_protect.9 pmap_protect.9
+MLINKS+=pmap_is_modified.9 pmap_ts_referenced.9
 MLINKS+=pmap_pinit.9 pmap_pinit0.9 \
 	pmap_pinit.9 pmap_pinit2.9
 MLINKS+=pmap_qenter.9 pmap_qremove.9
@@ -1353,33 +1350,37 @@ MLINKS+=sx.9 sx_assert.9 \
 	sx.9 sx_xlocked.9 \
 	sx.9 sx_xunlock.9
 MLINKS+=sysctl.9 SYSCTL_DECL.9 \
+	sysctl.9 SYSCTL_ADD_INT.9 \
+	sysctl.9 SYSCTL_ADD_LONG.9 \
+	sysctl.9 SYSCTL_ADD_NODE.9 \
+	sysctl.9 SYSCTL_ADD_OPAQUE.9 \
+	sysctl.9 SYSCTL_ADD_PROC.9 \
+	sysctl.9 SYSCTL_ADD_QUAD.9 \
+	sysctl.9 SYSCTL_ADD_ROOT_NODE.9 \
+	sysctl.9 SYSCTL_ADD_STRING.9 \
+	sysctl.9 SYSCTL_ADD_STRUCT.9 \
+	sysctl.9 SYSCTL_ADD_UINT.9 \
+	sysctl.9 SYSCTL_ADD_ULONG.9 \
+	sysctl.9 SYSCTL_ADD_UQUAD.9 \
+	sysctl.9 SYSCTL_CHILDREN.9 \
+	sysctl.9 SYSCTL_STATIC_CHILDREN.9 \
+	sysctl.9 SYSCTL_NODE_CHILDREN.9 \
+	sysctl.9 SYSCTL_PARENT.9 \
 	sysctl.9 SYSCTL_INT.9 \
 	sysctl.9 SYSCTL_LONG.9 \
 	sysctl.9 SYSCTL_NODE.9 \
 	sysctl.9 SYSCTL_OPAQUE.9 \
 	sysctl.9 SYSCTL_PROC.9 \
 	sysctl.9 SYSCTL_QUAD.9 \
+	sysctl.9 SYSCTL_ROOT_NODE.9 \
 	sysctl.9 SYSCTL_STRING.9 \
 	sysctl.9 SYSCTL_STRUCT.9 \
 	sysctl.9 SYSCTL_UINT.9 \
 	sysctl.9 SYSCTL_ULONG.9 \
 	sysctl.9 SYSCTL_UQUAD.9
-MLINKS+=sysctl_add_oid.9 SYSCTL_ADD_INT.9 \
-	sysctl_add_oid.9 SYSCTL_ADD_LONG.9 \
-	sysctl_add_oid.9 SYSCTL_ADD_NODE.9 \
-	sysctl_add_oid.9 SYSCTL_ADD_OID.9 \
-	sysctl_add_oid.9 SYSCTL_ADD_OPAQUE.9 \
-	sysctl_add_oid.9 SYSCTL_ADD_PROC.9 \
-	sysctl_add_oid.9 SYSCTL_ADD_QUAD.9 \
-	sysctl_add_oid.9 SYSCTL_ADD_STRING.9 \
-	sysctl_add_oid.9 SYSCTL_ADD_STRUCT.9 \
-	sysctl_add_oid.9 SYSCTL_ADD_UINT.9 \
-	sysctl_add_oid.9 SYSCTL_ADD_ULONG.9 \
-	sysctl_add_oid.9 SYSCTL_ADD_UQUAD.9 \
-	sysctl_add_oid.9 SYSCTL_CHILDREN.9 \
-	sysctl_add_oid.9 sysctl_move_oid.9 \
+MLINKS+=sysctl_add_oid.9 sysctl_move_oid.9 \
 	sysctl_add_oid.9 sysctl_remove_oid.9 \
-	sysctl_add_oid.9 SYSCTL_STATIC_CHILDREN.9
+	sysctl_add_oid.9 sysctl_remove_name.9
 MLINKS+=sysctl_ctx_init.9 sysctl_ctx_entry_add.9 \
 	sysctl_ctx_init.9 sysctl_ctx_entry_del.9 \
 	sysctl_ctx_init.9 sysctl_ctx_entry_find.9 \
@@ -1560,8 +1561,6 @@ MLINKS+=VOP_CREATE.9 VOP_MKDIR.9 \
 	VOP_CREATE.9 VOP_MKNOD.9 \
 	VOP_CREATE.9 VOP_SYMLINK.9
 MLINKS+=VOP_GETPAGES.9 VOP_PUTPAGES.9
-MLINKS+=VOP_GETVOBJECT.9 VOP_CREATEVOBJECT.9 \
-	VOP_GETVOBJECT.9 VOP_DESTROYVOBJECT.9
 MLINKS+=VOP_INACTIVE.9 VOP_RECLAIM.9
 MLINKS+=VOP_LOCK.9 vn_lock.9 \
 	VOP_LOCK.9 VOP_ISLOCKED.9 \
@@ -1575,7 +1574,6 @@ MLINKS+=vref.9 VREF.9
 MLINKS+=vrele.9 vput.9 \
 	vrele.9 vunref.9
 MLINKS+=vslock.9 vsunlock.9
-MLINKS+=zero_copy.9 zero_copy_sockets.9
 MLINKS+=zone.9 uma.9 \
 	zone.9 uma_zalloc.9 \
 	zone.9 uma_zalloc_arg.9 \

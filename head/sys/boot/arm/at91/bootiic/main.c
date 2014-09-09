@@ -28,6 +28,8 @@
 #include "emac.h"
 #include "lib.h"
 
+int main(void);
+
 /*
  * .KB_C_FN_DEFINITION_START
  * int main(void)

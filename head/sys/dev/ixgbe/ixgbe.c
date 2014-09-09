@@ -304,7 +304,7 @@ SYSCTL_INT(_hw_ix, OID_AUTO, num_queues, CTLFLAG_RDTUN, &ixgbe_num_queues, 0,
 */
 static int ixgbe_txd = PERFORM_TXD;
 SYSCTL_INT(_hw_ix, OID_AUTO, txd, CTLFLAG_RDTUN, &ixgbe_txd, 0,
-    "Number of receive descriptors per queue");
+    "Number of transmit descriptors per queue");
 
 /* Number of RX descriptors per ring */
 static int ixgbe_rxd = PERFORM_RXD;
@@ -317,7 +317,7 @@ SYSCTL_INT(_hw_ix, OID_AUTO, rxd, CTLFLAG_RDTUN, &ixgbe_rxd, 0,
 ** doing so you are on your own :)
 */
 static int allow_unsupported_sfp = FALSE;
-TUNABLE_INT("hw.ixgbe.unsupported_sfp", &allow_unsupported_sfp);
+TUNABLE_INT("hw.ix.unsupported_sfp", &allow_unsupported_sfp);
 
 /*
 ** HW RSC control: 
@@ -514,7 +514,7 @@ ixgbe_attach(device_t dev)
 	}
 
 	if (((ixgbe_rxd * sizeof(union ixgbe_adv_rx_desc)) % DBA_ALIGN) != 0 ||
-	    ixgbe_rxd < MIN_TXD || ixgbe_rxd > MAX_TXD) {
+	    ixgbe_rxd < MIN_RXD || ixgbe_rxd > MAX_RXD) {
 		device_printf(dev, "RXD config issue, using default!\n");
 		adapter->num_rx_desc = DEFAULT_RXD;
 	} else
@@ -1068,17 +1068,24 @@ ixgbe_ioctl(struct ifnet * ifp, u_long command, caddr_t data)
 	}
 	case SIOCGI2C:
 	{
-		struct ixgbe_i2c_req	i2c;
+		struct ifi2creq i2c;
+		int i;
 		IOCTL_DEBUGOUT("ioctl: SIOCGI2C (Get I2C Data)");
 		error = copyin(ifr->ifr_data, &i2c, sizeof(i2c));
-		if (error)
+		if (error != 0)
 			break;
-		if ((i2c.dev_addr != 0xA0) || (i2c.dev_addr != 0xA2)){
+		if (i2c.dev_addr != 0xA0 && i2c.dev_addr != 0xA2) {
 			error = EINVAL;
 			break;
 		}
-		hw->phy.ops.read_i2c_byte(hw, i2c.offset,
-		    i2c.dev_addr, i2c.data);
+		if (i2c.len > sizeof(i2c.data)) {
+			error = EINVAL;
+			break;
+		}
+
+		for (i = 0; i < i2c.len; i++)
+			hw->phy.ops.read_i2c_byte(hw, i2c.offset + i,
+			    i2c.dev_addr, &i2c.data[i]);
 		error = copyout(&i2c, ifr->ifr_data, sizeof(i2c));
 		break;
 	}
@@ -2732,7 +2739,7 @@ ixgbe_setup_interface(device_t dev, struct adapter *adapter)
 	/*
 	 * Tell the upper layer(s) we support long frames.
 	 */
-	ifp->if_data.ifi_hdrlen = sizeof(struct ether_vlan_header);
+	ifp->if_hdrlen = sizeof(struct ether_vlan_header);
 
 	ifp->if_capabilities |= IFCAP_HWCSUM | IFCAP_TSO | IFCAP_VLAN_HWCSUM;
 	ifp->if_capabilities |= IFCAP_JUMBO_MTU;
@@ -3155,7 +3162,7 @@ ixgbe_setup_transmit_ring(struct tx_ring *txr)
 		 */
 		if (slot) {
 			int si = netmap_idx_n2k(&na->tx_rings[txr->me], i);
-			netmap_load_map(txr->txtag, txbuf->map, NMB(slot + si));
+			netmap_load_map(na, txr->txtag, txbuf->map, NMB(na, slot + si));
 		}
 #endif /* DEV_NETMAP */
 		/* Clear the EOP descriptor pointer */
@@ -4098,8 +4105,8 @@ ixgbe_setup_receive_ring(struct rx_ring *rxr)
 			uint64_t paddr;
 			void *addr;
 
-			addr = PNMB(slot + sj, &paddr);
-			netmap_load_map(rxr->ptag, rxbuf->pmap, addr);
+			addr = PNMB(na, slot + sj, &paddr);
+			netmap_load_map(na, rxr->ptag, rxbuf->pmap, addr);
 			/* Update descriptor and the cached value */
 			rxr->rx_base[j].read.pkt_addr = htole64(paddr);
 			rxbuf->addr = htole64(paddr);
@@ -4204,6 +4211,9 @@ ixgbe_initialise_rss_mapping(struct adapter *adapter)
 	int i, j, queue_id;
 	uint32_t rss_key[10];
 	uint32_t mrqc;
+#ifdef	RSS
+	uint32_t rss_hash_config;
+#endif
 
 	/* Setup RSS */
 	reta = 0;
@@ -4230,10 +4240,16 @@ ixgbe_initialise_rss_mapping(struct adapter *adapter)
 #else
 		queue_id = (j * 0x11);
 #endif
-		/* XXX endian? */
-		reta = (reta << 8) | queue_id;
-		if ((i & 3) == 3)
+		/*
+		 * The low 8 bits are for hash value (n+0);
+		 * The next 8 bits are for hash value (n+1), etc.
+		 */
+		reta = reta >> 8;
+		reta = reta | ( ((uint32_t) queue_id) << 24);
+		if ((i & 3) == 3) {
 			IXGBE_WRITE_REG(hw, IXGBE_RETA(i >> 2), reta);
+			reta = 0;
+		}
 	}
 
 	/* Now fill our hash function seeds */
@@ -4241,16 +4257,53 @@ ixgbe_initialise_rss_mapping(struct adapter *adapter)
 		IXGBE_WRITE_REG(hw, IXGBE_RSSRK(i), rss_key[i]);
 
 	/* Perform hash on these packet types */
+#ifdef	RSS
+	mrqc = IXGBE_MRQC_RSSEN;
+	rss_hash_config = rss_gethashconfig();
+	if (rss_hash_config & RSS_HASHTYPE_RSS_IPV4)
+		mrqc |= IXGBE_MRQC_RSS_FIELD_IPV4;
+	if (rss_hash_config & RSS_HASHTYPE_RSS_TCP_IPV4)
+		mrqc |= IXGBE_MRQC_RSS_FIELD_IPV4_TCP;
+	if (rss_hash_config & RSS_HASHTYPE_RSS_IPV6)
+		mrqc |= IXGBE_MRQC_RSS_FIELD_IPV6;
+	if (rss_hash_config & RSS_HASHTYPE_RSS_TCP_IPV6)
+		mrqc |= IXGBE_MRQC_RSS_FIELD_IPV6_TCP;
+	if (rss_hash_config & RSS_HASHTYPE_RSS_IPV6_EX)
+		mrqc |= IXGBE_MRQC_RSS_FIELD_IPV6_EX;
+	if (rss_hash_config & RSS_HASHTYPE_RSS_TCP_IPV6_EX)
+		mrqc |= IXGBE_MRQC_RSS_FIELD_IPV6_EX_TCP;
+	if (rss_hash_config & RSS_HASHTYPE_RSS_UDP_IPV4)
+		mrqc |= IXGBE_MRQC_RSS_FIELD_IPV4_UDP;
+	if (rss_hash_config & RSS_HASHTYPE_RSS_UDP_IPV4_EX)
+		device_printf(adapter->dev,
+		    "%s: RSS_HASHTYPE_RSS_UDP_IPV4_EX defined, "
+		    "but not supported\n", __func__);
+	if (rss_hash_config & RSS_HASHTYPE_RSS_UDP_IPV6)
+		mrqc |= IXGBE_MRQC_RSS_FIELD_IPV6_UDP;
+	if (rss_hash_config & RSS_HASHTYPE_RSS_UDP_IPV6_EX)
+		mrqc |= IXGBE_MRQC_RSS_FIELD_IPV6_EX_UDP;
+#else
+	/*
+	 * Disable UDP - IP fragments aren't currently being handled
+	 * and so we end up with a mix of 2-tuple and 4-tuple
+	 * traffic.
+	 */
 	mrqc = IXGBE_MRQC_RSSEN
 	     | IXGBE_MRQC_RSS_FIELD_IPV4
 	     | IXGBE_MRQC_RSS_FIELD_IPV4_TCP
+#if 0
 	     | IXGBE_MRQC_RSS_FIELD_IPV4_UDP
+#endif
 	     | IXGBE_MRQC_RSS_FIELD_IPV6_EX_TCP
 	     | IXGBE_MRQC_RSS_FIELD_IPV6_EX
 	     | IXGBE_MRQC_RSS_FIELD_IPV6
 	     | IXGBE_MRQC_RSS_FIELD_IPV6_TCP
+#if 0
 	     | IXGBE_MRQC_RSS_FIELD_IPV6_UDP
-	     | IXGBE_MRQC_RSS_FIELD_IPV6_EX_UDP;
+	     | IXGBE_MRQC_RSS_FIELD_IPV6_EX_UDP
+#endif
+	;
+#endif /* RSS */
 	IXGBE_WRITE_REG(hw, IXGBE_MRQC, mrqc);
 }
 
@@ -4699,12 +4752,15 @@ ixgbe_rxeof(struct ix_queue *que)
 			case IXGBE_RXDADV_RSSTYPE_IPV6_TCP_EX:
 				M_HASHTYPE_SET(sendmp, M_HASHTYPE_RSS_TCP_IPV6_EX);
 				break;
-			/* XXX no UDP support in RSS just yet */
-#ifdef	notyet
-			case IGXBE_RXDADV_RSSTYPE_IPV4_UDP:
-			case IGXBE_RXDADV_RSSTYPE_IPV6_UDP:
-			case IGXBE_RXDADV_RSSTYPE_IPV6_UDP_EX:
-#endif /* notyet */
+			case IXGBE_RXDADV_RSSTYPE_IPV4_UDP:
+				M_HASHTYPE_SET(sendmp, M_HASHTYPE_RSS_UDP_IPV4);
+				break;
+			case IXGBE_RXDADV_RSSTYPE_IPV6_UDP:
+				M_HASHTYPE_SET(sendmp, M_HASHTYPE_RSS_UDP_IPV6);
+				break;
+			case IXGBE_RXDADV_RSSTYPE_IPV6_UDP_EX:
+				M_HASHTYPE_SET(sendmp, M_HASHTYPE_RSS_UDP_IPV6_EX);
+				break;
 			default:
 				/* XXX fallthrough */
 				M_HASHTYPE_SET(sendmp, M_HASHTYPE_NONE);

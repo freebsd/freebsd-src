@@ -45,14 +45,19 @@
 __FBSDID("$FreeBSD$");
 
 #include "opt_capsicum.h"
+#include "opt_ktrace.h"
 
 #include <sys/param.h>
 #include <sys/capsicum.h>
+#include <sys/conf.h>
 #include <sys/fcntl.h>
 #include <sys/file.h>
 #include <sys/filedesc.h>
 #include <sys/fnv_hash.h>
 #include <sys/kernel.h>
+#include <sys/uio.h>
+#include <sys/signal.h>
+#include <sys/ktrace.h>
 #include <sys/lock.h>
 #include <sys/malloc.h>
 #include <sys/mman.h>
@@ -97,12 +102,14 @@ static LIST_HEAD(, shm_mapping) *shm_dictionary;
 static struct sx shm_dict_lock;
 static struct mtx shm_timestamp_lock;
 static u_long shm_hash;
+static struct unrhdr *shm_ino_unr;
+static dev_t shm_dev_ino;
 
 #define	SHM_HASH(fnv)	(&shm_dictionary[(fnv) & shm_hash])
 
 static int	shm_access(struct shmfd *shmfd, struct ucred *ucred, int flags);
 static struct shmfd *shm_alloc(struct ucred *ucred, mode_t mode);
-static void	shm_dict_init(void *arg);
+static void	shm_init(void *arg);
 static void	shm_drop(struct shmfd *shmfd);
 static struct shmfd *shm_hold(struct shmfd *shmfd);
 static void	shm_insert(char *path, Fnv32_t fnv, struct shmfd *shmfd);
@@ -193,22 +200,23 @@ uiomove_object_page(vm_object_t obj, size_t len, struct uio *uio)
 	vm_page_xunbusy(m);
 	vm_page_lock(m);
 	vm_page_hold(m);
-	vm_page_unlock(m);
-	VM_OBJECT_WUNLOCK(obj);
-	error = uiomove_fromphys(&m, offset, tlen, uio);
-	if (uio->uio_rw == UIO_WRITE && error == 0) {
-		VM_OBJECT_WLOCK(obj);
-		vm_page_dirty(m);
-		VM_OBJECT_WUNLOCK(obj);
-	}
-	vm_page_lock(m);
-	vm_page_unhold(m);
 	if (m->queue == PQ_NONE) {
 		vm_page_deactivate(m);
 	} else {
 		/* Requeue to maintain LRU ordering. */
 		vm_page_requeue(m);
 	}
+	vm_page_unlock(m);
+	VM_OBJECT_WUNLOCK(obj);
+	error = uiomove_fromphys(&m, offset, tlen, uio);
+	if (uio->uio_rw == UIO_WRITE && error == 0) {
+		VM_OBJECT_WLOCK(obj);
+		vm_page_dirty(m);
+		vm_pager_page_unswapped(m);
+		VM_OBJECT_WUNLOCK(obj);
+	}
+	vm_page_lock(m);
+	vm_page_unhold(m);
 	vm_page_unlock(m);
 
 	return (error);
@@ -403,6 +411,8 @@ shm_stat(struct file *fp, struct stat *sb, struct ucred *active_cred,
 	sb->st_uid = shmfd->shm_uid;
 	sb->st_gid = shmfd->shm_gid;
 	mtx_unlock(&shm_timestamp_lock);
+	sb->st_dev = shm_dev_ino;
+	sb->st_ino = shmfd->shm_ino;
 
 	return (0);
 }
@@ -534,6 +544,7 @@ static struct shmfd *
 shm_alloc(struct ucred *ucred, mode_t mode)
 {
 	struct shmfd *shmfd;
+	int ino;
 
 	shmfd = malloc(sizeof(*shmfd), M_SHMFD, M_WAITOK | M_ZERO);
 	shmfd->shm_size = 0;
@@ -550,6 +561,11 @@ shm_alloc(struct ucred *ucred, mode_t mode)
 	vfs_timestamp(&shmfd->shm_birthtime);
 	shmfd->shm_atime = shmfd->shm_mtime = shmfd->shm_ctime =
 	    shmfd->shm_birthtime;
+	ino = alloc_unr(shm_ino_unr);
+	if (ino == -1)
+		shmfd->shm_ino = 0;
+	else
+		shmfd->shm_ino = ino;
 	refcount_init(&shmfd->shm_refs, 1);
 	mtx_init(&shmfd->shm_mtx, "shmrl", NULL, MTX_DEF);
 	rangelock_init(&shmfd->shm_rl);
@@ -580,6 +596,8 @@ shm_drop(struct shmfd *shmfd)
 		rangelock_destroy(&shmfd->shm_rl);
 		mtx_destroy(&shmfd->shm_mtx);
 		vm_object_deallocate(shmfd->shm_object);
+		if (shmfd->shm_ino != 0)
+			free_unr(shm_ino_unr, shmfd->shm_ino);
 		free(shmfd, M_SHMFD);
 	}
 }
@@ -612,14 +630,18 @@ shm_access(struct shmfd *shmfd, struct ucred *ucred, int flags)
  * the mappings in a hash table.
  */
 static void
-shm_dict_init(void *arg)
+shm_init(void *arg)
 {
 
 	mtx_init(&shm_timestamp_lock, "shm timestamps", NULL, MTX_DEF);
 	sx_init(&shm_dict_lock, "shm dictionary");
 	shm_dictionary = hashinit(1024, M_SHMFD, &shm_hash);
+	shm_ino_unr = new_unrhdr(1, INT32_MAX, NULL);
+	KASSERT(shm_ino_unr != NULL, ("shm fake inodes not initialized"));
+	shm_dev_ino = devfs_alloc_cdp_inode();
+	KASSERT(shm_dev_ino > 0, ("shm dev inode not initialized"));
 }
-SYSINIT(shm_dict_init, SI_SUB_SYSV_SHM, SI_ORDER_ANY, shm_dict_init, NULL);
+SYSINIT(shm_init, SI_SUB_SYSV_SHM, SI_ORDER_ANY, shm_init, NULL);
 
 static struct shmfd *
 shm_lookup(char *path, Fnv32_t fnv)
@@ -726,7 +748,10 @@ sys_shm_open(struct thread *td, struct shm_open_args *uap)
 	} else {
 		path = malloc(MAXPATHLEN, M_SHMFD, M_WAITOK);
 		error = copyinstr(uap->path, path, MAXPATHLEN, NULL);
-
+#ifdef KTRACE
+		if (error == 0 && KTRPOINT(curthread, KTR_NAMEI))
+			ktrnamei(path);
+#endif
 		/* Require paths to start with a '/' character. */
 		if (error == 0 && path[0] != '/')
 			error = EINVAL;
@@ -824,7 +849,10 @@ sys_shm_unlink(struct thread *td, struct shm_unlink_args *uap)
 		free(path, M_TEMP);
 		return (error);
 	}
-
+#ifdef KTRACE
+	if (KTRPOINT(curthread, KTR_NAMEI))
+		ktrnamei(path);
+#endif
 	fnv = fnv_32_str(path, FNV1_32_INIT);
 	sx_xlock(&shm_dict_lock);
 	error = shm_remove(path, fnv, td->td_ucred);

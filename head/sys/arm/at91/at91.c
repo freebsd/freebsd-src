@@ -255,7 +255,7 @@ at91_cpu_add_builtin_children(device_t dev, const struct cpu_devs *walker)
 {
 	int i;
 
-	for (i = 1; walker->name; i++, walker++) {
+	for (i = 0; walker->name; i++, walker++) {
 		at91_add_child(dev, i, walker->name, walker->unit,
 		    walker->mem_base, walker->mem_len, walker->irq0,
 		    walker->irq1, walker->irq2);

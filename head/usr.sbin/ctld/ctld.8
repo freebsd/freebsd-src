@@ -27,7 +27,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd September 20, 2012
+.Dd July 20, 2014
 .Dt CTLD 8
 .Os
 .Sh NAME
@@ -51,7 +51,7 @@ Then it compares the configuration with the kernel list of LUNs managed
 by previously running
 .Nm
 instances, removes LUNs no longer existing in the configuration file,
-and creates new LUNs as neccessary.
+and creates new LUNs as necessary.
 After that it listens for the incoming iSCSI connections, performs
 authentication, and, if successful, passes the connections to the kernel part
 of CTL iSCSI target, which handles it from that point.
@@ -59,13 +59,13 @@ of CTL iSCSI target, which handles it from that point.
 When it receives a SIGHUP signal, the
 .Nm
 reloads its configuration and applies the changes to the kernel.
-Changes are applied in a way that avoids unneccessary disruptions;
+Changes are applied in a way that avoids unnecessary disruptions;
 for example removing one LUN does not affect other LUNs.
 .Pp
 When exiting gracefully, the
 .Nm
 daemon removes LUNs it managed and forcibly disconnects all the clients.
-Otherwise - e.g. when killed with SIGKILL - LUNs stay configured
+Otherwise - for example, when killed with SIGKILL - LUNs stay configured
 and clients remain connected.
 .Pp
 To perform administrative actions that apply to already connected

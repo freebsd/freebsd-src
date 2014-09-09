@@ -53,11 +53,12 @@ rewinddir(dirp)
 		_pthread_mutex_lock(&dirp->dd_lock);
 	if (dirp->dd_flags & __DTF_READALL)
 		_filldir(dirp, false);
-	else if (dirp->dd_seek != 0) {
+	else {
 		(void) lseek(dirp->dd_fd, 0, SEEK_SET);
 		dirp->dd_seek = 0;
 	}
 	dirp->dd_loc = 0;
+	_reclaim_telldir(dirp);
 	if (__isthreaded)
 		_pthread_mutex_unlock(&dirp->dd_lock);
 }

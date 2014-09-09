@@ -104,7 +104,7 @@
  * with the buffer may be evicted prior to the callback.  The callback
  * must be made with *no locks held* (to prevent deadlock).  Additionally,
  * the users of callbacks must ensure that their private data is
- * protected from simultaneous callbacks from arc_buf_evict()
+ * protected from simultaneous callbacks from arc_clear_callback()
  * and arc_do_user_evicts().
  *
  * Note that the majority of the performance stats are manipulated
@@ -193,9 +193,6 @@ extern int zfs_prefetch_disable;
  */
 static boolean_t arc_warm;
 
-/*
- * These tunables are for performance analysis.
- */
 uint64_t zfs_arc_max;
 uint64_t zfs_arc_min;
 uint64_t zfs_arc_meta_limit = 0;
@@ -203,6 +200,21 @@ int zfs_arc_grow_retry = 0;
 int zfs_arc_shrink_shift = 0;
 int zfs_arc_p_min_shift = 0;
 int zfs_disable_dup_eviction = 0;
+uint64_t zfs_arc_average_blocksize = 8 * 1024; /* 8KB */
+u_int zfs_arc_free_target = (1 << 19); /* default before pagedaemon init only */
+
+static int sysctl_vfs_zfs_arc_free_target(SYSCTL_HANDLER_ARGS);
+
+#ifdef _KERNEL
+static void
+arc_free_target_init(void *unused __unused)
+{
+
+	zfs_arc_free_target = kmem_free_target();
+}
+SYSINIT(arc_free_target_init, SI_SUB_KTHREAD_PAGE, SI_ORDER_ANY,
+    arc_free_target_init, NULL);
+#endif
 
 TUNABLE_QUAD("vfs.zfs.arc_meta_limit", &zfs_arc_meta_limit);
 SYSCTL_DECL(_vfs_zfs);
@@ -210,6 +222,38 @@ SYSCTL_UQUAD(_vfs_zfs, OID_AUTO, arc_max, CTLFLAG_RDTUN, &zfs_arc_max, 0,
     "Maximum ARC size");
 SYSCTL_UQUAD(_vfs_zfs, OID_AUTO, arc_min, CTLFLAG_RDTUN, &zfs_arc_min, 0,
     "Minimum ARC size");
+SYSCTL_UQUAD(_vfs_zfs, OID_AUTO, arc_average_blocksize, CTLFLAG_RDTUN,
+    &zfs_arc_average_blocksize, 0,
+    "ARC average blocksize");
+/*
+ * We don't have a tunable for arc_free_target due to the dependency on
+ * pagedaemon initialisation.
+ */
+SYSCTL_PROC(_vfs_zfs, OID_AUTO, arc_free_target,
+    CTLTYPE_UINT | CTLFLAG_MPSAFE | CTLFLAG_RW, 0, sizeof(u_int),
+    sysctl_vfs_zfs_arc_free_target, "IU",
+    "Desired number of free pages below which ARC triggers reclaim");
+
+static int
+sysctl_vfs_zfs_arc_free_target(SYSCTL_HANDLER_ARGS)
+{
+	u_int val;
+	int err;
+
+	val = zfs_arc_free_target;
+	err = sysctl_handle_int(oidp, &val, 0, req);
+	if (err != 0 || req->newptr == NULL)
+		return (err);
+
+	if (val < kmem_free_min())
+		return (EINVAL);
+	if (val > kmem_page_count())
+		return (EINVAL);
+
+	zfs_arc_free_target = val;
+
+	return (0);
+}
 
 /*
  * Note that buffers can be in one of 6 states:
@@ -1054,10 +1098,11 @@ buf_init(void)
 
 	/*
 	 * The hash table is big enough to fill all of physical memory
-	 * with an average 64K block size.  The table will take up
-	 * totalmem*sizeof(void*)/64K (eg. 128KB/GB with 8-byte pointers).
+	 * with an average block size of zfs_arc_average_blocksize (default 8K).
+	 * By default, the table will take up
+	 * totalmem * sizeof(void*) / 8K (1MB per GB with 8-byte pointers).
 	 */
-	while (hsize * 65536 < (uint64_t)physmem * PAGESIZE)
+	while (hsize * zfs_arc_average_blocksize < (uint64_t)physmem * PAGESIZE)
 		hsize <<= 1;
 retry:
 	buf_hash_table.ht_mask = hsize - 1;
@@ -1645,8 +1690,12 @@ arc_buf_data_free(arc_buf_t *buf, void (*free_func)(void *, size_t))
 	}
 }
 
+/*
+ * Free up buf->b_data and if 'remove' is set, then pull the
+ * arc_buf_t off of the the arc_buf_hdr_t's list and free it.
+ */
 static void
-arc_buf_destroy(arc_buf_t *buf, boolean_t recycle, boolean_t all)
+arc_buf_destroy(arc_buf_t *buf, boolean_t recycle, boolean_t remove)
 {
 	arc_buf_t **bufp;
 
@@ -1699,7 +1748,7 @@ arc_buf_destroy(arc_buf_t *buf, boolean_t recycle, boolean_t all)
 	}
 
 	/* only remove the buf if requested */
-	if (!all)
+	if (!remove)
 		return;
 
 	/* remove the buf from the hdr list */
@@ -2353,7 +2402,7 @@ restart:
 		mutex_exit(&buf->b_evict_lock);
 
 		if (buf->b_efunc != NULL)
-			VERIFY(buf->b_efunc(buf) == 0);
+			VERIFY0(buf->b_efunc(buf->b_private));
 
 		buf->b_efunc = NULL;
 		buf->b_private = NULL;
@@ -2409,9 +2458,12 @@ arc_flush(spa_t *spa)
 void
 arc_shrink(void)
 {
+
 	if (arc_c > arc_c_min) {
 		uint64_t to_free;
 
+		DTRACE_PROBE2(arc__shrink, uint64_t, arc_c, uint64_t,
+			arc_c_min);
 #ifdef _KERNEL
 		to_free = arc_c >> arc_shrink_shift;
 #else
@@ -2431,8 +2483,11 @@ arc_shrink(void)
 		ASSERT((int64_t)arc_p >= 0);
 	}
 
-	if (arc_size > arc_c)
+	if (arc_size > arc_c) {
+		DTRACE_PROBE2(arc__shrink_adjust, uint64_t, arc_size,
+			uint64_t, arc_c);
 		arc_adjust();
+	}
 }
 
 static int needfree = 0;
@@ -2443,15 +2498,25 @@ arc_reclaim_needed(void)
 
 #ifdef _KERNEL
 
-	if (needfree)
+	if (needfree) {
+		DTRACE_PROBE(arc__reclaim_needfree);
 		return (1);
+	}
+
+	if (kmem_free_count() < zfs_arc_free_target) {
+		DTRACE_PROBE2(arc__reclaim_freetarget, uint64_t,
+		    kmem_free_count(), uint64_t, zfs_arc_free_target);
+		return (1);
+	}
 
 	/*
 	 * Cooperate with pagedaemon when it's time for it to scan
 	 * and reclaim some pages.
 	 */
-	if (vm_paging_needed())
+	if (vm_paging_needed()) {
+		DTRACE_PROBE(arc__reclaim_paging);
 		return (1);
+	}
 
 #ifdef sun
 	/*
@@ -2495,15 +2560,23 @@ arc_reclaim_needed(void)
 	    (btop(vmem_size(heap_arena, VMEM_FREE | VMEM_ALLOC)) >> 2))
 		return (1);
 #endif
-#else	/* !sun */
-	if (kmem_used() > (kmem_size() * 3) / 4)
+#else	/* sun */
+#ifdef __i386__
+	/* i386 has KVA limits that the raw page counts above don't consider */
+	if (kmem_used() > (kmem_size() * 3) / 4) {
+		DTRACE_PROBE2(arc__reclaim_used, uint64_t,
+		    kmem_used(), uint64_t, (kmem_size() * 3) / 4);
 		return (1);
+	}
+#endif
 #endif	/* sun */
 
 #else
 	if (spa_get_random(100) == 0)
 		return (1);
 #endif
+	DTRACE_PROBE(arc__reclaim_no);
+
 	return (0);
 }
 
@@ -3488,16 +3561,25 @@ arc_freed(spa_t *spa, const blkptr_t *bp)
 }
 
 /*
- * This is used by the DMU to let the ARC know that a buffer is
- * being evicted, so the ARC should clean up.  If this arc buf
- * is not yet in the evicted state, it will be put there.
+ * Clear the user eviction callback set by arc_set_callback(), first calling
+ * it if it exists.  Because the presence of a callback keeps an arc_buf cached
+ * clearing the callback may result in the arc_buf being destroyed.  However,
+ * it will not result in the *last* arc_buf being destroyed, hence the data
+ * will remain cached in the ARC. We make a copy of the arc buffer here so
+ * that we can process the callback without holding any locks.
+ *
+ * It's possible that the callback is already in the process of being cleared
+ * by another thread.  In this case we can not clear the callback.
+ *
+ * Returns B_TRUE if the callback was successfully called and cleared.
  */
-int
-arc_buf_evict(arc_buf_t *buf)
+boolean_t
+arc_clear_callback(arc_buf_t *buf)
 {
 	arc_buf_hdr_t *hdr;
 	kmutex_t *hash_lock;
-	arc_buf_t **bufp;
+	arc_evict_func_t *efunc = buf->b_efunc;
+	void *private = buf->b_private;
 	list_t *list, *evicted_list;
 	kmutex_t *lock, *evicted_lock;
 
@@ -3509,17 +3591,16 @@ arc_buf_evict(arc_buf_t *buf)
 		 */
 		ASSERT(buf->b_data == NULL);
 		mutex_exit(&buf->b_evict_lock);
-		return (0);
+		return (B_FALSE);
 	} else if (buf->b_data == NULL) {
-		arc_buf_t copy = *buf; /* structure assignment */
 		/*
 		 * We are on the eviction list; process this buffer now
 		 * but let arc_do_user_evicts() do the reaping.
 		 */
 		buf->b_efunc = NULL;
 		mutex_exit(&buf->b_evict_lock);
-		VERIFY(copy.b_efunc(&copy) == 0);
-		return (1);
+		VERIFY0(efunc(private));
+		return (B_TRUE);
 	}
 	hash_lock = HDR_LOCK(hdr);
 	mutex_enter(hash_lock);
@@ -3529,50 +3610,21 @@ arc_buf_evict(arc_buf_t *buf)
 	ASSERT3U(refcount_count(&hdr->b_refcnt), <, hdr->b_datacnt);
 	ASSERT(hdr->b_state == arc_mru || hdr->b_state == arc_mfu);
 
-	/*
-	 * Pull this buffer off of the hdr
-	 */
-	bufp = &hdr->b_buf;
-	while (*bufp != buf)
-		bufp = &(*bufp)->b_next;
-	*bufp = buf->b_next;
-
-	ASSERT(buf->b_data != NULL);
-	arc_buf_destroy(buf, FALSE, FALSE);
-
-	if (hdr->b_datacnt == 0) {
-		arc_state_t *old_state = hdr->b_state;
-		arc_state_t *evicted_state;
-
-		ASSERT(hdr->b_buf == NULL);
-		ASSERT(refcount_is_zero(&hdr->b_refcnt));
-
-		evicted_state =
-		    (old_state == arc_mru) ? arc_mru_ghost : arc_mfu_ghost;
-
-		get_buf_info(hdr, old_state, &list, &lock);
-		get_buf_info(hdr, evicted_state, &evicted_list, &evicted_lock);
-		mutex_enter(lock);
-		mutex_enter(evicted_lock);
-
-		arc_change_state(evicted_state, hdr, hash_lock);
-		ASSERT(HDR_IN_HASH_TABLE(hdr));
-		hdr->b_flags |= ARC_IN_HASH_TABLE;
-		hdr->b_flags &= ~ARC_BUF_AVAILABLE;
-
-		mutex_exit(evicted_lock);
-		mutex_exit(lock);
-	}
-	mutex_exit(hash_lock);
-	mutex_exit(&buf->b_evict_lock);
-
-	VERIFY(buf->b_efunc(buf) == 0);
 	buf->b_efunc = NULL;
 	buf->b_private = NULL;
-	buf->b_hdr = NULL;
-	buf->b_next = NULL;
-	kmem_cache_free(buf_cache, buf);
-	return (1);
+
+	if (hdr->b_datacnt > 1) {
+		mutex_exit(&buf->b_evict_lock);
+		arc_buf_destroy(buf, FALSE, TRUE);
+	} else {
+		ASSERT(buf == hdr->b_buf);
+		hdr->b_flags |= ARC_BUF_AVAILABLE;
+		mutex_exit(&buf->b_evict_lock);
+	}
+
+	mutex_exit(hash_lock);
+	VERIFY0(efunc(private));
+	return (B_TRUE);
 }
 
 /*
@@ -3720,17 +3772,6 @@ arc_released(arc_buf_t *buf)
 	released = (buf->b_data != NULL && buf->b_hdr->b_state == arc_anon);
 	mutex_exit(&buf->b_evict_lock);
 	return (released);
-}
-
-int
-arc_has_callback(arc_buf_t *buf)
-{
-	int callback;
-
-	mutex_enter(&buf->b_evict_lock);
-	callback = (buf->b_efunc != NULL);
-	mutex_exit(&buf->b_evict_lock);
-	return (callback);
 }
 
 #ifdef ZFS_DEBUG
@@ -5233,7 +5274,7 @@ l2arc_compress_buf(l2arc_buf_hdr_t *l2hdr)
 	len = l2hdr->b_asize;
 	cdata = zio_data_buf_alloc(len);
 	csize = zio_compress_data(ZIO_COMPRESS_LZ4, l2hdr->b_tmp_cdata,
-	    cdata, l2hdr->b_asize, (size_t)(1ULL << l2hdr->b_dev->l2ad_vdev->vdev_ashift));
+	    cdata, l2hdr->b_asize);
 
 	rounded = P2ROUNDUP(csize, (size_t)SPA_MINBLOCKSIZE);
 	if (rounded > csize) {

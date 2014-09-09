@@ -23,7 +23,7 @@ ${.OBJDIR}/${_h}:	${SRCDIR}/${_h}
 	${INSTALL} ${.ALLSRC} ${.TARGET}
 .endfor
 
-DPADD=	${LIBTERMCAP}
-LDADD=	-ltermcap
+DPADD=	${LIBTERMCAPW}
+LDADD=	-ltermcapw
 
 .include <bsd.lib.mk>

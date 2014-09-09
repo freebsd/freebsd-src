@@ -157,6 +157,7 @@ static VAR var[] = {
 	{"tdnam", "TDNAM", NULL, LJUST, tdnam, 0, CHAR, NULL, 0},
 	{"time", "TIME", NULL, USER, cputime, 0, CHAR, NULL, 0},
 	{"tpgid", "TPGID", NULL, 0, kvar, KOFF(ki_tpgid), UINT, PIDFMT, 0},
+	{"tracer", "TRACER", NULL, 0, kvar, KOFF(ki_tracer), UINT, PIDFMT, 0},
 	{"tsid", "TSID", NULL, 0, kvar, KOFF(ki_tsid), UINT, PIDFMT, 0},
 	{"tsiz", "TSIZ", NULL, 0, kvar, KOFF(ki_tsize), PGTOK, "ld", 0},
 	{"tt", "TT ", NULL, 0, tname, 0, CHAR, NULL, 0},

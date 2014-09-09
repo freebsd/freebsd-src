@@ -33,6 +33,23 @@
 
 	SOC: Exynos5@0 {
 
+		pmu_system_controller: system-controller@10040000 {
+			compatible = "samsung,exynos5420-pmu";
+			status = "okay";
+		};
+
+		pad0: pad@11400000 {
+			compatible = "samsung,exynos5420-padctrl";
+			status = "okay";
+			reg = <0x13400000 0x1000>,
+			      <0x13410000 0x1000>,
+			      <0x14000000 0x1000>,
+			      <0x14010000 0x1000>,
+			      <0x03860000 0x1000>;
+			interrupts = < 77 110 78 82 79 >;
+			interrupt-parent = <&GIC>;
+		};
+
 		serial0: serial@12C00000 {
 			clock-frequency = < 50000000 >;
 		};
@@ -47,6 +64,22 @@
 
 		serial3: serial@12C30000 {
 			clock-frequency = < 50000000 >;
+		};
+
+		usbdrd_phy0: phy@12100000 {
+			status = "okay";
+		};
+
+		usbdrd_phy1: phy@12500000 {
+			status = "okay";
+		};
+
+		xhci@12000000 {
+			status = "okay";
+		};
+
+		xhci@12400000 {
+			status = "okay";
 		};
 	};
 };

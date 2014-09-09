@@ -1659,21 +1659,10 @@ uaudio_chan_fill_info_sub(struct uaudio_softc *sc, struct usb_device *udev,
 		} else if (audio_rev >= UAUDIO_VERSION_20) {
 
 			uint32_t dwFormat;
-			uint8_t bSubslotSize;
 
 			dwFormat = UGETDW(asid.v2->bmFormats);
 			bChannels = asid.v2->bNrChannels;
-			bBitResolution = asf1d.v2->bBitResolution;
-			bSubslotSize = asf1d.v2->bSubslotSize;
-
-			/* Map 4-byte aligned 24-bit samples into 32-bit */
-			if (bBitResolution == 24 && bSubslotSize == 4)
-				bBitResolution = 32;
-
-			if (bBitResolution != (bSubslotSize * 8)) {
-				DPRINTF("Invalid bSubslotSize\n");
-				goto next_ep;
-			}
+			bBitResolution = asf1d.v2->bSubslotSize * 8;
 
 			if ((bChannels != channels) ||
 			    (bBitResolution != bit_resolution)) {
@@ -1720,7 +1709,7 @@ uaudio_chan_fill_info_sub(struct uaudio_softc *sc, struct usb_device *udev,
 
 			wFormat = UGETW(asid.v1->wFormatTag);
 			bChannels = UAUDIO_MAX_CHAN(asf1d.v1->bNrChannels);
-			bBitResolution = asf1d.v1->bBitResolution;
+			bBitResolution = asf1d.v1->bSubFrameSize * 8;
 
 			if (asf1d.v1->bSamFreqType == 0) {
 				DPRINTFN(16, "Sample rate: %d-%dHz\n",
@@ -2735,14 +2724,14 @@ uaudio_mixer_controls_create_ftu(struct uaudio_softc *sc)
 
 		uaudio_mixer_add_ctl(sc, &MIX(sc));
 
-		MIX(sc).wValue[0] = MAKE_WORD(9, chy + 1);
+		MIX(sc).wValue[0] = MAKE_WORD(9, chy + 1 + 8);
 		MIX(sc).type = MIX_SIGNED_16;
 		MIX(sc).ctl = SOUND_MIXER_NRDEVICES;
 		MIX(sc).name = "effect_send";
 		MIX(sc).nchan = 1;
 		MIX(sc).update[0] = 1;
 		snprintf(MIX(sc).desc, sizeof(MIX(sc).desc),
-		    "Effect Send DIn%d Volume", chy + 1 + 8);
+		    "Effect Send DIn%d Volume", chy + 1);
 
 		uaudio_mixer_add_ctl(sc, &MIX(sc));
 	}

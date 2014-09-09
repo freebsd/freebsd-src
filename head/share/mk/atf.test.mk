@@ -71,7 +71,7 @@ BINDIR.${_T}= ${TESTSDIR}
 MAN.${_T}?= # empty
 SRCS.${_T}?= ${_T}.c
 DPADD.${_T}+= ${LIBATF_C}
-LDADD.${_T}+= -latf-c
+LDADD.${_T}+= ${LDATF_C}
 USEPRIVATELIB+= atf-c
 TEST_INTERFACE.${_T}= atf
 .endfor
@@ -85,7 +85,7 @@ BINDIR.${_T}= ${TESTSDIR}
 MAN.${_T}?= # empty
 SRCS.${_T}?= ${_T}${CXX_SUFFIX:U.cc}
 DPADD.${_T}+= ${LIBATF_CXX} ${LIBATF_C}
-LDADD.${_T}+= -latf-c++ -latf-c
+LDADD.${_T}+= ${LDATF_CXX} ${LDATF_C}
 USEPRIVATELIB+= atf-c++
 TEST_INTERFACE.${_T}= atf
 .endfor

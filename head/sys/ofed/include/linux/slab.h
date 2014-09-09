@@ -2,6 +2,7 @@
  * Copyright (c) 2010 Isilon Systems, Inc.
  * Copyright (c) 2010 iX Systems, Inc.
  * Copyright (c) 2010 Panasas, Inc.
+ * Copyright (c) 2013, 2014 Mellanox Technologies, Ltd.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -38,11 +39,16 @@
 
 MALLOC_DECLARE(M_KMALLOC);
 
-#define	kmalloc(size, flags)	malloc((size), M_KMALLOC, (flags))
-#define	kzalloc(size, flags)	kmalloc((size), (flags) | M_ZERO)
-#define	kfree(ptr)		free(__DECONST(void *, (ptr)), M_KMALLOC)
-#define	krealloc(ptr, size, flags) realloc((ptr), (size), M_KMALLOC, (flags))
-#define	kcalloc(n, size, flags)	kmalloc((n) * (size), flags | M_ZERO)
+#define	kmalloc(size, flags)		malloc((size), M_KMALLOC, (flags))
+#define	kzalloc(size, flags)		kmalloc((size), (flags) | M_ZERO)
+#define	kzalloc_node(size, flags, node)	kzalloc(size, flags)
+#define	kfree(ptr)			free(__DECONST(void *, (ptr)), M_KMALLOC)
+#define	krealloc(ptr, size, flags)	realloc((ptr), (size), M_KMALLOC, (flags))
+#define	kcalloc(n, size, flags)	        kmalloc((n) * (size), flags | M_ZERO)
+#define	vzalloc(size)			kzalloc(size, GFP_KERNEL | __GFP_NOWARN)
+#define	vfree(arg)			kfree(arg)
+#define	vmalloc(size)                   kmalloc(size, GFP_KERNEL)
+#define	vmalloc_node(size, node)        kmalloc(size, GFP_KERNEL)
 
 struct kmem_cache {
 	uma_zone_t	cache_zone;

@@ -1633,7 +1633,7 @@ zvol_write(struct cdev *dev, struct uio *uio, int ioflag)
 #ifdef sun
 	sync = !(zv->zv_flags & ZVOL_WCE) ||
 #else
-	sync =
+	sync = (ioflag & IO_SYNC) ||
 #endif
 	    (zv->zv_objset->os_sync == ZFS_SYNC_ALWAYS);
 

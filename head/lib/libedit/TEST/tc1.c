@@ -269,7 +269,7 @@ main(int argc, char *argv[])
 		} else if (el_parse(el, ac, av) == -1) {
 			switch (fork()) {
 			case 0:
-				execvp(av[0], __DECONST(char *const *, av));
+				execvp(av[0], __DECONST(char **, av));
 				perror(av[0]);
 				_exit(1);
 				/*NOTREACHED*/

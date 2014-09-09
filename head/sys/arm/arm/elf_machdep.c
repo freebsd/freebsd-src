@@ -46,6 +46,8 @@ __FBSDID("$FreeBSD$");
 #include <machine/elf.h>
 #include <machine/md_var.h>
 
+static boolean_t elf32_arm_abi_supported(struct image_params *);
+
 struct sysentvec elf32_freebsd_sysvec = {
 	.sv_size	= SYS_MAXSYSCALL,
 	.sv_table	= sysent,
@@ -90,35 +92,76 @@ static Elf32_Brandinfo freebsd_brand_info = {
 	.sysvec		= &elf32_freebsd_sysvec,
 	.interp_newpath	= NULL,
 	.brand_note	= &elf32_freebsd_brandnote,
-	.flags		= BI_CAN_EXEC_DYN | BI_BRAND_NOTE
+	.flags		= BI_CAN_EXEC_DYN | BI_BRAND_NOTE,
+	.header_supported= elf32_arm_abi_supported,
 };
 
 SYSINIT(elf32, SI_SUB_EXEC, SI_ORDER_FIRST,
 	(sysinit_cfunc_t) elf32_insert_brand_entry,
 	&freebsd_brand_info);
 
-static Elf32_Brandinfo freebsd_brand_oinfo = {
-	.brand		= ELFOSABI_FREEBSD,
-	.machine	= EM_ARM,
-	.compat_3_brand	= "FreeBSD",
-	.emul_path	= NULL,
-	.interp_path	= "/usr/libexec/ld-elf.so.1",
-	.sysvec		= &elf32_freebsd_sysvec,
-	.interp_newpath	= NULL,
-	.brand_note	= &elf32_freebsd_brandnote,
-	.flags		= BI_CAN_EXEC_DYN | BI_BRAND_NOTE
-};
+static boolean_t
+elf32_arm_abi_supported(struct image_params *imgp)
+{
+	const Elf_Ehdr *hdr = (const Elf_Ehdr *)imgp->image_header;
 
-SYSINIT(oelf32, SI_SUB_EXEC, SI_ORDER_ANY,
-	(sysinit_cfunc_t) elf32_insert_brand_entry,
-	&freebsd_brand_oinfo);
-
+#ifdef __ARM_EABI__
+	/*
+	 * When configured for EABI, FreeBSD supports EABI vesions 4 and 5.
+	 */
+	if (EF_ARM_EABI_VERSION(hdr->e_flags) < EF_ARM_EABI_FREEBSD_MIN) {
+		if (bootverbose)
+			uprintf("Attempting to execute non EABI binary (rev %d) image %s",
+			    EF_ARM_EABI_VERSION(hdr->e_flags), imgp->args->fname);
+		return (FALSE);
+	}
+#else
+	/*
+	 * When configured for OABI, that's all we do, so reject EABI binaries.
+	 */
+	if (EF_ARM_EABI_VERSION(hdr->e_flags) != EF_ARM_EABI_VERSION_UNKNOWN) {
+		if (bootverbose)
+			uprintf("Attempting to execute EABI binary (rev %d) image %s",
+			    EF_ARM_EABI_VERSION(hdr->e_flags), imgp->args->fname);
+		return (FALSE);
+	}
+#endif
+	return (TRUE);
+}
 
 void
 elf32_dump_thread(struct thread *td __unused, void *dst __unused,
     size_t *off __unused)
 {
 }
+
+/*
+ * It is possible for the compiler to emit relocations for unaligned data.
+ * We handle this situation with these inlines.
+ */
+#define	RELOC_ALIGNED_P(x) \
+	(((uintptr_t)(x) & (sizeof(void *) - 1)) == 0)
+
+static __inline Elf_Addr
+load_ptr(Elf_Addr *where)
+{
+	Elf_Addr res;
+
+	if (RELOC_ALIGNED_P(where))
+		return *where;
+	memcpy(&res, where, sizeof(res));
+	return (res);
+}
+
+static __inline void
+store_ptr(Elf_Addr *where, Elf_Addr val)
+{
+	if (RELOC_ALIGNED_P(where))
+		*where = val;
+	else
+		memcpy(where, &val, sizeof(val));
+}
+#undef RELOC_ALIGNED_P
 
 
 /* Process one elf relocation with addend. */
@@ -137,7 +180,7 @@ elf_reloc_internal(linker_file_t lf, Elf_Addr relocbase, const void *data,
 	case ELF_RELOC_REL:
 		rel = (const Elf_Rel *)data;
 		where = (Elf_Addr *) (relocbase + rel->r_offset);
-		addend = *where;
+		addend = load_ptr(where);
 		rtype = ELF_R_TYPE(rel->r_info);
 		symidx = ELF_R_SYM(rel->r_info);
 		break;
@@ -155,8 +198,8 @@ elf_reloc_internal(linker_file_t lf, Elf_Addr relocbase, const void *data,
 	if (local) {
 		if (rtype == R_ARM_RELATIVE) {	/* A + B */
 			addr = elf_relocaddr(lf, relocbase + addend);
-			if (*where != addr)
-				*where = addr;
+			if (load_ptr(where) != addr)
+				store_ptr(where, addr);
 		}
 		return (0);
 	}
@@ -170,7 +213,7 @@ elf_reloc_internal(linker_file_t lf, Elf_Addr relocbase, const void *data,
 			addr = lookup(lf, symidx, 1);
 			if (addr == 0)
 				return -1;
-			*where += addr;
+			store_ptr(where, addr + load_ptr(where));
 			break;
 
 		case R_ARM_COPY:	/* none */
@@ -185,7 +228,7 @@ elf_reloc_internal(linker_file_t lf, Elf_Addr relocbase, const void *data,
 		case R_ARM_JUMP_SLOT:
 			addr = lookup(lf, symidx, 1);
 			if (addr) {
-				*where = addr;
+				store_ptr(where, addr);
 				return (0);
 			}
 			return (-1);

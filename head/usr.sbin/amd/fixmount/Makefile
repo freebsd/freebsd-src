@@ -18,6 +18,4 @@ SRCS+=	checkmount_bsd44.c
 DPADD=	${LIBAMU} ${LIBRPCSVC}
 LDADD=	${LIBAMU} -lrpcsvc
 
-NO_PIE=	yes
-
 .include <bsd.prog.mk>

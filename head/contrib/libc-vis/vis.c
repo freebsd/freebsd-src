@@ -1,4 +1,4 @@
-/*	$NetBSD: vis.c,v 1.60 2013/02/21 16:21:20 joerg Exp $	*/
+/*	$NetBSD: vis.c,v 1.62 2014/09/08 17:35:01 christos Exp $	*/
 
 /*-
  * Copyright (c) 1989, 1993
@@ -57,7 +57,7 @@
 
 #include <sys/cdefs.h>
 #if defined(LIBC_SCCS) && !defined(lint)
-__RCSID("$NetBSD: vis.c,v 1.60 2013/02/21 16:21:20 joerg Exp $");
+__RCSID("$NetBSD: vis.c,v 1.62 2014/09/08 17:35:01 christos Exp $");
 #endif /* LIBC_SCCS and not lint */
 #ifdef __FBSDID
 __FBSDID("$FreeBSD$");
@@ -357,7 +357,7 @@ istrsenvisx(char *mbdst, size_t *dlen, const char *mbsrc, size_t mblength,
 	ssize_t mbslength, maxolen;
 
 	_DIAGASSERT(mbdst != NULL);
-	_DIAGASSERT(mbsrc != NULL);
+	_DIAGASSERT(mbsrc != NULL || mblength == 0);
 	_DIAGASSERT(mbextra != NULL);
 
 	/*
@@ -375,8 +375,6 @@ istrsenvisx(char *mbdst, size_t *dlen, const char *mbsrc, size_t mblength,
 
 	/* Allocate space for the wide char strings */
 	psrc = pdst = extra = NULL;
-	if (!mblength)
-		mblength = strlen(mbsrc);
 	if ((psrc = calloc(mblength + 1, sizeof(*psrc))) == NULL)
 		return -1;
 	if ((pdst = calloc((4 * mblength) + 1, sizeof(*pdst))) == NULL)
@@ -528,6 +526,15 @@ out:
 	free(psrc);
 	return error;
 }
+
+static int
+istrsenvisxl(char *mbdst, size_t *dlen, const char *mbsrc,
+    int flags, const char *mbextra, int *cerr_ptr)
+{
+	return istrsenvisx(mbdst, dlen, mbsrc,
+	    mbsrc != NULL ? strlen(mbsrc) : 0, flags, mbextra, cerr_ptr);
+}
+
 #endif
 
 #if !HAVE_SVIS
@@ -571,13 +578,13 @@ snvis(char *mbdst, size_t dlen, int c, int flags, int nextc, const char *mbextra
 int
 strsvis(char *mbdst, const char *mbsrc, int flags, const char *mbextra)
 {
-	return istrsenvisx(mbdst, NULL, mbsrc, 0, flags, mbextra, NULL);
+	return istrsenvisxl(mbdst, NULL, mbsrc, flags, mbextra, NULL);
 }
 
 int
 strsnvis(char *mbdst, size_t dlen, const char *mbsrc, int flags, const char *mbextra)
 {
-	return istrsenvisx(mbdst, &dlen, mbsrc, 0, flags, mbextra, NULL);
+	return istrsenvisxl(mbdst, &dlen, mbsrc, flags, mbextra, NULL);
 }
 
 int
@@ -646,13 +653,13 @@ nvis(char *mbdst, size_t dlen, int c, int flags, int nextc)
 int
 strvis(char *mbdst, const char *mbsrc, int flags)
 {
-	return istrsenvisx(mbdst, NULL, mbsrc, 0, flags, "", NULL);
+	return istrsenvisxl(mbdst, NULL, mbsrc, flags, "", NULL);
 }
 
 int
 strnvis(char *mbdst, size_t dlen, const char *mbsrc, int flags)
 {
-	return istrsenvisx(mbdst, &dlen, mbsrc, 0, flags, "", NULL);
+	return istrsenvisxl(mbdst, &dlen, mbsrc, flags, "", NULL);
 }
 
 /*

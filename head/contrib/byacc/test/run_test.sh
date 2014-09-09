@@ -1,6 +1,8 @@
 #!/bin/sh
-# $Id: run_test.sh,v 1.22 2014/04/09 11:00:45 tom Exp $
+# $Id: run_test.sh,v 1.24 2014/07/15 19:21:10 tom Exp $
 # vi:ts=4 sw=4:
+
+errors=0
 
 # NEW is the file created by the testcase
 # REF is the reference file against which to compare
@@ -11,13 +13,15 @@ test_diffs() {
 	if test ! -f $CMP
 	then
 		echo "...not found $CMP"
+		errors=1
 	else
 		sed	-e s,$NEW,$REF, \
-			-e "s%$YACC%YACC%" \
+			-e "s%$YACC_escaped%YACC%" \
 			-e '/YYPATCH/s/[0-9][0-9]*/"yyyymmdd"/' \
 			-e '/#define YYPATCH/s/PATCH/CHECK/' \
 			-e 's,#line \([1-9][0-9]*\) "'$REF_DIR'/,#line \1 ",' \
 			-e 's,#line \([1-9][0-9]*\) "'$TEST_DIR'/,#line \1 ",' \
+			-e 's,\(YACC:.* line [0-9][0-9]* of "\)'$TEST_DIR/',\1./,' \
 			< $CMP >$tmpfile \
 			&& mv $tmpfile $CMP
 		if test ! -f $REF
@@ -31,6 +35,7 @@ test_diffs() {
 		else
 			echo "...diff $REF"
 			diff -u $REF $CMP
+			errors=1
 		fi
 	fi
 }
@@ -62,10 +67,11 @@ else
 fi
 
 YACC=$PROG_DIR/yacc
+YACC_escaped=`echo "$PROG_DIR/yacc" | sed -e 's/\./\\\./g'`
 
 tmpfile=temp$$
 
-ifBTYACC=`fgrep -l 'define YYBTYACC' config.h > /dev/null; test $? != 0; echo $?`
+ifBTYACC=`fgrep -l 'define YYBTYACC' $PROG_DIR/config.h > /dev/null; test $? != 0; echo $?`
 
 if test $ifBTYACC = 0; then
 	REF_DIR=${TEST_DIR}/yacc
@@ -236,3 +242,5 @@ do
 		;;
 	esac
 done
+
+exit $errors

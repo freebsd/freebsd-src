@@ -167,77 +167,83 @@ static int elf64_offsets[] = {
 
 /* http://www.sco.com/developers/gabi/latest/ch5.dynamic.html#tag_encodings */
 static const char *
-d_tags(u_int64_t tag) {
+d_tags(u_int64_t tag)
+{
+	static char unknown_tag[48];
+
 	switch (tag) {
-	case 0: return "DT_NULL";
-	case 1: return "DT_NEEDED";
-	case 2: return "DT_PLTRELSZ";
-	case 3: return "DT_PLTGOT";
-	case 4: return "DT_HASH";
-	case 5: return "DT_STRTAB";
-	case 6: return "DT_SYMTAB";
-	case 7: return "DT_RELA";
-	case 8: return "DT_RELASZ";
-	case 9: return "DT_RELAENT";
-	case 10: return "DT_STRSZ";
-	case 11: return "DT_SYMENT";
-	case 12: return "DT_INIT";
-	case 13: return "DT_FINI";
-	case 14: return "DT_SONAME";
-	case 15: return "DT_RPATH";
-	case 16: return "DT_SYMBOLIC";
-	case 17: return "DT_REL";
-	case 18: return "DT_RELSZ";
-	case 19: return "DT_RELENT";
-	case 20: return "DT_PLTREL";
-	case 21: return "DT_DEBUG";
-	case 22: return "DT_TEXTREL";
-	case 23: return "DT_JMPREL";
-	case 24: return "DT_BIND_NOW";
-	case 25: return "DT_INIT_ARRAY";
-	case 26: return "DT_FINI_ARRAY";
-	case 27: return "DT_INIT_ARRAYSZ";
-	case 28: return "DT_FINI_ARRAYSZ";
-	case 29: return "DT_RUNPATH";
-	case 30: return "DT_FLAGS";
-	case 32: return "DT_PREINIT_ARRAY"; /* XXX: DT_ENCODING */
-	case 33: return "DT_PREINIT_ARRAYSZ";
+	case DT_NULL:		return "DT_NULL";
+	case DT_NEEDED:		return "DT_NEEDED";
+	case DT_PLTRELSZ:	return "DT_PLTRELSZ";
+	case DT_PLTGOT:		return "DT_PLTGOT";
+	case DT_HASH:		return "DT_HASH";
+	case DT_STRTAB:		return "DT_STRTAB";
+	case DT_SYMTAB:		return "DT_SYMTAB";
+	case DT_RELA:		return "DT_RELA";
+	case DT_RELASZ:		return "DT_RELASZ";
+	case DT_RELAENT:	return "DT_RELAENT";
+	case DT_STRSZ:		return "DT_STRSZ";
+	case DT_SYMENT:		return "DT_SYMENT";
+	case DT_INIT:		return "DT_INIT";
+	case DT_FINI:		return "DT_FINI";
+	case DT_SONAME:		return "DT_SONAME";
+	case DT_RPATH:		return "DT_RPATH";
+	case DT_SYMBOLIC:	return "DT_SYMBOLIC";
+	case DT_REL:		return "DT_REL";
+	case DT_RELSZ:		return "DT_RELSZ";
+	case DT_RELENT:		return "DT_RELENT";
+	case DT_PLTREL:		return "DT_PLTREL";
+	case DT_DEBUG:		return "DT_DEBUG";
+	case DT_TEXTREL:	return "DT_TEXTREL";
+	case DT_JMPREL:		return "DT_JMPREL";
+	case DT_BIND_NOW:	return "DT_BIND_NOW";
+	case DT_INIT_ARRAY:	return "DT_INIT_ARRAY";
+	case DT_FINI_ARRAY:	return "DT_FINI_ARRAY";
+	case DT_INIT_ARRAYSZ:	return "DT_INIT_ARRAYSZ";
+	case DT_FINI_ARRAYSZ:	return "DT_FINI_ARRAYSZ";
+	case DT_RUNPATH:	return "DT_RUNPATH";
+	case DT_FLAGS:		return "DT_FLAGS";
+	case DT_PREINIT_ARRAY:	return "DT_PREINIT_ARRAY"; /* XXX DT_ENCODING */
+	case DT_PREINIT_ARRAYSZ:return "DT_PREINIT_ARRAYSZ";
 	/* 0x6000000D - 0x6ffff000 operating system-specific semantics */
-	case 0x6ffffdf5: return "DT_GNU_PRELINKED";
-	case 0x6ffffdf6: return "DT_GNU_CONFLICTSZ";
-	case 0x6ffffdf7: return "DT_GNU_LIBLISTSZ";
-	case 0x6ffffdf8: return "DT_SUNW_CHECKSUM";
-	case 0x6ffffdf9: return "DT_PLTPADSZ";
-	case 0x6ffffdfa: return "DT_MOVEENT";
-	case 0x6ffffdfb: return "DT_MOVESZ";
-	case 0x6ffffdfc: return "DT_FEATURE";
-	case 0x6ffffdfd: return "DT_POSFLAG_1";
-	case 0x6ffffdfe: return "DT_SYMINSZ";
-	case 0x6ffffdff: return "DT_SYMINENT (DT_VALRNGHI)";
-	case 0x6ffffe00: return "DT_ADDRRNGLO";
-	case 0x6ffffef8: return "DT_GNU_CONFLICT";
-	case 0x6ffffef9: return "DT_GNU_LIBLIST";
-	case 0x6ffffefa: return "DT_SUNW_CONFIG";
-	case 0x6ffffefb: return "DT_SUNW_DEPAUDIT";
-	case 0x6ffffefc: return "DT_SUNW_AUDIT";
-	case 0x6ffffefd: return "DT_SUNW_PLTPAD";
-	case 0x6ffffefe: return "DT_SUNW_MOVETAB";
-	case 0x6ffffeff: return "DT_SYMINFO (DT_ADDRRNGHI)";
-	case 0x6ffffff9: return "DT_RELACOUNT";
-	case 0x6ffffffa: return "DT_RELCOUNT";
-	case 0x6ffffffb: return "DT_FLAGS_1";
-	case 0x6ffffffc: return "DT_VERDEF";
-	case 0x6ffffffd: return "DT_VERDEFNUM";
-	case 0x6ffffffe: return "DT_VERNEED";
-	case 0x6fffffff: return "DT_VERNEEDNUM";
-	case 0x6ffffff0: return "DT_GNU_VERSYM";
+	case 0x6ffffdf5:	return "DT_GNU_PRELINKED";
+	case 0x6ffffdf6:	return "DT_GNU_CONFLICTSZ";
+	case 0x6ffffdf7:	return "DT_GNU_LIBLISTSZ";
+	case 0x6ffffdf8:	return "DT_SUNW_CHECKSUM";
+	case DT_PLTPADSZ:	return "DT_PLTPADSZ";
+	case DT_MOVEENT:	return "DT_MOVEENT";
+	case DT_MOVESZ:		return "DT_MOVESZ";
+	case DT_FEATURE:	return "DT_FEATURE";
+	case DT_POSFLAG_1:	return "DT_POSFLAG_1";
+	case DT_SYMINSZ:	return "DT_SYMINSZ";
+	case DT_SYMINENT :	return "DT_SYMINENT (DT_VALRNGHI)";
+	case DT_ADDRRNGLO:	return "DT_ADDRRNGLO";
+	case DT_GNU_HASH:	return "DT_GNU_HASH";
+	case 0x6ffffef8:	return "DT_GNU_CONFLICT";
+	case 0x6ffffef9:	return "DT_GNU_LIBLIST";
+	case DT_CONFIG:		return "DT_CONFIG";
+	case DT_DEPAUDIT:	return "DT_DEPAUDIT";
+	case DT_AUDIT:		return "DT_AUDIT";
+	case DT_PLTPAD:		return "DT_PLTPAD";
+	case DT_MOVETAB:	return "DT_MOVETAB";
+	case DT_SYMINFO :	return "DT_SYMINFO (DT_ADDRRNGHI)";
+	case DT_RELACOUNT:	return "DT_RELACOUNT";
+	case DT_RELCOUNT:	return "DT_RELCOUNT";
+	case DT_FLAGS_1:	return "DT_FLAGS_1";
+	case DT_VERDEF:		return "DT_VERDEF";
+	case DT_VERDEFNUM:	return "DT_VERDEFNUM";
+	case DT_VERNEED:	return "DT_VERNEED";
+	case DT_VERNEEDNUM:	return "DT_VERNEEDNUM";
+	case 0x6ffffff0:	return "DT_GNU_VERSYM";
 	/* 0x70000000 - 0x7fffffff processor-specific semantics */
-	case 0x70000000: return "DT_IA_64_PLT_RESERVE";
-	case 0x7ffffffd: return "DT_SUNW_AUXILIARY";
-	case 0x7ffffffe: return "DT_SUNW_USED";
-	case 0x7fffffff: return "DT_SUNW_FILTER";
-	default: return "ERROR: TAG NOT DEFINED";
+	case 0x70000000:	return "DT_IA_64_PLT_RESERVE";
+	case 0x7ffffffd:	return "DT_SUNW_AUXILIARY";
+	case 0x7ffffffe:	return "DT_SUNW_USED";
+	case 0x7fffffff:	return "DT_SUNW_FILTER";
 	}
+	snprintf(unknown_tag, sizeof(unknown_tag),
+		"ERROR: TAG NOT DEFINED -- tag 0x%jx", (uintmax_t)tag);
+	return (unknown_tag);
 }
 
 static const char *
@@ -261,6 +267,7 @@ e_machines(u_int mach)
 	case EM_SPARCV9:return "EM_SPARCV9";
 	case EM_IA_64:	return "EM_IA_64";
 	case EM_X86_64:	return "EM_X86_64";
+	case EM_AARCH64:return "EM_AARCH64";
 	}
 	snprintf(machdesc, sizeof(machdesc),
 	    "(unknown machine) -- type 0x%x", mach);
@@ -303,40 +310,88 @@ static const char *p_flags[] = {
 
 /* http://www.sco.com/developers/gabi/latest/ch4.sheader.html#sh_type */
 static const char *
-sh_types(u_int64_t sht) {
-	switch (sht) {
-	case 0:	return "SHT_NULL";
-	case 1: return "SHT_PROGBITS";
-	case 2: return "SHT_SYMTAB";
-	case 3: return "SHT_STRTAB";
-	case 4: return "SHT_RELA";
-	case 5: return "SHT_HASH";
-	case 6: return "SHT_DYNAMIC";
-	case 7: return "SHT_NOTE";
-	case 8: return "SHT_NOBITS";
-	case 9: return "SHT_REL";
-	case 10: return "SHT_SHLIB";
-	case 11: return "SHT_DYNSYM";
-	case 14: return "SHT_INIT_ARRAY";
-	case 15: return "SHT_FINI_ARRAY";
-	case 16: return "SHT_PREINIT_ARRAY";
-	case 17: return "SHT_GROUP";
-	case 18: return "SHT_SYMTAB_SHNDX";
-	/* 0x60000000 - 0x6fffffff operating system-specific semantics */
-	case 0x6ffffff0: return "XXX:VERSYM";
-	case 0x6ffffff4: return "SHT_SUNW_dof";
-	case 0x6ffffff7: return "SHT_GNU_LIBLIST";
-	case 0x6ffffffc: return "XXX:VERDEF";
-	case 0x6ffffffd: return "SHT_SUNW(GNU)_verdef";
-	case 0x6ffffffe: return "SHT_SUNW(GNU)_verneed";
-	case 0x6fffffff: return "SHT_SUNW(GNU)_versym";
-	/* 0x70000000 - 0x7fffffff processor-specific semantics */
-	case 0x70000000: return "SHT_IA_64_EXT";
-	case 0x70000001: return "SHT_IA_64_UNWIND";
-	case 0x7ffffffd: return "XXX:AUXILIARY";
-	case 0x7fffffff: return "XXX:FILTER";
-	/* 0x80000000 - 0xffffffff application programs */
-	default: return "ERROR: SHT NOT DEFINED";
+sh_types(uint64_t machine, uint64_t sht) {
+	static char unknown_buf[64]; 
+
+	if (sht < 0x60000000) {
+		switch (sht) {
+		case SHT_NULL:		return "SHT_NULL";
+		case SHT_PROGBITS:	return "SHT_PROGBITS";
+		case SHT_SYMTAB:	return "SHT_SYMTAB";
+		case SHT_STRTAB:	return "SHT_STRTAB";
+		case SHT_RELA:		return "SHT_RELA";
+		case SHT_HASH:		return "SHT_HASH";
+		case SHT_DYNAMIC:	return "SHT_DYNAMIC";
+		case SHT_NOTE:		return "SHT_NOTE";
+		case SHT_NOBITS:	return "SHT_NOBITS";
+		case SHT_REL:		return "SHT_REL";
+		case SHT_SHLIB:		return "SHT_SHLIB";
+		case SHT_DYNSYM:	return "SHT_DYNSYM";
+		case SHT_INIT_ARRAY:	return "SHT_INIT_ARRAY";
+		case SHT_FINI_ARRAY:	return "SHT_FINI_ARRAY";
+		case SHT_PREINIT_ARRAY:	return "SHT_PREINIT_ARRAY";
+		case SHT_GROUP:		return "SHT_GROUP";
+		case SHT_SYMTAB_SHNDX:	return "SHT_SYMTAB_SHNDX";
+		}
+		snprintf(unknown_buf, sizeof(unknown_buf),
+		    "ERROR: SHT %ju NOT DEFINED", (uintmax_t)sht);
+		return (unknown_buf);
+	} else if (sht < 0x70000000) {
+		/* 0x60000000-0x6fffffff operating system-specific semantics */
+		switch (sht) {
+		case 0x6ffffff0:	return "XXX:VERSYM";
+		case SHT_SUNW_dof:	return "SHT_SUNW_dof";
+		case SHT_GNU_HASH:	return "SHT_GNU_HASH";
+		case 0x6ffffff7:	return "SHT_GNU_LIBLIST";
+		case 0x6ffffffc:	return "XXX:VERDEF";
+		case SHT_SUNW_verdef:	return "SHT_SUNW(GNU)_verdef";
+		case SHT_SUNW_verneed:	return "SHT_SUNW(GNU)_verneed";
+		case SHT_SUNW_versym:	return "SHT_SUNW(GNU)_versym";
+		}
+		snprintf(unknown_buf, sizeof(unknown_buf),
+		    "ERROR: OS-SPECIFIC SHT 0x%jx NOT DEFINED",
+		     (uintmax_t)sht);
+		return (unknown_buf);
+	} else if (sht < 0x80000000) {
+		/* 0x70000000-0x7fffffff processor-specific semantics */
+		switch (machine) {
+		case EM_ARM:
+			switch (sht) {
+			case SHT_ARM_EXIDX: return "SHT_ARM_EXIDX";
+			case SHT_ARM_PREEMPTMAP:return "SHT_ARM_PREEMPTMAP";
+			case SHT_ARM_ATTRIBUTES:return "SHT_ARM_ATTRIBUTES";
+			case SHT_ARM_DEBUGOVERLAY:
+			    return "SHT_ARM_DEBUGOVERLAY";
+			case SHT_ARM_OVERLAYSECTION:
+			    return "SHT_ARM_OVERLAYSECTION";
+			}
+			break;
+		case EM_IA_64:
+			switch (sht) {
+			case 0x70000000: return "SHT_IA_64_EXT";
+			case 0x70000001: return "SHT_IA_64_UNWIND";
+			}
+			break;
+		case EM_MIPS:
+			switch (sht) {
+			case SHT_MIPS_OPTIONS: return "SHT_MIPS_OPTIONS";
+			}
+			break;
+		}
+		switch (sht) {
+		case 0x7ffffffd: return "XXX:AUXILIARY";
+		case 0x7fffffff: return "XXX:FILTER";
+		}
+		snprintf(unknown_buf, sizeof(unknown_buf),
+		    "ERROR: PROCESSOR-SPECIFIC SHT 0x%jx NOT DEFINED",
+		     (uintmax_t)sht);
+		return (unknown_buf);
+	} else {
+		/* 0x80000000-0xffffffff application programs */
+		snprintf(unknown_buf, sizeof(unknown_buf),
+		    "ERROR: SHT 0x%jx NOT DEFINED",
+		     (uintmax_t)sht);
+		return (unknown_buf);
 	}
 }
 
@@ -704,6 +759,7 @@ elf_print_shdr(Elf32_Ehdr *e, void *sh)
 	u_int64_t info;
 	u_int64_t addralign;
 	u_int64_t entsize;
+	u_int64_t machine;
 	void *v;
 	int i;
 
@@ -712,6 +768,7 @@ elf_print_shdr(Elf32_Ehdr *e, void *sh)
 		return;
 	}
 
+	machine = elf_get_quarter(e, e, E_MACHINE);
 	shentsize = elf_get_quarter(e, e, E_SHENTSIZE);
 	shnum = elf_get_shnum(e, sh);
 	fprintf(out, "\nsection header:\n");
@@ -730,7 +787,7 @@ elf_print_shdr(Elf32_Ehdr *e, void *sh)
 		fprintf(out, "\n");
 		fprintf(out, "entry: %d\n", i);
 		fprintf(out, "\tsh_name: %s\n", shstrtab + name);
-		fprintf(out, "\tsh_type: %s\n", sh_types(type));
+		fprintf(out, "\tsh_type: %s\n", sh_types(machine, type));
 		fprintf(out, "\tsh_flags: %s\n", sh_flags[flags & 0x7]);
 		fprintf(out, "\tsh_addr: %#jx\n", addr);
 		fprintf(out, "\tsh_offset: %jd\n", (intmax_t)offset);

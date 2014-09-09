@@ -212,7 +212,7 @@ ofw_pcibus_enum_devtree(device_t dev, u_int domain, u_int busno)
 				OF_getprop(child, "interrupt-parent", &iparent,
 				    sizeof(iparent));
 				if (iparent != 0) {
-					OF_getprop(OF_xref_phandle(iparent),
+					OF_getprop(OF_node_from_xref(iparent),
 					    "#interrupt-cells", &icells,
 					    sizeof(icells));
 					intr[0] = ofw_bus_map_intr(dev, iparent,
@@ -329,7 +329,7 @@ ofw_pcibus_assign_interrupt(device_t dev, device_t child)
 		iparent = -1;
 	icells = 1;
 	if (iparent != -1)
-		OF_getprop(OF_xref_phandle(iparent), "#interrupt-cells",
+		OF_getprop(OF_node_from_xref(iparent), "#interrupt-cells",
 		    &icells, sizeof(icells));
 	
 	/*

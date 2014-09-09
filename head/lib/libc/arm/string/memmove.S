@@ -580,3 +580,8 @@ ENTRY(bcopy)
 .Lmemmove_bsrcul1l4:
 	add	r1, r1, #1
 	b	.Lmemmove_bl4
+#ifndef _BCOPY
+END(memmove)
+#else
+END(bcopy)
+#endif

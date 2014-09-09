@@ -77,7 +77,7 @@ extern uint32_t _end;
 #define OPT_CHECK(opt)	((opts) & OPT_SET(opt))
 
 static const char optstr[NOPT] = "agnrsv";
-static const unsigned char flags[NOPT] = {
+static const unsigned char bootflags[NOPT] = {
 	RBX_ASKNAME,
 	RBX_GDB,
 	RBX_NOINTR,
@@ -93,6 +93,7 @@ static char kname[1024];
 static uint32_t opts;
 static uint8_t dsk_meta;
 
+int main(void);
 static void load(void);
 static int parse(void);
 static int dskread(void *, unsigned, unsigned);
@@ -190,6 +191,7 @@ main(void)
 		else
 			load();
 	}
+	return (1);
 }
 
 static void
@@ -263,7 +265,7 @@ parse()
 				for (i = 0; c != optstr[i]; i++)
 					if (i == NOPT - 1)
 						return -1;
-				opts ^= OPT_SET(flags[i]);
+				opts ^= OPT_SET(bootflags[i]);
 			}
 		} else {
 			arg--;

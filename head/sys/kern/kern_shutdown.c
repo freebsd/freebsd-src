@@ -249,7 +249,9 @@ int
 doadump(boolean_t textdump)
 {
 	boolean_t coredump;
+	int error;
 
+	error = 0;
 	if (dumping)
 		return (EBUSY);
 	if (dumper.dumper == NULL)
@@ -267,10 +269,10 @@ doadump(boolean_t textdump)
 	}
 #endif
 	if (coredump)
-		dumpsys(&dumper);
+		error = dumpsys(&dumper);
 
 	dumping--;
-	return (0);
+	return (error);
 }
 
 static int

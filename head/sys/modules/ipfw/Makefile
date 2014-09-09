@@ -1,7 +1,5 @@
 # $FreeBSD$
 
-.include <src.opts.mk>
-
 .PATH: ${.CURDIR}/../../netpfil/ipfw
 
 KMOD=	ipfw
@@ -19,16 +17,5 @@ CFLAGS+= -DIPFIREWALL
 #If you want it to pass all packets by default
 #CFLAGS+= -DIPFIREWALL_DEFAULT_TO_ACCEPT
 #
-
-.if !defined(KERNBUILDDIR)
-.if ${MK_INET_SUPPORT} != "no"
-opt_inet.h:
-	echo "#define INET 1" > ${.TARGET}
-.endif
-.if ${MK_INET6_SUPPORT} != "no"
-opt_inet6.h:
-	echo "#define INET6 1" > ${.TARGET}
-.endif
-.endif
 
 .include <bsd.kmod.mk>

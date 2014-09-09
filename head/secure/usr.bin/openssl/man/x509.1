@@ -124,7 +124,7 @@
 .\" ========================================================================
 .\"
 .IX Title "X509 1"
-.TH X509 1 "2014-06-05" "1.0.1h" "OpenSSL"
+.TH X509 1 "2014-08-06" "1.0.1i" "OpenSSL"
 .\" For nroff, turn off justification.  Always turn off hyphenation; it makes
 .\" way too many mistakes in technical documents.
 .if n .ad l
@@ -145,6 +145,7 @@ x509 \- Certificate display and signing utility
 [\fB\-hash\fR]
 [\fB\-subject_hash\fR]
 [\fB\-issuer_hash\fR]
+[\fB\-ocspid\fR]
 [\fB\-subject\fR]
 [\fB\-issuer\fR]
 [\fB\-nameopt option\fR]
@@ -154,6 +155,7 @@ x509 \- Certificate display and signing utility
 [\fB\-enddate\fR]
 [\fB\-purpose\fR]
 [\fB\-dates\fR]
+[\fB\-checkend num\fR]
 [\fB\-modulus\fR]
 [\fB\-pubkey\fR]
 [\fB\-fingerprint\fR]
@@ -168,6 +170,7 @@ x509 \- Certificate display and signing utility
 [\fB\-days arg\fR]
 [\fB\-set_serial n\fR]
 [\fB\-signkey filename\fR]
+[\fB\-passin arg\fR]
 [\fB\-x509toreq\fR]
 [\fB\-req\fR]
 [\fB\-CA filename\fR]
@@ -175,6 +178,7 @@ x509 \- Certificate display and signing utility
 [\fB\-CAcreateserial\fR]
 [\fB\-CAserial filename\fR]
 [\fB\-text\fR]
+[\fB\-certopt option\fR]
 [\fB\-C\fR]
 [\fB\-md2|\-md5|\-sha1|\-mdc2\fR]
 [\fB\-clrext\fR]
@@ -262,6 +266,9 @@ name.
 .IP "\fB\-issuer_hash\fR" 4
 .IX Item "-issuer_hash"
 outputs the \*(L"hash\*(R" of the certificate issuer name.
+.IP "\fB\-ocspid\fR" 4
+.IX Item "-ocspid"
+outputs the \s-1OCSP\s0 hash values for the subject name and public key.
 .IP "\fB\-hash\fR" 4
 .IX Item "-hash"
 synonym for \*(L"\-subject_hash\*(R" for backward compatibility reasons.
@@ -300,6 +307,10 @@ prints out the expiry date of the certificate, that is the notAfter date.
 .IP "\fB\-dates\fR" 4
 .IX Item "-dates"
 prints out the start and expiry dates of a certificate.
+.IP "\fB\-checkend arg\fR" 4
+.IX Item "-checkend arg"
+checks if the certificate expires within the next \fBarg\fR seconds and exits
+non-zero if yes it will expire or zero if not.
 .IP "\fB\-fingerprint\fR" 4
 .IX Item "-fingerprint"
 prints out the digest of the \s-1DER\s0 encoded version of the whole certificate
@@ -383,6 +394,10 @@ the \fB\-clrext\fR option is supplied.
 If the input is a certificate request then a self signed certificate
 is created using the supplied private key using the subject name in
 the request.
+.IP "\fB\-passin arg\fR" 4
+.IX Item "-passin arg"
+the key password source. For more information about the format of \fBarg\fR
+see the \fB\s-1PASS\s0 \s-1PHRASE\s0 \s-1ARGUMENTS\s0\fR section in \fIopenssl\fR\|(1).
 .IP "\fB\-clrext\fR" 4
 .IX Item "-clrext"
 delete any extensions from a certificate. This option is used when a
@@ -512,8 +527,8 @@ present then multibyte characters larger than 0xff will be represented
 using the format \eUXXXX for 16 bits and \eWXXXXXXXX for 32 bits.
 Also if this option is off any UTF8Strings will be converted to their
 character form first.
-.IP "\fBno_type\fR" 4
-.IX Item "no_type"
+.IP "\fBignore_type\fR" 4
+.IX Item "ignore_type"
 this option does not attempt to interpret multibyte characters in any
 way. That is their content octets are merely dumped as though one octet
 represents each character. This is useful for diagnostic purposes but

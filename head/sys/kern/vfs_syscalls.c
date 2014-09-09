@@ -1578,7 +1578,15 @@ again:
 			vrele(nd.ni_vp);
 			error = EEXIST;
 		} else if ((error = vn_lock(vp, LK_EXCLUSIVE)) == 0) {
-			error = can_hardlink(vp, td->td_ucred);
+			/*
+			 * Check for cross-device links.  No need to
+			 * recheck vp->v_type, since it cannot change
+			 * for non-doomed vnode.
+			 */
+			if (nd.ni_dvp->v_mount != vp->v_mount)
+				error = EXDEV;
+			else
+				error = can_hardlink(vp, td->td_ucred);
 			if (error == 0)
 #ifdef MAC
 				error = mac_vnode_check_link(td->td_ucred,

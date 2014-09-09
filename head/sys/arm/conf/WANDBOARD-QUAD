@@ -23,7 +23,6 @@ include  	"IMX6"
 ident		WANDBOARD-QUAD
 
 # Flattened Device Tree
-options  	FDT
 options  	FDT_DTB_STATIC
 makeoptions  	FDT_DTS_FILE=wandboard-quad.dts
 

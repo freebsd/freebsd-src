@@ -228,24 +228,7 @@ alltraps_pushregs_no_rdi:
 	.type	calltrap,@function
 calltrap:
 	movq	%rsp,%rdi
-#ifdef KDTRACE_HOOKS
-	/*
-	 * Give DTrace a chance to vet this trap and skip the call to trap() if
-	 * it turns out that it was caused by a DTrace probe.
-	 */
-	movq	dtrace_trap_func,%rax
-	testq	%rax,%rax
-	je	skiphook
-	call	*%rax
-	testq	%rax,%rax
-	jne	skiptrap
-	movq	%rsp,%rdi
-skiphook:
-#endif
-	call	trap
-#ifdef KDTRACE_HOOKS
-skiptrap:
-#endif
+	call	trap_check
 	MEXITCOUNT
 	jmp	doreti			/* Handle any pending ASTs */
 

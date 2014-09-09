@@ -10,9 +10,9 @@ UNBOUNDDIR= ${.CURDIR}/../../contrib/unbound
 LIB=	unbound
 PRIVATELIB=
 
-CFLAGS= -I${UNBOUNDDIR}	-I${LDNSDIR}
+CFLAGS= -I${UNBOUNDDIR}	-I${LDNSDIR} -I${.OBJDIR}
 
-SRCS=	alloc.c autotrust.c config_file.c configlexer.c configparser.c \
+SRCS=	alloc.c autotrust.c config_file.c configlexer.l configparser.y \
 	context.c dname.c dns.c dnstree.c fptr_wlist.c infra.c \
 	iter_delegpt.c iter_donotq.c iter_fwd.c iter_hints.c iter_priv.c \
 	iter_resptype.c iter_scrub.c iter_utils.c iterator.c keyraw.c \
@@ -30,5 +30,14 @@ WARNS?=	3
 
 DPADD+=	${LIBSSL} ${LIBCRYPTO} ${LIBPTHREAD}
 LDADD+=	-lssl -lcrypto -lpthread
+
+# Misnamed file in upstream source
+configlexer.l: configlexer.lex
+	cp -p ${.ALLSRC} ${.TARGET}
+CLEANFILES+= configlexer.l
+
+# Symbol prefix for lex and yacc
+LFLAGS= -Pub_c_
+YFLAGS= -pub_c_ -d
 
 .include <bsd.lib.mk>

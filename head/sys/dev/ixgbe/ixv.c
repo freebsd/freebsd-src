@@ -347,7 +347,7 @@ ixv_attach(device_t dev)
 		adapter->num_tx_desc = ixv_txd;
 
 	if (((ixv_rxd * sizeof(union ixgbe_adv_rx_desc)) % DBA_ALIGN) != 0 ||
-	    ixv_rxd < MIN_TXD || ixv_rxd > MAX_TXD) {
+	    ixv_rxd < MIN_RXD || ixv_rxd > MAX_RXD) {
 		device_printf(dev, "RXD config issue, using default!\n");
 		adapter->num_rx_desc = DEFAULT_RXD;
 	} else
@@ -1851,7 +1851,7 @@ ixv_setup_interface(device_t dev, struct adapter *adapter)
 	/*
 	 * Tell the upper layer(s) we support long frames.
 	 */
-	ifp->if_data.ifi_hdrlen = sizeof(struct ether_vlan_header);
+	ifp->if_hdrlen = sizeof(struct ether_vlan_header);
 
 	ifp->if_capabilities |= IFCAP_HWCSUM | IFCAP_TSO4 | IFCAP_VLAN_HWCSUM;
 	ifp->if_capabilities |= IFCAP_JUMBO_MTU;

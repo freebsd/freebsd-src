@@ -73,7 +73,7 @@ tags: ${SRCS}
 CLEANFILES?=
 
 .if !exists(${.OBJDIR}/${DEPENDFILE})
-.for _S in ${SRCS:N*.[hly]}
+.for _S in ${SRCS:N*.[dhly]}
 ${_S:R}.o: ${_S}
 .endfor
 .endif
@@ -82,7 +82,7 @@ ${_S:R}.o: ${_S}
 .for _LSRC in ${SRCS:M*.l:N*/*}
 .for _LC in ${_LSRC:R}.c
 ${_LC}: ${_LSRC}
-	${LEX} -t ${LFLAGS} ${.ALLSRC} > ${.TARGET}
+	${LEX} ${LFLAGS} -o${.TARGET} ${.ALLSRC}
 .if !exists(${.OBJDIR}/${DEPENDFILE})
 ${_LC:R}.o: ${_LC}
 .endif
@@ -125,24 +125,32 @@ ${_YC:R}.o: ${_YC}
 .if ${SRCS:M*.d}
 LDFLAGS+=	-lelf
 LDADD+=		${LIBELF}
-CFLAGS+=	-D_DTRACE_VERSION=1
+CFLAGS+=	-I${.OBJDIR}
 .endif
 .for _DSRC in ${SRCS:M*.d:N*/*}
 .for _D in ${_DSRC:R}
+DHDRS+=	${_D}.h
 ${_D}.h: ${_DSRC}
 	${DTRACE} -xnolibs -h -s ${.ALLSRC}
 SRCS:=	${SRCS:S/${_DSRC}/${_D}.h/}
-${_D}.o: ${_D}.h ${_DSRC} ${OBJS} ${SOBJS}
-	${DTRACE} -xnolibs -G -o ${.TARGET} -s ${_DSRC} \
-		${OBJS:S/${_D}.o//} ${SOBJS:S/${_D}.o//}
-CLEANFILES+= ${_D}.h ${_D}.o
-.if defined(PROG)
 OBJS+=	${_D}.o
-.else
-SOBJS+=	${_D}.o
+CLEANFILES+= ${_D}.h ${_D}.o
+${_D}.o: ${_D}.h ${OBJS:S/${_D}.o//}
+	${DTRACE} -xnolibs -G -o ${.TARGET} -s ${.CURDIR}/${_DSRC} \
+		${OBJS:S/${_D}.o//}
+.if defined(LIB)
+CLEANFILES+= ${_D}.So ${_D}.po
+${_D}.So: ${_D}.h ${SOBJS:S/${_D}.So//}
+	${DTRACE} -xnolibs -G -o ${.TARGET} -s ${.CURDIR}/${_DSRC} \
+		${SOBJS:S/${_D}.So//}
+${_D}.po: ${_D}.h ${POBJS:S/${_D}.po//}
+	${DTRACE} -xnolibs -G -o ${.TARGET} -s ${.CURDIR}/${_DSRC} \
+		${POBJS:S/${_D}.po//}
 .endif
 .endfor
 .endfor
+beforedepend: ${DHDRS}
+beforebuild: ${DHDRS}
 .endif
 
 .if !target(depend)

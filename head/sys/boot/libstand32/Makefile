@@ -166,6 +166,7 @@ SRCS+=	bootp.c rarp.c bootparam.c
 SRCS+=	ufs.c nfs.c cd9660.c tftp.c gzipfs.c bzipfs.c
 SRCS+=	dosfs.c ext2fs.c
 SRCS+=	splitfs.c
+SRCS+=	pkgfs.c
 .if ${MK_NAND} != "no"
 SRCS+=	nandfs.c
 .endif
@@ -173,11 +174,8 @@ SRCS+=	nandfs.c
 .include <bsd.lib.mk>
 
 .if ${MACHINE_CPUARCH} == "amd64"
+CLEANFILES+= machine
 beforedepend ${OBJS}: machine
-cleandepend: cleanmachine
-cleanmachine:
-	rm -f machine
-
 machine:
-	ln -s ${.CURDIR}/../../i386/include machine
+	ln -fs ${.CURDIR}/../../i386/include machine
 .endif

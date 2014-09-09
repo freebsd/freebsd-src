@@ -951,6 +951,14 @@ Specifies LUN SCSI name string.
 Specifies LUN EUI-64 identifier.
 .It Va naa
 Specifies LUN NAA identifier.
+Either EUI or NAA identifier should be set to UNIQUE value to allow
+EXTENDED COPY command access the LUN.
+Non-unique LUN identifiers may lead to data corruption.
+.It Va insecure_tpc
+Setting to "on" allows EXTENDED COPY command sent to this LUN access
+other LUNs on this host, not accessible otherwise.
+This allows to offload copying between different iSCSI targets residing
+on the same host in trusted environments.
 .It Va unmap
 Set to "on", enables UNMAP support for the LUN.
 .El

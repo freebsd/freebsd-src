@@ -36,6 +36,7 @@ f_include $BSDCFG_SHARE/device.subr
 f_include $BSDCFG_SHARE/media/common.subr
 f_include $BSDCFG_SHARE/packages/categories.subr
 f_include $BSDCFG_SHARE/packages/index.subr
+f_include $BSDCFG_SHARE/packages/musthavepkg.subr
 f_include $BSDCFG_SHARE/strings.subr
 
 BSDCFG_LIBE="/usr/libexec/bsdconfig"
@@ -662,7 +663,7 @@ f_package_review()
 f_package_config()
 {
 	# Did we get an INDEX?
-	f_index_initialize packages/INDEX || return $FAILURE
+	f_index_initialize || return $FAILURE
 		# Creates following variables (indirectly via f_index_read())
 		#   CATEGORY_MENU_LIST _categories_{varpkg} _rundeps_{varpkg}
 		#   PACKAGE_CATEGORIES _npkgs
@@ -839,7 +840,7 @@ f_package_add()
 	{ # Verify and initialize device media if-defined
 		f_media_verify &&
 		f_device_init device_media &&
-		f_index_initialize packages/INDEX
+		f_index_initialize
 	} || return $FAILURE
 
 	# Now we have (indirectly via f_index_read()):
@@ -946,6 +947,8 @@ f_package_extract()
 	local device="$1" name="$2" depended="$3"
 	local devname=
 
+	f_musthavepkg_init # Make sure we have a usable pkg(8) with $PKG_ABI
+
 	$device get name devname
 	f_dprintf "$funcname: device=[%s] name=[%s] depended=[%s]" \
 	          "$devname" "$name" "$depended"
@@ -1026,9 +1029,11 @@ f_package_extract()
 
 	# Request the package be added via pkg-install(8)
 	if f_debugging; then
-		f_eval_catch $funcname pkg 'pkg -d install -y "%s"' "$name"
+		f_eval_catch $funcname pkg \
+			'pkg -d install -${depended:+A}y "%s"' "$name"
 	else
-		f_eval_catch $funcname pkg 'pkg install -y "%s"' "$name"
+		f_eval_catch $funcname pkg \
+			'pkg install -${depended:+A}y "%s"' "$name"
 	fi
 	if [ $? -ne $SUCCESS ]; then
 		$alert "$msg_pkg_install_apparently_did_not_like_the_package" \
@@ -1065,7 +1070,7 @@ f_package_delete()
 	{ # Verify and initialize device media if-defined
 		f_media_verify &&
 		f_device_init device_media &&
-		f_index_initialize packages/INDEX
+		f_index_initialize
 	} || return $FAILURE
 
 	# Now we have (indirectly via f_index_read()):

@@ -1361,13 +1361,20 @@ struct timer_getoverrun_args {
 int
 sys_ktimer_getoverrun(struct thread *td, struct ktimer_getoverrun_args *uap)
 {
+
+	return (kern_ktimer_getoverrun(td, uap->timerid));
+}
+
+int
+kern_ktimer_getoverrun(struct thread *td, int timer_id)
+{
 	struct proc *p = td->td_proc;
 	struct itimer *it;
 	int error ;
 
 	PROC_LOCK(p);
-	if (uap->timerid < 3 ||
-	    (it = itimer_find(p, uap->timerid)) == NULL) {
+	if (timer_id < 3 ||
+	    (it = itimer_find(p, timer_id)) == NULL) {
 		PROC_UNLOCK(p);
 		error = EINVAL;
 	} else {

@@ -144,6 +144,7 @@ __DEFAULT_YES_OPTIONS = \
     SYSINSTALL \
     TCSH \
     TELNET \
+    TESTS \
     TEXTPROC \
     UNBOUND \
     USB \
@@ -169,7 +170,6 @@ __DEFAULT_NO_OPTIONS = \
     SHARED_TOOLCHAIN \
     SORT_THREADS \
     SVN \
-    TESTS \
     USB_GADGET_EXAMPLES
 
 #

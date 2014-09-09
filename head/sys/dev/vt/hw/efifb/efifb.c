@@ -60,8 +60,10 @@ static struct vt_driver vt_efifb_driver = {
 	.vd_probe = vt_efifb_probe,
 	.vd_init = vt_efifb_init,
 	.vd_blank = vt_fb_blank,
-	.vd_bitbltchr = vt_fb_bitbltchr,
-	.vd_maskbitbltchr = vt_fb_maskbitbltchr,
+	.vd_bitblt_text = vt_fb_bitblt_text,
+	.vd_bitblt_bmp = vt_fb_bitblt_bitmap,
+	.vd_fb_ioctl = vt_fb_ioctl,
+	.vd_fb_mmap = vt_fb_mmap,
 	/* Better than VGA, but still generic driver. */
 	.vd_priority = VD_PRIORITY_GENERIC + 1,
 };
@@ -97,7 +99,7 @@ vt_efifb_probe(struct vt_device *vd)
 static int
 vt_efifb_init(struct vt_device *vd)
 {
-	int		depth, d, i, len;
+	int		depth, d;
 	struct fb_info	*info;
 	struct efi_fb	*efifb;
 	caddr_t		kmdp;
@@ -128,7 +130,7 @@ vt_efifb_init(struct vt_device *vd)
 
 	info->fb_stride = efifb->fb_stride * (depth / 8);
 
-	vt_generate_vga_palette(info->fb_cmap, COLOR_FORMAT_RGB,
+	vt_generate_cons_palette(info->fb_cmap, COLOR_FORMAT_RGB,
 	    efifb->fb_mask_red, ffs(efifb->fb_mask_red) - 1,
 	    efifb->fb_mask_green, ffs(efifb->fb_mask_green) - 1,
 	    efifb->fb_mask_blue, ffs(efifb->fb_mask_blue) - 1);
@@ -142,12 +144,6 @@ vt_efifb_init(struct vt_device *vd)
 	 */
 	info->fb_vbase = PHYS_TO_DMAP(efifb->fb_addr);
 
-	/* blank full size */
-	len = info->fb_size / 4;
-	for (i = 0; i < len; i++) {
-		((uint32_t *)info->fb_vbase)[i] = 0;
-	}
-
 	/* Get pixel storage size. */
 	info->fb_bpp = info->fb_stride / info->fb_width * 8;
 
@@ -158,11 +154,7 @@ vt_efifb_init(struct vt_device *vd)
 	info->fb_width = MIN(info->fb_width, VT_FB_DEFAULT_WIDTH);
 	info->fb_height = MIN(info->fb_height, VT_FB_DEFAULT_HEIGHT);
 
-	fb_probe(info);
 	vt_fb_init(vd);
-
-	/* Clear the screen. */
-	vt_fb_blank(vd, TC_BLACK);
 
 	return (CN_INTERNAL);
 }

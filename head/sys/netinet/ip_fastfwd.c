@@ -523,8 +523,7 @@ passout:
 	else
 		mtu = ifp->if_mtu;
 
-	if (ip_len <= mtu ||
-	    (ifp->if_hwassist & CSUM_FRAGMENT && (ip_off & IP_DF) == 0)) {
+	if (ip_len <= mtu) {
 		/*
 		 * Avoid confusing lower layers.
 		 */

@@ -681,7 +681,8 @@ npe_activate(device_t dev)
 	/* MAC */
 	if (!override_addr(dev, "mac", &macbase))
 		macbase = npeconfig[sc->sc_npeid].macbase;
-	device_printf(sc->sc_dev, "MAC at 0x%x\n", macbase);
+	if (bootverbose)
+		device_printf(sc->sc_dev, "MAC at 0x%x\n", macbase);
 	if (bus_space_map(sc->sc_iot, macbase, IXP425_REG_SIZE, 0, &sc->sc_ioh)) {
 		device_printf(dev, "cannot map mac registers 0x%x:0x%x\n",
 		    macbase, IXP425_REG_SIZE);
@@ -693,7 +694,8 @@ npe_activate(device_t dev)
 		phy = npeconfig[sc->sc_npeid].phy;
 	if (!override_addr(dev, "mii", &miibase))
 		miibase = npeconfig[sc->sc_npeid].miibase;
-	device_printf(sc->sc_dev, "MII at 0x%x\n", miibase);
+	if (bootverbose)
+		device_printf(sc->sc_dev, "MII at 0x%x\n", miibase);
 	if (miibase != macbase) {
 		/*
 		 * PHY is mapped through a different MAC, setup an

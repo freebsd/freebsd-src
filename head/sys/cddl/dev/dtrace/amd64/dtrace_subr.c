@@ -462,9 +462,7 @@ dtrace_gethrestime(void)
 	return (current_time.tv_sec * 1000000000ULL + current_time.tv_nsec);
 }
 
-/*
- * Function to handle DTrace traps during probes. See amd64/amd64/exception.S.
- */
+/* Function to handle DTrace traps during probes. See amd64/amd64/trap.c. */
 int
 dtrace_trap(struct trapframe *frame)
 {
