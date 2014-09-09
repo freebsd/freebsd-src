@@ -561,7 +561,6 @@ static void
 initialize_tempmon(struct imx6_anatop_softc *sc)
 {
 	uint32_t cal;
-	struct sysctl_ctx_list *ctx;
 
 	/*
 	 * Fetch calibration data: a sensor count at room temperature (25C),
@@ -605,11 +604,10 @@ initialize_tempmon(struct imx6_anatop_softc *sc)
 	callout_reset_sbt(&sc->temp_throttle_callout, sc->temp_throttle_delay, 
 	    0, tempmon_throttle_check, sc, 0);
 
-	ctx = device_get_sysctl_ctx(sc->dev);
-	SYSCTL_ADD_PROC(ctx, SYSCTL_CHILDREN(device_get_sysctl_tree(sc->dev)),
+	SYSCTL_ADD_PROC(NULL, SYSCTL_STATIC_CHILDREN(_hw_imx6), 
 	    OID_AUTO, "temperature", CTLTYPE_INT | CTLFLAG_RD, sc, 0,
 	    temp_sysctl_handler, "IK", "Current die temperature");
-	SYSCTL_ADD_PROC(ctx, SYSCTL_CHILDREN(device_get_sysctl_tree(sc->dev)),
+	SYSCTL_ADD_PROC(NULL, SYSCTL_STATIC_CHILDREN(_hw_imx6), 
 	    OID_AUTO, "throttle_temperature", CTLTYPE_INT | CTLFLAG_RW, sc,
 	    0, temp_throttle_sysctl_handler, "IK", 
 	    "Throttle CPU when exceeding this temperature");
