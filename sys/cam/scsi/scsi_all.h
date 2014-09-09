@@ -2110,6 +2110,27 @@ struct scsi_service_action_in
 	uint8_t control;
 };
 
+struct scsi_vpd_mode_page_policy_descr
+{
+	uint8_t page_code;
+	uint8_t subpage_code;
+	uint8_t policy;
+#define	SVPD_MPP_SHARED		0x00
+#define	SVPD_MPP_PORT		0x01
+#define	SVPD_MPP_I_T		0x03
+#define	SVPD_MPP_MLUS		0x80
+	uint8_t reserved;
+};
+
+struct scsi_vpd_mode_page_policy
+{
+	uint8_t device;
+	uint8_t page_code;
+#define	SVPD_MODE_PAGE_POLICY	0x87
+	uint8_t page_length[2];
+	struct scsi_vpd_mode_page_policy_descr descr[0];
+};
+
 struct scsi_diag_page {
 	uint8_t page_code;
 	uint8_t page_specific_flags;
