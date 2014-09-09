@@ -179,6 +179,12 @@
 	    <entry><para>Kernel memory disclosure in control messages
 		and SCTP notifications</para></entry>
 	  </row>
+
+	  <row>
+	    <entry><link xlink:href="http://www.freebsd.org/security/advisories/FreeBSD-SA-14:18.openssl.asc">SA-14:18.openssl</link></entry>
+	    <entry>9&nbsp;September&nbsp;2014</entry>
+	    <entry><para>Multiple vulnerabilities</para></entry>
+	  </row>
 	</tbody>
       </tgroup>
     </informaltable>
