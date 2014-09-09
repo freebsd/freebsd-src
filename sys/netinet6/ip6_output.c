@@ -227,6 +227,9 @@ in6_delayed_cksum(struct mbuf *m, uint32_t plen, u_short offset)
  *
  * ifpp - XXX: just for statistics
  */
+/*
+ * XXX TODO: no flowid is assigned for outbound flows?
+ */
 int
 ip6_output(struct mbuf *m0, struct ip6_pktopts *opt,
     struct route_in6 *ro, int flags, struct ip6_moptions *im6o,
@@ -260,8 +263,14 @@ ip6_output(struct mbuf *m0, struct ip6_pktopts *opt,
 		goto bad;
 	}
 
-	if (inp != NULL)
+	if (inp != NULL) {
 		M_SETFIB(m, inp->inp_inc.inc_fibnum);
+		if (((flags & IP_NODEFAULTFLOWID) == 0) &&
+		(inp->inp_flags & (INP_HW_FLOWID|INP_SW_FLOWID))) {
+			m->m_pkthdr.flowid = inp->inp_flowid;
+			m->m_flags |= M_FLOWID;
+		}
+	}
 
 	finaldst = ip6->ip6_dst;
 	bzero(&exthdrs, sizeof(exthdrs));
