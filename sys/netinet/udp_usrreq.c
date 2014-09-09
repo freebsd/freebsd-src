@@ -43,6 +43,7 @@ __FBSDID("$FreeBSD$");
 #include "opt_inet.h"
 #include "opt_inet6.h"
 #include "opt_ipsec.h"
+#include "opt_rss.h"
 
 #include <sys/param.h>
 #include <sys/domain.h>
@@ -1084,6 +1085,9 @@ udp_output(struct inpcb *inp, struct mbuf *m, struct sockaddr *addr,
 	u_char tos;
 	uint8_t pr;
 	uint16_t cscov = 0;
+	uint32_t flowid = 0;
+	int flowid_type = 0;
+	int use_flowid = 0;
 
 	/*
 	 * udp_output() may need to temporarily bind or connect the current
@@ -1147,6 +1151,32 @@ udp_output(struct inpcb *inp, struct mbuf *m, struct sockaddr *addr,
 				tos = *(u_char *)CMSG_DATA(cm);
 				break;
 
+			case IP_FLOWID:
+				if (cm->cmsg_len != CMSG_LEN(sizeof(uint32_t))) {
+					error = EINVAL;
+					break;
+				}
+				flowid = *(uint32_t *) CMSG_DATA(cm);
+				break;
+
+			case IP_FLOWTYPE:
+				if (cm->cmsg_len != CMSG_LEN(sizeof(uint32_t))) {
+					error = EINVAL;
+					break;
+				}
+				flowid_type = *(uint32_t *) CMSG_DATA(cm);
+				use_flowid = 1;
+				break;
+
+#ifdef	RSS
+			case IP_RSSBUCKETID:
+				if (cm->cmsg_len != CMSG_LEN(sizeof(uint32_t))) {
+					error = EINVAL;
+					break;
+				}
+				/* This is just a placeholder for now */
+				break;
+#endif	/* RSS */
 			default:
 				error = ENOPROTOOPT;
 				break;
@@ -1394,6 +1424,22 @@ udp_output(struct inpcb *inp, struct mbuf *m, struct sockaddr *addr,
 	((struct ip *)ui)->ip_ttl = inp->inp_ip_ttl;	/* XXX */
 	((struct ip *)ui)->ip_tos = tos;		/* XXX */
 	UDPSTAT_INC(udps_opackets);
+
+	/*
+	 * Setup flowid / RSS information for outbound socket.
+	 *
+	 * Once the UDP code decides to set a flowid some other way,
+	 * this allows the flowid to be overridden by userland.
+	 */
+	if (use_flowid) {
+		m->m_flags |= M_FLOWID;
+		m->m_pkthdr.flowid = flowid;
+		M_HASHTYPE_SET(m, flowid_type);
+	}
+
+#ifdef	RSS
+	ipflags |= IP_NODEFAULTFLOWID;
+#endif	/* RSS */
 
 	if (unlock_udbinfo == UH_WLOCKED)
 		INP_HASH_WUNLOCK(pcbinfo);
