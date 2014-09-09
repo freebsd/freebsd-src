@@ -89,11 +89,6 @@ MALLOC_DEFINE(M_SVM_VLAPIC, "svm-vlapic", "svm-vlapic");
 /* Per-CPU context area. */
 extern struct pcpu __pcpu[];
 
-static bool svm_vmexit(struct svm_softc *svm_sc, int vcpu,
-			struct vm_exit *vmexit);
-static int svm_msr_rw_ok(uint8_t *btmap, uint64_t msr);
-static int svm_msr_rd_ok(uint8_t *btmap, uint64_t msr);
-static int svm_msr_index(uint64_t msr, int *index, int *bit);
 static int svm_getdesc(void *arg, int vcpu, int type, struct seg_desc *desc);
 
 static uint32_t svm_feature;	/* AMD SVM features. */
@@ -124,7 +119,7 @@ static int
 cpu_svm_enable_disable(boolean_t enable)
 {
 	uint64_t efer_msr;
-	
+
 	efer_msr = rdmsr(MSR_EFER);
 
 	if (enable) 
@@ -205,10 +200,10 @@ svm_cpuid_features(void)
 		printf("Missing Nested paging or RVI SVM support in processor.\n");
 		return (EIO);
 	}
-	
+
 	if (svm_feature & AMD_CPUID_SVM_NRIP_SAVE) 
 		return (0);
-	
+
 	return (EIO);
 }
 
@@ -230,7 +225,7 @@ svm_enable(void *arg __unused)
 
 	hsave_pa = vtophys(hsave[curcpu]);
 	wrmsr(MSR_VM_HSAVE_PA, hsave_pa);
-	
+
 	if (rdmsr(MSR_VM_HSAVE_PA) != hsave_pa) {
 		panic("VM_HSAVE_PA is wrong on CPU%d\n", curcpu);
 	}
@@ -271,7 +266,7 @@ svm_init(int ipinum)
 	err = is_svm_enabled();
 	if (err) 
 		return (err);
-	
+
 	for (cpu = 0; cpu < MAXCPU; cpu++) {
 		/*
 		 * Initialize the host ASIDs to their "highest" valid values.
@@ -284,7 +279,7 @@ svm_init(int ipinum)
 	}
 
 	svm_npt_init(ipinum);
-	
+
 	/* Start SVM on all CPUs */
 	smp_rendezvous(NULL, svm_enable, NULL, NULL);
 
@@ -296,6 +291,7 @@ svm_restore(void)
 {
 	svm_enable(NULL);
 }		
+
 /*
  * Get index and bit position for a MSR in MSR permission
  * bitmap. Two bits are used for each MSR, lower bit is
@@ -315,7 +311,7 @@ svm_msr_index(uint64_t msr, int *index, int *bit)
 /* AMD 7th and 8th generation compatible MSRs */
 #define MSR_AMD7TH_START 	0xC0010000UL	
 #define MSR_AMD7TH_END 		0xC0011FFFUL	
-	
+
 	*index = -1;
 	*bit = (msr % 4) * 2;
 	base = 0;
@@ -324,14 +320,14 @@ svm_msr_index(uint64_t msr, int *index, int *bit)
 		*index = msr / 4;
 		return (0);
 	}
-	
+
 	base += (MSR_PENTIUM_END - MSR_PENTIUM_START + 1); 
 	if (msr >= MSR_AMD6TH_START && msr <= MSR_AMD6TH_END) {
 		off = (msr - MSR_AMD6TH_START); 
 		*index = (off + base) / 4;
 		return (0);
 	} 
-	
+
 	base += (MSR_AMD6TH_END - MSR_AMD6TH_START + 1);
 	if (msr >= MSR_AMD7TH_START && msr <= MSR_AMD7TH_END) {
 		off = (msr - MSR_AMD7TH_START);
@@ -355,7 +351,7 @@ svm_msr_perm(uint8_t *perm_bitmap, uint64_t msr, bool read, bool write)
 		ERR("MSR 0x%lx is not writeable by guest.\n", msr);
 		return (err);
 	}
-	
+
 	if (index < 0 || index > (SVM_MSR_BITMAP_SIZE)) {
 		ERR("MSR 0x%lx index out of range(%d).\n", msr, index);
 		return (EINVAL);
@@ -372,7 +368,7 @@ svm_msr_perm(uint8_t *perm_bitmap, uint64_t msr, bool read, bool write)
 		perm_bitmap[index] &= ~(2UL << bit);
 	CTR2(KTR_VMM, "Guest has control:0x%x on SVM:MSR(0x%lx).\n", 
 		(perm_bitmap[index] >> bit) & 0x3, msr);
-	
+
 	return (0);
 }
 
