@@ -18,7 +18,13 @@
 typedef struct dom_string dom_string;
 struct dom_string {
 	uint32_t refcnt;
-} _ALIGNED;
+}
+#ifdef __CHERI_SANDBOX__
+__attribute__ ((aligned (32)));
+#else
+_ALIGNED;
+#endif
+
 
 
 /* Claim a reference on a DOM string */
