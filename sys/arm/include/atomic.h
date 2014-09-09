@@ -268,12 +268,12 @@ atomic_cmpset_64(volatile uint64_t *p, uint64_t cmpval, uint64_t newval)
 	__asm __volatile(
 		"1:          \n"
 		"   ldrexd   %[tmp], [%[ptr]]\n"
-		"   teq      %Q[tmp], %Q[cmp]\n"
+		"   teq      %Q[tmp], %Q[cmpval]\n"
 		"   itee eq  \n"
-		"   teqeq    %R[tmp], %R[cmp]\n"
+		"   teqeq    %R[tmp], %R[cmpval]\n"
 		"   movne    %[ret], #0\n"
 		"   bne      2f\n"
-		"   strexd   %[ret], %[new], [%[ptr]]\n"
+		"   strexd   %[ret], %[newval], [%[ptr]]\n"
 		"   teq      %[ret], #0\n"
 		"   it ne    \n"
 		"   bne      1b\n"
@@ -282,8 +282,8 @@ atomic_cmpset_64(volatile uint64_t *p, uint64_t cmpval, uint64_t newval)
 		:   [ret]    "=&r"  (ret), 
 		    [tmp]    "=&r"  (tmp)
 		:   [ptr]    "r"    (p), 
-		    [cmp]    "r"    (cmpval), 
-		    [new]    "r"    (newval)
+		    [cmpval] "r"    (cmpval), 
+		    [newval] "r"    (newval)
 		:   "cc", "memory");
 	return (ret);
 }
