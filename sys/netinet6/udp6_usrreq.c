@@ -74,6 +74,7 @@ __FBSDID("$FreeBSD$");
 #include "opt_inet6.h"
 #include "opt_ipfw.h"
 #include "opt_ipsec.h"
+#include "opt_rss.h"
 
 #include <sys/param.h>
 #include <sys/jail.h>
@@ -111,6 +112,7 @@ __FBSDID("$FreeBSD$");
 #include <netinet/udp.h>
 #include <netinet/udp_var.h>
 #include <netinet/udplite.h>
+#include <netinet/in_rss.h>
 
 #include <netinet6/ip6protosw.h>
 #include <netinet6/ip6_var.h>
@@ -850,7 +852,29 @@ udp6_output(struct inpcb *inp, struct mbuf *m, struct sockaddr *addr6,
 			m->m_pkthdr.csum_data = offsetof(struct udphdr, uh_sum);
 		}
 
+		/*
+		 * XXX for now assume UDP is 2-tuple.
+		 * Later on this may become configurable as 4-tuple;
+		 * we should support that.
+		 *
+		 * XXX .. and we should likely cache this in the inpcb.
+		 */
+#ifdef	RSS
+		m->m_pkthdr.flowid = rss_hash_ip6_2tuple(*faddr, *laddr);
+		m->m_flags |= M_FLOWID;
+		M_HASHTYPE_SET(m, M_HASHTYPE_RSS_IPV6);
+#endif
 		flags = 0;
+
+#ifdef	RSS
+		/*
+		 * Don't override with the inp cached flowid.
+		 *
+		 * Until the whole UDP path is vetted, it may actually
+		 * be incorrect.
+		 */
+		flags |= IP_NODEFAULTFLOWID;
+#endif
 
 		UDP_PROBE(send, NULL, inp, ip6, inp, udp6);
 		UDPSTAT_INC(udps_opackets);
