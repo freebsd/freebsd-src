@@ -6003,6 +6003,10 @@ done:
 		*m0 = NULL;
 		action = PF_PASS;
 		break;
+	case PF_DROP:
+		m_freem(*m0);
+		*m0 = NULL;
+		break;
 	default:
 		/* pf_route() returns unlocked. */
 		if (r->rt) {
@@ -6378,6 +6382,10 @@ done:
 	case PF_DEFER:
 		*m0 = NULL;
 		action = PF_PASS;
+		break;
+	case PF_DROP:
+		m_freem(*m0);
+		*m0 = NULL;
 		break;
 	default:
 		/* pf_route6() returns unlocked. */
