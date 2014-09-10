@@ -5837,26 +5837,6 @@ zfs_freebsd_getpages(ap)
 }
 
 static int
-zfs_freebsd_getpages_async(ap)
-	struct vop_getpages_async_args /* {
-		struct vnode *a_vp;
-		vm_page_t *a_m;
-		int a_count;
-		int a_reqpage;
-		vm_ooffset_t a_offset;
-		void (*)(void *) a_vop_getpages_iodone;
-		void *a_arg;
-	} */ *ap;
-{
-	int error;
-
-	error = zfs_getpages(ap->a_vp, ap->a_m, ap->a_count, ap->a_reqpage);
-	vm_page_xunbusy(ap->a_m[ap->a_reqpage]);
-	ap->a_vop_getpages_iodone(ap->a_arg);
-	return (error);
-}
-
-static int
 zfs_putpages(struct vnode *vp, vm_page_t *ma, size_t len, int flags,
     int *rtvals)
 {
@@ -7166,7 +7146,6 @@ struct vop_vector zfs_vnodeops = {
 	.vop_setacl =		zfs_freebsd_setacl,
 	.vop_aclcheck =		zfs_freebsd_aclcheck,
 	.vop_getpages =		zfs_freebsd_getpages,
-	.vop_getpages_async =	zfs_freebsd_getpages_async,
 	.vop_putpages =		zfs_freebsd_putpages,
 };
 
