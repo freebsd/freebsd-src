@@ -46,9 +46,6 @@
 #define I32_bit (1 << 7)	/* IRQ disable */
 #define F32_bit (1 << 6)        /* FIQ disable */
 
-#define CPU_CONTROL_32BP_ENABLE 0x00000010 /* P: 32-bit exception handlers */
-#define CPU_CONTROL_32BD_ENABLE 0x00000020 /* D: 32-bit addressing */
-
 #ifndef _ALIGN_TEXT
 # define _ALIGN_TEXT .align 0
 #endif
