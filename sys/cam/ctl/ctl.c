@@ -2899,6 +2899,7 @@ ctl_ioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flag,
 		lun = softc->ctl_luns[err_desc->lun_id];
 		if (lun == NULL) {
 			mtx_unlock(&softc->ctl_lock);
+			free(new_err_desc, M_CTL);
 			printf("%s: CTL_ERROR_INJECT: invalid LUN %ju\n",
 			       __func__, (uintmax_t)err_desc->lun_id);
 			retval = EINVAL;
