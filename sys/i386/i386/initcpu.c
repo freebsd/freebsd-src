@@ -59,6 +59,12 @@ static void init_i486_on_386(void);
 static void init_6x86(void);
 #endif /* I486_CPU */
 
+#if defined(I586_CPU) && defined(CPU_WT_ALLOC)
+static void	enable_K5_wt_alloc(void);
+static void	enable_K6_wt_alloc(void);
+static void	enable_K6_2_wt_alloc(void);
+#endif
+
 #ifdef I686_CPU
 static void	init_6x86MX(void);
 static void	init_ppro(void);
@@ -692,6 +698,27 @@ initializecpu(void)
 #ifdef I586_CPU
 	case CPU_586:
 		switch (cpu_vendor_id) {
+		case CPU_VENDOR_AMD:
+#ifdef CPU_WT_ALLOC
+			if (((cpu_id & 0x0f0) > 0) &&
+			    ((cpu_id & 0x0f0) < 0x60) &&
+			    ((cpu_id & 0x00f) > 3))
+				enable_K5_wt_alloc();
+			else if (((cpu_id & 0x0f0) > 0x80) ||
+			    (((cpu_id & 0x0f0) == 0x80) &&
+				(cpu_id & 0x00f) > 0x07))
+				enable_K6_2_wt_alloc();
+			else if ((cpu_id & 0x0f0) > 0x50)
+				enable_K6_wt_alloc();
+#endif
+			if ((cpu_id & 0xf0) == 0xa0)
+				/*
+				 * Make sure the TSC runs through
+				 * suspension, otherwise we can't use
+				 * it as timecounter
+				 */
+				wrmsr(0x1900, rdmsr(0x1900) | 0x20ULL);
+			break;
 		case CPU_VENDOR_CENTAUR:
 			init_winchip();
 			break;
@@ -839,7 +866,7 @@ initializecpu(void)
  * Enable write allocate feature of AMD processors.
  * Following two functions require the Maxmem variable being set.
  */
-void
+static void
 enable_K5_wt_alloc(void)
 {
 	u_int64_t	msr;
@@ -885,7 +912,7 @@ enable_K5_wt_alloc(void)
 	}
 }
 
-void
+static void
 enable_K6_wt_alloc(void)
 {
 	quad_t	size;
@@ -945,7 +972,7 @@ enable_K6_wt_alloc(void)
 	intr_restore(saveintr);
 }
 
-void
+static void
 enable_K6_2_wt_alloc(void)
 {
 	quad_t	size;
