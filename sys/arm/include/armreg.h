@@ -68,8 +68,6 @@
 #define PSR_N		0x80000000	/* Negative bit */
 #define PSR_FLAGS	0xf0000000	/* Flags mask. */
 
-#define PSR_C_bit	PSR_C
-
 /* The high-order byte is always the implementor */
 #define CPU_ID_IMPLEMENTOR_MASK	0xff000000
 #define CPU_ID_ARM_LTD		0x41000000 /* 'A' */
