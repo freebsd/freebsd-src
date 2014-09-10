@@ -473,7 +473,6 @@ vop_getpages {
 	IN vm_page_t *m;
 	IN int count;
 	IN int reqpage;
-	IN vm_ooffset_t offset;
 };
 
 
@@ -485,7 +484,6 @@ vop_putpages {
 	IN int count;
 	IN int sync;
 	IN int *rtvals;
-	IN vm_ooffset_t offset;
 };
 
 
