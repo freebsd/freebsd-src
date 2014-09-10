@@ -99,11 +99,6 @@ void	doreti_popl_fs_fault(void) __asm(__STRING(doreti_popl_fs_fault));
 void	dump_add_page(vm_paddr_t);
 void	dump_drop_page(vm_paddr_t);
 void	finishidentcpu(void);
-#if defined(I586_CPU) && defined(CPU_WT_ALLOC)
-void	enable_K5_wt_alloc(void);
-void	enable_K6_wt_alloc(void);
-void	enable_K6_2_wt_alloc(void);
-#endif
 void	enable_sse(void);
 void	fillw(int /*u_short*/ pat, void *base, size_t cnt);
 void	initializecpu(void);
