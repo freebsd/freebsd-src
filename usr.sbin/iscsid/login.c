@@ -213,6 +213,7 @@ login_handle_redirection(struct connection *conn, struct pdu *response)
 
 	log_debugx("received redirection to \"%s\"", target_address);
 	kernel_modify(conn, target_address);
+	keys_delete(response_keys);
 }
 
 static struct pdu *
