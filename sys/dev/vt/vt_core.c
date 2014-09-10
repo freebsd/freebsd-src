@@ -347,7 +347,7 @@ vt_proc_window_switch(struct vt_window *vw)
 	if (curvw->vw_flags & VWF_VTYLOCK)
 		return (EBUSY);
 
-	/* Ask current process permitions to switch away. */
+	/* Ask current process permission to switch away. */
 	if (curvw->vw_smode.mode == VT_PROCESS) {
 		DPRINTF(30, "%s: VT_PROCESS ", __func__);
 		if (vt_proc_alive(curvw) == FALSE) {
@@ -1716,7 +1716,7 @@ vt_mouse_event(int type, int x, int y, int event, int cnt, int mlevel)
 				return;
 
 			buf = malloc(len, M_VT, M_WAITOK | M_ZERO);
-			/* Request cupy/paste buffer data, no more than `len' */
+			/* Request copy/paste buffer data, no more than `len' */
 			vtbuf_extract_marked(&vd->vd_markedwin->vw_buf, buf,
 			    len);
 
