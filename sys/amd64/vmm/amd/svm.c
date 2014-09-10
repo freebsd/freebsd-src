@@ -730,6 +730,42 @@ svm_save_intinfo(struct svm_softc *svm_sc, int vcpu)
 	vm_exit_intinfo(svm_sc->vm, vcpu, intinfo);
 }
 
+#ifdef KTR
+static const char *
+exit_reason_to_str(uint64_t reason)
+{
+	static char reasonbuf[32];
+
+	switch (reason) {
+	case VMCB_EXIT_INVALID:
+		return ("invalvmcb");
+	case VMCB_EXIT_SHUTDOWN:
+		return ("shutdown");
+	case VMCB_EXIT_NPF:
+		return ("nptfault");
+	case VMCB_EXIT_PAUSE:
+		return ("pause");
+	case VMCB_EXIT_HLT:
+		return ("hlt");
+	case VMCB_EXIT_CPUID:
+		return ("cpuid");
+	case VMCB_EXIT_IO:
+		return ("inout");
+	case VMCB_EXIT_MC:
+		return ("mchk");
+	case VMCB_EXIT_INTR:
+		return ("extintr");
+	case VMCB_EXIT_VINTR:
+		return ("vintr");
+	case VMCB_EXIT_MSR:
+		return ("msr");
+	default:
+		snprintf(reasonbuf, sizeof(reasonbuf), "%#lx", reason);
+		return (reasonbuf);
+	}
+}
+#endif	/* KTR */
+
 /*
  * Determine the cause of virtual cpu exit and handle VMEXIT.
  * Return: false - Break vcpu execution loop and handle vmexit
@@ -760,6 +796,8 @@ svm_vmexit(struct svm_softc *svm_sc, int vcpu, struct vm_exit *vmexit)
 	vmexit->exitcode = VM_EXITCODE_VMX;
 	vmexit->u.vmx.status = 0;
 
+	vmm_stat_incr(svm_sc->vm, vcpu, VMEXIT_COUNT, 1);
+
 	KASSERT((ctrl->eventinj & VMCB_EVENTINJ_VALID) == 0, ("%s: event "
 	    "injection valid bit is set %#lx", __func__, ctrl->eventinj));
 
@@ -776,7 +814,7 @@ svm_vmexit(struct svm_softc *svm_sc, int vcpu, struct vm_exit *vmexit)
 			eax = state->rax;
 			ecx = ctx->sctx_rcx;
 			edx = ctx->e.g.sctx_rdx;
-			
+
 			if (ecx == MSR_EFER) {
 				KASSERT(info1 != 0, ("rdmsr(MSR_EFER) is not "
 				    "emulated: info1(%#lx) info2(%#lx)",
@@ -836,8 +874,6 @@ svm_vmexit(struct svm_softc *svm_sc, int vcpu, struct vm_exit *vmexit)
 			 * interrupt, local APIC will inject event in guest.
 			 */
 			update_rip = false;
-			VCPU_CTR1(svm_sc->vm, vcpu, "SVM:VMEXIT ExtInt"
-				" RIP:0x%lx.\n", state->rip);
 			vmm_stat_incr(svm_sc->vm, vcpu, VMEXIT_EXTINT, 1);
 			break;
 
@@ -853,29 +889,16 @@ svm_vmexit(struct svm_softc *svm_sc, int vcpu, struct vm_exit *vmexit)
 					(uint32_t *)&ctx->sctx_rbx,
 					(uint32_t *)&ctx->sctx_rcx,
 					(uint32_t *)&ctx->e.g.sctx_rdx);
-			VCPU_CTR0(svm_sc->vm, vcpu, "SVM:VMEXIT CPUID\n");
 			break;
 
 		case VMCB_EXIT_HLT:
 			vmm_stat_incr(svm_sc->vm, vcpu, VMEXIT_HLT, 1);
- 			if (ctrl->v_irq) {
-				 /* Interrupt is pending, can't halt guest. */
-				vmm_stat_incr(svm_sc->vm, vcpu,
-					VMEXIT_HLT_IGNORED, 1);
-				VCPU_CTR0(svm_sc->vm, vcpu, 
-					"VMEXIT halt ignored.");
-			} else {
-				VCPU_CTR0(svm_sc->vm, vcpu,
-					"VMEXIT halted CPU.");
-				vmexit->exitcode = VM_EXITCODE_HLT;
-				vmexit->u.hlt.rflags = state->rflags;
-				loop = false;
-
-			}
+			vmexit->exitcode = VM_EXITCODE_HLT;
+			vmexit->u.hlt.rflags = state->rflags;
+			loop = false;
 			break;
 
 		case VMCB_EXIT_PAUSE:
-			VCPU_CTR0(svm_sc->vm, vcpu, "SVM:VMEXIT pause");
 			vmexit->exitcode = VM_EXITCODE_PAUSE;
 			vmm_stat_incr(svm_sc->vm, vcpu, VMEXIT_PAUSE, 1);
 
@@ -893,36 +916,33 @@ svm_vmexit(struct svm_softc *svm_sc, int vcpu, struct vm_exit *vmexit)
         			break;
 			}
 
-			 /* EXITINFO2 has the physical fault address (GPA). */
+			/* EXITINFO2 has the physical fault address (GPA). */
 			if(vm_mem_allocated(svm_sc->vm, info2)) {
- 				VCPU_CTR3(svm_sc->vm, vcpu, "SVM:NPF-paging,"
-					"RIP:0x%lx INFO1:0x%lx INFO2:0x%lx .\n",
-				 	state->rip, info1, info2);
 				vmexit->exitcode = VM_EXITCODE_PAGING;
 				vmexit->u.paging.gpa = info2;
 				vmexit->u.paging.fault_type = 
 					svm_npf_paging(info1);
 				vmm_stat_incr(svm_sc->vm, vcpu, 
 					VMEXIT_NESTED_FAULT, 1);
+				VCPU_CTR3(svm_sc->vm, vcpu, "nested page fault "
+				    "on gpa %#lx/%#lx at rip %#lx",
+				    info2, info1, state->rip);
 			} else if (svm_npf_emul_fault(info1)) {
- 				VCPU_CTR3(svm_sc->vm, vcpu, "SVM:NPF inst_emul,"
-					"RIP:0x%lx INFO1:0x%lx INFO2:0x%lx .\n",
-					state->rip, info1, info2);
 				svm_handle_inst_emul(svm_get_vmcb(svm_sc, vcpu),
 					info2, vmexit);
-				vmm_stat_incr(svm_sc->vm, vcpu, 
-					VMEXIT_INST_EMUL, 1);
+				vmm_stat_incr(svm_sc->vm, vcpu,
+				    VMEXIT_INST_EMUL, 1);
+				VCPU_CTR3(svm_sc->vm, vcpu, "inst_emul fault "
+				    "for gpa %#lx/%#lx at rip %#lx",
+				    info2, info1, state->rip);
 			}
-			
 			break;
 
 		case VMCB_EXIT_SHUTDOWN:
-			VCPU_CTR0(svm_sc->vm, vcpu, "SVM:VMEXIT shutdown.");
 			loop = false;
 			break;
 
 		case VMCB_EXIT_INVALID:
-			VCPU_CTR0(svm_sc->vm, vcpu, "SVM:VMEXIT INVALID.");
 			loop = false;
 			break;
 
@@ -939,6 +959,10 @@ svm_vmexit(struct svm_softc *svm_sc, int vcpu, struct vm_exit *vmexit)
 			vmm_stat_incr(svm_sc->vm, vcpu, VMEXIT_UNKNOWN, 1);
 			break;
 	}	
+
+	VCPU_CTR4(svm_sc->vm, vcpu, "%s %s vmexit at %#lx nrip %#lx",
+	    loop ? "handled" : "unhandled", exit_reason_to_str(code),
+	    state->rip, update_rip ? ctrl->nrip : state->rip);
 
 	vmexit->rip = state->rip;
 	if (update_rip) {
@@ -1274,10 +1298,6 @@ svm_vmrun(void *arg, int vcpu, register_t rip, pmap_t pmap,
 		vmm_stat_incr(vm, vcpu, VCPU_MIGRATIONS, 1);
 	}
 
-	VCPU_CTR3(vm, vcpu, "SVM:Enter vmrun RIP:0x%lx"
-		" inst len=%d/%d\n",
-		rip, vmexit->inst_length, 
-		vmexit->u.inst_emul.vie.num_valid);
 	/* Update Guest RIP */
 	state->rip = rip;
 
@@ -1301,23 +1321,14 @@ svm_vmrun(void *arg, int vcpu, register_t rip, pmap_t pmap,
 
 		if (vcpu_rendezvous_pending(rend_cookie)) {
 			enable_gintr();
-			vmexit->exitcode = VM_EXITCODE_RENDEZVOUS;
-			vmm_stat_incr(vm, vcpu, VMEXIT_RENDEZVOUS, 1);
-			VCPU_CTR1(vm, vcpu, 
-				"SVM: VCPU rendezvous, RIP:0x%lx\n", 
-				state->rip);
-			vmexit->rip = state->rip;
+			vm_exit_rendezvous(vm, vcpu, state->rip);
 			break;
 		}
 
 		/* We are asked to give the cpu by scheduler. */
 		if (curthread->td_flags & (TDF_ASTPENDING | TDF_NEEDRESCHED)) {
 			enable_gintr();
-			vmexit->exitcode = VM_EXITCODE_BOGUS;
-			vmm_stat_incr(vm, vcpu, VMEXIT_ASTPENDING, 1);
-			VCPU_CTR1(vm, vcpu, 
-				"SVM: ASTPENDING, RIP:0x%lx\n", state->rip);
-			vmexit->rip = state->rip;
+			vm_exit_astpending(vm, vcpu, state->rip);
 			break;
 		}
 
@@ -1334,8 +1345,10 @@ svm_vmrun(void *arg, int vcpu, register_t rip, pmap_t pmap,
 
 		ctrl->vmcb_clean = VMCB_CACHE_DEFAULT & ~vcpustate->dirty;
 		vcpustate->dirty = 0;
+		VCPU_CTR1(vm, vcpu, "vmcb clean %#x", ctrl->vmcb_clean);
 
 		/* Launch Virtual Machine. */
+		VCPU_CTR1(vm, vcpu, "Resume execution at %#lx", state->rip);
 		svm_launch(vmcb_pa, gctx, hctx);
 
 		CPU_CLR_ATOMIC(thiscpu, &pmap->pm_active);
@@ -1366,10 +1379,8 @@ svm_vmrun(void *arg, int vcpu, register_t rip, pmap_t pmap,
 
 		/* Handle #VMEXIT and if required return to user space. */
 		loop = svm_vmexit(svm_sc, vcpu, vmexit);
-		vcpustate->loop++;
-		vmm_stat_incr(vm, vcpu, VMEXIT_COUNT, 1);
 	} while (loop);
-		
+
 	return (0);
 }
 
