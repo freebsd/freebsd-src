@@ -487,6 +487,7 @@ short	inp_so_options(const struct inpcb *inp);
 	(((faddr) ^ ((faddr) >> 16) ^ ntohs((lport) ^ (fport))) & (mask))
 #define INP_PCBPORTHASH(lport, mask) \
 	(ntohs((lport)) & (mask))
+#define	INP6_PCBHASHKEY(faddr)	((faddr)->s6_addr32[3])
 
 /*
  * Flags for inp_vflags -- historically version flags only
