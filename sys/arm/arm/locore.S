@@ -88,7 +88,7 @@ ASENTRY_NP(_start)
 
 	/* Make sure interrupts are disabled. */
 	mrs	r7, cpsr
-	orr	r7, r7, #(I32_bit|F32_bit)
+	orr	r7, r7, #(PSR_I | PSR_F)
 	msr	cpsr_c, r7
 
 #if defined (FLASHADDR) && defined(LOADERRAMADDR)
@@ -386,7 +386,7 @@ ASENTRY_NP(mpentry)
 
 	/* Make sure interrupts are disabled. */
 	mrs	r7, cpsr
-	orr	r7, r7, #(I32_bit|F32_bit)
+	orr	r7, r7, #(PSR_I | PSR_F)
 	msr	cpsr_c, r7
 
 	/* Disable MMU.  It should be disabled already, but make sure. */
@@ -466,7 +466,7 @@ ENTRY_NP(cpu_halt)
 	mrs     r2, cpsr
 	bic	r2, r2, #(PSR_MODE)
 	orr     r2, r2, #(PSR_SVC32_MODE)
-	orr	r2, r2, #(I32_bit | F32_bit)
+	orr	r2, r2, #(PSR_I | PSR_F)
 	msr     cpsr_fsxc, r2
 
 	ldr	r4, .Lcpu_reset_address

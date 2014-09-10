@@ -43,9 +43,6 @@
 #define	_C_LABEL(x)	x
 #define	_ASM_LABEL(x)	x
 
-#define I32_bit (1 << 7)	/* IRQ disable */
-#define F32_bit (1 << 6)        /* FIQ disable */
-
 #ifndef _ALIGN_TEXT
 # define _ALIGN_TEXT .align 0
 #endif
