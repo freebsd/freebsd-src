@@ -157,21 +157,21 @@ nmdm_clone(void *arg, struct ucred *cred, char *name, int nameen,
 {
 	struct nmdmsoftc *ns;
 	struct tty *tp;
-	unsigned long unit;
 	char *end;
 	int error;
+	char endc;
 
 	if (*dev != NULL)
 		return;
 	if (strncmp(name, "nmdm", 4) != 0)
 		return;
-
-	/* Device name must be "nmdm%lu%c", where %c is 'A' or 'B'. */
-	name += 4;
-	unit = strtoul(name, &end, 10);
-	if (unit == ULONG_MAX || name == end)
+	if (strlen(name) <= strlen("nmdmX"))
 		return;
-	if ((end[0] != 'A' && end[0] != 'B') || end[1] != '\0')
+
+	/* Device name must be "nmdm%s%c", where %c is 'A' or 'B'. */
+	end = name + strlen(name) - 1;
+	endc = *end;
+	if (endc != 'A' && endc != 'B')
 		return;
 
 	ns = malloc(sizeof(*ns), M_NMDM, M_WAITOK | M_ZERO);
@@ -191,9 +191,11 @@ nmdm_clone(void *arg, struct ucred *cred, char *name, int nameen,
 	/* Create device nodes. */
 	tp = ns->ns_part1.np_tty = tty_alloc_mutex(&nmdm_class, &ns->ns_part1,
 	    &ns->ns_mtx);
-	error = tty_makedevf(tp, NULL, end[0] == 'A' ? TTYMK_CLONING : 0,
-	    "nmdm%luA", unit);
+	*end = 'A';
+	error = tty_makedevf(tp, NULL, endc == 'A' ? TTYMK_CLONING : 0,
+	    "%s", name);
 	if (error) {
+		*end = endc;
 		mtx_destroy(&ns->ns_mtx);
 		free(ns, M_NMDM);
 		return;
@@ -201,9 +203,11 @@ nmdm_clone(void *arg, struct ucred *cred, char *name, int nameen,
 
 	tp = ns->ns_part2.np_tty = tty_alloc_mutex(&nmdm_class, &ns->ns_part2,
 	    &ns->ns_mtx);
-	error = tty_makedevf(tp, NULL, end[0] == 'B' ? TTYMK_CLONING : 0,
-	    "nmdm%luB", unit);
+	*end = 'B';
+	error = tty_makedevf(tp, NULL, endc == 'B' ? TTYMK_CLONING : 0,
+	    "%s", name);
 	if (error) {
+		*end = endc;
 		mtx_lock(&ns->ns_mtx);
 		/* see nmdm_free() */
 		ns->ns_part1.np_other = NULL;
@@ -212,11 +216,12 @@ nmdm_clone(void *arg, struct ucred *cred, char *name, int nameen,
 		return;
 	}
 
-	if (end[0] == 'A')
+	if (endc == 'A')
 		*dev = ns->ns_part1.np_tty->t_dev;
 	else
 		*dev = ns->ns_part2.np_tty->t_dev;
 
+	*end = endc;
 	atomic_add_int(&nmdm_count, 1);
 }
 
