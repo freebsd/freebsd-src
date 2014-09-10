@@ -207,6 +207,10 @@ parse_options()
 		extract_var $_j consolelog exec.consolelog - \
 		    /var/log/jail_${_j}_console.log
 
+		if [ -r $_fstab ]; then
+			echo "	mount.fstab = \"$_fstab\";"
+		fi
+
 		eval : \${jail_${_j}_devfs_enable:=${jail_devfs_enable:-NO}}
 		if checkyesno jail_${_j}_devfs_enable; then
 			echo "	mount.devfs;"
@@ -222,11 +226,7 @@ parse_options()
 			;;
 			*)	warn "devfs_ruleset must be an integer." ;;
 			esac
-			if [ -r $_fstab ]; then
-				echo "	mount.fstab = \"$_fstab\";"
-			fi
 		fi
-
 		eval : \${jail_${_j}_fdescfs_enable:=${jail_fdescfs_enable:-NO}}
 		if checkyesno jail_${_j}_fdescfs_enable; then
 			echo "	mount.fdescfs;"
@@ -319,10 +319,8 @@ jail_extract_address()
 		_mask=${_mask:-/32}
 
 	elif [ "${_type}" = "inet6" ]; then
-		# In case _maske is not set for IPv6, use /128.
+		# In case _mask is not set for IPv6, use /128.
 		_mask=${_mask:-/128}
-		warn "$_type $_addr: an IPv6 address should always be " \
-		    "specified with a prefix length.  /128 is used."
 	fi
 }
 

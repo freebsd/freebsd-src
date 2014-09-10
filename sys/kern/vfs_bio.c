@@ -2971,6 +2971,7 @@ bp_unmapped_get_kva(struct buf *bp, daddr_t blkno, int size, int gbflags)
 	 * if the buffer was mapped.
 	 */
 	bsize = vn_isdisk(bp->b_vp, NULL) ? DEV_BSIZE : bp->b_bufobj->bo_bsize;
+	KASSERT(bsize != 0, ("bsize == 0, check bo->bo_bsize"));
 	offset = blkno * bsize;
 	maxsize = size + (offset & PAGE_MASK);
 	maxsize = imax(maxsize, bsize);
@@ -3220,6 +3221,7 @@ loop:
 			return NULL;
 
 		bsize = vn_isdisk(vp, NULL) ? DEV_BSIZE : bo->bo_bsize;
+		KASSERT(bsize != 0, ("bsize == 0, check bo->bo_bsize"));
 		offset = blkno * bsize;
 		vmio = vp->v_object != NULL;
 		if (vmio) {

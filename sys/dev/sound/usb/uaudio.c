@@ -2724,14 +2724,14 @@ uaudio_mixer_controls_create_ftu(struct uaudio_softc *sc)
 
 		uaudio_mixer_add_ctl(sc, &MIX(sc));
 
-		MIX(sc).wValue[0] = MAKE_WORD(9, chy + 1);
+		MIX(sc).wValue[0] = MAKE_WORD(9, chy + 1 + 8);
 		MIX(sc).type = MIX_SIGNED_16;
 		MIX(sc).ctl = SOUND_MIXER_NRDEVICES;
 		MIX(sc).name = "effect_send";
 		MIX(sc).nchan = 1;
 		MIX(sc).update[0] = 1;
 		snprintf(MIX(sc).desc, sizeof(MIX(sc).desc),
-		    "Effect Send DIn%d Volume", chy + 1 + 8);
+		    "Effect Send DIn%d Volume", chy + 1);
 
 		uaudio_mixer_add_ctl(sc, &MIX(sc));
 	}

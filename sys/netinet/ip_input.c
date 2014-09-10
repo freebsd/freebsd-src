@@ -37,6 +37,7 @@ __FBSDID("$FreeBSD$");
 #include "opt_ipstealth.h"
 #include "opt_ipsec.h"
 #include "opt_route.h"
+#include "opt_rss.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -77,6 +78,7 @@ __FBSDID("$FreeBSD$");
 #ifdef IPSEC
 #include <netinet/ip_ipsec.h>
 #endif /* IPSEC */
+#include <netinet/in_rss.h>
 
 #include <sys/socketvar.h>
 
@@ -144,8 +146,32 @@ static struct netisr_handler ip_nh = {
 	.nh_name = "ip",
 	.nh_handler = ip_input,
 	.nh_proto = NETISR_IP,
+#ifdef	RSS
+	.nh_m2cpuid = rss_soft_m2cpuid,
+	.nh_policy = NETISR_POLICY_CPU,
+	.nh_dispatch = NETISR_DISPATCH_HYBRID,
+#else
 	.nh_policy = NETISR_POLICY_FLOW,
+#endif
 };
+
+#ifdef	RSS
+/*
+ * Directly dispatched frames are currently assumed
+ * to have a flowid already calculated.
+ *
+ * It should likely have something that assert it
+ * actually has valid flow details.
+ */
+static struct netisr_handler ip_direct_nh = {
+	.nh_name = "ip_direct",
+	.nh_handler = ip_direct_input,
+	.nh_proto = NETISR_IP_DIRECT,
+	.nh_m2cpuid = rss_m2cpuid,
+	.nh_policy = NETISR_POLICY_CPU,
+	.nh_dispatch = NETISR_DISPATCH_HYBRID,
+};
+#endif
 
 extern	struct domain inetdomain;
 extern	struct protosw inetsw[];
@@ -266,6 +292,46 @@ SYSCTL_PROC(_net_inet_ip, IPCTL_INTRQDROPS, intr_queue_drops,
     CTLTYPE_INT|CTLFLAG_RD, 0, 0, sysctl_netinet_intr_queue_drops, "I",
     "Number of packets dropped from the IP input queue");
 
+#ifdef	RSS
+static int
+sysctl_netinet_intr_direct_queue_maxlen(SYSCTL_HANDLER_ARGS)
+{
+	int error, qlimit;
+
+	netisr_getqlimit(&ip_direct_nh, &qlimit);
+	error = sysctl_handle_int(oidp, &qlimit, 0, req);
+	if (error || !req->newptr)
+		return (error);
+	if (qlimit < 1)
+		return (EINVAL);
+	return (netisr_setqlimit(&ip_direct_nh, qlimit));
+}
+SYSCTL_PROC(_net_inet_ip, IPCTL_INTRQMAXLEN, intr_direct_queue_maxlen,
+    CTLTYPE_INT|CTLFLAG_RW, 0, 0, sysctl_netinet_intr_direct_queue_maxlen, "I",
+    "Maximum size of the IP direct input queue");
+
+static int
+sysctl_netinet_intr_direct_queue_drops(SYSCTL_HANDLER_ARGS)
+{
+	u_int64_t qdrops_long;
+	int error, qdrops;
+
+	netisr_getqdrops(&ip_direct_nh, &qdrops_long);
+	qdrops = qdrops_long;
+	error = sysctl_handle_int(oidp, &qdrops, 0, req);
+	if (error || !req->newptr)
+		return (error);
+	if (qdrops != 0)
+		return (EINVAL);
+	netisr_clearqdrops(&ip_direct_nh);
+	return (0);
+}
+
+SYSCTL_PROC(_net_inet_ip, IPCTL_INTRQDROPS, intr_direct_queue_drops,
+    CTLTYPE_INT|CTLFLAG_RD, 0, 0, sysctl_netinet_intr_direct_queue_drops, "I",
+    "Number of packets dropped from the IP direct input queue");
+#endif	/* RSS */
+
 /*
  * IP initialization: fill in IP protocol switch table.
  * All protocols not implemented in kernel go to raw IP protocol handler.
@@ -327,6 +393,9 @@ ip_init(void)
 	/* Initialize various other remaining things. */
 	IPQ_LOCK_INIT();
 	netisr_register(&ip_nh);
+#ifdef	RSS
+	netisr_register(&ip_direct_nh);
+#endif
 }
 
 #ifdef VIMAGE
@@ -347,6 +416,28 @@ ip_destroy(void)
 	IPQ_UNLOCK();
 
 	uma_zdestroy(V_ipq_zone);
+}
+#endif
+
+#ifdef	RSS
+/*
+ * IP direct input routine.
+ *
+ * This is called when reinjecting completed fragments where
+ * all of the previous checking and book-keeping has been done.
+ */
+void
+ip_direct_input(struct mbuf *m)
+{
+	struct ip *ip;
+	int hlen;
+
+	ip = mtod(m, struct ip *);
+	hlen = ip->ip_hl << 2;
+
+	IPSTAT_INC(ips_delivered);
+	(*inetsw[ip_protox[ip->ip_p]].pr_input)(&m, &hlen, ip->ip_p);
+	return;
 }
 #endif
 
@@ -463,6 +554,7 @@ tooshort:
 		} else
 			m_adj(m, ip_len - m->m_pkthdr.len);
 	}
+
 #ifdef IPSEC
 	/*
 	 * Bypass packet filtering for packets previously handled by IPsec.
@@ -817,6 +909,9 @@ ip_reass(struct mbuf *m)
 	int i, hlen, next;
 	u_int8_t ecn, ecn0;
 	u_short hash;
+#ifdef	RSS
+	uint32_t rss_hash, rss_type;
+#endif
 
 	/* If maxnipq or maxfragsperpacket are 0, never accept fragments. */
 	if (V_maxnipq == 0 || V_maxfragsperpacket == 0) {
@@ -1106,6 +1201,42 @@ found:
 		m_fixhdr(m);
 	IPSTAT_INC(ips_reassembled);
 	IPQ_UNLOCK();
+
+#ifdef	RSS
+	/*
+	 * Query the RSS layer for the flowid / flowtype for the
+	 * mbuf payload.
+	 *
+	 * For now, just assume we have to calculate a new one.
+	 * Later on we should check to see if the assigned flowid matches
+	 * what RSS wants for the given IP protocol and if so, just keep it.
+	 *
+	 * We then queue into the relevant netisr so it can be dispatched
+	 * to the correct CPU.
+	 *
+	 * Note - this may return 1, which means the flowid in the mbuf
+	 * is correct for the configured RSS hash types and can be used.
+	 */
+	if (rss_mbuf_software_hash_v4(m, 0, &rss_hash, &rss_type) == 0) {
+		m->m_pkthdr.flowid = rss_hash;
+		M_HASHTYPE_SET(m, rss_type);
+		m->m_flags |= M_FLOWID;
+	}
+#endif
+
+#ifdef	RSS
+	/*
+	 * Queue/dispatch for reprocessing.
+	 *
+	 * Note: this is much slower than just handling the frame in the
+	 * current receive context.  It's likely worth investigating
+	 * why this is.
+	 */
+	netisr_dispatch(NETISR_IP_DIRECT, m);
+	return (NULL);
+#endif
+
+	/* Handle in-line */
 	return (m);
 
 dropfrag:
@@ -1662,6 +1793,43 @@ makedummy:
 		if (*mp)
 			mp = &(*mp)->m_next;
 	}
+
+	if (inp->inp_flags2 & INP_RECVFLOWID) {
+		uint32_t flowid, flow_type;
+
+		flowid = m->m_pkthdr.flowid;
+		flow_type = M_HASHTYPE_GET(m);
+
+		/*
+		 * XXX should handle the failure of one or the
+		 * other - don't populate both?
+		 */
+		*mp = sbcreatecontrol((caddr_t) &flowid,
+		    sizeof(uint32_t), IP_FLOWID, IPPROTO_IP);
+		if (*mp)
+			mp = &(*mp)->m_next;
+		*mp = sbcreatecontrol((caddr_t) &flow_type,
+		    sizeof(uint32_t), IP_FLOWTYPE, IPPROTO_IP);
+		if (*mp)
+			mp = &(*mp)->m_next;
+	}
+
+#ifdef	RSS
+	if (inp->inp_flags2 & INP_RECVRSSBUCKETID) {
+		uint32_t flowid, flow_type;
+		uint32_t rss_bucketid;
+
+		flowid = m->m_pkthdr.flowid;
+		flow_type = M_HASHTYPE_GET(m);
+
+		if (rss_hash2bucket(flowid, flow_type, &rss_bucketid) == 0) {
+			*mp = sbcreatecontrol((caddr_t) &rss_bucketid,
+			   sizeof(uint32_t), IP_RSSBUCKETID, IPPROTO_IP);
+			if (*mp)
+				mp = &(*mp)->m_next;
+		}
+	}
+#endif
 }
 
 /*

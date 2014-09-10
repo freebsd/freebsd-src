@@ -720,8 +720,8 @@ login_negotiate_key(struct pdu *request, const char *name,
 			    "MaxRecvDataSegmentLength");
 		}
 		if (tmp > MAX_DATA_SEGMENT_LENGTH) {
-			log_debugx("capping MaxDataSegmentLength from %d to %d",
-			    tmp, MAX_DATA_SEGMENT_LENGTH);
+			log_debugx("capping MaxRecvDataSegmentLength "
+			    "from %d to %d", tmp, MAX_DATA_SEGMENT_LENGTH);
 			tmp = MAX_DATA_SEGMENT_LENGTH;
 		}
 		conn->conn_max_data_segment_length = tmp;
@@ -806,6 +806,16 @@ login_negotiate(struct connection *conn, struct pdu *request)
 	login_set_csg(response, BHSLR_STAGE_OPERATIONAL_NEGOTIATION);
 	login_set_nsg(response, BHSLR_STAGE_FULL_FEATURE_PHASE);
 	response_keys = keys_new();
+
+	if (skipped_security &&
+	    conn->conn_session_type == CONN_SESSION_TYPE_NORMAL) {
+		if (conn->conn_target->t_alias != NULL)
+			keys_add(response_keys,
+			    "TargetAlias", conn->conn_target->t_alias);
+		keys_add_int(response_keys, "TargetPortalGroupTag", 
+		    conn->conn_portal->p_portal_group->pg_tag);
+	}
+
 	for (i = 0; i < KEYS_MAX; i++) {
 		if (request_keys->keys_names[i] == NULL)
 			break;
@@ -836,8 +846,6 @@ login(struct connection *conn)
 	struct auth_group *ag;
 	const char *initiator_name, *initiator_alias, *session_type,
 	    *target_name, *auth_method;
-	char *portal_group_tag;
-	int rv;
 
 	/*
 	 * Handle the initial Login Request - figure out required authentication
@@ -1016,13 +1024,8 @@ login(struct connection *conn)
 			if (conn->conn_target->t_alias != NULL)
 				keys_add(response_keys,
 				    "TargetAlias", conn->conn_target->t_alias);
-			rv = asprintf(&portal_group_tag, "%d",
+			keys_add_int(response_keys, "TargetPortalGroupTag", 
 			    conn->conn_portal->p_portal_group->pg_tag);
-			if (rv <= 0)
-				log_err(1, "asprintf");
-			keys_add(response_keys,
-			    "TargetPortalGroupTag", portal_group_tag);
-			free(portal_group_tag);
 		}
 		keys_save(response_keys, response);
 		pdu_send(response);
@@ -1069,16 +1072,11 @@ login(struct connection *conn)
 	response_keys = keys_new();
 	keys_add(response_keys, "AuthMethod", "CHAP");
 	if (conn->conn_session_type == CONN_SESSION_TYPE_NORMAL) {
-		rv = asprintf(&portal_group_tag, "%d",
-		    conn->conn_portal->p_portal_group->pg_tag);
-		if (rv <= 0)
-			log_err(1, "asprintf");
-		keys_add(response_keys,
-		    "TargetPortalGroupTag", portal_group_tag);
-		free(portal_group_tag);
 		if (conn->conn_target->t_alias != NULL)
 			keys_add(response_keys,
 			    "TargetAlias", conn->conn_target->t_alias);
+		keys_add_int(response_keys, "TargetPortalGroupTag", 
+		    conn->conn_portal->p_portal_group->pg_tag);
 	}
 	keys_save(response_keys, response);
 

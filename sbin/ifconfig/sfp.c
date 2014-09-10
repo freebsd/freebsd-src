@@ -753,25 +753,31 @@ void
 sfp_status(int s, struct ifreq *ifr, int verbose)
 {
 	struct i2c_info ii;
+	uint8_t id_byte;
 
 	memset(&ii, 0, sizeof(ii));
 	/* Prepare necessary into to pass to NIC handler */
 	ii.s = s;
 	ii.ifr = ifr;
+	ii.f = read_i2c_generic;
 
 	/*
-	 * Check if we have i2c support for particular driver.
-	 * TODO: Determine driver by original name.
+	 * Try to read byte 0 from i2c:
+	 * Both SFF-8472 and SFF-8436 use it as
+	 * 'identification byte'
 	 */
-	if (strncmp(ifr->ifr_name, "ix", 2) == 0) {
-		ii.f = read_i2c_generic;
-		print_sfp_status(&ii, verbose);
-	} else if (strncmp(ifr->ifr_name, "cxl", 3) == 0) {
-		ii.port_id = atoi(&ifr->ifr_name[3]);
-		ii.f = read_i2c_generic;
-		ii.cfd = -1;
-		print_qsfp_status(&ii, verbose);
-	} else
+	id_byte = 0;
+	ii.f(&ii, SFF_8472_BASE, SFF_8472_ID, 1, (caddr_t)&id_byte);
+	if (ii.error != 0)
 		return;
+
+	switch (id_byte) {
+	case SFF_8024_ID_QSFP:
+	case SFF_8024_ID_QSFPPLUS:
+		print_qsfp_status(&ii, verbose);
+		break;
+	default:
+		print_sfp_status(&ii, verbose);
+	};
 }
 

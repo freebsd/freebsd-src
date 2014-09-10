@@ -151,10 +151,6 @@ CTASSERT(offsetof(struct pcpu, pc_curthread) == 0);
 
 extern u_int64_t hammer_time(u_int64_t, u_int64_t);
 
-extern void printcpuinfo(void);	/* XXX header file */
-extern void identify_cpu(void);
-extern void panicifcpuunsupported(void);
-
 #define	CS_SECURE(cs)		(ISPL(cs) == SEL_UPL)
 #define	EFL_SECURE(ef, oef)	((((ef) ^ (oef)) & ~PSL_USERCHANGE) == 0)
 
@@ -254,9 +250,11 @@ cpu_startup(dummy)
 	if (sysenv != NULL) {
 		if (strncmp(sysenv, "MacBook1,1", 10) == 0 ||
 		    strncmp(sysenv, "MacBook3,1", 10) == 0 ||
+		    strncmp(sysenv, "MacBook4,1", 10) == 0 ||
 		    strncmp(sysenv, "MacBookPro1,1", 13) == 0 ||
 		    strncmp(sysenv, "MacBookPro1,2", 13) == 0 ||
 		    strncmp(sysenv, "MacBookPro3,1", 13) == 0 ||
+		    strncmp(sysenv, "MacBookPro4,1", 13) == 0 ||
 		    strncmp(sysenv, "Macmini1,1", 10) == 0) {
 			if (bootverbose)
 				printf("Disabling LEGACY_USB_EN bit on "

@@ -296,6 +296,9 @@
  * CPUID instruction 0xd Processor Extended State Enumeration Sub-leaf 1
  */
 #define	CPUID_EXTSTATE_XSAVEOPT	0x00000001
+#define	CPUID_EXTSTATE_XSAVEC	0x00000002
+#define	CPUID_EXTSTATE_XINUSE	0x00000004
+#define	CPUID_EXTSTATE_XSAVES	0x00000008
 
 /*
  * AMD extended function 8000_0007h edx info
@@ -486,6 +489,8 @@
 #define	MSR_APIC_CCR_TIMER	0x839
 #define	MSR_APIC_DCR_TIMER	0x83e
 #define	MSR_APIC_SELF_IPI	0x83f
+
+#define	MSR_IA32_XSS		0xda0
 
 /*
  * Constants related to MSR's.

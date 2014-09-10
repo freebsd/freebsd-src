@@ -580,3 +580,10 @@ imx_ccm_uart_hz(void)
 
 	return (imx51_get_clock(IMX51CLK_UART_CLK_ROOT));
 }
+
+uint32_t
+imx_ccm_ahb_hz(void)
+{
+
+	return (imx51_get_clock(IMX51CLK_AHB_CLK_ROOT));
+}

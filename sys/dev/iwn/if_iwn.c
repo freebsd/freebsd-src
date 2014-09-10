@@ -3125,6 +3125,7 @@ iwn_rx_compressed_ba(struct iwn_softc *sc, struct iwn_rx_desc *desc,
 		KASSERT(ni != NULL, ("no node"));
 		KASSERT(m != NULL, ("no mbuf"));
 
+		DPRINTF(sc, IWN_DEBUG_XMIT, "%s: freeing m=%p\n", __func__, m);
 		ieee80211_tx_complete(ni, m, 1);
 
 		txq->queued--;
@@ -3151,9 +3152,11 @@ iwn_rx_compressed_ba(struct iwn_softc *sc, struct iwn_rx_desc *desc,
 		return;
 
 	/*
-	 * XXX does this correctly process an almost empty bitmap?
-	 * (since it bails out when it sees an empty bitmap, but there
-	 * may be failed bits there..)
+	 * Walk the bitmap and calculate how many successful and failed
+	 * attempts are made.
+	 *
+	 * Yes, the rate control code doesn't know these are A-MPDU
+	 * subframes and that it's okay to fail some of these.
 	 */
 	ni = tap->txa_ni;
 	bitmap = (le64toh(ba->bitmap) >> shift) & wn->agg[tid].bitmap;
@@ -3172,7 +3175,8 @@ iwn_rx_compressed_ba(struct iwn_softc *sc, struct iwn_rx_desc *desc,
 		bitmap >>= 1;
 	}
 
-	DPRINTF(sc, IWN_DEBUG_TRACE | IWN_DEBUG_XMIT, "->%s: end; %d ok; %d err\n",__func__, tx_ok, tx_err);
+	DPRINTF(sc, IWN_DEBUG_TRACE | IWN_DEBUG_XMIT,
+	    "->%s: end; %d ok; %d err\n",__func__, tx_ok, tx_err);
 
 }
 
@@ -3423,9 +3427,12 @@ iwn4965_tx_done(struct iwn_softc *sc, struct iwn_rx_desc *desc,
 	ring = &sc->txq[qid];
 
 	DPRINTF(sc, IWN_DEBUG_XMIT, "%s: "
-	    "qid %d idx %d retries %d nkill %d rate %x duration %d status %x\n",
-	    __func__, desc->qid, desc->idx, stat->ackfailcnt,
-	    stat->btkillcnt, stat->rate, le16toh(stat->duration),
+	    "qid %d idx %d RTS retries %d ACK retries %d nkill %d rate %x duration %d status %x\n",
+	    __func__, desc->qid, desc->idx,
+	    stat->rtsfailcnt,
+	    stat->ackfailcnt,
+	    stat->btkillcnt,
+	    stat->rate, le16toh(stat->duration),
 	    le32toh(stat->status));
 
 	bus_dmamap_sync(ring->data_dmat, data->map, BUS_DMASYNC_POSTREAD);
@@ -3450,9 +3457,12 @@ iwn5000_tx_done(struct iwn_softc *sc, struct iwn_rx_desc *desc,
 	ring = &sc->txq[qid];
 
 	DPRINTF(sc, IWN_DEBUG_XMIT, "%s: "
-	    "qid %d idx %d retries %d nkill %d rate %x duration %d status %x\n",
-	    __func__, desc->qid, desc->idx, stat->ackfailcnt,
-	    stat->btkillcnt, stat->rate, le16toh(stat->duration),
+	    "qid %d idx %d RTS retries %d ACK retries %d nkill %d rate %x duration %d status %x\n",
+	    __func__, desc->qid, desc->idx,
+	    stat->rtsfailcnt,
+	    stat->ackfailcnt,
+	    stat->btkillcnt,
+	    stat->rate, le16toh(stat->duration),
 	    le32toh(stat->status));
 
 #ifdef notyet
@@ -3595,6 +3605,8 @@ iwn_ampdu_tx_done(struct iwn_softc *sc, int qid, int idx, int nframes,
 	uint8_t tid;
 	int bit, i, lastidx, *res, seqno, shift, start;
 
+	/* XXX TODO: status is le16 field! Grr */
+
 	DPRINTF(sc, IWN_DEBUG_TRACE, "->%s begin\n", __func__);
 	DPRINTF(sc, IWN_DEBUG_XMIT, "%s: nframes=%d, status=0x%08x\n",
 	    __func__,
@@ -3606,6 +3618,18 @@ iwn_ampdu_tx_done(struct iwn_softc *sc, int qid, int idx, int nframes,
 	wn = (void *)tap->txa_ni;
 	ni = tap->txa_ni;
 
+	/*
+	 * XXX TODO: ACK and RTS failures would be nice here!
+	 */
+
+	/*
+	 * A-MPDU single frame status - if we failed to transmit it
+	 * in A-MPDU, then it may be a permanent failure.
+	 *
+	 * XXX TODO: check what the Linux iwlwifi driver does here;
+	 * there's some permanent and temporary failures that may be
+	 * handled differently.
+	 */
 	if (nframes == 1) {
 		if ((*status & 0xff) != 1 && (*status & 0xff) != 2) {
 #ifdef	NOT_YET
@@ -3616,23 +3640,25 @@ iwn_ampdu_tx_done(struct iwn_softc *sc, int qid, int idx, int nframes,
 			 * notification is pushed up to the rate control
 			 * layer.
 			 */
-			ieee80211_ratectl_tx_complete(ni->ni_vap, ni,
-			    IEEE80211_RATECTL_TX_FAILURE, &nframes, NULL);
+			ieee80211_ratectl_tx_complete(ni->ni_vap,
+			    ni,
+			    IEEE80211_RATECTL_TX_FAILURE,
+			    &ackfailcnt,
+			    NULL);
+		} else {
+			/*
+			 * If nframes=1, then we won't be getting a BA for
+			 * this frame.  Ensure that we correctly update the
+			 * rate control code with how many retries were
+			 * needed to send it.
+			 */
+			ieee80211_ratectl_tx_complete(ni->ni_vap,
+			    ni,
+			    IEEE80211_RATECTL_TX_SUCCESS,
+			    &ackfailcnt,
+			    NULL);
 		}
 	}
-
-	/*
-	 * We succeeded with some frames, so let's update how many
-	 * retries were needed for this frame.
-	 *
-	 * XXX we can't yet pass tx_complete tx_cnt and success_cnt,
-	 * le sigh.
-	 */
-	ieee80211_ratectl_tx_complete(ni->ni_vap,
-	    ni,
-	    IEEE80211_RATECTL_TX_SUCCESS,
-	    &ackfailcnt,
-	    NULL);
 
 	bitmap = 0;
 	start = idx;
@@ -3671,6 +3697,7 @@ iwn_ampdu_tx_done(struct iwn_softc *sc, int qid, int idx, int nframes,
 		ssn = tap->txa_start & 0xfff;
 	}
 
+	/* This is going nframes DWORDS into the descriptor? */
 	seqno = le32toh(*(status + nframes)) & 0xfff;
 	for (lastidx = (seqno & 0xff); ring->read != lastidx;) {
 		data = &ring->data[ring->read];
@@ -3684,7 +3711,7 @@ iwn_ampdu_tx_done(struct iwn_softc *sc, int qid, int idx, int nframes,
 
 		KASSERT(ni != NULL, ("no node"));
 		KASSERT(m != NULL, ("no mbuf"));
-
+		DPRINTF(sc, IWN_DEBUG_XMIT, "%s: freeing m=%p\n", __func__, m);
 		ieee80211_tx_complete(ni, m, 1);
 
 		ring->queued--;
@@ -4179,11 +4206,11 @@ iwn_check_rate_needs_protection(struct iwn_softc *sc,
 		return (0);
 
 	/*
-	 * If it's an 11n rate, then for now we enable
-	 * protection.
+	 * If it's an 11n rate - no protection.
+	 * We'll do it via a specific 11n check.
 	 */
 	if (rate & IEEE80211_RATE_MCS) {
-		return (1);
+		return (0);
 	}
 
 	/*
@@ -4413,6 +4440,9 @@ iwn_tx_data(struct iwn_softc *sc, struct mbuf *m, struct ieee80211_node *ni)
 				flags |= IWN_TX_NEED_CTS;
 			else if (ic->ic_protmode == IEEE80211_PROT_RTSCTS)
 				flags |= IWN_TX_NEED_RTS;
+		} else if ((rate & IEEE80211_RATE_MCS) &&
+			(ic->ic_htprotmode == IEEE80211_PROT_RTSCTS)) {
+			flags |= IWN_TX_NEED_RTS;
 		}
 
 		/* XXX HT protection? */

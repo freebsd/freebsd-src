@@ -127,10 +127,6 @@ Lram_offset:	.word from_ram-_C_LABEL(_start)
 from_ram:
 	nop
 #endif
-	adr	r7, Lunmapped
-	bic     r7, r7, #0xf0000000
-	orr     r7, r7, #PHYSADDR
-
 
 disable_mmu:
 	/* Disable MMU for a while */
@@ -144,7 +140,8 @@ disable_mmu:
 	nop
 	nop
 	nop
-	mov	pc, r7
+	CPWAIT(r0)
+
 Lunmapped:
 	/*
 	 * Build page table from scratch.
@@ -152,21 +149,7 @@ Lunmapped:
 
 	/* Find the delta between VA and PA */
 	adr	r0, Lpagetable
-	ldr	r1, [r0]
-	sub	r2, r1, r0
-	/* At this point: r2 = VA - PA */
-
-	/*
-	 * Find the physical address of the table. After these two
-	 * instructions:
-	 * r1 = va(pagetable)
-	 *
-	 * r0 = va(pagetable) - (VA - PA)
-	 *    = va(pagetable) - VA + PA
-	 *    = pa(pagetable)
-	 */
-	ldr	r1, [r0, #4]
-	sub	r0, r1, r2
+	bl	translate_va_to_pa
 
 #ifndef _ARM_ARCH_6
 	/*
@@ -289,6 +272,41 @@ virt_done:
 	/* NOTREACHED */
 END(_start)
 
+#define VA_TO_PA_POINTER(name, table)	 \
+name:					;\
+	.word	.			;\
+	.word	table
+
+/*
+ * Returns the physical address of a magic va to pa pointer.
+ * r0     - The pagetable data pointer. This must be built using the
+ *          VA_TO_PA_POINTER macro.
+ *          e.g.
+ *            VA_TO_PA_POINTER(Lpagetable, pagetable)
+ *            ...
+ *            adr  r0, Lpagetable
+ *            bl   translate_va_to_pa
+ *            r0 will now contain the physical address of pagetable
+ * r1, r2 - Trashed
+ */
+translate_va_to_pa:
+	ldr	r1, [r0]
+	sub	r2, r1, r0
+	/* At this point: r2 = VA - PA */
+
+	/*
+	 * Find the physical address of the table. After these two
+	 * instructions:
+	 * r1 = va(pagetable)
+	 *
+	 * r0 = va(pagetable) - (VA - PA)
+	 *    = va(pagetable) - VA + PA
+	 *    = pa(pagetable)
+	 */
+	ldr	r1, [r0, #4]
+	sub	r0, r1, r2
+	RET
+
 /*
  * Builds the page table
  * r0 - The table base address
@@ -320,14 +338,8 @@ build_pagetables:
 
 	RET
 
-Lpagetable:
-	.word	.
-	.word	pagetable
+VA_TO_PA_POINTER(Lpagetable, pagetable)
 
-Lvirtaddr:
-	.word	KERNVIRTADDR
-Lphysaddr:
-	.word	KERNPHYSADDR
 Lreal_start:
 	.word	_start
 Lend:
@@ -368,8 +380,7 @@ pagetable:
 
 .Lmpvirt_done:
 	.word	mpvirt_done
-Lstartup_pagetable_secondary:
-	.word	temp_pagetable
+VA_TO_PA_POINTER(Lstartup_pagetable_secondary, temp_pagetable)
 
 ASENTRY_NP(mpentry)
 
@@ -396,10 +407,12 @@ ASENTRY_NP(mpentry)
 	bl	armv7_idcache_inv_all	/* Modifies r0-r3, ip */
 #endif
 
-	ldr	r0, Lstartup_pagetable_secondary
-	bic	r0, r0, #0xf0000000
-	orr	r0, r0, #PHYSADDR
+	/* Load the page table physical address */
+	adr	r0, Lstartup_pagetable_secondary
+	bl	translate_va_to_pa
+	/* Load the address the secondary page table */
 	ldr	r0, [r0]
+
 	orr 	r0, r0, #2		/* Set TTB shared memory flag */
 	mcr	p15, 0, r0, c2, c0, 0	/* Set TTB */
 	mcr	p15, 0, r0, c8, c7, 0	/* Flush TLB */

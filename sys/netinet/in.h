@@ -492,6 +492,8 @@ __END_DECLS
 #define	IP_FLOWID		90   /* get flow id for the given socket/inp */
 #define	IP_FLOWTYPE		91   /* get flow type (M_HASHTYPE) */
 #define	IP_RSSBUCKETID		92   /* get RSS flowid -> bucket mapping */
+#define	IP_RECVFLOWID		93   /* bool; receive IP flowid/flowtype w/ datagram */
+#define	IP_RECVRSSBUCKETID	94   /* bool; receive IP RSS bucket id w/ datagram */
 
 /*
  * Defaults and limits for options

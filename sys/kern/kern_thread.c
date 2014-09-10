@@ -432,6 +432,7 @@ thread_exit(void)
 	 */
 	if (p->p_flag & P_HADTHREADS) {
 		if (p->p_numthreads > 1) {
+			atomic_add_int(&td->td_proc->p_exitthreads, 1);
 			thread_unlink(td);
 			td2 = FIRST_THREAD_IN_PROC(p);
 			sched_exit_thread(td2, td);
@@ -452,7 +453,6 @@ thread_exit(void)
 				}
 			}
 
-			atomic_add_int(&td->td_proc->p_exitthreads, 1);
 			PCPU_SET(deadthread, td);
 		} else {
 			/*
@@ -507,14 +507,12 @@ thread_wait(struct proc *p)
 	struct thread *td;
 
 	mtx_assert(&Giant, MA_NOTOWNED);
-	KASSERT((p->p_numthreads == 1), ("Multiple threads in wait1()"));
+	KASSERT(p->p_numthreads == 1, ("multiple threads in thread_wait()"));
+	KASSERT(p->p_exitthreads == 0, ("p_exitthreads leaking"));
 	td = FIRST_THREAD_IN_PROC(p);
 	/* Lock the last thread so we spin until it exits cpu_throw(). */
 	thread_lock(td);
 	thread_unlock(td);
-	/* Wait for any remaining threads to exit cpu_throw(). */
-	while (p->p_exitthreads)
-		sched_relinquish(curthread);
 	lock_profile_thread_exit(td);
 	cpuset_rel(td->td_cpuset);
 	td->td_cpuset = NULL;
@@ -548,18 +546,6 @@ thread_link(struct thread *td, struct proc *p)
 	callout_init(&td->td_slpcallout, CALLOUT_MPSAFE);
 	TAILQ_INSERT_TAIL(&p->p_threads, td, td_plist);
 	p->p_numthreads++;
-}
-
-/*
- * Convert a process with one thread to an unthreaded process.
- */
-void
-thread_unthread(struct thread *td)
-{
-	struct proc *p = td->td_proc;
-
-	KASSERT((p->p_numthreads == 1), ("Unthreading with >1 threads"));
-	p->p_flag &= ~P_HADTHREADS;
 }
 
 /*
@@ -714,14 +700,24 @@ stopme:
 	}
 	if (mode == SINGLE_EXIT) {
 		/*
-		 * We have gotten rid of all the other threads and we
-		 * are about to either exit or exec. In either case,
-		 * we try our utmost to revert to being a non-threaded
-		 * process.
+		 * Convert the process to an unthreaded process.  The
+		 * SINGLE_EXIT is called by exit1() or execve(), in
+		 * both cases other threads must be retired.
 		 */
+		KASSERT(p->p_numthreads == 1, ("Unthreading with >1 threads"));
 		p->p_singlethread = NULL;
-		p->p_flag &= ~(P_STOPPED_SINGLE | P_SINGLE_EXIT);
-		thread_unthread(td);
+		p->p_flag &= ~(P_STOPPED_SINGLE | P_SINGLE_EXIT | P_HADTHREADS);
+
+		/*
+		 * Wait for any remaining threads to exit cpu_throw().
+		 */
+		while (p->p_exitthreads != 0) {
+			PROC_SUNLOCK(p);
+			PROC_UNLOCK(p);
+			sched_relinquish(td);
+			PROC_LOCK(p);
+			PROC_SLOCK(p);
+		}
 	}
 	PROC_SUNLOCK(p);
 	return (0);

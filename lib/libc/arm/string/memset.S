@@ -234,3 +234,8 @@ ENTRY(memset)
 	strgeb	r3, [ip], #0x01		/* Set another byte */
 	strgtb	r3, [ip]		/* and a third */
 	RET			/* Exit */
+#ifdef _BZERO
+END(bzero)
+#else
+END(memset)
+#endif

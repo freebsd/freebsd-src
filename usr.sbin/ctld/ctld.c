@@ -561,8 +561,10 @@ portal_new(struct portal_group *pg)
 static void
 portal_delete(struct portal *portal)
 {
+
 	TAILQ_REMOVE(&portal->p_portal_group->pg_portals, portal, p_next);
-	freeaddrinfo(portal->p_ai);
+	if (portal->p_ai != NULL)
+		freeaddrinfo(portal->p_ai);
 	free(portal->p_listen);
 	free(portal);
 }
@@ -633,8 +635,7 @@ portal_group_add_listen(struct portal_group *pg, const char *value, bool iser)
 	arg = portal->p_listen;
 	if (arg[0] == '\0') {
 		log_warnx("empty listen address");
-		free(portal->p_listen);
-		free(portal);
+		portal_delete(portal);
 		return (1);
 	}
 	if (arg[0] == '[') {
@@ -646,8 +647,7 @@ portal_group_add_listen(struct portal_group *pg, const char *value, bool iser)
 		if (arg == NULL) {
 			log_warnx("invalid listen address %s",
 			    portal->p_listen);
-			free(portal->p_listen);
-			free(portal);
+			portal_delete(portal);
 			return (1);
 		}
 		if (arg[0] == '\0') {
@@ -657,8 +657,7 @@ portal_group_add_listen(struct portal_group *pg, const char *value, bool iser)
 		} else {
 			log_warnx("invalid listen address %s",
 			    portal->p_listen);
-			free(portal->p_listen);
-			free(portal);
+			portal_delete(portal);
 			return (1);
 		}
 	} else {
@@ -691,8 +690,7 @@ portal_group_add_listen(struct portal_group *pg, const char *value, bool iser)
 	if (error != 0) {
 		log_warnx("getaddrinfo for %s failed: %s",
 		    portal->p_listen, gai_strerror(error));
-		free(portal->p_listen);
-		free(portal);
+		portal_delete(portal);
 		return (1);
 	}
 
@@ -1760,9 +1758,7 @@ main_loop(struct conf *conf, bool dont_fork)
 			client_salen = sizeof(client_sa);
 			kernel_accept(&connection_id, &portal_id,
 			    (struct sockaddr *)&client_sa, &client_salen);
-			if (client_salen < client_sa.ss_len)
-				log_errx(1, "salen %u < %u",
-				    client_salen, client_sa.ss_len);
+			assert(client_salen >= client_sa.ss_len);
 
 			log_debugx("incoming connection, id %d, portal id %d",
 			    connection_id, portal_id);
@@ -1806,10 +1802,8 @@ found:
 					    &client_salen);
 					if (client_fd < 0)
 						log_err(1, "accept");
-					if (client_salen < client_sa.ss_len)
-						log_errx(1, "salen %u < %u",
-						    client_salen,
-						    client_sa.ss_len);
+					assert(client_salen >= client_sa.ss_len);
+
 					handle_connection(portal, client_fd,
 					    (struct sockaddr *)&client_sa,
 					    dont_fork);

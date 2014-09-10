@@ -88,6 +88,8 @@ static struct resource_spec imx6_anatop_spec[] = {
 struct imx6_anatop_softc {
 	device_t	dev;
 	struct resource	*res[2];
+	struct intr_config_hook
+			intr_setup_hook;
 	uint32_t	cpu_curmhz;
 	uint32_t	cpu_curmv;
 	uint32_t	cpu_minmhz;
@@ -610,10 +612,22 @@ initialize_tempmon(struct imx6_anatop_softc *sc)
 	    "Throttle CPU when exceeding this temperature");
 }
 
+static void
+intr_setup(void *arg)
+{
+	struct imx6_anatop_softc *sc;
+
+	sc = arg;
+	bus_setup_intr(sc->dev, sc->res[IRQRES], INTR_TYPE_MISC | INTR_MPSAFE,
+	    tempmon_intr, NULL, sc, &sc->temp_intrhand);
+	config_intrhook_disestablish(&sc->intr_setup_hook);
+}
+
 static int
 imx6_anatop_detach(device_t dev)
 {
 
+	/* This device can never detach. */
 	return (EBUSY);
 }
 
@@ -633,10 +647,9 @@ imx6_anatop_attach(device_t dev)
 		goto out;
 	}
 
-	err = bus_setup_intr(dev, sc->res[IRQRES], INTR_TYPE_MISC | INTR_MPSAFE,
-	    tempmon_intr, NULL, sc, &sc->temp_intrhand);
-	if (err != 0)
-		goto out;
+	sc->intr_setup_hook.ich_func = intr_setup;
+	sc->intr_setup_hook.ich_arg = sc;
+	config_intrhook_establish(&sc->intr_setup_hook);
 
 	SYSCTL_ADD_UINT(device_get_sysctl_ctx(sc->dev),
 	    SYSCTL_CHILDREN(device_get_sysctl_tree(sc->dev)),
@@ -713,5 +726,6 @@ static driver_t imx6_anatop_driver = {
 
 static devclass_t imx6_anatop_devclass;
 
-DRIVER_MODULE(imx6_anatop, simplebus, imx6_anatop_driver, imx6_anatop_devclass, 0, 0);
+EARLY_DRIVER_MODULE(imx6_anatop, simplebus, imx6_anatop_driver,
+    imx6_anatop_devclass, 0, 0, BUS_PASS_CPU + BUS_PASS_ORDER_FIRST + 1);
 

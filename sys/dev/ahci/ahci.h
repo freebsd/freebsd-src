@@ -375,7 +375,7 @@ enum ahci_slot_states {
 };
 
 struct ahci_slot {
-    device_t                    dev;            /* Device handle */
+    struct ahci_channel		*ch;		/* Channel */
     u_int8_t			slot;           /* Number of this slot */
     enum ahci_slot_states	state;          /* Slot state */
     union ccb			*ccb;		/* CCB occupying slot */
@@ -415,23 +415,26 @@ struct ahci_channel {
 	uint32_t		caps2;		/* Controller capabilities */
 	uint32_t		chcaps;		/* Channel capabilities */
 	uint32_t		chscaps;	/* Channel sleep capabilities */
+	uint16_t		vendorid;	/* Vendor ID from the bus */
+	uint16_t		deviceid;	/* Device ID from the bus */
+	uint16_t		subvendorid;	/* Subvendor ID from the bus */
+	uint16_t		subdeviceid;	/* Subdevice ID from the bus */
 	int			quirks;
 	int			numslots;	/* Number of present slots */
 	int			pm_level;	/* power management level */
-
-	struct ahci_slot	slot[AHCI_MAX_SLOTS];
-	union ccb		*hold[AHCI_MAX_SLOTS];
-	struct mtx		mtx;		/* state lock */
-	STAILQ_HEAD(, ccb_hdr)	doneq;		/* queue of completed CCBs */
-	int			batch;		/* doneq is in use */
 	int			devices;        /* What is present */
 	int			pm_present;	/* PM presence reported */
 	int			fbs_enabled;	/* FIS-based switching enabled */
+
+	union ccb		*hold[AHCI_MAX_SLOTS];
+	struct ahci_slot	slot[AHCI_MAX_SLOTS];
 	uint32_t		oslots;		/* Occupied slots */
 	uint32_t		rslots;		/* Running slots */
 	uint32_t		aslots;		/* Slots with atomic commands  */
 	uint32_t		eslots;		/* Slots in error */
 	uint32_t		toslots;	/* Slots in timeout */
+	int			lastslot;	/* Last used slot */
+	int			taggedtarget;	/* Last tagged target */
 	int			numrslots;	/* Number of running slots */
 	int			numrslotspd[16];/* Number of running slots per dev */
 	int			numtslots;	/* Number of tagged slots */
@@ -439,8 +442,6 @@ struct ahci_channel {
 	int			numhslots;	/* Number of held slots */
 	int			recoverycmd;	/* Our READ LOG active */
 	int			fatalerr;	/* Fatal error happend */
-	int			lastslot;	/* Last used slot */
-	int			taggedtarget;	/* Last tagged target */
 	int			resetting;	/* Hard-reset in progress. */
 	int			resetpolldiv;	/* Hard-reset poll divider. */
 	int			listening;	/* SUD bit is cleared. */
@@ -451,6 +452,10 @@ struct ahci_channel {
 
 	struct ahci_device	user[16];	/* User-specified settings */
 	struct ahci_device	curr[16];	/* Current settings */
+
+	struct mtx_padalign	mtx;		/* state lock */
+	STAILQ_HEAD(, ccb_hdr)	doneq;		/* queue of completed CCBs */
+	int			batch;		/* doneq is in use */
 };
 
 struct ahci_enclosure {
@@ -474,6 +479,10 @@ struct ahci_controller {
 	device_t		dev;
 	bus_dma_tag_t		dma_tag;
 	int			r_rid;
+	uint16_t		vendorid;	/* Vendor ID from the bus */
+	uint16_t		deviceid;	/* Device ID from the bus */
+	uint16_t		subvendorid;	/* Subvendor ID from the bus */
+	uint16_t		subdeviceid;	/* Subdevice ID from the bus */
 	struct resource		*r_mem;
 	struct rman		sc_iomem;
 	struct ahci_controller_irq {
@@ -544,3 +553,59 @@ enum ahci_err_type {
 	bus_write_multi_4((res), (offset), (addr), (count))
 #define ATA_OUTSL_STRM(res, offset, addr, count) \
 	bus_write_multi_stream_4((res), (offset), (addr), (count))
+
+
+#define AHCI_Q_NOFORCE		1
+#define AHCI_Q_NOPMP		2
+#define AHCI_Q_NONCQ		4
+#define AHCI_Q_1CH		8
+#define AHCI_Q_2CH		0x10
+#define AHCI_Q_4CH		0x20
+#define AHCI_Q_EDGEIS		0x40
+#define AHCI_Q_SATA2		0x80
+#define AHCI_Q_NOBSYRES		0x100
+#define AHCI_Q_NOAA		0x200
+#define AHCI_Q_NOCOUNT		0x400
+#define AHCI_Q_ALTSIG		0x800
+#define AHCI_Q_NOMSI		0x1000
+#define AHCI_Q_ATI_PMP_BUG	0x2000
+#define AHCI_Q_MAXIO_64K	0x4000
+#define AHCI_Q_SATA1_UNIT0	0x8000		/* need better method for this */
+
+#define AHCI_Q_BIT_STRING	\
+	"\020"			\
+	"\001NOFORCE"		\
+	"\002NOPMP"		\
+	"\003NONCQ"		\
+	"\0041CH"		\
+	"\0052CH"		\
+	"\0064CH"		\
+	"\007EDGEIS"		\
+	"\010SATA2"		\
+	"\011NOBSYRES"		\
+	"\012NOAA"		\
+	"\013NOCOUNT"		\
+	"\014ALTSIG"		\
+	"\015NOMSI"		\
+	"\016ATI_PMP_BUG"	\
+	"\017MAXIO_64K"		\
+	"\020SATA1_UNIT0"
+
+int ahci_attach(device_t dev);
+int ahci_detach(device_t dev);
+int ahci_setup_interrupt(device_t dev);
+int ahci_print_child(device_t dev, device_t child);
+struct resource *ahci_alloc_resource(device_t dev, device_t child, int type, int *rid,
+    u_long start, u_long end, u_long count, u_int flags);
+int ahci_release_resource(device_t dev, device_t child, int type, int rid,
+    struct resource *r);
+int ahci_setup_intr(device_t dev, device_t child, struct resource *irq, 
+    int flags, driver_filter_t *filter, driver_intr_t *function, 
+    void *argument, void **cookiep);
+int ahci_teardown_intr(device_t dev, device_t child, struct resource *irq,
+    void *cookie);
+int ahci_child_location_str(device_t dev, device_t child, char *buf,
+    size_t buflen);
+bus_dma_tag_t ahci_get_dma_tag(device_t dev, device_t child);
+int ahci_ctlr_reset(device_t dev);
+int ahci_ctlr_setup(device_t dev);

@@ -57,6 +57,8 @@
 #define	NETISR_IPV6	6
 #define	NETISR_NATM	7
 #define	NETISR_EPAIR	8		/* if_epair(4) */
+#define	NETISR_IP_DIRECT	9	/* direct-dispatch IPv4 */
+#define	NETISR_IPV6_DIRECT	10	/* direct-dispatch IPv6 */
 
 /*
  * Protocol ordering and affinity policy constants.  See the detailed

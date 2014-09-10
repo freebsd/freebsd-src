@@ -19,7 +19,7 @@ arm/arm/bus_space-v6.c			standard
 arm/freescale/imx/tzic.c		standard
 
 # IOMUX - external pins multiplexor
-arm/freescale/imx/imx51_iomux.c		optional iomux
+arm/freescale/imx/imx51_iomux.c		standard
 
 # GPIO
 arm/freescale/imx/imx_gpio.c		optional gpio
@@ -37,7 +37,7 @@ dev/ata/chipsets/ata-fsl.c		optional imxata
 dev/uart/uart_dev_imx.c			optional uart
 
 # USB OH3 controller (1 OTG, 3 EHCI)
-arm/freescale/imx/imx_nop_usbphy.c	optional echi
+arm/freescale/imx/imx_nop_usbphy.c	optional ehci
 dev/usb/controller/ehci_imx.c		optional ehci
 
 # Watchdog

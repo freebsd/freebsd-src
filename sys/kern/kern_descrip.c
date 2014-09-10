@@ -509,7 +509,7 @@ kern_fcntl(struct thread *td, int fd, int cmd, intptr_t arg)
 
 	case F_GETFD:
 		FILEDESC_SLOCK(fdp);
-		if ((fp = fget_locked(fdp, fd)) == NULL) {
+		if (fget_locked(fdp, fd) == NULL) {
 			FILEDESC_SUNLOCK(fdp);
 			error = EBADF;
 			break;
@@ -522,7 +522,7 @@ kern_fcntl(struct thread *td, int fd, int cmd, intptr_t arg)
 
 	case F_SETFD:
 		FILEDESC_XLOCK(fdp);
-		if ((fp = fget_locked(fdp, fd)) == NULL) {
+		if (fget_locked(fdp, fd) == NULL) {
 			FILEDESC_XUNLOCK(fdp);
 			error = EBADF;
 			break;

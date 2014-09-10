@@ -104,8 +104,12 @@ proc_realparent(struct proc *child)
 
 	sx_assert(&proctree_lock, SX_LOCKED);
 	if ((child->p_treeflag & P_TREE_ORPHANED) == 0) {
-		return (child->p_pptr->p_pid == child->p_oppid ?
-		    child->p_pptr : initproc);
+		if (child->p_oppid == 0 ||
+		    child->p_pptr->p_pid == child->p_oppid)
+			parent = child->p_pptr;
+		else
+			parent = initproc;
+		return (parent);
 	}
 	for (p = child; (p->p_treeflag & P_TREE_FIRST_ORPHAN) == 0;) {
 		/* Cannot use LIST_PREV(), since the list head is not known. */
