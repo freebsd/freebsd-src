@@ -109,6 +109,7 @@ int	is_physical_memory(vm_paddr_t addr);
 int	isa_nmi(int cd);
 vm_paddr_t kvtop(void *addr);
 void	panicifcpuunsupported(void);
+void	ppro_reenable_apic(void);
 void	printcpuinfo(void);
 void	setidt(int idx, alias_for_inthand_t *func, int typ, int dpl, int selec);
 int     user_dbreg_trap(void);

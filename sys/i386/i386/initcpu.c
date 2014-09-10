@@ -533,6 +533,8 @@ init_6x86MX(void)
 	intr_restore(saveintr);
 }
 
+static int ppro_apic_used = -1;
+
 static void
 init_ppro(void)
 {
@@ -541,9 +543,29 @@ init_ppro(void)
 	/*
 	 * Local APIC should be disabled if it is not going to be used.
 	 */
-	apicbase = rdmsr(MSR_APICBASE);
-	apicbase &= ~APICBASE_ENABLED;
-	wrmsr(MSR_APICBASE, apicbase);
+	if (ppro_apic_used != 1) {
+		apicbase = rdmsr(MSR_APICBASE);
+		apicbase &= ~APICBASE_ENABLED;
+		wrmsr(MSR_APICBASE, apicbase);
+		ppro_apic_used = 0;
+	}
+}
+
+/*
+ * If the local APIC is going to be used after being disabled above,
+ * re-enable it and don't disable it in the future.
+ */
+void
+ppro_reenable_apic(void)
+{
+	u_int64_t	apicbase;
+
+	if (ppro_apic_used == 0) {
+		apicbase = rdmsr(MSR_APICBASE);
+		apicbase |= APICBASE_ENABLED;
+		wrmsr(MSR_APICBASE, apicbase);
+		ppro_apic_used = 1;
+	}
 }
 
 /*
