@@ -352,36 +352,3 @@ vmcb_seg(struct vmcb *vmcb, int type)
 
 	return (seg);
 }
-
-/*
- * Inject an event to vcpu as described in section 15.20, "Event injection".
- */
-void
-vmcb_eventinject(struct vmcb_ctrl *ctrl, int intr_type, int vector,
-		 uint32_t error, bool ec_valid)
-{
-	KASSERT((ctrl->eventinj & VMCB_EVENTINJ_VALID) == 0,
-	    ("%s: event already pending %#lx", __func__, ctrl->eventinj));
-
-	KASSERT(vector >=0 && vector <= 255, ("%s: invalid vector %d",
-	    __func__, vector));
-
-	switch (intr_type) {
-	case VMCB_EVENTINJ_TYPE_INTR:
-	case VMCB_EVENTINJ_TYPE_NMI:
-	case VMCB_EVENTINJ_TYPE_INTn:
-		break;
-	case VMCB_EVENTINJ_TYPE_EXCEPTION:
-		if (vector >= 0 && vector <= 31 && vector != 2)
-			break;
-		/* FALLTHROUGH */
-	default:
-		panic("%s: invalid intr_type/vector: %d/%d", __func__,
-		    intr_type, vector);
-	}
-	ctrl->eventinj = vector | (intr_type << 8) | VMCB_EVENTINJ_VALID;
-	if (ec_valid) {
-		ctrl->eventinj |= VMCB_EVENTINJ_EC_VALID;
-		ctrl->eventinj |= (uint64_t)error << 32;
-	}
-}
