@@ -709,8 +709,9 @@ in6_pcblookup_local(struct inpcbinfo *pcbinfo, struct in6_addr *laddr,
 		 * Look for an unconnected (wildcard foreign addr) PCB that
 		 * matches the local address and port we're looking for.
 		 */
-		head = &pcbinfo->ipi_hashbase[INP_PCBHASH(INADDR_ANY, lport,
-		    0, pcbinfo->ipi_hashmask)];
+		head = &pcbinfo->ipi_hashbase[INP_PCBHASH(
+		    INP6_PCBHASHKEY(&in6addr_any), lport, 0,
+		    pcbinfo->ipi_hashmask)];
 		LIST_FOREACH(inp, head, inp_hash) {
 			/* XXX inp locking */
 			if ((inp->inp_vflag & INP_IPV6) == 0)
@@ -878,9 +879,8 @@ in6_pcblookup_group(struct inpcbinfo *pcbinfo, struct inpcbgroup *pcbgroup,
 	 */
 	tmpinp = NULL;
 	INP_GROUP_LOCK(pcbgroup);
-	head = &pcbgroup->ipg_hashbase[
-	    INP_PCBHASH(faddr->s6_addr32[3] /* XXX */, lport, fport,
-	    pcbgroup->ipg_hashmask)];
+	head = &pcbgroup->ipg_hashbase[INP_PCBHASH(
+	    INP6_PCBHASHKEY(faddr), lport, fport, pcbgroup->ipg_hashmask)];
 	LIST_FOREACH(inp, head, inp_pcbgrouphash) {
 		/* XXX inp locking */
 		if ((inp->inp_vflag & INP_IPV6) == 0)
@@ -985,8 +985,9 @@ in6_pcblookup_group(struct inpcbinfo *pcbinfo, struct inpcbgroup *pcbgroup,
 		 *      3. non-jailed, non-wild.
 		 *      4. non-jailed, wild.
 		 */
-		head = &pcbinfo->ipi_wildbase[INP_PCBHASH(INADDR_ANY, lport,
-		    0, pcbinfo->ipi_wildmask)];
+		head = &pcbinfo->ipi_wildbase[INP_PCBHASH(
+		    INP6_PCBHASHKEY(&in6addr_any), lport, 0,
+		    pcbinfo->ipi_wildmask)];
 		LIST_FOREACH(inp, head, inp_pcbgroup_wild) {
 			/* XXX inp locking */
 			if ((inp->inp_vflag & INP_IPV6) == 0)
@@ -1081,9 +1082,8 @@ in6_pcblookup_hash_locked(struct inpcbinfo *pcbinfo, struct in6_addr *faddr,
 	 * First look for an exact match.
 	 */
 	tmpinp = NULL;
-	head = &pcbinfo->ipi_hashbase[
-	    INP_PCBHASH(faddr->s6_addr32[3] /* XXX */, lport, fport,
-	    pcbinfo->ipi_hashmask)];
+	head = &pcbinfo->ipi_hashbase[INP_PCBHASH(
+	    INP6_PCBHASHKEY(faddr), lport, fport, pcbinfo->ipi_hashmask)];
 	LIST_FOREACH(inp, head, inp_hash) {
 		/* XXX inp locking */
 		if ((inp->inp_vflag & INP_IPV6) == 0)
@@ -1121,8 +1121,9 @@ in6_pcblookup_hash_locked(struct inpcbinfo *pcbinfo, struct in6_addr *faddr,
 		 *      3. non-jailed, non-wild.
 		 *      4. non-jailed, wild.
 		 */
-		head = &pcbinfo->ipi_hashbase[INP_PCBHASH(INADDR_ANY, lport,
-		    0, pcbinfo->ipi_hashmask)];
+		head = &pcbinfo->ipi_hashbase[INP_PCBHASH(
+		    INP6_PCBHASHKEY(&in6addr_any), lport, 0,
+		    pcbinfo->ipi_hashmask)];
 		LIST_FOREACH(inp, head, inp_hash) {
 			/* XXX inp locking */
 			if ((inp->inp_vflag & INP_IPV6) == 0)
