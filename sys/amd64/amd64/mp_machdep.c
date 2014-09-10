@@ -721,7 +721,7 @@ init_secondary(void)
 	/* set up CPU registers and state */
 	cpu_setregs();
 
-	/* set up SSE/NX registers */
+	/* set up SSE/NX */
 	initializecpu();
 
 	/* set up FPU state on the AP */
