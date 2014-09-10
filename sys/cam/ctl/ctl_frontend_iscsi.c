@@ -1002,6 +1002,19 @@ cfiscsi_callout(void *context)
 	}
 #endif
 
+	if (ping_timeout <= 0) {
+		/*
+		 * Pings are disabled.  Don't send NOP-In in this case;
+		 * user might have disabled pings to work around problems
+		 * with certain initiators that can't properly handle
+		 * NOP-In, such as iPXE.  Reset the timeout, to avoid
+		 * triggering reconnection, should the user decide to
+		 * reenable them.
+		 */
+		cs->cs_timeout = 0;
+		return;
+	}
+
 	if (cs->cs_timeout >= ping_timeout) {
 		CFISCSI_SESSION_WARN(cs, "no ping reply (NOP-Out) after %d seconds; "
 		    "dropping connection",  ping_timeout);
