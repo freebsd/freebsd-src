@@ -2188,6 +2188,7 @@ dev/smbus/smbconf.c		optional smbus
 dev/smbus/smbus.c		optional smbus
 dev/smbus/smbus_if.m		optional smbus
 dev/smc/if_smc.c		optional smc
+dev/smc/if_smc_fdt.c		optional smc fdt
 dev/sn/if_sn.c			optional sn
 dev/sn/if_sn_isa.c		optional sn isa
 dev/sn/if_sn_pccard.c		optional sn pccard
