@@ -201,7 +201,7 @@ arm_syscall_entry(struct trussinfo *trussinfo, int nargs)
 		 */
 		// XXX BAD constant used here
 		iorequest.piod_op = PIOD_READ_D;
-		iorequest.piod_offs = (void *)(regs.r[_REG_SP] +
+		iorequest.piod_offs = (void *)(regs.r_sp +
 		    4 * sizeof(uint32_t));
 		iorequest.piod_addr = &fsc->args[4];
 		iorequest.piod_len = (nargs - 4) * sizeof(fsc->args[0]);
