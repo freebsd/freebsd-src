@@ -34,7 +34,14 @@
  * Layout of VMCB: AMD64 Programmer's Manual Vol2, Appendix B
  */
 
-/* VMCB Control offset 0xC */
+/* vmcb_ctrl->intercept[] array indices */
+#define	VMCB_CR_INTCPT		0
+#define	VMCB_DR_INTCPT		1
+#define	VMCB_EXC_INTCPT		2
+#define	VMCB_CTRL1_INTCPT	3
+#define	VMCB_CTRL2_INTCPT	4
+
+/* intercept[VMCB_CTRL1_INTCPT] fields */
 #define	VMCB_INTCPT_INTR		BIT(0)
 #define	VMCB_INTCPT_NMI			BIT(1)
 #define	VMCB_INTCPT_SMI			BIT(2)
@@ -68,7 +75,7 @@
 #define	VMCB_INTCPT_FERR_FREEZE		BIT(30)
 #define	VMCB_INTCPT_SHUTDOWN		BIT(31)
 
-/* VMCB Control offset 0x10 */
+/* intercept[VMCB_CTRL2_INTCPT] fields */
 #define	VMCB_INTCPT_VMRUN		BIT(0)
 #define	VMCB_INTCPT_VMMCALL		BIT(1)
 #define	VMCB_INTCPT_VMLOAD		BIT(2)
@@ -91,18 +98,18 @@
 #define	VMCB_TLB_FLUSH_GUEST_NONGLOBAL	7	/* Flush guest non-PG entries */
 
 /* VMCB state caching */
-#define	VMCB_CACHE_NONE			0	/* No caching */
-#define	VMCB_CACHE_I			BIT(0)	/* Cache vectors, TSC offset */
-#define	VMCB_CACHE_IOPM			BIT(1)	/* I/O and MSR permission */
-#define	VMCB_CACHE_ASID			BIT(2)	/* ASID */
-#define	VMCB_CACHE_TPR			BIT(3)	/* V_TPR to V_INTR_VECTOR */
-#define	VMCB_CACHE_NP			BIT(4)	/* Nested Paging */
-#define	VMCB_CACHE_CR			BIT(5)	/* CR0, CR3, CR4 & EFER */
-#define	VMCB_CACHE_DR			BIT(6)	/* Debug registers */
-#define	VMCB_CACHE_DT			BIT(7)	/* GDT/IDT */
-#define	VMCB_CACHE_SEG			BIT(8)	/* User segments, CPL */
-#define	VMCB_CACHE_CR2			BIT(9)	/* page fault address */
-#define	VMCB_CACHE_LBR			BIT(10)	/* Last branch */
+#define	VMCB_CACHE_NONE		0	/* No caching */
+#define	VMCB_CACHE_I		BIT(0)	/* Intercept, TSC off, Pause filter */
+#define	VMCB_CACHE_IOPM		BIT(1)	/* I/O and MSR permission */
+#define	VMCB_CACHE_ASID		BIT(2)	/* ASID */
+#define	VMCB_CACHE_TPR		BIT(3)	/* V_TPR to V_INTR_VECTOR */
+#define	VMCB_CACHE_NP		BIT(4)	/* Nested Paging */
+#define	VMCB_CACHE_CR		BIT(5)	/* CR0, CR3, CR4 & EFER */
+#define	VMCB_CACHE_DR		BIT(6)	/* Debug registers */
+#define	VMCB_CACHE_DT		BIT(7)	/* GDT/IDT */
+#define	VMCB_CACHE_SEG		BIT(8)	/* User segments, CPL */
+#define	VMCB_CACHE_CR2		BIT(9)	/* page fault address */
+#define	VMCB_CACHE_LBR		BIT(10)	/* Last branch */
 
 /* VMCB control event injection */
 #define	VMCB_EVENTINJ_EC_VALID		BIT(11)	/* Error Code valid */
@@ -175,13 +182,7 @@ CTASSERT(sizeof(struct vmcb_segment) == 16);
 
 /* VMCB control area - padded up to 1024 bytes */
 struct vmcb_ctrl {
-	uint16_t cr_read;	/* Offset 0, CR0-15 read/write */
-	uint16_t cr_write;
-	uint16_t dr_read;	/* Offset 4, DR0-DR15 */
-	uint16_t dr_write;
-	uint32_t exception;	/* Offset 8, bit mask for exceptions. */
-	uint32_t ctrl1;		/* Offset 0xC, intercept events1 */
-	uint32_t ctrl2;		/* Offset 0x10, intercept event2 */
+	uint32_t intercept[5];	/* all intercepts */
 	uint8_t	 pad1[0x28];	/* Offsets 0x14-0x3B are reserved. */
 	uint16_t pause_filthresh; /* Offset 0x3C, PAUSE filter threshold */
 	uint16_t pause_filcnt;  /* Offset 0x3E, PAUSE filter count */
