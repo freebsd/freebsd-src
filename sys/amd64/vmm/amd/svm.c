@@ -979,11 +979,6 @@ svm_vmexit(struct svm_softc *svm_sc, int vcpu, struct vm_exit *vmexit)
 		state->rip = vmexit->rip;
 	}
 
-	if (state->rip == 0) {
-		VCPU_CTR0(svm_sc->vm, vcpu, "SVM_ERR:RIP is NULL\n");
-		vmexit->exitcode = VM_EXITCODE_VMX;
-	}
-	
 	return (loop);
 }
 
