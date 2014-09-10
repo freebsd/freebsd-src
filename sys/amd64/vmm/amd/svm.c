@@ -385,8 +385,12 @@ svm_msr_rd_ok(uint8_t *perm_bitmap, uint64_t msr)
 }
 
 static __inline void
-vcpu_set_dirty(struct svm_vcpu *vcpustate, uint32_t dirtybits)
+vcpu_set_dirty(struct svm_softc *sc, int vcpu, uint32_t dirtybits)
 {
+	struct svm_vcpu *vcpustate;
+
+	vcpustate = svm_get_vcpu(sc, vcpu);
+
 	vcpustate->dirty |= dirtybits;
 }
 
@@ -434,6 +438,7 @@ svm_vminit(struct vm *vm, pmap_t pmap)
 	svm_msr_rw_ok(svm_sc->msr_bitmap, MSR_PAT);
 
 	svm_msr_rd_ok(svm_sc->msr_bitmap, MSR_TSC);
+	svm_msr_rd_ok(svm_sc->msr_bitmap, MSR_EFER);
 
 	 /* Intercept access to all I/O ports. */
 	memset(svm_sc->iopm_bitmap, 0xFF, sizeof(svm_sc->iopm_bitmap));
@@ -682,25 +687,23 @@ svm_handle_inst_emul(struct vmcb *vmcb, uint64_t gpa, struct vm_exit *vmexit)
 }
 
 /*
- * Special handling of EFER MSR.
- * SVM guest must have SVM EFER bit set, prohibit guest from cleareing SVM
- * enable bit in EFER.
+ * Intercept access to MSR_EFER to prevent the guest from clearing the
+ * SVM enable bit.
  */
 static void
-svm_efer(struct svm_softc *svm_sc, int vcpu, boolean_t write)
+svm_write_efer(struct svm_softc *sc, int vcpu, uint32_t edx, uint32_t eax)
 {
-	struct svm_regctx *swctx;
 	struct vmcb_state *state;
-	
-	state = svm_get_vmcb_state(svm_sc, vcpu);
-	swctx = svm_get_guest_regctx(svm_sc, vcpu);
+	uint64_t oldval;
 
-	if (write) {
-		state->efer = ((swctx->e.g.sctx_rdx & (uint32_t)~0) << 32) |
-				((uint32_t)state->rax) | EFER_SVM;
-	} else {
-		state->rax = (uint32_t)state->efer;
-		swctx->e.g.sctx_rdx = (uint32_t)(state->efer >> 32);
+	state = svm_get_vmcb_state(sc, vcpu);
+
+	oldval = state->efer;
+	state->efer = (uint64_t)edx << 32 | eax | EFER_SVM;
+	if (state->efer != oldval) {
+		VCPU_CTR2(sc->vm, vcpu, "Guest EFER changed from %#lx to %#lx",
+		    oldval, state->efer);
+		vcpu_set_dirty(sc, vcpu, VMCB_CACHE_CR);
 	}
 }
 
@@ -775,8 +778,10 @@ svm_vmexit(struct svm_softc *svm_sc, int vcpu, struct vm_exit *vmexit)
 			edx = ctx->e.g.sctx_rdx;
 			
 			if (ecx == MSR_EFER) {
-				VCPU_CTR0(svm_sc->vm, vcpu,"VMEXIT EFER\n");
-				svm_efer(svm_sc, vcpu, info1);
+				KASSERT(info1 != 0, ("rdmsr(MSR_EFER) is not "
+				    "emulated: info1(%#lx) info2(%#lx)",
+				    info1, info2));
+				svm_write_efer(svm_sc, vcpu, edx, eax);
 				break;
 			}
 		
@@ -1186,7 +1191,7 @@ check_asid(struct svm_softc *sc, int vcpuid, pmap_t pmap, u_int thiscpu)
 		vcpustate->asid.num = asid[thiscpu].num;
 
 		ctrl->asid = vcpustate->asid.num;
-		vcpu_set_dirty(vcpustate, VMCB_CACHE_ASID);
+		vcpu_set_dirty(sc, vcpuid, VMCB_CACHE_ASID);
 		/*
 		 * If this cpu supports "flush-by-asid" then the TLB
 		 * was not flushed after the generation bump. The TLB
@@ -1253,7 +1258,7 @@ svm_vmrun(void *arg, int vcpu, register_t rip, pmap_t pmap,
 		/*
 		 * Invalidate the VMCB state cache by marking all fields dirty.
 		 */
-		vcpu_set_dirty(vcpustate, 0xffffffff);
+		vcpu_set_dirty(svm_sc, vcpu, 0xffffffff);
 
 		/*
 		 * XXX
