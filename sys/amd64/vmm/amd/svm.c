@@ -80,8 +80,11 @@ __FBSDID("$FreeBSD$");
 #define AMD_CPUID_SVM_PAUSE_INC		BIT(10) /* Pause intercept filter. */
 #define AMD_CPUID_SVM_PAUSE_FTH		BIT(12) /* Pause filter threshold */
 
-#define	VMCB_CACHE_DEFAULT	\
-	(VMCB_CACHE_ASID | VMCB_CACHE_IOPM | VMCB_CACHE_NP)
+#define	VMCB_CACHE_DEFAULT	(VMCB_CACHE_ASID 	|	\
+				VMCB_CACHE_IOPM		|	\
+				VMCB_CACHE_I		|	\
+				VMCB_CACHE_TPR		|	\
+				VMCB_CACHE_NP)
 
 MALLOC_DEFINE(M_SVM, "svm", "svm");
 MALLOC_DEFINE(M_SVM_VLAPIC, "svm-vlapic", "svm-vlapic");
@@ -394,13 +397,61 @@ vcpu_set_dirty(struct svm_softc *sc, int vcpu, uint32_t dirtybits)
 	vcpustate->dirty |= dirtybits;
 }
 
+static __inline int
+svm_get_intercept(struct svm_softc *sc, int vcpu, int idx, uint32_t bitmask)
+{
+	struct vmcb_ctrl *ctrl;
+
+	KASSERT(idx >=0 && idx < 5, ("invalid intercept index %d", idx));
+
+	ctrl = svm_get_vmcb_ctrl(sc, vcpu);
+	return (ctrl->intercept[idx] & bitmask ? 1 : 0);
+}
+
+static __inline void
+svm_set_intercept(struct svm_softc *sc, int vcpu, int idx, uint32_t bitmask,
+    int enabled)
+{
+	struct vmcb_ctrl *ctrl;
+	uint32_t oldval;
+
+	KASSERT(idx >=0 && idx < 5, ("invalid intercept index %d", idx));
+
+	ctrl = svm_get_vmcb_ctrl(sc, vcpu);
+	oldval = ctrl->intercept[idx];
+
+	if (enabled)
+		ctrl->intercept[idx] |= bitmask;
+	else
+		ctrl->intercept[idx] &= ~bitmask;
+
+	if (ctrl->intercept[idx] != oldval) {
+		vcpu_set_dirty(sc, vcpu, VMCB_CACHE_I);
+		VCPU_CTR3(sc->vm, vcpu, "intercept[%d] modified "
+		    "from %#x to %#x", idx, oldval, ctrl->intercept[idx]);
+	}
+}
+
+static __inline void
+svm_disable_intercept(struct svm_softc *sc, int vcpu, int off, uint32_t bitmask)
+{
+	svm_set_intercept(sc, vcpu, off, bitmask, 0);
+}
+
+static __inline void
+svm_enable_intercept(struct svm_softc *sc, int vcpu, int off, uint32_t bitmask)
+{
+	svm_set_intercept(sc, vcpu, off, bitmask, 1);
+}
+
 static void
 vmcb_init(struct svm_softc *sc, int vcpu, uint64_t iopm_base_pa,
     uint64_t msrpm_base_pa, uint64_t np_pml4)
 {
 	struct vmcb_ctrl *ctrl;
 	struct vmcb_state *state;
-	uint16_t cr_shadow;
+	uint32_t mask;
+	int n;
 
 	ctrl = svm_get_vmcb_ctrl(sc, vcpu);
 	state = svm_get_vmcb_state(sc, vcpu);
@@ -416,30 +467,35 @@ vmcb_init(struct svm_softc *sc, int vcpu, uint64_t iopm_base_pa,
 	 * Intercept accesses to the control registers that are not shadowed
 	 * in the VMCB - i.e. all except cr0, cr2, cr3, cr4 and cr8.
 	 */
-	cr_shadow = BIT(0) | BIT(2) | BIT(3) | BIT(4) | BIT(8);
-	ctrl->cr_write = ctrl->cr_read = ~cr_shadow;
+	for (n = 0; n < 16; n++) {
+		mask = (BIT(n) << 16) | BIT(n);
+		if (n == 0 || n == 2 || n == 3 || n == 4 || n == 8)
+			svm_disable_intercept(sc, vcpu, VMCB_CR_INTCPT, mask);
+		else
+			svm_enable_intercept(sc, vcpu, VMCB_CR_INTCPT, mask);
+	}
 
 	/* Intercept Machine Check exceptions. */
-	ctrl->exception = BIT(IDT_MC);
+	svm_enable_intercept(sc, vcpu, VMCB_EXC_INTCPT, BIT(IDT_MC));
 
 	/* Intercept various events (for e.g. I/O, MSR and CPUID accesses) */
-	ctrl->ctrl1 =  VMCB_INTCPT_IO |
-		       VMCB_INTCPT_MSR |
-		       VMCB_INTCPT_HLT |
-		       VMCB_INTCPT_CPUID |
-		       VMCB_INTCPT_INTR |
-		       VMCB_INTCPT_VINTR |
-		       VMCB_INTCPT_INIT |
-		       VMCB_INTCPT_NMI |
-		       VMCB_INTCPT_SMI |
-		       VMCB_INTCPT_FERR_FREEZE |
-		       VMCB_INTCPT_SHUTDOWN;
+	svm_enable_intercept(sc, vcpu, VMCB_CTRL1_INTCPT, VMCB_INTCPT_IO);
+	svm_enable_intercept(sc, vcpu, VMCB_CTRL1_INTCPT, VMCB_INTCPT_MSR);
+	svm_enable_intercept(sc, vcpu, VMCB_CTRL1_INTCPT, VMCB_INTCPT_HLT);
+	svm_enable_intercept(sc, vcpu, VMCB_CTRL1_INTCPT, VMCB_INTCPT_CPUID);
+	svm_enable_intercept(sc, vcpu, VMCB_CTRL1_INTCPT, VMCB_INTCPT_INTR);
+	svm_enable_intercept(sc, vcpu, VMCB_CTRL1_INTCPT, VMCB_INTCPT_INIT);
+	svm_enable_intercept(sc, vcpu, VMCB_CTRL1_INTCPT, VMCB_INTCPT_NMI);
+	svm_enable_intercept(sc, vcpu, VMCB_CTRL1_INTCPT, VMCB_INTCPT_SMI);
+	svm_enable_intercept(sc, vcpu, VMCB_CTRL1_INTCPT, VMCB_INTCPT_SHUTDOWN);
+	svm_enable_intercept(sc, vcpu, VMCB_CTRL1_INTCPT,
+	    VMCB_INTCPT_FERR_FREEZE);
 
 	/*
 	 * From section "Canonicalization and Consistency Checks" in APMv2
 	 * the VMRUN intercept bit must be set to pass the consistency check.
 	 */
-	ctrl->ctrl2 = VMCB_INTCPT_VMRUN;
+	svm_enable_intercept(sc, vcpu, VMCB_CTRL2_INTCPT, VMCB_INTCPT_VMRUN);
 
 	/*
 	 * The ASID will be set to a non-zero value just before VMRUN.
@@ -670,7 +726,7 @@ svm_handle_io(struct svm_softc *svm_sc, int vcpu, struct vm_exit *vmexit)
 	struct svm_regctx *regs;
 	struct vm_inout_str *vis;
 	uint64_t info1;
-	
+
 	state = svm_get_vmcb_state(svm_sc, vcpu);
 	ctrl  = svm_get_vmcb_ctrl(svm_sc, vcpu);
 	regs  = svm_get_guest_regctx(svm_sc, vcpu);
@@ -1725,99 +1781,58 @@ svm_getdesc(void *arg, int vcpu, int type, struct seg_desc *desc)
 static int
 svm_setcap(void *arg, int vcpu, int type, int val)
 {
-	struct svm_softc *svm_sc;
-	struct vmcb_ctrl *ctrl;
-	int ret = ENOENT;
+	struct svm_softc *sc;
+	int error;
 
-	svm_sc = arg;
-	KASSERT(vcpu < svm_sc->vcpu_cnt, ("Guest doesn't have VCPU%d", vcpu));
-
-	ctrl = svm_get_vmcb_ctrl(svm_sc, vcpu);
-
+	sc = arg;
+	error = 0;
 	switch (type) {
-		case VM_CAP_HALT_EXIT:
-			if (val)
-				ctrl->ctrl1 |= VMCB_INTCPT_HLT;
-			else
-				ctrl->ctrl1 &= ~VMCB_INTCPT_HLT;
-			ret = 0;
-			VCPU_CTR1(svm_sc->vm, vcpu, "SVM:Set_gap:Halt exit %s.\n",
-				val ? "enabled": "disabled");
-			break;
-
-		case VM_CAP_PAUSE_EXIT:
-			if (val)
-				ctrl->ctrl1 |= VMCB_INTCPT_PAUSE;
-			else
-				ctrl->ctrl1 &= ~VMCB_INTCPT_PAUSE;
-			ret = 0;
-			VCPU_CTR1(svm_sc->vm, vcpu, "SVM:Set_gap:Pause exit %s.\n",
-				val ? "enabled": "disabled");
-			break;
-
-		case VM_CAP_MTRAP_EXIT:
-			if (val)
-				ctrl->exception |= BIT(IDT_MC);
-			else
-				ctrl->exception &= ~BIT(IDT_MC);
-			ret = 0;
-			VCPU_CTR1(svm_sc->vm, vcpu, "SVM:Set_gap:MC exit %s.\n",
-				val ? "enabled": "disabled"); 
-			break;
-
-		case VM_CAP_UNRESTRICTED_GUEST:
-			/* SVM doesn't need special capability for SMP.*/
-			VCPU_CTR0(svm_sc->vm, vcpu, "SVM:Set_gap:Unrestricted "
-			"always enabled.\n");
-			ret = 0;
-			break;
-		
-		default:
-			break;
-		}
-
-	return (ret);
+	case VM_CAP_HALT_EXIT:
+		svm_set_intercept(sc, vcpu, VMCB_CTRL1_INTCPT,
+		    VMCB_INTCPT_HLT, val);
+		break;
+	case VM_CAP_PAUSE_EXIT:
+		svm_set_intercept(sc, vcpu, VMCB_CTRL1_INTCPT,
+		    VMCB_INTCPT_PAUSE, val);
+		break;
+	case VM_CAP_UNRESTRICTED_GUEST:
+		/* Unrestricted guest execution cannot be disabled in SVM */
+		if (val == 0)
+			error = EINVAL;
+		break;
+	default:
+		error = ENOENT;
+		break;
+	}
+	return (error);
 }
 
 static int
 svm_getcap(void *arg, int vcpu, int type, int *retval)
 {
-	struct svm_softc *svm_sc;
-	struct vmcb_ctrl *ctrl;
+	struct svm_softc *sc;
+	int error;
 
-	svm_sc = arg;
-	KASSERT(vcpu < svm_sc->vcpu_cnt, ("Guest doesn't have VCPU%d", vcpu));
-
-	ctrl = svm_get_vmcb_ctrl(svm_sc, vcpu);
+	sc = arg;
+	error = 0;
 
 	switch (type) {
-		case VM_CAP_HALT_EXIT:
-		*retval = (ctrl->ctrl1 & VMCB_INTCPT_HLT) ? 1 : 0;
-		VCPU_CTR1(svm_sc->vm, vcpu, "SVM:get_cap:Halt exit %s.\n",
-			*retval ? "enabled": "disabled");
+	case VM_CAP_HALT_EXIT:
+		*retval = svm_get_intercept(sc, vcpu, VMCB_CTRL1_INTCPT,
+		    VMCB_INTCPT_HLT);
 		break;
-
-		case VM_CAP_PAUSE_EXIT:
-		*retval = (ctrl->ctrl1 & VMCB_INTCPT_PAUSE) ? 1 : 0;
-		VCPU_CTR1(svm_sc->vm, vcpu, "SVM:get_cap:Pause exit %s.\n",
-			*retval ? "enabled": "disabled");
+	case VM_CAP_PAUSE_EXIT:
+		*retval = svm_get_intercept(sc, vcpu, VMCB_CTRL1_INTCPT,
+		    VMCB_INTCPT_PAUSE);
 		break;
-
-		case VM_CAP_MTRAP_EXIT:
-		*retval = (ctrl->exception & BIT(IDT_MC)) ? 1 : 0;
-		VCPU_CTR1(svm_sc->vm, vcpu, "SVM:get_cap:MC exit %s.\n",
-			*retval ? "enabled": "disabled");
-		break;
-
 	case VM_CAP_UNRESTRICTED_GUEST:
-		VCPU_CTR0(svm_sc->vm, vcpu, "SVM:get_cap:Unrestricted.\n");
-		*retval = 1;
+		*retval = 1;	/* unrestricted guest is always enabled */
 		break;
-		default:
+	default:
+		error = ENOENT;
 		break;
 	}
-
-	return (0);
+	return (error);
 }
 
 static struct vlapic *
