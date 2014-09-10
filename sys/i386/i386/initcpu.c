@@ -457,7 +457,7 @@ init_winchip(void)
 	fcr &= ~(1ULL << 11);
 
 	/*
-	 * Additioanlly, set EBRPRED, E2MMX and EAMD3D for WinChip 2 and 3.
+	 * Additionally, set EBRPRED, E2MMX and EAMD3D for WinChip 2 and 3.
 	 */
 	if (CPUID_TO_MODEL(cpu_id) >= 8)
 		fcr |= (1 << 12) | (1 << 19) | (1 << 20);
@@ -674,20 +674,6 @@ init_transmeta(void)
 }
 #endif
 
-/*
- * Initialize CR4 (Control register 4) to enable SSE instructions.
- */
-void
-enable_sse(void)
-{
-#if defined(CPU_ENABLE_SSE)
-	if ((cpu_feature & CPUID_XMM) && (cpu_feature & CPUID_FXSR)) {
-		load_cr4(rcr4() | CR4_FXSR | CR4_XMM);
-		cpu_fxsr = hw_instruction_sse = 1;
-	}
-#endif
-}
-
 extern int elf32_nxstack;
 
 void
@@ -811,7 +797,17 @@ initializecpu(void)
 	default:
 		break;
 	}
-	enable_sse();
+#if defined(CPU_ENABLE_SSE)
+	if ((cpu_feature & CPUID_XMM) && (cpu_feature & CPUID_FXSR)) {
+		load_cr4(rcr4() | CR4_FXSR | CR4_XMM);
+		cpu_fxsr = hw_instruction_sse = 1;
+	}
+#endif
+}
+
+void
+initializecpucache(void)
+{
 
 	/*
 	 * CPUID with %eax = 1, %ebx returns
