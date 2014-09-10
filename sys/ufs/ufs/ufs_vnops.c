@@ -2745,6 +2745,7 @@ struct vop_vector ufs_vnodeops = {
 	.vop_close =		ufs_close,
 	.vop_create =		ufs_create,
 	.vop_getattr =		ufs_getattr,
+	.vop_getpages_async =	vop_stdgetpages_async,
 	.vop_inactive =		ufs_inactive,
 	.vop_ioctl =		ufs_ioctl,
 	.vop_link =		ufs_link,
