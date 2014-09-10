@@ -532,7 +532,7 @@ vt_machine_kbdevent(int c)
 		/* TODO */
 		return (1);
 	case SPCLKEY | STBY: /* XXX Not present in kbdcontrol parser. */
-		/* Put machine into Stend-By mode. */
+		/* Put machine into Stand-By mode. */
 		power_pm_suspend(POWER_SLEEP_STATE_STANDBY);
 		return (1);
 	case SPCLKEY | SUSP: /* kbdmap(5) keyword `susp`. */
