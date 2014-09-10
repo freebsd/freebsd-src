@@ -55,7 +55,6 @@ __FBSDID("$FreeBSD$");
 #include <vm/pmap.h>
 
 #include <x86/apicreg.h>
-#include <machine/cpu.h>
 #include <machine/cputypes.h>
 #include <machine/frame.h>
 #include <machine/intr_machdep.h>
@@ -1331,9 +1330,6 @@ static void
 apic_init(void *dummy __unused)
 {
 	struct apic_enumerator *enumerator;
-#ifndef __amd64__
-	uint64_t apic_base;
-#endif
 	int retval, best;
 
 	/* We only support built in local APICs. */
@@ -1375,12 +1371,7 @@ apic_init(void *dummy __unused)
 	 * CPUs during early startup.  We need to turn the local APIC back
 	 * on on such CPUs now.
 	 */
-	if (cpu == CPU_686 && cpu_vendor_id == CPU_VENDOR_INTEL &&
-	    (cpu_id & 0xff0) == 0x610) {
-		apic_base = rdmsr(MSR_APICBASE);
-		apic_base |= APICBASE_ENABLED;
-		wrmsr(MSR_APICBASE, apic_base);
-	}
+	ppro_reenable_apic();
 #endif
 
 	/* Probe the CPU's in the system. */
