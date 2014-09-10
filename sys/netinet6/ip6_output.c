@@ -2559,7 +2559,8 @@ ip6_setpktopt(int optname, u_char *buf, int len, struct ip6_pktopts *opt,
 		    sticky && !IN6_IS_ADDR_UNSPECIFIED(&pktinfo->ipi6_addr)) {
 			return (EINVAL);
 		}
-
+		if (IN6_IS_ADDR_MULTICAST(&pktinfo->ipi6_addr))
+			return (EINVAL);
 		/* validate the interface index if specified. */
 		if (pktinfo->ipi6_ifindex > V_if_index)
 			 return (ENXIO);
@@ -2568,7 +2569,19 @@ ip6_setpktopt(int optname, u_char *buf, int len, struct ip6_pktopts *opt,
 			if (ifp == NULL)
 				return (ENXIO);
 		}
+		if (ifp != NULL && (
+		    ND_IFINFO(ifp)->flags & ND6_IFF_IFDISABLED))
+			return (ENETDOWN);
 
+		if (ifp != NULL &&
+		    !IN6_IS_ADDR_UNSPECIFIED(&pktinfo->ipi6_addr)) {
+			struct in6_ifaddr *ia;
+
+			ia = in6ifa_ifpwithaddr(ifp, &pktinfo->ipi6_addr);
+			if (ia == NULL)
+				return (EADDRNOTAVAIL);
+			ifa_free(&ia->ia_ifa);
+		}
 		/*
 		 * We store the address anyway, and let in6_selectsrc()
 		 * validate the specified address.  This is because ipi6_addr
