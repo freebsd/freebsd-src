@@ -45,6 +45,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/lock.h>
 #include <sys/malloc.h>
 #include <sys/mutex.h>
+#include <sys/power.h>
 #include <sys/priv.h>
 #include <sys/proc.h>
 #include <sys/reboot.h>
@@ -122,6 +123,18 @@ VT_SYSCTL_INT(enable_altgr, 1, "Enable AltGr key (Do not assume R.Alt as Alt)");
 VT_SYSCTL_INT(debug, 0, "vt(9) debug level");
 VT_SYSCTL_INT(deadtimer, 15, "Time to wait busy process in VT_PROCESS mode");
 VT_SYSCTL_INT(suspendswitch, 1, "Switch to VT0 before suspend");
+
+/* Allow to disable some keyboard combinations. */
+VT_SYSCTL_INT(kbd_halt, 1, "Enable halt keyboard combination.  "
+    "See kbdmap(5) to configure.");
+VT_SYSCTL_INT(kbd_poweroff, 1, "Enable Power Off keyboard combination.  "
+    "See kbdmap(5) to configure.");
+VT_SYSCTL_INT(kbd_reboot, 1, "Enable reboot keyboard combination.  "
+    "See kbdmap(5) to configure (typically Ctrl-Alt-Delete).");
+VT_SYSCTL_INT(kbd_debug, 1, "Enable key combination to enter debugger.  "
+    "See kbdmap(5) to configure (typically Ctrl-Alt-Esc).");
+VT_SYSCTL_INT(kbd_panic, 0, "Enable request to panic.  "
+    "See kbdmap(5) to configure.");
 
 static struct vt_device	vt_consdev;
 static unsigned int vt_unit = 0;
@@ -484,18 +497,47 @@ vt_machine_kbdevent(int c)
 {
 
 	switch (c) {
-	case SPCLKEY | DBG:
-		kdb_enter(KDB_WHY_BREAK, "manual escape to debugger");
+	case SPCLKEY | DBG: /* kbdmap(5) keyword `debug`. */
+		if (vt_kbd_debug)
+			kdb_enter(KDB_WHY_BREAK, "manual escape to debugger");
 		return (1);
-	case SPCLKEY | RBT:
-		/* XXX: Make this configurable! */
-		shutdown_nice(0);
+	case SPCLKEY | HALT: /* kbdmap(5) keyword `halt`. */
+		if (vt_kbd_halt)
+			shutdown_nice(RB_HALT);
 		return (1);
-	case SPCLKEY | HALT:
-		shutdown_nice(RB_HALT);
+	case SPCLKEY | PASTE: /* kbdmap(5) keyword `paste`. */
+#ifndef SC_NO_CUTPASTE
+		/* Insert text from cut-paste buffer. */
+		/* TODO */
+#endif
+		break;
+	case SPCLKEY | PDWN: /* kbdmap(5) keyword `pdwn`. */
+		if (vt_kbd_poweroff)
+			shutdown_nice(RB_HALT|RB_POWEROFF);
 		return (1);
-	case SPCLKEY | PDWN:
-		shutdown_nice(RB_HALT|RB_POWEROFF);
+	case SPCLKEY | PNC: /* kbdmap(5) keyword `panic`. */
+		/*
+		 * Request to immediate panic if sysctl
+		 * kern.vt.enable_panic_key allow it.
+		 */
+		if (vt_kbd_panic)
+			panic("Forced by the panic key");
+		return (1);
+	case SPCLKEY | RBT: /* kbdmap(5) keyword `boot`. */
+		if (vt_kbd_reboot)
+			shutdown_nice(RB_AUTOBOOT);
+		return (1);
+	case SPCLKEY | SPSC: /* kbdmap(5) keyword `spsc`. */
+		/* Force activatation/deactivation of the screen saver. */
+		/* TODO */
+		return (1);
+	case SPCLKEY | STBY: /* XXX Not present in kbdcontrol parser. */
+		/* Put machine into Stend-By mode. */
+		power_pm_suspend(POWER_SLEEP_STATE_STANDBY);
+		return (1);
+	case SPCLKEY | SUSP: /* kbdmap(5) keyword `susp`. */
+		/* Suspend machine. */
+		power_pm_suspend(POWER_SLEEP_STATE_SUSPEND);
 		return (1);
 	};
 
@@ -611,6 +653,20 @@ vt_processkey(keyboard_t *kbd, struct vt_device *vd, int c)
 		}
 
 		switch (c) {
+		case NEXT:
+			/* Switch to next VT. */
+			c = (vw->vw_number + 1) % VT_MAXWINDOWS;
+			vw = vd->vd_windows[c];
+			if (vw != NULL)
+				vt_proc_window_switch(vw);
+			return (0);
+		case PREV:
+			/* Switch to previous VT. */
+			c = (vw->vw_number - 1) % VT_MAXWINDOWS;
+			vw = vd->vd_windows[c];
+			if (vw != NULL)
+				vt_proc_window_switch(vw);
+			return (0);
 		case SLK: {
 
 			kbdd_ioctl(kbd, KDGKBSTATE, (caddr_t)&state);
