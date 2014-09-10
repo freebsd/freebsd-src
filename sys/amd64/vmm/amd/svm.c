@@ -707,6 +707,67 @@ svm_write_efer(struct svm_softc *sc, int vcpu, uint32_t edx, uint32_t eax)
 	}
 }
 
+#ifdef KTR
+static const char *
+intrtype_to_str(int intr_type)
+{
+	switch (intr_type) {
+	case VMCB_EVENTINJ_TYPE_INTR:
+		return ("hwintr");
+	case VMCB_EVENTINJ_TYPE_NMI:
+		return ("nmi");
+	case VMCB_EVENTINJ_TYPE_INTn:
+		return ("swintr");
+	case VMCB_EVENTINJ_TYPE_EXCEPTION:
+		return ("exception");
+	default:
+		panic("%s: unknown intr_type %d", __func__, intr_type);
+	}
+}
+#endif
+
+/*
+ * Inject an event to vcpu as described in section 15.20, "Event injection".
+ */
+static void
+svm_eventinject(struct svm_softc *sc, int vcpu, int intr_type, int vector,
+		 uint32_t error, bool ec_valid)
+{
+	struct vmcb_ctrl *ctrl;
+
+	ctrl = svm_get_vmcb_ctrl(sc, vcpu);
+
+	KASSERT((ctrl->eventinj & VMCB_EVENTINJ_VALID) == 0,
+	    ("%s: event already pending %#lx", __func__, ctrl->eventinj));
+
+	KASSERT(vector >=0 && vector <= 255, ("%s: invalid vector %d",
+	    __func__, vector));
+
+	switch (intr_type) {
+	case VMCB_EVENTINJ_TYPE_INTR:
+	case VMCB_EVENTINJ_TYPE_NMI:
+	case VMCB_EVENTINJ_TYPE_INTn:
+		break;
+	case VMCB_EVENTINJ_TYPE_EXCEPTION:
+		if (vector >= 0 && vector <= 31 && vector != 2)
+			break;
+		/* FALLTHROUGH */
+	default:
+		panic("%s: invalid intr_type/vector: %d/%d", __func__,
+		    intr_type, vector);
+	}
+	ctrl->eventinj = vector | (intr_type << 8) | VMCB_EVENTINJ_VALID;
+	if (ec_valid) {
+		ctrl->eventinj |= VMCB_EVENTINJ_EC_VALID;
+		ctrl->eventinj |= (uint64_t)error << 32;
+		VCPU_CTR3(sc->vm, vcpu, "Injecting %s at vector %d errcode %#x",
+		    intrtype_to_str(intr_type), vector, error);
+	} else {
+		VCPU_CTR2(sc->vm, vcpu, "Injecting %s at vector %d",
+		    intrtype_to_str(intr_type), vector);
+	}
+}
+
 static void
 svm_save_intinfo(struct svm_softc *svm_sc, int vcpu)
 {
@@ -998,7 +1059,8 @@ svm_inject_nmi(struct svm_softc *svm_sc, int vcpu)
 		return (0);
 
 	/* Inject NMI, vector number is not used.*/
-	vmcb_eventinject(ctrl, VMCB_EVENTINJ_TYPE_NMI, IDT_NMI, 0, false);
+	svm_eventinject(svm_sc, vcpu, VMCB_EVENTINJ_TYPE_NMI, IDT_NMI, 0,
+	    false);
 
 	/* Acknowledge the request is accepted.*/
 	vm_nmi_clear(svm_sc->vm, vcpu);
@@ -1011,10 +1073,7 @@ svm_inject_nmi(struct svm_softc *svm_sc, int vcpu)
 static void
 svm_inj_intinfo(struct svm_softc *svm_sc, int vcpu)
 {
-	struct vmcb_ctrl *ctrl;
 	uint64_t intinfo;
-
-	ctrl = svm_get_vmcb_ctrl(svm_sc, vcpu);
 
 	if (!vm_entry_intinfo(svm_sc->vm, vcpu, &intinfo))
 		return;
@@ -1022,7 +1081,7 @@ svm_inj_intinfo(struct svm_softc *svm_sc, int vcpu)
 	KASSERT(VMCB_EXITINTINFO_VALID(intinfo), ("%s: entry intinfo is not "
 	    "valid: %#lx", __func__, intinfo));
 
-	vmcb_eventinject(ctrl, VMCB_EXITINTINFO_TYPE(intinfo),
+	svm_eventinject(svm_sc, vcpu, VMCB_EXITINTINFO_TYPE(intinfo),
 		VMCB_EXITINTINFO_VECTOR(intinfo),
 		VMCB_EXITINTINFO_EC(intinfo),
 		VMCB_EXITINTINFO_EC_VALID(intinfo));
@@ -1089,7 +1148,8 @@ svm_inj_interrupts(struct svm_softc *svm_sc, int vcpu, struct vlapic *vlapic)
 		return;
 	}
 
-	vmcb_eventinject(ctrl, VMCB_EVENTINJ_TYPE_INTR, vector, 0, false);
+	svm_eventinject(svm_sc, vcpu, VMCB_EVENTINJ_TYPE_INTR, vector, 0,
+	    false);
 
         if (!extint_pending) {
                 /* Update the Local APIC ISR */

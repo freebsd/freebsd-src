@@ -282,7 +282,5 @@ void	svm_init_vmcb(struct vmcb *vmcb, uint64_t iopm_base_pa,
 int	vmcb_read(struct vmcb *vmcb, int ident, uint64_t *retval);
 int	vmcb_write(struct vmcb *vmcb, int ident, uint64_t val);
 struct vmcb_segment *vmcb_seg(struct vmcb *vmcb, int type);
-void	vmcb_eventinject(struct vmcb_ctrl *ctrl, int type, int vector,
-			 uint32_t error, bool ec_valid);
 
 #endif /* _VMCB_H_ */
