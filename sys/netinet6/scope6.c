@@ -467,3 +467,77 @@ in6_getscope(struct in6_addr *in6)
 
 	return (0);
 }
+
+/*
+ * Return pointer to ifnet structure, corresponding to the zone id of
+ * link-local scope.
+ */
+struct ifnet*
+in6_getlinkifnet(uint32_t zoneid)
+{
+
+	return (ifnet_byindex((u_short)zoneid));
+}
+
+/*
+ * Return zone id for the specified scope.
+ */
+uint32_t
+in6_getscopezone(const struct ifnet *ifp, int scope)
+{
+
+	if (scope == IPV6_ADDR_SCOPE_INTFACELOCAL ||
+	    scope == IPV6_ADDR_SCOPE_LINKLOCAL)
+		return (ifp->if_index);
+	if (scope >= 0 && scope < IPV6_ADDR_SCOPES_COUNT)
+		return (SID(ifp)->s6id_list[scope]);
+	return (0);
+}
+
+/*
+ * This function is for checking sockaddr_in6 structure passed
+ * from the application level (usually).
+ *
+ * sin6_scope_id should be set for link-local unicast, link-local and
+ * interface-local  multicast addresses.
+ *
+ * If it is zero, then look into default zone ids. If default zone id is
+ * not set or disabled, then return error.
+ */
+int
+sa6_checkzone(struct sockaddr_in6 *sa6)
+{
+	int scope;
+
+	scope = in6_addrscope(&sa6->sin6_addr);
+	if (scope == IPV6_ADDR_SCOPE_GLOBAL)
+		return (sa6->sin6_scope_id ? EINVAL: 0);
+	if (IN6_IS_ADDR_MULTICAST(&sa6->sin6_addr) &&
+	    scope != IPV6_ADDR_SCOPE_LINKLOCAL &&
+	    scope != IPV6_ADDR_SCOPE_INTFACELOCAL) {
+		if (sa6->sin6_scope_id == 0 && V_ip6_use_defzone != 0)
+			sa6->sin6_scope_id = V_sid_default.s6id_list[scope];
+		return (0);
+	}
+	/*
+	 * Since ::1 address always configured on the lo0, we can
+	 * automatically set its zone id, when it is not specified.
+	 * Return error, when specified zone id doesn't match with
+	 * actual value.
+	 */
+	if (IN6_IS_ADDR_LOOPBACK(&sa6->sin6_addr)) {
+		if (sa6->sin6_scope_id == 0)
+			sa6->sin6_scope_id = in6_getscopezone(V_loif, scope);
+		else if (sa6->sin6_scope_id != in6_getscopezone(V_loif, scope))
+			return (EADDRNOTAVAIL);
+	}
+	/* XXX: we can validate sin6_scope_id here */
+	if (sa6->sin6_scope_id != 0)
+		return (0);
+	if (V_ip6_use_defzone != 0)
+		sa6->sin6_scope_id = V_sid_default.s6id_list[scope];
+	/* Return error if we can't determine zone id */
+	return (sa6->sin6_scope_id ? 0: EADDRNOTAVAIL);
+}
+
+
