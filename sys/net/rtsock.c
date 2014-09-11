@@ -752,7 +752,8 @@ route_output(struct mbuf *m, struct socket *so, ...)
 			    rt->rt_ifp->if_type == IFT_PROPVIRTUAL) {
 				struct ifaddr *ifa;
 
-				ifa = ifa_ifwithnet(info.rti_info[RTAX_DST], 1);
+				ifa = ifa_ifwithnet(info.rti_info[RTAX_DST], 1,
+						RT_ALL_FIBS);
 				if (ifa != NULL)
 					rt_maskedcopy(ifa->ifa_addr,
 						      &laddr,
