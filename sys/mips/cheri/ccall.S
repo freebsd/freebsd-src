@@ -211,9 +211,7 @@ CHERICCall:
 	csetoffset	CHERI_REG_KDC, CHERI_REG_KDC, k0
 
 	/* Install cs.offset. */
-	cgettype	k0, CHERI_REG_CCALLCODE
-	cgetbase	k1, CHERI_REG_CCALLCODE
-	dsub		k0, k0, k1
+	cgetoffset	k0, CHERI_REG_CCALLCODE
 	MTC0		k0, MIPS_COP_0_EXC_PC
 	COP0_SYNC
 
