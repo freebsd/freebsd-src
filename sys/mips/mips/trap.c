@@ -1739,14 +1739,11 @@ mips_unaligned_load_store(struct trapframe *frame, int mode, register_t addr, re
 	int op_type = 0;
 	int is_store = 0;
 #ifdef CPU_CHERI
-	register_t c0_base;
+	register_t v;
 	int sign_extend = 0;
 
 	/*
-	 * XXXRW: This code isn't really post-CHERI read.
-	 *
-	 * XXXRW: Especially, we need to be prepared for the possibility that
-	 * $pcc ($epcc) is not readable or unaligned.
+	 * XXXRW: This code isn't really post-CHERI ready.
 	 *
 	 * XXXRW: Arguably, this is also incorrect for non-CHERI: it should be
 	 * using copyin() to access user addresses!
@@ -1758,9 +1755,22 @@ mips_unaligned_load_store(struct trapframe *frame, int mode, register_t addr, re
 	 * succeeded, but a malicious program could generate an alignment trap and
 	 * then substitute a different instruction...
 	 */
-	CHERI_CLW(inst, pc, 0, CHERI_CR_EPCC);
-	CHERI_CGETBASE(c0_base, CHERI_CR_C0);
-	addr += c0_base;
+	/*
+	 * Construct a temporary capbility that will have load permission and no offset
+	 * defined, unlike $epcc, which might be execute-only, or have a straggling (or
+	 * even, intentional) offset.
+	 */
+	CHERI_CMOVE(CHERI_CR_CTEMP0, CHERI_CR_KDC);
+	CHERI_CGETBASE(v, CHERI_CR_EPCC);
+	if ((v % 4) != 0) {
+		printf("%s: unaligned $epcc base", __func__);
+		return (0);
+	}
+	CHERI_CINCBASE(CHERI_CR_CTEMP0, CHERI_CR_CTEMP0, v);
+	CHERI_CGETLEN(v, CHERI_CR_EPCC);
+	CHERI_CSETLEN(CHERI_CR_CTEMP0, CHERI_CR_CTEMP0, v);
+	CHERI_CSETOFFSET(CHERI_CR_CTEMP0, CHERI_CR_CTEMP0, 0);
+	CHERI_CLW(inst, pc, 0, CHERI_CR_CTEMP0);
 #else
 	inst = *((u_int32_t *)(intptr_t)pc);;
 #endif
