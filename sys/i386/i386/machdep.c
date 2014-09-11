@@ -180,10 +180,6 @@ CTASSERT(offsetof(struct pcpu, pc_curthread) == 0);
 extern void init386(int first);
 extern void dblfault_handler(void);
 
-extern void printcpuinfo(void);	/* XXX header file */
-extern void finishidentcpu(void);
-extern void panicifcpuunsupported(void);
-
 #define	CS_SECURE(cs)		(ISPL(cs) == SEL_UPL)
 #define	EFL_SECURE(ef, oef)	((((ef) ^ (oef)) & ~PSL_USERCHANGE) == 0)
 
@@ -277,9 +273,11 @@ cpu_startup(dummy)
 	if (sysenv != NULL) {
 		if (strncmp(sysenv, "MacBook1,1", 10) == 0 ||
 		    strncmp(sysenv, "MacBook3,1", 10) == 0 ||
+		    strncmp(sysenv, "MacBook4,1", 10) == 0 ||
 		    strncmp(sysenv, "MacBookPro1,1", 13) == 0 ||
 		    strncmp(sysenv, "MacBookPro1,2", 13) == 0 ||
 		    strncmp(sysenv, "MacBookPro3,1", 13) == 0 ||
+		    strncmp(sysenv, "MacBookPro4,1", 13) == 0 ||
 		    strncmp(sysenv, "Macmini1,1", 10) == 0) {
 			if (bootverbose)
 				printf("Disabling LEGACY_USB_EN bit on "
@@ -1639,6 +1637,10 @@ u_long bootdev;		/* not a struct cdev *- encoding is different */
 SYSCTL_ULONG(_machdep, OID_AUTO, guessed_bootdev,
 	CTLFLAG_RD, &bootdev, 0, "Maybe the Boot device (not in struct cdev *format)");
 
+static char bootmethod[16] = "BIOS";
+SYSCTL_STRING(_machdep, OID_AUTO, bootmethod, CTLFLAG_RD, bootmethod, 0,
+    "System firmware boot method");
+
 /*
  * Initialize 386 and configure to run kernel
  */
@@ -1660,10 +1662,6 @@ static struct gate_descriptor idt0[NIDT];
 struct gate_descriptor *idt = &idt0[0];	/* interrupt descriptor table */
 struct region_descriptor r_gdt, r_idt;	/* table descriptors */
 struct mtx dt_lock;			/* lock for GDT and LDT */
-
-#if defined(I586_CPU) && !defined(NO_F00F_HACK)
-extern int has_f00f_bug;
-#endif
 
 static struct i386tss dblfault_tss;
 static char dblfault_stack[PAGE_SIZE];
@@ -2755,6 +2753,7 @@ init386(first)
 	setidt(IDT_GP, &IDTVEC(prot),  SDT_SYS386TGT, SEL_KPL,
 	    GSEL(GCODE_SEL, SEL_KPL));
 	initializecpu();	/* Initialize CPU registers */
+	initializecpucache();
 
 	/* make an initial tss so cpu can get interrupt stack on syscall! */
 	/* Note: -16 is so we can grow the trapframe if we came from vm86 */
@@ -3117,6 +3116,42 @@ cpu_pcpu_init(struct pcpu *pcpu, int cpuid, size_t size)
 
 	pcpu->pc_acpi_id = 0xffffffff;
 }
+
+static int
+smap_sysctl_handler(SYSCTL_HANDLER_ARGS)
+{
+	struct bios_smap *smapbase;
+	struct bios_smap_xattr smap;
+	caddr_t kmdp;
+	uint32_t *smapattr;
+	int count, error, i;
+
+	/* Retrieve the system memory map from the loader. */
+	kmdp = preload_search_by_type("elf kernel");
+	if (kmdp == NULL)
+		kmdp = preload_search_by_type("elf32 kernel");
+	smapbase = (struct bios_smap *)preload_search_info(kmdp,
+	    MODINFO_METADATA | MODINFOMD_SMAP);
+	if (smapbase == NULL)
+		return (0);
+	smapattr = (uint32_t *)preload_search_info(kmdp,
+	    MODINFO_METADATA | MODINFOMD_SMAP_XATTR);
+	count = *((u_int32_t *)smapbase - 1) / sizeof(*smapbase);
+	error = 0;
+	for (i = 0; i < count; i++) {
+		smap.base = smapbase[i].base;
+		smap.length = smapbase[i].length;
+		smap.type = smapbase[i].type;
+		if (smapattr != NULL)
+			smap.xattr = smapattr[i];
+		else
+			smap.xattr = 0;
+		error = SYSCTL_OUT(req, &smap, sizeof(smap));
+	}
+	return (error);
+}
+SYSCTL_PROC(_machdep, OID_AUTO, smap, CTLTYPE_OPAQUE|CTLFLAG_RD, NULL, 0,
+    smap_sysctl_handler, "S,bios_smap_xattr", "Raw BIOS SMAP data");
 
 void
 spinlock_enter(void)

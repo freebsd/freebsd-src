@@ -32,8 +32,6 @@ CLEANFILES+=	ipnat.tab.c ipnat.tab.h
 CLEANFILES+=	ippool_y.c ippool_l.c
 CLEANFILES+=	ippool.tab.c ippool.tab.h
 
-NO_PIE=	yes
-
 ipnat_y.c: ipnat_y.y
 	${YACC} -b ipnat -d ${.ALLSRC}
 	sed -e 's/yy/ipnat_yy/g' \

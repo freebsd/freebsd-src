@@ -295,6 +295,7 @@ tcp_hc_lookup(struct in_conninfo *inc)
 	 */
 	TAILQ_FOREACH(hc_entry, &hc_head->hch_bucket, rmx_q) {
 		if (inc->inc_flags & INC_ISIPV6) {
+			/* XXX: check ip6_zoneid */
 			if (memcmp(&inc->inc6_faddr, &hc_entry->ip6,
 			    sizeof(inc->inc6_faddr)) == 0 &&
 			    hc_entry->ip6_zoneid == inc->inc6_zoneid)

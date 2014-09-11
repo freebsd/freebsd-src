@@ -113,16 +113,8 @@ typedef enum {
 #define ccb_pflags	ppriv_field0
 #define ccb_bp	 	ppriv_ptr1
 
-#define	SA_CCB_BUFFER_IO	0x0
-#define	SA_CCB_TYPEMASK		0x1
-#define	SA_POSITION_UPDATED	0x2
-
-#define	Set_CCB_Type(x, type)				\
-	x->ccb_h.ccb_pflags &= ~SA_CCB_TYPEMASK;	\
-	x->ccb_h.ccb_pflags |= type
-
-#define	CCB_Type(x)	(x->ccb_h.ccb_pflags & SA_CCB_TYPEMASK)
-
+/* bits in ccb_pflags */
+#define	SA_POSITION_UPDATED	0x1
 
 
 typedef enum {
@@ -1835,7 +1827,6 @@ again:
 			    bp->bio_data, bp->bio_bcount, SSD_FULL_SIZE,
 			    IO_TIMEOUT);
 			start_ccb->ccb_h.ccb_pflags &= ~SA_POSITION_UPDATED;
-			Set_CCB_Type(start_ccb, SA_CCB_BUFFER_IO);
 			start_ccb->ccb_h.ccb_bp = bp;
 			bp = bioq_first(&softc->bio_queue);
 			xpt_action(start_ccb);
@@ -1860,92 +1851,86 @@ sadone(struct cam_periph *periph, union ccb *done_ccb)
 {
 	struct sa_softc *softc;
 	struct ccb_scsiio *csio;
+	struct bio *bp;
+	int error;
 
 	softc = (struct sa_softc *)periph->softc;
 	csio = &done_ccb->csio;
-	switch (CCB_Type(csio)) {
-	case SA_CCB_BUFFER_IO:
-	{
-		struct bio *bp;
-		int error;
 
-		softc->dsreg = MTIO_DSREG_REST;
-		bp = (struct bio *)done_ccb->ccb_h.ccb_bp;
-		error = 0;
-		if ((done_ccb->ccb_h.status & CAM_STATUS_MASK) != CAM_REQ_CMP) {
-			if ((error = saerror(done_ccb, 0, 0)) == ERESTART) {
-				/*
-				 * A retry was scheduled, so just return.
-				 */
-				return;
-			}
-		}
-
-		if (error == EIO) {
-
+	softc->dsreg = MTIO_DSREG_REST;
+	bp = (struct bio *)done_ccb->ccb_h.ccb_bp;
+	error = 0;
+	if ((done_ccb->ccb_h.status & CAM_STATUS_MASK) != CAM_REQ_CMP) {
+		if ((error = saerror(done_ccb, 0, 0)) == ERESTART) {
 			/*
-			 * Catastrophic error. Mark the tape as frozen
-			 * (we no longer know tape position).
-			 *
-			 * Return all queued I/O with EIO, and unfreeze
-			 * our queue so that future transactions that
-			 * attempt to fix this problem can get to the
-			 * device.
-			 *
+			 * A retry was scheduled, so just return.
 			 */
+			return;
+		}
+	}
 
-			softc->flags |= SA_FLAG_TAPE_FROZEN;
-			bioq_flush(&softc->bio_queue, NULL, EIO);
-		}
-		if (error != 0) {
-			bp->bio_resid = bp->bio_bcount;
-			bp->bio_error = error;
-			bp->bio_flags |= BIO_ERROR;
-			/*
-			 * In the error case, position is updated in saerror.
-			 */
-		} else {
-			bp->bio_resid = csio->resid;
-			bp->bio_error = 0;
-			if (csio->resid != 0) {
-				bp->bio_flags |= BIO_ERROR;
-			}
-			if (bp->bio_cmd == BIO_WRITE) {
-				softc->flags |= SA_FLAG_TAPE_WRITTEN;
-				softc->filemarks = 0;
-			}
-			if (!(csio->ccb_h.ccb_pflags & SA_POSITION_UPDATED) &&
-			    (softc->blkno != (daddr_t) -1)) {
-				if ((softc->flags & SA_FLAG_FIXED) != 0) {
-					u_int32_t l;
-					if (softc->blk_shift != 0) {
-						l = bp->bio_bcount >>
-							softc->blk_shift;
-					} else {
-						l = bp->bio_bcount /
-							softc->media_blksize;
-					}
-					softc->blkno += (daddr_t) l;
-				} else {
-					softc->blkno++;
-				}
-			}
-		}
+	if (error == EIO) {
+
 		/*
-		 * If we had an error (immediate or pending),
-		 * release the device queue now.
+		 * Catastrophic error. Mark the tape as frozen
+		 * (we no longer know tape position).
+		 *
+		 * Return all queued I/O with EIO, and unfreeze
+		 * our queue so that future transactions that
+		 * attempt to fix this problem can get to the
+		 * device.
+		 *
 		 */
-		if (error || (softc->flags & SA_FLAG_ERR_PENDING))
-			cam_release_devq(done_ccb->ccb_h.path, 0, 0, 0, 0);
-		if (error || bp->bio_resid) {
-			CAM_DEBUG(periph->path, CAM_DEBUG_INFO,
-			    	  ("error %d resid %ld count %ld\n", error,
-				  bp->bio_resid, bp->bio_bcount));
+
+		softc->flags |= SA_FLAG_TAPE_FROZEN;
+		bioq_flush(&softc->bio_queue, NULL, EIO);
+	}
+	if (error != 0) {
+		bp->bio_resid = bp->bio_bcount;
+		bp->bio_error = error;
+		bp->bio_flags |= BIO_ERROR;
+		/*
+		 * In the error case, position is updated in saerror.
+		 */
+	} else {
+		bp->bio_resid = csio->resid;
+		bp->bio_error = 0;
+		if (csio->resid != 0) {
+			bp->bio_flags |= BIO_ERROR;
 		}
-		biofinish(bp, softc->device_stats, 0);
-		break;
+		if (bp->bio_cmd == BIO_WRITE) {
+			softc->flags |= SA_FLAG_TAPE_WRITTEN;
+			softc->filemarks = 0;
+		}
+		if (!(csio->ccb_h.ccb_pflags & SA_POSITION_UPDATED) &&
+		    (softc->blkno != (daddr_t) -1)) {
+			if ((softc->flags & SA_FLAG_FIXED) != 0) {
+				u_int32_t l;
+				if (softc->blk_shift != 0) {
+					l = bp->bio_bcount >>
+						softc->blk_shift;
+				} else {
+					l = bp->bio_bcount /
+						softc->media_blksize;
+				}
+				softc->blkno += (daddr_t) l;
+			} else {
+				softc->blkno++;
+			}
+		}
 	}
+	/*
+	 * If we had an error (immediate or pending),
+	 * release the device queue now.
+	 */
+	if (error || (softc->flags & SA_FLAG_ERR_PENDING))
+		cam_release_devq(done_ccb->ccb_h.path, 0, 0, 0, 0);
+	if (error || bp->bio_resid) {
+		CAM_DEBUG(periph->path, CAM_DEBUG_INFO,
+		    	  ("error %d resid %ld count %ld\n", error,
+			  bp->bio_resid, bp->bio_bcount));
 	}
+	biofinish(bp, softc->device_stats, 0);
 	xpt_release_ccb(done_ccb);
 }
 
@@ -2498,7 +2483,8 @@ saerror(union ccb *ccb, u_int32_t cflgs, u_int32_t sflgs)
 					info /= softc->media_blksize;
 			}
 		}
-		if (CCB_Type(csio) == SA_CCB_BUFFER_IO) {
+		if (csio->cdb_io.cdb_bytes[0] == SA_READ ||
+		    csio->cdb_io.cdb_bytes[0] == SA_WRITE) {
 			bcopy((caddr_t) sense, (caddr_t) &softc->last_io_sense,
 			    sizeof (struct scsi_sense_data));
 			bcopy(csio->cdb_io.cdb_bytes, softc->last_io_cdb,

@@ -149,8 +149,6 @@ SYSCTL_ULONG(_hw_vmm_vmx, OID_AUTO, cr4_ones_mask, CTLFLAG_RD,
 SYSCTL_ULONG(_hw_vmm_vmx, OID_AUTO, cr4_zeros_mask, CTLFLAG_RD,
 	     &cr4_zeros_mask, 0, NULL);
 
-static int vmx_no_patmsr;
-
 static int vmx_initialized;
 SYSCTL_INT(_hw_vmm_vmx, OID_AUTO, initialized, CTLFLAG_RD,
 	   &vmx_initialized, 0, "Intel VMX initialized");
@@ -158,18 +156,38 @@ SYSCTL_INT(_hw_vmm_vmx, OID_AUTO, initialized, CTLFLAG_RD,
 /*
  * Optional capabilities
  */
+static SYSCTL_NODE(_hw_vmm_vmx, OID_AUTO, cap, CTLFLAG_RW, NULL, NULL);
+
+static int vmx_patmsr;
+SYSCTL_INT(_hw_vmm_vmx_cap, OID_AUTO, patmsr, CTLFLAG_RD, &vmx_patmsr, 0,
+    "PAT MSR saved and restored in VCMS");
+
 static int cap_halt_exit;
+SYSCTL_INT(_hw_vmm_vmx_cap, OID_AUTO, halt_exit, CTLFLAG_RD, &cap_halt_exit, 0,
+    "HLT triggers a VM-exit");
+
 static int cap_pause_exit;
+SYSCTL_INT(_hw_vmm_vmx_cap, OID_AUTO, pause_exit, CTLFLAG_RD, &cap_pause_exit,
+    0, "PAUSE triggers a VM-exit");
+
 static int cap_unrestricted_guest;
+SYSCTL_INT(_hw_vmm_vmx_cap, OID_AUTO, unrestricted_guest, CTLFLAG_RD,
+    &cap_unrestricted_guest, 0, "Unrestricted guests");
+
 static int cap_monitor_trap;
+SYSCTL_INT(_hw_vmm_vmx_cap, OID_AUTO, monitor_trap, CTLFLAG_RD,
+    &cap_monitor_trap, 0, "Monitor trap flag");
+
 static int cap_invpcid;
+SYSCTL_INT(_hw_vmm_vmx_cap, OID_AUTO, invpcid, CTLFLAG_RD, &cap_invpcid,
+    0, "Guests are allowed to use INVPCID");
 
 static int virtual_interrupt_delivery;
-SYSCTL_INT(_hw_vmm_vmx, OID_AUTO, virtual_interrupt_delivery, CTLFLAG_RD,
+SYSCTL_INT(_hw_vmm_vmx_cap, OID_AUTO, virtual_interrupt_delivery, CTLFLAG_RD,
     &virtual_interrupt_delivery, 0, "APICv virtual interrupt delivery support");
 
 static int posted_interrupts;
-SYSCTL_INT(_hw_vmm_vmx, OID_AUTO, posted_interrupts, CTLFLAG_RD,
+SYSCTL_INT(_hw_vmm_vmx_cap, OID_AUTO, posted_interrupts, CTLFLAG_RD,
     &posted_interrupts, 0, "APICv posted interrupt support");
 
 static int pirvec;
@@ -618,6 +636,7 @@ vmx_init(int ipinum)
 	}
 
 	/* Check support for VM-exit controls */
+	vmx_patmsr = 1;
 	error = vmx_set_ctlreg(MSR_VMX_EXIT_CTLS, MSR_VMX_TRUE_EXIT_CTLS,
 			       VM_EXIT_CTLS_ONE_SETTING,
 			       VM_EXIT_CTLS_ZERO_SETTING,
@@ -637,12 +656,12 @@ vmx_init(int ipinum)
 			if (bootverbose)
 				printf("vmm: PAT MSR access not supported\n");
 			guest_msr_valid(MSR_PAT);
-			vmx_no_patmsr = 1;
+			vmx_patmsr = 0;
 		}
 	}
 
 	/* Check support for VM-entry controls */
-	if (!vmx_no_patmsr) {
+	if (vmx_patmsr) {
 		error = vmx_set_ctlreg(MSR_VMX_ENTRY_CTLS,
 				       MSR_VMX_TRUE_ENTRY_CTLS,
 				       VM_ENTRY_CTLS_ONE_SETTING,
@@ -918,7 +937,7 @@ vmx_vminit(struct vm *vm, pmap_t pmap)
 	 * MSR_PAT save/restore support, leave access disabled so accesses
 	 * will be trapped.
 	 */
-	if (!vmx_no_patmsr && guest_msr_rw(vmx, MSR_PAT))
+	if (vmx_patmsr && guest_msr_rw(vmx, MSR_PAT))
 		panic("vmx_vminit: error setting guest pat msr access");
 
 	vpid_alloc(vpid, VM_MAXCPU);

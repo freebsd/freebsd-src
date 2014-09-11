@@ -36,6 +36,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/malloc.h>
 #include <sys/mbuf.h>
 #include <sys/socket.h>
+#include <sys/sockio.h>
 #include <sys/systm.h>
 #include <sys/queue.h>
 #include <sys/syslog.h>
@@ -73,6 +74,9 @@ static VNET_DEFINE(struct scope6_id, sid_default);
 #define SID(ifp) \
 	(((struct in6_ifextra *)(ifp)->if_afdata[AF_INET6])->scope6_id)
 
+static int	scope6_get(struct ifnet *, struct scope6_id *);
+static int	scope6_set(struct ifnet *, struct scope6_id *);
+
 void
 scope6_init(void)
 {
@@ -90,22 +94,14 @@ scope6_ifattach(struct ifnet *ifp)
 {
 	struct scope6_id *sid;
 
-	sid = (struct scope6_id *)malloc(sizeof(*sid), M_IFADDR, M_WAITOK);
-	bzero(sid, sizeof(*sid));
-
+	sid = malloc(sizeof(*sid), M_IFADDR, M_WAITOK | M_ZERO);
 	/*
 	 * XXX: IPV6_ADDR_SCOPE_xxx macros are not standard.
 	 * Should we rather hardcode here?
 	 */
 	sid->s6id_list[IPV6_ADDR_SCOPE_INTFACELOCAL] = ifp->if_index;
 	sid->s6id_list[IPV6_ADDR_SCOPE_LINKLOCAL] = ifp->if_index;
-#ifdef MULTI_SCOPE
-	/* by default, we don't care about scope boundary for these scopes. */
-	sid->s6id_list[IPV6_ADDR_SCOPE_SITELOCAL] = 1;
-	sid->s6id_list[IPV6_ADDR_SCOPE_ORGLOCAL] = 1;
-#endif
-
-	return sid;
+	return (sid);
 }
 
 void
@@ -116,6 +112,30 @@ scope6_ifdetach(struct scope6_id *sid)
 }
 
 int
+scope6_ioctl(u_long cmd, caddr_t data, struct ifnet *ifp)
+{
+	struct in6_ifreq *ifr;
+
+	if (ifp->if_afdata[AF_INET6] == NULL)
+		return (EPFNOSUPPORT);
+
+	ifr = (struct in6_ifreq *)data;
+	switch (cmd) {
+	case SIOCSSCOPE6:
+		return (scope6_set(ifp,
+		    (struct scope6_id *)ifr->ifr_ifru.ifru_scope_id));
+	case SIOCGSCOPE6:
+		return (scope6_get(ifp,
+		    (struct scope6_id *)ifr->ifr_ifru.ifru_scope_id));
+	case SIOCGSCOPE6DEF:
+		return (scope6_get_default(
+		    (struct scope6_id *)ifr->ifr_ifru.ifru_scope_id));
+	default:
+		return (EOPNOTSUPP);
+	}
+}
+
+static int
 scope6_set(struct ifnet *ifp, struct scope6_id *idlist)
 {
 	int i;
@@ -178,7 +198,7 @@ scope6_set(struct ifnet *ifp, struct scope6_id *idlist)
 	return (error);
 }
 
-int
+static int
 scope6_get(struct ifnet *ifp, struct scope6_id *idlist)
 {
 	struct scope6_id *sid;
@@ -197,7 +217,6 @@ scope6_get(struct ifnet *ifp, struct scope6_id *idlist)
 	return (0);
 }
 
-
 /*
  * Get a scope of the address. Node-local, link-local, site-local or global.
  */
@@ -205,11 +224,20 @@ int
 in6_addrscope(const struct in6_addr *addr)
 {
 
-	if (IN6_IS_ADDR_MULTICAST(addr))
+	if (IN6_IS_ADDR_MULTICAST(addr)) {
+		/*
+		 * Addresses with reserved value F must be treated as
+		 * global multicast addresses.
+		 */
+		if (IPV6_ADDR_MC_SCOPE(addr) == 0x0f)
+			return (IPV6_ADDR_SCOPE_GLOBAL);
 		return (IPV6_ADDR_MC_SCOPE(addr));
+	}
 	if (IN6_IS_ADDR_LINKLOCAL(addr) ||
 	    IN6_IS_ADDR_LOOPBACK(addr))
 		return (IPV6_ADDR_SCOPE_LINKLOCAL);
+	if (IN6_IS_ADDR_SITELOCAL(addr))
+		return (IPV6_ADDR_SCOPE_SITELOCAL);
 	return (IPV6_ADDR_SCOPE_GLOBAL);
 }
 
@@ -425,10 +453,9 @@ in6_getscope(struct in6_addr *in6)
 
 	return (0);
 }
-
 /*
- * Return pointer to ifnet structure, corresponding to the
- * link-local scope zone id.
+ * Return pointer to ifnet structure, corresponding to the zone id of
+ * link-local scope.
  */
 struct ifnet*
 in6_getlinkifnet(uint32_t zoneid)
@@ -439,7 +466,6 @@ in6_getlinkifnet(uint32_t zoneid)
 
 /*
  * Return zone id for the specified scope.
- * XXX: currently we don't take any locks.
  */
 uint32_t
 in6_getscopezone(const struct ifnet *ifp, int scope)
@@ -575,3 +601,5 @@ sa6_checkzone_opts(struct ip6_pktopts *opts, struct ip6_moptions *mopts,
 	}
 	return (sa6_checkzone(sa6));
 }
+
+

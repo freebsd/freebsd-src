@@ -1424,7 +1424,7 @@ cache_enter(struct vnode *dvp, struct vnode *vp, struct componentname *cnp)
  * This function updates path string to vnode's full global path
  * and checks the size of the new path string against the pathlen argument.
  *
- * Requires a locked, referenced vnode and GIANT lock held.
+ * Requires a locked, referenced vnode.
  * Vnode is re-locked on success or ENODEV, otherwise unlocked.
  *
  * If sysctl debug.disablefullpath is set, ENODEV is returned,

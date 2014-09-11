@@ -184,7 +184,7 @@ dtrace_go(dtrace_hdl_t *dtp)
 {
 	dtrace_enable_io_t args;
 	void *dof;
-	int err;
+	int error, r;
 
 	if (dtp->dt_active)
 		return (dt_set_errno(dtp, EINVAL));
@@ -206,11 +206,12 @@ dtrace_go(dtrace_hdl_t *dtp)
 
 	args.dof = dof;
 	args.n_matched = 0;
-	err = dt_ioctl(dtp, DTRACEIOC_ENABLE, &args);
+	r = dt_ioctl(dtp, DTRACEIOC_ENABLE, &args);
+	error = errno;
 	dtrace_dof_destroy(dtp, dof);
 
-	if (err == -1 && (errno != ENOTTY || dtp->dt_vector == NULL))
-		return (dt_set_errno(dtp, errno));
+	if (r == -1 && (error != ENOTTY || dtp->dt_vector == NULL))
+		return (dt_set_errno(dtp, error));
 
 	if (dt_ioctl(dtp, DTRACEIOC_GO, &dtp->dt_beganon) == -1) {
 		if (errno == EACCES)

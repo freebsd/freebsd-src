@@ -43,13 +43,11 @@ __FBSDID("$FreeBSD$");
 #include <sys/timetc.h>
 #include <sys/watchdog.h>
 
-#include <dev/fdt/fdt_common.h>
 #include <dev/ofw/openfirm.h>
 #include <dev/ofw/ofw_bus.h>
 #include <dev/ofw/ofw_bus_subr.h>
 
 #include <machine/bus.h>
-#include <machine/fdt.h>
 #include <machine/cpu.h>
 #include <machine/intr.h>
 
@@ -352,6 +350,9 @@ combiner_setup_intr(char *source_name, void (*ih)(void *), void *ih_user)
 static int
 combiner_probe(device_t dev)
 {
+
+	if (!ofw_bus_status_okay(dev))
+		return (ENXIO);
 
 	if (!ofw_bus_is_compatible(dev, "exynos,combiner"))
 		return (ENXIO);

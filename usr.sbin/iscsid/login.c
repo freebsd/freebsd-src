@@ -26,8 +26,10 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
  */
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #include <sys/types.h>
 #include <sys/ioctl.h>
@@ -211,6 +213,7 @@ login_handle_redirection(struct connection *conn, struct pdu *response)
 
 	log_debugx("received redirection to \"%s\"", target_address);
 	kernel_modify(conn, target_address);
+	keys_delete(response_keys);
 }
 
 static struct pdu *

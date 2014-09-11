@@ -39,6 +39,7 @@
 #include <sys/lock.h>
 #include <sys/lockmgr.h>
 #include <sys/_mutex.h>
+#include <sys/_sx.h>
 #endif
 
 /*
@@ -259,6 +260,7 @@ void          __mnt_vnode_markerfree_active(struct vnode **mvp, struct mount *);
 #define	MNT_NOCLUSTERR	0x0000000040000000ULL /* disable cluster read */
 #define	MNT_NOCLUSTERW	0x0000000080000000ULL /* disable cluster write */
 #define	MNT_SUJ		0x0000000100000000ULL /* using journaled soft updates */
+#define	MNT_AUTOMOUNTED	0x0000000200000000ULL /* mounted by automountd(8) */
 
 /*
  * NFS export related mount flags.
@@ -295,7 +297,7 @@ void          __mnt_vnode_markerfree_active(struct vnode **mvp, struct mount *);
 			MNT_NOCLUSTERW	| MNT_SUIDDIR	| MNT_SOFTDEP	| \
 			MNT_IGNORE	| MNT_EXPUBLIC	| MNT_NOSYMFOLLOW | \
 			MNT_GJOURNAL	| MNT_MULTILABEL | MNT_ACLS	| \
-			MNT_NFS4ACLS)
+			MNT_NFS4ACLS	| MNT_AUTOMOUNTED)
 
 /* Mask of flags that can be updated. */
 #define	MNT_UPDATEMASK (MNT_NOSUID	| MNT_NOEXEC	| \
@@ -303,7 +305,8 @@ void          __mnt_vnode_markerfree_active(struct vnode **mvp, struct mount *);
 			MNT_NOATIME | \
 			MNT_NOSYMFOLLOW	| MNT_IGNORE	| \
 			MNT_NOCLUSTERR	| MNT_NOCLUSTERW | MNT_SUIDDIR	| \
-			MNT_ACLS	| MNT_USER | MNT_NFS4ACLS)
+			MNT_ACLS	| MNT_USER	| MNT_NFS4ACLS	| \
+			MNT_AUTOMOUNTED)
 
 /*
  * External filesystem command modifier flags.
@@ -889,6 +892,11 @@ void	vfs_unmountall(void);
 extern	TAILQ_HEAD(mntlist, mount) mountlist;	/* mounted filesystem list */
 extern	struct mtx mountlist_mtx;
 extern	struct nfs_public nfs_pub;
+extern	struct sx vfsconf_sx;
+#define	vfsconf_lock()		sx_xlock(&vfsconf_sx)
+#define	vfsconf_unlock()	sx_xunlock(&vfsconf_sx)
+#define	vfsconf_slock()		sx_slock(&vfsconf_sx)
+#define	vfsconf_sunlock()	sx_sunlock(&vfsconf_sx)
 
 /*
  * Declarations for these vfs default operations are located in

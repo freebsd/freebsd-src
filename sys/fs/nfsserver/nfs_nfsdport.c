@@ -3321,23 +3321,16 @@ nfsd_modevent(module_t mod, int type, void *data)
 			goto out;
 		newnfs_portinit();
 		for (i = 0; i < NFSRVCACHE_HASHSIZE; i++) {
-			snprintf(nfsrchash_table[i].lock_name,
-			    sizeof(nfsrchash_table[i].lock_name), "nfsrc_tcp%d",
-			    i);
-			mtx_init(&nfsrchash_table[i].mtx,
-			    nfsrchash_table[i].lock_name, NULL, MTX_DEF);
-			snprintf(nfsrcahash_table[i].lock_name,
-			    sizeof(nfsrcahash_table[i].lock_name), "nfsrc_tcpa%d",
-			    i);
-			mtx_init(&nfsrcahash_table[i].mtx,
-			    nfsrcahash_table[i].lock_name, NULL, MTX_DEF);
+			mtx_init(&nfsrchash_table[i].mtx, "nfsrtc", NULL,
+			    MTX_DEF);
+			mtx_init(&nfsrcahash_table[i].mtx, "nfsrtca", NULL,
+			    MTX_DEF);
 		}
-		mtx_init(&nfsrc_udpmtx, "nfs_udpcache_mutex", NULL, MTX_DEF);
-		mtx_init(&nfs_v4root_mutex, "nfs_v4root_mutex", NULL, MTX_DEF);
-		mtx_init(&nfsv4root_mnt.mnt_mtx, "struct mount mtx", NULL,
-		    MTX_DEF);
+		mtx_init(&nfsrc_udpmtx, "nfsuc", NULL, MTX_DEF);
+		mtx_init(&nfs_v4root_mutex, "nfs4rt", NULL, MTX_DEF);
+		mtx_init(&nfsv4root_mnt.mnt_mtx, "nfs4mnt", NULL, MTX_DEF);
 		for (i = 0; i < NFSSESSIONHASHSIZE; i++)
-			mtx_init(&nfssessionhash[i].mtx, "nfs_session_mutex",
+			mtx_init(&nfssessionhash[i].mtx, "nfssm",
 			    NULL, MTX_DEF);
 		lockinit(&nfsv4root_mnt.mnt_explock, PVFS, "explock", 0, 0);
 		nfsrvd_initcache();

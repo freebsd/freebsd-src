@@ -271,14 +271,30 @@ srcaddrcmp(struct srcaddr_choice *c, struct in6_ifaddr *ia,
 			REPLACE(7);
 		NEXT(7);
 	}
-	/* Rule 8: Use longest matching prefix. */
+	/*
+	 * Rule 8: prefer address with better virtual status.
+	 */
+	if (ifa_preferred(&c->ia->ia_ifa, &ia->ia_ifa))
+		REPLACE(8);
+	if (ifa_preferred(&ia->ia_ifa, &c->ia->ia_ifa))
+		NEXT(8);
+	/*
+	 * Rule 9: prefer address with `prefer_source' flag.
+	 */
+	if ((c->ia->ia6_flags & IN6_IFF_PREFER_SOURCE) == 0 &&
+	    (ia->ia6_flags & IN6_IFF_PREFER_SOURCE) != 0)
+		REPLACE(9);
+	if ((c->ia->ia6_flags & IN6_IFF_PREFER_SOURCE) != 0 &&
+	    (ia->ia6_flags & IN6_IFF_PREFER_SOURCE) == 0)
+		NEXT(9);
+	/* Rule 14: Use longest matching prefix. */
 	if (c->prefixlen < 0)
 		c->prefixlen = in6_matchlen(IA6_IN6(c->ia), dst->addr);
 	prefixlen = in6_matchlen(IA6_IN6(ia), dst->addr);
 	if (c->prefixlen > prefixlen)
-		NEXT(8);
+		NEXT(14);
 	if (prefixlen > c->prefixlen)
-		REPLACE(8);
+		REPLACE(14);
 	return (-1);
 replace:
 	/* debug output */

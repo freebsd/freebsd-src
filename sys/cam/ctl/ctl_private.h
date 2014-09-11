@@ -304,7 +304,7 @@ static const struct ctl_page_index page_index_template[] = {
 	{SMS_RIGID_DISK_PAGE, 0, sizeof(struct scsi_rigid_disk_page), NULL,
 	 CTL_PAGE_FLAG_DISK_ONLY, NULL, NULL},
 	{SMS_CACHING_PAGE, 0, sizeof(struct scsi_caching_page), NULL,
-	 CTL_PAGE_FLAG_DISK_ONLY, NULL, NULL},
+	 CTL_PAGE_FLAG_DISK_ONLY, NULL, ctl_caching_sp_handler},
 	{SMS_CONTROL_MODE_PAGE, 0, sizeof(struct scsi_control_page), NULL,
 	 CTL_PAGE_FLAG_NONE, NULL, ctl_control_page_handler},
    	{SMS_VENDOR_SPECIFIC_PAGE | SMPH_SPF, PWR_SUBPAGE_CODE,
@@ -422,6 +422,7 @@ struct ctl_thread {
 	STAILQ_HEAD(, ctl_io_hdr) isc_queue;
 };
 
+struct tpc_token;
 struct ctl_softc {
 	struct mtx ctl_lock;
 	struct cdev *dev;
@@ -440,9 +441,9 @@ struct ctl_softc {
 	struct ctl_io_pool *othersc_pool;
 	struct proc *ctl_proc;
 	int targ_online;
-	uint32_t ctl_lun_mask[CTL_MAX_LUNS >> 5];
+	uint32_t ctl_lun_mask[(CTL_MAX_LUNS + 31) / 32];
 	struct ctl_lun *ctl_luns[CTL_MAX_LUNS];
-	uint32_t ctl_port_mask;
+	uint32_t ctl_port_mask[(CTL_MAX_PORTS + 31) / 32];
 	uint64_t aps_locked_lun;
 	STAILQ_HEAD(, ctl_lun) lun_list;
 	STAILQ_HEAD(, ctl_be_lun) pending_lun_queue;
@@ -460,6 +461,8 @@ struct ctl_softc {
 	time_t last_print_jiffies;
 	uint32_t skipped_prints;
 	struct ctl_thread threads[CTL_MAX_THREADS];
+	TAILQ_HEAD(tpc_tokens, tpc_token) tpc_tokens;
+	struct callout tpc_timeout;
 };
 
 #ifdef _KERNEL
@@ -500,8 +503,10 @@ int ctl_report_supported_tmf(struct ctl_scsiio *ctsio);
 int ctl_report_timestamp(struct ctl_scsiio *ctsio);
 int ctl_isc(struct ctl_scsiio *ctsio);
 
-void ctl_tpc_init(struct ctl_lun *lun);
-void ctl_tpc_shutdown(struct ctl_lun *lun);
+void ctl_tpc_init(struct ctl_softc *softc);
+void ctl_tpc_shutdown(struct ctl_softc *softc);
+void ctl_tpc_lun_init(struct ctl_lun *lun);
+void ctl_tpc_lun_shutdown(struct ctl_lun *lun);
 int ctl_inquiry_evpd_tpc(struct ctl_scsiio *ctsio, int alloc_len);
 int ctl_receive_copy_status_lid1(struct ctl_scsiio *ctsio);
 int ctl_receive_copy_failure_details(struct ctl_scsiio *ctsio);
@@ -510,6 +515,10 @@ int ctl_receive_copy_operating_parameters(struct ctl_scsiio *ctsio);
 int ctl_extended_copy_lid1(struct ctl_scsiio *ctsio);
 int ctl_extended_copy_lid4(struct ctl_scsiio *ctsio);
 int ctl_copy_operation_abort(struct ctl_scsiio *ctsio);
+int ctl_populate_token(struct ctl_scsiio *ctsio);
+int ctl_write_using_token(struct ctl_scsiio *ctsio);
+int ctl_receive_rod_token_information(struct ctl_scsiio *ctsio);
+int ctl_report_all_rod_tokens(struct ctl_scsiio *ctsio);
 
 #endif	/* _KERNEL */
 

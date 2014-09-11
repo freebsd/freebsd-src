@@ -199,7 +199,6 @@ MAN=	accept_filter.9 \
 	physio.9 \
 	pmap.9 \
 	pmap_activate.9 \
-	pmap_change_wiring.9 \
 	pmap_clear_modify.9 \
 	pmap_copy.9 \
 	pmap_enter.9 \
@@ -1351,33 +1350,37 @@ MLINKS+=sx.9 sx_assert.9 \
 	sx.9 sx_xlocked.9 \
 	sx.9 sx_xunlock.9
 MLINKS+=sysctl.9 SYSCTL_DECL.9 \
+	sysctl.9 SYSCTL_ADD_INT.9 \
+	sysctl.9 SYSCTL_ADD_LONG.9 \
+	sysctl.9 SYSCTL_ADD_NODE.9 \
+	sysctl.9 SYSCTL_ADD_OPAQUE.9 \
+	sysctl.9 SYSCTL_ADD_PROC.9 \
+	sysctl.9 SYSCTL_ADD_QUAD.9 \
+	sysctl.9 SYSCTL_ADD_ROOT_NODE.9 \
+	sysctl.9 SYSCTL_ADD_STRING.9 \
+	sysctl.9 SYSCTL_ADD_STRUCT.9 \
+	sysctl.9 SYSCTL_ADD_UINT.9 \
+	sysctl.9 SYSCTL_ADD_ULONG.9 \
+	sysctl.9 SYSCTL_ADD_UQUAD.9 \
+	sysctl.9 SYSCTL_CHILDREN.9 \
+	sysctl.9 SYSCTL_STATIC_CHILDREN.9 \
+	sysctl.9 SYSCTL_NODE_CHILDREN.9 \
+	sysctl.9 SYSCTL_PARENT.9 \
 	sysctl.9 SYSCTL_INT.9 \
 	sysctl.9 SYSCTL_LONG.9 \
 	sysctl.9 SYSCTL_NODE.9 \
 	sysctl.9 SYSCTL_OPAQUE.9 \
 	sysctl.9 SYSCTL_PROC.9 \
 	sysctl.9 SYSCTL_QUAD.9 \
+	sysctl.9 SYSCTL_ROOT_NODE.9 \
 	sysctl.9 SYSCTL_STRING.9 \
 	sysctl.9 SYSCTL_STRUCT.9 \
 	sysctl.9 SYSCTL_UINT.9 \
 	sysctl.9 SYSCTL_ULONG.9 \
 	sysctl.9 SYSCTL_UQUAD.9
-MLINKS+=sysctl_add_oid.9 SYSCTL_ADD_INT.9 \
-	sysctl_add_oid.9 SYSCTL_ADD_LONG.9 \
-	sysctl_add_oid.9 SYSCTL_ADD_NODE.9 \
-	sysctl_add_oid.9 SYSCTL_ADD_OID.9 \
-	sysctl_add_oid.9 SYSCTL_ADD_OPAQUE.9 \
-	sysctl_add_oid.9 SYSCTL_ADD_PROC.9 \
-	sysctl_add_oid.9 SYSCTL_ADD_QUAD.9 \
-	sysctl_add_oid.9 SYSCTL_ADD_STRING.9 \
-	sysctl_add_oid.9 SYSCTL_ADD_STRUCT.9 \
-	sysctl_add_oid.9 SYSCTL_ADD_UINT.9 \
-	sysctl_add_oid.9 SYSCTL_ADD_ULONG.9 \
-	sysctl_add_oid.9 SYSCTL_ADD_UQUAD.9 \
-	sysctl_add_oid.9 SYSCTL_CHILDREN.9 \
-	sysctl_add_oid.9 sysctl_move_oid.9 \
+MLINKS+=sysctl_add_oid.9 sysctl_move_oid.9 \
 	sysctl_add_oid.9 sysctl_remove_oid.9 \
-	sysctl_add_oid.9 SYSCTL_STATIC_CHILDREN.9
+	sysctl_add_oid.9 sysctl_remove_name.9
 MLINKS+=sysctl_ctx_init.9 sysctl_ctx_entry_add.9 \
 	sysctl_ctx_init.9 sysctl_ctx_entry_del.9 \
 	sysctl_ctx_init.9 sysctl_ctx_entry_find.9 \

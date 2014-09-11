@@ -620,7 +620,7 @@ spinlock_enter(void)
 
 	td = curthread;
 	if (td->td_md.md_spinlock_count == 0) {
-		cspr = disable_interrupts(I32_bit | F32_bit);
+		cspr = disable_interrupts(PSR_I | PSR_F);
 		td->td_md.md_spinlock_count = 1;
 		td->td_md.md_saved_cspr = cspr;
 	} else
@@ -747,7 +747,7 @@ sys_sigreturn(td, uap)
 	 */
 	spsr = uc.uc_mcontext.__gregs[_REG_CPSR];
 	if ((spsr & PSR_MODE) != PSR_USR32_MODE ||
-	    (spsr & (I32_bit | F32_bit)) != 0)
+	    (spsr & (PSR_I | PSR_F)) != 0)
 		return (EINVAL);
 		/* Restore register context. */
 	set_mcontext(td, &uc.uc_mcontext);
@@ -1278,7 +1278,6 @@ initarm(struct arm_boot_params *abp)
 
 	init_proc0(kernelstack.pv_va);
 
-	arm_intrnames_init();
 	arm_vector_init(ARM_VECTORS_HIGH, ARM_VEC_ALL);
 	pmap_bootstrap(freemempos, &kernel_l1pt);
 	msgbufp = (void *)msgbufpv.pv_va;

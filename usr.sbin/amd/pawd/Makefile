@@ -17,6 +17,4 @@ CFLAGS+= -I${.CURDIR}/../../../contrib/amd/amq
 DPADD=	${LIBAMU}
 LDADD=	${LIBAMU}
 
-NO_PIE=	yes
-
 .include <bsd.prog.mk>

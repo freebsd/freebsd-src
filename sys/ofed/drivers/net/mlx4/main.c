@@ -34,7 +34,6 @@
  */
 
 #include <linux/module.h>
-#include <linux/init.h>
 #include <linux/errno.h>
 #include <linux/pci.h>
 #include <linux/dma-mapping.h>
@@ -42,6 +41,7 @@
 #include <linux/io-mapping.h>
 #include <linux/delay.h>
 #include <linux/netdevice.h>
+#include <linux/fs.h>
 
 #include <linux/mlx4/device.h>
 #include <linux/mlx4/doorbell.h>

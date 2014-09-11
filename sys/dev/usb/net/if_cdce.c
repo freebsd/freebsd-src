@@ -80,6 +80,7 @@ __FBSDID("$FreeBSD$");
 #define	USB_DEBUG_VAR cdce_debug
 #include <dev/usb/usb_debug.h>
 #include <dev/usb/usb_process.h>
+#include <dev/usb/usb_msctest.h>
 #include "usb_if.h"
 
 #include <dev/usb/net/usb_ethernet.h>
@@ -251,8 +252,11 @@ static driver_t cdce_driver = {
 };
 
 static devclass_t cdce_devclass;
+static eventhandler_tag cdce_etag;
 
-DRIVER_MODULE(cdce, uhub, cdce_driver, cdce_devclass, NULL, 0);
+static int  cdce_driver_loaded(struct module *, int, void *);
+
+DRIVER_MODULE(cdce, uhub, cdce_driver, cdce_devclass, cdce_driver_loaded, 0);
 MODULE_VERSION(cdce, 1);
 MODULE_DEPEND(cdce, uether, 1, 1, 1);
 MODULE_DEPEND(cdce, usb, 1, 1, 1);
@@ -265,6 +269,10 @@ static const struct usb_ether_methods cdce_ue_methods = {
 	.ue_stop = cdce_stop,
 	.ue_setmulti = cdce_setmulti,
 	.ue_setpromisc = cdce_setpromisc,
+};
+
+static const STRUCT_USB_HOST_ID cdce_switch_devs[] = {
+	{USB_VPI(USB_VENDOR_HUAWEI, USB_PRODUCT_HUAWEI_E3272_INIT, MSC_EJECT_HUAWEI2)},
 };
 
 static const STRUCT_USB_HOST_ID cdce_host_devs[] = {
@@ -281,6 +289,16 @@ static const STRUCT_USB_HOST_ID cdce_host_devs[] = {
 	{USB_VPI(USB_VENDOR_SHARP, USB_PRODUCT_SHARP_SLA300, CDCE_FLAG_ZAURUS | CDCE_FLAG_NO_UNION)},
 	{USB_VPI(USB_VENDOR_SHARP, USB_PRODUCT_SHARP_SLC700, CDCE_FLAG_ZAURUS | CDCE_FLAG_NO_UNION)},
 	{USB_VPI(USB_VENDOR_SHARP, USB_PRODUCT_SHARP_SLC750, CDCE_FLAG_ZAURUS | CDCE_FLAG_NO_UNION)},
+
+	{USB_VENDOR(USB_VENDOR_HUAWEI), USB_IFACE_CLASS(UICLASS_VENDOR),
+		USB_IFACE_SUBCLASS(0x02), USB_IFACE_PROTOCOL(0x16),
+		USB_DRIVER_INFO(0)},
+	{USB_VENDOR(USB_VENDOR_HUAWEI), USB_IFACE_CLASS(UICLASS_VENDOR),
+		USB_IFACE_SUBCLASS(0x02), USB_IFACE_PROTOCOL(0x46),
+		USB_DRIVER_INFO(0)},
+	{USB_VENDOR(USB_VENDOR_HUAWEI), USB_IFACE_CLASS(UICLASS_VENDOR),
+		USB_IFACE_SUBCLASS(0x02), USB_IFACE_PROTOCOL(0x76),
+		USB_DRIVER_INFO(0)},
 };
 
 static const STRUCT_USB_DUAL_ID cdce_dual_devs[] = {
@@ -473,6 +491,48 @@ cdce_ncm_init(struct cdce_softc *sc)
 	return (0);		/* success */
 }
 #endif
+
+static void
+cdce_test_autoinst(void *arg, struct usb_device *udev,
+    struct usb_attach_arg *uaa)
+{
+	struct usb_interface *iface;
+	struct usb_interface_descriptor *id;
+
+	if (uaa->dev_state != UAA_DEV_READY)
+		return;
+
+	iface = usbd_get_iface(udev, 0);
+	if (iface == NULL)
+		return;
+	id = iface->idesc;
+	if (id == NULL || id->bInterfaceClass != UICLASS_MASS)
+		return;
+	if (usbd_lookup_id_by_uaa(cdce_switch_devs, sizeof(cdce_switch_devs), uaa))
+		return;		/* no device match */
+
+	if (usb_msc_eject(udev, 0, USB_GET_DRIVER_INFO(uaa)) == 0) {
+		/* success, mark the udev as disappearing */
+		uaa->dev_state = UAA_DEV_EJECTING;
+	}
+}
+
+static int
+cdce_driver_loaded(struct module *mod, int what, void *arg)
+{
+	switch (what) {
+	case MOD_LOAD:
+		/* register our autoinstall handler */
+		cdce_etag = EVENTHANDLER_REGISTER(usb_dev_configured,
+		    cdce_test_autoinst, NULL, EVENTHANDLER_PRI_ANY);
+		return (0);
+	case MOD_UNLOAD:
+		EVENTHANDLER_DEREGISTER(usb_dev_configured, cdce_etag);
+		return (0);
+	default:
+		return (EOPNOTSUPP);
+	}
+}
 
 static int
 cdce_probe(device_t dev)

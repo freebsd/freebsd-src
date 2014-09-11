@@ -2980,3 +2980,28 @@ freebsd32_procctl(struct thread *td, struct freebsd32_procctl_args *uap)
 	return (kern_procctl(td, uap->idtype, PAIR32TO64(id_t, uap->id),
 	    uap->com, data));
 }
+
+int
+freebsd32_fcntl(struct thread *td, struct freebsd32_fcntl_args *uap)
+{
+	intptr_t tmp;
+
+	switch (uap->cmd) {
+	/*
+	 * Do unsigned conversion for arg when operation
+	 * interprets it as flags or pointer.
+	 */
+	case F_SETLK_REMOTE:
+	case F_SETLKW:
+	case F_SETLK:
+	case F_GETLK:
+	case F_SETFD:
+	case F_SETFL:
+		tmp = (unsigned int)(uap->arg);
+		break;
+	default:
+		tmp = uap->arg;
+		break;
+	}
+	return (kern_fcntl(td, uap->fd, uap->cmd, tmp));
+}

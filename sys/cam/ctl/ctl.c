@@ -263,7 +263,7 @@ static struct scsi_caching_page caching_page_default = {
 static struct scsi_caching_page caching_page_changeable = {
 	/*page_code*/SMS_CACHING_PAGE,
 	/*page_length*/sizeof(struct scsi_caching_page) - 2,
-	/*flags1*/ 0,
+	/*flags1*/ SCP_WCE | SCP_RCD,
 	/*ret_priority*/ 0,
 	/*disable_pf_transfer_len*/ {0, 0},
 	/*min_prefetch*/ {0, 0},
@@ -320,10 +320,11 @@ SYSCTL_INT(_kern_cam_ctl, OID_AUTO, verbose, CTLFLAG_RWTUN,
 
 /*
  * Supported pages (0x00), Serial number (0x80), Device ID (0x83),
- * SCSI Ports (0x88), Third-party Copy (0x8F), Block limits (0xB0) and
- * Logical Block Provisioning (0xB2)
+ * Mode Page Policy (0x87),
+ * SCSI Ports (0x88), Third-party Copy (0x8F), Block limits (0xB0),
+ * Block Device Characteristics (0xB1) and Logical Block Provisioning (0xB2)
  */
-#define SCSI_EVPD_NUM_SUPPORTED_PAGES	7
+#define SCSI_EVPD_NUM_SUPPORTED_PAGES	9
 
 static void ctl_isc_event_handler(ctl_ha_channel chanel, ctl_ha_event event,
 				  int param);
@@ -379,10 +380,12 @@ static void ctl_hndl_per_res_out_on_other_sc(union ctl_ha_msg *msg);
 static int ctl_inquiry_evpd_supported(struct ctl_scsiio *ctsio, int alloc_len);
 static int ctl_inquiry_evpd_serial(struct ctl_scsiio *ctsio, int alloc_len);
 static int ctl_inquiry_evpd_devid(struct ctl_scsiio *ctsio, int alloc_len);
+static int ctl_inquiry_evpd_mpp(struct ctl_scsiio *ctsio, int alloc_len);
 static int ctl_inquiry_evpd_scsi_ports(struct ctl_scsiio *ctsio,
 					 int alloc_len);
 static int ctl_inquiry_evpd_block_limits(struct ctl_scsiio *ctsio,
 					 int alloc_len);
+static int ctl_inquiry_evpd_bdc(struct ctl_scsiio *ctsio, int alloc_len);
 static int ctl_inquiry_evpd_lbp(struct ctl_scsiio *ctsio, int alloc_len);
 static int ctl_inquiry_evpd(struct ctl_scsiio *ctsio);
 static int ctl_inquiry_std(struct ctl_scsiio *ctsio);
@@ -1023,6 +1026,7 @@ ctl_init(void)
 	STAILQ_INIT(&softc->port_list);
 	STAILQ_INIT(&softc->be_list);
 	STAILQ_INIT(&softc->io_pools);
+	ctl_tpc_init(softc);
 
 	if (ctl_pool_create(softc, CTL_POOL_INTERNAL, CTL_POOL_ENTRIES_INTERNAL,
 			    &internal_pool)!= 0){
@@ -1170,6 +1174,7 @@ ctl_shutdown(void)
 	mtx_destroy(&softc->queue_lock);
 #endif
 
+	ctl_tpc_shutdown(softc);
 	mtx_destroy(&softc->pool_lock);
 	mtx_destroy(&softc->ctl_lock);
 
@@ -2538,7 +2543,7 @@ ctl_ioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flag,
 
 		mtx_lock(&softc->ctl_lock);
 		if (((ooa_hdr->flags & CTL_OOA_FLAG_ALL_LUNS) == 0)
-		 && ((ooa_hdr->lun_num > CTL_MAX_LUNS)
+		 && ((ooa_hdr->lun_num >= CTL_MAX_LUNS)
 		  || (softc->ctl_luns[ooa_hdr->lun_num] == NULL))) {
 			mtx_unlock(&softc->ctl_lock);
 			free(entries, M_CTL);
@@ -2733,7 +2738,7 @@ ctl_ioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flag,
 #ifdef CTL_IO_DELAY
 		mtx_lock(&softc->ctl_lock);
 
-		if ((delay_info->lun_id > CTL_MAX_LUNS)
+		if ((delay_info->lun_id >= CTL_MAX_LUNS)
 		 || (softc->ctl_luns[delay_info->lun_id] == NULL)) {
 			delay_info->status = CTL_DELAY_STATUS_INVALID_LUN;
 		} else {
@@ -2894,6 +2899,7 @@ ctl_ioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flag,
 		lun = softc->ctl_luns[err_desc->lun_id];
 		if (lun == NULL) {
 			mtx_unlock(&softc->ctl_lock);
+			free(new_err_desc, M_CTL);
 			printf("%s: CTL_ERROR_INJECT: invalid LUN %ju\n",
 			       __func__, (uintmax_t)err_desc->lun_id);
 			retval = EINVAL;
@@ -4596,7 +4602,7 @@ ctl_alloc_lun(struct ctl_softc *ctl_softc, struct ctl_lun *ctl_lun,
 	TAILQ_INIT(&lun->ooa_queue);
 	TAILQ_INIT(&lun->blocked_queue);
 	STAILQ_INIT(&lun->error_list);
-	ctl_tpc_init(lun);
+	ctl_tpc_lun_init(lun);
 
 	/*
 	 * Initialize the mode page index.
@@ -4748,7 +4754,7 @@ ctl_free_lun(struct ctl_lun *lun)
 	atomic_subtract_int(&lun->be_lun->be->num_luns, 1);
 	lun->be_lun->lun_shutdown(lun->be_lun->be_lun);
 
-	ctl_tpc_shutdown(lun);
+	ctl_tpc_lun_shutdown(lun);
 	mtx_destroy(&lun->lun_lock);
 	free(lun->lun_devid, M_CTL);
 	if (lun->flags & CTL_LUN_MALLOCED)
@@ -6246,6 +6252,53 @@ ctl_control_page_handler(struct ctl_scsiio *ctsio,
 }
 
 int
+ctl_caching_sp_handler(struct ctl_scsiio *ctsio,
+		     struct ctl_page_index *page_index, uint8_t *page_ptr)
+{
+	struct scsi_caching_page *current_cp, *saved_cp, *user_cp;
+	struct ctl_lun *lun;
+	int set_ua;
+	uint32_t initidx;
+
+	lun = (struct ctl_lun *)ctsio->io_hdr.ctl_private[CTL_PRIV_LUN].ptr;
+	initidx = ctl_get_initindex(&ctsio->io_hdr.nexus);
+	set_ua = 0;
+
+	user_cp = (struct scsi_caching_page *)page_ptr;
+	current_cp = (struct scsi_caching_page *)
+		(page_index->page_data + (page_index->page_len *
+		CTL_PAGE_CURRENT));
+	saved_cp = (struct scsi_caching_page *)
+		(page_index->page_data + (page_index->page_len *
+		CTL_PAGE_SAVED));
+
+	mtx_lock(&lun->lun_lock);
+	if ((current_cp->flags1 & (SCP_WCE | SCP_RCD)) !=
+	    (user_cp->flags1 & (SCP_WCE | SCP_RCD)))
+		set_ua = 1;
+	current_cp->flags1 &= ~(SCP_WCE | SCP_RCD);
+	current_cp->flags1 |= user_cp->flags1 & (SCP_WCE | SCP_RCD);
+	saved_cp->flags1 &= ~(SCP_WCE | SCP_RCD);
+	saved_cp->flags1 |= user_cp->flags1 & (SCP_WCE | SCP_RCD);
+	if (set_ua != 0) {
+		int i;
+		/*
+		 * Let other initiators know that the mode
+		 * parameters for this LUN have changed.
+		 */
+		for (i = 0; i < CTL_MAX_INITIATORS; i++) {
+			if (i == initidx)
+				continue;
+
+			lun->pending_ua[i] |= CTL_UA_MODE_CHANGE;
+		}
+	}
+	mtx_unlock(&lun->lun_lock);
+
+	return (0);
+}
+
+int
 ctl_power_sp_handler(struct ctl_scsiio *ctsio,
 		     struct ctl_page_index *page_index, uint8_t *page_ptr)
 {
@@ -7005,7 +7058,8 @@ ctl_mode_sense(struct ctl_scsiio *ctsio)
 		header = (struct scsi_mode_hdr_6 *)ctsio->kern_data_ptr;
 
 		header->datalen = ctl_min(total_len - 1, 254);
-
+		if (control_dev == 0)
+			header->dev_specific = 0x10; /* DPOFUA */
 		if (dbd)
 			header->block_descr_len = 0;
 		else
@@ -7022,6 +7076,8 @@ ctl_mode_sense(struct ctl_scsiio *ctsio)
 
 		datalen = ctl_min(total_len - 2, 65533);
 		scsi_ulto2b(datalen, header->datalen);
+		if (control_dev == 0)
+			header->dev_specific = 0x10; /* DPOFUA */
 		if (dbd)
 			scsi_ulto2b(0, header->block_descr_len);
 		else
@@ -7250,7 +7306,7 @@ ctl_read_capacity_16(struct ctl_scsiio *ctsio)
 	data->prot_lbppbe = lun->be_lun->pblockexp & SRC16_LBPPBE;
 	scsi_ulto2b(lun->be_lun->pblockoff & SRC16_LALBA_A, data->lalba_lbp);
 	if (lun->be_lun->flags & CTL_LUN_FLAG_UNMAP)
-		data->lalba_lbp[0] |= SRC16_LBPME;
+		data->lalba_lbp[0] |= SRC16_LBPME | SRC16_LBPRZ;
 
 	ctsio->scsi_status = SCSI_STATUS_OK;
 
@@ -7907,7 +7963,8 @@ retry:
 			scsi_ulto2b(i / CTL_MAX_INIT_PER_PORT,
 			    res_desc->rel_trgt_port_id);
 			len = 0;
-			port = softc->ctl_ports[i / CTL_MAX_INIT_PER_PORT];
+			port = softc->ctl_ports[
+			    ctl_port_idx(i / CTL_MAX_INIT_PER_PORT)];
 			if (port != NULL)
 				len = ctl_create_iid(port,
 				    i % CTL_MAX_INIT_PER_PORT,
@@ -8973,17 +9030,14 @@ ctl_read_write(struct ctl_scsiio *ctsio)
 	struct ctl_lba_len_flags *lbalen;
 	uint64_t lba;
 	uint32_t num_blocks;
-	int fua, dpo;
-	int retval;
+	int flags, retval;
 	int isread;
 
 	lun = (struct ctl_lun *)ctsio->io_hdr.ctl_private[CTL_PRIV_LUN].ptr;
 
 	CTL_DEBUG_PRINT(("ctl_read_write: command: %#x\n", ctsio->cdb[0]));
 
-	fua = 0;
-	dpo = 0;
-
+	flags = 0;
 	retval = CTL_RETVAL_COMPLETE;
 
 	isread = ctsio->cdb[0] == READ_6  || ctsio->cdb[0] == READ_10
@@ -9029,12 +9083,10 @@ ctl_read_write(struct ctl_scsiio *ctsio)
 		struct scsi_rw_10 *cdb;
 
 		cdb = (struct scsi_rw_10 *)ctsio->cdb;
-
 		if (cdb->byte2 & SRW10_FUA)
-			fua = 1;
+			flags |= CTL_LLF_FUA;
 		if (cdb->byte2 & SRW10_DPO)
-			dpo = 1;
-
+			flags |= CTL_LLF_DPO;
 		lba = scsi_4btoul(cdb->addr);
 		num_blocks = scsi_2btoul(cdb->length);
 		break;
@@ -9043,17 +9095,9 @@ ctl_read_write(struct ctl_scsiio *ctsio)
 		struct scsi_write_verify_10 *cdb;
 
 		cdb = (struct scsi_write_verify_10 *)ctsio->cdb;
-
-		/*
-		 * XXX KDM we should do actual write verify support at some
-		 * point.  This is obviously fake, we're just translating
-		 * things to a write.  So we don't even bother checking the
-		 * BYTCHK field, since we don't do any verification.  If
-		 * the user asks for it, we'll just pretend we did it.
-		 */
+		flags |= CTL_LLF_FUA;
 		if (cdb->byte2 & SWV_DPO)
-			dpo = 1;
-
+			flags |= CTL_LLF_DPO;
 		lba = scsi_4btoul(cdb->addr);
 		num_blocks = scsi_2btoul(cdb->length);
 		break;
@@ -9063,11 +9107,10 @@ ctl_read_write(struct ctl_scsiio *ctsio)
 		struct scsi_rw_12 *cdb;
 
 		cdb = (struct scsi_rw_12 *)ctsio->cdb;
-
 		if (cdb->byte2 & SRW12_FUA)
-			fua = 1;
+			flags |= CTL_LLF_FUA;
 		if (cdb->byte2 & SRW12_DPO)
-			dpo = 1;
+			flags |= CTL_LLF_DPO;
 		lba = scsi_4btoul(cdb->addr);
 		num_blocks = scsi_4btoul(cdb->length);
 		break;
@@ -9076,13 +9119,11 @@ ctl_read_write(struct ctl_scsiio *ctsio)
 		struct scsi_write_verify_12 *cdb;
 
 		cdb = (struct scsi_write_verify_12 *)ctsio->cdb;
-
+		flags |= CTL_LLF_FUA;
 		if (cdb->byte2 & SWV_DPO)
-			dpo = 1;
-		
+			flags |= CTL_LLF_DPO;
 		lba = scsi_4btoul(cdb->addr);
 		num_blocks = scsi_4btoul(cdb->length);
-
 		break;
 	}
 	case READ_16:
@@ -9090,12 +9131,10 @@ ctl_read_write(struct ctl_scsiio *ctsio)
 		struct scsi_rw_16 *cdb;
 
 		cdb = (struct scsi_rw_16 *)ctsio->cdb;
-
 		if (cdb->byte2 & SRW12_FUA)
-			fua = 1;
+			flags |= CTL_LLF_FUA;
 		if (cdb->byte2 & SRW12_DPO)
-			dpo = 1;
-
+			flags |= CTL_LLF_DPO;
 		lba = scsi_8btou64(cdb->addr);
 		num_blocks = scsi_4btoul(cdb->length);
 		break;
@@ -9104,10 +9143,9 @@ ctl_read_write(struct ctl_scsiio *ctsio)
 		struct scsi_write_verify_16 *cdb;
 
 		cdb = (struct scsi_write_verify_16 *)ctsio->cdb;
-
+		flags |= CTL_LLF_FUA;
 		if (cdb->byte2 & SWV_DPO)
-			dpo = 1;
-
+			flags |= CTL_LLF_DPO;
 		lba = scsi_8btou64(cdb->addr);
 		num_blocks = scsi_4btoul(cdb->length);
 		break;
@@ -9123,13 +9161,6 @@ ctl_read_write(struct ctl_scsiio *ctsio)
 		return (CTL_RETVAL_COMPLETE);
 		break; /* NOTREACHED */
 	}
-
-	/*
-	 * XXX KDM what do we do with the DPO and FUA bits?  FUA might be
-	 * interesting for us, but if RAIDCore is in write-back mode,
-	 * getting it to do write-through for a particular transaction may
-	 * not be possible.
-	 */
 
 	/*
 	 * The first check is to make sure we're in bounds, the second
@@ -9155,11 +9186,22 @@ ctl_read_write(struct ctl_scsiio *ctsio)
 		return (CTL_RETVAL_COMPLETE);
 	}
 
+	/* Set FUA and/or DPO if caches are disabled. */
+	if (isread) {
+		if ((lun->mode_pages.caching_page[CTL_PAGE_CURRENT].flags1 &
+		    SCP_RCD) != 0)
+			flags |= CTL_LLF_FUA | CTL_LLF_DPO;
+	} else {
+		if ((lun->mode_pages.caching_page[CTL_PAGE_CURRENT].flags1 &
+		    SCP_WCE) == 0)
+			flags |= CTL_LLF_FUA;
+	}
+
 	lbalen = (struct ctl_lba_len_flags *)
 	    &ctsio->io_hdr.ctl_private[CTL_PRIV_LBA_LEN];
 	lbalen->lba = lba;
 	lbalen->len = num_blocks;
-	lbalen->flags = isread ? CTL_LLF_READ : CTL_LLF_WRITE;
+	lbalen->flags = (isread ? CTL_LLF_READ : CTL_LLF_WRITE) | flags;
 
 	ctsio->kern_total_len = num_blocks * lun->be_lun->blocksize;
 	ctsio->kern_rel_offset = 0;
@@ -9185,7 +9227,8 @@ ctl_cnw_cont(union ctl_io *io)
 	lun = (struct ctl_lun *)ctsio->io_hdr.ctl_private[CTL_PRIV_LUN].ptr;
 	lbalen = (struct ctl_lba_len_flags *)
 	    &ctsio->io_hdr.ctl_private[CTL_PRIV_LBA_LEN];
-	lbalen->flags = CTL_LLF_WRITE;
+	lbalen->flags &= ~CTL_LLF_COMPARE;
+	lbalen->flags |= CTL_LLF_WRITE;
 
 	CTL_DEBUG_PRINT(("ctl_cnw_cont: calling data_submit()\n"));
 	retval = lun->backend->data_submit((union ctl_io *)ctsio);
@@ -9199,16 +9242,13 @@ ctl_cnw(struct ctl_scsiio *ctsio)
 	struct ctl_lba_len_flags *lbalen;
 	uint64_t lba;
 	uint32_t num_blocks;
-	int fua, dpo;
-	int retval;
+	int flags, retval;
 
 	lun = (struct ctl_lun *)ctsio->io_hdr.ctl_private[CTL_PRIV_LUN].ptr;
 
 	CTL_DEBUG_PRINT(("ctl_cnw: command: %#x\n", ctsio->cdb[0]));
 
-	fua = 0;
-	dpo = 0;
-
+	flags = 0;
 	retval = CTL_RETVAL_COMPLETE;
 
 	switch (ctsio->cdb[0]) {
@@ -9216,11 +9256,10 @@ ctl_cnw(struct ctl_scsiio *ctsio)
 		struct scsi_compare_and_write *cdb;
 
 		cdb = (struct scsi_compare_and_write *)ctsio->cdb;
-
 		if (cdb->byte2 & SRW10_FUA)
-			fua = 1;
+			flags |= CTL_LLF_FUA;
 		if (cdb->byte2 & SRW10_DPO)
-			dpo = 1;
+			flags |= CTL_LLF_DPO;
 		lba = scsi_8btou64(cdb->addr);
 		num_blocks = cdb->length;
 		break;
@@ -9236,13 +9275,6 @@ ctl_cnw(struct ctl_scsiio *ctsio)
 		return (CTL_RETVAL_COMPLETE);
 		break; /* NOTREACHED */
 	}
-
-	/*
-	 * XXX KDM what do we do with the DPO and FUA bits?  FUA might be
-	 * interesting for us, but if RAIDCore is in write-back mode,
-	 * getting it to do write-through for a particular transaction may
-	 * not be possible.
-	 */
 
 	/*
 	 * The first check is to make sure we're in bounds, the second
@@ -9266,6 +9298,11 @@ ctl_cnw(struct ctl_scsiio *ctsio)
 		return (CTL_RETVAL_COMPLETE);
 	}
 
+	/* Set FUA if write cache is disabled. */
+	if ((lun->mode_pages.caching_page[CTL_PAGE_CURRENT].flags1 &
+	    SCP_WCE) == 0)
+		flags |= CTL_LLF_FUA;
+
 	ctsio->kern_total_len = 2 * num_blocks * lun->be_lun->blocksize;
 	ctsio->kern_rel_offset = 0;
 
@@ -9281,7 +9318,7 @@ ctl_cnw(struct ctl_scsiio *ctsio)
 	    &ctsio->io_hdr.ctl_private[CTL_PRIV_LBA_LEN];
 	lbalen->lba = lba;
 	lbalen->len = num_blocks;
-	lbalen->flags = CTL_LLF_COMPARE;
+	lbalen->flags = CTL_LLF_COMPARE | flags;
 
 	CTL_DEBUG_PRINT(("ctl_cnw: calling data_submit()\n"));
 	retval = lun->backend->data_submit((union ctl_io *)ctsio);
@@ -9295,7 +9332,7 @@ ctl_verify(struct ctl_scsiio *ctsio)
 	struct ctl_lba_len_flags *lbalen;
 	uint64_t lba;
 	uint32_t num_blocks;
-	int bytchk, dpo;
+	int bytchk, flags;
 	int retval;
 
 	lun = (struct ctl_lun *)ctsio->io_hdr.ctl_private[CTL_PRIV_LUN].ptr;
@@ -9303,7 +9340,7 @@ ctl_verify(struct ctl_scsiio *ctsio)
 	CTL_DEBUG_PRINT(("ctl_verify: command: %#x\n", ctsio->cdb[0]));
 
 	bytchk = 0;
-	dpo = 0;
+	flags = CTL_LLF_FUA;
 	retval = CTL_RETVAL_COMPLETE;
 
 	switch (ctsio->cdb[0]) {
@@ -9314,7 +9351,7 @@ ctl_verify(struct ctl_scsiio *ctsio)
 		if (cdb->byte2 & SVFY_BYTCHK)
 			bytchk = 1;
 		if (cdb->byte2 & SVFY_DPO)
-			dpo = 1;
+			flags |= CTL_LLF_DPO;
 		lba = scsi_4btoul(cdb->addr);
 		num_blocks = scsi_2btoul(cdb->length);
 		break;
@@ -9326,7 +9363,7 @@ ctl_verify(struct ctl_scsiio *ctsio)
 		if (cdb->byte2 & SVFY_BYTCHK)
 			bytchk = 1;
 		if (cdb->byte2 & SVFY_DPO)
-			dpo = 1;
+			flags |= CTL_LLF_DPO;
 		lba = scsi_4btoul(cdb->addr);
 		num_blocks = scsi_4btoul(cdb->length);
 		break;
@@ -9338,7 +9375,7 @@ ctl_verify(struct ctl_scsiio *ctsio)
 		if (cdb->byte2 & SVFY_BYTCHK)
 			bytchk = 1;
 		if (cdb->byte2 & SVFY_DPO)
-			dpo = 1;
+			flags |= CTL_LLF_DPO;
 		lba = scsi_8btou64(cdb->addr);
 		num_blocks = scsi_4btoul(cdb->length);
 		break;
@@ -9380,10 +9417,10 @@ ctl_verify(struct ctl_scsiio *ctsio)
 	lbalen->lba = lba;
 	lbalen->len = num_blocks;
 	if (bytchk) {
-		lbalen->flags = CTL_LLF_COMPARE;
+		lbalen->flags = CTL_LLF_COMPARE | flags;
 		ctsio->kern_total_len = num_blocks * lun->be_lun->blocksize;
 	} else {
-		lbalen->flags = CTL_LLF_VERIFY;
+		lbalen->flags = CTL_LLF_VERIFY | flags;
 		ctsio->kern_total_len = 0;
 	}
 	ctsio->kern_rel_offset = 0;
@@ -9801,14 +9838,18 @@ ctl_inquiry_evpd_supported(struct ctl_scsiio *ctsio, int alloc_len)
 	pages->page_list[1] = SVPD_UNIT_SERIAL_NUMBER;
 	/* Device Identification */
 	pages->page_list[2] = SVPD_DEVICE_ID;
+	/* Mode Page Policy */
+	pages->page_list[3] = SVPD_MODE_PAGE_POLICY;
 	/* SCSI Ports */
-	pages->page_list[3] = SVPD_SCSI_PORTS;
+	pages->page_list[4] = SVPD_SCSI_PORTS;
 	/* Third-party Copy */
-	pages->page_list[4] = SVPD_SCSI_TPC;
+	pages->page_list[5] = SVPD_SCSI_TPC;
 	/* Block limits */
-	pages->page_list[5] = SVPD_BLOCK_LIMITS;
+	pages->page_list[6] = SVPD_BLOCK_LIMITS;
+	/* Block Device Characteristics */
+	pages->page_list[7] = SVPD_BDC;
 	/* Logical Block Provisioning */
-	pages->page_list[6] = SVPD_LBP;
+	pages->page_list[8] = SVPD_LBP;
 
 	ctsio->scsi_status = SCSI_STATUS_OK;
 
@@ -9875,6 +9916,58 @@ ctl_inquiry_evpd_serial(struct ctl_scsiio *ctsio, int alloc_len)
 	return (CTL_RETVAL_COMPLETE);
 }
 
+
+static int
+ctl_inquiry_evpd_mpp(struct ctl_scsiio *ctsio, int alloc_len)
+{
+	struct scsi_vpd_mode_page_policy *mpp_ptr;
+	struct ctl_lun *lun;
+	int data_len;
+
+	lun = (struct ctl_lun *)ctsio->io_hdr.ctl_private[CTL_PRIV_LUN].ptr;
+
+	data_len = sizeof(struct scsi_vpd_mode_page_policy) +
+	    sizeof(struct scsi_vpd_mode_page_policy_descr);
+
+	ctsio->kern_data_ptr = malloc(data_len, M_CTL, M_WAITOK | M_ZERO);
+	mpp_ptr = (struct scsi_vpd_mode_page_policy *)ctsio->kern_data_ptr;
+	ctsio->kern_sg_entries = 0;
+
+	if (data_len < alloc_len) {
+		ctsio->residual = alloc_len - data_len;
+		ctsio->kern_data_len = data_len;
+		ctsio->kern_total_len = data_len;
+	} else {
+		ctsio->residual = 0;
+		ctsio->kern_data_len = alloc_len;
+		ctsio->kern_total_len = alloc_len;
+	}
+	ctsio->kern_data_resid = 0;
+	ctsio->kern_rel_offset = 0;
+	ctsio->kern_sg_entries = 0;
+
+	/*
+	 * The control device is always connected.  The disk device, on the
+	 * other hand, may not be online all the time.
+	 */
+	if (lun != NULL)
+		mpp_ptr->device = (SID_QUAL_LU_CONNECTED << 5) |
+				     lun->be_lun->lun_type;
+	else
+		mpp_ptr->device = (SID_QUAL_LU_OFFLINE << 5) | T_DIRECT;
+	mpp_ptr->page_code = SVPD_MODE_PAGE_POLICY;
+	scsi_ulto2b(data_len - 4, mpp_ptr->page_length);
+	mpp_ptr->descr[0].page_code = 0x3f;
+	mpp_ptr->descr[0].subpage_code = 0xff;
+	mpp_ptr->descr[0].policy = SVPD_MPP_SHARED;
+
+	ctsio->scsi_status = SCSI_STATUS_OK;
+	ctsio->io_hdr.flags |= CTL_FLAG_ALLOCATED;
+	ctsio->be_move_done = ctl_config_move_done;
+	ctl_datamove((union ctl_io *)ctsio);
+
+	return (CTL_RETVAL_COMPLETE);
+}
 
 static int
 ctl_inquiry_evpd_devid(struct ctl_scsiio *ctsio, int alloc_len)
@@ -10164,9 +10257,63 @@ ctl_inquiry_evpd_block_limits(struct ctl_scsiio *ctsio, int alloc_len)
 		if (lun->be_lun->flags & CTL_LUN_FLAG_UNMAP) {
 			scsi_ulto4b(0xffffffff, bl_ptr->max_unmap_lba_cnt);
 			scsi_ulto4b(0xffffffff, bl_ptr->max_unmap_blk_cnt);
+			if (lun->be_lun->pblockexp != 0) {
+				scsi_ulto4b((1 << lun->be_lun->pblockexp),
+				    bl_ptr->opt_unmap_grain);
+				scsi_ulto4b(0x80000000 | lun->be_lun->pblockoff,
+				    bl_ptr->unmap_grain_align);
+			}
 		}
 	}
 	scsi_u64to8b(UINT64_MAX, bl_ptr->max_write_same_length);
+
+	ctsio->scsi_status = SCSI_STATUS_OK;
+	ctsio->io_hdr.flags |= CTL_FLAG_ALLOCATED;
+	ctsio->be_move_done = ctl_config_move_done;
+	ctl_datamove((union ctl_io *)ctsio);
+
+	return (CTL_RETVAL_COMPLETE);
+}
+
+static int
+ctl_inquiry_evpd_bdc(struct ctl_scsiio *ctsio, int alloc_len)
+{
+	struct scsi_vpd_block_device_characteristics *bdc_ptr;
+	struct ctl_lun *lun;
+
+	lun = (struct ctl_lun *)ctsio->io_hdr.ctl_private[CTL_PRIV_LUN].ptr;
+
+	ctsio->kern_data_ptr = malloc(sizeof(*bdc_ptr), M_CTL, M_WAITOK | M_ZERO);
+	bdc_ptr = (struct scsi_vpd_block_device_characteristics *)ctsio->kern_data_ptr;
+	ctsio->kern_sg_entries = 0;
+
+	if (sizeof(*bdc_ptr) < alloc_len) {
+		ctsio->residual = alloc_len - sizeof(*bdc_ptr);
+		ctsio->kern_data_len = sizeof(*bdc_ptr);
+		ctsio->kern_total_len = sizeof(*bdc_ptr);
+	} else {
+		ctsio->residual = 0;
+		ctsio->kern_data_len = alloc_len;
+		ctsio->kern_total_len = alloc_len;
+	}
+	ctsio->kern_data_resid = 0;
+	ctsio->kern_rel_offset = 0;
+	ctsio->kern_sg_entries = 0;
+
+	/*
+	 * The control device is always connected.  The disk device, on the
+	 * other hand, may not be online all the time.  Need to change this
+	 * to figure out whether the disk device is actually online or not.
+	 */
+	if (lun != NULL)
+		bdc_ptr->device = (SID_QUAL_LU_CONNECTED << 5) |
+				  lun->be_lun->lun_type;
+	else
+		bdc_ptr->device = (SID_QUAL_LU_OFFLINE << 5) | T_DIRECT;
+	bdc_ptr->page_code = SVPD_BDC;
+	scsi_ulto2b(sizeof(*bdc_ptr) - 4, bdc_ptr->page_length);
+	scsi_ulto2b(SVPD_NON_ROTATING, bdc_ptr->medium_rotation_rate);
+	bdc_ptr->flags = SVPD_FUAB | SVPD_VBULS;
 
 	ctsio->scsi_status = SCSI_STATUS_OK;
 	ctsio->io_hdr.flags |= CTL_FLAG_ALLOCATED;
@@ -10213,8 +10360,12 @@ ctl_inquiry_evpd_lbp(struct ctl_scsiio *ctsio, int alloc_len)
 		lbp_ptr->device = (SID_QUAL_LU_OFFLINE << 5) | T_DIRECT;
 
 	lbp_ptr->page_code = SVPD_LBP;
-	if (lun != NULL && lun->be_lun->flags & CTL_LUN_FLAG_UNMAP)
-		lbp_ptr->flags = SVPD_LBP_UNMAP | SVPD_LBP_WS16 | SVPD_LBP_WS10;
+	scsi_ulto2b(sizeof(*lbp_ptr) - 4, lbp_ptr->page_length);
+	if (lun != NULL && lun->be_lun->flags & CTL_LUN_FLAG_UNMAP) {
+		lbp_ptr->flags = SVPD_LBP_UNMAP | SVPD_LBP_WS16 |
+		    SVPD_LBP_WS10 | SVPD_LBP_RZ | SVPD_LBP_ANC_SUP;
+		lbp_ptr->prov_type = SVPD_LBP_RESOURCE;
+	}
 
 	ctsio->scsi_status = SCSI_STATUS_OK;
 	ctsio->io_hdr.flags |= CTL_FLAG_ALLOCATED;
@@ -10248,6 +10399,9 @@ ctl_inquiry_evpd(struct ctl_scsiio *ctsio)
 	case SVPD_DEVICE_ID:
 		retval = ctl_inquiry_evpd_devid(ctsio, alloc_len);
 		break;
+	case SVPD_MODE_PAGE_POLICY:
+		retval = ctl_inquiry_evpd_mpp(ctsio, alloc_len);
+		break;
 	case SVPD_SCSI_PORTS:
 		retval = ctl_inquiry_evpd_scsi_ports(ctsio, alloc_len);
 		break;
@@ -10256,6 +10410,9 @@ ctl_inquiry_evpd(struct ctl_scsiio *ctsio)
 		break;
 	case SVPD_BLOCK_LIMITS:
 		retval = ctl_inquiry_evpd_block_limits(ctsio, alloc_len);
+		break;
+	case SVPD_BDC:
+		retval = ctl_inquiry_evpd_bdc(ctsio, alloc_len);
 		break;
 	case SVPD_LBP:
 		retval = ctl_inquiry_evpd_lbp(ctsio, alloc_len);
@@ -10396,7 +10553,9 @@ ctl_inquiry_std(struct ctl_scsiio *ctsio)
 	 */
 	inq_ptr->response_format = SID_HiSup | 2;
 
-	inq_ptr->additional_length = sizeof(*inq_ptr) - 4;
+	inq_ptr->additional_length =
+	    offsetof(struct scsi_inquiry_data, vendor_specific1) -
+	    (offsetof(struct scsi_inquiry_data, additional_length) + 1);
 	CTL_DEBUG_PRINT(("additional_length = %d\n",
 			 inq_ptr->additional_length));
 
@@ -10427,24 +10586,28 @@ ctl_inquiry_std(struct ctl_scsiio *ctsio)
 	 */
 	if (lun == NULL || (val = ctl_get_opt(&lun->be_lun->options,
 	    "vendor")) == NULL) {
-		strcpy(inq_ptr->vendor, CTL_VENDOR);
+		strncpy(inq_ptr->vendor, CTL_VENDOR, sizeof(inq_ptr->vendor));
 	} else {
 		memset(inq_ptr->vendor, ' ', sizeof(inq_ptr->vendor));
 		strncpy(inq_ptr->vendor, val,
 		    min(sizeof(inq_ptr->vendor), strlen(val)));
 	}
 	if (lun == NULL) {
-		strcpy(inq_ptr->product, CTL_DIRECT_PRODUCT);
+		strncpy(inq_ptr->product, CTL_DIRECT_PRODUCT,
+		    sizeof(inq_ptr->product));
 	} else if ((val = ctl_get_opt(&lun->be_lun->options, "product")) == NULL) {
 		switch (lun->be_lun->lun_type) {
 		case T_DIRECT:
-			strcpy(inq_ptr->product, CTL_DIRECT_PRODUCT);
+			strncpy(inq_ptr->product, CTL_DIRECT_PRODUCT,
+			    sizeof(inq_ptr->product));
 			break;
 		case T_PROCESSOR:
-			strcpy(inq_ptr->product, CTL_PROCESSOR_PRODUCT);
+			strncpy(inq_ptr->product, CTL_PROCESSOR_PRODUCT,
+			    sizeof(inq_ptr->product));
 			break;
 		default:
-			strcpy(inq_ptr->product, CTL_UNKNOWN_PRODUCT);
+			strncpy(inq_ptr->product, CTL_UNKNOWN_PRODUCT,
+			    sizeof(inq_ptr->product));
 			break;
 		}
 	} else {
@@ -11858,12 +12021,11 @@ ctl_lun_reset(struct ctl_lun *lun, union ctl_io *io, ctl_ua_type ua_type)
 	return (0);
 }
 
-static int
+static void
 ctl_abort_tasks_lun(struct ctl_lun *lun, uint32_t targ_port, uint32_t init_id,
     int other_sc)
 {
 	union ctl_io *xio;
-	int found;
 
 	mtx_assert(&lun->lun_lock, MA_OWNED);
 
@@ -11885,7 +12047,6 @@ ctl_abort_tasks_lun(struct ctl_lun *lun, uint32_t targ_port, uint32_t init_id,
 			    init_id != xio->io_hdr.nexus.initid.id)
 				xio->io_hdr.flags |= CTL_FLAG_ABORT_STATUS;
 			xio->io_hdr.flags |= CTL_FLAG_ABORT;
-			found = 1;
 			if (!other_sc && !(lun->flags & CTL_LUN_PRIMARY_SC)) {
 				union ctl_ha_msg msg_info;
 
@@ -11901,7 +12062,6 @@ ctl_abort_tasks_lun(struct ctl_lun *lun, uint32_t targ_port, uint32_t init_id,
 			}
 		}
 	}
-	return (found);
 }
 
 static int

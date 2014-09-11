@@ -1,7 +1,5 @@
 # $FreeBSD$
 
-.include <src.opts.mk>
-
 CXGB = ${.CURDIR}/../../../dev/cxgb
 .PATH: ${CXGB}/ulp/tom
 
@@ -13,13 +11,5 @@ SRCS+=	device_if.h bus_if.h pci_if.h
 CFLAGS+= -g -I${CXGB}
 
 #CFLAGS+= -DDEBUG_PRINT -DDEBUG
-
-.if !defined(KERNBUILDDIR)
-.if ${MK_INET_SUPPORT} != "no"
-opt_inet.h:
-	echo "#define INET 1" > ${.TARGET}
-	echo "#define TCP_OFFLOAD 1" >> ${.TARGET}
-.endif
-.endif
 
 .include <bsd.kmod.mk>

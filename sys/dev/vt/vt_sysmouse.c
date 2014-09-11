@@ -347,9 +347,6 @@ sysmouse_ioctl(struct cdev *dev, u_long cmd, caddr_t data, int flag,
 			return (EINVAL);
 
 		sysmouse_level = level;
-#ifndef SC_NO_CUTPASTE
-		vt_mouse_state((level == 0)?VT_MOUSE_SHOW:VT_MOUSE_HIDE);
-#endif
 		return (0);
 	}
 	case MOUSE_SETMODE: {
@@ -362,10 +359,6 @@ sysmouse_ioctl(struct cdev *dev, u_long cmd, caddr_t data, int flag,
 		case 0:
 		case 1:
 			sysmouse_level = mode->level;
-#ifndef SC_NO_CUTPASTE
-			vt_mouse_state((mode->level == 0)?VT_MOUSE_SHOW:
-			    VT_MOUSE_HIDE);
-#endif
 			break;
 		default:
 			return (EINVAL);

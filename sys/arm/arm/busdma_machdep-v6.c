@@ -42,6 +42,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/malloc.h>
 #include <sys/bus.h>
 #include <sys/busdma_bufalloc.h>
+#include <sys/counter.h>
 #include <sys/interrupt.h>
 #include <sys/kernel.h>
 #include <sys/ktr.h>
@@ -141,38 +142,38 @@ static uint32_t tags_total;
 static uint32_t maps_total;
 static uint32_t maps_dmamem;
 static uint32_t maps_coherent;
-static uint64_t maploads_total;
-static uint64_t maploads_bounced;
-static uint64_t maploads_coherent;
-static uint64_t maploads_dmamem;
-static uint64_t maploads_mbuf;
-static uint64_t maploads_physmem;
+static counter_u64_t maploads_total;
+static counter_u64_t maploads_bounced;
+static counter_u64_t maploads_coherent;
+static counter_u64_t maploads_dmamem;
+static counter_u64_t maploads_mbuf;
+static counter_u64_t maploads_physmem;
 
 static STAILQ_HEAD(, bounce_zone) bounce_zone_list;
 
 SYSCTL_NODE(_hw, OID_AUTO, busdma, CTLFLAG_RD, 0, "Busdma parameters");
 SYSCTL_UINT(_hw_busdma, OID_AUTO, tags_total, CTLFLAG_RD, &tags_total, 0,
-	   "Number of active tags");
+   "Number of active tags");
 SYSCTL_UINT(_hw_busdma, OID_AUTO, maps_total, CTLFLAG_RD, &maps_total, 0,
-	   "Number of active maps");
+   "Number of active maps");
 SYSCTL_UINT(_hw_busdma, OID_AUTO, maps_dmamem, CTLFLAG_RD, &maps_dmamem, 0,
-	   "Number of active maps for bus_dmamem_alloc buffers");
+   "Number of active maps for bus_dmamem_alloc buffers");
 SYSCTL_UINT(_hw_busdma, OID_AUTO, maps_coherent, CTLFLAG_RD, &maps_coherent, 0,
-	   "Number of active maps with BUS_DMA_COHERENT flag set");
-SYSCTL_UQUAD(_hw_busdma, OID_AUTO, maploads_total, CTLFLAG_RD, &maploads_total, 0,
-	   "Number of load operations performed");
-SYSCTL_UQUAD(_hw_busdma, OID_AUTO, maploads_bounced, CTLFLAG_RD, &maploads_bounced, 0,
-	   "Number of load operations that used bounce buffers");
-SYSCTL_UQUAD(_hw_busdma, OID_AUTO, maploads_coherent, CTLFLAG_RD, &maploads_dmamem, 0,
-	   "Number of load operations on BUS_DMA_COHERENT memory");
-SYSCTL_UQUAD(_hw_busdma, OID_AUTO, maploads_dmamem, CTLFLAG_RD, &maploads_dmamem, 0,
-	   "Number of load operations on bus_dmamem_alloc buffers");
-SYSCTL_UQUAD(_hw_busdma, OID_AUTO, maploads_mbuf, CTLFLAG_RD, &maploads_mbuf, 0,
-	   "Number of load operations for mbufs");
-SYSCTL_UQUAD(_hw_busdma, OID_AUTO, maploads_physmem, CTLFLAG_RD, &maploads_physmem, 0,
-	   "Number of load operations on physical buffers");
+   "Number of active maps with BUS_DMA_COHERENT flag set");
+SYSCTL_COUNTER_U64(_hw_busdma, OID_AUTO, maploads_total, CTLFLAG_RD, 
+    &maploads_total, "Number of load operations performed");
+SYSCTL_COUNTER_U64(_hw_busdma, OID_AUTO, maploads_bounced, CTLFLAG_RD,
+    &maploads_bounced, "Number of load operations that used bounce buffers");
+SYSCTL_COUNTER_U64(_hw_busdma, OID_AUTO, maploads_coherent, CTLFLAG_RD,
+    &maploads_dmamem, "Number of load operations on BUS_DMA_COHERENT memory");
+SYSCTL_COUNTER_U64(_hw_busdma, OID_AUTO, maploads_dmamem, CTLFLAG_RD,
+    &maploads_dmamem, "Number of load operations on bus_dmamem_alloc buffers");
+SYSCTL_COUNTER_U64(_hw_busdma, OID_AUTO, maploads_mbuf, CTLFLAG_RD,
+    &maploads_mbuf, "Number of load operations for mbufs");
+SYSCTL_COUNTER_U64(_hw_busdma, OID_AUTO, maploads_physmem, CTLFLAG_RD,
+    &maploads_physmem, "Number of load operations on physical buffers");
 SYSCTL_INT(_hw_busdma, OID_AUTO, total_bpages, CTLFLAG_RD, &total_bpages, 0,
-	   "Total bounce pages");
+   "Total bounce pages");
 
 struct bus_dmamap {
 	struct bp_list	       bpages;
@@ -219,6 +220,13 @@ busdma_init(void *dummy)
 {
 	int uma_flags;
 
+	maploads_total    = counter_u64_alloc(M_WAITOK);
+	maploads_bounced  = counter_u64_alloc(M_WAITOK);
+	maploads_coherent = counter_u64_alloc(M_WAITOK);
+	maploads_dmamem   = counter_u64_alloc(M_WAITOK);
+	maploads_mbuf     = counter_u64_alloc(M_WAITOK);
+	maploads_physmem  = counter_u64_alloc(M_WAITOK);
+
 	uma_flags = 0;
 
 	/* Create a cache of buffers in standard (cacheable) memory. */
@@ -250,11 +258,11 @@ busdma_init(void *dummy)
 
 /*
  * This init historically used SI_SUB_VM, but now the init code requires
- * malloc(9) using M_DEVBUF memory, which is set up later than SI_SUB_VM, by
- * SI_SUB_KMEM and SI_ORDER_THIRD, so we'll go right after that by using
- * SI_SUB_KMEM and SI_ORDER_FOURTH.
+ * malloc(9) using M_DEVBUF memory and the pcpu zones for counter(9), which get
+ * set up by SI_SUB_KMEM and SI_ORDER_LAST, so we'll go right after that by
+ * using SI_SUB_KMEM+1.
  */
-SYSINIT(busdma, SI_SUB_KMEM, SI_ORDER_FOURTH, busdma_init, NULL);
+SYSINIT(busdma, SI_SUB_KMEM+1, SI_ORDER_FIRST, busdma_init, NULL);
 
 /*
  * This routine checks the exclusion zone constraints from a tag against the
@@ -1037,13 +1045,13 @@ _bus_dmamap_load_phys(bus_dma_tag_t dmat,
 	if (segs == NULL)
 		segs = map->segments;
 
-	maploads_total++;
-	maploads_physmem++;
+	counter_u64_add(maploads_total, 1);
+	counter_u64_add(maploads_physmem, 1);
 
 	if (might_bounce(dmat, map, buflen, buflen)) {
 		_bus_dmamap_count_phys(dmat, map, buf, buflen, flags);
 		if (map->pagesneeded != 0) {
-			maploads_bounced++;
+			counter_u64_add(maploads_bounced, 1);
 			error = _bus_dmamap_reserve_pages(dmat, map, flags);
 			if (error)
 				return (error);
@@ -1106,17 +1114,17 @@ _bus_dmamap_load_buffer(bus_dma_tag_t dmat,
 	struct sync_list *sl;
 	int error;
 
-	maploads_total++;
+	counter_u64_add(maploads_total, 1);
 	if (map->flags & DMAMAP_COHERENT)
-		maploads_coherent++;
+		counter_u64_add(maploads_coherent, 1);
 	if (map->flags & DMAMAP_DMAMEM_ALLOC)
-		maploads_dmamem++;
+		counter_u64_add(maploads_dmamem, 1);
 
 	if (segs == NULL)
 		segs = map->segments;
 
 	if (flags & BUS_DMA_LOAD_MBUF) {
-		maploads_mbuf++;
+		counter_u64_add(maploads_mbuf, 1);
 		map->flags |= DMAMAP_MBUF;
 	}
 
@@ -1125,7 +1133,7 @@ _bus_dmamap_load_buffer(bus_dma_tag_t dmat,
 	if (might_bounce(dmat, map, (bus_addr_t)buf, buflen)) {
 		_bus_dmamap_count_pages(dmat, map, buf, buflen, flags);
 		if (map->pagesneeded != 0) {
-			maploads_bounced++;
+			counter_u64_add(maploads_bounced, 1);
 			error = _bus_dmamap_reserve_pages(dmat, map, flags);
 			if (error)
 				return (error);

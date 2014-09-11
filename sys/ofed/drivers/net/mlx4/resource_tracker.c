@@ -1166,7 +1166,7 @@ static int qp_res_start_move_to(struct mlx4_dev *dev, int slave, int qpn,
 		switch (state) {
 		case RES_QP_BUSY:
 			mlx4_dbg(dev, "%s: failed RES_QP, 0x%llx\n",
-				 __func__, r->com.res_id);
+				 __func__, (long long)r->com.res_id);
 			err = -EBUSY;
 			break;
 
@@ -1174,7 +1174,7 @@ static int qp_res_start_move_to(struct mlx4_dev *dev, int slave, int qpn,
 			if (r->com.state == RES_QP_MAPPED && !alloc)
 				break;
 
-			mlx4_dbg(dev, "failed RES_QP, 0x%llx\n", r->com.res_id);
+			mlx4_dbg(dev, "failed RES_QP, 0x%llx\n", (long long)r->com.res_id);
 			err = -EINVAL;
 			break;
 
@@ -1184,7 +1184,7 @@ static int qp_res_start_move_to(struct mlx4_dev *dev, int slave, int qpn,
 				break;
 			else {
 				mlx4_dbg(dev, "failed RES_QP, 0x%llx\n",
-					  r->com.res_id);
+					  (long long)r->com.res_id);
 				err = -EINVAL;
 			}
 
@@ -3766,7 +3766,7 @@ static int _move_all_busy(struct mlx4_dev *dev, int slave,
 						mlx4_dbg(dev,
 							 "%s id 0x%llx is busy\n",
 							  ResourceType(type),
-							  r->res_id);
+							  (long long)r->res_id);
 					++busy;
 				} else {
 					r->from_state = r->state;

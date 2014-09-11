@@ -657,7 +657,7 @@ vnode_pager_getpages(vm_object_t object, vm_page_t *m, int count, int reqpage)
 
 	vp = object->handle;
 	VM_OBJECT_WUNLOCK(object);
-	rtval = VOP_GETPAGES(vp, m, bytes, reqpage, 0);
+	rtval = VOP_GETPAGES(vp, m, bytes, reqpage);
 	KASSERT(rtval != EOPNOTSUPP,
 	    ("vnode_pager: FS getpages not implemented\n"));
 	VM_OBJECT_WLOCK(object);
@@ -1035,7 +1035,7 @@ vnode_pager_putpages(vm_object_t object, vm_page_t *m, int count,
 	 */
 	vp = object->handle;
 	VM_OBJECT_WUNLOCK(object);
-	rtval = VOP_PUTPAGES(vp, m, bytes, sync, rtvals, 0);
+	rtval = VOP_PUTPAGES(vp, m, bytes, sync, rtvals);
 	KASSERT(rtval != EOPNOTSUPP, 
 	    ("vnode_pager: stale FS putpages\n"));
 	VM_OBJECT_WLOCK(object);

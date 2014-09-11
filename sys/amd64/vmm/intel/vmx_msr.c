@@ -33,6 +33,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/systm.h>
 
 #include <machine/cpufunc.h>
+#include <machine/specialreg.h>
 
 #include "vmx_msr.h"
 

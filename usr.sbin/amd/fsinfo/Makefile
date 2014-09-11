@@ -13,8 +13,6 @@ SRCS=	fsi_gram.y fsi_lex.l
 SRCS+=	fsi_analyze.c fsi_dict.c fsi_util.c fsinfo.c wr_atab.c 
 SRCS+=	wr_bparam.c wr_dumpset.c wr_exportfs.c wr_fstab.c
 
-NO_PIE=	yes
-
 CFLAGS+= -I${.CURDIR}/../../../contrib/amd/fsinfo
 
 DPADD=	${LIBAMU}

@@ -163,8 +163,6 @@ ASSYM(PCB_STAR, offsetof(struct pcb, pcb_star));
 ASSYM(PCB_LSTAR, offsetof(struct pcb, pcb_lstar));
 ASSYM(PCB_CSTAR, offsetof(struct pcb, pcb_cstar));
 ASSYM(PCB_SFMASK, offsetof(struct pcb, pcb_sfmask));
-ASSYM(PCB_XSMASK, offsetof(struct pcb, pcb_xsmask));
-ASSYM(PCB_FPUSUSPEND, offsetof(struct pcb, pcb_fpususpend));
 ASSYM(PCB_SIZE, sizeof(struct pcb));
 ASSYM(PCB_FULL_IRET, PCB_FULL_IRET);
 ASSYM(PCB_DBREGS, PCB_DBREGS);

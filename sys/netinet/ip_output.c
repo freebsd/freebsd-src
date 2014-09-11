@@ -145,7 +145,8 @@ ip_output(struct mbuf *m, struct mbuf *opt, struct route *ro, int flags,
 	if (inp != NULL) {
 		INP_LOCK_ASSERT(inp);
 		M_SETFIB(m, inp->inp_inc.inc_fibnum);
-		if (inp->inp_flags & (INP_HW_FLOWID|INP_SW_FLOWID)) {
+		if (((flags & IP_NODEFAULTFLOWID) == 0) &&
+		    inp->inp_flags & (INP_HW_FLOWID|INP_SW_FLOWID)) {
 			m->m_pkthdr.flowid = inp->inp_flowid;
 			M_HASHTYPE_SET(m, inp->inp_flowtype);
 			m->m_flags |= M_FLOWID;
@@ -624,8 +625,7 @@ passout:
 	 * care of the fragmentation for us, we can just send directly.
 	 */
 	if (ip_len <= mtu ||
-	    (m->m_pkthdr.csum_flags & ifp->if_hwassist & CSUM_TSO) != 0 ||
-	    ((ip_off & IP_DF) == 0 && (ifp->if_hwassist & CSUM_FRAGMENT))) {
+	    (m->m_pkthdr.csum_flags & ifp->if_hwassist & CSUM_TSO) != 0) {
 		ip->ip_sum = 0;
 		if (m->m_pkthdr.csum_flags & CSUM_IP & ~ifp->if_hwassist) {
 			ip->ip_sum = in_cksum(m, hlen);
@@ -1016,6 +1016,10 @@ ip_ctloutput(struct socket *so, struct sockopt *sopt)
 		case IP_ONESBCAST:
 		case IP_DONTFRAG:
 		case IP_RECVTOS:
+		case IP_RECVFLOWID:
+#ifdef	RSS
+		case IP_RECVRSSBUCKETID:
+#endif
 			error = sooptcopyin(sopt, &optval, sizeof optval,
 					    sizeof optval);
 			if (error)
@@ -1094,6 +1098,9 @@ ip_ctloutput(struct socket *so, struct sockopt *sopt)
 			case IP_BINDMULTI:
 				OPTSET2(INP_BINDMULTI, optval);
 				break;
+			case IP_RECVFLOWID:
+				OPTSET2(INP_RECVFLOWID, optval);
+				break;
 #ifdef	RSS
 			case IP_RSS_LISTEN_BUCKET:
 				if ((optval >= 0) &&
@@ -1103,6 +1110,9 @@ ip_ctloutput(struct socket *so, struct sockopt *sopt)
 				} else {
 					error = EINVAL;
 				}
+				break;
+			case IP_RECVRSSBUCKETID:
+				OPTSET2(INP_RECVRSSBUCKETID, optval);
 				break;
 #endif
 			}
@@ -1219,8 +1229,10 @@ ip_ctloutput(struct socket *so, struct sockopt *sopt)
 		case IP_BINDMULTI:
 		case IP_FLOWID:
 		case IP_FLOWTYPE:
+		case IP_RECVFLOWID:
 #ifdef	RSS
 		case IP_RSSBUCKETID:
+		case IP_RECVRSSBUCKETID:
 #endif
 			switch (sopt->sopt_name) {
 
@@ -1290,6 +1302,9 @@ ip_ctloutput(struct socket *so, struct sockopt *sopt)
 			case IP_FLOWTYPE:
 				optval = inp->inp_flowtype;
 				break;
+			case IP_RECVFLOWID:
+				optval = OPTBIT2(INP_RECVFLOWID);
+				break;
 #ifdef	RSS
 			case IP_RSSBUCKETID:
 				retval = rss_hash2bucket(inp->inp_flowid,
@@ -1299,6 +1314,9 @@ ip_ctloutput(struct socket *so, struct sockopt *sopt)
 					optval = rss_bucket;
 				else
 					error = EINVAL;
+				break;
+			case IP_RECVRSSBUCKETID:
+				optval = OPTBIT2(INP_RECVRSSBUCKETID);
 				break;
 #endif
 			case IP_BINDMULTI:

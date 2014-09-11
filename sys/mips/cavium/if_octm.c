@@ -238,7 +238,7 @@ octm_attach(device_t dev)
 
 	ifp->if_transmit = octm_transmit;
 
-	ifp->if_data.ifi_hdrlen = sizeof(struct ether_vlan_header);
+	ifp->if_hdrlen = sizeof(struct ether_vlan_header);
 	ifp->if_capabilities = IFCAP_VLAN_MTU;
 	ifp->if_capenable = ifp->if_capabilities;
 
@@ -473,7 +473,7 @@ octm_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 		return (0);
 
 	case SIOCSIFMTU:
-		cvmx_mgmt_port_set_max_packet_size(sc->sc_port, ifr->ifr_mtu + ifp->if_data.ifi_hdrlen);
+		cvmx_mgmt_port_set_max_packet_size(sc->sc_port, ifr->ifr_mtu + ifp->if_hdrlen);
 		return (0);
 
 	case SIOCSIFMEDIA:

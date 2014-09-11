@@ -643,7 +643,7 @@ recv_thread(void *arg __unused)
 			 * we can use that.
 			 */
 			if (TAILQ_EMPTY(&adist_recv_list)) {
-				rw_unlock(&adist_remote_lock);
+				mtx_unlock(&adist_recv_list_lock);
 				continue;
 			}
 			mtx_unlock(&adist_recv_list_lock);

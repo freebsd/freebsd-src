@@ -349,6 +349,9 @@ in_pcbbind(struct inpcb *inp, struct sockaddr *nam, struct ucred *cred)
 }
 #endif
 
+/*
+ * Select a local port (number) to use.
+ */
 #if defined(INET) || defined(INET6)
 int
 in_pcb_lport(struct inpcb *inp, struct in_addr *laddrp, u_short *lportp,
@@ -463,7 +466,7 @@ in_pcb_lport(struct inpcb *inp, struct in_addr *laddrp, u_short *lportp,
 #ifdef INET
 	if ((inp->inp_vflag & (INP_IPV4|INP_IPV6)) == INP_IPV4)
 		laddrp->s_addr = laddr.s_addr;
-#endif                 
+#endif
 	*lportp = lport;
 
 	return (0);
@@ -2044,7 +2047,7 @@ in_pcbinshash_internal(struct inpcb *inp, int do_pcbgroup_update)
 
 #ifdef INET6
 	if (inp->inp_vflag & INP_IPV6)
-		hashkey_faddr = inp->in6p_faddr.s6_addr32[3] /* XXX */;
+		hashkey_faddr = INP6_PCBHASHKEY(&inp->in6p_faddr);
 	else
 #endif
 	hashkey_faddr = inp->inp_faddr.s_addr;
@@ -2131,7 +2134,7 @@ in_pcbrehash_mbuf(struct inpcb *inp, struct mbuf *m)
 
 #ifdef INET6
 	if (inp->inp_vflag & INP_IPV6)
-		hashkey_faddr = inp->in6p_faddr.s6_addr32[3] /* XXX */;
+		hashkey_faddr = INP6_PCBHASHKEY(&inp->in6p_faddr);
 	else
 #endif
 	hashkey_faddr = inp->inp_faddr.s_addr;

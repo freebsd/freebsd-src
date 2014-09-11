@@ -33,6 +33,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/malloc.h>
 #include <sys/rman.h>
 #include <sys/timetc.h>
+#include <machine/armreg.h>
 #include <machine/bus.h>
 #include <machine/cpu.h>
 #include <machine/frame.h>
@@ -190,7 +191,7 @@ cpu_reset(void)
 {
 	uint32_t	val;
 
-	(void)disable_interrupts(I32_bit|F32_bit);
+	(void)disable_interrupts(PSR_I|PSR_F);
 
 	val = pxa_timer_get_oscr();
 	val += PXA_TIMER_FREQUENCY;
