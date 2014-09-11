@@ -77,9 +77,9 @@
 .Ft "struct ifaddr *"
 .Fn ifa_ifwithaddr "struct sockaddr *addr"
 .Ft "struct ifaddr *"
-.Fn ifa_ifwithdstaddr "struct sockaddr *addr"
+.Fn ifa_ifwithdstaddr "struct sockaddr *addr" "int fib"
 .Ft "struct ifaddr *"
-.Fn ifa_ifwithnet "struct sockaddr *addr" "int ignore_ptp"
+.Fn ifa_ifwithnet "struct sockaddr *addr" "int ignore_ptp" "int fib"
 .Ft "struct ifaddr *"
 .Fn ifaof_ifpforaddr "struct sockaddr *addr" "struct ifnet *ifp"
 .Ft void
@@ -1389,7 +1389,16 @@ returns an interface address for a point-to-point interface whose
 remote
 .Pq Dq destination
 address is
-.Fa addr .
+.Fa addr
+and a fib is
+.Fa fib .
+If
+.Fa fib
+is
+.Dv RT_ALL_FIBS ,
+then the first interface address matching
+.Fa addr
+will be returned.
 .Pp
 .Fn ifa_ifwithnet
 returns the most specific interface address which matches the
@@ -1401,7 +1410,10 @@ address whose remote address is
 if one is found.
 If
 .Fa ignore_ptp
-is true, skip point-to-point interface addresses.
+is true, skip point-to-point interface addresses.  The 
+.Fa fib
+parameter is handled the same way as by
+.Fn ifa_ifwithdstaddr .
 .Pp
 .Fn ifaof_ifpforaddr
 returns the most specific address configured on interface
