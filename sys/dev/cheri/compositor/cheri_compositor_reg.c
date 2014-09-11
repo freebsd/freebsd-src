@@ -1351,11 +1351,17 @@ get_kernel_seal_capability(struct cheri_compositor_softc *sc,
 	CHERI_COMPOSITOR_DEBUG(sc, "cfb_pool: %p, cap_out: %p", cfb_pool,
 	    cap_out);
 
+#ifdef BROKEN
+	/*
+	 * XXXRW: CHERI ISAv3 doesn't allow setting the type without
+	 * simultaneously sealing.
+	 */
 	/* FIXME: Use pool as well? */
 	CHERI_CINCBASE(1, CHERI_CR_KDC, 0);
 	CHERI_CSETLEN(1, 1, 0);
 	CHERI_CSETTYPE(1, CHERI_CR_KCC, get_kernel_seal_capability);
 	CHERI_CANDPERM(1, 1, CHERI_PERM_SEAL);
+#endif
 
 	cheri_capability_store(1, cap_out);
 	CHERI_CCLEARTAG(1, 1);
@@ -1372,7 +1378,7 @@ is_valid_cfb_cap_token(struct cheri_compositor_softc *sc,
     struct compositor_cfb **cfb_out, struct compositor_cfb_id *cfb_id_out)
 {
 	int retval;
-	unsigned int tag, unsealed;
+	unsigned int tag, sealed;
 	struct compositor_cfb *cfb;
 	struct chericap *seal_cap;
 
@@ -1397,9 +1403,9 @@ is_valid_cfb_cap_token(struct cheri_compositor_softc *sc,
 	}
 
 	/* Check it's sealed. */
-	CHERI_CGETUNSEALED(unsealed, 1);
-	CHERI_COMPOSITOR_DEBUG(sc, "unsealed: %u", unsealed);
-	if (unsealed != 0) {
+	CHERI_CGETSEALED(sealed, 1);
+	CHERI_COMPOSITOR_DEBUG(sc, "sealed: %u", sealed);
+	if (sealed == 0) {
 		goto done;
 	}
 
@@ -1724,7 +1730,7 @@ compositor_cfb_id_to_token(struct cheri_compositor_softc *sc,
 
 	/* Seal the token. Construct sealed capability $c3 from base/offset in
 	 * $c2 and seal otype/addr in $c1. */
-	CHERI_CSEALDATA(3, 2, 1);
+	CHERI_CSEAL(3, 2, 1);
 
 	/* Return. */
 	cheri_capability_store(3, cfb_cap_out);
