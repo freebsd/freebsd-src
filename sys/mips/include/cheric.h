@@ -113,7 +113,7 @@ static __inline __capability void *
 cheri_maketype(void *ptr, register_t perm)
 {
 
-	return (cheri_ptrpermoff(ptr, 0, perm, 0));
+	return (cheri_ptrpermoff(ptr, 1, perm, 0));
 }
 
 static __inline __capability void *
