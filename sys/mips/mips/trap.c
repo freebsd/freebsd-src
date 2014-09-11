@@ -317,6 +317,21 @@ enum {
 	MIPS_SH_ACCESS,
 	MIPS_SW_ACCESS,
 	MIPS_SD_ACCESS
+#ifdef CPU_CHERI
+	,
+	MIPS_CHERI_CLBU_ACCESS,
+	MIPS_CHERI_CLHU_ACCESS,
+	MIPS_CHERI_CLWU_ACCESS,
+	MIPS_CHERI_CLDU_ACCESS,
+	MIPS_CHERI_CLB_ACCESS,
+	MIPS_CHERI_CLH_ACCESS,
+	MIPS_CHERI_CLW_ACCESS,
+	MIPS_CHERI_CLD_ACCESS,
+	MIPS_CHERI_CSB_ACCESS,
+	MIPS_CHERI_CSH_ACCESS,
+	MIPS_CHERI_CSW_ACCESS,
+	MIPS_CHERI_CSD_ACCESS
+#endif
 };
 
 char *access_name[] = {
@@ -328,6 +343,22 @@ char *access_name[] = {
 	"Store Halfword",
 	"Store Word",
 	"Store Doubleword"
+#ifdef CPU_CHERI
+	,
+	"Capability Load Byte Unsigned",
+	"Capability Load Halfword Unsigned",
+	"Capability Load Word Unsigned",
+	"Capability Load Doubleword Unsigned",
+	"Capability Load Byte",
+	"Capability Load Halfword",
+	"Capability Load Word",
+	"Capability Load Doubleword",
+	"Capability Store Byte",
+	"Capability Store Halfword",
+	"Capability Store Word",
+	"Capability Store Doubleword"
+#endif
+
 };
 
 #ifdef	CPU_CNMIPS
@@ -1702,11 +1733,14 @@ mips_unaligned_load_store(struct trapframe *frame, int mode, register_t addr, re
 {
 	register_t *reg = (register_t *) frame;
 	u_int32_t inst;
-	register_t value_msb, value;
+	register_t value;
 	unsigned size;
-
+	int src_regno;
+	int op_type = 0;
+	int is_store = 0;
 #ifdef CPU_CHERI
 	register_t c0_base;
+	int sign_extend = 0;
 
 	/*
 	 * XXXRW: This code isn't really post-CHERI read.
@@ -1717,12 +1751,20 @@ mips_unaligned_load_store(struct trapframe *frame, int mode, register_t addr, re
 	 * XXXRW: Arguably, this is also incorrect for non-CHERI: it should be
 	 * using copyin() to access user addresses!
 	 */
+	/**
+	 * XXX: There is a potential race condition here for CHERI.  We rely on the
+	 * fact that the ALIGNMENT_FIX_ERR exception has a lower priority than any
+	 * of the CHERI exceptions to guarantee that the load or store should have
+	 * succeeded, but a malicious program could generate an alignment trap and
+	 * then substitute a different instruction...
+	 */
 	CHERI_CLW(inst, pc, 0, CHERI_CR_EPCC);
 	CHERI_CGETBASE(c0_base, CHERI_CR_C0);
 	addr += c0_base;
 #else
 	inst = *((u_int32_t *)(intptr_t)pc);;
 #endif
+	src_regno = MIPS_INST_RT(inst);
 
 	/*
 	 * ADDR_ERR faults have higher priority than TLB
@@ -1732,102 +1774,125 @@ mips_unaligned_load_store(struct trapframe *frame, int mode, register_t addr, re
 	 * before trying to emulate the unaligned access.
 	 */
 	switch (MIPS_INST_OPCODE(inst)) {
-	case OP_LHU: case OP_LH:
-	case OP_SH:
+#ifdef CPU_CHERI
+	/*
+	 * If there's an alignment error on a capability, then just fail.  It might
+	 * be nice to emulate these and assume that the tag bit is unset, but for
+	 * now we'll just let them fail as they probably indicate bugs.
+	 */
+	case OP_SDC2: case OP_LDC2:
+		return (0);
+	/*
+	 * If it's a capability load or store, then the last three bits indicate
+	 * the size and extension, except that CLLD and CSCD (capability-relative
+	 * load-linked and store-conditional on doublewords set all three low
+	 * bits).  In all other cases, the low two bits are the base-2 log of the
+	 * size of the operation.
+	 */
+	case OP_SWC2:
+		is_store = 1;
+	case OP_LWC2: {
+		src_regno = MIPS_INST_RS(inst);
+		u_int32_t fmt = inst & 7;
+		u_int32_t size_field = inst & 3;
+		KASSERT((size_field != 0),
+			("Unaligned byte loads or stores should be impossible"));
+		/*
+		 * If this is a load-linked / store-conditional then we can't
+		 * safely emulate it.
+		 */
+		if (fmt == 7)
+			return (0);
+		size = 1 << size_field;
+		/* Bit 2 distinguishes signed / unsigned operations */
+		sign_extend = fmt >> 2;
+		if (MIPS_INST_OPCODE(inst) == OP_SWC2)
+			op_type = MIPS_CHERI_CSB_ACCESS + fmt;
+		else
+			op_type = MIPS_CHERI_CLBU_ACCESS + fmt;
+		break;
+	}
+#endif
+	case OP_LH:
+		sign_extend = 1;
+	case OP_LHU:
+		op_type = MIPS_LHU_ACCESS;
 		size = 2;
 		break;
-	case OP_LWU: case OP_LW:
-	case OP_SW:
+	case OP_LW:
+		sign_extend = 1;
+	case OP_LWU:
+		op_type = MIPS_LWU_ACCESS;
 		size = 4;
 		break;
 	case OP_LD:
-	case OP_SD:
+		op_type = MIPS_LD_ACCESS;
 		size = 8;
 		break;
+	case OP_SH:
+		op_type = MIPS_SH_ACCESS;
+		is_store = 1;
+		size = 2;
+		break;
+	case OP_SW:
+		op_type = MIPS_SW_ACCESS;
+		is_store = 1;
+		size = 4;
+		break;
+	case OP_SD:
+		op_type = MIPS_SD_ACCESS;
+		is_store = 1;
+		size = 8;
+		break;
+	/*
+	 * We can't safely fix up LL/SC, so just give up and deliver the signal.
+	 */
+	case OP_SCD: case OP_SC: case OP_LLD: case OP_LL:
+		return (0);
 	default:
 		printf("%s: unhandled opcode in address error: %#x\n", __func__, MIPS_INST_OPCODE(inst));
 		return (0);
 	}
+	/* Fix up the op_type for unsigned versions */
+	if ((op_type < MIPS_LD_ACCESS) && sign_extend)
+		op_type++;
 
-	if (!useracc((void *)((vm_offset_t)addr & ~(size - 1)), size * 2, mode))
-		return (0);
-
-	/*
-	 * XXX
-	 * Handle LL/SC LLD/SCD.
-	 */
-	switch (MIPS_INST_OPCODE(inst)) {
-	case OP_LHU:
-		KASSERT(mode == VM_PROT_READ, ("access mode must be read for load instruction."));
-		lbu_macro(value_msb, addr);
-		addr += 1;
-		lbu_macro(value, addr);
-		value |= value_msb << 8;
-		reg[MIPS_INST_RT(inst)] = value;
-		return (MIPS_LHU_ACCESS);
-
-	case OP_LH:
-		KASSERT(mode == VM_PROT_READ, ("access mode must be read for load instruction."));
-		lb_macro(value_msb, addr);
-		addr += 1;
-		lbu_macro(value, addr);
-		value |= value_msb << 8;
-		reg[MIPS_INST_RT(inst)] = value;
-		return (MIPS_LH_ACCESS);
-
-	case OP_LWU:
-		KASSERT(mode == VM_PROT_READ, ("access mode must be read for load instruction."));
-		lwl_macro(value, addr);
-		addr += 3;
-		lwr_macro(value, addr);
-		value &= 0xffffffff;
-		reg[MIPS_INST_RT(inst)] = value;
-		return (MIPS_LWU_ACCESS);
-
-	case OP_LW:
-		KASSERT(mode == VM_PROT_READ, ("access mode must be read for load instruction."));
-		lwl_macro(value, addr);
-		addr += 3;
-		lwr_macro(value, addr);
-		reg[MIPS_INST_RT(inst)] = value;
-		return (MIPS_LW_ACCESS);
-
-#if defined(__mips_n32) || defined(__mips_n64)
-	case OP_LD:
-		KASSERT(mode == VM_PROT_READ, ("access mode must be read for load instruction."));
-		ldl_macro(value, addr);
-		addr += 7;
-		ldr_macro(value, addr);
-		reg[MIPS_INST_RT(inst)] = value;
-		return (MIPS_LD_ACCESS);
+	if (is_store) {
+		value = reg[src_regno];
+		/*
+		 * Stores don't have signed / unsigned variants, so just copy
+		 * the data from the register to memory.  Less-than-doubleword
+		 * stores store the low bits, so adjust the kernel pointer to
+		 * the correct offset within the word first.
+		 */
+		char *kaddr = (char*)&value;
+#if _BYTE_ORDER == _BIG_ENDIAN
+		kaddr += sizeof(register_t) - size;
 #endif
-
-	case OP_SH:
-		KASSERT(mode == VM_PROT_WRITE, ("access mode must be write for store instruction."));
-		value = reg[MIPS_INST_RT(inst)];
-		value_msb = value >> 8;
-		sb_macro(value_msb, addr);
-		addr += 1;
-		sb_macro(value, addr);
-		return (MIPS_SH_ACCESS);
-
-	case OP_SW:
-		KASSERT(mode == VM_PROT_WRITE, ("access mode must be write for store instruction."));
-		value = reg[MIPS_INST_RT(inst)];
-		swl_macro(value, addr);
-		addr += 3;
-		swr_macro(value, addr);
-		return (MIPS_SW_ACCESS);
-
-#if defined(__mips_n32) || defined(__mips_n64)
-	case OP_SD:
-		KASSERT(mode == VM_PROT_WRITE, ("access mode must be write for store instruction."));
-		value = reg[MIPS_INST_RT(inst)];
-		sdl_macro(value, addr);
-		addr += 7;
-		sdr_macro(value, addr);
-		return (MIPS_SD_ACCESS);
+		int err;
+		if ((err = copyout(kaddr, (void*)addr, size))) {
+			return (0);
+		}
+		return (op_type);
+	} else {
+		/* Get the value as a zero-extended version */
+		value = 0;
+		char *kaddr = (char*)&value;
+#if _BYTE_ORDER == _BIG_ENDIAN
+		kaddr += sizeof(register_t) - size;
 #endif
+		int err;
+		if ((err = copyin((void*)addr, kaddr, size))) {
+			return (0);
+		}
+		/* If we need to sign extend it, then shift it so that the sign
+		 * bit is in the correct place and then shift it back. */
+		if (sign_extend) {
+			int shift = (sizeof(register_t) - size) * 8;
+			value = (value << shift) >> shift;
+		}
+		reg[src_regno] = value;
+		return (op_type);
 	}
 	panic("%s: should not be reached.", __func__);
 }
