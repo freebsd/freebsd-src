@@ -68,12 +68,24 @@
 CHERI_CLASS_DECL(cheri_fd);
 
 /*
- * Data segment for a cheri_fd.  As this is a system class, we don't need to
- * explicitly store $c0.
+ * Data segment for a cheri_fd.
  */
 struct cheri_fd {
 	int	cf_fd;		/* Underlying file descriptor. */
 };
+
+static __capability void *
+cheri_fd_type(void)
+{
+
+	/*
+	 * Set the type to the entry point of the class.  Normally, we might
+	 * use the base address of the class's code segment, but this class
+	 * uses the ambient $pcc for its code segment, which won't be unique.
+	 */
+	return (cheri_maketype(CHERI_CLASS_ENTRY(cheri_fd),
+	    CHERI_PERM_GLOBAL | CHERI_PERM_SEAL));
+}
 
 /*
  * Allocate a new cheri_fd object for an already-open file descriptor.
@@ -81,7 +93,7 @@ struct cheri_fd {
 int
 cheri_fd_new(int fd, struct cheri_object *cop)
 {
-	__capability void *basecap;
+	__capability void *codecap, *datacap;
 	struct cheri_fd *cfp;
 
 	cfp = calloc(1, sizeof(*cfp));
@@ -90,12 +102,31 @@ cheri_fd_new(int fd, struct cheri_object *cop)
 		return (-1);
 	}
 	cfp->cf_fd = fd;
-	basecap = cheri_settype(cheri_getdefault(),
+
+	/*
+	 * Construct a sealed code capability for the class.  This is just the
+	 * ambient $pcc with the offset set to the entry address.
+	 *
+	 * XXXRW: For now, when invoked, we install $pcc into $c0, so this
+	 * needs a full set of permissions rather than just LOAD/EXECUTE. In
+	 * the future, we will want to preserve a copy of cheri_getdefault()
+	 * in the struct cheri_fd to be reinstalled by the entry code.
+	 */
+	codecap = cheri_setoffset(cheri_getpcc(),
 	    (register_t)CHERI_CLASS_ENTRY(cheri_fd));
-	cop->co_codecap = cheri_sealcode(basecap);
-	cop->co_datacap = cheri_sealdata(cheri_andperm(
-	    cheri_ptr(cfp, sizeof(*cfp)), CHERI_PERM_LOAD | CHERI_PERM_STORE),
-	     basecap);
+	cop->co_codecap = cheri_seal(codecap, cheri_fd_type());
+
+	/*
+	 * Construct a sealed data capability for the class.  This describes
+	 * the 'struct cheri_fd' for the specific file descriptor.  The $c0
+	 * to reinstall later is the first field in the structure.
+	 *
+	 * XXXRW: Should we also do an explicit cheri_setoffset()?
+	 */
+	datacap = cheri_ptrperm(cfp, sizeof(cfp), CHERI_PERM_GLOBAL |
+	    CHERI_PERM_LOAD | CHERI_PERM_LOAD_CAP | CHERI_PERM_STORE |
+	    CHERI_PERM_STORE_CAP);
+	cop->co_datacap = cheri_seal(datacap, cheri_fd_type());
 	return (0);
 }
 
@@ -107,11 +138,8 @@ void
 cheri_fd_revoke(struct cheri_object co)
 {
 	__capability struct cheri_fd *cfp;
-	__capability void *basecap;
 
-	basecap = cheri_settype(cheri_getdefault(),
-	    (register_t)CHERI_CLASS_ENTRY(cheri_fd));
-	cfp = cheri_unseal(co.co_datacap, basecap);
+	cfp = cheri_unseal(co.co_datacap, cheri_fd_type());
 	cfp->cf_fd = -1;
 }
 
@@ -123,11 +151,8 @@ void
 cheri_fd_destroy(struct cheri_object co)
 {
 	__capability struct cheri_fd *cfp;
-	__capability void *basecap;
 
-	basecap = cheri_settype(cheri_getdefault(),
-	    (register_t)CHERI_CLASS_ENTRY(cheri_fd));
-	cfp = cheri_unseal(co.co_datacap, basecap);
+	cfp = cheri_unseal(co.co_datacap, cheri_fd_type());
 	free((void *)cfp);
 }
 

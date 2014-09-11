@@ -69,18 +69,23 @@ cheritest_sandbox_setup(void *sandbox_base, void *sandbox_end,
     register_t sandbox_pc, __capability void **codecapp,
     __capability void **datacapp)
 {
-	__capability void *codecap, *datacap, *basecap;
+	__capability void *codecap, *datacap, *basecap, *typecap;
 
-	basecap = cheri_ptrtype(sandbox_base, (uintptr_t)sandbox_end -
-	    (uintptr_t)sandbox_base, sandbox_pc);
+	typecap = cheri_maketype(sandbox_base, CHERI_PERM_GLOBAL |
+	    CHERI_PERM_SEAL);
 
-	codecap = cheri_andperm(basecap, CHERI_PERM_EXECUTE |
-	    CHERI_PERM_SEAL | CHERI_PERM_STORE_EPHEM_CAP);
-	codecap = cheri_sealcode(codecap);
+	basecap = cheri_ptr(sandbox_base, (uintptr_t)sandbox_end -
+	    (uintptr_t)sandbox_base);
 
-	datacap = cheri_andperm(basecap, CHERI_PERM_LOAD | CHERI_PERM_STORE |
-	    CHERI_PERM_LOAD_CAP | CHERI_PERM_STORE_CAP);
-	datacap = cheri_sealdata(datacap, basecap);
+	codecap = cheri_andperm(basecap, CHERI_PERM_GLOBAL | CHERI_PERM_LOAD |
+	    CHERI_PERM_EXECUTE);
+	codecap = cheri_setoffset(codecap, sandbox_pc);
+	codecap = cheri_seal(codecap, typecap);
+
+	datacap = cheri_andperm(basecap, CHERI_PERM_GLOBAL | CHERI_PERM_LOAD |
+	    CHERI_PERM_STORE | CHERI_PERM_LOAD_CAP | CHERI_PERM_STORE_CAP |
+	    CHERI_PERM_STORE_LOCAL_CAP);
+	datacap = cheri_seal(datacap, typecap);
 
 	*codecapp = codecap;
 	*datacapp = datacap;

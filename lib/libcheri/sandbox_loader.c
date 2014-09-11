@@ -71,7 +71,7 @@ CHERI_CLASS_DECL(libcheri_system);
 int
 sandbox_object_load(struct sandbox_class *sbcp, struct sandbox_object *sbop)
 {
-	__capability void *basecap, *sbcap;
+	__capability void *codecap, *datacap, *typecap;
 	struct sandbox_metadata *sbm;
 	size_t length;
 	int saved_errno;
@@ -212,45 +212,60 @@ sandbox_object_load(struct sandbox_class *sbcp, struct sandbox_object *sbop)
 	}
 
 	/*
-	 * Construct a generic capability that describes the combined
-	 * data/code segment that we will seal.
+	 * Use the base address of the sandbox as the type.
 	 */
-	basecap = cheri_ptrtype(sbop->sbo_mem, sbcp->sbc_sandboxlen,
-	    SANDBOX_ENTRY);
-
-	/* Construct sealed code capability. */
-	/* XXXRW: Do we actually require CHERI_PERM_LOAD? */
-	sbcap = cheri_andperm(basecap, CHERI_PERM_EXECUTE | CHERI_PERM_LOAD |
+	typecap = cheri_maketype(sbop->sbo_mem, CHERI_PERM_GLOBAL |
 	    CHERI_PERM_SEAL);
-	sbop->sbo_cheri_object.co_codecap =
-	    cheri_sealcode(sbcap);
-
-	/* Construct sealed data capability. */
-	sbcap = cheri_andperm(basecap, CHERI_PERM_NON_EPHEMERAL |
-	    CHERI_PERM_LOAD | CHERI_PERM_STORE | CHERI_PERM_LOAD_CAP |
-	    CHERI_PERM_STORE_CAP | CHERI_PERM_STORE_EPHEM_CAP);
-	sbop->sbo_cheri_object.co_datacap = cheri_sealdata(sbcap, basecap);
 
 	/*
-	 * Construct an object capability for the system class instance that
-	 * will be passed into the sandbox.  Its code capability is just our
-	 * $c0; the data capability is to the sandbox structure itself, which
-	 * allows the system class to identify which sandbox a request is
-	 * being issued from.
+	 * Construct code capability.
 	 *
-	 * Note that $c0 in the 'sandbox' will be set from $pcc, so leave a
-	 * full set of write/etc permissions on the code capability.
+	 * XXXRW: Do we really need CHERI_PERM_LOAD?
 	 */
-	basecap = cheri_settype(cheri_getdefault(),
-	    (register_t)CHERI_CLASS_ENTRY(libcheri_system));
-	sbop->sbo_cheri_system_object.co_codecap = cheri_sealcode(basecap);
+	codecap = cheri_ptrperm(sbop->sbo_mem, sbcp->sbc_sandboxlen,
+	    CHERI_PERM_GLOBAL | CHERI_PERM_LOAD | CHERI_PERM_EXECUTE);
+	codecap = cheri_setoffset(codecap, SANDBOX_ENTRY);
+	sbop->sbo_cheri_object.co_codecap = cheri_seal(codecap, typecap);
 
-	sbcap = cheri_ptr(sbop, sizeof(*sbop));
-	sbcap = cheri_andperm(sbcap, CHERI_PERM_NON_EPHEMERAL |
-	    CHERI_PERM_LOAD | CHERI_PERM_STORE | CHERI_PERM_LOAD_CAP |
-	    CHERI_PERM_STORE_CAP | CHERI_PERM_STORE_EPHEM_CAP);
-	sbop->sbo_cheri_system_object.co_datacap = cheri_sealdata(sbcap,
-	    basecap);
+	/*
+	 * Construct data capability.  For now, allow storing local
+	 * capabilities ... but we will stop doing this once the stack
+	 * capability stops being derived from the data capability on entry.
+	 */
+	datacap = cheri_ptrperm(sbop->sbo_mem, sbcp->sbc_sandboxlen,
+	    CHERI_PERM_GLOBAL | CHERI_PERM_LOAD | CHERI_PERM_LOAD_CAP |
+	    CHERI_PERM_STORE | CHERI_PERM_STORE_CAP |
+	    CHERI_PERM_STORE_LOCAL_CAP);
+	sbop->sbo_cheri_object.co_datacap = cheri_seal(datacap, typecap);
+
+	/*
+	 * Construct an object capability for the system-class instance that
+	 * will be passed into the sandbox.
+	 */
+	typecap = cheri_maketype(CHERI_CLASS_ENTRY(libcheri_system),
+	    CHERI_PERM_GLOBAL | CHERI_PERM_SEAL);
+
+	/*
+	 * The code capability will simply be our $pcc.
+	 *
+	 * XXXRW: For now, we will populate $c0 with $pcc on invocation, so we
+	 * need to leave a full set of permissions on it.  Eventually, we
+	 * would prefer to limit this to LOAD and EXECUTE.
+	 */
+	codecap = cheri_getpcc();
+	sbop->sbo_cheri_system_object.co_codecap = cheri_seal(codecap,
+	    typecap);
+
+	/*
+	 * Construct a data capability describing the sandbox structure
+	 * itself, which allows the system class to identify the sandbox a
+	 * request is being issued from.
+	 */
+	datacap = cheri_ptrperm(sbop, sizeof(sbop), CHERI_PERM_GLOBAL |
+	    CHERI_PERM_LOAD | CHERI_PERM_LOAD_CAP | CHERI_PERM_STORE |
+	    CHERI_PERM_STORE_CAP | CHERI_PERM_STORE_LOCAL_CAP);
+	sbop->sbo_cheri_system_object.co_datacap = cheri_seal(datacap,
+	    typecap);
 	return (0);
 
 error:

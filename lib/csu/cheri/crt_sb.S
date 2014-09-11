@@ -90,7 +90,7 @@ __ccall_enter:
 	# is to ensure software is ready for proper stack handling.  We can
 	# remove these candperms once that is present.
 	#
-	dli	$t0, (~CHERI_PERM_NON_EPHEMERAL)
+	dli	$t0, (~CHERI_PERM_GLOBAL)
 	candperm	$c11, $c26, $t0
 	cgetlen	$sp, $c26
 	move	$fp, $sp
@@ -100,7 +100,7 @@ __ccall_enter:
 	# stores to memory inside the sandbox, and $c0-relative capability
 	# fetches and stores.
 	#
-	dli	$t0, (~CHERI_PERM_STORE_EPHEM_CAP)
+	dli	$t0, (~CHERI_PERM_STORE_LOCAL_CAP)
 	candperm	$c0, $c26, $t0
 
 	#

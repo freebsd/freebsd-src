@@ -33,9 +33,9 @@
 #define	_CHERITEST_H_
 
 #define	CHERI_CAP_PRINT(cap) do {					\
-	printf("tag %ju u %ju perms %08jx type %016jx\n",		\
+	printf("tag %ju s %ju perms %08jx type %016jx\n",		\
 	    (uintmax_t)cheri_gettag(cap),				\
-	    (uintmax_t)cheri_getunsealed(cap),				\
+	    (uintmax_t)cheri_getsealed(cap),				\
 	    (uintmax_t)cheri_getperm(cap),				\
 	    (uintmax_t)cheri_gettype(cap));				\
 	printf("\tbase %016jx length %016jx\n",				\
@@ -203,7 +203,7 @@ void	test_listregs(const struct cheri_test *ctp);
 
 /* cheritest_var.c */
 void	test_sandbox_save_global(const struct cheri_test *ctp);
-void	test_sandbox_save_ephemeral(const struct cheri_test *ctp);
+void	test_sandbox_save_local(const struct cheri_test *ctp);
 void	test_sandbox_var_bss(const struct cheri_test *ctp);
 void	test_sandbox_var_data(const struct cheri_test *ctp);
 void	test_sandbox_var_constructor(const struct cheri_test *ctp);

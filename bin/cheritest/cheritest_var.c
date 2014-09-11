@@ -81,13 +81,13 @@ test_sandbox_save_global(const struct cheri_test *ctp __unused)
 }
 
 void
-test_sandbox_save_ephemeral(const struct cheri_test *ctp __unused)
+test_sandbox_save_local(const struct cheri_test *ctp __unused)
 {
 	__capability void *carg, *cclear;
 	register_t v;
 
 	carg = (__capability void *)&v;
-	carg = cheri_ephemeral(carg);
+	carg = cheri_local(carg);
 	cclear = cheri_zerocap();
 	(void)sandbox_object_cinvoke(cheritest_objectp,
 	    CHERITEST_HELPER_SAVE_CAPABILITY_IN_HEAP, 0, 0, 0, 0, 0, 0, 0,

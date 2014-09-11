@@ -446,14 +446,14 @@ static const struct cheri_test cheri_tests[] = {
 	  .ct_desc = "Try to save global argument to sandbox heap",
 	  .ct_func = test_sandbox_save_global },
 
-	{ .ct_name = "test_sandbox_save_ephemeral",
-	  .ct_desc = "Try to save ephemeral argument to sandbox heap",
-	  .ct_func = test_sandbox_save_ephemeral,
+	{ .ct_name = "test_sandbox_save_local",
+	  .ct_desc = "Try to save local argument to sandbox heap",
+	  .ct_func = test_sandbox_save_local,
 	  .ct_flags = CT_FLAG_SIGNAL | CT_FLAG_MIPS_EXCCODE |
 		    CT_FLAG_CP2_EXCCODE,
 	  .ct_signum = SIGPROT,
 	  .ct_mips_exccode = T_C2E,
-	  .ct_cp2_exccode = CHERI_EXCCODE_STORE_EPHEM },
+	  .ct_cp2_exccode = CHERI_EXCCODE_STORE_LOCALCAP },
 
 	{ .ct_name = "test_sandbox_var_bss",
 	  .ct_desc = "Check initial value of .bss variable",
