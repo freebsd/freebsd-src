@@ -44,6 +44,7 @@
 #include <machine/cpuregs.h>
 
 #include <cheri/cheri_fd.h>
+#include <cheri/cheri_type.h>
 #include <cheri/sandbox.h>
 
 #include <cheritest-helper.h>
@@ -71,9 +72,7 @@ cheritest_sandbox_setup(void *sandbox_base, void *sandbox_end,
 {
 	__capability void *codecap, *datacap, *basecap, *typecap;
 
-	typecap = cheri_maketype(sandbox_base, CHERI_PERM_GLOBAL |
-	    CHERI_PERM_SEAL);
-
+	typecap = cheri_type_alloc();
 	basecap = cheri_ptr(sandbox_base, (uintptr_t)sandbox_end -
 	    (uintptr_t)sandbox_base);
 
