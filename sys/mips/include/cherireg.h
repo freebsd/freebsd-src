@@ -38,13 +38,13 @@
  * XXXRW: CHERI_UNSEALED is not currently considered part of the perms word,
  * but perhaps it should be.
  */
-#define	CHERI_PERM_NON_EPHEMERAL		(1 << 0)
+#define	CHERI_PERM_GLOBAL			(1 << 0)
 #define	CHERI_PERM_EXECUTE			(1 << 1)
 #define	CHERI_PERM_LOAD				(1 << 2)
 #define	CHERI_PERM_STORE			(1 << 3)
 #define	CHERI_PERM_LOAD_CAP			(1 << 4)
 #define	CHERI_PERM_STORE_CAP			(1 << 5)
-#define	CHERI_PERM_STORE_EPHEM_CAP		(1 << 6)
+#define	CHERI_PERM_STORE_LOCAL_CAP		(1 << 6)
 #define	CHERI_PERM_SEAL				(1 << 7)
 #define	CHERI_PERM_SETTYPE			(1 << 8)
 #define	CHERI_PERM_RESERVED1			(1 << 9)
@@ -87,18 +87,18 @@
 	CHERI_PERM_USER15)
 
 #define	CHERI_PERM_PRIV							\
-	(CHERI_PERM_NON_EPHEMERAL | CHERI_PERM_EXECUTE |		\
+	(CHERI_PERM_GLOBAL | CHERI_PERM_EXECUTE |			\
 	CHERI_PERM_LOAD | CHERI_PERM_STORE | CHERI_PERM_LOAD_CAP |	\
-	CHERI_PERM_STORE_CAP | CHERI_PERM_STORE_EPHEM_CAP |		\
+	CHERI_PERM_STORE_CAP | CHERI_PERM_STORE_LOCAL_CAP |		\
 	CHERI_PERM_SEAL | CHERI_PERM_SETTYPE | CHERI_PERM_RESERVED1 |	\
 	CHERI_PERM_ACCESS_EPCC | CHERI_PERM_ACCESS_KDC |		\
 	CHERI_PERM_ACCESS_KCC | CHERI_PERM_ACCESS_KR1C |		\
 	CHERI_PERM_ACCESS_KR2C | CHERI_PERM_USER_PRIVS)
 
 #define	CHERI_PERM_USER							\
-	(CHERI_PERM_NON_EPHEMERAL | CHERI_PERM_EXECUTE |		\
+	(CHERI_PERM_GLOBAL | CHERI_PERM_EXECUTE |			\
 	CHERI_PERM_LOAD | CHERI_PERM_STORE | CHERI_PERM_LOAD_CAP |	\
-	CHERI_PERM_STORE_CAP | CHERI_PERM_STORE_EPHEM_CAP |		\
+	CHERI_PERM_STORE_CAP | CHERI_PERM_STORE_LOCAL_CAP |		\
 	CHERI_PERM_SEAL | CHERI_PERM_SETTYPE | CHERI_PERM_USER_PRIVS)
 
 /*
@@ -109,6 +109,7 @@
 #define	CHERI_CAP_PRIV_OTYPE		0x0
 #define	CHERI_CAP_PRIV_BASE		0x0
 #define	CHERI_CAP_PRIV_LENGTH		0xffffffffffffffff
+#define	CHERI_CAP_PRIV_OFFSET		0x0
 
 /*
  * Definition for userspace "unprivileged" capability able to name the user
@@ -118,18 +119,7 @@
 #define	CHERI_CAP_USER_OTYPE		0x0
 #define	CHERI_CAP_USER_BASE		MIPS_XUSEG_START
 #define	CHERI_CAP_USER_LENGTH		(MIPS_XUSEG_END - MIPS_XUSEG_START)
-
-/*
- * Definition for capability unable to name any resources.  This is suitable
- * for filling capability registers that should hold no privilege.
- *
- * XXXRW: Probably no longer required in CHERI ISAv2 as we can clear
- * registers.
- */
-#define	CHERI_CAP_NOPRIV_PERMS		0x0
-#define	CHERI_CAP_NOPRIV_OTYPE		0x0
-#define	CHERI_CAP_NOPRIV_BASE		0x0
-#define	CHERI_CAP_NOPRIV_LENGTH		0x0
+#define	CHERI_CAP_USER_OFFSET		0x0
 
 /*
  * A blend of hardware and software allocation of capability registers.
@@ -241,13 +231,13 @@
 #define	CHERI_EXCCODE_RETURN		0x06
 #define	CHERI_EXCCODE_UNDERFLOW		0x07
 #define	CHERI_EXCCODE_USER_PERM		0x08
-#define	CHERI_EXCCODE_NON_EPHEM		0x10
+#define	CHERI_EXCCODE_GLOBAL		0x10
 #define	CHERI_EXCCODE_PERM_EXECUTE	0x11
 #define	CHERI_EXCCODE_PERM_LOAD		0x12
 #define	CHERI_EXCCODE_PERM_STORE	0x13
 #define	CHERI_EXCCODE_PERM_LOADCAP	0x14
 #define	CHERI_EXCCODE_PERM_STORECAP	0x15
-#define	CHERI_EXCCODE_STORE_EPHEM	0x16
+#define	CHERI_EXCCODE_STORE_LOCALCAP	0x16
 #define	CHERI_EXCCODE_PERM_SEAL		0x17
 #define	CHERI_EXCCODE_PERM_SETTYPE	0x18
 #define	CHERI_EXCCODE_ACCESS_EPCC	0x1a

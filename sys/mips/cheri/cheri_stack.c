@@ -191,9 +191,9 @@ cheri_stack_unwind(struct thread *td, struct trapframe *tf, int signum)
 	cheri_capability_store(CHERI_CR_CTEMP0, &pcb->pcb_cheriframe.cf_pcc);
 
 	/*
-	 * Pop PC (+4 already done).
+	 * Extract PCC.offset into PC.
 	 */
-	pcb->pcb_regs.pc = csfp->csf_pc;
+	CHERI_CGETOFFSET(pcb->pcb_regs.pc, CHERI_CR_CTEMP0);
 
 	/*
 	 * Set 'v0' to -1, and 'v1' to the signal number so that the consumer
@@ -253,10 +253,10 @@ cheri_sysarch_setstack(struct thread *td, struct sysarch_args *uap)
  */
 DB_SHOW_COMMAND(cheristack, ddb_dump_cheristack)
 {
-	uintmax_t c_perms, c_otype, c_base, c_length;
+	uintmax_t c_perms, c_otype, c_base, c_length, c_offset;
 	struct cheri_stack_frame *csfp;
 	struct pcb *pcb = curthread->td_pcb;
-	u_int ctag, c_unsealed;
+	u_int ctag, c_sealed;
 	int i;
 
 	db_printf("Trusted stack for TID %d; TSP 0x%016jx\n",
@@ -270,31 +270,31 @@ DB_SHOW_COMMAND(cheristack, ddb_dump_cheristack)
 		    '*' : ' ');
 		CHERI_CLC(CHERI_CR_CTEMP0, CHERI_CR_KDC, &csfp->csf_idc, 0);
 		CHERI_CGETTAG(ctag, CHERI_CR_CTEMP0);
-		CHERI_CGETUNSEALED(c_unsealed, CHERI_CR_CTEMP0);
+		CHERI_CGETSEALED(c_sealed, CHERI_CR_CTEMP0);
 		CHERI_CGETPERM(c_perms, CHERI_CR_CTEMP0);
 		CHERI_CGETTYPE(c_otype, CHERI_CR_CTEMP0);
 		CHERI_CGETBASE(c_base, CHERI_CR_CTEMP0);
 		CHERI_CGETLEN(c_length, CHERI_CR_CTEMP0);
+		CHERI_CGETOFFSET(c_offset, CHERI_CR_CTEMP0);
 
-		db_printf("\tIDC: t: %u u: %u perms 0x%04jx otype 0x%016jx\n",
-		    ctag, c_unsealed, c_perms, c_otype);
-		db_printf("\t\tbase 0x%016jx length 0x%016jx\n", c_base,
-		    c_length);
+		db_printf("\tIDC: t: %u s: %u perms 0x%04jx otype 0x%016jx\n",
+		    ctag, c_sealed, c_perms, c_otype);
+		db_printf("\t\tbase 0x%016jx length 0x%016jx offset %jx\n",
+		    c_base, c_length, c_offset);
 
 		CHERI_CLC(CHERI_CR_CTEMP0, CHERI_CR_KDC, &csfp->csf_pcc, 0);
 		CHERI_CGETTAG(ctag, CHERI_CR_CTEMP0);
-		CHERI_CGETUNSEALED(c_unsealed, CHERI_CR_CTEMP0);
+		CHERI_CGETSEALED(c_sealed, CHERI_CR_CTEMP0);
 		CHERI_CGETPERM(c_perms, CHERI_CR_CTEMP0);
 		CHERI_CGETTYPE(c_otype, CHERI_CR_CTEMP0);
 		CHERI_CGETBASE(c_base, CHERI_CR_CTEMP0);
 		CHERI_CGETLEN(c_length, CHERI_CR_CTEMP0);
+		CHERI_CGETOFFSET(c_offset, CHERI_CR_CTEMP0);
 
-		db_printf("\tPCC: t: %u u: %u perms 0x%04jx otype 0x%016jx\n",
-		    ctag, c_unsealed, c_perms, c_otype);
-		db_printf("\t\tbase 0x%016jx length 0x%016jx\n", c_base,
-		    c_length);
-
-		db_printf("\tPC: %p\n", (void *)csfp->csf_pc);
+		db_printf("\tPCC: t: %u s: %u perms 0x%04jx otype 0x%016jx\n",
+		    ctag, c_sealed, c_perms, c_otype);
+		db_printf("\t\tbase 0x%016jx length 0x%016jx offset %jx\n",
+		    c_base, c_length, c_offset);
 	}
 }
 #endif

@@ -118,12 +118,12 @@ CHERICCall:
 	nop
 
 	/* Second, check for the sealed bit on both arguments. */
-	cgetunsealed	k0, CHERI_REG_CCALLCODE
-	bnez		k0, CCall_c1_unsealed
+	cgetsealed	k0, CHERI_REG_CCALLCODE
+	beqz		k0, CCall_c1_unsealed
 	nop
 
-	cgetunsealed	k0, CHERI_REG_CCALLDATA
-	bnez		k0, CCall_c2_unsealed
+	cgetsealed	k0, CHERI_REG_CCALLDATA
+	beqz		k0, CCall_c2_unsealed
 	nop
 
 	/* Third, check for type equality. */
@@ -196,21 +196,27 @@ CHERICCall:
 	/* Push IDC. */
 	csc		CHERI_REG_IDC, k0, CHERI_STACKFRAME_IDC(CHERI_REG_KDC)
 
+	/*
+	 * Add 4 to PC, install in PC.offset; k1 is overwritten so no longer
+	 * the PCB pointer.
+	 *
+	 * NB: It seems like the hardware could do this for us?
+	 */
+	MFC0		k1, MIPS_COP_0_EXC_PC
+	PTR_ADDU	k1, k1, 4
+	csetoffset	CHERI_REG_EPCC, CHERI_REG_EPCC, k1
+
 	/* Push PCC. */
 	csc		CHERI_REG_EPCC, k0, CHERI_STACKFRAME_PCC(CHERI_REG_KDC)
 
-	/* Push PC + 4; k1 is overwritten, so no longer PCB pointer. */
-	MFC0		k1, MIPS_COP_0_EXC_PC
-	PTR_ADDU	k1, k1, 4
-	csd		k1, k0, CHERI_STACKFRAME_PC(CHERI_REG_KDC)
-
 	/*
-	 * Temporarily set KDC type to allow unsealing.
+	 * Temporarily set KDC type to allow unsealing; this is a bit awkward
+	 * as KDC can't be used for data access until we unset it again.
 	 *
 	 * XXXRW: This is inefficient and (should be) unnecessary.
 	 */
 	cgettype	k0, CHERI_REG_CCALLCODE
-	csettype	CHERI_REG_KDC, CHERI_REG_KDC, k0
+	csetoffset	CHERI_REG_KDC, CHERI_REG_KDC, k0
 
 	/* Unseal cs; install in PCC. */
 	cunseal		CHERI_REG_EPCC, CHERI_REG_CCALLCODE, CHERI_REG_KDC
@@ -218,7 +224,11 @@ CHERICCall:
 	/* Unseal cb; install in IDC. */
 	cunseal		CHERI_REG_IDC, CHERI_REG_CCALLDATA, CHERI_REG_KDC
 
-	/* Installe cs.otype. */
+	/* Restore KDC offset. */
+	dli		k0, 0
+	csetoffset	CHERI_REG_KDC, CHERI_REG_KDC, k0
+
+	/* Install cs.offset. */
 	cgettype	k0, CHERI_REG_CCALLCODE
 	cgetbase	k1, CHERI_REG_CCALLCODE
 	dsub		k0, k0, k1
@@ -325,8 +335,8 @@ CHERICReturn:
 	/* Pop PCC. */
 	clc		CHERI_REG_EPCC, k0, CHERI_STACKFRAME_PCC(CHERI_REG_KDC)
 
-	/* Pop PC + padding; +4 already done; toasts k0; k1 still PCB. */
-	cld		k0, k0, CHERI_STACKFRAME_PC(CHERI_REG_KDC)
+	/* Extract PC+4, install in $c0_epc.  Toasts k0; k1 still PCB. */
+	cgetoffset	k0, CHERI_REG_EPCC
 	MTC0		k0, MIPS_COP_0_EXC_PC
 	COP0_SYNC
 

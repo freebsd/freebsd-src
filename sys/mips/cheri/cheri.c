@@ -80,17 +80,19 @@ SYSCTL_UINT(_security_cheri, OID_AUTO, debugger_on_exception, CTLFLAG_RW,
     "Run debugger on CHERI exception");
 
 #define	CHERI_CAP_PRINT(crn) do {					\
-	uintmax_t c_perms, c_otype, c_base, c_length;			\
-	u_int ctag, c_unsealed;						\
+	uintmax_t c_perms, c_otype, c_base, c_length, c_offset;		\
+	u_int ctag, c_sealed;						\
 									\
 	CHERI_CGETTAG(ctag, (crn));					\
-	CHERI_CGETUNSEALED(c_unsealed, (crn));				\
+	CHERI_CGETSEALED(c_sealed, (crn));				\
 	CHERI_CGETPERM(c_perms, (crn));					\
 	CHERI_CGETTYPE(c_otype, (crn));					\
 	CHERI_CGETBASE(c_base, (crn));					\
 	CHERI_CGETLEN(c_length, (crn));					\
-	printf("t:%u u:%u b:%016jx l:%016jx o:%016jx p:%08jx\n", ctag,	\
-	    c_unsealed, c_base, c_length, c_otype, c_perms);		\
+	CHERI_CGETOFFSET(c_offset, (crn));				\
+	printf("t:%u s:%u b:%016jx l:%016jx o:%jx y:%016jx p:%08jx\n",	\
+	    ctag, c_sealed, c_base, c_length, c_offset, c_otype,	\
+	    c_perms);							\
 } while (0)
 
 #define	CHERI_REG_PRINT(crn, num) do {					\
@@ -111,18 +113,22 @@ static void	cheri_capability_set_user_pcc(struct chericap *);
  * privilege downgrade in a way that will work when doing an "in place"
  * downgrade, with permissions last.
  *
- * XXXRW: How about the unsealed bit?
+ * XXXRW: How about the sealed bit?
  */
 
 void
-cheri_capability_set(struct chericap *cp, uint32_t perms,
-    void *otypep /* eaddr */, void *basep, uint64_t length)
+cheri_capability_set(struct chericap *cp, uint32_t perms, void *otypep,
+    void *basep, size_t length, off_t off)
 {
 
 	CHERI_CINCBASE(CHERI_CR_CTEMP0, CHERI_CR_KDC, (register_t)basep);
 	CHERI_CSETLEN(CHERI_CR_CTEMP0, CHERI_CR_CTEMP0, (register_t)length);
+	CHERI_CSETOFFSET(CHERI_CR_CTEMP0, CHERI_CR_CTEMP0, (register_t)off);
 	CHERI_CANDPERM(CHERI_CR_CTEMP0, CHERI_CR_CTEMP0, (register_t)perms);
+	/* XXXRW: For now, don't set type. */
+#if 0
 	CHERI_CSETTYPE(CHERI_CR_CTEMP0, CHERI_CR_CTEMP0, (register_t)otypep);
+#endif
 	CHERI_CSC(CHERI_CR_CTEMP0, CHERI_CR_KDC, (register_t)cp, 0);
 }
 
@@ -136,7 +142,6 @@ cheri_capability_clear(struct chericap *cp)
 	 * spell.
 	 */
 	bzero(cp, sizeof(*cp));
-
 }
 
 /*
@@ -150,7 +155,8 @@ cheri_capability_set_priv(struct chericap *cp)
 {
 
 	cheri_capability_set(cp, CHERI_CAP_PRIV_PERMS, CHERI_CAP_PRIV_OTYPE,
-	    CHERI_CAP_PRIV_BASE, CHERI_CAP_PRIV_LENGTH);
+	    CHERI_CAP_PRIV_BASE, CHERI_CAP_PRIV_LENGTH,
+	    CHERI_CAP_PRIV_OFFSET);
 }
 #endif
 
@@ -159,7 +165,8 @@ cheri_capability_set_user_c0(struct chericap *cp)
 {
 
 	cheri_capability_set(cp, CHERI_CAP_USER_PERMS, CHERI_CAP_USER_OTYPE,
-	    CHERI_CAP_USER_BASE, CHERI_CAP_USER_LENGTH);
+	    CHERI_CAP_USER_BASE, CHERI_CAP_USER_LENGTH,
+	    CHERI_CAP_USER_OFFSET);
 }
 
 static void
@@ -168,10 +175,12 @@ cheri_capability_set_user_stack(struct chericap *cp)
 
 	/*
 	 * For now, initialise stack as ambient with identical rights as $c0.
-	 * In the future, we will likely want to change this to be ephemeral.
+	 * In the future, we will likely want to change this to be local
+	 * (non-global).
 	 */
 	cheri_capability_set(cp, CHERI_CAP_USER_PERMS, CHERI_CAP_USER_OTYPE,
-	    CHERI_CAP_USER_BASE, CHERI_CAP_USER_LENGTH);
+	    CHERI_CAP_USER_BASE, CHERI_CAP_USER_LENGTH,
+	    CHERI_CAP_USER_OFFSET);
 }
 
 static void
@@ -182,7 +191,8 @@ cheri_capability_set_user_idc(struct chericap *cp)
 	 * The default invoked data capability is also identical to $c0.
 	 */
 	cheri_capability_set(cp, CHERI_CAP_USER_PERMS, CHERI_CAP_USER_OTYPE,
-	    CHERI_CAP_USER_BASE, CHERI_CAP_USER_LENGTH);
+	    CHERI_CAP_USER_BASE, CHERI_CAP_USER_LENGTH,
+	    CHERI_CAP_USER_OFFSET);
 }
 
 static void
@@ -190,13 +200,15 @@ cheri_capability_set_user_pcc(struct chericap *cp)
 {
 
 	cheri_capability_set(cp, CHERI_CAP_USER_PERMS, CHERI_CAP_USER_OTYPE,
-	    CHERI_CAP_USER_BASE, CHERI_CAP_USER_LENGTH);
+	    CHERI_CAP_USER_BASE, CHERI_CAP_USER_LENGTH,
+	    CHERI_CAP_USER_OFFSET);
 }
 
 void
 cheri_capability_set_null(struct chericap *cp)
 {
 
+	/* XXXRW: Should be using CFromPtr(NULL) for this. */
 	cheri_capability_clear(cp);
 }
 
@@ -312,13 +324,13 @@ static const char *cheri_exccode_array[] = {
 	"reserved",				/* TBD */
 	"reserved",				/* TBD */
 	"reserved",				/* TBD */
-	"non-ephemeral violation",		/* CHERI_EXCCODE_NON_EPHEM */
+	"global violation",			/* CHERI_EXCCODE_GLOBAL */
 	"permit execute violation",		/* CHERI_EXCCODE_PERM_EXECUTE */
 	"permit load violation",		/* CHERI_EXCCODE_PERM_LOAD */
 	"permit store violation",		/* CHERI_EXCCODE_PERM_STORE */
 	"permit load capability violation",	/* CHERI_EXCCODE_PERM_LOADCAP */
-	"permit store capability violation",   /* CHERI_EXCCODE_PERM_STORECAP */
- "permit store ephemeral capability violation", /* CHERI_EXCCODE_STORE_EPHEM */
+	"permit store capability violation",  /* CHERI_EXCCODE_PERM_STORECAP */
+     "permit store local capability violation", /* CHERI_EXCCODE_STORE_LOCAL */
 	"permit seal violation",		/* CHERI_EXCCODE_PERM_SEAL */
 	"permit set type violation",		/* CHERI_EXCCODE_PERM_SETTYPE */
 	"reserved",				/* TBD */
@@ -472,18 +484,20 @@ cheri_signal_sandboxed(struct thread *td)
 
 #ifdef DDB
 #define	DB_CHERI_REG_PRINT_NUM(crn, num) do {				\
-	uintmax_t c_perms, c_otype, c_base, c_length;			\
-	u_int ctag, c_unsealed;						\
+	uintmax_t c_perms, c_otype, c_base, c_length, c_offset;		\
+	u_int ctag, c_sealed;						\
 									\
 	CHERI_CGETTAG(ctag, (crn));					\
-	CHERI_CGETUNSEALED(c_unsealed, (crn));				\
+	CHERI_CGETSEALED(c_sealed, (crn));				\
 	CHERI_CGETPERM(c_perms, (crn));					\
 	CHERI_CGETTYPE(c_otype, (crn));					\
 	CHERI_CGETBASE(c_base, (crn));					\
 	CHERI_CGETLEN(c_length, (crn));					\
+	CHERI_CGETOFFSET(c_offset, (crn));				\
 	db_printf(							\
-	    "C%02u t:%u u:%u b:%016jx l:%016jx o:%016jx p:%08jx\n",	\
-	    num, ctag, c_unsealed, c_base, c_length, c_otype, c_perms);	\
+	    "C%02u t:%u s:%u b:%016jx l:%016jx o:%jx y:%016jx p:%08jx\n",\
+	    num, ctag, c_sealed, c_base, c_length, c_offset, c_otype,	\
+	    c_perms);							\
 } while (0)
 
 #define	DB_CHERI_REG_PRINT(crn)	 DB_CHERI_REG_PRINT_NUM(crn, crn)

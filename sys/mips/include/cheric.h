@@ -41,19 +41,22 @@
  */
 #define	cheri_getlen(x)		__builtin_cheri_get_cap_length(x)
 #define	cheri_getbase(x)	__builtin_cheri_get_cap_base(x)
+#define	cheri_getoffset(x)	__builtin_cheri_cap_offset_get(x)
 #define	cheri_getperm(x)	__builtin_cheri_get_cap_perms(x)
 #define	cheri_gettag(x)		__builtin_cheri_get_cap_tag(x)
 #define	cheri_gettype(x)	__builtin_cheri_get_cap_type(x)
-#define	cheri_getunsealed(x)	__builtin_cheri_get_cap_unsealed(x)
+
+/* XXXRW: Built-in not yet present but encoding works. */
+#define	cheri_getsealed(x)	__builtin_cheri_get_cap_unsealed(x)
 
 #define	cheri_andperm(x, y)	__builtin_cheri_and_cap_perms((x), (y))
 #define	cheri_ccleartag(x)	__builtin_cheri_clear_cap_tag(x)
 #define	cheri_incbase(x, y)	__builtin_cheri_inc_cap_base((x), (y))
 #define	cheri_setlen(x, y)	__builtin_cheri_set_cap_length((x), (y))
+#define	cheri_setoffset(x, y)	__builtin_cheri_cap_offset_set((x), (y))
 #define	cheri_settype(x, y)	__builtin_cheri_set_cap_type((x), (y))
 
-#define	cheri_sealcode(x)	__builtin_cheri_seal_cap_code((x))
-#define	cheri_sealdata(x, y)	__builtin_cheri_seal_cap_data((x), (y))
+#define	cheri_seal(x, y)	__builtin_cheri_seal_cap((x), (y))
 #define	cheri_unseal(x, y)	__builtin_cheri_unseal_cap((x), (y))
 
 #define	cheri_getcause()	__builtin_cheri_get_cause()
@@ -71,7 +74,7 @@
 #define	cheri_getepcc()		__builtin_cheri_get_exception_program_counter_cap()
 #define	cheri_getpcc()		__builtin_cheri_get_program_counter_cap()
 
-#define	cheri_ephemeral(c)	cheri_andperm((c), ~CHERI_PERM_NON_EPHEMERAL)
+#define	cheri_local(c)		cheri_andperm((c), ~CHERI_PERM_GLOBAL)
 
 static __inline __capability void *
 cheri_setlentype(__capability void *cap, size_t len, register_t type)
@@ -96,11 +99,21 @@ cheri_ptrperm(void *ptr, size_t len, register_t perm)
 }
 
 static __inline __capability void *
-cheri_ptrtype(void *ptr, size_t len, register_t type)
+cheri_ptrpermoff(void *ptr, size_t len, register_t perm, off_t off)
 {
 
-	return (cheri_settype(cheri_setlen((__capability void *)ptr, len),
-	    type));
+	return (cheri_setoffset(cheri_ptrperm(ptr, len, perm), off));
+}
+
+/*
+ * Construct a capability suitable to describe a type identified by 'ptr';
+ * set it to zero-length with the offset equal to the base.
+ */
+static __inline __capability void *
+cheri_maketype(void *ptr, register_t perm)
+{
+
+	return (cheri_ptrpermoff(ptr, 0, perm, 0));
 }
 
 static __inline __capability void *

@@ -52,7 +52,7 @@ struct chericap {
 	uint32_t	c_reserved;
 #if BYTE_ORDER == BIG_ENDIAN
 	/* XXXRW: This definitely needs some testing. */
-	uint32_t	c_unsealed:1;
+	uint32_t	c_sealed:1;
 	uint32_t	c_perms:31;
 #else
 #error	"BYTE_ORDER != BIG_ENDIAN not yet supported"
@@ -177,10 +177,10 @@ struct cheri_signal {
  * from the public one.
  */
 struct cheri_stack_frame {
-	register_t	csf_pc;		/* MIPS program counter. */
-	register_t	_csf_pad0;
+	register_t	_csf_pad0;	/* Used to be MIPS program counter. */
 	register_t	_csf_pad1;
 	register_t	_csf_pad2;
+	register_t	_csf_pad3;
 #if !defined(_KERNEL) && __has_feature(capabilities)
 	__capability void	*csf_pcc;
 	__capability void	*csf_idc;
@@ -215,13 +215,18 @@ struct cheri_stack {
 	    "i" (cb));							\
 } while (0)
 
+#define	CHERI_CGETOFFSET(v, cb) do {					\
+	__asm__ __volatile__ ("cgetoffset %0, $c%1" : "=r" (v) :	\
+	    "i" (cb));							\
+} while (0)
+
 #define	CHERI_CGETTAG(v, cb) do {					\
 	__asm__ __volatile__ ("cgettag %0, $c%1" : "=r" (v) :		\
 	    "i" (cb));							\
 } while (0)
 
-#define	CHERI_CGETUNSEALED(v, cb) do {					\
-	__asm__ __volatile__ ("cgetunsealed %0, $c%1" :	"=r" (v) :	\
+#define	CHERI_CGETSEALED(v, cb) do {					\
+	__asm__ __volatile__ ("cgetsealed %0, $c%1" :	"=r" (v) :	\
 	    "i" (cb));							\
 } while (0)
 
@@ -271,11 +276,9 @@ struct cheri_stack {
  * Routines that modify or replace values in capability registers that don't
  * affect memory access via the register.  These do not require memory
  * clobbers.
+ *
+ * XXXRW: Are there now none of these?
  */
-#define	CHERI_CSETTYPE(cd, cb, v) do {					\
-	__asm__ __volatile__ ("csettype $c%0, $c%1, %2" : :		\
-		    "i" (cd), "i" (cb), "r" (v));			\
-} while (0)
 
 /*
  * Instructions relating to capability invocation, return, sealing, and
@@ -285,21 +288,12 @@ struct cheri_stack {
  *
  * XXXRW: Is the latter class of cases required?
  */
-#define	CHERI_CSEALCODE(cd, cs) do {					\
+#define	CHERI_CSEAL(cd, cs, ct) do {					\
 	if ((cd) == 0)							\
-		__asm__ __volatile__ ("csealcode $c%0, $c%1" : :	\
-		    "i" (cd), "i" (cs) : "memory");			\
-	else								\
-		__asm__ __volatile__ ("csealcode $c%0, $c%1" : :	\
-		    "i" (cd), "i" (cs));				\
-} while (0)
-
-#define CHERI_CSEALDATA(cd, cs, ct) do {				\
-	if ((cd) == 0)							\
-		__asm__ __volatile__ ("csealdata $c%0, $c%1, $c%2" : :	\
+		__asm__ __volatile__ ("cseal $c%0, $c%1, $c%2" : :	\
 		    "i" (cd), "i" (cs), "i" (ct) : "memory");		\
 	else								\
-		__asm__ __volatile__ ("csealdata $c%0, $c%1, $c%2" : :	\
+		__asm__ __volatile__ ("cseal $c%0, $c%1, $c%2" : :	\
 		    "i" (cd), "i" (cs), "i" (ct));			\
 } while (0)
 
@@ -443,6 +437,15 @@ struct cheri_stack {
 		    "i" (cd), "i" (cb), "r" (v));			\
 } while (0)
 
+#define	CHERI_CSETOFFSET(cd, cb, v) do {				\
+	if ((cd) == 0)							\
+		__asm__ __volatile__ ("csetoffset $c%0, $c%1, %2" : :	\
+		    "i" (cd), "i" (cb), "r" (v) : "memory");		\
+	else								\
+		__asm__ __volatile__ ("csetoffset $c%0, $c%1, %2" : :	\
+		    "i" (cd), "i" (cb), "r" (v));			\
+} while (0)
+
 #define	CHERI_CCLEARTAG(cd, cb) do {					\
 	if ((cd) == 0)							\
 		__asm__ __volatile__ ("ccleartag $c%0, $c%1" : :	\
@@ -500,7 +503,7 @@ cheri_capability_store(u_int crn_from, struct chericap *cp)
  */
 #define	CHERI_GETCAPREG(crn, c) do {					\
 	CHERI_CGETPERM((c).c_perms, (crn));				\
-	CHERI_CGETUNSEALED((c).c_unsealed, (crn));			\
+	CHERI_CGETSEALED((c).c_sealed, (crn));				\
 	CHERI_CGETTYPE((c).c_otype, (crn));				\
 	CHERI_CGETBASE((c).c_base, (crn));				\
 	CHERI_CGETLEN((c).c_length, (crn));				\
@@ -527,7 +530,7 @@ cheri_get_cyclecount(void)
 void	cheri_capability_copy(struct chericap *cp_to,
 	    struct chericap *cp_from);
 void	cheri_capability_set(struct chericap *cp, uint32_t uperms,
-	    void *otypep /* eaddr */, void *basep, uint64_t length);
+	    void *otype, void *basep, size_t length, off_t off);
 void	cheri_capability_set_null(struct chericap *cp);
 
 /*
