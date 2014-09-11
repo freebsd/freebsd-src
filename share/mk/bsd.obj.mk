@@ -51,7 +51,6 @@ CANONICALOBJDIR:=/usr/obj${.CURDIR}
 .endif
 
 EXTRAOBJDIRS+=	${SRCS:C|[^/]*$||:S|/$||:O:u}
-CLEANDIRS+=	${EXTRAOBJDIRS}
 
 #
 # Warn of unorthodox object directory.
