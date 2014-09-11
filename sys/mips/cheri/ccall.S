@@ -1,6 +1,6 @@
 /*-
- * Copyright (c) 2012-2013 Robert N. M. Watson
- * Copyright (c) 2012-2013 Michael Roe
+ * Copyright (c) 2012-2014 Robert N. M. Watson
+ * Copyright (c) 2012-2014 Michael Roe
  * All rights reserved.
  *
  * This software was developed by SRI International and the University of
@@ -195,6 +195,8 @@ CHERICCall:
 	 * Temporarily set KDC type to allow unsealing; this is a bit awkward
 	 * as KDC can't be used for data access until we unset it again.
 	 *
+	 * NB: Note implicit assumption that CHERI_REG_KDC.base == 0.
+	 *
 	 * XXXRW: This is inefficient and (should be) unnecessary.
 	 */
 	cgettype	k0, CHERI_REG_CCALLCODE
@@ -210,18 +212,10 @@ CHERICCall:
 	dli		k0, 0
 	csetoffset	CHERI_REG_KDC, CHERI_REG_KDC, k0
 
-	/* Install cs.offset. */
+	/* Install cs.offset as PC. */
 	cgetoffset	k0, CHERI_REG_CCALLCODE
 	MTC0		k0, MIPS_COP_0_EXC_PC
 	COP0_SYNC
-
-	/*
-	 * Restore KDC type.
-	 *
-	 * XXXRW: This should also be unnecessary.
-	 */
-	PTR_LI		k0, 0
-	csettype	CHERI_REG_KDC, CHERI_REG_KDC, k0
 
 	CHERI_EXCEPTION_RETURN(k0)
 	eret
