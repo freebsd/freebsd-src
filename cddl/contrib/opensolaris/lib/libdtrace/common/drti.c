@@ -90,36 +90,6 @@ dprintf(int debug, const char *fmt, ...)
 	va_end(ap);
 }
 
-#if !defined(sun)
-static void
-fixsymbol(Elf *e, Elf_Data *data, size_t idx, int nprobes, char *buf,
-    dof_sec_t *sec, int *fixedprobes, char *dofstrtab)
-{
-	GElf_Sym sym;
-	char *s;
-	unsigned char *funcname;
-	dof_probe_t *prb;
-	int j = 0;
-	int ndx;
-
-	while (gelf_getsym(data, j++, &sym) != NULL) {
-		prb = (dof_probe_t *)(void *)(buf + sec->dofs_offset);
-
-		for (ndx = nprobes; ndx; ndx--, prb += 1) {
-			funcname = dofstrtab + prb->dofpr_func;
-			s = elf_strptr(e, idx, sym.st_name);
-			if (strcmp(s, funcname) == 0) {
-				dprintf(1, "fixing %s() symbol\n", s);
-				prb->dofpr_addr = sym.st_value;
-				(*fixedprobes)++;
-			}
-		}
-		if (*fixedprobes == nprobes)
-			break;
-	}
-}
-#endif
-
 #if defined(sun)
 #pragma init(dtrace_dof_init)
 #else
@@ -145,9 +115,6 @@ dtrace_dof_init(void)
 	Lmid_t lmid;
 #else
 	u_long lmid = 0;
-	dof_sec_t *sec, *secstart, *dofstrtab, *dofprobes;
-	dof_provider_t *dofprovider;
-	size_t i;
 #endif
 	int fd;
 	const char *p;
@@ -157,12 +124,9 @@ dtrace_dof_init(void)
 	Elf_Data *symtabdata = NULL, *dynsymdata = NULL, *dofdata = NULL;
 	dof_hdr_t *dof_next = NULL;
 	GElf_Shdr shdr;
-	int efd, nprobes;
+	int efd;
 	char *s;
-	char *dofstrtabraw;
 	size_t shstridx, symtabidx = 0, dynsymidx = 0;
-	unsigned char *buf;
-	int fixedprobes;
 #endif
 
 	if (getenv("DTRACE_DOF_INIT_DISABLE") != NULL)
@@ -182,7 +146,6 @@ dtrace_dof_init(void)
 		return;
 	}
 #endif
-
 
 	if ((modname = strrchr(lmp->l_name, '/')) == NULL)
 		modname = lmp->l_name;
@@ -209,9 +172,9 @@ dtrace_dof_init(void)
 		} else if (shdr.sh_type == SHT_DYNSYM) {
 			dynsymidx = shdr.sh_link;
 			dynsymdata = elf_getdata(scn, NULL);
-		} else if (shdr.sh_type == SHT_PROGBITS) {
+		} else if (shdr.sh_type == SHT_SUNW_dof) {
 			s = elf_strptr(e, shstridx, shdr.sh_name);
-			if  (s && strcmp(s, ".SUNW_dof") == 0) {
+			if  (s != NULL && strcmp(s, ".SUNW_dof") == 0) {
 				dofdata = elf_getdata(scn, NULL);
 				dof = dofdata->d_buf;
 			}
@@ -225,7 +188,6 @@ dtrace_dof_init(void)
 	}
 
 	while ((char *) dof < (char *) dofdata->d_buf + dofdata->d_size) {
-		fixedprobes = 0;
 		dof_next = (void *) ((char *) dof + dof->dofh_filesz);
 #endif
 
@@ -273,76 +235,6 @@ dtrace_dof_init(void)
 		return;
 #endif
 	}
-#if !defined(sun)
-	/*
-	 * We need to fix the base address of each probe since this wasn't
-	 * done by ld(1). (ld(1) needs to grow support for parsing the
-	 * SUNW_dof section).
-	 *
-	 * The complexity of this is not that great. The first for loop
-	 * iterates over the sections inside the DOF file. There are usually
-	 * 10 sections here. We asume the STRTAB section comes first and the
-	 * PROBES section comes after. Since we are only interested in fixing
-	 * data inside the PROBES section we quit the for loop after processing
-	 * the PROBES section. It's usually the case that the first section
-	 * is the STRTAB section and the second section is the PROBES section,
-	 * so this for loop is not meaningful when doing complexity analysis.
-	 *
-	 * After finding the probes section, we iterate over the symbols
-	 * in the symtab section. When we find a symbol name that matches
-	 * the probe function name, we fix it. If we have fixed all the
-	 * probes, we exit all the loops and we are done.
-	 * The number of probes is given by the variable 'nprobes' and this
-	 * depends entirely on the user, but some optimizations were done.
-	 *
-	 * We are assuming the number of probes is less than the number of
-	 * symbols (libc can have 4k symbols, for example).
-	 */
-	secstart = sec = (dof_sec_t *)(dof + 1);
-	buf = (char *)dof;
-	for (i = 0; i < dof->dofh_secnum; i++, sec++) {
-		if (sec->dofs_type != DOF_SECT_PROVIDER)
-			continue;
-
-		dofprovider = (void *) (buf + sec->dofs_offset);
-		dofstrtab = secstart + dofprovider->dofpv_strtab;
-		dofprobes = secstart + dofprovider->dofpv_probes;
-
-		if (dofstrtab->dofs_type != DOF_SECT_STRTAB) {
-			fprintf(stderr, "WARNING: expected STRTAB section, but got %d\n",
-					dofstrtab->dofs_type);
-			break;
-		}
-		if (dofprobes->dofs_type != DOF_SECT_PROBES) {
-			fprintf(stderr, "WARNING: expected PROBES section, but got %d\n",
-			    dofprobes->dofs_type);
-			break;
-		}
-
-		dprintf(1, "found provider %p\n", dofprovider);
-		dofstrtabraw = (char *)(buf + dofstrtab->dofs_offset);
-		nprobes = dofprobes->dofs_size / dofprobes->dofs_entsize;
-		fixsymbol(e, symtabdata, symtabidx, nprobes, buf, dofprobes, &fixedprobes,
-				dofstrtabraw);
-		if (fixedprobes != nprobes) {
-			/*
-			 * If we haven't fixed all the probes using the
-			 * symtab section, look inside the dynsym
-			 * section.
-			 */
-			fixsymbol(e, dynsymdata, dynsymidx, nprobes, buf, dofprobes,
-					&fixedprobes, dofstrtabraw);
-		}
-		if (fixedprobes != nprobes) {
-			fprintf(stderr, "WARNING: number of probes "
-			    "fixed does not match the number of "
-			    "defined probes (%d != %d, "
-			    "respectively)\n", fixedprobes, nprobes);
-			fprintf(stderr, "WARNING: some probes might "
-			    "not fire or your program might crash\n");
-		}
-	}
-#endif
 	if ((gen = ioctl(fd, DTRACEHIOC_ADDDOF, &dh)) == -1)
 		dprintf(1, "DTrace ioctl failed for DOF at %p", dof);
 	else {
