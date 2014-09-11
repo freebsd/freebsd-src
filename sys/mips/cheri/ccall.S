@@ -112,9 +112,9 @@ CHERICCall:
         .set noat
 
 	/* First, test argument registers for tag validity. */
-	cbtu		CHERI_REG_CCALLCODE, CCall_c1_invalid
+	cbtu		CHERI_REG_CCALLCODE, CCall_c1_untagged
 	nop
-	cbtu		CHERI_REG_CCALLDATA, CCall_c2_invalid
+	cbtu		CHERI_REG_CCALLDATA, CCall_c2_untagged
 	nop
 
 	/* Second, check for the sealed bit on both arguments. */
@@ -134,38 +134,20 @@ CHERICCall:
 
 	/* Fourth, check permissions. */
 	cgetperm	k0, CHERI_REG_CCALLCODE
-	REG_LI		k1, CHERI_PERM_SEAL
-	and		k0, k0, k1
-	bne		k0, k1, CCall_c1_perm_seal
+	andi		k0, CHERI_PERM_EXECUTE
+	beqz		k0, CCall_c1_perm_execute
 	nop
 
-	cgetperm	k0, CHERI_REG_CCALLCODE
-	REG_LI		k1, CHERI_PERM_EXECUTE
-	and		k0, k0, k1
-	bne		k0, k1, CCall_c1_perm_execute
+	cgetperm	k0, CHERI_REG_CCALLDATA
+	andi		k0, CHERI_PERM_EXECUTE
+	bnez		k0, CCall_c2_perm_execute
 	nop
 
-	/* Fifth, check proposed PC is not lower than base. */
-	cgetbase	k0, CHERI_REG_CCALLCODE
-	cgettype	k1, CHERI_REG_CCALLCODE
+	/* Fifth, check that PCC offset is not >= length. */
+	/* XXXRW: Check that this is right! */
+	cgetoffset	k0, CHERI_REG_CCALLDATA
+	cgetlen		k1, CHERI_REG_CCALLDATA
 	sltu		k1, k1, k0
-	bnez		k1, CCall_c1_range
-	nop
-
-	/*
-	 * Sixth, check proposed PC is not greater than base + length - 4.
-	 *
-	 * XXXRW: CHERI ISA spec calls for '-1'; we use '4' as it is the
-	 * length of an instruction.
-	 *
-	 * XXXRW: Check this logic.
-	 */
-	cgetbase	k0, CHERI_REG_CCALLCODE
-	cgetlen		k1, CHERI_REG_CCALLCODE
-	PTR_ADDU	k0, k0, k1
-	PTR_SUBIU	k0, 4
-	cgettype	k1, CHERI_REG_CCALLCODE
-	sltu		k1, k0, k1
 	bnez		k1, CCall_c1_range
 	nop
 
@@ -246,12 +228,12 @@ CHERICCall:
 	CHERI_EXCEPTION_RETURN(k0)
 	eret
 
-CCall_c1_invalid:
+CCall_c1_untagged:
 	dli	k0, ((CHERI_EXCCODE_TAG << 8) | 1)
 	b	CCall_throw_exception
 	csetcause	k0		/* Branch-delay slot. */
 
-CCall_c2_invalid:
+CCall_c2_untagged:
 	dli	k0, ((CHERI_EXCCODE_TAG << 8) | 2)
 	b	CCall_throw_exception
 	csetcause	k0		/* Branch-delay slot. */
@@ -271,12 +253,12 @@ CCall_c1_c2_type_mismatch:
 	b	CCall_throw_exception
 	csetcause	k0		/* Branch-delay slot. */
 
-CCall_c1_perm_seal:
-	dli	k0, ((CHERI_EXCCODE_PERM_SEAL << 8) | 1)
+CCall_c1_perm_execute:
+	dli	k0, ((CHERI_EXCCODE_PERM_EXECUTE << 8) | 1)
 	b	CCall_throw_exception
 	csetcause	k0		/* Branch-delay slot. */
 
-CCall_c1_perm_execute:
+CCall_c2_perm_execute:
 	dli	k0, ((CHERI_EXCCODE_PERM_EXECUTE << 8) | 1)
 	b	CCall_throw_exception
 	csetcause	k0		/* Branch-delay slot. */
