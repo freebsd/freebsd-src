@@ -1715,6 +1715,29 @@ in6ifa_ifpforlinklocal(struct ifnet *ifp, int ignoreflags)
 
 
 /*
+ * find the internet address corresponding to a given address.
+ * ifaddr is returned referenced.
+ */
+struct in6_ifaddr *
+in6ifa_ifwithaddr(const struct in6_addr *addr, uint32_t zoneid)
+{
+	struct in6_ifaddr *ia;
+
+	IN6_IFADDR_RLOCK();
+	LIST_FOREACH(ia, IN6ADDR_HASH(addr), ia6_hash) {
+		if (IN6_ARE_ADDR_EQUAL(IA6_IN6(ia), addr)) {
+			if (zoneid != 0 &&
+			    zoneid != ia->ia_addr.sin6_scope_id)
+				continue;
+			ifa_ref(&ia->ia_ifa);
+			break;
+		}
+	}
+	IN6_IFADDR_RUNLOCK();
+	return (ia);
+}
+
+/*
  * find the internet address corresponding to a given interface and address.
  * ifaddr is returned referenced.
  */
