@@ -41,7 +41,6 @@
  * POSSIBILITY OF SUCH DAMAGES.
  */
 
-
 #define __RSDUMP_C__
 
 #include "acpi.h"

@@ -827,7 +827,12 @@ AcpiDmDisassembleOneOp (
             }
         }
 
-        if (AcpiDmIsUnicodeBuffer (Op))
+        if (AcpiDmIsUuidBuffer (Op))
+        {
+            Op->Common.DisasmOpcode = ACPI_DASM_UUID;
+            AcpiOsPrintf ("ToUUID (");
+        }
+        else if (AcpiDmIsUnicodeBuffer (Op))
         {
             Op->Common.DisasmOpcode = ACPI_DASM_UNICODE;
             AcpiOsPrintf ("Unicode (");

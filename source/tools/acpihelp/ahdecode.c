@@ -873,6 +873,34 @@ AhDisplayDeviceIds (
 
 /*******************************************************************************
  *
+ * FUNCTION:    AhDisplayUuids
+ *
+ * PARAMETERS:  None
+ *
+ * RETURN:      None
+ *
+ * DESCRIPTION: Display all known UUIDs.
+ *
+ ******************************************************************************/
+
+void
+AhDisplayUuids (
+    void)
+{
+    const AH_UUID           *Info;
+
+
+    printf ("ACPI-related UUIDs:\n\n");
+
+    for (Info = AcpiUuids; Info->Description; Info++)
+    {
+        printf ("%32s : %s\n", Info->Description, Info->String);
+    }
+}
+
+
+/*******************************************************************************
+ *
  * FUNCTION:    AhDecodeException
  *
  * PARAMETERS:  HexString           - ACPI status string from command line, in

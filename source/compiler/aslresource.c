@@ -41,7 +41,6 @@
  * POSSIBILITY OF SUCH DAMAGES.
  */
 
-
 #include "aslcompiler.h"
 #include "aslcompiler.y.h"
 #include "amlcode.h"
@@ -123,22 +122,10 @@ RsSmallAddressCheck (
         return;
     }
 
-    /* Special case for Memory24, values are compressed */
-
-    if (Type == ACPI_RESOURCE_NAME_MEMORY24)
-    {
-        if (!Alignment) /* Alignment==0 means 64K - no invalid alignment */
-        {
-            Alignment = ACPI_UINT16_MAX + 1;
-        }
-
-        Minimum <<= 8;
-        Maximum <<= 8;
-        Length *= 256;
-    }
-
-    /* IO descriptor has different definition of min/max, don't check */
-
+    /*
+     * Range checks for Memory24 and Memory32.
+     * IO descriptor has different definition of min/max, don't check.
+     */
     if (Type != ACPI_RESOURCE_NAME_IO)
     {
         /* Basic checks on Min/Max/Length */
@@ -150,6 +137,19 @@ RsSmallAddressCheck (
         else if (Length > (Maximum - Minimum + 1))
         {
             AslError (ASL_ERROR, ASL_MSG_INVALID_LENGTH, LengthOp, NULL);
+        }
+
+        /* Special case for Memory24, min/max values are compressed */
+
+        if (Type == ACPI_RESOURCE_NAME_MEMORY24)
+        {
+            if (!Alignment) /* Alignment==0 means 64K alignment */
+            {
+                Alignment = ACPI_UINT16_MAX + 1;
+            }
+
+            Minimum <<= 8;
+            Maximum <<= 8;
         }
     }
 

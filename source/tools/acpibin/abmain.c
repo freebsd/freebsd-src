@@ -41,7 +41,6 @@
  * POSSIBILITY OF SUCH DAMAGES.
  */
 
-
 #define _DECLARE_GLOBALS
 #include "acpibin.h"
 #include "acapps.h"

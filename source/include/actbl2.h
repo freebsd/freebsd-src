@@ -450,7 +450,7 @@ typedef struct acpi_table_dbgp
  *        Version 1
  *
  * Conforms to "Intel Virtualization Technology for Directed I/O",
- * Version 1.2, Sept. 2008
+ * Version 2.2, Sept. 2013
  *
  ******************************************************************************/
 
@@ -483,9 +483,10 @@ enum AcpiDmarType
 {
     ACPI_DMAR_TYPE_HARDWARE_UNIT        = 0,
     ACPI_DMAR_TYPE_RESERVED_MEMORY      = 1,
-    ACPI_DMAR_TYPE_ATSR                 = 2,
-    ACPI_DMAR_HARDWARE_AFFINITY         = 3,
-    ACPI_DMAR_TYPE_RESERVED             = 4     /* 4 and greater are reserved */
+    ACPI_DMAR_TYPE_ROOT_ATS             = 2,
+    ACPI_DMAR_TYPE_HARDWARE_AFFINITY    = 3,
+    ACPI_DMAR_TYPE_NAMESPACE            = 4,
+    ACPI_DMAR_TYPE_RESERVED             = 5     /* 5 and greater are reserved */
 };
 
 
@@ -501,7 +502,7 @@ typedef struct acpi_dmar_device_scope
 
 } ACPI_DMAR_DEVICE_SCOPE;
 
-/* Values for EntryType in ACPI_DMAR_DEVICE_SCOPE */
+/* Values for EntryType in ACPI_DMAR_DEVICE_SCOPE - device types */
 
 enum AcpiDmarScopeType
 {
@@ -510,7 +511,8 @@ enum AcpiDmarScopeType
     ACPI_DMAR_SCOPE_TYPE_BRIDGE         = 2,
     ACPI_DMAR_SCOPE_TYPE_IOAPIC         = 3,
     ACPI_DMAR_SCOPE_TYPE_HPET           = 4,
-    ACPI_DMAR_SCOPE_TYPE_RESERVED       = 5     /* 5 and greater are reserved */
+    ACPI_DMAR_SCOPE_TYPE_NAMESPACE      = 5,
+    ACPI_DMAR_SCOPE_TYPE_RESERVED       = 6     /* 6 and greater are reserved */
 };
 
 typedef struct acpi_dmar_pci_path
@@ -585,6 +587,18 @@ typedef struct acpi_dmar_rhsa
     UINT32                  ProximityDomain;
 
 } ACPI_DMAR_RHSA;
+
+
+/* 4: ACPI Namespace Device Declaration Structure */
+
+typedef struct acpi_dmar_andd
+{
+    ACPI_DMAR_HEADER        Header;
+    UINT8                   Reserved[3];
+    UINT8                   DeviceNumber;
+    char                    DeviceName[1];
+
+} ACPI_DMAR_ANDD;
 
 
 /*******************************************************************************

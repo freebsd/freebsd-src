@@ -41,7 +41,6 @@
  * POSSIBILITY OF SUCH DAMAGES.
  */
 
-
 #include "acpi.h"
 #include "accommon.h"
 #include "acparser.h"
@@ -285,7 +284,8 @@ AcpiDmBlockType (
 
     case AML_BUFFER_OP:
 
-        if (Op->Common.DisasmOpcode == ACPI_DASM_UNICODE)
+        if ((Op->Common.DisasmOpcode == ACPI_DASM_UNICODE) ||
+            (Op->Common.DisasmOpcode == ACPI_DASM_UUID))
         {
             return (BLOCK_NONE);
         }

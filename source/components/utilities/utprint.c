@@ -88,6 +88,12 @@ AcpiUtPutNumber (
     BOOLEAN                 Upper);
 
 
+/* Module globals */
+
+static const char           AcpiGbl_LowerHexDigits[] = "0123456789abcdef";
+static const char           AcpiGbl_UpperHexDigits[] = "0123456789ABCDEF";
+
+
 /*******************************************************************************
  *
  * FUNCTION:    AcpiUtBoundStringLength
@@ -95,7 +101,7 @@ AcpiUtPutNumber (
  * PARAMETERS:  String              - String with boundary
  *              Count               - Boundary of the string
  *
- * RETURN:      Length of the string.
+ * RETURN:      Length of the string. Less than or equal to Count.
  *
  * DESCRIPTION: Calculate the length of a string with boundary.
  *
@@ -145,8 +151,8 @@ AcpiUtBoundStringOutput (
     {
         *String = c;
     }
-    ++String;
 
+    ++String;
     return (String);
 }
 
@@ -174,15 +180,13 @@ AcpiUtPutNumber (
     UINT8                   Base,
     BOOLEAN                 Upper)
 {
-    const char              LowerDigits[] = "0123456789abcdef";
-    const char              UpperDigits[] = "0123456789ABCDEF";
     const char              *Digits;
     UINT64                  DigitIndex;
     char                    *Pos;
 
 
     Pos = String;
-    Digits = Upper ? UpperDigits : LowerDigits;
+    Digits = Upper ? AcpiGbl_UpperHexDigits : AcpiGbl_LowerHexDigits;
 
     if (Number == 0)
     {
@@ -196,8 +200,8 @@ AcpiUtPutNumber (
             *(Pos++) = Digits[DigitIndex];
         }
     }
-    /* *(Pos++) = '0'; */
 
+    /* *(Pos++) = '0'; */
     return (Pos);
 }
 
@@ -228,8 +232,8 @@ AcpiUtScanNumber (
         Number *= 10;
         Number += *(String++) - '0';
     }
-    *NumberPtr = Number;
 
+    *NumberPtr = Number;
     return (String);
 }
 
@@ -264,8 +268,8 @@ AcpiUtPrintNumber (
     {
         *(Pos2++) = *(--Pos1);
     }
-    *Pos2 = 0;
 
+    *Pos2 = 0;
     return (String);
 }
 
@@ -298,6 +302,7 @@ AcpiUtFormatNumber (
     INT32                   Precision,
     UINT8                   Type)
 {
+    char                    *Pos;
     char                    Sign;
     char                    Zero;
     BOOLEAN                 NeedPrefix;
@@ -306,12 +311,13 @@ AcpiUtFormatNumber (
     char                    ReversedString[66];
 
 
-    /* Perform sanity checks */
+    /* Parameter validation */
 
     if (Base < 2 || Base > 16)
     {
-        return NULL;
+        return (NULL);
     }
+
     if (Type & ACPI_FORMAT_LEFT)
     {
         Type &= ~ACPI_FORMAT_ZERO;
@@ -354,9 +360,8 @@ AcpiUtFormatNumber (
 
     /* Generate full string in reverse order */
 
-    i = ACPI_PTR_DIFF (
-            AcpiUtPutNumber (ReversedString, Number, Base, Upper),
-	    ReversedString);
+    Pos = AcpiUtPutNumber (ReversedString, Number, Base, Upper);
+    i = ACPI_PTR_DIFF (Pos, ReversedString);
 
     /* Printing 100 using %2d gives "100", not "00" */
 
@@ -364,6 +369,7 @@ AcpiUtFormatNumber (
     {
         Precision = i;
     }
+
     Width -= Precision;
 
     /* Output the string */
@@ -386,7 +392,7 @@ AcpiUtFormatNumber (
         {
             String = AcpiUtBoundStringOutput (String, End,
                         Upper ? 'X' : 'x');
-	}
+        }
     }
     if (!(Type & ACPI_FORMAT_LEFT))
     {
@@ -395,6 +401,7 @@ AcpiUtFormatNumber (
             String = AcpiUtBoundStringOutput (String, End, Zero);
         }
     }
+
     while (i <= --Precision)
     {
         String = AcpiUtBoundStringOutput (String, End, '0');
@@ -422,7 +429,7 @@ AcpiUtFormatNumber (
  *              Format              - Standard printf format
  *              Args                - Argument list
  *
- * RETURN:      Size of successfully output bytes
+ * RETURN:      Number of bytes actually written.
  *
  * DESCRIPTION: Formatted output to a string using argument list pointer.
  *
@@ -453,7 +460,7 @@ AcpiUtVsnprintf (
     Pos = String;
     End = String + Size;
 
-    for (; *Format ; ++Format)
+    for (; *Format; ++Format)
     {
         if (*Format != '%')
         {
@@ -494,6 +501,7 @@ AcpiUtVsnprintf (
 
         /* Process width */
 
+        Width = -1;
         if (ACPI_IS_DIGIT (*Format))
         {
             Format = AcpiUtScanNumber (Format, &Number);
@@ -502,7 +510,7 @@ AcpiUtVsnprintf (
         else if (*Format == '*')
         {
             ++Format;
-            Width = va_arg(Args, int);
+            Width = va_arg (Args, int);
             if (Width < 0)
             {
                 Width = -Width;
@@ -512,6 +520,7 @@ AcpiUtVsnprintf (
 
         /* Process precision */
 
+        Precision = -1;
         if (*Format == '.')
         {
             ++Format;
@@ -523,7 +532,7 @@ AcpiUtVsnprintf (
             else if (*Format == '*')
             {
                 ++Format;
-                Precision = va_arg(Args, int);
+                Precision = va_arg (Args, int);
             }
             if (Precision < 0)
             {
@@ -533,10 +542,12 @@ AcpiUtVsnprintf (
 
         /* Process qualifier */
 
+        Qualifier = -1;
         if (*Format == 'h' || *Format == 'l' || *Format == 'L')
         {
             Qualifier = *Format;
             ++Format;
+
             if (Qualifier == 'l' && *Format == 'l')
             {
                 Qualifier = 'L';
@@ -560,8 +571,10 @@ AcpiUtVsnprintf (
                     Pos = AcpiUtBoundStringOutput (Pos, End, ' ');
                 }
             }
+
             c = (char) va_arg (Args, int);
             Pos = AcpiUtBoundStringOutput (Pos, End, c);
+
             while (--Width > 0)
             {
                 Pos = AcpiUtBoundStringOutput (Pos, End, ' ');
@@ -624,10 +637,10 @@ AcpiUtVsnprintf (
                 Width = 2 * sizeof (void *);
                 Type |= ACPI_FORMAT_ZERO;
             }
+
             p = va_arg (Args, void *);
             Pos = AcpiUtFormatNumber (Pos, End,
-                    ACPI_TO_INTEGER (p),
-                    16, Width, Precision, Type);
+                    ACPI_TO_INTEGER (p), 16, Width, Precision, Type);
             continue;
 
         default:
@@ -676,7 +689,8 @@ AcpiUtVsnprintf (
                 Number = (signed int) Number;
             }
         }
-        Pos = AcpiUtFormatNumber(Pos, End, Number, Base,
+
+        Pos = AcpiUtFormatNumber (Pos, End, Number, Base,
                 Width, Precision, Type);
     }
 
@@ -704,7 +718,7 @@ AcpiUtVsnprintf (
  *              Size                - Boundary of the string
  *              Format, ...         - Standard printf format
  *
- * RETURN:      Size of successfully output bytes
+ * RETURN:      Number of bytes actually written.
  *
  * DESCRIPTION: Formatted output to a string.
  *
@@ -738,7 +752,7 @@ AcpiUtSnprintf (
  *              Format              - Standard printf format
  *              Args                - Argument list
  *
- * RETURN:      Size of successfully output bytes
+ * RETURN:      Number of bytes actually written.
  *
  * DESCRIPTION: Formatted output to a file using argument list pointer.
  *
@@ -755,8 +769,9 @@ AcpiUtFileVprintf (
 
 
     Flags = AcpiOsAcquireLock (AcpiGbl_PrintLock);
-    Length = AcpiUtVsnprintf(AcpiGbl_PrintBuffer,
+    Length = AcpiUtVsnprintf (AcpiGbl_PrintBuffer,
                 sizeof (AcpiGbl_PrintBuffer), Format, Args);
+
     (void) AcpiOsWriteFile (File, AcpiGbl_PrintBuffer, Length, 1);
     AcpiOsReleaseLock (AcpiGbl_PrintLock, Flags);
 
@@ -771,7 +786,7 @@ AcpiUtFileVprintf (
  * PARAMETERS:  File                - File descriptor
  *              Format, ...         - Standard printf format
  *
- * RETURN:      Size of successfully output bytes
+ * RETURN:      Number of bytes actually written.
  *
  * DESCRIPTION: Formatted output to a file.
  *

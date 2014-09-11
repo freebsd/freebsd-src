@@ -41,7 +41,6 @@
  * POSSIBILITY OF SUCH DAMAGES.
  */
 
-
 #include "aslcompiler.h"
 #include "aslcompiler.y.h"
 #include "amlcode.h"
@@ -913,8 +912,8 @@ OpnDoDefinitionBlock (
          * We will use the AML filename that is embedded in the source file
          * for the output filename.
          */
-        Filename = ACPI_ALLOCATE (strlen (Gbl_DirectoryPath) +
-                    strlen ((char *) Child->Asl.Value.Buffer) + 1);
+        Filename = UtStringCacheCalloc (strlen (Gbl_DirectoryPath) +
+            strlen ((char *) Child->Asl.Value.Buffer) + 1);
 
         /* Prepend the current directory path */
 
@@ -969,7 +968,7 @@ OpnDoDefinitionBlock (
     if (Child->Asl.Value.String)
     {
         Length = ACPI_STRLEN (Child->Asl.Value.String);
-        Gbl_TableId = AcpiOsAllocate (Length + 1);
+        Gbl_TableId = UtStringCacheCalloc (Length + 1);
         ACPI_STRCPY (Gbl_TableId, Child->Asl.Value.String);
 
         /*

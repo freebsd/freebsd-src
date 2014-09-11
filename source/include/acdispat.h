@@ -41,7 +41,6 @@
  * POSSIBILITY OF SUCH DAMAGES.
  */
 
-
 #ifndef _ACDISPAT_H_
 #define _ACDISPAT_H_
 

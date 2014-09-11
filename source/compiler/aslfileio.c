@@ -319,6 +319,8 @@ FlCloseFile (
         AslAbort ();
     }
 
+    /* Do not clear/free the filename string */
+
     Gbl_Files[FileId].Handle = NULL;
     return;
 }

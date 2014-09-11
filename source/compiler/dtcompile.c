@@ -141,8 +141,6 @@ DtDoCompile (
     Status = DtCompileDataTable (&FieldList);
     UtEndEvent (Event);
 
-    DtFreeFieldList ();
-
     if (ACPI_FAILURE (Status))
     {
         /* TBD: temporary error message. Msgs should come from function above */
@@ -170,6 +168,8 @@ DtDoCompile (
 
 CleanupAndExit:
 
+    AcpiUtDeleteCaches ();
+    DtDeleteCaches ();
     CmCleanupAndExit ();
     return (Status);
 }
@@ -298,7 +298,7 @@ DtCompileDataTable (
         return (AE_ERROR);
     }
 
-    Gbl_Signature = UtLocalCalloc (ACPI_STRLEN (Signature) + 1);
+    Gbl_Signature = UtStringCacheCalloc (ACPI_STRLEN (Signature) + 1);
     strcpy (Gbl_Signature, Signature);
 
     /*
@@ -461,11 +461,11 @@ DtCompileTable (
         return (AE_ERROR);
     }
 
-    Subtable = UtLocalCalloc (sizeof (DT_SUBTABLE));
+    Subtable = UtSubtableCacheCalloc ();
 
     if (Length > 0)
     {
-        Subtable->Buffer = UtLocalCalloc (Length);
+        Subtable->Buffer = ACPI_CAST_PTR (UINT8, UtStringCacheCalloc (Length));
     }
     Subtable->Length = Length;
     Subtable->TotalLength = Length;
@@ -567,8 +567,6 @@ DtCompileTable (
             DtSetSubtableLength (InlineSubtable);
 
             ACPI_MEMCPY (Buffer, InlineSubtable->Buffer, FieldLength);
-            ACPI_FREE (InlineSubtable->Buffer);
-            ACPI_FREE (InlineSubtable);
             LocalField = *Field;
             break;
 

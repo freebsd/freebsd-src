@@ -41,7 +41,6 @@
  * POSSIBILITY OF SUCH DAMAGES.
  */
 
-
 #define __DSWSTATE_C__
 
 #include "acpi.h"

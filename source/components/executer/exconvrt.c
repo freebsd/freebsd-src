@@ -41,7 +41,6 @@
  * POSSIBILITY OF SUCH DAMAGES.
  */
 
-
 #define __EXCONVRT_C__
 
 #include "acpi.h"

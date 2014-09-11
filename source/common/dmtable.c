@@ -87,7 +87,19 @@ static const char           *AcpiDmDmarSubnames[] =
     "Reserved Memory Region",
     "Root Port ATS Capability",
     "Remapping Hardware Static Affinity",
+    "ACPI Namespace Device Declaration",
     "Unknown SubTable Type"         /* Reserved */
+};
+
+static const char           *AcpiDmDmarScope[] =
+{
+    "Reserved value",
+    "PCI Endpoint Device",
+    "PCI Bridge Device",
+    "IOAPIC Device",
+    "Message-capable HPET Device",
+    "Namespace Device",
+    "Unknown Scope Type"            /* Reserved */
 };
 
 static const char           *AcpiDmEinjActions[] =
@@ -160,6 +172,13 @@ static const char           *AcpiDmErstInstructions[] =
     "Unknown Instruction"
 };
 
+static const char           *AcpiDmGtdtSubnames[] =
+{
+    "Generic Timer Block",
+    "Generic Watchdog Timer",
+    "Unknown SubTable Type"         /* Reserved */
+};
+
 static const char           *AcpiDmHestSubnames[] =
 {
     "IA-32 Machine Check Exception",
@@ -189,25 +208,28 @@ static const char           *AcpiDmHestNotifySubnames[] =
 
 static const char           *AcpiDmMadtSubnames[] =
 {
-    "Processor Local APIC",         /* ACPI_MADT_TYPE_LOCAL_APIC */
-    "I/O APIC",                     /* ACPI_MADT_TYPE_IO_APIC */
-    "Interrupt Source Override",    /* ACPI_MADT_TYPE_INTERRUPT_OVERRIDE */
-    "NMI Source",                   /* ACPI_MADT_TYPE_NMI_SOURCE */
-    "Local APIC NMI",               /* ACPI_MADT_TYPE_LOCAL_APIC_NMI */
-    "Local APIC Address Override",  /* ACPI_MADT_TYPE_LOCAL_APIC_OVERRIDE */
-    "I/O SAPIC",                    /* ACPI_MADT_TYPE_IO_SAPIC */
-    "Local SAPIC",                  /* ACPI_MADT_TYPE_LOCAL_SAPIC */
-    "Platform Interrupt Sources",   /* ACPI_MADT_TYPE_INTERRUPT_SOURCE */
-    "Processor Local x2APIC",       /* ACPI_MADT_TYPE_LOCAL_X2APIC */
-    "Local x2APIC NMI",             /* ACPI_MADT_TYPE_LOCAL_X2APIC_NMI */
-    "Generic Interrupt Controller", /* ACPI_MADT_GENERIC_INTERRUPT */
-    "Generic Interrupt Distributor",/* ACPI_MADT_GENERIC_DISTRIBUTOR */
-    "Unknown SubTable Type"         /* Reserved */
+    "Processor Local APIC",             /* ACPI_MADT_TYPE_LOCAL_APIC */
+    "I/O APIC",                         /* ACPI_MADT_TYPE_IO_APIC */
+    "Interrupt Source Override",        /* ACPI_MADT_TYPE_INTERRUPT_OVERRIDE */
+    "NMI Source",                       /* ACPI_MADT_TYPE_NMI_SOURCE */
+    "Local APIC NMI",                   /* ACPI_MADT_TYPE_LOCAL_APIC_NMI */
+    "Local APIC Address Override",      /* ACPI_MADT_TYPE_LOCAL_APIC_OVERRIDE */
+    "I/O SAPIC",                        /* ACPI_MADT_TYPE_IO_SAPIC */
+    "Local SAPIC",                      /* ACPI_MADT_TYPE_LOCAL_SAPIC */
+    "Platform Interrupt Sources",       /* ACPI_MADT_TYPE_INTERRUPT_SOURCE */
+    "Processor Local x2APIC",           /* ACPI_MADT_TYPE_LOCAL_X2APIC */
+    "Local x2APIC NMI",                 /* ACPI_MADT_TYPE_LOCAL_X2APIC_NMI */
+    "Generic Interrupt Controller",     /* ACPI_MADT_GENERIC_INTERRUPT */
+    "Generic Interrupt Distributor",    /* ACPI_MADT_GENERIC_DISTRIBUTOR */
+    "Generic MSI Frame",                /* ACPI_MADT_GENERIC_MSI_FRAME */
+    "Generic Interrupt Redistributor",  /* ACPI_MADT_GENERIC_REDISTRIBUTOR */
+    "Unknown SubTable Type"             /* Reserved */
 };
 
 static const char           *AcpiDmPcctSubnames[] =
 {
     "Generic Communications Subspace",  /* ACPI_PCCT_TYPE_GENERIC_SUBSPACE */
+    "HW-Reduced Communications Subspace",
     "Unknown SubTable Type"             /* Reserved */
 };
 
@@ -231,6 +253,7 @@ static const char           *AcpiDmSratSubnames[] =
     "Processor Local APIC/SAPIC Affinity",
     "Memory Affinity",
     "Processor Local x2APIC Affinity",
+    "GICC Affinity",
     "Unknown SubTable Type"         /* Reserved */
 };
 
@@ -306,7 +329,7 @@ ACPI_DMTABLE_DATA    AcpiDmTableData[] =
     {ACPI_SIG_ERST, NULL,                   AcpiDmDumpErst, DtCompileErst,  TemplateErst,   "Error Record Serialization Table"},
     {ACPI_SIG_FADT, NULL,                   AcpiDmDumpFadt, DtCompileFadt,  TemplateFadt,   "Fixed ACPI Description Table (FADT)"},
     {ACPI_SIG_FPDT, NULL,                   AcpiDmDumpFpdt, DtCompileFpdt,  TemplateFpdt,   "Firmware Performance Data Table"},
-    {ACPI_SIG_GTDT, AcpiDmTableInfoGtdt,    NULL,           NULL,           TemplateGtdt,   "Generic Timer Description Table"},
+    {ACPI_SIG_GTDT, NULL,                   AcpiDmDumpGtdt, DtCompileGtdt,  TemplateGtdt,   "Generic Timer Description Table"},
     {ACPI_SIG_HEST, NULL,                   AcpiDmDumpHest, DtCompileHest,  TemplateHest,   "Hardware Error Source Table"},
     {ACPI_SIG_HPET, AcpiDmTableInfoHpet,    NULL,           NULL,           TemplateHpet,   "High Precision Event Timer table"},
     {ACPI_SIG_IVRS, NULL,                   AcpiDmDumpIvrs, DtCompileIvrs,  TemplateIvrs,   "I/O Virtualization Reporting Structure"},
@@ -705,6 +728,7 @@ AcpiDmDumpTable (
         case ACPI_DMT_SPACEID:
         case ACPI_DMT_ACCWIDTH:
         case ACPI_DMT_IVRS:
+        case ACPI_DMT_GTDT:
         case ACPI_DMT_MADT:
         case ACPI_DMT_PCCT:
         case ACPI_DMT_PMTT:
@@ -716,6 +740,7 @@ AcpiDmDumpTable (
         case ACPI_DMT_EINJINST:
         case ACPI_DMT_ERSTACT:
         case ACPI_DMT_ERSTINST:
+        case ACPI_DMT_DMAR_SCOPE:
 
             ByteLength = 1;
             break;
@@ -1047,6 +1072,19 @@ AcpiDmDumpTable (
             AcpiOsPrintf (UINT16_FORMAT, ACPI_GET16 (Target), AcpiDmDmarSubnames[Temp16]);
             break;
 
+        case ACPI_DMT_DMAR_SCOPE:
+
+            /* DMAR device scope types */
+
+            Temp8 = *Target;
+            if (Temp8 > ACPI_DMAR_SCOPE_TYPE_RESERVED)
+            {
+                Temp8 = ACPI_DMAR_SCOPE_TYPE_RESERVED;
+            }
+
+            AcpiOsPrintf (UINT8_FORMAT, *Target, AcpiDmDmarScope[Temp8]);
+            break;
+
         case ACPI_DMT_EINJACT:
 
             /* EINJ Action types */
@@ -1097,6 +1135,19 @@ AcpiDmDumpTable (
             }
 
             AcpiOsPrintf (UINT8_FORMAT, *Target, AcpiDmErstInstructions[Temp8]);
+            break;
+
+        case ACPI_DMT_GTDT:
+
+            /* GTDT subtable types */
+
+            Temp8 = *Target;
+            if (Temp8 > ACPI_GTDT_TYPE_RESERVED)
+            {
+                Temp8 = ACPI_GTDT_TYPE_RESERVED;
+            }
+
+            AcpiOsPrintf (UINT8_FORMAT, *Target, AcpiDmGtdtSubnames[Temp8]);
             break;
 
         case ACPI_DMT_HEST:

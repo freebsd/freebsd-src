@@ -103,6 +103,7 @@ OBJECTS = \
 	$(OBJDIR)/utexcep.o\
 	$(OBJDIR)/utfileio.o\
 	$(OBJDIR)/utglobal.o\
+	$(OBJDIR)/uthex.o\
 	$(OBJDIR)/utids.o\
 	$(OBJDIR)/utinit.o\
 	$(OBJDIR)/utlock.o\

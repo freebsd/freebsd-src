@@ -41,7 +41,6 @@
  * POSSIBILITY OF SUCH DAMAGES.
  */
 
-
 #define __RSUTILS_C__
 
 #include "acpi.h"

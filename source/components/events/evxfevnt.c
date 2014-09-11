@@ -41,7 +41,6 @@
  * POSSIBILITY OF SUCH DAMAGES.
  */
 
-
 #define __EVXFEVNT_C__
 #define EXPORT_ACPI_INTERFACES
 

@@ -41,7 +41,6 @@
  * POSSIBILITY OF SUCH DAMAGES.
  */
 
-
 #include "aslcompiler.h"
 #include "aslcompiler.y.h"
 #include "acnamesp.h"

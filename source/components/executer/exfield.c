@@ -41,7 +41,6 @@
  * POSSIBILITY OF SUCH DAMAGES.
  */
 
-
 #define __EXFIELD_C__
 
 #include "acpi.h"
@@ -203,14 +202,13 @@ AcpiExReadDataFromField (
             Length = AcpiExGetSerialAccessLength (AccessorType,
                 ObjDesc->Field.AccessLength);
 
-	    /*
-             * Add additional 2 bytes for modeled GenericSerialBus data buffer:
-             * typedef struct {
-             *     BYTEStatus; // Byte 0 of the data buffer
-             *     BYTELength; // Byte 1 of the data buffer
-             *     BYTE[x-1]Data; // Bytes 2-x of the arbitrary length data buffer,
-             * }
-	     */
+            /*
+             * Add additional 2 bytes for the GenericSerialBus data buffer:
+             *
+             *     Status;      (Byte 0 of the data buffer)
+             *     Length;      (Byte 1 of the data buffer)
+             *     Data[x-1];   (Bytes 2-x of the arbitrary length data buffer)
+             */
             Length += 2;
             Function = ACPI_READ | (AccessorType << 16);
         }
@@ -397,14 +395,13 @@ AcpiExWriteDataToField (
             Length = AcpiExGetSerialAccessLength (AccessorType,
                 ObjDesc->Field.AccessLength);
 
-	    /*
-             * Add additional 2 bytes for modeled GenericSerialBus data buffer:
-             * typedef struct {
-             *     BYTEStatus; // Byte 0 of the data buffer
-             *     BYTELength; // Byte 1 of the data buffer
-             *     BYTE[x-1]Data; // Bytes 2-x of the arbitrary length data buffer,
-             * }
-	     */
+            /*
+             * Add additional 2 bytes for the GenericSerialBus data buffer:
+             *
+             *     Status;      (Byte 0 of the data buffer)
+             *     Length;      (Byte 1 of the data buffer)
+             *     Data[x-1];   (Bytes 2-x of the arbitrary length data buffer)
+             */
             Length += 2;
             Function = ACPI_WRITE | (AccessorType << 16);
         }

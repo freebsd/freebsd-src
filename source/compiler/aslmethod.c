@@ -41,7 +41,6 @@
  * POSSIBILITY OF SUCH DAMAGES.
  */
 
-
 #include "aslcompiler.h"
 #include "aslcompiler.y.h"
 #include "acparser.h"
@@ -107,6 +106,41 @@ MtMethodAnalysisWalkBegin (
         MethodInfo->Op = Op;
 
         WalkInfo->MethodStack = MethodInfo;
+
+        /*
+         * Special handling for _PSx methods. Dependency rules (same scope):
+         *
+         * 1) _PS0 - One of these must exist: _PS1, _PS2, _PS3
+         * 2) _PS1/_PS2/_PS3: A _PS0 must exist
+         */
+        if (ACPI_COMPARE_NAME (METHOD_NAME__PS0, Op->Asl.NameSeg))
+        {
+            /* For _PS0, one of _PS1/_PS2/_PS3 must exist */
+
+            if ((!ApFindNameInScope (METHOD_NAME__PS1, Op)) &&
+                (!ApFindNameInScope (METHOD_NAME__PS2, Op)) &&
+                (!ApFindNameInScope (METHOD_NAME__PS3, Op)))
+            {
+                AslError (ASL_WARNING, ASL_MSG_MISSING_DEPENDENCY, Op,
+                    "_PS0 requires one of _PS1/_PS2/_PS3 in same scope");
+            }
+        }
+        else if (
+            ACPI_COMPARE_NAME (METHOD_NAME__PS1, Op->Asl.NameSeg) ||
+            ACPI_COMPARE_NAME (METHOD_NAME__PS2, Op->Asl.NameSeg) ||
+            ACPI_COMPARE_NAME (METHOD_NAME__PS3, Op->Asl.NameSeg))
+        {
+            /* For _PS1/_PS2/_PS3, a _PS0 must exist */
+
+            if (!ApFindNameInScope (METHOD_NAME__PS0, Op))
+            {
+                sprintf (MsgBuffer,
+                    "%4.4s requires _PS0 in same scope", Op->Asl.NameSeg);
+
+                AslError (ASL_WARNING, ASL_MSG_MISSING_DEPENDENCY, Op,
+                    MsgBuffer);
+            }
+        }
 
         /* Get the name node */
 
@@ -359,6 +393,17 @@ MtMethodAnalysisWalkBegin (
         break;
 
     case PARSEOP_DEVICE:
+
+        Next = Op->Asl.Child;
+
+        if (!ApFindNameInScope (METHOD_NAME__HID, Next) &&
+            !ApFindNameInScope (METHOD_NAME__ADR, Next))
+        {
+            AslError (ASL_WARNING, ASL_MSG_MISSING_DEPENDENCY, Op,
+                "Device object requires a _HID or _ADR in same scope");
+        }
+        break;
+
     case PARSEOP_EVENT:
     case PARSEOP_MUTEX:
     case PARSEOP_OPERATIONREGION:

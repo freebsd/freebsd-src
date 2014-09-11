@@ -736,14 +736,19 @@ DtCompileDmar (
             InfoTable = AcpiDmTableInfoDmar1;
             break;
 
-        case ACPI_DMAR_TYPE_ATSR:
+        case ACPI_DMAR_TYPE_ROOT_ATS:
 
             InfoTable = AcpiDmTableInfoDmar2;
             break;
 
-        case ACPI_DMAR_HARDWARE_AFFINITY:
+        case ACPI_DMAR_TYPE_HARDWARE_AFFINITY:
 
             InfoTable = AcpiDmTableInfoDmar3;
+            break;
+
+        case ACPI_DMAR_TYPE_NAMESPACE:
+
+            InfoTable = AcpiDmTableInfoDmar4;
             break;
 
         default:
@@ -762,10 +767,20 @@ DtCompileDmar (
 
         ParentTable = DtPeekSubtable ();
         DtInsertSubtable (ParentTable, Subtable);
+
+        /*
+         * Optional Device Scope subtables
+         */
+        if ((DmarHeader->Type == ACPI_DMAR_TYPE_HARDWARE_AFFINITY) ||
+            (DmarHeader->Type == ACPI_DMAR_TYPE_NAMESPACE))
+        {
+            /* These types do not support device scopes */
+
+            DtPopSubtable ();
+            continue;
+        }
+
         DtPushSubtable (Subtable);
-
-        /* Optional Device Scope subtables */
-
         DeviceScopeLength = DmarHeader->Length - Subtable->Length -
             ParentTable->Length;
         while (DeviceScopeLength)
@@ -933,6 +948,125 @@ DtCompileFadt (
 
             DtInsertSubtable (ParentTable, Subtable);
         }
+    }
+
+    return (AE_OK);
+}
+
+/******************************************************************************
+ *
+ * FUNCTION:    DtCompileGtdt
+ *
+ * PARAMETERS:  List                - Current field list pointer
+ *
+ * RETURN:      Status
+ *
+ * DESCRIPTION: Compile GTDT.
+ *
+ *****************************************************************************/
+
+ACPI_STATUS
+DtCompileGtdt (
+    void                    **List)
+{
+    ACPI_STATUS             Status;
+    DT_SUBTABLE             *Subtable;
+    DT_SUBTABLE             *ParentTable;
+    DT_FIELD                **PFieldList = (DT_FIELD **) List;
+    DT_FIELD                *SubtableStart;
+    ACPI_SUBTABLE_HEADER    *GtdtHeader;
+    ACPI_DMTABLE_INFO       *InfoTable;
+    UINT32                  GtCount;
+
+
+    Status = DtCompileTable (PFieldList, AcpiDmTableInfoGtdt,
+                &Subtable, TRUE);
+    if (ACPI_FAILURE (Status))
+    {
+        return (Status);
+    }
+
+    ParentTable = DtPeekSubtable ();
+    DtInsertSubtable (ParentTable, Subtable);
+
+    while (*PFieldList)
+    {
+        SubtableStart = *PFieldList;
+        Status = DtCompileTable (PFieldList, AcpiDmTableInfoGtdtHdr,
+                    &Subtable, TRUE);
+        if (ACPI_FAILURE (Status))
+        {
+            return (Status);
+        }
+
+        ParentTable = DtPeekSubtable ();
+        DtInsertSubtable (ParentTable, Subtable);
+        DtPushSubtable (Subtable);
+
+        GtdtHeader = ACPI_CAST_PTR (ACPI_SUBTABLE_HEADER, Subtable->Buffer);
+
+        switch (GtdtHeader->Type)
+        {
+        case ACPI_GTDT_TYPE_TIMER_BLOCK:
+
+            InfoTable = AcpiDmTableInfoGtdt0;
+            break;
+
+        case ACPI_GTDT_TYPE_WATCHDOG:
+
+            InfoTable = AcpiDmTableInfoGtdt1;
+            break;
+
+        default:
+
+            DtFatal (ASL_MSG_UNKNOWN_SUBTABLE, SubtableStart, "GTDT");
+            return (AE_ERROR);
+        }
+
+        Status = DtCompileTable (PFieldList, InfoTable, &Subtable, TRUE);
+        if (ACPI_FAILURE (Status))
+        {
+            return (Status);
+        }
+
+        ParentTable = DtPeekSubtable ();
+        DtInsertSubtable (ParentTable, Subtable);
+
+        /*
+         * Additional GT block subtable data
+         */
+
+        switch (GtdtHeader->Type)
+        {
+        case ACPI_GTDT_TYPE_TIMER_BLOCK:
+
+            DtPushSubtable (Subtable);
+            ParentTable = DtPeekSubtable ();
+
+            GtCount = (ACPI_CAST_PTR (ACPI_GTDT_TIMER_BLOCK,
+                Subtable->Buffer - sizeof(ACPI_GTDT_HEADER)))->TimerCount;
+            while (GtCount)
+            {
+                Status = DtCompileTable (PFieldList, AcpiDmTableInfoGtdt0a,
+                            &Subtable, TRUE);
+                if (ACPI_FAILURE (Status))
+                {
+                    return (Status);
+                }
+
+
+                DtInsertSubtable (ParentTable, Subtable);
+                GtCount--;
+            }
+            DtPopSubtable ();
+            break;
+
+        default:
+
+            break;
+        }
+
+        DtPopSubtable ();
     }
 
     return (AE_OK);
@@ -1501,6 +1635,16 @@ DtCompileMadt (
             InfoTable = AcpiDmTableInfoMadt12;
             break;
 
+        case ACPI_MADT_TYPE_GENERIC_MSI_FRAME:
+
+            InfoTable = AcpiDmTableInfoMadt13;
+            break;
+
+        case ACPI_MADT_TYPE_GENERIC_REDISTRIBUTOR:
+
+            InfoTable = AcpiDmTableInfoMadt14;
+            break;
+
         default:
 
             DtFatal (ASL_MSG_UNKNOWN_SUBTABLE, SubtableStart, "MADT");
@@ -1790,6 +1934,11 @@ DtCompilePcct (
         case ACPI_PCCT_TYPE_GENERIC_SUBSPACE:
 
             InfoTable = AcpiDmTableInfoPcct0;
+            break;
+
+        case ACPI_PCCT_TYPE_HW_REDUCED_SUBSPACE:
+
+            InfoTable = AcpiDmTableInfoPcct1;
             break;
 
         default:
@@ -2269,6 +2418,11 @@ DtCompileSrat (
         case ACPI_SRAT_TYPE_X2APIC_CPU_AFFINITY:
 
             InfoTable = AcpiDmTableInfoSrat2;
+            break;
+
+        case ACPI_SRAT_TYPE_GICC_AFFINITY:
+
+            InfoTable = AcpiDmTableInfoSrat3;
             break;
 
         default:

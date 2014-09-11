@@ -43,21 +43,308 @@
 
 #include "acpisrc.h"
 
+AS_BRACE_INFO               Gbl_BraceInfo[] =
+{
+    {" if",         3},
+    {" else if",    8},
+    {" else while", 11},
+    {" else",       5},
+    {" do ",        4},
+    {NULL,          0}
+};
+
+
 /* Local prototypes */
 
-char *
-AsCheckAndSkipLiterals (
+static char *
+AsMatchValidToken (
     char                    *Buffer,
-    UINT32                  *TotalLines);
+    char                    *Filename,
+    char                    TargetChar,
+    AS_SCAN_CALLBACK        Callback);
 
-UINT32
+static char *
+AsCheckBracesCallback (
+    char                    *Buffer,
+    char                    *Filename,
+    UINT32                  LineNumber);
+
+static UINT32
 AsCountLines (
     char                    *Buffer,
     char                    *Filename);
 
+
 /* Opening signature of the Intel legal header */
 
 char        *HeaderBegin = "/******************************************************************************\n *\n * 1. Copyright Notice";
+
+UINT32      NonAnsiCommentCount;
+
+
+/******************************************************************************
+ *
+ * FUNCTION:    AsCountNonAnsiComments
+ *
+ * DESCRIPTION: Count the number of "//" comments. This type of comment is
+ *              non-ANSI C.
+ *
+ * NOTE: July 2014: Allows // within quoted strings and within normal
+ *       comments. Eliminates extraneous warnings from this utility.
+ *
+ ******************************************************************************/
+
+void
+AsCountNonAnsiComments (
+    char                    *Buffer,
+    char                    *Filename)
+{
+
+    AsMatchValidToken (Buffer, Filename, 0, NULL);
+
+    /* Error if any slash-slash comments found */
+
+    if (NonAnsiCommentCount)
+    {
+        AsPrint ("Non-ANSI // Comments Found", NonAnsiCommentCount, Filename);
+        Gbl_NonAnsiComments += NonAnsiCommentCount;
+    }
+}
+
+
+/******************************************************************************
+ *
+ * FUNCTION:    AsCheckForBraces
+ *
+ * DESCRIPTION: Check for an open brace after each if/else/do (etc.)
+ *              statement
+ *
+ ******************************************************************************/
+
+void
+AsCheckForBraces (
+    char                    *Buffer,
+    char                    *Filename)
+{
+
+    AsMatchValidToken (Buffer, Filename, 0, AsCheckBracesCallback);
+}
+
+
+/******************************************************************************
+ *
+ * FUNCTION:    AsCheckBracesCallback
+ *
+ * DESCRIPTION: Check if/else/do statements. Ensure that braces
+ *              are always used.
+ *
+ * TBD: Currently, don't check while() statements. The problem is that there
+ * are two forms: do {} while (); and while () {}.
+ *
+ ******************************************************************************/
+
+static char *
+AsCheckBracesCallback (
+    char                    *Buffer,
+    char                    *Filename,
+    UINT32                  LineNumber)
+{
+    char                    *SubBuffer = Buffer;
+    char                    *NextBrace;
+    char                    *NextSemicolon;
+    AS_BRACE_INFO           *BraceInfo;
+
+
+    for (BraceInfo = Gbl_BraceInfo; BraceInfo->Operator; BraceInfo++)
+    {
+        if (!(strncmp (BraceInfo->Operator, SubBuffer, BraceInfo->Length)))
+        {
+            SubBuffer += (BraceInfo->Length - 1);
+
+            /* Find next brace and the next semicolon */
+
+            NextBrace = AsMatchValidToken (SubBuffer, Filename, '{', NULL);
+            NextSemicolon = AsMatchValidToken (SubBuffer, Filename, ';', NULL);
+
+            /* Next brace should appear before next semicolon */
+
+            if ((!NextBrace) ||
+               (NextSemicolon && (NextBrace > NextSemicolon)))
+            {
+                Gbl_MissingBraces++;
+
+                if (!Gbl_QuietMode)
+                {
+                    printf ("Missing braces for <%s>, line %u: %s\n",
+                        BraceInfo->Operator + 1, LineNumber, Filename);
+                }
+            }
+
+            return (SubBuffer);
+        }
+    }
+
+    /* No match, just return original buffer */
+
+    return (Buffer);
+}
+
+
+/******************************************************************************
+ *
+ * FUNCTION:    AsMatchValidToken
+ *
+ * DESCRIPTION: Find the next matching token in the input buffer.
+ *
+ ******************************************************************************/
+
+static char *
+AsMatchValidToken (
+    char                    *Buffer,
+    char                    *Filename,
+    char                    TargetChar,
+    AS_SCAN_CALLBACK        Callback)
+{
+    char                    *SubBuffer = Buffer;
+    char                    *StringStart;
+    UINT32                  TotalLines;
+
+
+    TotalLines = 1;
+    NonAnsiCommentCount = 0;
+
+    /* Scan from current position up to the end if necessary */
+
+    while (*SubBuffer)
+    {
+        /* Skip normal comments */
+
+        if ((*SubBuffer == '/') &&
+            (*(SubBuffer + 1) == '*'))
+        {
+            /* Must maintain line count */
+
+            SubBuffer += 2;
+            while (strncmp ("*/", SubBuffer, 2))
+            {
+                if (*SubBuffer == '\n')
+                {
+                    TotalLines++;
+                }
+                SubBuffer++;
+            }
+
+            SubBuffer += 2;
+            continue;
+        }
+
+        /* Skip single quoted chars */
+
+        if (*SubBuffer == '\'')
+        {
+            SubBuffer++;
+            if (!(*SubBuffer))
+            {
+                break;
+            }
+
+            if (*SubBuffer == '\\')
+            {
+                SubBuffer++;
+            }
+            SubBuffer++;
+            continue;
+        }
+
+        /* Skip quoted strings */
+
+        if (*SubBuffer == '"')
+        {
+            StringStart = SubBuffer;
+            SubBuffer++;
+            if (!(*SubBuffer))
+            {
+                break;
+            }
+
+            while (*SubBuffer != '"')
+            {
+                if ((*SubBuffer == '\n') ||
+                    (!(*SubBuffer)))
+                {
+                    AsPrint ("Unbalanced quoted string", 1, Filename);
+                    printf ("    %.32s\n", StringStart);
+                    break;
+                }
+
+                /* Handle escapes within the string */
+
+                if (*SubBuffer == '\\')
+                {
+                    SubBuffer++;
+                }
+                SubBuffer++;
+            }
+
+            SubBuffer++;
+            continue;
+        }
+
+        /* Now we can check for a slash-slash comment */
+
+        if ((*SubBuffer == '/') &&
+            (*(SubBuffer + 1) == '/'))
+        {
+            NonAnsiCommentCount++;
+
+            /* Skip to end-of-line */
+
+            while ((*SubBuffer != '\n') &&
+                (*SubBuffer))
+            {
+                SubBuffer++;
+            }
+
+            if (!(*SubBuffer))
+            {
+                break;
+            }
+
+            if (*SubBuffer == '\n')
+            {
+                TotalLines++;
+            }
+
+            SubBuffer++;
+            continue;
+        }
+
+        /* Finally, check for a newline */
+
+        if (*SubBuffer == '\n')
+        {
+            TotalLines++;
+            SubBuffer++;
+            continue;
+        }
+
+        /* Normal character, do the user actions */
+
+        if (Callback)
+        {
+            SubBuffer = Callback (SubBuffer, Filename, TotalLines);
+        }
+
+        if (TargetChar && (*SubBuffer == TargetChar))
+        {
+            return (SubBuffer);
+        }
+
+        SubBuffer++;
+    }
+
+    return (NULL);
+}
 
 
 /******************************************************************************
@@ -201,163 +488,6 @@ AsPrint (
 
 /******************************************************************************
  *
- * FUNCTION:    AsCheckAndSkipLiterals
- *
- * DESCRIPTION: Generic routine to skip comments and quoted string literals.
- *              Keeps a line count.
- *
- ******************************************************************************/
-
-char *
-AsCheckAndSkipLiterals (
-    char                    *Buffer,
-    UINT32                  *TotalLines)
-{
-    UINT32                  NewLines = 0;
-    char                    *SubBuffer = Buffer;
-    char                    *LiteralEnd;
-
-
-    /* Ignore comments */
-
-    if ((SubBuffer[0] == '/') &&
-        (SubBuffer[1] == '*'))
-    {
-        LiteralEnd = strstr (SubBuffer, "*/");
-        SubBuffer += 2;     /* Get past comment opening */
-
-        if (!LiteralEnd)
-        {
-            return (SubBuffer);
-        }
-
-        while (SubBuffer < LiteralEnd)
-        {
-            if (*SubBuffer == '\n')
-            {
-                NewLines++;
-            }
-
-            SubBuffer++;
-        }
-
-        SubBuffer += 2;     /* Get past comment close */
-    }
-
-    /* Ignore quoted strings */
-
-    else if (*SubBuffer == '\"')
-    {
-        SubBuffer++;
-        LiteralEnd = AsSkipPastChar (SubBuffer, '\"');
-        if (!LiteralEnd)
-        {
-            return (SubBuffer);
-        }
-    }
-
-    if (TotalLines)
-    {
-        (*TotalLines) += NewLines;
-    }
-    return (SubBuffer);
-}
-
-
-/******************************************************************************
- *
- * FUNCTION:    AsAsCheckForBraces
- *
- * DESCRIPTION: Check for an open brace after each if statement
- *
- ******************************************************************************/
-
-void
-AsCheckForBraces (
-    char                    *Buffer,
-    char                    *Filename)
-{
-    char                    *SubBuffer = Buffer;
-    char                    *NextBrace;
-    char                    *NextSemicolon;
-    char                    *NextIf;
-    UINT32                  TotalLines = 1;
-
-
-    while (*SubBuffer)
-    {
-
-        SubBuffer = AsCheckAndSkipLiterals (SubBuffer, &TotalLines);
-
-        if (*SubBuffer == '\n')
-        {
-            TotalLines++;
-        }
-        else if (!(strncmp (" if", SubBuffer, 3)))
-        {
-            SubBuffer += 2;
-            NextBrace = strstr (SubBuffer, "{");
-            NextSemicolon = strstr (SubBuffer, ";");
-            NextIf = strstr (SubBuffer, " if");
-
-            if ((!NextBrace) ||
-               (NextSemicolon && (NextBrace > NextSemicolon)) ||
-               (NextIf && (NextBrace > NextIf)))
-            {
-                Gbl_MissingBraces++;
-
-                if (!Gbl_QuietMode)
-                {
-                    printf ("Missing braces for <if>, line %u: %s\n", TotalLines, Filename);
-                }
-            }
-        }
-        else if (!(strncmp (" else if", SubBuffer, 8)))
-        {
-            SubBuffer += 7;
-            NextBrace = strstr (SubBuffer, "{");
-            NextSemicolon = strstr (SubBuffer, ";");
-            NextIf = strstr (SubBuffer, " if");
-
-            if ((!NextBrace) ||
-               (NextSemicolon && (NextBrace > NextSemicolon)) ||
-               (NextIf && (NextBrace > NextIf)))
-            {
-                Gbl_MissingBraces++;
-
-                if (!Gbl_QuietMode)
-                {
-                    printf ("Missing braces for <if>, line %u: %s\n", TotalLines, Filename);
-                }
-            }
-        }
-        else if (!(strncmp (" else", SubBuffer, 5)))
-        {
-            SubBuffer += 4;
-            NextBrace = strstr (SubBuffer, "{");
-            NextSemicolon = strstr (SubBuffer, ";");
-            NextIf = strstr (SubBuffer, " if");
-
-            if ((!NextBrace) ||
-               (NextSemicolon && (NextBrace > NextSemicolon)) ||
-               (NextIf && (NextBrace > NextIf)))
-            {
-                Gbl_MissingBraces++;
-
-                if (!Gbl_QuietMode)
-                {
-                    printf ("Missing braces for <else>, line %u: %s\n", TotalLines, Filename);
-                }
-            }
-        }
-
-        SubBuffer++;
-    }
-}
-
-
-/******************************************************************************
- *
  * FUNCTION:    AsTrimLines
  *
  * DESCRIPTION: Remove extra blanks from the end of source lines. Does not
@@ -435,12 +565,47 @@ void
 AsTrimWhitespace (
     char                    *Buffer)
 {
+    char                    *SubBuffer;
     int                     ReplaceCount = 1;
 
 
     while (ReplaceCount)
     {
-        ReplaceCount = AsReplaceString ("\n\n\n\n", "\n\n\n", REPLACE_SUBSTRINGS, Buffer);
+        ReplaceCount = AsReplaceString ("\n\n\n\n", "\n\n\n",
+            REPLACE_SUBSTRINGS, Buffer);
+    }
+
+    /*
+     * Check for exactly one blank line after the copyright header
+     */
+
+    /* Find the header */
+
+    SubBuffer = strstr (Buffer, HeaderBegin);
+    if (!SubBuffer)
+    {
+        return;
+    }
+
+    /* Find the end of the header */
+
+    SubBuffer = strstr (SubBuffer, "*/");
+    SubBuffer = AsSkipPastChar (SubBuffer, '\n');
+
+    /* Replace a double blank line with a single */
+
+    if (!strncmp (SubBuffer, "\n\n", 2))
+    {
+        SubBuffer = AsReplaceData (SubBuffer, 2, "\n", 1);
+        AcpiOsPrintf ("Found multiple blank lines after copyright\n");
+    }
+
+    /* If no blank line after header, insert one */
+
+    else if (*SubBuffer != '\n')
+    {
+        AsInsertData (SubBuffer, "\n", 1);
+        AcpiOsPrintf ("Inserted blank line after copyright\n");
     }
 }
 
@@ -477,7 +642,8 @@ AsReplaceHeader (
 
     /* Delete old header, insert new one */
 
-    AsReplaceData (SubBuffer, TokenEnd - SubBuffer, NewHeader, strlen (NewHeader));
+    AsReplaceData (SubBuffer, TokenEnd - SubBuffer,
+        NewHeader, strlen (NewHeader));
 }
 
 
@@ -565,7 +731,8 @@ AsReplaceString (
                 }
             }
 
-            SubBuffer = AsReplaceData (SubString1, TargetLength, Replacement, ReplacementLength);
+            SubBuffer = AsReplaceData (SubString1, TargetLength,
+                Replacement, ReplacementLength);
 
             if ((Type & EXTRA_INDENT_C) &&
                 (!Gbl_StructDefs))
@@ -585,7 +752,7 @@ AsReplaceString (
  *
  * FUNCTION:    AsConvertToLineFeeds
  *
- * DESCRIPTION:
+ * DESCRIPTION: Convert all CR/LF pairs to LF only.
  *
  ******************************************************************************/
 
@@ -612,7 +779,6 @@ AsConvertToLineFeeds (
 
         SubBuffer = AsReplaceData (SubString, 1, NULL, 0);
     }
-    return;
 }
 
 
@@ -620,7 +786,7 @@ AsConvertToLineFeeds (
  *
  * FUNCTION:    AsInsertCarriageReturns
  *
- * DESCRIPTION:
+ * DESCRIPTION: Convert lone LFs to CR/LF pairs.
  *
  ******************************************************************************/
 
@@ -648,7 +814,6 @@ AsInsertCarriageReturns (
         SubBuffer = AsInsertData (SubString, "\r", 1);
         SubBuffer += 1;
     }
-    return;
 }
 
 
@@ -1109,7 +1274,7 @@ AsTabify8 (
  *
  ******************************************************************************/
 
-UINT32
+static UINT32
 AsCountLines (
     char                    *Buffer,
     char                    *Filename)
@@ -1141,7 +1306,9 @@ AsCountLines (
 
     if (LongLineCount)
     {
-        VERBOSE_PRINT (("%u Lines longer than 80 found in %s\n", LongLineCount, Filename));
+        VERBOSE_PRINT (("%u Lines longer than 80 found in %s\n",
+            LongLineCount, Filename));
+
         Gbl_LongLines += LongLineCount;
     }
 
@@ -1182,42 +1349,6 @@ AsCountTabs (
     }
 
     AsCountLines (Buffer, Filename);
-}
-
-
-/******************************************************************************
- *
- * FUNCTION:    AsCountNonAnsiComments
- *
- * DESCRIPTION: Count the number of "//" comments. This type of comment is
- *              non-ANSI C.
- *
- ******************************************************************************/
-
-void
-AsCountNonAnsiComments (
-    char                    *Buffer,
-    char                    *Filename)
-{
-    char                    *SubBuffer = Buffer;
-    UINT32                  CommentCount = 0;
-
-
-    while (SubBuffer)
-    {
-        SubBuffer = strstr (SubBuffer, "//");
-        if (SubBuffer)
-        {
-            CommentCount++;
-            SubBuffer += 2;
-        }
-    }
-
-    if (CommentCount)
-    {
-        AsPrint ("Non-ANSI Comments found", CommentCount, Filename);
-        Gbl_NonAnsiComments += CommentCount;
-    }
 }
 
 
@@ -1309,7 +1440,8 @@ AsCountSourceLines (
     Gbl_CommentLines += CommentCount;
 
     VERBOSE_PRINT (("%u Comment %u White %u Code %u Lines in %s\n",
-                CommentCount, WhiteCount, LineCount, LineCount+WhiteCount+CommentCount, Filename));
+        CommentCount, WhiteCount, LineCount,
+        LineCount + WhiteCount + CommentCount, Filename));
 }
 
 
@@ -1534,5 +1666,77 @@ Exit:
     {
         AsPrint ("Short Comments found", ShortCommentCount, Filename);
     }
+}
+#endif
+
+#ifdef ACPI_UNUSED_FUNCTIONS
+/******************************************************************************
+ *
+ * FUNCTION:    AsCheckAndSkipLiterals
+ *
+ * DESCRIPTION: Generic routine to skip comments and quoted string literals.
+ *              Keeps a line count.
+ *
+ ******************************************************************************/
+
+static char *
+AsCheckAndSkipLiterals (
+    char                    *Buffer,
+    UINT32                  *TotalLines);
+
+
+static char *
+AsCheckAndSkipLiterals (
+    char                    *Buffer,
+    UINT32                  *TotalLines)
+{
+    UINT32                  NewLines = 0;
+    char                    *SubBuffer = Buffer;
+    char                    *LiteralEnd;
+
+
+    /* Ignore comments */
+
+    if ((SubBuffer[0] == '/') &&
+        (SubBuffer[1] == '*'))
+    {
+        LiteralEnd = strstr (SubBuffer, "*/");
+        SubBuffer += 2;     /* Get past comment opening */
+
+        if (!LiteralEnd)
+        {
+            return (SubBuffer);
+        }
+
+        while (SubBuffer < LiteralEnd)
+        {
+            if (*SubBuffer == '\n')
+            {
+                NewLines++;
+            }
+
+            SubBuffer++;
+        }
+
+        SubBuffer += 2;     /* Get past comment close */
+    }
+
+    /* Ignore quoted strings */
+
+    else if (*SubBuffer == '\"')
+    {
+        SubBuffer++;
+        LiteralEnd = AsSkipPastChar (SubBuffer, '\"');
+        if (!LiteralEnd)
+        {
+            return (SubBuffer);
+        }
+    }
+
+    if (TotalLines)
+    {
+        (*TotalLines) += NewLines;
+    }
+    return (SubBuffer);
 }
 #endif

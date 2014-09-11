@@ -41,7 +41,6 @@
  * POSSIBILITY OF SUCH DAMAGES.
  */
 
-
 #ifndef __ASLDEFINE_H
 #define __ASLDEFINE_H
 
@@ -55,14 +54,14 @@
 #define ASL_INVOCATION_NAME         "iasl"
 #define ASL_CREATOR_ID              "INTL"
 
-#define ASL_COMPLIANCE              "Supports ACPI Specification Revision 5.0A"
+#define ASL_COMPLIANCE              "Supports ACPI Specification Revision 5.1"
 
 
 /* Configuration constants */
 
 #define ASL_MAX_ERROR_COUNT         200
-#define ASL_NODE_CACHE_SIZE         1024
-#define ASL_STRING_CACHE_SIZE       32768
+#define ASL_PARSEOP_CACHE_SIZE      (1024 * 16)
+#define ASL_STRING_CACHE_SIZE       (1024 * 64)
 
 #define ASL_FIRST_PARSE_OPCODE      PARSEOP_ACCESSAS
 #define ASL_PARSE_OPCODE_BASE       PARSEOP_ACCESSAS        /* First Lex type */

@@ -41,7 +41,6 @@
  * POSSIBILITY OF SUCH DAMAGES.
  */
 
-
 #include "aslcompiler.h"
 
 #define _COMPONENT          ACPI_COMPILER

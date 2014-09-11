@@ -627,7 +627,6 @@ AcpiOsAllocate (
 
 
     Mem = (void *) malloc ((size_t) Size);
-
     return (Mem);
 }
 
@@ -653,7 +652,6 @@ AcpiOsAllocateZeroed (
 
 
     Mem = (void *) calloc (1, (size_t) Size);
-
     return (Mem);
 }
 #endif
