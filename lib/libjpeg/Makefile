@@ -81,7 +81,13 @@ WARNS?=	6
 
 USE_CHERI=yes
 
+CFLAGS+=	${CFLAGS.${.IMPSRC:T}}
+
 .include <src.opts.mk>
 .include <bsd.lib.mk>
 
 CFLAGS+=	-Wno-unused-parameter
+
+CFLAGS:=	${CFLAGS:S/-O/-O2/}
+CFLAGS.rdgif.c=		-O0
+CFLAGS.rdswitch.c=	-O0

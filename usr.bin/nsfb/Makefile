@@ -243,15 +243,15 @@ TTFONTS=	'-DNETSURF_FB_FONTPATH="/usr/share/fonts/truetype/ttf-dejavu:/usr/share
 CFLAGS+=	-D_LONGLONG -Dsmall -DLIBICONV_PLUG \
 		$(OPTIONS) $(TTFONTS) $(INCLUDES) $(WARNFLAGS)
 
+CFLAGS+=	${CFLAGS.${.IMPSRC:T}}
 .include <src.opts.mk>
-.if ${MK_CHERI} == "yes"
-CC:=	${CHERI_CC} -integrated-as --target=cheri-unknown-freebsd
-.if defined(SYSROOT)
-CC+=	--sysroot=${SYSROOT}
-.endif
-.endif
 .include <bsd.prog.mk>
 
+CFLAGS:=	${CFLAGS:S/-O/-O2/}
+CFLAGS.content.c=	-O0
+CFLAGS.box_textarea.c=	-O0
+CFLAGS.html_interaction.c=	-O0
+CFLAGS.html_object.c=	-O0
+
 .c.o:
-	pwd
 	${CC} ${STATIC_CFLAGS} ${CFLAGS} -c ${.IMPSRC} -o ${.TARGET}

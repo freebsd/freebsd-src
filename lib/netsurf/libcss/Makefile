@@ -289,5 +289,10 @@ CFLAGS+=	-I${NETSURF_DISTDIR}/libcss/include \
 		'-D_ALIGNED=__attribute__((aligned))' -DNDEBUG \
 		-D_LONGLONG -D_BSD_SOURCE $(WARNFLAGS)
 
+CFLAGS+=	${OFLAG.${.IMPSRC:T}}
+
 .include <bsd.lib.mk>
 .include <bsd.subdir.mk>
+
+CFLAGS:=	${CFLAGS:S/-O/-O2/}
+OFLAG.detect.c=	-O0
