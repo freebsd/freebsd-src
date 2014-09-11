@@ -41,7 +41,6 @@
  * POSSIBILITY OF SUCH DAMAGES.
  */
 
-
 #define __UTXFINIT_C__
 #define EXPORT_ACPI_INTERFACES
 

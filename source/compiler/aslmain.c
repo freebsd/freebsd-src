@@ -327,6 +327,7 @@ main (
     ACPI_STATUS             Status;
     int                     Index1;
     int                     Index2;
+    int                     ReturnStatus = 0;
 
 
     /*
@@ -392,16 +393,24 @@ main (
         Status = AslDoOneFile (argv[Index2]);
         if (ACPI_FAILURE (Status))
         {
-            return (-1);
+            ReturnStatus = -1;
+            goto CleanupAndExit;
         }
 
         Index2++;
     }
+
+
+CleanupAndExit:
+
+    UtFreeLineBuffers ();
+
+    AslParserCleanup ();
 
     if (AcpiGbl_ExternalFileList)
     {
         AcpiDmClearExternalFileList();
     }
 
-    return (0);
+    return (ReturnStatus);
 }

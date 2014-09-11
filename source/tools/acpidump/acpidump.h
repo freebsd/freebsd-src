@@ -41,7 +41,6 @@
  * POSSIBILITY OF SUCH DAMAGES.
  */
 
-
 /*
  * Global variables. Defined in main.c only, externed in all other files
  */

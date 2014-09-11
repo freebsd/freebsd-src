@@ -233,6 +233,9 @@ const char                      *AslCompilerMsgs [] =
 /*    ASL_MSG_WRITE */                      "Could not write file",
 /*    ASL_MSG_RANGE */                      "Constant out of range",
 /*    ASL_MSG_BUFFER_ALLOCATION */          "Could not allocate line buffer",
+/*    ASL_MSG_MISSING_DEPENDENCY */         "Missing dependency",
+/*    ASL_MSG_ILLEGAL_FORWARD_REF */        "Illegal forward reference within a method",
+/*    ASL_MSG_ILLEGAL_METHOD_REF */         "Illegal reference across two methods"
 };
 
 /* Table compiler */

@@ -41,12 +41,9 @@
  * POSSIBILITY OF SUCH DAMAGES.
  */
 
-
-#include "acpi.h"
-#include "accommon.h"
+#include "aslcompiler.h"
 #include "acparser.h"
 #include "amlcode.h"
-#include "acdebug.h"
 #include "acdisasm.h"
 #include "acdispat.h"
 #include "acnamesp.h"
@@ -59,23 +56,6 @@
 
 #define _COMPONENT          ACPI_TOOLS
         ACPI_MODULE_NAME    ("adisasm")
-
-/*
- * Older versions of Bison won't emit this external in the generated header.
- * Newer versions do emit the external, so we don't need to do it.
- */
-#ifndef ASLCOMPILER_ASLCOMPILERPARSE_H
-extern int                  AslCompilerdebug;
-#endif
-
-ACPI_STATUS
-NsDisplayNamespace (
-    void);
-
-void
-NsSetupNamespaceListing (
-    void                    *Handle);
-
 
 /* Local prototypes */
 
@@ -654,7 +634,7 @@ AdCreateTableHeader (
     }
     else
     {
-        NewFilename = ACPI_ALLOCATE_ZEROED (9);
+        NewFilename = UtStringCacheCalloc (9);
         if (NewFilename)
         {
             strncat (NewFilename, Table->Signature, 4);
@@ -674,8 +654,6 @@ AdCreateTableHeader (
         "DefinitionBlock (\"%s\", \"%4.4s\", %hu, \"%.6s\", \"%.8s\", 0x%8.8X)\n",
         NewFilename, Table->Signature, Table->Revision,
         Table->OemId, Table->OemTableId, Table->OemRevision);
-
-    ACPI_FREE (NewFilename);
 }
 
 

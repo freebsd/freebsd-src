@@ -41,7 +41,6 @@
  * POSSIBILITY OF SUCH DAMAGES.
  */
 
-
 #define __UTMISC_C__
 
 #include "acpi.h"

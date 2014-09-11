@@ -210,6 +210,19 @@ extern ACPI_CONVERSION_TABLE       CustomConversionTable;
 extern ACPI_CONVERSION_TABLE       LicenseConversionTable;
 extern ACPI_CONVERSION_TABLE       IndentConversionTable;
 
+typedef
+char * (*AS_SCAN_CALLBACK) (
+    char                    *Buffer,
+    char                    *Filename,
+    UINT32                  LineNumber);
+
+typedef struct as_brace_info
+{
+    char                    *Operator;
+    UINT32                  Length;
+
+} AS_BRACE_INFO;
+
 
 /* Prototypes */
 

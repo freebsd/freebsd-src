@@ -51,7 +51,7 @@ AhDisplayUsage (
     void);
 
 #define AH_UTILITY_NAME             "ACPI Help Utility"
-#define AH_SUPPORTED_OPTIONS        "aehikmopsv"
+#define AH_SUPPORTED_OPTIONS        "aehikmopsuv"
 
 
 /******************************************************************************
@@ -82,6 +82,7 @@ AhDisplayUsage (
 
     ACPI_USAGE_TEXT ("\nOther ACPI Names:\n");
     ACPI_OPTION ("-i [Name/Prefix]",        "Find/Display ACPI/PNP Hardware ID(s)");
+    ACPI_OPTION ("-u",                      "Display ACPI-related UUIDs");
 
     ACPI_USAGE_TEXT ("\nACPI Values:\n");
     ACPI_OPTION ("-e [HexValue]",           "Decode ACPICA exception code");
@@ -167,6 +168,11 @@ main (
         DecodeType = AH_DECODE_ASL;
         break;
 
+    case 'u':
+
+        DecodeType = AH_DISPLAY_UUIDS;
+        break;
+
     case 'v': /* -v: (Version): signon already emitted, just exit */
 
         return (0);
@@ -222,6 +228,11 @@ main (
     case AH_DECODE_EXCEPTION:
 
         AhDecodeException (Name);
+        break;
+
+    case AH_DISPLAY_UUIDS:
+
+        AhDisplayUuids ();
         break;
 
     default:

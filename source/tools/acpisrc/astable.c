@@ -41,7 +41,6 @@
  * POSSIBILITY OF SUCH DAMAGES.
  */
 
-
 #include "acpisrc.h"
 #include "acapps.h"
 
@@ -467,12 +466,15 @@ ACPI_TYPED_IDENTIFIER_TABLE           AcpiIdentifiers[] = {
     {"AML_RESOURCE_UART_SERIALBUS",         SRC_TYPE_STRUCT},
     {"AML_RESOURCE_VENDOR_LARGE",           SRC_TYPE_STRUCT},
     {"AML_RESOURCE_VENDOR_SMALL",           SRC_TYPE_STRUCT},
+    {"AS_BRACE_INFO",                       SRC_TYPE_STRUCT},
+    {"AS_SCAN_CALLBACK",                    SRC_TYPE_SIMPLE},
 
     {"APIC_HEADER",                         SRC_TYPE_STRUCT},
     {"AE_DEBUG_REGIONS",                    SRC_TYPE_STRUCT},
     {"AE_REGION",                           SRC_TYPE_STRUCT},
     {"AE_TABLE_DESC",                       SRC_TYPE_STRUCT},
     {"ASL_ANALYSIS_WALK_INFO",              SRC_TYPE_STRUCT},
+    {"ASL_ERROR_MSG",                       SRC_TYPE_STRUCT},
     {"ASL_ERROR_MSG",                       SRC_TYPE_STRUCT},
     {"ASL_EVENT_INFO",                      SRC_TYPE_STRUCT},
     {"ASL_FILE_INFO",                       SRC_TYPE_STRUCT},
@@ -506,6 +508,7 @@ ACPI_TYPED_IDENTIFIER_TABLE           AcpiIdentifiers[] = {
     {"ACPI_TABLE_FACS",                     SRC_TYPE_STRUCT},
     {"ACPI_TABLE_FADT",                     SRC_TYPE_STRUCT},
     {"ACPI_TABLE_FPDT",                     SRC_TYPE_STRUCT},
+    {"ACPI_TABLE_GTDT",                     SRC_TYPE_STRUCT},
     {"ACPI_TABLE_HEST",                     SRC_TYPE_STRUCT},
     {"ACPI_TABLE_HPET",                     SRC_TYPE_STRUCT},
     {"ACPI_TABLE_IBFT",                     SRC_TYPE_STRUCT},
@@ -551,17 +554,22 @@ ACPI_TYPED_IDENTIFIER_TABLE           AcpiIdentifiers[] = {
     {"ACPI_DBG2_DEVICE",                    SRC_TYPE_STRUCT},
     {"ACPI_DMAR_HEADER",                    SRC_TYPE_STRUCT},
     {"ACPI_DMAR_DEVICE_SCOPE",              SRC_TYPE_STRUCT},
+    {"ACPI_DMAR_ANDD",                      SRC_TYPE_STRUCT},
     {"ACPI_DMAR_ATSR",                      SRC_TYPE_STRUCT},
     {"ACPI_DMAR_RHSA",                      SRC_TYPE_STRUCT},
     {"ACPI_DMAR_HARDWARE_UNIT",             SRC_TYPE_STRUCT},
     {"ACPI_DMAR_RESERVED_MEMORY",           SRC_TYPE_STRUCT},
     {"ACPI_EINJ_ENTRY",                     SRC_TYPE_STRUCT},
     {"ACPI_EINJ_TRIGGER",                   SRC_TYPE_STRUCT},
+    {"ACPI_ERST_ENTRY",                     SRC_TYPE_STRUCT},
+    {"ACPI_ERST_INFO",                      SRC_TYPE_STRUCT},
     {"ACPI_FPDT_HEADER",                    SRC_TYPE_STRUCT},
     {"ACPI_FPDT_BOOT",                      SRC_TYPE_STRUCT},
     {"ACPI_FPDT_S3PT_PTR",                  SRC_TYPE_STRUCT},
-    {"ACPI_ERST_ENTRY",                     SRC_TYPE_STRUCT},
-    {"ACPI_ERST_INFO",                      SRC_TYPE_STRUCT},
+    {"ACPI_GTDT_HEADER",                    SRC_TYPE_STRUCT},
+    {"ACPI_GTDT_TIMER_BLOCK",               SRC_TYPE_STRUCT},
+    {"ACPI_GTDT_TIMER_ENTRY",               SRC_TYPE_STRUCT},
+    {"ACPI_GTDT_WATCHDOG",                  SRC_TYPE_STRUCT},
     {"ACPI_HEST_AER_COMMON",                SRC_TYPE_STRUCT},
     {"ACPI_HEST_HEADER",                    SRC_TYPE_STRUCT},
     {"ACPI_HEST_NOTIFY",                    SRC_TYPE_STRUCT},
@@ -589,6 +597,8 @@ ACPI_TYPED_IDENTIFIER_TABLE           AcpiIdentifiers[] = {
     {"ACPI_IVRS_DEVICE8C",                  SRC_TYPE_STRUCT},
     {"ACPI_IVRS_MEMORY",                    SRC_TYPE_STRUCT},
     {"ACPI_MADT_ADDRESS_OVERRIDE",          SRC_TYPE_STRUCT},
+    {"ACPI_MADT_GENERIC_MSI_FRAME",         SRC_TYPE_STRUCT},
+    {"ACPI_MADT_GENERIC_REDISTRIBUTOR",     SRC_TYPE_STRUCT},
     {"ACPI_MADT_HEADER",                    SRC_TYPE_STRUCT},
     {"ACPI_MADT_IO_APIC",                   SRC_TYPE_STRUCT},
     {"ACPI_MADT_IO_SAPIC",                  SRC_TYPE_STRUCT},
@@ -611,6 +621,8 @@ ACPI_TYPED_IDENTIFIER_TABLE           AcpiIdentifiers[] = {
     {"ACPI_MPST_POWER_STATE",               SRC_TYPE_STRUCT},
     {"ACPI_MCFG_ALLOCATION",                SRC_TYPE_STRUCT},
     {"ACPI_MSCT_PROXIMITY",                 SRC_TYPE_STRUCT},
+    {"ACPI_PCCT_HW_REDUCED",                SRC_TYPE_STRUCT},
+    {"ACPI_PCCT_SHARED_MEMORY",             SRC_TYPE_STRUCT},
     {"ACPI_PCCT_SUBSPACE",                  SRC_TYPE_STRUCT},
     {"ACPI_RSDP_COMMON",                    SRC_TYPE_STRUCT},
     {"ACPI_RSDP_EXTENSION",                 SRC_TYPE_STRUCT},
@@ -623,6 +635,7 @@ ACPI_TYPED_IDENTIFIER_TABLE           AcpiIdentifiers[] = {
     {"ACPI_SRAT_HEADER",                    SRC_TYPE_STRUCT},
     {"ACPI_SRAT_MEM_AFFINITY",              SRC_TYPE_STRUCT},
     {"ACPI_SRAT_X2APIC_CPU_AFFINITY",       SRC_TYPE_STRUCT},
+    {"ACPI_SRAT_GICC_AFFINITY",             SRC_TYPE_STRUCT},
     {"ACPI_TPM2_CONTROL",                   SRC_TYPE_STRUCT},
     {"ACPI_WDAT_ENTRY",                     SRC_TYPE_STRUCT},
 
@@ -652,6 +665,7 @@ ACPI_TYPED_IDENTIFIER_TABLE           AcpiIdentifiers[] = {
     {"AH_ASL_KEYWORD",                      SRC_TYPE_STRUCT},
     {"AH_DEVICE_ID",                        SRC_TYPE_STRUCT},
     {"AH_PREDEFINED_NAME",                  SRC_TYPE_STRUCT},
+    {"AH_UUID",                             SRC_TYPE_STRUCT},
 
     /* AcpiXtract utility */
 

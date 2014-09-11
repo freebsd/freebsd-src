@@ -42,7 +42,6 @@
  * POSSIBILITY OF SUCH DAMAGES.
  */
 
-
 #include "acpi.h"
 #include "accommon.h"
 #include "acdebug.h"

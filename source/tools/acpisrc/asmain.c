@@ -41,7 +41,6 @@
  * POSSIBILITY OF SUCH DAMAGES.
  */
 
-
 #include "acpisrc.h"
 #include "acapps.h"
 
@@ -242,8 +241,8 @@ AsDisplayStats (
     printf ("%8u Total bytes (%.1fK/file)\n",
         Gbl_TotalSize, ((double) Gbl_TotalSize/Gbl_Files)/1024);
     printf ("%8u Tabs found\n", Gbl_Tabs);
-    printf ("%8u Missing if/else braces\n", Gbl_MissingBraces);
-    printf ("%8u Non-ANSI comments found\n", Gbl_NonAnsiComments);
+    printf ("%8u Missing if/else/while braces\n", Gbl_MissingBraces);
+    printf ("%8u Non-ANSI // comments found\n", Gbl_NonAnsiComments);
     printf ("%8u Total Lines\n", Gbl_TotalLines);
     printf ("%8u Lines of code\n", Gbl_SourceLines);
     printf ("%8u Lines of non-comment whitespace\n", Gbl_WhiteLines);

@@ -41,7 +41,6 @@
  * POSSIBILITY OF SUCH DAMAGES.
  */
 
-
 #include "acpi.h"
 #include "accommon.h"
 #include "acapps.h"
@@ -52,22 +51,7 @@
 #define ACPI_EFI_PRINT_LENGTH   256
 
 
-/* Local definitions */
-
-typedef struct acpi_efi_memory_descriptor {
-    EFI_MEMORY_DESCRIPTOR   *Descriptor;
-    UINTN                   EntryCount;
-    UINTN                   EntrySize;
-    UINTN                   Cookie;
-    UINT32                  Version;
-} ACPI_EFI_MEMORY_DESCRIPTOR;
-
-
 /* Local prototypes */
-
-static void *
-AcpiEfiAllocatePool (
-    ACPI_SIZE               Size);
 
 static ACPI_STATUS
 AcpiEfiArgify (
@@ -100,25 +84,10 @@ AcpiEfiFlushFile (
     CHAR16                  *Pos,
     BOOLEAN                 FlushAll);
 
-static void
-AcpiEfiFreePool (
-    void                    *Mem);
-
-static ACPI_STATUS
-AcpiEfiInitializeMemoryMap (
-    void);
-
-static void
-AcpiEfiTerminateMemoryMap (
-    void);
-
 
 /* Local variables */
 
 static EFI_FILE_HANDLE      AcpiGbl_EfiCurrentVolume = NULL;
-static ACPI_EFI_MEMORY_DESCRIPTOR       AcpiGbl_EfiMemoryMap;
-static BOOLEAN                          AcpiGbl_EfiMemoryInitialized = FALSE;
-static UINTN                            AcpiGbl_EfiPoolAllocation = EfiBootServicesData;
 
 
 /******************************************************************************
@@ -158,107 +127,6 @@ AcpiEfiCompareGuid (
 
 /******************************************************************************
  *
- * FUNCTION:    AcpiEfiInitializeMemoryMap
- *
- * PARAMETERS:  None
- *
- * RETURN:      Status
- *
- * DESCRIPTION: Initialize EFI memory map.
- *
- *****************************************************************************/
-
-static ACPI_STATUS
-AcpiEfiInitializeMemoryMap (
-    void)
-{
-    EFI_STATUS              Status;
-    ACPI_EFI_MEMORY_DESCRIPTOR *Map;
-    UINT32                  Length;
-
-
-    if (AcpiGbl_EfiMemoryInitialized)
-    {
-        return (AE_OK);
-    }
-
-    /* Initialize */
-
-    Map = &AcpiGbl_EfiMemoryMap;
-    Length = sizeof (EFI_MEMORY_DESCRIPTOR);
-    Map->Descriptor = NULL;
-    Status = EFI_BUFFER_TOO_SMALL;
-
-    /* Allocation and GetMemoryMap() loop */
-
-    while (!AcpiGbl_EfiMemoryInitialized &&
-           Status == EFI_BUFFER_TOO_SMALL)
-    {
-        Map->Descriptor = AcpiEfiAllocatePool (Length);
-        if (!Map->Descriptor)
-        {
-            return (AE_NO_MEMORY);
-        }
-        Status = uefi_call_wrapper (BS->GetMemoryMap, 5,
-                    &Length, Map->Descriptor,
-                    &Map->Cookie, &Map->EntrySize, &Map->Version);
-        if (!EFI_ERROR (Status))
-        {
-            AcpiGbl_EfiMemoryInitialized = TRUE;
-        }
-        else if (Status == EFI_BUFFER_TOO_SMALL)
-        {
-            AcpiEfiFreePool (Map->Descriptor);
-        }
-    }
-
-    /* Finalize */
-
-    if (!AcpiGbl_EfiMemoryInitialized)
-    {
-        if (Map->Descriptor)
-        {
-            AcpiEfiFreePool (Map->Descriptor);
-            Map->Descriptor = NULL;
-        }
-        return (AE_ERROR);
-    }
-    else
-    {
-        Map->EntryCount = Length / sizeof (EFI_MEMORY_DESCRIPTOR);
-    }
-
-    return (AE_OK);
-}
-
-
-/******************************************************************************
- *
- * FUNCTION:    AcpiEfiTerminateMemoryMap
- *
- * PARAMETERS:  None
- *
- * RETURN:      None
- *
- * DESCRIPTION: Terminate EFI memory map.
- *
- *****************************************************************************/
-
-static void
-AcpiEfiTerminateMemoryMap (
-    void)
-{
-
-    if (AcpiGbl_EfiMemoryInitialized)
-    {
-        AcpiEfiFreePool (AcpiGbl_EfiMemoryMap.Descriptor);
-        AcpiGbl_EfiMemoryInitialized = FALSE;
-    }
-}
-
-
-/******************************************************************************
- *
  * FUNCTION:    AcpiEfiGetRsdpViaGuid
  *
  * PARAMETERS:  None
@@ -288,58 +156,6 @@ AcpiEfiGetRsdpViaGuid (
     }
 
     return ((ACPI_PHYSICAL_ADDRESS) (Address));
-}
-
-
-/******************************************************************************
- *
- * FUNCTION:    AcpiEfiAllocatePool
- *
- * PARAMETERS:  Size                - Amount to allocate, in bytes
- *
- * RETURN:      Pointer to the new allocation. Null on error.
- *
- * DESCRIPTION: Allocate pool memory.
- *
- *****************************************************************************/
-
-static void *
-AcpiEfiAllocatePool (
-    ACPI_SIZE               Size)
-{
-    EFI_STATUS              EfiStatus;
-    void                    *Mem;
-
-
-    EfiStatus = uefi_call_wrapper (BS->AllocatePool, 3,
-        AcpiGbl_EfiPoolAllocation, Size, &Mem);
-    if (EFI_ERROR (EfiStatus))
-    {
-        AcpiLogError ("EFI_BOOT_SERVICES->AllocatePool(EfiLoaderData) failure.\n");
-        return (NULL);
-    }
-
-    return (Mem);
-}
-
-/******************************************************************************
- *
- * FUNCTION:    AcpiEfiFreePool
- *
- * PARAMETERS:  Mem                 - Pointer to previously allocated memory
- *
- * RETURN:      None
- *
- * DESCRIPTION: Free memory allocated via AcpiEfiAllocatePool
- *
- *****************************************************************************/
-
-static void
-AcpiEfiFreePool (
-    void                    *Mem)
-{
-
-    uefi_call_wrapper (BS->FreePool, 1, Mem);
 }
 
 
@@ -392,32 +208,6 @@ AcpiOsMapMemory (
     ACPI_PHYSICAL_ADDRESS   where,
     ACPI_SIZE               length)
 {
-    UINTN                   i;
-    EFI_MEMORY_DESCRIPTOR   *p;
-    UINT64                  Size;
-    EFI_PHYSICAL_ADDRESS    End;
-
-
-    for (i = 0, p = AcpiGbl_EfiMemoryMap.Descriptor;
-         i < AcpiGbl_EfiMemoryMap.EntryCount;
-         i++, p = ACPI_ADD_PTR (EFI_MEMORY_DESCRIPTOR, p, AcpiGbl_EfiMemoryMap.EntrySize))
-    {
-        Size = p->NumberOfPages << EFI_PAGE_SHIFT;
-        End = p->PhysicalStart + Size;
-
-        if (!(p->Attribute & EFI_MEMORY_RUNTIME) || !p->VirtualStart)
-        {
-            continue;
-        }
-
-        if (where >= p->PhysicalStart && where < End)
-        {
-            where += p->VirtualStart - p->PhysicalStart;
-            break;
-        }
-    }
-
-    /* Default to use the physical address */
 
     return (ACPI_TO_POINTER ((ACPI_SIZE) where));
 }
@@ -1252,7 +1042,6 @@ efi_main (
         AcpiLogError ("EFI_BOOT_SERVICES->HandleProtocol(LoadedImageProtocol) failure.\n");
         return (EfiStatus);
     }
-    AcpiGbl_EfiPoolAllocation = Info->ImageDataType;
     EfiStatus = uefi_call_wrapper (BS->HandleProtocol, 3,
         Info->DeviceHandle, &FileSystemProtocol, (void **) &Volume);
     if (EFI_ERROR (EfiStatus))
@@ -1266,12 +1055,6 @@ efi_main (
     {
         AcpiLogError ("EFI_FILE_IO_INTERFACE->OpenVolume() failure.\n");
         return (EfiStatus);
-    }
-    Status = AcpiEfiInitializeMemoryMap ();
-    if (ACPI_FAILURE (Status))
-    {
-        EfiStatus = EFI_DEVICE_ERROR;
-        goto ErrorAlloc;
     }
 
     Status = AcpiEfiConvertArgcv (Info->LoadOptions,
@@ -1294,7 +1077,6 @@ ErrorAlloc:
     {
         ACPI_FREE (OptBuffer);
     }
-    AcpiEfiTerminateMemoryMap ();
 
     return (EfiStatus);
 }

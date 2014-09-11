@@ -891,16 +891,22 @@ AcpiDmDumpDmar (
             ScopeOffset = sizeof (ACPI_DMAR_RESERVED_MEMORY);
             break;
 
-        case ACPI_DMAR_TYPE_ATSR:
+        case ACPI_DMAR_TYPE_ROOT_ATS:
 
             InfoTable = AcpiDmTableInfoDmar2;
             ScopeOffset = sizeof (ACPI_DMAR_ATSR);
             break;
 
-        case ACPI_DMAR_HARDWARE_AFFINITY:
+        case ACPI_DMAR_TYPE_HARDWARE_AFFINITY:
 
             InfoTable = AcpiDmTableInfoDmar3;
             ScopeOffset = sizeof (ACPI_DMAR_RHSA);
+            break;
+
+        case ACPI_DMAR_TYPE_NAMESPACE:
+
+            InfoTable = AcpiDmTableInfoDmar4;
+            ScopeOffset = sizeof (ACPI_DMAR_ANDD);
             break;
 
         default:
@@ -916,7 +922,16 @@ AcpiDmDumpDmar (
             return;
         }
 
-        /* Dump the device scope entries (if any) */
+        /*
+         * Dump the optional device scope entries
+         */
+        if ((SubTable->Type == ACPI_DMAR_TYPE_HARDWARE_AFFINITY) ||
+            (SubTable->Type == ACPI_DMAR_TYPE_NAMESPACE))
+        {
+            /* These types do not support device scopes */
+
+            goto NextSubtable;
+        }
 
         ScopeTable = ACPI_ADD_PTR (ACPI_DMAR_DEVICE_SCOPE, SubTable, ScopeOffset);
         while (ScopeOffset < SubTable->Length)
@@ -956,6 +971,7 @@ AcpiDmDumpDmar (
                 ScopeTable, ScopeTable->Length);
         }
 
+NextSubtable:
         /* Point to next subtable */
 
         Offset += SubTable->Length;
@@ -1149,6 +1165,123 @@ NextSubTable:
 
         Offset += SubTable->Length;
         SubTable = ACPI_ADD_PTR (ACPI_FPDT_HEADER, SubTable, SubTable->Length);
+    }
+}
+
+
+/*******************************************************************************
+ *
+ * FUNCTION:    AcpiDmDumpGtdt
+ *
+ * PARAMETERS:  Table               - A GTDT table
+ *
+ * RETURN:      None
+ *
+ * DESCRIPTION: Format the contents of a GTDT. This table type consists
+ *              of an open-ended number of subtables.
+ *
+ ******************************************************************************/
+
+void
+AcpiDmDumpGtdt (
+    ACPI_TABLE_HEADER       *Table)
+{
+    ACPI_STATUS             Status;
+    ACPI_GTDT_HEADER        *SubTable;
+    UINT32                  Length = Table->Length;
+    UINT32                  Offset = sizeof (ACPI_TABLE_GTDT);
+    ACPI_DMTABLE_INFO       *InfoTable;
+    UINT32                  SubTableLength;
+    UINT32                  GtCount;
+    ACPI_GTDT_TIMER_ENTRY   *GtxTable;
+
+
+    /* Main table */
+
+    Status = AcpiDmDumpTable (Length, 0, Table, 0, AcpiDmTableInfoGtdt);
+    if (ACPI_FAILURE (Status))
+    {
+        return;
+    }
+
+    /* Subtables */
+
+    SubTable = ACPI_ADD_PTR (ACPI_GTDT_HEADER, Table, Offset);
+    while (Offset < Table->Length)
+    {
+        /* Common subtable header */
+
+        AcpiOsPrintf ("\n");
+        Status = AcpiDmDumpTable (Length, Offset, SubTable,
+                    SubTable->Length, AcpiDmTableInfoGtdtHdr);
+        if (ACPI_FAILURE (Status))
+        {
+            return;
+        }
+
+        GtCount = 0;
+        switch (SubTable->Type)
+        {
+        case ACPI_GTDT_TYPE_TIMER_BLOCK:
+
+            SubTableLength = sizeof (ACPI_GTDT_TIMER_BLOCK);
+            GtCount = (ACPI_CAST_PTR (ACPI_GTDT_TIMER_BLOCK,
+                        SubTable))->TimerCount;
+
+            InfoTable = AcpiDmTableInfoGtdt0;
+            break;
+
+        case ACPI_GTDT_TYPE_WATCHDOG:
+
+            SubTableLength = sizeof (ACPI_GTDT_WATCHDOG);
+
+            InfoTable = AcpiDmTableInfoGtdt1;
+            break;
+
+        default:
+
+            /* Cannot continue on unknown type - no length */
+
+            AcpiOsPrintf ("\n**** Unknown GTDT subtable type 0x%X\n", SubTable->Type);
+            return;
+        }
+
+        Status = AcpiDmDumpTable (Length, Offset, SubTable,
+                    SubTable->Length, InfoTable);
+        if (ACPI_FAILURE (Status))
+        {
+            return;
+        }
+
+        /* Point to end of current subtable (each subtable above is of fixed length) */
+
+        Offset += SubTableLength;
+
+        /* If there are any Gt Timer Blocks from above, dump them now */
+
+        if (GtCount)
+        {
+            GtxTable = ACPI_ADD_PTR (ACPI_GTDT_TIMER_ENTRY, SubTable, SubTableLength);
+            SubTableLength += GtCount * sizeof (ACPI_GTDT_TIMER_ENTRY);
+
+            while (GtCount)
+            {
+                AcpiOsPrintf ("\n");
+                Status = AcpiDmDumpTable (Length, Offset, GtxTable,
+                            sizeof (ACPI_GTDT_TIMER_ENTRY), AcpiDmTableInfoGtdt0a);
+                if (ACPI_FAILURE (Status))
+                {
+                    return;
+                }
+                Offset += sizeof (ACPI_GTDT_TIMER_ENTRY);
+                GtxTable++;
+                GtCount--;
+            }
+        }
+
+        /* Point to next subtable */
+
+        SubTable = ACPI_ADD_PTR (ACPI_GTDT_HEADER, SubTable, SubTableLength);
     }
 }
 
@@ -1662,6 +1795,16 @@ AcpiDmDumpMadt (
             InfoTable = AcpiDmTableInfoMadt12;
             break;
 
+        case ACPI_MADT_TYPE_GENERIC_MSI_FRAME:
+
+            InfoTable = AcpiDmTableInfoMadt13;
+            break;
+
+        case ACPI_MADT_TYPE_GENERIC_REDISTRIBUTOR:
+
+            InfoTable = AcpiDmTableInfoMadt14;
+            break;
+
         default:
 
             AcpiOsPrintf ("\n**** Unknown MADT subtable type 0x%X\n\n", SubTable->Type);
@@ -2017,6 +2160,7 @@ AcpiDmDumpPcct (
 {
     ACPI_STATUS             Status;
     ACPI_PCCT_SUBSPACE      *SubTable;
+    ACPI_DMTABLE_INFO       *InfoTable;
     UINT32                  Length = Table->Length;
     UINT32                  Offset = sizeof (ACPI_TABLE_PCCT);
 
@@ -2044,10 +2188,20 @@ AcpiDmDumpPcct (
             return;
         }
 
-        /* ACPI 5.0: Only one type of PCCT subtable is supported */
-
-        if (SubTable->Header.Type != ACPI_PCCT_TYPE_GENERIC_SUBSPACE)
+        switch (SubTable->Header.Type)
         {
+        case ACPI_PCCT_TYPE_GENERIC_SUBSPACE:
+
+            InfoTable = AcpiDmTableInfoPcct0;
+            break;
+
+        case ACPI_PCCT_TYPE_HW_REDUCED_SUBSPACE:
+
+            InfoTable = AcpiDmTableInfoPcct1;
+            break;
+
+        default:
+
             AcpiOsPrintf (
                 "\n**** Unexpected or unknown PCCT subtable type 0x%X\n\n",
                 SubTable->Header.Type);
@@ -2056,7 +2210,7 @@ AcpiDmDumpPcct (
 
         AcpiOsPrintf ("\n");
         Status = AcpiDmDumpTable (Length, Offset, SubTable,
-                    SubTable->Header.Length, AcpiDmTableInfoPcct0);
+                    SubTable->Header.Length, InfoTable);
         if (ACPI_FAILURE (Status))
         {
             return;
@@ -2210,8 +2364,7 @@ AcpiDmDumpPmtt (
             if (DomainCount)
             {
                 AcpiOsPrintf (
-                    "\n**** DomainCount exceeds subtable length\n\n",
-                    MemSubTable->Type);
+                    "\n**** DomainCount exceeds subtable length\n\n");
             }
 
             /* Walk the physical component (DIMM) subtables */
@@ -2584,6 +2737,11 @@ AcpiDmDumpSrat (
         case ACPI_SRAT_TYPE_X2APIC_CPU_AFFINITY:
 
             InfoTable = AcpiDmTableInfoSrat2;
+            break;
+
+        case ACPI_SRAT_TYPE_GICC_AFFINITY:
+
+            InfoTable = AcpiDmTableInfoSrat3;
             break;
 
         default:

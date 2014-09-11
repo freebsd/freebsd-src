@@ -501,6 +501,7 @@ DtGetFieldLength (
     case ACPI_DMT_SPACEID:
     case ACPI_DMT_ACCWIDTH:
     case ACPI_DMT_IVRS:
+    case ACPI_DMT_GTDT:
     case ACPI_DMT_MADT:
     case ACPI_DMT_PCCT:
     case ACPI_DMT_PMTT:
@@ -512,6 +513,7 @@ DtGetFieldLength (
     case ACPI_DMT_EINJINST:
     case ACPI_DMT_ERSTACT:
     case ACPI_DMT_ERSTINST:
+    case ACPI_DMT_DMAR_SCOPE:
 
         ByteLength = 1;
         break;
@@ -843,39 +845,151 @@ DtWalkTableTree (
 }
 
 
-/******************************************************************************
+/*******************************************************************************
  *
- * FUNCTION:    DtFreeFieldList
+ * FUNCTION:    UtSubtableCacheCalloc
+ *
+ * PARAMETERS:  None
+ *
+ * RETURN:      Pointer to the buffer. Aborts on allocation failure
+ *
+ * DESCRIPTION: Allocate a subtable object buffer. Bypass the local
+ *              dynamic memory manager for performance reasons (This has a
+ *              major impact on the speed of the compiler.)
+ *
+ ******************************************************************************/
+
+DT_SUBTABLE *
+UtSubtableCacheCalloc (
+    void)
+{
+    ASL_CACHE_INFO          *Cache;
+
+
+    if (Gbl_SubtableCacheNext >= Gbl_SubtableCacheLast)
+    {
+        /* Allocate a new buffer */
+
+        Cache = UtLocalCalloc (sizeof (Cache->Next) +
+            (sizeof (DT_SUBTABLE) * ASL_SUBTABLE_CACHE_SIZE));
+
+        /* Link new cache buffer to head of list */
+
+        Cache->Next = Gbl_SubtableCacheList;
+        Gbl_SubtableCacheList = Cache;
+
+        /* Setup cache management pointers */
+
+        Gbl_SubtableCacheNext = ACPI_CAST_PTR (DT_SUBTABLE, Cache->Buffer);
+        Gbl_SubtableCacheLast = Gbl_SubtableCacheNext + ASL_SUBTABLE_CACHE_SIZE;
+    }
+
+    Gbl_SubtableCount++;
+    return (Gbl_SubtableCacheNext++);
+}
+
+
+/*******************************************************************************
+ *
+ * FUNCTION:    UtFieldCacheCalloc
+ *
+ * PARAMETERS:  None
+ *
+ * RETURN:      Pointer to the buffer. Aborts on allocation failure
+ *
+ * DESCRIPTION: Allocate a field object buffer. Bypass the local
+ *              dynamic memory manager for performance reasons (This has a
+ *              major impact on the speed of the compiler.)
+ *
+ ******************************************************************************/
+
+DT_FIELD *
+UtFieldCacheCalloc (
+    void)
+{
+    ASL_CACHE_INFO          *Cache;
+
+
+    if (Gbl_FieldCacheNext >= Gbl_FieldCacheLast)
+    {
+        /* Allocate a new buffer */
+
+        Cache = UtLocalCalloc (sizeof (Cache->Next) +
+            (sizeof (DT_FIELD) * ASL_FIELD_CACHE_SIZE));
+
+        /* Link new cache buffer to head of list */
+
+        Cache->Next = Gbl_FieldCacheList;
+        Gbl_FieldCacheList = Cache;
+
+        /* Setup cache management pointers */
+
+        Gbl_FieldCacheNext = ACPI_CAST_PTR (DT_FIELD, Cache->Buffer);
+        Gbl_FieldCacheLast = Gbl_FieldCacheNext + ASL_FIELD_CACHE_SIZE;
+    }
+
+    Gbl_FieldCount++;
+    return (Gbl_FieldCacheNext++);
+}
+
+
+/*******************************************************************************
+ *
+ * FUNCTION:    DtDeleteCaches
  *
  * PARAMETERS:  None
  *
  * RETURN:      None
  *
- * DESCRIPTION: Free the field list
+ * DESCRIPTION: Delete all local cache buffer blocks
  *
- *****************************************************************************/
+ ******************************************************************************/
 
 void
-DtFreeFieldList (
+DtDeleteCaches (
     void)
 {
-    DT_FIELD                *Field = Gbl_FieldList;
-    DT_FIELD                *NextField;
+    UINT32                  BufferCount;
+    ASL_CACHE_INFO          *Next;
 
 
-    /* Walk and free entire field list */
+    /* Field cache */
 
-    while (Field)
+    BufferCount = 0;
+    while (Gbl_FieldCacheList)
     {
-        NextField = Field->Next; /* Save link */
-
-        if (!(Field->Flags & DT_FIELD_NOT_ALLOCATED))
-        {
-            ACPI_FREE (Field->Name);
-            ACPI_FREE (Field->Value);
-        }
-
-        ACPI_FREE (Field);
-        Field = NextField;
+        Next = Gbl_FieldCacheList->Next;
+        ACPI_FREE (Gbl_FieldCacheList);
+        Gbl_FieldCacheList = Next;
+        BufferCount++;
     }
+
+    DbgPrint (ASL_DEBUG_OUTPUT,
+        "%u Fields, Buffer size: %u fields (%u bytes), %u Buffers\n",
+        Gbl_FieldCount, ASL_FIELD_CACHE_SIZE,
+        (sizeof (DT_FIELD) * ASL_FIELD_CACHE_SIZE), BufferCount);
+
+    Gbl_FieldCount = 0;
+    Gbl_FieldCacheNext = NULL;
+    Gbl_FieldCacheLast = NULL;
+
+    /* Subtable cache */
+
+    BufferCount = 0;
+    while (Gbl_SubtableCacheList)
+    {
+        Next = Gbl_SubtableCacheList->Next;
+        ACPI_FREE (Gbl_SubtableCacheList);
+        Gbl_SubtableCacheList = Next;
+        BufferCount++;
+    }
+
+    DbgPrint (ASL_DEBUG_OUTPUT,
+        "%u Subtables, Buffer size: %u subtables (%u bytes), %u Buffers\n",
+        Gbl_SubtableCount, ASL_SUBTABLE_CACHE_SIZE,
+        (sizeof (DT_SUBTABLE) * ASL_SUBTABLE_CACHE_SIZE), BufferCount);
+
+    Gbl_SubtableCount = 0;
+    Gbl_SubtableCacheNext = NULL;
+    Gbl_SubtableCacheLast = NULL;
 }

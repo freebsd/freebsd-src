@@ -225,6 +225,10 @@ AcpiUtHexToAsciiChar (
     UINT64                  Integer,
     UINT32                  Position);
 
+UINT8
+AcpiUtAsciiCharToHex (
+    int                     HexChar);
+
 BOOLEAN
 AcpiUtValidObjectType (
     ACPI_OBJECT_TYPE        Type);
@@ -1135,6 +1139,10 @@ const AH_DEVICE_ID *
 AcpiAhMatchHardwareId (
     char                    *Hid);
 
+const char *
+AcpiAhMatchUuid (
+    UINT8                   *Data);
+
 /*
  * utprint - printf/vprintf output functions
  */
@@ -1175,5 +1183,13 @@ AcpiUtFilePrintf (
     const char              *Format,
     ...);
 #endif
+
+/*
+ * utuuid -- UUID support functions
+ */
+void
+AcpiUtConvertStringToUuid (
+    char                    *InString,
+    UINT8                   *UuidBuffer);
 
 #endif /* _ACUTILS_H */

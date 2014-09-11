@@ -508,7 +508,7 @@ AcpiExDumpObject (
                 }
             }
 
-            AcpiOsPrintf ("\n", Next);
+            AcpiOsPrintf ("\n");
             break;
 
         case ACPI_EXD_HDLR_LIST:
@@ -542,7 +542,7 @@ AcpiExDumpObject (
                 }
             }
 
-            AcpiOsPrintf ("\n", Next);
+            AcpiOsPrintf ("\n");
             break;
 
         case ACPI_EXD_RGN_LIST:
@@ -576,7 +576,7 @@ AcpiExDumpObject (
                 }
             }
 
-            AcpiOsPrintf ("\n", Next);
+            AcpiOsPrintf ("\n");
             break;
 
         case ACPI_EXD_NODE:

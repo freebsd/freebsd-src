@@ -129,6 +129,7 @@ LdLoadNamespace (
     /* Dump the namespace if debug is enabled */
 
     AcpiNsDumpTables (ACPI_NS_ALL, ACPI_UINT32_MAX);
+    ACPI_FREE (WalkState);
     return (AE_OK);
 }
 

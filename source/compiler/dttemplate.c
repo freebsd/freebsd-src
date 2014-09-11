@@ -187,6 +187,12 @@ GetTemplate:
     }
 
     Status = DtCreateOneTemplate (Signature, TableData);
+
+
+    /* Shutdown ACPICA subsystem */
+
+    (void) AcpiTerminate ();
+    CmDeleteCaches ();
     return (Status);
 }
 
@@ -397,6 +403,5 @@ DtCreateOneTemplate (
 Cleanup:
     fclose (File);
     AcpiOsRedirectOutput (stdout);
-    ACPI_FREE (DisasmFilename);
     return (Status);
 }

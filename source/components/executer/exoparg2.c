@@ -41,7 +41,6 @@
  * POSSIBILITY OF SUCH DAMAGES.
  */
 
-
 #define __EXOPARG2_C__
 
 #include "acpi.h"

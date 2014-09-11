@@ -557,7 +557,7 @@ AslCommonError2 (
     {
         /* Allocate a buffer for the message and a new error node */
 
-        MessageBuffer = UtLocalCalloc (strlen (ExtraMessage) + 1);
+        MessageBuffer = UtStringCacheCalloc (strlen (ExtraMessage) + 1);
 
         /* Keep a copy of the extra message */
 
@@ -571,7 +571,7 @@ AslCommonError2 (
 
     if (Filename)
     {
-        Enode->Filename       = Filename;
+        Enode->Filename = Filename;
         Enode->FilenameLength = strlen (Filename);
         if (Enode->FilenameLength < 6)
         {
@@ -643,7 +643,7 @@ AslCommonError (
     {
         /* Allocate a buffer for the message and a new error node */
 
-        MessageBuffer = UtLocalCalloc (strlen (ExtraMessage) + 1);
+        MessageBuffer = UtStringCacheCalloc (strlen (ExtraMessage) + 1);
 
         /* Keep a copy of the extra message */
 
@@ -654,7 +654,7 @@ AslCommonError (
 
     if (Filename)
     {
-        Enode->Filename       = Filename;
+        Enode->Filename = Filename;
         Enode->FilenameLength = strlen (Filename);
         if (Enode->FilenameLength < 6)
         {

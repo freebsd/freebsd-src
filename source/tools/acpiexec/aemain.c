@@ -314,6 +314,7 @@ AeDoOptions (
         {
         case '^':  /* -v: (Version): signon already emitted, just exit */
 
+            (void) AcpiOsTerminate ();
             exit (0);
 
         case 'i':
@@ -395,6 +396,7 @@ main (
     if (argc < 2)
     {
         usage ();
+        (void) AcpiOsTerminate ();
         return (0);
     }
 

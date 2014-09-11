@@ -761,22 +761,6 @@ AcpiEvGpeDispatch (
     }
 
     /*
-     * If edge-triggered, clear the GPE status bit now. Note that
-     * level-triggered events are cleared after the GPE is serviced.
-     */
-    if ((GpeEventInfo->Flags & ACPI_GPE_XRUPT_TYPE_MASK) ==
-            ACPI_GPE_EDGE_TRIGGERED)
-    {
-        Status = AcpiHwClearGpe (GpeEventInfo);
-        if (ACPI_FAILURE (Status))
-        {
-            ACPI_EXCEPTION ((AE_INFO, Status,
-                "Unable to clear GPE %02X", GpeNumber));
-            return_UINT32 (ACPI_INTERRUPT_NOT_HANDLED);
-        }
-    }
-
-    /*
      * Always disable the GPE so that it does not keep firing before
      * any asynchronous activity completes (either from the execution
      * of a GPE method or an asynchronous GPE handler.)
@@ -791,6 +775,24 @@ AcpiEvGpeDispatch (
         ACPI_EXCEPTION ((AE_INFO, Status,
             "Unable to disable GPE %02X", GpeNumber));
         return_UINT32 (ACPI_INTERRUPT_NOT_HANDLED);
+    }
+
+    /*
+     * If edge-triggered, clear the GPE status bit now. Note that
+     * level-triggered events are cleared after the GPE is serviced.
+     */
+    if ((GpeEventInfo->Flags & ACPI_GPE_XRUPT_TYPE_MASK) ==
+            ACPI_GPE_EDGE_TRIGGERED)
+    {
+        Status = AcpiHwClearGpe (GpeEventInfo);
+        if (ACPI_FAILURE (Status))
+        {
+            ACPI_EXCEPTION ((AE_INFO, Status,
+                "Unable to clear GPE %02X", GpeNumber));
+            (void) AcpiHwLowSetGpe (GpeEventInfo,
+                    ACPI_GPE_CONDITIONAL_ENABLE);
+            return_UINT32 (ACPI_INTERRUPT_NOT_HANDLED);
+        }
     }
 
     /*

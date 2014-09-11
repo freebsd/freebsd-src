@@ -50,6 +50,10 @@
 #include "acdisasm.h"
 
 
+#define ASL_FIELD_CACHE_SIZE            512
+#define ASL_SUBTABLE_CACHE_SIZE         128
+
+
 #undef DT_EXTERN
 
 #ifdef _DECLARE_DT_GLOBALS
@@ -142,6 +146,18 @@ DT_EXTERN DT_FIELD          DT_INIT_GLOBAL (*Gbl_LabelList, NULL);
 /* Current offset within the binary output table */
 
 DT_EXTERN UINT32            DT_INIT_GLOBAL (Gbl_CurrentTableOffset, 0);
+
+/* Local caches */
+
+DT_EXTERN UINT32            DT_INIT_GLOBAL (Gbl_SubtableCount, 0);
+DT_EXTERN ASL_CACHE_INFO    DT_INIT_GLOBAL (*Gbl_SubtableCacheList, NULL);
+DT_EXTERN DT_SUBTABLE       DT_INIT_GLOBAL (*Gbl_SubtableCacheNext, NULL);
+DT_EXTERN DT_SUBTABLE       DT_INIT_GLOBAL (*Gbl_SubtableCacheLast, NULL);
+
+DT_EXTERN UINT32            DT_INIT_GLOBAL (Gbl_FieldCount, 0);
+DT_EXTERN ASL_CACHE_INFO    DT_INIT_GLOBAL (*Gbl_FieldCacheList, NULL);
+DT_EXTERN DT_FIELD          DT_INIT_GLOBAL (*Gbl_FieldCacheNext, NULL);
+DT_EXTERN DT_FIELD          DT_INIT_GLOBAL (*Gbl_FieldCacheLast, NULL);
 
 
 /* dtcompiler - main module */
@@ -368,8 +384,16 @@ void
 DtSetTableLength(
     void);
 
+DT_SUBTABLE *
+UtSubtableCacheCalloc (
+    void);
+
+DT_FIELD *
+UtFieldCacheCalloc (
+    void);
+
 void
-DtFreeFieldList (
+DtDeleteCaches (
     void);
 
 
@@ -417,6 +441,10 @@ DtCompileFadt (
 
 ACPI_STATUS
 DtCompileFpdt (
+    void                    **PFieldList);
+
+ACPI_STATUS
+DtCompileGtdt (
     void                    **PFieldList);
 
 ACPI_STATUS

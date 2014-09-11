@@ -44,6 +44,16 @@
 #ifndef __ACLINUX_H__
 #define __ACLINUX_H__
 
+#ifdef __KERNEL__
+
+/* ACPICA external files should not include ACPICA headers directly. */
+
+#if !defined(BUILDING_ACPICA) && !defined(_LINUX_ACPI_H)
+#error "Please don't include <acpi/acpi.h> directly, include <linux/acpi.h> instead."
+#endif
+
+#endif
+
 /* Common (in-kernel/user-space) ACPICA configuration */
 
 #define ACPI_USE_SYSTEM_CLIBRARY
@@ -71,7 +81,9 @@
 #ifdef EXPORT_ACPI_INTERFACES
 #include <linux/export.h>
 #endif
+#ifdef CONFIG_ACPI
 #include <asm/acenv.h>
+#endif
 
 #ifndef CONFIG_ACPI
 
@@ -129,8 +141,6 @@
 #define ACPI_USE_ALTERNATE_PROTOTYPE_AcpiOsAcquireObject
 #define ACPI_USE_ALTERNATE_PROTOTYPE_AcpiOsGetThreadId
 #define ACPI_USE_ALTERNATE_PROTOTYPE_AcpiOsCreateLock
-#define ACPI_USE_ALTERNATE_PROTOTYPE_AcpiOsMapMemory
-#define ACPI_USE_ALTERNATE_PROTOTYPE_AcpiOsUnmapMemory
 
 /*
  * OSL interfaces used by debugger/disassembler
@@ -162,10 +172,6 @@
 
 #ifndef __init
 #define __init
-#endif
-
-#ifndef __iomem
-#define __iomem
 #endif
 
 /* Host-dependent types and defines for user-space ACPICA */

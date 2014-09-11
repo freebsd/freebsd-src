@@ -133,7 +133,7 @@ DtTrim (
 
     if (!ACPI_STRCMP (String, " "))
     {
-        ReturnString = UtLocalCalloc (1);
+        ReturnString = UtStringCacheCalloc (1);
         return (ReturnString);
     }
 
@@ -181,7 +181,7 @@ DtTrim (
     /* Create the trimmed return string */
 
     Length = ACPI_PTR_DIFF (End, Start) + 1;
-    ReturnString = UtLocalCalloc (Length + 1);
+    ReturnString = UtStringCacheCalloc (Length + 1);
     if (ACPI_STRLEN (Start))
     {
         ACPI_STRNCPY (ReturnString, Start, Length);
@@ -370,7 +370,7 @@ DtParseLine (
 
     if ((Value && *Value) || IsNullString)
     {
-        Field = UtLocalCalloc (sizeof (DT_FIELD));
+        Field = UtFieldCacheCalloc ();
         Field->Name = Name;
         Field->Value = Value;
         Field->Line = Line;
@@ -380,11 +380,7 @@ DtParseLine (
 
         DtLinkField (Field);
     }
-    else /* Ignore this field, it has no valid data */
-    {
-        ACPI_FREE (Name);
-        ACPI_FREE (Value);
-    }
+    /* Else -- Ignore this field, it has no valid data */
 
     return (AE_OK);
 }
@@ -1035,6 +1031,8 @@ DtDumpSubtableList (
     DbgPrint (ASL_DEBUG_OUTPUT,
         "\nSubtable Tree: (Depth, Subtable, Length, TotalLength)\n\n");
     DtWalkTableTree (Gbl_RootTable, DtDumpSubtableTree, NULL, NULL);
+
+    DbgPrint (ASL_DEBUG_OUTPUT, "\n");
 }
 
 

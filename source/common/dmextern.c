@@ -406,18 +406,37 @@ AcpiDmGetExternalsFromFile (
     while (fgets (StringBuffer, ASL_MSG_BUFFER_SIZE, ExternalRefFile))
     {
         Token = strtok (StringBuffer, METHOD_SEPARATORS);   /* "External" */
-        if (!Token) continue;
-        if (strcmp (Token, "External")) continue;
+        if (!Token)
+        {
+            continue;
+        }
+        if (strcmp (Token, "External"))
+        {
+            continue;
+        }
 
         MethodName = strtok (NULL, METHOD_SEPARATORS);      /* Method namepath */
-        if (!MethodName) continue;
+        if (!MethodName)
+        {
+            continue;
+        }
 
         Token = strtok (NULL, METHOD_SEPARATORS);           /* "MethodObj" */
-        if (!Token) continue;
-        if (strcmp (Token, "MethodObj")) continue;
+        if (!Token)
+        {
+            continue;
+        }
+
+        if (strcmp (Token, "MethodObj"))
+        {
+            continue;
+        }
 
         Token = strtok (NULL, METHOD_SEPARATORS);           /* Arg count */
-        if (!Token) continue;
+        if (!Token)
+        {
+            continue;
+        }
 
         /* Convert arg count string to an integer */
 

@@ -132,7 +132,6 @@ AsSkipPastChar (
     }
 
     Buffer++;
-
     return (Buffer);
 }
 
@@ -173,7 +172,8 @@ AsReplaceData (
         if (LengthToRemove > 0)
         {
             Gbl_MadeChanges = TRUE;
-            memmove ((Buffer + LengthToAdd), (Buffer + LengthToRemove), (BufferLength - LengthToRemove));
+            memmove ((Buffer + LengthToAdd), (Buffer + LengthToRemove),
+                (BufferLength - LengthToRemove));
         }
     }
 
