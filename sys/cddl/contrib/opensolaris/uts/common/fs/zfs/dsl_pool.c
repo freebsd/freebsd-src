@@ -46,6 +46,11 @@
 #include <sys/zil_impl.h>
 #include <sys/dsl_userhold.h>
 
+#ifdef __FreeBSD__
+#include <sys/sysctl.h>
+#include <sys/types.h>
+#endif
+
 /*
  * ZFS Write Throttle
  * ------------------
@@ -130,33 +135,83 @@ uint64_t zfs_delay_scale = 1000 * 1000 * 1000 / 2000;
  * per-pool basis using zfs.conf.
  */
 
+#ifdef __FreeBSD__
+
+extern int zfs_vdev_async_write_active_max_dirty_percent;
 
 SYSCTL_DECL(_vfs_zfs);
-#if 0
-TUNABLE_INT("vfs.zfs.no_write_throttle", &zfs_no_write_throttle);
-SYSCTL_INT(_vfs_zfs, OID_AUTO, no_write_throttle, CTLFLAG_RDTUN,
-    &zfs_no_write_throttle, 0, "");
-TUNABLE_INT("vfs.zfs.write_limit_shift", &zfs_write_limit_shift);
-SYSCTL_INT(_vfs_zfs, OID_AUTO, write_limit_shift, CTLFLAG_RDTUN,
-    &zfs_write_limit_shift, 0, "2^N of physical memory");
-SYSCTL_DECL(_vfs_zfs_txg);
-TUNABLE_INT("vfs.zfs.txg.synctime_ms", &zfs_txg_synctime_ms);
-SYSCTL_INT(_vfs_zfs_txg, OID_AUTO, synctime_ms, CTLFLAG_RDTUN,
-    &zfs_txg_synctime_ms, 0, "Target milliseconds to sync a txg");
 
-TUNABLE_QUAD("vfs.zfs.write_limit_min", &zfs_write_limit_min);
-SYSCTL_UQUAD(_vfs_zfs, OID_AUTO, write_limit_min, CTLFLAG_RDTUN,
-    &zfs_write_limit_min, 0, "Minimum write limit");
-TUNABLE_QUAD("vfs.zfs.write_limit_max", &zfs_write_limit_max);
-SYSCTL_UQUAD(_vfs_zfs, OID_AUTO, write_limit_max, CTLFLAG_RDTUN,
-    &zfs_write_limit_max, 0, "Maximum data payload per txg");
-TUNABLE_QUAD("vfs.zfs.write_limit_inflated", &zfs_write_limit_inflated);
-SYSCTL_UQUAD(_vfs_zfs, OID_AUTO, write_limit_inflated, CTLFLAG_RDTUN,
-    &zfs_write_limit_inflated, 0, "Maximum size of the dynamic write limit");
-TUNABLE_QUAD("vfs.zfs.write_limit_override", &zfs_write_limit_override);
-SYSCTL_UQUAD(_vfs_zfs, OID_AUTO, write_limit_override, CTLFLAG_RDTUN,
-    &zfs_write_limit_override, 0,
-    "Force a txg if dirty buffers exceed this value (bytes)");
+TUNABLE_QUAD("vfs.zfs.dirty_data_max", &zfs_dirty_data_max);
+SYSCTL_UQUAD(_vfs_zfs, OID_AUTO, dirty_data_max, CTLFLAG_RWTUN,
+    &zfs_dirty_data_max, 0,
+    "The maximum amount of dirty data in bytes after which new writes are "
+    "halted until space becomes available");
+
+TUNABLE_QUAD("vfs.zfs.dirty_data_max_max", &zfs_dirty_data_max_max);
+SYSCTL_UQUAD(_vfs_zfs, OID_AUTO, dirty_data_max_max, CTLFLAG_RDTUN,
+    &zfs_dirty_data_max_max, 0,
+    "The absolute cap on dirty_data_max when auto calculating");
+
+TUNABLE_INT("vfs.zfs.dirty_data_max_percent", &zfs_dirty_data_max_percent);
+SYSCTL_INT(_vfs_zfs, OID_AUTO, dirty_data_max_percent, CTLFLAG_RDTUN,
+    &zfs_dirty_data_max_percent, 0,
+    "The percent of physical memory used to auto calculate dirty_data_max");
+
+TUNABLE_QUAD("vfs.zfs.dirty_data_sync", &zfs_dirty_data_sync);
+SYSCTL_UQUAD(_vfs_zfs, OID_AUTO, dirty_data_sync, CTLFLAG_RWTUN,
+    &zfs_dirty_data_sync, 0,
+    "Force a txg if the number of dirty buffer bytes exceed this value");
+
+static int sysctl_zfs_delay_min_dirty_percent(SYSCTL_HANDLER_ARGS);
+/* No zfs_delay_min_dirty_percent tunable due to limit requirements */
+SYSCTL_PROC(_vfs_zfs, OID_AUTO, delay_min_dirty_percent,
+    CTLTYPE_INT | CTLFLAG_MPSAFE | CTLFLAG_RW, 0, sizeof(int),
+    sysctl_zfs_delay_min_dirty_percent, "I",
+    "The limit of outstanding dirty data before transations are delayed");
+
+static int sysctl_zfs_delay_scale(SYSCTL_HANDLER_ARGS);
+/* No zfs_delay_scale tunable due to limit requirements */
+SYSCTL_PROC(_vfs_zfs, OID_AUTO, delay_scale,
+    CTLTYPE_U64 | CTLFLAG_MPSAFE | CTLFLAG_RW, 0, sizeof(uint64_t),
+    sysctl_zfs_delay_scale, "QU",
+    "Controls how quickly the delay approaches infinity");
+
+static int
+sysctl_zfs_delay_min_dirty_percent(SYSCTL_HANDLER_ARGS)
+{
+	int val, err;
+
+	val = zfs_delay_min_dirty_percent;
+	err = sysctl_handle_int(oidp, &val, 0, req);
+	if (err != 0 || req->newptr == NULL)
+		return (err);
+
+	if (val < zfs_vdev_async_write_active_max_dirty_percent)
+		return (EINVAL);
+
+	zfs_delay_min_dirty_percent = val;
+
+	return (0);
+}
+
+static int
+sysctl_zfs_delay_scale(SYSCTL_HANDLER_ARGS)
+{
+	uint64_t val;
+	int err;
+
+	val = zfs_delay_scale;
+	err = sysctl_handle_64(oidp, &val, 0, req);
+	if (err != 0 || req->newptr == NULL)
+		return (err);
+
+	if (val > UINT64_MAX / zfs_dirty_data_max)
+		return (EINVAL);
+
+	zfs_delay_scale = val;
+
+	return (0);
+}
 #endif
 
 hrtime_t zfs_throttle_delay = MSEC2NSEC(10);
