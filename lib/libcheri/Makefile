@@ -23,6 +23,7 @@ INCS=	cheri_class.h			\
 	cheri_invoke.h			\
 	cheri_memcpy.h			\
 	cheri_system.h			\
+	cheri_type.h			\
 	sandbox.h			\
 	sandboxasm.h
 
