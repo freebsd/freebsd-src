@@ -92,8 +92,8 @@ makeoptions     SC_DFLT_FONT=cp437
 
 options 	KDB
 options 	DDB			# Enable the kernel debugger
-options 	INVARIANTS		# Enable calls of extra sanity checking
-options 	INVARIANT_SUPPORT	# Extra sanity checks of internal structures, required by INVARIANTS
+#options 	INVARIANTS		# Enable calls of extra sanity checking
+#options 	INVARIANT_SUPPORT	# Extra sanity checks of internal structures, required by INVARIANTS
 
 device		md
 device		random			# Entropy device
