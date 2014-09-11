@@ -41,6 +41,7 @@
 
 #include "cheri_class.h"
 #include "cheri_fd.h"
+#include "cheri_type.h"
 
 /*
  * This file implements the CHERI 'file descriptor' (fd) class.  Pretty
@@ -67,6 +68,8 @@
 
 CHERI_CLASS_DECL(cheri_fd);
 
+static __capability void	*cheri_fd_type;
+
 /*
  * Data segment for a cheri_fd.
  */
@@ -74,17 +77,11 @@ struct cheri_fd {
 	int	cf_fd;		/* Underlying file descriptor. */
 };
 
-static __capability void *
-cheri_fd_type(void)
+static __attribute__ ((constructor)) void
+cheri_fd_init(void)
 {
 
-	/*
-	 * Set the type to the entry point of the class.  Normally, we might
-	 * use the base address of the class's code segment, but this class
-	 * uses the ambient $pcc for its code segment, which won't be unique.
-	 */
-	return (cheri_maketype(CHERI_CLASS_ENTRY(cheri_fd),
-	    CHERI_PERM_GLOBAL | CHERI_PERM_SEAL));
+	cheri_fd_type = cheri_type_alloc();
 }
 
 /*
@@ -114,7 +111,7 @@ cheri_fd_new(int fd, struct cheri_object *cop)
 	 */
 	codecap = cheri_setoffset(cheri_getpcc(),
 	    (register_t)CHERI_CLASS_ENTRY(cheri_fd));
-	cop->co_codecap = cheri_seal(codecap, cheri_fd_type());
+	cop->co_codecap = cheri_seal(codecap, cheri_fd_type);
 
 	/*
 	 * Construct a sealed data capability for the class.  This describes
@@ -123,10 +120,10 @@ cheri_fd_new(int fd, struct cheri_object *cop)
 	 *
 	 * XXXRW: Should we also do an explicit cheri_setoffset()?
 	 */
-	datacap = cheri_ptrperm(cfp, sizeof(cfp), CHERI_PERM_GLOBAL |
+	datacap = cheri_ptrperm(cfp, sizeof(*cfp), CHERI_PERM_GLOBAL |
 	    CHERI_PERM_LOAD | CHERI_PERM_LOAD_CAP | CHERI_PERM_STORE |
 	    CHERI_PERM_STORE_CAP);
-	cop->co_datacap = cheri_seal(datacap, cheri_fd_type());
+	cop->co_datacap = cheri_seal(datacap, cheri_fd_type);
 	return (0);
 }
 
@@ -139,7 +136,7 @@ cheri_fd_revoke(struct cheri_object co)
 {
 	__capability struct cheri_fd *cfp;
 
-	cfp = cheri_unseal(co.co_datacap, cheri_fd_type());
+	cfp = cheri_unseal(co.co_datacap, cheri_fd_type);
 	cfp->cf_fd = -1;
 }
 
@@ -152,7 +149,7 @@ cheri_fd_destroy(struct cheri_object co)
 {
 	__capability struct cheri_fd *cfp;
 
-	cfp = cheri_unseal(co.co_datacap, cheri_fd_type());
+	cfp = cheri_unseal(co.co_datacap, cheri_fd_type);
 	free((void *)cfp);
 }
 

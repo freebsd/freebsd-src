@@ -55,6 +55,8 @@
 
 #include "cheri_class.h"
 #include "cheri_invoke.h"
+#include "cheri_system.h"
+#include "cheri_type.h"
 #include "libcheri_stat.h"
 #include "sandbox.h"
 #include "sandbox_internal.h"
@@ -211,11 +213,7 @@ sandbox_object_load(struct sandbox_class *sbcp, struct sandbox_object *sbop)
 		SANDBOX_CLASS_ALLOC(sbcp->sbc_sandbox_class_statp);
 	}
 
-	/*
-	 * Use the base address of the sandbox as the type.
-	 */
-	typecap = cheri_maketype(sbop->sbo_mem, CHERI_PERM_GLOBAL |
-	    CHERI_PERM_SEAL);
+	typecap = cheri_type_alloc();
 
 	/*
 	 * Construct code capability.
@@ -242,8 +240,7 @@ sandbox_object_load(struct sandbox_class *sbcp, struct sandbox_object *sbop)
 	 * Construct an object capability for the system-class instance that
 	 * will be passed into the sandbox.
 	 */
-	typecap = cheri_maketype(CHERI_CLASS_ENTRY(libcheri_system),
-	    CHERI_PERM_GLOBAL | CHERI_PERM_SEAL);
+	typecap = cheri_system_type;
 
 	/*
 	 * The code capability will simply be our $pcc.

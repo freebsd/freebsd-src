@@ -74,4 +74,10 @@ extern register_t cheri_system_methodnum_putchar;
  */
 __capability struct sandbox	*cheri_getsandbox(void);
 
+/*
+ * XXXRW: Probably should be library-private: the CHERI type of the system
+ * library.
+ */
+__capability void	*cheri_system_type;
+
 #endif /* !_CHERI_SYSTEM_H_ */

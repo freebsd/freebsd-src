@@ -5,6 +5,7 @@ SRCS=	cheri_invoke.S			\
 	cheri_enter.c			\
 	cheri_fd.c			\
 	cheri_system.c			\
+	cheri_type.c			\
 	libcheri_classes.S		\
 	libcheri_stat.c			\
 	sandbox.c			\

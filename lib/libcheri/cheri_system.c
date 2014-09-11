@@ -37,11 +37,20 @@
 
 #include "cheri_enter.h"
 #include "cheri_system.h"
+#include "cheri_type.h"
 
 /*
  * This C file implements the CHERI system class.  Currently, pretty
  * minimalist.
  */
+__capability void	*cheri_system_type;
+
+static __attribute__ ((constructor)) void
+cheri_system_init(void)
+{
+
+	cheri_system_type = cheri_type_alloc();
+}
 
 /*
  * Just a test function.
