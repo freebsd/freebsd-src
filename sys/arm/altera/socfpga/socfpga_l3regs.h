@@ -26,69 +26,29 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
+ *
+ * $FreeBSD$
  */
 
-#include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
-
-#include <sys/param.h>
-#include <sys/systm.h>
-#include <sys/bus.h>
-#include <sys/kernel.h>
-
-#include <dev/fdt/fdt_common.h>
-#include <dev/ofw/openfirm.h>
-
-#include <machine/bus.h>
-#include <machine/fdt.h>
-
-#include <arm/altera/socfpga/socfpga_rstmgr.h>
-
-void
-cpu_reset(void)
-{
-	uint32_t addr, paddr;
-	bus_addr_t vaddr;
-	phandle_t node;
-
-	if (rstmgr_warmreset() == 0)
-		goto end;
-
-	node = OF_finddevice("rstmgr");
-	if (node == -1)
-		goto end;
-
-	if ((OF_getprop(node, "reg", &paddr, sizeof(paddr))) > 0) {
-		addr = fdt32_to_cpu(paddr);
-		if (bus_space_map(fdtbus_bs_tag, addr, 0x8, 0, &vaddr) == 0) {
-			bus_space_write_4(fdtbus_bs_tag, vaddr,
-			    RSTMGR_CTRL, CTRL_SWWARMRSTREQ);
-		}
-	}
-
-end:
-	while (1);
-}
-
-struct fdt_fixup_entry fdt_fixup_table[] = {
-	{ NULL, NULL }
-};
-
-static int
-fdt_pic_decode_ic(phandle_t node, pcell_t *intr, int *interrupt, int *trig,
-    int *pol)
-{
-
-	if (!fdt_is_compatible(node, "arm,gic"))
-		return (ENXIO);
-
-	*interrupt = fdt32_to_cpu(intr[0]);
-	*trig = INTR_TRIGGER_CONFORM;
-	*pol = INTR_POLARITY_CONFORM;
-	return (0);
-}
-
-fdt_pic_decode_t fdt_pic_table[] = {
-	&fdt_pic_decode_ic,
-	NULL
-};
+#define	L3REGS_REMAP		0x0	/* Remap */
+#define	 REMAP_LWHPS2FPGA	(1 << 4)
+#define	 REMAP_HPS2FPGA		(1 << 3)
+#define	 REMAP_MPUZERO		(1 << 0)
+#define	L3REGS_L4MAIN		0x8	/* L4 main peripherals security */
+#define	L3REGS_L4SP		0xC	/* L4 SP Peripherals Security */
+#define	L3REGS_L4MP		0x10	/* L4 MP Peripherals Security */
+#define	L3REGS_L4OSC1		0x14	/* L4 OSC1 Peripherals Security */
+#define	L3REGS_L4SPIM		0x18	/* L4 SPIM Peripherals Security */
+#define	L3REGS_STM		0x1C	/* STM Peripheral Security */
+#define	L3REGS_LWHPS2FPGAREGS	0x20	/* LWHPS2FPGA AXI Bridge Security */
+#define	L3REGS_USB1		0x28	/* USB1 Peripheral Security */
+#define	L3REGS_NANDDATA		0x2C	/* NAND Flash Controller Data Sec */
+#define	L3REGS_USB0		0x80	/* USB0 Peripheral Security */
+#define	L3REGS_NANDREGS		0x84	/* NAND Flash Controller Security */
+#define	L3REGS_QSPIDATA		0x88	/* QSPI Flash Controller Data Sec */
+#define	L3REGS_FPGAMGRDATA	0x8C	/* FPGA Manager Data Peripheral Sec */
+#define	L3REGS_HPS2FPGAREGS	0x90	/* HPS2FPGA AXI Bridge Perip. Sec */
+#define	L3REGS_ACP		0x94	/* MPU ACP Peripheral Security */
+#define	L3REGS_ROM		0x98	/* ROM Peripheral Security */
+#define	L3REGS_OCRAM		0x9C	/* On-chip RAM Peripheral Security */
+#define	L3REGS_SDRDATA		0xA0	/* SDRAM Data Peripheral Security */

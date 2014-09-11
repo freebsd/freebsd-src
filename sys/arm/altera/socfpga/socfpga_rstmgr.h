@@ -26,69 +26,21 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
+ *
+ * $FreeBSD$
  */
 
-#include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+#define	RSTMGR_STAT		0x0	/* Status */
+#define	RSTMGR_CTRL		0x4	/* Control */
+#define	 CTRL_SWWARMRSTREQ	(1 << 1) /* Trigger warm reset */
+#define	RSTMGR_COUNTS		0x8	/* Reset Cycles Count */
+#define	RSTMGR_MPUMODRST	0x10	/* MPU Module Reset */
+#define	RSTMGR_PERMODRST	0x14	/* Peripheral Module Reset */
+#define	RSTMGR_PER2MODRST	0x18	/* Peripheral 2 Module Reset */
+#define	RSTMGR_BRGMODRST	0x1C	/* Bridge Module Reset */
+#define	 BRGMODRST_FPGA2HPS	(1 << 2)
+#define	 BRGMODRST_LWHPS2FPGA	(1 << 1)
+#define	 BRGMODRST_HPS2FPGA	(1 << 0)
+#define	RSTMGR_MISCMODRST	0x20	/* Miscellaneous Module Reset */
 
-#include <sys/param.h>
-#include <sys/systm.h>
-#include <sys/bus.h>
-#include <sys/kernel.h>
-
-#include <dev/fdt/fdt_common.h>
-#include <dev/ofw/openfirm.h>
-
-#include <machine/bus.h>
-#include <machine/fdt.h>
-
-#include <arm/altera/socfpga/socfpga_rstmgr.h>
-
-void
-cpu_reset(void)
-{
-	uint32_t addr, paddr;
-	bus_addr_t vaddr;
-	phandle_t node;
-
-	if (rstmgr_warmreset() == 0)
-		goto end;
-
-	node = OF_finddevice("rstmgr");
-	if (node == -1)
-		goto end;
-
-	if ((OF_getprop(node, "reg", &paddr, sizeof(paddr))) > 0) {
-		addr = fdt32_to_cpu(paddr);
-		if (bus_space_map(fdtbus_bs_tag, addr, 0x8, 0, &vaddr) == 0) {
-			bus_space_write_4(fdtbus_bs_tag, vaddr,
-			    RSTMGR_CTRL, CTRL_SWWARMRSTREQ);
-		}
-	}
-
-end:
-	while (1);
-}
-
-struct fdt_fixup_entry fdt_fixup_table[] = {
-	{ NULL, NULL }
-};
-
-static int
-fdt_pic_decode_ic(phandle_t node, pcell_t *intr, int *interrupt, int *trig,
-    int *pol)
-{
-
-	if (!fdt_is_compatible(node, "arm,gic"))
-		return (ENXIO);
-
-	*interrupt = fdt32_to_cpu(intr[0]);
-	*trig = INTR_TRIGGER_CONFORM;
-	*pol = INTR_POLARITY_CONFORM;
-	return (0);
-}
-
-fdt_pic_decode_t fdt_pic_table[] = {
-	&fdt_pic_decode_ic,
-	NULL
-};
+int rstmgr_warmreset(void);
