@@ -603,7 +603,7 @@ vtbuf_get_marked_len(struct vt_buf *vb)
 	ei = e.tp_row * vb->vb_scr_size.tp_col + e.tp_col;
 
 	/* Number symbols and number of rows to inject \n */
-	sz = ei - si + ((e.tp_row - s.tp_row) * 2) + 1;
+	sz = ei - si + ((e.tp_row - s.tp_row) * 2);
 
 	return (sz * sizeof(term_char_t));
 }
