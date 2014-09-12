@@ -1738,9 +1738,9 @@ mips_unaligned_load_store(struct trapframe *frame, int mode, register_t addr, re
 	int src_regno;
 	int op_type = 0;
 	int is_store = 0;
+	int sign_extend = 0;
 #ifdef CPU_CHERI
 	register_t v;
-	int sign_extend = 0;
 
 	/*
 	 * XXXRW: This code isn't really post-CHERI ready.
