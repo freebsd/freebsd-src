@@ -162,6 +162,7 @@ static int vt_late_window_switch(struct vt_window *);
 static int vt_proc_alive(struct vt_window *);
 static void vt_resize(struct vt_device *);
 static void vt_update_static(void *);
+static void vt_mouse_paste();
 
 SET_DECLARE(vt_drv_set, struct vt_driver);
 
@@ -176,10 +177,14 @@ static struct vt_device	vt_consdev = {
 	.vd_flags = VDF_INVALID,
 	.vd_windows = { [VT_CONSWINDOW] =  &vt_conswindow, },
 	.vd_curwindow = &vt_conswindow,
-	.vd_markedwin = NULL,
 	.vd_kbstate = 0,
 
 #ifndef SC_NO_CUTPASTE
+	.vd_pastebuf = {
+		.vpb_buf = NULL,
+		.vpb_bufsz = 0,
+		.vpb_len = 0
+	},
 	.vd_mcursor = &vt_default_mouse_pointer,
 	.vd_mcursor_fg = TC_WHITE,
 	.vd_mcursor_bg = TC_BLACK,
@@ -508,7 +513,7 @@ vt_machine_kbdevent(int c)
 	case SPCLKEY | PASTE: /* kbdmap(5) keyword `paste`. */
 #ifndef SC_NO_CUTPASTE
 		/* Insert text from cut-paste buffer. */
-		/* TODO */
+		vt_mouse_paste();
 #endif
 		break;
 	case SPCLKEY | PDWN: /* kbdmap(5) keyword `pdwn`. */
@@ -1576,7 +1581,7 @@ vt_mouse_terminput_button(struct vt_device *vd, int button)
 	mouseb[4] = '!' + x;
 	mouseb[5] = '!' + y;
 
-	for (i = 0; i < sizeof(mouseb); i++ )
+	for (i = 0; i < sizeof(mouseb); i++)
 		terminal_input_char(vw->vw_terminal, mouseb[i]);
 }
 
@@ -1614,6 +1619,23 @@ vt_mouse_terminput(struct vt_device *vd, int type, int x, int y, int event,
 	}
 }
 
+static void
+vt_mouse_paste()
+{
+	term_char_t *buf;
+	int i, len;
+
+	len = VD_PASTEBUFLEN(main_vd);
+	buf = VD_PASTEBUF(main_vd);
+	len /= sizeof(term_char_t);
+	for (i = 0; i < len; i++) {
+		if (buf[i] == '\0')
+			continue;
+		terminal_input_char(main_vd->vd_curwindow->vw_terminal,
+		    buf[i]);
+	}
+}
+
 void
 vt_mouse_event(int type, int x, int y, int event, int cnt, int mlevel)
 {
@@ -1621,8 +1643,7 @@ vt_mouse_event(int type, int x, int y, int event, int cnt, int mlevel)
 	struct vt_window *vw;
 	struct vt_font *vf;
 	term_pos_t size;
-	term_char_t *buf;
-	int i, len, mark;
+	int len, mark;
 
 	vd = main_vd;
 	vw = vd->vd_curwindow;
@@ -1665,17 +1686,10 @@ vt_mouse_event(int type, int x, int y, int event, int cnt, int mlevel)
 
 		vd->vd_mx = x;
 		vd->vd_my = y;
-		if ((vd->vd_mstate & MOUSE_BUTTON1DOWN) &&
-		    (vtbuf_set_mark(&vw->vw_buf, VTB_MARK_MOVE,
-			vd->vd_mx / vf->vf_width,
-			vd->vd_my / vf->vf_height) == 1)) {
-
-			/*
-			 * We have something marked to copy, so update pointer
-			 * to window with selection.
-			 */
-			vd->vd_markedwin = vw;
-		}
+		if (vd->vd_mstate & MOUSE_BUTTON1DOWN)
+			vtbuf_set_mark(&vw->vw_buf, VTB_MARK_MOVE,
+			    vd->vd_mx / vf->vf_width,
+			    vd->vd_my / vf->vf_height);
 
 		vt_resume_flush_timer(vw->vw_device, 0);
 		return; /* Done */
@@ -1708,27 +1722,7 @@ vt_mouse_event(int type, int x, int y, int event, int cnt, int mlevel)
 		case 0:	/* up */
 			break;
 		default:
-			if (vd->vd_markedwin == NULL)
-				return;
-			/* Get current selecton size in bytes. */
-			len = vtbuf_get_marked_len(&vd->vd_markedwin->vw_buf);
-			if (len <= 0)
-				return;
-
-			buf = malloc(len, M_VT, M_WAITOK | M_ZERO);
-			/* Request copy/paste buffer data, no more than `len' */
-			vtbuf_extract_marked(&vd->vd_markedwin->vw_buf, buf,
-			    len);
-
-			len /= sizeof(term_char_t);
-			for (i = 0; i < len; i++ ) {
-				if (buf[i] == '\0')
-					continue;
-				terminal_input_char(vw->vw_terminal, buf[i]);
-			}
-
-			/* Done, so cleanup. */
-			free(buf, M_VT);
+			vt_mouse_paste();
 			break;
 		}
 		return; /* Done */
@@ -1761,8 +1755,38 @@ vt_mouse_event(int type, int x, int y, int event, int cnt, int mlevel)
 		 * We have something marked to copy, so update pointer to
 		 * window with selection.
 		 */
-		vd->vd_markedwin = vw;
 		vt_resume_flush_timer(vw->vw_device, 0);
+
+		switch (mark) {
+		case VTB_MARK_END:
+		case VTB_MARK_WORD:
+		case VTB_MARK_ROW:
+		case VTB_MARK_EXTEND:
+			break;
+		default:
+			/* Other types of mark do not require to copy data. */
+			return;
+		}
+
+		/* Get current selection size in bytes. */
+		len = vtbuf_get_marked_len(&vw->vw_buf);
+		if (len <= 0)
+			return;
+
+		/* Reallocate buffer only if old one is too small. */
+		if (len > VD_PASTEBUFSZ(vd)) {
+			VD_PASTEBUF(vd) = realloc(VD_PASTEBUF(vd), len, M_VT,
+			    M_WAITOK | M_ZERO);
+			/* Update buffer size. */
+			VD_PASTEBUFSZ(vd) = len;
+		}
+		/* Request copy/paste buffer data, no more than `len' */
+		vtbuf_extract_marked(&vw->vw_buf, VD_PASTEBUF(vd),
+		    VD_PASTEBUFSZ(vd));
+
+		VD_PASTEBUFLEN(vd) = len;
+
+		/* XXX VD_PASTEBUF(vd) have to be freed on shutdown/unload. */
 	}
 }
 
