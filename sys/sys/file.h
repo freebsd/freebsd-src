@@ -231,10 +231,14 @@ int fget_write(struct thread *td, int fd, cap_rights_t *rightsp,
     struct file **fpp);
 int _fdrop(struct file *fp, struct thread *td);
 
+fo_rdwr_t	invfo_rdwr;
+fo_truncate_t	invfo_truncate;
+fo_ioctl_t	invfo_ioctl;
+fo_poll_t	invfo_poll;
+fo_kqfilter_t	invfo_kqfilter;
 fo_chmod_t	invfo_chmod;
 fo_chown_t	invfo_chown;
 fo_sendfile_t	invfo_sendfile;
-fo_truncate_t	invfo_truncate;
 
 fo_sendfile_t	vn_sendfile;
 fo_seek_t	vn_seek;

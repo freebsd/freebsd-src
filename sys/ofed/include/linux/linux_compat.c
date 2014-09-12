@@ -568,11 +568,23 @@ linux_file_ioctl(struct file *fp, u_long cmd, void *data, struct ucred *cred,
 	return (error);
 }
 
+static int
+linux_file_stat(struct file *fp, struct stat *sb, struct ucred *active_cred,
+    struct thread *td)
+{
+
+	return (EOPNOTSUPP);
+}
+
 struct fileops linuxfileops = {
 	.fo_read = linux_file_read,
-	.fo_poll = linux_file_poll,
-	.fo_close = linux_file_close,
+	.fo_write = invfo_rdwr,
+	.fo_truncate = invfo_truncate,
 	.fo_ioctl = linux_file_ioctl,
+	.fo_poll = linux_file_poll,
+	.fo_kqfilter = invfo_kqfilter,
+	.fo_stat = linux_file_stat,
+	.fo_close = linux_file_close,
 	.fo_chmod = invfo_chmod,
 	.fo_chown = invfo_chown,
 	.fo_sendfile = invfo_sendfile,
