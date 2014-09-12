@@ -105,7 +105,7 @@ invoke_cap_fault(register_t op)
 
 	case CHERITEST_HELPER_OP_CP2_SEAL:
 		cap = cheri_ptrperm(buffer, sizeof(buffer), CHERI_PERM_LOAD);
-		cap = cheri_seal(cap, cheri_maketype(NULL,
+		cap = cheri_seal(cap, cheri_maketype(&buffer,
 		    CHERI_PERM_GLOBAL | CHERI_PERM_SEAL));
 		ch = cap[0];
 		return (ch);
