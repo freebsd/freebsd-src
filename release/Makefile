@@ -97,6 +97,16 @@ IMAGES+=	mini-memstick.img
 RELEASE_TARGETS+=uefi-memstick.img
 IMAGES+=	uefi-memstick.img
 .endif
+.if exists(${.CURDIR}/${TARGET}/mkisoimages-uefi.sh)
+RELEASE_TARGETS+=uefi-disc1.iso
+RELEASE_TARGETS+=uefi-bootonly.iso
+IMAGES+=	uefi-disc1.iso
+IMAGES+=	uefi-bootonly.iso
+. if defined(WITH_DVD) && !empty(WITH_DVD)
+RELEASE_TARGETS+=uefi-dvd1.iso
+IMAGES+=	uefi-dvd1.iso
+. endif
+.endif
 
 CLEANFILES=	packagesystem *.txz MANIFEST system ${IMAGES}
 .if defined(WITH_COMPRESSED_IMAGES) && !empty(WITH_COMPRESSED_IMAGES)
@@ -220,8 +230,23 @@ release.iso: disc1.iso
 disc1.iso: system
 	sh ${.CURDIR}/${TARGET}/mkisoimages.sh -b FreeBSD_Install ${.TARGET} release
 
+uefi-disc1.iso: system
+.if exists(${.CURDIR}/${TARGET}/mkisoimages-uefi.sh)
+	sh ${.CURDIR}/${TARGET}/mkisoimages-uefi.sh -b FreeBSD_Install ${.TARGET} release
+.endif
+
+uefi-bootonly.iso: bootonly
+.if exists(${.CURDIR}/${TARGET}/mkisoimages-uefi.sh)
+	sh ${.CURDIR}/${TARGET}/mkisoimages-uefi.sh -b FreeBSD_Install ${.TARGET} bootonly
+.endif
+
 dvd1.iso: dvd pkg-stage
 	sh ${.CURDIR}/${TARGET}/mkisoimages.sh -b FreeBSD_Install ${.TARGET} dvd
+
+uefi-dvd1.iso: dvd pkg-stage
+.if exists(${.CURDIR}/${TARGET}/mkisoimages-uefi.sh)
+	sh ${.CURDIR}/${TARGET}/mkisoimages-uefi.sh -b FreeBSD_Install ${.TARGET} dvd
+.endif
 
 bootonly.iso: bootonly
 	sh ${.CURDIR}/${TARGET}/mkisoimages.sh -b FreeBSD_Install ${.TARGET} bootonly
