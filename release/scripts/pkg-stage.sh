@@ -44,7 +44,8 @@ PKG_ABI=$(pkg -vv | grep ^ABI | awk '{print $3}')
 PKG_ABI="${PKG_ABI%\";}"
 PKG_ABI="${PKG_ABI#\"}"
 export PKG_ABI
-export PKG_CACHEDIR="dvd/packages/${PKG_ABI}"
+export PKG_REPODIR="dvd/packages/${PKG_ABI}"
+export PKG_CACHEDIR="${PKG_REPODIR}/${PKG_ABI}/All"
 
 /bin/mkdir -p ${PKG_CACHEDIR}
 
@@ -53,7 +54,7 @@ ${PKGCMD} -vv
 ${PKGCMD} update -f
 ${PKGCMD} fetch -d ${DVD_PACKAGES}
 
-${PKGCMD} repo ${PKG_CACHEDIR}
+${PKGCMD} repo ${PKG_REPODIR}
 
 # Always exit '0', even if pkg(8) complains about conflicts.
 exit 0
