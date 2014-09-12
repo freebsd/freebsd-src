@@ -90,6 +90,8 @@ static int nexus_config_intr(device_t dev, int irq, enum intr_trigger trig,
     enum intr_polarity pol);
 static	int nexus_deactivate_resource(device_t, device_t, int, int,
     struct resource *);
+static int nexus_release_resource(device_t, device_t, int, int,
+    struct resource *);
 
 static int nexus_setup_intr(device_t dev, device_t child, struct resource *res,
     int flags, driver_filter_t *filt, driver_intr_t *intr, void *arg, void **cookiep);
@@ -111,6 +113,7 @@ static device_method_t nexus_methods[] = {
 	DEVMETHOD(bus_activate_resource,	nexus_activate_resource),
 	DEVMETHOD(bus_config_intr,	nexus_config_intr),
 	DEVMETHOD(bus_deactivate_resource,	nexus_deactivate_resource),
+	DEVMETHOD(bus_release_resource,	nexus_release_resource),
 	DEVMETHOD(bus_setup_intr,	nexus_setup_intr),
 	DEVMETHOD(bus_teardown_intr,	nexus_teardown_intr),
 #ifdef FDT
@@ -205,6 +208,8 @@ nexus_alloc_resource(device_t bus, device_t child, int type, int *rid,
 	struct rman *rm;
 	int needactivate = flags & RF_ACTIVE;
 
+	flags &= ~RF_ACTIVE;
+
 	switch (type) {
 	case SYS_RES_MEMORY:
 	case SYS_RES_IOPORT:
@@ -212,15 +217,14 @@ nexus_alloc_resource(device_t bus, device_t child, int type, int *rid,
 		break;
 
 	default:
-		return (0);
+		return (NULL);
 	}
 
 	rv = rman_reserve_resource(rm, start, end, count, flags, child);
 	if (rv == 0)
-		return (0);
+		return (NULL);
 
 	rman_set_rid(rv, *rid);
-	rman_set_bushandle(rv, rman_get_start(rv));
 
 	if (needactivate) {
 		if (bus_activate_resource(child, type, *rid, rv)) {
@@ -230,6 +234,20 @@ nexus_alloc_resource(device_t bus, device_t child, int type, int *rid,
 	}
 
 	return (rv);
+}
+
+static int
+nexus_release_resource(device_t bus, device_t child, int type, int rid,
+    struct resource *res)
+{
+	int error;
+	
+	if (rman_get_flags(res) & RF_ACTIVE) {
+		error = bus_deactivate_resource(child, type, rid, res);
+		if (error)
+			return (error);
+	}
+	return (rman_release_resource(res));
 }
 
 static int
