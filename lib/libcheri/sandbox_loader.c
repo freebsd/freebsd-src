@@ -250,6 +250,8 @@ sandbox_object_load(struct sandbox_class *sbcp, struct sandbox_object *sbop)
 	 * would prefer to limit this to LOAD and EXECUTE.
 	 */
 	codecap = cheri_getpcc();
+	codecap = cheri_setoffset(codecap,
+	    (register_t)CHERI_CLASS_ENTRY(libcheri_system));
 	sbop->sbo_cheri_system_object.co_codecap = cheri_seal(codecap,
 	    typecap);
 
@@ -258,7 +260,7 @@ sandbox_object_load(struct sandbox_class *sbcp, struct sandbox_object *sbop)
 	 * itself, which allows the system class to identify the sandbox a
 	 * request is being issued from.
 	 */
-	datacap = cheri_ptrperm(sbop, sizeof(sbop), CHERI_PERM_GLOBAL |
+	datacap = cheri_ptrperm(sbop, sizeof(*sbop), CHERI_PERM_GLOBAL |
 	    CHERI_PERM_LOAD | CHERI_PERM_LOAD_CAP | CHERI_PERM_STORE |
 	    CHERI_PERM_STORE_CAP | CHERI_PERM_STORE_LOCAL_CAP);
 	sbop->sbo_cheri_system_object.co_datacap = cheri_seal(datacap,
