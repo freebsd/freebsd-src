@@ -2068,7 +2068,7 @@ ext2_write(struct vop_write_args *ap)
  * get page routine
  */
 static int
-ext2_getpages( struct vop_getpages_args *ap)
+ext2_getpages(struct vop_getpages_args *ap)
 {
 	int i;
 	vm_page_t mreq;
