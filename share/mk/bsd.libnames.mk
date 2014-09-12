@@ -78,6 +78,7 @@ LIBLZMA?=	${DESTDIR}${LIBDIR}/liblzma.a
 LIBM?=		${DESTDIR}${LIBDIR}/libm.a
 LIBMAGIC?=	${DESTDIR}${LIBDIR}/libmagic.a
 LIBMD?=		${DESTDIR}${LIBDIR}/libmd.a
+LIBMD_CHERI?=	${DESTDIR}${LIBDIR}/libmd_cheri.a
 LIBMEMSTAT?=	${DESTDIR}${LIBDIR}/libmemstat.a
 LIBMENU?=	${DESTDIR}${LIBDIR}/libmenu.a
 LIBMILTER?=	${DESTDIR}${LIBDIR}/libmilter.a

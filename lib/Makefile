@@ -67,6 +67,7 @@ SUBDIR=	${SUBDIR_ORDERED} \
 	libmandoc \
 	libmemstat \
 	libmd \
+	${_libmd_cheri} \
 	${_libmilter} \
 	${_libmp} \
 	${_libnandfs} \
@@ -192,6 +193,7 @@ _libcasper=	libcasper
 .if ${MK_CHERI} != "no"
 _libc_cheri=	libc_cheri
 _libcheri=	libcheri
+_libmd_cheri=	libmd_cheri
 _libz_cheri=	libz-cheri
 # XXXBD: not really CHERI specific, but currently using USE_CHERI to get
 # clang on mips.
