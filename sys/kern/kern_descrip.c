@@ -3531,17 +3531,14 @@ vntype_to_kinfo(int vtype)
 		{ VREG, KF_VTYPE_VREG },
 		{ VSOCK, KF_VTYPE_VSOCK }
 	};
-#define	NVTYPES	(sizeof(vtypes_table) / sizeof(*vtypes_table))
 	unsigned int i;
 
 	/*
 	 * Perform vtype translation.
 	 */
-	for (i = 0; i < NVTYPES; i++)
+	for (i = 0; i < nitems(vtypes_table); i++)
 		if (vtypes_table[i].vtype == vtype)
-			break;
-	if (i < NVTYPES)
-		return (vtypes_table[i].kf_vtype);
+			return (vtypes_table[i].kf_vtype);
 
 	return (KF_VTYPE_UNKNOWN);
 }
