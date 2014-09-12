@@ -1695,13 +1695,15 @@ ifa_ifwithaddr_check(struct sockaddr *addr)
  */
 /* ARGSUSED */
 struct ifaddr *
-ifa_ifwithbroadaddr(struct sockaddr *addr)
+ifa_ifwithbroadaddr(struct sockaddr *addr, int fibnum)
 {
 	struct ifnet *ifp;
 	struct ifaddr *ifa;
 
 	IFNET_RLOCK_NOSLEEP();
 	TAILQ_FOREACH(ifp, &V_ifnet, if_link) {
+		if ((fibnum != RT_ALL_FIBS) && (ifp->if_fib != fibnum))
+			continue;
 		IF_ADDR_RLOCK(ifp);
 		TAILQ_FOREACH(ifa, &ifp->if_addrhead, ifa_link) {
 			if (ifa->ifa_addr->sa_family != addr->sa_family)
@@ -1728,7 +1730,7 @@ done:
  */
 /*ARGSUSED*/
 struct ifaddr *
-ifa_ifwithdstaddr_fib(struct sockaddr *addr, int fibnum)
+ifa_ifwithdstaddr(struct sockaddr *addr, int fibnum)
 {
 	struct ifnet *ifp;
 	struct ifaddr *ifa;
@@ -1758,19 +1760,12 @@ done:
 	return (ifa);
 }
 
-struct ifaddr *
-ifa_ifwithdstaddr(struct sockaddr *addr)
-{
-
-	return (ifa_ifwithdstaddr_fib(addr, RT_ALL_FIBS));
-}
-
 /*
  * Find an interface on a specific network.  If many, choice
  * is most specific found.
  */
 struct ifaddr *
-ifa_ifwithnet_fib(struct sockaddr *addr, int ignore_ptp, int fibnum)
+ifa_ifwithnet(struct sockaddr *addr, int ignore_ptp, int fibnum)
 {
 	struct ifnet *ifp;
 	struct ifaddr *ifa;
@@ -1879,13 +1874,6 @@ done:
 	if (ifa_maybe != NULL)
 		ifa_free(ifa_maybe);
 	return (ifa);
-}
-
-struct ifaddr *
-ifa_ifwithnet(struct sockaddr *addr, int ignore_ptp)
-{
-
-	return (ifa_ifwithnet_fib(addr, ignore_ptp, RT_ALL_FIBS));
 }
 
 /*

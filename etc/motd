@@ -1,25 +1,21 @@
 FreeBSD ?.?.?  (UNKNOWN)
 
-Welcome to FreeBSD!
+Welcome to FreeBSD!  Handy technical support resources:
 
-Before seeking technical support, please use the following resources:
+Security advisories and errata: https://www.FreeBSD.org/releases/
+Handbook:     https://www.FreeBSD.org/handbook/
+FAQ:          https://www.FreeBSD.org/faq/
+Mailing list: https://lists.FreeBSD.org/mailman/listinfo/freebsd-questions/
+Forums:       https://forums.FreeBSD.org/
 
-o  Security advisories and updated errata information for all releases are
-   at http://www.FreeBSD.org/releases/ - always consult the ERRATA section
-   for your release first as it's updated frequently.
+Documents installed with the system are in the /usr/local/share/doc/freebsd/
+directory, or can be installed later with:  pkg install en-freebsd-doc
+For other languages, replace "en" with a language code like de or fr.
 
-o  The Handbook and FAQ documents are at http://www.FreeBSD.org/ and,
-   along with the mailing lists, can be searched by going to
-   http://www.FreeBSD.org/search/.  If the doc package has been installed
-   (or fetched via pkg install lang-freebsd-doc, where lang is the
-   2-letter language code, e.g. en), they are also available formatted
-   in /usr/local/share/doc/freebsd.
+Show the version of FreeBSD installed:  uname -a
+Please include that output and any error messages when posting questions.
 
-If you still have a question or problem, please take the output of
-`uname -a', along with any relevant error messages, and email it
-as a question to the questions@FreeBSD.org mailing list.  If you are
-unfamiliar with FreeBSD's directory layout, please refer to the hier(7)
-manual page.  If you are not familiar with manual pages, type `man man'.
+Introduction to manual pages:  man man
+FreeBSD directory layout:      man hier
 
 Edit /etc/motd to change this login announcement.
-
