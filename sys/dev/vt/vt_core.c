@@ -162,7 +162,7 @@ static int vt_late_window_switch(struct vt_window *);
 static int vt_proc_alive(struct vt_window *);
 static void vt_resize(struct vt_device *);
 static void vt_update_static(void *);
-static void vt_mouse_paste();
+static void vt_mouse_paste(void);
 
 SET_DECLARE(vt_drv_set, struct vt_driver);
 
