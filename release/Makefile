@@ -95,7 +95,9 @@ IMAGES+=	mini-memstick.img
 .endif
 .if exists(${.CURDIR}/${TARGET}/make-uefi-memstick.sh)
 RELEASE_TARGETS+=uefi-memstick.img
+RELEASE_TARGETS+=uefi-mini-memstick.img
 IMAGES+=	uefi-memstick.img
+IMAGES+=	uefi-mini-memstick.img
 .endif
 .if exists(${.CURDIR}/${TARGET}/mkisoimages-uefi.sh)
 RELEASE_TARGETS+=uefi-disc1.iso
@@ -263,6 +265,12 @@ uefi-memstick: uefi-memstick.img
 uefi-memstick.img: system
 .if exists(${.CURDIR}/${TARGET}/make-uefi-memstick.sh)
 	sh ${.CURDIR}/${TARGET}/make-uefi-memstick.sh release ${.TARGET}
+.endif
+
+uefi-mini-memstick: uefi-mini-memstick.img
+uefi-mini-memstick.img: system
+.if exists(${.CURDIR}/${TARGET}/make-uefi-memstick.sh)
+	sh ${.CURDIR}/${TARGET}/make-uefi-memstick.sh bootonly ${.TARGET}
 .endif
 
 packagesystem: base.txz kernel.txz ${EXTRA_PACKAGES}
