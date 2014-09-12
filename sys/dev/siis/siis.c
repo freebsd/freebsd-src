@@ -465,6 +465,7 @@ siis_ch_attach(device_t dev)
 	ch->dev = dev;
 	ch->unit = (intptr_t)device_get_ivars(dev);
 	ch->quirks = ctlr->quirks;
+	ch->pm_level = 0;
 	resource_int_value(device_get_name(dev),
 	    device_get_unit(dev), "pm_level", &ch->pm_level);
 	resource_int_value(device_get_name(dev),
