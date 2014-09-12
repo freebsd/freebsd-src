@@ -71,9 +71,12 @@ __cheri_ ## class ## _entry:						\
 	 * Normally in a CHERI sandbox, we would install $c26 ($idc)	\
 	 * into $c0 for MIPS load/store instructions.  For the system	\
 	 * class, we instead use $pcc so that we can have an executable	\
-	 * version of $c0.  Also install as the stack capability.	\
+	 * version of $c0; as $pcc.offset contains the entry address,	\
+	 * we must clear that in $c0.  Also install as the stack	\
+	 * capability.							\
 	 */								\
 	cgetpcc $zero($c0);						\
+	csetoffset	$c0, $c0, $zero;				\
 	cmove	$c11, $c0;						\
 									\
 	/*								\
