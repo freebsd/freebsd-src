@@ -196,7 +196,7 @@ while [ 1 ]; do
 			exit 1
 		fi
 		BOOTDISK=${isofile}
-		installer_opt="-s 31:0,virtio-blk,${BOOTDISK}"
+		installer_opt="-s 31:0,ahci-cd,${BOOTDISK}"
 	else
 		BOOTDISK=${virtio_diskdev}
 		installer_opt=""
