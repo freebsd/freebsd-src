@@ -76,7 +76,7 @@ bsd_write(lba_t imgsz, void *bootcode)
 		return (ENOMEM);
 	if (bootcode != NULL) {
 		memcpy(buf, bootcode, BBSIZE);
-		memset(buf + secsz, 0, secsz);
+		memset(buf + secsz, 0, sizeof(struct disklabel));
 	} else
 		memset(buf, 0, BBSIZE);
 
@@ -110,7 +110,10 @@ bsd_write(lba_t imgsz, void *bootcode)
 		dp = &d->d_partitions[n];
 		le32enc(&dp->p_size, part->size);
 		le32enc(&dp->p_offset, part->block);
+		le32enc(&dp->p_fsize, 0);
 		dp->p_fstype = ALIAS_TYPE2INT(part->type);
+		dp->p_frag = 0;
+		le16enc(&dp->p_cpg, 0);
 	}
 
 	dp = &d->d_partitions[bsdparts];
