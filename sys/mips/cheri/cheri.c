@@ -90,9 +90,9 @@ SYSCTL_UINT(_security_cheri, OID_AUTO, debugger_on_exception, CTLFLAG_RW,
 	CHERI_CGETBASE(c_base, (crn));					\
 	CHERI_CGETLEN(c_length, (crn));					\
 	CHERI_CGETOFFSET(c_offset, (crn));				\
-	printf("t:%u s:%u b:%016jx l:%016jx o:%jx y:%016jx p:%08jx\n",	\
-	    ctag, c_sealed, c_base, c_length, c_offset, c_otype,	\
-	    c_perms);							\
+	printf("t:%u s:%u p:%08jx b:%016jx l:%016jx o:%jx y:%jx",	\
+	    ctag, c_sealed, c_perms, c_base, c_length, c_offset,	\
+	    c_otype);							\
 } while (0)
 
 #define	CHERI_REG_PRINT(crn, num) do {					\
@@ -495,9 +495,9 @@ cheri_signal_sandboxed(struct thread *td)
 	CHERI_CGETLEN(c_length, (crn));					\
 	CHERI_CGETOFFSET(c_offset, (crn));				\
 	db_printf(							\
-	    "C%02u t:%u s:%u b:%016jx l:%016jx o:%jx y:%016jx p:%08jx\n",\
-	    num, ctag, c_sealed, c_base, c_length, c_offset, c_otype,	\
-	    c_perms);							\
+	    "C%02u t:%u s:%u p:%08jx b:%016jx l:%016jx o:%jx y:%jx\n",	\
+	    num, ctag, c_sealed, c_perms, c_base, c_length, c_offset,	\
+	    c_otype);							\
 } while (0)
 
 #define	DB_CHERI_REG_PRINT(crn)	 DB_CHERI_REG_PRINT_NUM(crn, crn)
