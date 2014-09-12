@@ -166,8 +166,10 @@ cheritest_libcheri_userfn_setstack(register_t arg)
 
 	/* Validate that the second is cheritest_objectp. */
 	csfp = &cs.cs_frames[stack_depth - 2];
-	if (csfp->csf_pcc !=
-	    sandbox_object_getobject(cheritest_objectp).co_codecap)
+	if ((cheri_getbase(csfp->csf_pcc) != cheri_getbase(
+	    sandbox_object_getobject(cheritest_objectp).co_codecap)) ||
+	    cheri_getlen(csfp->csf_pcc) != cheri_getlen(
+	    sandbox_object_getobject(cheritest_objectp).co_codecap))
 		cheritest_failure_errx("frame 1: not sandbox code cap");
 
 	if (arg) {
