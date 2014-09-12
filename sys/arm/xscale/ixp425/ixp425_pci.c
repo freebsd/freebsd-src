@@ -320,9 +320,12 @@ static int
 ixppcib_activate_resource(device_t bus, device_t child, int type, int rid,
     struct resource *r)
 {
-
 	struct ixppcib_softc *sc = device_get_softc(bus);
+	int error;
 
+	error = rman_activate_resource(r);
+	if (error)
+		return (error);
 	switch (type) {
 	case SYS_RES_IOPORT:
 		rman_set_bustag(r, &sc->sc_pci_iot);
@@ -335,7 +338,7 @@ ixppcib_activate_resource(device_t bus, device_t child, int type, int rid,
 		break;
 	}
 		
-	return (rman_activate_resource(r));
+	return (0);
 }
 
 static int
