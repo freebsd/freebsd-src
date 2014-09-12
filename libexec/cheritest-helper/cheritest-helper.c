@@ -113,14 +113,20 @@ invoke_cap_fault(register_t op)
 	return (0);
 }
 
+/*
+ * NB: Can't use NULL to generate VM faults when compiling with pointers as
+ * capabilities, as NULL generates an untagged capability.  Instead, use
+ * near-NULL values.
+ */
 static int
 invoke_vm_fault(register_t op)
 {
 	volatile char *chp;
-	void (*fn)(void) = NULL;
+	void (*fn)(void);
 	char ch;
 
-	chp = NULL;
+	chp = (void *)4;
+	fn = (void *)4;
 	switch (op) {
 	case CHERITEST_HELPER_OP_VM_RFAULT:
 		ch = chp[0];
