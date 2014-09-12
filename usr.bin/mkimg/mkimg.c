@@ -101,6 +101,7 @@ usage(const char *why)
 	    "are determined\n\t\t\t\t   by the named file\n");
 	fprintf(stderr, "\t<t>[/<l>]:-<cmd>\t-  partition content and size "
 	    "are taken from\n\t\t\t\t   the output of the command to run\n");
+	fprintf(stderr, "\t-\t\t\t-  unused partition entry\n");
 	fprintf(stderr, "\t    where:\n");
 	fprintf(stderr, "\t\t<t>\t-  scheme neutral partition type\n");
 	fprintf(stderr, "\t\t<l>\t-  optional scheme-dependent partition "
@@ -140,6 +141,9 @@ pwr_of_two(u_int nr)
  *		  '-'   contents holds a command to run; the output of
  *			which is the contents of the partition.
  *	contents  the specification of a partition's contents
+ *
+ * A specification that is a single dash indicates an unused partition
+ * entry.
  */
 static int
 parse_part(const char *spec)
@@ -148,6 +152,11 @@ parse_part(const char *spec)
 	char *sep;
 	size_t len;
 	int error;
+
+	if (strcmp(spec, "-") == 0) {
+		nparts++;
+		return (0);
+	}
 
 	part = calloc(1, sizeof(struct part));
 	if (part == NULL)
