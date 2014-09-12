@@ -109,9 +109,6 @@ static void 	kqueue_wakeup(struct kqueue *kq);
 static struct filterops *kqueue_fo_find(int filt);
 static void	kqueue_fo_release(int filt);
 
-static fo_rdwr_t	kqueue_read;
-static fo_rdwr_t	kqueue_write;
-static fo_truncate_t	kqueue_truncate;
 static fo_ioctl_t	kqueue_ioctl;
 static fo_poll_t	kqueue_poll;
 static fo_kqfilter_t	kqueue_kqfilter;
@@ -119,9 +116,9 @@ static fo_stat_t	kqueue_stat;
 static fo_close_t	kqueue_close;
 
 static struct fileops kqueueops = {
-	.fo_read = kqueue_read,
-	.fo_write = kqueue_write,
-	.fo_truncate = kqueue_truncate,
+	.fo_read = invfo_rdwr,
+	.fo_write = invfo_rdwr,
+	.fo_truncate = invfo_truncate,
 	.fo_ioctl = kqueue_ioctl,
 	.fo_poll = kqueue_poll,
 	.fo_kqfilter = kqueue_kqfilter,
@@ -1600,35 +1597,6 @@ done_nl:
 		error = k_ops->k_copyout(k_ops->arg, keva, nkev);
 	td->td_retval[0] = maxevents - count;
 	return (error);
-}
-
-/*
- * XXX
- * This could be expanded to call kqueue_scan, if desired.
- */
-/*ARGSUSED*/
-static int
-kqueue_read(struct file *fp, struct uio *uio, struct ucred *active_cred,
-	int flags, struct thread *td)
-{
-	return (ENXIO);
-}
-
-/*ARGSUSED*/
-static int
-kqueue_write(struct file *fp, struct uio *uio, struct ucred *active_cred,
-	 int flags, struct thread *td)
-{
-	return (ENXIO);
-}
-
-/*ARGSUSED*/
-static int
-kqueue_truncate(struct file *fp, off_t length, struct ucred *active_cred,
-	struct thread *td)
-{
-
-	return (EINVAL);
 }
 
 /*ARGSUSED*/

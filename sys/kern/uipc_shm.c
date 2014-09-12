@@ -120,9 +120,6 @@ static int	shm_dotruncate(struct shmfd *shmfd, off_t length);
 static fo_rdwr_t	shm_read;
 static fo_rdwr_t	shm_write;
 static fo_truncate_t	shm_truncate;
-static fo_ioctl_t	shm_ioctl;
-static fo_poll_t	shm_poll;
-static fo_kqfilter_t	shm_kqfilter;
 static fo_stat_t	shm_stat;
 static fo_close_t	shm_close;
 static fo_chmod_t	shm_chmod;
@@ -134,9 +131,9 @@ static struct fileops shm_ops = {
 	.fo_read = shm_read,
 	.fo_write = shm_write,
 	.fo_truncate = shm_truncate,
-	.fo_ioctl = shm_ioctl,
-	.fo_poll = shm_poll,
-	.fo_kqfilter = shm_kqfilter,
+	.fo_ioctl = invfo_ioctl,
+	.fo_poll = invfo_poll,
+	.fo_kqfilter = invfo_kqfilter,
 	.fo_stat = shm_stat,
 	.fo_close = shm_close,
 	.fo_chmod = shm_chmod,
@@ -352,29 +349,6 @@ shm_truncate(struct file *fp, off_t length, struct ucred *active_cred,
 		return (error);
 #endif
 	return (shm_dotruncate(shmfd, length));
-}
-
-static int
-shm_ioctl(struct file *fp, u_long com, void *data,
-    struct ucred *active_cred, struct thread *td)
-{
-
-	return (EOPNOTSUPP);
-}
-
-static int
-shm_poll(struct file *fp, int events, struct ucred *active_cred,
-    struct thread *td)
-{
-
-	return (EOPNOTSUPP);
-}
-
-static int
-shm_kqfilter(struct file *fp, struct knote *kn)
-{
-
-	return (EOPNOTSUPP);
 }
 
 static int
