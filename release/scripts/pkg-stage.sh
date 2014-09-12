@@ -45,7 +45,7 @@ PKG_ABI="${PKG_ABI%\";}"
 PKG_ABI="${PKG_ABI#\"}"
 export PKG_ABI
 export PKG_REPODIR="dvd/packages/${PKG_ABI}"
-export PKG_CACHEDIR="${PKG_REPODIR}/${PKG_ABI}/All"
+export PKG_CACHEDIR="${PKG_REPODIR}/All"
 
 /bin/mkdir -p ${PKG_CACHEDIR}
 
