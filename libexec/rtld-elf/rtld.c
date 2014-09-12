@@ -2475,7 +2475,7 @@ relocate_object(Obj_Entry *obj, bool bind_now, Obj_Entry *rtldobj,
 		}
 	}
 
-	/* Process the non-PLT relocations. */
+	/* Process the non-PLT non-IFUNC relocations. */
 	if (reloc_non_plt(obj, rtldobj, flags, lockstate))
 		return (-1);
 
@@ -2488,7 +2488,6 @@ relocate_object(Obj_Entry *obj, bool bind_now, Obj_Entry *rtldobj,
 		}
 	}
 
-
 	/* Set the special PLT or GOT entries. */
 	init_pltgot(obj);
 
@@ -2499,6 +2498,16 @@ relocate_object(Obj_Entry *obj, bool bind_now, Obj_Entry *rtldobj,
 	if (obj->bind_now || bind_now)
 		if (reloc_jmpslots(obj, flags, lockstate) == -1)
 			return (-1);
+
+	/*
+	 * Process the non-PLT IFUNC relocations.  The relocations are
+	 * processed in two phases, because IFUNC resolvers may
+	 * reference other symbols, which must be readily processed
+	 * before resolvers are called.
+	 */
+	if (obj->non_plt_gnu_ifunc &&
+	    reloc_non_plt(obj, rtldobj, flags | SYMLOOK_IFUNC, lockstate))
+		return (-1);
 
 	if (obj->relro_size > 0) {
 		if (mprotect(obj->relro_page, obj->relro_size,
