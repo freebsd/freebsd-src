@@ -2301,10 +2301,19 @@ void ecore_storm_memset_struct(struct bxe_softc *sc, uint32_t addr,
         }                                             \
     } while(0)
 
+#ifdef ECORE_STOP_ON_ERROR
+
 #define bxe_panic(sc, msg) \
     do {                   \
         panic msg;         \
     } while (0)
+
+#else
+
+#define bxe_panic(sc, msg) \
+    device_printf((sc)->dev, "%s (%s,%d)\n", __FUNCTION__, __FILE__, __LINE__);
+
+#endif
 
 #define CATC_TRIGGER(sc, data) REG_WR((sc), 0x2000, (data));
 #define CATC_TRIGGER_START(sc) CATC_TRIGGER((sc), 0xcafecafe)
