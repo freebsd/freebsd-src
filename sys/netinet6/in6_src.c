@@ -169,36 +169,74 @@ struct dstaddr_props {
 
 #define	REPLACE(r)	{ rule = r; goto replace; }
 #define	NEXT(r)		{ rule = r; goto next; }
+#ifndef IPV6SASDEBUG
+#define	IPV6SASDEBUG(fmt, ...)
+#else
+static char *srcrule_str[IP6S_RULESMAX] = {
+	"Rule 0: first candidate",
+	"Rule 1: prefer same address",
+	"Rule 2: prefer appropriate scope",
+	"Rule 3: avoid deprecated addresses",
+	"Rule 4: prefer home address",
+	"Rule 5: prefer outgoing interface",
+	"Rule 6: prefer matching label",
+	"Rule 7: prefer temporary addresses",
+	"Rule 8: prefer address with better virtual status",
+	"Rule 9: prefer address with `prefer_source' flag",
+	"Rule 10",
+	"Rule 11",
+	"Rule 12",
+	"Rule 13",
+	"Rule 14: use longest matching prefix",
+	"Rule 15"
+};
+#endif
 
 static int
 srcaddrcmp(struct srcaddr_choice *c, struct in6_ifaddr *ia,
     struct dstaddr_props *dst, struct ucred *cred,
     struct ip6_pktopts *opts)
 {
+#if defined(IPV6SASDEBUG)
+	char buf[INET6_ADDRSTRLEN];
+#endif
 	int srcscope, rule, label, prefer_tempaddr, prefixlen;
 
+	IPV6SASDEBUG("candidate address %s from interface %s",
+	    ip6_sprintf(buf, &ia->ia_addr.sin6_addr), ia->ia_ifp->if_xname);
 	/* Avoid unusable addresses */
 	if ((ia->ia6_flags & (IN6_IFF_NOTREADY | IN6_IFF_DETACHED)) ||
-	    (ia->ia_ifp->if_flags & IFF_UP) == 0)
+	    (ia->ia_ifp->if_flags & IFF_UP) == 0) {
+		IPV6SASDEBUG("address %s is unusable",
+		    ip6_sprintf(buf, &ia->ia_addr.sin6_addr));
 		return (-1);
+	}
 	/*
 	 * In any case, multicast addresses and the unspecified address
 	 * MUST NOT be included in a candidate set.
 	 */
 	if (IN6_IS_ADDR_MULTICAST(IA6_IN6(ia)) ||
-	    IN6_IS_ADDR_UNSPECIFIED(IA6_IN6(ia)))
+	    IN6_IS_ADDR_UNSPECIFIED(IA6_IN6(ia))) {
+		IPV6SASDEBUG("skip multicast and unspecified addresses");
 		return (-1);
-	if (!V_ip6_use_deprecated && IFA6_IS_DEPRECATED(ia))
+	}
+	if (!V_ip6_use_deprecated && IFA6_IS_DEPRECATED(ia)) {
+		IPV6SASDEBUG("skip deprecated addresses");
 		return (-1);
+	}
 	/* If jailed, only take addresses of the jail into account. */
-	if (cred != NULL && prison_check_ip6(cred, IA6_SIN6(ia)) != 0)
+	if (cred != NULL && prison_check_ip6(cred, IA6_SIN6(ia)) != 0) {
+		IPV6SASDEBUG("address is unusable from the jail");
 		return (-1);
+	}
 	/* Source address can not break the destination zone */
 	srcscope = in6_srcaddrscope(IA6_IN6(ia));
 	if (ia->ia_ifp != dst->ifp &&
 	    in6_getscopezone(ia->ia_ifp, srcscope) !=
-	    in6_getscopezone(dst->ifp, dst->scope))
+	    in6_getscopezone(dst->ifp, dst->scope)) {
+		IPV6SASDEBUG("scope zone mismatch");
 		return (-1);
+	}
 	label = ADDR_LABEL_NOTAPP;
 	prefixlen = -1;
 	/* Rule 1: Prefer same address. */
@@ -295,9 +333,11 @@ srcaddrcmp(struct srcaddr_choice *c, struct in6_ifaddr *ia,
 		NEXT(14);
 	if (prefixlen > c->prefixlen)
 		REPLACE(14);
+	IPV6SASDEBUG("the algorithm failed to select an address");
 	return (-1);
 replace:
-	/* debug output */
+	IPV6SASDEBUG("address %s was selected according to the \"%s\"",
+	    ip6_sprintf(buf, &ia->ia_addr.sin6_addr), srcrule_str[rule]);
 	c->ia = ia;
 	c->label = label;
 	c->scope = srcscope;
@@ -307,7 +347,8 @@ replace:
 	IP6STAT_INC(ip6s_sources_rule[rule]);
 	return (rule);
 next:
-	/* debug output */
+	IPV6SASDEBUG("address %s was selected according to the \"%s\"",
+	    ip6_sprintf(buf, &c->ia->ia_addr.sin6_addr), srcrule_str[rule]);
 	return (rule);
 }
 #undef	REPLACE
@@ -455,6 +496,9 @@ in6_selectsrc(struct sockaddr_in6 *dst, struct ip6_pktopts *opts,
     struct inpcb *inp, struct route_in6 *ro, struct ucred *cred,
     struct ifnet **ifpp, struct in6_addr *srcp)
 {
+#if defined(IPV6SASDEBUG)
+	char buf[INET6_ADDRSTRLEN];
+#endif
 	struct route_in6 ro6;
 	struct dstaddr_props dstprops;
 	struct srcaddr_choice best;
@@ -620,6 +664,8 @@ oif_found:
 	 * If the address is not specified, choose the best one based on
 	 * the outgoing interface and the destination address.
 	 */
+	IPV6SASDEBUG("dst %s, oif %s", ip6_sprintf(buf, &dst->sin6_addr),
+	    ifp->if_xname);
 	dstprops.ifp = ifp;
 	dstprops.addr = &dst->sin6_addr;
 	dstprops.scope = in6_srcaddrscope(&dst->sin6_addr);
@@ -633,6 +679,8 @@ oif_found:
 	 */
 	if (IN6_IS_ADDR_MULTICAST(&dst->sin6_addr) ||
 	    dstprops.scope == IPV6_ADDR_SCOPE_LINKLOCAL) {
+		IPV6SASDEBUG("use the addresses only from interface %s",
+		    ifp->if_xname);
 		IF_ADDR_RLOCK(ifp);
 		TAILQ_FOREACH(ifa, &ifp->if_addrhead, ifa_link) {
 			if (ifa->ifa_addr->sa_family != AF_INET6)
@@ -657,6 +705,7 @@ oif_found:
 		IN6_IFADDR_RUNLOCK();
 	}
 	if (best.rule < 0) {
+		IPV6SASDEBUG("Failed to choose an address");
 		IP6STAT_INC(ip6s_sources_none);
 		if (ro == &ro6)
 			RO_RTFREE(ro);
