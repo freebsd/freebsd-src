@@ -458,12 +458,12 @@ parsefile(const char *filename)
 /* These functions will dump out various interesting structures. */
 
 static int
-S_clockinfo(int l2, void *p)
+S_clockinfo(size_t l2, void *p)
 {
 	struct clockinfo *ci = (struct clockinfo*)p;
 
 	if (l2 != sizeof(*ci)) {
-		warnx("S_clockinfo %d != %zu", l2, sizeof(*ci));
+		warnx("S_clockinfo %zu != %zu", l2, sizeof(*ci));
 		return (1);
 	}
 	printf(hflag ? "{ hz = %'d, tick = %'d, profhz = %'d, stathz = %'d }" :
@@ -473,12 +473,12 @@ S_clockinfo(int l2, void *p)
 }
 
 static int
-S_loadavg(int l2, void *p)
+S_loadavg(size_t l2, void *p)
 {
 	struct loadavg *tv = (struct loadavg*)p;
 
 	if (l2 != sizeof(*tv)) {
-		warnx("S_loadavg %d != %zu", l2, sizeof(*tv));
+		warnx("S_loadavg %zu != %zu", l2, sizeof(*tv));
 		return (1);
 	}
 	printf(hflag ? "{ %'.2f %'.2f %'.2f }" : "{ %.2f %.2f %.2f }",
@@ -489,14 +489,14 @@ S_loadavg(int l2, void *p)
 }
 
 static int
-S_timeval(int l2, void *p)
+S_timeval(size_t l2, void *p)
 {
 	struct timeval *tv = (struct timeval*)p;
 	time_t tv_sec;
 	char *p1, *p2;
 
 	if (l2 != sizeof(*tv)) {
-		warnx("S_timeval %d != %zu", l2, sizeof(*tv));
+		warnx("S_timeval %zu != %zu", l2, sizeof(*tv));
 		return (1);
 	}
 	printf(hflag ? "{ sec = %'jd, usec = %'ld } " :
@@ -513,13 +513,13 @@ S_timeval(int l2, void *p)
 }
 
 static int
-S_vmtotal(int l2, void *p)
+S_vmtotal(size_t l2, void *p)
 {
 	struct vmtotal *v = (struct vmtotal *)p;
 	int pageKilo = getpagesize() / 1024;
 
 	if (l2 != sizeof(*v)) {
-		warnx("S_vmtotal %d != %zu", l2, sizeof(*v));
+		warnx("S_vmtotal %zu != %zu", l2, sizeof(*v));
 		return (1);
 	}
 
@@ -540,19 +540,19 @@ S_vmtotal(int l2, void *p)
 	    v->t_vmshr * pageKilo, v->t_avmshr * pageKilo);
 	printf("Shared Real Memory:\t(Total: %dK Active: %dK)\n",
 	    v->t_rmshr * pageKilo, v->t_armshr * pageKilo);
-	printf("Free Memory:\t%dK\n", v->t_free * pageKilo);
+	printf("Free Memory:\t%dK", v->t_free * pageKilo);
 
 	return (0);
 }
 
 #if defined(__amd64__) || defined(__i386__)
 static int
-S_bios_smap_xattr(int l2, void *p)
+S_bios_smap_xattr(size_t l2, void *p)
 {
 	struct bios_smap_xattr *smap, *end;
 
 	if (l2 % sizeof(*smap) != 0) {
-		warnx("S_bios_smap_xattr %d is not a multiple of %zu", l2,
+		warnx("S_bios_smap_xattr %zu is not a multiple of %zu", l2,
 		    sizeof(*smap));
 		return (1);
 	}
@@ -680,7 +680,7 @@ show_var(int *oid, int nlen)
 	size_t intlen;
 	size_t j, len;
 	u_int kind;
-	int (*func)(int, void *);
+	int (*func)(size_t, void *);
 
 	/* Silence GCC. */
 	umv = mv = intlen = 0;
