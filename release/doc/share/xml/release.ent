@@ -22,6 +22,9 @@
 <!-- The URL for obtaining this version of FreeBSD. -->
 <!ENTITY release.url "http://www.FreeBSD.org/releases/">
 
+<!-- The recommended mailing list to track. -->
+<!ENTITY release.maillist "stable">
+
 <!-- The type of release (usually this will be either "snapshot"
      or "release" -->
 
