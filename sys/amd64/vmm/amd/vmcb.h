@@ -124,6 +124,7 @@
 /* VMCB exit code, APM vol2 Appendix C */
 #define	VMCB_EXIT_MC			0x52
 #define	VMCB_EXIT_INTR			0x60
+#define	VMCB_EXIT_NMI			0x61
 #define	VMCB_EXIT_VINTR			0x64
 #define	VMCB_EXIT_PUSHF			0x70
 #define	VMCB_EXIT_POPF			0x71
