@@ -277,14 +277,13 @@ struct vmxnet3_softc {
  */
 #define VMXNET3_TX_MAXSEGS		32
 #define VMXNET3_TX_MAXSIZE		(VMXNET3_TX_MAXSEGS * MCLBYTES)
-#define VMXNET3_TSO_MAXSIZE \
-    (VMXNET3_TX_MAXSIZE - sizeof(struct ether_vlan_header))
 
 /*
  * Maximum support Tx segments size. The length field in the
  * Tx descriptor is 14 bits.
  */
-#define VMXNET3_TX_MAXSEGSIZE		(1 << 14)
+#define VMXNET3_TX_MAXSEGSHIFT		14
+#define VMXNET3_TX_MAXSEGSIZE		(1 << VMXNET3_TX_MAXSEGSHIFT)
 
 /*
  * The maximum number of Rx segments we accept. When LRO is enabled,

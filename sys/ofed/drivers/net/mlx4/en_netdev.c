@@ -673,6 +673,12 @@ int mlx4_en_do_start_port(struct net_device *dev)
 	else
 		priv->rx_csum = 0;
 
+	/* set TSO limits so that we don't have to drop TX packets */
+	dev->if_hw_tsomax = IF_HW_TSOMAX_BUILD_VALUE(
+	    65535 - sizeof(struct ether_vlan_header) /* bytes */,
+	    16 /* maximum frag count */,
+	    16 /* can do up to 4GByte */);
+
 	err = mlx4_wol_read(priv->mdev->dev, &config, priv->port);
 	if (err) {
 		en_err(priv, "Failed to get WoL info, unable to modify\n");
