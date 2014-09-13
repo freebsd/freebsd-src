@@ -38,21 +38,21 @@
  * XXXRW: CHERI_UNSEALED is not currently considered part of the perms word,
  * but perhaps it should be.
  */
-#define	CHERI_PERM_GLOBAL			(1 << 0)
-#define	CHERI_PERM_EXECUTE			(1 << 1)
-#define	CHERI_PERM_LOAD				(1 << 2)
-#define	CHERI_PERM_STORE			(1 << 3)
-#define	CHERI_PERM_LOAD_CAP			(1 << 4)
-#define	CHERI_PERM_STORE_CAP			(1 << 5)
-#define	CHERI_PERM_STORE_LOCAL_CAP		(1 << 6)
-#define	CHERI_PERM_SEAL				(1 << 7)
-#define	CHERI_PERM_SETTYPE			(1 << 8)
-#define	CHERI_PERM_RESERVED1			(1 << 9)
-#define	CHERI_PERM_ACCESS_EPCC			(1 << 10)
-#define	CHERI_PERM_ACCESS_KDC			(1 << 11)
-#define	CHERI_PERM_ACCESS_KCC			(1 << 12)
-#define	CHERI_PERM_ACCESS_KR1C			(1 << 13)
-#define	CHERI_PERM_ACCESS_KR2C			(1 << 14)
+#define	CHERI_PERM_GLOBAL			(1 << 0)	/* 0x00000001 */
+#define	CHERI_PERM_EXECUTE			(1 << 1)	/* 0x00000002 */
+#define	CHERI_PERM_LOAD				(1 << 2)	/* 0x00000004 */
+#define	CHERI_PERM_STORE			(1 << 3)	/* 0x00000008 */
+#define	CHERI_PERM_LOAD_CAP			(1 << 4)	/* 0x00000010 */
+#define	CHERI_PERM_STORE_CAP			(1 << 5)	/* 0x00000020 */
+#define	CHERI_PERM_STORE_LOCAL_CAP		(1 << 6)	/* 0x00000040 */
+#define	CHERI_PERM_SEAL				(1 << 7)	/* 0x00000080 */
+#define	CHERI_PERM_SETTYPE			(1 << 8)	/* 0x00000100 */
+#define	CHERI_PERM_RESERVED1			(1 << 9)	/* 0x00000200 */
+#define	CHERI_PERM_ACCESS_EPCC			(1 << 10)	/* 0x00000400 */
+#define	CHERI_PERM_ACCESS_KDC			(1 << 11)	/* 0x00000800 */
+#define	CHERI_PERM_ACCESS_KCC			(1 << 12)	/* 0x00001000 */
+#define	CHERI_PERM_ACCESS_KR1C			(1 << 13)	/* 0x00002000 */
+#define	CHERI_PERM_ACCESS_KR2C			(1 << 14)	/* 0x00004000 */
 
 /*
  * User-defined permission bits.  The kernel actually snags one for the
@@ -60,23 +60,23 @@
  * oddity: normally, we check permissions on data capabilities, not code
  * capabilities, but aligns with 'privilege' checks: e.g., $epcc access.
  */
-#define	CHERI_PERM_USER0			(1 << 15)
+#define	CHERI_PERM_USER0			(1 << 15)	/* 0x00008000 */
 #define	CHERI_PERM_SYSCALL			CHERI_PERM_USER0
-#define	CHERI_PERM_USER1			(1 << 16)
-#define	CHERI_PERM_USER2			(1 << 17)
-#define	CHERI_PERM_USER3			(1 << 18)
-#define	CHERI_PERM_USER4			(1 << 19)
-#define	CHERI_PERM_USER5			(1 << 20)
-#define	CHERI_PERM_USER6			(1 << 21)
-#define	CHERI_PERM_USER7			(1 << 22)
-#define	CHERI_PERM_USER8			(1 << 23)
-#define	CHERI_PERM_USER9			(1 << 24)
-#define	CHERI_PERM_USER10			(1 << 25)
-#define	CHERI_PERM_USER11			(1 << 26)
-#define	CHERI_PERM_USER12			(1 << 27)
-#define	CHERI_PERM_USER13			(1 << 28)
-#define	CHERI_PERM_USER14			(1 << 29)
-#define	CHERI_PERM_USER15			(1 << 30)
+#define	CHERI_PERM_USER1			(1 << 16)	/* 0x00010000 */
+#define	CHERI_PERM_USER2			(1 << 17)	/* 0x00020000 */
+#define	CHERI_PERM_USER3			(1 << 18)	/* 0x00040000 */
+#define	CHERI_PERM_USER4			(1 << 19)	/* 0x00080000 */
+#define	CHERI_PERM_USER5			(1 << 20)	/* 0x00100000 */
+#define	CHERI_PERM_USER6			(1 << 21)	/* 0x00200000 */
+#define	CHERI_PERM_USER7			(1 << 22)	/* 0x00400000 */
+#define	CHERI_PERM_USER8			(1 << 23)	/* 0x00800000 */
+#define	CHERI_PERM_USER9			(1 << 24)	/* 0x01000000 */
+#define	CHERI_PERM_USER10			(1 << 25)	/* 0x02000000 */
+#define	CHERI_PERM_USER11			(1 << 26)	/* 0x04000000 */
+#define	CHERI_PERM_USER12			(1 << 27)	/* 0x08000000 */
+#define	CHERI_PERM_USER13			(1 << 28)	/* 0x10000000 */
+#define	CHERI_PERM_USER14			(1 << 29)	/* 0x20000000 */
+#define	CHERI_PERM_USER15			(1 << 30)	/* 0x40000000 */
 
 #define	CHERI_PERM_USER_PRIVS						\
 	(CHERI_PERM_USER0 | CHERI_PERM_USER1 | CHERI_PERM_USER2 |	\
