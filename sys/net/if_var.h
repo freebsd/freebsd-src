@@ -120,6 +120,43 @@ typedef int (*if_transmit_fn_t)(if_t, struct mbuf *);
 typedef	uint64_t (*if_get_counter_t)(if_t, ifnet_counter);
 
 /*
+ * Macros defining how to decode the "if_hw_tsomax" field:
+ */
+#define	IF_HW_TSOMAX_GET_BYTES(x)		\
+    ((uint16_t)(x))	/* 32..65535 */
+
+#define	IF_HW_TSOMAX_GET_FRAG_COUNT(x)		\
+    ((uint8_t)((x) >> 16))	/* 1..255 */
+
+#define	IF_HW_TSOMAX_GET_FRAG_SIZE(x)		\
+    ((uint8_t)((x) >> 24))	/* 12..16 */
+
+/*
+ * The following macro defines how to build the "if_hw_tsomax"
+ * field. The "bytes" field has unit 1 bytes and declares the maximum
+ * number of bytes which can be transferred by a single transmit
+ * offload, TSO, job. The "bytes" field is rounded down to the neares
+ * 4 bytes to avoid having the hardware do unaligned memory
+ * accesses. The "frag_count" field has unit 1 fragment and declares
+ * the maximum number of fragments a TSO job can contain. The
+ * "frag_size" field has unit logarithm in base 2 of the actual value
+ * in bytes and declares the maximum size of a fragment.
+ */
+#define	IF_HW_TSOMAX_BUILD_VALUE(bytes, frag_count, frag_size)	\
+    (((bytes) & 0xFFFC) | (((frag_count) & 0xFF) << 16) |	\
+    (((frag_size) & 0xFF) << 24))
+
+#define	IF_HW_TSOMAX_DEFAULT_BYTES (65536 - 4)
+#define	IF_HW_TSOMAX_DEFAULT_FRAG_COUNT 255
+#define	IF_HW_TSOMAX_DEFAULT_FRAG_SIZE 16
+
+#define	IF_HW_TSOMAX_DEFAULT_VALUE()		\
+    IF_HW_TSOMAX_BUILD_VALUE(			\
+    IF_HW_TSOMAX_DEFAULT_BYTES,			\
+    IF_HW_TSOMAX_DEFAULT_FRAG_COUNT,		\
+    IF_HW_TSOMAX_DEFAULT_FRAG_SIZE)
+
+/*
  * Structure defining a network interface.
  *
  * Size ILP32:  592 (approx)
@@ -222,8 +259,7 @@ struct ifnet {
 	if_get_counter_t if_get_counter; /* get counter values */
 
 	/* Stuff that's only temporary and doesn't belong here. */
-	u_int	if_hw_tsomax;		/* tso burst length limit, the minimum
-					 * is (IP_MAXPACKET / 8).
+	u_int	if_hw_tsomax;		/* TSO burst length limits.
 					 * XXXAO: Have to find a better place
 					 * for it eventually. */
 	/*
@@ -608,6 +644,10 @@ void if_setioctlfn(if_t ifp, int (*)(if_t, u_long, caddr_t));
 void if_setstartfn(if_t ifp, void (*)(if_t));
 void if_settransmitfn(if_t ifp, if_transmit_fn_t);
 void if_setqflushfn(if_t ifp, if_qflush_fn_t);
+
+/* "if_hw_tsomax" related functions */
+u_int if_hw_tsomax_common(u_int, u_int);
+u_int if_hw_tsomax_range_check(u_int);
  
 /* Revisit the below. These are inline functions originally */
 int drbr_inuse_drv(if_t ifp, struct buf_ring *br);
