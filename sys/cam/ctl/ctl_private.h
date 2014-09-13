@@ -115,7 +115,9 @@ struct ctl_ioctl_info {
 
 typedef enum {
 	CTL_SER_BLOCK,
+	CTL_SER_BLOCKOPT,
 	CTL_SER_EXTENT,
+	CTL_SER_EXTENTOPT,
 	CTL_SER_PASS,
 	CTL_SER_SKIP
 } ctl_serialize_action;
