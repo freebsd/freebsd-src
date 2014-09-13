@@ -423,52 +423,6 @@ if_grow(void)
 }
 
 /*
- * Compute the least common value of two "if_hw_tsomax" values:
- */
-u_int
-if_hw_tsomax_common(u_int a, u_int b)
-{
-	u_int a_bytes = IF_HW_TSOMAX_GET_BYTES(a);
-	u_int a_frag_count = IF_HW_TSOMAX_GET_FRAG_COUNT(a);
-	u_int a_frag_size = IF_HW_TSOMAX_GET_FRAG_SIZE(a);
-	u_int b_bytes = IF_HW_TSOMAX_GET_BYTES(b);
-	u_int b_frag_count = IF_HW_TSOMAX_GET_FRAG_COUNT(b);
-	u_int b_frag_size = IF_HW_TSOMAX_GET_FRAG_SIZE(b);
-
-	return (IF_HW_TSOMAX_BUILD_VALUE(min(a_bytes, b_bytes),
-	    min(a_frag_count, b_frag_count),
-	    min(a_frag_size, b_frag_size)));
-}
-
-/*
- * Range check the "if_hw_tsomax" value:
- */
-u_int
-if_hw_tsomax_range_check(u_int a)
-{
-	u_int a_bytes = IF_HW_TSOMAX_GET_BYTES(a);
-	u_int a_frag_count = IF_HW_TSOMAX_GET_FRAG_COUNT(a);
-	u_int a_frag_size = IF_HW_TSOMAX_GET_FRAG_SIZE(a);
-
-	/* round down to nearest 4 bytes */
-	a_bytes &= 0xFFFC;
-
-	/* use default, if zero */
-	if (a_bytes == 0)
-		a_bytes = IF_HW_TSOMAX_DEFAULT_BYTES;
-
-	/* use default, if zero */
-	if (a_frag_count == 0)
-		a_frag_count = IF_HW_TSOMAX_DEFAULT_FRAG_COUNT;
-
-	/* use default, if zero */
-	if (a_frag_size == 0)
-		a_frag_size = IF_HW_TSOMAX_DEFAULT_FRAG_SIZE;
-
-	return (IF_HW_TSOMAX_BUILD_VALUE(a_bytes, a_frag_count, a_frag_size));
-}
-
-/*
  * Allocate a struct ifnet and an index for an interface.  A layer 2
  * common structure will also be allocated if an allocation routine is
  * registered for the passed type.
@@ -491,7 +445,6 @@ if_alloc(u_char type)
 	ifp->if_index = idx;
 	ifp->if_type = type;
 	ifp->if_alloctype = type;
-	ifp->if_hw_tsomax = IF_HW_TSOMAX_DEFAULT_VALUE();
 	if (if_com_alloc[type] != NULL) {
 		ifp->if_l2com = if_com_alloc[type](type, ifp);
 		if (ifp->if_l2com == NULL) {
@@ -704,9 +657,16 @@ if_attach_internal(struct ifnet *ifp, int vmove)
 		TAILQ_INSERT_HEAD(&ifp->if_addrhead, ifa, ifa_link);
 		/* Reliably crash if used uninitialized. */
 		ifp->if_broadcastaddr = NULL;
-		/* range check TSO value */
-		ifp->if_hw_tsomax =
-		    if_hw_tsomax_range_check(ifp->if_hw_tsomax);
+
+#if defined(INET) || defined(INET6)
+		/* Initialize to max value. */
+		if (ifp->if_hw_tsomax == 0)
+			ifp->if_hw_tsomax = min(IP_MAXPACKET, 32 * MCLBYTES -
+			    (ETHER_HDR_LEN + ETHER_VLAN_ENCAP_LEN));
+		KASSERT(ifp->if_hw_tsomax <= IP_MAXPACKET &&
+		    ifp->if_hw_tsomax >= IP_MAXPACKET / 8,
+		    ("%s: tsomax outside of range", __func__));
+#endif
 	}
 #ifdef VIMAGE
 	else {
