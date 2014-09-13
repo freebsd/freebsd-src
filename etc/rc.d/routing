@@ -326,20 +326,22 @@ options_inet()
 		${SYSCTL} net.inet.ip.forwarding=0 > /dev/null
 	fi
 
-	if checkyesno forward_sourceroute; then
-		ropts_init inet
-		echo -n ' do source routing=YES'
-		${SYSCTL} net.inet.ip.sourceroute=1 > /dev/null
-	else
-		${SYSCTL} net.inet.ip.sourceroute=0 > /dev/null
-	fi
+	if ! check_jail vnet; then
+		if checkyesno forward_sourceroute; then
+			ropts_init inet
+			echo -n ' do source routing=YES'
+			${SYSCTL} net.inet.ip.sourceroute=1 > /dev/null
+		else
+			${SYSCTL} net.inet.ip.sourceroute=0 > /dev/null
+		fi
 
-	if checkyesno accept_sourceroute; then
-		ropts_init inet
-		echo -n ' accept source routing=YES'
-		${SYSCTL} net.inet.ip.accept_sourceroute=1 > /dev/null
-	else
-		${SYSCTL} net.inet.ip.accept_sourceroute=0 > /dev/null
+		if checkyesno accept_sourceroute; then
+			ropts_init inet
+			echo -n ' accept source routing=YES'
+			${SYSCTL} net.inet.ip.accept_sourceroute=1 > /dev/null
+		else
+			${SYSCTL} net.inet.ip.accept_sourceroute=0 > /dev/null
+		fi
 	fi
 
 	if checkyesno arpproxy_all; then
