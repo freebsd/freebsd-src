@@ -111,7 +111,7 @@ struct arm_gic_softc {
 static struct resource_spec arm_gic_spec[] = {
 	{ SYS_RES_MEMORY,	0,	RF_ACTIVE },	/* Distributor registers */
 	{ SYS_RES_MEMORY,	1,	RF_ACTIVE },	/* CPU Interrupt Intf. registers */
-	{ SYS_RES_IRQ,		0,	RF_ACTIVE }, 	/* Parent interrupt */
+	{ SYS_RES_IRQ,	  0, RF_ACTIVE | RF_OPTIONAL }, /* Parent interrupt */
 	{ -1, 0 }
 };
 
@@ -140,6 +140,7 @@ static void arm_gic_ipi_clear(device_t, int);
 static int
 arm_gic_probe(device_t dev)
 {
+
 	if (!ofw_bus_status_okay(dev))
 		return (ENXIO);
 
@@ -153,33 +154,42 @@ static void
 arm_gic_init_secondary(device_t dev)
 {
 	struct arm_gic_softc *sc = device_get_softc(dev);
-	
-	for (int i = 0; i < sc->nirqs; i += 4)
+	int i;
+
+	for (i = 0; i < sc->nirqs; i += 4)
 		gic_d_write_4(sc, GICD_IPRIORITYR(i >> 2), 0);
 
 	/* Set all the interrupts to be in Group 0 (secure) */
-	for (i = 0; i < nirqs; i += 32) {
-		gic_d_write_4(GICD_IGROUPR(i >> 5), 0);
+	for (i = 0; i < sc->nirqs; i += 32) {
+		gic_d_write_4(sc, GICD_IGROUPR(i >> 5), 0);
 	}
 
 	/* Enable CPU interface */
 	gic_c_write_4(sc, GICC_CTLR, 1);
+
+	/* Set priority mask register. */
+	gic_c_write_4(sc, GICC_PMR, 0xff);
 
 	/* Enable interrupt distribution */
 	gic_d_write_4(sc, GICD_CTLR, 0x01);
 		
 	/* Activate IRQ 29, ie private timer IRQ*/
 	/* Activate IRQ 29-30, ie private timer (secure & non-secure) IRQs */
-	gic_d_write_4(GICD_ISENABLER(29 >> 5), (1UL << (29 & 0x1F)));
-	gic_d_write_4(GICD_ISENABLER(30 >> 5), (1UL << (30 & 0x1F)));
+	gic_d_write_4(sc, GICD_ISENABLER(29 >> 5), (1UL << (29 & 0x1F)));
+	gic_d_write_4(sc, GICD_ISENABLER(30 >> 5), (1UL << (30 & 0x1F)));
 }
 
 static int
 arm_gic_attach(device_t dev)
 {
-	struct		arm_gic_softc *sc = device_get_softc(dev);
+	struct		arm_gic_softc *sc;
 	int		i;
 	uint32_t	icciidr;
+
+	if (arm_gic_sc)
+		return (ENXIO);
+
+	sc = device_get_softc(dev);
 
 	if (bus_alloc_resources(dev, arm_gic_spec, sc->gic_res)) {
 		device_printf(dev, "could not allocate resources\n");
@@ -232,8 +242,8 @@ arm_gic_attach(device_t dev)
 	}
 
 	for (i = 0; i < sc->nirqs; i += 4) {
-		gic_d_write_4(GICD_IPRIORITYR(i >> 2), 0);
-		gic_d_write_4(GICD_ITARGETSR(i >> 2), 1 << 0 | 1 << 8 | 1 << 16 | 1 << 24);
+		gic_d_write_4(sc, GICD_IPRIORITYR(i >> 2),  0);
+		gic_d_write_4(sc, GICD_ITARGETSR(i >> 2), 1 << 0 | 1 << 8 | 1 << 16 | 1 << 24);
 	}
 
 	/* Set all the interrupts to be in Group 0 (secure) */
@@ -267,13 +277,13 @@ arm_gic_intr(void *arg)
 	 * have this information later.
 	 */
 	   
-	if ((active_irq & 0x3ff) < 1)
+	if ((active_irq & 0x3ff) <= GIC_LAST_IPI)
 		gic_c_write_4(sc, GICC_EOIR, active_irq);
 	active_irq &= 0x3FF;
 
 	if (active_irq == 0x3FF) {
 		if (last_irq == -1)
-			printf("Spurious interrupt detected [0x%08x]\n", active_irq);
+			printf("Spurious interrupt detected\n");
 		return (FILTER_HANDLED);
 	}
 	
@@ -354,7 +364,7 @@ arm_gic_mask(device_t dev, int irq)
 	struct arm_gic_softc *sc = device_get_softc(dev);
 
 	gic_d_write_4(sc, GICD_ICENABLER(irq >> 5), (1UL << (irq & 0x1F)));
-	gic_c_write_4(GICC_EOIR, nb);
+	gic_c_write_4(sc, GICC_EOIR, irq);
 }
 
 static void
@@ -362,8 +372,8 @@ arm_gic_unmask(device_t dev, int irq)
 {
 	struct arm_gic_softc *sc = device_get_softc(dev);
 
-	if (nb > GIC_LAST_IPI)
-		arm_irq_memory_barrier(nb);
+	if (irq > GIC_LAST_IPI)
+		arm_irq_memory_barrier(irq);
 
 	gic_d_write_4(sc, GICD_ISENABLER(irq >> 5), (1UL << (irq & 0x1F)));
 }
@@ -429,5 +439,8 @@ static driver_t arm_gic_driver = {
 
 static devclass_t arm_gic_devclass;
 
-DRIVER_MODULE(gic, simplebus, arm_gic_driver, arm_gic_devclass, 0, 0);
+EARLY_DRIVER_MODULE(gic, simplebus, arm_gic_driver, arm_gic_devclass, 0, 0,
+    BUS_PASS_INTERRUPT + BUS_PASS_ORDER_MIDDLE);
+EARLY_DRIVER_MODULE(gic, ofwbus, arm_gic_driver, arm_gic_devclass, 0, 0,
+    BUS_PASS_INTERRUPT + BUS_PASS_ORDER_MIDDLE);
 
