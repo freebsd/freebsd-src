@@ -2074,8 +2074,13 @@ ext2_getpages(struct vop_getpages_args *ap)
 	vm_page_t mreq;
 	int pcount;
 
-	pcount = round_page(ap->a_count) / PAGE_SIZE;
 	mreq = ap->a_m[ap->a_reqpage];
+
+	/*
+	 * Since the caller has busied the requested page, that page's valid
+	 * field will not be changed by other threads.
+	 */
+	vm_page_assert_xbusied(mreq);
 
 	/*
 	 * if ANY DEV_BSIZE blocks are valid on a large filesystem block,
@@ -2083,10 +2088,11 @@ ext2_getpages(struct vop_getpages_args *ap)
 	 * user programs might reference data beyond the actual end of file
 	 * occuring within the page.  We have to zero that data.
 	 */
-	VM_OBJECT_WLOCK(mreq->object);
 	if (mreq->valid) {
+		VM_OBJECT_WLOCK(mreq->object);
 		if (mreq->valid != VM_PAGE_BITS_ALL)
 			vm_page_zero_invalid(mreq, TRUE);
+		pcount = round_page(ap->a_count) / PAGE_SIZE;
 		for (i = 0; i < pcount; i++) {
 			if (i != ap->a_reqpage) {
 				vm_page_lock(ap->a_m[i]);
@@ -2097,7 +2103,6 @@ ext2_getpages(struct vop_getpages_args *ap)
 		VM_OBJECT_WUNLOCK(mreq->object);
 		return VM_PAGER_OK;
 	}
-	VM_OBJECT_WUNLOCK(mreq->object);
 
 	return vnode_pager_generic_getpages(ap->a_vp, ap->a_m,
 					    ap->a_count,
