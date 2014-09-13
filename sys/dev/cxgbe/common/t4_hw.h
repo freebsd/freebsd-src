@@ -33,27 +33,32 @@
 #include "osdep.h"
 
 enum {
-	NCHAN          = 4,     /* # of HW channels */
-	MAX_MTU        = 9600,  /* max MAC MTU, excluding header + FCS */
-	EEPROMSIZE     = 17408, /* Serial EEPROM physical size */
-	EEPROMVSIZE    = 32768, /* Serial EEPROM virtual address space size */
-	EEPROMPFSIZE   = 1024,  /* EEPROM writable area size for PFn, n>0 */
-	RSS_NENTRIES   = 2048,  /* # of entries in RSS mapping table */
-	TCB_SIZE       = 128,   /* TCB size */
-	NMTUS          = 16,    /* size of MTU table */
-	NCCTRL_WIN     = 32,    /* # of congestion control windows */
-	NTX_SCHED      = 8,     /* # of HW Tx scheduling queues */
-	PM_NSTATS      = 5,     /* # of PM stats */
-	MBOX_LEN       = 64,    /* mailbox size in bytes */
-	TRACE_LEN      = 112,   /* length of trace data and mask */
-	FILTER_OPT_LEN = 36,    /* filter tuple width for optional components */
-	NWOL_PAT       = 8,     /* # of WoL patterns */
-	WOL_PAT_LEN    = 128,   /* length of WoL patterns */
+	NCHAN           = 4,     /* # of HW channels */
+	MAX_MTU         = 9600,  /* max MAC MTU, excluding header + FCS */
+	EEPROMSIZE      = 17408, /* Serial EEPROM physical size */
+	EEPROMVSIZE     = 32768, /* Serial EEPROM virtual address space size */
+	EEPROMPFSIZE    = 1024,  /* EEPROM writable area size for PFn, n>0 */
+	RSS_NENTRIES    = 2048,  /* # of entries in RSS mapping table */
+	TCB_SIZE        = 128,   /* TCB size */
+	NMTUS           = 16,    /* size of MTU table */
+	NCCTRL_WIN      = 32,    /* # of congestion control windows */
+	NTX_SCHED       = 8,     /* # of HW Tx scheduling queues */
+	PM_NSTATS       = 5,     /* # of PM stats */
+	MBOX_LEN        = 64,    /* mailbox size in bytes */
+	TRACE_LEN       = 112,   /* length of trace data and mask */
+	FILTER_OPT_LEN  = 36,    /* filter tuple width of optional components */
+	NWOL_PAT        = 8,     /* # of WoL patterns */
+	WOL_PAT_LEN     = 128,   /* length of WoL patterns */
+	UDBS_SEG_SIZE   = 128,   /* Segment size of BAR2 doorbells */
+	UDBS_SEG_SHIFT  = 7,     /* log2(UDBS_SEG_SIZE) */
+	UDBS_DB_OFFSET  = 8,     /* offset of the 4B doorbell in a segment */
+	UDBS_WR_OFFSET  = 64,    /* offset of the work request in a segment */
 };
 
 enum {
 	CIM_NUM_IBQ    = 6,     /* # of CIM IBQs */
 	CIM_NUM_OBQ    = 6,     /* # of CIM OBQs */
+	CIM_NUM_OBQ_T5 = 8,     /* # of CIM OBQs for T5 adapter */
 	CIMLA_SIZE     = 2048,  /* # of 32-bit words in CIM LA */
 	CIM_PIFLA_SIZE = 64,    /* # of 192-bit words in CIM PIF LA */
 	CIM_MALA_SIZE  = 64,    /* # of 160-bit words in CIM MA LA */
@@ -80,6 +85,8 @@ enum {
 	SGE_CTXT_SIZE = 24,       /* size of SGE context */
 	SGE_NTIMERS = 6,          /* # of interrupt holdoff timer values */
 	SGE_NCOUNTERS = 4,        /* # of interrupt packet counter values */
+	SGE_MAX_IQ_SIZE = 65520,
+	SGE_FLBUF_SIZES = 16,
 };
 
 struct sge_qstat {                /* data written to SGE queue status entries */
@@ -221,10 +228,18 @@ enum {
 	 * Location of firmware image in FLASH.
 	 */
 	FLASH_FW_START_SEC = 8,
-	FLASH_FW_NSECS = 8,
+	FLASH_FW_NSECS = 16,
 	FLASH_FW_START = FLASH_START(FLASH_FW_START_SEC),
 	FLASH_FW_MAX_SIZE = FLASH_MAX_SIZE(FLASH_FW_NSECS),
-        
+
+	/*
+	 * Location of bootstrap firmware image in FLASH.
+	 */
+	FLASH_FWBOOTSTRAP_START_SEC = 27,
+	FLASH_FWBOOTSTRAP_NSECS = 1,
+	FLASH_FWBOOTSTRAP_START = FLASH_START(FLASH_FWBOOTSTRAP_START_SEC),
+	FLASH_FWBOOTSTRAP_MAX_SIZE = FLASH_MAX_SIZE(FLASH_FWBOOTSTRAP_NSECS),
+
 	/*
 	 * iSCSI persistent/crash information.
 	 */
@@ -242,18 +257,12 @@ enum {
 	FLASH_FCOE_CRASH_MAX_SIZE = FLASH_MAX_SIZE(FLASH_FCOE_CRASH_NSECS),
 
 	/*
-	 * Location of Firmware Configuration File in FLASH.  Since the FPGA
-	 * "FLASH" is smaller we need to store the Configuration File in a
-	 * different location -- which will overlap the end of the firmware
-	 * image if firmware ever gets that large ...
+	 * Location of Firmware Configuration File in FLASH.
 	 */
 	FLASH_CFG_START_SEC = 31,
 	FLASH_CFG_NSECS = 1,
 	FLASH_CFG_START = FLASH_START(FLASH_CFG_START_SEC),
 	FLASH_CFG_MAX_SIZE = FLASH_MAX_SIZE(FLASH_CFG_NSECS),
-
-	FLASH_FPGA_CFG_START_SEC = 15,
-	FLASH_FPGA_CFG_START = FLASH_START(FLASH_FPGA_CFG_START_SEC),
 
 	/*
 	 * Sectors 32-63 are reserved for FLASH failover.

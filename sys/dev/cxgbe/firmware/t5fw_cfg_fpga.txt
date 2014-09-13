@@ -1,6 +1,6 @@
-# Chelsio T4 Factory Default configuration file.
+# Chelsio T5 Factory Default configuration file.
 #
-# Copyright (C) 2010-2014 Chelsio Communications.  All rights reserved.
+# Copyright (C) 2010-2013 Chelsio Communications.  All rights reserved.
 #
 #   DO NOT MODIFY THIS FILE UNDER ANY CIRCUMSTANCES.  MODIFICATION OF
 #   THIS FILE WILL RESULT IN A NON-FUNCTIONAL T4 ADAPTER AND MAY RESULT
@@ -79,6 +79,13 @@
 	rss_glb_config_mode = basicvirtual
 	rss_glb_config_options = tnlmapen,hashtoeplitz,tnlalllkp
 
+	# PCIE_MA_RSP register
+	pcie_ma_rsp_timervalue = 500	# the timer value in units of us
+	reg[0x59c4] = 0x3/0x3		# enable the timers
+
+	# PL_TIMEOUT register
+	pl_timeout_value = 200		# the timeout value in units of us
+
 	# The following Scatter Gather Engine (SGE) settings assume a 4KB Host
 	# Page Size and a 64B L1 Cache Line Size. It programs the
 	# EgrStatusPageSize and IngPadBoundary to 64B and the PktShift to 2.
@@ -106,26 +113,43 @@
 	reg[0x1060] = 8192		# SGE_FL_BUFFER_SIZE7
 	reg[0x1064] = 16384		# SGE_FL_BUFFER_SIZE8
 	reg[0x10a4] = 0xa000a000/0xf000f000 # SGE_DBFIFO_STATUS
-	reg[0x10a8] = 0x2000/0x2000	# SGE_DOORBELL_CONTROL
+	reg[0x10a8] = 0x402000/0x402000	# SGE_DOORBELL_CONTROL
+
+	# SGE_THROTTLE_CONTROL
+	bar2throttlecount = 500		# bar2throttlecount in us
+
 	sge_timer_value = 5, 10, 20, 50, 100, 200 # SGE_TIMER_VALUE* in usecs
 
-	# enable TP_OUT_CONFIG.IPIDSPLITMODE
-	reg[0x7d04] = 0x00010000/0x00010000
+	
+	reg[0x1124] = 0x00000400/0x00000400 # SGE_CONTROL2, enable VFIFO; if
+					# SGE_VFIFO_SIZE is not set, then
+					# firmware will set it up in function
+					# of number of egress queues used
 
-	reg[0x7dc0] = 0x62f8849		# TP_SHIFT_CNT
+	reg[0x1130] = 0x00d5ffeb	# SGE_DBP_FETCH_THRESHOLD, fetch
+					# threshold set to queue depth
+					# minus 128-entries for FL and HP
+					# queues, and 0xfff for LP which
+					# prompts the firmware to set it up
+					# in function of egress queues
+					# used
 
-	# TP_VLAN_PRI_MAP to select filter tuples
-	# filter tuples : fragmentation, mpshittype, macmatch, ethertype,
-	#		  protocol, tos, vlan, vnic_id, port, fcoe
-	# valid filterModes are described the Terminator 4 Data Book
-	filterMode = fragmentation, mpshittype, protocol, vlan, port, fcoe
+	reg[0x113c] = 0x0002ffc0	# SGE_VFIFO_SIZE, set to 0x2ffc0 which
+					# prompts the firmware to set it up in
+					# function of number of egress queues
+					# used 
 
-	# filter tuples enforced in LE active region (equal to or subset of filterMode)
-	filterMask = protocol, fcoe
+	reg[0x7dc0] = 0x062f8849	# TP_SHIFT_CNT
+
+	# Selection of tuples for LE filter lookup, fields (and widths which
+	# must sum to <= 36): { IP Fragment (1), MPS Match Type (3),
+	# IP Protocol (8), [Inner] VLAN (17), Port (3), FCoE (1) }
+	#
+	filterMode = fragmentation, mpshittype, protocol, vlan, port, fcoe, srvrsram
 
 	# Percentage of dynamic memory (in either the EDRAM or external MEM)
 	# to use for TP RX payload
-	tp_pmrx = 34 
+	tp_pmrx = 30
 
 	# TP RX payload page size
 	tp_pmrx_pagesize = 64K
@@ -135,7 +159,7 @@
 
 	# Percentage of dynamic memory (in either the EDRAM or external MEM)
 	# to use for TP TX payload
-	tp_pmtx = 32
+	tp_pmtx = 50
 
 	# TP TX payload page size
 	tp_pmtx_pagesize = 64K
@@ -143,8 +167,7 @@
 	# TP number of TX channels
 	tp_ntxch = 0		# 0 (auto) = equal number of ports
 
-	# TP OFLD MTUs
-	tp_mtus = 88, 256, 512, 576, 808, 1024, 1280, 1488, 1500, 2002, 2048, 4096, 4352, 8192, 9000, 9600
+	reg[0x19c04] = 0x00400000/0x00400000 # LE Server SRAM Enable
 
 # Some "definitions" to make the rest of this a bit more readable.  We support
 # 4 ports, 3 functions (NIC, FCoE and iSCSI), scaling up to 8 "CPU Queue Sets"
@@ -298,53 +321,6 @@
 # Sets" for ports 0-3.  The FCoE and iSCSI functions for such OSes will be
 # managed on the "storage PFs" (see below).
 #
-[function "0"]
-	nvf = 16		# NVF on this function
-	wx_caps = all		# write/execute permissions for all commands
-	r_caps = all		# read permissions for all commands
-	nvi = 1			# 1 port
-	niqflint = 8		# NCPUS "Queue Sets"
-	nethctrl = 8		# NCPUS "Queue Sets"
-	neq = 16		# niqflint + nethctrl Egress Queues
-	nexactf = 8		# number of exact MPSTCAM MAC filters
-	cmask = all		# access to all channels
-	pmask = 0x1		# access to only one port
-
-[function "1"]
-	nvf = 16		# NVF on this function
-	wx_caps = all		# write/execute permissions for all commands
-	r_caps = all		# read permissions for all commands
-	nvi = 1			# 1 port
-	niqflint = 8		# NCPUS "Queue Sets"
-	nethctrl = 8		# NCPUS "Queue Sets"
-	neq = 16		# niqflint + nethctrl Egress Queues
-	nexactf = 8		# number of exact MPSTCAM MAC filters
-	cmask = all		# access to all channels
-	pmask = 0x2		# access to only one port
-
-[function "2"]
-	nvf = 16		# NVF on this function
-	wx_caps = all		# write/execute permissions for all commands
-	r_caps = all		# read permissions for all commands
-	nvi = 1			# 1 port
-	niqflint = 8		# NCPUS "Queue Sets"
-	nethctrl = 8		# NCPUS "Queue Sets"
-	neq = 16		# niqflint + nethctrl Egress Queues
-	nexactf = 8		# number of exact MPSTCAM MAC filters
-	cmask = all		# access to all channels
-	pmask = 0x4		# access to only one port
-
-[function "3"]
-	nvf = 16		# NVF on this function
-	wx_caps = all		# write/execute permissions for all commands
-	r_caps = all		# read permissions for all commands
-	nvi = 1			# 1 port
-	niqflint = 8		# NCPUS "Queue Sets"
-	nethctrl = 8		# NCPUS "Queue Sets"
-	neq = 16		# niqflint + nethctrl Egress Queues
-	nexactf = 8		# number of exact MPSTCAM MAC filters
-	cmask = all		# access to all channels
-	pmask = 0x8		# access to only one port
 
 # Some OS Drivers manage all application functions for all ports via PF4.
 # Thus we need to provide a large number of resources here.  For Egress
@@ -352,55 +328,34 @@
 # (because the host is responsible for producing Free List Buffers for the
 # hardware to consume).
 #
-[function "4"]
+[function "0"]
 	wx_caps = all		# write/execute permissions for all commands
 	r_caps = all		# read permissions for all commands
 	nvi = 28		# NVI_UNIFIED
 	niqflint = 170		# NFLIQ_UNIFIED + NLFIQ_WD
-	nethctrl = 100		# NETHCTRL_UNIFIED + NETHCTRL_WD
-	neq = 256		# NEQ_UNIFIED + NEQ_WD
+	nethctrl = 96 		# NETHCTRL_UNIFIED + NETHCTRL_WD
+	neq = 252		# NEQ_UNIFIED + NEQ_WD
 	nexactf = 40		# NMPSTCAM_UNIFIED
 	cmask = all		# access to all channels
 	pmask = all		# access to all four ports ...
-	nethofld = 1024		# number of user mode ethernet flow contexts
 	nroute = 32		# number of routing region entries
 	nclip = 32		# number of clip region entries
-	nfilter = 496		# number of filter region entries
-	nserver = 496		# number of server region entries
-	nhash = 12288		# number of hash region entries
+	nfilter = 48		# number of filter region entries
+	nserver = 32		# number of server region entries
+	nhash = 2048		# number of hash region entries
 	protocol = nic_vm, ofld, rddp, rdmac, iscsi_initiator_pdu, iscsi_target_pdu
 	tp_l2t = 3072
-	tp_ddp = 3
+	tp_ddp = 2
 	tp_ddp_iscsi = 2
-	tp_stag = 3
-	tp_pbl = 10
-	tp_rq = 13
+	tp_stag = 2
+	tp_pbl = 5
+	tp_rq = 7
 
 # We have FCoE and iSCSI storage functions on PF5 and PF6 each of which may
 # need to have Virtual Interfaces on each of the four ports with up to NCPUS
 # "Queue Sets" each.
 #
-[function "5"]
-	wx_caps = all		# write/execute permissions for all commands
-	r_caps = all		# read permissions for all commands
-	nvi = 4			# NPORTS
-	niqflint = 34		# NPORTS*NCPUS + NMSIX_EXTRA
-	nethctrl = 32		# NPORTS*NCPUS
-	neq = 64		# NPORTS*NCPUS * 2 (FL, ETHCTRL/TX)
-	nexactf = 4		# NPORTS
-	cmask = all		# access to all channels
-	pmask = all		# access to all four ports ...
-	nserver = 16
-	nhash = 2048
-	tp_l2t = 1024
-	protocol = iscsi_initiator_fofld
-	tp_ddp_iscsi = 2
-	iscsi_ntask = 2048
-	iscsi_nsess = 2048
-	iscsi_nconn_per_session = 1
-	iscsi_ninitiator_instance = 64
-
-[function "6"]
+[function "1"]
 	wx_caps = all		# write/execute permissions for all commands
 	r_caps = all		# read permissions for all commands
 	nvi = 4			# NPORTS
@@ -414,7 +369,7 @@
 	pmask = all		# access to all four ports ...
 	nhash = 2048
 	protocol = fcoe_initiator
-	tp_ddp = 1
+	tp_ddp = 2
 	fcoe_nfcf = 16
 	fcoe_nvnp = 32
 	fcoe_nssn = 1024
@@ -460,28 +415,6 @@
 	cmask = all		# access to all channels
 	pmask = 0x2		# access to only one port ...
 
-[function "2/*"]		# NVF
-	wx_caps = 0x82		# DMAQ | VF
-	r_caps = 0x86		# DMAQ | VF | PORT
-	nvi = 1			# 1 port
-	niqflint = 4		# 2 "Queue Sets" + NXIQ
-	nethctrl = 2		# 2 "Queue Sets"
-	neq = 4			# 2 "Queue Sets" * 2
-	nexactf = 4
-	cmask = all		# access to all channels
-	pmask = 0x4		# access to only one port ...
-
-[function "3/*"]		# NVF
-	wx_caps = 0x82		# DMAQ | VF
-	r_caps = 0x86		# DMAQ | VF | PORT
-	nvi = 1			# 1 port
-	niqflint = 4		# 2 "Queue Sets" + NXIQ
-	nethctrl = 2		# 2 "Queue Sets"
-	neq = 4			# 2 "Queue Sets" * 2
-	nexactf = 4
-	cmask = all		# access to all channels
-	pmask = 0x8		# access to only one port ...
-
 # MPS features a 196608 bytes ingress buffer that is used for ingress buffering
 # for packets from the wire as well as the loopback path of the L2 switch. The
 # folling params control how the buffer memory is distributed and the L2 flow
@@ -496,8 +429,6 @@
 # dwm:		minimum delta between high and low watermark (in units of 100
 #		Bytes)
 #
-#
-
 [port "0"]
 	dcb = ppp, dcbx		# configure for DCB PPP and enable DCBX offload
 	bg_mem = 25
@@ -505,9 +436,6 @@
 	hwm = 30
 	lwm = 15
 	dwm = 30
-	dcb_app_tlv[0] = 0x8906, ethertype, 3
-	dcb_app_tlv[1] = 0x8914, ethertype, 3
-	dcb_app_tlv[2] = 3260, socketnum, 5
 
 [port "1"]
 	dcb = ppp, dcbx
@@ -516,9 +444,6 @@
 	hwm = 30
 	lwm = 15
 	dwm = 30
-	dcb_app_tlv[0] = 0x8906, ethertype, 3
-	dcb_app_tlv[1] = 0x8914, ethertype, 3
-	dcb_app_tlv[2] = 3260, socketnum, 5
 
 [port "2"]
 	dcb = ppp, dcbx
@@ -527,9 +452,6 @@
 	hwm = 30
 	lwm = 15
 	dwm = 30
-	dcb_app_tlv[0] = 0x8906, ethertype, 3
-	dcb_app_tlv[1] = 0x8914, ethertype, 3
-	dcb_app_tlv[2] = 3260, socketnum, 5
 
 [port "3"]
 	dcb = ppp, dcbx
@@ -538,13 +460,10 @@
 	hwm = 30
 	lwm = 15
 	dwm = 30
-	dcb_app_tlv[0] = 0x8906, ethertype, 3
-	dcb_app_tlv[1] = 0x8914, ethertype, 3
-	dcb_app_tlv[2] = 3260, socketnum, 5
 
 [fini]
-	version = 0x14250012
-	checksum = 0xd9ae0325
+	version = 0x1425000d
+	checksum = 0xe56cb999
 
 # Total resources used by above allocations:
 #   Virtual Interfaces: 104

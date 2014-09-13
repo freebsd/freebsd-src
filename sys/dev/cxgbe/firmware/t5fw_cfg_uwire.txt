@@ -1,4 +1,4 @@
-# Chelsio T4 Factory Default configuration file.
+# Chelsio T5 Factory Default configuration file.
 #
 # Copyright (C) 2010-2014 Chelsio Communications.  All rights reserved.
 #
@@ -79,6 +79,9 @@
 	rss_glb_config_mode = basicvirtual
 	rss_glb_config_options = tnlmapen,hashtoeplitz,tnlalllkp
 
+	# PL_TIMEOUT register
+	pl_timeout_value = 200		# the timeout value in units of us
+
 	# The following Scatter Gather Engine (SGE) settings assume a 4KB Host
 	# Page Size and a 64B L1 Cache Line Size. It programs the
 	# EgrStatusPageSize and IngPadBoundary to 64B and the PktShift to 2.
@@ -106,26 +109,51 @@
 	reg[0x1060] = 8192		# SGE_FL_BUFFER_SIZE7
 	reg[0x1064] = 16384		# SGE_FL_BUFFER_SIZE8
 	reg[0x10a4] = 0xa000a000/0xf000f000 # SGE_DBFIFO_STATUS
-	reg[0x10a8] = 0x2000/0x2000	# SGE_DOORBELL_CONTROL
+	reg[0x10a8] = 0x402000/0x402000	# SGE_DOORBELL_CONTROL
+
+	# SGE_THROTTLE_CONTROL
+	bar2throttlecount = 500		# bar2throttlecount in us
+
 	sge_timer_value = 5, 10, 20, 50, 100, 200 # SGE_TIMER_VALUE* in usecs
+
+	
+	reg[0x1124] = 0x00000400/0x00000400 # SGE_CONTROL2, enable VFIFO; if
+					# SGE_VFIFO_SIZE is not set, then
+					# firmware will set it up in function
+					# of number of egress queues used
+
+	reg[0x1130] = 0x00d5ffeb	# SGE_DBP_FETCH_THRESHOLD, fetch
+					# threshold set to queue depth
+					# minus 128-entries for FL and HP
+					# queues, and 0xfff for LP which
+					# prompts the firmware to set it up
+					# in function of egress queues
+					# used
+
+	reg[0x113c] = 0x0002ffc0	# SGE_VFIFO_SIZE, set to 0x2ffc0 which
+					# prompts the firmware to set it up in
+					# function of number of egress queues
+					# used 
 
 	# enable TP_OUT_CONFIG.IPIDSPLITMODE
 	reg[0x7d04] = 0x00010000/0x00010000
 
-	reg[0x7dc0] = 0x62f8849		# TP_SHIFT_CNT
+	reg[0x7dc0] = 0x062f8849	# TP_SHIFT_CNT
 
-	# TP_VLAN_PRI_MAP to select filter tuples
+	# TP_VLAN_PRI_MAP to select filter tuples and enable ServerSram
+	# filter control: compact, fcoemask
+	# server sram   : srvrsram
 	# filter tuples : fragmentation, mpshittype, macmatch, ethertype,
 	#		  protocol, tos, vlan, vnic_id, port, fcoe
-	# valid filterModes are described the Terminator 4 Data Book
-	filterMode = fragmentation, mpshittype, protocol, vlan, port, fcoe
+	# valid filterModes are described the Terminator 5 Data Book
+	filterMode = srvrsram, fragmentation, mpshittype, protocol, vlan, port, fcoe
 
 	# filter tuples enforced in LE active region (equal to or subset of filterMode)
 	filterMask = protocol, fcoe
 
 	# Percentage of dynamic memory (in either the EDRAM or external MEM)
 	# to use for TP RX payload
-	tp_pmrx = 34 
+	tp_pmrx = 30
 
 	# TP RX payload page size
 	tp_pmrx_pagesize = 64K
@@ -135,7 +163,7 @@
 
 	# Percentage of dynamic memory (in either the EDRAM or external MEM)
 	# to use for TP TX payload
-	tp_pmtx = 32
+	tp_pmtx = 50
 
 	# TP TX payload page size
 	tp_pmtx_pagesize = 64K
@@ -145,6 +173,22 @@
 
 	# TP OFLD MTUs
 	tp_mtus = 88, 256, 512, 576, 808, 1024, 1280, 1488, 1500, 2002, 2048, 4096, 4352, 8192, 9000, 9600
+
+	# TP_GLOBAL_CONFIG
+	reg[0x7d08] = 0x00000800/0x00000800 # set IssFromCplEnable
+
+	# TP_PC_CONFIG
+	reg[0x7d48] = 0x00000000/0x00000400 # clear EnableFLMError
+
+	# TP_PARA_REG0
+	reg[0x7d60] = 0x06000000/0x07000000 # set InitCWND to 6
+
+	# LE_DB_CONFIG
+	reg[0x19c04] = 0x00400000/0x00400000 # LE Server SRAM Enable
+
+	# MC configuration
+	mc_mode_brc[0] = 1		# mc0 - 1: enable BRC, 0: enable RBC
+	mc_mode_brc[1] = 1		# mc1 - 1: enable BRC, 0: enable RBC
 
 # Some "definitions" to make the rest of this a bit more readable.  We support
 # 4 ports, 3 functions (NIC, FCoE and iSCSI), scaling up to 8 "CPU Queue Sets"
@@ -370,11 +414,11 @@
 	nhash = 12288		# number of hash region entries
 	protocol = nic_vm, ofld, rddp, rdmac, iscsi_initiator_pdu, iscsi_target_pdu
 	tp_l2t = 3072
-	tp_ddp = 3
+	tp_ddp = 2
 	tp_ddp_iscsi = 2
-	tp_stag = 3
-	tp_pbl = 10
-	tp_rq = 13
+	tp_stag = 2
+	tp_pbl = 5
+	tp_rq = 7
 
 # We have FCoE and iSCSI storage functions on PF5 and PF6 each of which may
 # need to have Virtual Interfaces on each of the four ports with up to NCPUS
@@ -392,7 +436,7 @@
 	pmask = all		# access to all four ports ...
 	nserver = 16
 	nhash = 2048
-	tp_l2t = 1024
+	tp_l2t = 1020
 	protocol = iscsi_initiator_fofld
 	tp_ddp_iscsi = 2
 	iscsi_ntask = 2048
@@ -413,8 +457,9 @@
 	cmask = all		# access to all channels
 	pmask = all		# access to all four ports ...
 	nhash = 2048
+	tp_l2t = 4
 	protocol = fcoe_initiator
-	tp_ddp = 1
+	tp_ddp = 2
 	fcoe_nfcf = 16
 	fcoe_nvnp = 32
 	fcoe_nssn = 1024
@@ -496,8 +541,6 @@
 # dwm:		minimum delta between high and low watermark (in units of 100
 #		Bytes)
 #
-#
-
 [port "0"]
 	dcb = ppp, dcbx		# configure for DCB PPP and enable DCBX offload
 	bg_mem = 25
@@ -543,8 +586,8 @@
 	dcb_app_tlv[2] = 3260, socketnum, 5
 
 [fini]
-	version = 0x14250012
-	checksum = 0xd9ae0325
+	version = 0x14250016
+	checksum = 0x5d740273
 
 # Total resources used by above allocations:
 #   Virtual Interfaces: 104

@@ -3,6 +3,7 @@
 #
 
 SUBDIR = if_cxgbe
-SUBDIR+= firmware
+SUBDIR+= t4_firmware
+SUBDIR+= t5_firmware
 
 .include <bsd.subdir.mk>

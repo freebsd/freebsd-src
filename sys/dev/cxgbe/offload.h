@@ -59,8 +59,8 @@ struct listen_ctx;
 
 struct stid_region {
 	TAILQ_ENTRY(stid_region) link;
-	int used;	/* # of stids used by this region */
-	int free;	/* # of contiguous stids free right after this region */
+	u_int used;	/* # of stids used by this region */
+	u_int free;	/* # of contiguous stids free right after this region */
 };
 
 /*
@@ -101,6 +101,11 @@ struct tid_info {
 	u_int nftids;
 	u_int ftid_base;
 	u_int ftids_in_use;
+
+	struct mtx etid_lock __aligned(CACHE_LINE_SIZE);
+	struct etid_entry *etid_tab;
+	u_int netids;
+	u_int etid_base;
 };
 
 struct t4_range {
@@ -140,6 +145,7 @@ struct tom_tunables {
 	int ddp;
 	int indsz;
 	int ddp_thres;
+	int rx_coalesce;
 };
 
 int t4_register_uld(struct uld_info *);
