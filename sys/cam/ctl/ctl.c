@@ -390,7 +390,7 @@ static int ctl_inquiry_evpd_bdc(struct ctl_scsiio *ctsio, int alloc_len);
 static int ctl_inquiry_evpd_lbp(struct ctl_scsiio *ctsio, int alloc_len);
 static int ctl_inquiry_evpd(struct ctl_scsiio *ctsio);
 static int ctl_inquiry_std(struct ctl_scsiio *ctsio);
-static int ctl_get_lba_len(union ctl_io *io, uint64_t *lba, uint32_t *len);
+static int ctl_get_lba_len(union ctl_io *io, uint64_t *lba, uint64_t *len);
 static ctl_action ctl_extent_check(union ctl_io *io1, union ctl_io *io2);
 static ctl_action ctl_check_for_blockage(union ctl_io *pending_io,
 					 union ctl_io *ooa_io);
@@ -5259,6 +5259,8 @@ ctl_data_submit_done(union ctl_io *io)
 void
 ctl_config_write_done(union ctl_io *io)
 {
+	uint8_t *buf;
+
 	/*
 	 * If the IO_CONT flag is set, we need to call the supplied
 	 * function to continue processing the I/O, instead of completing
@@ -5278,9 +5280,13 @@ ctl_config_write_done(union ctl_io *io)
 	 * have data allocated, like write buffer, and commands that have
 	 * no data, like start/stop unit, we need to check here.
 	 */
-	if ((io->io_hdr.flags & CTL_FLAG_DATA_MASK) == CTL_FLAG_DATA_OUT)
-		free(io->scsiio.kern_data_ptr, M_CTL);
+	if (io->io_hdr.flags & CTL_FLAG_ALLOCATED)
+		buf = io->scsiio.kern_data_ptr;
+	else
+		buf = NULL;
 	ctl_done(io);
+	if (buf)
+		free(buf, M_CTL);
 }
 
 /*
@@ -6041,7 +6047,7 @@ ctl_unmap(struct ctl_scsiio *ctsio)
 	struct scsi_unmap *cdb;
 	struct ctl_ptr_len_flags *ptrlen;
 	struct scsi_unmap_header *hdr;
-	struct scsi_unmap_desc *buf, *end;
+	struct scsi_unmap_desc *buf, *end, *range;
 	uint64_t lba;
 	uint32_t num_blocks;
 	int len, retval;
@@ -6094,14 +6100,9 @@ ctl_unmap(struct ctl_scsiio *ctsio)
 	buf = (struct scsi_unmap_desc *)(hdr + 1);
 	end = buf + len / sizeof(*buf);
 
-	ptrlen = (struct ctl_ptr_len_flags *)&ctsio->io_hdr.ctl_private[CTL_PRIV_LBA_LEN];
-	ptrlen->ptr = (void *)buf;
-	ptrlen->len = len;
-	ptrlen->flags = byte2;
-
-	for (; buf < end; buf++) {
-		lba = scsi_8btou64(buf->lba);
-		num_blocks = scsi_4btoul(buf->length);
+	for (range = buf; range < end; range++) {
+		lba = scsi_8btou64(range->lba);
+		num_blocks = scsi_4btoul(range->length);
 		if (((lba + num_blocks) > (lun->be_lun->maxlba + 1))
 		 || ((lba + num_blocks) < lba)) {
 			ctl_set_lba_out_of_range(ctsio);
@@ -6110,8 +6111,16 @@ ctl_unmap(struct ctl_scsiio *ctsio)
 		}
 	}
 
-	retval = lun->backend->config_write((union ctl_io *)ctsio);
+	mtx_lock(&lun->lun_lock);
+	ptrlen = (struct ctl_ptr_len_flags *)
+	    &ctsio->io_hdr.ctl_private[CTL_PRIV_LBA_LEN];
+	ptrlen->ptr = (void *)buf;
+	ptrlen->len = len;
+	ptrlen->flags = byte2;
+	ctl_check_blocked(lun);
+	mtx_unlock(&lun->lun_lock);
 
+	retval = lun->backend->config_write((union ctl_io *)ctsio);
 	return (retval);
 }
 
@@ -10795,7 +10804,7 @@ ctl_inquiry(struct ctl_scsiio *ctsio)
  * For known CDB types, parse the LBA and length.
  */
 static int
-ctl_get_lba_len(union ctl_io *io, uint64_t *lba, uint32_t *len)
+ctl_get_lba_len(union ctl_io *io, uint64_t *lba, uint64_t *len)
 {
 	if (io->io_hdr.io_type != CTL_IO_SCSI)
 		return (1);
@@ -10925,6 +10934,11 @@ ctl_get_lba_len(union ctl_io *io, uint64_t *lba, uint32_t *len)
 		*len = scsi_4btoul(cdb->length);
 		break;
 	}
+	case UNMAP: {
+		*lba = 0;
+		*len = UINT64_MAX;
+		break;
+	}
 	default:
 		return (1);
 		break; /* NOTREACHED */
@@ -10934,7 +10948,7 @@ ctl_get_lba_len(union ctl_io *io, uint64_t *lba, uint32_t *len)
 }
 
 static ctl_action
-ctl_extent_check_lba(uint64_t lba1, uint32_t len1, uint64_t lba2, uint32_t len2)
+ctl_extent_check_lba(uint64_t lba1, uint64_t len1, uint64_t lba2, uint64_t len2)
 {
 	uint64_t endlba1, endlba2;
 
@@ -10948,19 +10962,53 @@ ctl_extent_check_lba(uint64_t lba1, uint32_t len1, uint64_t lba2, uint32_t len2)
 		return (CTL_ACTION_BLOCK);
 }
 
+static int
+ctl_extent_check_unmap(union ctl_io *io, uint64_t lba2, uint64_t len2)
+{
+	struct ctl_ptr_len_flags *ptrlen;
+	struct scsi_unmap_desc *buf, *end, *range;
+	uint64_t lba;
+	uint32_t len;
+
+	/* If not UNMAP -- go other way. */
+	if (io->io_hdr.io_type != CTL_IO_SCSI ||
+	    io->scsiio.cdb[0] != UNMAP)
+		return (CTL_ACTION_ERROR);
+
+	/* If UNMAP without data -- block and wait for data. */
+	ptrlen = (struct ctl_ptr_len_flags *)
+	    &io->io_hdr.ctl_private[CTL_PRIV_LBA_LEN];
+	if ((io->io_hdr.flags & CTL_FLAG_ALLOCATED) == 0 ||
+	    ptrlen->ptr == NULL)
+		return (CTL_ACTION_BLOCK);
+
+	/* UNMAP with data -- check for collision. */
+	buf = (struct scsi_unmap_desc *)ptrlen->ptr;
+	end = buf + ptrlen->len / sizeof(*buf);
+	for (range = buf; range < end; range++) {
+		lba = scsi_8btou64(range->lba);
+		len = scsi_4btoul(range->length);
+		if ((lba < lba2 + len2) && (lba + len > lba2))
+			return (CTL_ACTION_BLOCK);
+	}
+	return (CTL_ACTION_PASS);
+}
+
 static ctl_action
 ctl_extent_check(union ctl_io *io1, union ctl_io *io2)
 {
 	uint64_t lba1, lba2;
-	uint32_t len1, len2;
+	uint64_t len1, len2;
 	int retval;
 
-	retval = ctl_get_lba_len(io1, &lba1, &len1);
-	if (retval != 0)
+	if (ctl_get_lba_len(io1, &lba1, &len1) != 0)
 		return (CTL_ACTION_ERROR);
 
-	retval = ctl_get_lba_len(io2, &lba2, &len2);
-	if (retval != 0)
+	retval = ctl_extent_check_unmap(io2, lba1, len1);
+	if (retval != CTL_ACTION_ERROR)
+		return (retval);
+
+	if (ctl_get_lba_len(io2, &lba2, &len2) != 0)
 		return (CTL_ACTION_ERROR);
 
 	return (ctl_extent_check_lba(lba1, len1, lba2, len2));
@@ -12571,7 +12619,7 @@ ctl_cmd_pattern_match(struct ctl_scsiio *ctsio, struct ctl_error_desc *desc)
 	 */
 	if (filtered_pattern & CTL_LUN_PAT_RANGE) {
 		uint64_t lba1;
-		uint32_t len1;
+		uint64_t len1;
 		ctl_action action;
 		int retval;
 
