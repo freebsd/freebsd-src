@@ -252,7 +252,8 @@ if [ ! -z "$BSDINSTALL_FETCHDEST" ]; then
 fi
 
 dialog --backtitle "FreeBSD Installer" --title "Manual Configuration" \
-    --yesno "The installation is now finished. Before exiting the installer, would you like to open a shell in the new system to make any final manual modifications?" 0 0
+    --default-button no --yesno \
+   "The installation is now finished. Before exiting the installer, would you like to open a shell in the new system to make any final manual modifications?" 0 0
 if [ $? -eq 0 ]; then
 	clear
 	mount -t devfs devfs "$BSDINSTALL_CHROOT/dev"
