@@ -280,7 +280,7 @@ static struct scsi_control_page control_page_default = {
 	/*page_code*/SMS_CONTROL_MODE_PAGE,
 	/*page_length*/sizeof(struct scsi_control_page) - 2,
 	/*rlec*/0,
-	/*queue_flags*/0,
+	/*queue_flags*/SCP_QUEUE_ALG_RESTRICTED,
 	/*eca_and_aen*/0,
 	/*flags4*/SCP_TAS,
 	/*aen_holdoff_period*/{0, 0},
@@ -292,7 +292,7 @@ static struct scsi_control_page control_page_changeable = {
 	/*page_code*/SMS_CONTROL_MODE_PAGE,
 	/*page_length*/sizeof(struct scsi_control_page) - 2,
 	/*rlec*/SCP_DSENSE,
-	/*queue_flags*/0,
+	/*queue_flags*/SCP_QUEUE_ALG_MASK,
 	/*eca_and_aen*/0,
 	/*flags4*/0,
 	/*aen_holdoff_period*/{0, 0},
@@ -392,8 +392,8 @@ static int ctl_inquiry_evpd(struct ctl_scsiio *ctsio);
 static int ctl_inquiry_std(struct ctl_scsiio *ctsio);
 static int ctl_get_lba_len(union ctl_io *io, uint64_t *lba, uint64_t *len);
 static ctl_action ctl_extent_check(union ctl_io *io1, union ctl_io *io2);
-static ctl_action ctl_check_for_blockage(union ctl_io *pending_io,
-					 union ctl_io *ooa_io);
+static ctl_action ctl_check_for_blockage(struct ctl_lun *lun,
+    union ctl_io *pending_io, union ctl_io *ooa_io);
 static ctl_action ctl_check_ooa(struct ctl_lun *lun, union ctl_io *pending_io,
 				union ctl_io *starting_io);
 static int ctl_check_blocked(struct ctl_lun *lun);
@@ -4275,26 +4275,30 @@ ctl_init_page_index(struct ctl_lun *lun)
 			break;
 		}
 		case SMS_CONTROL_MODE_PAGE: {
+			struct scsi_control_page *control_page;
 
 			if (page_index->subpage != SMS_SUBPAGE_PAGE_0)
 				panic("invalid subpage value %d",
 				      page_index->subpage);
 
-			/*
-			 * Defaults should be okay here, no calculations
-			 * needed.
-			 */
-			memcpy(&lun->mode_pages.control_page[CTL_PAGE_CURRENT],
+			memcpy(&lun->mode_pages.control_page[CTL_PAGE_DEFAULT],
 			       &control_page_default,
 			       sizeof(control_page_default));
 			memcpy(&lun->mode_pages.control_page[
 			       CTL_PAGE_CHANGEABLE], &control_page_changeable,
 			       sizeof(control_page_changeable));
-			memcpy(&lun->mode_pages.control_page[CTL_PAGE_DEFAULT],
-			       &control_page_default,
-			       sizeof(control_page_default));
 			memcpy(&lun->mode_pages.control_page[CTL_PAGE_SAVED],
 			       &control_page_default,
+			       sizeof(control_page_default));
+			control_page = &lun->mode_pages.control_page[
+			    CTL_PAGE_SAVED];
+			value = ctl_get_opt(&lun->be_lun->options, "reordering");
+			if (value != NULL && strcmp(value, "unrestricted") == 0) {
+				control_page->queue_flags &= ~SCP_QUEUE_ALG_MASK;
+				control_page->queue_flags |= SCP_QUEUE_ALG_UNRESTRICTED;
+			}
+			memcpy(&lun->mode_pages.control_page[CTL_PAGE_CURRENT],
+			       &lun->mode_pages.control_page[CTL_PAGE_SAVED],
 			       sizeof(control_page_default));
 			page_index->page_data =
 				(uint8_t *)lun->mode_pages.control_page;
@@ -6189,65 +6193,13 @@ ctl_control_page_handler(struct ctl_scsiio *ctsio,
 		lun->flags &= ~CTL_LUN_SENSE_DESC;
 		set_ua = 1;
 	}
-	if (current_cp->queue_flags & SCP_QUEUE_DQUE) {
-		if (user_cp->queue_flags & SCP_QUEUE_DQUE) {
-#ifdef NEEDTOPORT
-			csevent_log(CSC_CTL | CSC_SHELF_SW |
-				    CTL_UNTAG_TO_UNTAG,
-				    csevent_LogType_Trace,
-				    csevent_Severity_Information,
-				    csevent_AlertLevel_Green,
-				    csevent_FRU_Firmware,
-				    csevent_FRU_Unknown,
-				    "Received untagged to untagged transition");
-#endif /* NEEDTOPORT */
-		} else {
-#ifdef NEEDTOPORT
-			csevent_log(CSC_CTL | CSC_SHELF_SW |
-				    CTL_UNTAG_TO_TAG,
-				    csevent_LogType_ConfigChange,
-				    csevent_Severity_Information,
-				    csevent_AlertLevel_Green,
-				    csevent_FRU_Firmware,
-				    csevent_FRU_Unknown,
-				    "Received untagged to tagged "
-				    "queueing transition");
-#endif /* NEEDTOPORT */
-
-			current_cp->queue_flags &= ~SCP_QUEUE_DQUE;
-			saved_cp->queue_flags &= ~SCP_QUEUE_DQUE;
-			set_ua = 1;
-		}
-	} else {
-		if (user_cp->queue_flags & SCP_QUEUE_DQUE) {
-#ifdef NEEDTOPORT
-			csevent_log(CSC_CTL | CSC_SHELF_SW |
-				    CTL_TAG_TO_UNTAG,
-				    csevent_LogType_ConfigChange,
-				    csevent_Severity_Warning,
-				    csevent_AlertLevel_Yellow,
-				    csevent_FRU_Firmware,
-				    csevent_FRU_Unknown,
-				    "Received tagged queueing to untagged "
-				    "transition");
-#endif /* NEEDTOPORT */
-
-			current_cp->queue_flags |= SCP_QUEUE_DQUE;
-			saved_cp->queue_flags |= SCP_QUEUE_DQUE;
-			set_ua = 1;
-		} else {
-#ifdef NEEDTOPORT
-			csevent_log(CSC_CTL | CSC_SHELF_SW |
-				    CTL_TAG_TO_TAG,
-				    csevent_LogType_Trace,
-				    csevent_Severity_Information,
-				    csevent_AlertLevel_Green,
-				    csevent_FRU_Firmware,
-				    csevent_FRU_Unknown,
-				    "Received tagged queueing to tagged "
-				    "queueing transition");
-#endif /* NEEDTOPORT */
-		}
+	if ((current_cp->queue_flags & SCP_QUEUE_ALG_MASK) !=
+	    (user_cp->queue_flags & SCP_QUEUE_ALG_MASK)) {
+		current_cp->queue_flags &= ~SCP_QUEUE_ALG_MASK;
+		current_cp->queue_flags |= user_cp->queue_flags & SCP_QUEUE_ALG_MASK;
+		saved_cp->queue_flags &= ~SCP_QUEUE_ALG_MASK;
+		saved_cp->queue_flags |= user_cp->queue_flags & SCP_QUEUE_ALG_MASK;
+		set_ua = 1;
 	}
 	if (set_ua != 0) {
 		int i;
@@ -6290,12 +6242,13 @@ ctl_caching_sp_handler(struct ctl_scsiio *ctsio,
 
 	mtx_lock(&lun->lun_lock);
 	if ((current_cp->flags1 & (SCP_WCE | SCP_RCD)) !=
-	    (user_cp->flags1 & (SCP_WCE | SCP_RCD)))
+	    (user_cp->flags1 & (SCP_WCE | SCP_RCD))) {
+		current_cp->flags1 &= ~(SCP_WCE | SCP_RCD);
+		current_cp->flags1 |= user_cp->flags1 & (SCP_WCE | SCP_RCD);
+		saved_cp->flags1 &= ~(SCP_WCE | SCP_RCD);
+		saved_cp->flags1 |= user_cp->flags1 & (SCP_WCE | SCP_RCD);
 		set_ua = 1;
-	current_cp->flags1 &= ~(SCP_WCE | SCP_RCD);
-	current_cp->flags1 |= user_cp->flags1 & (SCP_WCE | SCP_RCD);
-	saved_cp->flags1 &= ~(SCP_WCE | SCP_RCD);
-	saved_cp->flags1 |= user_cp->flags1 & (SCP_WCE | SCP_RCD);
+	}
 	if (set_ua != 0) {
 		int i;
 		/*
@@ -11021,7 +10974,8 @@ ctl_extent_check(union ctl_io *io1, union ctl_io *io2)
 }
 
 static ctl_action
-ctl_check_for_blockage(union ctl_io *pending_io, union ctl_io *ooa_io)
+ctl_check_for_blockage(struct ctl_lun *lun, union ctl_io *pending_io,
+    union ctl_io *ooa_io)
 {
 	const struct ctl_cmd_entry *pending_entry, *ooa_entry;
 	ctl_serialize_action *serialize_row;
@@ -11104,20 +11058,25 @@ ctl_check_for_blockage(union ctl_io *pending_io, union ctl_io *ooa_io)
 	switch (serialize_row[pending_entry->seridx]) {
 	case CTL_SER_BLOCK:
 		return (CTL_ACTION_BLOCK);
-		break; /* NOTREACHED */
 	case CTL_SER_EXTENT:
 		return (ctl_extent_check(pending_io, ooa_io));
-		break; /* NOTREACHED */
+	case CTL_SER_EXTENTOPT:
+		if ((lun->mode_pages.control_page[CTL_PAGE_CURRENT].queue_flags
+		    & SCP_QUEUE_ALG_MASK) != SCP_QUEUE_ALG_UNRESTRICTED)
+			return (ctl_extent_check(pending_io, ooa_io));
+		/* FALLTHROUGH */
 	case CTL_SER_PASS:
 		return (CTL_ACTION_PASS);
-		break; /* NOTREACHED */
+	case CTL_SER_BLOCKOPT:
+		if ((lun->mode_pages.control_page[CTL_PAGE_CURRENT].queue_flags
+		    & SCP_QUEUE_ALG_MASK) != SCP_QUEUE_ALG_UNRESTRICTED)
+			return (CTL_ACTION_BLOCK);
+		return (CTL_ACTION_PASS);
 	case CTL_SER_SKIP:
 		return (CTL_ACTION_SKIP);
-		break;
 	default:
 		panic("invalid serialization value %d",
 		      serialize_row[pending_entry->seridx]);
-		break; /* NOTREACHED */
 	}
 
 	return (CTL_ACTION_ERROR);
@@ -11154,7 +11113,7 @@ ctl_check_ooa(struct ctl_lun *lun, union ctl_io *pending_io,
 		 * of it in the queue.  It doesn't queue/dequeue
 		 * cur_blocked.
 		 */
-		action = ctl_check_for_blockage(pending_io, ooa_io);
+		action = ctl_check_for_blockage(lun, pending_io, ooa_io);
 		switch (action) {
 		case CTL_ACTION_BLOCK:
 		case CTL_ACTION_OVERLAP:
