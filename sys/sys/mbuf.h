@@ -406,6 +406,28 @@ m_gettype(int size)
 	return (type);
 }
 
+/*
+ * Associated an external reference counted buffer with an mbuf.
+ */
+static __inline void
+m_extaddref(struct mbuf *m, caddr_t buf, u_int size, u_int *ref_cnt,
+    void (*freef)(void *, void *), void *arg1, void *arg2)
+{
+
+	KASSERT(ref_cnt != NULL, ("%s: ref_cnt not provided", __func__));
+
+	atomic_add_int(ref_cnt, 1);
+	m->m_flags |= M_EXT;
+	m->m_ext.ext_buf = buf;
+	m->m_ext.ref_cnt = ref_cnt;
+	m->m_data = m->m_ext.ext_buf;
+	m->m_ext.ext_size = size;
+	m->m_ext.ext_free = freef;
+	m->m_ext.ext_arg1 = arg1;
+	m->m_ext.ext_arg2 = arg2;
+	m->m_ext.ext_type = EXT_EXTREF;
+}
+
 static __inline uma_zone_t
 m_getzone(int size)
 {
