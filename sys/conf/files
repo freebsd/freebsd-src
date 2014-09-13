@@ -1377,8 +1377,8 @@ dev/fatm/if_fatm.c		optional fatm pci
 dev/fb/fbd.c			optional fbd | vt
 dev/fb/fb_if.m			standard
 dev/fb/splash.c			optional sc splash
-dev/fdt/fdt_clock.c		optional fdt
-dev/fdt/fdt_clock_if.m		optional fdt
+dev/fdt/fdt_clock.c		optional fdt_clock
+dev/fdt/fdt_clock_if.m		optional fdt_clock
 dev/fdt/fdt_common.c		optional fdt
 dev/fdt/fdt_slicer.c		optional fdt cfi | fdt nand
 dev/fdt/fdt_static_dtb.S	optional fdt fdt_dtb_static \
