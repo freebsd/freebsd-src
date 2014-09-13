@@ -503,7 +503,6 @@ vmcb_init(struct svm_softc *sc, int vcpu, uint64_t iopm_base_pa,
 	/* Intercept various events (for e.g. I/O, MSR and CPUID accesses) */
 	svm_enable_intercept(sc, vcpu, VMCB_CTRL1_INTCPT, VMCB_INTCPT_IO);
 	svm_enable_intercept(sc, vcpu, VMCB_CTRL1_INTCPT, VMCB_INTCPT_MSR);
-	svm_enable_intercept(sc, vcpu, VMCB_CTRL1_INTCPT, VMCB_INTCPT_HLT);
 	svm_enable_intercept(sc, vcpu, VMCB_CTRL1_INTCPT, VMCB_INTCPT_CPUID);
 	svm_enable_intercept(sc, vcpu, VMCB_CTRL1_INTCPT, VMCB_INTCPT_INTR);
 	svm_enable_intercept(sc, vcpu, VMCB_CTRL1_INTCPT, VMCB_INTCPT_INIT);
@@ -1041,6 +1040,8 @@ exit_reason_to_str(uint64_t reason)
 		return ("mchk");
 	case VMCB_EXIT_INTR:
 		return ("extintr");
+	case VMCB_EXIT_NMI:
+		return ("nmi");
 	case VMCB_EXIT_VINTR:
 		return ("vintr");
 	case VMCB_EXIT_MSR:
@@ -1158,6 +1159,9 @@ svm_vmexit(struct svm_softc *svm_sc, int vcpu, struct vm_exit *vmexit)
 		 */
 		update_rip = false;
 		vmm_stat_incr(svm_sc->vm, vcpu, VMEXIT_EXTINT, 1);
+		break;
+	case VMCB_EXIT_NMI:
+		update_rip = false;
 		break;
 	case VMCB_EXIT_IO:
 		loop = svm_handle_io(svm_sc, vcpu, vmexit);
