@@ -4766,3 +4766,11 @@ OLD_FILES+=usr/libexec/dma-mbox-create
 OLD_FILES+=usr/share/man/man8/dma.8.gz
 OLD_FILES+=usr/share/examples/dma/mailer.conf
 .endif
+
+.if ${MK_HYPERV} == no
+OLD_FILES+=etc/rc.d/hv_kvpd
+OLD_FILES+=usr/libexec/hyperv/hv_set_ifconfig
+OLD_FILES+=usr/libexec/hyperv/hv_get_dns_info
+OLD_FILES+=usr/libexec/hyperv/hv_get_dhcp_info
+OLD_FILES+=usr/sbin/hv_kvpd
+.endif
