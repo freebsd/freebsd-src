@@ -105,6 +105,11 @@ struct	ifvlan {
 	struct	ifvlantrunk *ifv_trunk;
 	struct	ifnet *ifv_ifp;
 	void	*ifv_cookie;
+	counter_u64_t	ifv_ipackets;
+	counter_u64_t	ifv_ibytes;
+	counter_u64_t	ifv_opackets;
+	counter_u64_t	ifv_obytes;
+	counter_u64_t	ifv_omcasts;
 #define	TRUNK(ifv)	((ifv)->ifv_trunk)
 #define	PARENT(ifv)	((ifv)->ifv_trunk->parent)
 	int	ifv_pflags;	/* special flags we have set on parent */
@@ -194,6 +199,7 @@ static	void vlan_init(void *foo);
 static	void vlan_input(struct ifnet *ifp, struct mbuf *m);
 static	int vlan_ioctl(struct ifnet *ifp, u_long cmd, caddr_t addr);
 static	void vlan_qflush(struct ifnet *ifp);
+static uint64_t vlan_get_counter(struct ifnet *ifp, ifnet_counter cnt);
 static	int vlan_setflag(struct ifnet *ifp, int flag, int status,
     int (*func)(struct ifnet *, int));
 static	int vlan_setflags(struct ifnet *ifp, int status);
@@ -945,6 +951,12 @@ vlan_clone_create(struct if_clone *ifc, char *name, size_t len, caddr_t params)
 		return (ENOSPC);
 	}
 	SLIST_INIT(&ifv->vlan_mc_listhead);
+	/* Prepare pcpu counters */
+	ifv->ifv_ipackets = counter_u64_alloc(M_WAITOK);
+	ifv->ifv_opackets = counter_u64_alloc(M_WAITOK);
+	ifv->ifv_ibytes = counter_u64_alloc(M_WAITOK);
+	ifv->ifv_obytes = counter_u64_alloc(M_WAITOK);
+	ifv->ifv_omcasts = counter_u64_alloc(M_WAITOK);
 
 	ifp->if_softc = ifv;
 	/*
@@ -964,6 +976,7 @@ vlan_clone_create(struct if_clone *ifc, char *name, size_t len, caddr_t params)
 	ifp->if_qflush = vlan_qflush;
 	ifp->if_ioctl = vlan_ioctl;
 	ifp->if_flags = VLAN_IFFLAGS;
+	ifp->if_get_counter = vlan_get_counter;
 	ether_ifattach(ifp, eaddr);
 	/* Now undo some of the damage... */
 	ifp->if_baudrate = 0;
@@ -1006,6 +1019,11 @@ vlan_clone_destroy(struct if_clone *ifc, struct ifnet *ifp)
 	ether_ifdetach(ifp);	/* first, remove it from system-wide lists */
 	vlan_unconfig(ifp);	/* now it can be unconfigured and freed */
 	if_free(ifp);
+	counter_u64_free(ifv->ifv_ipackets);
+	counter_u64_free(ifv->ifv_opackets);
+	counter_u64_free(ifv->ifv_ibytes);
+	counter_u64_free(ifv->ifv_obytes);
+	counter_u64_free(ifv->ifv_omcasts);
 	free(ifv, M_VLAN);
 	ifc_free_unit(ifc, unit);
 
@@ -1099,13 +1117,37 @@ vlan_transmit(struct ifnet *ifp, struct mbuf *m)
 	 * Send it, precisely as ether_output() would have.
 	 */
 	error = (p->if_transmit)(p, m);
-	if (!error) {
-		ifp->if_opackets++;
-		ifp->if_omcasts += mcast;
-		ifp->if_obytes += len;
+	if (error == 0) {
+		counter_u64_add(ifv->ifv_opackets, 1);
+		counter_u64_add(ifv->ifv_obytes, len);
+		counter_u64_add(ifv->ifv_omcasts, 1);
 	} else
 		ifp->if_oerrors++;
 	return (error);
+}
+
+static uint64_t
+vlan_get_counter(struct ifnet *ifp, ifnet_counter cnt)
+{
+	struct ifvlan *ifv;
+
+	ifv = ifp->if_softc;
+
+	switch (cnt) {
+		case IFCOUNTER_IPACKETS:
+			return (counter_u64_fetch(ifv->ifv_ipackets));
+		case IFCOUNTER_OPACKETS:
+			return (counter_u64_fetch(ifv->ifv_opackets));
+		case IFCOUNTER_IBYTES:
+			return (counter_u64_fetch(ifv->ifv_ibytes));
+		case IFCOUNTER_OBYTES:
+			return (counter_u64_fetch(ifv->ifv_obytes));
+		case IFCOUNTER_OMCASTS:
+			return (counter_u64_fetch(ifv->ifv_omcasts));
+		default:
+			return (if_get_counter_compat(ifp, cnt));
+	}
+	/* NOTREACHED */
 }
 
 /*
@@ -1181,7 +1223,8 @@ vlan_input(struct ifnet *ifp, struct mbuf *m)
 	TRUNK_RUNLOCK(trunk);
 
 	m->m_pkthdr.rcvif = ifv->ifv_ifp;
-	ifv->ifv_ifp->if_ipackets++;
+	counter_u64_add(ifv->ifv_ipackets, 1);
+	counter_u64_add(ifv->ifv_ibytes, m->m_pkthdr.len);
 
 	/* Pass it back through the parent's input routine. */
 	(*ifp->if_input)(ifv->ifv_ifp, m);
