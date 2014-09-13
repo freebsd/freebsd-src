@@ -46,14 +46,16 @@ __FBSDID("$FreeBSD$");
 #include <net/ethernet.h>
 #include <netinet/in.h>
 #include <arpa/inet.h>
+#include <net/sff8472.h>
 
 #include "t4_ioctl.h"
 
 #define ARRAY_SIZE(a) (sizeof(a) / sizeof((a)[0]))
-
+#define in_range(val, lo, hi) ( val < 0 || (val <= hi && val >= lo))
 #define	max(x, y) ((x) > (y) ? (x) : (y))
 
 static const char *progname, *nexus;
+static int chip_id;	/* 4 for T4, 5 for T5 */
 
 struct reg_info {
 	const char *name;
@@ -77,6 +79,7 @@ struct field_desc {
 
 #include "reg_defs_t4.c"
 #include "reg_defs_t4vf.c"
+#include "reg_defs_t5.c"
 
 static void
 usage(FILE *fp)
@@ -92,9 +95,12 @@ usage(FILE *fp)
 	    "\ti2c <port> <devaddr> <addr> [<len>] read from i2c device\n"
 	    "\tloadfw <fw-image.bin>               install firmware\n"
 	    "\tmemdump <addr> <len>                dump a memory range\n"
+	    "\tmodinfo <port> [raw]                optics/cable information\n"
 	    "\treg <address>[=<val>]               read/write register\n"
 	    "\treg64 <address>[=<val>]             read/write 64 bit register\n"
 	    "\tregdump [<module>] ...              dump registers\n"
+	    "\tsched-class params <param> <val> .. configure TX scheduler class\n"
+	    "\tsched-queue <port> <queue> <class>  bind NIC queues to TX Scheduling class\n"
 	    "\tstdio                               interactive mode\n"
 	    "\ttcb <tid>                           read TCB\n"
 	    );
@@ -121,6 +127,7 @@ real_doit(unsigned long cmd, void *data, const char *cmdstr)
 			rc = errno;
 			return (rc);
 		}
+		chip_id = nexus[1] - '0';
 	}
 
 	rc = ioctl(fd, cmd, data);
@@ -315,7 +322,7 @@ dump_regs_t4(int argc, const char *argv[], const uint32_t *regs)
 		T4_MODREGS(ma),
 		{ "edc0", t4_edc_0_regs },
 		{ "edc1", t4_edc_1_regs },
-		T4_MODREGS(cim), 
+		T4_MODREGS(cim),
 		T4_MODREGS(tp),
 		T4_MODREGS(ulp_rx),
 		T4_MODREGS(ulp_tx),
@@ -327,7 +334,7 @@ dump_regs_t4(int argc, const char *argv[], const uint32_t *regs)
 		{ "i2c", t4_i2cm_regs },
 		T4_MODREGS(mi),
 		T4_MODREGS(uart),
-		T4_MODREGS(pmu), 
+		T4_MODREGS(pmu),
 		T4_MODREGS(sf),
 		T4_MODREGS(pl),
 		T4_MODREGS(le),
@@ -354,34 +361,75 @@ dump_regs_t4vf(int argc, const char *argv[], const uint32_t *regs)
 	    ARRAY_SIZE(t4vf_mod));
 }
 
+#define T5_MODREGS(name) { #name, t5_##name##_regs }
+static int
+dump_regs_t5(int argc, const char *argv[], const uint32_t *regs)
+{
+	static struct mod_regs t5_mod[] = {
+		T5_MODREGS(sge),
+		{ "pci", t5_pcie_regs },
+		T5_MODREGS(dbg),
+		{ "mc0", t5_mc_0_regs },
+		{ "mc1", t5_mc_1_regs },
+		T5_MODREGS(ma),
+		{ "edc0", t5_edc_t50_regs },
+		{ "edc1", t5_edc_t51_regs },
+		T5_MODREGS(cim),
+		T5_MODREGS(tp),
+		{ "ulprx", t5_ulp_rx_regs },
+		{ "ulptx", t5_ulp_tx_regs },
+		{ "pmrx", t5_pm_rx_regs },
+		{ "pmtx", t5_pm_tx_regs },
+		T5_MODREGS(mps),
+		{ "cplsw", t5_cpl_switch_regs },
+		T5_MODREGS(smb),
+		{ "i2c", t5_i2cm_regs },
+		T5_MODREGS(mi),
+		T5_MODREGS(uart),
+		T5_MODREGS(pmu),
+		T5_MODREGS(sf),
+		T5_MODREGS(pl),
+		T5_MODREGS(le),
+		T5_MODREGS(ncsi),
+		T5_MODREGS(mac),
+		{ "hma", t5_hma_t5_regs }
+	};
+
+	return dump_regs_table(argc, argv, regs, t5_mod, ARRAY_SIZE(t5_mod));
+}
+#undef T5_MODREGS
+
 static int
 dump_regs(int argc, const char *argv[])
 {
-	int vers, revision, is_pcie, rc;
+	int vers, revision, rc;
 	struct t4_regdump regs;
+	uint32_t len;
 
-	regs.data = calloc(1, T4_REGDUMP_SIZE);
+	len = max(T4_REGDUMP_SIZE, T5_REGDUMP_SIZE);
+	regs.data = calloc(1, len);
 	if (regs.data == NULL) {
 		warnc(ENOMEM, "regdump");
 		return (ENOMEM);
 	}
 
-	regs.len = T4_REGDUMP_SIZE;
+	regs.len = len;
 	rc = doit(CHELSIO_T4_REGDUMP, &regs);
 	if (rc != 0)
 		return (rc);
 
 	vers = get_card_vers(regs.version);
 	revision = (regs.version >> 10) & 0x3f;
-	is_pcie = (regs.version & 0x80000000) != 0;
 
 	if (vers == 4) {
 		if (revision == 0x3f)
 			rc = dump_regs_t4vf(argc, argv, regs.data);
 		else
 			rc = dump_regs_t4(argc, argv, regs.data);
-	} else {
-		warnx("%s (type %d, rev %d) is not a T4 card.",
+	} else if (vers == 5)
+		rc = dump_regs_t5(argc, argv, regs.data);
+	else {
+		warnx("%s (type %d, rev %d) is not a known card.",
 		    nexus, vers, revision);
 		return (ENOTSUP);
 	}
@@ -825,6 +873,9 @@ get_filter_mode(void)
 	if (mode & T4_FILTER_IP_DPORT)
 		printf("dport ");
 
+	if (mode & T4_FILTER_IP_FRAGMENT)
+		printf("frag ");
+
 	if (mode & T4_FILTER_MPS_HIT_TYPE)
 		printf("matchtype ");
 
@@ -844,7 +895,7 @@ get_filter_mode(void)
 		printf("vlan ");
 
 	if (mode & T4_FILTER_VNIC)
-		printf("vnic ");
+		printf("vnic/ovlan ");
 
 	if (mode & T4_FILTER_PORT)
 		printf("iport ");
@@ -863,6 +914,9 @@ set_filter_mode(int argc, const char *argv[])
 	uint32_t mode = 0;
 
 	for (; argc; argc--, argv++) {
+		if (!strcmp(argv[0], "frag"))
+			mode |= T4_FILTER_IP_FRAGMENT;
+
 		if (!strcmp(argv[0], "matchtype"))
 			mode |= T4_FILTER_MPS_HIT_TYPE;
 
@@ -917,6 +971,7 @@ set_filter(uint32_t idx, int argc, const char *argv[])
 	};
 	bzero(&t, sizeof (t));
 	t.idx = idx;
+	t.fs.hitcnts = 1;
 
 	for (start_arg = 0; start_arg + 2 <= argc; start_arg += 2) {
 		const char **args = &argv[start_arg];
@@ -1310,7 +1365,16 @@ show_sge_context(const struct t4_sge_context *p)
 		FIELD1("CngDBPHdr:", 6),
 		FIELD1("CngDBPData:", 5),
 		FIELD1("CngIMSG:", 4),
-		FIELD("CngChMap:", 0, 3),
+		{ "CngChMap:", 0, 3, 0, 1, 0},
+		{ NULL }
+	};
+	static struct field_desc t5_conm[] = {
+		FIELD1("CngMPSEnable:", 21),
+		FIELD("CngTPMode:", 19, 20),
+		FIELD1("CngDBPHdr:", 18),
+		FIELD1("CngDBPData:", 17),
+		FIELD1("CngIMSG:", 16),
+		{ "CngChMap:", 0, 15, 0, 1, 0},
 		{ NULL }
 	};
 
@@ -1321,7 +1385,7 @@ show_sge_context(const struct t4_sge_context *p)
 	else if (p->mem_id == SGE_CONTEXT_INGRESS)
 		show_struct(p->data, 5, ingress);
 	else if (p->mem_id == SGE_CONTEXT_CNM)
-		show_struct(p->data, 1, conm);
+		show_struct(p->data, 1, chip_id == 5 ? t5_conm : conm);
 }
 
 #undef FIELD
@@ -1609,6 +1673,469 @@ clearstats(int argc, const char *argv[])
 }
 
 static int
+modinfo_raw(int port_id)
+{
+	uint8_t offset;
+	struct t4_i2c_data i2cd;
+	int rc;
+
+	for (offset = 0; offset < 96; offset += sizeof(i2cd.data)) {
+		bzero(&i2cd, sizeof(i2cd));
+		i2cd.port_id = port_id;
+		i2cd.dev_addr = 0xa0;
+		i2cd.offset = offset;
+		i2cd.len = sizeof(i2cd.data);
+		rc = doit(CHELSIO_T4_GET_I2C, &i2cd);
+		if (rc != 0)
+			return (rc);
+		printf("%02x:  %02x %02x %02x %02x  %02x %02x %02x %02x",
+		    offset, i2cd.data[0], i2cd.data[1], i2cd.data[2],
+		    i2cd.data[3], i2cd.data[4], i2cd.data[5], i2cd.data[6],
+		    i2cd.data[7]);
+
+		printf("  %c%c%c%c %c%c%c%c\n",
+		    isprint(i2cd.data[0]) ? i2cd.data[0] : '.',
+		    isprint(i2cd.data[1]) ? i2cd.data[1] : '.',
+		    isprint(i2cd.data[2]) ? i2cd.data[2] : '.',
+		    isprint(i2cd.data[3]) ? i2cd.data[3] : '.',
+		    isprint(i2cd.data[4]) ? i2cd.data[4] : '.',
+		    isprint(i2cd.data[5]) ? i2cd.data[5] : '.',
+		    isprint(i2cd.data[6]) ? i2cd.data[6] : '.',
+		    isprint(i2cd.data[7]) ? i2cd.data[7] : '.');
+	}
+
+	return (0);
+}
+
+static int
+modinfo(int argc, const char *argv[])
+{
+	long port;
+	char string[16], *p;
+	struct t4_i2c_data i2cd;
+	int rc, i;
+	uint16_t temp, vcc, tx_bias, tx_power, rx_power;
+
+	if (argc < 1) {
+		warnx("must supply a port");
+		return (EINVAL);
+	}
+
+	if (argc > 2) {
+		warnx("too many arguments");
+		return (EINVAL);
+	}
+
+	p = str_to_number(argv[0], &port, NULL);
+	if (*p || port > UCHAR_MAX) {
+		warnx("invalid port id \"%s\"", argv[0]);
+		return (EINVAL);
+	}
+
+	if (argc == 2) {
+		if (!strcmp(argv[1], "raw"))
+			return (modinfo_raw(port));
+		else {
+			warnx("second argument can only be \"raw\"");
+			return (EINVAL);
+		}
+	}
+
+	bzero(&i2cd, sizeof(i2cd));
+	i2cd.len = 1;
+	i2cd.port_id = port;
+	i2cd.dev_addr = SFF_8472_BASE;
+
+	i2cd.offset = SFF_8472_ID;
+	if ((rc = doit(CHELSIO_T4_GET_I2C, &i2cd)) != 0)
+		goto fail;
+
+	if (i2cd.data[0] > SFF_8472_ID_LAST)
+		printf("Unknown ID\n");
+	else
+		printf("ID: %s\n", sff_8472_id[i2cd.data[0]]);
+
+	bzero(&string, sizeof(string));
+	for (i = SFF_8472_VENDOR_START; i < SFF_8472_VENDOR_END; i++) {
+		i2cd.offset = i;
+		if ((rc = doit(CHELSIO_T4_GET_I2C, &i2cd)) != 0)
+			goto fail;
+		string[i - SFF_8472_VENDOR_START] = i2cd.data[0];
+	}
+	printf("Vendor %s\n", string);
+
+	bzero(&string, sizeof(string));
+	for (i = SFF_8472_SN_START; i < SFF_8472_SN_END; i++) {
+		i2cd.offset = i;
+		if ((rc = doit(CHELSIO_T4_GET_I2C, &i2cd)) != 0)
+			goto fail;
+		string[i - SFF_8472_SN_START] = i2cd.data[0];
+	}
+	printf("SN %s\n", string);
+
+	bzero(&string, sizeof(string));
+	for (i = SFF_8472_PN_START; i < SFF_8472_PN_END; i++) {
+		i2cd.offset = i;
+		if ((rc = doit(CHELSIO_T4_GET_I2C, &i2cd)) != 0)
+			goto fail;
+		string[i - SFF_8472_PN_START] = i2cd.data[0];
+	}
+	printf("PN %s\n", string);
+
+	bzero(&string, sizeof(string));
+	for (i = SFF_8472_REV_START; i < SFF_8472_REV_END; i++) {
+		i2cd.offset = i;
+		if ((rc = doit(CHELSIO_T4_GET_I2C, &i2cd)) != 0)
+			goto fail;
+		string[i - SFF_8472_REV_START] = i2cd.data[0];
+	}
+	printf("Rev %s\n", string);
+
+	i2cd.offset = SFF_8472_DIAG_TYPE;
+	if ((rc = doit(CHELSIO_T4_GET_I2C, &i2cd)) != 0)
+		goto fail;
+
+	if ((char )i2cd.data[0] & (SFF_8472_DIAG_IMPL |
+				   SFF_8472_DIAG_INTERNAL)) {
+
+		/* Switch to reading from the Diagnostic address. */
+		i2cd.dev_addr = SFF_8472_DIAG;
+		i2cd.len = 1;
+
+		i2cd.offset = SFF_8472_TEMP;
+		if ((rc = doit(CHELSIO_T4_GET_I2C, &i2cd)) != 0)
+			goto fail;
+		temp = i2cd.data[0] << 8;
+		printf("Temp: ");
+		if ((temp & SFF_8472_TEMP_SIGN) == SFF_8472_TEMP_SIGN)
+			printf("-");
+		else
+			printf("+");
+		printf("%dC\n", (temp & SFF_8472_TEMP_MSK) >>
+		    SFF_8472_TEMP_SHIFT);
+
+		i2cd.offset = SFF_8472_VCC;
+		if ((rc = doit(CHELSIO_T4_GET_I2C, &i2cd)) != 0)
+			goto fail;
+		vcc = i2cd.data[0] << 8;
+		printf("Vcc %fV\n", vcc / SFF_8472_VCC_FACTOR);
+
+		i2cd.offset = SFF_8472_TX_BIAS;
+		if ((rc = doit(CHELSIO_T4_GET_I2C, &i2cd)) != 0)
+			goto fail;
+		tx_bias = i2cd.data[0] << 8;
+		printf("TX Bias %fuA\n", tx_bias / SFF_8472_BIAS_FACTOR);
+
+		i2cd.offset = SFF_8472_TX_POWER;
+		if ((rc = doit(CHELSIO_T4_GET_I2C, &i2cd)) != 0)
+			goto fail;
+		tx_power = i2cd.data[0] << 8;
+		printf("TX Power %fmW\n", tx_power / SFF_8472_POWER_FACTOR);
+
+		i2cd.offset = SFF_8472_RX_POWER;
+		if ((rc = doit(CHELSIO_T4_GET_I2C, &i2cd)) != 0)
+			goto fail;
+		rx_power = i2cd.data[0] << 8;
+		printf("RX Power %fmW\n", rx_power / SFF_8472_POWER_FACTOR);
+
+	} else
+		printf("Diagnostics not supported.\n");
+
+	return(0);
+
+fail:
+	if (rc == EPERM)
+		warnx("No module/cable in port %ld", port);
+	return (rc);
+
+}
+
+/* XXX: pass in a low/high and do range checks as well */
+static int
+get_sched_param(const char *param, const char *args[], long *val)
+{
+	char *p;
+
+	if (strcmp(param, args[0]) != 0)
+		return (EINVAL);
+
+	p = str_to_number(args[1], val, NULL);
+	if (*p) {
+		warnx("parameter \"%s\" has bad value \"%s\"", args[0],
+		    args[1]);
+		return (EINVAL);
+	}
+
+	return (0);
+}
+
+static int
+sched_class(int argc, const char *argv[])
+{
+	struct t4_sched_params op;
+	int errs, i;
+
+	memset(&op, 0xff, sizeof(op));
+	op.subcmd = -1;
+	op.type = -1;
+	if (argc == 0) {
+		warnx("missing scheduling sub-command");
+		return (EINVAL);
+	}
+	if (!strcmp(argv[0], "config")) {
+		op.subcmd = SCHED_CLASS_SUBCMD_CONFIG;
+		op.u.config.minmax = -1;
+	} else if (!strcmp(argv[0], "params")) {
+		op.subcmd = SCHED_CLASS_SUBCMD_PARAMS;
+		op.u.params.level = op.u.params.mode = op.u.params.rateunit =
+		    op.u.params.ratemode = op.u.params.channel =
+		    op.u.params.cl = op.u.params.minrate = op.u.params.maxrate =
+		    op.u.params.weight = op.u.params.pktsize = -1;
+	} else {
+		warnx("invalid scheduling sub-command \"%s\"", argv[0]);
+		return (EINVAL);
+	}
+
+	/* Decode remaining arguments ... */
+	errs = 0;
+	for (i = 1; i < argc; i += 2) {
+		const char **args = &argv[i];
+		long l;
+
+		if (i + 1 == argc) {
+			warnx("missing argument for \"%s\"", args[0]);
+			errs++;
+			break;
+		}
+
+		if (!strcmp(args[0], "type")) {
+			if (!strcmp(args[1], "packet"))
+				op.type = SCHED_CLASS_TYPE_PACKET;
+			else {
+				warnx("invalid type parameter \"%s\"", args[1]);
+				errs++;
+			}
+
+			continue;
+		}
+
+		if (op.subcmd == SCHED_CLASS_SUBCMD_CONFIG) {
+			if(!get_sched_param("minmax", args, &l))
+				op.u.config.minmax = (int8_t)l;
+			else {
+				warnx("unknown scheduler config parameter "
+				    "\"%s\"", args[0]);
+				errs++;
+			}
+
+			continue;
+		}
+
+		/* Rest applies only to SUBCMD_PARAMS */
+		if (op.subcmd != SCHED_CLASS_SUBCMD_PARAMS)
+			continue;
+
+		if (!strcmp(args[0], "level")) {
+			if (!strcmp(args[1], "cl-rl"))
+				op.u.params.level = SCHED_CLASS_LEVEL_CL_RL;
+			else if (!strcmp(args[1], "cl-wrr"))
+				op.u.params.level = SCHED_CLASS_LEVEL_CL_WRR;
+			else if (!strcmp(args[1], "ch-rl"))
+				op.u.params.level = SCHED_CLASS_LEVEL_CH_RL;
+			else {
+				warnx("invalid level parameter \"%s\"",
+				    args[1]);
+				errs++;
+			}
+		} else if (!strcmp(args[0], "mode")) {
+			if (!strcmp(args[1], "class"))
+				op.u.params.mode = SCHED_CLASS_MODE_CLASS;
+			else if (!strcmp(args[1], "flow"))
+				op.u.params.mode = SCHED_CLASS_MODE_FLOW;
+			else {
+				warnx("invalid mode parameter \"%s\"", args[1]);
+				errs++;
+			}
+		} else if (!strcmp(args[0], "rate-unit")) {
+			if (!strcmp(args[1], "bits"))
+				op.u.params.rateunit = SCHED_CLASS_RATEUNIT_BITS;
+			else if (!strcmp(args[1], "pkts"))
+				op.u.params.rateunit = SCHED_CLASS_RATEUNIT_PKTS;
+			else {
+				warnx("invalid rate-unit parameter \"%s\"",
+				    args[1]);
+				errs++;
+			}
+		} else if (!strcmp(args[0], "rate-mode")) {
+			if (!strcmp(args[1], "relative"))
+				op.u.params.ratemode = SCHED_CLASS_RATEMODE_REL;
+			else if (!strcmp(args[1], "absolute"))
+				op.u.params.ratemode = SCHED_CLASS_RATEMODE_ABS;
+			else {
+				warnx("invalid rate-mode parameter \"%s\"",
+				    args[1]);
+				errs++;
+			}
+		} else if (!get_sched_param("channel", args, &l))
+			op.u.params.channel = (int8_t)l;
+		else if (!get_sched_param("class", args, &l))
+			op.u.params.cl = (int8_t)l;
+		else if (!get_sched_param("min-rate", args, &l))
+			op.u.params.minrate = (int32_t)l;
+		else if (!get_sched_param("max-rate", args, &l))
+			op.u.params.maxrate = (int32_t)l;
+		else if (!get_sched_param("weight", args, &l))
+			op.u.params.weight = (int16_t)l;
+		else if (!get_sched_param("pkt-size", args, &l))
+			op.u.params.pktsize = (int16_t)l;
+		else {
+			warnx("unknown scheduler parameter \"%s\"", args[0]);
+			errs++;
+		}
+	}
+
+	/*
+	 * Catch some logical fallacies in terms of argument combinations here
+	 * so we can offer more than just the EINVAL return from the driver.
+	 * The driver will be able to catch a lot more issues since it knows
+	 * the specifics of the device hardware capabilities like how many
+	 * channels, classes, etc. the device supports.
+	 */
+	if (op.type < 0) {
+		warnx("sched \"type\" parameter missing");
+		errs++;
+	}
+	if (op.subcmd == SCHED_CLASS_SUBCMD_CONFIG) {
+		if (op.u.config.minmax < 0) {
+			warnx("sched config \"minmax\" parameter missing");
+			errs++;
+		}
+	}
+	if (op.subcmd == SCHED_CLASS_SUBCMD_PARAMS) {
+		if (op.u.params.level < 0) {
+			warnx("sched params \"level\" parameter missing");
+			errs++;
+		}
+		if (op.u.params.mode < 0) {
+			warnx("sched params \"mode\" parameter missing");
+			errs++;
+		}
+		if (op.u.params.rateunit < 0) {
+			warnx("sched params \"rate-unit\" parameter missing");
+			errs++;
+		}
+		if (op.u.params.ratemode < 0) {
+			warnx("sched params \"rate-mode\" parameter missing");
+			errs++;
+		}
+		if (op.u.params.channel < 0) {
+			warnx("sched params \"channel\" missing");
+			errs++;
+		}
+		if (op.u.params.cl < 0) {
+			warnx("sched params \"class\" missing");
+			errs++;
+		}
+		if (op.u.params.maxrate < 0 &&
+		    (op.u.params.level == SCHED_CLASS_LEVEL_CL_RL ||
+		    op.u.params.level == SCHED_CLASS_LEVEL_CH_RL)) {
+			warnx("sched params \"max-rate\" missing for "
+			    "rate-limit level");
+			errs++;
+		}
+		if (op.u.params.weight < 0 &&
+		    op.u.params.level == SCHED_CLASS_LEVEL_CL_WRR) {
+			warnx("sched params \"weight\" missing for "
+			    "weighted-round-robin level");
+			errs++;
+		}
+		if (op.u.params.pktsize < 0 &&
+		    (op.u.params.level == SCHED_CLASS_LEVEL_CL_RL ||
+		    op.u.params.level == SCHED_CLASS_LEVEL_CH_RL)) {
+			warnx("sched params \"pkt-size\" missing for "
+			    "rate-limit level");
+			errs++;
+		}
+		if (op.u.params.mode == SCHED_CLASS_MODE_FLOW &&
+		    op.u.params.ratemode != SCHED_CLASS_RATEMODE_ABS) {
+			warnx("sched params mode flow needs rate-mode absolute");
+			errs++;
+		}
+		if (op.u.params.ratemode == SCHED_CLASS_RATEMODE_REL &&
+		    !in_range(op.u.params.maxrate, 1, 100)) {
+                        warnx("sched params \"max-rate\" takes "
+			    "percentage value(1-100) for rate-mode relative");
+                        errs++;
+                }
+                if (op.u.params.ratemode == SCHED_CLASS_RATEMODE_ABS &&
+		    !in_range(op.u.params.maxrate, 1, 10000000)) {
+                        warnx("sched params \"max-rate\" takes "
+			    "value(1-10000000) for rate-mode absolute");
+                        errs++;
+                }
+                if (op.u.params.maxrate > 0 &&
+		    op.u.params.maxrate < op.u.params.minrate) {
+                        warnx("sched params \"max-rate\" is less than "
+			    "\"min-rate\"");
+                        errs++;
+                }
+	}
+
+	if (errs > 0) {
+		warnx("%d error%s in sched-class command", errs,
+		    errs == 1 ? "" : "s");
+		return (EINVAL);
+	}
+
+	return doit(CHELSIO_T4_SCHED_CLASS, &op);
+}
+
+static int
+sched_queue(int argc, const char *argv[])
+{
+	struct t4_sched_queue op = {0};
+	char *p;
+	long val;
+
+	if (argc != 3) {
+		/* need "<port> <queue> <class> */
+		warnx("incorrect number of arguments.");
+		return (EINVAL);
+	}
+
+	p = str_to_number(argv[0], &val, NULL);
+	if (*p || val > UCHAR_MAX) {
+		warnx("invalid port id \"%s\"", argv[0]);
+		return (EINVAL);
+	}
+	op.port = (uint8_t)val;
+
+	if (!strcmp(argv[1], "all") || !strcmp(argv[1], "*"))
+		op.queue = -1;
+	else {
+		p = str_to_number(argv[1], &val, NULL);
+		if (*p || val < -1) {
+			warnx("invalid queue \"%s\"", argv[1]);
+			return (EINVAL);
+		}
+		op.queue = (int8_t)val;
+	}
+
+	if (!strcmp(argv[2], "unbind") || !strcmp(argv[2], "clear"))
+		op.cl = -1;
+	else {
+		p = str_to_number(argv[2], &val, NULL);
+		if (*p || val < -1) {
+			warnx("invalid class \"%s\"", argv[2]);
+			return (EINVAL);
+		}
+		op.cl = (int8_t)val;
+	}
+
+	return doit(CHELSIO_T4_SCHED_QUEUE, &op);
+}
+
+static int
 run_cmd(int argc, const char *argv[])
 {
 	int rc = -1;
@@ -1638,6 +2165,12 @@ run_cmd(int argc, const char *argv[])
 		rc = read_i2c(argc, argv);
 	else if (!strcmp(cmd, "clearstats"))
 		rc = clearstats(argc, argv);
+	else if (!strcmp(cmd, "modinfo"))
+		rc = modinfo(argc, argv);
+	else if (!strcmp(cmd, "sched-class"))
+		rc = sched_class(argc, argv);
+	else if (!strcmp(cmd, "sched-queue"))
+		rc = sched_queue(argc, argv);
 	else {
 		rc = EINVAL;
 		warnx("invalid command \"%s\"", cmd);
