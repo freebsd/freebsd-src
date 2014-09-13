@@ -279,6 +279,25 @@ nexus_setup_intr(device_t dev, device_t child, struct resource *res, int flags,
 {
 	int irq;
 
+	/*
+	 * FDT data for a root interrupt controller may have set up interrupt
+	 * resource data indicating nexus as the parent and irq 0, or it may
+	 * have nothing.  We handle the latter by allowing a NULL res pointer
+	 * when the INTR_CONTROLLER flag is set.
+	 */
+	if (res == NULL) {
+#if defined(ARM_INTRNG)
+		if (flags & INTR_CONTROLLER) {
+			arm_setup_irqhandler(child,
+			    filt, intr, arg, 0, flags, cookiep);
+			return (0);
+		}
+#endif
+		device_printf(child, "NULL resource pointer "
+		    "in nexus_setup_intr\n");
+		return (EDOOFUS);
+	}
+
 	if ((rman_get_flags(res) & RF_SHAREABLE) == 0)
 		flags |= INTR_EXCL;
 
