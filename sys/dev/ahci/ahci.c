@@ -261,31 +261,31 @@ static struct {
 	    AHCI_Q_EDGEIS | AHCI_Q_NONCQ | AHCI_Q_NOCOUNT},
 	{0x614511ab, 0x00, "Marvell 88SE6145",	AHCI_Q_NOFORCE | AHCI_Q_4CH |
 	    AHCI_Q_EDGEIS | AHCI_Q_NONCQ | AHCI_Q_NOCOUNT},
-	{0x91201b4b, 0x00, "Marvell 88SE912x",	AHCI_Q_EDGEIS|AHCI_Q_NOBSYRES},
-	{0x91231b4b, 0x11, "Marvell 88SE912x",	AHCI_Q_NOBSYRES|AHCI_Q_ALTSIG},
-	{0x91231b4b, 0x00, "Marvell 88SE912x",	AHCI_Q_EDGEIS|AHCI_Q_SATA2|AHCI_Q_NOBSYRES},
-	{0x91251b4b, 0x00, "Marvell 88SE9125",	AHCI_Q_NOBSYRES},
-	{0x91281b4b, 0x00, "Marvell 88SE9128",	AHCI_Q_NOBSYRES|AHCI_Q_ALTSIG},
-	{0x91301b4b, 0x00, "Marvell 88SE9130",  AHCI_Q_NOBSYRES|AHCI_Q_ALTSIG},
-	{0x91721b4b, 0x00, "Marvell 88SE9172",	AHCI_Q_NOBSYRES},
-	{0x91821b4b, 0x00, "Marvell 88SE9182",	AHCI_Q_NOBSYRES},
-	{0x91831b4b, 0x00, "Marvell 88SS9183",	AHCI_Q_NOBSYRES},
-	{0x91a01b4b, 0x00, "Marvell 88SE91Ax",	AHCI_Q_NOBSYRES},
-	{0x92151b4b, 0x00, "Marvell 88SE9215",  AHCI_Q_NOBSYRES},
-	{0x92201b4b, 0x00, "Marvell 88SE9220",  AHCI_Q_NOBSYRES|AHCI_Q_ALTSIG},
-	{0x92301b4b, 0x00, "Marvell 88SE9230",  AHCI_Q_NOBSYRES|AHCI_Q_ALTSIG},
-	{0x92351b4b, 0x00, "Marvell 88SE9235",  AHCI_Q_NOBSYRES},
-	{0x06201103, 0x00, "HighPoint RocketRAID 620",	AHCI_Q_NOBSYRES},
-	{0x06201b4b, 0x00, "HighPoint RocketRAID 620",	AHCI_Q_NOBSYRES},
-	{0x06221103, 0x00, "HighPoint RocketRAID 622",	AHCI_Q_NOBSYRES},
-	{0x06221b4b, 0x00, "HighPoint RocketRAID 622",	AHCI_Q_NOBSYRES},
-	{0x06401103, 0x00, "HighPoint RocketRAID 640",	AHCI_Q_NOBSYRES},
-	{0x06401b4b, 0x00, "HighPoint RocketRAID 640",	AHCI_Q_NOBSYRES},
-	{0x06441103, 0x00, "HighPoint RocketRAID 644",	AHCI_Q_NOBSYRES},
-	{0x06441b4b, 0x00, "HighPoint RocketRAID 644",	AHCI_Q_NOBSYRES},
-	{0x06411103, 0x00, "HighPoint RocketRAID 640L",	AHCI_Q_NOBSYRES},
-	{0x06421103, 0x00, "HighPoint RocketRAID 642L",	AHCI_Q_NOBSYRES},
-	{0x06451103, 0x00, "HighPoint RocketRAID 644L",	AHCI_Q_NOBSYRES},
+	{0x91201b4b, 0x00, "Marvell 88SE912x",	AHCI_Q_EDGEIS},
+	{0x91231b4b, 0x11, "Marvell 88SE912x",	AHCI_Q_ALTSIG},
+	{0x91231b4b, 0x00, "Marvell 88SE912x",	AHCI_Q_EDGEIS|AHCI_Q_SATA2},
+	{0x91251b4b, 0x00, "Marvell 88SE9125",	0},
+	{0x91281b4b, 0x00, "Marvell 88SE9128",	AHCI_Q_ALTSIG},
+	{0x91301b4b, 0x00, "Marvell 88SE9130",	AHCI_Q_ALTSIG},
+	{0x91721b4b, 0x00, "Marvell 88SE9172",	0},
+	{0x91821b4b, 0x00, "Marvell 88SE9182",	0},
+	{0x91831b4b, 0x00, "Marvell 88SS9183",	0},
+	{0x91a01b4b, 0x00, "Marvell 88SE91Ax",	0},
+	{0x92151b4b, 0x00, "Marvell 88SE9215",	0},
+	{0x92201b4b, 0x00, "Marvell 88SE9220",	AHCI_Q_ALTSIG},
+	{0x92301b4b, 0x00, "Marvell 88SE9230",	AHCI_Q_ALTSIG},
+	{0x92351b4b, 0x00, "Marvell 88SE9235",	0},
+	{0x06201103, 0x00, "HighPoint RocketRAID 620",	0},
+	{0x06201b4b, 0x00, "HighPoint RocketRAID 620",	0},
+	{0x06221103, 0x00, "HighPoint RocketRAID 622",	0},
+	{0x06221b4b, 0x00, "HighPoint RocketRAID 622",	0},
+	{0x06401103, 0x00, "HighPoint RocketRAID 640",	0},
+	{0x06401b4b, 0x00, "HighPoint RocketRAID 640",	0},
+	{0x06441103, 0x00, "HighPoint RocketRAID 644",	0},
+	{0x06441b4b, 0x00, "HighPoint RocketRAID 644",	0},
+	{0x06411103, 0x00, "HighPoint RocketRAID 640L",	0},
+	{0x06421103, 0x00, "HighPoint RocketRAID 642L",	0},
+	{0x06451103, 0x00, "HighPoint RocketRAID 644L",	0},
 	{0x044c10de, 0x00, "NVIDIA MCP65",	AHCI_Q_NOAA},
 	{0x044d10de, 0x00, "NVIDIA MCP65",	AHCI_Q_NOAA},
 	{0x044e10de, 0x00, "NVIDIA MCP65",	AHCI_Q_NOAA},
@@ -487,10 +487,9 @@ ahci_attach(device_t dev)
 	ctlr->ichannels = ATA_INL(ctlr->r_mem, AHCI_PI);
 
 	/* Identify and set separate quirks for HBA and RAID f/w Marvells. */
-	if ((ctlr->quirks & AHCI_Q_NOBSYRES) &&
-	    (ctlr->quirks & AHCI_Q_ALTSIG) &&
+	if ((ctlr->quirks & AHCI_Q_ALTSIG) &&
 	    (ctlr->caps & AHCI_CAP_SPM) == 0)
-		ctlr->quirks &= ~AHCI_Q_NOBSYRES;
+		ctlr->quirks |= AHCI_Q_NOBSYRES;
 
 	if (ctlr->quirks & AHCI_Q_1CH) {
 		ctlr->caps &= ~AHCI_CAP_NPMASK;
@@ -1972,9 +1971,15 @@ ahci_execute_transaction(struct ahci_slot *slot)
 			}
 		}
 
-		/* Marvell controllers do not wait for readyness. */
-		if ((ch->quirks & AHCI_Q_NOBSYRES) && softreset == 2 &&
-		    et == AHCI_ERR_NONE) {
+		/*
+		 * Marvell HBAs with non-RAID firmware do not wait for
+		 * readiness after soft reset, so we have to wait here.
+		 * Marvell RAIDs do not have this problem, but instead
+		 * sometimes forget to update FIS receive area, breaking
+		 * this wait.
+		 */
+		if ((ch->quirks & AHCI_Q_NOBSYRES) == 0 &&
+		    softreset == 2 && et == AHCI_ERR_NONE) {
 			while ((val = fis[2]) & ATA_S_BUSY) {
 				DELAY(10);
 				if (count++ >= timeout)
