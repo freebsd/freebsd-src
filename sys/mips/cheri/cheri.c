@@ -79,27 +79,6 @@ SYSCTL_UINT(_security_cheri, OID_AUTO, debugger_on_exception, CTLFLAG_RW,
     &security_cheri_debugger_on_exception, 0,
     "Run debugger on CHERI exception");
 
-#define	CHERI_CAP_PRINT(crn) do {					\
-	uintmax_t c_perms, c_otype, c_base, c_length, c_offset;		\
-	u_int ctag, c_sealed;						\
-									\
-	CHERI_CGETTAG(ctag, (crn));					\
-	CHERI_CGETSEALED(c_sealed, (crn));				\
-	CHERI_CGETPERM(c_perms, (crn));					\
-	CHERI_CGETTYPE(c_otype, (crn));					\
-	CHERI_CGETBASE(c_base, (crn));					\
-	CHERI_CGETLEN(c_length, (crn));					\
-	CHERI_CGETOFFSET(c_offset, (crn));				\
-	printf("t:%u s:%u p:%08jx b:%016jx l:%016jx o:%jx y:%jx\n",	\
-	    ctag, c_sealed, c_perms, c_base, c_length, c_offset,	\
-	    c_otype);							\
-} while (0)
-
-#define	CHERI_REG_PRINT(crn, num) do {					\
-	printf("C%02u: ", num);						\
-	CHERI_CAP_PRINT(crn);						\
-} while (0)
-
 static void	cheri_capability_set_user_c0(struct chericap *);
 static void	cheri_capability_set_user_stack(struct chericap *);
 static void	cheri_capability_set_user_pcc(struct chericap *);
@@ -483,25 +462,6 @@ cheri_signal_sandboxed(struct thread *td)
 }
 
 #ifdef DDB
-#define	DB_CHERI_REG_PRINT_NUM(crn, num) do {				\
-	uintmax_t c_perms, c_otype, c_base, c_length, c_offset;		\
-	u_int ctag, c_sealed;						\
-									\
-	CHERI_CGETTAG(ctag, (crn));					\
-	CHERI_CGETSEALED(c_sealed, (crn));				\
-	CHERI_CGETPERM(c_perms, (crn));					\
-	CHERI_CGETTYPE(c_otype, (crn));					\
-	CHERI_CGETBASE(c_base, (crn));					\
-	CHERI_CGETLEN(c_length, (crn));					\
-	CHERI_CGETOFFSET(c_offset, (crn));				\
-	db_printf(							\
-	    "C%02u t:%u s:%u p:%08jx b:%016jx l:%016jx o:%jx y:%jx\n",	\
-	    num, ctag, c_sealed, c_perms, c_base, c_length, c_offset,	\
-	    c_otype);							\
-} while (0)
-
-#define	DB_CHERI_REG_PRINT(crn)	 DB_CHERI_REG_PRINT_NUM(crn, crn)
-
 /*
  * Variation that prints live register state from the capability coprocessor.
  */
@@ -510,38 +470,38 @@ DB_SHOW_COMMAND(cheri, ddb_dump_cheri)
 	register_t cause;
 
 	db_printf("CHERI registers\n");
-	DB_CHERI_REG_PRINT(0);
-	DB_CHERI_REG_PRINT(1);
-	DB_CHERI_REG_PRINT(2);
-	DB_CHERI_REG_PRINT(3);
-	DB_CHERI_REG_PRINT(4);
-	DB_CHERI_REG_PRINT(5);
-	DB_CHERI_REG_PRINT(6);
-	DB_CHERI_REG_PRINT(7);
-	DB_CHERI_REG_PRINT(8);
-	DB_CHERI_REG_PRINT(9);
-	DB_CHERI_REG_PRINT(10);
-	DB_CHERI_REG_PRINT(11);
-	DB_CHERI_REG_PRINT(12);
-	DB_CHERI_REG_PRINT(13);
-	DB_CHERI_REG_PRINT(14);
-	DB_CHERI_REG_PRINT(15);
-	DB_CHERI_REG_PRINT(16);
-	DB_CHERI_REG_PRINT(17);
-	DB_CHERI_REG_PRINT(18);
-	DB_CHERI_REG_PRINT(19);
-	DB_CHERI_REG_PRINT(20);
-	DB_CHERI_REG_PRINT(21);
-	DB_CHERI_REG_PRINT(22);
-	DB_CHERI_REG_PRINT(23);
-	DB_CHERI_REG_PRINT(24);
-	DB_CHERI_REG_PRINT(25);
-	DB_CHERI_REG_PRINT(26);
-	DB_CHERI_REG_PRINT(27);
-	DB_CHERI_REG_PRINT(28);
-	DB_CHERI_REG_PRINT(29);
-	DB_CHERI_REG_PRINT(30);
-	DB_CHERI_REG_PRINT(31);
+	DB_CHERI_REG_PRINT(0, 0);
+	DB_CHERI_REG_PRINT(1, 1);
+	DB_CHERI_REG_PRINT(2, 2);
+	DB_CHERI_REG_PRINT(3, 3);
+	DB_CHERI_REG_PRINT(4, 4);
+	DB_CHERI_REG_PRINT(5, 5);
+	DB_CHERI_REG_PRINT(6, 6);
+	DB_CHERI_REG_PRINT(7, 7);
+	DB_CHERI_REG_PRINT(8, 8);
+	DB_CHERI_REG_PRINT(9, 9);
+	DB_CHERI_REG_PRINT(10, 10);
+	DB_CHERI_REG_PRINT(11, 11);
+	DB_CHERI_REG_PRINT(12, 12);
+	DB_CHERI_REG_PRINT(13, 13);
+	DB_CHERI_REG_PRINT(14, 14);
+	DB_CHERI_REG_PRINT(15, 15);
+	DB_CHERI_REG_PRINT(16, 16);
+	DB_CHERI_REG_PRINT(17, 17);
+	DB_CHERI_REG_PRINT(18, 18);
+	DB_CHERI_REG_PRINT(19, 19);
+	DB_CHERI_REG_PRINT(20, 20);
+	DB_CHERI_REG_PRINT(21, 21);
+	DB_CHERI_REG_PRINT(22, 22);
+	DB_CHERI_REG_PRINT(23, 23);
+	DB_CHERI_REG_PRINT(24, 24);
+	DB_CHERI_REG_PRINT(25, 25);
+	DB_CHERI_REG_PRINT(26, 26);
+	DB_CHERI_REG_PRINT(27, 27);
+	DB_CHERI_REG_PRINT(28, 28);
+	DB_CHERI_REG_PRINT(29, 29);
+	DB_CHERI_REG_PRINT(30, 30);
+	DB_CHERI_REG_PRINT(31, 31);
 	CHERI_CGETCAUSE(cause);
 	db_printf("CHERI cause: ExcCode: 0x%02x RegNum: 0x%02x\n",
 	    (uint8_t)((cause >> 8) & 0xff), (uint8_t)(cause & 0x1f));
@@ -570,11 +530,11 @@ DB_SHOW_COMMAND(cheriframe, ddb_dump_cheriframe)
 	for (i = 0; i < 27; i++) {
 		cheri_capability_load(CHERI_CR_CTEMP0,
 		    (struct chericap *)&cfp->cf_c0 + i);
-		DB_CHERI_REG_PRINT_NUM(CHERI_CR_CTEMP0, i);
+		DB_CHERI_REG_PRINT(CHERI_CR_CTEMP0, i);
 	}
-	db_printf("\nPCC:\n");
 	cheri_capability_load(CHERI_CR_CTEMP0,
 	    (struct chericap *)&cfp->cf_c0 + CHERIFRAME_OFF_PCC);
-	DB_CHERI_REG_PRINT_NUM(CHERI_CR_CTEMP0, CHERI_CR_EPCC);
+	db_printf("PCC ");
+	DB_CHERI_CAP_PRINT(CHERI_CR_CTEMP0);
 }
 #endif

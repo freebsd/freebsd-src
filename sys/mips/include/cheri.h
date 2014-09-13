@@ -523,6 +523,50 @@ cheri_get_cyclecount(void)
 }
 
 #ifdef _KERNEL
+#define	CHERI_CAP_PRINT(crn) do {					\
+	uintmax_t c_perms, c_otype, c_base, c_length, c_offset;		\
+	u_int ctag, c_sealed;						\
+									\
+	CHERI_CGETTAG(ctag, (crn));					\
+	CHERI_CGETSEALED(c_sealed, (crn));				\
+	CHERI_CGETPERM(c_perms, (crn));					\
+	CHERI_CGETTYPE(c_otype, (crn));					\
+	CHERI_CGETBASE(c_base, (crn));					\
+	CHERI_CGETLEN(c_length, (crn));					\
+	CHERI_CGETOFFSET(c_offset, (crn));				\
+	printf("t:%u s:%u p:%08jx b:%016jx l:%016jx o:%jx y:%jx\n",	\
+	    ctag, c_sealed, c_perms, c_base, c_length, c_offset,	\
+	    c_otype);							\
+} while (0)
+
+#define	CHERI_REG_PRINT(crn, num) do {					\
+	printf("C%02u: ", num);						\
+	CHERI_CAP_PRINT(crn);						\
+} while (0)
+
+#ifdef DDB
+#define	DB_CHERI_CAP_PRINT(crn) do {					\
+	uintmax_t c_perms, c_otype, c_base, c_length, c_offset;		\
+	u_int ctag, c_sealed;						\
+									\
+	CHERI_CGETTAG(ctag, (crn));					\
+	CHERI_CGETSEALED(c_sealed, (crn));				\
+	CHERI_CGETPERM(c_perms, (crn));					\
+	CHERI_CGETTYPE(c_otype, (crn));					\
+	CHERI_CGETBASE(c_base, (crn));					\
+	CHERI_CGETLEN(c_length, (crn));					\
+	CHERI_CGETOFFSET(c_offset, (crn));				\
+	db_printf("t:%u s:%u p:%08jx b:%016jx l:%016jx o:%jx y:%jx\n",	\
+	    ctag, c_sealed, c_perms, c_base, c_length, c_offset,	\
+	    c_otype);							\
+} while (0)
+
+#define	DB_CHERI_REG_PRINT(crn, num) do {				\
+	db_printf("C%02u ", num);					\
+	DB_CHERI_CAP_PRINT(crn);					\
+} while (0)
+#endif /* !_KERNEL */
+
 /*
  * APIs that act on C language representations of capabilities -- but not
  * capabilities themselves.
