@@ -1272,8 +1272,6 @@ zfs_create_boot()
 	          "$funcname"
 	f_eval_catch $funcname echo "$ECHO_APPEND" 'zfs_enable=\"YES\"' \
 	             $BSDINSTALL_TMPETC/rc.conf.zfs || return $FAILURE
-	f_eval_catch $funcname echo "$ECHO_APPEND" 'zfs_load=\"YES\"' \
-	             $BSDINSTALL_TMPBOOT/loader.conf.zfs || return $FAILURE
 	f_eval_catch $funcname echo "$ECHO_APPEND" \
 	             'kern.geom.label.disk_ident.enable=\"0\"' \
 	             $BSDINSTALL_TMPBOOT/loader.conf.zfs || return $FAILURE
