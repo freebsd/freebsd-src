@@ -204,7 +204,8 @@ while [ 1 ]; do
 
 	${LOADER} -c ${console} -m ${memsize} -d ${BOOTDISK} ${loader_opt} \
 		${vmname}
-	if [ $? -ne 0 ]; then
+	bhyve_exit=$?
+	if [ $bhyve_exit -ne 0 ]; then
 		break
 	fi
 
@@ -239,6 +240,7 @@ while [ 1 ]; do
 		${installer_opt}					\
 		${vmname}
 
+	bhyve_exit=$?
 	# bhyve returns the following status codes:
 	#  0 - VM has been reset
 	#  1 - VM has been powered off
@@ -246,9 +248,18 @@ while [ 1 ]; do
 	#  3 - VM generated a triple fault
 	#  all other non-zero status codes are errors
 	#
-	if [ $? -ne 0 ]; then
+	if [ $bhyve_exit -ne 0 ]; then
 		break
 	fi
 done
 
-exit 99
+
+case $bhyve_exit in
+	0|1|2)
+		# Cleanup /dev/vmm entry when bhyve did not exit
+		# due to an error.
+		${BHYVECTL} --vm=${vmname} --destroy > /dev/null 2>&1
+		;;
+esac
+
+exit $bhyve_exit
