@@ -10,5 +10,7 @@ options		KERNPHYSADDR=0x70100000
 makeoptions	KERNPHYSADDR=0x70100000
 options		PHYSADDR=0x70000000
 
+device  	fdt_pinctrl
+
 files "../freescale/imx/files.imx53"
 
