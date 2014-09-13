@@ -51,7 +51,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/malloc.h>
 #include <sys/mbuf.h>
 #include <sys/module.h>
-#include <sys/rwlock.h>
+#include <sys/rmlock.h>
 #include <sys/queue.h>
 #include <sys/socket.h>
 #include <sys/sockio.h>
@@ -84,7 +84,7 @@ LIST_HEAD(ifvlanhead, ifvlan);
 
 struct ifvlantrunk {
 	struct	ifnet   *parent;	/* parent interface of this trunk */
-	struct	rwlock	rw;
+	struct	rmlock	lock;
 #ifdef VLAN_ARRAY
 #define	VLAN_ARRAY_SIZE	(EVL_VLID_MASK + 1)
 	struct	ifvlan	*vlans[VLAN_ARRAY_SIZE]; /* static table */
@@ -175,14 +175,15 @@ static struct sx ifv_lock;
 #define	VLAN_LOCK_ASSERT()	sx_assert(&ifv_lock, SA_LOCKED)
 #define	VLAN_LOCK()		sx_xlock(&ifv_lock)
 #define	VLAN_UNLOCK()		sx_xunlock(&ifv_lock)
-#define	TRUNK_LOCK_INIT(trunk)	rw_init(&(trunk)->rw, vlanname)
-#define	TRUNK_LOCK_DESTROY(trunk) rw_destroy(&(trunk)->rw)
-#define	TRUNK_LOCK(trunk)	rw_wlock(&(trunk)->rw)
-#define	TRUNK_UNLOCK(trunk)	rw_wunlock(&(trunk)->rw)
-#define	TRUNK_LOCK_ASSERT(trunk) rw_assert(&(trunk)->rw, RA_WLOCKED)
-#define	TRUNK_RLOCK(trunk)	rw_rlock(&(trunk)->rw)
-#define	TRUNK_RUNLOCK(trunk)	rw_runlock(&(trunk)->rw)
-#define	TRUNK_LOCK_RASSERT(trunk) rw_assert(&(trunk)->rw, RA_RLOCKED)
+#define	TRUNK_LOCK_INIT(trunk)	rm_init(&(trunk)->lock, vlanname)
+#define	TRUNK_LOCK_DESTROY(trunk) rm_destroy(&(trunk)->lock)
+#define	TRUNK_LOCK(trunk)	rm_wlock(&(trunk)->lock)
+#define	TRUNK_UNLOCK(trunk)	rm_wunlock(&(trunk)->lock)
+#define	TRUNK_LOCK_ASSERT(trunk) rm_assert(&(trunk)->lock, RA_WLOCKED)
+#define	TRUNK_RLOCK(trunk)	rm_rlock(&(trunk)->lock, &tracker)
+#define	TRUNK_RUNLOCK(trunk)	rm_runlock(&(trunk)->lock, &tracker)
+#define	TRUNK_LOCK_RASSERT(trunk) rm_assert(&(trunk)->lock, RA_RLOCKED)
+#define	TRUNK_LOCK_READER	struct rm_priotracker tracker
 
 #ifndef VLAN_ARRAY
 static	void vlan_inithash(struct ifvlantrunk *trunk);
@@ -687,6 +688,7 @@ vlan_devat(struct ifnet *ifp, uint16_t vid)
 {
 	struct ifvlantrunk *trunk;
 	struct ifvlan *ifv;
+	TRUNK_LOCK_READER;
 
 	trunk = ifp->if_vlantrunk;
 	if (trunk == NULL)
@@ -1163,6 +1165,7 @@ vlan_input(struct ifnet *ifp, struct mbuf *m)
 {
 	struct ifvlantrunk *trunk = ifp->if_vlantrunk;
 	struct ifvlan *ifv;
+	TRUNK_LOCK_READER;
 	uint16_t vid;
 
 	KASSERT(trunk != NULL, ("%s: no trunk", __func__));
