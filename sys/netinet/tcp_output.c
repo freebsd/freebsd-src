@@ -52,7 +52,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/sysctl.h>
 
 #include <net/if.h>
-#include <net/if_var.h>
 #include <net/route.h>
 #include <net/vnet.h>
 
@@ -768,77 +767,8 @@ send:
 		flags &= ~TH_FIN;
 
 		if (tso) {
-			u_int if_hw_tsomax_bytes;
-			u_int if_hw_tsomax_frag_count;
-			u_int if_hw_tsomax_frag_size;
-			struct mbuf *mb;
-			u_int moff;
-			int max_len;
-
-			/* extract TSO information */
-			if_hw_tsomax_bytes =
-			    IF_HW_TSOMAX_GET_BYTES(tp->t_tsomax);
-			if_hw_tsomax_frag_count =
-			    IF_HW_TSOMAX_GET_FRAG_COUNT(tp->t_tsomax);
-			if_hw_tsomax_frag_size =
-			    IF_HW_TSOMAX_GET_FRAG_SIZE(tp->t_tsomax);
-
-			/* compute maximum TSO length */
-			max_len = (if_hw_tsomax_bytes - hdrlen);
-
-			/* clamp maximum length value */
-			if (max_len > IP_MAXPACKET)
-				max_len = IP_MAXPACKET;
-			else if (max_len < 0)
-				max_len = 0;
-
-			/* get smallest length */
-			if (len > (u_int)max_len) {
-				if (max_len != 0)
-					sendalot = 1;
-				len = (u_int)max_len;
-			}
-
 			KASSERT(ipoptlen == 0,
 			    ("%s: TSO can't do IP options", __func__));
-
-			max_len = 0;
-			mb = sbsndptr(&so->so_snd, off, len, &moff);
-
-			/* now make sure the number of fragments fit too */
-			while (mb != NULL && (u_int)max_len < len) {
-				u_int cur_length;
-				u_int cur_frags;
-
-				/*
-				 * Get length of mbuf fragment and how
-				 * many hardware frags, rounded up, it
-				 * would use:
-				 */
-				cur_length = (mb->m_len - moff);
-				cur_frags = (cur_length +
-				    (1 << if_hw_tsomax_frag_size) - 1) >>
-				    if_hw_tsomax_frag_size;
-
-				/* Handle special case: Zero Length Mbuf */
-				if (cur_frags == 0)
-					cur_frags = 1;
-
-				/*
-				 * Check if the fragment limit will be
-				 * reached or exceeded:
-				 */
-				if (cur_frags >= if_hw_tsomax_frag_count) {
-					max_len += min(cur_length,
-					    if_hw_tsomax_frag_count <<
-					    if_hw_tsomax_frag_size);
-					break;
-				}
-				max_len += cur_length;
-				if_hw_tsomax_frag_count -= cur_frags;
-				moff = 0;
-				mb = mb->m_next;
-			}
 
 			/*
 			 * Limit a burst to t_tsomax minus IP,
@@ -846,10 +776,9 @@ send:
 			 * from overflowing or exceeding the maximum
 			 * length allowed by the network interface.
 			 */
-			if (len > (u_int)max_len) {
-				if (max_len != 0)
-					sendalot = 1;
-				len = (u_int)max_len;
+			if (len > tp->t_tsomax - hdrlen) {
+				len = tp->t_tsomax - hdrlen;
+				sendalot = 1;
 			}
 
 			/*
