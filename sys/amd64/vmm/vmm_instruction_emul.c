@@ -1025,13 +1025,20 @@ vie_calculate_gla(enum vm_cpu_mode cpu_mode, enum vm_reg_name seg,
 
 #ifdef _KERNEL
 void
-vie_init(struct vie *vie)
+vie_init(struct vie *vie, const char *inst_bytes, int inst_length)
 {
+	KASSERT(inst_length >= 0 && inst_length <= VIE_INST_SIZE,
+	    ("%s: invalid instruction length (%d)", __func__, inst_length));
 
 	bzero(vie, sizeof(struct vie));
 
 	vie->base_register = VM_REG_LAST;
 	vie->index_register = VM_REG_LAST;
+
+	if (inst_length) {
+		bcopy(inst_bytes, vie->inst, inst_length);
+		vie->num_valid = inst_length;
+	}
 }
 
 static int
