@@ -64,7 +64,7 @@ ctl_serialize_table[CTL_SERIDX_COUNT][CTL_SERIDX_COUNT] = {
 /*TUR     */{   pS, pS, pS, pS, bK,  bK,  bK,  pS, pS,  bK, pS,  bK, bK},
 /*READ    */{   pS, pS, xT, bK, bK,  bK,  bK,  pS, pS,  bK, pS,  bK, bK},
 /*WRITE   */{   pS, xT, xT, bK, bK,  bK,  bK,  pS, pS,  bK, pS,  bK, bK},
-/*UNMAP   */{   pS, bK, bK, pS, bK,  bK,  bK,  pS, pS,  bK, pS,  bK, bK},
+/*UNMAP   */{   pS, xT, xT, pS, bK,  bK,  bK,  pS, pS,  bK, pS,  bK, bK},
 /*MD_SNS  */{   bK, bK, bK, bK, pS,  bK,  bK,  pS, pS,  bK, pS,  bK, bK},
 /*MD_SEL  */{   bK, bK, bK, bK, bK,  bK,  bK,  pS, pS,  bK, pS,  bK, bK},
 /*RQ_SNS  */{   pS, pS, pS, pS, pS,  pS,  bK,  pS, pS,  bK, pS,  bK, bK},
