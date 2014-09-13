@@ -227,12 +227,14 @@ svm_cpuid_features(void)
 static __inline int
 flush_by_asid(void)
 {
+
 	return (svm_feature & AMD_CPUID_SVM_FLUSH_BY_ASID);
 }
 
 static __inline int
 decode_assist(void)
 {
+
 	return (svm_feature & AMD_CPUID_SVM_DECODE_ASSIST);
 }
 
