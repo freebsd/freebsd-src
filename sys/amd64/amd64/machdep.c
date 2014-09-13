@@ -2124,6 +2124,26 @@ smap_sysctl_handler(SYSCTL_HANDLER_ARGS)
 SYSCTL_PROC(_machdep, OID_AUTO, smap, CTLTYPE_OPAQUE|CTLFLAG_RD, NULL, 0,
     smap_sysctl_handler, "S,bios_smap_xattr", "Raw BIOS SMAP data");
 
+static int
+efi_map_sysctl_handler(SYSCTL_HANDLER_ARGS)
+{
+	struct efi_map_header *efihdr;
+	caddr_t kmdp;
+	uint32_t efisize;
+
+	kmdp = preload_search_by_type("elf kernel");
+	if (kmdp == NULL)
+		kmdp = preload_search_by_type("elf64 kernel");
+	efihdr = (struct efi_map_header *)preload_search_info(kmdp,
+	    MODINFO_METADATA | MODINFOMD_EFI_MAP);
+	if (efihdr == NULL)
+		return (0);
+	efisize = *((uint32_t *)efihdr - 1);
+	return (SYSCTL_OUT(req, efihdr, efisize));
+}
+SYSCTL_PROC(_machdep, OID_AUTO, efi_map, CTLTYPE_OPAQUE|CTLFLAG_RD, NULL, 0,
+    efi_map_sysctl_handler, "S,efi_map_header", "Raw EFI Memory Map");
+
 void
 spinlock_enter(void)
 {

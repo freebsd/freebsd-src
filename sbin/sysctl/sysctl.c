@@ -48,6 +48,11 @@ static const char rcsid[] =
 #include <sys/sysctl.h>
 #include <sys/vmmeter.h>
 
+#ifdef __amd64__
+#include <sys/efi.h>
+#include <machine/metadata.h>
+#endif
+
 #if defined(__amd64__) || defined(__i386__)
 #include <machine/pc/bios.h>
 #endif
@@ -545,6 +550,91 @@ S_vmtotal(size_t l2, void *p)
 	return (0);
 }
 
+#ifdef __amd64__
+#define efi_next_descriptor(ptr, size) \
+	((struct efi_md *)(((uint8_t *) ptr) + size))
+
+static int
+S_efi_map(size_t l2, void *p)
+{
+	struct efi_map_header *efihdr;
+	struct efi_md *map;
+	const char *type;
+	size_t efisz;
+	int ndesc, i;
+
+	static const char *types[] = {
+		"Reserved",
+		"LoaderCode",
+		"LoaderData",
+		"BootServicesCode",
+		"BootServicesData",
+		"RuntimeServicesCode",
+		"RuntimeServicesData",
+		"ConventionalMemory",
+		"UnusableMemory",
+		"ACPIReclaimMemory",
+		"ACPIMemoryNVS",
+		"MemoryMappedIO",
+		"MemoryMappedIOPortSpace",
+		"PalCode"
+	};
+
+	/*
+	 * Memory map data provided by UEFI via the GetMemoryMap
+	 * Boot Services API.
+	 */
+	if (l2 < sizeof(*efihdr)) {
+		warnx("S_efi_map length less than header");
+		return (1);
+	}
+	efihdr = p;
+	efisz = (sizeof(struct efi_map_header) + 0xf) & ~0xf;
+	map = (struct efi_md *)((uint8_t *)efihdr + efisz); 
+
+	if (efihdr->descriptor_size == 0)
+		return (0);
+	if (l2 != efisz + efihdr->memory_size) {
+		warnx("S_efi_map length mismatch %zu vs %zu", l2, efisz +
+		    efihdr->memory_size);
+		return (1);
+	}		
+	ndesc = efihdr->memory_size / efihdr->descriptor_size;
+
+	printf("\n%23s %12s %12s %8s %4s",
+	    "Type", "Physical", "Virtual", "#Pages", "Attr");
+
+	for (i = 0; i < ndesc; i++,
+	    map = efi_next_descriptor(map, efihdr->descriptor_size)) {
+		if (map->md_type <= EFI_MD_TYPE_PALCODE)
+			type = types[map->md_type];
+		else
+			type = "<INVALID>";
+		printf("\n%23s %012lx %12p %08lx ", type, map->md_phys,
+		    map->md_virt, map->md_pages);
+		if (map->md_attr & EFI_MD_ATTR_UC)
+			printf("UC ");
+		if (map->md_attr & EFI_MD_ATTR_WC)
+			printf("WC ");
+		if (map->md_attr & EFI_MD_ATTR_WT)
+			printf("WT ");
+		if (map->md_attr & EFI_MD_ATTR_WB)
+			printf("WB ");
+		if (map->md_attr & EFI_MD_ATTR_UCE)
+			printf("UCE ");
+		if (map->md_attr & EFI_MD_ATTR_WP)
+			printf("WP ");
+		if (map->md_attr & EFI_MD_ATTR_RP)
+			printf("RP ");
+		if (map->md_attr & EFI_MD_ATTR_XP)
+			printf("XP ");
+		if (map->md_attr & EFI_MD_ATTR_RT)
+			printf("RUNTIME");
+	}
+	return (0);
+}
+#endif
+
 #if defined(__amd64__) || defined(__i386__)
 static int
 S_bios_smap_xattr(size_t l2, void *p)
@@ -818,6 +908,10 @@ show_var(int *oid, int nlen)
 			func = S_loadavg;
 		else if (strcmp(fmt, "S,vmtotal") == 0)
 			func = S_vmtotal;
+#ifdef __amd64__
+		else if (strcmp(fmt, "S,efi_map_header") == 0)
+			func = S_efi_map;
+#endif
 #if defined(__amd64__) || defined(__i386__)
 		else if (strcmp(fmt, "S,bios_smap_xattr") == 0)
 			func = S_bios_smap_xattr;
