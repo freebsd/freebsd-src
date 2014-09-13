@@ -34,6 +34,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/malloc.h>
 #include <sys/pcpu.h>
 #include <sys/proc.h>
+#include <sys/sysctl.h>
 
 #include <vm/vm.h>
 #include <vm/pmap.h>
@@ -67,6 +68,9 @@ __FBSDID("$FreeBSD$");
 #include "svm_softc.h"
 #include "npt.h"
 
+SYSCTL_DECL(_hw_vmm);
+SYSCTL_NODE(_hw_vmm, OID_AUTO, svm, CTLFLAG_RW, NULL, NULL);
+
 /*
  * SVM CPUID function 0x8000_000A, edx bit decoding.
  */
@@ -96,9 +100,17 @@ extern struct pcpu __pcpu[];
 static int svm_getdesc(void *arg, int vcpu, int type, struct seg_desc *desc);
 
 static uint32_t svm_feature;	/* AMD SVM features. */
+SYSCTL_UINT(_hw_vmm_svm, OID_AUTO, features, CTLFLAG_RD, &svm_feature, 0,
+    "SVM features advertised by CPUID.8000000AH:EDX");
+
+static int disable_npf_assist;
+SYSCTL_INT(_hw_vmm_svm, OID_AUTO, disable_npf_assist, CTLFLAG_RWTUN,
+    &disable_npf_assist, 0, NULL);
 
 /* Maximum ASIDs supported by the processor */
 static uint32_t nasid;
+SYSCTL_UINT(_hw_vmm_svm, OID_AUTO, num_asids, CTLFLAG_RD, &nasid, 0,
+    "Number of ASIDs supported by this processor");
 
 /* Current ASID generation for each host cpu */
 static struct asid asid[MAXCPU];
@@ -216,6 +228,12 @@ static __inline int
 flush_by_asid(void)
 {
 	return (svm_feature & AMD_CPUID_SVM_FLUSH_BY_ASID);
+}
+
+static __inline int
+decode_assist(void)
+{
+	return (svm_feature & AMD_CPUID_SVM_DECODE_ASSIST);
 }
 
 /*
@@ -792,19 +810,22 @@ svm_handle_inst_emul(struct vmcb *vmcb, uint64_t gpa, struct vm_exit *vmexit)
 {
 	struct vm_guest_paging *paging;
 	struct vmcb_segment *seg;
+	struct vmcb_ctrl *ctrl;
+	char *inst_bytes;
+	int inst_len;
 
+	ctrl = &vmcb->ctrl;
 	paging = &vmexit->u.inst_emul.paging;
+
 	vmexit->exitcode = VM_EXITCODE_INST_EMUL;
 	vmexit->u.inst_emul.gpa = gpa;
 	vmexit->u.inst_emul.gla = VIE_INVALID_GLA;
 	svm_paging_info(vmcb, paging);
 
 	/*
-	 * If DecodeAssist SVM feature doesn't exist, we don't have NPF 
-	 * instuction length. RIP will be calculated based on the length 
-	 * determined by instruction emulation.
+	 * The inst_length will be determined by decoding the instruction.
 	 */
-	vmexit->inst_length = VIE_INST_SIZE;
+	vmexit->inst_length = 0;
 
 	seg = vmcb_seg(vmcb, VM_REG_GUEST_CS);
 	switch(paging->cpu_mode) {
@@ -820,6 +841,18 @@ svm_handle_inst_emul(struct vmcb *vmcb, uint64_t gpa, struct vm_exit *vmexit)
 		vmexit->u.inst_emul.cs_d = 0;
 		break;	
 	}
+
+	/*
+	 * Copy the instruction bytes into 'vie' if available.
+	 */
+	if (decode_assist() && !disable_npf_assist) {
+		inst_len = ctrl->inst_len;
+		inst_bytes = ctrl->inst_bytes;
+	} else {
+		inst_len = 0;
+		inst_bytes = NULL;
+	}
+	vie_init(&vmexit->u.inst_emul.vie, inst_bytes, inst_len);
 }
 
 /*
@@ -1182,7 +1215,7 @@ svm_vmexit(struct svm_softc *svm_sc, int vcpu, struct vm_exit *vmexit)
 		loop = false;
 		break;
 	default:
-		 /* Return to user space. */
+		/* Return to user space. */
 		loop = false;
 		update_rip = false;
 		VCPU_CTR3(svm_sc->vm, vcpu, "VMEXIT=0x%lx"
@@ -1190,7 +1223,7 @@ svm_vmexit(struct svm_softc *svm_sc, int vcpu, struct vm_exit *vmexit)
 			ctrl->exitcode, info1, info2);
 		VCPU_CTR3(svm_sc->vm, vcpu, "SVM:RIP: 0x%lx nRIP:0x%lx"
 			" Inst decoder len:%d\n", state->rip,
-			ctrl->nrip, ctrl->inst_decode_size);
+			ctrl->nrip, ctrl->inst_len);
 		vmm_stat_incr(svm_sc->vm, vcpu, VMEXIT_UNKNOWN, 1);
 		break;
 	}	

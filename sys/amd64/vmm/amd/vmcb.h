@@ -218,8 +218,8 @@ struct vmcb_ctrl {
 	uint32_t vmcb_clean;	/* 0xC0: VMCB clean bits for caching */
 	uint32_t :32;		/* 0xC4: Reserved */
 	uint64_t nrip;		/* 0xC8: Guest next nRIP. */
-	uint8_t	inst_decode_size; /* 0xD0: Instruction decode */
-	uint8_t	inst_decode_bytes[15];
+	uint8_t	inst_len;	/* 0xD0: #NPF decode assist */
+	uint8_t	inst_bytes[15];
 	uint8_t	padd6[0x320];
 } __attribute__ ((__packed__));
 CTASSERT(sizeof(struct vmcb_ctrl) == 1024);

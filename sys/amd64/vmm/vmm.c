@@ -1216,7 +1216,7 @@ vm_handle_inst_emul(struct vm *vm, int vcpuid, bool *retu)
 	mem_region_read_t mread;
 	mem_region_write_t mwrite;
 	enum vm_cpu_mode cpu_mode;
-	int cs_d, error;
+	int cs_d, error, length;
 
 	vcpu = &vm->vcpu[vcpuid];
 	vme = &vcpu->exitinfo;
@@ -1228,11 +1228,21 @@ vm_handle_inst_emul(struct vm *vm, int vcpuid, bool *retu)
 	paging = &vme->u.inst_emul.paging;
 	cpu_mode = paging->cpu_mode;
 
-	vie_init(vie);
-
 	/* Fetch, decode and emulate the faulting instruction */
-	error = vmm_fetch_instruction(vm, vcpuid, paging, vme->rip,
-	    vme->inst_length, vie);
+	if (vie->num_valid == 0) {
+		/*
+		 * If the instruction length is not known then assume a
+		 * maximum size instruction.
+		 */
+		length = vme->inst_length ? vme->inst_length : VIE_INST_SIZE;
+		error = vmm_fetch_instruction(vm, vcpuid, paging, vme->rip,
+		    length, vie);
+	} else {
+		/*
+		 * The instruction bytes have already been copied into 'vie'
+		 */
+		error = 0;
+	}
 	if (error == 1)
 		return (0);		/* Resume guest to handle page fault */
 	else if (error == -1)
@@ -1243,13 +1253,10 @@ vm_handle_inst_emul(struct vm *vm, int vcpuid, bool *retu)
 	if (vmm_decode_instruction(vm, vcpuid, gla, cpu_mode, cs_d, vie) != 0)
 		return (EFAULT);
 
-	/* 
-	 * AMD-V doesn't provide instruction length which is nRIP - RIP
-	 * for some of the exit including Nested Page Fault. Use instruction
-	 * length calculated by software instruction emulation to update
-	 * RIP of vcpu.
+	/*
+	 * If the instruction length is not specified the update it now.
 	 */
-	if (vme->inst_length == VIE_INST_SIZE) 
+	if (vme->inst_length == 0)
 		vme->inst_length = vie->num_processed;
  
 	/* return to userland unless this is an in-kernel emulated device */
