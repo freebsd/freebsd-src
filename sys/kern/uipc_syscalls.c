@@ -3200,6 +3200,8 @@ retry_space:
 		}
 
 		if (m == NULL) {
+			KASSERT(softerr, ("%s: m NULL, no error", __func__));
+			error = softerr;
 			free(sfio, M_TEMP);
 			goto done;
 		}
