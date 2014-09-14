@@ -722,14 +722,7 @@ vnode_pager_generic_getpages(struct vnode *vp, vm_page_t *m, int bytecount,
 		VM_OBJECT_WUNLOCK(object);
 		return (error);
 	} else if (error != 0) {
-		VM_OBJECT_WLOCK(object);
-		for (i = 0; i < count; i++)
-			if (i != reqpage) {
-				vm_page_lock(m[i]);
-				vm_page_free(m[i]);
-				vm_page_unlock(m[i]);
-			}
-		VM_OBJECT_WUNLOCK(object);
+		vm_pager_free_nonreq(object, m, reqpage, count);
 		return (VM_PAGER_ERROR);
 
 		/*
@@ -739,14 +732,7 @@ vnode_pager_generic_getpages(struct vnode *vp, vm_page_t *m, int bytecount,
 		 */
 	} else if ((PAGE_SIZE / bsize) > 1 &&
 	    (vp->v_mount->mnt_stat.f_type != nfs_mount_type)) {
-		VM_OBJECT_WLOCK(object);
-		for (i = 0; i < count; i++)
-			if (i != reqpage) {
-				vm_page_lock(m[i]);
-				vm_page_free(m[i]);
-				vm_page_unlock(m[i]);
-			}
-		VM_OBJECT_WUNLOCK(object);
+		vm_pager_free_nonreq(object, m, reqpage, count);
 		PCPU_INC(cnt.v_vnodein);
 		PCPU_INC(cnt.v_vnodepgsin);
 		return vnode_pager_input_smlfs(object, m[reqpage]);
