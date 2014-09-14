@@ -185,6 +185,51 @@ gic_init_secondary(void)
 	gic_d_write_4(GICD_ISENABLER(30 >> 5), (1UL << (30 & 0x1F)));
 }
 
+int
+gic_decode_fdt(uint32_t iparent, uint32_t *intr, int *interrupt,
+    int *trig, int *pol)
+{
+	static u_int num_intr_cells;
+
+	if (num_intr_cells == 0) {
+		if (OF_searchencprop(OF_node_from_xref(iparent), 
+		    "#interrupt-cells", &num_intr_cells, 
+		    sizeof(num_intr_cells)) == -1) {
+			num_intr_cells = 1;
+		}
+	}
+
+	if (num_intr_cells == 1) {
+		*interrupt = fdt32_to_cpu(intr[0]);
+		*trig = INTR_TRIGGER_CONFORM;
+		*pol = INTR_POLARITY_CONFORM;
+	} else {
+		if (intr[0] == 0)
+			*interrupt = fdt32_to_cpu(intr[1]) + 32;
+		else
+			*interrupt = fdt32_to_cpu(intr[1]);
+		/*
+		 * In intr[2], bits[3:0] are trigger type and level flags.
+		 *   1 = low-to-high edge triggered
+		 *   2 = high-to-low edge triggered
+		 *   4 = active high level-sensitive
+		 *   8 = active low level-sensitive
+		 * The hardware only supports active-high-level or rising-edge.
+		 */
+		if (intr[2] & 0x0a) {
+			printf("unsupported trigger/polarity configuration "
+			    "0x%2x\n", intr[2] & 0x0f);
+			return (ENOTSUP);
+		}
+		*pol  = INTR_POLARITY_CONFORM;
+		if (intr[2] & 0x01)
+			*trig = INTR_TRIGGER_EDGE;
+		else
+			*trig = INTR_TRIGGER_LEVEL;
+	}
+	return (0);
+}
+
 static int
 arm_gic_attach(device_t dev)
 {
