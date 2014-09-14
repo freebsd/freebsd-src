@@ -13,7 +13,7 @@
 .undef INSTALL_PIC_ARCHIVE
 .else
 .if !defined(SHLIB) && defined(LIB)
-SHLIB=		${LIB}
+SHLIB=		${LIB}${LIB_SUFFIX}
 .endif
 .if !defined(SHLIB_NAME) && defined(SHLIB) && defined(SHLIB_MAJOR)
 SHLIB_NAME=	lib${SHLIB}.so.${SHLIB_MAJOR}
@@ -165,10 +165,10 @@ NOPATH_FILES+=	${OBJS}
 .endif
 
 .if defined(LIB) && !empty(LIB)
-_LIBS=		lib${LIB}.a
+_LIBS=		lib${LIB}${LIB_SUFFIX}.a
 
-lib${LIB}.a: ${OBJS} ${STATICOBJS}
-	@${ECHO} building static ${LIB} library
+lib${LIB}${LIB_SUFFIX}.a: ${OBJS} ${STATICOBJS}
+	@${ECHO} building static ${LIB}${LIB_SUFFIX} library
 	@rm -f ${.TARGET}
 .if !defined(NM)
 	@${AR} ${ARFLAGS} ${.TARGET} `lorder ${OBJS} ${STATICOBJS} | tsort -q` ${ARADD}
@@ -181,12 +181,12 @@ lib${LIB}.a: ${OBJS} ${STATICOBJS}
 .if !defined(INTERNALLIB)
 
 .if ${MK_PROFILE} != "no" && defined(LIB) && !empty(LIB)
-_LIBS+=		lib${LIB}_p.a
+_LIBS+=		lib${LIB}${LIB_SUFFIX}_p.a
 POBJS+=		${OBJS:.o=.po} ${STATICOBJS:.o=.po}
 NOPATH_FILES+=	${POBJS}
 
-lib${LIB}_p.a: ${POBJS}
-	@${ECHO} building profiled ${LIB} library
+lib${LIB}${LIB_SUFFIX}_p.a: ${POBJS}
+	@${ECHO} building profiled ${LIB}${LIB_SUFFIX} library
 	@rm -f ${.TARGET}
 .if !defined(NM)
 	@${AR} ${ARFLAGS} ${.TARGET} `lorder ${POBJS} | tsort -q` ${ARADD}
@@ -245,17 +245,17 @@ ${SHLIB_NAME}.debug: ${SHLIB_NAME_FULL}
 .endif #defined(SHLIB_NAME)
 
 .if defined(INSTALL_PIC_ARCHIVE) && defined(LIB) && !empty(LIB) && ${MK_TOOLCHAIN} != "no"
-_LIBS+=		lib${LIB}_pic.a
+_LIBS+=		lib${LIB}${LIB_SUFFIX}_pic.a
 
-lib${LIB}_pic.a: ${SOBJS}
-	@${ECHO} building special pic ${LIB} library
+lib${LIB}${LIB_SUFFIX}_pic.a: ${SOBJS}
+	@${ECHO} building special pic ${LIB}${LIB_SUFFIX} library
 	@rm -f ${.TARGET}
 	@${AR} ${ARFLAGS} ${.TARGET} ${SOBJS} ${ARADD}
 	${RANLIB} ${RANLIBFLAGS} ${.TARGET}
 .endif
 
 .if defined(WANT_LINT) && !defined(NO_LINT) && defined(LIB) && !empty(LIB)
-LINTLIB=	llib-l${LIB}.ln
+LINTLIB=	llib-l${LIB}${LIB_SUFFIX}.ln
 _LIBS+=		${LINTLIB}
 LINTOBJS+=	${SRCS:M*.c:.c=.ln}
 NOPATH_FILES+=	${LINTOBJS}
@@ -309,11 +309,11 @@ realinstall: _libinstall
 _libinstall:
 .if defined(LIB) && !empty(LIB) && ${MK_INSTALLLIB} != "no" && !defined(PRIVATELIB)
 	${INSTALL} -C -o ${LIBOWN} -g ${LIBGRP} -m ${LIBMODE} \
-	    ${_INSTALLFLAGS} lib${LIB}.a ${DESTDIR}${_LIBDIR}
+	    ${_INSTALLFLAGS} lib${LIB}${LIB_SUFFIX}.a ${DESTDIR}${_LIBDIR}
 .endif
 .if ${MK_PROFILE} != "no" && defined(LIB) && !empty(LIB) && !defined(PRIVATELIB)
 	${INSTALL} -C -o ${LIBOWN} -g ${LIBGRP} -m ${LIBMODE} \
-	    ${_INSTALLFLAGS} lib${LIB}_p.a ${DESTDIR}${_LIBDIR}
+	    ${_INSTALLFLAGS} lib${LIB}${LIB_SUFFIX}_p.a ${DESTDIR}${_LIBDIR}
 .endif
 .if defined(SHLIB_NAME)
 	${INSTALL} ${STRIP} -o ${LIBOWN} -g ${LIBGRP} -m ${LIBMODE} \
@@ -370,7 +370,7 @@ _libinstall:
 .endif # SHIB_NAME
 .if defined(INSTALL_PIC_ARCHIVE) && defined(LIB) && !empty(LIB) && ${MK_TOOLCHAIN} != "no" && !defined(PRIVATELIB)
 	${INSTALL} -o ${LIBOWN} -g ${LIBGRP} -m ${LIBMODE} \
-	    ${_INSTALLFLAGS} lib${LIB}_pic.a ${DESTDIR}${_LIBDIR}
+	    ${_INSTALLFLAGS} lib${LIB}${LIB_SUFFIX}_pic.a ${DESTDIR}${_LIBDIR}
 .endif
 .if defined(WANT_LINT) && !defined(NO_LINT) && defined(LIB) && !empty(LIB)
 	${INSTALL} -o ${LIBOWN} -g ${LIBGRP} -m ${LIBMODE} \
@@ -439,7 +439,7 @@ clean:
 .if defined(SHLIB_NAME)
 .if defined(SHLIB_LINK)
 .if defined(SHLIB_LDSCRIPT) && exists(${.CURDIR}/${SHLIB_LDSCRIPT})
-	rm -f lib${LIB}.ld
+	rm -f lib${LIB}${LIB_SUFFIX}.ld
 .endif
 	rm -f ${SHLIB_LINK}
 .endif

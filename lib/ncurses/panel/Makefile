@@ -4,7 +4,7 @@
 
 SRCDIR=	${NCURSES_DIR}/panel
 
-LIB=	panel${LIB_SUFFIX}
+LIB=	panel
 
 .PATH: ${SRCDIR}
 SRCS=	\
