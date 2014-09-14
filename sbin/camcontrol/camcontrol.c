@@ -4469,9 +4469,9 @@ tagcontrol(struct cam_device *device, int argc, char **argv,
 		fprintf(stdout, "%s", pathstr);
 		fprintf(stdout, "dev_active    %d\n", ccb->cgds.dev_active);
 		fprintf(stdout, "%s", pathstr);
-		fprintf(stdout, "devq_openings %d\n", ccb->cgds.devq_openings);
+		fprintf(stdout, "allocated     %d\n", ccb->cgds.allocated);
 		fprintf(stdout, "%s", pathstr);
-		fprintf(stdout, "devq_queued   %d\n", ccb->cgds.devq_queued);
+		fprintf(stdout, "queued        %d\n", ccb->cgds.queued);
 		fprintf(stdout, "%s", pathstr);
 		fprintf(stdout, "held          %d\n", ccb->cgds.held);
 		fprintf(stdout, "%s", pathstr);
