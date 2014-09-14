@@ -2932,12 +2932,13 @@ vn_sendfile(struct file *fp, int sockfd, struct uio *hdr_uio,
 	struct shmfd *shmfd;
 	struct vattr va;
 	off_t off, sbytes, rem, obj_size;
-	int error, bsize, hdrlen;
+	int error, softerr, bsize, hdrlen;
 
 	obj = NULL;
 	so = NULL;
 	m = mh = NULL;
 	sbytes = 0;
+	softerr = 0;
 
 	error = sendfile_getobj(td, fp, &obj, &vp, &shmfd, &obj_size, &bsize);
 	if (error != 0)
@@ -3132,7 +3133,7 @@ retry_space:
 					vm_page_unlock(pa[j]);
 				}
 				if (m == NULL)
-					error = ENOBUFS;
+					softerr = EAGAIN;
 				fixspace(npages, i, off, &space);
 				break;
 			}
@@ -3198,7 +3199,7 @@ retry_space:
 			mh = NULL;
 		}
 
-		if (error) {
+		if (m == NULL) {
 			free(sfio, M_TEMP);
 			goto done;
 		}
@@ -3229,6 +3230,10 @@ retry_space:
 		sbytes += space + hdrlen;
 		if (hdrlen)
 			hdrlen = 0;
+		if (softerr) {
+			error = softerr;
+			goto done;
+		}
 	}
 
 	/*
