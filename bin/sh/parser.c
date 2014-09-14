@@ -946,6 +946,42 @@ struct tokenstate
 
 
 /*
+ * Check to see whether we are at the end of the here document.  When this
+ * is called, c is set to the first character of the next input line.  If
+ * we are at the end of the here document, this routine sets the c to PEOF.
+ * The new value of c is returned.
+ */
+
+static int
+checkend(int c, const char *eofmark, char *line, size_t sizeof_line,
+    int striptabs)
+{
+	if (striptabs) {
+		while (c == '\t')
+			c = pgetc();
+	}
+	if (c == *eofmark) {
+		if (pfgets(line, sizeof_line) != NULL) {
+			const char *p, *q;
+
+			p = line;
+			for (q = eofmark + 1 ; *q && *p == *q ; p++, q++);
+			if ((*p == '\0' || *p == '\n') && *q == '\0') {
+				c = PEOF;
+				if (*p == '\n') {
+					plinno++;
+					needprompt = doprompt;
+				}
+			} else {
+				pushstring(line, strlen(line), NULL);
+			}
+		}
+	}
+	return (c);
+}
+
+
+/*
  * Called to parse command substitutions.
  */
 
@@ -1269,7 +1305,6 @@ readcstyleesc(char *out)
  * will run code that appears at the end of readtoken1.
  */
 
-#define CHECKEND()	{goto checkend; checkend_return:;}
 #define PARSEREDIR()	{goto parseredir; parseredir_return:;}
 #define PARSESUB()	{goto parsesub; parsesub_return:;}
 #define	PARSEARITH()	{goto parsearith; parsearith_return:;}
@@ -1303,7 +1338,9 @@ readtoken1(int firstc, char const *initialsyntax, const char *eofmark,
 
 	STARTSTACKSTR(out);
 	loop: {	/* for each line, until end of word */
-		CHECKEND();	/* set c to PEOF if at end of here document */
+		if (eofmark)
+			/* set c to PEOF if at end of here document */
+			c = checkend(c, eofmark, line, sizeof(line), striptabs);
 		for (;;) {	/* until end of line or end of word */
 			CHECKSTRSPACE(4, out);	/* permit 4 calls to USTPUTC */
 
@@ -1481,40 +1518,6 @@ endword:
 	wordtext = out;
 	return lasttoken = TWORD;
 /* end of readtoken routine */
-
-
-/*
- * Check to see whether we are at the end of the here document.  When this
- * is called, c is set to the first character of the next input line.  If
- * we are at the end of the here document, this routine sets the c to PEOF.
- */
-
-checkend: {
-	if (eofmark) {
-		if (striptabs) {
-			while (c == '\t')
-				c = pgetc();
-		}
-		if (c == *eofmark) {
-			if (pfgets(line, sizeof line) != NULL) {
-				const char *p, *q;
-
-				p = line;
-				for (q = eofmark + 1 ; *q && *p == *q ; p++, q++);
-				if ((*p == '\0' || *p == '\n') && *q == '\0') {
-					c = PEOF;
-					if (*p == '\n') {
-						plinno++;
-						needprompt = doprompt;
-					}
-				} else {
-					pushstring(line, strlen(line), NULL);
-				}
-			}
-		}
-	}
-	goto checkend_return;
-}
 
 
 /*
