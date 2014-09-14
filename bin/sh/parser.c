@@ -1915,7 +1915,7 @@ char *
 getprompt(void *unused __unused)
 {
 	static char ps[PROMPTLEN];
-	char *fmt;
+	const char *fmt;
 	const char *pwd;
 	int i, trim;
 	static char internal_error[] = "??";
