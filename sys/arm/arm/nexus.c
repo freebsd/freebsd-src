@@ -356,16 +356,16 @@ nexus_ofw_map_intr(device_t dev, device_t child, phandle_t iparent, int icells,
     pcell_t *intr)
 {
 	fdt_pic_decode_t intr_decode;
-	phandle_t intr_offset;
+	phandle_t intr_parent;
 	int i, rv, interrupt, trig, pol;
 
-	intr_offset = OF_node_from_xref(iparent);
+	intr_parent = OF_node_from_xref(iparent);
 	for (i = 0; i < icells; i++)
 		intr[i] = cpu_to_fdt32(intr[i]);
 
 	for (i = 0; fdt_pic_table[i] != NULL; i++) {
 		intr_decode = fdt_pic_table[i];
-		rv = intr_decode(intr_offset, intr, &interrupt, &trig, &pol);
+		rv = intr_decode(intr_parent, intr, &interrupt, &trig, &pol);
 
 		if (rv == 0) {
 			/* This was recognized as our PIC and decoded. */
