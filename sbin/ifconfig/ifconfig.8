@@ -2495,7 +2495,7 @@ The following parameters are used to configure
 interfaces.
 .Bl -tag -width indent
 .It Cm vni Ar identifier
-This value is a 16-bit VXLAN Network Identifier (VNI) that identifies the
+This value is a 24-bit VXLAN Network Identifier (VNI) that identifies the
 virtual network segment membership of the interface.
 .It Cm local Ar address
 The source address used in the encapsulating IPv4/IPv6 header.
@@ -2540,7 +2540,7 @@ The maximum number of entries in the forwarding table.
 The default is 2000.
 .It Cm vxlandev Ar dev
 When the interface is configured in multicast mode, the 
-.Ar Cm dev
+.Cm dev
 interface is used to transmit IP multicast packets.
 .It Cm ttl Ar ttl
 The TTL used in the encapsulating IPv4/IPv6 header.

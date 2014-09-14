@@ -81,7 +81,7 @@ driver creates a pseudo Ethernet network interface
 that supports the usual network
 .Xr ioctl 2 Ns s
 and is thus can be used with
-.Xr ifconfig 8 .
+.Xr ifconfig 8
 like any other Ethernet interface.
 The
 .Nm
@@ -181,7 +181,39 @@ Alternatively, the
 command may be used to reduce the MTU size on the
 .Nm
 interface to allow the encapsulated frame to fit in the
-physical network current MTU.
+current MTU of the physical network.
+.Sh EXAMPLES
+Create a
+.Nm
+interface in unicast mode
+with the
+.Cm local
+tunnel address of 192.168.100.1,
+and the
+.Cm remote
+tunnel address of 192.168.100.2.
+.Bd -literal -offset indent
+ifconfig vxlan create vni 108 local 192.168.100.1 remote 192.168.100.2
+.Ed
+.Pp
+Create a
+.Nm
+interface in multicast mode,
+with the
+.Cm local
+address of 192.168.10.95,
+and the
+.Cm group
+address of 224.0.2.6.
+The em0 interface will be used to transmit multicast packets.
+.Bd -literal -offset indent
+ifconfig vxlan create vni 42 local 192.168.10.95 group 224.0.2.6 vxlandev em0
+.Ed
+.Pp
+Once created, the
+.Nm
+interface can be configured with
+.Xr ifconfig 8 .
 .Sh SEE ALSO
 .Xr ifconfig 8 ,
 .Xr inet 4 ,
