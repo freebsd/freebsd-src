@@ -62,12 +62,6 @@ export UNAME_S="$( uname -s )" # Operating System (i.e. FreeBSD)
 export UNAME_P="$( uname -p )" # Processor Architecture (i.e. i386)
 export UNAME_M="$( uname -m )" # Machine platform (i.e. i386)
 export UNAME_R="$( uname -r )" # Release Level (i.e. X.Y-RELEASE)
-if [ ! "${PKG_ABI+set}" ]; then
-	export PKG_ABI="$(
-		ASSUME_ALWAYS_YES=1 pkg -vv 2> /dev/null |
-			awk '$1=="ABI"{print $3;exit}'
-	)"
-fi
 
 #
 # Default behavior is to call f_debug_init() automatically when loaded.
@@ -226,6 +220,36 @@ f_have()
 	f_quietly type "$@"
 }
 
+# setvar $var_to_set [$value]
+#
+# Implement setvar for shells unlike FreeBSD sh(1).
+#
+if ! f_have setvar; then
+setvar()
+{
+	[ $# -gt 0 ] || return $SUCCESS
+	local __setvar_var_to_set="$1" __setvar_right="$2" __setvar_left=
+	case $# in
+	1) unset "$__setvar_var_to_set"
+	   return $? ;;
+	2) : fall through ;;
+	*) f_err "setvar: too many arguments\n"
+	   return $FAILURE
+	esac
+	case "$__setvar_var_to_set" in *[!0-9A-Za-z_]*)
+		f_err "setvar: %s: bad variable name\n" "$__setvar_var_to_set"
+		return 2
+	esac
+	while case "$__setvar_r" in *\'*) : ;; *) false ; esac
+	do
+		__setvar_left="$__setvar_left${__setvar_right%%\'*}'\\''"
+		__setvar_right="${__setvar_right#*\'}"
+	done
+	__setvar_left="$__setvar_left${__setvar_right#*\'}"
+	eval "$__setvar_var_to_set='$__setvar_left'"
+}
+fi
+
 # f_which $anything [$var_to_set]
 #
 # A fast built-in replacement for syntaxes such as foo=$( which bar ). In a
@@ -239,10 +263,10 @@ f_which()
 {
 	local __name="$1" __var_to_set="$2"
 	case "$__name" in */*|'') return $FAILURE; esac
-	local __p IFS=":" __found=
+	local __p __exec IFS=":" __found=
 	for __p in $PATH; do
-		local __exec="$__p/$__name"
-		[ -f "$__exec" -a -x "$__exec" ] && __found=1 && break
+		__exec="$__p/$__name"
+		[ -f "$__exec" -a -x "$__exec" ] && __found=1 break
 	done
 	if [ "$__found" ]; then
 		if [ "$__var_to_set" ]; then

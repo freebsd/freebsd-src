@@ -12,9 +12,7 @@ GDBLIBS= ${OBJ_GDB}/libgdb/libgdb.a
 # global symbols visible.
 LDFLAGS+= -Wl,-E
 
-DPADD=	${GDBLIBS} ${BULIBS} ${LIBM} ${LIBREADLINE} ${LIBTERMCAP} ${LIBGNUREGEX}
-LDADD=	${GDBLIBS} ${BULIBS} -lm -lreadline -ltermcap -lgnuregex
-
-NO_PIE=	yes
+DPADD=	${GDBLIBS} ${BULIBS} ${LIBM} ${LIBREADLINE} ${LIBTERMCAPW} ${LIBGNUREGEX}
+LDADD=	${GDBLIBS} ${BULIBS} -lm ${LDREADLINE} -ltermcapw -lgnuregex
 
 .include <bsd.prog.mk>

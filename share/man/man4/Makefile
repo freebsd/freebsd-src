@@ -206,6 +206,7 @@ MAN=	aac.4 \
 	ipw.4 \
 	ipwfw.4 \
 	isci.4 \
+	iscsi.4 \
 	iscsi_initiator.4 \
 	ismt.4 \
 	isp.4 \
@@ -527,6 +528,7 @@ MAN=	aac.4 \
 	uhso.4 \
 	uipaq.4 \
 	ukbd.4 \
+	uled.4 \
 	ulpt.4 \
 	umass.4 \
 	umcs.4 \

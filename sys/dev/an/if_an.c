@@ -270,9 +270,7 @@ SYSCTL_PROC(_hw_an, OID_AUTO, an_dump, CTLTYPE_STRING | CTLFLAG_RW,
 static int
 sysctl_an_cache_mode(SYSCTL_HANDLER_ARGS)
 {
-	int	error, last;
-
-	last = an_cache_mode;
+	int	error;
 
 	switch (an_cache_mode) {
 	case 1:

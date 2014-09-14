@@ -62,7 +62,7 @@ struct terasic_mtl_softc {
 	int		 mtl_reg_rid;
 
 	/*
-	 * Graphics frame buffer device -- mappable form userspace.
+	 * Graphics frame buffer device -- mappable from userspace.
 	 */
 	struct cdev	*mtl_pixel_cdev;
 	struct resource	*mtl_pixel_res;

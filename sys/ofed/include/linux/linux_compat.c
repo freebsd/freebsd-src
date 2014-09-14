@@ -2,6 +2,7 @@
  * Copyright (c) 2010 Isilon Systems, Inc.
  * Copyright (c) 2010 iX Systems, Inc.
  * Copyright (c) 2010 Panasas, Inc.
+ * Copyright (c) 2013, 2014 Mellanox Technologies, Ltd.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -160,8 +161,15 @@ kobject_release(struct kref *kref)
 static void
 kobject_kfree(struct kobject *kobj)
 {
-
 	kfree(kobj);
+}
+
+static void
+kobject_kfree_name(struct kobject *kobj)
+{
+	if (kobj) {
+		kfree(kobj->name);
+	}
 }
 
 struct kobj_type kfree_type = { .release = kobject_kfree };
@@ -560,11 +568,23 @@ linux_file_ioctl(struct file *fp, u_long cmd, void *data, struct ucred *cred,
 	return (error);
 }
 
+static int
+linux_file_stat(struct file *fp, struct stat *sb, struct ucred *active_cred,
+    struct thread *td)
+{
+
+	return (EOPNOTSUPP);
+}
+
 struct fileops linuxfileops = {
 	.fo_read = linux_file_read,
-	.fo_poll = linux_file_poll,
-	.fo_close = linux_file_close,
+	.fo_write = invfo_rdwr,
+	.fo_truncate = invfo_truncate,
 	.fo_ioctl = linux_file_ioctl,
+	.fo_poll = linux_file_poll,
+	.fo_kqfilter = invfo_kqfilter,
+	.fo_stat = linux_file_stat,
+	.fo_close = linux_file_close,
 	.fo_chmod = invfo_chmod,
 	.fo_chown = invfo_chown,
 	.fo_sendfile = invfo_sendfile,
@@ -701,3 +721,12 @@ linux_compat_init(void)
 }
 
 SYSINIT(linux_compat, SI_SUB_DRIVERS, SI_ORDER_SECOND, linux_compat_init, NULL);
+
+static void
+linux_compat_uninit(void)
+{
+	kobject_kfree_name(&class_root);
+	kobject_kfree_name(&linux_rootdev.kobj);
+	kobject_kfree_name(&miscclass.kobj);
+}
+SYSUNINIT(linux_compat, SI_SUB_DRIVERS, SI_ORDER_SECOND, linux_compat_uninit, NULL);

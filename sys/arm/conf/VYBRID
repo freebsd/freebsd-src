@@ -112,7 +112,7 @@ device		ehci
 #device		ohci
 
 device		umass
-device		scbus			# SCSI bus (required for SCSI)
+device		scbus			# SCSI bus (required for ATA/SCSI)
 device		da			# Direct Access (disks)
 device		pass
 
@@ -148,8 +148,6 @@ device		vf_spi
 # Framebuffer
 device		vt
 device		kbdmux
-options 	SC_DFLT_FONT		# compile font in
-makeoptions	SC_DFLT_FONT=cp437
 device		ukbd
 
 options 	FDT

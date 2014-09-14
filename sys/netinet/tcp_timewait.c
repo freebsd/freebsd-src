@@ -275,6 +275,11 @@ tcp_twstart(struct tcpcb *tp)
 
 	tw = uma_zalloc(V_tcptw_zone, M_NOWAIT);
 	if (tw == NULL) {
+		/*
+		 * Reached limit on total number of TIMEWAIT connections
+		 * allowed. Remove a connection from TIMEWAIT queue in LRU
+		 * fashion to make room for this connection.
+		 */
 		tw = tcp_tw_2msl_reuse();
 		if (tw == NULL) {
 			tp = tcp_close(tp);

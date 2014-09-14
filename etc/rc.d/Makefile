@@ -20,6 +20,9 @@ FILES=	DAEMON \
 	atm3 \
 	auditd \
 	auditdistd \
+	automount \
+	automountd \
+	autounmountd \
 	bgfsck \
 	${_bluetooth} \
 	bootparams \
@@ -54,6 +57,7 @@ FILES=	DAEMON \
 	hostid \
 	hostid_save \
 	hostname \
+	${_hv_kvpd} \
 	inetd \
 	initrandom \
 	ip6addrctl \
@@ -62,12 +66,14 @@ FILES=	DAEMON \
 	ipfw \
 	ipmon \
 	ipnat \
+	ipropd_master \
+	ipropd_slave \
 	ipsec \
 	iscsictl \
 	iscsid \
 	jail \
 	kadmind \
-	kerberos \
+	kdc \
 	keyserv \
 	kfd \
 	kld \
@@ -185,6 +191,10 @@ _ubthidhci=	ubthidhci
 
 .if ${MK_CASPER} != "no"
 _casperd=	casperd
+.endif
+
+.if ${MK_HYPERV} != "no"
+_hv_kvpd=	hv_kvpd
 .endif
 
 .if ${MK_UNBOUND} != "no"

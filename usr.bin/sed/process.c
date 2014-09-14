@@ -63,6 +63,7 @@ static SPACE HS, PS, SS, YS;
 #define	pd		PS.deleted
 #define	ps		PS.space
 #define	psl		PS.len
+#define	psanl		PS.append_newline
 #define	hs		HS.space
 #define	hsl		HS.len
 
@@ -85,7 +86,10 @@ static regex_t *defpreg;
 size_t maxnsub;
 regmatch_t *match;
 
-#define OUT() do {fwrite(ps, 1, psl, outfile); fputc('\n', outfile);} while (0)
+#define OUT() do {							\
+	fwrite(ps, 1, psl, outfile);					\
+	if (psanl) fputc('\n', outfile);				\
+} while (0)
 
 void
 process(void)
@@ -94,6 +98,7 @@ process(void)
 	SPACE tspace;
 	size_t oldpsl = 0;
 	char *p;
+	int oldpsanl;
 
 	p = NULL;
 
@@ -190,11 +195,15 @@ redirect:
 					break;
 				if ((p = memchr(ps, '\n', psl)) != NULL) {
 					oldpsl = psl;
+					oldpsanl = psanl;
 					psl = p - ps;
+					psanl = 1;
 				}
 				OUT();
-				if (p != NULL)
+				if (p != NULL) {
 					psl = oldpsl;
+					psanl = oldpsanl;
+				}
 				break;
 			case 'q':
 				if (!nflag && !pd)
@@ -244,6 +253,7 @@ redirect:
 					cspace(&HS, "", 0, REPLACE);
 				tspace = PS;
 				PS = HS;
+				psanl = tspace.append_newline;
 				HS = tspace;
 				break;
 			case 'y':
@@ -288,24 +298,32 @@ applies(struct s_command *cp)
 		r = 1;
 	else if (cp->a2)
 		if (cp->startline > 0) {
-			if (MATCH(cp->a2)) {
-				cp->startline = 0;
-				lastaddr = 1;
-				r = 1;
-			} else if (linenum - cp->startline <= cp->a2->u.l)
-				r = 1;
-			else if ((cp->a2->type == AT_LINE &&
-				   linenum > cp->a2->u.l) ||
-				   (cp->a2->type == AT_RELLINE &&
-				   linenum - cp->startline > cp->a2->u.l)) {
-				/*
-				 * We missed the 2nd address due to a branch,
-				 * so just close the range and return false.
-				 */
-				cp->startline = 0;
-				r = 0;
-			} else
-				r = 1;
+                        switch (cp->a2->type) {
+                        case AT_RELLINE:
+                                if (linenum - cp->startline <= cp->a2->u.l)
+                                        r = 1;
+                                else {
+				        cp->startline = 0;
+				        r = 0;
+                                }
+                                break;
+                        default:
+                                if (MATCH(cp->a2)) {
+                                        cp->startline = 0;
+                                        lastaddr = 1;
+                                        r = 1;
+                                } else if (cp->a2->type == AT_LINE &&
+                                            linenum > cp->a2->u.l) {
+                                        /*
+                                         * We missed the 2nd address due to a
+                                         * branch, so just close the range and
+                                         * return false.
+                                         */
+                                        cp->startline = 0;
+                                        r = 0;
+                                } else
+                                        r = 1;
+                        }
 		} else if (MATCH(cp->a1)) {
 			/*
 			 * If the second address is a number less than or
@@ -444,6 +462,7 @@ substitute(struct s_command *cp)
 	 */
 	tspace = PS;
 	PS = SS;
+	psanl = tspace.append_newline;
 	SS = tspace;
 	SS.space = SS.back;
 
@@ -513,6 +532,7 @@ do_tr(struct s_tr *y)
 		/* Swap the translation space and the pattern space. */
 		tmp = PS;
 		PS = YS;
+		psanl = tmp.append_newline;
 		YS = tmp;
 		YS.space = YS.back;
 	}

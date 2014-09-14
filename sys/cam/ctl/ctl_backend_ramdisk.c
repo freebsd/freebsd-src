@@ -815,7 +815,7 @@ ctl_backend_ramdisk_lun_shutdown(void *be_lun)
 	if (lun->flags & CTL_BE_RAMDISK_LUN_WAITING) {
 		wakeup(lun);
 	} else {
-		STAILQ_REMOVE(&softc->lun_list, be_lun, ctl_be_ramdisk_lun,
+		STAILQ_REMOVE(&softc->lun_list, lun, ctl_be_ramdisk_lun,
 			      links);
 		softc->num_luns--;
 		do_free = 1;

@@ -45,6 +45,7 @@ In
 .Xr loader.conf 5 :
 .Cd hw.vga.textmode=1
 .Cd kern.vty=vt
+.Cd kern.vt.spclkeys=15
 .Sh DESCRIPTION
 The
 .Nm
@@ -195,15 +196,32 @@ or
 If this value is not set,
 .Xr sc 4
 is used.
+.It Va kern.vt.spclkeys
+bitmap of allowed special keys. 1 is enabled, 0 is disabled. Encoded as:
+.Bl -tag -compact -width 0x000000
+.It 0x0001
+Debug request key combination. (Ctrl+Alt+Esc)
+.It 0x0002
+Reboot. (Ctrl+Alt+Del)
+.It 0x0004
+Halt.
+.It 0x0008
+Power down.
+.El
+Default is 15, all enabled.
 .El
 .Sh FILES
-.Bl -tag -width /usr/share/syscons/keymaps/* -compact
+.Bl -tag -width /usr/share/vt/keymaps/* -compact
 .It Pa /dev/console
 .It Pa /dev/consolectl
 .It Pa /dev/ttyv*
 virtual terminals
 .It Pa /etc/ttys
 terminal initialization information
+.It Pa /usr/share/vt/fonts/*.fnt
+console fonts
+.It Pa /usr/share/vt/keymaps/*.kbd
+keyboard layouts
 .El
 .Sh EXAMPLES
 This example changes the default color of normal text to green on a
@@ -229,7 +247,6 @@ on a black background, or black on a bright red background when reversed.
 .Xr splash 4 ,
 .Xr syscons 4 ,
 .Xr ukbd 4 ,
-.Xr vga 4 ,
 .Xr kbdmap 5 ,
 .Xr rc.conf 5 ,
 .Xr ttys 5 ,

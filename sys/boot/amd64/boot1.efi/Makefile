@@ -77,7 +77,7 @@ CLEANFILES= boot1.efifat
 
 beforedepend ${OBJS}: machine x86
 
-CLEANFILES+=   machine x86
+CLEANFILES+=   machine x86 boot1.efi
 
 machine:
 	ln -sf ${.CURDIR}/../../../amd64/include machine

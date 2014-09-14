@@ -2,7 +2,7 @@
 # $FreeBSD$
 
 PROG=	msgs
-DPADD=	${LIBTERMCAP}
-LDADD=	-ltermcap
+DPADD=	${LIBTERMCAPW}
+LDADD=	-ltermcapw
 
 .include <bsd.prog.mk>

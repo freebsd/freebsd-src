@@ -46,27 +46,28 @@
 
 #include "_libproc.h"
 
+#ifndef NO_CXA_DEMANGLE
 extern char *__cxa_demangle(const char *, char *, size_t *, int *);
+#endif /* NO_CXA_DEMANGLE */
 
 static void	proc_rdl2prmap(rd_loadobj_t *, prmap_t *);
 
 static void
 demangle(const char *symbol, char *buf, size_t len)
 {
+#ifndef NO_CXA_DEMANGLE
 	char *dembuf;
-	size_t demlen = len;
 
-	dembuf = malloc(len);
-	if (!dembuf)
-		goto fail;
-	dembuf = __cxa_demangle(symbol, dembuf, &demlen, NULL);
-	if (!dembuf)
-		goto fail;
-	strlcpy(buf, dembuf, len);
-	free(dembuf);
-
-	return;
+	if (symbol[0] == '_' && symbol[1] == 'Z' && symbol[2]) {
+		dembuf = __cxa_demangle(symbol, NULL, NULL, NULL);
+		if (!dembuf)
+			goto fail;
+		strlcpy(buf, dembuf, len);
+		free(dembuf);
+		return;
+	}
 fail:
+#endif /* NO_CXA_DEMANGLE */
 	strlcpy(buf, symbol, len);
 }
 
@@ -120,10 +121,12 @@ proc_obj2map(struct proc_handle *p, const char *objname)
 			break;
 		}
 	}
-	if (rdl == NULL && strcmp(objname, "a.out") == 0 && p->rdexec != NULL)
-		rdl = p->rdexec;
-	else
-		return (NULL);
+	if (rdl == NULL) {
+		if (strcmp(objname, "a.out") == 0 && p->rdexec != NULL)
+			rdl = p->rdexec;
+		else
+			return (NULL);
+	}
 
 	if ((map = malloc(sizeof(*map))) == NULL)
 		return (NULL);
@@ -297,10 +300,7 @@ proc_addr2sym(struct proc_handle *p, uintptr_t addr, char *name,
 		if (addr >= rsym && addr < rsym + sym.st_size) {
 			s = elf_strptr(e, dynsymstridx, sym.st_name);
 			if (s) {
-				if (s[0] == '_' && s[1] == 'Z' && s[2])
-					demangle(s, name, namesz);
-				else
-					strlcpy(name, s, namesz);
+				demangle(s, name, namesz);
 				memcpy(symcopy, &sym, sizeof(sym));
 				/*
 				 * DTrace expects the st_value to contain
@@ -335,10 +335,7 @@ symtab:
 		if (addr >= rsym && addr < rsym + sym.st_size) {
 			s = elf_strptr(e, symtabstridx, sym.st_name);
 			if (s) {
-				if (s[0] == '_' && s[1] == 'Z' && s[2])
-					demangle(s, name, namesz);
-				else
-					strlcpy(name, s, namesz);
+				demangle(s, name, namesz);
 				memcpy(symcopy, &sym, sizeof(sym));
 				/*
 				 * DTrace expects the st_value to contain

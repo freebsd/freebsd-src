@@ -252,7 +252,7 @@ in6_control(struct socket *so, u_long cmd, caddr_t data,
 		return (mrt6_ioctl ? mrt6_ioctl(cmd, data) : EOPNOTSUPP);
 	}
 
-	switch(cmd) {
+	switch (cmd) {
 	case SIOCAADDRCTL_POLICY:
 	case SIOCDADDRCTL_POLICY:
 		if (td != NULL) {
@@ -324,14 +324,10 @@ in6_control(struct socket *so, u_long cmd, caddr_t data,
 			if (error)
 				return (error);
 		}
-		return (scope6_set(ifp,
-		    (struct scope6_id *)ifr->ifr_ifru.ifru_scope_id));
+		/* FALLTHROUGH */
 	case SIOCGSCOPE6:
-		return (scope6_get(ifp,
-		    (struct scope6_id *)ifr->ifr_ifru.ifru_scope_id));
 	case SIOCGSCOPE6DEF:
-		return (scope6_get_default((struct scope6_id *)
-		    ifr->ifr_ifru.ifru_scope_id));
+		return (scope6_ioctl(cmd, data, ifp));
 	}
 
 	/*
@@ -442,6 +438,13 @@ in6_control(struct socket *so, u_long cmd, caddr_t data,
 			if (error)
 				goto out;
 		}
+		/* FALLTHROUGH */
+	case SIOCGIFSTAT_IN6:
+	case SIOCGIFSTAT_ICMP6:
+		if (ifp->if_afdata[AF_INET6] == NULL) {
+			error = EPFNOSUPPORT;
+			goto out;
+		}
 		break;
 
 	case SIOCGIFADDR_IN6:
@@ -517,10 +520,6 @@ in6_control(struct socket *so, u_long cmd, caddr_t data,
 		break;
 
 	case SIOCGIFSTAT_IN6:
-		if (ifp == NULL) {
-			error = EINVAL;
-			goto out;
-		}
 		COUNTER_ARRAY_COPY(((struct in6_ifextra *)
 		    ifp->if_afdata[AF_INET6])->in6_ifstat,
 		    &ifr->ifr_ifru.ifru_stat,
@@ -528,10 +527,6 @@ in6_control(struct socket *so, u_long cmd, caddr_t data,
 		break;
 
 	case SIOCGIFSTAT_ICMP6:
-		if (ifp == NULL) {
-			error = EINVAL;
-			goto out;
-		}
 		COUNTER_ARRAY_COPY(((struct in6_ifextra *)
 		    ifp->if_afdata[AF_INET6])->icmp6_ifstat,
 		    &ifr->ifr_ifru.ifru_icmp6stat,
@@ -762,7 +757,7 @@ in6_control(struct socket *so, u_long cmd, caddr_t data,
 	}
 
 	default:
-		if (ifp == NULL || ifp->if_ioctl == 0) {
+		if (ifp->if_ioctl == NULL) {
 			error = EOPNOTSUPP;
 			goto out;
 		}
@@ -1249,9 +1244,6 @@ in6_update_ifa_internal(struct ifnet *ifp, struct in6_aliasreq *ifra,
 		ia->ia6_lifetime.ia6t_preferred = time_uptime;
 	}
 
-	/* Update metric */
-	ia->ia_ifa.ifa_metric = ifp->if_metric;
-
 	/*
 	 * configure address flags.
 	 */
@@ -1721,6 +1713,29 @@ in6ifa_ifpforlinklocal(struct ifnet *ifp, int ignoreflags)
 	return ((struct in6_ifaddr *)ifa);
 }
 
+
+/*
+ * find the internet address corresponding to a given address.
+ * ifaddr is returned referenced.
+ */
+struct in6_ifaddr *
+in6ifa_ifwithaddr(const struct in6_addr *addr, uint32_t zoneid)
+{
+	struct in6_ifaddr *ia;
+
+	IN6_IFADDR_RLOCK();
+	LIST_FOREACH(ia, IN6ADDR_HASH(addr), ia6_hash) {
+		if (IN6_ARE_ADDR_EQUAL(IA6_IN6(ia), addr)) {
+			if (zoneid != 0 &&
+			    zoneid != ia->ia_addr.sin6_scope_id)
+				continue;
+			ifa_ref(&ia->ia_ifa);
+			break;
+		}
+	}
+	IN6_IFADDR_RUNLOCK();
+	return (ia);
+}
 
 /*
  * find the internet address corresponding to a given interface and address.

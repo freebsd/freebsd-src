@@ -14,7 +14,7 @@ SUBDIR+= tests
 
 # libsupc++ uses libstdc++ headers, although 'make includes' should
 # have taken care of that already.
-.if ${MK_GNUCXX} != "no" && ${MK_CXX} != "no"
+.if ${MK_GNUCXX} != "no"
 SUBDIR+= libstdc++ libsupc++
 .endif
 

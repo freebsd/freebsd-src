@@ -56,7 +56,7 @@ extern "C" {
  * Fixed constants.
  */
 #define	DNODE_SHIFT		9	/* 512 bytes */
-#define	DN_MIN_INDBLKSHIFT	10	/* 1k */
+#define	DN_MIN_INDBLKSHIFT	12	/* 4k */
 #define	DN_MAX_INDBLKSHIFT	14	/* 16k */
 #define	DNODE_BLOCK_SHIFT	14	/* 16k */
 #define	DNODE_CORE_SIZE		64	/* 64 bytes for dnode sans blkptrs */
@@ -211,7 +211,18 @@ typedef struct dnode {
 	refcount_t dn_holds;
 
 	kmutex_t dn_dbufs_mtx;
-	list_t dn_dbufs;		/* descendent dbufs */
+	/*
+	 * Descendent dbufs, ordered by dbuf_compare. Note that dn_dbufs
+	 * can contain multiple dbufs of the same (level, blkid) when a
+	 * dbuf is marked DB_EVICTING without being removed from
+	 * dn_dbufs. To maintain the avl invariant that there cannot be
+	 * duplicate entries, we order the dbufs by an arbitrary value -
+	 * their address in memory. This means that dn_dbufs cannot be used to
+	 * directly look up a dbuf. Instead, callers must use avl_walk, have
+	 * a reference to the dbuf, or look up a non-existant node with
+	 * db_state = DB_SEARCH (see dbuf_free_range for an example).
+	 */
+	avl_tree_t dn_dbufs;
 
 	/* protected by dn_struct_rwlock */
 	struct dmu_buf_impl *dn_bonus;	/* bonus buffer dbuf */
@@ -245,7 +256,7 @@ typedef struct dnode_handle {
 
 typedef struct dnode_children {
 	size_t dnc_count;		/* number of children */
-	dnode_handle_t dnc_children[1];	/* sized dynamically */
+	dnode_handle_t dnc_children[];	/* sized dynamically */
 } dnode_children_t;
 
 typedef struct free_range {

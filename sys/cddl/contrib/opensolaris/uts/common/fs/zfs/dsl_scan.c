@@ -90,6 +90,11 @@ SYSCTL_INT(_vfs_zfs, OID_AUTO, no_scrub_prefetch, CTLFLAG_RWTUN,
     &zfs_no_scrub_prefetch, 0, "Disable scrub prefetching");
 
 enum ddt_class zfs_scrub_ddt_class_max = DDT_CLASS_DUPLICATE;
+/* max number of blocks to free in a single TXG */
+uint64_t zfs_free_max_blocks = UINT64_MAX;
+SYSCTL_UQUAD(_vfs_zfs, OID_AUTO, free_max_blocks, CTLFLAG_RWTUN,
+    &zfs_free_max_blocks, 0, "Maximum number of blocks to free in one TXG");
+
 
 #define	DSL_SCAN_IS_SCRUB_RESILVER(scn) \
 	((scn)->scn_phys.scn_func == POOL_SCAN_SCRUB || \
@@ -367,7 +372,7 @@ int
 dsl_scan_cancel(dsl_pool_t *dp)
 {
 	return (dsl_sync_task(spa_name(dp->dp_spa), dsl_scan_cancel_check,
-	    dsl_scan_cancel_sync, NULL, 3));
+	    dsl_scan_cancel_sync, NULL, 3, ZFS_SPACE_CHECK_RESERVED));
 }
 
 static void dsl_scan_visitbp(blkptr_t *bp,
@@ -1341,6 +1346,9 @@ dsl_scan_free_should_pause(dsl_scan_t *scn)
 	if (zfs_recover)
 		return (B_FALSE);
 
+	if (scn->scn_visited_this_txg >= zfs_free_max_blocks)
+		return (B_TRUE);
+
 	elapsed_nanosecs = gethrtime() - scn->scn_sync_start_time;
 	return (elapsed_nanosecs / NANOSEC > zfs_txg_timeout ||
 	    (NSEC2MSEC(elapsed_nanosecs) > zfs_free_min_time_ms &&
@@ -1807,5 +1815,5 @@ dsl_scan(dsl_pool_t *dp, pool_scan_func_t func)
 	(void) spa_vdev_state_exit(spa, NULL, 0);
 
 	return (dsl_sync_task(spa_name(spa), dsl_scan_setup_check,
-	    dsl_scan_setup_sync, &func, 0));
+	    dsl_scan_setup_sync, &func, 0, ZFS_SPACE_CHECK_NONE));
 }

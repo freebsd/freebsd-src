@@ -102,51 +102,42 @@ __FBSDID("$FreeBSD$");
  * mbuf wrappers
  */
 
-/*
- * mbuf destructor, also need to change the type to EXT_EXTREF,
+/* mbuf destructor, also need to change the type to EXT_EXTREF,
  * add an M_NOFREE flag, and then clear the flag and
  * chain into uma_zfree(zone_pack, mf)
  * (or reinstall the buffer ?)
- *
- * On FreeBSD 9 the destructor is called as ext_free(ext_arg1, ext_arg2)
- * whereas newer version have ext_free(m, ext_arg1, ext_arg2)
- * For compatibility we set ext_arg1 = m on allocation so we have
- * the same code on both.
  */
 #define SET_MBUF_DESTRUCTOR(m, fn)	do {		\
-		(m)->m_ext.ext_free = (void *)fn;	\
-		(m)->m_ext.ext_type = EXT_EXTREF;	\
-	} while (0)
+	(m)->m_ext.ext_free = (void *)fn;	\
+	(m)->m_ext.ext_type = EXT_EXTREF;	\
+} while (0)
 
-static void 
+static void
 netmap_default_mbuf_destructor(struct mbuf *m)
-{ 
-	/* restore original data pointer and type */
-	m->m_ext.ext_buf = m->m_data = m->m_ext.ext_arg2;
+{
+	/* restore original mbuf */
+	m->m_ext.ext_buf = m->m_data = m->m_ext.ext_arg1;
+	m->m_ext.ext_arg1 = NULL;
 	m->m_ext.ext_type = EXT_PACKET;
 	m->m_ext.ext_free = NULL;
-	m->m_ext.ext_arg1 = m->m_ext.ext_arg2 = NULL;
-	if (*(m->m_ext.ref_cnt) == 0)
-		*(m->m_ext.ref_cnt) = 1;
+	if (GET_MBUF_REFCNT(m) == 0)
+		SET_MBUF_REFCNT(m, 1);
 	uma_zfree(zone_pack, m);
-} 
+}
 
-static inline struct mbuf * 
-netmap_get_mbuf(int len) 
-{ 
+static inline struct mbuf *
+netmap_get_mbuf(int len)
+{
 	struct mbuf *m;
 	m = m_getcl(M_NOWAIT, MT_DATA, M_PKTHDR | M_NOFREE);
 	if (m) {
-		m->m_ext.ext_arg1 = m; /* FreeBSD 9 compat */
-		m->m_ext.ext_arg2 = m->m_ext.ext_buf; /* save original */
+		m->m_ext.ext_arg1 = m->m_ext.ext_buf; // XXX save
 		m->m_ext.ext_free = (void *)netmap_default_mbuf_destructor;
 		m->m_ext.ext_type = EXT_EXTREF;
-		ND(5, "create m %p refcnt %d", m, *m->m_ext.ref_cnt);
+		ND(5, "create m %p refcnt %d", m, GET_MBUF_REFCNT(m));
 	}
 	return m;
-} 
-
-#define GET_MBUF_REFCNT(m)	((m)->m_ext.ref_cnt ? *(m)->m_ext.ref_cnt : -1)
+}
 
 
 
@@ -157,8 +148,6 @@ netmap_get_mbuf(int len)
 #include <linux/rtnetlink.h>    /* rtnl_[un]lock() */
 #include <linux/ethtool.h>      /* struct ethtool_ops, get_ringparam */
 #include <linux/hrtimer.h>
-
-//#define RATE  /* Enables communication statistics. */
 
 //#define REG_RESET
 
@@ -174,7 +163,7 @@ netmap_get_mbuf(int len)
 
 /* ======================== usage stats =========================== */
 
-#ifdef RATE
+#ifdef RATE_GENERIC
 #define IFRATE(x) x
 struct rate_stats {
 	unsigned long txpkt;
@@ -218,23 +207,33 @@ static void rate_callback(unsigned long arg)
 
 static struct rate_context rate_ctx;
 
+void generic_rate(int txp, int txs, int txi, int rxp, int rxs, int rxi)
+{
+    if (txp) rate_ctx.new.txpkt++;
+    if (txs) rate_ctx.new.txsync++;
+    if (txi) rate_ctx.new.txirq++;
+    if (rxp) rate_ctx.new.rxpkt++;
+    if (rxs) rate_ctx.new.rxsync++;
+    if (rxi) rate_ctx.new.rxirq++;
+}
+
 #else /* !RATE */
 #define IFRATE(x)
 #endif /* !RATE */
 
 
 /* =============== GENERIC NETMAP ADAPTER SUPPORT ================= */
-#define GENERIC_BUF_SIZE        netmap_buf_size    /* Size of the mbufs in the Tx pool. */
 
 /*
  * Wrapper used by the generic adapter layer to notify
  * the poller threads. Differently from netmap_rx_irq(), we check
- * only IFCAP_NETMAP instead of NAF_NATIVE_ON to enable the irq.
+ * only NAF_NETMAP_ON instead of NAF_NATIVE_ON to enable the irq.
  */
 static void
 netmap_generic_irq(struct ifnet *ifp, u_int q, u_int *work_done)
 {
-	if (unlikely(!(ifp->if_capenable & IFCAP_NETMAP)))
+	struct netmap_adapter *na = NA(ifp);
+	if (unlikely(!nm_netmap_on(na)))
 		return;
 
 	netmap_common_irq(ifp, q, work_done);
@@ -245,7 +244,6 @@ netmap_generic_irq(struct ifnet *ifp, u_int q, u_int *work_done)
 static int
 generic_netmap_register(struct netmap_adapter *na, int enable)
 {
-	struct ifnet *ifp = na->ifp;
 	struct netmap_generic_adapter *gna = (struct netmap_generic_adapter *)na;
 	struct mbuf *m;
 	int error;
@@ -271,7 +269,7 @@ generic_netmap_register(struct netmap_adapter *na, int enable)
 			goto out;
 		}
 		for (r=0; r<na->num_rx_rings; r++)
-			netmap_mitigation_init(&gna->mit[r], na);
+			netmap_mitigation_init(&gna->mit[r], r, na);
 
 		/* Initialize the rx queue, as generic_rx_handler() can
 		 * be called as soon as netmap_catch_rx() returns.
@@ -296,7 +294,7 @@ generic_netmap_register(struct netmap_adapter *na, int enable)
 			for (i=0; i<na->num_tx_desc; i++)
 				na->tx_rings[r].tx_pool[i] = NULL;
 			for (i=0; i<na->num_tx_desc; i++) {
-				m = netmap_get_mbuf(GENERIC_BUF_SIZE);
+				m = netmap_get_mbuf(NETMAP_BUF_SIZE(na));
 				if (!m) {
 					D("tx_pool[%d] allocation failed", i);
 					error = ENOMEM;
@@ -312,14 +310,14 @@ generic_netmap_register(struct netmap_adapter *na, int enable)
 			D("netdev_rx_handler_register() failed (%d)", error);
 			goto register_handler;
 		}
-		ifp->if_capenable |= IFCAP_NETMAP;
+		na->na_flags |= NAF_NETMAP_ON;
 
 		/* Make netmap control the packet steering. */
 		netmap_catch_tx(gna, 1);
 
 		rtnl_unlock();
 
-#ifdef RATE
+#ifdef RATE_GENERIC
 		if (rate_ctx.refcount == 0) {
 			D("setup_timer()");
 			memset(&rate_ctx, 0, sizeof(rate_ctx));
@@ -338,7 +336,7 @@ generic_netmap_register(struct netmap_adapter *na, int enable)
 		   error handling code below. */
 		rtnl_lock();
 
-		ifp->if_capenable &= ~IFCAP_NETMAP;
+		na->na_flags &= ~NAF_NETMAP_ON;
 
 		/* Release packet steering control. */
 		netmap_catch_tx(gna, 0);
@@ -365,7 +363,7 @@ generic_netmap_register(struct netmap_adapter *na, int enable)
 			free(na->tx_rings[r].tx_pool, M_DEVBUF);
 		}
 
-#ifdef RATE
+#ifdef RATE_GENERIC
 		if (--rate_ctx.refcount == 0) {
 			D("del_timer()");
 			del_timer(&rate_ctx.timer);
@@ -421,6 +419,8 @@ generic_mbuf_destructor(struct mbuf *m)
 	IFRATE(rate_ctx.new.txirq++);
 }
 
+extern int netmap_adaptive_io;
+
 /* Record completed transmissions and update hwtail.
  *
  * The oldest tx buffer not yet completed is at nr_hwtail + 1,
@@ -440,7 +440,7 @@ generic_netmap_tx_clean(struct netmap_kring *kring)
 
 		if (unlikely(m == NULL)) {
 			/* this is done, try to replenish the entry */
-			tx_pool[nm_i] = m = netmap_get_mbuf(GENERIC_BUF_SIZE);
+			tx_pool[nm_i] = m = netmap_get_mbuf(NETMAP_BUF_SIZE(kring->na));
 			if (unlikely(m == NULL)) {
 				D("mbuf allocation failed, XXX error");
 				// XXX how do we proceed ? break ?
@@ -451,6 +451,23 @@ generic_netmap_tx_clean(struct netmap_kring *kring)
 		}
 		n++;
 		nm_i = nm_next(nm_i, lim);
+#if 0 /* rate adaptation */
+		if (netmap_adaptive_io > 1) {
+			if (n >= netmap_adaptive_io)
+				break;
+		} else if (netmap_adaptive_io) {
+			/* if hwcur - nm_i < lim/8 do an early break
+			 * so we prevent the sender from stalling. See CVT.
+			 */
+			if (hwcur >= nm_i) {
+				if (hwcur - nm_i < lim/2)
+					break;
+			} else {
+				if (hwcur + lim + 1 - nm_i < lim/2)
+					break;
+			}
+		}
+#endif
 	}
 	kring->nr_hwtail = nm_prev(nm_i, lim);
 	ND("tx completed [%d] -> hwtail %d", n, kring->nr_hwtail);
@@ -530,14 +547,15 @@ generic_set_tx_event(struct netmap_kring *kring, u_int hwcur)
  * since it implements the TX flow control (and takes some locks).
  */
 static int
-generic_netmap_txsync(struct netmap_adapter *na, u_int ring_nr, int flags)
+generic_netmap_txsync(struct netmap_kring *kring, int flags)
 {
+	struct netmap_adapter *na = kring->na;
 	struct ifnet *ifp = na->ifp;
-	struct netmap_kring *kring = &na->tx_rings[ring_nr];
 	struct netmap_ring *ring = kring->ring;
 	u_int nm_i;	/* index into the netmap ring */ // j
 	u_int const lim = kring->nkr_num_slots - 1;
 	u_int const head = kring->rhead;
+	u_int ring_nr = kring->ring_id;
 
 	IFRATE(rate_ctx.new.txsync++);
 
@@ -553,19 +571,19 @@ generic_netmap_txsync(struct netmap_adapter *na, u_int ring_nr, int flags)
 		while (nm_i != head) {
 			struct netmap_slot *slot = &ring->slot[nm_i];
 			u_int len = slot->len;
-			void *addr = NMB(slot);
+			void *addr = NMB(na, slot);
 
 			/* device-specific */
 			struct mbuf *m;
 			int tx_ret;
 
-			NM_CHECK_ADDR_LEN(addr, len);
+			NM_CHECK_ADDR_LEN(na, addr, len);
 
 			/* Tale a mbuf from the tx pool and copy in the user packet. */
 			m = kring->tx_pool[nm_i];
 			if (unlikely(!m)) {
 				RD(5, "This should never happen");
-				kring->tx_pool[nm_i] = m = netmap_get_mbuf(GENERIC_BUF_SIZE);
+				kring->tx_pool[nm_i] = m = netmap_get_mbuf(NETMAP_BUF_SIZE(na));
 				if (unlikely(m == NULL)) {
 					D("mbuf allocation failed");
 					break;
@@ -580,7 +598,7 @@ generic_netmap_txsync(struct netmap_adapter *na, u_int ring_nr, int flags)
 			 */
 			tx_ret = generic_xmit_frame(ifp, m, addr, len, ring_nr);
 			if (unlikely(tx_ret)) {
-				RD(5, "start_xmit failed: err %d [nm_i %u, head %u, hwtail %u]",
+				ND(5, "start_xmit failed: err %d [nm_i %u, head %u, hwtail %u]",
 						tx_ret, nm_i, head, kring->nr_hwtail);
 				/*
 				 * No room for this mbuf in the device driver.
@@ -686,10 +704,10 @@ generic_rx_handler(struct ifnet *ifp, struct mbuf *m)
  * Access must be protected because the rx handler is asynchronous,
  */
 static int
-generic_netmap_rxsync(struct netmap_adapter *na, u_int ring_nr, int flags)
+generic_netmap_rxsync(struct netmap_kring *kring, int flags)
 {
-	struct netmap_kring *kring = &na->rx_rings[ring_nr];
 	struct netmap_ring *ring = kring->ring;
+	struct netmap_adapter *na = kring->na;
 	u_int nm_i;	/* index into the netmap ring */ //j,
 	u_int n;
 	u_int const lim = kring->nkr_num_slots - 1;
@@ -712,11 +730,11 @@ generic_netmap_rxsync(struct netmap_adapter *na, u_int ring_nr, int flags)
 		nm_i = kring->nr_hwtail; /* first empty slot in the receive ring */
 		for (n = 0; nm_i != stop_i; n++) {
 			int len;
-			void *addr = NMB(&ring->slot[nm_i]);
+			void *addr = NMB(na, &ring->slot[nm_i]);
 			struct mbuf *m;
 
 			/* we only check the address here on generic rx rings */
-			if (addr == netmap_buffer_base) { /* Bad buffer */
+			if (addr == NETMAP_BUF_BASE(na)) { /* Bad buffer */
 				return netmap_ring_reinit(kring);
 			}
 			/*
@@ -823,7 +841,7 @@ generic_netmap_attach(struct ifnet *ifp)
 	na->nm_txsync = &generic_netmap_txsync;
 	na->nm_rxsync = &generic_netmap_rxsync;
 	na->nm_dtor = &generic_netmap_dtor;
-	/* when using generic, IFCAP_NETMAP is set so we force
+	/* when using generic, NAF_NETMAP_ON is set so we force
 	 * NAF_SKIP_INTR to use the regular interrupt handler
 	 */
 	na->na_flags = NAF_SKIP_INTR | NAF_HOST_RINGS;

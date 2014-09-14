@@ -142,7 +142,7 @@ blk_dump(struct dumperinfo *di, vm_paddr_t pa, vm_size_t size)
 	return (error);
 }
 
-void
+int
 dumpsys(struct dumperinfo *di)
 {
 	struct sparc64_dump_hdr hdr;
@@ -218,9 +218,10 @@ dumpsys(struct dumperinfo *di)
 	/* Signal completion, signoff and exit stage left. */
 	dump_write(di, NULL, 0, 0, 0);
 	printf("\nDump complete\n");
-	return;
+	return (0);
 
  fail:
 	/* XXX It should look more like VMS :-) */
 	printf("** DUMP FAILED (ERROR %d) **\n", error);
+	return (error);
 }

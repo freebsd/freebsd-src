@@ -28,7 +28,7 @@
 .\"	@(#)hier.7	8.1 (Berkeley) 6/5/93
 .\" $FreeBSD$
 .\"
-.Dd December 25, 2013
+.Dd July 25, 2014
 .Dt HIER 7
 .Os
 .Sh NAME
@@ -48,13 +48,25 @@ programs and configuration files used during operating system bootstrap
 .It Pa defaults/
 default bootstrapping configuration files; see
 .Xr loader.conf 5
+.It Pa dtb/
+Compiled flattened device tree (FDT) files; see
+.Xr fdt 4 
+and
+.Xr dtc 1
+.It Pa firmware/
+Loadable modules containing binary firmware for hardware that needs
+firmware downloaded to it to function
 .It Pa kernel/
 pure kernel executable (the operating system loaded into memory
-at boot time).
+at boot time)
 .It Pa modules/
 third-party loadable kernel modules;
 see
 .Xr kldstat 8
+.It Pa zfs/
+Contains 
+.Xr zfs 8 
+zpool cache files.
 .El
 .It Pa /cdrom/
 default mount point for CD-ROM drives
@@ -222,6 +234,8 @@ WaveLAN driver
 .El
 .It Pa fs/
 .Bl -tag -width ".Pa kerberos5/" -compact
+.It Pa cd9660/
+iso9660 file system
 .It Pa fdescfs/
 per-process file descriptors file system
 .It Pa fifofs/
@@ -261,11 +275,6 @@ STRIPE GEOM class
 .Pp
 .It Pa isc/
 ISC utility library libisc include files
-.It Pa isofs/
-.Bl -tag -width ".Pa kerberos5/" -compact
-.It Pa cd9660/
-iso9660 file system
-.El
 .It Pa libmilter/
 C include files for libmilter,
 the
@@ -275,6 +284,10 @@ mail filter API
 machine-specific C include files
 .It Pa net/
 miscellaneous network C include files
+.It Pa net80211/
+C include files for 802.11 wireless networking;
+see
+.Xr net80211 4
 .It Pa netinet/
 C include files for Internet standard protocols;
 see
@@ -631,6 +644,26 @@ localization support and utilities for
 timezone configuration information;
 see
 .Xr tzfile 5
+.El
+.It Pa vt/
+files used by vt;
+see
+.Xr vt 4
+.Bl -tag -width ".Pa scrnmaps/" -compact
+.It Pa fonts/
+console fonts;
+see
+.Xr vidcontrol 1
+and
+.Xr vidfont 1
+.It Pa keymaps/
+console keyboard maps;
+see
+.Xr kbdcontrol 1
+and
+.Xr kbdmap 1
+.\" .It Pa scrnmaps/
+.\" console screen maps
 .El
 .It Pa src/
 .Bx ,

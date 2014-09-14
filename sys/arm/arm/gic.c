@@ -127,6 +127,17 @@ static int gic_config_irq(int irq, enum intr_trigger trig,
     enum intr_polarity pol);
 static void gic_post_filter(void *);
 
+static struct ofw_compat_data compat_data[] = {
+	{"arm,gic",		true},	/* Non-standard, used in FreeBSD dts. */
+	{"arm,gic-400",		true},
+	{"arm,cortex-a15-gic",	true},
+	{"arm,cortex-a9-gic",	true},
+	{"arm,cortex-a7-gic",	true},
+	{"arm,arm11mp-gic",	true},
+	{"brcm,brahma-b15-gic",	true},
+	{NULL,			false}
+};
+
 static int
 arm_gic_probe(device_t dev)
 {
@@ -134,7 +145,7 @@ arm_gic_probe(device_t dev)
 	if (!ofw_bus_status_okay(dev))
 		return (ENXIO);
 
-	if (!ofw_bus_is_compatible(dev, "arm,gic"))
+	if (!ofw_bus_search_compatible(dev, compat_data)->ocd_data)
 		return (ENXIO);
 	device_set_desc(dev, "ARM Generic Interrupt Controller");
 	return (BUS_PROBE_DEFAULT);
@@ -166,7 +177,10 @@ gic_init_secondary(void)
 	/* Enable interrupt distribution */
 	gic_d_write_4(GICD_CTLR, 0x01);
 
-	/* Activate IRQ 29-30, ie private timer (secure & non-secure) IRQs */
+	/*
+	 * Activate the timer interrupts: virtual, secure, and non-secure.
+	 */
+	gic_d_write_4(GICD_ISENABLER(27 >> 5), (1UL << (27 & 0x1F)));
 	gic_d_write_4(GICD_ISENABLER(29 >> 5), (1UL << (29 & 0x1F)));
 	gic_d_write_4(GICD_ISENABLER(30 >> 5), (1UL << (30 & 0x1F)));
 }
@@ -264,7 +278,10 @@ static driver_t arm_gic_driver = {
 
 static devclass_t arm_gic_devclass;
 
-DRIVER_MODULE(gic, simplebus, arm_gic_driver, arm_gic_devclass, 0, 0);
+EARLY_DRIVER_MODULE(gic, simplebus, arm_gic_driver, arm_gic_devclass, 0, 0,
+    BUS_PASS_INTERRUPT + BUS_PASS_ORDER_MIDDLE);
+EARLY_DRIVER_MODULE(gic, ofwbus, arm_gic_driver, arm_gic_devclass, 0, 0,
+    BUS_PASS_INTERRUPT + BUS_PASS_ORDER_MIDDLE);
 
 static void
 gic_post_filter(void *arg)

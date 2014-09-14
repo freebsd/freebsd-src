@@ -759,6 +759,7 @@ extern spa_load_state_t spa_load_state(spa_t *spa);
 extern uint64_t spa_freeze_txg(spa_t *spa);
 extern uint64_t spa_get_asize(spa_t *spa, uint64_t lsize);
 extern uint64_t spa_get_dspace(spa_t *spa);
+extern uint64_t spa_get_slop_space(spa_t *spa);
 extern void spa_update_dspace(spa_t *spa);
 extern uint64_t spa_version(spa_t *spa);
 extern boolean_t spa_deflate(spa_t *spa);
@@ -799,6 +800,7 @@ extern uint64_t bp_get_dsize(spa_t *spa, const blkptr_t *bp);
 extern boolean_t spa_has_slogs(spa_t *spa);
 extern boolean_t spa_is_root(spa_t *spa);
 extern boolean_t spa_writeable(spa_t *spa);
+extern boolean_t spa_has_pending_synctask(spa_t *spa);
 
 extern int spa_mode(spa_t *spa);
 extern uint64_t zfs_strtonum(const char *str, char **nptr);

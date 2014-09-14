@@ -120,6 +120,9 @@ int mpssas_get_sas_address_for_sata_disk(struct mps_softc *sc,
     u64 *sas_address, u16 handle, u32 device_info);
 static int mpssas_volume_add(struct mps_softc *sc,
     u16 handle);
+static void mpssas_SSU_to_SATA_devices(struct mps_softc *sc);
+static void mpssas_stop_unit_done(struct cam_periph *periph,
+    union ccb *done_ccb);
 
 void
 mpssas_evt_handler(struct mps_softc *sc, uintptr_t data,
@@ -910,6 +913,138 @@ out:
 }
 
 /**
+ * mpssas_SSU_to_SATA_devices 
+ * @sc: per adapter object
+ *
+ * Looks through the target list and issues a StartStopUnit SCSI command to each
+ * SATA direct-access device.  This helps to ensure that data corruption is
+ * avoided when the system is being shut down.  This must be called after the IR
+ * System Shutdown RAID Action is sent if in IR mode.
+ *
+ * Return nothing.
+ */
+static void
+mpssas_SSU_to_SATA_devices(struct mps_softc *sc)
+{
+	struct mpssas_softc *sassc = sc->sassc;
+	union ccb *ccb;
+	path_id_t pathid = cam_sim_path(sassc->sim);
+	target_id_t targetid;
+	struct mpssas_target *target;
+	struct mpssas_lun *lun;
+	char path_str[64];
+	struct timeval cur_time, start_time;
+
+	/*
+	 * For each LUN of each target, issue a StartStopUnit command to stop
+	 * the device.
+	 */
+	sc->SSU_started = TRUE;
+	sc->SSU_refcount = 0;
+	for (targetid = 0; targetid < sc->facts->MaxTargets; targetid++) {
+		target = &sassc->targets[targetid];
+		if (target->handle == 0x0) {
+			continue;
+		}
+
+		SLIST_FOREACH(lun, &target->luns, lun_link) {
+			ccb = xpt_alloc_ccb_nowait();
+			if (ccb == NULL) {
+				mps_dprint(sc, MPS_FAULT, "Unable to alloc CCB "
+				    "to stop unit.\n");
+				return;
+			}
+
+			/*
+			 * The stop_at_shutdown flag will be set if this LUN is
+			 * a SATA direct-access end device.
+			 */
+			if (lun->stop_at_shutdown) {
+				if (xpt_create_path(&ccb->ccb_h.path,
+				    xpt_periph, pathid, targetid,
+				    lun->lun_id) != CAM_REQ_CMP) {
+					mps_dprint(sc, MPS_FAULT, "Unable to "
+					    "create LUN path to stop unit.\n");
+					xpt_free_ccb(ccb);
+					return;
+				}
+				xpt_path_string(ccb->ccb_h.path, path_str,
+				    sizeof(path_str));
+
+				mps_dprint(sc, MPS_INFO, "Sending StopUnit: "
+				    "path %s handle %d\n", path_str,
+				    target->handle);
+			
+				/*
+				 * Issue a START STOP UNIT command for the LUN.
+				 * Increment the SSU counter to be used to
+				 * count the number of required replies.
+				 */
+				mps_dprint(sc, MPS_INFO, "Incrementing SSU "
+				    "count\n");
+				sc->SSU_refcount++;
+				ccb->ccb_h.target_id =
+				    xpt_path_target_id(ccb->ccb_h.path);
+				ccb->ccb_h.target_lun = lun->lun_id;
+				ccb->ccb_h.ppriv_ptr1 = sassc;
+				scsi_start_stop(&ccb->csio,
+				    /*retries*/0,
+				    mpssas_stop_unit_done,
+				    MSG_SIMPLE_Q_TAG,
+				    /*start*/FALSE,
+				    /*load/eject*/0,
+				    /*immediate*/FALSE,
+				    MPS_SENSE_LEN,
+				    /*timeout*/10000);
+				xpt_action(ccb);
+			}
+		}
+	}
+
+	/*
+	 * Wait until all of the SSU commands have completed or time has
+	 * expired (60 seconds).  pause for 100ms each time through.  If any
+	 * command times out, the target will be reset in the SCSI command
+	 * timeout routine.
+	 */
+	getmicrotime(&start_time);
+	while (sc->SSU_refcount) {
+		pause("mpswait", hz/10);
+		
+		getmicrotime(&cur_time);
+		if ((cur_time.tv_sec - start_time.tv_sec) > 60) {
+			mps_dprint(sc, MPS_FAULT, "Time has expired waiting "
+			    "for SSU commands to complete.\n");
+			break;
+		}
+	}
+}
+
+static void
+mpssas_stop_unit_done(struct cam_periph *periph, union ccb *done_ccb)
+{
+	struct mpssas_softc *sassc;
+	char path_str[64];
+
+	sassc = (struct mpssas_softc *)done_ccb->ccb_h.ppriv_ptr1;
+
+	xpt_path_string(done_ccb->ccb_h.path, path_str, sizeof(path_str));
+	mps_dprint(sassc->sc, MPS_INFO, "Completing stop unit for %s\n",
+	    path_str);
+
+	if (done_ccb == NULL)
+		return;
+
+	/*
+	 * Nothing more to do except free the CCB and path.  If the command
+	 * timed out, an abort reset, then target reset will be issued during
+	 * the SCSI Command process.
+	 */
+	xpt_free_path(done_ccb->ccb_h.path);
+	xpt_free_ccb(done_ccb);
+}
+
+/**
  * mpssas_ir_shutdown - IR shutdown notification
  * @sc: per adapter object
  *
@@ -933,7 +1068,7 @@ mpssas_ir_shutdown(struct mps_softc *sc)
 
 	/* is IR firmware build loaded? */
 	if (!sc->ir_firmware)
-		return;
+		goto out;
 
 	/* are there any volumes?  Look at IR target IDs. */
 	// TODO-later, this should be looked up in the RAID config structure
@@ -958,11 +1093,11 @@ mpssas_ir_shutdown(struct mps_softc *sc)
 	}
 
 	if (!found_volume)
-		return;
+		goto out;
 
 	if ((cm = mps_alloc_command(sc)) == NULL) {
 		printf("%s: command alloc failed\n", __func__);
-		return;
+		goto out;
 	}
 
 	action = (MPI2_RAID_ACTION_REQUEST *)cm->cm_req;
@@ -978,4 +1113,7 @@ mpssas_ir_shutdown(struct mps_softc *sc)
 	 */
 	if (cm)
 		mps_free_command(sc, cm);
+
+out:
+	mpssas_SSU_to_SATA_devices(sc);
 }

@@ -1,4 +1,4 @@
-Updating Information for FreeBSD current users
+Updating Information for FreeBSD current users.
 
 This file is maintained and copyrighted by M. Warner Losh <imp@freebsd.org>.
 See end of file for further details.  For commonly done items, please see the
@@ -30,6 +30,37 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 11.x IS SLOW:
 	debugging, define MALLOC_PRODUCTION in /etc/make.conf, or to merely
 	disable the most expensive debugging functionality run
 	"ln -s 'abort:false,junk:false' /etc/malloc.conf".)
+
+20140729:
+	The ofwfb driver, used to provide a graphics console on PowerPC when
+	using vt(4), no longer allows mmap() of all of physical memory. This
+	will prevent Xorg on PowerPC with some ATI graphics cards from
+	initializing properly unless x11-servers/xorg-server is updated to
+	1.12.4_8 or newer.
+
+20140723:
+	The xdev targets have been converted to using TARGET and
+	TARGET_ARCH instead of XDEV and XDEV_ARCH.
+
+20140719:
+	The default unbound configuration has been modified to address
+	issues with reverse lookups on networks that use private
+	address ranges.  If you use the local_unbound service, run
+	"service local_unbound setup" as root to regenerate your
+	configuration, then "service local_unbound reload" to load the
+	new configuration.
+
+20140709:
+	The GNU texinfo and GNU info pages are not built and installed
+	anymore, WITH_INFO knob has been added to allow to built and install
+	them again.
+
+20140708:
+	The GNU readline library is now an INTERNALLIB - that is, it is
+	statically linked into consumers (GDB and variants) in the base
+	system, and the shared library is no longer installed.  The
+	devel/readline port is available for third party software that
+	requires readline.
 
 20140702:
 	The Itanium architecture (ia64) has been removed from the list of

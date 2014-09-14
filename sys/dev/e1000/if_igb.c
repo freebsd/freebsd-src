@@ -3241,7 +3241,7 @@ igb_setup_interface(device_t dev, struct adapter *adapter)
 	 * Tell the upper layer(s) we
 	 * support full VLAN capability.
 	 */
-	ifp->if_data.ifi_hdrlen = sizeof(struct ether_vlan_header);
+	ifp->if_hdrlen = sizeof(struct ether_vlan_header);
 	ifp->if_capabilities |= IFCAP_VLAN_HWTAGGING
 			     |  IFCAP_VLAN_HWTSO
 			     |  IFCAP_VLAN_MTU;
@@ -3629,7 +3629,7 @@ igb_setup_transmit_ring(struct tx_ring *txr)
 		if (slot) {
 			int si = netmap_idx_n2k(&na->tx_rings[txr->me], i);
 			/* no need to set the address */
-			netmap_load_map(txr->txtag, txbuf->map, NMB(slot + si));
+			netmap_load_map(na, txr->txtag, txbuf->map, NMB(na, slot + si));
 		}
 #endif /* DEV_NETMAP */
 		/* clear the watch index */
@@ -4433,8 +4433,8 @@ igb_setup_receive_ring(struct rx_ring *rxr)
 			uint64_t paddr;
 			void *addr;
 
-			addr = PNMB(slot + sj, &paddr);
-			netmap_load_map(rxr->ptag, rxbuf->pmap, addr);
+			addr = PNMB(na, slot + sj, &paddr);
+			netmap_load_map(na, rxr->ptag, rxbuf->pmap, addr);
 			/* Update descriptor */
 			rxr->rx_base[j].read.pkt_addr = htole64(paddr);
 			continue;
@@ -4569,12 +4569,8 @@ igb_initialise_rss_mapping(struct adapter *adapter)
 	struct e1000_hw *hw = &adapter->hw;
 	int i;
 	int queue_id;
-
+	u32 reta;
 	u32 rss_key[10], mrqc, shift = 0;
-	union igb_reta {
-		u32 dword;
-		u8  bytes[4];
-	} reta;
 
 	/* XXX? */
 	if (adapter->hw.mac.type == e1000_82575)
@@ -4594,6 +4590,7 @@ igb_initialise_rss_mapping(struct adapter *adapter)
 	 */
 
 	/* Warning FM follows */
+	reta = 0;
 	for (i = 0; i < 128; i++) {
 #ifdef	RSS
 		queue_id = rss_get_indirection_to_bucket(i);
@@ -4614,13 +4611,20 @@ igb_initialise_rss_mapping(struct adapter *adapter)
 #else
 		queue_id = (i % adapter->num_queues);
 #endif
-		reta.bytes[i & 3] = queue_id << shift;
+		/* Adjust if required */
+		queue_id = queue_id << shift;
 
-		if ((i & 3) == 3)
-			E1000_WRITE_REG(hw,
-			    E1000_RETA(i >> 2), reta.dword);
+		/*
+		 * The low 8 bits are for hash value (n+0);
+		 * The next 8 bits are for hash value (n+1), etc.
+		 */
+		reta = reta >> 8;
+		reta = reta | ( ((uint32_t) queue_id) << 24);
+		if ((i & 3) == 3) {
+			E1000_WRITE_REG(hw, E1000_RETA(i >> 2), reta);
+			reta = 0;
+		}
 	}
-
 
 	/* Now fill in hash table */
 
@@ -5853,7 +5857,7 @@ igb_add_hw_stats(struct adapter *adapter)
  				"Transmit Descriptor Tail");
 		SYSCTL_ADD_QUAD(ctx, queue_list, OID_AUTO, "no_desc_avail", 
 				CTLFLAG_RD, &txr->no_desc_avail,
-				"Queue No Descriptor Available");
+				"Queue Descriptors Unavailable");
 		SYSCTL_ADD_UQUAD(ctx, queue_list, OID_AUTO, "tx_packets",
 				CTLFLAG_RD, &txr->total_packets,
 				"Queue Packets Transmitted");

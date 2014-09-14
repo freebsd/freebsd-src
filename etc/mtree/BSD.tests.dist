@@ -85,6 +85,12 @@
             ..
             libcrypt
             ..
+            libmp
+            ..
+            libnv
+            ..
+            libutil
+            ..
         ..
         libexec
             atf
@@ -98,6 +104,8 @@
         ..
         sbin
             dhclient
+            ..
+            devd
             ..
             growfs
             ..
@@ -257,6 +265,8 @@
             ..
             truncate
             ..
+            units
+            ..
             uudecode
             ..
             uuencode
@@ -264,6 +274,8 @@
             xargs
             ..
             yacc
+                yacc
+                ..
             ..
         ..
         usr.sbin

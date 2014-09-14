@@ -655,7 +655,7 @@ interpret:
 	 * it that it now has its own resources back
 	 */
 	p->p_flag |= P_EXEC;
-	if (p->p_pptr && (p->p_flag & P_PPWAIT)) {
+	if (p->p_flag & P_PPWAIT) {
 		p->p_flag &= ~(P_PPWAIT | P_PPTRACE);
 		cv_broadcast(&p->p_pwait);
 	}
@@ -993,6 +993,7 @@ exec_map_first_page(imgp)
 	vm_page_xunbusy(ma[0]);
 	vm_page_lock(ma[0]);
 	vm_page_hold(ma[0]);
+	vm_page_activate(ma[0]);
 	vm_page_unlock(ma[0]);
 	VM_OBJECT_WUNLOCK(object);
 

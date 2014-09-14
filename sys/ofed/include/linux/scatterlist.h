@@ -2,6 +2,7 @@
  * Copyright (c) 2010 Isilon Systems, Inc.
  * Copyright (c) 2010 iX Systems, Inc.
  * Copyright (c) 2010 Panasas, Inc.
+ * Copyright (c) 2013, 2014 Mellanox Technologies, Ltd.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -25,10 +26,10 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
+
 #ifndef	_LINUX_SCATTERLIST_H_
 #define	_LINUX_SCATTERLIST_H_
 
-#include <linux/string.h>
 #include <linux/page.h>
 
 struct scatterlist {
@@ -40,6 +41,12 @@ struct scatterlist {
 	unsigned long	offset;
 	uint32_t	length;
 	uint32_t	flags;
+};
+
+struct sg_table {
+	struct scatterlist *sgl;        /* the list */
+	unsigned int nents;             /* number of mapped entries */
+	unsigned int orig_nents;        /* original size of list */
 };
 
 #define	sg_dma_address(sg)	(sg)->address

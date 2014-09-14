@@ -228,7 +228,7 @@ alltraps_pushregs_no_rdi:
 	.type	calltrap,@function
 calltrap:
 	movq	%rsp,%rdi
-	call	trap
+	call	trap_check
 	MEXITCOUNT
 	jmp	doreti			/* Handle any pending ASTs */
 

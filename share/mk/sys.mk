@@ -117,7 +117,8 @@ LEX		?=	lex
 LFLAGS		?=
 
 LD		?=	ld
-LDFLAGS		?=
+LDFLAGS		?=				# LDFLAGS is for CC, 
+_LDFLAGS	=	${LDFLAGS:S/-Wl,//g}	# strip -Wl, for LD
 
 LINT		?=	lint
 LINTFLAGS	?=	-cghapbx

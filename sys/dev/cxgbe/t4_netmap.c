@@ -238,8 +238,8 @@ alloc_nm_rxq_hwq(struct port_info *pi, struct sge_nm_rxq *nm_rxq)
 	MPASS(nm_rxq->iq_desc != NULL);
 	MPASS(nm_rxq->fl_desc != NULL);
 
-	bzero(nm_rxq->iq_desc, pi->qsize_rxq * RX_IQ_ESIZE);
-	bzero(nm_rxq->fl_desc, na->num_rx_desc * RX_FL_ESIZE + spg_len);
+	bzero(nm_rxq->iq_desc, pi->qsize_rxq * IQ_ESIZE);
+	bzero(nm_rxq->fl_desc, na->num_rx_desc * EQ_ESIZE + spg_len);
 
 	bzero(&c, sizeof(c));
 	c.op_to_vfn = htobe32(V_FW_CMD_OP(FW_IQ_CMD) | F_FW_CMD_REQUEST |
@@ -264,7 +264,7 @@ alloc_nm_rxq_hwq(struct port_info *pi, struct sge_nm_rxq *nm_rxq)
 	c.iqdroprss_to_iqesize = htobe16(V_FW_IQ_CMD_IQPCIECH(pi->tx_chan) |
 	    F_FW_IQ_CMD_IQGTSMODE |
 	    V_FW_IQ_CMD_IQINTCNTTHRESH(0) |
-	    V_FW_IQ_CMD_IQESIZE(ilog2(RX_IQ_ESIZE) - 4));
+	    V_FW_IQ_CMD_IQESIZE(ilog2(IQ_ESIZE) - 4));
 	c.iqsize = htobe16(pi->qsize_rxq);
 	c.iqaddr = htobe64(nm_rxq->iq_ba);
 	c.iqns_to_fl0congen |=
@@ -274,7 +274,7 @@ alloc_nm_rxq_hwq(struct port_info *pi, struct sge_nm_rxq *nm_rxq)
 	c.fl0dcaen_to_fl0cidxfthresh =
 	    htobe16(V_FW_IQ_CMD_FL0FBMIN(X_FETCHBURSTMIN_64B) |
 		V_FW_IQ_CMD_FL0FBMAX(X_FETCHBURSTMAX_512B));
-	c.fl0size = htobe16(na->num_rx_desc + spg_len / RX_FL_ESIZE);
+	c.fl0size = htobe16(na->num_rx_desc + spg_len / EQ_ESIZE);
 	c.fl0addr = htobe64(nm_rxq->fl_ba);
 
 	rc = -t4_wr_mbox(sc, sc->mbox, &c, sizeof(c), &c);
@@ -285,7 +285,7 @@ alloc_nm_rxq_hwq(struct port_info *pi, struct sge_nm_rxq *nm_rxq)
 	}
 
 	nm_rxq->iq_cidx = 0;
-	MPASS(nm_rxq->iq_sidx == pi->qsize_rxq - spg_len / RX_IQ_ESIZE);
+	MPASS(nm_rxq->iq_sidx == pi->qsize_rxq - spg_len / IQ_ESIZE);
 	nm_rxq->iq_gen = F_RSPD_GEN;
 	nm_rxq->iq_cntxt_id = be16toh(c.iqid);
 	nm_rxq->iq_abs_id = be16toh(c.physiqid);
@@ -377,7 +377,7 @@ alloc_nm_txq_hwq(struct port_info *pi, struct sge_nm_txq *nm_txq)
 
 	nm_txq->pidx = nm_txq->cidx = 0;
 	MPASS(nm_txq->sidx == na->num_tx_desc);
-	nm_txq->equiqidx = nm_txq-> equeqidx = nm_txq->dbidx = 0;
+	nm_txq->equiqidx = nm_txq->equeqidx = nm_txq->dbidx = 0;
 
 	nm_txq->doorbells = sc->doorbells;
 	if (isset(&nm_txq->doorbells, DOORBELL_UDB) ||
@@ -390,7 +390,7 @@ alloc_nm_txq_hwq(struct port_info *pi, struct sge_nm_txq *nm_txq)
 		udb = sc->udbs_base + UDBS_DB_OFFSET;
 		udb += (nm_txq->cntxt_id >> s_qpp) << PAGE_SHIFT;
 		nm_txq->udb_qid = nm_txq->cntxt_id & mask;
-		if (nm_txq->udb_qid > PAGE_SIZE / UDBS_SEG_SIZE)
+		if (nm_txq->udb_qid >= PAGE_SIZE / UDBS_SEG_SIZE)
 	    		clrbit(&nm_txq->doorbells, DOORBELL_WCWR);
 		else {
 			udb += nm_txq->udb_qid << UDBS_SEG_SHIFT;
@@ -434,19 +434,18 @@ cxgbe_netmap_on(struct adapter *sc, struct port_info *pi, struct ifnet *ifp,
 
 	hwb = &sc->sge.hw_buf_info[0];
 	for (i = 0; i < SGE_FLBUF_SIZES; i++, hwb++) {
-		if (hwb->size == NETMAP_BUF_SIZE)
+		if (hwb->size == NETMAP_BUF_SIZE(na))
 			break;
 	}
 	if (i >= SGE_FLBUF_SIZES) {
 		if_printf(ifp, "no hwidx for netmap buffer size %d.\n",
-		    NETMAP_BUF_SIZE);
+		    NETMAP_BUF_SIZE(na));
 		return (ENXIO);
 	}
 	hwidx = i;
 
 	/* Must set caps before calling netmap_reset */
-	na->na_flags |= (NAF_NATIVE_ON | NAF_NETMAP_ON);
-	ifp->if_capenable |= IFCAP_NETMAP;
+	nm_set_native_flags(na);
 
 	for_each_nm_rxq(pi, i, nm_rxq) {
 		alloc_nm_rxq_hwq(pi, nm_rxq);
@@ -460,7 +459,7 @@ cxgbe_netmap_on(struct adapter *sc, struct port_info *pi, struct ifnet *ifp,
 		for (j = 0; j < nm_rxq->fl_sidx - 8; j++) {
 			uint64_t ba;
 
-			PNMB(&slot[j], &ba);
+			PNMB(na, &slot[j], &ba);
 			nm_rxq->fl_desc[j] = htobe64(ba | hwidx);
 		}
 		nm_rxq->fl_pidx = j;
@@ -512,8 +511,7 @@ cxgbe_netmap_off(struct adapter *sc, struct port_info *pi, struct ifnet *ifp,
 	rc = -t4_enable_vi(sc, sc->mbox, pi->nm_viid, false, false);
 	if (rc != 0)
 		if_printf(ifp, "netmap disable_vi failed: %d\n", rc);
-	na->na_flags &= ~(NAF_NATIVE_ON | NAF_NETMAP_ON);
-	ifp->if_capenable &= ~IFCAP_NETMAP;
+	nm_clear_native_flags(na);
 
 	/*
 	 * XXXNM: We need to make sure that the tx queues are quiet and won't
@@ -581,18 +579,7 @@ npkt_to_len16(const int n)
 	return (n * 2 + 1);
 }
 
-static inline uint16_t
-idxdiff(uint16_t head, uint16_t tail, uint16_t wrap)
-{
-	MPASS(wrap > head);
-	MPASS(wrap > tail);
-
-	if (head >= tail)
-		return (head - tail);
-	else
-		return (wrap - tail + head);
-}
-#define IDXDIFF(q, idx) idxdiff((q)->pidx, (q)->idx, (q)->sidx)
+#define NMIDXDIFF(q, idx) IDXDIFF((q)->pidx, (q)->idx, (q)->sidx)
 
 static void
 ring_nm_txq_db(struct adapter *sc, struct sge_nm_txq *nm_txq)
@@ -602,7 +589,7 @@ ring_nm_txq_db(struct adapter *sc, struct sge_nm_txq *nm_txq)
 
 	MPASS(nm_txq->pidx != nm_txq->dbidx);
 
-	n = IDXDIFF(nm_txq, dbidx);
+	n = NMIDXDIFF(nm_txq, dbidx);
 	if (n > 1)
 		clrbit(&db, DOORBELL_WCWR);
 	wmb();
@@ -680,7 +667,7 @@ cxgbe_nm_tx(struct adapter *sc, struct sge_nm_txq *nm_txq,
 
 		for (i = 0; i < n; i++) {
 			slot = &ring->slot[kring->nr_hwcur];
-			PNMB(slot, &ba);
+			PNMB(kring->na, slot, &ba);
 
 			cpl->ctrl0 = nm_txq->cpl_ctrl0;
 			cpl->pack = 0;
@@ -733,16 +720,16 @@ cxgbe_nm_tx(struct adapter *sc, struct sge_nm_txq *nm_txq,
 			return;
 		}
 
-		if (IDXDIFF(nm_txq, equiqidx) >= nm_txq->sidx / 2) {
+		if (NMIDXDIFF(nm_txq, equiqidx) >= nm_txq->sidx / 2) {
 			wr->equiq_to_len16 |= htobe32(F_FW_WR_EQUEQ |
 			    F_FW_WR_EQUIQ);
 			nm_txq->equeqidx = nm_txq->pidx;
 			nm_txq->equiqidx = nm_txq->pidx;
-		} else if (IDXDIFF(nm_txq, equeqidx) >= 64) {
+		} else if (NMIDXDIFF(nm_txq, equeqidx) >= 64) {
 			wr->equiq_to_len16 |= htobe32(F_FW_WR_EQUEQ);
 			nm_txq->equeqidx = nm_txq->pidx;
 		}
-		if (IDXDIFF(nm_txq, dbidx) >= 2 * SGE_MAX_WR_NDESC)
+		if (NMIDXDIFF(nm_txq, dbidx) >= 2 * SGE_MAX_WR_NDESC)
 			ring_nm_txq_db(sc, nm_txq);
 	}
 
@@ -782,21 +769,28 @@ reclaim_nm_tx_desc(struct sge_nm_txq *nm_txq)
 
 		n += wr->npkt;
 		nm_txq->cidx += npkt_to_ndesc(wr->npkt);
-		if (__predict_false(nm_txq->cidx >= nm_txq->sidx))
-			nm_txq->cidx -= nm_txq->sidx;
+
+		/*
+		 * We never sent a WR that wrapped around so the credits coming
+		 * back, WR by WR, should never cause the cidx to wrap around
+		 * either.
+		 */
+		MPASS(nm_txq->cidx <= nm_txq->sidx);
+		if (__predict_false(nm_txq->cidx == nm_txq->sidx))
+			nm_txq->cidx = 0;
 	}
 
 	return (n);
 }
 
 static int
-cxgbe_netmap_txsync(struct netmap_adapter *na, u_int ring_nr, int flags)
+cxgbe_netmap_txsync(struct netmap_kring *kring, int flags)
 {
-	struct netmap_kring *kring = &na->tx_rings[ring_nr];
+	struct netmap_adapter *na = kring->na;
 	struct ifnet *ifp = na->ifp;
 	struct port_info *pi = ifp->if_softc;
 	struct adapter *sc = pi->adapter;
-	struct sge_nm_txq *nm_txq = &sc->sge.nm_txq[pi->first_nm_txq + ring_nr];
+	struct sge_nm_txq *nm_txq = &sc->sge.nm_txq[pi->first_nm_txq + kring->ring_id];
 	const u_int head = kring->rhead;
 	u_int reclaimed = 0;
 	int n, d, npkt_remaining, ndesc_remaining;
@@ -855,14 +849,14 @@ cxgbe_netmap_txsync(struct netmap_adapter *na, u_int ring_nr, int flags)
 }
 
 static int
-cxgbe_netmap_rxsync(struct netmap_adapter *na, u_int ring_nr, int flags)
+cxgbe_netmap_rxsync(struct netmap_kring *kring, int flags)
 {
-	struct netmap_kring *kring = &na->rx_rings[ring_nr];
+	struct netmap_adapter *na = kring->na;
 	struct netmap_ring *ring = kring->ring;
 	struct ifnet *ifp = na->ifp;
 	struct port_info *pi = ifp->if_softc;
 	struct adapter *sc = pi->adapter;
-	struct sge_nm_rxq *nm_rxq = &sc->sge.nm_rxq[pi->first_nm_rxq + ring_nr];
+	struct sge_nm_rxq *nm_rxq = &sc->sge.nm_rxq[pi->first_nm_rxq + kring->ring_id];
 	u_int const head = nm_rxsync_prologue(kring);
 	u_int n;
 	int force_update = (flags & NAF_FORCE_READ) || kring->nr_kflags & NKR_PENDINTR;
@@ -890,17 +884,12 @@ cxgbe_netmap_rxsync(struct netmap_adapter *na, u_int ring_nr, int flags)
 		MPASS((fl_pidx & 7) == 0);
 		MPASS((n & 7) == 0);
 
-		kring->nr_hwcur += n;
-		if (kring->nr_hwcur >= kring->nkr_num_slots)
-			kring->nr_hwcur -= kring->nkr_num_slots;
-
-		nm_rxq->fl_pidx += n;
-		if (nm_rxq->fl_pidx >= nm_rxq->fl_sidx)
-			nm_rxq->fl_pidx -= nm_rxq->fl_sidx;
+		IDXINCR(kring->nr_hwcur, n, kring->nkr_num_slots);
+		IDXINCR(nm_rxq->fl_pidx, n, nm_rxq->fl_sidx);
 
 		while (n > 0) {
 			for (i = 0; i < 8; i++, fl_pidx++, slot++) {
-				PNMB(slot, &ba);
+				PNMB(na, slot, &ba);
 				nm_rxq->fl_desc[fl_pidx] = htobe64(ba | hwidx);
 				slot->flags &= ~NS_BUF_CHANGED;
 				MPASS(fl_pidx <= nm_rxq->fl_sidx);
@@ -1073,7 +1062,7 @@ t4_nm_intr(void *arg)
 	struct netmap_adapter *na = NA(ifp);
 	struct netmap_kring *kring = &na->rx_rings[nm_rxq->nid];
 	struct netmap_ring *ring = kring->ring;
-	struct nm_iq_desc *d = &nm_rxq->iq_desc[nm_rxq->iq_cidx];
+	struct iq_desc *d = &nm_rxq->iq_desc[nm_rxq->iq_cidx];
 	uint32_t lq;
 	u_int n = 0;
 	int processed = 0;
@@ -1100,7 +1089,8 @@ t4_nm_intr(void *arg)
 			switch (opcode) {
 			case CPL_FW4_MSG:
 			case CPL_FW6_MSG:
-				handle_nm_fw6_msg(sc, ifp, &d->u.fw6_msg);
+				handle_nm_fw6_msg(sc, ifp,
+				    (const void *)&d->cpl[0]);
 				break;
 			case CPL_RX_PKT:
 				ring->slot[fl_cidx].len = G_RSPD_LEN(lq) - fl_pktshift;

@@ -27,7 +27,7 @@
  * Copyright 2014 Xin Li <delphij@FreeBSD.org>. All rights reserved.
  * Copyright 2011 Nexenta Systems, Inc.  All rights reserved.
  * Copyright (c) 2014, Joyent, Inc. All rights reserved.
- * Copyright (c) 2013 by Delphix. All rights reserved.
+ * Copyright (c) 2011, 2014 by Delphix. All rights reserved.
  * Copyright (c) 2013 by Saso Kiselkov. All rights reserved.
  * Copyright (c) 2013 Steven Hartland. All rights reserved.
  * Copyright (c) 2014, Nexenta Systems, Inc. All rights reserved.
@@ -1465,7 +1465,7 @@ zfsvfs_hold(const char *name, void *tag, zfsvfs_t **zfvp, boolean_t writer)
 	if (getzfsvfs(name, zfvp) != 0)
 		error = zfsvfs_create(name, zfvp);
 	if (error == 0) {
-		rrw_enter(&(*zfvp)->z_teardown_lock, (writer) ? RW_WRITER :
+		rrm_enter(&(*zfvp)->z_teardown_lock, (writer) ? RW_WRITER :
 		    RW_READER, tag);
 		if ((*zfvp)->z_unmounted) {
 			/*
@@ -1473,7 +1473,7 @@ zfsvfs_hold(const char *name, void *tag, zfsvfs_t **zfvp, boolean_t writer)
 			 * thread should be just about to disassociate the
 			 * objset from the zfsvfs.
 			 */
-			rrw_exit(&(*zfvp)->z_teardown_lock, tag);
+			rrm_exit(&(*zfvp)->z_teardown_lock, tag);
 			return (SET_ERROR(EBUSY));
 		}
 	}
@@ -1483,7 +1483,7 @@ zfsvfs_hold(const char *name, void *tag, zfsvfs_t **zfvp, boolean_t writer)
 static void
 zfsvfs_rele(zfsvfs_t *zfsvfs, void *tag)
 {
-	rrw_exit(&zfsvfs->z_teardown_lock, tag);
+	rrm_exit(&zfsvfs->z_teardown_lock, tag);
 
 	if (zfsvfs->z_vfs) {
 		VFS_RELE(zfsvfs->z_vfs);
@@ -3957,7 +3957,7 @@ zfs_prop_activate_feature(spa_t *spa, spa_feature_t feature)
 	/* EBUSY here indicates that the feature is already active */
 	err = dsl_sync_task(spa_name(spa),
 	    zfs_prop_activate_feature_check, zfs_prop_activate_feature_sync,
-	    &feature, 2);
+	    &feature, 2, ZFS_SPACE_CHECK_RESERVED);
 
 	if (err != 0 && err != EBUSY)
 		return (err);

@@ -80,7 +80,7 @@ static char da[] = "da";
 
 static struct nlist namelist[] = {
 #define X_SUM		0
-	{ "_cnt" },
+	{ "_vm_cnt" },
 #define X_HZ		1
 	{ "_hz" },
 #define X_STATHZ	2
@@ -259,8 +259,18 @@ main(int argc, char *argv[])
 			errx(1, "kvm_openfiles: %s", errbuf);
 	}
 
+retry_nlist:
 	if (kd != NULL && (c = kvm_nlist(kd, namelist)) != 0) {
 		if (c > 0) {
+			/*
+			 * 'cnt' was renamed to 'vm_cnt'. If 'vm_cnt' is not
+			 * found try looking up older 'cnt' symbol.
+			 * */
+			if (namelist[X_SUM].n_type == 0 &&
+			    strcmp(namelist[X_SUM].n_name, "_vm_cnt") == 0) {
+				namelist[X_SUM].n_name = "_cnt";
+				goto retry_nlist;
+			}
 			warnx("undefined symbols:");
 			for (c = 0;
 			     c < (int)(sizeof(namelist)/sizeof(namelist[0]));
@@ -289,15 +299,12 @@ main(int argc, char *argv[])
 		argv = getdrivedata(argv);
 	}
 
-#define	BACKWARD_COMPATIBILITY
-#ifdef	BACKWARD_COMPATIBILITY
 	if (*argv) {
 		f = atof(*argv);
 		interval = f * 1000;
 		if (*++argv)
 			reps = atoi(*argv);
 	}
-#endif
 
 	if (interval) {
 		if (!reps)
@@ -650,6 +657,8 @@ dovmstat(unsigned int interval, int reps)
 	uptime = getuptime();
 	halfuptime = uptime / 2;
 	rate_adj = 1;
+	ncpus = 1;
+	maxid = 0;
 
 	/*
 	 * If the user stops the program (control-Z) and then resumes it,
@@ -695,7 +704,7 @@ dovmstat(unsigned int interval, int reps)
 	}
 	for (hdrcnt = 1;;) {
 		if (!--hdrcnt)
-			printhdr(ncpus, cpumask);
+			printhdr(maxid, cpumask);
 		if (kd != NULL) {
 			if (kvm_getcptime(kd, cur.cp_time) < 0)
 				errx(1, "kvm_getcptime: %s", kvm_geterr(kd));
@@ -746,7 +755,7 @@ dovmstat(unsigned int interval, int reps)
 				errx(1, "%s", devstat_errbuf);
 				break;
 			case 1:
-				printhdr(ncpus, cpumask);
+				printhdr(maxid, cpumask);
 				break;
 			default:
 				break;
@@ -815,7 +824,7 @@ dovmstat(unsigned int interval, int reps)
 }
 
 static void
-printhdr(int ncpus, u_long cpumask)
+printhdr(int maxid, u_long cpumask)
 {
 	int i, num_shown;
 
@@ -827,7 +836,7 @@ printhdr(int ncpus, u_long cpumask)
 		(void)printf("disk");
 	(void)printf("   faults         ");
 	if (Pflag) {
-		for (i = 0; i < ncpus; i++) {
+		for (i = 0; i <= maxid; i++) {
 			if (cpumask & (1ul << i))
 				printf("cpu%-2d    ", i);
 		}
@@ -843,8 +852,10 @@ printhdr(int ncpus, u_long cpumask)
 				     dev_select[i].unit_number);
 	(void)printf("  in   sy   cs");
 	if (Pflag) {
-		for (i = 0; i < ncpus; i++)
-			printf(" us sy id");
+		for (i = 0; i <= maxid; i++) {
+			if (cpumask & (1ul << i))
+				printf(" us sy id");
+		}
 		printf("\n");
 	} else
 		printf(" us sy id\n");
@@ -1350,7 +1361,7 @@ static void
 usage(void)
 {
 	(void)fprintf(stderr, "%s%s",
-		"usage: vmstat [-afHhimPsz] [-c count] [-M core [-N system]] [-w wait]\n",
-		"              [-n devs] [-p type,if,pass] [disks]\n");
+		"usage: vmstat [-afHhimPsz] [-M core [-N system]] [-c count] [-n devs]\n",
+		"              [-p type,if,pass] [-w wait] [disks] [wait [count]]\n");
 	exit(1);
 }

@@ -1646,8 +1646,8 @@ bge_setmulti(struct bge_softc *sc)
 
 	if_multiaddr_array(ifp, mta, &mcnt, mc_count);
 	for(i = 0; i < mcnt; i++) {
-		h = ether_crc32_le(LLADDR((struct sockaddr_dl *)
-		    (mta + (i * ETHER_ADDR_LEN))), ETHER_ADDR_LEN) & 0x7F;
+		h = ether_crc32_le(mta + (i * ETHER_ADDR_LEN),
+		    ETHER_ADDR_LEN) & 0x7F;
 		hashes[(h & 0x60) >> 5] |= 1 << (h & 0x1F);
 	}
 
@@ -3837,7 +3837,7 @@ bge_attach(device_t dev)
 		sc->bge_phy_flags |= BGE_PHY_NO_WIRESPEED;
 
 	if (sc->bge_flags & BGE_FLAG_TBI) {
-		ifmedia_init_drv(&sc->bge_ifmedia, IFM_IMASK, bge_ifmedia_upd,
+		ifmedia_init(&sc->bge_ifmedia, IFM_IMASK, bge_ifmedia_upd,
 		    bge_ifmedia_sts);
 		ifmedia_add(&sc->bge_ifmedia, IFM_ETHER | IFM_1000_SX, 0, NULL);
 		ifmedia_add(&sc->bge_ifmedia, IFM_ETHER | IFM_1000_SX | IFM_FDX,

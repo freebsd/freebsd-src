@@ -281,25 +281,19 @@ struct fcrypt {
 	int		sesn;
 };
 
-static	int cryptof_rw(struct file *fp, struct uio *uio,
-		    struct ucred *cred, int flags, struct thread *);
-static	int cryptof_truncate(struct file *, off_t, struct ucred *,
-		    struct thread *);
 static	int cryptof_ioctl(struct file *, u_long, void *,
 		    struct ucred *, struct thread *);
-static	int cryptof_poll(struct file *, int, struct ucred *, struct thread *);
-static	int cryptof_kqfilter(struct file *, struct knote *);
 static	int cryptof_stat(struct file *, struct stat *,
 		    struct ucred *, struct thread *);
 static	int cryptof_close(struct file *, struct thread *);
 
 static struct fileops cryptofops = {
-    .fo_read = cryptof_rw,
-    .fo_write = cryptof_rw,
-    .fo_truncate = cryptof_truncate,
+    .fo_read = invfo_rdwr,
+    .fo_write = invfo_rdwr,
+    .fo_truncate = invfo_truncate,
     .fo_ioctl = cryptof_ioctl,
-    .fo_poll = cryptof_poll,
-    .fo_kqfilter = cryptof_kqfilter,
+    .fo_poll = invfo_poll,
+    .fo_kqfilter = invfo_kqfilter,
     .fo_stat = cryptof_stat,
     .fo_close = cryptof_close,
     .fo_chmod = invfo_chmod,
@@ -319,29 +313,6 @@ static	int cryptodev_op(struct csession *, struct crypt_op *,
 			struct ucred *, struct thread *td);
 static	int cryptodev_key(struct crypt_kop *);
 static	int cryptodev_find(struct crypt_find_op *);
-
-static int
-cryptof_rw(
-	struct file *fp,
-	struct uio *uio,
-	struct ucred *active_cred,
-	int flags,
-	struct thread *td)
-{
-
-	return (EIO);
-}
-
-static int
-cryptof_truncate(
-	struct file *fp,
-	off_t length,
-	struct ucred *active_cred,
-	struct thread *td)
-{
-
-	return (EINVAL);
-}
 
 /*
  * Check a crypto identifier to see if it requested
@@ -956,26 +927,6 @@ cryptodev_find(struct crypt_find_op *find)
 		if (find->crid == -1)
 			return (ENOENT);
 	}
-	return (0);
-}
-
-/* ARGSUSED */
-static int
-cryptof_poll(
-	struct file *fp,
-	int events,
-	struct ucred *active_cred,
-	struct thread *td)
-{
-
-	return (0);
-}
-
-/* ARGSUSED */
-static int
-cryptof_kqfilter(struct file *fp, struct knote *kn)
-{
-
 	return (0);
 }
 

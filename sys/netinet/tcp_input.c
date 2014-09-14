@@ -522,25 +522,26 @@ tcp6_input(struct mbuf **mp, int *offp, int proto)
 		ip6 = mtod(m, struct ip6_hdr *);
 		icmp6_error(m, ICMP6_DST_UNREACH, ICMP6_DST_UNREACH_ADDR,
 			    (caddr_t)&ip6->ip6_dst - (caddr_t)ip6);
-		return IPPROTO_DONE;
+		return (IPPROTO_DONE);
 	}
 	if (ia6)
 		ifa_free(&ia6->ia_ifa);
 
-	tcp_input(m, *offp);
-	return IPPROTO_DONE;
+	return (tcp_input(mp, offp, proto));
 }
 #endif /* INET6 */
 
-void
-tcp_input(struct mbuf *m, int off0)
+int
+tcp_input(struct mbuf **mp, int *offp, int proto)
 {
+	struct mbuf *m = *mp;
 	struct tcphdr *th = NULL;
 	struct ip *ip = NULL;
 	struct inpcb *inp = NULL;
 	struct tcpcb *tp = NULL;
 	struct socket *so = NULL;
 	u_char *optp = NULL;
+	int off0;
 	int optlen = 0;
 #ifdef INET
 	int len;
@@ -580,6 +581,9 @@ tcp_input(struct mbuf *m, int off0)
 	isipv6 = (mtod(m, struct ip *)->ip_v == 6) ? 1 : 0;
 #endif
 
+	off0 = *offp;
+	m = *mp;
+	*mp = NULL;
 	to.to_flags = 0;
 	TCPSTAT_INC(tcps_rcvtotal);
 
@@ -591,7 +595,7 @@ tcp_input(struct mbuf *m, int off0)
 			m = m_pullup(m, sizeof(*ip6) + sizeof(*th));
 			if (m == NULL) {
 				TCPSTAT_INC(tcps_rcvshort);
-				return;
+				return (IPPROTO_DONE);
 			}
 		}
 
@@ -643,7 +647,7 @@ tcp_input(struct mbuf *m, int off0)
 			if ((m = m_pullup(m, sizeof (struct tcpiphdr)))
 			    == NULL) {
 				TCPSTAT_INC(tcps_rcvshort);
-				return;
+				return (IPPROTO_DONE);
 			}
 		}
 		ip = mtod(m, struct ip *);
@@ -706,7 +710,7 @@ tcp_input(struct mbuf *m, int off0)
 	if (off > sizeof (struct tcphdr)) {
 #ifdef INET6
 		if (isipv6) {
-			IP6_EXTHDR_CHECK(m, off0, off, );
+			IP6_EXTHDR_CHECK(m, off0, off, IPPROTO_DONE);
 			ip6 = mtod(m, struct ip6_hdr *);
 			th = (struct tcphdr *)((caddr_t)ip6 + off0);
 		}
@@ -720,7 +724,7 @@ tcp_input(struct mbuf *m, int off0)
 				if ((m = m_pullup(m, sizeof (struct ip) + off))
 				    == NULL) {
 					TCPSTAT_INC(tcps_rcvshort);
-					return;
+					return (IPPROTO_DONE);
 				}
 				ip = mtod(m, struct ip *);
 				th = (struct tcphdr *)((caddr_t)ip + off0);
@@ -744,12 +748,12 @@ tcp_input(struct mbuf *m, int off0)
 
 	/*
 	 * Locate pcb for segment; if we're likely to add or remove a
-	 * connection then first acquire pcbinfo lock.  There are two cases
+	 * connection then first acquire pcbinfo lock.  There are three cases
 	 * where we might discover later we need a write lock despite the
-	 * flags: ACKs moving a connection out of the syncache, and ACKs for
-	 * a connection in TIMEWAIT.
+	 * flags: ACKs moving a connection out of the syncache, ACKs for a
+	 * connection in TIMEWAIT and SYNs not targeting a listening socket.
 	 */
-	if ((thflags & (TH_SYN | TH_FIN | TH_RST)) != 0) {
+	if ((thflags & (TH_FIN | TH_RST)) != 0) {
 		INP_INFO_WLOCK(&V_tcbinfo);
 		ti_locked = TI_WLOCKED;
 	} else
@@ -949,7 +953,7 @@ relocked:
 		if (tcp_twcheck(inp, &to, th, m, tlen))
 			goto findpcb;
 		INP_INFO_WUNLOCK(&V_tcbinfo);
-		return;
+		return (IPPROTO_DONE);
 	}
 	/*
 	 * The TCPCB may no longer exist if the connection is winding
@@ -978,10 +982,11 @@ relocked:
 	 * now be in TIMEWAIT.
 	 */
 #ifdef INVARIANTS
-	if ((thflags & (TH_SYN | TH_FIN | TH_RST)) != 0)
+	if ((thflags & (TH_FIN | TH_RST)) != 0)
 		INP_INFO_WLOCK_ASSERT(&V_tcbinfo);
 #endif
-	if (tp->t_state != TCPS_ESTABLISHED) {
+	if (!((tp->t_state == TCPS_ESTABLISHED && (thflags & TH_SYN) == 0) ||
+	    (tp->t_state == TCPS_LISTEN && (thflags & TH_SYN)))) {
 		if (ti_locked == TI_UNLOCKED) {
 			if (INP_INFO_TRY_WLOCK(&V_tcbinfo) == 0) {
 				in_pcbref(inp);
@@ -1022,17 +1027,13 @@ relocked:
 	/*
 	 * When the socket is accepting connections (the INPCB is in LISTEN
 	 * state) we look into the SYN cache if this is a new connection
-	 * attempt or the completion of a previous one.  Because listen
-	 * sockets are never in TCPS_ESTABLISHED, the V_tcbinfo lock will be
-	 * held in this case.
+	 * attempt or the completion of a previous one.
 	 */
 	if (so->so_options & SO_ACCEPTCONN) {
 		struct in_conninfo inc;
 
 		KASSERT(tp->t_state == TCPS_LISTEN, ("%s: so accepting but "
 		    "tp not listening", __func__));
-		INP_INFO_WLOCK_ASSERT(&V_tcbinfo);
-
 		bzero(&inc, sizeof(inc));
 #ifdef INET6
 		if (isipv6) {
@@ -1055,6 +1056,8 @@ relocked:
 		 * socket appended to the listen queue in SYN_RECEIVED state.
 		 */
 		if ((thflags & (TH_RST|TH_ACK|TH_SYN)) == TH_ACK) {
+
+			INP_INFO_WLOCK_ASSERT(&V_tcbinfo);
 			/*
 			 * Parse the TCP options here because
 			 * syncookies need access to the reflected
@@ -1138,7 +1141,7 @@ relocked:
 			tcp_do_segment(m, th, so, tp, drop_hdrlen, tlen,
 			    iptos, ti_locked);
 			INP_INFO_UNLOCK_ASSERT(&V_tcbinfo);
-			return;
+			return (IPPROTO_DONE);
 		}
 		/*
 		 * Segment flag validation for new connection attempts:
@@ -1335,10 +1338,14 @@ relocked:
 		syncache_add(&inc, &to, th, inp, &so, m, NULL, NULL);
 		/*
 		 * Entry added to syncache and mbuf consumed.
-		 * Everything already unlocked by syncache_add().
+		 * Only the listen socket is unlocked by syncache_add().
 		 */
+		if (ti_locked == TI_WLOCKED) {
+			INP_INFO_WUNLOCK(&V_tcbinfo);
+			ti_locked = TI_UNLOCKED;
+		}
 		INP_INFO_UNLOCK_ASSERT(&V_tcbinfo);
-		return;
+		return (IPPROTO_DONE);
 	} else if (tp->t_state == TCPS_LISTEN) {
 		/*
 		 * When a listen socket is torn down the SO_ACCEPTCONN
@@ -1378,7 +1385,7 @@ relocked:
 	 */
 	tcp_do_segment(m, th, so, tp, drop_hdrlen, tlen, iptos, ti_locked);
 	INP_INFO_UNLOCK_ASSERT(&V_tcbinfo);
-	return;
+	return (IPPROTO_DONE);
 
 dropwithreset:
 	TCP_PROBE5(receive, NULL, tp, mtod(m, const char *), tp, th);
@@ -1428,6 +1435,7 @@ drop:
 		free(s, M_TCPLOG);
 	if (m != NULL)
 		m_freem(m);
+	return (IPPROTO_DONE);
 }
 
 static void
@@ -1788,11 +1796,13 @@ tcp_do_segment(struct mbuf *m, struct tcphdr *th, struct socket *so,
 		 * reassembly queue.
 		 *
 		 * The criteria to step up the receive buffer one notch are:
-		 *  1. the number of bytes received during the time it takes
+		 *  1. Application has not set receive buffer size with
+		 *     SO_RCVBUF. Setting SO_RCVBUF clears SB_AUTOSIZE.
+		 *  2. the number of bytes received during the time it takes
 		 *     one timestamp to be reflected back to us (the RTT);
-		 *  2. received bytes per RTT is within seven eighth of the
+		 *  3. received bytes per RTT is within seven eighth of the
 		 *     current socket buffer size;
-		 *  3. receive buffer size has not hit maximal automatic size;
+		 *  4. receive buffer size has not hit maximal automatic size;
 		 *
 		 * This algorithm does one step per RTT at most and only if
 		 * we receive a bulk stream w/o packet losses or reorderings.

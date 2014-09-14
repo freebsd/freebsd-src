@@ -1428,8 +1428,10 @@ retry:
 
 	obj->fault_mappable = true;
 	VM_OBJECT_WLOCK(vm_obj);
-	m = vm_phys_fictitious_to_vm_page(dev->agp->base + obj->gtt_offset +
-	    offset);
+	m = PHYS_TO_VM_PAGE(dev->agp->base + obj->gtt_offset + offset);
+	KASSERT((m->flags & PG_FICTITIOUS) != 0,
+	    ("physical address %#jx not fictitious",
+	    (uintmax_t)(dev->agp->base + obj->gtt_offset + offset)));
 	if (m == NULL) {
 		VM_OBJECT_WUNLOCK(vm_obj);
 		cause = 60;

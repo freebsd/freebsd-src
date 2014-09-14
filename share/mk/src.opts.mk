@@ -144,6 +144,7 @@ __DEFAULT_YES_OPTIONS = \
     SYSINSTALL \
     TCSH \
     TELNET \
+    TESTS \
     TEXTPROC \
     UNBOUND \
     USB \
@@ -169,7 +170,6 @@ __DEFAULT_NO_OPTIONS = \
     SHARED_TOOLCHAIN \
     SORT_THREADS \
     SVN \
-    TESTS \
     USB_GADGET_EXAMPLES
 
 #
@@ -205,18 +205,18 @@ __DEFAULT_NO_OPTIONS+=CLANG CLANG_FULL CLANG_BOOTSTRAP
 .if ${__T} == "amd64" || ${__T} == "arm" || ${__T} == "armv6" || \
     ${__T} == "armv6hf" || ${__T} == "i386"
 __DEFAULT_YES_OPTIONS+=CLANG_IS_CC
-__DEFAULT_NO_OPTIONS+=GNUCXX
-# The pc98 bootloader requires gcc to build and so we must leave gcc enabled
-# for pc98 for now.
-.if ${__TT} == "pc98"
-__DEFAULT_YES_OPTIONS+=GCC GCC_BOOTSTRAP
-.else
-__DEFAULT_NO_OPTIONS+=GCC GCC_BOOTSTRAP
-.endif
+__DEFAULT_NO_OPTIONS+=GCC GCC_BOOTSTRAP GNUCXX
 .else
 # If clang is not cc, then build gcc by default
 __DEFAULT_NO_OPTIONS+=CLANG_IS_CC CLANG CLANG_BOOTSTRAP
-__DEFAULT_YES_OPTIONS+=GCC GNUCXX GCC_BOOTSTRAP
+__DEFAULT_YES_OPTIONS+=GCC GCC_BOOTSTRAP GNUCXX
+.endif
+
+# HyperV is only available for x86 and amd64.
+.if ${__T} == "amd64" || ${__T} == "i386"
+__DEFAULT_YES_OPTIONS+=HYPERV
+.else
+__DEFAULT_NO_OPTIONS+=HYPERV
 .endif
 
 .include <bsd.mkopt.mk>
@@ -276,6 +276,7 @@ MK_KERBEROS:=	no
 .if ${MK_CXX} == "no"
 MK_CLANG:=	no
 MK_GROFF:=	no
+MK_GNUCXX:=	no
 .endif
 
 .if ${MK_MAIL} == "no"

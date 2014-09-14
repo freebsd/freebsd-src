@@ -16,3 +16,7 @@ SYM_MAPS+=${LIBC_SRCTOP}/arm/Symbol_oabi.map
 .include "${LIBC_SRCTOP}/arm/aeabi/Makefile.inc"
 .endif
 
+.if ${MACHINE_ARCH} == "armv6hf"
+SYM_MAPS+=${LIBC_SRCTOP}/arm/Symbol_vfp.map
+.endif
+

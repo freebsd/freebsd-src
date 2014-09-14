@@ -152,6 +152,7 @@ static const STRUCT_USB_HOST_ID urtwn_devs[] = {
 	URTWN_DEV(TRENDNET,	RTL8192CU),
 	URTWN_DEV(ZYXEL,	RTL8192CU),
 	/* URTWN_RTL8188E */
+	URTWN_RTL8188E_DEV(DLINK,	DWA125D1),
 	URTWN_RTL8188E_DEV(REALTEK,	RTL8188ETV),
 	URTWN_RTL8188E_DEV(REALTEK,	RTL8188EU),
 #undef URTWN_RTL8188E_DEV
@@ -656,6 +657,10 @@ urtwn_rx_frame(struct urtwn_softc *sc, uint8_t *buf, int pktlen, int *rssi_p)
 		 * This should not happen since we setup our Rx filter
 		 * to not receive these frames.
 		 */
+		ifp->if_ierrors++;
+		return (NULL);
+	}
+	if (pktlen < sizeof(*wh) || pktlen > MCLBYTES) {
 		ifp->if_ierrors++;
 		return (NULL);
 	}
@@ -2281,9 +2286,6 @@ urtwn_fw_reset(struct urtwn_softc *sc)
 	}
 	/* Force 8051 reset. */
 	urtwn_write_2(sc, R92C_SYS_FUNC_EN, reg & ~R92C_SYS_FUNC_EN_CPUEN);
-	urtwn_write_2(sc, R92C_SYS_FUNC_EN,
-	    urtwn_read_2(sc, R92C_SYS_FUNC_EN) |
-	    R92C_SYS_FUNC_EN_CPUEN);
 }
 
 static void
@@ -2383,6 +2385,11 @@ urtwn_load_firmware(struct urtwn_softc *sc)
 		urtwn_write_1(sc, R92C_MCUFWDL, 0);
 	}
 
+	if (!(sc->chip & URTWN_CHIP_88E)) {
+		urtwn_write_2(sc, R92C_SYS_FUNC_EN,
+		    urtwn_read_2(sc, R92C_SYS_FUNC_EN) |
+		    R92C_SYS_FUNC_EN_CPUEN);
+	}
 	urtwn_write_1(sc, R92C_MCUFWDL,
 	    urtwn_read_1(sc, R92C_MCUFWDL) | R92C_MCUFWDL_EN);
 	urtwn_write_1(sc, R92C_MCUFWDL + 2,

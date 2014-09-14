@@ -296,6 +296,9 @@
  * CPUID instruction 0xd Processor Extended State Enumeration Sub-leaf 1
  */
 #define	CPUID_EXTSTATE_XSAVEOPT	0x00000001
+#define	CPUID_EXTSTATE_XSAVEC	0x00000002
+#define	CPUID_EXTSTATE_XINUSE	0x00000004
+#define	CPUID_EXTSTATE_XSAVES	0x00000008
 
 /*
  * AMD extended function 8000_0007h edx info
@@ -436,6 +439,25 @@
 #define	MSR_MC4_MISC		0x413
 
 /*
+ * VMX MSRs
+ */
+#define	MSR_VMX_BASIC		0x480
+#define	MSR_VMX_PINBASED_CTLS	0x481
+#define	MSR_VMX_PROCBASED_CTLS	0x482
+#define	MSR_VMX_EXIT_CTLS	0x483
+#define	MSR_VMX_ENTRY_CTLS	0x484
+#define	MSR_VMX_CR0_FIXED0	0x486
+#define	MSR_VMX_CR0_FIXED1	0x487
+#define	MSR_VMX_CR4_FIXED0	0x488
+#define	MSR_VMX_CR4_FIXED1	0x489
+#define	MSR_VMX_PROCBASED_CTLS2	0x48b
+#define	MSR_VMX_EPT_VPID_CAP	0x48c
+#define	MSR_VMX_TRUE_PINBASED_CTLS	0x48d
+#define	MSR_VMX_TRUE_PROCBASED_CTLS	0x48e
+#define	MSR_VMX_TRUE_EXIT_CTLS	0x48f
+#define	MSR_VMX_TRUE_ENTRY_CTLS	0x490
+
+/*
  * X2APIC MSRs
  */
 #define	MSR_APIC_ID		0x802
@@ -467,6 +489,8 @@
 #define	MSR_APIC_CCR_TIMER	0x839
 #define	MSR_APIC_DCR_TIMER	0x83e
 #define	MSR_APIC_SELF_IPI	0x83f
+
+#define	MSR_IA32_XSS		0xda0
 
 /*
  * Constants related to MSR's.

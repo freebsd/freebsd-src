@@ -3,10 +3,13 @@
 .include <bsd.own.mk>
 
 PROG=		target
-BINDIR=		${TESTSBASE}${TESTSDIR}/libexec/rtld-elf
+BINDIR=		${TESTSBASE}/libexec/rtld-elf
 
 CFLAGS+=	-I${.CURDIR}/../libpythagoras
-LDADD=		-L${.OBJDIR}/../libpythagoras -lpythagoras
+
+LDFLAGS+=	-L${.OBJDIR}/../libpythagoras
+DPADD+=		${.OBJDIR}/../libpythagoras/libpythagoras.a
+LDADD=		-lpythagoras
 
 MAN=
 

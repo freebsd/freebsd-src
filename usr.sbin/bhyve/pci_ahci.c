@@ -336,8 +336,9 @@ ahci_write_fis_d2h(struct ahci_port *p, int slot, uint8_t *cfis, uint32_t tfd)
 	fis[13] = cfis[13];
 	if (fis[2] & ATA_S_ERROR)
 		p->is |= AHCI_P_IX_TFE;
+	else
+		p->ci &= ~(1 << slot);
 	p->tfd = tfd;
-	p->ci &= ~(1 << slot);
 	ahci_write_fis(p, FIS_TYPE_REGD2H, fis);
 }
 
@@ -598,10 +599,16 @@ handle_identify(struct ahci_port *p, int slot, uint8_t *cfis)
 	} else {
 		uint16_t buf[256];
 		uint64_t sectors;
+		uint16_t cyl;
+		uint8_t sech, heads;
 
 		sectors = blockif_size(p->bctx) / blockif_sectsz(p->bctx);
+		blockif_chs(p->bctx, &cyl, &heads, &sech);
 		memset(buf, 0, sizeof(buf));
 		buf[0] = 0x0040;
+		buf[1] = cyl;
+		buf[3] = heads;
+		buf[6] = sech;
 		/* TODO emulate different serial? */
 		ata_string((uint8_t *)(buf+10), "123456", 20);
 		ata_string((uint8_t *)(buf+23), "001", 8);
@@ -645,8 +652,8 @@ handle_identify(struct ahci_port *p, int slot, uint8_t *cfis)
 		write_prdt(p, slot, cfis, (void *)buf, sizeof(buf));
 		p->tfd = ATA_S_DSC | ATA_S_READY;
 		p->is |= AHCI_P_IX_DP;
+		p->ci &= ~(1 << slot);
 	}
-	p->ci &= ~(1 << slot);
 	ahci_generate_intr(p->pr_sc);
 }
 
@@ -688,8 +695,8 @@ handle_atapi_identify(struct ahci_port *p, int slot, uint8_t *cfis)
 		write_prdt(p, slot, cfis, (void *)buf, sizeof(buf));
 		p->tfd = ATA_S_DSC | ATA_S_READY;
 		p->is |= AHCI_P_IX_DHR;
+		p->ci &= ~(1 << slot);
 	}
-	p->ci &= ~(1 << slot);
 	ahci_generate_intr(p->pr_sc);
 }
 
@@ -1292,7 +1299,6 @@ ahci_handle_cmd(struct ahci_port *p, int slot, uint8_t *cfis)
 		if (!p->atapi) {
 			p->tfd = (ATA_E_ABORT << 8) | ATA_S_READY | ATA_S_ERROR;
 			p->is |= AHCI_P_IX_TFE;
-			p->ci &= ~(1 << slot);
 			ahci_generate_intr(p->pr_sc);
 		} else
 			handle_packet_cmd(p, slot, cfis);
@@ -1301,7 +1307,6 @@ ahci_handle_cmd(struct ahci_port *p, int slot, uint8_t *cfis)
 		WPRINTF("Unsupported cmd:%02x\n", cfis[2]);
 		p->tfd = (ATA_E_ABORT << 8) | ATA_S_READY | ATA_S_ERROR;
 		p->is |= AHCI_P_IX_TFE;
-		p->ci &= ~(1 << slot);
 		ahci_generate_intr(p->pr_sc);
 		break;
 	}
@@ -1369,8 +1374,11 @@ ahci_handle_port(struct ahci_port *p)
 	 * are already in-flight.
 	 */
 	for (i = 0; (i < 32) && p->ci; i++) {
-		if ((p->ci & (1 << i)) && !(p->pending & (1 << i)))
+		if ((p->ci & (1 << i)) && !(p->pending & (1 << i))) {
+			p->cmd &= ~AHCI_P_CMD_CCS_MASK;
+			p->cmd |= i << AHCI_P_CMD_CCS_SHIFT;
 			ahci_handle_slot(p, i);
+		}
 	}
 }
 

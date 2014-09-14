@@ -124,7 +124,7 @@
 .\" ========================================================================
 .\"
 .IX Title "BIO_push 3"
-.TH BIO_push 3 "2014-06-05" "1.0.1h" "OpenSSL"
+.TH BIO_push 3 "2014-08-06" "1.0.1i" "OpenSSL"
 .\" For nroff, turn off justification.  Always turn off hyphenation; it makes
 .\" way too many mistakes in technical documents.
 .if n .ad l
@@ -168,7 +168,7 @@ If the call:
 \& BIO_push(b64, f);
 .Ve
 .PP
-is made then the new chain will be \fBb64\-chain\fR. After making the calls
+is made then the new chain will be \fBb64\-f\fR. After making the calls
 .PP
 .Vb 2
 \& BIO_push(md2, b64);

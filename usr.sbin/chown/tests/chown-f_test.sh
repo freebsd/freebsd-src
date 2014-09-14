@@ -7,7 +7,7 @@ echo "1..1"
 
 name="chown -f root:wheel file"
 if [ `id -u` -eq 0 ]; then
-	echo "ok 3 - $name # skip Test must not be uid 0."
+	echo "ok 1 - $name # skip Test must not be uid 0."
 else
     touch file
     output=$(chown -f root:wheel file 2>&1)

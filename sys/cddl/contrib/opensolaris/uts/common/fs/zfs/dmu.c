@@ -287,7 +287,7 @@ dmu_bonus_hold(objset_t *os, uint64_t object, void *tag, dmu_buf_t **dbp)
 	/* as long as the bonus buf is held, the dnode will be held */
 	if (refcount_add(&db->db_holds, tag) == 1) {
 		VERIFY(dnode_add_ref(dn, db));
-		(void) atomic_inc_32_nv(&dn->dn_dbufs_count);
+		atomic_inc_32(&dn->dn_dbufs_count);
 	}
 
 	/*
@@ -672,6 +672,12 @@ dmu_free_long_range_impl(objset_t *os, dnode_t *dn, uint64_t offset,
 		dmu_tx_t *tx = dmu_tx_create(os);
 		dmu_tx_hold_free(tx, dn->dn_object,
 		    chunk_begin, chunk_end - chunk_begin);
+
+		/*
+		 * Mark this transaction as typically resulting in a net
+		 * reduction in space used.
+		 */
+		dmu_tx_mark_netfree(tx);
 		err = dmu_tx_assign(tx, TXG_WAIT);
 		if (err) {
 			dmu_tx_abort(tx);
@@ -723,6 +729,7 @@ dmu_free_long_object(objset_t *os, uint64_t object)
 	tx = dmu_tx_create(os);
 	dmu_tx_hold_bonus(tx, object);
 	dmu_tx_hold_free(tx, object, 0, DMU_OBJECT_END);
+	dmu_tx_mark_netfree(tx);
 	err = dmu_tx_assign(tx, TXG_WAIT);
 	if (err == 0) {
 		err = dmu_object_free(os, object, tx);

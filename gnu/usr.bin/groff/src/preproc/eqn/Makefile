@@ -11,8 +11,6 @@ SCRIPTS=	neqn
 MAN=		eqn.1 neqn.1
 CLEANFILES=	eqn.cpp eqn_tab.h ${SCRIPTS} ${MAN} y.tab.c y.tab.h
 
-NO_PIE=	yes
-
 eqn_tab.h: eqn.cpp
 
 .include <bsd.prog.mk>
