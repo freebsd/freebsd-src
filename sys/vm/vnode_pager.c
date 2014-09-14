@@ -83,7 +83,7 @@ static int vnode_pager_input_smlfs(vm_object_t object, vm_page_t m);
 static int vnode_pager_input_old(vm_object_t object, vm_page_t m);
 static void vnode_pager_dealloc(vm_object_t);
 static int vnode_pager_getpages(vm_object_t, vm_page_t *, int, int);
-static void vnode_pager_putpages(vm_object_t, vm_page_t *, int, boolean_t, int *);
+static void vnode_pager_putpages(vm_object_t, vm_page_t *, int, int, int *);
 static boolean_t vnode_pager_haspage(vm_object_t, vm_pindex_t, int *, int *);
 static vm_object_t vnode_pager_alloc(void *, vm_ooffset_t, vm_prot_t,
     vm_ooffset_t, struct ucred *cred);
@@ -1008,7 +1008,7 @@ vnode_pager_generic_getpages(struct vnode *vp, vm_page_t *m, int bytecount,
  */
 static void
 vnode_pager_putpages(vm_object_t object, vm_page_t *m, int count,
-    boolean_t sync, int *rtvals)
+    int flags, int *rtvals)
 {
 	int rtval;
 	struct vnode *vp;
@@ -1026,16 +1026,16 @@ vnode_pager_putpages(vm_object_t object, vm_page_t *m, int count,
 	 * daemon up.  This should be probably be addressed XXX.
 	 */
 
-	if ((vm_cnt.v_free_count + vm_cnt.v_cache_count) <
+	if (vm_cnt.v_free_count + vm_cnt.v_cache_count <
 	    vm_cnt.v_pageout_free_min)
-		sync |= OBJPC_SYNC;
+		flags |= VM_PAGER_PUT_SYNC;
 
 	/*
 	 * Call device-specific putpages function
 	 */
 	vp = object->handle;
 	VM_OBJECT_WUNLOCK(object);
-	rtval = VOP_PUTPAGES(vp, m, bytes, sync, rtvals);
+	rtval = VOP_PUTPAGES(vp, m, bytes, flags, rtvals);
 	KASSERT(rtval != EOPNOTSUPP, 
 	    ("vnode_pager: stale FS putpages\n"));
 	VM_OBJECT_WLOCK(object);
