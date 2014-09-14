@@ -114,7 +114,7 @@ Shell \"Open a shell and partition by hand\""
 CURARCH=$( uname -m )
 case $CURARCH in
 	amd64|i386)	# Booting ZFS Supported
-		PMODES="$PMODES \"Auto (ZFS)\" \"Guided Root-on-ZFS (Experimental)\""
+		PMODES="$PMODES \"Auto (ZFS)\" \"Guided Root-on-ZFS\""
 		;;
 	*)		# Booting ZFS Unspported
 		;;
