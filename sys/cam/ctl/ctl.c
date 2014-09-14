@@ -10584,9 +10584,7 @@ ctl_inquiry_std(struct ctl_scsiio *ctsio)
 	CTL_DEBUG_PRINT(("additional_length = %d\n",
 			 inq_ptr->additional_length));
 
-	inq_ptr->spc3_flags = SPC3_SID_3PC;
-	if (!ctl_is_single)
-		inq_ptr->spc3_flags |= SPC3_SID_TPGS_IMPLICIT;
+	inq_ptr->spc3_flags = SPC3_SID_3PC | SPC3_SID_TPGS_IMPLICIT;
 	/* 16 bit addressing */
 	if (port_type == CTL_PORT_SCSI)
 		inq_ptr->spc2_flags = SPC2_SID_ADDR16;
