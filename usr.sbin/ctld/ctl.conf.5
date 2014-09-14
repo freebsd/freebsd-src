@@ -27,7 +27,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd September 11, 2014
+.Dd September 14, 2014
 .Dt CTL.CONF 5
 .Os
 .Sh NAME
@@ -93,6 +93,7 @@ The default is
 Create a
 .Sy portal-group
 configuration context,
+defining a new portal-group,
 which can then be assigned to any number of targets.
 .It Ic target Ar name
 Create a
@@ -282,7 +283,7 @@ The CTL-specific options passed to the kernel.
 All CTL-specific options are documented in the
 .Sx OPTIONS
 section of
-.Xr ctladm 8
+.Xr ctladm 8 .
 .It Ic path Ar path
 The path to the file or device node used to back the LUN.
 .It Ic serial Ar string
