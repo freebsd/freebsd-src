@@ -66,7 +66,6 @@ __FBSDID("$FreeBSD$");
  * Shell command parser.
  */
 
-#define	EOFMARKLEN	79
 #define	PROMPTLEN	128
 
 /* values of checkkwd variable */
@@ -718,7 +717,6 @@ parsefname(void)
 	if (n->type == NHERE) {
 		struct heredoc *here = heredoc;
 		struct heredoc *p;
-		int i;
 
 		if (quoteflag == 0)
 			n->type = NXHERE;
@@ -727,7 +725,7 @@ parsefname(void)
 			while (*wordtext == '\t')
 				wordtext++;
 		}
-		if (! noexpand(wordtext) || (i = strlen(wordtext)) == 0 || i > EOFMARKLEN)
+		if (! noexpand(wordtext))
 			synerror("Illegal eof marker for << redirection");
 		rmescapes(wordtext);
 		here->eofmark = wordtext;
@@ -953,28 +951,27 @@ struct tokenstate
  */
 
 static int
-checkend(int c, const char *eofmark, char *line, size_t sizeof_line,
-    int striptabs)
+checkend(int c, const char *eofmark, int striptabs)
 {
 	if (striptabs) {
 		while (c == '\t')
 			c = pgetc();
 	}
 	if (c == *eofmark) {
-		if (pfgets(line, sizeof_line) != NULL) {
-			const char *p, *q;
+		int c2;
+		const char *q;
 
-			p = line;
-			for (q = eofmark + 1 ; *q && *p == *q ; p++, q++);
-			if ((*p == '\0' || *p == '\n') && *q == '\0') {
-				c = PEOF;
-				if (*p == '\n') {
-					plinno++;
-					needprompt = doprompt;
-				}
-			} else {
-				pushstring(line, strlen(line), NULL);
+		for (q = eofmark + 1; c2 = pgetc(), *q != '\0' && c2 == *q; q++)
+			;
+		if ((c2 == PEOF || c2 == '\n') && *q == '\0') {
+			c = PEOF;
+			if (c2 == '\n') {
+				plinno++;
+				needprompt = doprompt;
 			}
+		} else {
+			pungetc();
+			pushstring(eofmark + 1, q - (eofmark + 1), NULL);
 		}
 	}
 	return (c);
@@ -1316,7 +1313,6 @@ readtoken1(int firstc, char const *initialsyntax, const char *eofmark,
 	int c = firstc;
 	char *out;
 	int len;
-	char line[EOFMARKLEN + 1];
 	struct nodelist *bqlist;
 	int quotef;
 	int newvarnest;
@@ -1340,7 +1336,7 @@ readtoken1(int firstc, char const *initialsyntax, const char *eofmark,
 	loop: {	/* for each line, until end of word */
 		if (eofmark)
 			/* set c to PEOF if at end of here document */
-			c = checkend(c, eofmark, line, sizeof(line), striptabs);
+			c = checkend(c, eofmark, striptabs);
 		for (;;) {	/* until end of line or end of word */
 			CHECKSTRSPACE(4, out);	/* permit 4 calls to USTPUTC */
 
@@ -2032,7 +2028,7 @@ expandstr(const char *ps)
 		parser_temp = NULL;
 		setinputstring(ps, 1);
 		doprompt = 0;
-		readtoken1(pgetc(), DQSYNTAX, "\n\n", 0);
+		readtoken1(pgetc(), DQSYNTAX, "", 0);
 		if (backquotelist != NULL)
 			error("Command substitution not allowed here");
 
