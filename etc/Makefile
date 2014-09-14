@@ -177,7 +177,7 @@ afterinstall:
 distribute:
 	# Avoid installing tests here; "make distribution" will do this and
 	# correctly place them in the right location.
-	${_+_}cd ${.CURDIR} ; ${MAKE} WITHOUT_TESTS=1 install \
+	${_+_}cd ${.CURDIR} ; ${MAKE} -DNO_TESTS install \
 	    DESTDIR=${DISTDIR}/${DISTRIBUTION}
 	${_+_}cd ${.CURDIR} ; ${MAKE} distribution DESTDIR=${DISTDIR}/${DISTRIBUTION}
 
