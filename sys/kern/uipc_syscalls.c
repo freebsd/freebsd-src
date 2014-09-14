@@ -2932,7 +2932,7 @@ vn_sendfile(struct file *fp, int sockfd, struct uio *hdr_uio,
 	struct shmfd *shmfd;
 	struct vattr va;
 	off_t off, sbytes, rem, obj_size;
-	int error, serror, bsize, hdrlen;
+	int error, bsize, hdrlen;
 
 	obj = NULL;
 	so = NULL;
@@ -3211,29 +3211,24 @@ retry_space:
 		CURVNET_SET(so->so_vnet);
 		if (nios == 0) {
 			free(sfio, M_TEMP);
-			serror = (*so->so_proto->pr_usrreqs->pru_send)
+			error = (*so->so_proto->pr_usrreqs->pru_send)
 			    (so, 0, m, NULL, NULL, td);
 		} else {
 			sfio->sock_fp = sock_fp;
 			sfio->npages = npages;
 			fhold(sock_fp);
-			serror = (*so->so_proto->pr_usrreqs->pru_send)
+			error = (*so->so_proto->pr_usrreqs->pru_send)
 			    (so, PRUS_NOTREADY, m, NULL, NULL, td);
 			sf_io_done(sfio);
 		}
 		CURVNET_RESTORE();
 
-		if (serror == 0) {
-			sbytes += space + hdrlen;
-			if (hdrlen)
-				hdrlen = 0;
-		} else if (error == 0)
-			error = serror;
 		m = NULL;	/* pru_send always consumes */
-
-		/* Quit outer loop on error. */
-		if (error != 0)
+		if (error)
 			goto done;
+		sbytes += space + hdrlen;
+		if (hdrlen)
+			hdrlen = 0;
 	}
 
 	/*
