@@ -1001,7 +1001,7 @@ m_catpkt(struct mbuf *m, struct mbuf *n)
 	M_ASSERTPKTHDR(n);
 
 	m->m_pkthdr.len += n->m_pkthdr.len;
-	m_demote(n, 1);
+	m_demote(n, 1, 0);
 
 	m_cat(m, n);
 }
