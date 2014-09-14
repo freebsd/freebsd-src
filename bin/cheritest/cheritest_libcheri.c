@@ -115,7 +115,8 @@ test_sandbox_md5(const struct cheri_test *ctp __unused)
 	buf[32] = '\0';
 	if (strcmp(buf, string_md5) != 0)
 		cheritest_failure_errx(
-		    "Incorrect MD5 checksum returned from sandbox");
+		    "Incorrect MD5 checksum returned from sandbox ('%s')",
+		    buf);
 	cheritest_success();
 }
 
