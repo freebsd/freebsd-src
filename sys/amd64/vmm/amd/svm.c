@@ -735,11 +735,12 @@ svm_paging_info(struct vmcb *vmcb, struct vm_guest_paging *paging)
 	    state->efer);
 }
 
+#define	UNHANDLED 0
 
 /*
  * Handle guest I/O intercept.
  */
-static bool
+static int
 svm_handle_io(struct svm_softc *svm_sc, int vcpu, struct vm_exit *vmexit)
 {
 	struct vmcb_ctrl *ctrl;
@@ -747,21 +748,34 @@ svm_handle_io(struct svm_softc *svm_sc, int vcpu, struct vm_exit *vmexit)
 	struct svm_regctx *regs;
 	struct vm_inout_str *vis;
 	uint64_t info1;
+	int inout_string;
 
 	state = svm_get_vmcb_state(svm_sc, vcpu);
 	ctrl  = svm_get_vmcb_ctrl(svm_sc, vcpu);
 	regs  = svm_get_guest_regctx(svm_sc, vcpu);
+
 	info1 = ctrl->exitinfo1;
-	
+	inout_string = info1 & BIT(2) ? 1 : 0;
+
+	/*
+	 * The effective segment number in EXITINFO1[12:10] is populated
+	 * only if the processor has the DecodeAssist capability.
+	 *
+	 * XXX this is not specified explicitly in APMv2 but can be verified
+	 * empirically.
+	 */
+	if (inout_string && !decode_assist())
+		return (UNHANDLED);
+
 	vmexit->exitcode 	= VM_EXITCODE_INOUT;
 	vmexit->u.inout.in 	= (info1 & BIT(0)) ? 1 : 0;
-	vmexit->u.inout.string 	= (info1 & BIT(2)) ? 1 : 0;
+	vmexit->u.inout.string 	= inout_string;
 	vmexit->u.inout.rep 	= (info1 & BIT(3)) ? 1 : 0;
 	vmexit->u.inout.bytes 	= (info1 >> 4) & 0x7;
 	vmexit->u.inout.port 	= (uint16_t)(info1 >> 16);
 	vmexit->u.inout.eax 	= (uint32_t)(state->rax);
 
-	if (vmexit->u.inout.string) {
+	if (inout_string) {
 		vmexit->exitcode = VM_EXITCODE_INOUT_STR;
 		vis = &vmexit->u.inout_str;
 		svm_paging_info(svm_get_vmcb(svm_sc, vcpu), &vis->paging);
@@ -773,8 +787,8 @@ svm_handle_io(struct svm_softc *svm_sc, int vcpu, struct vm_exit *vmexit)
 		svm_inout_str_seginfo(svm_sc, vcpu, info1,
 		    vmexit->u.inout.in, vis);
 	}
-	
-	return (false);
+
+	return (UNHANDLED);
 }
 
 static int
@@ -822,11 +836,6 @@ svm_handle_inst_emul(struct vmcb *vmcb, uint64_t gpa, struct vm_exit *vmexit)
 	vmexit->u.inst_emul.gpa = gpa;
 	vmexit->u.inst_emul.gla = VIE_INVALID_GLA;
 	svm_paging_info(vmcb, paging);
-
-	/*
-	 * The inst_length will be determined by decoding the instruction.
-	 */
-	vmexit->inst_length = 0;
 
 	seg = vmcb_seg(vmcb, VM_REG_GUEST_CS);
 	switch(paging->cpu_mode) {
@@ -1054,122 +1063,167 @@ exit_reason_to_str(uint64_t reason)
 #endif	/* KTR */
 
 /*
- * Determine the cause of virtual cpu exit and handle VMEXIT.
- * Return: false - Break vcpu execution loop and handle vmexit
- *		   in kernel or user space.
- *	   true  - Continue vcpu run.
+ * From section "State Saved on Exit" in APMv2: nRIP is saved for all #VMEXITs
+ * that are due to instruction intercepts as well as MSR and IOIO intercepts
+ * and exceptions caused by INT3, INTO and BOUND instructions.
+ *
+ * Return 1 if the nRIP is valid and 0 otherwise.
  */
-static bool 
+static int
+nrip_valid(uint64_t exitcode)
+{
+	switch (exitcode) {
+	case 0x00 ... 0x0F:	/* read of CR0 through CR15 */
+	case 0x10 ... 0x1F:	/* write of CR0 through CR15 */
+	case 0x20 ... 0x2F:	/* read of DR0 through DR15 */
+	case 0x30 ... 0x3F:	/* write of DR0 through DR15 */
+	case 0x43:		/* INT3 */
+	case 0x44:		/* INTO */
+	case 0x45:		/* BOUND */
+	case 0x65 ... 0x7C:	/* VMEXIT_CR0_SEL_WRITE ... VMEXIT_MSR */
+	case 0x80 ... 0x8D:	/* VMEXIT_VMRUN ... VMEXIT_XSETBV */
+		return (1);
+	default:
+		return (0);
+	}
+}
+
+/*
+ * Collateral for a generic SVM VM-exit.
+ */
+static void
+vm_exit_svm(struct vm_exit *vme, uint64_t code, uint64_t info1, uint64_t info2)
+{
+
+	vme->exitcode = VM_EXITCODE_SVM;
+	vme->u.svm.exitcode = code;
+	vme->u.svm.exitinfo1 = info1;
+	vme->u.svm.exitinfo2 = info2;
+}
+
+static int
 svm_vmexit(struct svm_softc *svm_sc, int vcpu, struct vm_exit *vmexit)
 {
+	struct vmcb *vmcb;
 	struct vmcb_state *state;
 	struct vmcb_ctrl *ctrl;
 	struct svm_regctx *ctx;
 	uint64_t code, info1, info2, val;
 	uint32_t eax, ecx, edx;
-	bool update_rip, loop, retu;
+	int handled;
+	bool retu;
 
-	KASSERT(vcpu < svm_sc->vcpu_cnt, ("Guest doesn't have VCPU%d", vcpu));
+	ctx = svm_get_guest_regctx(svm_sc, vcpu);
+	vmcb = svm_get_vmcb(svm_sc, vcpu);
+	state = &vmcb->state;
+	ctrl = &vmcb->ctrl;
 
-	state = svm_get_vmcb_state(svm_sc, vcpu);
-	ctrl  = svm_get_vmcb_ctrl(svm_sc, vcpu);
-	ctx   = svm_get_guest_regctx(svm_sc, vcpu);
-	code  = ctrl->exitcode;
+	handled = 0;
+	code = ctrl->exitcode;
 	info1 = ctrl->exitinfo1;
 	info2 = ctrl->exitinfo2;
 
-	update_rip = true;
-	loop = true;
-	vmexit->exitcode = VM_EXITCODE_VMX;
-	vmexit->u.vmx.status = 0;
+	vmexit->exitcode = VM_EXITCODE_BOGUS;
+	vmexit->rip = state->rip;
+	vmexit->inst_length = nrip_valid(code) ? ctrl->nrip - state->rip : 0;
 
 	vmm_stat_incr(svm_sc->vm, vcpu, VMEXIT_COUNT, 1);
+
+	/*
+	 * #VMEXIT(INVALID) needs to be handled early because the VMCB is
+	 * in an inconsistent state and can trigger assertions that would
+	 * never happen otherwise.
+	 */
+	if (code == VMCB_EXIT_INVALID) {
+		vm_exit_svm(vmexit, code, info1, info2);
+		return (0);
+	}
 
 	KASSERT((ctrl->eventinj & VMCB_EVENTINJ_VALID) == 0, ("%s: event "
 	    "injection valid bit is set %#lx", __func__, ctrl->eventinj));
 
+	KASSERT(vmexit->inst_length >= 0 && vmexit->inst_length <= 15,
+	    ("invalid inst_length %d: code (%#lx), info1 (%#lx), info2 (%#lx)",
+	    vmexit->inst_length, code, info1, info2));
+
 	svm_save_intinfo(svm_sc, vcpu);
 
 	switch (code) {
-	case VMCB_EXIT_VINTR:
-		update_rip = false;
+	case VMCB_EXIT_VINTR:	/* interrupt window exiting */
 		vmm_stat_incr(svm_sc->vm, vcpu, VMEXIT_VINTR, 1);
+		handled = 1;
 		break;
-	case VMCB_EXIT_MC:	/* Machine Check. */
-		vmm_stat_incr(svm_sc->vm, vcpu, VMEXIT_MTRAP, 1);
-		vmexit->exitcode = VM_EXITCODE_MTRAP;
-		loop = false;
+	case VMCB_EXIT_INTR:	/* external interrupt */
+		vmm_stat_incr(svm_sc->vm, vcpu, VMEXIT_EXTINT, 1);
+		handled = 1;
+		break;
+	case VMCB_EXIT_NMI:	/* external NMI */
+		handled = 1;
+		break;
+	case VMCB_EXIT_MC:	/* machine check */
+		vmm_stat_incr(svm_sc->vm, vcpu, VMEXIT_EXCEPTION, 1);
 		break;
 	case VMCB_EXIT_MSR:	/* MSR access. */
 		eax = state->rax;
 		ecx = ctx->sctx_rcx;
 		edx = ctx->e.g.sctx_rdx;
+		retu = false;	
 
 		if (ecx == MSR_EFER) {
-			KASSERT(info1 != 0, ("rdmsr(MSR_EFER) is not "
-			    "emulated: info1(%#lx) info2(%#lx)",
-			    info1, info2));
+			KASSERT(info1 != 0, ("rdmsr(MSR_EFER) is not emulated: "
+			    "info1(%#lx) info2(%#lx)", info1, info2));
 			svm_write_efer(svm_sc, vcpu, edx, eax);
+			handled = 1;
 			break;
-		}
-
-		retu = false;	
-		if (info1) {
-			/* VM exited because of write MSR */
-			vmm_stat_incr(svm_sc->vm, vcpu, VMEXIT_WRMSR, 1);
-			vmexit->exitcode = VM_EXITCODE_WRMSR;
-			vmexit->u.msr.code = ecx;
-			val = (uint64_t)edx << 32 | eax;
-			if (emulate_wrmsr(svm_sc->vm, vcpu, ecx, val, &retu)) {
-				vmexit->u.msr.wval = val;
-				loop = false;
-			} else
-				loop = retu ? false : true;
-			VCPU_CTR3(svm_sc->vm, vcpu,
-			    "VMEXIT WRMSR(%s handling) 0x%lx @0x%x",
-			    loop ? "kernel" : "user", val, ecx);
-		} else {
-			vmm_stat_incr(svm_sc->vm, vcpu, VMEXIT_RDMSR, 1);
-			vmexit->exitcode = VM_EXITCODE_RDMSR;
-			vmexit->u.msr.code = ecx;
-			if (emulate_rdmsr(svm_sc->vm, vcpu, ecx, &retu))
-				loop = false; 
-			else
-				loop = retu ? false : true;
-			VCPU_CTR3(svm_sc->vm, vcpu, "SVM:VMEXIT RDMSR"
-			    " MSB=0x%08x, LSB=%08x @0x%x", 
-			    ctx->e.g.sctx_rdx, state->rax, ecx);
 		}
 
 #define MSR_AMDK8_IPM           0xc0010055
 		/*
-		 * We can't hide AMD C1E idle capability since its
-		 * based on CPU generation, for now ignore access to
-		 * this MSR by vcpus
-		 * XXX: special handling of AMD C1E - Ignore.
+		 * Ignore access to the "Interrupt Pending Message" MSR.
 		 */
-		 if (ecx == MSR_AMDK8_IPM)
-			loop = true;
-		break;
-	case VMCB_EXIT_INTR:
-		/*
-		 * Exit on External Interrupt.
-		 * Give host interrupt handler to run and if its guest
-		 * interrupt, local APIC will inject event in guest.
-		 */
-		update_rip = false;
-		vmm_stat_incr(svm_sc->vm, vcpu, VMEXIT_EXTINT, 1);
-		break;
-	case VMCB_EXIT_NMI:
-		update_rip = false;
+		if (ecx == MSR_AMDK8_IPM) {
+			if (!info1)
+				state->rax = ctx->e.g.sctx_rdx = 0;
+			handled = 1;
+			break;
+		}
+
+		if (info1) {
+			vmm_stat_incr(svm_sc->vm, vcpu, VMEXIT_WRMSR, 1);
+			val = (uint64_t)edx << 32 | eax;
+			VCPU_CTR2(svm_sc->vm, vcpu, "wrmsr %#x val %#lx",
+			    ecx, val);
+			if (emulate_wrmsr(svm_sc->vm, vcpu, ecx, val, &retu)) {
+				vmexit->exitcode = VM_EXITCODE_WRMSR;
+				vmexit->u.msr.code = ecx;
+				vmexit->u.msr.wval = val;
+			} else if (!retu) {
+				handled = 1;
+			} else {
+				KASSERT(vmexit->exitcode != VM_EXITCODE_BOGUS,
+				    ("emulate_wrmsr retu with bogus exitcode"));
+			}
+		} else {
+			VCPU_CTR1(svm_sc->vm, vcpu, "rdmsr %#x", ecx);
+			vmm_stat_incr(svm_sc->vm, vcpu, VMEXIT_RDMSR, 1);
+			if (emulate_rdmsr(svm_sc->vm, vcpu, ecx, &retu)) {
+				vmexit->exitcode = VM_EXITCODE_RDMSR;
+				vmexit->u.msr.code = ecx;
+			} else if (!retu) {
+				handled = 1;
+			} else {
+				KASSERT(vmexit->exitcode != VM_EXITCODE_BOGUS,
+				    ("emulate_rdmsr retu with bogus exitcode"));
+			}
+		}
 		break;
 	case VMCB_EXIT_IO:
-		loop = svm_handle_io(svm_sc, vcpu, vmexit);
+		handled = svm_handle_io(svm_sc, vcpu, vmexit);
 		vmm_stat_incr(svm_sc->vm, vcpu, VMEXIT_INOUT, 1);
 		break;
 	case VMCB_EXIT_CPUID:
 		vmm_stat_incr(svm_sc->vm, vcpu, VMEXIT_CPUID, 1);
-		loop = x86_emulate_cpuid(svm_sc->vm, vcpu,
+		handled = x86_emulate_cpuid(svm_sc->vm, vcpu,
 		    (uint32_t *)&state->rax,
 		    (uint32_t *)&ctx->sctx_rbx,
 		    (uint32_t *)&ctx->sctx_rcx,
@@ -1179,25 +1233,18 @@ svm_vmexit(struct svm_softc *svm_sc, int vcpu, struct vm_exit *vmexit)
 		vmm_stat_incr(svm_sc->vm, vcpu, VMEXIT_HLT, 1);
 		vmexit->exitcode = VM_EXITCODE_HLT;
 		vmexit->u.hlt.rflags = state->rflags;
-		loop = false;
 		break;
 	case VMCB_EXIT_PAUSE:
 		vmexit->exitcode = VM_EXITCODE_PAUSE;
 		vmm_stat_incr(svm_sc->vm, vcpu, VMEXIT_PAUSE, 1);
-		loop = false;
 		break;
 	case VMCB_EXIT_NPF:
-		loop = false;
-		update_rip = false;
+		/* EXITINFO2 contains the faulting guest physical address */
 		if (info1 & VMCB_NPF_INFO1_RSV) {
 			VCPU_CTR2(svm_sc->vm, vcpu, "nested page fault with "
 			    "reserved bits set: info1(%#lx) info2(%#lx)",
 			    info1, info2);
-			break;
-		}
-
-		/* EXITINFO2 has the physical fault address (GPA). */
-		if(vm_mem_allocated(svm_sc->vm, info2)) {
+		} else if (vm_mem_allocated(svm_sc->vm, info2)) {
 			vmexit->exitcode = VM_EXITCODE_PAGING;
 			vmexit->u.paging.gpa = info2;
 			vmexit->u.paging.fault_type = svm_npf_paging(info1);
@@ -1206,54 +1253,41 @@ svm_vmexit(struct svm_softc *svm_sc, int vcpu, struct vm_exit *vmexit)
 			    "on gpa %#lx/%#lx at rip %#lx",
 			    info2, info1, state->rip);
 		} else if (svm_npf_emul_fault(info1)) {
-			svm_handle_inst_emul(svm_get_vmcb(svm_sc, vcpu),
-				info2, vmexit);
+			svm_handle_inst_emul(vmcb, info2, vmexit);
 			vmm_stat_incr(svm_sc->vm, vcpu, VMEXIT_INST_EMUL, 1);
 			VCPU_CTR3(svm_sc->vm, vcpu, "inst_emul fault "
 			    "for gpa %#lx/%#lx at rip %#lx",
 			    info2, info1, state->rip);
 		}
 		break;
-	case VMCB_EXIT_SHUTDOWN:
-		loop = false;
-		break;
-	case VMCB_EXIT_INVALID:
-		loop = false;
-		break;
 	default:
-		/* Return to user space. */
-		loop = false;
-		update_rip = false;
-		VCPU_CTR3(svm_sc->vm, vcpu, "VMEXIT=0x%lx"
-			" EXITINFO1: 0x%lx EXITINFO2:0x%lx\n",
-			ctrl->exitcode, info1, info2);
-		VCPU_CTR3(svm_sc->vm, vcpu, "SVM:RIP: 0x%lx nRIP:0x%lx"
-			" Inst decoder len:%d\n", state->rip,
-			ctrl->nrip, ctrl->inst_len);
 		vmm_stat_incr(svm_sc->vm, vcpu, VMEXIT_UNKNOWN, 1);
 		break;
 	}	
 
-	VCPU_CTR4(svm_sc->vm, vcpu, "%s %s vmexit at %#lx nrip %#lx",
-	    loop ? "handled" : "unhandled", exit_reason_to_str(code),
-	    state->rip, update_rip ? ctrl->nrip : state->rip);
+	VCPU_CTR4(svm_sc->vm, vcpu, "%s %s vmexit at %#lx/%d",
+	    handled ? "handled" : "unhandled", exit_reason_to_str(code),
+	    vmexit->rip, vmexit->inst_length);
 
-	vmexit->rip = state->rip;
-	if (update_rip) {
-		if (ctrl->nrip == 0) {
- 			VCPU_CTR1(svm_sc->vm, vcpu, "SVM_ERR:nRIP is not set "
-				 "for RIP0x%lx.\n", state->rip);
-			vmexit->exitcode = VM_EXITCODE_VMX;
-		} else 
-			vmexit->rip = ctrl->nrip;
-	}
-
-	/* If vcpu execution is continued, update RIP. */
-	if (loop) {
+	if (handled) {
+		vmexit->rip += vmexit->inst_length;
+		vmexit->inst_length = 0;
 		state->rip = vmexit->rip;
+	} else {
+		if (vmexit->exitcode == VM_EXITCODE_BOGUS) {
+			/*
+			 * If this VM exit was not claimed by anybody then
+			 * treat it as a generic SVM exit.
+			 */
+			vm_exit_svm(vmexit, code, info1, info2);
+		} else {
+			/*
+			 * The exitcode and collateral have been populated.
+			 * The VM exit will be processed further in userland.
+			 */
+		}
 	}
-
-	return (loop);
+	return (handled);
 }
 
 static void
@@ -1562,9 +1596,8 @@ svm_vmrun(void *arg, int vcpu, register_t rip, pmap_t pmap,
 	struct vm *vm;
 	uint64_t vmcb_pa;
 	u_int thiscpu;
-	bool loop;	/* Continue vcpu execution loop. */
+	int handled;
 
-	loop = true;
 	svm_sc = arg;
 	vm = svm_sc->vm;
 
@@ -1616,8 +1649,6 @@ svm_vmrun(void *arg, int vcpu, register_t rip, pmap_t pmap,
 	state->rip = rip;
 
 	do {
-		vmexit->inst_length = 0;
-
 		/*
 		 * Disable global interrupts to guarantee atomicity during
 		 * loading of guest state. This includes not only the state
@@ -1692,8 +1723,8 @@ svm_vmrun(void *arg, int vcpu, register_t rip, pmap_t pmap,
 		enable_gintr();
 
 		/* Handle #VMEXIT and if required return to user space. */
-		loop = svm_vmexit(svm_sc, vcpu, vmexit);
-	} while (loop);
+		handled = svm_vmexit(svm_sc, vcpu, vmexit);
+	} while (handled);
 
 	return (0);
 }
