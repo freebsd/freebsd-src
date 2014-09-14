@@ -3135,6 +3135,7 @@ retry_space:
 				if (m == NULL)
 					softerr = EAGAIN;
 				fixspace(npages, i, off, &space);
+				npages = i;
 				break;
 			}
 
