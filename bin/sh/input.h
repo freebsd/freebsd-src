@@ -48,7 +48,6 @@ struct alias;
 struct parsefile;
 
 void resetinput(void);
-char *pfgets(char *, int);
 int pgetc(void);
 int preadbuffer(void);
 int preadateof(void);
