@@ -26,6 +26,29 @@
  * $FreeBSD$
  */
 
+/*
+ * Pin mux and pad control driver for imx5 and imx6.
+ *
+ * This driver implements the fdt_pinctrl interface for configuring the gpio and
+ * peripheral pins based on fdt configuration data.
+ *
+ * When the driver attaches, it walks the entire fdt tree and automatically
+ * configures the pins for each device which has a pinctrl-0 property and whose
+ * status is "okay".  In addition it implements the fdt_pinctrl_configure()
+ * method which any other driver can call at any time to reconfigure its pins.
+ *
+ * The nature of the fsl,pins property in fdt data makes this driver's job very
+ * easy.  Instead of representing each pin and pad configuration using symbolic
+ * properties such as pullup-enable="true" and so on, the data simply contains
+ * the addresses of the registers that control the pins, and the raw values to
+ * store in those registers.
+ *
+ * The imx5 and imx6 SoCs also have a small number of "general purpose
+ * registers" in the iomuxc device which are used to control an assortment
+ * of completely unrelated aspects of SoC behavior.  This driver provides other
+ * drivers with direct access to those registers via simple accessor functions.
+ */
+
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/bus.h>
@@ -102,13 +125,6 @@ iomux_configure_pins(device_t dev, phandle_t cfgxref)
 	cfgnode = OF_node_from_xref(cfgxref);
 	ntuples = OF_getencprop_alloc(cfgnode, "fsl,pins", sizeof(*cfgtuples),
 	    (void **)&cfgtuples);
-#ifdef DEBUG
-	{
-		char name[32];
-		OF_getprop(cfgnode, "name", &name, sizeof(name));
-		printf("found %d tuples in fsl,pins for %s\n", ntuples, name);
-	}
-#endif
 	if (ntuples < 0)
 		return (ENOENT);
 	if (ntuples == 0)
