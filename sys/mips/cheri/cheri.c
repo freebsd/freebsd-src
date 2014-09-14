@@ -74,10 +74,29 @@ static u_int	security_cheri_sandboxed_signals;
 SYSCTL_UINT(_security_cheri, OID_AUTO, sandboxed_signals, CTLFLAG_RD,
     &security_cheri_sandboxed_signals, 0, "Number of signals in sandboxes");
 
-static u_int	security_cheri_debugger_on_exception;
-SYSCTL_UINT(_security_cheri, OID_AUTO, debugger_on_exception, CTLFLAG_RW,
-    &security_cheri_debugger_on_exception, 0,
-    "Run debugger on CHERI exception");
+/*
+ * A set of sysctls that cause the kernel debugger to enter following a policy
+ * violation or signal delivery due to CHERI or while in a sandbox.
+ */
+u_int	security_cheri_debugger_on_sandbox_signal;
+SYSCTL_UINT(_security_cheri, OID_AUTO, debugger_on_sandbox_signal, CTLFLAG_RW,
+    &security_cheri_debugger_on_sandbox_signal, 0,
+    "Enter KDB when a signal is delivered while in a sandbox");
+
+u_int	security_cheri_debugger_on_sandbox_syscall;
+SYSCTL_UINT(_security_cheri, OID_AUTO, debugger_on_sandbox_syscall, CTLFLAG_RW,
+    &security_cheri_debugger_on_sandbox_syscall, 0,
+    "Enter KDB when a syscall is rejected while in a sandbox");
+
+u_int	security_cheri_debugger_on_sandbox_unwind;
+SYSCTL_UINT(_security_cheri, OID_AUTO, debugger_on_sandbox_unwind, CTLFLAG_RW,
+    &security_cheri_debugger_on_sandbox_unwind, 0,
+    "Enter KDB when a sandbox is auto-unwound due to a signal");
+
+u_int	security_cheri_debugger_on_sigprot;
+SYSCTL_UINT(_security_cheri, OID_AUTO, debugger_on_sigprot, CTLFLAG_RW,
+    &security_cheri_debugger_on_sigprot, 0,
+    "Enter KDB when SIGPROT is delivered to an unsandboxed thread");
 
 static void	cheri_capability_set_user_c0(struct chericap *);
 static void	cheri_capability_set_user_stack(struct chericap *);
@@ -386,11 +405,6 @@ cheri_log_exception(struct trapframe *frame, int trap_type)
 	/* C31 - saved PCC */
 	CHERI_CLC(CHERI_CR_CTEMP0, CHERI_CR_KDC, &cheriframe->cf_pcc, 0);
 	CHERI_REG_PRINT(CHERI_CR_CTEMP0, 31);
-
-#if DDB
-	if (security_cheri_debugger_on_exception)
-		kdb_enter(KDB_WHY_CHERI, "CHERI exception");
-#endif
 }
 
 /*
@@ -429,9 +443,9 @@ cheri_syscall_authorize(struct thread *td, u_int code, int nargs,
 		atomic_add_int(&security_cheri_syscall_violations, 1);
 
 #if DDB
-		if (security_cheri_debugger_on_exception)
+		if (security_cheri_debugger_on_sandbox_syscall)
 			kdb_enter(KDB_WHY_CHERI,
-			    "blocked system call within sandbox");
+			    "Syscall rejected in CHERI sandbox");
 #endif
 		return (ECAPMODE);
 	}

@@ -39,6 +39,7 @@
 __FBSDID("$FreeBSD$");
 
 #include "opt_compat.h"
+#include "opt_ddb.h"
 
 #include <sys/types.h>
 #include <sys/param.h>
@@ -71,6 +72,9 @@ __FBSDID("$FreeBSD$");
 #ifdef CPU_CHERI
 #include <machine/cheri.h>
 #endif
+
+#include <ddb/ddb.h>
+#include <sys/kdb.h>
 
 #define	UCONTEXT_MAGIC	0xACEDBADE
 
@@ -130,6 +134,21 @@ sendsig(sig_t catcher, ksiginfo_t *ksi, sigset_t *mask)
 	 *     the process unconditionally.
 	 */
 	cheri_is_sandboxed = cheri_signal_sandboxed(td);
+
+	/*
+	 * We provide the ability to drop into the sandbox in two different
+	 * circumstances: (1) if the code running is sandboxed; and (2) if the
+	 * fault is a CHERI protection fault.  Handle both here for the
+	 * non-unwind case.  Do this before we rewrite any general-purpose or
+	 * capability register state for the thread.
+	 */
+#if DDB
+	if (cheri_is_sandboxed && security_cheri_debugger_on_sandbox_signal)
+		kdb_enter(KDB_WHY_CHERI, "Signal delivery to CHERI sandbox");
+	else if (sig == SIGPROT && security_cheri_debugger_on_sigprot)
+		kdb_enter(KDB_WHY_CHERI,
+		    "SIGPROT delivered outside sandbox");
+#endif
 
 	/*
 	 * If a thread is running sandboxed, we can't rely on $sp which may

@@ -47,11 +47,6 @@
 #include <machine/pcb.h>
 #include <machine/sysarch.h>
 
-static u_int	security_cheri_debugger_on_sandbox_unwind;
-SYSCTL_UINT(_security_cheri, OID_AUTO, debugger_on_sandbox_unwind,
-    CTLFLAG_RW, &security_cheri_debugger_on_sandbox_unwind, 0,
-    "Run debugger on sandbox unwind");
-
 /*-
  * Some user-level security models rely on strict call-return semantics, which
  * is implemented via a trusted stack in the object-capability invocation
@@ -146,7 +141,7 @@ cheri_stack_unwind(struct thread *td, struct trapframe *tf, int signum)
 
 #if DDB
 	if (security_cheri_debugger_on_sandbox_unwind)
-		kdb_enter(KDB_WHY_CHERI, "CHERI sandbox unwind");
+		kdb_enter(KDB_WHY_CHERI, "CHERI sandbox unwind on signal");
 #endif
 
 	/*

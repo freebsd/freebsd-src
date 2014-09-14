@@ -608,10 +608,14 @@ int	cheri_sysarch_getstack(struct thread *td, struct sysarch_args *uap);
 int	cheri_sysarch_setstack(struct thread *td, struct sysarch_args *uap);
 
 /*
- * Global sysctl definitions required outside of cheri.c.
+ * Global sysctl definitions.
  */
 SYSCTL_DECL(_security_cheri);
 SYSCTL_DECL(_security_cheri_stats);
+extern u_int	security_cheri_debugger_on_sandbox_signal;
+extern u_int	security_cheri_debugger_on_sandbox_syscall;
+extern u_int	security_cheri_debugger_on_sandbox_unwind;
+extern u_int	security_cheri_debugger_on_sigprot;
 #endif /* !_KERNEL */
 
 #endif /* _MIPS_INCLUDE_CHERI_H_ */
