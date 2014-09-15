@@ -418,8 +418,8 @@ TAILQ_HEAD(sctpchunk_listhead, sctp_tmit_chunk);
 #define CHUNK_FLAGS_FRAGMENT_OK	        0x0100
 
 struct chk_id {
-	uint16_t id;
-	uint16_t can_take_data;
+	uint8_t id;
+	uint8_t can_take_data;
 };
 
 
