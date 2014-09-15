@@ -149,11 +149,6 @@ apm_parse_type(const char *type, char *buf, size_t bufsz)
 		strcpy(buf, APM_ENT_TYPE_APPLE_UFS);
 		return (0);
 	}
-	alias = g_part_alias_name(G_PART_ALIAS_FREEBSD_BOOT);
-	if (!strcasecmp(type, alias)) {
-		strcpy(buf, APM_ENT_TYPE_APPLE_BOOT);
-		return (0);
-	}
 	alias = g_part_alias_name(G_PART_ALIAS_FREEBSD);
 	if (!strcasecmp(type, alias)) {
 		strcpy(buf, APM_ENT_TYPE_FREEBSD);

@@ -52,6 +52,11 @@ bootpart_size(const char *part_type) {
 }
 
 const char *
+bootpart_type(const char *scheme) {
+	return ("freebsd-boot");
+}
+
+const char *
 bootcode_path(const char *part_type) {
 	if (strcmp(part_type, "PC98") == 0)
 		return ("/boot/pc98boot");
