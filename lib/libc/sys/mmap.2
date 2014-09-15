@@ -28,7 +28,7 @@
 .\"	@(#)mmap.2	8.4 (Berkeley) 5/11/95
 .\" $FreeBSD$
 .\"
-.Dd June 19, 2014
+.Dd September 15, 2014
 .Dt MMAP 2
 .Os
 .Sh NAME
@@ -371,6 +371,29 @@ The
 .Fa fd
 argument
 is not a valid open file descriptor.
+.It Bq Er EINVAL
+An invalid value was passed in the
+.Fa prot
+argument.
+.It Bq Er EINVAL
+An undefined option was set in the
+.Fa flags
+argument.
+.It Bq Er EINVAL
+Both
+.Dv MAP_PRIVATE
+and
+.Dv MAP_SHARED
+were specified.
+.It Bq Er EINVAL
+None of
+.Dv MAP_ANON ,
+.Dv MAP_PRIVATE ,
+.Dv MAP_SHARED ,
+or
+.Dv MAP_STACK
+was specified.
+At least one of these flags must be included.
 .It Bq Er EINVAL
 .Dv MAP_FIXED
 was specified and the
