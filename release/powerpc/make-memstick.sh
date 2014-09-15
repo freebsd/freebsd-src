@@ -41,38 +41,7 @@ if [ $? -ne 0 ]; then
 fi
 rm ${1}/etc/fstab
 
-#
-# Use $BLOCKSIZE for transfers to improve efficiency.  When calculating
-# how many blocks to transfer "+ 2" is to account for truncation in the
-# division and to provide space for the label.
-#
-
-filesize=`stat -f "%z" ${tempfile}`
-blocks=$(($filesize / ${BLOCKSIZE} + 1728))
-dd if=/dev/zero of=${2} bs=${BLOCKSIZE} count=${blocks}
-if [ $? -ne 0 ]; then
-  echo "creation of image file failed"
-  exit 1
-fi
-
-unit=`mdconfig -a -t vnode -f ${2}`
-if [ $? -ne 0 ]; then
-  echo "mdconfig failed"
-  exit 1
-fi
-
-gpart create -s APM ${unit}
-gpart add -t freebsd-boot -s 800K ${unit}
-gpart bootcode -p ${1}/boot/boot1.hfs -i 1 ${unit}
-gpart add -t freebsd-ufs -l FreeBSD_Install ${unit}
-
-dd if=${tempfile} of=/dev/${unit}s3 bs=$BLOCKSIZE conv=sync
-if [ $? -ne 0 ]; then
-  echo "copying filesystem into image file failed"
-  exit 1
-fi
-
-mdconfig -d -u ${unit}
+mkimg -s apm -p freebsd-boot:=${1}/boot/boot1.hfs -p freebsd-ufs/FreeBSD_Install:=${tempfile} -o ${2}
 
 rm -f ${tempfile}
 
