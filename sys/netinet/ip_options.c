@@ -66,19 +66,19 @@ __FBSDID("$FreeBSD$");
 #include <sys/socketvar.h>
 
 static VNET_DEFINE(int, ip_dosourceroute);
-SYSCTL_VNET_INT(_net_inet_ip, IPCTL_SOURCEROUTE, sourceroute, CTLFLAG_RW,
-    &VNET_NAME(ip_dosourceroute), 0,
+SYSCTL_INT(_net_inet_ip, IPCTL_SOURCEROUTE, sourceroute,
+    CTLFLAG_VNET | CTLFLAG_RW, &VNET_NAME(ip_dosourceroute), 0,
     "Enable forwarding source routed IP packets");
 #define	V_ip_dosourceroute	VNET(ip_dosourceroute)
 
 static VNET_DEFINE(int,	ip_acceptsourceroute);
-SYSCTL_VNET_INT(_net_inet_ip, IPCTL_ACCEPTSOURCEROUTE, accept_sourceroute, 
-    CTLFLAG_RW, &VNET_NAME(ip_acceptsourceroute), 0, 
+SYSCTL_INT(_net_inet_ip, IPCTL_ACCEPTSOURCEROUTE, accept_sourceroute, 
+    CTLFLAG_VNET | CTLFLAG_RW, &VNET_NAME(ip_acceptsourceroute), 0, 
     "Enable accepting source routed IP packets");
 #define	V_ip_acceptsourceroute	VNET(ip_acceptsourceroute)
 
 VNET_DEFINE(int, ip_doopts) = 1; /* 0 = ignore, 1 = process, 2 = reject */
-SYSCTL_VNET_INT(_net_inet_ip, OID_AUTO, process_options, CTLFLAG_RW,
+SYSCTL_INT(_net_inet_ip, OID_AUTO, process_options, CTLFLAG_VNET | CTLFLAG_RW,
     &VNET_NAME(ip_doopts), 0, "Enable IP options processing ([LS]SRR, RR, TS)");
 
 static void	save_rte(struct mbuf *m, u_char *, struct in_addr);
