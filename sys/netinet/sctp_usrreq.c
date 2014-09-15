@@ -1243,7 +1243,7 @@ sctp_fill_up_addresses_vrf(struct sctp_inpcb *inp,
 							continue;
 						}
 						if (prison_check_ip6(inp->ip_inp.inp.inp_cred,
-						    &sin6->sin6_addr) != 0) {
+						    sin6) != 0) {
 							continue;
 						}
 						if (IN6_IS_ADDR_LINKLOCAL(&sin6->sin6_addr)) {
@@ -5526,7 +5526,7 @@ sctp_setopt(struct socket *so, int optname, void *optval, size_t optsize,
 
 							sin6 = (struct sockaddr_in6 *)&sspp->sspp_addr;
 							if (prison_check_ip6(inp->ip_inp.inp.inp_cred,
-							    &sin6->sin6_addr) != 0) {
+							    sin6) != 0) {
 								SCTP_LTRACE_ERR_RET(inp, NULL, NULL, SCTP_FROM_SCTP_USRREQ, EINVAL);
 								error = EINVAL;
 								goto out_of_it;

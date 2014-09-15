@@ -161,7 +161,7 @@ struct in6_addrpolicy {
 struct ucred {
 };
 
-#define	IPV6SASDEBUG(fmt, ...)	printf("%s: " fmt "\n", __func__, ##__VA_ARGS__)
+#define	IPV6_SASDEBUG
 #define	KASSERT(exp, msg)
 #define	RO_RTFREE(ro)
 #define	RTFREE(rt)

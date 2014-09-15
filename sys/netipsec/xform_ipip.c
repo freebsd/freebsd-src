@@ -487,7 +487,7 @@ ipip_output(
 		ip6o->ip6_src = saidx->src.sin6.sin6_addr;
 
 		/* Fix payload length */
-		ip6o->ip6_plen = htons(m->m_pkthdr.len - sizeof(*ip6));
+		ip6o->ip6_plen = htons(m->m_pkthdr.len - sizeof(*ip6o));
 
 		switch (tp) {
 #ifdef INET

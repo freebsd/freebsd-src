@@ -169,9 +169,11 @@ struct dstaddr_props {
 
 #define	REPLACE(r)	{ rule = r; goto replace; }
 #define	NEXT(r)		{ rule = r; goto next; }
-#ifndef IPV6SASDEBUG
+
+#ifndef IPV6_SASDEBUG
 #define	IPV6SASDEBUG(fmt, ...)
 #else
+#define	IPV6SASDEBUG(fmt, ...)	printf("%s: " fmt "\n", __func__, ##__VA_ARGS__)
 static char *srcrule_str[IP6S_RULESMAX] = {
 	"Rule 0: first candidate",
 	"Rule 1: prefer same address",
@@ -197,7 +199,7 @@ srcaddrcmp(struct srcaddr_choice *c, struct in6_ifaddr *ia,
     struct dstaddr_props *dst, struct ucred *cred,
     struct ip6_pktopts *opts)
 {
-#if defined(IPV6SASDEBUG)
+#ifdef IPV6_SASDEBUG
 	char buf[INET6_ADDRSTRLEN];
 #endif
 	int srcscope, rule, label, prefer_tempaddr, prefixlen;
@@ -496,7 +498,7 @@ in6_selectsrc(struct sockaddr_in6 *dst, struct ip6_pktopts *opts,
     struct inpcb *inp, struct route_in6 *ro, struct ucred *cred,
     struct ifnet **ifpp, struct in6_addr *srcp)
 {
-#if defined(IPV6SASDEBUG)
+#ifdef IPV6_SASDEBUG
 	char buf[INET6_ADDRSTRLEN];
 #endif
 	struct route_in6 ro6;

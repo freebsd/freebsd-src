@@ -920,7 +920,7 @@ sctp_does_stcb_own_this_addr(struct sctp_tcb *stcb, struct sockaddr *to)
 						sin6 = &sctp_ifa->address.sin6;
 						rsin6 = (struct sockaddr_in6 *)to;
 						if (prison_check_ip6(stcb->sctp_ep->ip_inp.inp.inp_cred,
-						    &sin6->sin6_addr) != 0) {
+						    sin6) != 0) {
 							continue;
 						}
 						if (IN6_IS_ADDR_LINKLOCAL(&sin6->sin6_addr)) {
@@ -1092,7 +1092,7 @@ sctp_tcb_special_locate(struct sctp_inpcb **inp_p, struct sockaddr *from,
 
 				sin6 = (struct sockaddr_in6 *)to;
 				if (prison_check_ip6(inp->ip_inp.inp.inp_cred,
-				    &sin6->sin6_addr) != 0) {
+				    sin6) != 0) {
 					SCTP_INP_RUNLOCK(inp);
 					continue;
 				}
@@ -1701,7 +1701,7 @@ sctp_endpoint_probe(struct sockaddr *nam, struct sctppcbhead *head,
 					continue;
 				}
 				if (prison_check_ip6(inp->ip_inp.inp.inp_cred,
-				    &sin6->sin6_addr) != 0) {
+				    sin6) != 0) {
 					SCTP_INP_RUNLOCK(inp);
 					continue;
 				}

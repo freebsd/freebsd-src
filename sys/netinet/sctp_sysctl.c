@@ -275,7 +275,7 @@ sctp_sysctl_copy_out_local_addresses(struct sctp_inpcb *inp, struct sctp_tcb *st
 						if (IN6_IS_ADDR_UNSPECIFIED(&sin6->sin6_addr))
 							continue;
 						if (prison_check_ip6(inp->ip_inp.inp.inp_cred,
-						    &sin6->sin6_addr) != 0) {
+						    sin6) != 0) {
 							continue;
 						}
 						if (IN6_IS_ADDR_LINKLOCAL(&sin6->sin6_addr)) {

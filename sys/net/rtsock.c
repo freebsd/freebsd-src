@@ -515,6 +515,7 @@ static int
 in6_rt_handle_lla(struct rt_msghdr **ortm, struct rt_addrinfo *info)
 {
 	struct sockaddr_dl sdl;
+	struct walkarg w;
 	struct sockaddr_in6 *sin6;
 	struct rt_msghdr *rtm = *ortm;
 	struct llentry *lle;
@@ -551,7 +552,7 @@ in6_rt_handle_lla(struct rt_msghdr **ortm, struct rt_addrinfo *info)
 			rtm->rtm_flags |= RTF_STATIC;
 			rtm->rtm_rmx.rmx_expire = 0;
 		} else
-			rtm->rtm_rmx.rmx_expire = lle->la_expire;
+			rtm->rtm_rmx.rmx_expire = lle->la_expire; /* XXX */
 		LLE_RUNLOCK(lle);
 	} else
 		info->rti_info[RTAX_GATEWAY] = ifp->if_addr->ifa_addr;
@@ -559,16 +560,18 @@ in6_rt_handle_lla(struct rt_msghdr **ortm, struct rt_addrinfo *info)
 	rtm->rtm_index = ifp->if_index;
 	if (rtm->rtm_addrs & (RTA_IFA | RTA_IFP))
 		info->rti_info[RTAX_IFP] = ifp->if_addr->ifa_addr;
-	i = rt_msg2(rtm->rtm_type, info, NULL, NULL);
+	rtsock_msg_buffer(rtm->rtm_type, info, NULL, &i);
 	if (i > rtm->rtm_msglen) {
-		R_Malloc(rtm, struct rt_msghdr *, i);
+		rtm = malloc(i, M_TEMP, M_NOWAIT);
 		if (rtm == NULL)
 			return (ENOBUFS);
 		bcopy(*ortm, rtm, i);
-		Free(*ortm);
+		free(*ortm, M_TEMP);
 		*ortm = rtm;
 	}
-	rt_msg2(rtm->rtm_type, info, (caddr_t)rtm, NULL);
+	w.w_tmem = (caddr_t)rtm;
+	w.w_tmemsize = i;
+	rtsock_msg_buffer(rtm->rtm_type, info, &w, &i);
 	rtm->rtm_addrs = info->rti_addrs;
 	return (0);
 }
@@ -582,6 +585,7 @@ route_output(struct mbuf *m, struct socket *so, ...)
 	struct rtentry *rt = NULL;
 	struct radix_node_head *rnh;
 	struct rt_addrinfo info;
+	struct sockaddr_storage ss;
 	int alloc_len = 0, len, error = 0, fibnum;
 	struct ifnet *ifp = NULL;
 	union sockaddr_union saun;
@@ -1110,7 +1114,7 @@ rtsock_msg_buffer(int type, struct rt_addrinfo *rtinfo, struct walkarg *w, int *
 {
 	caddr_t cp = NULL;
 	struct rt_msghdr *rtm = NULL;
-	int len, i, second_time = 0;
+	int len, i, buflen = 0;
 
 	switch (type) {
 

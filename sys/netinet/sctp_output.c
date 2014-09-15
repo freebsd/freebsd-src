@@ -2072,7 +2072,7 @@ sctp_add_addresses_to_i_ia(struct sctp_inpcb *inp, struct sctp_tcb *stcb,
 #ifdef INET6
 				if ((sctp_ifap->address.sa.sa_family == AF_INET6) &&
 				    (prison_check_ip6(inp->ip_inp.inp.inp_cred,
-				    &sctp_ifap->address.sin6.sin6_addr) != 0)) {
+				    &sctp_ifap->address.sin6) != 0)) {
 					continue;
 				}
 #endif
@@ -2115,7 +2115,7 @@ skip_count:
 #ifdef INET6
 					if ((sctp_ifap->address.sa.sa_family == AF_INET6) &&
 					    (prison_check_ip6(inp->ip_inp.inp.inp_cred,
-					    &sctp_ifap->address.sin6.sin6_addr) != 0)) {
+					    &sctp_ifap->address.sin6) != 0)) {
 						continue;
 					}
 #endif
@@ -2493,7 +2493,7 @@ sctp_choose_boundspecific_inp(struct sctp_inpcb *inp,
 #ifdef INET6
 			if ((sctp_ifa->address.sa.sa_family == AF_INET6) &&
 			    (prison_check_ip6(inp->ip_inp.inp.inp_cred,
-			    &sctp_ifa->address.sin6.sin6_addr) != 0)) {
+			    &sctp_ifa->address.sin6) != 0)) {
 				continue;
 			}
 #endif
@@ -2630,7 +2630,7 @@ sctp_choose_boundspecific_stcb(struct sctp_inpcb *inp,
 #ifdef INET6
 			if ((sctp_ifa->address.sa.sa_family == AF_INET6) &&
 			    (prison_check_ip6(inp->ip_inp.inp.inp_cred,
-			    &sctp_ifa->address.sin6.sin6_addr) != 0)) {
+			    &sctp_ifa->address.sin6) != 0)) {
 				continue;
 			}
 #endif
@@ -2664,7 +2664,7 @@ sctp_choose_boundspecific_stcb(struct sctp_inpcb *inp,
 #ifdef INET6
 			if ((sctp_ifa->address.sa.sa_family == AF_INET6) &&
 			    (prison_check_ip6(inp->ip_inp.inp.inp_cred,
-			    &sctp_ifa->address.sin6.sin6_addr) != 0)) {
+			    &sctp_ifa->address.sin6) != 0)) {
 				continue;
 			}
 #endif
@@ -2804,7 +2804,7 @@ sctp_select_nth_preferred_addr_from_ifn_boundall(struct sctp_ifn *ifn,
 #ifdef INET6
 		if ((ifa->address.sa.sa_family == AF_INET6) &&
 		    (prison_check_ip6(inp->ip_inp.inp.inp_cred,
-		    &ifa->address.sin6.sin6_addr) != 0)) {
+		    &ifa->address.sin6) != 0)) {
 			continue;
 		}
 #endif
@@ -2915,7 +2915,7 @@ sctp_count_num_preferred_boundall(struct sctp_ifn *ifn,
 		if ((ifa->address.sa.sa_family == AF_INET6) &&
 		    (stcb != NULL) &&
 		    (prison_check_ip6(inp->ip_inp.inp.inp_cred,
-		    &ifa->address.sin6.sin6_addr) != 0)) {
+		    &ifa->address.sin6) != 0)) {
 			continue;
 		}
 #endif
@@ -3125,7 +3125,7 @@ again_with_private_addresses_allowed:
 #ifdef INET6
 		if ((sctp_ifa->address.sa.sa_family == AF_INET6) &&
 		    (prison_check_ip6(inp->ip_inp.inp.inp_cred,
-		    &sctp_ifa->address.sin6.sin6_addr) != 0)) {
+		    &sctp_ifa->address.sin6) != 0)) {
 			SCTPDBG(SCTP_DEBUG_OUTPUT2, "Jailed\n");
 			continue;
 		}
@@ -3190,7 +3190,7 @@ plan_d:
 #ifdef INET6
 			if ((sctp_ifa->address.sa.sa_family == AF_INET6) &&
 			    (prison_check_ip6(inp->ip_inp.inp.inp_cred,
-			    &sctp_ifa->address.sin6.sin6_addr) != 0)) {
+			    &sctp_ifa->address.sin6) != 0)) {
 				continue;
 			}
 #endif
@@ -3254,7 +3254,7 @@ out:
 #ifdef INET6
 					if ((sctp_ifa->address.sa.sa_family == AF_INET6) &&
 					    (prison_check_ip6(inp->ip_inp.inp.inp_cred,
-					    &sctp_ifa->address.sin6.sin6_addr) != 0)) {
+					    &sctp_ifa->address.sin6) != 0)) {
 						continue;
 					}
 #endif
