@@ -15,6 +15,8 @@ directly or indirectly, with patches, criticism, suggestions, or
 ideas:
 
 	Andrew Morgan <morgan@transmeta.com>
+	Ankita Pal <pal.ankita.ankita@gmail.com>
+	Baptiste Daroussin <bapt@freebsd.org>
 	Brian Fundakowski Feldman <green@freebsd.org>
 	Christos Zoulas <christos@netbsd.org>
 	Daniel Richard G. <skunk@iskunk.org>
@@ -25,6 +27,7 @@ ideas:
 	Eric Melville <eric@freebsd.org>
 	Espen Grøndahl <espegro@usit.uio.no>
 	Gary Winiger <gary.winiger@sun.com>
+	Gavin Atkinson <gavin@freebsd.org>
 	Gleb Smirnoff <glebius@freebsd.org>
 	Hubert Feyrer <hubert@feyrer.de>
 	Jason Evans <jasone@freebsd.org>
@@ -46,5 +49,3 @@ ideas:
 	Takanori Saneto <sanewo@ba2.so-net.ne.jp>
 	Wojciech A. Koszek <wkoszek@freebsd.org>
 	Yar Tikhiy <yar@freebsd.org>
-
-$Id: CREDITS 648 2013-03-05 17:54:27Z des $
