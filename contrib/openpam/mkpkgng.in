@@ -27,7 +27,7 @@
 # OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 # SUCH DAMAGE.
 #
-# $Id: mkpkgng.in 740 2013-09-07 13:03:20Z des $
+# $Id: mkpkgng.in 816 2014-09-12 07:50:22Z des $
 #
 
 # Print an informational message
@@ -69,9 +69,9 @@ cd "$srcdir"
 #
 # Determine pkgng version and ABI
 #
-pkgver=$(pkg -vv | awk '$1 == "Version:" { print $2 }')
+pkgver=$(pkg -v)
 [ -n "$pkgver" ] || error "Unable to determine pkgng version."
-pkgabi=$(pkg -vv | awk '$1 == "ABI:" { print $2 }')
+pkgabi=$(pkg config abi)
 [ -n "$pkgabi" ] || error "Unable to determine package ABI."
 
 #
