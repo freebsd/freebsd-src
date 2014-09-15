@@ -14,7 +14,7 @@
 
 @SET_MAKE@
 
-# $Id: Makefile.am 660 2013-03-11 15:08:52Z des $
+# $Id: Makefile.am 807 2014-09-09 09:41:32Z des $
 
 
 VPATH = @srcdir@
@@ -85,10 +85,7 @@ subdir = lib/libpam
 DIST_COMMON = $(srcdir)/Makefile.in $(srcdir)/Makefile.am \
 	$(top_srcdir)/depcomp $(noinst_HEADERS)
 ACLOCAL_M4 = $(top_srcdir)/aclocal.m4
-am__aclocal_m4_deps = $(top_srcdir)/m4/libtool.m4 \
-	$(top_srcdir)/m4/ltoptions.m4 $(top_srcdir)/m4/ltsugar.m4 \
-	$(top_srcdir)/m4/ltversion.m4 $(top_srcdir)/m4/lt~obsolete.m4 \
-	$(top_srcdir)/configure.ac
+am__aclocal_m4_deps = $(top_srcdir)/configure.ac
 am__configure_deps = $(am__aclocal_m4_deps) $(CONFIGURE_DEPENDENCIES) \
 	$(ACLOCAL_M4)
 mkinstalldirs = $(install_sh) -d
@@ -135,10 +132,10 @@ am_libpam_la_OBJECTS = openpam_asprintf.lo openpam_borrow_cred.lo \
 	openpam_nullconv.lo openpam_readline.lo openpam_readlinev.lo \
 	openpam_readword.lo openpam_restore_cred.lo \
 	openpam_set_option.lo openpam_set_feature.lo openpam_static.lo \
-	openpam_strlcat.lo openpam_strlcpy.lo openpam_straddch.lo \
-	openpam_subst.lo openpam_vasprintf.lo openpam_ttyconv.lo \
-	pam_acct_mgmt.lo pam_authenticate.lo pam_chauthtok.lo \
-	pam_close_session.lo pam_end.lo pam_error.lo \
+	openpam_straddch.lo openpam_strlcat.lo openpam_strlcpy.lo \
+	openpam_strlset.lo openpam_subst.lo openpam_vasprintf.lo \
+	openpam_ttyconv.lo pam_acct_mgmt.lo pam_authenticate.lo \
+	pam_chauthtok.lo pam_close_session.lo pam_end.lo pam_error.lo \
 	pam_get_authtok.lo pam_get_data.lo pam_get_item.lo \
 	pam_get_user.lo pam_getenv.lo pam_getenvlist.lo pam_info.lo \
 	pam_open_session.lo pam_prompt.lo pam_putenv.lo \
@@ -349,6 +346,7 @@ noinst_HEADERS = \
 	openpam_strlcat.h \
 	openpam_strlcmp.h \
 	openpam_strlcpy.h \
+	openpam_strlset.h \
 	openpam_vasprintf.h
 
 libpam_la_SOURCES = \
@@ -375,9 +373,10 @@ libpam_la_SOURCES = \
 	openpam_set_option.c \
 	openpam_set_feature.c \
 	openpam_static.c \
+	openpam_straddch.c \
 	openpam_strlcat.c \
 	openpam_strlcpy.c \
-	openpam_straddch.c \
+	openpam_strlset.c \
 	openpam_subst.c \
 	openpam_vasprintf.c \
 	openpam_ttyconv.c \
@@ -534,6 +533,7 @@ distclean-compile:
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/openpam_straddch.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/openpam_strlcat.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/openpam_strlcpy.Plo@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/openpam_strlset.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/openpam_subst.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/openpam_ttyconv.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/openpam_vasprintf.Plo@am__quote@
