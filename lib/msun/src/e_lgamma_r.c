@@ -83,6 +83,8 @@ __FBSDID("$FreeBSD$");
  *	
  */
 
+#include <float.h>
+
 #include "math.h"
 #include "math_private.h"
 
@@ -250,7 +252,7 @@ __ieee754_lgamma_r(double x, int *signgamp)
 		p1 = a0+z*(a2+z*(a4+z*(a6+z*(a8+z*a10))));
 		p2 = z*(a1+z*(a3+z*(a5+z*(a7+z*(a9+z*a11)))));
 		p  = y*p1+p2;
-		r  += (p-0.5*y); break;
+		r  += (p-y/2); break;
 	      case 1:
 		z = y*y;
 		w = z*y;
@@ -273,11 +275,11 @@ __ieee754_lgamma_r(double x, int *signgamp)
 	    r = half*y+p/q;
 	    z = one;	/* lgamma(1+s) = log(s) + lgamma(s) */
 	    switch(i) {
-	    case 7: z *= (y+6.0);	/* FALLTHRU */
-	    case 6: z *= (y+5.0);	/* FALLTHRU */
-	    case 5: z *= (y+4.0);	/* FALLTHRU */
-	    case 4: z *= (y+3.0);	/* FALLTHRU */
-	    case 3: z *= (y+2.0);	/* FALLTHRU */
+	    case 7: z *= (y+6);		/* FALLTHRU */
+	    case 6: z *= (y+5);		/* FALLTHRU */
+	    case 5: z *= (y+4);		/* FALLTHRU */
+	    case 4: z *= (y+3);		/* FALLTHRU */
+	    case 3: z *= (y+2);		/* FALLTHRU */
 		    r += __ieee754_log(z); break;
 	    }
     /* 8.0 <= x < 2**58 */
@@ -293,3 +295,8 @@ __ieee754_lgamma_r(double x, int *signgamp)
 	if(hx<0) r = nadj - r;
 	return r;
 }
+
+#if (LDBL_MANT_DIG == 53)
+__weak_reference(lgamma_r, lgammal_r);
+#endif
+
