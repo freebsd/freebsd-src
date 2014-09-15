@@ -82,10 +82,12 @@ static int vnode_pager_addr(struct vnode *vp, vm_ooffset_t address,
 static int vnode_pager_input_smlfs(vm_object_t object, vm_page_t m);
 static int vnode_pager_input_old(vm_object_t object, vm_page_t m);
 static void vnode_pager_dealloc(vm_object_t);
+static int vnode_pager_local_getpages0(struct vnode *, vm_page_t *, int, int,
+    void (*)(void *), void *);
 static int vnode_pager_getpages(vm_object_t, vm_page_t *, int, int);
 static int vnode_pager_getpages_async(vm_object_t, vm_page_t *, int, int,
     void(*)(void  *), void *);
-static void vnode_pager_putpages(vm_object_t, vm_page_t *, int, boolean_t, int *);
+static void vnode_pager_putpages(vm_object_t, vm_page_t *, int, int, int *);
 static boolean_t vnode_pager_haspage(vm_object_t, vm_pindex_t, int *, int *);
 static vm_object_t vnode_pager_alloc(void *, vm_ooffset_t, vm_prot_t,
     vm_ooffset_t, struct ucred *cred);
@@ -702,6 +704,59 @@ int	vnode_pager_generic_getpages_done(struct getpages_softc *);
 void	vnode_pager_generic_getpages_done_async(struct buf *);
 
 /*
+ * The implementation of VOP_GETPAGES() and VOP_GETPAGES_ASYNC() for
+ * local filesystems, where partially valid pages can only occur at
+ * the end of file.
+ */
+int
+vnode_pager_local_getpages(struct vop_getpages_args *ap)
+{
+
+	return (vnode_pager_local_getpages0(ap->a_vp, ap->a_m, ap->a_count,
+	    ap->a_reqpage, NULL, NULL));
+}
+
+int
+vnode_pager_local_getpages_async(struct vop_getpages_async_args *ap)
+{
+
+	return (vnode_pager_local_getpages0(ap->a_vp, ap->a_m, ap->a_count,
+	    ap->a_reqpage, ap->a_vop_getpages_iodone, ap->a_arg));
+}
+
+static int
+vnode_pager_local_getpages0(struct vnode *vp, vm_page_t *m, int bytecount,
+    int reqpage, void (*iodone)(void *), void *arg)
+{
+	vm_page_t mreq;
+
+	mreq = m[reqpage];
+
+	/*
+	 * Since the caller has busied the requested page, that page's valid
+	 * field will not be changed by other threads.
+	 */
+	vm_page_assert_xbusied(mreq);
+
+	/*
+	 * The requested page has valid blocks.  Invalid part can only
+	 * exist at the end of file, and the page is made fully valid
+	 * by zeroing in vm_pager_getpages().  Free non-requested
+	 * pages, since no i/o is done to read its content.
+	 */
+	if (mreq->valid != 0) {
+		vm_pager_free_nonreq(mreq->object, m, reqpage,
+		    round_page(bytecount) / PAGE_SIZE);
+		if (iodone != NULL)
+			iodone(arg);
+		return (VM_PAGER_OK);
+	}
+
+	return (vnode_pager_generic_getpages(vp, m, bytecount, reqpage,
+	    iodone, arg));
+}
+
+/*
  * This is now called from local media FS's to operate against their
  * own vnodes if they fail to implement VOP_GETPAGES.
  */
@@ -760,14 +815,7 @@ vnode_pager_generic_getpages(struct vnode *vp, vm_page_t *m, int bytecount,
 		VM_OBJECT_WUNLOCK(object);
 		return (error);
 	} else if (error != 0) {
-		VM_OBJECT_WLOCK(object);
-		for (i = 0; i < count; i++)
-			if (i != reqpage) {
-				vm_page_lock(m[i]);
-				vm_page_free(m[i]);
-				vm_page_unlock(m[i]);
-			}
-		VM_OBJECT_WUNLOCK(object);
+		vm_pager_free_nonreq(object, m, reqpage, count);
 		return (VM_PAGER_ERROR);
 
 		/*
@@ -777,14 +825,7 @@ vnode_pager_generic_getpages(struct vnode *vp, vm_page_t *m, int bytecount,
 		 */
 	} else if ((PAGE_SIZE / bsize) > 1 &&
 	    (vp->v_mount->mnt_stat.f_type != nfs_mount_type)) {
-		VM_OBJECT_WLOCK(object);
-		for (i = 0; i < count; i++)
-			if (i != reqpage) {
-				vm_page_lock(m[i]);
-				vm_page_free(m[i]);
-				vm_page_unlock(m[i]);
-			}
-		VM_OBJECT_WUNLOCK(object);
+		vm_pager_free_nonreq(object, m, reqpage, count);
 		PCPU_INC(cnt.v_vnodein);
 		PCPU_INC(cnt.v_vnodepgsin);
 		return vnode_pager_input_smlfs(object, m[reqpage]);
@@ -1124,7 +1165,7 @@ vnode_pager_generic_getpages_done(struct getpages_softc *sc)
  */
 static void
 vnode_pager_putpages(vm_object_t object, vm_page_t *m, int count,
-    boolean_t sync, int *rtvals)
+    int flags, int *rtvals)
 {
 	int rtval;
 	struct vnode *vp;
@@ -1142,16 +1183,16 @@ vnode_pager_putpages(vm_object_t object, vm_page_t *m, int count,
 	 * daemon up.  This should be probably be addressed XXX.
 	 */
 
-	if ((vm_cnt.v_free_count + vm_cnt.v_cache_count) <
+	if (vm_cnt.v_free_count + vm_cnt.v_cache_count <
 	    vm_cnt.v_pageout_free_min)
-		sync |= OBJPC_SYNC;
+		flags |= VM_PAGER_PUT_SYNC;
 
 	/*
 	 * Call device-specific putpages function
 	 */
 	vp = object->handle;
 	VM_OBJECT_WUNLOCK(object);
-	rtval = VOP_PUTPAGES(vp, m, bytes, sync, rtvals);
+	rtval = VOP_PUTPAGES(vp, m, bytes, flags, rtvals);
 	KASSERT(rtval != EOPNOTSUPP, 
 	    ("vnode_pager: stale FS putpages\n"));
 	VM_OBJECT_WLOCK(object);

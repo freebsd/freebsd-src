@@ -108,6 +108,9 @@ __FBSDID("$FreeBSD$");
 #include <netinet6/in6_pcb.h>
 #include <netinet6/scope6_var.h>
 
+static struct inpcb *in6_pcblookup_hash_locked(struct inpcbinfo *,
+    struct in6_addr *, u_int, struct in6_addr *, u_int, int, struct ifnet *);
+
 int
 in6_pcbbind(register struct inpcb *inp, struct sockaddr *nam,
     struct ucred *cred)
@@ -319,7 +322,7 @@ in6_pcbbind(register struct inpcb *inp, struct sockaddr *nam,
  *   a bit of a kludge, but cleaning up the internal interfaces would
  *   have forced minor changes in every protocol).
  */
-int
+static int
 in6_pcbladdr(register struct inpcb *inp, struct sockaddr *nam,
     struct in6_addr *plocal_addr6)
 {
@@ -1058,7 +1061,7 @@ found:
 /*
  * Lookup PCB in hash list.
  */
-struct inpcb *
+static struct inpcb *
 in6_pcblookup_hash_locked(struct inpcbinfo *pcbinfo, struct in6_addr *faddr,
     u_int fport_arg, struct in6_addr *laddr, u_int lport_arg,
     int lookupflags, struct ifnet *ifp)

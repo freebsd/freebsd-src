@@ -99,14 +99,9 @@ void	doreti_popl_fs_fault(void) __asm(__STRING(doreti_popl_fs_fault));
 void	dump_add_page(vm_paddr_t);
 void	dump_drop_page(vm_paddr_t);
 void	finishidentcpu(void);
-#if defined(I586_CPU) && defined(CPU_WT_ALLOC)
-void	enable_K5_wt_alloc(void);
-void	enable_K6_wt_alloc(void);
-void	enable_K6_2_wt_alloc(void);
-#endif
-void	enable_sse(void);
 void	fillw(int /*u_short*/ pat, void *base, size_t cnt);
 void	initializecpu(void);
+void	initializecpucache(void);
 void	i686_pagezero(void *addr);
 void	sse2_pagezero(void *addr);
 void	init_AMD_Elan_sc520(void);
@@ -114,6 +109,7 @@ int	is_physical_memory(vm_paddr_t addr);
 int	isa_nmi(int cd);
 vm_paddr_t kvtop(void *addr);
 void	panicifcpuunsupported(void);
+void	ppro_reenable_apic(void);
 void	printcpuinfo(void);
 void	setidt(int idx, alias_for_inthand_t *func, int typ, int dpl, int selec);
 int     user_dbreg_trap(void);

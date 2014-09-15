@@ -26,7 +26,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: openpam_dump_policy.c 648 2013-03-05 17:54:27Z des $
+ * $Id: openpam_dump_policy.c 798 2014-06-10 21:28:14Z des $
  */
 
 #ifdef HAVE_CONFIG_H
@@ -64,7 +64,7 @@ openpam_facility_index_name(pam_facility_t fclt)
 	if (asprintf(&name, "PAM_%s", facility) == -1)
 		return (NULL);
 	for (p = name + 4; *p; ++p)
-		*p = toupper(*p);
+		*p = toupper((unsigned char)*p);
 	return (name);
 }
 

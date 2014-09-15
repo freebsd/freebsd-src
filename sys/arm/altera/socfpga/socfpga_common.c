@@ -42,20 +42,31 @@ __FBSDID("$FreeBSD$");
 #include <machine/bus.h>
 #include <machine/fdt.h>
 
-#define	RESMAN_BASE	0xFFD05000
-#define	RESMAN_CTRL	0x4
-#define	SWWARMRSTREQ	(1 << 1)
+#include <arm/altera/socfpga/socfpga_rstmgr.h>
 
 void
 cpu_reset(void)
 {
+	uint32_t addr, paddr;
 	bus_addr_t vaddr;
+	phandle_t node;
 
-	if (bus_space_map(fdtbus_bs_tag, RESMAN_BASE, 0x10, 0, &vaddr) == 0) {
-		bus_space_write_4(fdtbus_bs_tag, vaddr,
-		    RESMAN_CTRL, SWWARMRSTREQ);
+	if (rstmgr_warmreset() == 0)
+		goto end;
+
+	node = OF_finddevice("rstmgr");
+	if (node == -1)
+		goto end;
+
+	if ((OF_getprop(node, "reg", &paddr, sizeof(paddr))) > 0) {
+		addr = fdt32_to_cpu(paddr);
+		if (bus_space_map(fdtbus_bs_tag, addr, 0x8, 0, &vaddr) == 0) {
+			bus_space_write_4(fdtbus_bs_tag, vaddr,
+			    RSTMGR_CTRL, CTRL_SWWARMRSTREQ);
+		}
 	}
 
+end:
 	while (1);
 }
 

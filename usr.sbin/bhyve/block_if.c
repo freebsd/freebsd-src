@@ -278,6 +278,7 @@ blockif_open(const char *optstr, const char *ident)
 
 	bc->bc_magic = BLOCKIF_SIG;
 	bc->bc_fd = fd;
+	bc->bc_rdonly = ro;
 	bc->bc_size = size;
 	bc->bc_sectsz = sectsz;
 	pthread_mutex_init(&bc->bc_mtx, NULL);

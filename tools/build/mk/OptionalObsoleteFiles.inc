@@ -3797,6 +3797,7 @@ OLD_FILES+=usr/bin/rcsdiff
 OLD_FILES+=usr/bin/rcsfreeze
 OLD_FILES+=usr/bin/rcsmerge
 OLD_FILES+=usr/bin/rlog
+OLD_FILES+=usr/sbin/etcupdate
 OLD_FILES+=usr/share/man/man1/ci.1.gz
 OLD_FILES+=usr/share/man/man1/co.1.gz
 OLD_FILES+=usr/share/man/man1/ident.1.gz
@@ -3809,6 +3810,7 @@ OLD_FILES+=usr/share/man/man1/rcsintro.1.gz
 OLD_FILES+=usr/share/man/man1/rcsmerge.1.gz
 OLD_FILES+=usr/share/man/man1/rlog.1.gz
 OLD_FILES+=usr/share/man/man5/rcsfile.5.gz
+OLD_FILES+=usr/share/man/man8/etcupdate.8.gz
 .endif
 
 #.if ${MK_RESCUE} == no
@@ -4763,4 +4765,12 @@ OLD_FILES+=usr/libexec/dma
 OLD_FILES+=usr/libexec/dma-mbox-create
 OLD_FILES+=usr/share/man/man8/dma.8.gz
 OLD_FILES+=usr/share/examples/dma/mailer.conf
+.endif
+
+.if ${MK_HYPERV} == no
+OLD_FILES+=etc/rc.d/hv_kvpd
+OLD_FILES+=usr/libexec/hyperv/hv_set_ifconfig
+OLD_FILES+=usr/libexec/hyperv/hv_get_dns_info
+OLD_FILES+=usr/libexec/hyperv/hv_get_dhcp_info
+OLD_FILES+=usr/sbin/hv_kvpd
 .endif

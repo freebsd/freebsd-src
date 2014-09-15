@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd July 4, 2014
+.Dd September 12, 2014
 .Dt MKIMG 1
 .Os
 .Sh NAME
@@ -170,6 +170,25 @@ To do this, run the
 utility as follows:
 .Dl % mkimg -s mbr -b /boot/mbr -p freebsd:-'mkimg -s bsd -b /boot/boot \
 -p freebsd-ufs:=root-file-system.ufs -p freebsd-swap::1G' -o mbr-bsd.img
+.Pp
+To accomodate the need to have partitions named or numbered in a certain
+way, the
+.Nm
+utility allows for the specification of empty partitions.
+For example, to create an image that is compatible with partition layouts
+found in
+.Pa /etc/disktab ,
+the 'd' partition often needs to be skipped.
+This is accomplished by inserting an unused partition after the first 2
+partition specifications.
+It is worth noting at this time that the BSD scheme will automatically
+skip the 'c' partition by virtue of it referring to the entire disk.
+To create an image that is compatible with the qp120at disk, use the
+.Nm
+utility as follows:
+.Dl % mkimg -s bsd -b /boot/boot -p freebsd-ufs:=root-file-system.ufs \
+-p freebsd-swap::20M -p- -p- -p- -p- -p freebsd-ufs:=usr-file-system.ufs \
+-o bsd.img
 .Pp
 For partitioning schemes that feature partition labels, the
 .Nm

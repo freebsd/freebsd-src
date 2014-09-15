@@ -116,33 +116,6 @@ resetinput(void)
 }
 
 
-/*
- * Read a line from the script.
- */
-
-char *
-pfgets(char *line, int len)
-{
-	char *p = line;
-	int nleft = len;
-	int c;
-
-	while (--nleft > 0) {
-		c = pgetc_macro();
-		if (c == PEOF) {
-			if (p == line)
-				return NULL;
-			break;
-		}
-		*p++ = c;
-		if (c == '\n')
-			break;
-	}
-	*p = '\0';
-	return line;
-}
-
-
 
 /*
  * Read a character from the script, returning PEOF on end of file.
@@ -338,7 +311,7 @@ pungetc(void)
  * We handle aliases this way.
  */
 void
-pushstring(char *s, int len, struct alias *ap)
+pushstring(const char *s, int len, struct alias *ap)
 {
 	struct strpush *sp;
 

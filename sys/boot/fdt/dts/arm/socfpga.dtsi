@@ -39,6 +39,8 @@
 
 	aliases {
 		soc = &SOC;
+		rstmgr = &rstmgr;
+		l3regs = &l3regs;
 		serial0 = &serial0;
 		serial1 = &serial1;
 	};
@@ -67,6 +69,16 @@
 			      < 0xfffec600 0x100 >; /* Private Timer */
 			interrupts = < 27 29 >;
 			interrupt-parent = < &GIC >;
+		};
+
+		rstmgr: rstmgr@ffd05000 {
+			compatible = "altr,rst-mgr";
+			reg = <0xffd05000 0x1000>;
+		};
+
+		l3regs: l3regs@ff800000 {
+			compatible = "altr,l3regs";
+			reg = <0xff800000 0x1000>;
 		};
 
 		fpgamgr: fpgamgr@ff706000 {

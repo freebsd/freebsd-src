@@ -2418,35 +2418,6 @@ mq_proc_exit(void *arg __unused, struct proc *p)
 }
 
 static int
-mqf_read(struct file *fp, struct uio *uio, struct ucred *active_cred,
-	int flags, struct thread *td)
-{
-	return (EOPNOTSUPP);
-}
-
-static int
-mqf_write(struct file *fp, struct uio *uio, struct ucred *active_cred,
-	int flags, struct thread *td)
-{
-	return (EOPNOTSUPP);
-}
-
-static int
-mqf_truncate(struct file *fp, off_t length, struct ucred *active_cred,
-    struct thread *td)
-{
-
-	return (EINVAL);
-}
-
-static int
-mqf_ioctl(struct file *fp, u_long cmd, void *data,
-	struct ucred *active_cred, struct thread *td)
-{
-	return (ENOTTY);
-}
-
-static int
 mqf_poll(struct file *fp, int events, struct ucred *active_cred,
 	struct thread *td)
 {
@@ -2601,16 +2572,16 @@ filt_mqwrite(struct knote *kn, long hint)
 }
 
 static struct fileops mqueueops = {
-	.fo_read		= mqf_read,
-	.fo_write		= mqf_write,
-	.fo_truncate		= mqf_truncate,
-	.fo_ioctl		= mqf_ioctl,
+	.fo_read		= invfo_rdwr,
+	.fo_write		= invfo_rdwr,
+	.fo_truncate		= invfo_truncate,
+	.fo_ioctl		= invfo_ioctl,
 	.fo_poll		= mqf_poll,
 	.fo_kqfilter		= mqf_kqfilter,
 	.fo_stat		= mqf_stat,
+	.fo_close		= mqf_close,
 	.fo_chmod		= mqf_chmod,
 	.fo_chown		= mqf_chown,
-	.fo_close		= mqf_close,
 	.fo_sendfile		= invfo_sendfile,
 };
 

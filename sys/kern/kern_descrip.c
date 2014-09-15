@@ -3531,17 +3531,14 @@ vntype_to_kinfo(int vtype)
 		{ VREG, KF_VTYPE_VREG },
 		{ VSOCK, KF_VTYPE_VSOCK }
 	};
-#define	NVTYPES	(sizeof(vtypes_table) / sizeof(*vtypes_table))
 	unsigned int i;
 
 	/*
 	 * Perform vtype translation.
 	 */
-	for (i = 0; i < NVTYPES; i++)
+	for (i = 0; i < nitems(vtypes_table); i++)
 		if (vtypes_table[i].vtype == vtype)
-			break;
-	if (i < NVTYPES)
-		return (vtypes_table[i].kf_vtype);
+			return (vtypes_table[i].kf_vtype);
 
 	return (KF_VTYPE_UNKNOWN);
 }
@@ -3944,8 +3941,39 @@ struct fileops badfileops = {
 };
 
 int
+invfo_rdwr(struct file *fp, struct uio *uio, struct ucred *active_cred,
+    int flags, struct thread *td)
+{
+
+	return (EOPNOTSUPP);
+}
+
+int
 invfo_truncate(struct file *fp, off_t length, struct ucred *active_cred,
     struct thread *td)
+{
+
+	return (EINVAL);
+}
+
+int
+invfo_ioctl(struct file *fp, u_long com, void *data,
+    struct ucred *active_cred, struct thread *td)
+{
+
+	return (ENOTTY);
+}
+
+int
+invfo_poll(struct file *fp, int events, struct ucred *active_cred,
+    struct thread *td)
+{
+
+	return (poll_no_poll(events));
+}
+
+int
+invfo_kqfilter(struct file *fp, struct knote *kn)
 {
 
 	return (EINVAL);

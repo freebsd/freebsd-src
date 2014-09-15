@@ -57,6 +57,7 @@ FILES=	DAEMON \
 	hostid \
 	hostid_save \
 	hostname \
+	${_hv_kvpd} \
 	inetd \
 	initrandom \
 	ip6addrctl \
@@ -190,6 +191,10 @@ _ubthidhci=	ubthidhci
 
 .if ${MK_CASPER} != "no"
 _casperd=	casperd
+.endif
+
+.if ${MK_HYPERV} != "no"
+_hv_kvpd=	hv_kvpd
 .endif
 
 .if ${MK_UNBOUND} != "no"

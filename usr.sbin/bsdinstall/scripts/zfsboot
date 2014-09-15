@@ -293,6 +293,7 @@ msg_swap_mirror_help="Mirror swap partitions for redundancy, breaks crash dumps"
 msg_swap_size="Swap Size"
 msg_swap_size_help="Customize how much swap space is allocated to each selected disk"
 msg_these_disks_are_too_small="These disks are too small given the amount of requested\nswap (%s) and/or geli(8) (%s) partitions, which would\ntake 50%% or more of each of the following selected disk\ndevices (not recommended):\n\n  %s\n\nRecommend changing partition size(s) and/or selecting a\ndifferent set of devices."
+msg_uefi_not_supported="The FreeBSD UEFI loader does not currently support booting root-on-ZFS. Your system will need to boot in legacy (CSM) mode.\nDo you want to continue?"
 msg_unable_to_get_disk_capacity="Unable to get disk capacity of \`%s'"
 msg_unsupported_partition_scheme="%s is an unsupported partition scheme"
 msg_user_cancelled="User Cancelled."
@@ -685,6 +686,48 @@ dialog_menu_layout()
 	done
 
 	return $DIALOG_OK
+}
+
+# dialog_uefi_prompt
+#
+# Confirm that the user wants to continue with the installation on a BIOS
+# system when they have booted with UEFI
+#
+dialog_uefi_prompt()
+{
+	local title="$DIALOG_TITLE"
+	local btitle="$DIALOG_BACKTITLE"
+	local prompt # Calculated below
+	local hline="$hline_arrows_tab_enter"
+
+	local height=8 width=50 prefix="   "
+	local plen=${#prefix} list= line=
+	local max_width=$(( $width - 3 - $plen ))
+
+	local yes no defaultno extra_args format
+	if [ "$USE_XDIALOG" ]; then
+		yes=ok no=cancel defaultno=default-no
+		extra_args="--wrap --left"
+		format="$msg_uefi_not_supported"
+	else
+		yes=yes no=no defaultno=defaultno
+		extra_args="--cr-wrap"
+		format="$msg_uefi_not_supported"
+	fi
+
+	# Add height for Xdialog(1)
+	[ "$USE_XDIALOG" ] && height=$(( $height + $height / 5 + 3 ))
+
+	prompt=$( printf "$format" )
+	f_dprintf "%s: UEFI prompt" "$0"
+	$DIALOG \
+		--title "$title"        \
+		--backtitle "$btitle"   \
+		--hline "$hline"        \
+		--$yes-label "$msg_yes" \
+		--$no-label "$msg_no"   \
+		$extra_args             \
+		--yesno "$prompt" $height $width
 }
 
 # zfs_create_diskpart $disk $index
@@ -1272,8 +1315,6 @@ zfs_create_boot()
 	          "$funcname"
 	f_eval_catch $funcname echo "$ECHO_APPEND" 'zfs_enable=\"YES\"' \
 	             $BSDINSTALL_TMPETC/rc.conf.zfs || return $FAILURE
-	f_eval_catch $funcname echo "$ECHO_APPEND" 'zfs_load=\"YES\"' \
-	             $BSDINSTALL_TMPBOOT/loader.conf.zfs || return $FAILURE
 	f_eval_catch $funcname echo "$ECHO_APPEND" \
 	             'kern.geom.label.disk_ident.enable=\"0\"' \
 	             $BSDINSTALL_TMPBOOT/loader.conf.zfs || return $FAILURE
@@ -1384,6 +1425,21 @@ f_dialog_backtitle "$msg_freebsd_installer"
 f_dprintf "BSDINSTALL_CHROOT=[%s]" "$BSDINSTALL_CHROOT"
 f_dprintf "BSDINSTALL_TMPETC=[%s]" "$BSDINSTALL_TMPETC"
 f_dprintf "FSTAB_FMT=[%s]" "$FSTAB_FMT"
+
+#
+# If the system was booted with UEFI, warn the user that FreeBSD can't do
+# ZFS with UEFI yet
+#
+if f_interactive; then
+    bootmethod=$(sysctl -n machdep.bootmethod)
+    f_dprintf "machdep.bootmethod=[%s]" "$bootmethod"
+    if [ "$bootmethod" != "BIOS" ]; then
+	dialog_uefi_prompt
+	retval=$?
+	f_dprintf "uefi_prompt=[%s]" "$retval"
+	[ $retval -eq $DIALOG_OK ] || f_die
+    fi
+fi
 
 #
 # Loop over the main menu until we've accomplished what we came here to do

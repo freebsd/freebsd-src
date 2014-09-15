@@ -104,8 +104,6 @@ extern int	ffs_rawread(struct vnode *vp, struct uio *uio, int *workdone);
 #endif
 static vop_fsync_t	ffs_fsync;
 static vop_lock1_t	ffs_lock;
-static vop_getpages_t	ffs_getpages;
-static vop_getpages_async_t ffs_getpages_async;
 static vop_read_t	ffs_read;
 static vop_write_t	ffs_write;
 static int	ffs_extread(struct vnode *vp, struct uio *uio, int ioflag);
@@ -125,8 +123,8 @@ static vop_vptofh_t	ffs_vptofh;
 struct vop_vector ffs_vnodeops1 = {
 	.vop_default =		&ufs_vnodeops,
 	.vop_fsync =		ffs_fsync,
-	.vop_getpages =		ffs_getpages,
-	.vop_getpages_async =	ffs_getpages_async,
+	.vop_getpages =		vnode_pager_local_getpages,
+	.vop_getpages_async =	vnode_pager_local_getpages_async,
 	.vop_lock1 =		ffs_lock,
 	.vop_read =		ffs_read,
 	.vop_reallocblks =	ffs_reallocblks,
@@ -145,7 +143,8 @@ struct vop_vector ffs_fifoops1 = {
 struct vop_vector ffs_vnodeops2 = {
 	.vop_default =		&ufs_vnodeops,
 	.vop_fsync =		ffs_fsync,
-	.vop_getpages =		ffs_getpages,
+	.vop_getpages =		vnode_pager_local_getpages,
+	.vop_getpages_async =	vnode_pager_local_getpages_async,
 	.vop_lock1 =		ffs_lock,
 	.vop_read =		ffs_read,
 	.vop_reallocblks =	ffs_reallocblks,
@@ -846,70 +845,6 @@ ffs_write(ap)
 	} else if (resid > uio->uio_resid && (ioflag & IO_SYNC))
 		error = ffs_update(vp, 1);
 	return (error);
-}
-
-/*
- * Get page routines.
- */
-static int
-ffs_getpages_checkvalid(vm_page_t *m, int count, int reqpage)
-{
-	vm_page_t mreq;
-	int pcount;
-
-	pcount = round_page(count) / PAGE_SIZE;
-	mreq = m[reqpage];
-
-	/*
-	 * if ANY DEV_BSIZE blocks are valid on a large filesystem block,
-	 * then the entire page is valid.  Since the page may be mapped,
-	 * user programs might reference data beyond the actual end of file
-	 * occuring within the page.  We have to zero that data.
-	 */
-	VM_OBJECT_WLOCK(mreq->object);
-	if (mreq->valid) {
-		if (mreq->valid != VM_PAGE_BITS_ALL)
-			vm_page_zero_invalid(mreq, TRUE);
-		for (int i = 0; i < pcount; i++) {
-			if (i != reqpage) {
-				vm_page_lock(m[i]);
-				vm_page_free(m[i]);
-				vm_page_unlock(m[i]);
-			}
-		}
-		VM_OBJECT_WUNLOCK(mreq->object);
-		return (VM_PAGER_OK);
-	}
-	VM_OBJECT_WUNLOCK(mreq->object);
-
-	return (-1);
-}
-
-static int
-ffs_getpages(struct vop_getpages_args *ap)
-{
-	int rv;
-
-	rv = ffs_getpages_checkvalid(ap->a_m, ap->a_count, ap->a_reqpage);
-	if (rv == VM_PAGER_OK)
-		return (rv);
-
-	return (vnode_pager_generic_getpages(ap->a_vp, ap->a_m, ap->a_count,
-	    ap->a_reqpage, NULL, NULL));
-}
-
-static int
-ffs_getpages_async(struct vop_getpages_async_args *ap)
-{
-	int rv;
-
-	rv = ffs_getpages_checkvalid(ap->a_m, ap->a_count, ap->a_reqpage);
-	if (rv == VM_PAGER_OK) {
-		(ap->a_vop_getpages_iodone)(ap->a_arg);
-		return (rv);
-	}
-	return (vnode_pager_generic_getpages(ap->a_vp, ap->a_m, ap->a_count,
-	    ap->a_reqpage, ap->a_vop_getpages_iodone, ap->a_arg));
 }
 
 /*
