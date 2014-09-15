@@ -1,12 +1,6 @@
 /*-
- * Copyright (c) 2002-2003 Networks Associates Technology, Inc.
- * Copyright (c) 2004-2011 Dag-Erling Smørgrav
+ * Copyright (c) 2011-2012 Dag-Erling Smørgrav
  * All rights reserved.
- *
- * This software was developed for the FreeBSD Project by ThinkSec AS and
- * Network Associates Laboratories, the Security Research Division of
- * Network Associates, Inc.  under DARPA/SPAWAR contract N66001-01-C-8035
- * ("CBOSS"), as part of the DARPA CHATS research program.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -32,14 +26,33 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: openpam_version.h 812 2014-09-12 07:24:23Z des $
+ * $Id: openpam_strlset.c 807 2014-09-09 09:41:32Z des $
  */
 
-#ifndef SECURITY_OPENPAM_VERSION_H_INCLUDED
-#define SECURITY_OPENPAM_VERSION_H_INCLUDED
+#ifdef HAVE_CONFIG_H
+# include "config.h"
+#endif
 
-#define OPENPAM
-#define OPENPAM_VERSION	20140912
-#define OPENPAM_RELEASE	"Ourouparia"
+#ifndef HAVE_STRLSET
 
-#endif /* !SECURITY_OPENPAM_VERSION_H_INCLUDED */
+#include <stddef.h>
+
+#include "openpam_strlset.h"
+
+/*
+ * like memset(3), but stops at the first NUL byte and NUL-terminates the
+ * result.  Returns the number of bytes that were written, not including
+ * the terminating NUL.
+ */
+size_t
+openpam_strlset(char *str, int ch, size_t size)
+{
+	size_t len;
+
+	for (len = 0; *str && size > 1; ++len, --size)
+		*str++ = ch;
+	*str = '\0';
+	return (++len);
+}
+
+#endif
