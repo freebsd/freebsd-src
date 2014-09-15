@@ -772,24 +772,24 @@ vnode_pager_generic_getpages(struct vnode *vp, vm_page_t *m, int bytecount,
 	}
 
 	/*
+	 * Since the caller has busied the requested page, that page's valid
+	 * field will not be changed by other threads.
+	 */
+	vm_page_assert_xbusied(m[reqpage]);
+
+	/*
 	 * If we have a completely valid page available to us, we can
 	 * clean up and return.  Otherwise we have to re-read the
 	 * media.
 	 */
-	VM_OBJECT_WLOCK(object);
 	if (m[reqpage]->valid == VM_PAGE_BITS_ALL) {
-		for (i = 0; i < count; i++)
-			if (i != reqpage) {
-				vm_page_lock(m[i]);
-				vm_page_free(m[i]);
-				vm_page_unlock(m[i]);
-			}
-		VM_OBJECT_WUNLOCK(object);
-		return VM_PAGER_OK;
+		vm_pager_free_nonreq(object, m, reqpage, count);
+		return (VM_PAGER_OK);
 	} else if (reqblock == -1) {
 		pmap_zero_page(m[reqpage]);
 		KASSERT(m[reqpage]->dirty == 0,
 		    ("vnode_pager_generic_getpages: page %p is dirty", m));
+		VM_OBJECT_WLOCK(object);
 		m[reqpage]->valid = VM_PAGE_BITS_ALL;
 		for (i = 0; i < count; i++)
 			if (i != reqpage) {
@@ -799,9 +799,11 @@ vnode_pager_generic_getpages(struct vnode *vp, vm_page_t *m, int bytecount,
 			}
 		VM_OBJECT_WUNLOCK(object);
 		return (VM_PAGER_OK);
+	} else if (m[reqpage]->valid != 0) {
+		VM_OBJECT_WLOCK(object);
+		m[reqpage]->valid = 0;
+		VM_OBJECT_WUNLOCK(object);
 	}
-	m[reqpage]->valid = 0;
-	VM_OBJECT_WUNLOCK(object);
 
 	/*
 	 * here on direct device I/O
