@@ -75,7 +75,7 @@ __cheri_ ## class ## _entry:						\
 	 * we must clear that in $c0.  Also install as the stack	\
 	 * capability.							\
 	 */								\
-	cgetpcc $zero($c0);						\
+	cgetpcc $c0;							\
 	csetoffset	$c0, $c0, $zero;				\
 	cmove	$c11, $c0;						\
 									\
