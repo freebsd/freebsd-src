@@ -8,7 +8,7 @@
 . /etc/rc.subr
 
 name="hv_kvp_daemon"
-rcvar="kp_kvpd_enable"
+rcvar="hv_kvpd_enable"
 command="/usr/sbin/${name}"
 required_dirs="/var/db/hyperv"
 
