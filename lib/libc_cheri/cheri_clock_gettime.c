@@ -66,3 +66,20 @@ gettimeofday(struct timeval *tp, struct timezone *tzp __unused)
 
 	return (0);
 }
+
+/*
+ * Implement time() in terms of clock_gettime() to reduce system interfaces.
+ */
+time_t
+time(time_t *tloc)
+{
+	struct timespec t;
+
+	if (cheri_system_clock_gettime(CLOCK_REALTIME, &t) != 0)
+		return ((time_t)-1);
+
+	if (tloc != NULL)
+		*tloc = t.tv_sec;
+
+	return (t.tv_sec);
+}
