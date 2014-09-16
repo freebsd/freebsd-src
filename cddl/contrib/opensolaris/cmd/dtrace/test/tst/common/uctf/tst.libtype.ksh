@@ -29,7 +29,7 @@ dtrace=$1
 t="int"
 exe="tst.libtype.exe"
 
-elfdump "./$exe" | grep -q '.SUNW_ctf' 
+elfdump -c "./$exe" | grep -Fq 'sh_name: .SUNW_ctf' 
 if [[ $? -eq 0 ]]; then
 	echo "CTF exists in $exe, that's a bug" >&2
 	exit 1
