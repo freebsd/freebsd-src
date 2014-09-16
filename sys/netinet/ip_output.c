@@ -236,9 +236,9 @@ again:
 	 */
 	if (flags & IP_SENDONES) {
 		if ((ia = ifatoia(ifa_ifwithbroadaddr(sintosa(dst),
-						      RT_ALL_FIBS))) == NULL &&
+						      M_GETFIB(m)))) == NULL &&
 		    (ia = ifatoia(ifa_ifwithdstaddr(sintosa(dst),
-						    RT_ALL_FIBS))) == NULL) {
+						    M_GETFIB(m)))) == NULL) {
 			IPSTAT_INC(ips_noroute);
 			error = ENETUNREACH;
 			goto bad;
@@ -251,9 +251,9 @@ again:
 		isbroadcast = 1;
 	} else if (flags & IP_ROUTETOIF) {
 		if ((ia = ifatoia(ifa_ifwithdstaddr(sintosa(dst),
-						    RT_ALL_FIBS))) == NULL &&
+						    M_GETFIB(m)))) == NULL &&
 		    (ia = ifatoia(ifa_ifwithnet(sintosa(dst), 0,
-						RT_ALL_FIBS))) == NULL) {
+						M_GETFIB(m)))) == NULL) {
 			IPSTAT_INC(ips_noroute);
 			error = ENETUNREACH;
 			goto bad;
