@@ -11301,7 +11301,7 @@ sctp_send_hb(struct sctp_tcb *stcb, struct sctp_nets *net, int so_locked
 	hb->heartbeat.hb_info.time_value_1 = now.tv_sec;
 	hb->heartbeat.hb_info.time_value_2 = now.tv_usec;
 	/* Did our user request this one, put it in */
-	hb->heartbeat.hb_info.addr_family = net->ro._l_addr.sa.sa_family;
+	hb->heartbeat.hb_info.addr_family = (uint8_t) net->ro._l_addr.sa.sa_family;
 	hb->heartbeat.hb_info.addr_len = net->ro._l_addr.sa.sa_len;
 	if (net->dest_state & SCTP_ADDR_UNCONFIRMED) {
 		/*
