@@ -310,6 +310,9 @@ __collate_err(int ex, const char *f)
 	const char *s;
 	int serrno = errno;
 
+#ifdef __CHERI_SANDBOX__
+	abort();
+#else
 	s = _getprogname();
 	_write(STDERR_FILENO, s, strlen(s));
 	_write(STDERR_FILENO, ": ", 2);
@@ -320,6 +323,7 @@ __collate_err(int ex, const char *f)
 	_write(STDERR_FILENO, s, strlen(s));
 	_write(STDERR_FILENO, "\n", 1);
 	exit(ex);
+#endif
 }
 
 #ifdef COLLATE_DEBUG
