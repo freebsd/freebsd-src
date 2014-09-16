@@ -738,7 +738,7 @@ void urldb_write_paths(const struct path_data *parent, const char *host,
 
 			/* Now, find next node to process. */
 			while (p != parent) {
-				int seglen = p->segment != NULL 
+				seglen = p->segment != NULL 
 						? strlen(p->segment) : 0;
 
 				/* Remove our segment from the path */
