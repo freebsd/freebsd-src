@@ -178,7 +178,8 @@ SRCS+=		gethex.c		\
 # contrib/tzcode/stdtime
 CFLAGS.localtime.c=	-fwrapv -Wno-missing-prototypes \
 			-Wno-unused-parameter -Wno-unused-function -DTZ_NO_FILES
-CFLAGS.strftime.c=	-Wno-unused-const-variable
+CFLAGS.strftime.c=	-Wno-unused-const-variable \
+		-DNO_RUN_TIME_WARNINGS_ABOUT_YEAR_2000_PROBLEMS_THANK_YOU
 SRCS+=		asctime.c		\
 		localtime.c		\
 		strftime.c		\
