@@ -2181,11 +2181,7 @@ tcp_do_segment(struct mbuf *m, struct tcphdr *th, struct socket *so,
 
 	todrop = tp->rcv_nxt - th->th_seq;
 	if (todrop > 0) {
-		/*
-		 * If this is a duplicate SYN for our current connection,
-		 * advance over it and pretend and it's not a SYN.
-		 */
-		if (thflags & TH_SYN && th->th_seq == tp->irs) {
+		if (thflags & TH_SYN) {
 			thflags &= ~TH_SYN;
 			th->th_seq++;
 			if (th->th_urp > 1)
