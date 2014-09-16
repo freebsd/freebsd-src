@@ -77,10 +77,6 @@ struct svm_softc {
 
 	/* Guest VCPU h/w and s/w context. */
 	struct svm_vcpu vcpu[VM_MAXCPU];
-
-	uint32_t	svm_feature;	/* SVM features from CPUID.*/
-
-	int 		vcpu_cnt;	/* number of VCPUs for this guest.*/
 } __aligned(PAGE_SIZE);
 
 CTASSERT((offsetof(struct svm_softc, nptp) & PAGE_MASK) == 0);

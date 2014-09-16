@@ -564,8 +564,6 @@ svm_vminit(struct vm *vm, pmap_t pmap)
 			M_SVM, M_WAITOK | M_ZERO);
 
 	svm_sc->vm = vm;
-	svm_sc->svm_feature = svm_feature;
-	svm_sc->vcpu_cnt = VM_MAXCPU;
 	svm_sc->nptp = (vm_offset_t)vtophys(pmap->pm_pml4);
 
 	/*
@@ -603,7 +601,7 @@ svm_vminit(struct vm *vm, pmap_t pmap)
 	msrpm_pa = vtophys(svm_sc->msr_bitmap);
 	pml4_pa = svm_sc->nptp;
 
-	for (i = 0; i < svm_sc->vcpu_cnt; i++) {
+	for (i = 0; i < VM_MAXCPU; i++) {
 		vcpu = svm_get_vcpu(svm_sc, i);
 		vcpu->lastcpu = NOCPU;
 		vcpu->vmcb_pa = vtophys(&vcpu->vmcb);
@@ -1905,8 +1903,6 @@ svm_getreg(void *arg, int vcpu, int ident, uint64_t *val)
 	register_t *reg;
 	
 	svm_sc = arg;
-	KASSERT(vcpu < svm_sc->vcpu_cnt, ("Guest doesn't have VCPU%d", vcpu));
-	
 	vmcb = svm_get_vmcb(svm_sc, vcpu);
 
 	if (vmcb_read(vmcb, ident, val) == 0) {
@@ -1936,8 +1932,6 @@ svm_setreg(void *arg, int vcpu, int ident, uint64_t val)
 	register_t *reg;
 
 	svm_sc = arg;
-	KASSERT(vcpu < svm_sc->vcpu_cnt, ("Guest doesn't have VCPU%d", vcpu));
-
 	vmcb = svm_get_vmcb(svm_sc, vcpu);
 	if (vmcb_write(vmcb, ident, val) == 0) {
 		return (0);
@@ -1973,8 +1967,6 @@ svm_setdesc(void *arg, int vcpu, int type, struct seg_desc *desc)
 	uint16_t attrib;
 
 	svm_sc = arg;
-	KASSERT(vcpu < svm_sc->vcpu_cnt, ("Guest doesn't have VCPU%d", vcpu));
-
 	vmcb = svm_get_vmcb(svm_sc, vcpu);
 
 	VCPU_CTR1(svm_sc->vm, vcpu, "SVM:set_desc: Type%d\n", type);
@@ -2006,8 +1998,6 @@ svm_getdesc(void *arg, int vcpu, int type, struct seg_desc *desc)
 	struct vmcb_segment	*seg;
 
 	svm_sc = arg;
-	KASSERT(vcpu < svm_sc->vcpu_cnt, ("Guest doesn't have VCPU%d", vcpu));
-
 	VCPU_CTR1(svm_sc->vm, vcpu, "SVM:get_desc: Type%d\n", type);
 
 	seg = vmcb_seg(svm_get_vmcb(svm_sc, vcpu), type);
