@@ -145,7 +145,9 @@ SRCS+=		bcopy.S			\
 		strndup.c		\
 		strnlen.c		\
 		strnlen_c.c		\
+		strpbrk.c		\
 		strrchr.c		\
+		strspn.c		\
 		strstr.c
 
 # libc/sys
@@ -211,6 +213,7 @@ SRCS+=	gedf2.c				\
 	gtdf2.c				\
 	gtsf2.c				\
 	ledf2.c				\
+	lesf2.c				\
 	ltdf2.c				\
 	ltsf2.c				\
 	eqdf2.c				\
