@@ -81,6 +81,8 @@ WARNS?=	6
 
 USE_CHERI=yes
 
+CFLAGS+=	-DNO_GETENV
+
 CFLAGS+=	${CFLAGS.${.IMPSRC:T}}
 
 .include <src.opts.mk>
