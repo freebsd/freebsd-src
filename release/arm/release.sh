@@ -54,8 +54,8 @@ before_build() {
 			;;
 		WANDBOARD-QUAD)
 			WANT_UBOOT=1
-			KNOWNHASH="0d71e62beb952b41ebafb20a7ee4df2f960db64c31b054721ceb79ff14014c55"
-			UBOOT_VERSION="u-boot-2013.10"
+			KNOWNHASH="b4f83b8db325c21671a997198ec3a373e2e00dde2fcf17be9b9afd7cfd727f56"
+			UBOOT_VERSION="u-boot-2014.07"
 			;;
 		*)
 			# Fallthrough.
