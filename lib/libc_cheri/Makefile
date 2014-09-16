@@ -18,6 +18,7 @@ SRCS=		cheri_clock_gettime.c	\
 		cheri_put.c		\
 		cheri_raise.c		\
 		cheri_stdio.c		\
+		cheri_stub.c		\
 		malloc.c
 
 CFLAGS+=	-I${.CURDIR}/../libc/include \
