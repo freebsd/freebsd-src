@@ -2405,7 +2405,6 @@ vt_allocate(struct vt_driver *drv, void *softc)
 		    main_vd->vd_driver->vd_name, drv->vd_name);
 	}
 	vd = main_vd;
-	VT_LOCK(vd);
 
 	if (vd->vd_flags & VDF_ASYNC) {
 		/* Stop vt_flush periodic task. */
@@ -2421,6 +2420,7 @@ vt_allocate(struct vt_driver *drv, void *softc)
 	 * Reset VDF_TEXTMODE flag, driver who require that flag (vt_vga) will
 	 * set it.
 	 */
+	VT_LOCK(vd);
 	vd->vd_flags &= ~VDF_TEXTMODE;
 
 	vd->vd_driver = drv;
