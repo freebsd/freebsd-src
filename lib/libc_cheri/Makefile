@@ -116,19 +116,19 @@ SRCS+=		bcopy.S			\
 		memchr_c.c		\
 		memcmp.c		\
 		memcmp_c.c		\
-		memcpy.S		\
+		memcpy.c		\
 		memcpy_c.s		\
 		memcpy_c_tofrom.c	\
 		memset.c		\
 		memset_c.c		\
-		memmove.S		\
+		memmove.c		\
 		memmove_c.c		\
 		strcat.c		\
 		strcasecmp.c		\
 		strcasestr.c		\
 		strchr.S		\
 		strchr_c.c		\
-		strcmp.S		\
+		strcmp.c		\
 		strcmp_c.c		\
 		strcoll.c		\
 		strcpy.c		\
@@ -138,7 +138,7 @@ SRCS+=		bcopy.S			\
 		strerror.c		\
 		strlcat.c		\
 		strlcpy.c		\
-		strlen.S		\
+		strlen.c		\
 		strncmp.c		\
 		strncmp_c.c		\
 		strncpy.c		\
