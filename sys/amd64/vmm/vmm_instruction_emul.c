@@ -65,6 +65,7 @@ enum {
 	VIE_OP_TYPE_MOVZX,
 	VIE_OP_TYPE_AND,
 	VIE_OP_TYPE_OR,
+	VIE_OP_TYPE_SUB,
 	VIE_OP_TYPE_TWO_BYTE,
 	VIE_OP_TYPE_PUSH,
 	VIE_OP_TYPE_CMP,
@@ -96,6 +97,10 @@ static const struct vie_op one_byte_opcodes[256] = {
 	[0x0F] = {
 		.op_byte = 0x0F,
 		.op_type = VIE_OP_TYPE_TWO_BYTE
+	},
+	[0x2B] = {
+		.op_byte = 0x2B,
+		.op_type = VIE_OP_TYPE_SUB,
 	},
 	[0x3B] = {
 		.op_byte = 0x3B,
@@ -597,18 +602,16 @@ emulate_and(void *vm, int vcpuid, uint64_t gpa, struct vie *vie,
 		break;
 	case 0x81:
 		/*
-		 * AND mem (ModRM:r/m) with immediate and store the
+		 * AND/OR mem (ModRM:r/m) with immediate and store the
 		 * result in mem.
 		 *
-		 * 81 /4		and r/m16, imm16
-		 * 81 /4		and r/m32, imm32
-		 * REX.W + 81 /4	and r/m64, imm32 sign-extended to 64
+		 * AND: i = 4
+		 * OR:  i = 1
+		 * 81 /i		op r/m16, imm16
+		 * 81 /i		op r/m32, imm32
+		 * REX.W + 81 /i	op r/m64, imm32 sign-extended to 64
 		 *
-		 * Currently, only the AND operation of the 0x81 opcode
-		 * is implemented (ModRM:reg = b100).
 		 */
-		if ((vie->reg & 7) != 4)
-			break;
 
 		/* get the first operand */
                 error = memread(vm, vcpuid, gpa, &val1, size, arg);
@@ -616,11 +619,26 @@ emulate_and(void *vm, int vcpuid, uint64_t gpa, struct vie *vie,
 			break;
 
                 /*
-		 * perform the operation with the pre-fetched immediate
-		 * operand and write the result
-		 */
-                val1 &= vie->immediate;
-                error = memwrite(vm, vcpuid, gpa, val1, size, arg);
+                 * perform the operation with the pre-fetched immediate
+                 * operand and write the result
+                 */
+		switch (vie->reg & 7) {
+		case 0x4:
+			/* modrm:reg == b100, AND */
+			val1 &= vie->immediate;
+			break;
+		case 0x1:
+			/* modrm:reg == b001, OR */
+			val1 |= vie->immediate;
+			break;
+		default:
+			error = EINVAL;
+			break;
+		}
+		if (error)
+			break;
+
+		error = memwrite(vm, vcpuid, gpa, val1, size, arg);
 		break;
 	default:
 		break;
@@ -719,6 +737,62 @@ emulate_cmp(void *vm, int vcpuid, uint64_t gpa, struct vie *vie,
 	rflags |= rflags2 & RFLAGS_STATUS_BITS;
 
 	error = vie_update_register(vm, vcpuid, VM_REG_GUEST_RFLAGS, rflags, 8);
+	return (error);
+}
+
+static int
+emulate_sub(void *vm, int vcpuid, uint64_t gpa, struct vie *vie,
+	    mem_region_read_t memread, mem_region_write_t memwrite, void *arg)
+{
+	int error, size;
+	uint64_t nval, rflags, rflags2, val1, val2;
+	enum vm_reg_name reg;
+
+	size = vie->opsize;
+	error = EINVAL;
+
+	switch (vie->op.op_byte) {
+	case 0x2B:
+		/*
+		 * SUB r/m from r and store the result in r
+		 * 
+		 * 2B/r            SUB r16, r/m16
+		 * 2B/r            SUB r32, r/m32
+		 * REX.W + 2B/r    SUB r64, r/m64
+		 */
+
+		/* get the first operand */
+		reg = gpr_map[vie->reg];
+		error = vie_read_register(vm, vcpuid, reg, &val1);
+		if (error)
+			break;
+
+		/* get the second operand */
+		error = memread(vm, vcpuid, gpa, &val2, size, arg);
+		if (error)
+			break;
+
+		/* perform the operation and write the result */
+		nval = val1 - val2;
+		error = vie_update_register(vm, vcpuid, reg, nval, size);
+		break;
+	default:
+		break;
+	}
+
+	if (!error) {
+		rflags2 = getcc(size, val1, val2);
+		error = vie_read_register(vm, vcpuid, VM_REG_GUEST_RFLAGS,
+		    &rflags);
+		if (error)
+			return (error);
+
+		rflags &= ~RFLAGS_STATUS_BITS;
+		rflags |= rflags2 & RFLAGS_STATUS_BITS;
+		error = vie_update_register(vm, vcpuid, VM_REG_GUEST_RFLAGS,
+		    rflags, 8);
+	}
+
 	return (error);
 }
 
@@ -863,6 +937,10 @@ vmm_emulate_instruction(void *vm, int vcpuid, uint64_t gpa, struct vie *vie,
 		break;
 	case VIE_OP_TYPE_OR:
 		error = emulate_or(vm, vcpuid, gpa, vie,
+				    memread, memwrite, memarg);
+		break;
+	case VIE_OP_TYPE_SUB:
+		error = emulate_sub(vm, vcpuid, gpa, vie,
 				    memread, memwrite, memarg);
 		break;
 	default:
