@@ -41,9 +41,6 @@ __FBSDID("$FreeBSD$");
 #include <dev/vt/hw/fb/vt_fb.h>
 #include <dev/vt/colors/vt_termcolors.h>
 
-static vd_drawrect_t	vt_fb_drawrect;
-static vd_setpixel_t	vt_fb_setpixel;
-
 static struct vt_driver vt_fb_driver = {
 	.vd_name = "fb",
 	.vd_init = vt_fb_init,
@@ -146,7 +143,7 @@ vt_fb_mmap(struct vt_device *vd, vm_ooffset_t offset, vm_paddr_t *paddr,
 	return (EINVAL);
 }
 
-static void
+void
 vt_fb_setpixel(struct vt_device *vd, int x, int y, term_color_t color)
 {
 	struct fb_info *info;
@@ -181,7 +178,7 @@ vt_fb_setpixel(struct vt_device *vd, int x, int y, term_color_t color)
 
 }
 
-static void
+void
 vt_fb_drawrect(struct vt_device *vd, int x1, int y1, int x2, int y2, int fill,
     term_color_t color)
 {
