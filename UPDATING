@@ -11,6 +11,9 @@ handbook:
 Items affecting the ports and packages system can be found in
 /usr/ports/UPDATING.  Please read that file before running portupgrade.
 
+20140916:	p2	FreeBSD-SA-14:19.tcp
+	Fix Denial of Service in TCP packet processing. [SA-14:19]
+
 20140909:	p1	FreeBSD-SA-14:18.openssl
 	Fix OpenSSL multiple vulnerabilities. [SA-14:18]
 
