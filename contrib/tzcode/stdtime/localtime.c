@@ -1273,12 +1273,15 @@ tzsetwall(void)
 static void
 tzset_basic(int rdlocked)
 {
+#ifndef FORCE_UTC_TZ
 	const char *	name;
 
 	name = getenv("TZ");
 	if (name == NULL) {
+#endif
 		tzsetwall_basic(rdlocked);
 		return;
+#ifndef FORCE_UTC_TZ
 	}
 
 	if (!rdlocked)
@@ -1326,6 +1329,7 @@ tzset_basic(int rdlocked)
 
 	if (rdlocked)
 		_RWLOCK_RDLOCK(&lcl_rwlock);
+#endif
 }
 
 void

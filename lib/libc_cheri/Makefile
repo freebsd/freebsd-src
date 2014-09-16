@@ -284,7 +284,7 @@ CFLAGS+=	-I${LIBC_DIR}/include			\
 .PATH: ${.CURDIR}/../../sys/kern
 .PATH: ${.CURDIR}/../../contrib/tzcode/stdtime
 
-CFLAGS+=	-Wno-cast-align -DFORCE_C_LOCALE
+CFLAGS+=	-Wno-cast-align -DFORCE_C_LOCALE -DFORCE_UTC_TZ
 
 .include <src.opts.mk>
 .include <bsd.lib.mk>
