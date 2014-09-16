@@ -68,6 +68,9 @@ _Read_RuneMagi(FILE *fp)
 	_FileRuneEntry *mapupper_ext_ranges;
 	int runetype_ext_len = 0;
 
+#ifdef FORCE_C_LOCALE
+	return (NULL);
+#else
 	if (_fstat(fileno(fp), &sb) < 0)
 		return (NULL);
 
@@ -283,4 +286,5 @@ _Read_RuneMagi(FILE *fp)
 		rl->__mapupper_ext.__ranges = NULL;
 
 	return (rl);
+#endif
 }

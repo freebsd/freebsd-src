@@ -293,6 +293,9 @@ __get_locale_env(category)
 {
         const char *env;
 
+#ifdef FORCE_C_LOCALE
+	env = "C";
+#else
         /* 1. check LC_ALL. */
         env = getenv(categories[0]);
 
@@ -307,6 +310,7 @@ __get_locale_env(category)
         /* 4. if none is set, fall to "C" */
 	if (env == NULL || !*env)
                 env = "C";
+#endif
 
 	return (env);
 }
@@ -317,6 +321,11 @@ __get_locale_env(category)
 int
 __detect_path_locale(void)
 {
+
+#ifdef FORCE_C_LOCALE
+	_PathLocale == NULL;
+	return (EINVAL);
+#else
 	if (_PathLocale == NULL) {
 		char *p = getenv("PATH_LOCALE");
 
@@ -331,5 +340,6 @@ __detect_path_locale(void)
 			_PathLocale = _PATH_LOCALE;
 	}
 	return (0);
+#endif
 }
 

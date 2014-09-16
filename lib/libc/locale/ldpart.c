@@ -66,6 +66,10 @@ __part_load_locale(const char *name,
 		return (_LDP_CACHE);
 	}
 
+#ifdef FORCE_C_LOCALE
+	/* XXX-BD: or should we just return _LDP_CACHE? */
+	return (_LDP_ERROR);
+#else
 	/*
 	 * If the locale name is the same as our cache, use the cache.
 	 */
@@ -146,6 +150,7 @@ bad_locale:
 	errno = saverr;
 
 	return (_LDP_ERROR);
+#endif
 }
 
 static int
