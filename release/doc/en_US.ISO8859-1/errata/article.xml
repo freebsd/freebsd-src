@@ -105,6 +105,13 @@
 	    <entry>9&nbsp;September&nbsp;2014</entry>
 	    <entry><para>Multiple vulnerabilities</para></entry>
 	  </row>
+
+	  <row>
+	    <entry><link xlink:href="http://www.freebsd.org/security/advisories/FreeBSD-SA-14:19.tcp.asc">SA-14:19.tcp</link></entry>
+	    <entry>16&nbsp;September&nbsp;2014</entry>
+	    <entry><para>Denial of Service in TCP packet
+		processing.</para></entry>
+	  </row>
 	</tbody>
       </tgroup>
     </informaltable>
