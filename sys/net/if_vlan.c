@@ -104,14 +104,15 @@ struct vlan_mc_entry {
 struct	ifvlan {
 	struct	ifvlantrunk *ifv_trunk;
 	struct	ifnet *ifv_ifp;
-	void	*ifv_cookie;
 	counter_u64_t	ifv_ipackets;
 	counter_u64_t	ifv_ibytes;
 	counter_u64_t	ifv_opackets;
 	counter_u64_t	ifv_obytes;
 	counter_u64_t	ifv_omcasts;
+	counter_u64_t	ifv_oerrors;
 #define	TRUNK(ifv)	((ifv)->ifv_trunk)
 #define	PARENT(ifv)	((ifv)->ifv_trunk->parent)
+	void	*ifv_cookie;
 	int	ifv_pflags;	/* special flags we have set on parent */
 	struct	ifv_linkmib {
 		int	ifvm_encaplen;	/* encapsulation length */
@@ -959,6 +960,7 @@ vlan_clone_create(struct if_clone *ifc, char *name, size_t len, caddr_t params)
 	ifv->ifv_ibytes = counter_u64_alloc(M_WAITOK);
 	ifv->ifv_obytes = counter_u64_alloc(M_WAITOK);
 	ifv->ifv_omcasts = counter_u64_alloc(M_WAITOK);
+	ifv->ifv_oerrors = counter_u64_alloc(M_WAITOK);
 
 	ifp->if_softc = ifv;
 	/*
@@ -1026,6 +1028,7 @@ vlan_clone_destroy(struct if_clone *ifc, struct ifnet *ifp)
 	counter_u64_free(ifv->ifv_ibytes);
 	counter_u64_free(ifv->ifv_obytes);
 	counter_u64_free(ifv->ifv_omcasts);
+	counter_u64_free(ifv->ifv_oerrors);
 	free(ifv, M_VLAN);
 	ifc_free_unit(ifc, unit);
 
@@ -1063,7 +1066,7 @@ vlan_transmit(struct ifnet *ifp, struct mbuf *m)
 	 */
 	if (!UP_AND_RUNNING(p)) {
 		m_freem(m);
-		ifp->if_oerrors++;
+		counter_u64_add(ifv->ifv_oerrors, 1);
 		return (ENETDOWN);
 	}
 
@@ -1090,7 +1093,7 @@ vlan_transmit(struct ifnet *ifp, struct mbuf *m)
 
 		if (n > 0) {
 			if_printf(ifp, "cannot pad short frame\n");
-			ifp->if_oerrors++;
+			counter_u64_add(ifv->ifv_oerrors, 1);
 			m_freem(m);
 			return (0);
 		}
@@ -1110,7 +1113,7 @@ vlan_transmit(struct ifnet *ifp, struct mbuf *m)
 		m = ether_vlanencap(m, ifv->ifv_vid);
 		if (m == NULL) {
 			if_printf(ifp, "unable to prepend VLAN header\n");
-			ifp->if_oerrors++;
+			counter_u64_add(ifv->ifv_oerrors, 1);
 			return (0);
 		}
 	}
@@ -1122,9 +1125,9 @@ vlan_transmit(struct ifnet *ifp, struct mbuf *m)
 	if (error == 0) {
 		counter_u64_add(ifv->ifv_opackets, 1);
 		counter_u64_add(ifv->ifv_obytes, len);
-		counter_u64_add(ifv->ifv_omcasts, 1);
+		counter_u64_add(ifv->ifv_omcasts, mcast);
 	} else
-		ifp->if_oerrors++;
+		counter_u64_add(ifv->ifv_oerrors, 1);
 	return (error);
 }
 
@@ -1146,6 +1149,8 @@ vlan_get_counter(struct ifnet *ifp, ifnet_counter cnt)
 			return (counter_u64_fetch(ifv->ifv_obytes));
 		case IFCOUNTER_OMCASTS:
 			return (counter_u64_fetch(ifv->ifv_omcasts));
+		case IFCOUNTER_OERRORS:
+			return (counter_u64_fetch(ifv->ifv_oerrors));
 		default:
 			return (if_get_counter_compat(ifp, cnt));
 	}
