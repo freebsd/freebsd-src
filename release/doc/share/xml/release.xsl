@@ -12,6 +12,7 @@
 
   <xsl:param name="release.url"/>
   <xsl:param name="release.branch"/>
+  <xsl:param name="release.maillist"/>
 
   <xsl:template name="paragraph">
     <xsl:param name="class" select="''"/>

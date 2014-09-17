@@ -510,7 +510,7 @@ fdt_intr_to_rl(device_t dev, phandle_t node, struct resource_list *rl,
 			    "assuming direct parent\n");
 			iparent = OF_parent(node);
 		}
-		if (OF_searchencprop(OF_xref_phandle(iparent), 
+		if (OF_searchencprop(OF_node_from_xref(iparent), 
 		    "#interrupt-cells", &icells, sizeof(icells)) == -1) {
 			device_printf(dev, "Missing #interrupt-cells property, "
 			    "assuming <1>\n");
@@ -545,7 +545,7 @@ fdt_get_phyaddr(phandle_t node, device_t dev, int *phy_addr, void **phy_sc)
 	    sizeof(phy_handle)) <= 0)
 		return (ENXIO);
 
-	phy_node = OF_xref_phandle(phy_handle);
+	phy_node = OF_node_from_xref(phy_handle);
 
 	if (OF_getprop(phy_node, "reg", (void *)&phy_reg,
 	    sizeof(phy_reg)) <= 0)

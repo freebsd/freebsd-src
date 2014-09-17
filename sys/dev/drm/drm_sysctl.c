@@ -193,7 +193,7 @@ static int drm_vm_info DRM_SYSCTL_HANDLER_ARGS
 	for (i = 0; i < mapcount; i++) {
 		map = &tempmaps[i];
 
-		if (map->type < 0 || map->type > 4)
+		if (map->type > 4)
 			type = "??";
 		else
 			type = types[map->type];

@@ -1581,7 +1581,7 @@ int mlx4_en_init_netdev(struct mlx4_en_dev *mdev, int port,
 
 	if (ILLEGAL_MAC(priv->mac)) {
 		en_err(priv, "Port: %d, invalid mac burned: 0x%llx, quiting\n",
-			 priv->port, priv->mac);
+			 priv->port, (long long)priv->mac);
 		err = -EINVAL;
 		goto out;
 	}

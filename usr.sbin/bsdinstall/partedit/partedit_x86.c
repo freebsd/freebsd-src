@@ -58,6 +58,21 @@ is_scheme_bootable(const char *part_type) {
 	return (0);
 }
 
+int
+is_fs_bootable(const char *part_type, const char *fs) {
+	size_t platlen = sizeof(platform);
+	if (strlen(platform) == 0)
+		sysctlbyname(platform_sysctl, platform, &platlen, NULL, -1);
+
+	if (strcmp(fs, "freebsd-ufs") == 0)
+		return (1);
+
+	if (strcmp(fs, "freebsd-zfs") == 0 && strcmp(platform, "BIOS") == 0)
+		return (1);
+
+	return (0);
+}
+
 size_t
 bootpart_size(const char *scheme) {
 	size_t platlen = sizeof(platform);
@@ -107,7 +122,7 @@ bootcode_path(const char *part_type) {
 }
 	
 const char *
-partcode_path(const char *part_type) {
+partcode_path(const char *part_type, const char *fs_type) {
 	size_t platlen = sizeof(platform);
 	if (strlen(platform) == 0)
 		sysctlbyname(platform_sysctl, platform, &platlen, NULL, -1);
@@ -115,6 +130,8 @@ partcode_path(const char *part_type) {
 	if (strcmp(part_type, "GPT") == 0) {
 		if (strcmp(platform, "UEFI") == 0)
 			return ("/boot/boot1.efifat");
+		else if (strcmp(fs_type, "zfs") == 0)
+			return ("/boot/gptzfsboot");
 		else
 			return ("/boot/gptboot");
 	}

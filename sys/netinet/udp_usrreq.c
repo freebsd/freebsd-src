@@ -43,6 +43,7 @@ __FBSDID("$FreeBSD$");
 #include "opt_inet.h"
 #include "opt_inet6.h"
 #include "opt_ipsec.h"
+#include "opt_rss.h"
 
 #include <sys/param.h>
 #include <sys/domain.h>
@@ -89,6 +90,7 @@ __FBSDID("$FreeBSD$");
 #include <netinet/udp.h>
 #include <netinet/udp_var.h>
 #include <netinet/udplite.h>
+#include <netinet/in_rss.h>
 
 #ifdef IPSEC
 #include <netipsec/ipsec.h>
@@ -206,6 +208,13 @@ void
 udp_init(void)
 {
 
+	/*
+	 * For now default to 2-tuple UDP hashing - until the fragment
+	 * reassembly code can also update the flowid.
+	 *
+	 * Once we can calculate the flowid that way and re-establish
+	 * a 4-tuple, flip this to 4-tuple.
+	 */
 	in_pcbinfo_init(&V_udbinfo, "udp", &V_udb, UDBHASHSIZE, UDBHASHSIZE,
 	    "udp_inpcb", udp_inpcb_init, NULL, UMA_ZONE_NOFREE,
 	    IPI_HASHFIELDS_2TUPLE);
@@ -1084,6 +1093,9 @@ udp_output(struct inpcb *inp, struct mbuf *m, struct sockaddr *addr,
 	u_char tos;
 	uint8_t pr;
 	uint16_t cscov = 0;
+	uint32_t flowid = 0;
+	int flowid_type = 0;
+	int use_flowid = 0;
 
 	/*
 	 * udp_output() may need to temporarily bind or connect the current
@@ -1147,6 +1159,32 @@ udp_output(struct inpcb *inp, struct mbuf *m, struct sockaddr *addr,
 				tos = *(u_char *)CMSG_DATA(cm);
 				break;
 
+			case IP_FLOWID:
+				if (cm->cmsg_len != CMSG_LEN(sizeof(uint32_t))) {
+					error = EINVAL;
+					break;
+				}
+				flowid = *(uint32_t *) CMSG_DATA(cm);
+				break;
+
+			case IP_FLOWTYPE:
+				if (cm->cmsg_len != CMSG_LEN(sizeof(uint32_t))) {
+					error = EINVAL;
+					break;
+				}
+				flowid_type = *(uint32_t *) CMSG_DATA(cm);
+				use_flowid = 1;
+				break;
+
+#ifdef	RSS
+			case IP_RSSBUCKETID:
+				if (cm->cmsg_len != CMSG_LEN(sizeof(uint32_t))) {
+					error = EINVAL;
+					break;
+				}
+				/* This is just a placeholder for now */
+				break;
+#endif	/* RSS */
 			default:
 				error = ENOPROTOOPT;
 				break;
@@ -1394,6 +1432,59 @@ udp_output(struct inpcb *inp, struct mbuf *m, struct sockaddr *addr,
 	((struct ip *)ui)->ip_ttl = inp->inp_ip_ttl;	/* XXX */
 	((struct ip *)ui)->ip_tos = tos;		/* XXX */
 	UDPSTAT_INC(udps_opackets);
+
+	/*
+	 * Setup flowid / RSS information for outbound socket.
+	 *
+	 * Once the UDP code decides to set a flowid some other way,
+	 * this allows the flowid to be overridden by userland.
+	 */
+	if (use_flowid) {
+		m->m_flags |= M_FLOWID;
+		m->m_pkthdr.flowid = flowid;
+		M_HASHTYPE_SET(m, flowid_type);
+#ifdef	RSS
+	} else {
+		uint32_t hash_val, hash_type;
+		/*
+		 * Calculate an appropriate RSS hash for UDP and
+		 * UDP Lite.
+		 *
+		 * The called function will take care of figuring out
+		 * whether a 2-tuple or 4-tuple hash is required based
+		 * on the currently configured scheme.
+		 *
+		 * Later later on connected socket values should be
+		 * cached in the inpcb and reused, rather than constantly
+		 * re-calculating it.
+		 *
+		 * UDP Lite is a different protocol number and will
+		 * likely end up being hashed as a 2-tuple until
+		 * RSS / NICs grow UDP Lite protocol awareness.
+		 */
+		if (rss_proto_software_hash_v4(faddr, laddr, fport, lport,
+		    pr, &hash_val, &hash_type) == 0) {
+			m->m_pkthdr.flowid = hash_val;
+			m->m_flags |= M_FLOWID;
+			M_HASHTYPE_SET(m, hash_type);
+		}
+#endif
+	}
+
+#ifdef	RSS
+	/*
+	 * Don't override with the inp cached flowid value.
+	 *
+	 * Depending upon the kind of send being done, the inp
+	 * flowid/flowtype values may actually not be appropriate
+	 * for this particular socket send.
+	 *
+	 * We should either leave the flowid at zero (which is what is
+	 * currently done) or set it to some software generated
+	 * hash value based on the packet contents.
+	 */
+	ipflags |= IP_NODEFAULTFLOWID;
+#endif	/* RSS */
 
 	if (unlock_udbinfo == UH_WLOCKED)
 		INP_HASH_WUNLOCK(pcbinfo);

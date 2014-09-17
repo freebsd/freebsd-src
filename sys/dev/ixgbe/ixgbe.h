@@ -197,9 +197,6 @@
 #define IXGBE_BR_SIZE			4096
 #define IXGBE_QUEUE_MIN_FREE		32
 
-/* IOCTL define to gather SFP+ Diagnostic data */
-#define SIOCGI2C	SIOCGIFGENERIC
-
 /* Offload bits in mbuf flag */
 #if __FreeBSD_version >= 800000
 #define CSUM_OFFLOAD		(CSUM_IP|CSUM_TCP|CSUM_UDP|CSUM_SCTP)
@@ -232,15 +229,6 @@ typedef struct _ixgbe_vendor_info_t {
 	unsigned int    subdevice_id;
 	unsigned int    index;
 } ixgbe_vendor_info_t;
-
-
-/* This is used to get SFP+ module data */
-struct ixgbe_i2c_req {
-        u8 dev_addr;
-        u8 offset;
-        u8 len;
-        u8 data[8];
-};
 
 struct ixgbe_tx_buf {
 	union ixgbe_adv_tx_desc	*eop;
@@ -343,7 +331,6 @@ struct rx_ring {
 	struct lro_ctrl		lro;
 	bool			lro_enabled;
 	bool			hw_rsc;
-	bool			discard;
 	bool			vtag_strip;
         u16			next_to_refresh;
         u16 			next_to_check;

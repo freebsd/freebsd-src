@@ -476,7 +476,6 @@ kern_fcntl(struct thread *td, int fd, int cmd, intptr_t arg)
 	struct vnode *vp;
 	cap_rights_t rights;
 	int error, flg, tmp;
-	u_int old, new;
 	uint64_t bsize;
 	off_t foffset;
 
@@ -510,7 +509,7 @@ kern_fcntl(struct thread *td, int fd, int cmd, intptr_t arg)
 
 	case F_GETFD:
 		FILEDESC_SLOCK(fdp);
-		if ((fp = fget_locked(fdp, fd)) == NULL) {
+		if (fget_locked(fdp, fd) == NULL) {
 			FILEDESC_SUNLOCK(fdp);
 			error = EBADF;
 			break;
@@ -523,7 +522,7 @@ kern_fcntl(struct thread *td, int fd, int cmd, intptr_t arg)
 
 	case F_SETFD:
 		FILEDESC_XLOCK(fdp);
-		if ((fp = fget_locked(fdp, fd)) == NULL) {
+		if (fget_locked(fdp, fd) == NULL) {
 			FILEDESC_XUNLOCK(fdp);
 			error = EBADF;
 			break;
@@ -760,26 +759,24 @@ kern_fcntl(struct thread *td, int fd, int cmd, intptr_t arg)
 			error = EBADF;
 			break;
 		}
-		if (arg >= 0) {
-			vp = fp->f_vnode;
-			error = vn_lock(vp, LK_SHARED);
-			if (error != 0) {
-				fdrop(fp, td);
-				break;
-			}
-			bsize = fp->f_vnode->v_mount->mnt_stat.f_iosize;
-			VOP_UNLOCK(vp, 0);
-			fp->f_seqcount = (arg + bsize - 1) / bsize;
-			do {
-				new = old = fp->f_flag;
-				new |= FRDAHEAD;
-			} while (!atomic_cmpset_rel_int(&fp->f_flag, old, new));
-		} else {
-			do {
-				new = old = fp->f_flag;
-				new &= ~FRDAHEAD;
-			} while (!atomic_cmpset_rel_int(&fp->f_flag, old, new));
+		vp = fp->f_vnode;
+		/*
+		 * Exclusive lock synchronizes against f_seqcount reads and
+		 * writes in sequential_heuristic().
+		 */
+		error = vn_lock(vp, LK_EXCLUSIVE);
+		if (error != 0) {
+			fdrop(fp, td);
+			break;
 		}
+		if (arg >= 0) {
+			bsize = fp->f_vnode->v_mount->mnt_stat.f_iosize;
+			fp->f_seqcount = (arg + bsize - 1) / bsize;
+			atomic_set_int(&fp->f_flag, FRDAHEAD);
+		} else {
+			atomic_clear_int(&fp->f_flag, FRDAHEAD);
+		}
+		VOP_UNLOCK(vp, 0);
 		fdrop(fp, td);
 		break;
 
@@ -3534,17 +3531,14 @@ vntype_to_kinfo(int vtype)
 		{ VREG, KF_VTYPE_VREG },
 		{ VSOCK, KF_VTYPE_VSOCK }
 	};
-#define	NVTYPES	(sizeof(vtypes_table) / sizeof(*vtypes_table))
 	unsigned int i;
 
 	/*
 	 * Perform vtype translation.
 	 */
-	for (i = 0; i < NVTYPES; i++)
+	for (i = 0; i < nitems(vtypes_table); i++)
 		if (vtypes_table[i].vtype == vtype)
-			break;
-	if (i < NVTYPES)
-		return (vtypes_table[i].kf_vtype);
+			return (vtypes_table[i].kf_vtype);
 
 	return (KF_VTYPE_UNKNOWN);
 }
@@ -3945,6 +3939,45 @@ struct fileops badfileops = {
 	.fo_chown = badfo_chown,
 	.fo_sendfile = badfo_sendfile,
 };
+
+int
+invfo_rdwr(struct file *fp, struct uio *uio, struct ucred *active_cred,
+    int flags, struct thread *td)
+{
+
+	return (EOPNOTSUPP);
+}
+
+int
+invfo_truncate(struct file *fp, off_t length, struct ucred *active_cred,
+    struct thread *td)
+{
+
+	return (EINVAL);
+}
+
+int
+invfo_ioctl(struct file *fp, u_long com, void *data,
+    struct ucred *active_cred, struct thread *td)
+{
+
+	return (ENOTTY);
+}
+
+int
+invfo_poll(struct file *fp, int events, struct ucred *active_cred,
+    struct thread *td)
+{
+
+	return (poll_no_poll(events));
+}
+
+int
+invfo_kqfilter(struct file *fp, struct knote *kn)
+{
+
+	return (EINVAL);
+}
 
 int
 invfo_chmod(struct file *fp, mode_t mode, struct ucred *active_cred,

@@ -1160,10 +1160,7 @@ out:
 static int
 tcp6_connect(struct tcpcb *tp, struct sockaddr *nam, struct thread *td)
 {
-	struct inpcb *inp = tp->t_inpcb, *oinp;
-	struct socket *so = inp->inp_socket;
-	struct sockaddr_in6 *sin6 = (struct sockaddr_in6 *)nam;
-	struct in6_addr addr6;
+	struct inpcb *inp = tp->t_inpcb;
 	int error;
 
 	INP_WLOCK_ASSERT(inp);
@@ -1174,39 +1171,9 @@ tcp6_connect(struct tcpcb *tp, struct sockaddr *nam, struct thread *td)
 		if (error)
 			goto out;
 	}
-
-	/*
-	 * Cannot simply call in_pcbconnect, because there might be an
-	 * earlier incarnation of this same connection still in
-	 * TIME_WAIT state, creating an ADDRINUSE error.
-	 * in6_pcbladdr() also handles scope zone IDs.
-	 *
-	 * XXXRW: We wouldn't need to expose in6_pcblookup_hash_locked()
-	 * outside of in6_pcb.c if there were an in6_pcbconnect_setup().
-	 */
-	error = in6_pcbladdr(inp, nam, &addr6);
-	if (error)
+	error = in6_pcbconnect(inp, nam, td->td_ucred);
+	if (error != 0)
 		goto out;
-	oinp = in6_pcblookup_hash_locked(inp->inp_pcbinfo,
-				  &sin6->sin6_addr, sin6->sin6_port,
-				  IN6_IS_ADDR_UNSPECIFIED(&inp->in6p_laddr)
-				  ? &addr6
-				  : &inp->in6p_laddr,
-				  inp->inp_lport,  0, NULL);
-	if (oinp) {
-		error = EADDRINUSE;
-		goto out;
-	}
-	if (IN6_IS_ADDR_UNSPECIFIED(&inp->in6p_laddr))
-		inp->in6p_laddr = addr6;
-	inp->in6p_faddr = sin6->sin6_addr;
-	inp->inp_fport = sin6->sin6_port;
-	/* update flowinfo - draft-itojun-ipv6-flowlabel-api-00 */
-	inp->inp_flow &= ~IPV6_FLOWLABEL_MASK;
-	if (inp->inp_flags & IN6P_AUTOFLOWLABEL)
-		inp->inp_flow |=
-		    (htonl(ip6_randomflowlabel()) & IPV6_FLOWLABEL_MASK);
-	in_pcbrehash(inp);
 	INP_HASH_WUNLOCK(&V_tcbinfo);
 
 	/* Compute window scaling to request.  */
@@ -1214,7 +1181,7 @@ tcp6_connect(struct tcpcb *tp, struct sockaddr *nam, struct thread *td)
 	    (TCP_MAXWIN << tp->request_r_scale) < sb_max)
 		tp->request_r_scale++;
 
-	soisconnecting(so);
+	soisconnecting(inp->inp_socket);
 	TCPSTAT_INC(tcps_connattempt);
 	tcp_state_change(tp, TCPS_SYN_SENT);
 	tp->iss = tcp_new_isn(tp);

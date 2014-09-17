@@ -237,6 +237,7 @@ vm_fault_hold(vm_map_t map, vm_offset_t vaddr, vm_prot_t fault_type,
 	int hardfault;
 	struct faultstate fs;
 	struct vnode *vp;
+	vm_page_t m;
 	int locked, error;
 
 	hardfault = 0;
@@ -290,6 +291,56 @@ RetryFault:;
 		goto RetryFault;
 	}
 
+	if (wired)
+		fault_type = prot | (fault_type & VM_PROT_COPY);
+
+	if (fs.vp == NULL /* avoid locked vnode leak */ &&
+	    (fault_flags & (VM_FAULT_CHANGE_WIRING | VM_FAULT_DIRTY)) == 0 &&
+	    /* avoid calling vm_object_set_writeable_dirty() */
+	    ((prot & VM_PROT_WRITE) == 0 ||
+	    fs.first_object->type != OBJT_VNODE ||
+	    (fs.first_object->flags & OBJ_MIGHTBEDIRTY) != 0)) {
+		VM_OBJECT_RLOCK(fs.first_object);
+		if ((prot & VM_PROT_WRITE) != 0 &&
+		    fs.first_object->type == OBJT_VNODE &&
+		    (fs.first_object->flags & OBJ_MIGHTBEDIRTY) == 0)
+			goto fast_failed;
+		m = vm_page_lookup(fs.first_object, fs.first_pindex);
+		/* A busy page can be mapped for read|execute access. */
+		if (m == NULL || ((prot & VM_PROT_WRITE) != 0 &&
+		    vm_page_busied(m)) || m->valid != VM_PAGE_BITS_ALL)
+			goto fast_failed;
+		result = pmap_enter(fs.map->pmap, vaddr, m, prot,
+		   fault_type | PMAP_ENTER_NOSLEEP | (wired ? PMAP_ENTER_WIRED :
+		   0), 0);
+		if (result != KERN_SUCCESS)
+			goto fast_failed;
+		if (m_hold != NULL) {
+			*m_hold = m;
+			vm_page_lock(m);
+			vm_page_hold(m);
+			vm_page_unlock(m);
+		}
+		if ((fault_type & VM_PROT_WRITE) != 0 &&
+		    (m->oflags & VPO_UNMANAGED) == 0) {
+			vm_page_dirty(m);
+			vm_pager_page_unswapped(m);
+		}
+		VM_OBJECT_RUNLOCK(fs.first_object);
+		if (!wired)
+			vm_fault_prefault(&fs, vaddr, 0, 0);
+		vm_map_lookup_done(fs.map, fs.entry);
+		curthread->td_ru.ru_minflt++;
+		return (KERN_SUCCESS);
+fast_failed:
+		if (!VM_OBJECT_TRYUPGRADE(fs.first_object)) {
+			VM_OBJECT_RUNLOCK(fs.first_object);
+			VM_OBJECT_WLOCK(fs.first_object);
+		}
+	} else {
+		VM_OBJECT_WLOCK(fs.first_object);
+	}
+
 	/*
 	 * Make a reference to this object to prevent its disposal while we
 	 * are messing with it.  Once we have the reference, the map is free
@@ -300,14 +351,10 @@ RetryFault:;
 	 * truncation operations) during I/O.  This must be done after
 	 * obtaining the vnode lock in order to avoid possible deadlocks.
 	 */
-	VM_OBJECT_WLOCK(fs.first_object);
 	vm_object_reference_locked(fs.first_object);
 	vm_object_pip_add(fs.first_object, 1);
 
 	fs.lookup_still_valid = TRUE;
-
-	if (wired)
-		fault_type = prot | (fault_type & VM_PROT_COPY);
 
 	fs.first_m = NULL;
 
@@ -851,8 +898,9 @@ vnode_locked:
 	if (hardfault)
 		fs.entry->next_read = fs.pindex + faultcount - reqpage;
 
-	if ((prot & VM_PROT_WRITE) != 0 ||
-	    (fault_flags & VM_FAULT_DIRTY) != 0) {
+	if (((prot & VM_PROT_WRITE) != 0 ||
+	    (fault_flags & VM_FAULT_DIRTY) != 0) &&
+	    (fs.m->oflags & VPO_UNMANAGED) == 0) {
 		vm_object_set_writeable_dirty(fs.object);
 
 		/*

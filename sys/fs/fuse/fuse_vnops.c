@@ -1721,7 +1721,6 @@ fuse_vnop_write(struct vop_write_args *ap)
         vm_page_t *a_m;
         int a_count;
         int a_reqpage;
-        vm_ooffset_t a_offset;
     };
 */
 static int

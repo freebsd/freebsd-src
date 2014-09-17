@@ -54,6 +54,7 @@
 #include <sys/buf.h>
 #include <sys/endian.h>
 #include <sys/priv.h>
+#include <sys/rwlock.h>
 #include <sys/mount.h>
 #include <sys/unistd.h>
 #include <sys/time.h>
@@ -65,9 +66,11 @@
 #include <sys/file.h>
 
 #include <vm/vm.h>
-#include <vm/vm_page.h>
-#include <vm/vm_object.h>
+#include <vm/vm_param.h>
 #include <vm/vm_extern.h>
+#include <vm/vm_object.h>
+#include <vm/vm_page.h>
+#include <vm/vm_pager.h>
 #include <vm/vnode_pager.h>
 
 #include "opt_directio.h"
@@ -124,6 +127,7 @@ struct vop_vector ext2_vnodeops = {
 	.vop_close =		ext2_close,
 	.vop_create =		ext2_create,
 	.vop_fsync =		ext2_fsync,
+	.vop_getpages =		vnode_pager_local_getpages,
 	.vop_getattr =		ext2_getattr,
 	.vop_inactive =		ext2_inactive,
 	.vop_ioctl =		ext2_ioctl,

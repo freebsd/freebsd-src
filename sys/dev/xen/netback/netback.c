@@ -152,7 +152,6 @@ static void	xnb_attach_failed(struct xnb_softc *xnb,
 static int	xnb_shutdown(struct xnb_softc *xnb);
 static int	create_netdev(device_t dev);
 static int	xnb_detach(device_t dev);
-static int	xen_net_read_mac(device_t dev, uint8_t mac[]);
 static int	xnb_ifmedia_upd(struct ifnet *ifp);
 static void	xnb_ifmedia_sts(struct ifnet *ifp, struct ifmediareq *ifmr);
 static void 	xnb_intr(void *arg);
@@ -652,7 +651,8 @@ xnb_disconnect(struct xnb_softc *xnb)
 	int error;
 	int i;
 
-	xen_intr_unbind(xnb->xen_intr_handle);
+	if (xnb->xen_intr_handle != NULL)
+		xen_intr_unbind(&xnb->xen_intr_handle);
 
 	/*
 	 * We may still have another thread currently processing requests.  We
@@ -666,8 +666,10 @@ xnb_disconnect(struct xnb_softc *xnb)
 	mtx_unlock(&xnb->rx_lock);
 
 	/* Free malloc'd softc member variables */
-	if (xnb->bridge != NULL)
+	if (xnb->bridge != NULL) {
 		free(xnb->bridge, M_XENSTORE);
+		xnb->bridge = NULL;
+	}
 
 	/* All request processing has stopped, so unmap the rings */
 	for (i=0; i < XNB_NUM_RING_TYPES; i++) {
@@ -1211,7 +1213,18 @@ create_netdev(device_t dev)
 	ifmedia_add(&xnb->sc_media, IFM_ETHER|IFM_MANUAL, 0, NULL);
 	ifmedia_set(&xnb->sc_media, IFM_ETHER|IFM_MANUAL);
 
-	err = xen_net_read_mac(dev, xnb->mac);
+	/*
+	 * Set the MAC address to a dummy value (00:00:00:00:00),
+	 * if the MAC address of the host-facing interface is set
+	 * to the same as the guest-facing one (the value found in
+	 * xenstore), the bridge would stop delivering packets to
+	 * us because it would see that the destination address of
+	 * the packet is the same as the interface, and so the bridge
+	 * would expect the packet has already been delivered locally
+	 * (and just drop it).
+	 */
+	bzero(&xnb->mac[0], sizeof(xnb->mac));
+
 	if (err == 0) {
 		/* Set up ifnet structure */
 		ifp = xnb->xnb_ifp = if_alloc(IFT_ETHER);
@@ -2452,42 +2465,6 @@ xnb_ifinit(void *xsc)
 	xnb_ifinit_locked(xnb);
 	mtx_unlock(&xnb->sc_lock);
 }
-
-
-/**
- * Read the 'mac' node at the given device's node in the store, and parse that
- * as colon-separated octets, placing result the given mac array.  mac must be
- * a preallocated array of length ETHER_ADDR_LEN ETH_ALEN (as declared in
- * net/ethernet.h).
- * Return 0 on success, or errno on error.
- */
-static int
-xen_net_read_mac(device_t dev, uint8_t mac[])
-{
-	char *s, *e, *macstr;
-	const char *path;
-	int error = 0;
-	int i;
-
-	path = xenbus_get_node(dev);
-	error = xs_read(XST_NIL, path, "mac", NULL, (void **) &macstr);
-	if (error != 0) {
-		xenbus_dev_fatal(dev, error, "parsing %s/mac", path);
-	} else {
-	        s = macstr;
-	        for (i = 0; i < ETHER_ADDR_LEN; i++) {
-		        mac[i] = strtoul(s, &e, 16);
-		        if (s == e || (e[0] != ':' && e[0] != 0)) {
-				error = ENOENT;
-				break;
-		        }
-		        s = &e[1];
-	        }
-	        free(macstr, M_XENBUS);
-	}
-	return error;
-}
-
 
 /**
  * Callback used by the generic networking code to tell us when our carrier

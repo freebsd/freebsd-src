@@ -1324,11 +1324,15 @@ pipe_truncate(fp, length, active_cred, td)
 	struct ucred *active_cred;
 	struct thread *td;
 {
+	struct pipe *cpipe;
+	int error;
 
-	/* For named pipes call the vnode operation. */
-	if (fp->f_vnode != NULL)
-		return (vnops.fo_truncate(fp, length, active_cred, td));
-	return (EINVAL);
+	cpipe = fp->f_data;
+	if (cpipe->pipe_state & PIPE_NAMED)
+		error = vnops.fo_truncate(fp, length, active_cred, td);
+	else
+		error = invfo_truncate(fp, length, active_cred, td);
+	return (error);
 }
 
 /*

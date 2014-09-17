@@ -46,3 +46,4 @@ ENTRY(ptrace)
 	SYSTRAP(ptrace)
 	bcs	PIC_SYM(CERROR, PLT)
 	RET
+END(ptrace)

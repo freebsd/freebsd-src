@@ -82,6 +82,7 @@ enum vm_reg_name {
 	VM_REG_GUEST_PDPTE1,
 	VM_REG_GUEST_PDPTE2,
 	VM_REG_GUEST_PDPTE3,
+	VM_REG_GUEST_INTR_SHADOW,
 	VM_REG_LAST
 };
 
@@ -596,25 +597,25 @@ struct vm_exit {
 void vm_inject_fault(void *vm, int vcpuid, int vector, int errcode_valid,
     int errcode);
 
-static void __inline
+static __inline void
 vm_inject_ud(void *vm, int vcpuid)
 {
 	vm_inject_fault(vm, vcpuid, IDT_UD, 0, 0);
 }
 
-static void __inline
+static __inline void
 vm_inject_gp(void *vm, int vcpuid)
 {
 	vm_inject_fault(vm, vcpuid, IDT_GP, 1, 0);
 }
 
-static void __inline
+static __inline void
 vm_inject_ac(void *vm, int vcpuid, int errcode)
 {
 	vm_inject_fault(vm, vcpuid, IDT_AC, 1, errcode);
 }
 
-static void __inline
+static __inline void
 vm_inject_ss(void *vm, int vcpuid, int errcode)
 {
 	vm_inject_fault(vm, vcpuid, IDT_SS, 1, errcode);

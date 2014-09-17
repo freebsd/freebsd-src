@@ -121,10 +121,12 @@ proc_obj2map(struct proc_handle *p, const char *objname)
 			break;
 		}
 	}
-	if (rdl == NULL && strcmp(objname, "a.out") == 0 && p->rdexec != NULL)
-		rdl = p->rdexec;
-	else
-		return (NULL);
+	if (rdl == NULL) {
+		if (strcmp(objname, "a.out") == 0 && p->rdexec != NULL)
+			rdl = p->rdexec;
+		else
+			return (NULL);
+	}
 
 	if ((map = malloc(sizeof(*map))) == NULL)
 		return (NULL);

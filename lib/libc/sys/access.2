@@ -28,7 +28,7 @@
 .\"     @(#)access.2	8.2 (Berkeley) 4/1/94
 .\" $FreeBSD$
 .\"
-.Dd April 10, 2008
+.Dd September 15, 2014
 .Dt ACCESS 2
 .Os
 .Sh NAME
@@ -133,8 +133,16 @@ and
 .Sh RETURN VALUES
 .Rv -std
 .Sh ERRORS
-Access to the file is denied if:
+.Fn access ,
+.Fn eaccess ,
+or
+.Fn faccessat 
+will fail if:
 .Bl -tag -width Er
+.It Bq Er EINVAL
+The value of the
+.Fa mode
+argument is invalid.
 .It Bq Er ENOTDIR
 A component of the path prefix is not a directory.
 .It Bq Er ENAMETOOLONG

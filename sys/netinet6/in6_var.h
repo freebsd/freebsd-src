@@ -498,6 +498,7 @@ struct	in6_rrenumreq {
 					 */
 #define IN6_IFF_AUTOCONF	0x40	/* autoconfigurable address. */
 #define IN6_IFF_TEMPORARY	0x80	/* temporary (anonymous) address. */
+#define	IN6_IFF_PREFER_SOURCE	0x0100	/* preferred address for SAS */
 #define IN6_IFF_NOPFX		0x8000	/* skip kernel prefix management.
 					 * XXX: this should be temporary.
 					 */
@@ -525,7 +526,7 @@ VNET_DECLARE(u_long, in6_ifaddrhmask);
     (&V_in6_ifaddrhashtbl[IN6ADDR_HASHVAL(x) & V_in6_ifaddrhmask])
 
 static __inline uint32_t
-in6_addrhash(struct in6_addr *in6)
+in6_addrhash(const struct in6_addr *in6)
 {
 	uint32_t x;
 
@@ -811,6 +812,7 @@ void	in6_setmaxmtu(void);
 int	in6_if2idlen(struct ifnet *);
 struct in6_ifaddr *in6ifa_ifpforlinklocal(struct ifnet *, int);
 struct in6_ifaddr *in6ifa_ifpwithaddr(struct ifnet *, struct in6_addr *);
+struct in6_ifaddr *in6ifa_ifwithaddr(const struct in6_addr *, uint32_t);
 struct in6_ifaddr *in6ifa_llaonifp(struct ifnet *);
 char	*ip6_sprintf(char *, const struct in6_addr *);
 int	in6_addr2zoneid(struct ifnet *, struct in6_addr *, u_int32_t *);

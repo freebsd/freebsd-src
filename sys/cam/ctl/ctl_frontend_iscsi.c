@@ -67,9 +67,9 @@ __FBSDID("$FreeBSD$");
 #include <cam/ctl/ctl_ioctl.h>
 #include <cam/ctl/ctl_private.h>
 
-#include "../../dev/iscsi/icl.h"
-#include "../../dev/iscsi/iscsi_proto.h"
-#include "ctl_frontend_iscsi.h"
+#include <dev/iscsi/icl.h>
+#include <dev/iscsi/iscsi_proto.h>
+#include <cam/ctl/ctl_frontend_iscsi.h>
 
 #ifdef ICL_KERNEL_PROXY
 #include <sys/socketvar.h>
@@ -993,7 +993,7 @@ cfiscsi_callout(void *context)
 
 #ifdef ICL_KERNEL_PROXY
 	if (cs->cs_waiting_for_ctld || cs->cs_login_phase) {
-		if (cs->cs_timeout > login_timeout) {
+		if (login_timeout > 0 && cs->cs_timeout > login_timeout) {
 			CFISCSI_SESSION_WARN(cs, "login timed out after "
 			    "%d seconds; dropping connection", cs->cs_timeout);
 			cfiscsi_session_terminate(cs);
@@ -1001,6 +1001,19 @@ cfiscsi_callout(void *context)
 		return;
 	}
 #endif
+
+	if (ping_timeout <= 0) {
+		/*
+		 * Pings are disabled.  Don't send NOP-In in this case;
+		 * user might have disabled pings to work around problems
+		 * with certain initiators that can't properly handle
+		 * NOP-In, such as iPXE.  Reset the timeout, to avoid
+		 * triggering reconnection, should the user decide to
+		 * reenable them.
+		 */
+		cs->cs_timeout = 0;
+		return;
+	}
 
 	if (cs->cs_timeout >= ping_timeout) {
 		CFISCSI_SESSION_WARN(cs, "no ping reply (NOP-Out) after %d seconds; "

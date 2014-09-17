@@ -90,6 +90,11 @@ SYSCTL_INT(_vfs_zfs, OID_AUTO, no_scrub_prefetch, CTLFLAG_RWTUN,
     &zfs_no_scrub_prefetch, 0, "Disable scrub prefetching");
 
 enum ddt_class zfs_scrub_ddt_class_max = DDT_CLASS_DUPLICATE;
+/* max number of blocks to free in a single TXG */
+uint64_t zfs_free_max_blocks = UINT64_MAX;
+SYSCTL_UQUAD(_vfs_zfs, OID_AUTO, free_max_blocks, CTLFLAG_RWTUN,
+    &zfs_free_max_blocks, 0, "Maximum number of blocks to free in one TXG");
+
 
 #define	DSL_SCAN_IS_SCRUB_RESILVER(scn) \
 	((scn)->scn_phys.scn_func == POOL_SCAN_SCRUB || \
@@ -1340,6 +1345,9 @@ dsl_scan_free_should_pause(dsl_scan_t *scn)
 
 	if (zfs_recover)
 		return (B_FALSE);
+
+	if (scn->scn_visited_this_txg >= zfs_free_max_blocks)
+		return (B_TRUE);
 
 	elapsed_nanosecs = gethrtime() - scn->scn_sync_start_time;
 	return (elapsed_nanosecs / NANOSEC > zfs_txg_timeout ||

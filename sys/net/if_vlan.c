@@ -51,7 +51,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/malloc.h>
 #include <sys/mbuf.h>
 #include <sys/module.h>
-#include <sys/rwlock.h>
+#include <sys/rmlock.h>
 #include <sys/queue.h>
 #include <sys/socket.h>
 #include <sys/sockio.h>
@@ -84,7 +84,7 @@ LIST_HEAD(ifvlanhead, ifvlan);
 
 struct ifvlantrunk {
 	struct	ifnet   *parent;	/* parent interface of this trunk */
-	struct	rwlock	rw;
+	struct	rmlock	lock;
 #ifdef VLAN_ARRAY
 #define	VLAN_ARRAY_SIZE	(EVL_VLID_MASK + 1)
 	struct	ifvlan	*vlans[VLAN_ARRAY_SIZE]; /* static table */
@@ -104,9 +104,15 @@ struct vlan_mc_entry {
 struct	ifvlan {
 	struct	ifvlantrunk *ifv_trunk;
 	struct	ifnet *ifv_ifp;
-	void	*ifv_cookie;
+	counter_u64_t	ifv_ipackets;
+	counter_u64_t	ifv_ibytes;
+	counter_u64_t	ifv_opackets;
+	counter_u64_t	ifv_obytes;
+	counter_u64_t	ifv_omcasts;
+	counter_u64_t	ifv_oerrors;
 #define	TRUNK(ifv)	((ifv)->ifv_trunk)
 #define	PARENT(ifv)	((ifv)->ifv_trunk->parent)
+	void	*ifv_cookie;
 	int	ifv_pflags;	/* special flags we have set on parent */
 	struct	ifv_linkmib {
 		int	ifvm_encaplen;	/* encapsulation length */
@@ -170,14 +176,15 @@ static struct sx ifv_lock;
 #define	VLAN_LOCK_ASSERT()	sx_assert(&ifv_lock, SA_LOCKED)
 #define	VLAN_LOCK()		sx_xlock(&ifv_lock)
 #define	VLAN_UNLOCK()		sx_xunlock(&ifv_lock)
-#define	TRUNK_LOCK_INIT(trunk)	rw_init(&(trunk)->rw, vlanname)
-#define	TRUNK_LOCK_DESTROY(trunk) rw_destroy(&(trunk)->rw)
-#define	TRUNK_LOCK(trunk)	rw_wlock(&(trunk)->rw)
-#define	TRUNK_UNLOCK(trunk)	rw_wunlock(&(trunk)->rw)
-#define	TRUNK_LOCK_ASSERT(trunk) rw_assert(&(trunk)->rw, RA_WLOCKED)
-#define	TRUNK_RLOCK(trunk)	rw_rlock(&(trunk)->rw)
-#define	TRUNK_RUNLOCK(trunk)	rw_runlock(&(trunk)->rw)
-#define	TRUNK_LOCK_RASSERT(trunk) rw_assert(&(trunk)->rw, RA_RLOCKED)
+#define	TRUNK_LOCK_INIT(trunk)	rm_init(&(trunk)->lock, vlanname)
+#define	TRUNK_LOCK_DESTROY(trunk) rm_destroy(&(trunk)->lock)
+#define	TRUNK_LOCK(trunk)	rm_wlock(&(trunk)->lock)
+#define	TRUNK_UNLOCK(trunk)	rm_wunlock(&(trunk)->lock)
+#define	TRUNK_LOCK_ASSERT(trunk) rm_assert(&(trunk)->lock, RA_WLOCKED)
+#define	TRUNK_RLOCK(trunk)	rm_rlock(&(trunk)->lock, &tracker)
+#define	TRUNK_RUNLOCK(trunk)	rm_runlock(&(trunk)->lock, &tracker)
+#define	TRUNK_LOCK_RASSERT(trunk) rm_assert(&(trunk)->lock, RA_RLOCKED)
+#define	TRUNK_LOCK_READER	struct rm_priotracker tracker
 
 #ifndef VLAN_ARRAY
 static	void vlan_inithash(struct ifvlantrunk *trunk);
@@ -194,6 +201,7 @@ static	void vlan_init(void *foo);
 static	void vlan_input(struct ifnet *ifp, struct mbuf *m);
 static	int vlan_ioctl(struct ifnet *ifp, u_long cmd, caddr_t addr);
 static	void vlan_qflush(struct ifnet *ifp);
+static uint64_t vlan_get_counter(struct ifnet *ifp, ifnet_counter cnt);
 static	int vlan_setflag(struct ifnet *ifp, int flag, int status,
     int (*func)(struct ifnet *, int));
 static	int vlan_setflags(struct ifnet *ifp, int status);
@@ -681,6 +689,7 @@ vlan_devat(struct ifnet *ifp, uint16_t vid)
 {
 	struct ifvlantrunk *trunk;
 	struct ifvlan *ifv;
+	TRUNK_LOCK_READER;
 
 	trunk = ifp->if_vlantrunk;
 	if (trunk == NULL)
@@ -945,6 +954,13 @@ vlan_clone_create(struct if_clone *ifc, char *name, size_t len, caddr_t params)
 		return (ENOSPC);
 	}
 	SLIST_INIT(&ifv->vlan_mc_listhead);
+	/* Prepare pcpu counters */
+	ifv->ifv_ipackets = counter_u64_alloc(M_WAITOK);
+	ifv->ifv_opackets = counter_u64_alloc(M_WAITOK);
+	ifv->ifv_ibytes = counter_u64_alloc(M_WAITOK);
+	ifv->ifv_obytes = counter_u64_alloc(M_WAITOK);
+	ifv->ifv_omcasts = counter_u64_alloc(M_WAITOK);
+	ifv->ifv_oerrors = counter_u64_alloc(M_WAITOK);
 
 	ifp->if_softc = ifv;
 	/*
@@ -964,6 +980,7 @@ vlan_clone_create(struct if_clone *ifc, char *name, size_t len, caddr_t params)
 	ifp->if_qflush = vlan_qflush;
 	ifp->if_ioctl = vlan_ioctl;
 	ifp->if_flags = VLAN_IFFLAGS;
+	ifp->if_get_counter = vlan_get_counter;
 	ether_ifattach(ifp, eaddr);
 	/* Now undo some of the damage... */
 	ifp->if_baudrate = 0;
@@ -1006,6 +1023,12 @@ vlan_clone_destroy(struct if_clone *ifc, struct ifnet *ifp)
 	ether_ifdetach(ifp);	/* first, remove it from system-wide lists */
 	vlan_unconfig(ifp);	/* now it can be unconfigured and freed */
 	if_free(ifp);
+	counter_u64_free(ifv->ifv_ipackets);
+	counter_u64_free(ifv->ifv_opackets);
+	counter_u64_free(ifv->ifv_ibytes);
+	counter_u64_free(ifv->ifv_obytes);
+	counter_u64_free(ifv->ifv_omcasts);
+	counter_u64_free(ifv->ifv_oerrors);
 	free(ifv, M_VLAN);
 	ifc_free_unit(ifc, unit);
 
@@ -1043,7 +1066,7 @@ vlan_transmit(struct ifnet *ifp, struct mbuf *m)
 	 */
 	if (!UP_AND_RUNNING(p)) {
 		m_freem(m);
-		ifp->if_oerrors++;
+		counter_u64_add(ifv->ifv_oerrors, 1);
 		return (ENETDOWN);
 	}
 
@@ -1070,7 +1093,7 @@ vlan_transmit(struct ifnet *ifp, struct mbuf *m)
 
 		if (n > 0) {
 			if_printf(ifp, "cannot pad short frame\n");
-			ifp->if_oerrors++;
+			counter_u64_add(ifv->ifv_oerrors, 1);
 			m_freem(m);
 			return (0);
 		}
@@ -1090,7 +1113,7 @@ vlan_transmit(struct ifnet *ifp, struct mbuf *m)
 		m = ether_vlanencap(m, ifv->ifv_vid);
 		if (m == NULL) {
 			if_printf(ifp, "unable to prepend VLAN header\n");
-			ifp->if_oerrors++;
+			counter_u64_add(ifv->ifv_oerrors, 1);
 			return (0);
 		}
 	}
@@ -1099,13 +1122,39 @@ vlan_transmit(struct ifnet *ifp, struct mbuf *m)
 	 * Send it, precisely as ether_output() would have.
 	 */
 	error = (p->if_transmit)(p, m);
-	if (!error) {
-		ifp->if_opackets++;
-		ifp->if_omcasts += mcast;
-		ifp->if_obytes += len;
+	if (error == 0) {
+		counter_u64_add(ifv->ifv_opackets, 1);
+		counter_u64_add(ifv->ifv_obytes, len);
+		counter_u64_add(ifv->ifv_omcasts, mcast);
 	} else
-		ifp->if_oerrors++;
+		counter_u64_add(ifv->ifv_oerrors, 1);
 	return (error);
+}
+
+static uint64_t
+vlan_get_counter(struct ifnet *ifp, ifnet_counter cnt)
+{
+	struct ifvlan *ifv;
+
+	ifv = ifp->if_softc;
+
+	switch (cnt) {
+		case IFCOUNTER_IPACKETS:
+			return (counter_u64_fetch(ifv->ifv_ipackets));
+		case IFCOUNTER_OPACKETS:
+			return (counter_u64_fetch(ifv->ifv_opackets));
+		case IFCOUNTER_IBYTES:
+			return (counter_u64_fetch(ifv->ifv_ibytes));
+		case IFCOUNTER_OBYTES:
+			return (counter_u64_fetch(ifv->ifv_obytes));
+		case IFCOUNTER_OMCASTS:
+			return (counter_u64_fetch(ifv->ifv_omcasts));
+		case IFCOUNTER_OERRORS:
+			return (counter_u64_fetch(ifv->ifv_oerrors));
+		default:
+			return (if_get_counter_compat(ifp, cnt));
+	}
+	/* NOTREACHED */
 }
 
 /*
@@ -1121,6 +1170,7 @@ vlan_input(struct ifnet *ifp, struct mbuf *m)
 {
 	struct ifvlantrunk *trunk = ifp->if_vlantrunk;
 	struct ifvlan *ifv;
+	TRUNK_LOCK_READER;
 	uint16_t vid;
 
 	KASSERT(trunk != NULL, ("%s: no trunk", __func__));
@@ -1181,7 +1231,8 @@ vlan_input(struct ifnet *ifp, struct mbuf *m)
 	TRUNK_RUNLOCK(trunk);
 
 	m->m_pkthdr.rcvif = ifv->ifv_ifp;
-	ifv->ifv_ifp->if_ipackets++;
+	counter_u64_add(ifv->ifv_ipackets, 1);
+	counter_u64_add(ifv->ifv_ibytes, m->m_pkthdr.len);
 
 	/* Pass it back through the parent's input routine. */
 	(*ifp->if_input)(ifv->ifv_ifp, m);
@@ -1501,7 +1552,7 @@ vlan_capabilities(struct ifvlan *ifv)
 	    p->if_capenable & IFCAP_VLAN_HWTAGGING) {
 		ifp->if_capenable = p->if_capenable & IFCAP_HWCSUM;
 		ifp->if_hwassist = p->if_hwassist & (CSUM_IP | CSUM_TCP |
-		    CSUM_UDP | CSUM_SCTP | CSUM_FRAGMENT);
+		    CSUM_UDP | CSUM_SCTP);
 	} else {
 		ifp->if_capenable = 0;
 		ifp->if_hwassist = 0;

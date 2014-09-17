@@ -362,7 +362,7 @@ pause_sbt(const char *wmesg, sbintime_t sbt, sbintime_t pr, int flags)
 	if (sbt == 0)
 		sbt = tick_sbt;
 
-	if (cold) {
+	if (cold || kdb_active) {
 		/*
 		 * We delay one second at a time to avoid overflowing the
 		 * system specific DELAY() function(s):

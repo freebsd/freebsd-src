@@ -1055,8 +1055,7 @@ disable_intr_window_exiting(struct svm_softc *sc, int vcpu)
 }
 
 static int
-svm_modify_intr_shadow(struct svm_softc *sc, int vcpu, int running,
-    uint64_t val)
+svm_modify_intr_shadow(struct svm_softc *sc, int vcpu, uint64_t val)
 {
 	struct vmcb_ctrl *ctrl;
 	int oldval, newval;
@@ -1068,6 +1067,16 @@ svm_modify_intr_shadow(struct svm_softc *sc, int vcpu, int running,
 		ctrl->intr_shadow = newval;
 		VCPU_CTR1(sc->vm, vcpu, "Setting intr_shadow to %d", newval);
 	}
+	return (0);
+}
+
+static int
+svm_get_intr_shadow(struct svm_softc *sc, int vcpu, uint64_t *val)
+{
+	struct vmcb_ctrl *ctrl;
+
+	ctrl = svm_get_vmcb_ctrl(sc, vcpu);
+	*val = ctrl->intr_shadow;
 	return (0);
 }
 
@@ -1096,7 +1105,7 @@ enable_nmi_blocking(struct svm_softc *sc, int vcpu)
 }
 
 static void
-clear_nmi_blocking(struct svm_softc *sc, int vcpu, int running)
+clear_nmi_blocking(struct svm_softc *sc, int vcpu)
 {
 	int error;
 
@@ -1119,7 +1128,7 @@ clear_nmi_blocking(struct svm_softc *sc, int vcpu, int running)
 	 * Set 'intr_shadow' to prevent an NMI from being injected on the
 	 * immediate VMRUN.
 	 */
-	error = svm_modify_intr_shadow(sc, vcpu, running, 1);
+	error = svm_modify_intr_shadow(sc, vcpu, 1);
 	KASSERT(!error, ("%s: error %d setting intr_shadow", __func__, error));
 }
 
@@ -1256,7 +1265,7 @@ svm_vmexit(struct svm_softc *svm_sc, int vcpu, struct vm_exit *vmexit)
 		 * Restart execution at "iret" but with the intercept cleared.
 		 */
 		vmexit->inst_length = 0;
-		clear_nmi_blocking(svm_sc, vcpu, 1);
+		clear_nmi_blocking(svm_sc, vcpu);
 		handled = 1;
 		break;
 	case VMCB_EXIT_VINTR:	/* interrupt window exiting */
@@ -1967,9 +1976,13 @@ svm_getreg(void *arg, int vcpu, int ident, uint64_t *val)
 	struct svm_softc *svm_sc;
 	struct vmcb *vmcb;
 	register_t *reg;
-	
+
 	svm_sc = arg;
 	vmcb = svm_get_vmcb(svm_sc, vcpu);
+
+	if (ident == VM_REG_GUEST_INTR_SHADOW) {
+		return (svm_get_intr_shadow(svm_sc, vcpu, val));
+	}
 
 	if (vmcb_read(vmcb, ident, val) == 0) {
 		return (0);
@@ -1999,6 +2012,11 @@ svm_setreg(void *arg, int vcpu, int ident, uint64_t val)
 
 	svm_sc = arg;
 	vmcb = svm_get_vmcb(svm_sc, vcpu);
+
+	if (ident == VM_REG_GUEST_INTR_SHADOW) {
+		return (svm_modify_intr_shadow(svm_sc, vcpu, val));
+	}
+
 	if (vmcb_write(vmcb, ident, val) == 0) {
 		return (0);
 	}

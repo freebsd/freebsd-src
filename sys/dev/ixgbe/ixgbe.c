@@ -317,7 +317,7 @@ SYSCTL_INT(_hw_ix, OID_AUTO, rxd, CTLFLAG_RDTUN, &ixgbe_rxd, 0,
 ** doing so you are on your own :)
 */
 static int allow_unsupported_sfp = FALSE;
-TUNABLE_INT("hw.ixgbe.unsupported_sfp", &allow_unsupported_sfp);
+TUNABLE_INT("hw.ix.unsupported_sfp", &allow_unsupported_sfp);
 
 /*
 ** HW RSC control: 
@@ -514,7 +514,7 @@ ixgbe_attach(device_t dev)
 	}
 
 	if (((ixgbe_rxd * sizeof(union ixgbe_adv_rx_desc)) % DBA_ALIGN) != 0 ||
-	    ixgbe_rxd < MIN_TXD || ixgbe_rxd > MAX_TXD) {
+	    ixgbe_rxd < MIN_RXD || ixgbe_rxd > MAX_RXD) {
 		device_printf(dev, "RXD config issue, using default!\n");
 		adapter->num_rx_desc = DEFAULT_RXD;
 	} else
@@ -1068,17 +1068,24 @@ ixgbe_ioctl(struct ifnet * ifp, u_long command, caddr_t data)
 	}
 	case SIOCGI2C:
 	{
-		struct ixgbe_i2c_req	i2c;
+		struct ifi2creq i2c;
+		int i;
 		IOCTL_DEBUGOUT("ioctl: SIOCGI2C (Get I2C Data)");
 		error = copyin(ifr->ifr_data, &i2c, sizeof(i2c));
-		if (error)
+		if (error != 0)
 			break;
-		if ((i2c.dev_addr != 0xA0) || (i2c.dev_addr != 0xA2)){
+		if (i2c.dev_addr != 0xA0 && i2c.dev_addr != 0xA2) {
 			error = EINVAL;
 			break;
 		}
-		hw->phy.ops.read_i2c_byte(hw, i2c.offset,
-		    i2c.dev_addr, i2c.data);
+		if (i2c.len > sizeof(i2c.data)) {
+			error = EINVAL;
+			break;
+		}
+
+		for (i = 0; i < i2c.len; i++)
+			hw->phy.ops.read_i2c_byte(hw, i2c.offset + i,
+			    i2c.dev_addr, &i2c.data[i]);
 		error = copyout(&i2c, ifr->ifr_data, sizeof(i2c));
 		break;
 	}
@@ -2732,7 +2739,7 @@ ixgbe_setup_interface(device_t dev, struct adapter *adapter)
 	/*
 	 * Tell the upper layer(s) we support long frames.
 	 */
-	ifp->if_data.ifi_hdrlen = sizeof(struct ether_vlan_header);
+	ifp->if_hdrlen = sizeof(struct ether_vlan_header);
 
 	ifp->if_capabilities |= IFCAP_HWCSUM | IFCAP_TSO | IFCAP_VLAN_HWCSUM;
 	ifp->if_capabilities |= IFCAP_JUMBO_MTU;
@@ -3155,7 +3162,7 @@ ixgbe_setup_transmit_ring(struct tx_ring *txr)
 		 */
 		if (slot) {
 			int si = netmap_idx_n2k(&na->tx_rings[txr->me], i);
-			netmap_load_map(txr->txtag, txbuf->map, NMB(slot + si));
+			netmap_load_map(na, txr->txtag, txbuf->map, NMB(na, slot + si));
 		}
 #endif /* DEV_NETMAP */
 		/* Clear the EOP descriptor pointer */
@@ -4098,8 +4105,8 @@ ixgbe_setup_receive_ring(struct rx_ring *rxr)
 			uint64_t paddr;
 			void *addr;
 
-			addr = PNMB(slot + sj, &paddr);
-			netmap_load_map(rxr->ptag, rxbuf->pmap, addr);
+			addr = PNMB(na, slot + sj, &paddr);
+			netmap_load_map(na, rxr->ptag, rxbuf->pmap, addr);
 			/* Update descriptor and the cached value */
 			rxr->rx_base[j].read.pkt_addr = htole64(paddr);
 			rxbuf->addr = htole64(paddr);
@@ -4135,7 +4142,6 @@ ixgbe_setup_receive_ring(struct rx_ring *rxr)
 	rxr->lro_enabled = FALSE;
 	rxr->rx_copies = 0;
 	rxr->rx_bytes = 0;
-	rxr->discard = FALSE;
 	rxr->vtag_strip = FALSE;
 
 	bus_dmamap_sync(rxr->rxdma.dma_tag, rxr->rxdma.dma_map,
@@ -4516,11 +4522,6 @@ ixgbe_rx_discard(struct rx_ring *rxr, int i)
 
 	rbuf = &rxr->rx_buffers[i];
 
-        if (rbuf->fmp != NULL) {/* Partial chain ? */
-		rbuf->fmp->m_flags |= M_PKTHDR;
-                m_freem(rbuf->fmp);
-                rbuf->fmp = NULL;
-	}
 
 	/*
 	** With advanced descriptors the writeback
@@ -4529,7 +4530,13 @@ ixgbe_rx_discard(struct rx_ring *rxr, int i)
 	** the normal refresh path to get new buffers
 	** and mapping.
 	*/
-	if (rbuf->buf) {
+
+	if (rbuf->fmp != NULL) {/* Partial chain ? */
+		rbuf->fmp->m_flags |= M_PKTHDR;
+		m_freem(rbuf->fmp);
+		rbuf->fmp = NULL;
+		rbuf->buf = NULL; /* rbuf->buf is part of fmp's chain */
+	} else if (rbuf->buf) {
 		m_free(rbuf->buf);
 		rbuf->buf = NULL;
 	}
@@ -4610,13 +4617,8 @@ ixgbe_rxeof(struct ix_queue *que)
 		eop = ((staterr & IXGBE_RXD_STAT_EOP) != 0);
 
 		/* Make sure bad packets are discarded */
-		if (((staterr & IXGBE_RXDADV_ERR_FRAME_ERR_MASK) != 0) ||
-		    (rxr->discard)) {
+		if (eop && (staterr & IXGBE_RXDADV_ERR_FRAME_ERR_MASK) != 0) {
 			rxr->rx_discarded++;
-			if (eop)
-				rxr->discard = FALSE;
-			else
-				rxr->discard = TRUE;
 			ixgbe_rx_discard(rxr, i);
 			goto next_desc;
 		}

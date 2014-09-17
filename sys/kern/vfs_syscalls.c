@@ -2055,6 +2055,9 @@ kern_accessat(struct thread *td, int fd, char *path, enum uio_seg pathseg,
 	cap_rights_t rights;
 	int error;
 
+	if (amode != F_OK && (amode & ~(R_OK | W_OK | X_OK)) != 0)
+		return (EINVAL);
+
 	/*
 	 * Create and modify a temporary credential instead of one that
 	 * is potentially shared.

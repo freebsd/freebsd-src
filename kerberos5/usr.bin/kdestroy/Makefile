@@ -8,8 +8,6 @@ LDADD=	-lkafs5 -lkrb5 -lheimntlm -lroken ${LIBVERS} \
 	-lasn1 -lcrypto -lcrypt
 MAN=	kdestroy.1
 
-NO_PIE=	yes
-
 .include <bsd.prog.mk>
 
 .PATH: ${KRB5DIR}/kuser

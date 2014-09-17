@@ -79,20 +79,22 @@ struct cuse_dev {
 	void   *priv1;
 };
 
-static TAILQ_HEAD(, cuse_dev) h_cuse;
-static TAILQ_HEAD(, cuse_dev_entered) h_cuse_entered;
 static int f_cuse = -1;
+
 static pthread_mutex_t m_cuse;
-static struct cuse_vm_allocation a_cuse[CUSE_ALLOC_UNIT_MAX];
+static TAILQ_HEAD(, cuse_dev) h_cuse __guarded_by(m_cuse);
+static TAILQ_HEAD(, cuse_dev_entered) h_cuse_entered __guarded_by(m_cuse);
+static struct cuse_vm_allocation a_cuse[CUSE_ALLOC_UNIT_MAX]
+    __guarded_by(m_cuse);
 
 static void
-cuse_lock(void)
+cuse_lock(void) __locks_exclusive(m_cuse)
 {
 	pthread_mutex_lock(&m_cuse);
 }
 
 static void
-cuse_unlock(void)
+cuse_unlock(void) __unlocks(m_cuse)
 {
 	pthread_mutex_unlock(&m_cuse);
 }

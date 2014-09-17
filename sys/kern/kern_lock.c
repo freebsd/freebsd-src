@@ -418,6 +418,14 @@ lockallowshare(struct lock *lk)
 }
 
 void
+lockdisableshare(struct lock *lk)
+{
+
+	lockmgr_assert(lk, KA_XLOCKED);
+	lk->lock_object.lo_flags |= LK_NOSHARE;
+}
+
+void
 lockallowrecurse(struct lock *lk)
 {
 
