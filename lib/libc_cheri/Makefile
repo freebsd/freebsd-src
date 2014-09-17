@@ -193,12 +193,15 @@ SRCS+=	adddf3.c			\
 	divdf3.c			\
 	divsf3.c			\
 	extendsfdf2.c			\
-	fixdfsi.c			\
 	fixdfdi.c			\
+	fixdfsi.c			\
+	fixsfdi.c			\
+	fixsfsi.c			\
 	fixunsdfsi.c			\
 	floatdidf.c			\
 	floatdisf.c			\
 	floatsidf.c			\
+	floatsisf.c			\
 	floatundidf.c			\
 	floatundisf.c			\
 	floatunsidf.c			\
