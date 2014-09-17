@@ -3052,7 +3052,7 @@ xpt_polled_action(union ccb *start_ccb)
 }
 
 /*
- * Schedule a peripheral driver to receive a ccb when it's
+ * Schedule a peripheral driver to receive a ccb when its
  * target device has space for more transactions.
  */
 void
