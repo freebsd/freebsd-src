@@ -254,8 +254,7 @@ sys_mmap(td, uap)
 		return (EINVAL);
 	if ((flags & (MAP_EXCL | MAP_FIXED)) == MAP_EXCL)
 		return (EINVAL);
-	if ((flags & (MAP_ANON | MAP_SHARED | MAP_PRIVATE)) == 0 ||
-	    (flags & (MAP_SHARED | MAP_PRIVATE)) == (MAP_SHARED | MAP_PRIVATE))
+	if ((flags & (MAP_SHARED | MAP_PRIVATE)) == (MAP_SHARED | MAP_PRIVATE))
 		return (EINVAL);
 	if (prot != PROT_NONE &&
 	    (prot & ~(PROT_READ | PROT_WRITE | PROT_EXEC)) != 0)
@@ -356,6 +355,11 @@ sys_mmap(td, uap)
 		error = fget_mmap(td, uap->fd, &rights, &cap_maxprot, &fp);
 		if (error != 0)
 			goto done;
+		if ((flags & (MAP_SHARED | MAP_PRIVATE)) == 0 &&
+		    td->td_proc->p_osrel >= P_OSREL_MAP_FSTRICT) {
+			error = EINVAL;
+			goto done;
+		}
 		if (fp->f_type == DTYPE_SHM) {
 			handle = fp->f_data;
 			handle_type = OBJT_SWAP;
