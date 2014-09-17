@@ -167,7 +167,7 @@ print_bitfield(dt_printarg_t *pap, ulong_t off, ctf_encoding_t *ep)
 	 * to the lowest 'size' bytes in 'value', and we need to shift based on
 	 * the offset from the end of the data, not the offset of the start.
 	 */
-#ifdef _BIG_ENDIAN
+#if BYTE_ORDER == _BIG_ENDIAN
 	buf += sizeof (value) - size;
 	off += ep->cte_bits;
 #endif
@@ -178,7 +178,7 @@ print_bitfield(dt_printarg_t *pap, ulong_t off, ctf_encoding_t *ep)
 	 * Offsets are counted from opposite ends on little- and
 	 * big-endian machines.
 	 */
-#ifdef _BIG_ENDIAN
+#if BYTE_ORDER == _BIG_ENDIAN
 	shift = NBBY - shift;
 #endif
 
