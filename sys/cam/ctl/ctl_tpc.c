@@ -1811,6 +1811,7 @@ tpc_create_token(struct ctl_lun *lun, struct ctl_port *port, off_t len,
 {
 	static int id = 0;
 	struct scsi_vpd_id_descriptor *idd = NULL;
+	struct scsi_ec_cscd_id *cscd;
 	int targid_len;
 
 	scsi_ulto4b(ROD_TYPE_AUR, token->type);
@@ -1824,8 +1825,12 @@ tpc_create_token(struct ctl_lun *lun, struct ctl_port *port, off_t len,
 		idd = scsi_get_devid_desc((struct scsi_vpd_id_descriptor *)
 		    lun->lun_devid->data, lun->lun_devid->len,
 		    scsi_devid_is_lun_eui64);
-	if (idd != NULL)
-		memcpy(&token->body[8], idd, 4 + idd->length);
+	if (idd != NULL) {
+		cscd = (struct scsi_ec_cscd_id *)&token->body[8];
+		cscd->type_code = EC_CSCD_ID;
+		cscd->luidt_pdt = T_DIRECT;
+		memcpy(&cscd->codeset, idd, 4 + idd->length);
+	}
 	scsi_u64to8b(0, &token->body[40]);
 	scsi_u64to8b(len, &token->body[48]);
 	if (port->target_devid) {
