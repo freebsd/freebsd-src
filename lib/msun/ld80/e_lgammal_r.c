@@ -261,7 +261,11 @@ lgammal_r(long double x, int *signgamp)
 	*signgamp = 1;
 	if((hx & 0x7fff) == 0x7fff)	/* x is +-Inf or NaN */
 		return x*x;
-	if((hx==0||hx==0x8000)&&lx==0) return one/vzero;
+	if((hx==0||hx==0x8000)&&lx==0) {
+	    if (hx&0x8000)
+		*signgamp = -1;
+	    return one/vzero;
+	}
 
 	ENTERI();
 
