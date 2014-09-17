@@ -785,7 +785,8 @@ login_negotiate(struct connection *conn, struct pdu *request)
 	struct pdu *response;
 	struct iscsi_bhs_login_response *bhslr2;
 	struct keys *request_keys, *response_keys;
-	int i;
+	char *portal_group_tag;
+	int i, rv;
 	bool skipped_security;
 
 	if (request == NULL) {
@@ -806,6 +807,21 @@ login_negotiate(struct connection *conn, struct pdu *request)
 	login_set_csg(response, BHSLR_STAGE_OPERATIONAL_NEGOTIATION);
 	login_set_nsg(response, BHSLR_STAGE_FULL_FEATURE_PHASE);
 	response_keys = keys_new();
+
+	if (skipped_security &&
+	    conn->conn_session_type == CONN_SESSION_TYPE_NORMAL) {
+		if (conn->conn_target->t_alias != NULL)
+			keys_add(response_keys,
+			    "TargetAlias", conn->conn_target->t_alias);
+		rv = asprintf(&portal_group_tag, "%d",
+		    conn->conn_portal->p_portal_group->pg_tag);
+		if (rv <= 0)
+			log_err(1, "asprintf");
+		keys_add(response_keys,
+		    "TargetPortalGroupTag", portal_group_tag);
+		free(portal_group_tag);
+	}
+
 	for (i = 0; i < KEYS_MAX; i++) {
 		if (request_keys->keys_names[i] == NULL)
 			break;
@@ -1069,6 +1085,9 @@ login(struct connection *conn)
 	response_keys = keys_new();
 	keys_add(response_keys, "AuthMethod", "CHAP");
 	if (conn->conn_session_type == CONN_SESSION_TYPE_NORMAL) {
+		if (conn->conn_target->t_alias != NULL)
+			keys_add(response_keys,
+			    "TargetAlias", conn->conn_target->t_alias);
 		rv = asprintf(&portal_group_tag, "%d",
 		    conn->conn_portal->p_portal_group->pg_tag);
 		if (rv <= 0)
@@ -1076,9 +1095,6 @@ login(struct connection *conn)
 		keys_add(response_keys,
 		    "TargetPortalGroupTag", portal_group_tag);
 		free(portal_group_tag);
-		if (conn->conn_target->t_alias != NULL)
-			keys_add(response_keys,
-			    "TargetAlias", conn->conn_target->t_alias);
 	}
 	keys_save(response_keys, response);
 
