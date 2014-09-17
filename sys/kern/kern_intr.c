@@ -249,7 +249,7 @@ intr_event_update(struct intr_event *ie)
 int
 intr_event_create(struct intr_event **event, void *source, int flags, int irq,
     void (*pre_ithread)(void *), void (*post_ithread)(void *),
-    void (*post_filter)(void *), int (*assign_cpu)(void *, u_char),
+    void (*post_filter)(void *), int (*assign_cpu)(void *, int),
     const char *fmt, ...)
 {
 	struct intr_event *ie;
@@ -292,7 +292,7 @@ intr_event_create(struct intr_event **event, void *source, int flags, int irq,
  * the interrupt event.
  */
 int
-intr_event_bind(struct intr_event *ie, u_char cpu)
+intr_event_bind(struct intr_event *ie, int cpu)
 {
 	lwpid_t id;
 	int error;
@@ -1078,7 +1078,7 @@ intr_event_schedule_thread(struct intr_event *ie, struct intr_thread *it)
  * a PIC.
  */
 static int
-swi_assign_cpu(void *arg, u_char cpu)
+swi_assign_cpu(void *arg, int cpu)
 {
 
 	return (0);
