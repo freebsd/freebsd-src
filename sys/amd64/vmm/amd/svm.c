@@ -1055,25 +1055,73 @@ disable_intr_window_exiting(struct svm_softc *sc, int vcpu)
 }
 
 static int
+svm_modify_intr_shadow(struct svm_softc *sc, int vcpu, int running,
+    uint64_t val)
+{
+	struct vmcb_ctrl *ctrl;
+	int oldval, newval;
+
+	ctrl = svm_get_vmcb_ctrl(sc, vcpu);
+	oldval = ctrl->intr_shadow;
+	newval = val ? 1 : 0;
+	if (newval != oldval) {
+		ctrl->intr_shadow = newval;
+		VCPU_CTR1(sc->vm, vcpu, "Setting intr_shadow to %d", newval);
+	}
+	return (0);
+}
+
+/*
+ * Once an NMI is injected it blocks delivery of further NMIs until the handler
+ * executes an IRET. The IRET intercept is enabled when an NMI is injected to
+ * to track when the vcpu is done handling the NMI.
+ */
+static int
 nmi_blocked(struct svm_softc *sc, int vcpu)
 {
-	/* XXX need to track NMI blocking */
-	return (0);
+	int blocked;
+
+	blocked = svm_get_intercept(sc, vcpu, VMCB_CTRL1_INTCPT,
+	    VMCB_INTCPT_IRET);
+	return (blocked);
 }
 
 static void
 enable_nmi_blocking(struct svm_softc *sc, int vcpu)
 {
-	/* XXX enable iret intercept */
+
+	KASSERT(!nmi_blocked(sc, vcpu), ("vNMI already blocked"));
+	VCPU_CTR0(sc->vm, vcpu, "vNMI blocking enabled");
+	svm_enable_intercept(sc, vcpu, VMCB_CTRL1_INTCPT, VMCB_INTCPT_IRET);
 }
 
-#ifdef notyet
 static void
-clear_nmi_blocking(struct svm_softc *sc, int vcpu)
+clear_nmi_blocking(struct svm_softc *sc, int vcpu, int running)
 {
-	/* XXX disable iret intercept */
+	int error;
+
+	KASSERT(nmi_blocked(sc, vcpu), ("vNMI already unblocked"));
+	VCPU_CTR0(sc->vm, vcpu, "vNMI blocking cleared");
+	/*
+	 * When the IRET intercept is cleared the vcpu will attempt to execute
+	 * the "iret" when it runs next. However, it is possible to inject
+	 * another NMI into the vcpu before the "iret" has actually executed.
+	 *
+	 * For e.g. if the "iret" encounters a #NPF when accessing the stack
+	 * it will trap back into the hypervisor. If an NMI is pending for
+	 * the vcpu it will be injected into the guest.
+	 *
+	 * XXX this needs to be fixed
+	 */
+	svm_disable_intercept(sc, vcpu, VMCB_CTRL1_INTCPT, VMCB_INTCPT_IRET);
+
+	/*
+	 * Set 'intr_shadow' to prevent an NMI from being injected on the
+	 * immediate VMRUN.
+	 */
+	error = svm_modify_intr_shadow(sc, vcpu, running, 1);
+	KASSERT(!error, ("%s: error %d setting intr_shadow", __func__, error));
 }
-#endif
 
 #ifdef KTR
 static const char *
@@ -1106,6 +1154,8 @@ exit_reason_to_str(uint64_t reason)
 		return ("vintr");
 	case VMCB_EXIT_MSR:
 		return ("msr");
+	case VMCB_EXIT_IRET:
+		return ("iret");
 	default:
 		snprintf(reasonbuf, sizeof(reasonbuf), "%#lx", reason);
 		return (reasonbuf);
@@ -1201,6 +1251,14 @@ svm_vmexit(struct svm_softc *svm_sc, int vcpu, struct vm_exit *vmexit)
 	svm_save_intinfo(svm_sc, vcpu);
 
 	switch (code) {
+	case VMCB_EXIT_IRET:
+		/*
+		 * Restart execution at "iret" but with the intercept cleared.
+		 */
+		vmexit->inst_length = 0;
+		clear_nmi_blocking(svm_sc, vcpu, 1);
+		handled = 1;
+		break;
 	case VMCB_EXIT_VINTR:	/* interrupt window exiting */
 		vmm_stat_incr(svm_sc->vm, vcpu, VMEXIT_VINTR, 1);
 		handled = 1;
@@ -1398,6 +1456,14 @@ svm_inj_interrupts(struct svm_softc *sc, int vcpu, struct vlapic *vlapic)
 			 */
 			VCPU_CTR0(sc->vm, vcpu, "Cannot inject NMI due "
 			    "to NMI-blocking");
+		} else if (ctrl->intr_shadow) {
+			/*
+			 * Can't inject an NMI if the vcpu is in an intr_shadow.
+			 */
+			VCPU_CTR0(sc->vm, vcpu, "Cannot inject NMI due to "
+			    "interrupt shadow");
+			need_intr_window = 1;
+			goto done;
 		} else if (ctrl->eventinj & VMCB_EVENTINJ_VALID) {
 			/*
 			 * If there is already an exception/interrupt pending
