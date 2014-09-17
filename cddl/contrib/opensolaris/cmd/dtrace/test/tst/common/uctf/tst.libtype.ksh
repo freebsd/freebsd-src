@@ -38,7 +38,8 @@ fi
 ./$exe &
 pid=$!
 
-rc=`$dtrace -n "BEGIN{ trace((pid$pid\`$t)0); exit(0); }"`
+$dtrace -n "BEGIN{ trace((pid$pid\`$t)0); exit(0); }"
+rc=$?
 
 kill -9 $pid
 
