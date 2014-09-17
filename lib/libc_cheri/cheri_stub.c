@@ -29,11 +29,25 @@
  */
 
 #include <stdlib.h>
+#include <setjmp.h>
 
 int __isthreaded = 0;
 
 void
 exit(int status __unused)
+{
+
+	abort();
+}
+
+int
+setjmp(jmp_buf env __unused) {
+
+	return (0);
+}
+
+void
+longjmp(jmp_buf env __unused, int val __unused)
 {
 
 	abort();
