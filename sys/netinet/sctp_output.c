@@ -1881,7 +1881,7 @@ sctp_is_address_in_scope(struct sctp_ifa *ifa,
 		if (scope->ipv4_addr_legal) {
 			struct sockaddr_in *sin;
 
-			sin = (struct sockaddr_in *)&ifa->address.sin;
+			sin = &ifa->address.sin;
 			if (sin->sin_addr.s_addr == 0) {
 				/* not in scope , unspecified */
 				return (0);
@@ -1912,7 +1912,7 @@ sctp_is_address_in_scope(struct sctp_ifa *ifa,
 				return (0);
 			}
 			/* ok to use deprecated addresses? */
-			sin6 = (struct sockaddr_in6 *)&ifa->address.sin6;
+			sin6 = &ifa->address.sin6;
 			if (IN6_IS_ADDR_UNSPECIFIED(&sin6->sin6_addr)) {
 				/* skip unspecifed addresses */
 				return (0);
@@ -1987,7 +1987,7 @@ sctp_add_addr_to_mbuf(struct mbuf *m, struct sctp_ifa *ifa, uint16_t * len)
 			struct sctp_ipv4addr_param *ipv4p;
 			struct sockaddr_in *sin;
 
-			sin = (struct sockaddr_in *)&ifa->address.sin;
+			sin = &ifa->address.sin;
 			ipv4p = (struct sctp_ipv4addr_param *)parmh;
 			parmh->param_type = htons(SCTP_IPV4_ADDRESS);
 			parmh->param_length = htons(plen);
@@ -2002,7 +2002,7 @@ sctp_add_addr_to_mbuf(struct mbuf *m, struct sctp_ifa *ifa, uint16_t * len)
 			struct sctp_ipv6addr_param *ipv6p;
 			struct sockaddr_in6 *sin6;
 
-			sin6 = (struct sockaddr_in6 *)&ifa->address.sin6;
+			sin6 = &ifa->address.sin6;
 			ipv6p = (struct sctp_ipv6addr_param *)parmh;
 			parmh->param_type = htons(SCTP_IPV6_ADDRESS);
 			parmh->param_length = htons(plen);
@@ -5921,8 +5921,8 @@ do_a_abort:
 		parameter_len = (uint16_t) sizeof(struct sctp_paramhdr);
 		ph = (struct sctp_paramhdr *)(mtod(m, caddr_t)+chunk_len);
 		ph->param_type = htons(SCTP_HAS_NAT_SUPPORT);
-		ph->param_length = htons(sizeof(struct sctp_paramhdr));
-		chunk_len += sizeof(struct sctp_paramhdr);
+		ph->param_length = htons(parameter_len);
+		chunk_len += parameter_len;
 	}
 	/* And now tell the peer which extensions we support */
 	num_ext = 0;
@@ -11301,7 +11301,7 @@ sctp_send_hb(struct sctp_tcb *stcb, struct sctp_nets *net, int so_locked
 	hb->heartbeat.hb_info.time_value_1 = now.tv_sec;
 	hb->heartbeat.hb_info.time_value_2 = now.tv_usec;
 	/* Did our user request this one, put it in */
-	hb->heartbeat.hb_info.addr_family = net->ro._l_addr.sa.sa_family;
+	hb->heartbeat.hb_info.addr_family = (uint8_t) net->ro._l_addr.sa.sa_family;
 	hb->heartbeat.hb_info.addr_len = net->ro._l_addr.sa.sa_len;
 	if (net->dest_state & SCTP_ADDR_UNCONFIRMED) {
 		/*
@@ -13552,7 +13552,7 @@ sctp_v4src_match_nexthop(struct sctp_ifa *sifa, sctp_route_t * ro)
 	}
 	ifa = (struct ifaddr *)sifa->ifa;
 	mask = (struct sockaddr_in *)(ifa->ifa_netmask);
-	sin = (struct sockaddr_in *)&sifa->address.sin;
+	sin = &sifa->address.sin;
 	srcnetaddr.s_addr = (sin->sin_addr.s_addr & mask->sin_addr.s_addr);
 	SCTPDBG(SCTP_DEBUG_OUTPUT1, "match_nexthop4: src address is ");
 	SCTPDBG_ADDR(SCTP_DEBUG_OUTPUT2, &sifa->address.sa);

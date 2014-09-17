@@ -149,10 +149,6 @@ CTASSERT(offsetof(struct pcpu, pc_curthread) == 0);
 extern void init386(int first);
 extern void dblfault_handler(void);
 
-extern void printcpuinfo(void);	/* XXX header file */
-extern void finishidentcpu(void);
-extern void panicifcpuunsupported(void);
-
 #define	CS_SECURE(cs)		(ISPL(cs) == SEL_UPL)
 #define	EFL_SECURE(ef, oef)	((((ef) ^ (oef)) & ~PSL_USERCHANGE) == 0)
 
@@ -2319,6 +2315,7 @@ init386(first)
 	setidt(IDT_GP, &IDTVEC(prot),  SDT_SYS386TGT, SEL_KPL,
 	    GSEL(GCODE_SEL, SEL_KPL));
 	initializecpu();	/* Initialize CPU registers */
+	initializecpucache();
 
 	/* make an initial tss so cpu can get interrupt stack on syscall! */
 	/* Note: -16 is so we can grow the trapframe if we came from vm86 */

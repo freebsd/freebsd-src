@@ -524,8 +524,8 @@ typedef	ulong_t	cpuset_t;	/* a set of CPUs */
 	largest = (uint_t)(highbit(set) - 1);		\
 }
 
-#define	CPUSET_ATOMIC_DEL(set, cpu)	atomic_and_long(&(set), ~CPUSET(cpu))
-#define	CPUSET_ATOMIC_ADD(set, cpu)	atomic_or_long(&(set), CPUSET(cpu))
+#define	CPUSET_ATOMIC_DEL(set, cpu)	atomic_and_ulong(&(set), ~CPUSET(cpu))
+#define	CPUSET_ATOMIC_ADD(set, cpu)	atomic_or_ulong(&(set), CPUSET(cpu))
 
 #define	CPUSET_ATOMIC_XADD(set, cpu, result) \
 	{ result = atomic_set_long_excl(&(set), (cpu)); }

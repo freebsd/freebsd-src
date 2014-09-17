@@ -1,7 +1,7 @@
-#pt.iso.kbd
-#by: pm@dee.uc.pt
 # $FreeBSD$
 #                                                         alt
+#by: pm@dee.uc.pt
+#
 # scan                       cntrl          alt    alt   cntrl lock
 # code  base   shift  cntrl  shift  alt    shift  cntrl  shift state
 # ------------------------------------------------------------------
@@ -23,7 +23,7 @@
   015   ht     btab   nop    nop    ht     btab   nop    nop     O
   016   'q'    'Q'    dc1    dc1    'q'    'Q'    dc1    dc1     C
   017   'w'    'W'    etb    etb    'w'    'W'    etb    etb     C
-  018   'e'    'E'    enq    enq    164    'E'    enq    enq     C
+  018   'e'    'E'    enq    enq    0x20ac 'E'    enq    enq     C
   019   'r'    'R'    dc2    dc2    'r'    'R'    dc2    dc2     C
   020   't'    'T'    dc4    dc4    't'    'T'    dc4    dc4     C
   021   'y'    'Y'    em     em     'y'    'Y'    em     em      C
@@ -44,7 +44,7 @@
   036   'j'    'J'    nl     nl     'j'    'J'    nl     nl      C
   037   'k'    'K'    vt     vt     'k'    'K'    vt     vt      C
   038   'l'    'L'    ff     ff     'l'    'L'    ff     ff      C
-  039   231    199    nop    nop    ';'    ':'    nop    nop     O
+  039   0xe7   0xc7   nop    nop    ';'    ':'    nop    nop     O
   040   nop    nop    nop    nop    '''    '"'    nop    nop     O
   041   '\'    '|'    nop    nop    '`'    '~'    nop    nop     O
   042   lshift lshift lshift lshift lshift lshift lshift lshift  O
@@ -62,7 +62,7 @@
   054   rshift rshift rshift rshift rshift rshift rshift rshift  O
   055   '*'    '*'    '*'    '*'    '*'    '*'    '*'    '*'     O
   056   lalt   lalt   lalt   lalt   lalt   lalt   lalt   lalt    O
-  057   ' '    ' '    nul    ' '    ' '    ' '     130   ' '     O
+  057   ' '    ' '    nul    ' '    ' '    ' '    0x82   ' '     O
   058   clock  clock  clock  clock  clock  clock  clock  clock   O
   059   fkey01 fkey13 fkey25 fkey37 scr01  scr11  scr01  scr11   O
   060   fkey02 fkey14 fkey26 fkey38 scr02  scr12  scr02  scr12   O

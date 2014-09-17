@@ -253,14 +253,6 @@ done:	ttydisc_rint_done(tp);
 }
 
 static int
-ptsdev_truncate(struct file *fp, off_t length, struct ucred *active_cred,
-    struct thread *td)
-{
-
-	return (EINVAL);
-}
-
-static int
 ptsdev_ioctl(struct file *fp, u_long cmd, void *data,
     struct ucred *active_cred, struct thread *td)
 {
@@ -591,7 +583,7 @@ ptsdev_close(struct file *fp, struct thread *td)
 static struct fileops ptsdev_ops = {
 	.fo_read	= ptsdev_read,
 	.fo_write	= ptsdev_write,
-	.fo_truncate	= ptsdev_truncate,
+	.fo_truncate	= invfo_truncate,
 	.fo_ioctl	= ptsdev_ioctl,
 	.fo_poll	= ptsdev_poll,
 	.fo_kqfilter	= ptsdev_kqfilter,

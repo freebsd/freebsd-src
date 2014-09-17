@@ -3241,7 +3241,7 @@ igb_setup_interface(device_t dev, struct adapter *adapter)
 	 * Tell the upper layer(s) we
 	 * support full VLAN capability.
 	 */
-	ifp->if_data.ifi_hdrlen = sizeof(struct ether_vlan_header);
+	ifp->if_hdrlen = sizeof(struct ether_vlan_header);
 	ifp->if_capabilities |= IFCAP_VLAN_HWTAGGING
 			     |  IFCAP_VLAN_HWTSO
 			     |  IFCAP_VLAN_MTU;
@@ -3629,7 +3629,7 @@ igb_setup_transmit_ring(struct tx_ring *txr)
 		if (slot) {
 			int si = netmap_idx_n2k(&na->tx_rings[txr->me], i);
 			/* no need to set the address */
-			netmap_load_map(txr->txtag, txbuf->map, NMB(slot + si));
+			netmap_load_map(na, txr->txtag, txbuf->map, NMB(na, slot + si));
 		}
 #endif /* DEV_NETMAP */
 		/* clear the watch index */
@@ -4433,8 +4433,8 @@ igb_setup_receive_ring(struct rx_ring *rxr)
 			uint64_t paddr;
 			void *addr;
 
-			addr = PNMB(slot + sj, &paddr);
-			netmap_load_map(rxr->ptag, rxbuf->pmap, addr);
+			addr = PNMB(na, slot + sj, &paddr);
+			netmap_load_map(na, rxr->ptag, rxbuf->pmap, addr);
 			/* Update descriptor */
 			rxr->rx_base[j].read.pkt_addr = htole64(paddr);
 			continue;
@@ -4710,6 +4710,18 @@ igb_initialize_receive_units(struct adapter *adapter)
 		rctl &= ~E1000_RCTL_LPE;
 		srrctl |= 2048 >> E1000_SRRCTL_BSIZEPKT_SHIFT;
 		rctl |= E1000_RCTL_SZ_2048;
+	}
+
+	/*
+	 * If TX flow control is disabled and there's >1 queue defined,
+	 * enable DROP.
+	 *
+	 * This drops frames rather than hanging the RX MAC for all queues.
+	 */
+	if ((adapter->num_queues > 1) &&
+	    (adapter->fc == e1000_fc_none ||
+	     adapter->fc == e1000_fc_rx_pause)) {
+		srrctl |= E1000_SRRCTL_DROP_EN;
 	}
 
 	/* Setup the Base and Length of the Rx Descriptor Rings */
@@ -6255,6 +6267,7 @@ igb_set_flowcntl(SYSCTL_HANDLER_ARGS)
 
 	adapter->hw.fc.current_mode = adapter->hw.fc.requested_mode;
 	e1000_force_mac_fc(&adapter->hw);
+	/* XXX TODO: update DROP_EN on each RX queue if appropriate */
 	return (error);
 }
 

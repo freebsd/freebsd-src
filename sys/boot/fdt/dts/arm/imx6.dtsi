@@ -134,7 +134,6 @@
 				reg = <0x020e0000 0x4000>;
 				interrupt-parent = <&gic>;
 				interrupts = <32>;
-				status = "disabled";
 			};
 
 			gpio1: gpio@0209c000 {

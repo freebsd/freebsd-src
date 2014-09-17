@@ -127,17 +127,6 @@ assemble_udp_ip_header(unsigned char *buf, int *bufix, u_int32_t from,
 	ip.ip_dst.s_addr = to;
 
 	ip.ip_sum = wrapsum(checksum((unsigned char *)&ip, sizeof(ip), 0));
-
-	/*
-	 * While the BPF -- used for broadcasts -- expects a "true" IP header
-	 * with all the bytes in network byte order, the raw socket interface
-	 * which is used for unicasts expects the ip_len field to be in host
-	 * byte order.  In both cases, the checksum has to be correct, so this
-	 * is as good a place as any to turn the bytes around again.
-	 */
-	if (to != INADDR_BROADCAST)
-		ip.ip_len = ntohs(ip.ip_len);
-
 	memcpy(&buf[*bufix], &ip, sizeof(ip));
 	*bufix += sizeof(ip);
 

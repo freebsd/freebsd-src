@@ -186,11 +186,17 @@ SYSCTL_VNET_INT(_net_inet_tcp_ecn, OID_AUTO, maxretries, CTLFLAG_RW,
     &VNET_NAME(tcp_ecn_maxretries), 0,
     "Max retries before giving up on ECN");
 
+VNET_DEFINE(int, tcp_insecure_syn) = 0;
+#define	V_tcp_insecure_syn	VNET(tcp_insecure_syn)
+SYSCTL_VNET_INT(_net_inet_tcp, OID_AUTO, insecure_syn, CTLFLAG_RW,
+    &VNET_NAME(tcp_insecure_syn), 0,
+    "Follow RFC793 instead of RFC5961 criteria for accepting SYN packets");
+
 VNET_DEFINE(int, tcp_insecure_rst) = 0;
 #define	V_tcp_insecure_rst	VNET(tcp_insecure_rst)
 SYSCTL_VNET_INT(_net_inet_tcp, OID_AUTO, insecure_rst, CTLFLAG_RW,
     &VNET_NAME(tcp_insecure_rst), 0,
-    "Follow the old (insecure) criteria for accepting RST packets");
+    "Follow RFC793 instead of RFC5961 criteria for accepting RST packets");
 
 VNET_DEFINE(int, tcp_recvspace) = 1024*64;
 #define	V_tcp_recvspace	VNET(tcp_recvspace)
@@ -748,12 +754,12 @@ tcp_input(struct mbuf **mp, int *offp, int proto)
 
 	/*
 	 * Locate pcb for segment; if we're likely to add or remove a
-	 * connection then first acquire pcbinfo lock.  There are two cases
+	 * connection then first acquire pcbinfo lock.  There are three cases
 	 * where we might discover later we need a write lock despite the
-	 * flags: ACKs moving a connection out of the syncache, and ACKs for
-	 * a connection in TIMEWAIT.
+	 * flags: ACKs moving a connection out of the syncache, ACKs for a
+	 * connection in TIMEWAIT and SYNs not targeting a listening socket.
 	 */
-	if ((thflags & (TH_SYN | TH_FIN | TH_RST)) != 0) {
+	if ((thflags & (TH_FIN | TH_RST)) != 0) {
 		INP_INFO_WLOCK(&V_tcbinfo);
 		ti_locked = TI_WLOCKED;
 	} else
@@ -982,10 +988,11 @@ relocked:
 	 * now be in TIMEWAIT.
 	 */
 #ifdef INVARIANTS
-	if ((thflags & (TH_SYN | TH_FIN | TH_RST)) != 0)
+	if ((thflags & (TH_FIN | TH_RST)) != 0)
 		INP_INFO_WLOCK_ASSERT(&V_tcbinfo);
 #endif
-	if (tp->t_state != TCPS_ESTABLISHED) {
+	if (!((tp->t_state == TCPS_ESTABLISHED && (thflags & TH_SYN) == 0) ||
+	    (tp->t_state == TCPS_LISTEN && (thflags & TH_SYN)))) {
 		if (ti_locked == TI_UNLOCKED) {
 			if (INP_INFO_TRY_WLOCK(&V_tcbinfo) == 0) {
 				in_pcbref(inp);
@@ -1026,17 +1033,13 @@ relocked:
 	/*
 	 * When the socket is accepting connections (the INPCB is in LISTEN
 	 * state) we look into the SYN cache if this is a new connection
-	 * attempt or the completion of a previous one.  Because listen
-	 * sockets are never in TCPS_ESTABLISHED, the V_tcbinfo lock will be
-	 * held in this case.
+	 * attempt or the completion of a previous one.
 	 */
 	if (so->so_options & SO_ACCEPTCONN) {
 		struct in_conninfo inc;
 
 		KASSERT(tp->t_state == TCPS_LISTEN, ("%s: so accepting but "
 		    "tp not listening", __func__));
-		INP_INFO_WLOCK_ASSERT(&V_tcbinfo);
-
 		bzero(&inc, sizeof(inc));
 #ifdef INET6
 		if (isipv6) {
@@ -1059,6 +1062,8 @@ relocked:
 		 * socket appended to the listen queue in SYN_RECEIVED state.
 		 */
 		if ((thflags & (TH_RST|TH_ACK|TH_SYN)) == TH_ACK) {
+
+			INP_INFO_WLOCK_ASSERT(&V_tcbinfo);
 			/*
 			 * Parse the TCP options here because
 			 * syncookies need access to the reflected
@@ -1339,8 +1344,12 @@ relocked:
 		syncache_add(&inc, &to, th, inp, &so, m, NULL, NULL);
 		/*
 		 * Entry added to syncache and mbuf consumed.
-		 * Everything already unlocked by syncache_add().
+		 * Only the listen socket is unlocked by syncache_add().
 		 */
+		if (ti_locked == TI_WLOCKED) {
+			INP_INFO_WUNLOCK(&V_tcbinfo);
+			ti_locked = TI_UNLOCKED;
+		}
 		INP_INFO_UNLOCK_ASSERT(&V_tcbinfo);
 		return (IPPROTO_DONE);
 	} else if (tp->t_state == TCPS_LISTEN) {
@@ -2041,98 +2050,83 @@ tcp_do_segment(struct mbuf *m, struct tcphdr *th, struct socket *so,
 	 * Then check that at least some bytes of segment are within
 	 * receive window.  If segment begins before rcv_nxt,
 	 * drop leading data (and SYN); if nothing left, just ack.
-	 *
-	 *
-	 * If the RST bit is set, check the sequence number to see
-	 * if this is a valid reset segment.
-	 * RFC 793 page 37:
-	 *   In all states except SYN-SENT, all reset (RST) segments
-	 *   are validated by checking their SEQ-fields.  A reset is
-	 *   valid if its sequence number is in the window.
-	 * Note: this does not take into account delayed ACKs, so
-	 *   we should test against last_ack_sent instead of rcv_nxt.
-	 *   The sequence number in the reset segment is normally an
-	 *   echo of our outgoing acknowlegement numbers, but some hosts
-	 *   send a reset with the sequence number at the rightmost edge
-	 *   of our receive window, and we have to handle this case.
-	 * Note 2: Paul Watson's paper "Slipping in the Window" has shown
-	 *   that brute force RST attacks are possible.  To combat this,
-	 *   we use a much stricter check while in the ESTABLISHED state,
-	 *   only accepting RSTs where the sequence number is equal to
-	 *   last_ack_sent.  In all other states (the states in which a
-	 *   RST is more likely), the more permissive check is used.
-	 * If we have multiple segments in flight, the initial reset
-	 * segment sequence numbers will be to the left of last_ack_sent,
-	 * but they will eventually catch up.
-	 * In any case, it never made sense to trim reset segments to
-	 * fit the receive window since RFC 1122 says:
-	 *   4.2.2.12  RST Segment: RFC-793 Section 3.4
-	 *
-	 *    A TCP SHOULD allow a received RST segment to include data.
-	 *
-	 *    DISCUSSION
-	 *         It has been suggested that a RST segment could contain
-	 *         ASCII text that encoded and explained the cause of the
-	 *         RST.  No standard has yet been established for such
-	 *         data.
-	 *
-	 * If the reset segment passes the sequence number test examine
-	 * the state:
-	 *    SYN_RECEIVED STATE:
-	 *	If passive open, return to LISTEN state.
-	 *	If active open, inform user that connection was refused.
-	 *    ESTABLISHED, FIN_WAIT_1, FIN_WAIT_2, CLOSE_WAIT STATES:
-	 *	Inform user that connection was reset, and close tcb.
-	 *    CLOSING, LAST_ACK STATES:
-	 *	Close the tcb.
-	 *    TIME_WAIT STATE:
-	 *	Drop the segment - see Stevens, vol. 2, p. 964 and
-	 *      RFC 1337.
 	 */
 	if (thflags & TH_RST) {
-		if (SEQ_GEQ(th->th_seq, tp->last_ack_sent - 1) &&
-		    SEQ_LEQ(th->th_seq, tp->last_ack_sent + tp->rcv_wnd)) {
-			switch (tp->t_state) {
+		/*
+		 * RFC5961 Section 3.2
+		 *
+		 * - RST drops connection only if SEG.SEQ == RCV.NXT.
+		 * - If RST is in window, we send challenge ACK.
+		 *
+		 * Note: to take into account delayed ACKs, we should
+		 *   test against last_ack_sent instead of rcv_nxt.
+		 * Note 2: we handle special case of closed window, not
+		 *   covered by the RFC.
+		 */
+		if ((SEQ_GEQ(th->th_seq, tp->last_ack_sent) &&
+		    SEQ_LT(th->th_seq, tp->last_ack_sent + tp->rcv_wnd)) ||
+		    (tp->rcv_wnd == 0 && tp->last_ack_sent == th->th_seq)) {
 
-			case TCPS_SYN_RECEIVED:
-				so->so_error = ECONNREFUSED;
-				goto close;
+			INP_INFO_WLOCK_ASSERT(&V_tcbinfo);
+			KASSERT(ti_locked == TI_WLOCKED,
+			    ("%s: TH_RST ti_locked %d, th %p tp %p",
+			    __func__, ti_locked, th, tp));
+			KASSERT(tp->t_state != TCPS_SYN_SENT,
+			    ("%s: TH_RST for TCPS_SYN_SENT th %p tp %p",
+			    __func__, th, tp));
 
-			case TCPS_ESTABLISHED:
-				if (V_tcp_insecure_rst == 0 &&
-				    !(SEQ_GEQ(th->th_seq, tp->rcv_nxt - 1) &&
-				    SEQ_LEQ(th->th_seq, tp->rcv_nxt + 1)) &&
-				    !(SEQ_GEQ(th->th_seq, tp->last_ack_sent - 1) &&
-				    SEQ_LEQ(th->th_seq, tp->last_ack_sent + 1))) {
-					TCPSTAT_INC(tcps_badrst);
-					goto drop;
-				}
-				/* FALLTHROUGH */
-			case TCPS_FIN_WAIT_1:
-			case TCPS_FIN_WAIT_2:
-			case TCPS_CLOSE_WAIT:
-				so->so_error = ECONNRESET;
-			close:
-				KASSERT(ti_locked == TI_WLOCKED,
-				    ("tcp_do_segment: TH_RST 1 ti_locked %d",
-				    ti_locked));
-				INP_INFO_WLOCK_ASSERT(&V_tcbinfo);
-
-				tcp_state_change(tp, TCPS_CLOSED);
+			if (V_tcp_insecure_rst ||
+			    tp->last_ack_sent == th->th_seq) {
 				TCPSTAT_INC(tcps_drops);
-				tp = tcp_close(tp);
-				break;
-
-			case TCPS_CLOSING:
-			case TCPS_LAST_ACK:
-				KASSERT(ti_locked == TI_WLOCKED,
-				    ("tcp_do_segment: TH_RST 2 ti_locked %d",
-				    ti_locked));
-				INP_INFO_WLOCK_ASSERT(&V_tcbinfo);
-
-				tp = tcp_close(tp);
-				break;
+				/* Drop the connection. */
+				switch (tp->t_state) {
+				case TCPS_SYN_RECEIVED:
+					so->so_error = ECONNREFUSED;
+					goto close;
+				case TCPS_ESTABLISHED:
+				case TCPS_FIN_WAIT_1:
+				case TCPS_FIN_WAIT_2:
+				case TCPS_CLOSE_WAIT:
+					so->so_error = ECONNRESET;
+				close:
+					tcp_state_change(tp, TCPS_CLOSED);
+					/* FALLTHROUGH */
+				default:
+					tp = tcp_close(tp);
+				}
+			} else {
+				TCPSTAT_INC(tcps_badrst);
+				/* Send challenge ACK. */
+				tcp_respond(tp, mtod(m, void *), th, m,
+				    tp->rcv_nxt, tp->snd_nxt, TH_ACK);
+				tp->last_ack_sent = tp->rcv_nxt;
+				m = NULL;
 			}
+		}
+		goto drop;
+	}
+
+	/*
+	 * RFC5961 Section 4.2
+	 * Send challenge ACK for any SYN in synchronized state.
+	 */
+	if ((thflags & TH_SYN) && tp->t_state != TCPS_SYN_SENT) {
+		KASSERT(ti_locked == TI_WLOCKED,
+		    ("tcp_do_segment: TH_SYN ti_locked %d", ti_locked));
+		INP_INFO_WLOCK_ASSERT(&V_tcbinfo);
+
+		TCPSTAT_INC(tcps_badsyn);
+		if (V_tcp_insecure_syn &&
+		    SEQ_GEQ(th->th_seq, tp->last_ack_sent) &&
+		    SEQ_LT(th->th_seq, tp->last_ack_sent + tp->rcv_wnd)) {
+			tp = tcp_drop(tp, ECONNRESET);
+			rstreason = BANDLIM_UNLIMITED;
+		} else {
+			/* Send challenge ACK. */
+			tcp_respond(tp, mtod(m, void *), th, m, tp->rcv_nxt,
+			    tp->snd_nxt, TH_ACK);
+			tp->last_ack_sent = tp->rcv_nxt;
+			m = NULL;
 		}
 		goto drop;
 	}
@@ -2182,11 +2176,7 @@ tcp_do_segment(struct mbuf *m, struct tcphdr *th, struct socket *so,
 
 	todrop = tp->rcv_nxt - th->th_seq;
 	if (todrop > 0) {
-		/*
-		 * If this is a duplicate SYN for our current connection,
-		 * advance over it and pretend and it's not a SYN.
-		 */
-		if (thflags & TH_SYN && th->th_seq == tp->irs) {
+		if (thflags & TH_SYN) {
 			thflags &= ~TH_SYN;
 			th->th_seq++;
 			if (th->th_urp > 1)
@@ -2305,20 +2295,6 @@ tcp_do_segment(struct mbuf *m, struct tcphdr *th, struct socket *so,
 		((thflags & (TH_SYN|TH_FIN)) != 0))) {
 		tp->ts_recent_age = tcp_ts_getticks();
 		tp->ts_recent = to.to_tsval;
-	}
-
-	/*
-	 * If a SYN is in the window, then this is an
-	 * error and we send an RST and drop the connection.
-	 */
-	if (thflags & TH_SYN) {
-		KASSERT(ti_locked == TI_WLOCKED,
-		    ("tcp_do_segment: TH_SYN ti_locked %d", ti_locked));
-		INP_INFO_WLOCK_ASSERT(&V_tcbinfo);
-
-		tp = tcp_drop(tp, ECONNRESET);
-		rstreason = BANDLIM_UNLIMITED;
-		goto drop;
 	}
 
 	/*

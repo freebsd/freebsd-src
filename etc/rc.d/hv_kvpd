@@ -1,0 +1,16 @@
+#!/bin/sh
+#
+# $FreeBSD$
+#
+
+# PROVIDE: hv_kvpd
+
+. /etc/rc.subr
+
+name="hv_kvp_daemon"
+rcvar="hv_kvpd_enable"
+command="/usr/sbin/${name}"
+required_dirs="/var/db/hyperv"
+
+load_rc_config $name
+run_rc_command "$1"

@@ -159,7 +159,7 @@ static int	rt_xaddrs(caddr_t cp, caddr_t cplim,
 static int	sysctl_dumpentry(struct radix_node *rn, void *vw);
 static int	sysctl_iflist(int af, struct walkarg *w);
 static int	sysctl_ifmalist(int af, struct walkarg *w);
-static int	route_output(struct mbuf *m, struct socket *so);
+static int	route_output(struct mbuf *m, struct socket *so, ...);
 static void	rt_getmetrics(const struct rtentry *rt, struct rt_metrics *out);
 static void	rt_dispatch(struct mbuf *, sa_family_t);
 static struct sockaddr	*rtsock_fix_netmask(struct sockaddr *dst,
@@ -516,7 +516,7 @@ rtm_get_jailed(struct rt_addrinfo *info, struct ifnet *ifp,
 
 /*ARGSUSED*/
 static int
-route_output(struct mbuf *m, struct socket *so)
+route_output(struct mbuf *m, struct socket *so, ...)
 {
 	struct rt_msghdr *rtm = NULL;
 	struct rtentry *rt = NULL;
@@ -752,7 +752,8 @@ route_output(struct mbuf *m, struct socket *so)
 			    rt->rt_ifp->if_type == IFT_PROPVIRTUAL) {
 				struct ifaddr *ifa;
 
-				ifa = ifa_ifwithnet(info.rti_info[RTAX_DST], 1);
+				ifa = ifa_ifwithnet(info.rti_info[RTAX_DST], 1,
+						RT_ALL_FIBS);
 				if (ifa != NULL)
 					rt_maskedcopy(ifa->ifa_addr,
 						      &laddr,
@@ -1252,7 +1253,7 @@ rt_ifmsg(struct ifnet *ifp)
 	ifm = mtod(m, struct if_msghdr *);
 	ifm->ifm_index = ifp->if_index;
 	ifm->ifm_flags = ifp->if_flags | ifp->if_drv_flags;
-	ifm->ifm_data = ifp->if_data;
+	if_data_copy(ifp, &ifm->ifm_data);
 	ifm->ifm_addrs = 0;
 	rt_dispatch(m, AF_UNSPEC);
 }
@@ -1574,7 +1575,7 @@ sysctl_iflist_ifml(struct ifnet *ifp, struct rt_addrinfo *info,
 		ifd = &ifm->ifm_data;
 	}
 
-	*ifd = ifp->if_data;
+	if_data_copy(ifp, ifd);
 
 	/* Some drivers still use ifqueue(9), add its stats. */
 	ifd->ifi_oqdrops += ifp->if_snd.ifq_drops;
@@ -1609,7 +1610,7 @@ sysctl_iflist_ifm(struct ifnet *ifp, struct rt_addrinfo *info,
 		ifd = &ifm->ifm_data;
 	}
 
-	*ifd = ifp->if_data;
+	if_data_copy(ifp, ifd);
 
 	/* Some drivers still use ifqueue(9), add its stats. */
 	ifd->ifi_oqdrops += ifp->if_snd.ifq_drops;

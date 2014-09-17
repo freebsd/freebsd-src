@@ -27,7 +27,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd July 28, 2014
+.Dd September 14, 2014
 .Dt CTL.CONF 5
 .Os
 .Sh NAME
@@ -46,179 +46,250 @@ The general syntax of the
 .Nm
 file is:
 .Bd -literal -offset indent
-pidfile <path>
+.No pidfile Ar path
 
-auth-group <name> {
-	chap <user> <secret>
-	...
+.No auth-group Ar name No {
+.Dl chap Ar user Ar secret
+.Dl ...
 }
 
-portal-group <name> {
-	listen <address>
-	listen-iser <address>
-	discovery-auth-group <name>
-	...
+.No portal-group Ar name No {
+.Dl listen Ar address
+.Dl listen-iser Ar address
+.Dl discovery-auth-group Ar name
+.Dl ...
 }
 
-target <name> {
-	auth-group <name>
-	portal-group <name>
-	lun <number> {
-		path <path>
-	}
-	...
+.No target Ar name {
+.Dl auth-group Ar name
+.Dl portal-group Ar name
+.Dl lun Ar number No {
+.Dl 	path Ar path
+.Dl }
+.Dl ...
 }
 .Ed
-.Ss global level
-The following statements are available at the global level:
+.Ss Global Context
 .Bl -tag -width indent
-.It Ic auth-group Aq Ar name
-Opens an auth-group section, defining an authentication group,
+.It Ic auth-group Ar name
+Create an
+.Sy auth-group
+configuration context,
+defining a new auth-group,
 which can then be assigned to any number of targets.
-.It Ic debug Aq Ar level
-Specifies debug level.
+.It Ic debug Ar level
+The debug verbosity level.
 The default is 0.
-.It Ic maxproc Aq Ar number
-Specifies limit for concurrently running child processes handling
+.It Ic maxproc Ar number
+The limit for concurrently running child processes handling
 incoming connections.
 The default is 30.
-Setting it to 0 disables the limit.
-.It Ic pidfile Aq Ar path
-Specifies path to pidfile.
+A setting of 0 disables the limit.
+.It Ic pidfile Ar path
+The path to the pidfile.
 The default is
 .Pa /var/run/ctld.pid .
-.It Ic portal-group Aq Ar name
-Opens a portal-group section, defining a portal group,
+.It Ic portal-group Ar name
+Create a
+.Sy portal-group
+configuration context,
+defining a new portal-group,
 which can then be assigned to any number of targets.
-.It Ic target Aq Ar name
-Opens a target configuration section.
-.It Ic timeout Aq Ar seconds
-Specifies timeout for login session, after which the connection
+.It Ic target Ar name
+Create a
+.Sy target
+configuration context, which can contain one or more
+.Sy lun
+contexts.
+.It Ic timeout Ar seconds
+The timeout for login sessions, after which the connection
 will be forcibly terminated.
 The default is 60.
-Setting it to 0 disables the timeout.
+A setting of 0 disables the timeout.
 .El
-.Ss auth-group level
-The following statements are available at the auth-group level:
+.Ss auth-group Context
 .Bl -tag -width indent
-.It Ic auth-type Ao Ar type Ac
-Specifies authentication type.
-Type can be either "none", "deny", "chap", or "chap-mutual".
+
+.It Ic auth-type Ar type
+Sets the authentication type.
+Type can be either
+.Qq Ar none ,
+.Qq Ar deny ,
+.Qq Ar chap ,
+or
+.Qq Ar chap-mutual .
 In most cases it is not necessary to set the type using this clause;
-it is usually used to disable authentication for a given auth-group.
-.It Ic chap Ao Ar user Ac Aq Ar secret
-Specifies CHAP authentication credentials.
-.It Ic chap-mutual Ao Ar user Ac Ao Ar secret Ac Ao Ar mutualuser Ac Aq Ar mutualsecret
-Specifies mutual CHAP authentication credentials.
-Note that for any auth-group, configuration may contain either chap,
-or chap-mutual entries; it is an error to mix them.
-.It Ic initiator-name Ao Ar initiator-name Ac
-Specifies iSCSI initiator name.
+it is usually used to disable authentication for a given
+.Sy auth-group .
+.It Ic chap Ar user Ar secret
+A set of CHAP authentication credentials.
+Note that for any
+.Sy auth-group ,
+the configuration may only contain either
+.Sy chap
+or
+.Sy chap-mutual
+entries; it is an error to mix them.
+.It Ic chap-mutual Ar user Ar secret Ar mutualuser Ar mutualsecret
+A set of mutual CHAP authentication credentials.
+Note that for any
+.Sy auth-group ,
+the configuration may only contain either
+.Sy chap
+or
+.Sy chap-mutual
+entries; it is an error to mix them.
+.It Ic initiator-name Ar initiator-name
+An iSCSI initiator name.
+Only initiators with a name matching one of the defined
+names will be allowed to connect.
 If not defined, there will be no restrictions based on initiator
 name.
-Otherwise, only initiators with names matching one of defined
-ones will be allowed to connect.
-.It Ic initiator-portal Ao Ar address Ac
-Specifies iSCSI initiator portal - IPv4 or IPv6 address or network.
+.It Ic initiator-portal Ar address Ns Op / Ns Ar prefixlen
+An iSCSI initiator portal: an IPv4 or IPv6 address, optionally
+followed by a literal slash and a prefix length.
+Only initiators with an address matching one of the defined
+addresses will be allowed to connect.
 If not defined, there will be no restrictions based on initiator
 address.
-Otherwise, only initiators with addresses matching one of defined
-ones will be allowed to connect.
 .El
-.Ss portal-group level
-The following statements are available at the portal-group level:
+.Ss portal-group Context
 .Bl -tag -width indent
-.It Ic discovery-auth-group Aq Ar name
-Assigns previously defined authentication group to the portal group,
+.It Ic discovery-auth-group Ar name
+Assign a previously defined authentication group to the portal group,
 to be used for target discovery.
 By default, portal groups that do not specify their own auth settings,
-using clauses such as "chap" or "initiator-name", are assigned
-predefined auth-group "default", which denies discovery.
-Another predefined auth-group, "no-authentication", may be used
+using clauses such as
+.Sy chap
+or
+.Sy initiator-name ,
+are assigned
+predefined
+.Sy auth-group
+.Qq Ar default ,
+which denies discovery.
+Another predefined
+.Sy auth-group ,
+.Qq Ar no-authentication ,
+may be used
 to permit discovery without authentication.
-.It Ic listen Aq Ar address
-Specifies IPv4 or IPv6 address and port to listen on for incoming connections.
-.It Ic listen-iser Aq Ar address
-Specifies IPv4 or IPv6 address and port to listen on for incoming connections
+.It Ic listen Ar address
+An IPv4 or IPv6 address and port to listen on for incoming connections.
+.It Ic listen-iser Ar address
+An IPv4 or IPv6 address and port to listen on for incoming connections
 using iSER (iSCSI over RDMA) protocol.
 .El
-.Ss target level:
-The following statements are available at the target level:
+.Ss target Context
 .Bl -tag -width indent
-.It Ic alias Aq Ar text
-Assigns human-readable description to the target.
+.It Ic alias Ar text
+Assign a human-readable description to the target.
 There is no default.
-.It Ic auth-group Aq Ar name
-Assigns previously defined authentication group to the target.
+.It Ic auth-group Ar name
+Assign a previously defined authentication group to the target.
 By default, targets that do not specify their own auth settings,
-using clauses such as "chap" or "initiator-name", are assigned
-predefined auth-group "default", which denies all access.
-Another predefined auth-group, "no-authentication", may be used to permit access
+using clauses such as
+.Sy chap
+or
+.Sy initiator-name ,
+are assigned
+predefined
+.Sy auth-group
+.Qq Ar default ,
+which denies all access.
+Another predefined
+.Sy auth-group ,
+.Qq Ar no-authentication ,
+may be used to permit access
 without authentication.
-.It Ic auth-type Ao Ar type Ac
-Specifies authentication type.
-Type can be either "none", "deny", "chap", or "chap-mutual".
+Note that targets must only use one of
+.Sy auth-group , chap , No or Sy chap-mutual ;
+it is a configuration error to mix multiple types in one target.
+.It Ic auth-type Ar type
+Sets the authentication type.
+Type can be either
+.Qq Ar none ,
+.Qq Ar deny ,
+.Qq Ar chap ,
+or
+.Qq Ar chap-mutual .
 In most cases it is not necessary to set the type using this clause;
-it is usually used to disable authentication for a given target.
-This clause is mutually exclusive with auth-group; one cannot use
+it is usually used to disable authentication for a given
+.Sy target .
+This clause is mutually exclusive with
+.Sy auth-group ;
+one cannot use
 both in a single target.
-.It Ic chap Ao Ar user Ac Aq Ar secret
-Specifies CHAP authentication credentials.
-Note that targets must use either auth-group, or chap,
-or chap-mutual clauses; it is a configuration error to mix them in one target.
-.It Ic chap-mutual Ao Ar user Ac Ao Ar secret Ac Ao Ar mutualuser Ac Aq Ar mutualsecret
-Specifies mutual CHAP authentication credentials.
-Note that targets must use either auth-group, chap, or
-chap-mutual clauses; it is a configuration error to mix them in one target.
-.It Ic initiator-name Ao Ar initiator-name Ac
-Specifies iSCSI initiator name.
+.It Ic chap Ar user Ar secret
+A set of CHAP authentication credentials.
+Note that targets must only use one of
+.Sy auth-group , chap , No or Sy chap-mutual ;
+it is a configuration error to mix multiple types in one target.
+.It Ic chap-mutual Ar user Ar secret Ar mutualuser Ar mutualsecret
+A set of mutual CHAP authentication credentials.
+Note that targets must only use one of
+.Sy auth-group , chap , No or Sy chap-mutual ;
+it is a configuration error to mix multiple types in one target.
+.It Ic initiator-name Ar initiator-name
+An iSCSI initiator name.
+Only initiators with a name matching one of the defined
+names will be allowed to connect.
 If not defined, there will be no restrictions based on initiator
 name.
-Otherwise, only initiators with names matching one of defined
-ones will be allowed to connect.
-This clause is mutually exclusive with auth-group; one cannot use
+This clause is mutually exclusive with
+.Sy auth-group ;
+one cannot use
 both in a single target.
-.It Ic initiator-portal Ao Ar address Ac
-Specifies iSCSI initiator portal - IPv4 or IPv6 address.
+.It Ic initiator-portal Ar address Ns Op / Ns Ar prefixlen
+An iSCSI initiator portal: an IPv4 or IPv6 address, optionally
+followed by a literal slash and a prefix length.
+Only initiators with an address matching one of the defined
+addresses will be allowed to connect.
 If not defined, there will be no restrictions based on initiator
 address.
-Otherwise, only initiators with addresses matching one of defined
-ones will be allowed to connect.
-This clause is mutually exclusive with auth-group; one cannot use
+This clause is mutually exclusive with
+.Sy auth-group ;
+one cannot use
 both in a single target.
-.It Ic portal-group Aq Ar name
-Assigns previously defined portal group to the target.
-Default portal group is "default", which makes the target available
+.It Ic portal-group Ar name
+Assign a previously defined portal group to the target.
+The default portal group is
+.Qq Ar default ,
+which makes the target available
 on TCP port 3260 on all configured IPv4 and IPv6 addresses.
-.It Ic lun Aq Ar number
-Opens a lun configuration section, defining LUN exported by a target.
+.It Ic lun Ar number
+Create a
+.Sy lun
+configuration context, defining a LUN exported by the parent target.
 .El
-.Ss lun level
-The following statements are available at the lun level:
+.Ss lun Context
 .Bl -tag -width indent
-.It Ic backend Ao Ar block | Ar ramdisk Ac
-Specifies the CTL backend to use for a given LUN.
+.It Ic backend Ar block No | Ar ramdisk
+The CTL backend to use for a given LUN.
 Valid choices are
-.Dq block
+.Qq Ar block
 and
-.Dq ramdisk ;
+.Qq Ar ramdisk ;
 block is used for LUNs backed
 by files or disk device nodes; ramdisk is a bitsink device, used mostly for
 testing.
 The default backend is block.
-.It Ic blocksize Aq Ar size
-Specifies blocksize visible to the initiator.
+.It Ic blocksize Ar size
+The blocksize visible to the initiator.
 The default blocksize is 512.
-.It Ic device-id Aq Ar string
-Specifies SCSI Device Identification string presented to the initiator.
-.It Ic option Ao Ar name Ac Aq Ar value
-Specifies CTL-specific options passed to the kernel.
-.It Ic path Aq Ar path
-Specifies path to file or device node used to back the LUN.
-.It Ic serial Aq Ar string
-Specifies SCSI serial number presented to the initiator.
-.It Ic size Aq Ar size
-Specifies LUN size, in bytes.
+.It Ic device-id Ar string
+The SCSI Device Identification string presented to the initiator.
+.It Ic option Ar name Ar value
+The CTL-specific options passed to the kernel.
+All CTL-specific options are documented in the
+.Sx OPTIONS
+section of
+.Xr ctladm 8 .
+.It Ic path Ar path
+The path to the file or device node used to back the LUN.
+.It Ic serial Ar string
+The SCSI serial number presented to the initiator.
+.It Ic size Ar size
+The LUN size, in bytes.
 .El
 .Sh FILES
 .Bl -tag -width ".Pa /etc/ctl.conf" -compact
@@ -234,6 +305,7 @@ pidfile	/var/run/ctld.pid
 auth-group example2 {
 	chap-mutual "user" "secret" "mutualuser" "mutualsecret"
 	chap-mutual "user2" "secret2" "mutualuser" "mutualsecret"
+	initiator-portal 192.168.1.1/16
 }
 
 portal-group example2 {

@@ -133,6 +133,8 @@ static void _vm_map_init(vm_map_t map, pmap_t pmap, vm_offset_t min,
 static void vm_map_entry_deallocate(vm_map_entry_t entry, boolean_t system_map);
 static void vm_map_entry_dispose(vm_map_t map, vm_map_entry_t entry);
 static void vm_map_entry_unwire(vm_map_t map, vm_map_entry_t entry);
+static void vm_map_pmap_enter(vm_map_t map, vm_offset_t addr, vm_prot_t prot,
+    vm_object_t object, vm_pindex_t pindex, vm_size_t size, int flags);
 #ifdef INVARIANTS
 static void vm_map_zdtor(void *mem, int size, void *arg);
 static void vmspace_zdtor(void *mem, int size, void *arg);
@@ -1809,7 +1811,7 @@ vm_map_submap(
  *	being created speculatively, cached pages are not reactivated and
  *	mapped.
  */
-void
+static void
 vm_map_pmap_enter(vm_map_t map, vm_offset_t addr, vm_prot_t prot,
     vm_object_t object, vm_pindex_t pindex, vm_size_t size, int flags)
 {

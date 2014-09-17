@@ -115,7 +115,9 @@ struct ctl_ioctl_info {
 
 typedef enum {
 	CTL_SER_BLOCK,
+	CTL_SER_BLOCKOPT,
 	CTL_SER_EXTENT,
+	CTL_SER_EXTENTOPT,
 	CTL_SER_PASS,
 	CTL_SER_SKIP
 } ctl_serialize_action;
@@ -304,7 +306,7 @@ static const struct ctl_page_index page_index_template[] = {
 	{SMS_RIGID_DISK_PAGE, 0, sizeof(struct scsi_rigid_disk_page), NULL,
 	 CTL_PAGE_FLAG_DISK_ONLY, NULL, NULL},
 	{SMS_CACHING_PAGE, 0, sizeof(struct scsi_caching_page), NULL,
-	 CTL_PAGE_FLAG_DISK_ONLY, NULL, NULL},
+	 CTL_PAGE_FLAG_DISK_ONLY, NULL, ctl_caching_sp_handler},
 	{SMS_CONTROL_MODE_PAGE, 0, sizeof(struct scsi_control_page), NULL,
 	 CTL_PAGE_FLAG_NONE, NULL, ctl_control_page_handler},
    	{SMS_VENDOR_SPECIFIC_PAGE | SMPH_SPF, PWR_SUBPAGE_CODE,
@@ -441,9 +443,9 @@ struct ctl_softc {
 	struct ctl_io_pool *othersc_pool;
 	struct proc *ctl_proc;
 	int targ_online;
-	uint32_t ctl_lun_mask[CTL_MAX_LUNS >> 5];
+	uint32_t ctl_lun_mask[(CTL_MAX_LUNS + 31) / 32];
 	struct ctl_lun *ctl_luns[CTL_MAX_LUNS];
-	uint32_t ctl_port_mask;
+	uint32_t ctl_port_mask[(CTL_MAX_PORTS + 31) / 32];
 	uint64_t aps_locked_lun;
 	STAILQ_HEAD(, ctl_lun) lun_list;
 	STAILQ_HEAD(, ctl_be_lun) pending_lun_queue;

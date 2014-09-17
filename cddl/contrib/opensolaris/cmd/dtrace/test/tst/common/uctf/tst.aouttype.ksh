@@ -28,7 +28,7 @@ dtrace=$1
 t="season_7_lisa_the_vegetrian_t *"
 exe="tst.aouttype.exe"
 
-elfdump "./$exe" | grep -q '.SUNW_ctf' 
+elfdump -c "./$exe" | grep -Fq 'sh_name: .SUNW_ctf' 
 if [[ $? -ne 0 ]]; then
 	echo "CTF does not exist in $exe, that's a bug" >&2
 	exit 1

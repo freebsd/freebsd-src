@@ -217,7 +217,7 @@ macio_add_intr(phandle_t devnode, struct macio_devinfo *dinfo)
 	    <= 0)
 		panic("Interrupt but no interrupt parent!\n");
 
-	if (OF_getprop(OF_xref_phandle(iparent), "#interrupt-cells", &icells,
+	if (OF_getprop(OF_node_from_xref(iparent), "#interrupt-cells", &icells,
 	    sizeof(icells)) <= 0)
 		icells = 1;
 

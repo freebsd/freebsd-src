@@ -32,7 +32,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: openpam_configure.c 667 2013-03-17 14:24:00Z des $
+ * $Id: openpam_configure.c 796 2014-06-03 21:30:08Z des $
  */
 
 #ifdef HAVE_CONFIG_H

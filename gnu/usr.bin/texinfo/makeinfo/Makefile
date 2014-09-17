@@ -8,8 +8,6 @@ SRCS=	cmds.c defun.c files.c float.c footnote.c html.c \
 DPADD=	${LIBTXI}
 LDADD=	${LIBTXI}
 
-NO_PIE=	yes
-
 .include <bsd.prog.mk>
 
 .PATH:	$(TXIDIR)/makeinfo $(TXIDIR)/doc

@@ -2711,6 +2711,46 @@ vmxctx_setreg(struct vmxctx *vmxctx, int reg, uint64_t val)
 }
 
 static int
+vmx_get_intr_shadow(struct vmx *vmx, int vcpu, int running, uint64_t *retval)
+{
+	uint64_t gi;
+	int error;
+
+	error = vmcs_getreg(&vmx->vmcs[vcpu], running, 
+	    VMCS_IDENT(VMCS_GUEST_INTERRUPTIBILITY), &gi);
+	*retval = (gi & HWINTR_BLOCKING) ? 1 : 0;
+	return (error);
+}
+
+static int
+vmx_modify_intr_shadow(struct vmx *vmx, int vcpu, int running, uint64_t val)
+{
+	struct vmcs *vmcs;
+	uint64_t gi;
+	int error, ident;
+
+	/*
+	 * Forcing the vcpu into an interrupt shadow is not supported.
+	 */
+	if (val) {
+		error = EINVAL;
+		goto done;
+	}
+
+	vmcs = &vmx->vmcs[vcpu];
+	ident = VMCS_IDENT(VMCS_GUEST_INTERRUPTIBILITY);
+	error = vmcs_getreg(vmcs, running, ident, &gi);
+	if (error == 0) {
+		gi &= ~HWINTR_BLOCKING;
+		error = vmcs_setreg(vmcs, running, ident, gi);
+	}
+done:
+	VCPU_CTR2(vmx->vm, vcpu, "Setting intr_shadow to %#lx %s", val,
+	    error ? "failed" : "succeeded");
+	return (error);
+}
+
+static int
 vmx_shadow_reg(int reg)
 {
 	int shreg;
@@ -2741,6 +2781,9 @@ vmx_getreg(void *arg, int vcpu, int reg, uint64_t *retval)
 	if (running && hostcpu != curcpu)
 		panic("vmx_getreg: %s%d is running", vm_name(vmx->vm), vcpu);
 
+	if (reg == VM_REG_GUEST_INTR_SHADOW)
+		return (vmx_get_intr_shadow(vmx, vcpu, running, retval));
+
 	if (vmxctx_getreg(&vmx->ctx[vcpu], reg, retval) == 0)
 		return (0);
 
@@ -2758,6 +2801,9 @@ vmx_setreg(void *arg, int vcpu, int reg, uint64_t val)
 	running = vcpu_is_running(vmx->vm, vcpu, &hostcpu);
 	if (running && hostcpu != curcpu)
 		panic("vmx_setreg: %s%d is running", vm_name(vmx->vm), vcpu);
+
+	if (reg == VM_REG_GUEST_INTR_SHADOW)
+		return (vmx_modify_intr_shadow(vmx, vcpu, running, val));
 
 	if (vmxctx_setreg(&vmx->ctx[vcpu], reg, val) == 0)
 		return (0);

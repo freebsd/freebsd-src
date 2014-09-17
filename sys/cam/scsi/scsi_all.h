@@ -2110,6 +2110,76 @@ struct scsi_service_action_in
 	uint8_t control;
 };
 
+struct scsi_vpd_extended_inquiry_data
+{
+	uint8_t device;
+	uint8_t page_code;
+#define	SVPD_EXTENDED_INQUIRY_DATA	0x86
+	uint8_t reserved;
+	uint8_t page_length;
+	uint8_t flags1;
+#define	SVPD_EID_AM		0xC0
+#define	SVPD_EID_SPT		0x38
+#define	SVPD_EID_SPT_1		0x00
+#define	SVPD_EID_SPT_12		0x08
+#define	SVPD_EID_SPT_2		0x10
+#define	SVPD_EID_SPT_13		0x18
+#define	SVPD_EID_SPT_3		0x20
+#define	SVPD_EID_SPT_23		0x28
+#define	SVPD_EID_SPT_123	0x38
+#define	SVPD_EID_GRD_CHK	0x04
+#define	SVPD_EID_APP_CHK	0x02
+#define	SVPD_EID_REF_CHK	0x01
+	uint8_t flags2;
+#define	SVPD_EID_UASK_SUP	0x20
+#define	SVPD_EID_GROUP_SUP	0x10
+#define	SVPD_EID_PRIOR_SUP	0x08
+#define	SVPD_EID_HEADSUP	0x04
+#define	SVPD_EID_ORDSUP		0x02
+#define	SVPD_EID_SIMPSUP	0x01
+	uint8_t flags3;
+#define	SVPD_EID_WU_SUP		0x08
+#define	SVPD_EID_CRD_SUP	0x04
+#define	SVPD_EID_NV_SUP		0x02
+#define	SVPD_EID_V_SUP		0x01
+	uint8_t flags4;
+#define	SVPD_EID_P_I_I_SUP	0x10
+#define	SVPD_EID_LUICLT		0x01
+	uint8_t flags5;
+#define	SVPD_EID_R_SUP		0x10
+#define	SVPD_EID_CBCS		0x01
+	uint8_t flags6;
+#define	SVPD_EID_MULTI_I_T_FW	0x0F
+	uint8_t est[2];
+	uint8_t flags7;
+#define	SVPD_EID_POA_SUP	0x80
+#define	SVPD_EID_HRA_SUP	0x80
+#define	SVPD_EID_VSA_SUP	0x80
+	uint8_t max_sense_length;
+	uint8_t reserved2[50];
+};
+
+struct scsi_vpd_mode_page_policy_descr
+{
+	uint8_t page_code;
+	uint8_t subpage_code;
+	uint8_t policy;
+#define	SVPD_MPP_SHARED		0x00
+#define	SVPD_MPP_PORT		0x01
+#define	SVPD_MPP_I_T		0x03
+#define	SVPD_MPP_MLUS		0x80
+	uint8_t reserved;
+};
+
+struct scsi_vpd_mode_page_policy
+{
+	uint8_t device;
+	uint8_t page_code;
+#define	SVPD_MODE_PAGE_POLICY	0x87
+	uint8_t page_length[2];
+	struct scsi_vpd_mode_page_policy_descr descr[0];
+};
+
 struct scsi_diag_page {
 	uint8_t page_code;
 	uint8_t page_specific_flags;

@@ -126,12 +126,6 @@ static int	ksem_module_init(void);
 static int	ksem_remove(char *path, Fnv32_t fnv, struct ucred *ucred);
 static int	sem_modload(struct module *module, int cmd, void *arg);
 
-static fo_rdwr_t	ksem_read;
-static fo_rdwr_t	ksem_write;
-static fo_truncate_t	ksem_truncate;
-static fo_ioctl_t	ksem_ioctl;
-static fo_poll_t	ksem_poll;
-static fo_kqfilter_t	ksem_kqfilter;
 static fo_stat_t	ksem_stat;
 static fo_close_t	ksem_closef;
 static fo_chmod_t	ksem_chmod;
@@ -139,12 +133,12 @@ static fo_chown_t	ksem_chown;
 
 /* File descriptor operations. */
 static struct fileops ksem_ops = {
-	.fo_read = ksem_read,
-	.fo_write = ksem_write,
-	.fo_truncate = ksem_truncate,
-	.fo_ioctl = ksem_ioctl,
-	.fo_poll = ksem_poll,
-	.fo_kqfilter = ksem_kqfilter,
+	.fo_read = invfo_rdwr,
+	.fo_write = invfo_rdwr,
+	.fo_truncate = invfo_truncate,
+	.fo_ioctl = invfo_ioctl,
+	.fo_poll = invfo_poll,
+	.fo_kqfilter = invfo_kqfilter,
 	.fo_stat = ksem_stat,
 	.fo_close = ksem_closef,
 	.fo_chmod = ksem_chmod,
@@ -154,53 +148,6 @@ static struct fileops ksem_ops = {
 };
 
 FEATURE(posix_sem, "POSIX semaphores");
-
-static int
-ksem_read(struct file *fp, struct uio *uio, struct ucred *active_cred,
-    int flags, struct thread *td)
-{
-
-	return (EOPNOTSUPP);
-}
-
-static int
-ksem_write(struct file *fp, struct uio *uio, struct ucred *active_cred,
-    int flags, struct thread *td)
-{
-
-	return (EOPNOTSUPP);
-}
-
-static int
-ksem_truncate(struct file *fp, off_t length, struct ucred *active_cred,
-    struct thread *td)
-{
-
-	return (EINVAL);
-}
-
-static int
-ksem_ioctl(struct file *fp, u_long com, void *data,
-    struct ucred *active_cred, struct thread *td)
-{
-
-	return (EOPNOTSUPP);
-}
-
-static int
-ksem_poll(struct file *fp, int events, struct ucred *active_cred,
-    struct thread *td)
-{
-
-	return (EOPNOTSUPP);
-}
-
-static int
-ksem_kqfilter(struct file *fp, struct knote *kn)
-{
-
-	return (EOPNOTSUPP);
-}
 
 static int
 ksem_stat(struct file *fp, struct stat *sb, struct ucred *active_cred,

@@ -34,7 +34,7 @@
 .\" $Id: //depot/users/kenm/FreeBSD-test2/usr.sbin/ctladm/ctladm.8#3 $
 .\" $FreeBSD$
 .\"
-.Dd July 9, 2014
+.Dd September 13, 2014
 .Dt CTLADM 8
 .Os
 .Sh NAME
@@ -959,8 +959,19 @@ Setting to "on" allows EXTENDED COPY command sent to this LUN access
 other LUNs on this host, not accessible otherwise.
 This allows to offload copying between different iSCSI targets residing
 on the same host in trusted environments.
+.It Va readcache
+Set to "off", disables read caching for the LUN, if supported by the backend.
+.It Va reordering
+Set to "unrestricted", allows target to process commands with SIMPLE task
+attribute in arbitrary order.  Any data integrity exposures related to
+command sequence order shall be explicitly handled by the application
+client through the selection of appropriate commands and task attributes.
+The default value is "restricted".  It improves data integrity, but may
+introduce some additional delays.
 .It Va unmap
-Set to "on", enables UNMAP support for the LUN.
+Set to "on", enables UNMAP support for the LUN, if supported by the backend.
+.It Va writecache
+Set to "off", disables write caching for the LUN, if supported by the backend.
 .El
 .Pp
 Options specific for block backend:

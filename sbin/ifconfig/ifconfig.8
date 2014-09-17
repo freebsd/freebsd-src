@@ -28,7 +28,7 @@
 .\"     From: @(#)ifconfig.8	8.3 (Berkeley) 1/5/94
 .\" $FreeBSD$
 .\"
-.Dd June 5, 2014
+.Dd September 9, 2014
 .Dt IFCONFIG 8
 .Os
 .Sh NAME
@@ -687,6 +687,19 @@ policy table, configurable with
 .It Cm -no_prefer_iface
 Clear a flag
 .Cm no_prefer_iface .
+.El
+.Pp
+The following parameters are specific for IPv6 addresses.
+Note that the address family keyword
+.Dq Li inet6
+is needed for them:
+.Bl -tag -width indent
+.It Cm prefer_source
+Set a flag to prefer address as a candidate of the source address for
+outgoing packets.
+.It Cm -prefer_source
+Clear a flag
+.Cm prefer_source .
 .El
 .Pp
 The following parameters are specific to cloning

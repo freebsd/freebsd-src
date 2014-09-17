@@ -445,7 +445,6 @@ void sf_ext_free(void *, void *);
 #define	CSUM_UDP_IPV6		CSUM_IP6_UDP
 #define	CSUM_TCP_IPV6		CSUM_IP6_TCP
 #define	CSUM_SCTP_IPV6		CSUM_IP6_SCTP
-#define	CSUM_FRAGMENT		0x0		/* Unused */
 
 /*
  * mbuf types describing the content of the mbuf (including external storage).
@@ -673,7 +672,7 @@ m_clget(struct mbuf *m, int how)
 {
 
 	if (m->m_flags & M_EXT)
-		printf("%s: %p mbuf already has cluster\n", __func__, m);
+		printf("%s: %p mbuf already has external storage\n", __func__, m);
 	m->m_ext.ext_buf = (char *)NULL;
 	uma_zalloc_arg(zone_clust, m, how);
 	/*
@@ -699,7 +698,7 @@ m_cljget(struct mbuf *m, int how, int size)
 	uma_zone_t zone;
 
 	if (m && m->m_flags & M_EXT)
-		printf("%s: %p mbuf already has cluster\n", __func__, m);
+		printf("%s: %p mbuf already has external storage\n", __func__, m);
 	if (m != NULL)
 		m->m_ext.ext_buf = NULL;
 
@@ -844,29 +843,50 @@ m_last(struct mbuf *m)
 } while (0)
 
 /*
+ * Return the address of the start of the buffer associated with an mbuf,
+ * handling external storage, packet-header mbufs, and regular data mbufs.
+ */
+#define	M_START(m)							\
+	(((m)->m_flags & M_EXT) ? (m)->m_ext.ext_buf :			\
+	 ((m)->m_flags & M_PKTHDR) ? &(m)->m_pktdat[0] :		\
+	 &(m)->m_dat[0])
+
+/*
+ * Return the size of the buffer associated with an mbuf, handling external
+ * storage, packet-header mbufs, and regular data mbufs.
+ */
+#define	M_SIZE(m)							\
+	(((m)->m_flags & M_EXT) ? (m)->m_ext.ext_size :			\
+	 ((m)->m_flags & M_PKTHDR) ? MHLEN :				\
+	 MLEN)
+
+/*
  * Compute the amount of space available before the current start of data in
  * an mbuf.
  *
  * The M_WRITABLE() is a temporary, conservative safety measure: the burden
  * of checking writability of the mbuf data area rests solely with the caller.
+ *
+ * NB: In previous versions, M_LEADINGSPACE() would only check M_WRITABLE()
+ * for mbufs with external storage.  We now allow mbuf-embedded data to be
+ * read-only as well.
  */
 #define	M_LEADINGSPACE(m)						\
-	((m)->m_flags & M_EXT ?						\
-	    (M_WRITABLE(m) ? (m)->m_data - (m)->m_ext.ext_buf : 0):	\
-	    (m)->m_flags & M_PKTHDR ? (m)->m_data - (m)->m_pktdat :	\
-	    (m)->m_data - (m)->m_dat)
+	(M_WRITABLE(m) ? ((m)->m_data - M_START(m)) : 0)
 
 /*
  * Compute the amount of space available after the end of data in an mbuf.
  *
  * The M_WRITABLE() is a temporary, conservative safety measure: the burden
  * of checking writability of the mbuf data area rests solely with the caller.
+ *
+ * NB: In previous versions, M_TRAILINGSPACE() would only check M_WRITABLE()
+ * for mbufs with external storage.  We now allow mbuf-embedded data to be
+ * read-only as well.
  */
 #define	M_TRAILINGSPACE(m)						\
-	((m)->m_flags & M_EXT ?						\
-	    (M_WRITABLE(m) ? (m)->m_ext.ext_buf + (m)->m_ext.ext_size	\
-		- ((m)->m_data + (m)->m_len) : 0) :			\
-	    &(m)->m_dat[MLEN] - ((m)->m_data + (m)->m_len))
+	(M_WRITABLE(m) ?						\
+	    ((M_START(m) + M_SIZE(m)) - ((m)->m_data + (m)->m_len)) : 0)
 
 /*
  * Arrange to prepend space of size plen to mbuf m.  If a new mbuf must be
@@ -916,6 +936,7 @@ int		 m_apply(struct mbuf *, int, int,
 		    int (*)(void *, void *, u_int), void *);
 int		 m_append(struct mbuf *, int, c_caddr_t);
 void		 m_cat(struct mbuf *, struct mbuf *);
+void		 m_catpkt(struct mbuf *, struct mbuf *);
 int		 m_extadd(struct mbuf *, caddr_t, u_int,
 		    void (*)(struct mbuf *, void *, void *), void *, void *,
 		    int, int, int);

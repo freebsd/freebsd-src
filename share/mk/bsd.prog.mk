@@ -11,18 +11,6 @@
 CFLAGS+=${COPTS}
 .endif
 
-.if ${MK_PIE} != "no" && (!defined(NO_PIE) || ${NO_PIE} == "no")
-.if !defined(RESCUE) && !defined(NO_SHARED)
-CFLAGS+= -fPIE -pie
-LDFLAGS+= -pie
-.elif defined(NO_SHARED)
-.if ${NO_SHARED} == "no" || ${NO_SHARED} == "NO"
-CFLAGS+= -fPIE -pie
-LDFLAGS+= -pie
-.endif
-.endif
-.endif
-
 .if ${MK_ASSERT_DEBUG} == "no"
 CFLAGS+= -DNDEBUG
 NO_WERROR=
@@ -41,9 +29,7 @@ CTFFLAGS+= -g
 PROG=	${PROG_CXX}
 .endif
 
-.if defined(PROG) && target(${PROG})
-MK_DEBUG_FILES=	no
-.elif !empty(LDFLAGS:M-Wl,*--oformat,*) || !empty(LDFLAGS:M-static)
+.if !empty(LDFLAGS:M-Wl,*--oformat,*) || !empty(LDFLAGS:M-static)
 MK_DEBUG_FILES=	no
 .endif
 
