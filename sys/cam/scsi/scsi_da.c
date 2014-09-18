@@ -548,6 +548,13 @@ static struct da_quirk_entry da_quirk_table[] =
 	},
 	{
 		/*
+		 * PNY USB 3.0 Flash Drives
+		*/
+		{T_DIRECT, SIP_MEDIA_REMOVABLE, "PNY", "USB 3.0 FD*",
+		"*"}, /*quirks*/ DA_Q_NO_SYNC_CACHE | DA_Q_NO_RC16
+	},
+	{
+		/*
 		 * PNY USB Flash keys
 		 * PR: usb/75578, usb/72344, usb/65436 
 		 */
