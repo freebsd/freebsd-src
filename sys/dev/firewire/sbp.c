@@ -43,30 +43,9 @@
 #include <sys/sysctl.h>
 #include <machine/bus.h>
 #include <sys/malloc.h>
-#if defined(__FreeBSD__) && __FreeBSD_version >= 501102
 #include <sys/lock.h>
 #include <sys/mutex.h>
-#endif
 
-#if defined(__DragonFly__) || __FreeBSD_version < 500106
-#include <sys/devicestat.h>	/* for struct devstat */
-#endif
-
-#ifdef __DragonFly__
-#include <bus/cam/cam.h>
-#include <bus/cam/cam_ccb.h>
-#include <bus/cam/cam_sim.h>
-#include <bus/cam/cam_xpt_sim.h>
-#include <bus/cam/cam_debug.h>
-#include <bus/cam/cam_periph.h>
-#include <bus/cam/scsi/scsi_all.h>
-
-#include <bus/firewire/firewire.h>
-#include <bus/firewire/firewirereg.h>
-#include <bus/firewire/fwdma.h>
-#include <bus/firewire/iec13213.h>
-#include "sbp.h"
-#else
 #include <cam/cam.h>
 #include <cam/cam_ccb.h>
 #include <cam/cam_sim.h>
@@ -80,7 +59,6 @@
 #include <dev/firewire/fwdma.h>
 #include <dev/firewire/iec13213.h>
 #include <dev/firewire/sbp.h>
-#endif
 
 #define ccb_sdev_ptr	spriv_ptr0
 #define ccb_sbp_ptr	spriv_ptr1
@@ -1677,11 +1655,7 @@ END_DEBUG
 		ocb = sbp_dequeue_ocb(sdev, sbp_status);
 		if (ocb == NULL) {
 			device_printf(sdev->target->sbp->fd.dev,
-#if defined(__DragonFly__) || __FreeBSD_version < 500000
-				"%s:%s No ocb(%lx) on the queue\n",
-#else
 				"%s:%s No ocb(%x) on the queue\n",
-#endif
 				__func__,sdev->bustgtlun,
 				ntohl(sbp_status->orb_lo));
 		}
@@ -1708,11 +1682,7 @@ END_DEBUG
 SBP_DEBUG(0)
 		device_printf(sdev->target->sbp->fd.dev,
 			"%s:%s ORB status src:%x resp:%x dead:%x"
-#if defined(__DragonFly__) || __FreeBSD_version < 500000
-				" len:%x stat:%x orb:%x%08lx\n",
-#else
 				" len:%x stat:%x orb:%x%08x\n",
-#endif
 			__func__, sdev->bustgtlun,
 			sbp_status->src, sbp_status->resp, sbp_status->dead,
 			sbp_status->len, sbp_status->status,
@@ -1949,10 +1919,8 @@ END_DEBUG
 				/*maxsize*/0x100000, /*nsegments*/SBP_IND_MAX,
 				/*maxsegsz*/SBP_SEG_MAX,
 				/*flags*/BUS_DMA_ALLOCNOW,
-#if defined(__FreeBSD__) && __FreeBSD_version >= 501102
 				/*lockfunc*/busdma_lock_mutex,
 				/*lockarg*/&sbp->mtx,
-#endif
 				&sbp->dmat);
 	if (error != 0) {
 		printf("sbp_attach: Could not allocate DMA tag "
@@ -2463,11 +2431,6 @@ printf("ORB %08x %08x %08x %08x\n", ntohl(ocb->orb[4]), ntohl(ocb->orb[5]), ntoh
 	case XPT_CALC_GEOMETRY:
 	{
 		struct ccb_calc_geometry *ccg;
-#if defined(__DragonFly__) || __FreeBSD_version < 501100
-		uint32_t size_mb;
-		uint32_t secs_per_cylinder;
-		int extended = 1;
-#endif
 
 		ccg = &ccb->ccg;
 		if (ccg->block_size == 0) {
@@ -2478,37 +2441,14 @@ printf("ORB %08x %08x %08x %08x\n", ntohl(ocb->orb[4]), ntohl(ocb->orb[5]), ntoh
 		}
 SBP_DEBUG(1)
 		printf("%s:%d:%d:%jx:XPT_CALC_GEOMETRY: "
-#if defined(__DragonFly__) || __FreeBSD_version < 500000
-			"Volume size = %d\n",
-#else
 			"Volume size = %jd\n",
-#endif
 			device_get_nameunit(sbp->fd.dev),
 			cam_sim_path(sbp->sim),
 			ccb->ccb_h.target_id, (uintmax_t)ccb->ccb_h.target_lun,
-#if defined(__FreeBSD__) && __FreeBSD_version >= 500000
-			(uintmax_t)
-#endif
-				ccg->volume_size);
+			(uintmax_t)ccg->volume_size);
 END_DEBUG
 
-#if defined(__DragonFly__) || __FreeBSD_version < 501100
-		size_mb = ccg->volume_size
-			/ ((1024L * 1024L) / ccg->block_size);
-
-		if (size_mb > 1024 && extended) {
-			ccg->heads = 255;
-			ccg->secs_per_track = 63;
-		} else {
-			ccg->heads = 64;
-			ccg->secs_per_track = 32;
-		}
-		secs_per_cylinder = ccg->heads * ccg->secs_per_track;
-		ccg->cylinders = ccg->volume_size / secs_per_cylinder;
-		ccb->ccb_h.status = CAM_REQ_CMP;
-#else
 		cam_calc_geometry(ccg, /*extended*/1);
-#endif
 		xpt_done(ccb);
 		break;
 	}
@@ -2611,12 +2551,8 @@ sbp_execute_ocb(void *arg,  bus_dma_segment_t *segments, int seg, int error)
 SBP_DEBUG(2)
 	printf("sbp_execute_ocb: seg %d", seg);
 	for (i = 0; i < seg; i++)
-#if defined(__DragonFly__) || __FreeBSD_version < 500000
-		printf(", %x:%d", segments[i].ds_addr, segments[i].ds_len);
-#else
 		printf(", %jx:%jd", (uintmax_t)segments[i].ds_addr,
 					(uintmax_t)segments[i].ds_len);
-#endif
 	printf("\n");
 END_DEBUG
 
@@ -2635,11 +2571,7 @@ SBP_DEBUG(0)
 			/* XXX LSI Logic "< 16 byte" bug might be hit */
 			if (s->ds_len < 16)
 				printf("sbp_execute_ocb: warning, "
-#if defined(__DragonFly__) || __FreeBSD_version < 500000
-					"segment length(%d) is less than 16."
-#else
 					"segment length(%zd) is less than 16."
-#endif
 					"(seg=%d/%d)\n", (size_t)s->ds_len, i+1, seg);
 END_DEBUG
 			if (s->ds_len > SBP_SEG_MAX)
@@ -2694,11 +2626,7 @@ sbp_dequeue_ocb(struct sbp_dev *sdev, struct sbp_status *sbp_status)
 
 SBP_DEBUG(1)
 	device_printf(sdev->target->sbp->fd.dev,
-#if defined(__DragonFly__) || __FreeBSD_version < 500000
-	"%s:%s 0x%08lx src %d\n",
-#else
 	"%s:%s 0x%08x src %d\n",
-#endif
 	    __func__, sdev->bustgtlun, ntohl(sbp_status->orb_lo), sbp_status->src);
 END_DEBUG
 	SBP_LOCK_ASSERT(sdev->target->sbp);
@@ -2765,11 +2693,7 @@ sbp_enqueue_ocb(struct sbp_dev *sdev, struct sbp_ocb *ocb)
 	SBP_LOCK_ASSERT(sdev->target->sbp);
 SBP_DEBUG(1)
 	device_printf(sdev->target->sbp->fd.dev,
-#if defined(__DragonFly__) || __FreeBSD_version < 500000
-	"%s:%s 0x%08x\n", __func__, sdev->bustgtlun, ocb->bus_addr);
-#else
 	"%s:%s 0x%08jx\n", __func__, sdev->bustgtlun, (uintmax_t)ocb->bus_addr);
-#endif
 END_DEBUG
 	prev2 = prev = STAILQ_LAST(&sdev->ocbs, sbp_ocb, ocb);
 	STAILQ_INSERT_TAIL(&sdev->ocbs, ocb, ocb);
@@ -2783,13 +2707,8 @@ END_DEBUG
 
 	if (prev2 != NULL && (ocb->sdev->flags & ORB_LINK_DEAD) == 0) {
 SBP_DEBUG(1)
-#if defined(__DragonFly__) || __FreeBSD_version < 500000
-		printf("linking chain 0x%x -> 0x%x\n",
-		    prev2->bus_addr, ocb->bus_addr);
-#else
 		printf("linking chain 0x%jx -> 0x%jx\n",
 		    (uintmax_t)prev2->bus_addr, (uintmax_t)ocb->bus_addr);
-#endif
 END_DEBUG
 		/*
 		 * Suppress compiler optimization so that orb[1] must be written first.
@@ -2847,11 +2766,7 @@ sbp_abort_ocb(struct sbp_ocb *ocb, int status)
 	SBP_LOCK_ASSERT(sdev->target->sbp);
 SBP_DEBUG(0)
 	device_printf(sdev->target->sbp->fd.dev,
-#if defined(__DragonFly__) || __FreeBSD_version < 500000
-	"%s:%s 0x%x\n", __func__, sdev->bustgtlun, ocb->bus_addr);
-#else
 	"%s:%s 0x%jx\n", __func__, sdev->bustgtlun, (uintmax_t)ocb->bus_addr);
-#endif
 END_DEBUG
 SBP_DEBUG(1)
 	if (ocb->ccb != NULL)
@@ -2909,9 +2824,6 @@ static driver_t sbp_driver = {
 	sbp_methods,
 	sizeof(struct sbp_softc),
 };
-#ifdef __DragonFly__
-DECLARE_DUMMY_MODULE(sbp);
-#endif
 DRIVER_MODULE(sbp, firewire, sbp_driver, sbp_devclass, 0, 0);
 MODULE_VERSION(sbp, 1);
 MODULE_DEPEND(sbp, firewire, 1, 1, 1);
