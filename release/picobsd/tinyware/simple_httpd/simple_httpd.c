@@ -160,8 +160,8 @@ http_date(void)
 void
 http_output(const char *html)
 {
-        write(con_sock, html, strlen(html));
-        write(con_sock, "\r\n", 2);
+	write(con_sock, html, strlen(html));
+	write(con_sock, "\r\n", 2);
 }
 
 
@@ -172,30 +172,30 @@ http_output(const char *html)
 void
 log_line(char *req)
 {
-        char            log_buff[256];
-        char            msg[1024];
-	char            env_host[80], env_addr[80];
-	long            addr;
-	FILE           *log;
+	char	log_buff[256];
+	char	msg[1024];
+	char	env_host[80], env_addr[80];
+	long	addr;
+	FILE	*log;
 
 	strcpy(log_buff,inet_ntoa(source.sin_addr));
 	sprintf(env_addr, "REMOTE_ADDR=%s",log_buff);
 
-        addr=inet_addr(log_buff);
-        
-        strcpy(msg,adate());
-        strcat(msg,"    ");                 
-        hst=gethostbyaddr((char*) &addr, 4, AF_INET);
+	addr=inet_addr(log_buff);
+
+	strcpy(msg,adate());
+	strcat(msg,"    ");
+	hst=gethostbyaddr((char*) &addr, 4, AF_INET);
 
 	/* If DNS hostname exists */
-        if (hst) {
+	if (hst) {
 	  strcat(msg,hst->h_name);
 	  sprintf(env_host, "REMOTE_HOST=%s",hst->h_name);
 	}
-        strcat(msg," (");
-        strcat(msg,log_buff);
-        strcat(msg,")   ");
-        strcat(msg,req);
+	strcat(msg," (");
+	strcat(msg,log_buff);
+	strcat(msg,")   ");
+	strcat(msg,req);
 
 	if (daemonize) {
 	  log=fopen(logfile,"a");
@@ -226,8 +226,8 @@ http_request(void)
 
 	lg = read(con_sock, req, 1024);
 
-        if ((p=strstr(req,"\n"))) *p=0;
-        if ((p=strstr(req,"\r"))) *p=0;
+	if ((p=strstr(req,"\n"))) *p=0;
+	if ((p=strstr(req,"\r"))) *p=0;
 
 	log_line(req);
 
@@ -253,40 +253,40 @@ http_request(void)
 	filename = strtok(NULL, " ");
 
 	c = strtok(NULL, " ");
-	if (fetch_mode != NULL) filename=fetch_mode; 
-	if (filename == NULL || 
-            strlen(filename)==1) filename="/index.html"; 
+	if (fetch_mode != NULL) filename=fetch_mode;
+	if (filename == NULL ||
+	    strlen(filename)==1) filename="/index.html";
 
-	while (filename[0]== '/') filename++;        
+	while (filename[0]== '/') filename++;
 	
-        /* CGI handling.  Untested */
-        if (!strncmp(filename,"cgi-bin/",8))           
-           {
-           par=0;
-           if ((par=strstr(filename,"?")))                        
-              {
-               *par=0;            
-                par++;      
-              } 
-           if (access(filename,X_OK)) goto conti;
-           stat (filename,&file_status);
-           if (setuid(file_status.st_uid)) return;
-           if (seteuid(file_status.st_uid)) return;
-           if (!fork())
-              {
-               close(1);
-               dup(con_sock);
-               /*printf("HTTP/1.0 200 OK\nContent-type: text/html\n\n\n");*/
+	/* CGI handling.  Untested */
+	if (!strncmp(filename,"cgi-bin/",8))
+	   {
+	   par=0;
+	   if ((par=strstr(filename,"?")))
+	      {
+	       *par=0;
+	        par++;
+	      } 
+	   if (access(filename,X_OK)) goto conti;
+	   stat (filename,&file_status);
+	   if (setuid(file_status.st_uid)) return;
+	   if (seteuid(file_status.st_uid)) return;
+	   if (!fork())
+	      {
+	       close(1);
+	       dup(con_sock);
+	       /*printf("HTTP/1.0 200 OK\nContent-type: text/html\n\n\n");*/
 	       printf("HTTP/1.0 200 OK\r\n");
-               /* Plug in environment variable, others in log_line */
+	       /* Plug in environment variable, others in log_line */
 	       setenv("SERVER_SOFTWARE", "FreeBSD/PicoBSD", 1);
 
 	       execlp (filename,filename,par,(char *)0);
-              } 
-            wait(&i);
-            return;
-            }
-        conti:
+	      } 
+	    wait(&i);
+	    return;
+	    }
+	conti:
 	if (filename == NULL) {
 	  http_output(http_405[0]);
 	  http_output(http_405[1]);
@@ -307,8 +307,8 @@ http_request(void)
 	/* Open filename */
 	fd = open(filename, O_RDONLY);
 	if (fd < 0) {
-	        http_output(http_404[0]);
-	        http_output(http_404[1]);
+		http_output(http_404[0]);
+		http_output(http_404[1]);
 		goto end_request;
 	}
 
@@ -325,7 +325,7 @@ http_request(void)
 	  http_output(http_404[1]);
 	  goto end_request2;
 	}
-     
+
 	/* Past this point we are serving either a GET or HEAD */
 	/* Print all the header info */
 	http_output(http_200);
@@ -371,14 +371,14 @@ end_request:
 int
 main(int argc, char *argv[])
 {
-        int ch, ld;
-	int             httpd_group = 65534;
-        pid_t server_pid;
-  
+	int ch, ld;
+	pid_t httpd_group = 65534;
+	pid_t server_pid;
+
 	/* Default for html directory */
 	strcpy (homedir,getenv("HOME"));
-        if (!geteuid()) strcpy (homedir,"/httphome");
-           else         strcat (homedir,"/httphome");
+	if (!geteuid())	strcpy (homedir,"/httphome");
+	   else		strcat (homedir,"/httphome");
 
 	/* Defaults for log file */
 	if (geteuid()) {
@@ -420,10 +420,10 @@ main(int argc, char *argv[])
 	    printf("usage: simple_httpd [[-d directory][-g grpid][-l logfile][-p port][-vD]]\n");
 	    exit(1);
 	    /* NOTREACHED */
-	  }                           
+	  }
 
 	/* Not running as root and no port supplied, assume 1080 */
-        if ((http_port == 80) && geteuid()) {
+	if ((http_port == 80) && geteuid()) {
 	  http_port = 1080;
 	}
 
@@ -437,15 +437,15 @@ main(int argc, char *argv[])
 	}
 
 	/* Create log file if it doesn't exit */
-	if ((access(logfile,W_OK)) && daemonize) { 
-	  ld = open (logfile,O_WRONLY);         
+	if ((access(logfile,W_OK)) && daemonize) {
+	  ld = open (logfile,O_WRONLY);
 	  chmod (logfile,00600);
 	  close(ld);
 	}
 
-        init_servconnection();                  
+	init_servconnection();
 
-        if (verbose) {
+	if (verbose) {
 	  printf("Server started with options \n"); 
 	  printf("port: %d\n",http_port);
 	  if (fetch_mode == NULL) printf("html home: %s\n",homedir);
@@ -453,7 +453,7 @@ main(int argc, char *argv[])
 	}
 
 	/* httpd is spawned */
-        if (daemonize) {
+	if (daemonize) {
 	  if ((server_pid = fork()) != 0) {
 	    wait3(0,WNOHANG,0);
 	    if (verbose) printf("pid: %d\n",server_pid);
@@ -462,16 +462,17 @@ main(int argc, char *argv[])
 	  wait3(0,WNOHANG,0);
 	}
 
-	if (fetch_mode == NULL) setpgrp(0,httpd_group);
+	if (fetch_mode == NULL)
+		setpgrp((pid_t)0, httpd_group);
 
 	/* How many connections do you want? 
 	 * Keep this lower than the available number of processes
 	 */
-        if (listen(http_sock,15) < 0) exit(1);
+	if (listen(http_sock,15) < 0) exit(1);
 
-        label:	
+	label:	
 	wait_connection();
-    
+
 	if (fork()) {
 	  wait3(0,WNOHANG,0);
 	  close(con_sock);
@@ -488,13 +489,13 @@ main(int argc, char *argv[])
 char *
 adate(void)
 {
-        static char out[50];
-        time_t now;
-        struct tm *t;
-        time(&now);
-        t = localtime(&now);
-        sprintf(out, "%02d:%02d:%02d %02d/%02d/%02d",
-                     t->tm_hour, t->tm_min, t->tm_sec,
-                     t->tm_mday, t->tm_mon+1, t->tm_year );
-        return out;
+	static char out[50];
+	time_t now;
+	struct tm *t;
+	time(&now);
+	t = localtime(&now);
+	sprintf(out, "%02d:%02d:%02d %02d/%02d/%02d",
+		     t->tm_hour, t->tm_min, t->tm_sec,
+		     t->tm_mday, t->tm_mon+1, t->tm_year );
+	return out;
 }
