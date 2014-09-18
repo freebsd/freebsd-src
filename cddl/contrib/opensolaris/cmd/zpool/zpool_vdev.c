@@ -653,6 +653,7 @@ get_replication(nvlist_t *nvroot, boolean_t fatal)
 			dontreport = 0;
 			vdev_size = -1ULL;
 			for (c = 0; c < children; c++) {
+				boolean_t is_replacing, is_spare;
 				nvlist_t *cnv = child[c];
 				char *path;
 				struct stat64 statbuf;
@@ -669,16 +670,19 @@ get_replication(nvlist_t *nvroot, boolean_t fatal)
 				 * If this is a replacing or spare vdev, then
 				 * get the real first child of the vdev.
 				 */
-				if (strcmp(childtype,
-				    VDEV_TYPE_REPLACING) == 0 ||
-				    strcmp(childtype, VDEV_TYPE_SPARE) == 0) {
+				is_replacing = strcmp(childtype,
+				    VDEV_TYPE_REPLACING) == 0;
+				is_spare = strcmp(childtype,
+				    VDEV_TYPE_SPARE) == 0;
+				if (is_replacing || is_spare) {
 					nvlist_t **rchild;
 					uint_t rchildren;
 
 					verify(nvlist_lookup_nvlist_array(cnv,
 					    ZPOOL_CONFIG_CHILDREN, &rchild,
 					    &rchildren) == 0);
-					assert(rchildren == 2);
+					assert((is_replacing && rchildren == 2)
+					    || (is_spare && rchildren >= 2));
 					cnv = rchild[0];
 
 					verify(nvlist_lookup_string(cnv,
