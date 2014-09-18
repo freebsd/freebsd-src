@@ -53,7 +53,8 @@
 #define	LAGG_PROTO_LOADBALANCE	3	/* loadbalance */
 #define	LAGG_PROTO_LACP		4	/* 802.3ad lacp */
 #define	LAGG_PROTO_ETHERCHANNEL	5	/* Cisco FEC */
-#define	LAGG_PROTO_MAX		6
+#define       LAGG_PROTO_BROADCAST        6      /* broadcast */
+#define	LAGG_PROTO_MAX	       7
 
 struct lagg_protos {
 	const char		*lpr_name;
@@ -62,11 +63,12 @@ struct lagg_protos {
 
 #define	LAGG_PROTO_DEFAULT	LAGG_PROTO_FAILOVER
 #define LAGG_PROTOS	{						\
-	{ "failover",		LAGG_PROTO_FAILOVER },			\
+	{ "failover",		LAGG_PROTO_FAILOVER },		\
 	{ "fec",		LAGG_PROTO_ETHERCHANNEL },		\
 	{ "lacp",		LAGG_PROTO_LACP },			\
 	{ "loadbalance",	LAGG_PROTO_LOADBALANCE },		\
-	{ "roundrobin",		LAGG_PROTO_ROUNDROBIN },		\
+	{ "roundrobin",	LAGG_PROTO_ROUNDROBIN },		\
+	{ "broadcast",	LAGG_PROTO_BROADCAST },		\
 	{ "none",		LAGG_PROTO_NONE },			\
 	{ "default",		LAGG_PROTO_DEFAULT }			\
 }
