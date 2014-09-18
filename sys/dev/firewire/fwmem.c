@@ -46,11 +46,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/malloc.h>
 #include <sys/conf.h>
 #include <sys/sysctl.h>
-#if defined(__DragonFly__) || __FreeBSD_version < 500000
-#include <sys/buf.h>
-#else
 #include <sys/bio.h>
-#endif
 
 #include <sys/bus.h>
 #include <machine/bus.h>
@@ -60,15 +56,9 @@ __FBSDID("$FreeBSD$");
 #include <sys/ioccom.h>
 #include <sys/fcntl.h>
 
-#ifdef __DragonFly__
-#include "firewire.h"
-#include "firewirereg.h"
-#include "fwmem.h"
-#else
 #include <dev/firewire/firewire.h>
 #include <dev/firewire/firewirereg.h>
 #include <dev/firewire/fwmem.h>
-#endif
 
 static int fwmem_speed=2, fwmem_debug=0;
 static struct fw_eui64 fwmem_eui64;
@@ -442,12 +432,8 @@ fwmem_poll (struct cdev *dev, int events, fw_proc *td)
 	return EINVAL;
 }
 int
-#if defined(__DragonFly__) || __FreeBSD_version < 500102
-fwmem_mmap (struct cdev *dev, vm_offset_t offset, int nproto)
-#else
 fwmem_mmap (struct cdev *dev, vm_ooffset_t offset, vm_paddr_t *paddr,
     int nproto, vm_memattr_t *memattr)
-#endif
 {  
 	return EINVAL;
 }

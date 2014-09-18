@@ -454,11 +454,6 @@ struct fw_crom_buf {
 
 #define FWMAXNDMA 0x100 /* 8 bits DMA channel id. in device No. */
 
-#if defined(__DragonFly__) || __FreeBSD_version < 500000
-#define dev2unit(x)	((minor(x) & 0xff) | (minor(x) >> 8))
-#define unit2minor(x)	(((x) & 0xff) | (((x) << 8) & ~0xffff))
-#endif
-
 #define MAKEMINOR(f, u, s)	\
 	((f) | (((u) & 0xff) << 8) | (s & 0xff))
 #define DEV2UNIT(x)	((dev2unit(x) & 0xff00) >> 8)
