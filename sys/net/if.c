@@ -1422,6 +1422,56 @@ if_get_counter_compat(struct ifnet *ifp, ifnet_counter cnt)
 }
 
 /*
+ * Increase an ifnet counter. Usually used for counters shared
+ * between the stack and a driver, but function supports them all.
+ */
+void
+if_inc_counter(struct ifnet *ifp, ifnet_counter cnt, int64_t inc)
+{
+
+	switch (cnt) {
+		case IFCOUNTER_IPACKETS:
+			ifp->if_ipackets += inc;
+			break;
+		case IFCOUNTER_IERRORS:
+			ifp->if_ierrors += inc;
+			break;
+		case IFCOUNTER_OPACKETS:
+			ifp->if_opackets += inc;
+			break;
+		case IFCOUNTER_OERRORS:
+			ifp->if_oerrors += inc;
+			break;
+		case IFCOUNTER_COLLISIONS:
+			ifp->if_collisions += inc;
+			break;
+		case IFCOUNTER_IBYTES:
+			ifp->if_ibytes += inc;
+			break;
+		case IFCOUNTER_OBYTES:
+			ifp->if_obytes += inc;
+			break;
+		case IFCOUNTER_IMCASTS:
+			ifp->if_imcasts += inc;
+			break;
+		case IFCOUNTER_OMCASTS:
+			ifp->if_omcasts += inc;
+			break;
+		case IFCOUNTER_IQDROPS:
+			ifp->if_iqdrops += inc;
+			break;
+		case IFCOUNTER_OQDROPS:
+			ifp->if_oqdrops += inc;
+			break;
+		case IFCOUNTER_NOPROTO:
+			ifp->if_noproto += inc;
+			break;
+		default:
+			panic("%s: unknown counter %d", __func__, cnt);
+	}
+}
+
+/*
  * Copy data from ifnet to userland API structure if_data.
  */
 void
