@@ -2403,8 +2403,8 @@ sctp_calculate_rto(struct sctp_tcb *stcb,
 	net->rtt = (uint64_t) 1000000 *(uint64_t) now.tv_sec +
 	        (uint64_t) now.tv_usec;
 
-	/* computer rtt in ms */
-	rtt = net->rtt / 1000;
+	/* compute rtt in ms */
+	rtt = (int32_t) (net->rtt / 1000);
 	if ((asoc->cc_functions.sctp_rtt_calculated) && (rtt_from_sack == SCTP_RTT_FROM_DATA)) {
 		/*
 		 * Tell the CC module that a new update has just occurred
