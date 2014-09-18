@@ -553,7 +553,7 @@ rtredirect_fib(struct sockaddr *dst,
 	}
 
 	/* verify the gateway is directly reachable */
-	if ((ifa = ifa_ifwithnet(gateway, 0)) == NULL) {
+	if ((ifa = ifa_ifwithnet_fib(gateway, 0, fibnum)) == NULL) {
 		error = ENETUNREACH;
 		goto out;
 	}
@@ -710,7 +710,7 @@ ifa_ifwithroute_fib(int flags, struct sockaddr *dst, struct sockaddr *gateway,
 		 */
 		ifa = NULL;
 		if (flags & RTF_HOST)
-			ifa = ifa_ifwithdstaddr(dst);
+			ifa = ifa_ifwithdstaddr_fib(dst, fibnum);
 		if (ifa == NULL)
 			ifa = ifa_ifwithaddr(gateway);
 	} else {
@@ -719,10 +719,10 @@ ifa_ifwithroute_fib(int flags, struct sockaddr *dst, struct sockaddr *gateway,
 		 * or host, the gateway may still be on the
 		 * other end of a pt to pt link.
 		 */
-		ifa = ifa_ifwithdstaddr(gateway);
+		ifa = ifa_ifwithdstaddr_fib(gateway, fibnum);
 	}
 	if (ifa == NULL)
-		ifa = ifa_ifwithnet(gateway, 0);
+		ifa = ifa_ifwithnet_fib(gateway, 0, fibnum);
 	if (ifa == NULL) {
 		struct rtentry *rt = rtalloc1_fib(gateway, 0, RTF_RNH_LOCKED, fibnum);
 		if (rt == NULL)
@@ -836,7 +836,7 @@ rt_getifa_fib(struct rt_addrinfo *info, u_int fibnum)
 	 */
 	if (info->rti_ifp == NULL && ifpaddr != NULL &&
 	    ifpaddr->sa_family == AF_LINK &&
-	    (ifa = ifa_ifwithnet(ifpaddr, 0)) != NULL) {
+	    (ifa = ifa_ifwithnet_fib(ifpaddr, 0, fibnum)) != NULL) {
 		info->rti_ifp = ifa->ifa_ifp;
 		ifa_free(ifa);
 	}
