@@ -430,7 +430,7 @@ autofs_trigger_one(struct autofs_node *anp,
 			autofs_restore_sigmask(&oldset);
 			if (error != 0) {
 				/*
-				 * XXX: For some reson this returns -1
+				 * XXX: For some reason this returns -1
 				 *	instead of EINTR, wtf?!
 				 */
 				error = EINTR;
@@ -542,7 +542,7 @@ autofs_ioctl_request(struct autofs_daemon_request *adr)
 		    &autofs_softc->sc_lock);
 		if (error != 0) {
 			/*
-			 * XXX: For some reson this returns -1 instead
+			 * XXX: For some reason this returns -1 instead
 			 * 	of EINTR, wtf?!
 			 */
 			error = EINTR;
