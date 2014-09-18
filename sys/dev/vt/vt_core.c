@@ -796,7 +796,8 @@ vt_allocate_keyboard(struct vt_device *vd)
 				continue;
 
 			bzero(&ki, sizeof(ki));
-			strcpy(ki.kb_name, k->kb_name);
+			strncpy(ki.kb_name, k->kb_name, sizeof(ki.kb_name));
+			ki.kb_name[sizeof(ki.kb_name) - 1] = '\0';
 			ki.kb_unit = k->kb_unit;
 
 			kbdd_ioctl(k0, KBADDKBD, (caddr_t) &ki);
