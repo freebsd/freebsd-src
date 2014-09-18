@@ -3,6 +3,7 @@
 /*
  * Copyright (c) 2005, 2006 Reyk Floeter <reyk@openbsd.org>
  * Copyright (c) 2007 Andrew Thompson <thompsa@FreeBSD.org>
+ * Copyright (c) 2014 Marcelo Araujo <araujo@FreeBSD.org>
  *
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -147,6 +148,13 @@ static struct mbuf *lagg_lb_input(struct lagg_softc *, struct lagg_port *,
 		    struct mbuf *);
 static int	lagg_lb_porttable(struct lagg_softc *, struct lagg_port *);
 
+/* Broadcast */
+static int    lagg_bcast_attach(struct lagg_softc *);
+static int    lagg_bcast_detach(struct lagg_softc *);
+static int    lagg_bcast_start(struct lagg_softc *, struct mbuf *);
+static struct mbuf *lagg_bcast_input(struct lagg_softc *, struct lagg_port *,
+                  struct mbuf *);
+
 /* 802.3ad LACP */
 static int	lagg_lacp_attach(struct lagg_softc *);
 static int	lagg_lacp_detach(struct lagg_softc *);
@@ -163,10 +171,11 @@ static const struct {
 	int			(*ti_attach)(struct lagg_softc *);
 } lagg_protos[] = {
 	{ LAGG_PROTO_ROUNDROBIN,	lagg_rr_attach },
-	{ LAGG_PROTO_FAILOVER,		lagg_fail_attach },
+	{ LAGG_PROTO_FAILOVER,	lagg_fail_attach },
 	{ LAGG_PROTO_LOADBALANCE,	lagg_lb_attach },
 	{ LAGG_PROTO_ETHERCHANNEL,	lagg_lb_attach },
 	{ LAGG_PROTO_LACP,		lagg_lacp_attach },
+	{ LAGG_PROTO_BROADCAST,	lagg_bcast_attach },
 	{ LAGG_PROTO_NONE,		NULL }
 };
 
@@ -918,6 +927,7 @@ lagg_port2req(struct lagg_port *lp, struct lagg_reqport *rp)
 		case LAGG_PROTO_ROUNDROBIN:
 		case LAGG_PROTO_LOADBALANCE:
 		case LAGG_PROTO_ETHERCHANNEL:
+              case LAGG_PROTO_BROADCAST:
 			if (LAGG_PORTACTIVE(lp))
 				rp->rp_flags |= LAGG_PORT_ACTIVE;
 			break;
@@ -1440,6 +1450,7 @@ lagg_linkstate(struct lagg_softc *sc)
 		case LAGG_PROTO_ROUNDROBIN:
 		case LAGG_PROTO_LOADBALANCE:
 		case LAGG_PROTO_ETHERCHANNEL:
+              case LAGG_PROTO_BROADCAST:
 			speed = 0;
 			SLIST_FOREACH(lp, &sc->sc_ports, lp_entries)
 				speed += lp->lp_ifp->if_baudrate;
@@ -1719,6 +1730,91 @@ lagg_rr_input(struct lagg_softc *sc, struct lagg_port *lp, struct mbuf *m)
 	m->m_pkthdr.rcvif = ifp;
 
 	return (m);
+}
+
+/*
+ * Broadcast mode
+ */
+
+static int
+lagg_bcast_attach(struct lagg_softc *sc)
+{
+       sc->sc_detach = lagg_bcast_detach;
+       sc->sc_start = lagg_bcast_start;
+       sc->sc_input = lagg_bcast_input;
+       sc->sc_port_create = NULL;
+       sc->sc_port_destroy = NULL;
+       sc->sc_linkstate = NULL;
+       sc->sc_req = NULL;
+       sc->sc_portreq = NULL;
+
+       return (0);
+}
+
+static int
+lagg_bcast_detach(struct lagg_softc *sc)
+{
+       return (0);
+}
+
+static int
+lagg_bcast_start(struct lagg_softc *sc, struct mbuf *m)
+{
+       int active_ports = 0;
+       int errors = 0;
+       int ret;
+       struct lagg_port *lp, *last = NULL;
+       struct mbuf *m0;
+
+       SLIST_FOREACH(lp, &sc->sc_ports, lp_entries) {
+              if (!LAGG_PORTACTIVE(lp))
+                     continue;
+
+              active_ports++;
+
+              if (last != NULL) {
+                     m0 = m_copym(m, 0, M_COPYALL,
+                                   M_NOWAIT);
+                     if (m0 == NULL) {
+                            ret = ENOBUFS;
+                            errors++;
+                            break;
+                     }
+
+                     ret = lagg_enqueue(last->lp_ifp, m0);
+                     if (ret != 0)
+                            errors++;
+              }
+              last = lp;
+       }
+       if (last == NULL) {
+              m_freem(m);
+              return (ENOENT);
+       }
+       if ((last = lagg_link_active(sc, last)) == NULL) {
+              m_freem(m);
+              return (ENETDOWN);
+       }
+
+       ret = lagg_enqueue(last->lp_ifp, m);
+       if (ret != 0)
+              errors++;
+
+       if (errors == 0)
+              return (ret);
+
+       return (0);
+}
+
+static struct mbuf*
+lagg_bcast_input(struct lagg_softc *sc, struct lagg_port *lp,
+                     struct mbuf *m)
+{
+       struct ifnet *ifp = sc->sc_ifp;
+
+       /* Just pass in the packet to our lagg device */
+       m->m_pkthdr.rcvif = ifp;
+       return (m);
 }
 
 /*
