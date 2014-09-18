@@ -1560,8 +1560,6 @@ fw_explore_node(struct fw_device *dfwdev)
 	/* First quad */
 	err = fw_explore_read_quads(dfwdev, CSRROMOFF, &csr[0], 1);
 	if (err) {
-		device_printf(fc->bdev, "%s: node%d: explore_read_quads failure\n",
-		    __func__, node);
 		dfwdev->status = FWDEVINVAL;
 		return (-1);
 	}
@@ -1577,15 +1575,11 @@ fw_explore_node(struct fw_device *dfwdev)
 	/* bus info */
 	err = fw_explore_read_quads(dfwdev, CSRROMOFF + 0x04, &csr[1], 4);
 	if (err) {
-		device_printf(fc->bdev, "%s: node%d: error reading 0x04\n",
-		    __func__, node);
 		dfwdev->status = FWDEVINVAL;
 		return (-1);
 	}
 	binfo = (struct bus_info *)&csr[1];
 	if (binfo->bus_name != CSR_BUS_NAME_IEEE1394) {
-		device_printf(fc->bdev, "%s: node%d: invalid bus name 0x%08x\n",
-		    __func__, node, binfo->bus_name);
 		dfwdev->status = FWDEVINVAL;
 		return (-1);
 	}
@@ -1668,10 +1662,6 @@ fw_explore_node(struct fw_device *dfwdev)
 			STAILQ_INSERT_HEAD(&fc->devices, fwdev, link);
 		else
 			STAILQ_INSERT_AFTER(&fc->devices, pfwdev, fwdev, link);
-
-		device_printf(fc->bdev, "New %s device ID:%08x%08x\n",
-		    linkspeed[fwdev->speed],
-		    fwdev->eui.hi, fwdev->eui.lo);
 	} else {
 		fwdev->dst = node;
 		fwdev->status = FWDEVINIT;
@@ -1828,9 +1818,6 @@ fw_attach_dev(struct firewire_comm *fc)
 				 * Remove devices which have not been seen
 				 * for a while.
 				 */
-				device_printf(fc->bdev, "%s:"
-					"Removing missing device ID:%08x%08x\n",
-					__func__, fwdev->eui.hi, fwdev->eui.lo);
 				STAILQ_REMOVE(&fc->devices, fwdev, fw_device,
 				    link);
 				free(fwdev, M_FW);
