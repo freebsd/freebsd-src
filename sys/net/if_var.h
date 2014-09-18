@@ -528,6 +528,7 @@ void	if_register_com_alloc(u_char type, if_com_alloc_t *a, if_com_free_t *f);
 void	if_deregister_com_alloc(u_char type);
 void	if_data_copy(struct ifnet *, struct if_data *);
 uint64_t if_get_counter_compat(struct ifnet *, ifnet_counter);
+void	if_inc_counter(struct ifnet *, ifnet_counter, int64_t);
 
 #define IF_LLADDR(ifp)							\
     LLADDR((struct sockaddr_dl *)((ifp)->if_addr->ifa_addr))
