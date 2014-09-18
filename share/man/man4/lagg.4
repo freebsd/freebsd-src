@@ -61,7 +61,6 @@ option.
 The driver currently supports the aggregation protocols
 .Ic failover
 (the default),
-.Ic fec ,
 .Ic lacp ,
 .Ic loadbalance ,
 .Ic roundrobin ,
@@ -87,9 +86,6 @@ This constraint can be relaxed by setting the
 .Xr sysctl 8
 variable to a nonzero value,
 which is useful for certain bridged network setups.
-.It Ic fec
-Supports Cisco EtherChannel.
-This is an alias for
 .Ic loadbalance
 mode.
 .It Ic lacp
