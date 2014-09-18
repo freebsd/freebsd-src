@@ -326,8 +326,8 @@ retry:
 	if (la == NULL) {
 		if (flags & LLE_CREATE)
 			log(LOG_DEBUG,
-			    "arpresolve: can't allocate llinfo for %s\n",
-			    inet_ntoa(SIN(dst)->sin_addr));
+			    "arpresolve: can't allocate llinfo for %s on %s\n",
+			    inet_ntoa(SIN(dst)->sin_addr), ifp->if_xname);
 		m_freem(m);
 		return (EINVAL);
 	}

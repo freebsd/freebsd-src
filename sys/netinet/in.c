@@ -1366,8 +1366,9 @@ in_lltable_rtcheck(struct ifnet *ifp, u_int flags, const struct sockaddr *l3addr
 	KASSERT(l3addr->sa_family == AF_INET,
 	    ("sin_family %d", l3addr->sa_family));
 
-	/* XXX rtalloc1 should take a const param */
-	rt = rtalloc1(__DECONST(struct sockaddr *, l3addr), 0, 0);
+	/* XXX rtalloc1_fib should take a const param */
+	rt = rtalloc1_fib(__DECONST(struct sockaddr *, l3addr), 0, 0,
+	    ifp->if_fib);
 
 	if (rt == NULL)
 		return (EINVAL);
