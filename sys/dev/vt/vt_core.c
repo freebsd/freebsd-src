@@ -2131,7 +2131,7 @@ skip_thunk:
 		win = *(int *)data - 1;
 		DPRINTF(5, "%s%d: VT_ACTIVATE ttyv%d ", SC_DRIVER_NAME,
 		    VT_UNIT(vw), win);
-		if ((win > VT_MAXWINDOWS) || (win < 0))
+		if ((win >= VT_MAXWINDOWS) || (win < 0))
 			return (EINVAL);
 		return (vt_proc_window_switch(vd->vd_windows[win]));
 	}
