@@ -352,6 +352,9 @@ static void
 vga_setpixel(struct vt_device *vd, int x, int y, term_color_t color)
 {
 
+	if (vd->vd_flags & VDF_TEXTMODE)
+		return;
+
 	vga_bitblt_put(vd, (y * VT_VGA_WIDTH / 8) + (x / 8), color,
 	    0x80 >> (x % 8));
 }
@@ -361,6 +364,9 @@ vga_drawrect(struct vt_device *vd, int x1, int y1, int x2, int y2, int fill,
     term_color_t color)
 {
 	int x, y;
+
+	if (vd->vd_flags & VDF_TEXTMODE)
+		return;
 
 	for (y = y1; y <= y2; y++) {
 		if (fill || (y == y1) || (y == y2)) {
