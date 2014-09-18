@@ -1126,12 +1126,10 @@ fwohci_txd(struct fwohci_softc *sc, struct fwohci_dbch *dbch)
 		case FWOHCIEV_ACKBSA:
 		case FWOHCIEV_ACKBSB:
 		case FWOHCIEV_ACKBSX:
-			device_printf(sc->fc.dev, "txd err=%2x %s\n", stat, fwohcicode[stat]);
 			err = EBUSY;
 			break;
 		case FWOHCIEV_FLUSHED:
 		case FWOHCIEV_ACKTARD:
-			device_printf(sc->fc.dev, "txd err=%2x %s\n", stat, fwohcicode[stat]);
 			err = EAGAIN;
 			break;
 		case FWOHCIEV_MISSACK:
@@ -1145,8 +1143,6 @@ fwohci_txd(struct fwohci_softc *sc, struct fwohci_dbch *dbch)
 		case FWOHCIEV_ACKDERR:
 		case FWOHCIEV_ACKTERR:
 		default:
-			device_printf(sc->fc.dev, "txd err=%2x %s\n",
-							stat, fwohcicode[stat]);
 			err = EINVAL;
 			break;
 		}
