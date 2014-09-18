@@ -1152,7 +1152,7 @@ linprocfs_donetdev(PFS_FILL_ARGS)
 		    0UL,				/* rx_compressed */
 		    (uintmax_t )ifp->if_get_counter(ifp, IFCOUNTER_IMCASTS));
 							/* XXX-BZ rx only? */
-		sbuf_printf(sb, "%8ju %7ju %4ju %4lu %4lu %5ju %7lu %10lu\n",
+		sbuf_printf(sb, "%8ju %7ju %4ju %4ju %4lu %5ju %7lu %10lu\n",
 		    (uintmax_t )ifp->if_get_counter(ifp, IFCOUNTER_OBYTES),
 		    (uintmax_t )ifp->if_get_counter(ifp, IFCOUNTER_OPACKETS),
 		    (uintmax_t )ifp->if_get_counter(ifp, IFCOUNTER_OERRORS),
