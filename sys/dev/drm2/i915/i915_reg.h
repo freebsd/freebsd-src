@@ -80,6 +80,7 @@ __FBSDID("$FreeBSD$");
 #define  GRDOM_FULL	(0<<2)
 #define  GRDOM_RENDER	(1<<2)
 #define  GRDOM_MEDIA	(3<<2)
+#define  GRDOM_RESET_ENABLE (1<<0)
 
 #define GEN6_MBCUNIT_SNPCR	0x900c /* for LLC config */
 #define   GEN6_MBC_SNPCR_SHIFT	21
@@ -200,6 +201,10 @@ __FBSDID("$FreeBSD$");
 #define MI_DISPLAY_FLIP		MI_INSTR(0x14, 2)
 #define MI_DISPLAY_FLIP_I915	MI_INSTR(0x14, 1)
 #define   MI_DISPLAY_FLIP_PLANE(n) ((n) << 20)
+#define MI_ARB_ON_OFF		MI_INSTR(0x08, 0)
+#define   MI_ARB_ENABLE			(1<<0)
+#define   MI_ARB_DISABLE		(0<<0)
+
 #define MI_SET_CONTEXT		MI_INSTR(0x18, 0)
 #define   MI_MM_SPACE_GTT		(1<<8)
 #define   MI_MM_SPACE_PHYSICAL		(0<<8)
@@ -1361,6 +1366,31 @@ __FBSDID("$FreeBSD$");
  */
 #define CCID			0x2180
 #define   CCID_EN		(1<<0)
+#define CXT_SIZE		0x21a0
+#define GEN6_CXT_POWER_SIZE(cxt_reg)	((cxt_reg >> 24) & 0x3f)
+#define GEN6_CXT_RING_SIZE(cxt_reg)	((cxt_reg >> 18) & 0x3f)
+#define GEN6_CXT_RENDER_SIZE(cxt_reg)	((cxt_reg >> 12) & 0x3f)
+#define GEN6_CXT_EXTENDED_SIZE(cxt_reg)	((cxt_reg >> 6) & 0x3f)
+#define GEN6_CXT_PIPELINE_SIZE(cxt_reg)	((cxt_reg >> 0) & 0x3f)
+#define GEN6_CXT_TOTAL_SIZE(cxt_reg)	(GEN6_CXT_POWER_SIZE(cxt_reg) + \
+					GEN6_CXT_RING_SIZE(cxt_reg) + \
+					GEN6_CXT_RENDER_SIZE(cxt_reg) + \
+					GEN6_CXT_EXTENDED_SIZE(cxt_reg) + \
+					GEN6_CXT_PIPELINE_SIZE(cxt_reg))
+#define GEN7_CXT_SIZE		0x21a8
+#define GEN7_CXT_POWER_SIZE(ctx_reg)	((ctx_reg >> 25) & 0x7f)
+#define GEN7_CXT_RING_SIZE(ctx_reg)	((ctx_reg >> 22) & 0x7)
+#define GEN7_CXT_RENDER_SIZE(ctx_reg)	((ctx_reg >> 16) & 0x3f)
+#define GEN7_CXT_EXTENDED_SIZE(ctx_reg)	((ctx_reg >> 9) & 0x7f)
+#define GEN7_CXT_GT1_SIZE(ctx_reg)	((ctx_reg >> 6) & 0x7)
+#define GEN7_CXT_VFSTATE_SIZE(ctx_reg)	((ctx_reg >> 0) & 0x3f)
+#define GEN7_CXT_TOTAL_SIZE(ctx_reg)	(GEN7_CXT_POWER_SIZE(ctx_reg) + \
+					 GEN7_CXT_RING_SIZE(ctx_reg) + \
+					 GEN7_CXT_RENDER_SIZE(ctx_reg) + \
+					 GEN7_CXT_EXTENDED_SIZE(ctx_reg) + \
+					 GEN7_CXT_GT1_SIZE(ctx_reg) + \
+					 GEN7_CXT_VFSTATE_SIZE(ctx_reg))
+
 /*
  * Overlay regs
  */
