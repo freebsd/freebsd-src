@@ -660,7 +660,7 @@ ng_ppp_rcvmsg(node_p node, item_p item, hook_p lasthook)
 			    &priv->bundleStats : &priv->links[linkNum].stats;
 
 			/* Make 64bit reply. */
-			if (msg->header.cmd == NGM_PPP_GET_LINK_STATS64 || 
+			if (msg->header.cmd == NGM_PPP_GET_LINK_STATS64 ||
 			    msg->header.cmd == NGM_PPP_GETCLR_LINK_STATS64) {
 				NG_MKRESPONSE(resp, msg,
 				    sizeof(struct ng_ppp_link_stat64), M_NOWAIT);
@@ -669,7 +669,7 @@ ng_ppp_rcvmsg(node_p node, item_p item, hook_p lasthook)
 				bcopy(stats, resp->data, sizeof(*stats));
 			} else
 			/* Make 32bit reply. */
-			if (msg->header.cmd == NGM_PPP_GET_LINK_STATS || 
+			if (msg->header.cmd == NGM_PPP_GET_LINK_STATS ||
 			    msg->header.cmd == NGM_PPP_GETCLR_LINK_STATS) {
 				struct ng_ppp_link_stat *rs;
 				NG_MKRESPONSE(resp, msg,
@@ -1091,10 +1091,10 @@ ng_ppp_comp_xmit(node_p node, item_p item, uint16_t proto)
 	    proto != PROT_COMPD &&
 	    proto != PROT_CRYPTD &&
 	    priv->hooks[HOOK_INDEX_COMPRESS] != NULL) {
-	        struct mbuf *m;
+		struct mbuf *m;
 		int error;
 
-	        NGI_GET_M(item, m);
+		NGI_GET_M(item, m);
 		if ((m = ng_ppp_addproto(m, proto, 0)) == NULL) {
 			NG_FREE_ITEM(item);
 			return (ENOBUFS);
@@ -1197,8 +1197,8 @@ ng_ppp_rcvdata_decompress(hook_p hook, item_p item)
 	}
 	NGI_GET_M(item, m);
 	if ((m = ng_ppp_cutproto(m, &proto)) == NULL) {
-	        NG_FREE_ITEM(item);
-	        return (EIO);
+		NG_FREE_ITEM(item);
+		return (EIO);
 	}
 	NGI_M(item) = m;
 	if (!PROT_VALID(proto)) {
@@ -1225,7 +1225,7 @@ ng_ppp_crypt_xmit(node_p node, item_p item, uint16_t proto)
 		struct mbuf *m;
 		int error;
 
-	        NGI_GET_M(item, m);
+		NGI_GET_M(item, m);
 		if ((m = ng_ppp_addproto(m, proto, 0)) == NULL) {
 			NG_FREE_ITEM(item);
 			return (ENOBUFS);
@@ -1297,8 +1297,8 @@ ng_ppp_rcvdata_decrypt(hook_p hook, item_p item)
 	}
 	NGI_GET_M(item, m);
 	if ((m = ng_ppp_cutproto(m, &proto)) == NULL) {
-	        NG_FREE_ITEM(item);
-	        return (EIO);
+		NG_FREE_ITEM(item);
+		return (EIO);
 	}
 	NGI_M(item) = m;
 	if (!PROT_VALID(proto)) {
@@ -1613,7 +1613,7 @@ ng_ppp_mp_recv(node_p node, item_p item, uint16_t proto, uint16_t linkNum)
 			TAILQ_INSERT_AFTER(&priv->frags, qent, frag, f_qent);
 			inserted = 1;
 			break;
-		} else if (diff == 0) {	     /* should never happen! */
+		} else if (diff == 0) {		/* should never happen! */
 			link->stats.dupFragments++;
 			NG_FREE_M(frag->data);
 			TAILQ_INSERT_HEAD(&priv->fragsfree, frag, f_qent);
@@ -1847,7 +1847,7 @@ ng_ppp_frag_process(node_p node, item_p oitem)
 			if (item != NULL) {
 				/* Stats */
 				priv->bundleStats.recvFrames++;
-				priv->bundleStats.recvOctets += 
+				priv->bundleStats.recvOctets +=
 				    NGI_M(item)->m_pkthdr.len;
 
 				/* Drop mutex for the sending time.
@@ -2383,10 +2383,9 @@ ng_ppp_mp_strategy(node_p node, int len, int *distrib)
 			struct ng_ppp_link *const link =
 			    &priv->links[priv->activeLinks[sortByLatency[i]]];
 
-			if (distrib[sortByLatency[slow]] == 0
-			  || (distrib[sortByLatency[i]] > 0
-			    && link->conf.bandwidth <
-			      slowLink->conf.bandwidth)) {
+			if (distrib[sortByLatency[slow]] == 0 ||
+			    (distrib[sortByLatency[i]] > 0 &&
+			    link->conf.bandwidth < slowLink->conf.bandwidth)) {
 				slow = i;
 				slowLink = link;
 			}
@@ -2488,7 +2487,7 @@ ng_ppp_update(node_p node, int newConf)
 
 			if (priv->links[i].conf.bandwidth == 0)
 			    continue;
-			    
+
 			hdrBytes = MP_AVERAGE_LINK_OVERHEAD
 			    + (priv->links[i].conf.enableACFComp ? 0 : 2)
 			    + (priv->links[i].conf.enableProtoComp ? 1 : 2)
