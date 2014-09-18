@@ -909,7 +909,7 @@ smc_task_intr(void *context, int pending)
 		smc_select_bank(sc, 0);
 		counter = smc_read_2(sc, ECR);
 		smc_select_bank(sc, 2);
-		if_inc_counter(ifp, IFNET_COLLISIONS,
+		if_inc_counter(ifp, IFCOUNTER_COLLISIONS,
 		    ((counter & ECR_SNGLCOL_MASK) >> ECR_SNGLCOL_SHIFT) +
 		    ((counter & ECR_MULCOL_MASK) >> ECR_MULCOL_SHIFT));
 
