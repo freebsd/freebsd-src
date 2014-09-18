@@ -3192,7 +3192,7 @@ ath_transmit(struct ifnet *ifp, struct mbuf *m)
 		DPRINTF(sc, ATH_DEBUG_XMIT,
 		    "%s: out of txfrag buffers\n", __func__);
 		sc->sc_stats.ast_tx_nofrag++;
-		ifp->if_oerrors++;
+		if_inc_counter(ifp, IFCOUNTER_OERRORS, 1);
 		ath_freetx(m);
 		goto bad;
 	}
@@ -3240,7 +3240,7 @@ ath_transmit(struct ifnet *ifp, struct mbuf *m)
 	 *
 	 * XXX should use atomics?
 	 */
-	ifp->if_opackets++;
+	if_inc_counter(ifp, IFCOUNTER_OPACKETS, 1);
 nextfrag:
 	/*
 	 * Pass the frame to the h/w for transmission.
@@ -3260,7 +3260,7 @@ nextfrag:
 	next = m->m_nextpkt;
 	if (ath_tx_start(sc, ni, bf, m)) {
 bad:
-		ifp->if_oerrors++;
+		if_inc_counter(ifp, IFCOUNTER_OERRORS, 1);
 reclaim:
 		bf->bf_m = NULL;
 		bf->bf_node = NULL;
@@ -6346,7 +6346,7 @@ ath_watchdog(void *arg)
 		} else
 			if_printf(ifp, "device timeout\n");
 		do_reset = 1;
-		ifp->if_oerrors++;
+		if_inc_counter(ifp, IFCOUNTER_OERRORS, 1);
 		sc->sc_stats.ast_watchdog++;
 
 		ATH_LOCK(sc);
@@ -6530,8 +6530,10 @@ ath_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 		break;
 	case SIOCGATHSTATS:
 		/* NB: embed these numbers to get a consistent view */
-		sc->sc_stats.ast_tx_packets = ifp->if_opackets;
-		sc->sc_stats.ast_rx_packets = ifp->if_ipackets;
+		sc->sc_stats.ast_tx_packets = ifp->if_get_counter(ifp,
+		    IFCOUNTER_OPACKETS);
+		sc->sc_stats.ast_rx_packets = ifp->if_get_counter(ifp,
+		    IFCOUNTER_IPACKETS);
 		sc->sc_stats.ast_tx_rssi = ATH_RSSI(sc->sc_halstats.ns_avgtxrssi);
 		sc->sc_stats.ast_rx_rssi = ATH_RSSI(sc->sc_halstats.ns_avgrssi);
 #ifdef IEEE80211_SUPPORT_TDMA
