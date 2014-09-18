@@ -155,6 +155,9 @@ typedef void tc_done_t(struct terminal *tm);
 typedef void tc_cnprobe_t(struct terminal *tm, struct consdev *cd);
 typedef int tc_cngetc_t(struct terminal *tm);
 
+typedef void tc_cngrab_t(struct terminal *tm);
+typedef void tc_cnungrab_t(struct terminal *tm);
+
 typedef void tc_opened_t(struct terminal *tm, int opened);
 typedef int tc_ioctl_t(struct terminal *tm, u_long cmd, caddr_t data,
     struct thread *td);
@@ -174,6 +177,10 @@ struct terminal_class {
 	/* Low-level console interface. */
 	tc_cnprobe_t	*tc_cnprobe;
 	tc_cngetc_t	*tc_cngetc;
+
+	/* DDB & panic handling. */
+	tc_cngrab_t	*tc_cngrab;
+	tc_cnungrab_t	*tc_cnungrab;
 
 	/* Misc. */
 	tc_opened_t	*tc_opened;

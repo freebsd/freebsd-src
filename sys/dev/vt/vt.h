@@ -256,6 +256,8 @@ struct vt_window {
 	term_rect_t		 vw_draw_area;	/* (?) Drawable area. */
 	unsigned int		 vw_number;	/* (c) Window number. */
 	int			 vw_kbdmode;	/* (?) Keyboard mode. */
+	int			 vw_prev_kbdmode;/* (?) Previous mode. */
+	int			 vw_grabbed;	/* (?) Grab count. */
 	char			*vw_kbdsq;	/* Escape sequence queue*/
 	unsigned int		 vw_flags;	/* (d) Per-window flags. */
 	int			 vw_mouse_level;/* Mouse op mode. */

@@ -70,6 +70,9 @@ static tc_done_t	vtterm_done;
 static tc_cnprobe_t	vtterm_cnprobe;
 static tc_cngetc_t	vtterm_cngetc;
 
+static tc_cngrab_t	vtterm_cngrab;
+static tc_cnungrab_t	vtterm_cnungrab;
+
 static tc_opened_t	vtterm_opened;
 static tc_ioctl_t	vtterm_ioctl;
 static tc_mmap_t	vtterm_mmap;
@@ -85,6 +88,9 @@ const struct terminal_class vt_termclass = {
 
 	.tc_cnprobe	= vtterm_cnprobe,
 	.tc_cngetc	= vtterm_cngetc,
+
+	.tc_cngrab	= vtterm_cngrab,
+	.tc_cnungrab	= vtterm_cnungrab,
 
 	.tc_opened	= vtterm_opened,
 	.tc_ioctl	= vtterm_ioctl,
@@ -188,6 +194,7 @@ static struct vt_window	vt_conswindow = {
 	.vw_device = &vt_consdev,
 	.vw_terminal = &vt_consterm,
 	.vw_kbdmode = K_XLATE,
+	.vw_grabbed = 0,
 };
 static struct terminal vt_consterm = {
 	.tm_class = &vt_termclass,
@@ -420,10 +427,16 @@ vt_compute_drawable_area(struct vt_window *vw)
 	struct vt_device *vd;
 	struct vt_font *vf;
 
-	if (vw->vw_font == NULL)
-		return;
-
 	vd = vw->vw_device;
+
+	if (vw->vw_font == NULL) {
+		vw->vw_draw_area.tr_begin.tp_col = 0;
+		vw->vw_draw_area.tr_begin.tp_row = 0;
+		vw->vw_draw_area.tr_end.tp_col = vd->vd_width;
+		vw->vw_draw_area.tr_end.tp_row = vd->vd_height;
+		return;
+	}
+
 	vf = vw->vw_font;
 
 	/*
@@ -1211,6 +1224,64 @@ vtterm_cngetc(struct terminal *tm)
 }
 
 static void
+vtterm_cngrab(struct terminal *tm)
+{
+	struct vt_device *vd;
+	struct vt_window *vw;
+	keyboard_t *kbd;
+
+	vw = tm->tm_softc;
+	vd = vw->vw_device;
+
+	if (!cold)
+		vt_window_switch(vw);
+
+	kbd = kbd_get_keyboard(vd->vd_keyboard);
+	if (kbd == NULL)
+		return;
+
+	if (vw->vw_grabbed++ > 0)
+		return;
+
+	/*
+	 * Make sure the keyboard is accessible even when the kbd device
+	 * driver is disabled.
+	 */
+	kbdd_enable(kbd);
+
+	/* We shall always use the keyboard in the XLATE mode here. */
+	vw->vw_prev_kbdmode = vw->vw_kbdmode;
+	vw->vw_kbdmode = K_XLATE;
+	(void)kbdd_ioctl(kbd, KDSKBMODE, (caddr_t)&vw->vw_kbdmode);
+
+	kbdd_poll(kbd, TRUE);
+}
+
+static void
+vtterm_cnungrab(struct terminal *tm)
+{
+	struct vt_device *vd;
+	struct vt_window *vw;
+	keyboard_t *kbd;
+
+	vw = tm->tm_softc;
+	vd = vw->vw_device;
+
+	kbd = kbd_get_keyboard(vd->vd_keyboard);
+	if (kbd == NULL)
+		return;
+
+	if (--vw->vw_grabbed > 0)
+		return;
+
+	kbdd_poll(kbd, FALSE);
+
+	vw->vw_kbdmode = vw->vw_prev_kbdmode;
+	(void)kbdd_ioctl(kbd, KDSKBMODE, (caddr_t)&vw->vw_kbdmode);
+	kbdd_disable(kbd);
+}
+
+static void
 vtterm_opened(struct terminal *tm, int opened)
 {
 	struct vt_window *vw = tm->tm_softc;
@@ -1228,30 +1299,40 @@ vtterm_opened(struct terminal *tm, int opened)
 }
 
 static int
-vt_set_border(struct vt_window *vw, struct vt_font *vf, term_color_t c)
+vt_set_border(struct vt_window *vw, term_color_t c)
 {
 	struct vt_device *vd = vw->vw_device;
-	int x, y, off_x, off_y;
 
 	if (vd->vd_driver->vd_drawrect == NULL)
 		return (ENOTSUP);
 
-	x = vd->vd_width - 1;
-	y = vd->vd_height - 1;
-	off_x = vw->vw_draw_area.tr_begin.tp_col;
-	off_y = vw->vw_draw_area.tr_begin.tp_row;
-
 	/* Top bar. */
-	if (off_y > 0)
-		vd->vd_driver->vd_drawrect(vd, 0, 0, x, off_y - 1, 1, c);
-	/* Left bar. */
-	if (off_x > 0)
-		vd->vd_driver->vd_drawrect(vd, 0, off_y, off_x - 1, y - off_y,
+	if (vw->vw_draw_area.tr_begin.tp_row > 0)
+		vd->vd_driver->vd_drawrect(vd,
+		    0, 0,
+		    vd->vd_width - 1, vw->vw_draw_area.tr_begin.tp_row - 1,
 		    1, c);
-	/* Right bar.  May be 1 pixel wider than necessary due to rounding. */
-	vd->vd_driver->vd_drawrect(vd, x - off_x, off_y, x, y - off_y, 1, c);
-	/* Bottom bar.  May be 1 mixel taller than necessary due to rounding. */
-	vd->vd_driver->vd_drawrect(vd, 0, y - off_y, x, y, 1, c);
+
+	/* Left bar. */
+	if (vw->vw_draw_area.tr_begin.tp_col > 0)
+		vd->vd_driver->vd_drawrect(vd,
+		    0, 0,
+		    vw->vw_draw_area.tr_begin.tp_col - 1, vd->vd_height - 1,
+		    1, c);
+
+	/* Right bar. */
+	if (vw->vw_draw_area.tr_end.tp_col < vd->vd_width)
+		vd->vd_driver->vd_drawrect(vd,
+		    vw->vw_draw_area.tr_end.tp_col - 1, 0,
+		    vd->vd_width - 1, vd->vd_height - 1,
+		    1, c);
+
+	/* Bottom bar. */
+	if (vw->vw_draw_area.tr_end.tp_row < vd->vd_height)
+		vd->vd_driver->vd_drawrect(vd,
+		    0, vw->vw_draw_area.tr_end.tp_row - 1,
+		    vd->vd_width - 1, vd->vd_height - 1,
+		    1, c);
 
 	return (0);
 }
@@ -1283,11 +1364,6 @@ vt_change_font(struct vt_window *vw, struct vt_font *vf)
 		VT_UNLOCK(vd);
 		return (EBUSY);
 	}
-	if (vd->vd_flags & VDF_TEXTMODE) {
-		/* Our device doesn't need fonts. */
-		VT_UNLOCK(vd);
-		return (ENOTTY);
-	}
 	vw->vw_flags |= VWF_BUSY;
 	VT_UNLOCK(vd);
 
@@ -1302,7 +1378,7 @@ vt_change_font(struct vt_window *vw, struct vt_font *vf)
 
 	/* Actually apply the font to the current window. */
 	VT_LOCK(vd);
-	if (vw->vw_font != vf) {
+	if (vw->vw_font != vf && vw->vw_font != NULL && vf != NULL) {
 		/*
 		 * In case vt_change_font called to update size we don't need
 		 * to update font link.
@@ -1325,7 +1401,7 @@ vt_change_font(struct vt_window *vw, struct vt_font *vf)
 
 	/* Force a full redraw the next timer tick. */
 	if (vd->vd_curwindow == vw) {
-		vt_set_border(vw, vf, TC_BLACK);
+		vt_set_border(vw, TC_BLACK);
 		vd->vd_flags |= VDF_INVALID;
 		vt_resume_flush_timer(vw->vw_device, 0);
 	}
@@ -2247,7 +2323,6 @@ vt_allocate(struct vt_driver *drv, void *softc)
 		    main_vd->vd_driver->vd_name, drv->vd_name);
 	}
 	vd = main_vd;
-	VT_LOCK(vd);
 
 	if (vd->vd_flags & VDF_ASYNC) {
 		/* Stop vt_flush periodic task. */
@@ -2263,6 +2338,7 @@ vt_allocate(struct vt_driver *drv, void *softc)
 	 * Reset VDF_TEXTMODE flag, driver who require that flag (vt_vga) will
 	 * set it.
 	 */
+	VT_LOCK(vd);
 	vd->vd_flags &= ~VDF_TEXTMODE;
 
 	vd->vd_driver = drv;
