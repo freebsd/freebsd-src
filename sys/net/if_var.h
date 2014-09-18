@@ -582,27 +582,6 @@ int if_multiaddr_count(if_t ifp, int max);
 int if_getamcount(if_t ifp);
 struct ifaddr * if_getifaddr(if_t ifp);
 
-/* Statistics */
-
-int if_incipackets(if_t ifp, int pkt);
-int if_incopackets(if_t ifp, int pkts);
-int if_incierrors(if_t ifp, int ierrors);
-int if_incoerrors(if_t ifp, int oerrors);
-int if_inciqdrops(if_t ifp, int val);
-int if_setierrors(if_t ifp, int ierrors);
-int if_setoerrors(if_t ifp, int oerrors);
-int if_setcollisions(if_t ifp, int collisions);
-int if_inccollisions(if_t ifp, int collisions);
-int if_incobytes(if_t ifp, int bytes);
-int if_getiqdrops(if_t ifp);
-int if_incimcasts(if_t ifp, int imcasts);
-int if_incomcasts(if_t ifp, int imcasts);
-int if_setipackets(if_t ifp, int pkts);
-int if_setopackets(if_t ifp, int pkts);
-int if_setibytes(if_t ifp, int bytes);
-int if_setobytes(if_t ifp, int bytes);
-int if_setimcasts(if_t ifp, int pkts);
-
 /* Functions */
 void if_setinitfn(if_t ifp, void (*)(void *));
 void if_setioctlfn(if_t ifp, int (*)(if_t, u_long, caddr_t));
