@@ -1152,7 +1152,7 @@ vlan_get_counter(struct ifnet *ifp, ifnet_counter cnt)
 		case IFCOUNTER_OERRORS:
 			return (counter_u64_fetch(ifv->ifv_oerrors));
 		default:
-			return (if_get_counter_compat(ifp, cnt));
+			return (if_get_counter_default(ifp, cnt));
 	}
 	/* NOTREACHED */
 }

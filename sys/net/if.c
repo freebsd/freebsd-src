@@ -616,7 +616,7 @@ if_attach_internal(struct ifnet *ifp, int vmove)
 	}
 
 	if (ifp->if_get_counter == NULL)
-		ifp->if_get_counter = if_get_counter_compat;
+		ifp->if_get_counter = if_get_counter_default;
 
 	if (!vmove) {
 #ifdef MAC
@@ -1389,7 +1389,7 @@ if_rtdel(struct radix_node *rn, void *arg)
  * Return counter values from old racy non-pcpu counters.
  */
 uint64_t
-if_get_counter_compat(struct ifnet *ifp, ifnet_counter cnt)
+if_get_counter_default(struct ifnet *ifp, ifnet_counter cnt)
 {
 
 	switch (cnt) {
