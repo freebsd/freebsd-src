@@ -1069,7 +1069,7 @@ in_scrubprefix(struct in_ifaddr *target, u_int flags)
 
 		bzero(&ia_ro, sizeof(ia_ro));
 		*((struct sockaddr_in *)(&ia_ro.ro_dst)) = target->ia_addr;
-		rtalloc_ign_fib(&ia_ro, 0, 0);
+		rtalloc_ign_fib(&ia_ro, 0, fibnum);
 		if ((ia_ro.ro_rt != NULL) && (ia_ro.ro_rt->rt_ifp != NULL) &&
 		    (ia_ro.ro_rt->rt_ifp == V_loif)) {
 			RT_LOCK(ia_ro.ro_rt);
