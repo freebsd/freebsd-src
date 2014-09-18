@@ -126,7 +126,7 @@ _EXTRADEPEND:
 .endif
 .else
 	echo ${PROG}: ${LIBC} ${DPADD} >> ${DEPENDFILE}
-.if defined(PROG_CXX)
+.if defined(PROG_CXX) && !defined(BOOTSTRAPPING)
 	echo ${PROG}: ${LIBSTDCPLUSPLUS} >> ${DEPENDFILE}
 .endif
 .endif
