@@ -434,6 +434,7 @@ static int bge_shutdown(device_t);
 static int bge_ifmedia_upd_locked(if_t);
 static int bge_ifmedia_upd(if_t);
 static void bge_ifmedia_sts(if_t, struct ifmediareq *);
+static uint64_t bge_get_counter(if_t, ift_counter);
 
 static uint8_t bge_nvram_getbyte(struct bge_softc *, int, uint8_t *);
 static int bge_read_nvram(struct bge_softc *, caddr_t, int, int);
@@ -3738,6 +3739,7 @@ bge_attach(device_t dev)
 	if_setioctlfn(ifp, bge_ioctl);
 	if_setstartfn(ifp, bge_start);
 	if_setinitfn(ifp, bge_init);
+	if_setgetcounterfn(ifp, bge_get_counter);
 	if_setsendqlen(ifp, BGE_TX_RING_CNT - 1);
 	if_setsendqready(ifp);
 	if_sethwassist(ifp, sc->bge_csum_features);
@@ -4364,7 +4366,7 @@ bge_rxeof(struct bge_softc *sc, uint16_t rx_prod, int holdlck)
 			}
 			if (bge_newbuf_jumbo(sc, rxidx) != 0) {
 				bge_rxreuse_jumbo(sc, rxidx);
-				if_inciqdrops(ifp, 1);
+				if_inc_counter(ifp, IFCOUNTER_IQDROPS, 1);
 				continue;
 			}
 			BGE_INC(sc->bge_jumbo, BGE_JUMBO_RX_RING_CNT);
@@ -4377,13 +4379,13 @@ bge_rxeof(struct bge_softc *sc, uint16_t rx_prod, int holdlck)
 			}
 			if (bge_newbuf_std(sc, rxidx) != 0) {
 				bge_rxreuse_std(sc, rxidx);
-				if_inciqdrops(ifp, 1);
+				if_inc_counter(ifp, IFCOUNTER_IQDROPS, 1);
 				continue;
 			}
 			BGE_INC(sc->bge_std, BGE_STD_RX_RING_CNT);
 		}
 
-		if_incipackets(ifp, 1);
+		if_inc_counter(ifp, IFCOUNTER_IPACKETS, 1);
 #ifndef __NO_STRICT_ALIGNMENT
 		/*
 		 * For architectures with strict alignment we must make sure
@@ -4512,7 +4514,7 @@ bge_txeof(struct bge_softc *sc, uint16_t tx_cons)
 		idx = sc->bge_tx_saved_considx;
 		cur_tx = &sc->bge_ldata.bge_tx_ring[idx];
 		if (cur_tx->bge_flags & BGE_TXBDFLAG_END)
-			if_incopackets(ifp, 1);
+			if_inc_counter(ifp, IFCOUNTER_OPACKETS, 1);
 		if (sc->bge_cdata.bge_tx_chain[idx] != NULL) {
 			bus_dmamap_sync(sc->bge_cdata.bge_tx_mtag,
 			    sc->bge_cdata.bge_tx_dmamap[idx],
@@ -4917,10 +4919,6 @@ bge_stats_update_regs(struct bge_softc *sc)
 	stats->RecvThresholdHit +=
 	    CSR_READ_4(sc, BGE_RXLP_LOCSTAT_RXTHRESH_HIT);
 
-	if_setcollisions(ifp, (u_long)stats->etherStatsCollisions);
-	if_setierrors(ifp, (u_long)(stats->NoMoreRxBDs + stats->InputDiscards +
-	    stats->InputErrors));
-
 	if (sc->bge_flags & BGE_FLAG_RDMA_BUG) {
 		/*
 		 * If controller transmitted more than BGE_NUM_RDMA_CHANNELS
@@ -4997,21 +4995,21 @@ bge_stats_update(struct bge_softc *sc)
 	CSR_READ_4(sc, stats + offsetof(struct bge_stats, stat))
 
 	cnt = READ_STAT(sc, stats, txstats.etherStatsCollisions.bge_addr_lo);
-	if_inccollisions(ifp, (uint32_t)(cnt - sc->bge_tx_collisions));
+	if_inc_counter(ifp, IFCOUNTER_COLLISIONS, cnt - sc->bge_tx_collisions);
 	sc->bge_tx_collisions = cnt;
 
 	cnt = READ_STAT(sc, stats, nicNoMoreRxBDs.bge_addr_lo);
-	if_incierrors(ifp, (uint32_t)(cnt - sc->bge_rx_nobds));
+	if_inc_counter(ifp, IFCOUNTER_IERRORS, cnt - sc->bge_rx_nobds);
 	sc->bge_rx_nobds = cnt;
 	cnt = READ_STAT(sc, stats, ifInErrors.bge_addr_lo);
-	if_incierrors(ifp, (uint32_t)(cnt - sc->bge_rx_inerrs));
+	if_inc_counter(ifp, IFCOUNTER_IERRORS, cnt - sc->bge_rx_inerrs);
 	sc->bge_rx_inerrs = cnt;
 	cnt = READ_STAT(sc, stats, ifInDiscards.bge_addr_lo);
-	if_incierrors(ifp, (uint32_t)(cnt - sc->bge_rx_discards));
+	if_inc_counter(ifp, IFCOUNTER_IERRORS, cnt - sc->bge_rx_discards);
 	sc->bge_rx_discards = cnt;
 
 	cnt = READ_STAT(sc, stats, txstats.ifOutDiscards.bge_addr_lo);
-	if_incoerrors(ifp, (uint32_t)(cnt - sc->bge_tx_discards));
+	if_inc_counter(ifp, IFCOUNTER_OERRORS, cnt - sc->bge_tx_discards);
 	sc->bge_tx_discards = cnt;
 
 #undef	READ_STAT
@@ -5950,7 +5948,7 @@ bge_watchdog(struct bge_softc *sc)
 	if_setdrvflagbits(ifp, 0, IFF_DRV_RUNNING);
 	bge_init_locked(sc);
 
-	if_incoerrors(ifp, 1);
+	if_inc_counter(ifp, IFCOUNTER_OERRORS, 1);
 }
 
 static void
@@ -6769,4 +6767,26 @@ bge_get_eaddr(struct bge_softc *sc, uint8_t eaddr[])
 			break;
 	}
 	return (*func == NULL ? ENXIO : 0);
+}
+
+static uint64_t
+bge_get_counter(if_t ifp, ift_counter cnt)
+{
+	struct bge_softc *sc;
+	struct bge_mac_stats *stats;
+
+	sc = if_getsoftc(ifp);
+	if (!BGE_IS_5705_PLUS(sc))
+		return (if_get_counter_default(ifp, cnt));
+	stats = &sc->bge_mac_stats;
+
+	switch (cnt) {
+	case IFCOUNTER_IERRORS:
+		return (stats->NoMoreRxBDs + stats->InputDiscards +
+		    stats->InputErrors);
+	case IFCOUNTER_COLLISIONS:
+		return (stats->etherStatsCollisions);
+	default:
+		return (if_get_counter_default(ifp, cnt));
+	}
 }

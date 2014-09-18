@@ -180,6 +180,7 @@ static int	lem_resume(device_t);
 static void	lem_start(if_t);
 static void	lem_start_locked(if_t ifp);
 static int	lem_ioctl(if_t, u_long, caddr_t);
+static uint64_t	lem_get_counter(if_t, ift_counter);
 static void	lem_init(void *);
 static void	lem_init_locked(struct adapter *);
 static void	lem_stop(void *);
@@ -2464,6 +2465,7 @@ lem_setup_interface(device_t dev, struct adapter *adapter)
 	if_setflags(ifp, IFF_BROADCAST | IFF_SIMPLEX | IFF_MULTICAST);
 	if_setioctlfn(ifp, lem_ioctl);
 	if_setstartfn(ifp, lem_start);
+	if_setgetcounterfn(ifp, lem_get_counter);
 	if_setsendqlen(ifp, adapter->num_tx_desc - 1);
 	if_setsendqready(ifp);
 
@@ -3122,7 +3124,7 @@ lem_txeof(struct adapter *adapter)
                 	++num_avail;
 
 			if (tx_buffer->m_head) {
-				if_incopackets(ifp, 1);
+				if_inc_counter(ifp, IFCOUNTER_OPACKETS, 1);
 				bus_dmamap_sync(adapter->txtag,
 				    tx_buffer->map,
 				    BUS_DMASYNC_POSTWRITE);
@@ -3681,7 +3683,7 @@ lem_rxeof(struct adapter *adapter, int count, int *done)
 
 		if (accept_frame) {
 			if (lem_get_buf(adapter, i) != 0) {
-				if_inciqdrops(ifp, 1);
+				if_inc_counter(ifp, IFCOUNTER_IQDROPS, 1);
 				goto discard;
 			}
 
@@ -3712,7 +3714,7 @@ lem_rxeof(struct adapter *adapter, int count, int *done)
 
 			if (eop) {
 				if_setrcvif(adapter->fmp, ifp);
-				if_incipackets(ifp, 1);
+				if_inc_counter(ifp, IFCOUNTER_IPACKETS, 1);
 				lem_receive_checksum(adapter, current_desc,
 				    adapter->fmp);
 #ifndef __NO_STRICT_ALIGNMENT
@@ -4397,7 +4399,6 @@ lem_fill_descriptors (bus_addr_t address, u32 length,
 static void
 lem_update_stats_counters(struct adapter *adapter)
 {
-	if_t ifp;
 
 	if(adapter->hw.phy.media_type == e1000_media_type_copper ||
 	   (E1000_READ_REG(&adapter->hw, E1000_STATUS) & E1000_STATUS_LU)) {
@@ -4472,19 +4473,29 @@ lem_update_stats_counters(struct adapter *adapter)
 		adapter->stats.tsctfc += 
 		E1000_READ_REG(&adapter->hw, E1000_TSCTFC);
 	}
-	ifp = adapter->ifp;
+}
 
-	if_setcollisions(ifp, adapter->stats.colc);
+static uint64_t
+lem_get_counter(if_t ifp, ift_counter cnt)
+{
+	struct adapter *adapter;
 
-	/* Rx Errors */
-	if_setierrors(ifp, adapter->dropped_pkts + adapter->stats.rxerrc +
-	    adapter->stats.crcerrs + adapter->stats.algnerrc +
-	    adapter->stats.ruc + adapter->stats.roc +
-	    adapter->stats.mpc + adapter->stats.cexterr);
+	adapter = if_getsoftc(ifp);
 
-	/* Tx Errors */
-	if_setoerrors(ifp, adapter->stats.ecol + adapter->stats.latecol +
-	    adapter->watchdog_events);
+	switch (cnt) {
+	case IFCOUNTER_COLLISIONS:
+		return (adapter->stats.colc);
+	case IFCOUNTER_IERRORS:
+		return (adapter->dropped_pkts + adapter->stats.rxerrc +
+		    adapter->stats.crcerrs + adapter->stats.algnerrc +
+		    adapter->stats.ruc + adapter->stats.roc +
+		    adapter->stats.mpc + adapter->stats.cexterr);
+	case IFCOUNTER_OERRORS:
+		return (adapter->stats.ecol + adapter->stats.latecol +
+		    adapter->watchdog_events);
+	default:
+		return (if_get_counter_default(ifp, cnt));
+	}
 }
 
 /* Export a single 32-bit register via a read-only sysctl. */
