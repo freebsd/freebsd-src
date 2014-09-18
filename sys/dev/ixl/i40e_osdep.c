@@ -49,22 +49,22 @@ i40e_dmamap_cb(void *arg, bus_dma_segment_t * segs, int nseg, int error)
 }
 
 i40e_status
-i40e_allocate_virt(struct i40e_hw *hw, struct i40e_virt_mem *mem, u32 size)
+i40e_allocate_virt_mem(struct i40e_hw *hw, struct i40e_virt_mem *mem, u32 size)
 {
 	mem->va = malloc(size, M_DEVBUF, M_NOWAIT | M_ZERO);
 	return(mem->va == NULL);
 }
 
 i40e_status
-i40e_free_virt(struct i40e_hw *hw, struct i40e_virt_mem *mem)
+i40e_free_virt_mem(struct i40e_hw *hw, struct i40e_virt_mem *mem)
 {
 	free(mem->va, M_DEVBUF);
 	return(0);
 }
 
 i40e_status
-i40e_allocate_dma(struct i40e_hw *hw, struct i40e_dma_mem *mem,
-	bus_size_t size, u32 alignment)
+i40e_allocate_dma_mem(struct i40e_hw *hw, struct i40e_dma_mem *mem,
+	enum i40e_memory_type type __unused, u64 size, u32 alignment)
 {
 	device_t	dev = ((struct i40e_osdep *)hw->back)->dev;
 	int		err;
@@ -122,7 +122,7 @@ fail_0:
 }
 
 i40e_status
-i40e_free_dma(struct i40e_hw *hw, struct i40e_dma_mem *mem)
+i40e_free_dma_mem(struct i40e_hw *hw, struct i40e_dma_mem *mem)
 {
 	bus_dmamap_sync(mem->tag, mem->map,
 	    BUS_DMASYNC_POSTREAD | BUS_DMASYNC_POSTWRITE);
