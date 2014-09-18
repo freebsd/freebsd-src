@@ -49,26 +49,14 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/kdb.h>
 
-#if defined(__DragonFly__) || __FreeBSD_version < 500000
-#include <machine/clock.h>	/* for DELAY() */
-#endif
-
 #include <sys/bus.h>		/* used by smbus and newbus */
 #include <machine/bus.h>
 
-#ifdef __DragonFly__
-#include "firewire.h"
-#include "firewirereg.h"
-#include "fwmem.h"
-#include "iec13213.h"
-#include "iec68113.h"
-#else
 #include <dev/firewire/firewire.h>
 #include <dev/firewire/firewirereg.h>
 #include <dev/firewire/fwmem.h>
 #include <dev/firewire/iec13213.h>
 #include <dev/firewire/iec68113.h>
-#endif
 
 struct crom_src_buf {
 	struct crom_src	src;
@@ -99,9 +87,6 @@ static int firewire_attach      (device_t);
 static int firewire_detach      (device_t);
 static int firewire_resume      (device_t);
 static void firewire_xfer_timeout(void *, int);
-#if 0
-static int firewire_shutdown    (device_t);
-#endif
 static device_t firewire_add_child(device_t, u_int, const char *, int);
 static void fw_try_bmr (void *);
 static void fw_try_bmr_callback (struct fw_xfer *);
@@ -563,14 +548,6 @@ firewire_detach(device_t dev)
 	mtx_destroy(&fc->wait_lock);
 	return(0);
 }
-#if 0
-static int
-firewire_shutdown( device_t dev )
-{
-	return 0;
-}
-#endif
-
 
 static void
 fw_xferq_drain(struct fw_xferq *xferq)
@@ -1052,7 +1029,7 @@ fw_tl_free(struct firewire_comm *fc, struct fw_xfer *xfer)
 		mtx_unlock(&fc->tlabel_lock);
 		return;
 	}
-#if 1	/* make sure the label is allocated */
+	/* make sure the label is allocated */
 	STAILQ_FOREACH(txfer, &fc->tlabels[xfer->tl], tlabel)
 		if(txfer == xfer)
 			break;
@@ -1067,7 +1044,6 @@ fw_tl_free(struct firewire_comm *fc, struct fw_xfer *xfer)
 		splx(s);
 		return;
 	}
-#endif
 
 	STAILQ_REMOVE(&fc->tlabels[xfer->tl], xfer, fw_xfer, tlabel);
 	xfer->tl = -1;

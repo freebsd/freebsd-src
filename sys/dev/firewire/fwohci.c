@@ -56,25 +56,12 @@
 
 #include <machine/bus.h>
 
-#if defined(__DragonFly__) || __FreeBSD_version < 500000
-#include <machine/clock.h>		/* for DELAY() */
-#endif
-
-#ifdef __DragonFly__
-#include "firewire.h"
-#include "firewirereg.h"
-#include "fwdma.h"
-#include "fwohcireg.h"
-#include "fwohcivar.h"
-#include "firewire_phy.h"
-#else
 #include <dev/firewire/firewire.h>
 #include <dev/firewire/firewirereg.h>
 #include <dev/firewire/fwdma.h>
 #include <dev/firewire/fwohcireg.h>
 #include <dev/firewire/fwohcivar.h>
 #include <dev/firewire/firewire_phy.h>
-#endif
 
 #undef OHCI_DEBUG
 

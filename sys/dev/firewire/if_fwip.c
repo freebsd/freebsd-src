@@ -189,12 +189,7 @@ fwip_attach(device_t dev)
 	/* fill the rest and attach interface */	
 	ifp->if_softc = &fwip->fw_softc;
 
-#if __FreeBSD_version >= 501113 || defined(__DragonFly__)
 	if_initname(ifp, device_get_name(dev), unit);
-#else
-	ifp->if_unit = unit;
-	ifp->if_name = "fwip";
-#endif
 	ifp->if_init = fwip_init;
 	ifp->if_start = fwip_start;
 	ifp->if_ioctl = fwip_ioctl;
@@ -255,11 +250,7 @@ fwip_stop(struct fwip_softc *fwip)
 		fwip->dma_ch = -1;
 	}
 
-#if defined(__FreeBSD__)
 	ifp->if_drv_flags &= ~(IFF_DRV_RUNNING | IFF_DRV_OACTIVE);
-#else
-	ifp->if_flags &= ~(IFF_RUNNING | IFF_OACTIVE);
-#endif
 }
 
 static int
@@ -380,13 +371,8 @@ fwip_init(void *arg)
 	if ((xferq->flag & FWXFERQ_RUNNING) == 0)
 		fc->irx_enable(fc, fwip->dma_ch);
 
-#if defined(__FreeBSD__)
 	ifp->if_drv_flags |= IFF_DRV_RUNNING;
 	ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
-#else
-	ifp->if_flags |= IFF_RUNNING;
-	ifp->if_flags &= ~IFF_OACTIVE;
-#endif
 
 #if 0
 	/* attempt to start output */
@@ -404,18 +390,10 @@ fwip_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 	case SIOCSIFFLAGS:
 		s = splimp();
 		if (ifp->if_flags & IFF_UP) {
-#if defined(__FreeBSD__)
 			if (!(ifp->if_drv_flags & IFF_DRV_RUNNING))
-#else
-			if (!(ifp->if_flags & IFF_RUNNING))
-#endif
 				fwip_init(&fwip->fw_softc);
 		} else {
-#if defined(__FreeBSD__)
 			if (ifp->if_drv_flags & IFF_DRV_RUNNING)
-#else
-			if (ifp->if_flags & IFF_RUNNING)
-#endif
 				fwip_stop(fwip);
 		}
 		splx(s);
@@ -453,21 +431,11 @@ fwip_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 	    }
 #endif /* DEVICE_POLLING */
 		break;
-#if defined(__FreeBSD__) && __FreeBSD_version >= 500000
 	default:
-#else
-	case SIOCSIFADDR:
-	case SIOCGIFADDR:
-	case SIOCSIFMTU:
-#endif
 		s = splimp();
 		error = firewire_ioctl(ifp, cmd, data);
 		splx(s);
 		return (error);
-#if defined(__DragonFly__) || __FreeBSD_version < 500000
-	default:
-		return (EINVAL);
-#endif
 	}
 
 	return (0);
@@ -559,20 +527,12 @@ fwip_start(struct ifnet *ifp)
 	}
 
 	s = splimp();
-#if defined(__FreeBSD__)
 	ifp->if_drv_flags |= IFF_DRV_OACTIVE;
-#else
-	ifp->if_flags |= IFF_OACTIVE;
-#endif
 
 	if (ifp->if_snd.ifq_len != 0)
 		fwip_async_output(fwip, ifp);
 
-#if defined(__FreeBSD__)
 	ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
-#else
-	ifp->if_flags &= ~IFF_OACTIVE;
-#endif
 	splx(s);
 }
 
