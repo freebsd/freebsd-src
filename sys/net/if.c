@@ -4095,6 +4095,13 @@ void if_setqflushfn(if_t ifp, if_qflush_fn_t flush_fn)
 	
 }
 
+void
+if_setgetcounterfn(if_t ifp, if_get_counter_t fn)
+{
+
+	ifp->if_get_counter = fn;
+}
+
 /* Revisit these - These are inline functions originally. */
 int
 drbr_inuse_drv(if_t ifh, struct buf_ring *br)

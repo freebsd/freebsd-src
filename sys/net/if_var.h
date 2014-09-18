@@ -609,6 +609,7 @@ void if_setioctlfn(if_t ifp, int (*)(if_t, u_long, caddr_t));
 void if_setstartfn(if_t ifp, void (*)(if_t));
 void if_settransmitfn(if_t ifp, if_transmit_fn_t);
 void if_setqflushfn(if_t ifp, if_qflush_fn_t);
+void if_setgetcounterfn(if_t ifp, if_get_counter_t);
  
 /* Revisit the below. These are inline functions originally */
 int drbr_inuse_drv(if_t ifp, struct buf_ring *br);

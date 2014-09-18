@@ -237,6 +237,7 @@ static ng_rcvdata_t	ng_ppp_rcvdata;
 static ng_disconnect_t	ng_ppp_disconnect;
 
 static ng_rcvdata_t	ng_ppp_rcvdata_inet;
+static ng_rcvdata_t	ng_ppp_rcvdata_inet_fast;
 static ng_rcvdata_t	ng_ppp_rcvdata_ipv6;
 static ng_rcvdata_t	ng_ppp_rcvdata_ipx;
 static ng_rcvdata_t	ng_ppp_rcvdata_atalk;
@@ -790,6 +791,19 @@ ng_ppp_rcvdata_inet(hook_p hook, item_p item)
 		return (ENXIO);
 	}
 	return (ng_ppp_hcomp_xmit(NG_HOOK_NODE(hook), item, PROT_IP));
+}
+
+/*
+ * Receive data on a hook inet and pass it directly to first link.
+ */
+static int
+ng_ppp_rcvdata_inet_fast(hook_p hook, item_p item)
+{
+	const node_p node = NG_HOOK_NODE(hook);
+	const priv_p priv = NG_NODE_PRIVATE(node);
+
+	return (ng_ppp_link_xmit(node, item, PROT_IP, priv->activeLinks[0],
+	    NGI_M(item)->m_pkthdr.len));
 }
 
 /*
@@ -2529,6 +2543,20 @@ ng_ppp_update(node_p node, int newConf)
 			link->bytesInQueue = 0;
 			link->seq = MP_NOSEQ;
 		}
+	}
+
+	if (priv->hooks[HOOK_INDEX_INET] != NULL) {
+		if (priv->conf.enableIP == 1 &&
+		    priv->numActiveLinks == 1 &&
+		    priv->conf.enableMultilink == 0 &&
+		    priv->conf.enableCompression == 0 &&
+		    priv->conf.enableEncryption == 0 &&
+		    priv->conf.enableVJCompression == 0)
+			NG_HOOK_SET_RCVDATA(priv->hooks[HOOK_INDEX_INET],
+			    ng_ppp_rcvdata_inet_fast);
+		else
+			NG_HOOK_SET_RCVDATA(priv->hooks[HOOK_INDEX_INET],
+			    ng_ppp_rcvdata_inet);
 	}
 }
 
