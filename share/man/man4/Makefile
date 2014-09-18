@@ -205,6 +205,7 @@ MAN=	aac.4 \
 	ipw.4 \
 	ipwfw.4 \
 	isci.4 \
+	iscsi.4 \
 	iscsi_initiator.4 \
 	isp.4 \
 	ispfw.4 \
