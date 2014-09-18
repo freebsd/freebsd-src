@@ -439,7 +439,7 @@
 258	AUE_NULL	STD	{ int linux_set_tid_address(int *tidptr); }
 259	AUE_NULL	STD	{ int linux_timer_create(clockid_t clock_id, \
 					struct sigevent *evp, l_timer_t *timerid); }
-260	AUE_NULL	STD	{ int linux_timer_settime(l_timer_t timerid, \
+260	AUE_NULL	STD	{ int linux_timer_settime(l_timer_t timerid, l_int flags, \
 					const struct itimerspec *new, struct itimerspec *old); }
 261	AUE_NULL	STD	{ int linux_timer_gettime(l_timer_t timerid, struct itimerspec *setting); }
 262	AUE_NULL	STD	{ int linux_timer_getoverrun(l_timer_t timerid); }
