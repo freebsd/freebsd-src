@@ -1389,7 +1389,7 @@ if_rtdel(struct radix_node *rn, void *arg)
  * Return counter values from old racy non-pcpu counters.
  */
 uint64_t
-if_get_counter_default(struct ifnet *ifp, ifnet_counter cnt)
+if_get_counter_default(struct ifnet *ifp, ift_counter cnt)
 {
 
 	switch (cnt) {
@@ -1426,7 +1426,7 @@ if_get_counter_default(struct ifnet *ifp, ifnet_counter cnt)
  * between the stack and a driver, but function supports them all.
  */
 void
-if_inc_counter(struct ifnet *ifp, ifnet_counter cnt, int64_t inc)
+if_inc_counter(struct ifnet *ifp, ift_counter cnt, int64_t inc)
 {
 
 	switch (cnt) {

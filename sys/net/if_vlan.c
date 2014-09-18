@@ -201,7 +201,7 @@ static	void vlan_init(void *foo);
 static	void vlan_input(struct ifnet *ifp, struct mbuf *m);
 static	int vlan_ioctl(struct ifnet *ifp, u_long cmd, caddr_t addr);
 static	void vlan_qflush(struct ifnet *ifp);
-static uint64_t vlan_get_counter(struct ifnet *ifp, ifnet_counter cnt);
+static uint64_t vlan_get_counter(struct ifnet *ifp, ift_counter cnt);
 static	int vlan_setflag(struct ifnet *ifp, int flag, int status,
     int (*func)(struct ifnet *, int));
 static	int vlan_setflags(struct ifnet *ifp, int status);
@@ -1132,7 +1132,7 @@ vlan_transmit(struct ifnet *ifp, struct mbuf *m)
 }
 
 static uint64_t
-vlan_get_counter(struct ifnet *ifp, ifnet_counter cnt)
+vlan_get_counter(struct ifnet *ifp, ift_counter cnt)
 {
 	struct ifvlan *ifv;
 
