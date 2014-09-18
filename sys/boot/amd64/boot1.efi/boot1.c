@@ -26,6 +26,7 @@ __FBSDID("$FreeBSD$");
 #include <machine/stdarg.h>
 
 #include <efi.h>
+#include <eficonsctl.h>
 
 #define _PATH_LOADER	"/boot/loader.efi"
 #define _PATH_KERNEL	"/boot/kernel/kernel"
@@ -97,6 +98,7 @@ strcmp(const char *s1, const char *s2)
 static EFI_GUID BlockIoProtocolGUID = BLOCK_IO_PROTOCOL;
 static EFI_GUID DevicePathGUID = DEVICE_PATH_PROTOCOL;
 static EFI_GUID LoadedImageGUID = LOADED_IMAGE_PROTOCOL;
+static EFI_GUID ConsoleControlGUID = EFI_CONSOLE_CONTROL_PROTOCOL_GUID;
 
 static EFI_BLOCK_IO *bootdev;
 static EFI_DEVICE_PATH *bootdevpath;
@@ -109,10 +111,19 @@ EFI_STATUS efi_main(EFI_HANDLE Ximage, EFI_SYSTEM_TABLE* Xsystab)
 	UINTN i, nparts = sizeof(handles);
 	EFI_STATUS status;
 	EFI_DEVICE_PATH *devpath;
+	EFI_BOOT_SERVICES *BS;
+	EFI_CONSOLE_CONTROL_PROTOCOL *ConsoleControl = NULL;
 	char *path = _PATH_LOADER;
 
 	systab = Xsystab;
 	image = Ximage;
+
+	BS = systab->BootServices;
+	status = BS->LocateProtocol(&ConsoleControlGUID, NULL,
+	    (VOID **)&ConsoleControl);
+	if (status == EFI_SUCCESS)
+		(void)ConsoleControl->SetMode(ConsoleControl,
+		    EfiConsoleControlScreenText);
 
 	printf(" \n>> FreeBSD EFI boot block\n");
 	printf("   Loader path: %s\n", path);
