@@ -173,6 +173,9 @@ void	tty_rel_gone(struct tty *tp);
 /* Device node creation. */
 void	tty_makedev(struct tty *tp, struct ucred *cred, const char *fmt, ...)
     __printflike(3, 4);
+int	tty_makedevf(struct tty *tp, struct ucred *cred, int flags,
+    const char *fmt, ...) __printflike(4, 5);
+#define	TTYMK_CLONING		0x1
 #define	tty_makealias(tp,fmt,...) \
 	make_dev_alias((tp)->t_dev, fmt, ## __VA_ARGS__)
 
