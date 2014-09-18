@@ -1527,7 +1527,7 @@ rtinit1(struct ifaddr *ifa, int cmd, int flags, int fibnum)
 	}
 	if (fibnum == RT_ALL_FIBS) {
 		if (rt_add_addr_allfibs == 0 && cmd == (int)RTM_ADD) {
-			startfib = endfib = curthread->td_proc->p_fibnum;
+			startfib = endfib = ifa->ifa_ifp->if_fib;
 		} else {
 			startfib = 0;
 			endfib = rt_numfibs - 1;
