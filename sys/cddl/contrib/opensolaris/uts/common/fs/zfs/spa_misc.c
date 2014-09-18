@@ -243,9 +243,6 @@ int zfs_flags = ~(ZFS_DEBUG_DPRINTF | ZFS_DEBUG_SPA);
 #else
 int zfs_flags = 0;
 #endif
-SYSCTL_DECL(_debug);
-SYSCTL_INT(_debug, OID_AUTO, zfs_flags, CTLFLAG_RWTUN, &zfs_flags, 0,
-    "ZFS debug flags.");
 
 /*
  * zfs_recover can be set to nonzero to attempt to recover from
@@ -281,9 +278,8 @@ sysctl_vfs_zfs_debug_flags(SYSCTL_HANDLER_ARGS)
 
 	return (0);
 }
-TUNABLE_INT("vfs.zfs.debug_flags", &zfs_flags);
 SYSCTL_PROC(_vfs_zfs, OID_AUTO, debug_flags,
-    CTLTYPE_UINT | CTLFLAG_MPSAFE | CTLFLAG_RW, 0, sizeof(int),
+    CTLTYPE_UINT | CTLFLAG_MPSAFE | CTLFLAG_RWTUN, 0, sizeof(int),
     sysctl_vfs_zfs_debug_flags, "IU", "Debug flags for ZFS testing.");
 
 /*
