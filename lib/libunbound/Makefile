@@ -33,7 +33,7 @@ LDADD+=	-lssl -lcrypto -lpthread
 
 # Misnamed file in upstream source
 configlexer.l: configlexer.lex
-	cp -p ${.ALLSRC} ${.TARGET}
+	cp -fp ${.ALLSRC} ${.TARGET}
 CLEANFILES+= configlexer.l
 
 # Symbol prefix for lex and yacc
