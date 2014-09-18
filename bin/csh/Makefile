@@ -94,7 +94,7 @@ GENHDRS+= iconv.h
 SRCS+=	iconv_stub.c
 
 iconv.h: ${.CURDIR}/iconv_stub.h
-	cp ${.CURDIR}/iconv_stub.h ${.TARGET}
+	cp -f ${.CURDIR}/iconv_stub.h ${.TARGET}
 .endif
 .endif
 
