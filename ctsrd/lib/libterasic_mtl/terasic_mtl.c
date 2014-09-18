@@ -477,7 +477,7 @@ fb_blend(int blend_text_bg, int blend_text_fg, int blend_pixel, int wash __unuse
     // to avoid a red screen colour wash "attack" indicator from being
     // removed, preserve the "wash" value:
     //wash;
-    (mtlctrl[0] & 0xff);
+    (mtlctrl[0] & 0xef); // clear TERASIC_MTL_BLEND_PIXEL_ENDIAN_SWAP bit
     // to try the dark red "attack" indicator:
     //4;
 }
