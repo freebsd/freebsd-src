@@ -806,6 +806,8 @@ fbtk_init(nsfb_t *fb)
 
 	nsfb_get_geometry(fb, &root->width, &root->height, NULL);
 
+	root->width = 720;	/* XXX Hack for HDMI monitor */
+
 	root->mapped = true;
 
 	return root;
