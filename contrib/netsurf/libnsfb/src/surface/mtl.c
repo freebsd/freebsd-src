@@ -32,6 +32,7 @@
 #include <sys/endian.h>
 #include <sys/types.h>
 #include <sys/mman.h>
+#include <sys/select.h>
 
 #include <stdbool.h>
 #include <stdio.h>
@@ -40,6 +41,7 @@
 #include <string.h>
 #include <time.h>
 #include <errno.h>
+#include <termios.h>
 #include <unistd.h>
 
 #include "libnsfb.h"
@@ -57,6 +59,10 @@
 #define MTL_REG0	"/dev/mtl_reg0"
 #define	MTL_PIXEL0	"/dev/mtl_pixel0"
 
+#define	MTL_RES_WIDTH	800
+#define	MTL_RES_HEIGHT	480
+#define	MTL_FORMAT	NSFB_FMT_XRGB8888
+
 /* Integer offsets of the MTL registers. */
 #define	MTL_REG_X1				3
 #define	MTL_REG_Y1				4
@@ -64,6 +70,7 @@
 #define	MTL_REG_Y2				6
 #define	MTL_REG_COUNT_GESTURE	7
 
+#ifdef MTL_TOUCHINPUT
 typedef enum touch_event {
 	TE_NONE	=	0,
 	TE_MOVE,
@@ -121,6 +128,7 @@ struct mtl_priv {
 	u_int32_t *mtlctrl;
 	int ctrlfd;
 	int dispfd;
+	int mousefd;
 	touch_state_t ts;
 	touch_state_t rel_s;
 	int check_release;
@@ -360,108 +368,8 @@ ts_drain(struct mtl_priv *mtl)
 }
 #endif
 
-static int
-mtl_defaults(nsfb_t *nsfb)
-{
-
-	nsfb->width = 800;
-	nsfb->height = 480;
-	nsfb->format = NSFB_FMT_ARGB8888;
-
-	/* select default sw plotters for bpp */
-	select_plotters(nsfb);
-
-	return (0);
-}
-
-static int
-mtl_initialise(nsfb_t *nsfb)
-{
-	size_t size;
-	struct mtl_priv *mtl;
-
-	mtl = calloc(1, sizeof(struct mtl_priv));
-	if (mtl == NULL) {
-		printf("Unable to malloc mtl_priv\n");
-		return (-1);
-	}
-	nsfb->linelen = (nsfb->width * nsfb->bpp) / 8;
-	nsfb->width = 800;
-	nsfb->height = 480;
-
-	size = (nsfb->width * nsfb->height * nsfb->bpp) / 8;
-
-	mtl->ctrlfd = open(MTL_REG0, O_RDWR | O_NONBLOCK);
-    	if (mtl->ctrlfd < 0) {
-		printf("Unable to open %s\n", MTL_REG0);
-		free(mtl);
-		return (-1);
-    	}
-	mtl->mtlctrl = mmap(NULL, 0x20, PROT_READ | PROT_WRITE, MAP_SHARED,
-					mtl->ctrlfd, 0);
-    	if (mtl->mtlctrl == MAP_FAILED) {
-		printf("Unable to mmap %s\n", MTL_REG0);
-		free(mtl);
-		return (-1);
-    	}
-	/* XXX Need to set blending */
-
-    	mtl->dispfd = open(MTL_PIXEL0, O_RDWR | O_NONBLOCK);
-    	if (mtl->dispfd < 0) {
-		printf("Unable to open %s\n", MTL_PIXEL0);
-		free(mtl);
-		return (-1);
-    	}
-    	nsfb->ptr = mmap(NULL, size, PROT_READ | PROT_WRITE, MAP_SHARED,
-					mtl->dispfd, 0);
-    	if (nsfb->ptr == MAP_FAILED) {
-		printf("Unable to mmap %s\n", MTL_PIXEL0);
-		free(mtl);
-		return (-1);
-    	}
-	memset(nsfb->ptr, 0xff, size);
-
-    	nsfb->surface_priv = mtl;
-
-    	return (0);
-}
-
-static int
-mtl_set_geometry(nsfb_t *nsfb, int width, int height, enum nsfb_format_e format)
-{
-	UNUSED(width);
-	UNUSED(height);
-	UNUSED(format);
-
-	/* We only support one geometry. */
-	nsfb->width = 800;
-	nsfb->height = 480;
-	nsfb->format = NSFB_FMT_ABGR8888;
-
-	/* select soft plotters appropriate for format */
-	select_plotters(nsfb);
-
-	return (0);
-}
-
-
-static int
-mtl_finalise(nsfb_t *nsfb)
-{
-	struct mtl_priv *mtl = nsfb->surface_priv;
-
-	if (mtl != NULL) {
-		munmap(nsfb->ptr, 0);
-		close(mtl->dispfd);
-		munmap(mtl->mtlctrl, 0);
-		close(mtl->ctrlfd);
-		free(mtl);
-		mtl = NULL;
-	}
-	return (0);
-}
-
-static bool mtl_input(nsfb_t *nsfb, nsfb_event_t *event, int timeout)
+static bool
+mtl_input(nsfb_t *nsfb, nsfb_event_t *event, int timeout)
 {
 
 	struct mtl_priv *mtl = nsfb->surface_priv;
@@ -494,6 +402,505 @@ static bool mtl_input(nsfb_t *nsfb, nsfb_event_t *event, int timeout)
 	}
 	return (true);
 }
+
+#else /* ! MTL_TOUCHINPUT */
+
+
+#include <sys/mouse.h>
+#include <sys/consio.h>
+
+enum nsfb_key_code_e mtl_nsfb_map1[] = {
+
+    NSFB_KEY_UNKNOWN,		/* 00 */
+    NSFB_KEY_UNKNOWN,
+    NSFB_KEY_UNKNOWN,
+    NSFB_KEY_UNKNOWN,
+    NSFB_KEY_UNKNOWN,
+    NSFB_KEY_UNKNOWN,
+    NSFB_KEY_UNKNOWN,
+    NSFB_KEY_UNKNOWN,
+    NSFB_KEY_BACKSPACE,
+    NSFB_KEY_TAB,
+    NSFB_KEY_RETURN,		/* 0A */
+    NSFB_KEY_CLEAR,
+    NSFB_KEY_UNKNOWN,
+    NSFB_KEY_RETURN,
+    NSFB_KEY_UNKNOWN,
+    NSFB_KEY_UNKNOWN,		/* 0F */
+
+    NSFB_KEY_UNKNOWN,		/* 10 */
+    NSFB_KEY_UNKNOWN,
+    NSFB_KEY_UNKNOWN,
+    NSFB_KEY_UNKNOWN,
+    NSFB_KEY_UNKNOWN,
+    NSFB_KEY_UNKNOWN,
+    NSFB_KEY_UNKNOWN,
+    NSFB_KEY_UNKNOWN,
+    NSFB_KEY_UNKNOWN,
+    NSFB_KEY_UNKNOWN,
+    NSFB_KEY_UNKNOWN,
+    NSFB_KEY_ESCAPE,		/* 1B */
+    NSFB_KEY_UNKNOWN,
+    NSFB_KEY_UNKNOWN,
+    NSFB_KEY_UNKNOWN,
+    NSFB_KEY_UNKNOWN,
+
+    NSFB_KEY_SPACE,		/* 20 */
+    NSFB_KEY_EXCLAIM,
+    NSFB_KEY_QUOTEDBL,
+    NSFB_KEY_HASH,
+    NSFB_KEY_DOLLAR,
+    NSFB_KEY_5,			/* % */
+    NSFB_KEY_AMPERSAND,
+    NSFB_KEY_QUOTE,
+    NSFB_KEY_LEFTPAREN,
+    NSFB_KEY_RIGHTPAREN,
+    NSFB_KEY_ASTERISK,
+    NSFB_KEY_PLUS,
+    NSFB_KEY_COMMA,
+    NSFB_KEY_MINUS,
+    NSFB_KEY_PERIOD,
+    NSFB_KEY_SLASH,
+    NSFB_KEY_0,
+    NSFB_KEY_1,
+    NSFB_KEY_2,
+    NSFB_KEY_3,
+    NSFB_KEY_4,
+    NSFB_KEY_5,
+    NSFB_KEY_6,
+    NSFB_KEY_7,
+    NSFB_KEY_8,
+    NSFB_KEY_9,
+    NSFB_KEY_COLON,
+    NSFB_KEY_SEMICOLON,
+    NSFB_KEY_LESS,
+    NSFB_KEY_EQUALS,
+    NSFB_KEY_GREATER,
+    NSFB_KEY_QUESTION,
+    NSFB_KEY_AT,		/* 40 */
+
+    NSFB_KEY_a,			/* 41 */
+    NSFB_KEY_b,
+    NSFB_KEY_c,
+    NSFB_KEY_d,
+    NSFB_KEY_e,
+    NSFB_KEY_f,
+    NSFB_KEY_g,
+    NSFB_KEY_h,
+    NSFB_KEY_i,
+    NSFB_KEY_j,
+    NSFB_KEY_k,
+    NSFB_KEY_l,
+    NSFB_KEY_m,
+    NSFB_KEY_n,
+    NSFB_KEY_o,
+    NSFB_KEY_p,
+    NSFB_KEY_q,
+    NSFB_KEY_r,
+    NSFB_KEY_s,
+    NSFB_KEY_t,
+    NSFB_KEY_u,
+    NSFB_KEY_v,
+    NSFB_KEY_w,
+    NSFB_KEY_x,
+    NSFB_KEY_y,
+    NSFB_KEY_z,			/* 5A */
+
+    NSFB_KEY_LEFTBRACKET,	/* 5B */
+    NSFB_KEY_BACKSLASH,
+    NSFB_KEY_RIGHTBRACKET,
+    NSFB_KEY_CARET,
+    NSFB_KEY_UNDERSCORE,
+    NSFB_KEY_BACKQUOTE,		/* 60 */
+
+    NSFB_KEY_a,			/* 61 */
+    NSFB_KEY_b,
+    NSFB_KEY_c,
+    NSFB_KEY_d,
+    NSFB_KEY_e,
+    NSFB_KEY_f,
+    NSFB_KEY_g,
+    NSFB_KEY_h,
+    NSFB_KEY_i,
+    NSFB_KEY_j,
+    NSFB_KEY_k,
+    NSFB_KEY_l,
+    NSFB_KEY_m,
+    NSFB_KEY_n,
+    NSFB_KEY_o,
+    NSFB_KEY_p,
+    NSFB_KEY_q,
+    NSFB_KEY_r,
+    NSFB_KEY_s,
+    NSFB_KEY_t,
+    NSFB_KEY_u,
+    NSFB_KEY_v,
+    NSFB_KEY_w,
+    NSFB_KEY_x,
+    NSFB_KEY_y,
+    NSFB_KEY_z,			/* 7A */
+
+    NSFB_KEY_LEFTBRACKET,		/* 7B */
+    NSFB_KEY_BACKSLASH,
+    NSFB_KEY_RIGHTBRACKET,
+    NSFB_KEY_CARET,
+    NSFB_KEY_DELETE,		/* 7F */
+};
+
+
+struct mtl_priv {
+	u_int32_t *mtlctrl;
+
+	/* I/O file descriptors */
+	int ctrlfd;		/* MTL control */
+	int dispfd;		/* display framebuffer */
+	int mousefd;		/* mouse */
+	int kbfd;		/* keyboard */
+
+	/* Mouse state */
+	int bright;		/* Mouse buttons */
+	int bmiddle;
+	int bleft;
+	int abs_x;		/* Absolute mouse position */
+	int abs_y;
+
+	/* Keyboard state  */
+	int keycode;		/* Keycode for pending event */
+	int needup;		/* Key needs up event */
+	int shiftdown;		/* Shift key is down */
+	int shiftup;		/* Shift key needs up event */
+
+	struct termios termios;
+};
+
+
+#define MTL_MOUSEDEV "/dev/ums0"	/* Use /dev/sysmouse if using moused. */
+
+static bool
+mtl_input(nsfb_t *nsfb, nsfb_event_t *event, int timeout)
+{
+	struct mtl_priv *mtl = nsfb->surface_priv;
+	fd_set rfds;
+	struct timeval tv;
+	int to = timeout;
+	int rsel, x, y, maxfd, numkeys;
+	char me[8];
+	unsigned char keys[20];
+
+	/* First, see if we have pending events. */
+	if (mtl->needup) {
+		mtl->needup = 0;
+		event->type = NSFB_EVENT_KEY_UP;
+		event->value.keycode = mtl->keycode;
+		return (true);
+	}
+
+	if (mtl->shiftdown) {
+		mtl->shiftdown = 0;
+		mtl->shiftup = mtl->needup = 1;
+		event->type = NSFB_EVENT_KEY_DOWN;
+		event->value.keycode = mtl->keycode;
+		return (true);
+	}
+
+	if (mtl->shiftup) {
+		mtl->shiftup = 0;
+		event->type = NSFB_EVENT_KEY_UP;
+		event->value.keycode = NSFB_KEY_RSHIFT;
+		return (true);
+	}
+
+	FD_ZERO(&rfds);
+	FD_SET(mtl->mousefd, &rfds);
+	FD_SET(mtl->kbfd, &rfds);
+	maxfd = (mtl->kbfd > mtl->mousefd) ? mtl->kbfd : mtl->mousefd;
+
+	if (to > 10)			/* Need to add polling */
+		to = 10;
+
+	tv.tv_sec = to / 1000;
+	tv.tv_usec = to % 1000;
+
+	rsel = select(maxfd + 1, &rfds, NULL, NULL, &tv);
+	if (rsel == 0) {
+		/* timeout, nothing happened */
+		event->type = NSFB_EVENT_CONTROL;
+		event->value.controlcode = NSFB_CONTROL_TIMEOUT;
+
+		return (true);
+	}
+
+	/* Check for keyboard event. */
+	if (FD_ISSET(mtl->kbfd, &rfds)) {
+		if ((numkeys = read(mtl->kbfd, &keys[0], sizeof(keys)))) {
+			if (numkeys == 1 && keys[0] < 128) {
+				if ((keys[0] >= 'A' && keys[0] <= 'Z') ||
+				    (keys[0] >= '{' && keys[0] <= '}') ||
+				    (keys[0] == '%')) {
+					/*
+					 * An upper-case or other key that
+					 * requires shift.
+					 */
+					mtl->shiftdown = 1;
+					mtl->keycode = mtl_nsfb_map1[keys[0]];
+					event->type = NSFB_EVENT_KEY_DOWN;
+					event->value.keycode = NSFB_KEY_RSHIFT;
+				} else {
+					mtl->needup = 1;
+					event->type = NSFB_EVENT_KEY_DOWN;
+					mtl->keycode = event->value.keycode =
+						mtl_nsfb_map1[keys[0]];
+				}
+				return (true);
+			}
+		}
+	}
+
+	/* Check for mouse event. */
+	if (!FD_ISSET(mtl->mousefd, &rfds))
+		return (false);
+
+	if (read(mtl->mousefd, &me[0], sizeof(me))) {
+		char button = me[0] & 0x7F;
+
+		/* Right mouse button events */
+		if (mtl->bright && ((button & 0x1) == 0)) {
+			mtl->bright = 0;
+			event->type = NSFB_EVENT_KEY_DOWN;
+			event->value.keycode = NSFB_KEY_MOUSE_3;
+			return (true);
+		}
+		if (!mtl->bright && ((button & 0x1) != 0)) {
+			mtl->bright = 1;
+			event->type = NSFB_EVENT_KEY_UP;
+			event->value.keycode = NSFB_KEY_MOUSE_3;
+			return (true);
+		}
+
+		/* Left mouse button events */
+		if (mtl->bleft && ((button & 0x4) == 0)) {
+			mtl->bleft = 0;
+			event->type = NSFB_EVENT_KEY_DOWN;
+			event->value.keycode = NSFB_KEY_MOUSE_1;
+			return (true);
+		}
+		if (!mtl->bleft && ((button & 0x4) != 0)) {
+			mtl->bleft = 1;
+			event->type = NSFB_EVENT_KEY_UP;
+			event->value.keycode = NSFB_KEY_MOUSE_1;
+			return (true);
+		}
+
+		/* Middle mouse button events */
+		if (mtl->bmiddle && ((button & 0x2) == 0)) {
+			mtl->bmiddle = 0;
+			event->type = NSFB_EVENT_KEY_DOWN;
+			event->value.keycode = NSFB_KEY_MOUSE_2;
+			return (true);
+		}
+		if (!mtl->bmiddle && ((button & 0x2) != 0)) {
+			mtl->bmiddle = 1;
+			event->type = NSFB_EVENT_KEY_UP;
+			event->value.keycode = NSFB_KEY_MOUSE_2;
+			return (true);
+		}
+
+		/* Wheel up */
+		if (me[5] != 0) {
+			mtl->needup = 1;
+			event->type = NSFB_EVENT_KEY_DOWN;
+			mtl->keycode = event->value.keycode = NSFB_KEY_MOUSE_4;
+			return (true);
+		}
+
+		/* Wheel Down */
+		if (me[6] != 0) {
+			mtl->needup = 1;
+			event->type = NSFB_EVENT_KEY_DOWN;
+			mtl->keycode = event->value.keycode = NSFB_KEY_MOUSE_5;
+			return (true);
+		}
+
+		/* Calculate absolute x and y, limit to screen limits. */
+		x = (int)me[1] + (int)me[3];
+		y = (int)me[2] + (int)me[4];
+
+		/* Update absolute x, y */
+		mtl->abs_x += x;
+		if (mtl->abs_x < 0)
+			mtl->abs_x = 0;
+		if (mtl->abs_x >= MTL_RES_WIDTH)
+			mtl->abs_x = MTL_RES_WIDTH - 1;
+
+		mtl->abs_y -= y;
+		if (mtl->abs_y < 0)
+			mtl->abs_y = 0;
+		if (mtl->abs_y >= MTL_RES_HEIGHT)
+			mtl->abs_y = MTL_RES_HEIGHT - 1;
+
+		event->type = NSFB_EVENT_MOVE_ABSOLUTE;
+		event->value.vector.x = mtl->abs_x;
+		event->value.vector.y = mtl->abs_y;
+		event->value.vector.z = 0;
+		return (true);
+	}
+
+	return (false);
+}
+#endif /* ! MTL_TOUCHINPUT */
+
+static int
+mtl_defaults(nsfb_t *nsfb)
+{
+
+	nsfb->width = MTL_RES_WIDTH;
+	nsfb->height = MTL_RES_HEIGHT;
+	nsfb->format = MTL_FORMAT;
+
+	/* select default sw plotters for bpp */
+	select_plotters(nsfb);
+
+	return (0);
+}
+
+static int
+mtl_finalise(nsfb_t *nsfb)
+{
+	struct mtl_priv *mtl = nsfb->surface_priv;
+
+	if (mtl != NULL) {
+		memset(nsfb->ptr, 0x00,
+			(nsfb->width * nsfb->height * nsfb->bpp) / 8);
+		if (nsfb->ptr != NULL)
+			munmap(nsfb->ptr, 0);
+		if (mtl->dispfd > 0)
+			close(mtl->dispfd);
+		if (mtl->mtlctrl != NULL) {
+			/* Set back to Big Endian */
+			mtl->mtlctrl[0] = mtl->mtlctrl[0] | 0x10;
+			munmap(mtl->mtlctrl, 0);
+		}
+		if (mtl->ctrlfd > 0)
+			close(mtl->ctrlfd);
+		if (mtl->mousefd > 0)
+			close(mtl->mousefd);
+		if (mtl->kbfd > 0)
+			close(mtl->kbfd);
+		free(mtl);
+		mtl = NULL;
+	}
+	return (0);
+}
+
+static int
+mtl_initialise(nsfb_t *nsfb)
+{
+	size_t size;
+	struct mtl_priv *mtl;
+	struct termios tios;
+
+	mtl = calloc(1, sizeof(struct mtl_priv));
+	if (mtl == NULL) {
+		perror("malloc");
+		return (-1);
+	}
+	nsfb->surface_priv = mtl;
+	nsfb->linelen = (nsfb->width * nsfb->bpp) / 8;
+	nsfb->width = MTL_RES_WIDTH;
+	mtl->abs_x = nsfb->width / 2;
+	nsfb->height = MTL_RES_HEIGHT;
+	mtl->abs_y = nsfb->width / 2;
+	nsfb->format = MTL_FORMAT;
+
+	size = (nsfb->width * nsfb->height * nsfb->bpp) / 8;
+
+	mtl->ctrlfd = open(MTL_REG0, O_RDWR | O_NONBLOCK);
+    	if (mtl->ctrlfd < 0) {
+		printf("Unable to open %s: %s\n", MTL_REG0, strerror(errno));
+		(void)mtl_finalise(nsfb);
+		return (-1);
+    	}
+	mtl->mtlctrl = mmap(NULL, 0x20, PROT_READ | PROT_WRITE, MAP_SHARED,
+					mtl->ctrlfd, 0);
+    	if (mtl->mtlctrl == MAP_FAILED) {
+		printf("Unable to mmap %s: %s\n", MTL_REG0, strerror(errno));
+		(void)mtl_finalise(nsfb);
+		return (-1);
+    	}
+
+	/* Set blending and turn off TERASIC_MTL_BLEND_PIXEL_ENDIAN_SWAP */
+	mtl->mtlctrl[0] = (0xff << 8) | (mtl->mtlctrl[0] & 0xef);
+
+    	mtl->dispfd = open(MTL_PIXEL0, O_RDWR | O_NONBLOCK);
+    	if (mtl->dispfd < 0) {
+		printf("Unable to open %s: %s\n", MTL_PIXEL0, strerror(errno));
+		(void)mtl_finalise(nsfb);
+		return (-1);
+    	}
+    	nsfb->ptr = mmap(NULL, size, PROT_READ | PROT_WRITE, MAP_SHARED,
+					mtl->dispfd, 0);
+    	if (nsfb->ptr == MAP_FAILED) {
+		printf("Unable to mmap %s: %s\n", MTL_PIXEL0, strerror(errno));
+		(void)mtl_finalise(nsfb);
+		return (-1);
+    	}
+	memset(nsfb->ptr, 0xff, size);
+
+	mtl->mousefd = open(MTL_MOUSEDEV, O_RDONLY);
+	if (mtl->mousefd < 0) {
+		printf("Unable to open %s: %s\n", MTL_MOUSEDEV,
+			strerror(errno));
+		(void)mtl_finalise(nsfb);
+		return (-1);
+	}
+	int level = 1;
+	ioctl(mtl->mousefd, MOUSE_SETLEVEL, &level);
+
+	mtl->kbfd = open("/dev/ttyv0", O_RDONLY);
+	if (mtl->kbfd < 0) {
+		printf("Unable to open /dev/ttyv0: %s\n", strerror(errno));
+		(void)mtl_finalise(nsfb);
+		return (-1);
+	}
+
+	if (tcgetattr(mtl->kbfd, &mtl->termios) < 0) {
+		perror("tcgetattr");
+		(void)mtl_finalise(nsfb);
+		return (-1);
+	}
+
+	tios = mtl->termios;
+	tios.c_lflag &= ~ICANON;
+	tios.c_lflag &= ~ECHO;
+	tios.c_cc[VMIN] = 1;
+	tios.c_cc[VTIME] = 0;
+	if (tcsetattr(mtl->kbfd, TCSADRAIN, &tios) < 0) {
+		perror("tcsetattr");
+		(void)mtl_finalise(nsfb);
+		return (-1);
+	}
+
+    	return (0);
+}
+
+static int
+mtl_set_geometry(nsfb_t *nsfb, int width, int height, enum nsfb_format_e format)
+{
+	UNUSED(width);
+	UNUSED(height);
+	UNUSED(format);
+
+	/* We only support one geometry. */
+	nsfb->width = MTL_RES_WIDTH;
+	nsfb->height = MTL_RES_HEIGHT;
+	nsfb->format = MTL_FORMAT;
+
+	/* select soft plotters appropriate for format */
+	select_plotters(nsfb);
+
+	return (0);
+}
+
 
 static int mtl_claim(nsfb_t *nsfb, nsfb_bbox_t *box)
 {
