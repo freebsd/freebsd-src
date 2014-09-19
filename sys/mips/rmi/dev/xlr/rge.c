@@ -2019,7 +2019,7 @@ rge_rx(struct rge_softc *sc, vm_paddr_t paddr, int len)
 		printf("\n");
 	}
 #endif
-	ifp->if_ipackets++;
+	if_inc_counter(ifp, IFCOUNTER_IPACKETS, 1);
 	(*ifp->if_input) (ifp, m);
 }
 
@@ -2116,7 +2116,7 @@ rge_start_locked(struct ifnet *ifp, int threshold)
 			ifp->if_drv_flags |= IFF_DRV_OACTIVE;
 			return;
 		} else {
-			ifp->if_opackets++;
+			if_inc_counter(ifp, IFCOUNTER_OPACKETS, 1);
 			xlr_rge_tx_done[vcpu]++;
 		}
 	}
