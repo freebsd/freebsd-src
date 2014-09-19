@@ -306,7 +306,7 @@ ether_output(struct ifnet *ifp, struct mbuf *m,
 				update_mbuf_csumflags(m, n);
 				(void)if_simloop(ifp, n, dst->sa_family, hlen);
 			} else
-				ifp->if_iqdrops++;
+				if_inc_counter(ifp, IFCOUNTER_IQDROPS, 1);
 		} else if (bcmp(eh->ether_dhost, eh->ether_shost,
 				ETHER_ADDR_LEN) == 0) {
 			update_mbuf_csumflags(m, m);
@@ -404,7 +404,7 @@ ether_input_internal(struct ifnet *ifp, struct mbuf *m)
 	 */
 	if ((m->m_flags & M_PKTHDR) == 0) {
 		if_printf(ifp, "discard frame w/o packet header\n");
-		ifp->if_ierrors++;
+		if_inc_counter(ifp, IFCOUNTER_IERRORS, 1);
 		m_freem(m);
 		return;
 	}
@@ -413,7 +413,7 @@ ether_input_internal(struct ifnet *ifp, struct mbuf *m)
 		if_printf(ifp, "discard frame w/o leading ethernet "
 				"header (len %u pkt len %u)\n",
 				m->m_len, m->m_pkthdr.len);
-		ifp->if_ierrors++;
+		if_inc_counter(ifp, IFCOUNTER_IERRORS, 1);
 		m_freem(m);
 		return;
 	}
@@ -421,7 +421,7 @@ ether_input_internal(struct ifnet *ifp, struct mbuf *m)
 	etype = ntohs(eh->ether_type);
 	if (m->m_pkthdr.rcvif == NULL) {
 		if_printf(ifp, "discard frame w/o interface pointer\n");
-		ifp->if_ierrors++;
+		if_inc_counter(ifp, IFCOUNTER_IERRORS, 1);
 		m_freem(m);
 		return;
 	}
@@ -439,7 +439,7 @@ ether_input_internal(struct ifnet *ifp, struct mbuf *m)
 			m->m_flags |= M_BCAST;
 		else
 			m->m_flags |= M_MCAST;
-		ifp->if_imcasts++;
+		if_inc_counter(ifp, IFCOUNTER_IMCASTS, 1);
 	}
 
 #ifdef MAC
@@ -466,7 +466,7 @@ ether_input_internal(struct ifnet *ifp, struct mbuf *m)
 	}
 
 	if (!(ifp->if_capenable & IFCAP_HWSTATS))
-		ifp->if_ibytes += m->m_pkthdr.len;
+		if_inc_counter(ifp, IFCOUNTER_IBYTES, m->m_pkthdr.len);
 
 	/* Allow monitor mode to claim this frame, after stats are updated. */
 	if (ifp->if_flags & IFF_MONITOR) {
@@ -502,7 +502,7 @@ ether_input_internal(struct ifnet *ifp, struct mbuf *m)
 #ifdef DIAGNOSTIC
 			if_printf(ifp, "cannot pullup VLAN header\n");
 #endif
-			ifp->if_ierrors++;
+			if_inc_counter(ifp, IFCOUNTER_IERRORS, 1);
 			m_freem(m);
 			CURVNET_RESTORE();
 			return;
@@ -715,7 +715,7 @@ ether_demux(struct ifnet *ifp, struct mbuf *m)
 	if ((m->m_flags & M_VLANTAG) &&
 	    EVL_VLANOFTAG(m->m_pkthdr.ether_vtag) != 0) {
 		if (ifp->if_vlantrunk == NULL) {
-			ifp->if_noproto++;
+			if_inc_counter(ifp, IFCOUNTER_NOPROTO, 1);
 			m_freem(m);
 			return;
 		}

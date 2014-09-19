@@ -361,7 +361,7 @@ gre_output(struct ifnet *ifp, struct mbuf *m, const struct sockaddr *dst,
 			 * be encapsulated.
 			 */
 			if (ip->ip_off & htons(IP_MF | IP_OFFMASK)) {
-				ifp->if_oerrors++;
+				if_inc_counter(ifp, IFCOUNTER_OERRORS, 1);
 				m_freem(m);
 				error = EINVAL;    /* is there better errno? */
 				goto end;
@@ -390,7 +390,7 @@ gre_output(struct ifnet *ifp, struct mbuf *m, const struct sockaddr *dst,
 			if ((m->m_data - msiz) < m->m_pktdat) {
 				m0 = m_gethdr(M_NOWAIT, MT_DATA);
 				if (m0 == NULL) {
-					ifp->if_oerrors++;
+					if_inc_counter(ifp, IFCOUNTER_OERRORS, 1);
 					m_freem(m);
 					error = ENOBUFS;
 					goto end;
@@ -415,7 +415,7 @@ gre_output(struct ifnet *ifp, struct mbuf *m, const struct sockaddr *dst,
 			memcpy((caddr_t)(ip + 1), &mob_h, (unsigned)msiz);
 			ip->ip_len = htons(ntohs(ip->ip_len) + msiz);
 		} else {  /* AF_INET */
-			ifp->if_oerrors++;
+			if_inc_counter(ifp, IFCOUNTER_OERRORS, 1);
 			m_freem(m);
 			error = EINVAL;
 			goto end;
@@ -440,7 +440,7 @@ gre_output(struct ifnet *ifp, struct mbuf *m, const struct sockaddr *dst,
 			break;
 #endif
 		default:
-			ifp->if_oerrors++;
+			if_inc_counter(ifp, IFCOUNTER_OERRORS, 1);
 			m_freem(m);
 			error = EAFNOSUPPORT;
 			goto end;
@@ -452,14 +452,14 @@ gre_output(struct ifnet *ifp, struct mbuf *m, const struct sockaddr *dst,
 			hdrlen += sizeof(uint32_t);
 		M_PREPEND(m, hdrlen, M_NOWAIT);
 	} else {
-		ifp->if_oerrors++;
+		if_inc_counter(ifp, IFCOUNTER_OERRORS, 1);
 		m_freem(m);
 		error = EINVAL;
 		goto end;
 	}
 
 	if (m == NULL) {	/* mbuf allocation failed */
-		ifp->if_oerrors++;
+		if_inc_counter(ifp, IFCOUNTER_OERRORS, 1);
 		error = ENOBUFS;
 		goto end;
 	}
@@ -494,8 +494,8 @@ gre_output(struct ifnet *ifp, struct mbuf *m, const struct sockaddr *dst,
 		gh->gi_len = htons(m->m_pkthdr.len);
 	}
 
-	ifp->if_opackets++;
-	ifp->if_obytes += m->m_pkthdr.len;
+	if_inc_counter(ifp, IFCOUNTER_OPACKETS, 1);
+	if_inc_counter(ifp, IFCOUNTER_OBYTES, m->m_pkthdr.len);
 	/*
 	 * Send it off and with IP_FORWARD flag to prevent it from
 	 * overwriting the ip_id again.  ip_id is already set to the
@@ -505,7 +505,7 @@ gre_output(struct ifnet *ifp, struct mbuf *m, const struct sockaddr *dst,
 	    (struct ip_moptions *)NULL, (struct inpcb *)NULL);
   end:
 	if (error)
-		ifp->if_oerrors++;
+		if_inc_counter(ifp, IFCOUNTER_OERRORS, 1);
 	return (error);
 }
 
