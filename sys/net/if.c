@@ -3521,8 +3521,8 @@ if_handoff(struct ifqueue *ifq, struct mbuf *m, struct ifnet *ifp, int adjust)
 
 	IF_LOCK(ifq);
 	if (_IF_QFULL(ifq)) {
-		_IF_DROP(ifq);
 		IF_UNLOCK(ifq);
+		ifp->if_oqdrops++;
 		m_freem(m);
 		return (0);
 	}

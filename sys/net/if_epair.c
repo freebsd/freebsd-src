@@ -517,7 +517,7 @@ epair_transmit_locked(struct ifnet *ifp, struct mbuf *m)
 	if (ALTQ_IS_ENABLED(&ifp->if_snd)) {
 		ALTQ_ENQUEUE(&ifp->if_snd, m, NULL, error);
 		if (error)
-			ifp->if_snd.ifq_drops++;
+			ifp->if_oqdrops++;
 		IF_UNLOCK(&ifp->if_snd);
 		if (!error) {
 			ifp->if_obytes += len;

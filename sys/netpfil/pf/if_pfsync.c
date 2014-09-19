@@ -1640,7 +1640,7 @@ pfsync_sendout(int schedswi)
 		_IF_ENQUEUE(&sc->sc_ifp->if_snd, m);
 	else {
 		m_freem(m);
-		sc->sc_ifp->if_snd.ifq_drops++;
+		sc->sc_ifp->if_oqdrops++;
 	}
 	if (schedswi)
 		swi_sched(V_pfsync_swi_cookie, 0);

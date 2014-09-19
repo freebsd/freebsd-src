@@ -2083,7 +2083,6 @@ static int ng_ct_rcvdata (hook_p hook, item_p item)
 	CT_LOCK (bd);
 	IF_LOCK (q);
 	if (_IF_QFULL (q)) {
-		_IF_DROP (q);
 		IF_UNLOCK (q);
 		CT_UNLOCK (bd);
 		splx (s);
