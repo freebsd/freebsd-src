@@ -361,7 +361,7 @@ gre_output(struct ifnet *ifp, struct mbuf *m, const struct sockaddr *dst,
 			 * be encapsulated.
 			 */
 			if (ip->ip_off & htons(IP_MF | IP_OFFMASK)) {
-				_IF_DROP(&ifp->if_snd);
+				ifp->if_oerrors++;
 				m_freem(m);
 				error = EINVAL;    /* is there better errno? */
 				goto end;
@@ -390,7 +390,7 @@ gre_output(struct ifnet *ifp, struct mbuf *m, const struct sockaddr *dst,
 			if ((m->m_data - msiz) < m->m_pktdat) {
 				m0 = m_gethdr(M_NOWAIT, MT_DATA);
 				if (m0 == NULL) {
-					_IF_DROP(&ifp->if_snd);
+					ifp->if_oerrors++;
 					m_freem(m);
 					error = ENOBUFS;
 					goto end;
@@ -415,7 +415,7 @@ gre_output(struct ifnet *ifp, struct mbuf *m, const struct sockaddr *dst,
 			memcpy((caddr_t)(ip + 1), &mob_h, (unsigned)msiz);
 			ip->ip_len = htons(ntohs(ip->ip_len) + msiz);
 		} else {  /* AF_INET */
-			_IF_DROP(&ifp->if_snd);
+			ifp->if_oerrors++;
 			m_freem(m);
 			error = EINVAL;
 			goto end;
@@ -440,7 +440,7 @@ gre_output(struct ifnet *ifp, struct mbuf *m, const struct sockaddr *dst,
 			break;
 #endif
 		default:
-			_IF_DROP(&ifp->if_snd);
+			ifp->if_oerrors++;
 			m_freem(m);
 			error = EAFNOSUPPORT;
 			goto end;
@@ -452,14 +452,14 @@ gre_output(struct ifnet *ifp, struct mbuf *m, const struct sockaddr *dst,
 			hdrlen += sizeof(uint32_t);
 		M_PREPEND(m, hdrlen, M_NOWAIT);
 	} else {
-		_IF_DROP(&ifp->if_snd);
+		ifp->if_oerrors++;
 		m_freem(m);
 		error = EINVAL;
 		goto end;
 	}
 
 	if (m == NULL) {	/* mbuf allocation failed */
-		_IF_DROP(&ifp->if_snd);
+		ifp->if_oerrors++;
 		error = ENOBUFS;
 		goto end;
 	}
