@@ -484,18 +484,8 @@ vt_scroll(struct vt_window *vw, int offset, int whence)
 	vt_termsize(vw->vw_device, vw->vw_font, &size);
 
 	diff = vthistory_seek(&vw->vw_buf, offset, whence);
-	/*
-	 * Offset changed, please update Nth lines on screen.
-	 * +N - Nth lines at top;
-	 * -N - Nth lines at bottom.
-	 */
-
-	if (diff < -size.tp_row || diff > size.tp_row) {
+	if (diff)
 		vw->vw_device->vd_flags |= VDF_INVALID;
-		vt_resume_flush_timer(vw->vw_device, 0);
-		return;
-	}
-	vw->vw_device->vd_flags |= VDF_INVALID; /*XXX*/
 	vt_resume_flush_timer(vw->vw_device, 0);
 }
 
@@ -1180,6 +1170,13 @@ vtterm_cnprobe(struct terminal *tm, struct consdev *cp)
 		vw->vw_font = vtfont_ref(&vt_font_default);
 		vt_compute_drawable_area(vw);
 	}
+
+	/*
+	 * The original screen size was faked (_VTDEFW x _VTDEFH). Now
+	 * that we have the real viewable size, fix the it in the static
+	 * buffer.
+	 */
+	vt_termsize(vd, vw->vw_font, &vw->vw_buf.vb_scr_size);
 
 	vtbuf_init_early(&vw->vw_buf);
 	vt_winsize(vd, vw->vw_font, &wsz);
