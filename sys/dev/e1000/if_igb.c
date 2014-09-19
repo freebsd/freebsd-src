@@ -204,6 +204,7 @@ static void	igb_start(struct ifnet *);
 static void	igb_start_locked(struct tx_ring *, struct ifnet *ifp);
 #endif
 static int	igb_ioctl(struct ifnet *, u_long, caddr_t);
+static uint64_t	igb_get_counter(if_t, ift_counter);
 static void	igb_init(void *);
 static void	igb_init_locked(struct adapter *);
 static void	igb_stop(void *);
@@ -1045,9 +1046,9 @@ igb_mq_start_locked(struct ifnet *ifp, struct tx_ring *txr)
 		}
 		drbr_advance(ifp, txr->br);
 		enq++;
-		ifp->if_obytes += next->m_pkthdr.len;
+		if_inc_counter(ifp, IFCOUNTER_OBYTES, next->m_pkthdr.len);
 		if (next->m_flags & M_MCAST)
-			ifp->if_omcasts++;
+			if_inc_counter(ifp, IFCOUNTER_OMCASTS, 1);
 		ETHER_BPF_MTAP(ifp, next);
 		if ((ifp->if_drv_flags & IFF_DRV_RUNNING) == 0)
 			break;
@@ -3211,6 +3212,7 @@ igb_setup_interface(device_t dev, struct adapter *adapter)
 	ifp->if_softc = adapter;
 	ifp->if_flags = IFF_BROADCAST | IFF_SIMPLEX | IFF_MULTICAST;
 	ifp->if_ioctl = igb_ioctl;
+	ifp->if_get_counter = igb_get_counter;
 #ifndef IGB_LEGACY_TX
 	ifp->if_transmit = igb_mq_start;
 	ifp->if_qflush = igb_qflush;
@@ -4127,7 +4129,7 @@ igb_txeof(struct tx_ring *txr)
 		}
 		++txr->packets;
 		++processed;
-		++ifp->if_opackets;
+		if_inc_counter(ifp, IFCOUNTER_OPACKETS, 1);
 		txr->watchdog_time = ticks;
 
 		/* Try the next packet */
@@ -5121,7 +5123,7 @@ igb_rxeof(struct igb_queue *que, int count, int *done)
 
 		if (eop) {
 			rxr->fmp->m_pkthdr.rcvif = ifp;
-			ifp->if_ipackets++;
+			if_inc_counter(ifp, IFCOUNTER_IPACKETS, 1);
 			rxr->rx_packets++;
 			/* capture data for AIM */
 			rxr->packets++;
@@ -5548,6 +5550,30 @@ igb_led_func(void *arg, int onoff)
 	IGB_CORE_UNLOCK(adapter);
 }
 
+static uint64_t
+igb_get_counter(if_t ifp, ift_counter cnt)
+{
+	struct adapter *adapter;
+	struct e1000_hw_stats *stats;
+
+	adapter = if_getsoftc(ifp);
+	stats = (struct e1000_hw_stats *)adapter->stats;
+
+	switch (cnt) {
+	case IFCOUNTER_IERRORS:
+		return (adapter->dropped_pkts + stats->rxerrc +
+		    stats->crcerrs + stats->algnerrc +
+		    stats->ruc + stats->roc + stats->mpc + stats->cexterr);
+	case IFCOUNTER_OERRORS:
+		return (stats->ecol + stats->latecol +
+		    adapter->watchdog_events);
+	case IFCOUNTER_COLLISIONS:
+		return (stats->colc);
+	default:
+		return (if_get_counter_default(ifp, cnt));
+	}
+}
+
 /**********************************************************************
  *
  *  Update the board statistics counters.
@@ -5556,7 +5582,6 @@ igb_led_func(void *arg, int onoff)
 static void
 igb_update_stats_counters(struct adapter *adapter)
 {
-	struct ifnet		*ifp;
         struct e1000_hw		*hw = &adapter->hw;
 	struct e1000_hw_stats	*stats;
 
@@ -5673,18 +5698,6 @@ igb_update_stats_counters(struct adapter *adapter)
 	stats->cexterr += E1000_READ_REG(hw, E1000_CEXTERR);
 	stats->tsctc += E1000_READ_REG(hw, E1000_TSCTC);
 	stats->tsctfc += E1000_READ_REG(hw, E1000_TSCTFC);
-
-	ifp = adapter->ifp;
-	ifp->if_collisions = stats->colc;
-
-	/* Rx Errors */
-	ifp->if_ierrors = adapter->dropped_pkts + stats->rxerrc +
-	    stats->crcerrs + stats->algnerrc +
-	    stats->ruc + stats->roc + stats->mpc + stats->cexterr;
-
-	/* Tx Errors */
-	ifp->if_oerrors = stats->ecol +
-	    stats->latecol + adapter->watchdog_events;
 
 	/* Driver specific counters */
 	adapter->device_control = E1000_READ_REG(hw, E1000_CTRL);
