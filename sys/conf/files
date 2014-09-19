@@ -111,6 +111,7 @@ cddl/compat/opensolaris/kern/opensolaris_misc.c				optional zfs compile-with "${
 cddl/compat/opensolaris/kern/opensolaris_sunddi.c			optional zfs compile-with "${ZFS_C}"
 # zfs specific
 cddl/compat/opensolaris/kern/opensolaris_acl.c				optional zfs compile-with "${ZFS_C}"
+cddl/compat/opensolaris/kern/opensolaris_dtrace.c			optional zfs compile-with "${ZFS_C}"
 cddl/compat/opensolaris/kern/opensolaris_kobj.c				optional zfs compile-with "${ZFS_C}"
 cddl/compat/opensolaris/kern/opensolaris_kstat.c			optional zfs compile-with "${ZFS_C}"
 cddl/compat/opensolaris/kern/opensolaris_lookup.c			optional zfs compile-with "${ZFS_C}"
