@@ -195,39 +195,6 @@ vtbuf_iscursor(const struct vt_buf *vb, int row, int col)
 	return (0);
 }
 
-static inline uint64_t
-vtbuf_dirty_axis(unsigned int begin, unsigned int end)
-{
-	uint64_t left, right, mask;
-
-	/*
-	 * Mark all bits between begin % 64 and end % 64 dirty.
-	 * This code is functionally equivalent to:
-	 *
-	 * 	for (i = begin; i < end; i++)
-	 * 		mask |= (uint64_t)1 << (i % 64);
-	 */
-
-	/* Obvious case. Mark everything dirty. */
-	if (end - begin >= 64)
-		return (VBM_DIRTY);
-
-	/* 1....0; used bits on the left. */
-	left = VBM_DIRTY << begin % 64;
-	/* 0....1; used bits on the right. */
-	right = VBM_DIRTY >> -end % 64;
-
-	/*
-	 * Only take the intersection.  If the result of that is 0, it
-	 * means that the selection crossed a 64 bit boundary along the
-	 * way, which means we have to take the complement.
-	 */
-	mask = left & right;
-	if (mask == 0)
-		mask = left | right;
-	return (mask);
-}
-
 static inline void
 vtbuf_dirty_locked(struct vt_buf *vb, const term_rect_t *area)
 {
@@ -240,10 +207,6 @@ vtbuf_dirty_locked(struct vt_buf *vb, const term_rect_t *area)
 		vb->vb_dirtyrect.tr_end.tp_row = area->tr_end.tp_row;
 	if (vb->vb_dirtyrect.tr_end.tp_col < area->tr_end.tp_col)
 		vb->vb_dirtyrect.tr_end.tp_col = area->tr_end.tp_col;
-	vb->vb_dirtymask.vbm_row |=
-	    vtbuf_dirty_axis(area->tr_begin.tp_row, area->tr_end.tp_row);
-	vb->vb_dirtymask.vbm_col |=
-	    vtbuf_dirty_axis(area->tr_begin.tp_col, area->tr_end.tp_col);
 }
 
 void
@@ -272,16 +235,14 @@ vtbuf_make_undirty(struct vt_buf *vb)
 
 	vb->vb_dirtyrect.tr_begin = vb->vb_scr_size;
 	vb->vb_dirtyrect.tr_end.tp_row = vb->vb_dirtyrect.tr_end.tp_col = 0;
-	vb->vb_dirtymask.vbm_row = vb->vb_dirtymask.vbm_col = 0;
 }
 
 void
-vtbuf_undirty(struct vt_buf *vb, term_rect_t *r, struct vt_bufmask *m)
+vtbuf_undirty(struct vt_buf *vb, term_rect_t *r)
 {
 
 	VTBUF_LOCK(vb);
 	*r = vb->vb_dirtyrect;
-	*m = vb->vb_dirtymask;
 	vtbuf_make_undirty(vb);
 	VTBUF_UNLOCK(vb);
 }
