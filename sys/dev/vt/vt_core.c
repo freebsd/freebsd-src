@@ -1173,7 +1173,7 @@ vtterm_cnprobe(struct terminal *tm, struct consdev *cp)
 
 	/*
 	 * The original screen size was faked (_VTDEFW x _VTDEFH). Now
-	 * that we have the real viewable size, fix the it in the static
+	 * that we have the real viewable size, fix it in the static
 	 * buffer.
 	 */
 	vt_termsize(vd, vw->vw_font, &vw->vw_buf.vb_scr_size);
