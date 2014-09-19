@@ -1848,7 +1848,7 @@ bridge_enqueue(struct bridge_softc *sc, struct ifnet *dst_ifp, struct mbuf *m)
 			if (m == NULL) {
 				if_printf(dst_ifp,
 				    "unable to prepend VLAN header\n");
-				dst_ifp->if_oerrors++;
+				if_inc_counter(dst_ifp, IFCOUNTER_OERRORS, 1);
 				continue;
 			}
 			m->m_flags &= ~M_VLANTAG;
@@ -1856,14 +1856,14 @@ bridge_enqueue(struct bridge_softc *sc, struct ifnet *dst_ifp, struct mbuf *m)
 
 		if ((err = dst_ifp->if_transmit(dst_ifp, m))) {
 			m_freem(m0);
-			sc->sc_ifp->if_oerrors++;
+			if_inc_counter(sc->sc_ifp, IFCOUNTER_OERRORS, 1);
 			break;
 		}
 
-		sc->sc_ifp->if_opackets++;
-		sc->sc_ifp->if_obytes += len;
+		if_inc_counter(sc->sc_ifp, IFCOUNTER_OPACKETS, 1);
+		if_inc_counter(sc->sc_ifp, IFCOUNTER_OBYTES, len);
 		if (mflags & M_MCAST)
-			sc->sc_ifp->if_omcasts++;
+			if_inc_counter(sc->sc_ifp, IFCOUNTER_OMCASTS, 1);
 	}
 
 	return (err);
@@ -1994,7 +1994,7 @@ bridge_output(struct ifnet *ifp, struct mbuf *m, struct sockaddr *sa,
 			} else {
 				mc = m_copypacket(m, M_NOWAIT);
 				if (mc == NULL) {
-					sc->sc_ifp->if_oerrors++;
+					if_inc_counter(sc->sc_ifp, IFCOUNTER_OERRORS, 1);
 					continue;
 				}
 			}
@@ -2084,8 +2084,8 @@ bridge_forward(struct bridge_softc *sc, struct bridge_iflist *sbif,
 	src_if = m->m_pkthdr.rcvif;
 	ifp = sc->sc_ifp;
 
-	ifp->if_ipackets++;
-	ifp->if_ibytes += m->m_pkthdr.len;
+	if_inc_counter(ifp, IFCOUNTER_IPACKETS, 1);
+	if_inc_counter(ifp, IFCOUNTER_IBYTES, m->m_pkthdr.len);
 	vlan = VLANTAGOF(m);
 
 	if ((sbif->bif_flags & IFBIF_STP) &&
@@ -2137,7 +2137,7 @@ bridge_forward(struct bridge_softc *sc, struct bridge_iflist *sbif,
 			goto drop;
 
 		/* ...forward it to all interfaces. */
-		ifp->if_imcasts++;
+		if_inc_counter(ifp, IFCOUNTER_IMCASTS, 1);
 		dst_if = NULL;
 	}
 
@@ -2245,8 +2245,8 @@ bridge_input(struct ifnet *ifp, struct mbuf *m)
 	if ((bifp->if_flags & IFF_MONITOR) != 0) {
 		m->m_pkthdr.rcvif  = bifp;
 		ETHER_BPF_MTAP(bifp, m);
-		bifp->if_ipackets++;
-		bifp->if_ibytes += m->m_pkthdr.len;
+		if_inc_counter(bifp, IFCOUNTER_IPACKETS, 1);
+		if_inc_counter(bifp, IFCOUNTER_IBYTES, m->m_pkthdr.len);
 		m_freem(m);
 		return (NULL);
 	}
@@ -2347,8 +2347,8 @@ bridge_input(struct ifnet *ifp, struct mbuf *m)
 	    ) {								\
 		if ((iface)->if_type == IFT_BRIDGE) {			\
 			ETHER_BPF_MTAP(iface, m);			\
-			iface->if_ipackets++;				\
-			iface->if_ibytes += m->m_pkthdr.len;		\
+			if_inc_counter(iface, IFCOUNTER_IPACKETS, 1);				\
+			if_inc_counter(iface, IFCOUNTER_IBYTES, m->m_pkthdr.len);		\
 			/* Filter on the physical interface. */		\
 			if (pfil_local_phys &&				\
 			    (PFIL_HOOKED(&V_inet_pfil_hook)		\
@@ -2478,7 +2478,7 @@ bridge_broadcast(struct bridge_softc *sc, struct ifnet *src_if,
 		} else {
 			mc = m_dup(m, M_NOWAIT);
 			if (mc == NULL) {
-				sc->sc_ifp->if_oerrors++;
+				if_inc_counter(sc->sc_ifp, IFCOUNTER_OERRORS, 1);
 				continue;
 			}
 		}
@@ -2498,7 +2498,7 @@ bridge_broadcast(struct bridge_softc *sc, struct ifnet *src_if,
 				i = min(mc->m_pkthdr.len, max_protohdr);
 				mc = m_copyup(mc, i, ETHER_ALIGN);
 				if (mc == NULL) {
-					sc->sc_ifp->if_oerrors++;
+					if_inc_counter(sc->sc_ifp, IFCOUNTER_OERRORS, 1);
 					continue;
 				}
 			}
@@ -2541,7 +2541,7 @@ bridge_span(struct bridge_softc *sc, struct mbuf *m)
 
 		mc = m_copypacket(m, M_NOWAIT);
 		if (mc == NULL) {
-			sc->sc_ifp->if_oerrors++;
+			if_inc_counter(sc->sc_ifp, IFCOUNTER_OERRORS, 1);
 			continue;
 		}
 

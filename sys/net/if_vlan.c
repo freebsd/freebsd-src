@@ -1215,7 +1215,7 @@ vlan_input(struct ifnet *ifp, struct mbuf *m)
 			      __func__, ifp->if_xname, ifp->if_type);
 #endif
 			m_freem(m);
-			ifp->if_noproto++;
+			if_inc_counter(ifp, IFCOUNTER_NOPROTO, 1);
 			return;
 		}
 	}
@@ -1225,7 +1225,7 @@ vlan_input(struct ifnet *ifp, struct mbuf *m)
 	if (ifv == NULL || !UP_AND_RUNNING(ifv->ifv_ifp)) {
 		TRUNK_RUNLOCK(trunk);
 		m_freem(m);
-		ifp->if_noproto++;
+		if_inc_counter(ifp, IFCOUNTER_NOPROTO, 1);
 		return;
 	}
 	TRUNK_RUNLOCK(trunk);
