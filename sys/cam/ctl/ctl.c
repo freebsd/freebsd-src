@@ -7074,7 +7074,7 @@ ctl_mode_sense(struct ctl_scsiio *ctsio)
 	 * descriptor.  Otherwise, just set it to 0.
 	 */
 	if (dbd == 0) {
-		if (control_dev != 0)
+		if (control_dev == 0)
 			scsi_ulto3b(lun->be_lun->blocksize,
 				    block_desc->block_len);
 		else
