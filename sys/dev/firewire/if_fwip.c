@@ -484,7 +484,7 @@ fwip_output_callback(struct fw_xfer *xfer)
 	/* XXX error check */
 	FWIPDEBUG(ifp, "resp = %d\n", xfer->resp);
 	if (xfer->resp != 0)
-		ifp->if_oerrors ++;
+		if_inc_counter(ifp, IFCOUNTER_OERRORS, 1);
 		
 	m_freem(xfer->mbuf);
 	fw_xfer_unload(xfer);
@@ -519,7 +519,7 @@ fwip_start(struct ifnet *ifp)
 			IF_DEQUEUE(&ifp->if_snd, m);
 			if (m != NULL)
 				m_freem(m);
-			ifp->if_oerrors ++;
+			if_inc_counter(ifp, IFCOUNTER_OERRORS, 1);
 		} while (m != NULL);
 		splx(s);
 
@@ -646,7 +646,7 @@ fwip_async_output(struct fwip_softc *fwip, struct ifnet *ifp)
 				fd = fw_noderesolve_eui64(fc, &eui);
 				if (!fd) {
 					/* error */
-					ifp->if_oerrors ++;
+					if_inc_counter(ifp, IFCOUNTER_OERRORS, 1);
 					/* XXX set error code */
 					fwip_output_callback(xfer);
 					continue;
@@ -687,12 +687,12 @@ fwip_async_output(struct fwip_softc *fwip, struct ifnet *ifp)
 		}
 		if (error) {
 			/* error */
-			ifp->if_oerrors ++;
+			if_inc_counter(ifp, IFCOUNTER_OERRORS, 1);
 			/* XXX set error code */
 			fwip_output_callback(xfer);
 			continue;
 		} else {
-			ifp->if_opackets ++;
+			if_inc_counter(ifp, IFCOUNTER_OPACKETS, 1);
 			i++;
 		}
 	}
@@ -754,7 +754,7 @@ fwip_stream_input(struct fw_xferq *xferq)
 		if (sxfer->resp != 0 || fp->mode.stream.len <
 		    2*sizeof(uint32_t)) {
 			m_freem(m);
-			ifp->if_ierrors ++;
+			if_inc_counter(ifp, IFCOUNTER_IERRORS, 1);
 			continue;
 		}
 		m->m_len = m->m_pkthdr.len = fp->mode.stream.len
@@ -780,7 +780,7 @@ fwip_stream_input(struct fw_xferq *xferq)
 			FWIPDEBUG(ifp, "Unrecognised GASP header %#08x %#08x\n",
 			    ntohl(p[1]), ntohl(p[2]));
 			m_freem(m);
-			ifp->if_ierrors ++;
+			if_inc_counter(ifp, IFCOUNTER_IERRORS, 1);
 			continue;
 		}
 
@@ -815,7 +815,7 @@ fwip_stream_input(struct fw_xferq *xferq)
 		m_adj(m, 3*sizeof(uint32_t));
 		m->m_pkthdr.rcvif = ifp;
 		firewire_input(ifp, m, src);
-		ifp->if_ipackets ++;
+		if_inc_counter(ifp, IFCOUNTER_IPACKETS, 1);
 	}
 	if (STAILQ_FIRST(&xferq->stfree) != NULL)
 		fwip->fd.fc->irx_enable(fwip->fd.fc, fwip->dma_ch);
@@ -881,7 +881,7 @@ fwip_unicast_input(struct fw_xfer *xfer)
 	 */
 	if (rtcode != FWRCODE_COMPLETE) {
 		m_freem(m);
-		ifp->if_ierrors ++;
+		if_inc_counter(ifp, IFCOUNTER_IERRORS, 1);
 		return;
 	}
 
@@ -916,7 +916,7 @@ fwip_unicast_input(struct fw_xfer *xfer)
 	m->m_len = m->m_pkthdr.len = fp->mode.wreqb.len;
 	m->m_pkthdr.rcvif = ifp;
 	firewire_input(ifp, m, fp->mode.wreqb.src);
-	ifp->if_ipackets ++;
+	if_inc_counter(ifp, IFCOUNTER_IPACKETS, 1);
 }
 
 static devclass_t fwip_devclass;

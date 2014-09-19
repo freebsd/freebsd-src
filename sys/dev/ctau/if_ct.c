@@ -1082,7 +1082,7 @@ static void ct_transmit (ct_chan_t *c, void *attachment, int len)
 		return;
 	d->timeout = 0;
 #ifndef NETGRAPH
-	++d->ifp->if_opackets;
+	if_inc_counter(d->ifp, IFCOUNTER_OPACKETS, 1);
 	d->ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
 #endif
 	ct_start (d);
@@ -1106,7 +1106,7 @@ static void ct_receive (ct_chan_t *c, char *data, int len)
 	if (! m) {
 		CT_DEBUG (d, ("no memory for packet\n"));
 #ifndef NETGRAPH
-		++d->ifp->if_iqdrops;
+		if_inc_counter(d->ifp, IFCOUNTER_IQDROPS, 1);
 #endif
 		return;
 	}
@@ -1116,7 +1116,7 @@ static void ct_receive (ct_chan_t *c, char *data, int len)
 	m->m_pkthdr.rcvif = 0;
 	NG_SEND_DATA_ONLY (error, d->hook, m);
 #else
-	++d->ifp->if_ipackets;
+	if_inc_counter(d->ifp, IFCOUNTER_IPACKETS, 1);
 	m->m_pkthdr.rcvif = d->ifp;
 	/* Check if there's a BPF listener on this interface.
 	 * If so, hand off the raw packet to bpf. */
@@ -1139,33 +1139,33 @@ static void ct_error (ct_chan_t *c, int data)
 	case CT_FRAME:
 		CT_DEBUG (d, ("frame error\n"));
 #ifndef NETGRAPH
-		++d->ifp->if_ierrors;
+		if_inc_counter(d->ifp, IFCOUNTER_IERRORS, 1);
 #endif
 		break;
 	case CT_CRC:
 		CT_DEBUG (d, ("crc error\n"));
 #ifndef NETGRAPH
-		++d->ifp->if_ierrors;
+		if_inc_counter(d->ifp, IFCOUNTER_IERRORS, 1);
 #endif
 		break;
 	case CT_OVERRUN:
 		CT_DEBUG (d, ("overrun error\n"));
 #ifndef NETGRAPH
-		++d->ifp->if_collisions;
-		++d->ifp->if_ierrors;
+		if_inc_counter(d->ifp, IFCOUNTER_COLLISIONS, 1);
+		if_inc_counter(d->ifp, IFCOUNTER_IERRORS, 1);
 #endif
 		break;
 	case CT_OVERFLOW:
 		CT_DEBUG (d, ("overflow error\n"));
 #ifndef NETGRAPH
-		++d->ifp->if_ierrors;
+		if_inc_counter(d->ifp, IFCOUNTER_IERRORS, 1);
 #endif
 		break;
 	case CT_UNDERRUN:
 		CT_DEBUG (d, ("underrun error\n"));
 		d->timeout = 0;
 #ifndef NETGRAPH
-		++d->ifp->if_oerrors;
+		if_inc_counter(d->ifp, IFCOUNTER_OERRORS, 1);
 		d->ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
 #endif
 		ct_start (d);
