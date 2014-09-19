@@ -1566,7 +1566,7 @@ sf_rxeof(struct sf_softc *sc)
 		m = rxd->rx_m;
 
 		/*
-		 * Note, IFCOUNTER_IPACKETS and ICOUNTER_IERRORS
+		 * Note, IFCOUNTER_IPACKETS and IFCOUNTER_IERRORS
 		 * are handled in sf_stats_update().
 		 */
 		if ((status & SF_RXSTAT1_OK) == 0) {
