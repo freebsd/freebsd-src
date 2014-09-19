@@ -143,8 +143,10 @@ widget_scroll_y(struct gui_window *gw, int y, bool abs)
 	if ((bwidget->scrolly + bwidget->pany) > (content_height - height))
 		bwidget->pany = (content_height - height) - bwidget->scrolly;
 
-	if (bwidget->pany == 0)
+	if (bwidget->pany == 0) {
+		fbtk_request_redraw(gw->browser); /* XXX redraw */
 		return;
+	}
 
 	bwidget->pan_required = true;
 
@@ -180,8 +182,10 @@ widget_scroll_x(struct gui_window *gw, int x, bool abs)
 	if ((bwidget->scrollx + bwidget->panx) > (content_width - width))
 		bwidget->panx = (content_width - width) - bwidget->scrollx;
 
-	if (bwidget->panx == 0)
+	if (bwidget->panx == 0) {
+		fbtk_request_redraw(gw->browser); /* XXX redraw */
 		return;
+	}
 
 	bwidget->pan_required = true;
 
@@ -448,7 +452,7 @@ process_cmdline(int argc, char** argv)
 	}
 	feheight = nsoption_int(window_height);
 	if (feheight <= 0) {
-		feheight = 600;
+		feheight = 480;
 	}
 
 	if ((nsoption_charp(homepage_url) != NULL) && 
@@ -654,15 +658,22 @@ fb_browser_window_click(fbtk_widget_t *widget, fbtk_callback_info *cbi)
 		case NSFB_KEY_MOUSE_4:
 			/* scroll up */
 			if (browser_window_scroll_at_point(gw->bw, x, y,
-					0, -100) == false)
-				widget_scroll_y(gw, -100, false);
+					0, -100) == false) {
+				/* XXX scroll a full screen */
+				/* XXX widget_scroll_y(gw, -100, false); */
+				widget_scroll_y(gw, -fbtk_get_height(
+						gw->browser), false);
+			}
 			break;
 
 		case NSFB_KEY_MOUSE_5:
 			/* scroll down */
 			if (browser_window_scroll_at_point(gw->bw, x, y,
-					0, 100) == false)
-				widget_scroll_y(gw, 100, false);
+					0, 100) == false) {
+				/* XXX widget_scroll_y(gw, 100, false); */
+				widget_scroll_y(gw, fbtk_get_height(
+						gw->browser), false);
+			}
 			break;
 
 		default:
