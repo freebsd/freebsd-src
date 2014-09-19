@@ -1159,7 +1159,7 @@ atse_watchdog(struct atse_softc *sc)
 		return;
 
 	device_printf(sc->atse_dev, "watchdog timeout\n");
-	sc->atse_ifp->if_oerrors++;
+	if_inc_counter(sc->atse_ifp, IFCOUNTER_OERRORS, 1);
 
 	atse_intr_debug(sc, "poll");
 
@@ -1263,7 +1263,7 @@ outer:
 				atse_update_rx_err(sc, ((meta &
 				    A_ONCHIP_FIFO_MEM_CORE_ERROR_MASK) >>
 				    A_ONCHIP_FIFO_MEM_CORE_ERROR_SHIFT) & 0xff);
-				ifp->if_ierrors++;
+				if_inc_counter(ifp, IFCOUNTER_IERRORS, 1);
 				sc->atse_rx_buf_len = 0;
 				/*
 				 * Should still read till EOP or next SOP.
@@ -1292,7 +1292,7 @@ outer:
 					    "without empty buffer: %u\n",
 					    __func__, sc->atse_rx_buf_len);
 					/* XXX-BZ any better counter? */
-					ifp->if_ierrors++;
+					if_inc_counter(ifp, IFCOUNTER_IERRORS, 1);
 				}
 				
 				if ((sc->atse_flags & ATSE_FLAGS_SOP_SEEN) == 0)
@@ -1311,7 +1311,7 @@ outer:
 				 * XXX-BZ Error.  We need more mbufs and are
 				 * not setup for this yet.
 				 */
-				ifp->if_ierrors++;
+				if_inc_counter(ifp, IFCOUNTER_IERRORS, 1);
 				sc->atse_flags |= ATSE_FLAGS_ERROR;
 			}
 			if ((sc->atse_flags & ATSE_FLAGS_ERROR) == 0)
@@ -1330,7 +1330,7 @@ outer:
 				    A_ONCHIP_FIFO_MEM_CORE_EMPTY_SHIFT;
 				sc->atse_rx_buf_len += (4 - empty);
 
-				ifp->if_ipackets++;
+				if_inc_counter(ifp, IFCOUNTER_IPACKETS, 1);
 				rx_npkts++;
 
 				m = sc->atse_rx_m;
@@ -1414,7 +1414,7 @@ atse_rx_intr(void *arg)
 		atse_update_rx_err(sc, ((rxe &
 		    A_ONCHIP_FIFO_MEM_CORE_ERROR_MASK) >>
 		    A_ONCHIP_FIFO_MEM_CORE_ERROR_SHIFT) & 0xff);
-		ifp->if_ierrors++;
+		if_inc_counter(ifp, IFCOUNTER_IERRORS, 1);
 	}
 
 	/*
@@ -1469,7 +1469,7 @@ atse_tx_intr(void *arg)
 	if (txe & (A_ONCHIP_FIFO_MEM_CORE_EVENT_OVERFLOW|
 	    A_ONCHIP_FIFO_MEM_CORE_EVENT_UNDERFLOW)) {
 		/* XXX-BZ ERROR HANDLING. */
-		ifp->if_oerrors++;
+		if_inc_counter(ifp, IFCOUNTER_OERRORS, 1);
 	}
 
 	/*
@@ -1527,12 +1527,12 @@ atse_poll(struct ifnet *ifp, enum poll_cmd cmd, int count)
 			atse_update_rx_err(sc, ((rx &
 			    A_ONCHIP_FIFO_MEM_CORE_ERROR_MASK) >>
 			    A_ONCHIP_FIFO_MEM_CORE_ERROR_SHIFT) & 0xff);
-			ifp->if_ierrors++;
+			if_inc_counter(ifp, IFCOUNTER_IERRORS, 1);
 		}
 		if (tx & (A_ONCHIP_FIFO_MEM_CORE_EVENT_OVERFLOW|
 		    A_ONCHIP_FIFO_MEM_CORE_EVENT_UNDERFLOW)) {
 			/* XXX-BZ ERROR HANDLING. */
-			ifp->if_oerrors++;
+			if_inc_counter(ifp, IFCOUNTER_OERRORS, 1);
 		}
 		if (ATSE_TX_READ_FILL_LEVEL(sc) == 0)
 			sc->atse_watchdog_timer = 0;

@@ -446,7 +446,7 @@ lance_watchdog(void *xsc)
 	}
 
 	if_printf(ifp, "device timeout\n");
-	++ifp->if_oerrors;
+	if_inc_counter(ifp, IFCOUNTER_OERRORS, 1);
 	lance_init_locked(sc);
 }
 

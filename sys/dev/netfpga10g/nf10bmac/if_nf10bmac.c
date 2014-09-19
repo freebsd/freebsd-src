@@ -414,7 +414,7 @@ nf10bmac_rx_locked(struct nf10bmac_softc *sc)
 			 * packet on the floor and count the error.
 			 */
 			nf10bmac_eat_packet_munch_munch(sc);		
-			ifp->if_ierrors++;
+			if_inc_counter(ifp, IFCOUNTER_IERRORS, 1);
 			m_freem(m);
 			return (0);
 		} else if ((len - l) <= sizeof(val)) {
@@ -445,14 +445,14 @@ nf10bmac_rx_locked(struct nf10bmac_softc *sc)
 	if ((md & NF10BMAC_DATA_LAST) == 0 || (md & NF10BMAC_DATA_STRB) == 0) {
 		device_printf(sc->nf10bmac_dev, "Unexpected rx loop end state: "
 		    "md=0x%08jx len=%d l=%d\n", (uintmax_t)md, len, l);
-		ifp->if_ierrors++;
+		if_inc_counter(ifp, IFCOUNTER_IERRORS, 1);
 		m_freem(m);
 		return (0);
 	}
 
 	m->m_pkthdr.len = m->m_len = len;
 	m->m_pkthdr.rcvif = ifp;
-	ifp->if_ipackets++;
+	if_inc_counter(ifp, IFCOUNTER_IPACKETS, 1);
 
 	NF10BMAC_UNLOCK(sc);
 	(*ifp->if_input)(ifp, m);
@@ -584,7 +584,7 @@ nf10bmac_watchdog(struct nf10bmac_softc *sc)
 		return;
 
 	device_printf(sc->nf10bmac_dev, "watchdog timeout\n");
-	sc->nf10bmac_ifp->if_oerrors++;
+	sc->nf10if_inc_counter(bmac_ifp, IFCOUNTER_OERRORS, 1);
 
 	sc->nf10bmac_ifp->if_drv_flags &= ~IFF_DRV_RUNNING;
 	nf10bmac_init_locked(sc);

@@ -1431,7 +1431,7 @@ ndis_rxeof(adapter, packets, pktcnt)
 				p->np_refcnt++;
 				m_freem(m0);
 				if (m == NULL)
-					ifp->if_ierrors++;
+					if_inc_counter(ifp, IFCOUNTER_IERRORS, 1);
 				else
 					m0 = m;
 			} else
@@ -1444,7 +1444,7 @@ ndis_rxeof(adapter, packets, pktcnt)
 				p->np_oob.npo_status = NDIS_STATUS_PENDING;
 			m_freem(m0);
 			if (m == NULL) {
-				ifp->if_ierrors++;
+				if_inc_counter(ifp, IFCOUNTER_IERRORS, 1);
 				continue;
 			}
 			m0 = m;
@@ -1554,9 +1554,9 @@ ndis_txeof(adapter, packet, status)
 	sc->ndis_txpending++;
 
 	if (status == NDIS_STATUS_SUCCESS)
-		ifp->if_opackets++;
+		if_inc_counter(ifp, IFCOUNTER_OPACKETS, 1);
 	else
-		ifp->if_oerrors++;
+		if_inc_counter(ifp, IFCOUNTER_OERRORS, 1);
 
 	sc->ndis_tx_timer = 0;
 	ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
@@ -1659,7 +1659,7 @@ ndis_tick(xsc)
 	}
 
 	if (sc->ndis_tx_timer && --sc->ndis_tx_timer == 0) {
-		sc->ifp->if_oerrors++;
+		if_inc_counter(sc->ifp, IFCOUNTER_OERRORS, 1);
 		device_printf(sc->ndis_dev, "watchdog timeout\n");
 
 		IoQueueWorkItem(sc->ndis_resetitem,
