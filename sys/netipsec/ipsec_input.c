@@ -376,8 +376,8 @@ ipsec4_common_input_cb(struct mbuf *m, struct secasvar *sav,
 	prot = ip->ip_p;
 
 #ifdef DEV_ENC
-	encif->if_ipackets++;
-	encif->if_ibytes += m->m_pkthdr.len;
+	if_inc_counter(encif, IFCOUNTER_IPACKETS, 1);
+	if_inc_counter(encif, IFCOUNTER_IBYTES, m->m_pkthdr.len);
 
 	/*
 	 * Pass the mbuf to enc0 for bpf and pfil. We will filter the IPIP
@@ -663,8 +663,8 @@ ipsec6_common_input_cb(struct mbuf *m, struct secasvar *sav, int skip, int proto
 	m_copydata(m, protoff, 1, (unsigned char *) &prot);
 
 #ifdef DEV_ENC
-	encif->if_ipackets++;
-	encif->if_ibytes += m->m_pkthdr.len;
+	if_inc_counter(encif, IFCOUNTER_IPACKETS, 1);
+	if_inc_counter(encif, IFCOUNTER_IBYTES, m->m_pkthdr.len);
 
 	/*
 	 * Pass the mbuf to enc0 for bpf and pfil. We will filter the IPIP
