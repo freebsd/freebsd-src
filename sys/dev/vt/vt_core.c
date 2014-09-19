@@ -992,7 +992,6 @@ vt_flush(struct vt_device *vd)
 {
 	struct vt_window *vw;
 	struct vt_font *vf;
-	struct vt_bufmask tmask;
 	term_rect_t tarea;
 	term_pos_t size;
 #ifndef SC_NO_CUTPASTE
@@ -1048,14 +1047,13 @@ vt_flush(struct vt_device *vd)
 		vt_mark_mouse_position_as_dirty(vd);
 #endif
 
-	vtbuf_undirty(&vw->vw_buf, &tarea, &tmask);
+	vtbuf_undirty(&vw->vw_buf, &tarea);
 	vt_termsize(vd, vf, &size);
 
 	/* Force a full redraw when the screen contents are invalid. */
 	if (vd->vd_flags & VDF_INVALID) {
 		tarea.tr_begin.tp_row = tarea.tr_begin.tp_col = 0;
 		tarea.tr_end = size;
-		tmask.vbm_row = tmask.vbm_col = VBM_DIRTY;
 
 		vd->vd_flags &= ~VDF_INVALID;
 	}
