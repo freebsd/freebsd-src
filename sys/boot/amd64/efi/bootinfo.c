@@ -60,6 +60,7 @@ bi_getboothowto(char *kargs)
 {
 	const char *sw;
 	char *opts;
+	char *console;
 	int howto, i;
 
 	howto = 0;
@@ -68,6 +69,14 @@ bi_getboothowto(char *kargs)
 	for (i = 0; howto_names[i].ev != NULL; i++) {
 		if (getenv(howto_names[i].ev) != NULL)
 			howto |= howto_names[i].mask;
+	}
+
+	console = getenv("console");
+	if (console != NULL) {
+		if (strcmp(console, "comconsole") == 0)
+			howto |= RB_SERIAL;
+		if (strcmp(console, "nullconsole") == 0)
+			howto |= RB_MUTE;
 	}
 
 	/* Parse kargs */
