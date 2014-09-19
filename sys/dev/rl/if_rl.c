@@ -127,7 +127,7 @@ MODULE_DEPEND(rl, miibus, 1, 1, 1);
 /* "device miibus" required.  See GENERIC if you get errors here. */
 #include "miibus_if.h"
 
-#include <pci/if_rlreg.h>
+#include <dev/rl/if_rlreg.h>
 
 /*
  * Various supported device vendors/types and their names.
