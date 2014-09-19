@@ -393,10 +393,7 @@ ng_iface_output(struct ifnet *ifp, struct mbuf *m,
 	if (ALTQ_IS_ENABLED(&ifp->if_snd)) {
 		M_PREPEND(m, sizeof(sa_family_t), M_NOWAIT);
 		if (m == NULL) {
-			IFQ_LOCK(&ifp->if_snd);
-			IFQ_INC_DROPS(&ifp->if_snd);
-			IFQ_UNLOCK(&ifp->if_snd);
-			if_inc_counter(ifp, IFCOUNTER_OERRORS, 1);
+			if_inc_counter(ifp, IFCOUNTER_OQDROPS, 1);
 			return (ENOBUFS);
 		}
 		*(sa_family_t *)m->m_data = af;
