@@ -44,10 +44,10 @@ options 	DEVICE_POLLING
 #
 # USB support
 #
-#options	USB_DEBUG
+options	USB_DEBUG
 #options	USB_REQ_DEBUG
-#options	USB_VERBOSE
+options	USB_VERBOSE
 device		usb
 device		saf1761otg
 device		ukbd
-
+device		ums
