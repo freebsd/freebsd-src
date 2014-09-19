@@ -159,7 +159,6 @@ pflogstart(struct ifnet *ifp)
 
 	for (;;) {
 		IF_LOCK(&ifp->if_snd);
-		_IF_DROP(&ifp->if_snd);
 		_IF_DEQUEUE(&ifp->if_snd, m);
 		IF_UNLOCK(&ifp->if_snd);
 

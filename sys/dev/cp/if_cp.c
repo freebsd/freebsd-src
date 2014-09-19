@@ -2141,7 +2141,6 @@ static int ng_cp_rcvdata (hook_p hook, item_p item)
 	CP_LOCK (bd);
 	IF_LOCK (q);
 	if (_IF_QFULL (q)) {
-		_IF_DROP (q);
 		IF_UNLOCK (q);
 		CP_UNLOCK (bd);
 		splx (s);

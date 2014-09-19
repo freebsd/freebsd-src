@@ -4069,7 +4069,7 @@ mxge_update_stats(mxge_softc_t *sc)
 #ifdef IFNET_BUF_RING
 	sc->ifp->if_obytes = obytes;
 	sc->ifp->if_omcasts = omcasts;
-	sc->ifp->if_snd.ifq_drops = odrops;
+	sc->ifp->if_oqdrops = odrops;
 #endif
 	sc->ifp->if_oerrors = oerrors;
 	return pkts;

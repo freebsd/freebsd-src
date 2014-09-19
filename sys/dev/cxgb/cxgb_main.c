@@ -2357,7 +2357,7 @@ cxgb_tick_handler(void *arg, int count)
 		drops = 0;
 		for (j = pi->first_qset; j < pi->first_qset + pi->nqsets; j++)
 			drops += sc->sge.qs[j].txq[TXQ_ETH].txq_mr->br_drops;
-		ifp->if_snd.ifq_drops = drops;
+		ifp->if_oqdrops = drops;
 
 		ifp->if_oerrors =
 		    mstats->tx_excess_collisions +

@@ -1577,9 +1577,6 @@ sysctl_iflist_ifml(struct ifnet *ifp, struct rt_addrinfo *info,
 
 	if_data_copy(ifp, ifd);
 
-	/* Some drivers still use ifqueue(9), add its stats. */
-	ifd->ifi_oqdrops += ifp->if_snd.ifq_drops;
-
 	return (SYSCTL_OUT(w->w_req, (caddr_t)ifm, len));
 }
 
@@ -1611,9 +1608,6 @@ sysctl_iflist_ifm(struct ifnet *ifp, struct rt_addrinfo *info,
 	}
 
 	if_data_copy(ifp, ifd);
-
-	/* Some drivers still use ifqueue(9), add its stats. */
-	ifd->ifi_oqdrops += ifp->if_snd.ifq_drops;
 
 	return (SYSCTL_OUT(w->w_req, (caddr_t)ifm, len));
 }

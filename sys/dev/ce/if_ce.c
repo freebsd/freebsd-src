@@ -2408,7 +2408,6 @@ static int ng_ce_rcvdata (hook_p hook, struct mbuf *m, meta_p meta)
 #if __FreeBSD_version >= 500000
 	IF_LOCK (q);
 	if (_IF_QFULL (q)) {
-		_IF_DROP (q);
 		IF_UNLOCK (q);
 		CE_UNLOCK (bd);
 		splx (s);
