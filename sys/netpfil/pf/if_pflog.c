@@ -252,8 +252,8 @@ pflog_packet(struct pfi_kif *kif, struct mbuf *m, sa_family_t af, u_int8_t dir,
 	}
 #endif /* INET */
 
-	ifn->if_opackets++;
-	ifn->if_obytes += m->m_pkthdr.len;
+	if_inc_counter(ifn, IFCOUNTER_OPACKETS, 1);
+	if_inc_counter(ifn, IFCOUNTER_OBYTES, m->m_pkthdr.len);
 	BPF_MTAP2(ifn, &hdr, PFLOG_HDRLEN, m);
 
 	return (0);
