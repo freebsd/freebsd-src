@@ -442,7 +442,7 @@ stf_output(struct ifnet *ifp, struct mbuf *m, const struct sockaddr *dst,
 	/* just in case */
 	if ((ifp->if_flags & IFF_UP) == 0) {
 		m_freem(m);
-		ifp->if_oerrors++;
+		if_inc_counter(ifp, IFCOUNTER_OERRORS, 1);
 		return ENETDOWN;
 	}
 
@@ -454,7 +454,7 @@ stf_output(struct ifnet *ifp, struct mbuf *m, const struct sockaddr *dst,
 	ia6 = stf_getsrcifa6(ifp);
 	if (ia6 == NULL) {
 		m_freem(m);
-		ifp->if_oerrors++;
+		if_inc_counter(ifp, IFCOUNTER_OERRORS, 1);
 		return ENETDOWN;
 	}
 
@@ -462,7 +462,7 @@ stf_output(struct ifnet *ifp, struct mbuf *m, const struct sockaddr *dst,
 		m = m_pullup(m, sizeof(*ip6));
 		if (!m) {
 			ifa_free(&ia6->ia_ifa);
-			ifp->if_oerrors++;
+			if_inc_counter(ifp, IFCOUNTER_OERRORS, 1);
 			return ENOBUFS;
 		}
 	}
@@ -481,7 +481,7 @@ stf_output(struct ifnet *ifp, struct mbuf *m, const struct sockaddr *dst,
 	else {
 		ifa_free(&ia6->ia_ifa);
 		m_freem(m);
-		ifp->if_oerrors++;
+		if_inc_counter(ifp, IFCOUNTER_OERRORS, 1);
 		return ENETUNREACH;
 	}
 	bcopy(ptr, &in4, sizeof(in4));
@@ -503,7 +503,7 @@ stf_output(struct ifnet *ifp, struct mbuf *m, const struct sockaddr *dst,
 		m = m_pullup(m, sizeof(struct ip));
 	if (m == NULL) {
 		ifa_free(&ia6->ia_ifa);
-		ifp->if_oerrors++;
+		if_inc_counter(ifp, IFCOUNTER_OERRORS, 1);
 		return ENOBUFS;
 	}
 	ip = mtod(m, struct ip *);
@@ -549,7 +549,7 @@ stf_output(struct ifnet *ifp, struct mbuf *m, const struct sockaddr *dst,
 		if (sc->sc_ro.ro_rt == NULL) {
 			m_freem(m);
 			mtx_unlock(&(sc)->sc_ro_mtx);
-			ifp->if_oerrors++;
+			if_inc_counter(ifp, IFCOUNTER_OERRORS, 1);
 			return ENETUNREACH;
 		}
 	}
@@ -557,7 +557,7 @@ stf_output(struct ifnet *ifp, struct mbuf *m, const struct sockaddr *dst,
 
 sendit:
 	M_SETFIB(m, sc->sc_fibnum);
-	ifp->if_opackets++;
+	if_inc_counter(ifp, IFCOUNTER_OPACKETS, 1);
 	error = ip_output(m, NULL, cached_route, 0, NULL, NULL);
 
 	if (cached_route != NULL)
@@ -770,8 +770,8 @@ in_stf_input(struct mbuf **mp, int *offp, int proto)
 	 * See net/if_gif.c for possible issues with packet processing
 	 * reorder due to extra queueing.
 	 */
-	ifp->if_ipackets++;
-	ifp->if_ibytes += m->m_pkthdr.len;
+	if_inc_counter(ifp, IFCOUNTER_IPACKETS, 1);
+	if_inc_counter(ifp, IFCOUNTER_IBYTES, m->m_pkthdr.len);
 	M_SETFIB(m, ifp->if_fib);
 	netisr_dispatch(NETISR_IPV6, m);
 	return (IPPROTO_DONE);
