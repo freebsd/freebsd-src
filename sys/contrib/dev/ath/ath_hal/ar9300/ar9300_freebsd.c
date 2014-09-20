@@ -468,11 +468,13 @@ ar9300_freebsd_setup_x_tx_desc(struct ath_hal *ah, struct ath_desc *ds,
     u_int txRate3, u_int txTries3)
 {
 
+#if 0
 	ath_hal_printf(ah, "%s: called, 0x%x/%d, 0x%x/%d, 0x%x/%d\n",
 	    __func__,
 	    txRate1, txTries1,
 	    txRate2, txTries2,
 	    txRate3, txTries3);
+#endif
 
 	/* XXX should only be called during probe */
 	return (AH_TRUE);
