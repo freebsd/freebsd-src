@@ -83,6 +83,7 @@ vthistory_seek(struct vt_buf *vb, int offset, int whence)
 	    bottom + vb->vb_scr_size.tp_row - vb->vb_history_size :
 	    0;
 
+	roffset = 0; /* Make gcc happy. */
 	switch (whence) {
 	case VHS_SET:
 		if (offset < 0)
