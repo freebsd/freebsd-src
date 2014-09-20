@@ -1715,12 +1715,22 @@ ath_suspend(struct ath_softc *sc)
 	 * NB: don't worry about putting the chip in low power
 	 * mode; pci will power off our socket on suspend and
 	 * CardBus detaches the device.
+	 *
+	 * XXX TODO: well, that's great, except for non-cardbus
+	 * devices!
 	 */
 
 	/*
-	 * XXX ensure none of the taskqueues are running
+	 * XXX This doesn't wait until all pending taskqueue
+	 * items and parallel transmit/receive/other threads
+	 * are running!
+	 */
+	ath_hal_intrset(sc->sc_ah, 0);
+	taskqueue_block(sc->sc_tq);
+	callout_drain(&sc->sc_cal_ch);
+
+	/*
 	 * XXX ensure sc_invalid is 1
-	 * XXX ensure the calibration callout is disabled
 	 */
 
 	/* Disable the PCIe PHY, complete with workarounds */
@@ -1810,6 +1820,11 @@ ath_resume(struct ath_softc *sc)
 	    sc->sc_curchan != NULL ? sc->sc_curchan : ic->ic_curchan,
 	    AH_FALSE, &status);
 	ath_reset_keycache(sc);
+
+	ATH_RX_LOCK(sc);
+	sc->sc_rx_stopped = 1;
+	sc->sc_rx_resetted = 1;
+	ATH_RX_UNLOCK(sc);
 
 	/* Let DFS at it in case it's a DFS channel */
 	ath_dfs_radar_enable(sc, ic->ic_curchan);
@@ -2015,44 +2030,46 @@ ath_intr(void *arg)
 		if (status & HAL_INT_RXEOL) {
 			int imask;
 			ATH_KTR(sc, ATH_KTR_ERROR, 0, "ath_intr: RXEOL");
-			ATH_PCU_LOCK(sc);
+			if (! sc->sc_isedma) {
+				ATH_PCU_LOCK(sc);
+				/*
+				 * NB: the hardware should re-read the link when
+				 *     RXE bit is written, but it doesn't work at
+				 *     least on older hardware revs.
+				 */
+				sc->sc_stats.ast_rxeol++;
+				/*
+				 * Disable RXEOL/RXORN - prevent an interrupt
+				 * storm until the PCU logic can be reset.
+				 * In case the interface is reset some other
+				 * way before "sc_kickpcu" is called, don't
+				 * modify sc_imask - that way if it is reset
+				 * by a call to ath_reset() somehow, the
+				 * interrupt mask will be correctly reprogrammed.
+				 */
+				imask = sc->sc_imask;
+				imask &= ~(HAL_INT_RXEOL | HAL_INT_RXORN);
+				ath_hal_intrset(ah, imask);
+				/*
+				 * Only blank sc_rxlink if we've not yet kicked
+				 * the PCU.
+				 *
+				 * This isn't entirely correct - the correct solution
+				 * would be to have a PCU lock and engage that for
+				 * the duration of the PCU fiddling; which would include
+				 * running the RX process. Otherwise we could end up
+				 * messing up the RX descriptor chain and making the
+				 * RX desc list much shorter.
+				 */
+				if (! sc->sc_kickpcu)
+					sc->sc_rxlink = NULL;
+				sc->sc_kickpcu = 1;
+				ATH_PCU_UNLOCK(sc);
+			}
 			/*
-			 * NB: the hardware should re-read the link when
-			 *     RXE bit is written, but it doesn't work at
-			 *     least on older hardware revs.
-			 */
-			sc->sc_stats.ast_rxeol++;
-			/*
-			 * Disable RXEOL/RXORN - prevent an interrupt
-			 * storm until the PCU logic can be reset.
-			 * In case the interface is reset some other
-			 * way before "sc_kickpcu" is called, don't
-			 * modify sc_imask - that way if it is reset
-			 * by a call to ath_reset() somehow, the
-			 * interrupt mask will be correctly reprogrammed.
-			 */
-			imask = sc->sc_imask;
-			imask &= ~(HAL_INT_RXEOL | HAL_INT_RXORN);
-			ath_hal_intrset(ah, imask);
-			/*
-			 * Only blank sc_rxlink if we've not yet kicked
-			 * the PCU.
-			 *
-			 * This isn't entirely correct - the correct solution
-			 * would be to have a PCU lock and engage that for
-			 * the duration of the PCU fiddling; which would include
-			 * running the RX process. Otherwise we could end up
-			 * messing up the RX descriptor chain and making the
-			 * RX desc list much shorter.
-			 */
-			if (! sc->sc_kickpcu)
-				sc->sc_rxlink = NULL;
-			sc->sc_kickpcu = 1;
-			ATH_PCU_UNLOCK(sc);
-			/*
-			 * Enqueue an RX proc, to handled whatever
+			 * Enqueue an RX proc to handle whatever
 			 * is in the RX queue.
-			 * This will then kick the PCU.
+			 * This will then kick the PCU if required.
 			 */
 			sc->sc_rx.recv_sched(sc, 1);
 		}
@@ -2348,6 +2365,12 @@ ath_init(void *arg)
 		ATH_UNLOCK(sc);
 		return;
 	}
+
+	ATH_RX_LOCK(sc);
+	sc->sc_rx_stopped = 1;
+	sc->sc_rx_resetted = 1;
+	ATH_RX_UNLOCK(sc);
+
 	ath_chan_change(sc, ic->ic_curchan);
 
 	/* Let DFS at it in case it's a DFS channel */
@@ -2406,8 +2429,7 @@ ath_init(void *arg)
 	 * Enable interrupts.
 	 */
 	sc->sc_imask = HAL_INT_RX | HAL_INT_TX
-		  | HAL_INT_RXEOL | HAL_INT_RXORN
-		  | HAL_INT_TXURN
+		  | HAL_INT_RXORN | HAL_INT_TXURN
 		  | HAL_INT_FATAL | HAL_INT_GLOBAL;
 
 	/*
@@ -2416,6 +2438,14 @@ ath_init(void *arg)
 	 */
 	if (sc->sc_isedma)
 		sc->sc_imask |= (HAL_INT_RXHP | HAL_INT_RXLP);
+
+	/*
+	 * If we're an EDMA NIC, we don't care about RXEOL.
+	 * Writing a new descriptor in will simply restart
+	 * RX DMA.
+	 */
+	if (! sc->sc_isedma)
+		sc->sc_imask |= HAL_INT_RXEOL;
 
 	/*
 	 * Enable MIB interrupts when there are hardware phy counters.
@@ -2734,6 +2764,11 @@ ath_reset(struct ifnet *ifp, ATH_RESET_TYPE reset_type)
 		if_printf(ifp, "%s: unable to reset hardware; hal status %u\n",
 			__func__, status);
 	sc->sc_diversity = ath_hal_getdiversity(ah);
+
+	ATH_RX_LOCK(sc);
+	sc->sc_rx_stopped = 1;
+	sc->sc_rx_resetted = 1;
+	ATH_RX_UNLOCK(sc);
 
 	/* Let DFS at it in case it's a DFS channel */
 	ath_dfs_radar_enable(sc, ic->ic_curchan);
@@ -5333,13 +5368,14 @@ ath_chan_set(struct ath_softc *sc, struct ieee80211_channel *chan)
 
 	ATH_PCU_LOCK(sc);
 
+	/* Disable interrupts */
+	ath_hal_intrset(ah, 0);
+
 	/* Stop new RX/TX/interrupt completion */
 	if (ath_reset_grablock(sc, 1) == 0) {
 		device_printf(sc->sc_dev, "%s: concurrent reset! Danger!\n",
 		    __func__);
 	}
-
-	ath_hal_intrset(ah, 0);
 
 	/* Stop pending RX/TX completion */
 	ath_txrx_stop_locked(sc);
@@ -5383,6 +5419,11 @@ ath_chan_set(struct ath_softc *sc, struct ieee80211_channel *chan)
 			goto finish;
 		}
 		sc->sc_diversity = ath_hal_getdiversity(ah);
+
+		ATH_RX_LOCK(sc);
+		sc->sc_rx_stopped = 1;
+		sc->sc_rx_resetted = 1;
+		ATH_RX_UNLOCK(sc);
 
 		/* Let DFS at it in case it's a DFS channel */
 		ath_dfs_radar_enable(sc, chan);
