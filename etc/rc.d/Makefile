@@ -133,7 +133,6 @@ FILES=	DAEMON \
 	rpcbind \
 	rtadvd \
 	rtsold \
-	rwho \
 	savecore \
 	sdpd \
 	securelevel \
@@ -190,6 +189,10 @@ _opensm=	opensm
 
 .if ${MK_OPENSSH} != "no"
 _sshd=		sshd
+.endif
+
+.if ${MK_RCMDS} != "no"
+FILES+=		rwho
 .endif
 
 .if ${MK_UNBOUND} != "no"
