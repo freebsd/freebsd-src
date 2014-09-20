@@ -149,12 +149,19 @@ acpi_pci_child_location_str_method(device_t cbdev, device_t child, char *buf,
     size_t buflen)
 {
     struct acpi_pci_devinfo *dinfo = device_get_ivars(child);
+    int pxm;
+    char buf2[32];
 
     pci_child_location_str_method(cbdev, child, buf, buflen);
-    
+
     if (dinfo->ap_handle) {
-	strlcat(buf, " handle=", buflen);
-	strlcat(buf, acpi_name(dinfo->ap_handle), buflen);
+        strlcat(buf, " handle=", buflen);
+        strlcat(buf, acpi_name(dinfo->ap_handle), buflen);
+
+        if (ACPI_SUCCESS(acpi_GetInteger(dinfo->ap_handle, "_PXM", &pxm))) {
+                snprintf(buf2, 32, " _PXM=%d", pxm);
+                strlcat(buf, buf2, buflen);
+        }
     }
     return (0);
 }
