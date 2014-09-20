@@ -3606,6 +3606,7 @@ OLD_DIRS+=usr/share/examples/pc-sysinstall
 .if ${MK_PF} == no
 OLD_FILES+=etc/periodic/security/520.pfdenied
 OLD_FILES+=etc/pf.os
+OLD_FILES+=etc/rc.d/ftp-proxy
 OLD_FILES+=sbin/pfctl
 OLD_FILES+=sbin/pflogd
 OLD_FILES+=usr/libexec/tftp-proxy

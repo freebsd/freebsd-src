@@ -44,7 +44,6 @@ FILES=	DAEMON \
 	dumpon \
 	faith \
 	fsck \
-	ftp-proxy \
 	ftpd \
 	gbde \
 	geli \
@@ -189,6 +188,10 @@ _opensm=	opensm
 
 .if ${MK_OPENSSH} != "no"
 _sshd=		sshd
+.endif
+
+.if ${MK_PF} != "no"
+FILES+=		ftp-proxy
 .endif
 
 .if ${MK_RCMDS} != "no"
