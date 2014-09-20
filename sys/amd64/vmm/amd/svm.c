@@ -54,7 +54,6 @@ __FBSDID("$FreeBSD$");
 #include <x86/apicreg.h>
 
 #include "vmm_lapic.h"
-#include "vmm_msr.h"
 #include "vmm_stat.h"
 #include "vmm_ktr.h"
 #include "vmm_ioport.h"
@@ -66,6 +65,7 @@ __FBSDID("$FreeBSD$");
 #include "vmcb.h"
 #include "svm.h"
 #include "svm_softc.h"
+#include "svm_msr.h"
 #include "npt.h"
 
 SYSCTL_DECL(_hw_vmm);
@@ -303,6 +303,7 @@ svm_init(int ipinum)
 		asid[cpu].num = nasid - 1;
 	}
 
+	svm_msr_init();
 	svm_npt_init(ipinum);
 
 	/* Start SVM on all CPUs */
@@ -606,6 +607,7 @@ svm_vminit(struct vm *vm, pmap_t pmap)
 		vcpu->lastcpu = NOCPU;
 		vcpu->vmcb_pa = vtophys(&vcpu->vmcb);
 		vmcb_init(svm_sc, i, iopm_pa, msrpm_pa, pml4_pa);
+		svm_msr_guest_init(svm_sc, i);
 	}
 	return (svm_sc);
 }
@@ -867,8 +869,8 @@ svm_handle_inst_emul(struct vmcb *vmcb, uint64_t gpa, struct vm_exit *vmexit)
  * Intercept access to MSR_EFER to prevent the guest from clearing the
  * SVM enable bit.
  */
-static void
-svm_write_efer(struct svm_softc *sc, int vcpu, uint32_t edx, uint32_t eax)
+static int
+svm_write_efer(struct svm_softc *sc, int vcpu, uint64_t val)
 {
 	struct vmcb_state *state;
 	uint64_t oldval;
@@ -876,12 +878,13 @@ svm_write_efer(struct svm_softc *sc, int vcpu, uint32_t edx, uint32_t eax)
 	state = svm_get_vmcb_state(sc, vcpu);
 
 	oldval = state->efer;
-	state->efer = (uint64_t)edx << 32 | eax | EFER_SVM;
+	state->efer = val | EFER_SVM;
 	if (state->efer != oldval) {
 		VCPU_CTR2(sc->vm, vcpu, "Guest EFER changed from %#lx to %#lx",
 		    oldval, state->efer);
 		vcpu_set_dirty(sc, vcpu, VMCB_CACHE_CR);
 	}
+	return (0);
 }
 
 #ifdef KTR
@@ -1132,6 +1135,45 @@ clear_nmi_blocking(struct svm_softc *sc, int vcpu)
 	KASSERT(!error, ("%s: error %d setting intr_shadow", __func__, error));
 }
 
+static int
+emulate_wrmsr(struct svm_softc *sc, int vcpu, u_int num, uint64_t val,
+    bool *retu)
+{
+	int error;
+
+	if (lapic_msr(num))
+		error = lapic_wrmsr(sc->vm, vcpu, num, val, retu);
+	else if (num == MSR_EFER)
+		error = svm_write_efer(sc, vcpu, val);
+	else
+		error = svm_wrmsr(sc, vcpu, num, val, retu);
+
+	return (error);
+}
+
+static int
+emulate_rdmsr(struct svm_softc *sc, int vcpu, u_int num, bool *retu)
+{
+	struct vmcb_state *state;
+	struct svm_regctx *ctx;
+	uint64_t result;
+	int error;
+
+	if (lapic_msr(num))
+		error = lapic_rdmsr(sc->vm, vcpu, num, &result, retu);
+	else
+		error = svm_rdmsr(sc, vcpu, num, &result, retu);
+
+	if (error == 0) {
+		state = svm_get_vmcb_state(sc, vcpu);
+		ctx = svm_get_guest_regctx(sc, vcpu);
+		state->rax = result & 0xffffffff;
+		ctx->e.g.sctx_rdx = result >> 32;
+	}
+
+	return (error);
+}
+
 #ifdef KTR
 static const char *
 exit_reason_to_str(uint64_t reason)
@@ -1288,31 +1330,12 @@ svm_vmexit(struct svm_softc *svm_sc, int vcpu, struct vm_exit *vmexit)
 		edx = ctx->e.g.sctx_rdx;
 		retu = false;	
 
-		if (ecx == MSR_EFER) {
-			KASSERT(info1 != 0, ("rdmsr(MSR_EFER) is not emulated: "
-			    "info1(%#lx) info2(%#lx)", info1, info2));
-			svm_write_efer(svm_sc, vcpu, edx, eax);
-			handled = 1;
-			break;
-		}
-
-#define MSR_AMDK8_IPM           0xc0010055
-		/*
-		 * Ignore access to the "Interrupt Pending Message" MSR.
-		 */
-		if (ecx == MSR_AMDK8_IPM) {
-			if (!info1)
-				state->rax = ctx->e.g.sctx_rdx = 0;
-			handled = 1;
-			break;
-		}
-
 		if (info1) {
 			vmm_stat_incr(svm_sc->vm, vcpu, VMEXIT_WRMSR, 1);
 			val = (uint64_t)edx << 32 | eax;
 			VCPU_CTR2(svm_sc->vm, vcpu, "wrmsr %#x val %#lx",
 			    ecx, val);
-			if (emulate_wrmsr(svm_sc->vm, vcpu, ecx, val, &retu)) {
+			if (emulate_wrmsr(svm_sc, vcpu, ecx, val, &retu)) {
 				vmexit->exitcode = VM_EXITCODE_WRMSR;
 				vmexit->u.msr.code = ecx;
 				vmexit->u.msr.wval = val;
@@ -1325,7 +1348,7 @@ svm_vmexit(struct svm_softc *svm_sc, int vcpu, struct vm_exit *vmexit)
 		} else {
 			VCPU_CTR1(svm_sc->vm, vcpu, "rdmsr %#x", ecx);
 			vmm_stat_incr(svm_sc->vm, vcpu, VMEXIT_RDMSR, 1);
-			if (emulate_rdmsr(svm_sc->vm, vcpu, ecx, &retu)) {
+			if (emulate_rdmsr(svm_sc, vcpu, ecx, &retu)) {
 				vmexit->exitcode = VM_EXITCODE_RDMSR;
 				vmexit->u.msr.code = ecx;
 			} else if (!retu) {
@@ -1823,6 +1846,8 @@ svm_vmrun(void *arg, int vcpu, register_t rip, pmap_t pmap,
 		vmm_stat_incr(vm, vcpu, VCPU_MIGRATIONS, 1);
 	}
 
+	svm_msr_guest_enter(svm_sc, vcpu);
+
 	/* Update Guest RIP */
 	state->rip = rip;
 
@@ -1903,6 +1928,8 @@ svm_vmrun(void *arg, int vcpu, register_t rip, pmap_t pmap,
 		/* Handle #VMEXIT and if required return to user space. */
 		handled = svm_vmexit(svm_sc, vcpu, vmexit);
 	} while (handled);
+
+	svm_msr_guest_exit(svm_sc, vcpu);
 
 	return (0);
 }

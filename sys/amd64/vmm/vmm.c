@@ -74,7 +74,6 @@ __FBSDID("$FreeBSD$");
 #include "vhpet.h"
 #include "vioapic.h"
 #include "vlapic.h"
-#include "vmm_msr.h"
 #include "vmm_ipi.h"
 #include "vmm_stat.h"
 #include "vmm_lapic.h"
@@ -105,7 +104,6 @@ struct vcpu {
 	struct savefpu	*guestfpu;	/* (a,i) guest fpu state */
 	uint64_t	guest_xcr0;	/* (i) guest %xcr0 register */
 	void		*stats;		/* (a,i) statistics */
-	uint64_t guest_msrs[VMM_MSR_NUM]; /* (i) emulated MSRs */
 	struct vm_exit	exitinfo;	/* (x) exit reason and collateral */
 };
 
@@ -188,7 +186,6 @@ static struct vmm_ops *ops;
 #define	fpu_stop_emulating()	clts()
 
 static MALLOC_DEFINE(M_VM, "vm", "vm");
-CTASSERT(VMM_MSR_NUM <= 64);	/* msr_mask can keep track of up to 64 msrs */
 
 /* statistics */
 static VMM_STAT(VCPU_TOTAL_RUNTIME, "vcpu total runtime");
@@ -249,7 +246,6 @@ vcpu_init(struct vm *vm, int vcpu_id, bool create)
 	vcpu->guest_xcr0 = XFEATURE_ENABLED_X87;
 	fpu_save_area_reset(vcpu->guestfpu);
 	vmm_stat_init(vcpu->stats);
-	guest_msrs_init(vm, vcpu_id);
 }
 
 struct vm_exit *
@@ -293,7 +289,6 @@ vmm_init(void)
 	else
 		return (ENXIO);
 
-	vmm_msr_init();
 	vmm_resume_p = vmm_resume;
 
 	return (VMM_INIT(vmm_ipinum));
@@ -1456,7 +1451,6 @@ restart:
 	pcb = PCPU_GET(curpcb);
 	set_pcb_flags(pcb, PCB_FULL_IRET);
 
-	restore_guest_msrs(vm, vcpuid);	
 	restore_guest_fpustate(vcpu);
 
 	vcpu_require_state(vm, vcpuid, VCPU_RUNNING);
@@ -1464,7 +1458,6 @@ restart:
 	vcpu_require_state(vm, vcpuid, VCPU_FROZEN);
 
 	save_guest_fpustate(vcpu);
-	restore_host_msrs(vm, vcpuid);
 
 	vmm_stat_incr(vm, vcpuid, VCPU_TOTAL_RUNTIME, rdtsc() - tscval);
 
@@ -1904,12 +1897,6 @@ vm_set_capability(struct vm *vm, int vcpu, int type, int val)
 		return (EINVAL);
 
 	return (VMSETCAP(vm->cookie, vcpu, type, val));
-}
-
-uint64_t *
-vm_guest_msrs(struct vm *vm, int cpu)
-{
-	return (vm->vcpu[cpu].guest_msrs);
 }
 
 struct vlapic *
