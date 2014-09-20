@@ -566,6 +566,8 @@ struct ath_softc {
 	int			sc_tx_statuslen;
 	int			sc_tx_nmaps;	/* Number of TX maps */
 	int			sc_edma_bufsize;
+	int			sc_rx_stopped;	/* XXX only for EDMA */
+	int			sc_rx_resetted;	/* XXX only for EDMA */
 
 	void 			(*sc_node_cleanup)(struct ieee80211_node *);
 	void 			(*sc_node_free)(struct ieee80211_node *);
