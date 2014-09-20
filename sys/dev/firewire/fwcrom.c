@@ -453,11 +453,7 @@ crom_add_simple_text(struct crom_src *src, struct crom_chunk *parent,
 
 	len = strlen(buf);
 	if (len > MAX_TEXT) {
-#if defined(__DragonFly__) || __FreeBSD_version < 500000
-		printf("text(%d) trancated to %d.\n", len, MAX_TEXT);
-#else
 		printf("text(%d) trancated to %td.\n", len, MAX_TEXT);
-#endif
 		len = MAX_TEXT;
 	}
 

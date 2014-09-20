@@ -989,9 +989,9 @@ smsc_bulk_read_callback(struct usb_xfer *xfer, usb_error_t error)
 			
 			if (rxhdr & SMSC_RX_STAT_ERROR) {
 				smsc_dbg_printf(sc, "rx error (hdr 0x%08x)\n", rxhdr);
-				ifp->if_ierrors++;
+				if_inc_counter(ifp, IFCOUNTER_IERRORS, 1);
 				if (rxhdr & SMSC_RX_STAT_COLLISION)
-					ifp->if_collisions++;
+					if_inc_counter(ifp, IFCOUNTER_COLLISIONS, 1);
 			} else {
 
 				/* Check if the ethernet frame is too big or too small */
@@ -1002,7 +1002,7 @@ smsc_bulk_read_callback(struct usb_xfer *xfer, usb_error_t error)
 				m = uether_newbuf();
 				if (m == NULL) {
 					smsc_warn_printf(sc, "failed to create new mbuf\n");
-					ifp->if_iqdrops++;
+					if_inc_counter(ifp, IFCOUNTER_IQDROPS, 1);
 					goto tr_setup;
 				}
 				
@@ -1158,7 +1158,7 @@ tr_setup:
 			usbd_m_copy_in(pc, frm_len, m, 0, m->m_pkthdr.len);
 			frm_len += m->m_pkthdr.len;
 
-			ifp->if_opackets++;
+			if_inc_counter(ifp, IFCOUNTER_OPACKETS, 1);
 
 			/* If there's a BPF listener, bounce a copy of this frame to him */
 			BPF_MTAP(ifp, m);
@@ -1176,7 +1176,7 @@ tr_setup:
 		return;
 
 	default:
-		ifp->if_oerrors++;
+		if_inc_counter(ifp, IFCOUNTER_OERRORS, 1);
 		ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
 		
 		if (error != USB_ERR_CANCELLED) {

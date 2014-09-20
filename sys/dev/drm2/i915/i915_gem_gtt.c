@@ -291,6 +291,9 @@ i915_gem_gtt_bind_object(struct drm_i915_gem_object *obj)
 	agp_type = cache_level_to_agp_type(obj->base.dev, obj->cache_level);
 	intel_gtt_insert_pages(obj->gtt_space->start >> PAGE_SHIFT,
 	    obj->base.size >> PAGE_SHIFT, obj->pages, agp_type);
+
+	obj->has_global_gtt_mapping = 1;
+
 	return (0);
 }
 
@@ -308,6 +311,8 @@ i915_gem_gtt_rebind_object(struct drm_i915_gem_object *obj,
 
 	intel_gtt_insert_pages(obj->gtt_space->start >> PAGE_SHIFT,
 	    obj->base.size >> PAGE_SHIFT, obj->pages, agp_type);
+
+	obj->has_global_gtt_mapping = 0;
 }
 
 void

@@ -49,13 +49,12 @@ static struct mkimg_alias ebr_aliases[] = {
     {	ALIAS_NONE, 0 }
 };
 
-static u_int
-ebr_metadata(u_int where)
+static lba_t
+ebr_metadata(u_int where, lba_t blk)
 {
-	u_int secs;
 
-	secs = (where == SCHEME_META_PART_BEFORE) ? nsecs : 0;
-	return (secs);
+	blk += (where == SCHEME_META_PART_BEFORE) ? 1 : 0;
+	return (round_track(blk));
 }
 
 static void

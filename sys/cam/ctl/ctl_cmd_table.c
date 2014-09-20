@@ -304,7 +304,8 @@ const struct ctl_cmd_entry ctl_cmd_table_84[32] =
 /* 00 RECEIVE COPY STATUS (LID1) */
 {ctl_receive_copy_status_lid1, CTL_SERIDX_RD_CAP,
  CTL_CMD_FLAG_OK_ON_BOTH |
- CTL_FLAG_DATA_IN,
+ CTL_FLAG_DATA_IN |
+ CTL_CMD_FLAG_ALLOW_ON_PR_RESV,
  CTL_LUN_PAT_NONE,
  16, {0x00, 0xff, 0, 0, 0, 0, 0, 0, 0, 0xff, 0xff, 0xff, 0xff, 0, 0x07}},
 
@@ -320,14 +321,16 @@ const struct ctl_cmd_entry ctl_cmd_table_84[32] =
  CTL_CMD_FLAG_OK_ON_STOPPED |
  CTL_CMD_FLAG_OK_ON_INOPERABLE |
  CTL_CMD_FLAG_OK_ON_SECONDARY |
- CTL_FLAG_DATA_IN,
+ CTL_FLAG_DATA_IN |
+ CTL_CMD_FLAG_ALLOW_ON_PR_RESV,
  CTL_LUN_PAT_NONE,
  16, {0x03, 0, 0, 0, 0, 0, 0, 0, 0, 0xff, 0xff, 0xff, 0xff, 0, 0x07}},
 
 /* 04 RECEIVE COPY FAILURE DETAILS (LID1) */
 {ctl_receive_copy_failure_details, CTL_SERIDX_RD_CAP,
  CTL_CMD_FLAG_OK_ON_BOTH |
- CTL_FLAG_DATA_IN,
+ CTL_FLAG_DATA_IN |
+ CTL_CMD_FLAG_ALLOW_ON_PR_RESV,
  CTL_LUN_PAT_NONE,
  16, {0x04, 0xff, 0, 0, 0, 0, 0, 0, 0, 0xff, 0xff, 0xff, 0xff, 0, 0x07}},
 
@@ -470,7 +473,8 @@ const struct ctl_cmd_entry ctl_cmd_table_a3[32] =
 						CTL_CMD_FLAG_OK_ON_STOPPED |
 						CTL_CMD_FLAG_OK_ON_INOPERABLE |
 						CTL_CMD_FLAG_OK_ON_SECONDARY |
-						CTL_FLAG_DATA_IN,
+						CTL_FLAG_DATA_IN |
+						CTL_CMD_FLAG_ALLOW_ON_PR_RESV,
  CTL_LUN_PAT_NONE,
  12, {0x0c, 0x07, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0, 0x07}},
 
@@ -479,7 +483,8 @@ const struct ctl_cmd_entry ctl_cmd_table_a3[32] =
 					   CTL_CMD_FLAG_OK_ON_STOPPED |
 					   CTL_CMD_FLAG_OK_ON_INOPERABLE |
 					   CTL_CMD_FLAG_OK_ON_SECONDARY |
-					   CTL_FLAG_DATA_IN,
+					   CTL_FLAG_DATA_IN |
+					   CTL_CMD_FLAG_ALLOW_ON_PR_RESV,
  CTL_LUN_PAT_NONE,
  12, {0x0d, 0, 0, 0, 0, 0xff, 0xff, 0xff, 0xff, 0, 0x07}},
 
@@ -1085,7 +1090,7 @@ const struct ctl_cmd_entry ctl_cmd_table[256] =
 {ctl_write_same, CTL_SERIDX_WRITE, CTL_CMD_FLAG_OK_ON_SLUN |
 				   CTL_FLAG_DATA_OUT,
  CTL_LUN_PAT_WRITE | CTL_LUN_PAT_RANGE,
- 16, {0x1a, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
+ 16, {0x1b, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
       0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0, 0x07}},
 
 /* 94 */

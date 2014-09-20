@@ -111,6 +111,7 @@ cddl/compat/opensolaris/kern/opensolaris_misc.c				optional zfs compile-with "${
 cddl/compat/opensolaris/kern/opensolaris_sunddi.c			optional zfs compile-with "${ZFS_C}"
 # zfs specific
 cddl/compat/opensolaris/kern/opensolaris_acl.c				optional zfs compile-with "${ZFS_C}"
+cddl/compat/opensolaris/kern/opensolaris_dtrace.c			optional zfs compile-with "${ZFS_C}"
 cddl/compat/opensolaris/kern/opensolaris_kobj.c				optional zfs compile-with "${ZFS_C}"
 cddl/compat/opensolaris/kern/opensolaris_kstat.c			optional zfs compile-with "${ZFS_C}"
 cddl/compat/opensolaris/kern/opensolaris_lookup.c			optional zfs compile-with "${ZFS_C}"
@@ -2151,6 +2152,7 @@ dev/random/hash.c		optional random
 dev/random/rwfile.c		optional random
 dev/rc/rc.c			optional rc
 dev/re/if_re.c			optional re
+dev/rl/if_rl.c			optional rl pci
 dev/rndtest/rndtest.c		optional rndtest
 dev/rp/rp.c			optional rp
 dev/rp/rp_isa.c			optional rp isa
@@ -3865,7 +3867,6 @@ opencrypto/xform.c		optional crypto
 pci/alpm.c			optional alpm pci
 pci/amdpm.c			optional amdpm pci | nfpm pci
 pci/amdsmb.c			optional amdsmb pci
-pci/if_rl.c			optional rl pci
 pci/intpm.c			optional intpm pci
 pci/ncr.c			optional ncr pci \
 	compile-with "${NORMAL_C} -Wno-unused"

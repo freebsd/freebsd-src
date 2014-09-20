@@ -38,6 +38,8 @@
 #   xargs -n1 | sort | uniq -d;
 # done
 
+# 20140917: hv_kvpd rc.d script removed in favor of devd configuration
+OLD_FILES+=etc/rc.d/hv_kvpd
 # 20140814: libopie version bump
 OLD_LIBS+=usr/lib/libopie.so.7
 OLD_LIBS+=usr/lib32/libopie.so.7

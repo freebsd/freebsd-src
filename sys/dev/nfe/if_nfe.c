@@ -2149,7 +2149,7 @@ nfe_rxeof(struct nfe_softc *sc, int count, int *rx_npktsp)
 		prog++;
 		if ((sc->nfe_flags & (NFE_JUMBO_SUP | NFE_40BIT_ADDR)) == 0) {
 			if (!(flags & NFE_RX_VALID_V1)) {
-				if_incierrors(ifp, 1);
+				if_inc_counter(ifp, IFCOUNTER_IERRORS, 1);
 				nfe_discard_rxbuf(sc, sc->rxq.cur);
 				continue;
 			}
@@ -2159,7 +2159,7 @@ nfe_rxeof(struct nfe_softc *sc, int count, int *rx_npktsp)
 			}
 		} else {
 			if (!(flags & NFE_RX_VALID_V2)) {
-				if_incierrors(ifp, 1);
+				if_inc_counter(ifp, IFCOUNTER_IERRORS, 1);
 				nfe_discard_rxbuf(sc, sc->rxq.cur);
 				continue;
 			}
@@ -2171,14 +2171,14 @@ nfe_rxeof(struct nfe_softc *sc, int count, int *rx_npktsp)
 		}
 
 		if (flags & NFE_RX_ERROR) {
-			if_incierrors(ifp, 1);
+			if_inc_counter(ifp, IFCOUNTER_IERRORS, 1);
 			nfe_discard_rxbuf(sc, sc->rxq.cur);
 			continue;
 		}
 
 		m = data->m;
 		if (nfe_newbuf(sc, sc->rxq.cur) != 0) {
-			if_inciqdrops(ifp, 1);
+			if_inc_counter(ifp, IFCOUNTER_IQDROPS, 1);
 			nfe_discard_rxbuf(sc, sc->rxq.cur);
 			continue;
 		}
@@ -2205,7 +2205,7 @@ nfe_rxeof(struct nfe_softc *sc, int count, int *rx_npktsp)
 			}
 		}
 
-		if_incipackets(ifp, 1);
+		if_inc_counter(ifp, IFCOUNTER_IPACKETS, 1);
 
 		NFE_UNLOCK(sc);
 		if_input(ifp, m);
@@ -2265,7 +2265,7 @@ nfe_jrxeof(struct nfe_softc *sc, int count, int *rx_npktsp)
 		prog++;
 		if ((sc->nfe_flags & (NFE_JUMBO_SUP | NFE_40BIT_ADDR)) == 0) {
 			if (!(flags & NFE_RX_VALID_V1)) {
-				if_incierrors(ifp, 1);
+				if_inc_counter(ifp, IFCOUNTER_IERRORS, 1);
 				nfe_discard_jrxbuf(sc, sc->jrxq.jcur);
 				continue;
 			}
@@ -2275,7 +2275,7 @@ nfe_jrxeof(struct nfe_softc *sc, int count, int *rx_npktsp)
 			}
 		} else {
 			if (!(flags & NFE_RX_VALID_V2)) {
-				if_incierrors(ifp, 1);
+				if_inc_counter(ifp, IFCOUNTER_IERRORS, 1);
 				nfe_discard_jrxbuf(sc, sc->jrxq.jcur);
 				continue;
 			}
@@ -2287,14 +2287,14 @@ nfe_jrxeof(struct nfe_softc *sc, int count, int *rx_npktsp)
 		}
 
 		if (flags & NFE_RX_ERROR) {
-			if_incierrors(ifp, 1);
+			if_inc_counter(ifp, IFCOUNTER_IERRORS, 1);
 			nfe_discard_jrxbuf(sc, sc->jrxq.jcur);
 			continue;
 		}
 
 		m = data->m;
 		if (nfe_jnewbuf(sc, sc->jrxq.jcur) != 0) {
-			if_inciqdrops(ifp, 1);
+			if_inc_counter(ifp, IFCOUNTER_IQDROPS, 1);
 			nfe_discard_jrxbuf(sc, sc->jrxq.jcur);
 			continue;
 		}
@@ -2321,7 +2321,7 @@ nfe_jrxeof(struct nfe_softc *sc, int count, int *rx_npktsp)
 			}
 		}
 
-		if_incipackets(ifp, 1);
+		if_inc_counter(ifp, IFCOUNTER_IPACKETS, 1);
 
 		NFE_UNLOCK(sc);
 		if_input(ifp, m);
@@ -2379,18 +2379,18 @@ nfe_txeof(struct nfe_softc *sc)
 				device_printf(sc->nfe_dev,
 				    "tx v1 error 0x%4b\n", flags, NFE_V1_TXERR);
 
-				if_incoerrors(ifp, 1);
+				if_inc_counter(ifp, IFCOUNTER_OERRORS, 1);
 			} else
-				if_incopackets(ifp, 1);
+				if_inc_counter(ifp, IFCOUNTER_OPACKETS, 1);
 		} else {
 			if ((flags & NFE_TX_LASTFRAG_V2) == 0)
 				continue;
 			if ((flags & NFE_TX_ERROR_V2) != 0) {
 				device_printf(sc->nfe_dev,
 				    "tx v2 error 0x%4b\n", flags, NFE_V2_TXERR);
-				if_incoerrors(ifp, 1);
+				if_inc_counter(ifp, IFCOUNTER_OERRORS, 1);
 			} else
-				if_incopackets(ifp, 1);
+				if_inc_counter(ifp, IFCOUNTER_OPACKETS, 1);
 		}
 
 		/* last fragment of the mbuf chain transmitted */
@@ -2723,7 +2723,7 @@ nfe_watchdog(if_t ifp)
 	if_printf(ifp, "watchdog timeout\n");
 
 	if_setdrvflagbits(ifp, 0, IFF_DRV_RUNNING);
-	if_incoerrors(ifp, 1);
+	if_inc_counter(ifp, IFCOUNTER_OERRORS, 1);
 	nfe_init_locked(sc);
 }
 

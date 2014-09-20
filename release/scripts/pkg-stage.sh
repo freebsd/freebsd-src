@@ -50,6 +50,12 @@ ${PKGCMD} -vv
 ${PKGCMD} update -f
 ${PKGCMD} fetch -o ${PKG_REPODIR} -d ${DVD_PACKAGES}
 
+# Create the 'Latest/pkg.txz' symlink so 'pkg bootstrap' works
+# using the on-disc packages.
+mkdir -p ${PKG_REPODIR}/Latest
+(cd ${PKG_REPODIR}/Latest && \
+	ln -s ../All/$(${PKGCMD} rquery %n-%v pkg).txz pkg.txz)
+
 ${PKGCMD} repo ${PKG_REPODIR}
 
 # Always exit '0', even if pkg(8) complains about conflicts.

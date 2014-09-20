@@ -108,7 +108,7 @@ typedef enum {
 	IFCOUNTER_IQDROPS,
 	IFCOUNTER_OQDROPS,
 	IFCOUNTER_NOPROTO,
-} ifnet_counter;
+} ift_counter;
 
 typedef struct ifnet * if_t;
 
@@ -117,7 +117,7 @@ typedef	int (*if_ioctl_fn_t)(if_t, u_long, caddr_t);
 typedef	void (*if_init_fn_t)(void *);
 typedef void (*if_qflush_fn_t)(if_t);
 typedef int (*if_transmit_fn_t)(if_t, struct mbuf *);
-typedef	uint64_t (*if_get_counter_t)(if_t, ifnet_counter);
+typedef	uint64_t (*if_get_counter_t)(if_t, ift_counter);
 
 /*
  * Structure defining a network interface.
@@ -527,7 +527,8 @@ typedef	void if_com_free_t(void *com, u_char type);
 void	if_register_com_alloc(u_char type, if_com_alloc_t *a, if_com_free_t *f);
 void	if_deregister_com_alloc(u_char type);
 void	if_data_copy(struct ifnet *, struct if_data *);
-uint64_t if_get_counter_compat(struct ifnet *, ifnet_counter);
+uint64_t if_get_counter_default(struct ifnet *, ift_counter);
+void	if_inc_counter(struct ifnet *, ift_counter, int64_t);
 
 #define IF_LLADDR(ifp)							\
     LLADDR((struct sockaddr_dl *)((ifp)->if_addr->ifa_addr))
@@ -581,33 +582,13 @@ int if_multiaddr_count(if_t ifp, int max);
 int if_getamcount(if_t ifp);
 struct ifaddr * if_getifaddr(if_t ifp);
 
-/* Statistics */
-
-int if_incipackets(if_t ifp, int pkt);
-int if_incopackets(if_t ifp, int pkts);
-int if_incierrors(if_t ifp, int ierrors);
-int if_incoerrors(if_t ifp, int oerrors);
-int if_inciqdrops(if_t ifp, int val);
-int if_setierrors(if_t ifp, int ierrors);
-int if_setoerrors(if_t ifp, int oerrors);
-int if_setcollisions(if_t ifp, int collisions);
-int if_inccollisions(if_t ifp, int collisions);
-int if_incobytes(if_t ifp, int bytes);
-int if_getiqdrops(if_t ifp);
-int if_incimcasts(if_t ifp, int imcasts);
-int if_incomcasts(if_t ifp, int imcasts);
-int if_setipackets(if_t ifp, int pkts);
-int if_setopackets(if_t ifp, int pkts);
-int if_setibytes(if_t ifp, int bytes);
-int if_setobytes(if_t ifp, int bytes);
-int if_setimcasts(if_t ifp, int pkts);
-
 /* Functions */
 void if_setinitfn(if_t ifp, void (*)(void *));
 void if_setioctlfn(if_t ifp, int (*)(if_t, u_long, caddr_t));
 void if_setstartfn(if_t ifp, void (*)(if_t));
 void if_settransmitfn(if_t ifp, if_transmit_fn_t);
 void if_setqflushfn(if_t ifp, if_qflush_fn_t);
+void if_setgetcounterfn(if_t ifp, if_get_counter_t);
  
 /* Revisit the below. These are inline functions originally */
 int drbr_inuse_drv(if_t ifp, struct buf_ring *br);

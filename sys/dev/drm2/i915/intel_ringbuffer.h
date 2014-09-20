@@ -122,10 +122,23 @@ struct  intel_ring_buffer {
 	 */
 	uint32_t outstanding_lazy_request;
 
+	/**
+	 * Do an explicit TLB flush before MI_SET_CONTEXT
+	 */
+	bool itlb_before_ctx_switch;
+	struct i915_hw_context *default_context;
+	struct drm_i915_gem_object *last_context_obj;
+
 	drm_local_map_t map;
 
 	void *private;
 };
+
+static inline bool
+intel_ring_initialized(struct intel_ring_buffer *ring)
+{
+	return ring->obj != NULL;
+}
 
 static inline unsigned
 intel_ring_flag(struct intel_ring_buffer *ring)

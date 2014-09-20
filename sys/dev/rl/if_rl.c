@@ -127,7 +127,7 @@ MODULE_DEPEND(rl, miibus, 1, 1, 1);
 /* "device miibus" required.  See GENERIC if you get errors here. */
 #include "miibus_if.h"
 
-#include <pci/if_rlreg.h>
+#include <dev/rl/if_rlreg.h>
 
 /*
  * Various supported device vendors/types and their names.
@@ -1166,7 +1166,7 @@ rl_rxeof(struct rl_softc *sc)
 		if (!(rxstat & RL_RXSTAT_RXOK) ||
 		    total_len < ETHER_MIN_LEN ||
 		    total_len > ETHER_MAX_LEN + ETHER_VLAN_ENCAP_LEN) {
-			ifp->if_ierrors++;
+			if_inc_counter(ifp, IFCOUNTER_IERRORS, 1);
 			ifp->if_drv_flags &= ~IFF_DRV_RUNNING;
 			rl_init_locked(sc);
 			return (rx_npkts);
@@ -1215,11 +1215,11 @@ rl_rxeof(struct rl_softc *sc)
 		CSR_WRITE_2(sc, RL_CURRXADDR, cur_rx - 16);
 
 		if (m == NULL) {
-			ifp->if_iqdrops++;
+			if_inc_counter(ifp, IFCOUNTER_IQDROPS, 1);
 			continue;
 		}
 
-		ifp->if_ipackets++;
+		if_inc_counter(ifp, IFCOUNTER_IPACKETS, 1);
 		RL_UNLOCK(sc);
 		(*ifp->if_input)(ifp, m);
 		RL_LOCK(sc);
@@ -1254,7 +1254,7 @@ rl_txeof(struct rl_softc *sc)
 		    RL_TXSTAT_TX_UNDERRUN|RL_TXSTAT_TXABRT)))
 			break;
 
-		ifp->if_collisions += (txstat & RL_TXSTAT_COLLCNT) >> 24;
+		if_inc_counter(ifp, IFCOUNTER_COLLISIONS, (txstat & RL_TXSTAT_COLLCNT) >> 24);
 
 		bus_dmamap_sync(sc->rl_cdata.rl_tx_tag, RL_LAST_DMAMAP(sc),
 		    BUS_DMASYNC_POSTWRITE);
@@ -1270,10 +1270,10 @@ rl_txeof(struct rl_softc *sc)
 		    (sc->rl_txthresh < 2016))
 			sc->rl_txthresh += 32;
 		if (txstat & RL_TXSTAT_TX_OK)
-			ifp->if_opackets++;
+			if_inc_counter(ifp, IFCOUNTER_OPACKETS, 1);
 		else {
 			int			oldthresh;
-			ifp->if_oerrors++;
+			if_inc_counter(ifp, IFCOUNTER_OERRORS, 1);
 			if ((txstat & RL_TXSTAT_TXABRT) ||
 			    (txstat & RL_TXSTAT_OUTOFWIN))
 				CSR_WRITE_4(sc, RL_TXCFG, RL_TXCFG_CONFIG);
@@ -1897,7 +1897,7 @@ rl_watchdog(struct rl_softc *sc)
 		return;
 
 	device_printf(sc->rl_dev, "watchdog timeout\n");
-	sc->rl_ifp->if_oerrors++;
+	if_inc_counter(sc->rl_ifp, IFCOUNTER_OERRORS, 1);
 
 	rl_txeof(sc);
 	rl_rxeof(sc);

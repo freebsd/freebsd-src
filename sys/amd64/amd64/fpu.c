@@ -362,7 +362,7 @@ fpuexit(struct thread *td)
 		stop_emulating();
 		fpusave(curpcb->pcb_save);
 		start_emulating();
-		PCPU_SET(fpcurthread, 0);
+		PCPU_SET(fpcurthread, NULL);
 	}
 	critical_exit();
 }
@@ -602,16 +602,21 @@ fputrap_sse(void)
 	return (fpetable[(mxcsr & (~mxcsr >> 7)) & 0x3f]);
 }
 
-/*
- * Implement device not available (DNA) exception
- *
- * It would be better to switch FP context here (if curthread != fpcurthread)
- * and not necessarily for every context switch, but it is too hard to
- * access foreign pcb's.
- */
-
 static int err_count = 0;
 
+/*
+ * Device Not Available (DNA, #NM) exception handler.
+ *
+ * It would be better to switch FP context here (if curthread !=
+ * fpcurthread) and not necessarily for every context switch, but it
+ * is too hard to access foreign pcb's.
+ *
+ * The handler is entered with interrupts enabled, which allows the
+ * context switch to happen before critical enter() is executed, and
+ * causes restoration of FPU context on CPU other than that caused
+ * DNA.  It is fine, since context switch started emulation on the
+ * current CPU as well.
+ */
 void
 fpudna(void)
 {
@@ -625,11 +630,9 @@ fpudna(void)
 		return;
 	}
 	if (PCPU_GET(fpcurthread) != NULL) {
-		printf("fpudna: fpcurthread = %p (%d), curthread = %p (%d)\n",
-		       PCPU_GET(fpcurthread),
-		       PCPU_GET(fpcurthread)->td_proc->p_pid,
-		       curthread, curthread->td_proc->p_pid);
-		panic("fpudna");
+		panic("fpudna: fpcurthread = %p (%d), curthread = %p (%d)\n",
+		    PCPU_GET(fpcurthread), PCPU_GET(fpcurthread)->td_tid,
+		    curthread, curthread->td_tid);
 	}
 	stop_emulating();
 	/*

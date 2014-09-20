@@ -616,7 +616,7 @@ if_attach_internal(struct ifnet *ifp, int vmove)
 	}
 
 	if (ifp->if_get_counter == NULL)
-		ifp->if_get_counter = if_get_counter_compat;
+		ifp->if_get_counter = if_get_counter_default;
 
 	if (!vmove) {
 #ifdef MAC
@@ -1389,7 +1389,7 @@ if_rtdel(struct radix_node *rn, void *arg)
  * Return counter values from old racy non-pcpu counters.
  */
 uint64_t
-if_get_counter_compat(struct ifnet *ifp, ifnet_counter cnt)
+if_get_counter_default(struct ifnet *ifp, ift_counter cnt)
 {
 
 	switch (cnt) {
@@ -1419,6 +1419,56 @@ if_get_counter_compat(struct ifnet *ifp, ifnet_counter cnt)
 			return (ifp->if_noproto);
 	}
 	panic("%s: unknown counter %d", __func__, cnt);
+}
+
+/*
+ * Increase an ifnet counter. Usually used for counters shared
+ * between the stack and a driver, but function supports them all.
+ */
+void
+if_inc_counter(struct ifnet *ifp, ift_counter cnt, int64_t inc)
+{
+
+	switch (cnt) {
+		case IFCOUNTER_IPACKETS:
+			ifp->if_ipackets += inc;
+			break;
+		case IFCOUNTER_IERRORS:
+			ifp->if_ierrors += inc;
+			break;
+		case IFCOUNTER_OPACKETS:
+			ifp->if_opackets += inc;
+			break;
+		case IFCOUNTER_OERRORS:
+			ifp->if_oerrors += inc;
+			break;
+		case IFCOUNTER_COLLISIONS:
+			ifp->if_collisions += inc;
+			break;
+		case IFCOUNTER_IBYTES:
+			ifp->if_ibytes += inc;
+			break;
+		case IFCOUNTER_OBYTES:
+			ifp->if_obytes += inc;
+			break;
+		case IFCOUNTER_IMCASTS:
+			ifp->if_imcasts += inc;
+			break;
+		case IFCOUNTER_OMCASTS:
+			ifp->if_omcasts += inc;
+			break;
+		case IFCOUNTER_IQDROPS:
+			ifp->if_iqdrops += inc;
+			break;
+		case IFCOUNTER_OQDROPS:
+			ifp->if_oqdrops += inc;
+			break;
+		case IFCOUNTER_NOPROTO:
+			ifp->if_noproto += inc;
+			break;
+		default:
+			panic("%s: unknown counter %d", __func__, cnt);
+	}
 }
 
 /*
@@ -3471,8 +3521,8 @@ if_handoff(struct ifqueue *ifq, struct mbuf *m, struct ifnet *ifp, int adjust)
 
 	IF_LOCK(ifq);
 	if (_IF_QFULL(ifq)) {
-		_IF_DROP(ifq);
 		IF_UNLOCK(ifq);
+		ifp->if_oqdrops++;
 		m_freem(m);
 		return (0);
 	}
@@ -3723,138 +3773,11 @@ if_getvtag(struct mbuf *m)
 	return (m->m_pkthdr.ether_vtag);
 }
 
-/* Statistics */
-int
-if_incipackets(if_t ifp, int pkts)
-{
-	((struct ifnet *)ifp)->if_ipackets += pkts;
-	return (0);
-}
-
-int
-if_incopackets(if_t ifp, int pkts)
-{
-	((struct ifnet *)ifp)->if_opackets += pkts;
-	return (0);
-}
-
-int
-if_incierrors(if_t ifp, int ierrors)
-{
-	((struct ifnet *)ifp)->if_ierrors += ierrors;
-	return (0);
-}
-
-
-int
-if_setierrors(if_t ifp, int ierrors)
-{
-	((struct ifnet *)ifp)->if_ierrors = ierrors;
-	return (0);
-}
-
-int
-if_setoerrors(if_t ifp, int oerrors)
-{
-	((struct ifnet *)ifp)->if_oerrors = oerrors;
-	return (0);
-}
-
-int if_incoerrors(if_t ifp, int oerrors)
-{
-	((struct ifnet *)ifp)->if_oerrors += oerrors;
-	return (0);
-}
-
-int if_inciqdrops(if_t ifp, int val)
-{
-	((struct ifnet *)ifp)->if_iqdrops += val;
-	return (0);
-}
-
-int
-if_setcollisions(if_t ifp, int collisions)
-{
-	((struct ifnet *)ifp)->if_collisions = collisions;
-	return (0);
-}
-
-int
-if_inccollisions(if_t ifp, int collisions)
-{
-	((struct ifnet *)ifp)->if_collisions += collisions;
-	return (0);
-}
- 
-int
-if_setipackets(if_t ifp, int pkts)
-{
-	((struct ifnet *)ifp)->if_ipackets = pkts;
-	return (0);
-}
-
-int
-if_setopackets(if_t ifp, int pkts)
-{
-	((struct ifnet *)ifp)->if_opackets = pkts;
-	return (0);
-}
-
-int
-if_incobytes(if_t ifp, int bytes)
-{
-	((struct ifnet *)ifp)->if_obytes += bytes;
-	return (0);
-}
-
-int
-if_setibytes(if_t ifp, int bytes)
-{
-	((struct ifnet *)ifp)->if_ibytes = bytes;
-	return (0);
-}
-
-int
-if_setobytes(if_t ifp, int bytes)
-{
-	((struct ifnet *)ifp)->if_obytes = bytes;
-	return (0);
-}
-
-
 int
 if_sendq_empty(if_t ifp)
 {
 	return IFQ_DRV_IS_EMPTY(&((struct ifnet *)ifp)->if_snd);
 }
-
-int if_getiqdrops(if_t ifp)
-{
-	return ((struct ifnet *)ifp)->if_iqdrops;
-}
-
-int
-if_incimcasts(if_t ifp, int mcast)
-{
-	((struct ifnet *)ifp)->if_imcasts += mcast;
-	return (0);
-}
-
-
-int
-if_incomcasts(if_t ifp, int mcast)
-{
-	((struct ifnet *)ifp)->if_omcasts += mcast;
-	return (0);
-}
-
-int
-if_setimcasts(if_t ifp, int mcast)
-{
-	((struct ifnet *)ifp)->if_imcasts = mcast;
-	return (0);
-}
-
 
 struct ifaddr *
 if_getifaddr(if_t ifp)
@@ -4043,6 +3966,13 @@ void if_setqflushfn(if_t ifp, if_qflush_fn_t flush_fn)
 {
 	((struct ifnet *)ifp)->if_qflush = flush_fn;
 	
+}
+
+void
+if_setgetcounterfn(if_t ifp, if_get_counter_t fn)
+{
+
+	ifp->if_get_counter = fn;
 }
 
 /* Revisit these - These are inline functions originally. */
