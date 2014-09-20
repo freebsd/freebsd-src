@@ -1,5 +1,7 @@
 # $FreeBSD$
 
+.include <src.opts.mk>
+
 PROG=	mkimg
 SRCS=	format.c image.c mkimg.c scheme.c
 MAN=	mkimg.1
@@ -28,5 +30,9 @@ DPADD=	${LIBUTIL}
 LDADD=	-lutil
 
 WARNS?=	6
+
+.if ${MK_TESTS} != "no"
+SUBDIR+= tests
+.endif
 
 .include <bsd.prog.mk>

@@ -253,6 +253,8 @@
             ..
             m4
             ..
+            mkimg
+            ..
             ncal
             ..
             printf
