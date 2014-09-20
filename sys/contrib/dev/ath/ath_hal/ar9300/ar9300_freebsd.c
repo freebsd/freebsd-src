@@ -70,9 +70,6 @@ void
 ar9300_attach_freebsd_ops(struct ath_hal *ah)
 {
 
-	/* stub everything first */
-	ar9300_set_stub_functions(ah);
-
 	/* Global functions */
 	ah->ah_detach		= ar9300_detach;
 	ah->ah_getRateTable		= ar9300_get_rate_table;
