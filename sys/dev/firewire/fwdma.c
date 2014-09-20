@@ -43,23 +43,15 @@ __FBSDID("$FreeBSD$");
 #include <sys/types.h>
 #include <sys/kernel.h>
 #include <sys/malloc.h>
-#if defined(__FreeBSD__) && __FreeBSD_version >= 501102 
 #include <sys/lock.h>
 #include <sys/mutex.h>
-#endif
 
 #include <sys/bus.h>
 #include <machine/bus.h>
 
-#ifdef __DragonFly__
-#include <bus/firewire/firewire.h>
-#include <bus/firewire/firewirereg.h>
-#include <bus/firewire/fwdma.h>
-#else
 #include <dev/firewire/firewire.h>
 #include <dev/firewire/firewirereg.h>
 #include <dev/firewire/fwdma.h>
-#endif
 
 static void
 fwdma_map_cb(void *arg, bus_dma_segment_t *segs, int nseg, int error)
@@ -90,10 +82,8 @@ fwdma_malloc(struct firewire_comm *fc, int alignment, bus_size_t size,
 		/*nsegments*/ 1,
 		/*maxsegsz*/ BUS_SPACE_MAXSIZE_32BIT,
 		/*flags*/ BUS_DMA_ALLOCNOW,
-#if defined(__FreeBSD__) && __FreeBSD_version >= 501102 
 		/*lockfunc*/busdma_lock_mutex,
 		/*lockarg*/FW_GMTX(fc),
-#endif
 		&dma->dma_tag);
 	if (err) {
 		printf("fwdma_malloc: failed(1)\n");
@@ -188,23 +178,14 @@ fwdma_malloc_multiseg(struct firewire_comm *fc, int alignment,
 			/*nsegments*/ 1,
 			/*maxsegsz*/ BUS_SPACE_MAXSIZE_32BIT,
 			/*flags*/ BUS_DMA_ALLOCNOW,
-#if defined(__FreeBSD__) && __FreeBSD_version >= 501102
 			/*lockfunc*/busdma_lock_mutex,
 			/*lockarg*/FW_GMTX(fc),
-#endif
 			&am->dma_tag)) {
 		printf("fwdma_malloc_multiseg: tag_create failed\n");
 		free(am, M_FW);
 		return(NULL);
 	}
 
-#if 0
-#if defined(__DragonFly__) || __FreeBSD_version < 500000
-	printf("malloc_multi: ssize=%d nseg=%d\n", ssize, nseg);
-#else
-	printf("malloc_multi: ssize=%td nseg=%d\n", ssize, nseg);
-#endif
-#endif
 	for (seg = &am->seg[0]; nseg --; seg ++) {
 		seg->v_addr = fwdma_malloc_size(am->dma_tag, &seg->dma_map,
 			ssize, &seg->bus_addr, flag);

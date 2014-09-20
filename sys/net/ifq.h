@@ -53,7 +53,6 @@ struct	ifqueue {
 	struct	mbuf *ifq_tail;
 	int	ifq_len;
 	int	ifq_maxlen;
-	int	ifq_drops;
 	struct	mtx ifq_mtx;
 };
 
@@ -68,7 +67,6 @@ struct	ifqueue {
 #define IF_UNLOCK(ifq)		mtx_unlock(&(ifq)->ifq_mtx)
 #define	IF_LOCK_ASSERT(ifq)	mtx_assert(&(ifq)->ifq_mtx, MA_OWNED)
 #define	_IF_QFULL(ifq)		((ifq)->ifq_len >= (ifq)->ifq_maxlen)
-#define	_IF_DROP(ifq)		((ifq)->ifq_drops++)
 #define	_IF_QLEN(ifq)		((ifq)->ifq_len)
 
 #define	_IF_ENQUEUE(ifq, m) do { 				\
@@ -171,8 +169,6 @@ do {									\
 			(err) = 0;					\
 		}							\
 	}								\
-	if (err)							\
-		(ifq)->ifq_drops++;					\
 	IF_UNLOCK(ifq);							\
 } while (0)
 
@@ -234,7 +230,6 @@ do {									\
 #define	IFQ_IS_EMPTY(ifq)		((ifq)->ifq_len == 0)
 #define	IFQ_INC_LEN(ifq)		((ifq)->ifq_len++)
 #define	IFQ_DEC_LEN(ifq)		(--(ifq)->ifq_len)
-#define	IFQ_INC_DROPS(ifq)		((ifq)->ifq_drops++)
 #define	IFQ_SET_MAXLEN(ifq, len)	((ifq)->ifq_maxlen = (len))
 
 /*
@@ -255,7 +250,8 @@ do {									\
 			(ifp)->if_omcasts++;				\
 		if (((ifp)->if_drv_flags & IFF_DRV_OACTIVE) == 0)	\
 			if_start(ifp);					\
-	}								\
+	} else								\
+		ifp->if_oqdrops++;					\
 } while (0)
 
 #define	IFQ_HANDOFF(ifp, m, err)					\
@@ -321,6 +317,8 @@ drbr_enqueue(struct ifnet *ifp, struct buf_ring *br, struct mbuf *m)
 #ifdef ALTQ
 	if (ALTQ_IS_ENABLED(&ifp->if_snd)) {
 		IFQ_ENQUEUE(&ifp->if_snd, m, error);
+		if (error)
+			ifp->if_oqdrops++;
 		return (error);
 	}
 #endif

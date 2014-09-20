@@ -39,11 +39,7 @@
 #include <sys/systm.h>
 #include <sys/types.h>
 #include <sys/mbuf.h>
-#if defined(__DragonFly__) || __FreeBSD_version < 500000
-#include <sys/buf.h>
-#else
 #include <sys/bio.h>
-#endif
 
 #include <sys/kernel.h>
 #include <sys/malloc.h>
@@ -208,7 +204,6 @@ fw_open (struct cdev *dev, int flags, int fmt, fw_proc *td)
 	if (dev->si_drv1 == NULL)
 		return (ENOMEM);
 
-#if defined(__FreeBSD__) && __FreeBSD_version >= 500000
 	if ((dev->si_flags & SI_NAMED) == 0) {
 		int unit = DEV2UNIT(dev);
 		int sub = DEV2SUB(dev);
@@ -217,7 +212,6 @@ fw_open (struct cdev *dev, int flags, int fmt, fw_proc *td)
 			UID_ROOT, GID_OPERATOR, 0660,
 			"fw%d.%d", unit, sub);
 	}
-#endif
 	d = (struct fw_drv1 *)dev->si_drv1;
 	d->fc = sc->fc;
 	STAILQ_INIT(&d->binds);
@@ -881,20 +875,12 @@ fw_poll(struct cdev *dev, int events, fw_proc *td)
 }
 
 static int
-#if defined(__DragonFly__) || __FreeBSD_version < 500102
-fw_mmap (struct cdev *dev, vm_offset_t offset, int nproto)
-#else
 fw_mmap (struct cdev *dev, vm_ooffset_t offset, vm_paddr_t *paddr,
     int nproto, vm_memattr_t *memattr)
-#endif
 {  
 
 	if (DEV_FWMEM(dev))
-#if defined(__DragonFly__) || __FreeBSD_version < 500102
-		return fwmem_mmap(dev, offset, nproto);
-#else
 		return fwmem_mmap(dev, offset, paddr, nproto, memattr);
-#endif
 
 	return EINVAL;
 }
@@ -921,9 +907,6 @@ fwdev_makedev(struct firewire_softc *sc)
 {
 	int err = 0;
 
-#if defined(__DragonFly__) || __FreeBSD_version < 500000
-	cdevsw_add(&firewire_cdevsw);
-#else
 	struct cdev *d;
 	int unit;
 
@@ -938,7 +921,6 @@ fwdev_makedev(struct firewire_softc *sc)
 	dev_depends(sc->dev, d);
 	make_dev_alias(sc->dev, "fw%d", unit);
 	make_dev_alias(d, "fwmem%d", unit);
-#endif
 
 	return (err);
 }
@@ -948,15 +930,10 @@ fwdev_destroydev(struct firewire_softc *sc)
 {
 	int err = 0;
 
-#if defined(__DragonFly__) || __FreeBSD_version < 500000
-	cdevsw_remove(&firewire_cdevsw);
-#else
 	destroy_dev(sc->dev);
-#endif
 	return (err);
 }
 
-#if defined(__FreeBSD__) && __FreeBSD_version >= 500000
 #define NDEVTYPE 2
 void
 fwdev_clone(void *arg, struct ucred *cred, char *name, int namelen,
@@ -998,4 +975,3 @@ found:
 	dev_depends(sc->dev, *dev);
 	return;
 }
-#endif

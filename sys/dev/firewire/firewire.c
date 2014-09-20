@@ -49,26 +49,14 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/kdb.h>
 
-#if defined(__DragonFly__) || __FreeBSD_version < 500000
-#include <machine/clock.h>	/* for DELAY() */
-#endif
-
 #include <sys/bus.h>		/* used by smbus and newbus */
 #include <machine/bus.h>
 
-#ifdef __DragonFly__
-#include "firewire.h"
-#include "firewirereg.h"
-#include "fwmem.h"
-#include "iec13213.h"
-#include "iec68113.h"
-#else
 #include <dev/firewire/firewire.h>
 #include <dev/firewire/firewirereg.h>
 #include <dev/firewire/fwmem.h>
 #include <dev/firewire/iec13213.h>
 #include <dev/firewire/iec68113.h>
-#endif
 
 struct crom_src_buf {
 	struct crom_src	src;
@@ -99,9 +87,6 @@ static int firewire_attach      (device_t);
 static int firewire_detach      (device_t);
 static int firewire_resume      (device_t);
 static void firewire_xfer_timeout(void *, int);
-#if 0
-static int firewire_shutdown    (device_t);
-#endif
 static device_t firewire_add_child(device_t, u_int, const char *, int);
 static void fw_try_bmr (void *);
 static void fw_try_bmr_callback (struct fw_xfer *);
@@ -563,14 +548,6 @@ firewire_detach(device_t dev)
 	mtx_destroy(&fc->wait_lock);
 	return(0);
 }
-#if 0
-static int
-firewire_shutdown( device_t dev )
-{
-	return 0;
-}
-#endif
-
 
 static void
 fw_xferq_drain(struct fw_xferq *xferq)
@@ -1052,7 +1029,7 @@ fw_tl_free(struct firewire_comm *fc, struct fw_xfer *xfer)
 		mtx_unlock(&fc->tlabel_lock);
 		return;
 	}
-#if 1	/* make sure the label is allocated */
+	/* make sure the label is allocated */
 	STAILQ_FOREACH(txfer, &fc->tlabels[xfer->tl], tlabel)
 		if(txfer == xfer)
 			break;
@@ -1067,7 +1044,6 @@ fw_tl_free(struct firewire_comm *fc, struct fw_xfer *xfer)
 		splx(s);
 		return;
 	}
-#endif
 
 	STAILQ_REMOVE(&fc->tlabels[xfer->tl], xfer, fw_xfer, tlabel);
 	xfer->tl = -1;
@@ -1560,8 +1536,6 @@ fw_explore_node(struct fw_device *dfwdev)
 	/* First quad */
 	err = fw_explore_read_quads(dfwdev, CSRROMOFF, &csr[0], 1);
 	if (err) {
-		device_printf(fc->bdev, "%s: node%d: explore_read_quads failure\n",
-		    __func__, node);
 		dfwdev->status = FWDEVINVAL;
 		return (-1);
 	}
@@ -1577,15 +1551,11 @@ fw_explore_node(struct fw_device *dfwdev)
 	/* bus info */
 	err = fw_explore_read_quads(dfwdev, CSRROMOFF + 0x04, &csr[1], 4);
 	if (err) {
-		device_printf(fc->bdev, "%s: node%d: error reading 0x04\n",
-		    __func__, node);
 		dfwdev->status = FWDEVINVAL;
 		return (-1);
 	}
 	binfo = (struct bus_info *)&csr[1];
 	if (binfo->bus_name != CSR_BUS_NAME_IEEE1394) {
-		device_printf(fc->bdev, "%s: node%d: invalid bus name 0x%08x\n",
-		    __func__, node, binfo->bus_name);
 		dfwdev->status = FWDEVINVAL;
 		return (-1);
 	}
@@ -1668,10 +1638,6 @@ fw_explore_node(struct fw_device *dfwdev)
 			STAILQ_INSERT_HEAD(&fc->devices, fwdev, link);
 		else
 			STAILQ_INSERT_AFTER(&fc->devices, pfwdev, fwdev, link);
-
-		device_printf(fc->bdev, "New %s device ID:%08x%08x\n",
-		    linkspeed[fwdev->speed],
-		    fwdev->eui.hi, fwdev->eui.lo);
 	} else {
 		fwdev->dst = node;
 		fwdev->status = FWDEVINIT;
@@ -1828,9 +1794,6 @@ fw_attach_dev(struct firewire_comm *fc)
 				 * Remove devices which have not been seen
 				 * for a while.
 				 */
-				device_printf(fc->bdev, "%s:"
-					"Removing missing device ID:%08x%08x\n",
-					__func__, fwdev->eui.hi, fwdev->eui.lo);
 				STAILQ_REMOVE(&fc->devices, fwdev, fw_device,
 				    link);
 				free(fwdev, M_FW);

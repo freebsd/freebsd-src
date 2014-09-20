@@ -1413,7 +1413,8 @@ conf_apply(struct conf *oldconf, struct conf *newconf)
 			if (oldtarg != NULL) {
 				oldlun = lun_find(oldtarg, newlun->l_lun);
 				if (oldlun != NULL) {
-					if (newlun->l_size != oldlun->l_size) {
+					if (newlun->l_size != oldlun->l_size ||
+					    newlun->l_size == 0) {
 						log_debugx("resizing lun %d, "
 						    "target %s, CTL lun %d",
 						    newlun->l_lun,

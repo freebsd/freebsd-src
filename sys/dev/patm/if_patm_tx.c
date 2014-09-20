@@ -304,7 +304,7 @@ patm_start(struct ifnet *ifp)
 		/* split of pseudo header */
 		if (m->m_len < sizeof(*aph) &&
 		    (m = m_pullup(m, sizeof(*aph))) == NULL) {
-			sc->ifp->if_oerrors++;
+			if_inc_counter(sc->ifp, IFCOUNTER_OERRORS, 1);
 			continue;
 		}
 
@@ -316,21 +316,21 @@ patm_start(struct ifnet *ifp)
 		/* reject empty packets */
 		if (m->m_pkthdr.len == 0) {
 			m_freem(m);
-			sc->ifp->if_oerrors++;
+			if_inc_counter(sc->ifp, IFCOUNTER_OERRORS, 1);
 			continue;
 		}
 
 		/* check whether this is a legal vcc */
 		if (!LEGAL_VPI(sc, vpi) || !LEGAL_VCI(sc, vci) || vci == 0) {
 			m_freem(m);
-			sc->ifp->if_oerrors++;
+			if_inc_counter(sc->ifp, IFCOUNTER_OERRORS, 1);
 			continue;
 		}
 		cid = PATM_CID(sc, vpi, vci);
 		vcc = sc->vccs[cid];
 		if (vcc == NULL) {
 			m_freem(m);
-			sc->ifp->if_oerrors++;
+			if_inc_counter(sc->ifp, IFCOUNTER_OERRORS, 1);
 			continue;
 		}
 
@@ -340,7 +340,7 @@ patm_start(struct ifnet *ifp)
 			/* XXX AAL3/4 format? */
 			if (m->m_pkthdr.len % 48 != 0 &&
 			    (m = patm_tx_pad(sc, m)) == NULL) {
-				sc->ifp->if_oerrors++;
+				if_inc_counter(sc->ifp, IFCOUNTER_OERRORS, 1);
 				continue;
 			}
 		} else if (vcc->vcc.aal == ATMIO_AAL_RAW) {
@@ -349,7 +349,7 @@ patm_start(struct ifnet *ifp)
 			  default:
 			  case PATM_RAW_CELL:
 				if (m->m_pkthdr.len != 53) {
-					sc->ifp->if_oerrors++;
+					if_inc_counter(sc->ifp, IFCOUNTER_OERRORS, 1);
 					m_freem(m);
 					continue;
 				}
@@ -357,7 +357,7 @@ patm_start(struct ifnet *ifp)
 
 			  case PATM_RAW_NOHEC:
 				if (m->m_pkthdr.len != 52) {
-					sc->ifp->if_oerrors++;
+					if_inc_counter(sc->ifp, IFCOUNTER_OERRORS, 1);
 					m_freem(m);
 					continue;
 				}
@@ -365,7 +365,7 @@ patm_start(struct ifnet *ifp)
 
 			  case PATM_RAW_CS:
 				if (m->m_pkthdr.len != 64) {
-					sc->ifp->if_oerrors++;
+					if_inc_counter(sc->ifp, IFCOUNTER_OERRORS, 1);
 					m_freem(m);
 					continue;
 				}
@@ -378,7 +378,7 @@ patm_start(struct ifnet *ifp)
 
 		/* try to put it on the channels queue */
 		if (_IF_QFULL(&vcc->scd->q)) {
-			sc->ifp->if_oerrors++;
+			if_inc_counter(sc->ifp, IFCOUNTER_OERRORS, 1);
 			sc->stats.tx_qfull++;
 			m_freem(m);
 			continue;
@@ -416,7 +416,7 @@ patm_tx_pad(struct patm_softc *sc, struct mbuf *m0)
 		m0->m_pkthdr.len = plen;
 		if (plen == 0) {
 			m_freem(m0);
-			sc->ifp->if_oerrors++;
+			if_inc_counter(sc->ifp, IFCOUNTER_OERRORS, 1);
 			return (NULL);
 		}
 		if (plen % 48 == 0)
@@ -442,7 +442,7 @@ patm_tx_pad(struct patm_softc *sc, struct mbuf *m0)
 	MGET(m, M_NOWAIT, MT_DATA);
 	if (m == 0) {
 		m_freem(m0);
-		sc->ifp->if_oerrors++;
+		if_inc_counter(sc->ifp, IFCOUNTER_OERRORS, 1);
 		return (NULL);
 	}
 	bzero(mtod(m, u_char *), pad);
@@ -534,7 +534,7 @@ patm_launch(struct patm_softc *sc, struct patm_scd *scd)
 		    patm_load_txbuf, &a, BUS_DMA_NOWAIT);
 		if (error == EFBIG) {
 			if ((m = m_defrag(m, M_NOWAIT)) == NULL) {
-				sc->ifp->if_oerrors++;
+				if_inc_counter(sc->ifp, IFCOUNTER_OERRORS, 1);
 				continue;
 			}
 			error = bus_dmamap_load_mbuf(sc->tx_tag, map->map, m,
@@ -542,13 +542,13 @@ patm_launch(struct patm_softc *sc, struct patm_scd *scd)
 		}
 		if (error != 0) {
 			sc->stats.tx_load_err++;
-			sc->ifp->if_oerrors++;
+			if_inc_counter(sc->ifp, IFCOUNTER_OERRORS, 1);
 			SLIST_INSERT_HEAD(&sc->tx_maps_free, map, link);
 			m_freem(m);
 			continue;
 		}
 
-		sc->ifp->if_opackets++;
+		if_inc_counter(sc->ifp, IFCOUNTER_OPACKETS, 1);
 	}
 }
 

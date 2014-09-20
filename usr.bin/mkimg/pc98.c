@@ -59,13 +59,12 @@ static struct mkimg_alias pc98_aliases[] = {
     {	ALIAS_NONE, 0 }
 };
 
-static u_int
-pc98_metadata(u_int where)
+static lba_t
+pc98_metadata(u_int where, lba_t blk)
 {
-	u_int secs;
-
-	secs = PC98_BOOTCODESZ / secsz;
-	return ((where == SCHEME_META_IMG_START) ? secs : 0);
+	if (where == SCHEME_META_IMG_START)
+		blk += PC98_BOOTCODESZ / secsz;
+	return (round_track(blk));
 }
 
 static void

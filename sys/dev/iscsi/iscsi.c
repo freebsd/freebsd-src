@@ -2179,7 +2179,12 @@ iscsi_action(struct cam_sim *sim, union ccb *ccb)
 		cpi->hba_misc = PIM_EXTLUNS;
 		cpi->hba_eng_cnt = 0;
 		cpi->max_target = 0;
-		cpi->max_lun = 0;
+		/*
+		 * Note that the variable below is only relevant for targets
+		 * that don't claim compliance with anything above SPC2, which
+		 * means they don't support REPORT_LUNS.
+		 */
+		cpi->max_lun = 255;
 		cpi->initiator_id = ~0;
 		strlcpy(cpi->sim_vid, "FreeBSD", SIM_IDLEN);
 		strlcpy(cpi->hba_vid, "iSCSI", HBA_IDLEN);

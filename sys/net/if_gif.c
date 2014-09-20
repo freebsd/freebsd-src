@@ -377,10 +377,10 @@ gif_start(struct ifnet *ifp)
 			af = AF_LINK;
 
 		BPF_MTAP2(ifp, &af, sizeof(af), m);
-		ifp->if_opackets++;	
+		if_inc_counter(ifp, IFCOUNTER_OPACKETS, 1);	
 
 /*              Done by IFQ_HANDOFF */
-/* 		ifp->if_obytes += m->m_pkthdr.len;*/
+/* 		if_inc_counter(ifp, IFCOUNTER_OBYTES, m->m_pkthdr.len);*/
 		/* override to IPPROTO_ETHERIP for bridged traffic */
 
 		M_SETFIB(m, sc->gif_fibnum);
@@ -403,7 +403,7 @@ gif_start(struct ifnet *ifp)
 			error = ENETDOWN;
 		}
 		if (error)
-			ifp->if_oerrors++;
+			if_inc_counter(ifp, IFCOUNTER_OERRORS, 1);
 
 	}
 	ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
@@ -513,7 +513,7 @@ gif_output(struct ifnet *ifp, struct mbuf *m, const struct sockaddr *dst,
 	IFQ_HANDOFF(ifp, m, error);
   end:
 	if (error)
-		ifp->if_oerrors++;
+		if_inc_counter(ifp, IFCOUNTER_OERRORS, 1);
 	return (error);
 }
 
@@ -544,8 +544,8 @@ gif_input(struct mbuf *m, int af, struct ifnet *ifp)
 	}
 
 	if ((ifp->if_flags & IFF_MONITOR) != 0) {
-		ifp->if_ipackets++;
-		ifp->if_ibytes += m->m_pkthdr.len;
+		if_inc_counter(ifp, IFCOUNTER_IPACKETS, 1);
+		if_inc_counter(ifp, IFCOUNTER_IBYTES, m->m_pkthdr.len);
 		m_freem(m);
 		return;
 	}
@@ -583,7 +583,7 @@ gif_input(struct mbuf *m, int af, struct ifnet *ifp)
 		if (n > m->m_len) {
 			m = m_pullup(m, n);
 			if (m == NULL) {
-				ifp->if_ierrors++;
+				if_inc_counter(ifp, IFCOUNTER_IERRORS, 1);
 				return;
 			}
 		}
@@ -622,7 +622,7 @@ gif_input(struct mbuf *m, int af, struct ifnet *ifp)
 					m->m_flags |= M_BCAST;
 				else
 					m->m_flags |= M_MCAST;
-				ifp->if_imcasts++;
+				if_inc_counter(ifp, IFCOUNTER_IMCASTS, 1);
 			}
 			BRIDGE_INPUT(ifp, m);
 
@@ -647,8 +647,8 @@ gif_input(struct mbuf *m, int af, struct ifnet *ifp)
 		return;
 	}
 
-	ifp->if_ipackets++;
-	ifp->if_ibytes += m->m_pkthdr.len;
+	if_inc_counter(ifp, IFCOUNTER_IPACKETS, 1);
+	if_inc_counter(ifp, IFCOUNTER_IBYTES, m->m_pkthdr.len);
 	M_SETFIB(m, ifp->if_fib);
 	netisr_dispatch(isr, m);
 }

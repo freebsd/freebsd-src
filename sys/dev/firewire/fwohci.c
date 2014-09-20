@@ -56,25 +56,12 @@
 
 #include <machine/bus.h>
 
-#if defined(__DragonFly__) || __FreeBSD_version < 500000
-#include <machine/clock.h>		/* for DELAY() */
-#endif
-
-#ifdef __DragonFly__
-#include "firewire.h"
-#include "firewirereg.h"
-#include "fwdma.h"
-#include "fwohcireg.h"
-#include "fwohcivar.h"
-#include "firewire_phy.h"
-#else
 #include <dev/firewire/firewire.h>
 #include <dev/firewire/firewirereg.h>
 #include <dev/firewire/fwdma.h>
 #include <dev/firewire/fwohcireg.h>
 #include <dev/firewire/fwohcivar.h>
 #include <dev/firewire/firewire_phy.h>
-#endif
 
 #undef OHCI_DEBUG
 
@@ -1126,12 +1113,10 @@ fwohci_txd(struct fwohci_softc *sc, struct fwohci_dbch *dbch)
 		case FWOHCIEV_ACKBSA:
 		case FWOHCIEV_ACKBSB:
 		case FWOHCIEV_ACKBSX:
-			device_printf(sc->fc.dev, "txd err=%2x %s\n", stat, fwohcicode[stat]);
 			err = EBUSY;
 			break;
 		case FWOHCIEV_FLUSHED:
 		case FWOHCIEV_ACKTARD:
-			device_printf(sc->fc.dev, "txd err=%2x %s\n", stat, fwohcicode[stat]);
 			err = EAGAIN;
 			break;
 		case FWOHCIEV_MISSACK:
@@ -1145,8 +1130,6 @@ fwohci_txd(struct fwohci_softc *sc, struct fwohci_dbch *dbch)
 		case FWOHCIEV_ACKDERR:
 		case FWOHCIEV_ACKTERR:
 		default:
-			device_printf(sc->fc.dev, "txd err=%2x %s\n",
-							stat, fwohcicode[stat]);
 			err = EINVAL;
 			break;
 		}

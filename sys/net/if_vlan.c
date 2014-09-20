@@ -201,7 +201,7 @@ static	void vlan_init(void *foo);
 static	void vlan_input(struct ifnet *ifp, struct mbuf *m);
 static	int vlan_ioctl(struct ifnet *ifp, u_long cmd, caddr_t addr);
 static	void vlan_qflush(struct ifnet *ifp);
-static uint64_t vlan_get_counter(struct ifnet *ifp, ifnet_counter cnt);
+static uint64_t vlan_get_counter(struct ifnet *ifp, ift_counter cnt);
 static	int vlan_setflag(struct ifnet *ifp, int flag, int status,
     int (*func)(struct ifnet *, int));
 static	int vlan_setflags(struct ifnet *ifp, int status);
@@ -1132,7 +1132,7 @@ vlan_transmit(struct ifnet *ifp, struct mbuf *m)
 }
 
 static uint64_t
-vlan_get_counter(struct ifnet *ifp, ifnet_counter cnt)
+vlan_get_counter(struct ifnet *ifp, ift_counter cnt)
 {
 	struct ifvlan *ifv;
 
@@ -1152,7 +1152,7 @@ vlan_get_counter(struct ifnet *ifp, ifnet_counter cnt)
 		case IFCOUNTER_OERRORS:
 			return (counter_u64_fetch(ifv->ifv_oerrors));
 		default:
-			return (if_get_counter_compat(ifp, cnt));
+			return (if_get_counter_default(ifp, cnt));
 	}
 	/* NOTREACHED */
 }
@@ -1215,7 +1215,7 @@ vlan_input(struct ifnet *ifp, struct mbuf *m)
 			      __func__, ifp->if_xname, ifp->if_type);
 #endif
 			m_freem(m);
-			ifp->if_noproto++;
+			if_inc_counter(ifp, IFCOUNTER_NOPROTO, 1);
 			return;
 		}
 	}
@@ -1225,7 +1225,7 @@ vlan_input(struct ifnet *ifp, struct mbuf *m)
 	if (ifv == NULL || !UP_AND_RUNNING(ifv->ifv_ifp)) {
 		TRUNK_RUNLOCK(trunk);
 		m_freem(m);
-		ifp->if_noproto++;
+		if_inc_counter(ifp, IFCOUNTER_NOPROTO, 1);
 		return;
 	}
 	TRUNK_RUNLOCK(trunk);

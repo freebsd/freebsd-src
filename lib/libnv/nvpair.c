@@ -963,7 +963,8 @@ nvpair_createv_nvlist(const nvlist_t *value, const char *namefmt,
 	    namefmt, nameap);
 	if (nvp == NULL)
 		nvlist_destroy(nvl);
-	nvlist_set_parent(nvl, nvp);
+	else
+		nvlist_set_parent(nvl, nvp);
 
 	return (nvp);
 }

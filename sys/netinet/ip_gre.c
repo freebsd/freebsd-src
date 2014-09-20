@@ -142,8 +142,8 @@ gre_input2(struct mbuf *m ,int hlen, u_char proto)
 	}
 	gip = mtod(m, struct greip *);
 
-	GRE2IFP(sc)->if_ipackets++;
-	GRE2IFP(sc)->if_ibytes += m->m_pkthdr.len;
+	if_inc_counter(GRE2IFP(sc), IFCOUNTER_IPACKETS, 1);
+	if_inc_counter(GRE2IFP(sc), IFCOUNTER_IBYTES, m->m_pkthdr.len);
 
 	switch (proto) {
 	case IPPROTO_GRE:
@@ -243,8 +243,8 @@ gre_mobile_input(struct mbuf **mp, int *offp, int proto)
 	ip = mtod(m, struct ip *);
 	mip = mtod(m, struct mobip_h *);
 
-	GRE2IFP(sc)->if_ipackets++;
-	GRE2IFP(sc)->if_ibytes += m->m_pkthdr.len;
+	if_inc_counter(GRE2IFP(sc), IFCOUNTER_IPACKETS, 1);
+	if_inc_counter(GRE2IFP(sc), IFCOUNTER_IBYTES, m->m_pkthdr.len);
 
 	if (ntohs(mip->mh.proto) & MOB_H_SBIT) {
 		msiz = MOB_H_SIZ_L;

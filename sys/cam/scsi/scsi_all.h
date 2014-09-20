@@ -317,6 +317,7 @@ struct scsi_per_res_cap
 #define	SPRI_ALLOW_2		0x20
 #define	SPRI_ALLOW_3		0x30
 #define	SPRI_ALLOW_4		0x40
+#define	SPRI_ALLOW_5		0x50
 #define	SPRI_PTPL_A		0x01
 	uint8_t type_mask[2];
 #define	SPRI_TM_WR_EX_AR	0x8000
@@ -1030,6 +1031,7 @@ struct scsi_write_same_16
 {
 	uint8_t	opcode;
 	uint8_t	byte2;
+#define	SWS_NDOB	0x01
 	uint8_t	addr[8];
 	uint8_t	length[4];
 	uint8_t	group;
@@ -1608,11 +1610,11 @@ struct scsi_token
 {
 	uint8_t  type[4];
 #define ROD_TYPE_INTERNAL	0x00000000
-#define ROD_TYPE_AUR		0x00001000
-#define ROD_TYPE_PIT_DEF	0x00080000
-#define ROD_TYPE_PIT_VULN	0x00080001
-#define ROD_TYPE_PIT_PERS	0x00080002
-#define ROD_TYPE_PIT_ANY	0x0008FFFF
+#define ROD_TYPE_AUR		0x00010000
+#define ROD_TYPE_PIT_DEF	0x00800000
+#define ROD_TYPE_PIT_VULN	0x00800001
+#define ROD_TYPE_PIT_PERS	0x00800002
+#define ROD_TYPE_PIT_ANY	0x0080FFFF
 #define ROD_TYPE_BLOCK_ZERO	0xFFFF0001
 	uint8_t  reserved[2];
 	uint8_t  length[2];

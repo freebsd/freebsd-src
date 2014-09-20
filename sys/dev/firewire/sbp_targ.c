@@ -42,9 +42,6 @@
 #include <sys/conf.h>
 #include <sys/malloc.h>
 #include <sys/endian.h>
-#if __FreeBSD_version < 500000
-#include <sys/devicestat.h>
-#endif
 
 #include <sys/bus.h>
 #include <machine/bus.h>

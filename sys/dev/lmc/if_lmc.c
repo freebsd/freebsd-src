@@ -4635,6 +4635,7 @@ lmc_raw_output(struct ifnet *ifp, struct mbuf *m,
     {
     m_freem(m);
     sc->status.cntrs.odiscards++;
+    ifp->if_oqdrops++;
     if (DRIVER_DEBUG)
       printf("%s: lmc_raw_output: IFQ_ENQUEUE() failed; error %d\n",
        NAME_UNIT, error);

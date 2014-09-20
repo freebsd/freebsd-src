@@ -352,6 +352,7 @@ WMAKE=		${WMAKEENV} ${MAKE} ${WORLD_FLAGS} -f Makefile.inc1 DESTDIR=${WORLDTMP}
 
 .if ${TARGET_ARCH} == "amd64" || ${TARGET_ARCH} == "powerpc64"
 # 32 bit world
+LIB32_OBJTREE=	${OBJTREE}${.CURDIR}/world32
 LIB32TMP=	${OBJTREE}${.CURDIR}/lib32
 
 .if ${TARGET_ARCH} == "amd64"
@@ -387,7 +388,7 @@ LIB32FLAGS+=		--sysroot=${WORLDTMP}
 .endif
 
 # Yes, the flags are redundant.
-LIB32WMAKEENV+=	MAKEOBJDIRPREFIX=${OBJTREE}/lib32 \
+LIB32WMAKEENV+=	MAKEOBJDIRPREFIX=${LIB32_OBJTREE} \
 		_SHLIBDIRPREFIX=${LIB32TMP} \
 		_LDSCRIPTROOT=${LIB32TMP} \
 		VERSION="${VERSION}" \
@@ -611,7 +612,7 @@ build32:
 	cd ${.CURDIR}/${_dir}; \
 	    WORLDTMP=${WORLDTMP} \
 	    MAKEFLAGS="-m ${.CURDIR}/tools/build/mk ${.MAKEFLAGS}" \
-	    MAKEOBJDIRPREFIX=${OBJTREE}/lib32 ${MAKE} SSP_CFLAGS= DESTDIR= \
+	    MAKEOBJDIRPREFIX=${LIB32_OBJTREE} ${MAKE} SSP_CFLAGS= DESTDIR= \
 	    DIRPRFX=${_dir}/ -DNO_LINT -DNO_CPU_CFLAGS MK_WARNS=no MK_CTF=no \
 	    build-tools
 .endfor

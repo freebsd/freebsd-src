@@ -236,10 +236,14 @@ bi_load_efi_data(struct preloaded_file *kfp)
 
 	if (efi_find_framebuffer(&efifb) == 0) {
 		printf("EFI framebuffer information:\n");
-		printf("addr, size     0x%lx, 0x%lx\n", efifb.fb_addr, efifb.fb_size);
-		printf("dimensions     %d x %d\n", efifb.fb_width, efifb.fb_height);
+		printf("addr, size     0x%lx, 0x%lx\n", efifb.fb_addr,
+		    efifb.fb_size);
+		printf("dimensions     %d x %d\n", efifb.fb_width,
+		    efifb.fb_height);
 		printf("stride         %d\n", efifb.fb_stride);
-		printf("masks          0x%08x, 0x%08x, 0x%08x, 0x%08x\n", efifb.fb_mask_red, efifb.fb_mask_green, efifb.fb_mask_blue, efifb.fb_mask_reserved);
+		printf("masks          0x%08x, 0x%08x, 0x%08x, 0x%08x\n",
+		    efifb.fb_mask_red, efifb.fb_mask_green, efifb.fb_mask_blue,
+		    efifb.fb_mask_reserved);
 
 		file_addmetadata(kfp, MODINFOMD_EFI_FB, sizeof(efifb), &efifb);
 	}

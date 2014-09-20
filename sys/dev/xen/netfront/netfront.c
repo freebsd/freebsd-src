@@ -1056,7 +1056,7 @@ xn_rxeof(struct netfront_info *np)
 		 * Break the mbuf chain first though.
 		 */
 		while ((m = mbufq_dequeue(&rxq)) != NULL) {
-			ifp->if_ipackets++;
+			if_inc_counter(ifp, IFCOUNTER_IPACKETS, 1);
 			
 			/*
 			 * Do we really need to drop the rx lock?
@@ -1147,7 +1147,7 @@ xn_txeof(struct netfront_info *np)
 			 * mbuf of the chain.
 			 */
 			if (!m->m_next)
-				ifp->if_opackets++;
+				if_inc_counter(ifp, IFCOUNTER_OPACKETS, 1);
 			if (__predict_false(gnttab_query_foreign_access(
 			    np->grant_tx_ref[id]) != 0)) {
 				panic("%s: grant id %u still in use by the "

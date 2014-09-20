@@ -1039,8 +1039,8 @@ tdq_notify(struct tdq *tdq, struct thread *td)
 		return;
 
 	/*
-	 * Make sure that tdq_load updated before calling this function
-	 * is globally visible before we read tdq_cpu_idle.  Idle thread
+	 * Make sure that our caller's earlier update to tdq_load is
+	 * globally visible before we read tdq_cpu_idle.  Idle thread
 	 * accesses both of them without locks, and the order is important.
 	 */
 	mb();
