@@ -20,7 +20,6 @@ SRCS+=	vmm.c		\
 	vmm_ipi.c	\
 	vmm_lapic.c	\
 	vmm_mem.c	\
-	vmm_msr.c	\
 	vmm_stat.c	\
 	vmm_util.c	\
 	x86.c		\
@@ -48,7 +47,8 @@ SRCS+=	ept.c		\
 SRCS+=	vmcb.c		\
 	svm.c		\
 	npt.c		\
-	amdv.c		
+	amdv.c		\
+	svm_msr.c
 	
 OBJS=	vmx_support.o svm_support.o
 
