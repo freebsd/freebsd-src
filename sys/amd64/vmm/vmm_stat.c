@@ -152,7 +152,6 @@ VMM_STAT(VCPU_MIGRATIONS, "vcpu migration across host cpus");
 VMM_STAT(VMEXIT_COUNT, "total number of vm exits");
 VMM_STAT(VMEXIT_EXTINT, "vm exits due to external interrupt");
 VMM_STAT(VMEXIT_HLT, "number of times hlt was intercepted");
-VMM_STAT(VMEXIT_HLT_IGNORED, "number of times hlt was ignored");
 VMM_STAT(VMEXIT_CR_ACCESS, "number of times %cr access was intercepted");
 VMM_STAT(VMEXIT_RDMSR, "number of times rdmsr was intercepted");
 VMM_STAT(VMEXIT_WRMSR, "number of times wrmsr was intercepted");
