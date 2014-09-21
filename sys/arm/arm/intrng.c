@@ -309,6 +309,21 @@ arm_register_pic(device_t dev, int flags)
 	ic->ic_dev = dev;
 	ic->ic_node = node;
 
+	/*
+	 * Normally ic_intrs is allocated by arm_fdt_map_irq(), but the nexus
+	 * root isn't described by fdt data.  If the node is -1 and the ic_intrs
+	 * array hasn't yet been allocated, we're dealing with nexus, allocate a
+	 * single entry for irq 0.
+	 */
+	if (node == -1 && ic->ic_intrs == NULL) {
+	       ic->ic_intrs = malloc(sizeof(struct arm_intr_handler), M_INTRNG,
+		   M_WAITOK | M_ZERO);
+	       ic->ic_maxintrs = 1;
+	       ih = &ic->ic_intrs[0];
+	       ih->ih_pic = ic;
+	       ih->ih_ncells = 0;
+       }
+
 	debugf("device %s node %08x slot %d\n", device_get_nameunit(dev),
 	    ic->ic_node, i);
 
