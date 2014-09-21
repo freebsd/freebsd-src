@@ -34,6 +34,7 @@
 #define _NET_ROUTE_H_
 
 #include <sys/counter.h>
+#include <net/vnet.h>
 
 /*
  * Kernel resident routing tables.
@@ -85,7 +86,8 @@ struct rt_metrics {
 #define	RT_DEFAULT_FIB	0	/* Explicitly mark fib=0 restricted cases */
 #define	RT_ALL_FIBS	-1	/* Announce event for every fib */
 extern u_int rt_numfibs;	/* number of usable routing tables */
-extern u_int rt_add_addr_allfibs;	/* Announce interfaces to all fibs */
+VNET_DECLARE(u_int, rt_add_addr_allfibs); /* Announce interfaces to all fibs */
+#define	V_rt_add_addr_allfibs	VNET(rt_add_addr_allfibs)
 
 /*
  * We distinguish between routes to hosts and routes to networks,
