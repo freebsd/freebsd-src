@@ -29,6 +29,8 @@
 #ifndef _VMCB_H_
 #define	_VMCB_H_
 
+struct svm_softc;
+
 /*
  * Secure Virtual Machine: AMD64 Programmer's Manual Vol2, Chapter 15
  * Layout of VMCB: AMD64 Programmer's Manual Vol2, Appendix B
@@ -279,8 +281,10 @@ struct vmcb {
 CTASSERT(sizeof(struct vmcb) == PAGE_SIZE);
 CTASSERT(offsetof(struct vmcb, state) == 0x400);
 
-int	vmcb_read(struct vmcb *vmcb, int ident, uint64_t *retval);
-int	vmcb_write(struct vmcb *vmcb, int ident, uint64_t val);
-struct vmcb_segment *vmcb_seg(struct vmcb *vmcb, int type);
+int	vmcb_read(struct svm_softc *sc, int vcpu, int ident, uint64_t *retval);
+int	vmcb_write(struct svm_softc *sc, int vcpu, int ident, uint64_t val);
+int	vmcb_setdesc(void *arg, int vcpu, int ident, struct seg_desc *desc);
+int	vmcb_getdesc(void *arg, int vcpu, int ident, struct seg_desc *desc);
+int	vmcb_seg(struct vmcb *vmcb, int ident, struct vmcb_segment *seg);
 
 #endif /* _VMCB_H_ */

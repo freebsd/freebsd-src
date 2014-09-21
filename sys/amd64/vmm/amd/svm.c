@@ -89,15 +89,21 @@ SYSCTL_NODE(_hw_vmm, OID_AUTO, svm, CTLFLAG_RW, NULL, NULL);
 				VMCB_CACHE_IOPM		|	\
 				VMCB_CACHE_I		|	\
 				VMCB_CACHE_TPR		|	\
+				VMCB_CACHE_CR2		|	\
+				VMCB_CACHE_CR		|	\
+				VMCB_CACHE_DT		|	\
+				VMCB_CACHE_SEG		|	\
 				VMCB_CACHE_NP)
+
+static uint32_t vmcb_clean = VMCB_CACHE_DEFAULT;
+SYSCTL_INT(_hw_vmm_svm, OID_AUTO, vmcb_clean, CTLFLAG_RDTUN, &vmcb_clean,
+    0, NULL);
 
 MALLOC_DEFINE(M_SVM, "svm", "svm");
 MALLOC_DEFINE(M_SVM_VLAPIC, "svm-vlapic", "svm-vlapic");
 
 /* Per-CPU context area. */
 extern struct pcpu __pcpu[];
-
-static int svm_getdesc(void *arg, int vcpu, int type, struct seg_desc *desc);
 
 static uint32_t svm_feature;	/* AMD SVM features. */
 SYSCTL_UINT(_hw_vmm_svm, OID_AUTO, features, CTLFLAG_RD, &svm_feature, 0,
@@ -128,6 +134,8 @@ static struct svm_regctx host_ctx[MAXCPU];
 static VMM_STAT_AMD(VCPU_EXITINTINFO, "VM exits during event delivery");
 static VMM_STAT_AMD(VCPU_INTINFO_INJECTED, "Events pending at VM entry");
 static VMM_STAT_AMD(VMEXIT_VINTR, "VM exits due to interrupt window");
+
+static int svm_setreg(void *arg, int vcpu, int ident, uint64_t val);
 
 /* 
  * Common function to enable or disabled SVM for a CPU.
@@ -292,6 +300,8 @@ svm_init(int ipinum)
 	if (err) 
 		return (err);
 
+	vmcb_clean &= VMCB_CACHE_DEFAULT;
+
 	for (cpu = 0; cpu < MAXCPU; cpu++) {
 		/*
 		 * Initialize the host ASIDs to their "highest" valid values.
@@ -410,16 +420,6 @@ svm_msr_rd_ok(uint8_t *perm_bitmap, uint64_t msr)
 	return svm_msr_perm(perm_bitmap, msr, true, false);
 }
 
-static __inline void
-vcpu_set_dirty(struct svm_softc *sc, int vcpu, uint32_t dirtybits)
-{
-	struct svm_vcpu *vcpustate;
-
-	vcpustate = svm_get_vcpu(sc, vcpu);
-
-	vcpustate->dirty |= dirtybits;
-}
-
 static __inline int
 svm_get_intercept(struct svm_softc *sc, int vcpu, int idx, uint32_t bitmask)
 {
@@ -449,7 +449,7 @@ svm_set_intercept(struct svm_softc *sc, int vcpu, int idx, uint32_t bitmask,
 		ctrl->intercept[idx] &= ~bitmask;
 
 	if (ctrl->intercept[idx] != oldval) {
-		vcpu_set_dirty(sc, vcpu, VMCB_CACHE_I);
+		svm_set_dirty(sc, vcpu, VMCB_CACHE_I);
 		VCPU_CTR3(sc->vm, vcpu, "intercept[%d] modified "
 		    "from %#x to %#x", idx, oldval, ctrl->intercept[idx]);
 	}
@@ -592,6 +592,10 @@ svm_vminit(struct vm *vm, pmap_t pmap)
 	svm_msr_rw_ok(svm_sc->msr_bitmap, MSR_PAT);
 
 	svm_msr_rd_ok(svm_sc->msr_bitmap, MSR_TSC);
+
+	/*
+	 * Intercept writes to make sure that the EFER_SVM bit is not cleared.
+	 */
 	svm_msr_rd_ok(svm_sc->msr_bitmap, MSR_EFER);
 
 	 /* Intercept access to all I/O ports. */
@@ -627,18 +631,22 @@ svm_cpl(struct vmcb_state *state)
 static enum vm_cpu_mode
 svm_vcpu_mode(struct vmcb *vmcb)
 {
-	struct vmcb_segment *seg;
+	struct vmcb_segment seg;
 	struct vmcb_state *state;
+	int error;
 
 	state = &vmcb->state;
 
 	if (state->efer & EFER_LMA) {
-		seg = vmcb_seg(vmcb, VM_REG_GUEST_CS);
+		error = vmcb_seg(vmcb, VM_REG_GUEST_CS, &seg);
+		KASSERT(error == 0, ("%s: vmcb_seg(cs) error %d", __func__,
+		    error));
+
 		/*
 		 * Section 4.8.1 for APM2, check if Code Segment has
 		 * Long attribute set in descriptor.
 		 */
-		if (seg->attrib & VMCB_CS_ATTRIB_L)
+		if (seg.attrib & VMCB_CS_ATTRIB_L)
 			return (CPU_MODE_64BIT);
 		else
 			return (CPU_MODE_COMPATIBILITY);
@@ -700,7 +708,7 @@ svm_inout_str_seginfo(struct svm_softc *svm_sc, int vcpu, int64_t info1,
 		vis->seg_name = vm_segment_name(s);
 	}
 
-	error = svm_getdesc(svm_sc, vcpu, vis->seg_name, &vis->seg_desc);
+	error = vmcb_getdesc(svm_sc, vcpu, vis->seg_name, &vis->seg_desc);
 	KASSERT(error == 0, ("%s: svm_getdesc error %d", __func__, error));
 }
 
@@ -824,10 +832,10 @@ static void
 svm_handle_inst_emul(struct vmcb *vmcb, uint64_t gpa, struct vm_exit *vmexit)
 {
 	struct vm_guest_paging *paging;
-	struct vmcb_segment *seg;
+	struct vmcb_segment seg;
 	struct vmcb_ctrl *ctrl;
 	char *inst_bytes;
-	int inst_len;
+	int error, inst_len;
 
 	ctrl = &vmcb->ctrl;
 	paging = &vmexit->u.inst_emul.paging;
@@ -837,14 +845,16 @@ svm_handle_inst_emul(struct vmcb *vmcb, uint64_t gpa, struct vm_exit *vmexit)
 	vmexit->u.inst_emul.gla = VIE_INVALID_GLA;
 	svm_paging_info(vmcb, paging);
 
-	seg = vmcb_seg(vmcb, VM_REG_GUEST_CS);
+	error = vmcb_seg(vmcb, VM_REG_GUEST_CS, &seg);
+	KASSERT(error == 0, ("%s: vmcb_seg(CS) error %d", __func__, error));
+
 	switch(paging->cpu_mode) {
 	case CPU_MODE_PROTECTED:
 	case CPU_MODE_COMPATIBILITY:
 		/*
 		 * Section 4.8.1 of APM2, Default Operand Size or D bit.
 		 */
-		vmexit->u.inst_emul.cs_d = (seg->attrib & VMCB_CS_ATTRIB_D) ?
+		vmexit->u.inst_emul.cs_d = (seg.attrib & VMCB_CS_ATTRIB_D) ?
 		    1 : 0;
 		break;
 	default:
@@ -863,28 +873,6 @@ svm_handle_inst_emul(struct vmcb *vmcb, uint64_t gpa, struct vm_exit *vmexit)
 		inst_bytes = NULL;
 	}
 	vie_init(&vmexit->u.inst_emul.vie, inst_bytes, inst_len);
-}
-
-/*
- * Intercept access to MSR_EFER to prevent the guest from clearing the
- * SVM enable bit.
- */
-static int
-svm_write_efer(struct svm_softc *sc, int vcpu, uint64_t val)
-{
-	struct vmcb_state *state;
-	uint64_t oldval;
-
-	state = svm_get_vmcb_state(sc, vcpu);
-
-	oldval = state->efer;
-	state->efer = val | EFER_SVM;
-	if (state->efer != oldval) {
-		VCPU_CTR2(sc->vm, vcpu, "Guest EFER changed from %#lx to %#lx",
-		    oldval, state->efer);
-		vcpu_set_dirty(sc, vcpu, VMCB_CACHE_CR);
-	}
-	return (0);
 }
 
 #ifdef KTR
@@ -1028,7 +1016,7 @@ enable_intr_window_exiting(struct svm_softc *sc, int vcpu)
 	ctrl->v_irq = 1;
 	ctrl->v_ign_tpr = 1;
 	ctrl->v_intr_vector = 0;
-	vcpu_set_dirty(sc, vcpu, VMCB_CACHE_TPR);
+	svm_set_dirty(sc, vcpu, VMCB_CACHE_TPR);
 	svm_enable_intercept(sc, vcpu, VMCB_CTRL1_INTCPT, VMCB_INTCPT_VINTR);
 }
 
@@ -1053,7 +1041,7 @@ disable_intr_window_exiting(struct svm_softc *sc, int vcpu)
 #endif
 	ctrl->v_irq = 0;
 	ctrl->v_intr_vector = 0;
-	vcpu_set_dirty(sc, vcpu, VMCB_CACHE_TPR);
+	svm_set_dirty(sc, vcpu, VMCB_CACHE_TPR);
 	svm_disable_intercept(sc, vcpu, VMCB_CTRL1_INTCPT, VMCB_INTCPT_VINTR);
 }
 
@@ -1144,7 +1132,7 @@ emulate_wrmsr(struct svm_softc *sc, int vcpu, u_int num, uint64_t val,
 	if (lapic_msr(num))
 		error = lapic_wrmsr(sc->vm, vcpu, num, val, retu);
 	else if (num == MSR_EFER)
-		error = svm_write_efer(sc, vcpu, val);
+		error = svm_setreg(sc, vcpu, VM_REG_GUEST_EFER, val);
 	else
 		error = svm_wrmsr(sc, vcpu, num, val, retu);
 
@@ -1622,7 +1610,7 @@ done:
 		VCPU_CTR2(sc->vm, vcpu, "VMCB V_TPR changed from %#x to %#x",
 		    ctrl->v_tpr, v_tpr);
 		ctrl->v_tpr = v_tpr;
-		vcpu_set_dirty(sc, vcpu, VMCB_CACHE_TPR);
+		svm_set_dirty(sc, vcpu, VMCB_CACHE_TPR);
 	}
 
 	if (pending_apic_vector) {
@@ -1638,7 +1626,7 @@ done:
 		ctrl->v_ign_tpr = 0;
 		ctrl->v_intr_vector = pending_apic_vector;
 		ctrl->v_intr_prio = pending_apic_vector >> 4;
-		vcpu_set_dirty(sc, vcpu, VMCB_CACHE_TPR);
+		svm_set_dirty(sc, vcpu, VMCB_CACHE_TPR);
 	} else if (need_intr_window) {
 		/*
 		 * We use V_IRQ in conjunction with the VINTR intercept to
@@ -1764,7 +1752,7 @@ check_asid(struct svm_softc *sc, int vcpuid, pmap_t pmap, u_int thiscpu)
 		vcpustate->asid.num = asid[thiscpu].num;
 
 		ctrl->asid = vcpustate->asid.num;
-		vcpu_set_dirty(sc, vcpuid, VMCB_CACHE_ASID);
+		svm_set_dirty(sc, vcpuid, VMCB_CACHE_ASID);
 		/*
 		 * If this cpu supports "flush-by-asid" then the TLB
 		 * was not flushed after the generation bump. The TLB
@@ -1830,7 +1818,7 @@ svm_vmrun(void *arg, int vcpu, register_t rip, pmap_t pmap,
 		/*
 		 * Invalidate the VMCB state cache by marking all fields dirty.
 		 */
-		vcpu_set_dirty(svm_sc, vcpu, 0xffffffff);
+		svm_set_dirty(svm_sc, vcpu, 0xffffffff);
 
 		/*
 		 * XXX
@@ -1891,7 +1879,7 @@ svm_vmrun(void *arg, int vcpu, register_t rip, pmap_t pmap,
 		 */
 		check_asid(svm_sc, vcpu, pmap, thiscpu);
 
-		ctrl->vmcb_clean = VMCB_CACHE_DEFAULT & ~vcpustate->dirty;
+		ctrl->vmcb_clean = vmcb_clean & ~vcpustate->dirty;
 		vcpustate->dirty = 0;
 		VCPU_CTR1(vm, vcpu, "vmcb clean %#x", ctrl->vmcb_clean);
 
@@ -2001,17 +1989,15 @@ static int
 svm_getreg(void *arg, int vcpu, int ident, uint64_t *val)
 {
 	struct svm_softc *svm_sc;
-	struct vmcb *vmcb;
 	register_t *reg;
 
 	svm_sc = arg;
-	vmcb = svm_get_vmcb(svm_sc, vcpu);
 
 	if (ident == VM_REG_GUEST_INTR_SHADOW) {
 		return (svm_get_intr_shadow(svm_sc, vcpu, val));
 	}
 
-	if (vmcb_read(vmcb, ident, val) == 0) {
+	if (vmcb_read(svm_sc, vcpu, ident, val) == 0) {
 		return (0);
 	}
 
@@ -2034,17 +2020,15 @@ static int
 svm_setreg(void *arg, int vcpu, int ident, uint64_t val)
 {
 	struct svm_softc *svm_sc;
-	struct vmcb *vmcb;
 	register_t *reg;
 
 	svm_sc = arg;
-	vmcb = svm_get_vmcb(svm_sc, vcpu);
 
 	if (ident == VM_REG_GUEST_INTR_SHADOW) {
 		return (svm_modify_intr_shadow(svm_sc, vcpu, val));
 	}
 
-	if (vmcb_write(vmcb, ident, val) == 0) {
+	if (vmcb_write(svm_sc, vcpu, ident, val) == 0) {
 		return (0);
 	}
 
@@ -2063,81 +2047,6 @@ svm_setreg(void *arg, int vcpu, int ident, uint64_t val)
 
  	ERR("SVM_ERR:reg type %x is not saved in VMCB.\n", ident);
 	return (EINVAL);
-}
-
-
-/*
- * Inteface to set various descriptors.
- */
-static int
-svm_setdesc(void *arg, int vcpu, int type, struct seg_desc *desc)
-{
-	struct svm_softc *svm_sc;
-	struct vmcb *vmcb;
-	struct vmcb_segment *seg;
-	uint16_t attrib;
-
-	svm_sc = arg;
-	vmcb = svm_get_vmcb(svm_sc, vcpu);
-
-	VCPU_CTR1(svm_sc->vm, vcpu, "SVM:set_desc: Type%d\n", type);
-
-	seg = vmcb_seg(vmcb, type);
-	if (seg == NULL) {
-		ERR("SVM_ERR:Unsupported segment type%d\n", type);
-		return (EINVAL);
-	}
-
-	/* Map seg_desc access to VMCB attribute format.*/
-	attrib = ((desc->access & 0xF000) >> 4) | (desc->access & 0xFF);
-	VCPU_CTR3(svm_sc->vm, vcpu, "SVM:[sel %d attribute 0x%x limit:0x%x]\n",
-		type, desc->access, desc->limit);
-	seg->attrib = attrib;
-	seg->base = desc->base;
-	seg->limit = desc->limit;
-
-	return (0);
-}
-
-/*
- * Interface to get guest descriptor.
- */
-static int
-svm_getdesc(void *arg, int vcpu, int type, struct seg_desc *desc)
-{
-	struct svm_softc *svm_sc;
-	struct vmcb_segment	*seg;
-
-	svm_sc = arg;
-	VCPU_CTR1(svm_sc->vm, vcpu, "SVM:get_desc: Type%d\n", type);
-
-	seg = vmcb_seg(svm_get_vmcb(svm_sc, vcpu), type);
-	if (!seg) {
-		ERR("SVM_ERR:Unsupported segment type%d\n", type);
-		return (EINVAL);
-	}
-	
-	/* Map seg_desc access to VMCB attribute format.*/
-	desc->access = ((seg->attrib & 0xF00) << 4) | (seg->attrib & 0xFF);
-	desc->base = seg->base;
-	desc->limit = seg->limit;
-
-	/*
-	 * VT-x uses bit 16 (Unusable) to indicate a segment that has been
-	 * loaded with a NULL segment selector. The 'desc->access' field is
-	 * interpreted in the VT-x format by the processor-independent code.
-	 *
-	 * SVM uses the 'P' bit to convey the same information so convert it
-	 * into the VT-x format. For more details refer to section
-	 * "Segment State in the VMCB" in APMv2.
-	 */
-	if (type == VM_REG_GUEST_CS && type == VM_REG_GUEST_TR)
-		desc->access |= 0x80;		/* CS and TS always present */
-
-	if (!(desc->access & 0x80))
-		desc->access |= 0x10000;	/* Unusable segment */
-
-	return (0);
 }
 
 static int
@@ -2231,8 +2140,8 @@ struct vmm_ops vmm_ops_amd = {
 	svm_vmcleanup,
 	svm_getreg,
 	svm_setreg,
-	svm_getdesc,
-	svm_setdesc,
+	vmcb_getdesc,
+	vmcb_setdesc,
 	svm_getcap,
 	svm_setcap,
 	svm_npt_alloc,

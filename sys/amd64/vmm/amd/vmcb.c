@@ -35,8 +35,11 @@ __FBSDID("$FreeBSD$");
 #include <machine/specialreg.h>
 #include <machine/vmm.h>
 
+#include "vmm_ktr.h"
+
 #include "vmcb.h"
 #include "svm.h"
+#include "svm_softc.h"
 
 /*
  * The VMCB aka Virtual Machine Control Block is a 4KB aligned page
@@ -49,174 +52,10 @@ __FBSDID("$FreeBSD$");
  */
 
 /*
- * Read from segment selector, control and general purpose register of VMCB.
- */
-int
-vmcb_read(struct vmcb *vmcb, int ident, uint64_t *retval)
-{
-	struct vmcb_state *state;
-	struct vmcb_segment *seg;
-	int err;
-
-	state = &vmcb->state;
-	err = 0;
-
-	switch (ident) {
-	case VM_REG_GUEST_CR0:
-		*retval = state->cr0;
-		break;
-
-	case VM_REG_GUEST_CR2:
-		*retval = state->cr2;
-		break;
-
-	case VM_REG_GUEST_CR3:
-		*retval = state->cr3;
-		break;
-
-	case VM_REG_GUEST_CR4:
-		*retval = state->cr4;
-		break;
-
-	case VM_REG_GUEST_DR7:
-		*retval = state->dr7;
-		break;
-
-	case VM_REG_GUEST_EFER:
-		*retval = state->efer;
-		break;
-
-	case VM_REG_GUEST_RAX:
-		*retval = state->rax;
-		break;
-
-	case VM_REG_GUEST_RFLAGS:
-		*retval = state->rflags;
-		break;
-
-	case VM_REG_GUEST_RIP:
-		*retval = state->rip;
-		break;
-
-	case VM_REG_GUEST_RSP:
-		*retval = state->rsp;
-		break;
-
-	case VM_REG_GUEST_CS:
-	case VM_REG_GUEST_DS:
-	case VM_REG_GUEST_ES:
-	case VM_REG_GUEST_FS:
-	case VM_REG_GUEST_GS:
-	case VM_REG_GUEST_SS:
-	case VM_REG_GUEST_GDTR:
-	case VM_REG_GUEST_IDTR:
-	case VM_REG_GUEST_LDTR:
-	case VM_REG_GUEST_TR:
-		seg = vmcb_seg(vmcb, ident);
-		if (seg == NULL) {
-			ERR("Invalid seg type %d\n", ident);
-			err = EINVAL;
-			break;
-		}
-
-		*retval = seg->selector;
-		break;
-
-	default:
-		err =  EINVAL;
-		break;
-	}
-
-	return (err);
-}
-
-/*
- * Write to segment selector, control and general purpose register of VMCB.
- */
-int
-vmcb_write(struct vmcb *vmcb, int ident, uint64_t val)
-{
-	struct vmcb_state *state;
-	struct vmcb_segment *seg;
-	int err;
-
-	state = &vmcb->state;
-	err = 0;
-
-	switch (ident) {
-	case VM_REG_GUEST_CR0:
-		state->cr0 = val;
-		break;
-
-	case VM_REG_GUEST_CR2:
-		state->cr2 = val;
-		break;
-
-	case VM_REG_GUEST_CR3:
-		state->cr3 = val;
-		break;
-
-	case VM_REG_GUEST_CR4:
-		state->cr4 = val;
-		break;
-
-	case VM_REG_GUEST_DR7:
-		state->dr7 = val;
-		break;
-
-	case VM_REG_GUEST_EFER:
-		/* EFER_SVM must always be set when the guest is executing */
-		state->efer = val | EFER_SVM;
-		break;
-
-	case VM_REG_GUEST_RAX:
-		state->rax = val;
-		break;
-
-	case VM_REG_GUEST_RFLAGS:
-		state->rflags = val;
-		break;
-
-	case VM_REG_GUEST_RIP:
-		state->rip = val;
-		break;
-
-	case VM_REG_GUEST_RSP:
-		state->rsp = val;
-		break;
-
-	case VM_REG_GUEST_CS:
-	case VM_REG_GUEST_DS:
-	case VM_REG_GUEST_ES:
-	case VM_REG_GUEST_FS:
-	case VM_REG_GUEST_GS:
-	case VM_REG_GUEST_SS:
-	case VM_REG_GUEST_GDTR:
-	case VM_REG_GUEST_IDTR:
-	case VM_REG_GUEST_LDTR:
-	case VM_REG_GUEST_TR:
-		seg = vmcb_seg(vmcb, ident);
-		if (seg == NULL) {
-			ERR("Invalid segment type %d\n", ident);
-			err = EINVAL;
-			break;
-		}
-
-		seg->selector = val;
-		break;
-
-	default:
-		err = EINVAL;
-	}
-
-	return (err);
-}
-
-/*
  * Return VMCB segment area.
  */
-struct vmcb_segment *
-vmcb_seg(struct vmcb *vmcb, int type)
+static struct vmcb_segment *
+vmcb_segptr(struct vmcb *vmcb, int type)
 {
 	struct vmcb_state *state;
 	struct vmcb_segment *seg;
@@ -270,4 +109,286 @@ vmcb_seg(struct vmcb *vmcb, int type)
 	}
 
 	return (seg);
+}
+
+/*
+ * Read from segment selector, control and general purpose register of VMCB.
+ */
+int
+vmcb_read(struct svm_softc *sc, int vcpu, int ident, uint64_t *retval)
+{
+	struct vmcb *vmcb;
+	struct vmcb_state *state;
+	struct vmcb_segment *seg;
+	int err;
+
+	vmcb = svm_get_vmcb(sc, vcpu);
+	state = &vmcb->state;
+	err = 0;
+
+	switch (ident) {
+	case VM_REG_GUEST_CR0:
+		*retval = state->cr0;
+		break;
+
+	case VM_REG_GUEST_CR2:
+		*retval = state->cr2;
+		break;
+
+	case VM_REG_GUEST_CR3:
+		*retval = state->cr3;
+		break;
+
+	case VM_REG_GUEST_CR4:
+		*retval = state->cr4;
+		break;
+
+	case VM_REG_GUEST_DR7:
+		*retval = state->dr7;
+		break;
+
+	case VM_REG_GUEST_EFER:
+		*retval = state->efer;
+		break;
+
+	case VM_REG_GUEST_RAX:
+		*retval = state->rax;
+		break;
+
+	case VM_REG_GUEST_RFLAGS:
+		*retval = state->rflags;
+		break;
+
+	case VM_REG_GUEST_RIP:
+		*retval = state->rip;
+		break;
+
+	case VM_REG_GUEST_RSP:
+		*retval = state->rsp;
+		break;
+
+	case VM_REG_GUEST_CS:
+	case VM_REG_GUEST_DS:
+	case VM_REG_GUEST_ES:
+	case VM_REG_GUEST_FS:
+	case VM_REG_GUEST_GS:
+	case VM_REG_GUEST_SS:
+	case VM_REG_GUEST_LDTR:
+	case VM_REG_GUEST_TR:
+		seg = vmcb_segptr(vmcb, ident);
+		KASSERT(seg != NULL, ("%s: unable to get segment %d from VMCB",
+		    __func__, ident));
+		*retval = seg->selector;
+		break;
+
+	case VM_REG_GUEST_GDTR:
+	case VM_REG_GUEST_IDTR:
+		/* GDTR and IDTR don't have segment selectors */
+		err = EINVAL;
+		break;
+	default:
+		err =  EINVAL;
+		break;
+	}
+
+	return (err);
+}
+
+/*
+ * Write to segment selector, control and general purpose register of VMCB.
+ */
+int
+vmcb_write(struct svm_softc *sc, int vcpu, int ident, uint64_t val)
+{
+	struct vmcb *vmcb;
+	struct vmcb_state *state;
+	struct vmcb_segment *seg;
+	int err, dirtyseg;
+
+	vmcb = svm_get_vmcb(sc, vcpu);
+	state = &vmcb->state;
+	dirtyseg = 0;
+	err = 0;
+
+	switch (ident) {
+	case VM_REG_GUEST_CR0:
+		state->cr0 = val;
+		svm_set_dirty(sc, vcpu, VMCB_CACHE_CR);
+		break;
+
+	case VM_REG_GUEST_CR2:
+		state->cr2 = val;
+		svm_set_dirty(sc, vcpu, VMCB_CACHE_CR2);
+		break;
+
+	case VM_REG_GUEST_CR3:
+		state->cr3 = val;
+		svm_set_dirty(sc, vcpu, VMCB_CACHE_CR);
+		break;
+
+	case VM_REG_GUEST_CR4:
+		state->cr4 = val;
+		svm_set_dirty(sc, vcpu, VMCB_CACHE_CR);
+		break;
+
+	case VM_REG_GUEST_DR7:
+		state->dr7 = val;
+		break;
+
+	case VM_REG_GUEST_EFER:
+		/* EFER_SVM must always be set when the guest is executing */
+		state->efer = val | EFER_SVM;
+		svm_set_dirty(sc, vcpu, VMCB_CACHE_CR);
+		break;
+
+	case VM_REG_GUEST_RAX:
+		state->rax = val;
+		break;
+
+	case VM_REG_GUEST_RFLAGS:
+		state->rflags = val;
+		break;
+
+	case VM_REG_GUEST_RIP:
+		state->rip = val;
+		break;
+
+	case VM_REG_GUEST_RSP:
+		state->rsp = val;
+		break;
+
+	case VM_REG_GUEST_CS:
+	case VM_REG_GUEST_DS:
+	case VM_REG_GUEST_ES:
+	case VM_REG_GUEST_SS:
+		dirtyseg = 1;		/* FALLTHROUGH */
+	case VM_REG_GUEST_FS:
+	case VM_REG_GUEST_GS:
+	case VM_REG_GUEST_LDTR:
+	case VM_REG_GUEST_TR:
+		seg = vmcb_segptr(vmcb, ident);
+		KASSERT(seg != NULL, ("%s: unable to get segment %d from VMCB",
+		    __func__, ident));
+		seg->selector = val;
+		if (dirtyseg)
+			svm_set_dirty(sc, vcpu, VMCB_CACHE_SEG);
+		break;
+
+	case VM_REG_GUEST_GDTR:
+	case VM_REG_GUEST_IDTR:
+		/* GDTR and IDTR don't have segment selectors */
+		err = EINVAL;
+		break;
+	default:
+		err = EINVAL;
+		break;
+	}
+
+	return (err);
+}
+
+int
+vmcb_seg(struct vmcb *vmcb, int ident, struct vmcb_segment *seg2)
+{
+	struct vmcb_segment *seg;
+
+	seg = vmcb_segptr(vmcb, ident);
+	if (seg != NULL) {
+		bcopy(seg, seg2, sizeof(struct vmcb_segment));
+		return (0);
+	} else {
+		return (EINVAL);
+	}
+}
+
+int
+vmcb_setdesc(void *arg, int vcpu, int reg, struct seg_desc *desc)
+{
+	struct vmcb *vmcb;
+	struct svm_softc *sc;
+	struct vmcb_segment *seg;
+	uint16_t attrib;
+
+	sc = arg;
+	vmcb = svm_get_vmcb(sc, vcpu);
+
+	seg = vmcb_segptr(vmcb, reg);
+	KASSERT(seg != NULL, ("%s: invalid segment descriptor %d",
+	    __func__, reg));
+
+	seg->base = desc->base;
+	seg->limit = desc->limit;
+	if (reg != VM_REG_GUEST_GDTR && reg != VM_REG_GUEST_IDTR) {
+		/*
+		 * Map seg_desc access to VMCB attribute format.
+		 *
+		 * SVM uses the 'P' bit in the segment attributes to indicate a
+		 * NULL segment so clear it if the segment is marked unusable.
+		 */
+		attrib = ((desc->access & 0xF000) >> 4) | (desc->access & 0xFF);
+		if (SEG_DESC_UNUSABLE(desc->access)) {
+			attrib &= ~0x80;
+		}
+		seg->attrib = attrib;
+	}
+
+	VCPU_CTR4(sc->vm, vcpu, "Setting desc %d: base (%#lx), limit (%#x), "
+	    "attrib (%#x)", reg, seg->base, seg->limit, seg->attrib);
+
+	switch (reg) {
+	case VM_REG_GUEST_CS:
+	case VM_REG_GUEST_DS:
+	case VM_REG_GUEST_ES:
+	case VM_REG_GUEST_SS:
+		svm_set_dirty(sc, vcpu, VMCB_CACHE_SEG);
+	case VM_REG_GUEST_GDTR:
+	case VM_REG_GUEST_IDTR:
+		svm_set_dirty(sc, vcpu, VMCB_CACHE_DT);
+		break;
+	default:
+		break;
+	}
+
+	return (0);
+}
+
+int
+vmcb_getdesc(void *arg, int vcpu, int reg, struct seg_desc *desc)
+{
+	struct vmcb *vmcb;
+	struct svm_softc *sc;
+	struct vmcb_segment *seg;
+
+	sc = arg;
+	vmcb = svm_get_vmcb(sc, vcpu);
+	seg = vmcb_segptr(vmcb, reg);
+	KASSERT(seg != NULL, ("%s: invalid segment descriptor %d",
+	    __func__, reg));
+
+	desc->base = seg->base;
+	desc->limit = seg->limit;
+	desc->access = 0;
+
+	if (reg != VM_REG_GUEST_GDTR && reg != VM_REG_GUEST_IDTR) {
+		/* Map seg_desc access to VMCB attribute format */
+		desc->access = ((seg->attrib & 0xF00) << 4) |
+		    (seg->attrib & 0xFF);
+
+		/*
+		 * VT-x uses bit 16 to indicate a segment that has been loaded
+		 * with a NULL selector (aka unusable). The 'desc->access'
+		 * field is interpreted in the VT-x format by the
+		 * processor-independent code.
+		 *
+		 * SVM uses the 'P' bit to convey the same information so
+		 * convert it into the VT-x format. For more details refer to
+		 * section "Segment State in the VMCB" in APMv2.
+		 */
+		if (reg != VM_REG_GUEST_CS && reg != VM_REG_GUEST_TR) {
+			if ((desc->access & 0x80) == 0)
+				desc->access |= 0x10000;  /* Unusable segment */
+		}
+	}
+
+	return (0);
 }

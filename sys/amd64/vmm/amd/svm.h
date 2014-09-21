@@ -92,25 +92,4 @@ enable_gintr(void)
         __asm __volatile("stgi" : : :);
 }
 
-static __inline void
-save_cr2(uint64_t *cr2)
-{
-
-	__asm __volatile(
-		"mov %%cr2, %%rax; movq %%rax, %0"	
-		:"=m"(*cr2)	
-		:
-		:"rax", "memory");
-}
-
-static __inline void
-load_cr2(uint64_t *cr2)
-{
-	__asm __volatile(
-		"movq %0, %%rax; movq %%rax, %%cr2"
-		:
-		:"m"(*cr2)	
-		:"rax");
-}
-
 #endif /* _SVM_H_ */

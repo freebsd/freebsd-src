@@ -116,5 +116,14 @@ svm_get_guest_regctx(struct svm_softc *sc, int vcpu)
 	return (&(sc->vcpu[vcpu].swctx));
 }
 
-void svm_dump_vmcb(struct svm_softc *svm_sc, int vcpu);
+static __inline void
+svm_set_dirty(struct svm_softc *sc, int vcpu, uint32_t dirtybits)
+{
+        struct svm_vcpu *vcpustate;
+
+        vcpustate = svm_get_vcpu(sc, vcpu);
+
+        vcpustate->dirty |= dirtybits;
+}
+
 #endif /* _SVM_SOFTC_H_ */
