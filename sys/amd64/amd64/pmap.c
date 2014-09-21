@@ -1115,6 +1115,7 @@ pmap_swap_pat(pmap_t pmap, pt_entry_t entry)
 
 	switch (pmap->pm_type) {
 	case PT_X86:
+	case PT_RVI:
 		/* Verify that both PAT bits are not set at the same time */
 		KASSERT((entry & x86_pat_bits) != x86_pat_bits,
 		    ("Invalid PAT bits in entry %#lx", entry));
@@ -1122,9 +1123,6 @@ pmap_swap_pat(pmap_t pmap, pt_entry_t entry)
 		/* Swap the PAT bits if one of them is set */
 		if ((entry & x86_pat_bits) != 0)
 			entry ^= x86_pat_bits;
-		break;
-	case PT_RVI:
-		/* XXX: PAT support. */
 		break;
 	case PT_EPT:
 		/*
@@ -1153,6 +1151,7 @@ pmap_cache_bits(pmap_t pmap, int mode, boolean_t is_pde)
 
 	switch (pmap->pm_type) {
 	case PT_X86:
+	case PT_RVI:
 		/* The PAT bit is different for PTE's and PDE's. */
 		pat_flag = is_pde ? X86_PG_PDE_PAT : X86_PG_PTE_PAT;
 
@@ -1167,11 +1166,6 @@ pmap_cache_bits(pmap_t pmap, int mode, boolean_t is_pde)
 			cache_bits |= PG_NC_PCD;
 		if (pat_idx & 0x1)
 			cache_bits |= PG_NC_PWT;
-		break;
-
-	case PT_RVI:
-		/* XXX: PAT support. */
-		cache_bits = 0;
 		break;
 
 	case PT_EPT:
@@ -1192,11 +1186,8 @@ pmap_cache_mask(pmap_t pmap, boolean_t is_pde)
 
 	switch (pmap->pm_type) {
 	case PT_X86:
-		mask = is_pde ? X86_PG_PDE_CACHE : X86_PG_PTE_CACHE;
-		break;
 	case PT_RVI:
-		/* XXX: PAT support. */
-		mask = 0;
+		mask = is_pde ? X86_PG_PDE_CACHE : X86_PG_PTE_CACHE;
 		break;
 	case PT_EPT:
 		mask = EPT_PG_IGNORE_PAT | EPT_PG_MEMORY_TYPE(0x7);
@@ -1260,7 +1251,7 @@ pmap_update_pde_invalidate(pmap_t pmap, vm_offset_t va, pd_entry_t newpde)
 
 	if (pmap_type_guest(pmap))
 		return;
-	
+
 	KASSERT(pmap->pm_type == PT_X86,
 	    ("pmap_update_pde_invalidate: invalid type %d", pmap->pm_type));
 
@@ -1376,7 +1367,7 @@ pmap_invalidate_page(pmap_t pmap, vm_offset_t va)
 		pmap_invalidate_ept(pmap);
 		return;
 	}
-	
+
 	KASSERT(pmap->pm_type == PT_X86,
 	    ("pmap_invalidate_page: invalid type %d", pmap->pm_type));
 
