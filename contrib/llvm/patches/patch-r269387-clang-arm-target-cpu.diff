@@ -1,0 +1,34 @@
+Update the ARMv6 core clang targets to be an arm1176jzf-s. This brings us
+in line with gcc in base as this makes llvm generate code for the armv6k
+variant of the instruction set.
+
+Introduced here: http://svnweb.freebsd.org/changeset/base/269387
+
+Index: tools/clang/lib/Driver/ToolChain.cpp
+===================================================================
+--- tools/clang/lib/Driver/ToolChain.cpp	(revision 269386)
++++ tools/clang/lib/Driver/ToolChain.cpp	(revision 269387)
+@@ -183,7 +183,8 @@ static const char *getARMTargetCPU(const ArgList &
+     MArch = Triple.getArchName();
+   }
+ 
+-  if (Triple.getOS() == llvm::Triple::NetBSD) {
++  if (Triple.getOS() == llvm::Triple::NetBSD ||
++      Triple.getOS() == llvm::Triple::FreeBSD) {
+     if (MArch == "armv6")
+       return "arm1176jzf-s";
+   }
+Index: tools/clang/lib/Driver/Tools.cpp
+===================================================================
+--- tools/clang/lib/Driver/Tools.cpp	(revision 269386)
++++ tools/clang/lib/Driver/Tools.cpp	(revision 269387)
+@@ -499,7 +499,8 @@ static std::string getARMTargetCPU(const ArgList &
+     MArch = Triple.getArchName();
+   }
+ 
+-  if (Triple.getOS() == llvm::Triple::NetBSD) {
++  if (Triple.getOS() == llvm::Triple::NetBSD ||
++      Triple.getOS() == llvm::Triple::FreeBSD) {
+     if (MArch == "armv6")
+       return "arm1176jzf-s";
+   }
