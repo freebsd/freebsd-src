@@ -31,6 +31,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/types.h>
 #include <string.h>
 
+#ifndef __CHERI_SANDBOX__
 /*
  * Portable strlen() for 32-bit and 64-bit systems.
  *
@@ -128,3 +129,17 @@ strlen(const char *str)
 	/* NOTREACHED */
 	return (0);
 }
+#else /* __CHERI_SANDBOX__ */
+size_t
+strlen(const char *str)
+{
+	const char *p;
+
+	p = str;
+
+	while (*p != '\0')
+		p++;
+
+	return (p - str);
+}
+#endif /* __CHERI_SANDBOX__ */
