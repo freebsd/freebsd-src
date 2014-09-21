@@ -277,7 +277,7 @@ __FBSDID("$FreeBSD: projects/ipfw/sys/netpfil/ipfw/ip_fw_table.c 267384 2014-06-
  * Dumps options like items size/hash size, etc.
  */
 
-static MALLOC_DEFINE(M_IPFW_TBL, "ipfw_tbl", "IpFw tables");
+MALLOC_DEFINE(M_IPFW_TBL, "ipfw_tbl", "IpFw tables");
 
 /*
  * Utility structures/functions common to more than one algo
@@ -3807,6 +3807,7 @@ ipfw_table_algo_init(struct ip_fw_chain *ch)
 	ipfw_add_table_algo(ch, &number_array, sz, &number_array.idx);
 	ipfw_add_table_algo(ch, &flow_hash, sz, &flow_hash.idx);
 	ipfw_add_table_algo(ch, &addr_kfib, sz, &addr_kfib.idx);
+	ipfw_add_table_algo(ch, &addr_dxr, sz, &addr_dxr.idx);
 }
 
 void
@@ -3819,6 +3820,7 @@ ipfw_table_algo_destroy(struct ip_fw_chain *ch)
 	ipfw_del_table_algo(ch, number_array.idx);
 	ipfw_del_table_algo(ch, flow_hash.idx);
 	ipfw_del_table_algo(ch, addr_kfib.idx);
+	ipfw_del_table_algo(ch, addr_dxr.idx);
 }
 
 
