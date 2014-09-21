@@ -161,6 +161,10 @@ void ipfw_del_table_algo(struct ip_fw_chain *ch, int idx);
 void ipfw_table_algo_init(struct ip_fw_chain *chain);
 void ipfw_table_algo_destroy(struct ip_fw_chain *chain);
 
+/* external algos */
+extern struct table_algo addr_dxr;
+
+MALLOC_DECLARE(M_IPFW_TBL);
 /* Exported to support legacy opcodes */
 int add_table_entry(struct ip_fw_chain *ch, struct tid_info *ti,
     struct tentry_info *tei, uint8_t flags, uint32_t count);
