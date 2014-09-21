@@ -36,6 +36,7 @@
 __FBSDID("$FreeBSD$");
 #include <sys/param.h>
 #include <sys/systm.h>
+#include <sys/kernel.h>
 #include <sys/syslog.h> 
 #include <sys/malloc.h>
 #include <sys/proc.h>
@@ -47,6 +48,7 @@ __FBSDID("$FreeBSD$");
 #include <machine/cpu.h>
 #include <machine/smp.h>
 
+#include <dev/ofw/openfirm.h>
 #include <dev/ofw/ofw_bus.h>
 #include <dev/ofw/ofw_bus_subr.h>
 
@@ -58,6 +60,7 @@ __FBSDID("$FreeBSD$");
 #define	IRQ_VECTOR_IDX(_irq)	((_irq) & 0xff)
 #define	IRQ_GEN(_pic, _irq)	(((_pic) << 8) | ((_irq) & 0xff))
 
+//#define DEBUG
 #ifdef DEBUG
 #define debugf(fmt, args...) do { printf("%s(): ", __func__);	\
     printf(fmt,##args); } while (0)
@@ -70,6 +73,8 @@ typedef void (*mask_fn)(void *);
 struct arm_intr_controller {
 	device_t		ic_dev;
 	phandle_t		ic_node;
+	int			ic_maxintrs;
+	struct arm_intr_handler	*ic_intrs;
 };
 
 struct arm_intr_handler {
@@ -77,6 +82,10 @@ struct arm_intr_handler {
 	const char *		ih_ipi_name;
 	int			ih_intrcnt_idx;
 	int			ih_irq;
+	pcell_t			ih_cells[8];
+	int			ih_ncells;
+	enum intr_trigger	ih_trig;
+	enum intr_polarity	ih_pol;
 	struct intr_event *	ih_event;
 	struct arm_intr_controller *ih_pic;
 };
@@ -85,12 +94,14 @@ static void arm_mask_irq(void *);
 static void arm_unmask_irq(void *);
 static void arm_eoi(void *);
 
-static struct arm_intr_handler arm_intrs[NIRQ];
 static struct arm_intr_controller arm_pics[NPIC];
 static struct arm_intr_controller *arm_ipi_pic;
 
 static int intrcnt_index = 0;
 static int last_printed = 0;
+
+MALLOC_DECLARE(M_INTRNG);
+MALLOC_DEFINE(M_INTRNG, "intrng", "ARM interrupt handling");
 
 /* Data for statistics reporting. */
 u_long intrcnt[NIRQ];
@@ -109,6 +120,7 @@ arm_intrnames_init(void)
 void
 arm_dispatch_irq(device_t dev, struct trapframe *tf, int irq)
 {
+	struct arm_intr_controller *ic;
 	struct arm_intr_handler *ih = NULL;
 	int i;
 
@@ -122,11 +134,13 @@ arm_dispatch_irq(device_t dev, struct trapframe *tf, int irq)
 	if (tf == NULL)
 		tf = PCPU_GET(curthread)->td_intr_frame;
 
-	for (i = 0; arm_intrs[i].ih_dev != NULL; i++) {
-		if (arm_intrs[i].ih_pic->ic_dev == dev &&
-		    arm_intrs[i].ih_irq == irq) {
-			ih = &arm_intrs[i];
-			break;
+	for (ic = &arm_pics[0]; ic->ic_dev != NULL; ic++) {
+		if (ic->ic_dev == dev) {
+			for (i = 0; i < ic->ic_maxintrs; i++) {
+				ih = &ic->ic_intrs[i];
+				if (irq == ih->ih_irq)
+					break;
+			}
 		}
 	}
 
@@ -147,38 +161,64 @@ arm_dispatch_irq(device_t dev, struct trapframe *tf, int irq)
 }
 
 static struct arm_intr_handler *
-arm_lookup_intr_handler(device_t pic, int irq)
+arm_lookup_intr_handler(device_t pic, int idx)
 {
-	int i;
+	struct arm_intr_controller *ic;
 
-	for (i = 0; i < NIRQ; i++) {
-		if (arm_intrs[i].ih_pic != NULL &&
-		    arm_intrs[i].ih_pic->ic_dev == pic &&
-		    arm_intrs[i].ih_irq == irq)
-			return (&arm_intrs[i]);
-
-		if (arm_intrs[i].ih_dev == NULL)
-			return (&arm_intrs[i]);
+	for (ic = &arm_pics[0]; ic->ic_dev != NULL; ic++) {
+		if (ic->ic_dev != NULL && ic->ic_dev == pic)
+			return (&ic->ic_intrs[idx]);
 	}
 
-	return NULL;
+	return (NULL);
 }
 
+
 int
-arm_fdt_map_irq(phandle_t ic, int irq)
+arm_fdt_map_irq(phandle_t ic, pcell_t *cells, int ncells)
 {
-	int i;
+	struct arm_intr_controller *pic;
+	struct arm_intr_handler *ih;
+	int i, j;
 
 	ic = OF_xref_phandle(ic);
 
-	debugf("ic %08x irq %d\n", ic, irq);
-
-	if (ic == CORE_PIC_NODE)
-		return (IRQ_GEN(CORE_PIC_IDX, irq));
+	debugf("ic %08x cells <%*D>\n", ic, ncells * sizeof(pcell_t),
+	    (char *)cells, ",");
 
 	for (i = 0; arm_pics[i].ic_node != 0; i++) {
-		if (arm_pics[i].ic_node	== ic)
-			return (IRQ_GEN(i, irq));
+		pic = &arm_pics[i];
+		if (pic->ic_node == ic) {
+			for (j = 0; j < pic->ic_maxintrs; j++) {
+				ih = &pic->ic_intrs[j];
+
+				/* Compare pcell contents */
+				if (!memcmp(cells, ih->ih_cells, ncells))
+					return (IRQ_GEN(i, j));
+			}
+
+			/* Not found - new entry required */
+			pic->ic_maxintrs++;
+			pic->ic_intrs = realloc(pic->ic_intrs,
+			    pic->ic_maxintrs * sizeof(struct arm_intr_handler),
+			    M_INTRNG, M_WAITOK | M_ZERO);
+
+			ih = &pic->ic_intrs[pic->ic_maxintrs - 1];
+			ih->ih_pic = pic;
+			ih->ih_ncells = ncells;
+			memcpy(ih->ih_cells, cells, ncells);
+
+			if (pic->ic_dev != NULL) {
+				/* Map IRQ number */
+				PIC_TRANSLATE(pic->ic_dev, cells, &ih->ih_irq,
+				    &ih->ih_trig, &ih->ih_pol);
+
+				debugf(pic->ic_dev, "translated to irq %d\n",
+				    ih->ih_irq);
+			}
+
+			return (IRQ_GEN(i, pic->ic_maxintrs - 1));
+		};
 	}
 
 	/* 
@@ -186,32 +226,53 @@ arm_fdt_map_irq(phandle_t ic, int irq)
 	 * we map a stub for it. 'i' is pointing to free
 	 * first slot in arm_pics table.
 	 */
-	arm_pics[i].ic_node = ic;
-	return (IRQ_GEN(i, irq));
+	debugf("allocating new ic at index %d\n", i);
+
+	pic = &arm_pics[i];
+	pic->ic_node = ic;
+	pic->ic_maxintrs = 1;
+	pic->ic_intrs = malloc(sizeof(struct arm_intr_handler), M_INTRNG,
+	    M_WAITOK | M_ZERO);
+
+	ih = &pic->ic_intrs[0];
+	ih->ih_pic = pic;
+	ih->ih_ncells = ncells;
+	memcpy(ih->ih_cells, cells, ncells);
+
+	return (IRQ_GEN(i, 0));
 }
 
 const char *
 arm_describe_irq(int irq)
 {
 	struct arm_intr_controller *pic;
+	struct arm_intr_handler *ih;
 	static char buffer[INTRNAME_LEN];
 	static char name[INTRNAME_LEN];
 
 	pic = &arm_pics[IRQ_PIC_IDX(irq)];
 
+	if (pic == NULL)
+		return ("<unknown ic>");
+
+	if (IRQ_VECTOR_IDX(irq) > pic->ic_maxintrs)
+		return ("<unknown irq>");
+
+	ih = &pic->ic_intrs[IRQ_VECTOR_IDX(irq)];
+
 	if (pic->ic_dev == NULL) {
 		/*
-		 * Interrupt controller not attached yet, so we'll use it's
-		 * FDT "name" property instead
+		 * Interrupt controller not attached yet. We don't know the
+		 * IC device name nor interrupt number. All we can do is to
+		 * use FDT 'name' property.
 		 */
-		OF_getprop(pic->ic_node, "name", name, sizeof(name));
-		snprintf(buffer, sizeof(buffer), "%s.%d", name,
-		    IRQ_VECTOR_IDX(irq));
+		OF_getprop(ih->ih_pic->ic_node, "name", name, sizeof(name));
+		snprintf(buffer, sizeof(buffer), "%s.?", name);
 		return (buffer);
 	}
 
 	snprintf(buffer, sizeof(buffer), "%s.%d",
-	    device_get_nameunit(pic->ic_dev), IRQ_VECTOR_IDX(irq));
+	    device_get_nameunit(ih->ih_pic->ic_dev), ih->ih_irq);
 
 	return (buffer);
 }
@@ -220,6 +281,7 @@ void
 arm_register_pic(device_t dev, int flags)
 {
 	struct arm_intr_controller *ic = NULL;
+	struct arm_intr_handler *ih;
 	phandle_t node;
 	int i;
 
@@ -247,13 +309,26 @@ arm_register_pic(device_t dev, int flags)
 	ic->ic_dev = dev;
 	ic->ic_node = node;
 
-	debugf("device %s node %08x slot %d\n", device_get_nameunit(dev), ic->ic_node, i);
+	debugf("device %s node %08x slot %d\n", device_get_nameunit(dev),
+	    ic->ic_node, i);
 
 	if (flags & PIC_FEATURE_IPI) {
 		if (arm_ipi_pic != NULL)
-			panic("there's already registered interrupt controller for serving IPIs");
+			panic("there's already registered interrupt "
+			    "controller for serving IPIs");
 
 		arm_ipi_pic = ic;
+	}
+
+	/* Resolve IRQ numbers for interrupt handlers added earlier */
+	for (i = 0; i < ic->ic_maxintrs; i++) {
+		ih = &ic->ic_intrs[i];
+
+		/* Map IRQ number */
+		PIC_TRANSLATE(ic->ic_dev, ih->ih_cells, &ih->ih_irq,
+		    &ih->ih_trig, &ih->ih_pol);
+
+		debugf(ic->ic_dev, "translated to irq %d\n", ih->ih_irq);
 	}
 
 	device_printf(dev, "registered as interrupt controller\n");
@@ -290,14 +365,14 @@ arm_setup_irqhandler(device_t dev, driver_filter_t *filt,
 	if (ih->ih_event == NULL) {
 		error = intr_event_create(&ih->ih_event, (void *)ih, 0, irq,
 		    (mask_fn)arm_mask_irq, (mask_fn)arm_unmask_irq,
-		    arm_eoi, NULL, "intr%d:", irq);
+		    arm_eoi, NULL, "intr%d.%d:", IRQ_PIC_IDX(irq),
+		    IRQ_VECTOR_IDX(irq));
 		
 		if (error)
 			return;
 
 		ih->ih_dev = dev;
 		ih->ih_ipi_name = ipi ? name : NULL;
-		ih->ih_irq = IRQ_VECTOR_IDX(irq);
 		ih->ih_pic = pic;
 
 		arm_unmask_irq(ih);

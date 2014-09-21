@@ -28,10 +28,25 @@
 
 #include <sys/bus.h>
 #include <sys/cpuset.h>
+#include <dev/ofw/openfirm.h>
 
 INTERFACE pic;
 
 CODE {
+	static int null_pic_translate(device_t dev, pcell_t *cells, int *irq,
+	    enum intr_trigger *trig, enum intr_polarity *pol)
+	{
+		*irq = cells[0];
+		*trig = INTR_TRIGGER_CONFORM;
+		*pol = INTR_POLARITY_CONFORM;
+		return (0);
+	}
+
+	static void null_pic_bind(device_t dev, int irq, cpuset_t cpumask)
+	{
+		return;
+	}
+
 	static void null_pic_ipi_send(device_t dev, cpuset_t cpus, int ipi)
 	{
 		return;
@@ -59,6 +74,20 @@ METHOD int config {
 	enum intr_trigger trig;
 	enum intr_polarity pol;
 };
+
+METHOD int translate {
+	device_t	dev;
+	pcell_t		*cells;
+	int		*irq;
+	enum intr_trigger *trig;
+	enum intr_polarity *pol;
+} DEFAULT null_pic_translate;
+
+METHOD void bind {
+	device_t	dev;
+	int		irq;
+	cpuset_t	cpumask;
+} DEFAULT null_pic_bind;
 
 METHOD void eoi {
 	device_t	dev;

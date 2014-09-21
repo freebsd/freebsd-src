@@ -57,7 +57,7 @@
 /* Interrupt controller features used in arm_register_pic(): */
 #define	PIC_FEATURE_IPI	0x1
 
-int arm_fdt_map_irq(phandle_t ic, int irq);
+int arm_fdt_map_irq(phandle_t ic, pcell_t *cells, int ncells);
 void arm_register_pic(device_t dev, int features);
 void arm_unregister_pic(device_t dev);
 void arm_dispatch_irq(device_t dev, struct trapframe *tf, int irq);
@@ -113,13 +113,12 @@ extern void (*arm_post_filter)(void *);
 extern int (*arm_config_irq)(int irq, enum intr_trigger trig,
     enum intr_polarity pol);
 
-void arm_irq_memory_barrier(uintptr_t);
-
 void gic_init_secondary(void);
 
 #endif /* !ARM_INTRNG */
 
 const char *arm_describe_irq(int irq);
 void arm_intrnames_init(void);
+void arm_irq_memory_barrier(uintptr_t);
 
 #endif	/* _MACHINE_INTR_H */
