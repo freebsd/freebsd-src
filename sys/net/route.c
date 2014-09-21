@@ -108,9 +108,9 @@ SYSCTL_UINT(_net, OID_AUTO, fibs, CTLFLAG_RDTUN, &rt_numfibs, 0, "");
  * always work given the fib can be overridden and prefixes can be added
  * from the network stack context.
  */
-u_int rt_add_addr_allfibs = 1;
-SYSCTL_UINT(_net, OID_AUTO, add_addr_allfibs, CTLFLAG_RWTUN,
-    &rt_add_addr_allfibs, 0, "");
+VNET_DEFINE(u_int, rt_add_addr_allfibs) = 1;
+SYSCTL_UINT(_net, OID_AUTO, add_addr_allfibs, CTLFLAG_RWTUN | CTLFLAG_VNET,
+    &VNET_NAME(rt_add_addr_allfibs), 0, "");
 
 VNET_DEFINE(struct rtstat, rtstat);
 #define	V_rtstat	VNET(rtstat)
@@ -1613,9 +1613,9 @@ rtinit1(struct ifaddr *ifa, int cmd, int flags, int fibnum)
 		break;
 	}
 	if (fibnum == RT_ALL_FIBS) {
-		if (rt_add_addr_allfibs == 0 && cmd == (int)RTM_ADD) {
+		if (V_rt_add_addr_allfibs == 0 && cmd == (int)RTM_ADD)
 			startfib = endfib = ifa->ifa_ifp->if_fib;
-		} else {
+		else {
 			startfib = 0;
 			endfib = rt_numfibs - 1;
 		}
