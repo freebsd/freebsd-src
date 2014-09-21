@@ -210,14 +210,14 @@ arm_gic_attach(device_t dev)
 	sc->gic_c_bst = rman_get_bustag(sc->gic_res[1]);
 	sc->gic_c_bsh = rman_get_bushandle(sc->gic_res[1]);
 
-	arm_register_pic(dev, PIC_FEATURE_IPI);
-
 	if (bus_setup_intr(dev, sc->gic_res[2], INTR_TYPE_MISC | INTR_CONTROLLER,
 	    arm_gic_intr, NULL, sc, &sc->gic_intrhand)) {
 		device_printf(dev, "could not setup interrupt handler\n");
 		bus_release_resources(dev, arm_gic_spec, sc->gic_res);
 		return (ENXIO);
 	}
+
+	arm_register_pic(dev, PIC_FEATURE_IPI);
 
 	/* Disable interrupt forwarding to the CPU interface */
 	gic_d_write_4(sc, GICD_CTLR, 0x00);
