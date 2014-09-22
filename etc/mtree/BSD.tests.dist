@@ -89,6 +89,8 @@
             ..
             libnv
             ..
+            libproc
+            ..
             libutil
             ..
         ..
