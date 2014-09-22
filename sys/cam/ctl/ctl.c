@@ -440,7 +440,7 @@ static void ctl_enqueue_rtr(union ctl_io *io);
 static void ctl_enqueue_done(union ctl_io *io);
 static void ctl_enqueue_isc(union ctl_io *io);
 static const struct ctl_cmd_entry *
-    ctl_get_cmd_entry(struct ctl_scsiio *ctsio);
+    ctl_get_cmd_entry(struct ctl_scsiio *ctsio, int *sa);
 static const struct ctl_cmd_entry *
     ctl_validate_command(struct ctl_scsiio *ctsio);
 static int ctl_cmd_applicable(uint8_t lun_type,
@@ -644,7 +644,7 @@ ctl_isc_event_handler(ctl_ha_channel channel, ctl_ha_event event, int param)
 			if (ctl_softc->ha_mode == CTL_HA_MODE_XFER) {
 				const struct ctl_cmd_entry *entry;
 
-				entry = ctl_get_cmd_entry(&io->scsiio);
+				entry = ctl_get_cmd_entry(&io->scsiio, NULL);
 				io->io_hdr.flags &= ~CTL_FLAG_DATA_MASK;
 				io->io_hdr.flags |=
 					entry->flags & CTL_FLAG_DATA_MASK;
@@ -11035,8 +11035,8 @@ ctl_check_for_blockage(struct ctl_lun *lun, union ctl_io *pending_io,
 	  || (ooa_io->scsiio.tag_type == CTL_TAG_ORDERED)))
 		return (CTL_ACTION_BLOCK);
 
-	pending_entry = ctl_get_cmd_entry(&pending_io->scsiio);
-	ooa_entry = ctl_get_cmd_entry(&ooa_io->scsiio);
+	pending_entry = ctl_get_cmd_entry(&pending_io->scsiio, NULL);
+	ooa_entry = ctl_get_cmd_entry(&ooa_io->scsiio, NULL);
 
 	serialize_row = ctl_serialize_table[ooa_entry->seridx];
 
@@ -11209,7 +11209,7 @@ ctl_check_blocked(struct ctl_lun *lun)
 				}
 				break;
 			}
-			entry = ctl_get_cmd_entry(&cur_blocked->scsiio);
+			entry = ctl_get_cmd_entry(&cur_blocked->scsiio, NULL);
 			softc = control_softc;
 
 			initidx = ctl_get_initindex(&cur_blocked->io_hdr.nexus);
@@ -11860,12 +11860,14 @@ ctl_scsiio_precheck(struct ctl_softc *ctl_softc, struct ctl_scsiio *ctsio)
 }
 
 const struct ctl_cmd_entry *
-ctl_get_cmd_entry(struct ctl_scsiio *ctsio)
+ctl_get_cmd_entry(struct ctl_scsiio *ctsio, int *sa)
 {
 	const struct ctl_cmd_entry *entry;
 	int service_action;
 
 	entry = &ctl_cmd_table[ctsio->cdb[0]];
+	if (sa)
+		*sa = ((entry->flags & CTL_CMD_FLAG_SA5) != 0);
 	if (entry->flags & CTL_CMD_FLAG_SA5) {
 		service_action = ctsio->cdb[1] & SERVICE_ACTION_MASK;
 		entry = &((const struct ctl_cmd_entry *)
@@ -11878,12 +11880,20 @@ const struct ctl_cmd_entry *
 ctl_validate_command(struct ctl_scsiio *ctsio)
 {
 	const struct ctl_cmd_entry *entry;
-	int i;
+	int i, sa;
 	uint8_t diff;
 
-	entry = ctl_get_cmd_entry(ctsio);
+	entry = ctl_get_cmd_entry(ctsio, &sa);
 	if (entry->execute == NULL) {
-		ctl_set_invalid_opcode(ctsio);
+		if (sa)
+			ctl_set_invalid_field(ctsio,
+					      /*sks_valid*/ 1,
+					      /*command*/ 1,
+					      /*field*/ 1,
+					      /*bit_valid*/ 1,
+					      /*bit*/ 4);
+		else
+			ctl_set_invalid_opcode(ctsio);
 		ctl_done((union ctl_io *)ctsio);
 		return (NULL);
 	}
@@ -11937,7 +11947,7 @@ ctl_scsiio(struct ctl_scsiio *ctsio)
 
 	CTL_DEBUG_PRINT(("ctl_scsiio cdb[0]=%02X\n", ctsio->cdb[0]));
 
-	entry = ctl_get_cmd_entry(ctsio);
+	entry = ctl_get_cmd_entry(ctsio, NULL);
 
 	/*
 	 * If this I/O has been aborted, just send it straight to
@@ -12467,7 +12477,7 @@ ctl_handle_isc(union ctl_io *io)
 		 * This is only used in SER_ONLY mode.
 		 */
 		free_io = 0;
-		entry = ctl_get_cmd_entry(&io->scsiio);
+		entry = ctl_get_cmd_entry(&io->scsiio, NULL);
 		mtx_lock(&lun->lun_lock);
 		if (ctl_scsiio_lun_check(ctl_softc, lun,
 		    entry, (struct ctl_scsiio *)io) != 0) {
@@ -12547,7 +12557,7 @@ ctl_cmd_pattern_match(struct ctl_scsiio *ctsio, struct ctl_error_desc *desc)
 	if ((pattern & CTL_LUN_PAT_MASK) == CTL_LUN_PAT_ANY)
 		return (CTL_LUN_PAT_ANY);
 
-	entry = ctl_get_cmd_entry(ctsio);
+	entry = ctl_get_cmd_entry(ctsio, NULL);
 
 	filtered_pattern = entry->pattern & pattern;
 
