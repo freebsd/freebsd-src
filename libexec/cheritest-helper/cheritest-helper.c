@@ -363,7 +363,7 @@ invoke(register_t op, register_t arg, size_t len,
 
 	case CHERITEST_HELPER_OP_CS_PUTS:
 		return (cheri_system_puts(
-		    (__capability char *)"sandbox cs_puts\n"));
+		    (__capability char *)"sandbox cs_puts"));
 
 	case CHERITEST_HELPER_OP_CS_PUTCHAR:
 		return (cheri_system_putchar('C'));	/* Is for cookie. */
