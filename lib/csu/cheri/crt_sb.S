@@ -135,6 +135,19 @@ __ccall_enter:
 	dla	$t2, _sb_heaplen;
 	sd	$t1, 0($t2)
 
+	#-
+	# The sandbox runtime intercepts specific reserved methods; this comes
+	# at a cost on every method invocation, so we might wish to introduce
+	# a separate entry point for this.  Another advantage to a separate
+	# entry point is that we could choose not to delegate the ability to
+	# invoke that entry point outside of the sandbox library.
+	#
+	# -1 Constructors
+	# -2 Destructors (unimplemented)
+	#
+	dli	$at, -1
+	beq	$a0, $at, constructors
+
 	#
 	# Call the MIPS/CHERI-ABI C "invoke" function.
 	#
@@ -173,5 +186,16 @@ _exit:
 	b	abort_target
 	nop
 	.end _exit
+
+constructors:
+	#
+	# Perform constructor intialisation from C; the C code must be very
+	# careful not to depend on the outcome of any constructors!
+	#
+	dla	$t9, crt_sb_constructors
+	jalr	$t9
+	nop
+	b	abort_target
+	dli	$v0, 0		# Branch-delay slot
 
 	.data
