@@ -173,6 +173,20 @@ fpususpend(void *addr)
 	load_cr0(cr0);
 }
 
+void
+fpuresume(void *addr)
+{
+	u_long cr0;
+
+	cr0 = rcr0();
+	stop_emulating();
+	fninit();
+	if (use_xsave)
+		load_xcr(XCR0, xsave_mask);
+	fpurestore(addr);
+	load_cr0(cr0);
+}
+
 /*
  * Enable XSAVE if supported and allowed by user.
  * Calculate the xsave_mask.
