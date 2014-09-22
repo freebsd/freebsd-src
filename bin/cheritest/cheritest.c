@@ -77,7 +77,8 @@ static const struct cheri_test cheri_tests[] = {
 
 	{ .ct_name = "test_listregs",
 	  .ct_desc = "Print out a list of CP2 registers and values",
-	  .ct_func = test_listregs },
+	  .ct_func = test_listregs,
+	  .ct_flags = CT_FLAG_STDOUT_IGNORE },
 
 	/*
 	 * Capability manipulation and use tests that sometimes generate
@@ -230,7 +231,8 @@ static const struct cheri_test cheri_tests[] = {
 	{ .ct_name = "test_sandbox_clock_gettime",
 	  .ct_desc = "Exercise clock_gettime() in a libcheri sandbox",
 	  .ct_func_arg = test_sandbox_simple_op,
-	  .ct_arg = CHERITEST_HELPER_OP_CS_CLOCK_GETTIME },
+	  .ct_arg = CHERITEST_HELPER_OP_CS_CLOCK_GETTIME,
+	  .ct_flags = CT_FLAG_STDOUT_IGNORE },
 
 	{ .ct_name = "test_sandbox_cp2_bound_catch",
 	  .ct_desc = "Exercise sandboxed CP2 bounds-check failure; caught",
@@ -360,17 +362,23 @@ static const struct cheri_test cheri_tests[] = {
 	{ .ct_name = "test_sandbox_printf",
 	  .ct_desc = "printf() in a libcheri sandbox",
 	  .ct_func_arg = test_sandbox_simple_op,
-	  .ct_arg = CHERITEST_HELPER_OP_PRINTF },
+	  .ct_arg = CHERITEST_HELPER_OP_PRINTF ,
+	  .ct_flags = CT_FLAG_STDOUT_STRING,
+	  .ct_stdout_string = "invoke: printf in sandbox test\n" },
 
 	{ .ct_name = "test_sandbox_cs_putchar",
 	  .ct_desc = "putchar() in a libcheri sandbox",
 	  .ct_func_arg = test_sandbox_simple_op,
-	  .ct_arg = CHERITEST_HELPER_OP_CS_PUTCHAR },
+	  .ct_arg = CHERITEST_HELPER_OP_CS_PUTCHAR,
+	  .ct_flags = CT_FLAG_STDOUT_STRING,
+	  .ct_stdout_string = "C" },
 
 	{ .ct_name = "test_sandbox_cs_puts",
 	  .ct_desc = "puts() in a libcheri sandbox",
 	  .ct_func_arg = test_sandbox_simple_op,
-	  .ct_arg = CHERITEST_HELPER_OP_CS_PUTS },
+	  .ct_arg = CHERITEST_HELPER_OP_CS_PUTS,
+	  .ct_flags = CT_FLAG_STDOUT_STRING,
+	  .ct_stdout_string = "sandbox cs_puts\n" },
 
 	{ .ct_name = "test_sandbox_spin",
 	  .ct_desc = "spin in a libcheri sandbox",
@@ -501,7 +509,7 @@ signal_handler(int signum, siginfo_t *info __unused, ucontext_t *uap)
 }
 
 /* Maximum size of stdout data we will check if called for by a test. */
-#define	TEST_BUFFER_LEN	128
+#define	TEST_BUFFER_LEN	1024
 
 static void
 cheritest_run_test(const struct cheri_test *ctp)
@@ -650,6 +658,14 @@ cheritest_run_test(const struct cheri_test *ctp)
 			snprintf(reason, sizeof(reason),
 			    "read() on test stdout expected '%s' but got "
 			    "'%s'", ctp->ct_stdout_string, buffer);
+			goto fail;
+		}
+	} else if (!(ctp->ct_flags & CT_FLAG_STDOUT_IGNORE)) {
+		len = read(pipefd_stdout[0], buffer, sizeof(buffer) - 1);
+		if (len > 0) {
+			snprintf(reason, sizeof(reason),
+			    "read() on test stdout produced unexpected "
+			    "output '%s'", buffer);
 			goto fail;
 		}
 	}

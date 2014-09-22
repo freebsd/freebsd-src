@@ -63,7 +63,7 @@
 /*
  * Shared memory interface between tests and the test controller process.
  */
-#define	TESTRESULT_STR_LEN	80
+#define	TESTRESULT_STR_LEN	1024
 struct cheritest_child_state {
 	/* Fields filled in by the child signal handler. */
 	int		ccs_signum;
@@ -94,6 +94,8 @@ extern struct cheritest_child_state *ccsp;
 #define	CT_FLAG_CP2_EXCCODE	0x00000004  /* Check CP2 exception code. */
 #define	CT_FLAG_STDOUT_STRING	0x00000008  /* Check stdout for a string. */
 #define	CT_FLAG_STDIN_STRING	0x00000010  /* Provide strong on stdin. */
+#define	CT_FLAG_STDOUT_IGNORE	0x00000020  /* Standard output produced,
+					       but not checkable */
 
 struct cheri_test {
 	const char	*ct_name;
