@@ -91,7 +91,8 @@ mkimg_test()
     hexdump -C $image > $result
     baseline=`atf_get_srcdir`/$image
     if test "x$mkimg_update_baseline" = "xyes"; then
-	echo '# $FreeBSD$' > $image.gz.uu
+	# Prevent keyword expansion when writing the keyword.
+	(echo -n '# $'; echo -n FreeBSD; echo '$') > $image.gz.uu
 	gzip -c $result | uuencode $image.gz >> $image.gz.uu
 	rm $image $result _tmp-*
     else
