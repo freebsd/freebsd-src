@@ -54,6 +54,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/module.h>
 #include <sys/fcntl.h>
 #include <sys/bus.h>
+#include <sys/user.h>
 
 #include <opencrypto/cryptodev.h>
 #include <opencrypto/xform.h>
