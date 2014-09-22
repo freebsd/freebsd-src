@@ -100,13 +100,8 @@ __ccall_enter:
 	# stores to memory inside the sandbox, and $c0-relative capability
 	# fetches and stores.
 	#
-	# XXXRW: Temporarily disable local-store limitation for the heap due
-	# to a hardware bug that enforces the permission on untagged
-	# capabilities.
-	#
-	#dli	$t0, (~CHERI_PERM_STORE_LOCAL_CAP)
-	#candperm	$c0, $c26, $t0
-	cmove	$c0, $c26
+	dli	$t0, (~CHERI_PERM_STORE_LOCAL_CAP)
+	candperm	$c0, $c26, $t0
 
 	#
 	# XXXRW: Defensively clear all general-purpose and capability
