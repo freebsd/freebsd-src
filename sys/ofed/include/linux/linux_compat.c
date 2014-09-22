@@ -576,6 +576,14 @@ linux_file_stat(struct file *fp, struct stat *sb, struct ucred *active_cred,
 	return (EOPNOTSUPP);
 }
 
+static int
+linux_file_fill_kinfo(struct file *fp, struct kinfo_file *kif,
+    struct filedesc *fdp)
+{
+
+	return (0);
+}
+
 struct fileops linuxfileops = {
 	.fo_read = linux_file_read,
 	.fo_write = invfo_rdwr,
@@ -588,6 +596,7 @@ struct fileops linuxfileops = {
 	.fo_chmod = invfo_chmod,
 	.fo_chown = invfo_chown,
 	.fo_sendfile = invfo_sendfile,
+	.fo_fill_kinfo = linux_file_fill_kinfo,
 };
 
 /*

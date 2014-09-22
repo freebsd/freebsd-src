@@ -78,6 +78,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/sysctl.h>
 #include <sys/systm.h>
 #include <sys/ucred.h>
+#include <sys/user.h>
 
 #include <security/audit/audit.h>
 
@@ -91,6 +92,7 @@ static fo_poll_t	procdesc_poll;
 static fo_kqfilter_t	procdesc_kqfilter;
 static fo_stat_t	procdesc_stat;
 static fo_close_t	procdesc_close;
+static fo_fill_kinfo_t	procdesc_fill_kinfo;
 
 static struct fileops procdesc_ops = {
 	.fo_read = invfo_rdwr,
@@ -104,6 +106,7 @@ static struct fileops procdesc_ops = {
 	.fo_chmod = invfo_chmod,
 	.fo_chown = invfo_chown,
 	.fo_sendfile = invfo_sendfile,
+	.fo_fill_kinfo = procdesc_fill_kinfo,
 	.fo_flags = DFLAG_PASSABLE,
 };
 
@@ -531,3 +534,14 @@ procdesc_stat(struct file *fp, struct stat *sb, struct ucred *active_cred,
 	return (0);
 }
 
+static int
+procdesc_fill_kinfo(struct file *fp, struct kinfo_file *kif,
+    struct filedesc *fdp)
+{
+	struct procdesc *pdp;
+
+	kif->kf_type = KF_TYPE_PROCDESC;
+	pdp = fp->f_data;
+	kif->kf_un.kf_proc.kf_pid = pdp->pd_pid;
+	return (0);
+}
