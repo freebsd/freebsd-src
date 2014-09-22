@@ -19,6 +19,7 @@ int gethost(family, name, hostp)
 	struct netent *n;
 	u_32_t addr;
 
+	bzero(hostp, sizeof(*hostp));
 	if (!strcmp(name, "test.host.dots")) {
 		if (family == AF_INET) {
 			hostp->in4.s_addr = htonl(0xfedcba98);
