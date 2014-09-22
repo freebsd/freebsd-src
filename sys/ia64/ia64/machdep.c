@@ -465,6 +465,8 @@ cpu_switch(struct thread *old, struct thread *new, struct mtx *mtx)
 		oldpcb->pcb_current_pmap =
 		    pmap_switch(newpcb->pcb_current_pmap);
 
+		ia64_mf();
+
 		atomic_store_rel_ptr(&old->td_lock, mtx);
 
 #if defined(SCHED_ULE) && defined(SMP)
