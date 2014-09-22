@@ -167,7 +167,7 @@ syscons_configure_keyboard()
 	# keymap
 	#
 	case ${keymap} in
-	[Nn][Oo] | '')
+	NO | '')
 		;;
 	*)
 		sc_init
