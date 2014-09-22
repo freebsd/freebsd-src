@@ -1388,8 +1388,6 @@ MLINKS+=sleepqueue.9 init_sleepqueues.9 \
 	sleepqueue.9 sleepq_add.9 \
 	sleepqueue.9 sleepq_alloc.9 \
 	sleepqueue.9 sleepq_broadcast.9 \
-	sleepqueue.9 sleepq_calc_signal_retval.9 \
-	sleepqueue.9 sleepq_catch_signals.9 \
 	sleepqueue.9 sleepq_free.9 \
 	sleepqueue.9 sleepq_lookup.9 \
 	sleepqueue.9 sleepq_lock.9 \
