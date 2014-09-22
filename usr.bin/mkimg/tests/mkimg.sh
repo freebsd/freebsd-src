@@ -140,20 +140,17 @@ rebase_body()
 
 atf_init_test_cases()
 {
-    local B F G S nm nr
+    local B F G S nm
 
-    nr=1
     for G in $mkimg_geom_list; do
 	for B in $mkimg_blksz_list; do
 	    for S in $mkimg_scheme_list; do
 		for F in $mkimg_format_list; do
-		    nm="test_$nr"
-		    # nm="$G_$B_$S_$F"
+		    nm="${S}_${G}_${B}_${F}"
 		    atf_test_case $nm
 		    eval "${nm}_body() { mkimg_test $G $B $S $F; }"
 		    mkimg_tests="${mkimg_tests} ${nm}"
 		    atf_add_test_case $nm
-		    nr=$((nr+1))
 		done
 	    done
 	done
