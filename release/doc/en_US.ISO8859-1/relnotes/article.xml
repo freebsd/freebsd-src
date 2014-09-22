@@ -624,7 +624,7 @@
 	<para contrib="sponsor" sponsor="&ix;">Kernel RPC code, which
 	  is a base of NFS server took multiple optimizations, that
 	  significantly improved its performance and
-	  <acronym>SMP</acronym> scapability.</para>
+	  <acronym>SMP</acronym> scalability.</para>
 
 	<para revision="269065" contrib="sponsor" sponsor="&ff;">The
 	  <acronym>iSCSI</acronym> initiator has been updated to
@@ -840,7 +840,7 @@
 	  <listitem>
 	    <para revision="269298">The maximum number of
 	      <acronym>SCSI</acronym> ports increased from 32 to
-	      128</para>
+	      128.</para>
 	  </listitem>
 	  <listitem>
 	    <para revision="269429">Improved <literal>zvol</literal>
@@ -867,7 +867,7 @@
 	  this can easily double &man.zfs.8; performance or reduce CPU
 	  usage in half.  It was originally disabled due to memory and
 	  <acronym>KVA</acronym> exhaustion problem reports, which
-	  should be resolved due to several change in the VM
+	  should be resolved due to several changes in the VM
 	  subsystem.</para>
 
 	<para revision="260178" contrib="vendor"
@@ -995,7 +995,7 @@
 	prints the output in a parsable format.</para>
 
       <para revision="263783">The Blowfish password format
-	implementation updated.  Support for &dollar;2b&dollar; has
+	implementation has been updated.  Support for &dollar;2b&dollar; has
 	been added, allowing use of passwords greater than 256
 	characters long.</para>
 
