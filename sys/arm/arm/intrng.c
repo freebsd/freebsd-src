@@ -144,7 +144,7 @@ arm_dispatch_irq(device_t dev, struct trapframe *tf, int irq)
 		}
 	}
 
-	if (ih == NULL)
+	if (ic->ic_dev == NULL)
 		panic("arm_dispatch_irq: unknown irq");
 
 	debugf("requested by %s\n", ih->ih_ipi_name != NULL
