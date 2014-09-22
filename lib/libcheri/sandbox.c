@@ -53,6 +53,7 @@
 #include <string.h>
 #include <unistd.h>
 
+#include "cheri_enter.h"
 #include "cheri_invoke.h"
 #include "libcheri_stat.h"
 #include "sandbox.h"
@@ -200,6 +201,24 @@ sandbox_object_new(struct sandbox_class *sbcp, struct sandbox_object **sbopp)
 		free(sbop);
 		return (-1);
 	}
+
+	/*
+	 * Invoke object instance's constructors.  Note that, given the tight
+	 * binding of class and object in the sandbox library currently, this
+	 * will need to change in the future.  We also need to think more
+	 * carefully about the mechanism here.
+	 *
+	 * NB: Should we be passing in a system-class reference...?
+	 */
+	(void)cheri_invoke(sbop->sbo_cheri_object,
+	    SANDBOX_RUNTIME_CONSTRUCTORS, 0, 0, 0, 0, 0, 0, 0,
+	    cheri_zerocap(), cheri_zerocap(), cheri_zerocap(),
+	    cheri_zerocap(), cheri_zerocap(), cheri_zerocap(),
+	    cheri_zerocap(), cheri_zerocap());
+
+	/*
+	 * Now that constructors have completed, return object.
+	 */
 	*sbopp = sbop;
 	return (0);
 }

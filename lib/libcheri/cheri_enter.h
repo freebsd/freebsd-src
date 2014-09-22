@@ -41,6 +41,19 @@ typedef register_t (*cheri_system_user_fn_t)(register_t methodnum,
 
 void	cheri_system_user_register_fn(cheri_system_user_fn_t fn_ptr);
 
+/*
+ * Method numbers used by the sandbox runtime itself.
+ *
+ * WARNING: These values must match those currently hard coded in the sandbox
+ * C runtime (lib/csu/cheri/crt_sb.S).
+ *
+ * NB: In the future, these should be via a reserved entry point rather than
+ * the primary object-capability 'invoke' entry point, so that they can be
+ * called only by the runtime.
+ */
+#define	SANDBOX_RUNTIME_CONSTRUCTORS	(-1)
+#define	SANDBOX_RUNTIME_DESTROCTORS	(-2)
+
 #define	CHERI_SYSTEM_USER_BASE		1000
 #define	CHERI_SYSTEM_USER_CEILING	2000
 
