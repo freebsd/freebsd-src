@@ -68,6 +68,34 @@ makeimage()
     return 0
 }
 
+mkimg_rebase()
+{
+    local baseline image result tmpfile update
+
+    image=$1
+    result=$2
+
+    baseline=$image.gz.uu
+    update=yes
+
+    if test -f $baseline; then
+	tmpfile=_tmp-baseline
+	uudecode -p $baseline | gunzip -c > $tmpfile
+	if cmp -s $tmpfile $result; then
+	    update=no
+	fi
+    fi
+
+    if test $update = yes; then
+	# Prevent keyword expansion when writing the keyword.
+	(echo -n '# $'; echo -n FreeBSD; echo '$') > $baseline
+	gzip -c $result | uuencode $image.gz >> $baseline
+    fi
+
+    rm $image $result _tmp-*
+    return 0
+}
+
 mkimg_test()
 {
     local blksz format geom scheme
@@ -89,13 +117,10 @@ mkimg_test()
     image=`makeimage $format $scheme $blksz $geom img $partinfo`
     result=$image.out
     hexdump -C $image > $result
-    baseline=`atf_get_srcdir`/$image
     if test "x$mkimg_update_baseline" = "xyes"; then
-	# Prevent keyword expansion when writing the keyword.
-	(echo -n '# $'; echo -n FreeBSD; echo '$') > $image.gz.uu
-	gzip -c $result | uuencode $image.gz >> $image.gz.uu
-	rm $image $result _tmp-*
+	mkimg_rebase $image $result
     else
+	baseline=`atf_get_srcdir`/$image
 	atf_check -s exit:0 cmp -s $baseline $result
     fi
     return 0
