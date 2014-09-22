@@ -281,6 +281,15 @@ static char t4_cfg_file[32] = DEFAULT_CF;
 TUNABLE_STR("hw.cxgbe.config_file", t4_cfg_file, sizeof(t4_cfg_file));
 
 /*
+ * PAUSE settings (bit 0, 1 = rx_pause, tx_pause respectively).
+ * rx_pause = 1 to heed incoming PAUSE frames, 0 to ignore them.
+ * tx_pause = 1 to emit PAUSE frames when the rx FIFO reaches its high water
+ *            mark or when signalled to do so, 0 to never emit PAUSE.
+ */
+static int t4_pause_settings = PAUSE_TX | PAUSE_RX;
+TUNABLE_INT("hw.cxgbe.pause_settings", &t4_pause_settings);
+
+/*
  * Firmware auto-install by driver during attach (0, 1, 2 = prohibited, allowed,
  * encouraged respectively).
  */
@@ -393,6 +402,7 @@ static int sysctl_holdoff_tmr_idx(SYSCTL_HANDLER_ARGS);
 static int sysctl_holdoff_pktc_idx(SYSCTL_HANDLER_ARGS);
 static int sysctl_qsize_rxq(SYSCTL_HANDLER_ARGS);
 static int sysctl_qsize_txq(SYSCTL_HANDLER_ARGS);
+static int sysctl_pause_settings(SYSCTL_HANDLER_ARGS);
 static int sysctl_handle_t4_reg64(SYSCTL_HANDLER_ARGS);
 static int sysctl_temperature(SYSCTL_HANDLER_ARGS);
 #ifdef SBUF_DRAIN
@@ -696,6 +706,12 @@ t4_attach(device_t dev)
 			sc->port[i] = NULL;
 			goto done;
 		}
+
+		pi->link_cfg.requested_fc &= ~(PAUSE_TX | PAUSE_RX);
+		pi->link_cfg.requested_fc |= t4_pause_settings;
+		pi->link_cfg.fc &= ~(PAUSE_TX | PAUSE_RX);
+		pi->link_cfg.fc |= t4_pause_settings;
+
 		rc = -t4_link_start(sc, sc->mbox, pi->tx_chan, &pi->link_cfg);
 		if (rc != 0) {
 			device_printf(dev, "port %d l1cfg failed: %d\n", i, rc);
@@ -4755,6 +4771,10 @@ cxgbe_sysctls(struct port_info *pi)
 	    CTLTYPE_INT | CTLFLAG_RW, pi, 0, sysctl_qsize_txq, "I",
 	    "tx queue size");
 
+	SYSCTL_ADD_PROC(ctx, children, OID_AUTO, "pause_settings",
+	    CTLTYPE_STRING | CTLFLAG_RW, pi, PAUSE_TX, sysctl_pause_settings,
+	    "A", "PAUSE settings (bit 0 = rx_pause, bit 1 = tx_pause)");
+
 	/*
 	 * dev.cxgbe.X.stats.
 	 */
@@ -5132,6 +5152,65 @@ sysctl_qsize_txq(SYSCTL_HANDLER_ARGS)
 		pi->qsize_txq = qsize;
 
 	end_synchronized_op(sc, LOCK_HELD);
+	return (rc);
+}
+
+static int
+sysctl_pause_settings(SYSCTL_HANDLER_ARGS)
+{
+	struct port_info *pi = arg1;
+	struct adapter *sc = pi->adapter;
+	struct link_config *lc = &pi->link_cfg;
+	int rc;
+
+	if (req->newptr == NULL) {
+		struct sbuf *sb;
+		static char *bits = "\20\1PAUSE_RX\2PAUSE_TX";
+
+		rc = sysctl_wire_old_buffer(req, 0);
+		if (rc != 0)
+			return(rc);
+
+		sb = sbuf_new_for_sysctl(NULL, NULL, 128, req);
+		if (sb == NULL)
+			return (ENOMEM);
+
+		sbuf_printf(sb, "%b", lc->fc & (PAUSE_TX | PAUSE_RX), bits);
+		rc = sbuf_finish(sb);
+		sbuf_delete(sb);
+	} else {
+		char s[2];
+		int n;
+
+		s[0] = '0' + (lc->requested_fc & (PAUSE_TX | PAUSE_RX));
+		s[1] = 0;
+
+		rc = sysctl_handle_string(oidp, s, sizeof(s), req);
+		if (rc != 0)
+			return(rc);
+
+		if (s[1] != 0)
+			return (EINVAL);
+		if (s[0] < '0' || s[0] > '9')
+			return (EINVAL);	/* not a number */
+		n = s[0] - '0';
+		if (n & ~(PAUSE_TX | PAUSE_RX))
+			return (EINVAL);	/* some other bit is set too */
+
+		rc = begin_synchronized_op(sc, pi, SLEEP_OK | INTR_OK, "t4PAUSE");
+		if (rc)
+			return (rc);
+		if ((lc->requested_fc & (PAUSE_TX | PAUSE_RX)) != n) {
+			int link_ok = lc->link_ok;
+
+			lc->requested_fc &= ~(PAUSE_TX | PAUSE_RX);
+			lc->requested_fc |= n;
+			rc = -t4_link_start(sc, sc->mbox, pi->tx_chan, lc);
+			lc->link_ok = link_ok;	/* restore */
+		}
+		end_synchronized_op(sc, 0);
+	}
+
 	return (rc);
 }
 
