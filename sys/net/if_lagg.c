@@ -454,23 +454,18 @@ lagg_capabilities(struct lagg_softc *sc)
 	struct lagg_port *lp;
 	int cap = ~0, ena = ~0;
 	u_long hwa = ~0UL;
-#if defined(INET) || defined(INET6)
-	u_int hw_tsomax = IP_MAXPACKET;	/* Initialize to the maximum value. */
-#else
-	u_int hw_tsomax = ~0;	/* if_hw_tsomax is only for INET/INET6, but.. */
-#endif
+	struct ifnet_hw_tsomax hw_tsomax;
 
 	LAGG_WLOCK_ASSERT(sc);
+
+	memset(&hw_tsomax, 0, sizeof(hw_tsomax));
 
 	/* Get capabilities from the lagg ports */
 	SLIST_FOREACH(lp, &sc->sc_ports, lp_entries) {
 		cap &= lp->lp_ifp->if_capabilities;
 		ena &= lp->lp_ifp->if_capenable;
 		hwa &= lp->lp_ifp->if_hwassist;
-		/* Set to the minimum value of the lagg ports. */
-		if (lp->lp_ifp->if_hw_tsomax < hw_tsomax &&
-		    lp->lp_ifp->if_hw_tsomax > 0)
-			hw_tsomax = lp->lp_ifp->if_hw_tsomax;
+		if_hw_tsomax_common(lp->lp_ifp, &hw_tsomax);
 	}
 	cap = (cap == ~0 ? 0 : cap);
 	ena = (ena == ~0 ? 0 : ena);
@@ -479,11 +474,10 @@ lagg_capabilities(struct lagg_softc *sc)
 	if (sc->sc_ifp->if_capabilities != cap ||
 	    sc->sc_ifp->if_capenable != ena ||
 	    sc->sc_ifp->if_hwassist != hwa ||
-	    sc->sc_ifp->if_hw_tsomax != hw_tsomax) {
+	    if_hw_tsomax_update(sc->sc_ifp, &hw_tsomax) != 0) {
 		sc->sc_ifp->if_capabilities = cap;
 		sc->sc_ifp->if_capenable = ena;
 		sc->sc_ifp->if_hwassist = hwa;
-		sc->sc_ifp->if_hw_tsomax = hw_tsomax;
 		getmicrotime(&sc->sc_ifp->if_lastchange);
 
 		if (sc->sc_ifflags & IFF_DEBUG)
