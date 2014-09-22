@@ -74,18 +74,16 @@ SECTIONS
 		PROVIDE_HIDDEN (__fini_array_end = .);
 	}
 	.ctors ALIGN(CAP_ALIGN) : {
-		KEEP (*crtbegin.o(.ctors))
-		KEEP (*crtbegin?.o(.ctors))
-		KEEP (*(EXCLUDE_FILE (*crtend.o *crtend?.o ) .ctors))
+		KEEP (crtbeginC.o(.ctors))
+		KEEP (*(EXCLUDE_FILE (*crtendC.o) .ctors))
 		KEEP (*(SORT(.ctors.*)))
-		KEEP (*(.ctors))
+		KEEP (crtendC.o(.ctors))
 	}
 	.dtors ALIGN(CAP_ALIGN) : {
-		KEEP (*crtbegin.o(.dtors))
-		KEEP (*crtbegin?.o(.dtors))
-		KEEP (*(EXCLUDE_FILE (*crtend.o *crtend?.o ) .dtors))
+		KEEP (crtbeginC.o(.dtors))
+		KEEP (*(EXCLUDE_FILE (*crtendC.o) .dtors))
 		KEEP (*(SORT(.dtors.*)))
-		KEEP (*(.dtors))
+		KEEP (crtendC.o(.dtors))
 	}
 	.bss ALIGN(CAP_ALIGN): {
 		*(.bss)
