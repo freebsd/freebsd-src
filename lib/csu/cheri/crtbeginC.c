@@ -28,8 +28,41 @@
  * SUCH DAMAGE.
  */
 
+void	crt_sb_constructors(void);
+
 typedef void (*mips_function_ptr)(void);
 
 static mips_function_ptr __attribute__((used))
     __attribute__((section(".ctors")))
     __CTOR_LIST__[1] = { (mips_function_ptr)(-1) };
+
+static mips_function_ptr __attribute__((used))
+    __attribute__((section(".dtors")))
+    __DTOR_LIST__[1] = { (mips_function_ptr)(-1) };
+
+/*
+ * Symbols provided by rtendC.c, which provide us with the tails for the
+ * constructor and destructor arrays.
+ */
+extern mips_function_ptr __CTOR_END__;
+extern mips_function_ptr __DTOR_END__;
+
+/*
+ * Execute constructors; invoked by the crt_sb.S startup code.
+ *
+ * NB: This code and approach is borrowed from the MIPS ABI, and works as long
+ * as CHERI code generation continues to use 64-bit integers for pointers.  If
+ * that changes, this might need to become more capability-appropriate.
+ */
+void
+crt_sb_constructors(void)
+{
+	mips_function_ptr *func;
+
+	for (func = &__CTOR_LIST__[0];
+	    func != &__CTOR_END__;
+	    func++) {
+		if (*func != (void *)-1)
+			(*func)();
+	}
+}

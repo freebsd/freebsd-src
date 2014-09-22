@@ -30,6 +30,10 @@
 
 typedef void (*mips_function_ptr)(void);
 
-static mips_function_ptr __attribute__((used))
+mips_function_ptr __attribute__((used))
     __attribute__((section(".ctors")))
     __CTOR_END__[1] = { (mips_function_ptr)(-1) };
+
+mips_function_ptr __attribute__((used))
+    __attribute__((section(".dtors")))
+    __DTOR_END__[1] = { (mips_function_ptr)(-1) };
