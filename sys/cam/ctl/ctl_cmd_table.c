@@ -716,7 +716,7 @@ const struct ctl_cmd_entry ctl_cmd_table[256] =
 /* 2E WRITE AND VERIFY(10) */
 {ctl_read_write, CTL_SERIDX_WRITE, CTL_CMD_FLAG_OK_ON_SLUN| CTL_FLAG_DATA_OUT,
  CTL_LUN_PAT_WRITE | CTL_LUN_PAT_RANGE,
- 10, {0x10, 0xff, 0xff, 0xff, 0xff, 0, 0xff, 0xff, 0x07}},
+ 10, {0x12, 0xff, 0xff, 0xff, 0xff, 0, 0xff, 0xff, 0x07}},
 
 /* 2F VERIFY(10) */
 {ctl_verify, CTL_SERIDX_READ, CTL_CMD_FLAG_OK_ON_SLUN |
@@ -1062,7 +1062,7 @@ const struct ctl_cmd_entry ctl_cmd_table[256] =
 /* 8E WRITE AND VERIFY(16) */
 {ctl_read_write, CTL_SERIDX_WRITE, CTL_CMD_FLAG_OK_ON_SLUN| CTL_FLAG_DATA_OUT,
  CTL_LUN_PAT_WRITE | CTL_LUN_PAT_RANGE,
- 16, {0x10, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
+ 16, {0x12, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
       0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0, 0x07}},
 
 /* 8F VERIFY(16) */
@@ -1191,7 +1191,7 @@ const struct ctl_cmd_entry ctl_cmd_table[256] =
 /* AE WRITE AND VERIFY(12) */
 {ctl_read_write, CTL_SERIDX_WRITE, CTL_CMD_FLAG_OK_ON_SLUN| CTL_FLAG_DATA_OUT,
  CTL_LUN_PAT_WRITE | CTL_LUN_PAT_RANGE,
- 12, {0x10, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0, 0x07}},
+ 12, {0x12, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0, 0x07}},
 
 /* AF VERIFY(12) */
 {ctl_verify, CTL_SERIDX_READ, CTL_CMD_FLAG_OK_ON_SLUN |
