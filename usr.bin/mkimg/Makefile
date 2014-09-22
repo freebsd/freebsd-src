@@ -10,6 +10,7 @@ CFLAGS+=-DSPARSE_WRITE
 
 # List of formats to support
 SRCS+= \
+	qcow.c \
 	raw.c \
 	vhd.c \
 	vmdk.c
