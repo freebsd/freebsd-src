@@ -1722,7 +1722,9 @@ vmxnet3_setup_interface(struct vmxnet3_softc *sc)
 	ifp->if_flags = IFF_BROADCAST | IFF_SIMPLEX | IFF_MULTICAST;
 	ifp->if_init = vmxnet3_init;
 	ifp->if_ioctl = vmxnet3_ioctl;
-	ifp->if_hw_tsomax = VMXNET3_TSO_MAXSIZE;
+	ifp->if_hw_tsomax = 65536 - (ETHER_HDR_LEN + ETHER_VLAN_ENCAP_LEN);
+	ifp->if_hw_tsomaxsegcount = VMXNET3_TX_MAXSEGS;
+	ifp->if_hw_tsomaxsegsize = VMXNET3_TX_MAXSEGSIZE;
 
 #ifdef VMXNET3_LEGACY_TX
 	ifp->if_start = vmxnet3_start;
