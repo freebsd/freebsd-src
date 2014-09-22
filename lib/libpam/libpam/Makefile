@@ -66,6 +66,7 @@ SRCS=	openpam_asprintf.c \
 	openpam_straddch.c \
 	openpam_strlcat.c \
 	openpam_strlcpy.c \
+	openpam_strlset.c \
 	openpam_subst.c \
 	openpam_ttyconv.c \
 	openpam_vasprintf.c \
