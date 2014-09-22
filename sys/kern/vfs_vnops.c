@@ -69,6 +69,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/conf.h>
 #include <sys/syslog.h>
 #include <sys/unistd.h>
+#include <sys/user.h>
 
 #include <security/audit/audit.h>
 #include <security/mac/mac_framework.h>
@@ -103,6 +104,7 @@ struct 	fileops vnops = {
 	.fo_chown = vn_chown,
 	.fo_sendfile = vn_sendfile,
 	.fo_seek = vn_seek,
+	.fo_fill_kinfo = vn_fill_kinfo,
 	.fo_flags = DFLAG_PASSABLE | DFLAG_SEEKABLE
 };
 
@@ -2248,4 +2250,62 @@ vn_utimes_perm(struct vnode *vp, struct vattr *vap, struct ucred *cred,
 	if (error != 0 && (vap->va_vaflags & VA_UTIMES_NULL) != 0)
 		error = VOP_ACCESS(vp, VWRITE, cred, td);
 	return (error);
+}
+
+int
+vn_fill_kinfo(struct file *fp, struct kinfo_file *kif, struct filedesc *fdp)
+{
+	struct vnode *vp;
+	int error;
+
+	if (fp->f_type == DTYPE_FIFO)
+		kif->kf_type = KF_TYPE_FIFO;
+	else
+		kif->kf_type = KF_TYPE_VNODE;
+	vp = fp->f_vnode;
+	vref(vp);
+	FILEDESC_SUNLOCK(fdp);
+	error = vn_fill_kinfo_vnode(vp, kif);
+	vrele(vp);
+	FILEDESC_SLOCK(fdp);
+	return (error);
+}
+
+int
+vn_fill_kinfo_vnode(struct vnode *vp, struct kinfo_file *kif)
+{
+	struct vattr va;
+	char *fullpath, *freepath;
+	int error;
+
+	kif->kf_vnode_type = vntype_to_kinfo(vp->v_type);
+	freepath = NULL;
+	fullpath = "-";
+	error = vn_fullpath(curthread, vp, &fullpath, &freepath);
+	if (error == 0) {
+		strlcpy(kif->kf_path, fullpath, sizeof(kif->kf_path));
+	}
+	if (freepath != NULL)
+		free(freepath, M_TEMP);
+
+	/*
+	 * Retrieve vnode attributes.
+	 */
+	va.va_fsid = VNOVAL;
+	va.va_rdev = NODEV;
+	vn_lock(vp, LK_SHARED | LK_RETRY);
+	error = VOP_GETATTR(vp, &va, curthread->td_ucred);
+	VOP_UNLOCK(vp, 0);
+	if (error != 0)
+		return (error);
+	if (va.va_fsid != VNOVAL)
+		kif->kf_un.kf_file.kf_file_fsid = va.va_fsid;
+	else
+		kif->kf_un.kf_file.kf_file_fsid =
+		    vp->v_mount->mnt_stat.f_fsid.val[0];
+	kif->kf_un.kf_file.kf_file_fileid = va.va_fileid;
+	kif->kf_un.kf_file.kf_file_mode = MAKEIMODE(va.va_type, va.va_mode);
+	kif->kf_un.kf_file.kf_file_size = va.va_size;
+	kif->kf_un.kf_file.kf_file_rdev = va.va_rdev;
+	return (0);
 }

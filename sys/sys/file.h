@@ -43,6 +43,7 @@
 #include <sys/_lock.h>
 #include <sys/_mutex.h>
 
+struct filedesc;
 struct stat;
 struct thread;
 struct uio;
@@ -70,6 +71,7 @@ struct socket;
 
 struct file;
 struct filecaps;
+struct kinfo_file;
 struct ucred;
 
 #define	FOF_OFFSET	0x01	/* Use the offset in uio argument */
@@ -114,6 +116,8 @@ typedef int fo_sendfile_t(struct file *fp, int sockfd, struct uio *hdr_uio,
 		    struct sendfile_sync *sfs, struct thread *td);
 typedef int fo_seek_t(struct file *fp, off_t offset, int whence,
 		    struct thread *td);
+typedef int fo_fill_kinfo_t(struct file *fp, struct kinfo_file *kif,
+		    struct filedesc *fdp);
 typedef	int fo_flags_t;
 
 struct fileops {
@@ -129,6 +133,7 @@ struct fileops {
 	fo_chown_t	*fo_chown;
 	fo_sendfile_t	*fo_sendfile;
 	fo_seek_t	*fo_seek;
+	fo_fill_kinfo_t	*fo_fill_kinfo;
 	fo_flags_t	fo_flags;	/* DFLAG_* below */
 };
 
@@ -242,6 +247,8 @@ fo_sendfile_t	invfo_sendfile;
 
 fo_sendfile_t	vn_sendfile;
 fo_seek_t	vn_seek;
+fo_fill_kinfo_t	vn_fill_kinfo;
+int vn_fill_kinfo_vnode(struct vnode *vp, struct kinfo_file *kif);
 
 void finit(struct file *, u_int, short, void *, struct fileops *);
 int fgetvp(struct thread *td, int fd, cap_rights_t *rightsp,
@@ -376,6 +383,13 @@ fo_seek(struct file *fp, off_t offset, int whence, struct thread *td)
 {
 
 	return ((*fp->f_ops->fo_seek)(fp, offset, whence, td));
+}
+
+static __inline int
+fo_fill_kinfo(struct file *fp, struct kinfo_file *kif, struct filedesc *fdp)
+{
+
+	return ((*fp->f_ops->fo_fill_kinfo)(fp, kif, fdp));
 }
 
 #endif /* _KERNEL */
