@@ -10723,45 +10723,23 @@ ctl_inquiry(struct ctl_scsiio *ctsio)
 	struct scsi_inquiry *cdb;
 	int retval;
 
-	cdb = (struct scsi_inquiry *)ctsio->cdb;
-
-	retval = 0;
-
 	CTL_DEBUG_PRINT(("ctl_inquiry\n"));
 
-	/*
-	 * Right now, we don't support the CmdDt inquiry information.
-	 * This would be nice to support in the future.  When we do
-	 * support it, we should change this test so that it checks to make
-	 * sure SI_EVPD and SI_CMDDT aren't both set at the same time.
-	 */
-#ifdef notyet
-	if (((cdb->byte2 & SI_EVPD)
-	 && (cdb->byte2 & SI_CMDDT)))
-#endif
-	if (cdb->byte2 & SI_CMDDT) {
-		/*
-		 * Point to the SI_CMDDT bit.  We might change this
-		 * when we support SI_CMDDT, but since both bits would be
-		 * "wrong", this should probably just stay as-is then.
-		 */
+	cdb = (struct scsi_inquiry *)ctsio->cdb;
+	if (cdb->byte2 & SI_EVPD)
+		retval = ctl_inquiry_evpd(ctsio);
+	else if (cdb->page_code == 0)
+		retval = ctl_inquiry_std(ctsio);
+	else {
 		ctl_set_invalid_field(ctsio,
 				      /*sks_valid*/ 1,
 				      /*command*/ 1,
-				      /*field*/ 1,
-				      /*bit_valid*/ 1,
-				      /*bit*/ 1);
+				      /*field*/ 2,
+				      /*bit_valid*/ 0,
+				      /*bit*/ 0);
 		ctl_done((union ctl_io *)ctsio);
 		return (CTL_RETVAL_COMPLETE);
 	}
-	if (cdb->byte2 & SI_EVPD)
-		retval = ctl_inquiry_evpd(ctsio);
-#ifdef notyet
-	else if (cdb->byte2 & SI_CMDDT)
-		retval = ctl_inquiry_cmddt(ctsio);
-#endif
-	else
-		retval = ctl_inquiry_std(ctsio);
 
 	return (retval);
 }
