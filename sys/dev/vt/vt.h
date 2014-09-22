@@ -173,11 +173,6 @@ struct vt_device {
  * been modified.
  */
 
-struct vt_bufmask {
-	uint64_t		 vbm_row, vbm_col;
-#define	VBM_DIRTY		UINT64_MAX
-};
-
 struct vt_buf {
 	struct mtx		 vb_lock;	/* Buffer lock. */
 	term_pos_t		 vb_scr_size;	/* (b) Screen dimensions. */
@@ -196,7 +191,6 @@ struct vt_buf {
 	term_pos_t		 vb_mark_end;	/* (b) Copy region end. */
 	int			 vb_mark_last;	/* Last mouse event. */
 	term_rect_t		 vb_dirtyrect;	/* (b) Dirty rectangle. */
-	struct vt_bufmask	 vb_dirtymask;	/* (b) Dirty bitmasks. */
 	term_char_t		*vb_buffer;	/* (u) Data buffer. */
 	term_char_t		**vb_rows;	/* (u) Array of rows */
 };
@@ -210,7 +204,7 @@ void vtbuf_putchar(struct vt_buf *, const term_pos_t *, term_char_t);
 void vtbuf_cursor_position(struct vt_buf *, const term_pos_t *);
 void vtbuf_scroll_mode(struct vt_buf *vb, int yes);
 void vtbuf_dirty(struct vt_buf *vb, const term_rect_t *area);
-void vtbuf_undirty(struct vt_buf *, term_rect_t *, struct vt_bufmask *);
+void vtbuf_undirty(struct vt_buf *, term_rect_t *);
 void vtbuf_sethistory_size(struct vt_buf *, int);
 int vtbuf_iscursor(const struct vt_buf *vb, int row, int col);
 void vtbuf_cursor_visibility(struct vt_buf *, int);
