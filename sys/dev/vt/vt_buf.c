@@ -321,7 +321,7 @@ vtbuf_copy(struct vt_buf *vb, const term_rect_t *r, const term_pos_t *p2)
 	if (r->tr_begin.tp_row > p2->tp_row && r->tr_begin.tp_col == 0 &&
 	    r->tr_end.tp_col == vb->vb_scr_size.tp_col && /* Full row. */
 	    (rows + rdiff) == vb->vb_scr_size.tp_row && /* Whole screen. */
-	    rdiff > 0) { /* Only forward dirrection. Do not eat history. */
+	    rdiff > 0) { /* Only forward direction. Do not eat history. */
 		vthistory_addlines(vb, rdiff);
 	} else if (p2->tp_row < p1->tp_row) {
 		/* Handle overlapping copies of line segments. */
@@ -603,7 +603,7 @@ vtbuf_get_marked_len(struct vt_buf *vb)
 	ei = e.tp_row * vb->vb_scr_size.tp_col + e.tp_col;
 
 	/* Number symbols and number of rows to inject \n */
-	sz = ei - si + ((e.tp_row - s.tp_row) * 2) + 1;
+	sz = ei - si + ((e.tp_row - s.tp_row) * 2);
 
 	return (sz * sizeof(term_char_t));
 }
