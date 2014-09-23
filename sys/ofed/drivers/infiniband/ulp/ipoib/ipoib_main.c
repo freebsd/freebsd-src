@@ -745,7 +745,7 @@ ipoib_vlan_start(struct ifnet *dev)
 		if (mb == NULL)
 			break;
 		m_freem(mb);
-		dev->if_oerrors++;
+		if_inc_counter(dev, IFCOUNTER_OERRORS, 1);
 	}
 }
 
@@ -1452,7 +1452,7 @@ ipoib_input(struct ifnet *ifp, struct mbuf *m)
 			m->m_flags |= M_BCAST;
 		else
 			m->m_flags |= M_MCAST;
-		ifp->if_imcasts++;
+		if_inc_counter(ifp, IFCOUNTER_IMCASTS, 1);
 	}
 
 	ipoib_demux(ifp, m, ntohs(eh->proto));
