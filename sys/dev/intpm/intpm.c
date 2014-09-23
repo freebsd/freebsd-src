@@ -42,7 +42,7 @@ __FBSDID("$FreeBSD$");
 
 #include <dev/pci/pcireg.h>
 #include <dev/pci/pcivar.h>
-#include <pci/intpmreg.h>
+#include <dev/intpm/intpmreg.h>
 
 #include "opt_intpm.h"
 
