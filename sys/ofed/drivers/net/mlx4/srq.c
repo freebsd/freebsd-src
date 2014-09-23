@@ -1,6 +1,6 @@
 /*
  * Copyright (c) 2006, 2007 Cisco Systems, Inc. All rights reserved.
- * Copyright (c) 2007, 2008 Mellanox Technologies. All rights reserved.
+ * Copyright (c) 2007, 2008, 2014 Mellanox Technologies. All rights reserved.
  *
  * This software is available to you under a choice of one of two
  * licenses.  You may choose to be licensed under the terms of the GNU
@@ -32,6 +32,8 @@
  */
 
 #include <linux/mlx4/cmd.h>
+#include <linux/mlx4/srq.h>
+#include <linux/module.h>
 #include <linux/gfp.h>
 
 #include "mlx4.h"
@@ -113,7 +115,7 @@ err_put:
 	mlx4_table_put(dev, &srq_table->table, *srqn);
 
 err_out:
-	mlx4_bitmap_free(&srq_table->bitmap, *srqn);
+	mlx4_bitmap_free(&srq_table->bitmap, *srqn, MLX4_NO_RR);
 	return err;
 }
 
@@ -141,7 +143,7 @@ void __mlx4_srq_free_icm(struct mlx4_dev *dev, int srqn)
 
 	mlx4_table_put(dev, &srq_table->cmpt_table, srqn);
 	mlx4_table_put(dev, &srq_table->table, srqn);
-	mlx4_bitmap_free(&srq_table->bitmap, srqn);
+	mlx4_bitmap_free(&srq_table->bitmap, srqn, MLX4_NO_RR);
 }
 
 static void mlx4_srq_free_icm(struct mlx4_dev *dev, int srqn)
@@ -295,3 +297,18 @@ void mlx4_cleanup_srq_table(struct mlx4_dev *dev)
 		return;
 	mlx4_bitmap_cleanup(&mlx4_priv(dev)->srq_table.bitmap);
 }
+
+struct mlx4_srq *mlx4_srq_lookup(struct mlx4_dev *dev, u32 srqn)
+{
+	struct mlx4_srq_table *srq_table = &mlx4_priv(dev)->srq_table;
+	struct mlx4_srq *srq;
+	unsigned long flags;
+
+	spin_lock_irqsave(&srq_table->lock, flags);
+	srq = radix_tree_lookup(&srq_table->tree,
+				srqn & (dev->caps.num_srqs - 1));
+	spin_unlock_irqrestore(&srq_table->lock, flags);
+
+	return srq;
+}
+EXPORT_SYMBOL_GPL(mlx4_srq_lookup);

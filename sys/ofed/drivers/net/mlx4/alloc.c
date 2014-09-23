@@ -1,6 +1,6 @@
 /*
  * Copyright (c) 2006, 2007 Cisco Systems, Inc.  All rights reserved.
- * Copyright (c) 2007, 2008 Mellanox Technologies. All rights reserved.
+ * Copyright (c) 2007, 2008, 2014 Mellanox Technologies. All rights reserved.
  *
  * This software is available to you under a choice of one of two
  * licenses.  You may choose to be licensed under the terms of the GNU
@@ -34,7 +34,7 @@
 #include <linux/errno.h>
 #include <linux/slab.h>
 #include <linux/mm.h>
-#include <linux/bitops.h>
+#include <linux/module.h>
 #include <linux/dma-mapping.h>
 #include <linux/vmalloc.h>
 
@@ -70,9 +70,9 @@ u32 mlx4_bitmap_alloc(struct mlx4_bitmap *bitmap)
 	return obj;
 }
 
-void mlx4_bitmap_free(struct mlx4_bitmap *bitmap, u32 obj)
+void mlx4_bitmap_free(struct mlx4_bitmap *bitmap, u32 obj, int use_rr)
 {
-	mlx4_bitmap_free_range(bitmap, obj, 1);
+	mlx4_bitmap_free_range(bitmap, obj, 1, use_rr);
 }
 
 static unsigned long find_aligned_range(unsigned long *bitmap,
@@ -148,11 +148,17 @@ u32 mlx4_bitmap_avail(struct mlx4_bitmap *bitmap)
 	return bitmap->avail;
 }
 
-void mlx4_bitmap_free_range(struct mlx4_bitmap *bitmap, u32 obj, int cnt)
+void mlx4_bitmap_free_range(struct mlx4_bitmap *bitmap, u32 obj, int cnt,
+			    int use_rr)
 {
 	obj &= bitmap->max + bitmap->reserved_top - 1;
 
 	spin_lock(&bitmap->lock);
+	if (!use_rr) {
+		bitmap->last = min(bitmap->last, obj);
+		bitmap->top = (bitmap->top + bitmap->max + bitmap->reserved_top)
+				& bitmap->mask;
+	}
 	bitmap_clear(bitmap->table, obj, cnt);
 	bitmap->avail += cnt;
 	spin_unlock(&bitmap->lock);
