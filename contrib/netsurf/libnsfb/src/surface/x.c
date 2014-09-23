@@ -14,6 +14,7 @@
 #include <string.h>
 
 #include <sys/ipc.h>
+#include <sys/select.h>
 #include <sys/shm.h>
 
 #include <xcb/xcb.h>
@@ -32,6 +33,22 @@
 #include "surface.h"
 #include "plot.h"
 #include "cursor.h"
+
+/* Force some things to be defined */
+#ifndef NSFB_NEED_HINTS_ALLOC
+# define	NSFB_NEED_HINTS_ALLOC
+#endif
+
+#ifndef NSFB_NEED_ICCCM_API_PREFIX
+# define	NSFB_NEED_ICCCM_API_PREFIX
+#endif
+
+#ifdef NSFB_XCBPROTO_MAJOR_VERSION
+# undef NSFB_XCBPROTO_MAJOR_VERSION
+# define NSFB_XCBPROTO_MAJOR_VERSION 2
+#else
+# define NSFB_XCBPROTO_MAJOR_VERSION 2
+#endif
 
 #if defined(NSFB_NEED_HINTS_ALLOC)
 static xcb_size_hints_t *
@@ -1111,7 +1128,21 @@ static int x_update(nsfb_t *nsfb, nsfb_bbox_t *box)
     return 0;
 }
 
+static int x_defaults(nsfb_t *nsfb)
+{
+
+        nsfb->width = 800;
+        nsfb->height = 480;
+        nsfb->format = NSFB_FMT_ARGB8888;
+
+        /* select default sw plotters for bpp */
+        select_plotters(nsfb);
+
+        return (0);
+}
+
 const nsfb_surface_rtns_t x_rtns = {
+	.defaults = x_defaults,
     .initialise = x_initialise,
     .finalise = x_finalise,
     .input = x_input,

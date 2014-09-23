@@ -24,7 +24,9 @@ SRCS=		src/libnsfb.c \
 		src/surface/ram.c \
 		src/surface/mtl.c
 
-#		src/surface/x.c
+.if defined(NETSURF_X_SURFACE)
+SRCS+=	src/surface/x.c
+.endif
 
 WARNFLAGS=	-Wall -W -Wundef -Wpointer-arith -Wcast-align -Wwrite-strings   \
 		-Wstrict-prototypes -Wmissing-prototypes -Wmissing-declarations \
