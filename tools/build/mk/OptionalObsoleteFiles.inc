@@ -3510,9 +3510,9 @@ OLD_FILES+=usr/libexec/ssh-pkcs11-helper
 OLD_FILES+=usr/sbin/sshd
 .endif
 
-#.if ${MK_OPENSSL} == no
-# to be filled in
-#.endif
+.if ${MK_OPENSSL} == no
+OLD_FILES+=etc/rc.d/keyserv
+.endif
 
 .if ${MK_PC_SYSINSTALL} == no
 # backend-partmanager

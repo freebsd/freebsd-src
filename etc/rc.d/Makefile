@@ -72,7 +72,6 @@ FILES=	DAEMON \
 	jail \
 	kadmind \
 	kdc \
-	keyserv \
 	kfd \
 	kld \
 	kldxref \
@@ -184,6 +183,10 @@ _nscd=		nscd
 
 .if ${MK_OFED} != "no"
 _opensm=	opensm
+.endif
+
+.if ${MK_OPENSSL} != "no"
+FILES+=		keyserv
 .endif
 
 .if ${MK_OPENSSH} != "no"
