@@ -453,6 +453,15 @@
 	      bootstrap file.</para>
 	  </listitem>
 	</itemizedlist>
+
+	<para revision="272006">Support has been added to cache
+	  &man.geli.8; passphrases during system boot.  When a system
+	  is configured with multiple <literal>GEOM_ELI</literal>
+	  providers all using the same passphrase, the passphrase that
+	  is cached after the first entry is used for the subsequent
+	  <literal>GEOM_ELI</literal> provider.  If the passphrase in
+	  the cache is incorrect, then a prompt for the passphrase for
+	  the next provider is displayed.</para>
       </sect3>
 
       <sect3 xml:id="proc">
