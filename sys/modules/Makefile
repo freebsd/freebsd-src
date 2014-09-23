@@ -625,8 +625,6 @@ _iwnfw=		iwnfw
 .endif
 _ixgb=		ixgb
 _ixgbe=		ixgbe
-_ixl=		ixl
-_ixlv=		ixlv
 _mly=		mly
 _nfe=		nfe
 _nvd=		nvd
