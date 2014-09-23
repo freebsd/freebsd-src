@@ -144,7 +144,6 @@ widget_scroll_y(struct gui_window *gw, int y, bool abs)
 		bwidget->pany = (content_height - height) - bwidget->scrolly;
 
 	if (bwidget->pany == 0) {
-		fbtk_request_redraw(gw->browser); /* XXX redraw */
 		return;
 	}
 
@@ -183,7 +182,6 @@ widget_scroll_x(struct gui_window *gw, int x, bool abs)
 		bwidget->panx = (content_width - width) - bwidget->scrollx;
 
 	if (bwidget->panx == 0) {
-		fbtk_request_redraw(gw->browser); /* XXX redraw */
 		return;
 	}
 
@@ -659,10 +657,7 @@ fb_browser_window_click(fbtk_widget_t *widget, fbtk_callback_info *cbi)
 			/* scroll up */
 			if (browser_window_scroll_at_point(gw->bw, x, y,
 					0, -100) == false) {
-				/* XXX scroll a full screen */
-				/* XXX widget_scroll_y(gw, -100, false); */
-				widget_scroll_y(gw, -fbtk_get_height(
-						gw->browser), false);
+				widget_scroll_y(gw, -100, false);
 			}
 			break;
 
@@ -670,9 +665,7 @@ fb_browser_window_click(fbtk_widget_t *widget, fbtk_callback_info *cbi)
 			/* scroll down */
 			if (browser_window_scroll_at_point(gw->bw, x, y,
 					0, 100) == false) {
-				/* XXX widget_scroll_y(gw, 100, false); */
-				widget_scroll_y(gw, fbtk_get_height(
-						gw->browser), false);
+				widget_scroll_y(gw, 100, false);
 			}
 			break;
 

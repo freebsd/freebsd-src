@@ -883,6 +883,79 @@ mtl_initialise(nsfb_t *nsfb)
     	return (0);
 }
 
+static inline void
+pixelmove(uint8_t *dst, uint8_t *src, size_t len, int bpp)
+{
+	if (bpp < 24) {
+		memmove(dst, src, len);
+	} else {
+		uint32_t *d = (uint32_t *)dst, *s = (uint32_t *)src;
+		size_t i, end = len / 4;
+
+		for (i = 0; i < end; i++)
+			d[i] = s[i];
+	}
+}
+
+static bool mtl_copy(nsfb_t *nsfb, nsfb_bbox_t *srcbox, nsfb_bbox_t *dstbox)
+{
+	nsfb_bbox_t allbox;
+	struct nsfb_cursor_s *cursor = nsfb->cursor;
+	uint8_t *srcptr;
+	uint8_t *dstptr;
+	int srcx = srcbox->x0;
+	int srcy = srcbox->y0;
+	int dstx = dstbox->x0;
+	int dsty = dstbox->y0;
+	int width = dstbox->x1 - dstbox->x0;
+	int height = dstbox->y1 - dstbox->y0;
+	int hloop;
+
+	/* Find the superset of the two boxes. */
+	nsfb_plot_add_rect(srcbox, dstbox, &allbox);
+
+	/* Clear the cursor if its within the region to be altered. */
+	if ((cursor != NULL) && (cursor->plotted == true) &&
+		(nsfb_plot_bbox_intersect(&allbox, &cursor->loc))) {
+		nsfb_cursor_clear(nsfb, cursor);
+	}
+
+	srcptr = (nsfb->ptr + (srcy * nsfb->linelen) +
+			 ((srcx * nsfb->bpp) / 8));
+	dstptr = (nsfb->ptr + (dsty * nsfb->linelen) +
+			 ((dstx * nsfb->bpp) / 8));
+	if (width == nsfb->width) {
+		/*
+		 * The box width is the same as the buffer.
+		 * Just use memmove.
+		 */
+		pixelmove(dstptr, srcptr, (width * height * nsfb->bpp) / 8, nsfb->bpp);
+	} else {
+		if (srcy > dsty) {
+			for (hloop = height; hloop > 0; hloop--) {
+				pixelmove(dstptr, srcptr, (width * nsfb->bpp) / 8, nsfb->bpp);
+				srcptr += nsfb->linelen;
+				dstptr += nsfb->linelen;
+			}
+		} else {
+			srcptr += height * nsfb->linelen;
+			dstptr += height * nsfb->linelen;
+			for (hloop = height; hloop > 0; hloop--) {
+				srcptr -= nsfb->linelen;
+				dstptr -= nsfb->linelen;
+				pixelmove(dstptr, srcptr, (width * nsfb->bpp) / 8, nsfb->bpp);
+			}
+		}
+	}
+
+	if ((cursor != NULL) &&
+		(cursor->plotted == false)) {
+		nsfb_cursor_plot(nsfb, cursor);
+	}
+
+	return (true);
+}
+
 static int
 mtl_set_geometry(nsfb_t *nsfb, int width, int height, enum nsfb_format_e format)
 {
@@ -897,6 +970,8 @@ mtl_set_geometry(nsfb_t *nsfb, int width, int height, enum nsfb_format_e format)
 
 	/* select soft plotters appropriate for format */
 	select_plotters(nsfb);
+
+	nsfb->plotter_fns->copy = mtl_copy;
 
 	return (0);
 }
