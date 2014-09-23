@@ -76,6 +76,7 @@ cheri_system_puts(__capability const char *str)
 		if (putchar(*str) == EOF)
 			return (EOF);
 	}
+	putchar('\n');
 	return (1);
 }
 

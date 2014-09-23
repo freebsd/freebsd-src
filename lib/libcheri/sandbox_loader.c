@@ -145,7 +145,7 @@ sandbox_object_load(struct sandbox_class *sbcp, struct sandbox_object *sbop)
 		goto error;
 	}
 	base += roundup2(sbcp->sbc_stat.st_size, PAGE_SIZE);
-	length += roundup2(sbcp->sbc_stat.st_size, PAGE_SIZE);
+	length -= roundup2(sbcp->sbc_stat.st_size, PAGE_SIZE);
 
 	/*
 	 * Skip guard page.

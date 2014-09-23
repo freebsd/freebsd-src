@@ -38,8 +38,9 @@
 #include <stdlib.h>
 #include <string.h>
 
-void	*_sb_heapbase;
+register_t  _sb_heapbase;
 size_t	 _sb_heaplen;
+void	*_sb_heapcap;
 
 void *
 malloc(size_t size)
@@ -47,11 +48,18 @@ malloc(size_t size)
 	size_t rsize;
 	char *ptr;
 
+	if (_sb_heapcap == NULL) {
+		_sb_heapcap = cheri_setlen(
+		    cheri_incbase(__builtin_cheri_get_global_data_cap(),
+		    _sb_heapbase), _sb_heaplen);
+	}
+
 	rsize = roundup2(size + 32, 32);
 	ptr = cheri_setlen(_sb_heapbase, rsize);
 	_sb_heaplen -= rsize;
-	_sb_heapbase = ptr + rsize;
+	_sb_heapcap = cheri_incbase(ptr, rsize);
 
+	/* XXX: replace with capability to allocation */
 	*(size_t*)ptr = rsize;
 	ptr += 32;
 
