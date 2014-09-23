@@ -42,6 +42,8 @@ register_t  _sb_heapbase;
 size_t	 _sb_heaplen;
 void	*_sb_heapcap;
 
+#define	MALLOC_ALIGN	sizeof(__capability void *)
+
 void *
 malloc(size_t size)
 {
@@ -54,10 +56,11 @@ malloc(size_t size)
 		    _sb_heapbase), _sb_heaplen);
 	}
 
-	rsize = roundup2(size + 32, 32);
-	ptr = cheri_setlen(_sb_heapbase, rsize);
-	_sb_heaplen -= rsize;
-	_sb_heapcap = cheri_incbase(ptr, rsize);
+	rsize = roundup2(size + MALLOC_ALIGN, MALLOC_ALIGN);
+	if (cheri_getlen(_sb_heapcap) < rsize)
+		return (NULL);
+	ptr = cheri_setlen(_sb_heapcap, rsize);
+	_sb_heapcap = cheri_incbase(_sb_heapcap, rsize);
 
 	/* XXX: replace with capability to allocation */
 	*(size_t*)ptr = rsize;
