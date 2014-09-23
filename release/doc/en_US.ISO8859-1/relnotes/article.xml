@@ -230,6 +230,11 @@
 	Radeon&nbsp;9700 backlight, found in the
 	&apple;&nbsp;PowerBook&trade;&nbsp;G4.</para>
 
+      <para revision="271816">Hardware context support has been
+	added to the <literal>drm/i915</literal> driver, adding
+	support for <application>Mesa</application> 9.2 and
+	later.</para>
+
       <sect3 xml:id="kernel-virtualization">
 	<title>Virtualization Support</title>
 
