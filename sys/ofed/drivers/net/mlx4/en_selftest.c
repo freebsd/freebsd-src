@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2007 Mellanox Technologies. All rights reserved.
+ * Copyright (c) 2007, 2014 Mellanox Technologies. All rights reserved.
  *
  * This software is available to you under a choice of one of two
  * licenses.  You may choose to be licensed under the terms of the GNU
@@ -31,24 +31,24 @@
  *
  */
 
-#include "mlx4_en.h"
-
 #include <linux/kernel.h>
 #include <linux/ethtool.h>
 #include <linux/netdevice.h>
 #include <linux/delay.h>
 #include <linux/mlx4/driver.h>
 
+#include "mlx4_en.h"
+
 
 static int mlx4_en_test_registers(struct mlx4_en_priv *priv)
 {
 	return mlx4_cmd(priv->mdev->dev, 0, 0, 0, MLX4_CMD_HW_HEALTH_CHECK,
-			MLX4_CMD_TIME_CLASS_A);
+			MLX4_CMD_TIME_CLASS_A, MLX4_CMD_WRAPPED);
 }
 
 static int mlx4_en_test_loopback_xmit(struct mlx4_en_priv *priv)
 {
-	struct mbuf *mb;
+	struct sk_buff *skb;
 	struct ethhdr *ethh;
 	unsigned char *packet;
 	unsigned int packet_size = MLX4_LOOPBACK_TEST_PAYLOAD;
@@ -57,24 +57,24 @@ static int mlx4_en_test_loopback_xmit(struct mlx4_en_priv *priv)
 
 
 	/* build the pkt before xmit */
-	mb = netdev_alloc_mb(priv->dev, MLX4_LOOPBACK_TEST_PAYLOAD + ETH_HLEN + NET_IP_ALIGN);
-	if (!mb) {
-		en_err(priv, "-LOOPBACK_TEST_XMIT- failed to create mb for xmit\n");
+	skb = netdev_alloc_skb(priv->dev, MLX4_LOOPBACK_TEST_PAYLOAD + ETH_HLEN + NET_IP_ALIGN);
+	if (!skb) {
+		en_err(priv, "-LOOPBACK_TEST_XMIT- failed to create skb for xmit\n");
 		return -ENOMEM;
 	}
-	mb_reserve(mb, NET_IP_ALIGN);
+	skb_reserve(skb, NET_IP_ALIGN);
 
-	ethh = (struct ethhdr *)mb_put(mb, sizeof(struct ethhdr));
-	packet	= (unsigned char *)mb_put(mb, packet_size);
+	ethh = (struct ethhdr *)skb_put(skb, sizeof(struct ethhdr));
+	packet	= (unsigned char *)skb_put(skb, packet_size);
 	memcpy(ethh->h_dest, priv->dev->dev_addr, ETH_ALEN);
 	memset(ethh->h_source, 0, ETH_ALEN);
 	ethh->h_proto = htons(ETH_P_ARP);
-	mb_set_mac_header(mb, 0);
+	skb_set_mac_header(skb, 0);
 	for (i = 0; i < packet_size; ++i)	/* fill our packet */
 		packet[i] = (unsigned char)(i & 0xff);
 
 	/* xmit the pkt */
-	err = mlx4_en_xmit(mb, priv->dev);
+	err = mlx4_en_xmit(skb, priv->dev);
 	return err;
 }
 
@@ -86,6 +86,8 @@ static int mlx4_en_test_loopback(struct mlx4_en_priv *priv)
 
         priv->loopback_ok = 0;
 	priv->validate_loopback = 1;
+
+	mlx4_en_update_loopback_state(priv->dev, priv->dev->features);
 
 	/* xmit */
 	if (mlx4_en_test_loopback_xmit(priv)) {
@@ -107,7 +109,8 @@ static int mlx4_en_test_loopback(struct mlx4_en_priv *priv)
 mlx4_en_test_loopback_exit:
 
 	priv->validate_loopback = 0;
-	return (!loopback_ok);
+	mlx4_en_update_loopback_state(priv->dev, priv->dev->features);
+	return !loopback_ok;
 }
 
 
@@ -127,8 +130,10 @@ static int mlx4_en_test_speed(struct mlx4_en_priv *priv)
 	if (mlx4_en_QUERY_PORT(priv->mdev, priv->port))
 		return -ENOMEM;
 
-	/* The device currently only supports 10G speed */
-	if (priv->port_state.link_speed != SPEED_10000)
+	/* The device supports 1G, 10G and 40G speed */
+	if (priv->port_state.link_speed != MLX4_EN_LINK_SPEED_1G &&
+	    priv->port_state.link_speed != MLX4_EN_LINK_SPEED_10G &&
+	    priv->port_state.link_speed != MLX4_EN_LINK_SPEED_40G)
 		return priv->port_state.link_speed;
 	return 0;
 }
@@ -138,7 +143,6 @@ void mlx4_en_ex_selftest(struct net_device *dev, u32 *flags, u64 *buf)
 {
 	struct mlx4_en_priv *priv = netdev_priv(dev);
 	struct mlx4_en_dev *mdev = priv->mdev;
-	struct mlx4_en_tx_ring *tx_ring;
 	int i, carrier_ok;
 
 	memset(buf, 0, sizeof(u64) * MLX4_EN_NUM_SELF_TEST);
@@ -148,20 +152,16 @@ void mlx4_en_ex_selftest(struct net_device *dev, u32 *flags, u64 *buf)
 		carrier_ok = netif_carrier_ok(dev);
 
 		netif_carrier_off(dev);
-retry_tx:
-		/* Wait untill all tx queues are empty.
+		/* Wait until all tx queues are empty.
 		 * there should not be any additional incoming traffic
 		 * since we turned the carrier off */
 		msleep(200);
-		for (i = 0; i < priv->tx_ring_num && carrier_ok; i++) {
-			tx_ring = &priv->tx_ring[i];
-			if (tx_ring->prod != (tx_ring->cons + tx_ring->last_nr_txbb))
-				goto retry_tx;
-		}
 
-		if (priv->mdev->dev->caps.loopback_support){
+		if (priv->mdev->dev->caps.flags &
+					MLX4_DEV_CAP_FLAG_UC_LOOPBACK) {
 			buf[3] = mlx4_en_test_registers(priv);
-			buf[4] = mlx4_en_test_loopback(priv);
+			if (priv->port_up)
+				buf[4] = mlx4_en_test_loopback(priv);
 		}
 
 		if (carrier_ok)

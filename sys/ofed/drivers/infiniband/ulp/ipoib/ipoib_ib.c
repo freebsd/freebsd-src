@@ -240,7 +240,7 @@ ipoib_ib_handle_rx_wc(struct ipoib_dev_priv *priv, struct ib_wc *wc)
 	 */
 	if (unlikely(!ipoib_alloc_rx_mb(priv, wr_id))) {
 		memcpy(&priv->rx_ring[wr_id], &saverx, sizeof(saverx));
-		dev->if_iqdrops++;
+		if_inc_counter(dev, IFCOUNTER_IQDROPS, 1);
 		goto repost;
 	}
 

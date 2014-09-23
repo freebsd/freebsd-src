@@ -1,6 +1,6 @@
 /*
  * Copyright (c) 2004, 2005 Topspin Communications.  All rights reserved.
- * Copyright (c) 2005, 2006, 2007, 2008 Mellanox Technologies. All rights reserved.
+ * Copyright (c) 2005, 2006, 2007, 2008, 2014 Mellanox Technologies. All rights reserved.
  * Copyright (c) 2006, 2007 Cisco Systems.  All rights reserved.
  *
  * This software is available to you under a choice of one of two
@@ -143,10 +143,13 @@ struct mlx4_func_cap {
 	u32	qp1_proxy_qpn;
 	u8	physical_port;
 	u8	port_flags;
+	u8	def_counter_index;
 };
 
 struct mlx4_adapter {
+	u16 vsd_vendor_id;
 	char board_id[MLX4_BOARD_ID_LEN];
+	char vsd[MLX4_VSD_LEN];
 	u8   inta_pin;
 };
 
@@ -175,6 +178,8 @@ struct mlx4_init_hca_param {
 	u8  log_mpt_sz;
 	u8  log_uar_sz;
 	u8  uar_page_sz; /* log pg sz in 4k chunks */
+	u8  mw_enable;	/* Enable memory windows */
+	u8  fs_hash_enable_bits;
 	u8  steering_mode; /* for QUERY_HCA */
 	u64 dev_cap_enabled;
 };
