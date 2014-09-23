@@ -2625,7 +2625,8 @@ options 	NSFBUFS=1024
 # Enable extra debugging code for locks.  This stores the filename and
 # line of whatever acquired the lock in the lock itself, and changes a
 # number of function calls to pass around the relevant data.  This is
-# not at all useful unless you are debugging lock code.
+# not at all useful unless you are debugging lock code.  Note that
+# modules should be recompiled as this option modifies KBI.
 #
 options 	DEBUG_LOCKS
 
