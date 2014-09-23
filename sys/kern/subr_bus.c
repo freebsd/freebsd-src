@@ -135,6 +135,7 @@ struct device {
 #define	DF_DONENOMATCH	0x20		/* don't execute DEVICE_NOMATCH again */
 #define	DF_EXTERNALSOFTC 0x40		/* softc not allocated by us */
 #define	DF_REBID	0x80		/* Can rebid after attach */
+#define	DF_SUSPENDED	0x100		/* Device is suspended. */
 	u_int	order;			/**< order from device_add_child_ordered() */
 	void	*ivars;			/**< instance variables  */
 	void	*softc;			/**< current driver's variables  */
@@ -3631,6 +3632,39 @@ bus_generic_shutdown(device_t dev)
 }
 
 /**
+ * @brief Default function for suspending a child device.
+ *
+ * This function is to be used by a bus's DEVICE_SUSPEND_CHILD().
+ */
+int
+bus_generic_suspend_child(device_t dev, device_t child)
+{
+	int	error;
+
+	error = DEVICE_SUSPEND(child);
+
+	if (error == 0)
+		dev->flags |= DF_SUSPENDED;
+
+	return (error);
+}
+
+/**
+ * @brief Default function for resuming a child device.
+ *
+ * This function is to be used by a bus's DEVICE_RESUME_CHILD().
+ */
+int
+bus_generic_resume_child(device_t dev, device_t child)
+{
+
+	DEVICE_RESUME(child);
+	dev->flags &= ~DF_SUSPENDED;
+
+	return (0);
+}
+
+/**
  * @brief Helper function for implementing DEVICE_SUSPEND()
  *
  * This function can be used to help implement the DEVICE_SUSPEND()
@@ -3646,12 +3680,12 @@ bus_generic_suspend(device_t dev)
 	device_t	child, child2;
 
 	TAILQ_FOREACH(child, &dev->children, link) {
-		error = DEVICE_SUSPEND(child);
+		error = BUS_SUSPEND_CHILD(dev, child);
 		if (error) {
 			for (child2 = TAILQ_FIRST(&dev->children);
 			     child2 && child2 != child;
 			     child2 = TAILQ_NEXT(child2, link))
-				DEVICE_RESUME(child2);
+				BUS_RESUME_CHILD(dev, child2);
 			return (error);
 		}
 	}
@@ -3670,7 +3704,7 @@ bus_generic_resume(device_t dev)
 	device_t	child;
 
 	TAILQ_FOREACH(child, &dev->children, link) {
-		DEVICE_RESUME(child);
+		BUS_RESUME_CHILD(dev, child);
 		/* if resume fails, there's nothing we can usefully do... */
 	}
 	return (0);
