@@ -694,7 +694,7 @@ ctl_set_lun_not_ready(struct ctl_scsiio *ctsio)
 		      /*current_error*/ 1,
 		      /*sense_key*/ SSD_KEY_NOT_READY,
 		      /*asc*/ 0x04,
-		      /*ascq*/ 0x05,
+		      /*ascq*/ 0x03,
 		      SSD_ELEM_NONE);
 }
 
