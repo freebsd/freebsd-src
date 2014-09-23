@@ -1425,9 +1425,9 @@
 	part of the release build, regardless of native- or
 	cross-built releases.</para>
 
-      <para revision="271470">The <filename
-	  class="directory">release/</filename> scripts have been
-	updated to produce <acronym>UEFI</acronym>-capable and
+      <para revision="271470" contrib="sponsor" sponsor="&ff;">The
+	<filename class="directory">release/</filename> scripts have
+	been updated to produce <acronym>UEFI</acronym>-capable and
 	<acronym>BIOS</acronym>-capable CD-ROM ISOs as well as memory
 	stick images for the &os;/&arch.amd64; architecture.</para>
     </sect2>
