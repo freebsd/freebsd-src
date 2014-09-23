@@ -369,7 +369,6 @@ SUBDIR=	\
 
 .if ${MACHINE_CPUARCH} == "i386" || ${MACHINE_CPUARCH} == "amd64"
 _filemon=	filemon
-_xenhvm=	xenhvm
 .endif
 
 .if ${MACHINE_CPUARCH} != "powerpc" && ${MACHINE_CPUARCH} != "arm" && \
@@ -614,6 +613,7 @@ _twa=		twa
 _vesa=		vesa
 _virtio=	virtio
 _x86bios=	x86bios
+_xenhvm=	xenhvm
 .elif ${MACHINE} == "pc98"
 _canbepm=	canbepm
 _canbus=	canbus
@@ -738,6 +738,7 @@ _viawd=		viawd
 _virtio=	virtio
 _vxge=  	vxge
 _x86bios=	x86bios
+_xenhvm=	xenhvm
 _wbwd=		wbwd
 _wi=		wi
 _wpi=		wpi
