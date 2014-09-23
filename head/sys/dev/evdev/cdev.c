@@ -42,7 +42,7 @@
 #include <dev/evdev/input.h>
 #include <dev/evdev/evdev.h>
 
-//#define	DEBUG
+#define	DEBUG
 #ifdef DEBUG
 #define	debugf(fmt, args...)	printf("evdev: " fmt "\n", ##args);
 #else
@@ -167,7 +167,7 @@ evdev_read(struct cdev *dev, struct uio *uio, int ioflag)
 		return (ret);
 
 	if (state->ecs_revoked)
-		return (EPERM);
+		return (ENODEV);
 
 	client = state->ecs_client;
 
@@ -574,7 +574,7 @@ evdev_cdev_create(struct evdev_dev *evdev)
 	snprintf(evdev->ev_cdev_name, NAMELEN, "input/event%d",
 	    evdev_cdev_count++);
 	cdev = make_dev(&evdev_cdevsw, 0, UID_ROOT, GID_WHEEL, 0600,
-	    evdev->ev_cdev_name, evdev_cdev_count++);
+	    "%s", evdev->ev_cdev_name);
 
 	sc = malloc(sizeof(struct evdev_cdev_softc), M_EVDEV,
 	    M_WAITOK | M_ZERO);
@@ -588,6 +588,8 @@ evdev_cdev_create(struct evdev_dev *evdev)
 int
 evdev_cdev_destroy(struct evdev_dev *evdev)
 {
+
 	destroy_dev(evdev->ev_cdev);
+	evdev_cdev_count--;
 	return (0);
 }

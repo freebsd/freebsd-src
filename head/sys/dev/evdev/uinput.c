@@ -57,9 +57,6 @@ static int uinput_poll(struct cdev *, int, struct thread *);
 static void uinput_dtor(void *);
 
 static int uinput_setup_provider(struct evdev_dev *, struct uinput_user_dev *);
-
-
-
 static int uinput_cdev_create(void);
 
 static struct cdevsw uinput_cdevsw = {
@@ -120,11 +117,10 @@ uinput_dtor(void *data)
 {
 	struct uinput_cdev_state *state = (struct uinput_cdev_state *)data;
 
-	if (state->ucs_connected) {
+	if (state->ucs_connected)
 		evdev_unregister(NULL, state->ucs_evdev);
-		evdev_free(state->ucs_evdev);
-	}
 
+	evdev_free(state->ucs_evdev);
 	free(data, M_EVDEV);
 }
 
@@ -258,8 +254,6 @@ uinput_ioctl(struct cdev *dev, u_long cmd, caddr_t data, int fflag,
 			return (0);
 
 		evdev_unregister(NULL, state->ucs_evdev);
-		evdev_free(state->ucs_evdev);
-		state->ucs_evdev = NULL;
 		state->ucs_connected = false;
 		break;
 
