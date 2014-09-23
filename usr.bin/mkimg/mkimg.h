@@ -66,6 +66,21 @@ round_block(lba_t n)
 	return ((n + b - 1) & ~(b - 1));
 }
 
+static inline lba_t
+round_cylinder(lba_t n)
+{
+	u_int cyl = nsecs * nheads;
+	u_int r = n % cyl;
+	return ((r == 0) ? n : n + cyl - r);
+}
+
+static inline lba_t
+round_track(lba_t n)
+{
+	u_int r = n % nsecs;
+	return ((r == 0) ? n : n + nsecs - r);
+}
+
 #if !defined(SPARSE_WRITE)
 #define	sparse_write	write
 #else
