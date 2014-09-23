@@ -242,7 +242,7 @@ SUBDIR=	\
 	my \
 	${_nandfs} \
 	${_nandsim} \
-	${_ncp} \
+	${_ncr} \
 	${_ncv} \
 	${_ndis} \
 	netfpga10g \
@@ -537,6 +537,7 @@ _mlx4ib=	mlx4ib
 _mlxen=		mlxen
 _mthca=		mthca
 .endif
+_ncr=		ncr
 _ncv=		ncv
 _ndis=		ndis
 _nsp=		nsp

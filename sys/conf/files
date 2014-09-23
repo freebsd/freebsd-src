@@ -1965,6 +1965,8 @@ dev/nand/nandsim_ctrl.c		optional nandsim nand
 dev/nand/nandsim_log.c		optional nandsim nand
 dev/nand/nandsim_swap.c		optional nandsim nand
 dev/nand/nfc_if.m		optional nand
+dev/ncr/ncr.c			optional ncr pci \
+	compile-with "${NORMAL_C} -Wno-unused"
 dev/ncv/ncr53c500.c		optional ncv
 dev/ncv/ncr53c500_pccard.c	optional ncv pccard
 dev/netmap/netmap.c		optional netmap
@@ -3868,8 +3870,6 @@ pci/alpm.c			optional alpm pci
 pci/amdpm.c			optional amdpm pci | nfpm pci
 pci/amdsmb.c			optional amdsmb pci
 pci/intpm.c			optional intpm pci
-pci/ncr.c			optional ncr pci \
-	compile-with "${NORMAL_C} -Wno-unused"
 pci/nfsmb.c			optional nfsmb pci
 pci/viapm.c			optional viapm pci
 rpc/auth_none.c			optional krpc | nfslockd | nfsclient | nfsserver | nfscl | nfsd
