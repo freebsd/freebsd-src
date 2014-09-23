@@ -979,48 +979,28 @@ mtl_set_geometry(nsfb_t *nsfb, int width, int height, enum nsfb_format_e format)
 
 static int mtl_claim(nsfb_t *nsfb, nsfb_bbox_t *box)
 {
-    struct nsfb_cursor_s *cursor = nsfb->cursor;
+	struct nsfb_cursor_s *cursor = nsfb->cursor;
 
-    if ((cursor != NULL) &&
-        (cursor->plotted == true) &&
-        (nsfb_plot_bbox_intersect(box, &cursor->loc))) {
-
-        nsfb->plotter_fns->bitmap(nsfb,
-                                  &cursor->savloc,
-                                  cursor->sav,
-                                  cursor->sav_width,
-                                  cursor->sav_height,
-                                  cursor->sav_width,
-                                  false);
-        cursor->plotted = false;
-    }
-    return 0;
+	if ((cursor != NULL) &&
+		(cursor->plotted == true) &&
+		(nsfb_plot_bbox_intersect(box, &cursor->loc))) {
+			nsfb_cursor_clear(nsfb, cursor);
+	}
+	return 0;
 }
 
 static int mtl_cursor(nsfb_t *nsfb, struct nsfb_cursor_s *cursor)
 {
-    nsfb_bbox_t sclip;
+	nsfb_bbox_t sclip;
 
-    if ((cursor != NULL) && (cursor->plotted == true)) {
-        sclip = nsfb->clip;
-
-        nsfb->plotter_fns->set_clip(nsfb, NULL);
-
-        nsfb->plotter_fns->bitmap(nsfb,
-                                  &cursor->savloc,
-                                  cursor->sav,
-                                  cursor->sav_width,
-                                  cursor->sav_height,
-                                  cursor->sav_width,
-                                  false);
-
-        nsfb_cursor_plot(nsfb, cursor);
-
-        nsfb->clip = sclip;
-    }
-    return true;
+	if ((cursor != NULL) && (cursor->plotted == true)) {
+		sclip = nsfb->clip;
+		nsfb_cursor_clear(nsfb, cursor);
+		nsfb_cursor_plot(nsfb, cursor);
+		nsfb->clip = sclip;
+	}
+	return true;
 }
-
 
 static int mtl_update(nsfb_t *nsfb, nsfb_bbox_t *box)
 {
