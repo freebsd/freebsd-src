@@ -31,6 +31,10 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 11.x IS SLOW:
 	disable the most expensive debugging functionality run
 	"ln -s 'abort:false,junk:false' /etc/malloc.conf".)
 
+20140923:
+	pjdfstest has been moved from tools/regression/pjdfstest to
+	contrib/pjdfstest .
+
 20140922:
 	At svn r271982, The default linux compat kernel ABI has been adjusted
 	to 2.6.18 in support of the linux-c6 compat ports infrastructure
