@@ -6,7 +6,7 @@ desc="ftruncate descrease/increase file size"
 dir=`dirname $0`
 . ${dir}/../misc.sh
 
-echo "1..21"
+echo "1..26"
 
 n0=`namegen`
 n1=`namegen`
