@@ -54,7 +54,11 @@ memcpy_c:
 	# return that value in v0, allowing memcpy_c() to be tail-called from
 	# memcpy().  This is in the delay slot, so it happens even if len == 0.
 	CGetBase $v0, $c3            # v0 = linear address of dst
+	CGetOffset $at, $c3
+	dadd     $v0, $v0, $at
 	CGetBase $v1, $c4            # v1 = linear address of src
+	CGetOffset $at, $c4
+	dadd     $v1, $v1, $at
 	andi     $12, $v0, 0x1f      # t4 = dst % 32
 	andi     $13, $v1, 0x1f      # t5 = src % 32
 	daddi    $a1, $zero, 0       # Store 0 in $a1 - we'll use that for the
