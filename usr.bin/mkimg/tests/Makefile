@@ -11,6 +11,8 @@ FILESDIR=	${TESTSDIR}
 ${FILES}:
 	uudecode -p ${.CURDIR}/${.TARGET}.gz.uu | gunzip -c > ${.TARGET}
 
+CLEANFILES+=	${FILES}
+
 rebase:
 	(cd ${.CURDIR}; atf-sh mkimg.sh rebase)
 
