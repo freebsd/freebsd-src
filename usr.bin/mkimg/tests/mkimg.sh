@@ -1,7 +1,7 @@
 # $FreeBSD$
 
 mkimg_blksz_list="512 4096"
-mkimg_format_list="qcow raw vhd vhdf vmdk"
+mkimg_format_list="qcow qcow2 raw vhd vhdf vmdk"
 mkimg_geom_list="1x1 63x255"
 mkimg_scheme_list="apm bsd ebr gpt mbr pc98 vtoc8"
 
