@@ -229,6 +229,7 @@ SUBDIR+=	calendar
 
 .if ${MK_CHERI} != "no"
 SUBDIR+=	nsfb
+SUBDIR+=	libpng_sb_test
 .endif
 
 .if ${MK_CLANG} != "no"

@@ -15,6 +15,7 @@ SUBDIR=	${_atf} \
 	fingerd \
 	ftpd \
 	getty \
+	${_libpng_sb_helper} \
 	${_mail.local} \
 	${_mknetid} \
 	${_pppoed} \
@@ -51,6 +52,7 @@ _casper=	casper
 .if ${MK_CHERI} != "no"
 _cheri_helloworld_helper=	cheri_helloworld-helper
 _cheritest_helper=	cheritest-helper
+_libpng_sb_helper=	libpng_sb-helper
 _tcpdump_helper=	tcpdump-helper
 .endif
 

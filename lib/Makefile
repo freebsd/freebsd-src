@@ -82,6 +82,7 @@ SUBDIR=	${SUBDIR_ORDERED} \
 	libpjdlog \
 	${_libpmc} \
 	${_libpng} \
+	${_libpng_sb} \
 	${_libproc} \
 	libprocstat \
 	libradius \
@@ -200,6 +201,7 @@ _libz_cheri=	libz-cheri
 _libcurl=	libcurl
 _libjpeg=	libjpeg
 _libpng=	libpng
+_libpng_sb=	libpng_sb
 _netsurf=	netsurf
 .endif
 
