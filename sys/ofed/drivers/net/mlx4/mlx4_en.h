@@ -605,6 +605,7 @@ struct mlx4_en_priv {
 	struct delayed_work service_task;
 	struct mlx4_en_perf_stats pstats;
 	struct mlx4_en_pkt_stats pkstats;
+	struct mlx4_en_pkt_stats pkstats_last;
 	struct mlx4_en_flow_stats flowstats[MLX4_NUM_PRIORITIES];
 	struct mlx4_en_port_stats port_stats;
 	struct mlx4_en_vport_stats vport_stats;

@@ -1843,7 +1843,7 @@ static int mac_alloc_res(struct mlx4_dev *dev, int slave, int op, int cmd,
 	int err = -EINVAL;
 	int port;
 	u64 mac;
-	u8 smac_index;
+	u8 smac_index = 0;
 
 	if (op != RES_OP_RESERVE_AND_MAP)
 		return err;

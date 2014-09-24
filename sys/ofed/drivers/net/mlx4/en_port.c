@@ -546,17 +546,27 @@ int mlx4_en_DUMP_ETH_STATS(struct mlx4_en_dev *mdev, u8 port, u8 reset)
 	}
 
 	if (!mlx4_is_mfunc(mdev->dev)) {
-		/* netdevice stats format */
-                dev                     = mdev->pndev[port];
-		dev->if_ipackets        = priv->pkstats.rx_packets;
-		dev->if_opackets        = priv->pkstats.tx_packets;
-		dev->if_ibytes          = priv->pkstats.rx_bytes;
-		dev->if_obytes          = priv->pkstats.tx_bytes;
-		dev->if_ierrors         = priv->pkstats.rx_errors;
-		dev->if_iqdrops         = priv->pkstats.rx_dropped;
-		dev->if_imcasts         = priv->pkstats.rx_multicast_packets;
-                dev->if_omcasts         = priv->pkstats.tx_multicast_packets;
-                dev->if_collisions      = 0;
+		if (reset == 0) {
+			/* netdevice stats format */
+			dev                     = mdev->pndev[port];
+			if_inc_counter(dev, IFCOUNTER_IPACKETS,
+			    priv->pkstats.rx_packets - priv->pkstats_last.rx_packets);
+			if_inc_counter(dev, IFCOUNTER_OPACKETS,
+			    priv->pkstats.tx_packets - priv->pkstats_last.tx_packets);
+			if_inc_counter(dev, IFCOUNTER_IBYTES,
+			    priv->pkstats.rx_bytes - priv->pkstats_last.rx_bytes);
+			if_inc_counter(dev, IFCOUNTER_OBYTES,
+			    priv->pkstats.tx_bytes - priv->pkstats_last.tx_bytes);
+			if_inc_counter(dev, IFCOUNTER_IERRORS,
+			    priv->pkstats.rx_errors - priv->pkstats_last.rx_errors);
+			if_inc_counter(dev, IFCOUNTER_IQDROPS,
+			    priv->pkstats.rx_dropped - priv->pkstats_last.rx_dropped);
+			if_inc_counter(dev, IFCOUNTER_IMCASTS,
+			    priv->pkstats.rx_multicast_packets - priv->pkstats_last.rx_multicast_packets);
+			if_inc_counter(dev, IFCOUNTER_OMCASTS,
+			    priv->pkstats.tx_multicast_packets - priv->pkstats_last.tx_multicast_packets);
+		}
+		priv->pkstats_last = priv->pkstats;
 	}
 
 	spin_unlock(&priv->stats_lock);
