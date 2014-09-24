@@ -4524,7 +4524,8 @@ is_root_pool(zpool_handle_t *zhp)
 }
 
 static void
-root_pool_upgrade_check(zpool_handle_t *zhp, char *poolname, int size) {
+root_pool_upgrade_check(zpool_handle_t *zhp, char *poolname, int size)
+{
 
 	if (poolname[0] == '\0' && is_root_pool(zhp))
 		(void) strlcpy(poolname, zpool_get_name(zhp), size);
@@ -4623,7 +4624,7 @@ upgrade_cb(zpool_handle_t *zhp, void *arg)
 #ifdef __FreeBSD__
 		root_pool_upgrade_check(zhp, cbp->cb_poolname,
 		    sizeof(cbp->cb_poolname));
-#endif	/* ___FreeBSD__ */
+#endif	/* __FreeBSD__ */
 		printnl = B_TRUE;
 
 #ifdef illumos
@@ -4647,6 +4648,10 @@ upgrade_cb(zpool_handle_t *zhp, void *arg)
 		if (count > 0) {
 			cbp->cb_first = B_FALSE;
 			printnl = B_TRUE;
+#ifdef __FreeBSD__
+			root_pool_upgrade_check(zhp, cbp->cb_poolname,
+			    sizeof(cbp->cb_poolname));
+#endif	/* __FreeBSD__ */
 			/*
 			 * If they did "zpool upgrade -a", then we could
 			 * be doing ioctls to different pools.  We need
@@ -4788,7 +4793,7 @@ upgrade_one(zpool_handle_t *zhp, void *data)
 #ifdef __FreeBSD__
 		root_pool_upgrade_check(zhp, cbp->cb_poolname,
 		    sizeof(cbp->cb_poolname));
-#endif	/* ___FreeBSD__ */
+#endif	/* __FreeBSD__ */
 	}
 
 	if (cbp->cb_version >= SPA_VERSION_FEATURES) {
