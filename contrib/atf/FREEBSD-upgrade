@@ -41,7 +41,7 @@ the vendor branch as you easily risk committing build products into the
 tree.
 
 Lastly, with the list of old and new files in this import, make sure
-to udpate the reachover Makefiles accordingly.
+to update the reachover Makefiles accordingly.
 
 Test the build (keeping in mind the WITH_TESTS/WITHOUT_TESTS knobs) and,
 if all looks good, you are ready to commit all the changes in one go.
