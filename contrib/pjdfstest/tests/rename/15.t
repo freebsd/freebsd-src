@@ -15,9 +15,9 @@ n1=`namegen`
 n2=`namegen`
 
 expect 0 mkdir ${n0} 0755
-n=`mdconfig -a -n -t malloc -s 1m`
-newfs /dev/md${n} >/dev/null
-mount /dev/md${n} ${n0}
+n=`mdconfig -a -n -t malloc -s 1m` || exit
+newfs /dev/md${n} >/dev/null || exit
+mount /dev/md${n} ${n0} || exit
 
 for type in regular dir fifo block char socket symlink; do
 	create_file ${type} ${n0}/${n1}
@@ -30,5 +30,5 @@ for type in regular dir fifo block char socket symlink; do
 done
 
 umount /dev/md${n}
-mdconfig -d -u ${n}
+mdconfig -d -u ${n} || exit
 expect 0 rmdir ${n0}
