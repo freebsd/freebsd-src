@@ -14,9 +14,9 @@ n0=`namegen`
 n1=`namegen`
 
 expect 0 mkdir ${n0} 0755
-n=`mdconfig -a -n -t malloc -s 256k`
-newfs /dev/md${n} >/dev/null
-mount /dev/md${n} ${n0}
+n=`mdconfig -a -n -t malloc -s 512k` || exit
+newfs /dev/md${n} >/dev/null || exit
+mount /dev/md${n} ${n0} || exit
 i=0
 while :; do
 	mkdir ${n0}/${i} >/dev/null 2>&1
@@ -27,5 +27,5 @@ while :; do
 done
 expect ENOSPC mkdir ${n0}/${n1} 0755
 umount /dev/md${n}
-mdconfig -d -u ${n}
+mdconfig -d -u ${n} || exit
 expect 0 rmdir ${n0}

@@ -14,9 +14,9 @@ n0=`namegen`
 n1=`namegen`
 
 expect 0 mkdir ${n0} 0755
-n=`mdconfig -a -n -t malloc -s 1m`
-newfs /dev/md${n} >/dev/null
-mount /dev/md${n} ${n0}
+n=`mdconfig -a -n -t malloc -s 1m` || exit
+newfs /dev/md${n} >/dev/null || exit
+mount /dev/md${n} ${n0} || exit
 expect 0 create ${n0}/${n1} 0644
 expect 0 open ${n0}/${n1} O_WRONLY
 expect 0 open ${n0}/${n1} O_RDWR
@@ -28,5 +28,5 @@ expect EROFS open ${n0}/${n1} O_RDONLY,O_TRUNC
 mount -uw /dev/md${n}
 expect 0 unlink ${n0}/${n1}
 umount /dev/md${n}
-mdconfig -d -u ${n}
+mdconfig -d -u ${n} || exit
 expect 0 rmdir ${n0}
