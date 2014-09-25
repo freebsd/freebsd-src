@@ -612,18 +612,17 @@ kvp_mac_to_if_name(char *mac)
 			sdl = (struct sockaddr_dl *)(uintptr_t)ifaddrs_ptr->ifa_addr;
 			if (sdl->sdl_type == IFT_ETHER) {
 				buf_ptr = strdup(ether_ntoa((struct ether_addr *)(LLADDR(sdl))));
-				for (i = 0; i < strlen(buf_ptr); i++)
-				{
-					buf_ptr[i] = toupper(buf_ptr[i]);
-				}
+				if (buf_ptr != NULL) {
+					for (i = 0; i < strlen(buf_ptr); i++)
+						buf_ptr[i] = toupper(buf_ptr[i]);
 
-				if (strncmp(buf_ptr, mac, strlen(mac)) == 0) {
-					/* Caller will free the memory */
-					if_name = strdup(ifaddrs_ptr->ifa_name);
-					free(buf_ptr);
-					break;
-				}else if (buf_ptr != NULL) {
-					free(buf_ptr);
+					if (strncmp(buf_ptr, mac, strlen(mac)) == 0) {
+						/* Caller will free the memory */
+						if_name = strdup(ifaddrs_ptr->ifa_name);
+						free(buf_ptr);
+						break;
+					} else
+						free(buf_ptr);
 				}
 			}
 		} while ((ifaddrs_ptr = ifaddrs_ptr->ifa_next) != NULL);
