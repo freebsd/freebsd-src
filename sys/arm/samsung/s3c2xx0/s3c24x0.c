@@ -49,9 +49,9 @@ __FBSDID("$FreeBSD$");
 
 #include <machine/cpufunc.h>
 #include <machine/intr.h>
-#include <arm/s3c2xx0/s3c2410reg.h>
-#include <arm/s3c2xx0/s3c2440reg.h>
-#include <arm/s3c2xx0/s3c24x0var.h>
+#include <arm/samsung/s3c2xx0/s3c2410reg.h>
+#include <arm/samsung/s3c2xx0/s3c2440reg.h>
+#include <arm/samsung/s3c2xx0/s3c24x0var.h>
 #include <sys/rman.h>
 
 #define S3C2XX0_XTAL_CLK 12000000

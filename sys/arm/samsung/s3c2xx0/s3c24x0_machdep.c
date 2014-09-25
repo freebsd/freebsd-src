@@ -89,9 +89,9 @@ __FBSDID("$FreeBSD$");
 #include <machine/bus.h>
 #include <sys/reboot.h>
 
-#include <arm/s3c2xx0/s3c24x0var.h>
-#include <arm/s3c2xx0/s3c2410reg.h>
-#include <arm/s3c2xx0/s3c2xx0board.h>
+#include <arm/samsung/s3c2xx0/s3c24x0var.h>
+#include <arm/samsung/s3c2xx0/s3c2410reg.h>
+#include <arm/samsung/s3c2xx0/s3c2xx0board.h>
 
 /* Page table for mapping proc0 zero page */
 #define KERNEL_PT_SYS		0
