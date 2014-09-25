@@ -30,8 +30,8 @@ __FBSDID("$FreeBSD$");
 #include <sys/param.h>
 #include <sys/systm.h>
 
-#include <arm/s3c2xx0/s3c2410reg.h>
-#include <arm/s3c2xx0/s3c2xx0board.h>
+#include <arm/samsung/s3c2xx0/s3c2410reg.h>
+#include <arm/samsung/s3c2xx0/s3c2xx0board.h>
 
 extern vm_offset_t s3c2410_uart_vaddr;
 

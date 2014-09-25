@@ -41,10 +41,10 @@ __FBSDID("$FreeBSD$");
 #include <dev/uart/uart.h>
 #include <dev/uart/uart_cpu.h>
 #include <dev/uart/uart_bus.h>
-#include <arm/s3c2xx0/s3c2440reg.h>
-#include <arm/s3c2xx0/uart_dev_s3c2410.h>
-#include <arm/s3c2xx0/s3c2xx0reg.h>
-#include <arm/s3c2xx0/s3c2xx0var.h>
+#include <arm/samsung/s3c2xx0/s3c2440reg.h>
+#include <arm/samsung/s3c2xx0/uart_dev_s3c2410.h>
+#include <arm/samsung/s3c2xx0/s3c2xx0reg.h>
+#include <arm/samsung/s3c2xx0/s3c2xx0var.h>
 #include "uart_if.h"
 
 /* Finds the subirq from the parent */
