@@ -305,11 +305,13 @@ kvp_file_init(void)
 
 		filep = fopen(fname, "r");
 		if (!filep) {
+			close(fd);
 			return (1);
 		}
 
 		record = malloc(alloc_unit * num_blocks);
 		if (record == NULL) {
+			close(fd);
 			fclose(filep);
 			return (1);
 		}
@@ -334,6 +336,7 @@ kvp_file_init(void)
 				record = realloc(record, alloc_unit *
 					num_blocks);
 				if (record == NULL) {
+					close(fd);
 					fclose(filep);
 					return (1);
 				}
