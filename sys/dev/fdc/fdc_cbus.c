@@ -33,15 +33,16 @@ __FBSDID("$FreeBSD$");
 #include <sys/bio.h>
 #include <sys/bus.h>
 #include <sys/kernel.h>
+#include <sys/lock.h>
 #include <sys/module.h>
+#include <sys/mutex.h>
 #include <sys/rman.h>
 #include <sys/systm.h>
 
 #include <machine/bus.h>
 
 #include <pc98/cbus/cbus.h>
-#include <pc98/cbus/fdcreg.h>
-#include <pc98/cbus/fdcvar.h>
+#include <dev/fdc/fdcvar.h>
 
 #include <isa/isavar.h>
 
@@ -50,62 +51,70 @@ static bus_addr_t fdc_iat[] = {0, 2, 4};
 static int
 fdc_cbus_alloc_resources(device_t dev, struct fdc_data *fdc)
 {
-	int rid;
+	struct resource *res;
+	int i, rid;
 
 	fdc->fdc_dev = dev;
-	fdc->rid_ioport = 0;
-	fdc->rid_irq = 0;
-	fdc->rid_drq = 0;
-	fdc->res_irq = 0;
-	fdc->res_drq = 0;
-
-	fdc->res_ioport = isa_alloc_resourcev(dev, SYS_RES_IOPORT,
-					      &fdc->rid_ioport, fdc_iat,
-					      3, RF_ACTIVE);
-	if (fdc->res_ioport == 0) {
+	rid = 0;
+	res = isa_alloc_resourcev(dev, SYS_RES_IOPORT, &rid, fdc_iat, 3,
+	    RF_ACTIVE);
+	if (res == NULL) {
 		device_printf(dev, "cannot reserve I/O port range\n");
-		return ENXIO;
+		return (ENXIO);
 	}
-	isa_load_resourcev(fdc->res_ioport, fdc_iat, 3);
-	fdc->portt = rman_get_bustag(fdc->res_ioport);
-	fdc->porth = rman_get_bushandle(fdc->res_ioport);
-
+	isa_load_resourcev(res, fdc_iat, 3);
+	for (i = 0; i < 3; i++) {
+		fdc->resio[i] = res;
+		fdc->ridio[i] = rid;
+		fdc->ioff[i] = i;
+		fdc->ioh[i] = rman_get_bushandle(res);
+	}
+	fdc->iot = rman_get_bustag(res);
+		
 	rid = 3;
 	bus_set_resource(dev, SYS_RES_IOPORT, rid, IO_FDPORT, 1);
-	fdc->res_fdsio = bus_alloc_resource_any(dev, SYS_RES_IOPORT, &rid,
-						RF_ACTIVE);
-	if (fdc->res_fdsio == 0)
-		return ENXIO;
-	fdc->sc_fdsiot = rman_get_bustag(fdc->res_fdsio);
-	fdc->sc_fdsioh = rman_get_bushandle(fdc->res_fdsio);
+	res = bus_alloc_resource_any(dev, SYS_RES_IOPORT, &rid, RF_ACTIVE);
+	if (res == NULL) {
+		device_printf(dev, "cannot reserve I/O port range\n");
+		return (ENXIO);
+	}
+	fdc->resio[3] = res;
+	fdc->ridio[3] = rid;
+	fdc->ioff[3] = 0;
+	fdc->ioh[3] = rman_get_bushandle(res);
+	/* XXX: Reuses fdc->iot */
 
 	rid = 4;
 	bus_set_resource(dev, SYS_RES_IOPORT, rid, 0x4be, 1);
-	fdc->res_fdemsio = bus_alloc_resource_any(dev, SYS_RES_IOPORT, &rid,
-						  RF_ACTIVE);
-	if (fdc->res_fdemsio == 0)
-		return ENXIO;
-	fdc->sc_fdemsiot = rman_get_bustag(fdc->res_fdemsio);
-	fdc->sc_fdemsioh = rman_get_bushandle(fdc->res_fdemsio);
+	res = bus_alloc_resource_any(dev, SYS_RES_IOPORT, &rid, RF_ACTIVE);
+	if (res == NULL) {
+		device_printf(dev, "cannot reserve I/O port range\n");
+		return (ENXIO);
+	}
+	fdc->resio[4] = res;
+	fdc->ridio[4] = rid;
+	fdc->ioff[4] = 0;
+	fdc->ioh[4] = rman_get_bushandle(res);
+	/* XXX: Reuses fdc->iot */
 
 	fdc->res_irq = bus_alloc_resource_any(dev, SYS_RES_IRQ, &fdc->rid_irq,
-					      RF_ACTIVE);
-	if (fdc->res_irq == 0) {
+	    RF_ACTIVE);
+	if (fdc->res_irq == NULL) {
 		device_printf(dev, "cannot reserve interrupt line\n");
-		return ENXIO;
+		return (ENXIO);
 	}
 
 	if ((fdc->flags & FDC_NODMA) == 0) {
 		fdc->res_drq = bus_alloc_resource_any(dev, SYS_RES_DRQ,
-						      &fdc->rid_drq, RF_ACTIVE);
-		if (fdc->res_drq == 0) {
+		    &fdc->rid_drq, RF_ACTIVE);
+		if (fdc->res_drq == NULL) {
 			device_printf(dev, "cannot reserve DMA request line\n");
-			return ENXIO;
+			return (ENXIO);
 		}
 		fdc->dmachan = rman_get_start(fdc->res_drq);
 	}
 
-	return 0;
+	return (0);
 }
 
 static int
@@ -122,8 +131,8 @@ fdc_cbus_probe(device_t dev)
 
 	/* Attempt to allocate our resources for the duration of the probe */
 	error = fdc_cbus_alloc_resources(dev, fdc);
-	if (!error)
-		error = fdc_initial_reset(fdc);
+	if (error == 0)
+		error = fdc_initial_reset(dev, fdc);
 
 	fdc_release_resources(fdc);
 	return (error);
@@ -136,15 +145,14 @@ fdc_cbus_attach(device_t dev)
 	int error;
 
 	fdc = device_get_softc(dev);
-
-	if ((error = fdc_cbus_alloc_resources(dev, fdc)) != 0 ||
-	    (error = fdc_attach(dev)) != 0 ||
-	    (error = fdc_hints_probe(dev)) != 0) {
+	error = fdc_cbus_alloc_resources(dev, fdc);
+	if (error == 0)
+		error = fdc_attach(dev);
+	if (error == 0)
+		error = fdc_hints_probe(dev);
+	if (error)
 		fdc_release_resources(fdc);
-		return (error);
-	}
-
-	return (0);
+	return (error);
 }
 
 static device_method_t fdc_methods[] = {
