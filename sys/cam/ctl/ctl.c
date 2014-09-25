@@ -6039,7 +6039,7 @@ ctl_unmap(struct ctl_scsiio *ctsio)
 	struct scsi_unmap *cdb;
 	struct ctl_ptr_len_flags *ptrlen;
 	struct scsi_unmap_header *hdr;
-	struct scsi_unmap_desc *buf, *end;
+	struct scsi_unmap_desc *buf, *end, *endnz, *range;
 	uint64_t lba;
 	uint32_t num_blocks;
 	int len, retval;
@@ -6092,24 +6092,38 @@ ctl_unmap(struct ctl_scsiio *ctsio)
 	buf = (struct scsi_unmap_desc *)(hdr + 1);
 	end = buf + len / sizeof(*buf);
 
-	ptrlen = (struct ctl_ptr_len_flags *)&ctsio->io_hdr.ctl_private[CTL_PRIV_LBA_LEN];
-	ptrlen->ptr = (void *)buf;
-	ptrlen->len = len;
-	ptrlen->flags = byte2;
-
-	for (; buf < end; buf++) {
-		lba = scsi_8btou64(buf->lba);
-		num_blocks = scsi_4btoul(buf->length);
+	endnz = buf;
+	for (range = buf; range < end; range++) {
+		lba = scsi_8btou64(range->lba);
+		num_blocks = scsi_4btoul(range->length);
 		if (((lba + num_blocks) > (lun->be_lun->maxlba + 1))
 		 || ((lba + num_blocks) < lba)) {
 			ctl_set_lba_out_of_range(ctsio);
 			ctl_done((union ctl_io *)ctsio);
 			return (CTL_RETVAL_COMPLETE);
 		}
+		if (num_blocks != 0)
+			endnz = range + 1;
 	}
 
-	retval = lun->backend->config_write((union ctl_io *)ctsio);
+	/*
+	 * Block backend can not handle zero last range.
+	 * Filter it out and return if there is nothing left.
+	 */
+	len = (uint8_t *)endnz - (uint8_t *)buf;
+	if (len == 0) {
+		ctl_set_success(ctsio);
+		ctl_done((union ctl_io *)ctsio);
+		return (CTL_RETVAL_COMPLETE);
+	}
 
+	ptrlen = (struct ctl_ptr_len_flags *)
+	    &ctsio->io_hdr.ctl_private[CTL_PRIV_LBA_LEN];
+	ptrlen->ptr = (void *)buf;
+	ptrlen->len = len;
+	ptrlen->flags = byte2;
+
+	retval = lun->backend->config_write((union ctl_io *)ctsio);
 	return (retval);
 }
 
