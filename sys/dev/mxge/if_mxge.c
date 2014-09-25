@@ -2678,7 +2678,7 @@ mxge_rx_done_big(struct mxge_slice_state *ss, uint32_t len,
 	/* try to replace the received mbuf */
 	if (mxge_get_buf_big(ss, rx->extra_map, idx)) {
 		/* drop the frame -- the old mbuf is re-cycled */
-		ifp->if_ierrors++;
+		if_inc_counter(ifp, IFCOUNTER_IERRORS, 1);
 		return;
 	}
 
@@ -2747,7 +2747,7 @@ mxge_rx_done_small(struct mxge_slice_state *ss, uint32_t len,
 	/* try to replace the received mbuf */
 	if (mxge_get_buf_small(ss, rx->extra_map, idx)) {
 		/* drop the frame -- the old mbuf is re-cycled */
-		ifp->if_ierrors++;
+		if_inc_counter(ifp, IFCOUNTER_IERRORS, 1);
 		return;
 	}
 
@@ -4036,43 +4036,45 @@ mxge_watchdog(mxge_softc_t *sc)
 	return (err);
 }
 
-static u_long
-mxge_update_stats(mxge_softc_t *sc)
+static uint64_t
+mxge_get_counter(struct ifnet *ifp, ift_counter cnt)
 {
-	struct mxge_slice_state *ss;
-	u_long pkts = 0;
-	u_long ipackets = 0;
-	u_long opackets = 0;
-#ifdef IFNET_BUF_RING
-	u_long obytes = 0;
-	u_long omcasts = 0;
-	u_long odrops = 0;
-#endif
-	u_long oerrors = 0;
-	int slice;
+	struct mxge_softc *sc;
+	uint64_t rv;
 
-	for (slice = 0; slice < sc->num_slices; slice++) {
-		ss = &sc->ss[slice];
-		ipackets += ss->ipackets;
-		opackets += ss->opackets;
+	sc = if_getsoftc(ifp);
+	rv = 0;
+
+	switch (cnt) {
+	case IFCOUNTER_IPACKETS:
+		for (int s = 0; s < sc->num_slices; s++)
+			rv += sc->ss[s].ipackets;
+		return (rv);
+	case IFCOUNTER_OPACKETS:
+		for (int s = 0; s < sc->num_slices; s++)
+			rv += sc->ss[s].opackets;
+		return (rv);
+	case IFCOUNTER_OERRORS:
+		for (int s = 0; s < sc->num_slices; s++)
+			rv += sc->ss[s].oerrors;
+		return (rv);
 #ifdef IFNET_BUF_RING
-		obytes += ss->obytes;
-		omcasts += ss->omcasts;
-		odrops += ss->tx.br->br_drops;
+	case IFCOUNTER_OBYTES:
+		for (int s = 0; s < sc->num_slices; s++)
+			rv += sc->ss[s].obytes;
+		return (rv);
+	case IFCOUNTER_OMCASTS:
+		for (int s = 0; s < sc->num_slices; s++)
+			rv += sc->ss[s].omcasts;
+		return (rv);
+	case IFCOUNTER_OQDROPS:
+		for (int s = 0; s < sc->num_slices; s++)
+			rv += sc->ss[s].tx.br->br_drops;
+		return (rv);
 #endif
-		oerrors += ss->oerrors;
+	default:
+		return (if_get_counter_default(ifp, cnt));
 	}
-	pkts = (ipackets - sc->ifp->if_ipackets);
-	pkts += (opackets - sc->ifp->if_opackets);
-	sc->ifp->if_ipackets = ipackets;
-	sc->ifp->if_opackets = opackets;
-#ifdef IFNET_BUF_RING
-	sc->ifp->if_obytes = obytes;
-	sc->ifp->if_omcasts = omcasts;
-	sc->ifp->if_oqdrops = odrops;
-#endif
-	sc->ifp->if_oerrors = oerrors;
-	return pkts;
 }
 
 static void
@@ -4087,8 +4089,6 @@ mxge_tick(void *arg)
 	ticks = mxge_ticks;
 	running = sc->ifp->if_drv_flags & IFF_DRV_RUNNING;
 	if (running) {
-		/* aggregate stats from different slices */
-		pkts = mxge_update_stats(sc);
 		if (!sc->watchdog_countdown) {
 			err = mxge_watchdog(sc);
 			sc->watchdog_countdown = 4;
@@ -4925,6 +4925,7 @@ mxge_attach(device_t dev)
         ifp->if_flags = IFF_BROADCAST | IFF_SIMPLEX | IFF_MULTICAST;
         ifp->if_ioctl = mxge_ioctl;
         ifp->if_start = mxge_start;
+	ifp->if_get_counter = mxge_get_counter;
 	/* Initialise the ifmedia structure */
 	ifmedia_init(&sc->media, 0, mxge_media_change, 
 		     mxge_media_status);
