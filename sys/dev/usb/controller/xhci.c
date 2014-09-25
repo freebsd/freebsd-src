@@ -2252,7 +2252,14 @@ xhci_configure_mask(struct usb_device *udev, uint32_t mask, uint8_t drop)
 		xhci_ctx_set_le32(sc, &pinp->ctx_input.dwInCtx0, mask);
 		xhci_ctx_set_le32(sc, &pinp->ctx_input.dwInCtx1, 0);
 	} else {
-		xhci_ctx_set_le32(sc, &pinp->ctx_input.dwInCtx0, 0);
+		/*
+		 * Some hardware requires that we drop the endpoint
+		 * context before adding it again:
+		 */
+		xhci_ctx_set_le32(sc, &pinp->ctx_input.dwInCtx0,
+		    mask & XHCI_INCTX_NON_CTRL_MASK);
+
+		/* Add new endpoint context */
 		xhci_ctx_set_le32(sc, &pinp->ctx_input.dwInCtx1, mask);
 
 		/* find most significant set bit */
