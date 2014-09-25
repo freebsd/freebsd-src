@@ -601,8 +601,7 @@ kvp_mac_to_if_name(char *mac)
 	struct ifaddrs *head_ifaddrs_ptr;
 	struct sockaddr_dl *sdl;
 	int status;
-	size_t i;
-	char *buf_ptr;
+	char *buf_ptr, *p;
 
 	status = getifaddrs(&ifaddrs_ptr);
 
@@ -613,8 +612,8 @@ kvp_mac_to_if_name(char *mac)
 			if (sdl->sdl_type == IFT_ETHER) {
 				buf_ptr = strdup(ether_ntoa((struct ether_addr *)(LLADDR(sdl))));
 				if (buf_ptr != NULL) {
-					for (i = 0; i < strlen(buf_ptr); i++)
-						buf_ptr[i] = toupper(buf_ptr[i]);
+					for (p = buf_ptr; *p != '\0'; p++)
+						*p = toupper(*p);
 
 					if (strncmp(buf_ptr, mac, strlen(mac)) == 0) {
 						/* Caller will free the memory */
