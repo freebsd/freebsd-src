@@ -317,13 +317,12 @@ invoke_get_var_constructor(void)
 /*
  * Demux of various cheritest test cases to run within a sandbox.
  */
+static volatile int zero = 0;
 int
 invoke(register_t op, register_t arg, size_t len,
     struct cheri_object system_object, __capability char *data_input,
     __capability char *data_output, struct cheri_object fd_object)
 {
-	int i = 0;
-	volatile int *ip = &i;
 
 	cheri_system_setup(system_object);
 
@@ -353,7 +352,7 @@ invoke(register_t op, register_t arg, size_t len,
 		return (invoke_syscall());
 
 	case CHERITEST_HELPER_OP_DIVZERO:
-		return (1/(*ip));
+		return (1/(zero));
 
 	case CHERITEST_HELPER_OP_SYSCAP:
 		return (invoke_syscap(system_object));
