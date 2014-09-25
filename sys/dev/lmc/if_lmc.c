@@ -2602,7 +2602,7 @@ rxintr_cleanup(softc_t *sc)
     /* Include CRC and one flag byte in input byte count. */
     sc->status.cntrs.ibytes += first_mbuf->m_pkthdr.len + sc->config.crc_len +1;
     sc->status.cntrs.ipackets++;
-    sc->ifp->if_ipackets++;
+    if_inc_counter(sc->ifp, IFCOUNTER_IPACKETS, 1);
     LMC_BPF_MTAP(first_mbuf);
 #if defined(DEVICE_POLLING)
     sc->quota--;
@@ -2765,7 +2765,7 @@ txintr_cleanup(softc_t *sc)
       /* Include CRC and one flag byte in output byte count. */
       sc->status.cntrs.obytes += m->m_pkthdr.len + sc->config.crc_len +1;
       sc->status.cntrs.opackets++;
-      sc->ifp->if_opackets++;
+      if_inc_counter(sc->ifp, IFCOUNTER_OPACKETS, 1);
       LMC_BPF_MTAP(m);
       /* The only bad TX status is fifo underrun. */
       if ((desc->status & TLP_DSTS_TX_UNDERRUN) != 0)
@@ -3680,7 +3680,7 @@ lmc_raw_output(struct ifnet *ifp, struct mbuf *m,
     {
     m_freem(m);
     sc->status.cntrs.odiscards++;
-    ifp->if_oqdrops++;
+    if_inc_counter(ifp, IFCOUNTER_OQDROPS, 1);
     if (DRIVER_DEBUG)
       printf("%s: lmc_raw_output: IFQ_ENQUEUE() failed; error %d\n",
        NAME_UNIT, error);
@@ -3692,11 +3692,10 @@ lmc_raw_output(struct ifnet *ifp, struct mbuf *m,
 /* Called from a softirq once a second. */
 static void
 lmc_watchdog(void *arg)
-  {
+{
   struct ifnet *ifp = arg;
   softc_t *sc = IFP2SC(ifp);
   u_int8_t old_oper_status = sc->status.oper_status;
-  struct event_cntrs *cntrs = &sc->status.cntrs;
 
   core_watchdog(sc); /* updates oper_status */
 
@@ -3762,16 +3761,7 @@ lmc_watchdog(void *arg)
 # endif
     }
 
-  /* Copy statistics from sc to ifp. */
   ifp->if_baudrate = sc->status.tx_speed;
-  ifp->if_ipackets = cntrs->ipackets;
-  ifp->if_opackets = cntrs->opackets;
-  ifp->if_ibytes   = cntrs->ibytes;
-  ifp->if_obytes   = cntrs->obytes;
-  ifp->if_ierrors  = cntrs->ierrors;
-  ifp->if_oerrors  = cntrs->oerrors;
-  ifp->if_iqdrops  = cntrs->idiscards;
-
   if (sc->status.oper_status == STATUS_UP)
     ifp->if_link_state = LINK_STATE_UP;
   else
@@ -3779,8 +3769,36 @@ lmc_watchdog(void *arg)
 
   /* Call this procedure again after one second. */
   callout_reset(&sc->callout, hz, lmc_watchdog, ifp);
-  }
+}
 
+static uint64_t
+lmc_get_counter(struct ifnet *ifp, ift_counter cnt)
+{
+	softc_t *sc;
+	struct event_cntrs *cntrs;
+
+	sc = if_getsoftc(ifp);
+	cntrs = &sc->status.cntrs;
+
+	switch (cnt) {
+	case IFCOUNTER_IPACKETS:
+		return (cntrs->ipackets);
+	case IFCOUNTER_OPACKETS:
+		return (cntrs->opackets);
+	case IFCOUNTER_IBYTES:
+		return (cntrs->ibytes);
+	case IFCOUNTER_OBYTES:
+		return (cntrs->obytes);
+	case IFCOUNTER_IERRORS:
+		return (cntrs->ierrors);
+	case IFCOUNTER_OERRORS:
+		return (cntrs->oerrors);
+	case IFCOUNTER_IQDROPS:
+		return (cntrs->idiscards);
+	default:
+		return (if_get_counter_default(ifp, cnt));
+	}
+}
 
 static void
 setup_ifnet(struct ifnet *ifp)
@@ -3794,6 +3812,7 @@ setup_ifnet(struct ifnet *ifp)
   ifp->if_start    = lmc_ifnet_start;	/* sppp changes this */
   ifp->if_output   = lmc_raw_output;	/* sppp & p2p change this */
   ifp->if_input    = lmc_raw_input;
+  ifp->if_get_counter = lmc_get_counter;
   ifp->if_mtu      = MAX_DESC_LEN;	/* sppp & p2p change this */
   ifp->if_type     = IFT_PTPSERIAL;	/* p2p changes this */
 
