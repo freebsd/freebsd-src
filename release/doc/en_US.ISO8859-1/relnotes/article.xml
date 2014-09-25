@@ -454,6 +454,10 @@
 	  </listitem>
 	</itemizedlist>
 
+	<para revision="271880">Serial console and null console
+	  support has been added to the <acronym>UEFI</acronym> boot
+	  loader.</para>
+
 	<para revision="272006">Support has been added to cache
 	  &man.geli.8; passphrases during system boot.  When a system
 	  is configured with multiple <literal>GEOM_ELI</literal>
