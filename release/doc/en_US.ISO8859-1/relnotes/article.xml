@@ -1446,6 +1446,19 @@
 	been updated to produce <acronym>UEFI</acronym>-capable and
 	<acronym>BIOS</acronym>-capable CD-ROM ISOs as well as memory
 	stick images for the &os;/&arch.amd64; architecture.</para>
+
+      <para revision="271943" contrib="sponsor" sponsor="&ff;">The
+	<filename>release/scripts/pkg-stage.sh</filename> script has
+	been updated to include a symlink to the on-disc version of
+	&man.pkg.8; in the <filename
+	  class="directory">packages/</filename> structure on the
+	DVD installer.  This allows the &man.pkg.7; bootstrap utility
+	to properly locate the <filename>Latest/pkg.txz</filename>
+	file on the DVD when <literal>REPOS_DIR</literal> is set to
+	<filename class="directory">/dist/packages/repos</filename>,
+	eliminating the need for a network connection or explicitly
+	providing the path to the version included on the DVD
+	installation medium.</para>
     </sect2>
 
     <sect2 xml:id="doc">
