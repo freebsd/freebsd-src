@@ -294,6 +294,8 @@ parse(const char *string, int lineno)
 			}
 		}
 
+		errno = 0;
+
 		switch (kind & CTLTYPE) {
 			case CTLTYPE_INT:
 				if (strcmp(fmt, "IK") == 0) {
@@ -673,6 +675,7 @@ set_IK(const char *str, int *val)
 	if ((len = strlen(str)) == 0)
 		return (0);
 	p = &str[len - 1];
+	errno = 0;
 	if (*p == 'C' || *p == 'F') {
 		temp = strtof(str, &endptr);
 		if (errno != 0 || endptr == str ||
