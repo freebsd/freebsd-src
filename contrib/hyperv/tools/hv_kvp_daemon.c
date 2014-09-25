@@ -1249,7 +1249,7 @@ kvp_op_enumerate(struct hv_kvp_msg *op_msg, void *data __unused)
 
 	case IntegrationServicesVersion:
 		strcpy(key_name, "IntegrationServicesVersion");
-		strcpy(key_value, lic_version);
+		strlcpy(key_value, lic_version, HV_KVP_EXCHANGE_MAX_VALUE_SIZE);
 		break;
 
 	case NetworkAddressIPv4:
@@ -1265,32 +1265,32 @@ kvp_op_enumerate(struct hv_kvp_msg *op_msg, void *data __unused)
 		break;
 
 	case OSBuildNumber:
-		strcpy(key_value, os_build);
+		strlcpy(key_value, os_build, HV_KVP_EXCHANGE_MAX_VALUE_SIZE);
 		strcpy(key_name, "OSBuildNumber");
 		break;
 
 	case OSName:
-		strcpy(key_value, os_name);
+		strlcpy(key_value, os_name, HV_KVP_EXCHANGE_MAX_VALUE_SIZE);
 		strcpy(key_name, "OSName");
 		break;
 
 	case OSMajorVersion:
-		strcpy(key_value, os_major);
+		strlcpy(key_value, os_major, HV_KVP_EXCHANGE_MAX_VALUE_SIZE);
 		strcpy(key_name, "OSMajorVersion");
 		break;
 
 	case OSMinorVersion:
-		strcpy(key_value, os_minor);
+		strlcpy(key_value, os_minor, HV_KVP_EXCHANGE_MAX_VALUE_SIZE);
 		strcpy(key_name, "OSMinorVersion");
 		break;
 
 	case OSVersion:
-		strcpy(key_value, os_build);
+		strlcpy(key_value, os_build, HV_KVP_EXCHANGE_MAX_VALUE_SIZE);
 		strcpy(key_name, "OSVersion");
 		break;
 
 	case ProcessorArchitecture:
-		strcpy(key_value, processor_arch);
+		strlcpy(key_value, processor_arch, HV_KVP_EXCHANGE_MAX_VALUE_SIZE);
 		strcpy(key_name, "ProcessorArchitecture");
 		break;
 
