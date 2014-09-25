@@ -6692,6 +6692,7 @@ struct bce_softc
 	u32			l2fhdr_error_count;
 	u32			dma_map_addr_tx_failed_count;
 	u32			dma_map_addr_rx_failed_count;
+	u32			watchdog_timeouts;
 
 	/* Host coalescing block command register */
 	u32			hc_command;
