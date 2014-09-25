@@ -1423,6 +1423,9 @@
 
       <para revision="270817">The timezone database has been updated
 	to version tzdata2014f.</para>
+
+      <para revision="271947"><application>OpenPAM</application> has
+	been updated to Ourouparia (20140912).</para>
     </sect2>
 
     <sect2 xml:id="ports">
