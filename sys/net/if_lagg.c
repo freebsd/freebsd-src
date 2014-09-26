@@ -126,21 +126,19 @@ static int	lagg_sysctl_active(SYSCTL_HANDLER_ARGS);
 
 /* Simple round robin */
 static int	lagg_rr_attach(struct lagg_softc *);
-static int	lagg_rr_detach(struct lagg_softc *);
 static int	lagg_rr_start(struct lagg_softc *, struct mbuf *);
 static struct mbuf *lagg_rr_input(struct lagg_softc *, struct lagg_port *,
 		    struct mbuf *);
 
 /* Active failover */
 static int	lagg_fail_attach(struct lagg_softc *);
-static int	lagg_fail_detach(struct lagg_softc *);
 static int	lagg_fail_start(struct lagg_softc *, struct mbuf *);
 static struct mbuf *lagg_fail_input(struct lagg_softc *, struct lagg_port *,
 		    struct mbuf *);
 
 /* Loadbalancing */
 static int	lagg_lb_attach(struct lagg_softc *);
-static int	lagg_lb_detach(struct lagg_softc *);
+static void	lagg_lb_detach(struct lagg_softc *);
 static int	lagg_lb_port_create(struct lagg_port *);
 static void	lagg_lb_port_destroy(struct lagg_port *);
 static int	lagg_lb_start(struct lagg_softc *, struct mbuf *);
@@ -150,14 +148,13 @@ static int	lagg_lb_porttable(struct lagg_softc *, struct lagg_port *);
 
 /* Broadcast */
 static int    lagg_bcast_attach(struct lagg_softc *);
-static int    lagg_bcast_detach(struct lagg_softc *);
 static int    lagg_bcast_start(struct lagg_softc *, struct mbuf *);
 static struct mbuf *lagg_bcast_input(struct lagg_softc *, struct lagg_port *,
                   struct mbuf *);
 
 /* 802.3ad LACP */
 static int	lagg_lacp_attach(struct lagg_softc *);
-static int	lagg_lacp_detach(struct lagg_softc *);
+static void	lagg_lacp_detach(struct lagg_softc *);
 static int	lagg_lacp_start(struct lagg_softc *, struct mbuf *);
 static struct mbuf *lagg_lacp_input(struct lagg_softc *, struct lagg_port *,
 		    struct mbuf *);
@@ -1042,7 +1039,8 @@ lagg_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 		if (sc->sc_proto != LAGG_PROTO_NONE) {
 			/* Reset protocol first in case detach unlocks */
 			sc->sc_proto = LAGG_PROTO_NONE;
-			error = sc->sc_detach(sc);
+			if (sc->sc_detach != NULL)
+				sc->sc_detach(sc);
 			sc->sc_detach = NULL;
 			sc->sc_start = NULL;
 			sc->sc_input = NULL;
@@ -1674,19 +1672,13 @@ lagg_enqueue(struct ifnet *ifp, struct mbuf *m)
 static int
 lagg_rr_attach(struct lagg_softc *sc)
 {
-	sc->sc_detach = lagg_rr_detach;
 	sc->sc_start = lagg_rr_start;
 	sc->sc_input = lagg_rr_input;
+	sc->sc_detach = NULL;;
 	sc->sc_port_create = NULL;
 	sc->sc_capabilities = IFCAP_LAGG_FULLDUPLEX;
 	sc->sc_seq = 0;
 
-	return (0);
-}
-
-static int
-lagg_rr_detach(struct lagg_softc *sc)
-{
 	return (0);
 }
 
@@ -1733,21 +1725,15 @@ lagg_rr_input(struct lagg_softc *sc, struct lagg_port *lp, struct mbuf *m)
 static int
 lagg_bcast_attach(struct lagg_softc *sc)
 {
-       sc->sc_detach = lagg_bcast_detach;
        sc->sc_start = lagg_bcast_start;
        sc->sc_input = lagg_bcast_input;
        sc->sc_port_create = NULL;
        sc->sc_port_destroy = NULL;
        sc->sc_linkstate = NULL;
+       sc->sc_detach = NULL;
        sc->sc_req = NULL;
        sc->sc_portreq = NULL;
 
-       return (0);
-}
-
-static int
-lagg_bcast_detach(struct lagg_softc *sc)
-{
        return (0);
 }
 
@@ -1818,18 +1804,12 @@ lagg_bcast_input(struct lagg_softc *sc, struct lagg_port *lp,
 static int
 lagg_fail_attach(struct lagg_softc *sc)
 {
-	sc->sc_detach = lagg_fail_detach;
 	sc->sc_start = lagg_fail_start;
 	sc->sc_input = lagg_fail_input;
 	sc->sc_port_create = NULL;
 	sc->sc_port_destroy = NULL;
+	sc->sc_detach = NULL;
 
-	return (0);
-}
-
-static int
-lagg_fail_detach(struct lagg_softc *sc)
-{
 	return (0);
 }
 
@@ -1905,13 +1885,14 @@ lagg_lb_attach(struct lagg_softc *sc)
 	return (0);
 }
 
-static int
+static void
 lagg_lb_detach(struct lagg_softc *sc)
 {
-	struct lagg_lb *lb = (struct lagg_lb *)sc->sc_psc;
+	struct lagg_lb *lb;
+
+	lb = (struct lagg_lb *)sc->sc_psc;
 	if (lb != NULL)
 		free(lb, M_DEVBUF);
-	return (0);
 }
 
 static int
@@ -2020,21 +2001,18 @@ lagg_lacp_attach(struct lagg_softc *sc)
 	return (error);
 }
 
-static int
+static void
 lagg_lacp_detach(struct lagg_softc *sc)
 {
 	struct lagg_port *lp;
-	int error;
 
 	SLIST_FOREACH(lp, &sc->sc_ports, lp_entries)
 		lacp_port_destroy(lp);
 
 	/* unlocking is safe here */
 	LAGG_WUNLOCK(sc);
-	error = lacp_detach(sc);
+	lacp_detach(sc);
 	LAGG_WLOCK(sc);
-
-	return (error);
 }
 
 static void
