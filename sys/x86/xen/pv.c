@@ -1,6 +1,7 @@
 /*
  * Copyright (c) 2004 Christian Limpach.
  * Copyright (c) 2004-2006,2008 Kip Macy
+ * Copyright (c) 2008 The NetBSD Foundation, Inc.
  * Copyright (c) 2013 Roger Pau Monné <roger.pau@citrix.com>
  * All rights reserved.
  *
