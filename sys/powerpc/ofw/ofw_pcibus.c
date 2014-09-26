@@ -201,7 +201,7 @@ ofw_pcibus_enum_devtree(device_t dev, u_int domain, u_int busno)
 		 * resource list.
 		 */
 		if (dinfo->opd_dinfo.cfg.intpin == 0)
-			ofw_bus_intr_to_rl(dev, node, &dinfo->opd_dinfo.resources);
+			ofw_bus_intr_to_rl(dev, child, &dinfo->opd_dinfo.resources);
 	}
 }
 
