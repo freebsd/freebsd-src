@@ -1541,7 +1541,7 @@ lagg_linkstate(struct lagg_softc *sc)
 
 	/* Our link is considered up if at least one of our ports is active */
 	SLIST_FOREACH(lp, &sc->sc_ports, lp_entries) {
-		if (lp->lp_link_state == LINK_STATE_UP) {
+		if (lp->lp_ifp->if_link_state == LINK_STATE_UP) {
 			new_link = LINK_STATE_UP;
 			break;
 		}
@@ -1977,7 +1977,7 @@ lagg_lb_porttable(struct lagg_softc *sc, struct lagg_port *lp)
 			return (EINVAL);
 		if (sc->sc_ifflags & IFF_DEBUG)
 			printf("%s: port %s at index %d\n",
-			    sc->sc_ifname, lp_next->lp_ifname, i);
+			    sc->sc_ifname, lp_next->lp_ifp->if_xname, i);
 		lb->lb_ports[i++] = lp_next;
 	}
 
