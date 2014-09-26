@@ -35,6 +35,10 @@
 #include <machine/cheri.h>
 #include <machine/cheric.h>
 
+#ifdef MALLOC_DEBUG
+#include <stdint.h>
+#include <stdio.h>
+#endif
 #include <stdlib.h>
 #include <string.h>
 
@@ -54,9 +58,22 @@ malloc(size_t size)
 		_sb_heapcap = cheri_setlen(
 		    cheri_incbase(__builtin_cheri_get_global_data_cap(),
 		    _sb_heapbase), _sb_heaplen);
+#ifdef MALLOC_DEBUG
+		printf("%s: _sb_heapcap base 0x%jx offset 0x%jx length 0x%zx\n",
+		    __func__, cheri_getbase(_sb_heapcap),
+		    cheri_getoffset(_sb_heapcap), cheri_getlen(_sb_heapcap));
+#endif
 	}
 
+#if defined(MALLOC_DEBUG) && MALLOC_DEBUG > 1
+	printf("about to malloc %zu at 0x%jx\n", size,
+	    cheri_getbase(_sb_heapcap));
+#endif
+
 	rsize = roundup2(size + MALLOC_ALIGN, MALLOC_ALIGN);
+#if defined(MALLOC_DEBUG) && MALLOC_DEBUG > 1
+	printf("rsize = %zu\n", rsize);
+#endif
 	if (cheri_getlen(_sb_heapcap) < rsize)
 		return (NULL);
 	ptr = cheri_setlen(_sb_heapcap, rsize);
@@ -65,6 +82,11 @@ malloc(size_t size)
 	/* XXX: replace with capability to allocation */
 	*(size_t*)ptr = rsize;
 	ptr += 32;
+
+#if defined(MALLOC_DEBUG) && MALLOC_DEBUG > 1
+	printf("ptr base 0x%jx offset 0x%jx length 0x%zx\n",
+	    cheri_getbase(ptr), cheri_getoffset(ptr), cheri_getlen(ptr));
+#endif
 
 	return(ptr);
 }
