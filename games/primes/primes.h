@@ -57,6 +57,9 @@ typedef unsigned long ubig;		/* must be >=32 bit unsigned value */
 extern const ubig prime[];
 extern const ubig *const pr_limit;	/* largest prime in the prime array */
 
+/* Maximum size sieving alone can handle. */
+#define	SIEVEMAX 4295098368ULL
+
 /*
  * To avoid excessive sieves for small factors, we use the table below to
  * setup our sieve blocks.  Each element represents an odd number starting
@@ -64,3 +67,9 @@ extern const ubig *const pr_limit;	/* largest prime in the prime array */
  */
 extern const char pattern[];
 extern const size_t pattern_size;	/* length of pattern array */
+
+/* Test for primality using strong pseudoprime tests. */
+int isprime(ubig);
+
+/* Maximum value which the SPSP code can handle. */
+#define	SPSPMAX 3825123056546413050ULL
