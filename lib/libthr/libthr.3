@@ -29,7 +29,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd September 20, 2014
+.Dd September 26, 2014
 .Dt LIBTHR 3
 .Os
 .Sh NAME
@@ -85,8 +85,14 @@ owning the lock.
 .Nm
 performs a contested mutex acquisition in three stages, each of which
 is more resource-consuming than the previous.
+The first two stages are only applied for a mutex of
+.Dv PTHREAD_MUTEX_ADAPTIVE_NP
+type and
+.Dv PTHREAD_PRIO_NONE
+protocol (see
+.Xr pthread_mutexattr 3 ) .
 .Pp
-First, a spin loop
+First, on SMP systems, a spin loop
 is performed, where the library attempts to acquire the lock by
 .Xr atomic 9
 operations.
