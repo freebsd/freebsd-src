@@ -205,9 +205,15 @@ extern z_const char * const z_errmsg[10]; /* indexed by 2-zlib_error */
 #    define zmemcmp _fmemcmp
 #    define zmemzero(dest, len) _fmemset(dest, 0, len)
 #  else
+#ifdef __CHERI_SANDBOX__
+#    define zmemcpy memcpy_c
+#    define zmemcmp memcmp_c
+#    define zmemzero(dest, len) memset_c(dest, 0, len)
+#else
 #    define zmemcpy memcpy
 #    define zmemcmp memcmp
 #    define zmemzero(dest, len) memset(dest, 0, len)
+#endif
 #  endif
 #else
    void ZLIB_INTERNAL zmemcpy OF((Bytef* dest, const Bytef* source, uInt len));
