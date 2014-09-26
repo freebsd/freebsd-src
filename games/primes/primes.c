@@ -111,7 +111,7 @@ main(int argc, char *argv[])
 	argv += optind;
 
 	start = 0;
-	stop = BIG;
+	stop = (sizeof(ubig) > 4) ? SPSPMAX : BIG;
 
 	/*
 	 * Convert low and high args.  Strtoul(3) sets errno to
@@ -138,6 +138,8 @@ main(int argc, char *argv[])
 			err(1, "%s", argv[1]);
 		if (*p != '\0')
 			errx(1, "%s: illegal numeric format.", argv[1]);
+		if ((uint64_t)stop > SPSPMAX)
+			errx(1, "%s: stop value too large.", argv[1]);
 		break;
 	case 1:
 		/* Start on the command line. */
@@ -304,6 +306,10 @@ primes(ubig start, ubig stop)
 		 */
 		for (q = table; q < tab_lim; ++q, start+=2) {
 			if (*q) {
+				if ((uint64_t)start > SIEVEMAX) {
+					if (!isprime(start))
+						continue;
+				}
 				printf(hflag ? "0x%lx\n" : "%lu\n", start);
 			}
 		}
