@@ -10,10 +10,6 @@ FILES+=	apple.conf
 FILES+=	asus.conf
 .endif
 
-.if ${MK_HYPERV} != "no"
-FILES+=	hyperv.conf
-.endif
-
 NO_OBJ=
 FILESDIR=	/etc/devd
 FILESMODE=	644
