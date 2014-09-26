@@ -150,7 +150,7 @@ static int	lagg_lb_porttable(struct lagg_softc *, struct lagg_port *);
 static void	lagg_bcast_attach(struct lagg_softc *);
 static int    lagg_bcast_start(struct lagg_softc *, struct mbuf *);
 static struct mbuf *lagg_bcast_input(struct lagg_softc *, struct lagg_port *,
-                  struct mbuf *);
+		    struct mbuf *);
 
 /* 802.3ad LACP */
 static void	lagg_lacp_attach(struct lagg_softc *);
@@ -277,7 +277,7 @@ lagg_proto_detach(struct lagg_softc *sc)
 	LAGG_WLOCK_ASSERT(sc);
 
 	pr = sc->sc_proto;
-	sc->sc_proto = LAGG_PROTO_NONE; 
+	sc->sc_proto = LAGG_PROTO_NONE;
 
 	if (lagg_protos[pr].pr_detach != NULL)
 		lagg_protos[pr].pr_detach(sc);
@@ -292,19 +292,19 @@ lagg_proto_detach(struct lagg_softc *sc)
 static void
 lagg_register_vlan(void *arg, struct ifnet *ifp, u_int16_t vtag)
 {
-        struct lagg_softc       *sc = ifp->if_softc;
-        struct lagg_port        *lp;
-        struct rm_priotracker   tracker;
+	struct lagg_softc *sc = ifp->if_softc;
+	struct lagg_port *lp;
+	struct rm_priotracker tracker;
 
-        if (ifp->if_softc !=  arg)   /* Not our event */
-                return;
+	if (ifp->if_softc !=  arg)   /* Not our event */
+		return;
 
-        LAGG_RLOCK(sc, &tracker);
-        if (!SLIST_EMPTY(&sc->sc_ports)) {
-                SLIST_FOREACH(lp, &sc->sc_ports, lp_entries)
-                        EVENTHANDLER_INVOKE(vlan_config, lp->lp_ifp, vtag);
-        }
-        LAGG_RUNLOCK(sc, &tracker);
+	LAGG_RLOCK(sc, &tracker);
+	if (!SLIST_EMPTY(&sc->sc_ports)) {
+		SLIST_FOREACH(lp, &sc->sc_ports, lp_entries)
+			EVENTHANDLER_INVOKE(vlan_config, lp->lp_ifp, vtag);
+	}
+	LAGG_RUNLOCK(sc, &tracker);
 }
 
 /*
@@ -314,19 +314,19 @@ lagg_register_vlan(void *arg, struct ifnet *ifp, u_int16_t vtag)
 static void
 lagg_unregister_vlan(void *arg, struct ifnet *ifp, u_int16_t vtag)
 {
-        struct lagg_softc       *sc = ifp->if_softc;
-        struct lagg_port        *lp;
-        struct rm_priotracker   tracker;
+	struct lagg_softc *sc = ifp->if_softc;
+	struct lagg_port *lp;
+	struct rm_priotracker tracker;
 
-        if (ifp->if_softc !=  arg)   /* Not our event */
-                return;
+	if (ifp->if_softc !=  arg)   /* Not our event */
+		return;
 
-        LAGG_RLOCK(sc, &tracker);
-        if (!SLIST_EMPTY(&sc->sc_ports)) {
-                SLIST_FOREACH(lp, &sc->sc_ports, lp_entries)
-                        EVENTHANDLER_INVOKE(vlan_unconfig, lp->lp_ifp, vtag);
-        }
-        LAGG_RUNLOCK(sc, &tracker);
+	LAGG_RLOCK(sc, &tracker);
+	if (!SLIST_EMPTY(&sc->sc_ports)) {
+		SLIST_FOREACH(lp, &sc->sc_ports, lp_entries)
+			EVENTHANDLER_INVOKE(vlan_unconfig, lp->lp_ifp, vtag);
+	}
+	LAGG_RUNLOCK(sc, &tracker);
 }
 
 static int
@@ -943,7 +943,7 @@ lagg_port2req(struct lagg_port *lp, struct lagg_reqport *rp)
 	rp->rp_prio = lp->lp_prio;
 	rp->rp_flags = lp->lp_flags;
 	if (sc->sc_portreq != NULL)
-		(*sc->sc_portreq)(lp, (caddr_t)&rp->rp_psc);
+		(*sc->sc_portreq)(lp, &rp->rp_psc);
 
 	/* Add protocol specific flags */
 	switch (sc->sc_proto) {
@@ -957,7 +957,7 @@ lagg_port2req(struct lagg_port *lp, struct lagg_reqport *rp)
 		case LAGG_PROTO_ROUNDROBIN:
 		case LAGG_PROTO_LOADBALANCE:
 		case LAGG_PROTO_ETHERCHANNEL:
-              case LAGG_PROTO_BROADCAST:
+		case LAGG_PROTO_BROADCAST:
 			if (LAGG_PORTACTIVE(lp))
 				rp->rp_flags |= LAGG_PORT_ACTIVE;
 			break;
@@ -1045,7 +1045,7 @@ lagg_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 		LAGG_RLOCK(sc, &tracker);
 		ra->ra_proto = sc->sc_proto;
 		if (sc->sc_req != NULL)
-			(*sc->sc_req)(sc, (caddr_t)&ra->ra_psc);
+			(*sc->sc_req)(sc, &ra->ra_psc);
 
 		count = 0;
 		buf = outbuf;
@@ -1262,7 +1262,7 @@ lagg_ether_cmdmulti(struct lagg_port *lp, int set)
 /* Handle a ref counted flag that should be set on the lagg port as well */
 static int
 lagg_setflag(struct lagg_port *lp, int flag, int status,
-	     int (*func)(struct ifnet *, int))
+    int (*func)(struct ifnet *, int))
 {
 	struct lagg_softc *sc = lp->lp_softc;
 	struct ifnet *scifp = sc->sc_ifp;
@@ -1444,7 +1444,7 @@ lagg_linkstate(struct lagg_softc *sc)
 		case LAGG_PROTO_ROUNDROBIN:
 		case LAGG_PROTO_LOADBALANCE:
 		case LAGG_PROTO_ETHERCHANNEL:
-              case LAGG_PROTO_BROADCAST:
+		case LAGG_PROTO_BROADCAST:
 			speed = 0;
 			SLIST_FOREACH(lp, &sc->sc_ports, lp_entries)
 				speed += lp->lp_ifp->if_baudrate;
@@ -1722,73 +1722,71 @@ lagg_rr_input(struct lagg_softc *sc, struct lagg_port *lp, struct mbuf *m)
 static void
 lagg_bcast_attach(struct lagg_softc *sc)
 {
-       sc->sc_start = lagg_bcast_start;
-       sc->sc_input = lagg_bcast_input;
-       sc->sc_port_create = NULL;
-       sc->sc_port_destroy = NULL;
-       sc->sc_linkstate = NULL;
-       sc->sc_req = NULL;
-       sc->sc_portreq = NULL;
+	sc->sc_start = lagg_bcast_start;
+	sc->sc_input = lagg_bcast_input;
+	sc->sc_port_create = NULL;
+	sc->sc_port_destroy = NULL;
+	sc->sc_linkstate = NULL;
+	sc->sc_req = NULL;
+	sc->sc_portreq = NULL;
 }
 
 static int
 lagg_bcast_start(struct lagg_softc *sc, struct mbuf *m)
 {
-       int active_ports = 0;
-       int errors = 0;
-       int ret;
-       struct lagg_port *lp, *last = NULL;
-       struct mbuf *m0;
+	int active_ports = 0;
+	int errors = 0;
+	int ret;
+	struct lagg_port *lp, *last = NULL;
+	struct mbuf *m0;
 
-       SLIST_FOREACH(lp, &sc->sc_ports, lp_entries) {
-              if (!LAGG_PORTACTIVE(lp))
-                     continue;
+	SLIST_FOREACH(lp, &sc->sc_ports, lp_entries) {
+		if (!LAGG_PORTACTIVE(lp))
+			continue;
 
-              active_ports++;
+		active_ports++;
 
-              if (last != NULL) {
-                     m0 = m_copym(m, 0, M_COPYALL,
-                                   M_NOWAIT);
-                     if (m0 == NULL) {
-                            ret = ENOBUFS;
-                            errors++;
-                            break;
-                     }
+		if (last != NULL) {
+			m0 = m_copym(m, 0, M_COPYALL, M_NOWAIT);
+			if (m0 == NULL) {
+				ret = ENOBUFS;
+				errors++;
+				break;
+			}
 
-                     ret = lagg_enqueue(last->lp_ifp, m0);
-                     if (ret != 0)
-                            errors++;
-              }
-              last = lp;
-       }
-       if (last == NULL) {
-              m_freem(m);
-              return (ENOENT);
-       }
-       if ((last = lagg_link_active(sc, last)) == NULL) {
-              m_freem(m);
-              return (ENETDOWN);
-       }
+			ret = lagg_enqueue(last->lp_ifp, m0);
+			if (ret != 0)
+				errors++;
+		}
+		last = lp;
+	}
+	if (last == NULL) {
+		m_freem(m);
+		return (ENOENT);
+	}
+	if ((last = lagg_link_active(sc, last)) == NULL) {
+		m_freem(m);
+		return (ENETDOWN);
+	}
 
-       ret = lagg_enqueue(last->lp_ifp, m);
-       if (ret != 0)
-              errors++;
+	ret = lagg_enqueue(last->lp_ifp, m);
+	if (ret != 0)
+		errors++;
 
-       if (errors == 0)
-              return (ret);
+	if (errors == 0)
+		return (ret);
 
-       return (0);
+	return (0);
 }
 
 static struct mbuf*
-lagg_bcast_input(struct lagg_softc *sc, struct lagg_port *lp,
-                     struct mbuf *m)
+lagg_bcast_input(struct lagg_softc *sc, struct lagg_port *lp, struct mbuf *m)
 {
-       struct ifnet *ifp = sc->sc_ifp;
+	struct ifnet *ifp = sc->sc_ifp;
 
-       /* Just pass in the packet to our lagg device */
-       m->m_pkthdr.rcvif = ifp;
-       return (m);
+	/* Just pass in the packet to our lagg device */
+	m->m_pkthdr.rcvif = ifp;
+	return (m);
 }
 
 /*
@@ -1863,7 +1861,7 @@ lagg_lb_attach(struct lagg_softc *sc)
 	sc->sc_capabilities = IFCAP_LAGG_FULLDUPLEX;
 
 	lb->lb_key = arc4random();
-	sc->sc_psc = (caddr_t)lb;
+	sc->sc_psc = lb;
 
 	SLIST_FOREACH(lp, &sc->sc_ports, lp_entries)
 		lagg_lb_port_create(lp);

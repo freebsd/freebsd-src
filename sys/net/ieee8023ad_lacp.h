@@ -289,8 +289,8 @@ void		lacp_stop(struct lagg_softc *);
 int		lacp_port_create(struct lagg_port *);
 void		lacp_port_destroy(struct lagg_port *);
 void		lacp_linkstate(struct lagg_port *);
-void		lacp_req(struct lagg_softc *, caddr_t);
-void		lacp_portreq(struct lagg_port *, caddr_t);
+void		lacp_req(struct lagg_softc *, void *);
+void		lacp_portreq(struct lagg_port *, void *);
 
 static __inline int
 lacp_isactive(struct lagg_port *lgp)
