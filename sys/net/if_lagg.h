@@ -146,11 +146,8 @@ struct lagg_reqflags {
  * Internal kernel part
  */
 
-#define	lp_ifname		lp_ifp->if_xname	/* interface name */
-#define	lp_link_state		lp_ifp->if_link_state	/* link state */
-
 #define	LAGG_PORTACTIVE(_tp)	(					\
-	((_tp)->lp_link_state == LINK_STATE_UP) &&			\
+	((_tp)->lp_ifp->if_link_state == LINK_STATE_UP) &&		\
 	((_tp)->lp_ifp->if_flags & IFF_UP)				\
 )
 
