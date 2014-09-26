@@ -91,8 +91,9 @@ static void nspng_error(png_structp png_ptr, png_const_charp error_message)
 
 static void nspng_setup_transforms(png_structp png_ptr, png_infop info_ptr)
 {
-	int bit_depth, color_type, intent;
+	int bit_depth, color_type;
 #if 0
+	int intent;
 	double gamma;
 #endif
 
