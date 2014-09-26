@@ -218,7 +218,6 @@ struct lagg_softc {
 							   the lladdr on */
 
 	/* lagg protocol callbacks */
-	void	(*sc_detach)(struct lagg_softc *);
 	int	(*sc_start)(struct lagg_softc *, struct mbuf *);
 	struct mbuf *(*sc_input)(struct lagg_softc *, struct lagg_port *,
 		    struct mbuf *);
