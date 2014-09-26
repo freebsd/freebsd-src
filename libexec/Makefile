@@ -10,7 +10,6 @@ SUBDIR=	${_atf} \
 	fingerd \
 	ftpd \
 	getty \
-	${_hyperv} \
 	${_mail.local} \
 	${_mknetid} \
 	${_pppoed} \
@@ -41,10 +40,6 @@ _atrun=		atrun
 
 .if ${MK_MAIL} != "no"
 _comsat=	comsat
-.endif
-
-.if ${MK_HYPERV} != "no"
-_hyperv=	hyperv
 .endif
 
 .if ${MK_NIS} != "no"

@@ -438,12 +438,6 @@ __DEFAULT_YES_OPTIONS+=FDT
 .else
 __DEFAULT_NO_OPTIONS+=FDT
 .endif
-# HyperV is only available for x86 and amd64.
-.if ${__T} == "amd64" || ${__T} == "i386"
-__DEFAULT_YES_OPTIONS+=HYPERV
-.else
-__DEFAULT_NO_OPTIONS+=HYPERV
-.endif
 .undef __T
 
 #

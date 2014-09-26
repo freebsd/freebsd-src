@@ -18,9 +18,6 @@ SUBDIR+=	boot0cfg
 SUBDIR+=	btxld
 .endif
 SUBDIR+=	cpucontrol
-.if ${MK_HYPERV} != "no"
-SUBDIR+=	hyperv
-.endif
 SUBDIR+=	kgmon
 SUBDIR+=	lptcontrol
 SUBDIR+=	mount_smbfs
