@@ -201,7 +201,7 @@ struct lagg_softc {
 							 * events */
 	struct lagg_port		*sc_primary;	/* primary port */
 	struct ifmedia			sc_media;	/* media config */
-	caddr_t				sc_psc;		/* protocol data */
+	void				*sc_psc;	/* protocol data */
 	uint32_t			sc_seq;		/* sequence counter */
 	uint32_t			sc_flags;
 
@@ -227,8 +227,8 @@ struct lagg_softc {
 	void	(*sc_init)(struct lagg_softc *);
 	void	(*sc_stop)(struct lagg_softc *);
 	void	(*sc_lladdr)(struct lagg_softc *);
-	void	(*sc_req)(struct lagg_softc *, caddr_t);
-	void	(*sc_portreq)(struct lagg_port *, caddr_t);
+	void	(*sc_req)(struct lagg_softc *, void *);
+	void	(*sc_portreq)(struct lagg_port *, void *);
 	eventhandler_tag vlan_attach;
 	eventhandler_tag vlan_detach;
 	struct callout			sc_callout;
@@ -248,7 +248,7 @@ struct lagg_port {
 	uint32_t			lp_flags;	/* port flags */
 	int				lp_ifflags;	/* saved ifp flags */
 	void				*lh_cookie;	/* if state hook */
-	caddr_t				lp_psc;		/* protocol data */
+	void				*lp_psc;	/* protocol data */
 	int				lp_detaching;	/* ifnet is detaching */
 
 	SLIST_HEAD(__mclhd, lagg_mc)	lp_mc_head;	/* multicast addresses */
