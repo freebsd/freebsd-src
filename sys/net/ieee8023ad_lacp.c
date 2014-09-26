@@ -822,7 +822,7 @@ lacp_attach(struct lagg_softc *sc)
 	return (0);
 }
 
-int
+void
 lacp_detach(struct lagg_softc *sc)
 {
 	struct lacp_softc *lsc = LACP_SOFTC(sc);
@@ -838,7 +838,6 @@ lacp_detach(struct lagg_softc *sc)
 
 	LACP_LOCK_DESTROY(lsc);
 	free(lsc, M_DEVBUF);
-	return (0);
 }
 
 void
