@@ -142,13 +142,13 @@
  * 9: USART 2
  * 10: USART 3
  * 11: Multimedia Card interface 0
- * 12: Two-wirte interface 0
- * 13: Two-wirte interface 1
+ * 12: Two-wire interface 0
+ * 13: Two-wire interface 1
  * 14: SPI 0
  * 15: SPI 1
  * 16: SSC 0
- * 17: SSC 0
- * 18: Timer Counter 0, 2, 3, 4, 5
+ * 17: SSC 1
+ * 18: Timer Counter 0, 1, 2, 3, 4, 5
  * 19: PWM
  * 20: Touch Screen ADC
  * 21: DMA
