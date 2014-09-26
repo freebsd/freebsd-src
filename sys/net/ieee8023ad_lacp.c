@@ -783,16 +783,13 @@ lacp_attach_sysctl_debug(struct lacp_softc *lsc, struct sysctl_oid *p_oid)
 	    "Bitmap of if_dunit entries to drop TX frames for");
 }
 
-int
+void
 lacp_attach(struct lagg_softc *sc)
 {
 	struct lacp_softc *lsc;
 	struct sysctl_oid *oid;
 
-	lsc = malloc(sizeof(struct lacp_softc),
-	    M_DEVBUF, M_NOWAIT|M_ZERO);
-	if (lsc == NULL)
-		return (ENOMEM);
+	lsc = malloc(sizeof(struct lacp_softc), M_DEVBUF, M_WAITOK | M_ZERO);
 
 	sc->sc_psc = (caddr_t)lsc;
 	lsc->lsc_softc = sc;
@@ -818,21 +815,18 @@ lacp_attach(struct lagg_softc *sc)
 	/* if the lagg is already up then do the same */
 	if (sc->sc_ifp->if_drv_flags & IFF_DRV_RUNNING)
 		lacp_init(sc);
-
-	return (0);
 }
 
 void
-lacp_detach(struct lagg_softc *sc)
+lacp_detach(void *psc)
 {
-	struct lacp_softc *lsc = LACP_SOFTC(sc);
+	struct lacp_softc *lsc = (struct lacp_softc *)psc;
 
 	KASSERT(TAILQ_EMPTY(&lsc->lsc_aggregators),
 	    ("aggregators still active"));
 	KASSERT(lsc->lsc_active_aggregator == NULL,
 	    ("aggregator still attached"));
 
-	sc->sc_psc = NULL;
 	callout_drain(&lsc->lsc_transit_callout);
 	callout_drain(&lsc->lsc_callout);
 
