@@ -47,18 +47,20 @@
 				  "\05DISTRIBUTING\06DISABLED"
 
 /* Supported lagg PROTOs */
-#define	LAGG_PROTO_NONE		0	/* no lagg protocol defined */
-#define	LAGG_PROTO_ROUNDROBIN	1	/* simple round robin */
-#define	LAGG_PROTO_FAILOVER	2	/* active failover */
-#define	LAGG_PROTO_LOADBALANCE	3	/* loadbalance */
-#define	LAGG_PROTO_LACP		4	/* 802.3ad lacp */
-#define	LAGG_PROTO_ETHERCHANNEL	5	/* Cisco FEC */
-#define       LAGG_PROTO_BROADCAST        6      /* broadcast */
-#define	LAGG_PROTO_MAX	       7
+typedef enum {
+	LAGG_PROTO_NONE = 0,	/* no lagg protocol defined */
+	LAGG_PROTO_ROUNDROBIN,	/* simple round robin */
+	LAGG_PROTO_FAILOVER,	/* active failover */
+	LAGG_PROTO_LOADBALANCE,	/* loadbalance */
+	LAGG_PROTO_LACP,	/* 802.3ad lacp */
+	LAGG_PROTO_ETHERCHANNEL,/* Cisco FEC */
+	LAGG_PROTO_BROADCAST,	/* broadcast */
+	LAGG_PROTO_MAX,
+} lagg_proto;
 
 struct lagg_protos {
 	const char		*lpr_name;
-	int			lpr_proto;
+	lagg_proto		lpr_proto;
 };
 
 #define	LAGG_PROTO_DEFAULT	LAGG_PROTO_FAILOVER
