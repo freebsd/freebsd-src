@@ -101,6 +101,8 @@ static uma_zone_t file_zone;
 
 static int	closefp(struct filedesc *fdp, int fd, struct file *fp,
 		    struct thread *td, int holdleaders);
+static int	do_dup(struct thread *td, int flags, int old, int new,
+		    register_t *retval);
 static int	fd_first_free(struct filedesc *fdp, int low, int size);
 static int	fd_last_used(struct filedesc *fdp, int size);
 static void	fdgrowtable(struct filedesc *fdp, int nfd);
@@ -108,6 +110,11 @@ static void	fdgrowtable_exp(struct filedesc *fdp, int nfd);
 static void	fdunused(struct filedesc *fdp, int fd);
 static void	fdused(struct filedesc *fdp, int fd);
 static int	getmaxfd(struct proc *p);
+
+/* Flags for do_dup() */
+#define	DUP_FIXED	0x1	/* Force fixed allocation. */
+#define	DUP_FCNTL	0x2	/* fcntl()-style errors. */
+#define	DUP_CLOEXEC	0x4	/* Atomically set FD_CLOEXEC. */
 
 /*
  * Each process has:
@@ -785,7 +792,7 @@ getmaxfd(struct proc *p)
 /*
  * Common code for dup, dup2, fcntl(F_DUPFD) and fcntl(F_DUP2FD).
  */
-int
+static int
 do_dup(struct thread *td, int flags, int old, int new,
     register_t *retval)
 {
