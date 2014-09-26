@@ -837,6 +837,8 @@
 
       &hwlist.igb;
 
+      &hwlist.ipheth;
+
       &hwlist.ixgb;
 
       &hwlist.ixgbe;
