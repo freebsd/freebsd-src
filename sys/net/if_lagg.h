@@ -216,19 +216,6 @@ struct lagg_softc {
 	struct task			sc_lladdr_task;
 	SLIST_HEAD(__llqhd, lagg_llq)	sc_llq_head;	/* interfaces to program
 							   the lladdr on */
-
-	/* lagg protocol callbacks */
-	int	(*sc_start)(struct lagg_softc *, struct mbuf *);
-	struct mbuf *(*sc_input)(struct lagg_softc *, struct lagg_port *,
-		    struct mbuf *);
-	int	(*sc_port_create)(struct lagg_port *);
-	void	(*sc_port_destroy)(struct lagg_port *);
-	void	(*sc_linkstate)(struct lagg_port *);
-	void	(*sc_init)(struct lagg_softc *);
-	void	(*sc_stop)(struct lagg_softc *);
-	void	(*sc_lladdr)(struct lagg_softc *);
-	void	(*sc_req)(struct lagg_softc *, void *);
-	void	(*sc_portreq)(struct lagg_port *, void *);
 	eventhandler_tag vlan_attach;
 	eventhandler_tag vlan_detach;
 	struct callout			sc_callout;
