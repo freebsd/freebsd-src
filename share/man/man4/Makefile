@@ -439,6 +439,7 @@ MAN=	aac.4 \
 	smb.4 \
 	smbus.4 \
 	smp.4 \
+	smsc.4 \
 	sn.4 \
 	snd_ad1816.4 \
 	snd_als4000.4 \
