@@ -1083,6 +1083,10 @@ cxgbe_attach(device_t dev)
 	ifp->if_hwassist = CSUM_TCP | CSUM_UDP | CSUM_IP | CSUM_TSO |
 	    CSUM_UDP_IPV6 | CSUM_TCP_IPV6;
 
+	ifp->if_hw_tsomax = 65536 - (ETHER_HDR_LEN + ETHER_VLAN_ENCAP_LEN);
+	ifp->if_hw_tsomaxsegcount = TX_SGL_SEGS;
+	ifp->if_hw_tsomaxsegsize = 65536;
+
 	/* Initialize ifmedia for this port */
 	ifmedia_init(&pi->media, IFM_IMASK, cxgbe_media_change,
 	    cxgbe_media_status);
