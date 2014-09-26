@@ -164,16 +164,39 @@ static void	lagg_callout(void *);
 
 /* lagg protocol table */
 static const struct lagg_proto {
-	lagg_proto	ti_proto;
-	void		(*ti_attach)(struct lagg_softc *);
+	lagg_proto	pr_num;
+	void		(*pr_attach)(struct lagg_softc *);
+	void		(*pr_detach)(struct lagg_softc *);
 } lagg_protos[] = {
-	{ LAGG_PROTO_ROUNDROBIN,	lagg_rr_attach },
-	{ LAGG_PROTO_FAILOVER,		lagg_fail_attach },
-	{ LAGG_PROTO_LOADBALANCE,	lagg_lb_attach },
-	{ LAGG_PROTO_ETHERCHANNEL,	lagg_lb_attach },
-	{ LAGG_PROTO_LACP,		lagg_lacp_attach },
-	{ LAGG_PROTO_BROADCAST,		lagg_bcast_attach },
-	{ LAGG_PROTO_NONE,		NULL }
+    {
+	.pr_num = LAGG_PROTO_NONE
+    },
+    {
+	.pr_num = LAGG_PROTO_ROUNDROBIN,
+	.pr_attach = lagg_rr_attach,
+    },
+    {
+	.pr_num = LAGG_PROTO_FAILOVER,
+	.pr_attach = lagg_fail_attach,
+    },
+    {
+	.pr_num = LAGG_PROTO_LOADBALANCE,
+	.pr_attach = lagg_lb_attach,
+	.pr_detach = lagg_lb_detach,
+    },
+    {
+	.pr_num = LAGG_PROTO_LACP,
+	.pr_attach = lagg_lacp_attach,
+	.pr_detach = lagg_lacp_detach,
+    },
+    {
+	.pr_num = LAGG_PROTO_ETHERCHANNEL,
+	.pr_attach = lagg_lb_attach,
+    },
+    {
+	.pr_num = LAGG_PROTO_BROADCAST,
+	.pr_attach = lagg_bcast_attach,
+    },
 };
 
 SYSCTL_DECL(_net_link);
@@ -232,6 +255,36 @@ static moduledata_t lagg_mod = {
 DECLARE_MODULE(if_lagg, lagg_mod, SI_SUB_PSEUDO, SI_ORDER_ANY);
 MODULE_VERSION(if_lagg, 1);
 
+static void
+lagg_proto_attach(struct lagg_softc *sc, lagg_proto pr)
+{
+
+	KASSERT(sc->sc_proto == LAGG_PROTO_NONE, ("%s: sc %p has proto",
+	    __func__, sc));
+
+	if (sc->sc_ifflags & IFF_DEBUG)
+		if_printf(sc->sc_ifp, "using proto %u\n", pr);
+
+	lagg_protos[pr].pr_attach(sc);
+	sc->sc_proto = pr;
+}
+
+static void
+lagg_proto_detach(struct lagg_softc *sc)
+{
+	lagg_proto pr;
+
+	LAGG_WLOCK_ASSERT(sc);
+
+	pr = sc->sc_proto;
+	sc->sc_proto = LAGG_PROTO_NONE; 
+
+	if (lagg_protos[pr].pr_detach != NULL)
+		lagg_protos[pr].pr_detach(sc);
+	else
+		LAGG_WUNLOCK(sc);
+}
+
 /*
  * This routine is run via an vlan
  * config EVENT
@@ -284,7 +337,6 @@ lagg_clone_create(struct if_clone *ifc, int unit, caddr_t params)
 	static const u_char eaddr[6];	/* 00:00:00:00:00:00 */
 	struct sysctl_oid *oid;
 	char num[14];			/* sufficient for 32 bits */
-	int i;
 
 	sc = malloc(sizeof(*sc), M_DEVBUF, M_WAITOK|M_ZERO);
 	ifp = sc->sc_ifp = if_alloc(IFT_ETHER);
@@ -324,14 +376,8 @@ lagg_clone_create(struct if_clone *ifc, int unit, caddr_t params)
 	/* Hash all layers by default */
 	sc->sc_flags = LAGG_F_HASHL2|LAGG_F_HASHL3|LAGG_F_HASHL4;
 
-	sc->sc_proto = LAGG_PROTO_NONE;
-	for (i = 0; lagg_protos[i].ti_proto != LAGG_PROTO_NONE; i++) {
-		if (lagg_protos[i].ti_proto == LAGG_PROTO_DEFAULT) {
-			sc->sc_proto = lagg_protos[i].ti_proto;
-			lagg_protos[i].ti_attach(sc);
-			break;
-		}
-	}
+	lagg_proto_attach(sc, LAGG_PROTO_DEFAULT);
+
 	LAGG_LOCK_INIT(sc);
 	LAGG_CALLOUT_LOCK_INIT(sc);
 	SLIST_INIT(&sc->sc_ports);
@@ -397,10 +443,7 @@ lagg_clone_destroy(struct ifnet *ifp)
 	while ((lp = SLIST_FIRST(&sc->sc_ports)) != NULL)
 		lagg_port_destroy(lp, 1);
 	/* Unhook the aggregation protocol */
-	if (sc->sc_detach != NULL)
-		(*sc->sc_detach)(sc);
-	else
-		LAGG_WUNLOCK(sc);
+	lagg_proto_detach(sc);
 
 	sysctl_ctx_free(&sc->ctx);
 	ifmedia_removeall(&sc->sc_media);
@@ -980,7 +1023,6 @@ lagg_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 	struct lagg_reqflags *rf = (struct lagg_reqflags *)data;
 	struct ifreq *ifr = (struct ifreq *)data;
 	struct lagg_port *lp;
-	const struct lagg_proto *proto;
 	struct ifnet *tpif;
 	struct thread *td = curthread;
 	char *buf, *outbuf;
@@ -1028,32 +1070,14 @@ lagg_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 		error = priv_check(td, PRIV_NET_LAGG);
 		if (error)
 			break;
-		for (proto = lagg_protos; proto->ti_proto != LAGG_PROTO_NONE;
-		    proto++) {
-			if (proto->ti_proto == ra->ra_proto) {
-				if (sc->sc_ifflags & IFF_DEBUG)
-					printf("%s: using proto %u\n",
-					    sc->sc_ifname, proto->ti_proto);
-				break;
-			}
-		}
-		if (proto->ti_proto == LAGG_PROTO_NONE) {
+		if (ra->ra_proto < 1 || ra->ra_proto >= LAGG_PROTO_MAX) {
 			error = EPROTONOSUPPORT;
 			break;
 		}
-		/* Set to LAGG_PROTO_NONE during the attach. */
+
 		LAGG_WLOCK(sc);
-		if (sc->sc_proto != LAGG_PROTO_NONE) {
-			sc->sc_proto = LAGG_PROTO_NONE;
-			if (sc->sc_detach != NULL)
-				sc->sc_detach(sc);
-			else
-				LAGG_WUNLOCK(sc);
-		}
-		proto->ti_attach(sc);
-		LAGG_WLOCK(sc);
-		sc->sc_proto = proto->ti_proto;
-		LAGG_WUNLOCK(sc);
+		lagg_proto_detach(sc);
+		lagg_proto_attach(sc, ra->ra_proto);
 		break;
 	case SIOCGLAGGFLAGS:
 		rf->rf_flags = sc->sc_flags;
@@ -1651,7 +1675,6 @@ lagg_rr_attach(struct lagg_softc *sc)
 {
 	sc->sc_start = lagg_rr_start;
 	sc->sc_input = lagg_rr_input;
-	sc->sc_detach = NULL;;
 	sc->sc_port_create = NULL;
 	sc->sc_capabilities = IFCAP_LAGG_FULLDUPLEX;
 	sc->sc_seq = 0;
@@ -1704,7 +1727,6 @@ lagg_bcast_attach(struct lagg_softc *sc)
        sc->sc_port_create = NULL;
        sc->sc_port_destroy = NULL;
        sc->sc_linkstate = NULL;
-       sc->sc_detach = NULL;
        sc->sc_req = NULL;
        sc->sc_portreq = NULL;
 }
@@ -1779,7 +1801,6 @@ lagg_fail_attach(struct lagg_softc *sc)
 	sc->sc_input = lagg_fail_input;
 	sc->sc_port_create = NULL;
 	sc->sc_port_destroy = NULL;
-	sc->sc_detach = NULL;
 }
 
 static int
@@ -1835,7 +1856,6 @@ lagg_lb_attach(struct lagg_softc *sc)
 
 	lb = malloc(sizeof(struct lagg_lb), M_DEVBUF, M_WAITOK | M_ZERO);
 
-	sc->sc_detach = lagg_lb_detach;
 	sc->sc_start = lagg_lb_start;
 	sc->sc_input = lagg_lb_input;
 	sc->sc_port_create = lagg_lb_port_create;
@@ -1942,7 +1962,6 @@ lagg_lacp_attach(struct lagg_softc *sc)
 {
 	struct lagg_port *lp;
 
-	sc->sc_detach = lagg_lacp_detach;
 	sc->sc_port_create = lacp_port_create;
 	sc->sc_port_destroy = lacp_port_destroy;
 	sc->sc_linkstate = lacp_linkstate;
