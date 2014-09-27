@@ -9684,13 +9684,10 @@ ctl_request_sense(struct ctl_scsiio *ctsio)
 	if (lun->pending_ua[initidx] != CTL_UA_NONE) {
 		ctl_ua_type ua_type;
 
-		ua_type = ctl_build_ua(lun->pending_ua[initidx],
+		ua_type = ctl_build_ua(&lun->pending_ua[initidx],
 				       sense_ptr, sense_format);
-		if (ua_type != CTL_UA_NONE) {
+		if (ua_type != CTL_UA_NONE)
 			have_error = 1;
-			/* We're reporting this UA, so clear it */
-			lun->pending_ua[initidx] &= ~ua_type;
-		}
 	}
 	mtx_unlock(&lun->lun_lock);
 
@@ -11604,8 +11601,7 @@ ctl_scsiio_precheck(struct ctl_softc *ctl_softc, struct ctl_scsiio *ctsio)
 	if ((entry->flags & CTL_CMD_FLAG_NO_SENSE) == 0) {
 		ctl_ua_type ua_type;
 
-		ua_type = lun->pending_ua[initidx];
-		if (ua_type != CTL_UA_NONE) {
+		if (lun->pending_ua[initidx] != CTL_UA_NONE) {
 			scsi_sense_data_type sense_format;
 
 			if (lun != NULL)
@@ -11615,14 +11611,13 @@ ctl_scsiio_precheck(struct ctl_softc *ctl_softc, struct ctl_scsiio *ctsio)
 			else
 				sense_format = SSD_TYPE_FIXED;
 
-			ua_type = ctl_build_ua(ua_type, &ctsio->sense_data,
-					       sense_format);
+			ua_type = ctl_build_ua(&lun->pending_ua[initidx],
+			    &ctsio->sense_data, sense_format);
 			if (ua_type != CTL_UA_NONE) {
 				ctsio->scsi_status = SCSI_STATUS_CHECK_COND;
 				ctsio->io_hdr.status = CTL_SCSI_ERROR |
 						       CTL_AUTOSENSE;
 				ctsio->sense_len = SSD_FULL_SIZE;
-				lun->pending_ua[initidx] &= ~ua_type;
 				mtx_unlock(&lun->lun_lock);
 				ctl_done((union ctl_io *)ctsio);
 				return (retval);
