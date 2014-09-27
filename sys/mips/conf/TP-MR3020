@@ -61,5 +61,5 @@ device	geom_map
 # as a rootfs and use the flash to hold the kernel only.
 options		MD_ROOT         # md device usable as a potential root device
 options		MD_ROOT_SIZE=10240
-makeoptions	MFS_IMAGE=/tftpboot/mfsroot-tl-mr3020.img.ulzma
+#makeoptions	MFS_IMAGE=/tftpboot/mfsroot-tl-mr3020.img.ulzma
 options		ROOTDEVNAME=\"ufs:md0.uncompress\"
