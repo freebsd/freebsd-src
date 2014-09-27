@@ -885,12 +885,6 @@ vmx_vminit(struct vm *vm, pmap_t pmap)
 	 * how they are saved/restored so can be directly accessed by the
 	 * guest.
 	 *
-	 * Guest KGSBASE is saved and restored in the guest MSR save area.
-	 * Host KGSBASE is restored before returning to userland from the pcb.
-	 * There will be a window of time when we are executing in the host
-	 * kernel context with a value of KGSBASE from the guest. This is ok
-	 * because the value of KGSBASE is inconsequential in kernel context.
-	 *
 	 * MSR_EFER is saved and restored in the guest VMCS area on a
 	 * VM exit and entry respectively. It is also restored from the
 	 * host VMCS area on a VM exit.
@@ -905,7 +899,6 @@ vmx_vminit(struct vm *vm, pmap_t pmap)
 	    guest_msr_rw(vmx, MSR_SYSENTER_CS_MSR) ||
 	    guest_msr_rw(vmx, MSR_SYSENTER_ESP_MSR) ||
 	    guest_msr_rw(vmx, MSR_SYSENTER_EIP_MSR) ||
-	    guest_msr_rw(vmx, MSR_KGSBASE) ||
 	    guest_msr_rw(vmx, MSR_EFER) ||
 	    guest_msr_ro(vmx, MSR_TSC))
 		panic("vmx_vminit: error setting guest msr access");

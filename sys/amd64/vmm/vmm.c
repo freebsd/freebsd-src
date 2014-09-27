@@ -1197,8 +1197,12 @@ vm_handle_paging(struct vm *vm, int vcpuid, bool *retu)
 	if (ftype == VM_PROT_READ || ftype == VM_PROT_WRITE) {
 		rv = pmap_emulate_accessed_dirty(vmspace_pmap(vm->vmspace),
 		    vme->u.paging.gpa, ftype);
-		if (rv == 0)
+		if (rv == 0) {
+			VCPU_CTR2(vm, vcpuid, "%s bit emulation for gpa %#lx",
+			    ftype == VM_PROT_READ ? "accessed" : "dirty",
+			    vme->u.paging.gpa);
 			goto done;
+		}
 	}
 
 	map = &vm->vmspace->vm_map;
@@ -1238,6 +1242,8 @@ vm_handle_inst_emul(struct vm *vm, int vcpuid, bool *retu)
 	vie = &vme->u.inst_emul.vie;
 	paging = &vme->u.inst_emul.paging;
 	cpu_mode = paging->cpu_mode;
+
+	VCPU_CTR1(vm, vcpuid, "inst_emul fault accessing gpa %#lx", gpa);
 
 	/* Fetch, decode and emulate the faulting instruction */
 	if (vie->num_valid == 0) {

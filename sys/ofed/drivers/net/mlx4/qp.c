@@ -1,7 +1,7 @@
 /*
  * Copyright (c) 2004 Topspin Communications.  All rights reserved.
  * Copyright (c) 2005, 2006, 2007 Cisco Systems, Inc. All rights reserved.
- * Copyright (c) 2005, 2006, 2007, 2008 Mellanox Technologies. All rights reserved.
+ * Copyright (c) 2005, 2006, 2007, 2008, 2014 Mellanox Technologies. All rights reserved.
  * Copyright (c) 2004 Voltaire, Inc. All rights reserved.
  *
  * This software is available to you under a choice of one of two
@@ -32,6 +32,10 @@
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
  * SOFTWARE.
  */
+
+#include <linux/types.h>
+#include <linux/gfp.h>
+#include <linux/module.h>
 
 #include <linux/mlx4/cmd.h>
 #include <linux/mlx4/qp.h>
@@ -210,13 +214,18 @@ int mlx4_qp_modify(struct mlx4_dev *dev, struct mlx4_mtt *mtt,
 EXPORT_SYMBOL_GPL(mlx4_qp_modify);
 
 int __mlx4_qp_reserve_range(struct mlx4_dev *dev, int cnt, int align,
-			    int *base, u8 bf_qp)
+			    int *base, u8 flags)
 {
+	int bf_qp = !!(flags & (u8) MLX4_RESERVE_BF_QP);
+
 	struct mlx4_priv *priv = mlx4_priv(dev);
 	struct mlx4_qp_table *qp_table = &priv->qp_table;
 
+	/* Only IPoIB uses a large cnt. In this case, just allocate
+	 * as usual, ignoring bf skipping, since IPoIB does not run over RoCE
+	 */
 	if (cnt > MLX4_MAX_BF_QP_RANGE && bf_qp)
-		return -ENOMEM;
+		bf_qp = 0;
 
 	*base = mlx4_bitmap_alloc_range(&qp_table->bitmap, cnt, align,
 					bf_qp ? MLX4_BF_QP_SKIP_MASK : 0);
@@ -227,14 +236,14 @@ int __mlx4_qp_reserve_range(struct mlx4_dev *dev, int cnt, int align,
 }
 
 int mlx4_qp_reserve_range(struct mlx4_dev *dev, int cnt, int align,
-			  int *base, u8 bf_qp)
+			  int *base, u8 flags)
 {
 	u64 in_param = 0;
 	u64 out_param;
 	int err;
 
 	if (mlx4_is_mfunc(dev)) {
-		set_param_l(&in_param, (((!!bf_qp) << 31) | (u32)cnt));
+		set_param_l(&in_param, (((u32) flags) << 24) | (u32) cnt);
 		set_param_h(&in_param, align);
 		err = mlx4_cmd_imm(dev, in_param, &out_param,
 				   RES_QP, RES_OP_RESERVE,
@@ -246,7 +255,7 @@ int mlx4_qp_reserve_range(struct mlx4_dev *dev, int cnt, int align,
 		*base = get_param_l(&out_param);
 		return 0;
 	}
-	return __mlx4_qp_reserve_range(dev, cnt, align, base, bf_qp);
+	return __mlx4_qp_reserve_range(dev, cnt, align, base, flags);
 }
 EXPORT_SYMBOL_GPL(mlx4_qp_reserve_range);
 
@@ -257,7 +266,7 @@ void __mlx4_qp_release_range(struct mlx4_dev *dev, int base_qpn, int cnt)
 
 	if (mlx4_is_qp_reserved(dev, (u32) base_qpn))
 		return;
-	mlx4_bitmap_free_range(&qp_table->bitmap, base_qpn, cnt);
+	mlx4_bitmap_free_range(&qp_table->bitmap, base_qpn, cnt, MLX4_USE_RR);
 }
 
 void mlx4_qp_release_range(struct mlx4_dev *dev, int base_qpn, int cnt)

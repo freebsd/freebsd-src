@@ -71,6 +71,11 @@
 			interrupt-parent = < &GIC >;
 		};
 
+		sysmgr: sysmgr@ffd08000 {
+			compatible = "altr,sys-mgr";
+			reg = <0xffd08000 0x1000>;
+		};
+
 		rstmgr: rstmgr@ffd05000 {
 			compatible = "altr,rst-mgr";
 			reg = <0xffd05000 0x1000>;
@@ -125,6 +130,26 @@
 			interrupts = <160>;
 			interrupt-parent = <&GIC>;
 			dr_mode = "host";
+			status = "disabled";
+		};
+
+		gmac0: ethernet@ff700000 {
+			compatible = "altr,socfpga-stmmac",
+				"snps,dwmac-3.70a", "snps,dwmac";
+			reg = <0xff700000 0x2000>;
+			interrupts = <147>;
+			interrupt-parent = <&GIC>;
+			phy-mode = "rgmii";
+			status = "disabled";
+		};
+
+		gmac1: ethernet@ff702000 {
+			compatible = "altr,socfpga-stmmac",
+				"snps,dwmac-3.70a", "snps,dwmac";
+			reg = <0xff702000 0x2000>;
+			interrupts = <152>;
+			interrupt-parent = <&GIC>;
+			phy-mode = "rgmii";
 			status = "disabled";
 		};
 	};

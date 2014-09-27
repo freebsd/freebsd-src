@@ -119,6 +119,12 @@ typedef void (*if_qflush_fn_t)(if_t);
 typedef int (*if_transmit_fn_t)(if_t, struct mbuf *);
 typedef	uint64_t (*if_get_counter_t)(if_t, ift_counter);
 
+struct ifnet_hw_tsomax {
+	u_int	tsomaxbytes;	/* TSO total burst length limit in bytes */
+	u_int	tsomaxsegcount;	/* TSO maximum segment count */
+	u_int	tsomaxsegsize;	/* TSO maximum segment size in bytes */
+};
+
 /*
  * Structure defining a network interface.
  *
@@ -222,10 +228,11 @@ struct ifnet {
 	if_get_counter_t if_get_counter; /* get counter values */
 
 	/* Stuff that's only temporary and doesn't belong here. */
-	u_int	if_hw_tsomax;		/* tso burst length limit, the minimum
-					 * is (IP_MAXPACKET / 8).
-					 * XXXAO: Have to find a better place
-					 * for it eventually. */
+	u_int	if_hw_tsomax;		/* TSO total burst length
+					 * limit in bytes. A value of
+					 * zero means no limit. Have
+					 * to find a better place for
+					 * it eventually. */
 	/*
 	 * Old, racy and expensive statistics, should not be used in
 	 * new drivers.
@@ -242,6 +249,10 @@ struct ifnet {
 	uint64_t	if_iqdrops;	/* dropped on input */
 	uint64_t	if_oqdrops;	/* dropped on output */
 	uint64_t	if_noproto;	/* destined for unsupported protocol */
+
+	/* TSO fields for segment limits. If a field is zero below, there is no limit. */
+	u_int		if_hw_tsomaxsegcount;	/* TSO maximum segment count */
+	u_int		if_hw_tsomaxsegsize;	/* TSO maximum segment size in bytes */
 
 	/*
 	 * Spare fields to be added before branching a stable branch, so
@@ -595,6 +606,10 @@ int drbr_inuse_drv(if_t ifp, struct buf_ring *br);
 struct mbuf* drbr_dequeue_drv(if_t ifp, struct buf_ring *br);
 int drbr_needs_enqueue_drv(if_t ifp, struct buf_ring *br);
 int drbr_enqueue_drv(if_t ifp, struct buf_ring *br, struct mbuf *m);
+
+/* TSO */
+void if_hw_tsomax_common(if_t ifp, struct ifnet_hw_tsomax *);
+int if_hw_tsomax_update(if_t ifp, struct ifnet_hw_tsomax *);
 
 #endif /* _KERNEL */
 #endif /* !_NET_IF_VAR_H_ */

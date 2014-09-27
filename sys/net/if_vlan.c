@@ -1536,6 +1536,7 @@ vlan_capabilities(struct ifvlan *ifv)
 {
 	struct ifnet *p = PARENT(ifv);
 	struct ifnet *ifp = ifv->ifv_ifp;
+	struct ifnet_hw_tsomax hw_tsomax;
 
 	TRUNK_LOCK_ASSERT(TRUNK(ifv));
 
@@ -1562,8 +1563,9 @@ vlan_capabilities(struct ifvlan *ifv)
 	 * propagate the hardware-assisted flag. TSO on VLANs
 	 * does not necessarily require hardware VLAN tagging.
 	 */
-	if (p->if_hw_tsomax > 0)
-		ifp->if_hw_tsomax = p->if_hw_tsomax;
+	memset(&hw_tsomax, 0, sizeof(hw_tsomax));
+	if_hw_tsomax_common(p, &hw_tsomax);
+	if_hw_tsomax_update(ifp, &hw_tsomax);
 	if (p->if_capabilities & IFCAP_VLAN_HWTSO)
 		ifp->if_capabilities |= p->if_capabilities & IFCAP_TSO;
 	if (p->if_capenable & IFCAP_VLAN_HWTSO) {

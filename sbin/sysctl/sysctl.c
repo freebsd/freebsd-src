@@ -57,6 +57,7 @@ static const char rcsid[] =
 #include <machine/pc/bios.h>
 #endif
 
+#include <assert.h>
 #include <ctype.h>
 #include <err.h>
 #include <errno.h>
@@ -78,9 +79,33 @@ static int	parsefile(const char *);
 static int	parse(const char *, int);
 static int	show_var(int *, int);
 static int	sysctl_all(int *oid, int len);
-static int	name2oid(char *, int *);
+static int	name2oid(const char *, int *);
 
-static int	set_IK(const char *, int *);
+static int	strIKtoi(const char *, char **);
+
+static int ctl_sign[CTLTYPE+1] = {
+	[CTLTYPE_INT] = 1,
+	[CTLTYPE_LONG] = 1,
+	[CTLTYPE_S64] = 1,
+};
+
+static int ctl_size[CTLTYPE+1] = {
+	[CTLTYPE_INT] = sizeof(int),
+	[CTLTYPE_UINT] = sizeof(u_int),
+	[CTLTYPE_LONG] = sizeof(long),
+	[CTLTYPE_ULONG] = sizeof(u_long),
+	[CTLTYPE_S64] = sizeof(int64_t),
+	[CTLTYPE_U64] = sizeof(uint64_t),
+};
+
+static const char *ctl_typename[CTLTYPE+1] = {
+	[CTLTYPE_INT] = "integer",
+	[CTLTYPE_UINT] = "unsigned integer",
+	[CTLTYPE_LONG] = "long integer",
+	[CTLTYPE_ULONG] = "unsigned long",
+	[CTLTYPE_S64] = "int64_t",
+	[CTLTYPE_U64] = "uint64_t",
+};
 
 static void
 usage(void)
@@ -191,7 +216,8 @@ static int
 parse(const char *string, int lineno)
 {
 	int len, i, j;
-	void *newval = 0;
+	const void *newval;
+	const char *newvalstr = NULL;
 	int intval;
 	unsigned int uintval;
 	long longval;
@@ -200,7 +226,7 @@ parse(const char *string, int lineno)
 	int64_t i64val;
 	uint64_t u64val;
 	int mib[CTL_MAXNAME];
-	char *cp, *bufp, buf[BUFSIZ], *endptr, fmt[BUFSIZ], line[BUFSIZ];
+	char *cp, *bufp, buf[BUFSIZ], *endptr = NULL, fmt[BUFSIZ], line[BUFSIZ];
 	u_int kind;
 
 	if (lineno)
@@ -230,7 +256,7 @@ parse(const char *string, int lineno)
 				cp[strlen(cp) - 1] = '\0';
 			cp++;
 		}
-		newval = cp;
+		newvalstr = cp;
 		newsize = strlen(cp);
 	}
 	len = name2oid(bufp, mib);
@@ -254,7 +280,7 @@ parse(const char *string, int lineno)
 			exit(1);
 	}
 
-	if (newval == NULL || dflag) {
+	if (newvalstr == NULL || dflag) {
 		if ((kind & CTLTYPE) == CTLTYPE_NODE) {
 			if (dflag) {
 				i = show_var(mib, len);
@@ -282,97 +308,77 @@ parse(const char *string, int lineno)
 			return (1);
 		}
 
-		if ((kind & CTLTYPE) == CTLTYPE_INT ||
-		    (kind & CTLTYPE) == CTLTYPE_UINT ||
-		    (kind & CTLTYPE) == CTLTYPE_LONG ||
-		    (kind & CTLTYPE) == CTLTYPE_ULONG ||
-		    (kind & CTLTYPE) == CTLTYPE_S64 ||
-		    (kind & CTLTYPE) == CTLTYPE_U64) {
-			if (strlen(newval) == 0) {
+		switch (kind & CTLTYPE) {
+		case CTLTYPE_INT:
+		case CTLTYPE_UINT:
+		case CTLTYPE_LONG:
+		case CTLTYPE_ULONG:
+		case CTLTYPE_S64:
+		case CTLTYPE_U64:
+			if (strlen(newvalstr) == 0) {
 				warnx("empty numeric value");
 				return (1);
 			}
+			/* FALLTHROUGH */
+		case CTLTYPE_STRING:
+			break;
+		default:
+			warnx("oid '%s' is type %d,"
+				" cannot set that%s", bufp,
+				kind & CTLTYPE, line);
+			return (1);
 		}
+
+		errno = 0;
 
 		switch (kind & CTLTYPE) {
 			case CTLTYPE_INT:
-				if (strcmp(fmt, "IK") == 0) {
-					if (!set_IK(newval, &intval)) {
-						warnx("invalid value '%s'%s",
-						    (char *)newval, line);
-						return (1);
-					}
- 				} else {
-					intval = (int)strtol(newval, &endptr,
+				if (strcmp(fmt, "IK") == 0)
+					intval = strIKtoi(newvalstr, &endptr);
+				else
+					intval = (int)strtol(newvalstr, &endptr,
 					    0);
-					if (endptr == newval || *endptr != '\0') {
-						warnx("invalid integer '%s'%s",
-						    (char *)newval, line);
-						return (1);
-					}
-				}
 				newval = &intval;
 				newsize = sizeof(intval);
 				break;
 			case CTLTYPE_UINT:
-				uintval = (int) strtoul(newval, &endptr, 0);
-				if (endptr == newval || *endptr != '\0') {
-					warnx("invalid unsigned integer '%s'%s",
-					    (char *)newval, line);
-					return (1);
-				}
+				uintval = (int) strtoul(newvalstr, &endptr, 0);
 				newval = &uintval;
 				newsize = sizeof(uintval);
 				break;
 			case CTLTYPE_LONG:
-				longval = strtol(newval, &endptr, 0);
-				if (endptr == newval || *endptr != '\0') {
-					warnx("invalid long integer '%s'%s",
-					    (char *)newval, line);
-					return (1);
-				}
+				longval = strtol(newvalstr, &endptr, 0);
 				newval = &longval;
 				newsize = sizeof(longval);
 				break;
 			case CTLTYPE_ULONG:
-				ulongval = strtoul(newval, &endptr, 0);
-				if (endptr == newval || *endptr != '\0') {
-					warnx("invalid unsigned long integer"
-					    " '%s'%s", (char *)newval, line);
-					return (1);
-				}
+				ulongval = strtoul(newvalstr, &endptr, 0);
 				newval = &ulongval;
 				newsize = sizeof(ulongval);
 				break;
 			case CTLTYPE_STRING:
+				newval = newvalstr;
 				break;
 			case CTLTYPE_S64:
-				i64val = strtoimax(newval, &endptr, 0);
-				if (endptr == newval || *endptr != '\0') {
-					warnx("invalid int64_t '%s'%s",
-					    (char *)newval, line);
-					return (1);
-				}
+				i64val = strtoimax(newvalstr, &endptr, 0);
 				newval = &i64val;
 				newsize = sizeof(i64val);
 				break;
 			case CTLTYPE_U64:
-				u64val = strtoumax(newval, &endptr, 0);
-				if (endptr == newval || *endptr != '\0') {
-					warnx("invalid uint64_t '%s'%s",
-					    (char *)newval, line);
-					return (1);
-				}
+				u64val = strtoumax(newvalstr, &endptr, 0);
 				newval = &u64val;
 				newsize = sizeof(u64val);
 				break;
-			case CTLTYPE_OPAQUE:
-				/* FALLTHROUGH */
 			default:
-				warnx("oid '%s' is type %d,"
-					" cannot set that%s", bufp,
-					kind & CTLTYPE, line);
-				return (1);
+				/* NOTREACHED */
+				abort();
+		}
+
+		if (errno != 0 || endptr == newvalstr ||
+		    (endptr != NULL && *endptr != '\0')) {
+			warnx("invalid %s '%s'%s", ctl_typename[kind & CTLTYPE],
+			    newvalstr, line);
+			return (1);
 		}
 
 		i = show_var(mib, len);
@@ -657,30 +663,35 @@ S_bios_smap_xattr(size_t l2, void *p)
 #endif
 
 static int
-set_IK(const char *str, int *val)
+strIKtoi(const char *str, char **endptrp)
 {
+	int kelv;
 	float temp;
-	int len, kelv;
+	size_t len;
 	const char *p;
-	char *endptr;
 
-	if ((len = strlen(str)) == 0)
-		return (0);
+	assert(errno == 0);
+
+	len = strlen(str);
+	/* caller already checked this */
+	assert(len > 0);
+
 	p = &str[len - 1];
 	if (*p == 'C' || *p == 'F') {
-		temp = strtof(str, &endptr);
-		if (endptr == str || endptr != p)
-			return (0);
-		if (*p == 'F')
-			temp = (temp - 32) * 5 / 9;
-		kelv = temp * 10 + 2732;
+		temp = strtof(str, endptrp);
+		if (*endptrp != str && *endptrp == p && errno != 0) {
+			if (*p == 'F')
+				temp = (temp - 32) * 5 / 9;
+			return (temp * 10 + 2732);
+		}
 	} else {
-		kelv = (int)strtol(str, &endptr, 10);
-		if (endptr == str || *endptr != '\0')
-			return (0);
+		kelv = (int)strtol(str, endptrp, 10);
+		if (*endptrp != str && *endptrp == p && errno != 0)
+			return (kelv);
 	}
-	*val = kelv;
-	return (1);
+
+	errno = ERANGE;
+	return (0);
 }
 
 /*
@@ -693,7 +704,7 @@ set_IK(const char *str, int *val)
  */
 
 static int
-name2oid(char *name, int *oidp)
+name2oid(const char *name, int *oidp)
 {
 	int oid[2];
 	int i;
@@ -734,21 +745,6 @@ oidfmt(int *oid, int len, char *fmt, u_int *kind)
 		strcpy(fmt, (char *)(buf + sizeof(u_int)));
 	return (0);
 }
-
-static int ctl_sign[CTLTYPE+1] = {
-	[CTLTYPE_INT] = 1,
-	[CTLTYPE_LONG] = 1,
-	[CTLTYPE_S64] = 1,
-};
-
-static int ctl_size[CTLTYPE+1] = {
-	[CTLTYPE_INT] = sizeof(int),
-	[CTLTYPE_UINT] = sizeof(u_int),
-	[CTLTYPE_LONG] = sizeof(long),
-	[CTLTYPE_ULONG] = sizeof(u_long),
-	[CTLTYPE_S64] = sizeof(int64_t),
-	[CTLTYPE_U64] = sizeof(int64_t),
-};
 
 /*
  * This formats and outputs the value of one variable

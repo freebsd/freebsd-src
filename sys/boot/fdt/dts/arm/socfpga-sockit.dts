@@ -51,6 +51,10 @@
 		usb1: usb@ffb40000 {
 			status = "okay";
 		};
+
+		gmac1: ethernet@ff702000 {
+			status = "okay";
+		};
 	};
 
 	chosen {

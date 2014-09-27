@@ -211,7 +211,7 @@ mxge_dmamap_callback(void *arg, bus_dma_segment_t *segs, int nsegs,
 }
 
 static int
-mxge_dma_alloc(mxge_softc_t *sc, mxge_dma_t *dma, size_t bytes, 
+mxge_dma_alloc(mxge_softc_t *sc, mxge_dma_t *dma, size_t bytes,
 		   bus_size_t alignment)
 {
 	int err;
@@ -245,8 +245,8 @@ mxge_dma_alloc(mxge_softc_t *sc, mxge_dma_t *dma, size_t bytes,
 	}
 
 	/* allocate DMAable memory & map */
-	err = bus_dmamem_alloc(dma->dmat, &dma->addr, 
-			       (BUS_DMA_WAITOK | BUS_DMA_COHERENT 
+	err = bus_dmamem_alloc(dma->dmat, &dma->addr,
+			       (BUS_DMA_WAITOK | BUS_DMA_COHERENT
 				| BUS_DMA_ZERO),  &dma->map);
 	if (err != 0) {
 		device_printf(dev, "couldn't alloc mem (err = %d)\n", err);
@@ -385,7 +385,7 @@ mxge_enable_nvidia_ecrc(mxge_softc_t *sc)
 	/* XXXX
 	   Test below is commented because it is believed that doing
 	   config read/write beyond 0xff will access the config space
-	   for the next larger function.  Uncomment this and remove 
+	   for the next larger function.  Uncomment this and remove
 	   the hacky pmap_mapdev() way of accessing config space when
 	   FreeBSD grows support for extended pcie config space access
 	*/
@@ -454,7 +454,7 @@ mxge_enable_nvidia_ecrc(mxge_softc_t *sc)
 	}
 	*ptr32 = val | 0x40;
 	pmap_unmapdev((vm_offset_t)va, PAGE_SIZE);
-	if (mxge_verbose) 
+	if (mxge_verbose)
 		device_printf(sc->dev,
 			      "Enabled ECRC on upstream Nvidia bridge "
 			      "at %d:%d:%d\n",
@@ -573,7 +573,7 @@ mxge_firmware_probe(mxge_softc_t *sc)
 		}
 	}
 
-	/* 
+	/*
 	 * load the optimized firmware (which assumes aligned PCIe
 	 * completions) in order to see if it works on this host.
 	 */
@@ -583,12 +583,12 @@ mxge_firmware_probe(mxge_softc_t *sc)
 		return status;
 	}
 
-	/* 
+	/*
 	 * Enable ECRC if possible
 	 */
 	mxge_enable_nvidia_ecrc(sc);
 
-	/* 
+	/*
 	 * Run a DMA test which watches for unaligned completions and
 	 * aborts on the first one seen.  Not required on Z8ES or newer.
 	 */
@@ -657,7 +657,7 @@ mxge_validate_firmware(mxge_softc_t *sc, const mcp_gen_header_t *hdr)
 
 
 	if (be32toh(hdr->mcp_type) != MCP_TYPE_ETH) {
-		device_printf(sc->dev, "Bad firmware type: 0x%x\n", 
+		device_printf(sc->dev, "Bad firmware type: 0x%x\n",
 			      be32toh(hdr->mcp_type));
 		return EIO;
 	}
@@ -685,16 +685,16 @@ mxge_validate_firmware(mxge_softc_t *sc, const mcp_gen_header_t *hdr)
 static void *
 z_alloc(void *nil, u_int items, u_int size)
 {
-        void *ptr;
+	void *ptr;
 
-        ptr = malloc(items * size, M_TEMP, M_NOWAIT);
-        return ptr;
+	ptr = malloc(items * size, M_TEMP, M_NOWAIT);
+	return ptr;
 }
 
 static void
 z_free(void *nil, void *ptr)
 {
-        free(ptr, M_TEMP);
+	free(ptr, M_TEMP);
 }
 
 
@@ -732,7 +732,7 @@ mxge_load_firmware_helper(mxge_softc_t *sc, uint32_t *limit)
 
 	/* the uncompressed size is stored as the firmware version,
 	   which would otherwise go unused */
-	fw_len = (size_t) fw->version; 
+	fw_len = (size_t) fw->version;
 	inflate_buffer = malloc(fw_len, M_TEMP, M_NOWAIT);
 	if (inflate_buffer == NULL)
 		goto abort_with_zs;
@@ -755,7 +755,7 @@ mxge_load_firmware_helper(mxge_softc_t *sc, uint32_t *limit)
 		status = EIO;
 		goto abort_with_buffer;
 	}
-	hdr = (const void*)(inflate_buffer + hdr_offset); 
+	hdr = (const void*)(inflate_buffer + hdr_offset);
 
 	status = mxge_validate_firmware(sc, hdr);
 	if (status != 0)
@@ -832,14 +832,14 @@ mxge_dummy_rdma(mxge_softc_t *sc, int enable)
 		i++;
 	}
 	if (*confirm != 0xffffffff) {
-		device_printf(sc->dev, "dummy rdma %s failed (%p = 0x%x)", 
-			      (enable ? "enable" : "disable"), confirm, 
+		device_printf(sc->dev, "dummy rdma %s failed (%p = 0x%x)",
+			      (enable ? "enable" : "disable"), confirm,
 			      *confirm);
 	}
 	return;
 }
 
-static int 
+static int
 mxge_send_cmd(mxge_softc_t *sc, uint32_t cmd, mxge_cmd_t *data)
 {
 	mcp_cmd_t *buf;
@@ -869,7 +869,7 @@ mxge_send_cmd(mxge_softc_t *sc, uint32_t cmd, mxge_cmd_t *data)
 	/* wait up to 20ms */
 	err = EAGAIN;
 	for (sleep_total = 0; sleep_total <  20; sleep_total++) {
-		bus_dmamap_sync(sc->cmd_dma.dmat, 
+		bus_dmamap_sync(sc->cmd_dma.dmat,
 				sc->cmd_dma.map, BUS_DMASYNC_POSTREAD);
 		wmb();
 		switch (be32toh(response->result)) {
@@ -893,7 +893,7 @@ mxge_send_cmd(mxge_softc_t *sc, uint32_t cmd, mxge_cmd_t *data)
 			err = ENXIO;
 			break;
 		default:
-			device_printf(sc->dev, 
+			device_printf(sc->dev,
 				      "mxge: command %d "
 				      "failed, result = %d\n",
 				      cmd, be32toh(response->result));
@@ -924,7 +924,7 @@ mxge_adopt_running_firmware(mxge_softc_t *sc)
 			     (sc->sram + MCP_HEADER_PTR_OFFSET));
 
 	if ((hdr_offset & 3) || hdr_offset + sizeof(*hdr) > sc->sram_size) {
-		device_printf(sc->dev, 
+		device_printf(sc->dev,
 			      "Running firmware has bad header offset (%d)\n",
 			      (int)hdr_offset);
 		return EIO;
@@ -943,7 +943,7 @@ mxge_adopt_running_firmware(mxge_softc_t *sc)
 	status = mxge_validate_firmware(sc, hdr);
 	free(hdr, M_DEVBUF);
 
-	/* 
+	/*
 	 * check to see if adopted firmware has bug where adopting
 	 * it will cause broadcasts to be filtered unless the NIC
 	 * is kept in ALLMULTI mode
@@ -1034,11 +1034,11 @@ mxge_load_firmware(mxge_softc_t *sc, int adopt)
 	while (*confirm != 0xffffffff && i < 20) {
 		DELAY(1000*10);
 		i++;
-		bus_dmamap_sync(sc->cmd_dma.dmat, 
+		bus_dmamap_sync(sc->cmd_dma.dmat,
 				sc->cmd_dma.map, BUS_DMASYNC_POSTREAD);
 	}
 	if (*confirm != 0xffffffff) {
-		device_printf(sc->dev,"handoff failed (%p = 0x%x)", 
+		device_printf(sc->dev,"handoff failed (%p = 0x%x)",
 			confirm, *confirm);
 		
 		return ENXIO;
@@ -1054,7 +1054,7 @@ mxge_update_mac_address(mxge_softc_t *sc)
 	int status;
 
 	
-	cmd.data0 = ((addr[0] << 24) | (addr[1] << 16) 
+	cmd.data0 = ((addr[0] << 24) | (addr[1] << 16)
 		     | (addr[2] << 8) | addr[3]);
 
 	cmd.data1 = ((addr[4] << 8) | (addr[5]));
@@ -1136,7 +1136,7 @@ mxge_set_multicast_list(mxge_softc_t *sc)
 
 	err = mxge_send_cmd(sc, MXGEFW_LEAVE_ALL_MULTICAST_GROUPS, &cmd);
 	if (err != 0) {
-		device_printf(sc->dev, 
+		device_printf(sc->dev,
 			      "Failed MXGEFW_LEAVE_ALL_MULTICAST_GROUPS"
 			      ", error status: %d\n", err);
 		return;
@@ -1219,7 +1219,7 @@ mxge_reset(mxge_softc_t *sc, int interrupts_setup)
 	cmd.data0 = sc->rx_ring_size;
 	status = mxge_send_cmd(sc, MXGEFW_CMD_SET_INTRQ_SIZE, &cmd);
 
-	/* 
+	/*
 	 * Even though we already know how many slices are supported
 	 * via mxge_slice_probe(), MXGEFW_CMD_GET_MAX_RSS_QUEUES
 	 * has magic side effects, and must be called after a reset.
@@ -1229,17 +1229,17 @@ mxge_reset(mxge_softc_t *sc, int interrupts_setup)
 	 * MXGEFW_CMD_SET_INTRQ_SIZE, since the intrq size is used by
 	 * the firmware to compute offsets.
 	 */
-	 
+	
 	if (sc->num_slices > 1) {
 		/* ask the maximum number of slices it supports */
 		status = mxge_send_cmd(sc, MXGEFW_CMD_GET_MAX_RSS_QUEUES,
 					   &cmd);
 		if (status != 0) {
-			device_printf(sc->dev, 
+			device_printf(sc->dev,
 				      "failed to get number of slices\n");
 			return status;
 		}
-		/* 
+		/*
 		 * MXGEFW_CMD_ENABLE_RSS_QUEUES must be called prior
 		 * to setting up the interrupt queue DMA
 		 */
@@ -1272,7 +1272,7 @@ mxge_reset(mxge_softc_t *sc, int interrupts_setup)
 		}
 	}
 
-	status |= mxge_send_cmd(sc, 
+	status |= mxge_send_cmd(sc,
 				MXGEFW_CMD_GET_INTR_COAL_DELAY_OFFSET, &cmd);
 	
 
@@ -1282,7 +1282,7 @@ mxge_reset(mxge_softc_t *sc, int interrupts_setup)
 	irq_claim = (volatile uint32_t *)(sc->sram + cmd.data0);
 
 
-	status |= mxge_send_cmd(sc,  MXGEFW_CMD_GET_IRQ_DEASSERT_OFFSET, 
+	status |= mxge_send_cmd(sc,  MXGEFW_CMD_GET_IRQ_DEASSERT_OFFSET,
 				&cmd);
 	sc->irq_deassert = (volatile uint32_t *)(sc->sram + cmd.data0);
 	if (status != 0) {
@@ -1349,15 +1349,15 @@ mxge_change_throttle(SYSCTL_HANDLER_ARGS)
 	sc = arg1;
 	throttle = sc->throttle;
 	err = sysctl_handle_int(oidp, &throttle, arg2, req);
-        if (err != 0) {
-                return err;
-        }
+	if (err != 0) {
+		return err;
+	}
 
 	if (throttle == sc->throttle)
 		return 0;
 
-        if (throttle < MXGE_MIN_THROTTLE || throttle > MXGE_MAX_THROTTLE)
-                return EINVAL;
+	if (throttle < MXGE_MIN_THROTTLE || throttle > MXGE_MAX_THROTTLE)
+		return EINVAL;
 	
 	mtx_lock(&sc->driver_mtx);
 	cmd.data0 = throttle;
@@ -1371,64 +1371,64 @@ mxge_change_throttle(SYSCTL_HANDLER_ARGS)
 static int
 mxge_change_intr_coal(SYSCTL_HANDLER_ARGS)
 {
-        mxge_softc_t *sc;
-        unsigned int intr_coal_delay;
-        int err;
+	mxge_softc_t *sc;
+	unsigned int intr_coal_delay;
+	int err;
 
-        sc = arg1;
-        intr_coal_delay = sc->intr_coal_delay;
-        err = sysctl_handle_int(oidp, &intr_coal_delay, arg2, req);
-        if (err != 0) {
-                return err;
-        }
-        if (intr_coal_delay == sc->intr_coal_delay)
-                return 0;
+	sc = arg1;
+	intr_coal_delay = sc->intr_coal_delay;
+	err = sysctl_handle_int(oidp, &intr_coal_delay, arg2, req);
+	if (err != 0) {
+		return err;
+	}
+	if (intr_coal_delay == sc->intr_coal_delay)
+		return 0;
 
-        if (intr_coal_delay == 0 || intr_coal_delay > 1000*1000)
-                return EINVAL;
+	if (intr_coal_delay == 0 || intr_coal_delay > 1000*1000)
+		return EINVAL;
 
 	mtx_lock(&sc->driver_mtx);
 	*sc->intr_coal_delay_ptr = htobe32(intr_coal_delay);
 	sc->intr_coal_delay = intr_coal_delay;
 	
 	mtx_unlock(&sc->driver_mtx);
-        return err;
+	return err;
 }
 
 static int
 mxge_change_flow_control(SYSCTL_HANDLER_ARGS)
 {
-        mxge_softc_t *sc;
-        unsigned int enabled;
-        int err;
+	mxge_softc_t *sc;
+	unsigned int enabled;
+	int err;
 
-        sc = arg1;
-        enabled = sc->pause;
-        err = sysctl_handle_int(oidp, &enabled, arg2, req);
-        if (err != 0) {
-                return err;
-        }
-        if (enabled == sc->pause)
-                return 0;
+	sc = arg1;
+	enabled = sc->pause;
+	err = sysctl_handle_int(oidp, &enabled, arg2, req);
+	if (err != 0) {
+		return err;
+	}
+	if (enabled == sc->pause)
+		return 0;
 
 	mtx_lock(&sc->driver_mtx);
 	err = mxge_change_pause(sc, enabled);
 	mtx_unlock(&sc->driver_mtx);
-        return err;
+	return err;
 }
 
 static int
 mxge_handle_be32(SYSCTL_HANDLER_ARGS)
 {
-        int err;
+	int err;
 
-        if (arg1 == NULL)
-                return EFAULT;
-        arg2 = be32toh(*(int *)arg1);
-        arg1 = NULL;
-        err = sysctl_handle_int(oidp, arg1, arg2, req);
+	if (arg1 == NULL)
+		return EFAULT;
+	arg2 = be32toh(*(int *)arg1);
+	arg1 = NULL;
+	err = sysctl_handle_int(oidp, arg1, arg2, req);
 
-        return err;
+	return err;
 }
 
 static void
@@ -1466,156 +1466,156 @@ mxge_add_sysctls(mxge_softc_t *sc)
 	fw = sc->ss[0].fw_stats;
 
 	/* random information */
-	SYSCTL_ADD_STRING(ctx, children, OID_AUTO, 
+	SYSCTL_ADD_STRING(ctx, children, OID_AUTO,
 		       "firmware_version",
 		       CTLFLAG_RD, &sc->fw_version,
 		       0, "firmware version");
-	SYSCTL_ADD_STRING(ctx, children, OID_AUTO, 
+	SYSCTL_ADD_STRING(ctx, children, OID_AUTO,
 		       "serial_number",
 		       CTLFLAG_RD, &sc->serial_number_string,
 		       0, "serial number");
-	SYSCTL_ADD_STRING(ctx, children, OID_AUTO, 
+	SYSCTL_ADD_STRING(ctx, children, OID_AUTO,
 		       "product_code",
 		       CTLFLAG_RD, &sc->product_code_string,
 		       0, "product_code");
-	SYSCTL_ADD_INT(ctx, children, OID_AUTO, 
+	SYSCTL_ADD_INT(ctx, children, OID_AUTO,
 		       "pcie_link_width",
 		       CTLFLAG_RD, &sc->link_width,
 		       0, "tx_boundary");
-	SYSCTL_ADD_INT(ctx, children, OID_AUTO, 
+	SYSCTL_ADD_INT(ctx, children, OID_AUTO,
 		       "tx_boundary",
 		       CTLFLAG_RD, &sc->tx_boundary,
 		       0, "tx_boundary");
-	SYSCTL_ADD_INT(ctx, children, OID_AUTO, 
+	SYSCTL_ADD_INT(ctx, children, OID_AUTO,
 		       "write_combine",
 		       CTLFLAG_RD, &sc->wc,
 		       0, "write combining PIO?");
-	SYSCTL_ADD_INT(ctx, children, OID_AUTO, 
+	SYSCTL_ADD_INT(ctx, children, OID_AUTO,
 		       "read_dma_MBs",
 		       CTLFLAG_RD, &sc->read_dma,
 		       0, "DMA Read speed in MB/s");
-	SYSCTL_ADD_INT(ctx, children, OID_AUTO, 
+	SYSCTL_ADD_INT(ctx, children, OID_AUTO,
 		       "write_dma_MBs",
 		       CTLFLAG_RD, &sc->write_dma,
 		       0, "DMA Write speed in MB/s");
-	SYSCTL_ADD_INT(ctx, children, OID_AUTO, 
+	SYSCTL_ADD_INT(ctx, children, OID_AUTO,
 		       "read_write_dma_MBs",
 		       CTLFLAG_RD, &sc->read_write_dma,
 		       0, "DMA concurrent Read/Write speed in MB/s");
-	SYSCTL_ADD_INT(ctx, children, OID_AUTO, 
+	SYSCTL_ADD_INT(ctx, children, OID_AUTO,
 		       "watchdog_resets",
 		       CTLFLAG_RD, &sc->watchdog_resets,
 		       0, "Number of times NIC was reset");
 
 
 	/* performance related tunables */
-	SYSCTL_ADD_PROC(ctx, children, OID_AUTO, 
+	SYSCTL_ADD_PROC(ctx, children, OID_AUTO,
 			"intr_coal_delay",
 			CTLTYPE_INT|CTLFLAG_RW, sc,
-			0, mxge_change_intr_coal, 
+			0, mxge_change_intr_coal,
 			"I", "interrupt coalescing delay in usecs");
 
-	SYSCTL_ADD_PROC(ctx, children, OID_AUTO, 
+	SYSCTL_ADD_PROC(ctx, children, OID_AUTO,
 			"throttle",
 			CTLTYPE_INT|CTLFLAG_RW, sc,
-			0, mxge_change_throttle, 
+			0, mxge_change_throttle,
 			"I", "transmit throttling");
 
-	SYSCTL_ADD_PROC(ctx, children, OID_AUTO, 
+	SYSCTL_ADD_PROC(ctx, children, OID_AUTO,
 			"flow_control_enabled",
 			CTLTYPE_INT|CTLFLAG_RW, sc,
 			0, mxge_change_flow_control,
 			"I", "interrupt coalescing delay in usecs");
 
-	SYSCTL_ADD_INT(ctx, children, OID_AUTO, 
+	SYSCTL_ADD_INT(ctx, children, OID_AUTO,
 		       "deassert_wait",
 		       CTLFLAG_RW, &mxge_deassert_wait,
 		       0, "Wait for IRQ line to go low in ihandler");
 
-	/* stats block from firmware is in network byte order.  
+	/* stats block from firmware is in network byte order.
 	   Need to swap it */
-	SYSCTL_ADD_PROC(ctx, children, OID_AUTO, 
+	SYSCTL_ADD_PROC(ctx, children, OID_AUTO,
 			"link_up",
 			CTLTYPE_INT|CTLFLAG_RD, &fw->link_up,
 			0, mxge_handle_be32,
 			"I", "link up");
-	SYSCTL_ADD_PROC(ctx, children, OID_AUTO, 
+	SYSCTL_ADD_PROC(ctx, children, OID_AUTO,
 			"rdma_tags_available",
 			CTLTYPE_INT|CTLFLAG_RD, &fw->rdma_tags_available,
 			0, mxge_handle_be32,
 			"I", "rdma_tags_available");
-	SYSCTL_ADD_PROC(ctx, children, OID_AUTO, 
+	SYSCTL_ADD_PROC(ctx, children, OID_AUTO,
 			"dropped_bad_crc32",
-			CTLTYPE_INT|CTLFLAG_RD, 
+			CTLTYPE_INT|CTLFLAG_RD,
 			&fw->dropped_bad_crc32,
 			0, mxge_handle_be32,
 			"I", "dropped_bad_crc32");
-	SYSCTL_ADD_PROC(ctx, children, OID_AUTO, 
+	SYSCTL_ADD_PROC(ctx, children, OID_AUTO,
 			"dropped_bad_phy",
-			CTLTYPE_INT|CTLFLAG_RD, 
+			CTLTYPE_INT|CTLFLAG_RD,
 			&fw->dropped_bad_phy,
 			0, mxge_handle_be32,
 			"I", "dropped_bad_phy");
-	SYSCTL_ADD_PROC(ctx, children, OID_AUTO, 
+	SYSCTL_ADD_PROC(ctx, children, OID_AUTO,
 			"dropped_link_error_or_filtered",
-			CTLTYPE_INT|CTLFLAG_RD, 
+			CTLTYPE_INT|CTLFLAG_RD,
 			&fw->dropped_link_error_or_filtered,
 			0, mxge_handle_be32,
 			"I", "dropped_link_error_or_filtered");
-	SYSCTL_ADD_PROC(ctx, children, OID_AUTO, 
+	SYSCTL_ADD_PROC(ctx, children, OID_AUTO,
 			"dropped_link_overflow",
 			CTLTYPE_INT|CTLFLAG_RD, &fw->dropped_link_overflow,
 			0, mxge_handle_be32,
 			"I", "dropped_link_overflow");
-	SYSCTL_ADD_PROC(ctx, children, OID_AUTO, 
+	SYSCTL_ADD_PROC(ctx, children, OID_AUTO,
 			"dropped_multicast_filtered",
-			CTLTYPE_INT|CTLFLAG_RD, 
+			CTLTYPE_INT|CTLFLAG_RD,
 			&fw->dropped_multicast_filtered,
 			0, mxge_handle_be32,
 			"I", "dropped_multicast_filtered");
-	SYSCTL_ADD_PROC(ctx, children, OID_AUTO, 
+	SYSCTL_ADD_PROC(ctx, children, OID_AUTO,
 			"dropped_no_big_buffer",
 			CTLTYPE_INT|CTLFLAG_RD, &fw->dropped_no_big_buffer,
 			0, mxge_handle_be32,
 			"I", "dropped_no_big_buffer");
-	SYSCTL_ADD_PROC(ctx, children, OID_AUTO, 
+	SYSCTL_ADD_PROC(ctx, children, OID_AUTO,
 			"dropped_no_small_buffer",
-			CTLTYPE_INT|CTLFLAG_RD, 
+			CTLTYPE_INT|CTLFLAG_RD,
 			&fw->dropped_no_small_buffer,
 			0, mxge_handle_be32,
 			"I", "dropped_no_small_buffer");
-	SYSCTL_ADD_PROC(ctx, children, OID_AUTO, 
+	SYSCTL_ADD_PROC(ctx, children, OID_AUTO,
 			"dropped_overrun",
 			CTLTYPE_INT|CTLFLAG_RD, &fw->dropped_overrun,
 			0, mxge_handle_be32,
 			"I", "dropped_overrun");
-	SYSCTL_ADD_PROC(ctx, children, OID_AUTO, 
+	SYSCTL_ADD_PROC(ctx, children, OID_AUTO,
 			"dropped_pause",
-			CTLTYPE_INT|CTLFLAG_RD, 
+			CTLTYPE_INT|CTLFLAG_RD,
 			&fw->dropped_pause,
 			0, mxge_handle_be32,
 			"I", "dropped_pause");
-	SYSCTL_ADD_PROC(ctx, children, OID_AUTO, 
+	SYSCTL_ADD_PROC(ctx, children, OID_AUTO,
 			"dropped_runt",
 			CTLTYPE_INT|CTLFLAG_RD, &fw->dropped_runt,
 			0, mxge_handle_be32,
 			"I", "dropped_runt");
 
-	SYSCTL_ADD_PROC(ctx, children, OID_AUTO, 
+	SYSCTL_ADD_PROC(ctx, children, OID_AUTO,
 			"dropped_unicast_filtered",
 			CTLTYPE_INT|CTLFLAG_RD, &fw->dropped_unicast_filtered,
 			0, mxge_handle_be32,
 			"I", "dropped_unicast_filtered");
 
 	/* verbose printing? */
-	SYSCTL_ADD_INT(ctx, children, OID_AUTO, 
+	SYSCTL_ADD_INT(ctx, children, OID_AUTO,
 		       "verbose",
 		       CTLFLAG_RW, &mxge_verbose,
 		       0, "verbose printing");
 
 	/* add counters exported for debugging from all slices */
 	sysctl_ctx_init(&sc->slice_sysctl_ctx);
-	sc->slice_sysctl_tree = 
+	sc->slice_sysctl_tree =
 		SYSCTL_ADD_NODE(&sc->slice_sysctl_ctx, children, OID_AUTO,
 				"slice", CTLFLAG_RD, 0, "");
 
@@ -1625,15 +1625,15 @@ mxge_add_sysctls(mxge_softc_t *sc)
 		ctx = &ss->sysctl_ctx;
 		children = SYSCTL_CHILDREN(sc->slice_sysctl_tree);
 		sprintf(slice_num, "%d", slice);
-		ss->sysctl_tree = 
+		ss->sysctl_tree =
 			SYSCTL_ADD_NODE(ctx, children, OID_AUTO, slice_num,
 					CTLFLAG_RD, 0, "");
 		children = SYSCTL_CHILDREN(ss->sysctl_tree);
-		SYSCTL_ADD_INT(ctx, children, OID_AUTO, 
+		SYSCTL_ADD_INT(ctx, children, OID_AUTO,
 			       "rx_small_cnt",
 			       CTLFLAG_RD, &ss->rx_small.cnt,
 			       0, "rx_small_cnt");
-		SYSCTL_ADD_INT(ctx, children, OID_AUTO, 
+		SYSCTL_ADD_INT(ctx, children, OID_AUTO,
 			       "rx_big_cnt",
 			       CTLFLAG_RD, &ss->rx_big.cnt,
 			       0, "rx_small_cnt");
@@ -1655,118 +1655,118 @@ mxge_add_sysctls(mxge_softc_t *sc)
 		if (slice > 0)
 			continue;
 #endif
-		SYSCTL_ADD_INT(ctx, children, OID_AUTO, 
+		SYSCTL_ADD_INT(ctx, children, OID_AUTO,
 			       "tx_req",
 			       CTLFLAG_RD, &ss->tx.req,
 			       0, "tx_req");
 
-		SYSCTL_ADD_INT(ctx, children, OID_AUTO, 
+		SYSCTL_ADD_INT(ctx, children, OID_AUTO,
 			       "tx_done",
 			       CTLFLAG_RD, &ss->tx.done,
 			       0, "tx_done");
-		SYSCTL_ADD_INT(ctx, children, OID_AUTO, 
+		SYSCTL_ADD_INT(ctx, children, OID_AUTO,
 			       "tx_pkt_done",
 			       CTLFLAG_RD, &ss->tx.pkt_done,
 			       0, "tx_done");
-		SYSCTL_ADD_INT(ctx, children, OID_AUTO, 
+		SYSCTL_ADD_INT(ctx, children, OID_AUTO,
 			       "tx_stall",
 			       CTLFLAG_RD, &ss->tx.stall,
 			       0, "tx_stall");
-		SYSCTL_ADD_INT(ctx, children, OID_AUTO, 
+		SYSCTL_ADD_INT(ctx, children, OID_AUTO,
 			       "tx_wake",
 			       CTLFLAG_RD, &ss->tx.wake,
 			       0, "tx_wake");
-		SYSCTL_ADD_INT(ctx, children, OID_AUTO, 
+		SYSCTL_ADD_INT(ctx, children, OID_AUTO,
 			       "tx_defrag",
 			       CTLFLAG_RD, &ss->tx.defrag,
 			       0, "tx_defrag");
-		SYSCTL_ADD_INT(ctx, children, OID_AUTO, 
+		SYSCTL_ADD_INT(ctx, children, OID_AUTO,
 			       "tx_queue_active",
 			       CTLFLAG_RD, &ss->tx.queue_active,
 			       0, "tx_queue_active");
-		SYSCTL_ADD_INT(ctx, children, OID_AUTO, 
+		SYSCTL_ADD_INT(ctx, children, OID_AUTO,
 			       "tx_activate",
 			       CTLFLAG_RD, &ss->tx.activate,
 			       0, "tx_activate");
-		SYSCTL_ADD_INT(ctx, children, OID_AUTO, 
+		SYSCTL_ADD_INT(ctx, children, OID_AUTO,
 			       "tx_deactivate",
 			       CTLFLAG_RD, &ss->tx.deactivate,
 			       0, "tx_deactivate");
 	}
 }
 
-/* copy an array of mcp_kreq_ether_send_t's to the mcp.  Copy 
+/* copy an array of mcp_kreq_ether_send_t's to the mcp.  Copy
    backwards one at a time and handle ring wraps */
 
-static inline void 
-mxge_submit_req_backwards(mxge_tx_ring_t *tx, 
+static inline void
+mxge_submit_req_backwards(mxge_tx_ring_t *tx,
 			    mcp_kreq_ether_send_t *src, int cnt)
 {
-        int idx, starting_slot;
-        starting_slot = tx->req;
-        while (cnt > 1) {
-                cnt--;
-                idx = (starting_slot + cnt) & tx->mask;
-                mxge_pio_copy(&tx->lanai[idx],
+	int idx, starting_slot;
+	starting_slot = tx->req;
+	while (cnt > 1) {
+		cnt--;
+		idx = (starting_slot + cnt) & tx->mask;
+		mxge_pio_copy(&tx->lanai[idx],
 			      &src[cnt], sizeof(*src));
-                wmb();
-        }
+		wmb();
+	}
 }
 
 /*
  * copy an array of mcp_kreq_ether_send_t's to the mcp.  Copy
  * at most 32 bytes at a time, so as to avoid involving the software
  * pio handler in the nic.   We re-write the first segment's flags
- * to mark them valid only after writing the entire chain 
+ * to mark them valid only after writing the entire chain
  */
 
-static inline void 
-mxge_submit_req(mxge_tx_ring_t *tx, mcp_kreq_ether_send_t *src, 
-                  int cnt)
+static inline void
+mxge_submit_req(mxge_tx_ring_t *tx, mcp_kreq_ether_send_t *src,
+		  int cnt)
 {
-        int idx, i;
-        uint32_t *src_ints;
+	int idx, i;
+	uint32_t *src_ints;
 	volatile uint32_t *dst_ints;
-        mcp_kreq_ether_send_t *srcp;
+	mcp_kreq_ether_send_t *srcp;
 	volatile mcp_kreq_ether_send_t *dstp, *dst;
 	uint8_t last_flags;
-        
-        idx = tx->req & tx->mask;
+	
+	idx = tx->req & tx->mask;
 
 	last_flags = src->flags;
 	src->flags = 0;
-        wmb();
-        dst = dstp = &tx->lanai[idx];
-        srcp = src;
+	wmb();
+	dst = dstp = &tx->lanai[idx];
+	srcp = src;
 
-        if ((idx + cnt) < tx->mask) {
-                for (i = 0; i < (cnt - 1); i += 2) {
-                        mxge_pio_copy(dstp, srcp, 2 * sizeof(*src));
-                        wmb(); /* force write every 32 bytes */
-                        srcp += 2;
-                        dstp += 2;
-                }
-        } else {
-                /* submit all but the first request, and ensure 
-                   that it is submitted below */
-                mxge_submit_req_backwards(tx, src, cnt);
-                i = 0;
-        }
-        if (i < cnt) {
-                /* submit the first request */
-                mxge_pio_copy(dstp, srcp, sizeof(*src));
-                wmb(); /* barrier before setting valid flag */
-        }
+	if ((idx + cnt) < tx->mask) {
+		for (i = 0; i < (cnt - 1); i += 2) {
+			mxge_pio_copy(dstp, srcp, 2 * sizeof(*src));
+			wmb(); /* force write every 32 bytes */
+			srcp += 2;
+			dstp += 2;
+		}
+	} else {
+		/* submit all but the first request, and ensure
+		   that it is submitted below */
+		mxge_submit_req_backwards(tx, src, cnt);
+		i = 0;
+	}
+	if (i < cnt) {
+		/* submit the first request */
+		mxge_pio_copy(dstp, srcp, sizeof(*src));
+		wmb(); /* barrier before setting valid flag */
+	}
 
-        /* re-write the last 32-bits with the valid flags */
-        src->flags = last_flags;
-        src_ints = (uint32_t *)src;
-        src_ints+=3;
-        dst_ints = (volatile uint32_t *)dst;
-        dst_ints+=3;
-        *dst_ints =  *src_ints;
-        tx->req += cnt;
-        wmb();
+	/* re-write the last 32-bits with the valid flags */
+	src->flags = last_flags;
+	src_ints = (uint32_t *)src;
+	src_ints+=3;
+	dst_ints = (volatile uint32_t *)dst;
+	dst_ints+=3;
+	*dst_ints =  *src_ints;
+	tx->req += cnt;
+	wmb();
 }
 
 static int
@@ -1969,7 +1969,7 @@ mxge_encap_tso(struct mxge_slice_state *ss, struct mbuf *m,
 				seglen = -cum_len;
 				small = (mss <= MXGEFW_SEND_SMALL_SIZE);
 				flags_next = MXGEFW_FLAGS_TSO_PLD |
-					MXGEFW_FLAGS_FIRST | 
+					MXGEFW_FLAGS_FIRST |
 					(small * MXGEFW_FLAGS_SMALL);
 			    }
 			
@@ -2038,7 +2038,7 @@ drop:
 #endif /* IFCAP_TSO4 */
 
 #ifdef MXGE_NEW_VLAN_API
-/* 
+/*
  * We reproduce the software vlan tag insertion from
  * net/if_vlan.c:vlan_start() here so that we can advertise "hardware"
  * vlan tag insertion. We need to advertise this in order to have the
@@ -2083,7 +2083,7 @@ mxge_encap(struct mxge_slice_state *ss, struct mbuf *m)
 	mxge_tx_ring_t *tx;
 	int cnt, cum_len, err, i, idx, odd_flag;
 	uint16_t pseudo_hdr_offset;
-        uint8_t flags, cksum_offset;
+	uint8_t flags, cksum_offset;
 
 
 	sc = ss->sc;
@@ -2106,7 +2106,7 @@ mxge_encap(struct mxge_slice_state *ss, struct mbuf *m)
 	/* (try to) map the frame for DMA */
 	idx = tx->req & tx->mask;
 	err = bus_dmamap_load_mbuf_sg(tx->dmat, tx->info[idx].map,
-				      m, tx->seg_list, &cnt, 
+				      m, tx->seg_list, &cnt,
 				      BUS_DMA_NOWAIT);
 	if (__predict_false(err == EFBIG)) {
 		/* Too many segments in the chain.  Try
@@ -2117,9 +2117,9 @@ mxge_encap(struct mxge_slice_state *ss, struct mbuf *m)
 		}
 		ss->tx.defrag++;
 		m = m_tmp;
-		err = bus_dmamap_load_mbuf_sg(tx->dmat, 
+		err = bus_dmamap_load_mbuf_sg(tx->dmat,
 					      tx->info[idx].map,
-					      m, tx->seg_list, &cnt, 
+					      m, tx->seg_list, &cnt,
 					      BUS_DMA_NOWAIT);
 	}
 	if (__predict_false(err != 0)) {
@@ -2166,9 +2166,9 @@ mxge_encap(struct mxge_slice_state *ss, struct mbuf *m)
 	seg = tx->seg_list;
 	req->flags = MXGEFW_FLAGS_FIRST;
 	for (i = 0; i < cnt; i++) {
-		req->addr_low = 
+		req->addr_low =
 			htobe32(MXGE_LOWPART_TO_U32(seg->ds_addr));
-		req->addr_high = 
+		req->addr_high =
 			htobe32(MXGE_HIGHPART_TO_U32(seg->ds_addr));
 		req->length = htobe16(seg->ds_len);
 		req->cksum_offset = cksum_offset;
@@ -2189,9 +2189,9 @@ mxge_encap(struct mxge_slice_state *ss, struct mbuf *m)
 	/* pad runts to 60 bytes */
 	if (cum_len < 60) {
 		req++;
-		req->addr_low = 
+		req->addr_low =
 			htobe32(MXGE_LOWPART_TO_U32(sc->zeropad_dma.bus_addr));
-		req->addr_high = 
+		req->addr_high =
 			htobe32(MXGE_HIGHPART_TO_U32(sc->zeropad_dma.bus_addr));
 		req->length = htobe16(60 - cum_len);
 		req->cksum_offset = 0;
@@ -2427,16 +2427,16 @@ mxge_get_buf_small(struct mxge_slice_state *ss, bus_dmamap_t map, int idx)
 		goto done;
 	}
 	m->m_len = MHLEN;
-	err = bus_dmamap_load_mbuf_sg(rx->dmat, map, m, 
+	err = bus_dmamap_load_mbuf_sg(rx->dmat, map, m,
 				      &seg, &cnt, BUS_DMA_NOWAIT);
 	if (err != 0) {
 		m_free(m);
 		goto done;
 	}
 	rx->info[idx].m = m;
-	rx->shadow[idx].addr_low = 
+	rx->shadow[idx].addr_low =
 		htobe32(MXGE_LOWPART_TO_U32(seg.ds_addr));
-	rx->shadow[idx].addr_high = 
+	rx->shadow[idx].addr_high =
 		htobe32(MXGE_HIGHPART_TO_U32(seg.ds_addr));
 
 done:
@@ -2460,23 +2460,23 @@ mxge_get_buf_big(struct mxge_slice_state *ss, bus_dmamap_t map, int idx)
 		goto done;
 	}
 	m->m_len = rx->mlen;
-	err = bus_dmamap_load_mbuf_sg(rx->dmat, map, m, 
+	err = bus_dmamap_load_mbuf_sg(rx->dmat, map, m,
 				      seg, &cnt, BUS_DMA_NOWAIT);
 	if (err != 0) {
 		m_free(m);
 		goto done;
 	}
 	rx->info[idx].m = m;
-	rx->shadow[idx].addr_low = 
+	rx->shadow[idx].addr_low =
 		htobe32(MXGE_LOWPART_TO_U32(seg->ds_addr));
-	rx->shadow[idx].addr_high = 
+	rx->shadow[idx].addr_high =
 		htobe32(MXGE_HIGHPART_TO_U32(seg->ds_addr));
 
 #if MXGE_VIRT_JUMBOS
 	for (i = 1; i < cnt; i++) {
-		rx->shadow[idx + i].addr_low = 
+		rx->shadow[idx + i].addr_low =
 			htobe32(MXGE_LOWPART_TO_U32(seg[i].ds_addr));
-		rx->shadow[idx + i].addr_high = 
+		rx->shadow[idx + i].addr_high =
 			htobe32(MXGE_HIGHPART_TO_U32(seg[i].ds_addr));
        }
 #endif
@@ -2548,7 +2548,7 @@ mxge_rx_csum6(void *p, struct mbuf *m, uint32_t csum)
 	return (c);
 }
 #endif /* INET6 */
-/* 
+/*
  *  Myri10GE hardware checksums are not valid if the sender
  *  padded the frame with non-zero padding.  This is because
  *  the firmware just does a simple 16-bit 1s complement
@@ -2616,14 +2616,14 @@ mxge_vlan_tag_remove(struct mbuf *m, uint32_t *csum)
 	 */
 
 	/* put checksum into host byte order */
-	*csum = ntohs(*csum); 
+	*csum = ntohs(*csum);
 	partial = ntohl(*(uint32_t *)(mtod(m, char *) + ETHER_HDR_LEN));
 	(*csum) += ~partial;
 	(*csum) +=  ((*csum) < ~partial);
 	(*csum) = ((*csum) >> 16) + ((*csum) & 0xFFFF);
 	(*csum) = ((*csum) >> 16) + ((*csum) & 0xFFFF);
 
-	/* restore checksum to network byte order; 
+	/* restore checksum to network byte order;
 	   later consumers expect this */
 	*csum = htons(*csum);
 
@@ -2678,7 +2678,7 @@ mxge_rx_done_big(struct mxge_slice_state *ss, uint32_t len,
 	/* try to replace the received mbuf */
 	if (mxge_get_buf_big(ss, rx->extra_map, idx)) {
 		/* drop the frame -- the old mbuf is re-cycled */
-		ifp->if_ierrors++;
+		if_inc_counter(ifp, IFCOUNTER_IERRORS, 1);
 		return;
 	}
 
@@ -2747,7 +2747,7 @@ mxge_rx_done_small(struct mxge_slice_state *ss, uint32_t len,
 	/* try to replace the received mbuf */
 	if (mxge_get_buf_small(ss, rx->extra_map, idx)) {
 		/* drop the frame -- the old mbuf is re-cycled */
-		ifp->if_ierrors++;
+		if_inc_counter(ifp, IFCOUNTER_IERRORS, 1);
 		return;
 	}
 
@@ -2863,7 +2863,7 @@ mxge_tx_done(struct mxge_slice_state *ss, uint32_t mcp_idx)
 	}
 	
 	/* If we have space, clear IFF_OACTIVE to tell the stack that
-           its OK to send packets */
+	   its OK to send packets */
 #ifdef IFNET_BUF_RING
 	flags = &ss->if_drv_flags;
 #else
@@ -2919,7 +2919,7 @@ mxge_media_set(mxge_softc_t *sc, int media_type)
 {
 
 	
-	ifmedia_add(&sc->media, IFM_ETHER | IFM_FDX | media_type, 
+	ifmedia_add(&sc->media, IFM_ETHER | IFM_FDX | media_type,
 		    0, NULL);
 	ifmedia_set(&sc->media, IFM_ETHER | IFM_FDX | media_type);
 	sc->current_media = media_type;
@@ -2935,7 +2935,7 @@ mxge_media_init(mxge_softc_t *sc)
 	ifmedia_removeall(&sc->media);
 	mxge_media_set(sc, IFM_AUTO);
 
-	/* 
+	/*
 	 * parse the product code to deterimine the interface type
 	 * (CX4, XFP, Quad Ribbon Fiber) by looking at the character
 	 * after the 3rd dash in the driver's cached copy of the
@@ -2980,7 +2980,7 @@ mxge_media_init(mxge_softc_t *sc)
  * themselves only when their link is up, so this is initiated via a
  * link up interrupt.  However, this can potentially take up to
  * several milliseconds, so it is run via the watchdog routine, rather
- * than in the interrupt handler itself. 
+ * than in the interrupt handler itself.
  */
 static void
 mxge_media_probe(mxge_softc_t *sc)
@@ -2997,7 +2997,7 @@ mxge_media_probe(mxge_softc_t *sc)
 	if (sc->connector == MXGE_XFP) {
 		/* -R is XFP */
 		mxge_media_types = mxge_xfp_media_types;
-		mxge_media_type_entries = 
+		mxge_media_type_entries =
 			sizeof (mxge_xfp_media_types) /
 			sizeof (mxge_xfp_media_types[0]);
 		byte = MXGE_XFP_COMPLIANCE_BYTE;
@@ -3005,7 +3005,7 @@ mxge_media_probe(mxge_softc_t *sc)
 	} else 	if (sc->connector == MXGE_SFP) {
 		/* -S or -2S is SFP+ */
 		mxge_media_types = mxge_sfp_media_types;
-		mxge_media_type_entries = 
+		mxge_media_type_entries =
 			sizeof (mxge_sfp_media_types) /
 			sizeof (mxge_sfp_media_types[0]);
 		cage_type = "SFP+";
@@ -3151,7 +3151,7 @@ mxge_intr(void *arg)
 		}
 		if (sc->rdma_tags_available !=
 		    be32toh(stats->rdma_tags_available)) {
-			sc->rdma_tags_available = 
+			sc->rdma_tags_available =
 				be32toh(stats->rdma_tags_available);
 			device_printf(sc->dev, "RDMA timed out! %d tags "
 				      "left\n", sc->rdma_tags_available);
@@ -3384,7 +3384,7 @@ mxge_alloc_slice_rings(struct mxge_slice_state *ss, int rx_ring_entries,
 		return err;
 	}
 	for (i = 0; i <= ss->rx_small.mask; i++) {
-		err = bus_dmamap_create(ss->rx_small.dmat, 0, 
+		err = bus_dmamap_create(ss->rx_small.dmat, 0,
 					&ss->rx_small.info[i].map);
 		if (err != 0) {
 			device_printf(sc->dev, "Err %d  rx_small dmamap\n",
@@ -3392,7 +3392,7 @@ mxge_alloc_slice_rings(struct mxge_slice_state *ss, int rx_ring_entries,
 			return err;
 		}
 	}
-	err = bus_dmamap_create(ss->rx_small.dmat, 0, 
+	err = bus_dmamap_create(ss->rx_small.dmat, 0,
 				&ss->rx_small.extra_map);
 	if (err != 0) {
 		device_printf(sc->dev, "Err %d extra rx_small dmamap\n",
@@ -3401,7 +3401,7 @@ mxge_alloc_slice_rings(struct mxge_slice_state *ss, int rx_ring_entries,
 	}
 
 	for (i = 0; i <= ss->rx_big.mask; i++) {
-		err = bus_dmamap_create(ss->rx_big.dmat, 0, 
+		err = bus_dmamap_create(ss->rx_big.dmat, 0,
 					&ss->rx_big.info[i].map);
 		if (err != 0) {
 			device_printf(sc->dev, "Err %d  rx_big dmamap\n",
@@ -3409,7 +3409,7 @@ mxge_alloc_slice_rings(struct mxge_slice_state *ss, int rx_ring_entries,
 			return err;
 		}
 	}
-	err = bus_dmamap_create(ss->rx_big.dmat, 0, 
+	err = bus_dmamap_create(ss->rx_big.dmat, 0,
 				&ss->rx_big.extra_map);
 	if (err != 0) {
 		device_printf(sc->dev, "Err %d extra rx_big dmamap\n",
@@ -3430,7 +3430,7 @@ mxge_alloc_slice_rings(struct mxge_slice_state *ss, int rx_ring_entries,
 
 	
 	/* allocate the tx request copy block */
-	bytes = 8 + 
+	bytes = 8 +
 		sizeof (*ss->tx.req_list) * (ss->tx.max_desc + 4);
 	ss->tx.req_bytes = malloc(bytes, M_DEVBUF, M_WAITOK);
 	/* ensure req_list entries are aligned to 8 bytes */
@@ -3439,7 +3439,7 @@ mxge_alloc_slice_rings(struct mxge_slice_state *ss, int rx_ring_entries,
 
 	/* allocate the tx busdma segment list */
 	bytes = sizeof (*ss->tx.seg_list) * ss->tx.max_desc;
-	ss->tx.seg_list = (bus_dma_segment_t *) 
+	ss->tx.seg_list = (bus_dma_segment_t *)
 		malloc(bytes, M_DEVBUF, M_WAITOK);
 
 	/* allocate the tx host info ring */
@@ -3469,7 +3469,7 @@ mxge_alloc_slice_rings(struct mxge_slice_state *ss, int rx_ring_entries,
 	/* now use these tags to setup dmamaps for each slot
 	   in the ring */
 	for (i = 0; i <= ss->tx.mask; i++) {
-		err = bus_dmamap_create(ss->tx.dmat, 0, 
+		err = bus_dmamap_create(ss->tx.dmat, 0,
 					&ss->tx.info[i].map);
 		if (err != 0) {
 			device_printf(sc->dev, "Err %d  tx dmamap\n",
@@ -3580,7 +3580,7 @@ mxge_slice_open(struct mxge_slice_state *ss, int nbufs, int cl_size)
 #endif
 		cmd.data0 = slice;
 		err = mxge_send_cmd(sc, MXGEFW_CMD_GET_SEND_OFFSET, &cmd);
-		ss->tx.lanai = 
+		ss->tx.lanai =
 			(volatile mcp_kreq_ether_send_t *)(sc->sram + cmd.data0);
 		ss->tx.send_go = (volatile uint32_t *)
 			(sc->sram + MXGEFW_ETH_SEND_GO + 64 * slice);
@@ -3590,17 +3590,17 @@ mxge_slice_open(struct mxge_slice_state *ss, int nbufs, int cl_size)
 	}
 #endif
 	cmd.data0 = slice;
-	err |= mxge_send_cmd(sc, 
+	err |= mxge_send_cmd(sc,
 			     MXGEFW_CMD_GET_SMALL_RX_OFFSET, &cmd);
-	ss->rx_small.lanai = 
+	ss->rx_small.lanai =
 		(volatile mcp_kreq_ether_recv_t *)(sc->sram + cmd.data0);
 	cmd.data0 = slice;
 	err |= mxge_send_cmd(sc, MXGEFW_CMD_GET_BIG_RX_OFFSET, &cmd);
-	ss->rx_big.lanai = 
+	ss->rx_big.lanai =
 		(volatile mcp_kreq_ether_recv_t *)(sc->sram + cmd.data0);
 
 	if (err != 0) {
-		device_printf(sc->dev, 
+		device_printf(sc->dev,
 			      "failed to get ring sizes or locations\n");
 		return EIO;
 	}
@@ -3635,7 +3635,7 @@ mxge_slice_open(struct mxge_slice_state *ss, int nbufs, int cl_size)
 	return 0;
 }
 
-static int 
+static int
 mxge_open(mxge_softc_t *sc)
 {
 	mxge_cmd_t cmd;
@@ -3687,7 +3687,7 @@ mxge_open(mxge_softc_t *sc)
 	cmd.data0 = nbufs;
 	err = mxge_send_cmd(sc, MXGEFW_CMD_ALWAYS_USE_N_BIG_BUFFERS,
 			    &cmd);
-	/* error is only meaningful if we're trying to set 
+	/* error is only meaningful if we're trying to set
 	   MXGEFW_CMD_ALWAYS_USE_N_BIG_BUFFERS > 1 */
 	if (err && nbufs > 1) {
 		device_printf(sc->dev,
@@ -3712,7 +3712,7 @@ mxge_open(mxge_softc_t *sc)
 	}
 
 	/* Now give him the pointer to the stats block */
-	for (slice = 0; 
+	for (slice = 0;
 #ifdef IFNET_BUF_RING
 	     slice < sc->num_slices;
 #else
@@ -3880,7 +3880,7 @@ mxge_watchdog_reset(mxge_softc_t *sc)
 
 	device_printf(sc->dev, "Watchdog reset!\n");
 
-	/* 
+	/*
 	 * check to see if the NIC rebooted.  If it did, then all of
 	 * PCI config space has been reset, and things like the
 	 * busmaster bit will be zero.  If this is the case, then we
@@ -3889,10 +3889,10 @@ mxge_watchdog_reset(mxge_softc_t *sc)
 	 */
 	cmd = pci_read_config(sc->dev, PCIR_COMMAND, 2);
 	if (cmd == 0xffff) {
-		/* 
+		/*
 		 * maybe the watchdog caught the NIC rebooting; wait
 		 * up to 100ms for it to finish.  If it does not come
-		 * back, then give up 
+		 * back, then give up
 		 */
 		DELAY(1000*100);
 		cmd = pci_read_config(sc->dev, PCIR_COMMAND, 2);
@@ -3908,7 +3908,7 @@ mxge_watchdog_reset(mxge_softc_t *sc)
 		running = sc->ifp->if_drv_flags & IFF_DRV_RUNNING;
 		if (running) {
 
-			/* 
+			/*
 			 * quiesce NIC so that TX routines will not try to
 			 * xmit after restoration of BAR
 			 */
@@ -4004,7 +4004,7 @@ mxge_watchdog(mxge_softc_t *sc)
 
 	/* see if we have outstanding transmits, which
 	   have been pending for more than mxge_ticks */
-	for (i = 0; 
+	for (i = 0;
 #ifdef IFNET_BUF_RING
 	     (i < sc->num_slices) && (err == 0);
 #else
@@ -4036,43 +4036,45 @@ mxge_watchdog(mxge_softc_t *sc)
 	return (err);
 }
 
-static u_long
-mxge_update_stats(mxge_softc_t *sc)
+static uint64_t
+mxge_get_counter(struct ifnet *ifp, ift_counter cnt)
 {
-	struct mxge_slice_state *ss;
-	u_long pkts = 0;
-	u_long ipackets = 0;
-	u_long opackets = 0;
-#ifdef IFNET_BUF_RING
-	u_long obytes = 0;
-	u_long omcasts = 0;
-	u_long odrops = 0;
-#endif
-	u_long oerrors = 0;
-	int slice;
+	struct mxge_softc *sc;
+	uint64_t rv;
 
-	for (slice = 0; slice < sc->num_slices; slice++) {
-		ss = &sc->ss[slice];
-		ipackets += ss->ipackets;
-		opackets += ss->opackets;
+	sc = if_getsoftc(ifp);
+	rv = 0;
+
+	switch (cnt) {
+	case IFCOUNTER_IPACKETS:
+		for (int s = 0; s < sc->num_slices; s++)
+			rv += sc->ss[s].ipackets;
+		return (rv);
+	case IFCOUNTER_OPACKETS:
+		for (int s = 0; s < sc->num_slices; s++)
+			rv += sc->ss[s].opackets;
+		return (rv);
+	case IFCOUNTER_OERRORS:
+		for (int s = 0; s < sc->num_slices; s++)
+			rv += sc->ss[s].oerrors;
+		return (rv);
 #ifdef IFNET_BUF_RING
-		obytes += ss->obytes;
-		omcasts += ss->omcasts;
-		odrops += ss->tx.br->br_drops;
+	case IFCOUNTER_OBYTES:
+		for (int s = 0; s < sc->num_slices; s++)
+			rv += sc->ss[s].obytes;
+		return (rv);
+	case IFCOUNTER_OMCASTS:
+		for (int s = 0; s < sc->num_slices; s++)
+			rv += sc->ss[s].omcasts;
+		return (rv);
+	case IFCOUNTER_OQDROPS:
+		for (int s = 0; s < sc->num_slices; s++)
+			rv += sc->ss[s].tx.br->br_drops;
+		return (rv);
 #endif
-		oerrors += ss->oerrors;
+	default:
+		return (if_get_counter_default(ifp, cnt));
 	}
-	pkts = (ipackets - sc->ifp->if_ipackets);
-	pkts += (opackets - sc->ifp->if_opackets);
-	sc->ifp->if_ipackets = ipackets;
-	sc->ifp->if_opackets = opackets;
-#ifdef IFNET_BUF_RING
-	sc->ifp->if_obytes = obytes;
-	sc->ifp->if_omcasts = omcasts;
-	sc->ifp->if_oqdrops = odrops;
-#endif
-	sc->ifp->if_oerrors = oerrors;
-	return pkts;
 }
 
 static void
@@ -4087,8 +4089,6 @@ mxge_tick(void *arg)
 	ticks = mxge_ticks;
 	running = sc->ifp->if_drv_flags & IFF_DRV_RUNNING;
 	if (running) {
-		/* aggregate stats from different slices */
-		pkts = mxge_update_stats(sc);
 		if (!sc->watchdog_countdown) {
 			err = mxge_watchdog(sc);
 			sc->watchdog_countdown = 4;
@@ -4189,7 +4189,7 @@ mxge_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 			} else {
 				/* take care of promis can allmulti
 				   flag chages */
-				mxge_change_promisc(sc, 
+				mxge_change_promisc(sc,
 						    ifp->if_flags & IFF_PROMISC);
 				mxge_set_multicast_list(sc);
 			}
@@ -4291,13 +4291,13 @@ mxge_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 		mtx_lock(&sc->driver_mtx);
 		mxge_media_probe(sc);
 		mtx_unlock(&sc->driver_mtx);
-		err = ifmedia_ioctl(ifp, (struct ifreq *)data, 
+		err = ifmedia_ioctl(ifp, (struct ifreq *)data,
 				    &sc->media, command);
-                break;
+		break;
 
 	default:
 		err = ENOTTY;
-        }
+	}
 	return err;
 }
 
@@ -4306,17 +4306,17 @@ mxge_fetch_tunables(mxge_softc_t *sc)
 {
 
 	TUNABLE_INT_FETCH("hw.mxge.max_slices", &mxge_max_slices);
-	TUNABLE_INT_FETCH("hw.mxge.flow_control_enabled", 
+	TUNABLE_INT_FETCH("hw.mxge.flow_control_enabled",
 			  &mxge_flow_control);
-	TUNABLE_INT_FETCH("hw.mxge.intr_coal_delay", 
+	TUNABLE_INT_FETCH("hw.mxge.intr_coal_delay",
 			  &mxge_intr_coal_delay);	
-	TUNABLE_INT_FETCH("hw.mxge.nvidia_ecrc_enable", 
+	TUNABLE_INT_FETCH("hw.mxge.nvidia_ecrc_enable",
 			  &mxge_nvidia_ecrc_enable);	
-	TUNABLE_INT_FETCH("hw.mxge.force_firmware", 
+	TUNABLE_INT_FETCH("hw.mxge.force_firmware",
 			  &mxge_force_firmware);	
-	TUNABLE_INT_FETCH("hw.mxge.deassert_wait", 
+	TUNABLE_INT_FETCH("hw.mxge.deassert_wait",
 			  &mxge_deassert_wait);	
-	TUNABLE_INT_FETCH("hw.mxge.verbose", 
+	TUNABLE_INT_FETCH("hw.mxge.verbose",
 			  &mxge_verbose);	
 	TUNABLE_INT_FETCH("hw.mxge.ticks", &mxge_ticks);
 	TUNABLE_INT_FETCH("hw.mxge.always_promisc", &mxge_always_promisc);
@@ -4332,7 +4332,7 @@ mxge_fetch_tunables(mxge_softc_t *sc)
 	if (mxge_ticks == 0)
 		mxge_ticks = hz / 2;
 	sc->pause = mxge_flow_control;
-	if (mxge_rss_hash_type < MXGEFW_RSS_HASH_TYPE_IPV4 
+	if (mxge_rss_hash_type < MXGEFW_RSS_HASH_TYPE_IPV4
 	    || mxge_rss_hash_type > MXGEFW_RSS_HASH_TYPE_MAX) {
 		mxge_rss_hash_type = MXGEFW_RSS_HASH_TYPE_SRC_DST_PORT;
 	}
@@ -4414,7 +4414,7 @@ mxge_alloc_slices(mxge_softc_t *sc)
 		ss->rx_done.entry = ss->rx_done.dma.addr;
 		bzero(ss->rx_done.entry, bytes);
 
-		/* 
+		/*
 		 * allocate the per-slice firmware stats; stats
 		 * (including tx) are used used only on the first
 		 * slice for now
@@ -4425,7 +4425,7 @@ mxge_alloc_slices(mxge_softc_t *sc)
 #endif
 
 		bytes = sizeof (*ss->fw_stats);
-		err = mxge_dma_alloc(sc, &ss->fw_stats_dma, 
+		err = mxge_dma_alloc(sc, &ss->fw_stats_dma,
 				     sizeof (*ss->fw_stats), 64);
 		if (err != 0)
 			goto abort;
@@ -4454,9 +4454,9 @@ mxge_slice_probe(mxge_softc_t *sc)
 	int msix_cnt, status, max_intr_slots;
 
 	sc->num_slices = 1;
-	/* 
+	/*
 	 *  don't enable multiple slices if they are not enabled,
-	 *  or if this is not an SMP system 
+	 *  or if this is not an SMP system
 	 */
 	
 	if (mxge_max_slices == 0 || mxge_max_slices == 1 || mp_ncpus < 2)
@@ -4593,7 +4593,7 @@ mxge_add_msix_irqs(mxge_softc_t *sc)
 	sc->msix_ih =  malloc(bytes, M_DEVBUF, M_NOWAIT|M_ZERO);
 
 	for (i = 0; i < sc->num_slices; i++) {
-		err = bus_setup_intr(sc->dev, sc->msix_irq_res[i], 
+		err = bus_setup_intr(sc->dev, sc->msix_irq_res[i],
 				     INTR_TYPE_NET | INTR_MPSAFE,
 #if __FreeBSD_version > 700030
 				     NULL,
@@ -4671,7 +4671,7 @@ mxge_add_single_irq(mxge_softc_t *sc)
 		device_printf(sc->dev, "using %s irq %ld\n",
 			      sc->legacy_irq ? "INTx" : "MSI",
 			      rman_get_start(sc->irq_res));
-	err = bus_setup_intr(sc->dev, sc->irq_res, 
+	err = bus_setup_intr(sc->dev, sc->irq_res,
 			     INTR_TYPE_NET | INTR_MPSAFE,
 #if __FreeBSD_version > 700030
 			     NULL,
@@ -4753,7 +4753,7 @@ mxge_add_irq(mxge_softc_t *sc)
 }
 
 
-static int 
+static int
 mxge_attach(device_t dev)
 {
 	mxge_cmd_t cmd;
@@ -4835,7 +4835,7 @@ mxge_attach(device_t dev)
 	bus_space_read_region_1(rman_get_bustag(sc->mem_res),
 				rman_get_bushandle(sc->mem_res),
 				sc->sram_size - MXGE_EEPROM_STRINGS_SIZE,
-				sc->eeprom_strings, 
+				sc->eeprom_strings,
 				MXGE_EEPROM_STRINGS_SIZE - 2);
 	err = mxge_parse_strings(sc);
 	if (err != 0)
@@ -4845,13 +4845,13 @@ mxge_attach(device_t dev)
 	mxge_enable_wc(sc);
 
 	/* Allocate the out of band dma memory */
-	err = mxge_dma_alloc(sc, &sc->cmd_dma, 
+	err = mxge_dma_alloc(sc, &sc->cmd_dma,
 			     sizeof (mxge_cmd_t), 64);
-	if (err != 0) 
+	if (err != 0)
 		goto abort_with_mem_res;
 	sc->cmd = (mcp_cmd_response_t *) sc->cmd_dma.addr;
 	err = mxge_dma_alloc(sc, &sc->zeropad_dma, 64, 64);
-	if (err != 0) 
+	if (err != 0)
 		goto abort_with_cmd_dma;
 
 	err = mxge_dma_alloc(sc, &sc->dmabench_dma, 4096, 4096);
@@ -4920,13 +4920,14 @@ mxge_attach(device_t dev)
 	ifp->if_capenable = ifp->if_capabilities;
 	if (sc->lro_cnt == 0)
 		ifp->if_capenable &= ~IFCAP_LRO;
-        ifp->if_init = mxge_init;
-        ifp->if_softc = sc;
-        ifp->if_flags = IFF_BROADCAST | IFF_SIMPLEX | IFF_MULTICAST;
-        ifp->if_ioctl = mxge_ioctl;
-        ifp->if_start = mxge_start;
+	ifp->if_init = mxge_init;
+	ifp->if_softc = sc;
+	ifp->if_flags = IFF_BROADCAST | IFF_SIMPLEX | IFF_MULTICAST;
+	ifp->if_ioctl = mxge_ioctl;
+	ifp->if_start = mxge_start;
+	ifp->if_get_counter = mxge_get_counter;
 	/* Initialise the ifmedia structure */
-	ifmedia_init(&sc->media, 0, mxge_media_change, 
+	ifmedia_init(&sc->media, 0, mxge_media_change,
 		     mxge_media_status);
 	mxge_media_init(sc);
 	mxge_media_probe(sc);

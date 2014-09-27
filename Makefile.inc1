@@ -911,7 +911,7 @@ packageworld:
 # and do a 'make reinstall' on the *client* to install new binaries from the
 # most recent server build.
 #
-reinstall:
+reinstall: .MAKE
 	@echo "--------------------------------------------------------------"
 	@echo ">>> Making hierarchy"
 	@echo "--------------------------------------------------------------"
@@ -926,7 +926,7 @@ reinstall:
 	${_+_}cd ${.CURDIR}; ${MAKE} -f Makefile.inc1 install32
 .endif
 
-redistribute:
+redistribute: .MAKE
 	@echo "--------------------------------------------------------------"
 	@echo ">>> Distributing everything"
 	@echo "--------------------------------------------------------------"
@@ -936,7 +936,7 @@ redistribute:
 	    DISTRIBUTION=lib32
 .endif
 
-distrib-dirs distribution:
+distrib-dirs distribution: .MAKE
 	cd ${.CURDIR}/etc; ${CROSSENV} PATH=${TMPPATH} ${MAKE} \
 	    ${IMAKE_INSTALL} ${IMAKE_MTREE} METALOG=${METALOG} ${.TARGET}
 
@@ -1464,7 +1464,7 @@ native-xtools: .MAKE
 #
 # hierarchy - ensure that all the needed directories are present
 #
-hierarchy hier:
+hierarchy hier: .MAKE
 	cd ${.CURDIR}/etc && ${HMAKE} distrib-dirs
 
 #

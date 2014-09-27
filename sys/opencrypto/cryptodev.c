@@ -54,6 +54,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/module.h>
 #include <sys/fcntl.h>
 #include <sys/bus.h>
+#include <sys/user.h>
 
 #include <opencrypto/cryptodev.h>
 #include <opencrypto/xform.h>
@@ -286,6 +287,8 @@ static	int cryptof_ioctl(struct file *, u_long, void *,
 static	int cryptof_stat(struct file *, struct stat *,
 		    struct ucred *, struct thread *);
 static	int cryptof_close(struct file *, struct thread *);
+static	int cryptof_fill_kinfo(struct file *, struct kinfo_file *,
+		    struct filedesc *);
 
 static struct fileops cryptofops = {
     .fo_read = invfo_rdwr,
@@ -299,6 +302,7 @@ static struct fileops cryptofops = {
     .fo_chmod = invfo_chmod,
     .fo_chown = invfo_chown,
     .fo_sendfile = invfo_sendfile,
+    .fo_fill_kinfo = cryptof_fill_kinfo,
 };
 
 static struct csession *csefind(struct fcrypt *, u_int);
@@ -956,6 +960,14 @@ cryptof_close(struct file *fp, struct thread *td)
 	free(fcr, M_XDATA);
 	fp->f_data = NULL;
 	return 0;
+}
+
+static int
+cryptof_fill_kinfo(struct file *fp, struct kinfo_file *kif, struct filedesc *fdp)
+{
+
+	kif->kf_type = KF_TYPE_CRYPTO;
+	return (0);
 }
 
 static struct csession *

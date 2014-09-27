@@ -1,18 +1,16 @@
-commit 96365aef99ec463375dfdaf6eb260823e0477b6a
-Author: Adrian Prantl <aprantl@apple.com>
-Date:   Tue Apr 1 17:52:06 2014 +0000
+Pull in r205331 from upstream clang trunk (by Adrian Prantl):
 
-    Debug info: fix a crash when emitting IndirectFieldDecls, which were
-    previously not handled at all.
-    rdar://problem/16348575
-    
-    git-svn-id: https://llvm.org/svn/llvm-project/cfe/trunk@205331 91177308-0d34-0410-b5e6-96231b3b80d8
+  Debug info: fix a crash when emitting IndirectFieldDecls, which were
+  previously not handled at all.
+  rdar://problem/16348575
 
-diff --git a/lib/CodeGen/CGDebugInfo.cpp b/lib/CodeGen/CGDebugInfo.cpp
-index 82db942..2556cf9 100644
---- tools/clang/lib/CodeGen/CGDebugInfo.cpp
-+++ tools/clangb/lib/CodeGen/CGDebugInfo.cpp
-@@ -1252,7 +1252,7 @@ CollectTemplateParams(const TemplateParameterList *TPList,
+Introduced here: http://svnweb.freebsd.org/changeset/base/271432
+
+Index: tools/clang/lib/CodeGen/CGDebugInfo.cpp
+===================================================================
+--- tools/clang/lib/CodeGen/CGDebugInfo.cpp	(revision 205330)
++++ tools/clang/lib/CodeGen/CGDebugInfo.cpp	(revision 205331)
+@@ -1252,7 +1252,7 @@ CollectTemplateParams(const TemplateParameterList
          V = CGM.GetAddrOfFunction(FD);
        // Member data pointers have special handling too to compute the fixed
        // offset within the object.
@@ -21,11 +19,10 @@ index 82db942..2556cf9 100644
          // These five lines (& possibly the above member function pointer
          // handling) might be able to be refactored to use similar code in
          // CodeGenModule::getMemberPointerConstant
-diff --git a/test/CodeGenCXX/debug-info-indirect-field-decl.cpp b/test/CodeGenCXX/debug-info-indirect-field-decl.cpp
-new file mode 100644
-index 0000000..131ceba
---- /dev/null
-+++ tools/clang/test/CodeGenCXX/debug-info-indirect-field-decl.cpp
+Index: tools/clang/test/CodeGenCXX/debug-info-indirect-field-decl.cpp
+===================================================================
+--- tools/clang/test/CodeGenCXX/debug-info-indirect-field-decl.cpp	(revision 0)
++++ tools/clang/test/CodeGenCXX/debug-info-indirect-field-decl.cpp	(revision 205331)
 @@ -0,0 +1,17 @@
 +// RUN: %clang_cc1 -emit-llvm -g -triple x86_64-apple-darwin %s -o - | FileCheck %s
 +//

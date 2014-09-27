@@ -129,10 +129,6 @@ __FBSDID("$FreeBSD$");
 
 #include <dev/ofw/openfirm.h>
 
-#ifdef DDB
-extern vm_offset_t ksym_start, ksym_end;
-#endif
-
 int cold = 1;
 #ifdef __powerpc64__
 extern int n_slbs;
@@ -268,6 +264,10 @@ powerpc_init(vm_offset_t startkernel, vm_offset_t endkernel,
 	#ifndef __powerpc64__
 	int		ppc64;
 	#endif
+#ifdef DDB
+	vm_offset_t ksym_start;
+	vm_offset_t ksym_end;
+#endif
 
 	kmdp = NULL;
 	trap_offset = 0;
@@ -302,6 +302,7 @@ powerpc_init(vm_offset_t startkernel, vm_offset_t endkernel,
 #ifdef DDB
 			ksym_start = MD_FETCH(kmdp, MODINFOMD_SSYM, uintptr_t);
 			ksym_end = MD_FETCH(kmdp, MODINFOMD_ESYM, uintptr_t);
+			db_fetch_ksymtab(ksym_start, ksym_end);
 #endif
 		}
 	}

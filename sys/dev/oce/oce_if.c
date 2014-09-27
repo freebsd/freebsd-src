@@ -1731,7 +1731,9 @@ oce_attach_ifp(POCE_SOFTC sc)
 	sc->ifp->if_baudrate = IF_Gbps(10);
 
 #if __FreeBSD_version >= 1000000
-	sc->ifp->if_hw_tsomax = OCE_MAX_TSO_SIZE;
+	sc->ifp->if_hw_tsomax = 65536 - (ETHER_HDR_LEN + ETHER_VLAN_ENCAP_LEN);
+	sc->ifp->if_hw_tsomaxsegcount = OCE_MAX_TX_ELEMENTS;
+	sc->ifp->if_hw_tsomaxsegsize = 4096;
 #endif
 
 	ether_ifattach(sc->ifp, sc->macaddr.mac_addr);

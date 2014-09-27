@@ -132,7 +132,7 @@ a10_clk_usb_activate(void)
 	/* Gating AHB clock for USB */
 	reg_value = ccm_read_4(sc, CCM_AHB_GATING0);
 	reg_value |= CCM_AHB_GATING_USB0; /* AHB clock gate usb0 */
-	reg_value |= CCM_AHB_GATING_EHCI0; /* AHB clock gate ehci1 */
+	reg_value |= CCM_AHB_GATING_EHCI0; /* AHB clock gate ehci0 */
 	reg_value |= CCM_AHB_GATING_EHCI1; /* AHB clock gate ehci1 */
 	ccm_write_4(sc, CCM_AHB_GATING0, reg_value);
 
@@ -167,6 +167,7 @@ a10_clk_usb_deactivate(void)
 	/* Disable gating AHB clock for USB */
 	reg_value = ccm_read_4(sc, CCM_AHB_GATING0);
 	reg_value &= ~CCM_AHB_GATING_USB0; /* disable AHB clock gate usb0 */
+	reg_value &= ~CCM_AHB_GATING_EHCI0; /* disable AHB clock gate ehci0 */
 	reg_value &= ~CCM_AHB_GATING_EHCI1; /* disable AHB clock gate ehci1 */
 	ccm_write_4(sc, CCM_AHB_GATING0, reg_value);
 

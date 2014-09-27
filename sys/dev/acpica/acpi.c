@@ -93,6 +93,7 @@ struct acpi_interface {
 
 /* Global mutex for locking access to the ACPI subsystem. */
 struct mtx	acpi_mutex;
+struct callout	acpi_sleep_timer;
 
 /* Bitmap of device quirks. */
 int		acpi_quirks;
@@ -683,7 +684,9 @@ acpi_attach(device_t dev)
 	    AcpiFormatException(status));
 
     /* Allow sleep request after a while. */
-    timeout(acpi_sleep_enable, sc, hz * ACPI_MINIMUM_AWAKETIME);
+    callout_init_mtx(&acpi_sleep_timer, &acpi_mutex, 0);
+    callout_reset(&acpi_sleep_timer, hz * ACPI_MINIMUM_AWAKETIME,
+	acpi_sleep_enable, sc);
 
     error = 0;
 
@@ -851,11 +854,18 @@ acpi_child_location_str_method(device_t cbdev, device_t child, char *buf,
     size_t buflen)
 {
     struct acpi_device *dinfo = device_get_ivars(child);
+    char buf2[32];
+    int pxm;
 
-    if (dinfo->ad_handle)
-	snprintf(buf, buflen, "handle=%s", acpi_name(dinfo->ad_handle));
-    else
-	snprintf(buf, buflen, "unknown");
+    if (dinfo->ad_handle) {
+        snprintf(buf, buflen, "handle=%s", acpi_name(dinfo->ad_handle));
+        if (ACPI_SUCCESS(acpi_GetInteger(dinfo->ad_handle, "_PXM", &pxm))) {
+                snprintf(buf2, 32, " _PXM=%d", pxm);
+                strlcat(buf, buf2, buflen);
+        }
+    } else {
+        snprintf(buf, buflen, "unknown");
+    }
     return (0);
 }
 
@@ -2483,8 +2493,8 @@ acpi_sleep_force(void *arg)
     device_printf(sc->acpi_dev,
 	"suspend request timed out, forcing sleep now\n");
     /*
-     * XXX Suspending from callout cause the freeze in DEVICE_SUSPEND().
-     * Suspend from acpi_task thread in stead.
+     * XXX Suspending from callout causes freezes in DEVICE_SUSPEND().
+     * Suspend from acpi_task thread instead.
      */
     if (ACPI_FAILURE(AcpiOsExecute(OSL_NOTIFY_HANDLER,
 	acpi_sleep_force_task, sc)))
@@ -2636,15 +2646,15 @@ acpi_sleep_enable(void *arg)
 {
     struct acpi_softc	*sc = (struct acpi_softc *)arg;
 
+    ACPI_LOCK_ASSERT(acpi);
+
     /* Reschedule if the system is not fully up and running. */
     if (!AcpiGbl_SystemAwakeAndRunning) {
-	timeout(acpi_sleep_enable, sc, hz * ACPI_MINIMUM_AWAKETIME);
+	callout_schedule(&acpi_sleep_timer, hz * ACPI_MINIMUM_AWAKETIME);
 	return;
     }
 
-    ACPI_LOCK(acpi);
     sc->acpi_sleep_disabled = FALSE;
-    ACPI_UNLOCK(acpi);
 }
 
 static ACPI_STATUS
@@ -2859,7 +2869,7 @@ backout:
     EVENTHANDLER_INVOKE(power_resume);
 
     /* Allow another sleep request after a while. */
-    timeout(acpi_sleep_enable, sc, hz * ACPI_MINIMUM_AWAKETIME);
+    callout_schedule(&acpi_sleep_timer, hz * ACPI_MINIMUM_AWAKETIME);
 
     /* Run /etc/rc.resume after we are back. */
     if (devctl_process_running())

@@ -124,6 +124,7 @@ device		ether
 device		mii
 device		smsc
 device		smscphy
+device		dwc
 
 # USB ethernet support, requires miibus
 device		miibus
