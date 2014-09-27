@@ -28,110 +28,88 @@
 #include "svm_assym.s"
 
 /*
- * Macros to save and restore GPRs.
- */
-#define SAVE_GPR_STATE(reg);			\
-	movq %rbp, 	SCTX_RBP(reg);		\
-	movq %rbx, 	SCTX_RBX(reg);		\
-	movq %rcx, 	SCTX_RCX(reg);		\
-	movq %r8,  	SCTX_R8(reg);		\
-	movq %r9,  	SCTX_R9(reg);		\
-	movq %r10, 	SCTX_R10(reg);		\
-	movq %r11, 	SCTX_R11(reg);		\
-	movq %r12, 	SCTX_R12(reg);		\
-	movq %r13, 	SCTX_R13(reg);		\
-	movq %r14, 	SCTX_R14(reg);		\
-	movq %r15, 	SCTX_R15(reg);		\
-
-#define LOAD_GPR_STATE(reg)			\
-	movq  SCTX_RBP(reg), 	%rbp;		\
-	movq  SCTX_RBX(reg), 	%rbx;		\
-	movq  SCTX_RCX(reg), 	%rcx;		\
-	movq  SCTX_R8(reg),  	%r8;		\
-	movq  SCTX_R9(reg),  	%r9;		\
-	movq  SCTX_R10(reg), 	%r10;		\
-	movq  SCTX_R11(reg), 	%r11;		\
-	movq  SCTX_R12(reg), 	%r12;		\
-	movq  SCTX_R13(reg), 	%r13;		\
-	movq  SCTX_R14(reg), 	%r14;		\
-	movq  SCTX_R15(reg), 	%r15;		\
-
-/*
- * Macros to save and restore vcpu registers which are not
- * done by SVM.
- */
-#define SAVE_GUEST_STATE(reg)			\
-	movq %rdi, 	SCTX_GUEST_RDI(reg);	\
-	movq %rsi, 	SCTX_GUEST_RSI(reg);	\
-	movq %rdx, 	SCTX_GUEST_RDX(reg);	\
-	SAVE_GPR_STATE(reg)
-
-#define LOAD_GUEST_STATE(reg)			\
-	movq SCTX_GUEST_RDI(reg),	%rdi;	\
-	movq SCTX_GUEST_RSI(reg),	%rsi;	\
-	movq SCTX_GUEST_RDX(reg),	%rdx;	\
-	LOAD_GPR_STATE(reg)
-
-/*
- * Macros to save and restore host registers which are not
- * saved by SVM.
- */
-#define SAVE_HOST_STATE(reg)			\
-	mov %fs, 	SCTX_HOST_FS(reg);	\
-	mov %gs, 	SCTX_HOST_GS(reg);	\
-	movq %rsp, 	SCTX_HOST_RSP(reg);	\
-	SAVE_GPR_STATE(reg)
-
-#define LOAD_HOST_STATE(reg)			\
-	mov SCTX_HOST_FS(reg),		%fs;	\
-	mov SCTX_HOST_GS(reg),		%gs;	\
-	movq SCTX_HOST_RSP(reg),	%rsp;	\
-	LOAD_GPR_STATE(reg)
-
-/*
- * This is where virtual machine vcpu start execution.
- * int svm_launch(vmcb_pa, gswctx, hswctx)
- * vmcb_pa  - VMCB physical address is in %rdi.
- * gswctx   - Guest context is in %rsi.
- * hswctx   - Host context is in %rdx.
+ * Be friendly to DTrace FBT's prologue/epilogue pattern matching.
  *
- * Note: SVM guarantees host RSP and RAX will be restored
- * back after guest exit. RAX is where VMCB Phy addr is so
- * we are left with only RSP. RSP will hold base for guest
- * software context which will have base for host software
- * context.
+ * They are also responsible for saving/restoring the host %rbp across VMRUN.
+ */
+#define	VENTER  push %rbp ; mov %rsp,%rbp
+#define	VLEAVE  pop %rbp
+
+/*
+ * svm_launch(uint64_t vmcb, struct svm_regctx *gctx)
+ * %rdi: physical address of VMCB
+ * %rsi: pointer to guest context
  */
 ENTRY(svm_launch)
-
-	/* Save host GPRs. */
-	SAVE_HOST_STATE(%rdx)
+	VENTER
 
 	/*
-	 * Move the parameters to final destinations.
-	 * RAX - VMCB phy addr.
-	 * RSP - Guest software context.
-	 * SCTX_GUEST_HOST(guest) - Host software context.
+	 * Host register state saved across a VMRUN.
+	 *
+	 * All "callee saved registers" except:
+	 * %rsp: because it is preserved by the processor across VMRUN.
+	 * %rbp: because it is saved/restored by the function prologue/epilogue.
 	 */
-	movq %rdi, %rax
-	movq %rsi, %rsp
-	movq %rdx, SCTX_GUEST_HCTX_BASE(%rsp)
+	push %rbx
+	push %r12
+	push %r13
+	push %r14
+	push %r15
 
-	/* Load guest context. */
-	LOAD_GUEST_STATE(%rsp)
+	/* Save the physical address of the VMCB in %rax */
+	movq %rdi, %rax
+
+	push %rsi		/* push guest context pointer on the stack */
+
+	/*
+	 * Restore guest state.
+	 */
+	movq SCTX_R8(%rsi), %r8
+	movq SCTX_R9(%rsi), %r9
+	movq SCTX_R10(%rsi), %r10
+	movq SCTX_R11(%rsi), %r11
+	movq SCTX_R12(%rsi), %r12
+	movq SCTX_R13(%rsi), %r13
+	movq SCTX_R14(%rsi), %r14
+	movq SCTX_R15(%rsi), %r15
+	movq SCTX_RBP(%rsi), %rbp
+	movq SCTX_RBX(%rsi), %rbx
+	movq SCTX_RCX(%rsi), %rcx
+	movq SCTX_RDX(%rsi), %rdx
+	movq SCTX_RDI(%rsi), %rdi
+	movq SCTX_RSI(%rsi), %rsi	/* %rsi must be restored last */
 
 	vmload %rax
-
 	vmrun %rax
-
 	vmsave %rax
 
-	/* Save guest state. */
-	SAVE_GUEST_STATE(%rsp)
+	pop %rax		/* pop guest context pointer from the stack */
 
-	/* Restore host context base in RDX. */
-	movq SCTX_GUEST_HCTX_BASE(%rsp), %rdx
-	/* Restore host GPRs. */
-	LOAD_HOST_STATE(%rdx)
+	/*
+	 * Save guest state.
+	 */
+	movq %r8, SCTX_R8(%rax)
+	movq %r9, SCTX_R9(%rax)
+	movq %r10, SCTX_R10(%rax)
+	movq %r11, SCTX_R11(%rax)
+	movq %r12, SCTX_R12(%rax)
+	movq %r13, SCTX_R13(%rax)
+	movq %r14, SCTX_R14(%rax)
+	movq %r15, SCTX_R15(%rax)
+	movq %rbp, SCTX_RBP(%rax)
+	movq %rbx, SCTX_RBX(%rax)
+	movq %rcx, SCTX_RCX(%rax)
+	movq %rdx, SCTX_RDX(%rax)
+	movq %rdi, SCTX_RDI(%rax)
+	movq %rsi, SCTX_RSI(%rax)
 
+	/* Restore host state */
+	pop %r15
+	pop %r14
+	pop %r13
+	pop %r12
+	pop %rbx
+
+	VLEAVE
 	ret
 END(svm_launch)
