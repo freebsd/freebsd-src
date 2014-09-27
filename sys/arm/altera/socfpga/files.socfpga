@@ -17,3 +17,5 @@ arm/altera/socfpga/socfpga_common.c		standard
 arm/altera/socfpga/socfpga_machdep.c		standard
 arm/altera/socfpga/socfpga_manager.c		standard
 arm/altera/socfpga/socfpga_rstmgr.c		standard
+
+dev/dwc/if_dwc.c				optional dwc

@@ -65,6 +65,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/syscallsubr.h>
 #include <sys/taskqueue.h>
 #include <sys/uio.h>
+#include <sys/user.h>
 #ifdef KTRACE
 #include <sys/ktrace.h>
 #endif
@@ -114,6 +115,7 @@ static fo_poll_t	kqueue_poll;
 static fo_kqfilter_t	kqueue_kqfilter;
 static fo_stat_t	kqueue_stat;
 static fo_close_t	kqueue_close;
+static fo_fill_kinfo_t	kqueue_fill_kinfo;
 
 static struct fileops kqueueops = {
 	.fo_read = invfo_rdwr,
@@ -127,6 +129,7 @@ static struct fileops kqueueops = {
 	.fo_chmod = invfo_chmod,
 	.fo_chown = invfo_chown,
 	.fo_sendfile = invfo_sendfile,
+	.fo_fill_kinfo = kqueue_fill_kinfo,
 };
 
 static int 	knote_attach(struct knote *kn, struct kqueue *kq);
@@ -1799,6 +1802,14 @@ kqueue_close(struct file *fp, struct thread *td)
 	free(kq, M_KQUEUE);
 	fp->f_data = NULL;
 
+	return (0);
+}
+
+static int
+kqueue_fill_kinfo(struct file *fp, struct kinfo_file *kif, struct filedesc *fdp)
+{
+
+	kif->kf_type = KF_TYPE_KQUEUE;
 	return (0);
 }
 

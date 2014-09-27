@@ -584,6 +584,57 @@ if_attach(struct ifnet *ifp)
 	if_attach_internal(ifp, 0);
 }
 
+/*
+ * Compute the least common TSO limit.
+ */
+void
+if_hw_tsomax_common(if_t ifp, struct ifnet_hw_tsomax *pmax)
+{
+	/*
+	 * 1) If there is no limit currently, take the limit from
+	 * the network adapter.
+	 *
+	 * 2) If the network adapter has a limit below the current
+	 * limit, apply it.
+	 */
+	if (pmax->tsomaxbytes == 0 || (ifp->if_hw_tsomax != 0 &&
+	    ifp->if_hw_tsomax < pmax->tsomaxbytes)) {
+		pmax->tsomaxbytes = ifp->if_hw_tsomax;
+	}
+	if (pmax->tsomaxsegcount == 0 || (ifp->if_hw_tsomaxsegcount != 0 &&
+	    ifp->if_hw_tsomaxsegcount < pmax->tsomaxsegcount)) {
+		pmax->tsomaxsegcount = ifp->if_hw_tsomaxsegcount;
+	}
+	if (pmax->tsomaxsegsize == 0 || (ifp->if_hw_tsomaxsegsize != 0 &&
+	    ifp->if_hw_tsomaxsegsize < pmax->tsomaxsegsize)) {
+		pmax->tsomaxsegsize = ifp->if_hw_tsomaxsegsize;
+	}
+}
+
+/*
+ * Update TSO limit of a network adapter.
+ *
+ * Returns zero if no change. Else non-zero.
+ */
+int
+if_hw_tsomax_update(if_t ifp, struct ifnet_hw_tsomax *pmax)
+{
+	int retval = 0;
+	if (ifp->if_hw_tsomax != pmax->tsomaxbytes) {
+		ifp->if_hw_tsomax = pmax->tsomaxbytes;
+		retval++;
+	}
+	if (ifp->if_hw_tsomaxsegsize != pmax->tsomaxsegsize) {
+		ifp->if_hw_tsomaxsegsize = pmax->tsomaxsegsize;
+		retval++;
+	}
+	if (ifp->if_hw_tsomaxsegcount != pmax->tsomaxsegcount) {
+		ifp->if_hw_tsomaxsegcount = pmax->tsomaxsegcount;
+		retval++;
+	}
+	return (retval);
+}
+
 static void
 if_attach_internal(struct ifnet *ifp, int vmove)
 {
@@ -659,13 +710,36 @@ if_attach_internal(struct ifnet *ifp, int vmove)
 		ifp->if_broadcastaddr = NULL;
 
 #if defined(INET) || defined(INET6)
-		/* Initialize to max value. */
-		if (ifp->if_hw_tsomax == 0)
-			ifp->if_hw_tsomax = min(IP_MAXPACKET, 32 * MCLBYTES -
+		/* Use defaults for TSO, if nothing is set */
+		if (ifp->if_hw_tsomax == 0 &&
+		    ifp->if_hw_tsomaxsegcount == 0 &&
+		    ifp->if_hw_tsomaxsegsize == 0) {
+			/*
+			 * The TSO defaults needs to be such that an
+			 * NFS mbuf list of 35 mbufs totalling just
+			 * below 64K works and that a chain of mbufs
+			 * can be defragged into at most 32 segments:
+			 */
+			ifp->if_hw_tsomax = min(IP_MAXPACKET, (32 * MCLBYTES) -
 			    (ETHER_HDR_LEN + ETHER_VLAN_ENCAP_LEN));
-		KASSERT(ifp->if_hw_tsomax <= IP_MAXPACKET &&
-		    ifp->if_hw_tsomax >= IP_MAXPACKET / 8,
-		    ("%s: tsomax outside of range", __func__));
+			ifp->if_hw_tsomaxsegcount = 35;
+			ifp->if_hw_tsomaxsegsize = 2048;	/* 2K */
+
+			/* XXX some drivers set IFCAP_TSO after ethernet attach */
+			if (ifp->if_capabilities & IFCAP_TSO) {
+				if_printf(ifp, "Using defaults for TSO: %u/%u/%u\n",
+				    ifp->if_hw_tsomax,
+				    ifp->if_hw_tsomaxsegcount,
+				    ifp->if_hw_tsomaxsegsize);
+			}
+		}
+		/*
+		 * If the "if_hw_tsomax" limit is set, check if it is
+		 * too small:
+		 */
+		KASSERT(ifp->if_hw_tsomax == 0 ||
+		    ifp->if_hw_tsomax >= (IP_MAXPACKET / 8),
+		    ("%s: if_hw_tsomax is outside of range", __func__));
 #endif
 	}
 #ifdef VIMAGE

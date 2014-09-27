@@ -767,28 +767,113 @@ send:
 		flags &= ~TH_FIN;
 
 		if (tso) {
+			u_int if_hw_tsomax;
+			u_int if_hw_tsomaxsegcount;
+			u_int if_hw_tsomaxsegsize;
+			struct mbuf *mb;
+			u_int moff;
+			int max_len;
+
+			/* extract TSO information */
+			if_hw_tsomax = tp->t_tsomax;
+			if_hw_tsomaxsegcount = tp->t_tsomaxsegcount;
+			if_hw_tsomaxsegsize = tp->t_tsomaxsegsize;
+
+			/*
+			 * Limit a TSO burst to prevent it from
+			 * overflowing or exceeding the maximum length
+			 * allowed by the network interface:
+			 */
 			KASSERT(ipoptlen == 0,
 			    ("%s: TSO can't do IP options", __func__));
 
 			/*
-			 * Limit a burst to t_tsomax minus IP,
-			 * TCP and options length to keep ip->ip_len
-			 * from overflowing or exceeding the maximum
-			 * length allowed by the network interface.
+			 * Check if we should limit by maximum payload
+			 * length:
 			 */
-			if (len > tp->t_tsomax - hdrlen) {
-				len = tp->t_tsomax - hdrlen;
-				sendalot = 1;
+			if (if_hw_tsomax != 0) {
+				/* compute maximum TSO length */
+				max_len = (if_hw_tsomax - hdrlen);
+				if (max_len <= 0) {
+					len = 0;
+				} else if (len > (u_int)max_len) {
+					sendalot = 1;
+					len = (u_int)max_len;
+				}
+			}
+
+			/*
+			 * Check if we should limit by maximum segment
+			 * size and count:
+			 */
+			if (if_hw_tsomaxsegcount != 0 && if_hw_tsomaxsegsize != 0) {
+				max_len = 0;
+				mb = sbsndmbuf(&so->so_snd, off, &moff);
+
+				while (mb != NULL && (u_int)max_len < len) {
+					u_int cur_length;
+					u_int cur_frags;
+
+					/*
+					 * Get length of mbuf fragment
+					 * and how many hardware
+					 * frags, rounded up, it would
+					 * use:
+					 */
+					cur_length = (mb->m_len - moff);
+					cur_frags = (cur_length + if_hw_tsomaxsegsize -
+					    1) / if_hw_tsomaxsegsize;
+
+					/* Handle special case: Zero Length Mbuf */
+					if (cur_frags == 0)
+						cur_frags = 1;
+
+					/*
+					 * Check if the fragment limit
+					 * will be reached or
+					 * exceeded:
+					 */
+					if (cur_frags >= if_hw_tsomaxsegcount) {
+						max_len += min(cur_length,
+						    if_hw_tsomaxsegcount *
+						    if_hw_tsomaxsegsize);
+						break;
+					}
+					max_len += cur_length;
+					if_hw_tsomaxsegcount -= cur_frags;
+					moff = 0;
+					mb = mb->m_next;
+				}
+				if (max_len <= 0) {
+					len = 0;
+				} else if (len > (u_int)max_len) {
+					sendalot = 1;
+					len = (u_int)max_len;
+				}
 			}
 
 			/*
 			 * Prevent the last segment from being
-			 * fractional unless the send sockbuf can
-			 * be emptied.
+			 * fractional unless the send sockbuf can be
+			 * emptied:
 			 */
-			if (sendalot && off + len < so->so_snd.sb_cc) {
-				len -= len % (tp->t_maxopd - optlen);
+			max_len = (tp->t_maxopd - optlen);
+			if ((off + len) < so->so_snd.sb_cc) {
+				moff = len % (u_int)max_len;
+				if (moff != 0) {
+					len -= moff;
+					sendalot = 1;
+				}
+			}
+
+			/*
+			 * In case there are too many small fragments
+			 * don't use TSO:
+			 */
+			if (len <= (u_int)max_len) {
+				len = (u_int)max_len;
 				sendalot = 1;
+				tso = 0;
 			}
 
 			/*

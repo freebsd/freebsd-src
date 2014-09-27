@@ -1819,7 +1819,6 @@ dtrace_program_link(dtrace_hdl_t *dtp, dtrace_prog_t *pgp, uint_t dflags,
 		    "failed to write %s: %s", file, strerror(errno)));
 	}
 #else
-	(void)close(fd);
 	if (status != 0)
 		return (dt_link_error(dtp, NULL, -1, NULL,
 		    "failed to write %s: %s", tfile,

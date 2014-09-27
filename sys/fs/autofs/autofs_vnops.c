@@ -544,6 +544,8 @@ autofs_node_find(struct autofs_node *parent, const char *name,
 
 	TAILQ_FOREACH(anp, &parent->an_children, an_next) {
 		if (namelen >= 0) {
+			if (strlen(anp->an_name) != namelen)
+				continue;
 			if (strncmp(anp->an_name, name, namelen) != 0)
 				continue;
 		} else {

@@ -3031,8 +3031,10 @@ update_mac_settings(struct ifnet *ifp, int flags)
 		TAILQ_FOREACH(ifma, &ifp->if_multiaddrs, ifma_link) {
 			if (ifma->ifma_addr->sa_family != AF_LINK)
 				continue;
-			mcaddr[i++] =
+			mcaddr[i] =
 			    LLADDR((struct sockaddr_dl *)ifma->ifma_addr);
+			MPASS(ETHER_IS_MULTICAST(mcaddr[i]));
+			i++;
 
 			if (i == FW_MAC_EXACT_CHUNK) {
 				rc = t4_alloc_mac_filt(sc, sc->mbox, viid, del,
@@ -8281,6 +8283,12 @@ t4_activate_uld(struct adapter *sc, int id)
 
 	SLIST_FOREACH(ui, &t4_uld_list, link) {
 		if (ui->uld_id == id) {
+			if (!(sc->flags & FULL_INIT_DONE)) {
+				rc = adapter_full_init(sc);
+				if (rc != 0)
+					goto done;
+			}
+
 			rc = ui->activate(sc);
 			if (rc == 0)
 				ui->refcount++;

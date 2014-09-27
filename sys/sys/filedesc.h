@@ -109,11 +109,6 @@ struct filedesc_to_leader {
 
 #ifdef _KERNEL
 
-/* Flags for do_dup() */
-#define	DUP_FIXED	0x1	/* Force fixed allocation. */
-#define	DUP_FCNTL	0x2	/* fcntl()-style errors. */
-#define	DUP_CLOEXEC	0x4	/* Atomically set FD_CLOEXEC. */
-
 /* Lock a file descriptor table. */
 #define	FILEDESC_LOCK_INIT(fdp)	sx_init(&(fdp)->fd_sx, "filedesc structure")
 #define	FILEDESC_LOCK_DESTROY(fdp)	sx_destroy(&(fdp)->fd_sx)
@@ -137,8 +132,6 @@ void	filecaps_move(struct filecaps *src, struct filecaps *dst);
 void	filecaps_free(struct filecaps *fcaps);
 
 int	closef(struct file *fp, struct thread *td);
-int	do_dup(struct thread *td, int flags, int old, int new,
-	    register_t *retval);
 int	dupfdopen(struct thread *td, struct filedesc *fdp, int dfd, int mode,
 	    int openerror, int *indxp);
 int	falloc(struct thread *td, struct file **resultfp, int *resultfd,

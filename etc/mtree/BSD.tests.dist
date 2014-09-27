@@ -89,6 +89,8 @@
             ..
             libnv
             ..
+            libproc
+            ..
             libutil
             ..
         ..
@@ -252,6 +254,8 @@
             lastcomm
             ..
             m4
+            ..
+            mkimg
             ..
             ncal
             ..

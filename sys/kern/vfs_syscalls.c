@@ -1551,10 +1551,10 @@ kern_linkat(struct thread *td, int fd1, int fd2, char *path1, char *path2,
 	cap_rights_t rights;
 	int error;
 
+again:
 	bwillwrite();
 	NDINIT_AT(&nd, LOOKUP, follow | AUDITVNODE1, segflg, path1, fd1, td);
 
-again:
 	if ((error = namei(&nd)) != 0)
 		return (error);
 	NDFREE(&nd, NDF_ONLY_PNBUF);
@@ -1563,50 +1563,65 @@ again:
 		vrele(vp);
 		return (EPERM);		/* POSIX */
 	}
-	if ((error = vn_start_write(vp, &mp, V_WAIT | PCATCH)) != 0) {
-		vrele(vp);
-		return (error);
-	}
 	NDINIT_ATRIGHTS(&nd, CREATE, LOCKPARENT | SAVENAME | AUDITVNODE2,
 	    segflg, path2, fd2, cap_rights_init(&rights, CAP_LINKAT), td);
 	if ((error = namei(&nd)) == 0) {
 		if (nd.ni_vp != NULL) {
+			NDFREE(&nd, NDF_ONLY_PNBUF);
 			if (nd.ni_dvp == nd.ni_vp)
 				vrele(nd.ni_dvp);
 			else
 				vput(nd.ni_dvp);
 			vrele(nd.ni_vp);
-			error = EEXIST;
-		} else if ((error = vn_lock(vp, LK_EXCLUSIVE)) == 0) {
+			vrele(vp);
+			return (EEXIST);
+		} else if (nd.ni_dvp->v_mount != vp->v_mount) {
 			/*
-			 * Check for cross-device links.  No need to
-			 * recheck vp->v_type, since it cannot change
-			 * for non-doomed vnode.
+			 * Cross-device link.  No need to recheck
+			 * vp->v_type, since it cannot change, except
+			 * to VBAD.
 			 */
-			if (nd.ni_dvp->v_mount != vp->v_mount)
-				error = EXDEV;
-			else
-				error = can_hardlink(vp, td->td_ucred);
-			if (error == 0)
+			NDFREE(&nd, NDF_ONLY_PNBUF);
+			vput(nd.ni_dvp);
+			vrele(vp);
+			return (EXDEV);
+		} else if ((error = vn_lock(vp, LK_EXCLUSIVE)) == 0) {
+			error = can_hardlink(vp, td->td_ucred);
 #ifdef MAC
+			if (error == 0)
 				error = mac_vnode_check_link(td->td_ucred,
 				    nd.ni_dvp, vp, &nd.ni_cnd);
-			if (error == 0)
 #endif
-				error = VOP_LINK(nd.ni_dvp, vp, &nd.ni_cnd);
+			if (error != 0) {
+				vput(vp);
+				vput(nd.ni_dvp);
+				NDFREE(&nd, NDF_ONLY_PNBUF);
+				return (error);
+			}
+			error = vn_start_write(vp, &mp, V_NOWAIT);
+			if (error != 0) {
+				vput(vp);
+				vput(nd.ni_dvp);
+				NDFREE(&nd, NDF_ONLY_PNBUF);
+				error = vn_start_write(NULL, &mp,
+				    V_XSLEEP | PCATCH);
+				if (error != 0)
+					return (error);
+				goto again;
+			}
+			error = VOP_LINK(nd.ni_dvp, vp, &nd.ni_cnd);
 			VOP_UNLOCK(vp, 0);
 			vput(nd.ni_dvp);
+			vn_finished_write(mp);
+			NDFREE(&nd, NDF_ONLY_PNBUF);
 		} else {
 			vput(nd.ni_dvp);
 			NDFREE(&nd, NDF_ONLY_PNBUF);
 			vrele(vp);
-			vn_finished_write(mp);
 			goto again;
 		}
-		NDFREE(&nd, NDF_ONLY_PNBUF);
 	}
 	vrele(vp);
-	vn_finished_write(mp);
 	return (error);
 }
 
@@ -3519,6 +3534,7 @@ kern_renameat(struct thread *td, int oldfd, char *old, int newfd, char *new,
 	cap_rights_t rights;
 	int error;
 
+again:
 	bwillwrite();
 #ifdef MAC
 	NDINIT_ATRIGHTS(&fromnd, DELETE, LOCKPARENT | LOCKLEAF | SAVESTART |
@@ -3539,14 +3555,6 @@ kern_renameat(struct thread *td, int oldfd, char *old, int newfd, char *new,
 		VOP_UNLOCK(fromnd.ni_vp, 0);
 #endif
 	fvp = fromnd.ni_vp;
-	if (error == 0)
-		error = vn_start_write(fvp, &mp, V_WAIT | PCATCH);
-	if (error != 0) {
-		NDFREE(&fromnd, NDF_ONLY_PNBUF);
-		vrele(fromnd.ni_dvp);
-		vrele(fvp);
-		goto out1;
-	}
 	NDINIT_ATRIGHTS(&tond, RENAME, LOCKPARENT | LOCKLEAF | NOCACHE |
 	    SAVESTART | AUDITVNODE2, pathseg, new, newfd,
 	    cap_rights_init(&rights, CAP_LINKAT), td);
@@ -3559,11 +3567,30 @@ kern_renameat(struct thread *td, int oldfd, char *old, int newfd, char *new,
 		NDFREE(&fromnd, NDF_ONLY_PNBUF);
 		vrele(fromnd.ni_dvp);
 		vrele(fvp);
-		vn_finished_write(mp);
 		goto out1;
 	}
 	tdvp = tond.ni_dvp;
 	tvp = tond.ni_vp;
+	error = vn_start_write(fvp, &mp, V_NOWAIT);
+	if (error != 0) {
+		NDFREE(&fromnd, NDF_ONLY_PNBUF);
+		NDFREE(&tond, NDF_ONLY_PNBUF);
+		if (tvp != NULL)
+			vput(tvp);
+		if (tdvp == tvp)
+			vrele(tdvp);
+		else
+			vput(tdvp);
+		vrele(fromnd.ni_dvp);
+		vrele(fvp);
+		vrele(tond.ni_startdir);
+		if (fromnd.ni_startdir != NULL)
+			vrele(fromnd.ni_startdir);
+		error = vn_start_write(NULL, &mp, V_XSLEEP | PCATCH);
+		if (error != 0)
+			return (error);
+		goto again;
+	}
 	if (tvp != NULL) {
 		if (fvp->v_type == VDIR && tvp->v_type != VDIR) {
 			error = ENOTDIR;

@@ -921,8 +921,10 @@ ixl_ioctl(struct ifnet * ifp, u_long command, caddr_t data)
 			ifp->if_flags |= IFF_UP;
 			if (!(ifp->if_drv_flags & IFF_DRV_RUNNING))
 				ixl_init(pf);
+#ifdef INET
 			if (!(ifp->if_flags & IFF_NOARP))
 				arp_ifinit(ifp, ifa);
+#endif
 		} else
 			error = ether_ioctl(ifp, command, data);
 		break;

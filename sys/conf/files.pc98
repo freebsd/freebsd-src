@@ -98,6 +98,8 @@ dev/ct/ct_isa.c			optional ct isa
 dev/ed/if_ed_cbus.c		optional ed isa
 dev/ed/if_ed_wd80x3.c		optional ed isa
 dev/fb/fb.c			optional fb | gdc
+dev/fdc/fdc.c			optional fdc
+dev/fdc/fdc_cbus.c		optional fdc isa
 dev/fe/if_fe_cbus.c		optional fe isa
 dev/hwpmc/hwpmc_amd.c		optional hwpmc
 dev/hwpmc/hwpmc_intel.c		optional hwpmc
@@ -217,8 +219,6 @@ libkern/udivdi3.c		standard
 libkern/umoddi3.c		standard
 pc98/apm/apm_bioscall.S		optional apm
 pc98/cbus/cbus_dma.c		optional isa
-pc98/cbus/fdc.c			optional fdc
-pc98/cbus/fdc_cbus.c		optional fdc isa
 pc98/cbus/gdc.c			optional gdc
 pc98/cbus/nmi.c			standard
 pc98/cbus/olpt.c		optional olpt

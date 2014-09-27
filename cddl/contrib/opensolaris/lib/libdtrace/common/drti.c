@@ -121,12 +121,12 @@ dtrace_dof_init(void)
 #if !defined(sun)
 	Elf *e;
 	Elf_Scn *scn = NULL;
-	Elf_Data *symtabdata = NULL, *dynsymdata = NULL, *dofdata = NULL;
+	Elf_Data *dofdata = NULL;
 	dof_hdr_t *dof_next = NULL;
 	GElf_Shdr shdr;
 	int efd;
 	char *s;
-	size_t shstridx, symtabidx = 0, dynsymidx = 0;
+	size_t shstridx;
 #endif
 
 	if (getenv("DTRACE_DOF_INIT_DISABLE") != NULL)
@@ -166,15 +166,9 @@ dtrace_dof_init(void)
 	dof = NULL;
 	while ((scn = elf_nextscn(e, scn)) != NULL) {
 		gelf_getshdr(scn, &shdr);
-		if (shdr.sh_type == SHT_SYMTAB) {
-			symtabidx = shdr.sh_link;
-			symtabdata = elf_getdata(scn, NULL);
-		} else if (shdr.sh_type == SHT_DYNSYM) {
-			dynsymidx = shdr.sh_link;
-			dynsymdata = elf_getdata(scn, NULL);
-		} else if (shdr.sh_type == SHT_SUNW_dof) {
+		if (shdr.sh_type == SHT_SUNW_dof) {
 			s = elf_strptr(e, shstridx, shdr.sh_name);
-			if  (s != NULL && strcmp(s, ".SUNW_dof") == 0) {
+			if (s != NULL && strcmp(s, ".SUNW_dof") == 0) {
 				dofdata = elf_getdata(scn, NULL);
 				dof = dofdata->d_buf;
 			}

@@ -646,6 +646,7 @@ dev/aic7xxx/aic7xxx_pci.c	optional ahc pci
 dev/aic7xxx/aic7xxx_reg_print.c	optional ahc ahc_reg_pretty_print
 dev/alc/if_alc.c		optional alc pci
 dev/ale/if_ale.c		optional ale pci
+dev/alpm/alpm.c			optional alpm pci
 dev/altera/avgen/altera_avgen.c		optional altera_avgen
 dev/altera/avgen/altera_avgen_fdt.c	optional altera_avgen fdt
 dev/altera/avgen/altera_avgen_nexus.c	optional altera_avgen
@@ -654,6 +655,8 @@ dev/altera/sdcard/altera_sdcard_disk.c	optional altera_sdcard
 dev/altera/sdcard/altera_sdcard_io.c	optional altera_sdcard
 dev/altera/sdcard/altera_sdcard_fdt.c	optional altera_sdcard fdt
 dev/altera/sdcard/altera_sdcard_nexus.c	optional altera_sdcard
+dev/amdpm/amdpm.c		optional amdpm pci | nfpm pci
+dev/amdsmb/amdsmb.c		optional amdsmb pci
 dev/amr/amr.c			optional amr
 dev/amr/amr_cam.c		optional amrp amr
 dev/amr/amr_disk.c		optional amr
@@ -1430,26 +1433,6 @@ dev/hptiop/hptiop.c		optional hptiop scbus
 dev/hwpmc/hwpmc_logging.c	optional hwpmc
 dev/hwpmc/hwpmc_mod.c		optional hwpmc
 dev/hwpmc/hwpmc_soft.c		optional hwpmc
-dev/ixl/if_ixl.c		optional ixl inet \
-	compile-with "${NORMAL_C} -I$S/dev/ixl"
-dev/ixl/if_ixlv.c		optional ixlv inet \
-	compile-with "${NORMAL_C} -I$S/dev/ixl"
-dev/ixl/ixlvc.c			optional ixlv inet \
-	compile-with "${NORMAL_C} -I$S/dev/ixl"
-dev/ixl/ixl_txrx.c		optional ixl ixlv inet \
-	compile-with "${NORMAL_C} -I$S/dev/ixl"
-dev/ixl/i40e_osdep.c		optional ixl ixlv inet \
-	compile-with "${NORMAL_C} -I$S/dev/ixl"
-dev/ixl/i40e_lan_hmc.c		optional ixl ixlv inet \
-	compile-with "${NORMAL_C} -I$S/dev/ixl"
-dev/ixl/i40e_hmc.c		optional ixl ixlv inet \
-	compile-with "${NORMAL_C} -I$S/dev/ixl"
-dev/ixl/i40e_common.c		optional ixl ixlv inet \
-	compile-with "${NORMAL_C} -I$S/dev/ixl"
-dev/ixl/i40e_nvm.c		optional ixl ixlv inet \
-	compile-with "${NORMAL_C} -I$S/dev/ixl"
-dev/ixl/i40e_adminq.c		optional ixl ixlv inet \
-	compile-with "${NORMAL_C} -I$S/dev/ixl"
 dev/ichsmb/ichsmb.c		optional ichsmb
 dev/ichsmb/ichsmb_pci.c		optional ichsmb pci
 dev/ida/ida.c			optional ida
@@ -1483,6 +1466,7 @@ dev/iicbus/s35390a.c		optional s35390a
 dev/iir/iir.c			optional iir
 dev/iir/iir_ctrl.c		optional iir
 dev/iir/iir_pci.c		optional iir pci
+dev/intpm/intpm.c		optional intpm pci
 # XXX Work around clang warning, until maintainer approves fix.
 dev/ips/ips.c			optional ips \
 	compile-with "${NORMAL_C} ${NO_WSOMETIMES_UNINITIALIZED}"
@@ -1965,6 +1949,7 @@ dev/nand/nandsim_ctrl.c		optional nandsim nand
 dev/nand/nandsim_log.c		optional nandsim nand
 dev/nand/nandsim_swap.c		optional nandsim nand
 dev/nand/nfc_if.m		optional nand
+dev/ncr/ncr.c			optional ncr pci
 dev/ncv/ncr53c500.c		optional ncv
 dev/ncv/ncr53c500_pccard.c	optional ncv pccard
 dev/netmap/netmap.c		optional netmap
@@ -1977,6 +1962,7 @@ dev/netmap/netmap_offloadings.c	optional netmap
 dev/netmap/netmap_pipe.c	optional netmap
 dev/netmap/netmap_vale.c	optional netmap
 # compile-with "${NORMAL_C} -Wconversion -Wextra"
+dev/nfsmb/nfsmb.c		optional nfsmb pci
 dev/nge/if_nge.c		optional nge
 dev/nxge/if_nxge.c		optional nxge \
 	compile-with "${NORMAL_C} ${NO_WSELF_ASSIGN}"
@@ -2580,7 +2566,7 @@ dev/utopia/idtphy.c		optional utopia
 dev/utopia/suni.c		optional utopia
 dev/utopia/utopia.c		optional utopia
 dev/vge/if_vge.c		optional vge
-
+dev/viapm/viapm.c		optional viapm pci
 dev/vkbd/vkbd.c			optional vkbd
 dev/vr/if_vr.c			optional vr pci
 dev/vt/colors/vt_termcolors.c	optional vt
@@ -3794,7 +3780,7 @@ ofed/drivers/net/mlx4/sys_tune.c		optional mlx4ib | mlxen	\
 ofed/drivers/net/mlx4/en_cq.c			optional mlxen		\
 	no-depend obj-prefix "mlx4_"					\
 	compile-with "${OFED_C_NOIMP} -I$S/ofed/drivers/net/mlx4/"
-ofed/drivers/net/mlx4/en_frag.c			optional mlxen		\
+ofed/drivers/net/mlx4/utils.c			optional mlxen		\
 	no-depend obj-prefix "mlx4_"					\
 	compile-with "${OFED_C_NOIMP} -I$S/ofed/drivers/net/mlx4/"
 ofed/drivers/net/mlx4/en_main.c			optional mlxen		\
@@ -3864,14 +3850,6 @@ opencrypto/cryptodeflate.c	optional crypto
 opencrypto/rmd160.c		optional crypto | ipsec
 opencrypto/skipjack.c		optional crypto
 opencrypto/xform.c		optional crypto
-pci/alpm.c			optional alpm pci
-pci/amdpm.c			optional amdpm pci | nfpm pci
-pci/amdsmb.c			optional amdsmb pci
-pci/intpm.c			optional intpm pci
-pci/ncr.c			optional ncr pci \
-	compile-with "${NORMAL_C} -Wno-unused"
-pci/nfsmb.c			optional nfsmb pci
-pci/viapm.c			optional viapm pci
 rpc/auth_none.c			optional krpc | nfslockd | nfsclient | nfsserver | nfscl | nfsd
 rpc/auth_unix.c			optional krpc | nfslockd | nfsclient | nfscl | nfsd
 rpc/authunix_prot.c		optional krpc | nfslockd | nfsclient | nfsserver | nfscl | nfsd

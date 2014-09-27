@@ -4135,6 +4135,23 @@ product SMC 2862WG		0xee13	EZ Connect Wireless Adapter
 product SMC2 2020HUB		0x2020	USB Hub
 product SMC2 2514HUB		0x2514	USB Hub
 product SMC3 2662WUSB		0xa002	2662W-AR Wireless
+product SMC2 LAN9500_ETH	0x9500	USB/Ethernet
+product SMC2 LAN9505_ETH	0x9505	USB/Ethernet
+product SMC2 LAN9530_ETH	0x9530	USB/Ethernet
+product SMC2 LAN9730_ETH	0x9730	USB/Ethernet
+product SMC2 LAN9500_SAL10	0x9900	USB/Ethernet
+product SMC2 LAN9505_SAL10	0x9901	USB/Ethernet
+product SMC2 LAN9500A_SAL10	0x9902	USB/Ethernet
+product SMC2 LAN9505A_SAL10	0x9903	USB/Ethernet
+product SMC2 LAN9514_SAL10	0x9904	USB/Ethernet
+product SMC2 LAN9500A_HAL	0x9905	USB/Ethernet
+product SMC2 LAN9505A_HAL	0x9906	USB/Ethernet
+product SMC2 LAN9500_ETH_2	0x9907	USB/Ethernet
+product SMC2 LAN9500A_ETH_2	0x9908	USB/Ethernet
+product SMC2 LAN9514_ETH_2	0x9909	USB/Ethernet
+product SMC2 LAN9500A_ETH	0x9e00	USB/Ethernet
+product SMC2 LAN9505A_ETH	0x9e01	USB/Ethernet
+product SMC2 LAN89530_ETH	0x9e08	USB/Ethernet
 product SMC2 LAN9514_ETH	0xec00	USB/Ethernet
 
 /* SOHOware products */

@@ -389,7 +389,6 @@ struct ctl_lun {
 	TAILQ_HEAD(ctl_blockq,ctl_io_hdr) blocked_queue;
 	STAILQ_ENTRY(ctl_lun)		links;
 	STAILQ_ENTRY(ctl_lun)		run_links;
-	struct ctl_nexus		rsv_nexus;
 #ifdef CTL_WITH_CA
 	uint32_t			have_ca[CTL_MAX_INITIATORS >> 5];
 	struct scsi_sense_data		pending_sense[CTL_MAX_INITIATORS];
@@ -397,6 +396,7 @@ struct ctl_lun {
 	ctl_ua_type			pending_ua[CTL_MAX_INITIATORS];
 	struct ctl_mode_pages		mode_pages;
 	struct ctl_lun_io_stats		stats;
+	uint32_t			res_idx;
 	struct ctl_per_res_info		per_res[2*CTL_MAX_INITIATORS];
 	unsigned int			PRGeneration;
 	int				pr_key_count;

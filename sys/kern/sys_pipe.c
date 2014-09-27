@@ -115,6 +115,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/proc.h>
 #include <sys/vnode.h>
 #include <sys/uio.h>
+#include <sys/user.h>
 #include <sys/event.h>
 
 #include <security/mac/mac_framework.h>
@@ -152,6 +153,7 @@ static fo_stat_t	pipe_stat;
 static fo_close_t	pipe_close;
 static fo_chmod_t	pipe_chmod;
 static fo_chown_t	pipe_chown;
+static fo_fill_kinfo_t	pipe_fill_kinfo;
 
 struct fileops pipeops = {
 	.fo_read = pipe_read,
@@ -165,6 +167,7 @@ struct fileops pipeops = {
 	.fo_chmod = pipe_chmod,
 	.fo_chown = pipe_chown,
 	.fo_sendfile = invfo_sendfile,
+	.fo_fill_kinfo = pipe_fill_kinfo,
 	.fo_flags = DFLAG_PASSABLE
 };
 
@@ -1605,6 +1608,21 @@ pipe_chown(fp, uid, gid, active_cred, td)
 	else
 		error = invfo_chown(fp, uid, gid, active_cred, td);
 	return (error);
+}
+
+static int
+pipe_fill_kinfo(struct file *fp, struct kinfo_file *kif, struct filedesc *fdp)
+{
+	struct pipe *pi;
+
+	if (fp->f_type == DTYPE_FIFO)
+		return (vn_fill_kinfo(fp, kif, fdp));
+	kif->kf_type = KF_TYPE_PIPE;
+	pi = fp->f_data;
+	kif->kf_un.kf_pipe.kf_pipe_addr = (uintptr_t)pi;
+	kif->kf_un.kf_pipe.kf_pipe_peer = (uintptr_t)pi->pipe_peer;
+	kif->kf_un.kf_pipe.kf_pipe_buffer_cnt = pi->pipe_buffer.cnt;
+	return (0);
 }
 
 static void

@@ -19,7 +19,7 @@
 
 ident		LN2410SBC
 
-include 	"../s3c2xx0/std.ln2410sbc"
+include 	"../samsung/s3c2xx0/std.ln2410sbc"
 #To statically compile in device wiring instead of /boot/device.hints
 #hints		"GENERIC.hints"		# Default places to look for devices.
 makeoptions	MODULES_OVERRIDE=""
