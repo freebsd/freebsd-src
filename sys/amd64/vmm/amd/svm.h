@@ -34,33 +34,15 @@
 	printf("SVM ERROR:%s " fmt "\n", __func__, ##args);
 
 /*
- * Software saved machine state for guest and host. 
+ * Guest register state that is saved outside the VMCB.
  */
-
-/* Additional guest register state */
-struct svm_gctx {
+struct svm_regctx {
+	register_t	sctx_rbp;
+	register_t	sctx_rbx;
+	register_t	sctx_rcx;
 	register_t	sctx_rdx;
 	register_t	sctx_rdi;
 	register_t	sctx_rsi;
-	/* Points to host context area. */
-	register_t	sctx_hostctx_base;
-};
-
-/* Additional host register state */
-struct svm_hctx {
-	uint16_t	sctx_fs;
-	uint16_t	sctx_gs;
-
-	register_t	sctx_rsp;
-};
-
-/* Common register context area for guest and host. */
-struct svm_regctx {
-	register_t	sctx_rbp;
-
-	register_t 	sctx_rbx;
-	register_t	sctx_rcx;
-
 	register_t	sctx_r8;
 	register_t	sctx_r9;
 	register_t	sctx_r10;
@@ -69,14 +51,9 @@ struct svm_regctx {
 	register_t	sctx_r13;
 	register_t	sctx_r14;
 	register_t	sctx_r15;
-
-	union {
-		struct svm_hctx h;	/* host-specific register state */
-		struct svm_gctx g;	/* guest-specific register state */
-	} e;
 };
 
-void svm_launch(uint64_t pa, struct svm_regctx *, struct svm_regctx *);
+void svm_launch(uint64_t pa, struct svm_regctx *);
 
 static __inline void
 disable_gintr(void)

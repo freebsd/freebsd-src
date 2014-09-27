@@ -126,11 +126,6 @@ static struct asid asid[MAXCPU];
  */
 static uint8_t hsave[MAXCPU][PAGE_SIZE] __aligned(PAGE_SIZE);
 
-/*
- * S/w saved host context.
- */
-static struct svm_regctx host_ctx[MAXCPU];
-
 static VMM_STAT_AMD(VCPU_EXITINTINFO, "VM exits during event delivery");
 static VMM_STAT_AMD(VCPU_INTINFO_INJECTED, "Events pending at VM entry");
 static VMM_STAT_AMD(VMEXIT_VINTR, "VM exits due to interrupt window");
@@ -679,7 +674,7 @@ svm_inout_str_index(struct svm_regctx *regs, int in)
 {
 	uint64_t val;
 
-	val = in ? regs->e.g.sctx_rdi : regs->e.g.sctx_rsi;
+	val = in ? regs->sctx_rdi : regs->sctx_rsi;
 
 	return (val);
 }
@@ -1156,7 +1151,7 @@ emulate_rdmsr(struct svm_softc *sc, int vcpu, u_int num, bool *retu)
 		state = svm_get_vmcb_state(sc, vcpu);
 		ctx = svm_get_guest_regctx(sc, vcpu);
 		state->rax = result & 0xffffffff;
-		ctx->e.g.sctx_rdx = result >> 32;
+		ctx->sctx_rdx = result >> 32;
 	}
 
 	return (error);
@@ -1315,7 +1310,7 @@ svm_vmexit(struct svm_softc *svm_sc, int vcpu, struct vm_exit *vmexit)
 	case VMCB_EXIT_MSR:	/* MSR access. */
 		eax = state->rax;
 		ecx = ctx->sctx_rcx;
-		edx = ctx->e.g.sctx_rdx;
+		edx = ctx->sctx_rdx;
 		retu = false;	
 
 		if (info1) {
@@ -1357,7 +1352,7 @@ svm_vmexit(struct svm_softc *svm_sc, int vcpu, struct vm_exit *vmexit)
 		    (uint32_t *)&state->rax,
 		    (uint32_t *)&ctx->sctx_rbx,
 		    (uint32_t *)&ctx->sctx_rcx,
-		    (uint32_t *)&ctx->e.g.sctx_rdx);
+		    (uint32_t *)&ctx->sctx_rdx);
 		break;
 	case VMCB_EXIT_HLT:
 		vmm_stat_incr(svm_sc->vm, vcpu, VMEXIT_HLT, 1);
@@ -1775,7 +1770,7 @@ static int
 svm_vmrun(void *arg, int vcpu, register_t rip, pmap_t pmap, 
 	void *rend_cookie, void *suspended_cookie)
 {
-	struct svm_regctx *hctx, *gctx;
+	struct svm_regctx *gctx;
 	struct svm_softc *svm_sc;
 	struct svm_vcpu *vcpustate;
 	struct vmcb_state *state;
@@ -1806,7 +1801,6 @@ svm_vmrun(void *arg, int vcpu, register_t rip, pmap_t pmap,
 	thiscpu = curcpu;
 
 	gctx = svm_get_guest_regctx(svm_sc, vcpu);
-	hctx = &host_ctx[thiscpu]; 
 	vmcb_pa = svm_sc->vcpu[vcpu].vmcb_pa;
 
 	if (vcpustate->lastcpu != thiscpu) {
@@ -1885,7 +1879,7 @@ svm_vmrun(void *arg, int vcpu, register_t rip, pmap_t pmap,
 
 		/* Launch Virtual Machine. */
 		VCPU_CTR1(vm, vcpu, "Resume execution at %#lx", state->rip);
-		svm_launch(vmcb_pa, gctx, hctx);
+		svm_launch(vmcb_pa, gctx);
 
 		CPU_CLR_ATOMIC(thiscpu, &pmap->pm_active);
 
@@ -1950,11 +1944,11 @@ swctx_regptr(struct svm_regctx *regctx, int reg)
 		case VM_REG_GUEST_RCX:
 			return (&regctx->sctx_rcx);
 		case VM_REG_GUEST_RDX:
-			return (&regctx->e.g.sctx_rdx);
+			return (&regctx->sctx_rdx);
 		case VM_REG_GUEST_RDI:
-			return (&regctx->e.g.sctx_rdi);
+			return (&regctx->sctx_rdi);
 		case VM_REG_GUEST_RSI:
-			return (&regctx->e.g.sctx_rsi);
+			return (&regctx->sctx_rsi);
 		case VM_REG_GUEST_RBP:
 			return (&regctx->sctx_rbp);
 		case VM_REG_GUEST_R8:

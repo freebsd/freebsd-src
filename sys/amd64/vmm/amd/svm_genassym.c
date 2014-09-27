@@ -35,7 +35,9 @@ __FBSDID("$FreeBSD$");
 ASSYM(SCTX_RBX, offsetof(struct svm_regctx, sctx_rbx));
 ASSYM(SCTX_RCX, offsetof(struct svm_regctx, sctx_rcx));
 ASSYM(SCTX_RBP, offsetof(struct svm_regctx, sctx_rbp));
-
+ASSYM(SCTX_RDX, offsetof(struct svm_regctx, sctx_rdx));
+ASSYM(SCTX_RDI, offsetof(struct svm_regctx, sctx_rdi));
+ASSYM(SCTX_RSI, offsetof(struct svm_regctx, sctx_rsi));
 ASSYM(SCTX_R8,  offsetof(struct svm_regctx, sctx_r8));
 ASSYM(SCTX_R9,  offsetof(struct svm_regctx, sctx_r9));
 ASSYM(SCTX_R10, offsetof(struct svm_regctx, sctx_r10));
@@ -44,14 +46,3 @@ ASSYM(SCTX_R12, offsetof(struct svm_regctx, sctx_r12));
 ASSYM(SCTX_R13, offsetof(struct svm_regctx, sctx_r13));
 ASSYM(SCTX_R14, offsetof(struct svm_regctx, sctx_r14));
 ASSYM(SCTX_R15, offsetof(struct svm_regctx, sctx_r15));
-
-/* Guest only registers. */
-ASSYM(SCTX_GUEST_RDX, offsetof(struct svm_regctx, e.g.sctx_rdx));
-ASSYM(SCTX_GUEST_RDI, offsetof(struct svm_regctx, e.g.sctx_rdi));
-ASSYM(SCTX_GUEST_RSI, offsetof(struct svm_regctx, e.g.sctx_rsi));
-ASSYM(SCTX_GUEST_HCTX_BASE, offsetof(struct svm_regctx, e.g.sctx_hostctx_base));
-
-/* Host only registers.  */
-ASSYM(SCTX_HOST_GS,  offsetof(struct svm_regctx, e.h.sctx_gs));
-ASSYM(SCTX_HOST_FS,  offsetof(struct svm_regctx, e.h.sctx_fs));
-ASSYM(SCTX_HOST_RSP, offsetof(struct svm_regctx, e.h.sctx_rsp));
