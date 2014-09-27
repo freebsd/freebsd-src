@@ -3410,10 +3410,8 @@ sysctl_handle_macstat(SYSCTL_HANDLER_ARGS)
 	if (!p)
 		return (EINVAL);
 
+	cxgb_refresh_stats(p);
 	parg = (uint64_t *) ((uint8_t *)&p->mac.stats + arg2);
-	PORT_LOCK(p);
-	t3_mac_update_stats(&p->mac);
-	PORT_UNLOCK(p);
 
 	return (sysctl_handle_64(oidp, parg, 0, req));
 }
