@@ -79,7 +79,7 @@ print_formats(int usage)
 	const char *sep;
 
 	if (usage) {
-		fprintf(stderr, "\n    formats:\n");
+		fprintf(stderr, "    formats:\n");
 		SET_FOREACH(f_iter, formats) {
 			f = *f_iter;
 			fprintf(stderr, "\t%s\t-  %s\n", f->name,
@@ -103,7 +103,7 @@ print_schemes(int usage)
 	const char *sep;
 
 	if (usage) {
-		fprintf(stderr, "\n    schemes:\n");
+		fprintf(stderr, "    schemes:\n");
 		SET_FOREACH(s_iter, schemes) {
 			s = *s_iter;
 			fprintf(stderr, "\t%s\t-  %s\n", s->name,
@@ -138,9 +138,14 @@ usage(const char *why)
 {
 
 	warnx("error: %s", why);
-	fprintf(stderr, "\nusage: %s <options>\n", getprogname());
+	fputc('\n', stderr);
+	fprintf(stderr, "usage: %s <options>\n", getprogname());
 
 	fprintf(stderr, "    options:\n");
+	fprintf(stderr, "\t--formats\t-  list image formats\n");
+	fprintf(stderr, "\t--schemes\t-  list partition schemes\n");
+	fprintf(stderr, "\t--version\t-  show version information\n");
+	fputc('\n', stderr);
 	fprintf(stderr, "\t-b <file>\t-  file containing boot code\n");
 	fprintf(stderr, "\t-f <format>\n");
 	fprintf(stderr, "\t-o <file>\t-  file to write image into\n");
@@ -152,11 +157,12 @@ usage(const char *why)
 	fprintf(stderr, "\t-P <num>\t-  physical sector size\n");
 	fprintf(stderr, "\t-S <num>\t-  logical sector size\n");
 	fprintf(stderr, "\t-T <num>\t-  number of tracks to simulate\n");
-
+	fputc('\n', stderr);
 	print_formats(1);
+	fputc('\n', stderr);
 	print_schemes(1);
-
-	fprintf(stderr, "\n    partition specification:\n");
+	fputc('\n', stderr);
+	fprintf(stderr, "    partition specification:\n");
 	fprintf(stderr, "\t<t>[/<l>]::<size>\t-  empty partition of given "
 	    "size\n");
 	fprintf(stderr, "\t<t>[/<l>]:=<file>\t-  partition content and size "
