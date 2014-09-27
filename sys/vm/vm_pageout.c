@@ -921,7 +921,7 @@ vm_pageout_scan(struct vm_domain *vmd, int pass)
 	 * some.  We rate limit to avoid thrashing.
 	 */
 	if (vmd == &vm_dom[0] && pass > 0 &&
-	    lowmem_ticks + (lowmem_period * hz) < ticks) {
+	    (ticks - lowmem_ticks) / hz >= lowmem_period) {
 		/*
 		 * Decrease registered cache sizes.
 		 */
