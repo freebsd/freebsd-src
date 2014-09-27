@@ -1355,6 +1355,10 @@ ixlv_setup_interface(device_t dev, struct ixlv_sc *sc)
 	ifp->if_flags = IFF_BROADCAST | IFF_SIMPLEX | IFF_MULTICAST;
 	ifp->if_ioctl = ixlv_ioctl;
 
+#if __FreeBSD_version >= 1100000
+	if_setgetcounterfn(ifp, ixl_get_counter);
+#endif
+
 	ifp->if_transmit = ixl_mq_start;
 
 	ifp->if_qflush = ixl_qflush;
