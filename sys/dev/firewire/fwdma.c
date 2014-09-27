@@ -1,7 +1,7 @@
 /*-
  * Copyright (c) 2003
  * 	Hidetoshi Shimokawa. All rights reserved.
- * 
+ *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
  * are met:
@@ -18,7 +18,7 @@
  * 4. Neither the name of the author nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
- * 
+ *
  * THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
  * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
@@ -30,7 +30,7 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- * 
+ *
  */
 
 #ifdef __FreeBSD__
@@ -87,7 +87,7 @@ fwdma_malloc(struct firewire_comm *fc, int alignment, bus_size_t size,
 		&dma->dma_tag);
 	if (err) {
 		printf("fwdma_malloc: failed(1)\n");
-		return(NULL);
+		return (NULL);
 	}
 
 	err = bus_dmamem_alloc(dma->dma_tag, &dma->v_addr,
@@ -95,13 +95,13 @@ fwdma_malloc(struct firewire_comm *fc, int alignment, bus_size_t size,
 	if (err) {
 		printf("fwdma_malloc: failed(2)\n");
 		/* XXX destroy tag */
-		return(NULL);
+		return (NULL);
 	}
 
 	bus_dmamap_load(dma->dma_tag, dma->dma_map, dma->v_addr,
 		size, fwdma_map_cb, &dma->bus_addr, /*flags*/0);
 
-	return(dma->v_addr);
+	return (dma->v_addr);
 }
 
 void
@@ -121,11 +121,11 @@ fwdma_malloc_size(bus_dma_tag_t dmat, bus_dmamap_t *dmamap,
 
 	if (bus_dmamem_alloc(dmat, &v_addr, flag, dmamap)) {
 		printf("fwdma_malloc_size: failed(1)\n");
-		return(NULL);
+		return (NULL);
 	}
 	bus_dmamap_load(dmat, *dmamap, v_addr, size,
 			fwdma_map_cb, bus_addr, /*flags*/0);
-	return(v_addr);
+	return (v_addr);
 }
 
 void
@@ -134,7 +134,7 @@ fwdma_free_size(bus_dma_tag_t dmat, bus_dmamap_t dmamap,
 {
 	bus_dmamap_unload(dmat, dmamap);
 	bus_dmamem_free(dmat, vaddr, dmamap);
-} 
+}
 
 /*
  * Allocate multisegment dma buffers
@@ -162,7 +162,7 @@ fwdma_malloc_multiseg(struct firewire_comm *fc, int alignment,
 			+ sizeof(struct fwdma_seg)*nseg, M_FW, M_WAITOK);
 	if (am == NULL) {
 		printf("fwdma_malloc_multiseg: malloc failed\n");
-		return(NULL);
+		return (NULL);
 	}
 	am->ssize = ssize;
 	am->esize = esize;
@@ -183,21 +183,21 @@ fwdma_malloc_multiseg(struct firewire_comm *fc, int alignment,
 			&am->dma_tag)) {
 		printf("fwdma_malloc_multiseg: tag_create failed\n");
 		free(am, M_FW);
-		return(NULL);
+		return (NULL);
 	}
 
-	for (seg = &am->seg[0]; nseg --; seg ++) {
+	for (seg = &am->seg[0]; nseg--; seg++) {
 		seg->v_addr = fwdma_malloc_size(am->dma_tag, &seg->dma_map,
 			ssize, &seg->bus_addr, flag);
 		if (seg->v_addr == NULL) {
 			printf("fwdma_malloc_multi: malloc_size failed %d\n",
 				am->nseg);
 			fwdma_free_multiseg(am);
-			return(NULL);
+			return (NULL);
 		}
 		am->nseg++;
 	}
-	return(am);
+	return (am);
 }
 
 void
@@ -205,7 +205,7 @@ fwdma_free_multiseg(struct fwdma_alloc_multi *am)
 {
 	struct fwdma_seg *seg;
 
-	for (seg = &am->seg[0]; am->nseg --; seg ++) {
+	for (seg = &am->seg[0]; am->nseg--; seg++) {
 		fwdma_free_size(am->dma_tag, seg->dma_map,
 			seg->v_addr, am->ssize);
 	}
