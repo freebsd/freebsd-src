@@ -59,13 +59,8 @@ __FBSDID("$FreeBSD$");
 #endif
 #endif
 
-#ifdef __DragonFly__
-#include "firewire.h"
-#include "iec13213.h"
-#else
 #include <dev/firewire/firewire.h>
 #include <dev/firewire/iec13213.h>
-#endif
 
 #define MAX_ROM (1024 - sizeof(uint32_t) * 5)
 #define CROM_END(cc) ((vm_offset_t)(cc)->stack[0].dir + MAX_ROM - 1)
@@ -116,7 +111,7 @@ crom_next(struct crom_context *cc)
 			printf("crom_next: too deep\n");
 			goto again;
 		}
-		cc->depth ++;
+		cc->depth++;
 
 		ptr = &cc->stack[cc->depth];
 		ptr->dir = (struct csrdirectory *) (reg + reg->val);
@@ -125,10 +120,10 @@ crom_next(struct crom_context *cc)
 	}
 again:
 	ptr = &cc->stack[cc->depth];
-	ptr->index ++;
+	ptr->index++;
 check:
 	if (ptr->index < ptr->dir->crc_len &&
-			(vm_offset_t)crom_get(cc) <= CROM_END(cc))
+	    (vm_offset_t)crom_get(cc) <= CROM_END(cc))
 		return;
 
 	if (ptr->index < ptr->dir->crc_len)
@@ -148,7 +143,7 @@ crom_search_key(struct crom_context *cc, uint8_t key)
 {
 	struct csrreg *reg;
 
-	while(cc->depth >= 0) {
+	while (cc->depth >= 0) {
 		reg = crom_get(cc);
 		if (reg->key == key)
 			return reg;
@@ -166,7 +161,7 @@ crom_has_specver(uint32_t *p, uint32_t spec, uint32_t ver)
 
 	cc = &c;
 	crom_init_context(cc, p);
-	while(cc->depth >= 0) {
+	while (cc->depth >= 0) {
 		reg = crom_get(cc);
 		if (state == 0) {
 			if (reg->key == CSRKEY_SPEC && reg->val == spec)
@@ -198,7 +193,7 @@ crom_parse_text(struct crom_context *cc, char *buf, int len)
 
 	reg = crom_get(cc);
 	if (reg->key != CROM_TEXTLEAF ||
-			(vm_offset_t)(reg + reg->val) > CROM_END(cc)) {
+	    (vm_offset_t)(reg + reg->val) > CROM_END(cc)) {
 		strncpy(buf, nullstr, len);
 		return;
 	}
@@ -215,7 +210,7 @@ crom_parse_text(struct crom_context *cc, char *buf, int len)
 	qlen = textleaf->crc_len - 2;
 	if (len < qlen * 4)
 		qlen = len/4;
-	for (i = 0; i < qlen; i ++)
+	for (i = 0; i < qlen; i++)
 		*bp++ = ntohl(textleaf->text[i]);
 	/* make sure to terminate the string */
 	if (len <= qlen * 4)
@@ -238,7 +233,7 @@ crom_crc(uint32_t *ptr, int len)
 		}
 		crc &= 0xffff;
 	}
-	return((uint16_t) crc);
+	return ((uint16_t) crc);
 }
 
 #if !defined(_KERNEL) && !defined(_BOOT)
@@ -315,17 +310,17 @@ crom_desc(struct crom_context *cc, char *buf, int len)
 		break;
 	case CSRTYPE_C:
 		len -= snprintf(buf, len, "offset=0x%04x(%d)",
-						reg->val, reg->val);
+		    reg->val, reg->val);
 		buf += strlen(buf);
 		break;
 	case CSRTYPE_L:
 		/* XXX fall through */
 	case CSRTYPE_D:
-		dir = (struct csrdirectory *) (reg + reg->val);
+		dir = (struct csrdirectory *)(reg + reg->val);
 		crc = crom_crc((uint32_t *)&dir->entry[0], dir->crc_len);
 		len -= snprintf(buf, len, "len=%d crc=0x%04x(%s) ",
-			dir->crc_len, dir->crc,
-			(crc == dir->crc) ? "OK" : "NG");
+		    dir->crc_len, dir->crc,
+		    (crc == dir->crc) ? "OK" : "NG");
 		buf += strlen(buf);
 	}
 	switch (reg->key) {
@@ -399,11 +394,11 @@ crom_add_quad(struct crom_chunk *chunk, uint32_t entry)
 	index = chunk->data.crc_len;
 	if (index >= CROM_MAX_CHUNK_LEN - 1) {
 		printf("too large chunk %d\n", index);
-		return(-1);
+		return (-1);
 	}
 	chunk->data.buf[index] = entry;
 	chunk->data.crc_len++;
-	return(index);
+	return (index);
 }
 
 int
@@ -414,7 +409,7 @@ crom_add_entry(struct crom_chunk *chunk, int key, int val)
 		struct csrreg reg;
 		uint32_t i;
 	} foo;
-	
+
 	foo.reg.key = key;
 	foo.reg.val = val;
 	return (crom_add_quad(chunk, foo.i));
@@ -422,29 +417,29 @@ crom_add_entry(struct crom_chunk *chunk, int key, int val)
 
 int
 crom_add_chunk(struct crom_src *src, struct crom_chunk *parent,
-				struct crom_chunk *child, int key)
+    struct crom_chunk *child, int key)
 {
 	int index;
 
 	if (parent == NULL) {
 		STAILQ_INSERT_TAIL(&src->chunk_list, child, link);
-		return(0);
+		return (0);
 	}
 
 	index = crom_add_entry(parent, key, 0);
 	if (index < 0) {
-		return(-1);
+		return (-1);
 	}
 	child->ref_chunk = parent;
 	child->ref_index = index;
 	STAILQ_INSERT_TAIL(&src->chunk_list, child, link);
-	return(index);
+	return (index);
 }
 
 #define MAX_TEXT ((CROM_MAX_CHUNK_LEN + 1) * 4 - sizeof(struct csrtext))
 int
 crom_add_simple_text(struct crom_src *src, struct crom_chunk *parent,
-				struct crom_chunk *chunk, char *buf)
+    struct crom_chunk *chunk, char *buf)
 {
 	struct csrtext *tl;
 	uint32_t *p;
@@ -453,7 +448,7 @@ crom_add_simple_text(struct crom_src *src, struct crom_chunk *parent,
 
 	len = strlen(buf);
 	if (len > MAX_TEXT) {
-		printf("text(%d) trancated to %td.\n", len, MAX_TEXT);
+		printf("text(%d) truncated to %td.\n", len, MAX_TEXT);
 		len = MAX_TEXT;
 	}
 
@@ -465,7 +460,7 @@ crom_add_simple_text(struct crom_src *src, struct crom_chunk *parent,
 	bzero(&t[0], roundup2(len, sizeof(uint32_t)));
 	bcopy(buf, &t[0], len);
 	p = (uint32_t *)&t[0];
-	for (i = 0; i < howmany(len, sizeof(uint32_t)); i ++)
+	for (i = 0; i < howmany(len, sizeof(uint32_t)); i++)
 		tl->text[i] = ntohl(*p++);
 	return (crom_add_chunk(src, parent, chunk, CROM_TEXTLEAF));
 }
@@ -475,11 +470,11 @@ crom_copy(uint32_t *src, uint32_t *dst, int *offset, int len, int maxlen)
 {
 	if (*offset + len > maxlen) {
 		printf("Config. ROM is too large for the buffer\n");
-		return(-1);
+		return (-1);
 	}
 	bcopy(src, (char *)(dst + *offset), len * sizeof(uint32_t));
 	*offset += len;
-	return(0);
+	return (0);
 }
 
 int
@@ -503,9 +498,9 @@ crom_load(struct crom_src *src, uint32_t *buf, int maxlen)
 		if (parent != NULL) {
 			struct csrreg *reg;
 			reg = (struct csrreg *)
-				&parent->data.buf[chunk->ref_index];
+			    &parent->data.buf[chunk->ref_index];
 			reg->val = offset -
-				(parent->offset + 1 + chunk->ref_index);
+			    (parent->offset + 1 + chunk->ref_index);
 		}
 		offset += 1 + chunk->data.crc_len;
 	}
@@ -514,15 +509,15 @@ crom_load(struct crom_src *src, uint32_t *buf, int maxlen)
 	len = 1 + src->hdr.info_len;
 	count = 0;
 	if (crom_copy((uint32_t *)&src->hdr, buf, &count, len, maxlen) < 0)
-		return(-1);
+		return (-1);
 	STAILQ_FOREACH(chunk, &src->chunk_list, link) {
 		chunk->data.crc =
-			crom_crc(&chunk->data.buf[0], chunk->data.crc_len);
+		    crom_crc(&chunk->data.buf[0], chunk->data.crc_len);
 
 		len = 1 + chunk->data.crc_len;
 		if (crom_copy((uint32_t *)&chunk->data, buf,
-					&count, len, maxlen) < 0)
-			return(-1);
+		    &count, len, maxlen) < 0)
+			return (-1);
 	}
 	hdr = (struct csrhdr *)buf;
 	hdr->crc_len = count - 1;
@@ -531,19 +526,20 @@ crom_load(struct crom_src *src, uint32_t *buf, int maxlen)
 #if defined(_KERNEL) || defined(_BOOT)
 	/* byte swap */
 	ptr = buf;
-	for (i = 0; i < count; i ++) {
+	for (i = 0; i < count; i++) {
 		*ptr = htonl(*ptr);
 		ptr++;
 	}
 #endif
 
-	return(count);
+	return (count);
 }
 #endif
 
 #ifdef TEST
 int
-main () {
+main()
+{
 	struct crom_src src;
 	struct crom_chunk root,unit1,unit2,unit3;
 	struct crom_chunk text1,text2,text3,text4,text5,text6,text7;
@@ -587,15 +583,9 @@ main () {
 	/* private company_id */
 	crom_add_entry(&root, CSRKEY_VENDOR, 0xacde48);
 
-#ifdef __DragonFly__
-	crom_add_simple_text(&src, &root, &text1, "DragonFly");
-	crom_add_entry(&root, CSRKEY_HW, __DragonFly_cc_version);
-	crom_add_simple_text(&src, &root, &text2, "DragonFly-1");
-#else
 	crom_add_simple_text(&src, &root, &text1, "FreeBSD");
 	crom_add_entry(&root, CSRKEY_HW, __FreeBSD_version);
 	crom_add_simple_text(&src, &root, &text2, "FreeBSD-5");
-#endif
 
 	/* SBP unit directory */
 	crom_add_chunk(&src, &root, &unit1, CROM_UDIR);
@@ -628,11 +618,11 @@ main () {
 	crom_load(&src, buf, 256);
 	p = buf;
 #define DUMP_FORMAT     "%08x %08x %08x %08x %08x %08x %08x %08x\n"
-	for (i = 0; i < 256/8; i ++) {
+	for (i = 0; i < 256/8; i++) {
 		printf(DUMP_FORMAT,
 			p[0], p[1], p[2], p[3], p[4], p[5], p[6], p[7]);
 		p += 8;
 	}
-	return(0);
+	return (0);
 }
 #endif

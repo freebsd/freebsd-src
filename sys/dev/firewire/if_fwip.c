@@ -60,16 +60,10 @@
 #include <net/firewire.h>
 #include <net/if_arp.h>
 #include <net/if_types.h>
-#ifdef __DragonFly__
-#include <bus/firewire/firewire.h>
-#include <bus/firewire/firewirereg.h>
-#include "if_fwipvar.h"
-#else
 #include <dev/firewire/firewire.h>
 #include <dev/firewire/firewirereg.h>
 #include <dev/firewire/iec13213.h>
 #include <dev/firewire/if_fwipvar.h>
-#endif
 
 /*
  * We really need a mechanism for allocating regions in the FIFO
@@ -139,8 +133,8 @@ fwip_probe(device_t dev)
 	device_t pa;
 
 	pa = device_get_parent(dev);
-	if(device_get_unit(dev) != device_get_unit(pa)){
-		return(ENXIO);
+	if (device_get_unit(dev) != device_get_unit(pa)) {
+		return (ENXIO);
 	}
 
 	device_set_desc(dev, "IP over FireWire");
@@ -228,7 +222,7 @@ fwip_stop(struct fwip_softc *fwip)
 			FWXFERQ_EXTBUF | FWXFERQ_HANDLER | FWXFERQ_CHTAGMASK);
 		xferq->hand =  NULL;
 
-		for (i = 0; i < xferq->bnchunk; i ++)
+		for (i = 0; i < xferq->bnchunk; i++)
 			m_freem(xferq->bulkxfer[i].mbuf);
 		free(xferq->bulkxfer, M_FWIP);
 
@@ -322,7 +316,7 @@ fwip_init(void *arg)
 		STAILQ_INIT(&xferq->stfree);
 		STAILQ_INIT(&xferq->stdma);
 		xferq->stproc = NULL;
-		for (i = 0; i < xferq->bnchunk; i ++) {
+		for (i = 0; i < xferq->bnchunk; i++) {
 			m = m_getcl(M_WAITOK, MT_DATA, M_PKTHDR);
 			xferq->bulkxfer[i].mbuf = m;
 			m->m_len = m->m_pkthdr.len = m->m_ext.ext_size;
@@ -335,7 +329,7 @@ fwip_init(void *arg)
 
 		/* pre-allocate xfer */
 		STAILQ_INIT(&fwip->fwb.xferlist);
-		for (i = 0; i < rx_queue_len; i ++) {
+		for (i = 0; i < rx_queue_len; i++) {
 			xfer = fw_xfer_alloc(M_FWIP);
 			if (xfer == NULL)
 				break;
@@ -411,13 +405,12 @@ fwip_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 		    !(ifp->if_capenable & IFCAP_POLLING)) {
 			error = ether_poll_register(fwip_poll, ifp);
 			if (error)
-				return(error);
+				return (error);
 			/* Disable interrupts */
 			fc->set_intr(fc, 0);
 			ifp->if_capenable |= IFCAP_POLLING |
 			    IFCAP_POLLING_NOCOUNT;
 			return (error);
-			
 		}
 		if (!(ifr->ifr_reqcap & IFCAP_POLLING) &&
 		    ifp->if_capenable & IFCAP_POLLING) {
@@ -485,7 +478,6 @@ fwip_output_callback(struct fw_xfer *xfer)
 	FWIPDEBUG(ifp, "resp = %d\n", xfer->resp);
 	if (xfer->resp != 0)
 		if_inc_counter(ifp, IFCOUNTER_OERRORS, 1);
-		
 	m_freem(xfer->mbuf);
 	fw_xfer_unload(xfer);
 
@@ -937,9 +929,6 @@ static driver_t fwip_driver = {
 };
 
 
-#ifdef __DragonFly__
-DECLARE_DUMMY_MODULE(fwip);
-#endif
 DRIVER_MODULE(fwip, firewire, fwip_driver, fwip_devclass, 0, 0);
 MODULE_VERSION(fwip, 1);
 MODULE_DEPEND(fwip, firewire, 1, 1, 1);

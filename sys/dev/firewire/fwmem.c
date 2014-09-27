@@ -1,7 +1,7 @@
 /*-
  * Copyright (c) 2002-2003
  * 	Hidetoshi Shimokawa. All rights reserved.
- * 
+ *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
  * are met:
@@ -18,7 +18,7 @@
  * 4. Neither the name of the author nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
- * 
+ *
  * THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
  * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
@@ -30,7 +30,7 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- * 
+ *
  */
 
 #ifdef __FreeBSD__
@@ -60,7 +60,7 @@ __FBSDID("$FreeBSD$");
 #include <dev/firewire/firewirereg.h>
 #include <dev/firewire/fwmem.h>
 
-static int fwmem_speed=2, fwmem_debug=0;
+static int fwmem_speed = 2, fwmem_debug = 0;
 static struct fw_eui64 fwmem_eui64;
 SYSCTL_DECL(_hw_firewire);
 static SYSCTL_NODE(_hw_firewire, OID_AUTO, fwmem, CTLFLAG_RD, 0,
@@ -126,7 +126,7 @@ fwmem_read_quad(
 	struct fw_xfer *xfer;
 	struct fw_pkt *fp;
 
-	xfer = fwmem_xfer_req(fwdev, (void *)sc, spd, 0, 4, hand);
+	xfer = fwmem_xfer_req(fwdev, sc, spd, 0, 4, hand);
 	if (xfer == NULL) {
 		return NULL;
 	}
@@ -141,7 +141,7 @@ fwmem_read_quad(
 
 	if (fwmem_debug)
 		printf("fwmem_read_quad: %d %04x:%08x\n", fwdev->dst,
-				dst_hi, dst_lo);
+		    dst_hi, dst_lo);
 
 	if (fw_asyreq(xfer->fc, -1, xfer) == 0)
 		return xfer;
@@ -177,7 +177,7 @@ fwmem_write_quad(
 
 	if (fwmem_debug)
 		printf("fwmem_write_quad: %d %04x:%08x %08x\n", fwdev->dst,
-			dst_hi, dst_lo, *(uint32_t *)data);
+		    dst_hi, dst_lo, *(uint32_t *)data);
 
 	if (fw_asyreq(xfer->fc, -1, xfer) == 0)
 		return xfer;
@@ -199,7 +199,7 @@ fwmem_read_block(
 {
 	struct fw_xfer *xfer;
 	struct fw_pkt *fp;
-	
+
 	xfer = fwmem_xfer_req(fwdev, sc, spd, 0, roundup2(len, 4), hand);
 	if (xfer == NULL)
 		return NULL;
@@ -216,7 +216,7 @@ fwmem_read_block(
 
 	if (fwmem_debug)
 		printf("fwmem_read_block: %d %04x:%08x %d\n", fwdev->dst,
-				dst_hi, dst_lo, len);
+		    dst_hi, dst_lo, len);
 	if (fw_asyreq(xfer->fc, -1, xfer) == 0)
 		return xfer;
 
@@ -262,9 +262,8 @@ fwmem_write_block(
 	return NULL;
 }
 
-
 int
-fwmem_open (struct cdev *dev, int flags, int fmt, fw_proc *td)
+fwmem_open(struct cdev *dev, int flags, int fmt, fw_proc *td)
 {
 	struct fwmem_softc *fms;
 	struct firewire_softc *sc;
@@ -278,20 +277,20 @@ fwmem_open (struct cdev *dev, int flags, int fmt, fw_proc *td)
 	if (dev->si_drv1 != NULL) {
 		if ((flags & FWRITE) != 0) {
 			FW_GUNLOCK(sc->fc);
-			return(EBUSY);
+			return (EBUSY);
 		}
 		FW_GUNLOCK(sc->fc);
-		fms = (struct fwmem_softc *)dev->si_drv1;
-		fms->refcount ++;
+		fms = dev->si_drv1;
+		fms->refcount++;
 	} else {
 		dev->si_drv1 = (void *)-1;
 		FW_GUNLOCK(sc->fc);
 		dev->si_drv1 = malloc(sizeof(struct fwmem_softc),
-						 M_FWMEM, M_WAITOK);
+		    M_FWMEM, M_WAITOK);
 		if (dev->si_drv1 == NULL)
-			return(ENOMEM);
+			return (ENOMEM);
 		dev->si_iosize_max = DFLTPHYS;
-		fms = (struct fwmem_softc *)dev->si_drv1;
+		fms = dev->si_drv1;
 		bcopy(&fwmem_eui64, &fms->eui, sizeof(struct fw_eui64));
 		fms->sc = sc;
 		fms->refcount = 1;
@@ -307,10 +306,10 @@ fwmem_close (struct cdev *dev, int flags, int fmt, fw_proc *td)
 {
 	struct fwmem_softc *fms;
 
-	fms = (struct fwmem_softc *)dev->si_drv1;
+	fms = dev->si_drv1;
 
 	FW_GLOCK(fms->sc->fc);
-	fms->refcount --;
+	fms->refcount--;
 	FW_GUNLOCK(fms->sc->fc);
 	if (fwmem_debug)
 		printf("%s: refcount=%d\n", __func__, fms->refcount);
@@ -349,18 +348,18 @@ fwmem_strategy(struct bio *bp)
 	struct fw_device *fwdev;
 	struct fw_xfer *xfer;
 	struct cdev *dev;
-	int err=0, s, iolen;
+	int err = 0, s, iolen;
 
 	dev = bp->bio_dev;
 	/* XXX check request length */
 
 	s = splfw();
-	fms = (struct fwmem_softc *)dev->si_drv1;
+	fms = dev->si_drv1;
 	fwdev = fw_noderesolve_eui64(fms->sc->fc, &fms->eui);
 	if (fwdev == NULL) {
 		if (fwmem_debug)
 			printf("fwmem: no such device ID:%08x%08x\n",
-					fms->eui.hi, fms->eui.lo);
+			    fms->eui.hi, fms->eui.lo);
 		err = EINVAL;
 		goto error;
 	}
@@ -369,12 +368,12 @@ fwmem_strategy(struct bio *bp)
 	if ((bp->bio_cmd & BIO_READ) == BIO_READ) {
 		if (iolen == 4 && (bp->bio_offset & 3) == 0)
 			xfer = fwmem_read_quad(fwdev,
-			    (void *) bp, fwmem_speed,
+			    (void *)bp, fwmem_speed,
 			    bp->bio_offset >> 32, bp->bio_offset & 0xffffffff,
 			    bp->bio_data, fwmem_biodone);
 		else
 			xfer = fwmem_read_block(fwdev,
-			    (void *) bp, fwmem_speed,
+			    (void *)bp, fwmem_speed,
 			    bp->bio_offset >> 32, bp->bio_offset & 0xffffffff,
 			    iolen, bp->bio_data, fwmem_biodone);
 	} else {
@@ -408,12 +407,12 @@ error:
 }
 
 int
-fwmem_ioctl (struct cdev *dev, u_long cmd, caddr_t data, int flag, fw_proc *td)
+fwmem_ioctl(struct cdev *dev, u_long cmd, caddr_t data, int flag, fw_proc *td)
 {
 	struct fwmem_softc *fms;
 	int err = 0;
 
-	fms = (struct fwmem_softc *)dev->si_drv1;
+	fms = dev->si_drv1;
 	switch (cmd) {
 	case FW_SDEUI64:
 		bcopy(data, &fms->eui, sizeof(struct fw_eui64));
@@ -424,16 +423,18 @@ fwmem_ioctl (struct cdev *dev, u_long cmd, caddr_t data, int flag, fw_proc *td)
 	default:
 		err = EINVAL;
 	}
-	return(err);
+	return (err);
 }
+
 int
-fwmem_poll (struct cdev *dev, int events, fw_proc *td)
-{  
+fwmem_poll(struct cdev *dev, int events, fw_proc *td)
+{
 	return EINVAL;
 }
+
 int
-fwmem_mmap (struct cdev *dev, vm_ooffset_t offset, vm_paddr_t *paddr,
+fwmem_mmap(struct cdev *dev, vm_ooffset_t offset, vm_paddr_t *paddr,
     int nproto, vm_memattr_t *memattr)
-{  
+{
 	return EINVAL;
 }
