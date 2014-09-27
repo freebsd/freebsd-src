@@ -41,8 +41,10 @@
  * chongo <for a good prime call: 391581 * 2^216193 - 1> /\oo/\
  */
 
+#include <stdint.h>
+
 /* ubig is the type that holds a large unsigned value */
-typedef unsigned long ubig;		/* must be >=32 bit unsigned value */
+typedef uint64_t ubig;			/* must be >=32 bit unsigned value */
 #define	BIG		ULONG_MAX	/* largest value will sieve */
 
 /* bytes in sieve table (must be > 3*5*7*11) */
