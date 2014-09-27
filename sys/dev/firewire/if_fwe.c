@@ -1,7 +1,7 @@
 /*-
  * Copyright (c) 2002-2003
  * 	Hidetoshi Shimokawa. All rights reserved.
- * 
+ *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
  * are met:
@@ -18,7 +18,7 @@
  * 4. Neither the name of the author nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
- * 
+ *
  * THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
  * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
@@ -30,7 +30,7 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- * 
+ *
  * $FreeBSD$
  */
 
@@ -123,8 +123,8 @@ fwe_probe(device_t dev)
 	device_t pa;
 
 	pa = device_get_parent(dev);
-	if(device_get_unit(dev) != device_get_unit(pa)){
-		return(ENXIO);
+	if (device_get_unit(dev) != device_get_unit(pa)) {
+		return (ENXIO);
 	}
 
 	device_set_desc(dev, "Ethernet over FireWire");
@@ -176,7 +176,7 @@ fwe_attach(device_t dev)
 		"%02x:%02x:%02x:%02x:%02x:%02x\n", unit,
 		eaddr[0], eaddr[1], eaddr[2], eaddr[3], eaddr[4], eaddr[5]);
 
-	/* fill the rest and attach interface */	
+	/* fill the rest and attach interface */
 	ifp = fwe->eth_softc.ifp = if_alloc(IFT_ETHER);
 	if (ifp == NULL) {
 		device_printf(dev, "can not if_alloc()\n");
@@ -220,12 +220,12 @@ fwe_stop(struct fwe_softc *fwe)
 
 		if (xferq->flag & FWXFERQ_RUNNING)
 			fc->irx_disable(fc, fwe->dma_ch);
-		xferq->flag &= 
+		xferq->flag &=
 			~(FWXFERQ_MODEMASK | FWXFERQ_OPEN | FWXFERQ_STREAM |
 			FWXFERQ_EXTBUF | FWXFERQ_HANDLER | FWXFERQ_CHTAGMASK);
 		xferq->hand =  NULL;
 
-		for (i = 0; i < xferq->bnchunk; i ++)
+		for (i = 0; i < xferq->bnchunk; i++)
 			m_freem(xferq->bulkxfer[i].mbuf);
 		free(xferq->bulkxfer, M_FWE);
 
@@ -315,7 +315,7 @@ fwe_init(void *arg)
 		STAILQ_INIT(&xferq->stfree);
 		STAILQ_INIT(&xferq->stdma);
 		xferq->stproc = NULL;
-		for (i = 0; i < xferq->bnchunk; i ++) {
+		for (i = 0; i < xferq->bnchunk; i++) {
 			m = m_getcl(M_WAITOK, MT_DATA, M_PKTHDR);
 			xferq->bulkxfer[i].mbuf = m;
 			m->m_len = m->m_pkthdr.len = m->m_ext.ext_size;
@@ -393,7 +393,7 @@ fwe_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 			    !(ifp->if_capenable & IFCAP_POLLING)) {
 				error = ether_poll_register(fwe_poll, ifp);
 				if (error)
-					return(error);
+					return (error);
 				/* Disable interrupts */
 				fc->set_intr(fc, 0);
 				ifp->if_capenable |= IFCAP_POLLING;
@@ -435,7 +435,6 @@ fwe_output_callback(struct fw_xfer *xfer)
 	FWEDEBUG(ifp, "resp = %d\n", xfer->resp);
 	if (xfer->resp != 0)
 		if_inc_counter(ifp, IFCOUNTER_OERRORS, 1);
-		
 	m_freem(xfer->mbuf);
 	fw_xfer_unload(xfer);
 
@@ -604,7 +603,7 @@ fwe_as_input(struct fw_xferq *xferq)
 			 c[16], c[17], c[18], c[19],
 			 c[20], c[21], c[22], c[23],
 			 c[20], c[21], c[22], c[23]
-		 );
+		);
 #endif
 		(*ifp->if_input)(ifp, m);
 		if_inc_counter(ifp, IFCOUNTER_IPACKETS, 1);
