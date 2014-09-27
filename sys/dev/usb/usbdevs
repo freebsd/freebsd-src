@@ -2220,6 +2220,8 @@ product HP 3300C		0x0205	ScanJet 3300C
 product HP CDW8200		0x0207	CD-Writer Plus 8200e
 product HP MMKEYB		0x020c	Multimedia keyboard
 product HP 1220C		0x0212	DeskJet 1220C
+product HP UN2420_QDL		0x241d	UN2420 QDL Firmware Loader
+product HP UN2420		0x251d	UN2420 WWAN/GPS Module
 product HP 810C			0x0304	DeskJet 810C/812C
 product HP 4300C		0x0305	Scanjet 4300C
 product HP CDW4E		0x0307	CD-Writer+ CD-4e
