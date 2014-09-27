@@ -109,6 +109,7 @@ typedef enum {
 	IFCOUNTER_OQDROPS,
 	IFCOUNTER_NOPROTO,
 } ift_counter;
+#define	IFCOUNTER_LAST	IFCOUNTER_NOPROTO
 
 typedef struct ifnet * if_t;
 

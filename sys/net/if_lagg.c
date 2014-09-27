@@ -115,6 +115,7 @@ static int	lagg_ether_cmdmulti(struct lagg_port *, int);
 static	int	lagg_setflag(struct lagg_port *, int, int,
 		    int (*func)(struct ifnet *, int));
 static	int	lagg_setflags(struct lagg_port *, int status);
+static uint64_t lagg_get_counter(struct ifnet *ifp, ift_counter cnt);
 static int	lagg_transmit(struct ifnet *, struct mbuf *);
 static void	lagg_qflush(struct ifnet *);
 static int	lagg_media_change(struct ifnet *);
@@ -157,8 +158,6 @@ static int	lagg_lacp_start(struct lagg_softc *, struct mbuf *);
 static struct mbuf *lagg_lacp_input(struct lagg_softc *, struct lagg_port *,
 		    struct mbuf *);
 static void	lagg_lacp_lladdr(struct lagg_softc *);
-
-static void	lagg_callout(void *);
 
 /* lagg protocol table */
 static const struct lagg_proto {
@@ -456,11 +455,6 @@ lagg_clone_create(struct if_clone *ifc, int unit, caddr_t params)
 		return (ENOSPC);
 	}
 
-	sc->sc_ipackets = counter_u64_alloc(M_WAITOK);
-	sc->sc_opackets = counter_u64_alloc(M_WAITOK);
-	sc->sc_ibytes = counter_u64_alloc(M_WAITOK);
-	sc->sc_obytes = counter_u64_alloc(M_WAITOK);
-
 	sysctl_ctx_init(&sc->ctx);
 	snprintf(num, sizeof(num), "%u", unit);
 	sc->use_flowid = def_use_flowid;
@@ -490,15 +484,8 @@ lagg_clone_create(struct if_clone *ifc, int unit, caddr_t params)
 	lagg_proto_attach(sc, LAGG_PROTO_DEFAULT);
 
 	LAGG_LOCK_INIT(sc);
-	LAGG_CALLOUT_LOCK_INIT(sc);
 	SLIST_INIT(&sc->sc_ports);
 	TASK_INIT(&sc->sc_lladdr_task, 0, lagg_port_setlladdr, sc);
-
-	/*
-	 * This uses the callout lock rather than the rmlock; one can't
-	 * hold said rmlock during SWI.
-	 */
-	callout_init_mtx(&sc->sc_callout, &sc->sc_call_mtx, 0);
 
 	/* Initialise pseudo media types */
 	ifmedia_init(&sc->sc_media, 0, lagg_media_change,
@@ -512,6 +499,7 @@ lagg_clone_create(struct if_clone *ifc, int unit, caddr_t params)
 	ifp->if_qflush = lagg_qflush;
 	ifp->if_init = lagg_init;
 	ifp->if_ioctl = lagg_ioctl;
+	ifp->if_get_counter = lagg_get_counter;
 	ifp->if_flags = IFF_SIMPLEX | IFF_BROADCAST | IFF_MULTICAST;
 	ifp->if_capenable = ifp->if_capabilities = IFCAP_HWSTATS;
 
@@ -530,8 +518,6 @@ lagg_clone_create(struct if_clone *ifc, int unit, caddr_t params)
 	mtx_lock(&lagg_list_mtx);
 	SLIST_INSERT_HEAD(&lagg_list, sc, sc_entries);
 	mtx_unlock(&lagg_list_mtx);
-
-	callout_reset(&sc->sc_callout, hz, lagg_callout, sc);
 
 	return (0);
 }
@@ -561,22 +547,12 @@ lagg_clone_destroy(struct ifnet *ifp)
 	ether_ifdetach(ifp);
 	if_free(ifp);
 
-	/* This grabs sc_callout_mtx, serialising it correctly */
-	callout_drain(&sc->sc_callout);
-
-	/* At this point it's drained; we can free this */
-	counter_u64_free(sc->sc_ipackets);
-	counter_u64_free(sc->sc_opackets);
-	counter_u64_free(sc->sc_ibytes);
-	counter_u64_free(sc->sc_obytes);
-
 	mtx_lock(&lagg_list_mtx);
 	SLIST_REMOVE(&lagg_list, sc, lagg_softc, sc_entries);
 	mtx_unlock(&lagg_list_mtx);
 
 	taskqueue_drain(taskqueue_swi, &sc->sc_lladdr_task);
 	LAGG_LOCK_DESTROY(sc);
-	LAGG_CALLOUT_LOCK_DESTROY(sc);
 	free(sc, M_DEVBUF);
 }
 
@@ -712,7 +688,8 @@ lagg_port_create(struct lagg_softc *sc, struct ifnet *ifp)
 {
 	struct lagg_softc *sc_ptr;
 	struct lagg_port *lp, *tlp;
-	int error;
+	int error, i;
+	uint64_t *pval;
 
 	LAGG_WLOCK_ASSERT(sc);
 
@@ -836,6 +813,10 @@ lagg_port_create(struct lagg_softc *sc, struct ifnet *ifp)
 	lagg_capabilities(sc);
 	lagg_linkstate(sc);
 
+	/* Read port counters */
+	pval = lp->port_counters.val;
+	for (i = IFCOUNTER_IPACKETS; i <= IFCOUNTER_LAST; i++, pval++)
+		*pval = ifp->if_get_counter(ifp, i);
 	/* Add multicast addresses and interface flags to this port */
 	lagg_ether_cmdmulti(lp, 1);
 	lagg_setflags(lp, 1);
@@ -877,6 +858,8 @@ lagg_port_destroy(struct lagg_port *lp, int rundelport)
 	struct lagg_port *lp_ptr;
 	struct lagg_llq *llq;
 	struct ifnet *ifp = lp->lp_ifp;
+	uint64_t *pval, vdiff;
+	int i;
 
 	LAGG_WLOCK_ASSERT(sc);
 
@@ -898,6 +881,13 @@ lagg_port_destroy(struct lagg_port *lp, int rundelport)
 	ifp->if_ioctl = lp->lp_ioctl;
 	ifp->if_output = lp->lp_output;
 	ifp->if_lagg = NULL;
+
+	/* Update detached port counters */
+	pval = lp->port_counters.val;
+	for (i = IFCOUNTER_IPACKETS; i <= IFCOUNTER_LAST; i++, pval++) {
+		vdiff = ifp->if_get_counter(ifp, i) - *pval;
+		sc->detached_counters.val[i - 1] += vdiff;
+	}
 
 	/* Finally, remove the port from the lagg */
 	SLIST_REMOVE(&sc->sc_ports, lp, lagg_port, lp_entries);
@@ -1009,6 +999,61 @@ fallback:
 		return ((*lp->lp_ioctl)(ifp, cmd, data));
 
 	return (EINVAL);
+}
+
+/*
+ * Requests counter @cnt data. 
+ *
+ * Counter value is calculated the following way:
+ * 1) for each port, sum  difference between current and "initial" measurements.
+ * 2) add lagg logical interface counters.
+ * 3) add data from detached_counters array.
+ *
+ * We also do the following things on ports attach/detach:
+ * 1) On port attach we store all counters it has into port_counter array. 
+ * 2) On port detach we add the different between "initial" and
+ *   current counters data to detached_counters array.
+ */
+static uint64_t
+lagg_get_counter(struct ifnet *ifp, ift_counter cnt)
+{
+	struct lagg_softc *sc;
+	struct lagg_port *lp;
+	struct ifnet *lpifp;
+	struct rm_priotracker tracker;
+	uint64_t newval, oldval, vsum;
+
+	if (cnt <= 0 || cnt > IFCOUNTER_LAST)
+		return (if_get_counter_default(ifp, cnt));
+
+	sc = (struct lagg_softc *)ifp->if_softc;
+	LAGG_RLOCK(sc, &tracker);
+
+	vsum = 0;
+	SLIST_FOREACH(lp, &sc->sc_ports, lp_entries) {
+		/* Saved attached value */
+		oldval = lp->port_counters.val[cnt - 1];
+		/* current value */
+		lpifp = lp->lp_ifp;
+		newval = lpifp->if_get_counter(lpifp, cnt);
+		/* Calculate diff and save new */
+		vsum += newval - oldval;
+	}
+
+	/*
+	 * Add counter data which might be added by upper
+	 * layer protocols operating on logical interface.
+	 */
+	vsum += if_get_counter_default(ifp, cnt);
+
+	/*
+	 * Add counter data from detached ports counters
+	 */
+	vsum += sc->detached_counters.val[cnt - 1];
+
+	LAGG_RUNLOCK(sc, &tracker);
+
+	return (vsum);
 }
 
 /*
@@ -1449,11 +1494,7 @@ lagg_transmit(struct ifnet *ifp, struct mbuf *m)
 	error = lagg_proto_start(sc, m);
 	LAGG_RUNLOCK(sc, &tracker);
 
-	if (error == 0) {
-		counter_u64_add(sc->sc_opackets, 1);
-		counter_u64_add(sc->sc_obytes, len);
-		ifp->if_omcasts += mcast;
-	} else
+	if (error != 0)
 		ifp->if_oerrors++;
 
 	return (error);
@@ -1489,9 +1530,6 @@ lagg_input(struct ifnet *ifp, struct mbuf *m)
 	m = lagg_proto_input(sc, lp, m);
 
 	if (m != NULL) {
-		counter_u64_add(sc->sc_ipackets, 1);
-		counter_u64_add(sc->sc_ibytes, m->m_pkthdr.len);
-
 		if (scifp->if_flags & IFF_MONITOR) {
 			m_freem(m);
 			m = NULL;
@@ -2124,16 +2162,3 @@ lagg_lacp_input(struct lagg_softc *sc, struct lagg_port *lp, struct mbuf *m)
 	return (m);
 }
 
-static void
-lagg_callout(void *arg)
-{
-	struct lagg_softc *sc = (struct lagg_softc *)arg;
-	struct ifnet *ifp = sc->sc_ifp;
-
-	ifp->if_ipackets = counter_u64_fetch(sc->sc_ipackets);
-	ifp->if_opackets = counter_u64_fetch(sc->sc_opackets);
-	ifp->if_ibytes = counter_u64_fetch(sc->sc_ibytes);
-	ifp->if_obytes = counter_u64_fetch(sc->sc_obytes);
-
-	callout_reset(&sc->sc_callout, hz, lagg_callout, sc);
-}
