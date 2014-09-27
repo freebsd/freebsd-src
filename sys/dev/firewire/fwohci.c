@@ -1253,7 +1253,7 @@ fwohci_db_init(struct fwohci_softc *sc, struct fwohci_dbch *dbch)
 	}
 
 #define DB_SIZE(x) (sizeof(struct fwohcidb) * (x)->ndesc)
-	dbch->am = fwdma_malloc_multiseg(&sc->fc, DB_SIZE(dbch),
+	dbch->am = fwdma_malloc_multiseg(&sc->fc, sizeof(struct fwohcidb),
 		DB_SIZE(dbch), dbch->ndb, BUS_DMA_WAITOK);
 	if (dbch->am == NULL) {
 		printf("fwohci_db_init: fwdma_malloc_multiseg failed\n");
