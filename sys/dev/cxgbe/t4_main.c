@@ -151,6 +151,7 @@ static void cxgbe_init(void *);
 static int cxgbe_ioctl(struct ifnet *, unsigned long, caddr_t);
 static int cxgbe_transmit(struct ifnet *, struct mbuf *);
 static void cxgbe_qflush(struct ifnet *);
+static uint64_t cxgbe_get_counter(struct ifnet *, ift_counter);
 static int cxgbe_media_change(struct ifnet *);
 static void cxgbe_media_status(struct ifnet *, struct ifmediareq *);
 
@@ -386,6 +387,7 @@ static int t4_free_irq(struct adapter *, struct irq *);
 static void reg_block_dump(struct adapter *, uint8_t *, unsigned int,
     unsigned int);
 static void t4_get_regs(struct adapter *, struct t4_regdump *, uint8_t *);
+static void cxgbe_refresh_stats(struct adapter *, struct port_info *);
 static void cxgbe_tick(void *);
 static void cxgbe_vlan_config(void *, struct ifnet *, uint16_t);
 static int cpl_not_handled(struct sge_iq *, const struct rss_header *,
@@ -608,6 +610,8 @@ t4_attach(device_t dev)
 	mtx_init(&sc->sfl_lock, "starving freelists", 0, MTX_DEF);
 	TAILQ_INIT(&sc->sfl);
 	callout_init(&sc->sfl_callout, CALLOUT_MPSAFE);
+
+	mtx_init(&sc->regwin_lock, "register and memory window", 0, MTX_DEF);
 
 	rc = map_bars_0_and_4(sc);
 	if (rc != 0)
@@ -1024,6 +1028,8 @@ t4_detach(device_t dev)
 		mtx_destroy(&sc->sfl_lock);
 	if (mtx_initialized(&sc->ifp_lock))
 		mtx_destroy(&sc->ifp_lock);
+	if (mtx_initialized(&sc->regwin_lock))
+		mtx_destroy(&sc->regwin_lock);
 
 	bzero(sc, sizeof(*sc));
 
@@ -1073,6 +1079,7 @@ cxgbe_attach(device_t dev)
 	ifp->if_ioctl = cxgbe_ioctl;
 	ifp->if_transmit = cxgbe_transmit;
 	ifp->if_qflush = cxgbe_qflush;
+	ifp->if_get_counter = cxgbe_get_counter;
 
 	ifp->if_capabilities = T4_CAP;
 #ifdef TCP_OFFLOAD
@@ -1502,6 +1509,67 @@ cxgbe_qflush(struct ifnet *ifp)
 		}
 	}
 	if_qflush(ifp);
+}
+
+static uint64_t
+cxgbe_get_counter(struct ifnet *ifp, ift_counter c)
+{
+	struct port_info *pi = ifp->if_softc;
+	struct adapter *sc = pi->adapter;
+	struct port_stats *s = &pi->stats;
+
+	cxgbe_refresh_stats(sc, pi);
+
+	switch (c) {
+	case IFCOUNTER_IPACKETS:
+		return (s->rx_frames - s->rx_pause);
+
+	case IFCOUNTER_IERRORS:
+		return (s->rx_jabber + s->rx_runt + s->rx_too_long +
+		    s->rx_fcs_err + s->rx_len_err);
+
+	case IFCOUNTER_OPACKETS:
+		return (s->tx_frames - s->tx_pause);
+
+	case IFCOUNTER_OERRORS:
+		return (s->tx_error_frames);
+
+	case IFCOUNTER_IBYTES:
+		return (s->rx_octets - s->rx_pause * 64);
+
+	case IFCOUNTER_OBYTES:
+		return (s->tx_octets - s->tx_pause * 64);
+
+	case IFCOUNTER_IMCASTS:
+		return (s->rx_mcast_frames - s->rx_pause);
+
+	case IFCOUNTER_OMCASTS:
+		return (s->tx_mcast_frames - s->tx_pause);
+
+	case IFCOUNTER_IQDROPS:
+		return (s->rx_ovflow0 + s->rx_ovflow1 + s->rx_ovflow2 +
+		    s->rx_ovflow3 + s->rx_trunc0 + s->rx_trunc1 + s->rx_trunc2 +
+		    s->rx_trunc3 + pi->tnl_cong_drops);
+
+	case IFCOUNTER_OQDROPS: {
+		uint64_t drops;
+
+		drops = s->tx_drop;
+		if (pi->flags & PORT_INIT_DONE) {
+			int i;
+			struct sge_txq *txq;
+
+			for_each_txq(pi, i, txq)
+				drops += txq->br->br_drops;
+		}
+
+		return (drops);
+
+	}
+
+	default:
+		return (if_get_counter_default(ifp, c));
+	}
 }
 
 static int
@@ -4277,14 +4345,39 @@ t4_get_regs(struct adapter *sc, struct t4_regdump *regs, uint8_t *buf)
 }
 
 static void
+cxgbe_refresh_stats(struct adapter *sc, struct port_info *pi)
+{
+	int i;
+	u_int v, tnl_cong_drops;
+	struct timeval tv;
+	const struct timeval interval = {0, 250000};	/* 250ms */
+
+	getmicrotime(&tv);
+	timevalsub(&tv, &interval);
+	if (timevalcmp(&tv, &pi->last_refreshed, <))
+		return;
+
+	tnl_cong_drops = 0;
+	t4_get_port_stats(sc, pi->tx_chan, &pi->stats);
+	for (i = 0; i < NCHAN; i++) {
+		if (pi->rx_chan_map & (1 << i)) {
+			mtx_lock(&sc->regwin_lock);
+			t4_read_indirect(sc, A_TP_MIB_INDEX, A_TP_MIB_DATA, &v,
+			    1, A_TP_MIB_TNL_CNG_DROP_0 + i);
+			mtx_unlock(&sc->regwin_lock);
+			tnl_cong_drops += v;
+		}
+	}
+	pi->tnl_cong_drops = tnl_cong_drops;
+	getmicrotime(&pi->last_refreshed);
+}
+
+static void
 cxgbe_tick(void *arg)
 {
 	struct port_info *pi = arg;
 	struct adapter *sc = pi->adapter;
 	struct ifnet *ifp = pi->ifp;
-	struct sge_txq *txq;
-	int i, drops;
-	struct port_stats *s = &pi->stats;
 
 	PORT_LOCK(pi);
 	if (!(ifp->if_drv_flags & IFF_DRV_RUNNING)) {
@@ -4292,39 +4385,7 @@ cxgbe_tick(void *arg)
 		return;	/* without scheduling another callout */
 	}
 
-	t4_get_port_stats(sc, pi->tx_chan, s);
-
-	ifp->if_opackets = s->tx_frames - s->tx_pause;
-	ifp->if_ipackets = s->rx_frames - s->rx_pause;
-	ifp->if_obytes = s->tx_octets - s->tx_pause * 64;
-	ifp->if_ibytes = s->rx_octets - s->rx_pause * 64;
-	ifp->if_omcasts = s->tx_mcast_frames - s->tx_pause;
-	ifp->if_imcasts = s->rx_mcast_frames - s->rx_pause;
-	ifp->if_iqdrops = s->rx_ovflow0 + s->rx_ovflow1 + s->rx_ovflow2 +
-	    s->rx_ovflow3 + s->rx_trunc0 + s->rx_trunc1 + s->rx_trunc2 +
-	    s->rx_trunc3;
-	for (i = 0; i < 4; i++) {
-		if (pi->rx_chan_map & (1 << i)) {
-			uint32_t v;
-
-			/*
-			 * XXX: indirect reads from the same ADDR/DATA pair can
-			 * race with each other.
-			 */
-			t4_read_indirect(sc, A_TP_MIB_INDEX, A_TP_MIB_DATA, &v,
-			    1, A_TP_MIB_TNL_CNG_DROP_0 + i);
-			ifp->if_iqdrops += v;
-		}
-	}
-
-	drops = s->tx_drop;
-	for_each_txq(pi, i, txq)
-		drops += txq->br->br_drops;
-	ifp->if_oqdrops = drops;
-
-	ifp->if_oerrors = s->tx_error_frames;
-	ifp->if_ierrors = s->rx_jabber + s->rx_runt + s->rx_too_long +
-	    s->rx_fcs_err + s->rx_len_err;
+	cxgbe_refresh_stats(sc, pi);
 
 	callout_schedule(&pi->tick, hz);
 	PORT_UNLOCK(pi);
