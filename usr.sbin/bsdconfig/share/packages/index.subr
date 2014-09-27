@@ -33,6 +33,7 @@ BSDCFG_SHARE="/usr/share/bsdconfig"
 f_dprintf "%s: loading includes..." packages/index.subr
 f_include $BSDCFG_SHARE/device.subr
 f_include $BSDCFG_SHARE/media/common.subr
+f_include $BSDCFG_SHARE/packages/musthavepkg.subr
 f_include $BSDCFG_SHARE/strings.subr
 
 BSDCFG_LIBE="/usr/libexec/bsdconfig"
@@ -53,27 +54,6 @@ SQLITE_REPO="/var/db/pkg/repo-packagesite.sqlite"
 #
 PACKAGES_INDEX_CACHEFILE="/var/run/bsdconfig/packages_INDEX.cache"
 
-#
-# INDEX format for FreeBSD-6.0 or higher:
-#
-# 	package|port-origin|install-prefix|comment|port-desc-file|maintainer|
-# 	categories|build-deps|run-deps|www-site|reserve|reserve|reserve|disc
-#
-INDEX_FORMAT="%n-%v" # package
-INDEX_FORMAT="$INDEX_FORMAT|/usr/ports/%o"	# port-origin
-INDEX_FORMAT="$INDEX_FORMAT|%p"			# install-prefix
-INDEX_FORMAT="$INDEX_FORMAT|%c"			# comment
-INDEX_FORMAT="$INDEX_FORMAT|/usr/ports/%o/pkg-descr"	# port-desc-file
-INDEX_FORMAT="$INDEX_FORMAT|%m"			# maintainer
-INDEX_FORMAT="$INDEX_FORMAT|@CATEGORIES@"	# place-holder
-INDEX_FORMAT="$INDEX_FORMAT|"			# build-deps
-INDEX_FORMAT="$INDEX_FORMAT|@RUNDEPS@"		# place-holder
-INDEX_FORMAT="$INDEX_FORMAT|%w"			# www-site
-INDEX_FORMAT="$INDEX_FORMAT|"			# reserved
-INDEX_FORMAT="$INDEX_FORMAT|"			# reserved
-INDEX_FORMAT="$INDEX_FORMAT|"			# reserved
-INDEX_FORMAT="$INDEX_FORMAT|"			# disc
-
 ############################################################ FUNCTIONS
 
 # f_index_initialize [$var_to_set]
@@ -87,12 +67,15 @@ INDEX_FORMAT="$INDEX_FORMAT|"			# disc
 f_index_initialize()
 {
 	local __funcname=f_index_initialize
-	local __var_to_set="${2:-PACKAGE_INDEX}"
+	local __var_to_set="${1:-PACKAGE_INDEX}"
 
 	[ "$_INDEX_INITTED" ] && return $SUCCESS
 
 	# Got any media?
 	f_media_verify || return $FAILURE
+
+	# Make sure we have a usable pkg(8) with $PKG_ABI
+	f_musthavepkg_init
 
 	# Does it move when you kick it?
 	f_device_init device_media || return $FAILURE
@@ -126,9 +109,10 @@ f_index_initialize()
 		__site="file://$MOUNTPOINT/packages/$PKG_ABI"
 	esac
 
-	export PACKAGESITE="$__site"
-	f_dprintf "PACKAGESITE=[%s]" "$PACKAGESITE"
-	if ! f_eval_catch $__funcname pkg "pkg update"; then
+	f_dprintf "PACKAGESITE=[%s]" "$__site"
+	if ! f_eval_catch $__funcname pkg \
+		'PACKAGESITE="%s" pkg update' "$__site"
+	then
 		f_show_err "$msg_unable_to_update_pkg_from_selected_media"
 		f_device_shutdown device_media
 		return $FAILURE
@@ -195,53 +179,8 @@ f_index_initialize()
 	# If we reach this point, we need to generate the data from scratch
 	#
 
-	f_show_info "$msg_getting_package_categories_via_pkg_rquery"
-	if ! eval "$( pkg rquery "%n-%v %C" | awk '
-	{ categories[$1] = categories[$1] " " $2 }
-	END {
-		for (package in categories)
-		{
-			cats = categories[package]
-			sub(/^ /, "", cats)
-			gsub(/[^[:alnum:]_]/, "_", package)
-			printf "local _%s_categories=\"%s\";\n", package, cats
-		}
-	}' )"; then
-		f_show_err "$msg_unable_to_pkg_rquery_package_dependencies"
-		f_device_shutdown device_media
-		return $FAILURE
-	fi
-
-	f_show_info "$msg_getting_package_dependencies_via_pkg_rquery"
-	if ! eval "$( pkg rquery "%n-%v %dn-%dv" | awk '
-	{ rundeps[$1] = rundeps[$1] " " $2 }
-	END {
-		for (package in rundeps)
-		{
-			deps = rundeps[package]
-			sub(/^ /, "", deps)
-			gsub(/[^[:alnum:]_]/, "_", package)
-			printf "local _%s_rundeps=\"%s\";\n", package, deps
-		}
-	}' )"; then
-		f_show_err "$msg_unable_to_pkg_rquery_package_dependencies"
-		f_device_shutdown device_media
-		return $FAILURE
-	fi
-
 	f_show_info "$msg_generating_index_from_pkg_database"
-	eval "$__var_to_set"='$( pkg rquery "$INDEX_FORMAT" |
-		while read LINE; do
-			package="${LINE%%|*}";
-			f_str2varname "$package" varpkg;
-			eval f_replaceall \"\$LINE\" \"\|@CATEGORIES@\|\" \
-				\"\|\$_${varpkg}_categories\|\" LINE
-			eval f_replaceall \"\$LINE\" \"\|@RUNDEPS@\|\" \
-				\"\|\$_${varpkg}_rundeps\|\" LINE
-			echo "$LINE"
-		done
-	)' # always returns true (status of last item in pipe-chain)
-	eval "$__var_to_set"='$( debug= f_getvar "$__var_to_set" | sort )'
+	eval "$__var_to_set"='$( pkg rquery -I | sort )'
 
 	#
 	# Attempt to create the persistant on-disk cache
