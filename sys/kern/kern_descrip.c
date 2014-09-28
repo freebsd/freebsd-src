@@ -401,22 +401,27 @@ struct fcntl_args {
 int
 sys_fcntl(struct thread *td, struct fcntl_args *uap)
 {
+
+	return (kern_fcntl_freebsd(td, uap->fd, uap->cmd, uap->arg));
+}
+
+int
+kern_fcntl_freebsd(struct thread *td, int fd, int cmd, long arg)
+{
 	struct flock fl;
 	struct __oflock ofl;
-	intptr_t arg;
+	intptr_t arg1;
 	int error;
-	int cmd;
 
 	error = 0;
-	cmd = uap->cmd;
-	switch (uap->cmd) {
+	switch (cmd) {
 	case F_OGETLK:
 	case F_OSETLK:
 	case F_OSETLKW:
 		/*
 		 * Convert old flock structure to new.
 		 */
-		error = copyin((void *)(intptr_t)uap->arg, &ofl, sizeof(ofl));
+		error = copyin((void *)(intptr_t)arg, &ofl, sizeof(ofl));
 		fl.l_start = ofl.l_start;
 		fl.l_len = ofl.l_len;
 		fl.l_pid = ofl.l_pid;
@@ -424,7 +429,7 @@ sys_fcntl(struct thread *td, struct fcntl_args *uap)
 		fl.l_whence = ofl.l_whence;
 		fl.l_sysid = 0;
 
-		switch (uap->cmd) {
+		switch (cmd) {
 		case F_OGETLK:
 		    cmd = F_GETLK;
 		    break;
@@ -435,33 +440,33 @@ sys_fcntl(struct thread *td, struct fcntl_args *uap)
 		    cmd = F_SETLKW;
 		    break;
 		}
-		arg = (intptr_t)&fl;
+		arg1 = (intptr_t)&fl;
 		break;
         case F_GETLK:
         case F_SETLK:
         case F_SETLKW:
 	case F_SETLK_REMOTE:
-                error = copyin((void *)(intptr_t)uap->arg, &fl, sizeof(fl));
-                arg = (intptr_t)&fl;
+                error = copyin((void *)(intptr_t)arg, &fl, sizeof(fl));
+                arg1 = (intptr_t)&fl;
                 break;
 	default:
-		arg = uap->arg;
+		arg1 = arg;
 		break;
 	}
 	if (error)
 		return (error);
-	error = kern_fcntl(td, uap->fd, cmd, arg);
+	error = kern_fcntl(td, fd, cmd, arg1);
 	if (error)
 		return (error);
-	if (uap->cmd == F_OGETLK) {
+	if (cmd == F_OGETLK) {
 		ofl.l_start = fl.l_start;
 		ofl.l_len = fl.l_len;
 		ofl.l_pid = fl.l_pid;
 		ofl.l_type = fl.l_type;
 		ofl.l_whence = fl.l_whence;
-		error = copyout(&ofl, (void *)(intptr_t)uap->arg, sizeof(ofl));
-	} else if (uap->cmd == F_GETLK) {
-		error = copyout(&fl, (void *)(intptr_t)uap->arg, sizeof(fl));
+		error = copyout(&ofl, (void *)(intptr_t)arg, sizeof(ofl));
+	} else if (cmd == F_GETLK) {
+		error = copyout(&fl, (void *)(intptr_t)arg, sizeof(fl));
 	}
 	return (error);
 }

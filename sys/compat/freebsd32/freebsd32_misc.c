@@ -3076,7 +3076,7 @@ freebsd32_procctl(struct thread *td, struct freebsd32_procctl_args *uap)
 int
 freebsd32_fcntl(struct thread *td, struct freebsd32_fcntl_args *uap)
 {
-	intptr_t tmp;
+	long tmp;
 
 	switch (uap->cmd) {
 	/*
@@ -3095,5 +3095,5 @@ freebsd32_fcntl(struct thread *td, struct freebsd32_fcntl_args *uap)
 		tmp = uap->arg;
 		break;
 	}
-	return (kern_fcntl(td, uap->fd, uap->cmd, tmp));
+	return (kern_fcntl_freebsd(td, uap->fd, uap->cmd, tmp));
 }
