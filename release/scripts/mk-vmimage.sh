@@ -64,7 +64,7 @@ vm_create_baseimage() {
 	truncate -s ${VMSIZE} ${VMBASE}
 	mddev=$(mdconfig -f ${VMBASE})
 	newfs -L root -j ${mddev}
-	mount ${mddev} ${DESTDIR}
+	mount /dev/${mddev} ${DESTDIR}
 	cd ${WORLDDIR} && \
 		${IMAKE} DESTDIR=${DESTDIR} \
 		installworld installkernel distribution || \
