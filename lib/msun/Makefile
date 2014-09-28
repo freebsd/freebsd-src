@@ -98,6 +98,7 @@ COMMON_SRCS+=	s_copysignl.c s_fabsl.c s_llrintl.c s_lrintl.c s_modfl.c
 # If long double != double use these; otherwise, we alias the double versions.
 COMMON_SRCS+=	e_acoshl.c e_acosl.c e_asinl.c e_atan2l.c e_atanhl.c \
 	e_coshl.c e_fmodl.c e_hypotl.c \
+	e_lgammal.c e_lgammal_r.c \
 	e_remainderl.c e_sinhl.c e_sqrtl.c \
 	invtrig.c k_cosl.c k_sinl.c k_tanl.c \
 	s_asinhl.c s_atanl.c s_cbrtl.c s_ceill.c s_cosl.c s_cprojl.c \
@@ -188,7 +189,8 @@ MLINKS+=ilogb.3 ilogbf.3 ilogb.3 ilogbl.3 \
 	ilogb.3 logb.3 ilogb.3 logbf.3 ilogb.3 logbl.3
 MLINKS+=j0.3 j1.3 j0.3 jn.3 j0.3 y0.3 j0.3 y1.3 j0.3 y1f.3 j0.3 yn.3
 MLINKS+=j0.3 j0f.3 j0.3 j1f.3 j0.3 jnf.3 j0.3 y0f.3 j0.3 ynf.3
-MLINKS+=lgamma.3 gamma.3 lgamma.3 gammaf.3 lgamma.3 lgammaf.3 \
+MLINKS+=lgamma.3 gamma.3 lgamma.3 gammaf.3 \
+	lgamma.3 lgammaf.3 lgamma.3 lgammal.3 \
 	lgamma.3 tgamma.3 lgamma.3 tgammaf.3
 MLINKS+=log.3 log10.3 log.3 log10f.3 log.3 log10l.3 \
 	log.3 log1p.3 log.3 log1pf.3 log.3 log1pl.3 \

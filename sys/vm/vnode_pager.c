@@ -665,6 +665,39 @@ vnode_pager_getpages(vm_object_t object, vm_page_t *m, int count, int reqpage)
 }
 
 /*
+ * The implementation of VOP_GETPAGES() for local filesystems, where
+ * partially valid pages can only occur at the end of file.
+ */
+int
+vnode_pager_local_getpages(struct vop_getpages_args *ap)
+{
+	vm_page_t mreq;
+
+	mreq = ap->a_m[ap->a_reqpage];
+
+	/*
+	 * Since the caller has busied the requested page, that page's valid
+	 * field will not be changed by other threads.
+	 */
+	vm_page_assert_xbusied(mreq);
+
+	/*
+	 * The requested page has valid blocks.  Invalid part can only
+	 * exist at the end of file, and the page is made fully valid
+	 * by zeroing in vm_pager_getpages().  Free non-requested
+	 * pages, since no i/o is done to read its content.
+	 */
+	if (mreq->valid != 0) {
+		vm_pager_free_nonreq(mreq->object, ap->a_m, ap->a_reqpage,
+		    round_page(ap->a_count) / PAGE_SIZE);
+		return (VM_PAGER_OK);
+	}
+
+	return (vnode_pager_generic_getpages(ap->a_vp, ap->a_m,
+	    ap->a_count, ap->a_reqpage));
+}
+
+/*
  * This is now called from local media FS's to operate against their
  * own vnodes if they fail to implement VOP_GETPAGES.
  */
@@ -739,24 +772,24 @@ vnode_pager_generic_getpages(struct vnode *vp, vm_page_t *m, int bytecount,
 	}
 
 	/*
+	 * Since the caller has busied the requested page, that page's valid
+	 * field will not be changed by other threads.
+	 */
+	vm_page_assert_xbusied(m[reqpage]);
+
+	/*
 	 * If we have a completely valid page available to us, we can
 	 * clean up and return.  Otherwise we have to re-read the
 	 * media.
 	 */
-	VM_OBJECT_WLOCK(object);
 	if (m[reqpage]->valid == VM_PAGE_BITS_ALL) {
-		for (i = 0; i < count; i++)
-			if (i != reqpage) {
-				vm_page_lock(m[i]);
-				vm_page_free(m[i]);
-				vm_page_unlock(m[i]);
-			}
-		VM_OBJECT_WUNLOCK(object);
-		return VM_PAGER_OK;
+		vm_pager_free_nonreq(object, m, reqpage, count);
+		return (VM_PAGER_OK);
 	} else if (reqblock == -1) {
 		pmap_zero_page(m[reqpage]);
 		KASSERT(m[reqpage]->dirty == 0,
 		    ("vnode_pager_generic_getpages: page %p is dirty", m));
+		VM_OBJECT_WLOCK(object);
 		m[reqpage]->valid = VM_PAGE_BITS_ALL;
 		for (i = 0; i < count; i++)
 			if (i != reqpage) {
@@ -766,9 +799,11 @@ vnode_pager_generic_getpages(struct vnode *vp, vm_page_t *m, int bytecount,
 			}
 		VM_OBJECT_WUNLOCK(object);
 		return (VM_PAGER_OK);
+	} else if (m[reqpage]->valid != 0) {
+		VM_OBJECT_WLOCK(object);
+		m[reqpage]->valid = 0;
+		VM_OBJECT_WUNLOCK(object);
 	}
-	m[reqpage]->valid = 0;
-	VM_OBJECT_WUNLOCK(object);
 
 	/*
 	 * here on direct device I/O

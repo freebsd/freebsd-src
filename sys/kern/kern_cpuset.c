@@ -719,7 +719,7 @@ out:
  * Apply new cpumask to the ithread.
  */
 int
-cpuset_setithread(lwpid_t id, u_char cpu)
+cpuset_setithread(lwpid_t id, int cpu)
 {
 	struct cpuset *nset, *rset;
 	struct cpuset *parent, *old_set;

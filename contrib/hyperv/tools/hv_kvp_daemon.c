@@ -284,12 +284,10 @@ kvp_file_init(void)
 	int i;
 	int alloc_unit = sizeof(struct kvp_record) * ENTRIES_PER_BLOCK;
 
-	if (access("/var/db/hyperv/pool", F_OK)) {
-		if (mkdir("/var/db/hyperv/pool",
-		    S_IRUSR | S_IWUSR | S_IROTH)) {
-			KVP_LOG(LOG_ERR, " Failed to create /var/db/hyperv/pool\n");
-			exit(EXIT_FAILURE);
-		}
+	if (mkdir("/var/db/hyperv/pool", S_IRUSR | S_IWUSR | S_IROTH) < 0 &&
+	    errno != EISDIR) {
+		KVP_LOG(LOG_ERR, " Failed to create /var/db/hyperv/pool\n");
+		exit(EXIT_FAILURE);
 	}
 
 	for (i = 0; i < HV_KVP_POOL_COUNT; i++)
@@ -307,11 +305,13 @@ kvp_file_init(void)
 
 		filep = fopen(fname, "r");
 		if (!filep) {
+			close(fd);
 			return (1);
 		}
 
 		record = malloc(alloc_unit * num_blocks);
 		if (record == NULL) {
+			close(fd);
 			fclose(filep);
 			return (1);
 		}
@@ -336,6 +336,7 @@ kvp_file_init(void)
 				record = realloc(record, alloc_unit *
 					num_blocks);
 				if (record == NULL) {
+					close(fd);
 					fclose(filep);
 					return (1);
 				}
@@ -600,8 +601,7 @@ kvp_mac_to_if_name(char *mac)
 	struct ifaddrs *head_ifaddrs_ptr;
 	struct sockaddr_dl *sdl;
 	int status;
-	size_t i;
-	char *buf_ptr;
+	char *buf_ptr, *p;
 
 	status = getifaddrs(&ifaddrs_ptr);
 
@@ -611,18 +611,17 @@ kvp_mac_to_if_name(char *mac)
 			sdl = (struct sockaddr_dl *)(uintptr_t)ifaddrs_ptr->ifa_addr;
 			if (sdl->sdl_type == IFT_ETHER) {
 				buf_ptr = strdup(ether_ntoa((struct ether_addr *)(LLADDR(sdl))));
-				for (i = 0; i < strlen(buf_ptr); i++)
-				{
-					buf_ptr[i] = toupper(buf_ptr[i]);
-				}
+				if (buf_ptr != NULL) {
+					for (p = buf_ptr; *p != '\0'; p++)
+						*p = toupper(*p);
 
-				if (strncmp(buf_ptr, mac, strlen(mac)) == 0) {
-					/* Caller will free the memory */
-					if_name = strdup(ifaddrs_ptr->ifa_name);
-					free(buf_ptr);
-					break;
-				}else if (buf_ptr != NULL) {
-					free(buf_ptr);
+					if (strncmp(buf_ptr, mac, strlen(mac)) == 0) {
+						/* Caller will free the memory */
+						if_name = strdup(ifaddrs_ptr->ifa_name);
+						free(buf_ptr);
+						break;
+					} else
+						free(buf_ptr);
 				}
 			}
 		} while ((ifaddrs_ptr = ifaddrs_ptr->ifa_next) != NULL);
@@ -1249,7 +1248,7 @@ kvp_op_enumerate(struct hv_kvp_msg *op_msg, void *data __unused)
 
 	case IntegrationServicesVersion:
 		strcpy(key_name, "IntegrationServicesVersion");
-		strcpy(key_value, lic_version);
+		strlcpy(key_value, lic_version, HV_KVP_EXCHANGE_MAX_VALUE_SIZE);
 		break;
 
 	case NetworkAddressIPv4:
@@ -1265,32 +1264,32 @@ kvp_op_enumerate(struct hv_kvp_msg *op_msg, void *data __unused)
 		break;
 
 	case OSBuildNumber:
-		strcpy(key_value, os_build);
+		strlcpy(key_value, os_build, HV_KVP_EXCHANGE_MAX_VALUE_SIZE);
 		strcpy(key_name, "OSBuildNumber");
 		break;
 
 	case OSName:
-		strcpy(key_value, os_name);
+		strlcpy(key_value, os_name, HV_KVP_EXCHANGE_MAX_VALUE_SIZE);
 		strcpy(key_name, "OSName");
 		break;
 
 	case OSMajorVersion:
-		strcpy(key_value, os_major);
+		strlcpy(key_value, os_major, HV_KVP_EXCHANGE_MAX_VALUE_SIZE);
 		strcpy(key_name, "OSMajorVersion");
 		break;
 
 	case OSMinorVersion:
-		strcpy(key_value, os_minor);
+		strlcpy(key_value, os_minor, HV_KVP_EXCHANGE_MAX_VALUE_SIZE);
 		strcpy(key_name, "OSMinorVersion");
 		break;
 
 	case OSVersion:
-		strcpy(key_value, os_build);
+		strlcpy(key_value, os_build, HV_KVP_EXCHANGE_MAX_VALUE_SIZE);
 		strcpy(key_name, "OSVersion");
 		break;
 
 	case ProcessorArchitecture:
-		strcpy(key_value, processor_arch);
+		strlcpy(key_value, processor_arch, HV_KVP_EXCHANGE_MAX_VALUE_SIZE);
 		strcpy(key_name, "ProcessorArchitecture");
 		break;
 

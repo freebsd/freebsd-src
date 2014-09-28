@@ -61,10 +61,10 @@ option.
 The driver currently supports the aggregation protocols
 .Ic failover
 (the default),
-.Ic fec ,
 .Ic lacp ,
 .Ic loadbalance ,
 .Ic roundrobin ,
+.Ic broadcast ,
 and
 .Ic none .
 The protocols determine which ports are used for outgoing traffic
@@ -86,9 +86,6 @@ This constraint can be relaxed by setting the
 .Xr sysctl 8
 variable to a nonzero value,
 which is useful for certain bridged network setups.
-.It Ic fec
-Supports Cisco EtherChannel.
-This is an alias for
 .Ic loadbalance
 mode.
 .It Ic lacp
@@ -113,6 +110,9 @@ available, the VLAN tag, and the IP source and destination address.
 Distributes outgoing traffic using a round-robin scheduler
 through all active ports and accepts incoming traffic from
 any active port.
+.It Ic broadcast
+Sends frames to all ports of the LAG and receives frames on
+any port of the LAG.
 .It Ic none
 This protocol is intended to do nothing: it disables any traffic without
 disabling the

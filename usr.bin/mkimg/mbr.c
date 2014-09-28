@@ -50,13 +50,12 @@ static struct mkimg_alias mbr_aliases[] = {
     {	ALIAS_NONE, 0 }		/* Keep last! */
 };
 
-static u_int
-mbr_metadata(u_int where)
+static lba_t
+mbr_metadata(u_int where, lba_t blk)
 {
-	u_int secs;
 
-	secs = (where == SCHEME_META_IMG_START) ? nsecs : 0;
-	return (secs);
+	blk += (where == SCHEME_META_IMG_START) ? 1 : 0;
+	return (round_track(blk));
 }
 
 static void

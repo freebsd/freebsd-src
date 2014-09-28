@@ -81,6 +81,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/sysctl.h>
 #include <sys/taskqueue.h>
 #include <sys/unistd.h>
+#include <sys/user.h>
 #include <sys/vnode.h>
 #include <machine/atomic.h>
 
@@ -2571,6 +2572,14 @@ filt_mqwrite(struct knote *kn, long hint)
 	return (mq->mq_curmsgs < mq->mq_maxmsg);
 }
 
+static int
+mqf_fill_kinfo(struct file *fp, struct kinfo_file *kif, struct filedesc *fdp)
+{
+
+	kif->kf_type = KF_TYPE_MQUEUE;
+	return (0);
+}
+
 static struct fileops mqueueops = {
 	.fo_read		= invfo_rdwr,
 	.fo_write		= invfo_rdwr,
@@ -2583,6 +2592,7 @@ static struct fileops mqueueops = {
 	.fo_chmod		= mqf_chmod,
 	.fo_chown		= mqf_chown,
 	.fo_sendfile		= invfo_sendfile,
+	.fo_fill_kinfo		= mqf_fill_kinfo,
 };
 
 static struct vop_vector mqfs_vnodeops = {

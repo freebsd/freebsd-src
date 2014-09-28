@@ -1,6 +1,6 @@
 /*
  * Copyright (c) 2004, 2005 Topspin Communications.  All rights reserved.
- * Copyright (c) 2005, 2006, 2007, 2008 Mellanox Technologies. All rights reserved.
+ * Copyright (c) 2005, 2006, 2007, 2008, 2014 Mellanox Technologies. All rights reserved.
  * Copyright (c) 2005, 2006, 2007 Cisco Systems, Inc.  All rights reserved.
  *
  * This software is available to you under a choice of one of two
@@ -32,8 +32,10 @@
  * SOFTWARE.
  */
 
+#include <linux/etherdevice.h>
 #include <linux/mlx4/cmd.h>
 #include <linux/module.h>
+#include <linux/cache.h>
 
 #include "fw.h"
 #include "icm.h"
@@ -106,6 +108,7 @@ static void dump_dev_cap_flags(struct mlx4_dev *dev, u64 flags)
 		[40] = "UDP RSS support",
 		[41] = "Unicast VEP steering support",
 		[42] = "Multicast VEP steering support",
+		[44] = "Cross-channel (sync_qp) operations support",
 		[48] = "Counters support",
 		[59] = "Port management change event support",
 		[60] = "eSwitch support",
@@ -126,7 +129,18 @@ static void dump_dev_cap_flags2(struct mlx4_dev *dev, u64 flags)
 		[0] = "RSS support",
 		[1] = "RSS Toeplitz Hash Function support",
 		[2] = "RSS XOR Hash Function support",
-		[3] = "Device manage flow steering support"
+		[3] = "Device manage flow steering support",
+		[4] = "FSM (MAC unti-spoofing) support",
+		[5] = "VST (control vlan insertion/stripping) support",
+		[6] = "Dynamic QP updates support",
+		[7] = "Loopback source checks support",
+		[8] = "Device managed flow steering IPoIB support",
+		[9] = "ETS configuration support",
+		[10] = "ETH backplane autoneg report",
+		[11] = "Ethernet Flow control statistics support",
+		[12] = "Recoverable error events support",
+		[13] = "Time stamping support",
+		[14] = "Report driver version to FW support"
 	};
 	int i;
 
@@ -170,7 +184,7 @@ int mlx4_QUERY_FUNC_CAP_wrapper(struct mlx4_dev *dev, int slave,
 				struct mlx4_cmd_info *cmd)
 {
 	struct mlx4_priv *priv = mlx4_priv(dev);
-	u8	field;
+	u8	field, port;
 	u32	size;
 	int	err = 0;
 
@@ -178,23 +192,32 @@ int mlx4_QUERY_FUNC_CAP_wrapper(struct mlx4_dev *dev, int slave,
 #define QUERY_FUNC_CAP_NUM_PORTS_OFFSET		0x1
 #define QUERY_FUNC_CAP_PF_BHVR_OFFSET		0x4
 #define QUERY_FUNC_CAP_FMR_OFFSET		0x8
-#define QUERY_FUNC_CAP_QP_QUOTA_OFFSET		0x10
-#define QUERY_FUNC_CAP_CQ_QUOTA_OFFSET		0x14
-#define QUERY_FUNC_CAP_SRQ_QUOTA_OFFSET		0x18
-#define QUERY_FUNC_CAP_MPT_QUOTA_OFFSET		0x20
-#define QUERY_FUNC_CAP_MTT_QUOTA_OFFSET		0x24
-#define QUERY_FUNC_CAP_MCG_QUOTA_OFFSET		0x28
+#define QUERY_FUNC_CAP_QP_QUOTA_OFFSET_DEP	0x10
+#define QUERY_FUNC_CAP_CQ_QUOTA_OFFSET_DEP	0x14
+#define QUERY_FUNC_CAP_SRQ_QUOTA_OFFSET_DEP	0x18
+#define QUERY_FUNC_CAP_MPT_QUOTA_OFFSET_DEP	0x20
+#define QUERY_FUNC_CAP_MTT_QUOTA_OFFSET_DEP	0x24
+#define QUERY_FUNC_CAP_MCG_QUOTA_OFFSET_DEP	0x28
 #define QUERY_FUNC_CAP_MAX_EQ_OFFSET		0x2c
 #define QUERY_FUNC_CAP_RESERVED_EQ_OFFSET	0x30
+
+#define QUERY_FUNC_CAP_QP_QUOTA_OFFSET		0x50
+#define QUERY_FUNC_CAP_CQ_QUOTA_OFFSET		0x54
+#define QUERY_FUNC_CAP_SRQ_QUOTA_OFFSET		0x58
+#define QUERY_FUNC_CAP_MPT_QUOTA_OFFSET		0x60
+#define QUERY_FUNC_CAP_MTT_QUOTA_OFFSET		0x64
+#define QUERY_FUNC_CAP_MCG_QUOTA_OFFSET		0x68
 
 #define QUERY_FUNC_CAP_FMR_FLAG			0x80
 #define QUERY_FUNC_CAP_FLAG_RDMA		0x40
 #define QUERY_FUNC_CAP_FLAG_ETH			0x80
+#define QUERY_FUNC_CAP_FLAG_QUOTAS		0x10
 
 /* when opcode modifier = 1 */
 #define QUERY_FUNC_CAP_PHYS_PORT_OFFSET		0x3
-#define QUERY_FUNC_CAP_RDMA_PROPS_OFFSET	0x8
-#define QUERY_FUNC_CAP_ETH_PROPS_OFFSET		0xc
+#define QUERY_FUNC_CAP_FLAGS0_OFFSET		0x8
+#define QUERY_FUNC_CAP_FLAGS1_OFFSET		0xc
+#define QUERY_FUNC_CAP_COUNTER_INDEX_OFFSET	0xd
 
 #define QUERY_FUNC_CAP_QP0_TUNNEL		0x10
 #define QUERY_FUNC_CAP_QP0_PROXY		0x14
@@ -203,35 +226,45 @@ int mlx4_QUERY_FUNC_CAP_wrapper(struct mlx4_dev *dev, int slave,
 
 #define QUERY_FUNC_CAP_ETH_PROPS_FORCE_MAC	0x40
 #define QUERY_FUNC_CAP_ETH_PROPS_FORCE_VLAN	0x80
+#define QUERY_FUNC_CAP_PROPS_DEF_COUNTER	0x20
 
 #define QUERY_FUNC_CAP_RDMA_PROPS_FORCE_PHY_WQE_GID 0x80
 
 	if (vhcr->op_modifier == 1) {
-		field = 0;
-		/* ensure force vlan and force mac bits are not set */
-		MLX4_PUT(outbox->buf, field, QUERY_FUNC_CAP_ETH_PROPS_OFFSET);
-		/* ensure that phy_wqe_gid bit is not set */
-		MLX4_PUT(outbox->buf, field, QUERY_FUNC_CAP_RDMA_PROPS_OFFSET);
+		port = vhcr->in_modifier; /* phys-port = logical-port */
+		MLX4_PUT(outbox->buf, port, QUERY_FUNC_CAP_PHYS_PORT_OFFSET);
 
-		field = vhcr->in_modifier; /* phys-port = logical-port */
-		MLX4_PUT(outbox->buf, field, QUERY_FUNC_CAP_PHYS_PORT_OFFSET);
+		field = 0;
+		/* ensure that phy_wqe_gid bit is not set */
+		MLX4_PUT(outbox->buf, field, QUERY_FUNC_CAP_FLAGS0_OFFSET);
+
+		/* ensure force vlan and force mac bits are not set
+		 * and that default counter bit is set
+		 */
+		field = QUERY_FUNC_CAP_PROPS_DEF_COUNTER; /* def counter */
+		MLX4_PUT(outbox->buf, field, QUERY_FUNC_CAP_FLAGS1_OFFSET);
+
+		/* There is always default counter legal or sink counter */
+		field = mlx4_get_default_counter_index(dev, slave, vhcr->in_modifier);
+		MLX4_PUT(outbox->buf, field, QUERY_FUNC_CAP_COUNTER_INDEX_OFFSET);
 
 		/* size is now the QP number */
-		size = dev->phys_caps.base_tunnel_sqpn + 8 * slave + field - 1;
+		size = dev->phys_caps.base_tunnel_sqpn + 8 * slave + port - 1;
 		MLX4_PUT(outbox->buf, size, QUERY_FUNC_CAP_QP0_TUNNEL);
 
 		size += 2;
 		MLX4_PUT(outbox->buf, size, QUERY_FUNC_CAP_QP1_TUNNEL);
 
-		size = dev->phys_caps.base_proxy_sqpn + 8 * slave + field - 1;
+		size = dev->phys_caps.base_proxy_sqpn + 8 * slave + port - 1;
 		MLX4_PUT(outbox->buf, size, QUERY_FUNC_CAP_QP0_PROXY);
 
 		size += 2;
 		MLX4_PUT(outbox->buf, size, QUERY_FUNC_CAP_QP1_PROXY);
 
 	} else if (vhcr->op_modifier == 0) {
-		/* enable rdma and ethernet interfaces */
-		field = (QUERY_FUNC_CAP_FLAG_ETH | QUERY_FUNC_CAP_FLAG_RDMA);
+		/* enable rdma and ethernet interfaces, and new quota locations */
+		field = (QUERY_FUNC_CAP_FLAG_ETH | QUERY_FUNC_CAP_FLAG_RDMA |
+			 QUERY_FUNC_CAP_FLAG_QUOTAS);
 		MLX4_PUT(outbox->buf, field, QUERY_FUNC_CAP_FLAGS_OFFSET);
 
 		field = dev->caps.num_ports;
@@ -245,12 +278,18 @@ int mlx4_QUERY_FUNC_CAP_wrapper(struct mlx4_dev *dev, int slave,
 
 		size = priv->mfunc.master.res_tracker.res_alloc[RES_QP].quota[slave];
 		MLX4_PUT(outbox->buf, size, QUERY_FUNC_CAP_QP_QUOTA_OFFSET);
+		size = dev->caps.num_qps;
+		MLX4_PUT(outbox->buf, size, QUERY_FUNC_CAP_QP_QUOTA_OFFSET_DEP);
 
 		size = priv->mfunc.master.res_tracker.res_alloc[RES_SRQ].quota[slave];
 		MLX4_PUT(outbox->buf, size, QUERY_FUNC_CAP_SRQ_QUOTA_OFFSET);
+		size = dev->caps.num_srqs;
+		MLX4_PUT(outbox->buf, size, QUERY_FUNC_CAP_SRQ_QUOTA_OFFSET_DEP);
 
 		size = priv->mfunc.master.res_tracker.res_alloc[RES_CQ].quota[slave];
 		MLX4_PUT(outbox->buf, size, QUERY_FUNC_CAP_CQ_QUOTA_OFFSET);
+		size = dev->caps.num_cqs;
+		MLX4_PUT(outbox->buf, size, QUERY_FUNC_CAP_CQ_QUOTA_OFFSET_DEP);
 
 		size = dev->caps.num_eqs;
 		MLX4_PUT(outbox->buf, size, QUERY_FUNC_CAP_MAX_EQ_OFFSET);
@@ -260,12 +299,17 @@ int mlx4_QUERY_FUNC_CAP_wrapper(struct mlx4_dev *dev, int slave,
 
 		size = priv->mfunc.master.res_tracker.res_alloc[RES_MPT].quota[slave];
 		MLX4_PUT(outbox->buf, size, QUERY_FUNC_CAP_MPT_QUOTA_OFFSET);
+		size = dev->caps.num_mpts;
+		MLX4_PUT(outbox->buf, size, QUERY_FUNC_CAP_MPT_QUOTA_OFFSET_DEP);
 
 		size = priv->mfunc.master.res_tracker.res_alloc[RES_MTT].quota[slave];
 		MLX4_PUT(outbox->buf, size, QUERY_FUNC_CAP_MTT_QUOTA_OFFSET);
+		size = dev->caps.num_mtts;
+		MLX4_PUT(outbox->buf, size, QUERY_FUNC_CAP_MTT_QUOTA_OFFSET_DEP);
 
 		size = dev->caps.num_mgms + dev->caps.num_amgms;
 		MLX4_PUT(outbox->buf, size, QUERY_FUNC_CAP_MCG_QUOTA_OFFSET);
+		MLX4_PUT(outbox->buf, size, QUERY_FUNC_CAP_MCG_QUOTA_OFFSET_DEP);
 
 	} else
 		err = -EINVAL;
@@ -280,7 +324,7 @@ int mlx4_QUERY_FUNC_CAP(struct mlx4_dev *dev, u32 gen_or_port,
 	u32			*outbox;
 	u8			field, op_modifier;
 	u32			size;
-	int			err = 0;
+	int			err = 0, quotas = 0;
 
 	op_modifier = !!gen_or_port; /* 0 = general, 1 = logical port */
 
@@ -304,6 +348,7 @@ int mlx4_QUERY_FUNC_CAP(struct mlx4_dev *dev, u32 gen_or_port,
 			goto out;
 		}
 		func_cap->flags = field;
+		quotas = !!(func_cap->flags & QUERY_FUNC_CAP_FLAG_QUOTAS);
 
 		MLX4_GET(field, outbox, QUERY_FUNC_CAP_NUM_PORTS_OFFSET);
 		func_cap->num_ports = field;
@@ -311,29 +356,50 @@ int mlx4_QUERY_FUNC_CAP(struct mlx4_dev *dev, u32 gen_or_port,
 		MLX4_GET(size, outbox, QUERY_FUNC_CAP_PF_BHVR_OFFSET);
 		func_cap->pf_context_behaviour = size;
 
-		MLX4_GET(size, outbox, QUERY_FUNC_CAP_QP_QUOTA_OFFSET);
-		func_cap->qp_quota = size & 0xFFFFFF;
+		if (quotas) {
+			MLX4_GET(size, outbox, QUERY_FUNC_CAP_QP_QUOTA_OFFSET);
+			func_cap->qp_quota = size & 0xFFFFFF;
 
-		MLX4_GET(size, outbox, QUERY_FUNC_CAP_SRQ_QUOTA_OFFSET);
-		func_cap->srq_quota = size & 0xFFFFFF;
+			MLX4_GET(size, outbox, QUERY_FUNC_CAP_SRQ_QUOTA_OFFSET);
+			func_cap->srq_quota = size & 0xFFFFFF;
 
-		MLX4_GET(size, outbox, QUERY_FUNC_CAP_CQ_QUOTA_OFFSET);
-		func_cap->cq_quota = size & 0xFFFFFF;
+			MLX4_GET(size, outbox, QUERY_FUNC_CAP_CQ_QUOTA_OFFSET);
+			func_cap->cq_quota = size & 0xFFFFFF;
 
+			MLX4_GET(size, outbox, QUERY_FUNC_CAP_MPT_QUOTA_OFFSET);
+			func_cap->mpt_quota = size & 0xFFFFFF;
+
+			MLX4_GET(size, outbox, QUERY_FUNC_CAP_MTT_QUOTA_OFFSET);
+			func_cap->mtt_quota = size & 0xFFFFFF;
+
+			MLX4_GET(size, outbox, QUERY_FUNC_CAP_MCG_QUOTA_OFFSET);
+			func_cap->mcg_quota = size & 0xFFFFFF;
+
+		} else {
+			MLX4_GET(size, outbox, QUERY_FUNC_CAP_QP_QUOTA_OFFSET_DEP);
+			func_cap->qp_quota = size & 0xFFFFFF;
+
+			MLX4_GET(size, outbox, QUERY_FUNC_CAP_SRQ_QUOTA_OFFSET_DEP);
+			func_cap->srq_quota = size & 0xFFFFFF;
+
+			MLX4_GET(size, outbox, QUERY_FUNC_CAP_CQ_QUOTA_OFFSET_DEP);
+			func_cap->cq_quota = size & 0xFFFFFF;
+
+			MLX4_GET(size, outbox, QUERY_FUNC_CAP_MPT_QUOTA_OFFSET_DEP);
+			func_cap->mpt_quota = size & 0xFFFFFF;
+
+			MLX4_GET(size, outbox, QUERY_FUNC_CAP_MTT_QUOTA_OFFSET_DEP);
+			func_cap->mtt_quota = size & 0xFFFFFF;
+
+			MLX4_GET(size, outbox, QUERY_FUNC_CAP_MCG_QUOTA_OFFSET_DEP);
+			func_cap->mcg_quota = size & 0xFFFFFF;
+		}
 		MLX4_GET(size, outbox, QUERY_FUNC_CAP_MAX_EQ_OFFSET);
 		func_cap->max_eq = size & 0xFFFFFF;
 
 		MLX4_GET(size, outbox, QUERY_FUNC_CAP_RESERVED_EQ_OFFSET);
 		func_cap->reserved_eq = size & 0xFFFFFF;
 
-		MLX4_GET(size, outbox, QUERY_FUNC_CAP_MPT_QUOTA_OFFSET);
-		func_cap->mpt_quota = size & 0xFFFFFF;
-
-		MLX4_GET(size, outbox, QUERY_FUNC_CAP_MTT_QUOTA_OFFSET);
-		func_cap->mtt_quota = size & 0xFFFFFF;
-
-		MLX4_GET(size, outbox, QUERY_FUNC_CAP_MCG_QUOTA_OFFSET);
-		func_cap->mcg_quota = size & 0xFFFFFF;
 		goto out;
 	}
 
@@ -344,7 +410,7 @@ int mlx4_QUERY_FUNC_CAP(struct mlx4_dev *dev, u32 gen_or_port,
 	}
 
 	if (dev->caps.port_type[gen_or_port] == MLX4_PORT_TYPE_ETH) {
-		MLX4_GET(field, outbox, QUERY_FUNC_CAP_ETH_PROPS_OFFSET);
+		MLX4_GET(field, outbox, QUERY_FUNC_CAP_FLAGS1_OFFSET);
 		if (field & QUERY_FUNC_CAP_ETH_PROPS_FORCE_VLAN) {
 			mlx4_err(dev, "VLAN is enforced on this port\n");
 			err = -EPROTONOSUPPORT;
@@ -357,7 +423,7 @@ int mlx4_QUERY_FUNC_CAP(struct mlx4_dev *dev, u32 gen_or_port,
 			goto out;
 		}
 	} else if (dev->caps.port_type[gen_or_port] == MLX4_PORT_TYPE_IB) {
-		MLX4_GET(field, outbox, QUERY_FUNC_CAP_RDMA_PROPS_OFFSET);
+		MLX4_GET(field, outbox, QUERY_FUNC_CAP_FLAGS0_OFFSET);
 		if (field & QUERY_FUNC_CAP_RDMA_PROPS_FORCE_PHY_WQE_GID) {
 			mlx4_err(dev, "phy_wqe_gid is "
 				 "enforced on this ib port\n");
@@ -371,6 +437,14 @@ int mlx4_QUERY_FUNC_CAP(struct mlx4_dev *dev, u32 gen_or_port,
 	if (func_cap->physical_port != gen_or_port) {
 		err = -ENOSYS;
 		goto out;
+	}
+
+	MLX4_GET(field, outbox, QUERY_FUNC_CAP_FLAGS1_OFFSET);
+	if (field & QUERY_FUNC_CAP_PROPS_DEF_COUNTER) {
+		MLX4_GET(field, outbox, QUERY_FUNC_CAP_COUNTER_INDEX_OFFSET);
+		func_cap->def_counter_index = field;
+	} else {
+		func_cap->def_counter_index = MLX4_SINK_COUNTER_INDEX;
 	}
 
 	MLX4_GET(size, outbox, QUERY_FUNC_CAP_QP0_TUNNEL);
@@ -466,7 +540,10 @@ int mlx4_QUERY_DEV_CAP(struct mlx4_dev *dev, struct mlx4_dev_cap *dev_cap)
 #define QUERY_DEV_CAP_MAX_XRC_OFFSET		0x67
 #define QUERY_DEV_CAP_MAX_BASIC_COUNTERS_OFFSET	0x68
 #define QUERY_DEV_CAP_MAX_EXTENDED_COUNTERS_OFFSET	0x6c
+#define QUERY_DEV_CAP_PORT_FLOWSTATS_COUNTERS_OFFSET	0x70
 #define QUERY_DEV_CAP_FLOW_STEERING_RANGE_EN_OFFSET	0x76
+#define QUERY_DEV_CAP_EXT_2_FLAGS_OFFSET		0x70
+#define QUERY_DEV_CAP_FLOW_STEERING_IPOIB_OFFSET	0x74
 #define QUERY_DEV_CAP_FLOW_STEERING_MAX_QP_OFFSET	0x77
 #define QUERY_DEV_CAP_RDMARC_ENTRY_SZ_OFFSET	0x80
 #define QUERY_DEV_CAP_QPC_ENTRY_SZ_OFFSET	0x82
@@ -480,6 +557,7 @@ int mlx4_QUERY_DEV_CAP(struct mlx4_dev *dev, struct mlx4_dev_cap *dev_cap)
 #define QUERY_DEV_CAP_D_MPT_ENTRY_SZ_OFFSET	0x92
 #define QUERY_DEV_CAP_BMME_FLAGS_OFFSET		0x94
 #define QUERY_DEV_CAP_RSVD_LKEY_OFFSET		0x98
+#define QUERY_DEV_CAP_ETS_CFG_OFFSET		0x9c
 #define QUERY_DEV_CAP_MAX_ICM_SZ_OFFSET		0xa0
 
 	dev_cap->flags2 = 0;
@@ -551,16 +629,23 @@ int mlx4_QUERY_DEV_CAP(struct mlx4_dev *dev, struct mlx4_dev_cap *dev_cap)
 	dev_cap->num_ports = field & 0xf;
 	MLX4_GET(field, outbox, QUERY_DEV_CAP_MAX_MSG_SZ_OFFSET);
 	dev_cap->max_msg_sz = 1 << (field & 0x1f);
+	MLX4_GET(field, outbox, QUERY_DEV_CAP_PORT_FLOWSTATS_COUNTERS_OFFSET);
+	if (field & 0x10)
+		dev_cap->flags2 |= MLX4_DEV_CAP_FLAG2_FLOWSTATS_EN;
 	MLX4_GET(field, outbox, QUERY_DEV_CAP_FLOW_STEERING_RANGE_EN_OFFSET);
 	if (field & 0x80)
 		dev_cap->flags2 |= MLX4_DEV_CAP_FLAG2_FS_EN;
+	MLX4_GET(field, outbox, QUERY_DEV_CAP_FLOW_STEERING_IPOIB_OFFSET);
+	if (field & 0x80)
+		dev_cap->flags2 |= MLX4_DEV_CAP_FLAG2_DMFS_IPOIB;
 	dev_cap->fs_log_max_ucast_qp_range_size = field & 0x1f;
 	MLX4_GET(field, outbox, QUERY_DEV_CAP_FLOW_STEERING_MAX_QP_OFFSET);
 	dev_cap->fs_max_num_qp_per_entry = field;
 	MLX4_GET(stat_rate, outbox, QUERY_DEV_CAP_RATE_SUPPORT_OFFSET);
 	dev_cap->stat_rate_support = stat_rate;
 	MLX4_GET(field, outbox, QUERY_DEV_CAP_CQ_TS_SUPPORT_OFFSET);
-	dev_cap->timestamp_support = field & 0x80;
+	if (field & 0x80)
+		dev_cap->flags2 |= MLX4_DEV_CAP_FLAG2_TS;
 	MLX4_GET(ext_flags, outbox, QUERY_DEV_CAP_EXT_FLAGS_OFFSET);
 	MLX4_GET(flags, outbox, QUERY_DEV_CAP_FLAGS_OFFSET);
 	dev_cap->flags = flags | (u64)ext_flags << 32;
@@ -644,6 +729,16 @@ int mlx4_QUERY_DEV_CAP(struct mlx4_dev *dev, struct mlx4_dev_cap *dev_cap)
 		 QUERY_DEV_CAP_BMME_FLAGS_OFFSET);
 	MLX4_GET(dev_cap->reserved_lkey, outbox,
 		 QUERY_DEV_CAP_RSVD_LKEY_OFFSET);
+	MLX4_GET(field32, outbox, QUERY_DEV_CAP_ETS_CFG_OFFSET);
+	if (field32 & (1 << 0))
+		dev_cap->flags2 |= MLX4_DEV_CAP_FLAG2_ETH_BACKPL_AN_REP;
+	if (field32 & (1 << 7))
+		dev_cap->flags2 |= MLX4_DEV_CAP_FLAG2_RECOVERABLE_ERROR_EVENT;
+	if (field32 & (1 << 8))
+		dev_cap->flags2 |= MLX4_DEV_CAP_FLAG2_DRIVER_VERSION_TO_FW;
+	if (field32 & (1 << 13))
+		dev_cap->flags2 |= MLX4_DEV_CAP_FLAG2_ETS_CFG;
+
 	MLX4_GET(dev_cap->max_icm_sz, outbox,
 		 QUERY_DEV_CAP_MAX_ICM_SZ_OFFSET);
 	if (dev_cap->flags & MLX4_DEV_CAP_FLAG_COUNTERS)
@@ -654,6 +749,16 @@ int mlx4_QUERY_DEV_CAP(struct mlx4_dev *dev, struct mlx4_dev_cap *dev_cap)
 	if (dev_cap->flags & MLX4_DEV_CAP_FLAG_COUNTERS_EXT)
 		MLX4_GET(dev_cap->max_extended_counters, outbox,
 			 QUERY_DEV_CAP_MAX_EXTENDED_COUNTERS_OFFSET);
+
+	MLX4_GET(field32, outbox, QUERY_DEV_CAP_EXT_2_FLAGS_OFFSET);
+	if (field32 & (1 << 16))
+		dev_cap->flags2 |= MLX4_DEV_CAP_FLAG2_UPDATE_QP;
+	if (field32 & (1 << 19))
+		dev_cap->flags2 |= MLX4_DEV_CAP_FLAG2_LB_SRC_CHK;
+	if (field32 & (1 << 20))
+		dev_cap->flags2 |= MLX4_DEV_CAP_FLAG2_FSM;
+	if (field32 & (1 << 26))
+		dev_cap->flags2 |= MLX4_DEV_CAP_FLAG2_VLAN_CONTROL;
 
 	if (dev->flags & MLX4_FLAG_OLD_PORT_CMDS) {
 		for (i = 1; i <= dev_cap->num_ports; ++i) {
@@ -786,6 +891,14 @@ int mlx4_QUERY_DEV_CAP_wrapper(struct mlx4_dev *dev, int slave,
 	field &= 0x7f;
 	MLX4_PUT(outbox->buf, field, QUERY_DEV_CAP_BF_OFFSET);
 
+	/* turn off device-managed steering capability if not enabled */
+	if (dev->caps.steering_mode != MLX4_STEERING_MODE_DEVICE_MANAGED) {
+		MLX4_GET(field, outbox->buf,
+			 QUERY_DEV_CAP_FLOW_STEERING_RANGE_EN_OFFSET);
+		field &= 0x7f;
+		MLX4_PUT(outbox->buf, field,
+			 QUERY_DEV_CAP_FLOW_STEERING_RANGE_EN_OFFSET);
+	}
 	return 0;
 }
 
@@ -800,8 +913,10 @@ int mlx4_QUERY_PORT_wrapper(struct mlx4_dev *dev, int slave,
 	u8 port_type;
 	u16 short_field;
 	int err;
+	int admin_link_state;
 
 #define MLX4_VF_PORT_NO_LINK_SENSE_MASK	0xE0
+#define MLX4_PORT_LINK_UP_MASK		0x80
 #define QUERY_PORT_CUR_MAX_PKEY_OFFSET	0x0c
 #define QUERY_PORT_CUR_MAX_GID_OFFSET	0x0e
 
@@ -810,12 +925,8 @@ int mlx4_QUERY_PORT_wrapper(struct mlx4_dev *dev, int slave,
 			   MLX4_CMD_NATIVE);
 
 	if (!err && dev->caps.function != slave) {
-		/* set slave default_mac address */
-		MLX4_GET(def_mac, outbox->buf, QUERY_PORT_MAC_OFFSET);
-		def_mac += slave << 8;
-		/* if config MAC in DB use it */
-		if (priv->mfunc.master.vf_oper[slave].vport[vhcr->in_modifier].state.mac)
-			def_mac = priv->mfunc.master.vf_oper[slave].vport[vhcr->in_modifier].state.mac;
+		/* set slave default_mac address to be zero MAC */
+		def_mac = priv->mfunc.master.vf_oper[slave].vport[vhcr->in_modifier].state.mac;
 		MLX4_PUT(outbox->buf, def_mac, QUERY_PORT_MAC_OFFSET);
 
 		/* get port type - currently only eth is enabled */
@@ -826,6 +937,12 @@ int mlx4_QUERY_PORT_wrapper(struct mlx4_dev *dev, int slave,
 		port_type &= MLX4_VF_PORT_NO_LINK_SENSE_MASK;
 		/* set port type to currently operating port type */
 		port_type |= (dev->caps.port_type[vhcr->in_modifier] & 0x3);
+
+		admin_link_state = priv->mfunc.master.vf_oper[slave].vport[vhcr->in_modifier].state.link_state;
+		if (IFLA_VF_LINK_STATE_ENABLE == admin_link_state)
+			port_type |= MLX4_PORT_LINK_UP_MASK;
+		else if (IFLA_VF_LINK_STATE_DISABLE == admin_link_state)
+			port_type &= ~MLX4_PORT_LINK_UP_MASK;
 
 		MLX4_PUT(outbox->buf, port_type,
 			 QUERY_PORT_SUPPORTED_TYPE_OFFSET);
@@ -1078,14 +1195,14 @@ int mlx4_QUERY_FW(struct mlx4_dev *dev)
 	MLX4_GET(fw->comm_bar,  outbox, QUERY_FW_COMM_BAR_OFFSET);
 	fw->comm_bar = (fw->comm_bar >> 6) * 2;
 	mlx4_dbg(dev, "Communication vector bar:%d offset:0x%llx\n",
-		 fw->comm_bar, (long long)fw->comm_base);
+		 fw->comm_bar, (unsigned long long)fw->comm_base);
 	mlx4_dbg(dev, "FW size %d KB\n", fw->fw_pages >> 2);
 
 	MLX4_GET(fw->clock_offset, outbox, QUERY_FW_CLOCK_OFFSET);
 	MLX4_GET(fw->clock_bar,    outbox, QUERY_FW_CLOCK_BAR);
 	fw->clock_bar = (fw->clock_bar >> 6) * 2;
 	mlx4_dbg(dev, "Internal clock bar:%d offset:0x%llx\n",
-		 fw->comm_bar, (long long)fw->comm_base);
+		 fw->comm_bar, (unsigned long long)fw->comm_base);
 
 	/*
 	 * Round up number of system pages needed in case
@@ -1127,7 +1244,7 @@ int mlx4_QUERY_FW_wrapper(struct mlx4_dev *dev, int slave,
 	return 0;
 }
 
-static void get_board_id(void *vsd, char *board_id)
+static void get_board_id(void *vsd, char *board_id, char *vsdstr)
 {
 	int i;
 
@@ -1135,8 +1252,15 @@ static void get_board_id(void *vsd, char *board_id)
 #define VSD_OFFSET_SIG2		0xde
 #define VSD_OFFSET_MLX_BOARD_ID	0xd0
 #define VSD_OFFSET_TS_BOARD_ID	0x20
+#define VSD_LEN			0xd0
 
 #define VSD_SIGNATURE_TOPSPIN	0x5ad
+
+	memset(vsdstr, 0, MLX4_VSD_LEN);
+
+	for (i = 0; i < VSD_LEN / 4; i++)
+		((u32 *)vsdstr)[i] =
+			swab32(*(u32 *)(vsd + i * 4));
 
 	memset(board_id, 0, MLX4_BOARD_ID_LEN);
 
@@ -1164,6 +1288,7 @@ int mlx4_QUERY_ADAPTER(struct mlx4_dev *dev, struct mlx4_adapter *adapter)
 #define QUERY_ADAPTER_OUT_SIZE             0x100
 #define QUERY_ADAPTER_INTA_PIN_OFFSET      0x10
 #define QUERY_ADAPTER_VSD_OFFSET           0x20
+#define QUERY_ADAPTER_VSD_VENDOR_ID_OFFSET 0x1e
 
 	mailbox = mlx4_alloc_cmd_mailbox(dev);
 	if (IS_ERR(mailbox))
@@ -1177,8 +1302,11 @@ int mlx4_QUERY_ADAPTER(struct mlx4_dev *dev, struct mlx4_adapter *adapter)
 
 	MLX4_GET(adapter->inta_pin, outbox,    QUERY_ADAPTER_INTA_PIN_OFFSET);
 
+	adapter->vsd_vendor_id = be16_to_cpup((u16 *)outbox +
+				QUERY_ADAPTER_VSD_VENDOR_ID_OFFSET / 2);
+
 	get_board_id(outbox + QUERY_ADAPTER_VSD_OFFSET / 4,
-		     adapter->board_id);
+		     adapter->board_id, adapter->vsd);
 
 out:
 	mlx4_free_cmd_mailbox(dev, mailbox);
@@ -1189,13 +1317,16 @@ int mlx4_INIT_HCA(struct mlx4_dev *dev, struct mlx4_init_hca_param *param)
 {
 	struct mlx4_cmd_mailbox *mailbox;
 	__be32 *inbox;
+	u32 mw_enable;
 	int err;
 
 #define INIT_HCA_IN_SIZE		 0x200
+#define INIT_HCA_DRV_NAME_FOR_FW_MAX_SIZE 64
 #define INIT_HCA_VERSION_OFFSET		 0x000
 #define	 INIT_HCA_VERSION		 2
 #define INIT_HCA_CACHELINE_SZ_OFFSET	 0x0e
 #define INIT_HCA_FLAGS_OFFSET		 0x014
+#define INIT_HCA_RECOVERABLE_ERROR_EVENT_OFFSET 0x018
 #define INIT_HCA_QPC_OFFSET		 0x020
 #define	 INIT_HCA_QPC_BASE_OFFSET	 (INIT_HCA_QPC_OFFSET + 0x10)
 #define	 INIT_HCA_LOG_QP_OFFSET		 (INIT_HCA_QPC_OFFSET + 0x17)
@@ -1217,6 +1348,7 @@ int mlx4_INIT_HCA(struct mlx4_dev *dev, struct mlx4_init_hca_param *param)
 #define  INIT_HCA_UC_STEERING_OFFSET	 (INIT_HCA_MCAST_OFFSET + 0x18)
 #define	 INIT_HCA_LOG_MC_TABLE_SZ_OFFSET (INIT_HCA_MCAST_OFFSET + 0x1b)
 #define  INIT_HCA_DEVICE_MANAGED_FLOW_STEERING_EN	0x6
+#define  INIT_HCA_DRIVER_VERSION_OFFSET   0x140
 #define  INIT_HCA_FS_PARAM_OFFSET         0x1d0
 #define  INIT_HCA_FS_BASE_OFFSET          (INIT_HCA_FS_PARAM_OFFSET + 0x00)
 #define  INIT_HCA_FS_LOG_ENTRY_SZ_OFFSET  (INIT_HCA_FS_PARAM_OFFSET + 0x12)
@@ -1227,6 +1359,8 @@ int mlx4_INIT_HCA(struct mlx4_dev *dev, struct mlx4_init_hca_param *param)
 #define  INIT_HCA_FS_IB_NUM_ADDRS_OFFSET  (INIT_HCA_FS_PARAM_OFFSET + 0x26)
 #define INIT_HCA_TPT_OFFSET		 0x0f0
 #define	 INIT_HCA_DMPT_BASE_OFFSET	 (INIT_HCA_TPT_OFFSET + 0x00)
+#define  INIT_HCA_TPT_MW_OFFSET		 (INIT_HCA_TPT_OFFSET + 0x08)
+#define  INIT_HCA_TPT_MW_ENABLE		 (1 << 31)
 #define	 INIT_HCA_LOG_MPT_SZ_OFFSET	 (INIT_HCA_TPT_OFFSET + 0x0b)
 #define	 INIT_HCA_MTT_BASE_OFFSET	 (INIT_HCA_TPT_OFFSET + 0x10)
 #define	 INIT_HCA_CMPT_BASE_OFFSET	 (INIT_HCA_TPT_OFFSET + 0x18)
@@ -1244,7 +1378,7 @@ int mlx4_INIT_HCA(struct mlx4_dev *dev, struct mlx4_init_hca_param *param)
 	*((u8 *) mailbox->buf + INIT_HCA_VERSION_OFFSET) = INIT_HCA_VERSION;
 
 	*((u8 *) mailbox->buf + INIT_HCA_CACHELINE_SZ_OFFSET) =
-		((ilog2(CACHE_LINE_SIZE) - 4) << 5) | (1 << 4);
+		((ilog2(cache_line_size()) - 4) << 5) | (1 << 4);
 
 #if defined(__LITTLE_ENDIAN)
 	*(inbox + INIT_HCA_FLAGS_OFFSET / 4) &= ~cpu_to_be32(1 << 1);
@@ -1288,6 +1422,17 @@ int mlx4_INIT_HCA(struct mlx4_dev *dev, struct mlx4_init_hca_param *param)
 		dev->caps.userspace_caps |= MLX4_USER_DEV_CAP_64B_CQE;
 	} else {
 		dev->caps.cqe_size   = 32;
+	}
+
+	if (dev->caps.flags2 & MLX4_DEV_CAP_FLAG2_RECOVERABLE_ERROR_EVENT)
+		*(inbox + INIT_HCA_RECOVERABLE_ERROR_EVENT_OFFSET / 4) |= cpu_to_be32(1 << 31);
+
+	if (dev->caps.flags2 & MLX4_DEV_CAP_FLAG2_DRIVER_VERSION_TO_FW) {
+		strncpy((u8 *)mailbox->buf + INIT_HCA_DRIVER_VERSION_OFFSET,
+			DRV_NAME_FOR_FW,
+			INIT_HCA_DRV_NAME_FOR_FW_MAX_SIZE - 1);
+		mlx4_dbg(dev, "Reporting Driver Version to FW: %s\n",
+			 (u8 *)mailbox->buf + INIT_HCA_DRIVER_VERSION_OFFSET);
 	}
 
 	/* QPC/EEC/CQC/EQC/RDMARC attributes */
@@ -1339,15 +1484,16 @@ int mlx4_INIT_HCA(struct mlx4_dev *dev, struct mlx4_init_hca_param *param)
 			 INIT_HCA_LOG_MC_HASH_SZ_OFFSET);
 		MLX4_PUT(inbox, param->log_mc_table_sz,
 			 INIT_HCA_LOG_MC_TABLE_SZ_OFFSET);
-		if (dev->caps.steering_mode == MLX4_STEERING_MODE_B0) {
+		if (dev->caps.steering_mode == MLX4_STEERING_MODE_B0)
 			MLX4_PUT(inbox, (u8) (1 << 3),
 				 INIT_HCA_UC_STEERING_OFFSET);
-                }
 	}
 
 	/* TPT attributes */
 
 	MLX4_PUT(inbox, param->dmpt_base,  INIT_HCA_DMPT_BASE_OFFSET);
+	mw_enable = param->mw_enable ? INIT_HCA_TPT_MW_ENABLE : 0;
+	MLX4_PUT(inbox, mw_enable,	   INIT_HCA_TPT_MW_OFFSET);
 	MLX4_PUT(inbox, param->log_mpt_sz, INIT_HCA_LOG_MPT_SZ_OFFSET);
 	MLX4_PUT(inbox, param->mtt_base,   INIT_HCA_MTT_BASE_OFFSET);
 	MLX4_PUT(inbox, param->cmpt_base,  INIT_HCA_CMPT_BASE_OFFSET);
@@ -1373,6 +1519,7 @@ int mlx4_QUERY_HCA(struct mlx4_dev *dev,
 	struct mlx4_cmd_mailbox *mailbox;
 	__be32 *outbox;
 	u32 dword_field;
+	u32 mw_enable;
 	int err;
 	u8 byte_field;
 
@@ -1414,13 +1561,12 @@ int mlx4_QUERY_HCA(struct mlx4_dev *dev,
 		param->steering_mode = MLX4_STEERING_MODE_DEVICE_MANAGED;
 	} else {
 		MLX4_GET(byte_field, outbox, INIT_HCA_UC_STEERING_OFFSET);
-		if (byte_field & 0x8) {
+		if (byte_field & 0x8)
 			param->steering_mode = MLX4_STEERING_MODE_B0;
-                }
-		else {
+		else
 			param->steering_mode = MLX4_STEERING_MODE_A0;
-                }
 	}
+	/* steering attributes */
 	if (param->steering_mode == MLX4_STEERING_MODE_DEVICE_MANAGED) {
 		MLX4_GET(param->mc_base, outbox, INIT_HCA_FS_BASE_OFFSET);
 		MLX4_GET(param->log_mc_entry_sz, outbox,
@@ -1447,6 +1593,9 @@ int mlx4_QUERY_HCA(struct mlx4_dev *dev,
 	/* TPT attributes */
 
 	MLX4_GET(param->dmpt_base,  outbox, INIT_HCA_DMPT_BASE_OFFSET);
+	MLX4_GET(mw_enable,	    outbox, INIT_HCA_TPT_MW_OFFSET);
+	param->mw_enable = (mw_enable & INIT_HCA_TPT_MW_ENABLE) ==
+			   INIT_HCA_TPT_MW_ENABLE;
 	MLX4_GET(param->log_mpt_sz, outbox, INIT_HCA_LOG_MPT_SZ_OFFSET);
 	MLX4_GET(param->mtt_base,   outbox, INIT_HCA_MTT_BASE_OFFSET);
 	MLX4_GET(param->cmpt_base,  outbox, INIT_HCA_CMPT_BASE_OFFSET);
@@ -1681,6 +1830,15 @@ out:
 	return ret;
 }
 EXPORT_SYMBOL_GPL(mlx4_query_diag_counters);
+
+int mlx4_MOD_STAT_CFG_wrapper(struct mlx4_dev *dev, int slave,
+			  struct mlx4_vhcr *vhcr,
+			  struct mlx4_cmd_mailbox *inbox,
+			  struct mlx4_cmd_mailbox *outbox,
+			  struct mlx4_cmd_info *cmd)
+{
+	return -EPERM;
+}
 
 #define MLX4_WOL_SETUP_MODE (5 << 28)
 int mlx4_wol_read(struct mlx4_dev *dev, u64 *config, int port)

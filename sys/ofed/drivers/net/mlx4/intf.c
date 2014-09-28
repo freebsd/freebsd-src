@@ -1,6 +1,6 @@
 /*
  * Copyright (c) 2006, 2007 Cisco Systems, Inc. All rights reserved.
- * Copyright (c) 2007, 2008 Mellanox Technologies. All rights reserved.
+ * Copyright (c) 2007, 2008, 2014 Mellanox Technologies. All rights reserved.
  *
  * This software is available to you under a choice of one of two
  * licenses.  You may choose to be licensed under the terms of the GNU
@@ -32,6 +32,7 @@
  */
 
 #include <linux/slab.h>
+#include <linux/module.h>
 
 #include "mlx4.h"
 
@@ -160,7 +161,7 @@ void mlx4_unregister_device(struct mlx4_dev *dev)
 	list_for_each_entry(intf, &intf_list, list)
 		mlx4_remove_device(intf, priv);
 
-	list_del(&priv->dev_list);
+	list_del_init(&priv->dev_list);
 
 	mutex_unlock(&intf_mutex);
 }

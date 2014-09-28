@@ -362,7 +362,7 @@ fpuexit(struct thread *td)
 		stop_emulating();
 		fpusave(curpcb->pcb_save);
 		start_emulating();
-		PCPU_SET(fpcurthread, 0);
+		PCPU_SET(fpcurthread, NULL);
 	}
 	critical_exit();
 }
@@ -603,33 +603,37 @@ fputrap_sse(void)
 }
 
 /*
- * Implement device not available (DNA) exception
+ * Device Not Available (DNA, #NM) exception handler.
  *
- * It would be better to switch FP context here (if curthread != fpcurthread)
- * and not necessarily for every context switch, but it is too hard to
- * access foreign pcb's.
+ * It would be better to switch FP context here (if curthread !=
+ * fpcurthread) and not necessarily for every context switch, but it
+ * is too hard to access foreign pcb's.
  */
-
-static int err_count = 0;
-
 void
 fpudna(void)
 {
 
+	/*
+	 * This handler is entered with interrupts enabled, so context
+	 * switches may occur before critical_enter() is executed.  If
+	 * a context switch occurs, then when we regain control, our
+	 * state will have been completely restored.  The CPU may
+	 * change underneath us, but the only part of our context that
+	 * lives in the CPU is CR0.TS and that will be "restored" by
+	 * setting it on the new CPU.
+	 */
 	critical_enter();
+
 	if (PCPU_GET(fpcurthread) == curthread) {
-		printf("fpudna: fpcurthread == curthread %d times\n",
-		    ++err_count);
+		printf("fpudna: fpcurthread == curthread\n");
 		stop_emulating();
 		critical_exit();
 		return;
 	}
 	if (PCPU_GET(fpcurthread) != NULL) {
-		printf("fpudna: fpcurthread = %p (%d), curthread = %p (%d)\n",
-		       PCPU_GET(fpcurthread),
-		       PCPU_GET(fpcurthread)->td_proc->p_pid,
-		       curthread, curthread->td_proc->p_pid);
-		panic("fpudna");
+		panic("fpudna: fpcurthread = %p (%d), curthread = %p (%d)\n",
+		    PCPU_GET(fpcurthread), PCPU_GET(fpcurthread)->td_tid,
+		    curthread, curthread->td_tid);
 	}
 	stop_emulating();
 	/*

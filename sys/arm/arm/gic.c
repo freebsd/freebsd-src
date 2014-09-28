@@ -83,7 +83,11 @@ __FBSDID("$FreeBSD$");
 #define GICC_ABPR		0x001C			/* v1 ICCABPR */
 #define GICC_IIDR		0x00FC			/* v1 ICCIIDR*/
 
-#define	GIC_LAST_IPI		15	/* Irqs 0-15 are IPIs. */
+#define	GIC_FIRST_IPI		 0	/* Irqs 0-15 are SGIs/IPIs. */
+#define	GIC_LAST_IPI		15
+#define	GIC_FIRST_PPI		16	/* Irqs 16-31 are private (per */
+#define	GIC_LAST_PPI		31	/* core) peripheral interrupts. */
+#define	GIC_FIRST_SPI		32	/* Irqs 32+ are shared peripherals. */
 
 /* First bit is a polarity bit (0 - low, 1 - high) */
 #define GICD_ICFGR_POL_LOW	(0 << 0)
@@ -183,6 +187,51 @@ gic_init_secondary(void)
 	gic_d_write_4(GICD_ISENABLER(27 >> 5), (1UL << (27 & 0x1F)));
 	gic_d_write_4(GICD_ISENABLER(29 >> 5), (1UL << (29 & 0x1F)));
 	gic_d_write_4(GICD_ISENABLER(30 >> 5), (1UL << (30 & 0x1F)));
+}
+
+int
+gic_decode_fdt(uint32_t iparent, uint32_t *intr, int *interrupt,
+    int *trig, int *pol)
+{
+	static u_int num_intr_cells;
+
+	if (num_intr_cells == 0) {
+		if (OF_searchencprop(OF_node_from_xref(iparent), 
+		    "#interrupt-cells", &num_intr_cells, 
+		    sizeof(num_intr_cells)) == -1) {
+			num_intr_cells = 1;
+		}
+	}
+
+	if (num_intr_cells == 1) {
+		*interrupt = fdt32_to_cpu(intr[0]);
+		*trig = INTR_TRIGGER_CONFORM;
+		*pol = INTR_POLARITY_CONFORM;
+	} else {
+		if (intr[0] == 0)
+			*interrupt = fdt32_to_cpu(intr[1]) + GIC_FIRST_SPI;
+		else
+			*interrupt = fdt32_to_cpu(intr[1]) + GIC_FIRST_PPI;
+		/*
+		 * In intr[2], bits[3:0] are trigger type and level flags.
+		 *   1 = low-to-high edge triggered
+		 *   2 = high-to-low edge triggered
+		 *   4 = active high level-sensitive
+		 *   8 = active low level-sensitive
+		 * The hardware only supports active-high-level or rising-edge.
+		 */
+		if (intr[2] & 0x0a) {
+			printf("unsupported trigger/polarity configuration "
+			    "0x%2x\n", intr[2] & 0x0f);
+			return (ENOTSUP);
+		}
+		*pol  = INTR_POLARITY_CONFORM;
+		if (intr[2] & 0x01)
+			*trig = INTR_TRIGGER_EDGE;
+		else
+			*trig = INTR_TRIGGER_LEVEL;
+	}
+	return (0);
 }
 
 static int

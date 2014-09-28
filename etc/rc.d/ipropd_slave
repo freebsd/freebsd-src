@@ -17,15 +17,15 @@ start_precmd=${name}_start_precmd
 ipropd_slave_start_precmd()
 {
 
-	if [ -z "$ipropd_slave_masters" ]; then
-		warn "\$ipropd_slave_masters is empty."
+	if [ -z "$ipropd_slave_master" ]; then
+		warn "\$ipropd_slave_master is empty."
 		return 1
 	fi
 	command_args=" \
 	    $command_args \
 	    --keytab=\"$ipropd_slave_keytab\" \
 	    --detach \
-	    $ipropd_slave_masters"
+	    $ipropd_slave_master"
 }
 
 load_rc_config $name

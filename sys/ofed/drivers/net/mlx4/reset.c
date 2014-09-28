@@ -1,6 +1,6 @@
 /*
  * Copyright (c) 2006, 2007 Cisco Systems, Inc.  All rights reserved.
- * Copyright (c) 2007, 2008 Mellanox Technologies. All rights reserved.
+ * Copyright (c) 2007, 2008, 2014 Mellanox Technologies. All rights reserved.
  *
  * This software is available to you under a choice of one of two
  * licenses.  You may choose to be licensed under the terms of the GNU
@@ -77,7 +77,7 @@ int mlx4_reset(struct mlx4_dev *dev)
 		goto out;
 	}
 
-	pcie_cap = pci_find_capability(dev->pdev, PCI_CAP_ID_EXP);
+	pcie_cap = pci_pcie_cap(dev->pdev);
 
 	for (i = 0; i < 64; ++i) {
 		if (i == 22 || i == 23)
@@ -119,8 +119,8 @@ int mlx4_reset(struct mlx4_dev *dev)
 	writel(MLX4_RESET_VALUE, reset + MLX4_RESET_OFFSET);
 	iounmap(reset);
 
-	/* Docs say to wait one second before accessing device */
-	msleep(2000);
+	/* wait half a second before accessing device */
+	msleep(500);
 
 	end = jiffies + MLX4_RESET_TIMEOUT_JIFFIES;
 	do {
@@ -138,11 +138,10 @@ int mlx4_reset(struct mlx4_dev *dev)
 		goto out;
 	}
 
-
 	/* Now restore the PCI headers */
 	if (pcie_cap) {
 		devctl = hca_header[(pcie_cap + PCI_EXP_DEVCTL) / 4];
-		if (pci_write_config_word(dev->pdev, pcie_cap + PCI_EXP_DEVCTL,
+		if (pcie_capability_write_word(dev->pdev, PCI_EXP_DEVCTL,
 					       devctl)) {
 			err = -ENODEV;
 			mlx4_err(dev, "Couldn't restore HCA PCI Express "
@@ -150,7 +149,7 @@ int mlx4_reset(struct mlx4_dev *dev)
 			goto out;
 		}
 		linkctl = hca_header[(pcie_cap + PCI_EXP_LNKCTL) / 4];
-		if (pci_write_config_word(dev->pdev, pcie_cap + PCI_EXP_LNKCTL,
+		if (pcie_capability_write_word(dev->pdev, PCI_EXP_LNKCTL,
 					       linkctl)) {
 			err = -ENODEV;
 			mlx4_err(dev, "Couldn't restore HCA PCI Express "

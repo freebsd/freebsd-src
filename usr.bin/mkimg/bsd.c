@@ -52,13 +52,17 @@ static struct mkimg_alias bsd_aliases[] = {
     {	ALIAS_NONE, 0 }
 };
 
-static u_int
-bsd_metadata(u_int where)
+static lba_t
+bsd_metadata(u_int where, lba_t blk)
 {
-	u_int secs;
 
-	secs = BBSIZE / secsz;
-	return ((where == SCHEME_META_IMG_START) ? secs : 0);
+	if (where == SCHEME_META_IMG_START)
+		blk += BBSIZE / secsz;
+	else if (where == SCHEME_META_IMG_END)
+		blk = round_cylinder(blk);
+	else
+		blk = round_block(blk);
+	return (blk);
 }
 
 static int
@@ -83,12 +87,6 @@ bsd_write(lba_t imgsz, void *bootcode)
 	bsdparts = nparts + 1;	/* Account for c partition */
 	if (bsdparts < MAXPARTITIONS)
 		bsdparts = MAXPARTITIONS;
-	imgsz = (lba_t)ncyls * nheads * nsecs;
-	error = image_set_size(imgsz);
-	if (error) {
-		free(buf);
-		return (error);
-	}
 
 	d = (void *)(buf + secsz);
 	le32enc(&d->d_magic, DISKMAGIC);

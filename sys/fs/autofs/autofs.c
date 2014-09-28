@@ -429,11 +429,6 @@ autofs_trigger_one(struct autofs_node *anp,
 			    &autofs_softc->sc_lock);
 			autofs_restore_sigmask(&oldset);
 			if (error != 0) {
-				/*
-				 * XXX: For some reson this returns -1
-				 *	instead of EINTR, wtf?!
-				 */
-				error = EINTR;
 				AUTOFS_WARN("cv_wait_sig for %s failed "
 				    "with error %d", ar->ar_path, error);
 				break;
@@ -495,7 +490,7 @@ autofs_trigger(struct autofs_node *anp,
 			anp->an_retries = 0;
 			return (0);
 		}
-		if (error == EINTR) {
+		if (error == EINTR || error == ERESTART) {
 			AUTOFS_DEBUG("trigger interrupted by signal, "
 			    "not retrying");
 			anp->an_retries = 0;
@@ -541,11 +536,6 @@ autofs_ioctl_request(struct autofs_daemon_request *adr)
 		error = cv_wait_sig(&autofs_softc->sc_cv,
 		    &autofs_softc->sc_lock);
 		if (error != 0) {
-			/*
-			 * XXX: For some reson this returns -1 instead
-			 * 	of EINTR, wtf?!
-			 */
-			error = EINTR;
 			sx_xunlock(&autofs_softc->sc_lock);
 			AUTOFS_DEBUG("failed with error %d", error);
 			return (error);

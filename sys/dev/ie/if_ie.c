@@ -427,13 +427,13 @@ ierint(struct ie_softc *sc)
 		status = sc->rframes[i]->ie_fd_status;
 
 		if ((status & IE_FD_COMPLETE) && (status & IE_FD_OK)) {
-			sc->ifp->if_ipackets++;
+			if_inc_counter(sc->ifp, IFCOUNTER_IPACKETS, 1);
 			if (!--timesthru) {
-				sc->ifp->if_ierrors +=
+				if_inc_counter(sc->ifp, IFCOUNTER_IERRORS,
 				    sc->scb->ie_err_crc +
 				    sc->scb->ie_err_align +
 				    sc->scb->ie_err_resource +
-				    sc->scb->ie_err_overrun;
+				    sc->scb->ie_err_overrun);
 				sc->scb->ie_err_crc = 0;
 				sc->scb->ie_err_align = 0;
 				sc->scb->ie_err_resource = 0;
@@ -477,24 +477,24 @@ ietint(struct ie_softc *sc)
 
 		if (status & IE_XS_LATECOLL) {
 			if_printf(ifp, "late collision\n");
-			ifp->if_collisions++;
-			ifp->if_oerrors++;
+			if_inc_counter(ifp, IFCOUNTER_COLLISIONS, 1);
+			if_inc_counter(ifp, IFCOUNTER_OERRORS, 1);
 		} else if (status & IE_XS_NOCARRIER) {
 			if_printf(ifp, "no carrier\n");
-			ifp->if_oerrors++;
+			if_inc_counter(ifp, IFCOUNTER_OERRORS, 1);
 		} else if (status & IE_XS_LOSTCTS) {
 			if_printf(ifp, "lost CTS\n");
-			ifp->if_oerrors++;
+			if_inc_counter(ifp, IFCOUNTER_OERRORS, 1);
 		} else if (status & IE_XS_UNDERRUN) {
 			if_printf(ifp, "DMA underrun\n");
-			ifp->if_oerrors++;
+			if_inc_counter(ifp, IFCOUNTER_OERRORS, 1);
 		} else if (status & IE_XS_EXCMAX) {
 			if_printf(ifp, "too many collisions\n");
-			ifp->if_collisions += 16;
-			ifp->if_oerrors++;
+			if_inc_counter(ifp, IFCOUNTER_COLLISIONS, 16);
+			if_inc_counter(ifp, IFCOUNTER_OERRORS, 1);
 		} else {
-			ifp->if_opackets++;
-			ifp->if_collisions += status & IE_XS_MAXCOLL;
+			if_inc_counter(ifp, IFCOUNTER_OPACKETS, 1);
+			if_inc_counter(ifp, IFCOUNTER_COLLISIONS, status & IE_XS_MAXCOLL);
 		}
 	}
 	sc->xmit_count = 0;
@@ -539,7 +539,7 @@ iernr(struct ie_softc *sc)
 #endif
 	ie_ack(sc, IE_ST_WHENCE);
 
-	sc->ifp->if_ierrors++;
+	if_inc_counter(sc->ifp, IFCOUNTER_IERRORS, 1);
 	return (0);
 }
 
@@ -688,16 +688,12 @@ ieget(struct ie_softc *sc, struct mbuf **mp)
 	 */
 	if (!check_eh(sc, &eh)) {
 		ie_drop_packet_buffer(sc);
-		sc->ifp->if_ierrors--;	/* just this case, it's not an
-						 * error
-						 */
 		return (-1);
 	}
 
 	MGETHDR(m, M_NOWAIT, MT_DATA);
 	if (!m) {
 		ie_drop_packet_buffer(sc);
-		/* XXXX if_ierrors++; */
 		return (-1);
 	}
 
@@ -859,7 +855,7 @@ ie_readframe(struct ie_softc *sc, int	num/* frame number to read */)
 
 	if (rfd.ie_fd_status & IE_FD_OK) {
 		if (ieget(sc, &m)) {
-			sc->ifp->if_ierrors++;	/* this counts as an
+			if_inc_counter(sc->ifp, IFCOUNTER_IERRORS, 1);	/* this counts as an
 							 * error */
 			return;
 		}

@@ -132,6 +132,7 @@ static int  wi_reset(struct wi_softc *);
 static void wi_watchdog(void *);
 static int  wi_ioctl(struct ifnet *, u_long, caddr_t);
 static void wi_media_status(struct ifnet *, struct ifmediareq *);
+static uint64_t wi_get_counter(struct ifnet *, ift_counter);
 
 static void wi_rx_intr(struct wi_softc *);
 static void wi_tx_intr(struct wi_softc *);
@@ -337,6 +338,7 @@ wi_attach(device_t dev)
 	ifp->if_ioctl = wi_ioctl;
 	ifp->if_start = wi_start;
 	ifp->if_init = wi_init;
+	ifp->if_get_counter = wi_get_counter;
 	IFQ_SET_MAXLEN(&ifp->if_snd, ifqmaxlen);
 	ifp->if_snd.ifq_drv_maxlen = ifqmaxlen;
 	IFQ_SET_READY(&ifp->if_snd);
@@ -1028,7 +1030,7 @@ wi_start_locked(struct ifnet *ifp)
 			continue;
 
 		sc->sc_txnext = cur = (cur + 1) % sc->sc_ntxbuf;
-		ifp->if_opackets++;
+		if_inc_counter(ifp, IFCOUNTER_OPACKETS, 1);
 	}
 }
 
@@ -1055,7 +1057,7 @@ wi_start_tx(struct ifnet *ifp, struct wi_frame *frmhdr, struct mbuf *m0)
 	     || wi_mwrite_bap(sc, fid, off, m0, m0->m_pkthdr.len) != 0;
 	m_freem(m0);
 	if (error) {
-		ifp->if_oerrors++;
+		if_inc_counter(ifp, IFCOUNTER_OERRORS, 1);
 		return -1;
 	}
 	sc->sc_txd[cur].d_len = off;
@@ -1182,7 +1184,7 @@ wi_watchdog(void *arg)
 
 	if (sc->sc_tx_timer && --sc->sc_tx_timer == 0) {
 		if_printf(ifp, "device timeout\n");
-		ifp->if_oerrors++;
+		if_inc_counter(ifp, IFCOUNTER_OERRORS, 1);
 		wi_init_locked(ifp->if_softc);
 		return;
 	}
@@ -1327,7 +1329,7 @@ wi_rx_intr(struct wi_softc *sc)
 	/* First read in the frame header */
 	if (wi_read_bap(sc, fid, 0, &frmhdr, sizeof(frmhdr))) {
 		CSR_WRITE_2(sc, WI_EVENT_ACK, WI_EV_RX);
-		ifp->if_ierrors++;
+		if_inc_counter(ifp, IFCOUNTER_IERRORS, 1);
 		DPRINTF(("wi_rx_intr: read fid %x failed\n", fid));
 		return;
 	}
@@ -1338,7 +1340,7 @@ wi_rx_intr(struct wi_softc *sc)
 	status = le16toh(frmhdr.wi_status);
 	if (status & WI_STAT_ERRSTAT) {
 		CSR_WRITE_2(sc, WI_EVENT_ACK, WI_EV_RX);
-		ifp->if_ierrors++;
+		if_inc_counter(ifp, IFCOUNTER_IERRORS, 1);
 		DPRINTF(("wi_rx_intr: fid %x error status %x\n", fid, status));
 		return;
 	}
@@ -1353,7 +1355,7 @@ wi_rx_intr(struct wi_softc *sc)
 	if (off + len > MCLBYTES) {
 		if (ic->ic_opmode != IEEE80211_M_MONITOR) {
 			CSR_WRITE_2(sc, WI_EVENT_ACK, WI_EV_RX);
-			ifp->if_ierrors++;
+			if_inc_counter(ifp, IFCOUNTER_IERRORS, 1);
 			DPRINTF(("wi_rx_intr: oversized packet\n"));
 			return;
 		} else
@@ -1366,7 +1368,7 @@ wi_rx_intr(struct wi_softc *sc)
 		m = m_gethdr(M_NOWAIT, MT_DATA);
 	if (m == NULL) {
 		CSR_WRITE_2(sc, WI_EVENT_ACK, WI_EV_RX);
-		ifp->if_ierrors++;
+		if_inc_counter(ifp, IFCOUNTER_IERRORS, 1);
 		DPRINTF(("wi_rx_intr: MGET failed\n"));
 		return;
 	}
@@ -1450,11 +1452,9 @@ wi_tx_ex_intr(struct wi_softc *sc)
 					printf(", status=0x%x", status);
 				printf("\n");
 			}
-			ifp->if_oerrors++;
-		} else {
+			if_inc_counter(ifp, IFCOUNTER_OERRORS, 1);
+		} else
 			DPRINTF(("port disconnected\n"));
-			ifp->if_collisions++;	/* XXX */
-		}
 	} else
 		DPRINTF(("wi_tx_ex_intr: read fid %x failed\n", fid));
 	CSR_WRITE_2(sc, WI_EVENT_ACK, WI_EV_TX_EXC);
@@ -1497,8 +1497,7 @@ wi_tx_intr(struct wi_softc *sc)
 static __noinline void
 wi_info_intr(struct wi_softc *sc)
 {
-	struct ifnet *ifp = sc->sc_ifp;
-	struct ieee80211com *ic = ifp->if_l2com;
+	struct ieee80211com *ic = sc->sc_ifp->if_l2com;
 	struct ieee80211vap *vap = TAILQ_FIRST(&ic->ic_vaps);
 	int i, fid, len, off;
 	u_int16_t ltbuf[2];
@@ -1562,9 +1561,6 @@ wi_info_intr(struct wi_softc *sc)
 #endif
 			*ptr += stat;
 		}
-		ifp->if_collisions = sc->sc_stats.wi_tx_single_retries +
-		    sc->sc_stats.wi_tx_multi_retries +
-		    sc->sc_stats.wi_tx_retry_limit;
 		break;
 	default:
 		DPRINTF(("wi_info_intr: got fid %x type %x len %d\n", fid,
@@ -1573,6 +1569,23 @@ wi_info_intr(struct wi_softc *sc)
 	}
 finish:
 	CSR_WRITE_2(sc, WI_EVENT_ACK, WI_EV_INFO);
+}
+
+static uint64_t
+wi_get_counter(struct ifnet *ifp, ift_counter cnt)
+{
+	struct wi_softc *sc;
+
+	sc = if_getsoftc(ifp);
+
+	switch (cnt) {
+	case IFCOUNTER_COLLISIONS:
+		return (sc->sc_stats.wi_tx_single_retries +
+		    sc->sc_stats.wi_tx_multi_retries +
+		    sc->sc_stats.wi_tx_retry_limit);
+	default:
+		return (if_get_counter_default(ifp, cnt));
+	}
 }
 
 static int

@@ -25,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd July 31, 2014
+.Dd September 15, 2014
 .Dt SYSCTL 9
 .Os
 .Sh NAME
@@ -504,6 +504,8 @@ The initial sysctl value is tried fetched once from the system
 enviroment early during module load or system boot.
 .It Dv CTLFLAG_DYN
 Dynamically created OIDs automatically get this flag set.
+.It Dv CTLFLAG_VNET
+OID references a VIMAGE-enabled variable.
 .El
 .Sh EXAMPLES
 Sample use of

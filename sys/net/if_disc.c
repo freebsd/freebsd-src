@@ -174,8 +174,8 @@ discoutput(struct ifnet *ifp, struct mbuf *m, const struct sockaddr *dst,
 
 	m->m_pkthdr.rcvif = ifp;
 
-	ifp->if_opackets++;
-	ifp->if_obytes += m->m_pkthdr.len;
+	if_inc_counter(ifp, IFCOUNTER_OPACKETS, 1);
+	if_inc_counter(ifp, IFCOUNTER_OBYTES, m->m_pkthdr.len);
 
 	m_freem(m);
 	return (0);

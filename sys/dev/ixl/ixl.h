@@ -264,6 +264,35 @@
 #define IXL_RX_UNLOCK(_sc)              mtx_unlock(&(_sc)->mtx)
 #define IXL_RX_LOCK_DESTROY(_sc)        mtx_destroy(&(_sc)->mtx)
 
+#if __FreeBSD_version >= 1100000
+#define IXL_SET_IPACKETS(vsi, count)	(vsi)->ipackets = (count)
+#define IXL_SET_IERRORS(vsi, count)	(vsi)->ierrors = (count)
+#define IXL_SET_OPACKETS(vsi, count)	(vsi)->opackets = (count)
+#define IXL_SET_OERRORS(vsi, count)	(vsi)->oerrors = (count)
+#define IXL_SET_COLLISIONS(vsi, count)	/* Do nothing; collisions is always 0. */
+#define IXL_SET_IBYTES(vsi, count)	(vsi)->ibytes = (count)
+#define IXL_SET_OBYTES(vsi, count)	(vsi)->obytes = (count)
+#define IXL_SET_IMCASTS(vsi, count)	(vsi)->imcasts = (count)
+#define IXL_SET_OMCASTS(vsi, count)	(vsi)->omcasts = (count)
+#define IXL_SET_IQDROPS(vsi, count)	(vsi)->iqdrops = (count)
+#define IXL_SET_OQDROPS(vsi, count)	(vsi)->iqdrops = (count)
+#define IXL_SET_NOPROTO(vsi, count)	(vsi)->noproto = (count)
+#else
+#define IXL_SET_IPACKETS(vsi, count)	(vsi)->ifp->if_ipackets = (count)
+#define IXL_SET_IERRORS(vsi, count)	(vsi)->ifp->if_ierrors = (count)
+#define IXL_SET_OPACKETS(vsi, count)	(vsi)->ifp->if_opackets = (count)
+#define IXL_SET_OERRORS(vsi, count)	(vsi)->ifp->if_oerrors = (count)
+#define IXL_SET_COLLISIONS(vsi, count)	(vsi)->ifp->if_collisions = (count)
+#define IXL_SET_IBYTES(vsi, count)	(vsi)->ifp->if_ibytes = (count)
+#define IXL_SET_OBYTES(vsi, count)	(vsi)->ifp->if_obytes = (count)
+#define IXL_SET_IMCASTS(vsi, count)	(vsi)->ifp->if_imcasts = (count)
+#define IXL_SET_OMCASTS(vsi, count)	(vsi)->ifp->if_omcasts = (count)
+#define IXL_SET_IQDROPS(vsi, count)	(vsi)->ifp->if_iqdrops = (count)
+#define IXL_SET_OQDROPS(vsi, odrops)	(vsi)->ifp->if_snd.ifq_drops = (odrops)
+#define IXL_SET_NOPROTO(vsi, count)	(vsi)->noproto = (count)
+#endif
+
+
 /*
  *****************************************************************************
  * vendor_info_array
@@ -447,6 +476,17 @@ struct ixl_vsi {
 	struct i40e_eth_stats	eth_stats;
 	struct i40e_eth_stats	eth_stats_offsets;
 	bool 			stat_offsets_loaded;
+	u64			ipackets;
+	u64			ierrors;
+	u64			opackets;
+	u64			oerrors;
+	u64			ibytes;
+	u64			obytes;
+	u64			imcasts;
+	u64			omcasts;
+	u64			iqdrops;
+	u64			oqdrops;
+	u64			noproto;
 
 	/* Driver statistics */
 	u64			hw_filters_del;
@@ -553,6 +593,9 @@ void	ixl_free_que_tx(struct ixl_queue *);
 void	ixl_free_que_rx(struct ixl_queue *);
 #ifdef IXL_FDIR
 void	ixl_atr(struct ixl_queue *, struct tcphdr *, int);
+#endif
+#if __FreeBSD_version >= 1100000
+uint64_t ixl_get_counter(if_t ifp, ift_counter cnt);
 #endif
 
 #endif /* _IXL_H_ */

@@ -1134,7 +1134,7 @@ ipf_dstlist_select(fin, d)
 	int family;
 	int x;
 
-	if (d->ipld_dests == NULL || *d->ipld_dests == NULL)
+	if (d == NULL || d->ipld_dests == NULL || *d->ipld_dests == NULL)
 		return NULL;
 
 	family = fin->fin_family;
@@ -1222,7 +1222,7 @@ ipf_dstlist_select(fin, d)
 		break;
 	}
 
-	if (sel->ipfd_dest.fd_addr.adf_family != family)
+	if (sel && sel->ipfd_dest.fd_addr.adf_family != family)
 		sel = NULL;
 	d->ipld_selected = sel;
 

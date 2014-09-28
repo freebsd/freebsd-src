@@ -837,6 +837,8 @@
 
       &hwlist.igb;
 
+      &hwlist.ipheth;
+
       &hwlist.ixgb;
 
       &hwlist.ixgbe;
@@ -884,6 +886,8 @@
       &hwlist.sis;
 
       &hwlist.sk;
+
+      &hwlist.smsc;
 
       &hwlist.sn;
 
