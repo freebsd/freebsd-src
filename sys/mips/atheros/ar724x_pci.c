@@ -122,8 +122,12 @@ ar724x_pci_read_config(device_t dev, u_int bus, u_int slot, u_int func,
 
 	/* Register access is 32-bit aligned */
 	shift = (reg & 3) * 8;
-	if (shift)
-		mask = (1 << shift) - 1;
+
+	/* Create a mask based on the width, post-shift */
+	if (bytes == 2)
+		mask = 0xffff;
+	else if (bytes == 1)
+		mask = 0xff;
 	else
 		mask = 0xffffffff;
 
@@ -337,7 +341,6 @@ ar724x_pci_slot_fixup(device_t dev)
 			return;
 		}
 
-
 		device_printf(dev, "found EEPROM at 0x%lx on %d.%d.%d\n",
 		    flash_addr, 0, 0, 0);
 		ar724x_pci_fixup(dev, flash_addr, size);
@@ -485,7 +488,6 @@ ar724x_pci_alloc_resource(device_t bus, device_t child, int type, int *rid,
 			return (NULL);
 		}
 	} 
-
 
 	return (rv);
 }
