@@ -249,8 +249,6 @@ struct ifnet {
 	 */
 };
 
-#include <net/ifq.h>	/* XXXAO: temporary unconditional include */
-
 /* for compatibility with other BSDs */
 #define	if_addrlist	if_addrhead
 #define	if_list		if_link
@@ -608,4 +606,7 @@ int    ether_poll_deregister(if_t ifp);
 #endif /* DEVICE_POLLING */
 
 #endif /* _KERNEL */
+
+#include <net/ifq.h>	/* XXXAO: temporary unconditional include */
+
 #endif /* !_NET_IF_VAR_H_ */
