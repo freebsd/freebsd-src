@@ -1485,7 +1485,7 @@ lagg_transmit(struct ifnet *ifp, struct mbuf *m)
 	if (sc->sc_proto == LAGG_PROTO_NONE || sc->sc_count == 0) {
 		LAGG_RUNLOCK(sc, &tracker);
 		m_freem(m);
-		ifp->if_oerrors++;
+		if_inc_counter(ifp, IFCOUNTER_OERRORS, 1);
 		return (ENXIO);
 	}
 
@@ -1495,7 +1495,7 @@ lagg_transmit(struct ifnet *ifp, struct mbuf *m)
 	LAGG_RUNLOCK(sc, &tracker);
 
 	if (error != 0)
-		ifp->if_oerrors++;
+		if_inc_counter(ifp, IFCOUNTER_OERRORS, 1);
 
 	return (error);
 }
