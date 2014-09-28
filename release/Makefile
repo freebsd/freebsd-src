@@ -112,7 +112,7 @@ CLEANFILES+=	pkg-stage
 .if defined(WITH_VMIMAGES) && !empty(WITH_VMIMAGES)
 CLEANFILES+=	${VMBASE}.img
 . for FORMAT in ${VMFORMATS}
-CLEANFILES+=	vm.${FORMAT}
+CLEANFILES+=	${VMBASE}.${FORMAT}
 . endfor
 .endif
 CLEANDIRS=	dist ftp release bootonly dvd
