@@ -599,5 +599,13 @@ int drbr_enqueue_drv(if_t ifp, struct buf_ring *br, struct mbuf *m);
 void if_hw_tsomax_common(if_t ifp, struct ifnet_hw_tsomax *);
 int if_hw_tsomax_update(if_t ifp, struct ifnet_hw_tsomax *);
 
+#ifdef DEVICE_POLLING
+enum poll_cmd { POLL_ONLY, POLL_AND_CHECK_STATUS };
+
+typedef	int poll_handler_t(if_t ifp, enum poll_cmd cmd, int count);
+int    ether_poll_register(poll_handler_t *h, if_t ifp);
+int    ether_poll_deregister(if_t ifp);
+#endif /* DEVICE_POLLING */
+
 #endif /* _KERNEL */
 #endif /* !_NET_IF_VAR_H_ */
