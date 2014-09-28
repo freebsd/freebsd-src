@@ -1133,12 +1133,7 @@ static void ce_receive (ce_chan_t *c, unsigned char *data, int len)
 	m->m_pkthdr.rcvif = d->ifp;
 	/* Check if there's a BPF listener on this interface.
 	 * If so, hand off the raw packet to bpf. */
-#if __FreeBSD_version >= 500000
-	BPF_TAP (d->ifp, data, len);
-#else
-	if (d->ifp->if_bpf)
-		bpf_tap (d->ifp, data, len);
-#endif
+	BPF_MTAP(d->ifp, m);
 	IF_ENQUEUE(&d->rqueue, m);
 #endif
 }

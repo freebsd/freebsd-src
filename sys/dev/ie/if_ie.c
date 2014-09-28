@@ -949,6 +949,8 @@ iestart_locked(struct ifnet *ifp)
 		if (!m)
 			break;
 
+		BPF_MTAP(ifp, m); 
+
 		buffer = sc->xmit_cbuffs[sc->xmit_count];
 		len = 0;
 
@@ -960,13 +962,6 @@ iestart_locked(struct ifnet *ifp)
 
 		m_freem(m0);
 		len = max(len, ETHER_MIN_LEN);
-
-		/*
-		 * See if bpf is listening on this interface, let it see the
-		 * packet before we commit it to the wire.
-		 */
-		BPF_TAP(sc->ifp,
-			(void *)sc->xmit_cbuffs[sc->xmit_count], len);
 
 		sc->xmit_buffs[sc->xmit_count]->ie_xmit_flags =
 		    IE_XMIT_LAST|len;
