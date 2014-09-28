@@ -1,6 +1,6 @@
 # $FreeBSD$
 
-NO_MAN=1
+MAN=
 
 .include <bsd.own.mk>
 

@@ -61,7 +61,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/conf.h>
 #include <sys/ksem.h>
 #include <sys/mman.h>
-#include <sys/capability.h>
+#include <sys/capsicum.h>
 #define	_KERNEL
 #include <sys/mount.h>
 #include <sys/pipe.h>

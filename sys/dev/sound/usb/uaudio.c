@@ -103,17 +103,11 @@ static SYSCTL_NODE(_hw_usb, OID_AUTO, uaudio, CTLFLAG_RW, 0, "USB uaudio");
 
 SYSCTL_INT(_hw_usb_uaudio, OID_AUTO, debug, CTLFLAG_RW,
     &uaudio_debug, 0, "uaudio debug level");
-
-TUNABLE_INT("hw.usb.uaudio.default_rate", &uaudio_default_rate);
-SYSCTL_INT(_hw_usb_uaudio, OID_AUTO, default_rate, CTLFLAG_RW,
+SYSCTL_INT(_hw_usb_uaudio, OID_AUTO, default_rate, CTLFLAG_RWTUN,
     &uaudio_default_rate, 0, "uaudio default sample rate");
-
-TUNABLE_INT("hw.usb.uaudio.default_bits", &uaudio_default_bits);
-SYSCTL_INT(_hw_usb_uaudio, OID_AUTO, default_bits, CTLFLAG_RW,
+SYSCTL_INT(_hw_usb_uaudio, OID_AUTO, default_bits, CTLFLAG_RWTUN,
     &uaudio_default_bits, 0, "uaudio default sample bits");
-
-TUNABLE_INT("hw.usb.uaudio.default_channels", &uaudio_default_channels);
-SYSCTL_INT(_hw_usb_uaudio, OID_AUTO, default_channels, CTLFLAG_RW,
+SYSCTL_INT(_hw_usb_uaudio, OID_AUTO, default_channels, CTLFLAG_RWTUN,
     &uaudio_default_channels, 0, "uaudio default sample channels");
 #endif
 
@@ -182,7 +176,7 @@ struct uaudio_configure_msg {
 	struct uaudio_softc *sc;
 };
 
-#define	CHAN_MAX_ALT 20
+#define	CHAN_MAX_ALT 24
 
 struct uaudio_chan_alt {
 	union uaudio_asf1d p_asf1d;
@@ -1665,21 +1659,10 @@ uaudio_chan_fill_info_sub(struct uaudio_softc *sc, struct usb_device *udev,
 		} else if (audio_rev >= UAUDIO_VERSION_20) {
 
 			uint32_t dwFormat;
-			uint8_t bSubslotSize;
 
 			dwFormat = UGETDW(asid.v2->bmFormats);
 			bChannels = asid.v2->bNrChannels;
-			bBitResolution = asf1d.v2->bBitResolution;
-			bSubslotSize = asf1d.v2->bSubslotSize;
-
-			/* Map 4-byte aligned 24-bit samples into 32-bit */
-			if (bBitResolution == 24 && bSubslotSize == 4)
-				bBitResolution = 32;
-
-			if (bBitResolution != (bSubslotSize * 8)) {
-				DPRINTF("Invalid bSubslotSize\n");
-				goto next_ep;
-			}
+			bBitResolution = asf1d.v2->bSubslotSize * 8;
 
 			if ((bChannels != channels) ||
 			    (bBitResolution != bit_resolution)) {
@@ -1726,7 +1709,7 @@ uaudio_chan_fill_info_sub(struct uaudio_softc *sc, struct usb_device *udev,
 
 			wFormat = UGETW(asid.v1->wFormatTag);
 			bChannels = UAUDIO_MAX_CHAN(asf1d.v1->bNrChannels);
-			bBitResolution = asf1d.v1->bBitResolution;
+			bBitResolution = asf1d.v1->bSubFrameSize * 8;
 
 			if (asf1d.v1->bSamFreqType == 0) {
 				DPRINTFN(16, "Sample rate: %d-%dHz\n",
@@ -1883,6 +1866,10 @@ uaudio_chan_fill_info_sub(struct uaudio_softc *sc, struct usb_device *udev,
 /* This structure defines all the supported rates. */
 
 static const uint32_t uaudio_rate_list[CHAN_MAX_ALT] = {
+	384000,
+	352800,
+	192000,
+	176400,
 	96000,
 	88200,
 	88000,
@@ -2737,14 +2724,14 @@ uaudio_mixer_controls_create_ftu(struct uaudio_softc *sc)
 
 		uaudio_mixer_add_ctl(sc, &MIX(sc));
 
-		MIX(sc).wValue[0] = MAKE_WORD(9, chy + 1);
+		MIX(sc).wValue[0] = MAKE_WORD(9, chy + 1 + 8);
 		MIX(sc).type = MIX_SIGNED_16;
 		MIX(sc).ctl = SOUND_MIXER_NRDEVICES;
 		MIX(sc).name = "effect_send";
 		MIX(sc).nchan = 1;
 		MIX(sc).update[0] = 1;
 		snprintf(MIX(sc).desc, sizeof(MIX(sc).desc),
-		    "Effect Send DIn%d Volume", chy + 1 + 8);
+		    "Effect Send DIn%d Volume", chy + 1);
 
 		uaudio_mixer_add_ctl(sc, &MIX(sc));
 	}
@@ -5670,6 +5657,25 @@ umidi_probe(device_t dev)
 		DPRINTF("error=%s\n", usbd_errstr(error));
 		goto detach;
 	}
+
+	/*
+	 * Some USB MIDI device makers couldn't resist using
+	 * wMaxPacketSize = 4 for RX and TX BULK endpoints, although
+	 * that size is an unsupported value for FULL speed BULK
+	 * endpoints. The same applies to some HIGH speed MIDI devices
+	 * which are using a wMaxPacketSize different from 512 bytes.
+	 *
+	 * Refer to section 5.8.3 in USB 2.0 PDF: Cite: "All Host
+	 * Controllers are required to have support for 8-, 16-, 32-,
+	 * and 64-byte maximum packet sizes for full-speed bulk
+	 * endpoints and 512 bytes for high-speed bulk endpoints."
+	 */
+	if (usbd_xfer_maxp_was_clamped(chan->xfer[UMIDI_TX_TRANSFER]))
+		chan->single_command = 1;
+
+	if (chan->single_command != 0)
+		device_printf(dev, "Single command MIDI quirk enabled\n");
+
 	if ((chan->max_cable > UMIDI_CABLES_MAX) ||
 	    (chan->max_cable == 0)) {
 		chan->max_cable = UMIDI_CABLES_MAX;
@@ -5894,7 +5900,7 @@ uaudio_hid_detach(struct uaudio_softc *sc)
 	usbd_transfer_unsetup(sc->sc_hid.xfer, UAUDIO_HID_N_TRANSFER);
 }
 
-DRIVER_MODULE(uaudio, uhub, uaudio_driver, uaudio_devclass, NULL, 0);
+DRIVER_MODULE_ORDERED(uaudio, uhub, uaudio_driver, uaudio_devclass, NULL, 0, SI_ORDER_ANY);
 MODULE_DEPEND(uaudio, usb, 1, 1, 1);
 MODULE_DEPEND(uaudio, sound, SOUND_MINVER, SOUND_PREFVER, SOUND_MAXVER);
 MODULE_VERSION(uaudio, 1);

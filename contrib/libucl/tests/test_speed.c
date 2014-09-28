@@ -32,7 +32,9 @@
 #include <time.h>
 
 #ifdef __APPLE__
+#ifdef HAVE_MACH_MACH_TIME_H
 #include <mach/mach_time.h>
+#endif
 #endif
 
 #include "ucl.h"

@@ -38,12 +38,13 @@ CFLAGS=	-Os \
 	-Wmissing-declarations -Wmissing-prototypes -Wnested-externs \
 	-Wpointer-arith -Wshadow -Wstrict-prototypes -Wwrite-strings \
 	-Winline \
-	${CLANG_OPT_SMALL}
 
 CFLAGS.gcc+=	-fno-guess-branch-probability \
 		-fno-unit-at-a-time \
 		-mno-align-long-strings \
 		--param max-inline-insns-single=100
+
+CFLAGS.clang+=${CLANG_OPT_SMALL}
 
 LD_FLAGS=-static -N --gc-sections
 

@@ -92,7 +92,7 @@
         ..
     ..
     clang
-        3.4
+        3.4.1
         ..
     ..
     crypto
@@ -162,6 +162,8 @@
         ..
     ..
     fs
+        cuse
+        ..
         devfs
         ..
         fdescfs
@@ -257,8 +259,6 @@
     ..
     net80211
     ..
-    netatalk
-    ..
     netgraph
         atm
         ..
@@ -274,8 +274,6 @@
     netinet6
     ..
     netipsec
-    ..
-    netipx
     ..
     netnatm
         api

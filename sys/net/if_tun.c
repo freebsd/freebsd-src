@@ -16,10 +16,8 @@
  * $FreeBSD$
  */
 
-#include "opt_atalk.h"
 #include "opt_inet.h"
 #include "opt_inet6.h"
-#include "opt_ipx.h"
 
 #include <sys/param.h>
 #include <sys/priv.h>
@@ -118,10 +116,8 @@ SYSCTL_INT(_debug, OID_AUTO, if_tun_debug, CTLFLAG_RW, &tundebug, 0, "");
 SYSCTL_DECL(_net_link);
 static SYSCTL_NODE(_net_link, OID_AUTO, tun, CTLFLAG_RW, 0,
     "IP tunnel software network interface.");
-SYSCTL_INT(_net_link_tun, OID_AUTO, devfs_cloning, CTLFLAG_RW, &tundclone, 0,
+SYSCTL_INT(_net_link_tun, OID_AUTO, devfs_cloning, CTLFLAG_RWTUN, &tundclone, 0,
     "Enable legacy devfs interface creation.");
-
-TUNABLE_INT("net.link.tun.devfs_cloning", &tundclone);
 
 static void	tunclone(void *arg, struct ucred *cred, char *name,
 		    int namelen, struct cdev **dev);
@@ -623,8 +619,8 @@ tunoutput(struct ifnet *ifp, struct mbuf *m0, const struct sockaddr *dst,
 
 		/* if allocation failed drop packet */
 		if (m0 == NULL) {
-			ifp->if_iqdrops++;
-			ifp->if_oerrors++;
+			if_inc_counter(ifp, IFCOUNTER_IQDROPS, 1);
+			if_inc_counter(ifp, IFCOUNTER_OERRORS, 1);
 			return (ENOBUFS);
 		} else {
 			bcopy(dst, m0->m_data, dst->sa_len);
@@ -637,8 +633,8 @@ tunoutput(struct ifnet *ifp, struct mbuf *m0, const struct sockaddr *dst,
 
 		/* if allocation failed drop packet */
 		if (m0 == NULL) {
-			ifp->if_iqdrops++;
-			ifp->if_oerrors++;
+			if_inc_counter(ifp, IFCOUNTER_IQDROPS, 1);
+			if_inc_counter(ifp, IFCOUNTER_OERRORS, 1);
 			return (ENOBUFS);
 		} else
 			*(u_int32_t *)m0->m_data = htonl(af);
@@ -655,7 +651,7 @@ tunoutput(struct ifnet *ifp, struct mbuf *m0, const struct sockaddr *dst,
 	error = (ifp->if_transmit)(ifp, m0);
 	if (error)
 		return (ENOBUFS);
-	ifp->if_opackets++;
+	if_inc_counter(ifp, IFCOUNTER_OPACKETS, 1);
 	return (0);
 }
 
@@ -870,7 +866,7 @@ tunwrite(struct cdev *dev, struct uio *uio, int flag)
 	}
 
 	if ((m = m_uiotombuf(uio, M_NOWAIT, 0, 0, M_PKTHDR)) == NULL) {
-		ifp->if_ierrors++;
+		if_inc_counter(ifp, IFCOUNTER_IERRORS, 1);
 		return (ENOBUFS);
 	}
 
@@ -906,24 +902,14 @@ tunwrite(struct cdev *dev, struct uio *uio, int flag)
 		isr = NETISR_IPV6;
 		break;
 #endif
-#ifdef IPX
-	case AF_IPX:
-		isr = NETISR_IPX;
-		break;
-#endif
-#ifdef NETATALK
-	case AF_APPLETALK:
-		isr = NETISR_ATALK2;
-		break;
-#endif
 	default:
 		m_freem(m);
 		return (EAFNOSUPPORT);
 	}
 	if (harvest.point_to_point)
 		random_harvest(&(m->m_data), 12, 2, RANDOM_NET_TUN);
-	ifp->if_ibytes += m->m_pkthdr.len;
-	ifp->if_ipackets++;
+	if_inc_counter(ifp, IFCOUNTER_IBYTES, m->m_pkthdr.len);
+	if_inc_counter(ifp, IFCOUNTER_IPACKETS, 1);
 	CURVNET_SET(ifp->if_vnet);
 	M_SETFIB(m, ifp->if_fib);
 	netisr_dispatch(isr, m);

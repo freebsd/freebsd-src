@@ -152,7 +152,6 @@ extern int mp_ncpus;			/* system's total active cpu cores */
 #define OCE_MAX_TX_ELEMENTS		29
 #define OCE_MAX_TX_DESC			1024
 #define OCE_MAX_TX_SIZE			65535
-#define OCE_MAX_TSO_SIZE		(65535 - ETHER_HDR_LEN)
 #define OCE_MAX_RX_SIZE			4096
 #define OCE_MAX_RQ_POSTS		255
 #define OCE_DEFAULT_PROMISCUOUS		0
@@ -761,14 +760,9 @@ struct oce_rq {
 };
 
 struct link_status {
-	uint8_t physical_port;
-	uint8_t mac_duplex;
-	uint8_t mac_speed;
-	uint8_t mac_fault;
-	uint8_t mgmt_mac_duplex;
-	uint8_t mgmt_mac_speed;
+	uint8_t phys_port_speed;
+	uint8_t logical_link_status;
 	uint16_t qos_link_speed;
-	uint32_t logical_link_status;
 };
 
 

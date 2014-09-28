@@ -50,8 +50,8 @@
 #endif
 
 typedef struct {
-	uint16_t	start;		/* first register */
-	uint16_t	end;		/* ending register or zero */
+	uint32_t	start;		/* first register */
+	uint32_t	end;		/* ending register or zero */
 } HAL_REGRANGE;
 
 typedef struct {
@@ -280,7 +280,8 @@ typedef struct {
 			halAntDivCombSupportOrg		: 1,
 			halRadioRetentionSupport	: 1,
 			halSpectralScanSupport		: 1,
-			halRxUsingLnaMixing		: 1;
+			halRxUsingLnaMixing		: 1,
+			halRxDoMyBeacon			: 1;
 
 	uint32_t	halWirelessModes;
 	uint16_t	halTotalQueues;

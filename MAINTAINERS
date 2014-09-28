@@ -20,7 +20,7 @@ It is not a registry of 'turf' or private property.
 
 subsystem	login	notes
 -----------------------------
-kqueue		jmg	Pre-commit review requested.
+kqueue		jmg	Pre-commit review requested.  Documentation Required.
 libc/posix1e	rwatson	Pre-commit review requested.
 POSIX.1e ACLs	rwatson	Pre-commit review requested.
 UFS EAs		rwatson	Pre-commit review requested.
@@ -77,12 +77,11 @@ ntp         	roberto	Pre-commit review requested.
 inetd		dwmalone	Recommends pre-commit review.
 contrib/smbfs	bp	Open for in-tree committs. In case of functional
 			changes pre-commit review requested.
-contrib/pf	mlaier	Pre-commit review requested.
+contrib/pf	glebius	Pre-commit review recommended.
 binutils	obrien	Insists on BU blocked from unapproved commits
 file		obrien	Insists to keep file blocked from other's unapproved
 			commits
 contrib/bzip2	obrien	Pre-commit review required.
-lukemftpd	obrien	Pre-commit review required.
 geom_concat	pjd	Pre-commit review preferred.
 geom_eli	pjd	Pre-commit review preferred.
 geom_gate	pjd	Pre-commit review preferred.
@@ -103,13 +102,12 @@ linux emul	emulation	Please discuss changes here.
 bs{diff,patch}	cperciva	Pre-commit review requested.
 portsnap	cperciva	Pre-commit review requested.
 freebsd-update	cperciva	Pre-commit review requested.
-openssl		benl		Pre-commit review requested.
+openssl		benl,jkim	Pre-commit review requested.
 sys/netgraph/bluetooth	emax	Pre-commit review preferred.
 lib/libbluetooth	emax	Pre-commit review preferred.
 lib/libsdp		emax	Pre-commit review preferred.
 usr.bin/bluetooth	emax	Pre-commit review preferred.
 usr.sbin/bluetooth	emax	Pre-commit review preferred.
-gnu/usr.bin/send-pr	bugmaster	Pre-commit review requested.
 *env(3)		secteam	Due to the problematic security history of this
 			code, please have patches reviewed by secteam.
 share/zoneinfo		edwin	Heads-up appreciated, since our data is coming
@@ -132,3 +130,6 @@ nvd(4)		jimharris	Pre-commit review requested.
 nvmecontrol(8)	jimharris	Pre-commit review requested.
 release/release.sh	gjb	Pre-commit review and regression tests
 				requested.
+nanobsd		imp	Pre-commit review requested for coordination.
+vmm(4)		neel,grehan	Pre-commit review requested.
+opencrypto	jmg	Pre-commit review requested.  Documentation Required.

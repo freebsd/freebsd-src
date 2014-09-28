@@ -163,7 +163,7 @@ struct drm_hw_lock {
 /* This is beyond ugly, and only works on GCC.  However, it allows me to use
  * drm.h in places (i.e., in the X-server) where I can't use size_t.  The real
  * fix is to use uint32_t instead of size_t, but that fix will break existing
- * LP64 (i.e., PowerPC64, SPARC64, IA-64, Alpha, etc.) systems.  That *will*
+ * LP64 (i.e., PowerPC64, SPARC64, Alpha, etc.) systems.  That *will*
  * eventually happen, though.  I chose 'unsigned long' to be the fallback type
  * because that works on all the platforms I know about.  Hopefully, the
  * real fix will happen before that bites us.

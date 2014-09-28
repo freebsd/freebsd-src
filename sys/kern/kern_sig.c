@@ -46,7 +46,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/signalvar.h>
 #include <sys/vnode.h>
 #include <sys/acct.h>
-#include <sys/capability.h>
+#include <sys/capsicum.h>
 #include <sys/condvar.h>
 #include <sys/event.h>
 #include <sys/fcntl.h>
@@ -57,6 +57,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/lock.h>
 #include <sys/malloc.h>
 #include <sys/mutex.h>
+#include <sys/refcount.h>
 #include <sys/namei.h>
 #include <sys/proc.h>
 #include <sys/procdesc.h>
@@ -136,8 +137,7 @@ SYSCTL_INT(_kern_sigqueue, OID_AUTO, max_pending_per_proc, CTLFLAG_RW,
     &max_pending_per_proc, 0, "Max pending signals per proc");
 
 static int	preallocate_siginfo = 1024;
-TUNABLE_INT("kern.sigqueue.preallocate", &preallocate_siginfo);
-SYSCTL_INT(_kern_sigqueue, OID_AUTO, preallocate, CTLFLAG_RD,
+SYSCTL_INT(_kern_sigqueue, OID_AUTO, preallocate, CTLFLAG_RDTUN,
     &preallocate_siginfo, 0, "Preallocated signal memory size");
 
 static int	signal_overflow = 0;
@@ -163,13 +163,11 @@ SYSINIT(signal, SI_SUB_P1003_1B, SI_ORDER_FIRST+3, sigqueue_start, NULL);
 	    (cr1)->cr_uid == (cr2)->cr_uid)
 
 static int	sugid_coredump;
-TUNABLE_INT("kern.sugid_coredump", &sugid_coredump);
-SYSCTL_INT(_kern, OID_AUTO, sugid_coredump, CTLFLAG_RW,
+SYSCTL_INT(_kern, OID_AUTO, sugid_coredump, CTLFLAG_RWTUN,
     &sugid_coredump, 0, "Allow setuid and setgid processes to dump core");
 
 static int	capmode_coredump;
-TUNABLE_INT("kern.capmode_coredump", &capmode_coredump);
-SYSCTL_INT(_kern, OID_AUTO, capmode_coredump, CTLFLAG_RW,
+SYSCTL_INT(_kern, OID_AUTO, capmode_coredump, CTLFLAG_RWTUN,
     &capmode_coredump, 0, "Allow processes in capability mode to dump core");
 
 static int	do_coredump = 1;
@@ -623,6 +621,20 @@ sig_ffs(sigset_t *set)
 	return (0);
 }
 
+static bool
+sigact_flag_test(struct sigaction *act, int flag)
+{
+
+	/*
+	 * SA_SIGINFO is reset when signal disposition is set to
+	 * ignore or default.  Other flags are kept according to user
+	 * settings.
+	 */
+	return ((act->sa_flags & flag) != 0 && (flag != SA_SIGINFO ||
+	    ((__sighandler_t *)act->sa_sigaction != SIG_IGN &&
+	    (__sighandler_t *)act->sa_sigaction != SIG_DFL)));
+}
+
 /*
  * kern_sigaction
  * sigaction
@@ -640,6 +652,10 @@ kern_sigaction(td, sig, act, oact, flags)
 	struct proc *p = td->td_proc;
 
 	if (!_SIG_VALID(sig))
+		return (EINVAL);
+	if (act != NULL && (act->sa_flags & ~(SA_ONSTACK | SA_RESTART |
+	    SA_RESETHAND | SA_NOCLDSTOP | SA_NODEFER | SA_NOCLDWAIT |
+	    SA_SIGINFO)) != 0)
 		return (EINVAL);
 
 	PROC_LOCK(p);
@@ -681,7 +697,7 @@ kern_sigaction(td, sig, act, oact, flags)
 
 		ps->ps_catchmask[_SIG_IDX(sig)] = act->sa_mask;
 		SIG_CANTMASK(ps->ps_catchmask[_SIG_IDX(sig)]);
-		if (act->sa_flags & SA_SIGINFO) {
+		if (sigact_flag_test(act, SA_SIGINFO)) {
 			ps->ps_sigact[_SIG_IDX(sig)] =
 			    (__sighandler_t *)act->sa_sigaction;
 			SIGADDSET(ps->ps_siginfo, sig);
@@ -689,19 +705,19 @@ kern_sigaction(td, sig, act, oact, flags)
 			ps->ps_sigact[_SIG_IDX(sig)] = act->sa_handler;
 			SIGDELSET(ps->ps_siginfo, sig);
 		}
-		if (!(act->sa_flags & SA_RESTART))
+		if (!sigact_flag_test(act, SA_RESTART))
 			SIGADDSET(ps->ps_sigintr, sig);
 		else
 			SIGDELSET(ps->ps_sigintr, sig);
-		if (act->sa_flags & SA_ONSTACK)
+		if (sigact_flag_test(act, SA_ONSTACK))
 			SIGADDSET(ps->ps_sigonstack, sig);
 		else
 			SIGDELSET(ps->ps_sigonstack, sig);
-		if (act->sa_flags & SA_RESETHAND)
+		if (sigact_flag_test(act, SA_RESETHAND))
 			SIGADDSET(ps->ps_sigreset, sig);
 		else
 			SIGDELSET(ps->ps_sigreset, sig);
-		if (act->sa_flags & SA_NODEFER)
+		if (sigact_flag_test(act, SA_NODEFER))
 			SIGADDSET(ps->ps_signodefer, sig);
 		else
 			SIGDELSET(ps->ps_signodefer, sig);
@@ -902,11 +918,28 @@ siginit(p)
 	PROC_LOCK(p);
 	ps = p->p_sigacts;
 	mtx_lock(&ps->ps_mtx);
-	for (i = 1; i <= NSIG; i++)
-		if (sigprop(i) & SA_IGNORE && i != SIGCONT)
+	for (i = 1; i <= NSIG; i++) {
+		if (sigprop(i) & SA_IGNORE && i != SIGCONT) {
 			SIGADDSET(ps->ps_sigignore, i);
+		}
+	}
 	mtx_unlock(&ps->ps_mtx);
 	PROC_UNLOCK(p);
+}
+
+/*
+ * Reset specified signal to the default disposition.
+ */
+static void
+sigdflt(struct sigacts *ps, int sig)
+{
+
+	mtx_assert(&ps->ps_mtx, MA_OWNED);
+	SIGDELSET(ps->ps_sigcatch, sig);
+	if ((sigprop(sig) & SA_IGNORE) != 0 && sig != SIGCONT)
+		SIGADDSET(ps->ps_sigignore, sig);
+	ps->ps_sigact[_SIG_IDX(sig)] = SIG_DFL;
+	SIGDELSET(ps->ps_siginfo, sig);
 }
 
 /*
@@ -930,13 +963,9 @@ execsigs(struct proc *p)
 	mtx_lock(&ps->ps_mtx);
 	while (SIGNOTEMPTY(ps->ps_sigcatch)) {
 		sig = sig_ffs(&ps->ps_sigcatch);
-		SIGDELSET(ps->ps_sigcatch, sig);
-		if (sigprop(sig) & SA_IGNORE) {
-			if (sig != SIGCONT)
-				SIGADDSET(ps->ps_sigignore, sig);
+		sigdflt(ps, sig);
+		if ((sigprop(sig) & SA_IGNORE) != 0)
 			sigqueue_delete_proc(p, sig);
-		}
-		ps->ps_sigact[_SIG_IDX(sig)] = SIG_DFL;
 	}
 	/*
 	 * Reset stack state to the user stack.
@@ -1890,16 +1919,8 @@ trapsignal(struct thread *td, ksiginfo_t *ksi)
 			SIGADDSET(mask, sig);
 		kern_sigprocmask(td, SIG_BLOCK, &mask, NULL,
 		    SIGPROCMASK_PROC_LOCKED | SIGPROCMASK_PS_LOCKED);
-		if (SIGISMEMBER(ps->ps_sigreset, sig)) {
-			/*
-			 * See kern_sigaction() for origin of this code.
-			 */
-			SIGDELSET(ps->ps_sigcatch, sig);
-			if (sig != SIGCONT &&
-			    sigprop(sig) & SA_IGNORE)
-				SIGADDSET(ps->ps_sigignore, sig);
-			ps->ps_sigact[_SIG_IDX(sig)] = SIG_DFL;
-		}
+		if (SIGISMEMBER(ps->ps_sigreset, sig))
+			sigdflt(ps, sig);
 		mtx_unlock(&ps->ps_mtx);
 	} else {
 		/*
@@ -2842,16 +2863,8 @@ postsig(sig)
 		kern_sigprocmask(td, SIG_BLOCK, &mask, NULL,
 		    SIGPROCMASK_PROC_LOCKED | SIGPROCMASK_PS_LOCKED);
 
-		if (SIGISMEMBER(ps->ps_sigreset, sig)) {
-			/*
-			 * See kern_sigaction() for origin of this code.
-			 */
-			SIGDELSET(ps->ps_sigcatch, sig);
-			if (sig != SIGCONT &&
-			    sigprop(sig) & SA_IGNORE)
-				SIGADDSET(ps->ps_sigignore, sig);
-			ps->ps_sigact[_SIG_IDX(sig)] = SIG_DFL;
-		}
+		if (SIGISMEMBER(ps->ps_sigreset, sig))
+			sigdflt(ps, sig);
 		td->td_ru.ru_nsignals++;
 		if (p->p_sig == sig) {
 			p->p_code = 0;
@@ -3052,8 +3065,7 @@ SYSCTL_INT(_kern, OID_AUTO, compress_user_cores_gzlevel, CTLFLAG_RW,
 #endif
 
 static char corefilename[MAXPATHLEN] = {"%N.core"};
-TUNABLE_STR("kern.corefile", corefilename, sizeof(corefilename));
-SYSCTL_STRING(_kern, OID_AUTO, corefile, CTLFLAG_RW, corefilename,
+SYSCTL_STRING(_kern, OID_AUTO, corefile, CTLFLAG_RWTUN, corefilename,
     sizeof(corefilename), "Process corefile name format string");
 
 /*
@@ -3417,7 +3429,7 @@ sigacts_alloc(void)
 	struct sigacts *ps;
 
 	ps = malloc(sizeof(struct sigacts), M_SUBPROC, M_WAITOK | M_ZERO);
-	ps->ps_refcnt = 1;
+	refcount_init(&ps->ps_refcnt, 1);
 	mtx_init(&ps->ps_mtx, "sigacts", NULL, MTX_DEF);
 	return (ps);
 }
@@ -3426,21 +3438,17 @@ void
 sigacts_free(struct sigacts *ps)
 {
 
-	mtx_lock(&ps->ps_mtx);
-	ps->ps_refcnt--;
-	if (ps->ps_refcnt == 0) {
-		mtx_destroy(&ps->ps_mtx);
-		free(ps, M_SUBPROC);
-	} else
-		mtx_unlock(&ps->ps_mtx);
+	if (refcount_release(&ps->ps_refcnt) == 0)
+		return;
+	mtx_destroy(&ps->ps_mtx);
+	free(ps, M_SUBPROC);
 }
 
 struct sigacts *
 sigacts_hold(struct sigacts *ps)
 {
-	mtx_lock(&ps->ps_mtx);
-	ps->ps_refcnt++;
-	mtx_unlock(&ps->ps_mtx);
+
+	refcount_acquire(&ps->ps_refcnt);
 	return (ps);
 }
 
@@ -3457,10 +3465,6 @@ sigacts_copy(struct sigacts *dest, struct sigacts *src)
 int
 sigacts_shared(struct sigacts *ps)
 {
-	int shared;
 
-	mtx_lock(&ps->ps_mtx);
-	shared = ps->ps_refcnt > 1;
-	mtx_unlock(&ps->ps_mtx);
-	return (shared);
+	return (ps->ps_refcnt > 1);
 }

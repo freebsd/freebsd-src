@@ -6,8 +6,8 @@ include		"std.SWARM"
 
 ident		SWARM_SMP
 
-options		SMP
-options		PRINTF_BUFR_SIZE=128
+options 	SMP
+options 	PRINTF_BUFR_SIZE=128
 
 machine		mips mips
 

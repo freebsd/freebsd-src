@@ -119,8 +119,9 @@ cleanobj: clean cleandepend
 	@if [ -L ${.CURDIR}/obj ]; then rm -f ${.CURDIR}/obj; fi
 
 # Tell bmake not to look for generated files via .PATH
-.if !empty(CLEANFILES)
-.NOPATH: ${CLEANFILES}
+NOPATH_FILES+=	${CLEANFILES}
+.if !empty(NOPATH_FILES)
+.NOPATH: ${NOPATH_FILES}
 .endif
 
 .if !target(clean)

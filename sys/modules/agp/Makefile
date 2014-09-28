@@ -20,7 +20,6 @@ SRCS+=  agp_apple.c
 SRCS+=	device_if.h bus_if.h agp_if.h pci_if.h
 SRCS+=	opt_agp.h
 MFILES=	kern/device_if.m kern/bus_if.m dev/agp/agp_if.m dev/pci/pci_if.m
-WERROR=
 
 EXPORT_SYMS=	agp_find_device		\
 		agp_state		\

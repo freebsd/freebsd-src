@@ -78,7 +78,7 @@ static const char rcsid[] =
 
 /*
  * Since "struct ifreq" is composed of various union members, callers
- * should pay special attention to interprete the value.
+ * should pay special attention to interpret the value.
  * (.e.g. little/big endian difference in the structure.)
  */
 struct	ifreq ifr;
@@ -741,20 +741,6 @@ setifbroadaddr(const char *addr, int dummy __unused, int s,
 }
 
 static void
-setifipdst(const char *addr, int dummy __unused, int s,
-    const struct afswtch *afp)
-{
-	const struct afswtch *inet;
-
-	inet = af_getbyname("inet");
-	if (inet == NULL)
-		return;
-	inet->af_getaddr(addr, DSTADDR);
-	clearaddr = 0;
-	newaddr = 0;
-}
-
-static void
 notealias(const char *addr, int param, int s, const struct afswtch *afp)
 {
 #define rqtosa(x) (&(((struct ifreq *)(afp->x))->ifr_addr))
@@ -1025,6 +1011,9 @@ status(const struct afswtch *afp, const struct sockaddr_dl *sdl,
 	if (ioctl(s, SIOCGIFSTATUS, &ifs) == 0) 
 		printf("%s", ifs.ascii);
 
+	if (verbose > 0)
+		sfp_status(s, &ifr, verbose);
+
 	close(s);
 	return;
 }
@@ -1176,7 +1165,6 @@ static struct cmd basic_cmds[] = {
 	DEF_CMD_ARG("netmask",			setifnetmask),
 	DEF_CMD_ARG("metric",			setifmetric),
 	DEF_CMD_ARG("broadcast",		setifbroadaddr),
-	DEF_CMD_ARG("ipdst",			setifipdst),
 	DEF_CMD_ARG2("tunnel",			settunnel),
 	DEF_CMD("-tunnel", 0,			deletetunnel),
 	DEF_CMD("deletetunnel", 0,		deletetunnel),

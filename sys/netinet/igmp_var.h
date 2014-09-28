@@ -205,7 +205,7 @@ struct igmp_ifinfo *
 	igmp_domifattach(struct ifnet *);
 void	igmp_domifdetach(struct ifnet *);
 void	igmp_ifdetach(struct ifnet *);
-void	igmp_input(struct mbuf *, int);
+int	igmp_input(struct mbuf **, int *, int);
 void	igmp_slowtimo(void);
 
 SYSCTL_DECL(_net_inet_igmp);

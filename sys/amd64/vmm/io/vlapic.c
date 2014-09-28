@@ -70,7 +70,12 @@ __FBSDID("$FreeBSD$");
 #define	VLAPIC_TIMER_UNLOCK(vlapic)	mtx_unlock_spin(&((vlapic)->timer_mtx))
 #define	VLAPIC_TIMER_LOCKED(vlapic)	mtx_owned(&((vlapic)->timer_mtx))
 
-#define VLAPIC_BUS_FREQ	tsc_freq
+/*
+ * APIC timer frequency:
+ * - arbitrary but chosen to be in the ballpark of contemporary hardware.
+ * - power-of-two to avoid loss of precision when converted to a bintime.
+ */
+#define VLAPIC_BUS_FREQ		(128 * 1024 * 1024)
 
 static __inline uint32_t
 vlapic_get_id(struct vlapic *vlapic)
@@ -448,6 +453,9 @@ vlapic_fire_lvt(struct vlapic *vlapic, uint32_t lvt)
 	case APIC_LVT_DM_NMI:
 		vm_inject_nmi(vlapic->vm, vlapic->vcpuid);
 		break;
+	case APIC_LVT_DM_EXTINT:
+		vm_inject_extint(vlapic->vm, vlapic->vcpuid);
+		break;
 	default:
 		// Other modes ignored
 		return (0);
@@ -625,6 +633,7 @@ vlapic_fire_timer(struct vlapic *vlapic)
 	// The timer LVT always uses the fixed delivery mode.
 	lvt = vlapic_get_lvt(vlapic, APIC_OFFSET_TIMER_LVT);
 	if (vlapic_fire_lvt(vlapic, lvt | APIC_LVT_DM_FIXED)) {
+		VLAPIC_CTR0(vlapic, "vlapic timer fired");
 		vmm_stat_incr(vlapic->vm, vlapic->vcpuid, VLAPIC_INTR_TIMER, 1);
 	}
 }
@@ -650,6 +659,25 @@ int
 vlapic_trigger_lvt(struct vlapic *vlapic, int vector)
 {
 	uint32_t lvt;
+
+	if (vlapic_enabled(vlapic) == false) {
+		/*
+		 * When the local APIC is global/hardware disabled,
+		 * LINT[1:0] pins are configured as INTR and NMI pins,
+		 * respectively.
+		*/
+		switch (vector) {
+			case APIC_LVT_LINT0:
+				vm_inject_extint(vlapic->vm, vlapic->vcpuid);
+				break;
+			case APIC_LVT_LINT1:
+				vm_inject_nmi(vlapic->vm, vlapic->vcpuid);
+				break;
+			default:
+				break;
+		}
+		return (0);
+	}
 
 	switch (vector) {
 	case APIC_LVT_LINT0:
@@ -879,6 +907,46 @@ vlapic_calcdest(struct vm *vm, cpuset_t *dmask, uint32_t dest, bool phys,
 
 static VMM_STAT_ARRAY(IPIS_SENT, VM_MAXCPU, "ipis sent to vcpu");
 
+static void
+vlapic_set_tpr(struct vlapic *vlapic, uint8_t val)
+{
+	struct LAPIC *lapic = vlapic->apic_page;
+
+	lapic->tpr = val;
+	vlapic_update_ppr(vlapic);
+}
+
+static uint8_t
+vlapic_get_tpr(struct vlapic *vlapic)
+{
+	struct LAPIC *lapic = vlapic->apic_page;
+
+	return (lapic->tpr);
+}
+
+void
+vlapic_set_cr8(struct vlapic *vlapic, uint64_t val)
+{
+	uint8_t tpr;
+
+	if (val & ~0xf) {
+		vm_inject_gp(vlapic->vm, vlapic->vcpuid);
+		return;
+	}
+
+	tpr = val << 4;
+	vlapic_set_tpr(vlapic, tpr);
+}
+
+uint64_t
+vlapic_get_cr8(struct vlapic *vlapic)
+{
+	uint8_t tpr;
+
+	tpr = vlapic_get_tpr(vlapic);
+	return (tpr >> 4);
+}
+
 int
 vlapic_icrlo_write_handler(struct vlapic *vlapic, bool *retu)
 {
@@ -977,11 +1045,7 @@ vlapic_icrlo_write_handler(struct vlapic *vlapic, bool *retu)
 			if (vlapic2->boot_state != BS_SIPI)
 				return (0);
 
-			/*
-			 * XXX this assumes that the startup IPI always succeeds
-			 */
 			vlapic2->boot_state = BS_RUNNING;
-			vm_activate_cpu(vlapic2->vm, dest);
 
 			*retu = true;
 			vmexit = vm_exitinfo(vlapic->vm, vlapic->vcpuid);
@@ -1161,7 +1225,7 @@ vlapic_read(struct vlapic *vlapic, int mmio_access, uint64_t offset,
 			*data = lapic->version;
 			break;
 		case APIC_OFFSET_TPR:
-			*data = lapic->tpr;
+			*data = vlapic_get_tpr(vlapic);
 			break;
 		case APIC_OFFSET_APR:
 			*data = lapic->apr;
@@ -1282,8 +1346,7 @@ vlapic_write(struct vlapic *vlapic, int mmio_access, uint64_t offset,
 			vlapic_id_write_handler(vlapic);
 			break;
 		case APIC_OFFSET_TPR:
-			lapic->tpr = data & 0xff;
-			vlapic_update_ppr(vlapic);
+			vlapic_set_tpr(vlapic, data & 0xff);
 			break;
 		case APIC_OFFSET_EOI:
 			vlapic_process_eoi(vlapic);
@@ -1474,11 +1537,13 @@ vlapic_deliver_intr(struct vm *vm, bool level, uint32_t dest, bool phys,
 	int vcpuid;
 	cpuset_t dmask;
 
-	if (delmode != APIC_DELMODE_FIXED && delmode != APIC_DELMODE_LOWPRIO) {
+	if (delmode != IOART_DELFIXED &&
+	    delmode != IOART_DELLOPRI &&
+	    delmode != IOART_DELEXINT) {
 		VM_CTR1(vm, "vlapic intr invalid delmode %#x", delmode);
 		return;
 	}
-	lowprio = (delmode == APIC_DELMODE_LOWPRIO);
+	lowprio = (delmode == IOART_DELLOPRI);
 
 	/*
 	 * We don't provide any virtual interrupt redirection hardware so
@@ -1490,7 +1555,11 @@ vlapic_deliver_intr(struct vm *vm, bool level, uint32_t dest, bool phys,
 	while ((vcpuid = CPU_FFS(&dmask)) != 0) {
 		vcpuid--;
 		CPU_CLR(vcpuid, &dmask);
-		lapic_set_intr(vm, vcpuid, vec, level);
+		if (delmode == IOART_DELEXINT) {
+			vm_inject_extint(vm, vcpuid);
+		} else {
+			lapic_set_intr(vm, vcpuid, vec, level);
+		}
 	}
 }
 

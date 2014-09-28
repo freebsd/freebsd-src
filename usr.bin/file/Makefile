@@ -21,7 +21,8 @@
 # 4. This notice may not be removed or altered.
 
 SRCDIR=	${.CURDIR}/../../contrib/file
-.PATH: ${SRCDIR}
+.PATH: ${SRCDIR}/src
+.PATH: ${SRCDIR}/doc
 
 PROG=	file
 

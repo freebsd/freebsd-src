@@ -44,8 +44,8 @@ struct db_variable {
 	db_expr_t *valuep;	/* value of variable */
 				/* function to call when reading/writing */
 	db_varfcn_t *fcn;
-#define DB_VAR_GET	0
-#define DB_VAR_SET	1
+#define	DB_VAR_GET	0
+#define	DB_VAR_SET	1
 };
 #define	FCN_NULL	((db_varfcn_t *)0)
 

@@ -47,7 +47,7 @@ struct freebsd32_ps_strings {
 	int	ps_nenvstr;	/* the number of environment strings */
 };
 
-#if defined(__amd64__) || defined(__ia64__)
+#if defined(__amd64__)
 #include <compat/ia32/ia32_util.h>
 #endif
 

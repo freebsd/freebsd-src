@@ -39,6 +39,7 @@ __FBSDID("$FreeBSD$");
 #include "opt_mpath.h"
 #include "opt_route.h"
 #include "opt_sctp.h"
+#include "opt_rss.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -71,6 +72,7 @@ __FBSDID("$FreeBSD$");
 #include <netinet/in_systm.h>
 #include <netinet/ip.h>
 #include <netinet/in_pcb.h>
+#include <netinet/in_rss.h>
 #include <netinet/in_var.h>
 #include <netinet/ip_var.h>
 #include <netinet/ip_options.h>
@@ -134,6 +136,7 @@ ip_output(struct mbuf *m, struct mbuf *opt, struct route *ro, int flags,
 	struct rtentry *rte;	/* cache for ro->ro_rt */
 	struct in_addr odst;
 	struct m_tag *fwd_tag = NULL;
+	int have_ia_ref;
 #ifdef IPSEC
 	int no_route_but_check_spd = 0;
 #endif
@@ -142,8 +145,10 @@ ip_output(struct mbuf *m, struct mbuf *opt, struct route *ro, int flags,
 	if (inp != NULL) {
 		INP_LOCK_ASSERT(inp);
 		M_SETFIB(m, inp->inp_inc.inc_fibnum);
-		if (inp->inp_flags & (INP_HW_FLOWID|INP_SW_FLOWID)) {
+		if (((flags & IP_NODEFAULTFLOWID) == 0) &&
+		    inp->inp_flags & (INP_HW_FLOWID|INP_SW_FLOWID)) {
 			m->m_pkthdr.flowid = inp->inp_flowid;
+			M_HASHTYPE_SET(m, inp->inp_flowtype);
 			m->m_flags |= M_FLOWID;
 		}
 	}
@@ -199,6 +204,7 @@ ip_output(struct mbuf *m, struct mbuf *opt, struct route *ro, int flags,
 	gw = dst = (struct sockaddr_in *)&ro->ro_dst;
 again:
 	ia = NULL;
+	have_ia_ref = 0;
 	/*
 	 * If there is a cached route, check that it is to the same
 	 * destination and is still up.  If not, free it and try again.
@@ -229,24 +235,30 @@ again:
 	 * or the destination address of a ptp interface.
 	 */
 	if (flags & IP_SENDONES) {
-		if ((ia = ifatoia(ifa_ifwithbroadaddr(sintosa(dst)))) == NULL &&
-		    (ia = ifatoia(ifa_ifwithdstaddr(sintosa(dst)))) == NULL) {
+		if ((ia = ifatoia(ifa_ifwithbroadaddr(sintosa(dst),
+						      M_GETFIB(m)))) == NULL &&
+		    (ia = ifatoia(ifa_ifwithdstaddr(sintosa(dst),
+						    M_GETFIB(m)))) == NULL) {
 			IPSTAT_INC(ips_noroute);
 			error = ENETUNREACH;
 			goto bad;
 		}
+		have_ia_ref = 1;
 		ip->ip_dst.s_addr = INADDR_BROADCAST;
 		dst->sin_addr = ip->ip_dst;
 		ifp = ia->ia_ifp;
 		ip->ip_ttl = 1;
 		isbroadcast = 1;
 	} else if (flags & IP_ROUTETOIF) {
-		if ((ia = ifatoia(ifa_ifwithdstaddr(sintosa(dst)))) == NULL &&
-		    (ia = ifatoia(ifa_ifwithnet(sintosa(dst), 0))) == NULL) {
+		if ((ia = ifatoia(ifa_ifwithdstaddr(sintosa(dst),
+						    M_GETFIB(m)))) == NULL &&
+		    (ia = ifatoia(ifa_ifwithnet(sintosa(dst), 0,
+						M_GETFIB(m)))) == NULL) {
 			IPSTAT_INC(ips_noroute);
 			error = ENETUNREACH;
 			goto bad;
 		}
+		have_ia_ref = 1;
 		ifp = ia->ia_ifp;
 		ip->ip_ttl = 1;
 		isbroadcast = in_broadcast(dst->sin_addr, ifp);
@@ -258,6 +270,8 @@ again:
 		 */
 		ifp = imo->imo_multicast_ifp;
 		IFP_TO_IA(ifp, ia);
+		if (ia)
+			have_ia_ref = 1;
 		isbroadcast = 0;	/* fool gcc */
 	} else {
 		/*
@@ -432,43 +446,6 @@ again:
 	}
 
 	/*
-	 * Both in the SMP world, pre-emption world if_transmit() world,
-	 * the following code doesn't really function as intended any further.
-	 *
-	 * + There can and will be multiple CPUs running this code path
-	 *   in parallel, and we do no lock holding when checking the
-	 *   queue depth;
-	 * + And since other threads can be running concurrently, even if
-	 *   we do pass this check, another thread may queue some frames
-	 *   before this thread does and it will end up partially or fully
-	 *   failing to send anyway;
-	 * + if_transmit() based drivers don't necessarily set ifq_len
-	 *   at all.
-	 *
-	 * This should be replaced with a method of pushing an entire list
-	 * of fragment frames to the driver and have the driver decide
-	 * whether it can queue or not queue the entire set.
-	 */
-#if 0
-	/*
-	 * Verify that we have any chance at all of being able to queue the
-	 * packet or packet fragments, unless ALTQ is enabled on the given
-	 * interface in which case packetdrop should be done by queueing.
-	 */
-	n = ip_len / mtu + 1; /* how many fragments ? */
-	if (
-#ifdef ALTQ
-	    (!ALTQ_IS_ENABLED(&ifp->if_snd)) &&
-#endif /* ALTQ */
-	    (ifp->if_snd.ifq_len + n) >= ifp->if_snd.ifq_maxlen ) {
-		error = ENOBUFS;
-		IPSTAT_INC(ips_odropped);
-		ifp->if_snd.ifq_drops += n;
-		goto bad;
-	}
-#endif
-
-	/*
 	 * Look for broadcast address and
 	 * verify user is allowed to send
 	 * such a packet.
@@ -549,8 +526,11 @@ sendit:
 #endif
 			error = netisr_queue(NETISR_IP, m);
 			goto done;
-		} else
+		} else {
+			if (have_ia_ref)
+				ifa_free(&ia->ia_ifa);
 			goto again;	/* Redo the routing table lookup. */
+		}
 	}
 
 	/* See if local, if yes, send it to netisr with IP_FASTFWD_OURS. */
@@ -579,6 +559,8 @@ sendit:
 		m->m_flags |= M_SKIP_FIREWALL;
 		m->m_flags &= ~M_IP_NEXTHOP;
 		m_tag_delete(m, fwd_tag);
+		if (have_ia_ref)
+			ifa_free(&ia->ia_ifa);
 		goto again;
 	}
 
@@ -610,8 +592,7 @@ passout:
 	 * care of the fragmentation for us, we can just send directly.
 	 */
 	if (ip_len <= mtu ||
-	    (m->m_pkthdr.csum_flags & ifp->if_hwassist & CSUM_TSO) != 0 ||
-	    ((ip_off & IP_DF) == 0 && (ifp->if_hwassist & CSUM_FRAGMENT))) {
+	    (m->m_pkthdr.csum_flags & ifp->if_hwassist & CSUM_TSO) != 0) {
 		ip->ip_sum = 0;
 		if (m->m_pkthdr.csum_flags & CSUM_IP & ~ifp->if_hwassist) {
 			ip->ip_sum = in_cksum(m, hlen);
@@ -691,6 +672,8 @@ passout:
 done:
 	if (ro == &iproute)
 		RO_RTFREE(ro);
+	if (have_ia_ref)
+		ifa_free(&ia->ia_ifa);
 	return (error);
 bad:
 	m_freem(m);
@@ -884,17 +867,13 @@ in_delayed_cksum(struct mbuf *m)
 		csum = 0xffff;
 	offset += m->m_pkthdr.csum_data;	/* checksum offset */
 
-	if (offset + sizeof(u_short) > m->m_len) {
-		printf("delayed m_pullup, m->len: %d  off: %d  p: %d\n",
-		    m->m_len, offset, ip->ip_p);
-		/*
-		 * XXX
-		 * this shouldn't happen, but if it does, the
-		 * correct behavior may be to insert the checksum
-		 * in the appropriate next mbuf in the chain.
-		 */
-		return;
+	/* find the mbuf in the chain where the checksum starts*/
+	while ((m != NULL) && (offset >= m->m_len)) {
+		offset -= m->m_len;
+		m = m->m_next;
 	}
+	KASSERT(m != NULL, ("in_delayed_cksum: checksum outside mbuf chain."));
+	KASSERT(offset + sizeof(u_short) <= m->m_len, ("in_delayed_cksum: checksum split between mbufs."));
 	*(u_short *)(m->m_data + offset) = csum;
 }
 
@@ -906,6 +885,10 @@ ip_ctloutput(struct socket *so, struct sockopt *sopt)
 {
 	struct	inpcb *inp = sotoinpcb(so);
 	int	error, optval;
+#ifdef	RSS
+	uint32_t rss_bucket;
+	int retval;
+#endif
 
 	error = optval = 0;
 	if (sopt->sopt_level != IPPROTO_IP) {
@@ -984,6 +967,10 @@ ip_ctloutput(struct socket *so, struct sockopt *sopt)
 					break;
 			}
 			/* FALLTHROUGH */
+		case IP_BINDMULTI:
+#ifdef	RSS
+		case IP_RSS_LISTEN_BUCKET:
+#endif
 		case IP_TOS:
 		case IP_TTL:
 		case IP_MINTTL:
@@ -996,6 +983,10 @@ ip_ctloutput(struct socket *so, struct sockopt *sopt)
 		case IP_ONESBCAST:
 		case IP_DONTFRAG:
 		case IP_RECVTOS:
+		case IP_RECVFLOWID:
+#ifdef	RSS
+		case IP_RECVRSSBUCKETID:
+#endif
 			error = sooptcopyin(sopt, &optval, sizeof optval,
 					    sizeof optval);
 			if (error)
@@ -1023,6 +1014,15 @@ ip_ctloutput(struct socket *so, struct sockopt *sopt)
 		inp->inp_flags |= bit;					\
 	else								\
 		inp->inp_flags &= ~bit;					\
+	INP_WUNLOCK(inp);						\
+} while (0)
+
+#define	OPTSET2(bit, val) do {						\
+	INP_WLOCK(inp);							\
+	if (val)							\
+		inp->inp_flags2 |= bit;					\
+	else								\
+		inp->inp_flags2 &= ~bit;				\
 	INP_WUNLOCK(inp);						\
 } while (0)
 
@@ -1062,9 +1062,30 @@ ip_ctloutput(struct socket *so, struct sockopt *sopt)
 			case IP_RECVTOS:
 				OPTSET(INP_RECVTOS);
 				break;
+			case IP_BINDMULTI:
+				OPTSET2(INP_BINDMULTI, optval);
+				break;
+			case IP_RECVFLOWID:
+				OPTSET2(INP_RECVFLOWID, optval);
+				break;
+#ifdef	RSS
+			case IP_RSS_LISTEN_BUCKET:
+				if ((optval >= 0) &&
+				    (optval < rss_getnumbuckets())) {
+					inp->inp_rss_listen_bucket = optval;
+					OPTSET2(INP_RSS_BUCKET_SET, 1);
+				} else {
+					error = EINVAL;
+				}
+				break;
+			case IP_RECVRSSBUCKETID:
+				OPTSET2(INP_RECVRSSBUCKETID, optval);
+				break;
+#endif
 			}
 			break;
 #undef OPTSET
+#undef OPTSET2
 
 		/*
 		 * Multicast socket options are processed by the in_mcast
@@ -1172,6 +1193,14 @@ ip_ctloutput(struct socket *so, struct sockopt *sopt)
 		case IP_DONTFRAG:
 		case IP_BINDANY:
 		case IP_RECVTOS:
+		case IP_BINDMULTI:
+		case IP_FLOWID:
+		case IP_FLOWTYPE:
+		case IP_RECVFLOWID:
+#ifdef	RSS
+		case IP_RSSBUCKETID:
+		case IP_RECVRSSBUCKETID:
+#endif
 			switch (sopt->sopt_name) {
 
 			case IP_TOS:
@@ -1187,6 +1216,7 @@ ip_ctloutput(struct socket *so, struct sockopt *sopt)
 				break;
 
 #define	OPTBIT(bit)	(inp->inp_flags & bit ? 1 : 0)
+#define	OPTBIT2(bit)	(inp->inp_flags2 & bit ? 1 : 0)
 
 			case IP_RECVOPTS:
 				optval = OPTBIT(INP_RECVOPTS);
@@ -1232,6 +1262,32 @@ ip_ctloutput(struct socket *so, struct sockopt *sopt)
 				break;
 			case IP_RECVTOS:
 				optval = OPTBIT(INP_RECVTOS);
+				break;
+			case IP_FLOWID:
+				optval = inp->inp_flowid;
+				break;
+			case IP_FLOWTYPE:
+				optval = inp->inp_flowtype;
+				break;
+			case IP_RECVFLOWID:
+				optval = OPTBIT2(INP_RECVFLOWID);
+				break;
+#ifdef	RSS
+			case IP_RSSBUCKETID:
+				retval = rss_hash2bucket(inp->inp_flowid,
+				    inp->inp_flowtype,
+				    &rss_bucket);
+				if (retval == 0)
+					optval = rss_bucket;
+				else
+					error = EINVAL;
+				break;
+			case IP_RECVRSSBUCKETID:
+				optval = OPTBIT2(INP_RECVRSSBUCKETID);
+				break;
+#endif
+			case IP_BINDMULTI:
+				optval = OPTBIT2(INP_BINDMULTI);
 				break;
 			}
 			error = sooptcopyout(sopt, &optval, sizeof optval);

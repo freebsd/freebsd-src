@@ -15,7 +15,6 @@
 #include "SparcInstPrinter.h"
 
 #include "Sparc.h"
-#include "MCTargetDesc/SparcBaseInfo.h"
 #include "llvm/MC/MCExpr.h"
 #include "llvm/MC/MCInst.h"
 #include "llvm/MC/MCSymbol.h"

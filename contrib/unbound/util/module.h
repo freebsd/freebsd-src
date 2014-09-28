@@ -21,22 +21,134 @@
  * specific prior written permission.
  * 
  * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
- * TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
- * PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE
- * LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
- * CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
- * SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
- * INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
- * CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
- * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
- * POSSIBILITY OF SUCH DAMAGE.
+ * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+ * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
+ * A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
+ * HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+ * SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED
+ * TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
+ * PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF
+ * LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
+ * NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+ * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
 /**
  * \file
  *
  * This file contains the interface for DNS handling modules.
+ *
+ * The module interface uses the DNS modules as state machines.  The
+ * state machines are activated in sequence to operate on queries.  Once
+ * they are done, the reply is passed back.  In the usual setup the mesh
+ * is the caller of the state machines and once things are done sends replies
+ * and invokes result callbacks.
+ *
+ * The module provides a number of functions, listed in the module_func_block.
+ * The module is inited and destroyed and memory usage queries, for the
+ * module as a whole, for entire-module state (such as a cache).  And per-query
+ * functions are called, operate to move the state machine and cleanup of
+ * the per-query state.
+ *
+ * Most per-query state should simply be allocated in the query region.
+ * This is destroyed at the end of the query.
+ *
+ * The module environment contains services and information and caches
+ * shared by the modules and the rest of the system.  It also contains
+ * function pointers for module-specific tasks (like sending queries).
+ *
+ * *** Example module calls for a normal query
+ *
+ * In this example, the query does not need recursion, all the other data
+ * can be found in the cache.  This makes the example shorter.
+ *
+ * At the start of the program the iterator module is initialised.
+ * The iterator module sets up its global state, such as donotquery lists
+ * and private address trees.
+ *
+ * A query comes in, and a mesh entry is created for it.  The mesh
+ * starts the resolution process.  The validator module is the first
+ * in the list of modules, and it is started on this new query.  The
+ * operate() function is called.  The validator decides it needs not do
+ * anything yet until there is a result and returns wait_module, that
+ * causes the next module in the list to be started.
+ *
+ * The next module is the iterator.  It is started on the passed query and
+ * decides to perform a lookup.  For this simple example, the delegation
+ * point information is available, and all the iterator wants to do is
+ * send a UDP query.  The iterator uses env.send_query() to send the
+ * query.  Then the iterator suspends (returns from the operate call).
+ *
+ * When the UDP reply comes back (and on errors and timeouts), the
+ * operate function is called for the query, on the iterator module,
+ * with the event that there is a reply.  The iterator decides that this
+ * is enough, the work is done.  It returns the value finished from the
+ * operate call, which causes the previous module to be started.
+ *
+ * The previous module, the validator module, is started with the event
+ * that the iterator module is done.  The validator decides to validate
+ * the query.  Once it is done (which could take recursive lookups, but
+ * in this example no recursive lookups are needed), it returns from the
+ * operate function with finished.
+ *
+ * There is no previous module from the validator module, and the mesh
+ * takes this to mean that the query is finally done.  The mesh invokes
+ * callbacks and sends packets to queriers.
+ *
+ * If other modules had been waiting (recursively) on the answer to this
+ * query, then the mesh will tell them about it.  It calls the inform_super
+ * routine on all the waiting modules, and once that is done it calls all of
+ * them with the operate() call.  During inform_super the query that is done
+ * still exists and information can be copied from it (but the module should
+ * not really re-entry codepoints and services).  During the operate call
+ * the modules can use stored state to continue operation with the results.
+ * (network buffers are used to contain the answer packet during the
+ * inform_super phase, but after that the network buffers will be cleared
+ * of their contents so that other tasks can be performed).
+ *
+ * *** Example module calls for recursion
+ *
+ * A module is called in operate, and it decides that it wants to perform
+ * recursion.  That is, it wants the full state-machine-list to operate on
+ * a different query.  It calls env.attach_sub() to create a new query state.
+ * The routine returns the newly created state, and potentially the module
+ * can edit the module-states for the newly created query (i.e. pass along
+ * some information, like delegation points).  The module then suspends,
+ * returns from the operate routine.
+ *
+ * The mesh meanwhile will have the newly created query (or queries) on
+ * a waiting list, and will call operate() on this query (or queries).
+ * It starts again at the start of the module list for them.  The query
+ * (or queries) continue to operate their state machines, until they are
+ * done.  When they are done the mesh calls inform_super on the module that
+ * wanted the recursion.  After that the mesh calls operate() on the module
+ * that wanted to do the recursion, and during this phase the module could,
+ * for example, decide to create more recursions.
+ *
+ * If the module decides it no longer wants the recursive information
+ * it can call detach_subs.  Those queries will still run to completion,
+ * potentially filling the cache with information.  Inform_super is not
+ * called any more.
+ *
+ * The iterator module will fetch items from the cache, so a recursion
+ * attempt may complete very quickly if the item is in cache.  The calling
+ * module has to wait for completion or eventual timeout.  A recursive query
+ * that times out returns a servfail rcode (servfail is also returned for
+ * other errors during the lookup).
+ *
+ * Results are passed in the qstate, the rcode member is used to pass
+ * errors without requiring memory allocation, so that the code can continue
+ * in out-of-memory conditions.  If the rcode member is 0 (NOERROR) then
+ * the dns_msg entry contains a filled out message.  This message may
+ * also contain an rcode that is nonzero, but in this case additional
+ * information (query, additional) can be passed along.
+ *
+ * The rcode and dns_msg are used to pass the result from the the rightmost
+ * module towards the leftmost modules and then towards the user.
+ *
+ * If you want to avoid recursion-cycles where queries need other queries
+ * that need the first one, use detect_cycle() to see if that will happen.
+ *
  */
 
 #ifndef UTIL_MODULE_H
@@ -44,6 +156,7 @@
 #include "util/storage/lruhash.h"
 #include "util/data/msgreply.h"
 #include "util/data/msgparse.h"
+struct sldns_buffer;
 struct alloc_cache;
 struct rrset_cache;
 struct key_cache;
@@ -176,7 +289,7 @@ struct module_env {
 	/** region for temporary usage. May be cleared after operate() call. */
 	struct regional* scratch;
 	/** buffer for temporary usage. May be cleared after operate() call. */
-	ldns_buffer* scratch_buffer;
+	struct sldns_buffer* scratch_buffer;
 	/** internal data for daemon - worker thread. */
 	struct worker* worker;
 	/** mesh area with query state dependencies */
@@ -186,7 +299,7 @@ struct module_env {
 	/** random table to generate random numbers */
 	struct ub_randstate* rnd;
 	/** time in seconds, converted to integer */
-	uint32_t* now;
+	time_t* now;
 	/** time in microseconds. Relatively recent. */
 	struct timeval* now_tv;
 	/** is validation required for messages, controls client-facing
@@ -309,7 +422,7 @@ struct module_qstate {
 	/** mesh related information for this query */
 	struct mesh_state* mesh_info;
 	/** how many seconds before expiry is this prefetched (0 if not) */
-	uint32_t prefetch_leeway;
+	time_t prefetch_leeway;
 };
 
 /** 

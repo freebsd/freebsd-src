@@ -169,9 +169,8 @@ in_clsroute(struct radix_node *rn, struct radix_node_head *head)
 	if (V_rtq_reallyold != 0) {
 		rt->rt_flags |= RTPRF_OURS;
 		rt->rt_expire = time_uptime + V_rtq_reallyold;
-	} else {
-		rtexpunge(rt);
-	}
+	} else
+		rt_expunge(head, rt);
 }
 
 struct rtqk_arg {
@@ -388,6 +387,7 @@ in_detachhead(void **head, int off)
  * plug back in.
  */
 struct in_ifadown_arg {
+	struct radix_node_head *rnh;
 	struct ifaddr *ifa;
 	int del;
 };
@@ -411,7 +411,7 @@ in_ifadownkill(struct radix_node *rn, void *xap)
 		 * Disconnect it from the tree and permit protocols
 		 * to cleanup.
 		 */
-		rtexpunge(rt);
+		rt_expunge(ap->rnh, rt);
 		/*
 		 * At this point it is an rttrash node, and in case
 		 * the above is the only reference we must free it.
@@ -441,6 +441,7 @@ in_ifadown(struct ifaddr *ifa, int delete)
 
 	for ( fibnum = 0; fibnum < rt_numfibs; fibnum++) {
 		rnh = rt_tables_get_rnh(fibnum, AF_INET);
+		arg.rnh = rnh;
 		arg.ifa = ifa;
 		arg.del = delete;
 		RADIX_NODE_HEAD_LOCK(rnh);

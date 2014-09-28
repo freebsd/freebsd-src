@@ -1,6 +1,6 @@
 /******************************************************************************
 
-  Copyright (c) 2001-2010, Intel Corporation 
+  Copyright (c) 2001-2014, Intel Corporation 
   All rights reserved.
   
   Redistribution and use in source and binary forms, with or without 
@@ -47,7 +47,7 @@ static s32  e1000_init_hw_82542(struct e1000_hw *hw);
 static s32  e1000_setup_link_82542(struct e1000_hw *hw);
 static s32  e1000_led_on_82542(struct e1000_hw *hw);
 static s32  e1000_led_off_82542(struct e1000_hw *hw);
-static void e1000_rar_set_82542(struct e1000_hw *hw, u8 *addr, u32 index);
+static int  e1000_rar_set_82542(struct e1000_hw *hw, u8 *addr, u32 index);
 static void e1000_clear_hw_cntrs_82542(struct e1000_hw *hw);
 static s32  e1000_read_mac_addr_82542(struct e1000_hw *hw);
 
@@ -409,7 +409,7 @@ static s32 e1000_led_off_82542(struct e1000_hw *hw)
  *  Sets the receive address array register at index to the address passed
  *  in by addr.
  **/
-static void e1000_rar_set_82542(struct e1000_hw *hw, u8 *addr, u32 index)
+static int e1000_rar_set_82542(struct e1000_hw *hw, u8 *addr, u32 index)
 {
 	u32 rar_low, rar_high;
 
@@ -431,6 +431,7 @@ static void e1000_rar_set_82542(struct e1000_hw *hw, u8 *addr, u32 index)
 
 	E1000_WRITE_REG_ARRAY(hw, E1000_RA, (index << 1), rar_low);
 	E1000_WRITE_REG_ARRAY(hw, E1000_RA, ((index << 1) + 1), rar_high);
+	return E1000_SUCCESS;
 }
 
 /**

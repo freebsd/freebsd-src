@@ -597,6 +597,9 @@ CREATE UNIQUE INDEX I_EXTERNALS_DEFINED ON EXTERNALS (wc_id,
 -- STMT_INSTALL_SCHEMA_STATISTICS
 ANALYZE sqlite_master; /* Creates empty sqlite_stat1 if necessary */
 
+DELETE FROM sqlite_stat1
+WHERE tbl in ('NODES', 'ACTUAL_NODE', 'LOCK', 'WC_LOCK');
+
 INSERT OR REPLACE INTO sqlite_stat1(tbl, idx, stat) VALUES
     ('NODES', 'sqlite_autoindex_NODES_1',               '8000 8000 2 1');
 INSERT OR REPLACE INTO sqlite_stat1(tbl, idx, stat) VALUES

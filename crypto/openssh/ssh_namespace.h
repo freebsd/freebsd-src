@@ -280,6 +280,7 @@
 #define error					ssh_error
 #define evp_ssh1_3des				ssh_evp_ssh1_3des
 #define evp_ssh1_bf				ssh_evp_ssh1_bf
+#define explicit_bzero				ssh_explicit_bzero
 #define export_dns_rr				ssh_export_dns_rr
 #define fatal					ssh_fatal
 #define fmt_scaled				ssh_fmt_scaled

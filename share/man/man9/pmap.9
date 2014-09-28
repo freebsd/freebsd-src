@@ -25,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd July 21, 2003
+.Dd August 3, 2014
 .Dt PMAP 9
 .Os
 .Sh NAME
@@ -89,9 +89,7 @@ operation.
 .Sh SEE ALSO
 .Xr pmap 9 ,
 .Xr pmap_activate 9 ,
-.Xr pmap_change_wiring 9 ,
 .Xr pmap_clear_modify 9 ,
-.Xr pmap_clear_reference 9 ,
 .Xr pmap_copy 9 ,
 .Xr pmap_copy_page 9 ,
 .Xr pmap_enter 9 ,
@@ -107,7 +105,6 @@ operation.
 .Xr pmap_object_init_pt 9 ,
 .Xr pmap_page_exists_quick 9 ,
 .Xr pmap_page_init 9 ,
-.Xr pmap_page_protect 9 ,
 .Xr pmap_pinit 9 ,
 .Xr pmap_pinit0 9 ,
 .Xr pmap_pinit2 9 ,
@@ -119,7 +116,8 @@ operation.
 .Xr pmap_remove_all 9 ,
 .Xr pmap_remove_pages 9 ,
 .Xr pmap_resident_count 9 ,
-.Xr pmap_ts_modified 9 ,
+.Xr pmap_ts_referenced 9 ,
+.Xr pmap_unwire 9 ,
 .Xr pmap_wired_count 9 ,
 .Xr pmap_zero_area 9 ,
 .Xr pmap_zero_idle 9 ,
@@ -127,4 +125,4 @@ operation.
 .Xr vm_map 9
 .Sh AUTHORS
 This manual page was written by
-.An Bruce M Simpson Aq bms@spc.org .
+.An Bruce M Simpson Aq Mt bms@spc.org .

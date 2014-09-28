@@ -85,7 +85,8 @@ IGNORE=		\
 	${TESTSRCDIR}/tst/common/ip/tst.localtcpstate.ksh		\
 	${TESTSRCDIR}/tst/common/ip/tst.remotetcpstate.ksh		\
 	${TESTSRCDIR}/tst/common/scripting/tst.projid.ksh		\
-	${TESTSRCDIR}/tst/common/scripting/tst.taskid.ksh
+	${TESTSRCDIR}/tst/common/scripting/tst.taskid.ksh		\
+	${TESTSRCDIR}/tst/common/json/tst.usdt.c
 
 
 
@@ -188,7 +189,6 @@ NOTWORK+= \
 # Tests that just don't complete (even to fail) at the moment...
 
 NOTWORK+= \
-	${TESTSRCDIR}/tst/common/dtraceUtil/tst.ZeroModuleProbes.d.ksh	\
 	${TESTSRCDIR}/tst/common/printa/tst.many.d			\
 	${TESTSRCDIR}/tst/common/scalars/err.D_OP_INCOMPAT.dupgtype.d	\
 	${TESTSRCDIR}/tst/common/scalars/err.D_OP_INCOMPAT.dupltype.d	\
@@ -338,7 +338,7 @@ listprgs	:
 
 .for _f in ${ALL_TESTCFILES}
 ${_f:T:S/c$/exe/} : ${_f}
-	gcc -o ${.TARGET} ${_f} -lrt
+	${CC} -o ${.TARGET} ${_f} -lrt
 .endfor
 
 .for _f in ${ALL_TESTEXEFILES}

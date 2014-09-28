@@ -17,7 +17,7 @@
 #	Simon J. Gerraty <sjg@crufty.net>
 
 # RCSid:
-#	$Id: os.sh,v 1.44 2010/06/29 15:37:21 sjg Exp $
+#	$Id: os.sh,v 1.46 2014/05/19 16:38:09 sjg Exp $
 #
 #	@(#) Copyright (c) 1994 Simon J. Gerraty
 #
@@ -128,11 +128,13 @@ SunOS)
 	K=-k
 	MAILER=/usr/bin/Mail
 	LOCAL_FS=local
-	case "$-" in
-	*i*) ;;
+	: $-,$ENV
+	case "$-,$ENV" in
+	*i*,*) ;;
+	*,|*ENVFILE*) ;;
 	*) ENV=;;
 	esac
-	# NetBSD at least has good backward compatability
+	# NetBSD at least has good backward compatibility
 	# so NetBSD/i386 is good enough
 	case $OS in
 	NetBSD) SHARE_ARCH=$OS/${MACHINE_ARCH:-$MACHINE};;

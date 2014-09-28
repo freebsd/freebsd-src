@@ -372,6 +372,21 @@ strip_components(const char *p, int elements)
 	}
 }
 
+static const char*
+strip_leading_slashes(const char *p)
+{
+
+	/* Remove leading "/../", "//", etc. */
+	while (p[0] == '/' || p[0] == '\\') {
+		if (p[1] == '.' && p[2] == '.' && (
+		    p[3] == '/' || p[3] == '\\')) {
+			p += 3; /* Remove "/..", leave "/" for next pass. */
+		} else
+			p += 1; /* Remove "/". */
+	}
+	return (p);
+}
+
 /*
  * Handle --strip-components and any future path-rewriting options.
  * Returns non-zero if the pathname should not be extracted.
@@ -474,16 +489,7 @@ edit_pathname(struct bsdtar *bsdtar, struct archive_entry *entry)
 				p += 2;
 				slashonly = 0;
 			}
-			/* Remove leading "/../", "//", etc. */
-			while (p[0] == '/' || p[0] == '\\') {
-				if (p[1] == '.' && p[2] == '.' &&
-					(p[3] == '/' || p[3] == '\\')) {
-					p += 3; /* Remove "/..", leave "/"
-							 * for next pass. */
-					slashonly = 0;
-				} else
-					p += 1; /* Remove "/". */
-			}
+			p = strip_leading_slashes(p);
 		} while (rp != p);
 
 		if (p != name && !bsdtar->warned_lead_slash) {
@@ -504,6 +510,19 @@ edit_pathname(struct bsdtar *bsdtar, struct archive_entry *entry)
 			name = ".";
 		else
 			name = p;
+
+		p = archive_entry_hardlink(entry);
+		if (p != NULL) {
+			rp = strip_leading_slashes(p);
+			if (rp == '\0')
+				return (1);
+			if (rp != p) {
+				char *linkname = strdup(rp);
+
+				archive_entry_copy_hardlink(entry, linkname);
+				free(linkname);
+			}
+		}
 	} else {
 		/* Strip redundant leading '/' characters. */
 		while (name[0] == '/' && name[1] == '/')

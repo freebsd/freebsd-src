@@ -101,7 +101,7 @@ cc_default_algo(SYSCTL_HANDLER_ARGS)
 		CC_LIST_RLOCK();
 		strlcpy(default_cc, CC_DEFAULT()->name, TCP_CA_NAME_MAX);
 		CC_LIST_RUNLOCK();
-		err = sysctl_handle_string(oidp, default_cc, 1, req);
+		err = sysctl_handle_string(oidp, default_cc, 0, req);
 	} else {
 		/* Find algo with specified name and set it to default. */
 		CC_LIST_RLOCK();
@@ -166,7 +166,7 @@ cc_list_available(SYSCTL_HANDLER_ARGS)
 
 	if (!err) {
 		sbuf_finish(s);
-		err = sysctl_handle_string(oidp, sbuf_data(s), 1, req);
+		err = sysctl_handle_string(oidp, sbuf_data(s), 0, req);
 	}
 
 	sbuf_delete(s);

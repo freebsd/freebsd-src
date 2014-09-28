@@ -1,7 +1,7 @@
 # $FreeBSD$
 
 PROG=	rpctest
-NO_MAN=
+MAN=
 WARNS?=	6
 DPADD=	${LIBRPCSEC_GSS}
 LDADD=	-lrpcsec_gss

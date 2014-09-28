@@ -198,4 +198,9 @@
 #define VM_MAX_AUTOTUNE_MAXUSERS 384
 #endif
 
+#define	SFBUF
+#define	SFBUF_MAP
+#define	SFBUF_CPUSET
+#define	SFBUF_PROCESS_PAGE
+
 #endif /* _MACHINE_VMPARAM_H_ */

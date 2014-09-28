@@ -314,10 +314,6 @@ EFI_STATUS
 #define EFI_IMAGE_MACHINE_IA32      0x014c
 #endif
 
-#if !defined(EFI_IMAGE_MACHINE_IA64)
-#define EFI_IMAGE_MACHINE_IA64      0x0200
-#endif
-
 #if !defined(EFI_IMAGE_MACHINE_EBC)
 #define EFI_IMAGE_MACHINE_EBC       0x0EBC
 #endif

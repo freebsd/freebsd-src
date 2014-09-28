@@ -16,7 +16,7 @@ divert(-1)
 #
 
 divert(0)
-VERSIONID(`$Id: uxpds.m4,v 8.17 2013/11/22 20:51:15 ca Exp $')
+VERSIONID(`$Id: uxpds.m4,v 8.17 2013-11-22 20:51:15 ca Exp $')
 
 define(`confDEF_GROUP_ID', `6')
 define(`LOCAL_MAILER_PATH', `/usr/ucblib/binmail')dnl

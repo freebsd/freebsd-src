@@ -47,6 +47,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/systm.h>
 #include <sys/taskqueue.h>
 #include <sys/tree.h>
+#include <dev/pci/pcivar.h>
 #include <vm/vm.h>
 #include <vm/vm_extern.h>
 #include <vm/vm_kern.h>
@@ -129,8 +130,10 @@ ctx_set_agaw(struct dmar_ctx *ctx, int mgaw)
 	}
 	device_printf(ctx->dmar->dev,
 	    "context request mgaw %d for pci%d:%d:%d:%d, "
-	    "no agaw found, sagaw %x\n", mgaw, ctx->dmar->segment, ctx->bus,
-	     ctx->slot, ctx->func, sagaw);
+	    "no agaw found, sagaw %x\n", mgaw, ctx->dmar->segment, 
+	    pci_get_bus(ctx->ctx_tag.owner),
+	    pci_get_slot(ctx->ctx_tag.owner),
+	    pci_get_function(ctx->ctx_tag.owner), sagaw);
 	return (EINVAL);
 }
 
@@ -546,17 +549,16 @@ dmar_barrier_exit(struct dmar_unit *dmar, u_int barrier_id)
 
 int dmar_match_verbose;
 
-static SYSCTL_NODE(_hw, OID_AUTO, dmar, CTLFLAG_RD, NULL,
-    "");
-SYSCTL_INT(_hw_dmar, OID_AUTO, tbl_pagecnt, CTLFLAG_RD | CTLFLAG_TUN,
+static SYSCTL_NODE(_hw, OID_AUTO, dmar, CTLFLAG_RD, NULL, "");
+SYSCTL_INT(_hw_dmar, OID_AUTO, tbl_pagecnt, CTLFLAG_RD,
     &dmar_tbl_pagecnt, 0,
     "Count of pages used for DMAR pagetables");
-SYSCTL_INT(_hw_dmar, OID_AUTO, match_verbose, CTLFLAG_RW | CTLFLAG_TUN,
+SYSCTL_INT(_hw_dmar, OID_AUTO, match_verbose, CTLFLAG_RWTUN,
     &dmar_match_verbose, 0,
     "Verbose matching of the PCI devices to DMAR paths");
 #ifdef INVARIANTS
 int dmar_check_free;
-SYSCTL_INT(_hw_dmar, OID_AUTO, check_free, CTLFLAG_RW | CTLFLAG_TUN,
+SYSCTL_INT(_hw_dmar, OID_AUTO, check_free, CTLFLAG_RWTUN,
     &dmar_check_free, 0,
     "Check the GPA RBtree for free_down and free_after validity");
 #endif

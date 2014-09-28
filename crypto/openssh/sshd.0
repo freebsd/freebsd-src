@@ -640,4 +640,4 @@ CAVEATS
      System security is not improved unless rshd, rlogind, and rexecd are
      disabled (thus completely disabling rlogin and rsh into the machine).
 
-OpenBSD 5.4                    December 7, 2013                    OpenBSD 5.4
+OpenBSD 5.5                    December 7, 2013                    OpenBSD 5.5

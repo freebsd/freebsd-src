@@ -86,9 +86,8 @@ static SYSCTL_NODE(_hw_malo, OID_AUTO, pci, CTLFLAG_RD, 0,
     "Marvell 88W8335 driver PCI parameters");
 
 static int msi_disable = 0;				/* MSI disabled  */
-SYSCTL_INT(_hw_malo_pci, OID_AUTO, msi_disable, CTLFLAG_RW, &msi_disable,
+SYSCTL_INT(_hw_malo_pci, OID_AUTO, msi_disable, CTLFLAG_RWTUN, &msi_disable,
 	    0, "MSI disabled");
-TUNABLE_INT("hw.malo.pci.msi_disable", &msi_disable);
 
 /*
  * Devices supported by this driver.

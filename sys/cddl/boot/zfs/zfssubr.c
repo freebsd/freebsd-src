@@ -30,9 +30,11 @@ static uint64_t zfs_crc64_table[256];
 
 #define	ECKSUM	666
 
-#define	ASSERT(...)	do { } while (0)
-#define	ASSERT3U(...)	do { } while (0)
-#define	ASSERT3S(...)	do { } while (0)
+#define	ASSERT3S(x, y, z)	((void)0)
+#define	ASSERT3U(x, y, z)	((void)0)
+#define	ASSERT3P(x, y, z)	((void)0)
+#define	ASSERT0(x)		((void)0)
+#define	ASSERT(x)		((void)0)
 
 #define	panic(...)	do {						\
 	printf(__VA_ARGS__);						\
@@ -81,6 +83,8 @@ typedef struct zio_checksum_info {
 	int		ci_dedup;	/* strong enough for dedup? */
 	const char	*ci_name;	/* descriptive name */
 } zio_checksum_info_t;
+
+#include "blkptr.c"
 
 #include "fletcher.c"
 #include "sha256.c"

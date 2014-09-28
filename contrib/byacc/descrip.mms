@@ -12,7 +12,7 @@ OBJS	      = closure.obj, \
 		mkpar.obj, \
 		output.obj, \
 		reader.obj, \
-		skeleton.obj, \
+		yaccpar.obj, \
 		symtab.obj, \
 		verbose.obj, \
 		warshall.obj

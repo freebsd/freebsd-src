@@ -55,6 +55,9 @@ hint.arge.0.fduplex=1
 hint.arge.0.miimode=3           # RGMII
 hint.arge.0.pll_1000=0x06000000
 
+# MAC for arge0 is the first 6 bytes of the ART
+hint.arge.0.eeprommac=0x1f7f0000
+
 # mdiobus1 on arge1
 hint.argemdio.1.at="nexus0"
 hint.argemdio.1.maddr=0x1a000000
@@ -67,7 +70,7 @@ hint.argemdio.1.order=0
 hint.arswitch.1.at="mdio2"
 hint.arswitch.1.is_7240=0
 hint.arswitch.1.is_9340=1
-hint.arswitch.1.numphys=4
+hint.arswitch.1.numphys=5
 hint.arswitch.1.phy4cpu=0       # phy 4 is not a "CPU port" PHY here
 hint.arswitch.1.is_rgmii=0
 hint.arswitch.1.is_gmii=1       # arge1 <-> switch PHY is GMII
@@ -77,6 +80,9 @@ hint.arge.1.phymask=0x0		# Nothing attached here (XXX?)
 hint.arge.1.media=1000
 hint.arge.1.fduplex=1
 hint.arge.1.miimode=1		# GMII
+
+# MAC for arge1 is the second 6 bytes of the ART
+hint.arge.1.eeprommac=0x1f7f0006
 
 # ath0: Where the ART is - last 64k in the flash
 hint.ath.0.eepromaddr=0x1fff0000

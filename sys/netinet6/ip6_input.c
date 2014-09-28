@@ -164,7 +164,7 @@ static struct mbuf *ip6_pullexthdr(struct mbuf *, size_t, int);
 void
 ip6_init(void)
 {
-	struct ip6protosw *pr;
+	struct protosw *pr;
 	int i;
 
 	TUNABLE_INT_FETCH("net.inet6.ip6.auto_linklocal",
@@ -194,11 +194,7 @@ ip6_init(void)
 	if (!IS_DEFAULT_VNET(curvnet))
 		return;
 
-#ifdef DIAGNOSTIC
-	if (sizeof(struct protosw) != sizeof(struct ip6protosw))
-		panic("sizeof(protosw) != sizeof(ip6protosw)");
-#endif
-	pr = (struct ip6protosw *)pffindproto(PF_INET6, IPPROTO_RAW, SOCK_RAW);
+	pr = pffindproto(PF_INET6, IPPROTO_RAW, SOCK_RAW);
 	if (pr == NULL)
 		panic("ip6_init");
 
@@ -209,8 +205,8 @@ ip6_init(void)
 	 * Cycle through IP protocols and put them into the appropriate place
 	 * in ip6_protox[].
 	 */
-	for (pr = (struct ip6protosw *)inet6domain.dom_protosw;
-	    pr < (struct ip6protosw *)inet6domain.dom_protoswNPROTOSW; pr++)
+	for (pr = inet6domain.dom_protosw;
+	    pr < inet6domain.dom_protoswNPROTOSW; pr++)
 		if (pr->pr_domain->dom_family == PF_INET6 &&
 		    pr->pr_protocol && pr->pr_protocol != IPPROTO_RAW) {
 			/* Be careful to only index valid IP protocols. */
@@ -228,7 +224,7 @@ ip6_init(void)
 int
 ip6proto_register(short ip6proto)
 {
-	struct ip6protosw *pr;
+	struct protosw *pr;
 
 	/* Sanity checks. */
 	if (ip6proto <= 0 || ip6proto >= IPPROTO_MAX)
@@ -238,7 +234,7 @@ ip6proto_register(short ip6proto)
 	 * The protocol slot must not be occupied by another protocol
 	 * already.  An index pointing to IPPROTO_RAW is unused.
 	 */
-	pr = (struct ip6protosw *)pffindproto(PF_INET6, IPPROTO_RAW, SOCK_RAW);
+	pr = pffindproto(PF_INET6, IPPROTO_RAW, SOCK_RAW);
 	if (pr == NULL)
 		return (EPFNOSUPPORT);
 	if (ip6_protox[ip6proto] != pr - inet6sw)	/* IPPROTO_RAW */
@@ -247,8 +243,8 @@ ip6proto_register(short ip6proto)
 	/*
 	 * Find the protocol position in inet6sw[] and set the index.
 	 */
-	for (pr = (struct ip6protosw *)inet6domain.dom_protosw;
-	    pr < (struct ip6protosw *)inet6domain.dom_protoswNPROTOSW; pr++) {
+	for (pr = inet6domain.dom_protosw;
+	    pr < inet6domain.dom_protoswNPROTOSW; pr++) {
 		if (pr->pr_domain->dom_family == PF_INET6 &&
 		    pr->pr_protocol && pr->pr_protocol == ip6proto) {
 			ip6_protox[pr->pr_protocol] = pr - inet6sw;
@@ -261,14 +257,14 @@ ip6proto_register(short ip6proto)
 int
 ip6proto_unregister(short ip6proto)
 {
-	struct ip6protosw *pr;
+	struct protosw *pr;
 
 	/* Sanity checks. */
 	if (ip6proto <= 0 || ip6proto >= IPPROTO_MAX)
 		return (EPROTONOSUPPORT);
 
 	/* Check if the protocol was indeed registered. */
-	pr = (struct ip6protosw *)pffindproto(PF_INET6, IPPROTO_RAW, SOCK_RAW);
+	pr = pffindproto(PF_INET6, IPPROTO_RAW, SOCK_RAW);
 	if (pr == NULL)
 		return (EPFNOSUPPORT);
 	if (ip6_protox[ip6proto] == pr - inet6sw)	/* IPPROTO_RAW */
@@ -695,8 +691,6 @@ passin:
 		int bad;
 
 		bad = 1;
-#define	sa_equal(a1, a2)						\
-	(bcmp((a1), (a2), ((a1))->sin6_len) == 0)
 		IF_ADDR_RLOCK(ifp);
 		TAILQ_FOREACH(ifa, &ifp->if_addrhead, ifa_link) {
 			if (ifa->ifa_addr->sa_family != dst6.sin6_family)
@@ -706,7 +700,6 @@ passin:
 		}
 		KASSERT(ifa != NULL, ("%s: ifa not found for lle %p",
 		    __func__, lle));
-#undef sa_equal
 
 		ia6 = (struct in6_ifaddr *)ifa;
 		if (!(ia6->ia6_flags & IN6_IFF_NOTREADY)) {
@@ -1076,7 +1069,6 @@ ip6_hopopts_input(u_int32_t *plenp, u_int32_t *rtalertp,
 	struct mbuf *m = *mp;
 	int off = *offp, hbhlen;
 	struct ip6_hbh *hbh;
-	u_int8_t *opt;
 
 	/* validation of the length of the header */
 #ifndef PULLDOWN_TEST
@@ -1103,8 +1095,6 @@ ip6_hopopts_input(u_int32_t *plenp, u_int32_t *rtalertp,
 #endif
 	off += hbhlen;
 	hbhlen -= sizeof(struct ip6_hbh);
-	opt = (u_int8_t *)hbh + sizeof(struct ip6_hbh);
-
 	if (ip6_process_hopopts(m, (u_int8_t *)hbh + sizeof(struct ip6_hbh),
 				hbhlen, rtalertp, plenp) < 0)
 		return (-1);

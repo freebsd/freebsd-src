@@ -75,6 +75,13 @@
 			interrupt-parent = <&AINTC>;
 		};
 
+		adc0: adc@44E0D000 {
+			compatible = "ti,adc";
+			reg = <0x44E0D000 0x2000>;
+			interrupts = < 16 >;
+			interrupt-parent = <&AINTC>;
+ 		};
+ 		
 		GPIO: gpio {
 			#gpio-cells = <3>;
 			compatible = "ti,gpio";

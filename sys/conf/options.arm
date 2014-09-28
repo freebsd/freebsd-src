@@ -1,6 +1,7 @@
 #$FreeBSD$
 ARM9_CACHE_WRITE_THROUGH	opt_global.h
 ARM_CACHE_LOCK_ENABLE	opt_global.h
+ARM_DEVICE_MULTIPASS	opt_global.h
 ARM_KERN_DIRECTMAP	opt_vm.h
 ARM_L2_PIPT		opt_global.h
 ARM_MANY_BOARD		opt_global.h
@@ -15,8 +16,6 @@ CPU_KRAIT		opt_global.h
 CPU_FA526		opt_global.h
 CPU_FA626TE		opt_global.h
 CPU_MV_PJ4B		opt_global.h
-CPU_SA1100		opt_global.h
-CPU_SA1110		opt_global.h
 CPU_XSCALE_80219	opt_global.h
 CPU_XSCALE_80321	opt_global.h
 CPU_XSCALE_81342	opt_global.h
@@ -32,8 +31,8 @@ KERNPHYSADDR		opt_global.h
 KERNVIRTADDR		opt_global.h
 LINUX_BOOT_ABI		opt_global.h
 LOADERRAMADDR		opt_global.h
-NO_EVENTTIMERS		opt_timer.h
 PHYSADDR		opt_global.h
+PLATFORM		opt_global.h
 SOCDEV_PA		opt_global.h
 SOCDEV_VA		opt_global.h
 PV_STATS		opt_pmap.h

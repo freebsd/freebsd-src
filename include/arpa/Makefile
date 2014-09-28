@@ -1,6 +1,6 @@
 # $FreeBSD$
 
-.include <bsd.own.mk>
+.include <src.opts.mk>
 
 NO_OBJ=
 INCS=	ftp.h inet.h nameser.h nameser_compat.h tftp.h

@@ -63,14 +63,34 @@
 
 static int msdosfs_lookup_(struct vnode *vdp, struct vnode **vpp,
     struct componentname *cnp, u_int64_t *inum);
-static int msdosfs_deget_dotdot(struct vnode *vp, u_long cluster, int blkoff,
-    struct vnode **rvp);
 
 int
 msdosfs_lookup(struct vop_cachedlookup_args *ap)
 {
 
 	return (msdosfs_lookup_(ap->a_dvp, ap->a_vpp, ap->a_cnp, NULL));
+}
+
+struct deget_dotdot {
+	u_long cluster;
+	int blkoff;
+};
+
+static int
+msdosfs_deget_dotdot(struct mount *mp, void *arg, int lkflags,
+    struct vnode **rvp)
+{
+	struct deget_dotdot *dd_arg;
+	struct denode *rdp;
+	struct msdosfsmount *pmp;
+	int error;
+
+	pmp = VFSTOMSDOSFS(mp);
+	dd_arg = arg;
+	error = deget(pmp, dd_arg->cluster, dd_arg->blkoff,  &rdp);
+	if (error == 0)
+		*rvp = DETOV(rdp);
+	return (error);
 }
 
 /*
@@ -110,6 +130,7 @@ msdosfs_lookup_(struct vnode *vdp, struct vnode **vpp,
 	struct msdosfsmount *pmp;
 	struct buf *bp = NULL;
 	struct direntry *dep = NULL;
+	struct deget_dotdot dd_arg;
 	u_char dosfilename[12];
 	int flags = cnp->cn_flags;
 	int nameiop = cnp->cn_nameiop;
@@ -524,8 +545,11 @@ foundroot:
 	 */
 	pdp = vdp;
 	if (flags & ISDOTDOT) {
-		error = msdosfs_deget_dotdot(pdp, cluster, blkoff, vpp);
-		if (error) {
+		dd_arg.cluster = cluster;
+		dd_arg.blkoff = blkoff;
+		error = vn_vget_ino_gen(vdp, msdosfs_deget_dotdot,
+		    &dd_arg, cnp->cn_lkflags, vpp);
+		if (error != 0) {
 			*vpp = NULL;
 			return (error);
 		}
@@ -558,54 +582,6 @@ foundroot:
 	if (cnp->cn_flags & MAKEENTRY)
 		cache_enter(vdp, *vpp, cnp);
 	return (0);
-}
-
-static int
-msdosfs_deget_dotdot(struct vnode *vp, u_long cluster, int blkoff,
-    struct vnode **rvp)
-{
-	struct mount *mp;
-	struct msdosfsmount *pmp;
-	struct denode *rdp;
-	int ltype, error;
-
-	mp = vp->v_mount;
-	pmp = VFSTOMSDOSFS(mp);
-	ltype = VOP_ISLOCKED(vp);
-	KASSERT(ltype == LK_EXCLUSIVE || ltype == LK_SHARED,
-	    ("msdosfs_deget_dotdot: vp not locked"));
-
-	error = vfs_busy(mp, MBF_NOWAIT);
-	if (error != 0) {
-		vfs_ref(mp);
-		VOP_UNLOCK(vp, 0);
-		error = vfs_busy(mp, 0);
-		vn_lock(vp, ltype | LK_RETRY);
-		vfs_rel(mp);
-		if (error != 0)
-			return (ENOENT);
-		if (vp->v_iflag & VI_DOOMED) {
-			vfs_unbusy(mp);
-			return (ENOENT);
-		}
-	}
-	VOP_UNLOCK(vp, 0);
-	error = deget(pmp, cluster, blkoff,  &rdp);
-	vfs_unbusy(mp);
-	if (error == 0)
-		*rvp = DETOV(rdp);
-	if (*rvp != vp)
-		vn_lock(vp, ltype | LK_RETRY);
-	if (vp->v_iflag & VI_DOOMED) {
-		if (error == 0) {
-			if (*rvp == vp)
-				vunref(*rvp);
-			else
-				vput(*rvp);
-		}
-		error = ENOENT;
-	}
-	return (error);
 }
 
 /*

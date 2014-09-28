@@ -2,6 +2,7 @@
  * Copyright (c) 2010 Isilon Systems, Inc.
  * Copyright (c) 2010 iX Systems, Inc.
  * Copyright (c) 2010 Panasas, Inc.
+ * Copyright (c) 2013, 2014 Mellanox Technologies, Ltd.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -90,11 +91,12 @@ do {									\
 
 #define	flush_scheduled_work()	flush_taskqueue(taskqueue_thread)
 
-#define	queue_work(q, work)						\
-do {									\
-	(work)->taskqueue = (q)->taskqueue;				\
-	taskqueue_enqueue((q)->taskqueue, &(work)->work_task);		\
-} while (0)
+static inline int queue_work (struct workqueue_struct *q, struct work_struct *work)
+{
+	(work)->taskqueue = (q)->taskqueue;
+	/* Return opposite val to align with Linux logic */
+        return !taskqueue_enqueue((q)->taskqueue, &(work)->work_task);
+}
 
 static inline void
 _delayed_work_fn(void *arg)
@@ -207,6 +209,15 @@ cancel_delayed_work_sync(struct delayed_work *work)
             taskqueue_cancel(work->work.taskqueue, &work->work.work_task, NULL))
                 taskqueue_drain(work->work.taskqueue, &work->work.work_task);
         return 0;
+}
+
+static inline bool
+mod_delayed_work(struct workqueue_struct *wq, struct delayed_work *dwork,
+		                      unsigned long delay)
+{
+	cancel_delayed_work(dwork);
+	queue_delayed_work(wq, dwork, delay);
+	return false;
 }
 
 #endif	/* _LINUX_WORKQUEUE_H_ */

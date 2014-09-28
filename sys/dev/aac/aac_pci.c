@@ -61,7 +61,6 @@ static int	aac_pci_probe(device_t dev);
 static int	aac_pci_attach(device_t dev);
 
 static int aac_enable_msi = 1;
-TUNABLE_INT("hw.aac.enable_msi", &aac_enable_msi);
 SYSCTL_INT(_hw_aac, OID_AUTO, enable_msi, CTLFLAG_RDTUN, &aac_enable_msi, 0,
     "Enable MSI interrupts");
 

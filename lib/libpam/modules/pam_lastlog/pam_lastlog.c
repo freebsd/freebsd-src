@@ -49,7 +49,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/time.h>
 
 #include <paths.h>
-#include <pwd.h>
 #include <stdlib.h>
 #include <string.h>
 #include <time.h>
@@ -68,7 +67,6 @@ PAM_EXTERN int
 pam_sm_open_session(pam_handle_t *pamh, int flags,
     int argc __unused, const char *argv[] __unused)
 {
-	struct passwd *pwd;
 	struct utmpx *utx, utl;
 	time_t t;
 	const char *user;
@@ -79,7 +77,7 @@ pam_sm_open_session(pam_handle_t *pamh, int flags,
 	pam_err = pam_get_user(pamh, &user, NULL);
 	if (pam_err != PAM_SUCCESS)
 		return (pam_err);
-	if (user == NULL || (pwd = getpwnam(user)) == NULL)
+	if (user == NULL)
 		return (PAM_SERVICE_ERR);
 	PAM_LOG("Got user: %s", user);
 

@@ -65,7 +65,6 @@ __FBSDID("$FreeBSD$");
 #include <netinet6/in6_gif.h>
 #include <netinet6/in6_var.h>
 #endif
-#include <netinet6/ip6protosw.h>
 #include <netinet/ip_ecn.h>
 #ifdef INET6
 #include <netinet6/ip6_ecn.h>
@@ -84,7 +83,7 @@ static int gif_validate6(const struct ip6_hdr *, struct gif_softc *,
 			 struct ifnet *);
 
 extern  struct domain inet6domain;
-struct ip6protosw in6_gif_protosw = {
+struct protosw in6_gif_protosw = {
 	.pr_type =	SOCK_RAW,
 	.pr_domain =	&inet6domain,
 	.pr_protocol =	0,			/* IPPROTO_IPV[46] */
@@ -176,6 +175,7 @@ in6_gif_output(struct ifnet *ifp,
 			return ENOBUFS;
 		bcopy(&eiphdr, mtod(m, struct etherip_header *),
 		    sizeof(struct etherip_header));
+		itos = 0;
 		break;
 
 	default:
@@ -266,6 +266,7 @@ in6_gif_output(struct ifnet *ifp,
 #endif
 	}
 
+	m->m_flags &= ~(M_BCAST|M_MCAST);
 #ifdef IPV6_MINMTU
 	/*
 	 * force fragmentation to minimum MTU, to avoid path MTU discovery.

@@ -13,7 +13,7 @@ divert(-1)
 #	Contributed by Christopher Durham <chrisdu@SCO.COM> of SCO.
 #
 divert(0)
-VERSIONID(`$Id: sco-uw-2.1.m4,v 8.14 2013/11/22 20:51:15 ca Exp $')
+VERSIONID(`$Id: sco-uw-2.1.m4,v 8.14 2013-11-22 20:51:15 ca Exp $')
 
 define(`LOCAL_MAILER_PATH', `/usr/bin/rmail')dnl
 _DEFIFNOT(`LOCAL_MAILER_FLAGS', `fhCEn9')dnl

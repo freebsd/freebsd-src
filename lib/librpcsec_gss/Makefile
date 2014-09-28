@@ -13,7 +13,7 @@ SYMBOL_MAPS=	${.CURDIR}/Symbol.map
 
 CFLAGS+= -I${.CURDIR}/../../include
 CFLAGS+= -I${.CURDIR}/../../libc_rpc
-NO_PROFILE=
+MK_PROFILE=	no
 
 MAN=	rpcsec_gss.3
 MAN+=	rpc_gss_seccreate.3

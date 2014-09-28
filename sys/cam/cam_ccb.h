@@ -347,8 +347,8 @@ struct ccb_getdevstats {
 	struct	ccb_hdr	ccb_h;
 	int	dev_openings;	/* Space left for more work on device*/	
 	int	dev_active;	/* Transactions running on the device */
-	int	devq_openings;	/* Space left for more queued work */
-	int	devq_queued;	/* Transactions queued to be sent */
+	int	allocated;	/* CCBs allocated for the device */
+	int	queued;		/* CCBs queued to be sent to the device */
 	int	held;		/*
 				 * CCBs held by peripheral drivers
 				 * for this device

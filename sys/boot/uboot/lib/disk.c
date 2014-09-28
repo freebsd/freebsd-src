@@ -278,3 +278,26 @@ stor_ioctl(struct open_file *f, u_long cmd, void *data)
 	return (0);
 }
 
+
+/*
+ * Return the device unit number for the given type and type-relative unit
+ * number.
+ */
+int
+uboot_diskgetunit(int type, int type_unit)
+{
+	int local_type_unit;
+	int i;
+
+	local_type_unit = 0;
+	for (i = 0; i < stor_info_no; i++) {
+		if ((stor_info[i].type & type) == type) {
+			if (local_type_unit == type_unit) {
+				return (i);
+			}
+			local_type_unit++;
+		}
+	}
+
+	return (-1);
+}

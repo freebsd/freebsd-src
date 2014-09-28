@@ -1,10 +1,13 @@
 # $FreeBSD$
 
-.PATH: ${.CURDIR}/../../dev/vx
+SYSDIR?=${.CURDIR}/../..
+.include "${SYSDIR}/conf/kern.opts.mk"
+
+.PATH: ${SYSDIR}/dev/vx
 
 KMOD=	if_vx
 SRCS=	if_vx.c if_vx_pci.c
-.if ${MACHINE_CPUARCH} == "i386"
+.if ${MK_EISA} != "no"
 SRCS+=	if_vx_eisa.c
 .endif
 SRCS+=	device_if.h bus_if.h pci_if.h eisa_if.h

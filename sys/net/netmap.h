@@ -124,7 +124,7 @@
  *   space with a parent device. The ifname indicates the parent device,
  *   which must already exist. Flags in nr_flags indicate if we want to
  *   bind the master or slave side, the index (from nr_ringid)
- *   is just a cookie and does need to be sequential.
+ *   is just a cookie and does not need to be sequential.
  *
  * + NIOCREGIF can also attach to 'monitor' rings that replicate
  *   the content of specific rings, also from the same memory space.
@@ -228,7 +228,7 @@ struct netmap_slot {
  *	'head' and 'cur' must be incremented as slots are filled
  *	    with new packets to be sent;
  *	'cur' can be moved further ahead if we need more space
- *	for new transmissions.
+ *	for new transmissions. XXX todo (2014-03-12)
  *
  * In RX rings:
  *
@@ -445,29 +445,22 @@ struct netmap_if {
  *		Set the virtio-net header length used by the client
  *		of a VALE switch port.
  *
+ *	NETMAP_BDG_NEWIF
+ *		create a persistent VALE port with name nr_name.
+ *		Used by vale-ctl -n ...
+ *
+ *	NETMAP_BDG_DELIF
+ *		delete a persistent VALE port. Used by vale-ctl -d ...
+ *
  * nr_arg1, nr_arg2, nr_arg3  (in/out)		command specific
  *
- *	
+ *
  *
  */
 
 
 /*
  * struct nmreq overlays a struct ifreq (just the name)
- *
- * On input, nr_ringid indicates which rings we are requesting,
- * with the low flags for the specific ring number.
- * selection			FLAGS	RING INDEX
- *
- *	all the NIC rings	0x0000	-
- *	only HOST ring		0x2000	ring index
- *	single NIC ring		0x4000	-
- *	all the NIC+HOST rings	0x6000	-
- *	one pipe ring, master	0x8000	ring index
- *	*** INVALID		0xA000
- *	one pipe ring, slave	0xC000	ring index
- *	*** INVALID		0xE000
- * 
  */
 struct nmreq {
 	char		nr_name[IFNAMSIZ];
@@ -492,11 +485,12 @@ struct nmreq {
 	uint16_t	nr_cmd;
 #define NETMAP_BDG_ATTACH	1	/* attach the NIC */
 #define NETMAP_BDG_DETACH	2	/* detach the NIC */
-#define NETMAP_BDG_LOOKUP_REG	3	/* register lookup function */
+#define NETMAP_BDG_REGOPS	3	/* register bridge callbacks */
 #define NETMAP_BDG_LIST		4	/* get bridge's info */
 #define NETMAP_BDG_VNET_HDR     5       /* set the port virtio-net-hdr length */
 #define NETMAP_BDG_OFFSET	NETMAP_BDG_VNET_HDR	/* deprecated alias */
-
+#define NETMAP_BDG_NEWIF	6	/* create a virtual port */
+#define NETMAP_BDG_DELIF	7	/* destroy a virtual port */
 	uint16_t	nr_arg1;	/* reserve extra rings in NIOCREGIF */
 #define NETMAP_BDG_HOST		1	/* attach the host stack on ATTACH */
 
@@ -531,6 +525,7 @@ enum {	NR_REG_DEFAULT	= 0,	/* backward compat, should not be used. */
 #define NIOCREGIF	_IOWR('i', 146, struct nmreq) /* interface register */
 #define NIOCTXSYNC	_IO('i', 148) /* sync tx queues */
 #define NIOCRXSYNC	_IO('i', 149) /* sync rx queues */
+#define NIOCCONFIG	_IOWR('i',150, struct nm_ifreq) /* for ext. modules */
 #endif /* !NIOCREGIF */
 
 
@@ -546,5 +541,16 @@ nm_ring_empty(struct netmap_ring *ring)
 {
 	return (ring->cur == ring->tail);
 }
+
+/*
+ * Opaque structure that is passed to an external kernel
+ * module via ioctl(fd, NIOCCONFIG, req) for a user-owned
+ * bridge port (at this point ephemeral VALE interface).
+ */
+#define NM_IFRDATA_LEN 256
+struct nm_ifreq {
+	char nifr_name[IFNAMSIZ];
+	char data[NM_IFRDATA_LEN];
+};
 
 #endif /* _NET_NETMAP_H_ */

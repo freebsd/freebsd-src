@@ -317,10 +317,6 @@ link_elf_delete_gdb(struct link_map *l)
 }
 #endif /* GDB */
 
-#ifdef __ia64__
-Elf_Addr link_elf_get_gp(linker_file_t);
-#endif
-
 /*
  * The kernel symbol table starts here.
  */
@@ -1453,21 +1449,6 @@ link_elf_each_function_nameval(linker_file_t file,
 	}
 	return (0);
 }
-
-#ifdef __ia64__
-/*
- * Each KLD has its own GP. The GP value for each load module is given by
- * DT_PLTGOT on ia64. We need GP to construct function descriptors, but
- * don't have direct access to the ELF file structure. The link_elf_get_gp()
- * function returns the GP given a pointer to a generic linker file struct.
- */
-Elf_Addr
-link_elf_get_gp(linker_file_t lf)
-{
-	elf_file_t ef = (elf_file_t)lf;
-	return ((Elf_Addr)ef->got);
-}
-#endif
 
 const Elf_Sym *
 elf_get_sym(linker_file_t lf, Elf_Size symidx)

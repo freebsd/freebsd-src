@@ -57,6 +57,7 @@ struct nfsclsession {
 	struct mtx	nfsess_mtx;
 	struct nfsslot	nfsess_cbslots[NFSV4_CBSLOTS];
 	nfsquad_t	nfsess_clientid;
+	SVCXPRT		*nfsess_xprt;		/* For backchannel callback */
 	uint32_t	nfsess_slotseq[64];	/* Max for 64bit nm_slots */
 	uint64_t	nfsess_slots;
 	uint32_t	nfsess_sequenceid;

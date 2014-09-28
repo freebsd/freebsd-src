@@ -25,10 +25,12 @@
 #
 # $FreeBSD$
 
+.include <src.opts.mk>
 .include <bsd.init.mk>
 
 LIB=		atf-c
-SHLIB_MAJOR=	1
+PRIVATELIB=	true
+SHLIB_MAJOR=	0
 
 ATF=		${.CURDIR:H:H:H}/contrib/atf
 .PATH:		${ATF}
@@ -73,18 +75,6 @@ INCS+=		atf-c.h
 INCSDIR_atf-c.h= ${INCLUDEDIR}
 
 MAN=		atf-c-api.3
-
-all: atf-c.pc
-atf-c.pc: atf-c.pc.in atf-version
-	sed -e 's,__CC__,${CC},g' \
-	    -e 's,__INCLUDEDIR__,${INCLUDEDIR},g' \
-	    -e 's,__LIBDIR__,${LIBDIR},g' \
-	    -e "s,__ATF_VERSION__,$$(cat atf-version),g" \
-	    <${ATF}/atf-c/atf-c.pc.in >atf-c.pc
-
-beforeinstall:
-	${INSTALL} -C -o ${LIBOWN} -g ${LIBGRP} -m ${LIBMODE} \
-		atf-c.pc ${DESTDIR}${LIBDATADIR}/pkgconfig
 
 .if ${MK_TESTS} != "no"
 SUBDIR=		tests

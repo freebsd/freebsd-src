@@ -63,6 +63,7 @@ __FBSDID("$FreeBSD$");
 #include <x86/iommu/intel_reg.h>
 #include <x86/iommu/busdma_dmar.h>
 #include <x86/iommu/intel_dmar.h>
+#include <dev/pci/pcireg.h>
 #include <dev/pci/pcivar.h>
 
 static MALLOC_DEFINE(M_DMAR_CTX, "dmar_ctx", "Intel DMAR Context");
@@ -105,14 +106,14 @@ dmar_map_ctx_entry(struct dmar_ctx *ctx, struct sf_buf **sfp)
 {
 	dmar_ctx_entry_t *ctxp;
 
-	ctxp = dmar_map_pgtbl(ctx->dmar->ctx_obj, 1 + ctx->bus,
+	ctxp = dmar_map_pgtbl(ctx->dmar->ctx_obj, 1 + PCI_RID2BUS(ctx->rid),
 	    DMAR_PGF_NOALLOC | DMAR_PGF_WAITOK, sfp);
-	ctxp += ((ctx->slot & 0x1f) << 3) + (ctx->func & 0x7);
+	ctxp += ctx->rid & 0xff;
 	return (ctxp);
 }
 
 static void
-ctx_tag_init(struct dmar_ctx *ctx)
+ctx_tag_init(struct dmar_ctx *ctx, device_t dev)
 {
 	bus_addr_t maxaddr;
 
@@ -126,6 +127,7 @@ ctx_tag_init(struct dmar_ctx *ctx)
 	ctx->ctx_tag.common.nsegments = BUS_SPACE_UNRESTRICTED;
 	ctx->ctx_tag.common.maxsegsz = maxaddr;
 	ctx->ctx_tag.ctx = ctx;
+	ctx->ctx_tag.owner = dev;
 	/* XXXKIB initialize tag further */
 }
 
@@ -138,7 +140,10 @@ ctx_id_entry_init(struct dmar_ctx *ctx, dmar_ctx_entry_t *ctxp)
 	unit = ctx->dmar;
 	KASSERT(ctxp->ctx1 == 0 && ctxp->ctx2 == 0,
 	    ("dmar%d: initialized ctx entry %d:%d:%d 0x%jx 0x%jx",
-	    unit->unit, ctx->bus, ctx->slot, ctx->func, ctxp->ctx1,
+	    unit->unit, pci_get_bus(ctx->ctx_tag.owner),
+	    pci_get_slot(ctx->ctx_tag.owner),
+	    pci_get_function(ctx->ctx_tag.owner),
+	    ctxp->ctx1,
 	    ctxp->ctx2));
 	ctxp->ctx2 = DMAR_CTX2_DID(ctx->domain);
 	ctxp->ctx2 |= ctx->awlvl;
@@ -182,6 +187,15 @@ ctx_init_rmrr(struct dmar_ctx *ctx, device_t dev)
 		end = entry->end;
 		entry->start = trunc_page(start);
 		entry->end = round_page(end);
+		if (entry->start == entry->end) {
+			/* Workaround for some AMI (?) BIOSes */
+			if (bootverbose) {
+				device_printf(dev, "BIOS bug: dmar%d RMRR "
+				    "region (%jx, %jx) corrected\n",
+				    ctx->dmar->unit, start, end);
+			}
+			entry->end += DMAR_PAGE_SIZE * 0x20;
+		}
 		size = OFF_TO_IDX(entry->end - entry->start);
 		ma = malloc(sizeof(vm_page_t) * size, M_TEMP, M_WAITOK);
 		for (i = 0; i < size; i++) {
@@ -218,7 +232,7 @@ ctx_init_rmrr(struct dmar_ctx *ctx, device_t dev)
 }
 
 static struct dmar_ctx *
-dmar_get_ctx_alloc(struct dmar_unit *dmar, int bus, int slot, int func)
+dmar_get_ctx_alloc(struct dmar_unit *dmar, uint16_t rid)
 {
 	struct dmar_ctx *ctx;
 
@@ -228,9 +242,7 @@ dmar_get_ctx_alloc(struct dmar_unit *dmar, int bus, int slot, int func)
 	TASK_INIT(&ctx->unload_task, 0, dmar_ctx_unload_task, ctx);
 	mtx_init(&ctx->lock, "dmarctx", NULL, MTX_DEF);
 	ctx->dmar = dmar;
-	ctx->bus = bus;
-	ctx->slot = slot;
-	ctx->func = func;
+	ctx->rid = rid;
 	return (ctx);
 }
 
@@ -253,7 +265,8 @@ dmar_ctx_dtr(struct dmar_ctx *ctx, bool gas_inited, bool pgtbl_inited)
 }
 
 struct dmar_ctx *
-dmar_get_ctx(struct dmar_unit *dmar, device_t dev, bool id_mapped, bool rmrr_init)
+dmar_get_ctx(struct dmar_unit *dmar, device_t dev, uint16_t rid, bool id_mapped,
+    bool rmrr_init)
 {
 	struct dmar_ctx *ctx, *ctx1;
 	dmar_ctx_entry_t *ctxp;
@@ -267,7 +280,7 @@ dmar_get_ctx(struct dmar_unit *dmar, device_t dev, bool id_mapped, bool rmrr_ini
 	enable = false;
 	TD_PREP_PINNED_ASSERT;
 	DMAR_LOCK(dmar);
-	ctx = dmar_find_ctx_locked(dmar, bus, slot, func);
+	ctx = dmar_find_ctx_locked(dmar, rid);
 	error = 0;
 	if (ctx == NULL) {
 		/*
@@ -276,7 +289,7 @@ dmar_get_ctx(struct dmar_unit *dmar, device_t dev, bool id_mapped, bool rmrr_ini
 		 */
 		DMAR_UNLOCK(dmar);
 		dmar_ensure_ctx_page(dmar, bus);
-		ctx1 = dmar_get_ctx_alloc(dmar, bus, slot, func);
+		ctx1 = dmar_get_ctx_alloc(dmar, rid);
 
 		if (id_mapped) {
 			/*
@@ -344,9 +357,10 @@ dmar_get_ctx(struct dmar_unit *dmar, device_t dev, bool id_mapped, bool rmrr_ini
 		 * Recheck the contexts, other thread might have
 		 * already allocated needed one.
 		 */
-		ctx = dmar_find_ctx_locked(dmar, bus, slot, func);
+		ctx = dmar_find_ctx_locked(dmar, rid);
 		if (ctx == NULL) {
 			ctx = ctx1;
+			ctx->ctx_tag.owner = dev;
 			ctx->domain = alloc_unrl(dmar->domids);
 			if (ctx->domain == -1) {
 				DMAR_UNLOCK(dmar);
@@ -355,7 +369,7 @@ dmar_get_ctx(struct dmar_unit *dmar, device_t dev, bool id_mapped, bool rmrr_ini
 				TD_PINNED_ASSERT;
 				return (NULL);
 			}
-			ctx_tag_init(ctx);
+			ctx_tag_init(ctx, dev);
 
 			/*
 			 * This is the first activated context for the
@@ -367,9 +381,11 @@ dmar_get_ctx(struct dmar_unit *dmar, device_t dev, bool id_mapped, bool rmrr_ini
 			LIST_INSERT_HEAD(&dmar->contexts, ctx, link);
 			ctx_id_entry_init(ctx, ctxp);
 			device_printf(dev,
-			    "dmar%d pci%d:%d:%d:%d domain %d mgaw %d agaw %d\n",
+			    "dmar%d pci%d:%d:%d:%d domain %d mgaw %d "
+			    "agaw %d %s-mapped\n",
 			    dmar->unit, dmar->segment, bus, slot,
-			    func, ctx->domain, ctx->mgaw, ctx->agaw);
+			    func, ctx->domain, ctx->mgaw, ctx->agaw,
+			    id_mapped ? "id" : "re");
 		} else {
 			dmar_ctx_dtr(ctx1, true, true);
 		}
@@ -514,14 +530,14 @@ dmar_free_ctx(struct dmar_ctx *ctx)
 }
 
 struct dmar_ctx *
-dmar_find_ctx_locked(struct dmar_unit *dmar, int bus, int slot, int func)
+dmar_find_ctx_locked(struct dmar_unit *dmar, uint16_t rid)
 {
 	struct dmar_ctx *ctx;
 
 	DMAR_ASSERT_LOCKED(dmar);
 
 	LIST_FOREACH(ctx, &dmar->contexts, link) {
-		if (ctx->bus == bus && ctx->slot == slot && ctx->func == func)
+		if (ctx->rid == rid)
 			return (ctx);
 	}
 	return (NULL);

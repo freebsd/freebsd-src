@@ -235,6 +235,8 @@ set_port_media(struct cfg *cfg, char *argv[])
 	p.es_ifmr.ifm_count = IFMEDIAREQ_NULISTENTRIES;
 	if (ioctl(cfg->fd, IOETHERSWITCHGETPORT, &p) != 0)
 		err(EX_OSERR, "ioctl(IOETHERSWITCHGETPORT)");
+	if (p.es_ifmr.ifm_count == 0)
+		return;
 	subtype = get_media_subtype(IFM_TYPE(ifm_ulist[0]), argv[1]);
 	p.es_ifr.ifr_media = (p.es_ifmr.ifm_current & IFM_IMASK) |
 	        IFM_TYPE(ifm_ulist[0]) | subtype;

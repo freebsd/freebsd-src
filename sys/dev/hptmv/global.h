@@ -132,11 +132,6 @@ typedef struct _VDevice_Ext
 #define LongDiv(x, y)      	(x / (UINT)(y))
 #define LongRem(x, y)		(x % (UINT)(y))
 #define LongMul(x, y)      	(x * y)
-/* Minimum and maximum macros */
-#if (__FreeBSD_version < 501000)
-#define MAX(a, b)	(((a) > (b)) ? (a) : (b))
-#define MIN(a, b)	(((a) < (b)) ? (a) : (b))
-#endif
 
 /*************************************************************************
  * C library
@@ -151,9 +146,6 @@ unsigned HPTLIBAPI os_strlen(const char *s);
 #define memcpy os_memcpy
 #define memset os_memset
 #define strlen os_strlen
-#elif (__FreeBSD_version <= 410000) 
-#define	memcpy(d, s, len)     bcopy((s),(d),(len))
-#define	memset(d, s, len)     bzero((d),(len))
 #endif
 #define ZeroMemory(a, b)  	memset((char *)a, 0, b)
 #define MemoryCopy(a,b,c) 	memcpy((char *)(a), (char *)(b), (UINT)(c))

@@ -77,7 +77,7 @@
 
 
 # RCSid:
-#	$Id: meta2deps.sh,v 1.6 2013/05/11 05:16:26 sjg Exp $
+#	$Id: meta2deps.sh,v 1.7 2014/04/05 22:56:54 sjg Exp $
 
 # Copyright (c) 2010-2013, Juniper Networks, Inc.
 # All rights reserved.
@@ -348,7 +348,7 @@ meta2deps() {
 	[ -s $f ] || continue
 	case $f in
 	*qual) # a list of .dirdep files
-	    # we can prefix everthing with $OBJTOP to
+	    # we can prefix everything with $OBJTOP to
 	    # tell gendirdeps.mk that these are
 	    # DIRDEP entries, since they are already
 	    # qualified with .<machine> as needed.

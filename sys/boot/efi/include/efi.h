@@ -52,6 +52,7 @@ Revision History
 #include "efiapi.h"
 #include "efifs.h"
 #include "efierr.h"
+#include "efigop.h"
 
 #define EFI_STRINGIZE(a)                #a 
 #define EFI_PROTOCOL_DEFINITION(a)      EFI_STRINGIZE(Protocol/a/a.h) 

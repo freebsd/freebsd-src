@@ -2,7 +2,7 @@
 #
 PROG=ps
 SRCS+=main.c
-NO_MAN=
+MAN=
 
 .include <bsd.prog.mk>
 

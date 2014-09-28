@@ -198,7 +198,7 @@ main(int argc, char *argv[])
 	(void)alarm(timeout);
 	(void)setpriority(PRIO_PROCESS, 0, 0);
 
-	openlog("login", LOG_ODELAY, LOG_AUTH);
+	openlog("login", 0, LOG_AUTH);
 
 	uid = getuid();
 	euid = geteuid();
@@ -488,14 +488,6 @@ main(int argc, char *argv[])
 	    (gr = getgrnam(TTYGRPNAME)) ? gr->gr_gid : pwd->pw_gid))
 		if (errno != EROFS)
 			syslog(LOG_ERR, "chown(%s): %m", ttyn);
-
-	/*
-	 * Exclude cons/vt/ptys only, assume dialup otherwise
-	 * TODO: Make dialup tty determination a library call
-	 * for consistency (finger etc.)
-	 */
-	if (hflag && isdialuptty(tty))
-		syslog(LOG_INFO, "DIALUP %s, %s", tty, pwd->pw_name);
 
 #ifdef LOGALL
 	/*

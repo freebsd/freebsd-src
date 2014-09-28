@@ -11,7 +11,7 @@ IBSRCDIR=	${UMADDIR}/src
 
 LIB=		ibumad
 SHLIB_MAJOR=	1
-NO_PROFILE=
+MK_PROFILE=	no
 
 SRCS=	umad.c
 

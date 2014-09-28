@@ -2,7 +2,7 @@
 #	$FreeBSD$
 #	$OpenBSD: Makefile,v 1.6 2003/06/25 15:00:04 millert Exp $
 
-.include <bsd.own.mk>
+.include <src.opts.mk>
 
 .if ${MK_BSD_GREP} == "yes"
 PROG=	grep
@@ -11,7 +11,7 @@ PROG=	bsdgrep
 CLEANFILES+= bsdgrep.1
 
 bsdgrep.1: grep.1
-	cp ${.ALLSRC} ${.TARGET}
+	cp -f ${.ALLSRC} ${.TARGET}
 .endif
 SRCS=	file.c grep.c queue.c util.c
 
@@ -43,7 +43,7 @@ MLINKS= grep.1 egrep.1 \
 LDADD=	-lz
 DPADD=	${LIBZ}
 
-.if !defined(WITHOUT_LZMA_SUPPORT)
+.if ${MK_LZMA_SUPPORT} != "no"
 LDADD+=	-llzma
 DPADD+=	${LIBLZMA}
 
@@ -57,7 +57,7 @@ LINKS+=	${BINDIR}/${PROG} ${BINDIR}/xzgrep \
 CFLAGS+= -DWITHOUT_LZMA
 .endif
 
-.if !defined(WITHOUT_BZIP2_SUPPORT)
+.if ${MK_BZIP2_SUPPORT} != "no"
 LDADD+=	-lbz2
 DPADD+=	${LIBBZ2}
 
@@ -73,13 +73,13 @@ MLINKS+= grep.1 bzgrep.1 \
 CFLAGS+= -DWITHOUT_BZIP2
 .endif
 
-.if !defined(WITHOUT_GNU_COMPAT)
+.if ${MK_GNU_GREP_COMPAT} != "no"
 CFLAGS+= -I${DESTDIR}/usr/include/gnu
 LDADD+=	-lgnuregex
 DPADD+=	${LIBGNUREGEX}
 .endif
 
-.if !defined(WITHOUT_NLS)
+.if ${MK_NLS} != "no"
 .include "${.CURDIR}/nls/Makefile.inc"
 .else
 CFLAGS+= -DWITHOUT_NLS

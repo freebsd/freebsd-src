@@ -1089,7 +1089,7 @@ sis_attach(device_t dev)
 	/*
 	 * Tell the upper layer(s) we support long frames.
 	 */
-	ifp->if_data.ifi_hdrlen = sizeof(struct ether_vlan_header);
+	ifp->if_hdrlen = sizeof(struct ether_vlan_header);
 	ifp->if_capabilities |= IFCAP_VLAN_MTU;
 	ifp->if_capenable = ifp->if_capabilities;
 #ifdef DEVICE_POLLING
@@ -1329,9 +1329,9 @@ sis_dma_free(struct sis_softc *sc)
 		bus_dma_tag_destroy(sc->sis_tx_tag);
 
 	/* Destroy RX ring. */
-	if (sc->sis_rx_list_map)
+	if (sc->sis_rx_paddr)
 		bus_dmamap_unload(sc->sis_rx_list_tag, sc->sis_rx_list_map);
-	if (sc->sis_rx_list_map && sc->sis_rx_list)
+	if (sc->sis_rx_list)
 		bus_dmamem_free(sc->sis_rx_list_tag, sc->sis_rx_list,
 		    sc->sis_rx_list_map);
 
@@ -1339,10 +1339,10 @@ sis_dma_free(struct sis_softc *sc)
 		bus_dma_tag_destroy(sc->sis_rx_list_tag);
 
 	/* Destroy TX ring. */
-	if (sc->sis_tx_list_map)
+	if (sc->sis_tx_paddr)
 		bus_dmamap_unload(sc->sis_tx_list_tag, sc->sis_tx_list_map);
 
-	if (sc->sis_tx_list_map && sc->sis_tx_list)
+	if (sc->sis_tx_list)
 		bus_dmamem_free(sc->sis_tx_list_tag, sc->sis_tx_list,
 		    sc->sis_tx_list_map);
 
@@ -1509,9 +1509,9 @@ sis_rxeof(struct sis_softc *sc)
 		    ETHER_CRC_LEN))
 			rxstat &= ~SIS_RXSTAT_GIANT;
 		if (SIS_RXSTAT_ERROR(rxstat) != 0) {
-			ifp->if_ierrors++;
+			if_inc_counter(ifp, IFCOUNTER_IERRORS, 1);
 			if (rxstat & SIS_RXSTAT_COLL)
-				ifp->if_collisions++;
+				if_inc_counter(ifp, IFCOUNTER_COLLISIONS, 1);
 			sis_discard_rxbuf(rxd);
 			continue;
 		}
@@ -1519,7 +1519,7 @@ sis_rxeof(struct sis_softc *sc)
 		/* Add a new receive buffer to the ring. */
 		m = rxd->rx_m;
 		if (sis_newbuf(sc, rxd) != 0) {
-			ifp->if_iqdrops++;
+			if_inc_counter(ifp, IFCOUNTER_IQDROPS, 1);
 			sis_discard_rxbuf(rxd);
 			continue;
 		}
@@ -1535,7 +1535,7 @@ sis_rxeof(struct sis_softc *sc)
 		 */
 		sis_fixup_rx(m);
 #endif
-		ifp->if_ipackets++;
+		if_inc_counter(ifp, IFCOUNTER_IPACKETS, 1);
 		m->m_pkthdr.rcvif = ifp;
 
 		SIS_UNLOCK(sc);
@@ -1593,15 +1593,15 @@ sis_txeof(struct sis_softc *sc)
 			m_freem(txd->tx_m);
 			txd->tx_m = NULL;
 			if ((txstat & SIS_CMDSTS_PKT_OK) != 0) {
-				ifp->if_opackets++;
-				ifp->if_collisions +=
-				    (txstat & SIS_TXSTAT_COLLCNT) >> 16;
+				if_inc_counter(ifp, IFCOUNTER_OPACKETS, 1);
+				if_inc_counter(ifp, IFCOUNTER_COLLISIONS,
+				    (txstat & SIS_TXSTAT_COLLCNT) >> 16);
 			} else {
-				ifp->if_oerrors++;
+				if_inc_counter(ifp, IFCOUNTER_OERRORS, 1);
 				if (txstat & SIS_TXSTAT_EXCESSCOLLS)
-					ifp->if_collisions++;
+					if_inc_counter(ifp, IFCOUNTER_COLLISIONS, 1);
 				if (txstat & SIS_TXSTAT_OUTOFWINCOLL)
-					ifp->if_collisions++;
+					if_inc_counter(ifp, IFCOUNTER_COLLISIONS, 1);
 			}
 		}
 		sc->sis_tx_cnt--;
@@ -1617,11 +1617,9 @@ sis_tick(void *xsc)
 {
 	struct sis_softc	*sc;
 	struct mii_data		*mii;
-	struct ifnet		*ifp;
 
 	sc = xsc;
 	SIS_LOCK_ASSERT(sc);
-	ifp = sc->sis_ifp;
 
 	mii = device_get_softc(sc->sis_miibus);
 	mii_tick(mii);
@@ -1666,7 +1664,7 @@ sis_poll(struct ifnet *ifp, enum poll_cmd cmd, int count)
 		status = CSR_READ_4(sc, SIS_ISR);
 
 		if (status & (SIS_ISR_RX_ERR|SIS_ISR_RX_OFLOW))
-			ifp->if_ierrors++;
+			if_inc_counter(ifp, IFCOUNTER_IERRORS, 1);
 
 		if (status & (SIS_ISR_RX_IDLE))
 			SIS_SETBIT(sc, SIS_CSR, SIS_CSR_RX_ENABLE);
@@ -1724,7 +1722,7 @@ sis_intr(void *arg)
 			sis_rxeof(sc);
 
 		if (status & SIS_ISR_RX_OFLOW)
-			ifp->if_ierrors++;
+			if_inc_counter(ifp, IFCOUNTER_IERRORS, 1);
 
 		if (status & (SIS_ISR_RX_IDLE))
 			SIS_SETBIT(sc, SIS_CSR, SIS_CSR_RX_ENABLE);
@@ -2199,7 +2197,7 @@ sis_watchdog(struct sis_softc *sc)
 		return;
 
 	device_printf(sc->sis_dev, "watchdog timeout\n");
-	sc->sis_ifp->if_oerrors++;
+	if_inc_counter(sc->sis_ifp, IFCOUNTER_OERRORS, 1);
 
 	sc->sis_ifp->if_drv_flags &= ~IFF_DRV_RUNNING;
 	sis_initl(sc);
@@ -2363,7 +2361,6 @@ sis_add_sysctls(struct sis_softc *sc)
 {
 	struct sysctl_ctx_list *ctx;
 	struct sysctl_oid_list *children;
-	char tn[32];
 	int unit;
 
 	ctx = device_get_sysctl_ctx(sc->sis_dev);
@@ -2378,10 +2375,8 @@ sis_add_sysctls(struct sis_softc *sc)
 	 * because it will consume extra CPU cycles for short frames.
 	 */
 	sc->sis_manual_pad = 0;
-	snprintf(tn, sizeof(tn), "dev.sis.%d.manual_pad", unit);
-	TUNABLE_INT_FETCH(tn, &sc->sis_manual_pad);
 	SYSCTL_ADD_INT(ctx, children, OID_AUTO, "manual_pad",
-	    CTLFLAG_RW, &sc->sis_manual_pad, 0, "Manually pad short frames");
+	    CTLFLAG_RWTUN, &sc->sis_manual_pad, 0, "Manually pad short frames");
 }
 
 static device_method_t sis_methods[] = {

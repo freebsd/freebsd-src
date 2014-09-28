@@ -32,6 +32,7 @@ __FBSDID("$FreeBSD$");
 #include <machine/vmm.h>
 
 #include <assert.h>
+#include <errno.h>
 #include <pthread.h>
 #include <signal.h>
 #include <vmmapi.h>
@@ -39,6 +40,7 @@ __FBSDID("$FreeBSD$");
 #include "acpi.h"
 #include "inout.h"
 #include "mevent.h"
+#include "pci_irq.h"
 #include "pci_lpc.h"
 
 static pthread_mutex_t pm_lock = PTHREAD_MUTEX_INITIALIZER;
@@ -55,6 +57,8 @@ static int
 reset_handler(struct vmctx *ctx, int vcpu, int in, int port, int bytes,
     uint32_t *eax, void *arg)
 {
+	int error;
+
 	static uint8_t reset_control;
 
 	if (bytes != 1)
@@ -65,8 +69,10 @@ reset_handler(struct vmctx *ctx, int vcpu, int in, int port, int bytes,
 		reset_control = *eax;
 
 		/* Treat hard and soft resets the same. */
-		if (reset_control & 0x4)
-			return (INOUT_RESET);
+		if (reset_control & 0x4) {
+			error = vm_suspend(ctx, VM_SUSPEND_RESET);
+			assert(error == 0 || errno == EALREADY);
+		}
 	}
 	return (0);
 }
@@ -83,7 +89,7 @@ sci_assert(struct vmctx *ctx)
 
 	if (sci_active)
 		return;
-	vm_ioapic_assert_irq(ctx, SCI_INT);
+	vm_isa_assert_irq(ctx, SCI_INT, SCI_INT);
 	sci_active = 1;
 }
 
@@ -93,7 +99,7 @@ sci_deassert(struct vmctx *ctx)
 
 	if (!sci_active)
 		return;
-	vm_ioapic_deassert_irq(ctx, SCI_INT);
+	vm_isa_deassert_irq(ctx, SCI_INT, SCI_INT);
 	sci_active = 0;
 }
 
@@ -223,6 +229,7 @@ static int
 pm1_control_handler(struct vmctx *ctx, int vcpu, int in, int port, int bytes,
     uint32_t *eax, void *arg)
 {
+	int error;
 
 	if (bytes != 2)
 		return (-1);
@@ -242,8 +249,10 @@ pm1_control_handler(struct vmctx *ctx, int vcpu, int in, int port, int bytes,
 		 * says that '5' should be stored in SLP_TYP for S5.
 		 */
 		if (*eax & PM1_SLP_EN) {
-			if ((pm1_control & PM1_SLP_TYP) >> 10 == 5)
-				return (INOUT_POWEROFF);
+			if ((pm1_control & PM1_SLP_TYP) >> 10 == 5) {
+				error = vm_suspend(ctx, VM_SUSPEND_POWEROFF);
+				assert(error == 0 || errno == EALREADY);
+			}
 		}
 	}
 	return (0);
@@ -289,3 +298,15 @@ smi_cmd_handler(struct vmctx *ctx, int vcpu, int in, int port, int bytes,
 }
 INOUT_PORT(smi_cmd, SMI_CMD, IOPORT_F_OUT, smi_cmd_handler);
 SYSRES_IO(SMI_CMD, 1);
+
+void
+sci_init(struct vmctx *ctx)
+{
+
+	/*
+	 * Mark ACPI's SCI as level trigger and bump its use count
+	 * in the PIRQ router.
+	 */
+	pci_irq_use(SCI_INT);
+	vm_isa_set_irq_trigger(ctx, SCI_INT, LEVEL_TRIGGER);
+}

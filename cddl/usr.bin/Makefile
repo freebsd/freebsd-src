@@ -1,16 +1,21 @@
 # $FreeBSD$
 
-.include <bsd.own.mk>
+.include <src.opts.mk>
 
 SUBDIR= \
 	ctfconvert \
 	ctfdump \
 	ctfmerge \
 	sgsmsg \
+	${_tests} \
 	${_zinject} \
 	${_zlook} \
 	${_zstreamdump} \
 	${_ztest}
+
+.if ${MK_TESTS} != "no"
+_tests=	tests
+.endif
 
 .if ${MK_ZFS} != "no"
 _zinject= zinject

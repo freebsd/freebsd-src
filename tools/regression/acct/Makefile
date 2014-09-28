@@ -6,7 +6,7 @@
 
 PROG=	pack
 SRCS=	pack.c
-NO_MAN=
+MAN=
 CFLAGS+= -I${.OBJDIR}
 
 pack.o:	convert.c

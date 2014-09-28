@@ -1073,9 +1073,9 @@
 #define A_SGE_FL_BUFFER_SIZE0 0x1044
 
 #define S_SIZE    4
-#define M_SIZE    0xfffffffU
+#define CXGBE_M_SIZE    0xfffffffU
 #define V_SIZE(x) ((x) << S_SIZE)
-#define G_SIZE(x) (((x) >> S_SIZE) & M_SIZE)
+#define G_SIZE(x) (((x) >> S_SIZE) & CXGBE_M_SIZE)
 
 #define A_SGE_FL_BUFFER_SIZE1 0x1048
 #define A_SGE_FL_BUFFER_SIZE2 0x104c

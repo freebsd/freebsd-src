@@ -30,7 +30,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)prompt.h	8.1 (Berkeley) 6/4/93
- *	$NetBSD: prompt.h,v 1.6 2003/08/07 16:44:32 agc Exp $
+ *	$NetBSD: prompt.h,v 1.9 2009/03/31 17:38:27 christos Exp $
  * $FreeBSD$
  */
 
@@ -45,8 +45,8 @@
 typedef char * (*el_pfunc_t)(EditLine*);
 
 typedef struct el_prompt_t {
-	el_pfunc_t	p_func;	/* Function to return the prompt	*/
-	coord_t		p_pos;	/* position in the line after prompt	*/
+	el_pfunc_t	p_func;		/* Function to return the prompt */
+	coord_t		p_pos;		/* position in the line after prompt */
 	char		p_ignore;	/* character to start/end literal 
 */
 } el_prompt_t;

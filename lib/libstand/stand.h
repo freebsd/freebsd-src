@@ -124,6 +124,7 @@ extern struct fs_ops bzipfs_fsops;
 extern struct fs_ops dosfs_fsops;
 extern struct fs_ops ext2fs_fsops;
 extern struct fs_ops splitfs_fsops;
+extern struct fs_ops pkgfs_fsops;
 
 /* where values for lseek(2) */
 #define	SEEK_SET	0	/* set file offset to offset */
@@ -238,6 +239,7 @@ extern void	mallocstats(void);
 extern int	printf(const char *fmt, ...) __printflike(1, 2);
 extern void	vprintf(const char *fmt, __va_list);
 extern int	sprintf(char *buf, const char *cfmt, ...) __printflike(2, 3);
+extern int	snprintf(char *buf, size_t size, const char *cfmt, ...) __printflike(3, 4);
 extern void	vsprintf(char *buf, const char *cfmt, __va_list);
 
 extern void	twiddle(void);
@@ -363,6 +365,7 @@ extern int		devopen(struct open_file *, const char *, const char **);
 extern int		devclose(struct open_file *f);
 extern void		panic(const char *, ...) __dead2 __printflike(1, 2);
 extern struct fs_ops	*file_system[];
+extern struct fs_ops	*exclusive_file_system;
 extern struct devsw	*devsw[];
 
 /*

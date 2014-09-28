@@ -3,7 +3,9 @@
 static void printport __P((int *));
 static void printhosts __P((int *));
 static void printsingle __P((int *));
+#ifdef USE_INET6
 static void printhostsv6 __P((int *));
+#endif
 
 void
 printipfexpr(array)

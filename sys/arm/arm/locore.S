@@ -37,6 +37,7 @@
 #include <sys/syscall.h>
 #include <machine/asm.h>
 #include <machine/armreg.h>
+#include <machine/cpuconf.h>
 #include <machine/pte.h>
 
 __FBSDID("$FreeBSD$");
@@ -75,18 +76,19 @@ __FBSDID("$FreeBSD$");
  * For both types of boot we gather up the args, put them in a struct arm_boot_params
  * structure and pass that to initarm.
  */
-ENTRY_NP(btext)
+	.globl	btext
+btext:
 ASENTRY_NP(_start)
 	STOP_UNWINDING		/* Can't unwind into the bootloader! */
 
 	mov	r9, r0		/* 0 or boot mode from boot2 */
 	mov	r8, r1		/* Save Machine type */
 	mov	ip, r2		/* Save meta data */
-	mov	fp, r3		/* Future expantion */
+	mov	fp, r3		/* Future expansion */
 
 	/* Make sure interrupts are disabled. */
 	mrs	r7, cpsr
-	orr	r7, r7, #(I32_bit|F32_bit)
+	orr	r7, r7, #(PSR_I | PSR_F)
 	msr	cpsr_c, r7
 
 #if defined (FLASHADDR) && defined(LOADERRAMADDR)
@@ -125,10 +127,6 @@ Lram_offset:	.word from_ram-_C_LABEL(_start)
 from_ram:
 	nop
 #endif
-	adr	r7, Lunmapped
-	bic     r7, r7, #0xf0000000
-	orr     r7, r7, #PHYSADDR
-
 
 disable_mmu:
 	/* Disable MMU for a while */
@@ -142,7 +140,8 @@ disable_mmu:
 	nop
 	nop
 	nop
-	mov	pc, r7
+	CPWAIT(r0)
+
 Lunmapped:
 	/*
 	 * Build page table from scratch.
@@ -150,25 +149,34 @@ Lunmapped:
 
 	/* Find the delta between VA and PA */
 	adr	r0, Lpagetable
-	ldr	r1, [r0]
-	sub	r2, r1, r0
-	/* At this point: r2 = VA - PA */
+	bl	translate_va_to_pa
 
+#ifndef _ARM_ARCH_6
 	/*
-	 * Find the physical address of the table. After these two
-	 * instructions:
-	 * r1 = va(pagetable)
-	 *
-	 * r0 = va(pagetable) - (VA - PA)
-	 *    = va(pagetable) - VA + PA
-	 *    = pa(pagetable)
+	 * Some of the older ports (the various XScale, mostly) assume
+	 * that the memory before the kernel is mapped, and use it for
+	 * the various stacks, page tables, etc. For those CPUs, map the 
+	 * 64 first MB of RAM, as it used to be. 
 	 */
-	ldr	r1, [r0, #4]
-	sub	r0, r1, r2
-
 	/*
 	 * Map PA == VA
-	 */
+	 */    
+	ldr     r5, =PHYSADDR
+	mov     r1, r5
+	mov     r2, r5
+	/* Map 64MiB, preserved over calls to build_pagetables */
+	mov     r3, #64
+	bl      build_pagetables
+	
+	/* Create the kernel map to jump to */
+	mov     r1, r5
+	ldr     r2, =(KERNBASE)
+	bl      build_pagetables
+	ldr	r5, =(KERNPHYSADDR)
+#else
+	/*
+	 * Map PA == VA
+	 */    
 	/* Find the start kernels load address */
 	adr	r5, _start
 	ldr	r2, =(L1_S_OFFSET)
@@ -183,6 +191,7 @@ Lunmapped:
 	mov	r1, r5
 	ldr	r2, =(KERNVIRTADDR)
 	bl	build_pagetables
+#endif
 	
 #if defined(SOCDEV_PA) && defined(SOCDEV_VA)
 	/* Create the custom map */
@@ -261,8 +270,42 @@ virt_done:
 	adr	r0, .Lmainreturned
 	b	_C_LABEL(panic)
 	/* NOTREACHED */
-END(btext)
 END(_start)
+
+#define VA_TO_PA_POINTER(name, table)	 \
+name:					;\
+	.word	.			;\
+	.word	table
+
+/*
+ * Returns the physical address of a magic va to pa pointer.
+ * r0     - The pagetable data pointer. This must be built using the
+ *          VA_TO_PA_POINTER macro.
+ *          e.g.
+ *            VA_TO_PA_POINTER(Lpagetable, pagetable)
+ *            ...
+ *            adr  r0, Lpagetable
+ *            bl   translate_va_to_pa
+ *            r0 will now contain the physical address of pagetable
+ * r1, r2 - Trashed
+ */
+translate_va_to_pa:
+	ldr	r1, [r0]
+	sub	r2, r1, r0
+	/* At this point: r2 = VA - PA */
+
+	/*
+	 * Find the physical address of the table. After these two
+	 * instructions:
+	 * r1 = va(pagetable)
+	 *
+	 * r0 = va(pagetable) - (VA - PA)
+	 *    = va(pagetable) - VA + PA
+	 *    = pa(pagetable)
+	 */
+	ldr	r1, [r0, #4]
+	sub	r0, r1, r2
+	RET
 
 /*
  * Builds the page table
@@ -295,23 +338,12 @@ build_pagetables:
 
 	RET
 
-Lpagetable:
-	.word	.
-	.word	pagetable
+VA_TO_PA_POINTER(Lpagetable, pagetable)
 
-Lvirtaddr:
-	.word	KERNVIRTADDR
-Lphysaddr:
-	.word	KERNPHYSADDR
 Lreal_start:
 	.word	_start
 Lend:
 	.word	_edata
-
-#ifdef SMP
-Lstartup_pagetable_secondary:
-	.word	temp_pagetable
-#endif
 
 .Lstart:
 	.word	_edata
@@ -320,10 +352,6 @@ Lstartup_pagetable_secondary:
 
 .Lvirt_done:
 	.word	virt_done
-#if defined(SMP)
-.Lmpvirt_done:
-	.word	mpvirt_done
-#endif
 
 .Lmainreturned:
 	.asciz	"main() returned"
@@ -349,104 +377,60 @@ pagetable:
 	.word	_C_LABEL(cpufuncs)
 
 #if defined(SMP)
-Lsramaddr:
-	.word	0xffff0080
 
-#if 0
-#define	AP_DEBUG(tmp)			\
-	mrc	p15, 0, r1, c0, c0, 5;	\
-	ldr	r0, Lsramaddr;		\
-	add	r0, r1, lsl #2;		\
-	mov	r1, tmp;		\
-	str	r1, [r0], #0x0000;
-#else
-#define AP_DEBUG(tmp)
-#endif
-
-
-ASENTRY_NP(mptramp)
-	mov	r0, #0
-	mcr	p15, 0, r0, c7, c7, 0
-
-	AP_DEBUG(#1)
-
-	mrs	r3, cpsr
-	bic	r3, r3, #(PSR_MODE)
-	orr	r3, r3, #(PSR_SVC32_MODE)
-        msr	cpsr_fsxc, r3
-
-	mrc	p15, 0, r0, c0, c0, 5
-	and	r0, #0x0f		/* Get CPU ID */
-
-	/* Read boot address for CPU */
-	mov	r1, #0x100
-	mul	r2, r0, r1
-	ldr	r1, Lpmureg
-	add	r0, r2, r1
-	ldr	r1, [r0], #0x00
-
-	mov pc, r1
-
-Lpmureg:
-        .word   0xd0022124
-END(mptramp)
+.Lmpvirt_done:
+	.word	mpvirt_done
+VA_TO_PA_POINTER(Lstartup_pagetable_secondary, temp_pagetable)
 
 ASENTRY_NP(mpentry)
 
-	AP_DEBUG(#2)
-
 	/* Make sure interrupts are disabled. */
 	mrs	r7, cpsr
-	orr	r7, r7, #(I32_bit|F32_bit)
+	orr	r7, r7, #(PSR_I | PSR_F)
 	msr	cpsr_c, r7
 
-
-	adr     r7, Ltag
-	bic     r7, r7, #0xf0000000
-	orr     r7, r7, #PHYSADDR
-			
-	/* Disable MMU for a while */
+	/* Disable MMU.  It should be disabled already, but make sure. */
 	mrc	p15, 0, r2, c1, c0, 0
 	bic	r2, r2, #(CPU_CONTROL_MMU_ENABLE | CPU_CONTROL_DC_ENABLE |\
 	    CPU_CONTROL_WBUF_ENABLE)
 	bic	r2, r2, #(CPU_CONTROL_IC_ENABLE)
 	bic	r2, r2, #(CPU_CONTROL_BPRD_ENABLE)
 	mcr	p15, 0, r2, c1, c0, 0
-
 	nop
 	nop
 	nop
+	CPWAIT(r0)
 
-	AP_DEBUG(#3)
-
-Ltag:
-	ldr	r0, Lstartup_pagetable_secondary
-	bic	r0, r0, #0xf0000000
-	orr	r0, r0, #PHYSADDR
-	ldr	r0, [r0]
-#if defined(SMP)
-	orr 	r0, r0, #2		/* Set TTB shared memory flag */
+#if ARM_MMU_V6
+	bl	armv6_idcache_inv_all	/* Modifies r0 only */
+#elif ARM_MMU_V7
+	bl	armv7_idcache_inv_all	/* Modifies r0-r3, ip */
 #endif
+
+	/* Load the page table physical address */
+	adr	r0, Lstartup_pagetable_secondary
+	bl	translate_va_to_pa
+	/* Load the address the secondary page table */
+	ldr	r0, [r0]
+
+	orr 	r0, r0, #2		/* Set TTB shared memory flag */
 	mcr	p15, 0, r0, c2, c0, 0	/* Set TTB */
 	mcr	p15, 0, r0, c8, c7, 0	/* Flush TLB */
 
-#if defined(CPU_ARM1136) || defined(CPU_ARM1176) || defined(CPU_MV_PJ4B) || defined(CPU_CORTEXA) || defined(CPU_KRAIT)
 	mov	r0, #0
 	mcr	p15, 0, r0, c13, c0, 1	/* Set ASID to 0 */
-#endif
-
-	AP_DEBUG(#4)
 
 	/* Set the Domain Access register.  Very important! */
 	mov	r0, #((DOMAIN_CLIENT << (PMAP_DOMAIN_KERNEL*2)) | DOMAIN_CLIENT)
 	mcr	p15, 0, r0, c3, c0, 0
 	/* Enable MMU */
 	mrc	p15, 0, r0, c1, c0, 0
-#if defined(CPU_ARM1136) || defined(CPU_ARM1176) || defined(CPU_MV_PJ4B) || defined(CPU_CORTEXA) || defined(CPU_KRAIT)
 	orr	r0, r0, #CPU_CONTROL_V6_EXTPAGE
 	orr	r0, r0, #CPU_CONTROL_AF_ENABLE
-#endif
-	orr	r0, r0, #(CPU_CONTROL_MMU_ENABLE | CPU_CONTROL_DC_ENABLE)
+	orr	r0, r0, #(CPU_CONTROL_MMU_ENABLE | CPU_CONTROL_DC_ENABLE |\
+	    CPU_CONTROL_WBUF_ENABLE)
+	orr	r0, r0, #(CPU_CONTROL_IC_ENABLE)
+	orr	r0, r0, #(CPU_CONTROL_BPRD_ENABLE)
 	mcr	p15, 0, r0, c1, c0, 0
 	nop
 	nop
@@ -473,7 +457,7 @@ mpvirt_done:
 	/* NOTREACHED */
 
 .Lmpreturned:
-	.asciz	"main() returned"
+	.asciz	"init_secondary() returned"
 	.align	0
 END(mpentry)
 #endif
@@ -482,7 +466,7 @@ ENTRY_NP(cpu_halt)
 	mrs     r2, cpsr
 	bic	r2, r2, #(PSR_MODE)
 	orr     r2, r2, #(PSR_SVC32_MODE)
-	orr	r2, r2, #(I32_bit | F32_bit)
+	orr	r2, r2, #(PSR_I | PSR_F)
 	msr     cpsr_fsxc, r2
 
 	ldr	r4, .Lcpu_reset_address
@@ -557,6 +541,7 @@ END(abort)
 
 ENTRY_NP(sigcode)
 	mov	r0, sp
+	add	r0, r0, #SIGF_UC
 
 	/*
 	 * Call the sigreturn system call.
@@ -577,7 +562,7 @@ ENTRY_NP(sigcode)
 
 	/* Branch back to retry SYS_sigreturn */
 	b	. - 16
-
+END(sigcode)
 	.word	SYS_sigreturn
 	.word	SYS_exit
 
@@ -589,5 +574,5 @@ ENTRY_NP(sigcode)
 	.global szsigcode
 szsigcode:
 	.long esigcode-sigcode
-END(sigcode)
+
 /* End of locore.S */

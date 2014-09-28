@@ -34,6 +34,7 @@
 #include "mlx4_ib.h"
 #include <linux/slab.h>
 #include <linux/string.h>
+#include <linux/fs.h>
 
 #include <rdma/ib_mad.h>
 /*show_admin_alias_guid returns the administratively assigned value of that GUID.

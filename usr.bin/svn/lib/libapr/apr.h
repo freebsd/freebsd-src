@@ -118,7 +118,7 @@
  * or the extern "C" namespace 
  */
 
-#if APR_HAVE_WINDOWS_H
+#if APR_HAVE_WINDOWS_H && defined(WIN32)
 /* If windows.h was already included, our preferences don't matter.
  * If not, include a restricted set of windows headers to our tastes.
  */
@@ -466,6 +466,8 @@ typedef  apr_uint32_t            apr_uintptr_t;
  */
 #define APR_THREAD_FUNC       
 
+#if defined(DOXYGEN) || !defined(WIN32)
+
 /**
  * The public APR functions are declared with APR_DECLARE(), so they may
  * use the most appropriate calling convention.  Public APR functions with 
@@ -517,6 +519,20 @@ typedef  apr_uint32_t            apr_uintptr_t;
  * </PRE>
  */
 #define APR_DECLARE_DATA
+
+#elif defined(APR_DECLARE_STATIC)
+#define APR_DECLARE(type)            type __stdcall
+#define APR_DECLARE_NONSTD(type)     type __cdecl
+#define APR_DECLARE_DATA
+#elif defined(APR_DECLARE_EXPORT)
+#define APR_DECLARE(type)            __declspec(dllexport) type __stdcall
+#define APR_DECLARE_NONSTD(type)     __declspec(dllexport) type __cdecl
+#define APR_DECLARE_DATA             __declspec(dllexport)
+#else
+#define APR_DECLARE(type)            __declspec(dllimport) type __stdcall
+#define APR_DECLARE_NONSTD(type)     __declspec(dllimport) type __cdecl
+#define APR_DECLARE_DATA             __declspec(dllimport)
+#endif
 
 /* Define APR_SSIZE_T_FMT.  
  * If ssize_t is an integer we define it to be "d",

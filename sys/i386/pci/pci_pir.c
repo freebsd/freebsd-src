@@ -117,7 +117,6 @@ SYSCTL_DECL(_hw_pci);
 #endif
 
 static uint32_t pci_irq_override_mask = PCI_IRQ_OVERRIDE_MASK;
-TUNABLE_INT("hw.pci.irq_override_mask", &pci_irq_override_mask);
 SYSCTL_INT(_hw_pci, OID_AUTO, irq_override_mask, CTLFLAG_RDTUN,
     &pci_irq_override_mask, PCI_IRQ_OVERRIDE_MASK,
     "Mask of allowed irqs to try to route when it has no good clue about\n"

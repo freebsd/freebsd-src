@@ -147,7 +147,7 @@ void *bootstacks[MAXCPU];
 static void *dpcpu;
 
 struct pcb stoppcbs[MAXCPU];
-struct pcb **susppcbs = NULL;
+struct susppcb **susppcbs;
 
 /* Variables needed for SMP tlb shootdown. */
 vm_offset_t smp_tlb_addr1;
@@ -168,9 +168,7 @@ static u_long *ipi_hardclock_counts[MAXCPU];
 #endif
 
 /* Default cpu_ops implementation. */
-struct cpu_ops cpu_ops = {
-	.ipi_vectored = lapic_ipi_vectored
-};
+struct cpu_ops cpu_ops;
 
 /*
  * Local data and functions.
@@ -747,24 +745,14 @@ init_secondary(void)
 	/* set up CPU registers and state */
 	cpu_setregs();
 
+	/* set up SSE/NX */
+	initializecpu();
+
 	/* set up FPU state on the AP */
 	npxinit();
 
-	/* set up SSE registers */
-	enable_sse();
-
 	if (cpu_ops.cpu_init)
 		cpu_ops.cpu_init();
-
-#ifdef PAE
-	/* Enable the PTE no-execute bit. */
-	if ((amd_feature & AMDID_NX) != 0) {
-		uint64_t msr;
-
-		msr = rdmsr(MSR_EFER) | EFER_NXE;
-		wrmsr(MSR_EFER, msr);
-	}
-#endif
 
 	/* A quick check from sanity claus */
 	cpuid = PCPU_GET(cpuid);
@@ -805,7 +793,6 @@ init_secondary(void)
 	if (smp_cpus == mp_ncpus) {
 		/* enable IPI's, tlb shootdown, freezes etc */
 		atomic_store_rel_int(&smp_started, 1);
-		smp_active = 1;	 /* historic */
 	}
 
 	mtx_unlock_spin(&ap_boot_mtx);
@@ -1209,7 +1196,7 @@ ipi_send_cpu(int cpu, u_int ipi)
 		if (old_pending)
 			return;
 	}
-	cpu_ops.ipi_vectored(ipi, cpu_apic_ids[cpu]);
+	lapic_ipi_vectored(ipi, cpu_apic_ids[cpu]);
 }
 
 /*
@@ -1460,7 +1447,7 @@ ipi_all_but_self(u_int ipi)
 		CPU_OR_ATOMIC(&ipi_nmi_pending, &other_cpus);
 
 	CTR2(KTR_SMP, "%s: ipi: %x", __func__, ipi);
-	cpu_ops.ipi_vectored(ipi, APIC_IPI_DEST_OTHERS);
+	lapic_ipi_vectored(ipi, APIC_IPI_DEST_OTHERS);
 }
 
 int
@@ -1524,11 +1511,14 @@ cpususpend_handler(void)
 	mtx_assert(&smp_ipi_mtx, MA_NOTOWNED);
 
 	cpu = PCPU_GET(cpuid);
-	if (savectx(susppcbs[cpu])) {
+	if (savectx(&susppcbs[cpu]->sp_pcb)) {
+		npxsuspend(&susppcbs[cpu]->sp_fpususpend);
 		wbinvd();
 		CPU_SET_ATOMIC(cpu, &suspended_cpus);
 	} else {
+		npxresume(&susppcbs[cpu]->sp_fpususpend);
 		pmap_init_pat();
+		initializecpu();
 		PCPU_SET(switchtime, 0);
 		PCPU_SET(switchticks, ticks);
 
@@ -1551,6 +1541,72 @@ cpususpend_handler(void)
 	CPU_CLR_ATOMIC(cpu, &suspended_cpus);
 	CPU_CLR_ATOMIC(cpu, &started_cpus);
 }
+
+/*
+ * Handlers for TLB related IPIs
+ */
+void
+invltlb_handler(void)
+{
+	uint64_t cr3;
+#ifdef COUNT_XINVLTLB_HITS
+	xhits_gbl[PCPU_GET(cpuid)]++;
+#endif /* COUNT_XINVLTLB_HITS */
+#ifdef COUNT_IPIS
+	(*ipi_invltlb_counts[PCPU_GET(cpuid)])++;
+#endif /* COUNT_IPIS */
+
+	cr3 = rcr3();
+	load_cr3(cr3);
+	atomic_add_int(&smp_tlb_wait, 1);
+}
+
+void
+invlpg_handler(void)
+{
+#ifdef COUNT_XINVLTLB_HITS
+	xhits_pg[PCPU_GET(cpuid)]++;
+#endif /* COUNT_XINVLTLB_HITS */
+#ifdef COUNT_IPIS
+	(*ipi_invlpg_counts[PCPU_GET(cpuid)])++;
+#endif /* COUNT_IPIS */
+
+	invlpg(smp_tlb_addr1);
+
+	atomic_add_int(&smp_tlb_wait, 1);
+}
+
+void
+invlrng_handler(void)
+{
+	vm_offset_t addr;
+#ifdef COUNT_XINVLTLB_HITS
+	xhits_rng[PCPU_GET(cpuid)]++;
+#endif /* COUNT_XINVLTLB_HITS */
+#ifdef COUNT_IPIS
+	(*ipi_invlrng_counts[PCPU_GET(cpuid)])++;
+#endif /* COUNT_IPIS */
+
+	addr = smp_tlb_addr1;
+	do {
+		invlpg(addr);
+		addr += PAGE_SIZE;
+	} while (addr < smp_tlb_addr2);
+
+	atomic_add_int(&smp_tlb_wait, 1);
+}
+
+void
+invlcache_handler(void)
+{
+#ifdef COUNT_IPIS
+	(*ipi_invlcache_counts[PCPU_GET(cpuid)])++;
+#endif /* COUNT_IPIS */
+
+	wbinvd();
+	atomic_add_int(&smp_tlb_wait, 1);
+}
+
 /*
  * This is called once the rest of the system is up and running and we're
  * ready to let the AP's out of the pen.

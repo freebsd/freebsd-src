@@ -26,8 +26,10 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
  */
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #include <sys/types.h>
 #include <sys/time.h>
@@ -35,7 +37,7 @@
 #include <sys/param.h>
 #include <sys/linker.h>
 #include <sys/socket.h>
-#include <sys/capability.h>
+#include <sys/capsicum.h>
 #include <sys/wait.h>
 #include <assert.h>
 #include <errno.h>
@@ -149,8 +151,8 @@ resolve_addr(const struct connection *conn, const char *address,
 }
 
 static struct connection *
-connection_new(unsigned int session_id, const struct iscsi_session_conf *conf,
-    int iscsi_fd)
+connection_new(unsigned int session_id, const uint8_t isid[8], uint16_t tsih,
+    const struct iscsi_session_conf *conf, int iscsi_fd)
 {
 	struct connection *conn;
 	struct addrinfo *from_ai, *to_ai;
@@ -176,6 +178,8 @@ connection_new(unsigned int session_id, const struct iscsi_session_conf *conf,
 	conn->conn_first_burst_length = 65536;
 
 	conn->conn_session_id = session_id;
+	memcpy(&conn->conn_isid, isid, sizeof(conn->conn_isid));
+	conn->conn_tsih = tsih;
 	conn->conn_iscsi_fd = iscsi_fd;
 
 	/*
@@ -194,30 +198,32 @@ connection_new(unsigned int session_id, const struct iscsi_session_conf *conf,
 	resolve_addr(conn, to_addr, &to_ai, false);
 
 #ifdef ICL_KERNEL_PROXY
+	if (conn->conn_conf.isc_iser) {
+		memset(&idc, 0, sizeof(idc));
+		idc.idc_session_id = conn->conn_session_id;
+		if (conn->conn_conf.isc_iser)
+			idc.idc_iser = 1;
+		idc.idc_domain = to_ai->ai_family;
+		idc.idc_socktype = to_ai->ai_socktype;
+		idc.idc_protocol = to_ai->ai_protocol;
+		if (from_ai != NULL) {
+			idc.idc_from_addr = from_ai->ai_addr;
+			idc.idc_from_addrlen = from_ai->ai_addrlen;
+		}
+		idc.idc_to_addr = to_ai->ai_addr;
+		idc.idc_to_addrlen = to_ai->ai_addrlen;
 
-	memset(&idc, 0, sizeof(idc));
-	idc.idc_session_id = conn->conn_session_id;
-	if (conn->conn_conf.isc_iser)
-		idc.idc_iser = 1;
-	idc.idc_domain = to_ai->ai_family;
-	idc.idc_socktype = to_ai->ai_socktype;
-	idc.idc_protocol = to_ai->ai_protocol;
-	if (from_ai != NULL) {
-		idc.idc_from_addr = from_ai->ai_addr;
-		idc.idc_from_addrlen = from_ai->ai_addrlen;
+		log_debugx("connecting to %s using ICL kernel proxy", to_addr);
+		error = ioctl(iscsi_fd, ISCSIDCONNECT, &idc);
+		if (error != 0) {
+			fail(conn, strerror(errno));
+			log_err(1, "failed to connect to %s "
+			    "using ICL kernel proxy: ISCSIDCONNECT", to_addr);
+		}
+
+		return (conn);
 	}
-	idc.idc_to_addr = to_ai->ai_addr;
-	idc.idc_to_addrlen = to_ai->ai_addrlen;
-
-	log_debugx("connecting to %s using ICL kernel proxy", to_addr);
-	error = ioctl(iscsi_fd, ISCSIDCONNECT, &idc);
-	if (error != 0) {
-		fail(conn, strerror(errno));
-		log_err(1, "failed to connect to %s using ICL kernel proxy",
-		    to_addr);
-	}
-
-#else /* !ICL_KERNEL_PROXY */
+#endif /* ICL_KERNEL_PROXY */
 
 	if (conn->conn_conf.isc_iser) {
 		fail(conn, "iSER not supported");
@@ -246,8 +252,6 @@ connection_new(unsigned int session_id, const struct iscsi_session_conf *conf,
 		log_err(1, "failed to connect to %s", to_addr);
 	}
 
-#endif /* !ICL_KERNEL_PROXY */
-
 	return (conn);
 }
 
@@ -261,12 +265,10 @@ handoff(struct connection *conn)
 
 	memset(&idh, 0, sizeof(idh));
 	idh.idh_session_id = conn->conn_session_id;
-#ifndef ICL_KERNEL_PROXY
 	idh.idh_socket = conn->conn_socket;
-#endif
 	strlcpy(idh.idh_target_alias, conn->conn_target_alias,
 	    sizeof(idh.idh_target_alias));
-	memcpy(idh.idh_isid, conn->conn_isid, sizeof(idh.idh_isid));
+	idh.idh_tsih = conn->conn_tsih;
 	idh.idh_statsn = conn->conn_statsn;
 	idh.idh_header_digest = conn->conn_header_digest;
 	idh.idh_data_digest = conn->conn_data_digest;
@@ -306,10 +308,10 @@ capsicate(struct connection *conn)
 	cap_rights_t rights;
 #ifdef ICL_KERNEL_PROXY
 	const unsigned long cmds[] = { ISCSIDCONNECT, ISCSIDSEND, ISCSIDRECEIVE,
-	    ISCSIDHANDOFF, ISCSIDFAIL, ISCSISADD, ISCSISREMOVE };
+	    ISCSIDHANDOFF, ISCSIDFAIL, ISCSISADD, ISCSISREMOVE, ISCSISMODIFY };
 #else
 	const unsigned long cmds[] = { ISCSIDHANDOFF, ISCSIDFAIL, ISCSISADD,
-	    ISCSISREMOVE };
+	    ISCSISREMOVE, ISCSISMODIFY };
 #endif
 
 	cap_rights_init(&rights, CAP_IOCTL);
@@ -432,7 +434,8 @@ handle_request(int iscsi_fd, const struct iscsi_daemon_request *request, int tim
 		setproctitle("%s", request->idr_conf.isc_target_addr);
 	}
 
-	conn = connection_new(request->idr_session_id, &request->idr_conf, iscsi_fd);
+	conn = connection_new(request->idr_session_id, request->idr_isid,
+	    request->idr_tsih, &request->idr_conf, iscsi_fd);
 	set_timeout(timeout);
 	capsicate(conn);
 	login(conn);

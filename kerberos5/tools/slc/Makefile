@@ -4,7 +4,7 @@ PROG=	slc
 LIBROKEN_A=     ${.OBJDIR}/../../lib/libroken/libroken.a
 LDADD=  ${LIBROKEN_A} ${LIBVERS}
 DPADD=  ${LIBROKEN_A} ${LIBVERS}
-NO_MAN=
+MAN=
 
 SRCS=	roken.h \
 	slc-gram.y \

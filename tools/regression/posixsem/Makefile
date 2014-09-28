@@ -4,7 +4,7 @@ PROG=	posixsem
 SRCS=	posixsem.c test.c
 DPADD=	${LIBKVM}
 LDADD=	-lkvm
-NO_MAN=
+MAN=
 
 WARNS?=	3
 

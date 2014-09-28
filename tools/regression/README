@@ -28,11 +28,11 @@ considered to be the name of the test.  Naming tests is optional, but
 encouraged.
 
 A test may be written which is conditional, and may need to be skipped.
-For example, the netatalk tests require 'options NETATALK' in the kernel.
+For example, the netinet tests require 'options INET' in the kernel.
 A test may be skipped by printing '# skip Reason for skipping' after the
 test name.  For example,
 
-    ok 1 - netatalk # skip 'options NETATALK' not compiled in
+    ok 1 - netinet # skip 'options INET' not compiled in
 
 A test may be flagged as 'todo'.  This indicates that you expect the test
 to fail (perhaps because the necessary functionality hasn't been written
@@ -77,7 +77,6 @@ this file.
 
 acct		Exercise the integer to float conversion used in acct(5)
 geom		Some tests and an out-of-kernel simulator for the GEOM code
-ia64		ia64 specific regression tests
 nfsmmap		Some tests to exercise some tricky cases in NFS and mmap
 p1003_1b	Exercise 1003.1B scheduler
 pipe		Pipe code regression test

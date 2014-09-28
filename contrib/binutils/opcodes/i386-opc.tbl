@@ -895,10 +895,14 @@ fucomi, 2, 0xdbe8, None, Cpu686, ShortForm|No_bSuf|No_wSuf|No_lSuf|No_sSuf|No_qS
 fucomi, 0, 0xdbe9, None, Cpu686, ShortForm|No_bSuf|No_wSuf|No_lSuf|No_sSuf|No_qSuf|No_xSuf, { 0 }
 fucomi, 1, 0xdbe8, None, Cpu686, ShortForm|No_bSuf|No_wSuf|No_lSuf|No_sSuf|No_qSuf|No_xSuf, { FloatReg }
 fcomip, 2, 0xdff0, None, Cpu686, ShortForm|No_bSuf|No_wSuf|No_lSuf|No_sSuf|No_qSuf|No_xSuf, { FloatReg, FloatAcc }
+fcomip, 0, 0xdff1, None, Cpu686, ShortForm|No_bSuf|No_wSuf|No_lSuf|No_sSuf|No_qSuf|No_xSuf, { 0 }
+fcomip, 1, 0xdff0, None, Cpu686, ShortForm|No_bSuf|No_wSuf|No_lSuf|No_sSuf|No_qSuf|No_xSuf, { FloatReg }
 fcompi, 2, 0xdff0, None, Cpu686, ShortForm|No_bSuf|No_wSuf|No_lSuf|No_sSuf|No_qSuf|No_xSuf, { FloatReg, FloatAcc }
 fcompi, 0, 0xdff1, None, Cpu686, ShortForm|No_bSuf|No_wSuf|No_lSuf|No_sSuf|No_qSuf|No_xSuf, { 0 }
 fcompi, 1, 0xdff0, None, Cpu686, ShortForm|No_bSuf|No_wSuf|No_lSuf|No_sSuf|No_qSuf|No_xSuf, { FloatReg }
 fucomip, 2, 0xdfe8, None, Cpu686, ShortForm|No_bSuf|No_wSuf|No_lSuf|No_sSuf|No_qSuf|No_xSuf, { FloatReg, FloatAcc }
+fucomip, 0, 0xdfe9, None, Cpu686, ShortForm|No_bSuf|No_wSuf|No_lSuf|No_sSuf|No_qSuf|No_xSuf, { 0 }
+fucomip, 1, 0xdfe8, None, Cpu686, ShortForm|No_bSuf|No_wSuf|No_lSuf|No_sSuf|No_qSuf|No_xSuf, { FloatReg }
 fucompi, 2, 0xdfe8, None, Cpu686, ShortForm|No_bSuf|No_wSuf|No_lSuf|No_sSuf|No_qSuf|No_xSuf, { FloatReg, FloatAcc }
 fucompi, 0, 0xdfe9, None, Cpu686, ShortForm|No_bSuf|No_wSuf|No_lSuf|No_sSuf|No_qSuf|No_xSuf, { 0 }
 fucompi, 1, 0xdfe8, None, Cpu686, ShortForm|No_bSuf|No_wSuf|No_lSuf|No_sSuf|No_qSuf|No_xSuf, { FloatReg }
@@ -1520,3 +1524,4 @@ pclmulhqhqdq, 2, 0x660f3a44, 0x11, CpuPCLMUL, Modrm|IgnoreSize|No_bSuf|No_wSuf|N
 
 // Intel Random Number Generator extensions
 rdrand, 1, 0x0fc7, 0x6, CpuRdRnd, Modrm|No_bSuf|No_wSuf|No_lSuf|No_sSuf|No_qSuf|No_xSuf, { Reg16|Reg32|Reg64 }
+rdseed, 1, 0x0fc7, 0x7, CpuRdRnd, Modrm|No_bSuf|No_wSuf|No_lSuf|No_sSuf|No_qSuf|No_xSuf, { Reg16|Reg32|Reg64 }

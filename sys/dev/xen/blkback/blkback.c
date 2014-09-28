@@ -3852,17 +3852,17 @@ xbb_detach(device_t dev)
 	xbb_close_backend(xbb);
 
 	if (xbb->dev_mode != NULL) {
-		free(xbb->dev_mode, M_XENBUS);
+		free(xbb->dev_mode, M_XENSTORE);
 		xbb->dev_mode = NULL;
 	}
 
 	if (xbb->dev_type != NULL) {
-		free(xbb->dev_type, M_XENBUS);
+		free(xbb->dev_type, M_XENSTORE);
 		xbb->dev_type = NULL;
 	}
 
 	if (xbb->dev_name != NULL) {
-		free(xbb->dev_name, M_XENBUS);
+		free(xbb->dev_name, M_XENSTORE);
 		xbb->dev_name = NULL;
 	}
 

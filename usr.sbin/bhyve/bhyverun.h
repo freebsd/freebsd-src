@@ -35,6 +35,10 @@
 #define	__CTASSERT(x, y)	typedef char __assert ## y[(x) ? 1 : -1]
 #endif
 
+#define	VMEXIT_CONTINUE		1	/* continue from next instruction */
+#define	VMEXIT_RESTART		2	/* restart current instruction */
+#define	VMEXIT_ABORT		3	/* abort the vm run loop */
+
 struct vmctx;
 extern int guest_ncpus;
 extern char *guest_uuid_str;
@@ -43,7 +47,7 @@ extern char *vmname;
 void *paddr_guest2host(struct vmctx *ctx, uintptr_t addr, size_t len);
 
 void fbsdrun_set_capabilities(struct vmctx *ctx, int cpu);
-void fbsdrun_addcpu(struct vmctx *ctx, int cpu, uint64_t rip);
+void fbsdrun_addcpu(struct vmctx *ctx, int fromcpu, int newcpu, uint64_t rip);
 int  fbsdrun_muxed(void);
 int  fbsdrun_vmexit_on_hlt(void);
 int  fbsdrun_vmexit_on_pause(void);

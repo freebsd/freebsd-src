@@ -35,7 +35,7 @@ svn_rdump__normalize_prop(const char *name,
                           const svn_string_t **value,
                           apr_pool_t *result_pool)
 {
-  if (svn_prop_needs_translation(name))
+  if (svn_prop_needs_translation(name) && *value)
     {
       const char *cstring;
 

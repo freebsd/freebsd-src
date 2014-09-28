@@ -36,4 +36,5 @@
 
 /* $FreeBSD$ */
 
-#define GVINUMMOD	"geom_vinum"
+#define	GVINUMMOD	"g_vinum"
+#define	GVINUMKLD	"geom_vinum"

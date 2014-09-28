@@ -546,9 +546,15 @@ void ldns_sha256_update(ldns_sha256_CTX* context, const sha2_byte *data, size_t 
 	usedspace = freespace = 0;
 }
 
+typedef union _ldns_sha2_buffer_union {
+        uint8_t*  theChars;
+        uint64_t* theLongs;
+} ldns_sha2_buffer_union;
+
 void ldns_sha256_final(sha2_byte digest[], ldns_sha256_CTX* context) {
 	sha2_word32	*d = (sha2_word32*)digest;
 	size_t usedspace;
+	ldns_sha2_buffer_union cast_var;
 
 	/* Sanity check: */
 	assert(context != (ldns_sha256_CTX*)0);
@@ -585,7 +591,8 @@ void ldns_sha256_final(sha2_byte digest[], ldns_sha256_CTX* context) {
 			*context->buffer = 0x80;
 		}
 		/* Set the bit count: */
-		*(sha2_word64*)&context->buffer[ldns_sha256_SHORT_BLOCK_LENGTH] = context->bitcount;
+		cast_var.theChars = context->buffer;
+		cast_var.theLongs[ldns_sha256_SHORT_BLOCK_LENGTH / 8] = context->bitcount;
 
 		/* final transform: */
 		ldns_sha256_Transform(context, (sha2_word32*)context->buffer);
@@ -850,6 +857,7 @@ void ldns_sha512_update(ldns_sha512_CTX* context, const sha2_byte *data, size_t 
 
 static void ldns_sha512_Last(ldns_sha512_CTX* context) {
 	size_t usedspace;
+	ldns_sha2_buffer_union cast_var;
 
 	usedspace = (context->bitcount[0] >> 3) % LDNS_SHA512_BLOCK_LENGTH;
 #if BYTE_ORDER == LITTLE_ENDIAN
@@ -882,8 +890,9 @@ static void ldns_sha512_Last(ldns_sha512_CTX* context) {
 		*context->buffer = 0x80;
 	}
 	/* Store the length of input data (in bits): */
-	*(sha2_word64*)&context->buffer[ldns_sha512_SHORT_BLOCK_LENGTH] = context->bitcount[1];
-	*(sha2_word64*)&context->buffer[ldns_sha512_SHORT_BLOCK_LENGTH+8] = context->bitcount[0];
+	cast_var.theChars = context->buffer;
+	cast_var.theLongs[ldns_sha512_SHORT_BLOCK_LENGTH / 8] = context->bitcount[1];
+	cast_var.theLongs[ldns_sha512_SHORT_BLOCK_LENGTH / 8 + 1] = context->bitcount[0];
 
 	/* final transform: */
 	ldns_sha512_Transform(context, (sha2_word64*)context->buffer);

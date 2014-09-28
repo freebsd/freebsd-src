@@ -162,6 +162,7 @@ struct sc_info {
 	u_int32_t	psize, rsize; /* DMA buffer size(byte) */
 	u_int16_t	blk[2]; /* transfer check blocksize(dword) */
 	bus_dmamap_t	pmap, rmap;
+	bus_addr_t	paddr, raddr;
 
 	/* current status */
 	u_int32_t	speed;
@@ -2082,6 +2083,7 @@ envy24ht_dmapsetmap(void *arg, bus_dma_segment_t *segs, int nseg, int error)
 {
 	struct sc_info *sc = arg;
 
+	sc->paddr = segs->ds_addr;
 #if(0)
 	device_printf(sc->dev, "envy24ht_dmapsetmap()\n");
 	if (bootverbose) {
@@ -2099,6 +2101,7 @@ envy24ht_dmarsetmap(void *arg, bus_dma_segment_t *segs, int nseg, int error)
 {
 	struct sc_info *sc = arg;
 
+	sc->raddr = segs->ds_addr;
 #if(0)
 	device_printf(sc->dev, "envy24ht_dmarsetmap()\n");
 	if (bootverbose) {
@@ -2116,19 +2119,17 @@ envy24ht_dmafree(struct sc_info *sc)
 {
 #if(0)
 	device_printf(sc->dev, "envy24ht_dmafree():");
-	if (sc->rmap) printf(" sc->rmap(0x%08x)", (u_int32_t)sc->rmap);
-	else printf(" sc->rmap(null)");
-	if (sc->pmap) printf(" sc->pmap(0x%08x)", (u_int32_t)sc->pmap);
-	else printf(" sc->pmap(null)");
+	printf(" sc->raddr(0x%08x)", (u_int32_t)sc->raddr);
+	printf(" sc->paddr(0x%08x)", (u_int32_t)sc->paddr);
 	if (sc->rbuf) printf(" sc->rbuf(0x%08x)", (u_int32_t)sc->rbuf);
 	else printf(" sc->rbuf(null)");
 	if (sc->pbuf) printf(" sc->pbuf(0x%08x)\n", (u_int32_t)sc->pbuf);
 	else printf(" sc->pbuf(null)\n");
 #endif
 #if(0)
-	if (sc->rmap)
+	if (sc->raddr)
 		bus_dmamap_unload(sc->dmat, sc->rmap);
-	if (sc->pmap)
+	if (sc->paddr)
 		bus_dmamap_unload(sc->dmat, sc->pmap);
 	if (sc->rbuf)
 		bus_dmamem_free(sc->dmat, sc->rbuf, sc->rmap);
@@ -2141,7 +2142,7 @@ envy24ht_dmafree(struct sc_info *sc)
 	bus_dmamem_free(sc->dmat, sc->pbuf, sc->pmap);
 #endif
 
-	sc->rmap = sc->pmap = NULL;
+	sc->raddr = sc->paddr = 0;
 	sc->pbuf = NULL;
 	sc->rbuf = NULL;
 
@@ -2160,7 +2161,7 @@ envy24ht_dmainit(struct sc_info *sc)
 	sc->rsize = ENVY24HT_REC_BUFUNIT * ENVY24HT_SAMPLE_NUM;
 	sc->pbuf = NULL;
 	sc->rbuf = NULL;
-	sc->pmap = sc->rmap = NULL;
+	sc->paddr = sc->raddr = 0;
 	sc->blk[0] = sc->blk[1] = 0;
 
 	/* allocate DMA buffer */

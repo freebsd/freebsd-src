@@ -1812,9 +1812,11 @@ kern_jail_set(struct thread *td, struct uio *optuio, int flags)
 
 #ifdef RACCT
 	if (!created) {
-		sx_sunlock(&allprison_lock);
+		if (!(flags & JAIL_ATTACH))
+			sx_sunlock(&allprison_lock);
 		prison_racct_modify(pr);
-		sx_slock(&allprison_lock);
+		if (!(flags & JAIL_ATTACH))
+			sx_slock(&allprison_lock);
 	}
 #endif
 
@@ -3699,11 +3701,6 @@ prison_priv_check(struct ucred *cred, int priv)
 
 #ifdef notyet
 		/*
-		 * AppleTalk privileges.
-		 */
-	case PRIV_NETATALK_RESERVEDPORT:
-
-		/*
 		 * ATM privileges.
 		 */
 	case PRIV_NETATM_CFG:
@@ -3743,12 +3740,6 @@ prison_priv_check(struct ucred *cred, int priv)
 	case PRIV_NETINET_BINDANY:
 
 #ifdef notyet
-		/*
-		 * IPX/SPX privileges.
-		 */
-	case PRIV_NETIPX_RESERVEDPORT:
-	case PRIV_NETIPX_RAW:
-
 		/*
 		 * NCP privileges.
 		 */

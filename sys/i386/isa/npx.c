@@ -761,6 +761,43 @@ npxsave(addr)
 	PCPU_SET(fpcurthread, NULL);
 }
 
+/*
+ * Unconditionally save the current co-processor state across suspend and
+ * resume.
+ */
+void
+npxsuspend(union savefpu *addr)
+{
+	register_t cr0;
+
+	if (!hw_float)
+		return;
+	if (PCPU_GET(fpcurthread) == NULL) {
+		*addr = npx_initialstate;
+		return;
+	}
+	cr0 = rcr0();
+	clts();
+	fpusave(addr);
+	load_cr0(cr0);
+}
+
+void
+npxresume(union savefpu *addr)
+{
+	register_t cr0;
+
+	if (!hw_float)
+		return;
+
+	cr0 = rcr0();
+	clts();
+	npxinit();
+	stop_emulating();
+	fpurstor(addr);
+	load_cr0(cr0);
+}
+
 void
 npxdrop()
 {
@@ -1008,6 +1045,7 @@ static MALLOC_DEFINE(M_FPUKERN_CTX, "fpukern_ctx",
 #define	XSAVE_AREA_ALIGN	64
 
 #define	FPU_KERN_CTX_NPXINITDONE 0x01
+#define	FPU_KERN_CTX_DUMMY	 0x02
 
 struct fpu_kern_ctx {
 	union savefpu *prev;
@@ -1051,6 +1089,10 @@ fpu_kern_enter(struct thread *td, struct fpu_kern_ctx *ctx, u_int flags)
 {
 	struct pcb *pcb;
 
+	if ((flags & FPU_KERN_KTHR) != 0 && is_fpu_kern_thread(0)) {
+		ctx->flags = FPU_KERN_CTX_DUMMY;
+		return (0);
+	}
 	pcb = td->td_pcb;
 	KASSERT(!PCB_USER_FPU(pcb) || pcb->pcb_save == &pcb->pcb_user_save,
 	    ("mangled pcb_save"));
@@ -1070,6 +1112,8 @@ fpu_kern_leave(struct thread *td, struct fpu_kern_ctx *ctx)
 {
 	struct pcb *pcb;
 
+	if (is_fpu_kern_thread(0) && (ctx->flags & FPU_KERN_CTX_DUMMY) != 0)
+		return (0);
 	pcb = td->td_pcb;
 	critical_enter();
 	if (curthread == PCPU_GET(fpcurthread))

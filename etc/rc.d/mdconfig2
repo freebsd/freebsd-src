@@ -211,17 +211,14 @@ fi
 
 load_rc_config $name
 
-_mdconfig2_unit=0
 if [ -z "${_mdconfig2_list}" ]; then
-	while :; do
-		eval _mdconfig2_config=\$mdconfig_md${_mdconfig2_unit}
-		if [ -z "${_mdconfig2_config}" ]; then
-			break
-		else
-			_mdconfig2_list="${_mdconfig2_list}${_mdconfig2_list:+ }md${_mdconfig2_unit}"
-			_mdconfig2_unit=$((${_mdconfig2_unit} + 1))
-		fi
+	for _mdconfig2_config in `list_vars mdconfig_md[0-9]\* |
+		sort_lite -nk1.12`
+	do
+		_mdconfig2_unit=${_mdconfig2_config#mdconfig_md}
+		_mdconfig2_list="$_mdconfig2_list md$_mdconfig2_unit"
 	done
+	_mdconfig2_list="${_mdconfig2_list# }"
 fi
 
 run_rc_command "${_mdconfig2_cmd}"

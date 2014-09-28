@@ -26,7 +26,7 @@ faster than Perl.
 
 The first main tool to use ldns is Drill, from which part of the library was
 derived. From version 1.0.0 on, drill is included in the ldns release
-and will not be distributed seperately anymore. The library also includes some
+and will not be distributed separately anymore. The library also includes some
 other examples and tools to show how it can be used. These can be found in the
 examples/ directory in the tarball.
 
@@ -37,9 +37,9 @@ Feature list
   - TSIG support,
   - DNSSEC support; signing and verification,
   - small size,
-  - online documentation as well as manual pages. 
+  - online documentation as well as manual pages.
 
-If you want to send us patches please use the code from subversion (trunk). 
+If you want to send us patches please use the code from git.
 
 \section using_ldns Using ldns
 
@@ -119,6 +119,7 @@ Or you can just use the menu above to browse through the API docs.
 #include <ldns/parse.h>
 #include <ldns/zone.h>
 #include <ldns/dnssec_zone.h>
+#include <ldns/radix.h>
 #include <ldns/rbtree.h>
 #include <ldns/sha1.h>
 #include <ldns/sha2.h>

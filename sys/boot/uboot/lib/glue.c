@@ -404,8 +404,8 @@ ub_stor_type(int type)
 	if (type & DT_STOR_MMC)
 		return ("MMC");
 
-	if (type & DT_STOR_NAND)
-		return ("NAND");
+	if (type & DT_STOR_SATA)
+		return ("SATA");
 
 	return ("Unknown");
 }

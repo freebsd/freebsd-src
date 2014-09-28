@@ -160,7 +160,7 @@ if [ -n "${FILELIST}" ]; then
 		while [ -n "${path}" ]; do
 			echo ".${path}"
 			path="${path%/*}"
-		done 
+		done
 	done) | sort -u ${BSDROOT}/METALOG - | \
 	    awk '
 		!/ type=/ { file = $1 }
@@ -199,7 +199,7 @@ done
 
 # /etc/rcorder.start allows the startup order to be stable even if
 # not all startup scripts are installed.  In theory it should be
-# unnecessicary, but dependencies in rc.d appear to be under recorded.
+# unnecessary, but dependencies in rc.d appear to be under recorded.
 # This is a hack local to beri/cheribsd.
 #
 echo /etc/rc.d/FIRST > ${tmpdir}/rcorder.start

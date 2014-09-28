@@ -115,9 +115,13 @@ __FBSDID("$FreeBSD$");
 
 /* the kernel process "vm_pageout"*/
 static void vm_pageout(void);
+static void vm_pageout_init(void);
 static int vm_pageout_clean(vm_page_t);
 static void vm_pageout_scan(struct vm_domain *vmd, int pass);
 static void vm_pageout_mightbe_oom(struct vm_domain *vmd, int pass);
+
+SYSINIT(pagedaemon_init, SI_SUB_KTHREAD_PAGE, SI_ORDER_FIRST, vm_pageout_init,
+    NULL);
 
 struct proc *pageproc;
 
@@ -126,7 +130,7 @@ static struct kproc_desc page_kp = {
 	vm_pageout,
 	&pageproc
 };
-SYSINIT(pagedaemon, SI_SUB_KTHREAD_PAGE, SI_ORDER_FIRST, kproc_start,
+SYSINIT(pagedaemon, SI_SUB_KTHREAD_PAGE, SI_ORDER_SECOND, kproc_start,
     &page_kp);
 
 #if !defined(NO_SWAPPING)
@@ -678,9 +682,9 @@ vm_pageout_grow_cache(int tries, vm_paddr_t low, vm_paddr_t high)
 	initial_dom = atomic_fetchadd_int(&start_dom, 1) % vm_ndomains;
 
 	inactl = 0;
-	inactmax = cnt.v_inactive_count;
+	inactmax = vm_cnt.v_inactive_count;
 	actl = 0;
-	actmax = tries < 2 ? 0 : cnt.v_active_count;
+	actmax = tries < 2 ? 0 : vm_cnt.v_active_count;
 	dom = initial_dom;
 
 	/*
@@ -875,14 +879,6 @@ vm_pageout_map_deactivate_pages(map, desired)
 		tmpe = tmpe->next;
 	}
 
-#ifdef __ia64__
-	/*
-	 * Remove all non-wired, managed mappings if a process is swapped out.
-	 * This will free page table pages.
-	 */
-	if (desired == 0)
-		pmap_remove_pages(map->pmap);
-#else
 	/*
 	 * Remove all mappings if a process is swapped out, this will free page
 	 * table pages.
@@ -891,7 +887,6 @@ vm_pageout_map_deactivate_pages(map, desired)
 		pmap_remove(vm_map_pmap(map), vm_map_min(map),
 		    vm_map_max(map));
 	}
-#endif
 
 	vm_map_unlock(map);
 }
@@ -921,7 +916,7 @@ vm_pageout_scan(struct vm_domain *vmd, int pass)
 	 * some.  We rate limit to avoid thrashing.
 	 */
 	if (vmd == &vm_dom[0] && pass > 0 &&
-	    lowmem_ticks + (lowmem_period * hz) < ticks) {
+	    (ticks - lowmem_ticks) / hz >= lowmem_period) {
 		/*
 		 * Decrease registered cache sizes.
 		 */
@@ -942,13 +937,15 @@ vm_pageout_scan(struct vm_domain *vmd, int pass)
 	 */
 	addl_page_shortage = 0;
 
-	deficit = atomic_readandclear_int(&vm_pageout_deficit);
-
 	/*
 	 * Calculate the number of pages we want to either free or move
 	 * to the cache.
 	 */
-	page_shortage = vm_paging_target() + deficit;
+	if (pass > 0) {
+		deficit = atomic_readandclear_int(&vm_pageout_deficit);
+		page_shortage = vm_paging_target() + deficit;
+	} else
+		page_shortage = deficit = 0;
 
 	/*
 	 * maxlaunder limits the number of dirty pages we flush per scan.
@@ -1306,11 +1303,28 @@ relock_queues:
 	}
 	vm_pagequeue_unlock(pq);
 
+#if !defined(NO_SWAPPING)
+	/*
+	 * Wakeup the swapout daemon if we didn't cache or free the targeted
+	 * number of pages. 
+	 */
+	if (vm_swap_enabled && page_shortage > 0)
+		vm_req_vmdaemon(VM_SWAP_NORMAL);
+#endif
+
+	/*
+	 * Wakeup the sync daemon if we skipped a vnode in a writeable object
+	 * and we didn't cache or free enough pages.
+	 */
+	if (vnodes_skipped > 0 && page_shortage > vm_cnt.v_free_target -
+	    vm_cnt.v_free_min)
+		(void)speedup_syncer();
+
 	/*
 	 * Compute the number of pages we want to try to move from the
 	 * active queue to the inactive queue.
 	 */
-	page_shortage = cnt.v_inactive_target - cnt.v_inactive_count +
+	page_shortage = vm_cnt.v_inactive_target - vm_cnt.v_inactive_count +
 	    vm_paging_target() + deficit + addl_page_shortage;
 
 	pq = &vmd->vmd_pagequeues[PQ_ACTIVE];
@@ -1415,20 +1429,6 @@ relock_queues:
 		}
 	}
 #endif
-		
-	/*
-	 * If we didn't get enough free pages, and we have skipped a vnode
-	 * in a writeable object, wakeup the sync daemon.  And kick swapout
-	 * if we did not get enough free pages.
-	 */
-	if (vm_paging_target() > 0) {
-		if (vnodes_skipped && vm_page_count_min())
-			(void) speedup_syncer();
-#if !defined(NO_SWAPPING)
-		if (vm_swap_enabled && vm_page_count_target())
-			vm_req_vmdaemon(VM_SWAP_NORMAL);
-#endif
-	}
 
 	/*
 	 * If we are critically low on one of RAM or swap and low on
@@ -1576,7 +1576,7 @@ vm_pageout_oom(int shortage)
 		killproc(bigproc, "out of swap space");
 		sched_nice(bigproc, PRIO_MIN);
 		PROC_UNLOCK(bigproc);
-		wakeup(&cnt.v_free_count);
+		wakeup(&vm_cnt.v_free_count);
 	}
 }
 
@@ -1612,7 +1612,7 @@ vm_pageout_worker(void *arg)
 		if (vm_pages_needed && !vm_page_count_min()) {
 			if (!vm_paging_needed())
 				vm_pages_needed = 0;
-			wakeup(&cnt.v_free_count);
+			wakeup(&vm_cnt.v_free_count);
 		}
 		if (vm_pages_needed) {
 			/*
@@ -1635,7 +1635,7 @@ vm_pageout_worker(void *arg)
 
 		}
 		if (vm_pages_needed) {
-			cnt.v_pdwakeups++;
+			vm_cnt.v_pdwakeups++;
 			domain->vmd_pass++;
 		}
 		mtx_unlock(&vm_page_queue_free_mtx);
@@ -1644,20 +1644,16 @@ vm_pageout_worker(void *arg)
 }
 
 /*
- *	vm_pageout is the high level pageout daemon.
+ *	vm_pageout_init initialises basic pageout daemon settings.
  */
 static void
-vm_pageout(void)
+vm_pageout_init(void)
 {
-#if MAXMEMDOM > 1
-	int error, i;
-#endif
-
 	/*
 	 * Initialize some paging parameters.
 	 */
-	cnt.v_interrupt_free_min = 2;
-	if (cnt.v_page_count < 2000)
+	vm_cnt.v_interrupt_free_min = 2;
+	if (vm_cnt.v_page_count < 2000)
 		vm_pageout_page_count = 8;
 
 	/*
@@ -1665,27 +1661,27 @@ vm_pageout(void)
 	 * swap pager structures plus enough for any pv_entry structs
 	 * when paging. 
 	 */
-	if (cnt.v_page_count > 1024)
-		cnt.v_free_min = 4 + (cnt.v_page_count - 1024) / 200;
+	if (vm_cnt.v_page_count > 1024)
+		vm_cnt.v_free_min = 4 + (vm_cnt.v_page_count - 1024) / 200;
 	else
-		cnt.v_free_min = 4;
-	cnt.v_pageout_free_min = (2*MAXBSIZE)/PAGE_SIZE +
-	    cnt.v_interrupt_free_min;
-	cnt.v_free_reserved = vm_pageout_page_count +
-	    cnt.v_pageout_free_min + (cnt.v_page_count / 768);
-	cnt.v_free_severe = cnt.v_free_min / 2;
-	cnt.v_free_target = 4 * cnt.v_free_min + cnt.v_free_reserved;
-	cnt.v_free_min += cnt.v_free_reserved;
-	cnt.v_free_severe += cnt.v_free_reserved;
-	cnt.v_inactive_target = (3 * cnt.v_free_target) / 2;
-	if (cnt.v_inactive_target > cnt.v_free_count / 3)
-		cnt.v_inactive_target = cnt.v_free_count / 3;
+		vm_cnt.v_free_min = 4;
+	vm_cnt.v_pageout_free_min = (2*MAXBSIZE)/PAGE_SIZE +
+	    vm_cnt.v_interrupt_free_min;
+	vm_cnt.v_free_reserved = vm_pageout_page_count +
+	    vm_cnt.v_pageout_free_min + (vm_cnt.v_page_count / 768);
+	vm_cnt.v_free_severe = vm_cnt.v_free_min / 2;
+	vm_cnt.v_free_target = 4 * vm_cnt.v_free_min + vm_cnt.v_free_reserved;
+	vm_cnt.v_free_min += vm_cnt.v_free_reserved;
+	vm_cnt.v_free_severe += vm_cnt.v_free_reserved;
+	vm_cnt.v_inactive_target = (3 * vm_cnt.v_free_target) / 2;
+	if (vm_cnt.v_inactive_target > vm_cnt.v_free_count / 3)
+		vm_cnt.v_inactive_target = vm_cnt.v_free_count / 3;
 
 	/*
 	 * Set the default wakeup threshold to be 10% above the minimum
 	 * page limit.  This keeps the steady state out of shortfall.
 	 */
-	vm_pageout_wakeup_thresh = (cnt.v_free_min / 10) * 11;
+	vm_pageout_wakeup_thresh = (vm_cnt.v_free_min / 10) * 11;
 
 	/*
 	 * Set interval in seconds for active scan.  We want to visit each
@@ -1697,7 +1693,18 @@ vm_pageout(void)
 
 	/* XXX does not really belong here */
 	if (vm_page_max_wired == 0)
-		vm_page_max_wired = cnt.v_free_count / 3;
+		vm_page_max_wired = vm_cnt.v_free_count / 3;
+}
+
+/*
+ *     vm_pageout is the high level pageout daemon.
+ */
+static void
+vm_pageout(void)
+{
+#if MAXMEMDOM > 1
+	int error, i;
+#endif
 
 	swap_pager_swap_init();
 #if MAXMEMDOM > 1
@@ -1716,7 +1723,7 @@ vm_pageout(void)
 /*
  * Unless the free page queue lock is held by the caller, this function
  * should be regarded as advisory.  Specifically, the caller should
- * not msleep() on &cnt.v_free_count following this function unless
+ * not msleep() on &vm_cnt.v_free_count following this function unless
  * the free page queue lock is held until the msleep() is performed.
  */
 void

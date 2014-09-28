@@ -1,4 +1,4 @@
-/*	$OpenBSD: eval.c,v 1.70 2012/04/12 17:00:11 espie Exp $	*/
+/*	$OpenBSD: eval.c,v 1.73 2014/07/11 21:04:17 espie Exp $ */
 /*	$NetBSD: eval.c,v 1.7 1996/11/10 21:21:29 pk Exp $	*/
 
 /*
@@ -267,7 +267,7 @@ expand_builtin(const char *argv[], int argc, int td)
 			doesyscmd(argv[2]);
 		break;
 	case INCLTYPE:
-		if (argc > 2)
+		if (argc > 2) {
 			if (!doincl(argv[2])) {
 				if (mimic_gnu) {
 					warn("%s at line %lu: include(%s)",
@@ -277,6 +277,7 @@ expand_builtin(const char *argv[], int argc, int td)
 					err(1, "%s at line %lu: include(%s)",
 					    CURRENT_NAME, CURRENT_LINE, argv[2]);
 			}
+		}
 		break;
 
 	case SINCTYPE:
@@ -794,7 +795,7 @@ dom4wrap(const char *text)
 			maxwraps = 16;
 		else
 			maxwraps *= 2;
-		m4wraps = xrealloc(m4wraps, maxwraps * sizeof(*m4wraps),
+		m4wraps = xreallocarray(m4wraps, maxwraps, sizeof(*m4wraps),
 		   "too many m4wraps");
 	}
 	m4wraps[wrapindex++] = xstrdup(text);
@@ -821,11 +822,10 @@ dodiv(int n)
 	if (outfile[n] == NULL) {
 		char fname[] = _PATH_DIVNAME;
 
-		if ((fd = mkstemp(fname)) < 0 || 
-			(outfile[n] = fdopen(fd, "w+")) == NULL)
-				err(1, "%s: cannot divert", fname);
-		if (unlink(fname) == -1)
-			err(1, "%s: cannot unlink", fname);
+		if ((fd = mkstemp(fname)) < 0 ||
+		    unlink(fname) == -1 ||
+		    (outfile[n] = fdopen(fd, "w+")) == NULL)
+			err(1, "%s: cannot divert", fname);
 	}
 	active = outfile[n];
 }

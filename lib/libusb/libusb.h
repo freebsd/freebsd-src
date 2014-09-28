@@ -33,6 +33,8 @@
 #include <sys/types.h>
 #endif
 
+#define	LIBUSB_CALL
+
 #ifdef __cplusplus
 extern	"C" {
 #endif
@@ -49,10 +51,18 @@ enum libusb_class_code {
 	LIBUSB_CLASS_COMM = 2,
 	LIBUSB_CLASS_HID = 3,
 	LIBUSB_CLASS_PTP = 6,
+	LIBUSB_CLASS_IMAGE = 6,
 	LIBUSB_CLASS_PRINTER = 7,
 	LIBUSB_CLASS_MASS_STORAGE = 8,
 	LIBUSB_CLASS_HUB = 9,
 	LIBUSB_CLASS_DATA = 10,
+	LIBUSB_CLASS_SMART_CARD = 11,
+	LIBUSB_CLASS_CONTENT_SECURITY = 13,
+	LIBUSB_CLASS_VIDEO = 14,
+	LIBUSB_CLASS_PERSONAL_HEALTHCARE = 15,
+	LIBUSB_CLASS_DIAGNOSTIC_DEVICE = 0xdc,
+	LIBUSB_CLASS_WIRELESS = 0xe0,
+	LIBUSB_CLASS_APPLICATION = 0xfe,
 	LIBUSB_CLASS_VENDOR_SPEC = 0xff,
 };
 
@@ -192,6 +202,19 @@ enum libusb_transfer_flags {
 	LIBUSB_TRANSFER_FREE_TRANSFER = 1 << 2,
 };
 
+enum libusb_log_level {
+       LIBUSB_LOG_LEVEL_NONE = 0,
+       LIBUSB_LOG_LEVEL_ERROR,
+       LIBUSB_LOG_LEVEL_WARNING,
+       LIBUSB_LOG_LEVEL_INFO,
+       LIBUSB_LOG_LEVEL_DEBUG
+};
+
+/* XXX */
+/* libusb_set_debug should take parameters from libusb_log_level
+ * above according to
+ *   http://libusb.sourceforge.net/api-1.0/group__lib.html
+ */
 enum libusb_debug_level {
 	LIBUSB_DEBUG_NO=0,
 	LIBUSB_DEBUG_FUNCTION=1,

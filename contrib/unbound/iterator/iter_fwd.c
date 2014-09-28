@@ -21,16 +21,16 @@
  * specific prior written permission.
  * 
  * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
- * TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
- * PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE
- * LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
- * CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
- * SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
- * INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
- * CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
- * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
- * POSSIBILITY OF SUCH DAMAGE.
+ * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+ * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
+ * A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
+ * HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+ * SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED
+ * TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
+ * PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF
+ * LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
+ * NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+ * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
 /**
@@ -40,15 +40,14 @@
  * Keep track of forward zones and config settings.
  */
 #include "config.h"
-#include <ldns/rdata.h>
-#include <ldns/dname.h>
-#include <ldns/rr.h>
 #include "iterator/iter_fwd.h"
 #include "iterator/iter_delegpt.h"
 #include "util/log.h"
 #include "util/config_file.h"
 #include "util/net_help.h"
 #include "util/data/dname.h"
+#include "ldns/rrdef.h"
+#include "ldns/str2wire.h"
 
 int
 fwd_cmp(const void* k1, const void* k2)
@@ -180,22 +179,23 @@ static struct delegpt*
 read_fwds_name(struct config_stub* s)
 {
 	struct delegpt* dp;
-	ldns_rdf* rdf;
+	uint8_t* dname;
+	size_t dname_len;
 	if(!s->name) {
 		log_err("forward zone without a name (use name \".\" to forward everything)");
 		return NULL;
 	}
-	rdf = ldns_dname_new_frm_str(s->name);
-	if(!rdf) {
+	dname = sldns_str2wire_dname(s->name, &dname_len);
+	if(!dname) {
 		log_err("cannot parse forward zone name %s", s->name);
 		return NULL;
 	}
-	if(!(dp=delegpt_create_mlc(ldns_rdf_data(rdf)))) {
-		ldns_rdf_deep_free(rdf);
+	if(!(dp=delegpt_create_mlc(dname))) {
+		free(dname);
 		log_err("out of memory");
 		return NULL;
 	}
-	ldns_rdf_deep_free(rdf);
+	free(dname);
 	return dp;
 }
 
@@ -204,21 +204,22 @@ static int
 read_fwds_host(struct config_stub* s, struct delegpt* dp)
 {
 	struct config_strlist* p;
-	ldns_rdf* rdf;
+	uint8_t* dname;
+	size_t dname_len;
 	for(p = s->hosts; p; p = p->next) {
 		log_assert(p->str);
-		rdf = ldns_dname_new_frm_str(p->str);
-		if(!rdf) {
+		dname = sldns_str2wire_dname(p->str, &dname_len);
+		if(!dname) {
 			log_err("cannot parse forward %s server name: '%s'", 
 				s->name, p->str);
 			return 0;
 		}
-		if(!delegpt_add_ns_mlc(dp, ldns_rdf_data(rdf), 0)) {
-			ldns_rdf_deep_free(rdf);
+		if(!delegpt_add_ns_mlc(dp, dname, 0)) {
+			free(dname);
 			log_err("out of memory");
 			return 0;
 		}
-		ldns_rdf_deep_free(rdf);
+		free(dname);
 	}
 	return 1;
 }
@@ -290,19 +291,20 @@ static int
 make_stub_holes(struct iter_forwards* fwd, struct config_file* cfg)
 {
 	struct config_stub* s;
+	uint8_t* dname;
+	size_t dname_len;
 	for(s = cfg->stubs; s; s = s->next) {
-		ldns_rdf* rdf = ldns_dname_new_frm_str(s->name);
-		if(!rdf) {
+		dname = sldns_str2wire_dname(s->name, &dname_len);
+		if(!dname) {
 			log_err("cannot parse stub name '%s'", s->name);
 			return 0;
 		}
-		if(!fwd_add_stub_hole(fwd, LDNS_RR_CLASS_IN,
-				ldns_rdf_data(rdf))) {
-			ldns_rdf_deep_free(rdf);
+		if(!fwd_add_stub_hole(fwd, LDNS_RR_CLASS_IN, dname)) {
+			free(dname);
 			log_err("out of memory");
 			return 0;
 		}
-		ldns_rdf_deep_free(rdf);
+		free(dname);
 	}
 	return 1;
 }
@@ -322,6 +324,20 @@ forwards_apply_cfg(struct iter_forwards* fwd, struct config_file* cfg)
 		return 0;
 	fwd_init_parents(fwd);
 	return 1;
+}
+
+struct delegpt* 
+forwards_find(struct iter_forwards* fwd, uint8_t* qname, uint16_t qclass)
+{
+	rbnode_t* res = NULL;
+	struct iter_forward_zone key;
+	key.node.key = &key;
+	key.dclass = qclass;
+	key.name = qname;
+	key.namelabs = dname_count_size_labels(qname, &key.namelen);
+	res = rbtree_search(fwd->tree, &key);
+	if(res) return ((struct iter_forward_zone*)res)->dp;
+	return NULL;
 }
 
 struct delegpt* 

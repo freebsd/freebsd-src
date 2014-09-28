@@ -14,11 +14,35 @@ void	swi_vm(void *);
 static __inline uint64_t
 get_cyclecount(void)
 {
+/* This '#if' asks the question 'Does CP15/SCC include performance counters?' */
+#if defined(CPU_ARM1136) || defined(CPU_ARM1176) \
+ || defined(CPU_MV_PJ4B) \
+ || defined(CPU_CORTEXA) || defined(CPU_KRAIT)
+	uint32_t ccnt;
+	uint64_t ccnt64;
+
+	/*
+	 * Read PMCCNTR. Curses! Its only 32 bits.
+	 * TODO: Fix this by catching overflow with interrupt?
+	 */
+/* The ARMv6 vs ARMv7 divide is going to need a better way of
+ * distinguishing between them.
+ */
+#if defined(CPU_ARM1136) || defined(CPU_ARM1176)
+	/* ARMv6 - Earlier model SCCs */
+	__asm __volatile("mrc p15, 0, %0, c15, c12, 1": "=r" (ccnt));
+#else
+	/* ARMv7 - Later model SCCs */
+	__asm __volatile("mrc p15, 0, %0, c9, c13, 0": "=r" (ccnt));
+#endif
+	ccnt64 = (uint64_t)ccnt;
+	return (ccnt64);
+#else /* No performance counters, so use binuptime(9). This is slooooow */
 	struct bintime bt;
 
 	binuptime(&bt);
 	return ((uint64_t)bt.sec << 56 | bt.frac >> 8);
-			
+#endif
 }
 #endif
 

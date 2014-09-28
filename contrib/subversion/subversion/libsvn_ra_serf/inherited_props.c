@@ -41,7 +41,7 @@
 
 /* The current state of our XML parsing. */
 typedef enum iprops_state_e {
-  NONE = 0,
+  INITIAL = 0,
   IPROPS_REPORT,
   IPROPS_ITEM,
   IPROPS_PATH,
@@ -61,17 +61,11 @@ typedef struct iprops_context_t {
   /* The repository's root URL. */
   const char *repos_root_url;
 
-  /* Current CDATA values*/
-  svn_stringbuf_t *curr_path;
+  /* Current property name */
   svn_stringbuf_t *curr_propname;
-  svn_stringbuf_t *curr_propval;
-  const char *curr_prop_val_encoding;
 
   /* Current element in IPROPS. */
   svn_prop_inherited_item_t *curr_iprop;
-
-  /* Serf context completion flag for svn_ra_serf__context_run_wait() */
-  svn_boolean_t done;
 
   /* Path we are finding inherited properties for.  This is relative to
      the RA session passed to svn_ra_serf__get_inherited_props. */
@@ -80,162 +74,121 @@ typedef struct iprops_context_t {
   svn_revnum_t revision;
 } iprops_context_t;
 
+#define S_ SVN_XML_NAMESPACE
+static const svn_ra_serf__xml_transition_t iprops_table[] = {
+  { INITIAL, S_, SVN_DAV__INHERITED_PROPS_REPORT, IPROPS_REPORT,
+    FALSE, { NULL }, FALSE },
+
+  { IPROPS_REPORT, S_, SVN_DAV__IPROP_ITEM, IPROPS_ITEM,
+    FALSE, { NULL }, TRUE },
+
+  { IPROPS_ITEM, S_, SVN_DAV__IPROP_PATH, IPROPS_PATH,
+    TRUE, { NULL }, TRUE },
+
+  { IPROPS_ITEM, S_, SVN_DAV__IPROP_PROPNAME, IPROPS_PROPNAME,
+    TRUE, { NULL }, TRUE },
+
+  { IPROPS_ITEM, S_, SVN_DAV__IPROP_PROPVAL, IPROPS_PROPVAL,
+    TRUE, { "?V:encoding", NULL }, TRUE },
+
+  { 0 }
+};
+
+/* Conforms to svn_ra_serf__xml_opened_t */
 static svn_error_t *
-start_element(svn_ra_serf__xml_parser_t *parser,
-              svn_ra_serf__dav_props_t name,
-              const char **attrs,
+iprops_opened(svn_ra_serf__xml_estate_t *xes,
+              void *baton,
+              int entered_state,
+              const svn_ra_serf__dav_props_t *tag,
               apr_pool_t *scratch_pool)
 {
-  iprops_context_t *iprops_ctx = parser->user_data;
-  iprops_state_e state;
+  iprops_context_t *iprops_ctx = baton;
 
-  state = parser->state->current_state;
-  if (state == NONE
-      && strcmp(name.name, SVN_DAV__INHERITED_PROPS_REPORT) == 0)
+  if (entered_state == IPROPS_ITEM)
     {
-      svn_ra_serf__xml_push_state(parser, IPROPS_REPORT);
-    }
-  else if (state == IPROPS_REPORT &&
-           strcmp(name.name, SVN_DAV__IPROP_ITEM) == 0)
-    {
-      svn_stringbuf_setempty(iprops_ctx->curr_path);
       svn_stringbuf_setempty(iprops_ctx->curr_propname);
-      svn_stringbuf_setempty(iprops_ctx->curr_propval);
-      iprops_ctx->curr_prop_val_encoding = NULL;
-      iprops_ctx->curr_iprop = NULL;
-      svn_ra_serf__xml_push_state(parser, IPROPS_ITEM);
-    }
-  else if (state == IPROPS_ITEM &&
-           strcmp(name.name, SVN_DAV__IPROP_PROPVAL) == 0)
-    {
-      const char *prop_val_encoding = svn_xml_get_attr_value("encoding",
-                                                             attrs);
-      iprops_ctx->curr_prop_val_encoding = apr_pstrdup(iprops_ctx->pool,
-                                                       prop_val_encoding);
-      svn_ra_serf__xml_push_state(parser, IPROPS_PROPVAL);
-    }
-  else if (state == IPROPS_ITEM &&
-           strcmp(name.name, SVN_DAV__IPROP_PATH) == 0)
-    {
-      svn_ra_serf__xml_push_state(parser, IPROPS_PATH);
-    }
-  else if (state == IPROPS_ITEM &&
-           strcmp(name.name, SVN_DAV__IPROP_PROPNAME) == 0)
-    {
-      svn_ra_serf__xml_push_state(parser, IPROPS_PROPNAME);
-    }
-  else if (state == IPROPS_ITEM &&
-           strcmp(name.name, SVN_DAV__IPROP_PROPVAL) == 0)
-    {
-      svn_ra_serf__xml_push_state(parser, IPROPS_PROPVAL);
-    }
 
+      iprops_ctx->curr_iprop = apr_pcalloc(iprops_ctx->pool,
+                                           sizeof(*iprops_ctx->curr_iprop));
+
+      iprops_ctx->curr_iprop->prop_hash = apr_hash_make(iprops_ctx->pool);
+    }
   return SVN_NO_ERROR;
 }
 
+/* Conforms to svn_ra_serf__xml_closed_t  */
 static svn_error_t *
-end_element(svn_ra_serf__xml_parser_t *parser,
-            svn_ra_serf__dav_props_t name,
-            apr_pool_t *scratch_pool)
+iprops_closed(svn_ra_serf__xml_estate_t *xes,
+              void *baton,
+              int leaving_state,
+              const svn_string_t *cdata,
+              apr_hash_t *attrs,
+              apr_pool_t *scratch_pool)
 {
-  iprops_context_t *iprops_ctx = parser->user_data;
-  iprops_state_e state;
+  iprops_context_t *iprops_ctx = baton;
 
-  state = parser->state->current_state;
-
-    if (state == IPROPS_REPORT &&
-      strcmp(name.name, SVN_DAV__INHERITED_PROPS_REPORT) == 0)
+  if (leaving_state == IPROPS_ITEM)
     {
-      svn_ra_serf__xml_pop_state(parser);
+      APR_ARRAY_PUSH(iprops_ctx->iprops, svn_prop_inherited_item_t *) =
+        iprops_ctx->curr_iprop;
+
+      iprops_ctx->curr_iprop = NULL;
     }
-  else if (state == IPROPS_PATH
-           && strcmp(name.name, SVN_DAV__IPROP_PATH) == 0)
+  else if (leaving_state == IPROPS_PATH)
     {
-      iprops_ctx->curr_iprop = apr_palloc(
-        iprops_ctx->pool, sizeof(svn_prop_inherited_item_t));
+      /* Every <iprop-item> has a single <iprop-path> */
+      if (iprops_ctx->curr_iprop->path_or_url)
+        return svn_error_create(SVN_ERR_XML_MALFORMED, NULL, NULL);
 
       iprops_ctx->curr_iprop->path_or_url =
         svn_path_url_add_component2(iprops_ctx->repos_root_url,
-                                    iprops_ctx->curr_path->data,
+                                    cdata->data,
                                     iprops_ctx->pool);
-      iprops_ctx->curr_iprop->prop_hash = apr_hash_make(iprops_ctx->pool);
-      svn_ra_serf__xml_pop_state(parser);
     }
-  else if (state == IPROPS_PROPVAL
-           && strcmp(name.name, SVN_DAV__IPROP_PROPVAL) == 0)
+  else if (leaving_state == IPROPS_PROPNAME)
     {
-      const svn_string_t *prop_val;
+      if (iprops_ctx->curr_propname->len)
+        return svn_error_create(SVN_ERR_XML_MALFORMED, NULL, NULL);
 
-      if (iprops_ctx->curr_prop_val_encoding)
+      /* Store propname for value */
+      svn_stringbuf_set(iprops_ctx->curr_propname, cdata->data);
+    }
+  else if (leaving_state == IPROPS_PROPVAL)
+    {
+      const char *encoding;
+      const svn_string_t *val_str;
+
+      if (! iprops_ctx->curr_propname->len)
+        return svn_error_create(SVN_ERR_XML_MALFORMED, NULL, NULL);
+
+      encoding = svn_hash_gets(attrs, "V:encoding");
+
+      if (encoding)
         {
-          svn_string_t encoded_prop_val;
+          if (strcmp(encoding, "base64") != 0)
+            return svn_error_createf(SVN_ERR_XML_MALFORMED,
+                                     NULL,
+                                     _("Got unrecognized encoding '%s'"),
+                                     encoding);
 
-          if (strcmp(iprops_ctx->curr_prop_val_encoding, "base64") != 0)
-            return svn_error_create(SVN_ERR_XML_MALFORMED, NULL, NULL);
-
-          encoded_prop_val.data = iprops_ctx->curr_propval->data;
-          encoded_prop_val.len = iprops_ctx->curr_propval->len;
-          prop_val = svn_base64_decode_string(&encoded_prop_val,
-                                              iprops_ctx->pool);
+          /* Decode into the right pool.  */
+          val_str = svn_base64_decode_string(cdata, iprops_ctx->pool);
         }
       else
         {
-          prop_val = svn_string_create_from_buf(iprops_ctx->curr_propval,
-                                                iprops_ctx->pool);
+          /* Copy into the right pool.  */
+          val_str = svn_string_dup(cdata, iprops_ctx->pool);
         }
 
       svn_hash_sets(iprops_ctx->curr_iprop->prop_hash,
                     apr_pstrdup(iprops_ctx->pool,
                                 iprops_ctx->curr_propname->data),
-                    prop_val);
-      /* Clear current propname and propval in the event there are
-         multiple properties on the current path. */
+                    val_str);
+      /* Clear current propname. */
       svn_stringbuf_setempty(iprops_ctx->curr_propname);
-      svn_stringbuf_setempty(iprops_ctx->curr_propval);
-      svn_ra_serf__xml_pop_state(parser);
     }
-  else if (state == IPROPS_PROPNAME
-           && strcmp(name.name, SVN_DAV__IPROP_PROPNAME) == 0)
-    {
-      svn_ra_serf__xml_pop_state(parser);
-    }
-  else if (state == IPROPS_ITEM
-           && strcmp(name.name, SVN_DAV__IPROP_ITEM) == 0)
-    {
-      APR_ARRAY_PUSH(iprops_ctx->iprops, svn_prop_inherited_item_t *) =
-        iprops_ctx->curr_iprop;
-      svn_ra_serf__xml_pop_state(parser);
-    }
-  return SVN_NO_ERROR;
-}
-
-
-static svn_error_t *
-cdata_handler(svn_ra_serf__xml_parser_t *parser,
-              const char *data,
-              apr_size_t len,
-              apr_pool_t *scratch_pool)
-{
-  iprops_context_t *iprops_ctx = parser->user_data;
-  iprops_state_e state = parser->state->current_state;
-
-  switch (state)
-    {
-    case IPROPS_PATH:
-      svn_stringbuf_appendbytes(iprops_ctx->curr_path, data, len);
-      break;
-
-    case IPROPS_PROPNAME:
-      svn_stringbuf_appendbytes(iprops_ctx->curr_propname, data, len);
-      break;
-
-    case IPROPS_PROPVAL:
-      svn_stringbuf_appendbytes(iprops_ctx->curr_propval, data, len);
-      break;
-
-    default:
-      break;
-    }
+  else
+    SVN_ERR_MALFUNCTION(); /* Invalid transition table */
 
   return SVN_NO_ERROR;
 }
@@ -281,7 +234,7 @@ svn_ra_serf__get_inherited_props(svn_ra_session_t *ra_session,
   iprops_context_t *iprops_ctx;
   svn_ra_serf__session_t *session = ra_session->priv;
   svn_ra_serf__handler_t *handler;
-  svn_ra_serf__xml_parser_t *parser_ctx;
+  svn_ra_serf__xml_context_t *xmlctx;
   const char *req_url;
 
   SVN_ERR(svn_ra_serf__get_stable_url(&req_url,
@@ -295,19 +248,20 @@ svn_ra_serf__get_inherited_props(svn_ra_session_t *ra_session,
   SVN_ERR_ASSERT(session->repos_root_str);
 
   iprops_ctx = apr_pcalloc(scratch_pool, sizeof(*iprops_ctx));
-  iprops_ctx->done = FALSE;
   iprops_ctx->repos_root_url = session->repos_root_str;
   iprops_ctx->pool = result_pool;
-  iprops_ctx->curr_path = svn_stringbuf_create_empty(scratch_pool);
   iprops_ctx->curr_propname = svn_stringbuf_create_empty(scratch_pool);
-  iprops_ctx->curr_propval = svn_stringbuf_create_empty(scratch_pool);
   iprops_ctx->curr_iprop = NULL;
   iprops_ctx->iprops = apr_array_make(result_pool, 1,
                                        sizeof(svn_prop_inherited_item_t *));
   iprops_ctx->path = path;
   iprops_ctx->revision = revision;
 
-  handler = apr_pcalloc(scratch_pool, sizeof(*handler));
+  xmlctx = svn_ra_serf__xml_context_create(iprops_table,
+                                           iprops_opened, iprops_closed, NULL,
+                                           iprops_ctx,
+                                           scratch_pool);
+  handler = svn_ra_serf__create_expat_handler(xmlctx, scratch_pool);
 
   handler->method = "REPORT";
   handler->path = req_url;
@@ -318,18 +272,6 @@ svn_ra_serf__get_inherited_props(svn_ra_session_t *ra_session,
   handler->body_type = "text/xml";
   handler->handler_pool = scratch_pool;
 
-  parser_ctx = apr_pcalloc(scratch_pool, sizeof(*parser_ctx));
-
-  parser_ctx->pool = scratch_pool;
-  parser_ctx->user_data = iprops_ctx;
-  parser_ctx->start = start_element;
-  parser_ctx->end = end_element;
-  parser_ctx->cdata = cdata_handler;
-  parser_ctx->done = &iprops_ctx->done;
-
-  handler->response_handler = svn_ra_serf__handle_xml_parser;
-  handler->response_baton = parser_ctx;
-
   err = svn_ra_serf__context_run_one(handler, scratch_pool);
   SVN_ERR(svn_error_compose_create(
                     svn_ra_serf__error_on_status(handler->sline,
@@ -337,8 +279,7 @@ svn_ra_serf__get_inherited_props(svn_ra_session_t *ra_session,
                                                  handler->location),
                     err));
 
-  if (iprops_ctx->done)
-    *iprops = iprops_ctx->iprops;
+  *iprops = iprops_ctx->iprops;
 
   return SVN_NO_ERROR;
 }

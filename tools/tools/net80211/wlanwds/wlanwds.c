@@ -50,7 +50,6 @@
 #include <net/if_dl.h>
 #include <netinet/in.h>
 #include <netinet/if_ether.h>
-#include <netatalk/at.h>
 #include "net80211/ieee80211_ioctl.h"
 #include "net80211/ieee80211_freebsd.h"
 #include <arpa/inet.h>

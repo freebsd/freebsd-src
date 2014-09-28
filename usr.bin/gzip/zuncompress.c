@@ -145,7 +145,7 @@ zuncompress(FILE *in, FILE *out, char *pre, size_t prelen,
 	else
 		compressed_pre = NULL;
 
-	while ((bin = fread(buf, 1, sizeof(buf), in)) != 0) {
+	while ((bin = fread(buf, 1, BUFSIZE, in)) != 0) {
 		if (tflag == 0 && (off_t)fwrite(buf, 1, bin, out) != bin) {
 			free(buf);
 			return -1;

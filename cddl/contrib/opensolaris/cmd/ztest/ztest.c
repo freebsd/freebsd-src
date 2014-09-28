@@ -20,7 +20,7 @@
  */
 /*
  * Copyright (c) 2005, 2010, Oracle and/or its affiliates. All rights reserved.
- * Copyright (c) 2013 by Delphix. All rights reserved.
+ * Copyright (c) 2011, 2014 by Delphix. All rights reserved.
  * Copyright 2011 Nexenta Systems, Inc.  All rights reserved.
  * Copyright (c) 2012 Martin Matuska <mm@FreeBSD.org>.  All rights reserved.
  * Copyright (c) 2013 Steven Hartland. All rights reserved.
@@ -53,7 +53,7 @@
  *     At random times, the child self-immolates with a SIGKILL.
  *     This is the software equivalent of pulling the power cord.
  *     The parent then runs the test again, using the existing
- *     storage pool, as many times as desired. If backwards compatability
+ *     storage pool, as many times as desired. If backwards compatibility
  *     testing is enabled ztest will sometimes run the "older" version
  *     of ztest after a SIGKILL.
  *
@@ -172,7 +172,7 @@ static const ztest_shared_opts_t ztest_opts_defaults = {
 	.zo_mirrors = 2,
 	.zo_raidz = 4,
 	.zo_raidz_parity = 1,
-	.zo_vdev_size = SPA_MINDEVSIZE,
+	.zo_vdev_size = SPA_MINDEVSIZE * 2,
 	.zo_datasets = 7,
 	.zo_threads = 23,
 	.zo_passtime = 60,		/* 60 seconds */
@@ -187,6 +187,7 @@ static const ztest_shared_opts_t ztest_opts_defaults = {
 extern uint64_t metaslab_gang_bang;
 extern uint64_t metaslab_df_alloc_threshold;
 extern uint64_t zfs_deadman_synctime_ms;
+extern int metaslab_preload_limit;
 
 static ztest_shared_opts_t *ztest_shared_opts;
 static ztest_shared_opts_t ztest_opts;
@@ -809,7 +810,7 @@ static uint64_t
 ztest_get_ashift(void)
 {
 	if (ztest_opts.zo_ashift == 0)
-		return (SPA_MINBLOCKSHIFT + ztest_random(3));
+		return (SPA_MINBLOCKSHIFT + ztest_random(5));
 	return (ztest_opts.zo_ashift);
 }
 
@@ -968,11 +969,28 @@ ztest_random_spa_version(uint64_t initial_version)
 	return (version);
 }
 
+/*
+ * Find the largest ashift used
+ */
+static uint64_t
+ztest_spa_get_ashift() {
+	uint64_t i;
+	uint64_t ashift = SPA_MINBLOCKSHIFT;
+	vdev_t *rvd = ztest_spa->spa_root_vdev;
+
+	for (i = 0; i < rvd->vdev_children; i++) {
+		ashift = MAX(ashift, rvd->vdev_child[i]->vdev_ashift);
+	}
+	return (ashift);
+}
+
 static int
 ztest_random_blocksize(void)
 {
-	return (1 << (SPA_MINBLOCKSHIFT +
-	    ztest_random(SPA_MAXBLOCKSHIFT - SPA_MINBLOCKSHIFT + 1)));
+	// Choose a block size >= the ashift.
+	uint64_t block_shift =
+	    ztest_random(SPA_MAXBLOCKSHIFT - ztest_spa_get_ashift() + 1);
+	return (1 << (SPA_MINBLOCKSHIFT + block_shift));
 }
 
 static int
@@ -1267,13 +1285,13 @@ static void
 ztest_bt_verify(ztest_block_tag_t *bt, objset_t *os, uint64_t object,
     uint64_t offset, uint64_t gen, uint64_t txg, uint64_t crtxg)
 {
-	ASSERT(bt->bt_magic == BT_MAGIC);
-	ASSERT(bt->bt_objset == dmu_objset_id(os));
-	ASSERT(bt->bt_object == object);
-	ASSERT(bt->bt_offset == offset);
-	ASSERT(bt->bt_gen <= gen);
-	ASSERT(bt->bt_txg <= txg);
-	ASSERT(bt->bt_crtxg == crtxg);
+	ASSERT3U(bt->bt_magic, ==, BT_MAGIC);
+	ASSERT3U(bt->bt_objset, ==, dmu_objset_id(os));
+	ASSERT3U(bt->bt_object, ==, object);
+	ASSERT3U(bt->bt_offset, ==, offset);
+	ASSERT3U(bt->bt_gen, <=, gen);
+	ASSERT3U(bt->bt_txg, <=, txg);
+	ASSERT3U(bt->bt_crtxg, ==, crtxg);
 }
 
 static ztest_block_tag_t *
@@ -3472,6 +3490,11 @@ ztest_dsl_dataset_promote_busy(ztest_ds_t *zd, uint64_t id)
 	if (error)
 		fatal(0, "dmu_objset_own(%s) = %d", snap2name, error);
 	error = dsl_dataset_promote(clone2name, NULL);
+	if (error == ENOSPC) {
+		dmu_objset_disown(os, FTAG);
+		ztest_record_enospc(FTAG);
+		goto out;
+	}
 	if (error != EBUSY)
 		fatal(0, "dsl_dataset_promote(%s), %d, not EBUSY", clone2name,
 		    error);
@@ -3627,11 +3650,19 @@ ztest_dmu_read_write(ztest_ds_t *zd, uint64_t id)
 		return;
 	}
 
-	dmu_object_set_checksum(os, bigobj,
-	    (enum zio_checksum)ztest_random_dsl_prop(ZFS_PROP_CHECKSUM), tx);
+	enum zio_checksum cksum;
+	do {
+		cksum = (enum zio_checksum)
+		    ztest_random_dsl_prop(ZFS_PROP_CHECKSUM);
+	} while (cksum >= ZIO_CHECKSUM_LEGACY_FUNCTIONS);
+	dmu_object_set_checksum(os, bigobj, cksum, tx);
 
-	dmu_object_set_compress(os, bigobj,
-	    (enum zio_compress)ztest_random_dsl_prop(ZFS_PROP_COMPRESSION), tx);
+	enum zio_compress comp;
+	do {
+		comp = (enum zio_compress)
+		    ztest_random_dsl_prop(ZFS_PROP_COMPRESSION);
+	} while (comp >= ZIO_COMPRESS_LEGACY_FUNCTIONS);
+	dmu_object_set_compress(os, bigobj, comp, tx);
 
 	/*
 	 * For each index from n to n + s, verify that the existing bufwad
@@ -4711,8 +4742,13 @@ ztest_dmu_snapshot_hold(ztest_ds_t *zd, uint64_t id)
 	error = dsl_dataset_user_hold(holds, 0, NULL);
 	fnvlist_free(holds);
 
-	if (error)
-		fatal(0, "dsl_dataset_user_hold(%s)", fullname, tag);
+	if (error == ENOSPC) {
+		ztest_record_enospc("dsl_dataset_user_hold");
+		goto out;
+	} else if (error) {
+		fatal(0, "dsl_dataset_user_hold(%s, %s) = %u",
+		    fullname, tag, error);
+	}
 
 	error = dsl_destroy_snapshot(fullname, B_FALSE);
 	if (error != EBUSY) {
@@ -5165,7 +5201,7 @@ ztest_run_zdb(char *pool)
 	isa = strdup(isa);
 	/* LINTED */
 	(void) sprintf(bin,
-	    "/usr/sbin%.*s/zdb -bcc%s%s -U %s %s",
+	    "/usr/sbin%.*s/zdb -bcc%s%s -d -U %s %s",
 	    isalen,
 	    isa,
 	    ztest_opts.zo_verbose >= 3 ? "s" : "",
@@ -5578,6 +5614,7 @@ ztest_run(ztest_shared_t *zs)
 	kernel_init(FREAD | FWRITE);
 	VERIFY0(spa_open(ztest_opts.zo_pool, &spa, FTAG));
 	spa->spa_debug = B_TRUE;
+	metaslab_preload_limit = ztest_random(20) + 1;
 	ztest_spa = spa;
 
 	VERIFY0(dmu_objset_own(ztest_opts.zo_pool,
@@ -5748,16 +5785,30 @@ ztest_freeze(void)
 	spa_freeze(spa);
 
 	/*
+	 * Because it is hard to predict how much space a write will actually
+	 * require beforehand, we leave ourselves some fudge space to write over
+	 * capacity.
+	 */
+	uint64_t capacity = metaslab_class_get_space(spa_normal_class(spa)) / 2;
+
+	/*
 	 * Run tests that generate log records but don't alter the pool config
 	 * or depend on DSL sync tasks (snapshots, objset create/destroy, etc).
 	 * We do a txg_wait_synced() after each iteration to force the txg
 	 * to increase well beyond the last synced value in the uberblock.
 	 * The ZIL should be OK with that.
+	 *
+	 * Run a random number of times less than zo_maxloops and ensure we do
+	 * not run out of space on the pool.
 	 */
 	while (ztest_random(10) != 0 &&
-	    numloops++ < ztest_opts.zo_maxloops) {
-		ztest_dmu_write_parallel(zd, 0);
-		ztest_dmu_object_alloc_free(zd, 0);
+	    numloops++ < ztest_opts.zo_maxloops &&
+	    metaslab_class_get_alloc(spa_normal_class(spa)) < capacity) {
+		ztest_od_t od;
+		ztest_od_init(&od, 0, FTAG, 0, DMU_OT_UINT64_OTHER, 0, 0);
+		VERIFY0(ztest_object_init(zd, &od, sizeof (od), B_FALSE));
+		ztest_io(zd, od.od_object,
+		    ztest_random(ZTEST_RANGE_LOCKS) << SPA_MAXBLOCKSHIFT);
 		txg_wait_synced(spa_get_dsl(spa), 0);
 	}
 

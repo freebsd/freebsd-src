@@ -1,4 +1,4 @@
-/* $OpenBSD: kexdhs.c,v 1.17 2014/01/12 08:13:13 djm Exp $ */
+/* $OpenBSD: kexdhs.c,v 1.18 2014/02/02 03:44:31 djm Exp $ */
 /*
  * Copyright (c) 2001 Markus Friedl.  All rights reserved.
  *
@@ -110,7 +110,7 @@ kexdh_server(Kex *kex)
 		fatal("kexdh_server: BN_new failed");
 	if (BN_bin2bn(kbuf, kout, shared_secret) == NULL)
 		fatal("kexdh_server: BN_bin2bn failed");
-	memset(kbuf, 0, klen);
+	explicit_bzero(kbuf, klen);
 	free(kbuf);
 
 	key_to_blob(server_host_public, &server_host_key_blob, &sbloblen);

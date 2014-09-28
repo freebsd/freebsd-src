@@ -51,7 +51,7 @@ typedef	__size_t	size_t;
 
 #ifndef	__cplusplus
 #ifndef _WCHAR_T_DECLARED
-typedef	__wchar_t	wchar_t;
+typedef	___wchar_t	wchar_t;
 #define	_WCHAR_T_DECLARED
 #endif
 #endif
@@ -257,6 +257,11 @@ void	 arc4random_buf(void *, size_t);
 void	 arc4random_stir(void);
 __uint32_t 
 	 arc4random_uniform(__uint32_t);
+#ifdef __BLOCKS__
+int	 atexit_b(void (^)(void));
+void	*bsearch_b(const void *, const void *, size_t,
+	    size_t, int (^)(const void *, const void *));
+#endif
 char	*getbsize(int *, long *);
 					/* getcap(3) functions */
 char	*cgetcap(char *, const char *, int);
@@ -280,8 +285,16 @@ const char *
 	 getprogname(void);
 
 int	 heapsort(void *, size_t, size_t, int (*)(const void *, const void *));
+#ifdef __BLOCKS__
+int	 heapsort_b(void *, size_t, size_t, int (^)(const void *, const void *));
+void	 qsort_b(void *, size_t, size_t,
+	    int (^)(const void *, const void *));
+#endif
 int	 l64a_r(long, char *, int);
 int	 mergesort(void *, size_t, size_t, int (*)(const void *, const void *));
+#ifdef __BLOCKS__
+int	 mergesort_b(void *, size_t, size_t, int (^)(const void *, const void *));
+#endif
 int	 mkostemp(char *, int);
 int	 mkostemps(char *, int, int);
 void	 qsort_r(void *, size_t, size_t, void *,

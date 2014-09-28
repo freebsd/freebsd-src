@@ -61,12 +61,14 @@ _readdir_unlocked(dirp, skip)
 				return (NULL);
 			dirp->dd_loc = 0;
 		}
-		if (dirp->dd_loc == 0 && !(dirp->dd_flags & __DTF_READALL)) {
+		if (dirp->dd_loc == 0 &&
+		    !(dirp->dd_flags & (__DTF_READALL | __DTF_SKIPREAD))) {
 			dirp->dd_size = _getdirentries(dirp->dd_fd,
 			    dirp->dd_buf, dirp->dd_len, &dirp->dd_seek);
 			if (dirp->dd_size <= 0)
 				return (NULL);
 		}
+		dirp->dd_flags &= ~__DTF_SKIPREAD;
 		dp = (struct dirent *)(dirp->dd_buf + dirp->dd_loc);
 		if ((long)dp & 03L)	/* bogus pointer check */
 			return (NULL);

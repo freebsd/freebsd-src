@@ -598,22 +598,13 @@ init_secondary(void)
 	for (addr = 0; addr < NKPT * NBPDR - 1; addr += PAGE_SIZE)
 		invlpg(addr);
 
+#if 0
+	/* set up SSE/NX */
+	initializecpu();
+#endif
+
 	/* set up FPU state on the AP */
 	npxinit();
-#if 0
-	
-	/* set up SSE registers */
-	enable_sse();
-#endif
-#if 0 && defined(PAE)
-	/* Enable the PTE no-execute bit. */
-	if ((amd_feature & AMDID_NX) != 0) {
-		uint64_t msr;
-
-		msr = rdmsr(MSR_EFER) | EFER_NXE;
-		wrmsr(MSR_EFER, msr);
-	}
-#endif
 #if 0
 	/* A quick check from sanity claus */
 	if (PCPU_GET(apic_id) != lapic_id()) {
@@ -655,7 +646,6 @@ init_secondary(void)
 	if (smp_cpus == mp_ncpus) {
 		/* enable IPI's, tlb shootdown, freezes etc */
 		atomic_store_rel_int(&smp_started, 1);
-		smp_active = 1;	 /* historic */
 	}
 
 	mtx_unlock_spin(&ap_boot_mtx);
@@ -1273,6 +1263,31 @@ cpustop_handler(void)
 		cpustop_restartfunc();
 		cpustop_restartfunc = NULL;
 	}
+}
+
+/*
+ * Handlers for TLB related IPIs
+ *
+ * On i386 Xen PV this are no-ops since this port doesn't support SMP.
+ */
+void
+invltlb_handler(void)
+{
+}
+
+void
+invlpg_handler(void)
+{
+}
+
+void
+invlrng_handler(void)
+{
+}
+
+void
+invlcache_handler(void)
+{
 }
 
 /*

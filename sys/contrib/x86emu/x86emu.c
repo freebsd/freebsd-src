@@ -2151,21 +2151,24 @@ x86emuOp_mov_word_RM_SR(struct x86emu *emu)
 static void
 x86emuOp_lea_word_R_M(struct x86emu *emu)
 {
-	uint16_t *srcreg;
 	uint32_t destoffset;
 
-/*
- * TODO: Need to handle address size prefix!
- *
- * lea  eax,[eax+ebx*2] ??
- */
 	fetch_decode_modrm(emu);
 	if (emu->cur_mod == 3)
 		x86emu_halt_sys(emu);
 
-	srcreg = decode_rh_word_register(emu);
 	destoffset = decode_rl_address(emu);
-	*srcreg = (uint16_t) destoffset;
+	if (emu->x86.mode & SYSMODE_PREFIX_ADDR) {
+		uint32_t *srcreg;
+
+		srcreg = decode_rh_long_register(emu);
+		*srcreg = (uint32_t) destoffset;
+	} else {
+		uint16_t *srcreg;
+
+		srcreg = decode_rh_word_register(emu);
+		*srcreg = (uint16_t) destoffset;
+	}
 }
 
 /*
@@ -3750,12 +3753,19 @@ x86emuOp_out_word_IMM_AX(struct x86emu *emu)
 static void
 x86emuOp_call_near_IMM(struct x86emu *emu)
 {
-	int16_t ip;
-
-	ip = (int16_t) fetch_word_imm(emu);
-	ip += (int16_t) emu->x86.R_IP;	/* CHECK SIGN */
-	push_word(emu, emu->x86.R_IP);
-	emu->x86.R_IP = ip;
+	if (emu->x86.mode & SYSMODE_PREFIX_DATA) {
+		int32_t ip;
+		ip = (int32_t) fetch_long_imm(emu);
+		ip += (int32_t) emu->x86.R_EIP;
+		push_long(emu, emu->x86.R_EIP);
+		emu->x86.R_EIP = ip;
+	} else {
+		int16_t ip;
+		ip = (int16_t) fetch_word_imm(emu);
+		ip += (int16_t) emu->x86.R_IP;	/* CHECK SIGN */
+		push_word(emu, emu->x86.R_IP);
+		emu->x86.R_IP = ip;
+	}
 }
 
 /*
@@ -5610,6 +5620,7 @@ x86emuOp2_32_movsx_byte_R_RM(struct x86emu *emu)
 {
 	uint32_t *destreg;
 
+	fetch_decode_modrm(emu);
 	destreg = decode_rh_long_register(emu);
 	*destreg = (int32_t)(int8_t)decode_and_fetch_byte(emu);
 }

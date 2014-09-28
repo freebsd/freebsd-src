@@ -6,7 +6,7 @@
  * forth in the LICENSE file which can be found at the top level of
  * the sendmail distribution.
  *
- *	$Id: timers.h,v 8.7 2013/11/22 20:51:57 ca Exp $
+ *	$Id: timers.h,v 8.7 2013-11-22 20:51:57 ca Exp $
  *
  * Contributed by Exactis.com, Inc.
  *

@@ -10,7 +10,7 @@
 
 #include <sendmail.h>
 
-SM_RCSID("@(#)$Id: milter.c,v 8.281 2013/11/22 20:51:56 ca Exp $")
+SM_RCSID("@(#)$Id: milter.c,v 8.281 2013-11-22 20:51:56 ca Exp $")
 
 #if MILTER
 # include <sm/sendmail.h>

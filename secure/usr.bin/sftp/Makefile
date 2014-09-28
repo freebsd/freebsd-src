@@ -1,6 +1,6 @@
 # $FreeBSD$
 
-.include <bsd.own.mk>
+.include <src.opts.mk>
 
 PROG=	sftp
 SRCS=   sftp.c sftp-client.c sftp-common.c sftp-glob.c progressmeter.c
@@ -11,8 +11,8 @@ CFLAGS+=-I${SSHDIR} -include ssh_namespace.h
 SRCS+=	roaming_dummy.c
 .endif
 
-DPADD=	${LIBSSH} ${LIBEDIT} ${LIBNCURSES}
-LDADD=	-lssh -ledit -lncurses
+DPADD=	${LIBSSH} ${LIBEDIT} ${LIBNCURSESW}
+LDADD=	${LDSSH} -ledit -lncursesw
 USEPRIVATELIB= ssh
 
 .if ${MK_LDNS} != "no"

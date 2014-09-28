@@ -3,7 +3,7 @@
 LIB=	krb5
 LDFLAGS=	-Wl,--no-undefined
 VERSION_MAP= ${KRB5DIR}/lib/krb5/version-script.map
-LDADD=	-lasn1 -lcom_err -lcrypt -lcrypto -lhx509 -lroken -lwind -lheimbase -lheimipcc
+LDADD=	-lasn1 -lcom_err -lcrypt -lcrypto -lhx509 -lroken -lwind -lheimbase ${LDHEIMIPCC}
 DPADD=	${LIBASN1} ${LIBCOM_ERR} ${LIBCRYPT} ${LIBCRYPTO} ${LIBHX509} ${LIBROKEN} ${LIBWIND} ${LIBHEIMBASE} ${LIBHEIMIPCC}
 USEPRIVATELIB= heimipcc
 

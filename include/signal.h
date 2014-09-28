@@ -108,7 +108,7 @@ int	xsi_sigpause(int);
 int	siginterrupt(int, int);
 #endif
 
-#if __POSIX_VISIBLE >= 200809 || __BSD_VISIBLE
+#if __POSIX_VISIBLE >= 200809
 void	psignal(unsigned int, const char *);
 #endif
 

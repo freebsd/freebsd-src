@@ -480,7 +480,7 @@ ff_transmit(struct ieee80211_node *ni, struct mbuf *m)
 			/* NB: IFQ_HANDOFF reclaims mbuf */
 			ieee80211_free_node(ni);
 		} else {
-			ifp->if_opackets++;
+			if_inc_counter(ifp, IFCOUNTER_OPACKETS, 1);
 		}
 	} else
 		ieee80211_free_node(ni);

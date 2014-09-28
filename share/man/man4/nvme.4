@@ -1,5 +1,5 @@
 .\"
-.\" Copyright (c) 2012-2013 Intel Corporation
+.\" Copyright (c) 2012-2014 Intel Corporation
 .\" All rights reserved.
 .\"
 .\" Redistribution and use in source and binary forms, with or without
@@ -33,7 +33,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd July 9, 2013
+.Dd March 18, 2014
 .Dt NVME 4
 .Os
 .Sh NAME
@@ -54,7 +54,8 @@ nvme_load="YES"
 .Pp
 Most users will also want to enable
 .Xr nvd 4
-to surface NVM Express namespaces as disk devices.
+to surface NVM Express namespaces as disk devices which can be
+partitioned.
 Note that in NVM Express terms, a namespace is roughly equivalent to a
 SCSI LUN.
 .Sh DESCRIPTION
@@ -73,16 +74,17 @@ API for registering NVMe namespace consumers such as
 API for submitting NVM commands to namespaces
 .It
 Ioctls for controller and namespace configuration and management
+.El
 .Pp
+The
 .Nm
-creates controller devices in the format
+driver creates controller device nodes in the format
 .Pa /dev/nvmeX
-and namespace devices in
+and namespace device nodes in
 the format
 .Pa /dev/nvmeXnsY .
 Note that the NVM Express specification starts numbering namespaces at 1,
 not 0, and this driver follows that convention.
-.El
 .Sh CONFIGURATION
 By default,
 .Nm
@@ -162,8 +164,10 @@ driver first appeared in
 The
 .Nm
 driver was developed by Intel and originally written by
-.An Jim Harris Aq jimharris@FreeBSD.org ,
-with contributions from Joe Golio at EMC.
+.An Jim Harris Aq Mt jimharris@FreeBSD.org ,
+with contributions from
+.An Joe Golio
+at EMC.
 .Pp
 This man page was written by
-.An Jim Harris Aq jimharris@FreeBSD.org .
+.An Jim Harris Aq Mt jimharris@FreeBSD.org .

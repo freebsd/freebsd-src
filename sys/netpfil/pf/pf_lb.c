@@ -53,15 +53,6 @@ __FBSDID("$FreeBSD$");
 #include <net/pfvar.h>
 #include <net/if_pflog.h>
 
-#include <netinet/in.h>
-#include <netinet/ip.h>
-#include <netinet/ip_icmp.h>
-
-#ifdef INET6
-#include <netinet/ip6.h>
-#include <netinet/icmp6.h>
-#endif
-
 #define DPFPRINTF(n, x)	if (V_pf_status.debug >= (n)) printf x
 
 static void		 pf_hash(struct pf_addr *, struct pf_addr *,
@@ -232,21 +223,9 @@ pf_get_sport(sa_family_t af, u_int8_t proto, struct pf_rule *r,
 	if (pf_map_addr(af, r, saddr, naddr, &init_addr, sn))
 		return (1);
 
-	switch (proto) {
-	case IPPROTO_ICMP:
-		if (dport != htons(ICMP_ECHO))
-			return (0);
+	if (proto == IPPROTO_ICMP) {
 		low = 1;
 		high = 65535;
-		break;
-#ifdef INET6
-	case IPPROTO_ICMPV6:
-		if (dport != htons(ICMP6_ECHO_REQUEST))
-			return (0);
-		low = 1;
-		high = 65535;
-		break;
-#endif
 	}
 
 	bzero(&key, sizeof(key));
@@ -331,22 +310,30 @@ pf_map_addr(sa_family_t af, struct pf_rule *r, struct pf_addr *saddr,
 	struct pf_pool		*rpool = &r->rpool;
 	struct pf_addr		*raddr = NULL, *rmask = NULL;
 
+	/* Try to find a src_node if none was given and this
+	   is a sticky-address rule. */
 	if (*sn == NULL && r->rpool.opts & PF_POOL_STICKYADDR &&
-	    (r->rpool.opts & PF_POOL_TYPEMASK) != PF_POOL_NONE) {
+	    (r->rpool.opts & PF_POOL_TYPEMASK) != PF_POOL_NONE)
 		*sn = pf_find_src_node(saddr, r, af, 0);
-		if (*sn != NULL && !PF_AZERO(&(*sn)->raddr, af)) {
-			PF_ACPY(naddr, &(*sn)->raddr, af);
-			if (V_pf_status.debug >= PF_DEBUG_MISC) {
-				printf("pf_map_addr: src tracking maps ");
-				pf_print_host(saddr, 0, af);
-				printf(" to ");
-				pf_print_host(naddr, 0, af);
-				printf("\n");
-			}
-			return (0);
+
+	/* If a src_node was found or explicitly given and it has a non-zero
+	   route address, use this address. A zeroed address is found if the
+	   src node was created just a moment ago in pf_create_state and it
+	   needs to be filled in with routing decision calculated here. */
+	if (*sn != NULL && !PF_AZERO(&(*sn)->raddr, af)) {
+		PF_ACPY(naddr, &(*sn)->raddr, af);
+		if (V_pf_status.debug >= PF_DEBUG_MISC) {
+			printf("pf_map_addr: src tracking maps ");
+			pf_print_host(saddr, 0, af);
+			printf(" to ");
+			pf_print_host(naddr, 0, af);
+			printf("\n");
 		}
+		return (0);
 	}
 
+	/* Find the route using chosen algorithm. Store the found route
+	   in src_node if it was given or found. */
 	if (rpool->cur->addr.type == PF_ADDR_NOROUTE)
 		return (1);
 	if (rpool->cur->addr.type == PF_ADDR_DYNIFTL) {

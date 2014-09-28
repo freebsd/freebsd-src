@@ -54,42 +54,32 @@ SYSCTL_DECL(_kern_geom);
 static SYSCTL_NODE(_kern_geom, OID_AUTO, raid3, CTLFLAG_RW, 0,
     "GEOM_RAID3 stuff");
 u_int g_raid3_debug = 0;
-TUNABLE_INT("kern.geom.raid3.debug", &g_raid3_debug);
-SYSCTL_UINT(_kern_geom_raid3, OID_AUTO, debug, CTLFLAG_RW, &g_raid3_debug, 0,
+SYSCTL_UINT(_kern_geom_raid3, OID_AUTO, debug, CTLFLAG_RWTUN, &g_raid3_debug, 0,
     "Debug level");
 static u_int g_raid3_timeout = 4;
-TUNABLE_INT("kern.geom.raid3.timeout", &g_raid3_timeout);
-SYSCTL_UINT(_kern_geom_raid3, OID_AUTO, timeout, CTLFLAG_RW, &g_raid3_timeout,
+SYSCTL_UINT(_kern_geom_raid3, OID_AUTO, timeout, CTLFLAG_RWTUN, &g_raid3_timeout,
     0, "Time to wait on all raid3 components");
 static u_int g_raid3_idletime = 5;
-TUNABLE_INT("kern.geom.raid3.idletime", &g_raid3_idletime);
-SYSCTL_UINT(_kern_geom_raid3, OID_AUTO, idletime, CTLFLAG_RW,
+SYSCTL_UINT(_kern_geom_raid3, OID_AUTO, idletime, CTLFLAG_RWTUN,
     &g_raid3_idletime, 0, "Mark components as clean when idling");
 static u_int g_raid3_disconnect_on_failure = 1;
-TUNABLE_INT("kern.geom.raid3.disconnect_on_failure",
-    &g_raid3_disconnect_on_failure);
-SYSCTL_UINT(_kern_geom_raid3, OID_AUTO, disconnect_on_failure, CTLFLAG_RW,
+SYSCTL_UINT(_kern_geom_raid3, OID_AUTO, disconnect_on_failure, CTLFLAG_RWTUN,
     &g_raid3_disconnect_on_failure, 0, "Disconnect component on I/O failure.");
 static u_int g_raid3_syncreqs = 2;
-TUNABLE_INT("kern.geom.raid3.sync_requests", &g_raid3_syncreqs);
 SYSCTL_UINT(_kern_geom_raid3, OID_AUTO, sync_requests, CTLFLAG_RDTUN,
     &g_raid3_syncreqs, 0, "Parallel synchronization I/O requests.");
 static u_int g_raid3_use_malloc = 0;
-TUNABLE_INT("kern.geom.raid3.use_malloc", &g_raid3_use_malloc);
 SYSCTL_UINT(_kern_geom_raid3, OID_AUTO, use_malloc, CTLFLAG_RDTUN,
     &g_raid3_use_malloc, 0, "Use malloc(9) instead of uma(9).");
 
 static u_int g_raid3_n64k = 50;
-TUNABLE_INT("kern.geom.raid3.n64k", &g_raid3_n64k);
-SYSCTL_UINT(_kern_geom_raid3, OID_AUTO, n64k, CTLFLAG_RD, &g_raid3_n64k, 0,
+SYSCTL_UINT(_kern_geom_raid3, OID_AUTO, n64k, CTLFLAG_RDTUN, &g_raid3_n64k, 0,
     "Maximum number of 64kB allocations");
 static u_int g_raid3_n16k = 200;
-TUNABLE_INT("kern.geom.raid3.n16k", &g_raid3_n16k);
-SYSCTL_UINT(_kern_geom_raid3, OID_AUTO, n16k, CTLFLAG_RD, &g_raid3_n16k, 0,
+SYSCTL_UINT(_kern_geom_raid3, OID_AUTO, n16k, CTLFLAG_RDTUN, &g_raid3_n16k, 0,
     "Maximum number of 16kB allocations");
 static u_int g_raid3_n4k = 1200;
-TUNABLE_INT("kern.geom.raid3.n4k", &g_raid3_n4k);
-SYSCTL_UINT(_kern_geom_raid3, OID_AUTO, n4k, CTLFLAG_RD, &g_raid3_n4k, 0,
+SYSCTL_UINT(_kern_geom_raid3, OID_AUTO, n4k, CTLFLAG_RDTUN, &g_raid3_n4k, 0,
     "Maximum number of 4kB allocations");
 
 static SYSCTL_NODE(_kern_geom_raid3, OID_AUTO, stat, CTLFLAG_RW, 0,

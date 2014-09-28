@@ -50,7 +50,8 @@
 #define	NFS_MAXREXMIT	100		/* Stop counting after this many */
 #define	NFSV4_CALLBACKTIMEO (2 * NFS_HZ) /* Timeout in ticks */
 #define	NFSV4_CALLBACKRETRY 5		/* Number of retries before failure */
-#define	NFSV4_CBSLOTS	8		/* Number of slots for session */
+#define	NFSV4_SLOTS	64		/* Number of slots, fore channel */
+#define	NFSV4_CBSLOTS	8		/* Number of slots, back channel */
 #define	NFSV4_CBRETRYCNT 4		/* # of CBRecall retries upon err */
 #define	NFSV4_UPCALLTIMEO (15 * NFS_HZ)	/* Timeout in ticks for upcalls */
 					/* to gssd or nfsuserd */
@@ -90,6 +91,9 @@
 #endif
 #ifndef NFSLOCKHASHSIZE
 #define	NFSLOCKHASHSIZE		20	/* Size of server nfslock hash table */
+#endif
+#ifndef NFSSESSIONHASHSIZE
+#define	NFSSESSIONHASHSIZE	20	/* Size of server session hash table */
 #endif
 #define	NFSSTATEHASHSIZE	10	/* Size of server stateid hash table */
 #ifndef NFSUSERHASHSIZE
@@ -276,6 +280,8 @@ struct nfsreferral {
 #define	LCL_GSSINTEGRITY	0x00002000
 #define	LCL_GSSPRIVACY		0x00004000
 #define	LCL_ADMINREVOKED	0x00008000
+#define	LCL_RECLAIMCOMPLETE	0x00010000
+#define	LCL_NFSV41		0x00020000
 
 #define	LCL_GSS		LCL_KERBV	/* Or of all mechs */
 
@@ -318,6 +324,11 @@ struct nfsreferral {
 #define	NFSLCK_SETATTR		0x02000000
 #define	NFSLCK_DELEGPURGE	0x04000000
 #define	NFSLCK_DELEGRETURN	0x08000000
+#define	NFSLCK_WANTWDELEG	0x10000000
+#define	NFSLCK_WANTRDELEG	0x20000000
+#define	NFSLCK_WANTNODELEG	0x40000000
+#define	NFSLCK_WANTBITS							\
+    (NFSLCK_WANTWDELEG | NFSLCK_WANTRDELEG | NFSLCK_WANTNODELEG)
 
 /* And bits for nid_flag */
 #define	NFSID_INITIALIZE	0x0001
@@ -341,68 +352,120 @@ struct nfsreferral {
  * THE MACROS MUST BE MANUALLY MODIFIED IF NFSATTRBIT_MAXWORDS CHANGES!!
  * It is (NFSATTRBIT_MAX + 31) / 32.
  */
-#define	NFSATTRBIT_MAXWORDS	2
+#define	NFSATTRBIT_MAXWORDS	3
 
 typedef struct {
 	u_int32_t bits[NFSATTRBIT_MAXWORDS];
 } nfsattrbit_t;
 
-#define	NFSZERO_ATTRBIT(b) do { (b)->bits[0] = 0; (b)->bits[1] = 0; } while (0)
-#define	NFSSET_ATTRBIT(t, f) do { (t)->bits[0] = (f)->bits[0]; 		\
-				  (t)->bits[1] = (f)->bits[1]; } while (0)
+#define	NFSZERO_ATTRBIT(b) do {						\
+	(b)->bits[0] = 0;						\
+	(b)->bits[1] = 0;						\
+	(b)->bits[2] = 0;						\
+} while (0)
+
+#define	NFSSET_ATTRBIT(t, f) do {					\
+	(t)->bits[0] = (f)->bits[0];			 		\
+	(t)->bits[1] = (f)->bits[1];					\
+	(t)->bits[2] = (f)->bits[2];					\
+} while (0)
+
 #define	NFSSETSUPP_ATTRBIT(b) do { 					\
 	(b)->bits[0] = NFSATTRBIT_SUPP0; 				\
-	(b)->bits[1] = (NFSATTRBIT_SUPP1 | NFSATTRBIT_SUPPSETONLY); } while (0)
+	(b)->bits[1] = (NFSATTRBIT_SUPP1 | NFSATTRBIT_SUPPSETONLY);	\
+	(b)->bits[2] = NFSATTRBIT_SUPP2;				\
+} while (0)
+
 #define	NFSISSET_ATTRBIT(b, p)	((b)->bits[(p) / 32] & (1 << ((p) % 32)))
 #define	NFSSETBIT_ATTRBIT(b, p)	((b)->bits[(p) / 32] |= (1 << ((p) % 32)))
 #define	NFSCLRBIT_ATTRBIT(b, p)	((b)->bits[(p) / 32] &= ~(1 << ((p) % 32)))
+
 #define	NFSCLRALL_ATTRBIT(b, a)	do { 					\
-		(b)->bits[0] &= ~((a)->bits[0]); 			\
-		(b)->bits[1] &= ~((a)->bits[1]); 			\
-		} while (0)
+	(b)->bits[0] &= ~((a)->bits[0]);	 			\
+	(b)->bits[1] &= ~((a)->bits[1]);	 			\
+	(b)->bits[2] &= ~((a)->bits[2]);				\
+} while (0)
+
 #define	NFSCLRNOT_ATTRBIT(b, a)	do { 					\
-		(b)->bits[0] &= ((a)->bits[0]); 			\
-		(b)->bits[1] &= ((a)->bits[1]); 			\
-		} while (0)
+	(b)->bits[0] &= ((a)->bits[0]);		 			\
+	(b)->bits[1] &= ((a)->bits[1]);		 			\
+	(b)->bits[2] &= ((a)->bits[2]);		 			\
+} while (0)
+
 #define	NFSCLRNOTFILLABLE_ATTRBIT(b) do { 				\
-		(b)->bits[0] &= NFSATTRBIT_SUPP0; 			\
-		(b)->bits[1] &= NFSATTRBIT_SUPP1; } while (0)
+	(b)->bits[0] &= NFSATTRBIT_SUPP0;	 			\
+	(b)->bits[1] &= NFSATTRBIT_SUPP1;				\
+	(b)->bits[2] &= NFSATTRBIT_SUPP2;				\
+} while (0)
+
 #define	NFSCLRNOTSETABLE_ATTRBIT(b) do { 				\
-		(b)->bits[0] &= NFSATTRBIT_SETABLE0; 			\
-		(b)->bits[1] &= NFSATTRBIT_SETABLE1; } while (0)
-#define	NFSNONZERO_ATTRBIT(b)	((b)->bits[0] || (b)->bits[1])
-#define	NFSEQUAL_ATTRBIT(b, p)						\
-	((b)->bits[0] == (p)->bits[0] && (b)->bits[1] == (p)->bits[1])
+	(b)->bits[0] &= NFSATTRBIT_SETABLE0;	 			\
+	(b)->bits[1] &= NFSATTRBIT_SETABLE1;				\
+	(b)->bits[2] &= NFSATTRBIT_SETABLE2;				\
+} while (0)
+
+#define	NFSNONZERO_ATTRBIT(b)	((b)->bits[0] || (b)->bits[1] || (b)->bits[2])
+#define	NFSEQUAL_ATTRBIT(b, p)	((b)->bits[0] == (p)->bits[0] &&	\
+	(b)->bits[1] == (p)->bits[1] && (b)->bits[2] == (p)->bits[2])
+
 #define	NFSGETATTR_ATTRBIT(b) do { 					\
-		(b)->bits[0] = NFSATTRBIT_GETATTR0; 			\
-		(b)->bits[1] = NFSATTRBIT_GETATTR1; } while (0)
+	(b)->bits[0] = NFSATTRBIT_GETATTR0;	 			\
+	(b)->bits[1] = NFSATTRBIT_GETATTR1;				\
+	(b)->bits[2] = NFSATTRBIT_GETATTR2;				\
+} while (0)
+
 #define	NFSWCCATTR_ATTRBIT(b) do { 					\
-		(b)->bits[0] = NFSATTRBIT_WCCATTR0; 			\
-		(b)->bits[1] = NFSATTRBIT_WCCATTR1; } while (0)
+	(b)->bits[0] = NFSATTRBIT_WCCATTR0;	 			\
+	(b)->bits[1] = NFSATTRBIT_WCCATTR1;				\
+	(b)->bits[2] = NFSATTRBIT_WCCATTR2;				\
+} while (0)
+
 #define	NFSWRITEGETATTR_ATTRBIT(b) do { 				\
-		(b)->bits[0] = NFSATTRBIT_WRITEGETATTR0;		\
-		(b)->bits[1] = NFSATTRBIT_WRITEGETATTR1; } while (0)
+	(b)->bits[0] = NFSATTRBIT_WRITEGETATTR0;			\
+	(b)->bits[1] = NFSATTRBIT_WRITEGETATTR1;			\
+	(b)->bits[2] = NFSATTRBIT_WRITEGETATTR2;			\
+} while (0)
+
 #define	NFSCBGETATTR_ATTRBIT(b, c) do { 				\
-	(c)->bits[0] = ((b)->bits[0] & NFSATTRBIT_CBGETATTR0); 		\
-	(c)->bits[1] = ((b)->bits[1] & NFSATTRBIT_CBGETATTR1); } while (0)
+	(c)->bits[0] = ((b)->bits[0] & NFSATTRBIT_CBGETATTR0);		\
+	(c)->bits[1] = ((b)->bits[1] & NFSATTRBIT_CBGETATTR1);		\
+	(c)->bits[2] = ((b)->bits[2] & NFSATTRBIT_CBGETATTR2);		\
+} while (0)
+
 #define	NFSPATHCONF_GETATTRBIT(b) do { 					\
-		(b)->bits[0] = NFSGETATTRBIT_PATHCONF0; 		\
-		(b)->bits[1] = NFSGETATTRBIT_PATHCONF1; } while (0)
+	(b)->bits[0] = NFSGETATTRBIT_PATHCONF0;		 		\
+	(b)->bits[1] = NFSGETATTRBIT_PATHCONF1;				\
+	(b)->bits[2] = NFSGETATTRBIT_PATHCONF2;				\
+} while (0)
+
 #define	NFSSTATFS_GETATTRBIT(b)	do { 					\
-		(b)->bits[0] = NFSGETATTRBIT_STATFS0; 			\
-		(b)->bits[1] = NFSGETATTRBIT_STATFS1; } while (0)
+	(b)->bits[0] = NFSGETATTRBIT_STATFS0;	 			\
+	(b)->bits[1] = NFSGETATTRBIT_STATFS1;				\
+	(b)->bits[2] = NFSGETATTRBIT_STATFS2;				\
+} while (0)
+
 #define	NFSISSETSTATFS_ATTRBIT(b) 					\
 		(((b)->bits[0] & NFSATTRBIT_STATFS0) || 		\
-		 ((b)->bits[1] & NFSATTRBIT_STATFS1))
+		 ((b)->bits[1] & NFSATTRBIT_STATFS1) ||			\
+		 ((b)->bits[2] & NFSATTRBIT_STATFS2))
+
 #define	NFSCLRSTATFS_ATTRBIT(b)	do { 					\
-		(b)->bits[0] &= ~NFSATTRBIT_STATFS0; 			\
-		(b)->bits[1] &= ~NFSATTRBIT_STATFS1; } while (0)
+	(b)->bits[0] &= ~NFSATTRBIT_STATFS0;	 			\
+	(b)->bits[1] &= ~NFSATTRBIT_STATFS1;				\
+	(b)->bits[2] &= ~NFSATTRBIT_STATFS2;				\
+} while (0)
+
 #define	NFSREADDIRPLUS_ATTRBIT(b) do { 					\
-		(b)->bits[0] = NFSATTRBIT_READDIRPLUS0; 		\
-		(b)->bits[1] = NFSATTRBIT_READDIRPLUS1; } while (0)
+	(b)->bits[0] = NFSATTRBIT_READDIRPLUS0;		 		\
+	(b)->bits[1] = NFSATTRBIT_READDIRPLUS1;				\
+	(b)->bits[2] = NFSATTRBIT_READDIRPLUS2;				\
+} while (0)
+
 #define	NFSREFERRAL_ATTRBIT(b) do { 					\
-		(b)->bits[0] = NFSATTRBIT_REFERRAL0;	 		\
-		(b)->bits[1] = NFSATTRBIT_REFERRAL1; } while (0)
+	(b)->bits[0] = NFSATTRBIT_REFERRAL0;		 		\
+	(b)->bits[1] = NFSATTRBIT_REFERRAL1;				\
+	(b)->bits[2] = NFSATTRBIT_REFERRAL2;				\
+} while (0)
 
 /*
  * Store uid, gid creds that were used when the stateid was acquired.
@@ -529,6 +592,9 @@ struct nfsrv_descript {
 	int			nd_gssnamelen;	/* principal name length */
 	char			*nd_gssname;	/* principal name */
 	uint32_t		*nd_slotseq;	/* ptr to slot seq# in req */
+	uint8_t			nd_sessionid[NFSX_V4SESSIONID];	/* Session id */
+	uint32_t		nd_slotid;	/* Slotid for this RPC */
+	SVCXPRT			*nd_xprt;	/* Server RPC handle */
 };
 
 #define	nd_princlen	nd_gssnamelen
@@ -562,6 +628,8 @@ struct nfsrv_descript {
 #define	ND_NFSCL		0x01000000
 #define	ND_NFSV41		0x02000000
 #define	ND_HASSEQUENCE		0x04000000
+#define	ND_CACHETHIS		0x08000000
+#define	ND_LASTOP		0x10000000
 
 /*
  * ND_GSS should be the "or" of all GSS type authentications.

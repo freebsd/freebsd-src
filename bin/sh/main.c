@@ -140,11 +140,13 @@ main(int argc, char *argv[])
 #endif
 	rootpid = getpid();
 	rootshell = 1;
+	INTOFF;
 	initvar();
 	setstackmark(&smark);
 	setstackmark(&smark2);
 	procargs(argc, argv);
 	pwd_init(iflag);
+	INTON;
 	if (iflag)
 		chkmail(1);
 	if (argv[0] && argv[0][0] == '-') {

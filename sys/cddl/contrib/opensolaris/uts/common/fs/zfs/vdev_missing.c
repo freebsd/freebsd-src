@@ -71,7 +71,8 @@ static int
 vdev_missing_io_start(zio_t *zio)
 {
 	zio->io_error = SET_ERROR(ENOTSUP);
-	return (ZIO_PIPELINE_CONTINUE);
+	zio_interrupt(zio);
+	return (ZIO_PIPELINE_STOP);
 }
 
 /* ARGSUSED */

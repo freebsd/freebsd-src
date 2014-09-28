@@ -179,10 +179,12 @@ main(int argc, char *argv[])
 	 * back to NICHOST.
 	 */
 	if (host == NULL && country == NULL) {
-		use_qnichost = 1;
-		host = NICHOST;
-		if (!(flags & WHOIS_QUICK))
-			flags |= WHOIS_RECURSE;
+		if ((host = getenv("RA_SERVER")) == NULL) {
+			use_qnichost = 1;
+			host = NICHOST;
+			if (!(flags & WHOIS_QUICK))
+				flags |= WHOIS_RECURSE;
+		}
 	}
 	while (argc-- > 0) {
 		if (country != NULL) {

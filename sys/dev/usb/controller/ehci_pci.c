@@ -120,6 +120,10 @@ ehci_pci_match(device_t self)
 	case 0x43961002:
 		return ("AMD SB7x0/SB8x0/SB9x0 USB 2.0 controller");
 
+	case 0x1d268086:
+		return ("Intel Patsburg USB 2.0 controller");
+	case 0x1d2d8086:
+		return ("Intel Patsburg USB 2.0 controller");
 	case 0x1e268086:
 		return ("Intel Panther Point USB 2.0 controller");
 	case 0x1e2d8086:

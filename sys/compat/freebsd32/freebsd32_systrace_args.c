@@ -557,12 +557,12 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 		*n_args = 2;
 		break;
 	}
-	/* fcntl */
+	/* freebsd32_fcntl */
 	case 92: {
-		struct fcntl_args *p = params;
+		struct freebsd32_fcntl_args *p = params;
 		iarg[0] = p->fd; /* int */
 		iarg[1] = p->cmd; /* int */
-		iarg[2] = p->arg; /* long */
+		iarg[2] = p->arg; /* int */
 		*n_args = 3;
 		break;
 	}
@@ -2227,20 +2227,6 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 		iarg[0] = p->id; /* long */
 		iarg[1] = p->sig; /* int */
 		*n_args = 2;
-		break;
-	}
-	/* freebsd32_umtx_lock */
-	case 434: {
-		struct freebsd32_umtx_lock_args *p = params;
-		uarg[0] = (intptr_t) p->umtx; /* struct umtx * */
-		*n_args = 1;
-		break;
-	}
-	/* freebsd32_umtx_unlock */
-	case 435: {
-		struct freebsd32_umtx_unlock_args *p = params;
-		uarg[0] = (intptr_t) p->umtx; /* struct umtx * */
-		*n_args = 1;
 		break;
 	}
 	/* jail_attach */
@@ -4161,7 +4147,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 			break;
 		};
 		break;
-	/* fcntl */
+	/* freebsd32_fcntl */
 	case 92:
 		switch(ndx) {
 		case 0:
@@ -4171,7 +4157,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 			p = "int";
 			break;
 		case 2:
-			p = "long";
+			p = "int";
 			break;
 		default:
 			break;
@@ -6905,26 +6891,6 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 			break;
 		};
 		break;
-	/* freebsd32_umtx_lock */
-	case 434:
-		switch(ndx) {
-		case 0:
-			p = "struct umtx *";
-			break;
-		default:
-			break;
-		};
-		break;
-	/* freebsd32_umtx_unlock */
-	case 435:
-		switch(ndx) {
-		case 0:
-			p = "struct umtx *";
-			break;
-		default:
-			break;
-		};
-		break;
 	/* jail_attach */
 	case 436:
 		switch(ndx) {
@@ -9208,7 +9174,7 @@ systrace_return_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		if (ndx == 0 || ndx == 1)
 			p = "int";
 		break;
-	/* fcntl */
+	/* freebsd32_fcntl */
 	case 92:
 		if (ndx == 0 || ndx == 1)
 			p = "int";
@@ -10179,16 +10145,6 @@ systrace_return_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* thr_kill */
 	case 433:
-		if (ndx == 0 || ndx == 1)
-			p = "int";
-		break;
-	/* freebsd32_umtx_lock */
-	case 434:
-		if (ndx == 0 || ndx == 1)
-			p = "int";
-		break;
-	/* freebsd32_umtx_unlock */
-	case 435:
 		if (ndx == 0 || ndx == 1)
 			p = "int";
 		break;

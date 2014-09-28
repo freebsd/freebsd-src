@@ -76,14 +76,16 @@ MALLOC_DEFINE(M_MEMDESC, "memdesc", "memory range descriptors");
 int
 memrw(struct cdev *dev, struct uio *uio, int flags)
 {
-	int o;
-	u_long c = 0, v;
 	struct iovec *iov;
-	int error = 0;
+	u_long c, v;
+	int error, o, sflags;
 	vm_offset_t addr, eaddr;
 
 	GIANT_REQUIRED;
 
+	error = 0;
+	c = 0;
+	sflags = curthread_pflags_set(TDP_DEVMEMIO);
 	while (uio->uio_resid > 0 && error == 0) {
 		iov = uio->uio_iov;
 		if (iov->iov_len == 0) {
@@ -98,7 +100,15 @@ memrw(struct cdev *dev, struct uio *uio, int flags)
 kmemphys:
 			o = v & PAGE_MASK;
 			c = min(uio->uio_resid, (u_int)(PAGE_SIZE - o));
-			error = uiomove((void *)PHYS_TO_DMAP(v), (int)c, uio);
+			v = PHYS_TO_DMAP(v);
+			if (v < DMAP_MIN_ADDRESS ||
+			    (v > DMAP_MIN_ADDRESS + dmaplimit &&
+			    v <= DMAP_MAX_ADDRESS) ||
+			    pmap_kextract(v) == 0) {
+				error = EFAULT;
+				goto ret;
+			}
+			error = uiomove((void *)v, (int)c, uio);
 			continue;
 		}
 		else if (dev2unit(dev) == CDEV_MINOR_KMEM) {
@@ -119,22 +129,30 @@ kmemphys:
 			addr = trunc_page(v);
 			eaddr = round_page(v + c);
 
-			if (addr < VM_MIN_KERNEL_ADDRESS)
-				return (EFAULT);
-			for (; addr < eaddr; addr += PAGE_SIZE) 
-				if (pmap_extract(kernel_pmap, addr) == 0)
-					return (EFAULT);
-
+			if (addr < VM_MIN_KERNEL_ADDRESS) {
+				error = EFAULT;
+				goto ret;
+			}
+			for (; addr < eaddr; addr += PAGE_SIZE) {
+				if (pmap_extract(kernel_pmap, addr) == 0) {
+					error = EFAULT;
+					goto ret;
+				}
+			}
 			if (!kernacc((caddr_t)(long)v, c,
 			    uio->uio_rw == UIO_READ ? 
-			    VM_PROT_READ : VM_PROT_WRITE))
-				return (EFAULT);
+			    VM_PROT_READ : VM_PROT_WRITE)) {
+				error = EFAULT;
+				goto ret;
+			}
 
 			error = uiomove((caddr_t)(long)v, (int)c, uio);
 			continue;
 		}
 		/* else panic! */
 	}
+ret:
+	curthread_pflags_restore(sflags);
 	return (error);
 }
 

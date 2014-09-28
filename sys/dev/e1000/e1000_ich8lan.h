@@ -1,6 +1,6 @@
 /******************************************************************************
 
-  Copyright (c) 2001-2013, Intel Corporation 
+  Copyright (c) 2001-2014, Intel Corporation 
   All rights reserved.
   
   Redistribution and use in source and binary forms, with or without 
@@ -70,10 +70,15 @@
 
 #define E1000_FWSM_WLOCK_MAC_MASK	0x0380
 #define E1000_FWSM_WLOCK_MAC_SHIFT	7
+#define E1000_FWSM_ULP_CFG_DONE		0x00000400  /* Low power cfg done */
 
 /* Shared Receive Address Registers */
 #define E1000_SHRAL_PCH_LPT(_i)		(0x05408 + ((_i) * 8))
 #define E1000_SHRAH_PCH_LPT(_i)		(0x0540C + ((_i) * 8))
+
+#define E1000_H2ME		0x05B50    /* Host to ME */
+#define E1000_H2ME_ULP		0x00000800 /* ULP Indication Bit */
+#define E1000_H2ME_ENFORCE_SETTINGS	0x00001000 /* Enforce Settings */
 
 #define ID_LED_DEFAULT_ICH8LAN	((ID_LED_DEF1_DEF2 << 12) | \
 				 (ID_LED_OFF1_OFF2 <<  8) | \
@@ -86,6 +91,9 @@
 #define E1000_ICH_NVM_SIG_VALUE		0x80
 
 #define E1000_ICH8_LAN_INIT_TIMEOUT	1500
+
+/* FEXT register bit definition */
+#define E1000_FEXT_PHY_CABLE_DISCONNECTED	0x00000004
 
 #define E1000_FEXTNVM_SW_CONFIG		1
 #define E1000_FEXTNVM_SW_CONFIG_ICH8M	(1 << 27) /* different on ICH8M */
@@ -100,10 +108,12 @@
 #define E1000_FEXTNVM6_REQ_PLL_CLK	0x00000100
 #define E1000_FEXTNVM6_ENABLE_K1_ENTRY_CONDITION	0x00000200
 
+#define E1000_FEXTNVM7_DISABLE_SMB_PERST	0x00000020
+
 #define PCIE_ICH8_SNOOP_ALL	PCIE_NO_SNOOP_ALL
 
 #define E1000_ICH_RAR_ENTRIES	7
-#define E1000_PCH2_RAR_ENTRIES	11 /* RAR[0-6], SHRA[0-3] */
+#define E1000_PCH2_RAR_ENTRIES	5 /* RAR[0], SHRA[0-3] */
 #define E1000_PCH_LPT_RAR_ENTRIES	12 /* RAR[0], SHRA[0-10] */
 
 #define PHY_PAGE_SHIFT		5
@@ -166,6 +176,16 @@
 #define CV_SMB_CTRL		PHY_REG(769, 23)
 #define CV_SMB_CTRL_FORCE_SMBUS	0x0001
 
+/* I218 Ultra Low Power Configuration 1 Register */
+#define I218_ULP_CONFIG1		PHY_REG(779, 16)
+#define I218_ULP_CONFIG1_START		0x0001 /* Start auto ULP config */
+#define I218_ULP_CONFIG1_IND		0x0004 /* Pwr up from ULP indication */
+#define I218_ULP_CONFIG1_STICKY_ULP	0x0010 /* Set sticky ULP mode */
+#define I218_ULP_CONFIG1_INBAND_EXIT	0x0020 /* Inband on ULP exit */
+#define I218_ULP_CONFIG1_WOL_HOST	0x0040 /* WoL Host on ULP exit */
+#define I218_ULP_CONFIG1_RESET_TO_SMBUS	0x0100 /* Reset to SMBus mode */
+#define I218_ULP_CONFIG1_DISABLE_SMB_PERST	0x1000 /* Disable on PERST# */
+
 /* SMBus Address Phy Register */
 #define HV_SMB_ADDR		PHY_REG(768, 26)
 #define HV_SMB_ADDR_MASK	0x007F
@@ -200,6 +220,7 @@
 /* PHY Power Management Control */
 #define HV_PM_CTRL		PHY_REG(770, 17)
 #define HV_PM_CTRL_PLL_STOP_IN_K1_GIGA	0x100
+#define HV_PM_CTRL_K1_ENABLE		0x4000
 
 #define SW_FLAG_TIMEOUT		1000 /* SW Semaphore flag timeout in ms */
 
@@ -217,7 +238,6 @@
 #define I82579_LPI_CTRL_100_ENABLE		0x2000
 #define I82579_LPI_CTRL_1000_ENABLE		0x4000
 #define I82579_LPI_CTRL_ENABLE_MASK		0x6000
-#define I82579_LPI_CTRL_FORCE_PLL_LOCK_COUNT	0x80
 
 /* 82579 DFT Control */
 #define I82579_DFT_CTRL			PHY_REG(769, 20)
@@ -231,16 +251,19 @@
 #define I82577_MSE_THRESHOLD	0x0887 /* 82577 Mean Square Error Threshold */
 #define I82579_MSE_LINK_DOWN	0x2411 /* MSE count before dropping link */
 #define I82579_RX_CONFIG		0x3412 /* Receive configuration */
+#define I82579_LPI_PLL_SHUT		0x4412 /* LPI PLL Shut Enable */
 #define I82579_EEE_PCS_STATUS		0x182E	/* IEEE MMD Register 3.1 >> 8 */
 #define I82579_EEE_CAPABILITY		0x0410 /* IEEE MMD Register 3.20 */
 #define I82579_EEE_ADVERTISEMENT	0x040E /* IEEE MMD Register 7.60 */
 #define I82579_EEE_LP_ABILITY		0x040F /* IEEE MMD Register 7.61 */
 #define I82579_EEE_100_SUPPORTED	(1 << 1) /* 100BaseTx EEE */
 #define I82579_EEE_1000_SUPPORTED	(1 << 2) /* 1000BaseTx EEE */
+#define I82579_LPI_100_PLL_SHUT	(1 << 2) /* 100M LPI PLL Shut Enabled */
 #define I217_EEE_PCS_STATUS	0x9401   /* IEEE MMD Register 3.1 */
 #define I217_EEE_CAPABILITY	0x8000   /* IEEE MMD Register 3.20 */
 #define I217_EEE_ADVERTISEMENT	0x8001   /* IEEE MMD Register 7.60 */
 #define I217_EEE_LP_ABILITY	0x8002   /* IEEE MMD Register 7.61 */
+#define I217_RX_CONFIG		0xB20C /* Receive configuration */
 
 #define E1000_EEE_RX_LPI_RCVD	0x0400	/* Tx LP idle received */
 #define E1000_EEE_TX_LPI_RCVD	0x0800	/* Rx LP idle received */
@@ -279,6 +302,9 @@
 #define E1000_SVCR_OFF_TIMER_SHIFT	16
 #define E1000_SVT_OFF_HWM_MASK		0x0000001F
 
+#if defined(QV_RELEASE) || !defined(NO_PCH_LPT_B0_SUPPORT)
+#define E1000_PCI_REVISION_ID_REG	0x08
+#endif /* defined(QV_RELEASE) || !defined(NO_PCH_LPT_B0_SUPPORT) */
 void e1000_set_kmrn_lock_loss_workaround_ich8lan(struct e1000_hw *hw,
 						 bool state);
 void e1000_igp3_phy_powerdown_workaround_ich8lan(struct e1000_hw *hw);
@@ -291,5 +317,6 @@ s32 e1000_lv_jumbo_workaround_ich8lan(struct e1000_hw *hw, bool enable);
 s32 e1000_read_emi_reg_locked(struct e1000_hw *hw, u16 addr, u16 *data);
 s32 e1000_write_emi_reg_locked(struct e1000_hw *hw, u16 addr, u16 data);
 s32 e1000_set_eee_pchlan(struct e1000_hw *hw);
-void e1000_toggle_lanphypc_pch_lpt(struct e1000_hw *hw);
+s32 e1000_enable_ulp_lpt_lp(struct e1000_hw *hw, bool to_sx);
+s32 e1000_disable_ulp_lpt_lp(struct e1000_hw *hw, bool force);
 #endif /* _E1000_ICH8LAN_H_ */

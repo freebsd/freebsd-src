@@ -52,7 +52,7 @@
 
 /* XXX these should be defined per controller (or drive) elsewhere, not here! */
 #if defined(__i386__) || defined(__amd64__) || defined(__arm__) || \
-    defined(__ia64__) || defined(__powerpc__) || defined(__mips__)
+    defined(__powerpc__) || defined(__mips__)
 #define LABELSECTOR	1			/* sector containing label */
 #define LABELOFFSET	0			/* offset of label in sector */
 #endif
@@ -229,6 +229,8 @@ static const char *dktypenames[] = {
 #define	FS_NTFS		18		/* Windows/NT file system */
 #define	FS_CCD		20		/* concatenated disk component */
 #define	FS_JFS2		21		/* IBM JFS2 */
+#define	FS_HAMMER	22		/* DragonFlyBSD Hammer FS */
+#define	FS_HAMMER2	23		/* DragonFlyBSD Hammer2 FS */
 #define	FS_UDF		24		/* UDF */
 #define	FS_EFS		26		/* SGI's Extent File system */
 #define	FS_ZFS		27		/* Sun's ZFS */
@@ -258,8 +260,8 @@ static const char *fstypenames[] = {
 	"?",
 	"ccd",
 	"jfs",
-	"?",
-	"?",
+	"HAMMER",
+	"HAMMER2",
 	"UDF",
 	"?",
 	"EFS",

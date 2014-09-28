@@ -162,6 +162,8 @@ typedef enum {
 
 	PRUSS_CLK = 1700,
 
+	TSC_ADC_CLK = 1800,
+
 	INVALID_CLK_IDENT
 
 } clk_ident_t;

@@ -238,14 +238,12 @@ static SYSCTL_NODE(_net_inet6_mld, OID_AUTO, ifinfo,
     "Per-interface MLDv2 state");
 
 static int	mld_v1enable = 1;
-SYSCTL_INT(_net_inet6_mld, OID_AUTO, v1enable, CTLFLAG_RW,
+SYSCTL_INT(_net_inet6_mld, OID_AUTO, v1enable, CTLFLAG_RWTUN,
     &mld_v1enable, 0, "Enable fallback to MLDv1");
-TUNABLE_INT("net.inet6.mld.v1enable", &mld_v1enable);
 
 static int	mld_use_allow = 1;
-SYSCTL_INT(_net_inet6_mld, OID_AUTO, use_allow, CTLFLAG_RW,
+SYSCTL_INT(_net_inet6_mld, OID_AUTO, use_allow, CTLFLAG_RWTUN,
     &mld_use_allow, 0, "Use ALLOW/BLOCK for RFC 4604 SSM joins/leaves");
-TUNABLE_INT("net.inet6.mld.use_allow", &mld_use_allow);
 
 /*
  * Packed Router Alert option structure declaration.

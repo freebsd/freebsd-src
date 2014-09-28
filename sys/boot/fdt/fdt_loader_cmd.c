@@ -233,7 +233,7 @@ fdt_load_dtb_addr(struct fdt_header *header)
 {
 	int err;
 
-	debugf("fdt_load_dtb_addr(0x%p)\n", header);
+	debugf("fdt_load_dtb_addr(%p)\n", header);
 
 	fdtp_size = fdt_totalsize(header);
 	err = fdt_check_header(header);
@@ -321,7 +321,7 @@ fdt_setup_fdtp()
 		if (*p == '\0') {
 			if (fdt_load_dtb_addr(hdr) == 0) {
 				printf("Using DTB provided by U-Boot at "
-				    "address 0x%p.\n", hdr);
+				    "address %p.\n", hdr);
 				return (0);
 			}
 		}

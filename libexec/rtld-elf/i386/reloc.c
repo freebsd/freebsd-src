@@ -126,168 +126,144 @@ reloc_non_plt(Obj_Entry *obj, Obj_Entry *obj_rtld, int flags,
 	const Elf_Rel *rellim;
 	const Elf_Rel *rel;
 	SymCache *cache;
-	int r = -1;
+	const Elf_Sym *def;
+	const Obj_Entry *defobj;
+	Elf_Addr *where, symval, add;
+	int r;
 
+	r = -1;
 	/*
 	 * The dynamic loader may be called from a thread, we have
 	 * limited amounts of stack available so we cannot use alloca().
 	 */
 	if (obj != obj_rtld) {
-	    cache = calloc(obj->dynsymcount, sizeof(SymCache));
-	    /* No need to check for NULL here */
+		cache = calloc(obj->dynsymcount, sizeof(SymCache));
+		/* No need to check for NULL here */
 	} else
-	    cache = NULL;
+		cache = NULL;
 
-	rellim = (const Elf_Rel *) ((caddr_t) obj->rel + obj->relsize);
+	rellim = (const Elf_Rel *)((caddr_t) obj->rel + obj->relsize);
 	for (rel = obj->rel;  rel < rellim;  rel++) {
-	    Elf_Addr *where = (Elf_Addr *) (obj->relocbase + rel->r_offset);
-
-	    switch (ELF_R_TYPE(rel->r_info)) {
-
-	    case R_386_NONE:
-		break;
-
-	    case R_386_32:
-		{
-		    const Elf_Sym *def;
-		    const Obj_Entry *defobj;
-
-		    def = find_symdef(ELF_R_SYM(rel->r_info), obj, &defobj,
-		      flags, cache, lockstate);
-		    if (def == NULL)
-			goto done;
-
-		    *where += (Elf_Addr) (defobj->relocbase + def->st_value);
-		}
-		break;
-
-	    case R_386_PC32:
-		/*
-		 * I don't think the dynamic linker should ever see this
-		 * type of relocation.  But the binutils-2.6 tools sometimes
-		 * generate it.
-		 */
-		{
-		    const Elf_Sym *def;
-		    const Obj_Entry *defobj;
-
-		    def = find_symdef(ELF_R_SYM(rel->r_info), obj, &defobj,
-		      flags, cache, lockstate);
-		    if (def == NULL)
-			goto done;
-
-		    *where +=
-		      (Elf_Addr) (defobj->relocbase + def->st_value) -
-		      (Elf_Addr) where;
-		}
-		break;
-
-	    case R_386_COPY:
-		/*
-		 * These are deferred until all other relocations have
-		 * been done.  All we do here is make sure that the COPY
-		 * relocation is not in a shared library.  They are allowed
-		 * only in executable files.
-		 */
-		if (!obj->mainprog) {
-		    _rtld_error("%s: Unexpected R_386_COPY relocation"
-		      " in shared library", obj->path);
-		    goto done;
-		}
-		break;
-
-	    case R_386_GLOB_DAT:
-		{
-		    const Elf_Sym *def;
-		    const Obj_Entry *defobj;
-
-		    def = find_symdef(ELF_R_SYM(rel->r_info), obj, &defobj,
-		      flags, cache, lockstate);
-		    if (def == NULL)
-			goto done;
-
-		    *where = (Elf_Addr) (defobj->relocbase + def->st_value);
-		}
-		break;
-
-	    case R_386_RELATIVE:
-		*where += (Elf_Addr) obj->relocbase;
-		break;
-
-	    case R_386_TLS_TPOFF:
-	    case R_386_TLS_TPOFF32:
-		{
-		    const Elf_Sym *def;
-		    const Obj_Entry *defobj;
-		    Elf_Addr add;
-
-		    def = find_symdef(ELF_R_SYM(rel->r_info), obj, &defobj,
-		      flags, cache, lockstate);
-		    if (def == NULL)
-			goto done;
-
-		    /*
-		     * We lazily allocate offsets for static TLS as we
-		     * see the first relocation that references the
-		     * TLS block. This allows us to support (small
-		     * amounts of) static TLS in dynamically loaded
-		     * modules. If we run out of space, we generate an
-		     * error.
-		     */
-		    if (!defobj->tls_done) {
-			if (!allocate_tls_offset((Obj_Entry*) defobj)) {
-			    _rtld_error("%s: No space available for static "
-					"Thread Local Storage", obj->path);
-			    goto done;
+		switch (ELF_R_TYPE(rel->r_info)) {
+		case R_386_32:
+		case R_386_PC32:
+		case R_386_GLOB_DAT:
+		case R_386_TLS_TPOFF:
+		case R_386_TLS_TPOFF32:
+		case R_386_TLS_DTPMOD32:
+		case R_386_TLS_DTPOFF32:
+			def = find_symdef(ELF_R_SYM(rel->r_info), obj, &defobj,
+			    flags, cache, lockstate);
+			if (def == NULL)
+				goto done;
+			if (ELF_ST_TYPE(def->st_info) == STT_GNU_IFUNC) {
+				switch (ELF_R_TYPE(rel->r_info)) {
+				case R_386_32:
+				case R_386_PC32:
+				case R_386_GLOB_DAT:
+					if ((flags & SYMLOOK_IFUNC) == 0) {
+						obj->non_plt_gnu_ifunc = true;
+						continue;
+					}
+					symval = (Elf_Addr)rtld_resolve_ifunc(
+					    defobj, def);
+					break;
+				case R_386_TLS_TPOFF:
+				case R_386_TLS_TPOFF32:
+				case R_386_TLS_DTPMOD32:
+				case R_386_TLS_DTPOFF32:
+					_rtld_error("%s: IFUNC for TLS reloc",
+					    obj->path);
+					goto done;
+				}
+			} else {
+				if ((flags & SYMLOOK_IFUNC) != 0)
+					continue;
+				symval = (Elf_Addr)defobj->relocbase +
+				    def->st_value;
 			}
-		    }
-		    add = (Elf_Addr) (def->st_value - defobj->tlsoffset);
-		    if (ELF_R_TYPE(rel->r_info) == R_386_TLS_TPOFF)
-			*where += add;
-		    else
-			*where -= add;
+			break;
+		default:
+			if ((flags & SYMLOOK_IFUNC) != 0)
+				continue;
+			break;
 		}
-		break;
+		where = (Elf_Addr *)(obj->relocbase + rel->r_offset);
 
-	    case R_386_TLS_DTPMOD32:
-		{
-		    const Elf_Sym *def;
-		    const Obj_Entry *defobj;
-
-		    def = find_symdef(ELF_R_SYM(rel->r_info), obj, &defobj,
-		      flags, cache, lockstate);
-		    if (def == NULL)
+		switch (ELF_R_TYPE(rel->r_info)) {
+		case R_386_NONE:
+			break;
+		case R_386_32:
+			*where += symval;
+			break;
+		case R_386_PC32:
+		    /*
+		     * I don't think the dynamic linker should ever
+		     * see this type of relocation.  But the
+		     * binutils-2.6 tools sometimes generate it.
+		     */
+		    *where += symval - (Elf_Addr)where;
+		    break;
+		case R_386_COPY:
+			/*
+			 * These are deferred until all other
+			 * relocations have been done.  All we do here
+			 * is make sure that the COPY relocation is
+			 * not in a shared library.  They are allowed
+			 * only in executable files.
+			 */
+			if (!obj->mainprog) {
+				_rtld_error("%s: Unexpected R_386_COPY "
+				    "relocation in shared library", obj->path);
+				goto done;
+			}
+			break;
+		case R_386_GLOB_DAT:
+			*where = symval;
+			break;
+		case R_386_RELATIVE:
+			*where += (Elf_Addr)obj->relocbase;
+			break;
+		case R_386_TLS_TPOFF:
+		case R_386_TLS_TPOFF32:
+			/*
+			 * We lazily allocate offsets for static TLS
+			 * as we see the first relocation that
+			 * references the TLS block. This allows us to
+			 * support (small amounts of) static TLS in
+			 * dynamically loaded modules. If we run out
+			 * of space, we generate an error.
+			 */
+			if (!defobj->tls_done) {
+				if (!allocate_tls_offset((Obj_Entry*) defobj)) {
+					_rtld_error("%s: No space available "
+					    "for static Thread Local Storage",
+					    obj->path);
+					goto done;
+				}
+			}
+			add = (Elf_Addr)(def->st_value - defobj->tlsoffset);
+			if (ELF_R_TYPE(rel->r_info) == R_386_TLS_TPOFF)
+				*where += add;
+			else
+				*where -= add;
+			break;
+		case R_386_TLS_DTPMOD32:
+			*where += (Elf_Addr)defobj->tlsindex;
+			break;
+		case R_386_TLS_DTPOFF32:
+			*where += (Elf_Addr) def->st_value;
+			break;
+		default:
+			_rtld_error("%s: Unsupported relocation type %d"
+			    " in non-PLT relocations\n", obj->path,
+			    ELF_R_TYPE(rel->r_info));
 			goto done;
-
-		    *where += (Elf_Addr) defobj->tlsindex;
 		}
-		break;
-
-	    case R_386_TLS_DTPOFF32:
-		{
-		    const Elf_Sym *def;
-		    const Obj_Entry *defobj;
-
-		    def = find_symdef(ELF_R_SYM(rel->r_info), obj, &defobj,
-		      flags, cache, lockstate);
-		    if (def == NULL)
-			goto done;
-
-		    *where += (Elf_Addr) def->st_value;
-		}
-		break;
-
-	    default:
-		_rtld_error("%s: Unsupported relocation type %d"
-		  " in non-PLT relocations\n", obj->path,
-		  ELF_R_TYPE(rel->r_info));
-		goto done;
-	    }
 	}
 	r = 0;
 done:
-	if (cache != NULL)
-	    free(cache);
+	free(cache);
 	return (r);
 }
 

@@ -773,8 +773,8 @@
 431	AUE_NULL	STD	{ void thr_exit(long *state); }
 432	AUE_NULL	STD	{ int thr_self(long *id); }
 433	AUE_NULL	STD	{ int thr_kill(long id, int sig); }
-434	AUE_NULL	STD	{ int _umtx_lock(struct umtx *umtx); }
-435	AUE_NULL	STD	{ int _umtx_unlock(struct umtx *umtx); }
+434	AUE_NULL	UNIMPL	nosys
+435	AUE_NULL	UNIMPL	nosys
 436	AUE_NULL	STD	{ int jail_attach(int jid); }
 437	AUE_EXTATTR_LIST_FD	STD	{ ssize_t extattr_list_fd(int fd, \
 				    int attrnamespace, void *data, \

@@ -45,9 +45,9 @@
  */
 	.globl	CNAME(sigcode32),CNAME(szsigcode32)
 CNAME(sigcode32):
-	addi	1,1,-16			/* reserved space for callee */
+	addi	1,1,-20			/* reserved space for callee */
 	blrl
-	addi	3,1,16+SF_UC		/* restore sp, and get &frame->sf_uc */
+	addi	3,1,20+SF_UC		/* restore sp, and get &frame->sf_uc */
 	li	0,SYS_sigreturn
 	sc				/* sigreturn(scp) */
 	li	0,SYS_exit

@@ -666,9 +666,12 @@ ar9300_set_power_mode(struct ath_hal *ah, HAL_POWER_MODE mode, int set_chip)
     HALDEBUG(ah, HAL_DEBUG_POWER_MGMT, "%s: %s -> %s (%s)\n", __func__,
         modes[ar9300_get_power_mode(ah)], modes[mode],
         set_chip ? "set chip " : "");
+    OS_MARK(ah, AH_MARK_CHIP_POWER, mode);
     
     switch (mode) {
     case HAL_PM_AWAKE:
+        if (set_chip)
+            ah->ah_powerMode = mode;
         status = ar9300_set_power_mode_awake(ah, set_chip);
 #if ATH_SUPPORT_MCI
         if (AH_PRIVATE(ah)->ah_caps.halMciSupport) {
@@ -698,7 +701,10 @@ ar9300_set_power_mode(struct ath_hal *ah, HAL_POWER_MODE mode, int set_chip)
         }
 #endif
         ar9300_set_power_mode_sleep(ah, set_chip);
-        ahp->ah_chip_full_sleep = AH_TRUE;
+        if (set_chip) {
+            ahp->ah_chip_full_sleep = AH_TRUE;
+            ah->ah_powerMode = mode;
+        }
         break;
     case HAL_PM_NETWORK_SLEEP:
 #if ATH_SUPPORT_MCI
@@ -707,12 +713,17 @@ ar9300_set_power_mode(struct ath_hal *ah, HAL_POWER_MODE mode, int set_chip)
         }
 #endif
         ar9300_set_power_mode_network_sleep(ah, set_chip);
+        if (set_chip) {
+            ah->ah_powerMode = mode;
+        }
         break;
     default:
         HALDEBUG(ah, HAL_DEBUG_POWER_MGMT,
             "%s: unknown power mode %u\n", __func__, mode);
+        OS_MARK(ah, AH_MARK_CHIP_POWER_DONE, -1);
         return AH_FALSE;
     }
+    OS_MARK(ah, AH_MARK_CHIP_POWER_DONE, status);
     return status;
 }
 

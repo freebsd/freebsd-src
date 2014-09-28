@@ -55,6 +55,7 @@ compat/linux/linux_socket.c	optional compat_linux
 compat/linux/linux_stats.c	optional compat_linux
 compat/linux/linux_sysctl.c	optional compat_linux
 compat/linux/linux_time.c	optional compat_linux
+compat/linux/linux_timer.c	optional compat_linux
 compat/linux/linux_uid16.c	optional compat_linux
 compat/linux/linux_util.c	optional compat_linux
 compat/svr4/imgact_svr4.c	optional compat_svr4
@@ -97,6 +98,8 @@ dev/ct/ct_isa.c			optional ct isa
 dev/ed/if_ed_cbus.c		optional ed isa
 dev/ed/if_ed_wd80x3.c		optional ed isa
 dev/fb/fb.c			optional fb | gdc
+dev/fdc/fdc.c			optional fdc
+dev/fdc/fdc_cbus.c		optional fdc isa
 dev/fe/if_fe_cbus.c		optional fe isa
 dev/hwpmc/hwpmc_amd.c		optional hwpmc
 dev/hwpmc/hwpmc_intel.c		optional hwpmc
@@ -110,8 +113,6 @@ dev/hwpmc/hwpmc_x86.c		optional hwpmc
 dev/io/iodev.c			optional io
 dev/kbd/kbd.c			optional pckbd | sc | ukbd
 dev/le/if_le_cbus.c		optional le isa
-dev/lindev/full.c		optional lindev
-dev/lindev/lindev.c		optional lindev
 dev/mse/mse.c			optional mse
 dev/mse/mse_cbus.c		optional mse isa
 dev/sbni/if_sbni.c		optional sbni
@@ -142,7 +143,6 @@ i386/i386/elf_machdep.c		standard
 i386/i386/exception.s		standard
 i386/i386/gdb_machdep.c		optional gdb
 i386/i386/i686_mem.c		optional mem
-i386/i386/identcpu.c		standard
 i386/i386/in_cksum.c		optional inet | inet6
 i386/i386/initcpu.c		standard
 i386/i386/io.c			optional io
@@ -207,6 +207,7 @@ i386/svr4/svr4_machdep.c	optional compat_svr4
 kern/kern_clocksource.c		standard
 kern/imgact_aout.c		optional compat_aout
 kern/imgact_gzip.c		optional gzip
+kern/subr_sfbuf.c		standard
 libkern/divdi3.c		standard
 libkern/flsll.c			standard
 libkern/memmove.c		standard
@@ -218,8 +219,6 @@ libkern/udivdi3.c		standard
 libkern/umoddi3.c		standard
 pc98/apm/apm_bioscall.S		optional apm
 pc98/cbus/cbus_dma.c		optional isa
-pc98/cbus/fdc.c			optional fdc
-pc98/cbus/fdc_cbus.c		optional fdc isa
 pc98/cbus/gdc.c			optional gdc
 pc98/cbus/nmi.c			standard
 pc98/cbus/olpt.c		optional olpt
@@ -249,6 +248,7 @@ x86/pci/pci_bus.c		optional pci
 x86/x86/busdma_bounce.c		standard
 x86/x86/busdma_machdep.c	standard
 x86/x86/dump_machdep.c		standard
+x86/x86/identcpu.c		standard
 x86/x86/intr_machdep.c		standard
 x86/x86/io_apic.c		optional apic
 x86/x86/legacy.c		standard
@@ -259,3 +259,5 @@ x86/x86/mptable_pci.c		optional apic pci
 x86/x86/msi.c			optional apic pci
 x86/x86/nexus.c			standard
 x86/x86/tsc.c			standard
+x86/x86/tsc.c			standard
+x86/x86/delay.c			standard

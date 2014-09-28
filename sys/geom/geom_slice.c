@@ -534,11 +534,14 @@ g_slice_new(struct g_class *mp, u_int slices, struct g_provider *pp, struct g_co
 void
 g_slice_orphan(struct g_consumer *cp)
 {
+	struct g_slicer *gsp;
 
 	g_trace(G_T_TOPOLOGY, "g_slice_orphan(%p/%s)", cp, cp->provider->name);
 	g_topology_assert();
 
 	/* XXX: Not good enough we leak the softc and its suballocations */
-	g_slice_free(cp->geom->softc);
+	gsp = cp->geom->softc;
+	cp->geom->softc = NULL;
+	g_slice_free(gsp);
 	g_wither_geom(cp->geom, ENXIO);
 }

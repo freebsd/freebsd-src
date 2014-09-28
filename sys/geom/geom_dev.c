@@ -251,9 +251,10 @@ g_dev_taste(struct g_class *mp, struct g_provider *pp, int insist __unused)
 			snprintf(buf, sizeof(buf), "%s%s",
 			    val, gp->name + len);
 			freeenv(val);
-			make_dev_alias_p(MAKEDEV_CHECKNAME | MAKEDEV_WAITOK,
-			    &adev, dev, "%s", buf);
-			adev->si_flags |= SI_UNMAPPED;
+			if ((make_dev_alias_p(MAKEDEV_CHECKNAME|MAKEDEV_WAITOK,
+			    &adev, dev, "%s", buf)) != 0)
+				printf("Warning: unable to create device "
+				    "alias %s\n", buf);
 			break;
 		}
 	}
@@ -263,6 +264,7 @@ g_dev_taste(struct g_class *mp, struct g_provider *pp, int insist __unused)
 	if (adev != NULL) {
 		adev->si_iosize_max = MAXPHYS;
 		adev->si_drv2 = cp;
+		adev->si_flags |= SI_UNMAPPED;
 	}
 
 	g_dev_attrchanged(cp, "GEOM::physpath");

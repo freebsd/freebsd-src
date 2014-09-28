@@ -48,7 +48,7 @@ __FBSDID("$FreeBSD$");
 FU *endfu;					/* format at end-of-data */
 
 void
-addfile(char *name)
+addfile(const char *name)
 {
 	unsigned char *p;
 	FILE *fp;
@@ -491,7 +491,7 @@ escape(char *p1)
 }
 
 void
-badcnt(char *s)
+badcnt(const char *s)
 {
 	errx(1, "%s: bad byte count", s);
 }
@@ -509,7 +509,7 @@ badfmt(const char *fmt)
 }
 
 void
-badconv(char *ch)
+badconv(const char *ch)
 {
 	errx(1, "%%%s: bad conversion character", ch);
 }

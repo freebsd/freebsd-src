@@ -1,7 +1,7 @@
 # $FreeBSD$
 
 PROG=	doexec
-NO_MAN=
+MAN=
 
 RP=	./${PROG}
 TD=	${.CURDIR}/tests

@@ -89,8 +89,7 @@ struct proc *intrproc;
 static MALLOC_DEFINE(M_ITHREAD, "ithread", "Interrupt Threads");
 
 static int intr_storm_threshold = 1000;
-TUNABLE_INT("hw.intr_storm_threshold", &intr_storm_threshold);
-SYSCTL_INT(_hw, OID_AUTO, intr_storm_threshold, CTLFLAG_RW,
+SYSCTL_INT(_hw, OID_AUTO, intr_storm_threshold, CTLFLAG_RWTUN,
     &intr_storm_threshold, 0,
     "Number of consecutive interrupts before storm protection is enabled");
 static TAILQ_HEAD(, intr_event) event_list =
@@ -250,7 +249,7 @@ intr_event_update(struct intr_event *ie)
 int
 intr_event_create(struct intr_event **event, void *source, int flags, int irq,
     void (*pre_ithread)(void *), void (*post_ithread)(void *),
-    void (*post_filter)(void *), int (*assign_cpu)(void *, u_char),
+    void (*post_filter)(void *), int (*assign_cpu)(void *, int),
     const char *fmt, ...)
 {
 	struct intr_event *ie;
@@ -293,9 +292,8 @@ intr_event_create(struct intr_event **event, void *source, int flags, int irq,
  * the interrupt event.
  */
 int
-intr_event_bind(struct intr_event *ie, u_char cpu)
+intr_event_bind(struct intr_event *ie, int cpu)
 {
-	cpuset_t mask;
 	lwpid_t id;
 	int error;
 
@@ -316,14 +314,9 @@ intr_event_bind(struct intr_event *ie, u_char cpu)
 	 */
 	mtx_lock(&ie->ie_lock);
 	if (ie->ie_thread != NULL) {
-		CPU_ZERO(&mask);
-		if (cpu == NOCPU)
-			CPU_COPY(cpuset_root, &mask);
-		else
-			CPU_SET(cpu, &mask);
 		id = ie->ie_thread->it_thread->td_tid;
 		mtx_unlock(&ie->ie_lock);
-		error = cpuset_setthread(id, &mask);
+		error = cpuset_setithread(id, cpu);
 		if (error)
 			return (error);
 	} else
@@ -332,14 +325,10 @@ intr_event_bind(struct intr_event *ie, u_char cpu)
 	if (error) {
 		mtx_lock(&ie->ie_lock);
 		if (ie->ie_thread != NULL) {
-			CPU_ZERO(&mask);
-			if (ie->ie_cpu == NOCPU)
-				CPU_COPY(cpuset_root, &mask);
-			else
-				CPU_SET(ie->ie_cpu, &mask);
+			cpu = ie->ie_cpu;
 			id = ie->ie_thread->it_thread->td_tid;
 			mtx_unlock(&ie->ie_lock);
-			(void)cpuset_setthread(id, &mask);
+			(void)cpuset_setithread(id, cpu);
 		} else
 			mtx_unlock(&ie->ie_lock);
 		return (error);
@@ -1089,7 +1078,7 @@ intr_event_schedule_thread(struct intr_event *ie, struct intr_thread *it)
  * a PIC.
  */
 static int
-swi_assign_cpu(void *arg, u_char cpu)
+swi_assign_cpu(void *arg, int cpu)
 {
 
 	return (0);

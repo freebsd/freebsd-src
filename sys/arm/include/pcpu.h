@@ -46,9 +46,8 @@ struct vmspace;
 	unsigned int pc_vfpsid;						\
 	unsigned int pc_vfpmvfr0;					\
 	unsigned int pc_vfpmvfr1;					\
-	struct thread *pc_vfpcthread;					\
 	struct pmap *pc_curpmap;					\
-	char __pad[133]
+	char __pad[137]
 #else
 #define PCPU_MD_FIELDS							\
 	char __pad[157]

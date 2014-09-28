@@ -34,7 +34,6 @@
  */
 
 #include <linux/module.h>
-#include <linux/init.h>
 #include <linux/device.h>
 #include <linux/err.h>
 #include <linux/fs.h>
@@ -986,7 +985,7 @@ static ssize_t show_port(struct device *dev, struct device_attribute *attr,
 }
 static DEVICE_ATTR(port, S_IRUGO, show_port, NULL);
 
-static ssize_t show_abi_version(struct class *class, char *buf)
+static ssize_t show_abi_version(struct class *class, struct class_attribute *attr, char *buf)
 {
 	return sprintf(buf, "%d\n", IB_USER_MAD_ABI_VERSION);
 }

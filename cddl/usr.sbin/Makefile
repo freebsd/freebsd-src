@@ -1,12 +1,18 @@
 # $FreeBSD$
 
-.include <bsd.own.mk>
+.include <src.opts.mk>
 
 SUBDIR=	${_dtrace} \
 	${_dtruss} \
 	${_lockstat} \
+	${_plockstat} \
+	${_tests} \
 	${_zdb} \
 	${_zhack}
+
+.if ${MK_TESTS} != "no"
+_tests=	tests
+.endif
 
 .if ${MK_ZFS} != "no"
 .if ${MK_LIBTHR} != "no"
@@ -19,6 +25,9 @@ _zhack=	zhack
 _dtrace=	dtrace
 _dtruss=	dtruss
 _lockstat=	lockstat
+.if defined(WITH_PLOCKSTAT)
+_plockstat=	plockstat
+.endif
 .endif
 
 .if ${MACHINE_CPUARCH} == "mips"

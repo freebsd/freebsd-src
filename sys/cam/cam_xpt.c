@@ -149,7 +149,6 @@ typedef int	xpt_pdrvfunc_t (struct periph_driver **pdrv, void *arg);
 /* Transport layer configuration information */
 static struct xpt_softc xsoftc;
 
-TUNABLE_INT("kern.cam.boot_delay", &xsoftc.boot_delay);
 SYSCTL_INT(_kern_cam, OID_AUTO, boot_delay, CTLFLAG_RDTUN,
            &xsoftc.boot_delay, 0, "Bus registration wait time");
 
@@ -163,7 +162,6 @@ static struct cam_doneq cam_doneqs[MAXCPU];
 static int cam_num_doneqs;
 static struct proc *cam_proc;
 
-TUNABLE_INT("kern.cam.num_doneqs", &cam_num_doneqs);
 SYSCTL_INT(_kern_cam, OID_AUTO, num_doneqs, CTLFLAG_RDTUN,
            &cam_num_doneqs, 0, "Number of completion queues/threads");
 
@@ -197,12 +195,10 @@ static struct cdevsw xpt_cdevsw = {
 /* Storage for debugging datastructures */
 struct cam_path *cam_dpath;
 u_int32_t cam_dflags = CAM_DEBUG_FLAGS;
-TUNABLE_INT("kern.cam.dflags", &cam_dflags);
-SYSCTL_UINT(_kern_cam, OID_AUTO, dflags, CTLFLAG_RW,
+SYSCTL_UINT(_kern_cam, OID_AUTO, dflags, CTLFLAG_RWTUN,
 	&cam_dflags, 0, "Enabled debug flags");
 u_int32_t cam_debug_delay = CAM_DEBUG_DELAY;
-TUNABLE_INT("kern.cam.debug_delay", &cam_debug_delay);
-SYSCTL_UINT(_kern_cam, OID_AUTO, debug_delay, CTLFLAG_RW,
+SYSCTL_UINT(_kern_cam, OID_AUTO, debug_delay, CTLFLAG_RWTUN,
 	&cam_debug_delay, 0, "Delay in us after each debug message");
 
 /* Our boot-time initialization hook */
@@ -768,7 +764,7 @@ xpt_scanner_thread(void *dummy)
 	for (;;) {
 		if (TAILQ_EMPTY(&xsoftc.ccb_scanq))
 			msleep(&xsoftc.ccb_scanq, &xsoftc.xpt_topo_lock, PRIBIO,
-			       "ccb_scanq", 0);
+			       "-", 0);
 		if ((ccb = (union ccb *)TAILQ_FIRST(&xsoftc.ccb_scanq)) != NULL) {
 			TAILQ_REMOVE(&xsoftc.ccb_scanq, &ccb->ccb_h, sim_links.tqe);
 			xpt_unlock_buses();
@@ -2652,20 +2648,25 @@ call_sim:
 			struct ccb_getdevstats *cgds;
 			struct cam_eb *bus;
 			struct cam_et *tar;
+			struct cam_devq *devq;
 
 			cgds = &start_ccb->cgds;
 			bus = path->bus;
 			tar = path->target;
+			devq = bus->sim->devq;
+			mtx_lock(&devq->send_mtx);
 			cgds->dev_openings = dev->ccbq.dev_openings;
 			cgds->dev_active = dev->ccbq.dev_active;
-			cgds->devq_openings = dev->ccbq.devq_openings;
-			cgds->devq_queued = cam_ccbq_pending_ccb_count(&dev->ccbq);
-			cgds->held = dev->ccbq.held;
+			cgds->allocated = dev->ccbq.allocated;
+			cgds->queued = cam_ccbq_pending_ccb_count(&dev->ccbq);
+			cgds->held = cgds->allocated - cgds->dev_active -
+			    cgds->queued;
 			cgds->last_reset = tar->last_reset;
 			cgds->maxtags = dev->maxtags;
 			cgds->mintags = dev->mintags;
 			if (timevalcmp(&tar->last_reset, &bus->last_reset, <))
 				cgds->last_reset = bus->last_reset;
+			mtx_unlock(&devq->send_mtx);
 			cgds->ccb_h.status = CAM_REQ_CMP;
 		}
 		break;
@@ -3008,7 +3009,6 @@ xpt_polled_action(union ccb *start_ccb)
 	 * can get it before us while we simulate interrupts.
 	 */
 	mtx_lock(&devq->send_mtx);
-	dev->ccbq.devq_openings--;
 	dev->ccbq.dev_openings--;
 	while((devq->send_openings <= 0 || dev->ccbq.dev_openings < 0) &&
 	    (--timeout > 0)) {
@@ -3020,7 +3020,6 @@ xpt_polled_action(union ccb *start_ccb)
 		camisr_runqueue();
 		mtx_lock(&devq->send_mtx);
 	}
-	dev->ccbq.devq_openings++;
 	dev->ccbq.dev_openings++;
 	mtx_unlock(&devq->send_mtx);
 
@@ -3053,7 +3052,7 @@ xpt_polled_action(union ccb *start_ccb)
 }
 
 /*
- * Schedule a peripheral driver to receive a ccb when it's
+ * Schedule a peripheral driver to receive a ccb when its
  * target device has space for more transactions.
  */
 void

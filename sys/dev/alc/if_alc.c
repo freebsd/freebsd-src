@@ -1012,7 +1012,7 @@ alc_attach(device_t dev)
 	ifp->if_hwassist &= ~ALC_CSUM_FEATURES;
 
 	/* Tell the upper layer(s) we support long frames. */
-	ifp->if_data.ifi_hdrlen = sizeof(struct ether_vlan_header);
+	ifp->if_hdrlen = sizeof(struct ether_vlan_header);
 
 	/* Create local taskq. */
 	sc->alc_tq = taskqueue_create_fast("alc_taskq", M_WAITOK,
@@ -1735,76 +1735,71 @@ alc_dma_free(struct alc_softc *sc)
 	}
 	/* Tx descriptor ring. */
 	if (sc->alc_cdata.alc_tx_ring_tag != NULL) {
-		if (sc->alc_cdata.alc_tx_ring_map != NULL)
+		if (sc->alc_rdata.alc_tx_ring_paddr != 0)
 			bus_dmamap_unload(sc->alc_cdata.alc_tx_ring_tag,
 			    sc->alc_cdata.alc_tx_ring_map);
-		if (sc->alc_cdata.alc_tx_ring_map != NULL &&
-		    sc->alc_rdata.alc_tx_ring != NULL)
+		if (sc->alc_rdata.alc_tx_ring != NULL)
 			bus_dmamem_free(sc->alc_cdata.alc_tx_ring_tag,
 			    sc->alc_rdata.alc_tx_ring,
 			    sc->alc_cdata.alc_tx_ring_map);
+		sc->alc_rdata.alc_tx_ring_paddr = 0;
 		sc->alc_rdata.alc_tx_ring = NULL;
-		sc->alc_cdata.alc_tx_ring_map = NULL;
 		bus_dma_tag_destroy(sc->alc_cdata.alc_tx_ring_tag);
 		sc->alc_cdata.alc_tx_ring_tag = NULL;
 	}
 	/* Rx ring. */
 	if (sc->alc_cdata.alc_rx_ring_tag != NULL) {
-		if (sc->alc_cdata.alc_rx_ring_map != NULL)
+		if (sc->alc_rdata.alc_rx_ring_paddr != 0)
 			bus_dmamap_unload(sc->alc_cdata.alc_rx_ring_tag,
 			    sc->alc_cdata.alc_rx_ring_map);
-		if (sc->alc_cdata.alc_rx_ring_map != NULL &&
-		    sc->alc_rdata.alc_rx_ring != NULL)
+		if (sc->alc_rdata.alc_rx_ring != NULL)
 			bus_dmamem_free(sc->alc_cdata.alc_rx_ring_tag,
 			    sc->alc_rdata.alc_rx_ring,
 			    sc->alc_cdata.alc_rx_ring_map);
+		sc->alc_rdata.alc_rx_ring_paddr = 0;
 		sc->alc_rdata.alc_rx_ring = NULL;
-		sc->alc_cdata.alc_rx_ring_map = NULL;
 		bus_dma_tag_destroy(sc->alc_cdata.alc_rx_ring_tag);
 		sc->alc_cdata.alc_rx_ring_tag = NULL;
 	}
 	/* Rx return ring. */
 	if (sc->alc_cdata.alc_rr_ring_tag != NULL) {
-		if (sc->alc_cdata.alc_rr_ring_map != NULL)
+		if (sc->alc_rdata.alc_rr_ring_paddr != 0)
 			bus_dmamap_unload(sc->alc_cdata.alc_rr_ring_tag,
 			    sc->alc_cdata.alc_rr_ring_map);
-		if (sc->alc_cdata.alc_rr_ring_map != NULL &&
-		    sc->alc_rdata.alc_rr_ring != NULL)
+		if (sc->alc_rdata.alc_rr_ring != NULL)
 			bus_dmamem_free(sc->alc_cdata.alc_rr_ring_tag,
 			    sc->alc_rdata.alc_rr_ring,
 			    sc->alc_cdata.alc_rr_ring_map);
+		sc->alc_rdata.alc_rr_ring_paddr = 0;
 		sc->alc_rdata.alc_rr_ring = NULL;
-		sc->alc_cdata.alc_rr_ring_map = NULL;
 		bus_dma_tag_destroy(sc->alc_cdata.alc_rr_ring_tag);
 		sc->alc_cdata.alc_rr_ring_tag = NULL;
 	}
 	/* CMB block */
 	if (sc->alc_cdata.alc_cmb_tag != NULL) {
-		if (sc->alc_cdata.alc_cmb_map != NULL)
+		if (sc->alc_rdata.alc_cmb_paddr != 0)
 			bus_dmamap_unload(sc->alc_cdata.alc_cmb_tag,
 			    sc->alc_cdata.alc_cmb_map);
-		if (sc->alc_cdata.alc_cmb_map != NULL &&
-		    sc->alc_rdata.alc_cmb != NULL)
+		if (sc->alc_rdata.alc_cmb != NULL)
 			bus_dmamem_free(sc->alc_cdata.alc_cmb_tag,
 			    sc->alc_rdata.alc_cmb,
-			    sc->alc_cdata.alc_cmb_map);
+			    sc->alc_cdata.alc_cmb_map);		
+		sc->alc_rdata.alc_cmb_paddr = 0;
 		sc->alc_rdata.alc_cmb = NULL;
-		sc->alc_cdata.alc_cmb_map = NULL;
 		bus_dma_tag_destroy(sc->alc_cdata.alc_cmb_tag);
 		sc->alc_cdata.alc_cmb_tag = NULL;
 	}
 	/* SMB block */
 	if (sc->alc_cdata.alc_smb_tag != NULL) {
-		if (sc->alc_cdata.alc_smb_map != NULL)
+		if (sc->alc_rdata.alc_smb_paddr != 0)
 			bus_dmamap_unload(sc->alc_cdata.alc_smb_tag,
 			    sc->alc_cdata.alc_smb_map);
-		if (sc->alc_cdata.alc_smb_map != NULL &&
-		    sc->alc_rdata.alc_smb != NULL)
+		if (sc->alc_rdata.alc_smb != NULL)
 			bus_dmamem_free(sc->alc_cdata.alc_smb_tag,
 			    sc->alc_rdata.alc_smb,
 			    sc->alc_cdata.alc_smb_map);
+		sc->alc_rdata.alc_smb_paddr = 0;
 		sc->alc_rdata.alc_smb = NULL;
-		sc->alc_cdata.alc_smb_map = NULL;
 		bus_dma_tag_destroy(sc->alc_cdata.alc_smb_tag);
 		sc->alc_cdata.alc_smb_tag = NULL;
 	}
@@ -2328,13 +2323,13 @@ alc_watchdog(struct alc_softc *sc)
 	ifp = sc->alc_ifp;
 	if ((sc->alc_flags & ALC_FLAG_LINK) == 0) {
 		if_printf(sc->alc_ifp, "watchdog timeout (lost link)\n");
-		ifp->if_oerrors++;
+		if_inc_counter(ifp, IFCOUNTER_OERRORS, 1);
 		ifp->if_drv_flags &= ~IFF_DRV_RUNNING;
 		alc_init_locked(sc);
 		return;
 	}
 	if_printf(sc->alc_ifp, "watchdog timeout -- resetting\n");
-	ifp->if_oerrors++;
+	if_inc_counter(ifp, IFCOUNTER_OERRORS, 1);
 	ifp->if_drv_flags &= ~IFF_DRV_RUNNING;
 	alc_init_locked(sc);
 	if (!IFQ_DRV_IS_EMPTY(&ifp->if_snd))
@@ -2613,11 +2608,11 @@ alc_stats_update(struct alc_softc *sc)
 	stat->tx_mcast_bytes += smb->tx_mcast_bytes;
 
 	/* Update counters in ifnet. */
-	ifp->if_opackets += smb->tx_frames;
+	if_inc_counter(ifp, IFCOUNTER_OPACKETS, smb->tx_frames);
 
-	ifp->if_collisions += smb->tx_single_colls +
+	if_inc_counter(ifp, IFCOUNTER_COLLISIONS, smb->tx_single_colls +
 	    smb->tx_multi_colls * 2 + smb->tx_late_colls +
-	    smb->tx_abort * HDPX_CFG_RETRY_DEFAULT;
+	    smb->tx_abort * HDPX_CFG_RETRY_DEFAULT);
 
 	/*
 	 * XXX
@@ -2626,15 +2621,16 @@ alc_stats_update(struct alc_softc *sc)
 	 * the counter name is not correct one so I've removed the
 	 * counter in output errors.
 	 */
-	ifp->if_oerrors += smb->tx_abort + smb->tx_late_colls +
-	    smb->tx_underrun;
+	if_inc_counter(ifp, IFCOUNTER_OERRORS,
+	    smb->tx_abort + smb->tx_late_colls + smb->tx_underrun);
 
-	ifp->if_ipackets += smb->rx_frames;
+	if_inc_counter(ifp, IFCOUNTER_IPACKETS, smb->rx_frames);
 
-	ifp->if_ierrors += smb->rx_crcerrs + smb->rx_lenerrs +
+	if_inc_counter(ifp, IFCOUNTER_IERRORS,
+	    smb->rx_crcerrs + smb->rx_lenerrs +
 	    smb->rx_runts + smb->rx_pkts_truncated +
 	    smb->rx_fifo_oflows + smb->rx_rrs_errs +
-	    smb->rx_alignerrs;
+	    smb->rx_alignerrs);
 
 	if ((sc->alc_flags & ALC_FLAG_SMB_BUG) == 0) {
 		/* Update done, clear. */
@@ -2926,7 +2922,7 @@ alc_fixup_rx(struct ifnet *ifp, struct mbuf *m)
 	 */
 	MGETHDR(n, M_NOWAIT, MT_DATA);
 	if (n == NULL) {
-		ifp->if_iqdrops++;
+		if_inc_counter(ifp, IFCOUNTER_IQDROPS, 1);
 		m_freem(m);
 		return (NULL);
 	}
@@ -2982,7 +2978,7 @@ alc_rxeof(struct alc_softc *sc, struct rx_rdesc *rrd)
 		mp = rxd->rx_m;
 		/* Add a new receive buffer to the ring. */
 		if (alc_newbuf(sc, rxd) != 0) {
-			ifp->if_iqdrops++;
+			if_inc_counter(ifp, IFCOUNTER_IQDROPS, 1);
 			/* Reuse Rx buffers. */
 			if (sc->alc_cdata.alc_rxhead != NULL)
 				m_freem(sc->alc_cdata.alc_rxhead);

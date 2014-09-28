@@ -40,14 +40,15 @@ __FBSDID("$FreeBSD$");
 #include <machine/pte.h>
 #include <machine/sr.h>
 #include <machine/cpu.h>
-#include <machine/vmparam.h> /* For VM_MIN_KERNEL_ADDRESS/VM_MAX_KERNEL_ADDRESS */
+#include <machine/stack.h>
 
 #include "hwpmc_powerpc.h"
 
-#define INKERNEL(x)	(((vm_offset_t)(x)) <= VM_MAX_KERNEL_ADDRESS && \
-		((vm_offset_t)(x)) >= VM_MIN_KERNEL_ADDRESS)
-#define INUSER(x)	(((vm_offset_t)(x)) <= VM_MAXUSER_ADDRESS && \
-		((vm_offset_t)(x)) >= VM_MIN_ADDRESS)
+#ifdef __powerpc64__
+#define OFFSET 4 /* Account for the TOC reload slot */
+#else
+#define OFFSET 0
+#endif
 
 struct powerpc_cpu **powerpc_pcpu;
 
@@ -55,20 +56,35 @@ int
 pmc_save_kernel_callchain(uintptr_t *cc, int maxsamples,
     struct trapframe *tf)
 {
+	uintptr_t *osp, *sp;
+	uintptr_t pc;
 	int frames = 0;
-	uintptr_t *sp;
 
 	cc[frames++] = PMC_TRAPFRAME_TO_PC(tf);
 	sp = (uintptr_t *)PMC_TRAPFRAME_TO_FP(tf);
+	osp = (uintptr_t *)PAGE_SIZE;
 
 	for (; frames < maxsamples; frames++) {
-		if (!INKERNEL(sp))
+		if (sp <= osp)
 			break;
-#ifdef __powerpc64__
-		cc[frames++] = sp[2];
-#else
-		cc[frames++] = sp[1];
-#endif
+	    #ifdef __powerpc64__
+		pc = sp[2];
+	    #else
+		pc = sp[1];
+	    #endif
+		if ((pc & 3) || (pc < 0x100))
+			break;
+
+		/*
+		 * trapexit() and asttrapexit() are sentinels
+		 * for kernel stack tracing.
+		 * */
+		if (pc + OFFSET == (uintptr_t) &trapexit ||
+		    pc + OFFSET == (uintptr_t) &asttrapexit)
+			break;
+
+		cc[frames] = pc;
+		osp = sp;
 		sp = (uintptr_t *)*sp;
 	}
 	return (frames);
@@ -184,26 +200,28 @@ int
 pmc_save_user_callchain(uintptr_t *cc, int maxsamples,
     struct trapframe *tf)
 {
-	uintptr_t *sp;
+	uintptr_t *osp, *sp;
 	int frames = 0;
 
 	cc[frames++] = PMC_TRAPFRAME_TO_PC(tf);
 	sp = (uintptr_t *)PMC_TRAPFRAME_TO_FP(tf);
+	osp = NULL;
 
 	for (; frames < maxsamples; frames++) {
-		if (!INUSER(sp))
+		if (sp <= osp)
 			break;
+		osp = sp;
 #ifdef __powerpc64__
 		/* Check if 32-bit mode. */
 		if (!(tf->srr1 & PSL_SF)) {
-			cc[frames++] = fuword32((uint32_t *)sp + 1);
+			cc[frames] = fuword32((uint32_t *)sp + 1);
 			sp = (uintptr_t *)(uintptr_t)fuword32(sp);
 		} else {
-			cc[frames++] = fuword(sp + 2);
+			cc[frames] = fuword(sp + 2);
 			sp = (uintptr_t *)fuword(sp);
 		}
 #else
-		cc[frames++] = fuword32((uint32_t *)sp + 1);
+		cc[frames] = fuword32((uint32_t *)sp + 1);
 		sp = (uintptr_t *)fuword32(sp);
 #endif
 	}

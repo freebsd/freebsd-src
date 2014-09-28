@@ -260,9 +260,11 @@ setup(void)
 		fssize = TP_BSIZE;
 	if (stbuf.st_blksize >= TP_BSIZE && stbuf.st_blksize <= MAXBSIZE)
 		fssize = stbuf.st_blksize;
-	if (((fssize - 1) & fssize) != 0) {
-		fprintf(stderr, "bad block size %ld\n", fssize);
-		done(1);
+	if (((TP_BSIZE - 1) & stbuf.st_blksize) != 0) {
+		fprintf(stderr, "Warning: filesystem with non-multiple-of-%d "
+		    "blocksize (%d);\n", TP_BSIZE, stbuf.st_blksize);
+		fssize = roundup(fssize, TP_BSIZE);
+		fprintf(stderr, "\twriting using blocksize %ld\n", fssize);
 	}
 	if (spcl.c_volume != 1) {
 		fprintf(stderr, "Tape is not volume 1 of the dump\n");

@@ -20,3 +20,5 @@ makeoptions	KERNVIRTADDR=0xc0100000
 
 options		ARM_L2_PIPT
 
+options		IPI_IRQ_START=0
+options		IPI_IRQ_END=15

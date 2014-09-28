@@ -1,7 +1,7 @@
 # $FreeBSD$
 
 PROG=	arcode
-NOMAN=	yes
+MAN=
 
 .include <../Makefile.inc>
 

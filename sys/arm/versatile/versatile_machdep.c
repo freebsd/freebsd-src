@@ -51,6 +51,7 @@ __FBSDID("$FreeBSD$");
 #include <machine/bus.h>
 #include <machine/devmap.h>
 #include <machine/machdep.h>
+#include <machine/platform.h> 
 
 #include <dev/fdt/fdt_common.h>
 
@@ -58,25 +59,25 @@ __FBSDID("$FreeBSD$");
 #define DEVMAP_BOOTSTRAP_MAP_START	0xE0000000
 
 vm_offset_t
-initarm_lastaddr(void)
+platform_lastaddr(void)
 {
 
 	return (DEVMAP_BOOTSTRAP_MAP_START);
 }
 
 void
-initarm_early_init(void)
+platform_probe_and_attach(void)
 {
 
 }
 
 void
-initarm_gpio_init(void)
+platform_gpio_init(void)
 {
 }
 
 void
-initarm_late_init(void)
+platform_late_init(void)
 {
 }
 
@@ -91,7 +92,7 @@ static struct arm_devmap_entry fdt_devmap[FDT_DEVMAP_MAX] = {
  * Construct pmap_devmap[] with DT-derived config data.
  */
 int
-initarm_devmap_init(void)
+platform_devmap_init(void)
 {
 	int i = 0;
 	fdt_devmap[i].pd_va = 0xf0100000;

@@ -525,13 +525,14 @@ int MachineFrameInfo::CreateSpillStackObject(uint64_t Size,
 /// variable sized object is created, whether or not the index returned is
 /// actually used.
 ///
-int MachineFrameInfo::CreateVariableSizedObject(unsigned Alignment) {
+int MachineFrameInfo::CreateVariableSizedObject(unsigned Alignment,
+                                                const AllocaInst *Alloca) {
   HasVarSizedObjects = true;
   Alignment =
     clampStackAlignment(!getFrameLowering()->isStackRealignable() ||
                           !RealignOption,
                         Alignment, getFrameLowering()->getStackAlignment()); 
-  Objects.push_back(StackObject(0, Alignment, 0, false, false, true, 0));
+  Objects.push_back(StackObject(0, Alignment, 0, false, false, true, Alloca));
   ensureMaxAlignment(Alignment);
   return (int)Objects.size()-NumFixedObjects-1;
 }

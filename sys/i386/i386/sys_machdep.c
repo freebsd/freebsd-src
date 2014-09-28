@@ -10,7 +10,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -36,7 +36,7 @@ __FBSDID("$FreeBSD$");
 #include "opt_kstack_pages.h"
 
 #include <sys/param.h>
-#include <sys/capability.h>
+#include <sys/capsicum.h>
 #include <sys/systm.h>
 #include <sys/lock.h>
 #include <sys/malloc.h>
@@ -164,19 +164,14 @@ sysarch(td, uap)
 		break;
 	case I386_SET_LDT:
 		if (kargs.largs.descs != NULL) {
-			lp = (union descriptor *)kmem_malloc(kernel_arena,
+			lp = (union descriptor *)malloc(
 			    kargs.largs.num * sizeof(union descriptor),
-			    M_WAITOK);
-			if (lp == NULL) {
-				error = ENOMEM;
-				break;
-			}
+			    M_TEMP, M_WAITOK);
 			error = copyin(kargs.largs.descs, lp,
 			    kargs.largs.num * sizeof(union descriptor));
 			if (error == 0)
 				error = i386_set_ldt(td, &kargs.largs, lp);
-			kmem_free(kernel_arena, (vm_offset_t)lp,
-			    kargs.largs.num * sizeof(union descriptor));
+			free(lp, M_TEMP);
 		} else {
 			error = i386_set_ldt(td, &kargs.largs, NULL);
 		}
@@ -300,10 +295,7 @@ i386_extend_pcb(struct thread *td)
 	};
 
 	ext = (struct pcb_ext *)kmem_malloc(kernel_arena, ctob(IOPAGES+1),
-	    M_WAITOK);
-	if (ext == 0)
-		return (ENOMEM);
-	bzero(ext, sizeof(struct pcb_ext)); 
+	    M_WAITOK | M_ZERO);
 	/* -16 is so we can convert a trapframe into vm86trapframe inplace */
 	ext->ext_tss.tss_esp0 = td->td_kstack + ctob(KSTACK_PAGES) -
 	    sizeof(struct pcb) - 16;
@@ -474,12 +466,7 @@ user_ldt_alloc(struct mdproc *mdp, int len)
  
         new_ldt->ldt_len = len = NEW_MAX_LD(len); 
         new_ldt->ldt_base = (caddr_t)kmem_malloc(kernel_arena, 
-                round_page(len * sizeof(union descriptor)), M_WAITOK);
-        if (new_ldt->ldt_base == NULL) { 
-                free(new_ldt, M_SUBPROC);
-		mtx_lock_spin(&dt_lock);
-                return (NULL);
-        } 
+	    round_page(len * sizeof(union descriptor)), M_WAITOK);
         new_ldt->ldt_refcnt = 1; 
         new_ldt->ldt_active = 0; 
  
@@ -514,12 +501,7 @@ user_ldt_alloc(struct mdproc *mdp, int len)
 
 	new_ldt->ldt_len = len = NEW_MAX_LD(len);
 	new_ldt->ldt_base = (caddr_t)kmem_malloc(kernel_arena,
-		len * sizeof(union descriptor), M_WAITOK);
-	if (new_ldt->ldt_base == NULL) {
-		free(new_ldt, M_SUBPROC);
-		mtx_lock_spin(&dt_lock);
-		return (NULL);
-	}
+	    len * sizeof(union descriptor), M_WAITOK);
 	new_ldt->ldt_refcnt = 1;
 	new_ldt->ldt_active = 0;
 

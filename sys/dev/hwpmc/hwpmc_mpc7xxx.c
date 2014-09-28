@@ -580,6 +580,7 @@ mpc7xxx_pcpu_init(struct pmc_mdep *md, int cpu)
 	/* Clear the MMCRs, and set FC, to disable all PMCs. */
 	mtspr(SPR_MMCR0, SPR_MMCR0_FC | SPR_MMCR0_PMXE | SPR_MMCR0_PMC1CE | SPR_MMCR0_PMCNCE);
 	mtspr(SPR_MMCR1, 0);
+	mtmsr(mfmsr() | PSL_PMM);
 
 	return 0;
 }
@@ -589,10 +590,13 @@ mpc7xxx_pcpu_fini(struct pmc_mdep *md, int cpu)
 {
 	uint32_t mmcr0 = mfspr(SPR_MMCR0);
 
+	mtmsr(mfmsr() & ~PSL_PMM);
 	mmcr0 |= SPR_MMCR0_FC;
 	mtspr(SPR_MMCR0, mmcr0);
+
 	free(powerpc_pcpu[cpu]->pc_ppcpmcs, M_PMC);
 	free(powerpc_pcpu[cpu], M_PMC);
+
 	return 0;
 }
 

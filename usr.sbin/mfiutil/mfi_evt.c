@@ -33,6 +33,7 @@
 #include <sys/errno.h>
 #include <err.h>
 #include <fcntl.h>
+#include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <strings.h>
@@ -534,6 +535,7 @@ show_events(int ac, char **av)
 	struct mfi_evt_log_state info;
 	struct mfi_evt_list *list;
 	union mfi_evt filter;
+	bool first;
 	long val;
 	char *cp;
 	ssize_t size;
@@ -640,7 +642,9 @@ show_events(int ac, char **av)
 		close(fd);
 		return (ENOMEM);
 	}
-	for (seq = start;;) {
+	first = true;
+	seq = start;
+	for (;;) {
 		if (mfi_get_events(fd, list, num_events, filter, seq,
 		    &status) < 0) {
 			error = errno;
@@ -650,8 +654,6 @@ show_events(int ac, char **av)
 			return (error);
 		}
 		if (status == MFI_STAT_NOT_FOUND) {
-			if (seq == start)
-				warnx("No matching events found");
 			break;
 		}
 		if (status != MFI_STAT_OK) {
@@ -669,13 +671,14 @@ show_events(int ac, char **av)
 			 * the case that our stop point is earlier in
 			 * the buffer than our start point.
 			 */
-			if (list->event[i].seq >= stop) {
+			if (list->event[i].seq > stop) {
 				if (start <= stop)
-					break;
+					goto finish;
 				else if (list->event[i].seq < start)
-					break;
+					goto finish;
 			}
 			mfi_decode_evt(fd, &list->event[i], verbose);
+			first = false;
 		}
 
 		/*
@@ -686,6 +689,9 @@ show_events(int ac, char **av)
 		seq = list->event[list->count - 1].seq + 1;
 			
 	}
+finish:
+	if (first)
+		warnx("No matching events found");
 
 	free(list);
 	close(fd);

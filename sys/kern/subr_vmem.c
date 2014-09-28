@@ -502,7 +502,8 @@ qc_import(void *arg, void **store, int cnt, int flags)
 	int i;
 
 	qc = arg;
-	flags |= M_BESTFIT;
+	if ((flags & VMEM_FITMASK) == 0)
+		flags |= M_BESTFIT;
 	for (i = 0; i < cnt; i++) {
 		if (vmem_xalloc(qc->qc_vmem, qc->qc_size, 0, 0, 0,
 		    VMEM_ADDR_MIN, VMEM_ADDR_MAX, flags, &addr) != 0)

@@ -26,7 +26,7 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  *
- *	$NetBSD: read.h,v 1.5 2006/08/21 12:45:30 christos Exp $
+ *	$NetBSD: read.h,v 1.6 2008/04/29 06:53:01 martin Exp $
  * $FreeBSD$
  */
 

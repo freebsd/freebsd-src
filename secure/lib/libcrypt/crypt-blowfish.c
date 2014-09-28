@@ -149,7 +149,7 @@ crypt_blowfish(const char *key, const char *salt)
 	char arounds[3];
 
 	/* Defaults */
-	minr = 'a';
+	minr = 'b';
 	logr = BCRYPT_MINLOGROUNDS;
 	rounds = 1U << logr;
 

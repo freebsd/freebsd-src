@@ -50,6 +50,9 @@ on 1 byte), but shoehorning those bytes into integers efficiently is messy.
 #include <time.h>       /* defines time_t for timings in the test */
 /*#include <stdint.h>     defines uint32_t etc  (from config.h) */
 #include <sys/param.h>  /* attempt to define endianness */
+#ifdef HAVE_SYS_TYPES_H
+# include <sys/types.h> /* attempt to define endianness (solaris) */
+#endif
 #ifdef linux
 # include <endian.h>    /* attempt to define endianness */
 #endif
@@ -61,7 +64,7 @@ on 1 byte), but shoehorning those bytes into integers efficiently is messy.
 #endif
 
 /* random initial value */
-static uint32_t raninit = 0xdeadbeef;
+static uint32_t raninit = (uint32_t)0xdeadbeef;
 
 void
 hash_set_raninit(uint32_t v)
@@ -75,22 +78,25 @@ hash_set_raninit(uint32_t v)
  */
 #if (defined(__BYTE_ORDER) && defined(__LITTLE_ENDIAN) && \
      __BYTE_ORDER == __LITTLE_ENDIAN) || \
-    (defined(_BYTE_ORDER) && defined(_LITTLE_ENDIAN) && \
-     _BYTE_ORDER == _LITTLE_ENDIAN) || \
     (defined(i386) || defined(__i386__) || defined(__i486__) || \
-     defined(__i586__) || defined(__i686__) || defined(vax) || defined(MIPSEL))
+     defined(__i586__) || defined(__i686__) || defined(vax) || defined(MIPSEL) || defined(__x86))
 # define HASH_LITTLE_ENDIAN 1
 # define HASH_BIG_ENDIAN 0
-#elif (!defined(_BYTE_ORDER) && !defined(__BYTE_ORDER) && defined(_BIG_ENDIAN))
-# define HASH_LITTLE_ENDIAN 0
-# define HASH_BIG_ENDIAN 1
 #elif (defined(__BYTE_ORDER) && defined(__BIG_ENDIAN) && \
        __BYTE_ORDER == __BIG_ENDIAN) || \
-      (defined(_BYTE_ORDER) && defined(_BIG_ENDIAN) && \
-       _BYTE_ORDER == _BIG_ENDIAN) || \
-      (defined(sparc) || defined(POWERPC) || defined(mc68000) || defined(sel))
+      (defined(sparc) || defined(__sparc) || defined(__sparc__) || defined(POWERPC) || defined(mc68000) || defined(sel))
 # define HASH_LITTLE_ENDIAN 0
 # define HASH_BIG_ENDIAN 1
+#elif defined(_MACHINE_ENDIAN_H_)
+/* test for machine_endian_h protects failure if some are empty strings */
+# if defined(_BYTE_ORDER) && defined(_BIG_ENDIAN) && _BYTE_ORDER == _BIG_ENDIAN
+#  define HASH_LITTLE_ENDIAN 0
+#  define HASH_BIG_ENDIAN 1
+# endif
+# if defined(_BYTE_ORDER) && defined(_LITTLE_ENDIAN) && _BYTE_ORDER == _LITTLE_ENDIAN
+#  define HASH_LITTLE_ENDIAN 1
+#  define HASH_BIG_ENDIAN 0
+# endif /* _MACHINE_ENDIAN_H_ */
 #else
 # define HASH_LITTLE_ENDIAN 0
 # define HASH_BIG_ENDIAN 0

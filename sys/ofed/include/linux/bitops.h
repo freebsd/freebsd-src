@@ -2,6 +2,7 @@
  * Copyright (c) 2010 Isilon Systems, Inc.
  * Copyright (c) 2010 iX Systems, Inc.
  * Copyright (c) 2010 Panasas, Inc.
+ * Copyright (c) 2013, 2014 Mellanox Technologies, Ltd.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -36,6 +37,8 @@
 #define	BIT_MASK(n)		(~0UL >> (BITS_PER_LONG - (n)))
 #define	BITS_TO_LONGS(n)	howmany((n), BITS_PER_LONG)
 #define BIT_WORD(nr)		((nr) / BITS_PER_LONG)
+
+#define BITS_PER_BYTE           8
 
 static inline int
 __ffs(int mask)
@@ -286,14 +289,14 @@ bitmap_empty(unsigned long *addr, int size)
 #define	NBLONG	(NBBY * sizeof(long))
 
 #define	set_bit(i, a)							\
-    atomic_set_long(&((volatile long *)(a))[(i)/NBLONG], 1UL << (i) % NBLONG)
+    atomic_set_long(&((volatile long *)(a))[(i)/NBLONG], 1UL << ((i) % NBLONG))
 
 #define	clear_bit(i, a)							\
-    atomic_clear_long(&((volatile long *)(a))[(i)/NBLONG], 1UL << (i) % NBLONG)
+    atomic_clear_long(&((volatile long *)(a))[(i)/NBLONG], 1UL << ((i) % NBLONG))
 
 #define	test_bit(i, a)							\
     !!(atomic_load_acq_long(&((volatile long *)(a))[(i)/NBLONG]) &	\
-    1UL << ((i) % NBLONG))
+    (1UL << ((i) % NBLONG)))
 
 static inline long
 test_and_clear_bit(long bit, long *var)
@@ -302,7 +305,7 @@ test_and_clear_bit(long bit, long *var)
 
 	var += bit / (sizeof(long) * NBBY);
 	bit %= sizeof(long) * NBBY;
-	bit = 1 << bit;
+	bit = (1UL << bit);
 	do {
 		val = *(volatile long *)var;
 	} while (atomic_cmpset_long(var, val, val & ~bit) == 0);
@@ -317,7 +320,7 @@ test_and_set_bit(long bit, long *var)
 
 	var += bit / (sizeof(long) * NBBY);
 	bit %= sizeof(long) * NBBY;
-	bit = 1 << bit;
+	bit = (1UL << bit);
 	do {
 		val = *(volatile long *)var;
 	} while (atomic_cmpset_long(var, val, val | bit) == 0);
@@ -463,6 +466,27 @@ bitmap_find_free_region(unsigned long *bitmap, int bits, int order)
 }
 
 /**
+ * bitmap_allocate_region - allocate bitmap region
+ *      @bitmap: array of unsigned longs corresponding to the bitmap
+ *      @pos: beginning of bit region to allocate
+ *      @order: region size (log base 2 of number of bits) to allocate
+ *
+ * Allocate (set bits in) a specified region of a bitmap.
+ *
+ * Return 0 on success, or %-EBUSY if specified region wasn't
+ * free (not all bits were zero).
+ */
+
+static inline int
+bitmap_allocate_region(unsigned long *bitmap, int pos, int order)
+{
+        if (!__reg_op(bitmap, pos, order, REG_OP_ISFREE))
+                return -EBUSY;
+        __reg_op(bitmap, pos, order, REG_OP_ALLOC);
+        return 0;
+}
+
+/**
  * bitmap_release_region - release allocated bitmap region
  *      @bitmap: array of unsigned longs corresponding to the bitmap
  *      @pos: beginning of bit region to release
@@ -479,5 +503,10 @@ bitmap_release_region(unsigned long *bitmap, int pos, int order)
         __reg_op(bitmap, pos, order, REG_OP_RELEASE);
 }
 
+
+#define for_each_set_bit(bit, addr, size) \
+	for ((bit) = find_first_bit((addr), (size));		\
+	     (bit) < (size);					\
+	     (bit) = find_next_bit((addr), (size), (bit) + 1))
 
 #endif	/* _LINUX_BITOPS_H_ */

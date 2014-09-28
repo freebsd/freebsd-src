@@ -786,6 +786,8 @@ ath_hal_getcapability(struct ath_hal *ah, HAL_CAPABILITY_TYPE type,
 		return HAL_OK;
 	case HAL_CAP_RX_LNA_MIXING:	/* Hardware uses an RX LNA mixer to map 2 antennas to a 1 stream receiver */
 		return pCap->halRxUsingLnaMixing ? HAL_OK : HAL_ENOTSUPP;
+	case HAL_CAP_DO_MYBEACON:	/* Hardware supports filtering my-beacons */
+		return pCap->halRxDoMyBeacon ? HAL_OK : HAL_ENOTSUPP;
 	default:
 		return HAL_EINVAL;
 	}
@@ -848,10 +850,11 @@ ath_hal_getregdump(struct ath_hal *ah, const HAL_REGRANGE *regs,
 	int i;
 
 	for (i = 0; space >= 2*sizeof(uint32_t); i++) {
-		u_int r = regs[i].start;
-		u_int e = regs[i].end;
-		*dp++ = (r<<16) | e;
-		space -= sizeof(uint32_t);
+		uint32_t r = regs[i].start;
+		uint32_t e = regs[i].end;
+		*dp++ = r;
+		*dp++ = e;
+		space -= 2*sizeof(uint32_t);
 		do {
 			*dp++ = OS_REG_READ(ah, r);
 			r += sizeof(uint32_t);

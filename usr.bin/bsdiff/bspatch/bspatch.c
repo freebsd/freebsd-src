@@ -57,6 +57,14 @@ static off_t offtin(u_char *buf)
 	return y;
 }
 
+static void
+usage(void)
+{
+
+	fprintf(stderr, "usage: bspatch oldfile newfile patchfile\n");
+	exit(1);
+}
+
 int main(int argc,char * argv[])
 {
 	FILE * f, * cpf, * dpf, * epf;
@@ -72,7 +80,8 @@ int main(int argc,char * argv[])
 	off_t lenread;
 	off_t i;
 
-	if(argc!=4) errx(1,"usage: %s oldfile newfile patchfile\n",argv[0]);
+	if (argc != 4)
+		usage();
 
 	/* Open patch file */
 	if ((f = fopen(argv[3], "rb")) == NULL)

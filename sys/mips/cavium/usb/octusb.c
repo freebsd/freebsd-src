@@ -82,11 +82,8 @@ __FBSDID("$FreeBSD$");
 static int octusbdebug = 0;
 
 static SYSCTL_NODE(_hw_usb, OID_AUTO, octusb, CTLFLAG_RW, 0, "OCTUSB");
-SYSCTL_INT(_hw_usb_octusb, OID_AUTO, debug, CTLFLAG_RW,
+SYSCTL_INT(_hw_usb_octusb, OID_AUTO, debug, CTLFLAG_RWTUN,
     &octusbdebug, 0, "OCTUSB debug level");
-
-TUNABLE_INT("hw.usb.octusb.debug", &octusbdebug);
-
 #endif
 
 struct octusb_std_temp {

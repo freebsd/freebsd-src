@@ -30,8 +30,10 @@ __FBSDID("$FreeBSD$");
 #include <sys/param.h>
 #include <sys/kernel.h>
 #include <sys/systm.h>
+#include <sys/fbio.h>
 
 #include <dev/vt/vt.h>
+#include <dev/vt/hw/fb/vt_fb.h>
 #include <dev/vt/colors/vt_termcolors.h>
 
 #include <vm/vm.h>
@@ -47,191 +49,39 @@ __FBSDID("$FreeBSD$");
 #include <dev/ofw/ofw_pci.h>
 
 struct ofwfb_softc {
+	struct fb_info	fb;
+
 	phandle_t	sc_node;
-
-	intptr_t	sc_addr;
-	int		sc_depth;
-	int		sc_stride;
-
-	bus_space_tag_t	sc_memt; 
-
-	uint32_t	sc_colormap[16];
+	ihandle_t	sc_handle;
+	bus_space_tag_t	sc_memt;
 };
 
+static vd_probe_t	ofwfb_probe;
 static vd_init_t	ofwfb_init;
-static vd_blank_t	ofwfb_blank;
-static vd_bitbltchr_t	ofwfb_bitbltchr;
+static vd_bitblt_text_t	ofwfb_bitblt_text;
+static vd_bitblt_bmp_t	ofwfb_bitblt_bitmap;
 
 static const struct vt_driver vt_ofwfb_driver = {
+	.vd_name	= "ofwfb",
+	.vd_probe	= ofwfb_probe,
 	.vd_init	= ofwfb_init,
-	.vd_blank	= ofwfb_blank,
-	.vd_bitbltchr	= ofwfb_bitbltchr,
+	.vd_blank	= vt_fb_blank,
+	.vd_bitblt_text	= ofwfb_bitblt_text,
+	.vd_bitblt_bmp	= ofwfb_bitblt_bitmap,
+	.vd_fb_ioctl	= vt_fb_ioctl,
+	.vd_fb_mmap	= vt_fb_mmap,
 	.vd_priority	= VD_PRIORITY_GENERIC+1,
 };
 
 static struct ofwfb_softc ofwfb_conssoftc;
-VT_CONSDEV_DECLARE(vt_ofwfb_driver, PIXEL_WIDTH(1920), PIXEL_HEIGHT(1200),
-    &ofwfb_conssoftc);
-/* XXX: hardcoded max size */
-
-static void
-ofwfb_blank(struct vt_device *vd, term_color_t color)
-{
-	struct ofwfb_softc *sc = vd->vd_softc;
-	u_int ofs, size;
-	uint32_t c;
-
-	size = sc->sc_stride * vd->vd_height;
-	switch (sc->sc_depth) {
-	case 8:
-		c = (color << 24) | (color << 16) | (color << 8) | color;
-		for (ofs = 0; ofs < size/4; ofs++)
-			*(uint32_t *)(sc->sc_addr + 4*ofs) = c;
-		break;
-	case 32:
-		c = sc->sc_colormap[color];
-		for (ofs = 0; ofs < size; ofs++)
-			*(uint32_t *)(sc->sc_addr + 4*ofs) = c;
-		break;
-	default:
-		/* panic? */
-		break;
-	}
-}
-
-static void
-ofwfb_bitbltchr(struct vt_device *vd, const uint8_t *src, const uint8_t *mask,
-    int bpl, vt_axis_t top, vt_axis_t left, unsigned int width,
-    unsigned int height, term_color_t fg, term_color_t bg)
-{
-	struct ofwfb_softc *sc = vd->vd_softc;
-	u_long line;
-	uint32_t fgc, bgc;
-	int c;
-	uint8_t b, m;
-
-	fgc = sc->sc_colormap[fg];
-	bgc = sc->sc_colormap[bg];
-	b = m = 0;
-
-	/* Don't try to put off screen pixels */
-	if (((left + width) > vd->vd_width) || ((top + height) >
-	    vd->vd_height))
-		return;
-
-	line = (sc->sc_stride * top) + left * sc->sc_depth/8;
-	for (; height > 0; height--) {
-		for (c = 0; c < width; c++) {
-			if (c % 8 == 0)
-				b = *src++;
-			else
-				b <<= 1;
-			if (mask != NULL) {
-				if (c % 8 == 0)
-					m = *mask++;
-				else
-					m <<= 1;
-				/* Skip pixel write, if mask has no bit set. */
-				if ((m & 0x80) == 0)
-					continue;
-			}
-			switch(sc->sc_depth) {
-			case 8:
-				*(uint8_t *)(sc->sc_addr + line + c) =
-				    b & 0x80 ? fg : bg;
-				break;
-			case 32:
-				*(uint32_t *)(sc->sc_addr + line + 4*c) = 
-				    (b & 0x80) ? fgc : bgc;
-				break;
-			default:
-				/* panic? */
-				break;
-			}
-		}
-		line += sc->sc_stride;
-	}
-}
-
-static void
-ofwfb_initialize(struct vt_device *vd)
-{
-	struct ofwfb_softc *sc = vd->vd_softc;
-	char name[64];
-	ihandle_t ih;
-	int i;
-	cell_t retval;
-	uint32_t oldpix;
-
-	/* Open display device, thereby initializing it */
-	memset(name, 0, sizeof(name));
-	OF_package_to_path(sc->sc_node, name, sizeof(name));
-	ih = OF_open(name);
-
-	/*
-	 * Set up the color map
-	 */
-
-	switch (sc->sc_depth) {
-	case 8:
-		vt_generate_vga_palette(sc->sc_colormap, COLOR_FORMAT_RGB, 255,
-		    0, 255, 8, 255, 16);
-
-		for (i = 0; i < 16; i++) {
-			OF_call_method("color!", ih, 4, 1,
-			    (cell_t)((sc->sc_colormap[i] >> 16) & 0xff),
-			    (cell_t)((sc->sc_colormap[i] >> 8) & 0xff),
-			    (cell_t)((sc->sc_colormap[i] >> 0) & 0xff),
-			    (cell_t)i, &retval);
-		}
-		break;
-
-	case 32:
-		/*
-		 * We bypass the usual bus_space_() accessors here, mostly
-		 * for performance reasons. In particular, we don't want
-		 * any barrier operations that may be performed and handle
-		 * endianness slightly different. Figure out the host-view
-		 * endianness of the frame buffer.
-		 */
-		oldpix = bus_space_read_4(sc->sc_memt, sc->sc_addr, 0);
-		bus_space_write_4(sc->sc_memt, sc->sc_addr, 0, 0xff000000);
-		if (*(uint8_t *)(sc->sc_addr) == 0xff)
-			vt_generate_vga_palette(sc->sc_colormap,
-			    COLOR_FORMAT_RGB, 255, 16, 255, 8, 255, 0);
-		else
-			vt_generate_vga_palette(sc->sc_colormap,
-			    COLOR_FORMAT_RGB, 255, 0, 255, 8, 255, 16);
-		bus_space_write_4(sc->sc_memt, sc->sc_addr, 0, oldpix);
-		break;
-
-	default:
-		panic("Unknown color space depth %d", sc->sc_depth);
-		break;
-        }
-
-	/* Clear the screen. */
-	ofwfb_blank(vd, TC_BLACK);
-}
+VT_DRIVER_DECLARE(vt_ofwfb, vt_ofwfb_driver);
 
 static int
-ofwfb_init(struct vt_device *vd)
+ofwfb_probe(struct vt_device *vd)
 {
-	struct ofwfb_softc *sc = vd->vd_softc;
-	char type[64];
-	phandle_t chosen;
+	phandle_t chosen, node;
 	ihandle_t stdout;
-	phandle_t node;
-	uint32_t depth, height, width;
-	struct ofw_pci_register pciaddrs[8];
-	int n_pciaddrs;
-	uint32_t fb_phys;
-	int i, len;
-#ifdef __sparc64__
-	static struct bus_space_tag ofwfb_memt[1];
-	bus_addr_t phys;
-	int space;
-#endif
+	char type[64];
 
 	chosen = OF_finddevice("/chosen");
 	OF_getprop(chosen, "stdout", &stdout, sizeof(stdout));
@@ -247,43 +97,278 @@ ofwfb_init(struct vt_device *vd)
 	if (strcmp(type, "display") != 0)
 		return (CN_DEAD);
 
+	/* Looks OK... */
+	return (CN_INTERNAL);
+}
+
+static void
+ofwfb_bitblt_bitmap(struct vt_device *vd, const struct vt_window *vw,
+    const uint8_t *pattern, const uint8_t *mask,
+    unsigned int width, unsigned int height,
+    unsigned int x, unsigned int y, term_color_t fg, term_color_t bg)
+{
+	struct fb_info *sc = vd->vd_softc;
+	u_long line;
+	uint32_t fgc, bgc;
+	int c, l;
+	uint8_t b, m;
+	union {
+		uint32_t l;
+		uint8_t	 c[4];
+	} ch1, ch2;
+
+	fgc = sc->fb_cmap[fg];
+	bgc = sc->fb_cmap[bg];
+	b = m = 0;
+
+	line = (sc->fb_stride * y) + x * sc->fb_bpp/8;
+	if (mask == NULL && sc->fb_bpp == 8 && (width % 8 == 0)) {
+		/* Don't try to put off screen pixels */
+		if (((x + width) > vd->vd_width) || ((y + height) >
+		    vd->vd_height))
+			return;
+
+		for (; height > 0; height--) {
+			for (c = 0; c < width; c += 8) {
+				b = *pattern++;
+
+				/*
+				 * Assume that there is more background than
+				 * foreground in characters and init accordingly
+				 */
+				ch1.l = ch2.l = (bg << 24) | (bg << 16) |
+				    (bg << 8) | bg;
+
+				/*
+				 * Calculate 2 x 4-chars at a time, and then
+				 * write these out.
+				 */
+				if (b & 0x80) ch1.c[0] = fg;
+				if (b & 0x40) ch1.c[1] = fg;
+				if (b & 0x20) ch1.c[2] = fg;
+				if (b & 0x10) ch1.c[3] = fg;
+
+				if (b & 0x08) ch2.c[0] = fg;
+				if (b & 0x04) ch2.c[1] = fg;
+				if (b & 0x02) ch2.c[2] = fg;
+				if (b & 0x01) ch2.c[3] = fg;
+
+				*(uint32_t *)(sc->fb_vbase + line + c) = ch1.l;
+				*(uint32_t *)(sc->fb_vbase + line + c + 4) =
+				    ch2.l;
+			}
+			line += sc->fb_stride;
+		}
+	} else {
+		for (l = 0;
+		    l < height && y + l < vw->vw_draw_area.tr_end.tp_row;
+		    l++) {
+			for (c = 0;
+			    c < width && x + c < vw->vw_draw_area.tr_end.tp_col;
+			    c++) {
+				if (c % 8 == 0)
+					b = *pattern++;
+				else
+					b <<= 1;
+				if (mask != NULL) {
+					if (c % 8 == 0)
+						m = *mask++;
+					else
+						m <<= 1;
+					/* Skip pixel write, if mask not set. */
+					if ((m & 0x80) == 0)
+						continue;
+				}
+				switch(sc->fb_bpp) {
+				case 8:
+					*(uint8_t *)(sc->fb_vbase + line + c) =
+					    b & 0x80 ? fg : bg;
+					break;
+				case 32:
+					*(uint32_t *)(sc->fb_vbase + line + 4*c)
+					    = (b & 0x80) ? fgc : bgc;
+					break;
+				default:
+					/* panic? */
+					break;
+				}
+			}
+			line += sc->fb_stride;
+		}
+	}
+}
+
+void
+ofwfb_bitblt_text(struct vt_device *vd, const struct vt_window *vw,
+    const term_rect_t *area)
+{
+	unsigned int col, row, x, y;
+	struct vt_font *vf;
+	term_char_t c;
+	term_color_t fg, bg;
+	const uint8_t *pattern;
+
+	vf = vw->vw_font;
+
+	for (row = area->tr_begin.tp_row; row < area->tr_end.tp_row; ++row) {
+		for (col = area->tr_begin.tp_col; col < area->tr_end.tp_col;
+		    ++col) {
+			x = col * vf->vf_width +
+			    vw->vw_draw_area.tr_begin.tp_col;
+			y = row * vf->vf_height +
+			    vw->vw_draw_area.tr_begin.tp_row;
+
+			c = VTBUF_GET_FIELD(&vw->vw_buf, row, col);
+			pattern = vtfont_lookup(vf, c);
+			vt_determine_colors(c,
+			    VTBUF_ISCURSOR(&vw->vw_buf, row, col), &fg, &bg);
+
+			ofwfb_bitblt_bitmap(vd, vw,
+			    pattern, NULL, vf->vf_width, vf->vf_height,
+			    x, y, fg, bg);
+		}
+	}
+
+#ifndef SC_NO_CUTPASTE
+	if (!vd->vd_mshown)
+		return;
+
+	term_rect_t drawn_area;
+
+	drawn_area.tr_begin.tp_col = area->tr_begin.tp_col * vf->vf_width;
+	drawn_area.tr_begin.tp_row = area->tr_begin.tp_row * vf->vf_height;
+	drawn_area.tr_end.tp_col = area->tr_end.tp_col * vf->vf_width;
+	drawn_area.tr_end.tp_row = area->tr_end.tp_row * vf->vf_height;
+
+	if (vt_is_cursor_in_area(vd, &drawn_area)) {
+		ofwfb_bitblt_bitmap(vd, vw,
+		    vd->vd_mcursor->map, vd->vd_mcursor->mask,
+		    vd->vd_mcursor->width, vd->vd_mcursor->height,
+		    vd->vd_mx_drawn + vw->vw_draw_area.tr_begin.tp_col,
+		    vd->vd_my_drawn + vw->vw_draw_area.tr_begin.tp_row,
+		    vd->vd_mcursor_fg, vd->vd_mcursor_bg);
+	}
+#endif
+}
+
+static void
+ofwfb_initialize(struct vt_device *vd)
+{
+	struct ofwfb_softc *sc = vd->vd_softc;
+	int i;
+	cell_t retval;
+	uint32_t oldpix;
+
+	/*
+	 * Set up the color map
+	 */
+
+	switch (sc->fb.fb_bpp) {
+	case 8:
+		vt_generate_cons_palette(sc->fb.fb_cmap, COLOR_FORMAT_RGB, 255,
+		    16, 255, 8, 255, 0);
+
+		for (i = 0; i < 16; i++) {
+			OF_call_method("color!", sc->sc_handle, 4, 1,
+			    (cell_t)((sc->fb.fb_cmap[i] >> 16) & 0xff),
+			    (cell_t)((sc->fb.fb_cmap[i] >> 8) & 0xff),
+			    (cell_t)((sc->fb.fb_cmap[i] >> 0) & 0xff),
+			    (cell_t)i, &retval);
+		}
+		break;
+
+	case 32:
+		/*
+		 * We bypass the usual bus_space_() accessors here, mostly
+		 * for performance reasons. In particular, we don't want
+		 * any barrier operations that may be performed and handle
+		 * endianness slightly different. Figure out the host-view
+		 * endianness of the frame buffer.
+		 */
+		oldpix = bus_space_read_4(sc->sc_memt, sc->fb.fb_vbase, 0);
+		bus_space_write_4(sc->sc_memt, sc->fb.fb_vbase, 0, 0xff000000);
+		if (*(uint8_t *)(sc->fb.fb_vbase) == 0xff)
+			vt_generate_cons_palette(sc->fb.fb_cmap,
+			    COLOR_FORMAT_RGB, 255, 0, 255, 8, 255, 16);
+		else
+			vt_generate_cons_palette(sc->fb.fb_cmap,
+			    COLOR_FORMAT_RGB, 255, 16, 255, 8, 255, 0);
+		bus_space_write_4(sc->sc_memt, sc->fb.fb_vbase, 0, oldpix);
+		break;
+
+	default:
+		panic("Unknown color space depth %d", sc->fb.fb_bpp);
+		break;
+        }
+
+	sc->fb.fb_cmsize = 16;
+}
+
+static int
+ofwfb_init(struct vt_device *vd)
+{
+	struct ofwfb_softc *sc;
+	char type[64];
+	phandle_t chosen;
+	phandle_t node;
+	uint32_t depth, height, width, stride;
+	uint32_t fb_phys;
+	int i, len;
+#ifdef __sparc64__
+	static struct bus_space_tag ofwfb_memt[1];
+	bus_addr_t phys;
+	int space;
+#endif
+
+	/* Initialize softc */
+	vd->vd_softc = sc = &ofwfb_conssoftc;
+
+	chosen = OF_finddevice("/chosen");
+	OF_getprop(chosen, "stdout", &sc->sc_handle, sizeof(ihandle_t));
+	node = OF_instance_to_package(sc->sc_handle);
+	if (node == -1) {
+		/*
+		 * The "/chosen/stdout" does not exist try
+		 * using "screen" directly.
+		 */
+		node = OF_finddevice("screen");
+		sc->sc_handle = OF_open("screen");
+	}
+	OF_getprop(node, "device_type", type, sizeof(type));
+	if (strcmp(type, "display") != 0)
+		return (CN_DEAD);
+
 	/* Keep track of the OF node */
 	sc->sc_node = node;
+
+	/*
+	 * Try to use a 32-bit framebuffer if possible. This may be
+	 * unimplemented and fail. That's fine -- it just means we are
+	 * stuck with the defaults.
+	 */
+	OF_call_method("set-depth", sc->sc_handle, 1, 1, (cell_t)32, &i);
 
 	/* Make sure we have needed properties */
 	if (OF_getproplen(node, "height") != sizeof(height) ||
 	    OF_getproplen(node, "width") != sizeof(width) ||
 	    OF_getproplen(node, "depth") != sizeof(depth) ||
-	    OF_getproplen(node, "linebytes") != sizeof(sc->sc_stride))
+	    OF_getproplen(node, "linebytes") != sizeof(sc->fb.fb_stride))
 		return (CN_DEAD);
 
 	/* Only support 8 and 32-bit framebuffers */
 	OF_getprop(node, "depth", &depth, sizeof(depth));
 	if (depth != 8 && depth != 32)
 		return (CN_DEAD);
-	sc->sc_depth = depth;
+	sc->fb.fb_bpp = sc->fb.fb_depth = depth;
 
 	OF_getprop(node, "height", &height, sizeof(height));
 	OF_getprop(node, "width", &width, sizeof(width));
-	OF_getprop(node, "linebytes", &sc->sc_stride, sizeof(sc->sc_stride));
+	OF_getprop(node, "linebytes", &stride, sizeof(stride));
 
-	vd->vd_height = height;
-	vd->vd_width = width;
-
-	/*
-	 * Get the PCI addresses of the adapter, if present. The node may be the
-	 * child of the PCI device: in that case, try the parent for
-	 * the assigned-addresses property.
-	 */
-	len = OF_getprop(node, "assigned-addresses", pciaddrs,
-	    sizeof(pciaddrs));
-	if (len == -1) {
-		len = OF_getprop(OF_parent(node), "assigned-addresses",
-		    pciaddrs, sizeof(pciaddrs));
-        }
-        if (len == -1)
-                len = 0;
-	n_pciaddrs = len / sizeof(struct ofw_pci_register);
+	sc->fb.fb_height = height;
+	sc->fb.fb_width = width;
+	sc->fb.fb_stride = stride;
+	sc->fb.fb_size = sc->fb.fb_height * sc->fb.fb_stride;
 
 	/*
 	 * Grab the physical address of the framebuffer, and then map it
@@ -296,15 +381,23 @@ ofwfb_init(struct vt_device *vd)
 
 	#if defined(__powerpc__)
 		sc->sc_memt = &bs_be_tag;
-		bus_space_map(sc->sc_memt, fb_phys, height * sc->sc_stride,
-		    BUS_SPACE_MAP_PREFETCHABLE, &sc->sc_addr);
+		bus_space_map(sc->sc_memt, fb_phys, sc->fb.fb_size,
+		    BUS_SPACE_MAP_PREFETCHABLE, &sc->fb.fb_vbase);
 	#elif defined(__sparc64__)
 		OF_decode_addr(node, 0, &space, &phys);
 		sc->sc_memt = &ofwfb_memt[0];
-		sc->sc_addr = sparc64_fake_bustag(space, fb_phys, sc->sc_memt);
+		sc->fb.fb_vbase =
+		    sparc64_fake_bustag(space, fb_phys, sc->sc_memt);
+	#elif defined(__arm__)
+		sc->sc_memt = fdtbus_bs_tag;
+		bus_space_map(sc->sc_memt, sc->fb.fb_pbase, sc->fb.fb_size,
+		    BUS_SPACE_MAP_PREFETCHABLE,
+		    (bus_space_handle_t *)&sc->fb.fb_vbase);
 	#else
 		#error Unsupported platform!
 	#endif
+
+		sc->fb.fb_pbase = fb_phys;
 	} else {
 		/*
 		 * Some IBM systems don't have an address property. Try to
@@ -313,10 +406,28 @@ ofwfb_init(struct vt_device *vd)
 		 * Linux does the same thing.
 		 */
 
-		fb_phys = n_pciaddrs;
-		for (i = 0; i < n_pciaddrs; i++) {
+		struct ofw_pci_register pciaddrs[8];
+		int num_pciaddrs = 0;
+
+		/*
+		 * Get the PCI addresses of the adapter, if present. The node
+		 * may be the child of the PCI device: in that case, try the
+		 * parent for the assigned-addresses property.
+		 */
+		len = OF_getprop(node, "assigned-addresses", pciaddrs,
+		    sizeof(pciaddrs));
+		if (len == -1) {
+			len = OF_getprop(OF_parent(node), "assigned-addresses",
+			    pciaddrs, sizeof(pciaddrs));
+		}
+		if (len == -1)
+			len = 0;
+		num_pciaddrs = len / sizeof(struct ofw_pci_register);
+
+		fb_phys = num_pciaddrs;
+		for (i = 0; i < num_pciaddrs; i++) {
 			/* If it is too small, not the framebuffer */
-			if (pciaddrs[i].size_lo < sc->sc_stride*height)
+			if (pciaddrs[i].size_lo < sc->fb.fb_stride * height)
 				continue;
 			/* If it is not memory, it isn't either */
 			if (!(pciaddrs[i].phys_hi &
@@ -331,19 +442,21 @@ ofwfb_init(struct vt_device *vd)
 				break;
 		}
 
-		if (fb_phys == n_pciaddrs) /* No candidates found */
+		if (fb_phys == num_pciaddrs) /* No candidates found */
 			return (CN_DEAD);
 
 	#if defined(__powerpc__)
-		OF_decode_addr(node, fb_phys, &sc->sc_memt, &sc->sc_addr);
-	#elif defined(__sparc64__)
-		OF_decode_addr(node, fb_phys, &space, &phys);
-		sc->sc_memt = &ofwfb_memt[0];
-		sc->sc_addr = sparc64_fake_bustag(space, phys, sc->sc_memt);
+		OF_decode_addr(node, fb_phys, &sc->sc_memt, &sc->fb.fb_vbase);
+		sc->fb.fb_pbase = sc->fb.fb_vbase; /* 1:1 mapped */
+	#else
+		/* No ability to interpret assigned-addresses otherwise */
+		return (CN_DEAD);
 	#endif
         }
 
+
 	ofwfb_initialize(vd);
+	vt_fb_init(vd);
 
 	return (CN_INTERNAL);
 }

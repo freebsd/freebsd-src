@@ -21,7 +21,7 @@
 
 /*
  * Copyright (c) 2005, 2010, Oracle and/or its affiliates. All rights reserved.
- * Copyright (c) 2013 by Delphix. All rights reserved.
+ * Copyright (c) 2012, 2014 by Delphix. All rights reserved.
  */
 
 #include <sys/zfs_context.h>
@@ -32,6 +32,7 @@
 #include <sys/dmu_objset.h>
 #include <sys/dsl_dataset.h>
 #include <sys/spa.h>
+#include <sys/range_tree.h>
 #include <sys/zfeature.h>
 
 static void
@@ -232,8 +233,6 @@ free_verify(dmu_buf_impl_t *db, uint64_t start, uint64_t end, dmu_tx_t *tx)
 }
 #endif
 
-#define	ALL -1
-
 static void
 free_children(dmu_buf_impl_t *db, uint64_t blkid, uint64_t nblks,
     dmu_tx_t *tx)
@@ -318,7 +317,7 @@ free_children(dmu_buf_impl_t *db, uint64_t blkid, uint64_t nblks,
  * and "free" all the blocks contained there.
  */
 static void
-dnode_sync_free_range(dnode_t *dn, uint64_t blkid, uint64_t nblks,
+dnode_sync_free_range_impl(dnode_t *dn, uint64_t blkid, uint64_t nblks,
     dmu_tx_t *tx)
 {
 	blkptr_t *bp = dn->dn_phys->dn_blkptr;
@@ -361,7 +360,6 @@ dnode_sync_free_range(dnode_t *dn, uint64_t blkid, uint64_t nblks,
 
 			free_children(db, blkid, nblks, tx);
 			dbuf_rele(db, FTAG);
-
 		}
 	}
 
@@ -376,6 +374,22 @@ dnode_sync_free_range(dnode_t *dn, uint64_t blkid, uint64_t nblks,
 	}
 }
 
+typedef struct dnode_sync_free_range_arg {
+	dnode_t *dsfra_dnode;
+	dmu_tx_t *dsfra_tx;
+} dnode_sync_free_range_arg_t;
+
+static void
+dnode_sync_free_range(void *arg, uint64_t blkid, uint64_t nblks)
+{
+	dnode_sync_free_range_arg_t *dsfra = arg;
+	dnode_t *dn = dsfra->dsfra_dnode;
+
+	mutex_exit(&dn->dn_mtx);
+	dnode_sync_free_range_impl(dn, blkid, nblks, dsfra->dsfra_tx);
+	mutex_enter(&dn->dn_mtx);
+}
+
 /*
  * Try to kick all the dnode's dbufs out of the cache...
  */
@@ -386,16 +400,13 @@ dnode_evict_dbufs(dnode_t *dn)
 	int pass = 0;
 
 	do {
-		dmu_buf_impl_t *db, marker;
+		dmu_buf_impl_t *db, *db_next;
 		int evicting = FALSE;
 
 		progress = FALSE;
 		mutex_enter(&dn->dn_dbufs_mtx);
-		list_insert_tail(&dn->dn_dbufs, &marker);
-		db = list_head(&dn->dn_dbufs);
-		for (; db != &marker; db = list_head(&dn->dn_dbufs)) {
-			list_remove(&dn->dn_dbufs, db);
-			list_insert_tail(&dn->dn_dbufs, db);
+		for (db = avl_first(&dn->dn_dbufs); db != NULL; db = db_next) {
+			db_next = AVL_NEXT(&dn->dn_dbufs, db);
 #ifdef	DEBUG
 			DB_DNODE_ENTER(db);
 			ASSERT3P(DB_DNODE(db), ==, dn);
@@ -415,7 +426,6 @@ dnode_evict_dbufs(dnode_t *dn)
 			}
 
 		}
-		list_remove(&dn->dn_dbufs, &marker);
 		/*
 		 * NB: we need to drop dn_dbufs_mtx between passes so
 		 * that any DB_EVICTING dbufs can make progress.
@@ -462,8 +472,8 @@ dnode_undirty_dbufs(list_t *list)
 			    dr->dt.dl.dr_data == db->db_buf);
 			dbuf_unoverride(dr);
 		} else {
-			list_destroy(&dr->dt.di.dr_children);
 			mutex_destroy(&dr->dt.di.dr_mtx);
+			list_destroy(&dr->dt.di.dr_children);
 		}
 		kmem_free(dr, sizeof (dbuf_dirty_record_t));
 		dbuf_rele_and_unlock(db, (void *)(uintptr_t)txg);
@@ -486,7 +496,7 @@ dnode_sync_free(dnode_t *dn, dmu_tx_t *tx)
 
 	dnode_undirty_dbufs(&dn->dn_dirty_records[txgoff]);
 	dnode_evict_dbufs(dn);
-	ASSERT3P(list_head(&dn->dn_dbufs), ==, NULL);
+	ASSERT(avl_is_empty(&dn->dn_dbufs));
 	ASSERT3P(dn->dn_bonus, ==, NULL);
 
 	/*
@@ -536,7 +546,6 @@ dnode_sync_free(dnode_t *dn, dmu_tx_t *tx)
 void
 dnode_sync(dnode_t *dn, dmu_tx_t *tx)
 {
-	free_range_t *rp;
 	dnode_phys_t *dnp = dn->dn_phys;
 	int txgoff = tx->tx_txg & TXG_MASK;
 	list_t *list = &dn->dn_dirty_records[txgoff];
@@ -578,11 +587,14 @@ dnode_sync(dnode_t *dn, dmu_tx_t *tx)
 		dnp->dn_bonustype = dn->dn_bonustype;
 		dnp->dn_bonuslen = dn->dn_bonuslen;
 	}
-
 	ASSERT(dnp->dn_nlevels > 1 ||
 	    BP_IS_HOLE(&dnp->dn_blkptr[0]) ||
+	    BP_IS_EMBEDDED(&dnp->dn_blkptr[0]) ||
 	    BP_GET_LSIZE(&dnp->dn_blkptr[0]) ==
 	    dnp->dn_datablkszsec << SPA_MINBLOCKSHIFT);
+	ASSERT(dnp->dn_nlevels < 2 ||
+	    BP_IS_HOLE(&dnp->dn_blkptr[0]) ||
+	    BP_GET_LSIZE(&dnp->dn_blkptr[0]) == 1 << dnp->dn_indblkshift);
 
 	if (dn->dn_next_type[txgoff] != 0) {
 		dnp->dn_type = dn->dn_type;
@@ -594,9 +606,9 @@ dnode_sync(dnode_t *dn, dmu_tx_t *tx)
 		    SPA_MINBLOCKSIZE) == 0);
 		ASSERT(BP_IS_HOLE(&dnp->dn_blkptr[0]) ||
 		    dn->dn_maxblkid == 0 || list_head(list) != NULL ||
-		    avl_last(&dn->dn_ranges[txgoff]) ||
 		    dn->dn_next_blksz[txgoff] >> SPA_MINBLOCKSHIFT ==
-		    dnp->dn_datablkszsec);
+		    dnp->dn_datablkszsec ||
+		    range_tree_space(dn->dn_free_ranges[txgoff]) != 0);
 		dnp->dn_datablkszsec =
 		    dn->dn_next_blksz[txgoff] >> SPA_MINBLOCKSHIFT;
 		dn->dn_next_blksz[txgoff] = 0;
@@ -655,18 +667,26 @@ dnode_sync(dnode_t *dn, dmu_tx_t *tx)
 	}
 
 	/* process all the "freed" ranges in the file */
-	while (rp = avl_last(&dn->dn_ranges[txgoff])) {
-		dnode_sync_free_range(dn, rp->fr_blkid, rp->fr_nblks, tx);
-		/* grab the mutex so we don't race with dnode_block_freed() */
+	if (dn->dn_free_ranges[txgoff] != NULL) {
+		dnode_sync_free_range_arg_t dsfra;
+		dsfra.dsfra_dnode = dn;
+		dsfra.dsfra_tx = tx;
 		mutex_enter(&dn->dn_mtx);
-		avl_remove(&dn->dn_ranges[txgoff], rp);
+		range_tree_vacate(dn->dn_free_ranges[txgoff],
+		    dnode_sync_free_range, &dsfra);
+		range_tree_destroy(dn->dn_free_ranges[txgoff]);
+		dn->dn_free_ranges[txgoff] = NULL;
 		mutex_exit(&dn->dn_mtx);
-		kmem_free(rp, sizeof (free_range_t));
 	}
 
 	if (freeing_dnode) {
 		dnode_sync_free(dn, tx);
 		return;
+	}
+
+	if (dn->dn_next_nlevels[txgoff]) {
+		dnode_increase_indirection(dn, tx);
+		dn->dn_next_nlevels[txgoff] = 0;
 	}
 
 	if (dn->dn_next_nblkptr[txgoff]) {
@@ -691,11 +711,6 @@ dnode_sync(dnode_t *dn, dmu_tx_t *tx)
 		dnp->dn_nblkptr = dn->dn_next_nblkptr[txgoff];
 		dn->dn_next_nblkptr[txgoff] = 0;
 		mutex_exit(&dn->dn_mtx);
-	}
-
-	if (dn->dn_next_nlevels[txgoff]) {
-		dnode_increase_indirection(dn, tx);
-		dn->dn_next_nlevels[txgoff] = 0;
 	}
 
 	dbuf_sync_list(list, tx);

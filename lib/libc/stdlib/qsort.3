@@ -36,7 +36,7 @@
 .Dt QSORT 3
 .Os
 .Sh NAME
-.Nm qsort , qsort_r , heapsort , mergesort
+.Nm qsort , qsort_b , qsort_r , heapsort , heapsort_b , mergesort, mergesort_b
 .Nd sort functions
 .Sh LIBRARY
 .Lb libc
@@ -48,6 +48,13 @@
 .Fa "size_t nmemb"
 .Fa "size_t size"
 .Fa "int \*[lp]*compar\*[rp]\*[lp]const void *, const void *\*[rp]"
+.Fc
+.Ft void
+.Fo qsort_b
+.Fa "void *base"
+.Fa "size_t nmemb"
+.Fa "size_t size"
+.Fa "int \*[lp]^compar\*[rp]\*[lp]const void *, const void *\*[rp]"
 .Fc
 .Ft void
 .Fo qsort_r
@@ -65,11 +72,25 @@
 .Fa "int \*[lp]*compar\*[rp]\*[lp]const void *, const void *\*[rp]"
 .Fc
 .Ft int
+.Fo heapsort_b
+.Fa "void *base"
+.Fa "size_t nmemb"
+.Fa "size_t size"
+.Fa "int \*[lp]^compar\*[rp]\*[lp]const void *, const void *\*[rp]"
+.Fc
+.Ft int
 .Fo mergesort
 .Fa "void *base"
 .Fa "size_t nmemb"
 .Fa "size_t size"
 .Fa "int \*[lp]*compar\*[rp]\*[lp]const void *, const void *\*[rp]"
+.Fc
+.Ft int
+.Fo mergesort_b
+.Fa "void *base"
+.Fa "size_t nmemb"
+.Fa "size_t size"
+.Fa "int \*[lp]^compar\*[rp]\*[lp]const void *, const void *\*[rp]"
 .Fc
 .Sh DESCRIPTION
 The
@@ -127,6 +148,11 @@ This allows the comparison function to access additional
 data without using global variables, and thus
 .Fn qsort_r
 is suitable for use in functions which must be reentrant.
+The
+.Fn qsort_b
+function behaves identically to
+.Fn qsort ,
+except that it takes a block, rather than a function pointer.
 .Pp
 The algorithms implemented by
 .Fn qsort ,
@@ -138,8 +164,18 @@ are
 stable, that is, if two members compare as equal, their order in
 the sorted array is undefined.
 The
+.Fn heapsort_b
+function behaves identically to
+.Fn heapsort ,
+except that it takes a block, rather than a function pointer.
+The
 .Fn mergesort
 algorithm is stable.
+The
+.Fn mergesort_b
+function behaves identically to
+.Fn mergesort ,
+except that it takes a block, rather than a function pointer.
 .Pp
 The
 .Fn qsort
@@ -324,3 +360,7 @@ The
 function
 conforms to
 .St -isoC .
+.Sh HISTORY
+The variants of these functions that take blocks as arguments first appeared in
+Mac OS X.
+This implementation was created by David Chisnall.

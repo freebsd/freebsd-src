@@ -127,6 +127,7 @@ static device_method_t ps3bus_methods[] = {
 
 struct ps3bus_softc {
 	struct rman sc_mem_rman;
+	struct rman sc_intr_rman;
 	struct mem_region *regions;
 	int rcount;
 };
@@ -328,7 +329,11 @@ ps3bus_attach(device_t self)
 	sc = device_get_softc(self);
 	sc->sc_mem_rman.rm_type = RMAN_ARRAY;
 	sc->sc_mem_rman.rm_descr = "PS3Bus Memory Mapped I/O";
+	sc->sc_intr_rman.rm_type = RMAN_ARRAY;
+	sc->sc_intr_rman.rm_descr = "PS3Bus Interrupts";
 	rman_init(&sc->sc_mem_rman);
+	rman_init(&sc->sc_intr_rman);
+	rman_manage_region(&sc->sc_intr_rman, 0, ~0);
 
 	/* Get memory regions for DMA */
 	mem_regions(&sc->regions, &sc->rcount, &sc->regions, &sc->rcount);
@@ -562,8 +567,13 @@ ps3bus_alloc_resource(device_t bus, device_t child, int type, int *rid,
 		rm = &sc->sc_mem_rman;
 		break;
 	case SYS_RES_IRQ:
-		return (resource_list_alloc(&dinfo->resources, bus, child,
-		    type, rid, start, end, count, flags));
+		rle = resource_list_find(&dinfo->resources, SYS_RES_IRQ,
+		    *rid);
+		rm = &sc->sc_intr_rman;
+		adjstart = rle->start;
+		adjcount = ulmax(count, rle->count);
+		adjend = ulmax(rle->end, rle->start + adjcount - 1);
+		break;
 	default:
 		device_printf(bus, "unknown resource request from %s\n",
 			      device_get_nameunit(child));

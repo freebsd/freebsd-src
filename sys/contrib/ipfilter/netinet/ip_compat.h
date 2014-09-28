@@ -33,10 +33,6 @@
 #endif
 
 #define	SOLARIS	(defined(sun) && (defined(__svr4__) || defined(__SVR4)))
-#if defined(__FreeBSD_version) && (__FreeBSD_version >= 400000) && \
-    !defined(_KERNEL) && !defined(USE_INET6) && !defined(NOINET6)
-# define	USE_INET6
-#endif
 
 
 #if defined(__SVR4) || defined(__svr4__) || defined(__sgi)
@@ -121,6 +117,10 @@ struct  ether_addr {
 #   include "opt_inet6.h"
 #  if defined(INET6) && !defined(USE_INET6)
 #   define USE_INET6
+#  endif
+# else
+#  if !defined(USE_INET6) && !defined(NOINET6)
+#   define	USE_INET6
 #  endif
 # endif
 

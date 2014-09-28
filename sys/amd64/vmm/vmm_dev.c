@@ -48,12 +48,14 @@ __FBSDID("$FreeBSD$");
 
 #include <machine/vmparam.h>
 #include <machine/vmm.h>
+#include <machine/vmm_instruction_emul.h>
 #include <machine/vmm_dev.h>
 
 #include "vmm_lapic.h"
 #include "vmm_stat.h"
 #include "vmm_mem.h"
 #include "io/ppt.h"
+#include "io/vatpic.h"
 #include "io/vioapic.h"
 #include "io/vhpet.h"
 
@@ -144,7 +146,8 @@ static int
 vmmdev_ioctl(struct cdev *cdev, u_long cmd, caddr_t data, int fflag,
 	     struct thread *td)
 {
-	int error, vcpu, state_changed;
+	int error, vcpu, state_changed, size;
+	cpuset_t *cpuset;
 	struct vmmdev_softc *sc;
 	struct vm_memory_segment *seg;
 	struct vm_register *vmreg;
@@ -154,6 +157,8 @@ vmmdev_ioctl(struct cdev *cdev, u_long cmd, caddr_t data, int fflag,
 	struct vm_lapic_irq *vmirq;
 	struct vm_lapic_msi *vmmsi;
 	struct vm_ioapic_irq *ioapic_irq;
+	struct vm_isa_irq *isa_irq;
+	struct vm_isa_irq_trigger *isa_irq_trigger;
 	struct vm_capability *vmcap;
 	struct vm_pptdev *pptdev;
 	struct vm_pptdev_mmio *pptmmio;
@@ -164,11 +169,17 @@ vmmdev_ioctl(struct cdev *cdev, u_long cmd, caddr_t data, int fflag,
 	struct vm_stat_desc *statdesc;
 	struct vm_x2apic *x2apic;
 	struct vm_gpa_pte *gpapte;
+	struct vm_suspend *vmsuspend;
+	struct vm_gla2gpa *gg;
+	struct vm_activate_cpu *vac;
+	struct vm_cpuset *vm_cpuset;
+	struct vm_intinfo *vmii;
 
 	sc = vmmdev_lookup2(cdev);
 	if (sc == NULL)
 		return (ENXIO);
 
+	error = 0;
 	vcpu = -1;
 	state_changed = 0;
 
@@ -187,6 +198,10 @@ vmmdev_ioctl(struct cdev *cdev, u_long cmd, caddr_t data, int fflag,
 	case VM_PPTDEV_MSI:
 	case VM_PPTDEV_MSIX:
 	case VM_SET_X2APIC_STATE:
+	case VM_GLA2GPA:
+	case VM_ACTIVATE_CPU:
+	case VM_SET_INTINFO:
+	case VM_GET_INTINFO:
 		/*
 		 * XXX fragile, handle with care
 		 * Assumes that the first field of the ioctl data is the vcpu.
@@ -208,6 +223,7 @@ vmmdev_ioctl(struct cdev *cdev, u_long cmd, caddr_t data, int fflag,
 	case VM_BIND_PPTDEV:
 	case VM_UNBIND_PPTDEV:
 	case VM_MAP_MEMORY:
+	case VM_REINIT:
 		/*
 		 * ioctls that operate on the entire virtual machine must
 		 * prevent all vcpus from running.
@@ -236,6 +252,13 @@ vmmdev_ioctl(struct cdev *cdev, u_long cmd, caddr_t data, int fflag,
 	case VM_RUN:
 		vmrun = (struct vm_run *)data;
 		error = vm_run(sc->vm, vmrun);
+		break;
+	case VM_SUSPEND:
+		vmsuspend = (struct vm_suspend *)data;
+		error = vm_suspend(sc->vm, vmsuspend->how);
+		break;
+	case VM_REINIT:
+		error = vm_reinit(sc->vm);
 		break;
 	case VM_STAT_DESC: {
 		statdesc = (struct vm_stat_desc *)data;
@@ -318,6 +341,31 @@ vmmdev_ioctl(struct cdev *cdev, u_long cmd, caddr_t data, int fflag,
 	case VM_IOAPIC_PINCOUNT:
 		*(int *)data = vioapic_pincount(sc->vm);
 		break;
+	case VM_ISA_ASSERT_IRQ:
+		isa_irq = (struct vm_isa_irq *)data;
+		error = vatpic_assert_irq(sc->vm, isa_irq->atpic_irq);
+		if (error == 0 && isa_irq->ioapic_irq != -1)
+			error = vioapic_assert_irq(sc->vm,
+			    isa_irq->ioapic_irq);
+		break;
+	case VM_ISA_DEASSERT_IRQ:
+		isa_irq = (struct vm_isa_irq *)data;
+		error = vatpic_deassert_irq(sc->vm, isa_irq->atpic_irq);
+		if (error == 0 && isa_irq->ioapic_irq != -1)
+			error = vioapic_deassert_irq(sc->vm,
+			    isa_irq->ioapic_irq);
+		break;
+	case VM_ISA_PULSE_IRQ:
+		isa_irq = (struct vm_isa_irq *)data;
+		error = vatpic_pulse_irq(sc->vm, isa_irq->atpic_irq);
+		if (error == 0 && isa_irq->ioapic_irq != -1)
+			error = vioapic_pulse_irq(sc->vm, isa_irq->ioapic_irq);
+		break;
+	case VM_ISA_SET_IRQ_TRIGGER:
+		isa_irq_trigger = (struct vm_isa_irq_trigger *)data;
+		error = vatpic_set_irq_trigger(sc->vm,
+		    isa_irq_trigger->atpic_irq, isa_irq_trigger->trigger);
+		break;
 	case VM_MAP_MEMORY:
 		seg = (struct vm_memory_segment *)data;
 		error = vm_malloc(sc->vm, seg->gpa, seg->len);
@@ -380,6 +428,59 @@ vmmdev_ioctl(struct cdev *cdev, u_long cmd, caddr_t data, int fflag,
 		break;
 	case VM_GET_HPET_CAPABILITIES:
 		error = vhpet_getcap((struct vm_hpet_cap *)data);
+		break;
+	case VM_GLA2GPA: {
+		CTASSERT(PROT_READ == VM_PROT_READ);
+		CTASSERT(PROT_WRITE == VM_PROT_WRITE);
+		CTASSERT(PROT_EXEC == VM_PROT_EXECUTE);
+		gg = (struct vm_gla2gpa *)data;
+		error = vmm_gla2gpa(sc->vm, gg->vcpuid, &gg->paging, gg->gla,
+		    gg->prot, &gg->gpa);
+		KASSERT(error == 0 || error == 1 || error == -1,
+		    ("%s: vmm_gla2gpa unknown error %d", __func__, error));
+		if (error >= 0) {
+			/*
+			 * error = 0: the translation was successful
+			 * error = 1: a fault was injected into the guest
+			 */
+			gg->fault = error;
+			error = 0;
+		} else {
+			error = EFAULT;
+		}
+		break;
+	}
+	case VM_ACTIVATE_CPU:
+		vac = (struct vm_activate_cpu *)data;
+		error = vm_activate_cpu(sc->vm, vac->vcpuid);
+		break;
+	case VM_GET_CPUS:
+		error = 0;
+		vm_cpuset = (struct vm_cpuset *)data;
+		size = vm_cpuset->cpusetsize;
+		if (size < sizeof(cpuset_t) || size > CPU_MAXSIZE / NBBY) {
+			error = ERANGE;
+			break;
+		}
+		cpuset = malloc(size, M_TEMP, M_WAITOK | M_ZERO);
+		if (vm_cpuset->which == VM_ACTIVE_CPUS)
+			*cpuset = vm_active_cpus(sc->vm);
+		else if (vm_cpuset->which == VM_SUSPENDED_CPUS)
+			*cpuset = vm_suspended_cpus(sc->vm);
+		else
+			error = EINVAL;
+		if (error == 0)
+			error = copyout(cpuset, vm_cpuset->cpus, size);
+		free(cpuset, M_TEMP);
+		break;
+	case VM_SET_INTINFO:
+		vmii = (struct vm_intinfo *)data;
+		error = vm_exit_intinfo(sc->vm, vmii->vcpuid, vmii->info1);
+		break;
+	case VM_GET_INTINFO:
+		vmii = (struct vm_intinfo *)data;
+		error = vm_get_intinfo(sc->vm, vmii->vcpuid, &vmii->info1,
+		    &vmii->info2);
 		break;
 	default:
 		error = ENOTTY;

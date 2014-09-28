@@ -8,13 +8,13 @@
 .error bsd.libnames.mk cannot be included directly.
 .endif
 
+.sinclude <src.libnames.mk>
+
 LIBCRT0?=	${DESTDIR}${LIBDIR}/crt0.o
 
 LIBALIAS?=	${DESTDIR}${LIBDIR}/libalias.a
 LIBARCHIVE?=	${DESTDIR}${LIBDIR}/libarchive.a
 LIBASN1?=	${DESTDIR}${LIBDIR}/libasn1.a
-LIBATF_C?=	${DESTDIR}${LIBDIR}/libatf-c.a
-LIBATF_CXX?=	${DESTDIR}${LIBDIR}/libatf-c++.a
 LIBATM?=	${DESTDIR}${LIBDIR}/libatm.a
 LIBAUDITD?=	${DESTDIR}${LIBDIR}/libauditd.a
 LIBAVL?=	${DESTDIR}${LIBDIR}/libavl.a
@@ -24,10 +24,8 @@ LIBBSDXML?=	${DESTDIR}${LIBDIR}/libbsdxml.a
 LIBBSM?=	${DESTDIR}${LIBDIR}/libbsm.a
 LIBBSNMP?=	${DESTDIR}${LIBDIR}/libbsnmp.a
 LIBBZ2?=	${DESTDIR}${LIBDIR}/libbz2.a
-.if ${MK_LIBCPLUSPLUS} != "no"
 LIBCXXRT?=	${DESTDIR}${LIBDIR}/libcxxrt.a
 LIBCPLUSPLUS?=	${DESTDIR}${LIBDIR}/libc++.a
-.endif
 LIBC?=		${DESTDIR}${LIBDIR}/libc.a
 LIBC_PIC?=	${DESTDIR}${LIBDIR}/libc_pic.a
 LIBCALENDAR?=	${DESTDIR}${LIBDIR}/libcalendar.a
@@ -59,17 +57,11 @@ LIBGNUREGEX?=	${DESTDIR}${LIBDIR}/libgnuregex.a
 LIBGSSAPI?=	${DESTDIR}${LIBDIR}/libgssapi.a
 LIBGSSAPI_KRB5?= ${DESTDIR}${LIBDIR}/libgssapi_krb5.a
 LIBHDB?=	${DESTDIR}${LIBDIR}/libhdb.a
-LIBHISTORY?=	${DESTDIR}${LIBDIR}/libhistory.a
 LIBHEIMBASE?=	${DESTDIR}${LIBDIR}/libheimbase.a
-LIBHEIMIPCC?=	${DESTDIR}${LIBPRIVATEDIR}/libheimipcc.a
-LIBHEIMIPCS?=	${DESTDIR}${LIBPRIVATEDIR}/libheimipcs.a
 LIBHEIMNTLM?=	${DESTDIR}${LIBDIR}/libheimntlm.a
 LIBHEIMSQLITE?=	${DESTDIR}${LIBDIR}/libheimsqlite.a
 LIBHX509?=	${DESTDIR}${LIBDIR}/libhx509.a
 LIBIPSEC?=	${DESTDIR}${LIBDIR}/libipsec.a
-.if ${MK_IPX} != "no"
-LIBIPX?=	${DESTDIR}${LIBDIR}/libipx.a
-.endif
 LIBJAIL?=	${DESTDIR}${LIBDIR}/libjail.a
 LIBKADM5CLNT?=	${DESTDIR}${LIBDIR}/libkadm5clnt.a
 LIBKADM5SRV?=	${DESTDIR}${LIBDIR}/libkadm5srv.a
@@ -80,9 +72,6 @@ LIBKICONV?=	${DESTDIR}${LIBDIR}/libkiconv.a
 LIBKRB5?=	${DESTDIR}${LIBDIR}/libkrb5.a
 LIBKVM?=	${DESTDIR}${LIBDIR}/libkvm.a
 LIBL?=		${DESTDIR}${LIBDIR}/libl.a
-.if ${MK_LDNS} != "no"
-LIBLDNS?=	${DESTDIR}${LIBPRIVATEDIR}/libldns.a
-.endif
 LIBLN?=		"don't use LIBLN, use LIBL"
 LIBLZMA?=	${DESTDIR}${LIBDIR}/liblzma.a
 LIBM?=		${DESTDIR}${LIBDIR}/libm.a
@@ -90,9 +79,7 @@ LIBMAGIC?=	${DESTDIR}${LIBDIR}/libmagic.a
 LIBMD?=		${DESTDIR}${LIBDIR}/libmd.a
 LIBMEMSTAT?=	${DESTDIR}${LIBDIR}/libmemstat.a
 LIBMENU?=	${DESTDIR}${LIBDIR}/libmenu.a
-.if ${MK_SENDMAIL} != "no"
 LIBMILTER?=	${DESTDIR}${LIBDIR}/libmilter.a
-.endif
 LIBMP?=		${DESTDIR}${LIBDIR}/libmp.a
 LIBNCURSES?=	${DESTDIR}${LIBDIR}/libncurses.a
 LIBNCURSESW?=	${DESTDIR}${LIBDIR}/libncursesw.a
@@ -103,7 +90,9 @@ LIBNVPAIR?=	${DESTDIR}${LIBDIR}/libnvpair.a
 LIBOPIE?=	${DESTDIR}${LIBDIR}/libopie.a
 
 # The static PAM library doesn't know its secondary dependencies,
-# so we have to specify them explicitly.
+# so we have to specify them explicitly. Ths is an unfortunate,
+# but necessary departure from testing MK_ flags to define
+# values here.
 LIBPAM?=	${DESTDIR}${LIBDIR}/libpam.a
 MINUSLPAM=	-lpam
 .if defined(LDFLAGS) && !empty(LDFLAGS:M-static)
@@ -134,7 +123,6 @@ LIBPROC?=	${DESTDIR}${LIBDIR}/libproc.a
 LIBPROCSTAT?=	${DESTDIR}${LIBDIR}/libprocstat.a
 LIBPTHREAD?=	${DESTDIR}${LIBDIR}/libpthread.a
 LIBRADIUS?=	${DESTDIR}${LIBDIR}/libradius.a
-LIBREADLINE?=	${DESTDIR}${LIBDIR}/libreadline.a
 LIBROKEN?=	${DESTDIR}${LIBDIR}/libroken.a
 LIBRPCSVC?=	${DESTDIR}${LIBDIR}/librpcsvc.a
 LIBRPCSEC_GSS?=	${DESTDIR}${LIBDIR}/librpcsec_gss.a
@@ -143,21 +131,18 @@ LIBRTLD_DB?=	${DESTDIR}${LIBDIR}/librtld_db.a
 LIBSBUF?=	${DESTDIR}${LIBDIR}/libsbuf.a
 LIBSDP?=	${DESTDIR}${LIBDIR}/libsdp.a
 LIBSMB?=	${DESTDIR}${LIBDIR}/libsmb.a
-LIBSSH?=	${DESTDIR}${LIBPRIVATEDIR}/libssh.a
 LIBSSL?=	${DESTDIR}${LIBDIR}/libssl.a
+LIBSSP_NONSHARED?=	${DESTDIR}${LIBDIR}/libssp_nonshared.a
 LIBSTAND?=	${DESTDIR}${LIBDIR}/libstand.a
 LIBSTDCPLUSPLUS?= ${DESTDIR}${LIBDIR}/libstdc++.a
 LIBTACPLUS?=	${DESTDIR}${LIBDIR}/libtacplus.a
 LIBTERMCAP?=	${DESTDIR}${LIBDIR}/libtermcap.a
+LIBTERMCAPW?=	${DESTDIR}${LIBDIR}/libtermcapw.a
 LIBTERMLIB?=	"don't use LIBTERMLIB, use LIBTERMCAP"
 LIBTINFO?=	"don't use LIBTINFO, use LIBNCURSES"
-LIBUCL?=	${DESTDIR}${LIBPRIVATEDIR}/libucl.a
 LIBUFS?=	${DESTDIR}${LIBDIR}/libufs.a
 LIBUGIDFW?=	${DESTDIR}${LIBDIR}/libugidfw.a
 LIBUMEM?=	${DESTDIR}${LIBDIR}/libumem.a
-.if ${MK_UNBOUND} != "no"
-LIBUNBOUND?=	${DESTDIR}${LIBPRIVATEDIR}/libunbound.a
-.endif
 LIBUSBHID?=	${DESTDIR}${LIBDIR}/libusbhid.a
 LIBUSB?=	${DESTDIR}${LIBDIR}/libusb.a
 LIBULOG?=	${DESTDIR}${LIBDIR}/libulog.a

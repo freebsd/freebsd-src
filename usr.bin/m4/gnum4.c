@@ -1,4 +1,4 @@
-/* $OpenBSD: gnum4.c,v 1.42 2011/11/06 12:25:43 espie Exp $ */
+/* $OpenBSD: gnum4.c,v 1.46 2014/07/10 14:12:31 espie Exp $ */
 
 /*
  * Copyright (c) 1999 Marc Espie
@@ -196,10 +196,12 @@ static void addchars(const char *, size_t);
 static void addchar(int);
 static char *twiddle(const char *);
 static char *getstring(void);
-static void exit_regerror(int, regex_t *);
-static void do_subst(const char *, regex_t *, const char *, regmatch_t *);
-static void do_regexpindex(const char *, regex_t *, regmatch_t *);
-static void do_regexp(const char *, regex_t *, const char *, regmatch_t *);
+static void exit_regerror(int, regex_t *, const char *);
+static void do_subst(const char *, regex_t *, const char *, const char *,
+    regmatch_t *);
+static void do_regexpindex(const char *, regex_t *, const char *, regmatch_t *);
+static void do_regexp(const char *, regex_t *, const char *, const char *,
+    regmatch_t *);
 static void add_sub(int, const char *, regex_t *, regmatch_t *);
 static void add_replace(const char *, regex_t *, const char *, regmatch_t *);
 #define addconstantstring(s) addchars((s), sizeof(s)-1)
@@ -243,7 +245,7 @@ getstring(void)
 
 
 static void
-exit_regerror(int er, regex_t *re)
+exit_regerror(int er, regex_t *re, const char *source)
 {
 	size_t	errlen;
 	char	*errbuf;
@@ -252,7 +254,7 @@ exit_regerror(int er, regex_t *re)
 	errbuf = xalloc(errlen,
 	    "malloc in regerror: %lu", (unsigned long)errlen);
 	regerror(er, re, errbuf, errlen);
-	m4errx(1, "regular expression error: %s.", errbuf);
+	m4errx(1, "regular expression error in %s: %s.", source, errbuf);
 }
 
 static void
@@ -296,7 +298,7 @@ add_replace(const char *string, regex_t *re, const char *replace, regmatch_t *pm
 				p++;
 				continue;
 			}
-			if (isdigit(p[1])) {
+			if (isdigit((unsigned char)p[1])) {
 				add_sub(*(++p) - '0', string, re, pm);
 				continue;
 			}
@@ -306,7 +308,8 @@ add_replace(const char *string, regex_t *re, const char *replace, regmatch_t *pm
 }
 
 static void
-do_subst(const char *string, regex_t *re, const char *replace, regmatch_t *pm)
+do_subst(const char *string, regex_t *re, const char *source,
+    const char *replace, regmatch_t *pm)
 {
 	int error;
 	int flags = 0;
@@ -341,12 +344,13 @@ do_subst(const char *string, regex_t *re, const char *replace, regmatch_t *pm)
 		string += pm[0].rm_eo;
 	}
 	if (error != REG_NOMATCH)
-		exit_regerror(error, re);
+		exit_regerror(error, re, source);
 	pbstr(string);
 }
 
 static void
-do_regexp(const char *string, regex_t *re, const char *replace, regmatch_t *pm)
+do_regexp(const char *string, regex_t *re, const char *source,
+    const char *replace, regmatch_t *pm)
 {
 	int error;
 
@@ -358,12 +362,13 @@ do_regexp(const char *string, regex_t *re, const char *replace, regmatch_t *pm)
 	case REG_NOMATCH:
 		break;
 	default:
-		exit_regerror(error, re);
+		exit_regerror(error, re, source);
 	}
 }
 
 static void
-do_regexpindex(const char *string, regex_t *re, regmatch_t *pm)
+do_regexpindex(const char *string, regex_t *re, const char *source,
+    regmatch_t *pm)
 {
 	int error;
 
@@ -375,7 +380,7 @@ do_regexpindex(const char *string, regex_t *re, regmatch_t *pm)
 		pbnum(-1);
 		break;
 	default:
-		exit_regerror(error, re);
+		exit_regerror(error, re, source);
 	}
 }
 
@@ -459,6 +464,7 @@ dopatsubst(const char *argv[], int argc)
 		regex_t re;
 		regmatch_t *pmatch;
 		int mode = REG_EXTENDED;
+		const char *source;
 		size_t l = strlen(argv[3]);
 
 		if (!mimic_gnu ||
@@ -466,13 +472,14 @@ dopatsubst(const char *argv[], int argc)
 		    (l > 0 && argv[3][l-1] == '$'))
 			mode |= REG_NEWLINE;
 
-		error = regcomp(&re, mimic_gnu ? twiddle(argv[3]) : argv[3],
-		    mode);
+		source = mimic_gnu ? twiddle(argv[3]) : argv[3];
+		error = regcomp(&re, source, mode);
 		if (error != 0)
-			exit_regerror(error, &re);
+			exit_regerror(error, &re, source);
 
-		pmatch = xalloc(sizeof(regmatch_t) * (re.re_nsub+1), NULL);
-		do_subst(argv[2], &re,
+		pmatch = xreallocarray(NULL, re.re_nsub+1, sizeof(regmatch_t),
+		    NULL);
+		do_subst(argv[2], &re, source,
 		    argc > 4 && argv[4] != NULL ? argv[4] : "", pmatch);
 		free(pmatch);
 		regfree(&re);
@@ -486,6 +493,7 @@ doregexp(const char *argv[], int argc)
 	int error;
 	regex_t re;
 	regmatch_t *pmatch;
+	const char *source;
 
 	if (argc <= 3) {
 		warnx("Too few arguments to regexp");
@@ -498,16 +506,16 @@ doregexp(const char *argv[], int argc)
 		else
 			pbstr(argv[4]);
 	}
-	error = regcomp(&re, mimic_gnu ? twiddle(argv[3]) : argv[3],
-	    REG_EXTENDED|REG_NEWLINE);
+	source = mimic_gnu ? twiddle(argv[3]) : argv[3];
+	error = regcomp(&re, source, REG_EXTENDED|REG_NEWLINE);
 	if (error != 0)
-		exit_regerror(error, &re);
+		exit_regerror(error, &re, source);
 
-	pmatch = xalloc(sizeof(regmatch_t) * (re.re_nsub+1), NULL);
+	pmatch = xreallocarray(NULL, re.re_nsub+1, sizeof(regmatch_t), NULL);
 	if (argc == 4 || argv[4] == NULL)
-		do_regexpindex(argv[2], &re, pmatch);
+		do_regexpindex(argv[2], &re, source, pmatch);
 	else
-		do_regexp(argv[2], &re, argv[4], pmatch);
+		do_regexp(argv[2], &re, source, argv[4], pmatch);
 	free(pmatch);
 	regfree(&re);
 }

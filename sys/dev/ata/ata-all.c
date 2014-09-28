@@ -80,9 +80,8 @@ int ata_dma_check_80pin = 1;
 
 /* sysctl vars */
 static SYSCTL_NODE(_hw, OID_AUTO, ata, CTLFLAG_RD, 0, "ATA driver parameters");
-TUNABLE_INT("hw.ata.ata_dma_check_80pin", &ata_dma_check_80pin);
 SYSCTL_INT(_hw_ata, OID_AUTO, ata_dma_check_80pin,
-	   CTLFLAG_RW, &ata_dma_check_80pin, 1,
+	   CTLFLAG_RWTUN, &ata_dma_check_80pin, 0,
 	   "Check for 80pin cable before setting ATA DMA mode");
 FEATURE(ata_cam, "ATA devices are accessed through the cam(4) driver");
 
@@ -360,24 +359,23 @@ ata_interrupt(void *data)
 static void
 ata_interrupt_locked(void *data)
 {
-    struct ata_channel *ch = (struct ata_channel *)data;
-    struct ata_request *request;
+	struct ata_channel *ch = (struct ata_channel *)data;
+	struct ata_request *request;
 
-    do {
 	/* ignore interrupt if its not for us */
 	if (ch->hw.status && !ch->hw.status(ch->dev))
-	    break;
+		return;
 
 	/* do we have a running request */
 	if (!(request = ch->running))
-	    break;
+		return;
 
 	ATA_DEBUG_RQ(request, "interrupt");
 
 	/* safetycheck for the right state */
 	if (ch->state == ATA_IDLE) {
-	    device_printf(request->dev, "interrupt on idle channel ignored\n");
-	    break;
+		device_printf(request->dev, "interrupt on idle channel ignored\n");
+		return;
 	}
 
 	/*
@@ -385,13 +383,12 @@ ata_interrupt_locked(void *data)
 	 * if it finishes immediately otherwise wait for next interrupt
 	 */
 	if (ch->hw.end_transaction(request) == ATA_OP_FINISHED) {
-	    ch->running = NULL;
-	    if (ch->state == ATA_ACTIVE)
-		ch->state = ATA_IDLE;
-	    ata_cam_end_transaction(ch->dev, request);
-	    return;
+		ch->running = NULL;
+		if (ch->state == ATA_ACTIVE)
+			ch->state = ATA_IDLE;
+		ata_cam_end_transaction(ch->dev, request);
+		return;
 	}
-    } while (0);
 }
 
 static void

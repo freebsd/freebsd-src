@@ -114,10 +114,6 @@ __FBSDID("$FreeBSD$");
 
 typedef int ofw_vec_t(void *);
 
-#ifdef DDB
-extern vm_offset_t ksym_start, ksym_end;
-#endif
-
 int dtlb_slots;
 int itlb_slots;
 struct tlb_entry *kernel_tlbs;
@@ -190,8 +186,8 @@ cpu_startup(void *arg)
 	EVENTHANDLER_REGISTER(shutdown_final, sparc64_shutdown_final, NULL,
 	    SHUTDOWN_PRI_LAST);
 
-	printf("avail memory = %lu (%lu MB)\n", cnt.v_free_count * PAGE_SIZE,
-	    cnt.v_free_count / ((1024 * 1024) / PAGE_SIZE));
+	printf("avail memory = %lu (%lu MB)\n", vm_cnt.v_free_count * PAGE_SIZE,
+	    vm_cnt.v_free_count / ((1024 * 1024) / PAGE_SIZE));
 
 	if (bootverbose)
 		printf("machine: %s\n", sparc64_model);

@@ -1,6 +1,6 @@
 # $FreeBSD$
 
-.include <bsd.own.mk>
+.include <src.opts.mk>
 
 PROG=	hastd
 SRCS=	activemap.c
@@ -30,7 +30,7 @@ CFLAGS+=-DINET
 CFLAGS+=-DINET6
 .endif
 
-DPADD=	${LIBGEOM} ${LIBBSDXML} ${LIBSBUF} ${LIBL} ${LIBPTHREAD} ${LIBUTIL}
+DPADD=	${LIBGEOM} ${LIBBSDXML} ${LIBSBUF} ${LIBPTHREAD} ${LIBUTIL}
 LDADD=	-lgeom -lbsdxml -lsbuf -lpthread -lutil
 .if ${MK_OPENSSL} != "no"
 DPADD+=	${LIBCRYPTO}

@@ -895,15 +895,17 @@ mdstart_swap(struct md_s *sc, struct bio *bp)
 		else
 			vm_page_activate(m);
 		vm_page_unlock(m);
-		if (bp->bio_cmd == BIO_WRITE)
+		if (bp->bio_cmd == BIO_WRITE) {
 			vm_page_dirty(m);
+			vm_pager_page_unswapped(m);
+		}
 
 		/* Actions on further pages start at offset 0 */
 		p += PAGE_SIZE - offs;
 		offs = 0;
 		ma_offs += len;
 	}
-	vm_object_pip_subtract(sc->object, 1);
+	vm_object_pip_wakeup(sc->object);
 	VM_OBJECT_WUNLOCK(sc->object);
 	return (rv != VM_PAGER_ERROR ? 0 : ENOSPC);
 }

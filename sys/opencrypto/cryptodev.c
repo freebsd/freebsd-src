@@ -54,6 +54,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/module.h>
 #include <sys/fcntl.h>
 #include <sys/bus.h>
+#include <sys/user.h>
 
 #include <opencrypto/cryptodev.h>
 #include <opencrypto/xform.h>
@@ -281,30 +282,27 @@ struct fcrypt {
 	int		sesn;
 };
 
-static	int cryptof_rw(struct file *fp, struct uio *uio,
-		    struct ucred *cred, int flags, struct thread *);
-static	int cryptof_truncate(struct file *, off_t, struct ucred *,
-		    struct thread *);
 static	int cryptof_ioctl(struct file *, u_long, void *,
 		    struct ucred *, struct thread *);
-static	int cryptof_poll(struct file *, int, struct ucred *, struct thread *);
-static	int cryptof_kqfilter(struct file *, struct knote *);
 static	int cryptof_stat(struct file *, struct stat *,
 		    struct ucred *, struct thread *);
 static	int cryptof_close(struct file *, struct thread *);
+static	int cryptof_fill_kinfo(struct file *, struct kinfo_file *,
+		    struct filedesc *);
 
 static struct fileops cryptofops = {
-    .fo_read = cryptof_rw,
-    .fo_write = cryptof_rw,
-    .fo_truncate = cryptof_truncate,
+    .fo_read = invfo_rdwr,
+    .fo_write = invfo_rdwr,
+    .fo_truncate = invfo_truncate,
     .fo_ioctl = cryptof_ioctl,
-    .fo_poll = cryptof_poll,
-    .fo_kqfilter = cryptof_kqfilter,
+    .fo_poll = invfo_poll,
+    .fo_kqfilter = invfo_kqfilter,
     .fo_stat = cryptof_stat,
     .fo_close = cryptof_close,
     .fo_chmod = invfo_chmod,
     .fo_chown = invfo_chown,
     .fo_sendfile = invfo_sendfile,
+    .fo_fill_kinfo = cryptof_fill_kinfo,
 };
 
 static struct csession *csefind(struct fcrypt *, u_int);
@@ -320,29 +318,6 @@ static	int cryptodev_op(struct csession *, struct crypt_op *,
 static	int cryptodev_key(struct crypt_kop *);
 static	int cryptodev_find(struct crypt_find_op *);
 
-static int
-cryptof_rw(
-	struct file *fp,
-	struct uio *uio,
-	struct ucred *active_cred,
-	int flags,
-	struct thread *td)
-{
-
-	return (EIO);
-}
-
-static int
-cryptof_truncate(
-	struct file *fp,
-	off_t length,
-	struct ucred *active_cred,
-	struct thread *td)
-{
-
-	return (EINVAL);
-}
-
 /*
  * Check a crypto identifier to see if it requested
  * a software device/driver.  This can be done either
@@ -351,11 +326,14 @@ cryptof_truncate(
 static int
 checkforsoftware(int crid)
 {
-	if (crid & CRYPTOCAP_F_SOFTWARE)
-		return EINVAL;		/* XXX */
-	if ((crid & CRYPTOCAP_F_HARDWARE) == 0 &&
-	    (crypto_getcaps(crid) & CRYPTOCAP_F_HARDWARE) == 0)
-		return EINVAL;		/* XXX */
+
+	if (!crypto_devallowsoft) {
+		if (crid & CRYPTOCAP_F_SOFTWARE)
+			return EINVAL;		/* XXX */
+		if ((crid & CRYPTOCAP_F_HARDWARE) == 0 &&
+		    (crypto_getcaps(crid) & CRYPTOCAP_F_HARDWARE) == 0)
+			return EINVAL;		/* XXX */
+	}
 	return 0;
 }
 
@@ -958,26 +936,6 @@ cryptodev_find(struct crypt_find_op *find)
 
 /* ARGSUSED */
 static int
-cryptof_poll(
-	struct file *fp,
-	int events,
-	struct ucred *active_cred,
-	struct thread *td)
-{
-
-	return (0);
-}
-
-/* ARGSUSED */
-static int
-cryptof_kqfilter(struct file *fp, struct knote *kn)
-{
-
-	return (0);
-}
-
-/* ARGSUSED */
-static int
 cryptof_stat(
 	struct file *fp,
 	struct stat *sb,
@@ -1002,6 +960,14 @@ cryptof_close(struct file *fp, struct thread *td)
 	free(fcr, M_XDATA);
 	fp->f_data = NULL;
 	return 0;
+}
+
+static int
+cryptof_fill_kinfo(struct file *fp, struct kinfo_file *kif, struct filedesc *fdp)
+{
+
+	kif->kf_type = KF_TYPE_CRYPTO;
+	return (0);
 }
 
 static struct csession *
@@ -1044,12 +1010,7 @@ csecreate(struct fcrypt *fcr, u_int64_t sid, caddr_t key, u_int64_t keylen,
 {
 	struct csession *cse;
 
-#ifdef INVARIANTS
-	/* NB: required when mtx_init is built with INVARIANTS */
 	cse = malloc(sizeof(struct csession), M_XDATA, M_NOWAIT | M_ZERO);
-#else
-	cse = malloc(sizeof(struct csession), M_XDATA, M_NOWAIT);
-#endif
 	if (cse == NULL)
 		return NULL;
 	mtx_init(&cse->lock, "cryptodev", "crypto session lock", MTX_DEF);

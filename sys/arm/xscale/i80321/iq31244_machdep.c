@@ -103,10 +103,6 @@ __FBSDID("$FreeBSD$");
 /* this should be evenly divisable by PAGE_SIZE / L2_TABLE_SIZE_REAL (or 4) */
 #define NUM_KERNEL_PTS		(KERNEL_PT_AFKERNEL + KERNEL_PT_AFKERNEL_NUM)
 
-extern u_int data_abort_handler_address;
-extern u_int prefetch_abort_handler_address;
-extern u_int undefined_handler_address;
-
 struct pv_addr kernel_pt_table[NUM_KERNEL_PTS];
 
 /* Physical and virtual addresses for some global pages */
@@ -132,14 +128,14 @@ static const struct arm_devmap_entry iq80321_devmap[] = {
 		    IQ80321_OBIO_BASE,
 		    IQ80321_OBIO_SIZE,
 		    VM_PROT_READ|VM_PROT_WRITE,
-		    PTE_NOCACHE,
+		    PTE_DEVICE,
 	    },
 	    {
 	    	    IQ80321_IOW_VBASE,
 		    VERDE_OUT_XLATE_IO_WIN0_BASE,
 		    VERDE_OUT_XLATE_IO_WIN_SIZE,
 		    VM_PROT_READ|VM_PROT_WRITE,
-		    PTE_NOCACHE,
+		    PTE_DEVICE,
 	    },
 	
 	    {
@@ -147,7 +143,7 @@ static const struct arm_devmap_entry iq80321_devmap[] = {
 		    VERDE_PMMR_BASE,
 		    VERDE_PMMR_SIZE,
 		    VM_PROT_READ|VM_PROT_WRITE,
-		    PTE_NOCACHE,
+		    PTE_DEVICE,
 	    },
 	    {
 		    0,
@@ -322,11 +318,6 @@ initarm(struct arm_boot_params *abp)
 	physmem = memsize / PAGE_SIZE;
 	cninit();
 
-	/* Set stack for exception handlers */
-	
-	data_abort_handler_address = (u_int)data_abort_handler;
-	prefetch_abort_handler_address = (u_int)prefetch_abort_handler;
-	undefined_handler_address = (u_int)undefinedinstruction_bounce;
 	undefined_init();
 				
 	init_proc0(kernelstack.pv_va);
@@ -352,6 +343,10 @@ initarm(struct arm_boot_params *abp)
 	 * Prepare the list of physical memory available to the vm subsystem.
 	 */
 	arm_physmem_hardware_region(SDRAM_START, memsize);
+	arm_physmem_exclude_region(freemem_pt, KERNPHYSADDR -
+	    freemem_pt, EXFLAG_NOALLOC);
+	arm_physmem_exclude_region(freemempos, KERNPHYSADDR - 0x100000 -
+	    freemempos, EXFLAG_NOALLOC);			
 	arm_physmem_exclude_region(abp->abp_physaddr, 
 	    virtual_avail - KERNVIRTADDR, EXFLAG_NOALLOC);
 	arm_physmem_init_kernel_globals();

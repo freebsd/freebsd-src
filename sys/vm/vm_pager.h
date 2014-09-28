@@ -106,6 +106,8 @@ static __inline int vm_pager_get_pages(vm_object_t, vm_page_t *, int, int);
 static __inline boolean_t vm_pager_has_page(vm_object_t, vm_pindex_t, int *, int *);
 void vm_pager_init(void);
 vm_object_t vm_pager_object_lookup(struct pagerlst *, void *);
+void vm_pager_free_nonreq(vm_object_t object, vm_page_t ma[], int reqpage,
+    int npages);
 
 /*
  *	vm_page_get_pages:
@@ -187,7 +189,7 @@ static __inline void
 vm_pager_page_unswapped(vm_page_t m)
 {
 
-	VM_OBJECT_ASSERT_WLOCKED(m->object);
+	VM_OBJECT_ASSERT_LOCKED(m->object);
 	if (pagertab[m->object->type]->pgo_pageunswapped)
 		(*pagertab[m->object->type]->pgo_pageunswapped)(m);
 }

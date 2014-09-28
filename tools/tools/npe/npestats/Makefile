@@ -1,8 +1,10 @@
 # $FreeBSD$
 
 PROG=	npestats
-SRCS=	main.c statfoo.c npestats.c
+SRCS=	main.c npestats.c
 BINDIR=	/usr/local/bin
-NO_MAN=	true
+MAN=
+USEPRIVATELIB=
+LDADD=	-lbsdstat
 
 .include <bsd.prog.mk>

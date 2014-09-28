@@ -181,9 +181,8 @@ typedef struct {
 } IxNpeDlNpeMgrStateInfoBlock;
 
 static int npe_debug = 0;
-SYSCTL_INT(_debug, OID_AUTO, ixp425npe, CTLFLAG_RW, &npe_debug,
+SYSCTL_INT(_debug, OID_AUTO, ixp425npe, CTLFLAG_RWTUN, &npe_debug,
 	   0, "IXP4XX NPE debug msgs");
-TUNABLE_INT("debug.ixp425npe", &npe_debug);
 #define	DPRINTF(dev, fmt, ...) do {					\
 	if (npe_debug) device_printf(dev, fmt, __VA_ARGS__);		\
 } while (0)

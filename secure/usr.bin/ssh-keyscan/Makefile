@@ -1,13 +1,13 @@
 # $FreeBSD$
 
-.include <bsd.own.mk>
+.include <src.opts.mk>
 
 PROG=	ssh-keyscan
 SRCS=	ssh-keyscan.c roaming_dummy.c
 CFLAGS+=-I${SSHDIR} -include ssh_namespace.h
 
 DPADD=	${LIBSSH}
-LDADD=	-lssh
+LDADD=	${LDSSH}
 USEPRIVATELIB= ssh
 
 .if ${MK_LDNS} != "no"

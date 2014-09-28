@@ -154,7 +154,7 @@ blk_write(struct dumperinfo *di, char *ptr, vm_paddr_t pa, size_t sz)
 			sz -= len;
 		} else {
 			for (i = 0; i < len; i += PAGE_SIZE)
-				dump_va = pmap_kenter_temp(pa + i,
+				dump_va = pmap_kenter_temporary(pa + i,
 				    (i + fragsz) >> PAGE_SHIFT);
 			fragsz += len;
 			pa += len;
@@ -210,7 +210,15 @@ minidumpsys(struct dumperinfo *di)
 	int i, k, bit, error;
 	char *addr;
 
-	/* Flush cache */
+	/*
+	 * Flush caches.  Note that in the SMP case this operates only on the
+	 * current CPU's L1 cache.  Before we reach this point, code in either
+	 * the system shutdown or kernel debugger has called stop_cpus() to stop
+	 * all cores other than this one.  Part of the ARM handling of
+	 * stop_cpus() is to call wbinv_all() on that core's local L1 cache.  So
+	 * by time we get to here, all that remains is to flush the L1 for the
+	 * current CPU, then the L2.
+	 */
 	cpu_idcache_wbinv_all();
 	cpu_l2cache_wbinv_all();
 
@@ -236,7 +244,7 @@ minidumpsys(struct dumperinfo *di)
 		}
 		if (pmap_pde_v(pdp) && pmap_pde_page(pdp)) {
 			/* Set bit for each valid page in this 1MB block */
-			addr = pmap_kenter_temp(*pdp & L1_C_ADDR_MASK, 0);
+			addr = pmap_kenter_temporary(*pdp & L1_C_ADDR_MASK, 0);
 			pt = (pt_entry_t*)(addr +
 			    (((uint32_t)*pdp  & L1_C_ADDR_MASK) & PAGE_MASK));
 			for (k = 0; k < 256; k++) {

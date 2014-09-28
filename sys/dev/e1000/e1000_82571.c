@@ -1,6 +1,6 @@
 /******************************************************************************
 
-  Copyright (c) 2001-2013, Intel Corporation 
+  Copyright (c) 2001-2014, Intel Corporation 
   All rights reserved.
   
   Redistribution and use in source and binary forms, with or without 
@@ -1453,10 +1453,14 @@ static void e1000_clear_vfta_82571(struct e1000_hw *hw)
 static bool e1000_check_mng_mode_82574(struct e1000_hw *hw)
 {
 	u16 data;
+	s32 ret_val;
 
 	DEBUGFUNC("e1000_check_mng_mode_82574");
 
-	hw->nvm.ops.read(hw, NVM_INIT_CONTROL2_REG, 1, &data);
+	ret_val = hw->nvm.ops.read(hw, NVM_INIT_CONTROL2_REG, 1, &data);
+	if (ret_val)
+		return FALSE;
+
 	return (data & E1000_NVM_INIT_CTRL2_MNGM) != 0;
 }
 

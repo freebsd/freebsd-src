@@ -876,6 +876,12 @@ http_parse_mtime(const char *p, time_t *mtime)
 	strncpy(locale, setlocale(LC_TIME, NULL), sizeof(locale));
 	setlocale(LC_TIME, "C");
 	r = strptime(p, "%a, %d %b %Y %H:%M:%S GMT", &tm);
+	/*
+	 * Some proxies use UTC in response, but it should still be
+	 * parsed. RFC2616 states GMT and UTC are exactly equal for HTTP.
+	 */
+	if (r == NULL)
+		r = strptime(p, "%a, %d %b %Y %H:%M:%S UTC", &tm);
 	/* XXX should add support for date-2 and date-3 */
 	setlocale(LC_TIME, locale);
 	if (r == NULL)
@@ -1024,7 +1030,7 @@ typedef struct {
 static void
 init_http_auth_params(http_auth_params_t *s)
 {
-	s->scheme = s->realm = s->user = s->password = 0;
+	s->scheme = s->realm = s->user = s->password = NULL;
 }
 
 static void
@@ -1123,7 +1129,7 @@ CvtHex(IN HASH Bin, OUT HASHHEX Hex)
 		Hex[i*2] = hexchars[j];
 		j = Bin[i] & 0xf;
 		Hex[i*2+1] = hexchars[j];
-	};
+	}
 	Hex[HASHHEXLEN] = '\0';
 };
 
@@ -1158,7 +1164,7 @@ DigestCalcHA1(
 		MD5Update(&Md5Ctx, ":", 1);
 		MD5Update(&Md5Ctx, pszCNonce, strlen(pszCNonce));
 		MD5Final(HA1, &Md5Ctx);
-	};
+	}
 	CvtHex(HA1, SessionKey);
 }
 
@@ -1192,7 +1198,7 @@ DigestCalcResponse(
 	if (strcasecmp(pszQop, "auth-int") == 0) {
 		MD5Update(&Md5Ctx, ":", 1);
 		MD5Update(&Md5Ctx, HEntity, HASHHEXLEN);
-	};
+	}
 	MD5Final(HA2, &Md5Ctx);
 	CvtHex(HA2, HA2Hex);
 
@@ -1209,7 +1215,7 @@ DigestCalcResponse(
 		MD5Update(&Md5Ctx, ":", 1);
 		MD5Update(&Md5Ctx, pszQop, strlen(pszQop));
 		MD5Update(&Md5Ctx, ":", 1);
-	};
+	}
 	MD5Update(&Md5Ctx, HA2Hex, HASHHEXLEN);
 	MD5Final(RespHash, &Md5Ctx);
 	CvtHex(RespHash, Response);
@@ -1243,7 +1249,7 @@ http_digest_auth(conn_t *conn, const char *hdr, http_auth_challenge_t *c,
 	int r;
 	char noncecount[10];
 	char cnonce[40];
-	char *options = 0;
+	char *options = NULL;
 
 	if (!c->realm || !c->nonce) {
 		DEBUG(fprintf(stderr, "realm/nonce not set in challenge\n"));
@@ -1488,6 +1494,14 @@ http_print_html(FILE *out, FILE *in)
  * Core
  */
 
+FILE *
+http_request(struct url *URL, const char *op, struct url_stat *us,
+	struct url *purl, const char *flags)
+{
+
+	return (http_request_body(URL, op, us, purl, flags, NULL, NULL));
+}
+
 /*
  * Send a request and process the reply
  *
@@ -1495,8 +1509,9 @@ http_print_html(FILE *out, FILE *in)
  * XXX off into a separate function.
  */
 FILE *
-http_request(struct url *URL, const char *op, struct url_stat *us,
-	struct url *purl, const char *flags)
+http_request_body(struct url *URL, const char *op, struct url_stat *us,
+	struct url *purl, const char *flags, const char *content_type,
+	const char *body)
 {
 	char timebuf[80];
 	char hbuf[MAXHOSTNAMELEN + 7], *host;
@@ -1513,6 +1528,7 @@ http_request(struct url *URL, const char *op, struct url_stat *us,
 	http_headerbuf_t headerbuf;
 	http_auth_challenges_t server_challenges;
 	http_auth_challenges_t proxy_challenges;
+	size_t body_len;
 
 	/* The following calls don't allocate anything */
 	init_http_headerbuf(&headerbuf);
@@ -1677,14 +1693,30 @@ http_request(struct url *URL, const char *op, struct url_stat *us,
 			else
 				http_cmd(conn, "Referer: %s", p);
 		}
-		if ((p = getenv("HTTP_USER_AGENT")) != NULL && *p != '\0')
-			http_cmd(conn, "User-Agent: %s", p);
-		else
-			http_cmd(conn, "User-Agent: %s " _LIBFETCH_VER, getprogname());
+		if ((p = getenv("HTTP_USER_AGENT")) != NULL) {
+			/* no User-Agent if defined but empty */
+			if  (*p != '\0')
+				http_cmd(conn, "User-Agent: %s", p);
+		} else {
+			/* default User-Agent */
+			http_cmd(conn, "User-Agent: %s " _LIBFETCH_VER,
+			    getprogname());
+		}
 		if (url->offset > 0)
 			http_cmd(conn, "Range: bytes=%lld-", (long long)url->offset);
 		http_cmd(conn, "Connection: close");
+
+		if (body) {
+			body_len = strlen(body);
+			http_cmd(conn, "Content-Length: %zu", body_len);
+			if (content_type != NULL)
+				http_cmd(conn, "Content-Type: %s", content_type);
+		}
+
 		http_cmd(conn, "");
+
+		if (body)
+			fetch_write(conn, body, body_len);
 
 		/*
 		 * Force the queued request to be dispatched.  Normally, one
@@ -2035,4 +2067,13 @@ fetchListHTTP(struct url *url __unused, const char *flags __unused)
 {
 	warnx("fetchListHTTP(): not implemented");
 	return (NULL);
+}
+
+FILE *
+fetchReqHTTP(struct url *URL, const char *method, const char *flags,
+	const char *content_type, const char *body)
+{
+
+	return (http_request_body(URL, method, NULL, http_get_proxy(URL, flags),
+	    flags, content_type, body));
 }

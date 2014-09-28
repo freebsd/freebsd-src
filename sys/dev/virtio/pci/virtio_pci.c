@@ -169,6 +169,9 @@ static void	vtpci_config_intr(void *);
 
 #define vtpci_setup_msi_interrupt vtpci_setup_legacy_interrupt
 
+#define VIRTIO_PCI_CONFIG(_sc) \
+    VIRTIO_PCI_CONFIG_OFF((((_sc)->vtpci_flags & VTPCI_FLAG_MSIX)) != 0)
+
 /*
  * I/O port read/write wrappers.
  */

@@ -388,7 +388,7 @@ struct musbotg_flags {
 struct musbotg_softc {
 	struct usb_bus sc_bus;
 	union musbotg_hub_temp sc_hub_temp;
-	struct usb_hw_ep_profile sc_hw_ep_profile[16];
+	struct usb_hw_ep_profile sc_hw_ep_profile[MUSB2_EP_MAX];
 
 	struct usb_device *sc_devices[MUSB2_MAX_DEVICES];
 	struct resource *sc_io_res;

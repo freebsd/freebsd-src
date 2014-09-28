@@ -19,22 +19,22 @@ hints		"PB47.hints"
 
 # Enable the uboot environment stuff rather then the
 # redboot stuff.
-options		AR71XX_ENV_UBOOT
+options 	AR71XX_ENV_UBOOT
 
 # XXX TODO: add uboot boot parameter parsing to extract MAC, RAM.
 # Right now it will just detect 32mb out of 64mb, as well as
 # return a garbage MAC address.
-options		AR71XX_REALMEM=64*1024*1024
+options 	AR71XX_REALMEM=64*1024*1024
 
 # For DOS - enable if required
-options		MSDOSFS
+options 	MSDOSFS
 
 # uncompress - to boot read-only lzma natively from flash
 device		geom_uncompress
-options		GEOM_UNCOMPRESS
+options 	GEOM_UNCOMPRESS
 
 # Used for the static uboot partition map
 device		geom_map
 
 # Boot off of the rootfs, as defined in the geom_map setup.
-options		ROOTDEVNAME=\"ufs:map/rootfs.uncompress\"
+options 	ROOTDEVNAME=\"ufs:map/rootfs.uncompress\"

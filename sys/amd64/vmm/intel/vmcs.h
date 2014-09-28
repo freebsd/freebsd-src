@@ -49,11 +49,15 @@ int vmcs_set_msr_save(struct vmcs *vmcs, u_long g_area, u_int g_count);
 int	vmcs_init(struct vmcs *vmcs);
 int	vmcs_getreg(struct vmcs *vmcs, int running, int ident, uint64_t *rv);
 int	vmcs_setreg(struct vmcs *vmcs, int running, int ident, uint64_t val);
-int	vmcs_getdesc(struct vmcs *vmcs, int ident,
+int	vmcs_getdesc(struct vmcs *vmcs, int running, int ident,
 		     struct seg_desc *desc);
-int	vmcs_setdesc(struct vmcs *vmcs, int ident,
+int	vmcs_setdesc(struct vmcs *vmcs, int running, int ident,
 		     struct seg_desc *desc);
 
+/*
+ * Avoid header pollution caused by inline use of 'vtophys()' in vmx_cpufunc.h
+ */
+#ifdef _VMX_CPUFUNC_H_
 static __inline uint64_t
 vmcs_read(uint32_t encoding)
 {
@@ -73,6 +77,7 @@ vmcs_write(uint32_t encoding, uint64_t val)
 	error = vmwrite(encoding, val);
 	KASSERT(error == 0, ("vmcs_write(%u) error %d", encoding, error));
 }
+#endif	/* _VMX_CPUFUNC_H_ */
 
 #define	vmexit_instruction_length()	vmcs_read(VMCS_EXIT_INSTRUCTION_LENGTH)
 #define	vmcs_guest_rip()		vmcs_read(VMCS_GUEST_RIP)
@@ -346,6 +351,9 @@ vmcs_write(uint32_t encoding, uint64_t val)
 #define	VMCS_INTR_T_HWINTR	(0 << 8)
 #define	VMCS_INTR_T_NMI		(2 << 8)
 #define	VMCS_INTR_T_HWEXCEPTION	(3 << 8)
+#define	VMCS_INTR_T_SWINTR	(4 << 8)
+#define	VMCS_INTR_T_PRIV_SWEXCEPTION (5 << 8)
+#define	VMCS_INTR_T_SWEXCEPTION	(6 << 8)
 #define	VMCS_INTR_DEL_ERRCODE	(1 << 11)
 
 /*

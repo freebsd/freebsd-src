@@ -46,13 +46,6 @@ __FBSDID("$FreeBSD$");
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. All advertising materials mentioning features or use of this software
- *    must display the following acknowledgement:
- *        This product includes software developed by the NetBSD
- *        Foundation, Inc. and its contributors.
- * 4. Neither the name of The NetBSD Foundation nor the names of its
- *    contributors may be used to endorse or promote products derived
- *    from this software without specific prior written permission.
  *
  * THIS SOFTWARE IS PROVIDED BY THE NETBSD FOUNDATION, INC. AND CONTRIBUTORS
  * ``AS IS'' AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
@@ -126,14 +119,11 @@ static int ucom_cons_subunit = 0;
 static int ucom_cons_baud = 9600;
 static struct ucom_softc *ucom_cons_softc = NULL;
 
-TUNABLE_INT("hw.usb.ucom.cons_unit", &ucom_cons_unit);
-SYSCTL_INT(_hw_usb_ucom, OID_AUTO, cons_unit, CTLFLAG_RW | CTLFLAG_TUN,
+SYSCTL_INT(_hw_usb_ucom, OID_AUTO, cons_unit, CTLFLAG_RWTUN,
     &ucom_cons_unit, 0, "console unit number");
-TUNABLE_INT("hw.usb.ucom.cons_subunit", &ucom_cons_subunit);
-SYSCTL_INT(_hw_usb_ucom, OID_AUTO, cons_subunit, CTLFLAG_RW | CTLFLAG_TUN,
+SYSCTL_INT(_hw_usb_ucom, OID_AUTO, cons_subunit, CTLFLAG_RWTUN,
     &ucom_cons_subunit, 0, "console subunit number");
-TUNABLE_INT("hw.usb.ucom.cons_baud", &ucom_cons_baud);
-SYSCTL_INT(_hw_usb_ucom, OID_AUTO, cons_baud, CTLFLAG_RW | CTLFLAG_TUN,
+SYSCTL_INT(_hw_usb_ucom, OID_AUTO, cons_baud, CTLFLAG_RWTUN,
     &ucom_cons_baud, 0, "console baud rate");
 
 static usb_proc_callback_t ucom_cfg_start_transfers;
@@ -210,7 +200,7 @@ ucom_uninit(void *arg)
 
 	mtx_destroy(&ucom_mtx);
 }
-SYSUNINIT(ucom_uninit, SI_SUB_KLD - 2, SI_ORDER_ANY, ucom_uninit, NULL);
+SYSUNINIT(ucom_uninit, SI_SUB_KLD - 3, SI_ORDER_ANY, ucom_uninit, NULL);
 
 /*
  * Mark a unit number (the X in cuaUX) as in use.

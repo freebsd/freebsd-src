@@ -43,7 +43,7 @@
 
 /*
  * This node is also a system networking interface. It has
- * a hook for each protocol (IP, AppleTalk, IPX, etc). Packets
+ * a hook for each protocol (IP, AppleTalk, etc). Packets
  * are simply relayed between the interface and the hooks.
  *
  * Interfaces are named ng0, ng1, etc.  New nodes take the
@@ -52,10 +52,8 @@
  * This node also includes Berkeley packet filter support.
  */
 
-#include "opt_atalk.h"
 #include "opt_inet.h"
 #include "opt_inet6.h"
-#include "opt_ipx.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -104,8 +102,6 @@ typedef const struct iffam *iffam_p;
 const static struct iffam gFamilies[] = {
 	{ AF_INET,	NG_IFACE_HOOK_INET	},
 	{ AF_INET6,	NG_IFACE_HOOK_INET6	},
-	{ AF_APPLETALK,	NG_IFACE_HOOK_ATALK	},
-	{ AF_IPX,	NG_IFACE_HOOK_IPX	},
 	{ AF_ATM,	NG_IFACE_HOOK_ATM	},
 	{ AF_NATM,	NG_IFACE_HOOK_NATM	},
 };
@@ -397,10 +393,7 @@ ng_iface_output(struct ifnet *ifp, struct mbuf *m,
 	if (ALTQ_IS_ENABLED(&ifp->if_snd)) {
 		M_PREPEND(m, sizeof(sa_family_t), M_NOWAIT);
 		if (m == NULL) {
-			IFQ_LOCK(&ifp->if_snd);
-			IFQ_INC_DROPS(&ifp->if_snd);
-			IFQ_UNLOCK(&ifp->if_snd);
-			ifp->if_oerrors++;
+			if_inc_counter(ifp, IFCOUNTER_OQDROPS, 1);
 			return (ENOBUFS);
 		}
 		*(sa_family_t *)m->m_data = af;
@@ -476,8 +469,8 @@ ng_iface_send(struct ifnet *ifp, struct mbuf *m, sa_family_t sa)
 
 	/* Update stats. */
 	if (error == 0) {
-		ifp->if_obytes += len;
-		ifp->if_opackets++;
+		if_inc_counter(ifp, IFCOUNTER_OBYTES, len);
+		if_inc_counter(ifp, IFCOUNTER_OPACKETS, 1);
 	}
 
 	return (error);
@@ -740,8 +733,8 @@ ng_iface_rcvdata(hook_p hook, item_p item)
 	}
 
 	/* Update interface stats */
-	ifp->if_ipackets++;
-	ifp->if_ibytes += m->m_pkthdr.len;
+	if_inc_counter(ifp, IFCOUNTER_IPACKETS, 1);
+	if_inc_counter(ifp, IFCOUNTER_IBYTES, m->m_pkthdr.len);
 
 	/* Note receiving interface */
 	m->m_pkthdr.rcvif = ifp;
@@ -759,16 +752,6 @@ ng_iface_rcvdata(hook_p hook, item_p item)
 #ifdef INET6
 	case AF_INET6:
 		isr = NETISR_IPV6;
-		break;
-#endif
-#ifdef IPX
-	case AF_IPX:
-		isr = NETISR_IPX;
-		break;
-#endif
-#ifdef NETATALK
-	case AF_APPLETALK:
-		isr = NETISR_ATALK2;
 		break;
 #endif
 	default:

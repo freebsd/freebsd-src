@@ -184,27 +184,6 @@ sendsig(sig_t catcher, ksiginfo_t *ksi, sigset_t *mask)
 	mtx_lock(&psp->ps_mtx);
 }
 
-#ifdef GONE_IN_7
-/*
- * Build siginfo_t for SA thread
- */
-void
-cpu_thread_siginfo(int sig, u_long code, siginfo_t *si)
-{
-	struct proc *p;
-	struct thread *td;
-
-	td = curthread;
-	p = td->td_proc;
-	PROC_LOCK_ASSERT(p, MA_OWNED);
-
-	bzero(si, sizeof(*si));
-	si->si_signo = sig;
-	si->si_code = code;
-	/* XXXKSE fill other fields */
-}
-#endif
-
 /*
  * System call to cleanup state after a signal
  * has been taken.  Reset signal mask and
@@ -413,7 +392,7 @@ set_mcontext(struct thread *td, const mcontext_t *mcp)
 	td->td_frame->mullo = mcp->mullo;
 	td->td_frame->mulhi = mcp->mulhi;
 	td->td_md.md_tls = mcp->mc_tls;
-	/* Dont let user to set any bits in Status and casue registers */
+	/* Dont let user to set any bits in status and cause registers. */
 
 	return (0);
 }

@@ -1,4 +1,4 @@
-.\"	$NetBSD: make.1,v 1.226 2013/11/07 18:50:46 dholland Exp $
+.\"	$NetBSD: make.1,v 1.230 2014/02/15 18:55:30 sjg Exp $
 .\"
 .\" Copyright (c) 1990, 1993
 .\"	The Regents of the University of California.  All rights reserved.
@@ -29,7 +29,7 @@
 .\"
 .\"	from: @(#)make.1	8.4 (Berkeley) 3/19/94
 .\"
-.Dd October 25, 2013
+.Dd February 14, 2014
 .Dt MAKE 1
 .Os
 .Sh NAME
@@ -706,6 +706,10 @@ was executed.
 Refer to the description of
 .Ql Ev PWD
 for more details.
+.It Va .INCLUDEDFROMDIR
+The directory of the file this Makefile was included from.
+.It Va .INCLUDEDFROMFILE
+The filename of the file this Makefile was included from.
 .It Ev MAKE
 The name that
 .Nm
@@ -1257,6 +1261,15 @@ and
 are orthogonal; the former specifies whether multiple words are
 potentially affected, the latter whether multiple substitutions can
 potentially occur within each affected word.
+.Pp
+As for the
+.Cm \&:S
+modifier, the
+.Ar pattern
+and
+.Ar replacement
+are subjected to variable expansion before being parsed as
+regular expressions.
 .It Cm \&:T
 Replaces each word in the variable with its last component.
 .It Cm \&:u

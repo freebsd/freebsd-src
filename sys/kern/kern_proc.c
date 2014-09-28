@@ -141,6 +141,10 @@ uma_zone_t proc_zone;
 int kstack_pages = KSTACK_PAGES;
 SYSCTL_INT(_kern, OID_AUTO, kstack_pages, CTLFLAG_RD, &kstack_pages, 0,
     "Kernel stack size in pages");
+static int vmmap_skip_res_cnt = 0;
+SYSCTL_INT(_kern, OID_AUTO, proc_vmmap_skip_resident_count, CTLFLAG_RW,
+    &vmmap_skip_res_cnt, 0,
+    "Skip calculation of the pages resident count in kern.proc.vmmap");
 
 CTASSERT(sizeof(struct kinfo_proc) == KINFO_PROC_SIZE);
 #ifdef COMPAT_FREEBSD32
@@ -259,14 +263,15 @@ proc_fini(void *mem, int size)
  * Is p an inferior of the current process?
  */
 int
-inferior(p)
-	register struct proc *p;
+inferior(struct proc *p)
 {
 
 	sx_assert(&proctree_lock, SX_LOCKED);
-	for (; p != curproc; p = p->p_pptr)
+	PROC_LOCK_ASSERT(p, MA_OWNED);
+	for (; p != curproc; p = proc_realparent(p)) {
 		if (p->p_pid == 0)
 			return (0);
+	}
 	return (1);
 }
 
@@ -786,6 +791,8 @@ fill_kinfo_proc_only(struct proc *p, struct kinfo_proc *kp)
 	struct ucred *cred;
 	struct sigacts *ps;
 
+	/* For proc_realparent. */
+	sx_assert(&proctree_lock, SX_LOCKED);
 	PROC_LOCK_ASSERT(p, MA_OWNED);
 	bzero(kp, sizeof(*kp));
 
@@ -914,8 +921,11 @@ fill_kinfo_proc_only(struct proc *p, struct kinfo_proc *kp)
 	kp->ki_xstat = p->p_xstat;
 	kp->ki_acflag = p->p_acflag;
 	kp->ki_lock = p->p_lock;
-	if (p->p_pptr)
-		kp->ki_ppid = p->p_pptr->p_pid;
+	if (p->p_pptr) {
+		kp->ki_ppid = proc_realparent(p)->p_pid;
+		if (p->p_flag & P_TRACED)
+			kp->ki_tracer = p->p_pptr->p_pid;
+	}
 }
 
 /*
@@ -1161,6 +1171,7 @@ freebsd32_kinfo_proc_out(const struct kinfo_proc *ki, struct kinfo_proc32 *ki32)
 	bcopy(ki->ki_comm, ki32->ki_comm, COMMLEN + 1);
 	bcopy(ki->ki_emul, ki32->ki_emul, KI_EMULNAMELEN + 1);
 	bcopy(ki->ki_loginclass, ki32->ki_loginclass, LOGINCLASSLEN + 1);
+	CP(*ki, *ki32, ki_tracer);
 	CP(*ki, *ki32, ki_flag2);
 	CP(*ki, *ki32, ki_fibnum);
 	CP(*ki, *ki32, ki_cr_flags);
@@ -1282,10 +1293,11 @@ sysctl_kern_proc(SYSCTL_HANDLER_ARGS)
 		error = sysctl_wire_old_buffer(req, 0);
 		if (error)
 			return (error);
+		sx_slock(&proctree_lock);
 		error = pget((pid_t)name[0], PGET_CANSEE, &p);
-		if (error != 0)
-			return (error);
-		error = sysctl_out_proc(p, req, flags, 0);
+		if (error == 0)
+			error = sysctl_out_proc(p, req, flags, 0);
+		sx_sunlock(&proctree_lock);
 		return (error);
 	}
 
@@ -1313,6 +1325,7 @@ sysctl_kern_proc(SYSCTL_HANDLER_ARGS)
 	error = sysctl_wire_old_buffer(req, 0);
 	if (error != 0)
 		return (error);
+	sx_slock(&proctree_lock);
 	sx_slock(&allproc_lock);
 	for (doingzomb=0 ; doingzomb < 2 ; doingzomb++) {
 		if (!doingzomb)
@@ -1417,11 +1430,13 @@ sysctl_kern_proc(SYSCTL_HANDLER_ARGS)
 			error = sysctl_out_proc(p, req, flags, doingzomb);
 			if (error) {
 				sx_sunlock(&allproc_lock);
+				sx_sunlock(&proctree_lock);
 				return (error);
 			}
 		}
 	}
 	sx_sunlock(&allproc_lock);
+	sx_sunlock(&proctree_lock);
 	return (0);
 }
 
@@ -2129,6 +2144,66 @@ sysctl_kern_proc_ovmmap(SYSCTL_HANDLER_ARGS)
 CTASSERT(sizeof(struct kinfo_vmentry) == KINFO_VMENTRY_SIZE);
 #endif
 
+static void
+kern_proc_vmmap_resident(vm_map_t map, vm_map_entry_t entry,
+    struct kinfo_vmentry *kve)
+{
+	vm_object_t obj, tobj;
+	vm_page_t m, m_adv;
+	vm_offset_t addr;
+	vm_paddr_t locked_pa;
+	vm_pindex_t pi, pi_adv, pindex;
+
+	locked_pa = 0;
+	obj = entry->object.vm_object;
+	addr = entry->start;
+	m_adv = NULL;
+	pi = OFF_TO_IDX(entry->offset);
+	for (; addr < entry->end; addr += IDX_TO_OFF(pi_adv), pi += pi_adv) {
+		if (m_adv != NULL) {
+			m = m_adv;
+		} else {
+			pi_adv = OFF_TO_IDX(entry->end - addr);
+			pindex = pi;
+			for (tobj = obj;; tobj = tobj->backing_object) {
+				m = vm_page_find_least(tobj, pindex);
+				if (m != NULL) {
+					if (m->pindex == pindex)
+						break;
+					if (pi_adv > m->pindex - pindex) {
+						pi_adv = m->pindex - pindex;
+						m_adv = m;
+					}
+				}
+				if (tobj->backing_object == NULL)
+					goto next;
+				pindex += OFF_TO_IDX(tobj->
+				    backing_object_offset);
+			}
+		}
+		m_adv = NULL;
+		if (m->psind != 0 && addr + pagesizes[1] <= entry->end &&
+		    (addr & (pagesizes[1] - 1)) == 0 &&
+		    (pmap_mincore(map->pmap, addr, &locked_pa) &
+		    MINCORE_SUPER) != 0) {
+			kve->kve_flags |= KVME_FLAG_SUPER;
+			pi_adv = OFF_TO_IDX(pagesizes[1]);
+		} else {
+			/*
+			 * We do not test the found page on validity.
+			 * Either the page is busy and being paged in,
+			 * or it was invalidated.  The first case
+			 * should be counted as resident, the second
+			 * is not so clear; we do account both.
+			 */
+			pi_adv = 1;
+		}
+		kve->kve_resident += pi_adv;
+next:;
+	}
+	PA_UNLOCK_COND(locked_pa);
+}
+
 /*
  * Must be called with the process locked and will return unlocked.
  */
@@ -2136,15 +2211,17 @@ int
 kern_proc_vmmap_out(struct proc *p, struct sbuf *sb)
 {
 	vm_map_entry_t entry, tmp_entry;
-	unsigned int last_timestamp;
+	struct vattr va;
+	vm_map_t map;
+	vm_object_t obj, tobj, lobj;
 	char *fullpath, *freepath;
 	struct kinfo_vmentry *kve;
-	struct vattr va;
 	struct ucred *cred;
-	int error;
 	struct vnode *vp;
 	struct vmspace *vm;
-	vm_map_t map;
+	vm_offset_t addr;
+	unsigned int last_timestamp;
+	int error;
 
 	PROC_LOCK_ASSERT(p, MA_OWNED);
 
@@ -2162,44 +2239,30 @@ kern_proc_vmmap_out(struct proc *p, struct sbuf *sb)
 	vm_map_lock_read(map);
 	for (entry = map->header.next; entry != &map->header;
 	    entry = entry->next) {
-		vm_object_t obj, tobj, lobj;
-		vm_offset_t addr;
-		vm_paddr_t locked_pa;
-		int mincoreinfo;
-
 		if (entry->eflags & MAP_ENTRY_IS_SUB_MAP)
 			continue;
 
+		addr = entry->end;
 		bzero(kve, sizeof(*kve));
-
-		kve->kve_private_resident = 0;
 		obj = entry->object.vm_object;
 		if (obj != NULL) {
-			VM_OBJECT_RLOCK(obj);
-			if (obj->shadow_count == 1)
+			for (tobj = obj; tobj != NULL;
+			    tobj = tobj->backing_object) {
+				VM_OBJECT_RLOCK(tobj);
+				lobj = tobj;
+			}
+			if (obj->backing_object == NULL)
 				kve->kve_private_resident =
 				    obj->resident_page_count;
-		}
-		kve->kve_resident = 0;
-		addr = entry->start;
-		while (addr < entry->end) {
-			locked_pa = 0;
-			mincoreinfo = pmap_mincore(map->pmap, addr, &locked_pa);
-			if (locked_pa != 0)
-				vm_page_unlock(PHYS_TO_VM_PAGE(locked_pa));
-			if (mincoreinfo & MINCORE_INCORE)
-				kve->kve_resident++;
-			if (mincoreinfo & MINCORE_SUPER)
-				kve->kve_flags |= KVME_FLAG_SUPER;
-			addr += PAGE_SIZE;
-		}
-
-		for (lobj = tobj = obj; tobj; tobj = tobj->backing_object) {
-			if (tobj != obj)
-				VM_OBJECT_RLOCK(tobj);
-			if (lobj != obj)
-				VM_OBJECT_RUNLOCK(lobj);
-			lobj = tobj;
+			if (!vmmap_skip_res_cnt)
+				kern_proc_vmmap_resident(map, entry, kve);
+			for (tobj = obj; tobj != NULL;
+			    tobj = tobj->backing_object) {
+				if (tobj != obj && tobj != lobj)
+					VM_OBJECT_RUNLOCK(tobj);
+			}
+		} else {
+			lobj = NULL;
 		}
 
 		kve->kve_start = entry->start;
@@ -2229,7 +2292,7 @@ kern_proc_vmmap_out(struct proc *p, struct sbuf *sb)
 
 		freepath = NULL;
 		fullpath = "";
-		if (lobj) {
+		if (lobj != NULL) {
 			vp = NULL;
 			switch (lobj->type) {
 			case OBJT_DEFAULT:
@@ -2445,6 +2508,7 @@ sysctl_kern_proc_groups(SYSCTL_HANDLER_ARGS)
 		return (EINVAL);
 	if (*pidp == -1) {	/* -1 means this process */
 		p = req->td->td_proc;
+		PROC_LOCK(p);
 	} else {
 		error = pget(*pidp, PGET_CANSEE, &p);
 		if (error != 0)
@@ -2452,8 +2516,7 @@ sysctl_kern_proc_groups(SYSCTL_HANDLER_ARGS)
 	}
 
 	cred = crhold(p->p_ucred);
-	if (*pidp != -1)
-		PROC_UNLOCK(p);
+	PROC_UNLOCK(p);
 
 	error = SYSCTL_OUT(req, cred->cr_groups,
 	    cred->cr_ngroups * sizeof(gid_t));

@@ -31,7 +31,7 @@
 __FBSDID("$FreeBSD$");
 
 #include <sys/types.h>
-#include <sys/capability.h>
+#include <sys/capsicum.h>
 #include <sys/procdesc.h>
 #include <sys/socket.h>
 
@@ -62,6 +62,9 @@ stdnull(void)
 	fd = open(_PATH_DEVNULL, O_RDWR);
 	if (fd == -1)
 		errx(1, "Unable to open %s", _PATH_DEVNULL);
+
+	if (setsid() == -1)
+		errx(1, "Unable to detach from session");
 
 	if (dup2(fd, STDIN_FILENO) == -1)
 		errx(1, "Unable to cover stdin");

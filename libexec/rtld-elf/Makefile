@@ -1,6 +1,10 @@
 # $FreeBSD$
 
-.include <bsd.own.mk>
+# Use the following command to build local debug version of dynamic
+# linker:
+# make DEBUG_FLAGS=-g DEBUG=-DDEBUG MK_TESTS=no all
+
+.include <src.opts.mk>
 MK_SSP=		no
 
 PROG?=		ld-elf.so.1
@@ -77,6 +81,10 @@ beforeinstall:
 .endif
 
 .PATH: ${.CURDIR}/${RTLD_ARCH}
+
+.if ${MK_TESTS} != "no"
+SUBDIR+=	tests
+.endif
 
 .include <bsd.symver.mk>
 .include <bsd.prog.mk>

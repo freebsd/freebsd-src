@@ -102,10 +102,6 @@ __FBSDID("$FreeBSD$");
 /* this should be evenly divisable by PAGE_SIZE / L2_TABLE_SIZE_REAL (or 4) */
 #define NUM_KERNEL_PTS		(KERNEL_PT_AFKERNEL + KERNEL_PT_AFKERNEL_NUM)
 
-extern u_int data_abort_handler_address;
-extern u_int prefetch_abort_handler_address;
-extern u_int undefined_handler_address;
-
 struct pv_addr kernel_pt_table[NUM_KERNEL_PTS];
 
 /* Physical and virtual addresses for some global pages */
@@ -122,31 +118,31 @@ struct pv_addr minidataclean;
 static const struct arm_devmap_entry ixp425_devmap[] = {
 	/* Physical/Virtual address for I/O space */
     { IXP425_IO_VBASE, IXP425_IO_HWBASE, IXP425_IO_SIZE,
-      VM_PROT_READ|VM_PROT_WRITE, PTE_NOCACHE, },
+      VM_PROT_READ|VM_PROT_WRITE, PTE_DEVICE, },
 
 	/* Expansion Bus */
     { IXP425_EXP_VBASE, IXP425_EXP_HWBASE, IXP425_EXP_SIZE,
-      VM_PROT_READ|VM_PROT_WRITE, PTE_NOCACHE, },
+      VM_PROT_READ|VM_PROT_WRITE, PTE_DEVICE, },
 
 	/* CFI Flash on the Expansion Bus */
     { IXP425_EXP_BUS_CS0_VBASE, IXP425_EXP_BUS_CS0_HWBASE,
-      IXP425_EXP_BUS_CS0_SIZE, VM_PROT_READ|VM_PROT_WRITE, PTE_NOCACHE, },
+      IXP425_EXP_BUS_CS0_SIZE, VM_PROT_READ|VM_PROT_WRITE, PTE_DEVICE, },
 
 	/* IXP425 PCI Configuration */
     { IXP425_PCI_VBASE, IXP425_PCI_HWBASE, IXP425_PCI_SIZE,
-      VM_PROT_READ|VM_PROT_WRITE, PTE_NOCACHE, },
+      VM_PROT_READ|VM_PROT_WRITE, PTE_DEVICE, },
 
 	/* SDRAM Controller */
     { IXP425_MCU_VBASE, IXP425_MCU_HWBASE, IXP425_MCU_SIZE,
-      VM_PROT_READ|VM_PROT_WRITE, PTE_NOCACHE, },
+      VM_PROT_READ|VM_PROT_WRITE, PTE_DEVICE, },
 
 	/* PCI Memory Space */
     { IXP425_PCI_MEM_VBASE, IXP425_PCI_MEM_HWBASE, IXP425_PCI_MEM_SIZE,
-      VM_PROT_READ|VM_PROT_WRITE, PTE_NOCACHE, },
+      VM_PROT_READ|VM_PROT_WRITE, PTE_DEVICE, },
 
 	/* Q-Mgr Memory Space */
     { IXP425_QMGR_VBASE, IXP425_QMGR_HWBASE, IXP425_QMGR_SIZE,
-      VM_PROT_READ|VM_PROT_WRITE, PTE_NOCACHE, },
+      VM_PROT_READ|VM_PROT_WRITE, PTE_DEVICE, },
 
     { 0 },
 };
@@ -155,45 +151,45 @@ static const struct arm_devmap_entry ixp425_devmap[] = {
 static const struct arm_devmap_entry ixp435_devmap[] = {
 	/* Physical/Virtual address for I/O space */
     { IXP425_IO_VBASE, IXP425_IO_HWBASE, IXP425_IO_SIZE,
-      VM_PROT_READ|VM_PROT_WRITE, PTE_NOCACHE, },
+      VM_PROT_READ|VM_PROT_WRITE, PTE_DEVICE, },
 
     { IXP425_EXP_VBASE, IXP425_EXP_HWBASE, IXP425_EXP_SIZE,
-      VM_PROT_READ|VM_PROT_WRITE, PTE_NOCACHE, },
+      VM_PROT_READ|VM_PROT_WRITE, PTE_DEVICE, },
 
 	/* IXP425 PCI Configuration */
     { IXP425_PCI_VBASE, IXP425_PCI_HWBASE, IXP425_PCI_SIZE,
-      VM_PROT_READ|VM_PROT_WRITE, PTE_NOCACHE, },
+      VM_PROT_READ|VM_PROT_WRITE, PTE_DEVICE, },
 
 	/* DDRII Controller NB: mapped same place as IXP425 */
     { IXP425_MCU_VBASE, IXP435_MCU_HWBASE, IXP425_MCU_SIZE,
-      VM_PROT_READ|VM_PROT_WRITE, PTE_NOCACHE, },
+      VM_PROT_READ|VM_PROT_WRITE, PTE_DEVICE, },
 
 	/* PCI Memory Space */
     { IXP425_PCI_MEM_VBASE, IXP425_PCI_MEM_HWBASE, IXP425_PCI_MEM_SIZE,
-      VM_PROT_READ|VM_PROT_WRITE, PTE_NOCACHE, },
+      VM_PROT_READ|VM_PROT_WRITE, PTE_DEVICE, },
 
 	/* Q-Mgr Memory Space */
     { IXP425_QMGR_VBASE, IXP425_QMGR_HWBASE, IXP425_QMGR_SIZE,
-      VM_PROT_READ|VM_PROT_WRITE, PTE_NOCACHE, },
+      VM_PROT_READ|VM_PROT_WRITE, PTE_DEVICE, },
 
 	/* CFI Flash on the Expansion Bus */
     { IXP425_EXP_BUS_CS0_VBASE, IXP425_EXP_BUS_CS0_HWBASE,
-      IXP425_EXP_BUS_CS0_SIZE, VM_PROT_READ|VM_PROT_WRITE, PTE_NOCACHE, },
+      IXP425_EXP_BUS_CS0_SIZE, VM_PROT_READ|VM_PROT_WRITE, PTE_DEVICE, },
 
 	/* USB1 Memory Space */
     { IXP435_USB1_VBASE, IXP435_USB1_HWBASE, IXP435_USB1_SIZE,
-      VM_PROT_READ|VM_PROT_WRITE, PTE_NOCACHE, },
+      VM_PROT_READ|VM_PROT_WRITE, PTE_DEVICE, },
 	/* USB2 Memory Space */
     { IXP435_USB2_VBASE, IXP435_USB2_HWBASE, IXP435_USB2_SIZE,
-      VM_PROT_READ|VM_PROT_WRITE, PTE_NOCACHE, },
+      VM_PROT_READ|VM_PROT_WRITE, PTE_DEVICE, },
 
 	/* GPS Memory Space */
     { CAMBRIA_GPS_VBASE, CAMBRIA_GPS_HWBASE, CAMBRIA_GPS_SIZE,
-      VM_PROT_READ|VM_PROT_WRITE, PTE_NOCACHE, },
+      VM_PROT_READ|VM_PROT_WRITE, PTE_DEVICE, },
 
 	/* RS485 Memory Space */
     { CAMBRIA_RS485_VBASE, CAMBRIA_RS485_HWBASE, CAMBRIA_RS485_SIZE,
-      VM_PROT_READ|VM_PROT_WRITE, PTE_NOCACHE, },
+      VM_PROT_READ|VM_PROT_WRITE, PTE_DEVICE, },
 
     { 0 }
 };
@@ -393,11 +389,6 @@ initarm(struct arm_boot_params *abp)
 	else
 		memsize = ixp425_sdram_size();
 
-	/* Set stack for exception handlers */
-
-	data_abort_handler_address = (u_int)data_abort_handler;
-	prefetch_abort_handler_address = (u_int)prefetch_abort_handler;
-	undefined_handler_address = (u_int)undefinedinstruction_bounce;
 	undefined_init();
 
 	init_proc0(kernelstack.pv_va);
@@ -422,6 +413,10 @@ initarm(struct arm_boot_params *abp)
 	 * Prepare the list of physical memory available to the vm subsystem.
 	 */
 	arm_physmem_hardware_region(PHYSADDR, memsize);
+	arm_physmem_exclude_region(freemem_pt, KERNPHYSADDR -
+	    freemem_pt, EXFLAG_NOALLOC);
+	arm_physmem_exclude_region(freemempos, KERNPHYSADDR - 0x100000 -
+	    freemempos, EXFLAG_NOALLOC);
 	arm_physmem_exclude_region(abp->abp_physaddr, 
 	    virtual_avail - KERNVIRTADDR, EXFLAG_NOALLOC);
 	arm_physmem_init_kernel_globals();

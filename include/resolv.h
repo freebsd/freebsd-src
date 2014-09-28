@@ -1,7 +1,24 @@
 /*
+ * Portions Copyright (C) 2004, 2005, 2008, 2009  Internet Systems Consortium, Inc. ("ISC")
+ * Portions Copyright (C) 1995-2003  Internet Software Consortium.
+ *
+ * Permission to use, copy, modify, and/or distribute this software for any
+ * purpose with or without fee is hereby granted, provided that the above
+ * copyright notice and this permission notice appear in all copies.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS" AND ISC DISCLAIMS ALL WARRANTIES WITH
+ * REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF MERCHANTABILITY
+ * AND FITNESS.  IN NO EVENT SHALL ISC BE LIABLE FOR ANY SPECIAL, DIRECT,
+ * INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM
+ * LOSS OF USE, DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE
+ * OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
+ * PERFORMANCE OF THIS SOFTWARE.
+ */
+
+/*
  * Copyright (c) 1983, 1987, 1989
  *    The Regents of the University of California.  All rights reserved.
- * 
+ *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
  * are met:
@@ -13,7 +30,7 @@
  * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
- * 
+ *
  * THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
  * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
@@ -27,26 +44,9 @@
  * SUCH DAMAGE.
  */
 
-/*
- * Copyright (c) 2004 by Internet Systems Consortium, Inc. ("ISC")
- * Portions Copyright (c) 1996-1999 by Internet Software Consortium.
- *
- * Permission to use, copy, modify, and distribute this software for any
- * purpose with or without fee is hereby granted, provided that the above
- * copyright notice and this permission notice appear in all copies.
- *
- * THE SOFTWARE IS PROVIDED "AS IS" AND ISC DISCLAIMS ALL WARRANTIES
- * WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
- * MERCHANTABILITY AND FITNESS.  IN NO EVENT SHALL ISC BE LIABLE FOR
- * ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
- * WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
- * ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT
- * OF OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
- */
-
 /*%
  *	@(#)resolv.h	8.1 (Berkeley) 6/2/93
- *	$Id: resolv.h,v 1.19.18.4 2008/04/03 23:15:15 marka Exp $
+ *	$Id: resolv.h,v 1.30 2009/03/03 01:52:48 each Exp $
  * $FreeBSD$
  */
 
@@ -68,7 +68,7 @@
  * is new enough to contain a certain feature.
  */
 
-#define	__RES	20030124
+#define	__RES	20090302
 
 /*%
  * This used to be defined in res_query.c, now it's in herror.c.
@@ -179,7 +179,7 @@ struct __res_state {
 	u_int	_pad;			/*%< make _u 64 bit aligned */
 	union {
 		/* On an 32-bit arch this means 512b total. */
-		char	pad[72 - 4*sizeof (int) - 2*sizeof (void *)];
+		char	pad[72 - 4*sizeof (int) - 3*sizeof (void *)];
 		struct {
 			u_int16_t		nscount;
 			u_int16_t		nstimes[MAXNS];	/*%< ms. */
@@ -187,6 +187,7 @@ struct __res_state {
 			struct __res_state_ext *ext;	/*%< extension for IPv6 */
 		} _ext;
 	} _u;
+	u_char	*_rnd;			/*%< PRIVATE: random state */
 };
 
 typedef struct __res_state *res_state;
@@ -320,7 +321,7 @@ __END_DECLS
 #if !defined(SHARED_LIBBIND) || defined(LIB)
 /*
  * If libbind is a shared object (well, DLL anyway)
- * these externs break the linker when resolv.h is 
+ * these externs break the linker when resolv.h is
  * included by a lib client (like named)
  * Make them go away if a client is including this
  *
@@ -378,7 +379,9 @@ extern const struct res_sym __p_rcode_syms[];
 #define res_nisourserver	__res_nisourserver
 #define res_ownok		__res_ownok
 #define res_queriesmatch	__res_queriesmatch
+#define res_rndinit		__res_rndinit
 #define res_randomid		__res_randomid
+#define res_nrandomid		__res_nrandomid
 #define sym_ntop		__sym_ntop
 #define sym_ntos		__sym_ntos
 #define sym_ston		__sym_ston
@@ -441,7 +444,9 @@ int		dn_count_labels(const char *);
 int		dn_comp(const char *, u_char *, int, u_char **, u_char **);
 int		dn_expand(const u_char *, const u_char *, const u_char *,
 			  char *, int);
+void		res_rndinit(res_state);
 u_int		res_randomid(void);
+u_int		res_nrandomid(res_state);
 int		res_nameinquery(const char *, int, int, const u_char *,
 				const u_char *);
 int		res_queriesmatch(const u_char *, const u_char *,

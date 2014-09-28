@@ -1,4 +1,4 @@
-/* $Id: openssl-compat.h,v 1.25 2014/01/17 06:32:31 dtucker Exp $ */
+/* $Id: openssl-compat.h,v 1.26 2014/02/13 05:38:33 dtucker Exp $ */
 
 /*
  * Copyright (c) 2005 Darren Tucker <dtucker@zip.com.au>
@@ -154,6 +154,10 @@ int EVP_DigestInit_ex(EVP_MD_CTX *, const EVP_MD *, void *);
 
 # ifndef HAVE_EVP_DISESTFINAL_EX
 int EVP_DigestFinal_ex(EVP_MD_CTX *, unsigned char *, unsigned int *);
+# endif
+
+# ifndef EVP_MD_CTX_COPY_EX
+int EVP_MD_CTX_copy_ex(EVP_MD_CTX *, const EVP_MD_CTX *);
 # endif
 
 int ssh_EVP_CipherInit(EVP_CIPHER_CTX *, const EVP_CIPHER *, unsigned char *,

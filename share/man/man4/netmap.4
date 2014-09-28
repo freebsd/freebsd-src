@@ -612,9 +612,9 @@ In the example below, "netmap:foo" is any valid netmap port name.
 .Bl -tag -width XXXXX
 .It NR_REG_ALL_NIC                         "netmap:foo"
 (default) all hardware ring pairs
-.It NR_REG_SW_NIC           "netmap:foo^"
+.It NR_REG_SW            "netmap:foo^"
 the ``host rings'', connecting to the host stack.
-.It NR_RING_NIC_SW        "netmap:foo+
+.It NR_REG_NIC_SW        "netmap:foo+
 all hardware rings and the host rings
 .It NR_REG_ONE_NIC       "netmap:foo-i"
 only the i-th hardware ring pair, where the number is in
@@ -639,7 +639,7 @@ or
 call pushes out any pending packets on the transmit ring, even if
 no write events are specified.
 The feature can be disabled by or-ing
-.Va NETMAP_NO_TX_SYNC
+.Va NETMAP_NO_TX_POLL
 to the value written to
 .Va nr_ringid.
 When this feature is used,
@@ -679,13 +679,13 @@ are supported too.
 .Pp
 Packets in transmit rings are normally pushed out
 (and buffers reclaimed) even without
-requesting write events. Passing the NETMAP_NO_TX_SYNC flag to
+requesting write events. Passing the NETMAP_NO_TX_POLL flag to
 .Em NIOCREGIF
 disables this feature.
 By default, receive rings are processed only if read
-events are requested. Passing the NETMAP_DO_RX_SYNC flag to
+events are requested. Passing the NETMAP_DO_RX_POLL flag to
 .Em NIOCREGIF updates receive rings even without read events.
-Note that on epoll and kqueue, NETMAP_NO_TX_SYNC and NETMAP_DO_RX_SYNC
+Note that on epoll and kqueue, NETMAP_NO_TX_POLL and NETMAP_DO_RX_POLL
 only have an effect when some event is posted for the file descriptor.
 .Sh LIBRARIES
 The

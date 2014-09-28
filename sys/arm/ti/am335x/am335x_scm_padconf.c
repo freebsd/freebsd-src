@@ -84,7 +84,7 @@ const struct ti_scm_padstate ti_padstate_devmap[] = {
 	{ .state = NULL }
 };
 
-const struct ti_scm_padconf ti_padconf_devmap[] = {
+const static struct ti_scm_padconf ti_padconf_devmap[] = {
 	_PIN(0x800, "GPMC_AD0",		32, 7,"gpmc_ad0", "mmc1_dat0", NULL, NULL, NULL, NULL, NULL, "gpio1_0"),
 	_PIN(0x804, "GPMC_AD1",		33, 7,"gpmc_ad1", "mmc1_dat1", NULL, NULL, NULL, NULL, NULL, "gpio1_1"),
 	_PIN(0x808, "GPMC_AD2",		34, 7,"gpmc_ad2", "mmc1_dat2", NULL, NULL, NULL, NULL, NULL, "gpio1_2"),

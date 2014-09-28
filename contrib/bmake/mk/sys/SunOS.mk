@@ -1,4 +1,4 @@
-#	$Id: SunOS.mk,v 1.5 2010/01/11 23:02:05 sjg Exp $
+#	$Id: SunOS.mk,v 1.6 2014/04/05 22:56:54 sjg Exp $
 
 .if ${.PARSEFILE} == "sys.mk"
 .include <host-target.mk>
@@ -12,7 +12,7 @@ ROOT_GROUP=	root
 
 SHLIB_FULLVERSION = ${SHLIB_MAJOR}
 
-# supress the dependency
+# suppress the dependency
 LIBCRT0= /dev/null
 
 .ifndef CC

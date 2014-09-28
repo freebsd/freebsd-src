@@ -2,7 +2,7 @@
 # $FreeBSD$
 
 PROG=	call
-NO_MAN=
+MAN=
 WARNS?=	5
 
 .include <bsd.prog.mk>

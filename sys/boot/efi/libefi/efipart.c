@@ -39,6 +39,7 @@ __FBSDID("$FreeBSD$");
 #include <efiprot.h>
 
 static EFI_GUID blkio_guid = BLOCK_IO_PROTOCOL;
+static EFI_GUID devpath_guid = DEVICE_PATH_PROTOCOL;
 
 static int efipart_init(void);
 static int efipart_strategy(void *, int, daddr_t, size_t, char *, size_t *);
@@ -62,9 +63,11 @@ static int
 efipart_init(void) 
 {
 	EFI_BLOCK_IO *blkio;
-	EFI_HANDLE *hin, *hout;
+	EFI_DEVICE_PATH *devpath, *node;
+	EFI_HANDLE *hin, *hout, *aliases, handle;
 	EFI_STATUS status;
 	UINTN sz;
+	CHAR16 *path;
 	u_int n, nin, nout;
 	int err;
 
@@ -72,7 +75,7 @@ efipart_init(void)
 	hin = NULL;
 	status = BS->LocateHandle(ByProtocol, &blkio_guid, 0, &sz, 0);
 	if (status == EFI_BUFFER_TOO_SMALL) {
-		hin = (EFI_HANDLE *)malloc(sz * 2);
+		hin = (EFI_HANDLE *)malloc(sz * 3);
 		status = BS->LocateHandle(ByProtocol, &blkio_guid, 0, &sz,
 		    hin);
 		if (EFI_ERROR(status))
@@ -84,19 +87,50 @@ efipart_init(void)
 	/* Filter handles to only include FreeBSD partitions. */
 	nin = sz / sizeof(EFI_HANDLE);
 	hout = hin + nin;
+	aliases = hout + nin;
 	nout = 0;
 
+	bzero(aliases, nin * sizeof(EFI_HANDLE));
+
 	for (n = 0; n < nin; n++) {
-		status = BS->HandleProtocol(hin[n], &blkio_guid, &blkio);
+		status = BS->HandleProtocol(hin[n], &devpath_guid,
+		    (void **)&devpath);
+		if (EFI_ERROR(status)) {
+			continue;
+		}
+		node = devpath;
+		while (!IsDevicePathEnd(NextDevicePathNode(node)))
+			node = NextDevicePathNode(node);
+		status = BS->HandleProtocol(hin[n], &blkio_guid,
+		    (void**)&blkio);
 		if (EFI_ERROR(status))
 			continue;
 		if (!blkio->Media->LogicalPartition)
 			continue;
-		hout[nout] = hin[n];
+
+		/*
+		 * If we come across a logical partition of subtype CDROM
+		 * it doesn't refer to the CD filesystem itself, but rather
+		 * to any usable El Torito boot image on it. In this case
+		 * we try to find the parent device and add that instead as
+		 * that will be the CD filesystem.
+		 */
+		if (DevicePathType(node) == MEDIA_DEVICE_PATH &&
+		    DevicePathSubType(node) == MEDIA_CDROM_DP) {
+			node->Type = END_DEVICE_PATH_TYPE;
+			node->SubType = END_ENTIRE_DEVICE_PATH_SUBTYPE;
+			status = BS->LocateDevicePath(&blkio_guid, &devpath,
+			    &handle);
+			if (EFI_ERROR(status))
+				continue;
+			hout[nout] = handle;
+			aliases[nout] = hin[n];
+		} else
+			hout[nout] = hin[n];
 		nout++;
 	}
 
-	err = efi_register_handles(&efipart_dev, hout, nout);
+	err = efi_register_handles(&efipart_dev, hout, aliases, nout);
 	free(hin);
 	return (err);
 }
@@ -115,7 +149,7 @@ efipart_print(int verbose)
 		sprintf(line, "    %s%d:", efipart_dev.dv_name, unit);
 		pager_output(line);
 
-		status = BS->HandleProtocol(h, &blkio_guid, &blkio);
+		status = BS->HandleProtocol(h, &blkio_guid, (void **)&blkio);
 		if (!EFI_ERROR(status)) {
 			sprintf(line, "    %llu blocks",
 			    (unsigned long long)(blkio->Media->LastBlock + 1));
@@ -144,7 +178,7 @@ efipart_open(struct open_file *f, ...)
 	if (h == NULL)
 		return (EINVAL);
 
-	status = BS->HandleProtocol(h, &blkio_guid, &blkio);
+	status = BS->HandleProtocol(h, &blkio_guid, (void **)&blkio);
 	if (EFI_ERROR(status))
 		return (efi_status_to_errno(status));
 

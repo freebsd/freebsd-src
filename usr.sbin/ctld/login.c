@@ -26,8 +26,10 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
  */
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #include <assert.h>
 #include <stdbool.h>
@@ -718,8 +720,8 @@ login_negotiate_key(struct pdu *request, const char *name,
 			    "MaxRecvDataSegmentLength");
 		}
 		if (tmp > MAX_DATA_SEGMENT_LENGTH) {
-			log_debugx("capping MaxDataSegmentLength from %d to %d",
-			    tmp, MAX_DATA_SEGMENT_LENGTH);
+			log_debugx("capping MaxRecvDataSegmentLength "
+			    "from %d to %d", tmp, MAX_DATA_SEGMENT_LENGTH);
 			tmp = MAX_DATA_SEGMENT_LENGTH;
 		}
 		conn->conn_max_data_segment_length = tmp;
@@ -787,7 +789,7 @@ login_negotiate(struct connection *conn, struct pdu *request)
 	bool skipped_security;
 
 	if (request == NULL) {
-		log_debugx("beginning parameter negotiation; "
+		log_debugx("beginning operational parameter negotiation; "
 		    "waiting for Login PDU");
 		request = login_receive(conn, false);
 		skipped_security = false;
@@ -804,6 +806,16 @@ login_negotiate(struct connection *conn, struct pdu *request)
 	login_set_csg(response, BHSLR_STAGE_OPERATIONAL_NEGOTIATION);
 	login_set_nsg(response, BHSLR_STAGE_FULL_FEATURE_PHASE);
 	response_keys = keys_new();
+
+	if (skipped_security &&
+	    conn->conn_session_type == CONN_SESSION_TYPE_NORMAL) {
+		if (conn->conn_target->t_alias != NULL)
+			keys_add(response_keys,
+			    "TargetAlias", conn->conn_target->t_alias);
+		keys_add_int(response_keys, "TargetPortalGroupTag", 
+		    conn->conn_portal->p_portal_group->pg_tag);
+	}
+
 	for (i = 0; i < KEYS_MAX; i++) {
 		if (request_keys->keys_names[i] == NULL)
 			break;
@@ -813,7 +825,7 @@ login_negotiate(struct connection *conn, struct pdu *request)
 		    response_keys);
 	}
 
-	log_debugx("parameter negotiation done; "
+	log_debugx("operational parameter negotiation done; "
 	    "transitioning to Full Feature Phase");
 
 	keys_save(response_keys, response);
@@ -834,8 +846,6 @@ login(struct connection *conn)
 	struct auth_group *ag;
 	const char *initiator_name, *initiator_alias, *session_type,
 	    *target_name, *auth_method;
-	char *portal_group_tag;
-	int rv;
 
 	/*
 	 * Handle the initial Login Request - figure out required authentication
@@ -849,6 +859,9 @@ login(struct connection *conn)
 		login_send_error(request, 0x02, 0x0a);
 		log_errx(1, "received Login PDU with non-zero TSIH");
 	}
+
+	memcpy(conn->conn_initiator_isid, bhslr->bhslr_isid,
+	    sizeof(conn->conn_initiator_isid));
 
 	/*
 	 * XXX: Implement the C flag some day.
@@ -951,7 +964,7 @@ login(struct connection *conn)
 	}
 
 	if (auth_portal_defined(ag)) {
-		if (auth_portal_find(ag, conn->conn_initiator_addr) == NULL) {
+		if (auth_portal_find(ag, &conn->conn_initiator_sa) == NULL) {
 			login_send_error(request, 0x02, 0x02);
 			log_errx(1, "initiator does not match allowed "
 			    "initiator portals");
@@ -987,7 +1000,7 @@ login(struct connection *conn)
 		 * but we don't need it.
 		 */
 		log_debugx("authentication not required; "
-		    "transitioning to parameter negotiation");
+		    "transitioning to operational parameter negotiation");
 
 		if ((bhslr->bhslr_flags & BHSLR_FLAGS_TRANSIT) == 0)
 			log_warnx("initiator did not set the \"T\" flag; "
@@ -1011,13 +1024,8 @@ login(struct connection *conn)
 			if (conn->conn_target->t_alias != NULL)
 				keys_add(response_keys,
 				    "TargetAlias", conn->conn_target->t_alias);
-			rv = asprintf(&portal_group_tag, "%d",
+			keys_add_int(response_keys, "TargetPortalGroupTag", 
 			    conn->conn_portal->p_portal_group->pg_tag);
-			if (rv <= 0)
-				log_err(1, "asprintf");
-			keys_add(response_keys,
-			    "TargetPortalGroupTag", portal_group_tag);
-			free(portal_group_tag);
 		}
 		keys_save(response_keys, response);
 		pdu_send(response);
@@ -1032,7 +1040,7 @@ login(struct connection *conn)
 
 	if (ag->ag_type == AG_TYPE_DENY) {
 		login_send_error(request, 0x02, 0x01);
-		log_errx(1, "auth-group type is \"deny\"");
+		log_errx(1, "auth-type is \"deny\"");
 	}
 
 	if (ag->ag_type == AG_TYPE_UNKNOWN) {
@@ -1040,7 +1048,7 @@ login(struct connection *conn)
 		 * This can happen with empty auth-group.
 		 */
 		login_send_error(request, 0x02, 0x01);
-		log_errx(1, "auth-group type not set, denying access");
+		log_errx(1, "auth-type not set, denying access");
 	}
 
 	log_debugx("CHAP authentication required");
@@ -1064,16 +1072,11 @@ login(struct connection *conn)
 	response_keys = keys_new();
 	keys_add(response_keys, "AuthMethod", "CHAP");
 	if (conn->conn_session_type == CONN_SESSION_TYPE_NORMAL) {
-		rv = asprintf(&portal_group_tag, "%d",
-		    conn->conn_portal->p_portal_group->pg_tag);
-		if (rv <= 0)
-			log_err(1, "asprintf");
-		keys_add(response_keys,
-		    "TargetPortalGroupTag", portal_group_tag);
-		free(portal_group_tag);
 		if (conn->conn_target->t_alias != NULL)
 			keys_add(response_keys,
 			    "TargetAlias", conn->conn_target->t_alias);
+		keys_add_int(response_keys, "TargetPortalGroupTag", 
+		    conn->conn_portal->p_portal_group->pg_tag);
 	}
 	keys_save(response_keys, response);
 

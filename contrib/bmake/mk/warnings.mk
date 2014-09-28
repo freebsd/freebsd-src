@@ -1,5 +1,5 @@
 # RCSid:
-#	$Id: warnings.mk,v 1.7 2009/12/11 17:06:03 sjg Exp $
+#	$Id: warnings.mk,v 1.8 2014/04/02 19:20:23 sjg Exp $
 #
 #	@(#) Copyright (c) 2002, Simon J. Gerraty
 #
@@ -42,23 +42,29 @@ HIGH_WARNINGS?= ${MEDIUM_WARNINGS} \
 	-Wswitch \
 	-Wwrite-strings
 
+EXTRA_WARNINGS?= ${HIGH_WARNINGS} -Wextra
+
 # The two step default makes it easier to test build with different defaults.
 DEFAULT_WARNINGS_SET?= MIN
 WARNINGS_SET?= ${DEFAULT_WARNINGS_SET}
 
 # If you add sets, besure to list them (you don't have to touch this list).
-ALL_WARNINGS_SETS+= MIN LOW MEDIUM HIGH
+ALL_WARNINGS_SETS+= MIN LOW MEDIUM HIGH EXTRA
 
-.if empty(${WARNINGS_SET}_WARNINGS)
-.if ${MAKE_VERSION:U0:[1]:C/.*-//} >= 20050530
+.if !empty(WARNINGS_SET)
+.for ws in ${WARNINGS_SET}
+.if empty(${ws}_WARNINGS)
+.if ${MAKE_VERSION:[1]:C/.*-//} >= 20050530
 .BEGIN:	_empty_warnings
 _empty_warnings: .PHONY
 .else
 .BEGIN:
 .endif
-	@echo "ERROR: Invalid: WARNINGS_SET=${WARNINGS_SET}"
+	@echo "ERROR: Invalid: WARNINGS_SET=${ws}"
 	@echo "ERROR: Try one of: ${ALL_WARNINGS_SETS:O:u}"; exit 1
 
+.endif
+.endfor
 .endif
 
 # Without -O or if we've set -O0 somewhere - to make debugging more effective,
@@ -69,40 +75,6 @@ _w_cflags:= ${CFLAGS} ${CPPFLAGS}
 W_uninitialized=
 .endif
 
-.if ${MAKE_VERSION:U0:[1]:C/.*-//} <= 20040118
-# This version uses .for loops to avoid a double free bug in old bmake's
-# but the .for loops are sensitive to when this file is read.
-
-# first, make a list of all the warning flags - doesn't matter if
-# its redundant - we'll sort -u
-_all_sets= ${WARNINGS_SET_${MACHINE_ARCH}} ${WARNINGS_SET} ${ALL_WARNINGS_SETS}
-_all_warnings= ${WARNINGS} ${_all_sets:O:u:@s@${$s_WARNINGS}@}
-
-# we want to set W_* for each warning so they are easy to turn off.
-# :O:u does a sort -u
-# using :C allows us to handle -f* -w* etc as well as -W*
-.for w in ${_all_warnings:O:u}
-${w:C/-(.)/\1_/} ?= $w
-.endfor
-
-# Allow for per-target warnings
-# Warning: the WARNINGS+= line below, 
-# may make your brain hurt - trust me; it works --sjg
-# the idea is that you can set WARNINGS_SET[_${MACHINE_ARCH}]=HIGH 
-# and use one of
-# W_format_mips_foo.o=
-# W_format_foo.o=
-# to turn off -Wformat for foo.o (on mips only in the first case), or
-# W_format_foo.o=-Wformat=2
-# for stricter checking.
-#
-# NOTE: that we force the target extension to be .o
-#
-.for w in ${WARNINGS_SET_${MACHINE_ARCH}:U${WARNINGS_SET}:@s@${$s_WARNINGS}@:O:u}
-WARNINGS+= ${${w:C/-(.)/\1_/}_${MACHINE_ARCH}_${.TARGET:T:R}.o:U${${w:C/-(.)/\1_/}_${.TARGET:T:R}.o:U${${w:C/-(.)/\1_/}_${MACHINE_ARCH}:U${${w:C/-(.)/\1_/}}}}}
-.endfor
-
-.else
 
 # .for loops have the [dis]advantage of being evaluated when read,
 # so adding to WARNINGS_SET[_${MACHINE_ARCH}] after this file is 
@@ -123,9 +95,19 @@ WARNINGS+= ${${w:C/-(.)/\1_/}_${MACHINE_ARCH}_${.TARGET:T:R}.o:U${${w:C/-(.)/\1_
 # 
 # NOTE: that we force the target extension to be .o
 #
-WARNINGS+= ${WARNINGS_SET_${MACHINE_ARCH}:U${WARNINGS_SET}:@s@${$s_WARNINGS}@:O:u:@w@${${w:C/-(.)/\1_/}::?=$w} ${${w:C/-(.)/\1_/}_${MACHINE_ARCH}_${.TARGET:T:R}.o:U${${w:C/-(.)/\1_/}_${.TARGET:T:R}.o:U${${w:C/-(.)/\1_/}_${MACHINE_ARCH}:U${${w:C/-(.)/\1_/}}}}}@}
 
-.endif
+# define this once, we use it a couple of times below (hence the doubled $$).
+M_warnings_list = @s@$${$$s_WARNINGS}@:O:u:@w@$${$${w:C/-(.)/\1_/}::?=$$w} $${$${w:C/-(.)/\1_/}_${MACHINE_ARCH}_${.TARGET:T:R}.o:U$${$${w:C/-(.)/\1_/}_${.TARGET:T:R}.o:U$${$${w:C/-(.)/\1_/}_${MACHINE_ARCH}:U$${$${w:C/-(.)/\1_/}}}}}@
+
+# first a list of warnings from the chosen set
+_warnings = ${WARNINGS_SET_${MACHINE_ARCH}:U${WARNINGS_SET}:${M_warnings_list}}
+# now a list of all -Wno-* overrides not just those defined by WARNINGS_SET
+# since things like -Wall imply lots of others.
+# this should be a super-set of the -Wno-* in _warnings, but 
+# just in case...
+_no_warnings = ${_warnings:M-Wno-*} ${ALL_WARNINGS_SETS:${M_warnings_list}:M-Wno-*}
+# -Wno-* must follow any others
+WARNINGS += ${_warnings:N-Wno-*} ${_no_warnings:O:u}
 
 .ifndef NO_CFLAGS_WARNINGS
 # Just ${WARNINGS} should do, but this is more flexible?
@@ -137,9 +119,10 @@ NO_CXX_WARNINGS+= \
 	missing-declarations \
 	missing-prototypes \
 	nested-externs \
+	shadow \
 	strict-prototypes
 
-.for s in ${SRCS:M*.cc}
+.for s in ${SRCS:M*.c*:N*.c:N*h}
 .for w in ${NO_CXX_WARNINGS}
 W_$w_${s:T:R}.o=
 .endfor

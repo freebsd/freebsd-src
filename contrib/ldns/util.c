@@ -20,6 +20,7 @@
 #include <stdio.h>
 #include <sys/time.h>
 #include <time.h>
+#include <ctype.h>
 
 #ifdef HAVE_SSL
 #include <openssl/rand.h>
@@ -460,3 +461,313 @@ ldns_bubblebabble(uint8_t *data, size_t len)
 	retval[j++] = '\0';
 	return retval;
 }
+
+/*
+ * For backwards compatibility, because we have always exported this symbol.
+ */
+#ifdef HAVE_B64_NTOP
+int ldns_b64_ntop(const uint8_t* src, size_t srclength,
+		char *target, size_t targsize);
+{
+	return b64_ntop(src, srclength, target, targsize);
+}
+#endif
+
+/*
+ * For backwards compatibility, because we have always exported this symbol.
+ */
+#ifdef HAVE_B64_PTON
+int ldns_b64_pton(const char* src, uint8_t *target, size_t targsize)
+{
+	return b64_pton(src, target, targsize);
+}
+#endif
+
+
+static int
+ldns_b32_ntop_base(const uint8_t* src, size_t src_sz,
+		char* dst, size_t dst_sz,
+		bool extended_hex, bool add_padding)
+{
+	size_t ret_sz;
+	const char* b32 = extended_hex ? "0123456789abcdefghijklmnopqrstuv"
+	                               : "abcdefghijklmnopqrstuvwxyz234567";
+
+	size_t c = 0; /* c is used to carry partial base32 character over 
+	               * byte boundaries for sizes with a remainder.
+		       * (i.e. src_sz % 5 != 0)
+		       */
+
+	ret_sz = add_padding ? ldns_b32_ntop_calculate_size(src_sz)
+	                     : ldns_b32_ntop_calculate_size_no_padding(src_sz);
+	
+	/* Do we have enough space? */
+	if (dst_sz < ret_sz + 1)
+		return -1;
+
+	/* We know the size; terminate the string */
+	dst[ret_sz] = '\0';
+
+	/* First process all chunks of five */
+	while (src_sz >= 5) {
+		/* 00000... ........ ........ ........ ........ */
+		dst[0] = b32[(src[0]       ) >> 3];
+
+		/* .....111 11...... ........ ........ ........ */
+		dst[1] = b32[(src[0] & 0x07) << 2 | src[1] >> 6];
+
+		/* ........ ..22222. ........ ........ ........ */
+		dst[2] = b32[(src[1] & 0x3e) >> 1];
+
+		/* ........ .......3 3333.... ........ ........ */
+		dst[3] = b32[(src[1] & 0x01) << 4 | src[2] >> 4];
+
+		/* ........ ........ ....4444 4....... ........ */
+		dst[4] = b32[(src[2] & 0x0f) << 1 | src[3] >> 7];
+
+		/* ........ ........ ........ .55555.. ........ */
+		dst[5] = b32[(src[3] & 0x7c) >> 2];
+
+		/* ........ ........ ........ ......66 666..... */
+		dst[6] = b32[(src[3] & 0x03) << 3 | src[4] >> 5];
+
+		/* ........ ........ ........ ........ ...77777 */
+		dst[7] = b32[(src[4] & 0x1f)     ];
+
+		src_sz -= 5;
+		src    += 5;
+		dst    += 8;
+	}
+	/* Process what remains */
+	switch (src_sz) {
+	case 4: /* ........ ........ ........ ......66 666..... */
+		dst[6] = b32[(src[3] & 0x03) << 3];
+
+		/* ........ ........ ........ .55555.. ........ */
+		dst[5] = b32[(src[3] & 0x7c) >> 2];
+
+		/* ........ ........ ....4444 4....... ........ */
+		         c =  src[3]         >> 7 ;
+	case 3: dst[4] = b32[(src[2] & 0x0f) << 1 | c];
+
+		/* ........ .......3 3333.... ........ ........ */
+			 c =  src[2]         >> 4 ;
+	case 2:	dst[3] = b32[(src[1] & 0x01) << 4 | c];
+
+		/* ........ ..22222. ........ ........ ........ */
+		dst[2] = b32[(src[1] & 0x3e) >> 1];
+
+		/* .....111 11...... ........ ........ ........ */
+	                 c =  src[1]         >> 6 ;
+	case 1:	dst[1] = b32[(src[0] & 0x07) << 2 | c];
+
+		/* 00000... ........ ........ ........ ........ */
+		dst[0] = b32[ src[0]         >> 3];
+	}
+	/* Add padding */
+	if (add_padding) {
+		switch (src_sz) {
+			case 1: dst[2] = '=';
+				dst[3] = '=';
+			case 2: dst[4] = '=';
+			case 3: dst[5] = '=';
+				dst[6] = '=';
+			case 4: dst[7] = '=';
+		}
+	}
+	return (int)ret_sz;
+}
+
+int 
+ldns_b32_ntop(const uint8_t* src, size_t src_sz, char* dst, size_t dst_sz)
+{
+	return ldns_b32_ntop_base(src, src_sz, dst, dst_sz, false, true);
+}
+
+int 
+ldns_b32_ntop_extended_hex(const uint8_t* src, size_t src_sz,
+		char* dst, size_t dst_sz)
+{
+	return ldns_b32_ntop_base(src, src_sz, dst, dst_sz, true, true);
+}
+
+#ifndef HAVE_B32_NTOP
+
+int 
+b32_ntop(const uint8_t* src, size_t src_sz, char* dst, size_t dst_sz)
+{
+	return ldns_b32_ntop_base(src, src_sz, dst, dst_sz, false, true);
+}
+
+int 
+b32_ntop_extended_hex(const uint8_t* src, size_t src_sz,
+		char* dst, size_t dst_sz)
+{
+	return ldns_b32_ntop_base(src, src_sz, dst, dst_sz, true, true);
+}
+
+#endif /* ! HAVE_B32_NTOP */
+
+static int
+ldns_b32_pton_base(const char* src, size_t src_sz,
+		uint8_t* dst, size_t dst_sz,
+		bool extended_hex, bool check_padding)
+{
+	size_t i = 0;
+	char ch = '\0';
+	uint8_t buf[8];
+	uint8_t* start = dst;
+
+	while (src_sz) {
+		/* Collect 8 characters in buf (if possible) */
+		for (i = 0; i < 8; i++) {
+
+			do {
+				ch = *src++;
+				--src_sz;
+
+			} while (isspace(ch) && src_sz > 0);
+
+			if (ch == '=' || ch == '\0')
+				break;
+
+			else if (extended_hex)
+
+				if (ch >= '0' && ch <= '9')
+					buf[i] = (uint8_t)ch - '0';
+				else if (ch >= 'a' && ch <= 'v')
+					buf[i] = (uint8_t)ch - 'a' + 10;
+				else if (ch >= 'A' && ch <= 'V')
+					buf[i] = (uint8_t)ch - 'A' + 10;
+				else
+					return -1;
+
+			else if (ch >= 'a' && ch <= 'z')
+				buf[i] = (uint8_t)ch - 'a';
+			else if (ch >= 'A' && ch <= 'Z')
+				buf[i] = (uint8_t)ch - 'A';
+			else if (ch >= '2' && ch <= '7')
+				buf[i] = (uint8_t)ch - '2' + 26;
+			else
+				return -1;
+		}
+		/* Less that 8 characters. We're done. */
+		if (i < 8)
+			break;
+
+		/* Enough space available at the destination? */
+		if (dst_sz < 5)
+			return -1;
+
+		/* 00000... ........ ........ ........ ........ */
+		/* .....111 11...... ........ ........ ........ */
+		dst[0] = buf[0] << 3 | buf[1] >> 2;
+
+		/* .....111 11...... ........ ........ ........ */
+		/* ........ ..22222. ........ ........ ........ */
+		/* ........ .......3 3333.... ........ ........ */
+		dst[1] = buf[1] << 6 | buf[2] << 1 | buf[3] >> 4;
+
+		/* ........ .......3 3333.... ........ ........ */
+		/* ........ ........ ....4444 4....... ........ */
+		dst[2] = buf[3] << 4 | buf[4] >> 1;
+
+		/* ........ ........ ....4444 4....... ........ */
+		/* ........ ........ ........ .55555.. ........ */
+		/* ........ ........ ........ ......66 666..... */
+		dst[3] = buf[4] << 7 | buf[5] << 2 | buf[6] >> 3;
+
+		/* ........ ........ ........ ......66 666..... */
+		/* ........ ........ ........ ........ ...77777 */
+		dst[4] = buf[6] << 5 | buf[7];
+
+		dst += 5;
+		dst_sz -= 5;
+	}
+	/* Not ending on a eight byte boundary? */
+	if (i > 0 && i < 8) {
+
+		/* Enough space available at the destination? */
+		if (dst_sz < (i + 1) / 2)
+			return -1;
+
+		switch (i) {
+		case 7: /* ........ ........ ........ ......66 666..... */
+			/* ........ ........ ........ .55555.. ........ */
+			/* ........ ........ ....4444 4....... ........ */
+			dst[3] = buf[4] << 7 | buf[5] << 2 | buf[6] >> 3;
+
+		case 5: /* ........ ........ ....4444 4....... ........ */
+			/* ........ .......3 3333.... ........ ........ */
+			dst[2] = buf[3] << 4 | buf[4] >> 1;
+
+		case 4: /* ........ .......3 3333.... ........ ........ */
+			/* ........ ..22222. ........ ........ ........ */
+			/* .....111 11...... ........ ........ ........ */
+			dst[1] = buf[1] << 6 | buf[2] << 1 | buf[3] >> 4;
+
+		case 2: /* .....111 11...... ........ ........ ........ */
+			/* 00000... ........ ........ ........ ........ */
+			dst[0] = buf[0] << 3 | buf[1] >> 2;
+
+			break;
+
+		default:
+			return -1;
+		}
+		dst += (i + 1) / 2;
+
+		if (check_padding) {
+			/* Check remaining padding characters */
+			if (ch != '=')
+				return -1;
+
+			/* One down, 8 - i - 1 more to come... */
+			for (i = 8 - i - 1; i > 0; i--) {
+
+				do {
+					if (src_sz == 0)
+						return -1;
+					ch = *src++;
+					src_sz--;
+
+				} while (isspace(ch));
+
+				if (ch != '=')
+					return -1;
+			}
+		}
+	}
+	return dst - start;
+}
+
+int
+ldns_b32_pton(const char* src, size_t src_sz, uint8_t* dst, size_t dst_sz)
+{
+	return ldns_b32_pton_base(src, src_sz, dst, dst_sz, false, true);
+}
+
+int
+ldns_b32_pton_extended_hex(const char* src, size_t src_sz, 
+		uint8_t* dst, size_t dst_sz)
+{
+	return ldns_b32_pton_base(src, src_sz, dst, dst_sz, true, true);
+}
+
+#ifndef HAVE_B32_PTON
+
+int
+b32_pton(const char* src, size_t src_sz, uint8_t* dst, size_t dst_sz)
+{
+	return ldns_b32_pton_base(src, src_sz, dst, dst_sz, false, true);
+}
+
+int
+b32_pton_extended_hex(const char* src, size_t src_sz, 
+		uint8_t* dst, size_t dst_sz)
+{
+	return ldns_b32_pton_base(src, src_sz, dst, dst_sz, true, true);
+}
+
+#endif /* ! HAVE_B32_PTON */
+

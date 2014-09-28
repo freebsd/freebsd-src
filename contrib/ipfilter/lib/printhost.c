@@ -23,9 +23,9 @@ printhost(family, addr)
 	if ((family == -1) || !*addr)
 		PRINTF("any");
 	else {
+#ifdef  USE_INET6
 		void *ptr = addr;
 
-#ifdef  USE_INET6
 		PRINTF("%s", inet_ntop(family, ptr, ipbuf, sizeof(ipbuf)));
 #else
 		ipa.s_addr = *addr;

@@ -23,8 +23,10 @@
  * Copyright 2005 Sun Microsystems, Inc.  All rights reserved.
  * Use is subject to license terms.
  */
-
-#pragma ident	"%Z%%M%	%I%	%E% SMI"
+/*
+ * Copyright (c) 2013 by Delphix. All rights reserved.
+ * Copyright (c) 2013 Joyent, Inc. All rights reserved.
+ */
 
 #include <strings.h>
 #include <assert.h>
@@ -69,7 +71,7 @@ dt_xlator_create_member(const char *name, ctf_id_t type, ulong_t off, void *arg)
 	enp->dn_op = DT_TOK_XLATE;
 	enp->dn_xlator = dxp;
 	enp->dn_xmember = mnp;
-	dt_node_type_assign(enp, dxp->dx_dst_ctfp, type);
+	dt_node_type_assign(enp, dxp->dx_dst_ctfp, type, B_FALSE);
 
 	/*
 	 * For the member itself, we use a DT_NODE_MEMBER as usual with the
@@ -83,7 +85,7 @@ dt_xlator_create_member(const char *name, ctf_id_t type, ulong_t off, void *arg)
 
 	mnp->dn_membname = strdup(name);
 	mnp->dn_membexpr = enp;
-	dt_node_type_assign(mnp, dxp->dx_dst_ctfp, type);
+	dt_node_type_assign(mnp, dxp->dx_dst_ctfp, type, B_FALSE);
 
 	if (mnp->dn_membname == NULL)
 		return (dt_set_errno(dtp, EDT_NOMEM));
@@ -318,7 +320,8 @@ dt_xlator_lookup(dtrace_hdl_t *dtp, dt_node_t *src, dt_node_t *dst, int flags)
 
 	for (dxp = dt_list_next(&dtp->dt_xlators); dxp != NULL;
 	    dxp = dt_list_next(dxp)) {
-		dt_node_type_assign(&xn, dxp->dx_src_ctfp, dxp->dx_src_type);
+		dt_node_type_assign(&xn, dxp->dx_src_ctfp, dxp->dx_src_type,
+		    B_FALSE);
 		if (ctf_type_compat(dxp->dx_dst_ctfp, dxp->dx_dst_base,
 		    dst_ctfp, dst_base) && dt_node_is_argcompat(src, &xn))
 			goto out;

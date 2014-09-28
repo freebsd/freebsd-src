@@ -14,4 +14,4 @@ SHLIBDIR= /usr/lib/i18n
 SHLIBDIR= /usr/lib32/i18n
 .endif
 LIBDIR=	 ${SHLIBDIR}
-NO_PROFILE=
+MK_PROFILE=	no

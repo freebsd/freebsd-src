@@ -444,7 +444,7 @@ static int	fastcmp(const fastmatch_t *fg, const void *data,
   }
 
 /*
- * Copies the pattern pat having lenght n to p and stores
+ * Copies the pattern pat having length n to p and stores
  * the size in l.
  */
 #define SAVE_PATTERN(src, srclen, dst, dstlen)				\
@@ -727,7 +727,7 @@ badpat:
       for (unsigned int i = 0; i < fg->len; i++)
 	if (fg->pattern[i] == '\\')
 	  escaped = !escaped;
-	else if (fg->pattern[i] == '.' && escaped)
+	else if (fg->pattern[i] == '.' && fg->escmap && escaped)
 	  {
 	    fg->escmap[i] = true;
 	    escaped = false;

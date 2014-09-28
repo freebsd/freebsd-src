@@ -33,8 +33,8 @@
 #ifndef _BSM_AUDIT_RECORD_H_
 #define _BSM_AUDIT_RECORD_H_
 
+#include <sys/types.h>
 #include <sys/time.h>			/* struct timeval */
-#include <sys/caprights.h>		/* cap_rights_t */
 
 /*
  * Token type identifiers.
@@ -189,6 +189,13 @@ struct sockaddr_in6;
 struct sockaddr_un;
 #if defined(_KERNEL) || defined(KERNEL)
 struct vnode_au_info;
+#endif
+
+#ifndef	_CAP_RIGHTS_T_DECLARED
+#define	_CAP_RIGHTS_T_DECLARED
+struct cap_rights;
+
+typedef	struct cap_rights	cap_rights_t;
 #endif
 
 int	 au_open(void);

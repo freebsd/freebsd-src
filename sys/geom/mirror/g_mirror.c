@@ -54,24 +54,18 @@ SYSCTL_DECL(_kern_geom);
 static SYSCTL_NODE(_kern_geom, OID_AUTO, mirror, CTLFLAG_RW, 0,
     "GEOM_MIRROR stuff");
 u_int g_mirror_debug = 0;
-TUNABLE_INT("kern.geom.mirror.debug", &g_mirror_debug);
-SYSCTL_UINT(_kern_geom_mirror, OID_AUTO, debug, CTLFLAG_RW, &g_mirror_debug, 0,
+SYSCTL_UINT(_kern_geom_mirror, OID_AUTO, debug, CTLFLAG_RWTUN, &g_mirror_debug, 0,
     "Debug level");
 static u_int g_mirror_timeout = 4;
-TUNABLE_INT("kern.geom.mirror.timeout", &g_mirror_timeout);
-SYSCTL_UINT(_kern_geom_mirror, OID_AUTO, timeout, CTLFLAG_RW, &g_mirror_timeout,
+SYSCTL_UINT(_kern_geom_mirror, OID_AUTO, timeout, CTLFLAG_RWTUN, &g_mirror_timeout,
     0, "Time to wait on all mirror components");
 static u_int g_mirror_idletime = 5;
-TUNABLE_INT("kern.geom.mirror.idletime", &g_mirror_idletime);
-SYSCTL_UINT(_kern_geom_mirror, OID_AUTO, idletime, CTLFLAG_RW,
+SYSCTL_UINT(_kern_geom_mirror, OID_AUTO, idletime, CTLFLAG_RWTUN,
     &g_mirror_idletime, 0, "Mark components as clean when idling");
 static u_int g_mirror_disconnect_on_failure = 1;
-TUNABLE_INT("kern.geom.mirror.disconnect_on_failure",
-    &g_mirror_disconnect_on_failure);
-SYSCTL_UINT(_kern_geom_mirror, OID_AUTO, disconnect_on_failure, CTLFLAG_RW,
+SYSCTL_UINT(_kern_geom_mirror, OID_AUTO, disconnect_on_failure, CTLFLAG_RWTUN,
     &g_mirror_disconnect_on_failure, 0, "Disconnect component on I/O failure.");
 static u_int g_mirror_syncreqs = 2;
-TUNABLE_INT("kern.geom.mirror.sync_requests", &g_mirror_syncreqs);
 SYSCTL_UINT(_kern_geom_mirror, OID_AUTO, sync_requests, CTLFLAG_RDTUN,
     &g_mirror_syncreqs, 0, "Parallel synchronization I/O requests.");
 
@@ -2824,7 +2818,8 @@ g_mirror_destroy_delayed(void *arg, int flag)
 	G_MIRROR_DEBUG(1, "Destroying %s (delayed).", sc->sc_name);
 	error = g_mirror_destroy(sc, G_MIRROR_DESTROY_SOFT);
 	if (error != 0) {
-		G_MIRROR_DEBUG(0, "Cannot destroy %s.", sc->sc_name);
+		G_MIRROR_DEBUG(0, "Cannot destroy %s (error=%d).",
+		    sc->sc_name, error);
 		sx_xunlock(&sc->sc_lock);
 	}
 	g_topology_lock();

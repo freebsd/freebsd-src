@@ -34,7 +34,7 @@ __FBSDID("$FreeBSD$");
 #include "opt_compat.h"
 
 #include <sys/param.h>
-#include <sys/capability.h>
+#include <sys/capsicum.h>
 #include <sys/conf.h>
 #include <sys/cons.h>
 #include <sys/fcntl.h>
@@ -1370,13 +1370,13 @@ tty_wait(struct tty *tp, struct cv *cv)
 
 	error = cv_wait_sig(cv, tp->t_mtx);
 
-	/* Restart the system call when we may have been revoked. */
-	if (tp->t_revokecnt != revokecnt)
-		return (ERESTART);
-
 	/* Bail out when the device slipped away. */
 	if (tty_gone(tp))
 		return (ENXIO);
+
+	/* Restart the system call when we may have been revoked. */
+	if (tp->t_revokecnt != revokecnt)
+		return (ERESTART);
 
 	return (error);
 }

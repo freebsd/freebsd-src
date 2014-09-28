@@ -21,16 +21,16 @@
  * specific prior written permission.
  * 
  * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
- * TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
- * PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE
- * LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
- * CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
- * SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
- * INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
- * CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
- * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
- * POSSIBILITY OF SUCH DAMAGE.
+ * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+ * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
+ * A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
+ * HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+ * SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED
+ * TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
+ * PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF
+ * LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
+ * NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+ * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
 /**
@@ -41,7 +41,6 @@
  */
 
 #include "config.h"
-#include <ldns/ldns.h>
 #include "iterator/iterator.h"
 #include "iterator/iter_utils.h"
 #include "iterator/iter_hints.h"
@@ -62,6 +61,10 @@
 #include "util/data/msgencode.h"
 #include "util/fptr_wlist.h"
 #include "util/config_file.h"
+#include "ldns/rrdef.h"
+#include "ldns/wire2str.h"
+#include "ldns/parseutil.h"
+#include "ldns/sbuffer.h"
 
 int 
 iter_init(struct module_env* env, int id)
@@ -228,8 +231,8 @@ static int
 error_response(struct module_qstate* qstate, int id, int rcode)
 {
 	verbose(VERB_QUERY, "return error response %s", 
-		ldns_lookup_by_id(ldns_rcodes, rcode)?
-		ldns_lookup_by_id(ldns_rcodes, rcode)->name:"??");
+		sldns_lookup_by_id(sldns_rcodes, rcode)?
+		sldns_lookup_by_id(sldns_rcodes, rcode)->name:"??");
 	qstate->return_rcode = rcode;
 	qstate->return_msg = NULL;
 	qstate->ext_state[id] = module_finished;
@@ -540,8 +543,8 @@ prime_root(struct module_qstate* qstate, struct iter_qstate* iq, int id,
 	struct delegpt* dp;
 	struct module_qstate* subq;
 	verbose(VERB_DETAIL, "priming . %s NS", 
-		ldns_lookup_by_id(ldns_rr_classes, (int)qclass)?
-		ldns_lookup_by_id(ldns_rr_classes, (int)qclass)->name:"??");
+		sldns_lookup_by_id(sldns_rr_classes, (int)qclass)?
+		sldns_lookup_by_id(sldns_rr_classes, (int)qclass)->name:"??");
 	dp = hints_lookup_root(qstate->env->hints, qclass);
 	if(!dp) {
 		verbose(VERB_ALGO, "Cannot prime due to lack of hints");
@@ -1212,7 +1215,7 @@ processInitRequest3(struct module_qstate* qstate, struct iter_qstate* iq,
 	 * cached referral as the response. */
 	if(!(qstate->query_flags & BIT_RD)) {
 		iq->response = iq->deleg_msg;
-		if(verbosity >= VERB_ALGO)
+		if(verbosity >= VERB_ALGO && iq->response)
 			log_dns_msg("no RD requested, using delegation msg", 
 				&iq->response->qinfo, iq->response->rep);
 		if(qstate->reply_origin)
@@ -1409,6 +1412,35 @@ query_for_targets(struct module_qstate* qstate, struct iter_qstate* iq,
 	return 1;
 }
 
+/** see if last resort is possible - does config allow queries to parent */
+static int
+can_have_last_resort(struct module_env* env, struct delegpt* dp,
+	struct iter_qstate* iq)
+{
+	struct delegpt* fwddp;
+	struct iter_hints_stub* stub;
+	/* do not process a last resort (the parent side) if a stub
+	 * or forward is configured, because we do not want to go 'above'
+	 * the configured servers */
+	if(!dname_is_root(dp->name) && (stub = (struct iter_hints_stub*)
+		name_tree_find(&env->hints->tree, dp->name, dp->namelen,
+		dp->namelabs, iq->qchase.qclass)) &&
+		/* has_parent side is turned off for stub_first, where we
+		 * are allowed to go to the parent */
+		stub->dp->has_parent_side_NS) {
+		verbose(VERB_QUERY, "configured stub servers failed -- returning SERVFAIL");
+		return 0;
+	}
+	if((fwddp = forwards_find(env->fwds, dp->name, iq->qchase.qclass)) &&
+		/* has_parent_side is turned off for forward_first, where
+		 * we are allowed to go to the parent */
+		fwddp->has_parent_side_NS) {
+		verbose(VERB_QUERY, "configured forward servers failed -- returning SERVFAIL");
+		return 0;
+	}
+	return 1;
+}
+
 /**
  * Called by processQueryTargets when it would like extra targets to query
  * but it seems to be out of options.  At last resort some less appealing
@@ -1430,6 +1462,11 @@ processLastResort(struct module_qstate* qstate, struct iter_qstate* iq,
 	verbose(VERB_ALGO, "No more query targets, attempting last resort");
 	log_assert(iq->dp);
 
+	if(!can_have_last_resort(qstate->env, iq->dp, iq)) {
+		/* fail -- no more targets, no more hope of targets, no hope 
+		 * of a response. */
+		return error_response_cache(qstate, id, LDNS_RCODE_SERVFAIL);
+	}
 	if(!iq->dp->has_parent_side_NS && dname_is_root(iq->dp->name)) {
 		struct delegpt* p = hints_lookup_root(qstate->env->hints,
 			iq->qchase.qclass);
@@ -1439,7 +1476,7 @@ processLastResort(struct module_qstate* qstate, struct iter_qstate* iq,
 			iq->chase_flags &= ~BIT_RD; /* go to authorities */
 			for(ns = p->nslist; ns; ns=ns->next) {
 				(void)delegpt_add_ns(iq->dp, qstate->region,
-					ns->name, (int)ns->lame);
+					ns->name, ns->lame);
 			}
 			for(a = p->target_list; a; a=a->next_target) {
 				(void)delegpt_add_addr(iq->dp, qstate->region,
@@ -1880,12 +1917,23 @@ processQueryResponse(struct module_qstate* qstate, struct iter_qstate* iq,
 		&& type != RESPONSE_TYPE_UNTYPED) {
 		/* a possible answer, see if it is missing DNSSEC */
 		/* but not when forwarding, so we dont mark fwder lame */
-		/* also make sure the answer is from the zone we expected,
-		 * otherwise, (due to parent,child on same server), we
-		 * might mark the server,zone lame inappropriately */
-		if(!iter_msg_has_dnssec(iq->response) &&
-			iter_msg_from_zone(iq->response, iq->dp, type,
-				iq->qchase.qclass)) {
+		if(!iter_msg_has_dnssec(iq->response)) {
+			/* Mark this address as dnsseclame in this dp,
+			 * because that will make serverselection disprefer
+			 * it, but also, once it is the only final option,
+			 * use dnssec-lame-bypass if it needs to query there.*/
+			if(qstate->reply) {
+				struct delegpt_addr* a = delegpt_find_addr(
+					iq->dp, &qstate->reply->addr,
+					qstate->reply->addrlen);
+				if(a) a->dnsseclame = 1;
+			}
+			/* test the answer is from the zone we expected,
+		 	 * otherwise, (due to parent,child on same server), we
+		 	 * might mark the server,zone lame inappropriately */
+			if(!iter_msg_from_zone(iq->response, iq->dp, type,
+				iq->qchase.qclass))
+				qstate->reply = NULL;
 			type = RESPONSE_TYPE_LAME;
 			dnsseclame = 1;
 		}
@@ -2117,8 +2165,7 @@ processQueryResponse(struct module_qstate* qstate, struct iter_qstate* iq,
 				*qstate->env->now, dnsseclame, 0,
 				iq->qchase.qtype))
 				log_err("mark host lame: out of memory");
-		} else log_err("%slame response from cache",
-			dnsseclame?"DNSSEC ":"");
+		}
 	} else if(type == RESPONSE_TYPE_REC_LAME) {
 		/* Cache the LAMEness. */
 		verbose(VERB_DETAIL, "query response REC_LAME: "
@@ -2326,12 +2373,12 @@ processTargetResponse(struct module_qstate* qstate, int id,
 			rrset->rk.dname_len)) {
 			/* if dpns->lame then set newcname ns lame too */
 			if(!delegpt_add_ns(foriq->dp, forq->region, 
-				rrset->rk.dname, (int)dpns->lame))
+				rrset->rk.dname, dpns->lame))
 				log_err("out of memory adding cnamed-ns");
 		}
 		/* if dpns->lame then set the address(es) lame too */
 		if(!delegpt_add_rrset(foriq->dp, forq->region, rrset, 
-			(int)dpns->lame))
+			dpns->lame))
 			log_err("out of memory adding targets");
 		verbose(VERB_ALGO, "added target response");
 		delegpt_log(VERB_ALGO, foriq->dp);
@@ -2704,7 +2751,7 @@ process_response(struct module_qstate* qstate, struct iter_qstate* iq,
 {
 	struct msg_parse* prs;
 	struct edns_data edns;
-	ldns_buffer* pkt;
+	sldns_buffer* pkt;
 
 	verbose(VERB_ALGO, "process_response: new external response event");
 	iq->response = NULL;
@@ -2731,7 +2778,7 @@ process_response(struct module_qstate* qstate, struct iter_qstate* iq,
 	memset(prs, 0, sizeof(*prs));
 	memset(&edns, 0, sizeof(edns));
 	pkt = qstate->reply->c->buffer;
-	ldns_buffer_set_position(pkt, 0);
+	sldns_buffer_set_position(pkt, 0);
 	if(parse_packet(pkt, prs, qstate->env->scratch) != LDNS_RCODE_NOERROR) {
 		verbose(VERB_ALGO, "parse error on reply packet");
 		goto handle_it;
@@ -2771,7 +2818,7 @@ process_response(struct module_qstate* qstate, struct iter_qstate* iq,
 		} else {
 			/* check if reply is the same, otherwise, fail */
 			if(!reply_equal(iq->response->rep, iq->caps_reply,
-				qstate->env->scratch_buffer)) {
+				qstate->env->scratch)) {
 				verbose(VERB_DETAIL, "Capsforid fallback: "
 					"getting different replies, failed");
 				outbound_list_remove(&iq->outlist, outbound);

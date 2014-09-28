@@ -253,10 +253,10 @@ ffs_mkfs(const char *fsys, const fsinfo_t *fsopts)
 	if (Oflag <= 1) {
 		sblock.fs_magic = FS_UFS1_MAGIC;
 		sblock.fs_sblockloc = SBLOCK_UFS1;
-		sblock.fs_nindir = sblock.fs_bsize / sizeof(int32_t);
+		sblock.fs_nindir = sblock.fs_bsize / sizeof(ufs1_daddr_t);
 		sblock.fs_inopb = sblock.fs_bsize / sizeof(struct ufs1_dinode);
 		sblock.fs_maxsymlinklen = ((NDADDR + NIADDR) *
-		    sizeof (int32_t));
+		    sizeof (ufs1_daddr_t));
 		sblock.fs_old_inodefmt = FS_44INODEFMT;
 		sblock.fs_old_cgoffset = 0;
 		sblock.fs_old_cgmask = 0xffffffff;
@@ -272,15 +272,11 @@ ffs_mkfs(const char *fsys, const fsinfo_t *fsopts)
 		sblock.fs_old_nrpos = 1;
 	} else {
 		sblock.fs_magic = FS_UFS2_MAGIC;
-#if 0 /* XXX makefs is used for small filesystems. */
 		sblock.fs_sblockloc = SBLOCK_UFS2;
-#else
-		sblock.fs_sblockloc = SBLOCK_UFS1;
-#endif
-		sblock.fs_nindir = sblock.fs_bsize / sizeof(int64_t);
+		sblock.fs_nindir = sblock.fs_bsize / sizeof(ufs2_daddr_t);
 		sblock.fs_inopb = sblock.fs_bsize / sizeof(struct ufs2_dinode);
 		sblock.fs_maxsymlinklen = ((NDADDR + NIADDR) *
-		    sizeof (int64_t));
+		    sizeof (ufs2_daddr_t));
 	}
 
 	sblock.fs_sblkno =

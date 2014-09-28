@@ -120,11 +120,47 @@ static void
 kmem_size_init(void *unused __unused)
 {
 
-	kmem_size_val = (uint64_t)cnt.v_page_count * PAGE_SIZE;
+	kmem_size_val = (uint64_t)vm_cnt.v_page_count * PAGE_SIZE;
 	if (kmem_size_val > vm_kmem_size)
 		kmem_size_val = vm_kmem_size;
 }
 SYSINIT(kmem_size_init, SI_SUB_KMEM, SI_ORDER_ANY, kmem_size_init, NULL);
+
+/*
+ * The return values from kmem_free_* are only valid once the pagedaemon
+ * has been initialised, before then they return 0.
+ * 
+ * To ensure the returns are valid the caller can use a SYSINIT with
+ * subsystem set to SI_SUB_KTHREAD_PAGE and an order of at least
+ * SI_ORDER_SECOND.
+ */
+u_int
+kmem_free_target(void)
+{
+
+	return (vm_cnt.v_free_target);
+}
+
+u_int
+kmem_free_min(void)
+{
+
+	return (vm_cnt.v_free_min);
+}
+
+u_int
+kmem_free_count(void)
+{
+
+	return (vm_cnt.v_free_count + vm_cnt.v_cache_count);
+}
+
+u_int
+kmem_page_count(void)
+{
+
+	return (vm_cnt.v_page_count);
+}
 
 uint64_t
 kmem_size(void)

@@ -60,7 +60,7 @@ static __inline Fnv64_t
 fnv_64_str(const char *str, Fnv64_t hval)
 {
 	const u_int8_t *s = (const u_int8_t *)str;
-	u_register_t c;		 /* 32 bit on i386, 64 bit on alpha,ia64 */
+	u_register_t c;		 /* 32 bit on i386, 64 bit on alpha */
 
 	while ((c = *s++) != 0) {
 		hval *= FNV_64_PRIME;

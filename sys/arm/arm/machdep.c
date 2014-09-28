@@ -98,15 +98,21 @@ __FBSDID("$FreeBSD$");
 #include <machine/metadata.h>
 #include <machine/pcb.h>
 #include <machine/physmem.h>
+#include <machine/platform.h>
 #include <machine/reg.h>
 #include <machine/trap.h>
 #include <machine/undefined.h>
+#include <machine/vfp.h>
 #include <machine/vmparam.h>
 #include <machine/sysarch.h>
 
 #ifdef FDT
 #include <dev/fdt/fdt_common.h>
 #include <dev/ofw/openfirm.h>
+#endif
+
+#ifdef DDB
+#include <ddb/ddb.h>
 #endif
 
 #ifdef DEBUG
@@ -129,9 +135,6 @@ int _min_memcpy_size = 0;
 int _min_bzero_size = 0;
 
 extern int *end;
-#ifdef DDB
-extern vm_offset_t ksym_start, ksym_end;
-#endif
 
 #ifdef FDT
 /*
@@ -142,10 +145,6 @@ extern vm_offset_t ksym_start, ksym_end;
 #define KERNEL_PT_MAX	78
 
 static struct pv_addr kernel_pt_table[KERNEL_PT_MAX];
-
-extern u_int data_abort_handler_address;
-extern u_int prefetch_abort_handler_address;
-extern u_int undefined_handler_address;
 
 vm_paddr_t pmap_pa;
 
@@ -370,8 +369,8 @@ cpu_startup(void *dummy)
 	    (uintmax_t)arm32_ptob(realmem),
 	    (uintmax_t)arm32_ptob(realmem) / mbyte);
 	printf("avail memory = %ju (%ju MB)\n",
-	    (uintmax_t)arm32_ptob(cnt.v_free_count),
-	    (uintmax_t)arm32_ptob(cnt.v_free_count) / mbyte);
+	    (uintmax_t)arm32_ptob(vm_cnt.v_free_count),
+	    (uintmax_t)arm32_ptob(vm_cnt.v_free_count) / mbyte);
 	if (bootverbose) {
 		arm_physmem_print_tables();
 		arm_devmap_print_table();
@@ -379,8 +378,6 @@ cpu_startup(void *dummy)
 
 	bufinit();
 	vm_pager_bufferinit();
-	pcb->un_32.pcb32_und_sp = (u_int)thread0.td_kstack +
-	    USPACE_UNDEF_STACK_TOP;
 	pcb->un_32.pcb32_sp = (u_int)thread0.td_kstack +
 	    USPACE_SVC_STACK_TOP;
 	vector_page_setprot(VM_PROT_READ);
@@ -429,24 +426,20 @@ void
 cpu_idle(int busy)
 {
 	
-	CTR2(KTR_SPARE2, "cpu_idle(%d) at %d",
-	    busy, curcpu);
+	CTR2(KTR_SPARE2, "cpu_idle(%d) at %d", busy, curcpu);
+	spinlock_enter();
 #ifndef NO_EVENTTIMERS
-	if (!busy) {
-		critical_enter();
+	if (!busy)
 		cpu_idleclock();
-	}
 #endif
 	if (!sched_runnable())
 		cpu_sleep(0);
 #ifndef NO_EVENTTIMERS
-	if (!busy) {
+	if (!busy)
 		cpu_activeclock();
-		critical_exit();
-	}
 #endif
-	CTR2(KTR_SPARE2, "cpu_idle(%d) at %d done",
-	    busy, curcpu);
+	spinlock_exit();
+	CTR2(KTR_SPARE2, "cpu_idle(%d) at %d done", busy, curcpu);
 }
 
 int
@@ -628,7 +621,7 @@ spinlock_enter(void)
 
 	td = curthread;
 	if (td->td_md.md_spinlock_count == 0) {
-		cspr = disable_interrupts(I32_bit | F32_bit);
+		cspr = disable_interrupts(PSR_I | PSR_F);
 		td->td_md.md_spinlock_count = 1;
 		td->td_md.md_saved_cspr = cspr;
 	} else
@@ -742,28 +735,26 @@ sys_sigreturn(td, uap)
 		const struct __ucontext *sigcntxp;
 	} */ *uap;
 {
-	struct sigframe sf;
-	struct trapframe *tf;
+	ucontext_t uc;
 	int spsr;
 	
 	if (uap == NULL)
 		return (EFAULT);
-	if (copyin(uap->sigcntxp, &sf, sizeof(sf)))
+	if (copyin(uap->sigcntxp, &uc, sizeof(uc)))
 		return (EFAULT);
 	/*
 	 * Make sure the processor mode has not been tampered with and
 	 * interrupts have not been disabled.
 	 */
-	spsr = sf.sf_uc.uc_mcontext.__gregs[_REG_CPSR];
+	spsr = uc.uc_mcontext.__gregs[_REG_CPSR];
 	if ((spsr & PSR_MODE) != PSR_USR32_MODE ||
-	    (spsr & (I32_bit | F32_bit)) != 0)
+	    (spsr & (PSR_I | PSR_F)) != 0)
 		return (EINVAL);
 		/* Restore register context. */
-	tf = td->td_frame;
-	set_mcontext(td, &sf.sf_uc.uc_mcontext);
+	set_mcontext(td, &uc.uc_mcontext);
 
 	/* Restore signal mask. */
-	kern_sigprocmask(td, SIG_SETMASK, &sf.sf_uc.uc_sigmask, NULL, 0);
+	kern_sigprocmask(td, SIG_SETMASK, &uc.uc_sigmask, NULL, 0);
 
 	return (EJUSTRETURN);
 }
@@ -827,8 +818,7 @@ fake_preload_metadata(struct arm_boot_params *abp __unused)
 		lastaddr = *(uint32_t *)(KERNVIRTADDR + 8);
 		zend = lastaddr;
 		zstart = *(uint32_t *)(KERNVIRTADDR + 4);
-		ksym_start = zstart;
-		ksym_end = zend;
+		db_fetch_ksymtab(zstart, zend);
 	} else
 #endif
 		lastaddr = (vm_offset_t)&end;
@@ -922,6 +912,10 @@ freebsd_parse_boot_param(struct arm_boot_params *abp)
 	vm_offset_t lastaddr = 0;
 	void *mdp;
 	void *kmdp;
+#ifdef DDB
+	vm_offset_t ksym_start;
+	vm_offset_t ksym_end;
+#endif
 
 	/*
 	 * Mask metadata pointer: it is supposed to be on page boundary. If
@@ -944,6 +938,7 @@ freebsd_parse_boot_param(struct arm_boot_params *abp)
 #ifdef DDB
 	ksym_start = MD_FETCH(kmdp, MODINFOMD_SSYM, uintptr_t);
 	ksym_end = MD_FETCH(kmdp, MODINFOMD_ESYM, uintptr_t);
+	db_fetch_ksymtab(ksym_start, ksym_end);
 #endif
 	preload_addr_relocate = KERNVIRTADDR - abp->abp_physaddr;
 	return lastaddr;
@@ -997,6 +992,8 @@ init_proc0(vm_offset_t kstack)
 	thread0.td_pcb = (struct pcb *)
 		(thread0.td_kstack + KSTACK_PAGES * PAGE_SIZE) - 1;
 	thread0.td_pcb->pcb_flags = 0;
+	thread0.td_pcb->pcb_vfpcpu = -1;
+	thread0.td_pcb->pcb_vfpstate.fpscr = VFPSCR_DN | VFPSCR_FZ;
 	thread0.td_frame = &proc0_tf;
 	pcpup->pc_curpcb = thread0.td_pcb;
 }
@@ -1100,7 +1097,7 @@ initarm(struct arm_boot_params *abp)
 		    EXFLAG_NODUMP | EXFLAG_NOALLOC);
 
 	/* Platform-specific initialisation */
-	initarm_early_init();
+	platform_probe_and_attach();
 
 	pcpu0_init();
 
@@ -1216,9 +1213,9 @@ initarm(struct arm_boot_params *abp)
 	    VM_PROT_READ|VM_PROT_WRITE|VM_PROT_EXECUTE, PTE_CACHE);
 
 	/* Establish static device mappings. */
-	err_devmap = initarm_devmap_init();
+	err_devmap = platform_devmap_init();
 	arm_devmap_bootstrap(l1pagetable, NULL);
-	vm_max_kernel_address = initarm_lastaddr();
+	vm_max_kernel_address = platform_lastaddr();
 
 	cpu_domains((DOMAIN_CLIENT << (PMAP_DOMAIN_KERNEL * 2)) | DOMAIN_CLIENT);
 	pmap_pa = kernel_l1pt.pv_pa;
@@ -1238,7 +1235,7 @@ initarm(struct arm_boot_params *abp)
 	 */
 	OF_interpret("perform-fixup", 0);
 
-	initarm_gpio_init();
+	platform_gpio_init();
 
 	cninit();
 
@@ -1256,7 +1253,7 @@ initarm(struct arm_boot_params *abp)
 		printf("WARNING: could not fully configure devmap, error=%d\n",
 		    err_devmap);
 
-	initarm_late_init();
+	platform_late_init();
 
 	/*
 	 * Pages were allocated during the secondary bootstrap for the
@@ -1282,15 +1279,10 @@ initarm(struct arm_boot_params *abp)
 	 */
 	cpu_idcache_wbinv_all();
 
-	/* Set stack for exception handlers */
-	data_abort_handler_address = (u_int)data_abort_handler;
-	prefetch_abort_handler_address = (u_int)prefetch_abort_handler;
-	undefined_handler_address = (u_int)undefinedinstruction_bounce;
 	undefined_init();
 
 	init_proc0(kernelstack.pv_va);
 
-	arm_intrnames_init();
 	arm_vector_init(ARM_VECTORS_HIGH, ARM_VEC_ALL);
 	pmap_bootstrap(freemempos, &kernel_l1pt);
 	msgbufp = (void *)msgbufpv.pv_va;

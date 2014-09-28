@@ -42,6 +42,8 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
+#include <sys/types.h>
+#include <sys/stat.h>
 #include "dtb.hh"
 
 namespace dtc
@@ -1078,6 +1080,13 @@ device_tree::buffer_for_file(const char *path)
 		fprintf(stderr, "Unable to open file %s\n", path);
 		return 0;
 	}
+	struct stat st;
+	if (fstat(source, &st) == 0 && S_ISDIR(st.st_mode))
+	{
+		fprintf(stderr, "File %s is a directory\n", path);
+		close(source);
+		return 0;
+	}
 	input_buffer *b = new mmap_input_buffer(source);
 	// Keep the buffer that owns the memory around for the lifetime
 	// of this FDT.  Ones simply referring to it may have shorter
@@ -1379,7 +1388,7 @@ device_tree::parse_dts(const char *fn, FILE *depfile)
 		    (input.next_token(),
 		    input.consume_integer(len))))
 		{
-			input.parse_error("Expected /dts-v1/; version string");
+			input.parse_error("Expected size on /memreserve/ node.");
 		}
 		input.next_token();
 		input.consume(';');

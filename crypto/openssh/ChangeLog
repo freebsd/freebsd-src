@@ -1,3 +1,224 @@
+20140313
+ - (djm) Release OpenSSH 6.6
+
+20140304
+ - OpenBSD CVS Sync
+   - djm@cvs.openbsd.org 2014/03/03 22:22:30
+     [session.c]
+     ignore enviornment variables with embedded '=' or '\0' characters;
+     spotted by Jann Horn; ok deraadt@
+
+20140301
+ - (djm) [regress/Makefile] Disable dhgex regress test; it breaks when
+   no moduli file exists at the expected location.
+
+20140228
+ - OpenBSD CVS Sync
+   - djm@cvs.openbsd.org 2014/02/27 00:41:49
+     [bufbn.c]
+     fix unsigned overflow that could lead to reading a short ssh protocol
+     1 bignum value; found by Ben Hawkes; ok deraadt@
+   - djm@cvs.openbsd.org 2014/02/27 08:25:09
+     [bufbn.c]
+     off by one in range check
+   - djm@cvs.openbsd.org 2014/02/27 22:47:07
+     [sshd_config.5]
+     bz#2184 clarify behaviour of a keyword that appears in multiple
+     matching Match blocks; ok dtucker@
+   - djm@cvs.openbsd.org 2014/02/27 22:57:40
+     [version.h]
+     openssh-6.6
+   - dtucker@cvs.openbsd.org 2014/01/19 23:43:02
+     [regress/sftp-chroot.sh]
+     Don't use -q on sftp as it suppresses logging, instead redirect the
+     output to the regress logfile.
+   - dtucker@cvs.openbsd.org 2014/01/20 00:00:30
+     [sregress/ftp-chroot.sh]
+     append to rather than truncating the log file
+   - dtucker@cvs.openbsd.org 2014/01/25 04:35:32
+     [regress/Makefile regress/dhgex.sh]
+     Add a test for DH GEX sizes
+   - djm@cvs.openbsd.org 2014/01/26 10:22:10
+     [regress/cert-hostkey.sh]
+     automatically generate revoked keys from listed keys rather than
+     manually specifying each type; from portable
+     (Id sync only)
+   - djm@cvs.openbsd.org 2014/01/26 10:49:17
+     [scp-ssh-wrapper.sh scp.sh]
+     make sure $SCP is tested on the remote end rather than whichever one
+     happens to be in $PATH; from portable
+     (Id sync only)
+   - djm@cvs.openbsd.org 2014/02/27 20:04:16
+     [login-timeout.sh]
+     remove any existing LoginGraceTime from sshd_config before adding
+     a specific one for the test back in
+   - djm@cvs.openbsd.org 2014/02/27 21:21:25
+     [agent-ptrace.sh agent.sh]
+     keep return values that are printed in error messages;
+     from portable
+     (Id sync only)
+ - (djm) [README contrib/caldera/openssh.spec contrib/redhat/openssh.spec]
+   [contrib/suse/openssh.spec] Crank version numbers
+ - (djm) [regress/host-expand.sh] Add RCS Id
+
+20140227
+ - OpenBSD CVS Sync
+   - djm@cvs.openbsd.org 2014/02/26 20:18:37
+     [ssh.c]
+     bz#2205: avoid early hostname lookups unless canonicalisation is enabled;
+     ok dtucker@ markus@
+   - djm@cvs.openbsd.org 2014/02/26 20:28:44
+     [auth2-gss.c gss-serv.c ssh-gss.h sshd.c]
+     bz#2107 - cache OIDs of supported GSSAPI mechanisms before privsep
+     sandboxing, as running this code in the sandbox can cause violations;
+     ok markus@
+   - djm@cvs.openbsd.org 2014/02/26 20:29:29
+     [channels.c]
+     don't assume that the socks4 username is \0 terminated;
+     spotted by Ben Hawkes; ok markus@
+   - markus@cvs.openbsd.org 2014/02/26 21:53:37
+     [sshd.c]
+     ssh_gssapi_prepare_supported_oids needs GSSAPI
+
+20140224
+ - OpenBSD CVS Sync
+   - djm@cvs.openbsd.org 2014/02/07 06:55:54
+     [cipher.c mac.c]
+     remove some logging that makes ssh debugging output very verbose;
+     ok markus
+   - djm@cvs.openbsd.org 2014/02/15 23:05:36
+     [channels.c]
+     avoid spurious "getsockname failed: Bad file descriptor" errors in ssh -W;
+     bz#2200, debian#738692 via Colin Watson; ok dtucker@
+   - djm@cvs.openbsd.org 2014/02/22 01:32:19
+     [readconf.c]
+     when processing Match blocks, skip 'exec' clauses if previous predicates
+     failed to match; ok markus@
+   - djm@cvs.openbsd.org 2014/02/23 20:03:42
+     [ssh-ed25519.c]
+     check for unsigned overflow; not reachable in OpenSSH but others might
+     copy our code...
+   - djm@cvs.openbsd.org 2014/02/23 20:11:36
+     [readconf.c readconf.h ssh.c ssh_config.5]
+     reparse ssh_config and ~/.ssh/config if hostname canonicalisation changes
+     the hostname. This allows users to write configurations that always
+     refer to canonical hostnames, e.g.
+     
+     CanonicalizeHostname yes
+     CanonicalDomains int.example.org example.org
+     CanonicalizeFallbackLocal no
+     
+     Host *.int.example.org
+         Compression off
+     Host *.example.org
+         User djm
+     
+     ok markus@
+
+20140213
+ - (dtucker) [configure.ac openbsd-compat/openssl-compat.{c,h}]  Add compat
+   code for older OpenSSL versions that don't have EVP_MD_CTX_copy_ex.
+
+20140207
+ - OpenBSD CVS Sync
+   - naddy@cvs.openbsd.org 2014/02/05 20:13:25
+     [ssh-keygen.1 ssh-keygen.c]
+     tweak synopsis: calling ssh-keygen without any arguments is fine; ok jmc@
+     while here, fix ordering in usage(); requested by jmc@
+   - djm@cvs.openbsd.org 2014/02/06 22:21:01
+     [sshconnect.c]
+     in ssh_create_socket(), only do the getaddrinfo for BindAddress when
+     BindAddress is actually specified. Fixes regression in 6.5 for
+     UsePrivilegedPort=yes; patch from Corinna Vinschen
+
+20140206
+ - (dtucker) [openbsd-compat/bsd-poll.c] Don't bother checking for non-NULL
+   before freeing since free(NULL) is a no-op.  ok djm.
+ - (djm) [sandbox-seccomp-filter.c] Not all Linux architectures define
+   __NR_shutdown; some go via the socketcall(2) multiplexer.
+
+20140205
+ - (djm) [sandbox-capsicum.c] Don't fatal if Capsicum is offered by
+   headers/libc but not supported by the kernel. Patch from Loganaden
+   Velvindron @ AfriNIC
+
+20140204
+ - OpenBSD CVS Sync
+   - markus@cvs.openbsd.org 2014/01/27 18:58:14
+     [Makefile.in digest.c digest.h hostfile.c kex.h mac.c hmac.c hmac.h]
+     replace openssl HMAC with an implementation based on our ssh_digest_*
+     ok and feedback djm@
+   - markus@cvs.openbsd.org 2014/01/27 19:18:54
+     [auth-rsa.c cipher.c ssh-agent.c sshconnect1.c sshd.c]
+     replace openssl MD5 with our ssh_digest_*; ok djm@
+   - markus@cvs.openbsd.org 2014/01/27 20:13:46
+     [digest.c digest-openssl.c digest-libc.c Makefile.in]
+     rename digest.c to digest-openssl.c and add libc variant; ok djm@
+   - jmc@cvs.openbsd.org 2014/01/28 14:13:39
+     [ssh-keyscan.1]
+     kill some bad Pa;
+     From: Jan Stary
+   - djm@cvs.openbsd.org 2014/01/29 00:19:26
+     [sshd.c]
+     use kill(0, ...) instead of killpg(0, ...); on most operating systems
+     they are equivalent, but SUSv2 describes the latter as having undefined
+     behaviour; from portable; ok dtucker
+     (Id sync only; change is already in portable)
+   - djm@cvs.openbsd.org 2014/01/29 06:18:35
+     [Makefile.in auth.h auth2-jpake.c auth2.c jpake.c jpake.h monitor.c]
+     [monitor.h monitor_wrap.c monitor_wrap.h readconf.c readconf.h]
+     [schnorr.c schnorr.h servconf.c servconf.h ssh2.h sshconnect2.c]
+     remove experimental, never-enabled JPAKE code; ok markus@
+   - jmc@cvs.openbsd.org 2014/01/29 14:04:51
+     [sshd_config.5]
+     document kbdinteractiveauthentication;
+     requested From: Ross L Richardson
+     
+     dtucker/markus helped explain its workings;
+   - djm@cvs.openbsd.org 2014/01/30 22:26:14
+     [sandbox-systrace.c]
+     allow shutdown(2) syscall in sandbox - it may be called by packet_close()
+     from portable
+     (Id sync only; change is already in portable)
+   - tedu@cvs.openbsd.org 2014/01/31 16:39:19
+     [auth2-chall.c authfd.c authfile.c bufaux.c bufec.c canohost.c]
+     [channels.c cipher-chachapoly.c clientloop.c configure.ac hostfile.c]
+     [kexc25519.c krl.c monitor.c sandbox-systrace.c session.c]
+     [sftp-client.c ssh-keygen.c ssh.c sshconnect2.c sshd.c sshlogin.c]
+     [openbsd-compat/explicit_bzero.c openbsd-compat/openbsd-compat.h]
+     replace most bzero with explicit_bzero, except a few that cna be memset
+     ok djm dtucker
+   - djm@cvs.openbsd.org 2014/02/02 03:44:32
+     [auth1.c auth2-chall.c auth2-passwd.c authfile.c bufaux.c bufbn.c]
+     [buffer.c cipher-3des1.c cipher.c clientloop.c gss-serv.c kex.c]
+     [kexdhc.c kexdhs.c kexecdhc.c kexgexc.c kexecdhs.c kexgexs.c key.c]
+     [monitor.c monitor_wrap.c packet.c readpass.c rsa.c serverloop.c]
+     [ssh-add.c ssh-agent.c ssh-dss.c ssh-ecdsa.c ssh-ed25519.c]
+     [ssh-keygen.c ssh-rsa.c sshconnect.c sshconnect1.c sshconnect2.c]
+     [sshd.c]
+     convert memset of potentially-private data to explicit_bzero()
+   - djm@cvs.openbsd.org 2014/02/03 23:28:00
+     [ssh-ecdsa.c]
+     fix memory leak; ECDSA_SIG_new() allocates 'r' and 's' for us, unlike
+     DSA_SIG_new. Reported by Batz Spear; ok markus@
+   - djm@cvs.openbsd.org 2014/02/02 03:44:31
+     [digest-libc.c digest-openssl.c]
+     convert memset of potentially-private data to explicit_bzero()
+   - djm@cvs.openbsd.org 2014/02/04 00:24:29
+     [ssh.c]
+     delay lowercasing of hostname until right before hostname
+     canonicalisation to unbreak case-sensitive matching of ssh_config;
+     reported by Ike Devolder; ok markus@
+ - (djm) [openbsd-compat/Makefile.in] Add missing explicit_bzero.o
+ - (djm) [regress/setuid-allowed.c] Missing string.h for strerror()
+
+20140131
+ - (djm) [sandbox-seccomp-filter.c sandbox-systrace.c] Allow shutdown(2)
+   syscall from sandboxes; it may be called by packet_close.
+ - (dtucker) [readconf.c] Include <arpa/inet.h> for the hton macros.  Fixes
+   build with HP-UX's compiler.  Patch from Kevin Brott.
+ - (tim) [Makefile.in] build regress/setuid-allow.
+
 20140130
  - (djm) [configure.ac] Only check for width-specified integer types
    in headers that actually exist. patch from Tom G. Christensen;
@@ -2663,3 +2884,4 @@
    [contrib/suse/openssh.spec] Update for release 6.0
  - (djm) [README] Update URL to release notes.
  - (djm) Release openssh-6.0
+

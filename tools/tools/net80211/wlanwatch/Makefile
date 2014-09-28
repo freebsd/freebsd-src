@@ -2,9 +2,9 @@
 
 PROG=	wlanwatch
 BINDIR=	/usr/local/bin
-NO_MAN=
+MAN=
 
-.include <bsd.own.mk>
+.include <src.opts.mk>
 
 .if ${MK_INET6_SUPPORT} != "no"
 CFLAGS+= -DINET6

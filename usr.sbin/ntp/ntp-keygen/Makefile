@@ -1,8 +1,8 @@
 # $FreeBSD$
 
-NO_MAN=
+MAN=
 
-.include <bsd.own.mk>
+.include <src.opts.mk>
 
 .PATH: ${.CURDIR}/../../../contrib/ntp/util \
        ${.CURDIR}/../../../contrib/ntp/ntpd
@@ -16,7 +16,7 @@ CFLAGS+= -I${.CURDIR}/../../../contrib/ntp/include -I${.CURDIR}/../ \
 DPADD=	${LIBNTP} ${LIBOPTS}
 LDADD=	${LIBNTP} ${LIBOPTS}
 
-.if ${MK_OPENSSL} != "no" && !defined(RELEASE_CRUNCH)
+.if ${MK_OPENSSL} != "no"
 DPADD+=	${LIBMD} ${LIBCRYPTO}
 LDADD+=	-lmd -lcrypto
 .endif

@@ -341,8 +341,8 @@ fork_norfproc(struct thread *td, int flags)
 	/*
 	 * Unshare file descriptors (from parent).
 	 */
-	if (flags & RFFDG) 
-		fdunshare(p1, td);
+	if (flags & RFFDG)
+		fdunshare(td);
 
 fail:
 	if (((p1->p_flag & (P_HADTHREADS|P_SYSTEM)) == P_HADTHREADS) &&

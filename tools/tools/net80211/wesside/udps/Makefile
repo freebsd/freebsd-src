@@ -5,6 +5,6 @@ BINDIR=	/usr/local/bin
 DPADD=	${LIBZ}
 LDADD=	-lz
 CFLAGS=-g
-NO_MAN=
+MAN=
 
 .include <bsd.prog.mk>

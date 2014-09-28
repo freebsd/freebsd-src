@@ -52,8 +52,6 @@ __FBSDID("$FreeBSD$");
 #include <net/route.h>
 
 #include <netinet/in.h>
-#include <netipx/ipx.h>
-#include <netatalk/at.h>
 #include <netgraph/ng_socket.h>
 
 #include <sys/sysctl.h>
@@ -92,18 +90,11 @@ struct bits {
 	{ RTF_STATIC,	'S' },
 	{ RTF_PROTO1,	'1' },
 	{ RTF_PROTO2,	'2' },
-	{ RTF_PRCLONING,'c' },
 	{ RTF_PROTO3,	'3' },
 	{ RTF_BLACKHOLE,'B' },
 	{ RTF_BROADCAST,'b' },
 #ifdef RTF_LLINFO
 	{ RTF_LLINFO,	'L' },
-#endif
-#ifdef RTF_WASCLONED
-	{ RTF_WASCLONED,'W' },
-#endif
-#ifdef RTF_CLONING
-	{ RTF_CLONING,	'C' },
 #endif
 	{ 0 , 0 }
 };
@@ -216,14 +207,8 @@ pr_family(int af1)
 		afname = "Internet6";
 		break;
 #endif /*INET6*/
-	case AF_IPX:
-		afname = "IPX";
-		break;
 	case AF_ISO:
 		afname = "ISO";
-		break;
-	case AF_APPLETALK:
-		afname = "AppleTalk";
 		break;
 	case AF_CCITT:
 		afname = "X.25";
@@ -245,13 +230,13 @@ pr_family(int af1)
 #ifndef INET6
 #define	WID_DST_DEFAULT(af) 	18	/* width of destination column */
 #define	WID_GW_DEFAULT(af)	18	/* width of gateway column */
-#define	WID_IF_DEFAULT(af)	(Wflag ? 8 : 6)	/* width of netif column */
+#define	WID_IF_DEFAULT(af)	(Wflag ? 10 : 8) /* width of netif column */
 #else
 #define	WID_DST_DEFAULT(af) \
 	((af) == AF_INET6 ? (numeric_addr ? 33: 18) : 18)
 #define	WID_GW_DEFAULT(af) \
 	((af) == AF_INET6 ? (numeric_addr ? 29 : 18) : 18)
-#define	WID_IF_DEFAULT(af)	((af) == AF_INET6 ? 8 : (Wflag ? 8 : 6))
+#define	WID_IF_DEFAULT(af)	((af) == AF_INET6 ? 8 : (Wflag ? 10 : 8))
 #endif /*INET6*/
 
 static int wid_dst;
@@ -329,8 +314,8 @@ size_cols_rtentry(struct rtentry *rt)
 	wid_flags = MAX(len, wid_flags);
 
 	if (Wflag) {
-		len = snprintf(buffer, sizeof(buffer), "%lu",
-		    kread_counter((u_long )rt->rt_pksent));
+		len = snprintf(buffer, sizeof(buffer), "%ju",
+		    (uintmax_t )kread_counter((u_long )rt->rt_pksent));
 		wid_pksent = MAX(len, wid_pksent);
 	}
 	if (rt->rt_ifp) {
@@ -601,19 +586,18 @@ p_rtable_sysctl(int fibnum, int af)
 	mib[4] = NET_RT_DUMP;
 	mib[5] = 0;
 	mib[6] = fibnum;
-	if (sysctl(mib, 7, NULL, &needed, NULL, 0) < 0) {
-		err(1, "sysctl: net.route.0.%d.dump.%d estimate", af, fibnum);
-	}
-
-	if ((buf = malloc(needed)) == 0) {
+	if (sysctl(mib, nitems(mib), NULL, &needed, NULL, 0) < 0)
+		err(EX_OSERR, "sysctl: net.route.0.%d.dump.%d estimate", af,
+		    fibnum);
+	if ((buf = malloc(needed)) == NULL)
 		errx(2, "malloc(%lu)", (unsigned long)needed);
-	}
-	if (sysctl(mib, 6, buf, &needed, NULL, 0) < 0) {
+	if (sysctl(mib, nitems(mib), buf, &needed, NULL, 0) < 0)
 		err(1, "sysctl: net.route.0.%d.dump.%d", af, fibnum);
-	}
 	lim  = buf + needed;
 	for (next = buf; next < lim; next += rtm->rtm_msglen) {
 		rtm = (struct rt_msghdr *)next;
+		if (rtm->rtm_version != RTM_VERSION)
+			continue;
 		/*
 		 * Peek inside header to determine AF
 		 */
@@ -626,6 +610,7 @@ p_rtable_sysctl(int fibnum, int af)
 		}
 		p_rtentry_sysctl(rtm);
 	}
+	free(buf);
 }
 
 static void
@@ -754,23 +739,6 @@ fmt_sockaddr(struct sockaddr *sa, struct sockaddr *mask, int flags)
 	    }
 #endif /*INET6*/
 
-	case AF_IPX:
-	    {
-		struct ipx_addr work = ((struct sockaddr_ipx *)sa)->sipx_addr;
-		if (ipx_nullnet(satoipx_addr(work)))
-			cp = "default";
-		else
-			cp = ipx_print(sa);
-		break;
-	    }
-	case AF_APPLETALK:
-	    {
-		if (!(flags & RTF_HOST) && mask)
-			cp = atalk_print2(sa,mask,9);
-		else
-			cp = atalk_print(sa,11);
-		break;
-	    }
 	case AF_NETGRAPH:
 	    {
 		strlcpy(workbuf, ((struct sockaddr_ng *)sa)->sg_data,
@@ -867,8 +835,8 @@ p_rtentry_kvm(struct rtentry *rt)
 	snprintf(buffer, sizeof(buffer), "%%-%d.%ds ", wid_flags, wid_flags);
 	p_flags(rt->rt_flags, buffer);
 	if (Wflag) {
-		printf("%*lu ", wid_pksent,
-		    kread_counter((u_long )rt->rt_pksent));
+		printf("%*ju ", wid_pksent,
+		    (uintmax_t )kread_counter((u_long )rt->rt_pksent));
 
 		if (rt->rt_mtu != 0)
 			printf("%*lu ", wid_mtu, rt->rt_mtu);
@@ -1003,9 +971,9 @@ in6_fillscopeid(struct sockaddr_in6 *sa6)
 	if (IN6_IS_ADDR_LINKLOCAL(&sa6->sin6_addr) ||
 	    IN6_IS_ADDR_MC_NODELOCAL(&sa6->sin6_addr) ||
 	    IN6_IS_ADDR_MC_LINKLOCAL(&sa6->sin6_addr)) {
-		/* XXX: override is ok? */
-		sa6->sin6_scope_id =
-		    ntohs(*(u_int16_t *)&sa6->sin6_addr.s6_addr[2]);
+		if (sa6->sin6_scope_id == 0)
+			sa6->sin6_scope_id =
+			    ntohs(*(u_int16_t *)&sa6->sin6_addr.s6_addr[2]);
 		sa6->sin6_addr.s6_addr[2] = sa6->sin6_addr.s6_addr[3] = 0;
 	}
 #endif
@@ -1133,110 +1101,4 @@ rt_stats(void)
 	if (rttrash || sflag <= 1)
 		printf("\t%u route%s not in table but not freed\n",
 		    rttrash, plural(rttrash));
-}
-
-char *
-ipx_print(struct sockaddr *sa)
-{
-	u_short port;
-	struct servent *sp = 0;
-	const char *net = "", *host = "";
-	char *p;
-	u_char *q;
-	struct ipx_addr work = ((struct sockaddr_ipx *)sa)->sipx_addr;
-	static char mybuf[50];
-	char cport[10], chost[15], cnet[15];
-
-	port = ntohs(work.x_port);
-
-	if (ipx_nullnet(work) && ipx_nullhost(work)) {
-
-		if (port) {
-			if (sp)
-				sprintf(mybuf, "*.%s", sp->s_name);
-			else
-				sprintf(mybuf, "*.%x", port);
-		} else
-			sprintf(mybuf, "*.*");
-
-		return (mybuf);
-	}
-
-	if (ipx_wildnet(work))
-		net = "any";
-	else if (ipx_nullnet(work))
-		net = "*";
-	else {
-		q = work.x_net.c_net;
-		sprintf(cnet, "%02x%02x%02x%02x",
-			q[0], q[1], q[2], q[3]);
-		for (p = cnet; *p == '0' && p < cnet + 8; p++)
-			continue;
-		net = p;
-	}
-
-	if (ipx_wildhost(work))
-		host = "any";
-	else if (ipx_nullhost(work))
-		host = "*";
-	else {
-		q = work.x_host.c_host;
-		sprintf(chost, "%02x%02x%02x%02x%02x%02x",
-			q[0], q[1], q[2], q[3], q[4], q[5]);
-		for (p = chost; *p == '0' && p < chost + 12; p++)
-			continue;
-		host = p;
-	}
-
-	if (port) {
-		if (strcmp(host, "*") == 0)
-			host = "";
-		if (sp)
-			snprintf(cport, sizeof(cport),
-				"%s%s", *host ? "." : "", sp->s_name);
-		else
-			snprintf(cport, sizeof(cport),
-				"%s%x", *host ? "." : "", port);
-	} else
-		*cport = 0;
-
-	snprintf(mybuf, sizeof(mybuf), "%s.%s%s", net, host, cport);
-	return(mybuf);
-}
-
-char *
-ipx_phost(struct sockaddr *sa)
-{
-	struct sockaddr_ipx *sipx = (struct sockaddr_ipx *)sa;
-	struct sockaddr_ipx work;
-	static union ipx_net ipx_zeronet;
-	char *p;
-
-	work = *sipx;
-
-	work.sipx_addr.x_port = 0;
-	work.sipx_addr.x_net = ipx_zeronet;
-	p = ipx_print((struct sockaddr *)&work);
-	if (strncmp("*.", p, 2) == 0) p += 2;
-
-	return(p);
-}
-
-void
-upHex(char *p0)
-{
-	char *p = p0;
-
-	for (; *p; p++)
-		switch (*p) {
-
-		case 'a':
-		case 'b':
-		case 'c':
-		case 'd':
-		case 'e':
-		case 'f':
-			*p += ('A' - 'a');
-			break;
-		}
 }

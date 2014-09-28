@@ -2,6 +2,7 @@
  * Copyright (c) 2010 Isilon Systems, Inc.
  * Copyright (c) 2010 iX Systems, Inc.
  * Copyright (c) 2010 Panasas, Inc.
+ * Copyright (c) 2013, 2014 Mellanox Technologies, Ltd.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -37,12 +38,20 @@
 #define MODULE_AUTHOR(name)
 #define MODULE_DESCRIPTION(name)
 #define MODULE_LICENSE(name)
-#define	MODULE_VERSION(name)
+
+#ifndef MODULE_VERSION
+#define MODULE_VERSION(name)
+#endif
 
 #define	THIS_MODULE	((struct module *)0)
 
 #define	EXPORT_SYMBOL(name)
 #define	EXPORT_SYMBOL_GPL(name)
+
+/* OFED pre-module initialization */
+#define	SI_SUB_OFED_PREINIT	(SI_SUB_KTHREAD_INIT - 2)
+/* OFED default module initialization */
+#define	SI_SUB_OFED_MODINIT	(SI_SUB_KTHREAD_INIT - 1)
 
 #include <sys/linker.h>
 
@@ -68,17 +77,20 @@ _module_run(void *arg)
 }
 
 #define	module_init(fn)							\
-	SYSINIT(fn, SI_SUB_LAST, SI_ORDER_FIRST, _module_run, (fn))
-
-/*
- * XXX This is a freebsdism designed to work around not having a module
- * load order resolver built in.
- */
-#define	module_init_order(fn, order)					\
-	SYSINIT(fn, SI_SUB_LAST, (order), _module_run, (fn))
+	SYSINIT(fn, SI_SUB_OFED_MODINIT, SI_ORDER_FIRST, _module_run, (fn))
 
 #define	module_exit(fn)						\
-	SYSUNINIT(fn, SI_SUB_LAST, SI_ORDER_FIRST, _module_run, (fn))
+	SYSUNINIT(fn, SI_SUB_OFED_MODINIT, SI_ORDER_SECOND, _module_run, (fn))
+
+/*
+ * The following two macros are a workaround for not having a module
+ * load and unload order resolver:
+ */
+#define	module_init_order(fn, order)					\
+	SYSINIT(fn, SI_SUB_OFED_MODINIT, (order), _module_run, (fn))
+
+#define	module_exit_order(fn, order)				\
+	SYSUNINIT(fn, SI_SUB_OFED_MODINIT, (order), _module_run, (fn))
 
 #define	module_get(module)
 #define	module_put(module)

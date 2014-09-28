@@ -32,7 +32,6 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/types.h>
 #include <machine/vmm.h>
-#include <machine/vmm_dev.h>
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -43,11 +42,23 @@ __FBSDID("$FreeBSD$");
 #include "acpi.h"
 #include "inout.h"
 #include "pci_emul.h"
+#include "pci_irq.h"
 #include "pci_lpc.h"
 #include "uart_emul.h"
 
+#define	IO_ICU1		0x20
+#define	IO_ICU2		0xA0
+
 SET_DECLARE(lpc_dsdt_set, struct lpc_dsdt);
 SET_DECLARE(lpc_sysres_set, struct lpc_sysres);
+
+#define	ELCR_PORT	0x4d0
+SYSRES_IO(ELCR_PORT, 2);
+
+#define	IO_TIMER1_PORT	0x40
+
+#define	NMISC_PORT	0x61
+SYSRES_IO(NMISC_PORT, 1);
 
 static struct pci_devinst *lpc_bridge;
 
@@ -100,7 +111,7 @@ lpc_uart_intr_assert(void *arg)
 
 	assert(sc->irq >= 0);
 
-	vm_ioapic_pulse_irq(lpc_bridge->pi_vmctx, sc->irq);
+	vm_isa_pulse_irq(lpc_bridge->pi_vmctx, sc->irq, sc->irq);
 }
 
 static void
@@ -119,15 +130,27 @@ lpc_uart_io_handler(struct vmctx *ctx, int vcpu, int in, int port, int bytes,
 	int offset;
 	struct lpc_uart_softc *sc = arg;
 
-	if (bytes != 1)
-		return (-1);
-
 	offset = port - sc->iobase;
 
-	if (in)
-		*eax = uart_read(sc->uart_softc, offset); 
-	else
-		uart_write(sc->uart_softc, offset, *eax);
+	switch (bytes) {
+	case 1:
+		if (in)
+			*eax = uart_read(sc->uart_softc, offset);
+		else
+			uart_write(sc->uart_softc, offset, *eax);
+		break;
+	case 2:
+		if (in) {
+			*eax = uart_read(sc->uart_softc, offset);
+			*eax |= uart_read(sc->uart_softc, offset + 1) << 8;
+		} else {
+			uart_write(sc->uart_softc, offset, *eax);
+			uart_write(sc->uart_softc, offset + 1, *eax >> 8);
+		}
+		break;
+	default:
+		return (-1);
+	}
 
 	return (0);
 }
@@ -150,6 +173,7 @@ lpc_init(void)
 			    "LPC device %s\n", name);
 			return (-1);
 		}
+		pci_irq_reserve(sc->irq);
 
 		sc->uart_softc = uart_init(lpc_uart_intr_assert,
 				    lpc_uart_intr_deassert, sc);
@@ -185,13 +209,54 @@ pci_lpc_write_dsdt(struct pci_devinst *pi)
 	dsdt_line("Device (ISA)");
 	dsdt_line("{");
 	dsdt_line("  Name (_ADR, 0x%04X%04X)", pi->pi_slot, pi->pi_func);
-	dsdt_line("  OperationRegion (P40C, PCI_Config, 0x60, 0x04)");
+	dsdt_line("  OperationRegion (LPCR, PCI_Config, 0x00, 0x100)");
+	dsdt_line("  Field (LPCR, AnyAcc, NoLock, Preserve)");
+	dsdt_line("  {");
+	dsdt_line("    Offset (0x60),");
+	dsdt_line("    PIRA,   8,");
+	dsdt_line("    PIRB,   8,");
+	dsdt_line("    PIRC,   8,");
+	dsdt_line("    PIRD,   8,");
+	dsdt_line("    Offset (0x68),");
+	dsdt_line("    PIRE,   8,");
+	dsdt_line("    PIRF,   8,");
+	dsdt_line("    PIRG,   8,");
+	dsdt_line("    PIRH,   8");
+	dsdt_line("  }");
+	dsdt_line("");
 
 	dsdt_indent(1);
 	SET_FOREACH(ldpp, lpc_dsdt_set) {
 		ldp = *ldpp;
 		ldp->handler();
 	}
+
+	dsdt_line("");
+	dsdt_line("Device (PIC)");
+	dsdt_line("{");
+	dsdt_line("  Name (_HID, EisaId (\"PNP0000\"))");
+	dsdt_line("  Name (_CRS, ResourceTemplate ()");
+	dsdt_line("  {");
+	dsdt_indent(2);
+	dsdt_fixed_ioport(IO_ICU1, 2);
+	dsdt_fixed_ioport(IO_ICU2, 2);
+	dsdt_fixed_irq(2);
+	dsdt_unindent(2);
+	dsdt_line("  })");
+	dsdt_line("}");
+
+	dsdt_line("");
+	dsdt_line("Device (TIMR)");
+	dsdt_line("{");
+	dsdt_line("  Name (_HID, EisaId (\"PNP0100\"))");
+	dsdt_line("  Name (_CRS, ResourceTemplate ()");
+	dsdt_line("  {");
+	dsdt_indent(2);
+	dsdt_fixed_ioport(IO_TIMER1_PORT, 4);
+	dsdt_fixed_irq(0);
+	dsdt_unindent(2);
+	dsdt_line("  })");
+	dsdt_line("}");
 	dsdt_unindent(1);
 
 	dsdt_line("}");
@@ -255,13 +320,34 @@ pci_lpc_uart_dsdt(void)
 }
 LPC_DSDT(pci_lpc_uart_dsdt);
 
+static int
+pci_lpc_cfgwrite(struct vmctx *ctx, int vcpu, struct pci_devinst *pi,
+		  int coff, int bytes, uint32_t val)
+{
+	int pirq_pin;
+
+	if (bytes == 1) {
+		pirq_pin = 0;
+		if (coff >= 0x60 && coff <= 0x63)
+			pirq_pin = coff - 0x60 + 1;
+		if (coff >= 0x68 && coff <= 0x6b)
+			pirq_pin = coff - 0x68 + 5;
+		if (pirq_pin != 0) {
+			pirq_write(ctx, pirq_pin, val);
+			pci_set_cfgdata8(pi, coff, pirq_read(pirq_pin));
+			return (0);
+		}
+	}
+	return (-1);
+}
+
 static void
 pci_lpc_write(struct vmctx *ctx, int vcpu, struct pci_devinst *pi,
 	       int baridx, uint64_t offset, int size, uint64_t value)
 {
 }
 
-uint64_t
+static uint64_t
 pci_lpc_read(struct vmctx *ctx, int vcpu, struct pci_devinst *pi,
 	      int baridx, uint64_t offset, int size)
 {
@@ -274,6 +360,7 @@ pci_lpc_read(struct vmctx *ctx, int vcpu, struct pci_devinst *pi,
 static int
 pci_lpc_init(struct vmctx *ctx, struct pci_devinst *pi, char *opts)
 {
+
 	/*
 	 * Do not allow more than one LPC bridge to be configured.
 	 */
@@ -306,10 +393,36 @@ pci_lpc_init(struct vmctx *ctx, struct pci_devinst *pi, char *opts)
 	return (0);
 }
 
+char *
+lpc_pirq_name(int pin)
+{
+	char *name;
+
+	if (lpc_bridge == NULL)
+		return (NULL);
+	asprintf(&name, "\\_SB.PC00.ISA.LNK%c,", 'A' + pin - 1);
+	return (name);
+}
+
+void
+lpc_pirq_routed(void)
+{
+	int pin;
+
+	if (lpc_bridge == NULL)
+		return;
+
+ 	for (pin = 0; pin < 4; pin++)
+		pci_set_cfgdata8(lpc_bridge, 0x60 + pin, pirq_read(pin + 1));
+	for (pin = 0; pin < 4; pin++)
+		pci_set_cfgdata8(lpc_bridge, 0x68 + pin, pirq_read(pin + 5));
+}
+
 struct pci_devemu pci_de_lpc = {
 	.pe_emu =	"lpc",
 	.pe_init =	pci_lpc_init,
 	.pe_write_dsdt = pci_lpc_write_dsdt,
+	.pe_cfgwrite =	pci_lpc_cfgwrite,
 	.pe_barwrite =	pci_lpc_write,
 	.pe_barread =	pci_lpc_read
 };

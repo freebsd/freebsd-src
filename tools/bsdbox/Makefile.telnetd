@@ -11,4 +11,4 @@
 CRUNCH_PROGS_libexec+=	telnetd
 CRUNCH_PROGS_usr.bin+=	telnet
 CRUNCH_LIBS+=		-lkrb5 -lhx509 -lasn1 -lcom_err -lroken -ltelnetd
-# CRUNCH_BUILDOPTS_telnetd=	WITHOUT_KERBEROS_SUPPORT=yes
+# CRUNCH_BUILDOPTS_telnetd=	MK_KERBEROS_SUPPORT=no

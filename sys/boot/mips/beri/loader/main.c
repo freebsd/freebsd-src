@@ -43,12 +43,19 @@ __FBSDID("$FreeBSD$");
 #include <loader.h>
 #include <mips.h>
 
+#ifdef LOADER_USB_SUPPORT
+#include <storage/umass_common.h>
+#endif
+
 static int	__elfN(exec)(struct preloaded_file *);
 static void	extract_currdev(struct bootinfo *);
 
 struct devsw *devsw[] = {
 	&beri_cfi_disk,
 	&beri_sdcard_disk,
+#ifdef LOADER_USB_SUPPORT
+	&umass_disk,
+#endif
 	NULL
 };
 
@@ -144,7 +151,7 @@ main(int argc, char *argv[], char *envv[], struct bootinfo *bootinfop)
 	printf("bootpath=\"%s\"\n", bootpath);
 #endif
 
-	interact();
+	interact(NULL);
 	return (0);
 }
 
@@ -215,13 +222,25 @@ time(time_t *tloc)
 }
 
 /*
- * Delay - presumably in usecs?
+ * Delay - in usecs
+ *
+ * NOTE: We are assuming that the CPU is running at 100MHz.
  */
 void
 delay(int usecs)
 {
-	register_t t;
+	uint32_t delta;
+	uint32_t curr;
+	uint32_t last;
 
-	t = cp0_count_get() + usecs * 100;
-	while (cp0_count_get() < t);
+	last = cp0_count_get();
+	while (usecs > 0) {
+		curr = cp0_count_get();
+		delta = curr - last;
+		while (usecs > 0 && delta >= 100) {
+			usecs--;
+			last += 100;
+			delta -= 100;
+		}
+	}
 }

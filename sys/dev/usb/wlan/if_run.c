@@ -181,6 +181,7 @@ static const STRUCT_USB_HOST_ID run_devs[] = {
     RUN_DEV(DLINK,		DWA127),
     RUN_DEV(DLINK,		DWA140B3),
     RUN_DEV(DLINK,		DWA160B2),
+    RUN_DEV(DLINK,		DWA140D1),
     RUN_DEV(DLINK,		DWA162),
     RUN_DEV(DLINK2,		DWA130),
     RUN_DEV(DLINK2,		RT2870_1),
@@ -316,6 +317,7 @@ static const STRUCT_USB_HOST_ID run_devs[] = {
     RUN_DEV(ZINWELL,		RT3072_2),
     RUN_DEV(ZYXEL,		RT2870_1),
     RUN_DEV(ZYXEL,		RT2870_2),
+    RUN_DEV(ZYXEL,		RT3070),
     RUN_DEV_EJECT(ZYXEL,	NWD2705),
     RUN_DEV_EJECT(RALINK,	RT_STOR),
 #undef RUN_DEV_EJECT
@@ -2508,9 +2510,7 @@ run_ratectl_cb(void *arg, int pending)
 	if (vap == NULL)
 		return;
 
-	if (sc->rvp_cnt <= 1 && vap->iv_opmode == IEEE80211_M_STA)
-		run_iter_func(sc, vap->iv_bss);
-	else {
+	if (sc->rvp_cnt > 1 || vap->iv_opmode != IEEE80211_M_STA) {
 		/*
 		 * run_reset_livelock() doesn't do anything with AMRR,
 		 * but Ralink wants us to call it every 1 sec. So, we
@@ -2523,8 +2523,9 @@ run_ratectl_cb(void *arg, int pending)
 		/* just in case, there are some stats to drain */
 		run_drain_fifo(sc);
 		RUN_UNLOCK(sc);
-		ieee80211_iterate_nodes(&ic->ic_sta, run_iter_func, sc);
 	}
+
+	ieee80211_iterate_nodes(&ic->ic_sta, run_iter_func, sc);
 
 	RUN_LOCK(sc);
 	if(sc->ratectl_run != RUN_RATECTL_OFF)
@@ -2573,7 +2574,7 @@ run_drain_fifo(void *arg)
 		if (stat & RT2860_TXQ_OK)
 			(*wstat)[RUN_SUCCESS]++;
 		else
-			ifp->if_oerrors++;
+			if_inc_counter(ifp, IFCOUNTER_OERRORS, 1);
 		/*
 		 * Check if there were retries, ie if the Tx success rate is
 		 * different from the requested rate. Note that it works only
@@ -2605,6 +2606,11 @@ run_iter_func(void *arg, struct ieee80211_node *ni)
 
 	RUN_LOCK(sc);
 
+	/* Check for special case */
+	if (sc->rvp_cnt <= 1 && vap->iv_opmode == IEEE80211_M_STA &&
+	    ni != vap->iv_bss)
+		goto fail;
+
 	if (sc->rvp_cnt <= 1 && (vap->iv_opmode == IEEE80211_M_IBSS ||
 	    vap->iv_opmode == IEEE80211_M_STA)) {
 		/* read statistic counters (clear on read) and update AMRR state */
@@ -2614,7 +2620,7 @@ run_iter_func(void *arg, struct ieee80211_node *ni)
 			goto fail;
 
 		/* count failed TX as errors */
-		ifp->if_oerrors += le16toh(sta[0].error.fail);
+		if_inc_counter(ifp, IFCOUNTER_OERRORS, le16toh(sta[0].error.fail));
 
 		retrycnt = le16toh(sta[1].tx.retry);
 		success = le16toh(sta[1].tx.success);
@@ -2733,7 +2739,10 @@ run_newassoc(struct ieee80211_node *ni, int isnew)
 	rn->mgt_ridx = ridx;
 	DPRINTF("rate=%d, mgmt_ridx=%d\n", rate, rn->mgt_ridx);
 
-	usb_callout_reset(&sc->ratectl_ch, hz, run_ratectl_to, sc);
+	RUN_LOCK(sc);
+	if(sc->ratectl_run != RUN_RATECTL_OFF)
+		usb_callout_reset(&sc->ratectl_ch, hz, run_ratectl_to, sc);
+	RUN_UNLOCK(sc);
 }
 
 /*
@@ -2777,7 +2786,7 @@ run_rx_frame(struct run_softc *sc, struct mbuf *m, uint32_t dmalen)
 		rxwisize += sizeof(uint32_t);
 	if (__predict_false(len > dmalen)) {
 		m_freem(m);
-		ifp->if_ierrors++;
+		if_inc_counter(ifp, IFCOUNTER_IERRORS, 1);
 		DPRINTF("bad RXWI length %u > %u\n", len, dmalen);
 		return;
 	}
@@ -2787,7 +2796,7 @@ run_rx_frame(struct run_softc *sc, struct mbuf *m, uint32_t dmalen)
 
 	if (__predict_false(flags & (RT2860_RX_CRCERR | RT2860_RX_ICVERR))) {
 		m_freem(m);
-		ifp->if_ierrors++;
+		if_inc_counter(ifp, IFCOUNTER_IERRORS, 1);
 		DPRINTF("%s error.\n", (flags & RT2860_RX_CRCERR)?"CRC":"ICV");
 		return;
 	}
@@ -2816,7 +2825,7 @@ run_rx_frame(struct run_softc *sc, struct mbuf *m, uint32_t dmalen)
 			ieee80211_notify_michael_failure(ni->ni_vap, wh,
 			    rxwi->keyidx);
 		m_freem(m);
-		ifp->if_ierrors++;
+		if_inc_counter(ifp, IFCOUNTER_IERRORS, 1);
 		DPRINTF("MIC error. Someone is lying.\n");
 		return;
 	}
@@ -2916,7 +2925,7 @@ tr_setup:
 		}
 		if (sc->rx_m == NULL) {
 			DPRINTF("could not allocate mbuf - idle with stall\n");
-			ifp->if_ierrors++;
+			if_inc_counter(ifp, IFCOUNTER_IERRORS, 1);
 			usbd_xfer_set_stall(xfer);
 			usbd_xfer_set_frames(xfer, 0);
 		} else {
@@ -2940,7 +2949,7 @@ tr_setup:
 			if (error == USB_ERR_TIMEOUT)
 				device_printf(sc->sc_dev, "device timeout\n");
 
-			ifp->if_ierrors++;
+			if_inc_counter(ifp, IFCOUNTER_IERRORS, 1);
 
 			goto tr_setup;
 		}
@@ -2989,7 +2998,7 @@ tr_setup:
 		m0 = m_getcl(M_NOWAIT, MT_DATA, M_PKTHDR);
 		if (__predict_false(m0 == NULL)) {
 			DPRINTF("could not allocate mbuf\n");
-			ifp->if_ierrors++;
+			if_inc_counter(ifp, IFCOUNTER_IERRORS, 1);
 			break;
 		}
 		m_copydata(m, 4 /* skip 32-bit DMA-len header */,
@@ -3061,7 +3070,7 @@ run_bulk_tx_callbackN(struct usb_xfer *xfer, usb_error_t error, u_int index)
 
 		usbd_xfer_set_priv(xfer, NULL);
 
-		ifp->if_opackets++;
+		if_inc_counter(ifp, IFCOUNTER_OPACKETS, 1);
 
 		/* FALLTHROUGH */
 	case USB_ST_SETUP:
@@ -3080,7 +3089,7 @@ tr_setup:
 			DPRINTF("data overflow, %u bytes\n",
 			    m->m_pkthdr.len);
 
-			ifp->if_oerrors++;
+			if_inc_counter(ifp, IFCOUNTER_OERRORS, 1);
 
 			run_tx_free(pq, data, 1);
 
@@ -3135,7 +3144,7 @@ tr_setup:
 
 		data = usbd_xfer_get_priv(xfer);
 
-		ifp->if_oerrors++;
+		if_inc_counter(ifp, IFCOUNTER_OERRORS, 1);
 
 		if (data != NULL) {
 			if(data->ni != NULL)
@@ -3246,13 +3255,13 @@ run_set_tx_desc(struct run_softc *sc, struct run_tx_data *data)
 	txwi = (struct rt2860_txwi *)(txd + 1);
 	txwi->len = htole16(m->m_pkthdr.len - pad);
 	if (rt2860_rates[ridx].phy == IEEE80211_T_DS) {
-		txwi->phy = htole16(RT2860_PHY_CCK);
+		mcs |= RT2860_PHY_CCK;
 		if (ridx != RT2860_RIDX_CCK1 &&
 		    (ic->ic_flags & IEEE80211_F_SHPREAMBLE))
 			mcs |= RT2860_PHY_SHPRE;
 	} else
-		txwi->phy = htole16(RT2860_PHY_OFDM);
-	txwi->phy |= htole16(mcs);
+		mcs |= RT2860_PHY_OFDM;
+	txwi->phy = htole16(mcs);
 
 	/* check if RTS/CTS or CTS-to-self protection is required */
 	if (!IEEE80211_IS_MULTICAST(wh->i_addr1) &&
@@ -3329,7 +3338,7 @@ run_tx(struct run_softc *sc, struct mbuf *m, struct ieee80211_node *ni)
 
 	/* pickup a rate index */
 	if (IEEE80211_IS_MULTICAST(wh->i_addr1) ||
-	    type != IEEE80211_FC0_TYPE_DATA) {
+	    type != IEEE80211_FC0_TYPE_DATA || m->m_flags & M_EAPOL) {
 		ridx = (ic->ic_curmode == IEEE80211_MODE_11A) ?
 		    RT2860_RIDX_OFDM6 : RT2860_RIDX_CCK1;
 		ctl_ridx = rt2860_rates[ridx].ctl_ridx;
@@ -3558,7 +3567,7 @@ run_sendprot(struct run_softc *sc,
 		mprot = ieee80211_alloc_cts(ic, ni->ni_vap->iv_myaddr, dur);
 	}
 	if (mprot == NULL) {
-		sc->sc_ifp->if_oerrors++;
+		if_inc_counter(sc->sc_ifp, IFCOUNTER_OERRORS, 1);
 		DPRINTF("could not allocate mbuf\n");
 		return (ENOBUFS);
 	}
@@ -3694,20 +3703,20 @@ run_raw_xmit(struct ieee80211_node *ni, struct mbuf *m,
 	if (params == NULL) {
 		/* tx mgt packet */
 		if ((error = run_tx_mgt(sc, m, ni)) != 0) {
-			ifp->if_oerrors++;
+			if_inc_counter(ifp, IFCOUNTER_OERRORS, 1);
 			DPRINTF("mgt tx failed\n");
 			goto done;
 		}
 	} else {
 		/* tx raw packet with param */
 		if ((error = run_tx_param(sc, m, ni, params)) != 0) {
-			ifp->if_oerrors++;
+			if_inc_counter(ifp, IFCOUNTER_OERRORS, 1);
 			DPRINTF("tx with param failed\n");
 			goto done;
 		}
 	}
 
-	ifp->if_opackets++;
+	if_inc_counter(ifp, IFCOUNTER_OPACKETS, 1);
 
 done:
 	RUN_UNLOCK(sc);
@@ -4989,7 +4998,7 @@ run_updateprot_cb(void *arg)
 	tmp = RT2860_RTSTH_EN | RT2860_PROT_NAV_SHORT | RT2860_TXOP_ALLOW_ALL;
 	/* setup protection frame rate (MCS code) */
 	tmp |= (ic->ic_curmode == IEEE80211_MODE_11A) ?
-	    rt2860_rates[RT2860_RIDX_OFDM6].mcs :
+	    rt2860_rates[RT2860_RIDX_OFDM6].mcs | RT2860_PHY_OFDM :
 	    rt2860_rates[RT2860_RIDX_CCK11].mcs;
 
 	/* CCK frames don't require protection */
@@ -5481,7 +5490,7 @@ run_rt3070_rf_init(struct run_softc *sc)
 		run_rt3070_rf_write(sc, 17, rf);
 	}
 
-	if (sc->mac_rev == 0x3071) {
+	if (sc->mac_ver == 0x3071) {
 		run_rt3070_rf_read(sc, 1, &rf);
 		rf &= ~(RT3070_RX0_PD | RT3070_TX0_PD);
 		rf |= RT3070_RF_BLOCK | RT3070_RX1_PD | RT3070_TX1_PD;

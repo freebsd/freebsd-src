@@ -31,17 +31,12 @@
 #define	_SYS_UMTX_H_
 
 #include <sys/_umtx.h>
-#include <sys/limits.h>
-
-#define	UMTX_UNOWNED		0x0
-#define	UMTX_CONTESTED		LONG_MIN
 
 #define USYNC_PROCESS_SHARED	0x0001	/* Process shared sync objs */
 
 #define	UMUTEX_UNOWNED		0x0
 #define	UMUTEX_CONTESTED	0x80000000U
 
-#define	UMUTEX_ERROR_CHECK	0x0002	/* Error-checking mutex */
 #define	UMUTEX_PRIO_INHERIT	0x0004	/* Priority inherited mutex */
 #define	UMUTEX_PRIO_PROTECT	0x0008	/* Priority protect mutex */
 
@@ -58,8 +53,8 @@
 #define SEM_NAMED	0x0002
 
 /* op code for _umtx_op */
-#define	UMTX_OP_LOCK		0
-#define	UMTX_OP_UNLOCK		1
+#define	UMTX_OP_RESERVED0	0
+#define	UMTX_OP_RESERVED1	1
 #define	UMTX_OP_WAIT		2
 #define	UMTX_OP_WAKE		3
 #define	UMTX_OP_MUTEX_TRYLOCK	4
@@ -95,82 +90,6 @@
 #ifndef _KERNEL
 
 int _umtx_op(void *obj, int op, u_long val, void *uaddr, void *uaddr2);
-
-/*
- * Old (deprecated) userland mutex system calls.
- */
-int _umtx_lock(struct umtx *mtx);
-int _umtx_unlock(struct umtx *mtx);
-
-/*
- * Standard api.  Try uncontested acquire/release and asks the
- * kernel to resolve failures.
- */
-static __inline void
-umtx_init(struct umtx *umtx)
-{
-	umtx->u_owner = UMTX_UNOWNED;
-}
-
-static __inline u_long
-umtx_owner(struct umtx *umtx)
-{
-	return (umtx->u_owner & ~LONG_MIN);
-}
-
-static __inline int
-umtx_lock(struct umtx *umtx, u_long id)
-{
-	if (atomic_cmpset_acq_long(&umtx->u_owner, UMTX_UNOWNED, id) == 0)
-		if (_umtx_lock(umtx) == -1)
-			return (errno);
-	return (0);
-}
-
-static __inline int
-umtx_trylock(struct umtx *umtx, u_long id)
-{
-	if (atomic_cmpset_acq_long(&umtx->u_owner, UMTX_UNOWNED, id) == 0)
-		return (EBUSY);
-	return (0);
-}
-
-static __inline int
-umtx_timedlock(struct umtx *umtx, u_long id, const struct timespec *timeout)
-{
-	if (atomic_cmpset_acq_long(&umtx->u_owner, UMTX_UNOWNED, id) == 0)
-		if (_umtx_op(umtx, UMTX_OP_LOCK, id, 0,
-		    __DECONST(void *, timeout)) == -1)
-			return (errno);
-	return (0);
-}
-
-static __inline int
-umtx_unlock(struct umtx *umtx, u_long id)
-{
-	if (atomic_cmpset_rel_long(&umtx->u_owner, id, UMTX_UNOWNED) == 0)
-		if (_umtx_unlock(umtx) == -1)
-			return (errno);
-	return (0);
-}
-
-static __inline int
-umtx_wait(u_long *p, long val, const struct timespec *timeout)
-{
-	if (_umtx_op(p, UMTX_OP_WAIT, val, 0,
-	    __DECONST(void *, timeout)) == -1)
-		return (errno);
-	return (0);
-}
-
-/* Wake threads waiting on a user address. */
-static __inline int
-umtx_wake(u_long *p, int nr_wakeup)
-{
-	if (_umtx_op(p, UMTX_OP_WAKE, nr_wakeup, 0, 0) == -1)
-		return (errno);
-	return (0);
-}
 
 #else
 

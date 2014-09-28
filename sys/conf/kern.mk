@@ -1,8 +1,5 @@
 # $FreeBSD$
 
-# Compat
-MK_FORMAT_EXTENSIONS?=no
-
 #
 # Warning flags for compiling the kernel and components of the kernel:
 #
@@ -32,14 +29,17 @@ NO_WSOMETIMES_UNINITIALIZED=	-Wno-error-sometimes-uninitialized
 # enough to error out the whole kernel build.  Display them anyway, so there is
 # some incentive to fix them eventually.
 CWARNEXTRA?=	-Wno-error-tautological-compare -Wno-error-empty-body \
-		-Wno-error-parentheses-equality -Wno-unused-function \
-		${NO_WFORMAT}
+		-Wno-error-parentheses-equality -Wno-error-unused-function
+.endif
+
+.if ${COMPILER_TYPE} == "gcc" && ${COMPILER_VERSION} >= 40300
+CWARNEXTRA?=	-Wno-inline
 .endif
 
 # External compilers may not support our format extensions.  Allow them
 # to be disabled.  WARNING: format checking is disabled in this case.
 .if ${MK_FORMAT_EXTENSIONS} == "no"
-NO_WFORMAT=		-Wno-format
+FORMAT_EXTENSIONS=	-Wno-format
 .else
 FORMAT_EXTENSIONS=	-fformat-extensions
 .endif
@@ -64,11 +64,8 @@ FORMAT_EXTENSIONS=	-fformat-extensions
 # Setting -mno-sse implies -mno-sse2, -mno-sse3, -mno-ssse3, -mno-sse41 and -mno-sse42
 #
 .if ${MACHINE_CPUARCH} == "i386"
-.if ${COMPILER_TYPE} != "clang"
-CFLAGS+=	-mno-align-long-strings -mpreferred-stack-boundary=2
-.else
-CFLAGS+=	-mno-aes -mno-avx
-.endif
+CFLAGS.gcc+=	-mno-align-long-strings -mpreferred-stack-boundary=2
+CFLAGS.clang+=	-mno-aes -mno-avx
 CFLAGS+=	-mno-mmx -mno-sse -msoft-float
 INLINE_LIMIT?=	8000
 .endif
@@ -78,26 +75,14 @@ INLINE_LIMIT?=	8000
 .endif
 
 #
-# For IA-64, we use r13 for the kernel globals pointer and we only use
-# a very small subset of float registers for integer divides.
-#
-.if ${MACHINE_CPUARCH} == "ia64"
-CFLAGS+=	-ffixed-r13 -mfixed-range=f32-f127 -fpic #-mno-sdata
-INLINE_LIMIT?=	15000
-.endif
-
-#
 # For sparc64 we want the medany code model so modules may be located
 # anywhere in the 64-bit address space.  We also tell GCC to use floating
 # point emulation.  This avoids using floating point registers for integer
 # operations which it has a tendency to do.
 #
 .if ${MACHINE_CPUARCH} == "sparc64"
-.if ${COMPILER_TYPE} == "clang"
-CFLAGS+=	-mcmodel=large -fno-dwarf2-cfi-asm
-.else
-CFLAGS+=	-mcmodel=medany -msoft-float
-.endif
+CFLAGS.clang+=	-mcmodel=large -fno-dwarf2-cfi-asm
+CFLAGS.gcc+=	-mcmodel=medany -msoft-float
 INLINE_LIMIT?=	15000
 .endif
 
@@ -116,9 +101,7 @@ INLINE_LIMIT?=	15000
 # (-mfpmath= is not supported)
 #
 .if ${MACHINE_CPUARCH} == "amd64"
-.if ${COMPILER_TYPE} == "clang"
-CFLAGS+=	-mno-aes -mno-avx
-.endif
+CFLAGS.clang+=	-mno-aes -mno-avx
 CFLAGS+=	-mcmodel=kernel -mno-red-zone -mno-mmx -mno-sse -msoft-float \
 		-fno-asynchronous-unwind-tables
 INLINE_LIMIT?=	8000
@@ -158,7 +141,20 @@ CFLAGS+=	-ffreestanding
 #
 # GCC SSP support
 #
-.if ${MK_SSP} != "no" && ${MACHINE_CPUARCH} != "ia64" && \
+.if ${MK_SSP} != "no" && \
     ${MACHINE_CPUARCH} != "arm" && ${MACHINE_CPUARCH} != "mips"
 CFLAGS+=	-fstack-protector
 .endif
+
+#
+# Add -gdwarf-2 when compiling -g. The default starting in clang v3.4
+# and gcc 4.8 is to generate DWARF version 4. However, our tools don't
+# cope well with DWARF 4, so force it to genereate DWARF2, which they
+# understand. Do this unconditionally as it is harmless when not needed,
+# but critical for these newer versions.
+#
+.if ${CFLAGS:M-g} != "" && ${CFLAGS:M-gdwarf*} == ""
+CFLAGS+=	-gdwarf-2
+.endif
+
+CFLAGS+= ${CFLAGS.${COMPILER_TYPE}}

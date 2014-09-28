@@ -44,6 +44,7 @@ __FBSDID("$FreeBSD$");
 #include <machine/vmm_dev.h>
 
 #include "vmm_lapic.h"
+#include "vatpic.h"
 #include "vioapic.h"
 #include "vhpet.h"
 
@@ -167,6 +168,25 @@ vhpet_timer_ioapic_pin(struct vhpet *vhpet, int n)
 	return ((vhpet->timer[n].cap_config & HPET_TCNF_INT_ROUTE) >> 9);
 }
 
+static __inline int
+vhpet_timer_atpic_pin(struct vhpet *vhpet, int n)
+{
+	if (vhpet->config & HPET_CNF_LEG_RT) {
+		/*
+		 * In "legacy routing" timers 0 and 1 are connected to
+		 * 8259 master pin 0 and slave pin 0 respectively.
+		 */
+		switch (n) {
+		case 0:
+			return (0);
+		case 1:
+			return (8);
+		}
+	}
+
+	return (-1);
+}
+
 static uint32_t
 vhpet_counter(struct vhpet *vhpet, sbintime_t *nowptr)
 {
@@ -196,12 +216,17 @@ vhpet_counter(struct vhpet *vhpet, sbintime_t *nowptr)
 static void
 vhpet_timer_clear_isr(struct vhpet *vhpet, int n)
 {
-	int pin;
+	int pin, legacy_pin;
 
 	if (vhpet->isr & (1 << n)) {
 		pin = vhpet_timer_ioapic_pin(vhpet, n);
 		KASSERT(pin != 0, ("vhpet timer %d irq incorrectly routed", n));
 		vioapic_deassert_irq(vhpet->vm, pin);
+
+		legacy_pin = vhpet_timer_atpic_pin(vhpet, n);
+		if (legacy_pin != -1)
+			vatpic_deassert_irq(vhpet->vm, legacy_pin);
+
 		vhpet->isr &= ~(1 << n);
 	}
 }
@@ -242,7 +267,7 @@ vhpet_timer_edge_trig(struct vhpet *vhpet, int n)
 static void
 vhpet_timer_interrupt(struct vhpet *vhpet, int n)
 {
-	int pin;
+	int pin, legacy_pin;
 
 	/* If interrupts are not enabled for this timer then just return. */
 	if (!vhpet_timer_interrupt_enabled(vhpet, n))
@@ -268,11 +293,17 @@ vhpet_timer_interrupt(struct vhpet *vhpet, int n)
 		return;
 	}
 
+	legacy_pin = vhpet_timer_atpic_pin(vhpet, n);
+
 	if (vhpet_timer_edge_trig(vhpet, n)) {
 		vioapic_pulse_irq(vhpet->vm, pin);
+		if (legacy_pin != -1)
+			vatpic_pulse_irq(vhpet->vm, legacy_pin);
 	} else {
 		vhpet->isr |= 1 << n;
 		vioapic_assert_irq(vhpet->vm, pin);
+		if (legacy_pin != -1)
+			vatpic_assert_irq(vhpet->vm, legacy_pin);
 	}
 }
 

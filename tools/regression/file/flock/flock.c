@@ -27,6 +27,7 @@
  * $FreeBSD$
  */
 
+#include <sys/file.h>
 #include <sys/time.h>
 #ifdef __FreeBSD__
 #include <sys/mount.h>
@@ -39,6 +40,7 @@
 #include <fcntl.h>
 #include <pthread.h>
 #include <signal.h>
+#include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -51,7 +53,11 @@
 #include <sys/cdefs.h>
 #else
 #ifndef __unused
+#ifdef __GNUC__
+#define	__unused	__attribute__((__unused__))
+#else
 #define __unused
+#endif
 #endif
 #endif
 
@@ -1329,7 +1335,6 @@ test15(int fd, __unused int argc, const __unused char **argv)
 	 */
 	int pid;
 	int pfd[2];
-	int fd2;
 	struct flock fl;
 	char ch;
 	int res;
@@ -1366,7 +1371,7 @@ test15(int fd, __unused int argc, const __unused char **argv)
 	if (read(pfd[0], &ch, 1) != 1)
 		err(1, "reading from pipe (child)");
 
-	fd2 = dup(fd);
+	(void)dup(fd);
 	if (flock(fd, LOCK_SH) < 0)
 		err(1, "flock shared");
 

@@ -620,29 +620,12 @@ sbappendrecord(struct sockbuf *sb, struct mbuf *m0)
 	SOCKBUF_UNLOCK(sb);
 }
 
-/*
- * Append address and data, and optionally, control (ancillary) data to the
- * receive queue of a socket.  If present, m0 must include a packet header
- * with total length.  Returns 0 if no space in sockbuf or insufficient
- * mbufs.
- */
-int
-sbappendaddr_locked(struct sockbuf *sb, const struct sockaddr *asa,
-    struct mbuf *m0, struct mbuf *control)
+/* Helper routine that appends data, control, and address to a sockbuf. */
+static int
+sbappendaddr_locked_internal(struct sockbuf *sb, const struct sockaddr *asa,
+    struct mbuf *m0, struct mbuf *control, struct mbuf *ctrl_last)
 {
 	struct mbuf *m, *n, *nlast;
-	int space = asa->sa_len;
-
-	SOCKBUF_LOCK_ASSERT(sb);
-
-	if (m0 && (m0->m_flags & M_PKTHDR) == 0)
-		panic("sbappendaddr_locked");
-	if (m0)
-		space += m0->m_pkthdr.len;
-	space += m_length(control, &n);
-
-	if (space > sbspace(sb))
-		return (0);
 #if MSIZE <= 256
 	if (asa->sa_len > MLEN)
 		return (0);
@@ -652,8 +635,8 @@ sbappendaddr_locked(struct sockbuf *sb, const struct sockaddr *asa,
 		return (0);
 	m->m_len = asa->sa_len;
 	bcopy(asa, mtod(m, caddr_t), asa->sa_len);
-	if (n)
-		n->m_next = m0;		/* concatenate data to control */
+	if (ctrl_last)
+		ctrl_last->m_next = m0;	/* concatenate data to control */
 	else
 		control = m0;
 	m->m_next = control;
@@ -668,6 +651,50 @@ sbappendaddr_locked(struct sockbuf *sb, const struct sockaddr *asa,
 
 	SBLASTRECORDCHK(sb);
 	return (1);
+}
+
+/*
+ * Append address and data, and optionally, control (ancillary) data to the
+ * receive queue of a socket.  If present, m0 must include a packet header
+ * with total length.  Returns 0 if no space in sockbuf or insufficient
+ * mbufs.
+ */
+int
+sbappendaddr_locked(struct sockbuf *sb, const struct sockaddr *asa,
+    struct mbuf *m0, struct mbuf *control)
+{
+	struct mbuf *ctrl_last;
+	int space = asa->sa_len;
+
+	SOCKBUF_LOCK_ASSERT(sb);
+
+	if (m0 && (m0->m_flags & M_PKTHDR) == 0)
+		panic("sbappendaddr_locked");
+	if (m0)
+		space += m0->m_pkthdr.len;
+	space += m_length(control, &ctrl_last);
+
+	if (space > sbspace(sb))
+		return (0);
+	return (sbappendaddr_locked_internal(sb, asa, m0, control, ctrl_last));
+}
+
+/*
+ * Append address and data, and optionally, control (ancillary) data to the
+ * receive queue of a socket.  If present, m0 must include a packet header
+ * with total length.  Returns 0 if insufficient mbufs.  Does not validate space
+ * on the receiving sockbuf.
+ */
+int
+sbappendaddr_nospacecheck_locked(struct sockbuf *sb, const struct sockaddr *asa,
+    struct mbuf *m0, struct mbuf *control)
+{
+	struct mbuf *ctrl_last;
+
+	SOCKBUF_LOCK_ASSERT(sb);
+
+	ctrl_last = (control == NULL) ? NULL : m_last(control);
+	return (sbappendaddr_locked_internal(sb, asa, m0, control, ctrl_last));
 }
 
 /*
@@ -988,6 +1015,37 @@ sbsndptr(struct sockbuf *sb, u_int off, u_int len, u_int *moff)
 }
 
 /*
+ * Return the first mbuf and the mbuf data offset for the provided
+ * send offset without changing the "sb_sndptroff" field.
+ */
+struct mbuf *
+sbsndmbuf(struct sockbuf *sb, u_int off, u_int *moff)
+{
+	struct mbuf *m;
+
+	KASSERT(sb->sb_mb != NULL, ("%s: sb_mb is NULL", __func__));
+
+	/*
+	 * If the "off" is below the stored offset, which happens on
+	 * retransmits, just use "sb_mb":
+	 */
+	if (sb->sb_sndptr == NULL || sb->sb_sndptroff > off) {
+		m = sb->sb_mb;
+	} else {
+		m = sb->sb_sndptr;
+		off -= sb->sb_sndptroff;
+	}
+	while (off > 0 && m != NULL) {
+		if (off < m->m_len)
+			break;
+		off -= m->m_len;
+		m = m->m_next;
+	}
+	*moff = off;
+	return (m);
+}
+
+/*
  * Drop a record off the front of a sockbuf and move the next record to the
  * front.
  */
@@ -1044,6 +1102,11 @@ sbcreatecontrol(caddr_t p, int size, int type, int level)
 	m->m_len = 0;
 	KASSERT(CMSG_SPACE((u_int)size) <= M_TRAILINGSPACE(m),
 	    ("sbcreatecontrol: short mbuf"));
+	/*
+	 * Don't leave the padding between the msg header and the
+	 * cmsg data and the padding after the cmsg data un-initialized.
+	 */
+	bzero(cp, CMSG_SPACE((u_int)size));
 	if (p != NULL)
 		(void)memcpy(CMSG_DATA(cp), p, size);
 	m->m_len = CMSG_SPACE(size);

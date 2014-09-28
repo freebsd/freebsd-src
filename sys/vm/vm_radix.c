@@ -298,11 +298,11 @@ vm_radix_reserve_kva(void *arg __unused)
 	 * are needed to store them.
 	 */
 	if (!uma_zone_reserve_kva(vm_radix_node_zone,
-	    ((vm_paddr_t)cnt.v_page_count * PAGE_SIZE) / (PAGE_SIZE +
+	    ((vm_paddr_t)vm_cnt.v_page_count * PAGE_SIZE) / (PAGE_SIZE +
 	    sizeof(struct vm_radix_node))))
 		panic("%s: unable to reserve KVA", __func__);
 }
-SYSINIT(vm_radix_reserve_kva, SI_SUB_KMEM, SI_ORDER_SECOND,
+SYSINIT(vm_radix_reserve_kva, SI_SUB_KMEM, SI_ORDER_THIRD,
     vm_radix_reserve_kva, NULL);
 #endif
 

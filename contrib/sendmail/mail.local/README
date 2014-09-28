@@ -61,4 +61,4 @@ subdirectory tree.  The subdirectories will be named with A-Z, a-z, 0-9,
 +, and _.  The hash type is "m", so use "-H m3" to get a three level MD5
 based hash.
 
-$Revision: 8.11 $, Last updated $Date: 2003/10/20 20:19:13 $
+$Revision: 8.11 $, Last updated $Date: 2003-10-20 20:19:13 $

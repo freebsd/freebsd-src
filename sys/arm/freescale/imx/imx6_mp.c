@@ -162,7 +162,7 @@ platform_mp_start_ap(void)
 		    ( 1 << (SRC_CONTROL_C1RST_SHIFT - 1 + i)));
 
 	}
-	bus_space_write_4(fdtbus_bs_tag, src, 0, val);
+	bus_space_write_4(fdtbus_bs_tag, src, SRC_CONTROL_REG, val);
 
 	armv7_sev();
 

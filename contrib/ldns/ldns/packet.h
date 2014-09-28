@@ -411,6 +411,17 @@ uint32_t ldns_pkt_querytime(const ldns_pkt *p);
 size_t ldns_pkt_size(const ldns_pkt *p);
 
 /**
+ * Return the number of RRs in the given section.
+ * Returns the sum of all RRs when LDNS_SECTION_ANY is given.
+ * Returns the sum of all non-question RRs when LDNS_SECTION_ANY_NOQUESTION
+ * is given.
+ * \param[in] p the packet
+ * \param[in] s the section
+ * \return the number of RRs in the given section
+ */
+uint16_t ldns_pkt_section_count(const ldns_pkt *p, ldns_pkt_section s);
+
+/**
  * Return the packet's tsig pseudo rr's
  * \param[in] p the packet
  * \return the tsig rr
@@ -760,6 +771,18 @@ void ldns_pkt_free(ldns_pkt *packet);
 ldns_status ldns_pkt_query_new_frm_str(ldns_pkt **p, const char *rr_name, ldns_rr_type rr_type, ldns_rr_class rr_class , uint16_t flags);
 
 /**
+ * creates an IXFR request packet for the given name, class.
+ * adds the SOA record to the authority section.
+ * \param[out] p the packet to be returned
+ * \param[in] rr_name the name to query for (as string)
+ * \param[in] rr_class the class to query for
+ * \param[in] flags packet flags
+ * \param[in] soa soa record to be added to the authority section
+ * \return LDNS_STATUS_OK or a ldns_status mesg with the error
+ */
+ldns_status ldns_pkt_ixfr_request_new_frm_str(ldns_pkt **p, const char *rr_name, ldns_rr_class rr_class, uint16_t flags, ldns_rr* soa);
+
+/**
  * creates a packet with a query in it for the given name, type and class.
  * \param[in] rr_name the name to query for
  * \param[in] rr_type the type to query for
@@ -768,6 +791,17 @@ ldns_status ldns_pkt_query_new_frm_str(ldns_pkt **p, const char *rr_name, ldns_r
  * \return ldns_pkt* a pointer to the new pkt
  */
 ldns_pkt *ldns_pkt_query_new(ldns_rdf *rr_name, ldns_rr_type rr_type, ldns_rr_class rr_class, uint16_t flags);
+
+/**
+ * creates an IXFR request packet for the given name, type and class.
+ * adds the SOA record to the authority section.
+ * \param[in] rr_name the name to query for
+ * \param[in] rr_class the class to query for
+ * \param[in] flags packet flags
+ * \param[in] soa soa record to be added to the authority section
+ * \return ldns_pkt* a pointer to the new pkt
+ */
+ldns_pkt *ldns_pkt_ixfr_request_new(ldns_rdf *rr_name, ldns_rr_class rr_class, uint16_t flags, ldns_rr* soa);
 
 /**
  * clones the given packet, creating a fully allocated copy

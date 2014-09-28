@@ -1,12 +1,13 @@
 #	@(#)Makefile	8.1 (Berkeley) 6/5/93
 #	$FreeBSD$
 
-.include <bsd.own.mk>
+.include <src.opts.mk>
 
 #MISSING: dump.5 plot.5
 MAN=	acct.5 \
 	ar.5 \
 	a.out.5 \
+	autofs.5 \
 	bluetooth.device.conf.5 \
 	bluetooth.hosts.5 \
 	bluetooth.protocols.5 \

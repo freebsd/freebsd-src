@@ -120,6 +120,7 @@ struct pci_devinst {
 	struct {
 		int8_t    	pin;
 		enum lintr_stat	state;
+		int		pirq_pin;
 		int	  	ioapic_irq;
 		pthread_mutex_t	lock;
 	} pi_lintr;
@@ -200,7 +201,8 @@ struct pciecap {
 	uint16_t	slot_status2;
 } __packed;
 
-typedef void (*pci_lintr_cb)(int b, int s, int pin, int ioapic_irq, void *arg);
+typedef void (*pci_lintr_cb)(int b, int s, int pin, int pirq_pin,
+    int ioapic_irq, void *arg);
 
 int	init_pci(struct vmctx *ctx);
 void	msicap_cfgwrite(struct pci_devinst *pi, int capoff, int offset,
@@ -218,7 +220,7 @@ void	pci_generate_msi(struct pci_devinst *pi, int msgnum);
 void	pci_generate_msix(struct pci_devinst *pi, int msgnum);
 void	pci_lintr_assert(struct pci_devinst *pi);
 void	pci_lintr_deassert(struct pci_devinst *pi);
-int	pci_lintr_request(struct pci_devinst *pi);
+void	pci_lintr_request(struct pci_devinst *pi);
 int	pci_msi_enabled(struct pci_devinst *pi);
 int	pci_msix_enabled(struct pci_devinst *pi);
 int	pci_msix_table_bar(struct pci_devinst *pi);
@@ -233,6 +235,8 @@ uint64_t pci_emul_msix_tread(struct pci_devinst *pi, uint64_t offset, int size);
 int	pci_count_lintr(int bus);
 void	pci_walk_lintr(int bus, pci_lintr_cb cb, void *arg);
 void	pci_write_dsdt(void);
+uint64_t pci_ecfg_base(void);
+int	pci_bus_configured(int bus);
 
 static __inline void 
 pci_set_cfgdata8(struct pci_devinst *pi, int offset, uint8_t val)

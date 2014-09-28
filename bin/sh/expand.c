@@ -104,8 +104,8 @@ static char *expari(char *);
 static void expbackq(union node *, int, int);
 static int subevalvar(char *, char *, int, int, int, int, int);
 static char *evalvar(char *, int);
-static int varisset(char *, int);
-static void varvalue(char *, int, int, int);
+static int varisset(const char *, int);
+static void varvalue(const char *, int, int, int);
 static void recordregion(int, int, int);
 static void removerecordregions(int);
 static void ifsbreakup(char *, struct arglist *);
@@ -633,7 +633,7 @@ evalvar(char *p, int flag)
 	int subtype;
 	int varflags;
 	char *var;
-	char *val;
+	const char *val;
 	int patloc;
 	int c;
 	int set;
@@ -827,7 +827,7 @@ record:
  */
 
 static int
-varisset(char *name, int nulok)
+varisset(const char *name, int nulok)
 {
 
 	if (*name == '!')
@@ -846,9 +846,11 @@ varisset(char *name, int nulok)
 		}
 	} else if (is_digit(*name)) {
 		char *ap;
-		int num = atoi(name);
+		long num;
 
-		if (num > shellparam.nparam)
+		errno = 0;
+		num = strtol(name, NULL, 10);
+		if (errno != 0 || num > shellparam.nparam)
 			return 0;
 
 		if (num == 0)
@@ -876,7 +878,7 @@ strtodest(const char *p, int flag, int subtype, int quoted)
  */
 
 static void
-varvalue(char *name, int quoted, int subtype, int flag)
+varvalue(const char *name, int quoted, int subtype, int flag)
 {
 	int num;
 	char *p;
@@ -928,17 +930,16 @@ numvar:
 				STPUTC(sep, expdest);
 		}
 		break;
-	case '0':
-		p = arg0;
-		strtodest(p, flag, subtype, quoted);
-		break;
 	default:
 		if (is_digit(*name)) {
 			num = atoi(name);
-			if (num > 0 && num <= shellparam.nparam) {
+			if (num == 0)
+				p = arg0;
+			else if (num > 0 && num <= shellparam.nparam)
 				p = shellparam.p[num - 1];
-				strtodest(p, flag, subtype, quoted);
-			}
+			else
+				break;
+			strtodest(p, flag, subtype, quoted);
 		}
 		break;
 	}
@@ -956,6 +957,7 @@ recordregion(int start, int end, int inquotes)
 {
 	struct ifsregion *ifsp;
 
+	INTOFF;
 	if (ifslastp == NULL) {
 		ifsp = &ifsfirst;
 	} else {
@@ -963,6 +965,7 @@ recordregion(int start, int end, int inquotes)
 		    && ifslastp->inquotes == inquotes) {
 			/* extend previous area */
 			ifslastp->endoff = end;
+			INTON;
 			return;
 		}
 		ifsp = (struct ifsregion *)ckmalloc(sizeof (struct ifsregion));
@@ -973,6 +976,7 @@ recordregion(int start, int end, int inquotes)
 	ifslastp->begoff = start;
 	ifslastp->endoff = end;
 	ifslastp->inquotes = inquotes;
+	INTON;
 }
 
 

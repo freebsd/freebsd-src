@@ -127,6 +127,8 @@ usb_get_transfer_by_ep_no(usb_dev_handle * dev, uint8_t ep_no)
 		bufsize = 256;
 	} else if (speed == LIBUSB20_SPEED_FULL) {
 		bufsize = 4096;
+	} else if (speed == LIBUSB20_SPEED_SUPER) {
+		bufsize = 65536;
 	} else {
 		bufsize = 16384;
 	}

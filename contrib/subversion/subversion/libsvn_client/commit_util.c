@@ -892,7 +892,7 @@ harvest_status_callback(void *status_baton,
   if (matches_changelists
       && (is_harvest_root || baton->changelists)
       && state_flags
-      && is_added
+      && (is_added || (is_deleted && is_op_root && status->copied))
       && baton->danglers)
     {
       /* If a node is added, its parent must exist in the repository at the
@@ -966,17 +966,19 @@ struct handle_descendants_baton
   void *cancel_baton;
   svn_client__check_url_kind_t check_url_func;
   void *check_url_baton;
+  svn_client__committables_t *committables;
 };
 
 /* Helper for the commit harvesters */
 static svn_error_t *
 handle_descendants(void *baton,
-                       const void *key, apr_ssize_t klen, void *val,
-                       apr_pool_t *pool)
+                   const void *key, apr_ssize_t klen, void *val,
+                   apr_pool_t *pool)
 {
   struct handle_descendants_baton *hdb = baton;
   apr_array_header_t *commit_items = val;
   apr_pool_t *iterpool = svn_pool_create(pool);
+  const char *repos_root_url = key;
   int i;
 
   for (i = 0; i < commit_items->nelts; i++)
@@ -1002,32 +1004,64 @@ handle_descendants(void *baton,
 
       for (j = 0; j < absent_descendants->nelts; j++)
         {
-          int k;
-          svn_boolean_t found_item = FALSE;
           svn_node_kind_t kind;
+          svn_client_commit_item3_t *desc_item;
           const char *relpath = APR_ARRAY_IDX(absent_descendants, j,
                                               const char *);
           const char *local_abspath = svn_dirent_join(item->path, relpath,
                                                       iterpool);
 
-          /* If the path has a commit operation, we do nothing.
-             (It will be deleted by the operation) */
-          for (k = 0; k < commit_items->nelts; k++)
-            {
-              svn_client_commit_item3_t *cmt_item =
-                 APR_ARRAY_IDX(commit_items, k, svn_client_commit_item3_t *);
-
-              if (! strcmp(cmt_item->path, local_abspath))
-                {
-                  found_item = TRUE;
-                  break;
-                }
-            }
-
-          if (found_item)
-            continue; /* We have an explicit delete or replace for this path */
-
           /* ### Need a sub-iterpool? */
+
+
+          /* We found a 'not present' descendant during a copy (at op_depth>0),
+             this is most commonly caused by copying some mixed revision tree.
+
+             In this case not present can imply that the node does not exist
+             in the parent revision, or that the node does. But we want to copy
+             the working copy state in which it does not exist, but might be
+             replaced. */
+
+          desc_item = svn_hash_gets(hdb->committables->by_path, local_abspath);
+
+          /* If the path has a commit operation (possibly at an higher
+             op_depth, we might want to turn an add in a replace. */
+          if (desc_item)
+            {
+              const char *dir;
+              svn_boolean_t found_intermediate = FALSE;
+
+              if (desc_item->state_flags & SVN_CLIENT_COMMIT_ITEM_DELETE)
+                continue; /* We already have a delete or replace */
+              else if (!(desc_item->state_flags & SVN_CLIENT_COMMIT_ITEM_ADD))
+                continue; /* Not a copy/add, just a modification */
+
+              dir = svn_dirent_dirname(local_abspath, iterpool);
+
+              while (strcmp(dir, item->path))
+                {
+                  svn_client_commit_item3_t *i_item;
+
+                  i_item = svn_hash_gets(hdb->committables->by_path, dir);
+
+                  if (i_item)
+                    {
+                      if ((i_item->state_flags & SVN_CLIENT_COMMIT_ITEM_DELETE)
+                          || (i_item->state_flags & SVN_CLIENT_COMMIT_ITEM_ADD))
+                        {
+                          found_intermediate = TRUE;
+                          break;
+                        }
+                    }
+                  dir = svn_dirent_dirname(dir, iterpool);
+                }
+
+              if (found_intermediate)
+                continue; /* Some intermediate ancestor is an add or delete */
+
+              /* Fall through to detect if we need to turn the add in a
+                 replace. */
+            }
 
           if (hdb->check_url_func)
             {
@@ -1045,25 +1079,35 @@ handle_descendants(void *baton,
           else
             kind = svn_node_unknown; /* 'Ok' for a delete of something */
 
-          {
-            /* Add a new commit item that describes the delete */
-            apr_pool_t *result_pool = commit_items->pool;
-            svn_client_commit_item3_t *new_item
-                  = svn_client_commit_item3_create(result_pool);
+          if (desc_item)
+            {
+              /* Extend the existing add/copy item to create a replace */
+              desc_item->state_flags |= SVN_CLIENT_COMMIT_ITEM_DELETE;
+              continue;
+            }
 
-            new_item->path = svn_dirent_join(item->path, relpath,
-                                             result_pool);
-            new_item->kind = kind;
-            new_item->url = svn_path_url_add_component2(item->url, relpath,
-                                                        result_pool);
-            new_item->revision = SVN_INVALID_REVNUM;
-            new_item->state_flags = SVN_CLIENT_COMMIT_ITEM_DELETE;
-            new_item->incoming_prop_changes = apr_array_make(result_pool, 1,
-                                                 sizeof(svn_prop_t *));
+          /* Add a new commit item that describes the delete */
 
-            APR_ARRAY_PUSH(commit_items, svn_client_commit_item3_t *)
-                  = new_item;
-          }
+          SVN_ERR(add_committable(hdb->committables,
+                                  svn_dirent_join(item->path, relpath,
+                                                  iterpool),
+                                  kind,
+                                  repos_root_url,
+                                  svn_uri_skip_ancestor(
+                                        repos_root_url,
+                                        svn_path_url_add_component2(item->url,
+                                                                    relpath,
+                                                                    iterpool),
+                                        iterpool),
+                                  SVN_INVALID_REVNUM,
+                                  NULL /* copyfrom_relpath */,
+                                  SVN_INVALID_REVNUM,
+                                  NULL /* moved_from_abspath */,
+                                  SVN_CLIENT_COMMIT_ITEM_DELETE,
+                                  NULL /* lock tokens */,
+                                  NULL /* lock */,
+                                  commit_items->pool,
+                                  iterpool));
         }
       }
 
@@ -1181,6 +1225,7 @@ svn_client__harvest_committables(svn_client__committables_t **committables,
   hdb.cancel_baton = ctx->cancel_baton;
   hdb.check_url_func = check_url_func;
   hdb.check_url_baton = check_url_baton;
+  hdb.committables = *committables;
 
   SVN_ERR(svn_iter_apr_hash(NULL, (*committables)->by_repository,
                             handle_descendants, &hdb, iterpool));
@@ -1274,6 +1319,7 @@ harvest_copy_committables(void *baton, void *item, apr_pool_t *pool)
   hdb.cancel_baton = btn->ctx->cancel_baton;
   hdb.check_url_func = btn->check_url_func;
   hdb.check_url_baton = btn->check_url_baton;
+  hdb.committables = btn->committables;
 
   SVN_ERR(svn_iter_apr_hash(NULL, btn->committables->by_repository,
                             handle_descendants, &hdb, pool));

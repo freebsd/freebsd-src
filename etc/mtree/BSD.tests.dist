@@ -21,11 +21,15 @@
     ..
     tests
         bin
+            chown
+            ..
             date
             ..
             mv
             ..
             pax
+            ..
+            pkill
             ..
             sh
                 builtins
@@ -46,6 +50,26 @@
             test
             ..
         ..
+        cddl
+            lib
+            ..
+            sbin
+            ..
+            usr.bin
+            ..
+            usr.sbin
+            ..
+        ..
+        etc
+        ..
+        games
+        ..
+        gnu
+            lib
+            ..
+            usr.bin
+            ..
+        ..
         lib
             atf
                 libatf-c
@@ -61,11 +85,43 @@
             ..
             libcrypt
             ..
+            libmp
+            ..
+            libnv
+            ..
+            libproc
+            ..
+            libutil
+            ..
         ..
         libexec
             atf
                 atf-check
                 ..
+                atf-sh
+                ..
+            ..
+            rtld-elf
+            ..
+        ..
+        sbin
+            dhclient
+            ..
+            devd
+            ..
+            growfs
+            ..
+            mdconfig
+            ..
+        ..
+        secure
+            lib
+            ..
+            libexec
+            ..
+            usr.bin
+            ..
+            usr.sbin
             ..
         ..
         share
@@ -81,11 +137,157 @@
         sys
             kern
             ..
+            netinet
+            ..
         ..
         usr.bin
-            atf
-                atf-sh
+            apply
+            ..
+            bmake
+                archives
+                    fmt_44bsd
+                    ..
+                    fmt_44bsd_mod
+                    ..
+                    fmt_oldbsd
+                    ..
                 ..
+                basic
+                    t0
+                    ..
+                    t1
+                    ..
+                    t2
+                    ..
+                    t3
+                    ..
+                ..
+                execution
+                    ellipsis
+                    ..
+                    empty
+                    ..
+                    joberr
+                    ..
+                    plus
+                    ..
+                ..
+                shell
+                    builtin
+                    ..
+                    meta
+                    ..
+                    path
+                    ..
+                    path_select
+                    ..
+                    replace
+                    ..
+                    select
+                    ..
+                ..
+                suffixes
+                    basic
+                    ..
+                    src_wild1
+                    ..
+                    src_wild2
+                    ..
+                ..
+                syntax
+                    directive-t0
+                    ..
+                    enl
+                    ..
+                    funny-targets
+                    ..
+                    semi
+                    ..
+                ..
+                sysmk
+                    t0
+                        2
+                            1
+                            ..
+                        ..
+                        mk
+                        ..
+                    ..
+                    t1
+                        2
+                            1
+                            ..
+                        ..
+                        mk
+                        ..
+                    ..
+                    t2
+                        2
+                            1
+                            ..
+                        ..
+                        mk
+                        ..
+                    ..
+                ..
+                variables
+                    modifier_M
+                    ..
+                    modifier_t
+                    ..
+                    opt_V
+                    ..
+                    t0
+                    ..
+                ..
+            ..
+            calendar
+            ..
+            comm
+            ..
+            file2c
+            ..
+            join
+            ..
+            jot
+            ..
+            lastcomm
+            ..
+            m4
+            ..
+            mkimg
+            ..
+            ncal
+            ..
+            printf
+            ..
+            sed
+                regress.multitest.out
+                ..
+            ..
+            tr
+            ..
+            truncate
+            ..
+            units
+            ..
+            uudecode
+            ..
+            uuencode
+            ..
+            xargs
+            ..
+            yacc
+                yacc
+                ..
+            ..
+        ..
+        usr.sbin
+            etcupdate
+            ..
+            newsyslog
+            ..
+            sa
             ..
         ..
     ..

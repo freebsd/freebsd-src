@@ -124,7 +124,7 @@
 .\" ========================================================================
 .\"
 .IX Title "EVP_EncryptInit 3"
-.TH EVP_EncryptInit 3 "2014-01-06" "1.0.1f" "OpenSSL"
+.TH EVP_EncryptInit 3 "2014-08-06" "1.0.1i" "OpenSSL"
 .\" For nroff, turn off justification.  Always turn off hyphenation; it makes
 .\" way too many mistakes in technical documents.
 .if n .ad l
@@ -280,7 +280,7 @@ does not remain in memory.
 .PP
 \&\fIEVP_EncryptInit()\fR, \fIEVP_DecryptInit()\fR and \fIEVP_CipherInit()\fR behave in a
 similar way to \fIEVP_EncryptInit_ex()\fR, EVP_DecryptInit_ex and
-\&\fIEVP_CipherInit_ex()\fR except the \fBctx\fR paramter does not need to be
+\&\fIEVP_CipherInit_ex()\fR except the \fBctx\fR parameter does not need to be
 initialized and they always use the default cipher implementation.
 .PP
 \&\fIEVP_EncryptFinal()\fR, \fIEVP_DecryptFinal()\fR and \fIEVP_CipherFinal()\fR behave in a
@@ -452,7 +452,10 @@ bits and 12 rounds.
 .IX Header "NOTES"
 Where possible the \fB\s-1EVP\s0\fR interface to symmetric ciphers should be used in
 preference to the low level interfaces. This is because the code then becomes
-transparent to the cipher used and much more flexible.
+transparent to the cipher used and much more flexible. Additionally, the
+\&\fB\s-1EVP\s0\fR interface will ensure the use of platform specific cryptographic
+acceleration such as AES-NI (the low level interfaces do not provide the
+guarantee).
 .PP
 \&\s-1PKCS\s0 padding works by adding \fBn\fR padding bytes of value \fBn\fR to make the total 
 length of the encrypted data a multiple of the block size. Padding is always

@@ -4,7 +4,7 @@
 # BINDIR
 .include "${.CURDIR}/../../Makefile.inc"
 .include "${.CURDIR}/../Makefile.inc0"
-.include <bsd.own.mk>
+.include <src.opts.mk>
 
 .PATH: ${SRCDIR}/gas ${SRCDIR}/gas/config
 

@@ -199,8 +199,8 @@ extern int last_fault_code;
 static void pmap_free_pv_entry (pv_entry_t);
 static pv_entry_t pmap_get_pv_entry(void);
 
-static void		pmap_enter_locked(pmap_t, vm_offset_t, vm_page_t,
-    vm_prot_t, boolean_t, int);
+static int		pmap_enter_locked(pmap_t, vm_offset_t, vm_page_t,
+    vm_prot_t, u_int);
 static vm_paddr_t	pmap_extract_locked(pmap_t pmap, vm_offset_t va);
 static void		pmap_fix_cache(struct vm_page *, pmap_t, vm_offset_t);
 static void		pmap_alloc_l1(pmap_t);
@@ -458,7 +458,7 @@ kernel_pt_lookup(vm_paddr_t pa)
 	return (0);
 }
 
-#if (ARM_MMU_GENERIC + ARM_MMU_SA1) != 0
+#if ARM_MMU_GENERIC != 0
 void
 pmap_pte_init_generic(void)
 {
@@ -500,23 +500,6 @@ pmap_pte_init_generic(void)
 	pmap_zero_page_func = pmap_zero_page_generic;
 }
 
-#if defined(CPU_ARM8)
-void
-pmap_pte_init_arm8(void)
-{
-
-	/*
-	 * ARM8 is compatible with generic, but we need to use
-	 * the page tables uncached.
-	 */
-	pmap_pte_init_generic();
-
-	pte_l1_s_cache_mode_pt = 0;
-	pte_l2_l_cache_mode_pt = 0;
-	pte_l2_s_cache_mode_pt = 0;
-}
-#endif /* CPU_ARM8 */
-
 #if defined(CPU_ARM9) && defined(ARM9_CACHE_WRITE_THROUGH)
 void
 pmap_pte_init_arm9(void)
@@ -537,7 +520,7 @@ pmap_pte_init_arm9(void)
 	pte_l2_s_cache_mode_pt = L2_C;
 }
 #endif /* CPU_ARM9 */
-#endif /* (ARM_MMU_GENERIC + ARM_MMU_SA1) != 0 */
+#endif /* ARM_MMU_GENERIC != 0 */
 
 #if defined(CPU_ARM10)
 void
@@ -560,27 +543,6 @@ pmap_pte_init_arm10(void)
 
 }
 #endif /* CPU_ARM10 */
-
-#if  ARM_MMU_SA1 == 1
-void
-pmap_pte_init_sa1(void)
-{
-
-	/*
-	 * The StrongARM SA-1 cache does not have a write-through
-	 * mode.  So, do the generic initialization, then reset
-	 * the page table cache mode to B=1,C=1, and note that
-	 * the PTEs need to be sync'd.
-	 */
-	pmap_pte_init_generic();
-
-	pte_l1_s_cache_mode_pt = L1_S_B|L1_S_C;
-	pte_l2_l_cache_mode_pt = L2_B|L2_C;
-	pte_l2_s_cache_mode_pt = L2_B|L2_C;
-
-	pmap_needs_pte_sync = 1;
-}
-#endif /* ARM_MMU_SA1 == 1*/
 
 #if ARM_MMU_XSCALE == 1
 #if (ARM_NMMUS > 1) || defined (CPU_XSCALE_CORE3)
@@ -1828,7 +1790,7 @@ pmap_init(void)
 	pvzone = uma_zcreate("PV ENTRY", sizeof (struct pv_entry), NULL, NULL,
 	    NULL, NULL, UMA_ALIGN_PTR, UMA_ZONE_VM | UMA_ZONE_NOFREE);
 	TUNABLE_INT_FETCH("vm.pmap.shpgperproc", &shpgperproc);
-	pv_entry_max = shpgperproc * maxproc + cnt.v_page_count;
+	pv_entry_max = shpgperproc * maxproc + vm_cnt.v_page_count;
 	uma_zone_reserve_kva(pvzone, pv_entry_max);
 	pv_entry_high_water = 9 * (pv_entry_max / 10);
 
@@ -1971,34 +1933,6 @@ pmap_fault_fixup(pmap_t pm, vm_offset_t va, vm_prot_t ftype, int user)
 		PTE_SYNC(pl1pd);
 		rv = 1;
 	}
-
-#ifdef CPU_SA110
-	/*
-	 * There are bugs in the rev K SA110.  This is a check for one
-	 * of them.
-	 */
-	if (rv == 0 && curcpu()->ci_arm_cputype == CPU_ID_SA110 &&
-	    curcpu()->ci_arm_cpurev < 3) {
-		/* Always current pmap */
-		if (l2pte_valid(pte)) {
-			extern int kernel_debug;
-			if (kernel_debug & 1) {
-				struct proc *p = curlwp->l_proc;
-				printf("prefetch_abort: page is already "
-				    "mapped - pte=%p *pte=%08x\n", ptep, pte);
-				printf("prefetch_abort: pc=%08lx proc=%p "
-				    "process=%s\n", va, p, p->p_comm);
-				printf("prefetch_abort: far=%08x fs=%x\n",
-				    cpu_faultaddress(), cpu_faultstatus());
-			}
-#ifdef DDB
-			if (kernel_debug & 2)
-				Debugger();
-#endif
-			rv = 1;
-		}
-	}
-#endif /* CPU_SA110 */
 
 #ifdef DEBUG
 	/*
@@ -2729,7 +2663,7 @@ pmap_kenter_section(vm_offset_t va, vm_offset_t pa, int flags)
  * to be used for panic dumps.
  */
 void *
-pmap_kenter_temp(vm_paddr_t pa, int i)
+pmap_kenter_temporary(vm_paddr_t pa, int i)
 {
 	vm_offset_t va;
 
@@ -3100,7 +3034,14 @@ pmap_remove_all(vm_page_t m)
 	if (TAILQ_EMPTY(&m->md.pv_list))
 		return;
 	rw_wlock(&pvh_global_lock);
-	pmap_remove_write(m);
+
+	/*
+	 * XXX This call shouldn't exist.  Iterating over the PV list twice,
+	 * once in pmap_clearbit() and again below, is both unnecessary and
+	 * inefficient.  The below code should itself write back the cache
+	 * entry before it destroys the mapping.
+	 */
+	pmap_clearbit(m, PVF_WRITE);
 	curpm = vmspace_pmap(curproc->p_vmspace);
 	while ((pv = TAILQ_FIRST(&m->md.pv_list)) != NULL) {
 		if (flush == FALSE && (pv->pv_pmap == curpm ||
@@ -3109,7 +3050,7 @@ pmap_remove_all(vm_page_t m)
 
 		PMAP_LOCK(pv->pv_pmap);
 		/*
-		 * Cached contents were written-back in pmap_remove_write(),
+		 * Cached contents were written-back in pmap_clearbit(),
 		 * but we still have to invalidate the cache entry to make
 		 * sure stale data are not retrieved when another page will be
 		 * mapped under this virtual address.
@@ -3267,24 +3208,26 @@ pmap_protect(pmap_t pm, vm_offset_t sva, vm_offset_t eva, vm_prot_t prot)
  *	insert this page into the given map NOW.
  */
 
-void
-pmap_enter(pmap_t pmap, vm_offset_t va, vm_prot_t access, vm_page_t m,
-    vm_prot_t prot, boolean_t wired)
+int
+pmap_enter(pmap_t pmap, vm_offset_t va, vm_page_t m, vm_prot_t prot,
+    u_int flags, int8_t psind __unused)
 {
+	int rv;
 
 	rw_wlock(&pvh_global_lock);
 	PMAP_LOCK(pmap);
-	pmap_enter_locked(pmap, va, m, prot, wired, M_WAITOK);
+	rv = pmap_enter_locked(pmap, va, m, prot, flags);
 	rw_wunlock(&pvh_global_lock);
  	PMAP_UNLOCK(pmap);
+	return (rv);
 }
 
 /*
  *	The pvh global and pmap locks must be held.
  */
-static void
+static int
 pmap_enter_locked(pmap_t pmap, vm_offset_t va, vm_page_t m, vm_prot_t prot,
-    boolean_t wired, int flags)
+    u_int flags)
 {
 	struct l2_bucket *l2b = NULL;
 	struct vm_page *opg;
@@ -3300,9 +3243,8 @@ pmap_enter_locked(pmap_t pmap, vm_offset_t va, vm_page_t m, vm_prot_t prot,
 		pa = systempage.pv_pa;
 		m = NULL;
 	} else {
-		KASSERT((m->oflags & VPO_UNMANAGED) != 0 ||
-		    vm_page_xbusied(m) || (flags & M_NOWAIT) != 0,
-		    ("pmap_enter_locked: page %p is not busy", m));
+		if ((m->oflags & VPO_UNMANAGED) == 0 && !vm_page_xbusied(m))
+			VM_OBJECT_ASSERT_LOCKED(m->object);
 		pa = VM_PAGE_TO_PHYS(m);
 	}
 	nflags = 0;
@@ -3310,10 +3252,10 @@ pmap_enter_locked(pmap_t pmap, vm_offset_t va, vm_page_t m, vm_prot_t prot,
 		nflags |= PVF_WRITE;
 	if (prot & VM_PROT_EXECUTE)
 		nflags |= PVF_EXEC;
-	if (wired)
+	if ((flags & PMAP_ENTER_WIRED) != 0)
 		nflags |= PVF_WIRED;
 	PDEBUG(1, printf("pmap_enter: pmap = %08x, va = %08x, m = %08x, prot = %x, "
-	    "wired = %x\n", (uint32_t) pmap, va, (uint32_t) m, prot, wired));
+	    "flags = %x\n", (uint32_t) pmap, va, (uint32_t) m, prot, flags));
 
 	if (pmap == pmap_kernel()) {
 		l2b = pmap_get_l2_bucket(pmap, va);
@@ -3323,7 +3265,7 @@ pmap_enter_locked(pmap_t pmap, vm_offset_t va, vm_page_t m, vm_prot_t prot,
 do_l2b_alloc:
 		l2b = pmap_alloc_l2_bucket(pmap, va);
 		if (l2b == NULL) {
-			if (flags & M_WAITOK) {
+			if ((flags & PMAP_ENTER_NOSLEEP) == 0) {
 				PMAP_UNLOCK(pmap);
 				rw_wunlock(&pvh_global_lock);
 				VM_WAIT;
@@ -3331,7 +3273,7 @@ do_l2b_alloc:
 				PMAP_LOCK(pmap);
 				goto do_l2b_alloc;
 			}
-			return;
+			return (KERN_RESOURCE_SHORTAGE);
 		}
 	}
 
@@ -3545,6 +3487,7 @@ do_l2b_alloc:
 		if (m)
 			pmap_fix_cache(m, pmap, va);
 	}
+	return (KERN_SUCCESS);
 }
 
 /*
@@ -3574,7 +3517,7 @@ pmap_enter_object(pmap_t pmap, vm_offset_t start, vm_offset_t end,
 	PMAP_LOCK(pmap);
 	while (m != NULL && (diff = m->pindex - m_start->pindex) < psize) {
 		pmap_enter_locked(pmap, start + ptoa(diff), m, prot &
-		    (VM_PROT_READ | VM_PROT_EXECUTE), FALSE, M_NOWAIT);
+		    (VM_PROT_READ | VM_PROT_EXECUTE), PMAP_ENTER_NOSLEEP);
 		m = TAILQ_NEXT(m, listq);
 	}
 	rw_wunlock(&pvh_global_lock);
@@ -3597,34 +3540,53 @@ pmap_enter_quick(pmap_t pmap, vm_offset_t va, vm_page_t m, vm_prot_t prot)
 	rw_wlock(&pvh_global_lock);
  	PMAP_LOCK(pmap);
 	pmap_enter_locked(pmap, va, m, prot & (VM_PROT_READ | VM_PROT_EXECUTE),
-	    FALSE, M_NOWAIT);
+	    PMAP_ENTER_NOSLEEP);
 	rw_wunlock(&pvh_global_lock);
  	PMAP_UNLOCK(pmap);
 }
 
 /*
- *	Routine:	pmap_change_wiring
- *	Function:	Change the wiring attribute for a map/virtual-address
- *			pair.
- *	In/out conditions:
- *			The mapping must already exist in the pmap.
+ *	Clear the wired attribute from the mappings for the specified range of
+ *	addresses in the given pmap.  Every valid mapping within that range
+ *	must have the wired attribute set.  In contrast, invalid mappings
+ *	cannot have the wired attribute set, so they are ignored.
+ *
+ *	XXX Wired mappings of unmanaged pages cannot be counted by this pmap
+ *	implementation.
  */
 void
-pmap_change_wiring(pmap_t pmap, vm_offset_t va, boolean_t wired)
+pmap_unwire(pmap_t pmap, vm_offset_t sva, vm_offset_t eva)
 {
 	struct l2_bucket *l2b;
 	pt_entry_t *ptep, pte;
-	vm_page_t pg;
-
+	pv_entry_t pv;
+	vm_offset_t next_bucket;
+	vm_page_t m;
+ 
 	rw_wlock(&pvh_global_lock);
- 	PMAP_LOCK(pmap);
-	l2b = pmap_get_l2_bucket(pmap, va);
-	KASSERT(l2b, ("No l2b bucket in pmap_change_wiring"));
-	ptep = &l2b->l2b_kva[l2pte_index(va)];
-	pte = *ptep;
-	pg = PHYS_TO_VM_PAGE(l2pte_pa(pte));
-	if (pg)
-		pmap_modify_pv(pg, pmap, va, PVF_WIRED, wired ? PVF_WIRED : 0);
+	PMAP_LOCK(pmap);
+	while (sva < eva) {
+		next_bucket = L2_NEXT_BUCKET(sva);
+		if (next_bucket > eva)
+			next_bucket = eva;
+		l2b = pmap_get_l2_bucket(pmap, sva);
+		if (l2b == NULL) {
+			sva = next_bucket;
+			continue;
+		}
+		for (ptep = &l2b->l2b_kva[l2pte_index(sva)]; sva < next_bucket;
+		    sva += PAGE_SIZE, ptep++) {
+			if ((pte = *ptep) == 0 ||
+			    (m = PHYS_TO_VM_PAGE(l2pte_pa(pte))) == NULL ||
+			    (m->oflags & VPO_UNMANAGED) != 0)
+				continue;
+			pv = pmap_find_pv(m, pmap, sva);
+			if ((pv->pv_flags & PVF_WIRED) == 0)
+				panic("pmap_unwire: pv %p isn't wired", pv);
+			pv->pv_flags &= ~PVF_WIRED;
+			pmap->pm_stats.wired_count--;
+		}
+	}
 	rw_wunlock(&pvh_global_lock);
  	PMAP_UNLOCK(pmap);
 }
@@ -3809,9 +3771,8 @@ pmap_pinit(pmap_t pmap)
 	bzero(&pmap->pm_stats, sizeof pmap->pm_stats);
 	pmap->pm_stats.resident_count = 1;
 	if (vector_page < KERNBASE) {
-		pmap_enter(pmap, vector_page,
-		    VM_PROT_READ, PHYS_TO_VM_PAGE(systempage.pv_pa),
-		    VM_PROT_READ, 1);
+		pmap_enter(pmap, vector_page, PHYS_TO_VM_PAGE(systempage.pv_pa),
+		    VM_PROT_READ, PMAP_ENTER_WIRED | VM_PROT_READ, 0);
 	}
 	return (1);
 }
@@ -3978,7 +3939,7 @@ pmap_remove(pmap_t pm, vm_offset_t sva, vm_offset_t eva)
  * StrongARM accesses to non-cached pages are non-burst making writing
  * _any_ bulk data very slow.
  */
-#if (ARM_MMU_GENERIC + ARM_MMU_SA1) != 0 || defined(CPU_XSCALE_CORE3)
+#if ARM_MMU_GENERIC != 0 || defined(CPU_XSCALE_CORE3)
 void
 pmap_zero_page_generic(vm_paddr_t phys, int off, int size)
 {
@@ -4005,7 +3966,7 @@ pmap_zero_page_generic(vm_paddr_t phys, int off, int size)
 
 	mtx_unlock(&cmtx);
 }
-#endif /* (ARM_MMU_GENERIC + ARM_MMU_SA1) != 0 */
+#endif /* ARM_MMU_GENERIC != 0 */
 
 #if ARM_MMU_XSCALE == 1
 void
@@ -4221,7 +4182,7 @@ pmap_clean_page(struct pv_entry *pv, boolean_t is_src)
  * hook points. The same comment regarding cachability as in
  * pmap_zero_page also applies here.
  */
-#if  (ARM_MMU_GENERIC + ARM_MMU_SA1) != 0 || defined (CPU_XSCALE_CORE3)
+#if ARM_MMU_GENERIC != 0 || defined (CPU_XSCALE_CORE3)
 void
 pmap_copy_page_generic(vm_paddr_t src, vm_paddr_t dst)
 {
@@ -4286,7 +4247,7 @@ pmap_copy_page_offs_generic(vm_paddr_t a_phys, vm_offset_t a_offs,
 	cpu_l2cache_inv_range(csrcp + a_offs, cnt);
 	cpu_l2cache_wbinv_range(cdstp + b_offs, cnt);
 }
-#endif /* (ARM_MMU_GENERIC + ARM_MMU_SA1) != 0 */
+#endif /* ARM_MMU_GENERIC != 0 */
 
 #if ARM_MMU_XSCALE == 1
 void

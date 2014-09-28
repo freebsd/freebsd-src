@@ -73,12 +73,8 @@ static struct uart_ops uart_rt305x_uart_ops = {
 };
 
 static int	uart_output = 1;
-TUNABLE_INT("kern.uart_output", &uart_output);
-SYSCTL_INT(_kern, OID_AUTO, uart_output, CTLFLAG_RW,
+SYSCTL_INT(_kern, OID_AUTO, uart_output, CTLFLAG_RWTUN,
     &uart_output, 0, "UART output enabled.");
-
-
-
 
 static int
 rt305x_uart_probe(struct uart_bas *bas)

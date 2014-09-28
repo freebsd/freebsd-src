@@ -157,7 +157,7 @@ ieee80211_vap_pkt_send_dest(struct ieee80211vap *vap, struct mbuf *m,
 		    ni->ni_macaddr, NULL,
 		    "%s", "classification failure");
 		vap->iv_stats.is_tx_classify++;
-		ifp->if_oerrors++;
+		if_inc_counter(ifp, IFCOUNTER_OERRORS, 1);
 		m_freem(m);
 		ieee80211_free_node(ni);
 
@@ -251,7 +251,7 @@ ieee80211_vap_pkt_send_dest(struct ieee80211vap *vap, struct mbuf *m,
 		/* NB: IFQ_HANDOFF reclaims mbuf */
 		ieee80211_free_node(ni);
 	} else {
-		ifp->if_opackets++;
+		if_inc_counter(ifp, IFCOUNTER_OPACKETS, 1);
 	}
 	ic->ic_lastdata = ticks;
 
@@ -299,7 +299,7 @@ ieee80211_start_pkt(struct ieee80211vap *vap, struct mbuf *m)
 		IEEE80211_DPRINTF(vap, IEEE80211_MSG_OUTPUT,
 		    "discard frame, %s\n", "m_pullup failed");
 		vap->iv_stats.is_tx_nobuf++;	/* XXX */
-		ifp->if_oerrors++;
+		if_inc_counter(ifp, IFCOUNTER_OERRORS, 1);
 		return (ENOBUFS);
 	}
 	eh = mtod(m, struct ether_header *);
@@ -332,7 +332,7 @@ ieee80211_start_pkt(struct ieee80211vap *vap, struct mbuf *m)
 		ni = ieee80211_find_txnode(vap, eh->ether_dhost);
 		if (ni == NULL) {
 			/* NB: ieee80211_find_txnode does stat+msg */
-			ifp->if_oerrors++;
+			if_inc_counter(ifp, IFCOUNTER_OERRORS, 1);
 			m_freem(m);
 			/* XXX better status? */
 			return (ENOBUFS);
@@ -344,7 +344,7 @@ ieee80211_start_pkt(struct ieee80211vap *vap, struct mbuf *m)
 			    "sta not associated (type 0x%04x)",
 			    htons(eh->ether_type));
 			vap->iv_stats.is_tx_notassoc++;
-			ifp->if_oerrors++;
+			if_inc_counter(ifp, IFCOUNTER_OERRORS, 1);
 			m_freem(m);
 			ieee80211_free_node(ni);
 			/* XXX better status? */
@@ -363,7 +363,7 @@ ieee80211_start_pkt(struct ieee80211vap *vap, struct mbuf *m)
 				    eh->ether_dhost, NULL,
 				    "%s", "proxy not enabled");
 				vap->iv_stats.is_mesh_notproxy++;
-				ifp->if_oerrors++;
+				if_inc_counter(ifp, IFCOUNTER_OERRORS, 1);
 				m_freem(m);
 				/* XXX better status? */
 				return (ENOBUFS);
@@ -380,7 +380,7 @@ ieee80211_start_pkt(struct ieee80211vap *vap, struct mbuf *m)
 			 * NB: ieee80211_mesh_discover holds/disposes
 			 * frame (e.g. queueing on path discovery).
 			 */
-			ifp->if_oerrors++;
+			if_inc_counter(ifp, IFCOUNTER_OERRORS, 1);
 			/* XXX better status? */
 			return (ENOBUFS);
 		}
@@ -390,6 +390,19 @@ ieee80211_start_pkt(struct ieee80211vap *vap, struct mbuf *m)
 	/*
 	 * We've resolved the sender, so attempt to transmit it.
 	 */
+
+	if (vap->iv_state == IEEE80211_S_SLEEP) {
+		/*
+		 * In power save; queue frame and then  wakeup device
+		 * for transmit.
+		 */
+		ic->ic_lastdata = ticks;
+		(void) ieee80211_pwrsave(ni, m);
+		ieee80211_free_node(ni);
+		ieee80211_new_state(vap, IEEE80211_S_RUN, 0);
+		return (0);
+	}
+
 	if (ieee80211_vap_pkt_send_dest(vap, m, ni) != 0)
 		return (ENOBUFS);
 	return (0);
@@ -420,24 +433,19 @@ ieee80211_vap_transmit(struct ifnet *ifp, struct mbuf *m)
 		m_freem(m);
 		return (EINVAL);
 	}
-	if (vap->iv_state == IEEE80211_S_SLEEP) {
-		/*
-		 * In power save, wakeup device for transmit.
-		 */
-		ieee80211_new_state(vap, IEEE80211_S_RUN, 0);
-		m_freem(m);
-		return (0);
-	}
+
 	/*
 	 * No data frames go out unless we're running.
 	 * Note in particular this covers CAC and CSA
 	 * states (though maybe we should check muting
 	 * for CSA).
 	 */
-	if (vap->iv_state != IEEE80211_S_RUN) {
+	if (vap->iv_state != IEEE80211_S_RUN &&
+	    vap->iv_state != IEEE80211_S_SLEEP) {
 		IEEE80211_LOCK(ic);
 		/* re-check under the com lock to avoid races */
-		if (vap->iv_state != IEEE80211_S_RUN) {
+		if (vap->iv_state != IEEE80211_S_RUN &&
+		    vap->iv_state != IEEE80211_S_SLEEP) {
 			IEEE80211_DPRINTF(vap, IEEE80211_MSG_OUTPUT,
 			    "%s: ignore queue, in %s state\n",
 			    __func__, ieee80211_state_name[vap->iv_state]);
@@ -477,6 +485,13 @@ ieee80211_vap_qflush(struct ifnet *ifp)
 
 /*
  * 802.11 raw output routine.
+ *
+ * XXX TODO: this (and other send routines) should correctly
+ * XXX keep the pwr mgmt bit set if it decides to call into the
+ * XXX driver to send a frame whilst the state is SLEEP.
+ *
+ * Otherwise the peer may decide that we're awake and flood us
+ * with traffic we are still too asleep to receive!
  */
 int
 ieee80211_raw_output(struct ieee80211vap *vap, struct ieee80211_node *ni,
@@ -593,7 +608,7 @@ ieee80211_output(struct ifnet *ifp, struct mbuf *m,
 	if (ieee80211_classify(ni, m))
 		senderr(EIO);		/* XXX */
 
-	ifp->if_opackets++;
+	if_inc_counter(ifp, IFCOUNTER_OPACKETS, 1);
 	IEEE80211_NODE_STAT(ni, tx_data);
 	if (IEEE80211_IS_MULTICAST(wh->i_addr1)) {
 		IEEE80211_NODE_STAT(ni, tx_mcast);
@@ -621,7 +636,7 @@ bad:
 		m_freem(m);
 	if (ni != NULL)
 		ieee80211_free_node(ni);
-	ifp->if_oerrors++;
+	if_inc_counter(ifp, IFCOUNTER_OERRORS, 1);
 	return error;
 #undef senderr
 }

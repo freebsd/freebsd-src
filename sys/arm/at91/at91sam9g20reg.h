@@ -165,7 +165,7 @@
  * 8: USART 2
  * 9: MMC Interface
  * 10: USB device port
- * 11: Two-wirte interface
+ * 11: Two-wire interface
  * 12: SPI 0
  * 13: SPI 1
  * 14: SSC
@@ -221,6 +221,7 @@
 #define AT91SAM9G20_IRQ_RSTC 	AT91SAM9G20_IRQ_SYSTEM
 #define AT91SAM9G20_IRQ_OHCI 	AT91SAM9G20_IRQ_UHP
 #define AT91SAM9G20_IRQ_NAND 	(-1)
+#define AT91SAM9G20_IRQ_AIC	(-1)
 
 #define AT91SAM9G20_AIC_BASE	0xffff000
 #define AT91SAM9G20_AIC_SIZE	0x200

@@ -196,13 +196,7 @@ msginit()
 {
 	int i, error;
 
-	TUNABLE_INT_FETCH("kern.ipc.msgseg", &msginfo.msgseg);
-	TUNABLE_INT_FETCH("kern.ipc.msgssz", &msginfo.msgssz);
 	msginfo.msgmax = msginfo.msgseg * msginfo.msgssz;
-	TUNABLE_INT_FETCH("kern.ipc.msgmni", &msginfo.msgmni);
-	TUNABLE_INT_FETCH("kern.ipc.msgmnb", &msginfo.msgmnb);
-	TUNABLE_INT_FETCH("kern.ipc.msgtql", &msginfo.msgtql);
-
 	msgpool = malloc(msginfo.msgmax, M_MSG, M_WAITOK);
 	msgmaps = malloc(sizeof(struct msgmap) * msginfo.msgseg, M_MSG, M_WAITOK);
 	msghdrs = malloc(sizeof(struct msg) * msginfo.msgtql, M_MSG, M_WAITOK);

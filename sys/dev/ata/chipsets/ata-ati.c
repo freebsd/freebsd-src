@@ -98,7 +98,7 @@ ata_ati_probe(device_t dev)
      { ATA_AMD_HUDSON2_S5,  0x00, ATI_AHCI, 0, ATA_SA300, "Hudson-2" },
      { 0, 0, 0, 0, 0, 0}};
 
-    if (pci_get_vendor(dev) != ATA_ATI_ID)
+    if (pci_get_vendor(dev) != ATA_AMD_ID && pci_get_vendor(dev) != ATA_ATI_ID)
 	return ENXIO;
 
     if (!(ctlr->chip = ata_match_chip(dev, ids)))

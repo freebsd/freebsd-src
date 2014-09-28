@@ -1,12 +1,12 @@
 dnl
 dnl RCSid:
-dnl	$Id: configure.in,v 1.51 2014/01/02 22:20:52 sjg Exp $
+dnl	$Id: configure.in,v 1.52 2014/02/15 22:27:59 sjg Exp $
 dnl
 dnl Process this file with autoconf to produce a configure script
 dnl
 AC_PREREQ(2.50)
-AC_INIT([bmake], [20140101], [sjg@NetBSD.org])
-AC_CONFIG_HEADER(config.h)
+AC_INIT([bmake], [20140214], [sjg@NetBSD.org])
+AC_CONFIG_HEADERS(config.h)
 
 dnl make srcdir absolute
 case "$srcdir" in
@@ -202,6 +202,11 @@ dnl Structures
 dnl
 AC_HEADER_STAT
 AC_STRUCT_ST_RDEV
+dnl
+echo "checking if compiler supports __func__" >&6
+AC_LANG(C)
+AC_COMPILE_IFELSE([AC_LANG_PROGRAM([],[[const char *func = __func__;]])],,
+	AC_DEFINE(__func__, __FUNCTION__, C99 function name))
 dnl
 dnl we want this for unit-tests/Makefile
 echo $ECHO_N "checking if diff -u works... $ECHO_C" >&6

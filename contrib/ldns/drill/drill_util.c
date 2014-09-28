@@ -17,10 +17,10 @@ static int
 read_line(FILE *input, char *line, size_t len)
 {
 	int i;
-	
-	char c;
+	int c;
+
 	for (i = 0; i < (int)len-1; i++) {
-		c = (char)getc(input);
+		c = getc(input);
 		if (c == EOF) {
 			return -1;
 		} else if (c != '\n') {

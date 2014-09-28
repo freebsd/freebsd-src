@@ -3,6 +3,11 @@
 # $FreeBSD$
 #
 
+## Redefine environment variables here to override prototypes
+## defined in release.sh.
+#load_chroot_env() { }
+#load_target_env() { }
+
 ## Set the directory within which the release will be built.
 CHROOTDIR="/scratch"
 
@@ -45,5 +50,30 @@ PORTBRANCH="ports/head@rHEAD"
 ## Set miscellaneous 'make release' settings.
 #NODOC=
 #NOPORTS=
-#RELSTRING=
 #WITH_DVD=
+#WITH_COMPRESSED_IMAGES=
+
+## Set when building embedded images.
+#EMBEDDEDBUILD=
+
+## Set to skip the chroot environment buildworld/installworld/distribution
+## step if it is expected the build environment will exist via alternate
+## means.
+#CHROOTBUILD_SKIP=
+
+## Set to a non-empty value skip checkout or update of /usr/src in
+## the chroot.  This is intended for use when /usr/src already exists.
+#SRC_UPDATE_SKIP=
+
+## Set to a non-empty value skip checkout or update of /usr/doc in
+## the chroot.  This is intended for use when /usr/doc already exists.
+#DOC_UPDATE_SKIP=
+
+## Set to a non-empty value skip checkout or update of /usr/ports in
+## the chroot.  This is intended for use when /usr/ports already exists.
+#PORTS_UPDATE_SKIP=
+
+## Set to pass additional flags to make(1) for the build chroot setup, such
+## as TARGET/TARGET_ARCH.
+#CHROOT_MAKEENV=
+

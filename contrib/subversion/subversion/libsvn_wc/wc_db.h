@@ -1909,6 +1909,16 @@ svn_wc__db_read_info(svn_wc__db_status_t *status,  /* ### derived */
                      apr_pool_t *result_pool,
                      apr_pool_t *scratch_pool);
 
+/* Structure used as linked list in svn_wc__db_info_t to describe all nodes
+   in this location that were moved to another location */
+struct svn_wc__db_moved_to_info_t
+{
+  const char *moved_to_abspath;
+  const char *shadow_op_root_abspath;
+
+  struct svn_wc__db_moved_to_info_t *next;
+};
+
 /* Structure returned by svn_wc__db_read_children_info.  Only has the
    fields needed by status. */
 struct svn_wc__db_info_t {
@@ -1945,7 +1955,10 @@ struct svn_wc__db_info_t {
   svn_wc__db_lock_t *lock;  /* Repository file lock */
   svn_boolean_t incomplete; /* TRUE if a working node is incomplete */
 
-  const char *moved_to_abspath; /* Only on op-roots. See svn_wc_status3_t. */
+  struct svn_wc__db_moved_to_info_t *moved_to; /* A linked list of locations
+                                                 where nodes at this path
+                                                 are moved to. Highest layers
+                                                 first */
   svn_boolean_t moved_here;     /* Only on op-roots. */
 
   svn_boolean_t file_external;
@@ -1967,6 +1980,14 @@ svn_wc__db_read_children_info(apr_hash_t **nodes,
                               apr_pool_t *result_pool,
                               apr_pool_t *scratch_pool);
 
+/* Like svn_wc__db_read_children_info, but only gets an info node for the root
+   element. */
+svn_error_t *
+svn_wc__db_read_single_info(const struct svn_wc__db_info_t **info,
+                            svn_wc__db_t *db,
+                            const char *local_abspath,
+                            apr_pool_t *result_pool,
+                            apr_pool_t *scratch_pool);
 
 /* Structure returned by svn_wc__db_read_walker_info.  Only has the
    fields needed by svn_wc__internal_walk_children(). */

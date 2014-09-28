@@ -43,7 +43,7 @@ __FBSDID("$FreeBSD$");
 #define MIN(x, y)	((x) < (y) ? (x) : (y))
 #define MAX(x, y)	((x) > (y) ? (x) : (y))
 
-void
+static void
 do_socketpair(int *sv)
 {
 	int s;
@@ -55,7 +55,7 @@ do_socketpair(int *sv)
 	ATF_REQUIRE(sv[0] != sv[1]);
 }
 
-void
+static void
 do_socketpair_nonblocking(int *sv)
 {
 	int s;
@@ -73,7 +73,7 @@ do_socketpair_nonblocking(int *sv)
  * Returns a pair of sockets made the hard way: bind, listen, connect & accept
  * @return	const char* The path to the socket
  */
-const char*
+static const char*
 mk_pair_of_sockets(int *sv)
 {
 	struct sockaddr_un sun;
@@ -90,7 +90,6 @@ mk_pair_of_sockets(int *sv)
 	strlcpy(sun.sun_path, path, sizeof(sun.sun_path));
 	err = bind(s, (struct sockaddr *)&sun, sizeof(sun));
 	err = listen(s, -1);
-	ATF_CHECK_EQ(0, err);
 	ATF_CHECK_EQ(0, err);
 
 	/* Create the other socket */
@@ -111,12 +110,15 @@ mk_pair_of_sockets(int *sv)
 
 	sv[0] = s1;
 	sv[1] = s2;
+
+	close(s);
+
 	return (path);
 }
 
 static volatile sig_atomic_t got_sigpipe = 0;
 static void
-shutdown_send_sigpipe_handler(int x)
+shutdown_send_sigpipe_handler(int __unused x)
 {
 	got_sigpipe = 1;
 }
@@ -124,16 +126,16 @@ shutdown_send_sigpipe_handler(int x)
 /*
  * Parameterized test function bodies
  */
-void
+static void
 test_eagain(size_t sndbufsize, size_t rcvbufsize)
 {
 	int i;
 	int sv[2];
 	const size_t totalsize = (sndbufsize + rcvbufsize) * 2;
 	const size_t pktsize = MIN(sndbufsize, rcvbufsize) / 4;
+	const int numpkts = totalsize / pktsize;
 	char sndbuf[pktsize];
-	char recv_buf[pktsize];
-	ssize_t ssize, rsize;
+	ssize_t ssize;
 
 	/* setup the socket pair */
 	do_socketpair_nonblocking(sv);
@@ -145,11 +147,14 @@ test_eagain(size_t sndbufsize, size_t rcvbufsize)
 
 	bzero(sndbuf, pktsize);
 	/* Send data until we get EAGAIN */
-	for(i=0; i < totalsize / pktsize; i++) {
+	for(i=0; i < numpkts; i++) {
 		ssize = send(sv[0], sndbuf, pktsize, MSG_EOR);
 		if (ssize == -1) {
-			if (errno == EAGAIN)
+			if (errno == EAGAIN) {
+				close(sv[0]);
+				close(sv[1]);
 				atf_tc_pass();
+			}
 			else {
 				perror("send");
 				atf_tc_fail("send returned < 0 but not EAGAIN");
@@ -159,11 +164,11 @@ test_eagain(size_t sndbufsize, size_t rcvbufsize)
 	atf_tc_fail("Never got EAGAIN");
 }
 
-void
+static void
 test_sendrecv_symmetric_buffers(size_t bufsize, int blocking) {
 	int s;
 	int sv[2];
-	const size_t pktsize = bufsize / 2;
+	const ssize_t pktsize = bufsize / 2;
 	char sndbuf[pktsize];
 	char recv_buf[pktsize];
 	ssize_t ssize, rsize;
@@ -199,14 +204,16 @@ test_sendrecv_symmetric_buffers(size_t bufsize, int blocking) {
 	}
 	ATF_CHECK_EQ_MSG(pktsize, rsize, "expected %zd=send(...) but got %zd",
 	    pktsize, rsize);
+	close(sv[0]);
+	close(sv[1]);
 }
 
-void
+static void
 test_pipe_simulator(size_t sndbufsize, size_t rcvbufsize)
 {
-	int s, num_sent, num_received;
+	int num_sent, num_received;
 	int sv[2];
-	const size_t pktsize = MIN(sndbufsize, rcvbufsize) / 4;
+	const ssize_t pktsize = MIN(sndbufsize, rcvbufsize) / 4;
 	int numpkts;
 	char sndbuf[pktsize];
 	char rcvbuf[pktsize];
@@ -274,6 +281,8 @@ test_pipe_simulator(size_t sndbufsize, size_t rcvbufsize)
 			}
 		}
 	}
+	close(sv[0]);
+	close(sv[1]);
 }
 
 typedef struct {
@@ -331,12 +340,11 @@ test_pipe_reader(void* args)
 }
 
 
-void
+static void
 test_pipe(size_t sndbufsize, size_t rcvbufsize)
 {
 	test_pipe_thread_data_t writer_data, reader_data;
 	pthread_t writer, reader;
-	int num_sent, num_received;
 	int sv[2];
 	const size_t pktsize = MIN(sndbufsize, rcvbufsize) / 4;
 	int numpkts;
@@ -361,12 +369,20 @@ test_pipe(size_t sndbufsize, size_t rcvbufsize)
 	reader_data.so = sv[1];
 	ATF_REQUIRE_EQ(0, pthread_create(&writer, NULL, test_pipe_writer,
 	    				 (void*)&writer_data));
+	/* 
+	 * Give the writer time to start writing, and hopefully block, before
+	 * starting the reader.  This increases the likelihood of the test case
+	 * failing due to PR kern/185812
+	 */
+	usleep(1000);
 	ATF_REQUIRE_EQ(0, pthread_create(&reader, NULL, test_pipe_reader,
 	    				 (void*)&reader_data));
 
 	/* Join the children */
 	ATF_REQUIRE_EQ(0, pthread_join(writer, NULL));
 	ATF_REQUIRE_EQ(0, pthread_join(reader, NULL));
+	close(sv[0]);
+	close(sv[1]);
 }
 
 
@@ -381,7 +397,8 @@ ATF_TC_BODY(create_socket, tc)
 	int s;
 
 	s = socket(PF_LOCAL, SOCK_SEQPACKET, 0);
-	ATF_CHECK(s >= 0);
+	ATF_REQUIRE(s >= 0);
+	close(s);
 }
 
 /* Create SEQPACKET sockets using socketpair(2) */
@@ -396,6 +413,8 @@ ATF_TC_BODY(create_socketpair, tc)
 	ATF_CHECK(sv[0] >= 0);
 	ATF_CHECK(sv[1] >= 0);
 	ATF_CHECK(sv[0] != sv[1]);
+	close(sv[0]);
+	close(sv[1]);
 }
 
 /* Call listen(2) without first calling bind(2).  It should fail */
@@ -409,6 +428,7 @@ ATF_TC_BODY(listen_unbound, tc)
 	r = listen(s, -1);
 	/* expect listen to fail since we haven't called bind(2) */
 	ATF_CHECK(r != 0);
+	close(s);
 }
 
 /* Bind the socket to a file */
@@ -429,6 +449,7 @@ ATF_TC_BODY(bind, tc)
 	strlcpy(sun.sun_path, path, sizeof(sun.sun_path));
 	r = bind(s, (struct sockaddr *)&sun, sizeof(sun));
 	ATF_CHECK_EQ(0, r);
+	close(s);
 }
 
 /* listen(2) a socket that is already bound(2) should succeed */
@@ -451,6 +472,7 @@ ATF_TC_BODY(listen_bound, tc)
 	l = listen(s, -1);
 	ATF_CHECK_EQ(0, r);
 	ATF_CHECK_EQ(0, l);
+	close(s);
 }
 
 /* connect(2) can make a connection */
@@ -482,6 +504,8 @@ ATF_TC_BODY(connect, tc)
 		perror("connect");
 		atf_tc_fail("connect(2) failed");
 	}
+	close(s);
+	close(s2);
 }
 
 /* accept(2) can receive a connection */
@@ -491,6 +515,8 @@ ATF_TC_BODY(accept, tc)
 	int sv[2];
 
 	mk_pair_of_sockets(sv);
+	close(sv[0]);
+	close(sv[1]);
 }
 
 
@@ -506,6 +532,7 @@ ATF_TC_BODY(fcntl_nonblock, tc)
 		perror("fcntl");
 		atf_tc_fail("fcntl failed");
 	}
+	close(s);
 }
 
 /* Resize the send and receive buffers */
@@ -542,6 +569,7 @@ ATF_TC_BODY(resize_buffers, tc)
 	ATF_CHECK_EQ(0, getsockopt(s, SOL_SOCKET, SO_SNDBUF, &xs, &sl));
 	ATF_CHECK_EQ(0, getsockopt(s, SOL_SOCKET, SO_RCVBUF, &xr, &sl));
 	printf("After changing RCVBUF         | %7d | %7d |\n", xs, xr);
+	close(s);
 }
 
 /*
@@ -598,6 +626,8 @@ ATF_TC_BODY(resize_connected_buffers, tc)
 	ATF_CHECK_EQ(0, getsockopt(sv[1], SOL_SOCKET, SO_RCVBUF, &rr, &sl));
 	printf("After changing Left's RCVBUF  | %7d | %7d | %7d | %7d |\n",
 	    ls, lr, rs, rr);
+	close(sv[0]);
+	close(sv[1]);
 }
 
 
@@ -605,12 +635,11 @@ ATF_TC_BODY(resize_connected_buffers, tc)
 ATF_TC_WITHOUT_HEAD(send_recv);
 ATF_TC_BODY(send_recv, tc)
 {
-	int s;
 	int sv[2];
 	const int bufsize = 64;
 	const char *data = "data";
 	char recv_buf[bufsize];
-	size_t datalen;
+	ssize_t datalen;
 	ssize_t ssize, rsize;
 
 	/* setup the socket pair */
@@ -628,6 +657,8 @@ ATF_TC_BODY(send_recv, tc)
 
 	rsize = recv(sv[1], recv_buf, bufsize, MSG_WAITALL);
 	ATF_CHECK_EQ(datalen, rsize);
+	close(sv[0]);
+	close(sv[1]);
 }
 
 /* sendto(2) and recvfrom(2) a single short record
@@ -642,12 +673,11 @@ ATF_TC_BODY(sendto_recvfrom, tc)
 {
 	const char* path;
 	struct sockaddr_storage from;
-	int s;
 	int sv[2];
 	const int bufsize = 64;
 	const char *data = "data";
 	char recv_buf[bufsize];
-	size_t datalen;
+	ssize_t datalen;
 	ssize_t ssize, rsize;
 	socklen_t fromlen;
 
@@ -681,6 +711,8 @@ ATF_TC_BODY(sendto_recvfrom, tc)
 	 */
 	/* ATF_CHECK_EQ(PF_LOCAL, from.ss_family); */
 	/* ATF_CHECK_STREQ(path, ((struct sockaddr_un*)&from)->sun_path); */
+	close(sv[0]);
+	close(sv[1]);
 }
 
 /* 
@@ -690,12 +722,11 @@ ATF_TC_BODY(sendto_recvfrom, tc)
 ATF_TC_WITHOUT_HEAD(send_recv_with_connect);
 ATF_TC_BODY(send_recv_with_connect, tc)
 {
-	const char* path;
 	int sv[2];
 	const int bufsize = 64;
 	const char *data = "data";
 	char recv_buf[bufsize];
-	size_t datalen;
+	ssize_t datalen;
 	ssize_t ssize, rsize;
 
 	mk_pair_of_sockets(sv);
@@ -712,6 +743,8 @@ ATF_TC_BODY(send_recv_with_connect, tc)
 
 	rsize = recv(sv[1], recv_buf, bufsize, MSG_WAITALL);
 	ATF_CHECK_EQ(datalen, rsize);
+	close(sv[0]);
+	close(sv[1]);
 }
 
 /* send(2) should fail on a shutdown socket */
@@ -719,16 +752,17 @@ ATF_TC_WITHOUT_HEAD(shutdown_send);
 ATF_TC_BODY(shutdown_send, tc)
 {
 	int s;
-	const char *data = "data";
+	const char data[] = "data";
 	ssize_t ssize;
 
 	s = socket(PF_LOCAL, SOCK_SEQPACKET, 0);
-	ATF_CHECK(s >= 0);
+	ATF_REQUIRE(s >= 0);
 	ATF_CHECK_EQ(0, shutdown(s, SHUT_RDWR));
 	/* USE MSG_NOSIGNAL so we don't get SIGPIPE */
 	ssize = send(s, data, sizeof(data), MSG_EOR | MSG_NOSIGNAL);
 	ATF_CHECK_EQ(EPIPE, errno);
 	ATF_CHECK_EQ(-1, ssize);
+	close(s);
 }
 
 /* send(2) should cause SIGPIPE on a shutdown socket */
@@ -736,27 +770,27 @@ ATF_TC_WITHOUT_HEAD(shutdown_send_sigpipe);
 ATF_TC_BODY(shutdown_send_sigpipe, tc)
 {
 	int s;
-	const char *data = "data";
+	const char data[] = "data";
 	ssize_t ssize;
 
 	s = socket(PF_LOCAL, SOCK_SEQPACKET, 0);
-	ATF_CHECK(s >= 0);
+	ATF_REQUIRE(s >= 0);
 	ATF_CHECK_EQ(0, shutdown(s, SHUT_RDWR));
 	ATF_REQUIRE(SIG_ERR != signal(SIGPIPE, shutdown_send_sigpipe_handler));
 	ssize = send(s, data, sizeof(data), MSG_EOR);
 	ATF_CHECK_EQ(1, got_sigpipe);
+	close(s);
 }
 
 /* nonblocking send(2) and recv(2) a single short record */
 ATF_TC_WITHOUT_HEAD(send_recv_nonblocking);
 ATF_TC_BODY(send_recv_nonblocking, tc)
 {
-	int s;
 	int sv[2];
 	const int bufsize = 64;
 	const char *data = "data";
 	char recv_buf[bufsize];
-	size_t datalen;
+	ssize_t datalen;
 	ssize_t ssize, rsize;
 
 	/* setup the socket pair */
@@ -779,6 +813,8 @@ ATF_TC_BODY(send_recv_nonblocking, tc)
 
 	rsize = recv(sv[1], recv_buf, bufsize, MSG_WAITALL);
 	ATF_CHECK_EQ(datalen, rsize);
+	close(sv[0]);
+	close(sv[1]);
 }
 
 /* 
@@ -788,14 +824,12 @@ ATF_TC_BODY(send_recv_nonblocking, tc)
 ATF_TC_WITHOUT_HEAD(emsgsize);
 ATF_TC_BODY(emsgsize, tc)
 {
-	int s;
 	int sv[2];
 	const size_t sndbufsize = 8192;
 	const size_t rcvbufsize = 8192;
 	const size_t pktsize = (sndbufsize + rcvbufsize) * 2;
 	char sndbuf[pktsize];
-	char recv_buf[pktsize];
-	ssize_t ssize, rsize;
+	ssize_t ssize;
 
 	/* setup the socket pair */
 	do_socketpair(sv);
@@ -808,6 +842,8 @@ ATF_TC_BODY(emsgsize, tc)
 	ssize = send(sv[0], sndbuf, pktsize, MSG_EOR);
 	ATF_CHECK_EQ(EMSGSIZE, errno);
 	ATF_CHECK_EQ(-1, ssize);
+	close(sv[0]);
+	close(sv[1]);
 }
 
 /* 
@@ -817,14 +853,12 @@ ATF_TC_BODY(emsgsize, tc)
 ATF_TC_WITHOUT_HEAD(emsgsize_nonblocking);
 ATF_TC_BODY(emsgsize_nonblocking, tc)
 {
-	int s;
 	int sv[2];
 	const size_t sndbufsize = 8192;
 	const size_t rcvbufsize = 8192;
 	const size_t pktsize = (sndbufsize + rcvbufsize) * 2;
 	char sndbuf[pktsize];
-	char recv_buf[pktsize];
-	ssize_t ssize, rsize;
+	ssize_t ssize;
 
 	/* setup the socket pair */
 	do_socketpair_nonblocking(sv);
@@ -837,6 +871,8 @@ ATF_TC_BODY(emsgsize_nonblocking, tc)
 	ssize = send(sv[0], sndbuf, pktsize, MSG_EOR);
 	ATF_CHECK_EQ(EMSGSIZE, errno);
 	ATF_CHECK_EQ(-1, ssize);
+	close(sv[0]);
+	close(sv[1]);
 }
 
 
@@ -847,25 +883,21 @@ ATF_TC_BODY(emsgsize_nonblocking, tc)
 ATF_TC_WITHOUT_HEAD(eagain_8k_8k);
 ATF_TC_BODY(eagain_8k_8k, tc)
 {
-	atf_tc_expect_fail("PR kern/185812 send(2) on a UNIX domain SEQPACKET socket returns EMSGSIZE instead of EAGAIN");
 	test_eagain(8192, 8192);
 }
 ATF_TC_WITHOUT_HEAD(eagain_8k_128k);
 ATF_TC_BODY(eagain_8k_128k, tc)
 {
-	atf_tc_expect_fail("PR kern/185812 send(2) on a UNIX domain SEQPACKET socket returns EMSGSIZE instead of EAGAIN");
 	test_eagain(8192, 131072);
 }
 ATF_TC_WITHOUT_HEAD(eagain_128k_8k);
 ATF_TC_BODY(eagain_128k_8k, tc)
 {
-	atf_tc_expect_fail("PR kern/185812 send(2) on a UNIX domain SEQPACKET socket returns EMSGSIZE instead of EAGAIN");
 	test_eagain(131072, 8192);
 }
 ATF_TC_WITHOUT_HEAD(eagain_128k_128k);
 ATF_TC_BODY(eagain_128k_128k, tc)
 {
-	atf_tc_expect_fail("PR kern/185812 send(2) on a UNIX domain SEQPACKET socket returns EMSGSIZE instead of EAGAIN");
 	test_eagain(131072, 131072);
 }
 
@@ -877,25 +909,29 @@ ATF_TC_BODY(eagain_128k_128k, tc)
 ATF_TC_WITHOUT_HEAD(rcvbuf_oversized);
 ATF_TC_BODY(rcvbuf_oversized, tc)
 {
-	int s, i, j;
+	int i;
 	int sv[2];
+	const ssize_t pktsize = 1024;
 	const size_t sndbufsize = 8192;
 	const size_t rcvbufsize = 131072;
-	const size_t geom_mean_bufsize = 32768;
-	const int pktsize = 1024;
+	const size_t geometric_mean_bufsize = 32768;
+	const int numpkts = geometric_mean_bufsize / pktsize;
 	char sndbuf[pktsize];
 	char recv_buf[pktsize];
-	size_t datalen;
 	ssize_t ssize, rsize;
 
 	/* setup the socket pair */
 	do_socketpair_nonblocking(sv);
+	ATF_REQUIRE_EQ(0, setsockopt(sv[0], SOL_SOCKET, SO_SNDBUF, &sndbufsize,
+	    sizeof(sndbufsize)));
+	ATF_REQUIRE_EQ(0, setsockopt(sv[1], SOL_SOCKET, SO_RCVBUF, &rcvbufsize,
+	    sizeof(rcvbufsize)));
 
 	/* 
 	 * Send and receive packets that are collectively greater than the send
 	 * buffer, but less than the receive buffer
 	 */
-	for (i=0; i < geom_mean_bufsize / pktsize; i++) {
+	for (i=0; i < numpkts; i++) {
 		/* Fill the buffer */
 		memset(sndbuf, i, pktsize);
 
@@ -927,6 +963,8 @@ ATF_TC_BODY(rcvbuf_oversized, tc)
 	rsize = recv(sv[1], recv_buf, pktsize, MSG_WAITALL);
 	ATF_CHECK_EQ(EAGAIN, errno);
 	ATF_CHECK_EQ(-1, rsize);
+	close(sv[0]);
+	close(sv[1]);
 }
 
 /* 
@@ -951,7 +989,6 @@ ATF_TC_BODY(pipe_simulator_8k_128k, tc)
 ATF_TC_WITHOUT_HEAD(pipe_simulator_128k_8k);
 ATF_TC_BODY(pipe_simulator_128k_8k, tc)
 {
-	atf_tc_expect_fail("PR kern/185812 SOCK_SEQPACKET AF_UNIX sockets with asymmetrical buffers drop packets");
 	test_pipe_simulator(131072, 8192);
 }
 
@@ -969,37 +1006,24 @@ ATF_TC_BODY(pipe_simulator_128k_128k, tc)
 ATF_TC_WITHOUT_HEAD(pipe_8k_8k);
 ATF_TC_BODY(pipe_8k_8k, tc)
 {
-	atf_tc_expect_fail("PR kern/185812 send(2) on a UNIX domain SEQPACKET socket returns EMSGSIZE instead of EAGAIN");
 	test_pipe(8192, 8192);
 }
 
 ATF_TC_WITHOUT_HEAD(pipe_8k_128k);
 ATF_TC_BODY(pipe_8k_128k, tc)
 {
-	atf_tc_expect_fail("PR kern/185812 send(2) on a UNIX domain SEQPACKET socket returns EMSGSIZE instead of EAGAIN");
 	test_pipe(8192, 131072);
 }
 
 ATF_TC_WITHOUT_HEAD(pipe_128k_8k);
 ATF_TC_BODY(pipe_128k_8k, tc)
 {
-	/* 
-	 * kern/185812 causes this test case to both fail and timeout.  The
-	 * atf-c-api(3) doesn't have a way to set such an expectation.
-	 * If you use atf_tc_expect_fail, then it will timeout.  If you use
-	 * atf_tc_expect_timeout, then it will fail.  If you use both, then it
-	 * will show up as an unexpected pass, which is much worse
-	 *
-	 * https://code.google.com/p/kyua/issues/detail?id=76
-	 */
-	atf_tc_expect_fail("PR kern/185812 send(2) on a UNIX domain SEQPACKET socket returns EMSGSIZE instead of EAGAIN");
 	test_pipe(131072, 8192);
 }
 
 ATF_TC_WITHOUT_HEAD(pipe_128k_128k);
 ATF_TC_BODY(pipe_128k_128k, tc)
 {
-	atf_tc_expect_fail("PR kern/185812 send(2) on a UNIX domain SEQPACKET socket returns EMSGSIZE instead of EAGAIN");
 	test_pipe(131072, 131072);
 }
 

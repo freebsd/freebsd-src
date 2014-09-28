@@ -2,8 +2,8 @@
 # $FreeBSD$
 
 PROG=	primes
-SRCS=	pattern.c pr_tbl.c primes.c
-NO_MAN=
+SRCS=	pattern.c pr_tbl.c primes.c spsp.c
+MAN=
 DPADD=	${LIBM}
 LDADD=	-lm
 

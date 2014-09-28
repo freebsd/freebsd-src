@@ -41,13 +41,11 @@
 #include <string.h>
 #include <unistd.h>
 
-static unsigned long long invalids;
+static int		do_conv(FILE *, const char *, const char *, bool, bool);
+static int		do_list(unsigned int, const char * const *, void *);
+static void		usage(void) __dead2;
 
-static void		 do_conv(FILE *, const char *, const char *, bool, bool);
-static int		 do_list(unsigned int, const char * const *, void *);
-static void		 usage(void);
-
-static struct option long_options[] = {
+static const struct option long_options[] = {
 	{"from-code",		required_argument,	NULL, 'f'},
 	{"list",		no_argument,		NULL, 'l'},
 	{"silent",		no_argument,		NULL, 's'},
@@ -68,12 +66,13 @@ usage(void)
 
 #define INBUFSIZE 1024
 #define OUTBUFSIZE (INBUFSIZE * 2)
-static void
+static int
 do_conv(FILE *fp, const char *from, const char *to, bool silent,
     bool hide_invalid)
 {
 	iconv_t cd;
 	char inbuf[INBUFSIZE], outbuf[OUTBUFSIZE], *out;
+	unsigned long long invalids;
 	const char *in;
 	size_t inbytes, outbytes, ret;
 
@@ -84,8 +83,9 @@ do_conv(FILE *fp, const char *from, const char *to, bool silent,
 		int arg = 1;
 
 		if (iconvctl(cd, ICONV_SET_DISCARD_ILSEQ, (void *)&arg) == -1)
-			err(1, NULL);
+			err(EXIT_FAILURE, NULL);
 	}
+	invalids = 0;
 	while ((inbytes = fread(inbuf, 1, INBUFSIZE, fp)) > 0) {
 		in = inbuf;
 		while (inbytes > 0) {
@@ -135,6 +135,7 @@ do_conv(FILE *fp, const char *from, const char *to, bool silent,
 		warnx("warning: invalid characters: %llu", invalids);
 
 	iconv_close(cd);
+	return (invalids > 0);
 }
 
 static int
@@ -157,7 +158,7 @@ main(int argc, char **argv)
 {
 	FILE *fp;
 	char *opt_f, *opt_t;
-	int ch, i;
+	int ch, i, res;
 	bool opt_c = false, opt_s = false;
 
 	opt_f = opt_t = strdup("");
@@ -202,18 +203,18 @@ main(int argc, char **argv)
 	if ((strcmp(opt_f, "") == 0) && (strcmp(opt_t, "") == 0))
 		usage();
 	if (argc == 0)
-		do_conv(stdin, opt_f, opt_t, opt_s, opt_c);
+		res = do_conv(stdin, opt_f, opt_t, opt_s, opt_c);
 	else {
+		res = 0;
 		for (i = 0; i < argc; i++) {
 			fp = (strcmp(argv[i], "-") != 0) ?
 			    fopen(argv[i], "r") : stdin;
 			if (fp == NULL)
 				err(EXIT_FAILURE, "Cannot open `%s'",
 				    argv[i]);
-			do_conv(fp, opt_f, opt_t, opt_s,
-			    opt_c);
+			res |= do_conv(fp, opt_f, opt_t, opt_s, opt_c);
 			(void)fclose(fp);
 		}
 	}
-	return (EXIT_SUCCESS);
+	return (res == 0 ? EXIT_SUCCESS : EXIT_FAILURE);
 }

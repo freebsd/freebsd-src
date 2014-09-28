@@ -26,7 +26,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd July 17, 2001
+.Dd March 21, 2014
 .Dt VM_SET_PAGE_SIZE 9
 .Os
 .Sh NAME
@@ -43,20 +43,20 @@ The
 .Fn vm_set_page_size
 function initializes the system page size.
 If
-.Va cnt.v_page_size
+.Va vm_cnt.v_page_size
 (see
 .In sys/vmmeter.h )
 equals 0,
 .Dv PAGE_SIZE
 is used; otherwise, the value stored in
-.Va cnt.v_page_size
+.Va vm_cnt.v_page_size
 is used.
 If
-.Va cnt.v_page_size
+.Va vm_cnt.v_page_size
 is not a power of two, the system will panic.
 .Pp
 .Fn vm_set_page_size
 must be called prior to any page size dependent functions.
 .Sh AUTHORS
 This manual page was written by
-.An Chad David Aq davidc@acns.ab.ca .
+.An Chad David Aq Mt davidc@acns.ab.ca .

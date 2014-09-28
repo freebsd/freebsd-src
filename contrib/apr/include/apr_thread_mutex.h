@@ -59,7 +59,7 @@ typedef struct apr_thread_mutex_t apr_thread_mutex_t;
  * </PRE>
  * @param pool the pool from which to allocate the mutex.
  * @warning Be cautious in using APR_THREAD_MUTEX_DEFAULT.  While this is the
- * most optimial mutex based on a given platform's performance charateristics,
+ * most optimal mutex based on a given platform's performance characteristics,
  * it will behave as either a nested or an unnested lock.
  */
 APR_DECLARE(apr_status_t) apr_thread_mutex_create(apr_thread_mutex_t **mutex,

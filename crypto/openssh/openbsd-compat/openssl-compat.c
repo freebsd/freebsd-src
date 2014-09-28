@@ -1,4 +1,4 @@
-/* $Id: openssl-compat.c,v 1.16 2014/01/17 07:00:41 dtucker Exp $ */
+/* $Id: openssl-compat.c,v 1.17 2014/02/13 05:38:33 dtucker Exp $ */
 
 /*
  * Copyright (c) 2005 Darren Tucker <dtucker@zip.com.au>
@@ -93,6 +93,14 @@ ssh_EVP_DigestUpdate(EVP_MD_CTX *ctx, const void *d, unsigned int cnt)
 {
 	EVP_DigestUpdate(ctx, d, cnt);
 	return 1;
+}
+#endif
+
+#ifndef HAVE_EVP_MD_CTX_COPY_EX
+int
+EVP_MD_CTX_copy_ex(EVP_MD_CTX *out, const EVP_MD_CTX *in)
+{
+	return EVP_MD_CTX_copy(out, in);
 }
 #endif
 

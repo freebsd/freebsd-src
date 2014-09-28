@@ -96,8 +96,7 @@ struct trapframe pmc_tf[MAXCPU];
 SYSCTL_NODE(_kern, OID_AUTO, hwpmc, CTLFLAG_RW, 0, "HWPMC parameters");
 
 static int pmc_softevents = 16;
-TUNABLE_INT(PMC_SYSCTL_NAME_PREFIX "softevents", &pmc_softevents);
-SYSCTL_INT(_kern_hwpmc, OID_AUTO, softevents, CTLFLAG_TUN|CTLFLAG_RD,
+SYSCTL_INT(_kern_hwpmc, OID_AUTO, softevents, CTLFLAG_RDTUN,
     &pmc_softevents, 0, "maximum number of soft events");
 
 struct mtx pmc_softs_mtx;

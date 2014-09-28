@@ -56,6 +56,7 @@ static struct _s_x dummynet_params[] = {
 	{ "sched_mask",		TOK_SCHED_MASK },
 	{ "flow_mask",		TOK_FLOW_MASK },
 	{ "droptail",		TOK_DROPTAIL },
+	{ "ecn",		TOK_ECN },
 	{ "red",		TOK_RED },
 	{ "gred",		TOK_GRED },
 	{ "bw",			TOK_BW },
@@ -173,48 +174,44 @@ print_header(struct ipfw_flow_id *id)
 }
 
 static void
-list_flow(struct dn_flow *ni, int *print)
+list_flow(struct buf_pr *bp, struct dn_flow *ni)
 {
 	char buff[255];
 	struct protoent *pe = NULL;
 	struct in_addr ina;
 	struct ipfw_flow_id *id = &ni->fid;
 
-	if (*print) {
-		print_header(&ni->fid);
-		*print = 0;
-	}
 	pe = getprotobynumber(id->proto);
 		/* XXX: Should check for IPv4 flows */
-	printf("%3u%c", (ni->oid.id) & 0xff,
+	bprintf(bp, "%3u%c", (ni->oid.id) & 0xff,
 		id->extra ? '*' : ' ');
 	if (!IS_IP6_FLOW_ID(id)) {
 		if (pe)
-			printf("%-4s ", pe->p_name);
+			bprintf(bp, "%-4s ", pe->p_name);
 		else
-			printf("%4u ", id->proto);
+			bprintf(bp, "%4u ", id->proto);
 		ina.s_addr = htonl(id->src_ip);
-		printf("%15s/%-5d ",
+		bprintf(bp, "%15s/%-5d ",
 		    inet_ntoa(ina), id->src_port);
 		ina.s_addr = htonl(id->dst_ip);
-		printf("%15s/%-5d ",
+		bprintf(bp, "%15s/%-5d ",
 		    inet_ntoa(ina), id->dst_port);
 	} else {
 		/* Print IPv6 flows */
 		if (pe != NULL)
-			printf("%9s ", pe->p_name);
+			bprintf(bp, "%9s ", pe->p_name);
 		else
-			printf("%9u ", id->proto);
-		printf("%7d  %39s/%-5d ", id->flow_id6,
+			bprintf(bp, "%9u ", id->proto);
+		bprintf(bp, "%7d  %39s/%-5d ", id->flow_id6,
 		    inet_ntop(AF_INET6, &(id->src_ip6), buff, sizeof(buff)),
 		    id->src_port);
-		printf(" %39s/%-5d ",
+		bprintf(bp, " %39s/%-5d ",
 		    inet_ntop(AF_INET6, &(id->dst_ip6), buff, sizeof(buff)),
 		    id->dst_port);
 	}
-	pr_u64(&ni->tot_pkts, 4);
-	pr_u64(&ni->tot_bytes, 8);
-	printf("%2u %4u %3u\n",
+	pr_u64(bp, &ni->tot_pkts, 4);
+	pr_u64(bp, &ni->tot_bytes, 8);
+	bprintf(bp, "%2u %4u %3u",
 	    ni->length, ni->len_bytes, ni->drops);
 }
 
@@ -239,7 +236,7 @@ print_flowset_parms(struct dn_fs *fs, char *prefix)
 	else
 		plr[0] = '\0';
 
-	if (fs->flags & DN_IS_RED)	/* RED parameters */
+	if (fs->flags & DN_IS_RED) {	/* RED parameters */
 		sprintf(red,
 		    "\n\t %cRED w_q %f min_th %d max_th %d max_p %f",
 		    (fs->flags & DN_IS_GENTLE_RED) ? 'G' : ' ',
@@ -247,7 +244,9 @@ print_flowset_parms(struct dn_fs *fs, char *prefix)
 		    fs->min_th,
 		    fs->max_th,
 		    1.0 * fs->max_p / (double)(1 << SCALE_RED));
-	else
+		if (fs->flags & DN_IS_ECN)
+			strncat(red, " (ecn)", 6);
+	} else
 		sprintf(red, "droptail");
 
 	if (prefix[0]) {
@@ -300,8 +299,10 @@ list_pipes(struct dn_id *oid, struct dn_id *end)
 {
     char buf[160];	/* pending buffer */
     int toPrint = 1;	/* print header */
+    struct buf_pr bp;
 
     buf[0] = '\0';
+    bp_alloc(&bp, 4096);
     for (; oid != end; oid = O_NEXT(oid, oid->len)) {
 	if (oid->len < sizeof(*oid))
 		errx(1, "invalid oid len %d\n", oid->len);
@@ -343,7 +344,12 @@ list_pipes(struct dn_id *oid, struct dn_id *end)
 	    break;
 
 	case DN_FLOW:
-	    list_flow((struct dn_flow *)oid, &toPrint);
+	    if (toPrint != 0) {
+		    print_header(&((struct dn_flow *)oid)->fid);
+		    toPrint = 0;
+	    }
+	    list_flow(&bp, (struct dn_flow *)oid);
+	    printf("%s\n", bp.buf);
 	    break;
 
 	case DN_LINK: {
@@ -381,6 +387,8 @@ list_pipes(struct dn_id *oid, struct dn_id *end)
 	}
 	flush_buf(buf); // XXX does it really go here ?
     }
+
+    bp_free(&bp);
 }
 
 /*
@@ -1046,11 +1054,15 @@ end_mask:
 			}
 			if ((end = strsep(&av[0], "/"))) {
 			    double max_p = strtod(end, NULL);
-			    if (max_p > 1 || max_p <= 0)
-				errx(EX_DATAERR, "0 < max_p <= 1");
+			    if (max_p > 1 || max_p < 0)
+				errx(EX_DATAERR, "0 <= max_p <= 1");
 			    fs->max_p = (int)(max_p * (1 << SCALE_RED));
 			}
 			ac--; av++;
+			break;
+
+		case TOK_ECN:
+			fs->flags |= DN_IS_ECN;
 			break;
 
 		case TOK_DROPTAIL:
@@ -1175,13 +1187,20 @@ end_mask:
 			errx(EX_DATAERR, "2 <= queue size <= %ld", limit);
 	    }
 
+	    if ((fs->flags & DN_IS_ECN) && !(fs->flags & DN_IS_RED))
+		errx(EX_USAGE, "enable red/gred for ECN");
+
 	    if (fs->flags & DN_IS_RED) {
 		size_t len;
 		int lookup_depth, avg_pkt_size;
 
-		if (fs->min_th >= fs->max_th)
+		if (!(fs->flags & DN_IS_ECN) && (fs->min_th >= fs->max_th))
 		    errx(EX_DATAERR, "min_th %d must be < than max_th %d",
 			fs->min_th, fs->max_th);
+		else if ((fs->flags & DN_IS_ECN) && (fs->min_th > fs->max_th))
+		    errx(EX_DATAERR, "min_th %d must be =< than max_th %d",
+			fs->min_th, fs->max_th);
+
 		if (fs->max_th == 0)
 		    errx(EX_DATAERR, "max_th must be > 0");
 

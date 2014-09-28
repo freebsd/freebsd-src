@@ -90,6 +90,8 @@ typedef struct _AT91S_MciDevice
 {
 	volatile unsigned char	state;
 	unsigned char	SDCard_bus_width;
+	unsigned char	IsSDv2;
+	unsigned char	IsSDHC;
 	unsigned int 	RCA;		// RCA
 	unsigned int	READ_BL_LEN;
 #ifdef REPORT_SIZE
@@ -202,7 +204,9 @@ typedef struct _AT91S_MciDevice
      MMC_MAXLAT)
 #define GO_INACTIVE_STATE_CMD \
      (15 | MMC_RSPTYP_NO)
-
+#define SD_SEND_IF_COND_CMD \
+     (8 | MMC_TRCMD_NO | MMC_SPCMD_NONE | MMC_RSPTYP_48 | \
+     MMC_MAXLAT)
 //*------------------------------------------------
 //* Class 2 commands: Block oriented Read commands
 //*------------------------------------------------
@@ -264,7 +268,7 @@ typedef struct _AT91S_MciDevice
 #define SDCARD_STATUS_CMD					(13 | MMC_SPCMD_NONE	| MMC_RSPTYP_48	| MMC_TRCMD_NO	| MMC_MAXLAT)
 #define SDCARD_SEND_NUM_WR_BLOCKS_CMD		(22 | MMC_SPCMD_NONE	| MMC_RSPTYP_48	| MMC_TRCMD_NO	| MMC_MAXLAT)
 #define SDCARD_SET_WR_BLK_ERASE_COUNT_CMD	(23 | MMC_SPCMD_NONE	| MMC_RSPTYP_48	| MMC_TRCMD_NO	| MMC_MAXLAT)
-#define SDCARD_APP_OP_COND_CMD			(41 | MMC_SPCMD_NONE	| MMC_RSPTYP_48	| MMC_TRCMD_NO )
+#define SDCARD_APP_OP_COND_CMD			(41 | MMC_SPCMD_NONE	| MMC_RSPTYP_48	| MMC_TRCMD_NO | MMC_MAXLAT)
 #define SDCARD_SET_CLR_CARD_DETECT_CMD	(42 | MMC_SPCMD_NONE	| MMC_RSPTYP_48	| MMC_TRCMD_NO	| MMC_MAXLAT)
 #define SDCARD_SEND_SCR_CMD				(51 | MMC_SPCMD_NONE	| MMC_RSPTYP_48	| MMC_TRCMD_NO	| MMC_MAXLAT)
 
@@ -306,7 +310,8 @@ typedef struct _AT91S_MciDevice
 #define AT91C_VDD_33_34					(1 << 21)
 #define AT91C_VDD_34_35					(1 << 22)
 #define AT91C_VDD_35_36					(1 << 23)
-#define AT91C_CARD_POWER_UP_BUSY		(1U << 31)
+#define AT91C_CCS					(1 << 30)
+#define AT91C_CARD_POWER_UP_DONE			(1U << 31)
 
 #define AT91C_MMC_HOST_VOLTAGE_RANGE	(AT91C_VDD_27_28 | AT91C_VDD_28_29  | \
     AT91C_VDD_29_30 | AT91C_VDD_30_31 | AT91C_VDD_31_32 | AT91C_VDD_32_33)

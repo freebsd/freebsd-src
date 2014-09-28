@@ -49,7 +49,9 @@ __FBSDID("$FreeBSD$");
 #include <netinet/sctp_input.h>
 #include <netinet/sctp.h>
 #include <netinet/sctp_uio.h>
+#if defined(INET) || defined(INET6)
 #include <netinet/udp.h>
+#endif
 
 
 void
@@ -147,24 +149,12 @@ sctp_threshold_management(struct sctp_inpcb *inp, struct sctp_tcb *stcb,
 	 */
 	if (stcb->asoc.overall_error_count > threshold) {
 		/* Abort notification sends a ULP notify */
-		struct mbuf *oper;
+		struct mbuf *op_err;
 
-		oper = sctp_get_mbuf_for_msg((sizeof(struct sctp_paramhdr) + sizeof(uint32_t)),
-		    0, M_NOWAIT, 1, MT_DATA);
-		if (oper) {
-			struct sctp_paramhdr *ph;
-			uint32_t *ippp;
-
-			SCTP_BUF_LEN(oper) = sizeof(struct sctp_paramhdr) +
-			    sizeof(uint32_t);
-			ph = mtod(oper, struct sctp_paramhdr *);
-			ph->param_type = htons(SCTP_CAUSE_PROTOCOL_VIOLATION);
-			ph->param_length = htons(SCTP_BUF_LEN(oper));
-			ippp = (uint32_t *) (ph + 1);
-			*ippp = htonl(SCTP_FROM_SCTP_TIMER + SCTP_LOC_1);
-		}
+		op_err = sctp_generate_cause(SCTP_CAUSE_PROTOCOL_VIOLATION,
+		    "Association error couter exceeded");
 		inp->last_abort_code = SCTP_FROM_SCTP_TIMER + SCTP_LOC_1;
-		sctp_abort_an_association(inp, stcb, oper, SCTP_SO_NOT_LOCKED);
+		sctp_abort_an_association(inp, stcb, op_err, SCTP_SO_NOT_LOCKED);
 		return (1);
 	}
 	return (0);
@@ -455,7 +445,7 @@ sctp_recover_sent_list(struct sctp_tcb *stcb)
 				sctp_free_bufspace(stcb, asoc, chk, 1);
 				sctp_m_freem(chk->data);
 				chk->data = NULL;
-				if (asoc->peer_supports_prsctp && PR_SCTP_BUF_ENABLED(chk->flags)) {
+				if (asoc->prsctp_supported && PR_SCTP_BUF_ENABLED(chk->flags)) {
 					asoc->sent_queue_cnt_removeable--;
 				}
 			}
@@ -610,7 +600,7 @@ start_again:
 					continue;
 				}
 			}
-			if (stcb->asoc.peer_supports_prsctp && PR_SCTP_TTL_ENABLED(chk->flags)) {
+			if (stcb->asoc.prsctp_supported && PR_SCTP_TTL_ENABLED(chk->flags)) {
 				/* Is it expired? */
 				if (timevalcmp(&now, &chk->rec.data.timetodrop, >)) {
 					/* Yes so drop it */
@@ -624,7 +614,7 @@ start_again:
 					continue;
 				}
 			}
-			if (stcb->asoc.peer_supports_prsctp && PR_SCTP_RTX_ENABLED(chk->flags)) {
+			if (stcb->asoc.prsctp_supported && PR_SCTP_RTX_ENABLED(chk->flags)) {
 				/* Has it been retransmitted tv_sec times? */
 				if (chk->snd_count > chk->rec.data.timetodrop.tv_sec) {
 					if (chk->data) {
@@ -967,7 +957,7 @@ sctp_t3rxt_timer(struct sctp_inpcb *inp,
 		sctp_timer_start(SCTP_TIMER_TYPE_SEND, inp, stcb, net);
 		return (0);
 	}
-	if (stcb->asoc.peer_supports_prsctp) {
+	if (stcb->asoc.prsctp_supported) {
 		struct sctp_tmit_chunk *lchk;
 
 		lchk = sctp_try_advance_peer_ack_point(stcb, &stcb->asoc);
@@ -1051,24 +1041,12 @@ sctp_cookie_timer(struct sctp_inpcb *inp,
 	if (cookie == NULL) {
 		if (SCTP_GET_STATE(&stcb->asoc) == SCTP_STATE_COOKIE_ECHOED) {
 			/* FOOBAR! */
-			struct mbuf *oper;
+			struct mbuf *op_err;
 
-			oper = sctp_get_mbuf_for_msg((sizeof(struct sctp_paramhdr) + sizeof(uint32_t)),
-			    0, M_NOWAIT, 1, MT_DATA);
-			if (oper) {
-				struct sctp_paramhdr *ph;
-				uint32_t *ippp;
-
-				SCTP_BUF_LEN(oper) = sizeof(struct sctp_paramhdr) +
-				    sizeof(uint32_t);
-				ph = mtod(oper, struct sctp_paramhdr *);
-				ph->param_type = htons(SCTP_CAUSE_PROTOCOL_VIOLATION);
-				ph->param_length = htons(SCTP_BUF_LEN(oper));
-				ippp = (uint32_t *) (ph + 1);
-				*ippp = htonl(SCTP_FROM_SCTP_TIMER + SCTP_LOC_3);
-			}
+			op_err = sctp_generate_cause(SCTP_CAUSE_PROTOCOL_VIOLATION,
+			    "Cookie timer expired, but no cookie");
 			inp->last_abort_code = SCTP_FROM_SCTP_TIMER + SCTP_LOC_4;
-			sctp_abort_an_association(inp, stcb, oper, SCTP_SO_NOT_LOCKED);
+			sctp_abort_an_association(inp, stcb, op_err, SCTP_SO_NOT_LOCKED);
 		} else {
 #ifdef INVARIANTS
 			panic("Cookie timer expires in wrong state?");
@@ -1504,9 +1482,11 @@ sctp_pathmtu_timer(struct sctp_inpcb *inp,
 		}
 		if (net->ro._s_addr) {
 			mtu = SCTP_GATHER_MTU_FROM_ROUTE(net->ro._s_addr, &net->ro._s_addr.sa, net->ro.ro_rt);
+#if defined(INET) || defined(INET6)
 			if (net->port) {
 				mtu -= sizeof(struct udphdr);
 			}
+#endif
 			if (mtu > next_mtu) {
 				net->mtu = next_mtu;
 			}

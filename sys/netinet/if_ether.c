@@ -258,8 +258,8 @@ arprequest(struct ifnet *ifp, const struct in_addr *sip,
 
 	if ((m = m_gethdr(M_NOWAIT, MT_DATA)) == NULL)
 		return;
-	m->m_len = sizeof(*ah) + 2*sizeof(struct in_addr) +
-		2*ifp->if_data.ifi_addrlen;
+	m->m_len = sizeof(*ah) + 2 * sizeof(struct in_addr) +
+		2 * ifp->if_addrlen;
 	m->m_pkthdr.len = m->m_len;
 	MH_ALIGN(m, m->m_len);
 	ah = mtod(m, struct arphdr *);
@@ -334,8 +334,8 @@ retry:
 	if (la == NULL) {
 		if (flags & LLE_CREATE)
 			log(LOG_DEBUG,
-			    "arpresolve: can't allocate llinfo for %s\n",
-			    inet_ntoa(SIN(dst)->sin_addr));
+			    "arpresolve: can't allocate llinfo for %s on %s\n",
+			    inet_ntoa(SIN(dst)->sin_addr), ifp->if_xname);
 		m_freem(m);
 		return (EINVAL);
 	}

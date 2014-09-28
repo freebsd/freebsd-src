@@ -690,8 +690,12 @@ try_symlink_as_dir:
           svn_error_clear(err);
           *wcroot = NULL;
         }
-      else
-        SVN_ERR(err);
+      else if (err)
+        {
+          /* Close handle if we are not going to use it to support
+             upgrading with exclusive wc locking. */
+          return svn_error_compose_create(err, svn_sqlite__close(sdb));
+        }
     }
   else
     {

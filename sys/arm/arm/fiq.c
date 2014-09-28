@@ -41,6 +41,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/param.h>
 #include <sys/systm.h>
 
+#include <machine/armreg.h>
 #include <machine/cpufunc.h>
 #include <machine/fiq.h>
 #include <vm/vm.h>
@@ -51,16 +52,16 @@ __FBSDID("$FreeBSD$");
 TAILQ_HEAD(, fiqhandler) fiqhandler_stack =
     TAILQ_HEAD_INITIALIZER(fiqhandler_stack);
 
-extern char fiqvector[];
-extern char fiq_nullhandler[], fiq_nullhandler_end[];
-
-#define	IRQ_BIT		I32_bit
-#define	FIQ_BIT		F32_bit
+extern char *fiq_nullhandler_code;
+extern uint32_t fiq_nullhandler_size;
 
 /*
  * fiq_installhandler:
  *
  *	Actually install the FIQ handler down at the FIQ vector.
+ *	
+ *	The FIQ vector is fixed by the hardware definition as the
+ *	seventh 32-bit word in the vector page.
  *
  *	Note: If the FIQ is invoked via an extra layer of
  *	indirection, the actual FIQ code store lives in the
@@ -70,11 +71,13 @@ extern char fiq_nullhandler[], fiq_nullhandler_end[];
 static void
 fiq_installhandler(void *func, size_t size)
 {
+	const uint32_t fiqvector = 7 * sizeof(uint32_t);
+
 #if !defined(__ARM_FIQ_INDIRECT)
 	vector_page_setprot(VM_PROT_READ|VM_PROT_WRITE);
 #endif
 
-	memcpy(vector_page + fiqvector, func, size);
+	memcpy((void *)(vector_page + fiqvector), func, size);
 
 #if !defined(__ARM_FIQ_INDIRECT)
 	vector_page_setprot(VM_PROT_READ);
@@ -97,7 +100,7 @@ fiq_claim(struct fiqhandler *fh)
 	if (fh->fh_size > 0x100)
 		return (EFBIG);
 
-	oldirqstate = disable_interrupts(FIQ_BIT);
+	oldirqstate = disable_interrupts(PSR_F);
 
 	if ((ofh = TAILQ_FIRST(&fiqhandler_stack)) != NULL) {
 		if ((ofh->fh_flags & FH_CANPUSH) == 0) {
@@ -120,7 +123,7 @@ fiq_claim(struct fiqhandler *fh)
 	fiq_installhandler(fh->fh_func, fh->fh_size);
 
 	/* Make sure FIQs are enabled when we return. */
-	oldirqstate &= ~FIQ_BIT;
+	oldirqstate &= ~PSR_F;
 
  out:
 	restore_interrupts(oldirqstate);
@@ -138,7 +141,7 @@ fiq_release(struct fiqhandler *fh)
 	u_int oldirqstate;
 	struct fiqhandler *ofh;
 
-	oldirqstate = disable_interrupts(FIQ_BIT);
+	oldirqstate = disable_interrupts(PSR_F);
 
 	/*
 	 * If we are the currently active FIQ handler, then we
@@ -159,11 +162,10 @@ fiq_release(struct fiqhandler *fh)
 
 	if (TAILQ_FIRST(&fiqhandler_stack) == NULL) {
 		/* Copy the NULL handler back down into the vector. */
-		fiq_installhandler(fiq_nullhandler,
-		    (size_t)(fiq_nullhandler_end - fiq_nullhandler));
+		fiq_installhandler(fiq_nullhandler_code, fiq_nullhandler_size);
 
 		/* Make sure FIQs are disabled when we return. */
-		oldirqstate |= FIQ_BIT;
+		oldirqstate |= PSR_F;
 	}
 
 	restore_interrupts(oldirqstate);

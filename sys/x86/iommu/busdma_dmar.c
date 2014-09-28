@@ -47,6 +47,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/taskqueue.h>
 #include <sys/tree.h>
 #include <sys/uio.h>
+#include <dev/pci/pcireg.h>
 #include <dev/pci/pcivar.h>
 #include <vm/vm.h>
 #include <vm/vm_extern.h>
@@ -69,15 +70,10 @@ __FBSDID("$FreeBSD$");
  */
 
 static bool
-dmar_bus_dma_is_dev_disabled(device_t dev)
+dmar_bus_dma_is_dev_disabled(int domain, int bus, int slot, int func)
 {
 	char str[128], *env;
-	int domain, bus, slot, func;
 
-	domain = pci_get_domain(dev);
-	bus = pci_get_bus(dev);
-	slot = pci_get_slot(dev);
-	func = pci_get_function(dev);
 	snprintf(str, sizeof(str), "hw.busdma.pci%d.%d.%d.%d.bounce",
 	    domain, bus, slot, func);
 	env = getenv(str);
@@ -87,11 +83,114 @@ dmar_bus_dma_is_dev_disabled(device_t dev)
 	return (true);
 }
 
+/*
+ * Given original device, find the requester ID that will be seen by
+ * the DMAR unit and used for page table lookup.  PCI bridges may take
+ * ownership of transactions from downstream devices, so it may not be
+ * the same as the BSF of the target device.  In those cases, all
+ * devices downstream of the bridge must share a single mapping
+ * domain, and must collectively be assigned to use either DMAR or
+ * bounce mapping.
+ */
+static device_t
+dmar_get_requester(device_t dev, uint16_t *rid)
+{
+	devclass_t pci_class;
+	device_t pci, pcib, requester;
+	int cap_offset;
+
+	pci_class = devclass_find("pci");
+	requester = dev;
+
+	*rid = pci_get_rid(dev);
+
+	/*
+	 * Walk the bridge hierarchy from the target device to the
+	 * host port to find the translating bridge nearest the DMAR
+	 * unit.
+	 */
+	for (;;) {
+		pci = device_get_parent(dev);
+		KASSERT(pci != NULL, ("NULL parent for pci%d:%d:%d:%d",
+		    pci_get_domain(dev), pci_get_bus(dev), pci_get_slot(dev),
+		    pci_get_function(dev)));
+		KASSERT(device_get_devclass(pci) == pci_class,
+		    ("Non-pci parent for pci%d:%d:%d:%d",
+		    pci_get_domain(dev), pci_get_bus(dev), pci_get_slot(dev),
+		    pci_get_function(dev)));
+
+		pcib = device_get_parent(pci);
+		KASSERT(pcib != NULL, ("NULL bridge for pci%d:%d:%d:%d",
+		    pci_get_domain(dev), pci_get_bus(dev), pci_get_slot(dev),
+		    pci_get_function(dev)));
+
+		/*
+		 * The parent of our "bridge" isn't another PCI bus,
+		 * so pcib isn't a PCI->PCI bridge but rather a host
+		 * port, and the requester ID won't be translated
+		 * further.
+		 */
+		if (device_get_devclass(device_get_parent(pcib)) != pci_class)
+			break;
+
+		if (pci_find_cap(dev, PCIY_EXPRESS, &cap_offset) != 0) {
+			/*
+			 * Device is not PCIe, it cannot be seen as a
+			 * requester by DMAR unit.
+			 */
+			requester = pcib;
+
+			/* Check whether the bus above is PCIe. */
+			if (pci_find_cap(pcib, PCIY_EXPRESS,
+			    &cap_offset) == 0) {
+				/*
+				 * The current device is not PCIe, but
+				 * the bridge above it is.  This is a
+				 * PCIe->PCI bridge.  Assume that the
+				 * requester ID will be the secondary
+				 * bus number with slot and function
+				 * set to zero.
+				 *
+				 * XXX: Doesn't handle the case where
+				 * the bridge is PCIe->PCI-X, and the
+				 * bridge will only take ownership of
+				 * requests in some cases.  We should
+				 * provide context entries with the
+				 * same page tables for taken and
+				 * non-taken transactions.
+				 */
+				*rid = PCI_RID(pci_get_bus(dev), 0, 0);
+			} else {
+				/*
+				 * Neither the device nor the bridge
+				 * above it are PCIe.  This is a
+				 * conventional PCI->PCI bridge, which
+				 * will use the bridge's BSF as the
+				 * requester ID.
+				 */
+				*rid = pci_get_rid(pcib);
+			}
+		}
+		/*
+		 * Do not stop the loop even if the target device is
+		 * PCIe, because it is possible (but unlikely) to have
+		 * a PCI->PCIe bridge somewhere in the hierarchy.
+		 */
+
+		dev = pcib;
+	}
+	return (requester);
+}
+
 struct dmar_ctx *
 dmar_instantiate_ctx(struct dmar_unit *dmar, device_t dev, bool rmrr)
 {
+	device_t requester;
 	struct dmar_ctx *ctx;
 	bool disabled;
+	uint16_t rid;
+
+	requester = dmar_get_requester(dev, &rid);
 
 	/*
 	 * If the user requested the IOMMU disabled for the device, we
@@ -100,11 +199,12 @@ dmar_instantiate_ctx(struct dmar_unit *dmar, device_t dev, bool rmrr)
 	 * Instead provide the identity mapping for the device
 	 * context.
 	 */
-	disabled = dmar_bus_dma_is_dev_disabled(dev);
-	ctx = dmar_get_ctx(dmar, dev, disabled, rmrr);
+	disabled = dmar_bus_dma_is_dev_disabled(pci_get_domain(requester), 
+	    pci_get_bus(requester), pci_get_slot(requester), 
+	    pci_get_function(requester));
+	ctx = dmar_get_ctx(dmar, requester, rid, disabled, rmrr);
 	if (ctx == NULL)
 		return (NULL);
-	ctx->ctx_tag.owner = dev;
 	if (disabled) {
 		/*
 		 * Keep the first reference on context, release the
@@ -237,7 +337,7 @@ dmar_bus_dmamap_create(bus_dma_tag_t dmat, int flags, bus_dmamap_t *mapp)
 	map->cansleep = false;
 	tag->map_count++;
 	*mapp = (bus_dmamap_t)map;
-	
+
 	return (0);
 }
 
@@ -280,7 +380,7 @@ dmar_bus_dmamem_alloc(bus_dma_tag_t dmat, void** vaddr, int flags,
 	mflags |= (flags & BUS_DMA_ZERO) != 0 ? M_ZERO : 0;
 	attr = (flags & BUS_DMA_NOCACHE) != 0 ? VM_MEMATTR_UNCACHEABLE :
 	    VM_MEMATTR_DEFAULT;
-	
+
 	tag = (struct bus_dma_tag_dmar *)dmat;
 	map = (struct bus_dmamap_dmar *)*mapp;
 

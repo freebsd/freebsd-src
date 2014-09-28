@@ -16,17 +16,17 @@ include		"AR724X_BASE"
 ident		"ENH200"
 hints		"ENH200.hints"
 
-options		AR71XX_REALMEM=32*1024*1024
+options 	AR71XX_REALMEM=32*1024*1024
 
-options		AR71XX_ENV_UBOOT
+options 	AR71XX_ENV_UBOOT
 
 # For DOS - enable if required
 options 	MSDOSFS
 
 # uncompress - to boot read-only lzma natively from flash
 device		geom_uncompress
-options		GEOM_UNCOMPRESS
-options		ROOTDEVNAME=\"ufs:/dev/map/rootfs.uncompress\"
+options 	GEOM_UNCOMPRESS
+options 	ROOTDEVNAME=\"ufs:/dev/map/rootfs.uncompress\"
 
 # Used for the static uboot partition map
 device          geom_map

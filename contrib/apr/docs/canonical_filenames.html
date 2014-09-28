@@ -104,9 +104,9 @@ used as the parent to create child entries to reduce the number of expensive
 stat and case canonicalization calls to the OS.</p>
 
 <p>The comparison operation provides that the APR can postpone correction
-of case by simply relying upon the device and inode for equivilance.  The
+of case by simply relying upon the device and inode for equivalence.  The
 stat implementation provides that two files are the same, while their
-strings are not equivilant, and eliminates the need for the operating
+strings are not equivalent, and eliminates the need for the operating
 system to return the proper form of the name.</p>
 
 <p>In any case, returning the char* path, with a flag to request the proper

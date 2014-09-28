@@ -70,12 +70,11 @@ static apr_status_t handle_response(serf_request_t *request,
     req_ctx_t *ctx = handler_baton;
     serf_connection_t *conn = request->conn;
 
-    if (! response) {
-        serf_connection_request_create(conn,
-                                       setup_request,
-                                       ctx);
+    /* CONNECT request was cancelled. Assuming that this is during connection
+       reset, we can safely discard the request as a new one will be created
+       when setting up the next connection. */
+    if (!response)
         return APR_SUCCESS;
-    }
 
     status = serf_bucket_response_status(response, &sl);
     if (SERF_BUCKET_READ_ERROR(status)) {

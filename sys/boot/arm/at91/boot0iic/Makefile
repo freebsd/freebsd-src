@@ -5,7 +5,7 @@
 P=boot0iic
 FILES=${P}
 SRCS=arm_init.S main.c
-NO_MAN=
+MAN=
 LDFLAGS=-e 0 -T ${.CURDIR}/../linker.cfg
 OBJS+=  ${SRCS:N*.h:R:S/$/.o/g}
 

@@ -1,7 +1,7 @@
 # $FreeBSD$
 
 PROG=	so_setfib
-NO_MAN=
+MAN=
 WARNS?=	6
 
 .ifdef INET6

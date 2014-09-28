@@ -223,7 +223,7 @@ am335x_lcd_sysctl_backlight(SYSCTL_HANDLER_ARGS)
 	int error;
 	int backlight;
        
-	backlight = sc->sc_backlight;;
+	backlight = sc->sc_backlight;
 	error = sysctl_handle_int(oidp, &backlight, 0, req);
 
 	if (error != 0 || req->newptr == NULL)

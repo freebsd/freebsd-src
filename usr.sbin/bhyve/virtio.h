@@ -209,6 +209,7 @@ struct vring_used {
 #define	VIRTIO_VENDOR		0x1AF4
 #define	VIRTIO_DEV_NET		0x1000
 #define	VIRTIO_DEV_BLOCK	0x1001
+#define	VIRTIO_DEV_RANDOM	0x1002
 
 /*
  * PCI config space constants.
@@ -351,7 +352,9 @@ struct virtio_consts {
 					/* called to read config regs */
 	int	(*vc_cfgwrite)(void *, int, int, uint32_t);
 					/* called to write config regs */
-	uint32_t vc_hv_caps;		/* hypervisor-provided capabilities */
+	void    (*vc_apply_features)(void *, uint64_t);
+				/* called to apply negotiated features */
+	uint64_t vc_hv_caps;		/* hypervisor-provided capabilities */
 };
 
 /*

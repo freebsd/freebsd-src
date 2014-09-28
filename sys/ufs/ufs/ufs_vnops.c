@@ -382,8 +382,7 @@ relock:
 
 	/*
 	 * If immutable bit set, nobody gets to write it.  "& ~VADMIN_PERMS"
-	 * is here, because without it, * it would be impossible for the owner
-	 * to remove the IMMUTABLE flag.
+	 * permits the owner of the file to remove the IMMUTABLE flag.
 	 */
 	if ((accmode & (VMODIFY_PERMS & ~VADMIN_PERMS)) &&
 	    (ip->i_flags & (IMMUTABLE | SF_SNAPSHOT)))
@@ -635,35 +634,8 @@ ufs_setattr(ap)
 			return (EROFS);
 		if ((ip->i_flags & SF_SNAPSHOT) != 0)
 			return (EPERM);
-		/*
-		 * From utimes(2):
-		 * If times is NULL, ... The caller must be the owner of
-		 * the file, have permission to write the file, or be the
-		 * super-user.
-		 * If times is non-NULL, ... The caller must be the owner of
-		 * the file or be the super-user.
-		 *
-		 * Possibly for historical reasons, try to use VADMIN in
-		 * preference to VWRITE for a NULL timestamp.  This means we
-		 * will return EACCES in preference to EPERM if neither
-		 * check succeeds.
-		 */
-		if (vap->va_vaflags & VA_UTIMES_NULL) {
-			/*
-			 * NFSv4.1, draft 21, 6.2.1.3.1, Discussion of Mask Attributes
-			 *
-			 * "A user having ACL_WRITE_DATA or ACL_WRITE_ATTRIBUTES
-			 * will be allowed to set the times [..] to the current
-			 * server time."
-			 *
-			 * XXX: Calling it four times seems a little excessive.
-			 */
-			error = VOP_ACCESSX(vp, VWRITE_ATTRIBUTES, cred, td);
-			if (error)
-				error = VOP_ACCESS(vp, VWRITE, cred, td);
-		} else
-			error = VOP_ACCESSX(vp, VWRITE_ATTRIBUTES, cred, td);
-		if (error)
+		error = vn_utimes_perm(vp, vap, cred, td);
+		if (error != 0)
 			return (error);
 		if (vap->va_atime.tv_sec != VNOVAL)
 			ip->i_flag |= IN_ACCESS;
@@ -995,10 +967,6 @@ ufs_link(ap)
 	if ((cnp->cn_flags & HASBUF) == 0)
 		panic("ufs_link: no name");
 #endif
-	if (tdvp->v_mount != vp->v_mount) {
-		error = EXDEV;
-		goto out;
-	}
 	if (VTOI(tdvp)->i_effnlink < 2)
 		panic("ufs_link: Bad link count %d on parent",
 		    VTOI(tdvp)->i_effnlink);
@@ -1170,11 +1138,6 @@ ufs_rename(ap)
 	if ((fvp->v_mount != tdvp->v_mount) ||
 	    (tvp && (fvp->v_mount != tvp->v_mount))) {
 		error = EXDEV;
-		mp = NULL;
-		goto releout;
-	}
-	error = vfs_busy(mp, 0);
-	if (error) {
 		mp = NULL;
 		goto releout;
 	}
@@ -1577,8 +1540,6 @@ unlockout:
 	if (error == 0 && tdp->i_flag & IN_NEEDSYNC)
 		error = VOP_FSYNC(tdvp, MNT_WAIT, td);
 	vput(tdvp);
-	if (mp)
-		vfs_unbusy(mp);
 	return (error);
 
 bad:
@@ -1596,8 +1557,6 @@ releout:
 	vrele(tdvp);
 	if (tvp)
 		vrele(tvp);
-	if (mp)
-		vfs_unbusy(mp);
 
 	return (error);
 }

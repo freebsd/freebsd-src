@@ -13,7 +13,7 @@
  */
 
 #include <sm/gen.h>
-SM_RCSID("@(#)$Id: flags.c,v 1.24 2013/11/22 20:51:42 ca Exp $")
+SM_RCSID("@(#)$Id: flags.c,v 1.24 2013-11-22 20:51:42 ca Exp $")
 #include <sys/types.h>
 #include <sys/file.h>
 #include <errno.h>

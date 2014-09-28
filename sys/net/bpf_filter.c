@@ -39,6 +39,9 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 
+#if !defined(_KERNEL)
+#include <strings.h>
+#endif
 #if !defined(_KERNEL) || defined(sun)
 #include <netinet/in.h>
 #endif

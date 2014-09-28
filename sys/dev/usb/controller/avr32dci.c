@@ -771,7 +771,8 @@ avr32dci_setup_standard_chain(struct usb_xfer *xfer)
 	temp.td = NULL;
 	temp.td_next = xfer->td_start[0];
 	temp.offset = 0;
-	temp.setup_alt_next = xfer->flags_int.short_frames_ok;
+	temp.setup_alt_next = xfer->flags_int.short_frames_ok ||
+	    xfer->flags_int.isochronous_xfr;
 	temp.did_stall = !xfer->flags_int.control_stall;
 
 	sc = AVR32_BUS2SC(xfer->xroot->bus);
@@ -979,7 +980,8 @@ avr32dci_standard_done_sub(struct usb_xfer *xfer)
 		}
 		/* Check for short transfer */
 		if (len > 0) {
-			if (xfer->flags_int.short_frames_ok) {
+			if (xfer->flags_int.short_frames_ok ||
+			    xfer->flags_int.isochronous_xfr) {
 				/* follow alt next */
 				if (td->alt_next) {
 					td = td->obj_next;
@@ -1310,9 +1312,9 @@ avr32dci_do_poll(struct usb_bus *bus)
 }
 
 /*------------------------------------------------------------------------*
- * at91dci bulk support
- * at91dci control support
- * at91dci interrupt support
+ * avr32dci bulk support
+ * avr32dci control support
+ * avr32dci interrupt support
  *------------------------------------------------------------------------*/
 static void
 avr32dci_device_non_isoc_open(struct usb_xfer *xfer)
@@ -1349,7 +1351,7 @@ static const struct usb_pipe_methods avr32dci_device_non_isoc_methods =
 };
 
 /*------------------------------------------------------------------------*
- * at91dci full speed isochronous support
+ * avr32dci full speed isochronous support
  *------------------------------------------------------------------------*/
 static void
 avr32dci_device_isoc_fs_open(struct usb_xfer *xfer)
@@ -1434,7 +1436,7 @@ static const struct usb_pipe_methods avr32dci_device_isoc_fs_methods =
 };
 
 /*------------------------------------------------------------------------*
- * at91dci root control support
+ * avr32dci root control support
  *------------------------------------------------------------------------*
  * Simulate a hardware HUB by handling all the necessary requests.
  *------------------------------------------------------------------------*/

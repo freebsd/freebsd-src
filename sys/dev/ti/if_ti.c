@@ -184,13 +184,13 @@ static int ti_detach(device_t);
 static void ti_txeof(struct ti_softc *);
 static void ti_rxeof(struct ti_softc *);
 
-static void ti_stats_update(struct ti_softc *);
 static int ti_encap(struct ti_softc *, struct mbuf **);
 
 static void ti_intr(void *);
 static void ti_start(struct ifnet *);
 static void ti_start_locked(struct ifnet *);
 static int ti_ioctl(struct ifnet *, u_long, caddr_t);
+static uint64_t ti_get_counter(struct ifnet *, ift_counter);
 static void ti_init(void *);
 static void ti_init_locked(void *);
 static void ti_init2(struct ti_softc *);
@@ -227,7 +227,7 @@ static void ti_dma_free(struct ti_softc *);
 static int ti_dma_ring_alloc(struct ti_softc *, bus_size_t, bus_size_t,
     bus_dma_tag_t *, uint8_t **, bus_dmamap_t *, bus_addr_t *, const char *);
 static void ti_dma_ring_free(struct ti_softc *, bus_dma_tag_t *, uint8_t **,
-    bus_dmamap_t *);
+    bus_dmamap_t, bus_addr_t *);
 static int ti_newbuf_std(struct ti_softc *, int);
 static int ti_newbuf_mini(struct ti_softc *, int);
 static int ti_newbuf_jumbo(struct ti_softc *, int, struct mbuf *);
@@ -959,8 +959,6 @@ ti_handle_events(struct ti_softc *sc)
 			ti_init2(sc);
 			break;
 		case TI_EV_STATS_UPDATED:
-			ti_stats_update(sc);
-			break;
 		case TI_EV_RESET_JUMBO_RING:
 		case TI_EV_MCAST_UPDATED:
 			/* Who cares. */
@@ -1035,15 +1033,16 @@ ti_dma_ring_alloc(struct ti_softc *sc, bus_size_t alignment, bus_size_t maxsize,
 
 static void
 ti_dma_ring_free(struct ti_softc *sc, bus_dma_tag_t *tag, uint8_t **ring,
-    bus_dmamap_t *map)
+    bus_dmamap_t map, bus_addr_t *paddr)
 {
 
-	if (*map != NULL)
-		bus_dmamap_unload(*tag, *map);
-	if (*map != NULL && *ring != NULL) {
-		bus_dmamem_free(*tag, *ring, *map);
+	if (*paddr != 0) {
+		bus_dmamap_unload(*tag, map);
+		*paddr = 0;
+	}
+	if (*ring != NULL) {
+		bus_dmamem_free(*tag, *ring, map);
 		*ring = NULL;
-		*map = NULL;
 	}
 	if (*tag) {
 		bus_dma_tag_destroy(*tag);
@@ -1336,32 +1335,39 @@ ti_dma_free(struct ti_softc *sc)
 	/* Destroy standard RX ring. */
 	ti_dma_ring_free(sc, &sc->ti_cdata.ti_rx_std_ring_tag,
 	    (void *)&sc->ti_rdata.ti_rx_std_ring,
-	    &sc->ti_cdata.ti_rx_std_ring_map);
+	    sc->ti_cdata.ti_rx_std_ring_map,
+	    &sc->ti_rdata.ti_rx_std_ring_paddr);
 	/* Destroy jumbo RX ring. */
 	ti_dma_ring_free(sc, &sc->ti_cdata.ti_rx_jumbo_ring_tag,
 	    (void *)&sc->ti_rdata.ti_rx_jumbo_ring,
-	    &sc->ti_cdata.ti_rx_jumbo_ring_map);
+	    sc->ti_cdata.ti_rx_jumbo_ring_map,
+	    &sc->ti_rdata.ti_rx_jumbo_ring_paddr);
 	/* Destroy mini RX ring. */
 	ti_dma_ring_free(sc, &sc->ti_cdata.ti_rx_mini_ring_tag,
 	    (void *)&sc->ti_rdata.ti_rx_mini_ring,
-	    &sc->ti_cdata.ti_rx_mini_ring_map);
+	    sc->ti_cdata.ti_rx_mini_ring_map,
+	    &sc->ti_rdata.ti_rx_mini_ring_paddr);
 	/* Destroy RX return ring. */
 	ti_dma_ring_free(sc, &sc->ti_cdata.ti_rx_return_ring_tag,
 	    (void *)&sc->ti_rdata.ti_rx_return_ring,
-	    &sc->ti_cdata.ti_rx_return_ring_map);
+	    sc->ti_cdata.ti_rx_return_ring_map,
+	    &sc->ti_rdata.ti_rx_return_ring_paddr);
 	/* Destroy TX ring. */
 	ti_dma_ring_free(sc, &sc->ti_cdata.ti_tx_ring_tag,
-	    (void *)&sc->ti_rdata.ti_tx_ring, &sc->ti_cdata.ti_tx_ring_map);
+	    (void *)&sc->ti_rdata.ti_tx_ring, sc->ti_cdata.ti_tx_ring_map,
+	    &sc->ti_rdata.ti_tx_ring_paddr);
 	/* Destroy status block. */
 	ti_dma_ring_free(sc, &sc->ti_cdata.ti_status_tag,
-	    (void *)&sc->ti_rdata.ti_status, &sc->ti_cdata.ti_status_map);
+	    (void *)&sc->ti_rdata.ti_status, sc->ti_cdata.ti_status_map,
+	    &sc->ti_rdata.ti_status_paddr);
 	/* Destroy event ring. */
 	ti_dma_ring_free(sc, &sc->ti_cdata.ti_event_ring_tag,
 	    (void *)&sc->ti_rdata.ti_event_ring,
-	    &sc->ti_cdata.ti_event_ring_map);
+	    sc->ti_cdata.ti_event_ring_map, &sc->ti_rdata.ti_event_ring_paddr);
 	/* Destroy GIB */
 	ti_dma_ring_free(sc, &sc->ti_cdata.ti_gib_tag,
-	    (void *)&sc->ti_rdata.ti_info, &sc->ti_cdata.ti_gib_map);
+	    (void *)&sc->ti_rdata.ti_info, sc->ti_cdata.ti_gib_map,
+	    &sc->ti_rdata.ti_info_paddr);
 
 	/* Destroy the parent tag. */
 	if (sc->ti_cdata.ti_parent_tag) {
@@ -1616,7 +1622,7 @@ ti_newbuf_jumbo(struct ti_softc *sc, int idx, struct mbuf *m_old)
 			}
 			sf[i] = sf_buf_alloc(frame, SFB_NOWAIT);
 			if (sf[i] == NULL) {
-				vm_page_unwire(frame, 0);
+				vm_page_unwire(frame, PQ_INACTIVE);
 				vm_page_free(frame);
 				device_printf(sc->ti_dev, "buffer allocation "
 				    "failed -- packet dropped!\n");
@@ -2497,6 +2503,7 @@ ti_attach(device_t dev)
 	ifp->if_ioctl = ti_ioctl;
 	ifp->if_start = ti_start;
 	ifp->if_init = ti_init;
+	ifp->if_get_counter = ti_get_counter;
 	ifp->if_baudrate = IF_Gbps(1UL);
 	ifp->if_snd.ifq_drv_maxlen = TI_TX_RING_CNT - 1;
 	IFQ_SET_MAXLEN(&ifp->if_snd, ifp->if_snd.ifq_drv_maxlen);
@@ -2795,12 +2802,12 @@ ti_rxeof(struct ti_softc *sc)
 			m = sc->ti_cdata.ti_rx_jumbo_chain[rxidx];
 #ifndef TI_SF_BUF_JUMBO
 			if (cur_rx->ti_flags & TI_BDFLAG_ERROR) {
-				ifp->if_ierrors++;
+				if_inc_counter(ifp, IFCOUNTER_IERRORS, 1);
 				ti_discard_jumbo(sc, rxidx);
 				continue;
 			}
 			if (ti_newbuf_jumbo(sc, rxidx, NULL) != 0) {
-				ifp->if_iqdrops++;
+				if_inc_counter(ifp, IFCOUNTER_IQDROPS, 1);
 				ti_discard_jumbo(sc, rxidx);
 				continue;
 			}
@@ -2812,12 +2819,12 @@ ti_rxeof(struct ti_softc *sc)
 			    BUS_DMASYNC_POSTREAD);
 			bus_dmamap_unload(sc->ti_cdata.ti_rx_jumbo_tag, map);
 			if (cur_rx->ti_flags & TI_BDFLAG_ERROR) {
-				ifp->if_ierrors++;
+				if_inc_counter(ifp, IFCOUNTER_IERRORS, 1);
 				ti_newbuf_jumbo(sc, sc->ti_jumbo, m);
 				continue;
 			}
 			if (ti_newbuf_jumbo(sc, sc->ti_jumbo, NULL) == ENOBUFS) {
-				ifp->if_iqdrops++;
+				if_inc_counter(ifp, IFCOUNTER_IQDROPS, 1);
 				ti_newbuf_jumbo(sc, sc->ti_jumbo, m);
 				continue;
 			}
@@ -2834,12 +2841,12 @@ ti_rxeof(struct ti_softc *sc)
 			TI_INC(sc->ti_mini, TI_MINI_RX_RING_CNT);
 			m = sc->ti_cdata.ti_rx_mini_chain[rxidx];
 			if (cur_rx->ti_flags & TI_BDFLAG_ERROR) {
-				ifp->if_ierrors++;
+				if_inc_counter(ifp, IFCOUNTER_IERRORS, 1);
 				ti_discard_mini(sc, rxidx);
 				continue;
 			}
 			if (ti_newbuf_mini(sc, rxidx) != 0) {
-				ifp->if_iqdrops++;
+				if_inc_counter(ifp, IFCOUNTER_IQDROPS, 1);
 				ti_discard_mini(sc, rxidx);
 				continue;
 			}
@@ -2849,12 +2856,12 @@ ti_rxeof(struct ti_softc *sc)
 			TI_INC(sc->ti_std, TI_STD_RX_RING_CNT);
 			m = sc->ti_cdata.ti_rx_std_chain[rxidx];
 			if (cur_rx->ti_flags & TI_BDFLAG_ERROR) {
-				ifp->if_ierrors++;
+				if_inc_counter(ifp, IFCOUNTER_IERRORS, 1);
 				ti_discard_std(sc, rxidx);
 				continue;
 			}
 			if (ti_newbuf_std(sc, rxidx) != 0) {
-				ifp->if_iqdrops++;
+				if_inc_counter(ifp, IFCOUNTER_IQDROPS, 1);
 				ti_discard_std(sc, rxidx);
 				continue;
 			}
@@ -2862,7 +2869,7 @@ ti_rxeof(struct ti_softc *sc)
 		}
 
 		m->m_pkthdr.len = ti_len;
-		ifp->if_ipackets++;
+		if_inc_counter(ifp, IFCOUNTER_IPACKETS, 1);
 		m->m_pkthdr.rcvif = ifp;
 
 		if (ifp->if_capenable & IFCAP_RXCSUM) {
@@ -2953,7 +2960,7 @@ ti_txeof(struct ti_softc *sc)
 		    BUS_DMASYNC_POSTWRITE);
 		bus_dmamap_unload(sc->ti_cdata.ti_tx_tag, txd->tx_dmamap);
 
-		ifp->if_opackets++;
+		if_inc_counter(ifp, IFCOUNTER_OPACKETS, 1);
 		m_freem(txd->tx_m);
 		txd->tx_m = NULL;
 		STAILQ_REMOVE_HEAD(&sc->ti_cdata.ti_txbusyq, tx_q);
@@ -3008,27 +3015,35 @@ ti_intr(void *xsc)
 	TI_UNLOCK(sc);
 }
 
-static void
-ti_stats_update(struct ti_softc *sc)
+static uint64_t
+ti_get_counter(struct ifnet *ifp, ift_counter cnt)
 {
-	struct ifnet *ifp;
-	struct ti_stats *s;
 
-	ifp = sc->ti_ifp;
+	switch (cnt) {
+	case IFCOUNTER_COLLISIONS:
+	    {
+		struct ti_softc *sc;
+		struct ti_stats *s;
+		uint64_t rv;
 
-	if (sc->ti_stat_ticks == 0)
-		return;
-	bus_dmamap_sync(sc->ti_cdata.ti_gib_tag, sc->ti_cdata.ti_gib_map,
-	    BUS_DMASYNC_POSTREAD);
+		sc = if_getsoftc(ifp);
+		s = &sc->ti_rdata.ti_info->ti_stats;
 
-	s = &sc->ti_rdata.ti_info->ti_stats;
-	ifp->if_collisions += (s->dot3StatsSingleCollisionFrames +
-	   s->dot3StatsMultipleCollisionFrames +
-	   s->dot3StatsExcessiveCollisions + s->dot3StatsLateCollisions) -
-	    ifp->if_collisions;
-
-	bus_dmamap_sync(sc->ti_cdata.ti_gib_tag, sc->ti_cdata.ti_gib_map,
-	    BUS_DMASYNC_PREREAD);
+		TI_LOCK(sc);
+		bus_dmamap_sync(sc->ti_cdata.ti_gib_tag,
+		    sc->ti_cdata.ti_gib_map, BUS_DMASYNC_POSTREAD);
+		rv = s->dot3StatsSingleCollisionFrames +
+		    s->dot3StatsMultipleCollisionFrames +
+		    s->dot3StatsExcessiveCollisions +
+		    s->dot3StatsLateCollisions;
+		bus_dmamap_sync(sc->ti_cdata.ti_gib_tag,
+		    sc->ti_cdata.ti_gib_map, BUS_DMASYNC_PREREAD);
+		TI_UNLOCK(sc);
+		return (rv);
+	    }
+	default:
+		return (if_get_counter_default(ifp, cnt));
+	}
 }
 
 /*
@@ -3654,6 +3669,8 @@ ti_ioctl2(struct cdev *dev, u_long cmd, caddr_t addr, int flag,
 		    sc->ti_cdata.ti_gib_map, BUS_DMASYNC_POSTREAD);
 		bcopy(&sc->ti_rdata.ti_info->ti_stats, outstats,
 		    sizeof(struct ti_stats));
+		bus_dmamap_sync(sc->ti_cdata.ti_gib_tag,
+		    sc->ti_cdata.ti_gib_map, BUS_DMASYNC_PREREAD);
 		TI_UNLOCK(sc);
 		break;
 	}
@@ -3909,7 +3926,7 @@ ti_watchdog(void *arg)
 	ifp->if_drv_flags &= ~IFF_DRV_RUNNING;
 	ti_init_locked(sc);
 
-	ifp->if_oerrors++;
+	if_inc_counter(ifp, IFCOUNTER_OERRORS, 1);
 }
 
 /*

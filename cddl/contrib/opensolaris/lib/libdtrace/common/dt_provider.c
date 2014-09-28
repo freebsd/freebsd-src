@@ -23,8 +23,9 @@
  * Copyright 2006 Sun Microsystems, Inc.  All rights reserved.
  * Use is subject to license terms.
  */
-
-#pragma ident	"%Z%%M%	%I%	%E% SMI"
+/*
+ * Copyright (c) 2013, Joyent, Inc.  All rights reserved.
+ */
 
 #include <sys/types.h>
 #if defined(sun)
@@ -45,6 +46,8 @@
 #include <dt_module.h>
 #include <dt_string.h>
 #include <dt_list.h>
+#include <dt_pid.h>
+#include <dtrace.h>
 
 static dt_provider_t *
 dt_provider_insert(dtrace_hdl_t *dtp, dt_provider_t *pvp, uint_t h)
@@ -273,6 +276,21 @@ dt_probe_discover(dt_provider_t *pvp, const dtrace_probedesc_t *pdp)
 	nc++;
 
 	/*
+	 * The pid provider believes in giving the kernel a break. No reason to
+	 * give the kernel all the ctf containers that we're keeping ourselves
+	 * just to get it back from it. So if we're coming from a pid provider
+	 * probe and the kernel gave us no argument information we'll get some
+	 * here. If for some crazy reason the kernel knows about our userland
+	 * types then we just ignore this.
+	 */
+	if (xc == 0 && nc == 0 &&
+	    strncmp(pvp->pv_desc.dtvd_name, "pid", 3) == 0) {
+		nc = adc;
+		dt_pid_get_types(dtp, pdp, adv, &nc);
+		xc = nc;
+	}
+
+	/*
 	 * Now that we have discovered the number of native and translated
 	 * arguments from the argument descriptions, allocate a new probe ident
 	 * and corresponding dt_probe_t and hash it into the provider.
@@ -318,7 +336,8 @@ dt_probe_discover(dt_provider_t *pvp, const dtrace_probedesc_t *pdp)
 			dtt.dtt_type = CTF_ERR;
 		} else {
 			dt_node_type_assign(prp->pr_nargv[adp->dtargd_mapping],
-			    dtt.dtt_ctfp, dtt.dtt_type);
+			    dtt.dtt_ctfp, dtt.dtt_type,
+			    dtt.dtt_flags & DTT_FL_USER ? B_TRUE : B_FALSE);
 		}
 
 		if (dtt.dtt_type != CTF_ERR && (adp->dtargd_xlate[0] == '\0' ||
@@ -337,7 +356,7 @@ dt_probe_discover(dt_provider_t *pvp, const dtrace_probedesc_t *pdp)
 			dtt.dtt_type = CTF_ERR;
 		} else {
 			dt_node_type_assign(prp->pr_xargv[i],
-			    dtt.dtt_ctfp, dtt.dtt_type);
+			    dtt.dtt_ctfp, dtt.dtt_type, B_FALSE);
 		}
 
 		prp->pr_mapping[i] = adp->dtargd_mapping;
@@ -638,7 +657,7 @@ dt_probe_tag(dt_probe_t *prp, uint_t argn, dt_node_t *dnp)
 	bzero(dnp, sizeof (dt_node_t));
 	dnp->dn_kind = DT_NODE_TYPE;
 
-	dt_node_type_assign(dnp, dtt.dtt_ctfp, dtt.dtt_type);
+	dt_node_type_assign(dnp, dtt.dtt_ctfp, dtt.dtt_type, B_FALSE);
 	dt_node_attr_assign(dnp, _dtrace_defattr);
 
 	return (dnp);

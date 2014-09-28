@@ -1,3 +1,28 @@
+2014-06-20  Simon J. Gerraty  <sjg@bad.crufty.net>
+
+	* Makefile (MAKE_VERSION): 20140620
+	  Merge with NetBSD make, pick up
+	  o var.c return varNoError rather than var_Error for ::= modidiers.
+
+2014-05-22  Simon J. Gerraty  <sjg@bad.crufty.net>
+
+	* Makefile (MAKE_VERSION): 20140522
+	  Merge with NetBSD make, pick up
+	  o var.c detect some parse errors.
+
+2014-04-05  Simon J. Gerraty  <sjg@bad.crufty.net>
+
+	* Fix spelling errors - patch from Pedro Giffuni
+
+2014-02-14  Simon J. Gerraty  <sjg@bad.crufty.net>
+
+	* Makefile (MAKE_VERSION): 20140214
+	  Merge with NetBSD make, pick up
+	  o .INCLUDEFROM*
+	  o use Var_Value to get MAKEOBJDIR[PREFIX]
+	  o reduced realloc'ign in brk_string.
+	* configure.in: add a check for compiler supporting __func__
+
 2014-01-03  Simon J. Gerraty  <sjg@bad.crufty.net>
 
 	* boot-strap: ignore mksrc=none
@@ -64,7 +89,7 @@
 
 	* Makefile (MAKE_VERSION): 20130716
 	  Merge with NetBSD make, pick up
-	  o number of gmake compatability tweaks
+	  o number of gmake compatibility tweaks
 	    -w for gmake style entering/leaving messages
 	    if .MAKE.LEVEL > 0 indicate it in progname "make[1]" etc.
 	    handle MAKEFLAGS containing only letters.

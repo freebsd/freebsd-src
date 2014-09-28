@@ -60,6 +60,7 @@ exim : localhost : allow
 exim : ALL : allow
 
 # Rpcbind is used for all RPC services; protect your NFS!
+# Rpcbind should be running with -W option to support this.
 # (IP addresses rather than hostnames *MUST* be used here)
 #rpcbind : 192.0.2.32/255.255.255.224 : allow
 #rpcbind : 192.0.2.96/255.255.255.224 : allow

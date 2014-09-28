@@ -44,21 +44,29 @@
 #define INSN_SIZE	4
 #define INSN_COND_MASK	0xf0000000	/* Condition mask */
 #define PSR_MODE        0x0000001f      /* mode mask */
-#define PSR_USR26_MODE  0x00000000
-#define PSR_FIQ26_MODE  0x00000001
-#define PSR_IRQ26_MODE  0x00000002
-#define PSR_SVC26_MODE  0x00000003
 #define PSR_USR32_MODE  0x00000010
 #define PSR_FIQ32_MODE  0x00000011
 #define PSR_IRQ32_MODE  0x00000012
 #define PSR_SVC32_MODE  0x00000013
+#define PSR_MON32_MODE	0x00000016
 #define PSR_ABT32_MODE  0x00000017
+#define PSR_HYP32_MODE	0x0000001a
 #define PSR_UND32_MODE  0x0000001b
 #define PSR_SYS32_MODE  0x0000001f
 #define PSR_32_MODE     0x00000010
-#define PSR_FLAGS	0xf0000000    /* flags */
-
-#define PSR_C_bit (1 << 29)       /* carry */
+#define PSR_T		0x00000020	/* Instruction set bit */
+#define PSR_F		0x00000040	/* FIQ disable bit */
+#define PSR_I		0x00000080	/* IRQ disable bit */
+#define PSR_A		0x00000100	/* Imprecise abort bit */
+#define PSR_E		0x00000200	/* Data endianess bit */
+#define PSR_GE		0x000f0000	/* Greater than or equal to bits */
+#define PSR_J		0x01000000	/* Java bit */
+#define PSR_Q		0x08000000	/* Sticky overflow bit */
+#define PSR_V		0x10000000	/* Overflow bit */
+#define PSR_C		0x20000000	/* Carry bit */
+#define PSR_Z		0x40000000	/* Zero bit */
+#define PSR_N		0x80000000	/* Negative bit */
+#define PSR_FLAGS	0xf0000000	/* Flags mask. */
 
 /* The high-order byte is always the implementor */
 #define CPU_ID_IMPLEMENTOR_MASK	0xff000000
@@ -73,17 +81,7 @@
 #define CPU_ID_IS7(x)		(((x) & 0x0000f000) == 0x00007000)
 #define CPU_ID_ISNEW(x)		(!CPU_ID_ISOLD(x) && !CPU_ID_IS7(x))
 
-/* On ARM3 and ARM6, this byte holds the foundry ID. */
-#define CPU_ID_FOUNDRY_MASK	0x00ff0000
-#define CPU_ID_FOUNDRY_VLSI	0x00560000
-
-/* On ARM7 it holds the architecture and variant (sub-model) */
-#define CPU_ID_7ARCH_MASK	0x00800000
-#define CPU_ID_7ARCH_V3		0x00000000
-#define CPU_ID_7ARCH_V4T	0x00800000
-#define CPU_ID_7VARIANT_MASK	0x007f0000
-
-/* On more recent ARMs, it does the same, but in a different format */
+/* On recent ARMs this byte holds the architecture and variant (sub-model) */
 #define CPU_ID_ARCH_MASK	0x000f0000
 #define CPU_ID_ARCH_V3		0x00000000
 #define CPU_ID_ARCH_V4		0x00010000
@@ -110,29 +108,7 @@
 /* Individual CPUs are probably best IDed by everything but the revision. */
 #define CPU_ID_CPU_MASK		0xfffffff0
 
-/* Fake CPU IDs for ARMs without CP15 */
-#define CPU_ID_ARM2		0x41560200
-#define CPU_ID_ARM250		0x41560250
-
-/* Pre-ARM7 CPUs -- [15:12] == 0 */
-#define CPU_ID_ARM3		0x41560300
-#define CPU_ID_ARM600		0x41560600
-#define CPU_ID_ARM610		0x41560610
-#define CPU_ID_ARM620		0x41560620
-
-/* ARM7 CPUs -- [15:12] == 7 */
-#define CPU_ID_ARM700		0x41007000 /* XXX This is a guess. */
-#define CPU_ID_ARM710		0x41007100
-#define CPU_ID_ARM7500		0x41027100
-#define CPU_ID_ARM710A		0x41047100 /* inc ARM7100 */
-#define CPU_ID_ARM7500FE	0x41077100
-#define CPU_ID_ARM710T		0x41807100
-#define CPU_ID_ARM720T		0x41807200
-#define CPU_ID_ARM740T8K	0x41807400 /* XXX no MMU, 8KB cache */
-#define CPU_ID_ARM740T4K	0x41817400 /* XXX no MMU, 4KB cache */
-
-/* Post-ARM7 CPUs */
-#define CPU_ID_ARM810		0x41018100
+/* ARM9 and later CPUs */
 #define CPU_ID_ARM920T		0x41129200
 #define CPU_ID_ARM920T_ALT	0x41009200
 #define CPU_ID_ARM922T		0x41029220
@@ -155,9 +131,10 @@
 #define CPU_ID_CORTEXA9R1	0x411fc090
 #define CPU_ID_CORTEXA9R2	0x412fc090
 #define CPU_ID_CORTEXA9R3	0x413fc090
-#define CPU_ID_CORTEXA15	0x410fc0f0
-#define CPU_ID_SA110		0x4401a100
-#define CPU_ID_SA1100		0x4401a110
+#define CPU_ID_CORTEXA15R0	0x410fc0f0
+#define CPU_ID_CORTEXA15R1	0x411fc0f0
+#define CPU_ID_CORTEXA15R2	0x412fc0f0
+#define CPU_ID_CORTEXA15R3	0x413fc0f0
 #define	CPU_ID_KRAIT		0x510f06f0 /* Snapdragon S4 Pro/APQ8064 */
 #define	CPU_ID_TI925T		0x54029250
 #define CPU_ID_MV88FR131	0x56251310 /* Marvell Feroceon 88FR131 Core */
@@ -181,8 +158,6 @@
 
 #define	CPU_ID_FA526		0x66015260
 #define	CPU_ID_FA626TE		0x66056260
-#define CPU_ID_SA1110		0x6901b110
-#define CPU_ID_IXP1200		0x6901c120
 #define CPU_ID_80200		0x69052000
 #define CPU_ID_PXA250    	0x69052100 /* sans core revision */
 #define CPU_ID_PXA210    	0x69052120
@@ -206,18 +181,6 @@
 #define	CPU_ID_IXP425_266	0x690541f0
 #define	CPU_ID_IXP435		0x69054040
 #define	CPU_ID_IXP465		0x69054200
-
-/* ARM3-specific coprocessor 15 registers */
-#define ARM3_CP15_FLUSH		1
-#define ARM3_CP15_CONTROL	2
-#define ARM3_CP15_CACHEABLE	3
-#define ARM3_CP15_UPDATEABLE	4
-#define ARM3_CP15_DISRUPTIVE	5	
-
-/* ARM3 Control register bits */
-#define ARM3_CTL_CACHE_ON	0x00000001
-#define ARM3_CTL_SHARED		0x00000002
-#define ARM3_CTL_MONITOR	0x00000004
 
 /* CPUID registers */
 #define ARM_PFR0_ARM_ISA_MASK	0x0000000f
@@ -281,16 +244,23 @@
 #define CPU_CONTROL_SYST_ENABLE 0x00000100 /* S: System protection bit */
 #define CPU_CONTROL_ROM_ENABLE	0x00000200 /* R: ROM protection bit */
 #define CPU_CONTROL_CPCLK	0x00000400 /* F: Implementation defined */
+#define CPU_CONTROL_SW_ENABLE	0x00000400 /* SW: SWP instruction enable */
 #define CPU_CONTROL_BPRD_ENABLE 0x00000800 /* Z: Branch prediction enable */
 #define CPU_CONTROL_IC_ENABLE   0x00001000 /* I: IC enable */
 #define CPU_CONTROL_VECRELOC	0x00002000 /* V: Vector relocation */
 #define CPU_CONTROL_ROUNDROBIN	0x00004000 /* RR: Predictable replacement */
 #define CPU_CONTROL_V4COMPAT	0x00008000 /* L4: ARMv4 compat LDR R15 etc */
+#define CPU_CONTROL_HAF_ENABLE	0x00020000 /* HA: Hardware Access Flag Enable */
 #define CPU_CONTROL_FI_ENABLE	0x00200000 /* FI: Low interrupt latency */
 #define CPU_CONTROL_UNAL_ENABLE 0x00400000 /* U: unaligned data access */
 #define CPU_CONTROL_V6_EXTPAGE	0x00800000 /* XP: ARMv6 extended page tables */
+#define CPU_CONTROL_V_ENABLE	0x01000000 /* VE: Interrupt vectors enable */
+#define CPU_CONTROL_EX_BEND	0x02000000 /* EE: exception endianness */
 #define CPU_CONTROL_L2_ENABLE	0x04000000 /* L2 Cache enabled */
-#define CPU_CONTROL_AF_ENABLE	0x20000000 /* Access Flag enable */
+#define CPU_CONTROL_NMFI	0x08000000 /* NMFI: Non maskable FIQ */
+#define CPU_CONTROL_TR_ENABLE	0x10000000 /* TRE: TEX Remap*/
+#define CPU_CONTROL_AF_ENABLE	0x20000000 /* AFE: Access Flag enable */
+#define CPU_CONTROL_TE_ENABLE	0x40000000 /* TE: Thumb Exception enable */
 
 #define CPU_CONTROL_IDC_ENABLE	CPU_CONTROL_DC_ENABLE
 
@@ -406,6 +376,15 @@
 #define	FAULT_IMPRECISE	0x400	/* Imprecise exception (XSCALE) */
 #define	FAULT_EXTERNAL	0x400	/* External abort (armv6+) */
 #define	FAULT_WNR	0x800	/* Write-not-Read access (armv6+) */
+
+/* Fault status register definitions - v6+ */
+#define	FSR_STATUS_TO_IDX(fsr)	(((fsr) & 0xF) | 			\
+				 (((fsr) & (1 << 10)>> (10 - 4))))
+#define	FSR_LPAE		(1 <<  9) /* LPAE indicator */
+#define	FSR_WNR			(1 << 11) /* Write-not-Read access */
+#define	FSR_EXT			(1 << 12) /* DECERR/SLVERR for external*/
+#define	FSR_CM			(1 << 13) /* Cache maintenance fault */
+
 
 /*
  * Address of the vector page, low and high versions.

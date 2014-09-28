@@ -74,7 +74,6 @@ struct vtnet_rxq {
 	struct virtqueue	*vtnrx_vq;
 	struct sglist		*vtnrx_sg;
 	int			 vtnrx_id;
-	int			 vtnrx_process_limit;
 	struct vtnet_rxq_stats	 vtnrx_stats;
 	struct taskqueue	*vtnrx_tq;
 	struct task		 vtnrx_intrtask;
@@ -150,6 +149,7 @@ struct vtnet_softc {
 	int			 vtnet_rx_nmbufs;
 	int			 vtnet_rx_clsize;
 	int			 vtnet_rx_new_clsize;
+	int			 vtnet_tx_intr_thresh;
 	int			 vtnet_tx_nsegs;
 	int			 vtnet_if_flags;
 	int			 vtnet_act_vq_pairs;
@@ -182,6 +182,14 @@ struct vtnet_softc {
  * taskqueue to process the completed entries.
  */
 #define VTNET_INTR_DISABLE_RETRIES	4
+
+/*
+ * Similarly, additional completed entries can appear in a virtqueue
+ * between when lasted checked and before notifying the host. Number
+ * of times to retry before scheduling the taskqueue to process the
+ * queue.
+ */
+#define VTNET_NOTIFY_RETRIES		4
 
 /*
  * Fake the media type. The host does not provide us with any real media

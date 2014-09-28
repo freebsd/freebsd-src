@@ -182,7 +182,8 @@ netvsc_drv_init(void)
 static void
 netvsc_init(void)
 {
-	printf("Netvsc initializing... ");
+	if (bootverbose)
+		printf("Netvsc initializing... ");
 
 	/*
 	 * XXXKYS: cleanup initialization
@@ -190,10 +191,10 @@ netvsc_init(void)
 	if (!cold && !g_netvsc_drv.drv_inited) {
 		g_netvsc_drv.drv_inited = 1;
 		netvsc_drv_init();
-		printf("done!\n");
-	} else {
+		if (bootverbose)
+			printf("done!\n");
+	} else if (bootverbose)
 		printf("Already initialized!\n");
-	}
 }
 
 /* {F8615163-DF3E-46c5-913F-F2D2F965ED0E} */
@@ -214,7 +215,8 @@ netvsc_probe(device_t dev)
 	p = vmbus_get_type(dev);
 	if (!memcmp(p, &g_net_vsc_device_type.data, sizeof(hv_guid))) {
 		device_set_desc(dev, "Synthetic Network Interface");
-		printf("Netvsc probe... DONE \n");
+		if (bootverbose)
+			printf("Netvsc probe... DONE \n");
 
 		return (0);
 	}
@@ -273,7 +275,7 @@ netvsc_attach(device_t dev)
 	/*
 	 * Tell upper layers that we support full VLAN capability.
 	 */
-	ifp->if_data.ifi_hdrlen = sizeof(struct ether_vlan_header);
+	ifp->if_hdrlen = sizeof(struct ether_vlan_header);
 	ifp->if_capabilities |= IFCAP_VLAN_HWTAGGING | IFCAP_VLAN_MTU;
 	ifp->if_capenable |= IFCAP_VLAN_HWTAGGING | IFCAP_VLAN_MTU;
 
@@ -300,7 +302,8 @@ netvsc_detach(device_t dev)
 {
 	struct hv_device *hv_device = vmbus_get_devctx(dev); 
 
-	printf("netvsc_detach\n");
+	if (bootverbose)
+		printf("netvsc_detach\n");
 
 	/*
 	 * XXXKYS:  Need to clean up all our
@@ -341,7 +344,7 @@ netvsc_xmit_completion(void *context)
 	struct mbuf *mb;
 	uint8_t *buf;
 
-	mb = (struct mbuf *)packet->compl.send.send_completion_tid;
+	mb = (struct mbuf *)(uintptr_t)packet->compl.send.send_completion_tid;
 	buf = ((uint8_t *)packet) - HV_NV_PACKET_OFFSET_IN_BUF;
 
 	free(buf, M_DEVBUF);
@@ -491,13 +494,13 @@ retry_send:
 		/* Set the completion routine */
 		packet->compl.send.on_send_completion = netvsc_xmit_completion;
 		packet->compl.send.send_completion_context = packet;
-		packet->compl.send.send_completion_tid = (uint64_t)m_head;
+		packet->compl.send.send_completion_tid = (uint64_t)(uintptr_t)m_head;
 
 		/* Removed critical_enter(), does not appear necessary */
 		ret = hv_rf_on_send(device_ctx, packet);
 
 		if (ret == 0) {
-			ifp->if_opackets++;
+			if_inc_counter(ifp, IFCOUNTER_OPACKETS, 1);
 			/* if bpf && mc_head, call bpf_mtap code */
 			if (mc_head) {
 				ETHER_BPF_MTAP(ifp, mc_head);
@@ -679,7 +682,7 @@ netvsc_recv(struct hv_device *device_ctx, netvsc_packet *packet)
 	 */
 	for (i=0; i < packet->page_buf_count; i++) {
 		/* Shift virtual page number to form virtual page address */
-		uint8_t *vaddr = (uint8_t *)
+		uint8_t *vaddr = (uint8_t *)(uintptr_t)
 		    (packet->page_buffers[i].pfn << PAGE_SHIFT);
 
 		hv_m_append(m_new, packet->page_buffers[i].length,
@@ -699,7 +702,7 @@ netvsc_recv(struct hv_device *device_ctx, netvsc_packet *packet)
 	 * messages (not just data messages) will trigger a response.
 	 */
 
-	ifp->if_ipackets++;
+	if_inc_counter(ifp, IFCOUNTER_IPACKETS, 1);
 
 	/* We're not holding the lock here, so don't release it */
 	(*ifp->if_input)(ifp, m_new);
@@ -895,7 +898,8 @@ hn_stop(hn_softc_t *sc)
 
 	ifp = sc->hn_ifp;
 
-	printf(" Closing Device ...\n");
+	if (bootverbose)
+		printf(" Closing Device ...\n");
 
 	ifp->if_drv_flags &= ~(IFF_DRV_RUNNING | IFF_DRV_OACTIVE);
 	sc->hn_initdone = 0;
@@ -984,7 +988,7 @@ hn_watchdog(struct ifnet *ifp)
 
 	printf("hn%d: watchdog timeout -- resetting\n", sc->hn_unit);
 	hn_ifinit(sc);    /*???*/
-	ifp->if_oerrors++;
+	if_inc_counter(ifp, IFCOUNTER_OERRORS, 1);
 }
 #endif
 

@@ -95,7 +95,7 @@ themselves.
 For example, when a thread wants to access or update page contents
 without a lock held the page is shared busied.
 .Pp
-Before busing a page the vm_object lock must be held.
+Before busying a page the vm_object lock must be held.
 The same rule applies when a page is unbusied.
 This makes the vm_object lock a real busy interlock.
 .Pp

@@ -151,7 +151,10 @@ getbounds(void) {
 	}
 
 	if (fgets(buf, sizeof buf, fp) == NULL) {
-		syslog(LOG_WARNING, "unable to read from bounds, using 0");
+		if (feof(fp))
+			syslog(LOG_WARNING, "bounds file is empty, using 0");
+		else
+			syslog(LOG_WARNING, "bounds file: %s", strerror(errno));
 		fclose(fp);
 		return (ret);
 	}
@@ -160,6 +163,7 @@ getbounds(void) {
 	ret = (int)strtol(buf, NULL, 10);
 	if (ret == 0 && (errno == EINVAL || errno == ERANGE))
 		syslog(LOG_WARNING, "invalid value found in bounds, using 0");
+	fclose(fp);
 	return (ret);
 }
 
@@ -618,7 +622,7 @@ DoFile(const char *savedir, const char *device)
 	 */
 	fdinfo = open(infoname, O_WRONLY | O_CREAT | O_TRUNC, 0600);
 	if (fdinfo < 0) {
-		syslog(LOG_ERR, "%s: %m", buf);
+		syslog(LOG_ERR, "%s: %m", infoname);
 		nerr++;
 		goto closefd;
 	}
@@ -672,7 +676,7 @@ DoFile(const char *savedir, const char *device)
 	if (fclose(fp) < 0) {
 		syslog(LOG_ERR, "error on %s: %m", corename);
 		nerr++;
-		goto closeall;
+		goto closefd;
 	}
 
 	symlinks_remove();

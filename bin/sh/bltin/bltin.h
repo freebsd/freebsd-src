@@ -74,6 +74,6 @@
 
 pointer stalloc(int);
 void error(const char *, ...) __printf0like(1, 2);
-pid_t getjobpgrp(char *);
+int killjob(const char *, int);
 
 extern char *commandname;

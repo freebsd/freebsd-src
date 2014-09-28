@@ -31,7 +31,7 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/systm.h>
-#include <sys/capability.h>
+#include <sys/capsicum.h>
 #include <sys/file.h>
 #include <sys/fcntl.h>
 #include <sys/imgact.h>
@@ -978,37 +978,6 @@ linux_get_thread_area(struct thread *td, struct linux_get_thread_area_args *args
 	   	return (EFAULT);
 
 	return (0);
-}
-
-/* copied from kern/kern_time.c */
-int
-linux_timer_create(struct thread *td, struct linux_timer_create_args *args)
-{
-   	return sys_ktimer_create(td, (struct ktimer_create_args *) args);
-}
-
-int
-linux_timer_settime(struct thread *td, struct linux_timer_settime_args *args)
-{
-   	return sys_ktimer_settime(td, (struct ktimer_settime_args *) args);
-}
-
-int
-linux_timer_gettime(struct thread *td, struct linux_timer_gettime_args *args)
-{
-   	return sys_ktimer_gettime(td, (struct ktimer_gettime_args *) args);
-}
-
-int
-linux_timer_getoverrun(struct thread *td, struct linux_timer_getoverrun_args *args)
-{
-   	return sys_ktimer_getoverrun(td, (struct ktimer_getoverrun_args *) args);
-}
-
-int
-linux_timer_delete(struct thread *td, struct linux_timer_delete_args *args)
-{
-   	return sys_ktimer_delete(td, (struct ktimer_delete_args *) args);
 }
 
 /* XXX: this wont work with module - convert it */

@@ -45,7 +45,7 @@ struct arm_devmap_entry {
  * Return the lowest KVA address used in any entry in the registered devmap
  * table.  This works with whatever table is registered, including the internal
  * table used by arm_devmap_add_entry() if that routine was used. Platforms can
- * implement initarm_lastaddr() by calling this if static device mappings are
+ * implement platform_lastaddr() by calling this if static device mappings are
  * their only use of high KVA space.
  */
 vm_offset_t arm_devmap_lastaddr(void);

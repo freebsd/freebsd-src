@@ -37,11 +37,11 @@ INSTALLATION
 5. make install
 
 
-* Building from subversion repository
+* Building from repository
 
 If you are building from the repository you will need to have (gnu)
 autotools like libtool and autoreconf installed. A list of all the commands
-needed to build everything can be found in README.svn. Note that the actual
+needed to build everything can be found in README.git. Note that the actual
 commands may be a little bit different on your machine. Most notable, you'll need to run libtoolize (or glibtoolize), if you skip this step, you'll get an error about missing config.sub.
 
 * Developers

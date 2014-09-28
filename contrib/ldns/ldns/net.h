@@ -50,7 +50,6 @@ ldns_status ldns_udp_send(uint8_t **result, ldns_buffer *qbin, const struct sock
  * \param[in] timeout *unused*, was the timeout value for the network
  * \return the socket used
  */
-
 int ldns_udp_bgsend(ldns_buffer *qbin, const struct sockaddr_storage *to, socklen_t tolen, struct timeval timeout);
 
 /**

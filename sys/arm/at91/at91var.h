@@ -168,5 +168,6 @@ void at91_add_child(device_t dev, int prio, const char *name, int unit,
 extern uint32_t at91_irq_system;
 extern uint32_t at91_master_clock;
 void at91_pmc_init_clock(void);
+void at91_soc_id(void);
 
 #endif /* _AT91VAR_H_ */

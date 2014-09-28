@@ -28,7 +28,7 @@
 .\"     @(#)directory.3	8.1 (Berkeley) 6/4/93
 .\" $FreeBSD$
 .\"
-.Dd August 18, 2013
+.Dd July 28, 2014
 .Dt DIRECTORY 3
 .Os
 .Sh NAME
@@ -169,6 +169,10 @@ If the directory is closed and then
 reopened, prior values returned by
 .Fn telldir
 will no longer be valid.
+Values returned by
+.Fn telldir
+are also invalidated by a call to
+.Fn rewinddir .
 .Pp
 The
 .Fn seekdir
@@ -182,13 +186,6 @@ The new position reverts to the one associated with the
 when the
 .Fn telldir
 operation was performed.
-State associated with the token returned by
-.Fn telldir is freed when it is passed to
-.Fn seekdir .
-If you wish return to the same location again,
-then you must create a new token with another
-.Fn telldir
-call.
 .Pp
 The
 .Fn rewinddir

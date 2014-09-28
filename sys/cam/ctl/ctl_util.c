@@ -84,6 +84,7 @@ static struct ctl_task_desc ctl_task_table[] = {
 	{CTL_TASK_ABORT_TASK_SET, "Abort Task Set"},
 	{CTL_TASK_CLEAR_ACA, "Clear ACA"},
 	{CTL_TASK_CLEAR_TASK_SET, "Clear Task Set"},
+	{CTL_TASK_I_T_NEXUS_RESET, "I_T Nexus Reset"},
 	{CTL_TASK_LUN_RESET, "LUN Reset"},
 	{CTL_TASK_TARGET_RESET, "Target Reset"},
 	{CTL_TASK_BUS_RESET, "Bus Reset"},
@@ -335,6 +336,37 @@ ctl_scsi_read_write(union ctl_io *io, uint8_t *data_ptr, uint32_t data_len,
 		io->io_hdr.flags = CTL_FLAG_DATA_IN;
 	else
 		io->io_hdr.flags = CTL_FLAG_DATA_OUT;
+	ctsio->tag_type = tag_type;
+	ctsio->ext_data_ptr = data_ptr;
+	ctsio->ext_data_len = data_len;
+	ctsio->ext_sg_entries = 0;
+	ctsio->ext_data_filled = 0;
+	ctsio->sense_len = SSD_FULL_SIZE;
+}
+
+void
+ctl_scsi_write_same(union ctl_io *io, uint8_t *data_ptr, uint32_t data_len,
+		    uint8_t byte2, uint64_t lba, uint32_t num_blocks,
+		    ctl_tag_type tag_type, uint8_t control)
+{
+	struct ctl_scsiio *ctsio;
+	struct scsi_write_same_16 *cdb;
+
+	ctl_scsi_zero_io(io);
+
+	io->io_hdr.io_type = CTL_IO_SCSI;
+	ctsio = &io->scsiio;
+	ctsio->cdb_len = sizeof(*cdb);
+	cdb = (struct scsi_write_same_16 *)ctsio->cdb;
+	cdb->opcode = WRITE_SAME_16;
+	cdb->byte2 = byte2;
+	scsi_u64to8b(lba, cdb->addr);
+	scsi_ulto4b(num_blocks, cdb->length);
+	cdb->group = 0;
+	cdb->control = control;
+
+	io->io_hdr.io_type = CTL_IO_SCSI;
+	io->io_hdr.flags = CTL_FLAG_DATA_OUT;
 	ctsio->tag_type = tag_type;
 	ctsio->ext_data_ptr = data_ptr;
 	ctsio->ext_data_len = data_len;

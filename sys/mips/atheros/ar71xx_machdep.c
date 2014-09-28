@@ -140,6 +140,34 @@ ar71xx_redboot_get_macaddr(void)
 	}
 }
 
+#ifdef	AR71XX_ENV_ROUTERBOOT
+/*
+ * RouterBoot gives us the board memory in a command line argument.
+ */
+static int
+ar71xx_routerboot_get_mem(int argc, char **argv)
+{
+	int i, board_mem;
+
+	/*
+	 * Protect ourselves from garbage in registers.
+	 */
+	if (!MIPS_IS_VALID_PTR(argv))
+		return (0);
+
+	for (i = 0; i < argc; i++) {
+		if (argv[i] == NULL)
+			continue;
+		if (strncmp(argv[i], "mem=", 4) == 0) {
+			if (sscanf(argv[i] + 4, "%dM", &board_mem) == 1)
+				return (btoc(board_mem * 1024 * 1024));
+		}
+	}
+
+	return (0);
+}
+#endif
+
 void
 platform_start(__register_t a0 __unused, __register_t a1 __unused, 
     __register_t a2 __unused, __register_t a3 __unused)
@@ -182,6 +210,14 @@ platform_start(__register_t a0 __unused, __register_t a1 __unused,
 				realmem = btoc(strtoul(envp[i+1], NULL, 16));
 		}
 	}
+
+#ifdef	AR71XX_ENV_ROUTERBOOT
+	/*
+	 * RouterBoot informs the board memory as a command line argument.
+	 */
+	if (realmem == 0)
+		realmem = ar71xx_routerboot_get_mem(argc, argv);
+#endif
 
 	/*
 	 * Just wild guess. RedBoot let us down and didn't reported 

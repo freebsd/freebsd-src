@@ -38,7 +38,9 @@ char *copyright =
 #include <signal.h>
 #include <setjmp.h>
 #include <ctype.h>
+#include <sys/jail.h>
 #include <sys/time.h>
+#include <jail.h>
 
 /* includes specific to top */
 #include "display.h"		/* interface to display package */
@@ -198,9 +200,9 @@ char *argv[];
     fd_set readfds;
 
 #ifdef ORDER
-    static char command_chars[] = "\f qh?en#sdkriIutHmSCajzPo";
+    static char command_chars[] = "\f qh?en#sdkriIutHmSCajzPJo";
 #else
-    static char command_chars[] = "\f qh?en#sdkriIutHmSCajzP";
+    static char command_chars[] = "\f qh?en#sdkriIutHmSCajzPJ";
 #endif
 /* these defines enumerate the "strchr"s of the commands in command_chars */
 #define CMD_redraw	0
@@ -228,8 +230,9 @@ char *argv[];
 #define	CMD_jidtog	21
 #define CMD_kidletog	22
 #define CMD_pcputog	23
+#define CMD_jail	24
 #ifdef ORDER
-#define CMD_order       24
+#define CMD_order       25
 #endif
 
     /* set the buffer for stdout */
@@ -261,6 +264,7 @@ char *argv[];
     ps.uid     = -1;
     ps.thread  = No;
     ps.wcpu    = 1;
+    ps.jid     = -1;
     ps.jail    = No;
     ps.kidle   = Yes;
     ps.command = NULL;
@@ -288,7 +292,7 @@ char *argv[];
 	    optind = 1;
 	}
 
-	while ((i = getopt(ac, av, "CSIHPabijnquvzs:d:U:m:o:t")) != EOF)
+	while ((i = getopt(ac, av, "CSIHPabijJ:nquvzs:d:U:m:o:t")) != EOF)
 	{
 	    switch(i)
 	    {
@@ -413,6 +417,15 @@ char *argv[];
 		ps.jail = !ps.jail;
 		break;
 
+	      case 'J':			/* display only jail's processes */
+		if ((ps.jid = jail_getid(optarg)) == -1)
+		{
+		    fprintf(stderr, "%s: unknown jail\n", optarg);
+		    exit(1);
+		}
+		ps.jail = 1;
+		break;
+
 	      case 'P':
 		pcpu_stats = !pcpu_stats;
 		break;
@@ -425,7 +438,7 @@ char *argv[];
 		fprintf(stderr,
 "Top version %s\n"
 "Usage: %s [-abCHIijnPqStuvz] [-d count] [-m io | cpu] [-o field] [-s time]\n"
-"       [-U username] [number]\n",
+"       [-J jail] [-U username] [number]\n",
 			version_string(), myname);
 		exit(1);
 	    }
@@ -994,7 +1007,7 @@ restart:
 
 			    case CMD_user:
 				new_message(MT_standout,
-				    "Username to show: ");
+				    "Username to show (+ for all): ");
 				if (readline(tempbuf2, sizeof(tempbuf2), No) > 0)
 				{
 				    if (tempbuf2[0] == '+' &&
@@ -1085,6 +1098,44 @@ restart:
 				reset_display();
 				putchar('\r');
 				break;
+
+			    case CMD_jail:
+				new_message(MT_standout,
+				    "Jail to show (+ for all): ");
+				if (readline(tempbuf2, sizeof(tempbuf2), No) > 0)
+				{
+				    if (tempbuf2[0] == '+' &&
+					tempbuf2[1] == '\0')
+				    {
+					ps.jid = -1;
+				    }
+				    else if ((i = jail_getid(tempbuf2)) == -1)
+				    {
+					new_message(MT_standout,
+					    " %s: unknown jail", tempbuf2);
+					no_command = Yes;
+				    }
+				    else
+				    {
+					ps.jid = i;
+				    }
+				    if (ps.jail == 0) {
+					    ps.jail = 1;
+					    new_message(MT_standout |
+						MT_delayed, " Displaying jail "
+						"ID.");
+					    header_text =
+						format_header(uname_field);
+					    reset_display();
+				    }
+				    putchar('\r');
+				}
+				else
+				{
+				    clear_message();
+				}
+				break;
+	    
 			    case CMD_kidletog:
 				ps.kidle = !ps.kidle;
 				new_message(MT_standout | MT_delayed,

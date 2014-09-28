@@ -108,6 +108,9 @@ ata_op_string(struct ata_cmd *cmd)
 	case 0x51: return ("CONFIGURE_STREAM");
 	case 0x60: return ("READ_FPDMA_QUEUED");
 	case 0x61: return ("WRITE_FPDMA_QUEUED");
+	case 0x63: return ("NCQ_NON_DATA");
+	case 0x64: return ("SEND_FPDMA_QUEUED");
+	case 0x65: return ("RECEIVE_FPDMA_QUEUED");
 	case 0x67:
 		if (cmd->features == 0xec)
 			return ("SEP_ATTN IDENTIFY");
@@ -338,10 +341,10 @@ semb_print_ident_short(struct sep_identify_data *ident_data)
 uint32_t
 ata_logical_sector_size(struct ata_params *ident_data)
 {
-	if ((ident_data->pss & 0xc000) == 0x4000 &&
+	if ((ident_data->pss & ATA_PSS_VALID_MASK) == ATA_PSS_VALID_VALUE &&
 	    (ident_data->pss & ATA_PSS_LSSABOVE512)) {
-		return ((u_int32_t)ident_data->lss_1 |
-		    ((u_int32_t)ident_data->lss_2 << 16));
+		return (((u_int32_t)ident_data->lss_1 |
+		    ((u_int32_t)ident_data->lss_2 << 16)) * 2);
 	}
 	return (512);
 }
@@ -349,10 +352,13 @@ ata_logical_sector_size(struct ata_params *ident_data)
 uint64_t
 ata_physical_sector_size(struct ata_params *ident_data)
 {
-	if ((ident_data->pss & 0xc000) == 0x4000 &&
-	    (ident_data->pss & ATA_PSS_MULTLS)) {
-		return ((uint64_t)ata_logical_sector_size(ident_data) *
-		    (1 << (ident_data->pss & ATA_PSS_LSPPS)));
+	if ((ident_data->pss & ATA_PSS_VALID_MASK) == ATA_PSS_VALID_VALUE) {
+		if (ident_data->pss & ATA_PSS_MULTLS) {
+			return ((uint64_t)ata_logical_sector_size(ident_data) *
+			    (1 << (ident_data->pss & ATA_PSS_LSPPS)));
+		} else {
+			return (uint64_t)ata_logical_sector_size(ident_data);
+		}
 	}
 	return (512);
 }

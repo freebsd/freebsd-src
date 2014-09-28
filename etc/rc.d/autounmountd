@@ -1,0 +1,18 @@
+#!/bin/sh
+#
+# $FreeBSD$
+#
+
+# PROVIDE: autounmountd
+# REQUIRE: nfsclient
+# KEYWORD: nojail
+
+. /etc/rc.subr
+
+name="autounmountd"
+rcvar="autofs_enable"
+pidfile="/var/run/${name}.pid"
+command="/usr/sbin/${name}"
+
+load_rc_config $name
+run_rc_command "$1"

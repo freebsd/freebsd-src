@@ -232,22 +232,6 @@ static struct cdevsw cx_cdevsw = {
 static int MY_SOFT_INTR;
 
 /*
- * Print the mbuf chain, for debug purposes only.
- */
-static void printmbuf (struct mbuf *m)
-{
-	printf ("mbuf:");
-	for (; m; m=m->m_next) {
-		if (m->m_flags & M_PKTHDR)
-			printf (" HDR %d:", m->m_pkthdr.len);
-		if (m->m_flags & M_EXT)
-			printf (" EXT:");
-		printf (" %d", m->m_len);
-	}
-	printf ("\n");
-}
-
-/*
  * Make an mbuf from data.
  */
 static struct mbuf *makembuf (void *buf, u_int len)
@@ -1267,7 +1251,7 @@ static void cx_transmit (cx_chan_t *c, void *attachment, int len)
 	}
 	d->timeout = 0;
 #ifndef NETGRAPH
-	++d->ifp->if_opackets;
+	if_inc_counter(d->ifp, IFCOUNTER_OPACKETS, 1);
 	d->ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
 #endif
 	cx_start (d);
@@ -1320,17 +1304,17 @@ static void cx_receive (cx_chan_t *c, char *data, int len)
 	if (! m) {
 		CX_DEBUG (d, ("no memory for packet\n"));
 #ifndef NETGRAPH
-		++d->ifp->if_iqdrops;
+		if_inc_counter(d->ifp, IFCOUNTER_IQDROPS, 1);
 #endif
 		return;
 	}
 	if (c->debug > 1)
-		printmbuf (m);
+		m_print (m, 0);
 #ifdef NETGRAPH
 	m->m_pkthdr.rcvif = 0;
 	NG_SEND_DATA_ONLY (error, d->hook, m);
 #else
-	++d->ifp->if_ipackets;
+	if_inc_counter(d->ifp, IFCOUNTER_IPACKETS, 1);
 	m->m_pkthdr.rcvif = d->ifp;
 	/* Check if there's a BPF listener on this interface.
 	 * If so, hand off the raw packet to bpf. */
@@ -1373,7 +1357,7 @@ static void cx_error (cx_chan_t *c, int data)
 		}
 #ifndef NETGRAPH
 		else
-			++d->ifp->if_ierrors;
+			if_inc_counter(d->ifp, IFCOUNTER_IERRORS, 1);
 #endif
 		break;
 	case CX_CRC:
@@ -1390,7 +1374,7 @@ static void cx_error (cx_chan_t *c, int data)
 		}
 #ifndef NETGRAPH
 		else
-			++d->ifp->if_ierrors;
+			if_inc_counter(d->ifp, IFCOUNTER_IERRORS, 1);
 #endif
 		break;
 	case CX_OVERRUN:
@@ -1407,8 +1391,8 @@ static void cx_error (cx_chan_t *c, int data)
 #endif
 #ifndef NETGRAPH
 		else {
-			++d->ifp->if_collisions;
-			++d->ifp->if_ierrors;
+			if_inc_counter(d->ifp, IFCOUNTER_COLLISIONS, 1);
+			if_inc_counter(d->ifp, IFCOUNTER_IERRORS, 1);
 		}
 #endif
 		break;
@@ -1416,7 +1400,7 @@ static void cx_error (cx_chan_t *c, int data)
 		CX_DEBUG (d, ("overflow error\n"));
 #ifndef NETGRAPH
 		if (c->mode != M_ASYNC)
-			++d->ifp->if_ierrors;
+			if_inc_counter(d->ifp, IFCOUNTER_IERRORS, 1);
 #endif
 		break;
 	case CX_UNDERRUN:
@@ -1424,7 +1408,7 @@ static void cx_error (cx_chan_t *c, int data)
 		if (c->mode != M_ASYNC) {
 			d->timeout = 0;
 #ifndef NETGRAPH
-			++d->ifp->if_oerrors;
+			if_inc_counter(d->ifp, IFCOUNTER_OERRORS, 1);
 			d->ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
 #endif
 			cx_start (d);
@@ -1443,7 +1427,7 @@ static void cx_error (cx_chan_t *c, int data)
 		}
 #ifndef NETGRAPH
 		else
-			++d->ifp->if_ierrors;
+			if_inc_counter(d->ifp, IFCOUNTER_IERRORS, 1);
 #endif
 		break;
 	default:
@@ -2437,7 +2421,6 @@ static int ng_cx_rcvdata (hook_p hook, item_p item)
 	CX_LOCK (bd);
 	IF_LOCK (q);
 	if (_IF_QFULL (q)) {
-		_IF_DROP (q);
 		IF_UNLOCK (q);
 		CX_UNLOCK (bd);
 		splx (s);

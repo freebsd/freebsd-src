@@ -95,9 +95,9 @@ static void restartjob(struct job *);
 #endif
 static void freejob(struct job *);
 static int waitcmdloop(struct job *);
-static struct job *getjob_nonotfound(char *);
-static struct job *getjob(char *);
-pid_t getjobpgrp(char *);
+static struct job *getjob_nonotfound(const char *);
+static struct job *getjob(const char *);
+pid_t killjob(const char *, int);
 static pid_t dowait(int, struct job *);
 static void checkzombies(void);
 static void cmdtxt(union node *);
@@ -118,6 +118,24 @@ static void showjob(struct job *, int);
 static int jobctl;
 
 #if JOBS
+static void
+jobctl_notty(void)
+{
+	if (ttyfd >= 0) {
+		close(ttyfd);
+		ttyfd = -1;
+	}
+	if (!iflag) {
+		setsignal(SIGTSTP);
+		setsignal(SIGTTOU);
+		setsignal(SIGTTIN);
+		jobctl = 1;
+		return;
+	}
+	out2fmt_flush("sh: can't access tty; job control turned off\n");
+	mflag = 0;
+}
+
 void
 setjobctl(int on)
 {
@@ -133,8 +151,10 @@ setjobctl(int on)
 			while (i <= 2 && !isatty(i))
 				i++;
 			if (i > 2 ||
-			    (ttyfd = fcntl(i, F_DUPFD_CLOEXEC, 10)) < 0)
-				goto out;
+			    (ttyfd = fcntl(i, F_DUPFD_CLOEXEC, 10)) < 0) {
+				jobctl_notty();
+				return;
+			}
 		}
 		if (ttyfd < 10) {
 			/*
@@ -142,9 +162,8 @@ setjobctl(int on)
 			 * the user's redirections.
 			 */
 			if ((i = fcntl(ttyfd, F_DUPFD_CLOEXEC, 10)) < 0) {
-				close(ttyfd);
-				ttyfd = -1;
-				goto out;
+				jobctl_notty();
+				return;
 			}
 			close(ttyfd);
 			ttyfd = i;
@@ -152,11 +171,15 @@ setjobctl(int on)
 		do { /* while we are in the background */
 			initialpgrp = tcgetpgrp(ttyfd);
 			if (initialpgrp < 0) {
-out:				out2fmt_flush("sh: can't access tty; job control turned off\n");
-				mflag = 0;
+				jobctl_notty();
 				return;
 			}
 			if (initialpgrp != getpgrp()) {
+				if (!iflag) {
+					initialpgrp = -1;
+					jobctl_notty();
+					return;
+				}
 				kill(0, SIGTTIN);
 				continue;
 			}
@@ -168,9 +191,11 @@ out:				out2fmt_flush("sh: can't access tty; job control turned off\n");
 		tcsetpgrp(ttyfd, rootpid);
 	} else { /* turning job control off */
 		setpgid(0, initialpgrp);
-		tcsetpgrp(ttyfd, initialpgrp);
-		close(ttyfd);
-		ttyfd = -1;
+		if (ttyfd >= 0) {
+			tcsetpgrp(ttyfd, initialpgrp);
+			close(ttyfd);
+			ttyfd = -1;
+		}
 		setsignal(SIGTSTP);
 		setsignal(SIGTTOU);
 		setsignal(SIGTTIN);
@@ -195,7 +220,8 @@ fgcmd(int argc __unused, char **argv __unused)
 	printjobcmd(jp);
 	flushout(&output);
 	pgrp = jp->ps[0].pid;
-	tcsetpgrp(ttyfd, pgrp);
+	if (ttyfd >= 0)
+		tcsetpgrp(ttyfd, pgrp);
 	restartjob(jp);
 	jp->foreground = 1;
 	INTOFF;
@@ -558,10 +584,11 @@ jobidcmd(int argc __unused, char **argv __unused)
  */
 
 static struct job *
-getjob_nonotfound(char *name)
+getjob_nonotfound(const char *name)
 {
 	int jobno;
 	struct job *found, *jp;
+	size_t namelen;
 	pid_t pid;
 	int i;
 
@@ -603,10 +630,12 @@ currentjob:	if ((jp = getcurjob(NULL)) == NULL)
 			if (found != NULL)
 				return (found);
 		} else {
+			namelen = strlen(name);
 			found = NULL;
 			for (jp = jobtab, i = njobs ; --i >= 0 ; jp++) {
 				if (jp->used && jp->nprocs > 0
-				 && prefix(name + 1, jp->ps[0].cmd)) {
+				 && strncmp(jp->ps[0].cmd, name + 1,
+				 namelen - 1) == 0) {
 					if (found)
 						error("%s: ambiguous", name);
 					found = jp;
@@ -628,7 +657,7 @@ currentjob:	if ((jp = getcurjob(NULL)) == NULL)
 
 
 static struct job *
-getjob(char *name)
+getjob(const char *name)
 {
 	struct job *jp;
 
@@ -639,13 +668,26 @@ getjob(char *name)
 }
 
 
-pid_t
-getjobpgrp(char *name)
+int
+killjob(const char *name, int sig)
 {
 	struct job *jp;
+	int i, ret;
 
 	jp = getjob(name);
-	return -jp->ps[0].pid;
+	if (jp->state == JOBDONE)
+		return 0;
+	if (jp->jobctl)
+		return kill(-jp->ps[0].pid, sig);
+	ret = -1;
+	errno = ESRCH;
+	for (i = 0; i < jp->nprocs; i++)
+		if (jp->ps[i].status == -1 || WIFSTOPPED(jp->ps[i].status)) {
+			if (kill(jp->ps[i].pid, sig) == 0)
+				ret = 0;
+		} else
+			ret = 0;
+	return ret;
 }
 
 /*
@@ -831,7 +873,8 @@ forkshell(struct job *jp, union node *n, int mode)
 				pgrp = getpid();
 			else
 				pgrp = jp->ps[0].pid;
-			if (setpgid(0, pgrp) == 0 && mode == FORK_FG) {
+			if (setpgid(0, pgrp) == 0 && mode == FORK_FG &&
+			    ttyfd >= 0) {
 				/*** this causes superfluous TIOCSPGRPS ***/
 				if (tcsetpgrp(ttyfd, pgrp) < 0)
 					error("tcsetpgrp failed, errno=%d", errno);
@@ -991,7 +1034,7 @@ waitforjob(struct job *jp, int *origstatus)
 			dotrap();
 #if JOBS
 	if (jp->jobctl) {
-		if (tcsetpgrp(ttyfd, rootpid) < 0)
+		if (ttyfd >= 0 && tcsetpgrp(ttyfd, rootpid) < 0)
 			error("tcsetpgrp failed, errno=%d\n", errno);
 	}
 	if (jp->state == JOBSTOPPED)
@@ -1108,7 +1151,8 @@ dowait(int mode, struct job *job)
 			for (sp = jp->ps ; sp < jp->ps + jp->nprocs ; sp++) {
 				if (sp->pid == -1)
 					continue;
-				if (sp->pid == pid) {
+				if (sp->pid == pid && (sp->status == -1 ||
+				    WIFSTOPPED(sp->status))) {
 					TRACE(("Changing status of proc %d from 0x%x to 0x%x\n",
 						   (int)pid, sp->status,
 						   status));

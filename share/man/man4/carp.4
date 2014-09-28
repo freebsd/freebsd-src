@@ -210,17 +210,18 @@ Enable it on both hosts A and B:
 .Pp
 Assume that host A is the preferred master and we are running the
 192.168.1.0/24 prefix on em0 and 192.168.2.0/24 on em1.
-This is the setup for host A:
+This is the setup for host A (advskew is above 0 so it could be overwritten
+in the emergency situation from the other host):
 .Bd -literal -offset indent
-ifconfig em0 vhid 1 pass mekmitasdigoat 192.168.1.1/24
-ifconfig em1 vhid 2 pass mekmitasdigoat 192.168.2.1/24
+ifconfig em0 vhid 1 advskew 100 pass mekmitasdigoat 192.168.1.1/24
+ifconfig em1 vhid 2 advskew 100 pass mekmitasdigoat 192.168.2.1/24
 .Ed
 .Pp
 The setup for host B is identical, but it has a higher
 .Cm advskew :
 .Bd -literal -offset indent
-ifconfig em0 vhid 1 advskew 100 pass mekmitasdigoat 192.168.1.1/24
-ifconfig em1 vhid 2 advskew 100 pass mekmitasdigoat 192.168.2.1/24
+ifconfig em0 vhid 1 advskew 200 pass mekmitasdigoat 192.168.1.1/24
+ifconfig em1 vhid 2 advskew 200 pass mekmitasdigoat 192.168.2.1/24
 .Ed
 .Pp
 When one of the physical interfaces of host A fails,
@@ -246,9 +247,9 @@ preempt host A on both interfaces instead of just the failed one.
 .\"out slightly less frequently.
 .\".Bd -literal -offset indent
 .\"ifconfig carp0 create
-.\"ifconfig carp0 vhid 1 pass mekmitasdigoat 192.168.1.10/24
+.\"ifconfig carp0 vhid 1 advskew 100 pass mekmitasdigoat 192.168.1.10/24
 .\"ifconfig carp1 create
-.\"ifconfig carp1 vhid 2 advskew 100 pass mekmitasdigoat 192.168.1.10/24
+.\"ifconfig carp1 vhid 2 advskew 200 pass mekmitasdigoat 192.168.1.10/24
 .\".Ed
 .\".Pp
 .\"The configuration for host B is identical, except the
@@ -256,9 +257,9 @@ preempt host A on both interfaces instead of just the failed one.
 .\"is on virtual host 1 rather than virtual host 2.
 .\".Bd -literal -offset indent
 .\"ifconfig carp0 create
-.\"ifconfig carp0 vhid 1 advskew 100 pass mekmitasdigoat 192.168.1.10/24
+.\"ifconfig carp0 vhid 1 advskew 200 pass mekmitasdigoat 192.168.1.10/24
 .\"ifconfig carp1 create
-.\"ifconfig carp1 vhid 2 pass mekmitasdigoat 192.168.1.10/24
+.\"ifconfig carp1 vhid 2 advskew 100 pass mekmitasdigoat 192.168.1.10/24
 .\".Ed
 .\".Pp
 .\"Finally, the ARP balancing feature must be enabled on both hosts:

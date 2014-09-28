@@ -18,19 +18,19 @@
 .\" information: Portions Copyright [yyyy] [name of copyright owner]
 .\"
 .\" Copyright (c) 2010, Sun Microsystems, Inc. All Rights Reserved.
-.\" Copyright (c) 2013 by Delphix. All rights reserved.
+.\" Copyright (c) 2014 by Delphix. All rights reserved.
 .\" Copyright (c) 2011, Pawel Jakub Dawidek <pjd@FreeBSD.org>
 .\" Copyright (c) 2012, Glen Barber <gjb@FreeBSD.org>
 .\" Copyright (c) 2012, Bryan Drewery <bdrewery@FreeBSD.org>
 .\" Copyright (c) 2013 by Saso Kiselkov. All rights reserved.
 .\" Copyright (c) 2013 Nexenta Systems, Inc. All Rights Reserved.
-.\" Copyright (c) 2013, Joyent, Inc. All rights reserved.
+.\" Copyright (c) 2014, Joyent, Inc. All rights reserved.
 .\" Copyright (c) 2013, Steven Hartland <smh@FreeBSD.org>
 .\" Copyright (c) 2014, Xin LI <delphij@FreeBSD.org>
 .\"
 .\" $FreeBSD$
 .\"
-.Dd January 2, 2014
+.Dd June 30, 2014
 .Dt ZFS 8
 .Os
 .Sh NAME
@@ -179,11 +179,12 @@
 .Ar bookmark
 .Nm
 .Cm send
-.Op Fl DnPpRv
+.Op Fl DnPpRve
 .Op Fl i Ar snapshot | Fl I Ar snapshot
 .Ar snapshot
 .Nm
 .Cm send
+.Op Fl e
 .Op Fl i Ar snapshot Ns | Ns bookmark
 .Ar filesystem Ns | Ns Ar volume Ns | Ns Ar snapshot
 .Nm
@@ -542,6 +543,13 @@ if the snapshot has been marked for deferred destroy by using the
 .Qq Nm Cm destroy -d
 command. Otherwise, the property is
 .Cm off .
+.It Sy filesystem_count
+The total number of filesystems and volumes that exist under this location in the
+dataset tree.
+This value is only available when a
+.Sy filesystem_limit
+has
+been set somewhere in the tree under which the dataset resides.
 .It Sy logicalreferenced
 The amount of space that is
 .Qq logically
@@ -600,6 +608,12 @@ The compression ratio achieved for the
 space of this dataset, expressed as a multiplier.  See also the
 .Sy compressratio
 property.
+.It Sy snapshot_count
+The total number of snapshots that exist under this location in the dataset tree.
+This value is only available when a
+.Sy snapshot_limit
+has been set somewhere
+in the tree under which the dataset resides.
 .It Sy type
 The type of dataset:
 .Sy filesystem , volume , No or Sy snapshot .
@@ -1020,6 +1034,23 @@ The
 .Sy mlslabel
 property is currently not supported on
 .Fx .
+.It Sy filesystem_limit Ns = Ns Ar count | Cm none
+Limits the number of filesystems and volumes that can exist under this point in
+the dataset tree.
+The limit is not enforced if the user is allowed to change
+the limit.
+Setting a
+.Sy filesystem_limit
+on a descendent of a filesystem that
+already has a
+.Sy filesystem_limit
+does not override the ancestor's
+.Sy filesystem_limit ,
+but rather imposes an additional limit.
+This feature must be enabled to be used
+.Po see
+.Xr zpool-features 7
+.Pc .
 .It Sy mountpoint Ns = Ns Ar path | Cm none | legacy
 Controls the mount point used for this file system. See the
 .Qq Sx Mount Points
@@ -1061,6 +1092,27 @@ the ancestor's quota, but rather imposes an additional limit.
 Quotas cannot be set on volumes, as the
 .Sy volsize
 property acts as an implicit quota.
+.It Sy snapshot_limit Ns = Ns Ar count | Cm none
+Limits the number of snapshots that can be created on a dataset and its
+descendents.
+Setting a
+.Sy snapshot_limit
+on a descendent of a dataset that already
+has a
+.Sy snapshot_limit
+does not override the ancestor's
+.Sy snapshot_limit ,
+but
+rather imposes an additional limit.
+The limit is not enforced if the user is
+allowed to change the limit.
+For example, this means that recursive snapshots
+taken from the global zone are counted against each delegated dataset within
+a jail.
+This feature must be enabled to be used
+.Po see
+.Xr zpool-features 7
+.Pc .
 .It Sy userquota@ Ns Ar user Ns = Ns Ar size | Cm none
 Limits the amount of space consumed by the specified user.
 Similar to the
@@ -1142,6 +1194,53 @@ affects only files created afterward; existing files are unaffected.
 .Pp
 This property can also be referred to by its shortened column name,
 .Sy recsize .
+.It Sy redundant_metadata Ns = Ns Cm all | most
+Controls what types of metadata are stored redundantly.
+ZFS stores an extra copy of metadata, so that if a single block is corrupted,
+the amount of user data lost is limited.
+This extra copy is in addition to any redundancy provided at the pool level
+.Pq e.g. by mirroring or RAID-Z ,
+and is in addition to an extra copy specified by the
+.Sy copies
+property
+.Pq up to a total of 3 copies .
+For example if the pool is mirrored,
+.Cm copies Ns = Ns Ar 2 ,
+and
+.Cm redundant_metadata Ns = Ns Ar most ,
+then ZFS
+stores 6 copies of most metadata, and 4 copies of data and some
+metadata.
+.Pp
+When set to
+.Cm all ,
+ZFS stores an extra copy of all metadata.
+If a
+single on-disk block is corrupt, at worst a single block of user data
+.Po which is
+.Cm recordsize
+bytes long
+can be lost.
+.Pc
+.Pp
+When set to
+.Cm most ,
+ZFS stores an extra copy of most types of
+metadata.
+This can improve performance of random writes, because less
+metadata must be written.
+In practice, at worst about 100 blocks
+.Po of
+.Cm recordsize
+bytes each
+.Pc
+of user data can be lost if a single
+on-disk block is corrupt.
+The exact behavior of which metadata blocks
+are stored redundantly may change in future releases.
+.Pp
+The default value is
+.Cm all .
 .It Sy refquota Ns = Ns Ar size | Cm none
 Limits the amount of space a dataset can consume. This property enforces a hard
 limit on the amount of space used. This hard limit does not include space used
@@ -1306,6 +1405,38 @@ Consequently, writes to a sparse volume can fail with
 when the pool is low on space. For a sparse volume, changes to
 .Sy volsize
 are not reflected in the reservation.
+.It Sy volmode Ns = Ns Cm default | geom | dev | none
+This property specifies how volumes should be exposed to the OS.
+Setting it to
+.Sy geom
+exposes volumes as
+.Xr geom 4
+providers, providing maximal functionality.
+Setting it to
+.Sy dev
+exposes volumes only as cdev device in devfs.
+Such volumes can be accessed only as raw disk device files, i.e. they
+can not be partitioned, mounted, participate in RAIDs, etc, but they
+are faster, and in some use scenarios with untrusted consumer, such as
+NAS or VM storage, can be more safe.
+Volumes with property set to
+.Sy none
+are not exposed outside ZFS, but can be snapshoted, cloned, replicated, etc,
+that can be suitable for backup purposes.
+Value
+.Sy default
+means that volumes exposition is controlled by system-wide sysctl/tunable
+.Va vfs.zfs.vol.mode ,
+where
+.Sy geom ,
+.Sy dev
+and
+.Sy none
+are encoded as 1, 2 and 3 respectively.
+The default values is
+.Sy geom .
+This property can be changed any time, but so far it is processed only
+during volume creation and pool import.
 .It Sy vscan Ns = Ns Cm off | on
 The
 .Sy vscan
@@ -1335,10 +1466,21 @@ features being supported, the new file system will have the default values for
 these properties.
 .Bl -tag -width 4n
 .It Sy casesensitivity Ns = Ns Cm sensitive | insensitive | mixed
-The
+Indicates whether the file name matching algorithm used by the file system
+should be case-sensitive, case-insensitive, or allow a combination of both
+styles of matching. The default value for the
 .Sy casesensitivity
-property is currently not supported on
-.Fx .
+property is
+.Cm sensitive .
+Traditionally, UNIX and POSIX file systems have case-sensitive file names.
+.Pp
+The
+.Cm mixed
+value for the
+.Sy casesensitivity
+property indicates that the
+file system can support requests for both case-sensitive and case-insensitive
+matching behavior.
 .It Sy normalization Ns = Ns Cm none | formC | formD | formKC | formKD
 Indicates whether the file system should perform a
 .Sy unicode
@@ -2335,7 +2477,7 @@ feature.
 .It Xo
 .Nm
 .Cm send
-.Op Fl DnPpRv
+.Op Fl DnPpRve
 .Op Fl i Ar snapshot | Fl I Ar snapshot
 .Ar snapshot
 .Xc
@@ -2407,6 +2549,29 @@ be used regardless of the dataset's
 property, but performance will be much better if the filesystem uses a
 dedup-capable checksum (eg.
 .Sy sha256 ) .
+.It Fl e
+Generate a more compact stream by using WRITE_EMBEDDED records for blocks
+which are stored more compactly on disk by the
+.Sy embedded_data
+pool
+feature.
+This flag has no effect if the
+.Sy embedded_data
+feature is
+disabled.
+The receiving system must have the
+.Sy embedded_data
+feature
+enabled.
+If the
+.Sy lz4_compress
+feature is active on the sending system,
+then the receiving system must have that feature enabled as well.
+See
+.Xr zpool-features 7
+for details on ZFS feature flags and the
+.Sy embedded_data
+feature.
 .It Fl p
 Include the dataset's properties in the stream. This flag is implicit when
 .Fl R
@@ -2431,6 +2596,7 @@ on future versions of
 .It Xo
 .Nm
 .Cm send
+.Op Fl e
 .Op Fl i Ar snapshot Ns | Ns Ar bookmark
 .Ar filesystem Ns | Ns Ar volume Ns | Ns Ar snapshot
 .Xc
@@ -2456,6 +2622,29 @@ specified as the last component of the name
 If the incremental target is a clone, the incremental source can
 be the origin snapshot, or an earlier snapshot in the origin's filesystem,
 or the origin's origin, etc.
+.It Fl e
+Generate a more compact stream by using WRITE_EMBEDDED records for blocks
+which are stored more compactly on disk by the
+.Sy embedded_data
+pool
+feature.
+This flag has no effect if the
+.Sy embedded_data
+feature is
+disabled.
+The receiving system must have the
+.Sy embedded_data
+feature
+enabled.
+If the
+.Sy lz4_compress
+feature is active on the sending system,
+then the receiving system must have that feature enabled as well.
+See
+.Xr zpool-features 7
+for details on ZFS feature flags and the
+.Sy embedded_data
+feature.
 .El
 .It Xo
 .Nm
@@ -2695,6 +2884,7 @@ protocol
 .It dedup Ta property
 .It devices Ta property
 .It exec Ta property
+.It filesystem_limit Ta property
 .It logbias Ta property
 .It jailed Ta property
 .It mlslabel Ta property
@@ -2713,6 +2903,7 @@ protocol
 .It sharenfs Ta property
 .It sharesmb Ta property
 .It snapdir Ta property
+.It snapshot_limit Ta property
 .It sync Ta property
 .It utf8only Ta property
 .It version Ta property
@@ -3059,10 +3250,12 @@ pool/home/bob  compression           on                     local
 pool/home/bob  atime                 on                     default
 pool/home/bob  devices               on                     default
 pool/home/bob  exec                  on                     default
+pool/home/bob  filesystem_limit      none                   default
 pool/home/bob  setuid                on                     default
 pool/home/bob  readonly              off                    default
 pool/home/bob  jailed                off                    default
 pool/home/bob  snapdir               hidden                 default
+pool/home/bob  snapshot_limit        none                   default
 pool/home/bob  aclmode               discard                default
 pool/home/bob  aclinherit            restricted             default
 pool/home/bob  canmount              on                     default

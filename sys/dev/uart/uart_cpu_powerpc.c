@@ -113,10 +113,6 @@ uart_cpu_getdev(int devtype, struct uart_devinfo *di)
 	phandle_t input, opts, chosen;
 	int error;
 
-	class = &uart_z8530_class;
-	if (class == NULL)
-		return (ENXIO);
-
 	opts = OF_finddevice("/options");
 	chosen = OF_finddevice("/chosen");
 	switch (devtype) {
@@ -179,6 +175,9 @@ uart_cpu_getdev(int devtype, struct uart_devinfo *di)
 		di->bas.regshft = 0;
 		di->bas.chan = 0;
 	} else
+		return (ENXIO);
+
+	if (class == NULL)
 		return (ENXIO);
 
 	error = OF_decode_addr(input, 0, &di->bas.bst, &di->bas.bsh);

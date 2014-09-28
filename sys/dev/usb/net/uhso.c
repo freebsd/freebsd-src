@@ -559,8 +559,6 @@ uhso_attach(device_t self)
 	mtx_init(&sc->sc_mtx, "uhso", NULL, MTX_DEF);
 	ucom_ref(&sc->sc_super_ucom);
 
-	sc->sc_ucom = NULL;
-	sc->sc_ttys = 0;
 	sc->sc_radio = 1;
 
 	id = usbd_get_interface_descriptor(uaa->iface);
@@ -680,9 +678,6 @@ uhso_detach(device_t self)
 				    UHSO_CTRL_MAX);
 			}
 		}
-
-		free(sc->sc_tty, M_USBDEV);
-		free(sc->sc_ucom, M_USBDEV);
 	}
 
 	if (sc->sc_ifp != NULL) {
@@ -710,6 +705,8 @@ static void
 uhso_free_softc(struct uhso_softc *sc)
 {
 	if (ucom_unref(&sc->sc_super_ucom)) {
+		free(sc->sc_tty, M_USBDEV);
+		free(sc->sc_ucom, M_USBDEV);
 		mtx_destroy(&sc->sc_mtx);
 		device_free_softc(sc);
 	}
@@ -1697,7 +1694,7 @@ uhso_if_rxflush(void *arg)
 
 			m = m_pullup(m0, sizeof(struct ip));
 			if (m == NULL) {
-				ifp->if_ierrors++;
+				if_inc_counter(ifp, IFCOUNTER_IERRORS, 1);
 				UHSO_DPRINTF(0, "m_pullup failed\n");
 				mtx_lock(&sc->sc_mtx);
 				continue;
@@ -1727,7 +1724,7 @@ uhso_if_rxflush(void *arg)
 		else {
 			UHSO_DPRINTF(0, "got unexpected ip version %d, "
 			    "m=%p, len=%d\n", (*cp & 0xf0) >> 4, m, m->m_len);
-			ifp->if_ierrors++;
+			if_inc_counter(ifp, IFCOUNTER_IERRORS, 1);
 			UHSO_HEXDUMP(cp, 4);
 			m_freem(m);
 			m = NULL;
@@ -1737,7 +1734,7 @@ uhso_if_rxflush(void *arg)
 
 		if (iplen == 0) {
 			UHSO_DPRINTF(0, "Zero IP length\n");
-			ifp->if_ierrors++;
+			if_inc_counter(ifp, IFCOUNTER_IERRORS, 1);
 			m_freem(m);
 			m = NULL;
 			mtx_lock(&sc->sc_mtx);
@@ -1778,7 +1775,7 @@ uhso_if_rxflush(void *arg)
 			continue;
 		}
 
-		ifp->if_ipackets++;
+		if_inc_counter(ifp, IFCOUNTER_IPACKETS, 1);
 		m->m_pkthdr.rcvif = ifp;
 
 		/* Dispatch to IP layer */
@@ -1806,7 +1803,7 @@ uhso_ifnet_write_callback(struct usb_xfer *xfer, usb_error_t error)
 
 	switch (USB_GET_STATE(xfer)) {
 	case USB_ST_TRANSFERRED:
-		ifp->if_opackets++;
+		if_inc_counter(ifp, IFCOUNTER_OPACKETS, 1);
 		ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
 	case USB_ST_SETUP:
 tr_setup:
@@ -1901,10 +1898,10 @@ uhso_if_output(struct ifnet *ifp, struct mbuf *m0, const struct sockaddr *dst,
 
 	error = (ifp->if_transmit)(ifp, m0);
 	if (error) {
-		ifp->if_oerrors++;
+		if_inc_counter(ifp, IFCOUNTER_OERRORS, 1);
 		return (ENOBUFS);
 	}
-	ifp->if_opackets++;
+	if_inc_counter(ifp, IFCOUNTER_OPACKETS, 1);
 	return (0);
 }
 

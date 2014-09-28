@@ -104,6 +104,7 @@ static int	et_watchdog(struct et_softc *);
 static int	et_ifmedia_upd_locked(struct ifnet *);
 static int	et_ifmedia_upd(struct ifnet *);
 static void	et_ifmedia_sts(struct ifnet *, struct ifmediareq *);
+static uint64_t	et_get_counter(struct ifnet *, ift_counter);
 
 static void	et_add_sysctls(struct et_softc *);
 static int	et_sysctl_rx_intr_npkts(SYSCTL_HANDLER_ARGS);
@@ -120,7 +121,7 @@ static int	et_dma_ring_alloc(struct et_softc *, bus_size_t, bus_size_t,
 		    bus_dma_tag_t *, uint8_t **, bus_dmamap_t *, bus_addr_t *,
 		    const char *);
 static void	et_dma_ring_free(struct et_softc *, bus_dma_tag_t *, uint8_t **,
-		    bus_dmamap_t *);
+		    bus_dmamap_t, bus_addr_t *);
 static void	et_init_tx_ring(struct et_softc *);
 static int	et_init_rx_ring(struct et_softc *);
 static void	et_free_tx_ring(struct et_softc *);
@@ -324,6 +325,7 @@ et_attach(device_t dev)
 	ifp->if_init = et_init;
 	ifp->if_ioctl = et_ioctl;
 	ifp->if_start = et_start;
+	ifp->if_get_counter = et_get_counter;
 	ifp->if_capabilities = IFCAP_TXCSUM | IFCAP_VLAN_MTU;
 	ifp->if_capenable = ifp->if_capabilities;
 	ifp->if_snd.ifq_drv_maxlen = ET_TX_NDESC - 1;
@@ -841,15 +843,16 @@ et_dma_ring_alloc(struct et_softc *sc, bus_size_t alignment, bus_size_t maxsize,
 
 static void
 et_dma_ring_free(struct et_softc *sc, bus_dma_tag_t *tag, uint8_t **ring,
-    bus_dmamap_t *map)
+    bus_dmamap_t map, bus_addr_t *paddr)
 {
 
-	if (*map != NULL)
-		bus_dmamap_unload(*tag, *map);
-	if (*map != NULL && *ring != NULL) {
-		bus_dmamem_free(*tag, *ring, *map);
+	if (*paddr != 0) {
+		bus_dmamap_unload(*tag, map);
+		*paddr = 0;
+	}
+	if (*ring != NULL) {
+		bus_dmamem_free(*tag, *ring, map);
 		*ring = NULL;
-		*map = NULL;
 	}
 	if (*tag) {
 		bus_dma_tag_destroy(*tag);
@@ -1101,27 +1104,27 @@ et_dma_free(struct et_softc *sc)
 	/* Destroy mini RX ring, ring 0. */
 	rx_ring = &sc->sc_rx_ring[0];
 	et_dma_ring_free(sc, &rx_ring->rr_dtag, (void *)&rx_ring->rr_desc,
-	    &rx_ring->rr_dmap);
+	    rx_ring->rr_dmap, &rx_ring->rr_paddr);
 	/* Destroy standard RX ring, ring 1. */
 	rx_ring = &sc->sc_rx_ring[1];
 	et_dma_ring_free(sc, &rx_ring->rr_dtag, (void *)&rx_ring->rr_desc,
-	    &rx_ring->rr_dmap);
+	    rx_ring->rr_dmap, &rx_ring->rr_paddr);
 	/* Destroy RX stat ring. */
 	rxst_ring = &sc->sc_rxstat_ring;
 	et_dma_ring_free(sc, &rxst_ring->rsr_dtag, (void *)&rxst_ring->rsr_stat,
-	    &rxst_ring->rsr_dmap);
+	    rxst_ring->rsr_dmap, &rxst_ring->rsr_paddr);
 	/* Destroy RX status block. */
 	rxsd = &sc->sc_rx_status;
 	et_dma_ring_free(sc, &rxst_ring->rsr_dtag, (void *)&rxst_ring->rsr_stat,
-	    &rxst_ring->rsr_dmap);
+	    rxst_ring->rsr_dmap, &rxst_ring->rsr_paddr);
 	/* Destroy TX ring. */
 	tx_ring = &sc->sc_tx_ring;
 	et_dma_ring_free(sc, &tx_ring->tr_dtag, (void *)&tx_ring->tr_desc,
-	    &tx_ring->tr_dmap);
+	    tx_ring->tr_dmap, &tx_ring->tr_paddr);
 	/* Destroy TX status block. */
 	txsd = &sc->sc_tx_status;
 	et_dma_ring_free(sc, &txsd->txsd_dtag, (void *)&txsd->txsd_status,
-	    &txsd->txsd_dmap);
+	    txsd->txsd_dmap, &txsd->txsd_paddr);
 
 	/* Destroy the parent tag. */
 	if (sc->sc_dtag) {
@@ -1412,7 +1415,7 @@ et_start_locked(struct ifnet *ifp)
 
 		if (et_encap(sc, &m_head)) {
 			if (m_head == NULL) {
-				ifp->if_oerrors++;
+				if_inc_counter(ifp, IFCOUNTER_OERRORS, 1);
 				break;
 			}
 			IFQ_DRV_PREPEND(&ifp->if_snd, m_head);
@@ -1464,7 +1467,7 @@ et_watchdog(struct et_softc *sc)
 	if_printf(sc->ifp, "watchdog timed out (0x%08x) -- resetting\n",
 	    status);
 
-	sc->ifp->if_oerrors++;
+	if_inc_counter(sc->ifp, IFCOUNTER_OERRORS, 1);
 	sc->ifp->if_drv_flags &= ~IFF_DRV_RUNNING;
 	et_init_locked(sc);
 	return (EJUSTRETURN);
@@ -2092,12 +2095,12 @@ et_rxeof(struct et_softc *sc)
 		CSR_WRITE_4(sc, ET_RXSTAT_POS, rxstat_pos);
 
 		if (ring_idx >= ET_RX_NRING) {
-			ifp->if_ierrors++;
+			if_inc_counter(ifp, IFCOUNTER_IERRORS, 1);
 			if_printf(ifp, "invalid ring index %d\n", ring_idx);
 			continue;
 		}
 		if (buf_idx >= ET_RX_NDESC) {
-			ifp->if_ierrors++;
+			if_inc_counter(ifp, IFCOUNTER_IERRORS, 1);
 			if_printf(ifp, "invalid buf index %d\n", buf_idx);
 			continue;
 		}
@@ -2109,13 +2112,13 @@ et_rxeof(struct et_softc *sc)
 			rbd->rbd_discard(rbd, buf_idx);
 		} else if (rbd->rbd_newbuf(rbd, buf_idx) != 0) {
 			/* No available mbufs, discard it. */
-			ifp->if_iqdrops++;
+			if_inc_counter(ifp, IFCOUNTER_IQDROPS, 1);
 			rbd->rbd_discard(rbd, buf_idx);
 		} else {
 			buflen -= ETHER_CRC_LEN;
 			if (buflen < ETHER_HDR_LEN) {
 				m_freem(m);
-				ifp->if_ierrors++;
+				if_inc_counter(ifp, IFCOUNTER_IERRORS, 1);
 			} else {
 				m->m_pkthdr.len = m->m_len = buflen;
 				m->m_pkthdr.rcvif = ifp;
@@ -2624,7 +2627,6 @@ back:
 static void
 et_stats_update(struct et_softc *sc)
 {
-	struct ifnet *ifp;
 	struct et_hw_stats *stats;
 
 	stats = &sc->sc_stats;
@@ -2674,18 +2676,35 @@ et_stats_update(struct et_softc *sc)
 	stats->tx_oversize += CSR_READ_4(sc, ET_STAT_TX_OVERSIZE);
 	stats->tx_undersize += CSR_READ_4(sc, ET_STAT_TX_UNDERSIZE);
 	stats->tx_fragments += CSR_READ_4(sc, ET_STAT_TX_FRAG);
+}
 
-	/* Update ifnet counters. */
-	ifp = sc->ifp;
-	ifp->if_opackets = (u_long)stats->tx_frames;
-	ifp->if_collisions = stats->tx_total_colls;
-	ifp->if_oerrors = stats->tx_drop + stats->tx_jabbers +
-	    stats->tx_crcerrs + stats->tx_excess_deferred +
-	    stats->tx_late_colls;
-	ifp->if_ipackets = (u_long)stats->rx_frames;
-	ifp->if_ierrors = stats->rx_crcerrs + stats->rx_alignerrs +
-	    stats->rx_lenerrs + stats->rx_codeerrs + stats->rx_cserrs +
-	    stats->rx_runts + stats->rx_jabbers + stats->rx_drop;
+static uint64_t
+et_get_counter(struct ifnet *ifp, ift_counter cnt)
+{
+	struct et_softc *sc;
+	struct et_hw_stats *stats;
+
+	sc = if_getsoftc(ifp);
+	stats = &sc->sc_stats;
+
+	switch (cnt) {
+	case IFCOUNTER_OPACKETS:
+		return (stats->tx_frames);
+	case IFCOUNTER_COLLISIONS:
+		return (stats->tx_total_colls);
+	case IFCOUNTER_OERRORS:
+		return (stats->tx_drop + stats->tx_jabbers +
+		    stats->tx_crcerrs + stats->tx_excess_deferred +
+		    stats->tx_late_colls);
+	case IFCOUNTER_IPACKETS:
+		return (stats->rx_frames);
+	case IFCOUNTER_IERRORS:
+		return (stats->rx_crcerrs + stats->rx_alignerrs +
+		    stats->rx_lenerrs + stats->rx_codeerrs + stats->rx_cserrs +
+		    stats->rx_runts + stats->rx_jabbers + stats->rx_drop);
+	default:
+		return (if_get_counter_default(ifp, cnt));
+	}
 }
 
 static int

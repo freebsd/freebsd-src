@@ -1,7 +1,7 @@
 #	@(#)Makefile	8.1 (Berkeley) 5/31/93
 # $FreeBSD$
 
-.include <bsd.own.mk>
+.include <src.opts.mk>
 
 PROG=	date
 SRCS=	date.c netdate.c vary.c

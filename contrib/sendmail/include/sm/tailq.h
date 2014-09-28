@@ -36,7 +36,7 @@
 #define	SM_TAILQ_H_
 
 /*
- * $Id: tailq.h,v 1.3 2012/01/21 00:12:14 ashish Exp $
+ * $Id: tailq.h,v 1.3 2012-01-21 00:12:14 ashish Exp $
  *
  * This file is a modified copy of queue.h from a BSD system:
  * we only need tail queues here.

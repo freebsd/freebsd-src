@@ -1,7 +1,7 @@
 # $FreeBSD$
 
 PROG=	FreeBSD_version
-NO_MAN=
+MAN=
 
 install:
 

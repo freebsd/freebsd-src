@@ -2,7 +2,7 @@
 
 SHLIBDIR?=/lib
 
-.include <bsd.own.mk>
+.include <src.opts.mk>
 
 LIB=	ulog
 SHLIB_MAJOR= 0

@@ -65,9 +65,8 @@ Next, install ports and sources:
 	cd /freebsd
 	mkdir ports src packages
 
-	# Or use svn if you prefer
-	csup -h cvsup.???.freebsd.org /usr/share/examples/cvsup/ports-supfile
-	csup -h cvsup.???.freebsd.org /usr/share/examples/cvsup/stable-supfile
+	svn co https://svn0.us-east.FreeBSD.org/base/stable/10 src
+	svn co https://svn0.us-east.FreeBSD.org/ports/head ports
 
 And we should be ready to try a shot:
 

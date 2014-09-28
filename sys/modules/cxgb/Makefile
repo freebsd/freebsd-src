@@ -1,6 +1,7 @@
 # $FreeBSD$
 
-.include <bsd.own.mk>
+SYSDIR?=${.CURDIR}/../..
+.include "${SYSDIR}/conf/kern.opts.mk"
 
 SUBDIR= cxgb
 SUBDIR+= cxgb_t3fw

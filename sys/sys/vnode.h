@@ -428,6 +428,7 @@ extern	struct vattr va_null;		/* predefined null vattr structure */
 
 #define	VN_LOCK_AREC(vp)	lockallowrecurse((vp)->v_vnlock)
 #define	VN_LOCK_ASHARE(vp)	lockallowshare((vp)->v_vnlock)
+#define	VN_LOCK_DSHARE(vp)	lockdisableshare((vp)->v_vnlock)
 
 #endif /* _KERNEL */
 
@@ -593,6 +594,8 @@ struct uio;
 struct vattr;
 struct vnode;
 
+typedef int (*vn_get_ino_t)(struct mount *, void *, int, struct vnode **);
+
 /* cache_* may belong in namei.h. */
 #define	cache_enter(dvp, vp, cnp)					\
 	cache_enter_time(dvp, vp, cnp, NULL, NULL)
@@ -696,6 +699,10 @@ int	vn_extattr_rm(struct vnode *vp, int ioflg, int attrnamespace,
 	    const char *attrname, struct thread *td);
 int	vn_vget_ino(struct vnode *vp, ino_t ino, int lkflags,
 	    struct vnode **rvp);
+int	vn_vget_ino_gen(struct vnode *vp, vn_get_ino_t alloc,
+	    void *alloc_arg, int lkflags, struct vnode **rvp);
+int	vn_utimes_perm(struct vnode *vp, struct vattr *vap,
+	    struct ucred *cred, struct thread *td);
 
 int	vn_io_fault_uiomove(char *data, int xfersize, struct uio *uio);
 int	vn_io_fault_pgmove(vm_page_t ma[], vm_offset_t offset, int xfersize,
@@ -715,6 +722,7 @@ int	vfs_cache_lookup(struct vop_lookup_args *ap);
 void	vfs_timestamp(struct timespec *);
 void	vfs_write_resume(struct mount *mp, int flags);
 int	vfs_write_suspend(struct mount *mp, int flags);
+int	vfs_write_suspend_umnt(struct mount *mp);
 int	vop_stdbmap(struct vop_bmap_args *);
 int	vop_stdfsync(struct vop_fsync_args *);
 int	vop_stdgetwritemount(struct vop_getwritemount_args *);

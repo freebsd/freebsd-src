@@ -125,53 +125,53 @@ typedef struct ipv6info {
 	ip6_t *ipv6_hdr;		/* pointer to raw header */
 } ipv6info_t;
 
-#pragma D binding "1.0" IPPROTO_IP
+#pragma D binding "1.5" IPPROTO_IP
 inline short IPPROTO_IP =	0;
-#pragma D binding "1.0" IPPROTO_ICMP
+#pragma D binding "1.5" IPPROTO_ICMP
 inline short IPPROTO_ICMP =	1;
-#pragma D binding "1.0" IPPROTO_IGMP
+#pragma D binding "1.5" IPPROTO_IGMP
 inline short IPPROTO_IGMP =	2;
-#pragma D binding "1.0" IPPROTO_IPV4
+#pragma D binding "1.5" IPPROTO_IPV4
 inline short IPPROTO_IPV4 =	4;
-#pragma D binding "1.0" IPPROTO_TCP
+#pragma D binding "1.5" IPPROTO_TCP
 inline short IPPROTO_TCP =	6;
-#pragma D binding "1.0" IPPROTO_UDP
+#pragma D binding "1.5" IPPROTO_UDP
 inline short IPPROTO_UDP =	17;
-#pragma D binding "1.0" IPPROTO_IPV6
+#pragma D binding "1.5" IPPROTO_IPV6
 inline short IPPROTO_IPV6 =	41;
-#pragma D binding "1.0" IPPROTO_ROUTING
+#pragma D binding "1.5" IPPROTO_ROUTING
 inline short IPPROTO_ROUTING =	43;
-#pragma D binding "1.0" IPPROTO_FRAGMENT
+#pragma D binding "1.5" IPPROTO_FRAGMENT
 inline short IPPROTO_FRAGMENT =	44;
-#pragma D binding "1.0" IPPROTO_RSVP
+#pragma D binding "1.5" IPPROTO_RSVP
 inline short IPPROTO_RSVP =	46;
-#pragma D binding "1.0" IPPROTO_GRE
+#pragma D binding "1.5" IPPROTO_GRE
 inline short IPPROTO_GRE =	47;
-#pragma D binding "1.0" IPPROTO_ESP
+#pragma D binding "1.5" IPPROTO_ESP
 inline short IPPROTO_ESP =	50;
-#pragma D binding "1.0" IPPROTO_AH
+#pragma D binding "1.5" IPPROTO_AH
 inline short IPPROTO_AH =	51;
-#pragma D binding "1.0" IPPROTO_MOBILE
+#pragma D binding "1.5" IPPROTO_MOBILE
 inline short IPPROTO_MOBILE =	55;
-#pragma D binding "1.0" IPPROTO_ICMPV6
+#pragma D binding "1.5" IPPROTO_ICMPV6
 inline short IPPROTO_ICMPV6 =	58;
-#pragma D binding "1.0" IPPROTO_DSTOPTS
+#pragma D binding "1.5" IPPROTO_DSTOPTS
 inline short IPPROTO_DSTOPTS =	60;
-#pragma D binding "1.0" IPPROTO_ETHERIP
+#pragma D binding "1.5" IPPROTO_ETHERIP
 inline short IPPROTO_ETHERIP =	97;
-#pragma D binding "1.0" IPPROTO_PIM
+#pragma D binding "1.5" IPPROTO_PIM
 inline short IPPROTO_PIM =	103;
-#pragma D binding "1.0" IPPROTO_IPCOMP
+#pragma D binding "1.5" IPPROTO_IPCOMP
 inline short IPPROTO_IPCOMP =	108;
-#pragma D binding "1.0" IPPROTO_SCTP
+#pragma D binding "1.5" IPPROTO_SCTP
 inline short IPPROTO_SCTP =	132;
-#pragma D binding "1.0" IPPROTO_RAW
+#pragma D binding "1.5" IPPROTO_RAW
 inline short IPPROTO_RAW =	255;
 
 inline uint8_t INP_IPV4	= 0x01;
 inline uint8_t INP_IPV6 = 0x02;
 
-#pragma D binding "1.0" protocols
+#pragma D binding "1.5" protocols
 inline string protocols[int proto] =
 	proto == IPPROTO_IP ? "IP" :
 	proto == IPPROTO_ICMP ? "ICMP" :
@@ -200,12 +200,12 @@ inline string protocols[int proto] =
  * This field is always NULL according to the current definition of the ip
  * probes.
  */
-#pragma D binding "1.0" translator
+#pragma D binding "1.5" translator
 translator pktinfo_t < void *p > {
 	pkt_addr =	NULL;
 };
 
-#pragma D binding "1.0" translator
+#pragma D binding "1.5" translator
 translator csinfo_t < void *p > {
 	cs_addr =	NULL;
 	cs_cid =	(uint64_t)p;
@@ -213,7 +213,7 @@ translator csinfo_t < void *p > {
 	cs_zoneid =	0;
 };
 
-#pragma D binding "1.0" translator
+#pragma D binding "1.6.3" translator
 translator csinfo_t < struct inpcb *p > {
 	cs_addr =       NULL;
 	cs_cid =        (uint64_t)p;
@@ -221,7 +221,7 @@ translator csinfo_t < struct inpcb *p > {
 	cs_zoneid =     0;
 };
 
-#pragma D binding "1.0" translator
+#pragma D binding "1.5" translator
 translator ipinfo_t < uint8_t *p > {
 	ip_ver =	p == NULL ? 0 : ((struct ip *)p)->ip_v;
 	ip_plength =	p == NULL ? 0 :
@@ -238,17 +238,17 @@ translator ipinfo_t < uint8_t *p > {
 	    inet_ntoa6(&((struct ip6_hdr *)p)->ip6_dst);
 };
 
-#pragma D binding "1.0" IFF_LOOPBACK
+#pragma D binding "1.5" IFF_LOOPBACK
 inline int IFF_LOOPBACK =	0x8;
 
-#pragma D binding "1.0" translator
+#pragma D binding "1.5" translator
 translator ifinfo_t < struct ifnet *p > {
 	if_name =	p->if_xname;
 	if_local =	(p->if_flags & IFF_LOOPBACK) == 0 ? 0 : 1;
 	if_addr =	(uintptr_t)p;
 };
 
-#pragma D binding "1.0" translator
+#pragma D binding "1.5" translator
 translator ipv4info_t < struct ip *p > {
 	ipv4_ver =	p == NULL ? 0 : p->ip_v;
 	ipv4_ihl =	p == NULL ? 0 : p->ip_hl;
@@ -268,7 +268,7 @@ translator ipv4info_t < struct ip *p > {
 	ipv4_hdr =	(ipha_t *)p;
 };
 
-#pragma D binding "1.0" translator
+#pragma D binding "1.5" translator
 translator ipv6info_t < struct ip6_hdr *p > {
 	ipv6_ver =	p == NULL ? 0 : (ntohl(p->ip6_ctlun.ip6_un1.ip6_un1_flow) & 0xf0000000) >> 28;
 	ipv6_tclass =	p == NULL ? 0 : (ntohl(p->ip6_ctlun.ip6_un1.ip6_un1_flow) & 0x0ff00000) >> 20;

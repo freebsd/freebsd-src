@@ -66,6 +66,7 @@ struct config_entry {
 	char *value;
 	STAILQ_HEAD(, config_value) *list;
 	bool envset;
+	bool main_only;				/* Only set in pkg.conf. */
 };
 
 static struct config_entry c[] = {
@@ -76,6 +77,7 @@ static struct config_entry c[] = {
 		NULL,
 		NULL,
 		false,
+		false,
 	},
 	[ABI] = {
 		PKG_CONFIG_STRING,
@@ -84,6 +86,7 @@ static struct config_entry c[] = {
 		NULL,
 		NULL,
 		false,
+		true,
 	},
 	[MIRROR_TYPE] = {
 		PKG_CONFIG_STRING,
@@ -91,6 +94,7 @@ static struct config_entry c[] = {
 		"SRV",
 		NULL,
 		NULL,
+		false,
 		false,
 	},
 	[ASSUME_ALWAYS_YES] = {
@@ -100,6 +104,7 @@ static struct config_entry c[] = {
 		NULL,
 		NULL,
 		false,
+		true,
 	},
 	[SIGNATURE_TYPE] = {
 		PKG_CONFIG_STRING,
@@ -107,6 +112,7 @@ static struct config_entry c[] = {
 		NULL,
 		NULL,
 		NULL,
+		false,
 		false,
 	},
 	[FINGERPRINTS] = {
@@ -116,6 +122,7 @@ static struct config_entry c[] = {
 		NULL,
 		NULL,
 		false,
+		false,
 	},
 	[REPOS_DIR] = {
 		PKG_CONFIG_LIST,
@@ -124,6 +131,7 @@ static struct config_entry c[] = {
 		NULL,
 		NULL,
 		false,
+		true,
 	},
 };
 
@@ -509,10 +517,10 @@ boolstr_to_bool(const char *str)
 }
 
 static void
-config_parse(ucl_object_t *obj, pkg_conf_file_t conftype)
+config_parse(const ucl_object_t *obj, pkg_conf_file_t conftype)
 {
 	struct sbuf *buf = sbuf_new_auto();
-	ucl_object_t *cur, *seq;
+	const ucl_object_t *cur, *seq;
 	ucl_object_iter_t it = NULL, itseq = NULL;
 	struct config_entry *temp_config;
 	struct config_value *cv;
@@ -586,6 +594,10 @@ config_parse(ucl_object_t *obj, pkg_conf_file_t conftype)
 				    next);
 			}
 			break;
+		case PKG_CONFIG_BOOL:
+			temp_config[i].value =
+			    strdup(ucl_object_toboolean(cur) ? "yes" : "no");
+			break;
 		default:
 			/* Normal string value. */
 			temp_config[i].value = strdup(ucl_object_tostring(cur));
@@ -596,6 +608,9 @@ config_parse(ucl_object_t *obj, pkg_conf_file_t conftype)
 	/* Repo is enabled, copy over all settings from temp_config. */
 	for (i = 0; i < CONFIG_SIZE; i++) {
 		if (c[i].envset)
+			continue;
+		/* Prevent overriding ABI, ASSUME_ALWAYS_YES, etc. */
+		if (conftype != CONFFILE_PKG && c[i].main_only == true)
 			continue;
 		switch (c[i].type) {
 		case PKG_CONFIG_LIST:
@@ -623,7 +638,7 @@ static void
 parse_repo_file(ucl_object_t *obj)
 {
 	ucl_object_iter_t it = NULL;
-	ucl_object_t *cur;
+	const ucl_object_t *cur;
 	const char *key;
 
 	while ((cur = ucl_iterate_object(obj, &it, true))) {
@@ -668,7 +683,7 @@ read_conf_file(const char *confpath, pkg_conf_file_t conftype)
 			parse_repo_file(obj);
 	}
 
-	ucl_object_free(obj);
+	ucl_object_unref(obj);
 	ucl_parser_free(p);
 
 	return (0);

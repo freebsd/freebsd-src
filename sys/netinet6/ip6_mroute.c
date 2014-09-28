@@ -121,7 +121,6 @@ __FBSDID("$FreeBSD$");
 #include <netinet6/scope6_var.h>
 #include <netinet6/nd6.h>
 #include <netinet6/ip6_mroute.h>
-#include <netinet6/ip6protosw.h>
 #include <netinet6/pim6.h>
 #include <netinet6/pim6_var.h>
 
@@ -141,7 +140,7 @@ extern int in6_mcast_loop;
 extern struct domain inet6domain;
 
 static const struct encaptab *pim6_encap_cookie;
-static const struct ip6protosw in6_pim_protosw = {
+static const struct protosw in6_pim_protosw = {
 	.pr_type =		SOCK_RAW,
 	.pr_domain =		&inet6domain,
 	.pr_protocol =		IPPROTO_PIM,

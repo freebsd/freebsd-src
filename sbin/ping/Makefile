@@ -1,7 +1,7 @@
 #	@(#)Makefile	8.1 (Berkeley) 6/5/93
 # $FreeBSD$
 
-.include <bsd.own.mk>
+.include <src.opts.mk>
 
 PROG=	ping
 MAN=	ping.8
@@ -12,8 +12,8 @@ DPADD=	${LIBM}
 LDADD=	-lm
 
 .if ${MK_CASPER} != "no" && !defined(RESCUE)
-DPADD+=	${LIBCAPSICUM}
-LDADD+=	-lcapsicum
+DPADD+=	${LIBCAPSICUM} ${LIBNV}
+LDADD+=	-lcapsicum -lnv
 CFLAGS+=-DHAVE_LIBCAPSICUM
 .endif
 

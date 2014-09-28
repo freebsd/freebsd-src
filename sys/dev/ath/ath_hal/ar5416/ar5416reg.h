@@ -476,10 +476,10 @@
 /* Sleep control */
 #define	AR5416_SLEEP1_ASSUME_DTIM	0x00080000
 #define	AR5416_SLEEP1_CAB_TIMEOUT	0xFFE00000	/* Cab timeout (TU) */
-#define	AR5416_SLEEP1_CAB_TIMEOUT_S	22
+#define	AR5416_SLEEP1_CAB_TIMEOUT_S	21
 
 #define	AR5416_SLEEP2_BEACON_TIMEOUT	0xFFE00000	/* Beacon timeout (TU)*/
-#define	AR5416_SLEEP2_BEACON_TIMEOUT_S	22
+#define	AR5416_SLEEP2_BEACON_TIMEOUT_S	21
 
 /* Sleep Registers */
 #define	AR_SLP32_HALFCLK_LATENCY      0x000FFFFF	/* rising <-> falling edge */

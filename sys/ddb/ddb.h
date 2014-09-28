@@ -77,6 +77,13 @@ int	DB_CALL(db_expr_t, db_expr_t *, int, db_expr_t[]);
 #endif
 
 /*
+ * Extern variables to set the address and size of the symtab and strtab.
+ * Most users should use db_fetch_symtab in order to set them from the
+ * boot loader provided values.
+ */
+extern vm_offset_t ksymtab, kstrtab, ksymtab_size;
+
+/*
  * There are three "command tables":
  * - One for simple commands; a list of these is displayed
  *   by typing 'help' at the debugger prompt.
@@ -118,7 +125,7 @@ struct command {
  * in modules in which case they will be available only when
  * the module is loaded.
  */
-#define _DB_SET(_suffix, _name, _func, list, _flag, _more)	\
+#define	_DB_SET(_suffix, _name, _func, list, _flag, _more)	\
 static struct command __CONCAT(_name,_suffix) = {		\
 	.name	= __STRING(_name),				\
 	.fcn	= _func,					\
@@ -145,27 +152,27 @@ SYSUNINIT(__CONCAT(_name,_suffix), SI_SUB_KLD, SI_ORDER_ANY,	\
  * This macro is mostly used to define commands placed in one of
  * the ddb command tables; see DB_COMMAND, etc. below.
  */
-#define _DB_FUNC(_suffix, _name, _func, list, _flag, _more)	\
+#define	_DB_FUNC(_suffix, _name, _func, list, _flag, _more)	\
 static db_cmdfcn_t _func;					\
 _DB_SET(_suffix, _name, _func, list, _flag, _more);		\
 static void							\
 _func(db_expr_t addr, boolean_t have_addr, db_expr_t count, char *modif)
 
 /* common idom provided for backwards compatibility */
-#define DB_FUNC(_name, _func, list, _flag, _more)		\
+#define	DB_FUNC(_name, _func, list, _flag, _more)		\
 	_DB_FUNC(_cmd, _name, _func, list, _flag, _more)
 
-#define DB_COMMAND(cmd_name, func_name) \
+#define	DB_COMMAND(cmd_name, func_name) \
 	_DB_FUNC(_cmd, cmd_name, func_name, db_cmd_table, 0, NULL)
-#define DB_ALIAS(alias_name, func_name) \
+#define	DB_ALIAS(alias_name, func_name) \
 	_DB_SET(_cmd, alias_name, func_name, db_cmd_table, 0, NULL)
-#define DB_SHOW_COMMAND(cmd_name, func_name) \
+#define	DB_SHOW_COMMAND(cmd_name, func_name) \
 	_DB_FUNC(_show, cmd_name, func_name, db_show_table, 0, NULL)
-#define DB_SHOW_ALIAS(alias_name, func_name) \
+#define	DB_SHOW_ALIAS(alias_name, func_name) \
 	_DB_SET(_show, alias_name, func_name, db_show_table, 0, NULL)
-#define DB_SHOW_ALL_COMMAND(cmd_name, func_name) \
+#define	DB_SHOW_ALL_COMMAND(cmd_name, func_name) \
 	_DB_FUNC(_show_all, cmd_name, func_name, db_show_all_table, 0, NULL)
-#define DB_SHOW_ALL_ALIAS(alias_name, func_name) \
+#define	DB_SHOW_ALL_ALIAS(alias_name, func_name) \
 	_DB_SET(_show_all, alias_name, func_name, db_show_all_table, 0, NULL)
 
 extern db_expr_t db_maxoff;
@@ -218,6 +225,7 @@ int		db_value_of_name_vnet(const char *name, db_expr_t *valuep);
 int		db_write_bytes(vm_offset_t addr, size_t size, char *data);
 void		db_command_register(struct command_table *, struct command *);
 void		db_command_unregister(struct command_table *, struct command *);
+int		db_fetch_ksymtab(vm_offset_t ksym_start, vm_offset_t ksym_end);
 
 db_cmdfcn_t	db_breakpoint_cmd;
 db_cmdfcn_t	db_capture_cmd;

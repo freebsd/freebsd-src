@@ -1,5 +1,5 @@
 .\"-
-.\" Copyright (c) 2013 SRI International
+.\" Copyright (c) 2013-2014 SRI International
 .\" All rights reserved.
 .\"
 .\" This software was developed by SRI International and the University of
@@ -29,7 +29,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd October 18, 2013
+.Dd May 21, 2014
 .Dt ALTERA_ATSE 4
 .Os
 .Sh NAME
@@ -66,6 +66,25 @@ The current version of the
 .Nm
 driver supports the Ethernet MegaCore as described in version 11.1 of
 Altera's documentation when the device is configured with internal FIFOs.
+.Sh MAC SELECTION
+The default MAC address for each
+.Nm
+interface is derived from a value stored in
+.Xr cfi 4
+flash.
+The value is managed by the
+.Xr atsectl 8
+utility.
+.Pp
+Only a single MAC address may be stored in flash.
+If the address begins with the Altera prefix 00:07:ed and ends in 00 then
+up to 16 addresses will be derived from it by adding the unit number of
+the interface to the stored address.
+For other prefixes, the address will be assigned to atse0 and random     
+addresses will be used for other interfaces.
+If the stored address is invalid, for example all zero's, multicast, or the
+default address shipped on all DE4 boards (00:07:ed:ff:ed:15) then a random
+address is generated when the device is attached.
 .Sh SEE ALSO
 .Xr miibus 4 ,
 .Xr netintro 4 ,

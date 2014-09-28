@@ -344,7 +344,6 @@ hdspe_dmafree(struct sc_info *sc)
 	bus_dmamap_unload(sc->dmat, sc->pmap);
 	bus_dmamem_free(sc->dmat, sc->rbuf, sc->rmap);
 	bus_dmamem_free(sc->dmat, sc->pbuf, sc->pmap);
-	sc->rmap = sc->pmap = NULL;
 	sc->rbuf = sc->pbuf = NULL;
 }
 

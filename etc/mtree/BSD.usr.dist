@@ -101,8 +101,14 @@
             ..
             include
             ..
+            includes
+                include
+                ..
+            ..
         ..
         bsdinstall
+        ..
+        hyperv
         ..
         lpr
             ru
@@ -297,9 +303,9 @@
             ..
             csh
             ..
-            cvsup
-            ..
             diskless
+            ..
+            dma
             ..
             drivers
             ..
@@ -1400,6 +1406,12 @@
         ..
         vi
             catalog
+            ..
+        ..
+        vt
+            fonts
+            ..
+            keymaps
             ..
         ..
         zoneinfo

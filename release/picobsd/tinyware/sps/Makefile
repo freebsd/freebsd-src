@@ -2,7 +2,7 @@
 #
 PROG=sps
 SRCS= 	sps.c
-NO_MAN=
+MAN=
 
 .include <bsd.prog.mk>
 

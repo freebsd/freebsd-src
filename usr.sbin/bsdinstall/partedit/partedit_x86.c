@@ -26,9 +26,14 @@
  * $FreeBSD$
  */
 
+#include <sys/types.h>
+#include <sys/sysctl.h>
 #include <string.h>
 
 #include "partedit.h"
+
+static char platform[255] = "";
+static const char *platform_sysctl = "machdep.bootmethod";
 
 const char *
 default_scheme(void) {
@@ -37,27 +42,75 @@ default_scheme(void) {
 
 int
 is_scheme_bootable(const char *part_type) {
-	if (strcmp(part_type, "BSD") == 0)
-		return (1);
+	size_t platlen = sizeof(platform);
+	if (strlen(platform) == 0)
+		sysctlbyname(platform_sysctl, platform, &platlen, NULL, -1);
+
 	if (strcmp(part_type, "GPT") == 0)
 		return (1);
-	if (strcmp(part_type, "MBR") == 0)
+	if (strcmp(platform, "BIOS") == 0) {
+		if (strcmp(part_type, "BSD") == 0)
+			return (1);
+		if (strcmp(part_type, "MBR") == 0)
+			return (1);
+	}
+
+	return (0);
+}
+
+int
+is_fs_bootable(const char *part_type, const char *fs) {
+	size_t platlen = sizeof(platform);
+	if (strlen(platform) == 0)
+		sysctlbyname(platform_sysctl, platform, &platlen, NULL, -1);
+
+	if (strcmp(fs, "freebsd-ufs") == 0)
+		return (1);
+
+	if (strcmp(fs, "freebsd-zfs") == 0 && strcmp(platform, "BIOS") == 0)
 		return (1);
 
 	return (0);
 }
 
 size_t
-bootpart_size(const char *part_type) {
-	if (strcmp(part_type, "GPT") == 0)
-		return (64*1024);
+bootpart_size(const char *scheme) {
+	size_t platlen = sizeof(platform);
+	if (strlen(platform) == 0)
+		sysctlbyname(platform_sysctl, platform, &platlen, NULL, -1);
 
 	/* No partcode except for GPT */
+	if (strcmp(scheme, "GPT") != 0)
+		return (0);
+
+	if (strcmp(platform, "BIOS") == 0)
+		return (512*1024);
+	else 
+		return (800*1024);
+
 	return (0);
 }
 
 const char *
+bootpart_type(const char *scheme) {
+	size_t platlen = sizeof(platform);
+	if (strlen(platform) == 0)
+		sysctlbyname(platform_sysctl, platform, &platlen, NULL, -1);
+
+	if (strcmp(platform, "UEFI") == 0)
+		return ("efi");
+
+	return ("freebsd-boot");
+}
+
+const char *
 bootcode_path(const char *part_type) {
+	size_t platlen = sizeof(platform);
+	if (strlen(platform) == 0)
+		sysctlbyname(platform_sysctl, platform, &platlen, NULL, -1);
+	if (strcmp(platform, "UEFI") == 0)
+		return (NULL);
+
 	if (strcmp(part_type, "GPT") == 0)
 		return ("/boot/pmbr");
 	if (strcmp(part_type, "MBR") == 0)
@@ -69,9 +122,19 @@ bootcode_path(const char *part_type) {
 }
 	
 const char *
-partcode_path(const char *part_type) {
-	if (strcmp(part_type, "GPT") == 0)
-		return ("/boot/gptboot");
+partcode_path(const char *part_type, const char *fs_type) {
+	size_t platlen = sizeof(platform);
+	if (strlen(platform) == 0)
+		sysctlbyname(platform_sysctl, platform, &platlen, NULL, -1);
+
+	if (strcmp(part_type, "GPT") == 0) {
+		if (strcmp(platform, "UEFI") == 0)
+			return ("/boot/boot1.efifat");
+		else if (strcmp(fs_type, "zfs") == 0)
+			return ("/boot/gptzfsboot");
+		else
+			return ("/boot/gptboot");
+	}
 	
 	/* No partcode except for GPT */
 	return (NULL);

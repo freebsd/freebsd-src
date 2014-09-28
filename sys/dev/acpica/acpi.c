@@ -93,6 +93,7 @@ struct acpi_interface {
 
 /* Global mutex for locking access to the ACPI subsystem. */
 struct mtx	acpi_mutex;
+struct callout	acpi_sleep_timer;
 
 /* Bitmap of device quirks. */
 int		acpi_quirks;
@@ -683,7 +684,9 @@ acpi_attach(device_t dev)
 	    AcpiFormatException(status));
 
     /* Allow sleep request after a while. */
-    timeout(acpi_sleep_enable, sc, hz * ACPI_MINIMUM_AWAKETIME);
+    callout_init_mtx(&acpi_sleep_timer, &acpi_mutex, 0);
+    callout_reset(&acpi_sleep_timer, hz * ACPI_MINIMUM_AWAKETIME,
+	acpi_sleep_enable, sc);
 
     error = 0;
 
@@ -696,7 +699,6 @@ acpi_set_power_children(device_t dev, int state)
 {
 	device_t child, parent;
 	device_t *devlist;
-	struct pci_devinfo *dinfo;
 	int dstate, i, numdevs;
 
 	if (device_get_children(dev, &devlist, &numdevs) != 0)
@@ -709,7 +711,6 @@ acpi_set_power_children(device_t dev, int state)
 	parent = device_get_parent(dev);
 	for (i = 0; i < numdevs; i++) {
 		child = devlist[i];
-		dinfo = device_get_ivars(child);
 		dstate = state;
 		if (device_is_attached(child) &&
 		    acpi_device_pwr_for_sleep(parent, dev, &dstate) == 0)
@@ -853,11 +854,18 @@ acpi_child_location_str_method(device_t cbdev, device_t child, char *buf,
     size_t buflen)
 {
     struct acpi_device *dinfo = device_get_ivars(child);
+    char buf2[32];
+    int pxm;
 
-    if (dinfo->ad_handle)
-	snprintf(buf, buflen, "handle=%s", acpi_name(dinfo->ad_handle));
-    else
-	snprintf(buf, buflen, "unknown");
+    if (dinfo->ad_handle) {
+        snprintf(buf, buflen, "handle=%s", acpi_name(dinfo->ad_handle));
+        if (ACPI_SUCCESS(acpi_GetInteger(dinfo->ad_handle, "_PXM", &pxm))) {
+                snprintf(buf2, 32, " _PXM=%d", pxm);
+                strlcat(buf, buf2, buflen);
+        }
+    } else {
+        snprintf(buf, buflen, "unknown");
+    }
     return (0);
 }
 
@@ -1198,15 +1206,24 @@ acpi_set_resource(device_t dev, device_t child, int type, int rid,
 	return (0);
 
     /*
-     * Ignore memory resources for PCI root bridges.  Some BIOSes
+     * Ignore most resources for PCI root bridges.  Some BIOSes
      * incorrectly enumerate the memory ranges they decode as plain
-     * memory resources instead of as a ResourceProducer range.
+     * memory resources instead of as ResourceProducer ranges.  Other
+     * BIOSes incorrectly list system resource entries for I/O ranges
+     * under the PCI bridge.  Do allow the one known-correct case on
+     * x86 of a PCI bridge claiming the I/O ports used for PCI config
+     * access.
      */
-    if (type == SYS_RES_MEMORY) {
+    if (type == SYS_RES_MEMORY || type == SYS_RES_IOPORT) {
 	if (ACPI_SUCCESS(AcpiGetObjectInfo(ad->ad_handle, &devinfo))) {
 	    if ((devinfo->Flags & ACPI_PCI_ROOT_BRIDGE) != 0) {
-		AcpiOsFree(devinfo);
-		return (0);
+#if defined(__i386__) || defined(__amd64__)
+		if (!(type == SYS_RES_IOPORT && start == CONF1_ADDR_PORT))
+#endif
+		{
+		    AcpiOsFree(devinfo);
+		    return (0);
+		}
 	    }
 	    AcpiOsFree(devinfo);
 	}
@@ -2476,8 +2493,8 @@ acpi_sleep_force(void *arg)
     device_printf(sc->acpi_dev,
 	"suspend request timed out, forcing sleep now\n");
     /*
-     * XXX Suspending from callout cause the freeze in DEVICE_SUSPEND().
-     * Suspend from acpi_task thread in stead.
+     * XXX Suspending from callout causes freezes in DEVICE_SUSPEND().
+     * Suspend from acpi_task thread instead.
      */
     if (ACPI_FAILURE(AcpiOsExecute(OSL_NOTIFY_HANDLER,
 	acpi_sleep_force_task, sc)))
@@ -2629,15 +2646,15 @@ acpi_sleep_enable(void *arg)
 {
     struct acpi_softc	*sc = (struct acpi_softc *)arg;
 
+    ACPI_LOCK_ASSERT(acpi);
+
     /* Reschedule if the system is not fully up and running. */
     if (!AcpiGbl_SystemAwakeAndRunning) {
-	timeout(acpi_sleep_enable, sc, hz * ACPI_MINIMUM_AWAKETIME);
+	callout_schedule(&acpi_sleep_timer, hz * ACPI_MINIMUM_AWAKETIME);
 	return;
     }
 
-    ACPI_LOCK(acpi);
     sc->acpi_sleep_disabled = FALSE;
-    ACPI_UNLOCK(acpi);
 }
 
 static ACPI_STATUS
@@ -2852,7 +2869,7 @@ backout:
     EVENTHANDLER_INVOKE(power_resume);
 
     /* Allow another sleep request after a while. */
-    timeout(acpi_sleep_enable, sc, hz * ACPI_MINIMUM_AWAKETIME);
+    callout_schedule(&acpi_sleep_timer, hz * ACPI_MINIMUM_AWAKETIME);
 
     /* Run /etc/rc.resume after we are back. */
     if (devctl_process_running())

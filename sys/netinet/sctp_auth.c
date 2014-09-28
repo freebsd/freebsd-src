@@ -133,11 +133,6 @@ sctp_auth_delete_chunk(uint8_t chunk, sctp_auth_chklist_t * list)
 	if (list == NULL)
 		return (-1);
 
-	/* is chunk restricted? */
-	if ((chunk == SCTP_ASCONF) ||
-	    (chunk == SCTP_ASCONF_ACK)) {
-		return (-1);
-	}
 	if (list->chunks[chunk] == 1) {
 		list->chunks[chunk] = 0;
 		list->num_chunks--;
@@ -155,16 +150,6 @@ sctp_auth_get_chklist_size(const sctp_auth_chklist_t * list)
 		return (0);
 	else
 		return (list->num_chunks);
-}
-
-/*
- * set the default list of chunks requiring AUTH
- */
-void
-sctp_auth_set_default_chunks(sctp_auth_chklist_t * list)
-{
-	(void)sctp_auth_add_chunk(SCTP_ASCONF, list);
-	(void)sctp_auth_add_chunk(SCTP_ASCONF_ACK, list);
 }
 
 /*
@@ -646,7 +631,7 @@ sctp_copy_skeylist(const struct sctp_keyhead *src, struct sctp_keyhead *dest)
 
 
 sctp_hmaclist_t *
-sctp_alloc_hmaclist(uint8_t num_hmacs)
+sctp_alloc_hmaclist(uint16_t num_hmacs)
 {
 	sctp_hmaclist_t *new_list;
 	int alloc_size;
@@ -1453,8 +1438,8 @@ sctp_auth_get_cookie_params(struct sctp_tcb *stcb, struct mbuf *m,
 			p_random = (struct sctp_auth_random *)phdr;
 			random_len = plen - sizeof(*p_random);
 		} else if (ptype == SCTP_HMAC_LIST) {
-			int num_hmacs;
-			int i;
+			uint16_t num_hmacs;
+			uint16_t i;
 
 			if (plen > sizeof(hmacs_store))
 				break;
@@ -1790,6 +1775,7 @@ sctp_notify_authentication(struct sctp_tcb *stcb, uint32_t indication,
 
 	SCTP_BUF_LEN(m_notify) = 0;
 	auth = mtod(m_notify, struct sctp_authkey_event *);
+	memset(auth, 0, sizeof(struct sctp_authkey_event));
 	auth->auth_type = SCTP_AUTHENTICATION_EVENT;
 	auth->auth_flags = 0;
 	auth->auth_length = sizeof(*auth);
@@ -1948,8 +1934,7 @@ sctp_validate_init_auth_params(struct mbuf *m, int offset, int limit)
 		    "SCTP: peer sent chunk list w/o AUTH\n");
 		return (-1);
 	}
-	if (!SCTP_BASE_SYSCTL(sctp_asconf_auth_nochk) && peer_supports_asconf &&
-	    !peer_supports_auth) {
+	if (peer_supports_asconf && !peer_supports_auth) {
 		SCTPDBG(SCTP_DEBUG_AUTH1,
 		    "SCTP: peer supports ASCONF but not AUTH\n");
 		return (-1);

@@ -57,16 +57,18 @@ __FBSDID("$FreeBSD$");
 #include <machine/resource.h>
 #include <machine/intr.h>
 
+#include <arm/ti/ti_cpuid.h>
 #include <arm/ti/ti_prcm.h>
 
 /**
- *	ti_clk_devmap - Array of clock devices, should be defined one per SoC 
+ *	ti_*_clk_devmap - Array of clock devices, should be defined one per SoC 
  *
  *	This array is typically defined in one of the targeted *_prcm_clk.c
  *	files and is specific to the given SoC platform.  Each entry in the array
  *	corresponds to an individual clock device.
  */
-extern struct ti_clock_dev ti_clk_devmap[];
+extern struct ti_clock_dev ti_omap4_clk_devmap[];
+extern struct ti_clock_dev ti_am335x_clk_devmap[];
 
 /**
  *	ti_prcm_clk_dev - returns a pointer to the clock device with given id
@@ -90,7 +92,21 @@ ti_prcm_clk_dev(clk_ident_t clk)
 	 * loop for this, but this function should only called when a driver is 
 	 * being activated so IMHO not a big issue.
 	 */
-	clk_dev = &(ti_clk_devmap[0]);
+	clk_dev = NULL;
+	switch(ti_chip()) {
+#ifdef SOC_OMAP4
+	case CHIP_OMAP_4:
+		clk_dev = &(ti_omap4_clk_devmap[0]);
+		break;
+#endif
+#ifdef SOC_TI_AM335X
+	case CHIP_AM335X:
+		clk_dev = &(ti_am335x_clk_devmap[0]);
+		break;
+#endif
+	}
+	if (clk_dev == NULL)
+		panic("No clock devmap found");
 	while (clk_dev->id != INVALID_CLK_IDENT) {
 		if (clk_dev->id == clk) {
 			return (clk_dev);

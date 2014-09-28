@@ -42,6 +42,8 @@
         ..
         freebsd-update  mode=0700
         ..
+        hyperv          mode=0700
+        ..
         ipf             mode=0700
         ..
         pkg
@@ -96,6 +98,8 @@
         ..
     ..
     unbound         uname=unbound gname=unbound mode=0755
+        conf.d          uname=unbound gname=unbound mode=0755
+        ..
     ..
     yp
     ..

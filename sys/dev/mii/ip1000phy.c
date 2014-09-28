@@ -38,6 +38,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/kernel.h>
 #include <sys/module.h>
 #include <sys/socket.h>
+#include <sys/taskqueue.h>
 #include <sys/bus.h>
 
 #include <net/if.h>
@@ -109,7 +110,7 @@ ip1000phy_attach(device_t dev)
 	ma = device_get_ivars(dev);
 	flags = MIIF_NOISOLATE | MIIF_NOMANPAUSE;
 	if (MII_MODEL(ma->mii_id2) == MII_MODEL_xxICPLUS_IP1000A &&
-	     strcmp(ma->mii_data->mii_ifp->if_dname, "stge") == 0 &&
+	     strcmp(if_getdname(ma->mii_data->mii_ifp), "stge") == 0 &&
 	     (miibus_get_flags(dev) & MIIF_MACPRIV0) != 0)
 		flags |= MIIF_PHYPRIV0;
 	mii_phy_dev_attach(dev, flags, &ip1000phy_funcs, 1);

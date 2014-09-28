@@ -100,43 +100,36 @@ SYSCTL_INT(_security_mac_biba, OID_AUTO, label_size, CTLFLAG_RD,
     &biba_label_size, 0, "Size of struct mac_biba");
 
 static int	biba_enabled = 1;
-SYSCTL_INT(_security_mac_biba, OID_AUTO, enabled, CTLFLAG_RW, &biba_enabled,
+SYSCTL_INT(_security_mac_biba, OID_AUTO, enabled, CTLFLAG_RWTUN, &biba_enabled,
     0, "Enforce MAC/Biba policy");
-TUNABLE_INT("security.mac.biba.enabled", &biba_enabled);
 
 static int	destroyed_not_inited;
 SYSCTL_INT(_security_mac_biba, OID_AUTO, destroyed_not_inited, CTLFLAG_RD,
     &destroyed_not_inited, 0, "Count of labels destroyed but not inited");
 
 static int	trust_all_interfaces = 0;
-SYSCTL_INT(_security_mac_biba, OID_AUTO, trust_all_interfaces, CTLFLAG_RD,
+SYSCTL_INT(_security_mac_biba, OID_AUTO, trust_all_interfaces, CTLFLAG_RDTUN,
     &trust_all_interfaces, 0, "Consider all interfaces 'trusted' by MAC/Biba");
-TUNABLE_INT("security.mac.biba.trust_all_interfaces", &trust_all_interfaces);
 
 static char	trusted_interfaces[128];
-SYSCTL_STRING(_security_mac_biba, OID_AUTO, trusted_interfaces, CTLFLAG_RD,
+SYSCTL_STRING(_security_mac_biba, OID_AUTO, trusted_interfaces, CTLFLAG_RDTUN,
     trusted_interfaces, 0, "Interfaces considered 'trusted' by MAC/Biba");
-TUNABLE_STR("security.mac.biba.trusted_interfaces", trusted_interfaces,
-    sizeof(trusted_interfaces));
 
 static int	max_compartments = MAC_BIBA_MAX_COMPARTMENTS;
 SYSCTL_INT(_security_mac_biba, OID_AUTO, max_compartments, CTLFLAG_RD,
     &max_compartments, 0, "Maximum supported compartments");
 
 static int	ptys_equal = 0;
-SYSCTL_INT(_security_mac_biba, OID_AUTO, ptys_equal, CTLFLAG_RW, &ptys_equal,
+SYSCTL_INT(_security_mac_biba, OID_AUTO, ptys_equal, CTLFLAG_RWTUN, &ptys_equal,
     0, "Label pty devices as biba/equal on create");
-TUNABLE_INT("security.mac.biba.ptys_equal", &ptys_equal);
 
 static int	interfaces_equal = 1;
-SYSCTL_INT(_security_mac_biba, OID_AUTO, interfaces_equal, CTLFLAG_RW,
+SYSCTL_INT(_security_mac_biba, OID_AUTO, interfaces_equal, CTLFLAG_RWTUN,
     &interfaces_equal, 0, "Label network interfaces as biba/equal on create");
-TUNABLE_INT("security.mac.biba.interfaces_equal", &interfaces_equal);
 
 static int	revocation_enabled = 0;
-SYSCTL_INT(_security_mac_biba, OID_AUTO, revocation_enabled, CTLFLAG_RW,
+SYSCTL_INT(_security_mac_biba, OID_AUTO, revocation_enabled, CTLFLAG_RWTUN,
     &revocation_enabled, 0, "Revoke access to objects on relabel");
-TUNABLE_INT("security.mac.biba.revocation_enabled", &revocation_enabled);
 
 static int	biba_slot;
 #define	SLOT(l)	((struct mac_biba *)mac_label_get((l), biba_slot))
@@ -1358,17 +1351,6 @@ biba_mount_create(struct ucred *cred, struct mount *mp,
 }
 
 static void
-biba_netatalk_aarp_send(struct ifnet *ifp, struct label *ifplabel,
-    struct mbuf *m, struct label *mlabel)
-{
-	struct mac_biba *dest;
-
-	dest = SLOT(mlabel);
-
-	biba_set_effective(dest, MAC_BIBA_TYPE_EQUAL, 0, NULL);
-}
-
-static void
 biba_netinet_arp_send(struct ifnet *ifp, struct label *ifplabel,
     struct mbuf *m, struct label *mlabel)
 {
@@ -2065,12 +2047,9 @@ biba_priv_check(struct ucred *cred, int priv)
 	 * Allow some but not all network privileges.  In general, dont allow
 	 * reconfiguring the network stack, just normal use.
 	 */
-	case PRIV_NETATALK_RESERVEDPORT:
 	case PRIV_NETINET_RESERVEDPORT:
 	case PRIV_NETINET_RAW:
 	case PRIV_NETINET_REUSEPORT:
-	case PRIV_NETIPX_RESERVEDPORT:
-	case PRIV_NETIPX_RAW:
 		break;
 
 	/*
@@ -3653,8 +3632,6 @@ static struct mac_policy_ops mac_biba_ops =
 	.mpo_mount_create = biba_mount_create,
 	.mpo_mount_destroy_label = biba_destroy_label,
 	.mpo_mount_init_label = biba_init_label,
-
-	.mpo_netatalk_aarp_send = biba_netatalk_aarp_send,
 
 	.mpo_netinet_arp_send = biba_netinet_arp_send,
 	.mpo_netinet_firewall_reply = biba_netinet_firewall_reply,

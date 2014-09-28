@@ -343,19 +343,14 @@ rtc_init(struct vmctx *ctx)
 	 * 0x34/0x35 - 64KB chunks above 16MB, below 4GB
 	 * 0x5b/0x5c/0x5d - 64KB chunks above 4GB
 	 */
-	err = vm_get_memory_seg(ctx, 0, &lomem, NULL);
-	assert(err == 0);
-
-	lomem = (lomem - m_16MB) / m_64KB;
+	lomem = (vm_get_lowmem_size(ctx) - m_16MB) / m_64KB;
 	rtc_nvram[nvoff(RTC_LMEM_LSB)] = lomem;
 	rtc_nvram[nvoff(RTC_LMEM_MSB)] = lomem >> 8;
 
-	if (vm_get_memory_seg(ctx, m_4GB, &himem, NULL) == 0) {	  
-		himem /= m_64KB;
-		rtc_nvram[nvoff(RTC_HMEM_LSB)] = himem;
-		rtc_nvram[nvoff(RTC_HMEM_SB)]  = himem >> 8;
-		rtc_nvram[nvoff(RTC_HMEM_MSB)] = himem >> 16;
-	}
+	himem = vm_get_highmem_size(ctx) / m_64KB;
+	rtc_nvram[nvoff(RTC_HMEM_LSB)] = himem;
+	rtc_nvram[nvoff(RTC_HMEM_SB)]  = himem >> 8;
+	rtc_nvram[nvoff(RTC_HMEM_MSB)] = himem >> 16;
 }
 
 INOUT_PORT(rtc, IO_RTC, IOPORT_F_INOUT, rtc_addr_handler);

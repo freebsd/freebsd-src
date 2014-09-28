@@ -69,7 +69,7 @@ extern int SIZE_BUF;
 #include <string.h>
 #include <limits.h>
 #ifdef __FreeBSD__
-#include <sys/capability.h>
+#include <sys/capsicum.h>
 #include <sys/ioccom.h>
 #include <sys/types.h>
 #include <sys/sysctl.h>

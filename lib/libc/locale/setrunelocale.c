@@ -202,6 +202,8 @@ __set_thread_rune_locale(locale_t loc)
 
 	if (loc == NULL) {
 		_ThreadRuneLocale = &_DefaultRuneLocale;
+	} else if (loc == LC_GLOBAL_LOCALE) {
+		_ThreadRuneLocale = 0;
 	} else {
 		_ThreadRuneLocale = XLOCALE_CTYPE(loc)->runes;
 	}

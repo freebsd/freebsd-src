@@ -21,6 +21,7 @@
 /*
  * Copyright 2008 Sun Microsystems, Inc.  All rights reserved.
  * Use is subject to license terms.
+ * Copyright (c) 2012, Joyent, Inc. All rights reserved.
  */
 
 #pragma ident	"%Z%%M%	%I%	%E% SMI"
@@ -85,11 +86,11 @@ static dtrace_pattr_t xpv_attr = {
 
 sdt_provider_t sdt_providers[] = {
 	{ "vtrace", "__vtrace_", &vtrace_attr, 0 },
-	{ "sysinfo", "__cpu_sysinfo_", &info_attr, 0 },
-	{ "vminfo", "__cpu_vminfo_", &info_attr, 0 },
+	{ "sysinfo", "__cpu_sysinfo_", &info_attr, DTRACE_PRIV_USER },
+	{ "vminfo", "__cpu_vminfo_", &info_attr, DTRACE_PRIV_USER },
 	{ "fpuinfo", "__fpuinfo_", &fpu_attr, 0 },
-	{ "sched", "__sched_", &stab_attr, 0 },
-	{ "proc", "__proc_", &stab_attr, 0 },
+	{ "sched", "__sched_", &stab_attr, DTRACE_PRIV_USER },
+	{ "proc", "__proc_", &stab_attr, DTRACE_PRIV_USER },
 	{ "io", "__io_", &stab_attr, 0 },
 	{ "mib", "__mib_", &stab_attr, 0 },
 	{ "fsinfo", "__fsinfo_", &fsinfo_attr, 0 },
@@ -850,6 +851,20 @@ sdt_argdesc_t sdt_args[] = {
 	{ "xpv", "setvcpucontext-start", 1, 1, "vcpu_guest_context_t *" },
 	{ NULL }
 };
+
+/*ARGSUSED*/
+int
+sdt_mode(void *arg, dtrace_id_t id, void *parg)
+{
+	/*
+	 * We tell DTrace that we're in kernel mode, that the firing needs to
+	 * be dropped for anything that doesn't have necessary privileges, and
+	 * that it needs to be restricted for anything that has restricted
+	 * (i.e., not all-zone) privileges.
+	 */
+	return (DTRACE_MODE_KERNEL | DTRACE_MODE_NOPRIV_DROP |
+	    DTRACE_MODE_LIMITEDPRIV_RESTRICT);
+}
 
 /*ARGSUSED*/
 void

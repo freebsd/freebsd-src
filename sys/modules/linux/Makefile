@@ -13,6 +13,7 @@ SRCS=	linux_fork.c linux${SFX}_dummy.c linux_emul.c linux_file.c \
 	linux${SFX}_machdep.c linux_mib.c linux_misc.c linux_signal.c \
 	linux_socket.c linux_stats.c linux_sysctl.c linux${SFX}_sysent.c \
 	linux${SFX}_sysvec.c linux_uid16.c linux_util.c linux_time.c \
+	linux_timer.c \
 	opt_inet6.h opt_compat.h opt_posix.h opt_usb.h vnode_if.h \
 	device_if.h bus_if.h assym.s
 
@@ -56,8 +57,6 @@ linux${SFX}_genassym.o: linux${SFX}_genassym.c linux.h @ machine x86
 	${CC} -c ${CFLAGS:N-fno-common} ${.IMPSRC}
 
 .if !defined(KERNBUILDDIR)
-opt_inet6.h:
-	echo "#define INET6 1" > ${.TARGET}
 .if defined(KTR)
 CFLAGS+=	-DKTR
 .endif

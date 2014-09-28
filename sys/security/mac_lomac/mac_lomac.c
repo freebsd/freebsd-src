@@ -101,34 +101,28 @@ SYSCTL_INT(_security_mac_lomac, OID_AUTO, label_size, CTLFLAG_RD,
     &lomac_label_size, 0, "Size of struct mac_lomac");
 
 static int	lomac_enabled = 1;
-SYSCTL_INT(_security_mac_lomac, OID_AUTO, enabled, CTLFLAG_RW,
+SYSCTL_INT(_security_mac_lomac, OID_AUTO, enabled, CTLFLAG_RWTUN,
     &lomac_enabled, 0, "Enforce MAC/LOMAC policy");
-TUNABLE_INT("security.mac.lomac.enabled", &lomac_enabled);
 
 static int	destroyed_not_inited;
 SYSCTL_INT(_security_mac_lomac, OID_AUTO, destroyed_not_inited, CTLFLAG_RD,
     &destroyed_not_inited, 0, "Count of labels destroyed but not inited");
 
 static int	trust_all_interfaces = 0;
-SYSCTL_INT(_security_mac_lomac, OID_AUTO, trust_all_interfaces, CTLFLAG_RD,
+SYSCTL_INT(_security_mac_lomac, OID_AUTO, trust_all_interfaces, CTLFLAG_RDTUN,
     &trust_all_interfaces, 0, "Consider all interfaces 'trusted' by MAC/LOMAC");
-TUNABLE_INT("security.mac.lomac.trust_all_interfaces", &trust_all_interfaces);
 
 static char	trusted_interfaces[128];
-SYSCTL_STRING(_security_mac_lomac, OID_AUTO, trusted_interfaces, CTLFLAG_RD,
+SYSCTL_STRING(_security_mac_lomac, OID_AUTO, trusted_interfaces, CTLFLAG_RDTUN,
     trusted_interfaces, 0, "Interfaces considered 'trusted' by MAC/LOMAC");
-TUNABLE_STR("security.mac.lomac.trusted_interfaces", trusted_interfaces,
-    sizeof(trusted_interfaces));
 
 static int	ptys_equal = 0;
-SYSCTL_INT(_security_mac_lomac, OID_AUTO, ptys_equal, CTLFLAG_RW,
+SYSCTL_INT(_security_mac_lomac, OID_AUTO, ptys_equal, CTLFLAG_RWTUN,
     &ptys_equal, 0, "Label pty devices as lomac/equal on create");
-TUNABLE_INT("security.mac.lomac.ptys_equal", &ptys_equal);
 
 static int	revocation_enabled = 1;
-SYSCTL_INT(_security_mac_lomac, OID_AUTO, revocation_enabled, CTLFLAG_RW,
+SYSCTL_INT(_security_mac_lomac, OID_AUTO, revocation_enabled, CTLFLAG_RWTUN,
     &revocation_enabled, 0, "Revoke access to objects on relabel");
-TUNABLE_INT("security.mac.lomac.revocation_enabled", &revocation_enabled);
 
 static int	lomac_slot;
 #define	SLOT(l)	((struct mac_lomac *)mac_label_get((l), lomac_slot))
@@ -1449,17 +1443,6 @@ lomac_mount_create(struct ucred *cred, struct mount *mp,
 }
 
 static void
-lomac_netatalk_aarp_send(struct ifnet *ifp, struct label *ifplabel,
-    struct mbuf *m, struct label *mlabel)
-{
-	struct mac_lomac *dest;
-
-	dest = SLOT(mlabel);
-
-	lomac_set_single(dest, MAC_LOMAC_TYPE_EQUAL, 0);
-}
-
-static void
 lomac_netinet_arp_send(struct ifnet *ifp, struct label *ifplabel,
     struct mbuf *m, struct label *mlabel)
 {
@@ -1832,12 +1815,9 @@ lomac_priv_check(struct ucred *cred, int priv)
 	 * Allow some but not all network privileges.  In general, dont allow
 	 * reconfiguring the network stack, just normal use.
 	 */
-	case PRIV_NETATALK_RESERVEDPORT:
 	case PRIV_NETINET_RESERVEDPORT:
 	case PRIV_NETINET_RAW:
 	case PRIV_NETINET_REUSEPORT:
-	case PRIV_NETIPX_RESERVEDPORT:
-	case PRIV_NETIPX_RAW:
 		break;
 
 	/*
@@ -2988,8 +2968,6 @@ static struct mac_policy_ops lomac_ops =
 	.mpo_mount_create = lomac_mount_create,
 	.mpo_mount_destroy_label = lomac_destroy_label,
 	.mpo_mount_init_label = lomac_init_label,
-
-	.mpo_netatalk_aarp_send = lomac_netatalk_aarp_send,
 
 	.mpo_netinet_arp_send = lomac_netinet_arp_send,
 	.mpo_netinet_firewall_reply = lomac_netinet_firewall_reply,

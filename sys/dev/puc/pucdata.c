@@ -36,6 +36,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/systm.h>
 #include <sys/kernel.h>
 #include <sys/bus.h>
+#include <sys/sysctl.h>
 
 #include <machine/resource.h>
 #include <machine/bus.h>
@@ -58,6 +59,7 @@ static puc_config_f puc_config_oxford_pcie;
 static puc_config_f puc_config_quatech;
 static puc_config_f puc_config_syba;
 static puc_config_f puc_config_siig;
+static puc_config_f puc_config_sunix;
 static puc_config_f puc_config_timedia;
 static puc_config_f puc_config_titan;
 
@@ -986,10 +988,44 @@ const struct puc_cfg puc_pci_devices[] = {
 	    .config_function = puc_config_syba
 	},
 
-	{   0x1fd4, 0x1999, 0xffff, 0,
-	    "Sunix SER5437A",
+	{   0x1fd4, 0x1999, 0x1fd4, 0x0002,
+	    "Sunix SER5xxxx 2-port serial",
 	    DEFAULT_RCLK * 8,
 	    PUC_PORT_2S, 0x10, 0, 8,
+	},
+
+	{   0x1fd4, 0x1999, 0x1fd4, 0x0004,
+	    "Sunix SER5xxxx 4-port serial",
+	    DEFAULT_RCLK * 8,
+	    PUC_PORT_4S, 0x10, 0, 8,
+	},
+
+	{   0x1fd4, 0x1999, 0x1fd4, 0x0008,
+	    "Sunix SER5xxxx 8-port serial",
+	    DEFAULT_RCLK * 8,
+	    PUC_PORT_8S, -1, -1, -1,
+	    .config_function = puc_config_sunix
+	},
+
+	{   0x1fd4, 0x1999, 0x1fd4, 0x0101,
+	    "Sunix MIO5xxxx 1-port serial and 1284 Printer port",
+	    DEFAULT_RCLK * 8,
+	    PUC_PORT_1S1P, -1, -1, -1,
+	    .config_function = puc_config_sunix
+	},
+
+	{   0x1fd4, 0x1999, 0x1fd4, 0x0102,
+	    "Sunix MIO5xxxx 2-port serial and 1284 Printer port",
+	    DEFAULT_RCLK * 8,
+	    PUC_PORT_2S1P, -1, -1, -1,
+	    .config_function = puc_config_sunix
+	},
+
+	{   0x1fd4, 0x1999, 0x1fd4, 0x0104,
+	    "Sunix MIO5xxxx 4-port serial and 1284 Printer port",
+	    DEFAULT_RCLK * 8,
+	    PUC_PORT_4S1P, -1, -1, -1,
+	    .config_function = puc_config_sunix
 	},
 
 	{   0x5372, 0x6873, 0xffff, 0,
@@ -1023,8 +1059,8 @@ const struct puc_cfg puc_pci_devices[] = {
 	},
 
 	/*
-	 * This is more specific than the generic NM9835 entry that follows, and
-	 * is placed here to _prevent_ puc from claiming this single port card.
+	 * This is more specific than the generic NM9835 entry, and is placed
+	 * here to _prevent_ puc(4) from claiming this single port card.
 	 *
 	 * uart(4) will claim this device.
 	 */
@@ -1605,6 +1641,31 @@ puc_config_oxford_pcie(struct puc_softc *sc, enum puc_cfg_cmd cmd, int port,
 		return (0);
 	case PUC_CFG_GET_TYPE:
 		*res = PUC_TYPE_SERIAL;
+		return (0);
+	default:
+		break;
+	}
+	return (ENXIO);
+}
+
+static int
+puc_config_sunix(struct puc_softc *sc, enum puc_cfg_cmd cmd, int port,
+    intptr_t *res)
+{
+	int error;
+
+	switch (cmd) {
+	case PUC_CFG_GET_OFS:
+		error = puc_config(sc, PUC_CFG_GET_TYPE, port, res);
+		if (error != 0)
+			return (error);
+		*res = (*res == PUC_TYPE_SERIAL) ? (port & 3) * 8 : 0;
+		return (0);
+	case PUC_CFG_GET_RID:
+		error = puc_config(sc, PUC_CFG_GET_TYPE, port, res);
+		if (error != 0)
+			return (error);
+		*res = (*res == PUC_TYPE_SERIAL && port <= 3) ? 0x10 : 0x14;
 		return (0);
 	default:
 		break;

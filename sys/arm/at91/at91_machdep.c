@@ -43,6 +43,8 @@
  * Created      : 17/09/94
  */
 
+#include "opt_platform.h"
+
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
@@ -111,11 +113,11 @@ __FBSDID("$FreeBSD$");
 /* this should be evenly divisable by PAGE_SIZE / L2_TABLE_SIZE_REAL (or 4) */
 #define NUM_KERNEL_PTS		(KERNEL_PT_AFKERNEL + KERNEL_PT_AFKERNEL_NUM)
 
-extern u_int data_abort_handler_address;
-extern u_int prefetch_abort_handler_address;
-extern u_int undefined_handler_address;
+extern struct bus_space at91_bs_tag;
 
 struct pv_addr kernel_pt_table[NUM_KERNEL_PTS];
+
+extern uint32_t at91_master_clock;
 
 /* Static device mappings. */
 const struct arm_devmap_entry at91_devmap[] = {
@@ -130,7 +132,7 @@ const struct arm_devmap_entry at91_devmap[] = {
 		0xfff00000,
 		0x00100000,
 		VM_PROT_READ|VM_PROT_WRITE,
-		PTE_NOCACHE,
+		PTE_DEVICE,
 	},
 	/* There's a notion that we should do the rest of these lazily. */
 	/*
@@ -154,7 +156,7 @@ const struct arm_devmap_entry at91_devmap[] = {
 		AT91RM92_OHCI_BASE,
 		0x00100000,
 		VM_PROT_READ|VM_PROT_WRITE,
-		PTE_NOCACHE,
+		PTE_DEVICE,
 	},
 	{
 		/* CompactFlash controller. Portion of EBI CS4 1MB */
@@ -162,7 +164,7 @@ const struct arm_devmap_entry at91_devmap[] = {
 		AT91RM92_CF_BASE,
 		0x00100000,
 		VM_PROT_READ|VM_PROT_WRITE,
-		PTE_NOCACHE,
+		PTE_DEVICE,
 	},
 	/*
 	 * The next two should be good for the 9260, 9261 and 9G20 since
@@ -174,7 +176,7 @@ const struct arm_devmap_entry at91_devmap[] = {
 		AT91SAM9G20_OHCI_BASE,
 		0x00100000,
 		VM_PROT_READ|VM_PROT_WRITE,
-		PTE_NOCACHE,
+		PTE_DEVICE,
 	},
 	{
 		/* EBI CS3 256MB */
@@ -182,7 +184,7 @@ const struct arm_devmap_entry at91_devmap[] = {
 		AT91SAM9G20_NAND_BASE,
 		AT91SAM9G20_NAND_SIZE,
 		VM_PROT_READ|VM_PROT_WRITE,
-		PTE_NOCACHE,
+		PTE_DEVICE,
 	},
 	/*
 	 * The next should be good for the 9G45.
@@ -193,19 +195,10 @@ const struct arm_devmap_entry at91_devmap[] = {
 		AT91SAM9G45_OHCI_BASE,
 		0x00100000,
 		VM_PROT_READ|VM_PROT_WRITE,
-		PTE_NOCACHE,
+		PTE_DEVICE,
 	},
 	{ 0, 0, 0, 0, 0, }
 };
-
-/* Physical and virtual addresses for some global pages */
-
-struct pv_addr systempage;
-struct pv_addr msgbufpv;
-struct pv_addr irqstack;
-struct pv_addr undstack;
-struct pv_addr abtstack;
-struct pv_addr kernelstack;
 
 #ifdef LINUX_BOOT_ABI
 extern int membanks;
@@ -428,7 +421,7 @@ at91_try_id(uint32_t dbgu_base)
 	return (1);
 }
 
-static void
+void
 at91_soc_id(void)
 {
 
@@ -447,6 +440,16 @@ board_init(void)
 	return -1;
 }
 #endif
+
+#ifndef FDT
+/* Physical and virtual addresses for some global pages */
+
+struct pv_addr msgbufpv;
+struct pv_addr kernelstack;
+struct pv_addr systempage;
+struct pv_addr irqstack;
+struct pv_addr abtstack;
+struct pv_addr undstack;
 
 void *
 initarm(struct arm_boot_params *abp)
@@ -621,11 +624,6 @@ initarm(struct arm_boot_params *abp)
 	 */
 	cpu_idcache_wbinv_all();
 
-	/* Set stack for exception handlers */
-
-	data_abort_handler_address = (u_int)data_abort_handler;
-	prefetch_abort_handler_address = (u_int)prefetch_abort_handler;
-	undefined_handler_address = (u_int)undefinedinstruction_bounce;
 	undefined_init();
 
 	init_proc0(kernelstack.pv_va);
@@ -660,6 +658,7 @@ initarm(struct arm_boot_params *abp)
 	return ((void *)(kernelstack.pv_va + USPACE_SVC_STACK_TOP -
 	    sizeof(struct pcb)));
 }
+#endif
 
 /*
  * These functions are handled elsewhere, so make them nops here.

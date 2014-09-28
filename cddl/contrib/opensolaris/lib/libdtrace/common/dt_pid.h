@@ -24,11 +24,12 @@
  * Copyright 2006 Sun Microsystems, Inc.  All rights reserved.
  * Use is subject to license terms.
  */
+/*
+ * Copyright (c) 2013, Joyent, Inc.  All rights reserved.
+ */
 
 #ifndef	_DT_PID_H
 #define	_DT_PID_H
-
-#pragma ident	"%Z%%M%	%I%	%E% SMI"
 
 #include <libproc.h>
 #include <sys/fasttrap.h>
@@ -56,6 +57,9 @@ extern int dt_pid_create_offset_probe(struct ps_prochandle *, dtrace_hdl_t *,
 
 extern int dt_pid_create_glob_offset_probes(struct ps_prochandle *,
     dtrace_hdl_t *, fasttrap_probe_spec_t *, const GElf_Sym *, const char *);
+
+extern void dt_pid_get_types(dtrace_hdl_t *, const dtrace_probedesc_t *,
+    dtrace_argdesc_t *, int *);
 
 #ifdef	__cplusplus
 }

@@ -3,7 +3,7 @@
 #
 
 PROG=	accf_data_attach
-NO_MAN=
+MAN=
 
 accf_data_attach: accf_data_attach.c
 	gcc -Wall -o accf_data_attach accf_data_attach.c

@@ -139,7 +139,7 @@ print_info(struct file_header *fh)
 		else
 			printf("\t\t\t\t    NULL,\n");
 	}
-	printf("\t\t\t\t  }\n");
+	printf("\t\t\t\t  },\n");
 	printf("\t.vf_map_count\t\t= { %u, %u, %u, %u },\n",
 	    be32toh(fh->map_count[0]),
 	    be32toh(fh->map_count[1]),

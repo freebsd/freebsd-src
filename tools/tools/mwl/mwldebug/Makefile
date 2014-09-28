@@ -2,6 +2,6 @@
 
 PROG=	mwldebug
 BINDIR=	/usr/local/bin
-NO_MAN=
+MAN=
 
 .include <bsd.prog.mk>

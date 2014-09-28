@@ -32,35 +32,54 @@
 __FBSDID("$FreeBSD$");
 
 #include "opt_inet6.h"
+#include "opt_rss.h"
 
 #include <sys/param.h>
 #include <sys/mbuf.h>
 
 #include <netinet/in.h>
 #include <netinet/in_pcb.h>
+#include <netinet/in_rss.h>
 #ifdef INET6
 #include <netinet6/in6_pcb.h>
 #endif /* INET6 */
 
 /*
  * Given a hash of whatever the covered tuple might be, return a pcbgroup
- * index.
+ * index.  Where RSS is supported, try to align bucket selection with RSS CPU
+ * affinity strategy.
  */
 static __inline u_int
 in6_pcbgroup_getbucket(struct inpcbinfo *pcbinfo, uint32_t hash)
 {
 
+#ifdef RSS
+	return (rss_getbucket(hash));
+#else
 	return (hash % pcbinfo->ipi_npcbgroups);
+#endif
 }
 
 /*
  * Map a (hashtype, hash) tuple into a connection group, or NULL if the hash 
- * information is insufficient to identify the pcbgroup.
+ * information is insufficient to identify the pcbgroup.  This might occur if
+ * a TCP packet turnsup with a 2-tuple hash, or if an RSS hash is present but
+ * RSS is not compiled into the kernel.
  */
 struct inpcbgroup *
 in6_pcbgroup_byhash(struct inpcbinfo *pcbinfo, u_int hashtype, uint32_t hash)
 {
 
+#ifdef RSS
+	if ((pcbinfo->ipi_hashfields == IPI_HASHFIELDS_4TUPLE &&
+	    hashtype == M_HASHTYPE_RSS_TCP_IPV6) ||
+	    (pcbinfo->ipi_hashfields == IPI_HASHFIELDS_4TUPLE &&
+	    hashtype == M_HASHTYPE_RSS_UDP_IPV6) ||
+	    (pcbinfo->ipi_hashfields == IPI_HASHFIELDS_2TUPLE &&
+	    hashtype == M_HASHTYPE_RSS_IPV6))
+		return (&pcbinfo->ipi_pcbgroups[
+		    in6_pcbgroup_getbucket(pcbinfo, hash)]);
+#endif
 	return (NULL);
 }
 
@@ -78,13 +97,26 @@ in6_pcbgroup_bytuple(struct inpcbinfo *pcbinfo, const struct in6_addr *laddrp,
 {
 	uint32_t hash;
 
+	/*
+	 * RSS note: we pass foreign addr/port as source, and local addr/port
+	 * as destination, as we want to align with what the hardware is
+	 * doing.
+	 */
 	switch (pcbinfo->ipi_hashfields) {
 	case IPI_HASHFIELDS_4TUPLE:
+#ifdef RSS
+		hash = rss_hash_ip6_4tuple(*faddrp, fport, *laddrp, lport);
+#else
 		hash = faddrp->s6_addr32[3] ^ fport;
+#endif
 		break;
 
 	case IPI_HASHFIELDS_2TUPLE:
+#ifdef RSS
+		hash = rss_hash_ip6_2tuple(*faddrp, *laddrp);
+#else
 		hash = faddrp->s6_addr32[3] ^ laddrp->s6_addr32[3];
+#endif
 		break;
 
 	default:
@@ -97,6 +129,19 @@ in6_pcbgroup_bytuple(struct inpcbinfo *pcbinfo, const struct in6_addr *laddrp,
 struct inpcbgroup *
 in6_pcbgroup_byinpcb(struct inpcb *inp)
 {
+
+#ifdef	RSS
+	/*
+	 * Listen sockets with INP_RSS_BUCKET_SET set have a pre-determined
+	 * RSS bucket and thus we should use this pcbgroup, rather than
+	 * using a tuple or hash.
+	 *
+	 * XXX should verify that there's actually pcbgroups and inp_rss_listen_bucket
+	 * fits in that!
+	 */
+	if (inp->inp_flags2 & INP_RSS_BUCKET_SET)
+		return (&inp->inp_pcbinfo->ipi_pcbgroups[inp->inp_rss_listen_bucket]);
+#endif
 
 	return (in6_pcbgroup_bytuple(inp->inp_pcbinfo, &inp->in6p_laddr,
 	    inp->inp_lport, &inp->in6p_faddr, inp->inp_fport));

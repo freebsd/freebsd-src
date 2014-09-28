@@ -6,7 +6,7 @@
  * forth in the LICENSE file which can be found at the top level of
  * the sendmail distribution.
  *
- *	$Id: sfsasl.h,v 8.21 2013/11/22 20:51:56 ca Exp $"
+ *	$Id: sfsasl.h,v 8.21 2013-11-22 20:51:56 ca Exp $"
  */
 
 #ifndef SFSASL_H

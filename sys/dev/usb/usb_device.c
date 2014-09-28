@@ -118,8 +118,7 @@ int	usb_template = USB_TEMPLATE;
 int	usb_template;
 #endif
 
-TUNABLE_INT("hw.usb.usb_template", &usb_template);
-SYSCTL_INT(_hw_usb, OID_AUTO, template, CTLFLAG_RW | CTLFLAG_TUN,
+SYSCTL_INT(_hw_usb, OID_AUTO, template, CTLFLAG_RWTUN,
     &usb_template, 0, "Selected USB device side template");
 
 /* English is default language */
@@ -127,12 +126,10 @@ SYSCTL_INT(_hw_usb, OID_AUTO, template, CTLFLAG_RW | CTLFLAG_TUN,
 static int usb_lang_id = 0x0009;
 static int usb_lang_mask = 0x00FF;
 
-TUNABLE_INT("hw.usb.usb_lang_id", &usb_lang_id);
-SYSCTL_INT(_hw_usb, OID_AUTO, usb_lang_id, CTLFLAG_RW | CTLFLAG_TUN,
+SYSCTL_INT(_hw_usb, OID_AUTO, usb_lang_id, CTLFLAG_RWTUN,
     &usb_lang_id, 0, "Preferred USB language ID");
 
-TUNABLE_INT("hw.usb.usb_lang_mask", &usb_lang_mask);
-SYSCTL_INT(_hw_usb, OID_AUTO, usb_lang_mask, CTLFLAG_RW | CTLFLAG_TUN,
+SYSCTL_INT(_hw_usb, OID_AUTO, usb_lang_mask, CTLFLAG_RWTUN,
     &usb_lang_mask, 0, "Preferred USB language mask");
 
 static const char* statestr[USB_STATE_MAX] = {
@@ -449,6 +446,72 @@ usb_endpoint_foreach(struct usb_device *udev, struct usb_endpoint *ep)
 		ep++;
 	}
 	return (NULL);
+}
+
+#if USB_HAVE_UGEN
+static uint16_t
+usb_get_refcount(struct usb_device *udev)
+{
+	if (usb_proc_is_called_from(USB_BUS_EXPLORE_PROC(udev->bus)) ||
+	    usb_proc_is_called_from(USB_BUS_CONTROL_XFER_PROC(udev->bus)))
+		return (1);
+	return (2);
+}
+#endif
+
+/*------------------------------------------------------------------------*
+ *	usb_wait_pending_ref_locked
+ *
+ * This function will wait for any USB references to go away before
+ * returning and disable further USB device refcounting on the
+ * specified USB device. This function is used when detaching a USB
+ * device.
+ *------------------------------------------------------------------------*/
+static void
+usb_wait_pending_ref_locked(struct usb_device *udev)
+{
+#if USB_HAVE_UGEN
+	const uint16_t refcount = usb_get_refcount(udev);
+
+	DPRINTF("Refcount = %d\n", (int)refcount); 
+
+	while (1) {
+		/* wait for any pending references to go away */
+		mtx_lock(&usb_ref_lock);
+		if (udev->refcount == refcount) {
+			/* prevent further refs being taken */
+			udev->refcount = USB_DEV_REF_MAX;
+			mtx_unlock(&usb_ref_lock);
+			break;
+		}
+		usbd_enum_unlock(udev);
+		cv_wait(&udev->ref_cv, &usb_ref_lock);
+		mtx_unlock(&usb_ref_lock);
+		(void) usbd_enum_lock(udev);
+	}
+#endif
+}
+
+/*------------------------------------------------------------------------*
+ *	usb_ref_restore_locked
+ *
+ * This function will restore the reference count value after a call
+ * to "usb_wait_pending_ref_locked()".
+ *------------------------------------------------------------------------*/
+static void
+usb_ref_restore_locked(struct usb_device *udev)
+{
+#if USB_HAVE_UGEN
+	const uint16_t refcount = usb_get_refcount(udev);
+
+	DPRINTF("Refcount = %d\n", (int)refcount); 
+
+	/* restore reference count and wakeup waiters, if any */
+	mtx_lock(&usb_ref_lock);
+	udev->refcount = refcount;
+	cv_broadcast(&udev->ref_cv);
+	mtx_unlock(&usb_ref_lock);
+#endif
 }
 
 /*------------------------------------------------------------------------*
@@ -1065,10 +1128,12 @@ usb_detach_device_sub(struct usb_device *udev, device_t *ppdev,
 		 */
 		*ppdev = NULL;
 
-		device_printf(dev, "at %s, port %d, addr %d "
-		    "(disconnected)\n",
-		    device_get_nameunit(udev->parent_dev),
-		    udev->port_no, udev->address);
+		if (!rebooting) {
+			device_printf(dev, "at %s, port %d, addr %d "
+			    "(disconnected)\n",
+			    device_get_nameunit(udev->parent_dev),
+			    udev->port_no, udev->address);
+		}
 
 		if (device_is_attached(dev)) {
 			if (udev->flags.peer_suspended) {
@@ -1121,6 +1186,9 @@ usb_detach_device(struct usb_device *udev, uint8_t iface_index,
 
 	sx_assert(&udev->enum_sx, SA_LOCKED);
 
+	/* wait for pending refs to go away */
+	usb_wait_pending_ref_locked(udev);
+
 	/*
 	 * First detach the child to give the child's detach routine a
 	 * chance to detach the sub-devices in the correct order.
@@ -1147,6 +1215,8 @@ usb_detach_device(struct usb_device *udev, uint8_t iface_index,
 		usb_detach_device_sub(udev, &iface->subdev,
 		    &iface->pnpinfo, flag);
 	}
+
+	usb_ref_restore_locked(udev);
 }
 
 /*------------------------------------------------------------------------*
@@ -2079,22 +2149,16 @@ usb_free_device(struct usb_device *udev, uint8_t flag)
 #endif
 
 #if USB_HAVE_UGEN
-	printf("%s: <%s> at %s (disconnected)\n", udev->ugen_name,
-	    usb_get_manufacturer(udev), device_get_nameunit(bus->bdev));
+	if (!rebooting) {
+		printf("%s: <%s> at %s (disconnected)\n", udev->ugen_name,
+		    usb_get_manufacturer(udev), device_get_nameunit(bus->bdev));
+	}
 
 	/* Destroy UGEN symlink, if any */
 	if (udev->ugen_symlink) {
 		usb_free_symlink(udev->ugen_symlink);
 		udev->ugen_symlink = NULL;
 	}
-
-	/* wait for all pending references to go away: */
-	mtx_lock(&usb_ref_lock);
-	udev->refcount--;
-	while (udev->refcount != 0) {
-		cv_wait(&udev->ref_cv, &usb_ref_lock);
-	}
-	mtx_unlock(&usb_ref_lock);
 
 	usb_destroy_dev(udev->ctrl_dev);
 #endif
@@ -2612,8 +2676,14 @@ usb_fifo_free_wrap(struct usb_device *udev,
 			/* no need to free this FIFO */
 			continue;
 		}
+		/* wait for pending refs to go away */
+		usb_wait_pending_ref_locked(udev);
+
 		/* free this FIFO */
 		usb_fifo_free(f);
+
+		/* restore refcount */
+		usb_ref_restore_locked(udev);
 	}
 }
 #endif

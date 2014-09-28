@@ -32,6 +32,8 @@
 #ifndef _COMPAT_FREEBSD32_IOCTL_H_
 #define	_COMPAT_FREEBSD32_IOCTL_H_
 
+#include <cam/scsi/scsi_sg.h>
+
 typedef __uint32_t caddr_t32;
 
 struct ioc_toc_header32 {
@@ -122,5 +124,6 @@ struct pci_conf_io32 {
 #define	MEMRANGE_GET32	_IOWR('m', 50, struct mem_range_op32)
 #define	MEMRANGE_SET32	_IOW('m', 51, struct mem_range_op32)
 #define	PCIOCGETCONF_32	_IOWR('p', 5, struct pci_conf_io32)
+#define	SG_IO_32	_IOWR(SGIOC, 0x85, struct sg_io_hdr32)
 
 #endif	/* _COMPAT_FREEBSD32_IOCTL_H_ */

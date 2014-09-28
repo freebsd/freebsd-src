@@ -165,116 +165,16 @@ fb_mmap(struct cdev *dev, vm_ooffset_t offset, vm_paddr_t *paddr, int nprot,
 	struct fb_info *info;
 
 	info = dev->si_drv1;
+
+	if ((info->fb_flags & FB_FLAG_NOMMAP) || info->fb_pbase == 0)
+		return (ENODEV);
+
 	if (offset < info->fb_size) {
 		*paddr = info->fb_pbase + offset;
 		return (0);
 	}
 	return (EINVAL);
 }
-
-
-static void
-vt_fb_mem_wr1(struct fb_info *sc, uint32_t o, uint8_t v)
-{
-
-	KASSERT((o < sc->fb_size), ("Offset %#08x out of fb size", o));
-	*(uint8_t *)(sc->fb_vbase + o) = v;
-}
-
-static void
-vt_fb_mem_wr2(struct fb_info *sc, uint32_t o, uint16_t v)
-{
-
-	KASSERT((o < sc->fb_size), ("Offset %#08x out of fb size", o));
-	*(uint16_t *)(sc->fb_vbase + o) = v;
-}
-
-static void
-vt_fb_mem_wr4(struct fb_info *sc, uint32_t o, uint32_t v)
-{
-
-	KASSERT((o < sc->fb_size), ("Offset %#08x out of fb size", o));
-	*(uint32_t *)(sc->fb_vbase + o) = v;
-}
-
-static void
-vt_fb_mem_copy(struct fb_info *sc, uint32_t offset_to, uint32_t offset_from,
-    uint32_t size)
-{
-
-	memmove((void *)(sc->fb_vbase + offset_to), (void *)(sc->fb_vbase +
-	    offset_from), size);
-}
-
-static void
-vt_fb_indir_wr1(struct fb_info *sc, uint32_t o, uint8_t v)
-{
-
-	KASSERT((o < sc->fb_size), ("Offset %#08x out of fb size", o));
-	sc->fb_write(sc->fb_priv, o, &v, 1);
-}
-
-static void
-vt_fb_indir_wr2(struct fb_info *sc, uint32_t o, uint16_t v)
-{
-
-	KASSERT((o < sc->fb_size), ("Offset %#08x out of fb size", o));
-	sc->fb_write(sc->fb_priv, o, &v, 2);
-}
-
-static void
-vt_fb_indir_wr4(struct fb_info *sc, uint32_t o, uint32_t v)
-{
-
-	KASSERT((o < sc->fb_size), ("Offset %#08x out of fb size", o));
-	sc->fb_write(sc->fb_priv, o, &v, 4);
-}
-
-static void
-vt_fb_indir_copy(struct fb_info *sc, uint32_t offset_to, uint32_t offset_from,
-    uint32_t size)
-{
-
-	sc->copy(sc->fb_priv, offset_to, offset_from, size);
-}
-
-int
-fb_probe(struct fb_info *info)
-{
-
-	if (info->fb_size == 0)
-		return (ENXIO);
-
-	if (info->fb_write != NULL) {
-		if (info->fb_write == NULL) {
-			return (EINVAL);
-		}
-		info->fb_flags |= FB_FLAG_NOMMAP;
-		info->wr1 = &vt_fb_indir_wr1;
-		info->wr2 = &vt_fb_indir_wr2;
-		info->wr4 = &vt_fb_indir_wr4;
-		info->copy = &vt_fb_indir_copy;
-	} else if (info->fb_vbase != 0) {
-		if (info->fb_pbase == 0) {
-			info->fb_flags |= FB_FLAG_NOMMAP;
-		} else {
-			if (info->fb_mmap == NULL)
-				info->fb_mmap = &fb_mmap;
-		}
-		info->wr1 = &vt_fb_mem_wr1;
-		info->wr2 = &vt_fb_mem_wr2;
-		info->wr4 = &vt_fb_mem_wr4;
-		info->copy = &vt_fb_mem_copy;
-	} else
-		return (ENXIO);
-
-	if (info->fb_ioctl == NULL)
-		info->fb_ioctl = &fb_ioctl;
-
-
-	return (0);
-}
-
 
 static int
 fb_init(struct fb_list_entry *entry, int unit)
@@ -336,10 +236,6 @@ fbd_register(struct fb_info* info)
 		return (0);
 	}
 
-	err = fb_probe(info);
-	if (err)
-		return (err);
-
 	entry = malloc(sizeof(struct fb_list_entry), M_DEVBUF, M_WAITOK|M_ZERO);
 	entry->fb_info = info;
 
@@ -349,8 +245,11 @@ fbd_register(struct fb_info* info)
 	if (err)
 		return (err);
 
-	if (first)
-		vt_fb_attach(info);
+	if (first) {
+		err = vt_fb_attach(info);
+		if (err)
+			return (err);
+	}
 
 	return (0);
 }

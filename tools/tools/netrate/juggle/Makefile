@@ -1,7 +1,7 @@
 # $FreeBSD$
 
 PROG=	juggle
-NO_MAN=
+MAN=
 WARNS?=	3
 DPADD=	${LIBPTHREAD}
 LDADD=	-lpthread

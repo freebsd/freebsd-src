@@ -1,4 +1,4 @@
-# $Id: lib.mk,v 1.49 2013/07/18 05:46:24 sjg Exp $
+# $Id: lib.mk,v 1.51 2014/05/23 01:30:36 sjg Exp $
 
 .if !target(__${.PARSEFILE}__)
 __${.PARSEFILE}__:
@@ -55,7 +55,7 @@ CFLAGS+=	${COPTS}
 # are built for different platforms and object formats.
 # OBJECT_FMT:		currently either "ELF" or "a.out", from <bsd.own.mk>
 # SHLIB_SOVERSION:	version number to be compiled into a shared library
-#			via -soname. Usualy ${SHLIB_MAJOR} on ELF.
+#			via -soname. Usually ${SHLIB_MAJOR} on ELF.
 #			NetBSD/pmax used to use ${SHLIB_MAJOR}[.${SHLIB_MINOR}
 #			[.${SHLIB_TEENY}]]
 # SHLIB_SHFLAGS:	Flags to tell ${LD} to emit shared library.
@@ -123,7 +123,7 @@ SHLIB_LDSTARTFILE?=	/usr/lib/crtbeginS.o
 SHLIB_LDENDFILE?=	/usr/lib/crtendS.o
 .endif
 
-# for compatability with the following
+# for compatibility with the following
 CC_PIC?= ${CPICFLAGS}
 LD_shared=${SHLIB_SHFLAGS}
 
@@ -175,9 +175,10 @@ AR_cq= -cqs
 .elif ${TARGET_OSNAME} == "FreeBSD"
 LD_solib= lib${LIB}_pic.a
 .elif ${TARGET_OSNAME} == "Linux"
+SHLIB_LD = ${CC}
 # this is ambiguous of course
-LD_shared=-shared -h lib${LIB}.so.${SHLIB_MAJOR}
-LD_solib= --whole-archive lib${LIB}_pic.a
+LD_shared=-shared -Wl,"-h lib${LIB}.so.${SHLIB_MAJOR}"
+LD_solib= -Wl,--whole-archive lib${LIB}_pic.a -Wl,--no-whole-archive
 # Linux uses GNU ld, which is a multi-pass linker
 # so we don't need to use lorder or tsort
 LD_objs = ${OBJS}
@@ -259,7 +260,7 @@ OPTIMIZE_OBJECT_META_FILES ?= yes
 
 
 .if ${MK_LIBTOOL} == "yes"
-# because libtool is so facist about naming the object files,
+# because libtool is so fascist about naming the object files,
 # we cannot (yet) build profiled libs
 MK_PROFILE=no
 _LIBS=lib${LIB}.a
@@ -413,7 +414,7 @@ SHLIB_AGE?=0
 .s.o .S.o .c.o:
 	${LIBTOOL} --mode=compile ${CC} ${LT_STATIC} ${CFLAGS} ${CPPFLAGS} ${IMPFLAGS} -c ${.IMPSRC}
 
-# can't really do profiled libs with libtool - its too facist about
+# can't really do profiled libs with libtool - its too fascist about
 # naming the output...
 lib${LIB}.a:: ${OBJS}
 	@rm -f ${.TARGET}

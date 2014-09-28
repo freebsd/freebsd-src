@@ -308,6 +308,10 @@ struct iwn_softc {
 	struct task		sc_reinit_task;
 	struct task		sc_radioon_task;
 	struct task		sc_radiooff_task;
+	struct task		sc_panic_task;
+
+	/* Taskqueue */
+	struct taskqueue	*sc_tq;
 
 	/* Calibration information */
 	struct callout		calib_to;
@@ -410,6 +414,9 @@ struct iwn_softc {
 
 	/* For specific params */
 	const struct iwn_base_params *base_params;
+
+#define	IWN_UCODE_API(ver)	(((ver) & 0x0000FF00) >> 8)
+	uint32_t		ucode_rev;
 };
 
 #define IWN_LOCK_INIT(_sc) \

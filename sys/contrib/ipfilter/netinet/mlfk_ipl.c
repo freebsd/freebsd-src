@@ -44,6 +44,8 @@ static dev_t ipf_devs[IPL_LOGSIZE];
 static int sysctl_ipf_int ( SYSCTL_HANDLER_ARGS );
 static int ipf_modload(void);
 static int ipf_modunload(void);
+static int ipf_fbsd_sysctl_create(ipf_main_softc_t*);
+static int ipf_fbsd_sysctl_destroy(ipf_main_softc_t*);
 
 #if (__FreeBSD_version >= 500024)
 # if (__FreeBSD_version >= 502116)
@@ -70,59 +72,36 @@ SYSCTL_DECL(_net_inet);
 #define SYSCTL_IPF(parent, nbr, name, access, ptr, val, descr) \
 	SYSCTL_OID(parent, nbr, name, CTLTYPE_INT|access, \
 		   ptr, val, sysctl_ipf_int, "I", descr);
+#define SYSCTL_DYN_IPF(parent, nbr, name, access,ptr, val, descr) \
+	SYSCTL_ADD_OID(&ipf_clist, SYSCTL_STATIC_CHILDREN(parent), nbr, name, \
+	CTLFLAG_DYN|CTLTYPE_INT|access, ptr, val, sysctl_ipf_int, "I", descr)
+static struct sysctl_ctx_list ipf_clist;
 #define	CTLFLAG_OFF	0x00800000	/* IPFilter must be disabled */
 #define	CTLFLAG_RWO	(CTLFLAG_RW|CTLFLAG_OFF)
 SYSCTL_NODE(_net_inet, OID_AUTO, ipf, CTLFLAG_RW, 0, "IPF");
-SYSCTL_IPF(_net_inet_ipf, OID_AUTO, fr_flags, CTLFLAG_RW, &ipfmain.ipf_flags, 0, "");
-SYSCTL_IPF(_net_inet_ipf, OID_AUTO, ipf_pass, CTLFLAG_RW, &ipfmain.ipf_pass, 0, "");
-SYSCTL_IPF(_net_inet_ipf, OID_AUTO, fr_active, CTLFLAG_RD, &ipfmain.ipf_active, 0, "");
+SYSCTL_IPF(_net_inet_ipf, OID_AUTO, fr_flags, CTLFLAG_RW, &ipfmain.ipf_flags, 0, "IPF flags");
+SYSCTL_IPF(_net_inet_ipf, OID_AUTO, ipf_pass, CTLFLAG_RW, &ipfmain.ipf_pass, 0, "default pass/block");
+SYSCTL_IPF(_net_inet_ipf, OID_AUTO, fr_active, CTLFLAG_RD, &ipfmain.ipf_active, 0, "IPF is active");
 SYSCTL_IPF(_net_inet_ipf, OID_AUTO, fr_tcpidletimeout, CTLFLAG_RWO,
-	   &ipfmain.ipf_tcpidletimeout, 0, "");
+	   &ipfmain.ipf_tcpidletimeout, 0, "TCP idle timeout in seconds");
 SYSCTL_IPF(_net_inet_ipf, OID_AUTO, fr_tcphalfclosed, CTLFLAG_RWO,
-	   &ipfmain.ipf_tcphalfclosed, 0, "");
+	   &ipfmain.ipf_tcphalfclosed, 0, "timeout for half closed TCP sessions");
 SYSCTL_IPF(_net_inet_ipf, OID_AUTO, fr_tcpclosewait, CTLFLAG_RWO,
-	   &ipfmain.ipf_tcpclosewait, 0, "");
+	   &ipfmain.ipf_tcpclosewait, 0, "timeout for TCP sessions in closewait status");
 SYSCTL_IPF(_net_inet_ipf, OID_AUTO, fr_tcplastack, CTLFLAG_RWO,
-	   &ipfmain.ipf_tcplastack, 0, "");
+	   &ipfmain.ipf_tcplastack, 0, "timeout for TCP sessions in last ack status");
 SYSCTL_IPF(_net_inet_ipf, OID_AUTO, fr_tcptimeout, CTLFLAG_RWO,
 	   &ipfmain.ipf_tcptimeout, 0, "");
 SYSCTL_IPF(_net_inet_ipf, OID_AUTO, fr_tcpclosed, CTLFLAG_RWO,
 	   &ipfmain.ipf_tcpclosed, 0, "");
 SYSCTL_IPF(_net_inet_ipf, OID_AUTO, fr_udptimeout, CTLFLAG_RWO,
-	   &ipfmain.ipf_udptimeout, 0, "");
+	   &ipfmain.ipf_udptimeout, 0, "UDP timeout");
 SYSCTL_IPF(_net_inet_ipf, OID_AUTO, fr_udpacktimeout, CTLFLAG_RWO,
 	   &ipfmain.ipf_udpacktimeout, 0, "");
 SYSCTL_IPF(_net_inet_ipf, OID_AUTO, fr_icmptimeout, CTLFLAG_RWO,
-	   &ipfmain.ipf_icmptimeout, 0, "");
-#if 0
-/* this needs to be resolved at compile time */
-SYSCTL_IPF(_net_inet_ipf, OID_AUTO, fr_defnatage, CTLFLAG_RWO,
-	   &((ipf_nat_softc_t *)ipfmain.ipf_nat_soft)->ipf_nat_defage, 0, "");
-SYSCTL_IPF(_net_inet_ipf, OID_AUTO, fr_ipfrttl, CTLFLAG_RW,
-	   &ipf_ipfrttl, 0, "");
-#endif
-SYSCTL_IPF(_net_inet_ipf, OID_AUTO, ipf_running, CTLFLAG_RD,
-	   &ipfmain.ipf_running, 0, "");
-#if 0
-SYSCTL_IPF(_net_inet_ipf, OID_AUTO, fr_statesize, CTLFLAG_RWO,
-	   &ipfmain.ipf_state_soft)->ipf_state_size, 0, "");
-SYSCTL_IPF(_net_inet_ipf, OID_AUTO, fr_statemax, CTLFLAG_RWO,
-	   &(ipfmain.ipf_state_soft)->ipf_state_max, 0, "");
-SYSCTL_IPF(_net_inet_ipf, OID_AUTO, ipf_nattable_sz, CTLFLAG_RWO,
-	   &(ipfmain.ipf_nat_soft)->ipf_nat_table_sz, 0, "");
-SYSCTL_IPF(_net_inet_ipf, OID_AUTO, ipf_natrules_sz, CTLFLAG_RWO,
-	   &(ipfmain.ipf_nat_soft)->ipf_nat_maprules_sz, 0, "");
-SYSCTL_IPF(_net_inet_ipf, OID_AUTO, ipf_rdrrules_sz, CTLFLAG_RWO,
-	   &(ipfmain.ipf_nat_soft)->ipf_nat_rdrrules_sz, 0, "");
-SYSCTL_IPF(_net_inet_ipf, OID_AUTO, ipf_hostmap_sz, CTLFLAG_RWO,
-	   &(ipfmain.ipf_nat_soft)->ipf_nat_hostmap_sz, 0, "");
-SYSCTL_IPF(_net_inet_ipf, OID_AUTO, fr_authsize, CTLFLAG_RWO,
-	   &ipf_auth_size, 0, "");
-SYSCTL_IPF(_net_inet_ipf, OID_AUTO, fr_authused, CTLFLAG_RD,
-	   &ipf_auth_used, 0, "");
-SYSCTL_IPF(_net_inet_ipf, OID_AUTO, fr_defaultauthage, CTLFLAG_RW,
-	   &ipf_auth_defaultage, 0, "");
-#endif
+	   &ipfmain.ipf_icmptimeout, 0, "ICMP timeout");
+SYSCTL_IPF(_net_inet_ipf, OID_AUTO, fr_running, CTLFLAG_RD,
+	   &ipfmain.ipf_running, 0, "IPF is running");
 SYSCTL_IPF(_net_inet_ipf, OID_AUTO, fr_chksrc, CTLFLAG_RW, &ipfmain.ipf_chksrc, 0, "");
 SYSCTL_IPF(_net_inet_ipf, OID_AUTO, fr_minttl, CTLFLAG_RW, &ipfmain.ipf_minttl, 0, "");
 
@@ -177,7 +156,6 @@ static struct cdevsw ipf_cdevsw = {
 static char *ipf_devfiles[] = {	IPL_NAME, IPNAT_NAME, IPSTATE_NAME, IPAUTH_NAME,
 				IPSYNC_NAME, IPSCAN_NAME, IPLOOKUP_NAME, NULL };
 
-
 static int
 ipfilter_modevent(module_t mod, int type, void *unused)
 {
@@ -210,6 +188,9 @@ ipf_modload()
 		return EIO;
 
 	if (ipf_create_all(&ipfmain) == NULL)
+		return EIO;
+
+	if (ipf_fbsd_sysctl_create(&ipfmain) != 0)
 		return EIO;
 
 	error = ipfattach(&ipfmain);
@@ -268,6 +249,9 @@ ipf_modunload()
 	if (ipfmain.ipf_refcnt)
 		return EBUSY;
 
+	if (ipf_fbsd_sysctl_destroy(&ipfmain) != 0)
+		return EIO;
+
 	error = ipf_pfil_unhook();
 	if (error != 0)
 		return error;
@@ -277,6 +261,7 @@ ipf_modunload()
 		if (error != 0)
 			return error;
 
+		ipf_fbsd_sysctl_destroy(&ipfmain);
 		ipf_destroy_all(&ipfmain);
 		ipf_unload_all();
 	} else
@@ -526,3 +511,58 @@ static int ipfwrite(dev, uio)
 		return ipf_sync_write(&ipfmain, uio);
 	return ENXIO;
 }
+
+static int
+ipf_fbsd_sysctl_create(main_softc)
+	ipf_main_softc_t *main_softc;
+{
+	ipf_nat_softc_t	*nat_softc;
+	ipf_state_softc_t *state_softc;
+	ipf_auth_softc_t *auth_softc;
+	ipf_frag_softc_t *frag_softc;
+
+	nat_softc = main_softc->ipf_nat_soft;
+	state_softc = main_softc->ipf_state_soft;
+	auth_softc = main_softc->ipf_auth_soft;
+	frag_softc = main_softc->ipf_frag_soft;
+
+	sysctl_ctx_init(&ipf_clist);
+
+	SYSCTL_DYN_IPF(_net_inet_ipf, OID_AUTO, "fr_defnatage", CTLFLAG_RWO,
+	    &nat_softc->ipf_nat_defage, 0, "");
+	SYSCTL_DYN_IPF(_net_inet_ipf, OID_AUTO, "fr_statesize", CTLFLAG_RWO,
+	    &state_softc->ipf_state_size, 0, "");
+	SYSCTL_DYN_IPF(_net_inet_ipf, OID_AUTO, "fr_statemax", CTLFLAG_RWO,
+	    &state_softc->ipf_state_max, 0, "");
+	SYSCTL_DYN_IPF(_net_inet_ipf, OID_AUTO, "ipf_nattable_max", CTLFLAG_RWO,
+	    &nat_softc->ipf_nat_table_max, 0, "");
+	SYSCTL_DYN_IPF(_net_inet_ipf, OID_AUTO, "ipf_nattable_sz", CTLFLAG_RWO,
+	    &nat_softc->ipf_nat_table_sz, 0, "");
+	SYSCTL_DYN_IPF(_net_inet_ipf, OID_AUTO, "ipf_natrules_sz", CTLFLAG_RWO,
+	    &nat_softc->ipf_nat_maprules_sz, 0, "");
+	SYSCTL_DYN_IPF(_net_inet_ipf, OID_AUTO, "ipf_rdrrules_sz", CTLFLAG_RWO,
+	    &nat_softc->ipf_nat_rdrrules_sz, 0, "");
+	SYSCTL_DYN_IPF(_net_inet_ipf, OID_AUTO, "ipf_hostmap_sz", CTLFLAG_RWO,
+	    &nat_softc->ipf_nat_hostmap_sz, 0, "");
+	SYSCTL_DYN_IPF(_net_inet_ipf, OID_AUTO, "fr_authsize", CTLFLAG_RWO,
+	   &auth_softc->ipf_auth_size, 0, "");
+	SYSCTL_DYN_IPF(_net_inet_ipf, OID_AUTO, "fr_authused", CTLFLAG_RD,
+	   &auth_softc->ipf_auth_used, 0, "");
+	SYSCTL_DYN_IPF(_net_inet_ipf, OID_AUTO, "fr_defaultauthage", CTLFLAG_RW,
+	   &auth_softc->ipf_auth_defaultage, 0, "");
+	SYSCTL_DYN_IPF(_net_inet_ipf, OID_AUTO, "fr_ipfrttl", CTLFLAG_RW,
+	   &frag_softc->ipfr_ttl, 0, "");
+	return 0;
+}
+
+static int
+ipf_fbsd_sysctl_destroy(main_softc)
+	ipf_main_softc_t *main_softc;
+{
+	if (sysctl_ctx_free(&ipf_clist)) {
+		printf("sysctl_ctx_free failed");
+		return(ENOTEMPTY);
+	}
+	return 0;
+}
+

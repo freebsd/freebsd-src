@@ -80,6 +80,13 @@ _GLIBCXX_END_NAMESPACE
 
 _GLIBCXX_BEGIN_NAMESPACE(std)
 
+#ifdef __clang__
+// When using clang, suppress warnings about possible keywords (such as
+// __is_void, __is_pod, etc) being used as identifiers.
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wkeyword-compat"
+#endif
+
 namespace __detail
 {
   // NB: g++ can not compile these if declared within the class
@@ -396,6 +403,10 @@ namespace __detail
       enum { __value = 1 };
       typedef __true_type __type;
     };
+#endif
+
+#ifdef __clang__
+#pragma clang diagnostic pop
 #endif
 
 _GLIBCXX_END_NAMESPACE

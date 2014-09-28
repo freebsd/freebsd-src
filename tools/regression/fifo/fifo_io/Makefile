@@ -1,7 +1,7 @@
 # $FreeBSD$
 
 PROG=	fifo_io
-NO_MAN=
+MAN=
 WARNS?=	3
 
 .include <bsd.prog.mk>

@@ -42,6 +42,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/systm.h>
 #include <sys/sysctl.h>
 #include <geom/geom.h>
+#include <geom/geom_int.h>
 #include <geom/part/g_part.h>
 
 #include "g_part_if.h"
@@ -146,11 +147,6 @@ apm_parse_type(const char *type, char *buf, size_t bufsz)
 	alias = g_part_alias_name(G_PART_ALIAS_APPLE_UFS);
 	if (!strcasecmp(type, alias)) {
 		strcpy(buf, APM_ENT_TYPE_APPLE_UFS);
-		return (0);
-	}
-	alias = g_part_alias_name(G_PART_ALIAS_FREEBSD_BOOT);
-	if (!strcasecmp(type, alias)) {
-		strcpy(buf, APM_ENT_TYPE_APPLE_BOOT);
 		return (0);
 	}
 	alias = g_part_alias_name(G_PART_ALIAS_FREEBSD);
@@ -310,10 +306,14 @@ g_part_apm_dumpconf(struct g_part_table *table, struct g_part_entry *baseentry,
 		/* confxml: partition entry information */
 		strncpy(u.name, entry->ent.ent_name, APM_ENT_NAMELEN);
 		u.name[APM_ENT_NAMELEN] = '\0';
-		sbuf_printf(sb, "%s<label>%s</label>\n", indent, u.name);
+		sbuf_printf(sb, "%s<label>", indent);
+		g_conf_printf_escaped(sb, "%s", u.name);
+		sbuf_printf(sb, "</label>\n");
 		strncpy(u.type, entry->ent.ent_type, APM_ENT_TYPELEN);
 		u.type[APM_ENT_TYPELEN] = '\0';
-		sbuf_printf(sb, "%s<rawtype>%s</rawtype>\n", indent, u.type);
+		sbuf_printf(sb, "%s<rawtype>", indent);
+		g_conf_printf_escaped(sb, "%s", u.type);
+		sbuf_printf(sb, "</rawtype>\n");
 	} else {
 		/* confxml: scheme information */
 	}

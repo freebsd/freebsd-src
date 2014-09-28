@@ -1,4 +1,4 @@
-/* $Id: openbsd-compat.h,v 1.60 2013/12/07 00:51:54 djm Exp $ */
+/* $Id: openbsd-compat.h,v 1.61 2014/02/04 00:18:23 djm Exp $ */
 
 /*
  * Copyright (c) 1999-2003 Damien Miller.  All rights reserved.
@@ -244,6 +244,10 @@ int timingsafe_bcmp(const void *, const void *, size_t);
 #ifndef HAVE_BCRYPT_PBKDF
 int	bcrypt_pbkdf(const char *, size_t, const u_int8_t *, size_t,
     u_int8_t *, size_t, unsigned int);
+#endif
+
+#ifndef HAVE_EXPLICIT_BZERO
+void explicit_bzero(void *p, size_t n);
 #endif
 
 void *xmmap(size_t size);

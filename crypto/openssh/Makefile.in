@@ -1,4 +1,4 @@
-# $Id: Makefile.in,v 1.352 2014/01/27 06:35:04 dtucker Exp $
+# $Id: Makefile.in,v 1.356 2014/02/04 00:12:56 djm Exp $
 
 # uncomment if you run a non bourne compatable shell. Ie. csh
 #SHELL = @SH@
@@ -73,9 +73,9 @@ LIBSSH_OBJS=authfd.o authfile.o bufaux.o bufbn.o buffer.o \
 	monitor_fdpass.o rijndael.o ssh-dss.o ssh-ecdsa.o ssh-rsa.o dh.o \
 	kexdh.o kexgex.o kexdhc.o kexgexc.o bufec.o kexecdh.o kexecdhc.o \
 	msg.o progressmeter.o dns.o entropy.o gss-genr.o umac.o umac128.o \
-	jpake.o schnorr.o ssh-pkcs11.o krl.o smult_curve25519_ref.o \
+	ssh-pkcs11.o krl.o smult_curve25519_ref.o \
 	kexc25519.o kexc25519c.o poly1305.o chacha.o cipher-chachapoly.o \
-	ssh-ed25519.o digest.o \
+	ssh-ed25519.o digest-openssl.o hmac.o \
 	sc25519.o ge25519.o fe25519.o ed25519.o verify.o hash.o blocks.o
 
 SSHOBJS= ssh.o readconf.o clientloop.o sshtty.o \
@@ -88,7 +88,7 @@ SSHDOBJS=sshd.o auth-rhosts.o auth-passwd.o auth-rsa.o auth-rh-rsa.o \
 	auth.o auth1.o auth2.o auth-options.o session.o \
 	auth-chall.o auth2-chall.o groupaccess.o \
 	auth-skey.o auth-bsdauth.o auth2-hostbased.o auth2-kbdint.o \
-	auth2-none.o auth2-passwd.o auth2-pubkey.o auth2-jpake.o \
+	auth2-none.o auth2-passwd.o auth2-pubkey.o \
 	monitor_mm.o monitor.o monitor_wrap.o kexdhs.o kexgexs.o kexecdhs.o \
 	kexc25519s.o auth-krb5.o \
 	auth2-gss.o gss-serv.o gss-serv-krb5.o \
@@ -408,7 +408,7 @@ regress/setuid-allowed$(EXEEXT): $(srcdir)/regress/setuid-allowed.c
 	$(CC) $(CFLAGS) $(CPPFLAGS) -o $@ $? \
 	$(LDFLAGS) -lssh -lopenbsd-compat -lssh -lopenbsd-compat $(LIBS)
 
-tests interop-tests:	$(TARGETS) regress/modpipe$(EXEEXT)
+tests interop-tests:	$(TARGETS) regress/modpipe$(EXEEXT) regress/setuid-allowed$(EXEEXT)
 	BUILDDIR=`pwd`; \
 	TEST_SHELL="@TEST_SHELL@"; \
 	TEST_SSH_SCP="$${BUILDDIR}/scp"; \

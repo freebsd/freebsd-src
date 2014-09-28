@@ -29,7 +29,7 @@
 #ifndef PROCSTAT_H
 #define	PROCSTAT_H
 
-extern int	hflag, nflag, Cflag;
+extern int	hflag, nflag, Cflag, Hflag;
 
 struct kinfo_proc;
 void	kinfo_proc_sort(struct kinfo_proc *kipp, int count);
@@ -44,6 +44,7 @@ void	procstat_files(struct procstat *prstat, struct kinfo_proc *kipp);
 void	procstat_kstack(struct procstat *prstat, struct kinfo_proc *kipp,
     int kflag);
 void	procstat_rlimit(struct procstat *prstat, struct kinfo_proc *kipp);
+void	procstat_rusage(struct procstat *prstat, struct kinfo_proc *kipp);
 void	procstat_sigs(struct procstat *prstat, struct kinfo_proc *kipp);
 void	procstat_threads(struct procstat *prstat, struct kinfo_proc *kipp);
 void	procstat_threads_sigs(struct procstat *prstat, struct kinfo_proc *kipp);

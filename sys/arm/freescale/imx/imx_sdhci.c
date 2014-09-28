@@ -45,6 +45,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/mutex.h>
 #include <sys/resource.h>
 #include <sys/rman.h>
+#include <sys/sysctl.h>
 #include <sys/taskqueue.h>
 #include <sys/time.h>
 
@@ -52,7 +53,7 @@ __FBSDID("$FreeBSD$");
 #include <machine/resource.h>
 #include <machine/intr.h>
 
-#include <arm/freescale/imx/imx51_ccmvar.h>
+#include <arm/freescale/imx/imx_ccmvar.h>
 
 #include <dev/ofw/ofw_bus.h>
 #include <dev/ofw/ofw_bus_subr.h>
@@ -153,7 +154,7 @@ static struct ofw_compat_data compat_data[] = {
 	{"fsl,imx53-esdhc",	HWTYPE_ESDHC},
 	{"fsl,imx51-esdhc",	HWTYPE_ESDHC},
 	{NULL,			HWTYPE_NONE},
-};;
+};
 
 static void imx_sdhc_set_clock(struct imx_sdhci_softc *sc, int enable);
 static void imx_sdhci_r1bfix_func(void *arg);
@@ -723,15 +724,7 @@ imx_sdhci_attach(device_t dev)
 	 */
 	WR4(sc, SDHC_WTMK_LVL, 0x08800880);
 
-	/* XXX get imx6 clock frequency from CCM */
-	if (sc->hwtype == HWTYPE_USDHC) {
-		sc->baseclk_hz = 200000000;
-	} else if (sc->hwtype == HWTYPE_ESDHC) {
-		sc->baseclk_hz = imx51_get_clock(IMX51CLK_PERCLK_ROOT);
-	}
-
-	sdhci_init_slot(dev, &sc->slot, 0);
-	callout_init(&sc->r1bfix_callout, true);
+	sc->baseclk_hz = imx_ccm_sdhci_hz();
 
 	/*
 	 * If the slot is flagged with the non-removable property, set our flag
@@ -751,6 +744,9 @@ imx_sdhci_attach(device_t dev)
 		/* XXX put real gpio hookup here. */
 		sc->force_card_present = true;
 	}
+
+	callout_init(&sc->r1bfix_callout, true);
+	sdhci_init_slot(dev, &sc->slot, 0);
 
 	bus_generic_probe(dev);
 	bus_generic_attach(dev);

@@ -115,6 +115,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/proc.h>
 #include <sys/vnode.h>
 #include <sys/uio.h>
+#include <sys/user.h>
 #include <sys/event.h>
 
 #include <security/mac/mac_framework.h>
@@ -152,6 +153,7 @@ static fo_stat_t	pipe_stat;
 static fo_close_t	pipe_close;
 static fo_chmod_t	pipe_chmod;
 static fo_chown_t	pipe_chown;
+static fo_fill_kinfo_t	pipe_fill_kinfo;
 
 struct fileops pipeops = {
 	.fo_read = pipe_read,
@@ -165,6 +167,7 @@ struct fileops pipeops = {
 	.fo_chmod = pipe_chmod,
 	.fo_chown = pipe_chown,
 	.fo_sendfile = invfo_sendfile,
+	.fo_fill_kinfo = pipe_fill_kinfo,
 	.fo_flags = DFLAG_PASSABLE
 };
 
@@ -205,7 +208,7 @@ static int pipeallocfail;
 static int piperesizefail;
 static int piperesizeallowed = 1;
 
-SYSCTL_LONG(_kern_ipc, OID_AUTO, maxpipekva, CTLFLAG_RDTUN,
+SYSCTL_LONG(_kern_ipc, OID_AUTO, maxpipekva, CTLFLAG_RDTUN | CTLFLAG_NOFETCH,
 	   &maxpipekva, 0, "Pipe KVA limit");
 SYSCTL_LONG(_kern_ipc, OID_AUTO, pipekva, CTLFLAG_RD,
 	   &amountpipekva, 0, "Pipe KVA usage");
@@ -221,8 +224,8 @@ SYSCTL_INT(_kern_ipc, OID_AUTO, piperesizeallowed, CTLFLAG_RW,
 static void pipeinit(void *dummy __unused);
 static void pipeclose(struct pipe *cpipe);
 static void pipe_free_kmem(struct pipe *cpipe);
-static int pipe_create(struct pipe *pipe, int backing);
-static int pipe_paircreate(struct thread *td, struct pipepair **p_pp);
+static void pipe_create(struct pipe *pipe, int backing);
+static void pipe_paircreate(struct thread *td, struct pipepair **p_pp);
 static __inline int pipelock(struct pipe *cpipe, int catch);
 static __inline void pipeunlock(struct pipe *cpipe);
 #ifndef PIPE_NODIRECT
@@ -331,12 +334,11 @@ pipe_zone_fini(void *mem, int size)
 	mtx_destroy(&pp->pp_mtx);
 }
 
-static int
+static void
 pipe_paircreate(struct thread *td, struct pipepair **p_pp)
 {
 	struct pipepair *pp;
 	struct pipe *rpipe, *wpipe;
-	int error;
 
 	*p_pp = pp = uma_zalloc(pipe_zone, M_WAITOK);
 #ifdef MAC
@@ -355,30 +357,21 @@ pipe_paircreate(struct thread *td, struct pipepair **p_pp)
 	knlist_init_mtx(&wpipe->pipe_sel.si_note, PIPE_MTX(wpipe));
 
 	/* Only the forward direction pipe is backed by default */
-	if ((error = pipe_create(rpipe, 1)) != 0 ||
-	    (error = pipe_create(wpipe, 0)) != 0) {
-		pipeclose(rpipe);
-		pipeclose(wpipe);
-		return (error);
-	}
+	pipe_create(rpipe, 1);
+	pipe_create(wpipe, 0);
 
 	rpipe->pipe_state |= PIPE_DIRECTOK;
 	wpipe->pipe_state |= PIPE_DIRECTOK;
-	return (0);
 }
 
-int
+void
 pipe_named_ctor(struct pipe **ppipe, struct thread *td)
 {
 	struct pipepair *pp;
-	int error;
 
-	error = pipe_paircreate(td, &pp);
-	if (error != 0)
-		return (error);
+	pipe_paircreate(td, &pp);
 	pp->pp_rpipe.pipe_state |= PIPE_NAMED;
 	*ppipe = &pp->pp_rpipe;
-	return (0);
 }
 
 void
@@ -419,9 +412,7 @@ kern_pipe2(struct thread *td, int fildes[2], int flags)
 	int fd, fflags, error;
 
 	fdp = td->td_proc->p_fd;
-	error = pipe_paircreate(td, &pp);
-	if (error != 0)
-		return (error);
+	pipe_paircreate(td, &pp);
 	rpipe = &pp->pp_rpipe;
 	wpipe = &pp->pp_wpipe;
 	error = falloc(td, &rf, &fd, flags);
@@ -642,24 +633,27 @@ pipeselwakeup(cpipe)
  * Initialize and allocate VM and memory for pipe.  The structure
  * will start out zero'd from the ctor, so we just manage the kmem.
  */
-static int
+static void
 pipe_create(pipe, backing)
 	struct pipe *pipe;
 	int backing;
 {
-	int error;
 
 	if (backing) {
+		/*
+		 * Note that these functions can fail if pipe map is exhausted
+		 * (as a result of too many pipes created), but we ignore the
+		 * error as it is not fatal and could be provoked by
+		 * unprivileged users. The only consequence is worse performance
+		 * with given pipe.
+		 */
 		if (amountpipekva > maxpipekva / 2)
-			error = pipespace_new(pipe, SMALL_PIPE_SIZE);
+			(void)pipespace_new(pipe, SMALL_PIPE_SIZE);
 		else
-			error = pipespace_new(pipe, PIPE_SIZE);
-	} else {
-		/* If we're not backing this pipe, no need to do anything. */
-		error = 0;
+			(void)pipespace_new(pipe, PIPE_SIZE);
 	}
+
 	pipe->pipe_ino = -1;
-	return (error);
 }
 
 /* ARGSUSED */
@@ -1333,11 +1327,15 @@ pipe_truncate(fp, length, active_cred, td)
 	struct ucred *active_cred;
 	struct thread *td;
 {
+	struct pipe *cpipe;
+	int error;
 
-	/* For named pipes call the vnode operation. */
-	if (fp->f_vnode != NULL)
-		return (vnops.fo_truncate(fp, length, active_cred, td));
-	return (EINVAL);
+	cpipe = fp->f_data;
+	if (cpipe->pipe_state & PIPE_NAMED)
+		error = vnops.fo_truncate(fp, length, active_cred, td);
+	else
+		error = invfo_truncate(fp, length, active_cred, td);
+	return (error);
 }
 
 /*
@@ -1610,6 +1608,21 @@ pipe_chown(fp, uid, gid, active_cred, td)
 	else
 		error = invfo_chown(fp, uid, gid, active_cred, td);
 	return (error);
+}
+
+static int
+pipe_fill_kinfo(struct file *fp, struct kinfo_file *kif, struct filedesc *fdp)
+{
+	struct pipe *pi;
+
+	if (fp->f_type == DTYPE_FIFO)
+		return (vn_fill_kinfo(fp, kif, fdp));
+	kif->kf_type = KF_TYPE_PIPE;
+	pi = fp->f_data;
+	kif->kf_un.kf_pipe.kf_pipe_addr = (uintptr_t)pi;
+	kif->kf_un.kf_pipe.kf_pipe_peer = (uintptr_t)pi->pipe_peer;
+	kif->kf_un.kf_pipe.kf_pipe_buffer_cnt = pi->pipe_buffer.cnt;
+	return (0);
 }
 
 static void

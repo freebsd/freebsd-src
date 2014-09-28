@@ -1,5 +1,6 @@
 .\"-
 .\" Copyright (c) 2006 Robert N. M. Watson
+.\" Copyright (c) 2014 Benjamin J. Kaduk
 .\" All rights reserved.
 .\"
 .\" Redistribution and use in source and binary forms, with or without
@@ -25,7 +26,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd April 12, 2013
+.Dd May 26, 2014
 .Dt SOCKET 9
 .Os
 .Sh NAME
@@ -34,6 +35,12 @@
 .Sh SYNOPSIS
 .In sys/socket.h
 .In sys/socketvar.h
+.Ft void
+.Fn soabort "struct socket *so"
+.Ft int
+.Fn soaccept "struct socket *so" "struct sockaddr **nam"
+.Ft int
+.Fn socheckuid "struct socket *so" "uid_t uid"
 .Ft int
 .Fn sobind "struct socket *so" "struct sockaddr *nam" "struct thread *td"
 .Ft void
@@ -46,21 +53,97 @@
 .Fa "struct ucred *cred" "struct thread *td"
 .Fc
 .Ft int
-.Fn sogetopt "struct socket *so" "struct sockopt *sopt"
+.Fn sodisconnect "struct socket *so"
+.Ft struct  sockaddr *
+.Fn sodupsockaddr "const struct sockaddr *sa" "int mflags"
+.Ft void
+.Fn sofree "struct socket *so"
+.Ft void
+.Fn sohasoutofband "struct socket *so"
+.Ft int
+.Fn solisten "struct socket *so" "int backlog" "struct thread *td"
+.Ft void
+.Fn solisten_proto "struct socket *so" "int backlog"
+.Ft int
+.Fn solisten_proto_check "struct socket *so"
+.Ft struct socket *
+.Fn sonewconn "struct socket *head" "int connstatus"
+.Ft int
+.Fo sopoll
+.Fa "struct socket *so" "int events" "struct ucred *active_cred"
+.Fa "struct thread *td"
+.Fc
+.Ft int
+.Fo sopoll_generic
+.Fa "struct socket *so" "int events" "struct ucred *active_cred"
+.Fa "struct thread *td"
+.Fc
 .Ft int
 .Fo soreceive
 .Fa "struct socket *so" "struct sockaddr **psa" "struct uio *uio"
 .Fa "struct mbuf **mp0" "struct mbuf **controlp" "int *flagsp"
 .Fc
 .Ft int
-.Fn sosetopt "struct socket *so" "struct sockopt *sopt"
+.Fo soreceive_stream
+.Fa "struct socket *so" "struct sockaddr **paddr"
+.Fa "struct uio *uio" "struct mbuf **mp0" "struct mbuf **controlp"
+.Fa "int *flagsp"
+.Fc
+.Ft int
+.Fo soreceive_dgram
+.Fa "struct socket *so" "struct sockaddr **paddr"
+.Fa "struct uio *uio" "struct mbuf **mp0" "struct mbuf **controlp"
+.Fa "int *flagsp"
+.Fc
+.Ft int
+.Fo soreceive_generic
+.Fa "struct socket *so" "struct sockaddr **paddr"
+.Fa "struct uio *uio" "struct mbuf **mp0" "struct mbuf **controlp"
+.Fa "int *flagsp"
+.Fc
+.Ft int
+.Fn soreserve "struct socket *so" "u_long sndcc" "u_long rcvcc"
+.Ft void
+.Fn sorflush "struct socket *so"
 .Ft int
 .Fo sosend
 .Fa "struct socket *so" "struct sockaddr *addr" "struct uio *uio"
 .Fa "struct mbuf *top" "struct mbuf *control" "int flags" "struct thread *td"
 .Fc
 .Ft int
+.Fo sosend_dgram
+.Fa "struct socket *so" "struct sockaddr *addr"
+.Fa "struct uio *uio" "struct mbuf *top" "struct mbuf *control"
+.Fa "int flags" "struct thread *td"
+.Fc
+.Ft int
+.Fo sosend_generic
+.Fa "struct socket *so" "struct sockaddr *addr"
+.Fa "struct uio *uio" "struct mbuf *top" "struct mbuf *control"
+.Fa "int flags" "struct thread *td"
+.Fc
+.Ft int
 .Fn soshutdown "struct socket *so" "int how"
+.Ft void
+.Fn sotoxsocket "struct socket *so" "struct xsocket *xso"
+.Ft void
+.Fn soupcall_clear "struct socket *so" "int which"
+.Ft void
+.Fo soupcall_set
+.Fa "struct socket *so" "int which"
+.Fa "int (*func)(struct socket *, void *, int)" "void *arg"
+.Fc
+.Ft void
+.Fn sowakeup "struct socket *so" "struct sockbuf *sb"
+.In sys/sockopt.h
+.Ft int
+.Fn sosetopt "struct socket *so" "struct sockopt *sopt"
+.Ft int
+.Fn sogetopt "struct socket *so" "struct sockopt *sopt"
+.Ft int
+.Fn sooptcopyin "struct sockopt *sopt" "void *buf" "size_t len" "size_t minlen"
+.Ft int
+.Fn sooptcopyout "struct sockopt *sopt" "const void *buf" "size_t len"
 .Sh DESCRIPTION
 The kernel
 .Nm
@@ -75,6 +158,11 @@ While the user API operates on file descriptors, the kernel interfaces
 operate directly on
 .Vt "struct socket"
 pointers.
+Some portions of the kernel API exist only to implement the user API,
+and are not expected to be used by kernel code.
+The portions of the socket API used by socket consumers and
+implementations of network protocols will differ; some routines
+are only useful for protocol implementors.
 .Pp
 Except where otherwise indicated,
 .Nm
@@ -107,6 +195,31 @@ Sockets may be closed and freed using
 .Fn soclose ,
 which has similar semantics to
 .Xr close 2 .
+.Pp
+In certain circumstances, it is appropriate to destroy a socket without
+waiting for it to disconnect, for which
+.Fn soabort
+is used.
+This is only appropriate for incoming connections which are in a
+partially connected state.
+It must be called on an unreferenced socket, by the thread which
+removed the socket from its listen queue, to prevent races.
+It will call into protocol code, so no socket locks may be held
+over the call.
+The caller of
+.Fn soabort
+is responsible for setting the VNET context.
+The normal path to freeing a socket is
+.Fn sofree ,
+which handles reference counting on the socket.
+It should be called whenever a reference is released, and also whenever
+reference flags are cleared in socket or protocol code.
+Calls to
+.Fn sofree
+should not be made from outside the socket layer; outside callers
+should use
+.Fn soclose
+instead.
 .Ss Connections and Addresses
 The
 .Fn sobind
@@ -146,12 +259,19 @@ fails, the caller must manually clear the
 .Dv SS_ISCONNECTING
 flag.
 .Pp
+A call to
+.Fn sodisconnect
+disconnects the socket without closing it.
+.Pp
 The
 .Fn soshutdown
 function is equivalent to the
 .Xr shutdown 2
 system call, and causes part or all of a connection on a socket to be closed
 down.
+.Pp
+Sockets are transitioned from non-listening status to listening with
+.Fn solisten .
 .Ss Socket Options
 The
 .Fn sogetopt
@@ -195,6 +315,60 @@ Kernel space pointer to the argument value for the socket option.
 .It Va sopt_valsize
 Size of the argument value in bytes.
 .El
+.Ss Socket Upcalls
+In order for the owner of a socket to be notified when the socket
+is ready to send or receive data, an upcall may be registered on
+the socket.
+The upcall is a function that will be called by the socket framework
+when a socket buffer associated with the given socket is ready for
+reading or writing.
+.Fn soupcall_set
+is used to register a socket upcall.
+The function
+.Va func
+is registered, and the pointer
+.Va arg
+will be passed as its second argument when it is called by the framework.
+The possible values for
+.Va which
+are
+.Dv SO_RCV
+and
+.Dv SO_SND ,
+which register upcalls for receive and send events, respectively.
+The upcall function
+.Fn func
+must return either
+.Dv SU_OK
+or
+.Dv SU_ISCONNECTED ,
+depending on whether or not a call to
+.Xr soisconnected
+should be made by the socket framework after the upcall returns.
+The upcall
+.Va func
+cannot call
+.Xr soisconnected
+itself due to lock ordering with the socket buffer lock.
+Only
+.Dv SO_RCV
+upcalls should return
+.Dv SU_ISCONNECTED .
+When a
+.Dv SO_RCV
+upcall returns
+.Dv SU_ISCONNECTED ,
+the upcall will be removed from the socket.
+.Pp
+Upcalls are removed from their socket by
+.Fn soupcall_clear .
+The
+.Va which
+argument again specifies whether the sending or receiving upcall is to
+be cleared, with
+.Dv SO_RCV
+or
+.Dv SO_SND .
 .Ss Socket I/O
 The
 .Fn soreceive
@@ -217,7 +391,7 @@ If
 is
 .Pf non- Dv NULL ,
 only the
-.Pf uio_resid
+.Fa uio_resid
 of
 .Fa uio
 is used.
@@ -281,6 +455,121 @@ context, or with a mutex held, will wish to use non-blocking sockets and pass
 the
 .Dv MSG_DONTWAIT
 flag in order to prevent these functions from sleeping.
+.Pp
+A socket can be queried for readability, writability, out-of-band data,
+or end-of-file using
+.Fn sopoll .
+The possible values for
+.Va events
+are as for
+.Xr poll 2 ,
+with symbolic values
+.Dv POLLIN ,
+.Dv POLLPRI ,
+.Dv POLLOUT ,
+.Dv POLLRDNORM ,
+.Dv POLLWRNORM ,
+.Dv POLLRDBAND ,
+and
+.Dv POLLINGEOF
+taken from
+.In sys/poll.h .
+.Pp
+Calls to
+.Fn soaccept
+pass through to the protocol's accept routine to accept an incoming connection.
+.Ss Socket Utility Functions
+The uid of a socket's credential may be compared against a
+.Va uid
+with
+.Fn socheckuid .
+.Pp
+A copy of an existing
+.Vt struct sockaddr
+may be made using
+.Fn sodupsockaddr .
+.Pp
+Protocol implementations notify the socket layer of the arrival of
+out-of-band data using
+.Fn sohasoutofband ,
+so that the socket layer can notify socket consumers of the available data.
+.Pp
+An
+.Dq external-format
+version of a
+.Vt struct socket
+can be created using
+.Fn sotoxsocket ,
+suitable for isolating user code from changes in the kernel structure.
+.Ss Protocol Implementations
+Protocols must supply an implementation for
+.Fn solisten ;
+such protocol implementations can call back into the socket layer using
+.Fn solisten_proto_check
+and
+.Fn solisten_proto
+to check and set the socket-layer listen state.
+These callbacks are provided so that the protocol implementation
+can order the socket layer and protocol locks as necessary.
+Protocols must supply an implementation of
+.Fn soreceive ;
+the functions
+.Fn soreceive_stream ,
+.Fn soreceive_dgram ,
+and
+.Fn soreceive_generic
+are supplied for use by such implementations.
+.Pp
+Protocol implementations can use
+.Fn sonewconn
+to create a socket and attach protocol state to that socket.
+This can be used to create new sockets available for
+.Fn soaccept
+on a listen socket.
+The returned socket has a reference count of zero.
+.Pp
+Protocols must supply an implementation for
+.Fn sopoll ;
+.Fn sopoll_generic
+is provided for the use by protocol implementations.
+.Pp
+The functions
+.Fn sosend_dgram
+and
+.Fn sosend_generic
+are supplied to assist in protocol implementations of
+.Fn sosend .
+.Pp
+When a protocol creates a new socket structure, it is necessary to
+reserve socket buffer space for that socket, by calling
+.Fn soreserve .
+The rough inverse of this reservation is performed by
+.Fn sorflush ,
+which is called automatically by the socket framework.
+.Pp
+When a protocol needs to wake up threads waiting for the socket to
+become ready to read or write, variants of
+.Fn sowakeup
+are used.
+The
+.Fn sowakeup
+function should not be called directly by protocol code, instead use the
+wrappers
+.Fn sorwakeup ,
+.Fn sorwakeup_locked ,
+.Fn sowwakeup ,
+and
+.Fn sowwakeup_locked
+for readers and writers, with the corresponding socket buffer lock
+not already locked, or already held, respectively.
+.Pp
+The functions
+.Fn sooptcopyin
+and
+.Fn sooptcopyout
+are useful for transferring
+.Vt struct sockopt
+data between user and kernel code.
 .Sh SEE ALSO
 .Xr bind 2 ,
 .Xr close 2 ,
@@ -304,7 +593,9 @@ This manual page was introduced in
 .Fx 7.0 .
 .Sh AUTHORS
 This manual page was written by
-.An Robert Watson .
+.An Robert Watson
+and
+.An Benjamin Kaduk .
 .Sh BUGS
 The use of explicitly passed credentials, credentials hung from explicitly
 passed threads, the credential on

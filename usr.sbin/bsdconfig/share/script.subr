@@ -1,6 +1,6 @@
 if [ ! "$_SCRIPT_SUBR" ]; then _SCRIPT_SUBR=1
 #
-# Copyright (c) 2012-2013 Devin Teske
+# Copyright (c) 2012-2014 Devin Teske
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -37,6 +37,8 @@ f_include $BSDCFG_SHARE/media/tcpip.subr
 f_include $BSDCFG_SHARE/mustberoot.subr
 f_include $BSDCFG_SHARE/networking/services.subr
 f_include $BSDCFG_SHARE/packages/packages.subr
+f_include $BSDCFG_SHARE/usermgmt/group.subr
+f_include $BSDCFG_SHARE/usermgmt/user.subr
 f_include $BSDCFG_SHARE/variable.subr
 
 ############################################################ GLOBALS
@@ -50,25 +52,23 @@ RESWORDS=
 # Create a new `reserved' word for scripting purposes. Reswords call pre-
 # defined functions but differ from those functions in the following ways:
 #
-# 	+ Reswords do not take arguments but instead get all their data from
-# 	  the environment variable namespace.
 # 	+ Unless noError is set (must be non-NULL), if calling the resword
 # 	  results in failure, the application will terminate prematurely.
 # 	+ noError is unset after each/every resword is called.
 #
 # Reswords should not be used in bsdconfig itself (hence the name `reserved
-# word') but instead only in scripts loaded through f_script_load()).
+# word') but instead only in scripts loaded through f_script_load().
 #
 f_resword_new()
 {
 	local resword="$1" func="$2"
 	[ "$resword" ] || return $FAILURE
 	f_dprintf "script.subr: New resWord %s -> %s" "$resword" "$func"
-	eval $resword\(\){ f_dispatch $func $resword\; }
+	eval $resword\(\){ f_dispatch $func $resword \"\$@\"\; }
 	RESWORDS="$RESWORDS${RESWORDS:+ }$resword"
 }
 
-# f_dispatch $func [$resword]
+# f_dispatch $func $resword
 #
 # Wrapper function used by `reserved words' (reswords) to call other functions.
 # If $noError is set and non-NULL, a failure result from $func is ignored,
@@ -78,9 +78,10 @@ f_resword_new()
 #
 f_dispatch()
 {
-	local func="$1" resword="${2:-$1}"
+	local func="$1" resword="$2"
+	shift 2 # func resword
 	f_dprintf "f_dispatch: calling resword \`%s'" "$resword"
-	eval $func
+	eval $func "$@"
 	local retval=$?
 	if [ $retval -ne $SUCCESS ]; then
 		local _ignore_this_error
@@ -96,7 +97,7 @@ f_dispatch()
 # Load a script (usually filled with reswords). If $file is missing or NULL,
 # use one of the following instead (in order):
 #
-# 	$configFile
+# 	$configFile (global)
 # 	install.cfg
 # 	/stand/install.fg
 # 	/tmp/install.cfg
@@ -108,9 +109,10 @@ f_dispatch()
 #
 f_script_load()
 {
+	local funcname=f_script_load
 	local script="$1" config_file retval=$SUCCESS
 
-	f_dprintf "f_script_load: script=[%s]" "$script"
+	f_dprintf "$funcname: script=[%s]" "$script"
 	if [ ! "$script" ]; then
 		f_getvar $VAR_CONFIG_FILE config_file
 		for script in \
@@ -130,11 +132,11 @@ f_script_load()
 	setvar $VAR_NONINTERACTIVE yes
 
 	if [ "$script" = "-" ]; then
-		f_dprintf "f_script_load: Loading script from stdin"
+		f_dprintf "$funcname: Loading script from stdin"
 		eval "$( cat )"
 		retval=$?
 	else
-		f_dprintf "f_script_load: Loading script \`%s'" "$script"
+		f_dprintf "$funcname: Loading script \`%s'" "$script"
 		if [ ! -e "$script" ]; then
 			f_show_msg "$msg_unable_to_open" "$script"
 			return $FAILURE
@@ -197,6 +199,16 @@ f_resword_new configPackages	f_package_config
 f_resword_new packageAdd	f_package_add
 f_resword_new packageDelete	f_package_delete
 f_resword_new packageReinstall	f_package_reinstall
+
+# usermgmt/group.subr
+f_resword_new addGroup		f_group_add
+f_resword_new deleteGroup	f_group_delete
+f_resword_new editGroup		f_group_edit
+
+# usermgmt/user.subr
+f_resword_new addUser		f_user_add
+f_resword_new deleteUser	f_user_delete
+f_resword_new editUser		f_user_edit
 
 # variable.subr
 f_resword_new installVarDefaults	f_variable_set_defaults

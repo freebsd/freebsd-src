@@ -1360,17 +1360,17 @@ typedef	__checkReturn	boolean_t
 typedef	__checkReturn	boolean_t
 (*efx_rxq_flush_done_ev_t)(
 	__in_opt	void *arg,
-	__in		uint32_t label);
+	__in		uint32_t rxq_index);
 
 typedef	__checkReturn	boolean_t
 (*efx_rxq_flush_failed_ev_t)(
 	__in_opt	void *arg,
-	__in		uint32_t label);
+	__in		uint32_t rxq_index);
 
 typedef	__checkReturn	boolean_t
 (*efx_txq_flush_done_ev_t)(
 	__in_opt	void *arg,
-	__in		uint32_t label);
+	__in		uint32_t txq_index);
 
 typedef	__checkReturn	boolean_t
 (*efx_software_ev_t)(

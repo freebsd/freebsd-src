@@ -42,6 +42,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/sysctl.h>
 #include <sys/vtoc.h>
 #include <geom/geom.h>
+#include <geom/geom_int.h>
 #include <geom/part/g_part.h>
 
 #include "g_part_if.h"
@@ -143,6 +144,23 @@ vtoc8_parse_type(const char *type, uint16_t *tag)
 }
 
 static int
+vtoc8_align(struct g_part_vtoc8_table *table, uint64_t *start, uint64_t *size)
+{
+
+	if (*size < table->secpercyl)
+		return (EINVAL);
+	if (start != NULL && (*start % table->secpercyl)) {
+		*size += (*start % table->secpercyl) - table->secpercyl;
+		*start -= (*start % table->secpercyl) - table->secpercyl;
+	}
+	if (*size % table->secpercyl)
+		*size -= (*size % table->secpercyl);
+	if (*size < table->secpercyl)
+		return (EINVAL);
+	return (0);
+}
+
+static int
 g_part_vtoc8_add(struct g_part_table *basetable, struct g_part_entry *entry,
     struct g_part_parms *gpp)
 {
@@ -160,16 +178,9 @@ g_part_vtoc8_add(struct g_part_table *basetable, struct g_part_entry *entry,
 
 	table = (struct g_part_vtoc8_table *)basetable;
 	index = entry->gpe_index - 1;
-
 	start = gpp->gpp_start;
 	size = gpp->gpp_size;
-	if (start % table->secpercyl) {
-		size = size - table->secpercyl + (start % table->secpercyl);
-		start = start - (start % table->secpercyl) + table->secpercyl;
-	}
-	if (size % table->secpercyl)
-		size = size - (size % table->secpercyl);
-	if (size < table->secpercyl)
+	if (vtoc8_align(table, &start, &size) != 0)
 		return (EINVAL);
 
 	KASSERT(entry->gpe_start <= start, (__func__));
@@ -355,11 +366,13 @@ g_part_vtoc8_resize(struct g_part_table *basetable,
 	}
 	table = (struct g_part_vtoc8_table *)basetable;
 	size = gpp->gpp_size;
-	if (size % table->secpercyl)
-		size = size - (size % table->secpercyl);
-	if (size < table->secpercyl)
+	if (vtoc8_align(table, NULL, &size) != 0)
 		return (EINVAL);
-
+	/* XXX: prevent unexpected shrinking. */
+	pp = entry->gpe_pp;
+	if ((g_debugflags & 0x10) == 0 && size < gpp->gpp_size &&
+	    pp->mediasize / pp->sectorsize > size)
+		return (EBUSY);
 	entry->gpe_end = entry->gpe_start + size - 1;
 	be32enc(&table->vtoc.map[entry->gpe_index - 1].nblks, size);
 

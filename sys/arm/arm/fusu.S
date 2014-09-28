@@ -34,7 +34,6 @@
  */
 
 #include <machine/asm.h>
-#include <machine/asmacros.h>
 #include <machine/armreg.h>
 #include "assym.s"
 __FBSDID("$FreeBSD$");
@@ -55,8 +54,8 @@ __FBSDID("$FreeBSD$");
  * Fetch an int from the user's address space.
  */
 
-ENTRY_NP(casuword32)
 ENTRY(casuword)
+EENTRY_NP(casuword32)
 	GET_PCB(r3)
 	ldr	r3, [r3]
 
@@ -92,7 +91,7 @@ ENTRY(casuword)
 	mov	r1, #0x00000000
 	str	r1, [r3, #PCB_ONFAULT]
 	RET
-END(casuword32)
+EEND(casuword32)
 END(casuword)
 
 /*
@@ -111,8 +110,8 @@ END(casuword)
  * Fetch an int from the user's address space.
  */
 
-ENTRY_NP(fuword32)
 ENTRY(fuword)
+EENTRY_NP(fuword32)
 	GET_PCB(r2)
 	ldr	r2, [r2]
 
@@ -278,8 +277,8 @@ fusupcbfaulttext:
  * Store an int in the user's address space.
  */
 
-ENTRY_NP(suword32)
 ENTRY(suword)
+EENTRY_NP(suword32)
 	GET_PCB(r2)
 	ldr	r2, [r2]
 
@@ -391,4 +390,3 @@ ENTRY(subyte)
 	str	r0, [r2, #PCB_ONFAULT]
 	RET
 END(subyte)
-

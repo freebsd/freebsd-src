@@ -46,9 +46,6 @@
 #if __i386__
 #   include "i386.h"
 #endif
-#if __ia64__
-#   include "ia64.h"
-#endif
 #if __mips__
 #   include "mips.h"
 #endif

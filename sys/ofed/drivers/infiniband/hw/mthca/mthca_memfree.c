@@ -559,7 +559,7 @@ out:
 		goto out;
 	}
 	PROC_UNLOCK(proc);
-	if (cnt.v_wire_count + 1 > vm_page_max_wired) {
+	if (vm_cnt.v_wire_count + 1 > vm_page_max_wired) {
 		ret = -EAGAIN;
 		goto out;
 	}

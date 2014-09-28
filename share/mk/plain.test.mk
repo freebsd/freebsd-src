@@ -1,10 +1,14 @@
 # $FreeBSD$
 #
+# You must include bsd.test.mk instead of this file from your Makefile.
+#
 # Logic to build and install plain test programs.  A plain test programs it not
 # supposed to use any specific testing framework: all it does is run some code
 # and report the test's pass or fail status via a 0 or 1 exit code.
 
-.include <bsd.init.mk>
+.if !target(__<bsd.test.mk>__)
+.error plain.test.mk cannot be included directly.
+.endif
 
 # List of C, C++ and shell test programs to build.
 #
@@ -53,10 +57,9 @@ CLEANFILES+= ${_T} ${_T}.tmp
 PLAIN_TESTS_SH_SED_${_T}?= # empty
 PLAIN_TESTS_SH_SRC_${_T}?= ${_T}.sh
 ${_T}: ${PLAIN_TESTS_SH_SRC_${_T}}
-	cat ${.ALLSRC} | sed ${PLAIN_TESTS_SH_SED_${_T}} >${.TARGET}.tmp
+	cat ${.ALLSRC:N*Makefile*} \
+	    | sed ${PLAIN_TESTS_SH_SED_${_T}} >${.TARGET}.tmp
 	chmod +x ${.TARGET}.tmp
 	mv ${.TARGET}.tmp ${.TARGET}
 .endfor
 .endif
-
-.include <bsd.test.mk>

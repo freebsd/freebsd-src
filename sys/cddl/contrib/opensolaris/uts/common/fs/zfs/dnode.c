@@ -20,7 +20,7 @@
  */
 /*
  * Copyright (c) 2005, 2010, Oracle and/or its affiliates. All rights reserved.
- * Copyright (c) 2013 by Delphix. All rights reserved.
+ * Copyright (c) 2012, 2014 by Delphix. All rights reserved.
  */
 
 #include <sys/zfs_context.h>
@@ -35,8 +35,7 @@
 #include <sys/spa.h>
 #include <sys/zio.h>
 #include <sys/dmu_zfetch.h>
-
-static int free_range_compar(const void *node1, const void *node2);
+#include <sys/range_tree.h>
 
 static kmem_cache_t *dnode_cache;
 /*
@@ -61,6 +60,45 @@ int zfs_default_ibs = DN_MAX_INDBLKSHIFT;
 #ifdef sun
 static kmem_cbrc_t dnode_move(void *, void *, size_t, void *);
 #endif
+
+static int
+dbuf_compare(const void *x1, const void *x2)
+{
+	const dmu_buf_impl_t *d1 = x1;
+	const dmu_buf_impl_t *d2 = x2;
+
+	if (d1->db_level < d2->db_level) {
+		return (-1);
+	}
+	if (d1->db_level > d2->db_level) {
+		return (1);
+	}
+
+	if (d1->db_blkid < d2->db_blkid) {
+		return (-1);
+	}
+	if (d1->db_blkid > d2->db_blkid) {
+		return (1);
+	}
+
+	if (d1->db_state < d2->db_state) {
+		return (-1);
+	}
+	if (d1->db_state > d2->db_state) {
+		return (1);
+	}
+
+	ASSERT3S(d1->db_state, !=, DB_SEARCH);
+	ASSERT3S(d2->db_state, !=, DB_SEARCH);
+
+	if ((uintptr_t)d1 < (uintptr_t)d2) {
+		return (-1);
+	}
+	if ((uintptr_t)d1 > (uintptr_t)d2) {
+		return (1);
+	}
+	return (0);
+}
 
 /* ARGSUSED */
 static int
@@ -92,9 +130,7 @@ dnode_cons(void *arg, void *unused, int kmflag)
 
 	for (i = 0; i < TXG_SIZE; i++) {
 		list_link_init(&dn->dn_dirty_link[i]);
-		avl_create(&dn->dn_ranges[i], free_range_compar,
-		    sizeof (free_range_t),
-		    offsetof(struct free_range, fr_node));
+		dn->dn_free_ranges[i] = NULL;
 		list_create(&dn->dn_dirty_records[i],
 		    sizeof (dbuf_dirty_record_t),
 		    offsetof(dbuf_dirty_record_t, dr_dirty_node));
@@ -118,7 +154,7 @@ dnode_cons(void *arg, void *unused, int kmflag)
 
 	dn->dn_dbufs_count = 0;
 	dn->dn_unlisted_l0_blkid = 0;
-	list_create(&dn->dn_dbufs, sizeof (dmu_buf_impl_t),
+	avl_create(&dn->dn_dbufs, dbuf_compare, sizeof (dmu_buf_impl_t),
 	    offsetof(dmu_buf_impl_t, db_link));
 
 	dn->dn_moved = 0;
@@ -143,7 +179,7 @@ dnode_dest(void *arg, void *unused)
 
 	for (i = 0; i < TXG_SIZE; i++) {
 		ASSERT(!list_link_active(&dn->dn_dirty_link[i]));
-		avl_destroy(&dn->dn_ranges[i]);
+		ASSERT3P(dn->dn_free_ranges[i], ==, NULL);
 		list_destroy(&dn->dn_dirty_records[i]);
 		ASSERT0(dn->dn_next_nblkptr[i]);
 		ASSERT0(dn->dn_next_nlevels[i]);
@@ -172,7 +208,7 @@ dnode_dest(void *arg, void *unused)
 
 	ASSERT0(dn->dn_dbufs_count);
 	ASSERT0(dn->dn_unlisted_l0_blkid);
-	list_destroy(&dn->dn_dbufs);
+	avl_destroy(&dn->dn_dbufs);
 }
 
 void
@@ -316,19 +352,6 @@ dnode_buf_byteswap(void *vbuf, size_t size)
 	}
 }
 
-static int
-free_range_compar(const void *node1, const void *node2)
-{
-	const free_range_t *rp1 = node1;
-	const free_range_t *rp2 = node2;
-
-	if (rp1->fr_blkid < rp2->fr_blkid)
-		return (-1);
-	else if (rp1->fr_blkid > rp2->fr_blkid)
-		return (1);
-	else return (0);
-}
-
 void
 dnode_setbonuslen(dnode_t *dn, int newsize, dmu_tx_t *tx)
 {
@@ -377,7 +400,7 @@ dnode_setdblksz(dnode_t *dn, int size)
 	    1<<(sizeof (dn->dn_phys->dn_datablkszsec) * 8));
 	dn->dn_datablksz = size;
 	dn->dn_datablkszsec = size >> SPA_MINBLOCKSHIFT;
-	dn->dn_datablkshift = ISP2(size) ? highbit(size - 1) : 0;
+	dn->dn_datablkshift = ISP2(size) ? highbit64(size - 1) : 0;
 }
 
 static dnode_t *
@@ -521,7 +544,7 @@ dnode_allocate(dnode_t *dn, dmu_object_type_t ot, int blocksize, int ibs,
 	ASSERT0(dn->dn_assigned_txg);
 	ASSERT(refcount_is_zero(&dn->dn_tx_holds));
 	ASSERT3U(refcount_count(&dn->dn_holds), <=, 1);
-	ASSERT3P(list_head(&dn->dn_dbufs), ==, NULL);
+	ASSERT(avl_is_empty(&dn->dn_dbufs));
 
 	for (i = 0; i < TXG_SIZE; i++) {
 		ASSERT0(dn->dn_next_nblkptr[i]);
@@ -533,7 +556,7 @@ dnode_allocate(dnode_t *dn, dmu_object_type_t ot, int blocksize, int ibs,
 		ASSERT0(dn->dn_next_blksz[i]);
 		ASSERT(!list_link_active(&dn->dn_dirty_link[i]));
 		ASSERT3P(list_head(&dn->dn_dirty_records[i]), ==, NULL);
-		ASSERT0(avl_numnodes(&dn->dn_ranges[i]));
+		ASSERT3P(dn->dn_free_ranges[i], ==, NULL);
 	}
 
 	dn->dn_type = ot;
@@ -697,7 +720,8 @@ dnode_move_impl(dnode_t *odn, dnode_t *ndn)
 		list_move_tail(&ndn->dn_dirty_records[i],
 		    &odn->dn_dirty_records[i]);
 	}
-	bcopy(&odn->dn_ranges[0], &ndn->dn_ranges[0], sizeof (odn->dn_ranges));
+	bcopy(&odn->dn_free_ranges[0], &ndn->dn_free_ranges[0],
+	    sizeof (odn->dn_free_ranges));
 	ndn->dn_allocated_txg = odn->dn_allocated_txg;
 	ndn->dn_free_txg = odn->dn_free_txg;
 	ndn->dn_assigned_txg = odn->dn_assigned_txg;
@@ -705,8 +729,8 @@ dnode_move_impl(dnode_t *odn, dnode_t *ndn)
 	ndn->dn_dirtyctx_firstset = odn->dn_dirtyctx_firstset;
 	ASSERT(refcount_count(&odn->dn_tx_holds) == 0);
 	refcount_transfer(&ndn->dn_holds, &odn->dn_holds);
-	ASSERT(list_is_empty(&ndn->dn_dbufs));
-	list_move_tail(&ndn->dn_dbufs, &odn->dn_dbufs);
+	ASSERT(avl_is_empty(&ndn->dn_dbufs));
+	avl_swap(&ndn->dn_dbufs, &odn->dn_dbufs);
 	ndn->dn_dbufs_count = odn->dn_dbufs_count;
 	ndn->dn_unlisted_l0_blkid = odn->dn_unlisted_l0_blkid;
 	ndn->dn_bonus = odn->dn_bonus;
@@ -740,7 +764,7 @@ dnode_move_impl(dnode_t *odn, dnode_t *ndn)
 	 */
 	odn->dn_dbuf = NULL;
 	odn->dn_handle = NULL;
-	list_create(&odn->dn_dbufs, sizeof (dmu_buf_impl_t),
+	avl_create(&odn->dn_dbufs, dbuf_compare, sizeof (dmu_buf_impl_t),
 	    offsetof(dmu_buf_impl_t, db_link));
 	odn->dn_dbufs_count = 0;
 	odn->dn_unlisted_l0_blkid = 0;
@@ -760,8 +784,7 @@ dnode_move_impl(dnode_t *odn, dnode_t *ndn)
 		list_create(&odn->dn_dirty_records[i],
 		    sizeof (dbuf_dirty_record_t),
 		    offsetof(dbuf_dirty_record_t, dr_dirty_node));
-		odn->dn_ranges[i].avl_root = NULL;
-		odn->dn_ranges[i].avl_numnodes = 0;
+		odn->dn_free_ranges[i] = NULL;
 		odn->dn_next_nlevels[i] = 0;
 		odn->dn_next_indblkshift[i] = 0;
 		odn->dn_next_bonustype[i] = 0;
@@ -1005,7 +1028,7 @@ dnode_buf_pageout(dmu_buf_t *db, void *arg)
 		dnh->dnh_dnode = NULL;
 	}
 	kmem_free(children_dnodes, sizeof (dnode_children_t) +
-	    (epb - 1) * sizeof (dnode_handle_t));
+	    epb * sizeof (dnode_handle_t));
 }
 
 /*
@@ -1090,7 +1113,7 @@ dnode_hold_impl(objset_t *os, uint64_t object, int flag,
 		int i;
 		dnode_children_t *winner;
 		children_dnodes = kmem_zalloc(sizeof (dnode_children_t) +
-		    (epb - 1) * sizeof (dnode_handle_t), KM_SLEEP);
+		    epb * sizeof (dnode_handle_t), KM_SLEEP);
 		children_dnodes->dnc_count = epb;
 		dnh = &children_dnodes->dnc_children[0];
 		for (i = 0; i < epb; i++) {
@@ -1099,8 +1122,13 @@ dnode_hold_impl(objset_t *os, uint64_t object, int flag,
 		}
 		if (winner = dmu_buf_set_user(&db->db, children_dnodes, NULL,
 		    dnode_buf_pageout)) {
+
+			for (i = 0; i < epb; i++) {
+				zrl_destroy(&dnh[i].dnh_zrlock);
+			}
+
 			kmem_free(children_dnodes, sizeof (dnode_children_t) +
-			    (epb - 1) * sizeof (dnode_handle_t));
+			    epb * sizeof (dnode_handle_t));
 			children_dnodes = winner;
 		}
 	}
@@ -1247,7 +1275,8 @@ dnode_setdirty(dnode_t *dn, dmu_tx_t *tx)
 		return;
 	}
 
-	ASSERT(!refcount_is_zero(&dn->dn_holds) || list_head(&dn->dn_dbufs));
+	ASSERT(!refcount_is_zero(&dn->dn_holds) ||
+	    !avl_is_empty(&dn->dn_dbufs));
 	ASSERT(dn->dn_datablksz != 0);
 	ASSERT0(dn->dn_next_bonuslen[txg&TXG_MASK]);
 	ASSERT0(dn->dn_next_blksz[txg&TXG_MASK]);
@@ -1320,7 +1349,7 @@ dnode_free(dnode_t *dn, dmu_tx_t *tx)
 int
 dnode_set_blksz(dnode_t *dn, uint64_t size, int ibs, dmu_tx_t *tx)
 {
-	dmu_buf_impl_t *db, *db_next;
+	dmu_buf_impl_t *db;
 	int err;
 
 	if (size == 0)
@@ -1343,9 +1372,8 @@ dnode_set_blksz(dnode_t *dn, uint64_t size, int ibs, dmu_tx_t *tx)
 		goto fail;
 
 	mutex_enter(&dn->dn_dbufs_mtx);
-	for (db = list_head(&dn->dn_dbufs); db; db = db_next) {
-		db_next = list_next(&dn->dn_dbufs, db);
-
+	for (db = avl_first(&dn->dn_dbufs); db != NULL;
+	    db = AVL_NEXT(&dn->dn_dbufs, db)) {
 		if (db->db_blkid != 0 && db->db_blkid != DMU_BONUS_BLKID &&
 		    db->db_blkid != DMU_SPILL_BLKID) {
 			mutex_exit(&dn->dn_dbufs_mtx);
@@ -1464,59 +1492,6 @@ dnode_new_blkid(dnode_t *dn, uint64_t blkid, dmu_tx_t *tx, boolean_t have_read)
 out:
 	if (have_read)
 		rw_downgrade(&dn->dn_struct_rwlock);
-}
-
-void
-dnode_clear_range(dnode_t *dn, uint64_t blkid, uint64_t nblks, dmu_tx_t *tx)
-{
-	avl_tree_t *tree = &dn->dn_ranges[tx->tx_txg&TXG_MASK];
-	avl_index_t where;
-	free_range_t *rp;
-	free_range_t rp_tofind;
-	uint64_t endblk = blkid + nblks;
-
-	ASSERT(MUTEX_HELD(&dn->dn_mtx));
-	ASSERT(nblks <= UINT64_MAX - blkid); /* no overflow */
-
-	dprintf_dnode(dn, "blkid=%llu nblks=%llu txg=%llu\n",
-	    blkid, nblks, tx->tx_txg);
-	rp_tofind.fr_blkid = blkid;
-	rp = avl_find(tree, &rp_tofind, &where);
-	if (rp == NULL)
-		rp = avl_nearest(tree, where, AVL_BEFORE);
-	if (rp == NULL)
-		rp = avl_nearest(tree, where, AVL_AFTER);
-
-	while (rp && (rp->fr_blkid <= blkid + nblks)) {
-		uint64_t fr_endblk = rp->fr_blkid + rp->fr_nblks;
-		free_range_t *nrp = AVL_NEXT(tree, rp);
-
-		if (blkid <= rp->fr_blkid && endblk >= fr_endblk) {
-			/* clear this entire range */
-			avl_remove(tree, rp);
-			kmem_free(rp, sizeof (free_range_t));
-		} else if (blkid <= rp->fr_blkid &&
-		    endblk > rp->fr_blkid && endblk < fr_endblk) {
-			/* clear the beginning of this range */
-			rp->fr_blkid = endblk;
-			rp->fr_nblks = fr_endblk - endblk;
-		} else if (blkid > rp->fr_blkid && blkid < fr_endblk &&
-		    endblk >= fr_endblk) {
-			/* clear the end of this range */
-			rp->fr_nblks = blkid - rp->fr_blkid;
-		} else if (blkid > rp->fr_blkid && endblk < fr_endblk) {
-			/* clear a chunk out of this range */
-			free_range_t *new_rp =
-			    kmem_alloc(sizeof (free_range_t), KM_SLEEP);
-
-			new_rp->fr_blkid = endblk;
-			new_rp->fr_nblks = fr_endblk - endblk;
-			avl_insert_here(tree, new_rp, rp, AVL_AFTER);
-			rp->fr_nblks = blkid - rp->fr_blkid;
-		}
-		/* there may be no overlap */
-		rp = nrp;
-	}
 }
 
 void
@@ -1669,22 +1644,15 @@ done:
 	 * We will finish up this free operation in the syncing phase.
 	 */
 	mutex_enter(&dn->dn_mtx);
-	dnode_clear_range(dn, blkid, nblks, tx);
-	{
-		free_range_t *rp, *found;
-		avl_index_t where;
-		avl_tree_t *tree = &dn->dn_ranges[tx->tx_txg&TXG_MASK];
-
-		/* Add new range to dn_ranges */
-		rp = kmem_alloc(sizeof (free_range_t), KM_SLEEP);
-		rp->fr_blkid = blkid;
-		rp->fr_nblks = nblks;
-		found = avl_find(tree, rp, &where);
-		ASSERT(found == NULL);
-		avl_insert(tree, rp, where);
-		dprintf_dnode(dn, "blkid=%llu nblks=%llu txg=%llu\n",
-		    blkid, nblks, tx->tx_txg);
+	int txgoff = tx->tx_txg & TXG_MASK;
+	if (dn->dn_free_ranges[txgoff] == NULL) {
+		dn->dn_free_ranges[txgoff] =
+		    range_tree_create(NULL, NULL, &dn->dn_mtx);
 	}
+	range_tree_clear(dn->dn_free_ranges[txgoff], blkid, nblks);
+	range_tree_add(dn->dn_free_ranges[txgoff], blkid, nblks);
+	dprintf_dnode(dn, "blkid=%llu nblks=%llu txg=%llu\n",
+	    blkid, nblks, tx->tx_txg);
 	mutex_exit(&dn->dn_mtx);
 
 	dbuf_free_range(dn, blkid, blkid + nblks - 1, tx);
@@ -1712,7 +1680,6 @@ dnode_spill_freed(dnode_t *dn)
 uint64_t
 dnode_block_freed(dnode_t *dn, uint64_t blkid)
 {
-	free_range_t range_tofind;
 	void *dp = spa_get_dsl(dn->dn_objset->os_spa);
 	int i;
 
@@ -1732,20 +1699,10 @@ dnode_block_freed(dnode_t *dn, uint64_t blkid)
 	if (blkid == DMU_SPILL_BLKID)
 		return (dnode_spill_freed(dn));
 
-	range_tofind.fr_blkid = blkid;
 	mutex_enter(&dn->dn_mtx);
 	for (i = 0; i < TXG_SIZE; i++) {
-		free_range_t *range_found;
-		avl_index_t idx;
-
-		range_found = avl_find(&dn->dn_ranges[i], &range_tofind, &idx);
-		if (range_found) {
-			ASSERT(range_found->fr_nblks > 0);
-			break;
-		}
-		range_found = avl_nearest(&dn->dn_ranges[i], idx, AVL_BEFORE);
-		if (range_found &&
-		    range_found->fr_blkid + range_found->fr_nblks > blkid)
+		if (dn->dn_free_ranges[i] != NULL &&
+		    range_tree_contains(dn->dn_free_ranges[i], blkid, 1))
 			break;
 	}
 	mutex_exit(&dn->dn_mtx);
@@ -1903,8 +1860,8 @@ dnode_next_offset_level(dnode_t *dn, int flags, uint64_t *offset,
 		*offset = *offset >> span;
 		for (i = BF64_GET(*offset, 0, epbs);
 		    i >= 0 && i < epb; i += inc) {
-			if (bp[i].blk_fill >= minfill &&
-			    bp[i].blk_fill <= maxfill &&
+			if (BP_GET_FILL(&bp[i]) >= minfill &&
+			    BP_GET_FILL(&bp[i]) <= maxfill &&
 			    (hole || bp[i].blk_birth > txg))
 				break;
 			if (inc > 0 || *offset > 0)
@@ -1989,6 +1946,15 @@ dnode_next_offset(dnode_t *dn, int flags, uint64_t *offset,
 	while (error == 0 && --lvl >= minlvl) {
 		error = dnode_next_offset_level(dn,
 		    flags, offset, lvl, blkfill, txg);
+	}
+
+	/*
+	 * There's always a "virtual hole" at the end of the object, even
+	 * if all BP's which physically exist are non-holes.
+	 */
+	if ((flags & DNODE_FIND_HOLE) && error == ESRCH && txg == 0 &&
+	    minlvl == 1 && blkfill == 1 && !(flags & DNODE_FIND_BACKWARDS)) {
+		error = 0;
 	}
 
 	if (error == 0 && (flags & DNODE_FIND_BACKWARDS ?

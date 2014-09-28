@@ -193,7 +193,7 @@ path_driver_cb_func(void **dir_baton,
 
 static svn_error_t *
 single_repos_delete(svn_ra_session_t *ra_session,
-                    const char *repos_root,
+                    const char *base_uri,
                     const apr_array_header_t *relpaths,
                     const apr_hash_t *revprop_table,
                     svn_commit_callback2_t commit_callback,
@@ -221,7 +221,7 @@ single_repos_delete(svn_ra_session_t *ra_session,
           const char *relpath = APR_ARRAY_IDX(relpaths, i, const char *);
 
           item = svn_client_commit_item3_create(pool);
-          item->url = svn_path_url_add_component2(repos_root, relpath, pool);
+          item->url = svn_path_url_add_component2(base_uri, relpath, pool);
           item->state_flags = SVN_CLIENT_COMMIT_ITEM_DELETE;
           APR_ARRAY_PUSH(commit_items, svn_client_commit_item3_t *) = item;
         }
@@ -361,7 +361,6 @@ delete_urls_multi_repos(const apr_array_header_t *uris,
   iterpool = svn_pool_create(pool);
   for (hi = apr_hash_first(pool, deletables); hi; hi = apr_hash_next(hi))
     {
-      const char *repos_root = svn__apr_hash_index_key(hi);
       struct repos_deletables_t *repos_deletables = svn__apr_hash_index_val(hi);
       const char *base_uri;
       apr_array_header_t *target_relpaths;
@@ -398,7 +397,7 @@ delete_urls_multi_repos(const apr_array_header_t *uris,
         }
 
       SVN_ERR(svn_ra_reparent(repos_deletables->ra_session, base_uri, pool));
-      SVN_ERR(single_repos_delete(repos_deletables->ra_session, repos_root,
+      SVN_ERR(single_repos_delete(repos_deletables->ra_session, base_uri,
                                   target_relpaths,
                                   revprop_table, commit_callback,
                                   commit_baton, ctx, iterpool));

@@ -32,9 +32,9 @@ struct uboot_devdesc
 	struct devsw	*d_dev;
 	int		d_type;
 	int		d_unit;
+	void		*d_opendata;
 	union {
 		struct {
-			void	*data;
 			int	slice;
 			int	partition;
 			off_t	offset;
@@ -69,6 +69,8 @@ struct file_format;
 extern struct file_format uboot_elf;
 
 void reboot(void);
+
+int uboot_diskgetunit(int type, int type_unit);
 
 #if defined(LOADER_FDT_SUPPORT)
 extern int fdt_setup_fdtp();

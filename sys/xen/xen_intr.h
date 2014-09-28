@@ -159,6 +159,18 @@ int xen_intr_alloc_and_bind_ipi(device_t dev, u_int cpu,
 	xen_intr_handle_t *handlep);
 
 /**
+ * Register a physical interrupt vector and setup the interrupt source.
+ *
+ * \param vector        The global vector to use.
+ * \param trig          Default trigger method.
+ * \param pol           Default polarity of the interrupt.
+ *
+ * \returns  0 on success, otherwise an errno.
+ */
+int xen_register_pirq(int vector, enum intr_trigger trig,
+	enum intr_polarity pol);
+
+/**
  * Unbind an interrupt handler from its interrupt source.
  *
  * \param handlep  A pointer to the opaque handle that was initialized

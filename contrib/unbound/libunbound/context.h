@@ -21,16 +21,16 @@
  * specific prior written permission.
  * 
  * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
- * TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
- * PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE
- * LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
- * CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
- * SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
- * INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
- * CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
- * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
- * POSSIBILITY OF SUCH DAMAGE.
+ * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+ * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
+ * A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
+ * HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+ * SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED
+ * TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
+ * PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF
+ * LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
+ * NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+ * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
 /**
@@ -48,6 +48,8 @@
 #include "util/data/packed_rrset.h"
 struct libworker;
 struct tube;
+struct sldns_buffer;
+struct event_base;
 
 /**
  * The context structure
@@ -110,6 +112,11 @@ struct ub_ctx {
 	struct local_zones* local_zones;
 	/** random state used to seed new random state structures */
 	struct ub_randstate* seed_rnd;
+
+	/** event base for event oriented interface */
+	struct event_base* event_base;
+	/** libworker for event based interface */
+	struct libworker* event_worker;
 
 	/** next query number (to try) to use */
 	int next_querynum;
@@ -234,8 +241,8 @@ void context_query_delete(struct ctx_query* q);
  * @param cbarg: user arg for async queries.
  * @return new ctx_query or NULL for malloc failure.
  */
-struct ctx_query* context_new(struct ub_ctx* ctx, const char* name,
-	int rrtype, int rrclass, ub_callback_t cb, void* cbarg);
+struct ctx_query* context_new(struct ub_ctx* ctx, const char* name, int rrtype,
+        int rrclass, ub_callback_t cb, void* cbarg);
 
 /**
  * Get a new alloc. Creates a new one or uses a cached one.
@@ -275,7 +282,7 @@ uint8_t* context_serialize_new_query(struct ctx_query* q, uint32_t* len);
  * @return: an alloc, or NULL on mem error.
  */
 uint8_t* context_serialize_answer(struct ctx_query* q, int err, 
-	ldns_buffer* pkt, uint32_t* len);
+	struct sldns_buffer* pkt, uint32_t* len);
 
 /**
  * Serialize a query cancellation. Serializes query async id

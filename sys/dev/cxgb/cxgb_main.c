@@ -96,6 +96,7 @@ static int cxgb_media_change(struct ifnet *);
 static int cxgb_ifm_type(int);
 static void cxgb_build_medialist(struct port_info *);
 static void cxgb_media_status(struct ifnet *, struct ifmediareq *);
+static uint64_t cxgb_get_counter(struct ifnet *, ift_counter);
 static int setup_sge_qsets(adapter_t *);
 static void cxgb_async_intr(void *);
 static void cxgb_tick_handler(void *, int);
@@ -208,7 +209,6 @@ static SLIST_HEAD(, uld_info) t3_uld_list;
  */
 static int msi_allowed = 2;
 
-TUNABLE_INT("hw.cxgb.msi_allowed", &msi_allowed);
 SYSCTL_NODE(_hw, OID_AUTO, cxgb, CTLFLAG_RD, 0, "CXGB driver parameters");
 SYSCTL_INT(_hw_cxgb, OID_AUTO, msi_allowed, CTLFLAG_RDTUN, &msi_allowed, 0,
     "MSI-X, MSI, INTx selector");
@@ -218,7 +218,6 @@ SYSCTL_INT(_hw_cxgb, OID_AUTO, msi_allowed, CTLFLAG_RDTUN, &msi_allowed, 0,
  * To disable it and force a single queue-set per port, use multiq = 0
  */
 static int multiq = 1;
-TUNABLE_INT("hw.cxgb.multiq", &multiq);
 SYSCTL_INT(_hw_cxgb, OID_AUTO, multiq, CTLFLAG_RDTUN, &multiq, 0,
     "use min(ncpus/ports, 8) queue-sets per port");
 
@@ -228,17 +227,14 @@ SYSCTL_INT(_hw_cxgb, OID_AUTO, multiq, CTLFLAG_RDTUN, &multiq, 0,
  * 
  */
 static int force_fw_update = 0;
-TUNABLE_INT("hw.cxgb.force_fw_update", &force_fw_update);
 SYSCTL_INT(_hw_cxgb, OID_AUTO, force_fw_update, CTLFLAG_RDTUN, &force_fw_update, 0,
     "update firmware even if up to date");
 
 int cxgb_use_16k_clusters = -1;
-TUNABLE_INT("hw.cxgb.use_16k_clusters", &cxgb_use_16k_clusters);
 SYSCTL_INT(_hw_cxgb, OID_AUTO, use_16k_clusters, CTLFLAG_RDTUN,
     &cxgb_use_16k_clusters, 0, "use 16kB clusters for the jumbo queue ");
 
 static int nfilters = -1;
-TUNABLE_INT("hw.cxgb.nfilters", &nfilters);
 SYSCTL_INT(_hw_cxgb, OID_AUTO, nfilters, CTLFLAG_RDTUN,
     &nfilters, 0, "max number of entries in the filter table");
 
@@ -1027,6 +1023,7 @@ cxgb_port_attach(device_t dev)
 	ifp->if_ioctl = cxgb_ioctl;
 	ifp->if_transmit = cxgb_transmit;
 	ifp->if_qflush = cxgb_qflush;
+	ifp->if_get_counter = cxgb_get_counter;
 
 	ifp->if_capabilities = CXGB_CAP;
 #ifdef TCP_OFFLOAD
@@ -2194,6 +2191,71 @@ cxgb_media_status(struct ifnet *ifp, struct ifmediareq *ifmr)
 			    speed));
 }
 
+static uint64_t
+cxgb_get_counter(struct ifnet *ifp, ift_counter c)
+{
+	struct port_info *pi = ifp->if_softc;
+	struct adapter *sc = pi->adapter;
+	struct cmac *mac = &pi->mac;
+	struct mac_stats *mstats = &mac->stats;
+
+	cxgb_refresh_stats(pi);
+
+	switch (c) {
+	case IFCOUNTER_IPACKETS:
+		return (mstats->rx_frames);
+
+	case IFCOUNTER_IERRORS:
+		return (mstats->rx_jabber + mstats->rx_data_errs +
+		    mstats->rx_sequence_errs + mstats->rx_runt +
+		    mstats->rx_too_long + mstats->rx_mac_internal_errs +
+		    mstats->rx_short + mstats->rx_fcs_errs);
+
+	case IFCOUNTER_OPACKETS:
+		return (mstats->tx_frames);
+
+	case IFCOUNTER_OERRORS:
+		return (mstats->tx_excess_collisions + mstats->tx_underrun +
+		    mstats->tx_len_errs + mstats->tx_mac_internal_errs +
+		    mstats->tx_excess_deferral + mstats->tx_fcs_errs);
+
+	case IFCOUNTER_COLLISIONS:
+		return (mstats->tx_total_collisions);
+
+	case IFCOUNTER_IBYTES:
+		return (mstats->rx_octets);
+
+	case IFCOUNTER_OBYTES:
+		return (mstats->tx_octets);
+
+	case IFCOUNTER_IMCASTS:
+		return (mstats->rx_mcast_frames);
+
+	case IFCOUNTER_OMCASTS:
+		return (mstats->tx_mcast_frames);
+
+	case IFCOUNTER_IQDROPS:
+		return (mstats->rx_cong_drops);
+
+	case IFCOUNTER_OQDROPS: {
+		int i;
+		uint64_t drops;
+
+		drops = 0;
+		if (sc->flags & FULL_INIT_DONE) {
+			for (i = pi->first_qset; i < pi->first_qset + pi->nqsets; i++)
+				drops += sc->sge.qs[i].txq[TXQ_ETH].txq_mr->br_drops;
+		}
+
+		return (drops);
+
+	}
+
+	default:
+		return (if_get_counter_default(ifp, c));
+	}
+}
+
 static void
 cxgb_async_intr(void *data)
 {
@@ -2294,6 +2356,23 @@ cxgb_tick(void *arg)
 	callout_reset(&sc->cxgb_tick_ch, hz, cxgb_tick, sc);
 }
 
+void
+cxgb_refresh_stats(struct port_info *pi)
+{
+	struct timeval tv;
+	const struct timeval interval = {0, 250000};    /* 250ms */
+
+	getmicrotime(&tv);
+	timevalsub(&tv, &interval);
+	if (timevalcmp(&tv, &pi->last_refreshed, <))
+		return;
+
+	PORT_LOCK(pi);
+	t3_mac_update_stats(&pi->mac);
+	PORT_UNLOCK(pi);
+	getmicrotime(&pi->last_refreshed);
+}
+
 static void
 cxgb_tick_handler(void *arg, int count)
 {
@@ -2338,48 +2417,12 @@ cxgb_tick_handler(void *arg, int count)
 
 	for (i = 0; i < sc->params.nports; i++) {
 		struct port_info *pi = &sc->port[i];
-		struct ifnet *ifp = pi->ifp;
 		struct cmac *mac = &pi->mac;
-		struct mac_stats *mstats = &mac->stats;
-		int drops, j;
 
 		if (!isset(&sc->open_device_map, pi->port_id))
 			continue;
 
-		PORT_LOCK(pi);
-		t3_mac_update_stats(mac);
-		PORT_UNLOCK(pi);
-
-		ifp->if_opackets = mstats->tx_frames;
-		ifp->if_ipackets = mstats->rx_frames;
-		ifp->if_obytes = mstats->tx_octets;
-		ifp->if_ibytes = mstats->rx_octets;
-		ifp->if_omcasts = mstats->tx_mcast_frames;
-		ifp->if_imcasts = mstats->rx_mcast_frames;
-		ifp->if_collisions = mstats->tx_total_collisions;
-		ifp->if_iqdrops = mstats->rx_cong_drops;
-
-		drops = 0;
-		for (j = pi->first_qset; j < pi->first_qset + pi->nqsets; j++)
-			drops += sc->sge.qs[j].txq[TXQ_ETH].txq_mr->br_drops;
-		ifp->if_snd.ifq_drops = drops;
-
-		ifp->if_oerrors =
-		    mstats->tx_excess_collisions +
-		    mstats->tx_underrun +
-		    mstats->tx_len_errs +
-		    mstats->tx_mac_internal_errs +
-		    mstats->tx_excess_deferral +
-		    mstats->tx_fcs_errs;
-		ifp->if_ierrors =
-		    mstats->rx_jabber +
-		    mstats->rx_data_errs +
-		    mstats->rx_sequence_errs +
-		    mstats->rx_runt + 
-		    mstats->rx_too_long +
-		    mstats->rx_mac_internal_errs +
-		    mstats->rx_short +
-		    mstats->rx_fcs_errs;
+		cxgb_refresh_stats(pi);
 
 		if (mac->multiport)
 			continue;

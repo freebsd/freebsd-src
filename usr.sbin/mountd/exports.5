@@ -28,7 +28,7 @@
 .\"     @(#)exports.5	8.3 (Berkeley) 3/29/95
 .\" $FreeBSD$
 .\"
-.Dd December 23, 2012
+.Dd August 14, 2014
 .Dt EXPORTS 5
 .Os
 .Sh NAME
@@ -91,10 +91,10 @@ option is used on
 Because NFSv4 does not use the mount protocol,
 the
 .Dq administrative controls
-are not applied.
-Thus, all the above export line(s) should be considered to have the
+are not applied and all directories within this server
+file system are mountable via NFSv4 even if the
 .Fl alldirs
-flag, even if the line is specified without it.
+flag has not been specified.
 The third form has the string ``V4:'' followed by a single absolute path
 name, to specify the NFSv4 tree root.
 This line does not export any file system, but simply marks where the root
@@ -310,7 +310,8 @@ interface.
 For the third form which specifies the NFSv4 tree root, the directory path
 specifies the location within the server's file system tree which is the
 root of the NFSv4 tree.
-All entries of this form must specify the same directory path.
+There can only be one NFSv4 root directory per server.
+As such, all entries of this form must specify the same directory path.
 For file systems other than ZFS,
 this location can be any directory and does not
 need to be within an exported file system. If it is not in an exported

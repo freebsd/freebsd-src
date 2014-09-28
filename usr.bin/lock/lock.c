@@ -97,7 +97,7 @@ main(int argc, char **argv)
 	char *ap, *cryptpw, *mypw, *ttynam, *tzn;
 	char hostname[MAXHOSTNAMELEN], s[BUFSIZ], s1[BUFSIZ];
 
-	openlog("lock", LOG_ODELAY, LOG_AUTH);
+	openlog("lock", 0, LOG_AUTH);
 
 	sectimeout = TIMEOUT;
 	pw = NULL;

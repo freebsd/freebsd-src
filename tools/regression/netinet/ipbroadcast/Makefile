@@ -3,7 +3,7 @@
 #
 
 PROG=	ipbroadcast
-NO_MAN=
+MAN=
 
 WARNS?=	6
 

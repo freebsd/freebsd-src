@@ -68,6 +68,7 @@ int	ridhosts;			/* 1=reduce host routes */
 int	mhome;				/* 1=want multi-homed host route */
 int	advertise_mhome;		/* 1=must continue advertising it */
 int	auth_ok = 1;			/* 1=ignore auth if we do not care */
+int	insecure;			/* Reply to special queries or not */
 
 struct timeval epoch;			/* when started */
 struct timeval clk;
@@ -136,8 +137,11 @@ main(int argc,
 	(void)gethostname(myname, sizeof(myname)-1);
 	(void)gethost(myname, &myaddr);
 
-	while ((n = getopt(argc, argv, "sqdghmAtvT:F:P:")) != -1) {
+	while ((n = getopt(argc, argv, "isqdghmAtvT:F:P:")) != -1) {
 		switch (n) {
+		case 'i':
+			insecure++;
+			break;
 		case 's':
 			supplier = 1;
 			supplier_set = 1;

@@ -58,9 +58,8 @@ struct gdbcons {
 static struct gdbcons state = { -1 };
 
 static	int gdbcons_enable = 0;
-SYSCTL_INT(_debug, OID_AUTO, gdbcons, CTLFLAG_RW, &gdbcons_enable,
-	    0, "copy console messages to gdb");
-TUNABLE_INT("debug.gdbcons", &gdbcons_enable);
+SYSCTL_INT(_debug, OID_AUTO, gdbcons, CTLFLAG_RWTUN, &gdbcons_enable,
+	    0, "copy console messages to GDB");
 
 static void
 gdb_cnprobe(struct consdev *cp)

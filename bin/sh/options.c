@@ -446,6 +446,7 @@ getopts(char *optstr, char *optvar, char **optfirst, char ***optnext,
 	int ind = 0;
 	int err = 0;
 	char s[10];
+	const char *optarg = NULL;
 
 	if ((p = *optptr) == NULL || *p == '\0') {
 		/* Current word is done, advance */
@@ -471,14 +472,12 @@ atend:
 			if (optstr[0] == ':') {
 				s[0] = c;
 				s[1] = '\0';
-				err |= setvarsafe("OPTARG", s, 0);
+				optarg = s;
 			}
-			else {
-				out1fmt("Illegal option -%c\n", c);
-				(void) unsetvar("OPTARG");
-			}
+			else
+				out2fmt_flush("Illegal option -%c\n", c);
 			c = '?';
-			goto bad;
+			goto out;
 		}
 		if (*++q == ':')
 			q++;
@@ -489,33 +488,33 @@ atend:
 			if (optstr[0] == ':') {
 				s[0] = c;
 				s[1] = '\0';
-				err |= setvarsafe("OPTARG", s, 0);
+				optarg = s;
 				c = ':';
 			}
 			else {
-				out1fmt("No arg for -%c option\n", c);
-				(void) unsetvar("OPTARG");
+				out2fmt_flush("No arg for -%c option\n", c);
 				c = '?';
 			}
-			goto bad;
+			goto out;
 		}
 
 		if (p == **optnext)
 			(*optnext)++;
-		setvarsafe("OPTARG", p, 0);
+		optarg = p;
 		p = NULL;
 	}
-	else
-		setvarsafe("OPTARG", "", 0);
-	ind = *optnext - optfirst + 1;
-	goto out;
 
-bad:
-	ind = 1;
-	*optnext = NULL;
-	p = NULL;
 out:
+	if (*optnext != NULL)
+		ind = *optnext - optfirst + 1;
 	*optptr = p;
+	if (optarg != NULL)
+		err |= setvarsafe("OPTARG", optarg, 0);
+	else {
+		INTOFF;
+		err |= unsetvar("OPTARG");
+		INTON;
+	}
 	fmtstr(s, sizeof(s), "%d", ind);
 	err |= setvarsafe("OPTIND", s, VNOFUNC);
 	s[0] = c;

@@ -3,7 +3,7 @@
 #
 
 PROG=	socketpair
-NO_MAN=
+MAN=
 WARNS?=	2
 
 .include <bsd.prog.mk>

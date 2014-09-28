@@ -87,11 +87,13 @@ The
 .Fa addr
 argument
 is not a multiple of the hardware page size.
-.It Bq Er EINVAL
-The
+.It Bq Er ENOMEM
+The addresses in the range starting at
+.Fa addr
+and continuing for
 .Fa len
-argument
-is too large or negative.
+bytes are outside the range allowed for the address space of a
+process or specify one or more pages that are not mapped.
 .It Bq Er EINVAL
 The
 .Fa flags
@@ -99,7 +101,7 @@ argument
 was both MS_ASYNC and MS_INVALIDATE.
 Only one of these flags is allowed.
 .It Bq Er EIO
- An error occurred while writing at least one of the pages in
+An error occurred while writing at least one of the pages in
 the specified region.
 .El
 .Sh SEE ALSO

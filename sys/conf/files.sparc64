@@ -35,6 +35,7 @@ dev/atkbdc/psm.c		optional	psm atkbdc
 dev/auxio/auxio.c		optional	auxio sbus | auxio ebus
 dev/esp/esp_sbus.c		optional	esp sbus
 dev/fb/creator.c		optional	creator sc
+dev/fb/creator_vt.c		optional	creator vt
 dev/fb/fb.c			optional	sc
 dev/fb/gallant12x22.c		optional	sc
 dev/fb/machfb.c			optional	machfb sc
@@ -64,6 +65,7 @@ dev/vt/hw/ofwfb/ofwfb.c		optional	vt
 kern/kern_clocksource.c		standard
 kern/subr_dummy_vdso_tc.c	standard
 kern/syscalls.c			optional	ktr
+kern/subr_sfbuf.c		standard
 libkern/ffs.c			standard
 libkern/ffsl.c			standard
 libkern/fls.c			standard

@@ -1,6 +1,6 @@
 # $FreeBSD$
 
-.include <bsd.own.mk>
+.include <src.opts.mk>
 
 LIB=	proc
 
@@ -15,7 +15,9 @@ INCS=	libproc.h
 
 CFLAGS+=	-I${.CURDIR}
 
-.if ${MK_LIBCPLUSPLUS} != "no"
+.if ${MK_CXX} == "no"
+CFLAGS+=	-DNO_CXA_DEMANGLE
+.elif ${MK_LIBCPLUSPLUS} != "no"
 LDADD+=		-lcxxrt
 DPADD+=		${LIBCXXRT}
 .else
@@ -25,6 +27,10 @@ DPADD+=		${LIBSTDCPLUSPLUS}
 
 SHLIB_MAJOR=	2
 
-WITHOUT_MAN=
+MAN=
+
+.if ${MK_TESTS} != "no"
+SUBDIR+=	tests
+.endif
 
 .include <bsd.lib.mk>

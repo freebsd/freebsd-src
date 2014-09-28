@@ -521,7 +521,7 @@ ath_collect(struct athstatfoo_p *wf, struct _athstats *stats)
 }
 
 static void
-ath_collect_cur(struct statfoo *sf)
+ath_collect_cur(struct bsdstat *sf)
 {
 	struct athstatfoo_p *wf = (struct athstatfoo_p *) sf;
 
@@ -529,7 +529,7 @@ ath_collect_cur(struct statfoo *sf)
 }
 
 static void
-ath_collect_tot(struct statfoo *sf)
+ath_collect_tot(struct bsdstat *sf)
 {
 	struct athstatfoo_p *wf = (struct athstatfoo_p *) sf;
 
@@ -537,7 +537,7 @@ ath_collect_tot(struct statfoo *sf)
 }
 
 static void
-ath_update_tot(struct statfoo *sf)
+ath_update_tot(struct bsdstat *sf)
 {
 	struct athstatfoo_p *wf = (struct athstatfoo_p *) sf;
 
@@ -556,7 +556,7 @@ snprintrate(char b[], size_t bs, int rate)
 }
 
 static int
-ath_get_curstat(struct statfoo *sf, int s, char b[], size_t bs)
+ath_get_curstat(struct bsdstat *sf, int s, char b[], size_t bs)
 {
 	struct athstatfoo_p *wf = (struct athstatfoo_p *) sf;
 #define	STAT(x) \
@@ -802,7 +802,7 @@ ath_get_curstat(struct statfoo *sf, int s, char b[], size_t bs)
 }
 
 static int
-ath_get_totstat(struct statfoo *sf, int s, char b[], size_t bs)
+ath_get_totstat(struct bsdstat *sf, int s, char b[], size_t bs)
 {
 	struct athstatfoo_p *wf = (struct athstatfoo_p *) sf;
 #define	STAT(x) \
@@ -1045,7 +1045,7 @@ ath_get_totstat(struct statfoo *sf, int s, char b[], size_t bs)
 }
 
 static void
-ath_print_verbose(struct statfoo *sf, FILE *fd)
+ath_print_verbose(struct bsdstat *sf, FILE *fd)
 {
 	struct athstatfoo_p *wf = (struct athstatfoo_p *) sf;
 #define	isphyerr(i)	(S_PHY_MIN <= i && i <= S_PHY_MAX)
@@ -1078,7 +1078,7 @@ ath_print_verbose(struct statfoo *sf, FILE *fd)
 #undef isphyerr
 }
 
-STATFOO_DEFINE_BOUNCE(athstatfoo)
+BSDSTAT_DEFINE_BOUNCE(athstatfoo)
 
 struct athstatfoo *
 athstats_new(const char *ifname, const char *fmtstring)
@@ -1088,7 +1088,7 @@ athstats_new(const char *ifname, const char *fmtstring)
 
 	wf = calloc(1, sizeof(struct athstatfoo_p));
 	if (wf != NULL) {
-		statfoo_init(&wf->base.base, "athstats", athstats, N(athstats));
+		bsdstat_init(&wf->base.base, "athstats", athstats, N(athstats));
 		/* override base methods */
 		wf->base.base.collect_cur = ath_collect_cur;
 		wf->base.base.collect_tot = ath_collect_tot;
@@ -1098,7 +1098,7 @@ athstats_new(const char *ifname, const char *fmtstring)
 		wf->base.base.print_verbose = ath_print_verbose;
 
 		/* setup bounce functions for public methods */
-		STATFOO_BOUNCE(wf, athstatfoo);
+		BSDSTAT_BOUNCE(wf, athstatfoo);
 
 		/* setup our public methods */
 		wf->base.setifname = ath_setifname;

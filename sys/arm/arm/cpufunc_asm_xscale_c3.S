@@ -73,6 +73,7 @@
  * XScale core 3 assembly functions for CPU / MMU / TLB specific operations
  */
 
+#include <machine/armreg.h>
 #include <machine/asm.h>
 __FBSDID("$FreeBSD$");
 
@@ -122,7 +123,7 @@ __FBSDID("$FreeBSD$");
 #define	XSCALE_CACHE_CLEAN_BLOCK					\
 	stmfd	sp!, {r4}					;	\
 	mrs	r4, cpsr					;	\
-	orr	r0, r4, #(I32_bit | F32_bit)			;	\
+	orr	r0, r4, #(PSR_I | PSR_F)			;	\
 	msr	cpsr_fsxc, r0
 
 #define	XSCALE_CACHE_CLEAN_UNBLOCK					\
@@ -143,11 +144,12 @@ __FBSDID("$FreeBSD$");
 
 
 ENTRY_NP(xscalec3_cache_syncI)
-ENTRY_NP(xscalec3_cache_purgeID)
+xscalec3_cache_purgeID:
+EENTRY_NP(xscalec3_cache_purgeID)
 	mcr	p15, 0, r0, c7, c5, 0	/* flush I cache (D cleaned below) */
-ENTRY_NP(xscalec3_cache_cleanID)
-ENTRY_NP(xscalec3_cache_purgeD)
-ENTRY(xscalec3_cache_cleanD)
+EENTRY_NP(xscalec3_cache_cleanID)
+EENTRY_NP(xscalec3_cache_purgeD)
+EENTRY(xscalec3_cache_cleanD)
 
 	XSCALE_CACHE_CLEAN_BLOCK
 	mov	r0, #0
@@ -168,11 +170,11 @@ ENTRY(xscalec3_cache_cleanD)
 	mcr	p15, 0, r0, c7, c10, 4	/* drain write buffer */
 
 	RET
+EEND(xscalec3_cache_purgeID)
+EEND(xscalec3_cache_cleanID)
+EEND(xscalec3_cache_purgeD)
+EEND(xscalec3_cache_cleanD)
 END(xscalec3_cache_syncI)
-END(xscalec3_cache_purgeID)
-END(xscalec3_cache_cleanID)
-END(xscalec3_cache_purgeD)
-END(xscalec3_cache_cleanD)
 
 ENTRY(xscalec3_cache_purgeID_rng)
 
@@ -238,7 +240,7 @@ ENTRY(xscalec3_cache_purgeD_rng)
 END(xscalec3_cache_purgeD_rng)
 
 ENTRY(xscalec3_cache_cleanID_rng)
-ENTRY(xscalec3_cache_cleanD_rng)
+EENTRY(xscalec3_cache_cleanD_rng)
 
 	cmp	r1, #0x4000
 	bcs	_C_LABEL(xscalec3_cache_cleanID)
@@ -257,8 +259,8 @@ ENTRY(xscalec3_cache_cleanD_rng)
 	mcr	p15, 0, r0, c7, c10, 4	/* drain write buffer */
 
 	CPWAIT_AND_RETURN(r0)
+EEND(xscalec3_cache_cleanD_rng)
 END(xscalec3_cache_cleanID_rng)
-END(xscalec3_cache_cleanD_rng)
 
 ENTRY(xscalec3_l2cache_purge)
 	/* Clean-up the L2 cache */
@@ -349,7 +351,7 @@ END(xscalec3_l2cache_flush_rng)
 ENTRY(xscalec3_setttb)
 #ifdef CACHE_CLEAN_BLOCK_INTR
 	mrs	r3, cpsr
-	orr	r1, r3, #(I32_bit | F32_bit)
+	orr	r1, r3, #(PSR_I | PSR_F)
 	msr	cpsr_fsxc, r1
 #else
 	ldr	r3, .Lblock_userspace_access

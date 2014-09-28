@@ -2934,6 +2934,10 @@ ar9300_fill_capability_info(struct ath_hal *ah)
         p_cap->halRxUsingLnaMixing = AH_TRUE;
     }
 
+    /*
+     * AR5416 and later NICs support MYBEACON filtering.
+     */
+    p_cap->halRxDoMyBeacon = AH_TRUE;
 
 #if ATH_WOW_OFFLOAD
     if (AR_SREV_JUPITER_20_OR_LATER(ah) || AR_SREV_APHRODITE(ah)) {
@@ -4109,6 +4113,8 @@ ar9300_probe(uint16_t vendorid, uint16_t devid)
         return "Qualcomm Atheros QCA955x";
     case AR9300_DEVID_QCA9565: /* Aphrodite */
          return "Qualcomm Atheros AR9565";
+    case AR9300_DEVID_AR1111_PCIE:
+         return "Atheros AR1111";
     default:
         return AH_NULL;
     }

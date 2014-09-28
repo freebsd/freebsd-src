@@ -8877,7 +8877,12 @@ svn_fs_fs__create(svn_fs_t *fs,
 
   SVN_ERR(write_revision_zero(fs));
 
-  SVN_ERR(write_config(fs, pool));
+  /* Create the fsfs.conf file if supported.  Older server versions would
+     simply ignore the file but that might result in a different behavior
+     than with the later releases.  Also, hotcopy would ignore, i.e. not
+     copy, a fsfs.conf with old formats. */
+  if (ffd->format >= SVN_FS_FS__MIN_CONFIG_FILE)
+    SVN_ERR(write_config(fs, pool));
 
   SVN_ERR(read_config(ffd, fs->path, pool));
 

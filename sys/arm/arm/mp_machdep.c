@@ -43,7 +43,9 @@ __FBSDID("$FreeBSD$");
 #include <vm/vm_kern.h>
 #include <vm/pmap.h>
 
+#include <machine/armreg.h>
 #include <machine/cpu.h>
+#include <machine/cpufunc.h>
 #include <machine/smp.h>
 #include <machine/pcb.h>
 #include <machine/pte.h>
@@ -219,7 +221,6 @@ init_secondary(int cpu)
 	if (smp_cpus == mp_ncpus) {
 		/* enable IPI's, tlb shootdown, freezes etc */
 		atomic_store_rel_int(&smp_started, 1);
-		smp_active = 1;
 	}
 
 	mtx_unlock_spin(&ap_boot_mtx);
@@ -236,7 +237,7 @@ init_secondary(int cpu)
 				
 	for (int i = start; i <= end; i++)
 		arm_unmask_irq(i);
-	enable_interrupts(I32_bit);
+	enable_interrupts(PSR_I);
 
 	loop_counter = 0;
 	while (smp_started == 0) {
@@ -279,7 +280,6 @@ ipi_handler(void *arg)
 			break;
 
 		case IPI_STOP:
-		case IPI_STOP_HARD:
 			/*
 			 * IPI_STOP_HARD is mapped to IPI_STOP so it is not
 			 * necessary to add it in the switch.
@@ -287,6 +287,19 @@ ipi_handler(void *arg)
 			CTR0(KTR_SMP, "IPI_STOP or IPI_STOP_HARD");
 
 			savectx(&stoppcbs[cpu]);
+
+			/*
+			 * CPUs are stopped when entering the debugger and at
+			 * system shutdown, both events which can precede a
+			 * panic dump.  For the dump to be correct, all caches
+			 * must be flushed and invalidated, but on ARM there's
+			 * no way to broadcast a wbinv_all to other cores.
+			 * Instead, we have each core do the local wbinv_all as
+			 * part of stopping the core.  The core requesting the
+			 * stop will do the l2 cache flush after all other cores
+			 * have done their l1 flushes and stopped.
+			 */
+			cpu_idcache_wbinv_all();
 
 			/* Indicate we are stopped */
 			CPU_SET_ATOMIC(cpu, &stopped_cpus);

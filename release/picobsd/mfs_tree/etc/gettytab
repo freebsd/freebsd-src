@@ -4,12 +4,15 @@
 default:\
 	:cb:ce:ck:lc:fd#1000:cl:im=\r\nPicoBSD (%h) (%t)\r\n\r\n:sp#1200:
 
-P|Pc|Pc console:\
+# 20140527 add nc (no carrier) to the pc console entry to fix
+# devices with no handshake after svn 264175 (this also affects bhyve)
+P|Pc|Pc console|3wire:\
+	:nc:\
 	:ht:np:sp#115200:
 
 # Fixed speed entries
 2|std.9600|9600-baud:\
-	:np:sp#9600:
+	:nc:np:sp#9600:
 g|std.19200|19200-baud:\
 	:np:sp#19200:
 std.38400|38400-baud:\

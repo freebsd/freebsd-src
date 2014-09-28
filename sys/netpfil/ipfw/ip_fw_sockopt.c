@@ -759,14 +759,14 @@ check_action:
 				printf("ipfw: opcode %d, multiple actions"
 					" not allowed\n",
 					cmd->opcode);
-				return EINVAL;
+				return (EINVAL);
 			}
 			have_action = 1;
 			if (l != cmdlen) {
 				printf("ipfw: opcode %d, action must be"
 					" last opcode\n",
 					cmd->opcode);
-				return EINVAL;
+				return (EINVAL);
 			}
 			break;
 #ifdef INET6
@@ -809,25 +809,25 @@ check_action:
 			case O_IP6_DST_MASK:
 			case O_ICMP6TYPE:
 				printf("ipfw: no IPv6 support in kernel\n");
-				return EPROTONOSUPPORT;
+				return (EPROTONOSUPPORT);
 #endif
 			default:
 				printf("ipfw: opcode %d, unknown opcode\n",
 					cmd->opcode);
-				return EINVAL;
+				return (EINVAL);
 			}
 		}
 	}
 	if (have_action == 0) {
 		printf("ipfw: missing action\n");
-		return EINVAL;
+		return (EINVAL);
 	}
 	return 0;
 
 bad_size:
 	printf("ipfw: opcode %d size %d wrong\n",
 		cmd->opcode, cmdlen);
-	return EINVAL;
+	return (EINVAL);
 }
 
 
@@ -1039,8 +1039,10 @@ ipfw_ctl(struct sockopt *sopt)
 		if (sopt->sopt_valsize == RULESIZE7(rule)) {
 		    is7 = 1;
 		    error = convert_rule_to_8(rule);
-		    if (error)
+		    if (error) {
+			free(rule, M_TEMP);
 			return error;
+		    }
 		    if (error == 0)
 			error = check_ipfw_struct(rule, RULESIZE(rule));
 		} else {
@@ -1056,11 +1058,13 @@ ipfw_ctl(struct sockopt *sopt)
 				if (is7) {
 					error = convert_rule_to_7(rule);
 					size = RULESIZE7(rule);
-					if (error)
+					if (error) {
+						free(rule, M_TEMP);
 						return error;
+					}
 				}
 				error = sooptcopyout(sopt, rule, size);
-		}
+			}
 		}
 		free(rule, M_TEMP);
 		break;

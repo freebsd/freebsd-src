@@ -25,13 +25,13 @@ _misc [label="Miscellaneous Hats"]
 
 # Development teams go here alphabetically sorted
 
-core [label="Core Team\ncore@FreeBSD.org\ntabthorpe, gavin, jhb, kib,\ntheraven, hrs, peter, miwi"]
-coresecretary [label="Core Team Secretary\ncore-secretary@FreeBSD.org\npgj"]
+core [label="Core Team\ncore@FreeBSD.org\nbapt, emaste, gavin,\nglebius, gnn, hrs,\npeter, rwatson, theraven"]
+coresecretary [label="Core Team Secretary\ncore-secretary@FreeBSD.org\nmatthew"]
 doccommitters [label="Doc/www Committers\ndoc-committers@FreeBSD.org"]
 doceng [label="Documentation Engineering Team\ndoceng@FreeBSD.org\ngjb, blackend,\ngabor, hrs"]
 portscommitters [label="Ports Committers\nports-committers@FreeBSD.org"]
-portmgr [label="Port Management Team\nportmgr@FreeBSD.org\ntabthorpe, marcus, bapt,\nerwin, bdrewery,\nitetcu, miwi"]
-portmgrsecretary [label="Port Management Team Secretary\nportmgr-secretary@FreeBSD.org\ntabthorpe"]
+portmgr [label="Port Management Team\nportmgr@FreeBSD.org\nantoine, bapt, bdrewery,\ndecke, erwin, mat,\nmiwi, swills, tabthorpe"]
+portmgrsecretary [label="Port Management Team Secretary\nportmgr-secretary@FreeBSD.org\nculot"]
 re [label="Primary Release Engineering Team\nre@FreeBSD.org\nkib, blackend, jpaetzel, hrs, kensmith"]
 secteam [label="Security Team\nsecteam@FreeBSD.org\nsimon, qingli, delphij,\nremko, philip, stas, cperciva,\ncsjp, rwatson, miwi, bz"]
 portssecteam [label="Ports Security Team\nports-secteam@FreeBSD.org\nmiwi, rea, swills, wxs,\njgh, sbz, eadler, zi, remko, simon"]

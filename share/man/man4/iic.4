@@ -25,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd September 6, 2006
+.Dd June 24, 2014
 .Dt IIC 4
 .Os
 .Sh NAME
@@ -51,12 +51,20 @@ following ioctls:
 Sends the start condition to the slave specified by the
 .Va slave
 element to the bus.
+The
+.Va slave
+element consists of a 7-bit address and a read/write bit
+(i.e., 7-bit address << 1 | r/w).
+If the read/write bit is set a read operation is initiated, if the read/write
+bit is cleared a write operation is initiated.
 All other elements are ignored.
 .It Dv I2CRPTSTART
 .Pq Vt "struct iiccmd"
 Sends the repeated start condition to the slave specified by the
 .Va slave
 element to the bus.
+The slave address should be specified as in
+.Dv I2CSTART .
 All other elements are ignored.
 .It Dv I2CSTOP
 No argument is passed.
@@ -115,10 +123,15 @@ is set in
 Otherwise the transfer is a write transfer.
 The
 .Va slave
-element specifies the 7-bit address for the transfer.
+element specifies the 7-bit address with the read/write bit for the transfer.
+The read/write bit will be handled by the iicbus stack based on the specified
+transfer operation.
 The
 .Va len
-element is the length of the data.
+element is the number of
+.Pq Vt "struct iic_msg"
+messages encoded on
+.Pq Vt "struct iic_rdwr_data" .
 The
 .Va buf
 element is a buffer for that data.

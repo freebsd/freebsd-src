@@ -5,5 +5,3 @@
 
 device		mem
 
-options 	GEOM_PART_BSD
-options 	GEOM_PART_MBR

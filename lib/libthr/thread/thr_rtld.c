@@ -32,10 +32,12 @@
   */
 #include <sys/cdefs.h>
 #include <sys/mman.h>
+#include <sys/syscall.h>
 #include <link.h>
 #include <stdlib.h>
 #include <string.h>
 
+#include "libc_private.h"
 #include "rtld_lock.h"
 #include "thr_private.h"
 
@@ -207,7 +209,24 @@ _thr_rtld_init(void)
 	li.thread_set_flag = _thr_rtld_set_flag;
 	li.thread_clr_flag = _thr_rtld_clr_flag;
 	li.at_fork = NULL;
-	
+
+	/*
+	 * Preresolve the symbols needed for the fork interposer.  We
+	 * call _rtld_atfork_pre() and _rtld_atfork_post() with NULL
+	 * argument to indicate that no actual locking inside the
+	 * functions should happen.  Neither rtld compat locks nor
+	 * libthr rtld locks cannot work there:
+	 * - compat locks do not handle the case of two locks taken
+	 *   in write mode (the signal mask for the thread is corrupted);
+	 * - libthr locks would work, but locked rtld_bind_lock prevents
+	 *   symbol resolution for _rtld_atfork_post.
+	 */
+	_rtld_atfork_pre(NULL);
+	_rtld_atfork_post(NULL);
+	_malloc_prefork();
+	_malloc_postfork();
+	syscall(SYS_getpid);
+
 	/* mask signals, also force to resolve __sys_sigprocmask PLT */
 	_thr_signal_block(curthread);
 	_rtld_thread_init(&li);

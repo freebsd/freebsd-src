@@ -343,6 +343,7 @@ struct kinfo_proc32 {
 	char	ki_loginclass[LOGINCLASSLEN+1];
 	char	ki_sparestrings[50];
 	int	ki_spareints[KI_NSPARE_INT];
+	int	ki_tracer;
 	int	ki_flag2;
 	int	ki_fibnum;
 	u_int	ki_cr_flags;

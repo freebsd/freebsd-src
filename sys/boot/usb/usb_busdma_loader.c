@@ -211,13 +211,13 @@ usb_pc_alloc_mem(struct usb_page_cache *pc, struct usb_page *pg,
 	/* allocate zeroed memory */
 
 	if (align != 1) {
-		ptr = usb_malloc(size + align);
+		ptr = malloc(size + align, XXX, XXX);
 		if (ptr == NULL)
 			goto error;
 
 		rem = (-((uintptr_t)ptr)) & (align - 1);
 	} else {
-		ptr = usb_malloc(size);
+		ptr = malloc(size, XXX, XXX);
 		if (ptr == NULL)
 			goto error;
 		rem = 0;
@@ -258,7 +258,7 @@ void
 usb_pc_free_mem(struct usb_page_cache *pc)
 {
 	if (pc != NULL && pc->buffer != NULL) {
-		usb_free(pc->tag);
+		free(pc->tag, XXX);
 		pc->buffer = NULL;
 	}
 }

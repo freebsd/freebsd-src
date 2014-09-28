@@ -66,6 +66,9 @@ struct r_rmtcall_args {
 
 extern int debugging;
 extern int doabort;
+#ifdef LIBWRAP
+extern int libwrap;
+#endif
 extern int verboselog;
 extern int insecure;
 extern int oldstyle_local;

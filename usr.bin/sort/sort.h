@@ -28,7 +28,7 @@
  */
 
 #if !defined(__BSD_SORT_H__)
-#define __BSD_SORT_H__
+#define	__BSD_SORT_H__
 
 #include <errno.h>
 #include <stdbool.h>
@@ -53,7 +53,7 @@ extern nl_catd catalog;
 extern const char *nlsstr[];
 
 #if defined(SORT_THREADS)
-#define MT_SORT_THRESHOLD (10000)
+#define	MT_SORT_THRESHOLD (10000)
 extern unsigned int ncpu;
 extern size_t nthreads;
 #endif

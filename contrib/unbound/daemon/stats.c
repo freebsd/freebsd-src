@@ -21,16 +21,16 @@
  * specific prior written permission.
  * 
  * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
- * TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
- * PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE
- * LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
- * CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
- * SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
- * INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
- * CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
- * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
- * POSSIBILITY OF SUCH DAMAGE.
+ * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+ * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
+ * A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
+ * HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+ * SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED
+ * TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
+ * PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF
+ * LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
+ * NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+ * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
 /**
@@ -40,7 +40,11 @@
  * numbers. These 'statistics' may be of interest to the operator.
  */
 #include "config.h"
-#include <ldns/wire2host.h>
+#ifdef HAVE_TIME_H
+#include <time.h>
+#endif
+#include <sys/time.h>
+#include <sys/types.h>
 #include "daemon/stats.h"
 #include "daemon/worker.h"
 #include "daemon/daemon.h"
@@ -51,6 +55,7 @@
 #include "util/timehist.h"
 #include "util/net_help.h"
 #include "validator/validator.h"
+#include "ldns/sbuffer.h"
 
 /** add timers and the values do not overflow or become negative */
 static void
@@ -257,14 +262,14 @@ void server_stats_insquery(struct server_stats* stats, struct comm_point* c,
 	uint16_t qtype, uint16_t qclass, struct edns_data* edns,
 	struct comm_reply* repinfo)
 {
-	uint16_t flags = ldns_buffer_read_u16_at(c->buffer, 2);
+	uint16_t flags = sldns_buffer_read_u16_at(c->buffer, 2);
 	if(qtype < STATS_QTYPE_NUM)
 		stats->qtype[qtype]++;
 	else	stats->qtype_big++;
 	if(qclass < STATS_QCLASS_NUM)
 		stats->qclass[qclass]++;
 	else	stats->qclass_big++;
-	stats->qopcode[ LDNS_OPCODE_WIRE(ldns_buffer_begin(c->buffer)) ]++;
+	stats->qopcode[ LDNS_OPCODE_WIRE(sldns_buffer_begin(c->buffer)) ]++;
 	if(c->type != comm_udp)
 		stats->qtcp++;
 	if(repinfo && addr_is_ip6(&repinfo->addr, repinfo->addrlen))
@@ -292,12 +297,12 @@ void server_stats_insquery(struct server_stats* stats, struct comm_point* c,
 	}
 }
 
-void server_stats_insrcode(struct server_stats* stats, ldns_buffer* buf)
+void server_stats_insrcode(struct server_stats* stats, sldns_buffer* buf)
 {
-	if(stats->extended && ldns_buffer_limit(buf) != 0) {
-		int r = (int)LDNS_RCODE_WIRE( ldns_buffer_begin(buf) );
+	if(stats->extended && sldns_buffer_limit(buf) != 0) {
+		int r = (int)LDNS_RCODE_WIRE( sldns_buffer_begin(buf) );
 		stats->ans_rcode[r] ++;
-		if(r == 0 && LDNS_ANCOUNT( ldns_buffer_begin(buf) ) == 0)
+		if(r == 0 && LDNS_ANCOUNT( sldns_buffer_begin(buf) ) == 0)
 			stats->ans_rcode_nodata ++;
 	}
 }

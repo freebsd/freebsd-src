@@ -170,11 +170,9 @@ SYSCTL_INT(_net_link_tap, OID_AUTO, user_open, CTLFLAG_RW, &tapuopen, 0,
 	"Allow user to open /dev/tap (based on node permissions)");
 SYSCTL_INT(_net_link_tap, OID_AUTO, up_on_open, CTLFLAG_RW, &tapuponopen, 0,
 	"Bring interface up when /dev/tap is opened");
-SYSCTL_INT(_net_link_tap, OID_AUTO, devfs_cloning, CTLFLAG_RW, &tapdclone, 0,
+SYSCTL_INT(_net_link_tap, OID_AUTO, devfs_cloning, CTLFLAG_RWTUN, &tapdclone, 0,
 	"Enably legacy devfs interface creation");
 SYSCTL_INT(_net_link_tap, OID_AUTO, debug, CTLFLAG_RW, &tapdebug, 0, "");
-
-TUNABLE_INT("net.link.tap.devfs_cloning", &tapdclone);
 
 DEV_MODULE(if_tap, tapmodevent, NULL);
 
@@ -684,7 +682,7 @@ tapifstart(struct ifnet *ifp)
 			IF_DEQUEUE(&ifp->if_snd, m);
 			if (m != NULL) {
 				m_freem(m);
-				ifp->if_oerrors++;
+				if_inc_counter(ifp, IFCOUNTER_OERRORS, 1);
 			} else
 				break;
 		}
@@ -709,7 +707,7 @@ tapifstart(struct ifnet *ifp)
 
 		selwakeuppri(&tp->tap_rsel, PZERO+1);
 		KNOTE_LOCKED(&tp->tap_rsel.si_note, 0);
-		ifp->if_opackets ++; /* obytes are counted in ether_output */
+		if_inc_counter(ifp, IFCOUNTER_OPACKETS, 1); /* obytes are counted in ether_output */
 	}
 
 	ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
@@ -949,7 +947,7 @@ tapwrite(struct cdev *dev, struct uio *uio, int flag)
 
 	if ((m = m_uiotombuf(uio, M_NOWAIT, 0, ETHER_ALIGN,
 	    M_PKTHDR)) == NULL) {
-		ifp->if_ierrors ++;
+		if_inc_counter(ifp, IFCOUNTER_IERRORS, 1);
 		return (ENOBUFS);
 	}
 
@@ -976,7 +974,7 @@ tapwrite(struct cdev *dev, struct uio *uio, int flag)
 	CURVNET_SET(ifp->if_vnet);
 	(*ifp->if_input)(ifp, m);
 	CURVNET_RESTORE();
-	ifp->if_ipackets ++; /* ibytes are counted in parent */
+	if_inc_counter(ifp, IFCOUNTER_IPACKETS, 1); /* ibytes are counted in parent */
 
 	return (0);
 } /* tapwrite */

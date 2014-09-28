@@ -17,7 +17,7 @@ divert(-1)
 #
 
 divert(0)dnl
-VERSIONID(`$Id: generic-mpeix.mc,v 8.2 2013/11/22 20:51:08 ca Exp $')
+VERSIONID(`$Id: generic-mpeix.mc,v 8.2 2013-11-22 20:51:08 ca Exp $')
 OSTYPE(mpeix)dnl
 DOMAIN(generic)dnl
 define(`confFORWARD_PATH', `$z/.forward')dnl

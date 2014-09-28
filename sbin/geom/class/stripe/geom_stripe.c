@@ -62,7 +62,7 @@ struct g_command class_commands[] = {
 		{ 's', "stripesize", GSTRIPE_STRIPESIZE, G_TYPE_NUMBER },
 		G_OPT_SENTINEL
 	    },
-	    "[-hv] [-s stripesize] name prov prov ..."
+	    "[-v] [-s stripesize] name prov prov ..."
 	},
 	{ "destroy", G_FLAG_VERBOSE, NULL,
 	    {

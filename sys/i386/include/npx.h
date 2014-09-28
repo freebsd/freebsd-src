@@ -53,8 +53,10 @@ void	npxexit(struct thread *td);
 int	npxformat(void);
 int	npxgetregs(struct thread *td);
 void	npxinit(void);
+void	npxresume(union savefpu *addr);
 void	npxsave(union savefpu *addr);
 void	npxsetregs(struct thread *td, union savefpu *addr);
+void	npxsuspend(union savefpu *addr);
 int	npxtrap_x87(void);
 int	npxtrap_sse(void);
 void	npxuserinited(struct thread *);
@@ -71,6 +73,7 @@ int	is_fpu_kern_thread(u_int flags);
  */
 #define	FPU_KERN_NORMAL	0x0000
 #define	FPU_KERN_NOWAIT	0x0001
+#define	FPU_KERN_KTHR	0x0002
 
 #endif
 

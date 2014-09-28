@@ -76,9 +76,8 @@ static SYSCTL_NODE(_security_mac, OID_AUTO, bsdextended, CTLFLAG_RW, 0,
     "TrustedBSD extended BSD MAC policy controls");
 
 static int	ugidfw_enabled = 1;
-SYSCTL_INT(_security_mac_bsdextended, OID_AUTO, enabled, CTLFLAG_RW,
+SYSCTL_INT(_security_mac_bsdextended, OID_AUTO, enabled, CTLFLAG_RWTUN,
     &ugidfw_enabled, 0, "Enforce extended BSD policy");
-TUNABLE_INT("security.mac.bsdextended.enabled", &ugidfw_enabled);
 
 static MALLOC_DEFINE(M_MACBSDEXTENDED, "mac_bsdextended",
     "BSD Extended MAC rule");

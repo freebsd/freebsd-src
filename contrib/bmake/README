@@ -18,7 +18,7 @@ interesting changes, so that bmake tracks it very closely.
 
 Building:
 
-The prefered way to bootstrap bmake is:
+The preferred way to bootstrap bmake is:
 
 ./bmake/boot-strap
 

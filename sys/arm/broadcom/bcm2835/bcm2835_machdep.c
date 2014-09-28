@@ -54,31 +54,24 @@ __FBSDID("$FreeBSD$");
 #include <machine/bus.h>
 #include <machine/devmap.h>
 #include <machine/machdep.h>
+#include <machine/platform.h>
+#include <machine/platformvar.h>
 
 #include <dev/fdt/fdt_common.h>
 
 #include <arm/broadcom/bcm2835/bcm2835_wdog.h>
 
-vm_offset_t
-initarm_lastaddr(void)
+#include "platform_if.h"
+
+static vm_offset_t
+bcm2835_lastaddr(platform_t plat)
 {
 
 	return (arm_devmap_lastaddr());
 }
 
-void
-initarm_early_init(void)
-{
-
-}
-
-void
-initarm_gpio_init(void)
-{
-}
-
-void
-initarm_late_init(void)
+static void
+bcm2835_late_init(platform_t plat)
 {
 	phandle_t system;
 	pcell_t cells[2];
@@ -101,8 +94,8 @@ initarm_late_init(void)
  * All on-chip peripherals exist in a 16MB range starting at 0x20000000.
  * Map the entire range using 1MB section mappings.
  */
-int
-initarm_devmap_init(void)
+static int
+bcm2835_devmap_init(platform_t plat)
 {
 
 	arm_devmap_add_entry(0x20000000, 0x01000000);
@@ -129,4 +122,13 @@ cpu_reset()
 	bcmwd_watchdog_reset();
 	while (1);
 }
+static platform_method_t bcm2835_methods[] = {
+	PLATFORMMETHOD(platform_devmap_init,	bcm2835_devmap_init),
+	PLATFORMMETHOD(platform_lastaddr,	bcm2835_lastaddr),
+	PLATFORMMETHOD(platform_late_init,	bcm2835_late_init),
+
+	PLATFORMMETHOD_END,
+};
+
+FDT_PLATFORM_DEF(bcm2835, "bcm2835", 0, "raspberrypi,model-b");
 

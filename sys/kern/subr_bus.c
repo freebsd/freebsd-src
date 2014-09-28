@@ -63,7 +63,7 @@ __FBSDID("$FreeBSD$");
 #include <vm/uma.h>
 
 SYSCTL_NODE(_hw, OID_AUTO, bus, CTLFLAG_RW, NULL, NULL);
-SYSCTL_NODE(, OID_AUTO, dev, CTLFLAG_RW, NULL, NULL);
+SYSCTL_ROOT_NODE(OID_AUTO, dev, CTLFLAG_RW, NULL, NULL);
 
 /*
  * Used to attach drivers to devclasses.
@@ -135,6 +135,7 @@ struct device {
 #define	DF_DONENOMATCH	0x20		/* don't execute DEVICE_NOMATCH again */
 #define	DF_EXTERNALSOFTC 0x40		/* softc not allocated by us */
 #define	DF_REBID	0x80		/* Can rebid after attach */
+#define	DF_SUSPENDED	0x100		/* Device is suspended. */
 	u_int	order;			/**< order from device_add_child_ordered() */
 	void	*ivars;			/**< instance variables  */
 	void	*softc;			/**< current driver's variables  */
@@ -149,9 +150,8 @@ static MALLOC_DEFINE(M_BUS_SC, "bus-sc", "Bus data structures, softc");
 #ifdef BUS_DEBUG
 
 static int bus_debug = 1;
-TUNABLE_INT("bus.debug", &bus_debug);
-SYSCTL_INT(_debug, OID_AUTO, bus_debug, CTLFLAG_RW, &bus_debug, 0,
-    "Debug bus code");
+SYSCTL_INT(_debug, OID_AUTO, bus_debug, CTLFLAG_RWTUN, &bus_debug, 0,
+    "Bus debug level");
 
 #define PDEBUG(a)	if (bus_debug) {printf("%s:%d: ", __func__, __LINE__), printf a; printf("\n");}
 #define DEVICENAME(d)	((d)? device_get_name(d): "no device")
@@ -357,31 +357,31 @@ device_sysctl_fini(device_t dev)
 
 /* Deprecated way to adjust queue length */
 static int sysctl_devctl_disable(SYSCTL_HANDLER_ARGS);
-/* XXX Need to support old-style tunable hw.bus.devctl_disable" */
-SYSCTL_PROC(_hw_bus, OID_AUTO, devctl_disable, CTLTYPE_INT | CTLFLAG_RW, NULL,
-    0, sysctl_devctl_disable, "I", "devctl disable -- deprecated");
+SYSCTL_PROC(_hw_bus, OID_AUTO, devctl_disable, CTLTYPE_INT | CTLFLAG_RWTUN |
+    CTLFLAG_MPSAFE, NULL, 0, sysctl_devctl_disable, "I",
+    "devctl disable -- deprecated");
 
 #define DEVCTL_DEFAULT_QUEUE_LEN 1000
 static int sysctl_devctl_queue(SYSCTL_HANDLER_ARGS);
 static int devctl_queue_length = DEVCTL_DEFAULT_QUEUE_LEN;
-TUNABLE_INT("hw.bus.devctl_queue", &devctl_queue_length);
-SYSCTL_PROC(_hw_bus, OID_AUTO, devctl_queue, CTLTYPE_INT | CTLFLAG_RW, NULL,
-    0, sysctl_devctl_queue, "I", "devctl queue length");
+SYSCTL_PROC(_hw_bus, OID_AUTO, devctl_queue, CTLTYPE_INT | CTLFLAG_RWTUN |
+    CTLFLAG_MPSAFE, NULL, 0, sysctl_devctl_queue, "I", "devctl queue length");
 
 static d_open_t		devopen;
 static d_close_t	devclose;
 static d_read_t		devread;
 static d_ioctl_t	devioctl;
 static d_poll_t		devpoll;
+static d_kqfilter_t	devkqfilter;
 
 static struct cdevsw dev_cdevsw = {
 	.d_version =	D_VERSION,
-	.d_flags =	D_NEEDGIANT,
 	.d_open =	devopen,
 	.d_close =	devclose,
 	.d_read =	devread,
 	.d_ioctl =	devioctl,
 	.d_poll =	devpoll,
+	.d_kqfilter =	devkqfilter,
 	.d_name =	"devctl",
 };
 
@@ -398,12 +398,22 @@ static struct dev_softc
 	int	inuse;
 	int	nonblock;
 	int	queued;
+	int	async;
 	struct mtx mtx;
 	struct cv cv;
 	struct selinfo sel;
 	struct devq devq;
-	struct proc *async_proc;
+	struct sigio *sigio;
 } devsoftc;
+
+static void	filt_devctl_detach(struct knote *kn);
+static int	filt_devctl_read(struct knote *kn, long hint);
+
+struct filterops devctl_rfiltops = {
+	.f_isfd = 1,
+	.f_detach = filt_devctl_detach,
+	.f_event = filt_devctl_read,
+};
 
 static struct cdev *devctl_dev;
 
@@ -415,28 +425,35 @@ devinit(void)
 	mtx_init(&devsoftc.mtx, "dev mtx", "devd", MTX_DEF);
 	cv_init(&devsoftc.cv, "dev cv");
 	TAILQ_INIT(&devsoftc.devq);
+	knlist_init_mtx(&devsoftc.sel.si_note, &devsoftc.mtx);
 }
 
 static int
 devopen(struct cdev *dev, int oflags, int devtype, struct thread *td)
 {
-	if (devsoftc.inuse)
+
+	mtx_lock(&devsoftc.mtx);
+	if (devsoftc.inuse) {
+		mtx_unlock(&devsoftc.mtx);
 		return (EBUSY);
+	}
 	/* move to init */
 	devsoftc.inuse = 1;
-	devsoftc.nonblock = 0;
-	devsoftc.async_proc = NULL;
+	mtx_unlock(&devsoftc.mtx);
 	return (0);
 }
 
 static int
 devclose(struct cdev *dev, int fflag, int devtype, struct thread *td)
 {
-	devsoftc.inuse = 0;
+
 	mtx_lock(&devsoftc.mtx);
+	devsoftc.inuse = 0;
+	devsoftc.nonblock = 0;
+	devsoftc.async = 0;
 	cv_broadcast(&devsoftc.cv);
+	funsetown(&devsoftc.sigio);
 	mtx_unlock(&devsoftc.mtx);
-	devsoftc.async_proc = NULL;
 	return (0);
 }
 
@@ -492,17 +509,20 @@ devioctl(struct cdev *dev, u_long cmd, caddr_t data, int fflag, struct thread *t
 		return (0);
 	case FIOASYNC:
 		if (*(int*)data)
-			devsoftc.async_proc = td->td_proc;
+			devsoftc.async = 1;
 		else
-			devsoftc.async_proc = NULL;
+			devsoftc.async = 0;
+		return (0);
+	case FIOSETOWN:
+		return fsetown(*(int *)data, &devsoftc.sigio);
+	case FIOGETOWN:
+		*(int *)data = fgetown(&devsoftc.sigio);
 		return (0);
 
 		/* (un)Support for other fcntl() calls. */
 	case FIOCLEX:
 	case FIONCLEX:
 	case FIONREAD:
-	case FIOSETOWN:
-	case FIOGETOWN:
 	default:
 		break;
 	}
@@ -526,6 +546,34 @@ devpoll(struct cdev *dev, int events, struct thread *td)
 	return (revents);
 }
 
+static int
+devkqfilter(struct cdev *dev, struct knote *kn)
+{
+	int error;
+
+	if (kn->kn_filter == EVFILT_READ) {
+		kn->kn_fop = &devctl_rfiltops;
+		knlist_add(&devsoftc.sel.si_note, kn, 0);
+		error = 0;
+	} else
+		error = EINVAL;
+	return (error);
+}
+
+static void
+filt_devctl_detach(struct knote *kn)
+{
+
+	knlist_remove(&devsoftc.sel.si_note, kn, 0);
+}
+
+static int
+filt_devctl_read(struct knote *kn, long hint)
+{
+	kn->kn_data = devsoftc.queued;
+	return (kn->kn_data != 0);
+}
+
 /**
  * @brief Return whether the userland process is running
  */
@@ -546,7 +594,6 @@ void
 devctl_queue_data_f(char *data, int flags)
 {
 	struct dev_event_info *n1 = NULL, *n2 = NULL;
-	struct proc *p;
 
 	if (strlen(data) == 0)
 		goto out;
@@ -574,14 +621,11 @@ devctl_queue_data_f(char *data, int flags)
 	TAILQ_INSERT_TAIL(&devsoftc.devq, n1, dei_link);
 	devsoftc.queued++;
 	cv_broadcast(&devsoftc.cv);
+	KNOTE_LOCKED(&devsoftc.sel.si_note, 0);
 	mtx_unlock(&devsoftc.mtx);
 	selwakeup(&devsoftc.sel);
-	p = devsoftc.async_proc;
-	if (p != NULL) {
-		PROC_LOCK(p);
-		kern_psignal(p, SIGIO);
-		PROC_UNLOCK(p);
-	}
+	if (devsoftc.async && devsoftc.sigio != NULL)
+		pgsigio(&devsoftc.sigio, SIGIO, 0);
 	return;
 out:
 	/*
@@ -745,11 +789,12 @@ sysctl_devctl_disable(SYSCTL_HANDLER_ARGS)
 	struct dev_event_info *n1;
 	int dis, error;
 
-	dis = devctl_queue_length == 0;
+	dis = (devctl_queue_length == 0);
 	error = sysctl_handle_int(oidp, &dis, 0, req);
 	if (error || !req->newptr)
 		return (error);
-	mtx_lock(&devsoftc.mtx);
+	if (mtx_initialized(&devsoftc.mtx))
+		mtx_lock(&devsoftc.mtx);
 	if (dis) {
 		while (!TAILQ_EMPTY(&devsoftc.devq)) {
 			n1 = TAILQ_FIRST(&devsoftc.devq);
@@ -762,7 +807,8 @@ sysctl_devctl_disable(SYSCTL_HANDLER_ARGS)
 	} else {
 		devctl_queue_length = DEVCTL_DEFAULT_QUEUE_LEN;
 	}
-	mtx_unlock(&devsoftc.mtx);
+	if (mtx_initialized(&devsoftc.mtx))
+		mtx_unlock(&devsoftc.mtx);
 	return (0);
 }
 
@@ -778,7 +824,8 @@ sysctl_devctl_queue(SYSCTL_HANDLER_ARGS)
 		return (error);
 	if (q < 0)
 		return (EINVAL);
-	mtx_lock(&devsoftc.mtx);
+	if (mtx_initialized(&devsoftc.mtx))
+		mtx_lock(&devsoftc.mtx);
 	devctl_queue_length = q;
 	while (devsoftc.queued > devctl_queue_length) {
 		n1 = TAILQ_FIRST(&devsoftc.devq);
@@ -787,7 +834,8 @@ sysctl_devctl_queue(SYSCTL_HANDLER_ARGS)
 		free(n1, M_BUS);
 		devsoftc.queued--;
 	}
-	mtx_unlock(&devsoftc.mtx);
+	if (mtx_initialized(&devsoftc.mtx))
+		mtx_unlock(&devsoftc.mtx);
 	return (0);
 }
 
@@ -3254,7 +3302,10 @@ resource_list_alloc(struct resource_list *rl, device_t bus, device_t child,
 			rle->flags |= RLE_ALLOCATED;
 			return (rle->res);
 		}
-		panic("resource_list_alloc: resource entry is busy");
+		device_printf(bus,
+		    "resource entry %#x type %d for child %s is busy\n", *rid,
+		    type, device_get_nameunit(child));
+		return (NULL);
 	}
 
 	if (isdefault) {
@@ -3584,6 +3635,39 @@ bus_generic_shutdown(device_t dev)
 }
 
 /**
+ * @brief Default function for suspending a child device.
+ *
+ * This function is to be used by a bus's DEVICE_SUSPEND_CHILD().
+ */
+int
+bus_generic_suspend_child(device_t dev, device_t child)
+{
+	int	error;
+
+	error = DEVICE_SUSPEND(child);
+
+	if (error == 0)
+		dev->flags |= DF_SUSPENDED;
+
+	return (error);
+}
+
+/**
+ * @brief Default function for resuming a child device.
+ *
+ * This function is to be used by a bus's DEVICE_RESUME_CHILD().
+ */
+int
+bus_generic_resume_child(device_t dev, device_t child)
+{
+
+	DEVICE_RESUME(child);
+	dev->flags &= ~DF_SUSPENDED;
+
+	return (0);
+}
+
+/**
  * @brief Helper function for implementing DEVICE_SUSPEND()
  *
  * This function can be used to help implement the DEVICE_SUSPEND()
@@ -3599,12 +3683,12 @@ bus_generic_suspend(device_t dev)
 	device_t	child, child2;
 
 	TAILQ_FOREACH(child, &dev->children, link) {
-		error = DEVICE_SUSPEND(child);
+		error = BUS_SUSPEND_CHILD(dev, child);
 		if (error) {
 			for (child2 = TAILQ_FIRST(&dev->children);
 			     child2 && child2 != child;
 			     child2 = TAILQ_NEXT(child2, link))
-				DEVICE_RESUME(child2);
+				BUS_RESUME_CHILD(dev, child2);
 			return (error);
 		}
 	}
@@ -3623,7 +3707,7 @@ bus_generic_resume(device_t dev)
 	device_t	child;
 
 	TAILQ_FOREACH(child, &dev->children, link) {
-		DEVICE_RESUME(child);
+		BUS_RESUME_CHILD(dev, child);
 		/* if resume fails, there's nothing we can usefully do... */
 	}
 	return (0);

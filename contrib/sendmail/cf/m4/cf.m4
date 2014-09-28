@@ -26,4 +26,4 @@ ifdef(`_CF_DIR_', `',
 divert(0)dnl
 ifdef(`OSTYPE', `dnl',
 `include(_CF_DIR_`'m4/cfhead.m4)dnl
-VERSIONID(`$Id: cf.m4,v 8.33 2013/11/22 20:51:13 ca Exp $')')
+VERSIONID(`$Id: cf.m4,v 8.33 2013-11-22 20:51:13 ca Exp $')')

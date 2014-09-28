@@ -232,7 +232,7 @@ extern "C" {
       if (!tmp)
 	return 0;
 
-#if defined(linux) || defined(__NetBSD__)
+#if defined(linux) || defined(__NetBSD__) || defined(__FreeBSD__)
       /* Pc-relative indirect.  */
       tmp += ptr;
       tmp = *(_Unwind_Word *) tmp;

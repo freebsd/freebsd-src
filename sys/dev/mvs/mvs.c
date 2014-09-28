@@ -122,6 +122,7 @@ mvs_ch_attach(device_t dev)
 	ch->unit = (intptr_t)device_get_ivars(dev);
 	ch->quirks = ctlr->quirks;
 	mtx_init(&ch->mtx, "MVS channel lock", NULL, MTX_DEF);
+	ch->pm_level = 0;
 	resource_int_value(device_get_name(dev),
 	    device_get_unit(dev), "pm_level", &ch->pm_level);
 	if (ch->pm_level > 3)
@@ -402,7 +403,6 @@ mvs_dmafini(device_t dev)
 		bus_dmamem_free(ch->dma.workrp_tag,
 		    ch->dma.workrp, ch->dma.workrp_map);
 		ch->dma.workrp_bus = 0;
-		ch->dma.workrp_map = NULL;
 		ch->dma.workrp = NULL;
 	}
 	if (ch->dma.workrp_tag) {
@@ -414,7 +414,6 @@ mvs_dmafini(device_t dev)
 		bus_dmamem_free(ch->dma.workrq_tag,
 		    ch->dma.workrq, ch->dma.workrq_map);
 		ch->dma.workrq_bus = 0;
-		ch->dma.workrq_map = NULL;
 		ch->dma.workrq = NULL;
 	}
 	if (ch->dma.workrq_tag) {

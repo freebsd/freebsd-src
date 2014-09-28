@@ -48,7 +48,7 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/systm.h>
-#include <sys/capability.h>
+#include <sys/capsicum.h>
 #include <sys/kernel.h>
 #include <sys/lock.h>
 #include <sys/mutex.h>
@@ -92,9 +92,8 @@ __FBSDID("$FreeBSD$");
 #endif
 
 int old_mlock = 0;
-SYSCTL_INT(_vm, OID_AUTO, old_mlock, CTLFLAG_RW | CTLFLAG_TUN, &old_mlock, 0,
+SYSCTL_INT(_vm, OID_AUTO, old_mlock, CTLFLAG_RWTUN, &old_mlock, 0,
     "Do not apply RLIMIT_MEMLOCK on mlockall");
-TUNABLE_INT("vm.old_mlock", &old_mlock);
 
 #ifdef MAP_32BIT
 #define	MAP_32BIT_MAX_ADDR	((vm_offset_t)1 << 31)
@@ -204,17 +203,17 @@ sys_mmap(td, uap)
 	struct vnode *vp;
 	vm_offset_t addr;
 	vm_size_t size, pageoff;
-	vm_prot_t cap_maxprot, prot, maxprot;
+	vm_prot_t cap_maxprot, maxprot;
 	void *handle;
 	objtype_t handle_type;
-	int align, error, flags;
+	int align, error, flags, prot;
 	off_t pos;
 	struct vmspace *vms = td->td_proc->p_vmspace;
 	cap_rights_t rights;
 
 	addr = (vm_offset_t) uap->addr;
 	size = uap->len;
-	prot = uap->prot & VM_PROT_ALL;
+	prot = uap->prot;
 	flags = uap->flags;
 	pos = uap->pos;
 
@@ -245,6 +244,21 @@ sys_mmap(td, uap)
 		flags |= MAP_ANON;
 		pos = 0;
 	}
+	if ((flags & ~(MAP_SHARED | MAP_PRIVATE | MAP_FIXED | MAP_RENAME |
+	    MAP_NORESERVE | MAP_HASSEMAPHORE | MAP_STACK | MAP_NOSYNC |
+	    MAP_ANON | MAP_EXCL | MAP_NOCORE | MAP_PREFAULT_READ |
+#ifdef MAP_32BIT
+	    MAP_32BIT |
+#endif
+	    MAP_ALIGNMENT_MASK)) != 0)
+		return (EINVAL);
+	if ((flags & (MAP_EXCL | MAP_FIXED)) == MAP_EXCL)
+		return (EINVAL);
+	if ((flags & (MAP_SHARED | MAP_PRIVATE)) == (MAP_SHARED | MAP_PRIVATE))
+		return (EINVAL);
+	if (prot != PROT_NONE &&
+	    (prot & ~(PROT_READ | PROT_WRITE | PROT_EXEC)) != 0)
+		return (EINVAL);
 
 	/*
 	 * Align the file position to a page boundary,
@@ -341,6 +355,11 @@ sys_mmap(td, uap)
 		error = fget_mmap(td, uap->fd, &rights, &cap_maxprot, &fp);
 		if (error != 0)
 			goto done;
+		if ((flags & (MAP_SHARED | MAP_PRIVATE)) == 0 &&
+		    td->td_proc->p_osrel >= P_OSREL_MAP_FSTRICT) {
+			error = EINVAL;
+			goto done;
+		}
 		if (fp->f_type == DTYPE_SHM) {
 			handle = fp->f_data;
 			handle_type = OBJT_SWAP;
@@ -414,6 +433,8 @@ sys_mmap(td, uap)
 map:
 	td->td_fpop = fp;
 	maxprot &= cap_maxprot;
+
+	/* This relies on VM_PROT_* matching PROT_*. */
 	error = vm_mmap(&vms->vm_map, &addr, size, prot, maxprot,
 	    flags, handle_type, handle, pos);
 	td->td_fpop = NULL;
@@ -486,7 +507,7 @@ ommap(td, uap)
 	nargs.len = uap->len;
 	nargs.prot = cvtbsdprot[uap->prot & 0x7];
 #ifdef COMPAT_FREEBSD32
-#if defined(__amd64__) || defined(__ia64__)
+#if defined(__amd64__)
 	if (i386_read_exec && SV_PROC_FLAG(td->td_proc, SV_ILP32) &&
 	    nargs.prot != 0)
 		nargs.prot |= PROT_EXEC;
@@ -556,7 +577,7 @@ sys_msync(td, uap)
 	case KERN_SUCCESS:
 		return (0);
 	case KERN_INVALID_ADDRESS:
-		return (EINVAL);	/* Sun returns ENOMEM? */
+		return (ENOMEM);
 	case KERN_INVALID_ARGUMENT:
 		return (EBUSY);
 	case KERN_FAILURE:
@@ -1090,7 +1111,7 @@ vm_mlock(struct proc *proc, struct ucred *cred, const void *addr0, size_t len)
 		return (ENOMEM);
 	}
 	PROC_UNLOCK(proc);
-	if (npages + cnt.v_wire_count > vm_page_max_wired)
+	if (npages + vm_cnt.v_wire_count > vm_page_max_wired)
 		return (EAGAIN);
 #ifdef RACCT
 	PROC_LOCK(proc);
@@ -1621,11 +1642,15 @@ vm_mmap(vm_map_t map, vm_offset_t *addr, vm_size_t size, vm_prot_t prot,
 		docow |= MAP_INHERIT_SHARE;
 	if (writecounted)
 		docow |= MAP_VN_WRITECOUNT;
+	if (flags & MAP_STACK) {
+		if (object != NULL)
+			return (EINVAL);
+		docow |= MAP_STACK_GROWS_DOWN;
+	}
+	if ((flags & MAP_EXCL) != 0)
+		docow |= MAP_CHECK_EXCL;
 
-	if (flags & MAP_STACK)
-		rv = vm_map_stack(map, *addr, size, prot, maxprot,
-		    docow | MAP_STACK_GROWS_DOWN);
-	else if (fitit) {
+	if (fitit) {
 		if ((flags & MAP_ALIGNMENT_MASK) == MAP_ALIGNED_SUPER)
 			findspace = VMFS_SUPER_SPACE;
 		else if ((flags & MAP_ALIGNMENT_MASK) != 0)
@@ -1638,9 +1663,10 @@ vm_mmap(vm_map_t map, vm_offset_t *addr, vm_size_t size, vm_prot_t prot,
 		    flags & MAP_32BIT ? MAP_32BIT_MAX_ADDR :
 #endif
 		    0, findspace, prot, maxprot, docow);
-	} else
+	} else {
 		rv = vm_map_fixed(map, object, foff, *addr, size,
-				 prot, maxprot, docow);
+		    prot, maxprot, docow);
+	}
 
 	if (rv == KERN_SUCCESS) {
 		/*

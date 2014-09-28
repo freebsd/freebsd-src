@@ -290,7 +290,7 @@ efx_tx_qcreate(
 	EFSYS_ASSERT3U(enp->en_mod_flags, &, EFX_MOD_TX);
 
 	EFX_STATIC_ASSERT(EFX_EV_TX_NLABELS == (1 << FRF_AZ_TX_DESCQ_LABEL_WIDTH));
-	EFSYS_ASSERT3U(label, <, EFX_EV_TX_NLABELS);
+	/*	EFSYS_ASSERT3U(label, <, EFX_EV_TX_NLABELS);*/
 	EFSYS_ASSERT3U(enp->en_tx_qcount + 1, <, encp->enc_txq_limit);
 
 	if (!ISP2(n) || !(n & EFX_TXQ_NDESCS_MASK)) {

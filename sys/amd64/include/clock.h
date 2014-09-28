@@ -25,6 +25,8 @@ extern int	smp_tsc;
 #endif
 
 void	i8254_init(void);
+void	i8254_delay(int);
+void	clock_init(void);
 
 /*
  * Driver to clock driver interface.

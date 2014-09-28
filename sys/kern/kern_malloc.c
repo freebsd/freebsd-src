@@ -120,7 +120,7 @@ static int kmemcount;
 #define KMEM_ZBASE	16
 #define KMEM_ZMASK	(KMEM_ZBASE - 1)
 
-#define KMEM_ZMAX	PAGE_SIZE
+#define KMEM_ZMAX	65536
 #define KMEM_ZSIZE	(KMEM_ZMAX >> KMEM_ZSHIFT)
 static uint8_t kmemsize[KMEM_ZSIZE + 1];
 
@@ -151,21 +151,10 @@ struct {
 	{1024, "1024", },
 	{2048, "2048", },
 	{4096, "4096", },
-#if PAGE_SIZE > 4096
 	{8192, "8192", },
-#if PAGE_SIZE > 8192
 	{16384, "16384", },
-#if PAGE_SIZE > 16384
 	{32768, "32768", },
-#if PAGE_SIZE > 32768
 	{65536, "65536", },
-#if PAGE_SIZE > 65536
-#error	"Unsupported PAGE_SIZE"
-#endif	/* 65536 */
-#endif	/* 32768 */
-#endif	/* 16384 */
-#endif	/* 8192 */
-#endif	/* 4096 */
 	{0, NULL},
 };
 
@@ -182,6 +171,10 @@ static uma_zone_t mt_zone;
 u_long vm_kmem_size;
 SYSCTL_ULONG(_vm, OID_AUTO, kmem_size, CTLFLAG_RDTUN, &vm_kmem_size, 0,
     "Size of kernel memory");
+
+static u_long kmem_zmax = KMEM_ZMAX;
+SYSCTL_ULONG(_vm, OID_AUTO, kmem_zmax, CTLFLAG_RDTUN, &kmem_zmax, 0,
+    "Maximum allocation size that malloc(9) would use UMA as backend");
 
 static u_long vm_kmem_size_min;
 SYSCTL_ULONG(_vm, OID_AUTO, kmem_size_min, CTLFLAG_RDTUN, &vm_kmem_size_min, 0,
@@ -236,9 +229,8 @@ static SYSCTL_NODE(_debug, OID_AUTO, malloc, CTLFLAG_RD, 0,
 static int malloc_failure_rate;
 static int malloc_nowait_count;
 static int malloc_failure_count;
-SYSCTL_INT(_debug_malloc, OID_AUTO, failure_rate, CTLFLAG_RW,
+SYSCTL_INT(_debug_malloc, OID_AUTO, failure_rate, CTLFLAG_RWTUN,
     &malloc_failure_rate, 0, "Every (n) mallocs with M_NOWAIT will fail");
-TUNABLE_INT("debug.malloc.failure_rate", &malloc_failure_rate);
 SYSCTL_INT(_debug_malloc, OID_AUTO, failure_count, CTLFLAG_RD,
     &malloc_failure_count, 0, "Number of imposed M_NOWAIT malloc failures");
 #endif
@@ -280,7 +272,7 @@ tunable_set_numzones(void)
 		numzones = MALLOC_DEBUG_MAXZONES;
 }
 SYSINIT(numzones, SI_SUB_TUNABLES, SI_ORDER_ANY, tunable_set_numzones, NULL);
-SYSCTL_INT(_debug_malloc, OID_AUTO, numzones, CTLFLAG_RDTUN,
+SYSCTL_INT(_debug_malloc, OID_AUTO, numzones, CTLFLAG_RDTUN | CTLFLAG_NOFETCH,
     &numzones, 0, "Number of malloc uma subzones");
 
 /*
@@ -497,7 +489,7 @@ malloc(unsigned long size, struct malloc_type *mtp, int flags)
 	size = redzone_size_ntor(size);
 #endif
 
-	if (size <= KMEM_ZMAX) {
+	if (size <= kmem_zmax) {
 		mtip = mtp->ks_handle;
 		if (size & KMEM_ZMASK)
 			size = (size & ~KMEM_ZMASK) + KMEM_ZBASE;
@@ -693,8 +685,21 @@ CTASSERT(VM_KMEM_SIZE_SCALE >= 1);
 void
 kmeminit(void)
 {
-	u_long mem_size, tmp;
+	u_long mem_size;
+	u_long tmp;
 
+#ifdef VM_KMEM_SIZE
+	if (vm_kmem_size == 0)
+		vm_kmem_size = VM_KMEM_SIZE;
+#endif
+#ifdef VM_KMEM_SIZE_MIN
+	if (vm_kmem_size_min == 0)
+		vm_kmem_size_min = VM_KMEM_SIZE_MIN;
+#endif
+#ifdef VM_KMEM_SIZE_MAX
+	if (vm_kmem_size_max == 0)
+		vm_kmem_size_max = VM_KMEM_SIZE_MAX;
+#endif
 	/*
 	 * Calculate the amount of kernel virtual address (KVA) space that is
 	 * preallocated to the kmem arena.  In order to support a wide range
@@ -711,40 +716,33 @@ kmeminit(void)
 	 * VM_KMEM_SIZE_MAX is itself a function of the available KVA space on
 	 * a given architecture.
 	 */
-	mem_size = cnt.v_page_count;
+	mem_size = vm_cnt.v_page_count;
+	if (mem_size <= 32768) /* delphij XXX 128MB */
+		kmem_zmax = PAGE_SIZE;
 
-	vm_kmem_size_scale = VM_KMEM_SIZE_SCALE;
-	TUNABLE_INT_FETCH("vm.kmem_size_scale", &vm_kmem_size_scale);
 	if (vm_kmem_size_scale < 1)
 		vm_kmem_size_scale = VM_KMEM_SIZE_SCALE;
 
-	vm_kmem_size = (mem_size / vm_kmem_size_scale) * PAGE_SIZE;
+	/*
+	 * Check if we should use defaults for the "vm_kmem_size"
+	 * variable:
+	 */
+	if (vm_kmem_size == 0) {
+		vm_kmem_size = (mem_size / vm_kmem_size_scale) * PAGE_SIZE;
 
-#if defined(VM_KMEM_SIZE_MIN)
-	vm_kmem_size_min = VM_KMEM_SIZE_MIN;
-#endif
-	TUNABLE_ULONG_FETCH("vm.kmem_size_min", &vm_kmem_size_min);
-	if (vm_kmem_size_min > 0 && vm_kmem_size < vm_kmem_size_min)
-		vm_kmem_size = vm_kmem_size_min;
-
-#if defined(VM_KMEM_SIZE_MAX)
-	vm_kmem_size_max = VM_KMEM_SIZE_MAX;
-#endif
-	TUNABLE_ULONG_FETCH("vm.kmem_size_max", &vm_kmem_size_max);
-	if (vm_kmem_size_max > 0 && vm_kmem_size >= vm_kmem_size_max)
-		vm_kmem_size = vm_kmem_size_max;
+		if (vm_kmem_size_min > 0 && vm_kmem_size < vm_kmem_size_min)
+			vm_kmem_size = vm_kmem_size_min;
+		if (vm_kmem_size_max > 0 && vm_kmem_size >= vm_kmem_size_max)
+			vm_kmem_size = vm_kmem_size_max;
+	}
 
 	/*
-	 * Alternatively, the amount of KVA space that is preallocated to the
+	 * The amount of KVA space that is preallocated to the
 	 * kmem arena can be set statically at compile-time or manually
 	 * through the kernel environment.  However, it is still limited to
 	 * twice the physical memory size, which has been sufficient to handle
 	 * the most severe cases of external fragmentation in the kmem arena. 
 	 */
-#if defined(VM_KMEM_SIZE)
-	vm_kmem_size = VM_KMEM_SIZE;
-#endif
-	TUNABLE_ULONG_FETCH("vm.kmem_size", &vm_kmem_size);
 	if (vm_kmem_size / 2 / PAGE_SIZE > mem_size)
 		vm_kmem_size = 2 * mem_size * PAGE_SIZE;
 
@@ -784,6 +782,9 @@ mallocinit(void *dummy)
 
 	uma_startup2();
 
+	if (kmem_zmax < PAGE_SIZE || kmem_zmax > KMEM_ZMAX)
+		kmem_zmax = KMEM_ZMAX;
+
 	mt_zone = uma_zcreate("mt_zone", sizeof(struct malloc_type_internal),
 #ifdef INVARIANTS
 	    mtrash_ctor, mtrash_dtor, mtrash_init, mtrash_fini,
@@ -808,10 +809,10 @@ mallocinit(void *dummy)
 		}		    
 		for (;i <= size; i+= KMEM_ZBASE)
 			kmemsize[i >> KMEM_ZSHIFT] = indx;
-		
+
 	}
 }
-SYSINIT(kmem, SI_SUB_KMEM, SI_ORDER_FIRST, mallocinit, NULL);
+SYSINIT(kmem, SI_SUB_KMEM, SI_ORDER_SECOND, mallocinit, NULL);
 
 void
 malloc_init(void *data)
@@ -819,7 +820,7 @@ malloc_init(void *data)
 	struct malloc_type_internal *mtip;
 	struct malloc_type *mtp;
 
-	KASSERT(cnt.v_page_count != 0, ("malloc_register before vm_init"));
+	KASSERT(vm_cnt.v_page_count != 0, ("malloc_register before vm_init"));
 
 	mtp = data;
 	if (mtp->ks_magic != M_MAGIC)
