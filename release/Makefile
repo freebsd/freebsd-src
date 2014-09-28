@@ -318,7 +318,8 @@ install:
 vm-base:
 .if defined(WITH_VMIMAGES) && !empty(WITH_VMIMAGES)
 	env IMAKE=${IMAKE} WORLDDIR=${WORLDDIR} \
-		VMBASE=${VMBASE}.img VMSIZE=${VMSIZE} DESTDIR=${.TARGET} \
+		VMBASE=${VMBASE}.img VMSIZE=${VMSIZE} \
+		DESTDIR=${.OBJDIR}/${.TARGET} \
 		TARGET=${TARGET} TARGET_ARCH=${TARGET_ARCH} \
 		${.CURDIR}/scripts/mk-vmimage.sh ${.TARGET}
 .endif
