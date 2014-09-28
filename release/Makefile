@@ -23,6 +23,7 @@
 #  WITH_DVD: if set, generate dvd1.iso
 #  WITH_COMPRESSED_IMAGES: if set, compress installation images with xz(1)
 #		(uncompressed images are not removed)
+#  WITH_VMIMAGES: if set, build virtual machine images with the release
 #  TARGET/TARGET_ARCH: architecture of built release
 #
 
@@ -94,6 +95,11 @@ IMAGES+=	memstick.img
 IMAGES+=	mini-memstick.img
 .endif
 
+VMTARGETS=	vm-base vm-image
+VMFORMATS?=	vhd vmdk qcow2 raw
+VMSIZE?=	20G		# size in Gb
+VMBASE?=	vm		# name of the filesystem image
+
 CLEANFILES=	packagesystem *.txz MANIFEST system ${IMAGES}
 .if defined(WITH_COMPRESSED_IMAGES) && !empty(WITH_COMPRESSED_IMAGES)
 . for I in ${IMAGES}
@@ -103,7 +109,16 @@ CLEANFILES+=	${I}.xz
 .if defined(WITH_DVD) && !empty(WITH_DVD)
 CLEANFILES+=	pkg-stage
 .endif
+.if defined(WITH_VMIMAGES) && !empty(WITH_VMIMAGES)
+CLEANFILES+=	${VMBASE}.img
+. for FORMAT in ${VMFORMATS}
+CLEANFILES+=	vm.${FORMAT}
+. endfor
+.endif
 CLEANDIRS=	dist ftp release bootonly dvd
+.if defined(WITH_VMIMAGES) && !empty(WITH_VMIMAGES)
+CLEANDIRS+=	${VMTARGETS}
+.endif
 beforeclean:
 	chflags -R noschg .
 .include <bsd.obj.mk>
@@ -277,3 +292,41 @@ install:
 .endfor
 	cd ${DESTDIR} && sha256 ${OSRELEASE}* > ${DESTDIR}/CHECKSUM.SHA256
 	cd ${DESTDIR} && md5 ${OSRELEASE}* > ${DESTDIR}/CHECKSUM.MD5
+.if defined(WITH_VMIMAGES) && !empty(WITH_VMIMAGES)
+	mkdir -p ${DESTDIR}/vmimages
+. for FORMAT in ${VMFORMATS}
+	cp -p ${VMBASE}.${FORMAT} \
+		${DESTDIR}/vmimages/${OSRELEASE}.${FORMAT}
+. endfor
+. if defined(WITH_COMPRESSED_IMAGES) && !empty(WITH_COMPRESSED_IMAGES)
+# This is very time consuming, so defer it after the images are moved to
+# the DESTDIR.
+.  for FORMAT in ${VMFORMATS}
+	# Don't keep the originals.  There is a copy in ${.OBJDIR} if needed.
+	${XZCMD} ${DESTDIR}/vmimages/${OSRELEASE}.${FORMAT}
+.  endfor
+. endif
+	cd ${DESTDIR}/vmimages && sha256 ${OSRELEASE}* > \
+		${DESTDIR}/vmimages/CHECKSUM.SHA256
+	cd ${DESTDIR}/vmimages && md5 ${OSRELEASE}* > \
+		${DESTDIR}/vmimages/CHECKSUM.MD5
+.endif
+
+vm-base:
+.if defined(WITH_VMIMAGES) && !empty(WITH_VMIMAGES)
+	env IMAKE=${IMAKE} WORLDDIR=${WORLDDIR} \
+		VMBASE=${VMBASE}.img VMSIZE=${VMSIZE} DESTDIR=${.TARGET} \
+		TARGET=${TARGET} TARGET_ARCH=${TARGET_ARCH} \
+		${.CURDIR}/scripts/mk-vmimage.sh ${.TARGET}
+.endif
+	touch ${.TARGET}
+
+vm-image: vm-base
+.if defined(WITH_VMIMAGES) && !empty(WITH_VMIMAGES)
+. for FORMAT in ${VMFORMATS}
+	env FORMAT=${FORMAT} VMIMAGE=${VMBASE}.${FORMAT} VMBASE=${VMBASE}.img \
+		TARGET=${TARGET} TARGET_ARCH=${TARGET_ARCH} \
+		${.CURDIR}/scripts/mk-vmimage.sh ${.TARGET}
+. endfor
+.endif
+	touch ${.TARGET}
