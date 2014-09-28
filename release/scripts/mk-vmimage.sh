@@ -116,7 +116,6 @@ vm_create_vmdisk() {
 			;;
 	esac
 
-	set -x
 	mkimg -f ${mkimg_format} -s gpt \
 		-b /boot/pmbr -p freebsd-boot/bootfs:=/boot/gptboot \
 		-p freebsd-swap/swapfs::1G \
