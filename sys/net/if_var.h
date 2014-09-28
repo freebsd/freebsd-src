@@ -96,7 +96,7 @@ VNET_DECLARE(struct pfil_head, link_pfil_hook);	/* packet filter hooks */
 #endif /* _KERNEL */
 
 typedef enum {
-	IFCOUNTER_IPACKETS = 1,
+	IFCOUNTER_IPACKETS = 0,
 	IFCOUNTER_IERRORS,
 	IFCOUNTER_OPACKETS,
 	IFCOUNTER_OERRORS,
@@ -108,8 +108,8 @@ typedef enum {
 	IFCOUNTER_IQDROPS,
 	IFCOUNTER_OQDROPS,
 	IFCOUNTER_NOPROTO,
+	IFCOUNTERS /* Array size. */
 } ift_counter;
-#define	IFCOUNTER_LAST	IFCOUNTER_NOPROTO
 
 typedef struct ifnet * if_t;
 
@@ -228,28 +228,15 @@ struct ifnet {
 		(struct ifnet *, struct vnet *, char *);
 	if_get_counter_t if_get_counter; /* get counter values */
 
+	/* Statistics. */
+	counter_u64_t	if_counters[IFCOUNTERS];
+
 	/* Stuff that's only temporary and doesn't belong here. */
 	u_int	if_hw_tsomax;		/* TSO total burst length
 					 * limit in bytes. A value of
 					 * zero means no limit. Have
 					 * to find a better place for
 					 * it eventually. */
-	/*
-	 * Old, racy and expensive statistics, should not be used in
-	 * new drivers.
-	 */
-	uint64_t	if_ipackets;	/* packets received on interface */
-	uint64_t	if_ierrors;	/* input errors on interface */
-	uint64_t	if_opackets;	/* packets sent on interface */
-	uint64_t	if_oerrors;	/* output errors on interface */
-	uint64_t	if_collisions;	/* collisions on csma interfaces */
-	uint64_t	if_ibytes;	/* total number of octets received */
-	uint64_t	if_obytes;	/* total number of octets sent */
-	uint64_t	if_imcasts;	/* packets received via multicast */
-	uint64_t	if_omcasts;	/* packets sent via multicast */
-	uint64_t	if_iqdrops;	/* dropped on input */
-	uint64_t	if_oqdrops;	/* dropped on output */
-	uint64_t	if_noproto;	/* destined for unsupported protocol */
 
 	/* TSO fields for segment limits. If a field is zero below, there is no limit. */
 	u_int		if_hw_tsomaxsegcount;	/* TSO maximum segment count */

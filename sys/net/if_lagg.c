@@ -815,7 +815,7 @@ lagg_port_create(struct lagg_softc *sc, struct ifnet *ifp)
 
 	/* Read port counters */
 	pval = lp->port_counters.val;
-	for (i = IFCOUNTER_IPACKETS; i <= IFCOUNTER_LAST; i++, pval++)
+	for (i = 0; i < IFCOUNTERS; i++, pval++)
 		*pval = ifp->if_get_counter(ifp, i);
 	/* Add multicast addresses and interface flags to this port */
 	lagg_ether_cmdmulti(lp, 1);
@@ -884,9 +884,9 @@ lagg_port_destroy(struct lagg_port *lp, int rundelport)
 
 	/* Update detached port counters */
 	pval = lp->port_counters.val;
-	for (i = IFCOUNTER_IPACKETS; i <= IFCOUNTER_LAST; i++, pval++) {
+	for (i = 0; i <= IFCOUNTERS; i++, pval++) {
 		vdiff = ifp->if_get_counter(ifp, i) - *pval;
-		sc->detached_counters.val[i - 1] += vdiff;
+		sc->detached_counters.val[i] += vdiff;
 	}
 
 	/* Finally, remove the port from the lagg */
@@ -1023,8 +1023,8 @@ lagg_get_counter(struct ifnet *ifp, ift_counter cnt)
 	struct rm_priotracker tracker;
 	uint64_t newval, oldval, vsum;
 
-	if (cnt <= 0 || cnt > IFCOUNTER_LAST)
-		return (if_get_counter_default(ifp, cnt));
+	/* Revise this when we've got non-generic counters. */
+	KASSERT(cnt < IFCOUNTERS, ("%s: invalid cnt %d", __func__, cnt));
 
 	sc = (struct lagg_softc *)ifp->if_softc;
 	LAGG_RLOCK(sc, &tracker);
@@ -1032,7 +1032,7 @@ lagg_get_counter(struct ifnet *ifp, ift_counter cnt)
 	vsum = 0;
 	SLIST_FOREACH(lp, &sc->sc_ports, lp_entries) {
 		/* Saved attached value */
-		oldval = lp->port_counters.val[cnt - 1];
+		oldval = lp->port_counters.val[cnt];
 		/* current value */
 		lpifp = lp->lp_ifp;
 		newval = lpifp->if_get_counter(lpifp, cnt);
@@ -1049,7 +1049,7 @@ lagg_get_counter(struct ifnet *ifp, ift_counter cnt)
 	/*
 	 * Add counter data from detached ports counters
 	 */
-	vsum += sc->detached_counters.val[cnt - 1];
+	vsum += sc->detached_counters.val[cnt];
 
 	LAGG_RUNLOCK(sc, &tracker);
 

@@ -41,7 +41,12 @@
 #include <sys/lock.h>		/* XXX */
 #include <sys/mutex.h>		/* struct ifqueue */
 
+/*
+ * Couple of ugly extra definitions that are required since ifq.h
+ * is splitted from if_var.h.
+ */
 #define	IF_DUNIT_NONE	-1
+void if_inc_counter(struct ifnet *, ift_counter, int64_t inc);
 
 #include <altq/if_altq.h>
 
@@ -245,13 +250,13 @@ do {									\
 	mflags = (m)->m_flags;						\
 	IFQ_ENQUEUE(&(ifp)->if_snd, m, err);				\
 	if ((err) == 0) {						\
-		(ifp)->if_obytes += len + (adj);			\
+		if_inc_counter((ifp), IFCOUNTER_OBYTES, len + (adj));	\
 		if (mflags & M_MCAST)					\
-			(ifp)->if_omcasts++;				\
+			if_inc_counter((ifp), IFCOUNTER_OMCASTS, 1);	\
 		if (((ifp)->if_drv_flags & IFF_DRV_OACTIVE) == 0)	\
 			if_start(ifp);					\
 	} else								\
-		ifp->if_oqdrops++;					\
+		if_inc_counter((ifp), IFCOUNTER_OQDROPS, 1);		\
 } while (0)
 
 #define	IFQ_HANDOFF(ifp, m, err)					\
@@ -318,7 +323,7 @@ drbr_enqueue(struct ifnet *ifp, struct buf_ring *br, struct mbuf *m)
 	if (ALTQ_IS_ENABLED(&ifp->if_snd)) {
 		IFQ_ENQUEUE(&ifp->if_snd, m, error);
 		if (error)
-			ifp->if_oqdrops++;
+			if_inc_counter((ifp), IFCOUNTER_OQDROPS, 1);
 		return (error);
 	}
 #endif
