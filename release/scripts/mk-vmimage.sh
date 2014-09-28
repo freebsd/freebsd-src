@@ -71,11 +71,11 @@ vm_create_baseimage() {
 		panic 1 "\n\nCannot install the base system to ${DESTDIR}."
 	chroot ${DESTDIR} /usr/bin/newaliases
 	echo '# Custom /etc/fstab for FreeBSD VM images' \
-		# > ${DESTDIR}/etc/fstab
+		> ${DESTDIR}/etc/fstab
 	echo '/dev/gpt/rootfs	/	ufs	rw	2	2' \
-		# >> ${DESTDIR}/etc/fstab
+		>> ${DESTDIR}/etc/fstab
 	echo '/dev/gpt/swapfs	none	swap	sw	0	0' \
-		# >> ${DESTDIR}/etc/fstab
+		>> ${DESTDIR}/etc/fstab
 	sync
 	while ! umount ${DESTDIR}; do
 		i=$(( $i + 1 ))
