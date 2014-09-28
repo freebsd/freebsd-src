@@ -63,7 +63,7 @@ vm_create_baseimage() {
 	mkdir -p ${DESTDIR}
 	truncate -s ${VMSIZE} ${VMBASE}
 	mddev=$(mdconfig -f ${VMBASE})
-	newfs -L root -j ${mddev}
+	newfs -L rootfs -j /dev/${mddev}
 	mount /dev/${mddev} ${DESTDIR}
 	cd ${WORLDDIR} && \
 		${IMAKE} DESTDIR=${DESTDIR} \
