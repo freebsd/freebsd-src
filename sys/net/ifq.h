@@ -46,7 +46,6 @@
  * is splitted from if_var.h.
  */
 #define	IF_DUNIT_NONE	-1
-void if_inc_counter(struct ifnet *, ift_counter, int64_t inc);
 
 #include <altq/if_altq.h>
 
