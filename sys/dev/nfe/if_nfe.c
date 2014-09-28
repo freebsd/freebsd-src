@@ -1630,7 +1630,7 @@ nfe_free_tx_ring(struct nfe_softc *sc, struct nfe_tx_ring *ring)
 }
 
 #ifdef DEVICE_POLLING
-static poll_handler_drv_t nfe_poll;
+static poll_handler_t nfe_poll;
 
 
 static int
@@ -1782,7 +1782,7 @@ nfe_ioctl(if_t ifp, u_long cmd, caddr_t data)
 #ifdef DEVICE_POLLING
 		if ((mask & IFCAP_POLLING) != 0) {
 			if ((ifr->ifr_reqcap & IFCAP_POLLING) != 0) {
-				error = ether_poll_register_drv(nfe_poll, ifp);
+				error = ether_poll_register(nfe_poll, ifp);
 				if (error)
 					break;
 				NFE_LOCK(sc);
