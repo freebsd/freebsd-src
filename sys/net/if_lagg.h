@@ -186,7 +186,7 @@ struct lagg_llq {
 };
 
 struct lagg_counters {
-	uint64_t	val[IFCOUNTER_LAST];
+	uint64_t	val[IFCOUNTERS];
 };
 
 struct lagg_softc {
