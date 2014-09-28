@@ -278,6 +278,9 @@ ftp: packagesystem
 release:
 	${MAKE} -C ${.CURDIR} ${.MAKEFLAGS} obj
 	${MAKE} -C ${.CURDIR} ${.MAKEFLAGS} ${RELEASE_TARGETS}
+.if defined(WITH_VMIMAGES) && !empty(WITH_VMIMAGES)
+	${MAKE} -C ${.CURDIR} ${.MAKEFLAGS} ${VMTARGETS}
+.endif
 
 install:
 .if defined(DESTDIR) && !empty(DESTDIR)
