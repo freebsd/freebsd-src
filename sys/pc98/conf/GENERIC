@@ -35,6 +35,7 @@ options 	SOFTUPDATES		# Enable FFS soft updates support
 options 	UFS_ACL			# Support for access control lists
 options 	UFS_DIRHASH		# Improve performance on big directories
 options 	UFS_GJOURNAL		# Enable gjournal-based UFS journaling
+options 	QUOTA			# Enable disk quotas for UFS
 options 	MD_ROOT			# MD is a potential root device
 options 	NFSCL			# New Network Filesystem Client
 options 	NFSD			# New Network Filesystem Server
@@ -60,6 +61,7 @@ options 	SYSVSHM			# SYSV-style shared memory
 options 	SYSVMSG			# SYSV-style message queues
 options 	SYSVSEM			# SYSV-style semaphores
 options 	_KPOSIX_PRIORITY_SCHEDULING # POSIX P1003_1B real-time extensions
+options 	PRINTF_BUFR_SIZE=128	# Prevent printf output being interspersed.
 options 	KBD_INSTALL_CDEV	# install a CDEV entry in /dev
 options 	HWPMC_HOOKS		# Necessary kernel hooks for hwpmc(4)
 options 	AUDIT			# Security event auditing
@@ -112,6 +114,7 @@ device		sa			# Sequential Access (tape etc)
 device		cd			# CD
 device		pass			# Passthrough device (direct ATA/SCSI access)
 device		ses			# Enclosure Services (SES and SAF-TE)
+#device		ctl			# CAM Target Layer
 
 # keyboard driver
 device		pckbd			# PC98 keyboard
@@ -156,6 +159,8 @@ device		ppi			# Parallel port interface device
 #device		vpo			# Requires scbus and da
 # OLD Parallel port
 #device		olpt
+
+device		puc			# Multi I/O cards and multi-channel UARTs
 
 # PCI Ethernet NICs.
 device		de			# DEC/Intel DC21x4x (``Tulip'')
