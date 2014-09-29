@@ -115,7 +115,9 @@ struct ctl_ioctl_info {
 
 typedef enum {
 	CTL_SER_BLOCK,
+	CTL_SER_BLOCKOPT,
 	CTL_SER_EXTENT,
+	CTL_SER_EXTENTOPT,
 	CTL_SER_PASS,
 	CTL_SER_SKIP
 } ctl_serialize_action;
@@ -304,7 +306,7 @@ static const struct ctl_page_index page_index_template[] = {
 	{SMS_RIGID_DISK_PAGE, 0, sizeof(struct scsi_rigid_disk_page), NULL,
 	 CTL_PAGE_FLAG_DISK_ONLY, NULL, NULL},
 	{SMS_CACHING_PAGE, 0, sizeof(struct scsi_caching_page), NULL,
-	 CTL_PAGE_FLAG_DISK_ONLY, NULL, NULL},
+	 CTL_PAGE_FLAG_DISK_ONLY, NULL, ctl_caching_sp_handler},
 	{SMS_CONTROL_MODE_PAGE, 0, sizeof(struct scsi_control_page), NULL,
 	 CTL_PAGE_FLAG_NONE, NULL, ctl_control_page_handler},
    	{SMS_VENDOR_SPECIFIC_PAGE | SMPH_SPF, PWR_SUBPAGE_CODE,
@@ -387,7 +389,6 @@ struct ctl_lun {
 	TAILQ_HEAD(ctl_blockq,ctl_io_hdr) blocked_queue;
 	STAILQ_ENTRY(ctl_lun)		links;
 	STAILQ_ENTRY(ctl_lun)		run_links;
-	struct ctl_nexus		rsv_nexus;
 #ifdef CTL_WITH_CA
 	uint32_t			have_ca[CTL_MAX_INITIATORS >> 5];
 	struct scsi_sense_data		pending_sense[CTL_MAX_INITIATORS];
@@ -395,6 +396,7 @@ struct ctl_lun {
 	ctl_ua_type			pending_ua[CTL_MAX_INITIATORS];
 	struct ctl_mode_pages		mode_pages;
 	struct ctl_lun_io_stats		stats;
+	uint32_t			res_idx;
 	struct ctl_per_res_info		per_res[2*CTL_MAX_INITIATORS];
 	unsigned int			PRGeneration;
 	int				pr_key_count;
@@ -441,9 +443,9 @@ struct ctl_softc {
 	struct ctl_io_pool *othersc_pool;
 	struct proc *ctl_proc;
 	int targ_online;
-	uint32_t ctl_lun_mask[CTL_MAX_LUNS >> 5];
+	uint32_t ctl_lun_mask[(CTL_MAX_LUNS + 31) / 32];
 	struct ctl_lun *ctl_luns[CTL_MAX_LUNS];
-	uint32_t ctl_port_mask;
+	uint32_t ctl_port_mask[(CTL_MAX_PORTS + 31) / 32];
 	uint64_t aps_locked_lun;
 	STAILQ_HEAD(, ctl_lun) lun_list;
 	STAILQ_HEAD(, ctl_be_lun) pending_lun_queue;

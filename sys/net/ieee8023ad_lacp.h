@@ -282,15 +282,15 @@ struct lacp_softc {
 
 struct mbuf	*lacp_input(struct lagg_port *, struct mbuf *);
 struct lagg_port *lacp_select_tx_port(struct lagg_softc *, struct mbuf *);
-int		lacp_attach(struct lagg_softc *);
-int		lacp_detach(struct lagg_softc *);
+void		lacp_attach(struct lagg_softc *);
+void		lacp_detach(void *);
 void		lacp_init(struct lagg_softc *);
 void		lacp_stop(struct lagg_softc *);
 int		lacp_port_create(struct lagg_port *);
 void		lacp_port_destroy(struct lagg_port *);
 void		lacp_linkstate(struct lagg_port *);
-void		lacp_req(struct lagg_softc *, caddr_t);
-void		lacp_portreq(struct lagg_port *, caddr_t);
+void		lacp_req(struct lagg_softc *, void *);
+void		lacp_portreq(struct lagg_port *, void *);
 
 static __inline int
 lacp_isactive(struct lagg_port *lgp)

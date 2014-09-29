@@ -30,6 +30,7 @@ dtrace=$1
 t="season_8_mountain_of_madness_t"
 pid=$$
 
-rc=`$dtrace -n "BEGIN{ trace(pid`$t)0); }"` -p $pid
+$dtrace -n "BEGIN{ trace(pid$pid\`$t)0); }" -p $pid
+rc=$?
 
 exit $rc

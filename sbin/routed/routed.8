@@ -30,7 +30,7 @@
 .\"     @(#)routed.8	8.2 (Berkeley) 12/11/93
 .\" $FreeBSD$
 .\"
-.Dd June 1, 1996
+.Dd August 26, 2014
 .Dt ROUTED 8
 .Os
 .Sh NAME
@@ -39,7 +39,7 @@
 .Nd network RIP and router discovery routing daemon
 .Sh SYNOPSIS
 .Nm
-.Op Fl sqdghmpAtv
+.Op Fl isqdghmpAtv
 .Op Fl T Ar tracefile
 .Oo
 .Fl F
@@ -250,6 +250,20 @@ to infer the netmask used by the remote system when RIPv1 is used.
 .Pp
 The following options are available:
 .Bl -tag -width indent
+.It Fl i
+allow
+.Nm
+to accept a RIP request from non-router node.
+When specified once, 
+.Nm
+replies to a route information query from neighbor nodes.
+When specified twice,
+it replies to a query from remote nodes in addition.
+.Xr rtquery 8
+utility can be used to send a request.
+.Pp
+This feature is disabled by default because of a risk of reflection attack
+though it is useful for debugging purpose.
 .It Fl s
 force
 .Nm

@@ -201,7 +201,7 @@ arm_syscall_entry(struct trussinfo *trussinfo, int nargs)
 		 */
 		// XXX BAD constant used here
 		iorequest.piod_op = PIOD_READ_D;
-		iorequest.piod_offs = (void *)(regs.r[_REG_SP] +
+		iorequest.piod_offs = (void *)(regs.r_sp +
 		    4 * sizeof(uint32_t));
 		iorequest.piod_addr = &fsc->args[4];
 		iorequest.piod_len = (nargs - 4) * sizeof(fsc->args[0]);
@@ -316,7 +316,7 @@ arm_syscall_exit(struct trussinfo *trussinfo, int syscall_num __unused)
 	}
 
 	retval = regs.r[0];
-	errorp = !!(regs.r_cpsr & PSR_C_bit);
+	errorp = !!(regs.r_cpsr & PSR_C);
 
 	/*
 	 * This code, while simpler than the initial versions I used, could

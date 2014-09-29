@@ -397,7 +397,7 @@ ATF_TC_BODY(create_socket, tc)
 	int s;
 
 	s = socket(PF_LOCAL, SOCK_SEQPACKET, 0);
-	ATF_CHECK(s >= 0);
+	ATF_REQUIRE(s >= 0);
 	close(s);
 }
 

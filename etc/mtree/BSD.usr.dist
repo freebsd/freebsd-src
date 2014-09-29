@@ -110,6 +110,8 @@
         ..
         bsdinstall
         ..
+        hyperv
+        ..
         lpr
             ru
             ..

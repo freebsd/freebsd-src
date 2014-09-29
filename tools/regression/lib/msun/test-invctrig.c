@@ -315,25 +315,20 @@ test_small(void)
 	 *     asin(z) = Pi/4 + i ln(2)/2
 	 *     atan(z) = atan(4)/2 + i ln(17/9)/4
 	 */
-	static const struct {
-		complex long double z;
-		complex long double acos_z;
-		complex long double asin_z;
-		complex long double atan_z;
-	} tests[] = {
-		{ CMPLXL(0.75L, 0.25L),
-		  CMPLXL(pi / 4, -0.34657359027997265470861606072908828L),
-		  CMPLXL(pi / 4, 0.34657359027997265470861606072908828L),
-		  CMPLXL(0.66290883183401623252961960521423782L,
-			 0.15899719167999917436476103600701878L) },
-	};
-	int i;
+	complex long double z;
+	complex long double acos_z;
+	complex long double asin_z;
+	complex long double atan_z;
 
-	for (i = 0; i < sizeof(tests) / sizeof(tests[0]); i++) {
-		testall_tol(cacos, tests[i].z, tests[i].acos_z, 2);
-		testall_odd_tol(casin, tests[i].z, tests[i].asin_z, 2);
-		testall_odd_tol(catan, tests[i].z, tests[i].atan_z, 2);
-        }
+	z = CMPLXL(0.75L, 0.25L);
+	acos_z = CMPLXL(pi / 4, -0.34657359027997265470861606072908828L);
+	asin_z = CMPLXL(pi / 4, 0.34657359027997265470861606072908828L);
+	atan_z = CMPLXL(0.66290883183401623252961960521423782L,
+			 0.15899719167999917436476103600701878L);
+
+	testall_tol(cacos, z, acos_z, 2);
+	testall_odd_tol(casin, z, asin_z, 2);
+	testall_odd_tol(catan, z, atan_z, 2);
 }
 
 /* Test inputs that might cause overflow in a sloppy implementation. */

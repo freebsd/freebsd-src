@@ -1,5 +1,6 @@
 /*-
  * Copyright (c) 2011 Nathan Whitehorn
+ * Copyright (c) 2014 Devin Teske <dteske@FreeBSD.org>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -22,30 +23,38 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- *
- * $FreeBSD$
  */
 
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
+
 #include <sys/param.h>
-#include <stdio.h>
+#include <archive.h>
+#include <ctype.h>
+#include <dialog.h>
+#include <err.h>
 #include <errno.h>
 #include <limits.h>
-#include <archive.h>
-#include <dialog.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <unistd.h>
 
-static int extract_files(int nfiles, const char **files);
+static int	count_files(const char *file);
+static int	extract_files(int nfiles, const char **files);
 
 int
 main(void)
 {
-	char *diststring;
 	const char **dists;
-	int i, retval, ndists = 0;
+	char *diststring;
+	int i;
+	int ndists = 0;
+	int retval;
+	char error[PATH_MAX + 512];
 
-	if (getenv("DISTRIBUTIONS") == NULL) {
-		fprintf(stderr, "DISTRIBUTIONS variable is not set\n");
-		return (1);
-	}
+	if (getenv("DISTRIBUTIONS") == NULL)
+		errx(EXIT_FAILURE, "DISTRIBUTIONS variable is not set");
 
 	diststring = strdup(getenv("DISTRIBUTIONS"));
 	for (i = 0; diststring[i] != 0; i++)
@@ -55,9 +64,8 @@ main(void)
 
 	dists = calloc(ndists, sizeof(const char *));
 	if (dists == NULL) {
-		fprintf(stderr, "Out of memory!\n");
 		free(diststring);
-		return (1);
+		errx(EXIT_FAILURE, "Out of memory!");
 	}
 
 	for (i = 0; i < ndists; i++)
@@ -68,12 +76,12 @@ main(void)
 	dlg_put_backtitle();
 
 	if (chdir(getenv("BSDINSTALL_CHROOT")) != 0) {
-		char error[512];
-		sprintf(error, "Could could change to directory %s: %s\n",
+		snprintf(error, sizeof(error),
+		    "Could could change to directory %s: %s\n",
 		    getenv("BSDINSTALL_DISTDIR"), strerror(errno));
 		dialog_msgbox("Error", error, 0, 0, TRUE);
 		end_dialog();
-		return (1);
+		return (EXIT_FAILURE);
 	}
 
 	retval = extract_files(ndists, dists);
@@ -89,22 +97,24 @@ main(void)
 static int
 count_files(const char *file)
 {
+	static FILE *manifest = NULL;
+	char *tok1;
+	char *tok2;
+	int file_count;
+	int retval;
 	struct archive *archive;
 	struct archive_entry *entry;
-	static FILE *manifest = NULL;
-	char path[MAXPATHLEN];
-	char errormsg[512];
-	int file_count, err;
+	char line[512];
+	char path[PATH_MAX];
+	char errormsg[PATH_MAX + 512];
 
 	if (manifest == NULL) {
-		sprintf(path, "%s/MANIFEST", getenv("BSDINSTALL_DISTDIR"));
+		snprintf(path, sizeof(path), "%s/MANIFEST",
+		    getenv("BSDINSTALL_DISTDIR"));
 		manifest = fopen(path, "r");
 	}
 
 	if (manifest != NULL) {
-		char line[512];
-		char *tok1, *tok2;
-
 		rewind(manifest);
 		while (fgets(line, sizeof(line), manifest) != NULL) {
 			tok2 = line;
@@ -127,9 +137,10 @@ count_files(const char *file)
 	archive = archive_read_new();
 	archive_read_support_format_all(archive);
 	archive_read_support_filter_all(archive);
-	sprintf(path, "%s/%s", getenv("BSDINSTALL_DISTDIR"), file);
-	err = archive_read_open_filename(archive, path, 4096);
-	if (err != ARCHIVE_OK) {
+	snprintf(path, sizeof(path), "%s/%s", getenv("BSDINSTALL_DISTDIR"),
+	    file);
+	retval = archive_read_open_filename(archive, path, 4096);
+	if (retval != ARCHIVE_OK) {
 		snprintf(errormsg, sizeof(errormsg),
 		    "Error while extracting %s: %s\n", file,
 		    archive_error_string(archive));
@@ -148,19 +159,21 @@ count_files(const char *file)
 static int
 extract_files(int nfiles, const char **files)
 {
-	const char *items[nfiles*2];
-	char path[PATH_MAX];
+	int archive_file;
 	int archive_files[nfiles];
-	int total_files, current_files, archive_file;
+	int current_files = 0;
+	int i;
+	int last_progress;
+	int progress = 0;
+	int retval;
+	int total_files = 0;
 	struct archive *archive;
 	struct archive_entry *entry;
-	char errormsg[512];
 	char status[8];
-	int i, err, progress, last_progress;
+	char path[PATH_MAX];
+	char errormsg[PATH_MAX + 512];
+	const char *items[nfiles*2];
 
-	err = 0;
-	progress = 0;
-	
 	/* Make the transfer list for dialog */
 	for (i = 0; i < nfiles; i++) {
 		items[i*2] = strrchr(files[i], '/');
@@ -175,7 +188,6 @@ extract_files(int nfiles, const char **files)
 	    "Checking distribution archives.\nPlease wait...", 0, 0, FALSE);
 
 	/* Count all the files */
-	total_files = 0;
 	for (i = 0; i < nfiles; i++) {
 		archive_files[i] = count_files(files[i]);
 		if (archive_files[i] < 0)
@@ -183,24 +195,23 @@ extract_files(int nfiles, const char **files)
 		total_files += archive_files[i];
 	}
 
-	current_files = 0;
-
 	for (i = 0; i < nfiles; i++) {
 		archive = archive_read_new();
 		archive_read_support_format_all(archive);
 		archive_read_support_filter_all(archive);
-		sprintf(path, "%s/%s", getenv("BSDINSTALL_DISTDIR"), files[i]);
-		err = archive_read_open_filename(archive, path, 4096);
+		snprintf(path, sizeof(path), "%s/%s",
+		    getenv("BSDINSTALL_DISTDIR"), files[i]);
+		retval = archive_read_open_filename(archive, path, 4096);
 
 		items[i*2 + 1] = "In Progress";
 		archive_file = 0;
 
-		while ((err = archive_read_next_header(archive, &entry)) ==
+		while ((retval = archive_read_next_header(archive, &entry)) ==
 		    ARCHIVE_OK) {
 			last_progress = progress;
 			progress = (current_files*100)/total_files; 
 
-			sprintf(status, "-%d",
+			snprintf(status, sizeof(status), "-%d",
 			    (archive_file*100)/archive_files[i]);
 			items[i*2 + 1] = status;
 
@@ -210,12 +221,12 @@ extract_files(int nfiles, const char **files)
 				    progress, nfiles,
 				    __DECONST(char **, items));
 
-			err = archive_read_extract(archive, entry,
+			retval = archive_read_extract(archive, entry,
 			    ARCHIVE_EXTRACT_TIME | ARCHIVE_EXTRACT_OWNER |
 			    ARCHIVE_EXTRACT_PERM | ARCHIVE_EXTRACT_ACL |
 			    ARCHIVE_EXTRACT_XATTR | ARCHIVE_EXTRACT_FFLAGS);
 
-			if (err != ARCHIVE_OK)
+			if (retval != ARCHIVE_OK)
 				break;
 
 			archive_file++;
@@ -224,18 +235,18 @@ extract_files(int nfiles, const char **files)
 
 		items[i*2 + 1] = "Done";
 
-		if (err != ARCHIVE_EOF) {
+		if (retval != ARCHIVE_EOF) {
 			snprintf(errormsg, sizeof(errormsg),
 			    "Error while extracting %s: %s\n", items[i*2],
 			    archive_error_string(archive));
 			items[i*2 + 1] = "Failed";
 			dialog_msgbox("Extract Error", errormsg, 0, 0,
 			    TRUE);
-			return (err);
+			return (retval);
 		}
 
 		archive_read_free(archive);
 	}
 
-	return (0);
+	return (EXIT_SUCCESS);
 }

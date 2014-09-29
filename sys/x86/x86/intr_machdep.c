@@ -86,7 +86,7 @@ char intrnames[INTRCNT_COUNT * (MAXCOMLEN + 1)];
 size_t sintrcnt = sizeof(intrcnt);
 size_t sintrnames = sizeof(intrnames);
 
-static int	intr_assign_cpu(void *arg, u_char cpu);
+static int	intr_assign_cpu(void *arg, int cpu);
 static void	intr_disable_src(void *arg);
 static void	intr_init(void *__dummy);
 static int	intr_pic_registered(struct pic *pic);
@@ -305,7 +305,7 @@ intr_suspend(void)
 }
 
 static int
-intr_assign_cpu(void *arg, u_char cpu)
+intr_assign_cpu(void *arg, int cpu)
 {
 #ifdef SMP
 	struct intsrc *isrc;

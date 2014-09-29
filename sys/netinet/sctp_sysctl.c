@@ -105,9 +105,7 @@ sctp_init_sysctls()
 	SCTP_BASE_SYSCTL(sctp_min_residual) = SCTPCTL_MIN_RESIDUAL_DEFAULT;
 	SCTP_BASE_SYSCTL(sctp_max_retran_chunk) = SCTPCTL_MAX_RETRAN_CHUNK_DEFAULT;
 	SCTP_BASE_SYSCTL(sctp_logging_level) = SCTPCTL_LOGGING_LEVEL_DEFAULT;
-	/* JRS - Variable for default congestion control module */
 	SCTP_BASE_SYSCTL(sctp_default_cc_module) = SCTPCTL_DEFAULT_CC_MODULE_DEFAULT;
-	/* RS - Variable for default stream scheduling module */
 	SCTP_BASE_SYSCTL(sctp_default_ss_module) = SCTPCTL_DEFAULT_SS_MODULE_DEFAULT;
 	SCTP_BASE_SYSCTL(sctp_default_frag_interleave) = SCTPCTL_DEFAULT_FRAG_INTERLEAVE_DEFAULT;
 	SCTP_BASE_SYSCTL(sctp_mobility_base) = SCTPCTL_MOBILITY_BASE_DEFAULT;
@@ -139,7 +137,7 @@ sctp_init_sysctls()
 
 /* It returns an upper limit. No filtering is done here */
 static unsigned int
-number_of_addresses(struct sctp_inpcb *inp)
+sctp_sysctl_number_of_addresses(struct sctp_inpcb *inp)
 {
 	unsigned int cnt;
 	struct sctp_vrf *vrf;
@@ -189,7 +187,7 @@ number_of_addresses(struct sctp_inpcb *inp)
 }
 
 static int
-copy_out_local_addresses(struct sctp_inpcb *inp, struct sctp_tcb *stcb, struct sysctl_req *req)
+sctp_sysctl_copy_out_local_addresses(struct sctp_inpcb *inp, struct sctp_tcb *stcb, struct sysctl_req *req)
 {
 	struct sctp_ifn *sctp_ifn;
 	struct sctp_ifa *sctp_ifa;
@@ -254,7 +252,7 @@ copy_out_local_addresses(struct sctp_inpcb *inp, struct sctp_tcb *stcb, struct s
 					if (ipv4_addr_legal) {
 						struct sockaddr_in *sin;
 
-						sin = (struct sockaddr_in *)&sctp_ifa->address.sa;
+						sin = &sctp_ifa->address.sin;
 						if (sin->sin_addr.s_addr == 0)
 							continue;
 						if (prison_check_ip4(inp->ip_inp.inp.inp_cred,
@@ -273,7 +271,7 @@ copy_out_local_addresses(struct sctp_inpcb *inp, struct sctp_tcb *stcb, struct s
 					if (ipv6_addr_legal) {
 						struct sockaddr_in6 *sin6;
 
-						sin6 = (struct sockaddr_in6 *)&sctp_ifa->address.sa;
+						sin6 = &sctp_ifa->address.sin6;
 						if (IN6_IS_ADDR_UNSPECIFIED(&sin6->sin6_addr))
 							continue;
 						if (prison_check_ip6(inp->ip_inp.inp.inp_cred,
@@ -355,7 +353,7 @@ copy_out_local_addresses(struct sctp_inpcb *inp, struct sctp_tcb *stcb, struct s
  * sysctl functions
  */
 static int
-sctp_assoclist(SYSCTL_HANDLER_ARGS)
+sctp_sysctl_handle_assoclist(SYSCTL_HANDLER_ARGS)
 {
 	unsigned int number_of_endpoints;
 	unsigned int number_of_local_addresses;
@@ -377,14 +375,14 @@ sctp_assoclist(SYSCTL_HANDLER_ARGS)
 	number_of_remote_addresses = 0;
 
 	SCTP_INP_INFO_RLOCK();
-	if (req->oldptr == USER_ADDR_NULL) {
+	if (req->oldptr == NULL) {
 		LIST_FOREACH(inp, &SCTP_BASE_INFO(listhead), sctp_list) {
 			SCTP_INP_RLOCK(inp);
 			number_of_endpoints++;
-			number_of_local_addresses += number_of_addresses(inp);
+			number_of_local_addresses += sctp_sysctl_number_of_addresses(inp);
 			LIST_FOREACH(stcb, &inp->sctp_asoc_list, sctp_tcblist) {
 				number_of_associations++;
-				number_of_local_addresses += number_of_addresses(inp);
+				number_of_local_addresses += sctp_sysctl_number_of_addresses(inp);
 				TAILQ_FOREACH(net, &stcb->asoc.nets, sctp_next) {
 					number_of_remote_addresses++;
 				}
@@ -401,7 +399,7 @@ sctp_assoclist(SYSCTL_HANDLER_ARGS)
 		req->oldidx = (n + n / 8);
 		return (0);
 	}
-	if (req->newptr != USER_ADDR_NULL) {
+	if (req->newptr != NULL) {
 		SCTP_INP_INFO_RUNLOCK();
 		SCTP_LTRACE_ERR_RET(NULL, NULL, NULL, SCTP_FROM_SCTP_SYSCTL, EPERM);
 		return (EPERM);
@@ -439,7 +437,7 @@ sctp_assoclist(SYSCTL_HANDLER_ARGS)
 		}
 		SCTP_INP_INFO_RLOCK();
 		SCTP_INP_RLOCK(inp);
-		error = copy_out_local_addresses(inp, NULL, req);
+		error = sctp_sysctl_copy_out_local_addresses(inp, NULL, req);
 		if (error) {
 			SCTP_INP_DECR_REF(inp);
 			return (error);
@@ -490,7 +488,7 @@ sctp_assoclist(SYSCTL_HANDLER_ARGS)
 			}
 			SCTP_INP_INFO_RLOCK();
 			SCTP_INP_RLOCK(inp);
-			error = copy_out_local_addresses(inp, stcb, req);
+			error = sctp_sysctl_copy_out_local_addresses(inp, stcb, req);
 			if (error) {
 				SCTP_INP_DECR_REF(inp);
 				atomic_subtract_int(&stcb->asoc.refcnt, 1);
@@ -558,196 +556,97 @@ skip:
 	return (error);
 }
 
-
-#define RANGECHK(var, min, max) \
-	if ((var) < (min)) { (var) = (min); } \
-	else if ((var) > (max)) { (var) = (max); }
-
 static int
-sysctl_sctp_udp_tunneling_check(SYSCTL_HANDLER_ARGS)
+sctp_sysctl_handle_udp_tunneling(SYSCTL_HANDLER_ARGS)
 {
 	int error;
-	uint32_t old_sctp_udp_tunneling_port;
+	uint32_t old, new;
 
 	SCTP_INP_INFO_RLOCK();
-	old_sctp_udp_tunneling_port = SCTP_BASE_SYSCTL(sctp_udp_tunneling_port);
+	old = SCTP_BASE_SYSCTL(sctp_udp_tunneling_port);
 	SCTP_INP_INFO_RUNLOCK();
-	error = sysctl_handle_int(oidp, oidp->oid_arg1, oidp->oid_arg2, req);
-	if (error == 0) {
-		RANGECHK(SCTP_BASE_SYSCTL(sctp_udp_tunneling_port), SCTPCTL_UDP_TUNNELING_PORT_MIN, SCTPCTL_UDP_TUNNELING_PORT_MAX);
-		if (old_sctp_udp_tunneling_port == SCTP_BASE_SYSCTL(sctp_udp_tunneling_port)) {
-			error = 0;
-			goto out;
-		}
-		SCTP_INP_INFO_WLOCK();
-		if (old_sctp_udp_tunneling_port) {
-			sctp_over_udp_stop();
-		}
-		if (SCTP_BASE_SYSCTL(sctp_udp_tunneling_port)) {
-			if (sctp_over_udp_start()) {
-				SCTP_BASE_SYSCTL(sctp_udp_tunneling_port) = 0;
+	new = old;
+	error = sysctl_handle_int(oidp, &new, 0, req);
+	if ((error == 0) &&
+	    (req->newptr != NULL)) {
+		if ((new < SCTPCTL_UDP_TUNNELING_PORT_MIN) ||
+		    (new > SCTPCTL_UDP_TUNNELING_PORT_MAX)) {
+			error = EINVAL;
+		} else {
+			SCTP_INP_INFO_WLOCK();
+			SCTP_BASE_SYSCTL(sctp_udp_tunneling_port) = new;
+			if (old != 0) {
+				sctp_over_udp_stop();
 			}
+			if (new != 0) {
+				error = sctp_over_udp_start();
+			}
+			SCTP_INP_INFO_WUNLOCK();
 		}
-		SCTP_INP_INFO_WUNLOCK();
 	}
-out:
 	return (error);
 }
 
 
 static int
-sysctl_sctp_check(SYSCTL_HANDLER_ARGS)
+sctp_sysctl_handle_auth(SYSCTL_HANDLER_ARGS)
+{
+	int error;
+	uint32_t new;
+
+	new = SCTP_BASE_SYSCTL(sctp_auth_enable);
+	error = sysctl_handle_int(oidp, &new, 0, req);
+	if ((error == 0) &&
+	    (req->newptr != NULL)) {
+		if ((new < SCTPCTL_AUTH_ENABLE_MIN) ||
+		    (new > SCTPCTL_AUTH_ENABLE_MAX) ||
+		    ((new == 0) && (SCTP_BASE_SYSCTL(sctp_asconf_enable) == 1))) {
+			error = EINVAL;
+		} else {
+			SCTP_BASE_SYSCTL(sctp_auth_enable) = new;
+		}
+	}
+	return (error);
+}
+
+static int
+sctp_sysctl_handle_asconf(SYSCTL_HANDLER_ARGS)
+{
+	int error;
+	uint32_t new;
+
+	new = SCTP_BASE_SYSCTL(sctp_asconf_enable);
+	error = sysctl_handle_int(oidp, &new, 0, req);
+	if ((error == 0) &&
+	    (req->newptr != NULL)) {
+		if ((new < SCTPCTL_ASCONF_ENABLE_MIN) ||
+		    (new > SCTPCTL_ASCONF_ENABLE_MAX) ||
+		    ((new == 1) && (SCTP_BASE_SYSCTL(sctp_auth_enable) == 0))) {
+			error = EINVAL;
+		} else {
+			SCTP_BASE_SYSCTL(sctp_asconf_enable) = new;
+		}
+	}
+	return (error);
+}
+
+static int
+sctp_sysctl_handle_stats(SYSCTL_HANDLER_ARGS)
 {
 	int error;
 
-	error = sysctl_handle_int(oidp, oidp->oid_arg1, oidp->oid_arg2, req);
-	if (error == 0) {
-		RANGECHK(SCTP_BASE_SYSCTL(sctp_sendspace), SCTPCTL_MAXDGRAM_MIN, SCTPCTL_MAXDGRAM_MAX);
-		RANGECHK(SCTP_BASE_SYSCTL(sctp_recvspace), SCTPCTL_RECVSPACE_MIN, SCTPCTL_RECVSPACE_MAX);
-		RANGECHK(SCTP_BASE_SYSCTL(sctp_auto_asconf), SCTPCTL_AUTOASCONF_MIN, SCTPCTL_AUTOASCONF_MAX);
-		RANGECHK(SCTP_BASE_SYSCTL(sctp_ecn_enable), SCTPCTL_ECN_ENABLE_MIN, SCTPCTL_ECN_ENABLE_MAX);
-		RANGECHK(SCTP_BASE_SYSCTL(sctp_pr_enable), SCTPCTL_PR_ENABLE_MIN, SCTPCTL_PR_ENABLE_MAX);
-		RANGECHK(SCTP_BASE_SYSCTL(sctp_reconfig_enable), SCTPCTL_RECONFIG_ENABLE_MIN, SCTPCTL_RECONFIG_ENABLE_MAX);
-		RANGECHK(SCTP_BASE_SYSCTL(sctp_nrsack_enable), SCTPCTL_NRSACK_ENABLE_MIN, SCTPCTL_NRSACK_ENABLE_MAX);
-		RANGECHK(SCTP_BASE_SYSCTL(sctp_pktdrop_enable), SCTPCTL_PKTDROP_ENABLE_MIN, SCTPCTL_PKTDROP_ENABLE_MAX);
-		RANGECHK(SCTP_BASE_SYSCTL(sctp_strict_sacks), SCTPCTL_STRICT_SACKS_MIN, SCTPCTL_STRICT_SACKS_MAX);
-		RANGECHK(SCTP_BASE_SYSCTL(sctp_peer_chunk_oh), SCTPCTL_PEER_CHKOH_MIN, SCTPCTL_PEER_CHKOH_MAX);
-		RANGECHK(SCTP_BASE_SYSCTL(sctp_max_burst_default), SCTPCTL_MAXBURST_MIN, SCTPCTL_MAXBURST_MAX);
-		RANGECHK(SCTP_BASE_SYSCTL(sctp_fr_max_burst_default), SCTPCTL_FRMAXBURST_MIN, SCTPCTL_FRMAXBURST_MAX);
-		RANGECHK(SCTP_BASE_SYSCTL(sctp_max_chunks_on_queue), SCTPCTL_MAXCHUNKS_MIN, SCTPCTL_MAXCHUNKS_MAX);
-		RANGECHK(SCTP_BASE_SYSCTL(sctp_hashtblsize), SCTPCTL_TCBHASHSIZE_MIN, SCTPCTL_TCBHASHSIZE_MAX);
-		RANGECHK(SCTP_BASE_SYSCTL(sctp_pcbtblsize), SCTPCTL_PCBHASHSIZE_MIN, SCTPCTL_PCBHASHSIZE_MAX);
-		RANGECHK(SCTP_BASE_SYSCTL(sctp_min_split_point), SCTPCTL_MIN_SPLIT_POINT_MIN, SCTPCTL_MIN_SPLIT_POINT_MAX);
-		RANGECHK(SCTP_BASE_SYSCTL(sctp_chunkscale), SCTPCTL_CHUNKSCALE_MIN, SCTPCTL_CHUNKSCALE_MAX);
-		RANGECHK(SCTP_BASE_SYSCTL(sctp_delayed_sack_time_default), SCTPCTL_DELAYED_SACK_TIME_MIN, SCTPCTL_DELAYED_SACK_TIME_MAX);
-		RANGECHK(SCTP_BASE_SYSCTL(sctp_sack_freq_default), SCTPCTL_SACK_FREQ_MIN, SCTPCTL_SACK_FREQ_MAX);
-		RANGECHK(SCTP_BASE_SYSCTL(sctp_system_free_resc_limit), SCTPCTL_SYS_RESOURCE_MIN, SCTPCTL_SYS_RESOURCE_MAX);
-		RANGECHK(SCTP_BASE_SYSCTL(sctp_asoc_free_resc_limit), SCTPCTL_ASOC_RESOURCE_MIN, SCTPCTL_ASOC_RESOURCE_MAX);
-		RANGECHK(SCTP_BASE_SYSCTL(sctp_heartbeat_interval_default), SCTPCTL_HEARTBEAT_INTERVAL_MIN, SCTPCTL_HEARTBEAT_INTERVAL_MAX);
-		RANGECHK(SCTP_BASE_SYSCTL(sctp_pmtu_raise_time_default), SCTPCTL_PMTU_RAISE_TIME_MIN, SCTPCTL_PMTU_RAISE_TIME_MAX);
-		RANGECHK(SCTP_BASE_SYSCTL(sctp_shutdown_guard_time_default), SCTPCTL_SHUTDOWN_GUARD_TIME_MIN, SCTPCTL_SHUTDOWN_GUARD_TIME_MAX);
-		RANGECHK(SCTP_BASE_SYSCTL(sctp_secret_lifetime_default), SCTPCTL_SECRET_LIFETIME_MIN, SCTPCTL_SECRET_LIFETIME_MAX);
-		RANGECHK(SCTP_BASE_SYSCTL(sctp_rto_max_default), SCTPCTL_RTO_MAX_MIN, SCTPCTL_RTO_MAX_MAX);
-		RANGECHK(SCTP_BASE_SYSCTL(sctp_rto_min_default), SCTPCTL_RTO_MIN_MIN, SCTPCTL_RTO_MIN_MAX);
-		RANGECHK(SCTP_BASE_SYSCTL(sctp_rto_initial_default), SCTPCTL_RTO_INITIAL_MIN, SCTPCTL_RTO_INITIAL_MAX);
-		RANGECHK(SCTP_BASE_SYSCTL(sctp_init_rto_max_default), SCTPCTL_INIT_RTO_MAX_MIN, SCTPCTL_INIT_RTO_MAX_MAX);
-		RANGECHK(SCTP_BASE_SYSCTL(sctp_valid_cookie_life_default), SCTPCTL_VALID_COOKIE_LIFE_MIN, SCTPCTL_VALID_COOKIE_LIFE_MAX);
-		RANGECHK(SCTP_BASE_SYSCTL(sctp_init_rtx_max_default), SCTPCTL_INIT_RTX_MAX_MIN, SCTPCTL_INIT_RTX_MAX_MAX);
-		RANGECHK(SCTP_BASE_SYSCTL(sctp_assoc_rtx_max_default), SCTPCTL_ASSOC_RTX_MAX_MIN, SCTPCTL_ASSOC_RTX_MAX_MAX);
-		RANGECHK(SCTP_BASE_SYSCTL(sctp_path_rtx_max_default), SCTPCTL_PATH_RTX_MAX_MIN, SCTPCTL_PATH_RTX_MAX_MAX);
-		RANGECHK(SCTP_BASE_SYSCTL(sctp_path_pf_threshold), SCTPCTL_PATH_PF_THRESHOLD_MIN, SCTPCTL_PATH_PF_THRESHOLD_MAX);
-		RANGECHK(SCTP_BASE_SYSCTL(sctp_add_more_threshold), SCTPCTL_ADD_MORE_ON_OUTPUT_MIN, SCTPCTL_ADD_MORE_ON_OUTPUT_MAX);
-		RANGECHK(SCTP_BASE_SYSCTL(sctp_nr_incoming_streams_default), SCTPCTL_INCOMING_STREAMS_MIN, SCTPCTL_INCOMING_STREAMS_MAX);
-		RANGECHK(SCTP_BASE_SYSCTL(sctp_nr_outgoing_streams_default), SCTPCTL_OUTGOING_STREAMS_MIN, SCTPCTL_OUTGOING_STREAMS_MAX);
-		RANGECHK(SCTP_BASE_SYSCTL(sctp_cmt_on_off), SCTPCTL_CMT_ON_OFF_MIN, SCTPCTL_CMT_ON_OFF_MAX);
-		RANGECHK(SCTP_BASE_SYSCTL(sctp_cmt_use_dac), SCTPCTL_CMT_USE_DAC_MIN, SCTPCTL_CMT_USE_DAC_MAX);
-		RANGECHK(SCTP_BASE_SYSCTL(sctp_use_cwnd_based_maxburst), SCTPCTL_CWND_MAXBURST_MIN, SCTPCTL_CWND_MAXBURST_MAX);
-		RANGECHK(SCTP_BASE_SYSCTL(sctp_nat_friendly), SCTPCTL_NAT_FRIENDLY_MIN, SCTPCTL_NAT_FRIENDLY_MAX);
-		RANGECHK(SCTP_BASE_SYSCTL(sctp_L2_abc_variable), SCTPCTL_ABC_L_VAR_MIN, SCTPCTL_ABC_L_VAR_MAX);
-		RANGECHK(SCTP_BASE_SYSCTL(sctp_mbuf_threshold_count), SCTPCTL_MAX_CHAINED_MBUFS_MIN, SCTPCTL_MAX_CHAINED_MBUFS_MAX);
-		RANGECHK(SCTP_BASE_SYSCTL(sctp_do_drain), SCTPCTL_DO_SCTP_DRAIN_MIN, SCTPCTL_DO_SCTP_DRAIN_MAX);
-		RANGECHK(SCTP_BASE_SYSCTL(sctp_hb_maxburst), SCTPCTL_HB_MAX_BURST_MIN, SCTPCTL_HB_MAX_BURST_MAX);
-		RANGECHK(SCTP_BASE_SYSCTL(sctp_abort_if_one_2_one_hits_limit), SCTPCTL_ABORT_AT_LIMIT_MIN, SCTPCTL_ABORT_AT_LIMIT_MAX);
-		RANGECHK(SCTP_BASE_SYSCTL(sctp_strict_data_order), SCTPCTL_STRICT_DATA_ORDER_MIN, SCTPCTL_STRICT_DATA_ORDER_MAX);
-		RANGECHK(SCTP_BASE_SYSCTL(sctp_min_residual), SCTPCTL_MIN_RESIDUAL_MIN, SCTPCTL_MIN_RESIDUAL_MAX);
-		RANGECHK(SCTP_BASE_SYSCTL(sctp_max_retran_chunk), SCTPCTL_MAX_RETRAN_CHUNK_MIN, SCTPCTL_MAX_RETRAN_CHUNK_MAX);
-		RANGECHK(SCTP_BASE_SYSCTL(sctp_logging_level), SCTPCTL_LOGGING_LEVEL_MIN, SCTPCTL_LOGGING_LEVEL_MAX);
-		RANGECHK(SCTP_BASE_SYSCTL(sctp_default_cc_module), SCTPCTL_DEFAULT_CC_MODULE_MIN, SCTPCTL_DEFAULT_CC_MODULE_MAX);
-		RANGECHK(SCTP_BASE_SYSCTL(sctp_default_ss_module), SCTPCTL_DEFAULT_SS_MODULE_MIN, SCTPCTL_DEFAULT_SS_MODULE_MAX);
-		RANGECHK(SCTP_BASE_SYSCTL(sctp_default_frag_interleave), SCTPCTL_DEFAULT_FRAG_INTERLEAVE_MIN, SCTPCTL_DEFAULT_FRAG_INTERLEAVE_MAX);
-		RANGECHK(SCTP_BASE_SYSCTL(sctp_vtag_time_wait), SCTPCTL_TIME_WAIT_MIN, SCTPCTL_TIME_WAIT_MAX);
-		RANGECHK(SCTP_BASE_SYSCTL(sctp_buffer_splitting), SCTPCTL_BUFFER_SPLITTING_MIN, SCTPCTL_BUFFER_SPLITTING_MAX);
-		RANGECHK(SCTP_BASE_SYSCTL(sctp_initial_cwnd), SCTPCTL_INITIAL_CWND_MIN, SCTPCTL_INITIAL_CWND_MAX);
-		RANGECHK(SCTP_BASE_SYSCTL(sctp_rttvar_bw), SCTPCTL_RTTVAR_BW_MIN, SCTPCTL_RTTVAR_BW_MAX);
-		RANGECHK(SCTP_BASE_SYSCTL(sctp_rttvar_rtt), SCTPCTL_RTTVAR_RTT_MIN, SCTPCTL_RTTVAR_RTT_MAX);
-		RANGECHK(SCTP_BASE_SYSCTL(sctp_rttvar_eqret), SCTPCTL_RTTVAR_EQRET_MIN, SCTPCTL_RTTVAR_EQRET_MAX);
-		RANGECHK(SCTP_BASE_SYSCTL(sctp_steady_step), SCTPCTL_RTTVAR_STEADYS_MIN, SCTPCTL_RTTVAR_STEADYS_MAX);
-		RANGECHK(SCTP_BASE_SYSCTL(sctp_use_dccc_ecn), SCTPCTL_RTTVAR_DCCCECN_MIN, SCTPCTL_RTTVAR_DCCCECN_MAX);
-		RANGECHK(SCTP_BASE_SYSCTL(sctp_mobility_base), SCTPCTL_MOBILITY_BASE_MIN, SCTPCTL_MOBILITY_BASE_MAX);
-		RANGECHK(SCTP_BASE_SYSCTL(sctp_mobility_fasthandoff), SCTPCTL_MOBILITY_FASTHANDOFF_MIN, SCTPCTL_MOBILITY_FASTHANDOFF_MAX);
-		RANGECHK(SCTP_BASE_SYSCTL(sctp_enable_sack_immediately), SCTPCTL_SACK_IMMEDIATELY_ENABLE_MIN, SCTPCTL_SACK_IMMEDIATELY_ENABLE_MAX);
-		RANGECHK(SCTP_BASE_SYSCTL(sctp_inits_include_nat_friendly), SCTPCTL_NAT_FRIENDLY_INITS_MIN, SCTPCTL_NAT_FRIENDLY_INITS_MAX);
-		RANGECHK(SCTP_BASE_SYSCTL(sctp_blackhole), SCTPCTL_BLACKHOLE_MIN, SCTPCTL_BLACKHOLE_MAX);
-		RANGECHK(SCTP_BASE_SYSCTL(sctp_diag_info_code), SCTPCTL_DIAG_INFO_CODE_MIN, SCTPCTL_DIAG_INFO_CODE_MAX);
+#if defined(SMP) && defined(SCTP_USE_PERCPU_STAT)
+	int cpu;
+	struct sctpstat sb, *sarry;
 
-#ifdef SCTP_DEBUG
-		RANGECHK(SCTP_BASE_SYSCTL(sctp_debug_on), SCTPCTL_DEBUG_MIN, SCTPCTL_DEBUG_MAX);
 #endif
-#if defined(__APPLE__) || defined(SCTP_SO_LOCK_TESTING)
-		RANGECHK(SCTP_BASE_SYSCTL(sctp_output_unlocked), SCTPCTL_OUTPUT_UNLOCKED_MIN, SCTPCTL_OUTPUT_UNLOCKED_MAX);
-#endif
-	}
-	return (error);
-}
 
-static int
-sysctl_sctp_auth_check(SYSCTL_HANDLER_ARGS)
-{
-	int error;
-
-	error = sysctl_handle_int(oidp, oidp->oid_arg1, oidp->oid_arg2, req);
-	if (error == 0) {
-		if (SCTP_BASE_SYSCTL(sctp_auth_enable) < SCTPCTL_AUTH_ENABLE_MIN) {
-			SCTP_BASE_SYSCTL(sctp_auth_enable) = SCTPCTL_AUTH_ENABLE_MIN;
-		}
-		if (SCTP_BASE_SYSCTL(sctp_auth_enable) > SCTPCTL_AUTH_ENABLE_MAX) {
-			SCTP_BASE_SYSCTL(sctp_auth_enable) = SCTPCTL_AUTH_ENABLE_MAX;
-		}
-		if ((SCTP_BASE_SYSCTL(sctp_auth_enable) == 0) &&
-		    (SCTP_BASE_SYSCTL(sctp_asconf_enable) == 1)) {
-			/*
-			 * You can't disable AUTH with disabling ASCONF
-			 * first
-			 */
-			SCTP_BASE_SYSCTL(sctp_auth_enable) = 1;
-		}
-	}
-	return (error);
-}
-
-static int
-sysctl_sctp_asconf_check(SYSCTL_HANDLER_ARGS)
-{
-	int error;
-
-	error = sysctl_handle_int(oidp, oidp->oid_arg1, oidp->oid_arg2, req);
-	if (error == 0) {
-		if (SCTP_BASE_SYSCTL(sctp_asconf_enable) < SCTPCTL_ASCONF_ENABLE_MIN) {
-			SCTP_BASE_SYSCTL(sctp_asconf_enable) = SCTPCTL_ASCONF_ENABLE_MIN;
-		}
-		if (SCTP_BASE_SYSCTL(sctp_asconf_enable) > SCTPCTL_ASCONF_ENABLE_MAX) {
-			SCTP_BASE_SYSCTL(sctp_asconf_enable) = SCTPCTL_ASCONF_ENABLE_MAX;
-		}
-		if ((SCTP_BASE_SYSCTL(sctp_asconf_enable) == 1) &&
-		    (SCTP_BASE_SYSCTL(sctp_auth_enable) == 0)) {
-			/*
-			 * You can't enable ASCONF without enabling AUTH
-			 * first
-			 */
-			SCTP_BASE_SYSCTL(sctp_asconf_enable) = 0;
-		}
-	}
-	return (error);
-}
-
-#if defined(__FreeBSD__) && defined(SMP) && defined(SCTP_USE_PERCPU_STAT)
-static int
-sysctl_stat_get(SYSCTL_HANDLER_ARGS)
-{
-	int cpu, error;
-	struct sctpstat sb, *sarry, *cpin = NULL;
-
-	if ((req->newptr) && (req->newlen == sizeof(struct sctpstat))) {
-		/*
-		 * User wants us to clear or at least reset the counters to
-		 * the specified values.
-		 */
-		cpin = (struct sctpstat *)req->newptr;
-	} else if (req->newptr) {
-		/* Must be a stat structure */
+	if ((req->newptr != NULL) &&
+	    (req->newlen != sizeof(struct sctpstat))) {
 		return (EINVAL);
 	}
-	memset(&sb, 0, sizeof(sb));
+#if defined(SMP) && defined(SCTP_USE_PERCPU_STAT)
+	memset(&sb, 0, sizeof(struct sctpstat));
 	for (cpu = 0; cpu < mp_maxid; cpu++) {
 		sarry = &SCTP_BASE_STATS[cpu];
 		if (sarry->sctps_discontinuitytime.tv_sec > sb.sctps_discontinuitytime.tv_sec) {
@@ -875,19 +774,29 @@ sysctl_stat_get(SYSCTL_HANDLER_ARGS)
 		sb.sctps_send_burst_avoid += sarry->sctps_send_burst_avoid;
 		sb.sctps_send_cwnd_avoid += sarry->sctps_send_cwnd_avoid;
 		sb.sctps_fwdtsn_map_over += sarry->sctps_fwdtsn_map_over;
-		if (cpin) {
-			memcpy(sarry, cpin, sizeof(struct sctpstat));
+		if (req->newptr != NULL) {
+			memcpy(sarry, req->newptr, sizeof(struct sctpstat));
 		}
 	}
-	error = SYSCTL_OUT(req, &sb, sizeof(sb));
+	error = SYSCTL_OUT(req, &sb, sizeof(struct sctpstat));
+#else
+	error = SYSCTL_OUT(req, &SCTP_BASE_STATS, sizeof(struct sctpstat));
+#endif
 	return (error);
 }
 
-#endif
-
 #if defined(SCTP_LOCAL_TRACE_BUF)
 static int
-sysctl_sctp_cleartrace(SYSCTL_HANDLER_ARGS)
+sctp_sysctl_handle_trace_log(SYSCTL_HANDLER_ARGS)
+{
+	int error;
+
+	error = SYSCTL_OUT(req, &SCTP_BASE_SYSCTL(sctp_log), sizeof(struct sctp_log));
+	return (error);
+}
+
+static int
+sctp_sysctl_handle_trace_log_clear(SYSCTL_HANDLER_ARGS)
 {
 	int error = 0;
 
@@ -897,326 +806,119 @@ sysctl_sctp_cleartrace(SYSCTL_HANDLER_ARGS)
 
 #endif
 
+#define SCTP_UINT_SYSCTL(mib_name, var_name, prefix)			\
+	static int							\
+	sctp_sysctl_handle_##mib_name(SYSCTL_HANDLER_ARGS)		\
+	{								\
+		int error;						\
+		uint32_t new;						\
+									\
+		new = SCTP_BASE_SYSCTL(var_name);			\
+		error = sysctl_handle_int(oidp, &new, 0, req);		\
+		if ((error == 0) && (req->newptr != NULL)) {		\
+			if ((new < prefix##_MIN) ||			\
+			    (new > prefix##_MAX)) {			\
+				error = EINVAL;				\
+			} else {					\
+				SCTP_BASE_SYSCTL(var_name) = new;	\
+			}						\
+		}							\
+		return (error);						\
+	}								\
+	SYSCTL_PROC(_net_inet_sctp, OID_AUTO, mib_name,			\
+	                 CTLFLAG_VNET|CTLTYPE_UINT|CTLFLAG_RW, NULL, 0,	\
+	                 sctp_sysctl_handle_##mib_name, "UI", prefix##_DESC);
 
 /*
  * sysctl definitions
  */
 
-SYSCTL_VNET_PROC(_net_inet_sctp, OID_AUTO, sendspace, CTLTYPE_UINT | CTLFLAG_RW,
-    &SCTP_BASE_SYSCTL(sctp_sendspace), 0, sysctl_sctp_check, "IU",
-    SCTPCTL_MAXDGRAM_DESC);
-
-SYSCTL_VNET_PROC(_net_inet_sctp, OID_AUTO, recvspace, CTLTYPE_UINT | CTLFLAG_RW,
-    &SCTP_BASE_SYSCTL(sctp_recvspace), 0, sysctl_sctp_check, "IU",
-    SCTPCTL_RECVSPACE_DESC);
-
-SYSCTL_VNET_PROC(_net_inet_sctp, OID_AUTO, auto_asconf, CTLTYPE_UINT | CTLFLAG_RW,
-    &SCTP_BASE_SYSCTL(sctp_auto_asconf), 0, sysctl_sctp_check, "IU",
-    SCTPCTL_AUTOASCONF_DESC);
-
-SYSCTL_VNET_PROC(_net_inet_sctp, OID_AUTO, ecn_enable, CTLTYPE_UINT | CTLFLAG_RW,
-    &SCTP_BASE_SYSCTL(sctp_ecn_enable), 0, sysctl_sctp_check, "IU",
-    SCTPCTL_ECN_ENABLE_DESC);
-
-SYSCTL_VNET_PROC(_net_inet_sctp, OID_AUTO, pr_enable, CTLTYPE_UINT | CTLFLAG_RW,
-    &SCTP_BASE_SYSCTL(sctp_pr_enable), 0, sysctl_sctp_check, "IU",
-    SCTPCTL_PR_ENABLE_DESC);
-
-SYSCTL_VNET_PROC(_net_inet_sctp, OID_AUTO, auth_enable, CTLTYPE_UINT | CTLFLAG_RW,
-    &SCTP_BASE_SYSCTL(sctp_auth_enable), 0, sysctl_sctp_auth_check, "IU",
-    SCTPCTL_AUTH_ENABLE_DESC);
-
-SYSCTL_VNET_PROC(_net_inet_sctp, OID_AUTO, asconf_enable, CTLTYPE_UINT | CTLFLAG_RW,
-    &SCTP_BASE_SYSCTL(sctp_asconf_enable), 0, sysctl_sctp_asconf_check, "IU",
-    SCTPCTL_ASCONF_ENABLE_DESC);
-
-SYSCTL_VNET_PROC(_net_inet_sctp, OID_AUTO, reconfig_enable, CTLTYPE_UINT | CTLFLAG_RW,
-    &SCTP_BASE_SYSCTL(sctp_reconfig_enable), 0, sysctl_sctp_check, "IU",
-    SCTPCTL_RECONFIG_ENABLE_DESC);
-
-SYSCTL_VNET_PROC(_net_inet_sctp, OID_AUTO, nrsack_enable, CTLTYPE_UINT | CTLFLAG_RW,
-    &SCTP_BASE_SYSCTL(sctp_nrsack_enable), 0, sysctl_sctp_check, "IU",
-    SCTPCTL_NRSACK_ENABLE_DESC);
-
-SYSCTL_VNET_PROC(_net_inet_sctp, OID_AUTO, pktdrop_enable, CTLTYPE_UINT | CTLFLAG_RW,
-    &SCTP_BASE_SYSCTL(sctp_pktdrop_enable), 0, sysctl_sctp_check, "IU",
-    SCTPCTL_PKTDROP_ENABLE_DESC);
-
-SYSCTL_VNET_PROC(_net_inet_sctp, OID_AUTO, strict_sacks, CTLTYPE_UINT | CTLFLAG_RW,
-    &SCTP_BASE_SYSCTL(sctp_strict_sacks), 0, sysctl_sctp_check, "IU",
-    SCTPCTL_STRICT_SACKS_DESC);
-
-
-SYSCTL_VNET_PROC(_net_inet_sctp, OID_AUTO, peer_chkoh, CTLTYPE_UINT | CTLFLAG_RW,
-    &SCTP_BASE_SYSCTL(sctp_peer_chunk_oh), 0, sysctl_sctp_check, "IU",
-    SCTPCTL_PEER_CHKOH_DESC);
-
-SYSCTL_VNET_PROC(_net_inet_sctp, OID_AUTO, maxburst, CTLTYPE_UINT | CTLFLAG_RW,
-    &SCTP_BASE_SYSCTL(sctp_max_burst_default), 0, sysctl_sctp_check, "IU",
-    SCTPCTL_MAXBURST_DESC);
-
-SYSCTL_VNET_PROC(_net_inet_sctp, OID_AUTO, fr_maxburst, CTLTYPE_UINT | CTLFLAG_RW,
-    &SCTP_BASE_SYSCTL(sctp_fr_max_burst_default), 0, sysctl_sctp_check, "IU",
-    SCTPCTL_FRMAXBURST_DESC);
-
-SYSCTL_VNET_PROC(_net_inet_sctp, OID_AUTO, maxchunks, CTLTYPE_UINT | CTLFLAG_RW,
-    &SCTP_BASE_SYSCTL(sctp_max_chunks_on_queue), 0, sysctl_sctp_check, "IU",
-    SCTPCTL_MAXCHUNKS_DESC);
-
-SYSCTL_VNET_PROC(_net_inet_sctp, OID_AUTO, tcbhashsize, CTLTYPE_UINT | CTLFLAG_RW,
-    &SCTP_BASE_SYSCTL(sctp_hashtblsize), 0, sysctl_sctp_check, "IU",
-    SCTPCTL_TCBHASHSIZE_DESC);
-
-SYSCTL_VNET_PROC(_net_inet_sctp, OID_AUTO, pcbhashsize, CTLTYPE_UINT | CTLFLAG_RW,
-    &SCTP_BASE_SYSCTL(sctp_pcbtblsize), 0, sysctl_sctp_check, "IU",
-    SCTPCTL_PCBHASHSIZE_DESC);
-
-SYSCTL_VNET_PROC(_net_inet_sctp, OID_AUTO, min_split_point, CTLTYPE_UINT | CTLFLAG_RW,
-    &SCTP_BASE_SYSCTL(sctp_min_split_point), 0, sysctl_sctp_check, "IU",
-    SCTPCTL_MIN_SPLIT_POINT_DESC);
-
-SYSCTL_VNET_PROC(_net_inet_sctp, OID_AUTO, chunkscale, CTLTYPE_UINT | CTLFLAG_RW,
-    &SCTP_BASE_SYSCTL(sctp_chunkscale), 0, sysctl_sctp_check, "IU",
-    SCTPCTL_CHUNKSCALE_DESC);
-
-SYSCTL_VNET_PROC(_net_inet_sctp, OID_AUTO, delayed_sack_time, CTLTYPE_UINT | CTLFLAG_RW,
-    &SCTP_BASE_SYSCTL(sctp_delayed_sack_time_default), 0, sysctl_sctp_check, "IU",
-    SCTPCTL_DELAYED_SACK_TIME_DESC);
-
-SYSCTL_VNET_PROC(_net_inet_sctp, OID_AUTO, sack_freq, CTLTYPE_UINT | CTLFLAG_RW,
-    &SCTP_BASE_SYSCTL(sctp_sack_freq_default), 0, sysctl_sctp_check, "IU",
-    SCTPCTL_SACK_FREQ_DESC);
-
-SYSCTL_VNET_PROC(_net_inet_sctp, OID_AUTO, sys_resource, CTLTYPE_UINT | CTLFLAG_RW,
-    &SCTP_BASE_SYSCTL(sctp_system_free_resc_limit), 0, sysctl_sctp_check, "IU",
-    SCTPCTL_SYS_RESOURCE_DESC);
-
-SYSCTL_VNET_PROC(_net_inet_sctp, OID_AUTO, asoc_resource, CTLTYPE_UINT | CTLFLAG_RW,
-    &SCTP_BASE_SYSCTL(sctp_asoc_free_resc_limit), 0, sysctl_sctp_check, "IU",
-    SCTPCTL_ASOC_RESOURCE_DESC);
-
-SYSCTL_VNET_PROC(_net_inet_sctp, OID_AUTO, heartbeat_interval, CTLTYPE_UINT | CTLFLAG_RW,
-    &SCTP_BASE_SYSCTL(sctp_heartbeat_interval_default), 0, sysctl_sctp_check, "IU",
-    SCTPCTL_HEARTBEAT_INTERVAL_DESC);
-
-SYSCTL_VNET_PROC(_net_inet_sctp, OID_AUTO, pmtu_raise_time, CTLTYPE_UINT | CTLFLAG_RW,
-    &SCTP_BASE_SYSCTL(sctp_pmtu_raise_time_default), 0, sysctl_sctp_check, "IU",
-    SCTPCTL_PMTU_RAISE_TIME_DESC);
-
-SYSCTL_VNET_PROC(_net_inet_sctp, OID_AUTO, shutdown_guard_time, CTLTYPE_UINT | CTLFLAG_RW,
-    &SCTP_BASE_SYSCTL(sctp_shutdown_guard_time_default), 0, sysctl_sctp_check, "IU",
-    SCTPCTL_SHUTDOWN_GUARD_TIME_DESC);
-
-SYSCTL_VNET_PROC(_net_inet_sctp, OID_AUTO, secret_lifetime, CTLTYPE_UINT | CTLFLAG_RW,
-    &SCTP_BASE_SYSCTL(sctp_secret_lifetime_default), 0, sysctl_sctp_check, "IU",
-    SCTPCTL_SECRET_LIFETIME_DESC);
-
-SYSCTL_VNET_PROC(_net_inet_sctp, OID_AUTO, rto_max, CTLTYPE_UINT | CTLFLAG_RW,
-    &SCTP_BASE_SYSCTL(sctp_rto_max_default), 0, sysctl_sctp_check, "IU",
-    SCTPCTL_RTO_MAX_DESC);
-
-SYSCTL_VNET_PROC(_net_inet_sctp, OID_AUTO, rto_min, CTLTYPE_UINT | CTLFLAG_RW,
-    &SCTP_BASE_SYSCTL(sctp_rto_min_default), 0, sysctl_sctp_check, "IU",
-    SCTPCTL_RTO_MIN_DESC);
-
-SYSCTL_VNET_PROC(_net_inet_sctp, OID_AUTO, rto_initial, CTLTYPE_UINT | CTLFLAG_RW,
-    &SCTP_BASE_SYSCTL(sctp_rto_initial_default), 0, sysctl_sctp_check, "IU",
-    SCTPCTL_RTO_INITIAL_DESC);
-
-SYSCTL_VNET_PROC(_net_inet_sctp, OID_AUTO, init_rto_max, CTLTYPE_UINT | CTLFLAG_RW,
-    &SCTP_BASE_SYSCTL(sctp_init_rto_max_default), 0, sysctl_sctp_check, "IU",
-    SCTPCTL_INIT_RTO_MAX_DESC);
-
-SYSCTL_VNET_PROC(_net_inet_sctp, OID_AUTO, valid_cookie_life, CTLTYPE_UINT | CTLFLAG_RW,
-    &SCTP_BASE_SYSCTL(sctp_valid_cookie_life_default), 0, sysctl_sctp_check, "IU",
-    SCTPCTL_VALID_COOKIE_LIFE_DESC);
-
-SYSCTL_VNET_PROC(_net_inet_sctp, OID_AUTO, init_rtx_max, CTLTYPE_UINT | CTLFLAG_RW,
-    &SCTP_BASE_SYSCTL(sctp_init_rtx_max_default), 0, sysctl_sctp_check, "IU",
-    SCTPCTL_INIT_RTX_MAX_DESC);
-
-SYSCTL_VNET_PROC(_net_inet_sctp, OID_AUTO, assoc_rtx_max, CTLTYPE_UINT | CTLFLAG_RW,
-    &SCTP_BASE_SYSCTL(sctp_assoc_rtx_max_default), 0, sysctl_sctp_check, "IU",
-    SCTPCTL_ASSOC_RTX_MAX_DESC);
-
-SYSCTL_VNET_PROC(_net_inet_sctp, OID_AUTO, path_rtx_max, CTLTYPE_UINT | CTLFLAG_RW,
-    &SCTP_BASE_SYSCTL(sctp_path_rtx_max_default), 0, sysctl_sctp_check, "IU",
-    SCTPCTL_PATH_RTX_MAX_DESC);
-
-SYSCTL_VNET_PROC(_net_inet_sctp, OID_AUTO, path_pf_threshold, CTLTYPE_UINT | CTLFLAG_RW,
-    &SCTP_BASE_SYSCTL(sctp_path_pf_threshold), 0, sysctl_sctp_check, "IU",
-    SCTPCTL_PATH_PF_THRESHOLD_DESC);
-
-SYSCTL_VNET_PROC(_net_inet_sctp, OID_AUTO, add_more_on_output, CTLTYPE_UINT | CTLFLAG_RW,
-    &SCTP_BASE_SYSCTL(sctp_add_more_threshold), 0, sysctl_sctp_check, "IU",
-    SCTPCTL_ADD_MORE_ON_OUTPUT_DESC);
-
-SYSCTL_VNET_PROC(_net_inet_sctp, OID_AUTO, incoming_streams, CTLTYPE_UINT | CTLFLAG_RW,
-    &SCTP_BASE_SYSCTL(sctp_nr_incoming_streams_default), 0, sysctl_sctp_check, "IU",
-    SCTPCTL_INCOMING_STREAMS_DESC);
-
-SYSCTL_VNET_PROC(_net_inet_sctp, OID_AUTO, outgoing_streams, CTLTYPE_UINT | CTLFLAG_RW,
-    &SCTP_BASE_SYSCTL(sctp_nr_outgoing_streams_default), 0, sysctl_sctp_check, "IU",
-    SCTPCTL_OUTGOING_STREAMS_DESC);
-
-SYSCTL_VNET_PROC(_net_inet_sctp, OID_AUTO, cmt_on_off, CTLTYPE_UINT | CTLFLAG_RW,
-    &SCTP_BASE_SYSCTL(sctp_cmt_on_off), 0, sysctl_sctp_check, "IU",
-    SCTPCTL_CMT_ON_OFF_DESC);
-
-SYSCTL_VNET_PROC(_net_inet_sctp, OID_AUTO, cmt_use_dac, CTLTYPE_UINT | CTLFLAG_RW,
-    &SCTP_BASE_SYSCTL(sctp_cmt_use_dac), 0, sysctl_sctp_check, "IU",
-    SCTPCTL_CMT_USE_DAC_DESC);
-
-SYSCTL_VNET_PROC(_net_inet_sctp, OID_AUTO, cwnd_maxburst, CTLTYPE_UINT | CTLFLAG_RW,
-    &SCTP_BASE_SYSCTL(sctp_use_cwnd_based_maxburst), 0, sysctl_sctp_check, "IU",
-    SCTPCTL_CWND_MAXBURST_DESC);
-
-SYSCTL_VNET_PROC(_net_inet_sctp, OID_AUTO, nat_friendly, CTLTYPE_UINT | CTLFLAG_RW,
-    &SCTP_BASE_SYSCTL(sctp_nat_friendly), 0, sysctl_sctp_check, "IU",
-    SCTPCTL_NAT_FRIENDLY_DESC);
-
-SYSCTL_VNET_PROC(_net_inet_sctp, OID_AUTO, abc_l_var, CTLTYPE_UINT | CTLFLAG_RW,
-    &SCTP_BASE_SYSCTL(sctp_L2_abc_variable), 0, sysctl_sctp_check, "IU",
-    SCTPCTL_ABC_L_VAR_DESC);
-
-SYSCTL_VNET_PROC(_net_inet_sctp, OID_AUTO, max_chained_mbufs, CTLTYPE_UINT | CTLFLAG_RW,
-    &SCTP_BASE_SYSCTL(sctp_mbuf_threshold_count), 0, sysctl_sctp_check, "IU",
-    SCTPCTL_MAX_CHAINED_MBUFS_DESC);
-
-SYSCTL_VNET_PROC(_net_inet_sctp, OID_AUTO, do_sctp_drain, CTLTYPE_UINT | CTLFLAG_RW,
-    &SCTP_BASE_SYSCTL(sctp_do_drain), 0, sysctl_sctp_check, "IU",
-    SCTPCTL_DO_SCTP_DRAIN_DESC);
-
-SYSCTL_VNET_PROC(_net_inet_sctp, OID_AUTO, hb_max_burst, CTLTYPE_UINT | CTLFLAG_RW,
-    &SCTP_BASE_SYSCTL(sctp_hb_maxburst), 0, sysctl_sctp_check, "IU",
-    SCTPCTL_HB_MAX_BURST_DESC);
-
-SYSCTL_VNET_PROC(_net_inet_sctp, OID_AUTO, abort_at_limit, CTLTYPE_UINT | CTLFLAG_RW,
-    &SCTP_BASE_SYSCTL(sctp_abort_if_one_2_one_hits_limit), 0, sysctl_sctp_check, "IU",
-    SCTPCTL_ABORT_AT_LIMIT_DESC);
-
-SYSCTL_VNET_PROC(_net_inet_sctp, OID_AUTO, strict_data_order, CTLTYPE_UINT | CTLFLAG_RW,
-    &SCTP_BASE_SYSCTL(sctp_strict_data_order), 0, sysctl_sctp_check, "IU",
-    SCTPCTL_STRICT_DATA_ORDER_DESC);
-
-SYSCTL_VNET_PROC(_net_inet_sctp, OID_AUTO, min_residual, CTLTYPE_UINT | CTLFLAG_RW,
-    &SCTP_BASE_SYSCTL(sctp_min_residual), 0, sysctl_sctp_check, "IU",
-    SCTPCTL_MIN_RESIDUAL_DESC);
-
-SYSCTL_VNET_PROC(_net_inet_sctp, OID_AUTO, max_retran_chunk, CTLTYPE_UINT | CTLFLAG_RW,
-    &SCTP_BASE_SYSCTL(sctp_max_retran_chunk), 0, sysctl_sctp_check, "IU",
-    SCTPCTL_MAX_RETRAN_CHUNK_DESC);
-
-SYSCTL_VNET_PROC(_net_inet_sctp, OID_AUTO, log_level, CTLTYPE_UINT | CTLFLAG_RW,
-    &SCTP_BASE_SYSCTL(sctp_logging_level), 0, sysctl_sctp_check, "IU",
-    SCTPCTL_LOGGING_LEVEL_DESC);
-
-SYSCTL_VNET_PROC(_net_inet_sctp, OID_AUTO, default_cc_module, CTLTYPE_UINT | CTLFLAG_RW,
-    &SCTP_BASE_SYSCTL(sctp_default_cc_module), 0, sysctl_sctp_check, "IU",
-    SCTPCTL_DEFAULT_CC_MODULE_DESC);
-
-SYSCTL_VNET_PROC(_net_inet_sctp, OID_AUTO, default_ss_module, CTLTYPE_UINT | CTLFLAG_RW,
-    &SCTP_BASE_SYSCTL(sctp_default_ss_module), 0, sysctl_sctp_check, "IU",
-    SCTPCTL_DEFAULT_SS_MODULE_DESC);
-
-SYSCTL_VNET_PROC(_net_inet_sctp, OID_AUTO, default_frag_interleave, CTLTYPE_UINT | CTLFLAG_RW,
-    &SCTP_BASE_SYSCTL(sctp_default_frag_interleave), 0, sysctl_sctp_check, "IU",
-    SCTPCTL_DEFAULT_FRAG_INTERLEAVE_DESC);
-
-SYSCTL_VNET_PROC(_net_inet_sctp, OID_AUTO, mobility_base, CTLTYPE_UINT | CTLFLAG_RW,
-    &SCTP_BASE_SYSCTL(sctp_mobility_base), 0, sysctl_sctp_check, "IU",
-    SCTPCTL_MOBILITY_BASE_DESC);
-
-SYSCTL_VNET_PROC(_net_inet_sctp, OID_AUTO, mobility_fasthandoff, CTLTYPE_UINT | CTLFLAG_RW,
-    &SCTP_BASE_SYSCTL(sctp_mobility_fasthandoff), 0, sysctl_sctp_check, "IU",
-    SCTPCTL_MOBILITY_FASTHANDOFF_DESC);
-
+SCTP_UINT_SYSCTL(sendspace, sctp_sendspace, SCTPCTL_MAXDGRAM)
+SCTP_UINT_SYSCTL(recvspace, sctp_recvspace, SCTPCTL_RECVSPACE)
+SCTP_UINT_SYSCTL(auto_asconf, sctp_auto_asconf, SCTPCTL_AUTOASCONF)
+SCTP_UINT_SYSCTL(ecn_enable, sctp_ecn_enable, SCTPCTL_ECN_ENABLE)
+SCTP_UINT_SYSCTL(pr_enable, sctp_pr_enable, SCTPCTL_PR_ENABLE)
+SYSCTL_PROC(_net_inet_sctp, OID_AUTO, auth_enable, CTLFLAG_VNET | CTLTYPE_UINT | CTLFLAG_RW,
+    NULL, 0, sctp_sysctl_handle_auth, "IU", SCTPCTL_AUTH_ENABLE_DESC);
+SYSCTL_PROC(_net_inet_sctp, OID_AUTO, asconf_enable, CTLFLAG_VNET | CTLTYPE_UINT | CTLFLAG_RW,
+    NULL, 0, sctp_sysctl_handle_asconf, "IU", SCTPCTL_ASCONF_ENABLE_DESC);
+SCTP_UINT_SYSCTL(reconfig_enable, sctp_reconfig_enable, SCTPCTL_RECONFIG_ENABLE)
+SCTP_UINT_SYSCTL(nrsack_enable, sctp_nrsack_enable, SCTPCTL_NRSACK_ENABLE)
+SCTP_UINT_SYSCTL(pktdrop_enable, sctp_pktdrop_enable, SCTPCTL_PKTDROP_ENABLE)
+SCTP_UINT_SYSCTL(strict_sacks, sctp_strict_sacks, SCTPCTL_STRICT_SACKS)
+SCTP_UINT_SYSCTL(peer_chkoh, sctp_peer_chunk_oh, SCTPCTL_PEER_CHKOH)
+SCTP_UINT_SYSCTL(maxburst, sctp_max_burst_default, SCTPCTL_MAXBURST)
+SCTP_UINT_SYSCTL(fr_maxburst, sctp_fr_max_burst_default, SCTPCTL_FRMAXBURST)
+SCTP_UINT_SYSCTL(maxchunks, sctp_max_chunks_on_queue, SCTPCTL_MAXCHUNKS)
+SCTP_UINT_SYSCTL(tcbhashsize, sctp_hashtblsize, SCTPCTL_TCBHASHSIZE)
+SCTP_UINT_SYSCTL(pcbhashsize, sctp_pcbtblsize, SCTPCTL_PCBHASHSIZE)
+SCTP_UINT_SYSCTL(min_split_point, sctp_min_split_point, SCTPCTL_MIN_SPLIT_POINT)
+SCTP_UINT_SYSCTL(chunkscale, sctp_chunkscale, SCTPCTL_CHUNKSCALE)
+SCTP_UINT_SYSCTL(delayed_sack_time, sctp_delayed_sack_time_default, SCTPCTL_DELAYED_SACK_TIME)
+SCTP_UINT_SYSCTL(sack_freq, sctp_sack_freq_default, SCTPCTL_SACK_FREQ)
+SCTP_UINT_SYSCTL(sys_resource, sctp_system_free_resc_limit, SCTPCTL_SYS_RESOURCE)
+SCTP_UINT_SYSCTL(asoc_resource, sctp_asoc_free_resc_limit, SCTPCTL_ASOC_RESOURCE)
+SCTP_UINT_SYSCTL(heartbeat_interval, sctp_heartbeat_interval_default, SCTPCTL_HEARTBEAT_INTERVAL)
+SCTP_UINT_SYSCTL(pmtu_raise_time, sctp_pmtu_raise_time_default, SCTPCTL_PMTU_RAISE_TIME)
+SCTP_UINT_SYSCTL(shutdown_guard_time, sctp_shutdown_guard_time_default, SCTPCTL_SHUTDOWN_GUARD_TIME)
+SCTP_UINT_SYSCTL(secret_lifetime, sctp_secret_lifetime_default, SCTPCTL_SECRET_LIFETIME)
+SCTP_UINT_SYSCTL(rto_max, sctp_rto_max_default, SCTPCTL_RTO_MAX)
+SCTP_UINT_SYSCTL(rto_min, sctp_rto_min_default, SCTPCTL_RTO_MIN)
+SCTP_UINT_SYSCTL(rto_initial, sctp_rto_initial_default, SCTPCTL_RTO_INITIAL)
+SCTP_UINT_SYSCTL(init_rto_max, sctp_init_rto_max_default, SCTPCTL_INIT_RTO_MAX)
+SCTP_UINT_SYSCTL(valid_cookie_life, sctp_valid_cookie_life_default, SCTPCTL_VALID_COOKIE_LIFE)
+SCTP_UINT_SYSCTL(init_rtx_max, sctp_init_rtx_max_default, SCTPCTL_INIT_RTX_MAX)
+SCTP_UINT_SYSCTL(assoc_rtx_max, sctp_assoc_rtx_max_default, SCTPCTL_ASSOC_RTX_MAX)
+SCTP_UINT_SYSCTL(path_rtx_max, sctp_path_rtx_max_default, SCTPCTL_PATH_RTX_MAX)
+SCTP_UINT_SYSCTL(path_pf_threshold, sctp_path_pf_threshold, SCTPCTL_PATH_PF_THRESHOLD)
+SCTP_UINT_SYSCTL(add_more_on_output, sctp_add_more_threshold, SCTPCTL_ADD_MORE_ON_OUTPUT)
+SCTP_UINT_SYSCTL(incoming_streams, sctp_nr_incoming_streams_default, SCTPCTL_INCOMING_STREAMS)
+SCTP_UINT_SYSCTL(outgoing_streams, sctp_nr_outgoing_streams_default, SCTPCTL_OUTGOING_STREAMS)
+SCTP_UINT_SYSCTL(cmt_on_off, sctp_cmt_on_off, SCTPCTL_CMT_ON_OFF)
+SCTP_UINT_SYSCTL(cmt_use_dac, sctp_cmt_use_dac, SCTPCTL_CMT_USE_DAC)
+SCTP_UINT_SYSCTL(cwnd_maxburst, sctp_use_cwnd_based_maxburst, SCTPCTL_CWND_MAXBURST)
+SCTP_UINT_SYSCTL(nat_friendly, sctp_nat_friendly, SCTPCTL_NAT_FRIENDLY)
+SCTP_UINT_SYSCTL(abc_l_var, sctp_L2_abc_variable, SCTPCTL_ABC_L_VAR)
+SCTP_UINT_SYSCTL(max_chained_mbufs, sctp_mbuf_threshold_count, SCTPCTL_MAX_CHAINED_MBUFS)
+SCTP_UINT_SYSCTL(do_sctp_drain, sctp_do_drain, SCTPCTL_DO_SCTP_DRAIN)
+SCTP_UINT_SYSCTL(hb_max_burst, sctp_hb_maxburst, SCTPCTL_HB_MAX_BURST)
+SCTP_UINT_SYSCTL(abort_at_limit, sctp_abort_if_one_2_one_hits_limit, SCTPCTL_ABORT_AT_LIMIT)
+SCTP_UINT_SYSCTL(strict_data_order, sctp_strict_data_order, SCTPCTL_STRICT_DATA_ORDER)
+SCTP_UINT_SYSCTL(min_residual, sctp_min_residual, SCTPCTL_MIN_RESIDUAL)
+SCTP_UINT_SYSCTL(max_retran_chunk, sctp_max_retran_chunk, SCTPCTL_MAX_RETRAN_CHUNK)
+SCTP_UINT_SYSCTL(log_level, sctp_logging_level, SCTPCTL_LOGGING_LEVEL)
+SCTP_UINT_SYSCTL(default_cc_module, sctp_default_cc_module, SCTPCTL_DEFAULT_CC_MODULE)
+SCTP_UINT_SYSCTL(default_ss_module, sctp_default_ss_module, SCTPCTL_DEFAULT_SS_MODULE)
+SCTP_UINT_SYSCTL(default_frag_interleave, sctp_default_frag_interleave, SCTPCTL_DEFAULT_FRAG_INTERLEAVE)
+SCTP_UINT_SYSCTL(mobility_base, sctp_mobility_base, SCTPCTL_MOBILITY_BASE)
+SCTP_UINT_SYSCTL(mobility_fasthandoff, sctp_mobility_fasthandoff, SCTPCTL_MOBILITY_FASTHANDOFF)
 #if defined(SCTP_LOCAL_TRACE_BUF)
-SYSCTL_VNET_STRUCT(_net_inet_sctp, OID_AUTO, log, CTLFLAG_RD,
-    &SCTP_BASE_SYSCTL(sctp_log), sctp_log,
-    "SCTP logging (struct sctp_log)");
-
-SYSCTL_VNET_PROC(_net_inet_sctp, OID_AUTO, clear_trace, CTLTYPE_UINT | CTLFLAG_RW,
-    &SCTP_BASE_SYSCTL(sctp_log), 0, sysctl_sctp_cleartrace, "IU",
-    "Clear SCTP Logging buffer");
+SYSCTL_PROC(_net_inet_sctp, OID_AUTO, log, CTLFLAG_VNET | CTLTYPE_STRUCT | CTLFLAG_RD,
+    NULL, 0, sctp_sysctl_handle_trace_log, "S,sctplog", "SCTP logging (struct sctp_log)");
+SYSCTL_PROC(_net_inet_sctp, OID_AUTO, clear_trace, CTLFLAG_VNET | CTLTYPE_UINT | CTLFLAG_RW,
+    NULL, 0, sctp_sysctl_handle_trace_log_clear, "IU", "Clear SCTP Logging buffer");
 #endif
-
-SYSCTL_VNET_PROC(_net_inet_sctp, OID_AUTO, udp_tunneling_port, CTLTYPE_UINT | CTLFLAG_RW,
-    &SCTP_BASE_SYSCTL(sctp_udp_tunneling_port), 0, sysctl_sctp_udp_tunneling_check, "IU",
-    SCTPCTL_UDP_TUNNELING_PORT_DESC);
-
-SYSCTL_VNET_PROC(_net_inet_sctp, OID_AUTO, enable_sack_immediately, CTLTYPE_UINT | CTLFLAG_RW,
-    &SCTP_BASE_SYSCTL(sctp_enable_sack_immediately), 0, sysctl_sctp_check, "IU",
-    SCTPCTL_SACK_IMMEDIATELY_ENABLE_DESC);
-
-SYSCTL_VNET_PROC(_net_inet_sctp, OID_AUTO, nat_friendly_init, CTLTYPE_UINT | CTLFLAG_RW,
-    &SCTP_BASE_SYSCTL(sctp_inits_include_nat_friendly), 0, sysctl_sctp_check, "IU",
-    SCTPCTL_NAT_FRIENDLY_INITS_DESC);
-
-SYSCTL_VNET_PROC(_net_inet_sctp, OID_AUTO, vtag_time_wait, CTLTYPE_UINT | CTLFLAG_RW,
-    &SCTP_BASE_SYSCTL(sctp_vtag_time_wait), 0, sysctl_sctp_check, "IU",
-    SCTPCTL_TIME_WAIT_DESC);
-
-SYSCTL_VNET_PROC(_net_inet_sctp, OID_AUTO, buffer_splitting, CTLTYPE_UINT | CTLFLAG_RW,
-    &SCTP_BASE_SYSCTL(sctp_buffer_splitting), 0, sysctl_sctp_check, "IU",
-    SCTPCTL_BUFFER_SPLITTING_DESC);
-
-SYSCTL_VNET_PROC(_net_inet_sctp, OID_AUTO, initial_cwnd, CTLTYPE_UINT | CTLFLAG_RW,
-    &SCTP_BASE_SYSCTL(sctp_initial_cwnd), 0, sysctl_sctp_check, "IU",
-    SCTPCTL_INITIAL_CWND_DESC);
-
-SYSCTL_VNET_PROC(_net_inet_sctp, OID_AUTO, rttvar_bw, CTLTYPE_UINT | CTLFLAG_RW,
-    &SCTP_BASE_SYSCTL(sctp_rttvar_bw), 0, sysctl_sctp_check, "IU",
-    SCTPCTL_RTTVAR_BW_DESC);
-
-SYSCTL_VNET_PROC(_net_inet_sctp, OID_AUTO, rttvar_rtt, CTLTYPE_UINT | CTLFLAG_RW,
-    &SCTP_BASE_SYSCTL(sctp_rttvar_rtt), 0, sysctl_sctp_check, "IU",
-    SCTPCTL_RTTVAR_RTT_DESC);
-
-SYSCTL_VNET_PROC(_net_inet_sctp, OID_AUTO, rttvar_eqret, CTLTYPE_UINT | CTLFLAG_RW,
-    &SCTP_BASE_SYSCTL(sctp_rttvar_eqret), 0, sysctl_sctp_check, "IU",
-    SCTPCTL_RTTVAR_EQRET_DESC);
-
-SYSCTL_VNET_PROC(_net_inet_sctp, OID_AUTO, rttvar_steady_step, CTLTYPE_UINT | CTLFLAG_RW,
-    &SCTP_BASE_SYSCTL(sctp_steady_step), 0, sysctl_sctp_check, "IU",
-    SCTPCTL_RTTVAR_STEADYS_DESC);
-
-SYSCTL_VNET_PROC(_net_inet_sctp, OID_AUTO, use_dcccecn, CTLTYPE_UINT | CTLFLAG_RW,
-    &SCTP_BASE_SYSCTL(sctp_use_dccc_ecn), 0, sysctl_sctp_check, "IU",
-    SCTPCTL_RTTVAR_DCCCECN_DESC);
-
-SYSCTL_VNET_PROC(_net_inet_sctp, OID_AUTO, blackhole, CTLTYPE_UINT | CTLFLAG_RW,
-    &SCTP_BASE_SYSCTL(sctp_blackhole), 0, sysctl_sctp_check, "IU",
-    SCTPCTL_BLACKHOLE_DESC);
-
-SYSCTL_VNET_PROC(_net_inet_sctp, OID_AUTO, diag_info_code, CTLTYPE_UINT | CTLFLAG_RW,
-    &SCTP_BASE_SYSCTL(sctp_diag_info_code), 0, sysctl_sctp_check, "IU",
-    SCTPCTL_DIAG_INFO_CODE_DESC);
-
+SYSCTL_PROC(_net_inet_sctp, OID_AUTO, udp_tunneling_port, CTLFLAG_VNET | CTLTYPE_UINT | CTLFLAG_RW,
+    NULL, 0, sctp_sysctl_handle_udp_tunneling, "IU", SCTPCTL_UDP_TUNNELING_PORT_DESC);
+SCTP_UINT_SYSCTL(enable_sack_immediately, sctp_enable_sack_immediately, SCTPCTL_SACK_IMMEDIATELY_ENABLE)
+SCTP_UINT_SYSCTL(nat_friendly_init, sctp_inits_include_nat_friendly, SCTPCTL_NAT_FRIENDLY_INITS)
+SCTP_UINT_SYSCTL(vtag_time_wait, sctp_vtag_time_wait, SCTPCTL_TIME_WAIT)
+SCTP_UINT_SYSCTL(buffer_splitting, sctp_buffer_splitting, SCTPCTL_BUFFER_SPLITTING)
+SCTP_UINT_SYSCTL(initial_cwnd, sctp_initial_cwnd, SCTPCTL_INITIAL_CWND)
+SCTP_UINT_SYSCTL(rttvar_bw, sctp_rttvar_bw, SCTPCTL_RTTVAR_BW)
+SCTP_UINT_SYSCTL(rttvar_rtt, sctp_rttvar_rtt, SCTPCTL_RTTVAR_RTT)
+SCTP_UINT_SYSCTL(rttvar_eqret, sctp_rttvar_eqret, SCTPCTL_RTTVAR_EQRET)
+SCTP_UINT_SYSCTL(rttvar_steady_step, sctp_steady_step, SCTPCTL_RTTVAR_STEADYS)
+SCTP_UINT_SYSCTL(use_dcccecn, sctp_use_dccc_ecn, SCTPCTL_RTTVAR_DCCCECN)
+SCTP_UINT_SYSCTL(blackhole, sctp_blackhole, SCTPCTL_BLACKHOLE)
+SCTP_UINT_SYSCTL(diag_info_code, sctp_diag_info_code, SCTPCTL_DIAG_INFO_CODE)
 #ifdef SCTP_DEBUG
-SYSCTL_VNET_PROC(_net_inet_sctp, OID_AUTO, debug, CTLTYPE_UINT | CTLFLAG_RW,
-    &SCTP_BASE_SYSCTL(sctp_debug_on), 0, sysctl_sctp_check, "IU",
-    SCTPCTL_DEBUG_DESC);
+SCTP_UINT_SYSCTL(debug, sctp_debug_on, SCTPCTL_DEBUG)
 #endif
-
-
 #if defined(__APPLE__) || defined(SCTP_SO_LOCK_TESTING)
-SYSCTL_VNET_PROC(_net_inet_sctp, OID_AUTO, output_unlocked, CTLTYPE_UINT | CTLFLAG_RW,
-    &SCTP_BASE_SYSCTL(sctp_output_unlocked), 0, sysctl_sctp_check, "IU",
-    SCTPCTL_OUTPUT_UNLOCKED_DESC);
+SCTP_UINT_SYSCTL(output_unlocked, sctp_output_unlocked, SCTPCTL_OUTPUT_UNLOCKED)
 #endif
-
-#if defined(__FreeBSD__) && defined(SMP) && defined(SCTP_USE_PERCPU_STAT)
-SYSCTL_VNET_PROC(_net_inet_sctp, OID_AUTO, stats,
-    CTLTYPE_STRUCT | CTLFLAG_RW,
-    0, 0, sysctl_stat_get, "S,sctpstat",
-    "SCTP statistics (struct sctp_stat)");
-#else
-SYSCTL_VNET_STRUCT(_net_inet_sctp, OID_AUTO, stats, CTLFLAG_RW,
-    &SCTP_BASE_STATS_SYSCTL, sctpstat,
-    "SCTP statistics (struct sctp_stat)");
-#endif
-
-SYSCTL_VNET_PROC(_net_inet_sctp, OID_AUTO, assoclist, CTLTYPE_OPAQUE | CTLFLAG_RD,
-    0, 0, sctp_assoclist,
-    "S,xassoc", "List of active SCTP associations");
+SYSCTL_PROC(_net_inet_sctp, OID_AUTO, stats, CTLFLAG_VNET | CTLTYPE_STRUCT | CTLFLAG_RW,
+    NULL, 0, sctp_sysctl_handle_stats, "S,sctpstat", "SCTP statistics (struct sctp_stat)");
+SYSCTL_PROC(_net_inet_sctp, OID_AUTO, assoclist, CTLFLAG_VNET | CTLTYPE_OPAQUE | CTLFLAG_RD,
+    NULL, 0, sctp_sysctl_handle_assoclist, "S,xassoc", "List of active SCTP associations");

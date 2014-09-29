@@ -200,29 +200,8 @@ ofw_pcibus_enum_devtree(device_t dev, u_int domain, u_int busno)
 		 * interrupts property, so add that value to the device's
 		 * resource list.
 		 */
-		if (dinfo->opd_dinfo.cfg.intpin == 0) {
-			ofw_pci_intr_t intr[2];
-			phandle_t iparent;
-			int icells;
-
-			if (OF_getprop(child, "interrupts", &intr, 
-			    sizeof(intr)) > 0) {
-				iparent = 0;
-				icells = 1;
-				OF_getprop(child, "interrupt-parent", &iparent,
-				    sizeof(iparent));
-				if (iparent != 0) {
-					OF_getprop(OF_node_from_xref(iparent),
-					    "#interrupt-cells", &icells,
-					    sizeof(icells));
-					intr[0] = ofw_bus_map_intr(dev, iparent,
-					    icells, intr);
-				}
-
-				resource_list_add(&dinfo->opd_dinfo.resources,
-				    SYS_RES_IRQ, 0, intr[0], intr[0], 1);
-			}
-		}
+		if (dinfo->opd_dinfo.cfg.intpin == 0)
+			ofw_bus_intr_to_rl(dev, child, &dinfo->opd_dinfo.resources);
 	}
 }
 

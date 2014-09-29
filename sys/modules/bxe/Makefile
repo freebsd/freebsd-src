@@ -18,9 +18,4 @@ SRCS	+= bxe.c               \
 
 CFLAGS += -I${BXE}
 
-clean:
-	rm -f opt_bdg.h device_if.h bus_if.h pci_if.h export_syms
-	rm -f *.o *.kld *.ko
-	rm -f @ machine x86
-
 .include <bsd.kmod.mk>

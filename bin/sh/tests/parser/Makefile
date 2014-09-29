@@ -54,6 +54,7 @@ FILES+=		heredoc8.0
 FILES+=		heredoc9.0
 FILES+=		heredoc10.0
 FILES+=		heredoc11.0
+FILES+=		heredoc12.0
 FILES+=		no-space1.0
 FILES+=		no-space2.0
 FILES+=		only-redir1.0

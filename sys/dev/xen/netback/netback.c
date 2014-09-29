@@ -1829,7 +1829,7 @@ xnb_recv(netif_tx_back_ring_t *txb, domid_t otherend, struct mbuf **mbufc,
 		return 0;	/* Nothing to receive */
 
 	/* update statistics independent of errors */
-	ifnet->if_ipackets++;
+	if_inc_counter(ifnet, IFCOUNTER_IPACKETS, 1);
 
 	/*
 	 * if we got here, then 1 or more requests was consumed, but the packet
@@ -1841,7 +1841,7 @@ xnb_recv(netif_tx_back_ring_t *txb, domid_t otherend, struct mbuf **mbufc,
 		txb->req_cons += num_consumed;
 		DPRINTF("xnb_intr: garbage packet, num_consumed=%d\n",
 				num_consumed);
-		ifnet->if_ierrors++;
+		if_inc_counter(ifnet, IFCOUNTER_IERRORS, 1);
 		return EINVAL;
 	}
 
@@ -1855,7 +1855,7 @@ xnb_recv(netif_tx_back_ring_t *txb, domid_t otherend, struct mbuf **mbufc,
 		xnb_txpkt2rsp(&pkt, txb, 1);
 		DPRINTF("xnb_intr: Couldn't allocate mbufs, num_consumed=%d\n",
 		    num_consumed);
-		ifnet->if_iqdrops++;
+		if_inc_counter(ifnet, IFCOUNTER_IQDROPS, 1);
 		return ENOMEM;
 	}
 
@@ -2364,12 +2364,12 @@ xnb_start_locked(struct ifnet *ifp)
 
 				case EINVAL:
 					/* OS gave a corrupt packet.  Drop it.*/
-					ifp->if_oerrors++;
+					if_inc_counter(ifp, IFCOUNTER_OERRORS, 1);
 					/* FALLTHROUGH */
 				default:
 					/* Send succeeded, or packet had error.
 					 * Free the packet */
-					ifp->if_opackets++;
+					if_inc_counter(ifp, IFCOUNTER_OPACKETS, 1);
 					if (mbufc)
 						m_freem(mbufc);
 					break;

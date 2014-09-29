@@ -179,8 +179,6 @@ struct pic xen_intr_pirq_pic = {
 	.pic_disable_intr   = xen_intr_pirq_disable_intr,
 	.pic_vector         = xen_intr_vector,
 	.pic_source_pending = xen_intr_source_pending,
-	.pic_suspend        = xen_intr_suspend,
-	.pic_resume         = xen_intr_resume,
 	.pic_config_intr    = xen_intr_pirq_config_intr,
 	.pic_assign_cpu     = xen_intr_assign_cpu
 };

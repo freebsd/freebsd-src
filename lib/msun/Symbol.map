@@ -269,6 +269,7 @@ FBSD_1.3 {
 	erfl;
 	expl;
 	expm1l;
+	lgammal;
 	log10l;
 	log1pl;
 	log2l;
@@ -276,7 +277,11 @@ FBSD_1.3 {
 	sinhl;
 	tanhl;
 	/* Implemented as weak aliases for imprecise versions */
-	lgammal;
 	powl;
 	tgammal;
+};
+
+/* First added in 11.0-CURRENT */
+FBSD_1.4 {
+	lgammal_r;
 };

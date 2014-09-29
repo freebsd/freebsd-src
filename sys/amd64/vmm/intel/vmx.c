@@ -52,20 +52,20 @@ __FBSDID("$FreeBSD$");
 #include <machine/vmm.h>
 #include <machine/vmm_dev.h>
 #include <machine/vmm_instruction_emul.h>
+#include "vmm_lapic.h"
 #include "vmm_host.h"
 #include "vmm_ioport.h"
 #include "vmm_ipi.h"
-#include "vmm_msr.h"
 #include "vmm_ktr.h"
 #include "vmm_stat.h"
 #include "vatpic.h"
 #include "vlapic.h"
 #include "vlapic_priv.h"
 
-#include "vmx_msr.h"
 #include "ept.h"
 #include "vmx_cpufunc.h"
 #include "vmx.h"
+#include "vmx_msr.h"
 #include "x86.h"
 #include "vmx_controls.h"
 
@@ -115,12 +115,6 @@ __FBSDID("$FreeBSD$");
 	(VM_ENTRY_LOAD_DEBUG_CONTROLS		|			\
 	VM_ENTRY_INTO_SMM			|			\
 	VM_ENTRY_DEACTIVATE_DUAL_MONITOR)
-
-#define	guest_msr_rw(vmx, msr) \
-	msr_bitmap_change_access((vmx)->msr_bitmap, (msr), MSR_BITMAP_ACCESS_RW)
-
-#define	guest_msr_ro(vmx, msr) \
-    msr_bitmap_change_access((vmx)->msr_bitmap, (msr), MSR_BITMAP_ACCESS_READ)
 
 #define	HANDLED		1
 #define	UNHANDLED	0
@@ -208,6 +202,7 @@ SYSCTL_UINT(_hw_vmm_vmx, OID_AUTO, vpid_alloc_failed, CTLFLAG_RD,
 
 static int vmx_getdesc(void *arg, int vcpu, int reg, struct seg_desc *desc);
 static int vmx_getreg(void *arg, int vcpu, int reg, uint64_t *retval);
+static int vmxctx_setreg(struct vmxctx *vmxctx, int reg, uint64_t val);
 static void vmx_inject_pir(struct vlapic *vlapic);
 
 #ifdef KTR
@@ -475,22 +470,6 @@ vpid_init(void)
 }
 
 static void
-msr_save_area_init(struct msr_entry *g_area, int *g_count)
-{
-	int cnt;
-
-	static struct msr_entry guest_msrs[] = {
-		{ MSR_KGSBASE, 0, 0 },
-	};
-
-	cnt = sizeof(guest_msrs) / sizeof(guest_msrs[0]);
-	if (cnt > GUEST_MSR_MAX_ENTRIES)
-		panic("guest msr save area overrun");
-	bcopy(guest_msrs, g_area, sizeof(guest_msrs));
-	*g_count = cnt;
-}
-
-static void
 vmx_disable(void *arg __unused)
 {
 	struct invvpid_desc invvpid_desc = { 0 };
@@ -655,7 +634,6 @@ vmx_init(int ipinum)
 		} else {
 			if (bootverbose)
 				printf("vmm: PAT MSR access not supported\n");
-			guest_msr_valid(MSR_PAT);
 			vmx_patmsr = 0;
 		}
 	}
@@ -800,6 +778,8 @@ vmx_init(int ipinum)
 
 	vpid_init();
 
+	vmx_msr_init();
+
 	/* enable VMX operation */
 	smp_rendezvous(NULL, vmx_enable, NULL, NULL);
 
@@ -869,7 +849,7 @@ static void *
 vmx_vminit(struct vm *vm, pmap_t pmap)
 {
 	uint16_t vpid[VM_MAXCPU];
-	int i, error, guest_msr_count;
+	int i, error;
 	struct vmx *vmx;
 	struct vmcs *vmcs;
 
@@ -905,12 +885,6 @@ vmx_vminit(struct vm *vm, pmap_t pmap)
 	 * how they are saved/restored so can be directly accessed by the
 	 * guest.
 	 *
-	 * Guest KGSBASE is saved and restored in the guest MSR save area.
-	 * Host KGSBASE is restored before returning to userland from the pcb.
-	 * There will be a window of time when we are executing in the host
-	 * kernel context with a value of KGSBASE from the guest. This is ok
-	 * because the value of KGSBASE is inconsequential in kernel context.
-	 *
 	 * MSR_EFER is saved and restored in the guest VMCS area on a
 	 * VM exit and entry respectively. It is also restored from the
 	 * host VMCS area on a VM exit.
@@ -925,7 +899,6 @@ vmx_vminit(struct vm *vm, pmap_t pmap)
 	    guest_msr_rw(vmx, MSR_SYSENTER_CS_MSR) ||
 	    guest_msr_rw(vmx, MSR_SYSENTER_ESP_MSR) ||
 	    guest_msr_rw(vmx, MSR_SYSENTER_EIP_MSR) ||
-	    guest_msr_rw(vmx, MSR_KGSBASE) ||
 	    guest_msr_rw(vmx, MSR_EFER) ||
 	    guest_msr_ro(vmx, MSR_TSC))
 		panic("vmx_vminit: error setting guest msr access");
@@ -957,6 +930,8 @@ vmx_vminit(struct vm *vm, pmap_t pmap)
 			panic("vmx_vminit: vmclear error %d on vcpu %d\n",
 			      error, i);
 		}
+
+		vmx_msr_guest_init(vmx, i);
 
 		error = vmcs_init(vmcs);
 		KASSERT(error == 0, ("vmcs_init error %d", error));
@@ -995,13 +970,6 @@ vmx_vminit(struct vm *vm, pmap_t pmap)
 
 		vmx->state[i].lastcpu = NOCPU;
 		vmx->state[i].vpid = vpid[i];
-
-		msr_save_area_init(vmx->guest_msrs[i], &guest_msr_count);
-
-		error = vmcs_set_msr_save(vmcs, vtophys(vmx->guest_msrs[i]),
-		    guest_msr_count);
-		if (error != 0)
-			panic("vmcs_set_msr_save error %d", error);
 
 		/*
 		 * Set up the CR0/4 shadows, and init the read shadow
@@ -2078,6 +2046,46 @@ vmx_task_switch_reason(uint64_t qual)
 }
 
 static int
+emulate_wrmsr(struct vmx *vmx, int vcpuid, u_int num, uint64_t val, bool *retu)
+{
+	int error;
+
+	if (lapic_msr(num))
+		error = lapic_wrmsr(vmx->vm, vcpuid, num, val, retu);
+	else
+		error = vmx_wrmsr(vmx, vcpuid, num, val, retu);
+
+	return (error);
+}
+
+static int
+emulate_rdmsr(struct vmx *vmx, int vcpuid, u_int num, bool *retu)
+{
+	struct vmxctx *vmxctx;
+	uint64_t result;
+	uint32_t eax, edx;
+	int error;
+
+	if (lapic_msr(num))
+		error = lapic_rdmsr(vmx->vm, vcpuid, num, &result, retu);
+	else
+		error = vmx_rdmsr(vmx, vcpuid, num, &result, retu);
+
+	if (error == 0) {
+		eax = result;
+		vmxctx = &vmx->ctx[vcpuid];
+		error = vmxctx_setreg(vmxctx, VM_REG_GUEST_RAX, eax);
+		KASSERT(error == 0, ("vmxctx_setreg(rax) error %d", error));
+
+		edx = result >> 32;
+		error = vmxctx_setreg(vmxctx, VM_REG_GUEST_RDX, edx);
+		KASSERT(error == 0, ("vmxctx_setreg(rdx) error %d", error));
+	}
+
+	return (error);
+}
+
+static int
 vmx_exit_process(struct vmx *vmx, int vcpu, struct vm_exit *vmexit)
 {
 	int error, handled, in;
@@ -2215,7 +2223,7 @@ vmx_exit_process(struct vmx *vmx, int vcpu, struct vm_exit *vmexit)
 		retu = false;
 		ecx = vmxctx->guest_rcx;
 		VCPU_CTR1(vmx->vm, vcpu, "rdmsr 0x%08x", ecx);
-		error = emulate_rdmsr(vmx->vm, vcpu, ecx, &retu);
+		error = emulate_rdmsr(vmx, vcpu, ecx, &retu);
 		if (error) {
 			vmexit->exitcode = VM_EXITCODE_RDMSR;
 			vmexit->u.msr.code = ecx;
@@ -2224,7 +2232,7 @@ vmx_exit_process(struct vmx *vmx, int vcpu, struct vm_exit *vmexit)
 		} else {
 			/* Return to userspace with a valid exitcode */
 			KASSERT(vmexit->exitcode != VM_EXITCODE_BOGUS,
-			    ("emulate_wrmsr retu with bogus exitcode"));
+			    ("emulate_rdmsr retu with bogus exitcode"));
 		}
 		break;
 	case EXIT_REASON_WRMSR:
@@ -2235,7 +2243,7 @@ vmx_exit_process(struct vmx *vmx, int vcpu, struct vm_exit *vmexit)
 		edx = vmxctx->guest_rdx;
 		VCPU_CTR2(vmx->vm, vcpu, "wrmsr 0x%08x value 0x%016lx",
 		    ecx, (uint64_t)edx << 32 | eax);
-		error = emulate_wrmsr(vmx->vm, vcpu, ecx,
+		error = emulate_wrmsr(vmx, vcpu, ecx,
 		    (uint64_t)edx << 32 | eax, &retu);
 		if (error) {
 			vmexit->exitcode = VM_EXITCODE_WRMSR;
@@ -2523,6 +2531,8 @@ vmx_run(void *arg, int vcpu, register_t startrip, pmap_t pmap,
 	KASSERT(vmxctx->pmap == pmap,
 	    ("pmap %p different than ctx pmap %p", pmap, vmxctx->pmap));
 
+	vmx_msr_guest_enter(vmx, vcpu);
+
 	VMPTRLD(vmcs);
 
 	/*
@@ -2624,6 +2634,8 @@ vmx_run(void *arg, int vcpu, register_t startrip, pmap_t pmap,
 	    vmexit->exitcode);
 
 	VMCLEAR(vmcs);
+	vmx_msr_guest_exit(vmx, vcpu);
+
 	return (0);
 }
 
@@ -2712,6 +2724,46 @@ vmxctx_setreg(struct vmxctx *vmxctx, int reg, uint64_t val)
 }
 
 static int
+vmx_get_intr_shadow(struct vmx *vmx, int vcpu, int running, uint64_t *retval)
+{
+	uint64_t gi;
+	int error;
+
+	error = vmcs_getreg(&vmx->vmcs[vcpu], running, 
+	    VMCS_IDENT(VMCS_GUEST_INTERRUPTIBILITY), &gi);
+	*retval = (gi & HWINTR_BLOCKING) ? 1 : 0;
+	return (error);
+}
+
+static int
+vmx_modify_intr_shadow(struct vmx *vmx, int vcpu, int running, uint64_t val)
+{
+	struct vmcs *vmcs;
+	uint64_t gi;
+	int error, ident;
+
+	/*
+	 * Forcing the vcpu into an interrupt shadow is not supported.
+	 */
+	if (val) {
+		error = EINVAL;
+		goto done;
+	}
+
+	vmcs = &vmx->vmcs[vcpu];
+	ident = VMCS_IDENT(VMCS_GUEST_INTERRUPTIBILITY);
+	error = vmcs_getreg(vmcs, running, ident, &gi);
+	if (error == 0) {
+		gi &= ~HWINTR_BLOCKING;
+		error = vmcs_setreg(vmcs, running, ident, gi);
+	}
+done:
+	VCPU_CTR2(vmx->vm, vcpu, "Setting intr_shadow to %#lx %s", val,
+	    error ? "failed" : "succeeded");
+	return (error);
+}
+
+static int
 vmx_shadow_reg(int reg)
 {
 	int shreg;
@@ -2742,6 +2794,9 @@ vmx_getreg(void *arg, int vcpu, int reg, uint64_t *retval)
 	if (running && hostcpu != curcpu)
 		panic("vmx_getreg: %s%d is running", vm_name(vmx->vm), vcpu);
 
+	if (reg == VM_REG_GUEST_INTR_SHADOW)
+		return (vmx_get_intr_shadow(vmx, vcpu, running, retval));
+
 	if (vmxctx_getreg(&vmx->ctx[vcpu], reg, retval) == 0)
 		return (0);
 
@@ -2759,6 +2814,9 @@ vmx_setreg(void *arg, int vcpu, int reg, uint64_t val)
 	running = vcpu_is_running(vmx->vm, vcpu, &hostcpu);
 	if (running && hostcpu != curcpu)
 		panic("vmx_setreg: %s%d is running", vm_name(vmx->vm), vcpu);
+
+	if (reg == VM_REG_GUEST_INTR_SHADOW)
+		return (vmx_modify_intr_shadow(vmx, vcpu, running, val));
 
 	if (vmxctx_setreg(&vmx->ctx[vcpu], reg, val) == 0)
 		return (0);

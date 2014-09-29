@@ -60,16 +60,10 @@
 #include <net/firewire.h>
 #include <net/if_arp.h>
 #include <net/if_types.h>
-#ifdef __DragonFly__
-#include <bus/firewire/firewire.h>
-#include <bus/firewire/firewirereg.h>
-#include "if_fwipvar.h"
-#else
 #include <dev/firewire/firewire.h>
 #include <dev/firewire/firewirereg.h>
 #include <dev/firewire/iec13213.h>
 #include <dev/firewire/if_fwipvar.h>
-#endif
 
 /*
  * We really need a mechanism for allocating regions in the FIFO
@@ -139,8 +133,8 @@ fwip_probe(device_t dev)
 	device_t pa;
 
 	pa = device_get_parent(dev);
-	if(device_get_unit(dev) != device_get_unit(pa)){
-		return(ENXIO);
+	if (device_get_unit(dev) != device_get_unit(pa)) {
+		return (ENXIO);
 	}
 
 	device_set_desc(dev, "IP over FireWire");
@@ -189,12 +183,7 @@ fwip_attach(device_t dev)
 	/* fill the rest and attach interface */	
 	ifp->if_softc = &fwip->fw_softc;
 
-#if __FreeBSD_version >= 501113 || defined(__DragonFly__)
 	if_initname(ifp, device_get_name(dev), unit);
-#else
-	ifp->if_unit = unit;
-	ifp->if_name = "fwip";
-#endif
 	ifp->if_init = fwip_init;
 	ifp->if_start = fwip_start;
 	ifp->if_ioctl = fwip_ioctl;
@@ -233,7 +222,7 @@ fwip_stop(struct fwip_softc *fwip)
 			FWXFERQ_EXTBUF | FWXFERQ_HANDLER | FWXFERQ_CHTAGMASK);
 		xferq->hand =  NULL;
 
-		for (i = 0; i < xferq->bnchunk; i ++)
+		for (i = 0; i < xferq->bnchunk; i++)
 			m_freem(xferq->bulkxfer[i].mbuf);
 		free(xferq->bulkxfer, M_FWIP);
 
@@ -255,11 +244,7 @@ fwip_stop(struct fwip_softc *fwip)
 		fwip->dma_ch = -1;
 	}
 
-#if defined(__FreeBSD__)
 	ifp->if_drv_flags &= ~(IFF_DRV_RUNNING | IFF_DRV_OACTIVE);
-#else
-	ifp->if_flags &= ~(IFF_RUNNING | IFF_OACTIVE);
-#endif
 }
 
 static int
@@ -331,7 +316,7 @@ fwip_init(void *arg)
 		STAILQ_INIT(&xferq->stfree);
 		STAILQ_INIT(&xferq->stdma);
 		xferq->stproc = NULL;
-		for (i = 0; i < xferq->bnchunk; i ++) {
+		for (i = 0; i < xferq->bnchunk; i++) {
 			m = m_getcl(M_WAITOK, MT_DATA, M_PKTHDR);
 			xferq->bulkxfer[i].mbuf = m;
 			m->m_len = m->m_pkthdr.len = m->m_ext.ext_size;
@@ -344,7 +329,7 @@ fwip_init(void *arg)
 
 		/* pre-allocate xfer */
 		STAILQ_INIT(&fwip->fwb.xferlist);
-		for (i = 0; i < rx_queue_len; i ++) {
+		for (i = 0; i < rx_queue_len; i++) {
 			xfer = fw_xfer_alloc(M_FWIP);
 			if (xfer == NULL)
 				break;
@@ -380,13 +365,8 @@ fwip_init(void *arg)
 	if ((xferq->flag & FWXFERQ_RUNNING) == 0)
 		fc->irx_enable(fc, fwip->dma_ch);
 
-#if defined(__FreeBSD__)
 	ifp->if_drv_flags |= IFF_DRV_RUNNING;
 	ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
-#else
-	ifp->if_flags |= IFF_RUNNING;
-	ifp->if_flags &= ~IFF_OACTIVE;
-#endif
 
 #if 0
 	/* attempt to start output */
@@ -404,18 +384,10 @@ fwip_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 	case SIOCSIFFLAGS:
 		s = splimp();
 		if (ifp->if_flags & IFF_UP) {
-#if defined(__FreeBSD__)
 			if (!(ifp->if_drv_flags & IFF_DRV_RUNNING))
-#else
-			if (!(ifp->if_flags & IFF_RUNNING))
-#endif
 				fwip_init(&fwip->fw_softc);
 		} else {
-#if defined(__FreeBSD__)
 			if (ifp->if_drv_flags & IFF_DRV_RUNNING)
-#else
-			if (ifp->if_flags & IFF_RUNNING)
-#endif
 				fwip_stop(fwip);
 		}
 		splx(s);
@@ -433,13 +405,12 @@ fwip_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 		    !(ifp->if_capenable & IFCAP_POLLING)) {
 			error = ether_poll_register(fwip_poll, ifp);
 			if (error)
-				return(error);
+				return (error);
 			/* Disable interrupts */
 			fc->set_intr(fc, 0);
 			ifp->if_capenable |= IFCAP_POLLING |
 			    IFCAP_POLLING_NOCOUNT;
 			return (error);
-			
 		}
 		if (!(ifr->ifr_reqcap & IFCAP_POLLING) &&
 		    ifp->if_capenable & IFCAP_POLLING) {
@@ -453,21 +424,11 @@ fwip_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 	    }
 #endif /* DEVICE_POLLING */
 		break;
-#if defined(__FreeBSD__) && __FreeBSD_version >= 500000
 	default:
-#else
-	case SIOCSIFADDR:
-	case SIOCGIFADDR:
-	case SIOCSIFMTU:
-#endif
 		s = splimp();
 		error = firewire_ioctl(ifp, cmd, data);
 		splx(s);
 		return (error);
-#if defined(__DragonFly__) || __FreeBSD_version < 500000
-	default:
-		return (EINVAL);
-#endif
 	}
 
 	return (0);
@@ -516,8 +477,7 @@ fwip_output_callback(struct fw_xfer *xfer)
 	/* XXX error check */
 	FWIPDEBUG(ifp, "resp = %d\n", xfer->resp);
 	if (xfer->resp != 0)
-		ifp->if_oerrors ++;
-		
+		if_inc_counter(ifp, IFCOUNTER_OERRORS, 1);
 	m_freem(xfer->mbuf);
 	fw_xfer_unload(xfer);
 
@@ -551,7 +511,7 @@ fwip_start(struct ifnet *ifp)
 			IF_DEQUEUE(&ifp->if_snd, m);
 			if (m != NULL)
 				m_freem(m);
-			ifp->if_oerrors ++;
+			if_inc_counter(ifp, IFCOUNTER_OERRORS, 1);
 		} while (m != NULL);
 		splx(s);
 
@@ -559,20 +519,12 @@ fwip_start(struct ifnet *ifp)
 	}
 
 	s = splimp();
-#if defined(__FreeBSD__)
 	ifp->if_drv_flags |= IFF_DRV_OACTIVE;
-#else
-	ifp->if_flags |= IFF_OACTIVE;
-#endif
 
 	if (ifp->if_snd.ifq_len != 0)
 		fwip_async_output(fwip, ifp);
 
-#if defined(__FreeBSD__)
 	ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
-#else
-	ifp->if_flags &= ~IFF_OACTIVE;
-#endif
 	splx(s);
 }
 
@@ -686,7 +638,7 @@ fwip_async_output(struct fwip_softc *fwip, struct ifnet *ifp)
 				fd = fw_noderesolve_eui64(fc, &eui);
 				if (!fd) {
 					/* error */
-					ifp->if_oerrors ++;
+					if_inc_counter(ifp, IFCOUNTER_OERRORS, 1);
 					/* XXX set error code */
 					fwip_output_callback(xfer);
 					continue;
@@ -727,12 +679,12 @@ fwip_async_output(struct fwip_softc *fwip, struct ifnet *ifp)
 		}
 		if (error) {
 			/* error */
-			ifp->if_oerrors ++;
+			if_inc_counter(ifp, IFCOUNTER_OERRORS, 1);
 			/* XXX set error code */
 			fwip_output_callback(xfer);
 			continue;
 		} else {
-			ifp->if_opackets ++;
+			if_inc_counter(ifp, IFCOUNTER_OPACKETS, 1);
 			i++;
 		}
 	}
@@ -794,7 +746,7 @@ fwip_stream_input(struct fw_xferq *xferq)
 		if (sxfer->resp != 0 || fp->mode.stream.len <
 		    2*sizeof(uint32_t)) {
 			m_freem(m);
-			ifp->if_ierrors ++;
+			if_inc_counter(ifp, IFCOUNTER_IERRORS, 1);
 			continue;
 		}
 		m->m_len = m->m_pkthdr.len = fp->mode.stream.len
@@ -820,7 +772,7 @@ fwip_stream_input(struct fw_xferq *xferq)
 			FWIPDEBUG(ifp, "Unrecognised GASP header %#08x %#08x\n",
 			    ntohl(p[1]), ntohl(p[2]));
 			m_freem(m);
-			ifp->if_ierrors ++;
+			if_inc_counter(ifp, IFCOUNTER_IERRORS, 1);
 			continue;
 		}
 
@@ -855,7 +807,7 @@ fwip_stream_input(struct fw_xferq *xferq)
 		m_adj(m, 3*sizeof(uint32_t));
 		m->m_pkthdr.rcvif = ifp;
 		firewire_input(ifp, m, src);
-		ifp->if_ipackets ++;
+		if_inc_counter(ifp, IFCOUNTER_IPACKETS, 1);
 	}
 	if (STAILQ_FIRST(&xferq->stfree) != NULL)
 		fwip->fd.fc->irx_enable(fwip->fd.fc, fwip->dma_ch);
@@ -921,7 +873,7 @@ fwip_unicast_input(struct fw_xfer *xfer)
 	 */
 	if (rtcode != FWRCODE_COMPLETE) {
 		m_freem(m);
-		ifp->if_ierrors ++;
+		if_inc_counter(ifp, IFCOUNTER_IERRORS, 1);
 		return;
 	}
 
@@ -956,7 +908,7 @@ fwip_unicast_input(struct fw_xfer *xfer)
 	m->m_len = m->m_pkthdr.len = fp->mode.wreqb.len;
 	m->m_pkthdr.rcvif = ifp;
 	firewire_input(ifp, m, fp->mode.wreqb.src);
-	ifp->if_ipackets ++;
+	if_inc_counter(ifp, IFCOUNTER_IPACKETS, 1);
 }
 
 static devclass_t fwip_devclass;
@@ -977,9 +929,6 @@ static driver_t fwip_driver = {
 };
 
 
-#ifdef __DragonFly__
-DECLARE_DUMMY_MODULE(fwip);
-#endif
 DRIVER_MODULE(fwip, firewire, fwip_driver, fwip_devclass, 0, 0);
 MODULE_VERSION(fwip, 1);
 MODULE_DEPEND(fwip, firewire, 1, 1, 1);

@@ -1,7 +1,7 @@
 /*-
  * Copyright (c) 2002-2003
  * 	Hidetoshi Shimokawa. All rights reserved.
- * 
+ *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
  * are met:
@@ -18,7 +18,7 @@
  * 4. Neither the name of the author nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
- * 
+ *
  * THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
  * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
@@ -30,7 +30,7 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- * 
+ *
  * $FreeBSD$
  */
 
@@ -57,18 +57,11 @@
 #include <net/if_var.h>
 #include <net/if_arp.h>
 #include <net/if_types.h>
-#ifdef __DragonFly__
-#include <net/vlan/if_vlan_var.h>
-#include <bus/firewire/firewire.h>
-#include <bus/firewire/firewirereg.h>
-#include "if_fwevar.h"
-#else
 #include <net/if_vlan_var.h>
 
 #include <dev/firewire/firewire.h>
 #include <dev/firewire/firewirereg.h>
 #include <dev/firewire/if_fwevar.h>
-#endif
 
 #define FWEDEBUG	if (fwedebug) if_printf
 #define TX_MAX_QUEUE	(FWMAXQUEUE - 1)
@@ -130,8 +123,8 @@ fwe_probe(device_t dev)
 	device_t pa;
 
 	pa = device_get_parent(dev);
-	if(device_get_unit(dev) != device_get_unit(pa)){
-		return(ENXIO);
+	if (device_get_unit(dev) != device_get_unit(pa)) {
+		return (ENXIO);
 	}
 
 	device_set_desc(dev, "Ethernet over FireWire");
@@ -144,11 +137,7 @@ fwe_attach(device_t dev)
 	struct fwe_softc *fwe;
 	struct ifnet *ifp;
 	int unit, s;
-#if defined(__DragonFly__) || __FreeBSD_version < 500000
-	u_char *eaddr;
-#else
 	u_char eaddr[6];
-#endif
 	struct fw_eui64 *eui;
 
 	fwe = ((struct fwe_softc *)device_get_softc(dev));
@@ -175,10 +164,6 @@ fwe_attach(device_t dev)
 	/* generate fake MAC address: first and last 3bytes from eui64 */
 #define LOCAL (0x02)
 #define GROUP (0x01)
-#if defined(__DragonFly__) || __FreeBSD_version < 500000
-	eaddr = &IFP2ENADDR(fwe->eth_softc.ifp)[0];
-#endif
-
 
 	eui = &fwe->fd.fc->eui;
 	eaddr[0] = (FW_EUI64_BYTE(eui, 0) | LOCAL) & ~GROUP;
@@ -191,7 +176,7 @@ fwe_attach(device_t dev)
 		"%02x:%02x:%02x:%02x:%02x:%02x\n", unit,
 		eaddr[0], eaddr[1], eaddr[2], eaddr[3], eaddr[4], eaddr[5]);
 
-	/* fill the rest and attach interface */	
+	/* fill the rest and attach interface */
 	ifp = fwe->eth_softc.ifp = if_alloc(IFT_ETHER);
 	if (ifp == NULL) {
 		device_printf(dev, "can not if_alloc()\n");
@@ -199,36 +184,21 @@ fwe_attach(device_t dev)
 	}
 	ifp->if_softc = &fwe->eth_softc;
 
-#if __FreeBSD_version >= 501113 || defined(__DragonFly__)
 	if_initname(ifp, device_get_name(dev), unit);
-#else
-	ifp->if_unit = unit;
-	ifp->if_name = "fwe";
-#endif
 	ifp->if_init = fwe_init;
-#if defined(__DragonFly__) || __FreeBSD_version < 500000
-	ifp->if_output = ether_output;
-#endif
 	ifp->if_start = fwe_start;
 	ifp->if_ioctl = fwe_ioctl;
 	ifp->if_flags = (IFF_BROADCAST|IFF_SIMPLEX|IFF_MULTICAST);
 	ifp->if_snd.ifq_maxlen = TX_MAX_QUEUE;
 
 	s = splimp();
-#if defined(__DragonFly__) || __FreeBSD_version < 500000
-	ether_ifattach(ifp, 1);
-#else
 	ether_ifattach(ifp, eaddr);
-#endif
 	splx(s);
 
         /* Tell the upper layer(s) we support long frames. */
 	ifp->if_hdrlen = sizeof(struct ether_vlan_header);
-#if defined(__FreeBSD__) && __FreeBSD_version >= 500000
 	ifp->if_capabilities |= IFCAP_VLAN_MTU | IFCAP_POLLING;
 	ifp->if_capenable |= IFCAP_VLAN_MTU;
-#endif
-
 
 	FWEDEBUG(ifp, "interface created\n");
 	return 0;
@@ -250,12 +220,12 @@ fwe_stop(struct fwe_softc *fwe)
 
 		if (xferq->flag & FWXFERQ_RUNNING)
 			fc->irx_disable(fc, fwe->dma_ch);
-		xferq->flag &= 
+		xferq->flag &=
 			~(FWXFERQ_MODEMASK | FWXFERQ_OPEN | FWXFERQ_STREAM |
 			FWXFERQ_EXTBUF | FWXFERQ_HANDLER | FWXFERQ_CHTAGMASK);
 		xferq->hand =  NULL;
 
-		for (i = 0; i < xferq->bnchunk; i ++)
+		for (i = 0; i < xferq->bnchunk; i++)
 			m_freem(xferq->bulkxfer[i].mbuf);
 		free(xferq->bulkxfer, M_FWE);
 
@@ -270,11 +240,7 @@ fwe_stop(struct fwe_softc *fwe)
 		fwe->dma_ch = -1;
 	}
 
-#if defined(__FreeBSD__)
 	ifp->if_drv_flags &= ~(IFF_DRV_RUNNING | IFF_DRV_OACTIVE);
-#else
-	ifp->if_flags &= ~(IFF_RUNNING | IFF_OACTIVE);
-#endif
 }
 
 static int
@@ -294,12 +260,8 @@ fwe_detach(device_t dev)
 	s = splimp();
 
 	fwe_stop(fwe);
-#if defined(__DragonFly__) || __FreeBSD_version < 500000
-	ether_ifdetach(ifp, 1);
-#else
 	ether_ifdetach(ifp);
 	if_free(ifp);
-#endif
 
 	splx(s);
 	mtx_destroy(&fwe->mtx);
@@ -353,7 +315,7 @@ fwe_init(void *arg)
 		STAILQ_INIT(&xferq->stfree);
 		STAILQ_INIT(&xferq->stdma);
 		xferq->stproc = NULL;
-		for (i = 0; i < xferq->bnchunk; i ++) {
+		for (i = 0; i < xferq->bnchunk; i++) {
 			m = m_getcl(M_WAITOK, MT_DATA, M_PKTHDR);
 			xferq->bulkxfer[i].mbuf = m;
 			m->m_len = m->m_pkthdr.len = m->m_ext.ext_size;
@@ -379,13 +341,8 @@ fwe_init(void *arg)
 	if ((xferq->flag & FWXFERQ_RUNNING) == 0)
 		fc->irx_enable(fc, fwe->dma_ch);
 
-#if defined(__FreeBSD__)
 	ifp->if_drv_flags |= IFF_DRV_RUNNING;
 	ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
-#else
-	ifp->if_flags |= IFF_RUNNING;
-	ifp->if_flags &= ~IFF_OACTIVE;
-#endif
 
 #if 0
 	/* attempt to start output */
@@ -405,18 +362,10 @@ fwe_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 		case SIOCSIFFLAGS:
 			s = splimp();
 			if (ifp->if_flags & IFF_UP) {
-#if defined(__FreeBSD__)
 				if (!(ifp->if_drv_flags & IFF_DRV_RUNNING))
-#else
-				if (!(ifp->if_flags & IFF_RUNNING))
-#endif
 					fwe_init(&fwe->eth_softc);
 			} else {
-#if defined(__FreeBSD__)
 				if (ifp->if_drv_flags & IFF_DRV_RUNNING)
-#else
-				if (ifp->if_flags & IFF_RUNNING)
-#endif
 					fwe_stop(fwe);
 			}
 			/* XXX keep promiscoud mode */
@@ -444,7 +393,7 @@ fwe_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 			    !(ifp->if_capenable & IFCAP_POLLING)) {
 				error = ether_poll_register(fwe_poll, ifp);
 				if (error)
-					return(error);
+					return (error);
 				/* Disable interrupts */
 				fc->set_intr(fc, 0);
 				ifp->if_capenable |= IFCAP_POLLING;
@@ -463,21 +412,11 @@ fwe_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 		    }
 #endif /* DEVICE_POLLING */
 			break;
-#if defined(__FreeBSD__) && __FreeBSD_version >= 500000
 		default:
-#else
-		case SIOCSIFADDR:
-		case SIOCGIFADDR:
-		case SIOCSIFMTU:
-#endif
 			s = splimp();
 			error = ether_ioctl(ifp, cmd, data);
 			splx(s);
 			return (error);
-#if defined(__DragonFly__) || __FreeBSD_version < 500000
-		default:
-			return (EINVAL);
-#endif
 	}
 
 	return (0);
@@ -495,8 +434,7 @@ fwe_output_callback(struct fw_xfer *xfer)
 	/* XXX error check */
 	FWEDEBUG(ifp, "resp = %d\n", xfer->resp);
 	if (xfer->resp != 0)
-		ifp->if_oerrors ++;
-		
+		if_inc_counter(ifp, IFCOUNTER_OERRORS, 1);
 	m_freem(xfer->mbuf);
 	fw_xfer_unload(xfer);
 
@@ -529,7 +467,7 @@ fwe_start(struct ifnet *ifp)
 			IF_DEQUEUE(&ifp->if_snd, m);
 			if (m != NULL)
 				m_freem(m);
-			ifp->if_oerrors ++;
+			if_inc_counter(ifp, IFCOUNTER_OERRORS, 1);
 		} while (m != NULL);
 		splx(s);
 
@@ -537,20 +475,12 @@ fwe_start(struct ifnet *ifp)
 	}
 
 	s = splimp();
-#if defined(__FreeBSD__)
 	ifp->if_drv_flags |= IFF_DRV_OACTIVE;
-#else
-	ifp->if_flags |= IFF_OACTIVE;
-#endif
 
 	if (ifp->if_snd.ifq_len != 0)
 		fwe_as_output(fwe, ifp);
 
-#if defined(__FreeBSD__)
 	ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
-#else
-	ifp->if_flags &= ~IFF_OACTIVE;
-#endif
 	splx(s);
 }
 
@@ -591,12 +521,7 @@ fwe_as_output(struct fwe_softc *fwe, struct ifnet *ifp)
 			FWE_UNLOCK(fwe);
 			break;
 		}
-#if defined(__DragonFly__) || __FreeBSD_version < 500000
-		if (ifp->if_bpf != NULL)
-			bpf_mtap(ifp, m);
-#else
 		BPF_MTAP(ifp, m);
-#endif
 
 		/* keep ip packet alignment for alpha */
 		M_PREPEND(m, ETHER_ALIGN, M_NOWAIT);
@@ -608,11 +533,11 @@ fwe_as_output(struct fwe_softc *fwe, struct ifnet *ifp)
 
 		if (fw_asyreq(fwe->fd.fc, -1, xfer) != 0) {
 			/* error */
-			ifp->if_oerrors ++;
+			if_inc_counter(ifp, IFCOUNTER_OERRORS, 1);
 			/* XXX set error code */
 			fwe_output_callback(xfer);
 		} else {
-			ifp->if_opackets ++;
+			if_inc_counter(ifp, IFCOUNTER_OPACKETS, 1);
 			i++;
 		}
 	}
@@ -634,9 +559,6 @@ fwe_as_input(struct fw_xferq *xferq)
 	struct fw_bulkxfer *sxfer;
 	struct fw_pkt *fp;
 	u_char *c;
-#if defined(__DragonFly__) || __FreeBSD_version < 500000
-	struct ether_header *eh;
-#endif
 
 	fwe = (struct fwe_softc *)xferq->sc;
 	ifp = fwe->eth_softc.ifp;
@@ -660,20 +582,13 @@ fwe_as_input(struct fw_xferq *xferq)
 		if (sxfer->resp != 0 || fp->mode.stream.len <
 		    ETHER_ALIGN + sizeof(struct ether_header)) {
 			m_freem(m);
-			ifp->if_ierrors ++;
+			if_inc_counter(ifp, IFCOUNTER_IERRORS, 1);
 			continue;
 		}
 
 		m->m_data += HDR_LEN + ETHER_ALIGN;
 		c = mtod(m, u_char *);
-#if defined(__DragonFly__) || __FreeBSD_version < 500000
-		eh = (struct ether_header *)c;
-		m->m_data += sizeof(struct ether_header);
-		m->m_len = m->m_pkthdr.len = fp->mode.stream.len - ETHER_ALIGN
-		    - sizeof(struct ether_header);
-#else
 		m->m_len = m->m_pkthdr.len = fp->mode.stream.len - ETHER_ALIGN;
-#endif
 		m->m_pkthdr.rcvif = ifp;
 #if 0
 		FWEDEBUG(ifp, "%02x %02x %02x %02x %02x %02x\n"
@@ -688,14 +603,10 @@ fwe_as_input(struct fw_xferq *xferq)
 			 c[16], c[17], c[18], c[19],
 			 c[20], c[21], c[22], c[23],
 			 c[20], c[21], c[22], c[23]
-		 );
+		);
 #endif
-#if defined(__DragonFly__) || __FreeBSD_version < 500000
-		ether_input(ifp, eh, m);
-#else
 		(*ifp->if_input)(ifp, m);
-#endif
-		ifp->if_ipackets ++;
+		if_inc_counter(ifp, IFCOUNTER_IPACKETS, 1);
 	}
 	if (STAILQ_FIRST(&xferq->stfree) != NULL)
 		fwe->fd.fc->irx_enable(fwe->fd.fc, fwe->dma_ch);
@@ -720,9 +631,6 @@ static driver_t fwe_driver = {
 };
 
 
-#ifdef __DragonFly__
-DECLARE_DUMMY_MODULE(fwe);
-#endif
 DRIVER_MODULE(fwe, firewire, fwe_driver, fwe_devclass, 0, 0);
 MODULE_VERSION(fwe, 1);
 MODULE_DEPEND(fwe, firewire, 1, 1, 1);

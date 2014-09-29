@@ -1699,13 +1699,6 @@ linux_ioctl_vfat(struct thread *td, struct linux_ioctl_args *args)
  * Sound related ioctls
  */
 
-struct linux_mixer_info {
-	char	id[16];
-	char	name[32];
-	int	modify_counter;
-	int	fillers[10];
-};
-
 struct linux_old_mixer_info {
 	char	id[16];
 	char	name[32];
@@ -1793,12 +1786,8 @@ linux_ioctl_sound(struct thread *td, struct linux_ioctl_args *args)
 		/* Key on encoded length */
 		switch ((args->cmd >> 16) & 0x1fff) {
 		case 0x005c: {	/* SOUND_MIXER_INFO */
-			struct linux_mixer_info info;
-			bzero(&info, sizeof(info));
-			strncpy(info.id, "OSS", sizeof(info.id) - 1);
-			strncpy(info.name, "FreeBSD OSS Mixer", sizeof(info.name) - 1);
-			copyout(&info, (void *)args->arg, sizeof(info));
-			return (0);
+			args->cmd = SOUND_MIXER_INFO;
+			return (sys_ioctl(td, (struct ioctl_args *)args));
 		}
 		case 0x0030: {	/* SOUND_OLD_MIXER_INFO */
 			struct linux_old_mixer_info info;

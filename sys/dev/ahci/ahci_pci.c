@@ -273,6 +273,7 @@ static struct {
 	{0x0d8d10de, 0x00, "NVIDIA MCP89",	AHCI_Q_NOAA},
 	{0x0d8e10de, 0x00, "NVIDIA MCP89",	AHCI_Q_NOAA},
 	{0x0d8f10de, 0x00, "NVIDIA MCP89",	AHCI_Q_NOAA},
+	{0x3781105a, 0x00, "Promise TX8660",	0},
 	{0x33491106, 0x00, "VIA VT8251",	AHCI_Q_NOPMP|AHCI_Q_NONCQ},
 	{0x62871106, 0x00, "VIA VT8251",	AHCI_Q_NOPMP|AHCI_Q_NONCQ},
 	{0x11841039, 0x00, "SiS 966",		0},
@@ -415,13 +416,6 @@ ahci_pci_attach(device_t dev)
 	if (ctlr->msi && pci_alloc_msi(dev, &ctlr->numirqs) != 0) {
 		ctlr->msi = 0;
 		ctlr->numirqs = 1;
-	}
-
-	if (ahci_setup_interrupt(dev)) {
-		if (ctlr->msi)
-			pci_release_msi(dev);
-		bus_release_resource(dev, SYS_RES_MEMORY, ctlr->r_rid, ctlr->r_mem);
-		return ENXIO;
 	}
 
 	error = ahci_attach(dev);

@@ -46,6 +46,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/module.h>
 #include <sys/malloc.h>
 #include <sys/rman.h>
+#include <machine/armreg.h>
 #include <machine/bus.h>
 #include <machine/intr.h>
 
@@ -202,7 +203,7 @@ arm_mask_irq(uintptr_t nb)
 {
 	int i;
 
-	i = disable_interrupts(I32_bit);
+	i = disable_interrupts(PSR_I);
 	if (nb < 32) {
 		intr_enabled &= ~(1 << nb);
 		ixp425_set_intrmask();
@@ -220,7 +221,7 @@ arm_unmask_irq(uintptr_t nb)
 {
 	int i;
 
-	i = disable_interrupts(I32_bit);
+	i = disable_interrupts(PSR_I);
 	if (nb < 32) {
 		intr_enabled |= (1 << nb);
 		ixp425_set_intrmask();

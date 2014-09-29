@@ -7,10 +7,9 @@ branches and you are supposed to follow those:
 
 	http://www.freebsd.org/doc/en/articles/committers-guide/subversion-primer.html
 
-The ATF source code is hosted on Google Code as a subcomponent of the
-Kyua project:
+The ATF source code is hosted on GitHub:
 
-	http://code.google.com/p/kyua/downloads/list
+	https://github.com/jmmv/atf
 
 and is imported into the atf vendor branch (see base/vendor/atf/).
 
@@ -42,7 +41,7 @@ the vendor branch as you easily risk committing build products into the
 tree.
 
 Lastly, with the list of old and new files in this import, make sure
-to udpate the reachover Makefiles accordingly.
+to update the reachover Makefiles accordingly.
 
 Test the build (keeping in mind the WITH_TESTS/WITHOUT_TESTS knobs) and,
 if all looks good, you are ready to commit all the changes in one go.

@@ -1966,6 +1966,22 @@ check_required_after()
 	return 0
 }
 
+# check_jail mib
+#	Return true if security.jail.$mib exists and set to 1.
+
+check_jail()
+{
+	local _mib _v
+
+	_mib=$1
+	if _v=$(${SYSCTL_N} "security.jail.$_mib" 2> /dev/null); then
+		case $_v in
+		1)	return 0;;
+		esac
+	fi
+	return 1
+}
+
 # check_kern_features mib
 #	Return existence of kern.features.* sysctl MIB as true or
 #	false.  The result will be cached in $_rc_cache_kern_features_

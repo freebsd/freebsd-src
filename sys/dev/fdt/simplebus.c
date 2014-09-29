@@ -247,11 +247,9 @@ simplebus_setup_dinfo(device_t dev, phandle_t node)
 {
 	struct simplebus_softc *sc;
 	struct simplebus_devinfo *ndi;
-	uint32_t *reg, *intr, icells;
+	uint32_t *reg;
 	uint64_t phys, size;
-	phandle_t iparent;
 	int i, j, k;
-	int nintr;
 	int nreg;
 
 	sc = device_get_softc(dev);
@@ -289,34 +287,7 @@ simplebus_setup_dinfo(device_t dev, phandle_t node)
 	}
 	free(reg, M_OFWPROP);
 
-	nintr = OF_getencprop_alloc(node, "interrupts",  sizeof(*intr),
-	    (void **)&intr);
-	if (nintr > 0) {
-		if (OF_searchencprop(node, "interrupt-parent", &iparent,
-		    sizeof(iparent)) == -1) {
-			device_printf(dev, "No interrupt-parent found, "
-			    "assuming direct parent\n");
-			iparent = OF_parent(node);
-		}
-		if (OF_searchencprop(OF_node_from_xref(iparent), 
-		    "#interrupt-cells", &icells, sizeof(icells)) == -1) {
-			device_printf(dev, "Missing #interrupt-cells property, "
-			    "assuming <1>\n");
-			icells = 1;
-		}
-		if (icells < 1 || icells > nintr) {
-			device_printf(dev, "Invalid #interrupt-cells property "
-			    "value <%d>, assuming <1>\n", icells);
-			icells = 1;
-		}
-		for (i = 0, k = 0; i < nintr; i += icells, k++) {
-			intr[i] = ofw_bus_map_intr(dev, iparent, icells,
-			    &intr[i]);
-			resource_list_add(&ndi->rl, SYS_RES_IRQ, k, intr[i],
-			    intr[i], 1);
-		}
-		free(intr, M_OFWPROP);
-	}
+	ofw_bus_intr_to_rl(dev, node, &ndi->rl);
 
 	return (ndi);
 }

@@ -147,9 +147,9 @@ ctl_port_register(struct ctl_port *port, int master_shelf)
 	KASSERT(control_softc != NULL, ("CTL is not initialized"));
 
 	mtx_lock(&control_softc->ctl_lock);
-	port_num = ctl_ffz(&control_softc->ctl_port_mask, CTL_MAX_PORTS);
+	port_num = ctl_ffz(control_softc->ctl_port_mask, CTL_MAX_PORTS);
 	if ((port_num == -1)
-	 || (ctl_set_mask(&control_softc->ctl_port_mask, port_num) == -1)) {
+	 || (ctl_set_mask(control_softc->ctl_port_mask, port_num) == -1)) {
 		port->targ_port = -1;
 		mtx_unlock(&control_softc->ctl_lock);
 		return (1);
@@ -183,7 +183,7 @@ ctl_port_register(struct ctl_port *port, int master_shelf)
 error:
 		port->targ_port = -1;
 		mtx_lock(&control_softc->ctl_lock);
-		ctl_clear_mask(&control_softc->ctl_port_mask, port_num);
+		ctl_clear_mask(control_softc->ctl_port_mask, port_num);
 		mtx_unlock(&control_softc->ctl_lock);
 		return (retval);
 	}
@@ -223,7 +223,7 @@ ctl_port_deregister(struct ctl_port *port)
 	control_softc->num_ports--;
 	port_num = (port->targ_port < CTL_MAX_PORTS) ? port->targ_port :
 	    port->targ_port - CTL_MAX_PORTS;
-	ctl_clear_mask(&control_softc->ctl_port_mask, port_num);
+	ctl_clear_mask(control_softc->ctl_port_mask, port_num);
 	control_softc->ctl_ports[port_num] = NULL;
 	mtx_unlock(&control_softc->ctl_lock);
 

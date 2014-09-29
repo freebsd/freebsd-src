@@ -241,10 +241,10 @@ data_abort_handler(struct trapframe *tf)
 	pcb = td->td_pcb;
 	/* Re-enable interrupts if they were enabled previously */
 	if (td->td_md.md_spinlock_count == 0) {
-		if (__predict_true(tf->tf_spsr & I32_bit) == 0)
-			enable_interrupts(I32_bit);
-		if (__predict_true(tf->tf_spsr & F32_bit) == 0)
-			enable_interrupts(F32_bit);
+		if (__predict_true(tf->tf_spsr & PSR_I) == 0)
+			enable_interrupts(PSR_I);
+		if (__predict_true(tf->tf_spsr & PSR_F) == 0)
+			enable_interrupts(PSR_F);
 	}
 
 
@@ -451,7 +451,7 @@ dab_fatal(struct trapframe *tf, u_int fsr, u_int far, struct thread *td,
 
 	mode = TRAP_USERMODE(tf) ? "user" : "kernel";
 
-	disable_interrupts(I32_bit|F32_bit);
+	disable_interrupts(PSR_I|PSR_F);
 	if (td != NULL) {
 		printf("Fatal %s mode data abort: '%s'\n", mode,
 		    data_aborts[fsr & FAULT_TYPE_MASK].desc);
@@ -661,10 +661,10 @@ prefetch_abort_handler(struct trapframe *tf)
 	}
 	fault_pc = tf->tf_pc;
 	if (td->td_md.md_spinlock_count == 0) {
-		if (__predict_true(tf->tf_spsr & I32_bit) == 0)
-			enable_interrupts(I32_bit);
-		if (__predict_true(tf->tf_spsr & F32_bit) == 0)
-			enable_interrupts(F32_bit);
+		if (__predict_true(tf->tf_spsr & PSR_I) == 0)
+			enable_interrupts(PSR_I);
+		if (__predict_true(tf->tf_spsr & PSR_F) == 0)
+			enable_interrupts(PSR_F);
 	}
 
 	/* Prefetch aborts cannot happen in kernel mode */
@@ -869,10 +869,10 @@ swi_handler(struct trapframe *frame)
 	 * be safe to enable them, but check anyway.
 	 */
 	if (td->td_md.md_spinlock_count == 0) {
-		if (__predict_true(frame->tf_spsr & I32_bit) == 0)
-			enable_interrupts(I32_bit);
-		if (__predict_true(frame->tf_spsr & F32_bit) == 0)
-			enable_interrupts(F32_bit);
+		if (__predict_true(frame->tf_spsr & PSR_I) == 0)
+			enable_interrupts(PSR_I);
+		if (__predict_true(frame->tf_spsr & PSR_F) == 0)
+			enable_interrupts(PSR_F);
 	}
 
 	syscall(td, frame);
