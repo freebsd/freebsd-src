@@ -1,6 +1,22 @@
 # $FreeBSD$
 
-PORTSDIR?=	/usr/ports
+.if !defined(PORTSDIR)
+# Autodetect if the command is being run in a ports tree that's not rooted
+# in the default /usr/ports.  The ../../.. case is in case ports ever grows
+# a third level.
+.if exists(${.CURDIR}/Mk/bsd.port.mk)
+PORTSDIR=	${.CURDIR}
+.elif exists(${.CURDIR}/../Mk/bsd.port.mk)
+PORTSDIR=	${.CURDIR}/..
+.elif exists(${.CURDIR}/../../Mk/bsd.port.mk)
+PORTSDIR=	${.CURDIR}/../..
+.elif exists(${.CURDIR}/../../../Mk/bsd.port.mk)
+PORTSDIR=	${.CURDIR}/../../..
+.else
+PORTSDIR=	/usr/ports
+.endif
+.endif
+
 BSDPORTMK?=	${PORTSDIR}/Mk/bsd.port.mk
 
 # Needed to keep bsd.own.mk from reading in /etc/src.conf
