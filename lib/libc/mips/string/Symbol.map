@@ -1,0 +1,15 @@
+/*
+ * $FreeBSD$
+ */
+
+FBSD_1.0 {
+	memcpy_c;
+	memcpy_c_fromcap;
+	memcpy_c_tocap;
+	memmove_c;
+	memset_c;
+	strnlen_c;
+	strncpy_c;
+	strncpy_c_fromcap;
+	strncpy_c_tocap;
+};

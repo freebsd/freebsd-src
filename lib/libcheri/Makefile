@@ -11,12 +11,6 @@ SRCS=	cheri_invoke.S			\
 	sandbox.c			\
 	sandbox_loader.c		\
 
-# Temporary stuff that should be in libc or similar
-SRCS+=	memcpy_c.s			\
-	memcpy_c_tofrom.c		\
-	strnlen_c.c			\
-	strncpy_c.c
-
 INCS=	cheri_class.h			\
 	cheri_enter.h			\
 	cheri_fd.h			\
