@@ -94,7 +94,8 @@ pam_sm_acct_mgmt(pam_handle_t *pamh, int flags __unused,
 		PAM_VERBOSE_ERROR("%s is not allowed to log in on %s",
 		    user, tty);
 	} else {
-		PAM_LOG("Checking login.access for user %s", user);
+		PAM_LOG("Checking login.access for user %s",
+		    (const char *)user);
 		if (login_access(user, "***unknown***") != 0)
 			return (PAM_SUCCESS);
 		PAM_VERBOSE_ERROR("%s is not allowed to log in", user);
