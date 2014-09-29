@@ -165,12 +165,13 @@ typedef enum
     ASL_FILE_C_SOURCE_OUTPUT,
     ASL_FILE_ASM_INCLUDE_OUTPUT,
     ASL_FILE_C_INCLUDE_OUTPUT,
-    ASL_FILE_C_OFFSET_OUTPUT
+    ASL_FILE_C_OFFSET_OUTPUT,
+    ASL_FILE_MAP_OUTPUT
 
 } ASL_FILE_TYPES;
 
 
-#define ASL_MAX_FILE_TYPE       14
+#define ASL_MAX_FILE_TYPE       15
 #define ASL_NUM_FILES           (ASL_MAX_FILE_TYPE + 1)
 
 
@@ -245,6 +246,37 @@ typedef struct asl_event_info
     BOOLEAN                     Valid;
 
 } ASL_EVENT_INFO;
+
+
+/* Hardware mapping file structures */
+
+typedef struct acpi_gpio_info
+{
+    struct acpi_gpio_info   *Next;
+    ACPI_PARSE_OBJECT       *Op;
+    char                    *DeviceName;
+    ACPI_NAMESPACE_NODE     *TargetNode;
+    UINT32                  References;
+    UINT32                  PinCount;
+    UINT32                  PinIndex;
+    UINT16                  PinNumber;
+    UINT8                   Type;
+    UINT8                   Direction;
+    UINT8                   Polarity;
+
+} ACPI_GPIO_INFO;
+
+typedef struct acpi_serial_info
+{
+    struct acpi_serial_info *Next;
+    ACPI_PARSE_OBJECT       *Op;
+    char                    *DeviceName;
+    ACPI_NAMESPACE_NODE     *TargetNode;
+    AML_RESOURCE            *Resource;
+    UINT32                  Speed;
+    UINT16                  Address;
+
+} ACPI_SERIAL_INFO;
 
 
 #endif  /* __ASLTYPES_H */

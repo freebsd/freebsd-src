@@ -162,7 +162,7 @@ OBJECTS = \
 #
 CFLAGS += \
     -DACPI_EXAMPLE_APP\
-    -I$(EXAMPLES)
+    -I$(ACPIEXAMPLES)
 
 #
 # Common Rules

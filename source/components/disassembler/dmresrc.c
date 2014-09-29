@@ -259,6 +259,11 @@ AcpiDmResourceTemplate (
     ACPI_NAMESPACE_NODE     *Node;
 
 
+    if (Op->Asl.AmlOpcode != AML_FIELD_OP)
+    {
+        Info->MappingOp = Op;
+    }
+
     Level = Info->Level;
     ResourceName = ACPI_DEFAULT_RESNAME;
     Node = Op->Common.Node;
@@ -327,7 +332,7 @@ AcpiDmResourceTemplate (
 
                 /* Go ahead and insert EndDependentFn() */
 
-                AcpiDmEndDependentDescriptor (Aml, ResourceLength, Level);
+                AcpiDmEndDependentDescriptor (Info, Aml, ResourceLength, Level);
 
                 AcpiDmIndent (Level);
                 AcpiOsPrintf (
@@ -349,7 +354,7 @@ AcpiDmResourceTemplate (
         }
 
         AcpiGbl_DmResourceDispatch [ResourceIndex] (
-            Aml, ResourceLength, Level);
+            Info, Aml, ResourceLength, Level);
 
         /* Descriptor post-processing */
 

@@ -840,6 +840,10 @@ AcpiDmCheckForHardwareId (
     /* _CID with Package: get the package length, check all elements */
 
     NextOp = AcpiPsGetDepthNext (NULL, NextOp);
+    if (!NextOp)
+    {
+        return;
+    }
 
     /* Don't need to use the length, just walk the peer list */
 

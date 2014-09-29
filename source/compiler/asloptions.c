@@ -413,6 +413,13 @@ AslDoOptions (
             Gbl_PreprocessorOutputFlag = TRUE;
             break;
 
+        case 'm':
+
+            /* Produce hardware map summary file */
+
+            Gbl_MapfileFlag = TRUE;
+            break;
+
         case 'n':
 
             /* Produce namespace file */

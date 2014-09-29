@@ -85,11 +85,7 @@ XfCheckFieldRange (
     UINT32                  FieldBitLength,
     UINT32                  AccessBitWidth);
 
-static BOOLEAN
-XfIsObjectParental (
-    ACPI_PARSE_OBJECT       *MethodOp1,
-    ACPI_PARSE_OBJECT       *MethodOp2);
-
+#ifdef __UNDER_DEVELOPMENT
 static ACPI_PARSE_OBJECT *
 XfGetParentMethod (
     ACPI_PARSE_OBJECT       *Op);
@@ -98,6 +94,12 @@ static void
 XfCheckIllegalReference (
     ACPI_PARSE_OBJECT       *Op,
     ACPI_NAMESPACE_NODE     *Node);
+
+static BOOLEAN
+XfIsObjectParental (
+    ACPI_PARSE_OBJECT       *MethodOp1,
+    ACPI_PARSE_OBJECT       *MethodOp2);
+#endif
 
 
 /*******************************************************************************
@@ -278,6 +280,7 @@ XfCheckFieldRange (
 }
 
 
+#ifdef __UNDER_DEVELOPMENT
 /*******************************************************************************
  *
  * FUNCTION:    XfIsObjectParental
@@ -368,6 +371,7 @@ XfGetParentMethod (
     return (NULL);
 }
 
+
 /*******************************************************************************
  *
  * FUNCTION:    XfCheckIllegalReference
@@ -446,7 +450,9 @@ XfCheckIllegalReference (
         AslError (ASL_ERROR, ASL_MSG_ILLEGAL_FORWARD_REF, Op,
             Op->Asl.ExternalName);
     }
+
 }
+#endif
 
 
 /*******************************************************************************
@@ -659,9 +665,12 @@ XfNamespaceLocateBegin (
 
         Node->Flags |= ANOBJ_IS_REFERENCED;
 
+#ifdef __UNDER_DEVELOPMENT
+
         /* Check for an illegal reference */
 
         XfCheckIllegalReference (Op, Node);
+#endif
     }
 
     /* Attempt to optimize the NamePath */
@@ -1012,6 +1021,14 @@ XfNamespaceLocateBegin (
             }
         }
     }
+
+    /* 5) Check for a connection object */
+#if 0
+    else if (Op->Asl.Parent->Asl.ParseOpcode == PARSEOP_CONNECTION)
+    {
+        return_ACPI_STATUS (Status);
+    }
+#endif
 
     Op->Asl.Node = Node;
     return_ACPI_STATUS (Status);

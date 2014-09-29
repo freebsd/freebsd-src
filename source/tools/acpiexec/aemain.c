@@ -98,6 +98,27 @@ static AE_TABLE_DESC        *AeTableListHead = NULL;
 #define AE_SUPPORTED_OPTIONS        "?b:d:e:f:ghm^orv^:x:"
 
 
+/* Stubs for the disassembler */
+
+void
+MpSaveGpioInfo (
+    ACPI_PARSE_OBJECT       *Op,
+    AML_RESOURCE            *Resource,
+    UINT32                  PinCount,
+    UINT16                  *PinList,
+    char                    *DeviceName)
+{
+}
+
+void
+MpSaveSerialInfo (
+    ACPI_PARSE_OBJECT       *Op,
+    AML_RESOURCE            *Resource,
+    char                    *DeviceName)
+{
+}
+
+
 /******************************************************************************
  *
  * FUNCTION:    usage

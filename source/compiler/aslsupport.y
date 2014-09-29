@@ -60,20 +60,22 @@ AslCompilerwrap(void)
 
 
 void *
-AslLocalAllocate (unsigned int Size)
+AslLocalAllocate (
+    unsigned int        Size)
 {
     void                *Mem;
 
 
-    DbgPrint (ASL_PARSE_OUTPUT, "\nAslLocalAllocate: Expanding Stack to %u\n\n", Size);
+    DbgPrint (ASL_PARSE_OUTPUT,
+        "\nAslLocalAllocate: Expanding Stack to %u\n\n", Size);
 
-    Mem = UtStringCacheCalloc (Size);
+    Mem = ACPI_ALLOCATE_ZEROED (Size);
     if (!Mem)
     {
         AslCommonError (ASL_ERROR, ASL_MSG_MEMORY_ALLOCATION,
-                        Gbl_CurrentLineNumber, Gbl_LogicalLineNumber,
-                        Gbl_InputByteCount, Gbl_CurrentColumn,
-                        Gbl_Files[ASL_FILE_INPUT].Filename, NULL);
+            Gbl_CurrentLineNumber, Gbl_LogicalLineNumber,
+            Gbl_InputByteCount, Gbl_CurrentColumn,
+            Gbl_Files[ASL_FILE_INPUT].Filename, NULL);
         exit (1);
     }
 
@@ -81,12 +83,11 @@ AslLocalAllocate (unsigned int Size)
 }
 
 ACPI_PARSE_OBJECT *
-AslDoError (void)
+AslDoError (
+    void)
 {
 
-
     return (TrCreateLeafNode (PARSEOP_ERRORNODE));
-
 }
 
 
