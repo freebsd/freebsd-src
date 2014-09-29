@@ -108,6 +108,7 @@
 
 #define FILE_SUFFIX_PREPROCESSOR    "i"
 #define FILE_SUFFIX_AML_CODE        "aml"
+#define FILE_SUFFIX_MAP             "map"
 #define FILE_SUFFIX_LISTING         "lst"
 #define FILE_SUFFIX_HEX_DUMP        "hex"
 #define FILE_SUFFIX_DEBUG           "txt"

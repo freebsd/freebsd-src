@@ -540,6 +540,10 @@ CmDoOutputFiles (
     /* Dump the namespace to the .nsp file if requested */
 
     (void) NsDisplayNamespace ();
+
+    /* Dump the device mapping file */
+
+    MpEmitMappingInfo ();
 }
 
 

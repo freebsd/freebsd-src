@@ -172,6 +172,7 @@ Usage (
 
     printf ("\nOptional Listing Files:\n");
     ACPI_OPTION ("-l",              "Create mixed listing file (ASL source and AML) (*.lst)");
+    ACPI_OPTION ("-lm",             "Create hardware summary map file (*.map)");
     ACPI_OPTION ("-ln",             "Create namespace file (*.nsp)");
     ACPI_OPTION ("-ls",             "Create combined source file (expanded includes) (*.src)");
 
@@ -404,7 +405,6 @@ main (
 CleanupAndExit:
 
     UtFreeLineBuffers ();
-
     AslParserCleanup ();
 
     if (AcpiGbl_ExternalFileList)

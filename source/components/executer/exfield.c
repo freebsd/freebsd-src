@@ -273,6 +273,39 @@ AcpiExReadDataFromField (
         Buffer = &BufferDesc->Integer.Value;
     }
 
+    if ((ObjDesc->Common.Type == ACPI_TYPE_LOCAL_REGION_FIELD) &&
+        (ObjDesc->Field.RegionObj->Region.SpaceId == ACPI_ADR_SPACE_GPIO))
+    {
+        /*
+         * For GPIO (GeneralPurposeIo), the Address will be the bit offset
+         * from the previous Connection() operator, making it effectively a
+         * pin number index. The BitLength is the length of the field, which
+         * is thus the number of pins.
+         */
+        ACPI_DEBUG_PRINT ((ACPI_DB_BFIELD,
+            "GPIO FieldRead [FROM]:  Pin %u Bits %u\n",
+            ObjDesc->Field.PinNumberIndex, ObjDesc->Field.BitLength));
+
+        /* Lock entire transaction if requested */
+
+        AcpiExAcquireGlobalLock (ObjDesc->CommonField.FieldFlags);
+
+        /* Perform the write */
+
+        Status = AcpiExAccessRegion (ObjDesc, 0,
+                    (UINT64 *) Buffer, ACPI_READ);
+        AcpiExReleaseGlobalLock (ObjDesc->CommonField.FieldFlags);
+        if (ACPI_FAILURE (Status))
+        {
+            AcpiUtRemoveReference (BufferDesc);
+        }
+        else
+        {
+            *RetBufferDesc = BufferDesc;
+        }
+        return_ACPI_STATUS (Status);
+    }
+
     ACPI_DEBUG_PRINT ((ACPI_DB_BFIELD,
         "FieldRead [TO]:   Obj %p, Type %X, Buf %p, ByteLen %X\n",
         ObjDesc, ObjDesc->Common.Type, Buffer, (UINT32) Length));
@@ -444,6 +477,41 @@ AcpiExWriteDataToField (
         AcpiExReleaseGlobalLock (ObjDesc->CommonField.FieldFlags);
 
         *ResultDesc = BufferDesc;
+        return_ACPI_STATUS (Status);
+    }
+    else if ((ObjDesc->Common.Type == ACPI_TYPE_LOCAL_REGION_FIELD) &&
+             (ObjDesc->Field.RegionObj->Region.SpaceId == ACPI_ADR_SPACE_GPIO))
+    {
+        /*
+         * For GPIO (GeneralPurposeIo), we will bypass the entire field
+         * mechanism and handoff the bit address and bit width directly to
+         * the handler. The Address will be the bit offset
+         * from the previous Connection() operator, making it effectively a
+         * pin number index. The BitLength is the length of the field, which
+         * is thus the number of pins.
+         */
+        if (SourceDesc->Common.Type != ACPI_TYPE_INTEGER)
+        {
+            return_ACPI_STATUS (AE_AML_OPERAND_TYPE);
+        }
+
+        ACPI_DEBUG_PRINT ((ACPI_DB_BFIELD,
+            "GPIO FieldWrite [FROM]: (%s:%X), Val %.8X  [TO]:  Pin %u Bits %u\n",
+            AcpiUtGetTypeName (SourceDesc->Common.Type),
+            SourceDesc->Common.Type, (UINT32) SourceDesc->Integer.Value,
+            ObjDesc->Field.PinNumberIndex, ObjDesc->Field.BitLength));
+
+        Buffer = &SourceDesc->Integer.Value;
+
+        /* Lock entire transaction if requested */
+
+        AcpiExAcquireGlobalLock (ObjDesc->CommonField.FieldFlags);
+
+        /* Perform the write */
+
+        Status = AcpiExAccessRegion (ObjDesc, 0,
+                    (UINT64 *) Buffer, ACPI_WRITE);
+        AcpiExReleaseGlobalLock (ObjDesc->CommonField.FieldFlags);
         return_ACPI_STATUS (Status);
     }
 

@@ -443,6 +443,10 @@ AcpiEvMatchGpeMethod (
         return_ACPI_STATUS (AE_OK);
     }
 
+    /* Disable the GPE in case it's been enabled already. */
+
+    (void) AcpiHwLowSetGpe (GpeEventInfo, ACPI_GPE_DISABLE);
+
     /*
      * Add the GPE information from above to the GpeEventInfo block for
      * use during dispatch of this GPE.

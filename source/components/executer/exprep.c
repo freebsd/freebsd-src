@@ -515,6 +515,8 @@ AcpiExPrepFieldValue (
             ObjDesc->Field.ResourceLength = Info->ResourceLength;
         }
 
+        ObjDesc->Field.PinNumberIndex = Info->PinNumberIndex;
+
         /* Allow full data read from EC address space */
 
         if ((ObjDesc->Field.RegionObj->Region.SpaceId == ACPI_ADR_SPACE_EC) &&

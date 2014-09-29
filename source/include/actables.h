@@ -52,6 +52,10 @@ AcpiAllocateRootTable (
 /*
  * tbxfroot - Root pointer utilities
  */
+UINT32
+AcpiTbGetRsdpLength (
+    ACPI_TABLE_RSDP         *Rsdp);
+
 ACPI_STATUS
 AcpiTbValidateRsdp (
     ACPI_TABLE_RSDP         *Rsdp);

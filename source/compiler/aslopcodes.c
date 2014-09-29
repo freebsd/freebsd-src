@@ -402,6 +402,7 @@ OpcDoConnection (
     ACPI_PARSE_OBJECT       *BufferOp;
     ACPI_PARSE_OBJECT       *BufferLengthOp;
     ACPI_PARSE_OBJECT       *BufferDataOp;
+    ASL_RESOURCE_INFO       Info;
     UINT8                   State;
 
 
@@ -416,8 +417,10 @@ OpcDoConnection (
     BufferLengthOp = BufferOp->Asl.Child;
     BufferDataOp = BufferLengthOp->Asl.Next;
 
+    Info.DescriptorTypeOp = BufferDataOp->Asl.Next;
+    Info.CurrentByteOffset = 0;
     State = ACPI_RSTATE_NORMAL;
-    Rnode = RsDoOneResourceDescriptor (BufferDataOp->Asl.Next, 0, &State);
+    Rnode = RsDoOneResourceDescriptor (&Info, &State);
     if (!Rnode)
     {
         return; /* error */
