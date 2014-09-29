@@ -104,7 +104,7 @@ vm_create_vmdisk() {
 	fi
 
 	if ! mkimg --formats 2>/dev/null | grep -q ${FORMAT}; then
-		panic 0 "Format ${FORMAT} is not supported with this mkimg(1)\n"
+		panic 0 "'${FORMAT}' is not supported by this mkimg(1).\n"
 	fi
 
 	case ${FORMAT} in
