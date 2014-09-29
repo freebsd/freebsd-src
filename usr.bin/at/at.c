@@ -390,7 +390,6 @@ writefile(time_t runtimer, char queue)
 		    fputc(*ap, fp);
 		}
 	    }
-	    fwrite(*atenv, sizeof(char), eqp-*atenv -1, fp);
 	    fputc('\n', fp);
 	    
 	}
