@@ -396,8 +396,7 @@ g_dev_ioctl(struct cdev *dev, u_long cmd, caddr_t data, int fflag, struct thread
 		break;
 	case DIOCSKERNELDUMP:
 		if (*(u_int *)data != 0) {
-			set_dumper(NULL, NULL);
-			error = 0;
+			error = set_dumper(NULL, NULL);
 			break;
 		}
 		kd.offset = 0;
@@ -616,7 +615,7 @@ g_dev_orphan(struct g_consumer *cp)
 
 	/* Reset any dump-area set on this device */
 	if (dev->si_flags & SI_DUMPDEV)
-		set_dumper(NULL, NULL);
+		(void)set_dumper(NULL, NULL);
 
 	/* Destroy the struct cdev *so we get no more requests */
 	destroy_dev_sched_cb(dev, g_dev_callback, cp);
