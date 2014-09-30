@@ -252,29 +252,6 @@ ar9300_attach_freebsd_ops(struct ath_hal *ah)
 	/* LNA diversity functions */
 	ah->ah_divLnaConfGet = ar9300_ant_div_comb_get_config;
 	ah->ah_divLnaConfSet = ar9300_ant_div_comb_set_config;
-
-	/* Setup HAL configuration defaults */
-	/* XXX cus198 defaults from ath9k */
-	/* xlna_gpio = 9 */
-	/* xatten_margin_cfg = true */
-	/* alt_mingainidx = true */
-	/* comm2g_switch_enable = 0x000bbb88 */
-	/* ant_comb.low_rssi_thresh = 20 */
-	/* ant_comb.fast_div_bias = 3 */
-
-#if 0
-	/*
-	 * The HAL code treats this as a mask.
-	 * The ath9k code above treats it as a bit offset.
-	 * So it should be set to 0x200, not 0x9.
-	 */
-	ah->ah_config.ath_hal_ext_lna_ctl_gpio = 0x200; /* bit 9 */
-	ah->ah_config.ath_hal_ext_atten_margin_cfg = AH_TRUE;
-	ah->ah_config.ath_hal_min_gainidx = AH_TRUE;
-	ah->ah_config.ath_hal_ant_ctrl_comm2g_switch_enable = 0x000bbb88;
-	/* XXX low_rssi_thresh */
-	/* XXX fast_div_bias */
-#endif
 }
 
 HAL_BOOL
