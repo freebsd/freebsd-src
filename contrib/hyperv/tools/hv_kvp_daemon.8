@@ -1,0 +1,68 @@
+.\" Copyright (c) 2014 Microsoft Corp.
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.Dd September 10, 2013
+.Dt HYPER-V 4
+.Os
+.Sh NAME
+.Nm hv_kvp_daemon
+.Nd Hyper-V Key Value Pair Daemon
+.Sh SYNOPSIS
+The \fBhv_kvp_daemon\fP daemon provides the ability to store, retrieve, modify and delete 
+Key Value pairs for FreeBSD guest partitions running on Hyper-V.
+.Sh DESCRIPTION
+Hyper-V allows administrators to store custom metadata in the form
+of Key Value pairs inside the FreeBSD guest partition. Administrators can
+use Windows Powershell scripts to add, read, modify and delete such
+Key Value pairs.
+
+The \fBhv_kvp_daemon\fP accepts Key Value pair management requests from the
+\fBhv_utils\fP driver and performs the actual metadata management on the file-system.
+
+The same daemon and driver combination is also used to set and get
+IP addresses from a FreeBSD guest. 
+
+The set functionality is particularly
+useful when the FreeBSD guest is assigned a static IP address and is failed
+over from one Hyper-V host to another. After failover, Hyper-V uses the set IP
+functionality to automatically
+update the FreeBSD guest's IP address to its original static value. 
+
+On the other hand, the get IP functionality is used to update the guest IP
+address in the Hyper-V management console window.
+.Sh SEE ALSO
+.Xr hv_vmbus 4 ,
+.Xr hv_utils 4 ,
+.Xr hv_netvsc 4 ,
+.Xr hv_storvsc 4 ,
+.Xr hv_ata_pci_disengage 4
+.Sh HISTORY
+Support for Hyper-V in the form of ports was first released in September 2013.
+The daemon was developed through a joint effort between Citrix Inc., 
+Microsoft Corp. and Network Appliance Inc..
+.Sh AUTHORS
+.An -nosplit
+.Fx
+support for \fBhv_kvp_daemon\fP was first added by
+.An Microsoft BSD Integration Services Team Aq bsdic@microsoft.com .
