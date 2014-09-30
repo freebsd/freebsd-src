@@ -159,6 +159,8 @@ struct sfxge_rxq {
 	efsys_mem_t			mem;
 	unsigned int			buf_base_id;
 	enum sfxge_rxq_state		init_state;
+	unsigned int			entries;
+	unsigned int			ptr_mask;
 
 	struct sfxge_rx_sw_desc		*queue __aligned(CACHE_LINE_SIZE);
 	unsigned int			added;
@@ -166,6 +168,7 @@ struct sfxge_rxq {
 	unsigned int			completed;
 	unsigned int			loopback;
 	struct sfxge_lro_state		lro;
+	unsigned int			refill_threshold;
 	struct callout			refill_callout;
 	unsigned int			refill_delay;
 
