@@ -226,7 +226,7 @@ sfxge_get_txq_by_label(struct sfxge_evq *evq, enum sfxge_txq_type label)
 	KASSERT((evq->index == 0 && label < SFXGE_TXQ_NTYPES) ||
 	    (label == SFXGE_TXQ_IP_TCP_UDP_CKSUM), ("unexpected txq label"));
 	index = (evq->index == 0) ? label : (evq->index - 1 + SFXGE_TXQ_NTYPES);
-	return evq->sc->txq[index];
+	return (evq->sc->txq[index]);
 }
 
 static boolean_t
@@ -443,7 +443,7 @@ sfxge_ev_stat_handler(SYSCTL_HANDLER_ARGS)
 
 	sfxge_ev_stat_update(sc);
 
-	return SYSCTL_OUT(req, &sc->ev_stats[id], sizeof(sc->ev_stats[id]));
+	return (SYSCTL_OUT(req, &sc->ev_stats[id], sizeof(sc->ev_stats[id])));
 }
 
 static void
@@ -493,7 +493,7 @@ sfxge_int_mod_handler(SYSCTL_HANDLER_ARGS)
 
 	sx_xlock(&sc->softc_lock);
 
-	if (req->newptr) {
+	if (req->newptr != NULL) {
 		if ((error = SYSCTL_IN(req, &moderation, sizeof(moderation)))
 		    != 0)
 			goto out;
@@ -520,14 +520,14 @@ sfxge_int_mod_handler(SYSCTL_HANDLER_ARGS)
 out:
 	sx_xunlock(&sc->softc_lock);
 
-	return error;
+	return (error);
 }
 
 static boolean_t
 sfxge_ev_initialized(void *arg)
 {
 	struct sfxge_evq *evq;
-	
+
 	evq = (struct sfxge_evq *)arg;
 
 	KASSERT(evq->init_state == SFXGE_EVQ_STARTING,
@@ -746,7 +746,7 @@ sfxge_ev_start(struct sfxge_softc *sc)
 
 	/* Initialize the event module */
 	if ((rc = efx_ev_init(sc->enp)) != 0)
-		return rc;
+		return (rc);
 
 	/* Start the event queues */
 	for (index = 0; index < intr->n_alloc; index++) {
