@@ -921,8 +921,10 @@ ixl_ioctl(struct ifnet * ifp, u_long command, caddr_t data)
 			ifp->if_flags |= IFF_UP;
 			if (!(ifp->if_drv_flags & IFF_DRV_RUNNING))
 				ixl_init(pf);
+#ifdef INET
 			if (!(ifp->if_flags & IFF_NOARP))
 				arp_ifinit(ifp, ifa);
+#endif
 		} else
 			error = ether_ioctl(ifp, command, data);
 		break;
@@ -2591,7 +2593,7 @@ ixl_free_vsi(struct ixl_vsi *vsi)
 		IXL_TX_LOCK(txr);
 		ixl_free_que_tx(que);
 		if (txr->base)
-			i40e_free_dma(&pf->hw, &txr->dma);
+			i40e_free_dma_mem(&pf->hw, &txr->dma);
 		IXL_TX_UNLOCK(txr);
 		IXL_TX_LOCK_DESTROY(txr);
 
@@ -2600,7 +2602,7 @@ ixl_free_vsi(struct ixl_vsi *vsi)
 		IXL_RX_LOCK(rxr);
 		ixl_free_que_rx(que);
 		if (rxr->base)
-			i40e_free_dma(&pf->hw, &rxr->dma);
+			i40e_free_dma_mem(&pf->hw, &rxr->dma);
 		IXL_RX_UNLOCK(rxr);
 		IXL_RX_LOCK_DESTROY(rxr);
 		
@@ -2668,8 +2670,8 @@ ixl_setup_stations(struct ixl_pf *pf)
 		tsize = roundup2((que->num_desc *
 		    sizeof(struct i40e_tx_desc)) +
 		    sizeof(u32), DBA_ALIGN);
-		if (i40e_allocate_dma(&pf->hw,
-		    &txr->dma, tsize, DBA_ALIGN)) {
+		if (i40e_allocate_dma_mem(&pf->hw,
+		    &txr->dma, i40e_mem_reserved, tsize, DBA_ALIGN)) {
 			device_printf(dev,
 			    "Unable to allocate TX Descriptor memory\n");
 			error = ENOMEM;
@@ -2708,8 +2710,8 @@ ixl_setup_stations(struct ixl_pf *pf)
 		    device_get_nameunit(dev), que->me);
 		mtx_init(&rxr->mtx, rxr->mtx_name, NULL, MTX_DEF);
 
-		if (i40e_allocate_dma(&pf->hw,
-		    &rxr->dma, rsize, 4096)) {
+		if (i40e_allocate_dma_mem(&pf->hw,
+		    &rxr->dma, i40e_mem_reserved, rsize, 4096)) {
 			device_printf(dev,
 			    "Unable to allocate RX Descriptor memory\n");
 			error = ENOMEM;
@@ -2735,9 +2737,9 @@ fail:
 		rxr = &que->rxr;
 		txr = &que->txr;
 		if (rxr->base)
-			i40e_free_dma(&pf->hw, &rxr->dma);
+			i40e_free_dma_mem(&pf->hw, &rxr->dma);
 		if (txr->base)
-			i40e_free_dma(&pf->hw, &txr->dma);
+			i40e_free_dma_mem(&pf->hw, &txr->dma);
 	}
 
 early:
