@@ -444,9 +444,10 @@ udp_input(struct mbuf **mp, int *offp, int proto)
 	 */
 	len = ntohs((u_short)uh->uh_ulen);
 	ip_len = ntohs(ip->ip_len) - iphlen;
-	if (proto == IPPROTO_UDPLITE && len == 0) {
+	if (proto == IPPROTO_UDPLITE && (len == 0 || len == ip_len)) {
 		/* Zero means checksum over the complete packet. */
-		len = ip_len;
+		if (len == 0)
+			len = ip_len;
 		cscov_partial = 0;
 	}
 	if (ip_len != len) {
