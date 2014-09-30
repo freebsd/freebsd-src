@@ -1,5 +1,5 @@
-/*-
- * Copyright (c) 2013 Roger Pau Monné <roger.pau@citrix.com>
+/*
+ * Copyright (c) 2014 Roger Pau Monné <roger.pau@citrix.com>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -26,33 +26,14 @@
  * $FreeBSD$
  */
 
-#ifndef __X86_INIT_H__
-#define __X86_INIT_H__
-/*
- * Struct containing pointers to init functions whose
- * implementation is run time selectable.  Selection can be made,
- * for example, based on detection of a BIOS variant or
- * hypervisor environment.
- */
-struct init_ops {
-	caddr_t	(*parse_preload_data)(u_int64_t);
-	void	(*early_clock_source_init)(void);
-	void	(*early_delay)(int);
-	void	(*parse_memmap)(caddr_t, vm_paddr_t *, int *);
-	u_int	(*mp_bootaddress)(u_int);
-	int	(*start_all_aps)(void);
-	void	(*msi_init)(void);
-};
+#ifndef __XEN_MSI_H__
+#define __XEN_MSI_H__
 
-extern struct init_ops init_ops;
+void	xen_msi_init(void);
+int	xen_msi_map(int irq, uint64_t *addr, uint32_t *data);
+int	xen_msi_alloc(device_t dev, int count, int maxcount, int *irqs);
+int	xen_msi_release(int *irqs, int count);
+int	xen_msix_alloc(device_t dev, int *irq);
+int	xen_msix_release(int irq);
 
-/* Knob to disable acpi_cpu devices */
-extern bool acpi_cpu_disabled;
-
-/* Knob to disable acpi_hpet device */
-extern bool acpi_hpet_disabled;
-
-/* Knob to disable acpi_timer device */
-extern bool acpi_timer_disabled;
-
-#endif /* __X86_INIT_H__ */
+#endif /* !__XEN_MSI_H__ */
