@@ -1085,10 +1085,12 @@ ixl_allocate_rx_data(struct ixl_queue *que)
 int
 ixl_init_rx_ring(struct ixl_queue *que)
 {
+	struct	rx_ring 	*rxr = &que->rxr;
+#if defined(INET6) || defined(INET)
 	struct ixl_vsi		*vsi = que->vsi;
 	struct ifnet		*ifp = vsi->ifp;
-	struct	rx_ring 	*rxr = &que->rxr;
 	struct lro_ctrl		*lro = &rxr->lro;
+#endif
 	struct ixl_rx_buf	*buf;
 	bus_dma_segment_t	pseg[1], hseg[1];
 	int			rsize, nsegs, error = 0;
@@ -1187,6 +1189,7 @@ skip_head:
 	rxr->bytes = 0;
 	rxr->discard = FALSE;
 
+#if defined(INET6) || defined(INET)
 	/*
 	** Now set up the LRO interface:
 	*/
@@ -1200,6 +1203,7 @@ skip_head:
 		rxr->lro_enabled = TRUE;
 		lro->ifp = vsi->ifp;
 	}
+#endif
 
 	bus_dmamap_sync(rxr->dma.tag, rxr->dma.map,
 	    BUS_DMASYNC_PREREAD | BUS_DMASYNC_PREWRITE);
@@ -1274,6 +1278,8 @@ ixl_free_que_rx(struct ixl_queue *que)
 static __inline void
 ixl_rx_input(struct rx_ring *rxr, struct ifnet *ifp, struct mbuf *m, u8 ptype)
 {
+
+#if defined(INET6) || defined(INET)
         /*
          * ATM LRO is only for IPv4/TCP packets and TCP checksum of the packet
          * should be computed by hardware. Also it should not have VLAN tag in
@@ -1293,6 +1299,7 @@ ixl_rx_input(struct rx_ring *rxr, struct ifnet *ifp, struct mbuf *m, u8 ptype)
                         if (tcp_lro_rx(&rxr->lro, m, 0) == 0)
                                 return;
         }
+#endif
 	IXL_RX_UNLOCK(rxr);
         (*ifp->if_input)(ifp, m);
 	IXL_RX_LOCK(rxr);
@@ -1350,8 +1357,10 @@ ixl_rxeof(struct ixl_queue *que, int count)
 	struct ixl_vsi		*vsi = que->vsi;
 	struct rx_ring		*rxr = &que->rxr;
 	struct ifnet		*ifp = vsi->ifp;
+#if defined(INET6) || defined(INET)
 	struct lro_ctrl		*lro = &rxr->lro;
 	struct lro_entry	*queued;
+#endif
 	int			i, nextp, processed = 0;
 	union i40e_rx_desc	*cur;
 	struct ixl_rx_buf	*rbuf, *nbuf;
@@ -1559,6 +1568,7 @@ next_desc:
 
 	rxr->next_check = i;
 
+#if defined(INET6) || defined(INET)
 	/*
 	 * Flush any outstanding LRO work
 	 */
@@ -1566,6 +1576,7 @@ next_desc:
 		SLIST_REMOVE_HEAD(&lro->lro_active, next);
 		tcp_lro_flush(lro, queued);
 	}
+#endif
 
 	IXL_RX_UNLOCK(rxr);
 	return (FALSE);

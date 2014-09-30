@@ -170,9 +170,6 @@ struct i40e_hw; /* forward decl */
 u16	i40e_read_pci_cfg(struct i40e_hw *, u32);
 void	i40e_write_pci_cfg(struct i40e_hw *, u32, u16);
 
-#define i40e_allocate_dma_mem(h, m, unused, s, a) i40e_allocate_dma(h, m, s, a)
-#define i40e_free_dma_mem(h, m) i40e_free_dma(h, m)
-
 #define i40e_debug(h, m, s, ...)  i40e_debug_d(h, m, s, ##__VA_ARGS__)
 extern void i40e_debug_d(void *hw, u32 mask, char *fmt_str, ...);
 
@@ -180,8 +177,6 @@ struct i40e_virt_mem {
 	void *va;
 	u32 size;
 };
-#define i40e_allocate_virt_mem(h, m, s) i40e_allocate_virt(h, m, s)
-#define i40e_free_virt_mem(h, m) i40e_free_virt(h, m)
 
 /*
 ** This hardware supports either 16 or 32 byte rx descriptors
