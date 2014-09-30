@@ -43,6 +43,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/kernel.h>
 #include <sys/malloc.h>
 #include <sys/conf.h>
+#include <sys/module.h>
 
 #include <xen/xen-os.h>
 
@@ -216,9 +217,71 @@ static struct cdevsw xs_dev_cdevsw = {
 	.d_name = "xs_dev",
 };
 
-void
-xs_dev_init()
+/*------------------ Private Device Attachment Functions  --------------------*/
+/**
+ * \brief Identify instances of this device type in the system.
+ *
+ * \param driver  The driver performing this identify action.
+ * \param parent  The NewBus parent device for any devices this method adds.
+ */
+static void
+xs_dev_identify(driver_t *driver __unused, device_t parent)
 {
-	make_dev(&xs_dev_cdevsw, 0, UID_ROOT, GID_WHEEL, 0400,
-	    "xen/xenstore");
+	/*
+	 * A single device instance for our driver is always present
+	 * in a system operating under Xen.
+	 */
+	BUS_ADD_CHILD(parent, 0, driver->name, 0);
 }
+
+/**
+ * \brief Probe for the existance of the Xenstore device
+ *
+ * \param dev  NewBus device_t for this instance.
+ *
+ * \return  Always returns 0 indicating success.
+ */
+static int 
+xs_dev_probe(device_t dev)
+{
+
+	device_set_desc(dev, "Xenstore user-space device");
+	return (0);
+}
+
+/**
+ * \brief Attach the Xenstore device.
+ *
+ * \param dev  NewBus device_t for this instance.
+ *
+ * \return  On success, 0. Otherwise an errno value indicating the
+ *          type of failure.
+ */
+static int
+xs_dev_attach(device_t dev)
+{
+	struct cdev *xs_cdev;
+
+	xs_cdev = make_dev(&xs_dev_cdevsw, 0, UID_ROOT, GID_WHEEL, 0400,
+	    "xen/xenstore");
+	if (xs_cdev == NULL)
+		return (EINVAL);
+
+	return (0);
+}
+
+/*-------------------- Private Device Attachment Data  -----------------------*/
+static device_method_t xs_dev_methods[] = {
+	/* Device interface */
+	DEVMETHOD(device_identify,	xs_dev_identify),
+	DEVMETHOD(device_probe,         xs_dev_probe),
+	DEVMETHOD(device_attach,        xs_dev_attach),
+
+	DEVMETHOD_END
+};
+
+DEFINE_CLASS_0(xs_dev, xs_dev_driver, xs_dev_methods, 0);
+devclass_t xs_dev_devclass;
+
+DRIVER_MODULE(xs_dev, xenstore, xs_dev_driver, xs_dev_devclass,
+    NULL, NULL);
