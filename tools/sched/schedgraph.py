@@ -856,7 +856,7 @@ class EventSource:
 		return (Y_EVENTSOURCE)
 
 	def eventat(self, i):
-		if (i >= len(self.events)):
+		if (i >= len(self.events) or i < 0):
 			return (None)
 		event = self.events[i]
 		return (event)
