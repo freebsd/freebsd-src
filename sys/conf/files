@@ -2640,6 +2640,7 @@ dev/xen/timer/timer.c		optional xen | xenhvm
 dev/xen/pvcpu/pvcpu.c		optional xen | xenhvm
 dev/xen/xenstore/xenstore.c	optional xen | xenhvm
 dev/xen/xenstore/xenstore_dev.c	optional xen | xenhvm
+dev/xen/xenstore/xenstored_dev.c	optional xen | xenhvm
 dev/xl/if_xl.c			optional xl pci
 dev/xl/xlphy.c			optional xl pci
 fs/autofs/autofs.c		optional autofs
