@@ -498,8 +498,16 @@ udp_input(struct mbuf **mp, int *offp, int proto)
 			m_freem(m);
 			return (IPPROTO_DONE);
 		}
-	} else
-		UDPSTAT_INC(udps_nosum);
+	} else {
+		if (proto == IPPROTO_UDP) {
+			UDPSTAT_INC(udps_nosum);
+		} else {
+			/* UDPLite requires a checksum */
+			/* XXX: What is the right UDPLite MIB counter here? */
+			m_freem(m);
+			return (IPPROTO_DONE);
+		}
+	}
 
 	pcbinfo = get_inpcbinfo(proto);
 	if (IN_MULTICAST(ntohl(ip->ip_dst.s_addr)) ||
