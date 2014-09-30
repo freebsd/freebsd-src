@@ -50,6 +50,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/smp.h>
 #include <sys/socket.h>
 #include <sys/sysctl.h>
+#include <sys/syslog.h>
 
 #include <net/bpf.h>
 #include <net/ethernet.h>
@@ -76,6 +77,25 @@ __FBSDID("$FreeBSD$");
  */
 #define	SFXGE_TSO_MAX_DESC ((65535 / 512) * 2 + SFXGE_TX_MAPPING_MAX_SEG - 1)
 #define	SFXGE_TXQ_BLOCK_LEVEL(_entries)	((_entries) - SFXGE_TSO_MAX_DESC)
+
+#ifdef SFXGE_HAVE_MQ
+
+#define	SFXGE_PARAM_TX_DPL_GET_MAX	SFXGE_PARAM(tx_dpl_get_max)
+static int sfxge_tx_dpl_get_max = SFXGE_TX_DPL_GET_PKT_LIMIT_DEFAULT;
+TUNABLE_INT(SFXGE_PARAM_TX_DPL_GET_MAX, &sfxge_tx_dpl_get_max);
+SYSCTL_INT(_hw_sfxge, OID_AUTO, tx_dpl_get_max, CTLFLAG_RDTUN,
+	   &sfxge_tx_dpl_get_max, 0,
+	   "Maximum number of packets in deferred packet get-list");
+
+#define	SFXGE_PARAM_TX_DPL_PUT_MAX	SFXGE_PARAM(tx_dpl_put_max)
+static int sfxge_tx_dpl_put_max = SFXGE_TX_DPL_PUT_PKT_LIMIT_DEFAULT;
+TUNABLE_INT(SFXGE_PARAM_TX_DPL_PUT_MAX, &sfxge_tx_dpl_put_max);
+SYSCTL_INT(_hw_sfxge, OID_AUTO, tx_dpl_put_max, CTLFLAG_RDTUN,
+	   &sfxge_tx_dpl_put_max, 0,
+	   "Maximum number of packets in deferred packet put-list");
+
+#endif
+
 
 /* Forward declarations. */
 static inline void sfxge_tx_qdpl_service(struct sfxge_txq *txq);
@@ -476,7 +496,7 @@ sfxge_tx_qdpl_put(struct sfxge_txq *txq, struct mbuf *mbuf, int locked)
 
 		sfxge_tx_qdpl_swizzle(txq);
 
-		if (stdp->std_get_count >= SFXGE_TX_DPL_GET_PKT_LIMIT_DEFAULT)
+		if (stdp->std_get_count >= stdp->std_get_max)
 			return (ENOBUFS);
 
 		*(stdp->std_getp) = mbuf;
@@ -498,7 +518,7 @@ sfxge_tx_qdpl_put(struct sfxge_txq *txq, struct mbuf *mbuf, int locked)
 				old_len = mp->m_pkthdr.csum_data;
 			} else
 				old_len = 0;
-			if (old_len >= SFXGE_TX_DPL_PUT_PKT_LIMIT_DEFAULT)
+			if (old_len >= stdp->std_put_max)
 				return (ENOBUFS);
 			mbuf->m_pkthdr.csum_data = old_len + 1;
 			mbuf->m_nextpkt = (void *)old;
@@ -1384,8 +1404,23 @@ sfxge_tx_qinit(struct sfxge_softc *sc, unsigned int txq_index,
 		goto fail3;
 
 #ifdef SFXGE_HAVE_MQ
+	if (sfxge_tx_dpl_get_max <= 0) {
+		log(LOG_ERR, "%s=%d must be greater than 0",
+		    SFXGE_PARAM_TX_DPL_GET_MAX, sfxge_tx_dpl_get_max);
+		rc = EINVAL;
+		goto fail_tx_dpl_get_max;
+	}
+	if (sfxge_tx_dpl_put_max < 0) {
+		log(LOG_ERR, "%s=%d must be greater or equal to 0",
+		    SFXGE_PARAM_TX_DPL_PUT_MAX, sfxge_tx_dpl_put_max);
+		rc = EINVAL;
+		goto fail_tx_dpl_put_max;
+	}
+
 	/* Initialize the deferred packet list. */
 	stdp = &txq->dpl;
+	stdp->std_put_max = sfxge_tx_dpl_put_max;
+	stdp->std_get_max = sfxge_tx_dpl_get_max;
 	stdp->std_getp = &stdp->std_get;
 
 	mtx_init(&txq->lock, "txq", NULL, MTX_DEF);
@@ -1403,6 +1438,8 @@ sfxge_tx_qinit(struct sfxge_softc *sc, unsigned int txq_index,
 
 	return (0);
 
+fail_tx_dpl_put_max:
+fail_tx_dpl_get_max:
 fail3:
 fail_txq_node:
 	free(txq->pend_desc, M_SFXGE);
