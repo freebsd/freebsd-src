@@ -75,7 +75,7 @@ __FBSDID("$FreeBSD$");
  * minimum MSS of 512.
  */
 #define	SFXGE_TSO_MAX_DESC ((65535 / 512) * 2 + SFXGE_TX_MAPPING_MAX_SEG - 1)
-#define	SFXGE_TXQ_BLOCK_LEVEL (SFXGE_NDESCS - SFXGE_TSO_MAX_DESC)
+#define	SFXGE_TXQ_BLOCK_LEVEL(_entries)	((_entries) - SFXGE_TSO_MAX_DESC)
 
 /* Forward declarations. */
 static inline void sfxge_tx_qdpl_service(struct sfxge_txq *txq);
@@ -101,7 +101,7 @@ sfxge_tx_qcomplete(struct sfxge_txq *txq)
 		struct sfxge_tx_mapping *stmp;
 		unsigned int id;
 
-		id = completed++ & (SFXGE_NDESCS - 1);
+		id = completed++ & txq->ptr_mask;
 
 		stmp = &txq->stmp[id];
 		if (stmp->flags & TX_BUF_UNMAP) {
@@ -125,7 +125,7 @@ sfxge_tx_qcomplete(struct sfxge_txq *txq)
 		unsigned int level;
 
 		level = txq->added - txq->completed;
-		if (level <= SFXGE_TXQ_UNBLOCK_LEVEL)
+		if (level <= SFXGE_TXQ_UNBLOCK_LEVEL(txq->entries))
 			sfxge_tx_qunblock(txq);
 	}
 }
@@ -218,19 +218,19 @@ sfxge_tx_qlist_post(struct sfxge_txq *txq)
 		("efx_tx_qpost() refragmented descriptors"));
 
 	level = txq->added - txq->reaped;
-	KASSERT(level <= SFXGE_NDESCS, ("overfilled TX queue"));
+	KASSERT(level <= txq->entries, ("overfilled TX queue"));
 
 	/* Clear the fragment list. */
 	txq->n_pend_desc = 0;
 
 	/* Have we reached the block level? */
-	if (level < SFXGE_TXQ_BLOCK_LEVEL)
+	if (level < SFXGE_TXQ_BLOCK_LEVEL(txq->entries))
 		return;
 
 	/* Reap, and check again */
 	sfxge_tx_qreap(txq);
 	level = txq->added - txq->reaped;
-	if (level < SFXGE_TXQ_BLOCK_LEVEL)
+	if (level < SFXGE_TXQ_BLOCK_LEVEL(txq->entries))
 		return;
 
 	txq->blocked = 1;
@@ -242,7 +242,7 @@ sfxge_tx_qlist_post(struct sfxge_txq *txq)
 	mb();
 	sfxge_tx_qreap(txq);
 	level = txq->added - txq->reaped;
-	if (level < SFXGE_TXQ_BLOCK_LEVEL) {
+	if (level < SFXGE_TXQ_BLOCK_LEVEL(txq->entries)) {
 		mb();
 		txq->blocked = 0;
 	}
@@ -271,7 +271,7 @@ static int sfxge_tx_queue_mbuf(struct sfxge_txq *txq, struct mbuf *mbuf)
 	}
 
 	/* Load the packet for DMA. */
-	id = txq->added & (SFXGE_NDESCS - 1);
+	id = txq->added & txq->ptr_mask;
 	stmp = &txq->stmp[id];
 	rc = bus_dmamap_load_mbuf_sg(txq->packet_dma_tag, stmp->map,
 				     mbuf, dma_seg, &n_dma_seg, 0);
@@ -318,7 +318,7 @@ static int sfxge_tx_queue_mbuf(struct sfxge_txq *txq, struct mbuf *mbuf)
 
 			stmp->flags = 0;
 			if (__predict_false(stmp ==
-					    &txq->stmp[SFXGE_NDESCS - 1]))
+					    &txq->stmp[txq->ptr_mask]))
 				stmp = &txq->stmp[0];
 			else
 				stmp++;
@@ -762,20 +762,22 @@ static inline const struct tcphdr *tso_tcph(const struct sfxge_tso_state *tso)
  * a TSO header buffer, since they must always be followed by a
  * payload descriptor referring to an mbuf.
  */
-#define	TSOH_COUNT	(SFXGE_NDESCS / 2u)
+#define	TSOH_COUNT(_txq_entries)	((_txq_entries) / 2u)
 #define	TSOH_PER_PAGE	(PAGE_SIZE / TSOH_STD_SIZE)
-#define	TSOH_PAGE_COUNT	((TSOH_COUNT + TSOH_PER_PAGE - 1) / TSOH_PER_PAGE)
+#define	TSOH_PAGE_COUNT(_txq_entries)	\
+	((TSOH_COUNT(_txq_entries) + TSOH_PER_PAGE - 1) / TSOH_PER_PAGE)
 
 static int tso_init(struct sfxge_txq *txq)
 {
 	struct sfxge_softc *sc = txq->sc;
+	unsigned int tsoh_page_count = TSOH_PAGE_COUNT(sc->txq_entries);
 	int i, rc;
 
 	/* Allocate TSO header buffers */
-	txq->tsoh_buffer = malloc(TSOH_PAGE_COUNT * sizeof(txq->tsoh_buffer[0]),
+	txq->tsoh_buffer = malloc(tsoh_page_count * sizeof(txq->tsoh_buffer[0]),
 				  M_SFXGE, M_WAITOK);
 
-	for (i = 0; i < TSOH_PAGE_COUNT; i++) {
+	for (i = 0; i < tsoh_page_count; i++) {
 		rc = sfxge_dma_alloc(sc, PAGE_SIZE, &txq->tsoh_buffer[i]);
 		if (rc != 0)
 			goto fail;
@@ -796,7 +798,7 @@ static void tso_fini(struct sfxge_txq *txq)
 	int i;
 
 	if (txq->tsoh_buffer != NULL) {
-		for (i = 0; i < TSOH_PAGE_COUNT; i++)
+		for (i = 0; i < TSOH_PAGE_COUNT(txq->sc->txq_entries); i++)
 			sfxge_dma_free(&txq->tsoh_buffer[i]);
 		free(txq->tsoh_buffer, M_SFXGE);
 	}
@@ -1010,12 +1012,12 @@ sfxge_tx_queue_tso(struct sfxge_txq *txq, struct mbuf *mbuf,
 		tso.dma_addr = dma_seg->ds_addr + tso.header_len;
 	}
 
-	id = txq->added & (SFXGE_NDESCS - 1);
+	id = txq->added & txq->ptr_mask;
 	if (__predict_false(tso_start_new_packet(txq, &tso, id)))
-		return -1;
+		return (-1);
 
 	while (1) {
-		id = (id + 1) & (SFXGE_NDESCS - 1);
+		id = (id + 1) & txq->ptr_mask;
 		tso_fill_packet_with_fragment(txq, &tso);
 
 		/* Move onto the next fragment? */
@@ -1038,7 +1040,7 @@ sfxge_tx_queue_tso(struct sfxge_txq *txq, struct mbuf *mbuf,
 			if (txq->n_pend_desc >
 			    SFXGE_TSO_MAX_DESC - (1 + SFXGE_TX_MAPPING_MAX_SEG))
 				break;
-			next_id = (id + 1) & (SFXGE_NDESCS - 1);
+			next_id = (id + 1) & txq->ptr_mask;
 			if (__predict_false(tso_start_new_packet(txq, &tso,
 								 next_id)))
 				break;
@@ -1070,7 +1072,7 @@ sfxge_tx_qunblock(struct sfxge_txq *txq)
 		unsigned int level;
 
 		level = txq->added - txq->completed;
-		if (level <= SFXGE_TXQ_UNBLOCK_LEVEL)
+		if (level <= SFXGE_TXQ_UNBLOCK_LEVEL(txq->entries))
 			txq->blocked = 0;
 	}
 
@@ -1146,7 +1148,7 @@ sfxge_tx_qstop(struct sfxge_softc *sc, unsigned int index)
 	txq->common = NULL;
 
 	efx_sram_buf_tbl_clear(sc->enp, txq->buf_base_id,
-	    EFX_TXQ_NBUFS(SFXGE_NDESCS));
+	    EFX_TXQ_NBUFS(sc->txq_entries));
 
 	mtx_unlock(&evq->lock);
 	mtx_unlock(SFXGE_TXQ_LOCK(txq));
@@ -1172,8 +1174,8 @@ sfxge_tx_qstart(struct sfxge_softc *sc, unsigned int index)
 
 	/* Program the buffer table. */
 	if ((rc = efx_sram_buf_tbl_set(sc->enp, txq->buf_base_id, esmp,
-	    EFX_TXQ_NBUFS(SFXGE_NDESCS))) != 0)
-		return rc;
+	    EFX_TXQ_NBUFS(sc->txq_entries))) != 0)
+		return (rc);
 
 	/* Determine the kind of queue we are creating. */
 	switch (txq->type) {
@@ -1194,7 +1196,7 @@ sfxge_tx_qstart(struct sfxge_softc *sc, unsigned int index)
 
 	/* Create the common code transmit queue. */
 	if ((rc = efx_tx_qcreate(sc->enp, index, txq->type, esmp,
-	    SFXGE_NDESCS, txq->buf_base_id, flags, evq->common,
+	    sc->txq_entries, txq->buf_base_id, flags, evq->common,
 	    &txq->common)) != 0)
 		goto fail;
 
@@ -1211,8 +1213,8 @@ sfxge_tx_qstart(struct sfxge_softc *sc, unsigned int index)
 
 fail:
 	efx_sram_buf_tbl_clear(sc->enp, txq->buf_base_id,
-	    EFX_TXQ_NBUFS(SFXGE_NDESCS));
-	return rc;
+	    EFX_TXQ_NBUFS(sc->txq_entries));
+	return (rc);
 }
 
 void
@@ -1280,7 +1282,7 @@ static void
 sfxge_tx_qfini(struct sfxge_softc *sc, unsigned int index)
 {
 	struct sfxge_txq *txq;
-	unsigned int nmaps = SFXGE_NDESCS;
+	unsigned int nmaps;
 
 	txq = sc->txq[index];
 
@@ -1292,6 +1294,7 @@ sfxge_tx_qfini(struct sfxge_softc *sc, unsigned int index)
 
 	/* Free the context arrays. */
 	free(txq->pend_desc, M_SFXGE);
+	nmaps = sc->txq_entries;
 	while (nmaps-- != 0)
 		bus_dmamap_destroy(txq->packet_dma_tag, txq->stmp[nmaps].map);
 	free(txq->stmp, M_SFXGE);
@@ -1323,6 +1326,8 @@ sfxge_tx_qinit(struct sfxge_softc *sc, unsigned int txq_index,
 
 	txq = malloc(sizeof(struct sfxge_txq), M_SFXGE, M_ZERO | M_WAITOK);
 	txq->sc = sc;
+	txq->entries = sc->txq_entries;
+	txq->ptr_mask = txq->entries - 1;
 
 	sc->txq[txq_index] = txq;
 	esmp = &txq->mem;
@@ -1330,12 +1335,12 @@ sfxge_tx_qinit(struct sfxge_softc *sc, unsigned int txq_index,
 	evq = sc->evq[evq_index];
 
 	/* Allocate and zero DMA space for the descriptor ring. */
-	if ((rc = sfxge_dma_alloc(sc, EFX_TXQ_SIZE(SFXGE_NDESCS), esmp)) != 0)
+	if ((rc = sfxge_dma_alloc(sc, EFX_TXQ_SIZE(sc->txq_entries), esmp)) != 0)
 		return (rc);
-	(void)memset(esmp->esm_base, 0, EFX_TXQ_SIZE(SFXGE_NDESCS));
+	(void)memset(esmp->esm_base, 0, EFX_TXQ_SIZE(sc->txq_entries));
 
 	/* Allocate buffer table entries. */
-	sfxge_sram_buf_tbl_alloc(sc, EFX_TXQ_NBUFS(SFXGE_NDESCS),
+	sfxge_sram_buf_tbl_alloc(sc, EFX_TXQ_NBUFS(sc->txq_entries),
 				 &txq->buf_base_id);
 
 	/* Create a DMA tag for packet mappings. */
@@ -1349,13 +1354,13 @@ sfxge_tx_qinit(struct sfxge_softc *sc, unsigned int txq_index,
 	}
 
 	/* Allocate pending descriptor array for batching writes. */
-	txq->pend_desc = malloc(sizeof(efx_buffer_t) * SFXGE_NDESCS,
+	txq->pend_desc = malloc(sizeof(efx_buffer_t) * sc->txq_entries,
 				M_SFXGE, M_ZERO | M_WAITOK);
 
 	/* Allocate and initialise mbuf DMA mapping array. */
-	txq->stmp = malloc(sizeof(struct sfxge_tx_mapping) * SFXGE_NDESCS,
+	txq->stmp = malloc(sizeof(struct sfxge_tx_mapping) * sc->txq_entries,
 	    M_SFXGE, M_ZERO | M_WAITOK);
-	for (nmaps = 0; nmaps < SFXGE_NDESCS; nmaps++) {
+	for (nmaps = 0; nmaps < sc->txq_entries; nmaps++) {
 		rc = bus_dmamap_create(txq->packet_dma_tag, 0,
 				       &txq->stmp[nmaps].map);
 		if (rc != 0)
