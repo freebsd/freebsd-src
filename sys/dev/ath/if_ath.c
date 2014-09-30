@@ -435,6 +435,81 @@ _ath_power_restore_power_state(struct ath_softc *sc, const char *file, int line)
 
 }
 
+/*
+ * Configure the initial HAL configuration values based on bus
+ * specific parameters.
+ *
+ * Some PCI IDs and other information may need tweaking.
+ *
+ * XXX TODO: ath9k and the Atheros HAL only program comm2g_switch_enable
+ * if BT antenna diversity isn't enabled.
+ *
+ * So, let's also figure out how to enable BT diversity for AR9485.
+ */
+static void
+ath_setup_hal_config(struct ath_softc *sc, HAL_OPS_CONFIG *ah_config)
+{
+	/* XXX TODO: only for PCI devices? */
+
+	if (sc->sc_pci_devinfo & (ATH_PCI_CUS198 | ATH_PCI_CUS230)) {
+		ah_config->ath_hal_ext_lna_ctl_gpio = 0x200; /* bit 9 */
+		ah_config->ath_hal_ext_atten_margin_cfg = AH_TRUE;
+		ah_config->ath_hal_min_gainidx = AH_TRUE;
+		ah_config->ath_hal_ant_ctrl_comm2g_switch_enable = 0x000bbb88;
+		/* XXX low_rssi_thresh */
+		/* XXX fast_div_bias */
+		device_printf(sc->sc_dev, "configuring for %s\n",
+		    (sc->sc_pci_devinfo & ATH_PCI_CUS198) ?
+		    "CUS198" : "CUS230");
+	}
+
+	if (sc->sc_pci_devinfo & ATH_PCI_CUS217)
+		device_printf(sc->sc_dev, "CUS217 card detected\n");
+
+	if (sc->sc_pci_devinfo & ATH_PCI_CUS252)
+		device_printf(sc->sc_dev, "CUS252 card detected\n");
+
+	if (sc->sc_pci_devinfo & ATH_PCI_AR9565_1ANT)
+		device_printf(sc->sc_dev, "WB335 1-ANT card detected\n");
+
+	if (sc->sc_pci_devinfo & ATH_PCI_AR9565_2ANT)
+		device_printf(sc->sc_dev, "WB335 2-ANT card detected\n");
+
+	if (sc->sc_pci_devinfo & ATH_PCI_KILLER)
+		device_printf(sc->sc_dev, "Killer Wireless card detected\n");
+
+#if 0
+        /*
+         * Some WB335 cards do not support antenna diversity. Since
+         * we use a hardcoded value for AR9565 instead of using the
+         * EEPROM/OTP data, remove the combining feature from
+         * the HW capabilities bitmap.
+         */
+        if (sc->sc_pci_devinfo & (ATH9K_PCI_AR9565_1ANT | ATH9K_PCI_AR9565_2ANT)) {
+                if (!(sc->sc_pci_devinfo & ATH9K_PCI_BT_ANT_DIV))
+                        pCap->hw_caps &= ~ATH9K_HW_CAP_ANT_DIV_COMB;
+        }
+
+        if (sc->sc_pci_devinfo & ATH9K_PCI_BT_ANT_DIV) {
+                pCap->hw_caps |= ATH9K_HW_CAP_BT_ANT_DIV;
+                device_printf(sc->sc_dev, "Set BT/WLAN RX diversity capability\n");
+        }
+#endif
+
+        if (sc->sc_pci_devinfo & ATH_PCI_D3_L1_WAR) {
+                ah_config->ath_hal_pcie_waen = 0x0040473b;
+                device_printf(sc->sc_dev, "Enable WAR for ASPM D3/L1\n");
+        }
+
+#if 0
+        if (sc->sc_pci_devinfo & ATH9K_PCI_NO_PLL_PWRSAVE) {
+                ah->config.no_pll_pwrsave = true;
+                device_printf(sc->sc_dev, "Disable PLL PowerSave\n");
+        }
+#endif
+
+}
+
 #define	HAL_MODE_HT20 (HAL_MODE_11NG_HT20 | HAL_MODE_11NA_HT20)
 #define	HAL_MODE_HT40 \
 	(HAL_MODE_11NG_HT40PLUS | HAL_MODE_11NG_HT40MINUS | \
@@ -450,6 +525,7 @@ ath_attach(u_int16_t devid, struct ath_softc *sc)
 	u_int wmodes;
 	uint8_t macaddr[IEEE80211_ADDR_LEN];
 	int rx_chainmask, tx_chainmask;
+	HAL_OPS_CONFIG ah_config;
 
 	DPRINTF(sc, ATH_DEBUG_ANY, "%s: devid 0x%x\n", __func__, devid);
 
@@ -468,8 +544,17 @@ ath_attach(u_int16_t devid, struct ath_softc *sc)
 		device_get_unit(sc->sc_dev));
 	CURVNET_RESTORE();
 
+	/*
+	 * Configure the initial configuration data.
+	 *
+	 * This is stuff that may be needed early during attach
+	 * rather than done via configuration calls later.
+	 */
+	bzero(&ah_config, sizeof(ah_config));
+	ath_setup_hal_config(sc, &ah_config);
+
 	ah = ath_hal_attach(devid, sc, sc->sc_st, sc->sc_sh,
-	    sc->sc_eepromdata, &status);
+	    sc->sc_eepromdata, &ah_config, &status);
 	if (ah == NULL) {
 		if_printf(ifp, "unable to attach hardware; HAL status %u\n",
 			status);
@@ -7101,6 +7186,6 @@ ath_node_recv_pspoll(struct ieee80211_node *ni, struct mbuf *m)
 
 MODULE_VERSION(if_ath, 1);
 MODULE_DEPEND(if_ath, wlan, 1, 1, 1);          /* 802.11 media layer */
-#if	defined(IEEE80211_ALQ) || defined(AH_DEBUG_ALQ)
+#if	defined(IEEE80211_ALQ) || defined(AH_DEBUG_ALQ) || defined(ATH_DEBUG_ALQ)
 MODULE_DEPEND(if_ath, alq, 1, 1, 1);
 #endif
