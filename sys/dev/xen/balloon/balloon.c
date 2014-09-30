@@ -405,7 +405,8 @@ xenballoon_attach(device_t dev)
 #ifndef XENHVM
 	bs.current_pages = min(xen_start_info->nr_pages, max_pfn);
 #else
-	bs.current_pages = realmem;
+	bs.current_pages = xen_pv_domain() ?
+	    HYPERVISOR_start_info->nr_pages : realmem;
 #endif
 	bs.target_pages  = bs.current_pages;
 	bs.balloon_low   = 0;
