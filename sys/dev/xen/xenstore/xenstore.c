@@ -1130,7 +1130,6 @@ xs_probe(device_t dev)
 static void
 xs_attach_deferred(void *arg)
 {
-	xs_dev_init();
 
 	bus_generic_probe(xs.xs_dev);
 	bus_generic_attach(xs.xs_dev);
