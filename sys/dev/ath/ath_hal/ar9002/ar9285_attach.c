@@ -133,6 +133,7 @@ ar9285_eeprom_print_diversity_settings(struct ath_hal *ah)
 static struct ath_hal *
 ar9285Attach(uint16_t devid, HAL_SOFTC sc,
 	HAL_BUS_TAG st, HAL_BUS_HANDLE sh, uint16_t *eepromdata,
+	HAL_OPS_CONFIG *ah_config,
 	HAL_STATUS *status)
 {
 	struct ath_hal_9285 *ahp9285;
