@@ -176,7 +176,7 @@ sfxge_tx_qdpl_swizzle(struct sfxge_txq *txq)
 	KASSERT(*get_tailp == NULL, ("*get_tailp != NULL"));
 	*stdp->std_getp = get_next;
 	stdp->std_getp = get_tailp;
-	stdp->std_count += count;
+	stdp->std_get_count += count;
 }
 
 #endif /* SFXGE_HAVE_MQ */
@@ -380,7 +380,7 @@ sfxge_tx_qdpl_drain(struct sfxge_txq *txq)
 	prefetch_read_many(txq->common);
 
 	mbuf = stdp->std_get;
-	count = stdp->std_count;
+	count = stdp->std_get_count;
 
 	while (count != 0) {
 		KASSERT(mbuf != NULL, ("mbuf == NULL"));
@@ -412,17 +412,17 @@ sfxge_tx_qdpl_drain(struct sfxge_txq *txq)
 	if (count == 0) {
 		KASSERT(mbuf == NULL, ("mbuf != NULL"));
 		stdp->std_get = NULL;
-		stdp->std_count = 0;
+		stdp->std_get_count = 0;
 		stdp->std_getp = &stdp->std_get;
 	} else {
 		stdp->std_get = mbuf;
-		stdp->std_count = count;
+		stdp->std_get_count = count;
 	}
 
 	if (txq->added != pushed)
 		efx_tx_qpush(txq->common, txq->added);
 
-	KASSERT(txq->blocked || stdp->std_count == 0,
+	KASSERT(txq->blocked || stdp->std_get_count == 0,
 		("queue unblocked but count is non-zero"));
 }
 
@@ -476,12 +476,12 @@ sfxge_tx_qdpl_put(struct sfxge_txq *txq, struct mbuf *mbuf, int locked)
 
 		sfxge_tx_qdpl_swizzle(txq);
 
-		if (stdp->std_count >= SFXGE_TX_DPL_GET_PKT_LIMIT_DEFAULT)
+		if (stdp->std_get_count >= SFXGE_TX_DPL_GET_PKT_LIMIT_DEFAULT)
 			return (ENOBUFS);
 
 		*(stdp->std_getp) = mbuf;
 		stdp->std_getp = &mbuf->m_nextpkt;
-		stdp->std_count++;
+		stdp->std_get_count++;
 	} else {
 		volatile uintptr_t *putp;
 		uintptr_t old;
@@ -575,7 +575,7 @@ sfxge_tx_qdpl_flush(struct sfxge_txq *txq)
 		m_freem(mbuf);
 	}
 	stdp->std_get = NULL;
-	stdp->std_count = 0;
+	stdp->std_get_count = 0;
 	stdp->std_getp = &stdp->std_get;
 
 	mtx_unlock(&txq->lock);
@@ -1315,6 +1315,8 @@ static int
 sfxge_tx_qinit(struct sfxge_softc *sc, unsigned int txq_index,
     enum sfxge_txq_type type, unsigned int evq_index)
 {
+	char name[16];
+	struct sysctl_oid *txq_node;
 	struct sfxge_txq *txq;
 	struct sfxge_evq *evq;
 #ifdef SFXGE_HAVE_MQ
@@ -1367,6 +1369,16 @@ sfxge_tx_qinit(struct sfxge_softc *sc, unsigned int txq_index,
 			goto fail2;
 	}
 
+	snprintf(name, sizeof(name), "%u", txq_index);
+	txq_node = SYSCTL_ADD_NODE(
+		device_get_sysctl_ctx(sc->dev),
+		SYSCTL_CHILDREN(sc->txqs_node),
+		OID_AUTO, name, CTLFLAG_RD, NULL, "");
+	if (txq_node == NULL) {
+		rc = ENOMEM;
+		goto fail_txq_node;
+	}
+
 	if (type == SFXGE_TXQ_IP_TCP_UDP_CKSUM &&
 	    (rc = tso_init(txq)) != 0)
 		goto fail3;
@@ -1377,6 +1389,11 @@ sfxge_tx_qinit(struct sfxge_softc *sc, unsigned int txq_index,
 	stdp->std_getp = &stdp->std_get;
 
 	mtx_init(&txq->lock, "txq", NULL, MTX_DEF);
+
+	SYSCTL_ADD_UINT(device_get_sysctl_ctx(sc->dev),
+			SYSCTL_CHILDREN(txq_node), OID_AUTO,
+			"dpl_get_count", CTLFLAG_RD | CTLFLAG_STATS,
+			&stdp->std_get_count, 0, "");
 #endif
 
 	txq->type = type;
@@ -1387,6 +1404,7 @@ sfxge_tx_qinit(struct sfxge_softc *sc, unsigned int txq_index,
 	return (0);
 
 fail3:
+fail_txq_node:
 	free(txq->pend_desc, M_SFXGE);
 fail2:
 	while (nmaps-- != 0)
@@ -1480,6 +1498,15 @@ sfxge_tx_init(struct sfxge_softc *sc)
 	KASSERT(intr->state == SFXGE_INTR_INITIALIZED,
 	    ("intr->state != SFXGE_INTR_INITIALIZED"));
 
+	sc->txqs_node = SYSCTL_ADD_NODE(
+		device_get_sysctl_ctx(sc->dev),
+		SYSCTL_CHILDREN(device_get_sysctl_tree(sc->dev)),
+		OID_AUTO, "txq", CTLFLAG_RD, NULL, "Tx queues");
+	if (sc->txqs_node == NULL) {
+		rc = ENOMEM;
+		goto fail_txq_node;
+	}
+
 	/* Initialize the transmit queues */
 	if ((rc = sfxge_tx_qinit(sc, SFXGE_TXQ_NON_CKSUM,
 	    SFXGE_TXQ_NON_CKSUM, 0)) != 0)
@@ -1509,5 +1536,6 @@ fail2:
 	sfxge_tx_qfini(sc, SFXGE_TXQ_NON_CKSUM);
 
 fail:
+fail_txq_node:
 	return (rc);
 }
