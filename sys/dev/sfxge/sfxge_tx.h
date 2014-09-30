@@ -106,7 +106,7 @@ enum sfxge_txq_type {
 	SFXGE_TXQ_NTYPES
 };
 
-#define	SFXGE_TXQ_UNBLOCK_LEVEL		(EFX_TXQ_LIMIT(SFXGE_NDESCS) / 4)
+#define	SFXGE_TXQ_UNBLOCK_LEVEL(_entries)	(EFX_TXQ_LIMIT(_entries) / 4)
 
 #define	SFXGE_TX_BATCH	64
 
@@ -128,6 +128,8 @@ struct sfxge_txq {
 	unsigned int			evq_index;
 	efsys_mem_t			mem;
 	unsigned int			buf_base_id;
+	unsigned int			entries;
+	unsigned int			ptr_mask;
 
 	struct sfxge_tx_mapping		*stmp;	/* Packets in flight. */
 	bus_dma_tag_t			packet_dma_tag;
