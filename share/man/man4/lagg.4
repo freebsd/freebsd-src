@@ -16,7 +16,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd February 23, 2012
+.Dd October 1, 2014
 .Dt LAGG 4
 .Os
 .Sh NAME
@@ -143,9 +143,9 @@ modes will use the RSS hash from the network card if available to avoid
 computing one, this may give poor traffic distribution if the hash is invalid
 or uses less of the protocol header information.
 Local hash computation can be forced per interface by setting the
-.Va net.link.lagg.X.use_flowid
-.Xr sysctl 8
-variable to zero where X is the interface number.
+.Cm use_flowid
+.Xr ifconfig 8
+flag.
 The default for new interfaces is set via the
 .Va net.link.lagg.default_use_flowid
 .Xr sysctl 8 .
