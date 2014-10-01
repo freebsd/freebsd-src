@@ -884,7 +884,7 @@ lagg_port_destroy(struct lagg_port *lp, int rundelport)
 
 	/* Update detached port counters */
 	pval = lp->port_counters.val;
-	for (i = 0; i <= IFCOUNTERS; i++, pval++) {
+	for (i = 0; i < IFCOUNTERS; i++, pval++) {
 		vdiff = ifp->if_get_counter(ifp, i) - *pval;
 		sc->detached_counters.val[i] += vdiff;
 	}
