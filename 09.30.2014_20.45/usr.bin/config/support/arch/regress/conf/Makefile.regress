@@ -1,0 +1,41 @@
+=== INCLUDES BEGIN ===
+
+%INCLUDES
+
+=== INCLUDES END ===
+
+=== OBJS BEGIN ===
+
+%OBJS
+
+=== OBJS END ===
+
+=== CFILES BEGIN ===
+
+%CFILES
+
+=== CFILES END ===
+
+=== SFILES BEGIN ===
+
+%SFILES
+
+=== SFILES END ===
+
+=== LOAD BEGIN ===
+
+%LOAD
+
+=== LOAD END ===
+
+=== RULES BEGIN ===
+
+%RULES
+
+=== RULES END ===
+
+=== MAKEOPTIONSAPPEND BEGIN ===
+
+%MAKEOPTIONSAPPEND
+
+=== MAKEOPTIONSAPPEND END ===
