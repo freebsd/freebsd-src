@@ -1122,9 +1122,6 @@ rn_inithead_internal(void **head, int off)
 	R_Zalloc(rnh, struct radix_node_head *, sizeof (*rnh));
 	if (rnh == 0)
 		return (0);
-#ifdef _KERNEL
-	RADIX_NODE_HEAD_LOCK_INIT(rnh);
-#endif
 	*head = rnh;
 	t = rn_newpair(rn_zeros, off, rnh->rnh_nodes);
 	ttt = rnh->rnh_nodes + 2;
