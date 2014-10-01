@@ -1863,8 +1863,15 @@ sched_sync(void)
 				continue;
 			}
 
-			if (first_printf == 0)
+			if (first_printf == 0) {
+				/*
+				 * Drop the sync mutex, because some watchdog
+				 * drivers need to sleep while patting
+				 */
+				mtx_unlock(&sync_mtx);
 				wdog_kern_pat(WD_LASTVAL);
+				mtx_lock(&sync_mtx);
+			}
 
 		}
 		if (syncer_state == SYNCER_FINAL_DELAY && syncer_final_iter > 0)
