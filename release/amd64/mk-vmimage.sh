@@ -35,8 +35,25 @@
 PATH="/bin:/usr/bin:/sbin:/usr/sbin"
 export PATH
 
+usage_vm_base() {
+	echo -n "$(basename ${0}) vm-base <base image> <source tree>"
+	echo	" <dest dir> <disk image size>"
+	return 0
+}
+
+usage_vm_image() {
+	echo -n "$(basename ${0}) vm-image <base image> <image format>"
+	echo	" <output image>"
+	return 0
+}
+
 usage() {
-	echo "$(basename ${0}) <command> <target> [...]"
+	echo "Usage:"
+	echo "$(basename ${0}) [vm-base|vm-image] [...]"
+	echo
+	usage_vm_base
+	echo
+	usage_vm_image
 	exit 1
 }
 
@@ -56,6 +73,20 @@ panic() {
 vm_create_baseimage() {
 	# Creates the UFS root filesystem for the virtual machine disk,
 	# written to the formatted disk image with mkimg(1).
+	#
+	# Arguments:
+	# vm-base <base image> <source tree> <dest dir> <disk image size>
+
+	VMBASE="${1}"
+	WORLDDIR="${2}"
+	DESTDIR="${3}"
+	VMSIZE="${4}"
+
+	if [ -z "${VMBASE}" -o -z "${WORLDDIR}" -o -z "${DESTDIR}" \
+		-o -z "${VMSIZE}" ]; then
+			usage
+	fi
+
 	i=0
 	mkdir -p ${DESTDIR}
 	truncate -s ${VMSIZE} ${VMBASE}
@@ -63,7 +94,7 @@ vm_create_baseimage() {
 	newfs -j /dev/${mddev}
 	mount /dev/${mddev} ${DESTDIR}
 	cd ${WORLDDIR} && \
-		${IMAKE} DESTDIR=${DESTDIR} \
+		make DESTDIR=${DESTDIR} \
 		installworld installkernel distribution || \
 		panic 1 "\n\nCannot install the base system to ${DESTDIR}."
 	chroot ${DESTDIR} /usr/bin/newaliases
@@ -89,6 +120,19 @@ vm_create_baseimage() {
 }
 
 vm_create_vmdisk() {
+	# Creates the virtual machine disk image from the raw disk image.
+	#
+	# Arguments:
+	# vm-image <base image> <image format> <output image>"
+
+	VMBASE="${1}"
+	FORMAT="${2}"
+	VMIMAGE="${3}"
+
+	if [ -z "${VMBASE}" -o -z "${FORMAT}" -o -z "${VMIMAGE}" ]; then
+		usage
+	fi
+
 	mkimg_version=$(mkimg --version 2>/dev/null | awk '{print $2}')
 
 	# We need mkimg(1) '--version' output, at minimum, to be able to
@@ -124,10 +168,7 @@ vm_create_vmdisk() {
 
 main() {
 	cmd="${1}"
-
-	if [ -z "${MAKEFLAGS}" ]; then
-		echo "It is probably not safe to run this by hand yet..."
-	fi
+	shift 1
 
 	case ${cmd} in
 		vm-base)
