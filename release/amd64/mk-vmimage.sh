@@ -37,9 +37,6 @@ export PATH
 
 usage() {
 	echo "$(basename ${0}) <command> <target> [...]"
-	if [ -z "${MAKEFLAGS}" ]; then
-		echo "It is probably not safe to run this by hand yet..."
-	fi
 	exit 1
 }
 
@@ -128,15 +125,9 @@ vm_create_vmdisk() {
 main() {
 	cmd="${1}"
 
-	case ${TARGET}/${TARGET_ARCH} in
-		amd64/amd64|i386/i386)
-			# FALLTHROUGH
-			;;
-		*)
-			# EX_CANTCREAT
-			return 0
-			;;
-	esac
+	if [ -z "${MAKEFLAGS}" ]; then
+		echo "It is probably not safe to run this by hand yet..."
+	fi
 
 	case ${cmd} in
 		vm-base)
