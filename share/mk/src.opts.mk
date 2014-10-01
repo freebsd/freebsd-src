@@ -48,7 +48,6 @@ __DEFAULT_YES_OPTIONS = \
     ACPI \
     AMD \
     APM \
-    ARM_EABI \
     AT \
     ATM \
     AUDIT \
