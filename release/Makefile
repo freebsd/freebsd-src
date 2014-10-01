@@ -317,18 +317,22 @@ install:
 
 vm-base:
 .if defined(WITH_VMIMAGES) && !empty(WITH_VMIMAGES)
+. if exists(${.CURDIR}/${TARGET}/mk-vmimage.sh)
 	env TARGET=${TARGET} TARGET_ARCH=${TARGET_ARCH} \
 		${.CURDIR}/${TARGET}/mk-vmimage.sh ${.TARGET} \
 		${VMBASE}.img ${WORLDDIR} ${.OBJDIR}/${.TARGET} ${VMSIZE}
+. endif
 .endif
 	touch ${.TARGET}
 
 vm-image: vm-base
 .if defined(WITH_VMIMAGES) && !empty(WITH_VMIMAGES)
-. for FORMAT in ${VMFORMATS}
+. if exists(${.CURDIR}/${TARGET}/mk-vmimage.sh)
+.  for FORMAT in ${VMFORMATS}
 	env TARGET=${TARGET} TARGET_ARCH=${TARGET_ARCH} \
 		${.CURDIR}/${TARGET}/mk-vmimage.sh ${.TARGET} \
 		${VMBASE}.img ${FORMAT} ${VMBASE}.${FORMAT}
-. endfor
+.  endfor
+. endif
 .endif
 	touch ${.TARGET}
