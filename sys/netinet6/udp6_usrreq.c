@@ -261,7 +261,7 @@ udp6_input(struct mbuf **mp, int *offp, int proto)
 
 	if (uh_sum != 0) {
 		UDPSTAT_INC(udps_badsum);
-		goto badunlocked;
+		/*goto badunlocked;*/
 	}
 
 	/*
@@ -481,7 +481,7 @@ udp6_input(struct mbuf **mp, int *offp, int proto)
 	INP_RLOCK_ASSERT(inp);
 	up = intoudpcb(inp);
 	if (cscov_partial) {
-		if (up->u_rxcslen > ulen) {
+		if (up->u_rxcslen == 0 || up->u_rxcslen > ulen) {
 			INP_RUNLOCK(inp);
 			m_freem(m);
 			return (IPPROTO_DONE);
