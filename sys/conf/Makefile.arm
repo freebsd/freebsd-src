@@ -42,11 +42,7 @@ STRIP_FLAGS = -S
 # We don't support gcc's thump interwork stuff, so disable it
 CFLAGS.gcc += -mno-thumb-interwork
 
-.if empty(DDB_ENABLED)
-.if ${MK_ARM_EABI} == "no"
-CFLAGS.gcc += -mno-apcs-frame
-.endif
-.elif ${MK_ARM_EABI} != "no"
+.if !empty(DDB_ENABLED)
 CFLAGS += -funwind-tables
 # clang requires us to tell it to emit assembly with unwind information
 CFLAGS.clang += -mllvm -arm-enable-ehabi

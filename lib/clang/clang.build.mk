@@ -22,8 +22,7 @@ CFLAGS+=	-fno-strict-aliasing
 TARGET_ARCH?=	${MACHINE_ARCH}
 BUILD_ARCH?=	${MACHINE_ARCH}
 
-.if (${TARGET_ARCH} == "arm" || ${TARGET_ARCH} == "armv6") && \
-    ${MK_ARM_EABI} != "no"
+.if (${TARGET_ARCH} == "arm" || ${TARGET_ARCH} == "armv6")
 TARGET_ABI=	gnueabi
 .elif ${TARGET_ARCH} == "armv6hf"
 TARGET_ABI=	gnueabihf
