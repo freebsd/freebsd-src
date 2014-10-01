@@ -82,7 +82,7 @@ main(void)
 		    getenv("BSDINSTALL_DISTDIR"), strerror(errno));
 		dialog_msgbox("Error", error, 0, 0, TRUE);
 		end_dialog();
-		return (1);
+		return (EXIT_FAILURE);
 	}
 
 	nfetched = fetch_files(ndists, urls);
@@ -94,7 +94,7 @@ main(void)
 		free(urls[i]);
 	free(urls);
 
-	return ((nfetched == ndists) ? 0 : 1);
+	return ((nfetched == ndists) ? EXIT_SUCCESS : EXIT_FAILURE);
 }
 
 static int
