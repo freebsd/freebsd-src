@@ -5,13 +5,13 @@
 # in the default /usr/ports.  The ../../.. case is in case ports ever grows
 # a third level.
 .if exists(${.CURDIR}/Mk/bsd.port.mk)
-PORTSDIR=	${.CURDIR}
+PORTSDIR!=	realpath ${.CURDIR}
 .elif exists(${.CURDIR}/../Mk/bsd.port.mk)
-PORTSDIR=	${.CURDIR}/..
+PORTSDIR!=	realpath ${.CURDIR}/..
 .elif exists(${.CURDIR}/../../Mk/bsd.port.mk)
-PORTSDIR=	${.CURDIR}/../..
+PORTSDIR!=	realpath ${.CURDIR}/../..
 .elif exists(${.CURDIR}/../../../Mk/bsd.port.mk)
-PORTSDIR=	${.CURDIR}/../../..
+PORTSDIR!=	realpath ${.CURDIR}/../../..
 .else
 PORTSDIR=	/usr/ports
 .endif
