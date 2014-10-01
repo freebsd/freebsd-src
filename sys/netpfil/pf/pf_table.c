@@ -1853,14 +1853,10 @@ pfr_destroy_ktable(struct pfr_ktable *kt, int flushaddr)
 		pfr_clean_node_mask(kt, &addrq);
 		pfr_destroy_kentries(&addrq);
 	}
-	if (kt->pfrkt_ip4 != NULL) {
-		RADIX_NODE_HEAD_DESTROY(kt->pfrkt_ip4);
+	if (kt->pfrkt_ip4 != NULL)
 		rn_detachhead((void **)&kt->pfrkt_ip4);
-	}
-	if (kt->pfrkt_ip6 != NULL) {
-		RADIX_NODE_HEAD_DESTROY(kt->pfrkt_ip6);
+	if (kt->pfrkt_ip6 != NULL)
 		rn_detachhead((void **)&kt->pfrkt_ip6);
-	}
 	if (kt->pfrkt_shadow != NULL)
 		pfr_destroy_ktable(kt->pfrkt_shadow, flushaddr);
 	if (kt->pfrkt_rs != NULL) {
