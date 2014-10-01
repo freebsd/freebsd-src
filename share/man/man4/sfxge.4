@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd February 8, 2012
+.Dd September 30, 2014
 .Dt SFXGE 4
 .Os
 .Sh NAME
@@ -85,23 +85,30 @@ Actual values can be obtained using
 .Xr sysctl 8 .
 .Bl -tag -width indent
 .It Va hw.sfxge.rx_ring
-Maximum number of descriptors in a receive queue ring.
+The maximum number of descriptors in a receive queue ring.
 Supported values are: 512, 1024, 2048 and 4096.
 .It Va hw.sfxge.tx_ring
-Maximum number of descriptors in a transmit queue ring.
+The maximum number of descriptors in a transmit queue ring.
 Supported values are: 512, 1024, 2048 and 4096.
 .It Va hw.sfxge.tx_dpl_get_max
-The maximum length of the deferred packet 'get-list' for queued transmit
+The maximum length of the deferred packet
+.Dq get-list
+for queued transmit
 packets, used only if the transmit queue lock can be acquired.
-If packet is dropped, \fItx_early_drops\fR counter grows and local sender
-gets ENOBUFS error.
-Value must be greater than 0.
+If a packet is dropped, the
+.Va tx_early_drops
+counter is incremented and the local sender receives ENOBUFS.
+The value must be greater than 0.
 .It Va hw.sfxge.tx_dpl_put_max
-The maximum length of the deferred packet 'put-list' for queued transmit
+The maximum length of the deferred packet
+.Dq put-list
+for queued transmit
 packets, used if the transmit queue lock cannot be acquired.
-If packet is dropped, \fItx_early_drops\fR counter grows and local sender
-gets ENOBUFS error.
-Value must be greater or equal to 0.
+If a packet is dropped, the
+.Va tx_early_drops
+counter is incremented and the local sender receives ENOBUFS.
+The value must be greater than or equal to 0.
+.El
 .Sh SUPPORT
 For general information and support,
 go to the Solarflare support website at:
