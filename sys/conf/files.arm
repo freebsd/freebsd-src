@@ -49,6 +49,7 @@ arm/arm/stdatomic.c		standard \
 arm/arm/support.S		standard
 arm/arm/swtch.S			standard
 arm/arm/sys_machdep.c		standard
+arm/arm/syscall.c		standard
 arm/arm/trap.c			standard
 arm/arm/uio_machdep.c		standard
 arm/arm/undefined.c		standard
