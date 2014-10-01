@@ -337,10 +337,10 @@ XFLAGS+=	-B${CROSS_BINUTILS_PREFIX}
 XFLAGS+=	-B${WORLDTMP}/usr/bin
 .endif
 .if ${TARGET} == "arm"
-.if ${TARGET_ARCH:M*eb*} == ""
-TARGET_ABI=	gnueabi
-.elif ${TARGET_ARCH} == "armv6hf"
+.if ${TARGET_ARCH:M*hf*} != ""
 TARGET_ABI=	gnueabihf
+.else
+TARGET_ABI=	gnueabi
 .endif
 .endif
 TARGET_ABI?=	unknown
