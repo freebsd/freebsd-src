@@ -335,7 +335,7 @@ err:
 		warn("%s", p->fts_path);
 		eval = 1;
 	}
-	if (errno)
+	if (!fflag && errno)
 		err(1, "fts_read");
 	fts_close(fts);
 }
