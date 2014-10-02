@@ -1191,7 +1191,7 @@ out:
 				xpt_schedule(periph, priority);
 				goto out;
 			} else if (path->device->lun_id == 0 &&
-			    SID_ANSI_REV(inq_buf) > SCSI_REV_SPC2 &&
+			    SID_ANSI_REV(inq_buf) >= SCSI_REV_SPC2 &&
 			    (SCSI_QUIRK(path->device)->quirks &
 			     CAM_QUIRK_NORPTLUNS) == 0) {
 				PROBE_SET_ACTION(softc, PROBE_REPORT_LUNS);
