@@ -104,14 +104,15 @@ struct vlan_mc_entry {
 struct	ifvlan {
 	struct	ifvlantrunk *ifv_trunk;
 	struct	ifnet *ifv_ifp;
-	void	*ifv_cookie;
 	counter_u64_t	ifv_ipackets;
 	counter_u64_t	ifv_ibytes;
 	counter_u64_t	ifv_opackets;
 	counter_u64_t	ifv_obytes;
 	counter_u64_t	ifv_omcasts;
+	counter_u64_t	ifv_oerrors;
 #define	TRUNK(ifv)	((ifv)->ifv_trunk)
 #define	PARENT(ifv)	((ifv)->ifv_trunk->parent)
+	void	*ifv_cookie;
 	int	ifv_pflags;	/* special flags we have set on parent */
 	struct	ifv_linkmib {
 		int	ifvm_encaplen;	/* encapsulation length */
@@ -147,9 +148,10 @@ static SYSCTL_NODE(_net_link, IFT_L2VLAN, vlan, CTLFLAG_RW, 0,
 static SYSCTL_NODE(_net_link_vlan, PF_LINK, link, CTLFLAG_RW, 0,
     "for consistency");
 
-static int soft_pad = 0;
-SYSCTL_INT(_net_link_vlan, OID_AUTO, soft_pad, CTLFLAG_RW, &soft_pad, 0,
-	   "pad short frames before tagging");
+static VNET_DEFINE(int, soft_pad);
+#define	V_soft_pad	VNET(soft_pad)
+SYSCTL_INT(_net_link_vlan, OID_AUTO, soft_pad, CTLFLAG_RW | CTLFLAG_VNET,
+    &VNET_NAME(soft_pad), 0, "pad short frames before tagging");
 
 static const char vlanname[] = "vlan";
 static MALLOC_DEFINE(M_VLAN, vlanname, "802.1Q Virtual LAN Interface");
@@ -200,7 +202,7 @@ static	void vlan_init(void *foo);
 static	void vlan_input(struct ifnet *ifp, struct mbuf *m);
 static	int vlan_ioctl(struct ifnet *ifp, u_long cmd, caddr_t addr);
 static	void vlan_qflush(struct ifnet *ifp);
-static uint64_t vlan_get_counter(struct ifnet *ifp, ifnet_counter cnt);
+static uint64_t vlan_get_counter(struct ifnet *ifp, ift_counter cnt);
 static	int vlan_setflag(struct ifnet *ifp, int flag, int status,
     int (*func)(struct ifnet *, int));
 static	int vlan_setflags(struct ifnet *ifp, int status);
@@ -959,6 +961,7 @@ vlan_clone_create(struct if_clone *ifc, char *name, size_t len, caddr_t params)
 	ifv->ifv_ibytes = counter_u64_alloc(M_WAITOK);
 	ifv->ifv_obytes = counter_u64_alloc(M_WAITOK);
 	ifv->ifv_omcasts = counter_u64_alloc(M_WAITOK);
+	ifv->ifv_oerrors = counter_u64_alloc(M_WAITOK);
 
 	ifp->if_softc = ifv;
 	/*
@@ -1026,6 +1029,7 @@ vlan_clone_destroy(struct if_clone *ifc, struct ifnet *ifp)
 	counter_u64_free(ifv->ifv_ibytes);
 	counter_u64_free(ifv->ifv_obytes);
 	counter_u64_free(ifv->ifv_omcasts);
+	counter_u64_free(ifv->ifv_oerrors);
 	free(ifv, M_VLAN);
 	ifc_free_unit(ifc, unit);
 
@@ -1063,7 +1067,7 @@ vlan_transmit(struct ifnet *ifp, struct mbuf *m)
 	 */
 	if (!UP_AND_RUNNING(p)) {
 		m_freem(m);
-		ifp->if_oerrors++;
+		counter_u64_add(ifv->ifv_oerrors, 1);
 		return (ENETDOWN);
 	}
 
@@ -1079,7 +1083,7 @@ vlan_transmit(struct ifnet *ifp, struct mbuf *m)
 	 * devices that just discard such runts instead or mishandle
 	 * them somehow.
 	 */
-	if (soft_pad && p->if_type == IFT_ETHER) {
+	if (V_soft_pad && p->if_type == IFT_ETHER) {
 		static char pad[8];	/* just zeros */
 		int n;
 
@@ -1090,7 +1094,7 @@ vlan_transmit(struct ifnet *ifp, struct mbuf *m)
 
 		if (n > 0) {
 			if_printf(ifp, "cannot pad short frame\n");
-			ifp->if_oerrors++;
+			counter_u64_add(ifv->ifv_oerrors, 1);
 			m_freem(m);
 			return (0);
 		}
@@ -1110,7 +1114,7 @@ vlan_transmit(struct ifnet *ifp, struct mbuf *m)
 		m = ether_vlanencap(m, ifv->ifv_vid);
 		if (m == NULL) {
 			if_printf(ifp, "unable to prepend VLAN header\n");
-			ifp->if_oerrors++;
+			counter_u64_add(ifv->ifv_oerrors, 1);
 			return (0);
 		}
 	}
@@ -1122,14 +1126,14 @@ vlan_transmit(struct ifnet *ifp, struct mbuf *m)
 	if (error == 0) {
 		counter_u64_add(ifv->ifv_opackets, 1);
 		counter_u64_add(ifv->ifv_obytes, len);
-		counter_u64_add(ifv->ifv_omcasts, 1);
+		counter_u64_add(ifv->ifv_omcasts, mcast);
 	} else
-		ifp->if_oerrors++;
+		counter_u64_add(ifv->ifv_oerrors, 1);
 	return (error);
 }
 
 static uint64_t
-vlan_get_counter(struct ifnet *ifp, ifnet_counter cnt)
+vlan_get_counter(struct ifnet *ifp, ift_counter cnt)
 {
 	struct ifvlan *ifv;
 
@@ -1146,8 +1150,10 @@ vlan_get_counter(struct ifnet *ifp, ifnet_counter cnt)
 			return (counter_u64_fetch(ifv->ifv_obytes));
 		case IFCOUNTER_OMCASTS:
 			return (counter_u64_fetch(ifv->ifv_omcasts));
+		case IFCOUNTER_OERRORS:
+			return (counter_u64_fetch(ifv->ifv_oerrors));
 		default:
-			return (if_get_counter_compat(ifp, cnt));
+			return (if_get_counter_default(ifp, cnt));
 	}
 	/* NOTREACHED */
 }
@@ -1210,7 +1216,7 @@ vlan_input(struct ifnet *ifp, struct mbuf *m)
 			      __func__, ifp->if_xname, ifp->if_type);
 #endif
 			m_freem(m);
-			ifp->if_noproto++;
+			if_inc_counter(ifp, IFCOUNTER_NOPROTO, 1);
 			return;
 		}
 	}
@@ -1220,7 +1226,7 @@ vlan_input(struct ifnet *ifp, struct mbuf *m)
 	if (ifv == NULL || !UP_AND_RUNNING(ifv->ifv_ifp)) {
 		TRUNK_RUNLOCK(trunk);
 		m_freem(m);
-		ifp->if_noproto++;
+		if_inc_counter(ifp, IFCOUNTER_NOPROTO, 1);
 		return;
 	}
 	TRUNK_RUNLOCK(trunk);
@@ -1531,6 +1537,7 @@ vlan_capabilities(struct ifvlan *ifv)
 {
 	struct ifnet *p = PARENT(ifv);
 	struct ifnet *ifp = ifv->ifv_ifp;
+	struct ifnet_hw_tsomax hw_tsomax;
 
 	TRUNK_LOCK_ASSERT(TRUNK(ifv));
 
@@ -1557,8 +1564,9 @@ vlan_capabilities(struct ifvlan *ifv)
 	 * propagate the hardware-assisted flag. TSO on VLANs
 	 * does not necessarily require hardware VLAN tagging.
 	 */
-	if (p->if_hw_tsomax > 0)
-		ifp->if_hw_tsomax = p->if_hw_tsomax;
+	memset(&hw_tsomax, 0, sizeof(hw_tsomax));
+	if_hw_tsomax_common(p, &hw_tsomax);
+	if_hw_tsomax_update(ifp, &hw_tsomax);
 	if (p->if_capabilities & IFCAP_VLAN_HWTSO)
 		ifp->if_capabilities |= p->if_capabilities & IFCAP_TSO;
 	if (p->if_capenable & IFCAP_VLAN_HWTSO) {

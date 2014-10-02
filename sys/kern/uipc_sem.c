@@ -62,6 +62,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/sysproto.h>
 #include <sys/systm.h>
 #include <sys/sx.h>
+#include <sys/user.h>
 #include <sys/vnode.h>
 
 #include <security/mac/mac_framework.h>
@@ -130,6 +131,7 @@ static fo_stat_t	ksem_stat;
 static fo_close_t	ksem_closef;
 static fo_chmod_t	ksem_chmod;
 static fo_chown_t	ksem_chown;
+static fo_fill_kinfo_t	ksem_fill_kinfo;
 
 /* File descriptor operations. */
 static struct fileops ksem_ops = {
@@ -144,6 +146,7 @@ static struct fileops ksem_ops = {
 	.fo_chmod = ksem_chmod,
 	.fo_chown = ksem_chown,
 	.fo_sendfile = invfo_sendfile,
+	.fo_fill_kinfo = ksem_fill_kinfo,
 	.fo_flags = DFLAG_PASSABLE
 };
 
@@ -249,6 +252,26 @@ ksem_closef(struct file *fp, struct thread *td)
 	fp->f_data = NULL;
 	ksem_drop(ks);
 
+	return (0);
+}
+
+static int
+ksem_fill_kinfo(struct file *fp, struct kinfo_file *kif, struct filedesc *fdp)
+{
+	struct ksem *ks;
+
+	kif->kf_type = KF_TYPE_SEM;
+	ks = fp->f_data;
+	mtx_lock(&sem_lock);
+	kif->kf_un.kf_sem.kf_sem_value = ks->ks_value;
+	kif->kf_un.kf_sem.kf_sem_mode = S_IFREG | ks->ks_mode;	/* XXX */
+	mtx_unlock(&sem_lock);
+	if (ks->ks_path != NULL) {
+		sx_slock(&ksem_dict_lock);
+		if (ks->ks_path != NULL)
+			strlcpy(kif->kf_path, ks->ks_path, sizeof(kif->kf_path));
+		sx_sunlock(&ksem_dict_lock);
+	}
 	return (0);
 }
 
@@ -386,20 +409,6 @@ ksem_remove(char *path, Fnv32_t fnv, struct ucred *ucred)
 	}
 
 	return (ENOENT);
-}
-
-static void
-ksem_info_impl(struct ksem *ks, char *path, size_t size, uint32_t *value)
-{
-
-	if (ks->ks_path == NULL)
-		return;
-	sx_slock(&ksem_dict_lock);
-	if (ks->ks_path != NULL)
-		strlcpy(path, ks->ks_path, size);
-	if (value != NULL)
-		*value = ks->ks_value;
-	sx_sunlock(&ksem_dict_lock);
 }
 
 static int
@@ -983,7 +992,6 @@ ksem_module_init(void)
 	p31b_setcfg(CTL_P1003_1B_SEMAPHORES, 200112L);
 	p31b_setcfg(CTL_P1003_1B_SEM_NSEMS_MAX, SEM_MAX);
 	p31b_setcfg(CTL_P1003_1B_SEM_VALUE_MAX, SEM_VALUE_MAX);
-	ksem_info = ksem_info_impl;
 
 	error = syscall_helper_register(ksem_syscalls);
 	if (error)
@@ -1005,7 +1013,6 @@ ksem_module_destroy(void)
 #endif
 	syscall_helper_unregister(ksem_syscalls);
 
-	ksem_info = NULL;
 	p31b_setcfg(CTL_P1003_1B_SEMAPHORES, 0);
 	hashdestroy(ksem_dictionary, M_KSEM, ksem_hash);
 	sx_destroy(&ksem_dict_lock);

@@ -84,6 +84,7 @@ static struct ofw_compat_data compat_data[] = {
 	{"fsl,imx21-uart",	(uintptr_t)&uart_imx_class},
 	{"fsl,mvf600-uart",	(uintptr_t)&uart_vybrid_class},
 	{"lpc,uart",		(uintptr_t)&uart_lpc_class},
+        {"qcom,uart-dm",        (uintptr_t)&uart_msm_class},
 	{"ti,ns16550",		(uintptr_t)&uart_ti8250_class},
 	{"ns16550",		(uintptr_t)&uart_ns8250_class},
 	{NULL,			(uintptr_t)NULL},

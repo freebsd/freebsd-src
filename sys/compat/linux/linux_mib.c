@@ -129,9 +129,9 @@ struct linux_prison {
 
 static struct linux_prison lprison0 = {
 	.pr_osname =		"Linux",
-	.pr_osrelease =		"2.6.16",
+	.pr_osrelease =		"2.6.18",
 	.pr_oss_version =	0x030600,
-	.pr_osrel =		2006016
+	.pr_osrel =		2006018
 };
 
 static unsigned linux_osd_jail_slot;

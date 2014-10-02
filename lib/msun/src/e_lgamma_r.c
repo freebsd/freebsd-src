@@ -1,4 +1,3 @@
-
 /* @(#)e_lgamma_r.c 1.3 95/01/18 */
 /*
  * ====================================================
@@ -6,10 +5,9 @@
  *
  * Developed at SunSoft, a Sun Microsystems, Inc. business.
  * Permission to use, copy, modify, and distribute this
- * software is freely granted, provided that this notice 
+ * software is freely granted, provided that this notice
  * is preserved.
  * ====================================================
- *
  */
 
 #include <sys/cdefs.h>
@@ -82,6 +80,8 @@ __FBSDID("$FreeBSD$");
  *		lgamma(-inf) = inf (bug for bug compatible with C99!?)
  *	
  */
+
+#include <float.h>
 
 #include "math.h"
 #include "math_private.h"
@@ -212,7 +212,11 @@ __ieee754_lgamma_r(double x, int *signgamp)
 	*signgamp = 1;
 	ix = hx&0x7fffffff;
 	if(ix>=0x7ff00000) return x*x;
-	if((ix|lx)==0) return one/vzero;
+	if((ix|lx)==0) {
+	   if(hx<0)
+		*signgamp = -1;
+	    return one/vzero;
+	}
 	if(ix<0x3b900000) {	/* |x|<2**-70, return -log(|x|) */
 	    if(hx<0) {
 	        *signgamp = -1;
@@ -250,7 +254,7 @@ __ieee754_lgamma_r(double x, int *signgamp)
 		p1 = a0+z*(a2+z*(a4+z*(a6+z*(a8+z*a10))));
 		p2 = z*(a1+z*(a3+z*(a5+z*(a7+z*(a9+z*a11)))));
 		p  = y*p1+p2;
-		r  += (p-0.5*y); break;
+		r  += (p-y/2); break;
 	      case 1:
 		z = y*y;
 		w = z*y;
@@ -273,11 +277,11 @@ __ieee754_lgamma_r(double x, int *signgamp)
 	    r = half*y+p/q;
 	    z = one;	/* lgamma(1+s) = log(s) + lgamma(s) */
 	    switch(i) {
-	    case 7: z *= (y+6.0);	/* FALLTHRU */
-	    case 6: z *= (y+5.0);	/* FALLTHRU */
-	    case 5: z *= (y+4.0);	/* FALLTHRU */
-	    case 4: z *= (y+3.0);	/* FALLTHRU */
-	    case 3: z *= (y+2.0);	/* FALLTHRU */
+	    case 7: z *= (y+6);		/* FALLTHRU */
+	    case 6: z *= (y+5);		/* FALLTHRU */
+	    case 5: z *= (y+4);		/* FALLTHRU */
+	    case 4: z *= (y+3);		/* FALLTHRU */
+	    case 3: z *= (y+2);		/* FALLTHRU */
 		    r += __ieee754_log(z); break;
 	    }
     /* 8.0 <= x < 2**58 */
@@ -293,3 +297,8 @@ __ieee754_lgamma_r(double x, int *signgamp)
 	if(hx<0) r = nadj - r;
 	return r;
 }
+
+#if (LDBL_MANT_DIG == 53)
+__weak_reference(lgamma_r, lgammal_r);
+#endif
+

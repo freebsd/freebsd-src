@@ -162,7 +162,7 @@ struct ng_btsocket_l2cap_pcb {
 	u_int16_t			 flush_timo; /* flush timeout */   
 	u_int16_t			 link_timo;  /* link timeout */ 
 
-	struct callout_handle		 timo;       /* timeout */
+	struct callout			 timo;       /* timeout */
 
 	u_int32_t			 token;	     /* message token */
 	ng_btsocket_l2cap_rtentry_p	 rt;         /* routing info */

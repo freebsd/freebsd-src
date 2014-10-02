@@ -31,10 +31,13 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/systm.h>
+#include <sys/cpuset.h>
 
 #include <machine/cpufunc.h>
 #include <machine/specialreg.h>
+#include <machine/vmm.h>
 
+#include "vmx.h"
 #include "vmx_msr.h"
 
 static boolean_t
@@ -170,4 +173,116 @@ msr_bitmap_change_access(char *bitmap, u_int msr, int access)
 		bitmap[byte] |= 1 << bit;
 
 	return (0);
+}
+
+static uint64_t misc_enable;
+static uint64_t host_msrs[GUEST_MSR_NUM];
+
+void
+vmx_msr_init(void)
+{
+	/*
+	 * It is safe to cache the values of the following MSRs because
+	 * they don't change based on curcpu, curproc or curthread.
+	 */
+	host_msrs[IDX_MSR_LSTAR] = rdmsr(MSR_LSTAR);
+	host_msrs[IDX_MSR_CSTAR] = rdmsr(MSR_CSTAR);
+	host_msrs[IDX_MSR_STAR] = rdmsr(MSR_STAR);
+	host_msrs[IDX_MSR_SF_MASK] = rdmsr(MSR_SF_MASK);
+
+	/*
+	 * Initialize emulated MSRs
+	 */
+	misc_enable = rdmsr(MSR_IA32_MISC_ENABLE);
+	/*
+	 * Set mandatory bits
+	 *  11:   branch trace disabled
+	 *  12:   PEBS unavailable
+	 * Clear unsupported features
+	 *  16:   SpeedStep enable
+	 *  18:   enable MONITOR FSM
+	 */
+	misc_enable |= (1 << 12) | (1 << 11);
+	misc_enable &= ~((1 << 18) | (1 << 16));
+}
+
+void
+vmx_msr_guest_init(struct vmx *vmx, int vcpuid)
+{
+	/*
+	 * The permissions bitmap is shared between all vcpus so initialize it
+	 * once when initializing the vBSP.
+	 */
+	if (vcpuid == 0) {
+		guest_msr_rw(vmx, MSR_LSTAR);
+		guest_msr_rw(vmx, MSR_CSTAR);
+		guest_msr_rw(vmx, MSR_STAR);
+		guest_msr_rw(vmx, MSR_SF_MASK);
+		guest_msr_rw(vmx, MSR_KGSBASE);
+	}
+	return;
+}
+
+void
+vmx_msr_guest_enter(struct vmx *vmx, int vcpuid)
+{
+	uint64_t *guest_msrs = vmx->guest_msrs[vcpuid];
+
+	/* Save host MSRs (if any) and restore guest MSRs */
+	wrmsr(MSR_LSTAR, guest_msrs[IDX_MSR_LSTAR]);
+	wrmsr(MSR_CSTAR, guest_msrs[IDX_MSR_CSTAR]);
+	wrmsr(MSR_STAR, guest_msrs[IDX_MSR_STAR]);
+	wrmsr(MSR_SF_MASK, guest_msrs[IDX_MSR_SF_MASK]);
+	wrmsr(MSR_KGSBASE, guest_msrs[IDX_MSR_KGSBASE]);
+}
+
+void
+vmx_msr_guest_exit(struct vmx *vmx, int vcpuid)
+{
+	uint64_t *guest_msrs = vmx->guest_msrs[vcpuid];
+
+	/* Save guest MSRs */
+	guest_msrs[IDX_MSR_LSTAR] = rdmsr(MSR_LSTAR);
+	guest_msrs[IDX_MSR_CSTAR] = rdmsr(MSR_CSTAR);
+	guest_msrs[IDX_MSR_STAR] = rdmsr(MSR_STAR);
+	guest_msrs[IDX_MSR_SF_MASK] = rdmsr(MSR_SF_MASK);
+	guest_msrs[IDX_MSR_KGSBASE] = rdmsr(MSR_KGSBASE);
+
+	/* Restore host MSRs */
+	wrmsr(MSR_LSTAR, host_msrs[IDX_MSR_LSTAR]);
+	wrmsr(MSR_CSTAR, host_msrs[IDX_MSR_CSTAR]);
+	wrmsr(MSR_STAR, host_msrs[IDX_MSR_STAR]);
+	wrmsr(MSR_SF_MASK, host_msrs[IDX_MSR_SF_MASK]);
+
+	/* MSR_KGSBASE will be restored on the way back to userspace */
+}
+
+int
+vmx_rdmsr(struct vmx *vmx, int vcpuid, u_int num, uint64_t *val, bool *retu)
+{
+	int error = 0;
+
+	switch (num) {
+	case MSR_IA32_MISC_ENABLE:
+		*val = misc_enable;
+		break;
+	default:
+		error = EINVAL;
+		break;
+	}
+	return (error);
+}
+
+int
+vmx_wrmsr(struct vmx *vmx, int vcpuid, u_int num, uint64_t val, bool *retu)
+{
+	int error = 0;
+
+	switch (num) {
+	default:
+		error = EINVAL;
+		break;
+	}
+
+	return (error);
 }

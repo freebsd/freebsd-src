@@ -171,10 +171,8 @@ scheme_max_secsz(void)
 lba_t
 scheme_metadata(u_int where, lba_t start)
 {
-	lba_t secs;
 
-	secs = scheme->metadata(where);
-	return (round_block(start + secs));
+	return (scheme->metadata(where, start));
 }
 
 int

@@ -197,10 +197,6 @@ static void fill_fpregs_xmm(struct savexmm *, struct save87 *);
 #endif /* CPU_ENABLE_SSE */
 SYSINIT(cpu, SI_SUB_CPU, SI_ORDER_FIRST, cpu_startup, NULL);
 
-#ifdef DDB
-extern vm_offset_t ksym_start, ksym_end;
-#endif
-
 /* Intel ICH registers */
 #define ICH_PMBASE	0x400
 #define ICH_SMI_EN	ICH_PMBASE + 0x30
@@ -252,6 +248,9 @@ struct mem_range_softc mem_range_softc;
  struct init_ops init_ops = {
 	.early_clock_source_init =	i8254_init,
 	.early_delay =			i8254_delay,
+#ifdef DEV_APIC
+	.msi_init =			msi_init,
+#endif
  };
 
 static void
@@ -2736,8 +2735,7 @@ init386(first)
 #endif
 
 #ifdef DDB
-	ksym_start = bootinfo.bi_symtab;
-	ksym_end = bootinfo.bi_esymtab;
+	db_fetch_ksymtab(bootinfo.bi_symtab, bootinfo.bi_esymtab);
 #endif
 
 	kdb_init();
@@ -3013,8 +3011,7 @@ init386(first)
 #endif
 
 #ifdef DDB
-	ksym_start = bootinfo.bi_symtab;
-	ksym_end = bootinfo.bi_esymtab;
+	db_fetch_ksymtab(bootinfo.bi_symtab, bootinfo.bi_esymtab);
 #endif
 
 	kdb_init();

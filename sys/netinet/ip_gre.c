@@ -142,8 +142,8 @@ gre_input2(struct mbuf *m ,int hlen, u_char proto)
 	}
 	gip = mtod(m, struct greip *);
 
-	GRE2IFP(sc)->if_ipackets++;
-	GRE2IFP(sc)->if_ibytes += m->m_pkthdr.len;
+	if_inc_counter(GRE2IFP(sc), IFCOUNTER_IPACKETS, 1);
+	if_inc_counter(GRE2IFP(sc), IFCOUNTER_IBYTES, m->m_pkthdr.len);
 
 	switch (proto) {
 	case IPPROTO_GRE:
@@ -243,8 +243,8 @@ gre_mobile_input(struct mbuf **mp, int *offp, int proto)
 	ip = mtod(m, struct ip *);
 	mip = mtod(m, struct mobip_h *);
 
-	GRE2IFP(sc)->if_ipackets++;
-	GRE2IFP(sc)->if_ibytes += m->m_pkthdr.len;
+	if_inc_counter(GRE2IFP(sc), IFCOUNTER_IPACKETS, 1);
+	if_inc_counter(GRE2IFP(sc), IFCOUNTER_IBYTES, m->m_pkthdr.len);
 
 	if (ntohs(mip->mh.proto) & MOB_H_SBIT) {
 		msiz = MOB_H_SIZ_L;
@@ -315,18 +315,18 @@ gre_lookup(struct mbuf *m, u_int8_t proto)
 	struct ip *ip = mtod(m, struct ip *);
 	struct gre_softc *sc;
 
-	mtx_lock(&gre_mtx);
-	for (sc = LIST_FIRST(&gre_softc_list); sc != NULL;
+	GRE_LIST_LOCK();
+	for (sc = LIST_FIRST(&V_gre_softc_list); sc != NULL;
 	     sc = LIST_NEXT(sc, sc_list)) {
 		if ((sc->g_dst.s_addr == ip->ip_src.s_addr) &&
 		    (sc->g_src.s_addr == ip->ip_dst.s_addr) &&
 		    (sc->g_proto == proto) &&
 		    ((GRE2IFP(sc)->if_flags & IFF_UP) != 0)) {
-			mtx_unlock(&gre_mtx);
+			GRE_LIST_UNLOCK();
 			return (sc);
 		}
 	}
-	mtx_unlock(&gre_mtx);
+	GRE_LIST_UNLOCK();
 
 	return (NULL);
 }

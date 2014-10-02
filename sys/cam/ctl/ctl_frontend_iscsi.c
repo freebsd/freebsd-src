@@ -2505,10 +2505,10 @@ cfiscsi_datamove_in(union ctl_io *io)
 		sg_addr += len;
 		sg_len -= len;
 
-		KASSERT(buffer_offset + request->ip_data_len <= expected_len,
+		KASSERT(buffer_offset + response->ip_data_len <= expected_len,
 		    ("buffer_offset %zd + ip_data_len %zd > expected_len %zd",
-		    buffer_offset, request->ip_data_len, expected_len));
-		if (buffer_offset + request->ip_data_len == expected_len) {
+		    buffer_offset, response->ip_data_len, expected_len));
+		if (buffer_offset + response->ip_data_len == expected_len) {
 			/*
 			 * Already have the amount of data the initiator wanted.
 			 */

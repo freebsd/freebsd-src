@@ -38,6 +38,14 @@
 #   xargs -n1 | sort | uniq -d;
 # done
 
+# 20140922: sleepq_calc_signal_retval.9 and sleepq_catch_signals.9 removed
+OLD_FILES+=usr/share/man/man9/sleepq_calc_signal_retval.9.gz
+OLD_FILES+=usr/share/man/man9/sleepq_catch_signals.9.gz
+# 20140917: hv_kvpd rc.d script removed in favor of devd configuration
+OLD_FILES+=etc/rc.d/hv_kvpd
+# 20140917: libnv was accidentally being installed to /usr/lib instead of /lib
+OLD_LIBS+=usr/lib/libnv.a
+OLD_LIBS+=usr/lib/libnv.so.0
 # 20140814: libopie version bump
 OLD_LIBS+=usr/lib/libopie.so.7
 OLD_LIBS+=usr/lib32/libopie.so.7

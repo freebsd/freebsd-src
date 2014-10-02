@@ -227,12 +227,13 @@ udp6_input(struct mbuf **mp, int *offp, int proto)
 
 	nxt = ip6->ip6_nxt;
 	cscov_partial = (nxt == IPPROTO_UDPLITE) ? 1 : 0;
-	if (nxt == IPPROTO_UDPLITE && ulen == 0) {
+	if (nxt == IPPROTO_UDPLITE && (ulen == 0 || ulen == plen)) {
 		/* Zero means checksum over the complete packet. */
-		ulen = plen;
+		if (ulen == 0)
+			ulen = plen;
 		cscov_partial = 0;
 	}
-	if (plen != ulen) {
+	if (nxt == IPPROTO_UDP && plen != ulen) {
 		UDPSTAT_INC(udps_badlen);
 		goto badunlocked;
 	}
@@ -260,7 +261,7 @@ udp6_input(struct mbuf **mp, int *offp, int proto)
 
 	if (uh_sum != 0) {
 		UDPSTAT_INC(udps_badsum);
-		goto badunlocked;
+		/*goto badunlocked;*/
 	}
 
 	/*
@@ -480,7 +481,7 @@ udp6_input(struct mbuf **mp, int *offp, int proto)
 	INP_RLOCK_ASSERT(inp);
 	up = intoudpcb(inp);
 	if (cscov_partial) {
-		if (up->u_rxcslen > ulen) {
+		if (up->u_rxcslen == 0 || up->u_rxcslen > ulen) {
 			INP_RUNLOCK(inp);
 			m_freem(m);
 			return (IPPROTO_DONE);

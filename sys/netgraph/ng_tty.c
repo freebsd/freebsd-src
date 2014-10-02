@@ -327,7 +327,6 @@ ngt_rcvdata(hook_p hook, item_p item)
 
 	IF_LOCK(&sc->outq);
 	if (_IF_QFULL(&sc->outq)) {
-		_IF_DROP(&sc->outq);
 		IF_UNLOCK(&sc->outq);
 		NG_FREE_M(m);
 		return (ENOBUFS);

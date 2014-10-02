@@ -177,6 +177,7 @@ struct init_ops init_ops = {
 	.mp_bootaddress =		mp_bootaddress,
 	.start_all_aps =		native_start_all_aps,
 #endif
+	.msi_init =			msi_init,
 };
 
 /*
@@ -184,9 +185,6 @@ struct init_ops init_ops = {
  * the physical address at which the kernel is loaded.
  */
 extern char kernphys[];
-#ifdef DDB
-extern vm_offset_t ksym_start, ksym_end;
-#endif
 
 struct msgbuf *msgbufp;
 
@@ -1823,6 +1821,10 @@ static caddr_t
 native_parse_preload_data(u_int64_t modulep)
 {
 	caddr_t kmdp;
+#ifdef DDB
+	vm_offset_t ksym_start;
+	vm_offset_t ksym_end;
+#endif
 
 	preload_metadata = (caddr_t)(uintptr_t)(modulep + KERNBASE);
 	preload_bootstrap_relocate(KERNBASE);
@@ -1834,6 +1836,7 @@ native_parse_preload_data(u_int64_t modulep)
 #ifdef DDB
 	ksym_start = MD_FETCH(kmdp, MODINFOMD_SSYM, uintptr_t);
 	ksym_end = MD_FETCH(kmdp, MODINFOMD_ESYM, uintptr_t);
+	db_fetch_ksymtab(ksym_start, ksym_end);
 #endif
 
 	return (kmdp);

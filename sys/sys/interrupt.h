@@ -112,13 +112,13 @@ struct intr_event {
 	void		(*ie_pre_ithread)(void *);
 	void		(*ie_post_ithread)(void *);
 	void		(*ie_post_filter)(void *);
-	int		(*ie_assign_cpu)(void *, u_char);
+	int		(*ie_assign_cpu)(void *, int);
 	int		ie_flags;
 	int		ie_count;	/* Loop counter. */
 	int		ie_warncnt;	/* Rate-check interrupt storm warns. */
 	struct timeval	ie_warntm;
 	int		ie_irq;		/* Physical irq number if !SOFT. */
-	u_char		ie_cpu;		/* CPU this event is bound to. */
+	int		ie_cpu;		/* CPU this event is bound to. */
 };
 
 /* Interrupt event flags kept in ie_flags. */
@@ -161,11 +161,11 @@ u_char	intr_priority(enum intr_type flags);
 int	intr_event_add_handler(struct intr_event *ie, const char *name,
 	    driver_filter_t filter, driver_intr_t handler, void *arg, 
 	    u_char pri, enum intr_type flags, void **cookiep);	    
-int	intr_event_bind(struct intr_event *ie, u_char cpu);
+int	intr_event_bind(struct intr_event *ie, int cpu);
 int	intr_event_create(struct intr_event **event, void *source,
 	    int flags, int irq, void (*pre_ithread)(void *),
 	    void (*post_ithread)(void *), void (*post_filter)(void *),
-	    int (*assign_cpu)(void *, u_char), const char *fmt, ...)
+	    int (*assign_cpu)(void *, int), const char *fmt, ...)
 	    __printflike(9, 10);
 int	intr_event_describe_handler(struct intr_event *ie, void *cookie,
 	    const char *descr);

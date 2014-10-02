@@ -215,6 +215,7 @@ static void	em_start(if_t);
 static void	em_start_locked(if_t, struct tx_ring *);
 #endif
 static int	em_ioctl(if_t, u_long, caddr_t);
+static uint64_t	em_get_counter(if_t, ift_counter);
 static void	em_init(void *);
 static void	em_init_locked(struct adapter *);
 static void	em_stop(void *);
@@ -306,7 +307,7 @@ static int	em_sysctl_eee(SYSCTL_HANDLER_ARGS);
 static __inline void em_rx_discard(struct rx_ring *, int);
 
 #ifdef DEVICE_POLLING
-static poll_handler_drv_t em_poll;
+static poll_handler_t em_poll;
 #endif /* POLLING */
 
 /*********************************************************************
@@ -786,7 +787,7 @@ em_detach(device_t dev)
 
 #ifdef DEVICE_POLLING
 	if (if_getcapenable(ifp) & IFCAP_POLLING)
-		ether_poll_deregister_drv(ifp);
+		ether_poll_deregister(ifp);
 #endif
 
 	if (adapter->led_dev != NULL)
@@ -934,9 +935,9 @@ em_mq_start_locked(if_t ifp, struct tx_ring *txr, struct mbuf *m)
 		}
 		drbr_advance(ifp, txr->br);
 		enq++;
-		if_incobytes(ifp,  next->m_pkthdr.len);
+		if_inc_counter(ifp, IFCOUNTER_OBYTES, next->m_pkthdr.len);
 		if (next->m_flags & M_MCAST)
-			if_incomcasts(ifp, 1);
+			if_inc_counter(ifp, IFCOUNTER_OMCASTS, 1);
 		if_etherbpfmtap(ifp, next);
 		if ((if_getdrvflags(ifp) & IFF_DRV_RUNNING) == 0)
                         break;
@@ -1207,7 +1208,7 @@ em_ioctl(if_t ifp, u_long command, caddr_t data)
 #ifdef DEVICE_POLLING
 		if (mask & IFCAP_POLLING) {
 			if (ifr->ifr_reqcap & IFCAP_POLLING) {
-				error = ether_poll_register_drv(em_poll, ifp);
+				error = ether_poll_register(em_poll, ifp);
 				if (error)
 					return (error);
 				EM_CORE_LOCK(adapter);
@@ -1215,7 +1216,7 @@ em_ioctl(if_t ifp, u_long command, caddr_t data)
 				if_setcapenablebit(ifp, IFCAP_POLLING, 0);
 				EM_CORE_UNLOCK(adapter);
 			} else {
-				error = ether_poll_deregister_drv(ifp);
+				error = ether_poll_deregister(ifp);
 				/* Enable interrupt even in error case */
 				EM_CORE_LOCK(adapter);
 				em_enable_intr(adapter);
@@ -2940,6 +2941,7 @@ em_setup_interface(device_t dev, struct adapter *adapter)
 	if_setsoftc(ifp, adapter);
 	if_setflags(ifp, IFF_BROADCAST | IFF_SIMPLEX | IFF_MULTICAST);
 	if_setioctlfn(ifp, em_ioctl);
+	if_setgetcounterfn(ifp, em_get_counter);
 #ifdef EM_MULTIQUEUE
 	/* Multiqueue stack interface */
 	if_settransmitfn(ifp, em_mq_start);
@@ -3850,7 +3852,7 @@ em_txeof(struct tx_ring *txr)
 	                tx_buffer = &txr->tx_buffers[first];
 			tx_desc = &txr->tx_base[first];
 		}
-		if_incopackets(ifp, 1);
+		if_inc_counter(ifp, IFCOUNTER_OPACKETS, 1);
 		/* See if we can continue to the next packet */
 		last = tx_buffer->next_eop;
 		if (last != -1) {
@@ -4450,7 +4452,7 @@ em_rxeof(struct rx_ring *rxr, int count, int *done)
 			--count;
 			sendmp = rxr->fmp;
 			if_setrcvif(sendmp, ifp);
-			if_incipackets(ifp, 1);
+			if_inc_counter(ifp, IFCOUNTER_IPACKETS, 1);
 			em_receive_checksum(cur, sendmp);
 #ifndef __NO_STRICT_ALIGNMENT
 			if (adapter->hw.mac.max_frame_size >
@@ -5107,7 +5109,6 @@ em_disable_aspm(struct adapter *adapter)
 static void
 em_update_stats_counters(struct adapter *adapter)
 {
-	if_t ifp;
 
 	if(adapter->hw.phy.media_type == e1000_media_type_copper ||
 	   (E1000_READ_REG(&adapter->hw, E1000_STATUS) & E1000_STATUS_LU)) {
@@ -5199,19 +5200,29 @@ em_update_stats_counters(struct adapter *adapter)
 		adapter->stats.tsctfc += 
 		E1000_READ_REG(&adapter->hw, E1000_TSCTFC);
 	}
-	ifp = adapter->ifp;
+}
 
-	if_setcollisions(ifp, adapter->stats.colc);
+static uint64_t
+em_get_counter(if_t ifp, ift_counter cnt)
+{
+	struct adapter *adapter;
 
-	/* Rx Errors */
-	if_setierrors(ifp, adapter->dropped_pkts + adapter->stats.rxerrc +
-	    adapter->stats.crcerrs + adapter->stats.algnerrc +
-	    adapter->stats.ruc + adapter->stats.roc +
-	    adapter->stats.mpc + adapter->stats.cexterr);
+	adapter = if_getsoftc(ifp);
 
-	/* Tx Errors */
-	if_setoerrors(ifp, adapter->stats.ecol + adapter->stats.latecol +
-	    adapter->watchdog_events);
+	switch (cnt) {
+	case IFCOUNTER_COLLISIONS:
+		return (adapter->stats.colc);
+	case IFCOUNTER_IERRORS:
+		return (adapter->dropped_pkts + adapter->stats.rxerrc +
+		    adapter->stats.crcerrs + adapter->stats.algnerrc +
+		    adapter->stats.ruc + adapter->stats.roc +
+		    adapter->stats.mpc + adapter->stats.cexterr);
+	case IFCOUNTER_OERRORS:
+		return (adapter->stats.ecol + adapter->stats.latecol +
+		    adapter->watchdog_events);
+	default:
+		return (if_get_counter_default(ifp, cnt));
+	}
 }
 
 /* Export a single 32-bit register via a read-only sysctl. */

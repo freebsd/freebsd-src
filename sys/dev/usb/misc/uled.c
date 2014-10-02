@@ -231,7 +231,7 @@ uled_close(struct usb_fifo *fifo, int fflags)
 		sc->sc_state &= ~ULED_ENABLED;
 	}
 }
-			
+
 static int
 uled_ioctl(struct usb_fifo *fifo, u_long cmd, void *addr, int fflags)
 {

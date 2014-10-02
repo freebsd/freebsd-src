@@ -169,10 +169,6 @@ SYSINIT(cpu, SI_SUB_CPU, SI_ORDER_FIRST, cpu_startup, NULL);
 int	need_pre_dma_flush;	/* If 1, use wbinvd befor DMA transfer. */
 int	need_post_dma_flush;	/* If 1, use invd after DMA transfer. */
 
-#ifdef DDB
-extern vm_offset_t ksym_start, ksym_end;
-#endif
-
 int	_udatasel, _ucodesel;
 u_int	basemem;
 
@@ -2298,8 +2294,7 @@ init386(first)
 #endif
 
 #ifdef DDB
-	ksym_start = bootinfo.bi_symtab;
-	ksym_end = bootinfo.bi_esymtab;
+	db_fetch_ksymtab(bootinfo.bi_symtab,bootinfo.bi_esymtab);
 #endif
 
 	kdb_init();
