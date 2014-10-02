@@ -260,6 +260,7 @@ struct vt_window {
 	unsigned int		 vw_number;	/* (c) Window number. */
 	int			 vw_kbdmode;	/* (?) Keyboard mode. */
 	int			 vw_prev_kbdmode;/* (?) Previous mode. */
+	int			 vw_kbdstate;	/* (?) Keyboard state. */
 	int			 vw_grabbed;	/* (?) Grab count. */
 	char			*vw_kbdsq;	/* Escape sequence queue*/
 	unsigned int		 vw_flags;	/* (d) Per-window flags. */
