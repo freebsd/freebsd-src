@@ -503,8 +503,11 @@ label:
 			}
 			errno = sverrno;
 			buf = cp;
-			gmtime_r(&t, tm);
+			if (gmtime_r(&t, tm) == NULL)
+				return (NULL);
 			*GMTp = 1;
+			flags |= FLAG_YDAY | FLAG_WDAY | FLAG_MONTH |
+			    FLAG_MDAY | FLAG_YEAR;
 			}
 			break;
 
