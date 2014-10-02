@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2013, Intel Corp.
+ * Copyright (C) 2000 - 2014, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -40,6 +40,8 @@
  * IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGES.
  */
+
+#define EXPORT_ACPI_INTERFACES
 
 #include <contrib/dev/acpica/include/acpi.h>
 #include <contrib/dev/acpica/include/accommon.h>
@@ -90,9 +92,15 @@ AcpiReset (
          * For I/O space, write directly to the OSL. This bypasses the port
          * validation mechanism, which may block a valid write to the reset
          * register.
+         *
+         * NOTE:
+         * The ACPI spec requires the reset register width to be 8, so we
+         * hardcode it here and ignore the FADT value. This maintains
+         * compatibility with other ACPI implementations that have allowed
+         * BIOS code with bad register width values to go unnoticed.
          */
         Status = AcpiOsWritePort ((ACPI_IO_ADDRESS) ResetReg->Address,
-                    AcpiGbl_FADT.ResetValue, ResetReg->BitWidth);
+            AcpiGbl_FADT.ResetValue, ACPI_RESET_REGISTER_WIDTH);
     }
     else
     {

@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2013, Intel Corp.
+ * Copyright (C) 2000 - 2014, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -129,6 +129,7 @@ LdLoadNamespace (
     /* Dump the namespace if debug is enabled */
 
     AcpiNsDumpTables (ACPI_NS_ALL, ACPI_UINT32_MAX);
+    ACPI_FREE (WalkState);
     return (AE_OK);
 }
 
@@ -359,7 +360,6 @@ LdNamespace1Begin (
     ACPI_DEBUG_PRINT ((ACPI_DB_DISPATCH, "Op %p [%s]\n",
         Op, Op->Asl.ParseOpName));
 
-
     /*
      * We are only interested in opcodes that have an associated name
      * (or multiple names)
@@ -372,6 +372,34 @@ LdNamespace1Begin (
 
         Status = LdLoadFieldElements (Op, WalkState);
         return (Status);
+
+    case AML_INT_CONNECTION_OP:
+
+
+        if (Op->Asl.Child->Asl.AmlOpcode != AML_INT_NAMEPATH_OP)
+        {
+            break;
+        }
+        Arg = Op->Asl.Child;
+
+        Status = AcpiNsLookup (WalkState->ScopeInfo, Arg->Asl.ExternalName,
+            ACPI_TYPE_ANY, ACPI_IMODE_EXECUTE, ACPI_NS_SEARCH_PARENT,
+            WalkState, &Node);
+        if (ACPI_FAILURE (Status))
+        {
+            break;
+        }
+
+        if (Node->Type == ACPI_TYPE_BUFFER)
+        {
+            Arg->Asl.Node = Node;
+
+            Arg = Node->Op->Asl.Child;  /* Get namepath */
+            Arg = Arg->Asl.Next;        /* Get actual buffer */
+            Arg = Arg->Asl.Child;       /* Buffer length */
+            Arg = Arg->Asl.Next;        /* RAW_DATA buffer */
+        }
+        break;
 
     default:
 
@@ -465,7 +493,6 @@ LdNamespace1Begin (
 
         ObjectType = AslMapNamedOpcodeToDataType (Op->Asl.AmlOpcode);
         break;
-
 
     case PARSEOP_SCOPE:
         /*

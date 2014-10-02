@@ -19,9 +19,10 @@ fulldirs="common compiler components include os_specific"
 # files to remove
 stripdirs="generate libraries tests tools"
 stripfiles="Makefile README accygwin.h acefi.h achaiku.h acintel.h	\
-	aclinux.h acmacosx.h acmsvc.h acnetbsd.h acos2.h acwin.h	\
-	acwin64.h new_table.txt osfreebsdtbl.c oslinuxtbl.c osunixdir.c	\
-	osunixmap.c oswindir.c oswintbl.c oswinxf.c readme.txt utclib.c"
+	aclinux.h aclinuxex.h acmacosx.h acmsvc.h acnetbsd.h acos2.h	\
+	acwin.h	acwin64.h new_table.txt osefitbl.c osefixf.c		\
+	osfreebsdtbl.c oslinuxtbl.c osunixdir.c osunixmap.c oswindir.c	\
+	oswintbl.c oswinxf.c readme.txt utclib.c"
 
 # include files to canonify
 src_headers="acapps.h acbuffer.h accommon.h acconfig.h acdebug.h	\
@@ -30,8 +31,8 @@ src_headers="acapps.h acbuffer.h accommon.h acconfig.h acdebug.h	\
 	acopcode.h acoutput.h acparser.h acpi.h acpiosxf.h acpixf.h	\
 	acpredef.h acresrc.h acrestyp.h acstruct.h actables.h actbl.h	\
 	actbl1.h actbl2.h actbl3.h actypes.h acutils.h amlcode.h	\
-	amlresrc.h platform/acenv.h platform/acfreebsd.h		\
-	platform/acgcc.h"
+	amlresrc.h platform/acenv.h platform/acenvex.h			\
+	platform/acfreebsd.h platform/acgcc.h"
 comp_headers="aslcompiler.h asldefine.h aslglobal.h aslmessages.h	\
 	aslsupport.l asltypes.h dtcompiler.h dttemplate.h preprocess.h"
 platform_headers="acfreebsd.h acgcc.h"
