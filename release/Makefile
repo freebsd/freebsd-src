@@ -99,8 +99,8 @@ IMAGES+=	mini-memstick.img
 
 VMTARGETS=	vm-base vm-image
 VMFORMATS?=	vhd vmdk qcow2 raw
-VMSIZE?=	20G		# size in Gb
-VMBASE?=	vm		# name of the filesystem image
+VMSIZE?=	20G
+VMBASE?=	vm
 
 CLEANFILES=	packagesystem *.txz MANIFEST system ${IMAGES}
 .if defined(WITH_COMPRESSED_IMAGES) && !empty(WITH_COMPRESSED_IMAGES)
