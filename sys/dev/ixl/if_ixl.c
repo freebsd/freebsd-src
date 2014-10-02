@@ -2177,6 +2177,7 @@ ixl_allocate_pci_resources(struct ixl_pf *pf)
 	pf->osdep.mem_bus_space_handle =
 		rman_get_bushandle(pf->pci_mem);
 	pf->osdep.mem_bus_space_size = rman_get_size(pf->pci_mem);
+	pf->osdep.flush_reg = I40E_GLGEN_STAT;
 	pf->hw.hw_addr = (u8 *) &pf->osdep.mem_bus_space_handle;
 
 	pf->hw.back = &pf->osdep;

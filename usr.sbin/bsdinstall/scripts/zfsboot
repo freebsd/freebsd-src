@@ -156,7 +156,7 @@ f_isset ZFSBOOT_DATASETS || ZFSBOOT_DATASETS="
 	/usr/src
 
 	# Create /var and friends
-	/var		mountpoint=/var
+	/var		mountpoint=/var,canmount=off
 	/var/crash	exec=off,setuid=off
 	/var/log	exec=off,setuid=off
 	/var/mail	atime=on

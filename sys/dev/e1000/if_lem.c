@@ -260,7 +260,7 @@ static void	lem_add_rx_process_limit(struct adapter *, const char *,
 		    const char *, int *, int);
 
 #ifdef DEVICE_POLLING
-static poll_handler_drv_t lem_poll;
+static poll_handler_t lem_poll;
 #endif /* POLLING */
 
 /*********************************************************************
@@ -789,7 +789,7 @@ lem_detach(device_t dev)
 
 #ifdef DEVICE_POLLING
 	if (if_getcapenable(ifp) & IFCAP_POLLING)
-		ether_poll_deregister_drv(ifp);
+		ether_poll_deregister(ifp);
 #endif
 
 	if (adapter->led_dev != NULL)
@@ -1119,7 +1119,7 @@ lem_ioctl(if_t ifp, u_long command, caddr_t data)
 #ifdef DEVICE_POLLING
 		if (mask & IFCAP_POLLING) {
 			if (ifr->ifr_reqcap & IFCAP_POLLING) {
-				error = ether_poll_register_drv(lem_poll, ifp);
+				error = ether_poll_register(lem_poll, ifp);
 				if (error)
 					return (error);
 				EM_CORE_LOCK(adapter);
@@ -1127,7 +1127,7 @@ lem_ioctl(if_t ifp, u_long command, caddr_t data)
 				if_setcapenablebit(ifp, IFCAP_POLLING, 0);
 				EM_CORE_UNLOCK(adapter);
 			} else {
-				error = ether_poll_deregister_drv(ifp);
+				error = ether_poll_deregister(ifp);
 				/* Enable interrupt even in error case */
 				EM_CORE_LOCK(adapter);
 				lem_enable_intr(adapter);

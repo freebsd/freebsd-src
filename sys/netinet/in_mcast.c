@@ -2928,7 +2928,7 @@ sysctl_ip_mcast_filters(SYSCTL_HANDLER_ARGS)
 	return (retval);
 }
 
-#ifdef KTR
+#if defined(KTR) && (KTR_COMPILE & KTR_IGMPV3)
 
 static const char *inm_modestrs[] = { "un", "in", "ex" };
 
@@ -3000,7 +3000,7 @@ inm_print(const struct in_multi *inm)
 	printf("%s: --- end inm %p ---\n", __func__, inm);
 }
 
-#else /* !KTR */
+#else /* !KTR || !(KTR_COMPILE & KTR_IGMPV3) */
 
 void
 inm_print(const struct in_multi *inm)
@@ -3008,6 +3008,6 @@ inm_print(const struct in_multi *inm)
 
 }
 
-#endif /* KTR */
+#endif /* KTR && (KTR_COMPILE & KTR_IGMPV3) */
 
 RB_GENERATE(ip_msource_tree, ip_msource, ims_link, ip_msource_cmp);

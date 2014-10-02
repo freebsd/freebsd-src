@@ -70,19 +70,19 @@ sfxge_intr_line_filter(void *arg)
 	    ("intr->type != EFX_INTR_LINE"));
 
 	if (intr->state != SFXGE_INTR_STARTED)
-		return FILTER_STRAY;
+		return (FILTER_STRAY);
 
 	(void)efx_intr_status_line(enp, &fatal, &qmask);
 
 	if (fatal) {
 		(void) efx_intr_disable(enp);
 		(void) efx_intr_fatal(enp);
-		return FILTER_HANDLED;
+		return (FILTER_HANDLED);
 	}
 
 	if (qmask != 0) {
 		intr->zero_count = 0;
-		return FILTER_SCHEDULE_THREAD;
+		return (FILTER_SCHEDULE_THREAD);
 	}
 
 	/* SF bug 15783: If the function is not asserting its IRQ and
@@ -97,13 +97,13 @@ sfxge_intr_line_filter(void *arg)
 	if (intr->zero_count++ == 0) {
 		if (evq->init_state == SFXGE_EVQ_STARTED) {
 			if (efx_ev_qpending(evq->common, evq->read_ptr))
-				return FILTER_SCHEDULE_THREAD;
+				return (FILTER_SCHEDULE_THREAD);
 			efx_ev_qprime(evq->common, evq->read_ptr);
-			return FILTER_HANDLED;
+			return (FILTER_HANDLED);
 		}
 	}
 
-	return FILTER_STRAY;
+	return (FILTER_STRAY);
 }
 
 static void
@@ -175,7 +175,7 @@ sfxge_intr_bus_enable(struct sfxge_softc *sc)
 
 	default:
 		KASSERT(0, ("Invalid interrupt type"));
-		return EINVAL;
+		return (EINVAL);
 	}
 
 	/* Try to add the handlers */
@@ -254,7 +254,7 @@ sfxge_intr_alloc(struct sfxge_softc *sc, int count)
 		table[i].eih_res = res;
 	}
 
-	if (error) {
+	if (error != 0) {
 		count = i - 1;
 		for (i = 0; i < count; i++)
 			bus_release_resource(dev, SYS_RES_IRQ,
@@ -349,7 +349,7 @@ sfxge_intr_setup_msi(struct sfxge_softc *sc)
 	if (count == 0)
 		return (EINVAL);
 
-	if ((error = pci_alloc_msi(dev, &count)) != 0) 
+	if ((error = pci_alloc_msi(dev, &count)) != 0)
 		return (ENOMEM);
 
 	/* Allocate interrupt handler. */
@@ -424,7 +424,7 @@ void
 sfxge_intr_stop(struct sfxge_softc *sc)
 {
 	struct sfxge_intr *intr;
-	
+
 	intr = &sc->intr;
 
 	KASSERT(intr->state == SFXGE_INTR_STARTED,
