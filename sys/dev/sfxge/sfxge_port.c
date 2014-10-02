@@ -220,14 +220,14 @@ sfxge_port_link_fc_handler(SYSCTL_HANDLER_ARGS)
 
 #endif /* SFXGE_HAVE_PAUSE_MEDIAOPTS */
 
-static const u_long sfxge_link_baudrate[EFX_LINK_NMODES] = {
+static const uint64_t sfxge_link_baudrate[EFX_LINK_NMODES] = {
 	[EFX_LINK_10HDX]	= IF_Mbps(10),
 	[EFX_LINK_10FDX]	= IF_Mbps(10),
 	[EFX_LINK_100HDX]	= IF_Mbps(100),
 	[EFX_LINK_100FDX]	= IF_Mbps(100),
 	[EFX_LINK_1000HDX]	= IF_Gbps(1),
 	[EFX_LINK_1000FDX]	= IF_Gbps(1),
-	[EFX_LINK_10000FDX]	= MIN(IF_Gbps(10ULL), ULONG_MAX),
+	[EFX_LINK_10000FDX]     = IF_Gbps(10),
 };
 
 void
