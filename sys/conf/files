@@ -3745,7 +3745,7 @@ ofed/drivers/net/mlx4/sys_tune.c		optional mlx4ib | mlxen	\
 ofed/drivers/net/mlx4/en_cq.c			optional mlxen		\
 	no-depend obj-prefix "mlx4_"					\
 	compile-with "${OFED_C_NOIMP} -I$S/ofed/drivers/net/mlx4/"
-ofed/drivers/net/mlx4/en_frag.c			optional mlxen		\
+ofed/drivers/net/mlx4/utils.c			optional mlxen		\
 	no-depend obj-prefix "mlx4_"					\
 	compile-with "${OFED_C_NOIMP} -I$S/ofed/drivers/net/mlx4/"
 ofed/drivers/net/mlx4/en_main.c			optional mlxen		\
