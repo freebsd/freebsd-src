@@ -24,6 +24,8 @@
 #  WITH_COMPRESSED_IMAGES: if set, compress installation images with xz(1)
 #		(uncompressed images are not removed)
 #  WITH_VMIMAGES: if set, build virtual machine images with the release
+#  WITH_COMPRESSED_VMIMAGES: if set, compress virtual machine disk images
+#  		with xz(1) (extremely time consuming)
 #  TARGET/TARGET_ARCH: architecture of built release
 #
 
@@ -301,7 +303,7 @@ install:
 	cp -p ${VMBASE}.${FORMAT} \
 		${DESTDIR}/vmimages/${OSRELEASE}.${FORMAT}
 . endfor
-. if defined(WITH_COMPRESSED_IMAGES) && !empty(WITH_COMPRESSED_IMAGES)
+. if defined(WITH_COMPRESSED_VMIMAGES) && !empty(WITH_COMPRESSED_VMIMAGES)
 # This is very time consuming, so defer it after the images are moved to
 # the DESTDIR.
 .  for FORMAT in ${VMFORMATS}
