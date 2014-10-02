@@ -45,8 +45,8 @@ case "$daily_clean_tmps_enable" in
 	    rc=$(for dir in $daily_clean_tmps_dirs
 		do
 		    [ ."${dir#/}" != ."$dir" -a -d $dir ] && cd $dir && {
-			find -d . -type f $args -delete $print
-			find -d . ! -name . -type d $dargs -delete $print
+			find -x -d . -type f $args -delete $print
+			find -x -d . ! -name . -type d $dargs -delete $print
 		    } | sed "s,^\\.,  $dir,"
 		done | tee /dev/stderr | wc -l)
 	    [ -z "$print" ] && rc=0
