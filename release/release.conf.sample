@@ -81,6 +81,10 @@ PORTBRANCH="ports/head@rHEAD"
 ## release build.
 #WITH_VMIMAGES=
 
+## Set to a non-empty value to compress virtual machine images with xz(1)
+## as part of the release build.
+#WITH_COMPRESSED_VMIMAGES=
+
 ## If WITH_VMIMAGES is set to a non-empty value, this is the name of the
 ## file to use for the installed userland/kernel.
 #VMBASE="vm"

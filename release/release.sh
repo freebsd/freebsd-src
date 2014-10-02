@@ -89,6 +89,11 @@ NOPORTS=
 WITH_DVD=
 WITH_COMPRESSED_IMAGES=
 
+# Set to non-empty value to build virtual machine images as part of
+# the release.
+WITH_VMIMAGES=
+WITH_COMPRESSED_VMIMAGES=
+
 usage() {
 	echo "Usage: $0 [-c release.conf]"
 	exit 1
@@ -274,4 +279,5 @@ eval chroot ${CHROOTDIR} make -C /usr/src ${RELEASE_KMAKEFLAGS} buildkernel
 eval chroot ${CHROOTDIR} make -C /usr/src/release ${RELEASE_RMAKEFLAGS} \
 	release
 eval chroot ${CHROOTDIR} make -C /usr/src/release ${RELEASE_RMAKEFLAGS} \
-	install DESTDIR=/R WITH_COMPRESSED_IMAGES=${WITH_COMPRESSED_IMAGES}
+	install DESTDIR=/R WITH_COMPRESSED_IMAGES=${WITH_COMPRESSED_IMAGES} \
+	WITH_COMPRESSED_VMIMAGES=${WITH_COMPRESSED_VMIMAGES}
