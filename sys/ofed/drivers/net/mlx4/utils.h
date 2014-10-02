@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2007 Cisco Systems, Inc.  All rights reserved.
+ * Copyright (c) 2014 Mellanox Technologies Ltd.  All rights reserved.
  *
  * This software is available to you under a choice of one of two
  * licenses.  You may choose to be licensed under the terms of the GNU
@@ -11,14 +11,14 @@
  *     without modification, are permitted provided that the following
  *     conditions are met:
  *
- *	- Redistributions of source code must retain the above
- *	  copyright notice, this list of conditions and the following
- *	  disclaimer.
+ *      - Redistributions of source code must retain the above
+ *        copyright notice, this list of conditions and the following
+ *        disclaimer.
  *
- *	- Redistributions in binary form must reproduce the above
- *	  copyright notice, this list of conditions and the following
- *	  disclaimer in the documentation and/or other materials
- *	  provided with the distribution.
+ *      - Redistributions in binary form must reproduce the above
+ *        copyright notice, this list of conditions and the following
+ *        disclaimer in the documentation and/or other materials
+ *        provided with the distribution.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
  * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
@@ -30,15 +30,15 @@
  * SOFTWARE.
  */
 
-#ifndef MLX4_SRQ_H
-#define MLX4_SRQ_H
+#ifndef _MLX4_UTILS_H_
+#define	_MLX4_UTILS_H_
 
-struct mlx4_wqe_srq_next_seg {
-	u16			reserved1;
-	__be16			next_wqe_index;
-	u32			reserved2[3];
-};
+/* Lagg flags */
+#define	MLX4_F_HASHL2		0x00000001	/* hash layer 2 */
+#define	MLX4_F_HASHL3		0x00000002	/* hash layer 3 */
+#define	MLX4_F_HASHL4		0x00000004	/* hash layer 4 */
+#define	MLX4_F_HASHMASK		0x00000007
 
-struct mlx4_srq *mlx4_srq_lookup(struct mlx4_dev *dev, u32 srqn);
+uint32_t mlx4_en_hashmbuf(uint32_t flags, struct mbuf *m, uint32_t key);
 
-#endif /* MLX4_SRQ_H */
+#endif		/* _MLX4_UTILS_H_ */
