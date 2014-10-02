@@ -321,8 +321,6 @@ invoke_inflate(struct zstream_proxy *zspp)
 {
 	z_stream zs;
 
-    cheri_getbase(zspp), cheri_getoffset(zspp),
-    cheri_getlen(zspp));
 	zs.zalloc = Z_NULL;
 	zs.zfree = Z_NULL;
 	zs.next_in = zspp->next_in;
