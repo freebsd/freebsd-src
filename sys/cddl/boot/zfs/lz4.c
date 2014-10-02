@@ -83,6 +83,17 @@ lz4_decompress(void *s_start, void *d_start, size_t s_len, size_t d_len, int dum
 #endif
 
 /*
+ * Unaligned memory access is automatically enabled for "common" CPU,
+ * such as x86. For others CPU, the compiler will be more cautious, and
+ * insert extra code to ensure aligned access is respected. If you know
+ * your target CPU supports unaligned memory access, you may want to
+ * force this option manually to improve performance
+ */
+#if defined(__ARM_FEATURE_UNALIGNED)
+#define	LZ4_FORCE_UNALIGNED_ACCESS 1
+#endif
+
+/*
  * Compiler Options
  */
 #if __STDC_VERSION__ >= 199901L	/* C99 */
@@ -113,6 +124,10 @@ lz4_decompress(void *s_start, void *d_start, size_t s_len, size_t d_len, int dum
 #define	S32	int32_t
 #define	U64	uint64_t
 
+#ifndef LZ4_FORCE_UNALIGNED_ACCESS
+#pragma pack(1)
+#endif
+
 typedef struct _U16_S {
 	U16 v;
 } U16_S;
@@ -122,6 +137,10 @@ typedef struct _U32_S {
 typedef struct _U64_S {
 	U64 v;
 } U64_S;
+
+#ifndef LZ4_FORCE_UNALIGNED_ACCESS
+#pragma pack()
+#endif
 
 #define	A64(x)	(((U64_S *)(x))->v)
 #define	A32(x)	(((U32_S *)(x))->v)
