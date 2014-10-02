@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2013, Intel Corp.
+ * Copyright (C) 2000 - 2014, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -89,38 +89,6 @@ const UINT8                     AcpiGbl_NsProperties[ACPI_NUM_NS_TYPES] =
     ACPI_NS_NORMAL,                     /* 29 Data             */
     ACPI_NS_NORMAL                      /* 30 Invalid          */
 };
-
-
-/*******************************************************************************
- *
- * FUNCTION:    AcpiUtHexToAsciiChar
- *
- * PARAMETERS:  Integer             - Contains the hex digit
- *              Position            - bit position of the digit within the
- *                                    integer (multiple of 4)
- *
- * RETURN:      The converted Ascii character
- *
- * DESCRIPTION: Convert a hex digit to an Ascii character
- *
- ******************************************************************************/
-
-/* Hex to ASCII conversion table */
-
-static const char           AcpiGbl_HexToAscii[] =
-{
-    '0','1','2','3','4','5','6','7',
-    '8','9','A','B','C','D','E','F'
-};
-
-char
-AcpiUtHexToAsciiChar (
-    UINT64                  Integer,
-    UINT32                  Position)
-{
-
-    return (AcpiGbl_HexToAscii[(Integer >> Position) & 0xF]);
-}
 
 
 /*******************************************************************************
@@ -527,7 +495,7 @@ AcpiUtGetMutexName (
 
 /* Names for Notify() values, used for debug output */
 
-static const char           *AcpiGbl_NotifyValueNames[ACPI_NOTIFY_MAX + 1] =
+static const char           *AcpiGbl_GenericNotify[ACPI_NOTIFY_MAX + 1] =
 {
     /* 00 */ "Bus Check",
     /* 01 */ "Device Check",
@@ -539,32 +507,88 @@ static const char           *AcpiGbl_NotifyValueNames[ACPI_NOTIFY_MAX + 1] =
     /* 07 */ "Power Fault",
     /* 08 */ "Capabilities Check",
     /* 09 */ "Device PLD Check",
-    /* 10 */ "Reserved",
-    /* 11 */ "System Locality Update",
-    /* 12 */ "Shutdown Request"
+    /* 0A */ "Reserved",
+    /* 0B */ "System Locality Update",
+    /* 0C */ "Shutdown Request",
+    /* 0D */ "System Resource Affinity Update"
 };
+
+static const char           *AcpiGbl_DeviceNotify[4] =
+{
+    /* 80 */ "Status Change",
+    /* 81 */ "Information Change",
+    /* 82 */ "Device-Specific Change",
+    /* 83 */ "Device-Specific Change"
+};
+
+static const char           *AcpiGbl_ProcessorNotify[4] =
+{
+    /* 80 */ "Performance Capability Change",
+    /* 81 */ "C-State Change",
+    /* 82 */ "Throttling Capability Change",
+    /* 83 */ "Device-Specific Change"
+};
+
+static const char           *AcpiGbl_ThermalNotify[4] =
+{
+    /* 80 */ "Thermal Status Change",
+    /* 81 */ "Thermal Trip Point Change",
+    /* 82 */ "Thermal Device List Change",
+    /* 83 */ "Thermal Relationship Change"
+};
+
 
 const char *
 AcpiUtGetNotifyName (
-    UINT32                  NotifyValue)
+    UINT32                  NotifyValue,
+    ACPI_OBJECT_TYPE        Type)
 {
+
+    /* 00 - 0D are common to all object types */
 
     if (NotifyValue <= ACPI_NOTIFY_MAX)
     {
-        return (AcpiGbl_NotifyValueNames[NotifyValue]);
+        return (AcpiGbl_GenericNotify[NotifyValue]);
     }
-    else if (NotifyValue <= ACPI_MAX_SYS_NOTIFY)
+
+    /* 0D - 7F are reserved */
+
+    if (NotifyValue <= ACPI_MAX_SYS_NOTIFY)
     {
         return ("Reserved");
     }
-    else if (NotifyValue <= ACPI_MAX_DEVICE_SPECIFIC_NOTIFY)
+
+    /* 80 - 83 are per-object-type */
+
+    if (NotifyValue <= 0x83)
     {
-        return ("Device Specific");
+        switch (Type)
+        {
+        case ACPI_TYPE_ANY:
+        case ACPI_TYPE_DEVICE:
+            return (AcpiGbl_DeviceNotify [NotifyValue - 0x80]);
+
+        case ACPI_TYPE_PROCESSOR:
+            return (AcpiGbl_ProcessorNotify [NotifyValue - 0x80]);
+
+        case ACPI_TYPE_THERMAL:
+            return (AcpiGbl_ThermalNotify [NotifyValue - 0x80]);
+
+        default:
+            return ("Target object type does not support notifies");
+        }
     }
-    else
+
+    /* 84 - BF are device-specific */
+
+    if (NotifyValue <= ACPI_MAX_DEVICE_SPECIFIC_NOTIFY)
     {
-        return ("Hardware Specific");
+        return ("Device-Specific");
     }
+
+    /* C0 and above are hardware-specific */
+
+    return ("Hardware-Specific");
 }
 #endif
 

@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2013, Intel Corp.
+ * Copyright (C) 2000 - 2014, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -40,7 +40,6 @@
  * IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGES.
  */
-
 
 #ifndef _ACDISPAT_H_
 #define _ACDISPAT_H_
@@ -173,12 +172,14 @@ AcpiDsInitFieldObjects (
 
 
 /*
- * dsload - Parser/Interpreter interface, pass 1 namespace load callbacks
+ * dsload - Parser/Interpreter interface
  */
 ACPI_STATUS
 AcpiDsInitCallbacks (
     ACPI_WALK_STATE         *WalkState,
     UINT32                  PassNumber);
+
+/* dsload - pass 1 namespace load callbacks */
 
 ACPI_STATUS
 AcpiDsLoad1BeginOp (
@@ -190,9 +191,8 @@ AcpiDsLoad1EndOp (
     ACPI_WALK_STATE         *WalkState);
 
 
-/*
- * dsload - Parser/Interpreter interface, pass 2 namespace load callbacks
- */
+/* dsload - pass 2 namespace load callbacks */
+
 ACPI_STATUS
 AcpiDsLoad2BeginOp (
     ACPI_WALK_STATE         *WalkState,
@@ -257,8 +257,9 @@ AcpiDsMethodDataInit (
  * dsmethod - Parser/Interpreter interface - control method parsing
  */
 ACPI_STATUS
-AcpiDsParseMethod (
-    ACPI_NAMESPACE_NODE     *Node);
+AcpiDsAutoSerializeMethod (
+    ACPI_NAMESPACE_NODE     *Node,
+    ACPI_OPERAND_OBJECT     *ObjDesc);
 
 ACPI_STATUS
 AcpiDsCallControlMethod (

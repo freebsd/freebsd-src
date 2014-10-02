@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2013, Intel Corp.
+ * Copyright (C) 2000 - 2014, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -106,6 +106,8 @@ FlSetFilename (
 
     DbgPrint (ASL_PARSE_OUTPUT, "\n#line: New filename %s (old %s)\n",
          Filename, Gbl_Files[ASL_FILE_INPUT].Filename);
+
+    /* No need to free any existing filename */
 
     Gbl_Files[ASL_FILE_INPUT].Filename = Filename;
 }
@@ -216,14 +218,14 @@ FlMergePathnames (
         (*FilePathname == '/') ||
          (FilePathname[1] == ':'))
     {
-        Pathname = ACPI_ALLOCATE (strlen (FilePathname) + 1);
+        Pathname = UtStringCacheCalloc (strlen (FilePathname) + 1);
         strcpy (Pathname, FilePathname);
         goto ConvertBackslashes;
     }
 
     /* Need a local copy of the prefix directory path */
 
-    CommonPath = ACPI_ALLOCATE (strlen (PrefixDir) + 1);
+    CommonPath = UtStringCacheCalloc (strlen (PrefixDir) + 1);
     strcpy (CommonPath, PrefixDir);
 
     /*
@@ -259,14 +261,13 @@ FlMergePathnames (
     /* Build the final merged pathname */
 
 ConcatenatePaths:
-    Pathname = ACPI_ALLOCATE_ZEROED (strlen (CommonPath) + strlen (FilePathname) + 2);
+    Pathname = UtStringCacheCalloc (strlen (CommonPath) + strlen (FilePathname) + 2);
     if (LastElement && *CommonPath)
     {
         strcpy (Pathname, CommonPath);
         strcat (Pathname, "/");
     }
     strcat (Pathname, FilePathname);
-    ACPI_FREE (CommonPath);
 
     /* Convert all backslashes to normal slashes */
 
@@ -824,6 +825,7 @@ FlParseInputPathname (
         *(Substring+1) = 0;
     }
 
+    UtConvertBackslashes (Gbl_OutputFilenamePrefix);
     return (AE_OK);
 }
 #endif
