@@ -2074,6 +2074,9 @@ scsi_scan_bus(struct cam_periph *periph, union ccb *request_ccb)
 			mtx_unlock(&target->bus->eb_mtx);
 			if (nextdev != NULL) {
 				next_target = 0;
+			/*  -- stop if CAM_QUIRK_NOLUNS is set. */
+			} else if (SCSI_QUIRK(device)->quirks & CAM_QUIRK_NOLUNS) {
+				next_target = 1;
 			/*  -- this LUN is connected and its SCSI version
 			 *     allows more LUNs. */
 			} else if ((device->flags & CAM_DEV_UNCONFIGURED) == 0) {
