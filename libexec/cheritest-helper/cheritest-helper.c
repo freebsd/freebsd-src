@@ -46,12 +46,14 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <zlib.h>
 
 #include "cheritest-helper.h"
 
 int	invoke(register_t op, register_t arg, size_t len,
 	    struct cheri_object system_object, __capability char *data_input,
-	    __capability char *data_output, struct cheri_object fd_object);
+	    __capability char *data_output, struct cheri_object fd_object,
+	    struct zstream_proxy *zspp);
 
 static int
 invoke_md5(size_t len, __capability char *data_input,
@@ -314,6 +316,40 @@ invoke_get_var_constructor(void)
 	return (*cheritest_var_constructorp);
 }
 
+static register_t
+invoke_inflate(struct zstream_proxy *zspp)
+{
+	z_stream zs;
+
+    cheri_getbase(zspp), cheri_getoffset(zspp),
+    cheri_getlen(zspp));
+	zs.zalloc = Z_NULL;
+	zs.zfree = Z_NULL;
+	zs.next_in = zspp->next_in;
+	zs.avail_in = zspp->avail_in;
+	zs.next_out = zspp->next_out;
+	zs.avail_out = zspp->avail_out;
+	if (inflateInit(&zs) != Z_OK) {
+		printf("inflateInit");
+		abort();
+	}
+	if (inflate(&zs, Z_FINISH) != Z_STREAM_END) {
+		printf("inflate");
+		abort();
+	}
+	if (inflateEnd(&zs) != Z_OK) {
+		printf("inflateEnd");
+		abort();
+	}
+	zspp->next_in = zs.next_in;
+	zspp->avail_in = zs.avail_in;
+	zspp->next_out = zs.next_out;
+	zspp->avail_out = zs.avail_out;
+	zspp->total_in = zs.total_in;
+	zspp->total_out = zs.total_out;
+	return (0);
+}
+
 /*
  * Demux of various cheritest test cases to run within a sandbox.
  */
@@ -321,7 +357,8 @@ static volatile int zero = 0;
 int
 invoke(register_t op, register_t arg, size_t len,
     struct cheri_object system_object, __capability char *data_input,
-    __capability char *data_output, struct cheri_object fd_object)
+    __capability char *data_output, struct cheri_object fd_object,
+    struct zstream_proxy* zspp)
 {
 
 	cheri_system_setup(system_object);
@@ -405,6 +442,9 @@ invoke(register_t op, register_t arg, size_t len,
 
 	case CHERITEST_HELPER_GET_VAR_CONSTRUCTOR:
 		return (invoke_get_var_constructor());
+
+	case CHERITEST_HELPER_OP_INFLATE:
+		return (invoke_inflate(zspp));
 	}
 	return (-1);
 }

@@ -62,6 +62,7 @@
 #define	CHERITEST_HELPER_GET_VAR_BSS	28
 #define	CHERITEST_HELPER_GET_VAR_DATA	29
 #define	CHERITEST_HELPER_GET_VAR_CONSTRUCTOR	30
+#define	CHERITEST_HELPER_OP_INFLATE	31
 
 /*
  * We use system-class extensions to allow cheritest-helper code to call back
@@ -80,5 +81,14 @@
 #define	CHERITEST_VALUE_DATA		0xaa
 #define	CHERITEST_VALUE_INVALID		0xbb
 #define	CHERITEST_VALUE_CONSTRUCTOR	0xcc
+
+struct zstream_proxy {
+	__capability void *next_in;
+	size_t avail_in;
+	__capability void *next_out;
+	size_t avail_out;
+	size_t total_in;
+	size_t total_out;
+};
 
 #endif /* !_LIBEXEC_CHERITEST_CHERITEST_HELPER_H_ */

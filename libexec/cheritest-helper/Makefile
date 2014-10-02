@@ -5,6 +5,14 @@ PROG=	cheritest-helper
 SRCS=	cheritest-helper.c			\
 	stub.c
 
+.PATH: ${.CURDIR}/../../lib/libz
+SRCS+=	adler32.c \
+	crc32.c \
+	inffast.c \
+	inflate.c \
+	inftrees.c \
+	zutil.c
+
 INCS=	cheritest-helper.h
 
 LDFLAGS+=	-Wl,--script=${.CURDIR}/../../lib/libc_cheri/sandbox.ld \
@@ -33,3 +41,7 @@ cheritest-helper.dump: cheritest-helper
 
 .include <src.opts.mk>
 .include <bsd.prog.mk>
+
+CFLAGS+=	${CFLAGS.${.IMPSRC:T}}
+CFLAGS.zutil.c=	-Wno-incompatible-pointer-types-discards-qualifiers
+CFLAGS.inffast.c=	-O0

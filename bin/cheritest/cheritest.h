@@ -179,6 +179,9 @@ void	test_sandbox_fd_read_revoke(const struct cheri_test *ctp);
 void	test_sandbox_fd_write(const struct cheri_test *ctp);
 void	test_sandbox_fd_write_revoke(const struct cheri_test *ctp);
 
+/* cheritest_inflate.c */
+void 	test_sandbox_inflate_zeros(const struct cheri_test *ctp);
+
 /* cheritest_libcheri.c */
 extern struct sandbox_class	*cheritest_classp;
 extern struct sandbox_object	*cheritest_objectp;

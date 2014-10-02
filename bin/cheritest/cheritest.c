@@ -463,6 +463,13 @@ static const struct cheri_test cheri_tests[] = {
 	  .ct_mips_exccode = T_C2E,
 	  .ct_cp2_exccode = CHERI_EXCCODE_STORE_LOCALCAP },
 
+	/*
+	 * libcheri + inflate/deflate tests.
+	 */
+	{ .ct_name = "test_sandbox_inflate_zeros",
+	  .ct_desc = "Inflate a compressed buffer of zeros",
+	  .ct_func = test_sandbox_inflate_zeros },
+
 	{ .ct_name = "test_sandbox_var_bss",
 	  .ct_desc = "Check initial value of .bss variable",
 	  .ct_func = test_sandbox_var_bss },

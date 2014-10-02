@@ -5,6 +5,7 @@ SRCS=	cheritest.c							\
 	cheritest_ccall.c						\
 	cheritest_fault.c						\
 	cheritest_fd.c							\
+	cheritest_inflate.c						\
 	cheritest_libcheri.c						\
 	cheritest_registers.c						\
 	cheritest_sandbox.S						\
@@ -17,7 +18,7 @@ MAN=
 USE_CHERI=	yes
 
 #DPADD=  ${LIBDEVSTAT} ${LIBKVM} ${LIBMEMSTAT} ${LIBUTIL}
-LDADD=  -lcheri
+LDADD=  -lcheri -lz
 
 NO_SHARED?=	YES
 
