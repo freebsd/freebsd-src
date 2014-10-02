@@ -125,19 +125,6 @@ struct lagg_reqall {
 		struct lacp_opreq rpsc_lacp;
 	} ra_psc;
 #define ra_lacpreq	ra_psc.rpsc_lacp
-	int			ra_opts;		/* Option bitmap */
-#define	LAGG_OPT_NONE			0x00
-#define	LAGG_OPT_USE_FLOWID		0x01		/* use M_FLOWID */
-/* Pseudo flags which are used in ra_opts but not stored into sc_opts. */
-#define	LAGG_OPT_FLOWIDSHIFT		0x02		/* Set flowid */
-#define	LAGG_OPT_FLOWIDSHIFT_MASK	0x1f		/* flowid is uint32_t */
-#define	LAGG_OPT_LACP_STRICT		0x10		/* LACP strict mode */
-#define	LAGG_OPT_LACP_TXTEST		0x20		/* LACP debug: txtest */
-#define	LAGG_OPT_LACP_RXTEST		0x40		/* LACP debug: rxtest */
-	u_int			ra_count;		/* number of ports */
-	u_int			ra_active;		/* active port count */
-	u_int			ra_flapping;		/* number of flapping */
-	int			ra_flowid_shift;	/* shift the flowid */
 };
 
 #define	SIOCGLAGG		_IOWR('i', 143, struct lagg_reqall)
@@ -150,6 +137,27 @@ struct lagg_reqflags {
 
 #define	SIOCGLAGGFLAGS		_IOWR('i', 145, struct lagg_reqflags)
 #define	SIOCSLAGGHASH		 _IOW('i', 146, struct lagg_reqflags)
+
+struct lagg_reqopts {
+	char			ro_ifname[IFNAMSIZ];	/* name of the lagg */
+
+	int			ro_opts;		/* Option bitmap */
+#define	LAGG_OPT_NONE			0x00
+#define	LAGG_OPT_USE_FLOWID		0x01		/* use M_FLOWID */
+/* Pseudo flags which are used in ro_opts but not stored into sc_opts. */
+#define	LAGG_OPT_FLOWIDSHIFT		0x02		/* Set flowid */
+#define	LAGG_OPT_FLOWIDSHIFT_MASK	0x1f		/* flowid is uint32_t */
+#define	LAGG_OPT_LACP_STRICT		0x10		/* LACP strict mode */
+#define	LAGG_OPT_LACP_TXTEST		0x20		/* LACP debug: txtest */
+#define	LAGG_OPT_LACP_RXTEST		0x40		/* LACP debug: rxtest */
+	u_int			ro_count;		/* number of ports */
+	u_int			ro_active;		/* active port count */
+	u_int			ro_flapping;		/* number of flapping */
+	int			ro_flowid_shift;	/* shift the flowid */
+};
+
+#define	SIOCGLAGGOPTS		_IOWR('i', 152, struct lagg_reqopts)
+#define	SIOCSLAGGOPTS		 _IOW('i', 153, struct lagg_reqopts)
 
 #ifdef _KERNEL
 

@@ -85,27 +85,27 @@ setlaggproto(const char *val, int d, int s, const struct afswtch *afp)
 static void
 setlaggflowidshift(const char *val, int d, int s, const struct afswtch *afp)
 {
-	struct lagg_reqall ra;
+	struct lagg_reqopts ro;
 
-	bzero(&ra, sizeof(ra));
-	ra.ra_opts = LAGG_OPT_FLOWIDSHIFT;
-	strlcpy(ra.ra_ifname, name, sizeof(ra.ra_ifname));
-	ra.ra_flowid_shift = (int)strtol(val, NULL, 10);
-	if (ra.ra_flowid_shift & ~LAGG_OPT_FLOWIDSHIFT_MASK)
+	bzero(&ro, sizeof(ro));
+	ro.ro_opts = LAGG_OPT_FLOWIDSHIFT;
+	strlcpy(ro.ro_ifname, name, sizeof(ro.ro_ifname));
+	ro.ro_flowid_shift = (int)strtol(val, NULL, 10);
+	if (ro.ro_flowid_shift & ~LAGG_OPT_FLOWIDSHIFT_MASK)
 		errx(1, "Invalid flowid_shift option: %s", val);
 	
-	if (ioctl(s, SIOCSLAGG, &ra) != 0)
-		err(1, "SIOCSLAGG");
+	if (ioctl(s, SIOCSLAGGOPTS, &ro) != 0)
+		err(1, "SIOCSLAGGOPTS");
 }
 
 static void
 setlaggsetopt(const char *val, int d, int s, const struct afswtch *afp)
 {
-	struct lagg_reqall ra;
+	struct lagg_reqopts ro;
 
-	bzero(&ra, sizeof(ra));
-	ra.ra_opts = d;
-	switch (ra.ra_opts) {
+	bzero(&ro, sizeof(ro));
+	ro.ro_opts = d;
+	switch (ro.ro_opts) {
 	case LAGG_OPT_USE_FLOWID:
 	case -LAGG_OPT_USE_FLOWID:
 	case LAGG_OPT_LACP_STRICT:
@@ -118,10 +118,10 @@ setlaggsetopt(const char *val, int d, int s, const struct afswtch *afp)
 	default:
 		err(1, "Invalid lagg option");
 	}
-	strlcpy(ra.ra_ifname, name, sizeof(ra.ra_ifname));
+	strlcpy(ro.ro_ifname, name, sizeof(ro.ro_ifname));
 	
-	if (ioctl(s, SIOCSLAGG, &ra) != 0)
-		err(1, "SIOCSLAGG");
+	if (ioctl(s, SIOCSLAGGOPTS, &ro) != 0)
+		err(1, "SIOCSLAGGOPTS");
 }
 
 static void
@@ -186,6 +186,7 @@ lagg_status(int s)
 	struct lagg_protos lpr[] = LAGG_PROTOS;
 	struct lagg_reqport rp, rpbuf[LAGG_MAX_PORTS];
 	struct lagg_reqall ra;
+	struct lagg_reqopts ro;
 	struct lagg_reqflags rf;
 	struct lacp_opreq *lp;
 	const char *proto = "<unknown>";
@@ -193,6 +194,7 @@ lagg_status(int s)
 
 	bzero(&rp, sizeof(rp));
 	bzero(&ra, sizeof(ra));
+	bzero(&ro, sizeof(ro));
 
 	strlcpy(rp.rp_ifname, name, sizeof(rp.rp_ifname));
 	strlcpy(rp.rp_portname, name, sizeof(rp.rp_portname));
@@ -203,6 +205,9 @@ lagg_status(int s)
 	strlcpy(ra.ra_ifname, name, sizeof(ra.ra_ifname));
 	ra.ra_size = sizeof(rpbuf);
 	ra.ra_port = rpbuf;
+
+	strlcpy(ro.ro_ifname, name, sizeof(ro.ro_ifname));
+	ioctl(s, SIOCGLAGGOPTS, &ro);
 
 	strlcpy(rf.rf_ifname, name, sizeof(rf.rf_ifname));
 	if (ioctl(s, SIOCGLAGGFLAGS, &rf) != 0)
@@ -242,20 +247,20 @@ lagg_status(int s)
 		if (verbose) {
 			printf("\tlagg options:\n");
 			printf("\t\tuse_flowid: %d\n",
-			    (ra.ra_opts & LAGG_OPT_USE_FLOWID) ? 1 : 0);
-			printf("\t\tflowid_shift: %d\n", ra.ra_flowid_shift);
+			    (ro.ro_opts & LAGG_OPT_USE_FLOWID) ? 1 : 0);
+			printf("\t\tflowid_shift: %d\n", ro.ro_flowid_shift);
 			switch (ra.ra_proto) {
 			case LAGG_PROTO_LACP:
 				printf("\t\tlacp_strict: %d\n",
-				   (ra.ra_opts & LAGG_OPT_LACP_STRICT) ? 1 : 0);
+				   (ro.ro_opts & LAGG_OPT_LACP_STRICT) ? 1 : 0);
 				printf("\t\tlacp_rxtest: %d\n",
-				   (ra.ra_opts & LAGG_OPT_LACP_RXTEST) ? 1 : 0);
+				   (ro.ro_opts & LAGG_OPT_LACP_RXTEST) ? 1 : 0);
 				printf("\t\tlacp_txtest: %d\n",
-				   (ra.ra_opts & LAGG_OPT_LACP_TXTEST) ? 1 : 0);
+				   (ro.ro_opts & LAGG_OPT_LACP_TXTEST) ? 1 : 0);
 			}
 			printf("\tlagg statistics:\n");
-			printf("\t\tactive ports: %d\n", ra.ra_active);
-			printf("\t\tflapping: %u\n", ra.ra_flapping);
+			printf("\t\tactive ports: %d\n", ro.ro_active);
+			printf("\t\tflapping: %u\n", ro.ro_flapping);
 			if (ra.ra_proto == LAGG_PROTO_LACP) {
 				printf("\tlag id: %s\n",
 				    lacp_format_peer(lp, "\n\t\t "));

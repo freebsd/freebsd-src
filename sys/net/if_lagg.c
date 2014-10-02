@@ -1189,6 +1189,7 @@ lagg_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 {
 	struct lagg_softc *sc = (struct lagg_softc *)ifp->if_softc;
 	struct lagg_reqall *ra = (struct lagg_reqall *)data;
+	struct lagg_reqopts *ro = (struct lagg_reqopts *)data;
 	struct lagg_reqport *rp = (struct lagg_reqport *)data, rpbuf;
 	struct lagg_reqflags *rf = (struct lagg_reqflags *)data;
 	struct ifreq *ifr = (struct ifreq *)data;
@@ -1215,31 +1216,6 @@ lagg_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 		LAGG_RLOCK(sc, &tracker);
 		ra->ra_proto = sc->sc_proto;
 		lagg_proto_request(sc, &ra->ra_psc);
-		ra->ra_opts = sc->sc_opts;
-		if (sc->sc_proto == LAGG_PROTO_LACP) {
-			struct lacp_softc *lsc;
-
-			lsc = (struct lacp_softc *)sc->sc_psc;
-			if (lsc->lsc_debug.lsc_tx_test != 0)
-				ra->ra_opts |= LAGG_OPT_LACP_TXTEST;
-			if (lsc->lsc_debug.lsc_rx_test != 0)
-				ra->ra_opts |= LAGG_OPT_LACP_RXTEST;
-			if (lsc->lsc_strict_mode != 0)
-				ra->ra_opts |= LAGG_OPT_LACP_STRICT;
-
-			ra->ra_active = sc->sc_active;
-		} else {
-			/*
-			 * LACP tracks active links automatically,
-			 * the others do not.
-			 */
-			ra->ra_active = 0;
-			SLIST_FOREACH(lp, &sc->sc_ports, lp_entries)
-				ra->ra_active += LAGG_PORTACTIVE(lp);
-		}
-		ra->ra_flapping = sc->sc_flapping;
-		ra->ra_flowid_shift = sc->flowid_shift;
-
 		count = 0;
 		buf = outbuf;
 		len = min(ra->ra_size, buflen);
@@ -1260,88 +1236,9 @@ lagg_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 		free(outbuf, M_TEMP);
 		break;
 	case SIOCSLAGG:
-		/*
-		 * Set options or protocol depending on
-		 * ra->ra_opts and ra->ra_proto.
-		 */
 		error = priv_check(td, PRIV_NET_LAGG);
 		if (error)
 			break;
-		if (ra->ra_opts != 0) {
-			/*
-			 * Set options.  LACP options are stored in sc->sc_psc,
-			 * not in sc_opts.
-			 */
-			int valid, lacp;
-
-			switch (ra->ra_opts) {
-			case LAGG_OPT_USE_FLOWID:
-			case -LAGG_OPT_USE_FLOWID:
-			case LAGG_OPT_FLOWIDSHIFT:
-				valid = 1;
-				lacp = 0;
-				break;
-			case LAGG_OPT_LACP_TXTEST:
-			case -LAGG_OPT_LACP_TXTEST:
-			case LAGG_OPT_LACP_RXTEST:
-			case -LAGG_OPT_LACP_RXTEST:
-			case LAGG_OPT_LACP_STRICT:
-			case -LAGG_OPT_LACP_STRICT:
-				valid = lacp = 1;
-				break;
-			default:
-				valid = lacp = 0;
-				break;
-			}
-
-			LAGG_WLOCK(sc);
-			if (valid == 0 ||
-			    (lacp == 1 && sc->sc_proto != LAGG_PROTO_LACP)) {
-				/* Invalid combination of options specified. */
-				error = EINVAL;
-				LAGG_WUNLOCK(sc);
-				break;	/* Return from SIOCSLAGG. */ 
-			}
-			/*
-			 * Store new options into sc->sc_opts except for
-			 * FLOWIDSHIFT and LACP options.
-			 */
-			if (lacp == 0) {
-				if (ra->ra_opts == LAGG_OPT_FLOWIDSHIFT)
-					sc->flowid_shift = ra->ra_flowid_shift;
-				else if (ra->ra_opts > 0)
-					sc->sc_opts |= ra->ra_opts;
-				else
-					sc->sc_opts &= ~ra->ra_opts;
-			} else {
-				struct lacp_softc *lsc;
-
-				lsc = (struct lacp_softc *)sc->sc_psc;
-
-				switch (ra->ra_opts) {
-				case LAGG_OPT_LACP_TXTEST:
-					lsc->lsc_debug.lsc_tx_test = 1;
-					break;
-				case -LAGG_OPT_LACP_TXTEST:
-					lsc->lsc_debug.lsc_tx_test = 0;
-					break;
-				case LAGG_OPT_LACP_RXTEST:
-					lsc->lsc_debug.lsc_rx_test = 1;
-					break;
-				case -LAGG_OPT_LACP_RXTEST:
-					lsc->lsc_debug.lsc_rx_test = 0;
-					break;
-				case LAGG_OPT_LACP_STRICT:
-					lsc->lsc_strict_mode = 1;
-					break;
-				case -LAGG_OPT_LACP_STRICT:
-					lsc->lsc_strict_mode = 0;
-					break;
-				}
-			}
-			LAGG_WUNLOCK(sc);
-			break;	/* Return from SIOCSLAGG. */ 
-		}
 		if (ra->ra_proto < 1 || ra->ra_proto >= LAGG_PROTO_MAX) {
 			error = EPROTONOSUPPORT;
 			break;
@@ -1350,6 +1247,107 @@ lagg_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 		LAGG_WLOCK(sc);
 		lagg_proto_detach(sc);
 		lagg_proto_attach(sc, ra->ra_proto);
+		break;
+	case SIOCGLAGGOPTS:
+		ro->ro_opts = sc->sc_opts;
+		if (sc->sc_proto == LAGG_PROTO_LACP) {
+			struct lacp_softc *lsc;
+
+			lsc = (struct lacp_softc *)sc->sc_psc;
+			if (lsc->lsc_debug.lsc_tx_test != 0)
+				ro->ro_opts |= LAGG_OPT_LACP_TXTEST;
+			if (lsc->lsc_debug.lsc_rx_test != 0)
+				ro->ro_opts |= LAGG_OPT_LACP_RXTEST;
+			if (lsc->lsc_strict_mode != 0)
+				ro->ro_opts |= LAGG_OPT_LACP_STRICT;
+
+			ro->ro_active = sc->sc_active;
+		} else {
+			ro->ro_active = 0;
+			SLIST_FOREACH(lp, &sc->sc_ports, lp_entries)
+				ro->ro_active += LAGG_PORTACTIVE(lp);
+		}
+		ro->ro_flapping = sc->sc_flapping;
+		ro->ro_flowid_shift = sc->flowid_shift;
+		break;
+	case SIOCSLAGGOPTS:
+		error = priv_check(td, PRIV_NET_LAGG);
+		if (error)
+			break;
+		if (ro->ro_opts == 0)
+			break;
+		/*
+		 * Set options.  LACP options are stored in sc->sc_psc,
+		 * not in sc_opts.
+		 */
+		int valid, lacp;
+
+		switch (ro->ro_opts) {
+		case LAGG_OPT_USE_FLOWID:
+		case -LAGG_OPT_USE_FLOWID:
+		case LAGG_OPT_FLOWIDSHIFT:
+			valid = 1;
+			lacp = 0;
+			break;
+		case LAGG_OPT_LACP_TXTEST:
+		case -LAGG_OPT_LACP_TXTEST:
+		case LAGG_OPT_LACP_RXTEST:
+		case -LAGG_OPT_LACP_RXTEST:
+		case LAGG_OPT_LACP_STRICT:
+		case -LAGG_OPT_LACP_STRICT:
+			valid = lacp = 1;
+			break;
+		default:
+			valid = lacp = 0;
+			break;
+		}
+
+		LAGG_WLOCK(sc);
+		if (valid == 0 ||
+		    (lacp == 1 && sc->sc_proto != LAGG_PROTO_LACP)) {
+			/* Invalid combination of options specified. */
+			error = EINVAL;
+			LAGG_WUNLOCK(sc);
+			break;	/* Return from SIOCSLAGGOPTS. */ 
+		}
+		/*
+		 * Store new options into sc->sc_opts except for
+		 * FLOWIDSHIFT and LACP options.
+		 */
+		if (lacp == 0) {
+			if (ro->ro_opts == LAGG_OPT_FLOWIDSHIFT)
+				sc->flowid_shift = ro->ro_flowid_shift;
+			else if (ro->ro_opts > 0)
+				sc->sc_opts |= ro->ro_opts;
+			else
+				sc->sc_opts &= ~ro->ro_opts;
+		} else {
+			struct lacp_softc *lsc;
+
+			lsc = (struct lacp_softc *)sc->sc_psc;
+
+			switch (ro->ro_opts) {
+			case LAGG_OPT_LACP_TXTEST:
+				lsc->lsc_debug.lsc_tx_test = 1;
+				break;
+			case -LAGG_OPT_LACP_TXTEST:
+				lsc->lsc_debug.lsc_tx_test = 0;
+				break;
+			case LAGG_OPT_LACP_RXTEST:
+				lsc->lsc_debug.lsc_rx_test = 1;
+				break;
+			case -LAGG_OPT_LACP_RXTEST:
+				lsc->lsc_debug.lsc_rx_test = 0;
+				break;
+			case LAGG_OPT_LACP_STRICT:
+				lsc->lsc_strict_mode = 1;
+				break;
+			case -LAGG_OPT_LACP_STRICT:
+				lsc->lsc_strict_mode = 0;
+				break;
+			}
+		}
+		LAGG_WUNLOCK(sc);
 		break;
 	case SIOCGLAGGFLAGS:
 		rf->rf_flags = sc->sc_flags;
