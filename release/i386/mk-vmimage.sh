@@ -63,6 +63,17 @@ panic() {
 	if [ ! -z "${mddev}" ]; then
 		mdconfig -d -u ${mddev}
 	fi
+	case ${cmd} in
+		vm-base)
+			# If the vm-base target fails, the vm-image target
+			# cannot possibly succeed.  Touch the .TARGET file
+			# so it is not attempted.
+			touch vm-image
+			;;
+		*)
+			# FALLTHROUGH
+			;;
+	esac
 	# Do not allow one failure case to chain through any remaining image
 	# builds.
 	return 1
