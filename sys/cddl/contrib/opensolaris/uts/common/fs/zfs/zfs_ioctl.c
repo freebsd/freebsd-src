@@ -3550,7 +3550,12 @@ zfs_ioc_destroy_snaps(const char *poolname, nvlist_t *innvl, nvlist_t *outnvl)
 
 	for (pair = nvlist_next_nvpair(snaps, NULL); pair != NULL;
 	    pair = nvlist_next_nvpair(snaps, pair)) {
-		(void) zfs_unmount_snap(nvpair_name(pair));
+		const char *name = nvpair_name(pair);
+
+		(void) zfs_unmount_snap(name);
+#if defined(__FreeBSD__)
+		(void) zvol_remove_minor(name);
+#endif
 	}
 
 	return (dsl_destroy_snapshots_nvl(snaps, defer, outnvl));
@@ -3644,7 +3649,6 @@ zfs_ioc_destroy_bookmarks(const char *poolname, nvlist_t *innvl,
 		if (strncmp(name, poolname, poollen) != 0 ||
 		    (name[poollen] != '/' && name[poollen] != '#'))
 			return (SET_ERROR(EXDEV));
-		(void) zvol_remove_minor(name);
 	}
 
 	error = dsl_bookmark_destroy(innvl, outnvl);

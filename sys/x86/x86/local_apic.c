@@ -63,6 +63,7 @@ __FBSDID("$FreeBSD$");
 #include <machine/md_var.h>
 #include <machine/smp.h>
 #include <machine/specialreg.h>
+#include <x86/init.h>
 
 #ifdef DDB
 #include <sys/interrupt.h>
@@ -1438,7 +1439,7 @@ apic_setup_io(void *dummy __unused)
 		lapic_dump("BSP");
 
 	/* Enable the MSI "pic". */
-	msi_init();
+	init_ops.msi_init();
 }
 SYSINIT(apic_setup_io, SI_SUB_INTR, SI_ORDER_THIRD, apic_setup_io, NULL);
 

@@ -48,6 +48,8 @@ __FBSDID("$FreeBSD$");
 #include <sys/sysctl.h>
 #include <sys/uio.h>
 #include <sys/unistd.h>
+#include <sys/queue.h>
+#include <sys/taskqueue.h>
 
 #include <machine/stdarg.h>
 
@@ -249,6 +251,20 @@ struct xs_softc {
 	 * with the XenStore service) are available.
 	 */
 	struct intr_config_hook xs_attachcb;
+
+	/**
+	 * Xenstore is a user-space process that usually runs in Dom0,
+	 * so if this domain is booting as Dom0, xenstore wont we accessible,
+	 * and we have to defer the initialization of xenstore related
+	 * devices to later (when xenstore is started).
+	 */
+	bool initialized;
+
+	/**
+	 * Task to run when xenstore is initialized (Dom0 only), will
+	 * take care of attaching xenstore related devices.
+	 */
+	struct task xs_late_init;
 };
 
 /*-------------------------------- Global Data ------------------------------*/
@@ -351,6 +367,16 @@ xs_join(const char *dir, const char *name)
 static void
 xs_intr(void * arg __unused /*__attribute__((unused))*/)
 {
+
+	/* If xenstore has not been initialized, initialize it now */
+	if (!xs.initialized) {
+		xs.initialized = true;
+		/*
+		 * Since this task is probing and attaching devices we
+		 * have to hold the Giant lock.
+		 */
+		taskqueue_enqueue(taskqueue_swi_giant, &xs.xs_late_init);
+	}
 
 	/*
 	 * Hold ring lock across wakeup so that clients
@@ -1104,12 +1130,20 @@ xs_probe(device_t dev)
 static void
 xs_attach_deferred(void *arg)
 {
-	xs_dev_init();
 
 	bus_generic_probe(xs.xs_dev);
 	bus_generic_attach(xs.xs_dev);
 
 	config_intrhook_disestablish(&xs.xs_attachcb);
+}
+
+static void
+xs_attach_late(void *arg, int pending)
+{
+
+	KASSERT((pending == 1), ("xs late attach queued several times"));
+	bus_generic_probe(xs.xs_dev);
+	bus_generic_attach(xs.xs_dev);
 }
 
 /**
@@ -1130,12 +1164,37 @@ xs_attach(device_t dev)
 	/* Initialize the interface to xenstore. */
 	struct proc *p;
 
+	xs.initialized = false;
 	if (xen_hvm_domain()) {
 		xs.evtchn = hvm_get_parameter(HVM_PARAM_STORE_EVTCHN);
 		xs.gpfn = hvm_get_parameter(HVM_PARAM_STORE_PFN);
 		xen_store = pmap_mapdev(xs.gpfn * PAGE_SIZE, PAGE_SIZE);
+		xs.initialized = true;
 	} else if (xen_pv_domain()) {
-		xs.evtchn = HYPERVISOR_start_info->store_evtchn;
+		if (HYPERVISOR_start_info->store_evtchn == 0) {
+			struct evtchn_alloc_unbound alloc_unbound;
+
+			/* Allocate a local event channel for xenstore */
+			alloc_unbound.dom = DOMID_SELF;
+			alloc_unbound.remote_dom = DOMID_SELF;
+			error = HYPERVISOR_event_channel_op(
+			    EVTCHNOP_alloc_unbound, &alloc_unbound);
+			if (error != 0)
+				panic(
+				   "unable to alloc event channel for Dom0: %d",
+				    error);
+
+			HYPERVISOR_start_info->store_evtchn =
+			    alloc_unbound.port;
+			xs.evtchn = alloc_unbound.port;
+
+			/* Allocate memory for the xs shared ring */
+			xen_store = malloc(PAGE_SIZE, M_XENSTORE,
+			    M_WAITOK | M_ZERO);
+		} else {
+			xs.evtchn = HYPERVISOR_start_info->store_evtchn;
+			xs.initialized = true;
+		}
 	} else {
 		panic("Unknown domain type, cannot initialize xenstore.");
 	}
@@ -1167,7 +1226,11 @@ xs_attach(device_t dev)
 
 	xs.xs_attachcb.ich_func = xs_attach_deferred;
 	xs.xs_attachcb.ich_arg = NULL;
-	config_intrhook_establish(&xs.xs_attachcb);
+	if (xs.initialized) {
+		config_intrhook_establish(&xs.xs_attachcb);
+	} else {
+		TASK_INIT(&xs.xs_late_init, 0, xs_attach_late, NULL);
+	}
 
 	return (error);
 }

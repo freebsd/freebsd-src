@@ -255,6 +255,8 @@ ip6_output(struct mbuf *m0, struct ip6_pktopts *opt,
 	struct route_in6 *ro_pmtu = NULL;
 	int hdrsplit = 0;
 	int sw_csum, tso;
+	int needfiblookup;
+	uint32_t fibnum;
 	struct m_tag *fwd_tag = NULL;
 
 	ip6 = mtod(m, struct ip6_hdr *);
@@ -448,6 +450,7 @@ ip6_output(struct mbuf *m0, struct ip6_pktopts *opt,
 	if (ro->ro_rt == NULL)
 		(void )flowtable_lookup(AF_INET6, m, (struct route *)ro);
 #endif
+	fibnum = (inp != NULL) ? inp->inp_inc.inc_fibnum : M_GETFIB(m);
 again:
 	/*
 	 * if specified, try to fill in the traffic class field.
@@ -489,7 +492,7 @@ again:
 			dst_sa.sin6_addr = ip6->ip6_dst;
 		}
 		error = in6_selectroute_fib(&dst_sa, opt, im6o, ro, &ifp,
-		    &rt, inp ? inp->inp_inc.inc_fibnum : M_GETFIB(m));
+		    &rt, fibnum);
 		if (error != 0) {
 			if (ifp != NULL)
 				in6_ifstat_inc(ifp, ifs6_out_discard);
@@ -649,7 +652,7 @@ again:
 
 	/* Determine path MTU. */
 	if ((error = ip6_getpmtu(ro_pmtu, ro, ifp, &finaldst, &mtu,
-	    &alwaysfrag, inp ? inp->inp_inc.inc_fibnum : M_GETFIB(m))) != 0)
+	    &alwaysfrag, fibnum)) != 0)
 		goto bad;
 
 	/*
@@ -727,6 +730,7 @@ again:
 		goto done;
 	ip6 = mtod(m, struct ip6_hdr *);
 
+	needfiblookup = 0;
 	/* See if destination IP address was changed by packet filter. */
 	if (!IN6_ARE_ADDR_EQUAL(&odst, &ip6->ip6_dst)) {
 		m->m_flags |= M_SKIP_FIREWALL;
@@ -747,8 +751,17 @@ again:
 			error = netisr_queue(NETISR_IPV6, m);
 			goto done;
 		} else
-			goto again;	/* Redo the routing table lookup. */
+			needfiblookup = 1; /* Redo the routing table lookup. */
 	}
+	/* See if fib was changed by packet filter. */
+	if (fibnum != M_GETFIB(m)) {
+		m->m_flags |= M_SKIP_FIREWALL;
+		fibnum = M_GETFIB(m);
+		RO_RTFREE(ro);
+		needfiblookup = 1;
+	}
+	if (needfiblookup)
+		goto again;
 
 	/* See if local, if yes, send it to netisr. */
 	if (m->m_flags & M_FASTFWD_OURS) {

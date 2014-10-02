@@ -40,6 +40,7 @@
 #include <sys/module.h>
 #include <sys/mount.h>
 #include <sys/sx.h>
+#include <sys/taskqueue.h>
 #include <sys/vnode.h>
 
 #include <fs/autofs/autofs.h>
