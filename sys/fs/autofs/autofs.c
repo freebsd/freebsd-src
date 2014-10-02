@@ -454,13 +454,13 @@ autofs_trigger_one(struct autofs_node *anp,
 	if (last) {
 		TAILQ_REMOVE(&autofs_softc->sc_requests, ar, ar_next);
 		/*
-		 * XXX: Is it safe?
+		 * Unlock the sc_lock, so that autofs_task() can complete.
 		 */
 		sx_xunlock(&autofs_softc->sc_lock);
 		taskqueue_cancel_timeout(taskqueue_thread, &ar->ar_task, NULL);
 		taskqueue_drain_timeout(taskqueue_thread, &ar->ar_task);
-		sx_xlock(&autofs_softc->sc_lock);
 		uma_zfree(autofs_request_zone, ar);
+		sx_xlock(&autofs_softc->sc_lock);
 	}
 
 	/*
