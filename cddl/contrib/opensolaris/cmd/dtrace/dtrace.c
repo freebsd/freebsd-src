@@ -710,6 +710,9 @@ list_probe(dtrace_hdl_t *dtp, const dtrace_probedesc_t *pdp, void *arg)
 	if (g_verbose && dtrace_probe_info(dtp, pdp, &p) == 0)
 		print_probe_info(&p);
 
+	if (g_intr != 0)
+		return (1);
+
 	return (0);
 }
 
@@ -1220,11 +1223,34 @@ intr(int signo)
 		g_impatient = 1;
 }
 
+static void
+installsighands(void)
+{
+	struct sigaction act, oact;
+
+	(void) sigemptyset(&act.sa_mask);
+	act.sa_flags = 0;
+	act.sa_handler = intr;
+
+	if (sigaction(SIGINT, NULL, &oact) == 0 && oact.sa_handler != SIG_IGN)
+		(void) sigaction(SIGINT, &act, NULL);
+
+	if (sigaction(SIGTERM, NULL, &oact) == 0 && oact.sa_handler != SIG_IGN)
+		(void) sigaction(SIGTERM, &act, NULL);
+
+#if !defined(sun)
+	if (sigaction(SIGPIPE, NULL, &oact) == 0 && oact.sa_handler != SIG_IGN)
+		(void) sigaction(SIGPIPE, &act, NULL);
+
+	if (sigaction(SIGUSR1, NULL, &oact) == 0 && oact.sa_handler != SIG_IGN)
+		(void) sigaction(SIGUSR1, &act, NULL);
+#endif
+}
+
 int
 main(int argc, char *argv[])
 {
 	dtrace_bufdesc_t buf;
-	struct sigaction act, oact;
 	dtrace_status_t status[2];
 	dtrace_optval_t opt;
 	dtrace_cmd_t *dcp;
@@ -1776,6 +1802,8 @@ main(int argc, char *argv[])
 		if (g_ofile != NULL && (g_ofp = fopen(g_ofile, "a")) == NULL)
 			fatal("failed to open output file '%s'", g_ofile);
 
+		installsighands();
+
 		oprintf("%5s %10s %17s %33s %s\n",
 		    "ID", "PROVIDER", "MODULE", "FUNCTION", "NAME");
 
@@ -1861,20 +1889,7 @@ main(int argc, char *argv[])
 	if (opt != DTRACEOPT_UNSET)
 		notice("allowing destructive actions\n");
 
-	(void) sigemptyset(&act.sa_mask);
-	act.sa_flags = 0;
-	act.sa_handler = intr;
-
-	if (sigaction(SIGINT, NULL, &oact) == 0 && oact.sa_handler != SIG_IGN)
-		(void) sigaction(SIGINT, &act, NULL);
-
-	if (sigaction(SIGTERM, NULL, &oact) == 0 && oact.sa_handler != SIG_IGN)
-		(void) sigaction(SIGTERM, &act, NULL);
-
-#if !defined(sun)
-	if (sigaction(SIGUSR1, NULL, &oact) == 0 && oact.sa_handler != SIG_IGN)
-		(void) sigaction(SIGUSR1, &act, NULL);
-#endif
+	installsighands();
 
 	/*
 	 * Now that tracing is active and we are ready to consume trace data,
