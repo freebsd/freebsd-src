@@ -58,8 +58,6 @@ usage() {
 }
 
 panic() {
-	rc="${1}"
-	shift 1
 	msg="${@}"
 	printf "${msg}\n"
 	if [ ! -z "${mddev}" ]; then
@@ -67,7 +65,7 @@ panic() {
 	fi
 	# Do not allow one failure case to chain through any remaining image
 	# builds.
-	exit 0
+	return 1
 }
 
 vm_create_baseimage() {
@@ -96,7 +94,7 @@ vm_create_baseimage() {
 	cd ${WORLDDIR} && \
 		make DESTDIR=${DESTDIR} \
 		installworld installkernel distribution || \
-		panic 1 "\n\nCannot install the base system to ${DESTDIR}."
+		panic "\n\nCannot install the base system to ${DESTDIR}."
 	chroot ${DESTDIR} /usr/bin/newaliases
 	echo '# Custom /etc/fstab for FreeBSD VM images' \
 		> ${DESTDIR}/etc/fstab
@@ -111,7 +109,7 @@ vm_create_baseimage() {
 			# This should never happen.  But, it has happened.
 			msg="Cannot umount(8) ${DESTDIR}\n"
 			msg="${msg}Something has gone horribly wrong."
-			panic 1 "${msg}"
+			panic "${msg}"
 		fi
 		sleep 1
 	done
@@ -141,11 +139,11 @@ vm_create_vmdisk() {
 	if [ -z "${mkimg_version}" ]; then
 		msg="Cannot determine mkimg(1) version.\n"
 		msg="${msg}Cannot continue without a known mkimg(1) version."
-		panic 0 "${msg}"
+		panic "${msg}"
 	fi
 
 	if ! mkimg --formats 2>/dev/null | grep -q ${FORMAT}; then
-		panic 0 "'${FORMAT}' is not supported by this mkimg(1).\n"
+		panic "'${FORMAT}' is not supported by this mkimg(1).\n"
 	fi
 
 	case ${FORMAT} in
