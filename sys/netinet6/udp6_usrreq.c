@@ -237,18 +237,9 @@ udp6_input(struct mbuf **mp, int *offp, int proto)
 			/* XXX: What is the right UDPLite MIB counter? */
 			goto badunlocked;
 		}
-	}
-	if (nxt == IPPROTO_UDP && plen != ulen) {
-		UDPSTAT_INC(udps_badlen);
-		goto badunlocked;
-	}
-
-	/*
-	 * Checksum extended UDP header and data.
-	 */
-	if (uh->uh_sum == 0) {
-		if (ulen > plen || ulen < sizeof(struct udphdr)) {
-			UDPSTAT_INC(udps_nosum);
+	} else {
+		if ((ulen < sizeof(struct udphdr)) || (plen != ulen)) {
+			UDPSTAT_INC(udps_badlen);
 			goto badunlocked;
 		}
 	}
