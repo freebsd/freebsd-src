@@ -297,9 +297,9 @@ autofs_cached(struct autofs_node *anp, const char *component, int componentlen)
 	 * is necessary for wildcard indirect map keys to work.
 	 */
 	if (anp->an_parent == NULL && componentlen != 0) {
-		AUTOFS_LOCK(amp);
+		AUTOFS_SLOCK(amp);
 		error = autofs_node_find(anp, component, componentlen, NULL);
-		AUTOFS_UNLOCK(amp);
+		AUTOFS_SUNLOCK(amp);
 		if (error != 0)
 			return (false);
 	}

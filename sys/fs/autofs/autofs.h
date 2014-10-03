@@ -53,9 +53,12 @@ extern int autofs_mount_on_stat;
 		    __func__, ## __VA_ARGS__);			\
 	} while (0)
 
-#define AUTOFS_LOCK(X)		sx_xlock(&X->am_lock)
-#define AUTOFS_UNLOCK(X)	sx_xunlock(&X->am_lock)
-#define AUTOFS_ASSERT_LOCKED(X)	sx_assert(&X->am_lock, SA_XLOCKED)
+#define AUTOFS_SLOCK(X)		sx_slock(&X->am_lock)
+#define AUTOFS_XLOCK(X)		sx_xlock(&X->am_lock)
+#define AUTOFS_SUNLOCK(X)	sx_sunlock(&X->am_lock)
+#define AUTOFS_XUNLOCK(X)	sx_xunlock(&X->am_lock)
+#define AUTOFS_ASSERT_LOCKED(X)		sx_assert(&X->am_lock, SA_LOCKED)
+#define AUTOFS_ASSERT_XLOCKED(X)	sx_assert(&X->am_lock, SA_XLOCKED)
 #define AUTOFS_ASSERT_UNLOCKED(X)	sx_assert(&X->am_lock, SA_UNLOCKED)
 
 struct autofs_node {
