@@ -26,6 +26,10 @@ dev/terasic/mtl/terasic_mtl_reg.c	optional terasic_mtl
 dev/terasic/mtl/terasic_mtl_syscons.c	optional terasic_mtl sc
 dev/terasic/mtl/terasic_mtl_text.c	optional terasic_mtl
 dev/terasic/mtl/terasic_mtl_vt.c	optional terasic_mtl vt
+dev/terasic/pixelstream/pixelstream.c		optional pixelstream
+dev/terasic/pixelstream/pixelstream_fdt.c	optional pixelstream
+dev/terasic/pixelstream/pixelstream_reg.c	optional pixelstream
+dev/terasic/pixelstream/pixelstream_vt.c	optional pixelstream vt
 mips/beri/beri_machdep.c		standard
 mips/beri/beri_mp.c			optional smp
 mips/beri/beri_pic.c			optional fdt

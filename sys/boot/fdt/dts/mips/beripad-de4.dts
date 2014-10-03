@@ -274,5 +274,11 @@
 			sri-cambridge,fileio = "rw";
 			sri-cambridge,devname = "de4_hdmi_i2c";
 		};
+
+		pixelstream@7f00d000 {
+			compatible = "sri-cambridge,pixelstream";
+			panel-size = < 800 600 >;
+			reg = <0x7f00d000 0x28>;
+		};
 	};
 };
