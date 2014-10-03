@@ -1531,7 +1531,9 @@ _prebuild_libs=	${_kerberos5_lib_libasn1} \
 		lib/ncurses/ncurses lib/ncurses/ncursesw \
 		lib/libopie lib/libpam ${_lib_libthr} \
 		lib/libradius lib/libsbuf lib/libtacplus \
+		lib/libgeom \
 		${_cddl_lib_libumem} ${_cddl_lib_libnvpair} \
+		${_cddl_lib_libuutil} \
 		${_cddl_lib_libavl} \
 		${_cddl_lib_libzfs_core} \
 		lib/libutil lib/libpjdlog ${_lib_libypclnt} lib/libz lib/msun \
@@ -1542,6 +1544,8 @@ _prebuild_libs+= gnu/lib/libstdc++ gnu/lib/libsupc++
 gnu/lib/libstdc++__L: lib/msun__L
 gnu/lib/libsupc++__L: gnu/lib/libstdc++__L
 .endif
+
+lib/libgeom__L: lib/libexpat__L
 
 .if defined(WITH_ATF) || ${MK_TESTS} != "no"
 .if !defined(WITH_ATF)
@@ -1580,9 +1584,11 @@ lib/libopie__L lib/libtacplus__L: lib/libmd__L
 _cddl_lib_libumem= cddl/lib/libumem
 _cddl_lib_libnvpair= cddl/lib/libnvpair
 _cddl_lib_libavl= cddl/lib/libavl
+_cddl_lib_libuutil= cddl/lib/libuutil
 _cddl_lib_libzfs_core= cddl/lib/libzfs_core
 _cddl_lib= cddl/lib
 cddl/lib/libzfs_core__L: cddl/lib/libnvpair__L
+cddl/lib/libzfs__L: lib/libgeom__L
 .endif
 
 .if ${MK_CRYPT} != "no"
