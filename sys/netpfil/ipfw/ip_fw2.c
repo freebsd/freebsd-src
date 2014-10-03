@@ -122,11 +122,15 @@ VNET_DEFINE(unsigned int, fw_tables_sets) = 0;	/* Don't use set-aware tables */
 /* Use 128 tables by default */
 static unsigned int default_fw_tables = IPFW_TABLES_DEFAULT;
 
+#ifndef LINEAR_SKIPTO
 static int jump_fast(struct ip_fw_chain *chain, struct ip_fw *f, int num,
     int tablearg, int jump_backwards);
+#define	JUMP(ch, f, num, targ, back)	jump_fast(ch, f, num, targ, back)
+#else
 static int jump_linear(struct ip_fw_chain *chain, struct ip_fw *f, int num,
     int tablearg, int jump_backwards);
-#define	JUMP(ch, f, num, targ, back)	jump_fast(ch, f, num, targ, back)
+#define	JUMP(ch, f, num, targ, back)	jump_linear(ch, f, num, targ, back)
+#endif
 
 /*
  * Each rule belongs to one of 32 different sets (0..31).
@@ -800,6 +804,7 @@ set_match(struct ip_fw_args *args, int slot,
 	args->rule.rulenum = chain->map[slot]->rulenum;
 }
 
+#ifndef LINEAR_SKIPTO
 /*
  * Helper function to enable cached rule lookups using
  * cached_id and cached_pos fields in ipfw rule.
@@ -834,7 +839,7 @@ jump_fast(struct ip_fw_chain *chain, struct ip_fw *f, int num,
 
 	return (f_pos);
 }
-
+#else
 /*
  * Helper function to enable real fast rule lookups.
  */
@@ -852,6 +857,7 @@ jump_linear(struct ip_fw_chain *chain, struct ip_fw *f, int num,
 
 	return (f_pos);
 }
+#endif
 
 #define	TARG(k, f)	IP_FW_ARG_TABLEARG(chain, k, f)
 /*
@@ -2744,7 +2750,9 @@ vnet_ipfw_init(const void *unused)
 
 	IPFW_LOCK_INIT(chain);
 	ipfw_dyn_init(chain);
+#ifdef LINEAR_SKIPTO
 	ipfw_init_skipto_cache(chain);
+#endif
 
 	/* First set up some values that are compile time options */
 	V_ipfw_vnet_ready = 1;		/* Open for business */
@@ -2801,7 +2809,9 @@ vnet_ipfw_uninit(const void *unused)
 	for (i = 0; i < chain->n_rules; i++)
 		ipfw_reap_add(chain, &reap, chain->map[i]);
 	free(chain->map, M_IPFW);
+#ifdef LINEAR_SKIPTO
 	ipfw_destroy_skipto_cache(chain);
+#endif
 	IPFW_WUNLOCK(chain);
 	IPFW_UH_WUNLOCK(chain);
 	ipfw_destroy_tables(chain, last);
