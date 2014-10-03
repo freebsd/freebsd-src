@@ -6571,6 +6571,7 @@ do_barrier (void)
   if (inst.operands[0].present)
     {
       constraint ((inst.instruction & 0xf0) != 0x40
+		  && (inst.instruction & 0xf0) != 0x50
 		  && inst.operands[0].imm != 0xf,
 		  "bad barrier type");
       inst.instruction |= inst.operands[0].imm;
