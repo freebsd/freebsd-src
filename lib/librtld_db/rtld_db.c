@@ -237,14 +237,14 @@ rd_reset(rd_agent_t *rdap)
 	GElf_Sym sym;
 
 	if (proc_name2sym(rdap->rda_php, "ld-elf.so.1", "r_debug_state",
-	    &sym) < 0)
+	    &sym, NULL) < 0)
 		return (RD_ERR);
 	DPRINTF("found r_debug_state at 0x%lx\n", (unsigned long)sym.st_value);
 	rdap->rda_preinit_addr = sym.st_value;
 	rdap->rda_dlactivity_addr = sym.st_value;
 
 	if (proc_name2sym(rdap->rda_php, "ld-elf.so.1", "_r_debug_postinit",
-	    &sym) < 0)
+	    &sym, NULL) < 0)
 		return (RD_ERR);
 	DPRINTF("found _r_debug_postinit at 0x%lx\n",
 	    (unsigned long)sym.st_value);
