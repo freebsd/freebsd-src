@@ -210,6 +210,17 @@ nfsrvd_getattr(struct nfsrv_descript *nd, int isdgram,
 		if (nd->nd_repstat == 0) {
 			accmode = 0;
 			NFSSET_ATTRBIT(&tmpbits, &attrbits);
+	
+			/*
+			 * GETATTR with write-only attr time_access_set and time_modify_set
+			 * should return NFS4ERR_INVAL.
+			 */
+			if (NFSISSET_ATTRBIT(&tmpbits, NFSATTRBIT_TIMEACCESSSET) ||
+					NFSISSET_ATTRBIT(&tmpbits, NFSATTRBIT_TIMEMODIFYSET)){
+				error = NFSERR_INVAL;
+				vput(vp);
+				goto out;
+			}
 			if (NFSISSET_ATTRBIT(&tmpbits, NFSATTRBIT_ACL)) {
 				NFSCLRBIT_ATTRBIT(&tmpbits, NFSATTRBIT_ACL);
 				accmode |= VREAD_ACL;
@@ -315,7 +326,7 @@ nfsrvd_setattr(struct nfsrv_descript *nd, __unused int isdgram,
 		stateid.seqid = fxdr_unsigned(u_int32_t, *tl++);
 		NFSBCOPY((caddr_t)tl,(caddr_t)stateid.other,NFSX_STATEIDOTHER);
 	}
-	error = nfsrv_sattr(nd, &nva, &attrbits, aclp, p);
+	error = nfsrv_sattr(nd, vp, &nva, &attrbits, aclp, p);
 	if (error)
 		goto nfsmout;
 	preat_ret = nfsvno_getattr(vp, &nva2, nd->nd_cred, p, 1);
@@ -1019,7 +1030,7 @@ nfsrvd_create(struct nfsrv_descript *nd, __unused int isdgram,
 			switch (how) {
 			case NFSCREATE_GUARDED:
 			case NFSCREATE_UNCHECKED:
-				error = nfsrv_sattr(nd, &nva, NULL, NULL, p);
+				error = nfsrv_sattr(nd, NULL, &nva, NULL, NULL, p);
 				if (error)
 					goto nfsmout;
 				break;
@@ -1204,7 +1215,7 @@ nfsrvd_mknod(struct nfsrv_descript *nd, __unused int isdgram,
 			NFSM_DISSECT(tl, u_int32_t *, NFSX_UNSIGNED);
 			vtyp = nfsv34tov_type(*tl);
 		}
-		error = nfsrv_sattr(nd, &nva, &attrbits, aclp, p);
+		error = nfsrv_sattr(nd, NULL, &nva, &attrbits, aclp, p);
 		if (error)
 			goto nfsmout;
 		nva.na_type = vtyp;
@@ -1850,7 +1861,7 @@ nfsrvd_mkdir(struct nfsrv_descript *nd, __unused int isdgram,
 	if (!nd->nd_repstat) {
 		NFSVNO_ATTRINIT(&nva);
 		if (nd->nd_flag & ND_NFSV3) {
-			error = nfsrv_sattr(nd, &nva, NULL, NULL, p);
+			error = nfsrv_sattr(nd, NULL, &nva, NULL, NULL, p);
 			if (error)
 				goto nfsmout;
 		} else {
@@ -1967,11 +1978,21 @@ nfsrvd_commit(struct nfsrv_descript *nd, __unused int isdgram,
 	int error = 0, for_ret = 1, aft_ret = 1, cnt;
 	u_int64_t off;
 
-	if (nd->nd_repstat) {
+       if (nd->nd_repstat) {
 		nfsrv_wcc(nd, for_ret, &bfor, aft_ret, &aft);
 		goto out;
 	}
+
+	/* Return NFSERR_ISDIR in NFSv4 when commit on a directory. */
+	if (vp->v_type != VREG) {
+		if (nd->nd_flag & ND_NFSV3)
+			error = NFSERR_NOTSUPP;
+		else
+			error = (vp->v_type == VDIR) ? NFSERR_ISDIR : NFSERR_INVAL;
+		goto nfsmout;
+	}
 	NFSM_DISSECT(tl, u_int32_t *, 3 * NFSX_UNSIGNED);
+
 	/*
 	 * XXX At this time VOP_FSYNC() does not accept offset and byte
 	 * count parameters, so these arguments are useless (someday maybe).
@@ -2683,7 +2704,7 @@ nfsrvd_open(struct nfsrv_descript *nd, __unused int isdgram,
 		switch (how) {
 		case NFSCREATE_UNCHECKED:
 		case NFSCREATE_GUARDED:
-			error = nfsv4_sattr(nd, &nva, &attrbits, aclp, p);
+			error = nfsv4_sattr(nd, NULL, &nva, &attrbits, aclp, p);
 			if (error)
 				goto nfsmout;
 			/*
@@ -2707,7 +2728,7 @@ nfsrvd_open(struct nfsrv_descript *nd, __unused int isdgram,
 			NFSM_DISSECT(tl, u_int32_t *, NFSX_VERF);
 			cverf[0] = *tl++;
 			cverf[1] = *tl;
-			error = nfsv4_sattr(nd, &nva, &attrbits, aclp, p);
+			error = nfsv4_sattr(nd, vp, &nva, &attrbits, aclp, p);
 			if (error != 0)
 				goto nfsmout;
 			if (NFSISSET_ATTRBIT(&attrbits,
@@ -2858,7 +2879,7 @@ nfsrvd_open(struct nfsrv_descript *nd, __unused int isdgram,
 		 * The IETF working group decided that this is the correct
 		 * error return for all non-regular files.
 		 */
-		nd->nd_repstat = NFSERR_SYMLINK;
+		nd->nd_repstat = (vp->v_type == VDIR) ? NFSERR_ISDIR : NFSERR_SYMLINK;
 	}
 	if (!nd->nd_repstat && (stp->ls_flags & NFSLCK_WRITEACCESS))
 	    nd->nd_repstat = nfsvno_accchk(vp, VWRITE, nd->nd_cred,
@@ -3197,6 +3218,11 @@ nfsrvd_opendowngrade(struct nfsrv_descript *nd, __unused int isdgram,
 	nfsv4stateid_t stateid;
 	nfsquad_t clientid;
 
+	/* opendowngrade can only work on a file object.*/
+	if (vp->v_type != VREG) {
+		error = NFSERR_INVAL;
+		goto nfsmout;
+	}
 	NFSM_DISSECT(tl, u_int32_t *, NFSX_STATEID + 3 * NFSX_UNSIGNED);
 	stp->ls_ownerlen = 0;
 	stp->ls_op = nd->nd_rp;
