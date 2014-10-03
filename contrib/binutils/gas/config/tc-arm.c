@@ -4688,6 +4688,23 @@ parse_address_main (char **str, int i, int group_relocations,
 	      return PARSE_OPERAND_FAIL;
 	}
     }
+  else if (skip_past_char (&p, ':') == SUCCESS)
+    {
+      /* FIXME: '@' should be used here, but it's filtered out by generic
+         code before we get to see it here. This may be subject to
+         change.  */
+      expressionS exp;
+      my_get_expression (&exp, &p, GE_NO_PREFIX);
+      if (exp.X_op != O_constant)
+        {
+          inst.error = _("alignment must be constant");
+          return PARSE_OPERAND_FAIL;
+        }
+      inst.operands[i].imm = exp.X_add_number << 8;
+      inst.operands[i].immisalign = 1;
+      /* Alignments are not pre-indexes.  */
+      inst.operands[i].preind = 0;
+    }
 
   if (skip_past_char (&p, ']') == FAIL)
     {
