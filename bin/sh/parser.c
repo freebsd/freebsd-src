@@ -1279,6 +1279,13 @@ readcstyleesc(char *out)
 				c = pgetc();
 			if (c == PEOF)
 				synerror("Unterminated quoted string");
+			if (c == '\n') {
+				plinno++;
+				if (doprompt)
+					setprompt(2);
+				else
+					setprompt(0);
+			}
 		}
 		pungetc();
 		return out;
