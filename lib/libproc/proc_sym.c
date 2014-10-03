@@ -32,6 +32,10 @@
 __FBSDID("$FreeBSD$");
 
 #include <sys/types.h>
+#ifndef NO_CTF
+#include <sys/ctf.h>
+#include <sys/ctf_api.h>
+#endif
 #include <sys/user.h>
 
 #include <assert.h>
@@ -42,9 +46,16 @@ __FBSDID("$FreeBSD$");
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
+#ifndef NO_CTF
+#include <libctf.h>
+#endif
 #include <libutil.h>
 
 #include "_libproc.h"
+
+#ifdef NO_CTF
+typedef struct ctf_file ctf_file_t;
+#endif
 
 #ifndef NO_CXA_DEMANGLE
 extern char *__cxa_demangle(const char *, char *, size_t *, int *);
@@ -389,7 +400,7 @@ proc_name2map(struct proc_handle *p, const char *name)
  */
 static int
 lookup_name(Elf *e, Elf_Scn *scn, u_long stridx, const char *symbol,
-    GElf_Sym *symcopy)
+    GElf_Sym *symcopy, prsyminfo_t *si)
 {
 	GElf_Sym sym;
 	Elf_Data *data;
@@ -404,6 +415,8 @@ lookup_name(Elf *e, Elf_Scn *scn, u_long stridx, const char *symbol,
 		s = elf_strptr(e, stridx, sym.st_name);
 		if (s != NULL && strcmp(s, symbol) == 0) {
 			memcpy(symcopy, &sym, sizeof(*symcopy));
+			if (si != NULL)
+				si->prs_id = i;
 			return (0);
 		}
 	}
@@ -412,7 +425,7 @@ lookup_name(Elf *e, Elf_Scn *scn, u_long stridx, const char *symbol,
 
 int
 proc_name2sym(struct proc_handle *p, const char *object, const char *symbol,
-    GElf_Sym *symcopy)
+    GElf_Sym *symcopy, prsyminfo_t *si)
 {
 	Elf *e;
 	Elf_Scn *scn, *dynsymscn = NULL, *symtabscn = NULL;
@@ -462,11 +475,11 @@ proc_name2sym(struct proc_handle *p, const char *object, const char *symbol,
 	 * First look up the symbol in the dynsymtab, and fall back to the
 	 * symtab if the lookup fails.
 	 */
-	error = lookup_name(e, dynsymscn, dynsymstridx, symbol, symcopy);
+	error = lookup_name(e, dynsymscn, dynsymstridx, symbol, symcopy, si);
 	if (error == 0)
 		goto out;
 
-	error = lookup_name(e, symtabscn, symtabstridx, symbol, symcopy);
+	error = lookup_name(e, symtabscn, symtabstridx, symbol, symcopy, si);
 	if (error == 0)
 		goto out;
 
@@ -482,6 +495,26 @@ err0:
 	free(map);
 
 	return (error);
+}
+
+ctf_file_t *
+proc_name2ctf(struct proc_handle *p, const char *name)
+{
+#ifndef NO_CTF
+	prmap_t *map;
+	int error;
+
+	if ((map = proc_name2map(p, name)) == NULL) {
+		DPRINTFX("ERROR: couldn't find object %s", object);
+		return (NULL);
+	}
+
+	return (ctf_open(map->pr_mapname, &error));
+#else
+	(void)p;
+	(void)name;
+	return (NULL);
+#endif
 }
 
 int
