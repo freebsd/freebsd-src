@@ -42,15 +42,18 @@ extern uma_zone_t autofs_node_zone;
 extern int autofs_debug;
 extern int autofs_mount_on_stat;
 
-#define	AUTOFS_DEBUG(X, ...)					\
-	if (autofs_debug > 1) {					\
-		printf("%s: " X "\n", __func__, ## __VA_ARGS__);\
+#define	AUTOFS_DEBUG(X, ...)						\
+	do {								\
+		if (autofs_debug > 1)					\
+			printf("%s: " X "\n", __func__, ## __VA_ARGS__);\
 	} while (0)
 
-#define	AUTOFS_WARN(X, ...)					\
-	if (autofs_debug > 0) {					\
-		printf("WARNING: %s: " X "\n",			\
-		    __func__, ## __VA_ARGS__);			\
+#define	AUTOFS_WARN(X, ...)						\
+	do {								\
+		if (autofs_debug > 0) {					\
+			printf("WARNING: %s: " X "\n",			\
+		    	    __func__, ## __VA_ARGS__);			\
+		}							\
 	} while (0)
 
 #define AUTOFS_SLOCK(X)		sx_slock(&X->am_lock)
