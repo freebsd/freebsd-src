@@ -118,6 +118,8 @@ in-kernel NAT.
 .Cm internal iflist
 .Nm
 .Cm internal talist
+.Nm
+.Cm internal vlist
 .Sh DESCRIPTION
 The
 .Nm
@@ -1918,18 +1920,6 @@ Matches packet fields specified by
 type suboptions with table entries.
 .El
 .Pp
-The following value format types are supported:
-.Bl -tag -width indent
-.It Ar value-ftype : Ar number | ip
-.It Cm number
-Default for
-.Ar number
-value type.
-Shows values as unsigned integer.
-.It Cm ip
-Show values as IPv4 addresses.
-.El
-.Pp
 Tables require explicit creation via
 .Cm create
 before use.
@@ -1937,13 +1927,12 @@ before use.
 The following creation options are supported:
 .Bl -tag -width indent
 .It Ar create-options : Ar create-option | create-options
-.It Ar create-option : Cm type Ar table-type | Cm ftype Ar value-ftype | Cm algo Ar algo-desc |
+.It Ar create-option : Cm type Ar table-type | Cm valtype Ar value-mask | Cm algo Ar algo-desc |
 .Cm limit Ar number | Cm locked
 .It Cm type
 Table key type.
-.It Cm ftype
-Table value format type.
-Affects userland formatting only.
+.It Cm valtype
+Table value mask.
 .It Cm algo
 Table algorithm to use (see below).
 .It Cm limit
@@ -1958,10 +1947,7 @@ keyword.
 The following options can be changed:
 .Bl -tag -width indent
 .It Ar modify-options : Ar modify-option | modify-options
-.It Ar modify-option : Cm ftype Ar value-ftype | Cm limit Ar number
-.It Cm ftype
-Set table value format type.
-Affects userland formatting only.
+.It Ar modify-option : Cm limit Ar number
 .It Cm limit
 Alter maximum number of items that may be inserted into table.
 .El
@@ -1974,8 +1960,6 @@ commands.
 .Pp
 Tables of the same
 .Ar type
-and
-.Ar valtype
 can be swapped with each other using
 .Cm swap Ar name
 command.
@@ -2035,8 +2019,7 @@ The following lookup algorithms are supported:
 Separate Radix trees for IPv4 and IPv6, the same way as the routing table (see
 .Xr route 4 ) .
 Default choice for
-.Ar
-addr
+.Ar addr
 type.
 .It Cm addr:hash
 Separate auto-growing hashes for IPv4 and IPv6.
@@ -2066,12 +2049,36 @@ This can significantly reduce number of rules in some configurations.
 If two tables are used in a rule, the result of the second (destination)
 is used.
 .Pp
+Each record may hold one or more values according to
+.Ar value-mask .
+This mask is set on table creation via
+.Cm valtype
+option.
 The following value types are supported:
 .Bl -tag -width indent
-.It Ar value-type : Ar number
-.It Cm number
-Default value type.
-If value is not specified, defaults to 0.
+.It Ar value-mask : Ar value-type Ns Op , Ns Ar value-mask
+.It Ar value-type : Ar skipto | pipe | fib | nat | dscp | tag | divert |
+.Ar netgraph | limit | ipv4
+.It Cm skipto
+rule number to jump to.
+.It Cm pipe
+Pipe number to use.
+.It Cm fib
+fib number to match/set.
+.It Cm nat
+nat number to jump to.
+.It Cm dscp
+dscp value to match/set.
+.It Cm tag
+tag number to match/set.
+.It Cm divert
+port number to divert traffic to.
+.It Cm netgraph
+hook number to move packet to.
+.It Cm limit
+maximum number of connections.
+.It Cm ipv4
+IPv4 nexthop to fwd packets to.
 .El
 .Pp
 The
@@ -2083,20 +2090,14 @@ action parameters:
 rule options:
 .Cm limit, tagged.
 .Pp
-When used with
-.Cm fwd
-it is possible to supply table entries with values
-that are in the form of IP addresses or hostnames.
-See the
-.Sx EXAMPLES
-Section for example usage of tables and the tablearg keyword.
-.Pp
 When used with the
 .Cm skipto
 action, the user should be aware that the code will walk the ruleset
-up to a rule equal to, or past, the given number,
-and should therefore try keep the
-ruleset compact between the skipto and the target rules.
+up to a rule equal to, or past, the given number.
+.Pp
+See the
+.Sx EXAMPLES
+Section for example usage of tables and the tablearg keyword.
 .Sh SETS OF RULES
 Each rule or table belongs to one of 32 different
 .Em sets
@@ -3473,15 +3474,16 @@ action, the table entries may include hostnames and IP addresses.
 .Pp
 In the following example per-interface firewall is created:
 .Pp
-.Dl "ipfw table IN create type iface"
-.Dl "ipfw table IN add vlan20 12000"
-.Dl "ipfw table IN add vlan30 13000"
-.Dl "ipfw table OUT create type iface"
+.Dl "ipfw table IN create type iface valtype skipto,fib"
+.Dl "ipfw table IN add vlan20 12000,12"
+.Dl "ipfw table IN add vlan30 13000,13"
+.Dl "ipfw table OUT create type iface valtype skipto"
 .Dl "ipfw table OUT add vlan20 22000"
 .Dl "ipfw table OUT add vlan30 23000"
 .Dl ".."
-.Dl "ipfw add 100 ipfw skipto tablearg ip from any to any recv 'table(IN)' in"
-.Dl "ipfw add 200 ipfw skipto tablearg ip from any to any xmit 'table(OUT)' out"
+.Dl "ipfw add 100 ipfw setfib tablearg ip from any to any recv 'table(IN)' in"
+.Dl "ipfw add 200 ipfw skipto tablearg ip from any to any recv 'table(IN)' in"
+.Dl "ipfw add 300 ipfw skipto tablearg ip from any to any xmit 'table(OUT)' out"
 .Pp
 The following example illustrate usage of flow tables:
 .Pp
