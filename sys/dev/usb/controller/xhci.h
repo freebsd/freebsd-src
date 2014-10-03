@@ -493,7 +493,8 @@ struct xhci_softc {
 	uint8_t			sc_noscratch;
 	/* root HUB device configuration */
 	uint8_t			sc_conf;
-	uint8_t			sc_hub_idata[2];
+	/* root HUB port event bitmap, max 256 ports */
+	uint8_t			sc_hub_idata[32];
 
 	/* size of context */
 	uint8_t			sc_ctx_is_64_byte;
