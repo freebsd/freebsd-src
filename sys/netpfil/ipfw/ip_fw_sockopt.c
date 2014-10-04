@@ -2294,10 +2294,10 @@ add_rules(struct ip_fw_chain *chain, ip_fw3_opheader *op3,
 static int
 compare_sh(const void *_a, const void *_b)
 {
-	struct ipfw_sopt_handler *a, *b;
+	const struct ipfw_sopt_handler *a, *b;
 
-	a = (struct ipfw_sopt_handler *)_a;
-	b = (struct ipfw_sopt_handler *)_b;
+	a = (const struct ipfw_sopt_handler *)_a;
+	b = (const struct ipfw_sopt_handler *)_b;
 
 	if (a->opcode < b->opcode)
 		return (-1);
