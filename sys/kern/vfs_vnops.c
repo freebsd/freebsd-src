@@ -2237,12 +2237,10 @@ vn_utimes_perm(struct vnode *vp, struct vattr *vap, struct ucred *cred,
 {
 	int error;
 
-	error = VOP_ACCESSX(vp, VWRITE_ATTRIBUTES, cred, td);
-
 	/*
-	 * From utimes(2):
-	 * Grant permission if the caller is the owner of the file or
-	 * the super-user.  If the time pointer is null, then write
+	 * Grant permission if the caller is the owner of the file, or
+	 * the super-user, or has ACL_WRITE_ATTRIBUTES permission on
+	 * on the file.  If the time pointer is null, then write
 	 * permission on the file is also sufficient.
 	 *
 	 * From NFSv4.1, draft 21, 6.2.1.3.1, Discussion of Mask Attributes:
@@ -2250,6 +2248,7 @@ vn_utimes_perm(struct vnode *vp, struct vattr *vap, struct ucred *cred,
 	 * will be allowed to set the times [..] to the current
 	 * server time.
 	 */
+	error = VOP_ACCESSX(vp, VWRITE_ATTRIBUTES, cred, td);
 	if (error != 0 && (vap->va_vaflags & VA_UTIMES_NULL) != 0)
 		error = VOP_ACCESS(vp, VWRITE, cred, td);
 	return (error);
