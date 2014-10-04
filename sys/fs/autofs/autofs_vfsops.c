@@ -88,6 +88,10 @@ autofs_mount(struct mount *mp)
 
 	vfs_getnewfsid(mp);
 
+	MNT_ILOCK(mp);
+	mp->mnt_kern_flag |= MNTK_LOOKUP_SHARED;
+	MNT_IUNLOCK(mp);
+
 	AUTOFS_XLOCK(amp);
 	error = autofs_node_new(NULL, amp, ".", -1, &amp->am_root);
 	if (error != 0) {
@@ -177,7 +181,7 @@ autofs_root(struct mount *mp, int flags, struct vnode **vpp)
 
 	amp = VFSTOAUTOFS(mp);
 
-	error = autofs_node_vn(amp->am_root, mp, vpp);
+	error = autofs_node_vn(amp->am_root, mp, flags, vpp);
 
 	return (error);
 }
