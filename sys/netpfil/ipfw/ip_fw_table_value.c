@@ -490,6 +490,7 @@ ipfw_link_table_values(struct ip_fw_chain *ch, struct tableop_state *ts)
 	error = 0;
 	found = 0;
 	vlimit = ts->ta->vlimit;
+	vidx = 0;
 	tc = ts->tc;
 	tei = ts->tei;
 	count = ts->count;
