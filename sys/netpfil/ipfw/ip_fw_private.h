@@ -274,7 +274,7 @@ struct ip_fw_chain {
 #if defined( __linux__ ) || defined( _WIN32 )
 	spinlock_t rwmtx;
 #else
-	struct rwlock	rwmtx;
+	struct rmlock	rwmtx;
 #endif
 	int		static_len;	/* total len of static rules (v0) */
 	uint32_t	gencnt;		/* NAT generation count */
@@ -415,6 +415,7 @@ struct ipfw_ifc {
  * so the variable and the macros must be here.
  */
 
+#if defined( __linux__ ) || defined( _WIN32 )
 #define	IPFW_LOCK_INIT(_chain) do {			\
 	rw_init(&(_chain)->rwmtx, "IPFW static rules");	\
 	rw_init(&(_chain)->uh_lock, "IPFW UH lock");	\
@@ -428,12 +429,35 @@ struct ipfw_ifc {
 #define	IPFW_RLOCK_ASSERT(_chain)	rw_assert(&(_chain)->rwmtx, RA_RLOCKED)
 #define	IPFW_WLOCK_ASSERT(_chain)	rw_assert(&(_chain)->rwmtx, RA_WLOCKED)
 
+#define	IPFW_RLOCK_TRACKER
 #define	IPFW_RLOCK(p)			rw_rlock(&(p)->rwmtx)
 #define	IPFW_RUNLOCK(p)			rw_runlock(&(p)->rwmtx)
 #define	IPFW_WLOCK(p)			rw_wlock(&(p)->rwmtx)
 #define	IPFW_WUNLOCK(p)			rw_wunlock(&(p)->rwmtx)
 #define	IPFW_PF_RLOCK(p)		IPFW_RLOCK(p)
 #define	IPFW_PF_RUNLOCK(p)		IPFW_RUNLOCK(p)
+#else /* FreeBSD */
+#define	IPFW_LOCK_INIT(_chain) do {			\
+	rm_init(&(_chain)->rwmtx, "IPFW static rules");	\
+	rw_init(&(_chain)->uh_lock, "IPFW UH lock");	\
+	} while (0)
+
+#define	IPFW_LOCK_DESTROY(_chain) do {			\
+	rm_destroy(&(_chain)->rwmtx);			\
+	rw_destroy(&(_chain)->uh_lock);			\
+	} while (0)
+
+#define	IPFW_RLOCK_ASSERT(_chain)	rm_assert(&(_chain)->rwmtx, RA_RLOCKED)
+#define	IPFW_WLOCK_ASSERT(_chain)	rm_assert(&(_chain)->rwmtx, RA_WLOCKED)
+
+#define	IPFW_RLOCK_TRACKER		struct rm_priotracker _tracker
+#define	IPFW_RLOCK(p)			rm_rlock(&(p)->rwmtx, &_tracker)
+#define	IPFW_RUNLOCK(p)			rm_runlock(&(p)->rwmtx, &_tracker)
+#define	IPFW_WLOCK(p)			rm_wlock(&(p)->rwmtx)
+#define	IPFW_WUNLOCK(p)			rm_wunlock(&(p)->rwmtx)
+#define	IPFW_PF_RLOCK(p)		IPFW_RLOCK(p)
+#define	IPFW_PF_RUNLOCK(p)		IPFW_RUNLOCK(p)
+#endif
 
 #define	IPFW_UH_RLOCK_ASSERT(_chain)	rw_assert(&(_chain)->uh_lock, RA_RLOCKED)
 #define	IPFW_UH_WLOCK_ASSERT(_chain)	rw_assert(&(_chain)->uh_lock, RA_WLOCKED)

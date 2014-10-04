@@ -36,6 +36,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/lock.h>
 #include <sys/module.h>
 #include <sys/rwlock.h>
+#include <sys/rmlock.h>
 
 #include <netinet/libalias/alias.h>
 #include <netinet/libalias/alias_local.h>
@@ -1085,6 +1086,7 @@ ipfw_nat_get_log(struct sockopt *sopt)
 	struct cfg_nat *ptr;
 	int i, size;
 	struct ip_fw_chain *chain;
+	IPFW_RLOCK_TRACKER;
 
 	chain = &V_layer3_chain;
 

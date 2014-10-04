@@ -51,6 +51,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/priv.h>
 #include <sys/proc.h>
 #include <sys/rwlock.h>
+#include <sys/rmlock.h>
 #include <sys/socket.h>
 #include <sys/socketvar.h>
 #include <sys/sysctl.h>
@@ -2686,6 +2687,7 @@ ipfw_ctl(struct sockopt *sopt)
 	u_int32_t rulenum[2];
 	uint32_t opt;
 	struct rule_check_info ci;
+	IPFW_RLOCK_TRACKER;
 
 	chain = &V_layer3_chain;
 	error = 0;
