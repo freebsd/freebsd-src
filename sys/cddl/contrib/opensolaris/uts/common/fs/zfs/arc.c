@@ -2591,6 +2591,7 @@ arc_kmem_reap_now(arc_reclaim_strategy_t strat)
 	size_t			i;
 	kmem_cache_t		*prev_cache = NULL;
 	kmem_cache_t		*prev_data_cache = NULL;
+	extern kmem_cache_t	*range_seg_cache;
 
 	DTRACE_PROBE(arc__kmem_reap_start);
 #ifdef _KERNEL
@@ -2628,6 +2629,7 @@ arc_kmem_reap_now(arc_reclaim_strategy_t strat)
 	}
 	kmem_cache_reap_now(buf_cache);
 	kmem_cache_reap_now(hdr_cache);
+	kmem_cache_reap_now(range_seg_cache);
 
 #ifdef sun
 	/*
