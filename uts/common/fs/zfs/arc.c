@@ -2303,6 +2303,7 @@ arc_kmem_reap_now(arc_reclaim_strategy_t strat)
 	kmem_cache_t		*prev_data_cache = NULL;
 	extern kmem_cache_t	*zio_buf_cache[];
 	extern kmem_cache_t	*zio_data_buf_cache[];
+	extern kmem_cache_t	*range_seg_cache;
 
 #ifdef _KERNEL
 	if (arc_meta_used >= arc_meta_limit) {
@@ -2339,6 +2340,7 @@ arc_kmem_reap_now(arc_reclaim_strategy_t strat)
 	}
 	kmem_cache_reap_now(buf_cache);
 	kmem_cache_reap_now(hdr_cache);
+	kmem_cache_reap_now(range_seg_cache);
 
 	/*
 	 * Ask the vmem areana to reclaim unused memory from its
