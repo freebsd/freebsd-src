@@ -65,6 +65,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/syscallsubr.h>
 #include <sys/taskqueue.h>
 #include <sys/uio.h>
+#include <sys/user.h>
 #ifdef KTRACE
 #include <sys/ktrace.h>
 #endif
@@ -109,19 +110,17 @@ static void 	kqueue_wakeup(struct kqueue *kq);
 static struct filterops *kqueue_fo_find(int filt);
 static void	kqueue_fo_release(int filt);
 
-static fo_rdwr_t	kqueue_read;
-static fo_rdwr_t	kqueue_write;
-static fo_truncate_t	kqueue_truncate;
 static fo_ioctl_t	kqueue_ioctl;
 static fo_poll_t	kqueue_poll;
 static fo_kqfilter_t	kqueue_kqfilter;
 static fo_stat_t	kqueue_stat;
 static fo_close_t	kqueue_close;
+static fo_fill_kinfo_t	kqueue_fill_kinfo;
 
 static struct fileops kqueueops = {
-	.fo_read = kqueue_read,
-	.fo_write = kqueue_write,
-	.fo_truncate = kqueue_truncate,
+	.fo_read = invfo_rdwr,
+	.fo_write = invfo_rdwr,
+	.fo_truncate = invfo_truncate,
 	.fo_ioctl = kqueue_ioctl,
 	.fo_poll = kqueue_poll,
 	.fo_kqfilter = kqueue_kqfilter,
@@ -130,6 +129,7 @@ static struct fileops kqueueops = {
 	.fo_chmod = invfo_chmod,
 	.fo_chown = invfo_chown,
 	.fo_sendfile = invfo_sendfile,
+	.fo_fill_kinfo = kqueue_fill_kinfo,
 };
 
 static int 	knote_attach(struct knote *kn, struct kqueue *kq);
@@ -523,15 +523,38 @@ knote_fork(struct knlist *list, int pid)
  * XXX: EVFILT_TIMER should perhaps live in kern_time.c beside the
  * interval timer support code.
  */
+
+#define NOTE_TIMER_PRECMASK	(NOTE_SECONDS|NOTE_MSECONDS|NOTE_USECONDS| \
+				NOTE_NSECONDS)
+
 static __inline sbintime_t
-timer2sbintime(intptr_t data)
+timer2sbintime(intptr_t data, int flags)
 {
+	sbintime_t modifier;
+
+	switch (flags & NOTE_TIMER_PRECMASK) {
+	case NOTE_SECONDS:
+		modifier = SBT_1S;
+		break;
+	case NOTE_MSECONDS: /* FALLTHROUGH */
+	case 0:
+		modifier = SBT_1MS;
+		break;
+	case NOTE_USECONDS:
+		modifier = SBT_1US;
+		break;
+	case NOTE_NSECONDS:
+		modifier = SBT_1NS;
+		break;
+	default:
+		return (-1);
+	}
 
 #ifdef __LP64__
-	if (data > SBT_MAX / SBT_1MS)
+	if (data > SBT_MAX / modifier)
 		return (SBT_MAX);
 #endif
-	return (SBT_1MS * data);
+	return (modifier * data);
 }
 
 static void
@@ -547,13 +570,13 @@ filt_timerexpire(void *knx)
 	if ((kn->kn_flags & EV_ONESHOT) != EV_ONESHOT) {
 		calloutp = (struct callout *)kn->kn_hook;
 		callout_reset_sbt_on(calloutp,
-		    timer2sbintime(kn->kn_sdata), 0 /* 1ms? */,
+		    timer2sbintime(kn->kn_sdata, kn->kn_sfflags), 0,
 		    filt_timerexpire, kn, PCPU_GET(cpuid), 0);
 	}
 }
 
 /*
- * data contains amount of time to sleep, in milliseconds
+ * data contains amount of time to sleep
  */
 static int
 filt_timerattach(struct knote *kn)
@@ -566,7 +589,11 @@ filt_timerattach(struct knote *kn)
 		return (EINVAL);
 	if ((intptr_t)kn->kn_sdata == 0 && (kn->kn_flags & EV_ONESHOT) == 0)
 		kn->kn_sdata = 1;
-	to = timer2sbintime(kn->kn_sdata);
+	/* Only precision unit are supported in flags so far */
+	if (kn->kn_sfflags & ~NOTE_TIMER_PRECMASK)
+		return (EINVAL);
+
+	to = timer2sbintime(kn->kn_sdata, kn->kn_sfflags);
 	if (to < 0)
 		return (EINVAL);
 
@@ -583,7 +610,7 @@ filt_timerattach(struct knote *kn)
 	calloutp = malloc(sizeof(*calloutp), M_KQUEUE, M_WAITOK);
 	callout_init(calloutp, CALLOUT_MPSAFE);
 	kn->kn_hook = calloutp;
-	callout_reset_sbt_on(calloutp, to, 0 /* 1ms? */,
+	callout_reset_sbt_on(calloutp, to, 0,
 	    filt_timerexpire, kn, PCPU_GET(cpuid), 0);
 
 	return (0);
@@ -1575,35 +1602,6 @@ done_nl:
 	return (error);
 }
 
-/*
- * XXX
- * This could be expanded to call kqueue_scan, if desired.
- */
-/*ARGSUSED*/
-static int
-kqueue_read(struct file *fp, struct uio *uio, struct ucred *active_cred,
-	int flags, struct thread *td)
-{
-	return (ENXIO);
-}
-
-/*ARGSUSED*/
-static int
-kqueue_write(struct file *fp, struct uio *uio, struct ucred *active_cred,
-	 int flags, struct thread *td)
-{
-	return (ENXIO);
-}
-
-/*ARGSUSED*/
-static int
-kqueue_truncate(struct file *fp, off_t length, struct ucred *active_cred,
-	struct thread *td)
-{
-
-	return (EINVAL);
-}
-
 /*ARGSUSED*/
 static int
 kqueue_ioctl(struct file *fp, u_long cmd, void *data,
@@ -1804,6 +1802,14 @@ kqueue_close(struct file *fp, struct thread *td)
 	free(kq, M_KQUEUE);
 	fp->f_data = NULL;
 
+	return (0);
+}
+
+static int
+kqueue_fill_kinfo(struct file *fp, struct kinfo_file *kif, struct filedesc *fdp)
+{
+
+	kif->kf_type = KF_TYPE_KQUEUE;
 	return (0);
 }
 

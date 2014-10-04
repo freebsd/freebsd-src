@@ -351,10 +351,13 @@ tcpopts_match(struct tcphdr *tcp, ipfw_insn *cmd)
 }
 
 static int
-iface_match(struct ifnet *ifp, ipfw_insn_if *cmd, struct ip_fw_chain *chain, uint32_t *tablearg)
+iface_match(struct ifnet *ifp, ipfw_insn_if *cmd, struct ip_fw_chain *chain,
+    uint32_t *tablearg)
 {
+
 	if (ifp == NULL)	/* no iface with this packet, match fails */
-		return 0;
+		return (0);
+
 	/* Check by name or by IP address */
 	if (cmd->name[0] != '\0') { /* match by name */
 		if (cmd->name[0] == '\1') /* use tablearg to match */
@@ -2547,6 +2550,7 @@ sysctl_ipfw_table_num(SYSCTL_HANDLER_ARGS)
 	return (ipfw_resize_tables(&V_layer3_chain, ntables));
 }
 #endif
+
 /*
  * Module and VNET glue
  */
@@ -2734,7 +2738,7 @@ vnet_ipfw_uninit(const void *unused)
 		ipfw_reap_rules(reap);
 	IPFW_LOCK_DESTROY(chain);
 	ipfw_dyn_uninit(1);	/* free the remaining parts */
-	return 0;
+	return (0);
 }
 
 /*

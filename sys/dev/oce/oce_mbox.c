@@ -1876,7 +1876,7 @@ oce_mbox_cq_create(struct oce_cq *cq, uint32_t ncoalesce, uint32_t is_eventable)
 		ctx->v2.armed = 0;
 		ctx->v2.eq_id = cq->eq->eq_id;
 		if (ctx->v2.count == 3) {
-			if (cq->cq_cfg.q_len > (4*1024)-1)
+			if ((u_int)cq->cq_cfg.q_len > (4*1024)-1)
 				ctx->v2.cqe_count = (4*1024)-1;
 			else
 				ctx->v2.cqe_count = cq->cq_cfg.q_len;

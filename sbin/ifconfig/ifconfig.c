@@ -78,7 +78,7 @@ static const char rcsid[] =
 
 /*
  * Since "struct ifreq" is composed of various union members, callers
- * should pay special attention to interprete the value.
+ * should pay special attention to interpret the value.
  * (.e.g. little/big endian difference in the structure.)
  */
 struct	ifreq ifr;
@@ -1010,6 +1010,9 @@ status(const struct afswtch *afp, const struct sockaddr_dl *sdl,
 	strncpy(ifs.ifs_name, name, sizeof ifs.ifs_name);
 	if (ioctl(s, SIOCGIFSTATUS, &ifs) == 0) 
 		printf("%s", ifs.ascii);
+
+	if (verbose > 0)
+		sfp_status(s, &ifr, verbose);
 
 	close(s);
 	return;

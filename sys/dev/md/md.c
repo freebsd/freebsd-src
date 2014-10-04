@@ -895,8 +895,10 @@ mdstart_swap(struct md_s *sc, struct bio *bp)
 		else
 			vm_page_activate(m);
 		vm_page_unlock(m);
-		if (bp->bio_cmd == BIO_WRITE)
+		if (bp->bio_cmd == BIO_WRITE) {
 			vm_page_dirty(m);
+			vm_pager_page_unswapped(m);
+		}
 
 		/* Actions on further pages start at offset 0 */
 		p += PAGE_SIZE - offs;

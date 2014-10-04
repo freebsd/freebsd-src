@@ -1,3 +1,3 @@
-# $Id: Makefile.am 255376 2013-09-07 19:43:39Z des $
+# $Id: Makefile.am 714 2013-08-19 15:30:21Z des $
 
 SUBDIRS = libpam

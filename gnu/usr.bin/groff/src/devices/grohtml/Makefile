@@ -6,6 +6,4 @@ DPADD=		${LIBDRIVER} ${LIBGROFF} ${LIBM}
 LDADD=		${LIBDRIVER} ${LIBGROFF} -lm
 MAN=
 
-NO_PIE=	yes
-
 .include <bsd.prog.mk>

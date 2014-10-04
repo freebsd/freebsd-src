@@ -249,6 +249,7 @@ if [ "$SHOW_INCLUDES" ]; then
 			$menu_program_list \
 			$submenu_program_list \
 			$cmd_program_list \
+			$BSDCFG_SHARE/script.subr \
 		; do
 			[ -e "$file" ] && echo $file
 		done | sort -u
@@ -299,12 +300,6 @@ if [ "$SHOW_INCLUDES" ]; then
 fi
 
 #
-# Add script.subr to includes if it exists
-#
-[ -f $BSDCFG_SHARE/script.subr ] &&
-	include_file_list="$include_file_list script.subr"
-
-#
 # Start the directional-graph (digraph) output
 #
 printf 'strict digraph "" { // Empty name to prevent SVG Auto-Tooltip\n'
@@ -352,7 +347,7 @@ printf '\tnode [\n'
 printf '\t\tfontname = "Times-Roman",\n'
 printf '\t\tfontsize = 12,\n'
 printf '\t\twidth = 2.5, // arbitrary minimum width for all nodes\n'
-printf '\t\tfixedsize,   // turn minimum width into exact width\n'
+printf '\t\tfixedsize = true, // turn minimum width into exact width\n'
 printf '\t];\n'
 
 #
@@ -546,34 +541,36 @@ printf '\t\tbgcolor = "%s";\n' "$bgcolor_bsdconfig"
 printf '\t\tlabel = "bsdconfig(8)";\n'
 printf '\t\ttooltip = "bsdconfig(8)";\n'
 print_node "bsdconfig"
+end_nodelist
 if [ "$SHOW_INCLUDES" ]; then
-	printf '\t\tsubgraph "cluster_includes" {\n'
-	printf '\t\t\tbgcolor = "%s";\n' "$bgcolor_includes"
-	printf '\t\t\tlabel = "%s";\n' "$msg_includes"
-
 	for include_file in $include_file_list; do
 		echo $include_file
-	done | awk -v bgcolor="$bgcolor_bsdconfig" '
-	BEGIN { created = 0 }
-	function end_subgraph() { printf "\t\t\t};\n" }
-	( $0 !~ "/" ) {
-		if ( ! created )
-		{
-			printf "\t\t\tsubgraph \"%s\" {\n",
-			       "cluster_bsdconfig_includes"
-			printf "\t\t\t\tbgcolor = \"%s\";\n", bgcolor
-			printf "\t\t\t\tlabel = \"bsdconfig\";\n"
-			created++
+	done | awk \
+		-v bgcolor="$bgcolor_bsdconfig" \
+		-v msg_subroutines="$msg_subroutines" \
+	'
+		BEGIN { created = 0 }
+		function end_subgraph() { printf "\t};\n" }
+		( $0 !~ "/" ) {
+			if ( ! created )
+			{
+				printf "\tsubgraph \"%s\" {\n",
+				       "cluster_bsdconfig_includes"
+				printf "\t\tbgcolor = \"%s\";\n", bgcolor
+				printf "\t\tlabel = \"bsdconfig %s\";\n",
+				       msg_subroutines
+				created++
+			}
+			printf "\t\t\"%s\";\n", $1
 		}
-		printf "\t\t\t\t\"%s\";\n", $1
-	}
-	END { created && end_subgraph() }'
+		END { created && end_subgraph() }
+	' # END-QUOTE
 
 	for include_file in $include_file_list; do
 		echo $include_file
-	done | awk '
+	done | awk -v msg_subroutines="$msg_subroutines" '
 	BEGIN { created = 0 }
-	function end_subgraph() { printf "\t\t\t};\n" }
+	function end_subgraph() { printf "\t};\n" }
 	( $0 ~ "/" ) {
 		include_dir_tmp = $1
 		sub("/[^/]*$", "", include_dir_tmp)
@@ -588,20 +585,18 @@ if [ "$SHOW_INCLUDES" ]; then
 		if ( ! created )
 		{
 			include_dir = include_dir_tmp
-			printf "\t\t\tsubgraph \"cluster_%s_includes\" {\n",
+			printf "\tsubgraph \"cluster_%s_includes\" {\n",
 			       include_dir
-			printf "\t\t\t\tbgcolor = \"white\";\n"
-			printf "\t\t\t\tlabel = \"%s\";\n", include_dir
+			printf "\t\tbgcolor = \"thistle\";\n"
+			printf "\t\tlabel = \"%s %s\";\n", include_dir,
+			       msg_subroutines
 			created++
 		}
 
-		printf "\t\t\t\t\"%s\";\n", $1
+		printf "\t\t\"%s\";\n", $1
 	}
 	END { created && end_subgraph() }'
-
-	printf '\t\t};\n'
 fi
-end_nodelist
 for INDEX in */INDEX; do
 	menu_title=
 	menu_help=
@@ -676,7 +671,7 @@ for INDEX in */INDEX; do
 	end_nodelist
 done
 
-printf '\n};\n'
+printf '\n}\n'
 
 ################################################################################
 # END

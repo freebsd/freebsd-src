@@ -3,8 +3,9 @@
 .PATH: ${LIBC_SRCTOP}/arm/aeabi
 
 SRCS+=	aeabi_atexit.c		\
-	aeabi_unwind_cpp.c
-.if ${MACHINE_ARCH} != "armv6hf"
+	aeabi_unwind_cpp.c	\
+	aeabi_unwind_exidx.c
+.if ${MACHINE_ARCH:Marm*hf*} == ""
 SRCS+=	aeabi_double.c		\
 	aeabi_float.c
 .endif

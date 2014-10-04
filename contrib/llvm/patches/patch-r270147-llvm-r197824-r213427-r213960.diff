@@ -1,0 +1,1327 @@
+Backport r197824, r213427 and r213960 from LLVM trunk:
+
+  r197824 | rdivacky | 2013-12-20 19:08:54 +0100 (Fri, 20 Dec 2013) | 2 lines
+
+  Implement initial-exec TLS for PPC32.
+
+  r213427 | hfinkel | 2014-07-19 01:29:49 +0200 (Sat, 19 Jul 2014) | 7 lines
+
+  [PowerPC] 32-bit ELF PIC support
+
+  This adds initial support for PPC32 ELF PIC (Position Independent Code; the
+  -fPIC variety), thus rectifying a long-standing deficiency in the PowerPC
+  backend.
+
+  Patch by Justin Hibbits!
+
+  r213960 | hfinkel | 2014-07-25 19:47:22 +0200 (Fri, 25 Jul 2014) | 3 lines
+
+  [PowerPC] Support TLS on PPC32/ELF
+
+  Patch by Justin Hibbits!
+
+Introduced here: http://svnweb.freebsd.org/changeset/base/270147
+
+Index: include/llvm/Support/ELF.h
+===================================================================
+--- include/llvm/Support/ELF.h	(revision 270019)
++++ include/llvm/Support/ELF.h	(working copy)
+@@ -437,6 +437,7 @@
+   R_PPC_GOT16_LO              = 15,
+   R_PPC_GOT16_HI              = 16,
+   R_PPC_GOT16_HA              = 17,
++  R_PPC_PLTREL24              = 18,
+   R_PPC_REL32                 = 26,
+   R_PPC_TLS                   = 67,
+   R_PPC_DTPMOD32              = 68,
+Index: lib/Object/ELF.cpp
+===================================================================
+--- lib/Object/ELF.cpp	(revision 270019)
++++ lib/Object/ELF.cpp	(working copy)
+@@ -507,6 +507,7 @@
+       LLVM_ELF_SWITCH_RELOC_TYPE_NAME(R_PPC_GOT16_LO);
+       LLVM_ELF_SWITCH_RELOC_TYPE_NAME(R_PPC_GOT16_HI);
+       LLVM_ELF_SWITCH_RELOC_TYPE_NAME(R_PPC_GOT16_HA);
++      LLVM_ELF_SWITCH_RELOC_TYPE_NAME(R_PPC_PLTREL24);
+       LLVM_ELF_SWITCH_RELOC_TYPE_NAME(R_PPC_REL32);
+       LLVM_ELF_SWITCH_RELOC_TYPE_NAME(R_PPC_TLS);
+       LLVM_ELF_SWITCH_RELOC_TYPE_NAME(R_PPC_DTPMOD32);
+Index: lib/Target/PowerPC/InstPrinter/PPCInstPrinter.cpp
+===================================================================
+--- lib/Target/PowerPC/InstPrinter/PPCInstPrinter.cpp	(revision 270019)
++++ lib/Target/PowerPC/InstPrinter/PPCInstPrinter.cpp	(working copy)
+@@ -18,6 +18,7 @@
+ #include "llvm/MC/MCExpr.h"
+ #include "llvm/MC/MCInst.h"
+ #include "llvm/MC/MCInstrInfo.h"
++#include "llvm/MC/MCSymbol.h"
+ #include "llvm/Support/CommandLine.h"
+ #include "llvm/Support/raw_ostream.h"
+ #include "llvm/Target/TargetOpcodes.h"
+@@ -294,10 +295,16 @@
+ 
+ void PPCInstPrinter::printTLSCall(const MCInst *MI, unsigned OpNo,
+                                   raw_ostream &O) {
+-  printBranchOperand(MI, OpNo, O);
++  // On PPC64, VariantKind is VK_None, but on PPC32, it's VK_PLT, and it must
++  // come at the _end_ of the expression.
++  const MCOperand &Op = MI->getOperand(OpNo);
++  const MCSymbolRefExpr &refExp = cast<MCSymbolRefExpr>(*Op.getExpr());
++  O << refExp.getSymbol().getName();
+   O << '(';
+   printOperand(MI, OpNo+1, O);
+   O << ')';
++  if (refExp.getKind() != MCSymbolRefExpr::VK_None)
++    O << '@' << MCSymbolRefExpr::getVariantKindName(refExp.getKind());
+ }
+ 
+ 
+Index: lib/Target/PowerPC/MCTargetDesc/PPCELFObjectWriter.cpp
+===================================================================
+--- lib/Target/PowerPC/MCTargetDesc/PPCELFObjectWriter.cpp	(revision 270019)
++++ lib/Target/PowerPC/MCTargetDesc/PPCELFObjectWriter.cpp	(working copy)
+@@ -64,7 +64,15 @@
+       llvm_unreachable("Unimplemented");
+     case PPC::fixup_ppc_br24:
+     case PPC::fixup_ppc_br24abs:
+-      Type = ELF::R_PPC_REL24;
++      switch (Modifier) {
++      default: llvm_unreachable("Unsupported Modifier");
++      case MCSymbolRefExpr::VK_None:
++        Type = ELF::R_PPC_REL24;
++        break;
++      case MCSymbolRefExpr::VK_PLT:
++        Type = ELF::R_PPC_PLTREL24;
++        break;
++      }
+       break;
+     case PPC::fixup_ppc_brcond14:
+     case PPC::fixup_ppc_brcond14abs:
+@@ -205,7 +213,10 @@
+         Type = ELF::R_PPC64_DTPREL16_HIGHESTA;
+         break;
+       case MCSymbolRefExpr::VK_PPC_GOT_TLSGD:
+-        Type = ELF::R_PPC64_GOT_TLSGD16;
++        if (is64Bit())
++          Type = ELF::R_PPC64_GOT_TLSGD16;
++        else
++          Type = ELF::R_PPC_GOT_TLSGD16;
+         break;
+       case MCSymbolRefExpr::VK_PPC_GOT_TLSGD_LO:
+         Type = ELF::R_PPC64_GOT_TLSGD16_LO;
+@@ -217,7 +228,10 @@
+         Type = ELF::R_PPC64_GOT_TLSGD16_HA;
+         break;
+       case MCSymbolRefExpr::VK_PPC_GOT_TLSLD:
+-        Type = ELF::R_PPC64_GOT_TLSLD16;
++        if (is64Bit())
++          Type = ELF::R_PPC64_GOT_TLSLD16;
++        else
++          Type = ELF::R_PPC_GOT_TLSLD16;
+         break;
+       case MCSymbolRefExpr::VK_PPC_GOT_TLSLD_LO:
+         Type = ELF::R_PPC64_GOT_TLSLD16_LO;
+@@ -313,13 +327,22 @@
+       switch (Modifier) {
+       default: llvm_unreachable("Unsupported Modifier");
+       case MCSymbolRefExpr::VK_PPC_TLSGD:
+-        Type = ELF::R_PPC64_TLSGD;
++        if (is64Bit())
++          Type = ELF::R_PPC64_TLSGD;
++        else
++          Type = ELF::R_PPC_TLSGD;
+         break;
+       case MCSymbolRefExpr::VK_PPC_TLSLD:
+-        Type = ELF::R_PPC64_TLSLD;
++        if (is64Bit())
++          Type = ELF::R_PPC64_TLSLD;
++        else
++          Type = ELF::R_PPC_TLSLD;
+         break;
+       case MCSymbolRefExpr::VK_PPC_TLS:
+-        Type = ELF::R_PPC64_TLS;
++        if (is64Bit())
++          Type = ELF::R_PPC64_TLS;
++        else
++          Type = ELF::R_PPC_TLS;
+         break;
+       }
+       break;
+Index: lib/Target/PowerPC/PPC.h
+===================================================================
+--- lib/Target/PowerPC/PPC.h	(revision 270019)
++++ lib/Target/PowerPC/PPC.h	(working copy)
+@@ -53,10 +53,11 @@
+     // PPC Specific MachineOperand flags.
+     MO_NO_FLAG,
+     
+-    /// MO_DARWIN_STUB - On a symbol operand "FOO", this indicates that the
+-    /// reference is actually to the "FOO$stub" symbol.  This is used for calls
+-    /// and jumps to external functions on Tiger and earlier.
+-    MO_DARWIN_STUB = 1,
++    /// MO_PLT_OR_STUB - On a symbol operand "FOO", this indicates that the
++    /// reference is actually to the "FOO$stub" or "FOO@plt" symbol.  This is
++    /// used for calls and jumps to external functions on Tiger and earlier, and
++    /// for PIC calls on Linux and ELF systems.
++    MO_PLT_OR_STUB = 1,
+     
+     /// MO_PIC_FLAG - If this bit is set, the symbol reference is relative to
+     /// the function's picbase, e.g. lo16(symbol-picbase).
+Index: lib/Target/PowerPC/PPCAsmPrinter.cpp
+===================================================================
+--- lib/Target/PowerPC/PPCAsmPrinter.cpp	(revision 270019)
++++ lib/Target/PowerPC/PPCAsmPrinter.cpp	(working copy)
+@@ -19,6 +19,7 @@
+ #define DEBUG_TYPE "asmprinter"
+ #include "PPC.h"
+ #include "InstPrinter/PPCInstPrinter.h"
++#include "PPCMachineFunctionInfo.h"
+ #include "MCTargetDesc/PPCPredicates.h"
+ #include "MCTargetDesc/PPCMCExpr.h"
+ #include "PPCSubtarget.h"
+@@ -29,6 +30,7 @@
+ #include "llvm/ADT/StringExtras.h"
+ #include "llvm/Assembly/Writer.h"
+ #include "llvm/CodeGen/AsmPrinter.h"
++#include "llvm/CodeGen/MachineConstantPool.h"
+ #include "llvm/CodeGen/MachineFunctionPass.h"
+ #include "llvm/CodeGen/MachineInstr.h"
+ #include "llvm/CodeGen/MachineInstrBuilder.h"
+@@ -100,6 +102,7 @@
+     }
+ 
+     bool doFinalization(Module &M);
++    void EmitStartOfAsmFile(Module &M);
+ 
+     virtual void EmitFunctionEntryLabel();
+ 
+@@ -325,6 +328,7 @@
+ ///
+ void PPCAsmPrinter::EmitInstruction(const MachineInstr *MI) {
+   MCInst TmpInst;
++  bool isPPC64 = Subtarget.isPPC64();
+   
+   // Lower multi-instruction pseudo operations.
+   switch (MI->getOpcode()) {
+@@ -349,6 +353,66 @@
+     OutStreamer.EmitLabel(PICBase);
+     return;
+   }
++  case PPC::GetGBRO: {
++    // Get the offset from the GOT Base Register to the GOT
++    LowerPPCMachineInstrToMCInst(MI, TmpInst, *this, Subtarget.isDarwin());
++    MCSymbol *PICOffset = MF->getInfo<PPCFunctionInfo>()->getPICOffsetSymbol();
++    TmpInst.setOpcode(PPC::LWZ);
++    const MCExpr *Exp =
++      MCSymbolRefExpr::Create(PICOffset, MCSymbolRefExpr::VK_None, OutContext);
++    const MCExpr *PB =
++      MCSymbolRefExpr::Create(MF->getPICBaseSymbol(),
++                              MCSymbolRefExpr::VK_None,
++                              OutContext);
++    const MCOperand MO = TmpInst.getOperand(1);
++    TmpInst.getOperand(1) = MCOperand::CreateExpr(MCBinaryExpr::CreateSub(Exp,
++                                                                          PB,
++                                                                          OutContext));
++    TmpInst.addOperand(MO);
++    OutStreamer.EmitInstruction(TmpInst);
++    return;
++  }
++  case PPC::UpdateGBR: {
++    // Update the GOT Base Register to point to the GOT.  It may be possible to
++    // merge this with the PPC::GetGBRO, doing it all in one step.
++    LowerPPCMachineInstrToMCInst(MI, TmpInst, *this, Subtarget.isDarwin());
++    TmpInst.setOpcode(PPC::ADD4);
++    TmpInst.addOperand(TmpInst.getOperand(0));
++    OutStreamer.EmitInstruction(TmpInst);
++    return;
++  }
++  case PPC::LWZtoc: {
++    // Transform %X3 = LWZtoc <ga:@min1>, %X2
++    LowerPPCMachineInstrToMCInst(MI, TmpInst, *this, Subtarget.isDarwin());
++
++    // Change the opcode to LWZ, and the global address operand to be a
++    // reference to the GOT entry we will synthesize later.
++    TmpInst.setOpcode(PPC::LWZ);
++    const MachineOperand &MO = MI->getOperand(1);
++
++    // Map symbol -> label of TOC entry
++    assert(MO.isGlobal() || MO.isCPI() || MO.isJTI());
++    MCSymbol *MOSymbol = NULL;
++    if (MO.isGlobal())
++      MOSymbol = getSymbol(MO.getGlobal());
++    else if (MO.isCPI())
++      MOSymbol = GetCPISymbol(MO.getIndex());
++    else if (MO.isJTI())
++      MOSymbol = GetJTISymbol(MO.getIndex());
++
++    MCSymbol *TOCEntry = lookUpOrCreateTOCEntry(MOSymbol);
++
++    const MCExpr *Exp =
++      MCSymbolRefExpr::Create(TOCEntry, MCSymbolRefExpr::VK_None,
++                              OutContext);
++    const MCExpr *PB =
++      MCSymbolRefExpr::Create(OutContext.GetOrCreateSymbol(Twine(".L.TOC.")),
++                                                           OutContext);
++    Exp = MCBinaryExpr::CreateSub(Exp, PB, OutContext);
++    TmpInst.getOperand(1) = MCOperand::CreateExpr(Exp);
++    OutStreamer.EmitInstruction(TmpInst);
++    return;
++  }
+   case PPC::LDtocJTI:
+   case PPC::LDtocCPT:
+   case PPC::LDtoc: {
+@@ -518,12 +582,13 @@
+                                 .addExpr(SymGotTprel));
+     return;
+   }
+-  case PPC::LDgotTprelL: {
++  case PPC::LDgotTprelL:
++  case PPC::LDgotTprelL32: {
+     // Transform %Xd = LDgotTprelL <ga:@sym>, %Xs
+     LowerPPCMachineInstrToMCInst(MI, TmpInst, *this, Subtarget.isDarwin());
+ 
+     // Change the opcode to LD.
+-    TmpInst.setOpcode(PPC::LD);
++    TmpInst.setOpcode(isPPC64 ? PPC::LD : PPC::LWZ);
+     const MachineOperand &MO = MI->getOperand(1);
+     const GlobalValue *GValue = MO.getGlobal();
+     MCSymbol *MOSymbol = getSymbol(GValue);
+@@ -534,6 +599,52 @@
+     OutStreamer.EmitInstruction(TmpInst);
+     return;
+   }
++
++  case PPC::PPC32PICGOT: {
++    MCSymbol *GOTSymbol = OutContext.GetOrCreateSymbol(StringRef("_GLOBAL_OFFSET_TABLE_"));
++    MCSymbol *GOTRef = OutContext.CreateTempSymbol();
++    MCSymbol *NextInstr = OutContext.CreateTempSymbol();
++
++    OutStreamer.EmitInstruction(MCInstBuilder(PPC::BL)
++      // FIXME: We would like an efficient form for this, so we don't have to do
++      // a lot of extra uniquing.
++      .addExpr(MCSymbolRefExpr::Create(NextInstr, OutContext)));
++    const MCExpr *OffsExpr =
++      MCBinaryExpr::CreateSub(MCSymbolRefExpr::Create(GOTSymbol, OutContext),
++                                MCSymbolRefExpr::Create(GOTRef, OutContext),
++        OutContext);
++    OutStreamer.EmitLabel(GOTRef);
++    OutStreamer.EmitValue(OffsExpr, 4);
++    OutStreamer.EmitLabel(NextInstr);
++    OutStreamer.EmitInstruction(MCInstBuilder(PPC::MFLR)
++                                .addReg(MI->getOperand(0).getReg()));
++    OutStreamer.EmitInstruction(MCInstBuilder(PPC::LWZ)
++                                .addReg(MI->getOperand(1).getReg())
++                                .addImm(0)
++                                .addReg(MI->getOperand(0).getReg()));
++    OutStreamer.EmitInstruction(MCInstBuilder(PPC::ADD4)
++                                .addReg(MI->getOperand(0).getReg())
++                                .addReg(MI->getOperand(1).getReg())
++                                .addReg(MI->getOperand(0).getReg()));
++    return;
++  }
++  case PPC::PPC32GOT: {
++    MCSymbol *GOTSymbol = OutContext.GetOrCreateSymbol(StringRef("_GLOBAL_OFFSET_TABLE_"));
++    const MCExpr *SymGotTlsL =
++      MCSymbolRefExpr::Create(GOTSymbol, MCSymbolRefExpr::VK_PPC_LO,
++                              OutContext);
++    const MCExpr *SymGotTlsHA =                               
++      MCSymbolRefExpr::Create(GOTSymbol, MCSymbolRefExpr::VK_PPC_HA,
++                              OutContext);
++    OutStreamer.EmitInstruction(MCInstBuilder(PPC::LI)
++                                .addReg(MI->getOperand(0).getReg())
++                                .addExpr(SymGotTlsL));
++    OutStreamer.EmitInstruction(MCInstBuilder(PPC::ADDIS)
++                                .addReg(MI->getOperand(0).getReg())
++                                .addReg(MI->getOperand(0).getReg())
++                                .addExpr(SymGotTlsHA));
++    return;
++  }
+   case PPC::ADDIStlsgdHA: {
+     // Transform: %Xd = ADDIStlsgdHA %X2, <ga:@sym>
+     // Into:      %Xd = ADDIS8 %X2, sym@got@tlsgd@ha
+@@ -550,31 +661,42 @@
+                                 .addExpr(SymGotTlsGD));
+     return;
+   }
+-  case PPC::ADDItlsgdL: {
++  case PPC::ADDItlsgdL:
+     // Transform: %Xd = ADDItlsgdL %Xs, <ga:@sym>
+     // Into:      %Xd = ADDI8 %Xs, sym@got@tlsgd@l
+-    assert(Subtarget.isPPC64() && "Not supported for 32-bit PowerPC");
++  case PPC::ADDItlsgdL32: {
++    // Transform: %Rd = ADDItlsgdL32 %Rs, <ga:@sym>
++    // Into:      %Rd = ADDI %Rs, sym@got@tlsgd
+     const MachineOperand &MO = MI->getOperand(2);
+     const GlobalValue *GValue = MO.getGlobal();
+     MCSymbol *MOSymbol = getSymbol(GValue);
+     const MCExpr *SymGotTlsGD =
+-      MCSymbolRefExpr::Create(MOSymbol, MCSymbolRefExpr::VK_PPC_GOT_TLSGD_LO,
++      MCSymbolRefExpr::Create(MOSymbol, Subtarget.isPPC64() ?
++                                         MCSymbolRefExpr::VK_PPC_GOT_TLSGD_LO :
++                                         MCSymbolRefExpr::VK_PPC_GOT_TLSGD,
+                               OutContext);
+-    OutStreamer.EmitInstruction(MCInstBuilder(PPC::ADDI8)
+-                                .addReg(MI->getOperand(0).getReg())
+-                                .addReg(MI->getOperand(1).getReg())
+-                                .addExpr(SymGotTlsGD));
++    OutStreamer.EmitInstruction(MCInstBuilder(Subtarget.isPPC64() ? PPC::ADDI8 : PPC::ADDI)
++                   .addReg(MI->getOperand(0).getReg())
++                   .addReg(MI->getOperand(1).getReg())
++                   .addExpr(SymGotTlsGD));
+     return;
+   }
+-  case PPC::GETtlsADDR: {
++  case PPC::GETtlsADDR:
+     // Transform: %X3 = GETtlsADDR %X3, <ga:@sym>
+     // Into:      BL8_NOP_TLS __tls_get_addr(sym@tlsgd)
+-    assert(Subtarget.isPPC64() && "Not supported for 32-bit PowerPC");
++  case PPC::GETtlsADDR32: {
++    // Transform: %R3 = GETtlsADDR32 %R3, <ga:@sym>
++    // Into:      BL_TLS __tls_get_addr(sym@tlsgd)@PLT
+ 
+     StringRef Name = "__tls_get_addr";
+     MCSymbol *TlsGetAddr = OutContext.GetOrCreateSymbol(Name);
++    MCSymbolRefExpr::VariantKind Kind = MCSymbolRefExpr::VK_None;
++
++    if (!Subtarget.isPPC64() && !Subtarget.isDarwin() &&
++        TM.getRelocationModel() == Reloc::PIC_)
++      Kind = MCSymbolRefExpr::VK_PLT;
+     const MCSymbolRefExpr *TlsRef = 
+-      MCSymbolRefExpr::Create(TlsGetAddr, MCSymbolRefExpr::VK_None, OutContext);
++      MCSymbolRefExpr::Create(TlsGetAddr, Kind, OutContext);
+     const MachineOperand &MO = MI->getOperand(2);
+     const GlobalValue *GValue = MO.getGlobal();
+     MCSymbol *MOSymbol = getSymbol(GValue);
+@@ -581,7 +703,8 @@
+     const MCExpr *SymVar =
+       MCSymbolRefExpr::Create(MOSymbol, MCSymbolRefExpr::VK_PPC_TLSGD,
+                               OutContext);
+-    OutStreamer.EmitInstruction(MCInstBuilder(PPC::BL8_NOP_TLS)
++    OutStreamer.EmitInstruction(MCInstBuilder(Subtarget.isPPC64() ?
++                                  PPC::BL8_NOP_TLS : PPC::BL_TLS)
+                                 .addExpr(TlsRef)
+                                 .addExpr(SymVar));
+     return;
+@@ -602,31 +725,44 @@
+                                 .addExpr(SymGotTlsLD));
+     return;
+   }
+-  case PPC::ADDItlsldL: {
++  case PPC::ADDItlsldL:
+     // Transform: %Xd = ADDItlsldL %Xs, <ga:@sym>
+     // Into:      %Xd = ADDI8 %Xs, sym@got@tlsld@l
+-    assert(Subtarget.isPPC64() && "Not supported for 32-bit PowerPC");
++  case PPC::ADDItlsldL32: {
++    // Transform: %Rd = ADDItlsldL32 %Rs, <ga:@sym>
++    // Into:      %Rd = ADDI %Rs, sym@got@tlsld
++
+     const MachineOperand &MO = MI->getOperand(2);
+     const GlobalValue *GValue = MO.getGlobal();
+     MCSymbol *MOSymbol = getSymbol(GValue);
+     const MCExpr *SymGotTlsLD =
+-      MCSymbolRefExpr::Create(MOSymbol, MCSymbolRefExpr::VK_PPC_GOT_TLSLD_LO,
++      MCSymbolRefExpr::Create(MOSymbol, Subtarget.isPPC64() ?
++                                         MCSymbolRefExpr::VK_PPC_GOT_TLSLD_LO :
++                                         MCSymbolRefExpr::VK_PPC_GOT_TLSLD,
+                               OutContext);
+-    OutStreamer.EmitInstruction(MCInstBuilder(PPC::ADDI8)
++    OutStreamer.EmitInstruction(MCInstBuilder(Subtarget.isPPC64() ? PPC::ADDI8 : PPC::ADDI)
+                                 .addReg(MI->getOperand(0).getReg())
+                                 .addReg(MI->getOperand(1).getReg())
+                                 .addExpr(SymGotTlsLD));
+     return;
+   }
+-  case PPC::GETtlsldADDR: {
++  case PPC::GETtlsldADDR:
+     // Transform: %X3 = GETtlsldADDR %X3, <ga:@sym>
+     // Into:      BL8_NOP_TLS __tls_get_addr(sym@tlsld)
+-    assert(Subtarget.isPPC64() && "Not supported for 32-bit PowerPC");
++  case PPC::GETtlsldADDR32: {
++    // Transform: %R3 = GETtlsldADDR32 %R3, <ga:@sym>
++    // Into:      BL_TLS __tls_get_addr(sym@tlsld)@PLT
+ 
+     StringRef Name = "__tls_get_addr";
+     MCSymbol *TlsGetAddr = OutContext.GetOrCreateSymbol(Name);
++    MCSymbolRefExpr::VariantKind Kind = MCSymbolRefExpr::VK_None;
++
++    if (!Subtarget.isPPC64() && !Subtarget.isDarwin() &&
++        TM.getRelocationModel() == Reloc::PIC_)
++      Kind = MCSymbolRefExpr::VK_PLT;
++
+     const MCSymbolRefExpr *TlsRef = 
+-      MCSymbolRefExpr::Create(TlsGetAddr, MCSymbolRefExpr::VK_None, OutContext);
++      MCSymbolRefExpr::Create(TlsGetAddr, Kind, OutContext);
+     const MachineOperand &MO = MI->getOperand(2);
+     const GlobalValue *GValue = MO.getGlobal();
+     MCSymbol *MOSymbol = getSymbol(GValue);
+@@ -633,15 +769,19 @@
+     const MCExpr *SymVar =
+       MCSymbolRefExpr::Create(MOSymbol, MCSymbolRefExpr::VK_PPC_TLSLD,
+                               OutContext);
+-    OutStreamer.EmitInstruction(MCInstBuilder(PPC::BL8_NOP_TLS)
++    OutStreamer.EmitInstruction(MCInstBuilder(Subtarget.isPPC64() ?
++                                  PPC::BL8_NOP_TLS : PPC::BL_TLS)
+                                 .addExpr(TlsRef)
+                                 .addExpr(SymVar));
+     return;
+   }
+-  case PPC::ADDISdtprelHA: {
++  case PPC::ADDISdtprelHA:
+     // Transform: %Xd = ADDISdtprelHA %X3, <ga:@sym>
+     // Into:      %Xd = ADDIS8 %X3, sym@dtprel@ha
+-    assert(Subtarget.isPPC64() && "Not supported for 32-bit PowerPC");
++  case PPC::ADDISdtprelHA32: {
++    // Transform: %Rd = ADDISdtprelHA32 %R3, <ga:@sym>
++    // Into:      %Rd = ADDIS %R3, sym@dtprel@ha
++
+     const MachineOperand &MO = MI->getOperand(2);
+     const GlobalValue *GValue = MO.getGlobal();
+     MCSymbol *MOSymbol = getSymbol(GValue);
+@@ -648,16 +788,18 @@
+     const MCExpr *SymDtprel =
+       MCSymbolRefExpr::Create(MOSymbol, MCSymbolRefExpr::VK_PPC_DTPREL_HA,
+                               OutContext);
+-    OutStreamer.EmitInstruction(MCInstBuilder(PPC::ADDIS8)
++    OutStreamer.EmitInstruction(MCInstBuilder(Subtarget.isPPC64() ? PPC::ADDIS8 : PPC::ADDIS)
+                                 .addReg(MI->getOperand(0).getReg())
+                                 .addReg(PPC::X3)
+                                 .addExpr(SymDtprel));
+     return;
+   }
+-  case PPC::ADDIdtprelL: {
++  case PPC::ADDIdtprelL:
+     // Transform: %Xd = ADDIdtprelL %Xs, <ga:@sym>
+     // Into:      %Xd = ADDI8 %Xs, sym@dtprel@l
+-    assert(Subtarget.isPPC64() && "Not supported for 32-bit PowerPC");
++  case PPC::ADDIdtprelL32: {
++    // Transform: %Rd = ADDIdtprelL32 %Rs, <ga:@sym>
++    // Into:      %Rd = ADDI %Rs, sym@dtprel@l
+     const MachineOperand &MO = MI->getOperand(2);
+     const GlobalValue *GValue = MO.getGlobal();
+     MCSymbol *MOSymbol = getSymbol(GValue);
+@@ -664,7 +806,7 @@
+     const MCExpr *SymDtprel =
+       MCSymbolRefExpr::Create(MOSymbol, MCSymbolRefExpr::VK_PPC_DTPREL_LO,
+                               OutContext);
+-    OutStreamer.EmitInstruction(MCInstBuilder(PPC::ADDI8)
++    OutStreamer.EmitInstruction(MCInstBuilder(Subtarget.isPPC64() ? PPC::ADDI8 : PPC::ADDI)
+                                 .addReg(MI->getOperand(0).getReg())
+                                 .addReg(MI->getOperand(1).getReg())
+                                 .addExpr(SymDtprel));
+@@ -726,9 +868,60 @@
+   OutStreamer.EmitInstruction(TmpInst);
+ }
+ 
++void PPCLinuxAsmPrinter::EmitStartOfAsmFile(Module &M) {
++  if (Subtarget.isPPC64() || TM.getRelocationModel() != Reloc::PIC_)
++    return AsmPrinter::EmitStartOfAsmFile(M);
++
++  // FIXME: The use of .got2 assumes large GOT model (-fPIC), which is not
++  // optimal for some cases.  We should consider supporting small model (-fpic)
++  // as well in the future.
++  assert(TM.getCodeModel() != CodeModel::Small &&
++         "Small code model PIC is currently unsupported.");
++  OutStreamer.SwitchSection(OutContext.getELFSection(".got2",
++         ELF::SHT_PROGBITS, ELF::SHF_WRITE | ELF::SHF_ALLOC,
++         SectionKind::getReadOnly()));
++
++  MCSymbol *TOCSym = OutContext.GetOrCreateSymbol(Twine(".L.TOC."));
++  MCSymbol *CurrentPos = OutContext.CreateTempSymbol();
++
++  OutStreamer.EmitLabel(CurrentPos);
++
++  // The GOT pointer points to the middle of the GOT, in order to reference the
++  // entire 64kB range.  0x8000 is the midpoint.
++  const MCExpr *tocExpr =
++    MCBinaryExpr::CreateAdd(MCSymbolRefExpr::Create(CurrentPos, OutContext),
++                            MCConstantExpr::Create(0x8000, OutContext),
++                            OutContext);
++
++  OutStreamer.EmitAssignment(TOCSym, tocExpr);
++
++  OutStreamer.SwitchSection(getObjFileLowering().getTextSection());
++}
++
+ void PPCLinuxAsmPrinter::EmitFunctionEntryLabel() {
+-  if (!Subtarget.isPPC64())  // linux/ppc32 - Normal entry label.
++  // linux/ppc32 - Normal entry label.
++  if (!Subtarget.isPPC64() && TM.getRelocationModel() != Reloc::PIC_)
+     return AsmPrinter::EmitFunctionEntryLabel();
++
++  if (!Subtarget.isPPC64()) {
++    const PPCFunctionInfo *PPCFI = MF->getInfo<PPCFunctionInfo>();
++       if (PPCFI->usesPICBase()) {
++      MCSymbol *RelocSymbol = PPCFI->getPICOffsetSymbol();
++      MCSymbol *PICBase = MF->getPICBaseSymbol();
++      OutStreamer.EmitLabel(RelocSymbol);
++
++      const MCExpr *OffsExpr =
++        MCBinaryExpr::CreateSub(
++          MCSymbolRefExpr::Create(OutContext.GetOrCreateSymbol(Twine(".L.TOC.")),
++                                                               OutContext),
++                                  MCSymbolRefExpr::Create(PICBase, OutContext),
++          OutContext);
++      OutStreamer.EmitValue(OffsExpr, 4);
++      OutStreamer.EmitLabel(CurrentFnSym);
++      return;
++    } else
++      return AsmPrinter::EmitFunctionEntryLabel();
++  }
+     
+   // Emit an official procedure descriptor.
+   MCSectionSubPair Current = OutStreamer.getCurrentSection();
+@@ -768,10 +961,17 @@
+   PPCTargetStreamer &TS =
+       static_cast<PPCTargetStreamer &>(OutStreamer.getTargetStreamer());
+ 
+-  if (isPPC64 && !TOC.empty()) {
+-    const MCSectionELF *Section = OutStreamer.getContext().getELFSection(".toc",
++  if (!TOC.empty()) {
++    const MCSectionELF *Section;
++    
++    if (isPPC64)
++      Section = OutStreamer.getContext().getELFSection(".toc",
+         ELF::SHT_PROGBITS, ELF::SHF_WRITE | ELF::SHF_ALLOC,
+         SectionKind::getReadOnly());
++       else
++      Section = OutStreamer.getContext().getELFSection(".got2",
++        ELF::SHT_PROGBITS, ELF::SHF_WRITE | ELF::SHF_ALLOC,
++        SectionKind::getReadOnly());
+     OutStreamer.SwitchSection(Section);
+ 
+     for (MapVector<MCSymbol*, MCSymbol*>::iterator I = TOC.begin(),
+@@ -778,7 +978,10 @@
+          E = TOC.end(); I != E; ++I) {
+       OutStreamer.EmitLabel(I->second);
+       MCSymbol *S = OutContext.GetOrCreateSymbol(I->first->getName());
+-      TS.emitTCEntry(*S);
++      if (isPPC64)
++        TS.emitTCEntry(*S);
++      else
++        OutStreamer.EmitSymbolValue(S, 4);
+     }
+   }
+ 
+Index: lib/Target/PowerPC/PPCFrameLowering.cpp
+===================================================================
+--- lib/Target/PowerPC/PPCFrameLowering.cpp	(revision 270019)
++++ lib/Target/PowerPC/PPCFrameLowering.cpp	(working copy)
+@@ -299,7 +299,7 @@
+   const PPCRegisterInfo *RegInfo =
+     static_cast<const PPCRegisterInfo*>(MF.getTarget().getRegisterInfo());
+   bool HasBP = RegInfo->hasBasePointer(MF);
+-  unsigned BPReg  = HasBP ? (unsigned) PPC::R30 : FPReg;
++  unsigned BPReg  = HasBP ? (unsigned) RegInfo->getBaseRegister(MF): FPReg;
+   unsigned BP8Reg = HasBP ? (unsigned) PPC::X30 : FPReg;
+ 
+   for (MachineFunction::iterator BI = MF.begin(), BE = MF.end();
+@@ -344,6 +344,7 @@
+   DebugLoc dl;
+   bool needsFrameMoves = MMI.hasDebugInfo() ||
+     MF.getFunction()->needsUnwindTableEntry();
++  bool isPIC = MF.getTarget().getRelocationModel() == Reloc::PIC_;
+ 
+   // Get processor type.
+   bool isPPC64 = Subtarget.isPPC64();
+@@ -387,7 +388,7 @@
+   bool HasBP = RegInfo->hasBasePointer(MF);
+ 
+   unsigned SPReg       = isPPC64 ? PPC::X1  : PPC::R1;
+-  unsigned BPReg       = isPPC64 ? PPC::X30 : PPC::R30;
++  unsigned BPReg       = RegInfo->getBaseRegister(MF);
+   unsigned FPReg       = isPPC64 ? PPC::X31 : PPC::R31;
+   unsigned LRReg       = isPPC64 ? PPC::LR8 : PPC::LR;
+   unsigned ScratchReg  = isPPC64 ? PPC::X0  : PPC::R0;
+@@ -442,7 +443,9 @@
+       BPOffset = FFI->getObjectOffset(BPIndex);
+     } else {
+       BPOffset =
+-        PPCFrameLowering::getBasePointerSaveOffset(isPPC64, isDarwinABI);
++        PPCFrameLowering::getBasePointerSaveOffset(isPPC64,
++                                                   isDarwinABI,
++                                                   isPIC);
+     }
+   }
+ 
+@@ -675,6 +678,7 @@
+   // Get the ABI.
+   bool isDarwinABI = Subtarget.isDarwinABI();
+   bool isSVR4ABI = Subtarget.isSVR4ABI();
++  bool isPIC = MF.getTarget().getRelocationModel() == Reloc::PIC_;
+ 
+   // Check if the link register (LR) has been saved.
+   PPCFunctionInfo *FI = MF.getInfo<PPCFunctionInfo>();
+@@ -685,7 +689,7 @@
+   bool HasBP = RegInfo->hasBasePointer(MF);
+ 
+   unsigned SPReg      = isPPC64 ? PPC::X1  : PPC::R1;
+-  unsigned BPReg      = isPPC64 ? PPC::X30 : PPC::R30;
++  unsigned BPReg      = RegInfo->getBaseRegister(MF);
+   unsigned FPReg      = isPPC64 ? PPC::X31 : PPC::R31;
+   unsigned ScratchReg  = isPPC64 ? PPC::X0  : PPC::R0;
+   unsigned TempReg     = isPPC64 ? PPC::X12 : PPC::R12; // another scratch reg
+@@ -725,7 +729,9 @@
+       BPOffset = FFI->getObjectOffset(BPIndex);
+     } else {
+       BPOffset =
+-        PPCFrameLowering::getBasePointerSaveOffset(isPPC64, isDarwinABI);
++        PPCFrameLowering::getBasePointerSaveOffset(isPPC64,
++                                                   isDarwinABI,
++                                                   isPIC);
+     }
+   }
+ 
+@@ -902,6 +908,7 @@
+   int FPSI = FI->getFramePointerSaveIndex();
+   bool isPPC64 = Subtarget.isPPC64();
+   bool isDarwinABI  = Subtarget.isDarwinABI();
++  bool isPIC = MF.getTarget().getRelocationModel() == Reloc::PIC_;
+   MachineFrameInfo *MFI = MF.getFrameInfo();
+ 
+   // If the frame pointer save index hasn't been defined yet.
+@@ -916,7 +923,7 @@
+ 
+   int BPSI = FI->getBasePointerSaveIndex();
+   if (!BPSI && RegInfo->hasBasePointer(MF)) {
+-    int BPOffset = getBasePointerSaveOffset(isPPC64, isDarwinABI);
++    int BPOffset = getBasePointerSaveOffset(isPPC64, isDarwinABI, isPIC);
+     // Allocate the frame index for the base pointer save area.
+     BPSI = MFI->CreateFixedObject(isPPC64? 8 : 4, BPOffset, true);
+     // Save the result.
+Index: lib/Target/PowerPC/PPCFrameLowering.h
+===================================================================
+--- lib/Target/PowerPC/PPCFrameLowering.h	(revision 270019)
++++ lib/Target/PowerPC/PPCFrameLowering.h	(working copy)
+@@ -96,12 +96,14 @@
+ 
+   /// getBasePointerSaveOffset - Return the previous frame offset to save the
+   /// base pointer.
+-  static unsigned getBasePointerSaveOffset(bool isPPC64, bool isDarwinABI) {
++  static unsigned getBasePointerSaveOffset(bool isPPC64,
++                                           bool isDarwinABI,
++                                           bool isPIC) {
+     if (isDarwinABI)
+       return isPPC64 ? -16U : -8U;
+ 
+     // SVR4 ABI: First slot in the general register save area.
+-    return isPPC64 ? -16U : -8U;
++    return isPPC64 ? -16U : isPIC ? -12U : -8U;
+   }
+ 
+   /// getLinkageSize - Return the size of the PowerPC ABI linkage area.
+Index: lib/Target/PowerPC/PPCISelDAGToDAG.cpp
+===================================================================
+--- lib/Target/PowerPC/PPCISelDAGToDAG.cpp	(revision 270019)
++++ lib/Target/PowerPC/PPCISelDAGToDAG.cpp	(working copy)
+@@ -15,6 +15,7 @@
+ #define DEBUG_TYPE "ppc-codegen"
+ #include "PPC.h"
+ #include "MCTargetDesc/PPCPredicates.h"
++#include "PPCMachineFunctionInfo.h"
+ #include "PPCTargetMachine.h"
+ #include "llvm/CodeGen/MachineFunction.h"
+ #include "llvm/CodeGen/MachineInstrBuilder.h"
+@@ -261,9 +262,21 @@
+     DebugLoc dl;
+ 
+     if (PPCLowering.getPointerTy() == MVT::i32) {
+-      GlobalBaseReg = RegInfo->createVirtualRegister(&PPC::GPRC_NOR0RegClass);
++      if (PPCSubTarget.isTargetELF())
++        GlobalBaseReg = PPC::R30;
++      else
++        GlobalBaseReg =
++          RegInfo->createVirtualRegister(&PPC::GPRC_NOR0RegClass);
+       BuildMI(FirstMBB, MBBI, dl, TII.get(PPC::MovePCtoLR));
+       BuildMI(FirstMBB, MBBI, dl, TII.get(PPC::MFLR), GlobalBaseReg);
++      if (PPCSubTarget.isTargetELF()) {
++        unsigned TempReg = RegInfo->createVirtualRegister(&PPC::GPRCRegClass);
++        BuildMI(FirstMBB, MBBI, dl,
++                TII.get(PPC::GetGBRO), TempReg).addReg(GlobalBaseReg);
++        BuildMI(FirstMBB, MBBI, dl,
++                TII.get(PPC::UpdateGBR)).addReg(GlobalBaseReg).addReg(TempReg);
++        MF->getInfo<PPCFunctionInfo>()->setUsesPICBase(true);
++      }
+     } else {
+       GlobalBaseReg = RegInfo->createVirtualRegister(&PPC::G8RC_NOX0RegClass);
+       BuildMI(FirstMBB, MBBI, dl, TII.get(PPC::MovePCtoLR8));
+@@ -1260,7 +1273,13 @@
+     return CurDAG->SelectNodeTo(N, Reg, MVT::Other, Chain);
+   }
+   case PPCISD::TOC_ENTRY: {
+-    assert (PPCSubTarget.isPPC64() && "Only supported for 64-bit ABI");
++    if (PPCSubTarget.isSVR4ABI() && !PPCSubTarget.isPPC64()) {
++      SDValue GA = N->getOperand(0);
++      return CurDAG->getMachineNode(PPC::LWZtoc, dl, MVT::i32, GA,
++                                    N->getOperand(1));
++       }
++    assert (PPCSubTarget.isPPC64() &&
++            "Only supported for 64-bit ABI and 32-bit SVR4");
+ 
+     // For medium and large code model, we generate two instructions as
+     // described below.  Otherwise we allow SelectCodeCommon to handle this,
+@@ -1306,6 +1325,12 @@
+     return CurDAG->getMachineNode(PPC::ADDItocL, dl, MVT::i64,
+                                   SDValue(Tmp, 0), GA);
+   }
++  case PPCISD::PPC32_PICGOT: {
++    // Generate a PIC-safe GOT reference.
++    assert(!PPCSubTarget.isPPC64() && PPCSubTarget.isSVR4ABI() &&
++      "PPCISD::PPC32_PICGOT is only supported for 32-bit SVR4");
++    return CurDAG->SelectNodeTo(N, PPC::PPC32PICGOT, PPCLowering.getPointerTy(),  MVT::i32);
++  }
+   case PPCISD::VADD_SPLAT: {
+     // This expands into one of three sequences, depending on whether
+     // the first operand is odd or even, positive or negative.
+Index: lib/Target/PowerPC/PPCISelLowering.cpp
+===================================================================
+--- lib/Target/PowerPC/PPCISelLowering.cpp	(revision 270019)
++++ lib/Target/PowerPC/PPCISelLowering.cpp	(working copy)
+@@ -670,6 +670,7 @@
+   case PPCISD::ADDIS_TOC_HA:    return "PPCISD::ADDIS_TOC_HA";
+   case PPCISD::LD_TOC_L:        return "PPCISD::LD_TOC_L";
+   case PPCISD::ADDI_TOC_L:      return "PPCISD::ADDI_TOC_L";
++  case PPCISD::PPC32_GOT:       return "PPCISD::PPC32_GOT";
+   case PPCISD::ADDIS_GOT_TPREL_HA: return "PPCISD::ADDIS_GOT_TPREL_HA";
+   case PPCISD::LD_GOT_TPREL_L:  return "PPCISD::LD_GOT_TPREL_L";
+   case PPCISD::ADD_TLS:         return "PPCISD::ADD_TLS";
+@@ -1307,10 +1308,7 @@
+   HiOpFlags = PPCII::MO_HA;
+   LoOpFlags = PPCII::MO_LO;
+ 
+-  // Don't use the pic base if not in PIC relocation model.  Or if we are on a
+-  // non-darwin platform.  We don't support PIC on other platforms yet.
+-  bool isPIC = TM.getRelocationModel() == Reloc::PIC_ &&
+-               TM.getSubtarget<PPCSubtarget>().isDarwin();
++  bool isPIC = TM.getRelocationModel() == Reloc::PIC_;
+   if (isPIC) {
+     HiOpFlags |= PPCII::MO_PIC_FLAG;
+     LoOpFlags |= PPCII::MO_PIC_FLAG;
+@@ -1366,6 +1364,15 @@
+ 
+   unsigned MOHiFlag, MOLoFlag;
+   bool isPIC = GetLabelAccessInfo(DAG.getTarget(), MOHiFlag, MOLoFlag);
++
++  if (isPIC && PPCSubTarget.isSVR4ABI()) {
++    SDValue GA = DAG.getTargetConstantPool(C, PtrVT, CP->getAlignment(),
++                                           PPCII::MO_PIC_FLAG);
++    SDLoc DL(CP);
++    return DAG.getNode(PPCISD::TOC_ENTRY, SDLoc(CP), MVT::i32, GA,
++                       DAG.getNode(PPCISD::GlobalBaseReg, DL, PtrVT));
++  }
++
+   SDValue CPIHi =
+     DAG.getTargetConstantPool(C, PtrVT, CP->getAlignment(), 0, MOHiFlag);
+   SDValue CPILo =
+@@ -1387,6 +1394,15 @@
+ 
+   unsigned MOHiFlag, MOLoFlag;
+   bool isPIC = GetLabelAccessInfo(DAG.getTarget(), MOHiFlag, MOLoFlag);
++
++  if (isPIC && PPCSubTarget.isSVR4ABI()) {
++    SDValue GA = DAG.getTargetJumpTable(JT->getIndex(), PtrVT,
++                                        PPCII::MO_PIC_FLAG);
++    SDLoc DL(GA);
++    return DAG.getNode(PPCISD::TOC_ENTRY, SDLoc(JT), PtrVT, GA,
++                       DAG.getNode(PPCISD::GlobalBaseReg, DL, PtrVT));
++  }
++
+   SDValue JTIHi = DAG.getTargetJumpTable(JT->getIndex(), PtrVT, MOHiFlag);
+   SDValue JTILo = DAG.getTargetJumpTable(JT->getIndex(), PtrVT, MOLoFlag);
+   return LowerLabelRef(JTIHi, JTILo, isPIC, DAG);
+@@ -1400,6 +1416,7 @@
+ 
+   unsigned MOHiFlag, MOLoFlag;
+   bool isPIC = GetLabelAccessInfo(DAG.getTarget(), MOHiFlag, MOLoFlag);
++
+   SDValue TgtBAHi = DAG.getTargetBlockAddress(BA, PtrVT, 0, MOHiFlag);
+   SDValue TgtBALo = DAG.getTargetBlockAddress(BA, PtrVT, 0, MOLoFlag);
+   return LowerLabelRef(TgtBAHi, TgtBALo, isPIC, DAG);
+@@ -1431,64 +1448,79 @@
+     return DAG.getNode(PPCISD::Lo, dl, PtrVT, TGALo, Hi);
+   }
+ 
+-  if (!is64bit)
+-    llvm_unreachable("only local-exec is currently supported for ppc32");
+-
+   if (Model == TLSModel::InitialExec) {
+     SDValue TGA = DAG.getTargetGlobalAddress(GV, dl, PtrVT, 0, 0);
+     SDValue TGATLS = DAG.getTargetGlobalAddress(GV, dl, PtrVT, 0,
+                                                 PPCII::MO_TLS);
+-    SDValue GOTReg = DAG.getRegister(PPC::X2, MVT::i64);
+-    SDValue TPOffsetHi = DAG.getNode(PPCISD::ADDIS_GOT_TPREL_HA, dl,
+-                                     PtrVT, GOTReg, TGA);
++    SDValue GOTPtr;
++    if (is64bit) {
++      SDValue GOTReg = DAG.getRegister(PPC::X2, MVT::i64);
++      GOTPtr = DAG.getNode(PPCISD::ADDIS_GOT_TPREL_HA, dl,
++                           PtrVT, GOTReg, TGA);
++    } else
++      GOTPtr = DAG.getNode(PPCISD::PPC32_GOT, dl, PtrVT);
+     SDValue TPOffset = DAG.getNode(PPCISD::LD_GOT_TPREL_L, dl,
+-                                   PtrVT, TGA, TPOffsetHi);
++                                   PtrVT, TGA, GOTPtr);
+     return DAG.getNode(PPCISD::ADD_TLS, dl, PtrVT, TPOffset, TGATLS);
+   }
+ 
+   if (Model == TLSModel::GeneralDynamic) {
+     SDValue TGA = DAG.getTargetGlobalAddress(GV, dl, PtrVT, 0, 0);
+-    SDValue GOTReg = DAG.getRegister(PPC::X2, MVT::i64);
+-    SDValue GOTEntryHi = DAG.getNode(PPCISD::ADDIS_TLSGD_HA, dl, PtrVT,
+-                                     GOTReg, TGA);
++    SDValue GOTPtr;
++    if (is64bit) {
++      SDValue GOTReg = DAG.getRegister(PPC::X2, MVT::i64);
++      GOTPtr = DAG.getNode(PPCISD::ADDIS_TLSGD_HA, dl, PtrVT,
++                                   GOTReg, TGA);
++    } else {
++      GOTPtr = DAG.getNode(PPCISD::PPC32_PICGOT, dl, PtrVT);
++    }
+     SDValue GOTEntry = DAG.getNode(PPCISD::ADDI_TLSGD_L, dl, PtrVT,
+-                                   GOTEntryHi, TGA);
++                                   GOTPtr, TGA);
+ 
+     // We need a chain node, and don't have one handy.  The underlying
+     // call has no side effects, so using the function entry node
+     // suffices.
+     SDValue Chain = DAG.getEntryNode();
+-    Chain = DAG.getCopyToReg(Chain, dl, PPC::X3, GOTEntry);
+-    SDValue ParmReg = DAG.getRegister(PPC::X3, MVT::i64);
++    Chain = DAG.getCopyToReg(Chain, dl,
++                             is64bit ? PPC::X3 : PPC::R3, GOTEntry);
++    SDValue ParmReg = DAG.getRegister(is64bit ? PPC::X3 : PPC::R3,
++                                      is64bit ? MVT::i64 : MVT::i32);
+     SDValue TLSAddr = DAG.getNode(PPCISD::GET_TLS_ADDR, dl,
+                                   PtrVT, ParmReg, TGA);
+     // The return value from GET_TLS_ADDR really is in X3 already, but
+     // some hacks are needed here to tie everything together.  The extra
+     // copies dissolve during subsequent transforms.
+-    Chain = DAG.getCopyToReg(Chain, dl, PPC::X3, TLSAddr);
+-    return DAG.getCopyFromReg(Chain, dl, PPC::X3, PtrVT);
++    Chain = DAG.getCopyToReg(Chain, dl, is64bit ? PPC::X3 : PPC::R3, TLSAddr);
++    return DAG.getCopyFromReg(Chain, dl, is64bit ? PPC::X3 : PPC::R3, PtrVT);
+   }
+ 
+   if (Model == TLSModel::LocalDynamic) {
+     SDValue TGA = DAG.getTargetGlobalAddress(GV, dl, PtrVT, 0, 0);
+-    SDValue GOTReg = DAG.getRegister(PPC::X2, MVT::i64);
+-    SDValue GOTEntryHi = DAG.getNode(PPCISD::ADDIS_TLSLD_HA, dl, PtrVT,
+-                                     GOTReg, TGA);
++    SDValue GOTPtr;
++    if (is64bit) {
++      SDValue GOTReg = DAG.getRegister(PPC::X2, MVT::i64);
++      GOTPtr = DAG.getNode(PPCISD::ADDIS_TLSLD_HA, dl, PtrVT,
++                           GOTReg, TGA);
++    } else {
++      GOTPtr = DAG.getNode(PPCISD::PPC32_PICGOT, dl, PtrVT);
++    }
+     SDValue GOTEntry = DAG.getNode(PPCISD::ADDI_TLSLD_L, dl, PtrVT,
+-                                   GOTEntryHi, TGA);
++                                   GOTPtr, TGA);
+ 
+     // We need a chain node, and don't have one handy.  The underlying
+     // call has no side effects, so using the function entry node
+     // suffices.
+     SDValue Chain = DAG.getEntryNode();
+-    Chain = DAG.getCopyToReg(Chain, dl, PPC::X3, GOTEntry);
+-    SDValue ParmReg = DAG.getRegister(PPC::X3, MVT::i64);
++    Chain = DAG.getCopyToReg(Chain, dl,
++                             is64bit ? PPC::X3 : PPC::R3, GOTEntry);
++    SDValue ParmReg = DAG.getRegister(is64bit ? PPC::X3 : PPC::R3,
++                                      is64bit ? MVT::i64 : MVT::i32);
+     SDValue TLSAddr = DAG.getNode(PPCISD::GET_TLSLD_ADDR, dl,
+                                   PtrVT, ParmReg, TGA);
+     // The return value from GET_TLSLD_ADDR really is in X3 already, but
+     // some hacks are needed here to tie everything together.  The extra
+     // copies dissolve during subsequent transforms.
+-    Chain = DAG.getCopyToReg(Chain, dl, PPC::X3, TLSAddr);
++    Chain = DAG.getCopyToReg(Chain, dl, is64bit ? PPC::X3 : PPC::R3, TLSAddr);
+     SDValue DtvOffsetHi = DAG.getNode(PPCISD::ADDIS_DTPREL_HA, dl, PtrVT,
+                                       Chain, ParmReg, TGA);
+     return DAG.getNode(PPCISD::ADDI_DTPREL_L, dl, PtrVT, DtvOffsetHi, TGA);
+@@ -1515,6 +1547,14 @@
+   unsigned MOHiFlag, MOLoFlag;
+   bool isPIC = GetLabelAccessInfo(DAG.getTarget(), MOHiFlag, MOLoFlag, GV);
+ 
++  if (isPIC && PPCSubTarget.isSVR4ABI()) {
++    SDValue GA = DAG.getTargetGlobalAddress(GV, DL, PtrVT,
++                                            GSDN->getOffset(),
++                                            PPCII::MO_PIC_FLAG);
++    return DAG.getNode(PPCISD::TOC_ENTRY, DL, MVT::i32, GA,
++                       DAG.getNode(PPCISD::GlobalBaseReg, DL, MVT::i32));
++  }
++
+   SDValue GAHi =
+     DAG.getTargetGlobalAddress(GV, DL, PtrVT, GSDN->getOffset(), MOHiFlag);
+   SDValue GALo =
+@@ -3214,15 +3254,18 @@
+     // far-call stubs may be outside relocation limits for a BL instruction.
+     if (!DAG.getTarget().getSubtarget<PPCSubtarget>().isJITCodeModel()) {
+       unsigned OpFlags = 0;
+-      if (DAG.getTarget().getRelocationModel() != Reloc::Static &&
++      if ((DAG.getTarget().getRelocationModel() != Reloc::Static &&
+           (PPCSubTarget.getTargetTriple().isMacOSX() &&
+            PPCSubTarget.getTargetTriple().isMacOSXVersionLT(10, 5)) &&
+           (G->getGlobal()->isDeclaration() ||
+-           G->getGlobal()->isWeakForLinker())) {
++           G->getGlobal()->isWeakForLinker())) ||
++          (PPCSubTarget.isTargetELF() && !isPPC64 &&
++           !G->getGlobal()->hasLocalLinkage() &&
++           DAG.getTarget().getRelocationModel() == Reloc::PIC_)) {
+         // PC-relative references to external symbols should go through $stub,
+         // unless we're building with the leopard linker or later, which
+         // automatically synthesizes these stubs.
+-        OpFlags = PPCII::MO_DARWIN_STUB;
++        OpFlags = PPCII::MO_PLT_OR_STUB;
+       }
+ 
+       // If the callee is a GlobalAddress/ExternalSymbol node (quite common,
+@@ -3244,7 +3287,7 @@
+       // PC-relative references to external symbols should go through $stub,
+       // unless we're building with the leopard linker or later, which
+       // automatically synthesizes these stubs.
+-      OpFlags = PPCII::MO_DARWIN_STUB;
++      OpFlags = PPCII::MO_PLT_OR_STUB;
+     }
+ 
+     Callee = DAG.getTargetExternalSymbol(S->getSymbol(), Callee.getValueType(),
+@@ -6255,7 +6298,10 @@
+   // Since FP is only updated here but NOT referenced, it's treated as GPR.
+   unsigned FP  = (PVT == MVT::i64) ? PPC::X31 : PPC::R31;
+   unsigned SP  = (PVT == MVT::i64) ? PPC::X1 : PPC::R1;
+-  unsigned BP  = (PVT == MVT::i64) ? PPC::X30 : PPC::R30;
++  unsigned BP  = (PVT == MVT::i64) ? PPC::X30 :
++                  (PPCSubTarget.isSVR4ABI() &&
++                   MF->getTarget().getRelocationModel() == Reloc::PIC_ ?
++                     PPC::R29 : PPC::R30);
+ 
+   MachineInstrBuilder MIB;
+ 
+Index: lib/Target/PowerPC/PPCISelLowering.h
+===================================================================
+--- lib/Target/PowerPC/PPCISelLowering.h	(revision 270019)
++++ lib/Target/PowerPC/PPCISelLowering.h	(working copy)
+@@ -177,6 +177,12 @@
+       CR6SET,
+       CR6UNSET,
+ 
++      PPC32_GOT,
++
++      /// GPRC = address of _GLOBAL_OFFSET_TABLE_. Used by general dynamic and
++      /// local dynamic TLS  on PPC32.
++      PPC32_PICGOT,
++
+       /// G8RC = ADDIS_GOT_TPREL_HA %X2, Symbol - Used by the initial-exec
+       /// TLS model, produces an ADDIS8 instruction that adds the GOT
+       /// base to sym\@got\@tprel\@ha.
+Index: lib/Target/PowerPC/PPCInstr64Bit.td
+===================================================================
+--- lib/Target/PowerPC/PPCInstr64Bit.td	(revision 270019)
++++ lib/Target/PowerPC/PPCInstr64Bit.td	(working copy)
+@@ -36,10 +36,6 @@
+ def tocentry : Operand<iPTR> {
+   let MIOperandInfo = (ops i64imm:$imm);
+ }
+-def PPCTLSRegOperand : AsmOperandClass {
+-  let Name = "TLSReg"; let PredicateMethod = "isTLSReg";
+-  let RenderMethod = "addTLSRegOperands";
+-}
+ def tlsreg : Operand<i64> {
+   let EncoderMethod = "getTLSRegEncoding";
+   let ParserMatchClass = PPCTLSRegOperand;
+Index: lib/Target/PowerPC/PPCInstrInfo.td
+===================================================================
+--- lib/Target/PowerPC/PPCInstrInfo.td	(revision 270019)
++++ lib/Target/PowerPC/PPCInstrInfo.td	(working copy)
+@@ -57,6 +57,9 @@
+   SDTCisPtrTy<0>, SDTCisVT<1, i32>
+ ]>;
+ 
++def tocentry32 : Operand<iPTR> {
++  let MIOperandInfo = (ops i32imm:$imm);
++}
+ 
+ //===----------------------------------------------------------------------===//
+ // PowerPC specific DAG Nodes.
+@@ -99,6 +102,8 @@
+ def PPCvmaddfp  : SDNode<"PPCISD::VMADDFP", SDTFPTernaryOp, []>;
+ def PPCvnmsubfp : SDNode<"PPCISD::VNMSUBFP", SDTFPTernaryOp, []>;
+ 
++def PPCppc32GOT : SDNode<"PPCISD::PPC32_GOT", SDTIntLeaf, []>;
++
+ def PPCaddisGotTprelHA : SDNode<"PPCISD::ADDIS_GOT_TPREL_HA", SDTIntBinOp>;
+ def PPCldGotTprelL : SDNode<"PPCISD::LD_GOT_TPREL_L", SDTIntBinOp,
+                             [SDNPMayLoad]>;
+@@ -555,6 +560,20 @@
+ def memr : Operand<iPTR> {
+   let MIOperandInfo = (ops ptr_rc:$ptrreg);
+ }
++def PPCTLSRegOperand : AsmOperandClass {
++  let Name = "TLSReg"; let PredicateMethod = "isTLSReg";
++  let RenderMethod = "addTLSRegOperands";
++}
++def tlsreg32 : Operand<i32> {
++  let EncoderMethod = "getTLSRegEncoding";
++  let ParserMatchClass = PPCTLSRegOperand;
++}
++def tlsgd32 : Operand<i32> {}
++def tlscall32 : Operand<i32> {
++  let PrintMethod = "printTLSCall";
++  let MIOperandInfo = (ops calltarget:$func, tlsgd32:$sym);
++  let EncoderMethod = "getTLSCallEncoding";
++}
+ 
+ // PowerPC Predicate operand.
+ def pred : Operand<OtherVT> {
+@@ -1003,6 +1022,8 @@
+                     "bla $func", BrB, [(PPCcall (i32 imm:$func))]>;
+ 
+     let isCodeGenOnly = 1 in {
++      def BL_TLS  : IForm<18, 0, 1, (outs), (ins tlscall32:$func),
++                          "bl $func", BrB, []>;
+       def BCCL : BForm<16, 0, 1, (outs), (ins pred:$cond, condbrtarget:$dst),
+                        "b${cond:cc}l${cond:pm} ${cond:reg}, $dst">;
+       def BCCLA : BForm<16, 1, 1, (outs), (ins pred:$cond, abscondbrtarget:$dst),
+@@ -1995,6 +2016,10 @@
+ defm ADD4  : XOForm_1r<31, 266, 0, (outs gprc:$rT), (ins gprc:$rA, gprc:$rB),
+                        "add", "$rT, $rA, $rB", IntSimple,
+                        [(set i32:$rT, (add i32:$rA, i32:$rB))]>;
++let isCodeGenOnly = 1 in
++def ADD4TLS  : XOForm_1<31, 266, 0, (outs gprc:$rT), (ins gprc:$rA, tlsreg32:$rB),
++                       "add $rT, $rA, $rB", IntSimple,
++                       [(set i32:$rT, (add i32:$rA, tglobaltlsaddr:$rB))]>;
+ defm ADDC  : XOForm_1rc<31, 10, 0, (outs gprc:$rT), (ins gprc:$rA, gprc:$rB),
+                         "addc", "$rT, $rA, $rB", IntGeneral,
+                         [(set i32:$rT, (addc i32:$rA, i32:$rB))]>,
+@@ -2260,6 +2285,61 @@
+ def : Pat<(add i32:$in, (PPChi tblockaddress:$g, 0)),
+           (ADDIS $in, tblockaddress:$g)>;
+ 
++// Support for Position-independent code
++def LWZtoc: Pseudo<(outs gprc:$rD), (ins tocentry32:$disp, gprc:$reg),
++                  "#LWZtoc",
++                  [(set i32:$rD,
++                     (PPCtoc_entry tglobaladdr:$disp, i32:$reg))]>;
++// Get Global (GOT) Base Register offset, from the word immediately preceding
++// the function label.
++def GetGBRO:   Pseudo<(outs gprc:$rT), (ins gprc:$rI), "#GetGBRO", []>;
++// Update the Global(GOT) Base Register with the above offset.
++def UpdateGBR: Pseudo<(outs gprc:$rT), (ins gprc:$rI), "#UpdateGBR", []>;
++
++
++// Support for thread-local storage.
++def PPC32GOT: Pseudo<(outs gprc:$rD), (ins), "#PPC32GOT", 
++                [(set i32:$rD, (PPCppc32GOT))]>;
++
++// Get the _GLOBAL_OFFSET_TABLE_ in PIC mode.
++// This uses two output registers, the first as the real output, the second as a
++// temporary register, used internally in code generation.
++def PPC32PICGOT: Pseudo<(outs gprc:$rD, gprc:$rT), (ins), "#PPC32PICGOT", 
++                []>, NoEncode<"$rT">;
++
++def LDgotTprelL32: Pseudo<(outs gprc:$rD), (ins s16imm:$disp, gprc_nor0:$reg),
++                           "#LDgotTprelL32",
++                           [(set i32:$rD,
++                             (PPCldGotTprelL tglobaltlsaddr:$disp, i32:$reg))]>;
++def : Pat<(PPCaddTls i32:$in, tglobaltlsaddr:$g),
++          (ADD4TLS $in, tglobaltlsaddr:$g)>;
++def ADDItlsgdL32 : Pseudo<(outs gprc:$rD), (ins gprc_nor0:$reg, s16imm:$disp),
++                         "#ADDItlsgdL32",
++                         [(set i32:$rD,
++                           (PPCaddiTlsgdL i32:$reg, tglobaltlsaddr:$disp))]>;
++def GETtlsADDR32 : Pseudo<(outs gprc:$rD), (ins gprc:$reg, tlsgd32:$sym),
++                          "#GETtlsADDR32",
++                          [(set i32:$rD,
++                            (PPCgetTlsAddr i32:$reg, tglobaltlsaddr:$sym))]>;
++def ADDItlsldL32 : Pseudo<(outs gprc:$rD), (ins gprc_nor0:$reg, s16imm:$disp),
++                          "#ADDItlsldL32",
++                          [(set i32:$rD,
++                            (PPCaddiTlsldL i32:$reg, tglobaltlsaddr:$disp))]>;
++def GETtlsldADDR32 : Pseudo<(outs gprc:$rD), (ins gprc:$reg, tlsgd32:$sym),
++                            "#GETtlsldADDR32",
++                            [(set i32:$rD,
++                              (PPCgetTlsldAddr i32:$reg, tglobaltlsaddr:$sym))]>;
++def ADDIdtprelL32 : Pseudo<(outs gprc:$rD), (ins gprc_nor0:$reg, s16imm:$disp),
++                           "#ADDIdtprelL32",
++                           [(set i32:$rD,
++                             (PPCaddiDtprelL i32:$reg, tglobaltlsaddr:$disp))]>;
++def ADDISdtprelHA32 : Pseudo<(outs gprc:$rD), (ins gprc_nor0:$reg, s16imm:$disp),
++                            "#ADDISdtprelHA32",
++                            [(set i32:$rD,
++                              (PPCaddisDtprelHA i32:$reg,
++                                                tglobaltlsaddr:$disp))]>;
++
++
+ // Standard shifts.  These are represented separately from the real shifts above
+ // so that we can distinguish between shifts that allow 5-bit and 6-bit shift
+ // amounts.
+Index: lib/Target/PowerPC/PPCMCInstLower.cpp
+===================================================================
+--- lib/Target/PowerPC/PPCMCInstLower.cpp	(revision 270019)
++++ lib/Target/PowerPC/PPCMCInstLower.cpp	(working copy)
+@@ -13,6 +13,7 @@
+ //===----------------------------------------------------------------------===//
+ 
+ #include "PPC.h"
++#include "PPCSubtarget.h"
+ #include "MCTargetDesc/PPCMCExpr.h"
+ #include "llvm/ADT/SmallString.h"
+ #include "llvm/ADT/Twine.h"
+@@ -24,6 +25,7 @@
+ #include "llvm/MC/MCExpr.h"
+ #include "llvm/MC/MCInst.h"
+ #include "llvm/Target/Mangler.h"
++#include "llvm/Target/TargetMachine.h"
+ using namespace llvm;
+ 
+ static MachineModuleInfoMachO &getMachOMMI(AsmPrinter &AP) {
+@@ -32,7 +34,9 @@
+ 
+ 
+ static MCSymbol *GetSymbolFromOperand(const MachineOperand &MO, AsmPrinter &AP){
++  const TargetMachine &TM = AP.TM;
+   MCContext &Ctx = AP.OutContext;
++  bool isDarwin = TM.getSubtarget<PPCSubtarget>().isDarwin();
+ 
+   SmallString<128> Name;
+   if (!MO.isGlobal()) {
+@@ -42,7 +46,7 @@
+   } else {    
+     const GlobalValue *GV = MO.getGlobal();
+     bool isImplicitlyPrivate = false;
+-    if (MO.getTargetFlags() == PPCII::MO_DARWIN_STUB ||
++    if (MO.getTargetFlags() == PPCII::MO_PLT_OR_STUB ||
+         (MO.getTargetFlags() & PPCII::MO_NLP_FLAG))
+       isImplicitlyPrivate = true;
+     
+@@ -51,7 +55,7 @@
+   
+   // If the target flags on the operand changes the name of the symbol, do that
+   // before we return the symbol.
+-  if (MO.getTargetFlags() == PPCII::MO_DARWIN_STUB) {
++  if (MO.getTargetFlags() == PPCII::MO_PLT_OR_STUB && isDarwin) {
+     Name += "$stub";
+     const char *PGP = AP.MAI->getPrivateGlobalPrefix();
+     const char *Prefix = "";
+@@ -132,6 +136,9 @@
+       break;
+   }
+ 
++  if (MO.getTargetFlags() == PPCII::MO_PLT_OR_STUB && !isDarwin)
++    RefKind = MCSymbolRefExpr::VK_PLT;
++
+   const MCExpr *Expr = MCSymbolRefExpr::Create(Symbol, RefKind, Ctx);
+ 
+   if (!MO.isJTI() && MO.getOffset())
+Index: lib/Target/PowerPC/PPCMachineFunctionInfo.cpp
+===================================================================
+--- lib/Target/PowerPC/PPCMachineFunctionInfo.cpp	(revision 270019)
++++ lib/Target/PowerPC/PPCMachineFunctionInfo.cpp	(working copy)
+@@ -8,8 +8,16 @@
+ //===----------------------------------------------------------------------===//
+ 
+ #include "PPCMachineFunctionInfo.h"
++#include "llvm/MC/MCAsmInfo.h"
++#include "llvm/MC/MCContext.h"
++#include "llvm/Target/TargetMachine.h"
+ 
+ using namespace llvm;
+ 
+ void PPCFunctionInfo::anchor() { }
+ 
++MCSymbol *PPCFunctionInfo::getPICOffsetSymbol() const {
++  const MCAsmInfo *MAI = MF.getTarget().getMCAsmInfo();
++  return MF.getContext().GetOrCreateSymbol(Twine(MAI->getPrivateGlobalPrefix())+
++    Twine(MF.getFunctionNumber())+"$poff");
++}
+Index: lib/Target/PowerPC/PPCMachineFunctionInfo.h
+===================================================================
+--- lib/Target/PowerPC/PPCMachineFunctionInfo.h	(revision 270019)
++++ lib/Target/PowerPC/PPCMachineFunctionInfo.h	(working copy)
+@@ -92,6 +92,12 @@
+   /// 64-bit SVR4 ABI.
+   SmallVector<unsigned, 3> MustSaveCRs;
+ 
++  /// Hold onto our MachineFunction context.
++  MachineFunction &MF;
++
++  /// Whether this uses the PIC Base register or not.
++  bool UsesPICBase;
++
+ public:
+   explicit PPCFunctionInfo(MachineFunction &MF) 
+     : FramePointerSaveIndex(0),
+@@ -109,7 +115,9 @@
+       VarArgsStackOffset(0),
+       VarArgsNumGPR(0),
+       VarArgsNumFPR(0),
+-      CRSpillFrameIndex(0) {}
++      CRSpillFrameIndex(0),
++      MF(MF),
++      UsesPICBase(0) {}
+ 
+   int getFramePointerSaveIndex() const { return FramePointerSaveIndex; }
+   void setFramePointerSaveIndex(int Idx) { FramePointerSaveIndex = Idx; }
+@@ -170,6 +178,11 @@
+   const SmallVectorImpl<unsigned> &
+     getMustSaveCRs() const { return MustSaveCRs; }
+   void addMustSaveCR(unsigned Reg) { MustSaveCRs.push_back(Reg); }
++
++  void setUsesPICBase(bool uses) { UsesPICBase = uses; }
++  bool usesPICBase() const { return UsesPICBase; }
++
++  MCSymbol *getPICOffsetSymbol() const;
+ };
+ 
+ } // end of namespace llvm
+Index: lib/Target/PowerPC/PPCRegisterInfo.cpp
+===================================================================
+--- lib/Target/PowerPC/PPCRegisterInfo.cpp	(revision 270019)
++++ lib/Target/PowerPC/PPCRegisterInfo.cpp	(working copy)
+@@ -199,7 +199,16 @@
+   if (PPCFI->needsFP(MF))
+     Reserved.set(PPC::R31);
+ 
+-  if (hasBasePointer(MF))
++  if (hasBasePointer(MF)) {
++       if (Subtarget.isSVR4ABI() && !Subtarget.isPPC64() &&
++        MF.getTarget().getRelocationModel() == Reloc::PIC_)
++      Reserved.set(PPC::R29);
++    else
++      Reserved.set(PPC::R30);
++  }
++
++  if (Subtarget.isSVR4ABI() && !Subtarget.isPPC64() &&
++      MF.getTarget().getRelocationModel() == Reloc::PIC_)
+     Reserved.set(PPC::R30);
+ 
+   // Reserve Altivec registers when Altivec is unavailable.
+@@ -695,7 +704,14 @@
+   if (!hasBasePointer(MF))
+     return getFrameRegister(MF);
+ 
+-  return Subtarget.isPPC64() ? PPC::X30 : PPC::R30;
++  if (Subtarget.isPPC64())
++    return PPC::X30;
++
++  if (Subtarget.isSVR4ABI() &&
++      MF.getTarget().getRelocationModel() == Reloc::PIC_)
++    return PPC::R29;
++
++  return PPC::R30;
+ }
+ 
+ bool PPCRegisterInfo::hasBasePointer(const MachineFunction &MF) const {
+Index: lib/Target/PowerPC/PPCSubtarget.h
+===================================================================
+--- lib/Target/PowerPC/PPCSubtarget.h	(revision 270019)
++++ lib/Target/PowerPC/PPCSubtarget.h	(working copy)
+@@ -189,6 +189,9 @@
+   /// isBGQ - True if this is a BG/Q platform.
+   bool isBGQ() const { return TargetTriple.getVendor() == Triple::BGQ; }
+ 
++  bool isTargetELF() const { return TargetTriple.isOSBinFormatELF(); }
++//  bool isTargetMachO() const { return TargetTriple.isOSBinFormatMachO(); }
++
+   bool isDarwinABI() const { return isDarwin(); }
+   bool isSVR4ABI() const { return !isDarwin(); }
+ 

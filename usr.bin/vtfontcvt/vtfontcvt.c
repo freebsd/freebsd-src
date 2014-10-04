@@ -91,7 +91,7 @@ static void
 usage(void)
 {
 
-	errx(1,
+	(void)fprintf(stderr,
 "usage: vtfontcvt [-w width] [-h height] [-v] normal.bdf [bold.bdf] out.fnt\n");
 	exit(1);
 }
@@ -111,10 +111,8 @@ add_mapping(struct glyph *gl, unsigned int c, unsigned int map_idx)
 
 	ml = &maps[map_idx];
 	if (TAILQ_LAST(ml, mapping_list) != NULL &&
-	    TAILQ_LAST(ml, mapping_list)->m_char >= c) {
+	    TAILQ_LAST(ml, mapping_list)->m_char >= c)
 		errx(1, "Bad ordering at character %u\n", c);
-		return (1);
-	}
 	TAILQ_INSERT_TAIL(ml, mp, m_list);
 
 	map_count[map_idx]++;
@@ -134,11 +132,9 @@ dedup_mapping(unsigned int map_idx)
 	TAILQ_FOREACH_SAFE(mp_bold, &maps[map_idx], m_list, mp_temp) {
 		while (mp_normal->m_char < mp_bold->m_char)
 			mp_normal = TAILQ_NEXT(mp_normal, m_list);
-		if (mp_bold->m_char != mp_normal->m_char) {
+		if (mp_bold->m_char != mp_normal->m_char)
 			errx(1, "Character %u not in normal font!\n",
 			    mp_bold->m_char);
-			return (1);
-		}
 		if (mp_bold->m_glyph != mp_normal->m_glyph)
 			continue;
 
@@ -211,11 +207,8 @@ parse_bitmap_line(uint8_t *left, uint8_t *right, unsigned int line,
 	uint8_t *p;
 	unsigned int i, subline;
 
-	if (dwidth != width && dwidth != width * 2) {
-		errx(1,
-		    "Bitmap with unsupported width %u!\n", dwidth);
-		return (1);
-	}
+	if (dwidth != width && dwidth != width * 2)
+		errx(1, "Bitmap with unsupported width %u!\n", dwidth);
 
 	/* Move pixel data right to simplify splitting double characters. */
 	line >>= (howmany(dwidth, 8) * 8) - dwidth;
@@ -232,9 +225,7 @@ parse_bitmap_line(uint8_t *left, uint8_t *right, unsigned int line,
 			*p++ = subline >> 8;
 			*p = subline;
 		} else {
-			errx(1,
-			    "Unsupported wbytes %u!\n", wbytes);
-			return (1);
+			errx(1, "Unsupported wbytes %u!\n", wbytes);
 		}
 
 		line >>= width;
@@ -265,10 +256,8 @@ parse_bdf(FILE *fp, unsigned int map_idx)
 		if (strncmp(ln, "BITMAP", 6) == 0 &&
 		    (ln[6] == ' ' || ln[6] == '\0')) {
 			for (i = 0; i < height; i++) {
-				if ((ln = fgetln(fp, &length)) == NULL) {
+				if ((ln = fgetln(fp, &length)) == NULL)
 					errx(1, "Unexpected EOF!\n");
-					return (1);
-				}
 				ln[length - 1] = '\0';
 				sscanf(ln, "%x", &line);
 				if (parse_bitmap_line(bytes + i * wbytes,
@@ -528,10 +517,8 @@ main(int argc, char *argv[])
 		switch (ch) {
 		case 'h':
 			val = atoi(optarg);
-			if (val <= 0 || val > 128) {
+			if (val <= 0 || val > 128)
 				errx(1, "Invalid height %d", val);
-				return (1);
-			}
 			height = val;
 			break;
 		case 'v':

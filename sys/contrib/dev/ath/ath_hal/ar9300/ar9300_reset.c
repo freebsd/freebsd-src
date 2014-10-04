@@ -1987,13 +1987,25 @@ HAL_BOOL
 ar9300_chip_reset(struct ath_hal *ah, struct ieee80211_channel *chan)
 {
     struct ath_hal_9300     *ahp = AH9300(ah);
+    int type = HAL_RESET_WARM;
 
     OS_MARK(ah, AH_MARK_CHIPRESET, chan ? chan->ic_freq : 0);
 
     /*
      * Warm reset is optimistic.
+     *
+     * If the TX/RX DMA engines aren't shut down (eg, they're
+     * wedged) then we're better off doing a full cold reset
+     * to try and shake that condition.
      */
-    if (!ar9300_set_reset_reg(ah, HAL_RESET_WARM)) {
+    if (ahp->ah_chip_full_sleep ||
+        (ah->ah_config.ah_force_full_reset == 1) ||
+        OS_REG_READ(ah, AR_Q_TXE) ||
+        (OS_REG_READ(ah, AR_CR) & AR_CR_RXE)) {
+            type = HAL_RESET_COLD;
+    }
+
+    if (!ar9300_set_reset_reg(ah, type)) {
         return AH_FALSE;
     }
 
@@ -6139,6 +6151,7 @@ ar9300_ant_ctrl_set_lna_div_use_bt_ant(struct ath_hal *ah, HAL_BOOL enable, cons
             value &= ~AR_SWITCH_TABLE_COM2_ALL;
             value |= ah->ah_config.ath_hal_ant_ctrl_comm2g_switch_enable;
         }
+	HALDEBUG(ah, HAL_DEBUG_RESET, "%s: com2=0x%08x\n", __func__, value);
         OS_REG_RMW_FIELD(ah, AR_PHY_SWITCH_COM_2, AR_SWITCH_TABLE_COM2_ALL, value);
 
         value = ar9300_eeprom_get(ahp, EEP_ANTDIV_control);

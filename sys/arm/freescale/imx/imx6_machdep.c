@@ -38,6 +38,7 @@ __FBSDID("$FreeBSD$");
 
 #include <machine/bus.h>
 #include <machine/devmap.h>
+#include <machine/intr.h>
 #include <machine/machdep.h>
 #include <machine/platform.h> 
 
@@ -45,6 +46,18 @@ __FBSDID("$FreeBSD$");
 #include <arm/freescale/imx/imx6_anatopreg.h>
 #include <arm/freescale/imx/imx6_anatopvar.h>
 #include <arm/freescale/imx/imx_machdep.h>
+
+#include <dev/fdt/fdt_common.h>
+#include <dev/ofw/openfirm.h>
+
+struct fdt_fixup_entry fdt_fixup_table[] = {
+	{ NULL, NULL }
+};
+
+fdt_pic_decode_t fdt_pic_table[] = {
+	&gic_decode_fdt,
+	NULL
+};
 
 vm_offset_t
 platform_lastaddr(void)
@@ -146,11 +159,15 @@ u_int imx_soc_type()
 {
 	uint32_t digprog, hwsoc;
 	uint32_t *pcr;
+	static u_int soctype;
 	const vm_offset_t SCU_CONFIG_PHYSADDR = 0x00a00004;
 #define	HWSOC_MX6SL	0x60
 #define	HWSOC_MX6DL	0x61
 #define	HWSOC_MX6SOLO	0x62
 #define	HWSOC_MX6Q	0x63
+
+	if (soctype != 0)
+		return (soctype);
 
 	digprog = imx6_anatop_read_4(IMX6_ANALOG_DIGPROG_SL);
 	hwsoc = (digprog >> IMX6_ANALOG_DIGPROG_SOCTYPE_SHIFT) & 
@@ -175,20 +192,25 @@ u_int imx_soc_type()
 
 	switch (hwsoc) {
 	case HWSOC_MX6SL:
-		return (IMXSOC_6SL);
+		soctype = IMXSOC_6SL;
+		break;
 	case HWSOC_MX6SOLO:
-		return (IMXSOC_6S);
+		soctype = IMXSOC_6S;
+		break;
 	case HWSOC_MX6DL:
-		return (IMXSOC_6DL);
+		soctype = IMXSOC_6DL;
+		break;
 	case HWSOC_MX6Q :
-		return (IMXSOC_6Q);
+		soctype = IMXSOC_6Q;
+		break;
 	default:
 		printf("imx_soc_type: Don't understand hwsoc 0x%02x, "
 		    "digprog 0x%08x; assuming IMXSOC_6Q\n", hwsoc, digprog);
+		soctype = IMXSOC_6Q;
 		break;
 	}
 
-	return (IMXSOC_6Q);
+	return (soctype);
 }
 
 /*

@@ -32,7 +32,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: openpam_ttyconv.c 688 2013-07-11 16:40:08Z des $
+ * $Id: openpam_ttyconv.c 807 2014-09-09 09:41:32Z des $
  */
 
 #ifdef HAVE_CONFIG_H
@@ -55,6 +55,7 @@
 #include <security/pam_appl.h>
 
 #include "openpam_impl.h"
+#include "openpam_strlset.h"
 
 int openpam_ttyconv_timeout = 0;
 
@@ -366,7 +367,7 @@ openpam_ttyconv(int n,
 fail:
 	for (i = 0; i < n; ++i) {
 		if (aresp[i].resp != NULL) {
-			memset(aresp[i].resp, 0, strlen(aresp[i].resp));
+			strlset(aresp[i].resp, 0, PAM_MAX_RESP_SIZE);
 			FREE(aresp[i].resp);
 		}
 	}

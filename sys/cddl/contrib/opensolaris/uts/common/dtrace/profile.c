@@ -169,9 +169,9 @@ profile_create(hrtime_t interval, const char *name, int kind)
 	if (dtrace_probe_lookup(profile_id, NULL, NULL, name) != 0)
 		return;
 
-	atomic_add_32(&profile_total, 1);
+	atomic_inc_32(&profile_total);
 	if (profile_total > profile_max) {
-		atomic_add_32(&profile_total, -1);
+		atomic_dec_32(&profile_total);
 		return;
 	}
 
@@ -326,7 +326,7 @@ profile_destroy(void *arg, dtrace_id_t id, void *parg)
 	kmem_free(prof, sizeof (profile_probe_t));
 
 	ASSERT(profile_total >= 1);
-	atomic_add_32(&profile_total, -1);
+	atomic_dec_32(&profile_total);
 }
 
 /*ARGSUSED*/

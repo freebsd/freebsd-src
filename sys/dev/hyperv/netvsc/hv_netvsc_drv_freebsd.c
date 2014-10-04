@@ -275,7 +275,7 @@ netvsc_attach(device_t dev)
 	/*
 	 * Tell upper layers that we support full VLAN capability.
 	 */
-	ifp->if_data.ifi_hdrlen = sizeof(struct ether_vlan_header);
+	ifp->if_hdrlen = sizeof(struct ether_vlan_header);
 	ifp->if_capabilities |= IFCAP_VLAN_HWTAGGING | IFCAP_VLAN_MTU;
 	ifp->if_capenable |= IFCAP_VLAN_HWTAGGING | IFCAP_VLAN_MTU;
 
@@ -500,7 +500,7 @@ retry_send:
 		ret = hv_rf_on_send(device_ctx, packet);
 
 		if (ret == 0) {
-			ifp->if_opackets++;
+			if_inc_counter(ifp, IFCOUNTER_OPACKETS, 1);
 			/* if bpf && mc_head, call bpf_mtap code */
 			if (mc_head) {
 				ETHER_BPF_MTAP(ifp, mc_head);
@@ -702,7 +702,7 @@ netvsc_recv(struct hv_device *device_ctx, netvsc_packet *packet)
 	 * messages (not just data messages) will trigger a response.
 	 */
 
-	ifp->if_ipackets++;
+	if_inc_counter(ifp, IFCOUNTER_IPACKETS, 1);
 
 	/* We're not holding the lock here, so don't release it */
 	(*ifp->if_input)(ifp, m_new);
@@ -988,7 +988,7 @@ hn_watchdog(struct ifnet *ifp)
 
 	printf("hn%d: watchdog timeout -- resetting\n", sc->hn_unit);
 	hn_ifinit(sc);    /*???*/
-	ifp->if_oerrors++;
+	if_inc_counter(ifp, IFCOUNTER_OERRORS, 1);
 }
 #endif
 

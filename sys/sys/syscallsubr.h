@@ -97,6 +97,7 @@ int	kern_fchmodat(struct thread *td, int fd, char *path,
 int	kern_fchownat(struct thread *td, int fd, char *path,
 	    enum uio_seg pathseg, int uid, int gid, int flag);
 int	kern_fcntl(struct thread *td, int fd, int cmd, intptr_t arg);
+int	kern_fcntl_freebsd(struct thread *td, int fd, int cmd, long arg);
 int	kern_fhstat(struct thread *td, fhandle_t fh, struct stat *buf);
 int	kern_fhstatfs(struct thread *td, fhandle_t fh, struct statfs *buf);
 int	kern_fstat(struct thread *td, int fd, struct stat *sbp);
@@ -110,6 +111,7 @@ int	kern_getfsstat(struct thread *td, struct statfs **buf, size_t bufsize,
 	    enum uio_seg bufseg, int flags);
 int	kern_getgroups(struct thread *td, u_int *ngrp, gid_t *groups);
 int	kern_getitimer(struct thread *, u_int, struct itimerval *);
+int	kern_getppid(struct thread *);
 int	kern_getpeername(struct thread *td, int fd, struct sockaddr **sa,
 	    socklen_t *alen);
 int	kern_getrusage(struct thread *td, int who, struct rusage *rup);
@@ -239,6 +241,7 @@ int	kern_ktimer_settime(struct thread *td, int timer_id, int flags,
 	    struct itimerspec *val, struct itimerspec *oval);
 int	kern_ktimer_gettime(struct thread *td, int timer_id,
 	    struct itimerspec *val);
+int	kern_ktimer_getoverrun(struct thread *td, int timer_id);
 int	kern_thr_new(struct thread *td, struct thr_param *param);
 int	kern_thr_suspend(struct thread *td, struct timespec *tsp);
 int	kern_truncate(struct thread *td, char *path, enum uio_seg pathseg,

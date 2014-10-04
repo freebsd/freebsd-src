@@ -264,7 +264,7 @@ cs_cs89x0_probe(device_t dev)
 	uint16_t id;
 	char chip_revision;
 	uint16_t eeprom_buff[CHKSUM_LEN];
-	int chip_type, pp_isaint, pp_isadma;
+	int chip_type, pp_isaint;
 
 	sc->dev = dev;
 	error = cs_alloc_port(dev, 0, CS_89x0_IO_PORTS);
@@ -299,11 +299,9 @@ cs_cs89x0_probe(device_t dev)
 
 	if (chip_type == CS8900) {
 		pp_isaint = PP_CS8900_ISAINT;
-		pp_isadma = PP_CS8900_ISADMA;
 		sc->send_cmd = TX_CS8900_AFTER_ALL;
 	} else {
 		pp_isaint = PP_CS8920_ISAINT;
-		pp_isadma = PP_CS8920_ISADMA;
 		sc->send_cmd = TX_CS8920_AFTER_ALL;
 	}
 
@@ -380,17 +378,6 @@ cs_cs89x0_probe(device_t dev)
 
 	if (!(sc->flags & CS_NO_IRQ))
 		cs_writereg(sc, pp_isaint, irq);
-
-	/*
-	 * Temporary disabled
-	 *
-	if (drq>0)
-		cs_writereg(sc, pp_isadma, drq);
-	else {
-		device_printf(dev, "incorrect drq\n",);
-		return (0);
-	}
-	*/
 
 	if (bootverbose)
 		 device_printf(dev, "CS89%c0%s rev %c media%s%s%s\n",
@@ -702,7 +689,6 @@ cs_get_packet(struct cs_softc *sc)
 {
 	struct ifnet *ifp = sc->ifp;
 	int status, length;
-	struct ether_header *eh;
 	struct mbuf *m;
 
 #ifdef CS_DEBUG
@@ -721,7 +707,7 @@ cs_get_packet(struct cs_softc *sc)
 #ifdef CS_DEBUG
 		device_printf(sc->dev, "bad pkt stat %x\n", status);
 #endif
-		ifp->if_ierrors++;
+		if_inc_counter(ifp, IFCOUNTER_IERRORS, 1);
 		return (-1);
 	}
 
@@ -746,8 +732,6 @@ cs_get_packet(struct cs_softc *sc)
 	bus_read_multi_2(sc->port_res, RX_FRAME_PORT, mtod(m, uint16_t *),
 	    (length + 1) >> 1);
 
-	eh = mtod(m, struct ether_header *);
-
 #ifdef CS_DEBUG
 	for (i=0;i<length;i++)
 	     printf(" %02x",(unsigned char)*((char *)(m->m_data+i)));
@@ -758,7 +742,7 @@ cs_get_packet(struct cs_softc *sc)
 	    (ifp->if_flags & IFF_MULTICAST && status & RX_HASHED)) {
 		/* Feed the packet to the upper layer */
 		(*ifp->if_input)(ifp, m);
-		ifp->if_ipackets++;
+		if_inc_counter(ifp, IFCOUNTER_IPACKETS, 1);
 		if (length == ETHER_MAX_LEN-ETHER_CRC_LEN)
 			DELAY(cs_recv_delay);
 	} else {
@@ -796,9 +780,9 @@ csintr(void *arg)
 
 		case ISQ_TRANSMITTER_EVENT:
 			if (status & TX_OK)
-				ifp->if_opackets++;
+				if_inc_counter(ifp, IFCOUNTER_OPACKETS, 1);
 			else
-				ifp->if_oerrors++;
+				if_inc_counter(ifp, IFCOUNTER_OERRORS, 1);
 			ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
 			sc->tx_timeout = 0;
 			break;
@@ -812,16 +796,16 @@ csintr(void *arg)
 			if (status & TX_UNDERRUN) {
 				ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
 				sc->tx_timeout = 0;
-				ifp->if_oerrors++;
+				if_inc_counter(ifp, IFCOUNTER_OERRORS, 1);
 			}
 			break;
 
 		case ISQ_RX_MISS_EVENT:
-			ifp->if_ierrors+=(status>>6);
+			if_inc_counter(ifp, IFCOUNTER_IERRORS, status >> 6);
 			break;
 
 		case ISQ_TX_COL_EVENT:
-			ifp->if_collisions+=(status>>6);
+			if_inc_counter(ifp, IFCOUNTER_COLLISIONS, status >> 6);
 			break;
 		}
 	}
@@ -1130,7 +1114,7 @@ cs_watchdog(void *arg)
 
 	CS_ASSERT_LOCKED(sc);
 	if (sc->tx_timeout && --sc->tx_timeout == 0) {
-		ifp->if_oerrors++;
+		if_inc_counter(ifp, IFCOUNTER_OERRORS, 1);
 		log(LOG_ERR, "%s: device timeout\n", ifp->if_xname);
 
 		/* Reset the interface */

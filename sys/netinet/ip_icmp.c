@@ -149,6 +149,10 @@ SYSCTL_VNET_INT(_net_inet_icmp, OID_AUTO, bmcastecho, CTLFLAG_RW,
 	&VNET_NAME(icmpbmcastecho), 0,
 	"");
 
+static VNET_DEFINE(int, icmptstamprepl) = 1;
+#define	V_icmptstamprepl		VNET(icmptstamprepl)
+SYSCTL_INT(_net_inet_icmp, OID_AUTO, tstamprepl, CTLFLAG_RW,
+	&VNET_NAME(icmptstamprepl), 0, "Respond to ICMP Timestamp packets");
 
 #ifdef ICMPPRINTFS
 int	icmpprintfs = 0;
@@ -358,18 +362,21 @@ freeit:
 /*
  * Process a received ICMP message.
  */
-void
-icmp_input(struct mbuf *m, int off)
+int
+icmp_input(struct mbuf **mp, int *offp, int proto)
 {
 	struct icmp *icp;
 	struct in_ifaddr *ia;
+	struct mbuf *m = *mp;
 	struct ip *ip = mtod(m, struct ip *);
 	struct sockaddr_in icmpsrc, icmpdst, icmpgw;
-	int hlen = off;
-	int icmplen = ntohs(ip->ip_len) - off;
+	int hlen = *offp;
+	int icmplen = ntohs(ip->ip_len) - *offp;
 	int i, code;
 	void (*ctlfunc)(int, struct sockaddr *, void *);
 	int fibnum;
+
+	*mp = NULL;
 
 	/*
 	 * Locate icmp structure in mbuf, and check
@@ -390,7 +397,7 @@ icmp_input(struct mbuf *m, int off)
 	i = hlen + min(icmplen, ICMP_ADVLENMIN);
 	if (m->m_len < i && (m = m_pullup(m, i)) == NULL)  {
 		ICMPSTAT_INC(icps_tooshort);
-		return;
+		return (IPPROTO_DONE);
 	}
 	ip = mtod(m, struct ip *);
 	m->m_len -= hlen;
@@ -542,6 +549,8 @@ icmp_input(struct mbuf *m, int off)
 			goto reflect;
 
 	case ICMP_TSTAMP:
+		if (V_icmptstamprepl == 0)
+			break;
 		if (!V_icmpbmcastecho
 		    && (m->m_flags & (M_MCAST | M_BCAST)) != 0) {
 			ICMPSTAT_INC(icps_bmcasttstamp);
@@ -602,7 +611,7 @@ reflect:
 		ICMPSTAT_INC(icps_reflect);
 		ICMPSTAT_INC(icps_outhist[icp->icmp_type]);
 		icmp_reflect(m);
-		return;
+		return (IPPROTO_DONE);
 
 	case ICMP_REDIRECT:
 		if (V_log_redirect) {
@@ -679,11 +688,13 @@ reflect:
 	}
 
 raw:
-	rip_input(m, off);
-	return;
+	*mp = m;
+	rip_input(mp, offp, proto);
+	return (IPPROTO_DONE);
 
 freeit:
 	m_freem(m);
+	return (IPPROTO_DONE);
 }
 
 /*

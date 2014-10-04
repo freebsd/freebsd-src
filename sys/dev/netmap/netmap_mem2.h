@@ -97,70 +97,6 @@
 #define _NET_NETMAP_MEM2_H_
 
 
-#define NETMAP_BUF_MAX_NUM	20*4096*2	/* large machine */
-
-#define NETMAP_POOL_MAX_NAMSZ	32
-
-
-enum {
-	NETMAP_IF_POOL   = 0,
-	NETMAP_RING_POOL,
-	NETMAP_BUF_POOL,
-	NETMAP_POOLS_NR
-};
-
-
-struct netmap_obj_params {
-	u_int size;
-	u_int num;
-};
-struct netmap_obj_pool {
-	char name[NETMAP_POOL_MAX_NAMSZ];	/* name of the allocator */
-
-	/* ---------------------------------------------------*/
-	/* these are only meaningful if the pool is finalized */
-	/* (see 'finalized' field in netmap_mem_d)            */
-	u_int objtotal;         /* actual total number of objects. */
-	u_int memtotal;		/* actual total memory space */
-	u_int numclusters;	/* actual number of clusters */
-
-	u_int objfree;          /* number of free objects. */
-
-	struct lut_entry *lut;  /* virt,phys addresses, objtotal entries */
-	uint32_t *bitmap;       /* one bit per buffer, 1 means free */
-	uint32_t bitmap_slots;	/* number of uint32 entries in bitmap */
-	/* ---------------------------------------------------*/
-
-	/* limits */
-	u_int objminsize;	/* minimum object size */
-	u_int objmaxsize;	/* maximum object size */
-	u_int nummin;		/* minimum number of objects */
-	u_int nummax;		/* maximum number of objects */
-
-	/* these are changed only by config */
-	u_int _objtotal;	/* total number of objects */
-	u_int _objsize;		/* object size */
-	u_int _clustsize;       /* cluster size */
-	u_int _clustentries;    /* objects per cluster */
-	u_int _numclusters;	/* number of clusters */
-
-	/* requested values */
-	u_int r_objtotal;
-	u_int r_objsize;
-};
-
-#ifdef linux
-// XXX a mtx would suffice here 20130415 lr
-#define NMA_LOCK_T		struct semaphore
-#else /* !linux */
-#define NMA_LOCK_T		struct mtx
-#endif /* linux */
-
-typedef int (*netmap_mem_config_t)(struct netmap_mem_d*);
-typedef int (*netmap_mem_finalize_t)(struct netmap_mem_d*);
-typedef void (*netmap_mem_deref_t)(struct netmap_mem_d*);
-
-typedef uint16_t nm_memid_t;
 
 /* We implement two kinds of netmap_mem_d structures:
  *
@@ -178,40 +114,21 @@ typedef uint16_t nm_memid_t;
  * are no active users.  By 'active user' we mean an existing netmap_priv
  * structure holding a reference to the allocator.
  */
-struct netmap_mem_d {
-	NMA_LOCK_T nm_mtx;  /* protect the allocator */
-	u_int nm_totalsize; /* shorthand */
-
-	u_int flags;
-#define NETMAP_MEM_FINALIZED	0x1	/* preallocation done */
-#define NETMAP_MEM_PRIVATE	0x2	/* uses private address space */
-	int lasterr;		/* last error for curr config */
-	int refcount;		/* existing priv structures */
-	/* the three allocators */
-	struct netmap_obj_pool pools[NETMAP_POOLS_NR];
-
-	netmap_mem_config_t   config;
-	netmap_mem_finalize_t finalize;
-	netmap_mem_deref_t    deref;
-
-	nm_memid_t nm_id;	/* allocator identifier */
-
-	/* list of all existing allocators, sorted by nm_id */
-	struct netmap_mem_d *prev, *next;
-};
 
 extern struct netmap_mem_d nm_mem;
 
+struct lut_entry* netmap_mem_get_lut(struct netmap_mem_d *);
+u_int      netmap_mem_get_buftotal(struct netmap_mem_d *);
+size_t     netmap_mem_get_bufsize(struct netmap_mem_d *);
 vm_paddr_t netmap_mem_ofstophys(struct netmap_mem_d *, vm_ooffset_t);
-int	   netmap_mem_finalize(struct netmap_mem_d *);
+int	   netmap_mem_finalize(struct netmap_mem_d *, struct netmap_adapter *);
 int 	   netmap_mem_init(void);
 void 	   netmap_mem_fini(void);
-struct netmap_if *
-	   netmap_mem_if_new(const char *, struct netmap_adapter *);
+struct netmap_if * netmap_mem_if_new(struct netmap_adapter *);
 void 	   netmap_mem_if_delete(struct netmap_adapter *, struct netmap_if *);
 int	   netmap_mem_rings_create(struct netmap_adapter *);
 void	   netmap_mem_rings_delete(struct netmap_adapter *);
-void 	   netmap_mem_deref(struct netmap_mem_d *);
+void 	   netmap_mem_deref(struct netmap_mem_d *, struct netmap_adapter *);
 int	   netmap_mem_get_info(struct netmap_mem_d *, u_int *size, u_int *memflags, uint16_t *id);
 ssize_t    netmap_mem_if_offset(struct netmap_mem_d *, const void *vaddr);
 struct netmap_mem_d* netmap_mem_private_new(const char *name,
@@ -219,7 +136,8 @@ struct netmap_mem_d* netmap_mem_private_new(const char *name,
 	int* error);
 void	   netmap_mem_private_delete(struct netmap_mem_d *);
 
-#define NETMAP_BDG_BUF_SIZE(n)	((n)->pools[NETMAP_BUF_POOL]._objsize)
+#define NETMAP_MEM_PRIVATE	0x2	/* allocator uses private address space */
+#define NETMAP_MEM_IO		0x4	/* the underlying memory is mmapped I/O */
 
 uint32_t netmap_extra_alloc(struct netmap_adapter *, uint32_t *, uint32_t n);
 

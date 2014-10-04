@@ -483,14 +483,14 @@ ndis_return(dobj, arg)
 	KeReleaseSpinLock(&block->nmb_returnlock, irql);
 }
 
-int
+void
 ndis_return_packet(struct mbuf *m, void *buf, void *arg)
 {
 	ndis_packet		*p;
 	ndis_miniport_block	*block;
 
 	if (arg == NULL)
-		return (EXT_FREE_OK);
+		return;
 
 	p = arg;
 
@@ -499,7 +499,7 @@ ndis_return_packet(struct mbuf *m, void *buf, void *arg)
 
 	/* Release packet when refcount hits zero, otherwise return. */
 	if (p->np_refcnt)
-		return (EXT_FREE_OK);
+		return;
 
 	block = ((struct ndis_softc *)p->np_softc)->ndis_block;
 
@@ -511,8 +511,6 @@ ndis_return_packet(struct mbuf *m, void *buf, void *arg)
 	IoQueueWorkItem(block->nmb_returnitem,
 	    (io_workitem_func)kernndis_functbl[7].ipt_wrap,
 	    WORKQUEUE_CRITICAL, block);
-
-	return (EXT_FREE_OK);
 }
 
 void

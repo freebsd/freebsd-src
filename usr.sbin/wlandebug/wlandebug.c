@@ -177,7 +177,7 @@ main(int argc, char *argv[])
 			setoid(oid, sizeof(oid), NULL);
 			argc -= 1, argv += 1;
 		} else if (strcmp(argv[1], "-i") == 0) {
-			if (argc < 2)
+			if (argc <= 2)
 				errx(1, "missing interface name for -i option");
 			if (strncmp(argv[2], "wlan", 4) != 0)
 				errx(1, "expecting a wlan interface name");

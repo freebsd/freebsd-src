@@ -645,8 +645,10 @@ linprocfs_doprocstat(PFS_FILL_ARGS)
 	static int ratelimit = 0;
 	vm_offset_t startcode, startdata;
 
+	sx_slock(&proctree_lock);
 	PROC_LOCK(p);
 	fill_kinfo_proc(p, &kp);
+	sx_sunlock(&proctree_lock);
 	if (p->p_vmspace) {
 	   startcode = (vm_offset_t)p->p_vmspace->vm_taddr;
 	   startdata = (vm_offset_t)p->p_vmspace->vm_daddr;
@@ -722,9 +724,11 @@ linprocfs_doprocstatm(PFS_FILL_ARGS)
 	struct kinfo_proc kp;
 	segsz_t lsize;
 
+	sx_slock(&proctree_lock);
 	PROC_LOCK(p);
 	fill_kinfo_proc(p, &kp);
 	PROC_UNLOCK(p);
+	sx_sunlock(&proctree_lock);
 
 	/*
 	 * See comments in linprocfs_doprocstatus() regarding the
@@ -757,6 +761,7 @@ linprocfs_doprocstatus(PFS_FILL_ARGS)
 	struct sigacts *ps;
 	int i;
 
+	sx_slock(&proctree_lock);
 	PROC_LOCK(p);
 	td2 = FIRST_THREAD_IN_PROC(p); /* XXXKSE pretend only one thread */
 
@@ -795,6 +800,8 @@ linprocfs_doprocstatus(PFS_FILL_ARGS)
 	}
 
 	fill_kinfo_proc(p, &kp);
+	sx_sunlock(&proctree_lock);
+
 	sbuf_printf(sb, "Name:\t%s\n",		p->p_comm); /* XXX escape */
 	sbuf_printf(sb, "State:\t%s\n",		state);
 
@@ -1132,26 +1139,26 @@ linprocfs_donetdev(PFS_FILL_ARGS)
 		linux_ifname(ifp, ifname, sizeof ifname);
 		sbuf_printf(sb, "%6.6s: ", ifname);
 		sbuf_printf(sb, "%7ju %7ju %4ju %4ju %4lu %5lu %10lu %9ju ",
-		    (uintmax_t )ifp->if_ibytes,	/* rx_bytes */
-		    (uintmax_t )ifp->if_ipackets,	/* rx_packets */
-		    (uintmax_t )ifp->if_ierrors,	/* rx_errors */
-		    (uintmax_t )ifp->if_iqdrops,	/* rx_dropped +
-							 * rx_missed_errors */
+		    (uintmax_t )ifp->if_get_counter(ifp, IFCOUNTER_IBYTES),
+		    (uintmax_t )ifp->if_get_counter(ifp, IFCOUNTER_IPACKETS),
+		    (uintmax_t )ifp->if_get_counter(ifp, IFCOUNTER_IERRORS),
+		    (uintmax_t )ifp->if_get_counter(ifp, IFCOUNTER_IQDROPS),
+							/* rx_missed_errors */
 		    0UL,				/* rx_fifo_errors */
 		    0UL,				/* rx_length_errors +
 							 * rx_over_errors +
 							 * rx_crc_errors +
 							 * rx_frame_errors */
 		    0UL,				/* rx_compressed */
-		    (uintmax_t )ifp->if_imcasts);	/* multicast,
-							 * XXX-BZ rx only? */
-		sbuf_printf(sb, "%8ju %7ju %4ju %4lu %4lu %5ju %7lu %10lu\n",
-		    (uintmax_t )ifp->if_obytes,	/* tx_bytes */
-		    (uintmax_t )ifp->if_opackets,	/* tx_packets */
-		    (uintmax_t )ifp->if_oerrors,	/* tx_errors */
-		    0UL,				/* tx_dropped */
+		    (uintmax_t )ifp->if_get_counter(ifp, IFCOUNTER_IMCASTS));
+							/* XXX-BZ rx only? */
+		sbuf_printf(sb, "%8ju %7ju %4ju %4ju %4lu %5ju %7lu %10lu\n",
+		    (uintmax_t )ifp->if_get_counter(ifp, IFCOUNTER_OBYTES),
+		    (uintmax_t )ifp->if_get_counter(ifp, IFCOUNTER_OPACKETS),
+		    (uintmax_t )ifp->if_get_counter(ifp, IFCOUNTER_OERRORS),
+		    (uintmax_t )ifp->if_get_counter(ifp, IFCOUNTER_OQDROPS),
 		    0UL,				/* tx_fifo_errors */
-		    (uintmax_t )ifp->if_collisions,	/* collisions */
+		    (uintmax_t )ifp->if_get_counter(ifp, IFCOUNTER_COLLISIONS),
 		    0UL,				/* tx_carrier_errors +
 							 * tx_aborted_errors +
 							 * tx_window_errors +

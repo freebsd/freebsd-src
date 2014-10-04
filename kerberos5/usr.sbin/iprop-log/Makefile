@@ -13,8 +13,6 @@ DPADD=	${LIBKADM5SRV} ${LIBHDB} ${LIBKRB5} ${LIBASN1} ${LIBCRYPTO} \
 LDADD=	-lkadm5srv -lhdb -lkrb5 -lasn1 -lcrypto -lcrypt ${LIBSL} -lroken \
 	${LIBVERS} -ledit
 
-NO_PIE=	yes
-
 iprop-commands.h: iprop-commands.in
 	${SLC} ${.ALLSRC:M*.in}
 

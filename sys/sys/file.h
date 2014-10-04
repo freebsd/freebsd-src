@@ -43,6 +43,7 @@
 #include <sys/_lock.h>
 #include <sys/_mutex.h>
 
+struct filedesc;
 struct stat;
 struct thread;
 struct uio;
@@ -70,6 +71,7 @@ struct socket;
 
 struct file;
 struct filecaps;
+struct kinfo_file;
 struct ucred;
 
 #define	FOF_OFFSET	0x01	/* Use the offset in uio argument */
@@ -114,6 +116,8 @@ typedef int fo_sendfile_t(struct file *fp, int sockfd, struct uio *hdr_uio,
 		    struct sendfile_sync *sfs, struct thread *td);
 typedef int fo_seek_t(struct file *fp, off_t offset, int whence,
 		    struct thread *td);
+typedef int fo_fill_kinfo_t(struct file *fp, struct kinfo_file *kif,
+		    struct filedesc *fdp);
 typedef	int fo_flags_t;
 
 struct fileops {
@@ -129,6 +133,7 @@ struct fileops {
 	fo_chown_t	*fo_chown;
 	fo_sendfile_t	*fo_sendfile;
 	fo_seek_t	*fo_seek;
+	fo_fill_kinfo_t	*fo_fill_kinfo;
 	fo_flags_t	fo_flags;	/* DFLAG_* below */
 };
 
@@ -143,6 +148,7 @@ struct fileops {
  *
  * Below is the list of locks that protects members in struct file.
  *
+ * (a) f_vnode lock required (shared allows both reads and writes)
  * (f) protected with mtx_lock(mtx_pool_find(fp))
  * (d) cdevpriv_mtx
  * none	not locked
@@ -168,7 +174,7 @@ struct file {
 	/*
 	 *  DTYPE_VNODE specific fields.
 	 */
-	int		f_seqcount;	/* Count of sequential accesses. */
+	int		f_seqcount;	/* (a) Count of sequential accesses. */
 	off_t		f_nextoff;	/* next expected read/write offset. */
 	union {
 		struct cdev_privdata *fvn_cdevpriv;
@@ -230,26 +236,19 @@ int fget_write(struct thread *td, int fd, cap_rights_t *rightsp,
     struct file **fpp);
 int _fdrop(struct file *fp, struct thread *td);
 
-/*
- * The socket operations are used a couple of places.
- * XXX: This is wrong, they should go through the operations vector for
- * XXX: sockets instead of going directly for the individual functions. /phk
- */
-fo_rdwr_t	soo_read;
-fo_rdwr_t	soo_write;
-fo_truncate_t	soo_truncate;
-fo_ioctl_t	soo_ioctl;
-fo_poll_t	soo_poll;
-fo_kqfilter_t	soo_kqfilter;
-fo_stat_t	soo_stat;
-fo_close_t	soo_close;
-
+fo_rdwr_t	invfo_rdwr;
+fo_truncate_t	invfo_truncate;
+fo_ioctl_t	invfo_ioctl;
+fo_poll_t	invfo_poll;
+fo_kqfilter_t	invfo_kqfilter;
 fo_chmod_t	invfo_chmod;
 fo_chown_t	invfo_chown;
 fo_sendfile_t	invfo_sendfile;
 
 fo_sendfile_t	vn_sendfile;
 fo_seek_t	vn_seek;
+fo_fill_kinfo_t	vn_fill_kinfo;
+int vn_fill_kinfo_vnode(struct vnode *vp, struct kinfo_file *kif);
 
 void finit(struct file *, u_int, short, void *, struct fileops *);
 int fgetvp(struct thread *td, int fd, cap_rights_t *rightsp,
@@ -384,6 +383,13 @@ fo_seek(struct file *fp, off_t offset, int whence, struct thread *td)
 {
 
 	return ((*fp->f_ops->fo_seek)(fp, offset, whence, td));
+}
+
+static __inline int
+fo_fill_kinfo(struct file *fp, struct kinfo_file *kif, struct filedesc *fdp)
+{
+
+	return ((*fp->f_ops->fo_fill_kinfo)(fp, kif, fdp));
 }
 
 #endif /* _KERNEL */

@@ -1,3 +1,45 @@
+Version 1.8.10
+(11 Aug 2014, from /branches/1.8.x)
+http://svn.apache.org/repos/asf/subversion/tags/1.8.10
+
+ User-visible changes:
+  - Client-side bugfixes:
+    * guard against md5 hash collisions when finding cached credentials
+        (r1550691, r1550772, r1600909)
+    * ra_serf: properly match wildcards in SSL certs. (r1615211, 1615219)
+    * ra_serf: ignore the CommonName in SSL certs where there are Subject Alt
+        Names (r1565531, r1566503, r1568349, r1568361)
+    * ra_serf: fix a URI escaping bug that prevented deleting locked paths
+        (r1594223, r1553501, r1553556, r1559197, issue #3674)
+    * rm: Display the proper URL when deleting a URL in the commit log editor
+        (r1591123)
+    * log: Fix another instance of broken pipe error (r1596866, issue #3014)
+    * copy: Properly handle props not present or excluded on cross wc copy
+        (r1589184, r1589188)
+    * copy: Fix copying parents of locally deleted nodes between wcs
+        (r1589460, r1589486)
+    * externals: Properly delete ancestor directories of externals when
+        removing the external by changing svn:externals. (r1600311, 1600315,
+        r1600323, r1600393)
+    * ra_serf: fix memory lifetime of some hash values (r1606009)
+
+  - Server-side bugfixes:
+    * fsfs: omit config file when creating pre-1.5 format repos (r1547454,
+        r1561703)
+
+ Developer-visible changes:
+  - General:
+    * fix improper linking when serf is in the same prefix as existing svn
+        libraries. (r1609004)
+    * use proper intermediate directory when building with VS 2003-2008
+        (r1595431)
+    * support generating VS 2013 and later project files.
+
+  - Bindings:
+    * ruby: removing warning about Ruby 1.9 support being new. (r1593992)
+    * python: fix notify_func callbacks (r1594794, r1594814, r1594834, r1595061)
+
+
 Version 1.8.9
 (07 May 2014, from /branches/1.8.x)
 http://svn.apache.org/repos/asf/subversion/tags/1.8.9
@@ -685,6 +727,24 @@ http://svn.apache.org/repos/asf/subversion/tags/1.8.0
     * add missing API functions to Python bindings (r1392038 et al)
     * add missing API functions to JavaHL bindings (issue #4326)
     * fix some reference counting bugs in swig-py bindings (r1464899, r1466524)
+
+
+Version 1.7.18
+(11 Aug 2014, from /branches/1.7.x)
+http://svn.apache.org/repos/asf/subversion/tags/1.7.18
+
+ User-visible changes:
+  - Client-side bugfixes:
+    * guard against md5 hash collisions when finding cached credentials
+        (r1550691, r1550772, r1600909)
+    * ra_serf: properly match wildcards in SSL certs. (r1615211, 1615219)
+    * ra_serf: ignore the CommonName in SSL certs where there are Subject Alt
+        Names (r1565531, r1566503, r1568349)
+
+ Developer-visible changes:
+  - General:
+    * fix ocassional failure in checkout_tests.py test 12. (r1496127)
+    * disable building ZLib's assembly optimizations on Windows.
 
 
 Version 1.7.17

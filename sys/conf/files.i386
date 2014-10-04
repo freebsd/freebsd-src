@@ -83,6 +83,7 @@ compat/linux/linux_socket.c	optional compat_linux
 compat/linux/linux_stats.c	optional compat_linux
 compat/linux/linux_sysctl.c	optional compat_linux
 compat/linux/linux_time.c	optional compat_linux
+compat/linux/linux_timer.c	optional compat_linux
 compat/linux/linux_uid16.c	optional compat_linux
 compat/linux/linux_util.c	optional compat_linux
 compat/ndis/kern_ndis.c		optional ndisapi pci
@@ -215,6 +216,7 @@ dev/hyperv/netvsc/hv_netvsc_drv_freebsd.c		optional	hyperv
 dev/hyperv/netvsc/hv_rndis_filter.c			optional	hyperv
 dev/hyperv/stordisengage/hv_ata_pci_disengage.c		optional	hyperv
 dev/hyperv/storvsc/hv_storvsc_drv_freebsd.c		optional	hyperv
+dev/hyperv/utilities/hv_kvp.c				optional	hyperv
 dev/hyperv/utilities/hv_util.c				optional	hyperv
 dev/hyperv/vmbus/hv_channel.c				optional	hyperv
 dev/hyperv/vmbus/hv_channel_mgmt.c			optional	hyperv
@@ -443,7 +445,6 @@ i386/xen/exception.s		optional xen
 i386/i386/gdb_machdep.c		optional gdb
 i386/i386/geode.c		optional cpu_geode
 i386/i386/i686_mem.c		optional mem
-i386/i386/identcpu.c		standard
 i386/i386/in_cksum.c		optional inet | inet6
 i386/i386/initcpu.c		standard
 i386/i386/io.c			optional io
@@ -520,6 +521,7 @@ isa/vga_isa.c			optional vga
 kern/kern_clocksource.c		standard
 kern/imgact_aout.c		optional compat_aout
 kern/imgact_gzip.c		optional gzip
+kern/subr_sfbuf.c		standard
 libkern/divdi3.c		standard
 libkern/flsll.c			standard
 libkern/memmove.c		standard
@@ -580,6 +582,7 @@ x86/x86/busdma_bounce.c		standard
 x86/x86/busdma_machdep.c	standard
 x86/x86/dump_machdep.c		standard
 x86/x86/fdt_machdep.c		optional fdt
+x86/x86/identcpu.c		standard
 x86/x86/intr_machdep.c		standard
 x86/x86/io_apic.c		optional apic
 x86/x86/legacy.c		optional native
@@ -596,3 +599,4 @@ x86/xen/xen_intr.c		optional xen | xenhvm
 x86/xen/xen_apic.c		optional xenhvm
 x86/xen/xenpv.c			optional xen | xenhvm
 x86/xen/xen_nexus.c		optional xen | xenhvm
+x86/xen/xen_msi.c		optional xen | xenhvm

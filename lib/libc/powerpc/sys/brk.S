@@ -71,5 +71,6 @@ ENTRY(brk)
 
 1:
 	b	PIC_PLT(HIDENAME(cerror))
+END(brk)
 
 	.section .note.GNU-stack,"",%progbits

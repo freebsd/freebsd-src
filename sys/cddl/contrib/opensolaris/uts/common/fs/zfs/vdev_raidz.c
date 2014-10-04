@@ -1755,7 +1755,9 @@ vdev_raidz_io_start(zio_t *zio)
 			    zio->io_type, zio->io_priority, 0,
 			    vdev_raidz_child_done, rc));
 		}
-		return (ZIO_PIPELINE_CONTINUE);
+
+		zio_interrupt(zio);
+		return (ZIO_PIPELINE_STOP);
 	}
 
 	if (zio->io_type == ZIO_TYPE_WRITE) {
@@ -1787,7 +1789,8 @@ vdev_raidz_io_start(zio_t *zio)
 			    ZIO_FLAG_NODATA | ZIO_FLAG_OPTIONAL, NULL, NULL));
 		}
 
-		return (ZIO_PIPELINE_CONTINUE);
+		zio_interrupt(zio);
+		return (ZIO_PIPELINE_STOP);
 	}
 
 	ASSERT(zio->io_type == ZIO_TYPE_READ);
@@ -1827,7 +1830,8 @@ vdev_raidz_io_start(zio_t *zio)
 		}
 	}
 
-	return (ZIO_PIPELINE_CONTINUE);
+	zio_interrupt(zio);
+	return (ZIO_PIPELINE_STOP);
 }
 
 

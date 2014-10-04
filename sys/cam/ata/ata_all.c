@@ -108,6 +108,9 @@ ata_op_string(struct ata_cmd *cmd)
 	case 0x51: return ("CONFIGURE_STREAM");
 	case 0x60: return ("READ_FPDMA_QUEUED");
 	case 0x61: return ("WRITE_FPDMA_QUEUED");
+	case 0x63: return ("NCQ_NON_DATA");
+	case 0x64: return ("SEND_FPDMA_QUEUED");
+	case 0x65: return ("RECEIVE_FPDMA_QUEUED");
 	case 0x67:
 		if (cmd->features == 0xec)
 			return ("SEP_ATTN IDENTIFY");

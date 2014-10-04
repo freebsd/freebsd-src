@@ -481,6 +481,8 @@ cbb_chipinit(struct cbb_softc *sc)
 
 	/* Enable memory access */
 	pci_enable_busmaster(sc->dev);
+	/* XXX: This should not be necessary, but some chipsets require it */
+	PCI_MASK_CONFIG(sc->dev, PCIR_COMMAND, | PCIM_CMD_PORTEN, 2);
 
 	/* disable Legacy IO */
 	switch (sc->chipset) {

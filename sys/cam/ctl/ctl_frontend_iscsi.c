@@ -67,9 +67,9 @@ __FBSDID("$FreeBSD$");
 #include <cam/ctl/ctl_ioctl.h>
 #include <cam/ctl/ctl_private.h>
 
-#include "../../dev/iscsi/icl.h"
-#include "../../dev/iscsi/iscsi_proto.h"
-#include "ctl_frontend_iscsi.h"
+#include <dev/iscsi/icl.h>
+#include <dev/iscsi/iscsi_proto.h>
+#include <cam/ctl/ctl_frontend_iscsi.h>
 
 #ifdef ICL_KERNEL_PROXY
 #include <sys/socketvar.h>
@@ -179,6 +179,7 @@ static struct ctl_frontend cfiscsi_frontend =
 	.ioctl = cfiscsi_ioctl,
 };
 CTL_FRONTEND_DECLARE(ctlcfiscsi, cfiscsi_frontend);
+MODULE_DEPEND(ctlcfiscsi, icl, 1, 1, 1);
 
 static struct icl_pdu *
 cfiscsi_pdu_new_response(struct icl_pdu *request, int flags)
@@ -992,7 +993,7 @@ cfiscsi_callout(void *context)
 
 #ifdef ICL_KERNEL_PROXY
 	if (cs->cs_waiting_for_ctld || cs->cs_login_phase) {
-		if (cs->cs_timeout > login_timeout) {
+		if (login_timeout > 0 && cs->cs_timeout > login_timeout) {
 			CFISCSI_SESSION_WARN(cs, "login timed out after "
 			    "%d seconds; dropping connection", cs->cs_timeout);
 			cfiscsi_session_terminate(cs);
@@ -1000,6 +1001,19 @@ cfiscsi_callout(void *context)
 		return;
 	}
 #endif
+
+	if (ping_timeout <= 0) {
+		/*
+		 * Pings are disabled.  Don't send NOP-In in this case;
+		 * user might have disabled pings to work around problems
+		 * with certain initiators that can't properly handle
+		 * NOP-In, such as iPXE.  Reset the timeout, to avoid
+		 * triggering reconnection, should the user decide to
+		 * reenable them.
+		 */
+		cs->cs_timeout = 0;
+		return;
+	}
 
 	if (cs->cs_timeout >= ping_timeout) {
 		CFISCSI_SESSION_WARN(cs, "no ping reply (NOP-Out) after %d seconds; "
@@ -2491,10 +2505,10 @@ cfiscsi_datamove_in(union ctl_io *io)
 		sg_addr += len;
 		sg_len -= len;
 
-		KASSERT(buffer_offset + request->ip_data_len <= expected_len,
+		KASSERT(buffer_offset + response->ip_data_len <= expected_len,
 		    ("buffer_offset %zd + ip_data_len %zd > expected_len %zd",
-		    buffer_offset, request->ip_data_len, expected_len));
-		if (buffer_offset + request->ip_data_len == expected_len) {
+		    buffer_offset, response->ip_data_len, expected_len));
+		if (buffer_offset + response->ip_data_len == expected_len) {
 			/*
 			 * Already have the amount of data the initiator wanted.
 			 */
@@ -2702,7 +2716,7 @@ cfiscsi_scsi_command_done(union ctl_io *io)
 	 * Do not return status for aborted commands.
 	 * There are exceptions, but none supported by CTL yet.
 	 */
-	if (io->io_hdr.status == CTL_CMD_ABORTED &&
+	if ((io->io_hdr.flags & CTL_FLAG_ABORT) &&
 	    (io->io_hdr.flags & CTL_FLAG_ABORT_STATUS) == 0) {
 		ctl_free_io(io);
 		icl_pdu_free(request);

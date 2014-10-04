@@ -140,6 +140,9 @@ device		machfb		# ATI Mach64 framebuffers
 device		splash		# Splash screen and screen saver support
 options 	KBD_INSTALL_CDEV # install a CDEV entry in /dev
 
+# vt is the new video console driver
+device		vt
+
 # Builtin hardware
 device		auxio		# auxiliary I/O device
 device		eeprom		# eeprom (really a front-end for the MK48Txx)

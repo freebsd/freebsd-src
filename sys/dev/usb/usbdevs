@@ -713,6 +713,7 @@ vendor LONGCHEER	0x1c9e	Longcheer Holdings, Ltd.
 vendor MPMAN		0x1cae	MpMan
 vendor DRESDENELEKTRONIK 0x1cf1 dresden elektronik
 vendor NEOTEL		0x1d09	Neotel
+vendor DREAMLINK	0x1d34	Dream Link
 vendor PEGATRON		0x1d4d	Pegatron
 vendor QISDA		0x1da5  Qisda
 vendor METAGEEK2	0x1dd5	MetaGeek
@@ -1173,6 +1174,7 @@ product ASIX AX88772B_1		0x7e2b	AX88772B USB 2.0 10/100 Ethernet
 
 /* ASUS products */
 product ASUS2 USBN11		0x0b05	USB-N11
+product ASUS RT2570		0x1706	RT2500USB Wireless Adapter
 product ASUS WL167G		0x1707	WL-167g Wireless Adapter
 product ASUS WL159G		0x170c	WL-159g
 product ASUS A9T_WIFI		0x171b	A9T wireless
@@ -1186,17 +1188,17 @@ product ASUS RT2870_3		0x1742	RT2870
 product ASUS RT2870_4		0x1760	RT2870
 product ASUS RT2870_5		0x1761	RT2870
 product	ASUS USBN13		0x1784	USB-N13
-product	ASUS RT3070_1		0x1790	RT3070
 product ASUS USBN10		0x1786	USB-N10
+product ASUS RT3070_1		0x1790	RT3070
+product ASUS RTL8192SU		0x1791  RTL8192SU
+product ASUS USB_N53		0x179d	ASUS Black Diamond Dual Band USB-N53
 product ASUS RTL8192CU		0x17ab	RTL8192CU
 product ASUS USBN66		0x17ad	USB-N66
 product ASUS USBN10NANO		0x17ba	USB-N10 Nano
-product ASUS RTL8192SU		0x1791  RTL8192SU
+product ASUS USBAC51		0x17d1	USB-AC51
 product ASUS A730W		0x4202	ASUS MyPal A730W
 product ASUS P535		0x420f	ASUS P535 PDA
-product	ASUS GMSC		0x422f	ASUS Generic Mass Storage
-product ASUS RT2570		0x1706	RT2500USB Wireless Adapter
-product ASUS USB_N53		0x179d	ASUS Black Diamond Dual Band USB-N53
+product ASUS GMSC		0x422f	ASUS Generic Mass Storage
 
 /* ATen products */
 product ATEN UC1284		0x2001	Parallel printer
@@ -1379,6 +1381,7 @@ product CHIC CYPRESS		0x0003	Cypress USB Mouse
 product CHICONY KB8933		0x0001	KB-8933 keyboard
 product CHICONY KU0325		0x0116	KU-0325 keyboard
 product CHICONY CNF7129		0xb071	Notebook Web Camera
+product CHICONY HDUVCCAM	0xb40a	HD UVC WebCam
 product	CHICONY RTL8188CUS_1	0xaff7	RTL8188CUS
 product	CHICONY RTL8188CUS_2	0xaff8	RTL8188CUS
 product	CHICONY RTL8188CUS_3	0xaff9	RTL8188CUS
@@ -1484,6 +1487,7 @@ product COREGA FETHER_USB_TXC	0x9601	FEther USB-TXC
 
 /* Corsair products */
 product CORSAIR K60		0x0a60	Corsair Vengeance K60 keyboard
+product CORSAIR K70		0x1b09	Corsair Vengeance K70 keyboard
 
 /* Creative products */
 product CREATIVE NOMAD_II	0x1002	Nomad II MP3 player
@@ -1591,6 +1595,7 @@ product DLINK DUBE100		0x1a00	10/100 Ethernet
 product DLINK DUBE100C1		0x1a02	DUB-E100 rev C1
 product DLINK DSB650TX4		0x200c	10/100 Ethernet
 product DLINK DWL120E		0x3200	DWL-120 rev E
+product DLINK DWA125D1		0x330f	DWA-125 rev D1
 product DLINK DWL122		0x3700	DWL-122
 product DLINK DWLG120		0x3701	DWL-G120
 product DLINK DWL120F		0x3702	DWL-120 rev F
@@ -1652,6 +1657,9 @@ product DMI DISK		0x2bcf	Generic Disk
 
 /* DrayTek products */
 product DRAYTEK VIGOR550	0x0550	Vigor550
+
+/* Dream Link products */
+product DREAMLINK DL100B	0x0004	USB Webmail Notifier
 
 /* dresden elektronik products */
 product DRESDENELEKTRONIK SENSORTERMINALBOARD  0x0001 SensorTerminalBoard
@@ -2221,6 +2229,8 @@ product HP 3300C		0x0205	ScanJet 3300C
 product HP CDW8200		0x0207	CD-Writer Plus 8200e
 product HP MMKEYB		0x020c	Multimedia keyboard
 product HP 1220C		0x0212	DeskJet 1220C
+product HP UN2420_QDL		0x241d	UN2420 QDL Firmware Loader
+product HP UN2420		0x251d	UN2420 WWAN/GPS Module
 product HP 810C			0x0304	DeskJet 810C/812C
 product HP 4300C		0x0305	Scanjet 4300C
 product HP CDW4E		0x0307	CD-Writer+ CD-4e
@@ -2342,9 +2352,11 @@ product HUAWEI E392		0x1505	LTE modem
 product HUAWEI E3131		0x1506	3G modem
 product HUAWEI K3765_INIT	0x1520	K3765 Initial
 product HUAWEI K4505_INIT	0x1521	K4505 Initial
+product HUAWEI E3272_INIT	0x155b	LTE modem initial
 product HUAWEI ETS2055		0x1803	CDMA modem
 product HUAWEI E173		0x1c05	3G modem
 product HUAWEI E173_INIT	0x1c0b	3G modem initial
+product HUAWEI E3272		0x1c1e	LTE modem
 
 /* HUAWEI 3com products */
 product HUAWEI3COM WUB320G	0x0009	Aolynk WUB320g
@@ -3231,6 +3243,7 @@ product NOVATEL EU740		0x2410	Expedite EU740
 product NOVATEL EU870D		0x2420	Expedite EU870D
 product NOVATEL U727		0x4100	Merlin U727 CDMA
 product NOVATEL MC950D		0x4400	Novatel MC950D HSUPA
+product NOVATEL MC990D		0x7001	Novatel MC990D
 product NOVATEL ZEROCD		0x5010	Novatel ZeroCD
 product NOVATEL MIFI2200V	0x5020	Novatel MiFi 2200 CDMA Virgin Mobile
 product NOVATEL ZEROCD2		0x5030	Novatel ZeroCD
@@ -3239,6 +3252,7 @@ product NOVATEL U727_2		0x5100	Merlin U727 CDMA
 product NOVATEL U760		0x6000	Novatel U760
 product NOVATEL MC760		0x6002	Novatel MC760
 product NOVATEL MC547		0x7042	Novatel MC547
+product NOVATEL MC679		0x7031	Novatel MC679
 product NOVATEL2 FLEXPACKGPS	0x0100	NovAtel FlexPack GPS receiver
 
 /* Merlin products */
@@ -3703,6 +3717,7 @@ product REALTEK RTL8191CU	0x8177	RTL8191CU
 product REALTEK RTL8192CU	0x8178	RTL8192CU
 product REALTEK RTL8192CE	0x817c	RTL8192CE
 product REALTEK RTL8188RU_1	0x817d	RTL8188RU
+product REALTEK RTL8188RU_3	0x817f	RTL8188RU
 product REALTEK RTL8712		0x8712	RTL8712
 product REALTEK RTL8713		0x8712	RTL8713
 product REALTEK RTL8188RU_2	0x317f	RTL8188RU
@@ -4121,6 +4136,23 @@ product SMC 2862WG		0xee13	EZ Connect Wireless Adapter
 product SMC2 2020HUB		0x2020	USB Hub
 product SMC2 2514HUB		0x2514	USB Hub
 product SMC3 2662WUSB		0xa002	2662W-AR Wireless
+product SMC2 LAN9500_ETH	0x9500	USB/Ethernet
+product SMC2 LAN9505_ETH	0x9505	USB/Ethernet
+product SMC2 LAN9530_ETH	0x9530	USB/Ethernet
+product SMC2 LAN9730_ETH	0x9730	USB/Ethernet
+product SMC2 LAN9500_SAL10	0x9900	USB/Ethernet
+product SMC2 LAN9505_SAL10	0x9901	USB/Ethernet
+product SMC2 LAN9500A_SAL10	0x9902	USB/Ethernet
+product SMC2 LAN9505A_SAL10	0x9903	USB/Ethernet
+product SMC2 LAN9514_SAL10	0x9904	USB/Ethernet
+product SMC2 LAN9500A_HAL	0x9905	USB/Ethernet
+product SMC2 LAN9505A_HAL	0x9906	USB/Ethernet
+product SMC2 LAN9500_ETH_2	0x9907	USB/Ethernet
+product SMC2 LAN9500A_ETH_2	0x9908	USB/Ethernet
+product SMC2 LAN9514_ETH_2	0x9909	USB/Ethernet
+product SMC2 LAN9500A_ETH	0x9e00	USB/Ethernet
+product SMC2 LAN9505A_ETH	0x9e01	USB/Ethernet
+product SMC2 LAN89530_ETH	0x9e08	USB/Ethernet
 product SMC2 LAN9514_ETH	0xec00	USB/Ethernet
 
 /* SOHOware products */

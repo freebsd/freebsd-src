@@ -1,4 +1,4 @@
-/* $Id: main.c,v 1.50 2014/04/22 23:34:47 tom Exp $ */
+/* $Id: main.c,v 1.51 2014/05/28 02:01:55 Tom.Shields Exp $ */
 
 #include <signal.h>
 #ifndef _WIN32
@@ -208,7 +208,6 @@ usage(void)
 	,"  -b file_prefix        set filename prefix (default \"y.\")"
 	,"  -B                    create a backtracking parser"
 	,"  -d                    write definitions (" DEFINES_SUFFIX ")"
-	,"  -D                    enable value stack memory reclamation"
 	,"  -i                    write interface (y.tab.i)"
 	,"  -g                    write a graphical description"
 	,"  -l                    suppress #line directives"

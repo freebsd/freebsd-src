@@ -349,6 +349,9 @@ in_pcbbind(struct inpcb *inp, struct sockaddr *nam, struct ucred *cred)
 }
 #endif
 
+/*
+ * Select a local port (number) to use.
+ */
 #if defined(INET) || defined(INET6)
 int
 in_pcb_lport(struct inpcb *inp, struct in_addr *laddrp, u_short *lportp,
@@ -462,7 +465,7 @@ in_pcb_lport(struct inpcb *inp, struct in_addr *laddrp, u_short *lportp,
 #ifdef INET
 	if ((inp->inp_vflag & (INP_IPV4|INP_IPV6)) == INP_IPV4)
 		laddrp->s_addr = laddr.s_addr;
-#endif                 
+#endif
 	*lportp = lport;
 
 	return (0);
@@ -486,7 +489,6 @@ inp_so_options(const struct inpcb *inp)
 }
 #endif /* INET || INET6 */
 
-#ifdef INET
 /*
  * Check if a new BINDMULTI socket is allowed to be created.
  *
@@ -496,7 +498,7 @@ inp_so_options(const struct inpcb *inp)
  * This checks whether the existing inp also has BINDMULTI and
  * whether the credentials match.
  */
-static int
+int
 in_pcbbind_check_bindmulti(const struct inpcb *ni, const struct inpcb *oi)
 {
 	/* Check permissions match */
@@ -517,6 +519,7 @@ in_pcbbind_check_bindmulti(const struct inpcb *ni, const struct inpcb *oi)
 	return (1);
 }
 
+#ifdef INET
 /*
  * Set up a bind operation on a PCB, performing port allocation
  * as required, but do not actually modify the PCB. Callers can
@@ -789,9 +792,11 @@ in_pcbladdr(struct inpcb *inp, struct in_addr *faddr, struct in_addr *laddr,
 		struct in_ifaddr *ia;
 		struct ifnet *ifp;
 
-		ia = ifatoia(ifa_ifwithdstaddr((struct sockaddr *)sin));
+		ia = ifatoia(ifa_ifwithdstaddr((struct sockaddr *)sin,
+					inp->inp_socket->so_fibnum));
 		if (ia == NULL)
-			ia = ifatoia(ifa_ifwithnet((struct sockaddr *)sin, 0));
+			ia = ifatoia(ifa_ifwithnet((struct sockaddr *)sin, 0,
+						inp->inp_socket->so_fibnum));
 		if (ia == NULL) {
 			error = ENETUNREACH;
 			goto done;
@@ -906,9 +911,11 @@ in_pcbladdr(struct inpcb *inp, struct in_addr *faddr, struct in_addr *laddr,
 		sain.sin_len = sizeof(struct sockaddr_in);
 		sain.sin_addr.s_addr = faddr->s_addr;
 
-		ia = ifatoia(ifa_ifwithdstaddr(sintosa(&sain)));
+		ia = ifatoia(ifa_ifwithdstaddr(sintosa(&sain),
+					inp->inp_socket->so_fibnum));
 		if (ia == NULL)
-			ia = ifatoia(ifa_ifwithnet(sintosa(&sain), 0));
+			ia = ifatoia(ifa_ifwithnet(sintosa(&sain), 0,
+						inp->inp_socket->so_fibnum));
 		if (ia == NULL)
 			ia = ifatoia(ifa_ifwithaddr(sintosa(&sain)));
 
@@ -2043,7 +2050,7 @@ in_pcbinshash_internal(struct inpcb *inp, int do_pcbgroup_update)
 
 #ifdef INET6
 	if (inp->inp_vflag & INP_IPV6)
-		hashkey_faddr = inp->in6p_faddr.s6_addr32[3] /* XXX */;
+		hashkey_faddr = INP6_PCBHASHKEY(&inp->in6p_faddr);
 	else
 #endif
 	hashkey_faddr = inp->inp_faddr.s_addr;
@@ -2130,7 +2137,7 @@ in_pcbrehash_mbuf(struct inpcb *inp, struct mbuf *m)
 
 #ifdef INET6
 	if (inp->inp_vflag & INP_IPV6)
-		hashkey_faddr = inp->in6p_faddr.s6_addr32[3] /* XXX */;
+		hashkey_faddr = INP6_PCBHASHKEY(&inp->in6p_faddr);
 	else
 #endif
 	hashkey_faddr = inp->inp_faddr.s_addr;

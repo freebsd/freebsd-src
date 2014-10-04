@@ -605,11 +605,13 @@ virtqueue_dump(struct virtqueue *vq)
 
 	printf("VQ: %s - size=%d; free=%d; used=%d; queued=%d; "
 	    "desc_head_idx=%d; avail.idx=%d; used_cons_idx=%d; "
-	    "used.idx=%d; avail.flags=0x%x; used.flags=0x%x\n",
+	    "used.idx=%d; used_event_idx=%d; avail.flags=0x%x; used.flags=0x%x\n",
 	    vq->vq_name, vq->vq_nentries, vq->vq_free_cnt,
 	    virtqueue_nused(vq), vq->vq_queued_cnt, vq->vq_desc_head_idx,
 	    vq->vq_ring.avail->idx, vq->vq_used_cons_idx,
-	    vq->vq_ring.used->idx, vq->vq_ring.avail->flags,
+	    vq->vq_ring.used->idx,
+		vring_used_event(&vq->vq_ring),
+	    vq->vq_ring.avail->flags,
 	    vq->vq_ring.used->flags);
 }
 

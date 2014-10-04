@@ -63,7 +63,7 @@ struct sigacts {
 	sigset_t ps_osigset;		/* Signals using <= 3.x osigset_t. */
 	sigset_t ps_usertramp;		/* SunOS compat; libc sigtramp. XXX */
 	int	ps_flag;
-	int	ps_refcnt;
+	u_int	ps_refcnt;
 	struct mtx ps_mtx;
 };
 

@@ -50,7 +50,7 @@ putw(int w, FILE *fp)
 	struct __siov iov;
 
 	iov.iov_base = &w;
-	iov.iov_len = uio.uio_resid = sizeof(w);
+	uio.uio_resid = iov.iov_len = sizeof(w);
 	uio.uio_iov = &iov;
 	uio.uio_iovcnt = 1;
 	FLOCKFILE(fp);

@@ -444,6 +444,7 @@ OLD_FILES+=usr/share/man/man1/dtrace.1.gz
 OLD_FILES+=boot/gptzfsboot
 OLD_FILES+=boot/zfsboot
 OLD_FILES+=boot/zfsloader
+OLD_FILES+=etc/devd/zfs.conf
 OLD_FILES+=etc/periodic/daily/404.status-zfs
 OLD_FILES+=etc/periodic/daily/800.scrub-zfs
 OLD_LIBS+=lib/libzfs.so.2
@@ -2002,6 +2003,13 @@ OLD_FILES+=usr/share/info/regex.info.gz
 OLD_FILES+=usr/share/info/rluserman.info.gz
 OLD_FILES+=usr/share/info/stabs.info.gz
 OLD_FILES+=usr/share/info/texinfo.info.gz
+OLD_FILES+=usr/share/man/man1/info.1.gz
+OLD_FILES+=usr/share/man/man1/infokey.1.gz
+OLD_FILES+=usr/share/man/man1/install-info.1.gz
+OLD_FILES+=usr/share/man/man1/makeinfo.1.gz
+OLD_FILES+=usr/share/man/man1/texindex.1.gz
+OLD_FILES+=usr/share/man/man5/info.5.gz
+OLD_FILES+=usr/share/man/man5/texinfo.5.gz
 .endif
 
 .if ${MK_IPFILTER} == no
@@ -3502,9 +3510,9 @@ OLD_FILES+=usr/libexec/ssh-pkcs11-helper
 OLD_FILES+=usr/sbin/sshd
 .endif
 
-#.if ${MK_OPENSSL} == no
-# to be filled in
-#.endif
+.if ${MK_OPENSSL} == no
+OLD_FILES+=etc/rc.d/keyserv
+.endif
 
 .if ${MK_PC_SYSINSTALL} == no
 # backend-partmanager
@@ -3598,6 +3606,7 @@ OLD_DIRS+=usr/share/examples/pc-sysinstall
 .if ${MK_PF} == no
 OLD_FILES+=etc/periodic/security/520.pfdenied
 OLD_FILES+=etc/pf.os
+OLD_FILES+=etc/rc.d/ftp-proxy
 OLD_FILES+=sbin/pfctl
 OLD_FILES+=sbin/pflogd
 OLD_FILES+=usr/libexec/tftp-proxy
@@ -3758,6 +3767,7 @@ OLD_FILES+=usr/lib/private/libssh_p.a
 
 .if ${MK_RCMDS} == no
 OLD_FILES+=bin/rcp
+OLD_FILES+=etc/rc.d/rwho
 OLD_FILES+=etc/periodic/daily/140.clean-rwho 
 OLD_FILES+=etc/periodic/daily/430.status-rwho
 OLD_FILES+=rescue/rcp
@@ -3789,6 +3799,7 @@ OLD_FILES+=usr/bin/rcsdiff
 OLD_FILES+=usr/bin/rcsfreeze
 OLD_FILES+=usr/bin/rcsmerge
 OLD_FILES+=usr/bin/rlog
+OLD_FILES+=usr/sbin/etcupdate
 OLD_FILES+=usr/share/man/man1/ci.1.gz
 OLD_FILES+=usr/share/man/man1/co.1.gz
 OLD_FILES+=usr/share/man/man1/ident.1.gz
@@ -3801,6 +3812,7 @@ OLD_FILES+=usr/share/man/man1/rcsintro.1.gz
 OLD_FILES+=usr/share/man/man1/rcsmerge.1.gz
 OLD_FILES+=usr/share/man/man1/rlog.1.gz
 OLD_FILES+=usr/share/man/man5/rcsfile.5.gz
+OLD_FILES+=usr/share/man/man8/etcupdate.8.gz
 .endif
 
 #.if ${MK_RESCUE} == no
@@ -4160,6 +4172,9 @@ OLD_FILES+=usr/share/aclocal/atf-c.m4
 OLD_FILES+=usr/share/aclocal/atf-common.m4
 OLD_FILES+=usr/share/aclocal/atf-sh.m4
 OLD_DIRS+=usr/share/aclocal
+OLD_FILES+=usr/tests/bin/chown/units_basics
+OLD_FILES+=usr/tests/bin/date/legacy_test
+OLD_FILES+=usr/tests/bin/sh/legacy_test
 OLD_FILES+=usr/tests/usr.bin/atf/Kyuafile
 OLD_FILES+=usr/tests/usr.bin/atf/atf-sh/Kyuafile
 OLD_FILES+=usr/tests/usr.bin/atf/atf-sh/atf_check_test
@@ -4567,6 +4582,24 @@ OLD_DIRS+=usr/tests/usr.bin/make/archives/fmt_44bsd_mod
 OLD_DIRS+=usr/tests/usr.bin/make/archives/fmt_44bsd
 OLD_DIRS+=usr/tests/usr.bin/make/archives
 OLD_DIRS+=usr/tests/usr.bin/make
+OLD_FILES+=usr/tests/usr.bin/yacc/legacy_test
+OLD_FILES+=usr/tests/usr.bin/yacc/regress.00.out
+OLD_FILES+=usr/tests/usr.bin/yacc/regress.01.out
+OLD_FILES+=usr/tests/usr.bin/yacc/regress.02.out
+OLD_FILES+=usr/tests/usr.bin/yacc/regress.03.out
+OLD_FILES+=usr/tests/usr.bin/yacc/regress.04.out
+OLD_FILES+=usr/tests/usr.bin/yacc/regress.05.out
+OLD_FILES+=usr/tests/usr.bin/yacc/regress.06.out
+OLD_FILES+=usr/tests/usr.bin/yacc/regress.07.out
+OLD_FILES+=usr/tests/usr.bin/yacc/regress.08.out
+OLD_FILES+=usr/tests/usr.bin/yacc/regress.09.out
+OLD_FILES+=usr/tests/usr.bin/yacc/regress.10.out
+OLD_FILES+=usr/tests/usr.bin/yacc/regress.11.out
+OLD_FILES+=usr/tests/usr.bin/yacc/regress.12.out
+OLD_FILES+=usr/tests/usr.bin/yacc/regress.13.out
+OLD_FILES+=usr/tests/usr.bin/yacc/regress.14.out
+OLD_FILES+=usr/tests/usr.bin/yacc/regress.sh
+OLD_FILES+=usr/tests/usr.bin/yacc/undefined.y
 .endif
 .else
 # ATF libraries.
@@ -4649,9 +4682,10 @@ OLD_FILES+=usr/sbin/unbound-control
 OLD_FILES+=usr/sbin/unbound-control-setup
 .endif
 
-#.if ${MK_USB} == no
-# to be filled in
-#.endif
+.if ${MK_USB} == no
+OLD_FILES+=etc/devd/uauth.conf
+OLD_FILES+=etc/devd/usb.conf
+.endif
 
 .if ${MK_UTMPX} == no
 OLD_FILES+=etc/periodic/monthly/200.accounting
@@ -4733,4 +4767,12 @@ OLD_FILES+=usr/libexec/dma
 OLD_FILES+=usr/libexec/dma-mbox-create
 OLD_FILES+=usr/share/man/man8/dma.8.gz
 OLD_FILES+=usr/share/examples/dma/mailer.conf
+.endif
+
+.if ${MK_HYPERV} == no
+OLD_FILES+=etc/devd/hyperv.conf
+OLD_FILES+=usr/libexec/hyperv/hv_set_ifconfig
+OLD_FILES+=usr/libexec/hyperv/hv_get_dns_info
+OLD_FILES+=usr/libexec/hyperv/hv_get_dhcp_info
+OLD_FILES+=usr/sbin/hv_kvpd
 .endif

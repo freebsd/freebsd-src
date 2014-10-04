@@ -195,26 +195,29 @@ vatpic_notify_intr(struct vatpic *vatpic)
 		    atpic->mask, atpic->request, atpic->service);
 
 		/*
+		 * From Section 3.6.2, "Interrupt Modes", in the
+		 * MPtable Specification, Version 1.4
+		 *
 		 * PIC interrupts are routed to both the Local APIC
 		 * and the I/O APIC to support operation in 1 of 3
 		 * modes.
 		 *
 		 * 1. Legacy PIC Mode: the PIC effectively bypasses
-		 * all APIC components.  In mode '1' the local APIC is
+		 * all APIC components.  In this mode the local APIC is
 		 * disabled and LINT0 is reconfigured as INTR to
 		 * deliver the PIC interrupt directly to the CPU.
 		 *
 		 * 2. Virtual Wire Mode: the APIC is treated as a
 		 * virtual wire which delivers interrupts from the PIC
-		 * to the CPU.  In mode '2' LINT0 is programmed as
+		 * to the CPU.  In this mode LINT0 is programmed as
 		 * ExtINT to indicate that the PIC is the source of
 		 * the interrupt.
 		 *
-		 * 3. Symmetric I/O Mode: PIC interrupts are fielded
-		 * by the I/O APIC and delivered to the appropriate
-		 * CPU.  In mode '3' the I/O APIC input 0 is
-		 * programmed as ExtINT to indicate that the PIC is
-		 * the source of the interrupt.
+		 * 3. Virtual Wire Mode via I/O APIC: PIC interrupts are
+		 * fielded by the I/O APIC and delivered to the appropriate
+		 * CPU.  In this mode the I/O APIC input 0 is programmed
+		 * as ExtINT to indicate that the PIC is the source of the
+		 * interrupt.
 		 */
 		atpic->intr_raised = true;
 		lapic_set_local_intr(vatpic->vm, -1, APIC_LVT_LINT0);
@@ -497,13 +500,19 @@ vatpic_pending_intr(struct vm *vm, int *vecptr)
 	VATPIC_LOCK(vatpic);
 
 	pin = vatpic_get_highest_irrpin(atpic);
-	if (pin == -1)
-		pin = 7;
 	if (pin == 2) {
 		atpic = &vatpic->atpic[1];
 		pin = vatpic_get_highest_irrpin(atpic);
 	}
 
+	/*
+	 * If there are no pins active at this moment then return the spurious
+	 * interrupt vector instead.
+	 */
+	if (pin == -1)
+		pin = 7;
+
+	KASSERT(pin >= 0 && pin <= 7, ("%s: invalid pin %d", __func__, pin));
 	*vecptr = atpic->irq_base + pin;
 
 	VATPIC_UNLOCK(vatpic);
@@ -597,20 +606,19 @@ vatpic_write(struct vatpic *vatpic, struct atpic *atpic, bool in, int port,
 	VATPIC_LOCK(vatpic);
 
 	if (port & ICU_IMR_OFFSET) {
-		if (atpic->ready) {
+		switch (atpic->icw_num) {
+		case 2:
+			error = vatpic_icw2(vatpic, atpic, val);
+			break;
+		case 3:
+			error = vatpic_icw3(vatpic, atpic, val);
+			break;
+		case 4:
+			error = vatpic_icw4(vatpic, atpic, val);
+			break;
+		default:
 			error = vatpic_ocw1(vatpic, atpic, val);
-		} else {
-			switch (atpic->icw_num) {
-			case 2:
-				error = vatpic_icw2(vatpic, atpic, val);
-				break;
-			case 3:
-				error = vatpic_icw3(vatpic, atpic, val);
-				break;
-			case 4:
-				error = vatpic_icw4(vatpic, atpic, val);
-				break;
-			}
+			break;
 		}
 	} else {
 		if (val & (1 << 4))

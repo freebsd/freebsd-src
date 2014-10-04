@@ -35,6 +35,7 @@ xen_intr_handle_t console_handle;
 extern struct mtx              cn_mtx;
 extern device_t xencons_dev;
 extern bool cnsl_evt_reg;
+#define DOM0_BUFFER_SIZE	16
 
 static inline struct xencons_interface *
 xencons_interface(void)
@@ -47,6 +48,18 @@ int
 xencons_has_input(void)
 {
 	struct xencons_interface *intf; 
+
+	if (xen_initial_domain()) {
+		/*
+		 * Since the Dom0 console works with hypercalls
+		 * there's no way to know if there's input unless
+		 * we actually try to retrieve it, so always return
+		 * like there's pending data. Then if the hypercall
+		 * returns no input, we can handle it without problems
+		 * in xencons_handle_input().
+		 */
+		return 1;
+	}
 
 	intf = xencons_interface();		
 
@@ -98,6 +111,19 @@ xencons_handle_input(void *unused)
 	XENCONS_RING_IDX cons, prod;
 
 	CN_LOCK(cn_mtx);
+
+	if (xen_initial_domain()) {
+		static char rbuf[DOM0_BUFFER_SIZE];
+		int         l;
+
+		while ((l = HYPERVISOR_console_io(CONSOLEIO_read,
+		    DOM0_BUFFER_SIZE, rbuf)) > 0)
+			xencons_rx(rbuf, l);
+
+		CN_UNLOCK(cn_mtx);
+		return;
+	}
+
 	intf = xencons_interface();
 
 	cons = intf->in_cons;

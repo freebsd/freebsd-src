@@ -73,7 +73,7 @@ tags: ${SRCS}
 CLEANFILES?=
 
 .if !exists(${.OBJDIR}/${DEPENDFILE})
-.for _S in ${SRCS:N*.[hly]}
+.for _S in ${SRCS:N*.[dhly]}
 ${_S:R}.o: ${_S}
 .endfor
 .endif
@@ -82,7 +82,7 @@ ${_S:R}.o: ${_S}
 .for _LSRC in ${SRCS:M*.l:N*/*}
 .for _LC in ${_LSRC:R}.c
 ${_LC}: ${_LSRC}
-	${LEX} -t ${LFLAGS} ${.ALLSRC} > ${.TARGET}
+	${LEX} ${LFLAGS} -o${.TARGET} ${.ALLSRC}
 .if !exists(${.OBJDIR}/${DEPENDFILE})
 ${_LC:R}.o: ${_LC}
 .endif
@@ -121,14 +121,36 @@ ${_YC:R}.o: ${_YC}
 .endfor
 
 # DTrace probe definitions
+# libelf is currently needed for drti.o
+.if ${SRCS:M*.d}
+LDADD+=		-lelf
+DPADD+=		${LIBELF}
+CFLAGS+=	-I${.OBJDIR}
+.endif
 .for _DSRC in ${SRCS:M*.d:N*/*}
-.for _DH in ${_DSRC:R}.h
-${_DH}: ${_DSRC}
-	${DTRACE} -xnolibs -h -s ${.ALLSRC} 
-SRCS:=	${SRCS:S/${_DSRC}/${_DH}/}
-CLEANFILES+= ${_DH}
+.for _D in ${_DSRC:R}
+DHDRS+=	${_D}.h
+${_D}.h: ${_DSRC}
+	${DTRACE} -xnolibs -h -s ${.ALLSRC}
+SRCS:=	${SRCS:S/${_DSRC}/${_D}.h/}
+OBJS+=	${_D}.o
+CLEANFILES+= ${_D}.h ${_D}.o
+${_D}.o: ${_D}.h ${OBJS:S/${_D}.o//}
+	${DTRACE} -xnolibs -G -o ${.TARGET} -s ${.CURDIR}/${_DSRC} \
+		${OBJS:S/${_D}.o//}
+.if defined(LIB)
+CLEANFILES+= ${_D}.So ${_D}.po
+${_D}.So: ${_D}.h ${SOBJS:S/${_D}.So//}
+	${DTRACE} -xnolibs -G -o ${.TARGET} -s ${.CURDIR}/${_DSRC} \
+		${SOBJS:S/${_D}.So//}
+${_D}.po: ${_D}.h ${POBJS:S/${_D}.po//}
+	${DTRACE} -xnolibs -G -o ${.TARGET} -s ${.CURDIR}/${_DSRC} \
+		${POBJS:S/${_D}.po//}
+.endif
 .endfor
 .endfor
+beforedepend: ${DHDRS}
+beforebuild: ${DHDRS}
 .endif
 
 .if !target(depend)
@@ -193,8 +215,10 @@ cleandepend:
 .endif
 
 .if !target(checkdpadd) && (defined(DPADD) || defined(LDADD))
-_LDADD_FROM_DPADD=	${DPADD:C;^/usr/lib/lib(.*)\.a$;-l\1;}
-_LDADD_CANONICALIZED=	${LDADD:S/$//}
+_LDADD_FROM_DPADD=	${DPADD:R:T:C;^lib(.*)$;-l\1;g}
+# Ignore -Wl,--start-group/-Wl,--end-group as it might be required in the
+# LDADD list due to unresolved symbols
+_LDADD_CANONICALIZED=	${LDADD:N:R:T:C;^lib(.*)$;-l\1;g:N-Wl,--[es]*-group}
 checkdpadd:
 .if ${_LDADD_FROM_DPADD} != ${_LDADD_CANONICALIZED}
 	@echo ${.CURDIR}

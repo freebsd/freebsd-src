@@ -438,7 +438,7 @@ void	rip6_init(void);
 int	rip6_input(struct mbuf **, int *, int);
 void	rip6_ctlinput(int, struct sockaddr *, void *);
 int	rip6_ctloutput(struct socket *, struct sockopt *);
-int	rip6_output(struct mbuf *, ...);
+int	rip6_output(struct mbuf *, struct socket *, ...);
 int	rip6_usrreq(struct socket *,
 	    int, struct mbuf *, struct mbuf *, struct mbuf *, struct thread *);
 

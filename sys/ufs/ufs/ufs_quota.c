@@ -557,8 +557,21 @@ quotaon(struct thread *td, struct mount *mp, int type, void *fname)
 	if (*vpp != vp)
 		quotaoff1(td, mp, type);
 
+	/*
+	 * When the directory vnode containing the quota file is
+	 * inactivated, due to the shared lookup of the quota file
+	 * vput()ing the dvp, the qsyncvp() call for the containing
+	 * directory would try to acquire the quota lock exclusive.
+	 * At the same time, lookup already locked the quota vnode
+	 * shared.  Mark the quota vnode lock as allowing recursion
+	 * and automatically converting shared locks to exclusive.
+	 *
+	 * Also mark quota vnode as system.
+	 */
 	vn_lock(vp, LK_EXCLUSIVE | LK_RETRY);
 	vp->v_vflag |= VV_SYSTEM;
+	VN_LOCK_AREC(vp);
+	VN_LOCK_DSHARE(vp);
 	VOP_UNLOCK(vp, 0);
 	*vpp = vp;
 	/*

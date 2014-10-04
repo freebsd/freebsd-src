@@ -231,7 +231,9 @@ LDADD		Additional loader objects.  Usually used for libraries.
 
 			LDADD=-lutil -lcompat
 
-LDFLAGS		Additional loader flags.
+LDFLAGS		Additional loader flags. Passed to the loader via CC,
+		since that's used to link programs as well, so loader
+		specific flags need to be prefixed with -Wl, to work.
 
 LINKS		The list of binary links; should be full pathnames, the
 		linked-to file coming first, followed by the linked

@@ -945,7 +945,7 @@ nd6_is_new_addr_neighbor(struct sockaddr_in6 *addr, struct ifnet *ifp)
 	 * If the address is assigned on the node of the other side of
 	 * a p2p interface, the address should be a neighbor.
 	 */
-	dstaddr = ifa_ifwithdstaddr((struct sockaddr *)addr);
+	dstaddr = ifa_ifwithdstaddr((struct sockaddr *)addr, RT_ALL_FIBS);
 	if (dstaddr != NULL) {
 		if (dstaddr->ifa_ifp == ifp) {
 			ifa_free(dstaddr);
@@ -2147,7 +2147,7 @@ nd6_output_lle(struct ifnet *ifp, struct ifnet *origifp, struct mbuf *m,
 	IP_PROBE(send, NULL, NULL, mtod(m, struct ip6_hdr *), ifp, NULL,
 	    mtod(m, struct ip6_hdr *));
 
-	if ((ifp->if_flags & IFF_LOOPBACK) != 0)
+	if ((ifp->if_flags & IFF_LOOPBACK) == 0)
 		origifp = ifp;
 
 	error = (*ifp->if_output)(origifp, m, (struct sockaddr *)dst, NULL);

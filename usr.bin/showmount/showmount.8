@@ -31,7 +31,7 @@
 .\"     @(#)showmount.8	8.3 (Berkeley) 3/29/95
 .\" $FreeBSD$
 .\"
-.Dd March 29, 1995
+.Dd August 16, 2014
 .Dt SHOWMOUNT 8
 .Os
 .Sh NAME
@@ -41,6 +41,7 @@
 .Nm
 .Op Fl a | d
 .Op Fl e
+.Op Fl 1
 .Op Fl 3
 .Op Ar host
 .Sh DESCRIPTION
@@ -76,10 +77,10 @@ List directory paths of mount points instead of hosts.
 Show the
 .Ar host Ns 's
 exports list.
+.It Fl 1
+Use mount protocol Version 1, compatible with legacy servers.
 .It Fl 3
-Use mount protocol Version 3, compatible with
-.Tn NFS
-Version 3.
+Ignored for backwards compatibility.
 .El
 .Sh SEE ALSO
 .Xr mount 8 ,

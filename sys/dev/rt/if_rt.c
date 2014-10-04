@@ -411,7 +411,7 @@ rt_attach(device_t dev)
 	/*
 	 * Tell the upper layer(s) we support long frames.
 	 */
-	ifp->if_data.ifi_hdrlen = sizeof(struct ether_vlan_header);
+	ifp->if_hdrlen = sizeof(struct ether_vlan_header);
 	ifp->if_capabilities |= IFCAP_VLAN_MTU;
 	ifp->if_capenable |= IFCAP_VLAN_MTU;
 	ifp->if_capabilities |= IFCAP_RXCSUM|IFCAP_TXCSUM;
@@ -1025,7 +1025,7 @@ rt_start(struct ifnet *ifp)
 			m_freem(m);
 
 			ifp->if_drv_flags |= IFF_DRV_OACTIVE;
-			ifp->if_oerrors++;
+			if_inc_counter(ifp, IFCOUNTER_OERRORS, 1);
 
 			sc->tx_data_queue_full[qid]++;
 
@@ -1035,7 +1035,7 @@ rt_start(struct ifnet *ifp)
 		if (rt_tx_data(sc, m, qid) != 0) {
 			RT_SOFTC_TX_RING_UNLOCK(&sc->tx_ring[qid]);
 
-			ifp->if_oerrors++;
+			if_inc_counter(ifp, IFCOUNTER_OERRORS, 1);
 
 			break;
 		}
@@ -1152,7 +1152,7 @@ rt_tx_watchdog(void *arg)
 		rt_stop_locked(sc);
 		rt_init_locked(sc);
 #endif
-		ifp->if_oerrors++;
+		if_inc_counter(ifp, IFCOUNTER_OERRORS, 1);
 		sc->tx_watchdog_timeouts++;
 	}
 	callout_reset(&sc->tx_watchdog_ch, hz, rt_tx_watchdog, sc);
@@ -1637,7 +1637,7 @@ rt_rx_eof(struct rt_softc *sc, int limit)
 		    MJUMPAGESIZE);
 		if (mnew == NULL) {
 			sc->rx_mbuf_alloc_errors++;
-			ifp->if_ierrors++;
+			if_inc_counter(ifp, IFCOUNTER_IERRORS, 1);
 			goto skip;
 		}
 
@@ -1654,7 +1654,7 @@ rt_rx_eof(struct rt_softc *sc, int limit)
 			m_freem(mnew);
 
 			sc->rx_mbuf_dmamap_errors++;
-			ifp->if_ierrors++;
+			if_inc_counter(ifp, IFCOUNTER_IERRORS, 1);
 
 			goto skip;
 		}
@@ -1700,7 +1700,7 @@ rt_rx_eof(struct rt_softc *sc, int limit)
 				RT_DPRINTF(sc, RT_DEBUG_RX,
 				    "rxdesc: crc error\n");
 
-				ifp->if_ierrors++;
+				if_inc_counter(ifp, IFCOUNTER_IERRORS, 1);
 
 				if (!(ifp->if_flags & IFF_PROMISC)) {
 				    m_freem(m);
@@ -1785,7 +1785,7 @@ rt_tx_eof(struct rt_softc *sc, struct rt_softc_tx_ring *ring)
 
 			data->m = NULL;
 
-			ifp->if_opackets++;
+			if_inc_counter(ifp, IFCOUNTER_OPACKETS, 1);
 
 			RT_SOFTC_TX_RING_LOCK(ring);
 			ring->data_queued--;

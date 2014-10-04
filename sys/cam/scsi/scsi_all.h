@@ -317,6 +317,7 @@ struct scsi_per_res_cap
 #define	SPRI_ALLOW_2		0x20
 #define	SPRI_ALLOW_3		0x30
 #define	SPRI_ALLOW_4		0x40
+#define	SPRI_ALLOW_5		0x50
 #define	SPRI_PTPL_A		0x01
 	uint8_t type_mask[2];
 #define	SPRI_TM_WR_EX_AR	0x8000
@@ -1030,6 +1031,7 @@ struct scsi_write_same_16
 {
 	uint8_t	opcode;
 	uint8_t	byte2;
+#define	SWS_NDOB	0x01
 	uint8_t	addr[8];
 	uint8_t	length[4];
 	uint8_t	group;
@@ -1266,6 +1268,377 @@ struct scsi_report_timestamp_data
 	uint8_t  reserve2[2];
 };
 
+struct scsi_receive_copy_status_lid1
+{
+	uint8_t  opcode;
+	uint8_t  service_action;
+#define RCS_RCS_LID1		0x00
+	uint8_t  list_identifier;
+	uint8_t  reserved[7];
+	uint8_t  length[4];
+	uint8_t  reserved1;
+	uint8_t  control;
+};
+
+struct scsi_receive_copy_status_lid1_data
+{
+	uint8_t  available_data[4];
+	uint8_t  copy_command_status;
+#define RCS_CCS_INPROG		0x00
+#define RCS_CCS_COMPLETED	0x01
+#define RCS_CCS_ERROR		0x02
+	uint8_t  segments_processed[2];
+	uint8_t  transfer_count_units;
+#define RCS_TC_BYTES		0x00
+#define RCS_TC_KBYTES		0x01
+#define RCS_TC_MBYTES		0x02
+#define RCS_TC_GBYTES		0x03
+#define RCS_TC_TBYTES		0x04
+#define RCS_TC_PBYTES		0x05
+#define RCS_TC_EBYTES		0x06
+#define RCS_TC_LBAS		0xf1
+	uint8_t  transfer_count[4];
+};
+
+struct scsi_receive_copy_failure_details
+{
+	uint8_t  opcode;
+	uint8_t  service_action;
+#define RCS_RCFD		0x04
+	uint8_t  list_identifier;
+	uint8_t  reserved[7];
+	uint8_t  length[4];
+	uint8_t  reserved1;
+	uint8_t  control;
+};
+
+struct scsi_receive_copy_failure_details_data
+{
+	uint8_t  available_data[4];
+	uint8_t  reserved[52];
+	uint8_t  copy_command_status;
+	uint8_t  reserved2;
+	uint8_t  sense_data_length[2];
+	uint8_t  sense_data[];
+};
+
+struct scsi_receive_copy_status_lid4
+{
+	uint8_t  opcode;
+	uint8_t  service_action;
+#define RCS_RCS_LID4		0x05
+	uint8_t  list_identifier[4];
+	uint8_t  reserved[4];
+	uint8_t  length[4];
+	uint8_t  reserved1;
+	uint8_t  control;
+};
+
+struct scsi_receive_copy_status_lid4_data
+{
+	uint8_t  available_data[4];
+	uint8_t  response_to_service_action;
+	uint8_t  copy_command_status;
+#define RCS_CCS_COMPLETED_PROD	0x03
+#define RCS_CCS_COMPLETED_RESID	0x04
+#define RCS_CCS_INPROG_FGBG	0x10
+#define RCS_CCS_INPROG_FG	0x11
+#define RCS_CCS_INPROG_BG	0x12
+#define RCS_CCS_ABORTED		0x60
+	uint8_t  operation_counter[2];
+	uint8_t  estimated_status_update_delay[4];
+	uint8_t  extended_copy_completion_status;
+	uint8_t  length_of_the_sense_data_field;
+	uint8_t  sense_data_length;
+	uint8_t  transfer_count_units;
+	uint8_t  transfer_count[8];
+	uint8_t  segments_processed[2];
+	uint8_t  reserved[6];
+	uint8_t  sense_data[];
+};
+
+struct scsi_receive_copy_operating_parameters
+{
+	uint8_t  opcode;
+	uint8_t  service_action;
+#define RCS_RCOP		0x03
+	uint8_t  reserved[8];
+	uint8_t  length[4];
+	uint8_t  reserved1;
+	uint8_t  control;
+};
+
+struct scsi_receive_copy_operating_parameters_data
+{
+	uint8_t  length[4];
+	uint8_t  snlid;
+#define RCOP_SNLID		0x01
+	uint8_t  reserved[3];
+	uint8_t  maximum_cscd_descriptor_count[2];
+	uint8_t  maximum_segment_descriptor_count[2];
+	uint8_t  maximum_descriptor_list_length[4];
+	uint8_t  maximum_segment_length[4];
+	uint8_t  maximum_inline_data_length[4];
+	uint8_t  held_data_limit[4];
+	uint8_t  maximum_stream_device_transfer_size[4];
+	uint8_t  reserved2[2];
+	uint8_t  total_concurrent_copies[2];
+	uint8_t  maximum_concurrent_copies;
+	uint8_t  data_segment_granularity;
+	uint8_t  inline_data_granularity;
+	uint8_t  held_data_granularity;
+	uint8_t  reserved3[3];
+	uint8_t  implemented_descriptor_list_length;
+	uint8_t  list_of_implemented_descriptor_type_codes[0];
+};
+
+struct scsi_extended_copy
+{
+	uint8_t  opcode;
+	uint8_t  service_action;
+#define EC_EC_LID1		0x00
+#define EC_EC_LID4		0x01
+	uint8_t  reserved[8];
+	uint8_t  length[4];
+	uint8_t  reserved1;
+	uint8_t  control;
+};
+
+struct scsi_ec_cscd_dtsp
+{
+	uint8_t  flags;
+#define EC_CSCD_FIXED		0x01
+#define EC_CSCD_PAD		0x04
+	uint8_t  block_length[3];
+};
+
+struct scsi_ec_cscd
+{
+	uint8_t  type_code;
+#define EC_CSCD_EXT		0xff
+	uint8_t  luidt_pdt;
+#define EC_LUIDT_MASK		0xc0
+#define EC_LUIDT_LUN		0x00
+#define EC_LUIDT_PROXY_TOKEN	0x40
+	uint8_t  relative_initiator_port[2];
+	uint8_t  cscd_params[24];
+	struct scsi_ec_cscd_dtsp dtsp;
+};
+
+struct scsi_ec_cscd_id
+{
+	uint8_t  type_code;
+#define EC_CSCD_ID		0xe4
+	uint8_t  luidt_pdt;
+	uint8_t  relative_initiator_port[2];
+	uint8_t  codeset;
+	uint8_t  id_type;
+	uint8_t  reserved;
+	uint8_t  length;
+	uint8_t  designator[20];
+	struct scsi_ec_cscd_dtsp dtsp;
+};
+
+struct scsi_ec_segment
+{
+	uint8_t  type_code;
+	uint8_t  flags;
+#define EC_SEG_DC		0x02
+#define EC_SEG_CAT		0x01
+	uint8_t  descr_length[2];
+	uint8_t  params[];
+};
+
+struct scsi_ec_segment_b2b
+{
+	uint8_t  type_code;
+#define EC_SEG_B2B		0x02
+	uint8_t  flags;
+	uint8_t  descr_length[2];
+	uint8_t  src_cscd[2];
+	uint8_t  dst_cscd[2];
+	uint8_t  reserved[2];
+	uint8_t  number_of_blocks[2];
+	uint8_t  src_lba[8];
+	uint8_t  dst_lba[8];
+};
+
+struct scsi_ec_segment_verify
+{
+	uint8_t  type_code;
+#define EC_SEG_VERIFY		0x07
+	uint8_t  reserved;
+	uint8_t  descr_length[2];
+	uint8_t  src_cscd[2];
+	uint8_t  reserved2[2];
+	uint8_t  tur;
+	uint8_t  reserved3[3];
+};
+
+struct scsi_ec_segment_register_key
+{
+	uint8_t  type_code;
+#define EC_SEG_REGISTER_KEY	0x14
+	uint8_t  reserved;
+	uint8_t  descr_length[2];
+	uint8_t  reserved2[2];
+	uint8_t  dst_cscd[2];
+	uint8_t  res_key[8];
+	uint8_t  sa_res_key[8];
+	uint8_t  reserved3[4];
+};
+
+struct scsi_extended_copy_lid1_data
+{
+	uint8_t  list_identifier;
+	uint8_t  flags;
+#define EC_PRIORITY		0x07
+#define EC_LIST_ID_USAGE_MASK	0x18
+#define EC_LIST_ID_USAGE_FULL	0x08
+#define EC_LIST_ID_USAGE_NOHOLD	0x10
+#define EC_LIST_ID_USAGE_NONE	0x18
+#define EC_STR			0x20
+	uint8_t  cscd_list_length[2];
+	uint8_t  reserved[4];
+	uint8_t  segment_list_length[4];
+	uint8_t  inline_data_length[4];
+	uint8_t  data[];
+};
+
+struct scsi_extended_copy_lid4_data
+{
+	uint8_t  list_format;
+#define EC_LIST_FORMAT		0x01
+	uint8_t  flags;
+	uint8_t  header_cscd_list_length[2];
+	uint8_t  reserved[11];
+	uint8_t  flags2;
+#define EC_IMMED		0x01
+#define EC_G_SENSE		0x02
+	uint8_t  header_cscd_type_code;
+	uint8_t  reserved2[3];
+	uint8_t  list_identifier[4];
+	uint8_t  reserved3[18];
+	uint8_t  cscd_list_length[2];
+	uint8_t  segment_list_length[2];
+	uint8_t  inline_data_length[2];
+	uint8_t  data[];
+};
+
+struct scsi_copy_operation_abort
+{
+	uint8_t  opcode;
+	uint8_t  service_action;
+#define EC_COA			0x1c
+	uint8_t  list_identifier[4];
+	uint8_t  reserved[9];
+	uint8_t  control;
+};
+
+struct scsi_populate_token
+{
+	uint8_t  opcode;
+	uint8_t  service_action;
+#define EC_PT			0x10
+	uint8_t  reserved[4];
+	uint8_t  list_identifier[4];
+	uint8_t  length[4];
+	uint8_t  group_number;
+	uint8_t  control;
+};
+
+struct scsi_range_desc
+{
+	uint8_t	lba[8];
+	uint8_t	length[4];
+	uint8_t	reserved[4];
+};
+
+struct scsi_populate_token_data
+{
+	uint8_t  length[2];
+	uint8_t  flags;
+#define EC_PT_IMMED			0x01
+#define EC_PT_RTV			0x02
+	uint8_t  reserved;
+	uint8_t  inactivity_timeout[4];
+	uint8_t  rod_type[4];
+	uint8_t  reserved2[2];
+	uint8_t  range_descriptor_length[2];
+	struct scsi_range_desc desc[];
+};
+
+struct scsi_write_using_token
+{
+	uint8_t  opcode;
+	uint8_t  service_action;
+#define EC_WUT			0x11
+	uint8_t  reserved[4];
+	uint8_t  list_identifier[4];
+	uint8_t  length[4];
+	uint8_t  group_number;
+	uint8_t  control;
+};
+
+struct scsi_write_using_token_data
+{
+	uint8_t  length[2];
+	uint8_t  flags;
+#define EC_WUT_IMMED			0x01
+#define EC_WUT_DEL_TKN			0x02
+	uint8_t  reserved[5];
+	uint8_t  offset_into_rod[8];
+	uint8_t  rod_token[512];
+	uint8_t  reserved2[6];
+	uint8_t  range_descriptor_length[2];
+	struct scsi_range_desc desc[];
+};
+
+struct scsi_receive_rod_token_information
+{
+	uint8_t  opcode;
+	uint8_t  service_action;
+#define RCS_RRTI		0x07
+	uint8_t  list_identifier[4];
+	uint8_t  reserved[4];
+	uint8_t  length[4];
+	uint8_t  reserved2;
+	uint8_t  control;
+};
+
+struct scsi_token
+{
+	uint8_t  type[4];
+#define ROD_TYPE_INTERNAL	0x00000000
+#define ROD_TYPE_AUR		0x00010000
+#define ROD_TYPE_PIT_DEF	0x00800000
+#define ROD_TYPE_PIT_VULN	0x00800001
+#define ROD_TYPE_PIT_PERS	0x00800002
+#define ROD_TYPE_PIT_ANY	0x0080FFFF
+#define ROD_TYPE_BLOCK_ZERO	0xFFFF0001
+	uint8_t  reserved[2];
+	uint8_t  length[2];
+	uint8_t  body[0];
+};
+
+struct scsi_report_all_rod_tokens
+{
+	uint8_t  opcode;
+	uint8_t  service_action;
+#define RCS_RART		0x08
+	uint8_t  reserved[8];
+	uint8_t  length[4];
+	uint8_t  reserved2;
+	uint8_t  control;
+};
+
+struct scsi_report_all_rod_tokens_data
+{
+	uint8_t  available_data[4];
+	uint8_t  reserved[4];
+	uint8_t  rod_management_token_list[];
+};
+
 struct ata_pass_16 {
 	u_int8_t opcode;
 	u_int8_t protocol;
@@ -1337,6 +1710,8 @@ struct ata_pass_16 {
 #define	MODE_SENSE_10		0x5A
 #define	PERSISTENT_RES_IN	0x5E
 #define	PERSISTENT_RES_OUT	0x5F
+#define	EXTENDED_COPY		0x83
+#define	RECEIVE_COPY_STATUS	0x84
 #define	ATA_PASS_16		0x85
 #define	READ_16			0x88
 #define	COMPARE_AND_WRITE	0x89
@@ -1450,7 +1825,9 @@ struct scsi_inquiry_data
 #define	SID_QUAL_IS_VENDOR_UNIQUE(inq_data) ((SID_QUAL(inq_data) & 0x08) != 0)
 	u_int8_t dev_qual2;
 #define	SID_QUAL2	0x7F
-#define	SID_IS_REMOVABLE(inq_data) (((inq_data)->dev_qual2 & 0x80) != 0)
+#define	SID_LU_CONG	0x40
+#define	SID_RMB		0x80
+#define	SID_IS_REMOVABLE(inq_data) (((inq_data)->dev_qual2 & SID_RMB) != 0)
 	u_int8_t version;
 #define	SID_ANSI_REV(inq_data) ((inq_data)->version & 0x07)
 #define		SCSI_REV_0		0
@@ -1735,6 +2112,76 @@ struct scsi_service_action_in
 	uint8_t control;
 };
 
+struct scsi_vpd_extended_inquiry_data
+{
+	uint8_t device;
+	uint8_t page_code;
+#define	SVPD_EXTENDED_INQUIRY_DATA	0x86
+	uint8_t reserved;
+	uint8_t page_length;
+	uint8_t flags1;
+#define	SVPD_EID_AM		0xC0
+#define	SVPD_EID_SPT		0x38
+#define	SVPD_EID_SPT_1		0x00
+#define	SVPD_EID_SPT_12		0x08
+#define	SVPD_EID_SPT_2		0x10
+#define	SVPD_EID_SPT_13		0x18
+#define	SVPD_EID_SPT_3		0x20
+#define	SVPD_EID_SPT_23		0x28
+#define	SVPD_EID_SPT_123	0x38
+#define	SVPD_EID_GRD_CHK	0x04
+#define	SVPD_EID_APP_CHK	0x02
+#define	SVPD_EID_REF_CHK	0x01
+	uint8_t flags2;
+#define	SVPD_EID_UASK_SUP	0x20
+#define	SVPD_EID_GROUP_SUP	0x10
+#define	SVPD_EID_PRIOR_SUP	0x08
+#define	SVPD_EID_HEADSUP	0x04
+#define	SVPD_EID_ORDSUP		0x02
+#define	SVPD_EID_SIMPSUP	0x01
+	uint8_t flags3;
+#define	SVPD_EID_WU_SUP		0x08
+#define	SVPD_EID_CRD_SUP	0x04
+#define	SVPD_EID_NV_SUP		0x02
+#define	SVPD_EID_V_SUP		0x01
+	uint8_t flags4;
+#define	SVPD_EID_P_I_I_SUP	0x10
+#define	SVPD_EID_LUICLT		0x01
+	uint8_t flags5;
+#define	SVPD_EID_R_SUP		0x10
+#define	SVPD_EID_CBCS		0x01
+	uint8_t flags6;
+#define	SVPD_EID_MULTI_I_T_FW	0x0F
+	uint8_t est[2];
+	uint8_t flags7;
+#define	SVPD_EID_POA_SUP	0x80
+#define	SVPD_EID_HRA_SUP	0x80
+#define	SVPD_EID_VSA_SUP	0x80
+	uint8_t max_sense_length;
+	uint8_t reserved2[50];
+};
+
+struct scsi_vpd_mode_page_policy_descr
+{
+	uint8_t page_code;
+	uint8_t subpage_code;
+	uint8_t policy;
+#define	SVPD_MPP_SHARED		0x00
+#define	SVPD_MPP_PORT		0x01
+#define	SVPD_MPP_I_T		0x03
+#define	SVPD_MPP_MLUS		0x80
+	uint8_t reserved;
+};
+
+struct scsi_vpd_mode_page_policy
+{
+	uint8_t device;
+	uint8_t page_code;
+#define	SVPD_MODE_PAGE_POLICY	0x87
+	uint8_t page_length[2];
+	struct scsi_vpd_mode_page_policy_descr descr[0];
+};
+
 struct scsi_diag_page {
 	uint8_t page_code;
 	uint8_t page_specific_flags;
@@ -1773,6 +2220,148 @@ struct scsi_vpd_scsi_ports
  */
 #define SVPD_ATA_INFORMATION		0x89
 
+
+struct scsi_vpd_tpc_descriptor
+{
+	uint8_t desc_type[2];
+	uint8_t desc_length[2];
+	uint8_t parameters[];
+};
+
+struct scsi_vpd_tpc_descriptor_bdrl
+{
+	uint8_t desc_type[2];
+#define	SVPD_TPC_BDRL			0x0000
+	uint8_t desc_length[2];
+	uint8_t vendor_specific[6];
+	uint8_t maximum_ranges[2];
+	uint8_t maximum_inactivity_timeout[4];
+	uint8_t default_inactivity_timeout[4];
+	uint8_t maximum_token_transfer_size[8];
+	uint8_t optimal_transfer_count[8];
+};
+
+struct scsi_vpd_tpc_descriptor_sc_descr
+{
+	uint8_t opcode;
+	uint8_t sa_length;
+	uint8_t supported_service_actions[0];
+};
+
+struct scsi_vpd_tpc_descriptor_sc
+{
+	uint8_t desc_type[2];
+#define	SVPD_TPC_SC			0x0001
+	uint8_t desc_length[2];
+	uint8_t list_length;
+	struct scsi_vpd_tpc_descriptor_sc_descr descr[];
+};
+
+struct scsi_vpd_tpc_descriptor_pd
+{
+	uint8_t desc_type[2];
+#define	SVPD_TPC_PD			0x0004
+	uint8_t desc_length[2];
+	uint8_t reserved[4];
+	uint8_t maximum_cscd_descriptor_count[2];
+	uint8_t maximum_segment_descriptor_count[2];
+	uint8_t maximum_descriptor_list_length[4];
+	uint8_t maximum_inline_data_length[4];
+	uint8_t reserved2[12];
+};
+
+struct scsi_vpd_tpc_descriptor_sd
+{
+	uint8_t desc_type[2];
+#define	SVPD_TPC_SD			0x0008
+	uint8_t desc_length[2];
+	uint8_t list_length;
+	uint8_t supported_descriptor_codes[];
+};
+
+struct scsi_vpd_tpc_descriptor_sdid
+{
+	uint8_t desc_type[2];
+#define	SVPD_TPC_SDID			0x000C
+	uint8_t desc_length[2];
+	uint8_t list_length[2];
+	uint8_t supported_descriptor_ids[];
+};
+
+struct scsi_vpd_tpc_descriptor_rtf_block
+{
+	uint8_t type_format;
+#define	SVPD_TPC_RTF_BLOCK			0x00
+	uint8_t reserved;
+	uint8_t desc_length[2];
+	uint8_t reserved2[2];
+	uint8_t optimal_length_granularity[2];
+	uint8_t maximum_bytes[8];
+	uint8_t optimal_bytes[8];
+	uint8_t optimal_bytes_to_token_per_segment[8];
+	uint8_t optimal_bytes_from_token_per_segment[8];
+	uint8_t reserved3[8];
+};
+
+struct scsi_vpd_tpc_descriptor_rtf
+{
+	uint8_t desc_type[2];
+#define	SVPD_TPC_RTF			0x0106
+	uint8_t desc_length[2];
+	uint8_t remote_tokens;
+	uint8_t reserved[11];
+	uint8_t minimum_token_lifetime[4];
+	uint8_t maximum_token_lifetime[4];
+	uint8_t maximum_token_inactivity_timeout[4];
+	uint8_t reserved2[18];
+	uint8_t type_specific_features_length[2];
+	uint8_t type_specific_features[0];
+};
+
+struct scsi_vpd_tpc_descriptor_srtd
+{
+	uint8_t rod_type[4];
+	uint8_t flags;
+#define	SVPD_TPC_SRTD_TOUT		0x01
+#define	SVPD_TPC_SRTD_TIN		0x02
+#define	SVPD_TPC_SRTD_ECPY		0x80
+	uint8_t reserved;
+	uint8_t preference_indicator[2];
+	uint8_t reserved2[56];
+};
+
+struct scsi_vpd_tpc_descriptor_srt
+{
+	uint8_t desc_type[2];
+#define	SVPD_TPC_SRT			0x0108
+	uint8_t desc_length[2];
+	uint8_t reserved[2];
+	uint8_t rod_type_descriptors_length[2];
+	uint8_t rod_type_descriptors[0];
+};
+
+struct scsi_vpd_tpc_descriptor_gco
+{
+	uint8_t desc_type[2];
+#define	SVPD_TPC_GCO			0x8001
+	uint8_t desc_length[2];
+	uint8_t total_concurrent_copies[4];
+	uint8_t maximum_identified_concurrent_copies[4];
+	uint8_t maximum_segment_length[4];
+	uint8_t data_segment_granularity;
+	uint8_t inline_data_granularity;
+	uint8_t reserved[18];
+};
+
+struct scsi_vpd_tpc
+{
+	uint8_t device;
+	uint8_t page_code;
+#define	SVPD_SCSI_TPC			0x8F
+	uint8_t page_length[2];
+	struct scsi_vpd_tpc_descriptor descr[];
+};
+
 /*
  * Block Device Characteristics VPD Page based on
  * T10/1799-D Revision 31
@@ -1795,6 +2384,27 @@ struct scsi_vpd_block_characteristics
 #define SVPD_BDC_FORM_1_5INCH		0x04
 #define SVPD_BDC_FORM_LESSTHAN_1_5INCH	0x05
 	u_int8_t reserved2[56];
+};
+
+/*
+ * Block Device Characteristics VPD Page
+ */
+struct scsi_vpd_block_device_characteristics
+{
+	uint8_t device;
+	uint8_t page_code;
+#define	SVPD_BDC		0xB1
+	uint8_t page_length[2];
+	uint8_t medium_rotation_rate[2];
+#define	SVPD_NOT_REPORTED	0x0000
+#define	SVPD_NON_ROTATING	0x0001
+	uint8_t product_type;
+	uint8_t wab_wac_ff;
+	uint8_t flags;
+#define	SVPD_VBULS		0x01
+#define	SVPD_FUAB		0x02
+#define	SVPD_HAW_ZBC		0x10
+	uint8_t reserved[55];
 };
 
 /*
@@ -2678,6 +3288,9 @@ int		scsi_devid_is_lun_name(uint8_t *bufp);
 int		scsi_devid_is_lun_t10(uint8_t *bufp);
 struct scsi_vpd_id_descriptor *
 		scsi_get_devid(struct scsi_vpd_device_id *id, uint32_t len,
+			       scsi_devid_checkfn_t ck_fn);
+struct scsi_vpd_id_descriptor *
+		scsi_get_devid_desc(struct scsi_vpd_id_descriptor *desc, uint32_t len,
 			       scsi_devid_checkfn_t ck_fn);
 
 int		scsi_transportid_sbuf(struct sbuf *sb,

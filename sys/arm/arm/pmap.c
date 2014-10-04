@@ -199,8 +199,8 @@ extern int last_fault_code;
 static void pmap_free_pv_entry (pv_entry_t);
 static pv_entry_t pmap_get_pv_entry(void);
 
-static void		pmap_enter_locked(pmap_t, vm_offset_t, vm_page_t,
-    vm_prot_t, boolean_t, int);
+static int		pmap_enter_locked(pmap_t, vm_offset_t, vm_page_t,
+    vm_prot_t, u_int);
 static vm_paddr_t	pmap_extract_locked(pmap_t pmap, vm_offset_t va);
 static void		pmap_fix_cache(struct vm_page *, pmap_t, vm_offset_t);
 static void		pmap_alloc_l1(pmap_t);
@@ -2663,7 +2663,7 @@ pmap_kenter_section(vm_offset_t va, vm_offset_t pa, int flags)
  * to be used for panic dumps.
  */
 void *
-pmap_kenter_temp(vm_paddr_t pa, int i)
+pmap_kenter_temporary(vm_paddr_t pa, int i)
 {
 	vm_offset_t va;
 
@@ -3208,24 +3208,26 @@ pmap_protect(pmap_t pm, vm_offset_t sva, vm_offset_t eva, vm_prot_t prot)
  *	insert this page into the given map NOW.
  */
 
-void
-pmap_enter(pmap_t pmap, vm_offset_t va, vm_prot_t access, vm_page_t m,
-    vm_prot_t prot, boolean_t wired)
+int
+pmap_enter(pmap_t pmap, vm_offset_t va, vm_page_t m, vm_prot_t prot,
+    u_int flags, int8_t psind __unused)
 {
+	int rv;
 
 	rw_wlock(&pvh_global_lock);
 	PMAP_LOCK(pmap);
-	pmap_enter_locked(pmap, va, m, prot, wired, M_WAITOK);
+	rv = pmap_enter_locked(pmap, va, m, prot, flags);
 	rw_wunlock(&pvh_global_lock);
  	PMAP_UNLOCK(pmap);
+	return (rv);
 }
 
 /*
  *	The pvh global and pmap locks must be held.
  */
-static void
+static int
 pmap_enter_locked(pmap_t pmap, vm_offset_t va, vm_page_t m, vm_prot_t prot,
-    boolean_t wired, int flags)
+    u_int flags)
 {
 	struct l2_bucket *l2b = NULL;
 	struct vm_page *opg;
@@ -3241,9 +3243,8 @@ pmap_enter_locked(pmap_t pmap, vm_offset_t va, vm_page_t m, vm_prot_t prot,
 		pa = systempage.pv_pa;
 		m = NULL;
 	} else {
-		KASSERT((m->oflags & VPO_UNMANAGED) != 0 ||
-		    vm_page_xbusied(m) || (flags & M_NOWAIT) != 0,
-		    ("pmap_enter_locked: page %p is not busy", m));
+		if ((m->oflags & VPO_UNMANAGED) == 0 && !vm_page_xbusied(m))
+			VM_OBJECT_ASSERT_LOCKED(m->object);
 		pa = VM_PAGE_TO_PHYS(m);
 	}
 	nflags = 0;
@@ -3251,10 +3252,10 @@ pmap_enter_locked(pmap_t pmap, vm_offset_t va, vm_page_t m, vm_prot_t prot,
 		nflags |= PVF_WRITE;
 	if (prot & VM_PROT_EXECUTE)
 		nflags |= PVF_EXEC;
-	if (wired)
+	if ((flags & PMAP_ENTER_WIRED) != 0)
 		nflags |= PVF_WIRED;
 	PDEBUG(1, printf("pmap_enter: pmap = %08x, va = %08x, m = %08x, prot = %x, "
-	    "wired = %x\n", (uint32_t) pmap, va, (uint32_t) m, prot, wired));
+	    "flags = %x\n", (uint32_t) pmap, va, (uint32_t) m, prot, flags));
 
 	if (pmap == pmap_kernel()) {
 		l2b = pmap_get_l2_bucket(pmap, va);
@@ -3264,7 +3265,7 @@ pmap_enter_locked(pmap_t pmap, vm_offset_t va, vm_page_t m, vm_prot_t prot,
 do_l2b_alloc:
 		l2b = pmap_alloc_l2_bucket(pmap, va);
 		if (l2b == NULL) {
-			if (flags & M_WAITOK) {
+			if ((flags & PMAP_ENTER_NOSLEEP) == 0) {
 				PMAP_UNLOCK(pmap);
 				rw_wunlock(&pvh_global_lock);
 				VM_WAIT;
@@ -3272,7 +3273,7 @@ do_l2b_alloc:
 				PMAP_LOCK(pmap);
 				goto do_l2b_alloc;
 			}
-			return;
+			return (KERN_RESOURCE_SHORTAGE);
 		}
 	}
 
@@ -3486,6 +3487,7 @@ do_l2b_alloc:
 		if (m)
 			pmap_fix_cache(m, pmap, va);
 	}
+	return (KERN_SUCCESS);
 }
 
 /*
@@ -3515,7 +3517,7 @@ pmap_enter_object(pmap_t pmap, vm_offset_t start, vm_offset_t end,
 	PMAP_LOCK(pmap);
 	while (m != NULL && (diff = m->pindex - m_start->pindex) < psize) {
 		pmap_enter_locked(pmap, start + ptoa(diff), m, prot &
-		    (VM_PROT_READ | VM_PROT_EXECUTE), FALSE, M_NOWAIT);
+		    (VM_PROT_READ | VM_PROT_EXECUTE), PMAP_ENTER_NOSLEEP);
 		m = TAILQ_NEXT(m, listq);
 	}
 	rw_wunlock(&pvh_global_lock);
@@ -3538,34 +3540,53 @@ pmap_enter_quick(pmap_t pmap, vm_offset_t va, vm_page_t m, vm_prot_t prot)
 	rw_wlock(&pvh_global_lock);
  	PMAP_LOCK(pmap);
 	pmap_enter_locked(pmap, va, m, prot & (VM_PROT_READ | VM_PROT_EXECUTE),
-	    FALSE, M_NOWAIT);
+	    PMAP_ENTER_NOSLEEP);
 	rw_wunlock(&pvh_global_lock);
  	PMAP_UNLOCK(pmap);
 }
 
 /*
- *	Routine:	pmap_change_wiring
- *	Function:	Change the wiring attribute for a map/virtual-address
- *			pair.
- *	In/out conditions:
- *			The mapping must already exist in the pmap.
+ *	Clear the wired attribute from the mappings for the specified range of
+ *	addresses in the given pmap.  Every valid mapping within that range
+ *	must have the wired attribute set.  In contrast, invalid mappings
+ *	cannot have the wired attribute set, so they are ignored.
+ *
+ *	XXX Wired mappings of unmanaged pages cannot be counted by this pmap
+ *	implementation.
  */
 void
-pmap_change_wiring(pmap_t pmap, vm_offset_t va, boolean_t wired)
+pmap_unwire(pmap_t pmap, vm_offset_t sva, vm_offset_t eva)
 {
 	struct l2_bucket *l2b;
 	pt_entry_t *ptep, pte;
-	vm_page_t pg;
-
+	pv_entry_t pv;
+	vm_offset_t next_bucket;
+	vm_page_t m;
+ 
 	rw_wlock(&pvh_global_lock);
- 	PMAP_LOCK(pmap);
-	l2b = pmap_get_l2_bucket(pmap, va);
-	KASSERT(l2b, ("No l2b bucket in pmap_change_wiring"));
-	ptep = &l2b->l2b_kva[l2pte_index(va)];
-	pte = *ptep;
-	pg = PHYS_TO_VM_PAGE(l2pte_pa(pte));
-	if (pg)
-		pmap_modify_pv(pg, pmap, va, PVF_WIRED, wired ? PVF_WIRED : 0);
+	PMAP_LOCK(pmap);
+	while (sva < eva) {
+		next_bucket = L2_NEXT_BUCKET(sva);
+		if (next_bucket > eva)
+			next_bucket = eva;
+		l2b = pmap_get_l2_bucket(pmap, sva);
+		if (l2b == NULL) {
+			sva = next_bucket;
+			continue;
+		}
+		for (ptep = &l2b->l2b_kva[l2pte_index(sva)]; sva < next_bucket;
+		    sva += PAGE_SIZE, ptep++) {
+			if ((pte = *ptep) == 0 ||
+			    (m = PHYS_TO_VM_PAGE(l2pte_pa(pte))) == NULL ||
+			    (m->oflags & VPO_UNMANAGED) != 0)
+				continue;
+			pv = pmap_find_pv(m, pmap, sva);
+			if ((pv->pv_flags & PVF_WIRED) == 0)
+				panic("pmap_unwire: pv %p isn't wired", pv);
+			pv->pv_flags &= ~PVF_WIRED;
+			pmap->pm_stats.wired_count--;
+		}
+	}
 	rw_wunlock(&pvh_global_lock);
  	PMAP_UNLOCK(pmap);
 }
@@ -3750,9 +3771,8 @@ pmap_pinit(pmap_t pmap)
 	bzero(&pmap->pm_stats, sizeof pmap->pm_stats);
 	pmap->pm_stats.resident_count = 1;
 	if (vector_page < KERNBASE) {
-		pmap_enter(pmap, vector_page,
-		    VM_PROT_READ, PHYS_TO_VM_PAGE(systempage.pv_pa),
-		    VM_PROT_READ, 1);
+		pmap_enter(pmap, vector_page, PHYS_TO_VM_PAGE(systempage.pv_pa),
+		    VM_PROT_READ, PMAP_ENTER_WIRED | VM_PROT_READ, 0);
 	}
 	return (1);
 }

@@ -10,8 +10,6 @@ LDADD=	-lhdb -lkrb5 -lhx509 -lroken ${LIBVERS} \
 	-lasn1 -lcrypto -lcrypt -lcom_err ${LDAPLDADD}
 LDFLAGS=${LDAPLDFLAGS}
 
-NO_PIE=	yes
-
 .include <bsd.prog.mk>
 
 .PATH: ${KRB5DIR}/kdc

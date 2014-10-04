@@ -47,6 +47,7 @@ uint32_t imx_ccm_ipg_hz(void);
 uint32_t imx_ccm_perclk_hz(void);
 uint32_t imx_ccm_sdhci_hz(void);
 uint32_t imx_ccm_uart_hz(void);
+uint32_t imx_ccm_ahb_hz(void);
 
 void imx_ccm_usb_enable(device_t _usbdev);
 void imx_ccm_usbphy_enable(device_t _phydev);

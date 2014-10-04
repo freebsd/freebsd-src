@@ -50,8 +50,8 @@
 #endif
 
 typedef struct {
-	uint16_t	start;		/* first register */
-	uint16_t	end;		/* ending register or zero */
+	uint32_t	start;		/* first register */
+	uint32_t	end;		/* ending register or zero */
 } HAL_REGRANGE;
 
 typedef struct {
@@ -91,6 +91,7 @@ struct ath_hal_chip {
 	const char	*(*probe)(uint16_t vendorid, uint16_t devid);
 	struct ath_hal	*(*attach)(uint16_t devid, HAL_SOFTC,
 			    HAL_BUS_TAG, HAL_BUS_HANDLE, uint16_t *eepromdata,
+			    HAL_OPS_CONFIG *ah,
 			    HAL_STATUS *error);
 };
 #ifndef AH_CHIP

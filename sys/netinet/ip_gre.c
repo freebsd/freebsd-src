@@ -92,12 +92,15 @@ static struct mbuf *gre_input2(struct mbuf *, int, u_char);
  * IPPROTO_GRE and a local destination address).
  * This really is simple
  */
-void
-gre_input(struct mbuf *m, int off)
+int
+gre_input(struct mbuf **mp, int *offp, int proto)
 {
-	int proto;
+	struct mbuf *m;
+	int off;
 
-	proto = (mtod(m, struct ip *))->ip_p;
+	m = *mp;
+	off = *offp;
+	*mp = NULL;
 
 	m = gre_input2(m, off, proto);
 
@@ -105,8 +108,11 @@ gre_input(struct mbuf *m, int off)
 	 * If no matching tunnel that is up is found. We inject
 	 * the mbuf to raw ip socket to see if anyone picks it up.
 	 */
-	if (m != NULL)
-		rip_input(m, off);
+	if (m != NULL) {
+		*mp = m;
+		rip_input(mp, offp, proto);
+	}
+	return (IPPROTO_DONE);
 }
 
 /*
@@ -136,8 +142,8 @@ gre_input2(struct mbuf *m ,int hlen, u_char proto)
 	}
 	gip = mtod(m, struct greip *);
 
-	GRE2IFP(sc)->if_ipackets++;
-	GRE2IFP(sc)->if_ibytes += m->m_pkthdr.len;
+	if_inc_counter(GRE2IFP(sc), IFCOUNTER_IPACKETS, 1);
+	if_inc_counter(GRE2IFP(sc), IFCOUNTER_IBYTES, m->m_pkthdr.len);
 
 	switch (proto) {
 	case IPPROTO_GRE:
@@ -213,30 +219,32 @@ gre_input2(struct mbuf *m ,int hlen, u_char proto)
  * between IP header and payload
  */
 
-void
-gre_mobile_input(struct mbuf *m, int hlen)
+int
+gre_mobile_input(struct mbuf **mp, int *offp, int proto)
 {
 	struct ip *ip;
 	struct mobip_h *mip;
+	struct mbuf *m;
 	struct gre_softc *sc;
 	int msiz;
 
+	m = *mp;
 	if ((sc = gre_lookup(m, IPPROTO_MOBILE)) == NULL) {
 		/* No matching tunnel or tunnel is down. */
 		m_freem(m);
-		return;
+		return (IPPROTO_DONE);
 	}
 
 	if (m->m_len < sizeof(*mip)) {
 		m = m_pullup(m, sizeof(*mip));
 		if (m == NULL)
-			return;
+			return (IPPROTO_DONE);
 	}
 	ip = mtod(m, struct ip *);
 	mip = mtod(m, struct mobip_h *);
 
-	GRE2IFP(sc)->if_ipackets++;
-	GRE2IFP(sc)->if_ibytes += m->m_pkthdr.len;
+	if_inc_counter(GRE2IFP(sc), IFCOUNTER_IPACKETS, 1);
+	if_inc_counter(GRE2IFP(sc), IFCOUNTER_IBYTES, m->m_pkthdr.len);
 
 	if (ntohs(mip->mh.proto) & MOB_H_SBIT) {
 		msiz = MOB_H_SIZ_L;
@@ -247,7 +255,7 @@ gre_mobile_input(struct mbuf *m, int hlen)
 	if (m->m_len < (ip->ip_hl << 2) + msiz) {
 		m = m_pullup(m, (ip->ip_hl << 2) + msiz);
 		if (m == NULL)
-			return;
+			return (IPPROTO_DONE);
 		ip = mtod(m, struct ip *);
 		mip = mtod(m, struct mobip_h *);
 	}
@@ -257,7 +265,7 @@ gre_mobile_input(struct mbuf *m, int hlen)
 
 	if (gre_in_cksum((u_int16_t *)&mip->mh, msiz) != 0) {
 		m_freem(m);
-		return;
+		return (IPPROTO_DONE);
 	}
 
 	bcopy((caddr_t)(ip) + (ip->ip_hl << 2) + msiz, (caddr_t)(ip) +
@@ -282,12 +290,13 @@ gre_mobile_input(struct mbuf *m, int hlen)
 
 	if ((GRE2IFP(sc)->if_flags & IFF_MONITOR) != 0) {
 		m_freem(m);
-		return;
+		return (IPPROTO_DONE);
 	}
 
 	m->m_pkthdr.rcvif = GRE2IFP(sc);
 
 	netisr_queue(NETISR_IP, m);
+	return (IPPROTO_DONE);
 }
 
 /*
@@ -306,18 +315,18 @@ gre_lookup(struct mbuf *m, u_int8_t proto)
 	struct ip *ip = mtod(m, struct ip *);
 	struct gre_softc *sc;
 
-	mtx_lock(&gre_mtx);
-	for (sc = LIST_FIRST(&gre_softc_list); sc != NULL;
+	GRE_LIST_LOCK();
+	for (sc = LIST_FIRST(&V_gre_softc_list); sc != NULL;
 	     sc = LIST_NEXT(sc, sc_list)) {
 		if ((sc->g_dst.s_addr == ip->ip_src.s_addr) &&
 		    (sc->g_src.s_addr == ip->ip_dst.s_addr) &&
 		    (sc->g_proto == proto) &&
 		    ((GRE2IFP(sc)->if_flags & IFF_UP) != 0)) {
-			mtx_unlock(&gre_mtx);
+			GRE_LIST_UNLOCK();
 			return (sc);
 		}
 	}
-	mtx_unlock(&gre_mtx);
+	GRE_LIST_UNLOCK();
 
 	return (NULL);
 }

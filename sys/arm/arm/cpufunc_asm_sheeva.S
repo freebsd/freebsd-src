@@ -29,6 +29,7 @@
  * SUCH DAMAGE.
  */
 
+#include <machine/armreg.h>
 #include <machine/asm.h>
 __FBSDID("$FreeBSD$");
 
@@ -42,7 +43,7 @@ __FBSDID("$FreeBSD$");
 ENTRY(sheeva_setttb)
 	/* Disable irqs */
 	mrs	r2, cpsr
-	orr	r3, r2, #I32_bit | F32_bit
+	orr	r3, r2, #PSR_I | PSR_F
 	msr	cpsr_c, r3
 
 	mov	r1, #0
@@ -87,7 +88,7 @@ ENTRY(sheeva_dcache_wbinv_range)
 	add	r3, r0, ip
 	sub	r2, r3, #1
 	/* Disable irqs */
-	orr	r3, lr, #I32_bit | F32_bit
+	orr	r3, lr, #PSR_I | PSR_F
 	msr	cpsr_c, r3
 	mcr	p15, 5, r0, c15, c15, 0	/* Clean and inv zone start address */
 	mcr	p15, 5, r2, c15, c15, 1	/* Clean and inv zone end address */
@@ -130,7 +131,7 @@ ENTRY(sheeva_idcache_wbinv_range)
 	add	r3, r0, ip
 	sub	r2, r3, #1
 	/* Disable irqs */
-	orr	r3, lr, #I32_bit | F32_bit
+	orr	r3, lr, #PSR_I | PSR_F
 	msr	cpsr_c, r3
 	mcr	p15, 5, r0, c15, c15, 0	/* Clean and inv zone start address */
 	mcr	p15, 5, r2, c15, c15, 1	/* Clean and inv zone end address */
@@ -182,7 +183,7 @@ ENTRY(sheeva_dcache_inv_range)
 	add	r3, r0, ip
 	sub	r2, r3, #1
 	/* Disable irqs */
-	orr	r3, lr, #I32_bit | F32_bit
+	orr	r3, lr, #PSR_I | PSR_F
 	msr	cpsr_c, r3
 	mcr	p15, 5, r0, c15, c14, 0	/* Inv zone start address */
 	mcr	p15, 5, r2, c15, c14, 1	/* Inv zone end address */
@@ -225,7 +226,7 @@ ENTRY(sheeva_dcache_wb_range)
 	add	r3, r0, ip
 	sub	r2, r3, #1
 	/* Disable irqs */
-	orr	r3, lr, #I32_bit | F32_bit
+	orr	r3, lr, #PSR_I | PSR_F
 	msr	cpsr_c, r3
 	mcr	p15, 5, r0, c15, c13, 0	/* Clean zone start address */
 	mcr	p15, 5, r2, c15, c13, 1	/* Clean zone end address */
@@ -268,7 +269,7 @@ ENTRY(sheeva_l2cache_wbinv_range)
 	add	r3, r0, ip
 	sub	r2, r3, #1
 	/* Disable irqs */
-	orr	r3, lr, #I32_bit | F32_bit
+	orr	r3, lr, #PSR_I | PSR_F
 	msr	cpsr_c, r3
 	mcr	p15, 1, r0, c15, c9, 4	/* Clean L2 zone start address */
 	mcr	p15, 1, r2, c15, c9, 5	/* Clean L2 zone end address */
@@ -313,7 +314,7 @@ ENTRY(sheeva_l2cache_inv_range)
 	add	r3, r0, ip
 	sub	r2, r3, #1
 	/* Disable irqs */
-	orr	r3, lr, #I32_bit | F32_bit
+	orr	r3, lr, #PSR_I | PSR_F
 	msr	cpsr_c, r3
 	mcr	p15, 1, r0, c15, c11, 4	/* Inv L2 zone start address */
 	mcr	p15, 1, r2, c15, c11, 5	/* Inv L2 zone end address */
@@ -356,7 +357,7 @@ ENTRY(sheeva_l2cache_wb_range)
 	add	r3, r0, ip
 	sub	r2, r3, #1
 	/* Disable irqs */
-	orr	r3, lr, #I32_bit | F32_bit
+	orr	r3, lr, #PSR_I | PSR_F
 	msr	cpsr_c, r3
 	mcr	p15, 1, r0, c15, c9, 4	/* Clean L2 zone start address */
 	mcr	p15, 1, r2, c15, c9, 5	/* Clean L2 zone end address */
@@ -379,7 +380,7 @@ END(sheeva_l2cache_wb_range)
 ENTRY(sheeva_l2cache_wbinv_all)
 	/* Disable irqs */
 	mrs	r1, cpsr
-	orr	r2, r1, #I32_bit | F32_bit
+	orr	r2, r1, #PSR_I | PSR_F
 	msr	cpsr_c, r2
 
 	mov	r0, #0

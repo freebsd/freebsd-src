@@ -320,14 +320,12 @@ ahd_find_pci_device(aic_dev_softc_t pci)
 int
 ahd_pci_config(struct ahd_softc *ahd, struct ahd_pci_identity *entry)
 {
-	struct scb_data *shared_scb_data;
 	u_int		 command;
 	uint32_t	 devconfig;
 	uint16_t	 device; 
 	uint16_t	 subvendor; 
 	int		 error;
 
-	shared_scb_data = NULL;
 	ahd->description = entry->name;
 	/*
 	 * Record if this is a HostRAID board.

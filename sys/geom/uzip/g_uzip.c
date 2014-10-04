@@ -1,5 +1,6 @@
 /*-
  * Copyright (c) 2004 Max Khon
+ * Copyright (c) 2014 Juniper Networks, Inc.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -86,6 +87,8 @@ struct g_uzip_softc {
 	int req_cached;			/* cached requests */
 };
 
+static void g_uzip_done(struct bio *bp);
+
 static void
 g_uzip_softc_free(struct g_uzip_softc *sc, struct g_geom *gp)
 {
@@ -120,213 +123,229 @@ z_free(void *nil, void *ptr)
 	free(ptr, M_GEOM_UZIP);
 }
 
+static int
+g_uzip_cached(struct g_geom *gp, struct bio *bp)
+{
+	struct g_uzip_softc *sc;
+	off_t ofs;
+	size_t blk, blkofs, usz;
+
+	sc = gp->softc;
+	ofs = bp->bio_offset + bp->bio_completed;
+	blk = ofs / sc->blksz;
+	mtx_lock(&sc->last_mtx);
+	if (blk == sc->last_blk) {
+		blkofs = ofs % sc->blksz;
+		usz = sc->blksz - blkofs;
+		if (bp->bio_resid < usz)
+			usz = bp->bio_resid;
+		memcpy(bp->bio_data + bp->bio_completed, sc->last_buf + blkofs,
+		    usz);
+		sc->req_cached++;
+		mtx_unlock(&sc->last_mtx);
+
+		DPRINTF(("%s/%s: %p: offset=%jd: got %jd bytes from cache\n",
+		    __func__, gp->name, bp, (intmax_t)ofs, (intmax_t)usz));
+
+		bp->bio_completed += usz;
+		bp->bio_resid -= usz;
+
+		if (bp->bio_resid == 0) {
+			g_io_deliver(bp, 0);
+			return (1);
+		}
+	} else
+		mtx_unlock(&sc->last_mtx);
+
+	return (0);
+}
+
+static int
+g_uzip_request(struct g_geom *gp, struct bio *bp)
+{
+	struct g_uzip_softc *sc;
+	struct bio *bp2;
+	struct g_consumer *cp;
+	struct g_provider *pp;
+	off_t ofs;
+	size_t start_blk, end_blk;
+
+	if (g_uzip_cached(gp, bp) != 0)
+		return (1);
+
+	sc = gp->softc;
+
+	bp2 = g_clone_bio(bp);
+	if (bp2 == NULL) {
+		g_io_deliver(bp, ENOMEM);
+		return (1);
+	}
+	bp2->bio_done = g_uzip_done;
+
+	cp = LIST_FIRST(&gp->consumer);
+	pp = cp->provider;
+
+	ofs = bp->bio_offset + bp->bio_completed;
+	start_blk = ofs / sc->blksz;
+	KASSERT(start_blk < sc->nblocks, ("start_blk out of range"));
+	end_blk = (ofs + bp->bio_resid + sc->blksz - 1) / sc->blksz;
+	KASSERT(end_blk <= sc->nblocks, ("end_blk out of range"));
+
+	DPRINTF(("%s/%s: %p: start=%u (%jd), end=%u (%jd)\n",
+	    __func__, gp->name, bp,
+	    (u_int)start_blk, (intmax_t)sc->offsets[start_blk],
+	    (u_int)end_blk, (intmax_t)sc->offsets[end_blk]));
+
+	bp2->bio_offset = sc->offsets[start_blk] - 
+	    sc->offsets[start_blk] % pp->sectorsize;
+	while (1) {
+		bp2->bio_length = sc->offsets[end_blk] - bp2->bio_offset;
+		bp2->bio_length = (bp2->bio_length + pp->sectorsize - 1) /
+		    pp->sectorsize * pp->sectorsize;
+		if (bp2->bio_length <= MAXPHYS)
+			break;
+
+		end_blk--;
+	}
+
+	bp2->bio_data = malloc(bp2->bio_length, M_GEOM_UZIP, M_NOWAIT);
+	if (bp2->bio_data == NULL) {
+		g_destroy_bio(bp2);
+		g_io_deliver(bp, ENOMEM);
+		return (1);
+	}
+
+	DPRINTF(("%s/%s: %p: reading %jd bytes from offset %jd\n",
+	    __func__, gp->name, bp,
+	    (intmax_t)bp2->bio_length, (intmax_t)bp2->bio_offset));
+
+	g_io_request(bp2, cp);
+	return (0);
+}
+
 static void
 g_uzip_done(struct bio *bp)
 {
-	int err;
-	struct bio *bp2;
 	z_stream zs;
-	struct g_provider *pp, *pp2;
+	struct bio *bp2;
+	struct g_provider *pp;
 	struct g_consumer *cp;
 	struct g_geom *gp;
 	struct g_uzip_softc *sc;
-	off_t iolen, pos, upos;
-	uint32_t start_blk, i;
-	size_t bsize;
+	char *data, *data2;
+	off_t ofs;
+	size_t blk, blkofs, len, ulen;
 
 	bp2 = bp->bio_parent;
-	pp = bp2->bio_to;
-	gp = pp->geom;
-	cp = LIST_FIRST(&gp->consumer);
-	pp2 = cp->provider;
+	gp = bp2->bio_to->geom;
 	sc = gp->softc;
-	DPRINTF(("%s: done\n", gp->name));
+
+	cp = LIST_FIRST(&gp->consumer);
+	pp = cp->provider;
 
 	bp2->bio_error = bp->bio_error;
 	if (bp2->bio_error != 0)
 		goto done;
 
-	/*
-	 * Uncompress data.
-	 */
+	/* Make sure there's forward progress. */
+	if (bp->bio_completed == 0) {
+		bp2->bio_error = ECANCELED;
+		goto done;
+	}
+
 	zs.zalloc = z_alloc;
 	zs.zfree = z_free;
-	err = inflateInit(&zs);
-	if (err != Z_OK) {
-		bp2->bio_error = EIO;
+	if (inflateInit(&zs) != Z_OK) {
+		bp2->bio_error = EILSEQ;
 		goto done;
 	}
-	start_blk = bp2->bio_offset / sc->blksz;
-	bsize = pp2->sectorsize;
-	iolen = bp->bio_completed;
-	pos = sc->offsets[start_blk] % bsize;
-	upos = 0;
-	DPRINTF(("%s: done: start_blk %d, pos %jd, upos %jd, iolen %jd "
-	    "(%jd, %d, %zd)\n",
-	    gp->name, start_blk, (intmax_t)pos, (intmax_t)upos,
-	    (intmax_t)iolen, (intmax_t)bp2->bio_offset, sc->blksz, bsize));
-	for (i = start_blk; upos < bp2->bio_length; i++) {
-		off_t len, ulen, uoff;
 
-		uoff = i == start_blk ? bp2->bio_offset % sc->blksz : 0;
-		ulen = MIN(sc->blksz - uoff, bp2->bio_length - upos);
-		len = sc->offsets[i + 1] - sc->offsets[i];
-
+	ofs = bp2->bio_offset + bp2->bio_completed;
+	blk = ofs / sc->blksz;
+	blkofs = ofs % sc->blksz;
+	data = bp->bio_data + sc->offsets[blk] % pp->sectorsize;
+	data2 = bp2->bio_data + bp2->bio_completed;
+	while (bp->bio_completed && bp2->bio_resid) {
+		ulen = MIN(sc->blksz - blkofs, bp2->bio_resid);
+		len = sc->offsets[blk + 1] - sc->offsets[blk];
+		DPRINTF(("%s/%s: %p/%ju: data2=%p, ulen=%u, data=%p, len=%u\n",
+		    __func__, gp->name, gp, bp->bio_completed,
+		    data2, (u_int)ulen, data, (u_int)len));
 		if (len == 0) {
 			/* All zero block: no cache update */
-			bzero(bp2->bio_data + upos, ulen);
-			upos += ulen;
-			bp2->bio_completed += ulen;
-			continue;
-		}
-		if (len > iolen) {
-			DPRINTF(("%s: done: early termination: len (%jd) > "
-			    "iolen (%jd)\n",
-			    gp->name, (intmax_t)len, (intmax_t)iolen));
-			break;
-		}
-		zs.next_in = bp->bio_data + pos;
-		zs.avail_in = len;
-		zs.next_out = sc->last_buf;
-		zs.avail_out = sc->blksz;
-		mtx_lock(&sc->last_mtx);
-		err = inflate(&zs, Z_FINISH);
-		if (err != Z_STREAM_END) {
-			sc->last_blk = -1;
+			bzero(data2, ulen);
+		} else if (len <= bp->bio_completed) {
+			zs.next_in = data;
+			zs.avail_in = len;
+			zs.next_out = sc->last_buf;
+			zs.avail_out = sc->blksz;
+			mtx_lock(&sc->last_mtx);
+			if (inflate(&zs, Z_FINISH) != Z_STREAM_END) {
+				sc->last_blk = -1;
+				mtx_unlock(&sc->last_mtx);
+				inflateEnd(&zs);
+				bp2->bio_error = EILSEQ;
+				goto done;
+			}
+			sc->last_blk = blk;
+			memcpy(data2, sc->last_buf + blkofs, ulen);
 			mtx_unlock(&sc->last_mtx);
-			DPRINTF(("%s: done: inflate failed (%jd + %jd -> %jd + %jd + %jd)\n",
-			    gp->name, (intmax_t)pos, (intmax_t)len,
-			    (intmax_t)uoff, (intmax_t)upos, (intmax_t)ulen));
-			inflateEnd(&zs);
-			bp2->bio_error = EIO;
-			goto done;
-		}
-		sc->last_blk = i;
-		DPRINTF(("%s: done: inflated %jd + %jd -> %jd + %jd + %jd\n",
-		    gp->name, (intmax_t)pos, (intmax_t)len, (intmax_t)uoff,
-		    (intmax_t)upos, (intmax_t)ulen));
-		memcpy(bp2->bio_data + upos, sc->last_buf + uoff, ulen);
-		mtx_unlock(&sc->last_mtx);
+			if (inflateReset(&zs) != Z_OK) {
+				inflateEnd(&zs);
+				bp2->bio_error = EILSEQ;
+				goto done;
+			}
+			data += len;
+		} else
+			break;
 
-		pos += len;
-		iolen -= len;
-		upos += ulen;
+		data2 += ulen;
 		bp2->bio_completed += ulen;
-		err = inflateReset(&zs);
-		if (err != Z_OK) {
-			inflateEnd(&zs);
-			bp2->bio_error = EIO;
-			goto done;
-		}
+		bp2->bio_resid -= ulen;
+		bp->bio_completed -= len;
+		blkofs = 0;
+		blk++;
 	}
-	err = inflateEnd(&zs);
-	if (err != Z_OK) {
-		bp2->bio_error = EIO;
-		goto done;
-	}
+
+	if (inflateEnd(&zs) != Z_OK)
+		bp2->bio_error = EILSEQ;
 
 done:
-	/*
-	 * Finish processing the request.
-	 */
-	DPRINTF(("%s: done: (%d, %jd, %ld)\n",
-	    gp->name, bp2->bio_error, (intmax_t)bp2->bio_completed,
-	    bp2->bio_resid));
+	/* Finish processing the request. */
 	free(bp->bio_data, M_GEOM_UZIP);
 	g_destroy_bio(bp);
-	g_io_deliver(bp2, bp2->bio_error);
+	if (bp2->bio_error != 0 || bp2->bio_resid == 0)
+		g_io_deliver(bp2, bp2->bio_error);
+	else
+		g_uzip_request(gp, bp2);
 }
 
 static void
 g_uzip_start(struct bio *bp)
 {
-	struct bio *bp2;
-	struct g_provider *pp, *pp2;
+	struct g_provider *pp;
 	struct g_geom *gp;
-	struct g_consumer *cp;
 	struct g_uzip_softc *sc;
-	uint32_t start_blk, end_blk;
-	size_t bsize;
 
 	pp = bp->bio_to;
 	gp = pp->geom;
-	DPRINTF(("%s: start (%d)\n", gp->name, bp->bio_cmd));
+
+	DPRINTF(("%s/%s: %p: cmd=%d, offset=%jd, length=%jd, buffer=%p\n",
+	    __func__, gp->name, bp, bp->bio_cmd, (intmax_t)bp->bio_offset,
+	    (intmax_t)bp->bio_length, bp->bio_data));
+
+	sc = gp->softc;
+	sc->req_total++;
 
 	if (bp->bio_cmd != BIO_READ) {
 		g_io_deliver(bp, EOPNOTSUPP);
 		return;
 	}
 
-	cp = LIST_FIRST(&gp->consumer);
-	pp2 = cp->provider;
-	sc = gp->softc;
+	bp->bio_resid = bp->bio_length;
+	bp->bio_completed = 0;
 
-	start_blk = bp->bio_offset / sc->blksz;
-	end_blk = (bp->bio_offset + bp->bio_length + sc->blksz - 1) / sc->blksz;
-	KASSERT(start_blk < sc->nblocks, ("start_blk out of range"));
-	KASSERT(end_blk <= sc->nblocks, ("end_blk out of range"));
-
-	sc->req_total++;
-	if (start_blk + 1 == end_blk) {
-		mtx_lock(&sc->last_mtx);
-		if (start_blk == sc->last_blk) {
-			off_t uoff;
-
-			uoff = bp->bio_offset % sc->blksz;
-			KASSERT(bp->bio_length <= sc->blksz - uoff,
-			    ("cached data error"));
-			memcpy(bp->bio_data, sc->last_buf + uoff,
-			    bp->bio_length);
-			sc->req_cached++;
-			mtx_unlock(&sc->last_mtx);
-
-			DPRINTF(("%s: start: cached 0 + %jd, %jd + 0 + %jd\n",
-			    gp->name, (intmax_t)bp->bio_length, (intmax_t)uoff,
-			    (intmax_t)bp->bio_length));
-			bp->bio_completed = bp->bio_length;
-			g_io_deliver(bp, 0);
-			return;
-		}
-		mtx_unlock(&sc->last_mtx);
-	}
-
-	bp2 = g_clone_bio(bp);
-	if (bp2 == NULL) {
-		g_io_deliver(bp, ENOMEM);
-		return;
-	}
-	bp2->bio_done = g_uzip_done;
-	DPRINTF(("%s: start (%d..%d), %s: %d + %jd, %s: %d + %jd\n",
-	    gp->name, start_blk, end_blk,
-	    pp->name, pp->sectorsize, (intmax_t)pp->mediasize,
-	    pp2->name, pp2->sectorsize, (intmax_t)pp2->mediasize));
-	bsize = pp2->sectorsize;
-	bp2->bio_offset = sc->offsets[start_blk] - sc->offsets[start_blk] % bsize;
-	while (1) {
-		bp2->bio_length = sc->offsets[end_blk] - bp2->bio_offset;
-		bp2->bio_length = (bp2->bio_length + bsize - 1) / bsize * bsize;
-		if (bp2->bio_length < MAXPHYS)
-			break;
-
-		end_blk--;
-		DPRINTF(("%s: bio_length (%jd) > MAXPHYS: lowering end_blk "
-		    "to %u\n", gp->name, (intmax_t)bp2->bio_length, end_blk));
-	}
-	DPRINTF(("%s: start %jd + %jd -> %ju + %ju -> %jd + %jd\n",
-	    gp->name,
-	    (intmax_t)bp->bio_offset, (intmax_t)bp->bio_length,
-	    (uintmax_t)sc->offsets[start_blk],
-	    (uintmax_t)sc->offsets[end_blk] - sc->offsets[start_blk],
-	    (intmax_t)bp2->bio_offset, (intmax_t)bp2->bio_length));
-	bp2->bio_data = malloc(bp2->bio_length, M_GEOM_UZIP, M_NOWAIT);
-	if (bp2->bio_data == NULL) {
-		g_destroy_bio(bp2);
-		g_io_deliver(bp, ENOMEM);
-		return;
-	}
-
-	g_io_request(bp2, cp);
-	DPRINTF(("%s: start ok\n", gp->name));
+	g_uzip_request(gp, bp);
 }
 
 static void

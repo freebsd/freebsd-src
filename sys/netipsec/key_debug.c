@@ -663,9 +663,9 @@ kdebug_mbufhdr(m)
 
 	if (m->m_flags & M_EXT) {
 		printf("  m_ext{ ext_buf:%p ext_free:%p "
-		       "ext_size:%u ref_cnt:%p }\n",
+		       "ext_size:%u ext_cnt:%p }\n",
 			m->m_ext.ext_buf, m->m_ext.ext_free,
-			m->m_ext.ext_size, m->m_ext.ref_cnt);
+			m->m_ext.ext_size, m->m_ext.ext_cnt);
 	}
 
 	return;

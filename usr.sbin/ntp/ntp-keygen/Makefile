@@ -21,6 +21,4 @@ DPADD+=	${LIBMD} ${LIBCRYPTO}
 LDADD+=	-lmd -lcrypto
 .endif
 
-NO_PIE=	yes
-
 .include <bsd.prog.mk>

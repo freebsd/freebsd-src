@@ -481,6 +481,12 @@ struct route_in6 {
 
 #define	IPV6_BINDANY		64 /* bool: allow bind to any address */
 
+#define	IPV6_BINDMULTI		65 /* bool; allow multibind to same addr/port */
+#define	IPV6_RSS_LISTEN_BUCKET	66 /* int; set RSS listen bucket */
+#define	IPV6_FLOWID		67 /* int; flowid of given socket */
+#define	IPV6_FLOWTYPE		68 /* int; flowtype of given socket */
+#define	IPV6_RSSBUCKETID	69 /* int; RSS bucket ID of given socket */
+
 /*
  * The following option is private; do not use it from user applications.
  * It is deliberately defined to the same value as IP_MSFILTER.
@@ -641,9 +647,11 @@ struct ip6_hdr;
 
 int	in6_cksum_pseudo(struct ip6_hdr *, uint32_t, uint8_t, uint16_t);
 int	in6_cksum(struct mbuf *, u_int8_t, u_int32_t, u_int32_t);
+int	in6_cksum_partial(struct mbuf *, u_int8_t, u_int32_t, u_int32_t,
+			  u_int32_t);
 int	in6_localaddr(struct in6_addr *);
 int	in6_localip(struct in6_addr *);
-int	in6_addrscope(struct in6_addr *);
+int	in6_addrscope(const struct in6_addr *);
 struct	in6_ifaddr *in6_ifawithifp(struct ifnet *, struct in6_addr *);
 extern void in6_if_up(struct ifnet *);
 struct sockaddr;

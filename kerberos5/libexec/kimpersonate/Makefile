@@ -11,8 +11,6 @@ DPADD=	${LIBKAFS5} ${LIBKRB5} ${LIBHEIMNTLM} ${LIBROKEN} ${LIBASN1} ${LIBCRYPTO}
 LDADD=	-lkafs5 -lkrb5 -lheimntlm -lroken -lasn1 -lcrypto -lcrypt \
 	${LIBVERS}
 
-NO_PIE=	yes
-
 .include <bsd.prog.mk>
 
 .PATH: ${KRB5DIR}/kuser

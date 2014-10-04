@@ -419,7 +419,7 @@ svn_cl__get_log_message(const char **log_msg,
   svn_stringbuf_appendcstr(default_msg, EDITOR_EOF_PREFIX);
   svn_stringbuf_appendcstr(default_msg, APR_EOL_STR);
   svn_stringbuf_appendcstr(default_msg, "> Description of fields to fill in above:                     76 columns --|" APR_EOL_STR);
-  svn_stringbuf_appendcstr(default_msg, "> PR:            If a GNATS PR is affected by the change." APR_EOL_STR);
+  svn_stringbuf_appendcstr(default_msg, "> PR:            If a Bugzilla PR is affected by the change." APR_EOL_STR);
   svn_stringbuf_appendcstr(default_msg, "> Submitted by:  If someone else sent in the change." APR_EOL_STR);
   svn_stringbuf_appendcstr(default_msg, "> Reviewed by:   If someone else reviewed your modification." APR_EOL_STR);
   svn_stringbuf_appendcstr(default_msg, "> Approved by:   If you needed approval for this commit." APR_EOL_STR);

@@ -74,7 +74,6 @@ __FBSDID("$FreeBSD$");
 #include "vhpet.h"
 #include "vioapic.h"
 #include "vlapic.h"
-#include "vmm_msr.h"
 #include "vmm_ipi.h"
 #include "vmm_stat.h"
 #include "vmm_lapic.h"
@@ -97,6 +96,7 @@ struct vcpu {
 	int		hostcpu;	/* (o) vcpu's host cpu */
 	struct vlapic	*vlapic;	/* (i) APIC device model */
 	enum x2apic_state x2apic_state;	/* (i) APIC mode */
+	uint64_t	exitintinfo;	/* (i) events pending at VM exit */
 	int		nmi_pending;	/* (i) NMI pending */
 	int		extint_pending;	/* (i) INTR pending */
 	struct vm_exception exception;	/* (x) exception collateral */
@@ -104,7 +104,6 @@ struct vcpu {
 	struct savefpu	*guestfpu;	/* (a,i) guest fpu state */
 	uint64_t	guest_xcr0;	/* (i) guest %xcr0 register */
 	void		*stats;		/* (a,i) statistics */
-	uint64_t guest_msrs[VMM_MSR_NUM]; /* (i) emulated MSRs */
 	struct vm_exit	exitinfo;	/* (x) exit reason and collateral */
 };
 
@@ -187,7 +186,6 @@ static struct vmm_ops *ops;
 #define	fpu_stop_emulating()	clts()
 
 static MALLOC_DEFINE(M_VM, "vm", "vm");
-CTASSERT(VMM_MSR_NUM <= 64);	/* msr_mask can keep track of up to 64 msrs */
 
 /* statistics */
 static VMM_STAT(VCPU_TOTAL_RUNTIME, "vcpu total runtime");
@@ -241,13 +239,13 @@ vcpu_init(struct vm *vm, int vcpu_id, bool create)
 
 	vcpu->vlapic = VLAPIC_INIT(vm->cookie, vcpu_id);
 	vm_set_x2apic_state(vm, vcpu_id, X2APIC_DISABLED);
+	vcpu->exitintinfo = 0;
 	vcpu->nmi_pending = 0;
 	vcpu->extint_pending = 0;
 	vcpu->exception_pending = 0;
 	vcpu->guest_xcr0 = XFEATURE_ENABLED_X87;
 	fpu_save_area_reset(vcpu->guestfpu);
 	vmm_stat_init(vcpu->stats);
-	guest_msrs_init(vm, vcpu_id);
 }
 
 struct vm_exit *
@@ -291,7 +289,6 @@ vmm_init(void)
 	else
 		return (ENXIO);
 
-	vmm_msr_init();
 	vmm_resume_p = vmm_resume;
 
 	return (VMM_INIT(vmm_ipinum));
@@ -570,6 +567,21 @@ vm_malloc(struct vm *vm, vm_paddr_t gpa, size_t len)
 	return (0);
 }
 
+static vm_paddr_t
+vm_maxmem(struct vm *vm)
+{
+	int i;
+	vm_paddr_t gpa, maxmem;
+
+	maxmem = 0;
+	for (i = 0; i < vm->num_mem_segs; i++) {
+		gpa = vm->mem_segs[i].gpa + vm->mem_segs[i].len;
+		if (gpa > maxmem)
+			maxmem = gpa;
+	}
+	return (maxmem);
+}
+
 static void
 vm_gpa_unwire(struct vm *vm)
 {
@@ -707,7 +719,7 @@ vm_assign_pptdev(struct vm *vm, int bus, int slot, int func)
 	if (ppt_assigned_devices(vm) == 0) {
 		KASSERT(vm->iommu == NULL,
 		    ("vm_assign_pptdev: iommu must be NULL"));
-		maxaddr = vmm_mem_maxaddr();
+		maxaddr = vm_maxmem(vm);
 		vm->iommu = iommu_create_domain(maxaddr);
 
 		error = vm_gpa_wire(vm);
@@ -1073,13 +1085,29 @@ vm_handle_hlt(struct vm *vm, int vcpuid, bool intr_disabled, bool *retu)
 {
 	struct vcpu *vcpu;
 	const char *wmesg;
-	int t, vcpu_halted, vm_halted;
+	int error, t, vcpu_halted, vm_halted;
 
 	KASSERT(!CPU_ISSET(vcpuid, &vm->halted_cpus), ("vcpu already halted"));
 
 	vcpu = &vm->vcpu[vcpuid];
 	vcpu_halted = 0;
 	vm_halted = 0;
+
+	/*
+	 * The typical way to halt a cpu is to execute: "sti; hlt"
+	 *
+	 * STI sets RFLAGS.IF to enable interrupts. However, the processor
+	 * remains in an "interrupt shadow" for an additional instruction
+	 * following the STI. This guarantees that "sti; hlt" sequence is
+	 * atomic and a pending interrupt will be recognized after the HLT.
+	 *
+	 * After the HLT emulation is done the vcpu is no longer in an
+	 * interrupt shadow and a pending interrupt can be injected on
+	 * the next entry into the guest.
+	 */
+	error = vm_set_register(vm, vcpuid, VM_REG_GUEST_INTR_SHADOW, 0);
+	KASSERT(error == 0, ("%s: error %d clearing interrupt shadow",
+	    __func__, error));
 
 	vcpu_lock(vcpu);
 	while (1) {
@@ -1102,6 +1130,10 @@ vm_handle_hlt(struct vm *vm, int vcpuid, bool intr_disabled, bool *retu)
 				break;
 			}
 		}
+
+		/* Don't go to sleep if the vcpu thread needs to yield */
+		if (vcpu_should_yield(vm, vcpuid))
+			break;
 
 		/*
 		 * Some Linux guests implement "halt" by having all vcpus
@@ -1126,7 +1158,11 @@ vm_handle_hlt(struct vm *vm, int vcpuid, bool intr_disabled, bool *retu)
 
 		t = ticks;
 		vcpu_require_state_locked(vcpu, VCPU_SLEEPING);
-		msleep_spin(vcpu, &vcpu->mtx, wmesg, 0);
+		/*
+		 * XXX msleep_spin() cannot be interrupted by signals so
+		 * wake up periodically to check pending signals.
+		 */
+		msleep_spin(vcpu, &vcpu->mtx, wmesg, hz);
 		vcpu_require_state_locked(vcpu, VCPU_FROZEN);
 		vmm_stat_incr(vm, vcpuid, VCPU_IDLE_TICKS, ticks - t);
 	}
@@ -1161,8 +1197,12 @@ vm_handle_paging(struct vm *vm, int vcpuid, bool *retu)
 	if (ftype == VM_PROT_READ || ftype == VM_PROT_WRITE) {
 		rv = pmap_emulate_accessed_dirty(vmspace_pmap(vm->vmspace),
 		    vme->u.paging.gpa, ftype);
-		if (rv == 0)
+		if (rv == 0) {
+			VCPU_CTR2(vm, vcpuid, "%s bit emulation for gpa %#lx",
+			    ftype == VM_PROT_READ ? "accessed" : "dirty",
+			    vme->u.paging.gpa);
 			goto done;
+		}
 	}
 
 	map = &vm->vmspace->vm_map;
@@ -1190,15 +1230,20 @@ vm_handle_inst_emul(struct vm *vm, int vcpuid, bool *retu)
 	struct vm_guest_paging *paging;
 	mem_region_read_t mread;
 	mem_region_write_t mwrite;
-	int error;
+	enum vm_cpu_mode cpu_mode;
+	int cs_d, error;
 
 	vcpu = &vm->vcpu[vcpuid];
 	vme = &vcpu->exitinfo;
 
 	gla = vme->u.inst_emul.gla;
 	gpa = vme->u.inst_emul.gpa;
+	cs_d = vme->u.inst_emul.cs_d;
 	vie = &vme->u.inst_emul.vie;
 	paging = &vme->u.inst_emul.paging;
+	cpu_mode = paging->cpu_mode;
+
+	VCPU_CTR1(vm, vcpuid, "inst_emul fault accessing gpa %#lx", gpa);
 
 	vie_init(vie);
 
@@ -1212,7 +1257,7 @@ vm_handle_inst_emul(struct vm *vm, int vcpuid, bool *retu)
 	else if (error != 0)
 		panic("%s: vmm_fetch_instruction error %d", __func__, error);
 
-	if (vmm_decode_instruction(vm, vcpuid, gla, paging->cpu_mode, vie) != 0)
+	if (vmm_decode_instruction(vm, vcpuid, gla, cpu_mode, cs_d, vie) != 0)
 		return (EFAULT);
 
 	/* return to userland unless this is an in-kernel emulated device */
@@ -1230,8 +1275,8 @@ vm_handle_inst_emul(struct vm *vm, int vcpuid, bool *retu)
 		return (0);
 	}
 
-	error = vmm_emulate_instruction(vm, vcpuid, gpa, vie, mread, mwrite,
-	    retu);
+	error = vmm_emulate_instruction(vm, vcpuid, gpa, vie, paging,
+	    mread, mwrite, retu);
 
 	return (error);
 }
@@ -1396,7 +1441,6 @@ restart:
 	pcb = PCPU_GET(curpcb);
 	set_pcb_flags(pcb, PCB_FULL_IRET);
 
-	restore_guest_msrs(vm, vcpuid);	
 	restore_guest_fpustate(vcpu);
 
 	vcpu_require_state(vm, vcpuid, VCPU_RUNNING);
@@ -1404,7 +1448,6 @@ restart:
 	vcpu_require_state(vm, vcpuid, VCPU_FROZEN);
 
 	save_guest_fpustate(vcpu);
-	restore_host_msrs(vm, vcpuid);
 
 	vmm_stat_incr(vm, vcpuid, VCPU_TOTAL_RUNTIME, rdtsc() - tscval);
 
@@ -1455,6 +1498,202 @@ restart:
 }
 
 int
+vm_exit_intinfo(struct vm *vm, int vcpuid, uint64_t info)
+{
+	struct vcpu *vcpu;
+	int type, vector;
+
+	if (vcpuid < 0 || vcpuid >= VM_MAXCPU)
+		return (EINVAL);
+
+	vcpu = &vm->vcpu[vcpuid];
+
+	if (info & VM_INTINFO_VALID) {
+		type = info & VM_INTINFO_TYPE;
+		vector = info & 0xff;
+		if (type == VM_INTINFO_NMI && vector != IDT_NMI)
+			return (EINVAL);
+		if (type == VM_INTINFO_HWEXCEPTION && vector >= 32)
+			return (EINVAL);
+		if (info & VM_INTINFO_RSVD)
+			return (EINVAL);
+	} else {
+		info = 0;
+	}
+	VCPU_CTR2(vm, vcpuid, "%s: info1(%#lx)", __func__, info);
+	vcpu->exitintinfo = info;
+	return (0);
+}
+
+enum exc_class {
+	EXC_BENIGN,
+	EXC_CONTRIBUTORY,
+	EXC_PAGEFAULT
+};
+
+#define	IDT_VE	20	/* Virtualization Exception (Intel specific) */
+
+static enum exc_class
+exception_class(uint64_t info)
+{
+	int type, vector;
+
+	KASSERT(info & VM_INTINFO_VALID, ("intinfo must be valid: %#lx", info));
+	type = info & VM_INTINFO_TYPE;
+	vector = info & 0xff;
+
+	/* Table 6-4, "Interrupt and Exception Classes", Intel SDM, Vol 3 */
+	switch (type) {
+	case VM_INTINFO_HWINTR:
+	case VM_INTINFO_SWINTR:
+	case VM_INTINFO_NMI:
+		return (EXC_BENIGN);
+	default:
+		/*
+		 * Hardware exception.
+		 *
+		 * SVM and VT-x use identical type values to represent NMI,
+		 * hardware interrupt and software interrupt.
+		 *
+		 * SVM uses type '3' for all exceptions. VT-x uses type '3'
+		 * for exceptions except #BP and #OF. #BP and #OF use a type
+		 * value of '5' or '6'. Therefore we don't check for explicit
+		 * values of 'type' to classify 'intinfo' into a hardware
+		 * exception.
+		 */
+		break;
+	}
+
+	switch (vector) {
+	case IDT_PF:
+	case IDT_VE:
+		return (EXC_PAGEFAULT);
+	case IDT_DE:
+	case IDT_TS:
+	case IDT_NP:
+	case IDT_SS:
+	case IDT_GP:
+		return (EXC_CONTRIBUTORY);
+	default:
+		return (EXC_BENIGN);
+	}
+}
+
+static int
+nested_fault(struct vm *vm, int vcpuid, uint64_t info1, uint64_t info2,
+    uint64_t *retinfo)
+{
+	enum exc_class exc1, exc2;
+	int type1, vector1;
+
+	KASSERT(info1 & VM_INTINFO_VALID, ("info1 %#lx is not valid", info1));
+	KASSERT(info2 & VM_INTINFO_VALID, ("info2 %#lx is not valid", info2));
+
+	/*
+	 * If an exception occurs while attempting to call the double-fault
+	 * handler the processor enters shutdown mode (aka triple fault).
+	 */
+	type1 = info1 & VM_INTINFO_TYPE;
+	vector1 = info1 & 0xff;
+	if (type1 == VM_INTINFO_HWEXCEPTION && vector1 == IDT_DF) {
+		VCPU_CTR2(vm, vcpuid, "triple fault: info1(%#lx), info2(%#lx)",
+		    info1, info2);
+		vm_suspend(vm, VM_SUSPEND_TRIPLEFAULT);
+		*retinfo = 0;
+		return (0);
+	}
+
+	/*
+	 * Table 6-5 "Conditions for Generating a Double Fault", Intel SDM, Vol3
+	 */
+	exc1 = exception_class(info1);
+	exc2 = exception_class(info2);
+	if ((exc1 == EXC_CONTRIBUTORY && exc2 == EXC_CONTRIBUTORY) ||
+	    (exc1 == EXC_PAGEFAULT && exc2 != EXC_BENIGN)) {
+		/* Convert nested fault into a double fault. */
+		*retinfo = IDT_DF;
+		*retinfo |= VM_INTINFO_VALID | VM_INTINFO_HWEXCEPTION;
+		*retinfo |= VM_INTINFO_DEL_ERRCODE;
+	} else {
+		/* Handle exceptions serially */
+		*retinfo = info2;
+	}
+	return (1);
+}
+
+static uint64_t
+vcpu_exception_intinfo(struct vcpu *vcpu)
+{
+	uint64_t info = 0;
+
+	if (vcpu->exception_pending) {
+		info = vcpu->exception.vector & 0xff;
+		info |= VM_INTINFO_VALID | VM_INTINFO_HWEXCEPTION;
+		if (vcpu->exception.error_code_valid) {
+			info |= VM_INTINFO_DEL_ERRCODE;
+			info |= (uint64_t)vcpu->exception.error_code << 32;
+		}
+	}
+	return (info);
+}
+
+int
+vm_entry_intinfo(struct vm *vm, int vcpuid, uint64_t *retinfo)
+{
+	struct vcpu *vcpu;
+	uint64_t info1, info2;
+	int valid;
+
+	KASSERT(vcpuid >= 0 && vcpuid < VM_MAXCPU, ("invalid vcpu %d", vcpuid));
+
+	vcpu = &vm->vcpu[vcpuid];
+
+	info1 = vcpu->exitintinfo;
+	vcpu->exitintinfo = 0;
+
+	info2 = 0;
+	if (vcpu->exception_pending) {
+		info2 = vcpu_exception_intinfo(vcpu);
+		vcpu->exception_pending = 0;
+		VCPU_CTR2(vm, vcpuid, "Exception %d delivered: %#lx",
+		    vcpu->exception.vector, info2);
+	}
+
+	if ((info1 & VM_INTINFO_VALID) && (info2 & VM_INTINFO_VALID)) {
+		valid = nested_fault(vm, vcpuid, info1, info2, retinfo);
+	} else if (info1 & VM_INTINFO_VALID) {
+		*retinfo = info1;
+		valid = 1;
+	} else if (info2 & VM_INTINFO_VALID) {
+		*retinfo = info2;
+		valid = 1;
+	} else {
+		valid = 0;
+	}
+
+	if (valid) {
+		VCPU_CTR4(vm, vcpuid, "%s: info1(%#lx), info2(%#lx), "
+		    "retinfo(%#lx)", __func__, info1, info2, *retinfo);
+	}
+
+	return (valid);
+}
+
+int
+vm_get_intinfo(struct vm *vm, int vcpuid, uint64_t *info1, uint64_t *info2)
+{
+	struct vcpu *vcpu;
+
+	if (vcpuid < 0 || vcpuid >= VM_MAXCPU)
+		return (EINVAL);
+
+	vcpu = &vm->vcpu[vcpuid];
+	*info1 = vcpu->exitintinfo;
+	*info2 = vcpu_exception_intinfo(vcpu);
+	return (0);
+}
+
+int
 vm_inject_exception(struct vm *vm, int vcpuid, struct vm_exception *exception)
 {
 	struct vcpu *vcpu;
@@ -1463,6 +1702,14 @@ vm_inject_exception(struct vm *vm, int vcpuid, struct vm_exception *exception)
 		return (EINVAL);
 
 	if (exception->vector < 0 || exception->vector >= 32)
+		return (EINVAL);
+
+	/*
+	 * A double fault exception should never be injected directly into
+	 * the guest. It is a derived exception that results from specific
+	 * combinations of nested faults.
+	 */
+	if (exception->vector == IDT_DF)
 		return (EINVAL);
 
 	vcpu = &vm->vcpu[vcpuid];
@@ -1480,32 +1727,21 @@ vm_inject_exception(struct vm *vm, int vcpuid, struct vm_exception *exception)
 	return (0);
 }
 
-int
-vm_exception_pending(struct vm *vm, int vcpuid, struct vm_exception *exception)
+void
+vm_inject_fault(void *vmarg, int vcpuid, int vector, int errcode_valid,
+    int errcode)
 {
-	struct vcpu *vcpu;
-	int pending;
-
-	KASSERT(vcpuid >= 0 && vcpuid < VM_MAXCPU, ("invalid vcpu %d", vcpuid));
-
-	vcpu = &vm->vcpu[vcpuid];
-	pending = vcpu->exception_pending;
-	if (pending) {
-		vcpu->exception_pending = 0;
-		*exception = vcpu->exception;
-		VCPU_CTR1(vm, vcpuid, "Exception %d delivered",
-		    exception->vector);
-	}
-	return (pending);
-}
-
-static void
-vm_inject_fault(struct vm *vm, int vcpuid, struct vm_exception *exception)
-{
+	struct vm_exception exception;
 	struct vm_exit *vmexit;
+	struct vm *vm;
 	int error;
 
-	error = vm_inject_exception(vm, vcpuid, exception);
+	vm = vmarg;
+
+	exception.vector = vector;
+	exception.error_code = errcode;
+	exception.error_code_valid = errcode_valid;
+	error = vm_inject_exception(vm, vcpuid, &exception);
 	KASSERT(error == 0, ("vm_inject_exception error %d", error));
 
 	/*
@@ -1520,45 +1756,19 @@ vm_inject_fault(struct vm *vm, int vcpuid, struct vm_exception *exception)
 }
 
 void
-vm_inject_pf(struct vm *vm, int vcpuid, int error_code, uint64_t cr2)
+vm_inject_pf(void *vmarg, int vcpuid, int error_code, uint64_t cr2)
 {
-	struct vm_exception pf = {
-		.vector = IDT_PF,
-		.error_code_valid = 1,
-		.error_code = error_code
-	};
+	struct vm *vm;
 	int error;
 
+	vm = vmarg;
 	VCPU_CTR2(vm, vcpuid, "Injecting page fault: error_code %#x, cr2 %#lx",
 	    error_code, cr2);
 
 	error = vm_set_register(vm, vcpuid, VM_REG_GUEST_CR2, cr2);
 	KASSERT(error == 0, ("vm_set_register(cr2) error %d", error));
 
-	vm_inject_fault(vm, vcpuid, &pf);
-}
-
-void
-vm_inject_gp(struct vm *vm, int vcpuid)
-{
-	struct vm_exception gpf = {
-		.vector = IDT_GP,
-		.error_code_valid = 1,
-		.error_code = 0
-	};
-
-	vm_inject_fault(vm, vcpuid, &gpf);
-}
-
-void
-vm_inject_ud(struct vm *vm, int vcpuid)
-{
-	struct vm_exception udf = {
-		.vector = IDT_UD,
-		.error_code_valid = 0
-	};
-
-	vm_inject_fault(vm, vcpuid, &udf);
+	vm_inject_fault(vm, vcpuid, IDT_PF, 1, error_code);
 }
 
 static VMM_STAT(VCPU_NMI_COUNT, "number of NMIs delivered to vcpu");
@@ -1677,12 +1887,6 @@ vm_set_capability(struct vm *vm, int vcpu, int type, int val)
 		return (EINVAL);
 
 	return (VMSETCAP(vm->cookie, vcpu, type, val));
-}
-
-uint64_t *
-vm_guest_msrs(struct vm *vm, int cpu)
-{
-	return (vm->vcpu[cpu].guest_msrs);
 }
 
 struct vlapic *
@@ -1992,6 +2196,97 @@ vm_segment_name(int seg)
 	return (seg_names[seg]);
 }
 
+void
+vm_copy_teardown(struct vm *vm, int vcpuid, struct vm_copyinfo *copyinfo,
+    int num_copyinfo)
+{
+	int idx;
+
+	for (idx = 0; idx < num_copyinfo; idx++) {
+		if (copyinfo[idx].cookie != NULL)
+			vm_gpa_release(copyinfo[idx].cookie);
+	}
+	bzero(copyinfo, num_copyinfo * sizeof(struct vm_copyinfo));
+}
+
+int
+vm_copy_setup(struct vm *vm, int vcpuid, struct vm_guest_paging *paging,
+    uint64_t gla, size_t len, int prot, struct vm_copyinfo *copyinfo,
+    int num_copyinfo)
+{
+	int error, idx, nused;
+	size_t n, off, remaining;
+	void *hva, *cookie;
+	uint64_t gpa;
+
+	bzero(copyinfo, sizeof(struct vm_copyinfo) * num_copyinfo);
+
+	nused = 0;
+	remaining = len;
+	while (remaining > 0) {
+		KASSERT(nused < num_copyinfo, ("insufficient vm_copyinfo"));
+		error = vmm_gla2gpa(vm, vcpuid, paging, gla, prot, &gpa);
+		if (error)
+			return (error);
+		off = gpa & PAGE_MASK;
+		n = min(remaining, PAGE_SIZE - off);
+		copyinfo[nused].gpa = gpa;
+		copyinfo[nused].len = n;
+		remaining -= n;
+		gla += n;
+		nused++;
+	}
+
+	for (idx = 0; idx < nused; idx++) {
+		hva = vm_gpa_hold(vm, copyinfo[idx].gpa, copyinfo[idx].len,
+		    prot, &cookie);
+		if (hva == NULL)
+			break;
+		copyinfo[idx].hva = hva;
+		copyinfo[idx].cookie = cookie;
+	}
+
+	if (idx != nused) {
+		vm_copy_teardown(vm, vcpuid, copyinfo, num_copyinfo);
+		return (-1);
+	} else {
+		return (0);
+	}
+}
+
+void
+vm_copyin(struct vm *vm, int vcpuid, struct vm_copyinfo *copyinfo, void *kaddr,
+    size_t len)
+{
+	char *dst;
+	int idx;
+	
+	dst = kaddr;
+	idx = 0;
+	while (len > 0) {
+		bcopy(copyinfo[idx].hva, dst, copyinfo[idx].len);
+		len -= copyinfo[idx].len;
+		dst += copyinfo[idx].len;
+		idx++;
+	}
+}
+
+void
+vm_copyout(struct vm *vm, int vcpuid, const void *kaddr,
+    struct vm_copyinfo *copyinfo, size_t len)
+{
+	const char *src;
+	int idx;
+
+	src = kaddr;
+	idx = 0;
+	while (len > 0) {
+		bcopy(src, copyinfo[idx].hva, copyinfo[idx].len);
+		len -= copyinfo[idx].len;
+		src += copyinfo[idx].len;
+		idx++;
+	}
+}
 
 /*
  * Return the amount of in-use and wired memory for the VM. Since

@@ -85,6 +85,14 @@
             ..
             libcrypt
             ..
+            libmp
+            ..
+            libnv
+            ..
+            libproc
+            ..
+            libutil
+            ..
         ..
         libexec
             atf
@@ -98,6 +106,8 @@
         ..
         sbin
             dhclient
+            ..
+            devd
             ..
             growfs
             ..
@@ -245,6 +255,8 @@
             ..
             m4
             ..
+            mkimg
+            ..
             ncal
             ..
             printf
@@ -257,6 +269,8 @@
             ..
             truncate
             ..
+            units
+            ..
             uudecode
             ..
             uuencode
@@ -264,12 +278,16 @@
             xargs
             ..
             yacc
+                yacc
+                ..
             ..
         ..
         usr.sbin
             etcupdate
             ..
             newsyslog
+            ..
+            pw
             ..
             sa
             ..

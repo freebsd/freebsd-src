@@ -8,8 +8,8 @@ SRCS=	main.c screen.c brac.c ch.c charset.c cmdbuf.c command.c cvt.c \
 	signal.c tags.c ttyin.c version.c
 SCRIPTS=lesspipe.sh zless.sh
 SCRIPTSNAME_lesspipe.sh=lesspipe.sh
-DPADD=	${LIBTERMCAP}
-LDADD=	-ltermcap
+DPADD=	${LIBTERMCAPW}
+LDADD=	-ltermcapw
 LINKS=	${BINDIR}/less ${BINDIR}/more \
 	${BINDIR}/zless ${BINDIR}/bzless \
 	${BINDIR}/zless ${BINDIR}/xzless \

@@ -97,8 +97,7 @@ zio_compress_select(enum zio_compress child, enum zio_compress parent)
 }
 
 size_t
-zio_compress_data(enum zio_compress c, void *src, void *dst, size_t s_len,
-    size_t minblocksize)
+zio_compress_data(enum zio_compress c, void *src, void *dst, size_t s_len)
 {
 	uint64_t *word, *word_end;
 	size_t c_len, d_len;

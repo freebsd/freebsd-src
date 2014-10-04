@@ -499,7 +499,8 @@ static std::string getARMTargetCPU(const ArgList &Args,
     MArch = Triple.getArchName();
   }
 
-  if (Triple.getOS() == llvm::Triple::NetBSD) {
+  if (Triple.getOS() == llvm::Triple::NetBSD ||
+      Triple.getOS() == llvm::Triple::FreeBSD) {
     if (MArch == "armv6")
       return "arm1176jzf-s";
   }

@@ -130,7 +130,7 @@ ENTRY(bzero)
 .Lnormal0:
 	mov	r3, #0x00
 	b	do_memset
-
+EEND(bzero)
 /* LINTSTUB: Func: void *memset(void *, int, size_t) */
 ENTRY(memset)
 	and	r3, r1, #0xff		/* We deal with bytes */
@@ -276,7 +276,6 @@ do_memset:
 	strgeb	r3, [ip], #0x01		/* Set another byte */
 	strgtb	r3, [ip]		/* and a third */
 	RET			/* Exit */
-END(bzero)
 END(memset)
 
 ENTRY(bcmp)
@@ -394,7 +393,7 @@ ENTRY(bcopy)
 	eor     r0, r1, r0
 	eor     r1, r0, r1
 	eor     r0, r1, r0
-ENTRY(memmove)
+EENTRY(memmove)
 	/* Do the buffers overlap? */
 	cmp	r0, r1
 	RETeq		/* Bail now if src/dst are the same */
@@ -931,8 +930,8 @@ ENTRY(memmove)
 .Lmemmove_bsrcul1l4:
 	add	r1, r1, #1
 	b	.Lmemmove_bl4
+EEND(memmove)
 END(bcopy)
-END(memmove)
 
 #if !defined(_ARM_ARCH_5E)
 ENTRY(memcpy)
@@ -2945,13 +2944,17 @@ END(memcpy)
 
 ENTRY(user)
 	nop
+END(user)
 ENTRY(btrap)
 	nop
+END(btrap)
 ENTRY(etrap)
 	nop
+END(etrap)
 ENTRY(bintr)
 	nop
+END(bintr)
 ENTRY(eintr)
 	nop
-
+END(eintr)
 #endif

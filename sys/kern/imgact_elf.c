@@ -294,6 +294,19 @@ __elfN(get_brandinfo)(struct image_params *imgp, const char *interp,
 			return (bi);
 	}
 
+	/* No known brand, see if the header is recognized by any brand */
+	for (i = 0; i < MAX_BRANDS; i++) {
+		bi = elf_brand_list[i];
+		if (bi == NULL || bi->flags & BI_BRAND_NOTE_MANDATORY ||
+		    bi->header_supported == NULL)
+			continue;
+		if (hdr->e_machine == bi->machine) {
+			ret = bi->header_supported(imgp);
+			if (ret)
+				return (bi);
+		}
+	}
+
 	/* Lacking a known brand, search for a recognized interpreter. */
 	if (interp != NULL) {
 		for (i = 0; i < MAX_BRANDS; i++) {
@@ -1770,8 +1783,10 @@ __elfN(note_procstat_proc)(void *arg, struct sbuf *sb, size_t *sizep)
 		KASSERT(*sizep == size, ("invalid size"));
 		structsize = sizeof(elf_kinfo_proc_t);
 		sbuf_bcat(sb, &structsize, sizeof(structsize));
+		sx_slock(&proctree_lock);
 		PROC_LOCK(p);
 		kern_proc_out(p, sb, ELF_KERN_PROC_MASK);
+		sx_sunlock(&proctree_lock);
 	}
 	*sizep = size;
 }

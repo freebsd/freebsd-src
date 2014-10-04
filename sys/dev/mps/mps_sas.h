@@ -35,6 +35,7 @@ struct mpssas_lun {
 	lun_id_t	lun_id;
 	uint8_t		eedp_formatted;
 	uint32_t	eedp_block_size;
+	uint8_t		stop_at_shutdown;
 };
 
 struct mpssas_target {

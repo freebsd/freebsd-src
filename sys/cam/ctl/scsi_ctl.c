@@ -804,8 +804,7 @@ ctlfestart(struct cam_periph *periph, union ccb *start_ccb)
 			if (io == NULL) {
 				scsi_status = SCSI_STATUS_BUSY;
 				csio->sense_len = 0;
-			} else if ((io->io_hdr.status & CTL_STATUS_MASK) ==
-			     CTL_CMD_ABORTED &&
+			} else if ((io->io_hdr.flags & CTL_FLAG_ABORT) &&
 			    (io->io_hdr.flags & CTL_FLAG_ABORT_STATUS) == 0) {
 				io->io_hdr.flags &= ~CTL_FLAG_STATUS_QUEUED;
 

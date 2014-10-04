@@ -2648,20 +2648,25 @@ call_sim:
 			struct ccb_getdevstats *cgds;
 			struct cam_eb *bus;
 			struct cam_et *tar;
+			struct cam_devq *devq;
 
 			cgds = &start_ccb->cgds;
 			bus = path->bus;
 			tar = path->target;
+			devq = bus->sim->devq;
+			mtx_lock(&devq->send_mtx);
 			cgds->dev_openings = dev->ccbq.dev_openings;
 			cgds->dev_active = dev->ccbq.dev_active;
-			cgds->devq_openings = dev->ccbq.devq_openings;
-			cgds->devq_queued = cam_ccbq_pending_ccb_count(&dev->ccbq);
-			cgds->held = dev->ccbq.held;
+			cgds->allocated = dev->ccbq.allocated;
+			cgds->queued = cam_ccbq_pending_ccb_count(&dev->ccbq);
+			cgds->held = cgds->allocated - cgds->dev_active -
+			    cgds->queued;
 			cgds->last_reset = tar->last_reset;
 			cgds->maxtags = dev->maxtags;
 			cgds->mintags = dev->mintags;
 			if (timevalcmp(&tar->last_reset, &bus->last_reset, <))
 				cgds->last_reset = bus->last_reset;
+			mtx_unlock(&devq->send_mtx);
 			cgds->ccb_h.status = CAM_REQ_CMP;
 		}
 		break;
@@ -3004,7 +3009,6 @@ xpt_polled_action(union ccb *start_ccb)
 	 * can get it before us while we simulate interrupts.
 	 */
 	mtx_lock(&devq->send_mtx);
-	dev->ccbq.devq_openings--;
 	dev->ccbq.dev_openings--;
 	while((devq->send_openings <= 0 || dev->ccbq.dev_openings < 0) &&
 	    (--timeout > 0)) {
@@ -3016,7 +3020,6 @@ xpt_polled_action(union ccb *start_ccb)
 		camisr_runqueue();
 		mtx_lock(&devq->send_mtx);
 	}
-	dev->ccbq.devq_openings++;
 	dev->ccbq.dev_openings++;
 	mtx_unlock(&devq->send_mtx);
 
@@ -3049,7 +3052,7 @@ xpt_polled_action(union ccb *start_ccb)
 }
 
 /*
- * Schedule a peripheral driver to receive a ccb when it's
+ * Schedule a peripheral driver to receive a ccb when its
  * target device has space for more transactions.
  */
 void

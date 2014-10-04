@@ -124,7 +124,7 @@
 .\" ========================================================================
 .\"
 .IX Title "EVP_DigestInit 3"
-.TH EVP_DigestInit 3 "2014-06-05" "1.0.1h" "OpenSSL"
+.TH EVP_DigestInit 3 "2014-08-06" "1.0.1i" "OpenSSL"
 .\" For nroff, turn off justification.  Always turn off hyphenation; it makes
 .\" way too many mistakes in technical documents.
 .if n .ad l
@@ -288,9 +288,8 @@ success and 0 for failure.
 \&\fIEVP_MD_type()\fR, \fIEVP_MD_pkey_type()\fR and \fIEVP_MD_type()\fR return the \s-1NID\s0 of the
 corresponding \s-1OBJECT\s0 \s-1IDENTIFIER\s0 or NID_undef if none exists.
 .PP
-\&\fIEVP_MD_size()\fR, \fIEVP_MD_block_size()\fR, EVP_MD_CTX_size(e), \fIEVP_MD_size()\fR,
-\&\fIEVP_MD_CTX_block_size()\fR	and \fIEVP_MD_block_size()\fR return the digest or block
-size in bytes.
+\&\fIEVP_MD_size()\fR, \fIEVP_MD_block_size()\fR, \fIEVP_MD_CTX_size()\fR and
+\&\fIEVP_MD_CTX_block_size()\fR return the digest or block size in bytes.
 .PP
 \&\fIEVP_md_null()\fR, \fIEVP_md2()\fR, \fIEVP_md5()\fR, \fIEVP_sha()\fR, \fIEVP_sha1()\fR, \fIEVP_dss()\fR,
 \&\fIEVP_dss1()\fR, \fIEVP_mdc2()\fR and \fIEVP_ripemd160()\fR return pointers to the

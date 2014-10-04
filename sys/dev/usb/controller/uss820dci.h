@@ -255,19 +255,22 @@
 #define	USS820_UNK1 0x1f		/* Unknown */
 #define	USS820_UNK1_UNKNOWN 0xFF
 
+#ifndef USS820_REG_STRIDE
+#define	USS820_REG_STRIDE 1
+#endif
+
 #define	USS820_READ_1(sc, reg) \
-  bus_space_read_1((sc)->sc_io_tag, (sc)->sc_io_hdl, reg)
+  bus_space_read_1((sc)->sc_io_tag, (sc)->sc_io_hdl, (reg) * USS820_REG_STRIDE)
 
 #define	USS820_WRITE_1(sc, reg, data)	\
-  bus_space_write_1((sc)->sc_io_tag, (sc)->sc_io_hdl, reg, data)
+  bus_space_write_1((sc)->sc_io_tag, (sc)->sc_io_hdl, (reg) * USS820_REG_STRIDE, (data))
 
 struct uss820dci_td;
+struct uss820dci_softc;
 
-typedef uint8_t (uss820dci_cmd_t)(struct uss820dci_td *td);
+typedef uint8_t (uss820dci_cmd_t)(struct uss820dci_softc *, struct uss820dci_td *td);
 
 struct uss820dci_td {
-	bus_space_tag_t io_tag;
-	bus_space_handle_t io_hdl;
 	struct uss820dci_td *obj_next;
 	uss820dci_cmd_t *func;
 	struct usb_page_cache *pc;
@@ -336,6 +339,8 @@ struct uss820dci_softc {
 	bus_space_tag_t sc_io_tag;
 	bus_space_handle_t sc_io_hdl;
 
+	uint32_t sc_xfer_complete;
+
 	uint8_t	sc_rt_addr;		/* root HUB address */
 	uint8_t	sc_dv_addr;		/* device address */
 	uint8_t	sc_conf;		/* root HUB config */
@@ -349,6 +354,7 @@ struct uss820dci_softc {
 
 usb_error_t uss820dci_init(struct uss820dci_softc *sc);
 void	uss820dci_uninit(struct uss820dci_softc *sc);
-void	uss820dci_interrupt(struct uss820dci_softc *sc);
+driver_filter_t uss820dci_filter_interrupt;
+driver_intr_t uss820dci_interrupt;
 
 #endif					/* _USS820_DCI_H_ */

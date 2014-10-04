@@ -4,8 +4,6 @@ MAN=
 
 .include <src.opts.mk>
 
-NO_PIE=	yes
-
 .PATH: ${.CURDIR}/../../../contrib/ntp/ntpd
 
 PROG=	ntpd

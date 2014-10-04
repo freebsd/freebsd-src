@@ -305,10 +305,10 @@ extern struct mtx_padalign pa_lock[];
  * both the MI and MD VM layers.  However, kernel loadable modules should not
  * directly set this flag.  They should call vm_page_reference() instead.
  *
- * PGA_WRITEABLE is set exclusively on managed pages by pmap_enter().  When it
- * does so, the page must be exclusive busied.  The MI VM layer must never
- * access this flag directly.  Instead, it should call
- * pmap_page_is_write_mapped().
+ * PGA_WRITEABLE is set exclusively on managed pages by pmap_enter().
+ * When it does so, the object must be locked, or the page must be
+ * exclusive busied.  The MI VM layer must never access this flag
+ * directly.  Instead, it should call pmap_page_is_write_mapped().
  *
  * PGA_EXECUTABLE may be set by pmap routines, and indicates that a page has
  * at least one executable mapping.  It is not consumed by the MI VM layer.
@@ -533,8 +533,12 @@ void vm_page_lock_assert_KBI(vm_page_t m, int a, const char *file, int line);
 #ifdef INVARIANTS
 void vm_page_object_lock_assert(vm_page_t m);
 #define	VM_PAGE_OBJECT_LOCK_ASSERT(m)	vm_page_object_lock_assert(m)
+void vm_page_assert_pga_writeable(vm_page_t m, uint8_t bits);
+#define	VM_PAGE_ASSERT_PGA_WRITEABLE(m, bits)				\
+	vm_page_assert_pga_writeable(m, bits)
 #else
 #define	VM_PAGE_OBJECT_LOCK_ASSERT(m)	(void)0
+#define	VM_PAGE_ASSERT_PGA_WRITEABLE(m, bits)	(void)0
 #endif
 
 /*
@@ -582,13 +586,7 @@ vm_page_aflag_set(vm_page_t m, uint8_t bits)
 {
 	uint32_t *addr, val;
 
-	/*
-	 * The PGA_WRITEABLE flag can only be set if the page is managed and
-	 * exclusive busied.  Currently, this flag is only set by pmap_enter().
-	 */
-	KASSERT((bits & PGA_WRITEABLE) == 0 ||
-	    ((m->oflags & VPO_UNMANAGED) == 0 && vm_page_xbusied(m)),
-	    ("vm_page_aflag_set: PGA_WRITEABLE and not exclusive busy"));
+	VM_PAGE_ASSERT_PGA_WRITEABLE(m, bits);
 
 	/*
 	 * Access the whole 32-bit word containing the aflags field with an

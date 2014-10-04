@@ -468,6 +468,10 @@ if_alloc(u_char type)
 
 	refcount_init(&ifp->if_refcount, 1);	/* Index reference. */
 	ifnet_setbyindex(ifp->if_index, ifp);
+
+	for (int i = 0; i < IFCOUNTERS; i++)
+		ifp->if_counters[i] = counter_u64_alloc(M_WAITOK);
+
 	return (ifp);
 }
 
@@ -495,6 +499,10 @@ if_free_internal(struct ifnet *ifp)
 	IF_AFDATA_DESTROY(ifp);
 	IF_ADDR_LOCK_DESTROY(ifp);
 	ifq_delete(&ifp->if_snd);
+
+	for (int i = 0; i < IFCOUNTERS; i++)
+		counter_u64_free(ifp->if_counters[i]);
+
 	free(ifp, M_IFNET);
 }
 
@@ -584,6 +592,57 @@ if_attach(struct ifnet *ifp)
 	if_attach_internal(ifp, 0);
 }
 
+/*
+ * Compute the least common TSO limit.
+ */
+void
+if_hw_tsomax_common(if_t ifp, struct ifnet_hw_tsomax *pmax)
+{
+	/*
+	 * 1) If there is no limit currently, take the limit from
+	 * the network adapter.
+	 *
+	 * 2) If the network adapter has a limit below the current
+	 * limit, apply it.
+	 */
+	if (pmax->tsomaxbytes == 0 || (ifp->if_hw_tsomax != 0 &&
+	    ifp->if_hw_tsomax < pmax->tsomaxbytes)) {
+		pmax->tsomaxbytes = ifp->if_hw_tsomax;
+	}
+	if (pmax->tsomaxsegcount == 0 || (ifp->if_hw_tsomaxsegcount != 0 &&
+	    ifp->if_hw_tsomaxsegcount < pmax->tsomaxsegcount)) {
+		pmax->tsomaxsegcount = ifp->if_hw_tsomaxsegcount;
+	}
+	if (pmax->tsomaxsegsize == 0 || (ifp->if_hw_tsomaxsegsize != 0 &&
+	    ifp->if_hw_tsomaxsegsize < pmax->tsomaxsegsize)) {
+		pmax->tsomaxsegsize = ifp->if_hw_tsomaxsegsize;
+	}
+}
+
+/*
+ * Update TSO limit of a network adapter.
+ *
+ * Returns zero if no change. Else non-zero.
+ */
+int
+if_hw_tsomax_update(if_t ifp, struct ifnet_hw_tsomax *pmax)
+{
+	int retval = 0;
+	if (ifp->if_hw_tsomax != pmax->tsomaxbytes) {
+		ifp->if_hw_tsomax = pmax->tsomaxbytes;
+		retval++;
+	}
+	if (ifp->if_hw_tsomaxsegsize != pmax->tsomaxsegsize) {
+		ifp->if_hw_tsomaxsegsize = pmax->tsomaxsegsize;
+		retval++;
+	}
+	if (ifp->if_hw_tsomaxsegcount != pmax->tsomaxsegcount) {
+		ifp->if_hw_tsomaxsegcount = pmax->tsomaxsegcount;
+		retval++;
+	}
+	return (retval);
+}
+
 static void
 if_attach_internal(struct ifnet *ifp, int vmove)
 {
@@ -605,8 +664,7 @@ if_attach_internal(struct ifnet *ifp, int vmove)
 	if_addgroup(ifp, IFG_ALL);
 
 	getmicrotime(&ifp->if_lastchange);
-	ifp->if_data.ifi_epoch = time_uptime;
-	ifp->if_data.ifi_datalen = sizeof(struct if_data);
+	ifp->if_epoch = time_uptime;
 
 	KASSERT((ifp->if_transmit == NULL && ifp->if_qflush == NULL) ||
 	    (ifp->if_transmit != NULL && ifp->if_qflush != NULL),
@@ -615,7 +673,10 @@ if_attach_internal(struct ifnet *ifp, int vmove)
 		ifp->if_transmit = if_transmit;
 		ifp->if_qflush = if_qflush;
 	}
-	
+
+	if (ifp->if_get_counter == NULL)
+		ifp->if_get_counter = if_get_counter_default;
+
 	if (!vmove) {
 #ifdef MAC
 		mac_ifnet_create(ifp);
@@ -657,13 +718,36 @@ if_attach_internal(struct ifnet *ifp, int vmove)
 		ifp->if_broadcastaddr = NULL;
 
 #if defined(INET) || defined(INET6)
-		/* Initialize to max value. */
-		if (ifp->if_hw_tsomax == 0)
-			ifp->if_hw_tsomax = min(IP_MAXPACKET, 32 * MCLBYTES -
+		/* Use defaults for TSO, if nothing is set */
+		if (ifp->if_hw_tsomax == 0 &&
+		    ifp->if_hw_tsomaxsegcount == 0 &&
+		    ifp->if_hw_tsomaxsegsize == 0) {
+			/*
+			 * The TSO defaults needs to be such that an
+			 * NFS mbuf list of 35 mbufs totalling just
+			 * below 64K works and that a chain of mbufs
+			 * can be defragged into at most 32 segments:
+			 */
+			ifp->if_hw_tsomax = min(IP_MAXPACKET, (32 * MCLBYTES) -
 			    (ETHER_HDR_LEN + ETHER_VLAN_ENCAP_LEN));
-		KASSERT(ifp->if_hw_tsomax <= IP_MAXPACKET &&
-		    ifp->if_hw_tsomax >= IP_MAXPACKET / 8,
-		    ("%s: tsomax outside of range", __func__));
+			ifp->if_hw_tsomaxsegcount = 35;
+			ifp->if_hw_tsomaxsegsize = 2048;	/* 2K */
+
+			/* XXX some drivers set IFCAP_TSO after ethernet attach */
+			if (ifp->if_capabilities & IFCAP_TSO) {
+				if_printf(ifp, "Using defaults for TSO: %u/%u/%u\n",
+				    ifp->if_hw_tsomax,
+				    ifp->if_hw_tsomaxsegcount,
+				    ifp->if_hw_tsomaxsegsize);
+			}
+		}
+		/*
+		 * If the "if_hw_tsomax" limit is set, check if it is
+		 * too small:
+		 */
+		KASSERT(ifp->if_hw_tsomax == 0 ||
+		    ifp->if_hw_tsomax >= (IP_MAXPACKET / 8),
+		    ("%s: if_hw_tsomax is outside of range", __func__));
 #endif
 	}
 #ifdef VIMAGE
@@ -874,6 +958,12 @@ if_detach_internal(struct ifnet *ifp, int vmove)
 #endif
 	if_purgemaddrs(ifp);
 
+	/* Announce that the interface is gone. */
+	rt_ifannouncemsg(ifp, IFAN_DEPARTURE);
+	EVENTHANDLER_INVOKE(ifnet_departure_event, ifp);
+	if (IS_DEFAULT_VNET(curvnet))
+		devctl_notify("IFNET", ifp->if_xname, "DETACH", NULL);
+
 	if (!vmove) {
 		/*
 		 * Prevent further calls into the device driver via ifnet.
@@ -911,11 +1001,6 @@ if_detach_internal(struct ifnet *ifp, int vmove)
 		}
 	}
 
-	/* Announce that the interface is gone. */
-	rt_ifannouncemsg(ifp, IFAN_DEPARTURE);
-	EVENTHANDLER_INVOKE(ifnet_departure_event, ifp);
-	if (IS_DEFAULT_VNET(curvnet))
-		devctl_notify("IFNET", ifp->if_xname, "DETACH", NULL);
 	if_delgroups(ifp);
 
 	/*
@@ -1383,6 +1468,66 @@ if_rtdel(struct radix_node *rn, void *arg)
 }
 
 /*
+ * Return counter values from counter(9)s stored in ifnet.
+ */
+uint64_t
+if_get_counter_default(struct ifnet *ifp, ift_counter cnt)
+{
+
+	KASSERT(cnt < IFCOUNTERS, ("%s: invalid cnt %d", __func__, cnt));
+
+	return (counter_u64_fetch(ifp->if_counters[cnt]));
+}
+
+/*
+ * Increase an ifnet counter. Usually used for counters shared
+ * between the stack and a driver, but function supports them all.
+ */
+void
+if_inc_counter(struct ifnet *ifp, ift_counter cnt, int64_t inc)
+{
+
+	KASSERT(cnt < IFCOUNTERS, ("%s: invalid cnt %d", __func__, cnt));
+
+	counter_u64_add(ifp->if_counters[cnt], inc);
+}
+
+/*
+ * Copy data from ifnet to userland API structure if_data.
+ */
+void
+if_data_copy(struct ifnet *ifp, struct if_data *ifd)
+{
+
+	ifd->ifi_type = ifp->if_type;
+	ifd->ifi_physical = 0;
+	ifd->ifi_addrlen = ifp->if_addrlen;
+	ifd->ifi_hdrlen = ifp->if_hdrlen;
+	ifd->ifi_link_state = ifp->if_link_state;
+	ifd->ifi_vhid = 0;
+	ifd->ifi_datalen = sizeof(struct if_data);
+	ifd->ifi_mtu = ifp->if_mtu;
+	ifd->ifi_metric = ifp->if_metric;
+	ifd->ifi_baudrate = ifp->if_baudrate;
+	ifd->ifi_hwassist = ifp->if_hwassist;
+	ifd->ifi_epoch = ifp->if_epoch;
+	ifd->ifi_lastchange = ifp->if_lastchange;
+
+	ifd->ifi_ipackets = ifp->if_get_counter(ifp, IFCOUNTER_IPACKETS);
+	ifd->ifi_ierrors = ifp->if_get_counter(ifp, IFCOUNTER_IERRORS);
+	ifd->ifi_opackets = ifp->if_get_counter(ifp, IFCOUNTER_OPACKETS);
+	ifd->ifi_oerrors = ifp->if_get_counter(ifp, IFCOUNTER_OERRORS);
+	ifd->ifi_collisions = ifp->if_get_counter(ifp, IFCOUNTER_COLLISIONS);
+	ifd->ifi_ibytes = ifp->if_get_counter(ifp, IFCOUNTER_IBYTES);
+	ifd->ifi_obytes = ifp->if_get_counter(ifp, IFCOUNTER_OBYTES);
+	ifd->ifi_imcasts = ifp->if_get_counter(ifp, IFCOUNTER_IMCASTS);
+	ifd->ifi_omcasts = ifp->if_get_counter(ifp, IFCOUNTER_OMCASTS);
+	ifd->ifi_iqdrops = ifp->if_get_counter(ifp, IFCOUNTER_IQDROPS);
+	ifd->ifi_oqdrops = ifp->if_get_counter(ifp, IFCOUNTER_OQDROPS);
+	ifd->ifi_noproto = ifp->if_get_counter(ifp, IFCOUNTER_NOPROTO);
+}
+
+/*
  * Wrapper functions for struct ifnet address list locking macros.  These are
  * used by kernel modules to avoid encoding programming interface or binary
  * interface assumptions that may be violated when kernel-internal locking
@@ -1620,13 +1765,15 @@ ifa_ifwithaddr_check(struct sockaddr *addr)
  */
 /* ARGSUSED */
 struct ifaddr *
-ifa_ifwithbroadaddr(struct sockaddr *addr)
+ifa_ifwithbroadaddr(struct sockaddr *addr, int fibnum)
 {
 	struct ifnet *ifp;
 	struct ifaddr *ifa;
 
 	IFNET_RLOCK_NOSLEEP();
 	TAILQ_FOREACH(ifp, &V_ifnet, if_link) {
+		if ((fibnum != RT_ALL_FIBS) && (ifp->if_fib != fibnum))
+			continue;
 		IF_ADDR_RLOCK(ifp);
 		TAILQ_FOREACH(ifa, &ifp->if_addrhead, ifa_link) {
 			if (ifa->ifa_addr->sa_family != addr->sa_family)
@@ -1653,7 +1800,7 @@ done:
  */
 /*ARGSUSED*/
 struct ifaddr *
-ifa_ifwithdstaddr_fib(struct sockaddr *addr, int fibnum)
+ifa_ifwithdstaddr(struct sockaddr *addr, int fibnum)
 {
 	struct ifnet *ifp;
 	struct ifaddr *ifa;
@@ -1683,19 +1830,12 @@ done:
 	return (ifa);
 }
 
-struct ifaddr *
-ifa_ifwithdstaddr(struct sockaddr *addr)
-{
-
-	return (ifa_ifwithdstaddr_fib(addr, RT_ALL_FIBS));
-}
-
 /*
  * Find an interface on a specific network.  If many, choice
  * is most specific found.
  */
 struct ifaddr *
-ifa_ifwithnet_fib(struct sockaddr *addr, int ignore_ptp, int fibnum)
+ifa_ifwithnet(struct sockaddr *addr, int ignore_ptp, int fibnum)
 {
 	struct ifnet *ifp;
 	struct ifaddr *ifa;
@@ -1747,19 +1887,6 @@ next:				continue;
 				}
 			} else {
 				/*
-				 * if we have a special address handler,
-				 * then use it instead of the generic one.
-				 */
-				if (ifa->ifa_claim_addr) {
-					if ((*ifa->ifa_claim_addr)(ifa, addr)) {
-						ifa_ref(ifa);
-						IF_ADDR_RUNLOCK(ifp);
-						goto done;
-					}
-					continue;
-				}
-
-				/*
 				 * Scan all the bits in the ifa's address.
 				 * If a bit dissagrees with what we are
 				 * looking for, mask it with the netmask
@@ -1804,13 +1931,6 @@ done:
 	if (ifa_maybe != NULL)
 		ifa_free(ifa_maybe);
 	return (ifa);
-}
-
-struct ifaddr *
-ifa_ifwithnet(struct sockaddr *addr, int ignore_ptp)
-{
-
-	return (ifa_ifwithnet_fib(addr, ignore_ptp, RT_ALL_FIBS));
 }
 
 /*
@@ -2087,7 +2207,7 @@ if_qflush(struct ifnet *ifp)
 #endif
 	n = ifq->ifq_head;
 	while ((m = n) != 0) {
-		n = m->m_act;
+		n = m->m_nextpkt;
 		m_freem(m);
 	}
 	ifq->ifq_head = 0;
@@ -2179,7 +2299,8 @@ ifhwioctl(u_long cmd, struct ifnet *ifp, caddr_t data, struct thread *td)
 		break;
 
 	case SIOCGIFPHYS:
-		ifr->ifr_phys = ifp->if_physical;
+		/* XXXGL: did this ever worked? */
+		ifr->ifr_phys = 0;
 		break;
 
 	case SIOCGIFDESCR:
@@ -3421,15 +3542,15 @@ if_handoff(struct ifqueue *ifq, struct mbuf *m, struct ifnet *ifp, int adjust)
 
 	IF_LOCK(ifq);
 	if (_IF_QFULL(ifq)) {
-		_IF_DROP(ifq);
 		IF_UNLOCK(ifq);
+		if_inc_counter(ifp, IFCOUNTER_OQDROPS, 1);
 		m_freem(m);
 		return (0);
 	}
 	if (ifp != NULL) {
-		ifp->if_obytes += m->m_pkthdr.len + adjust;
+		if_inc_counter(ifp, IFCOUNTER_OBYTES, m->m_pkthdr.len + adjust);
 		if (m->m_flags & (M_BCAST|M_MCAST))
-			ifp->if_omcasts++;
+			if_inc_counter(ifp, IFCOUNTER_OMCASTS, 1);
 		active = ifp->if_drv_flags & IFF_DRV_OACTIVE;
 	}
 	_IF_ENQUEUE(ifq, m);
@@ -3467,9 +3588,8 @@ if_deregister_com_alloc(u_char type)
 
 /* API for driver access to network stack owned ifnet.*/
 uint64_t
-if_setbaudrate(void *arg, uint64_t baudrate)
+if_setbaudrate(struct ifnet *ifp, uint64_t baudrate)
 {
-	struct ifnet *ifp = arg;
 	uint64_t oldbrate;
 
 	oldbrate = ifp->if_baudrate;
@@ -3674,138 +3794,11 @@ if_getvtag(struct mbuf *m)
 	return (m->m_pkthdr.ether_vtag);
 }
 
-/* Statistics */
-int
-if_incipackets(if_t ifp, int pkts)
-{
-	((struct ifnet *)ifp)->if_ipackets += pkts;
-	return (0);
-}
-
-int
-if_incopackets(if_t ifp, int pkts)
-{
-	((struct ifnet *)ifp)->if_opackets += pkts;
-	return (0);
-}
-
-int
-if_incierrors(if_t ifp, int ierrors)
-{
-	((struct ifnet *)ifp)->if_ierrors += ierrors;
-	return (0);
-}
-
-
-int
-if_setierrors(if_t ifp, int ierrors)
-{
-	((struct ifnet *)ifp)->if_ierrors = ierrors;
-	return (0);
-}
-
-int
-if_setoerrors(if_t ifp, int oerrors)
-{
-	((struct ifnet *)ifp)->if_oerrors = oerrors;
-	return (0);
-}
-
-int if_incoerrors(if_t ifp, int oerrors)
-{
-	((struct ifnet *)ifp)->if_oerrors += oerrors;
-	return (0);
-}
-
-int if_inciqdrops(if_t ifp, int val)
-{
-	((struct ifnet *)ifp)->if_iqdrops += val;
-	return (0);
-}
-
-int
-if_setcollisions(if_t ifp, int collisions)
-{
-	((struct ifnet *)ifp)->if_collisions = collisions;
-	return (0);
-}
-
-int
-if_inccollisions(if_t ifp, int collisions)
-{
-	((struct ifnet *)ifp)->if_collisions += collisions;
-	return (0);
-}
- 
-int
-if_setipackets(if_t ifp, int pkts)
-{
-	((struct ifnet *)ifp)->if_ipackets = pkts;
-	return (0);
-}
-
-int
-if_setopackets(if_t ifp, int pkts)
-{
-	((struct ifnet *)ifp)->if_opackets = pkts;
-	return (0);
-}
-
-int
-if_incobytes(if_t ifp, int bytes)
-{
-	((struct ifnet *)ifp)->if_obytes += bytes;
-	return (0);
-}
-
-int
-if_setibytes(if_t ifp, int bytes)
-{
-	((struct ifnet *)ifp)->if_ibytes = bytes;
-	return (0);
-}
-
-int
-if_setobytes(if_t ifp, int bytes)
-{
-	((struct ifnet *)ifp)->if_obytes = bytes;
-	return (0);
-}
-
-
 int
 if_sendq_empty(if_t ifp)
 {
 	return IFQ_DRV_IS_EMPTY(&((struct ifnet *)ifp)->if_snd);
 }
-
-int if_getiqdrops(if_t ifp)
-{
-	return ((struct ifnet *)ifp)->if_iqdrops;
-}
-
-int
-if_incimcasts(if_t ifp, int mcast)
-{
-	((struct ifnet *)ifp)->if_imcasts += mcast;
-	return (0);
-}
-
-
-int
-if_incomcasts(if_t ifp, int mcast)
-{
-	((struct ifnet *)ifp)->if_omcasts += mcast;
-	return (0);
-}
-
-int
-if_setimcasts(if_t ifp, int mcast)
-{
-	((struct ifnet *)ifp)->if_imcasts = mcast;
-	return (0);
-}
-
 
 struct ifaddr *
 if_getifaddr(if_t ifp)
@@ -3927,7 +3920,7 @@ if_sendq_prepend(if_t ifp, struct mbuf *m)
 int
 if_setifheaderlen(if_t ifp, int len)
 {
-	((struct ifnet *)ifp)->if_data.ifi_hdrlen = len;
+	((struct ifnet *)ifp)->if_hdrlen = len;
 	return (0);
 }
 
@@ -3973,13 +3966,13 @@ if_setinitfn(if_t ifp, void (*init_fn)(void *))
 }
 
 void
-if_setioctlfn(if_t ifp, int (*ioctl_fn)(void *, u_long, caddr_t))
+if_setioctlfn(if_t ifp, int (*ioctl_fn)(if_t, u_long, caddr_t))
 {
 	((struct ifnet *)ifp)->if_ioctl = (void *)ioctl_fn;
 }
 
 void
-if_setstartfn(if_t ifp, void (*start_fn)(void *))
+if_setstartfn(if_t ifp, void (*start_fn)(if_t))
 {
 	((struct ifnet *)ifp)->if_start = (void *)start_fn;
 }
@@ -3996,88 +3989,11 @@ void if_setqflushfn(if_t ifp, if_qflush_fn_t flush_fn)
 	
 }
 
-/* These wrappers are hopefully temporary, till all drivers use drvapi */
-#ifdef INET
 void
-arp_ifinit_drv(if_t ifh, struct ifaddr *ifa)
-{
-	arp_ifinit((struct ifnet *)ifh, ifa);
-}
-#endif
-
-void
-ether_ifattach_drv(if_t ifh, const u_int8_t *lla)
-{
-	ether_ifattach((struct ifnet *)ifh, lla);
-}
-
-void
-ether_ifdetach_drv(if_t ifh)
-{
-	ether_ifdetach((struct ifnet *)ifh);
-}
-
-int
-ether_ioctl_drv(if_t ifh, u_long cmd, caddr_t data)
-{
-	struct ifnet *ifp = (struct ifnet *)ifh;
-
-	return (ether_ioctl(ifp, cmd, data));
-}
-
-int
-ifmedia_ioctl_drv(if_t ifh, struct ifreq *ifr, struct ifmedia *ifm,
-    u_long cmd)
-{
-	struct ifnet *ifp = (struct ifnet *)ifh;
-
-	return (ifmedia_ioctl(ifp, ifr, ifm, cmd));
-}
-
-void
-if_free_drv(if_t ifh)
-{
-	if_free((struct ifnet *)ifh);	
-}
-
-void
-if_initname_drv(if_t ifh, const char *name, int unit)
-{
-	if_initname((struct ifnet *)ifh, name, unit);	
-}
-
-void
-if_linkstate_change_drv(if_t ifh, int link_state)
-{
-	if_link_state_change((struct ifnet *)ifh, link_state);
-}
-
-void
-ifmedia_init_drv(struct ifmedia *ifm, int ncmask, int (*chg_cb)(void *),
-    void (*sts_cb)(void *, struct ifmediareq *))
-{
-	ifmedia_init(ifm, ncmask, (ifm_change_cb_t)chg_cb,
-	    (ifm_stat_cb_t)sts_cb);
-}
-
-void
-if_addr_rlock_drv(if_t ifh)
+if_setgetcounterfn(if_t ifp, if_get_counter_t fn)
 {
 
-	if_addr_runlock((struct ifnet *)ifh);
-}
-
-void
-if_addr_runlock_drv(if_t ifh)
-{
-	if_addr_runlock((struct ifnet *)ifh);
-}
-
-void
-if_qflush_drv(if_t ifh)
-{
-	if_qflush((struct ifnet *)ifh);
-
+	ifp->if_get_counter = fn;
 }
 
 /* Revisit these - These are inline functions originally. */

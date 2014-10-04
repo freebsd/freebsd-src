@@ -81,7 +81,7 @@ edit1(int *msgvec, int type)
 	/*
 	 * Deal with each message to be edited . . .
 	 */
-	for (i = 0; msgvec[i] && i < msgCount; i++) {
+	for (i = 0; i < msgCount && msgvec[i]; i++) {
 		sig_t sigint;
 
 		if (i > 0) {

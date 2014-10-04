@@ -1089,6 +1089,14 @@ ktrsyscall(struct ktr_syscall *ktr, u_int flags)
 				ip++;
 				narg--;
 				break;
+			case SYS_shm_open:
+				print_number(ip, narg, c);
+				putchar(',');
+				flagsname(ip[0]);
+				printf(",0%o", ip[1]);
+				ip += 3;
+				narg -= 3;
+				break;
 			case SYS_minherit:
 				print_number(ip, narg, c);
 				print_number(ip, narg, c);

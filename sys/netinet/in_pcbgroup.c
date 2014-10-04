@@ -243,6 +243,8 @@ in_pcbgroup_byhash(struct inpcbinfo *pcbinfo, u_int hashtype, uint32_t hash)
 #ifdef RSS
 	if ((pcbinfo->ipi_hashfields == IPI_HASHFIELDS_4TUPLE &&
 	    hashtype == M_HASHTYPE_RSS_TCP_IPV4) ||
+	    (pcbinfo->ipi_hashfields == IPI_HASHFIELDS_4TUPLE &&
+	    hashtype == M_HASHTYPE_RSS_UDP_IPV4) ||
 	    (pcbinfo->ipi_hashfields == IPI_HASHFIELDS_2TUPLE &&
 	    hashtype == M_HASHTYPE_RSS_IPV4))
 		return (&pcbinfo->ipi_pcbgroups[
@@ -414,7 +416,7 @@ in_pcbgroup_update_internal(struct inpcbinfo *pcbinfo,
 	if (newpcbgroup != NULL && oldpcbgroup != newpcbgroup) {
 #ifdef INET6
 		if (inp->inp_vflag & INP_IPV6)
-			hashkey_faddr = inp->in6p_faddr.s6_addr32[3]; /* XXX */
+			hashkey_faddr = INP6_PCBHASHKEY(&inp->in6p_faddr);
 		else
 #endif
 			hashkey_faddr = inp->inp_faddr.s_addr;

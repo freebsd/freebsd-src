@@ -82,12 +82,6 @@ struct sctp_supported_addr_param {
 	uint16_t addr_type[2];	/* array of supported address types */
 }                         SCTP_PACKED;
 
-/* ECN parameter */
-struct sctp_ecn_supported_param {
-	struct sctp_paramhdr ph;/* type=SCTP_ECN_CAPABLE */
-}                        SCTP_PACKED;
-
-
 /* heartbeat info parameter */
 struct sctp_heartbeat_info_param {
 	struct sctp_paramhdr ph;

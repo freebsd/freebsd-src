@@ -136,7 +136,8 @@ static driver_t ofwbus_driver = {
 	sizeof(struct ofwbus_softc)
 };
 static devclass_t ofwbus_devclass;
-DRIVER_MODULE(ofwbus, nexus, ofwbus_driver, ofwbus_devclass, 0, 0);
+EARLY_DRIVER_MODULE(ofwbus, nexus, ofwbus_driver, ofwbus_devclass, 0, 0,
+    BUS_PASS_BUS + BUS_PASS_ORDER_MIDDLE);
 MODULE_VERSION(ofwbus, 1);
 
 static const char *const ofwbus_excl_name[] = {
@@ -434,11 +435,10 @@ ofwbus_setup_dinfo(device_t dev, phandle_t node)
 {
 	struct ofwbus_softc *sc;
 	struct ofwbus_devinfo *ndi;
-	uint32_t *reg, *intr, icells;
+	const char *nodename;
+	uint32_t *reg;
 	uint64_t phys, size;
-	phandle_t iparent;
-	int i, j;
-	int nintr;
+	int i, j, rid;
 	int nreg;
 
 	sc = device_get_softc(dev);
@@ -448,8 +448,8 @@ ofwbus_setup_dinfo(device_t dev, phandle_t node)
 		free(ndi, M_DEVBUF);
 		return (NULL);
 	}
-	if (OFWBUS_EXCLUDED(ndi->ndi_obdinfo.obd_name,
-	    ndi->ndi_obdinfo.obd_type)) {
+	nodename = ndi->ndi_obdinfo.obd_name;
+	if (OFWBUS_EXCLUDED(nodename, ndi->ndi_obdinfo.obd_type)) {
 		ofw_bus_gen_destroy_devinfo(&ndi->ndi_obdinfo);
 		free(ndi, M_DEVBUF);
 		return (NULL);
@@ -462,11 +462,11 @@ ofwbus_setup_dinfo(device_t dev, phandle_t node)
 	if (nreg % (sc->acells + sc->scells) != 0) {
 		if (bootverbose)
 			device_printf(dev, "Malformed reg property on <%s>\n",
-			    ndi->ndi_obdinfo.obd_name);
+			    nodename);
 		nreg = 0;
 	}
 
-	for (i = 0; i < nreg; i += sc->acells + sc->scells) {
+	for (i = 0, rid = 0; i < nreg; i += sc->acells + sc->scells, rid++) {
 		phys = size = 0;
 		for (j = 0; j < sc->acells; j++) {
 			phys <<= 32;
@@ -478,27 +478,12 @@ ofwbus_setup_dinfo(device_t dev, phandle_t node)
 		}
 		/* Skip the dummy reg property of glue devices like ssm(4). */
 		if (size != 0)
-			resource_list_add(&ndi->ndi_rl, SYS_RES_MEMORY, i,
+			resource_list_add(&ndi->ndi_rl, SYS_RES_MEMORY, rid,
 			    phys, phys + size - 1, size);
 	}
 	free(reg, M_OFWPROP);
 
-	nintr = OF_getencprop_alloc(node, "interrupts",  sizeof(*intr),
-	    (void **)&intr);
-	if (nintr > 0) {
-		iparent = 0;
-		OF_searchencprop(node, "interrupt-parent", &iparent,
-		    sizeof(iparent));
-		OF_searchencprop(OF_xref_phandle(iparent), "#interrupt-cells",
-		    &icells, sizeof(icells));
-		for (i = 0; i < nintr; i+= icells) {
-			intr[i] = ofw_bus_map_intr(dev, iparent, icells,
-			    &intr[i]);
-			resource_list_add(&ndi->ndi_rl, SYS_RES_IRQ, i, intr[i],
-			    intr[i], 1);
-		}
-		free(intr, M_OFWPROP);
-	}
+	ofw_bus_intr_to_rl(dev, node, &ndi->ndi_rl);
 
 	return (ndi);
 }

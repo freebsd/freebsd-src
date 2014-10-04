@@ -109,24 +109,40 @@ typedef unsigned int 	vt_axis_t;
  * Per-device datastructure.
  */
 
+#ifndef SC_NO_CUTPASTE
+struct vt_mouse_cursor;
+#endif
+
+struct vt_pastebuf {
+	term_char_t		*vpb_buf;	/* Copy-paste buffer. */
+	unsigned int		 vpb_bufsz;	/* Buffer size. */
+	unsigned int		 vpb_len;	/* Length of a last selection. */
+};
+
 struct vt_device {
 	struct vt_window	*vd_windows[VT_MAXWINDOWS]; /* (c) Windows. */
 	struct vt_window	*vd_curwindow;	/* (d) Current window. */
 	struct vt_window	*vd_savedwindow;/* (?) Saved for suspend. */
-	struct vt_window	*vd_markedwin;	/* (?) Copy/paste buf owner. */
+	struct vt_pastebuf	 vd_pastebuf;	/* (?) Copy/paste buf. */
 	const struct vt_driver	*vd_driver;	/* (c) Graphics driver. */
 	void			*vd_softc;	/* (u) Driver data. */
-	uint16_t		 vd_mx;		/* (?) Mouse X. */
-	uint16_t		 vd_my;		/* (?) Mouse Y. */
-	vt_axis_t		 vd_mdirtyx;	/* (?) Screen width. */
-	vt_axis_t		 vd_mdirtyy;	/* (?) Screen height. */
+#ifndef SC_NO_CUTPASTE
+	struct vt_mouse_cursor	*vd_mcursor;	/* (?) Cursor bitmap. */
+	term_color_t		 vd_mcursor_fg;	/* (?) Cursor fg color. */
+	term_color_t		 vd_mcursor_bg;	/* (?) Cursor bg color. */
+	vt_axis_t		 vd_mx_drawn;	/* (?) Mouse X and Y      */
+	vt_axis_t		 vd_my_drawn;	/*     as of last redraw. */
+	int			 vd_mshown;	/* (?) Mouse shown during */
+#endif						/*     last redrawn.      */
+	uint16_t		 vd_mx;		/* (?) Current mouse X. */
+	uint16_t		 vd_my;		/* (?) current mouse Y. */
 	uint32_t		 vd_mstate;	/* (?) Mouse state. */
-	term_pos_t		 vd_offset;	/* (?) Pixel offset. */
 	vt_axis_t		 vd_width;	/* (?) Screen width. */
 	vt_axis_t		 vd_height;	/* (?) Screen height. */
 	struct mtx		 vd_lock;	/* Per-device lock. */
 	struct cv		 vd_winswitch;	/* (d) Window switch notify. */
 	struct callout		 vd_timer;	/* (d) Display timer. */
+	volatile unsigned int	 vd_timer_armed;/* (?) Display timer started.*/
 	int			 vd_flags;	/* (d) Device flags. */
 #define	VDF_TEXTMODE	0x01	/* Do text mode rendering. */
 #define	VDF_SPLASH	0x02	/* Splash screen active. */
@@ -141,6 +157,10 @@ struct vt_device {
 	unsigned int		 vd_unit;	/* (c) Device unit. */
 };
 
+#define	VD_PASTEBUF(vd)	((vd)->vd_pastebuf.vpb_buf)
+#define	VD_PASTEBUFSZ(vd)	((vd)->vd_pastebuf.vpb_bufsz)
+#define	VD_PASTEBUFLEN(vd)	((vd)->vd_pastebuf.vpb_len)
+
 /*
  * Per-window terminal screen buffer.
  *
@@ -152,11 +172,6 @@ struct vt_device {
  * been modified.
  */
 
-struct vt_bufmask {
-	uint64_t		 vbm_row, vbm_col;
-#define	VBM_DIRTY		UINT64_MAX
-};
-
 struct vt_buf {
 	struct mtx		 vb_lock;	/* Buffer lock. */
 	term_pos_t		 vb_scr_size;	/* (b) Screen dimensions. */
@@ -166,7 +181,7 @@ struct vt_buf {
 #define	VBF_MTX_INIT	0x4	/* Mutex initialized. */
 #define	VBF_SCROLL	0x8	/* scroll locked mode. */
 #define	VBF_HISTORY_FULL 0x10	/* All rows filled. */
-	int			 vb_history_size;
+	unsigned int		 vb_history_size;
 #define	VBF_DEFAULT_HISTORY_SIZE	500
 	int			 vb_roffset;	/* (b) History rows offset. */
 	int			 vb_curroffset;	/* (b) Saved rows offset. */
@@ -175,7 +190,6 @@ struct vt_buf {
 	term_pos_t		 vb_mark_end;	/* (b) Copy region end. */
 	int			 vb_mark_last;	/* Last mouse event. */
 	term_rect_t		 vb_dirtyrect;	/* (b) Dirty rectangle. */
-	struct vt_bufmask	 vb_dirtymask;	/* (b) Dirty bitmasks. */
 	term_char_t		*vb_buffer;	/* (u) Data buffer. */
 	term_char_t		**vb_rows;	/* (u) Array of rows */
 };
@@ -184,16 +198,16 @@ void vtbuf_copy(struct vt_buf *, const term_rect_t *, const term_pos_t *);
 void vtbuf_fill_locked(struct vt_buf *, const term_rect_t *, term_char_t);
 void vtbuf_init_early(struct vt_buf *);
 void vtbuf_init(struct vt_buf *, const term_pos_t *);
-void vtbuf_grow(struct vt_buf *, const term_pos_t *, int);
+void vtbuf_grow(struct vt_buf *, const term_pos_t *, unsigned int);
 void vtbuf_putchar(struct vt_buf *, const term_pos_t *, term_char_t);
 void vtbuf_cursor_position(struct vt_buf *, const term_pos_t *);
 void vtbuf_scroll_mode(struct vt_buf *vb, int yes);
-void vtbuf_undirty(struct vt_buf *, term_rect_t *, struct vt_bufmask *);
+void vtbuf_dirty(struct vt_buf *vb, const term_rect_t *area);
+void vtbuf_undirty(struct vt_buf *, term_rect_t *);
 void vtbuf_sethistory_size(struct vt_buf *, int);
-int vtbuf_iscursor(struct vt_buf *vb, int row, int col);
+int vtbuf_iscursor(const struct vt_buf *vb, int row, int col);
 void vtbuf_cursor_visibility(struct vt_buf *, int);
 #ifndef SC_NO_CUTPASTE
-void vtbuf_mouse_cursor_position(struct vt_buf *vb, int col, int row);
 int vtbuf_set_mark(struct vt_buf *vb, int type, int col, int row);
 int vtbuf_get_marked_len(struct vt_buf *vb);
 void vtbuf_extract_marked(struct vt_buf *vb, term_char_t *buf, int sz);
@@ -242,8 +256,12 @@ struct vt_window {
 	struct terminal		*vw_terminal;	/* (c) Terminal. */
 	struct vt_buf		 vw_buf;	/* (u) Screen buffer. */
 	struct vt_font		*vw_font;	/* (d) Graphical font. */
+	term_rect_t		 vw_draw_area;	/* (?) Drawable area. */
 	unsigned int		 vw_number;	/* (c) Window number. */
 	int			 vw_kbdmode;	/* (?) Keyboard mode. */
+	int			 vw_prev_kbdmode;/* (?) Previous mode. */
+	int			 vw_kbdstate;	/* (?) Keyboard state. */
+	int			 vw_grabbed;	/* (?) Grab count. */
 	char			*vw_kbdsq;	/* Escape sequence queue*/
 	unsigned int		 vw_flags;	/* (d) Per-window flags. */
 	int			 vw_mouse_level;/* Mouse op mode. */
@@ -254,6 +272,7 @@ struct vt_window {
 #define	VWF_VTYLOCK	0x10	/* Prevent window switch. */
 #define	VWF_MOUSE_HIDE	0x20	/* Disable mouse events processing. */
 #define	VWF_READY	0x40	/* Window fully initialized. */
+#define	VWF_GRAPHICS	0x80	/* Window in graphics mode (KDSETMODE). */
 #define	VWF_SWWAIT_REL	0x10000	/* Program wait for VT acquire is done. */
 #define	VWF_SWWAIT_ACQ	0x20000	/* Program wait for VT release is done. */
 	pid_t			 vw_pid;	/* Terminal holding process */
@@ -271,24 +290,18 @@ struct vt_window {
 
 /*
  * Per-device driver routines.
- *
- * vd_bitbltchr is used when the driver operates in graphics mode, while
- * vd_putchar is used when the driver operates in text mode
- * (VDF_TEXTMODE).
  */
 
 typedef int vd_init_t(struct vt_device *vd);
 typedef int vd_probe_t(struct vt_device *vd);
 typedef void vd_postswitch_t(struct vt_device *vd);
 typedef void vd_blank_t(struct vt_device *vd, term_color_t color);
-typedef void vd_bitbltchr_t(struct vt_device *vd, const uint8_t *src,
-    const uint8_t *mask, int bpl, vt_axis_t top, vt_axis_t left,
-    unsigned int width, unsigned int height, term_color_t fg, term_color_t bg);
-typedef void vd_maskbitbltchr_t(struct vt_device *vd, const uint8_t *src,
-    const uint8_t *mask, int bpl, vt_axis_t top, vt_axis_t left,
-    unsigned int width, unsigned int height, term_color_t fg, term_color_t bg);
-typedef void vd_putchar_t(struct vt_device *vd, term_char_t,
-    vt_axis_t top, vt_axis_t left, term_color_t fg, term_color_t bg);
+typedef void vd_bitblt_text_t(struct vt_device *vd, const struct vt_window *vw,
+    const term_rect_t *area);
+typedef void vd_bitblt_bmp_t(struct vt_device *vd, const struct vt_window *vw,
+    const uint8_t *pattern, const uint8_t *mask,
+    unsigned int width, unsigned int height,
+    unsigned int x, unsigned int y, term_color_t fg, term_color_t bg);
 typedef int vd_fb_ioctl_t(struct vt_device *, u_long, caddr_t, struct thread *);
 typedef int vd_fb_mmap_t(struct vt_device *, vm_ooffset_t, vm_paddr_t *, int,
     vm_memattr_t *);
@@ -304,19 +317,16 @@ struct vt_driver {
 
 	/* Drawing. */
 	vd_blank_t	*vd_blank;
-	vd_bitbltchr_t	*vd_bitbltchr;
-	vd_maskbitbltchr_t *vd_maskbitbltchr;
 	vd_drawrect_t	*vd_drawrect;
 	vd_setpixel_t	*vd_setpixel;
+	vd_bitblt_text_t *vd_bitblt_text;
+	vd_bitblt_bmp_t	*vd_bitblt_bmp;
 
 	/* Framebuffer ioctls, if present. */
 	vd_fb_ioctl_t	*vd_fb_ioctl;
 
 	/* Framebuffer mmap, if present. */
 	vd_fb_mmap_t	*vd_fb_mmap;
-
-	/* Text mode operation. */
-	vd_putchar_t	*vd_putchar;
 
 	/* Update display setting on vt switch. */
 	vd_postswitch_t	*vd_postswitch;
@@ -347,54 +357,6 @@ void vt_upgrade(struct vt_device *vd);
 #define	VT_FB_DEFAULT_HEIGHT	1200
 #endif
 
-#define	VT_CONSDEV_DECLARE(driver, width, height, softc)		\
-static struct terminal	driver ## _consterm;				\
-static struct vt_window	driver ## _conswindow;				\
-static struct vt_device	driver ## _consdev = {				\
-	.vd_driver = &driver,						\
-	.vd_softc = (softc),						\
-	.vd_flags = VDF_INVALID,					\
-	.vd_windows = { [VT_CONSWINDOW] =  &driver ## _conswindow, },	\
-	.vd_curwindow = &driver ## _conswindow,				\
-	.vd_markedwin = NULL,						\
-	.vd_kbstate = 0,						\
-};									\
-static term_char_t	driver ## _constextbuf[(width) * 		\
-	    (VBF_DEFAULT_HISTORY_SIZE)];				\
-static term_char_t	*driver ## _constextbufrows[			\
-	    VBF_DEFAULT_HISTORY_SIZE];					\
-static struct vt_window	driver ## _conswindow = {			\
-	.vw_number = VT_CONSWINDOW,					\
-	.vw_flags = VWF_CONSOLE,					\
-	.vw_buf = {							\
-		.vb_buffer = driver ## _constextbuf,			\
-		.vb_rows = driver ## _constextbufrows,			\
-		.vb_history_size = VBF_DEFAULT_HISTORY_SIZE,		\
-		.vb_curroffset = 0,					\
-		.vb_roffset = 0,					\
-		.vb_flags = VBF_STATIC,					\
-		.vb_mark_start = {					\
-			.tp_row = 0,					\
-			.tp_col = 0,					\
-		},							\
-		.vb_mark_end = {					\
-			.tp_row = 0,					\
-			.tp_col = 0,					\
-		},							\
-		.vb_scr_size = {					\
-			.tp_row = height,				\
-			.tp_col = width,				\
-		},							\
-	},								\
-	.vw_device = &driver ## _consdev,				\
-	.vw_terminal = &driver ## _consterm,				\
-	.vw_kbdmode = K_XLATE,						\
-};									\
-TERMINAL_DECLARE_EARLY(driver ## _consterm, vt_termclass,		\
-    &driver ## _conswindow);						\
-SYSINIT(vt_early_cons, SI_SUB_INT_CONFIG_HOOKS, SI_ORDER_ANY,		\
-    vt_upgrade, &driver ## _consdev)
-
 /* name argument is not used yet. */
 #define VT_DRIVER_DECLARE(name, drv) DATA_SET(vt_drv_set, drv)
 
@@ -423,11 +385,11 @@ struct vt_font {
 };
 
 #ifndef SC_NO_CUTPASTE
-struct mouse_cursor {
+struct vt_mouse_cursor {
 	uint8_t map[64 * 64 / 8];
 	uint8_t mask[64 * 64 / 8];
-	uint8_t w;
-	uint8_t h;
+	uint8_t width;
+	uint8_t height;
 };
 #endif
 
@@ -444,6 +406,12 @@ void vt_mouse_state(int show);
 #endif
 #define	VT_MOUSE_SHOW 1
 #define	VT_MOUSE_HIDE 0
+
+/* Utilities. */
+void	vt_determine_colors(term_char_t c, int cursor,
+	    term_color_t *fg, term_color_t *bg);
+int	vt_is_cursor_in_area(const struct vt_device *vd,
+	    const term_rect_t *area);
 
 #endif /* !_DEV_VT_VT_H_ */
 

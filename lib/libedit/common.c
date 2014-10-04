@@ -29,7 +29,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$NetBSD: common.c,v 1.19 2006/03/06 21:11:56 christos Exp $
+ *	$NetBSD: common.c,v 1.23 2009/02/27 04:18:45 msaitoh Exp $
  */
 
 #if !defined(lint) && !defined(SCCSID)
@@ -121,7 +121,7 @@ ed_delete_prev_word(EditLine *el, int c __unused)
 		*kp++ = *p;
 	el->el_chared.c_kill.last = kp;
 
-	c_delbefore(el, el->el_line.cursor - cp);	/* delete before dot */
+	c_delbefore(el, (int)(el->el_line.cursor - cp));/* delete before dot */
 	el->el_line.cursor = cp;
 	if (el->el_line.cursor < el->el_line.buffer)
 		el->el_line.cursor = el->el_line.buffer; /* bounds check */
@@ -208,9 +208,6 @@ ed_move_to_end(EditLine *el, int c __unused)
 
 	el->el_line.cursor = el->el_line.lastchar;
 	if (el->el_map.type == MAP_VI) {
-#ifdef VI_MOVE
-		el->el_line.cursor--;
-#endif
 		if (el->el_chared.c_vcmd.action != NOP) {
 			cv_delfini(el);
 			return (CC_REFRESH);

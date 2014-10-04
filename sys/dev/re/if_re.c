@@ -148,7 +148,7 @@ __FBSDID("$FreeBSD$");
 #include <dev/pci/pcireg.h>
 #include <dev/pci/pcivar.h>
 
-#include <pci/if_rlreg.h>
+#include <dev/rl/if_rlreg.h>
 
 MODULE_DEPEND(re, pci, 1, 1, 1);
 MODULE_DEPEND(re, ether, 1, 1, 1);
@@ -1681,7 +1681,7 @@ re_attach(device_t dev)
 	 * Must appear after the call to ether_ifattach() because
 	 * ether_ifattach() sets ifi_hdrlen to the default value.
 	 */
-	ifp->if_data.ifi_hdrlen = sizeof(struct ether_vlan_header);
+	ifp->if_hdrlen = sizeof(struct ether_vlan_header);
 
 #ifdef DEV_NETMAP
 	re_netmap_attach(sc);
@@ -2241,7 +2241,7 @@ re_rxeof(struct rl_softc *sc, int *rx_npktsp)
 			    (rxstat & RL_RDESC_STAT_ERRS) == RL_RDESC_STAT_GIANT)
 				rxerr = 0;
 			if (rxerr != 0) {
-				ifp->if_ierrors++;
+				if_inc_counter(ifp, IFCOUNTER_IERRORS, 1);
 				/*
 				 * If this is part of a multi-fragment packet,
 				 * discard all the pieces.
@@ -2264,7 +2264,7 @@ re_rxeof(struct rl_softc *sc, int *rx_npktsp)
 		else
 			rxerr = re_newbuf(sc, i);
 		if (rxerr != 0) {
-			ifp->if_iqdrops++;
+			if_inc_counter(ifp, IFCOUNTER_IQDROPS, 1);
 			if (sc->rl_head != NULL) {
 				m_freem(sc->rl_head);
 				sc->rl_head = sc->rl_tail = NULL;
@@ -2306,7 +2306,7 @@ re_rxeof(struct rl_softc *sc, int *rx_npktsp)
 #ifdef RE_FIXUP_RX
 		re_fixup_rx(m);
 #endif
-		ifp->if_ipackets++;
+		if_inc_counter(ifp, IFCOUNTER_IPACKETS, 1);
 		m->m_pkthdr.rcvif = ifp;
 
 		/* Do RX checksumming if enabled */
@@ -2425,11 +2425,11 @@ re_txeof(struct rl_softc *sc)
 			txd->tx_m = NULL;
 			if (txstat & (RL_TDESC_STAT_EXCESSCOL|
 			    RL_TDESC_STAT_COLCNT))
-				ifp->if_collisions++;
+				if_inc_counter(ifp, IFCOUNTER_COLLISIONS, 1);
 			if (txstat & RL_TDESC_STAT_TXERRSUM)
-				ifp->if_oerrors++;
+				if_inc_counter(ifp, IFCOUNTER_OERRORS, 1);
 			else
-				ifp->if_opackets++;
+				if_inc_counter(ifp, IFCOUNTER_OPACKETS, 1);
 		}
 		sc->rl_ldata.rl_tx_free++;
 		ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
@@ -3539,7 +3539,7 @@ re_watchdog(struct rl_softc *sc)
 	}
 
 	if_printf(ifp, "watchdog timeout\n");
-	ifp->if_oerrors++;
+	if_inc_counter(ifp, IFCOUNTER_OERRORS, 1);
 
 	re_rxeof(sc, NULL);
 	ifp->if_drv_flags &= ~IFF_DRV_RUNNING;

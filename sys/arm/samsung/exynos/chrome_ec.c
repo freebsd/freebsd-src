@@ -43,13 +43,11 @@ __FBSDID("$FreeBSD$");
 #include <sys/watchdog.h>
 #include <sys/gpio.h>
 
-#include <dev/fdt/fdt_common.h>
 #include <dev/ofw/openfirm.h>
 #include <dev/ofw/ofw_bus.h>
 #include <dev/ofw/ofw_bus_subr.h>
 
 #include <machine/bus.h>
-#include <machine/fdt.h>
 #include <machine/cpu.h>
 #include <machine/intr.h>
 
@@ -95,7 +93,7 @@ bus_claim(struct ec_softc *sc)
 	/* Say we want the bus */
 	GPIO_PIN_SET(gpio_dev, sc->our_gpio, GPIO_PIN_LOW);
 
-	/* TODO(imax): insert a delay to allow EC to react. */
+	/* TODO: insert a delay to allow EC to react. */
 
 	/* Check EC decision */
 	GPIO_PIN_GET(gpio_dev, sc->ec_gpio, &status);
@@ -214,7 +212,7 @@ int ec_hello(void)
 	data_in[2] = 0x20;
 	data_in[3] = 0x10;
 
-	ec_command(EC_CMD_MKBP_STATE, data_in, 4,
+	ec_command(EC_CMD_HELLO, data_in, 4,
 	    data_out, 4);
 
 	return (0);
@@ -225,7 +223,7 @@ configure_i2c_arbitrator(struct ec_softc *sc)
 {
 	phandle_t arbitrator;
 
-	/* TODO(imax): look for compatible entry instead of hard-coded path */
+	/* TODO: look for compatible entry instead of hard-coded path */
 	arbitrator = OF_finddevice("/i2c-arbitrator");
 	if (arbitrator > 0 &&
 	    OF_hasprop(arbitrator, "freebsd,our-gpio") &&

@@ -302,9 +302,8 @@ long vmspace_resident_count(struct vmspace *vmspace);
 #endif	/* _KERNEL */
 
 
-/* XXX: number of kernel maps and entries to statically allocate */
+/* XXX: number of kernel maps to statically allocate */
 #define MAX_KMAP	10
-#define	MAX_KMAPENT	128
 
 /*
  * Copy-on-write flags for vm_map operations
@@ -380,15 +379,13 @@ int vm_map_lookup_locked(vm_map_t *, vm_offset_t, vm_prot_t, vm_map_entry_t *, v
     vm_pindex_t *, vm_prot_t *, boolean_t *);
 void vm_map_lookup_done (vm_map_t, vm_map_entry_t);
 boolean_t vm_map_lookup_entry (vm_map_t, vm_offset_t, vm_map_entry_t *);
-void vm_map_pmap_enter(vm_map_t map, vm_offset_t addr, vm_prot_t prot,
-    vm_object_t object, vm_pindex_t pindex, vm_size_t size, int flags);
 int vm_map_protect (vm_map_t, vm_offset_t, vm_offset_t, vm_prot_t, boolean_t);
 int vm_map_remove (vm_map_t, vm_offset_t, vm_offset_t);
+void vm_map_simplify_entry(vm_map_t map, vm_map_entry_t entry);
 void vm_map_startup (void);
 int vm_map_submap (vm_map_t, vm_offset_t, vm_offset_t, vm_map_t);
 int vm_map_sync(vm_map_t, vm_offset_t, vm_offset_t, boolean_t, boolean_t);
 int vm_map_madvise (vm_map_t, vm_offset_t, vm_offset_t, int);
-void vm_map_simplify_entry (vm_map_t, vm_map_entry_t);
 int vm_map_stack (vm_map_t, vm_offset_t, vm_size_t, vm_prot_t, vm_prot_t, int);
 int vm_map_growstack (struct proc *p, vm_offset_t addr);
 int vm_map_unwire(vm_map_t map, vm_offset_t start, vm_offset_t end,

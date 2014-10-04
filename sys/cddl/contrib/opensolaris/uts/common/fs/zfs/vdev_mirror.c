@@ -450,7 +450,8 @@ vdev_mirror_io_start(zio_t *zio)
 				    zio->io_type, zio->io_priority, 0,
 				    vdev_mirror_scrub_done, mc));
 			}
-			return (ZIO_PIPELINE_CONTINUE);
+			zio_interrupt(zio);
+			return (ZIO_PIPELINE_STOP);
 		}
 		/*
 		 * For normal reads just pick one child.
@@ -477,7 +478,8 @@ vdev_mirror_io_start(zio_t *zio)
 		c++;
 	}
 
-	return (ZIO_PIPELINE_CONTINUE);
+	zio_interrupt(zio);
+	return (ZIO_PIPELINE_STOP);
 }
 
 static int

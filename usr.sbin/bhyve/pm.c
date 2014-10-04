@@ -32,6 +32,7 @@ __FBSDID("$FreeBSD$");
 #include <machine/vmm.h>
 
 #include <assert.h>
+#include <errno.h>
 #include <pthread.h>
 #include <signal.h>
 #include <vmmapi.h>
@@ -56,6 +57,8 @@ static int
 reset_handler(struct vmctx *ctx, int vcpu, int in, int port, int bytes,
     uint32_t *eax, void *arg)
 {
+	int error;
+
 	static uint8_t reset_control;
 
 	if (bytes != 1)
@@ -66,8 +69,10 @@ reset_handler(struct vmctx *ctx, int vcpu, int in, int port, int bytes,
 		reset_control = *eax;
 
 		/* Treat hard and soft resets the same. */
-		if (reset_control & 0x4)
-			return (INOUT_RESET);
+		if (reset_control & 0x4) {
+			error = vm_suspend(ctx, VM_SUSPEND_RESET);
+			assert(error == 0 || errno == EALREADY);
+		}
 	}
 	return (0);
 }
@@ -224,6 +229,7 @@ static int
 pm1_control_handler(struct vmctx *ctx, int vcpu, int in, int port, int bytes,
     uint32_t *eax, void *arg)
 {
+	int error;
 
 	if (bytes != 2)
 		return (-1);
@@ -243,8 +249,10 @@ pm1_control_handler(struct vmctx *ctx, int vcpu, int in, int port, int bytes,
 		 * says that '5' should be stored in SLP_TYP for S5.
 		 */
 		if (*eax & PM1_SLP_EN) {
-			if ((pm1_control & PM1_SLP_TYP) >> 10 == 5)
-				return (INOUT_POWEROFF);
+			if ((pm1_control & PM1_SLP_TYP) >> 10 == 5) {
+				error = vm_suspend(ctx, VM_SUSPEND_POWEROFF);
+				assert(error == 0 || errno == EALREADY);
+			}
 		}
 	}
 	return (0);

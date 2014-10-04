@@ -75,6 +75,7 @@ static int unitcount;
 static int prefixcount;
 static bool verbose = false;
 static bool terse = false;
+static const char * outputformat;
 static const char * havestr;
 static const char * wantstr;
 
@@ -649,6 +650,7 @@ static void
 showanswer(struct unittype * have, struct unittype * want)
 {
 	double ans;
+	char* oformat;
 
 	if (compareunits(have, want)) {
 		printf("conformability error\n");
@@ -668,11 +670,16 @@ showanswer(struct unittype * have, struct unittype * want)
 	else if (have->offset != want->offset) {
 		if (want->quantity)
 			printf("WARNING: conversion of non-proportional quantities.\n");
-		if (have->quantity)
-			printf("\t%.8g\n",
+		if (have->quantity) {
+			asprintf(&oformat, "\t%s\n", outputformat);
+			printf(oformat,
 			    (have->factor + have->offset-want->offset)/want->factor);
+			free(oformat);
+		}
 		else {
-			printf("\t (-> x*%.8g %+.8g)\n\t (<- y*%.8g %+.8g)\n",
+			asprintf(&oformat, "\t (-> x*%sg %sg)\n\t (<- y*%sg %sg)\n",
+			    outputformat, outputformat, outputformat, outputformat);
+			printf(oformat,
 			    have->factor / want->factor,
 			    (have->offset-want->offset)/want->factor,
 			    want->factor / have->factor,
@@ -681,17 +688,33 @@ showanswer(struct unittype * have, struct unittype * want)
 	}
 	else {
 		ans = have->factor / want->factor;
-		if (verbose)
-			printf("\t%s = %.8g * %s\n", havestr, ans, wantstr);
-		else if (terse) 
-			printf("%.8g\n", ans);
-		else 
-			printf("\t* %.8g\n", ans);
 
-		if (verbose)
-			printf("\t%s = (1 / %.8g) * %s\n", havestr, 1/ans,  wantstr);
-		else if (!terse)
-			printf("\t/ %.8g\n", 1/ans);
+		if (verbose) {
+			printf("\t%s = ", havestr);
+			printf(outputformat, ans);
+			printf(" * %s", wantstr);
+			printf("\n");
+		}
+		else if (terse) {
+			printf(outputformat, ans);
+			printf("\n");
+		}
+		else {
+			printf("\t* ");
+			printf(outputformat, ans);
+			printf("\n");
+		}
+
+		if (verbose) {
+			printf("\t%s = (1 / ", havestr);
+			printf(outputformat, 1/ans);
+			printf(") * %s\n", wantstr);
+		}
+		else if (!terse) {
+			printf("\t/ ");
+			printf(outputformat, 1/ans);
+			printf("\n");
+		}
 	}
 }
 
@@ -706,7 +729,9 @@ usage(void)
 
 static struct option longopts[] = {
 	{"help", no_argument, NULL, 'h'},
+	{"exponential", no_argument, NULL, 'e'},
 	{"file", required_argument, NULL, 'f'},
+	{"output-format", required_argument, NULL, 'o'},
 	{"quiet", no_argument, NULL, 'q'},
 	{"terse", no_argument, NULL, 't'},
 	{"unitsfile", no_argument, NULL, 'U'},
@@ -731,8 +756,12 @@ main(int argc, char **argv)
 
 	quiet = false;
 	readfile = false;
-	while ((optchar = getopt_long(argc, argv, "+hf:qtvUV", longopts, NULL)) != -1) {
+	outputformat = "%.8g";
+	while ((optchar = getopt_long(argc, argv, "+ehf:oqtvUV", longopts, NULL)) != -1) {
 		switch (optchar) {
+		case 'e':
+			outputformat = "%6e";
+			break;
 		case 'f':
 			readfile = true;
 			if (strlen(optarg) == 0)
@@ -745,6 +774,9 @@ main(int argc, char **argv)
 			break;
 		case 't':
 			terse = true;
+			break;
+		case 'o':
+			outputformat = optarg;
 			break;
 		case 'v':
 			verbose = true;

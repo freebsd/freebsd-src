@@ -13,6 +13,7 @@ SUBDIR=	${_atf} \
 	fingerd \
 	ftpd \
 	getty \
+	${_hyperv} \
 	${_mail.local} \
 	${_mknetid} \
 	${_pppoed} \
@@ -52,6 +53,10 @@ _comsat=	comsat
 .if ${MK_DMAGENT} != "no"
 _dma=		dma
 _dma-mbox-create=	dma-mbox-create
+.endif
+
+.if ${MK_HYPERV} != "no"
+_hyperv=	hyperv
 .endif
 
 .if ${MK_NIS} != "no"

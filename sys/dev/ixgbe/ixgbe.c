@@ -120,6 +120,7 @@ static int      ixgbe_ioctl(struct ifnet *, u_long, caddr_t);
 static void	ixgbe_init(void *);
 static void	ixgbe_init_locked(struct adapter *);
 static void     ixgbe_stop(void *);
+static uint64_t	ixgbe_get_counter(struct ifnet *, ift_counter);
 static void     ixgbe_media_status(struct ifnet *, struct ifmediareq *);
 static int      ixgbe_media_change(struct ifnet *);
 static void     ixgbe_identify_hardware(struct adapter *);
@@ -304,7 +305,7 @@ SYSCTL_INT(_hw_ix, OID_AUTO, num_queues, CTLFLAG_RDTUN, &ixgbe_num_queues, 0,
 */
 static int ixgbe_txd = PERFORM_TXD;
 SYSCTL_INT(_hw_ix, OID_AUTO, txd, CTLFLAG_RDTUN, &ixgbe_txd, 0,
-    "Number of receive descriptors per queue");
+    "Number of transmit descriptors per queue");
 
 /* Number of RX descriptors per ring */
 static int ixgbe_rxd = PERFORM_RXD;
@@ -317,7 +318,7 @@ SYSCTL_INT(_hw_ix, OID_AUTO, rxd, CTLFLAG_RDTUN, &ixgbe_rxd, 0,
 ** doing so you are on your own :)
 */
 static int allow_unsupported_sfp = FALSE;
-TUNABLE_INT("hw.ixgbe.unsupported_sfp", &allow_unsupported_sfp);
+TUNABLE_INT("hw.ix.unsupported_sfp", &allow_unsupported_sfp);
 
 /*
 ** HW RSC control: 
@@ -514,7 +515,7 @@ ixgbe_attach(device_t dev)
 	}
 
 	if (((ixgbe_rxd * sizeof(union ixgbe_adv_rx_desc)) % DBA_ALIGN) != 0 ||
-	    ixgbe_rxd < MIN_TXD || ixgbe_rxd > MAX_TXD) {
+	    ixgbe_rxd < MIN_RXD || ixgbe_rxd > MAX_RXD) {
 		device_printf(dev, "RXD config issue, using default!\n");
 		adapter->num_rx_desc = DEFAULT_RXD;
 	} else
@@ -1068,17 +1069,24 @@ ixgbe_ioctl(struct ifnet * ifp, u_long command, caddr_t data)
 	}
 	case SIOCGI2C:
 	{
-		struct ixgbe_i2c_req	i2c;
+		struct ifi2creq i2c;
+		int i;
 		IOCTL_DEBUGOUT("ioctl: SIOCGI2C (Get I2C Data)");
 		error = copyin(ifr->ifr_data, &i2c, sizeof(i2c));
-		if (error)
+		if (error != 0)
 			break;
-		if ((i2c.dev_addr != 0xA0) || (i2c.dev_addr != 0xA2)){
+		if (i2c.dev_addr != 0xA0 && i2c.dev_addr != 0xA2) {
 			error = EINVAL;
 			break;
 		}
-		hw->phy.ops.read_i2c_byte(hw, i2c.offset,
-		    i2c.dev_addr, i2c.data);
+		if (i2c.len > sizeof(i2c.data)) {
+			error = EINVAL;
+			break;
+		}
+
+		for (i = 0; i < i2c.len; i++)
+			hw->phy.ops.read_i2c_byte(hw, i2c.offset + i,
+			    i2c.dev_addr, &i2c.data[i]);
 		error = copyout(&i2c, ifr->ifr_data, sizeof(i2c));
 		break;
 	}
@@ -2714,6 +2722,7 @@ ixgbe_setup_interface(device_t dev, struct adapter *adapter)
 	ifp->if_softc = adapter;
 	ifp->if_flags = IFF_BROADCAST | IFF_SIMPLEX | IFF_MULTICAST;
 	ifp->if_ioctl = ixgbe_ioctl;
+	ifp->if_get_counter = ixgbe_get_counter;
 #ifndef IXGBE_LEGACY_TX
 	ifp->if_transmit = ixgbe_mq_start;
 	ifp->if_qflush = ixgbe_qflush;
@@ -2732,7 +2741,7 @@ ixgbe_setup_interface(device_t dev, struct adapter *adapter)
 	/*
 	 * Tell the upper layer(s) we support long frames.
 	 */
-	ifp->if_data.ifi_hdrlen = sizeof(struct ether_vlan_header);
+	ifp->if_hdrlen = sizeof(struct ether_vlan_header);
 
 	ifp->if_capabilities |= IFCAP_HWCSUM | IFCAP_TSO | IFCAP_VLAN_HWCSUM;
 	ifp->if_capabilities |= IFCAP_JUMBO_MTU;
@@ -3155,7 +3164,7 @@ ixgbe_setup_transmit_ring(struct tx_ring *txr)
 		 */
 		if (slot) {
 			int si = netmap_idx_n2k(&na->tx_rings[txr->me], i);
-			netmap_load_map(txr->txtag, txbuf->map, NMB(slot + si));
+			netmap_load_map(na, txr->txtag, txbuf->map, NMB(na, slot + si));
 		}
 #endif /* DEV_NETMAP */
 		/* Clear the EOP descriptor pointer */
@@ -4098,8 +4107,8 @@ ixgbe_setup_receive_ring(struct rx_ring *rxr)
 			uint64_t paddr;
 			void *addr;
 
-			addr = PNMB(slot + sj, &paddr);
-			netmap_load_map(rxr->ptag, rxbuf->pmap, addr);
+			addr = PNMB(na, slot + sj, &paddr);
+			netmap_load_map(na, rxr->ptag, rxbuf->pmap, addr);
 			/* Update descriptor and the cached value */
 			rxr->rx_base[j].read.pkt_addr = htole64(paddr);
 			rxbuf->addr = htole64(paddr);
@@ -4135,7 +4144,6 @@ ixgbe_setup_receive_ring(struct rx_ring *rxr)
 	rxr->lro_enabled = FALSE;
 	rxr->rx_copies = 0;
 	rxr->rx_bytes = 0;
-	rxr->discard = FALSE;
 	rxr->vtag_strip = FALSE;
 
 	bus_dmamap_sync(rxr->rxdma.dma_tag, rxr->rxdma.dma_map,
@@ -4204,6 +4212,9 @@ ixgbe_initialise_rss_mapping(struct adapter *adapter)
 	int i, j, queue_id;
 	uint32_t rss_key[10];
 	uint32_t mrqc;
+#ifdef	RSS
+	uint32_t rss_hash_config;
+#endif
 
 	/* Setup RSS */
 	reta = 0;
@@ -4230,10 +4241,16 @@ ixgbe_initialise_rss_mapping(struct adapter *adapter)
 #else
 		queue_id = (j * 0x11);
 #endif
-		/* XXX endian? */
-		reta = (reta << 8) | queue_id;
-		if ((i & 3) == 3)
+		/*
+		 * The low 8 bits are for hash value (n+0);
+		 * The next 8 bits are for hash value (n+1), etc.
+		 */
+		reta = reta >> 8;
+		reta = reta | ( ((uint32_t) queue_id) << 24);
+		if ((i & 3) == 3) {
 			IXGBE_WRITE_REG(hw, IXGBE_RETA(i >> 2), reta);
+			reta = 0;
+		}
 	}
 
 	/* Now fill our hash function seeds */
@@ -4241,16 +4258,53 @@ ixgbe_initialise_rss_mapping(struct adapter *adapter)
 		IXGBE_WRITE_REG(hw, IXGBE_RSSRK(i), rss_key[i]);
 
 	/* Perform hash on these packet types */
+#ifdef	RSS
+	mrqc = IXGBE_MRQC_RSSEN;
+	rss_hash_config = rss_gethashconfig();
+	if (rss_hash_config & RSS_HASHTYPE_RSS_IPV4)
+		mrqc |= IXGBE_MRQC_RSS_FIELD_IPV4;
+	if (rss_hash_config & RSS_HASHTYPE_RSS_TCP_IPV4)
+		mrqc |= IXGBE_MRQC_RSS_FIELD_IPV4_TCP;
+	if (rss_hash_config & RSS_HASHTYPE_RSS_IPV6)
+		mrqc |= IXGBE_MRQC_RSS_FIELD_IPV6;
+	if (rss_hash_config & RSS_HASHTYPE_RSS_TCP_IPV6)
+		mrqc |= IXGBE_MRQC_RSS_FIELD_IPV6_TCP;
+	if (rss_hash_config & RSS_HASHTYPE_RSS_IPV6_EX)
+		mrqc |= IXGBE_MRQC_RSS_FIELD_IPV6_EX;
+	if (rss_hash_config & RSS_HASHTYPE_RSS_TCP_IPV6_EX)
+		mrqc |= IXGBE_MRQC_RSS_FIELD_IPV6_EX_TCP;
+	if (rss_hash_config & RSS_HASHTYPE_RSS_UDP_IPV4)
+		mrqc |= IXGBE_MRQC_RSS_FIELD_IPV4_UDP;
+	if (rss_hash_config & RSS_HASHTYPE_RSS_UDP_IPV4_EX)
+		device_printf(adapter->dev,
+		    "%s: RSS_HASHTYPE_RSS_UDP_IPV4_EX defined, "
+		    "but not supported\n", __func__);
+	if (rss_hash_config & RSS_HASHTYPE_RSS_UDP_IPV6)
+		mrqc |= IXGBE_MRQC_RSS_FIELD_IPV6_UDP;
+	if (rss_hash_config & RSS_HASHTYPE_RSS_UDP_IPV6_EX)
+		mrqc |= IXGBE_MRQC_RSS_FIELD_IPV6_EX_UDP;
+#else
+	/*
+	 * Disable UDP - IP fragments aren't currently being handled
+	 * and so we end up with a mix of 2-tuple and 4-tuple
+	 * traffic.
+	 */
 	mrqc = IXGBE_MRQC_RSSEN
 	     | IXGBE_MRQC_RSS_FIELD_IPV4
 	     | IXGBE_MRQC_RSS_FIELD_IPV4_TCP
+#if 0
 	     | IXGBE_MRQC_RSS_FIELD_IPV4_UDP
+#endif
 	     | IXGBE_MRQC_RSS_FIELD_IPV6_EX_TCP
 	     | IXGBE_MRQC_RSS_FIELD_IPV6_EX
 	     | IXGBE_MRQC_RSS_FIELD_IPV6
 	     | IXGBE_MRQC_RSS_FIELD_IPV6_TCP
+#if 0
 	     | IXGBE_MRQC_RSS_FIELD_IPV6_UDP
-	     | IXGBE_MRQC_RSS_FIELD_IPV6_EX_UDP;
+	     | IXGBE_MRQC_RSS_FIELD_IPV6_EX_UDP
+#endif
+	;
+#endif /* RSS */
 	IXGBE_WRITE_REG(hw, IXGBE_MRQC, mrqc);
 }
 
@@ -4470,11 +4524,6 @@ ixgbe_rx_discard(struct rx_ring *rxr, int i)
 
 	rbuf = &rxr->rx_buffers[i];
 
-        if (rbuf->fmp != NULL) {/* Partial chain ? */
-		rbuf->fmp->m_flags |= M_PKTHDR;
-                m_freem(rbuf->fmp);
-                rbuf->fmp = NULL;
-	}
 
 	/*
 	** With advanced descriptors the writeback
@@ -4483,7 +4532,13 @@ ixgbe_rx_discard(struct rx_ring *rxr, int i)
 	** the normal refresh path to get new buffers
 	** and mapping.
 	*/
-	if (rbuf->buf) {
+
+	if (rbuf->fmp != NULL) {/* Partial chain ? */
+		rbuf->fmp->m_flags |= M_PKTHDR;
+		m_freem(rbuf->fmp);
+		rbuf->fmp = NULL;
+		rbuf->buf = NULL; /* rbuf->buf is part of fmp's chain */
+	} else if (rbuf->buf) {
 		m_free(rbuf->buf);
 		rbuf->buf = NULL;
 	}
@@ -4564,13 +4619,8 @@ ixgbe_rxeof(struct ix_queue *que)
 		eop = ((staterr & IXGBE_RXD_STAT_EOP) != 0);
 
 		/* Make sure bad packets are discarded */
-		if (((staterr & IXGBE_RXDADV_ERR_FRAME_ERR_MASK) != 0) ||
-		    (rxr->discard)) {
+		if (eop && (staterr & IXGBE_RXDADV_ERR_FRAME_ERR_MASK) != 0) {
 			rxr->rx_discarded++;
-			if (eop)
-				rxr->discard = FALSE;
-			else
-				rxr->discard = TRUE;
 			ixgbe_rx_discard(rxr, i);
 			goto next_desc;
 		}
@@ -4699,12 +4749,15 @@ ixgbe_rxeof(struct ix_queue *que)
 			case IXGBE_RXDADV_RSSTYPE_IPV6_TCP_EX:
 				M_HASHTYPE_SET(sendmp, M_HASHTYPE_RSS_TCP_IPV6_EX);
 				break;
-			/* XXX no UDP support in RSS just yet */
-#ifdef	notyet
-			case IGXBE_RXDADV_RSSTYPE_IPV4_UDP:
-			case IGXBE_RXDADV_RSSTYPE_IPV6_UDP:
-			case IGXBE_RXDADV_RSSTYPE_IPV6_UDP_EX:
-#endif /* notyet */
+			case IXGBE_RXDADV_RSSTYPE_IPV4_UDP:
+				M_HASHTYPE_SET(sendmp, M_HASHTYPE_RSS_UDP_IPV4);
+				break;
+			case IXGBE_RXDADV_RSSTYPE_IPV6_UDP:
+				M_HASHTYPE_SET(sendmp, M_HASHTYPE_RSS_UDP_IPV6);
+				break;
+			case IXGBE_RXDADV_RSSTYPE_IPV6_UDP_EX:
+				M_HASHTYPE_SET(sendmp, M_HASHTYPE_RSS_UDP_IPV6_EX);
+				break;
 			default:
 				/* XXX fallthrough */
 				M_HASHTYPE_SET(sendmp, M_HASHTYPE_NONE);
@@ -5313,10 +5366,8 @@ ixgbe_reinit_fdir(void *context, int pending)
 static void
 ixgbe_update_stats_counters(struct adapter *adapter)
 {
-	struct ifnet   *ifp = adapter->ifp;
 	struct ixgbe_hw *hw = &adapter->hw;
 	u32  missed_rx = 0, bprc, lxon, lxoff, total;
-	u64  total_missed_rx = 0;
 
 	adapter->stats.crcerrs += IXGBE_READ_REG(hw, IXGBE_CRCERRS);
 	adapter->stats.illerrc += IXGBE_READ_REG(hw, IXGBE_ILLERRC);
@@ -5335,8 +5386,6 @@ ixgbe_update_stats_counters(struct adapter *adapter)
 		missed_rx += mp;
 		/* global total per queue */
         	adapter->stats.mpc[i] += mp;
-		/* Running comprehensive total for stats display */
-		total_missed_rx += adapter->stats.mpc[i];
 		if (hw->mac.type == ixgbe_mac_82598EB) {
 			adapter->stats.rnbc[i] +=
 			    IXGBE_READ_REG(hw, IXGBE_RNBC(i));
@@ -5446,19 +5495,41 @@ ixgbe_update_stats_counters(struct adapter *adapter)
 		adapter->stats.fcoedwrc += IXGBE_READ_REG(hw, IXGBE_FCOEDWRC);
 		adapter->stats.fcoedwtc += IXGBE_READ_REG(hw, IXGBE_FCOEDWTC);
 	}
+}
 
-	/* Fill out the OS statistics structure */
-	ifp->if_ipackets = adapter->stats.gprc;
-	ifp->if_opackets = adapter->stats.gptc;
-	ifp->if_ibytes = adapter->stats.gorc;
-	ifp->if_obytes = adapter->stats.gotc;
-	ifp->if_imcasts = adapter->stats.mprc;
-	ifp->if_omcasts = adapter->stats.mptc;
-	ifp->if_collisions = 0;
+static uint64_t
+ixgbe_get_counter(struct ifnet *ifp, ift_counter cnt)
+{
+	struct adapter *adapter;
+	uint64_t rv;
 
-	/* Rx Errors */
-	ifp->if_iqdrops = total_missed_rx;
-	ifp->if_ierrors = adapter->stats.crcerrs + adapter->stats.rlec;
+	adapter = if_getsoftc(ifp);
+
+	switch (cnt) {
+	case IFCOUNTER_IPACKETS:
+		return (adapter->stats.gprc);
+	case IFCOUNTER_OPACKETS:
+		return (adapter->stats.gptc);
+	case IFCOUNTER_IBYTES:
+		return (adapter->stats.gorc);
+	case IFCOUNTER_OBYTES:
+		return (adapter->stats.gotc);
+	case IFCOUNTER_IMCASTS:
+		return (adapter->stats.mprc);
+	case IFCOUNTER_OMCASTS:
+		return (adapter->stats.mptc);
+	case IFCOUNTER_COLLISIONS:
+		return (0);
+	case IFCOUNTER_IQDROPS:
+		rv = 0;
+		for (int i = 0; i < 8; i++)
+			rv += adapter->stats.mpc[i];
+		return (rv);
+	case IFCOUNTER_IERRORS:
+		return (adapter->stats.crcerrs + adapter->stats.rlec);
+	default:
+		return (if_get_counter_default(ifp, cnt));
+	}
 }
 
 /** ixgbe_sysctl_tdh_handler - Handler function

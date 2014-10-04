@@ -151,14 +151,7 @@ wakeup_32:
 	movl	wakeup_cr3 - wakeup_start(%ebx), %eax
 	mov	%eax, %cr3
 
-	/*
-	 * Finally, switch to long bit mode by enabling paging.  We have
-	 * to be very careful here because all the segmentation disappears
-	 * out from underneath us.  The spec says we can depend on the
-	 * subsequent pipelined branch to execute, but *only if* everthing
-	 * is still identity mapped.  If any mappings change, the pipeline
-	 * will flush.
-	 */
+	/* Enable paging. */
 	mov	%cr0, %eax
 	orl	$CR0_PG, %eax
 	mov	%eax, %cr0

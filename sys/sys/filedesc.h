@@ -33,11 +33,14 @@
 #ifndef _SYS_FILEDESC_H_
 #define	_SYS_FILEDESC_H_
 
+#include "opt_capsicum.h"
+
 #include <sys/caprights.h>
 #include <sys/queue.h>
 #include <sys/event.h>
 #include <sys/lock.h>
 #include <sys/priority.h>
+#include <sys/seq.h>
 #include <sys/sx.h>
 
 #include <machine/_limits.h>
@@ -50,6 +53,9 @@ struct filecaps {
 };
 
 struct filedescent {
+#ifdef CAPABILITIES
+	seq_t		 fde_seq;		/* if you need fde_file and fde_caps in sync */
+#endif
 	struct file	*fde_file;		/* file structure for open file */
 	struct filecaps	 fde_caps;		/* per-descriptor rights */
 	uint8_t		 fde_flags;		/* per-process open file flags */
@@ -58,6 +64,13 @@ struct filedescent {
 #define	fde_fcntls	fde_caps.fc_fcntls
 #define	fde_ioctls	fde_caps.fc_ioctls
 #define	fde_nioctls	fde_caps.fc_nioctls
+#ifdef CAPABILITIES
+#define	fde_change(fde)	((char *)(fde) + sizeof(seq_t))
+#define	fde_change_size	(sizeof(struct filedescent) - sizeof(seq_t))
+#else
+#define	fde_change(fde)	((fde))
+#define	fde_change_size	(sizeof(struct filedescent))
+#endif
 
 /*
  * This structure is used for the management of descriptors.  It may be
@@ -82,6 +95,9 @@ struct filedesc {
 	int	fd_holdleaderscount;	/* block fdfree() for shared close() */
 	int	fd_holdleaderswakeup;	/* fdfree() needs wakeup */
 };
+#ifdef	CAPABILITIES
+#define	fd_seq(fdp, fd)	(&(fdp)->fd_ofiles[(fd)].fde_seq)
+#endif
 
 /*
  * Structure to keep track of (process leader, struct fildedesc) tuples.
@@ -109,11 +125,6 @@ struct filedesc_to_leader {
 
 #ifdef _KERNEL
 
-/* Flags for do_dup() */
-#define	DUP_FIXED	0x1	/* Force fixed allocation. */
-#define	DUP_FCNTL	0x2	/* fcntl()-style errors. */
-#define	DUP_CLOEXEC	0x4	/* Atomically set FD_CLOEXEC. */
-
 /* Lock a file descriptor table. */
 #define	FILEDESC_LOCK_INIT(fdp)	sx_init(&(fdp)->fd_sx, "filedesc structure")
 #define	FILEDESC_LOCK_DESTROY(fdp)	sx_destroy(&(fdp)->fd_sx)
@@ -137,8 +148,6 @@ void	filecaps_move(struct filecaps *src, struct filecaps *dst);
 void	filecaps_free(struct filecaps *fcaps);
 
 int	closef(struct file *fp, struct thread *td);
-int	do_dup(struct thread *td, int flags, int old, int new,
-	    register_t *retval);
 int	dupfdopen(struct thread *td, struct filedesc *fdp, int dfd, int mode,
 	    int openerror, int *indxp);
 int	falloc(struct thread *td, struct file **resultfp, int *resultfd,

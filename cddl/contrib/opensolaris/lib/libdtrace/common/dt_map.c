@@ -39,7 +39,7 @@
 static int
 dt_strdata_add(dtrace_hdl_t *dtp, dtrace_recdesc_t *rec, void ***data, int *max)
 {
-	int maxformat;
+	int maxformat, rval;
 	dtrace_fmtdesc_t fmt;
 	void *result;
 
@@ -63,8 +63,9 @@ dt_strdata_add(dtrace_hdl_t *dtp, dtrace_recdesc_t *rec, void ***data, int *max)
 		return (dt_set_errno(dtp, EDT_NOMEM));
 
 	if (dt_ioctl(dtp, DTRACEIOC_FORMAT, &fmt) == -1) {
+		rval = dt_set_errno(dtp, errno);
 		free(fmt.dtfd_string);
-		return (dt_set_errno(dtp, errno));
+		return (rval);
 	}
 
 	while (rec->dtrd_format > (maxformat = *max)) {

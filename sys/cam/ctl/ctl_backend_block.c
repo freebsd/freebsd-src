@@ -203,7 +203,6 @@ struct ctl_be_block_io {
 	struct ctl_sg_entry		sg_segs[CTLBLK_MAX_SEGS];
 	struct iovec			xiovecs[CTLBLK_MAX_SEGS];
 	int				bio_cmd;
-	int				bio_flags;
 	int				num_segs;
 	int				num_bios_sent;
 	int				num_bios_done;
@@ -599,7 +598,11 @@ ctl_be_block_dispatch_file(struct ctl_be_block_lun *be_lun,
 
 	file_data = &be_lun->backend.file;
 	io = beio->io;
-	flags = beio->bio_flags;
+	flags = 0;
+	if (ARGS(io)->flags & CTL_LLF_DPO)
+		flags |= IO_DIRECT;
+	if (beio->bio_cmd == BIO_WRITE && ARGS(io)->flags & CTL_LLF_FUA)
+		flags |= IO_SYNC;
 
 	bzero(&xuio, sizeof(xuio));
 	if (beio->bio_cmd == BIO_READ) {
@@ -649,8 +652,7 @@ ctl_be_block_dispatch_file(struct ctl_be_block_lun *be_lun,
 		 * So, to attempt to provide some barrier semantics in the
 		 * BIO_ORDERED case, set both IO_DIRECT and IO_SYNC.
 		 */
-		error = VOP_READ(be_lun->vn, &xuio, (flags & BIO_ORDERED) ?
-				 (IO_DIRECT|IO_SYNC) : 0, file_data->cred);
+		error = VOP_READ(be_lun->vn, &xuio, flags, file_data->cred);
 
 		VOP_UNLOCK(be_lun->vn, 0);
 		SDT_PROBE(cbb, kernel, read, file_done, 0, 0, 0, 0, 0);
@@ -687,8 +689,7 @@ ctl_be_block_dispatch_file(struct ctl_be_block_lun *be_lun,
 		 * So if we've got the BIO_ORDERED flag set, we want
 		 * IO_SYNC in either the UFS or ZFS case.
 		 */
-		error = VOP_WRITE(be_lun->vn, &xuio, (flags & BIO_ORDERED) ?
-				  IO_SYNC : 0, file_data->cred);
+		error = VOP_WRITE(be_lun->vn, &xuio, flags, file_data->cred);
 		VOP_UNLOCK(be_lun->vn, 0);
 
 		vn_finished_write(mountpoint);
@@ -722,10 +723,97 @@ ctl_be_block_dispatch_file(struct ctl_be_block_lun *be_lun,
 	}
 
 	/*
-	 * If this is a write, we're all done.
+	 * If this is a write or a verify, we're all done.
 	 * If this is a read, we can now send the data to the user.
 	 */
-	if (ARGS(io)->flags & (CTL_LLF_WRITE | CTL_LLF_VERIFY)) {
+	if ((beio->bio_cmd == BIO_WRITE) ||
+	    (ARGS(io)->flags & CTL_LLF_VERIFY)) {
+		ctl_set_success(&io->scsiio);
+		ctl_complete_beio(beio);
+	} else {
+#ifdef CTL_TIME_IO
+        	getbintime(&io->io_hdr.dma_start_bt);
+#endif  
+		ctl_datamove(io);
+	}
+}
+
+static void
+ctl_be_block_dispatch_zvol(struct ctl_be_block_lun *be_lun,
+			   struct ctl_be_block_io *beio)
+{
+	struct ctl_be_block_devdata *dev_data;
+	union ctl_io *io;
+	struct uio xuio;
+	struct iovec *xiovec;
+	int flags;
+	int error, i;
+
+	DPRINTF("entered\n");
+
+	dev_data = &be_lun->backend.dev;
+	io = beio->io;
+	flags = 0;
+	if (ARGS(io)->flags & CTL_LLF_DPO)
+		flags |= IO_DIRECT;
+	if (beio->bio_cmd == BIO_WRITE && ARGS(io)->flags & CTL_LLF_FUA)
+		flags |= IO_SYNC;
+
+	bzero(&xuio, sizeof(xuio));
+	if (beio->bio_cmd == BIO_READ) {
+		SDT_PROBE(cbb, kernel, read, file_start, 0, 0, 0, 0, 0);
+		xuio.uio_rw = UIO_READ;
+	} else {
+		SDT_PROBE(cbb, kernel, write, file_start, 0, 0, 0, 0, 0);
+		xuio.uio_rw = UIO_WRITE;
+	}
+	xuio.uio_offset = beio->io_offset;
+	xuio.uio_resid = beio->io_len;
+	xuio.uio_segflg = UIO_SYSSPACE;
+	xuio.uio_iov = beio->xiovecs;
+	xuio.uio_iovcnt = beio->num_segs;
+	xuio.uio_td = curthread;
+
+	for (i = 0, xiovec = xuio.uio_iov; i < xuio.uio_iovcnt; i++, xiovec++) {
+		xiovec->iov_base = beio->sg_segs[i].addr;
+		xiovec->iov_len = beio->sg_segs[i].len;
+	}
+
+	binuptime(&beio->ds_t0);
+	mtx_lock(&be_lun->io_lock);
+	devstat_start_transaction(beio->lun->disk_stats, &beio->ds_t0);
+	mtx_unlock(&be_lun->io_lock);
+
+	if (beio->bio_cmd == BIO_READ) {
+		error = (*dev_data->csw->d_read)(dev_data->cdev, &xuio, flags);
+		SDT_PROBE(cbb, kernel, read, file_done, 0, 0, 0, 0, 0);
+	} else {
+		error = (*dev_data->csw->d_write)(dev_data->cdev, &xuio, flags);
+		SDT_PROBE(cbb, kernel, write, file_done, 0, 0, 0, 0, 0);
+	}
+
+	mtx_lock(&be_lun->io_lock);
+	devstat_end_transaction(beio->lun->disk_stats, beio->io_len,
+	    beio->ds_tag_type, beio->ds_trans_type,
+	    /*now*/ NULL, /*then*/&beio->ds_t0);
+	mtx_unlock(&be_lun->io_lock);
+
+	/*
+	 * If we got an error, set the sense data to "MEDIUM ERROR" and
+	 * return the I/O to the user.
+	 */
+	if (error != 0) {
+		ctl_set_medium_error(&io->scsiio);
+		ctl_complete_beio(beio);
+		return;
+	}
+
+	/*
+	 * If this is a write or a verify, we're all done.
+	 * If this is a read, we can now send the data to the user.
+	 */
+	if ((beio->bio_cmd == BIO_WRITE) ||
+	    (ARGS(io)->flags & CTL_LLF_VERIFY)) {
 		ctl_set_success(&io->scsiio);
 		ctl_complete_beio(beio);
 	} else {
@@ -791,7 +879,6 @@ ctl_be_block_unmap_dev_range(struct ctl_be_block_lun *be_lun,
 	while (len > 0) {
 		bio = g_alloc_bio();
 		bio->bio_cmd	    = BIO_DELETE;
-		bio->bio_flags	   |= beio->bio_flags;
 		bio->bio_dev	    = dev_data->cdev;
 		bio->bio_offset	    = off;
 		bio->bio_length	    = MIN(len, maxlen);
@@ -890,7 +977,6 @@ ctl_be_block_dispatch_dev(struct ctl_be_block_lun *be_lun,
 			KASSERT(bio != NULL, ("g_alloc_bio() failed!\n"));
 
 			bio->bio_cmd = beio->bio_cmd;
-			bio->bio_flags |= beio->bio_flags;
 			bio->bio_dev = dev_data->cdev;
 			bio->bio_caller1 = beio;
 			bio->bio_length = min(cur_size, max_iosize);
@@ -956,8 +1042,8 @@ ctl_be_block_cw_dispatch_ws(struct ctl_be_block_lun *be_lun,
 	softc = be_lun->softc;
 	lbalen = ARGS(beio->io);
 
-	if (lbalen->flags & ~(SWS_LBDATA | SWS_UNMAP) ||
-	    (lbalen->flags & SWS_UNMAP && be_lun->unmap == NULL)) {
+	if (lbalen->flags & ~(SWS_LBDATA | SWS_UNMAP | SWS_ANCHOR | SWS_NDOB) ||
+	    (lbalen->flags & (SWS_UNMAP | SWS_ANCHOR) && be_lun->unmap == NULL)) {
 		ctl_free_beio(beio);
 		ctl_set_invalid_field(&io->scsiio,
 				      /*sks_valid*/ 1,
@@ -968,15 +1054,6 @@ ctl_be_block_cw_dispatch_ws(struct ctl_be_block_lun *be_lun,
 		ctl_config_write_done(io);
 		return;
 	}
-
-	/*
-	 * If the I/O came down with an ordered or head of queue tag, set
-	 * the BIO_ORDERED attribute.  For head of queue tags, that's
-	 * pretty much the best we can do.
-	 */
-	if ((io->scsiio.tag_type == CTL_TAG_ORDERED)
-	 || (io->scsiio.tag_type == CTL_TAG_HEAD_OF_QUEUE))
-		beio->bio_flags = BIO_ORDERED;
 
 	switch (io->scsiio.tag_type) {
 	case CTL_TAG_ORDERED:
@@ -993,7 +1070,7 @@ ctl_be_block_cw_dispatch_ws(struct ctl_be_block_lun *be_lun,
 		break;
 	}
 
-	if (lbalen->flags & SWS_UNMAP) {
+	if (lbalen->flags & (SWS_UNMAP | SWS_ANCHOR)) {
 		beio->io_offset = lbalen->lba * be_lun->blocksize;
 		beio->io_len = (uint64_t)lbalen->len * be_lun->blocksize;
 		beio->bio_cmd = BIO_DELETE;
@@ -1063,7 +1140,7 @@ ctl_be_block_cw_dispatch_unmap(struct ctl_be_block_lun *be_lun,
 	softc = be_lun->softc;
 	ptrlen = (struct ctl_ptr_len_flags *)&io->io_hdr.ctl_private[CTL_PRIV_LBA_LEN];
 
-	if (ptrlen->flags != 0 || be_lun->unmap == NULL) {
+	if ((ptrlen->flags & ~SU_ANCHOR) != 0 || be_lun->unmap == NULL) {
 		ctl_free_beio(beio);
 		ctl_set_invalid_field(&io->scsiio,
 				      /*sks_valid*/ 0,
@@ -1074,15 +1151,6 @@ ctl_be_block_cw_dispatch_unmap(struct ctl_be_block_lun *be_lun,
 		ctl_config_write_done(io);
 		return;
 	}
-
-	/*
-	 * If the I/O came down with an ordered or head of queue tag, set
-	 * the BIO_ORDERED attribute.  For head of queue tags, that's
-	 * pretty much the best we can do.
-	 */
-	if ((io->scsiio.tag_type == CTL_TAG_ORDERED)
-	 || (io->scsiio.tag_type == CTL_TAG_HEAD_OF_QUEUE))
-		beio->bio_flags = BIO_ORDERED;
 
 	switch (io->scsiio.tag_type) {
 	case CTL_TAG_ORDERED:
@@ -1221,20 +1289,6 @@ ctl_be_block_dispatch(struct ctl_be_block_lun *be_lun,
 	beio->lun = be_lun;
 	bptrlen = PRIV(io);
 	bptrlen->ptr = (void *)beio;
-
-	/*
-	 * If the I/O came down with an ordered or head of queue tag, set
-	 * the BIO_ORDERED attribute.  For head of queue tags, that's
-	 * pretty much the best we can do.
-	 *
-	 * XXX KDM we don't have a great way to easily know about the FUA
-	 * bit right now (it is decoded in ctl_read_write(), but we don't
-	 * pass that knowledge to the backend), and in any case we would
-	 * need to determine how to handle it.  
-	 */
-	if ((io->scsiio.tag_type == CTL_TAG_ORDERED)
-	 || (io->scsiio.tag_type == CTL_TAG_HEAD_OF_QUEUE))
-		beio->bio_flags = BIO_ORDERED;
 
 	switch (io->scsiio.tag_type) {
 	case CTL_TAG_ORDERED:
@@ -1577,14 +1631,17 @@ ctl_be_block_open_dev(struct ctl_be_block_lun *be_lun, struct ctl_lun_req *req)
 	params = &req->reqdata.create;
 
 	be_lun->dev_type = CTL_BE_BLOCK_DEV;
-	be_lun->dispatch = ctl_be_block_dispatch_dev;
-	be_lun->lun_flush = ctl_be_block_flush_dev;
-	be_lun->unmap = ctl_be_block_unmap_dev;
 	be_lun->backend.dev.cdev = be_lun->vn->v_rdev;
 	be_lun->backend.dev.csw = dev_refthread(be_lun->backend.dev.cdev,
 					     &be_lun->backend.dev.dev_ref);
 	if (be_lun->backend.dev.csw == NULL)
 		panic("Unable to retrieve device switch");
+	if (strcmp(be_lun->backend.dev.csw->d_name, "zvol") == 0)
+		be_lun->dispatch = ctl_be_block_dispatch_zvol;
+	else
+		be_lun->dispatch = ctl_be_block_dispatch_dev;
+	be_lun->lun_flush = ctl_be_block_flush_dev;
+	be_lun->unmap = ctl_be_block_unmap_dev;
 
 	error = VOP_GETATTR(be_lun->vn, &vattr, NOCRED);
 	if (error) {
@@ -2221,7 +2278,9 @@ ctl_be_block_modify_file(struct ctl_be_block_lun *be_lun,
 	if (params->lun_size_bytes != 0) {
 		be_lun->size_bytes = params->lun_size_bytes;
 	} else  {
+		vn_lock(be_lun->vn, LK_SHARED | LK_RETRY);
 		error = VOP_GETATTR(be_lun->vn, &vattr, curthread->td_ucred);
+		VOP_UNLOCK(be_lun->vn, 0);
 		if (error != 0) {
 			snprintf(req->error_str, sizeof(req->error_str),
 				 "error calling VOP_GETATTR() for file %s",
@@ -2239,24 +2298,22 @@ static int
 ctl_be_block_modify_dev(struct ctl_be_block_lun *be_lun,
 			struct ctl_lun_req *req)
 {
-	struct cdev *dev;
-	struct cdevsw *devsw;
+	struct ctl_be_block_devdata *dev_data;
 	int error;
 	struct ctl_lun_modify_params *params;
 	uint64_t size_bytes;
 
 	params = &req->reqdata.modify;
 
-	dev = be_lun->vn->v_rdev;
-	devsw = dev->si_devsw;
-	if (!devsw->d_ioctl) {
+	dev_data = &be_lun->backend.dev;
+	if (!dev_data->csw->d_ioctl) {
 		snprintf(req->error_str, sizeof(req->error_str),
 			 "%s: no d_ioctl for device %s!", __func__,
 			 be_lun->dev_path);
 		return (ENODEV);
 	}
 
-	error = devsw->d_ioctl(dev, DIOCGMEDIASIZE,
+	error = dev_data->csw->d_ioctl(dev_data->cdev, DIOCGMEDIASIZE,
 			       (caddr_t)&size_bytes, FREAD,
 			       curthread);
 	if (error) {
@@ -2289,6 +2346,7 @@ ctl_be_block_modify(struct ctl_be_block_softc *softc, struct ctl_lun_req *req)
 {
 	struct ctl_lun_modify_params *params;
 	struct ctl_be_block_lun *be_lun;
+	uint64_t oldsize;
 	int error;
 
 	params = &req->reqdata.modify;
@@ -2319,28 +2377,27 @@ ctl_be_block_modify(struct ctl_be_block_softc *softc, struct ctl_lun_req *req)
 		}
 	}
 
-	vn_lock(be_lun->vn, LK_SHARED | LK_RETRY);
-
+	oldsize = be_lun->size_bytes;
 	if (be_lun->vn->v_type == VREG)
 		error = ctl_be_block_modify_file(be_lun, req);
 	else
 		error = ctl_be_block_modify_dev(be_lun, req);
-
-	VOP_UNLOCK(be_lun->vn, 0);
-
 	if (error != 0)
 		goto bailout_error;
 
-	be_lun->size_blocks = be_lun->size_bytes >> be_lun->blocksize_shift;
+	if (be_lun->size_bytes != oldsize) {
+		be_lun->size_blocks = be_lun->size_bytes >>
+		    be_lun->blocksize_shift;
 
-	/*
-	 * The maximum LBA is the size - 1.
-	 *
-	 * XXX: Note that this field is being updated without locking,
-	 * 	which might cause problems on 32-bit architectures.
-	 */
-	be_lun->ctl_be_lun.maxlba = be_lun->size_blocks - 1;
-	ctl_lun_capacity_changed(&be_lun->ctl_be_lun);
+		/*
+		 * The maximum LBA is the size - 1.
+		 *
+		 * XXX: Note that this field is being updated without locking,
+		 * 	which might cause problems on 32-bit architectures.
+		 */
+		be_lun->ctl_be_lun.maxlba = be_lun->size_blocks - 1;
+		ctl_lun_capacity_changed(&be_lun->ctl_be_lun);
+	}
 
 	/* Tell the user the exact size we ended up using */
 	params->lun_size_bytes = be_lun->size_bytes;

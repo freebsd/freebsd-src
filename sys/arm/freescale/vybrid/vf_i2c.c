@@ -30,7 +30,7 @@
  */
 
 /*
- * This driver is based on the I2C driver for IMX (imx/i2c.c).
+ * This driver is based on the I2C driver for i.MX
  */
 
 #include <sys/cdefs.h>

@@ -132,6 +132,9 @@ static void _vm_map_init(vm_map_t map, pmap_t pmap, vm_offset_t min,
     vm_offset_t max);
 static void vm_map_entry_deallocate(vm_map_entry_t entry, boolean_t system_map);
 static void vm_map_entry_dispose(vm_map_t map, vm_map_entry_t entry);
+static void vm_map_entry_unwire(vm_map_t map, vm_map_entry_t entry);
+static void vm_map_pmap_enter(vm_map_t map, vm_offset_t addr, vm_prot_t prot,
+    vm_object_t object, vm_pindex_t pindex, vm_size_t size, int flags);
 #ifdef INVARIANTS
 static void vm_map_zdtor(void *mem, int size, void *arg);
 static void vmspace_zdtor(void *mem, int size, void *arg);
@@ -139,6 +142,8 @@ static void vmspace_zdtor(void *mem, int size, void *arg);
 static int vm_map_stack_locked(vm_map_t map, vm_offset_t addrbos,
     vm_size_t max_ssize, vm_size_t growsize, vm_prot_t prot, vm_prot_t max,
     int cow);
+static void vm_map_wire_entry_failure(vm_map_t map, vm_map_entry_t entry,
+    vm_offset_t failed_addr);
 
 #define	ENTRY_CHARGED(e) ((e)->cred != NULL || \
     ((e)->object.vm_object != NULL && (e)->object.vm_object->cred != NULL && \
@@ -1806,7 +1811,7 @@ vm_map_submap(
  *	being created speculatively, cached pages are not reactivated and
  *	mapped.
  */
-void
+static void
 vm_map_pmap_enter(vm_map_t map, vm_offset_t addr, vm_prot_t prot,
     vm_object_t object, vm_pindex_t pindex, vm_size_t size, int flags)
 {
@@ -2192,7 +2197,14 @@ vm_map_madvise(
 
 			vm_object_madvise(current->object.vm_object, pstart,
 			    pend, behav);
-			if (behav == MADV_WILLNEED) {
+
+			/*
+			 * Pre-populate paging structures in the
+			 * WILLNEED case.  For wired entries, the
+			 * paging structures are already populated.
+			 */
+			if (behav == MADV_WILLNEED &&
+			    current->wired_count == 0) {
 				vm_map_pmap_enter(map,
 				    useStart,
 				    current->protection,
@@ -2393,16 +2405,10 @@ done:
 		    (entry->eflags & MAP_ENTRY_USER_WIRED))) {
 			if (user_unwire)
 				entry->eflags &= ~MAP_ENTRY_USER_WIRED;
-			entry->wired_count--;
-			if (entry->wired_count == 0) {
-				/*
-				 * Retain the map lock.
-				 */
-				vm_fault_unwire(map, entry->start, entry->end,
-				    entry->object.vm_object != NULL &&
-				    (entry->object.vm_object->flags &
-				    OBJ_FICTITIOUS) != 0);
-			}
+			if (entry->wired_count == 1)
+				vm_map_entry_unwire(map, entry);
+			else
+				entry->wired_count--;
 		}
 		KASSERT((entry->eflags & MAP_ENTRY_IN_TRANSITION) != 0,
 		    ("vm_map_unwire: in-transition flag missing %p", entry));
@@ -2423,6 +2429,42 @@ done:
 }
 
 /*
+ *	vm_map_wire_entry_failure:
+ *
+ *	Handle a wiring failure on the given entry.
+ *
+ *	The map should be locked.
+ */
+static void
+vm_map_wire_entry_failure(vm_map_t map, vm_map_entry_t entry,
+    vm_offset_t failed_addr)
+{
+
+	VM_MAP_ASSERT_LOCKED(map);
+	KASSERT((entry->eflags & MAP_ENTRY_IN_TRANSITION) != 0 &&
+	    entry->wired_count == 1,
+	    ("vm_map_wire_entry_failure: entry %p isn't being wired", entry));
+	KASSERT(failed_addr < entry->end,
+	    ("vm_map_wire_entry_failure: entry %p was fully wired", entry));
+
+	/*
+	 * If any pages at the start of this entry were successfully wired,
+	 * then unwire them.
+	 */
+	if (failed_addr > entry->start) {
+		pmap_unwire(map->pmap, entry->start, failed_addr);
+		vm_object_unwire(entry->object.vm_object, entry->offset,
+		    failed_addr - entry->start, PQ_ACTIVE);
+	}
+
+	/*
+	 * Assign an out-of-range value to represent the failure to wire this
+	 * entry.
+	 */
+	entry->wired_count = -1;
+}
+
+/*
  *	vm_map_wire:
  *
  *	Implements both kernel and user wiring.
@@ -2432,10 +2474,10 @@ vm_map_wire(vm_map_t map, vm_offset_t start, vm_offset_t end,
     int flags)
 {
 	vm_map_entry_t entry, first_entry, tmp_entry;
-	vm_offset_t saved_end, saved_start;
+	vm_offset_t faddr, saved_end, saved_start;
 	unsigned int last_timestamp;
 	int rv;
-	boolean_t fictitious, need_wakeup, result, user_wire;
+	boolean_t need_wakeup, result, user_wire;
 	vm_prot_t prot;
 
 	if (start == end)
@@ -2528,17 +2570,24 @@ vm_map_wire(vm_map_t map, vm_offset_t start, vm_offset_t end,
 			entry->wired_count++;
 			saved_start = entry->start;
 			saved_end = entry->end;
-			fictitious = entry->object.vm_object != NULL &&
-			    (entry->object.vm_object->flags &
-			    OBJ_FICTITIOUS) != 0;
+
 			/*
 			 * Release the map lock, relying on the in-transition
 			 * mark.  Mark the map busy for fork.
 			 */
 			vm_map_busy(map);
 			vm_map_unlock(map);
-			rv = vm_fault_wire(map, saved_start, saved_end,
-			    fictitious);
+
+			faddr = saved_start;
+			do {
+				/*
+				 * Simulate a fault to get the page and enter
+				 * it into the physical map.
+				 */
+				if ((rv = vm_fault(map, faddr, VM_PROT_NONE,
+				    VM_FAULT_CHANGE_WIRING)) != KERN_SUCCESS)
+					break;
+			} while ((faddr += PAGE_SIZE) < saved_end);
 			vm_map_lock(map);
 			vm_map_unbusy(map);
 			if (last_timestamp + 1 != map->timestamp) {
@@ -2557,23 +2606,22 @@ vm_map_wire(vm_map_t map, vm_offset_t start, vm_offset_t end,
 					first_entry = NULL;
 				entry = tmp_entry;
 				while (entry->end < saved_end) {
-					if (rv != KERN_SUCCESS) {
-						KASSERT(entry->wired_count == 1,
-						    ("vm_map_wire: bad count"));
-						entry->wired_count = -1;
-					}
+					/*
+					 * In case of failure, handle entries
+					 * that were not fully wired here;
+					 * fully wired entries are handled
+					 * later.
+					 */
+					if (rv != KERN_SUCCESS &&
+					    faddr < entry->end)
+						vm_map_wire_entry_failure(map,
+						    entry, faddr);
 					entry = entry->next;
 				}
 			}
 			last_timestamp = map->timestamp;
 			if (rv != KERN_SUCCESS) {
-				KASSERT(entry->wired_count == 1,
-				    ("vm_map_wire: bad count"));
-				/*
-				 * Assign an out-of-range value to represent
-				 * the failure to wire this entry.
-				 */
-				entry->wired_count = -1;
+				vm_map_wire_entry_failure(map, entry, faddr);
 				end = entry->end;
 				goto done;
 			}
@@ -2635,19 +2683,16 @@ done:
 			 * unnecessary.
 			 */
 			entry->wired_count = 0;
-		} else {
-			if (!user_wire ||
-			    (entry->eflags & MAP_ENTRY_USER_WIRED) == 0)
+		} else if (!user_wire ||
+		    (entry->eflags & MAP_ENTRY_USER_WIRED) == 0) {
+			/*
+			 * Undo the wiring.  Wiring succeeded on this entry
+			 * but failed on a later entry.  
+			 */
+			if (entry->wired_count == 1)
+				vm_map_entry_unwire(map, entry);
+			else
 				entry->wired_count--;
-			if (entry->wired_count == 0) {
-				/*
-				 * Retain the map lock.
-				 */
-				vm_fault_unwire(map, entry->start, entry->end,
-				    entry->object.vm_object != NULL &&
-				    (entry->object.vm_object->flags &
-				    OBJ_FICTITIOUS) != 0);
-			}
 		}
 	next_entry_done:
 		KASSERT((entry->eflags & MAP_ENTRY_IN_TRANSITION) != 0,
@@ -2783,9 +2828,13 @@ vm_map_sync(
 static void
 vm_map_entry_unwire(vm_map_t map, vm_map_entry_t entry)
 {
-	vm_fault_unwire(map, entry->start, entry->end,
-	    entry->object.vm_object != NULL &&
-	    (entry->object.vm_object->flags & OBJ_FICTITIOUS) != 0);
+
+	VM_MAP_ASSERT_LOCKED(map);
+	KASSERT(entry->wired_count > 0,
+	    ("vm_map_entry_unwire: entry %p isn't wired", entry));
+	pmap_unwire(map->pmap, entry->start, entry->end);
+	vm_object_unwire(entry->object.vm_object, entry->offset, entry->end -
+	    entry->start, PQ_ACTIVE);
 	entry->wired_count = 0;
 }
 

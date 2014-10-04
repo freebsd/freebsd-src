@@ -42,6 +42,7 @@ __FBSDID("$FreeBSD$");
 #include <vm/vm_page.h>
 #include <vm/vm_extern.h>
 
+#include <machine/armreg.h>
 #define	_ARM32_BUS_DMA_PRIVATE
 #include <machine/bus.h>
 #include <machine/devmap.h>
@@ -255,7 +256,7 @@ at91_cpu_add_builtin_children(device_t dev, const struct cpu_devs *walker)
 {
 	int i;
 
-	for (i = 1; walker->name; i++, walker++) {
+	for (i = 0; walker->name; i++, walker++) {
 		at91_add_child(dev, i, walker->name, walker->unit,
 		    walker->mem_base, walker->mem_len, walker->irq0,
 		    walker->irq1, walker->irq2);
@@ -303,7 +304,7 @@ at91_attach(device_t dev)
 
 	bus_generic_probe(dev);
 	bus_generic_attach(dev);
-	enable_interrupts(I32_bit | F32_bit);
+	enable_interrupts(PSR_I | PSR_F);
 	return (0);
 }
 

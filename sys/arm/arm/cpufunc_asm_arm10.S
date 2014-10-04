@@ -209,7 +209,7 @@ ENTRY_NP(arm10_idcache_wbinv_all)
 	mcr	p15, 0, r0, c7, c5, 0	/* Flush I cache */
 	/* Fall through to purge Dcache. */
 
-ENTRY(arm10_dcache_wbinv_all)
+EENTRY(arm10_dcache_wbinv_all)
 .Larm10_dcache_wbinv_all:
 	ldr	ip, .Larm10_cache_data
 	ldmia	ip, {s_max, i_max, s_inc, i_inc}
@@ -223,8 +223,8 @@ ENTRY(arm10_dcache_wbinv_all)
 	bhs	.Lnext_set_inv		/* Next set */
 	mcr	p15, 0, r0, c7, c10, 4	/* drain the write buffer */
 	bx	lr
+EEND(arm10_dcache_wbinv_all)
 END(arm10_idcache_wbinv_all)
-END(arm10_dcache_wbinv_all)
 
 .Larm10_cache_data:
 	.word	_C_LABEL(arm10_dcache_sets_max)

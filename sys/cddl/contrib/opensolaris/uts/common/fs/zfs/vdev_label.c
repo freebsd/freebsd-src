@@ -992,7 +992,7 @@ vdev_uberblock_sync_done(zio_t *zio)
 	uint64_t *good_writes = zio->io_private;
 
 	if (zio->io_error == 0 && zio->io_vd->vdev_top->vdev_ms_array != 0)
-		atomic_add_64(good_writes, 1);
+		atomic_inc_64(good_writes);
 }
 
 /*
@@ -1067,7 +1067,7 @@ vdev_label_sync_done(zio_t *zio)
 	uint64_t *good_writes = zio->io_private;
 
 	if (zio->io_error == 0)
-		atomic_add_64(good_writes, 1);
+		atomic_inc_64(good_writes);
 }
 
 /*

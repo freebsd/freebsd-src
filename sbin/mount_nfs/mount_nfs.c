@@ -310,6 +310,32 @@ main(int argc, char *argv[])
 					if (*p || num <= 0)
 						errx(1, "illegal maxgroups value -- %s", val);
 					//set_rpc_maxgrouplist(num);
+				} else if (strcmp(opt, "vers") == 0) {
+					num = strtol(val, &p, 10);
+					if (*p || num <= 0)
+						errx(1, "illegal vers value -- "
+						    "%s", val);
+					switch (num) {
+					case 2:
+						mountmode = V2;
+						break;
+					case 3:
+						mountmode = V3;
+						build_iovec(&iov, &iovlen,
+						    "nfsv3", NULL, 0);
+						break;
+					case 4:
+						mountmode = V4;
+						fstype = "nfs";
+						nfsproto = IPPROTO_TCP;
+						if (portspec == NULL)
+							portspec = "2049";
+						break;
+					default:
+						errx(1, "illegal nfs version "
+						    "value -- %s", val);
+					}
+					pass_flag_to_nmount=0;
 				}
 				if (pass_flag_to_nmount)
 					build_iovec(&iov, &iovlen, opt, val,

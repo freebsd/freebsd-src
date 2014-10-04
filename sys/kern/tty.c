@@ -1055,13 +1055,13 @@ tty_rel_free(struct tty *tp)
 	tp->t_dev = NULL;
 	tty_unlock(tp);
 
-	sx_xlock(&tty_list_sx);
-	TAILQ_REMOVE(&tty_list, tp, t_list);
-	tty_list_count--;
-	sx_xunlock(&tty_list_sx);
-
-	if (dev != NULL)
+	if (dev != NULL) {
+		sx_xlock(&tty_list_sx);
+		TAILQ_REMOVE(&tty_list, tp, t_list);
+		tty_list_count--;
+		sx_xunlock(&tty_list_sx);
 		destroy_dev_sched_cb(dev, tty_dealloc, tp);
+	}
 }
 
 void
@@ -1370,13 +1370,13 @@ tty_wait(struct tty *tp, struct cv *cv)
 
 	error = cv_wait_sig(cv, tp->t_mtx);
 
-	/* Restart the system call when we may have been revoked. */
-	if (tp->t_revokecnt != revokecnt)
-		return (ERESTART);
-
 	/* Bail out when the device slipped away. */
 	if (tty_gone(tp))
 		return (ENXIO);
+
+	/* Restart the system call when we may have been revoked. */
+	if (tp->t_revokecnt != revokecnt)
+		return (ERESTART);
 
 	return (error);
 }

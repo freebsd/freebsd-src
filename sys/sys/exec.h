@@ -39,12 +39,17 @@
 #define _SYS_EXEC_H_
 
 /*
- * The following structure is found at the top of the user stack of each
- * user process. The ps program uses it to locate argv and environment
- * strings. Programs that wish ps to display other information may modify
- * it; normally ps_argvstr points to the argv vector, and ps_nargvstr
- * is the same as the program's argc. The fields ps_envstr and ps_nenvstr
- * are the equivalent for the environment.
+ * Before ps_args existed, the following structure, found at the top of
+ * the user stack of each user process, was used by ps(1) to locate
+ * environment and argv strings.  Normally ps_argvstr points to the
+ * argv vector, and ps_nargvstr is the same as the program's argc. The
+ * fields ps_envstr and ps_nenvstr are the equivalent for the environment.
+ *
+ * Programs should now use setproctitle(3) to change ps output.
+ * setproctitle() always informs the kernel with sysctl and sets the
+ * pointers in ps_strings.  The kern.proc.args sysctl first tries p_args.
+ * If p_args is NULL, it then falls back to reading ps_strings and following
+ * the pointers.
  */
 struct ps_strings {
 	char	**ps_argvstr;	/* first of 0 or more argument strings */
@@ -55,6 +60,7 @@ struct ps_strings {
 
 /*
  * Address of ps_strings structure (in user space).
+ * Prefer the kern.ps_strings or kern.proc.ps_strings sysctls to this constant.
  */
 #define	PS_STRINGS	(USRSTACK - sizeof(struct ps_strings))
 #define SPARE_USRSPACE	4096

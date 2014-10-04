@@ -163,6 +163,7 @@ SUBDIR=	alias \
 	${_tests} \
 	tftp \
 	time \
+	timeout \
 	tip \
 	top \
 	touch \

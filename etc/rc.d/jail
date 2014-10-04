@@ -207,6 +207,10 @@ parse_options()
 		extract_var $_j consolelog exec.consolelog - \
 		    /var/log/jail_${_j}_console.log
 
+		if [ -r $_fstab ]; then
+			echo "	mount.fstab = \"$_fstab\";"
+		fi
+
 		eval : \${jail_${_j}_devfs_enable:=${jail_devfs_enable:-NO}}
 		if checkyesno jail_${_j}_devfs_enable; then
 			echo "	mount.devfs;"
@@ -222,11 +226,7 @@ parse_options()
 			;;
 			*)	warn "devfs_ruleset must be an integer." ;;
 			esac
-			if [ -r $_fstab ]; then
-				echo "	mount.fstab = \"$_fstab\";"
-			fi
 		fi
-
 		eval : \${jail_${_j}_fdescfs_enable:=${jail_fdescfs_enable:-NO}}
 		if checkyesno jail_${_j}_fdescfs_enable; then
 			echo "	mount.fdescfs;"
@@ -319,7 +319,7 @@ jail_extract_address()
 		_mask=${_mask:-/32}
 
 	elif [ "${_type}" = "inet6" ]; then
-		# In case _maske is not set for IPv6, use /128.
+		# In case _mask is not set for IPv6, use /128.
 		_mask=${_mask:-/128}
 	fi
 }
@@ -420,7 +420,7 @@ jail_status()
 
 jail_start()
 {
-	local _j _jid _jn _jl
+	local _j _jid _jl
 
 	if [ $# = 0 ]; then
 		return
@@ -433,12 +433,10 @@ jail_start()
 		command_args="-f $jail_conf -c"
 		_tmp=`mktemp -t jail` || exit 3
 		if $command $rc_flags $command_args >> $_tmp 2>&1; then
-			$jail_jls -nq | while read IN; do
-				_jn=$(echo $IN | tr " " "\n" | grep ^name=)
-				_jid=$(echo $IN | tr " " "\n" | grep ^jid=)
-				echo -n " ${_jn#name=}"
-				echo "${_jid#jid=}" \
-				    > /var/run/jail_${_jn#name=}.id
+			$jail_jls jid name | while read IN; do
+				set -- $IN
+				echo -n " $2"
+				echo $1 > /var/run/jail_$2.id
 			done
 		else
 			tail -1 $_tmp
@@ -468,9 +466,8 @@ jail_start()
 		sleep 1
 		for _j in $_jl; do
 			echo -n " ${_hostname:-${_j}}"
-			if _jid=$($jail_jls -n -j $_j | tr " " "\n" | \
-			    grep ^jid=); then
-				echo "${_jid#jid=}" > /var/run/jail_${_j}.id
+			if _jid=$($jail_jls -j $_j jid); then
+				echo "$_jid" > /var/run/jail_${_j}.id
 			else
 				rm -f /var/run/jail_${_j}.id
 				echo " cannot start jail " \
@@ -492,9 +489,8 @@ jail_start()
 			if $command $rc_flags $command_args \
 			    >> $_tmp 2>&1 </dev/null; then
 				echo -n " ${_hostname:-${_j}}"
-				_jid=$($jail_jls -n -j $_j | \
-				    tr " " "\n" | grep ^jid=)
-				echo "${_jid#jid=}" > /var/run/jail_${_j}.id
+				_jid=$($jail_jls -j $_j jid)
+				echo $_jid > /var/run/jail_${_j}.id
 			else
 				rm -f /var/run/jail_${_j}.id
 				echo " cannot start jail " \
@@ -509,7 +505,7 @@ jail_start()
 
 jail_stop()
 {
-	local _j _jn
+	local _j
 
 	if [ $# = 0 ]; then
 		return
@@ -520,16 +516,14 @@ jail_stop()
 		command=$jail_program
 		rc_flags=$jail_flags
 		command_args="-f $jail_conf -r"
-		$jail_jls -nq | while read IN; do
-			_jn=$(echo $IN | tr " " "\n" | grep ^name=)
-			echo -n " ${_jn#name=}"
+		$jail_jls name | while read _j; do
+			echo -n " $_j"
 			_tmp=`mktemp -t jail` || exit 3
-			$command $rc_flags $command_args ${_jn#name=} \
-			    >> $_tmp 2>&1
-			if $jail_jls -j ${_jn#name=} > /dev/null 2>&1; then
+			$command $rc_flags $command_args $_j >> $_tmp 2>&1
+			if $jail_jls -j $_j > /dev/null 2>&1; then
 				tail -1 $_tmp
 			else
-				rm -f /var/run/jail_${_jn#name=}.id
+				rm -f /var/run/jail_${_j}.id
 			fi
 			rm -f $_tmp
 		done

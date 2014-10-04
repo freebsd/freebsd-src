@@ -55,6 +55,9 @@ __ElfType(Auxinfo);
 
 #define	ELF_MACHINE_OK(x) ((x) == EM_ARM)
 
+/* Unwind info section type */
+#define	PT_ARM_EXIDX (PT_LOPROC + 1)
+
 /*
  * Relocation types.
  */
@@ -99,6 +102,12 @@ __ElfType(Auxinfo);
 #endif
 #define	ELF_TARG_MACH	EM_ARM
 #define	ELF_TARG_VER	1
+
+/* Defines specific for arm headers */
+#define EF_ARM_EABIMASK      0xff000000
+#define EF_ARM_EABI_VERSION(x) (((x) & EF_ARM_EABIMASK) >> 24)
+#define EF_ARM_EABI_VERSION_UNKNOWN 0
+#define EF_ARM_EABI_FREEBSD_MIN 4
 
 /*
  * Magic number for the elf trampoline, chosen wisely to be an immediate

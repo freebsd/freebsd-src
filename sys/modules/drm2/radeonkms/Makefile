@@ -1,7 +1,5 @@
 # $FreeBSD$
 
-.include <bsd.own.mk>
-
 .PATH:	${.CURDIR}/../../../dev/drm2/radeon
 
 KMOD	= radeonkms

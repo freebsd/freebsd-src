@@ -110,11 +110,6 @@ static int		pci_write_vpd_reg(device_t pcib, pcicfgregs *cfg,
 			    int reg, uint32_t data);
 #endif
 static void		pci_read_vpd(device_t pcib, pcicfgregs *cfg);
-static void		pci_disable_msi(device_t dev);
-static void		pci_enable_msi(device_t dev, uint64_t address,
-			    uint16_t data);
-static void		pci_enable_msix(device_t dev, u_int index,
-			    uint64_t address, uint32_t data);
 static void		pci_mask_msix(device_t dev, u_int index);
 static void		pci_unmask_msix(device_t dev, u_int index);
 static int		pci_msi_blacklisted(void);
@@ -136,7 +131,7 @@ static device_method_t pci_methods[] = {
 	DEVMETHOD(device_detach,	bus_generic_detach),
 #endif
 	DEVMETHOD(device_shutdown,	bus_generic_shutdown),
-	DEVMETHOD(device_suspend,	pci_suspend),
+	DEVMETHOD(device_suspend,	bus_generic_suspend),
 	DEVMETHOD(device_resume,	pci_resume),
 
 	/* Bus interface */
@@ -162,6 +157,8 @@ static device_method_t pci_methods[] = {
 	DEVMETHOD(bus_child_pnpinfo_str, pci_child_pnpinfo_str_method),
 	DEVMETHOD(bus_child_location_str, pci_child_location_str_method),
 	DEVMETHOD(bus_remap_intr,	pci_remap_intr_method),
+	DEVMETHOD(bus_suspend_child,	pci_suspend_child),
+	DEVMETHOD(bus_resume_child,	pci_resume_child),
 
 	/* PCI interface */
 	DEVMETHOD(pci_read_config,	pci_read_config_method),
@@ -180,11 +177,15 @@ static device_method_t pci_methods[] = {
 	DEVMETHOD(pci_find_htcap,	pci_find_htcap_method),
 	DEVMETHOD(pci_alloc_msi,	pci_alloc_msi_method),
 	DEVMETHOD(pci_alloc_msix,	pci_alloc_msix_method),
+	DEVMETHOD(pci_enable_msi,	pci_enable_msi_method),
+	DEVMETHOD(pci_enable_msix,	pci_enable_msix_method),
+	DEVMETHOD(pci_disable_msi,	pci_disable_msi_method),
 	DEVMETHOD(pci_remap_msix,	pci_remap_msix_method),
 	DEVMETHOD(pci_release_msi,	pci_release_msi_method),
 	DEVMETHOD(pci_msi_count,	pci_msi_count_method),
 	DEVMETHOD(pci_msix_count,	pci_msix_count_method),
 	DEVMETHOD(pci_get_rid,		pci_get_rid_method),
+	DEVMETHOD(pci_child_added,	pci_child_added_method),
 
 	DEVMETHOD_END
 };
@@ -1343,9 +1344,10 @@ pci_find_extcap_method(device_t dev, device_t child, int capability,
  * Support for MSI-X message interrupts.
  */
 void
-pci_enable_msix(device_t dev, u_int index, uint64_t address, uint32_t data)
+pci_enable_msix_method(device_t dev, device_t child, u_int index,
+    uint64_t address, uint32_t data)
 {
-	struct pci_devinfo *dinfo = device_get_ivars(dev);
+	struct pci_devinfo *dinfo = device_get_ivars(child);
 	struct pcicfg_msix *msix = &dinfo->cfg.msix;
 	uint32_t offset;
 
@@ -1356,7 +1358,7 @@ pci_enable_msix(device_t dev, u_int index, uint64_t address, uint32_t data)
 	bus_write_4(msix->msix_table_res, offset + 8, data);
 
 	/* Enable MSI -> HT mapping. */
-	pci_ht_map_msi(dev, address);
+	pci_ht_map_msi(child, address);
 }
 
 void
@@ -1868,45 +1870,46 @@ pci_set_max_read_req(device_t dev, int size)
  * Support for MSI message signalled interrupts.
  */
 void
-pci_enable_msi(device_t dev, uint64_t address, uint16_t data)
+pci_enable_msi_method(device_t dev, device_t child, uint64_t address,
+    uint16_t data)
 {
-	struct pci_devinfo *dinfo = device_get_ivars(dev);
+	struct pci_devinfo *dinfo = device_get_ivars(child);
 	struct pcicfg_msi *msi = &dinfo->cfg.msi;
 
 	/* Write data and address values. */
-	pci_write_config(dev, msi->msi_location + PCIR_MSI_ADDR,
+	pci_write_config(child, msi->msi_location + PCIR_MSI_ADDR,
 	    address & 0xffffffff, 4);
 	if (msi->msi_ctrl & PCIM_MSICTRL_64BIT) {
-		pci_write_config(dev, msi->msi_location + PCIR_MSI_ADDR_HIGH,
+		pci_write_config(child, msi->msi_location + PCIR_MSI_ADDR_HIGH,
 		    address >> 32, 4);
-		pci_write_config(dev, msi->msi_location + PCIR_MSI_DATA_64BIT,
+		pci_write_config(child, msi->msi_location + PCIR_MSI_DATA_64BIT,
 		    data, 2);
 	} else
-		pci_write_config(dev, msi->msi_location + PCIR_MSI_DATA, data,
+		pci_write_config(child, msi->msi_location + PCIR_MSI_DATA, data,
 		    2);
 
 	/* Enable MSI in the control register. */
 	msi->msi_ctrl |= PCIM_MSICTRL_MSI_ENABLE;
-	pci_write_config(dev, msi->msi_location + PCIR_MSI_CTRL, msi->msi_ctrl,
-	    2);
+	pci_write_config(child, msi->msi_location + PCIR_MSI_CTRL,
+	    msi->msi_ctrl, 2);
 
 	/* Enable MSI -> HT mapping. */
-	pci_ht_map_msi(dev, address);
+	pci_ht_map_msi(child, address);
 }
 
 void
-pci_disable_msi(device_t dev)
+pci_disable_msi_method(device_t dev, device_t child)
 {
-	struct pci_devinfo *dinfo = device_get_ivars(dev);
+	struct pci_devinfo *dinfo = device_get_ivars(child);
 	struct pcicfg_msi *msi = &dinfo->cfg.msi;
 
 	/* Disable MSI -> HT mapping. */
-	pci_ht_map_msi(dev, 0);
+	pci_ht_map_msi(child, 0);
 
 	/* Disable MSI in the control register. */
 	msi->msi_ctrl &= ~PCIM_MSICTRL_MSI_ENABLE;
-	pci_write_config(dev, msi->msi_location + PCIR_MSI_CTRL, msi->msi_ctrl,
-	    2);
+	pci_write_config(child, msi->msi_location + PCIR_MSI_CTRL,
+	    msi->msi_ctrl, 2);
 }
 
 /*
@@ -3518,6 +3521,13 @@ pci_add_child(device_t bus, struct pci_devinfo *dinfo)
 	pci_cfg_restore(dinfo->cfg.dev, dinfo);
 	pci_print_verbose(dinfo);
 	pci_add_resources(bus, dinfo->cfg.dev, 0, 0);
+	pci_child_added(dinfo->cfg.dev);
+}
+
+void
+pci_child_added_method(device_t dev, device_t child)
+{
+
 }
 
 static int
@@ -3614,12 +3624,11 @@ pci_detach(device_t dev)
 #endif
 
 static void
-pci_set_power_children(device_t dev, device_t *devlist, int numdevs,
-    int state)
+pci_set_power_child(device_t dev, device_t child, int state)
 {
-	device_t child, pcib;
 	struct pci_devinfo *dinfo;
-	int dstate, i;
+	device_t pcib;
+	int dstate;
 
 	/*
 	 * Set the device to the given state.  If the firmware suggests
@@ -3629,45 +3638,54 @@ pci_set_power_children(device_t dev, device_t *devlist, int numdevs,
 	 * are handled separately.
 	 */
 	pcib = device_get_parent(dev);
-	for (i = 0; i < numdevs; i++) {
-		child = devlist[i];
-		dinfo = device_get_ivars(child);
-		dstate = state;
-		if (device_is_attached(child) &&
-		    PCIB_POWER_FOR_SLEEP(pcib, dev, &dstate) == 0)
-			pci_set_powerstate(child, dstate);
-	}
+	dinfo = device_get_ivars(child);
+	dstate = state;
+	if (device_is_attached(child) &&
+	    PCIB_POWER_FOR_SLEEP(pcib, dev, &dstate) == 0)
+		pci_set_powerstate(child, dstate);
 }
 
 int
-pci_suspend(device_t dev)
+pci_suspend_child(device_t dev, device_t child)
 {
-	device_t child, *devlist;
 	struct pci_devinfo *dinfo;
-	int error, i, numdevs;
+	int error;
+
+	dinfo = device_get_ivars(child);
 
 	/*
-	 * Save the PCI configuration space for each child and set the
+	 * Save the PCI configuration space for the child and set the
 	 * device in the appropriate power state for this sleep state.
 	 */
-	if ((error = device_get_children(dev, &devlist, &numdevs)) != 0)
-		return (error);
-	for (i = 0; i < numdevs; i++) {
-		child = devlist[i];
-		dinfo = device_get_ivars(child);
-		pci_cfg_save(child, dinfo, 0);
-	}
+	pci_cfg_save(child, dinfo, 0);
 
 	/* Suspend devices before potentially powering them down. */
-	error = bus_generic_suspend(dev);
-	if (error) {
-		free(devlist, M_TEMP);
+	error = bus_generic_suspend_child(dev, child);
+
+	if (error)
 		return (error);
-	}
+
 	if (pci_do_power_suspend)
-		pci_set_power_children(dev, devlist, numdevs,
-		    PCI_POWERSTATE_D3);
-	free(devlist, M_TEMP);
+		pci_set_power_child(dev, child, PCI_POWERSTATE_D3);
+
+	return (0);
+}
+
+int
+pci_resume_child(device_t dev, device_t child)
+{
+	struct pci_devinfo *dinfo;
+
+	if (pci_do_power_resume)
+		pci_set_power_child(dev, child, PCI_POWERSTATE_D0);
+
+	dinfo = device_get_ivars(child);
+	pci_cfg_restore(child, dinfo);
+	if (!device_is_attached(child))
+		pci_cfg_save(child, dinfo, 1);
+
+	bus_generic_resume_child(dev, child);
+
 	return (0);
 }
 
@@ -3675,27 +3693,10 @@ int
 pci_resume(device_t dev)
 {
 	device_t child, *devlist;
-	struct pci_devinfo *dinfo;
 	int error, i, numdevs;
 
-	/*
-	 * Set each child to D0 and restore its PCI configuration space.
-	 */
 	if ((error = device_get_children(dev, &devlist, &numdevs)) != 0)
 		return (error);
-	if (pci_do_power_resume)
-		pci_set_power_children(dev, devlist, numdevs,
-		    PCI_POWERSTATE_D0);
-
-	/* Now the device is powered up, restore its config space. */
-	for (i = 0; i < numdevs; i++) {
-		child = devlist[i];
-		dinfo = device_get_ivars(child);
-
-		pci_cfg_restore(child, dinfo);
-		if (!device_is_attached(child))
-			pci_cfg_save(child, dinfo, 1);
-	}
 
 	/*
 	 * Resume critical devices first, then everything else later.
@@ -3707,7 +3708,7 @@ pci_resume(device_t dev)
 		case PCIC_MEMORY:
 		case PCIC_BRIDGE:
 		case PCIC_BASEPERIPH:
-			DEVICE_RESUME(child);
+			BUS_RESUME_CHILD(dev, child);
 			break;
 		}
 	}
@@ -3720,7 +3721,7 @@ pci_resume(device_t dev)
 		case PCIC_BASEPERIPH:
 			break;
 		default:
-			DEVICE_RESUME(child);
+			BUS_RESUME_CHILD(dev, child);
 		}
 	}
 	free(devlist, M_TEMP);

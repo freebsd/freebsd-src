@@ -63,6 +63,7 @@ typedef struct _dirdesc DIR;
 #define DTF_NODUP	0x0002	/* don't return duplicate names */
 #define DTF_REWIND	0x0004	/* rewind after reading union stack */
 #define __DTF_READALL	0x0008	/* everything has been read */
+#define	__DTF_SKIPREAD	0x0010  /* assume internal buffer is populated */
 
 #else /* !__BSD_VISIBLE */
 

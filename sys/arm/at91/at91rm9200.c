@@ -105,7 +105,7 @@ static const uint32_t at91_pio_base[] = {
 
 static const struct cpu_devs at91_devs[] =
 {
-	DEVICE("at91_aic", AIC,  0),
+	DEVICE("at91_aic",   AIC,    0),
 	DEVICE("at91_pmc",   PMC,    0),
 	DEVICE("at91_st",    ST,     0),
 	DEVICE("at91_pio",   PIOA,   0),
@@ -128,7 +128,6 @@ static const struct cpu_devs at91_devs[] =
 	DEVICE("uart",       USART1, 2),
 	DEVICE("uart",       USART2, 3),
 	DEVICE("uart",       USART3, 4),
-	DEVICE("at91_aic",   AIC,    0),
 	DEVICE("at91_mc",    MC,     0),
 	DEVICE("at91_tc",    TC0,    0),
 	DEVICE("at91_tc",    TC1,    1),

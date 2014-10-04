@@ -103,7 +103,10 @@ extern vm_offset_t	memtop_copyin;	/* memtop less heap size for the cases */
 extern uint32_t		high_heap_size;	/* extended memory region available */
 extern vm_offset_t	high_heap_base;	/* for use as the heap */
 
+void	biospci_detect(void);
+int	biospci_count_device_type(uint32_t devid);
 int biospci_find_devclass(uint32_t class, int index, uint32_t *locator);
+int biospci_find_device(uint32_t devid, int index, uint32_t *locator);
 int biospci_write_config(uint32_t locator, int offset, int width, uint32_t val);
 int biospci_read_config(uint32_t locator, int offset, int width, uint32_t *val);
 uint32_t biospci_locator(int8_t bus, uint8_t device, uint8_t function);
@@ -121,4 +124,5 @@ int	bi_load32(char *args, int *howtop, int *bootdevp, vm_offset_t *bip,
 	    vm_offset_t *modulep, vm_offset_t *kernend);
 int	bi_load64(char *args, vm_offset_t *modulep, vm_offset_t *kernend);
 
+char	*pxe_default_rc(void);
 void	pxe_enable(void *pxeinfo);

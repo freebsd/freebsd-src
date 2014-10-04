@@ -71,6 +71,7 @@ dev/vt/hw/ofwfb/ofwfb.c		optional	vt aim
 kern/kern_clocksource.c		standard
 kern/subr_dummy_vdso_tc.c	standard
 kern/syscalls.c			optional	ktr
+kern/subr_sfbuf.c		standard
 libkern/ashldi3.c		optional	powerpc
 libkern/ashrdi3.c		optional	powerpc
 libkern/bcmp.c			standard

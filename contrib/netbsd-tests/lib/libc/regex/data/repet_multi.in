@@ -1,0 +1,21 @@
+# multiple repetitions
+a**		&C	BADRPT
+a++		C	BADRPT
+a??		C	BADRPT
+a*+		C	BADRPT
+a*?		C	BADRPT
+a+*		C	BADRPT
+a+?		C	BADRPT
+a?*		C	BADRPT
+a?+		C	BADRPT
+a{1}{1}		C	BADRPT
+a*{1}		C	BADRPT
+a+{1}		C	BADRPT
+a?{1}		C	BADRPT
+a{1}*		C	BADRPT
+a{1}+		C	BADRPT
+a{1}?		C	BADRPT
+a*{b}		-	a{b}	a{b}
+a\{1\}\{1\}	bC	BADRPT
+a*\{1\}		bC	BADRPT
+a\{1\}*		bC	BADRPT

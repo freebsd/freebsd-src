@@ -218,13 +218,8 @@ at91_udp_attach(device_t dev)
 	}
 	device_set_ivars(sc->sc_dci.sc_bus.bdev, &sc->sc_dci.sc_bus);
 
-#if (__FreeBSD_version >= 700031)
-	err = bus_setup_intr(dev, sc->sc_dci.sc_irq_res, INTR_TYPE_BIO | INTR_MPSAFE,
-	    NULL, (driver_intr_t *)at91dci_interrupt, sc, &sc->sc_dci.sc_intr_hdl);
-#else
-	err = bus_setup_intr(dev, sc->sc_dci.sc_irq_res, INTR_TYPE_BIO | INTR_MPSAFE,
-	    (driver_intr_t *)at91dci_interrupt, sc, &sc->sc_dci.sc_intr_hdl);
-#endif
+	err = bus_setup_intr(dev, sc->sc_dci.sc_irq_res, INTR_TYPE_TTY | INTR_MPSAFE,
+	    at91dci_filter_interrupt, at91dci_interrupt, sc, &sc->sc_dci.sc_intr_hdl);
 	if (err) {
 		sc->sc_dci.sc_intr_hdl = NULL;
 		goto error;

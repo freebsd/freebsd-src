@@ -152,7 +152,8 @@ static driver_t pl190_intc_driver = {
 
 static devclass_t pl190_intc_devclass;
 
-DRIVER_MODULE(intc, simplebus, pl190_intc_driver, pl190_intc_devclass, 0, 0);
+EARLY_DRIVER_MODULE(intc, simplebus, pl190_intc_driver, pl190_intc_devclass, 
+    0, 0, BUS_PASS_INTERRUPT + BUS_PASS_ORDER_MIDDLE);
 
 int
 arm_get_next_irq(int last_irq)

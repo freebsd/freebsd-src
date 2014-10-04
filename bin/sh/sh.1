@@ -32,7 +32,7 @@
 .\"	from: @(#)sh.1	8.6 (Berkeley) 5/4/95
 .\" $FreeBSD$
 .\"
-.Dd January 26, 2014
+.Dd September 21, 2014
 .Dt SH 1
 .Os
 .Sh NAME
@@ -259,6 +259,12 @@ from input when in interactive mode.
 Force the shell to behave interactively.
 .It Fl m Li monitor
 Turn on job control (set automatically when interactive).
+A new process group is created for each pipeline (called a job).
+It is possible to suspend jobs or to have them run in the foreground or
+in the background.
+In a non-interactive shell,
+this option can be set even if no terminal is available
+and is useful to place processes in separate process groups.
 .It Fl n Li noexec
 If not interactive, read commands but do not
 execute them.
@@ -584,7 +590,8 @@ the following actions:
 Leading words of the form
 .Dq Li name=value
 are stripped off and assigned to the environment of
-the simple command.
+the simple command
+(they do not affect expansions).
 Redirection operators and
 their arguments (as described below) are stripped
 off and saved for processing.

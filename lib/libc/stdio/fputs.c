@@ -55,7 +55,7 @@ fputs(const char * __restrict s, FILE * __restrict fp)
 	struct __siov iov;
 
 	iov.iov_base = (void *)s;
-	iov.iov_len = uio.uio_resid = strlen(s);
+	uio.uio_resid = iov.iov_len = strlen(s);
 	uio.uio_iov = &iov;
 	uio.uio_iovcnt = 1;
 	FLOCKFILE(fp);

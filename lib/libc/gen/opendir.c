@@ -49,7 +49,7 @@ __FBSDID("$FreeBSD$");
 #include "gen-private.h"
 #include "telldir.h"
 
-static DIR * __opendir_common(int, int);
+static DIR * __opendir_common(int, int, bool);
 
 /*
  * Open a directory.
@@ -67,18 +67,10 @@ opendir(const char *name)
 DIR *
 fdopendir(int fd)
 {
-	struct stat statb;
 
-	/* Check that fd is associated with a directory. */
-	if (_fstat(fd, &statb) != 0)
-		return (NULL);
-	if (!S_ISDIR(statb.st_mode)) {
-		errno = ENOTDIR;
-		return (NULL);
-	}
 	if (_fcntl(fd, F_SETFD, FD_CLOEXEC) == -1)
 		return (NULL);
-	return (__opendir_common(fd, DTF_HIDEW|DTF_NODUP));
+	return (__opendir_common(fd, DTF_HIDEW|DTF_NODUP, true));
 }
 
 DIR *
@@ -88,11 +80,13 @@ __opendir2(const char *name, int flags)
 	DIR *dir;
 	int saved_errno;
 
+	if ((flags & (__DTF_READALL | __DTF_SKIPREAD)) != 0)
+		return (NULL);
 	if ((fd = _open(name,
 	    O_RDONLY | O_NONBLOCK | O_DIRECTORY | O_CLOEXEC)) == -1)
 		return (NULL);
 
-	dir = __opendir_common(fd, flags);
+	dir = __opendir_common(fd, flags, false);
 	if (dir == NULL) {
 		saved_errno = errno;
 		_close(fd);
@@ -110,22 +104,195 @@ opendir_compar(const void *p1, const void *p2)
 }
 
 /*
+ * For a directory at the top of a unionfs stack, the entire directory's
+ * contents are read and cached locally until the next call to rewinddir().
+ * For the fdopendir() case, the initial seek position must be preserved.
+ * For rewinddir(), the full directory should always be re-read from the
+ * beginning.
+ *
+ * If an error occurs, the existing buffer and state of 'dirp' is left
+ * unchanged.
+ */
+bool
+_filldir(DIR *dirp, bool use_current_pos)
+{
+	struct dirent **dpv;
+	char *buf, *ddptr, *ddeptr;
+	off_t pos;
+	int fd2, incr, len, n, saved_errno, space;
+	
+	len = 0;
+	space = 0;
+	buf = NULL;
+	ddptr = NULL;
+
+	/*
+	 * Use the system page size if that is a multiple of DIRBLKSIZ.
+	 * Hopefully this can be a big win someday by allowing page
+	 * trades to user space to be done by _getdirentries().
+	 */
+	incr = getpagesize();
+	if ((incr % DIRBLKSIZ) != 0) 
+		incr = DIRBLKSIZ;
+
+	/*
+	 * The strategy here is to read all the directory
+	 * entries into a buffer, sort the buffer, and
+	 * remove duplicate entries by setting the inode
+	 * number to zero.
+	 *
+	 * We reopen the directory because _getdirentries()
+	 * on a MNT_UNION mount modifies the open directory,
+	 * making it refer to the lower directory after the
+	 * upper directory's entries are exhausted.
+	 * This would otherwise break software that uses
+	 * the directory descriptor for fchdir or *at
+	 * functions, such as fts.c.
+	 */
+	if ((fd2 = _openat(dirp->dd_fd, ".", O_RDONLY | O_CLOEXEC)) == -1)
+		return (false);
+
+	if (use_current_pos) {
+		pos = lseek(dirp->dd_fd, 0, SEEK_CUR);
+		if (pos == -1 || lseek(fd2, pos, SEEK_SET) == -1) {
+			saved_errno = errno;
+			_close(fd2);
+			errno = saved_errno;
+			return (false);
+		}
+	}
+
+	do {
+		/*
+		 * Always make at least DIRBLKSIZ bytes
+		 * available to _getdirentries
+		 */
+		if (space < DIRBLKSIZ) {
+			space += incr;
+			len += incr;
+			buf = reallocf(buf, len);
+			if (buf == NULL) {
+				saved_errno = errno;
+				_close(fd2);
+				errno = saved_errno;
+				return (false);
+			}
+			ddptr = buf + (len - space);
+		}
+
+		n = _getdirentries(fd2, ddptr, space, &dirp->dd_seek);
+		if (n > 0) {
+			ddptr += n;
+			space -= n;
+		}
+		if (n < 0) {
+			saved_errno = errno;
+			_close(fd2);
+			errno = saved_errno;
+			return (false);
+		}
+	} while (n > 0);
+	_close(fd2);
+
+	ddeptr = ddptr;
+
+	/*
+	 * There is now a buffer full of (possibly) duplicate
+	 * names.
+	 */
+	dirp->dd_buf = buf;
+
+	/*
+	 * Go round this loop twice...
+	 *
+	 * Scan through the buffer, counting entries.
+	 * On the second pass, save pointers to each one.
+	 * Then sort the pointers and remove duplicate names.
+	 */
+	for (dpv = 0;;) {
+		n = 0;
+		ddptr = buf;
+		while (ddptr < ddeptr) {
+			struct dirent *dp;
+
+			dp = (struct dirent *) ddptr;
+			if ((long)dp & 03L)
+				break;
+			if ((dp->d_reclen <= 0) ||
+			    (dp->d_reclen > (ddeptr + 1 - ddptr)))
+				break;
+			ddptr += dp->d_reclen;
+			if (dp->d_fileno) {
+				if (dpv)
+					dpv[n] = dp;
+				n++;
+			}
+		}
+
+		if (dpv) {
+			struct dirent *xp;
+
+			/*
+			 * This sort must be stable.
+			 */
+			mergesort(dpv, n, sizeof(*dpv), opendir_compar);
+
+			dpv[n] = NULL;
+			xp = NULL;
+
+			/*
+			 * Scan through the buffer in sort order,
+			 * zapping the inode number of any
+			 * duplicate names.
+			 */
+			for (n = 0; dpv[n]; n++) {
+				struct dirent *dp = dpv[n];
+
+				if ((xp == NULL) ||
+				    strcmp(dp->d_name, xp->d_name)) {
+					xp = dp;
+				} else {
+					dp->d_fileno = 0;
+				}
+				if (dp->d_type == DT_WHT &&
+				    (dirp->dd_flags & DTF_HIDEW))
+					dp->d_fileno = 0;
+			}
+
+			free(dpv);
+			break;
+		} else {
+			dpv = malloc((n+1) * sizeof(struct dirent *));
+			if (dpv == NULL)
+				break;
+		}
+	}
+
+	dirp->dd_len = len;
+	dirp->dd_size = ddptr - dirp->dd_buf;
+	return (true);
+}
+
+
+/*
  * Common routine for opendir(3), __opendir2(3) and fdopendir(3).
  */
 static DIR *
-__opendir_common(int fd, int flags)
+__opendir_common(int fd, int flags, bool use_current_pos)
 {
 	DIR *dirp;
 	int incr;
 	int saved_errno;
 	int unionstack;
-	int fd2;
-
-	fd2 = -1;
 
 	if ((dirp = malloc(sizeof(DIR) + sizeof(struct _telldir))) == NULL)
 		return (NULL);
 
+	dirp->dd_buf = NULL;
+	dirp->dd_fd = fd;
+	dirp->dd_flags = flags;
+	dirp->dd_loc = 0;
+	dirp->dd_lock = NULL;
 	dirp->dd_td = (struct _telldir *)((char *)dirp + sizeof(DIR));
 	LIST_INIT(&dirp->dd_td->td_locq);
 	dirp->dd_td->td_loccnt = 0;
@@ -154,163 +321,39 @@ __opendir_common(int fd, int flags)
 	}
 
 	if (unionstack) {
-		int len = 0;
-		int space = 0;
-		char *buf = 0;
-		char *ddptr = 0;
-		char *ddeptr;
-		int n;
-		struct dirent **dpv;
-
-		/*
-		 * The strategy here is to read all the directory
-		 * entries into a buffer, sort the buffer, and
-		 * remove duplicate entries by setting the inode
-		 * number to zero.
-		 *
-		 * We reopen the directory because _getdirentries()
-		 * on a MNT_UNION mount modifies the open directory,
-		 * making it refer to the lower directory after the
-		 * upper directory's entries are exhausted.
-		 * This would otherwise break software that uses
-		 * the directory descriptor for fchdir or *at
-		 * functions, such as fts.c.
-		 */
-		if ((fd2 = _openat(fd, ".", O_RDONLY | O_CLOEXEC)) == -1) {
-			saved_errno = errno;
-			free(buf);
-			free(dirp);
-			errno = saved_errno;
-			return (NULL);
-		}
-
-		do {
-			/*
-			 * Always make at least DIRBLKSIZ bytes
-			 * available to _getdirentries
-			 */
-			if (space < DIRBLKSIZ) {
-				space += incr;
-				len += incr;
-				buf = reallocf(buf, len);
-				if (buf == NULL)
-					goto fail;
-				ddptr = buf + (len - space);
-			}
-
-			n = _getdirentries(fd2, ddptr, space, &dirp->dd_seek);
-			if (n > 0) {
-				ddptr += n;
-				space -= n;
-			}
-		} while (n > 0);
-
-		ddeptr = ddptr;
-		flags |= __DTF_READALL;
-
-		_close(fd2);
-		fd2 = -1;
-
-		/*
-		 * There is now a buffer full of (possibly) duplicate
-		 * names.
-		 */
-		dirp->dd_buf = buf;
-
-		/*
-		 * Go round this loop twice...
-		 *
-		 * Scan through the buffer, counting entries.
-		 * On the second pass, save pointers to each one.
-		 * Then sort the pointers and remove duplicate names.
-		 */
-		for (dpv = 0;;) {
-			n = 0;
-			ddptr = buf;
-			while (ddptr < ddeptr) {
-				struct dirent *dp;
-
-				dp = (struct dirent *) ddptr;
-				if ((long)dp & 03L)
-					break;
-				if ((dp->d_reclen <= 0) ||
-				    (dp->d_reclen > (ddeptr + 1 - ddptr)))
-					break;
-				ddptr += dp->d_reclen;
-				if (dp->d_fileno) {
-					if (dpv)
-						dpv[n] = dp;
-					n++;
-				}
-			}
-
-			if (dpv) {
-				struct dirent *xp;
-
-				/*
-				 * This sort must be stable.
-				 */
-				mergesort(dpv, n, sizeof(*dpv),
-				    opendir_compar);
-
-				dpv[n] = NULL;
-				xp = NULL;
-
-				/*
-				 * Scan through the buffer in sort order,
-				 * zapping the inode number of any
-				 * duplicate names.
-				 */
-				for (n = 0; dpv[n]; n++) {
-					struct dirent *dp = dpv[n];
-
-					if ((xp == NULL) ||
-					    strcmp(dp->d_name, xp->d_name)) {
-						xp = dp;
-					} else {
-						dp->d_fileno = 0;
-					}
-					if (dp->d_type == DT_WHT &&
-					    (flags & DTF_HIDEW))
-						dp->d_fileno = 0;
-				}
-
-				free(dpv);
-				break;
-			} else {
-				dpv = malloc((n+1) * sizeof(struct dirent *));
-				if (dpv == NULL)
-					break;
-			}
-		}
-
-		dirp->dd_len = len;
-		dirp->dd_size = ddptr - dirp->dd_buf;
+		if (!_filldir(dirp, use_current_pos))
+			goto fail;
+		dirp->dd_flags |= __DTF_READALL;
 	} else {
 		dirp->dd_len = incr;
-		dirp->dd_size = 0;
 		dirp->dd_buf = malloc(dirp->dd_len);
 		if (dirp->dd_buf == NULL)
 			goto fail;
-		dirp->dd_seek = 0;
+		if (use_current_pos) {
+			/*
+			 * Read the first batch of directory entries
+			 * to prime dd_seek.  This also checks if the
+			 * fd passed to fdopendir() is a directory.
+			 */
+			dirp->dd_size = _getdirentries(dirp->dd_fd,
+			    dirp->dd_buf, dirp->dd_len, &dirp->dd_seek);
+			if (dirp->dd_size < 0) {
+				if (errno == EINVAL)
+					errno = ENOTDIR;
+				goto fail;
+			}
+			dirp->dd_flags |= __DTF_SKIPREAD;
+		} else {
+			dirp->dd_size = 0;
+			dirp->dd_seek = 0;
+		}
 	}
-
-	dirp->dd_loc = 0;
-	dirp->dd_fd = fd;
-	dirp->dd_flags = flags;
-	dirp->dd_lock = NULL;
-
-	/*
-	 * Set up seek point for rewinddir.
-	 */
-	dirp->dd_rewind = telldir(dirp);
 
 	return (dirp);
 
 fail:
 	saved_errno = errno;
-	if (fd2 != -1)
-		_close(fd2);
+	free(dirp->dd_buf);
 	free(dirp);
 	errno = saved_errno;
 	return (NULL);

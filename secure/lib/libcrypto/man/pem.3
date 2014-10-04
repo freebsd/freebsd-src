@@ -124,7 +124,7 @@
 .\" ========================================================================
 .\"
 .IX Title "pem 3"
-.TH pem 3 "2014-06-05" "1.0.1h" "OpenSSL"
+.TH pem 3 "2014-08-06" "1.0.1i" "OpenSSL"
 .\" For nroff, turn off justification.  Always turn off hyphenation; it makes
 .\" way too many mistakes in technical documents.
 .if n .ad l
@@ -598,9 +598,9 @@ byte \fBsalt\fR encoded as a set of hexadecimal digits.
 .PP
 After this is the base64 encoded encrypted data.
 .PP
-The encryption key is determined using \fIEVP_bytestokey()\fR, using \fBsalt\fR and an
+The encryption key is determined using \fIEVP_BytesToKey()\fR, using \fBsalt\fR and an
 iteration count of 1. The \s-1IV\s0 used is the value of \fBsalt\fR and *not* the \s-1IV\s0
-returned by \fIEVP_bytestokey()\fR.
+returned by \fIEVP_BytesToKey()\fR.
 .SH "BUGS"
 .IX Header "BUGS"
 The \s-1PEM\s0 read routines in some versions of OpenSSL will not correctly reuse
@@ -624,3 +624,6 @@ The read routines return either a pointer to the structure read or \s-1NULL\s0
 if an error occurred.
 .PP
 The write routines return 1 for success or 0 for failure.
+.SH "SEE ALSO"
+.IX Header "SEE ALSO"
+\&\fIEVP_get_cipherbyname\fR\|(3), \fIEVP_BytesToKey\fR\|(3)

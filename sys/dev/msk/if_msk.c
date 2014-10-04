@@ -1710,7 +1710,7 @@ msk_attach(device_t dev)
 	 * Must appear after the call to ether_ifattach() because
 	 * ether_ifattach() sets ifi_hdrlen to the default value.
 	 */
-        ifp->if_data.ifi_hdrlen = sizeof(struct ether_vlan_header);
+        ifp->if_hdrlen = sizeof(struct ether_vlan_header);
 
 	/*
 	 * Do miibus setup.
@@ -2987,14 +2987,14 @@ msk_watchdog(struct msk_if_softc *sc_if)
 		if (bootverbose)
 			if_printf(sc_if->msk_ifp, "watchdog timeout "
 			   "(missed link)\n");
-		ifp->if_oerrors++;
+		if_inc_counter(ifp, IFCOUNTER_OERRORS, 1);
 		ifp->if_drv_flags &= ~IFF_DRV_RUNNING;
 		msk_init_locked(sc_if);
 		return;
 	}
 
 	if_printf(ifp, "watchdog timeout\n");
-	ifp->if_oerrors++;
+	if_inc_counter(ifp, IFCOUNTER_OERRORS, 1);
 	ifp->if_drv_flags &= ~IFF_DRV_RUNNING;
 	msk_init_locked(sc_if);
 	if (!IFQ_DRV_IS_EMPTY(&ifp->if_snd))
@@ -3216,7 +3216,7 @@ msk_rxeof(struct msk_if_softc *sc_if, uint32_t status, uint32_t control,
 			 * handle this frame.
 			 */
 			if (len > MSK_MAX_FRAMELEN || len < ETHER_HDR_LEN) {
-				ifp->if_ierrors++;
+				if_inc_counter(ifp, IFCOUNTER_IERRORS, 1);
 				msk_discard_rxbuf(sc_if, cons);
 				break;
 			}
@@ -3225,7 +3225,7 @@ msk_rxeof(struct msk_if_softc *sc_if, uint32_t status, uint32_t control,
 		    ((status & GMR_FS_RX_OK) == 0) || (rxlen != len)) {
 			/* Don't count flow-control packet as errors. */
 			if ((status & GMR_FS_GOOD_FC) == 0)
-				ifp->if_ierrors++;
+				if_inc_counter(ifp, IFCOUNTER_IERRORS, 1);
 			msk_discard_rxbuf(sc_if, cons);
 			break;
 		}
@@ -3237,7 +3237,7 @@ msk_rxeof(struct msk_if_softc *sc_if, uint32_t status, uint32_t control,
 #endif
 		m = rxd->rx_m;
 		if (msk_newbuf(sc_if, cons) != 0) {
-			ifp->if_iqdrops++;
+			if_inc_counter(ifp, IFCOUNTER_IQDROPS, 1);
 			/* Reuse old buffer. */
 			msk_discard_rxbuf(sc_if, cons);
 			break;
@@ -3248,7 +3248,7 @@ msk_rxeof(struct msk_if_softc *sc_if, uint32_t status, uint32_t control,
 		if ((sc_if->msk_flags & MSK_FLAG_RAMBUF) != 0)
 			msk_fixup_rx(m);
 #endif
-		ifp->if_ipackets++;
+		if_inc_counter(ifp, IFCOUNTER_IPACKETS, 1);
 		if ((ifp->if_capenable & IFCAP_RXCSUM) != 0)
 			msk_rxcsum(sc_if, control, m);
 		/* Check for VLAN tagged packets. */
@@ -3290,7 +3290,7 @@ msk_jumbo_rxeof(struct msk_if_softc *sc_if, uint32_t status, uint32_t control,
 		    ((status & GMR_FS_RX_OK) == 0) || (rxlen != len)) {
 			/* Don't count flow-control packet as errors. */
 			if ((status & GMR_FS_GOOD_FC) == 0)
-				ifp->if_ierrors++;
+				if_inc_counter(ifp, IFCOUNTER_IERRORS, 1);
 			msk_discard_jumbo_rxbuf(sc_if, cons);
 			break;
 		}
@@ -3302,7 +3302,7 @@ msk_jumbo_rxeof(struct msk_if_softc *sc_if, uint32_t status, uint32_t control,
 #endif
 		m = jrxd->rx_m;
 		if (msk_jumbo_newbuf(sc_if, cons) != 0) {
-			ifp->if_iqdrops++;
+			if_inc_counter(ifp, IFCOUNTER_IQDROPS, 1);
 			/* Reuse old buffer. */
 			msk_discard_jumbo_rxbuf(sc_if, cons);
 			break;
@@ -3313,7 +3313,7 @@ msk_jumbo_rxeof(struct msk_if_softc *sc_if, uint32_t status, uint32_t control,
 		if ((sc_if->msk_flags & MSK_FLAG_RAMBUF) != 0)
 			msk_fixup_rx(m);
 #endif
-		ifp->if_ipackets++;
+		if_inc_counter(ifp, IFCOUNTER_IPACKETS, 1);
 		if ((ifp->if_capenable & IFCAP_RXCSUM) != 0)
 			msk_rxcsum(sc_if, control, m);
 		/* Check for VLAN tagged packets. */
@@ -3368,7 +3368,7 @@ msk_txeof(struct msk_if_softc *sc_if, int idx)
 		    BUS_DMASYNC_POSTWRITE);
 		bus_dmamap_unload(sc_if->msk_cdata.msk_tx_tag, txd->tx_dmamap);
 
-		ifp->if_opackets++;
+		if_inc_counter(ifp, IFCOUNTER_OPACKETS, 1);
 		KASSERT(txd->tx_m != NULL, ("%s: freeing NULL mbuf!",
 		    __func__));
 		m_freem(txd->tx_m);

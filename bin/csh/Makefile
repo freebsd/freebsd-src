@@ -40,8 +40,8 @@ MLINKS= csh.1 tcsh.1
 # utilities of the same name are handled with the associated manpage,
 # builtin.1 in share/man/man1/.
 
-DPADD=	${LIBTERMCAP} ${LIBCRYPT}
-LDADD=	-ltermcap -lcrypt
+DPADD=	${LIBTERMCAPW} ${LIBCRYPT}
+LDADD=	-ltermcapw -lcrypt
 
 LINKS=	${BINDIR}/csh ${BINDIR}/tcsh
 
@@ -94,7 +94,7 @@ GENHDRS+= iconv.h
 SRCS+=	iconv_stub.c
 
 iconv.h: ${.CURDIR}/iconv_stub.h
-	cp ${.CURDIR}/iconv_stub.h ${.TARGET}
+	cp -f ${.CURDIR}/iconv_stub.h ${.TARGET}
 .endif
 .endif
 

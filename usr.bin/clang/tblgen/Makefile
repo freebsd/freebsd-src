@@ -42,6 +42,4 @@ SRCS=	AsmMatcherEmitter.cpp \
 LIBDEPS=llvmtablegen \
 	llvmsupport
 
-NO_PIE=	yes
-
 .include "../clang.prog.mk"

@@ -22,10 +22,10 @@ dev/uart/uart_dev_imx.c 		optional uart
 arm/freescale/imx/tzic.c		standard
 
 # IOMUX - external pins multiplexor
-arm/freescale/imx/imx51_iomux.c		optional iomux
+arm/freescale/imx/imx_iomux.c		standard
 
 # GPIO
-arm/freescale/imx/imx51_gpio.c		optional gpio
+arm/freescale/imx/imx_gpio.c		optional gpio
 
 # Generic Periodic Timer
 arm/freescale/imx/imx_gpt.c		standard
@@ -47,7 +47,7 @@ dev/usb/controller/ehci_imx.c		optional ehci
 arm/freescale/imx/imx_wdog.c		optional imxwdt
 
 # i2c
-arm/freescale/imx/i2c.c			optional fsliic
+arm/freescale/imx/imx_i2c.c		optional fsliic
 
 # IPU - Image Processing Unit (frame buffer also)
 arm/freescale/imx/imx51_ipuv3.c		optional sc

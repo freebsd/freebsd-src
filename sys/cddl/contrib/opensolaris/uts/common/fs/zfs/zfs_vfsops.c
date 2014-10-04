@@ -870,6 +870,17 @@ zfsvfs_create(const char *osname, zfsvfs_t **zfvp)
 	int i, error;
 	uint64_t sa_obj;
 
+	/*
+	 * XXX: Fix struct statfs so this isn't necessary!
+	 *
+	 * The 'osname' is used as the filesystem's special node, which means
+	 * it must fit in statfs.f_mntfromname, or else it can't be
+	 * enumerated, so libzfs_mnttab_find() returns NULL, which causes
+	 * 'zfs unmount' to think it's not mounted when it is.
+	 */
+	if (strlen(osname) >= MNAMELEN)
+		return (SET_ERROR(ENAMETOOLONG));
+
 	zfsvfs = kmem_zalloc(sizeof (zfsvfs_t), KM_SLEEP);
 
 	/*
@@ -987,7 +998,7 @@ zfsvfs_create(const char *osname, zfsvfs_t **zfvp)
 	mutex_init(&zfsvfs->z_lock, NULL, MUTEX_DEFAULT, NULL);
 	list_create(&zfsvfs->z_all_znodes, sizeof (znode_t),
 	    offsetof(znode_t, z_link_node));
-	rrw_init(&zfsvfs->z_teardown_lock, B_FALSE);
+	rrm_init(&zfsvfs->z_teardown_lock, B_FALSE);
 	rw_init(&zfsvfs->z_teardown_inactive_lock, NULL, RW_DEFAULT, NULL);
 	rw_init(&zfsvfs->z_fuid_lock, NULL, RW_DEFAULT, NULL);
 	for (i = 0; i != ZFS_OBJ_MTX_SZ; i++)
@@ -1103,7 +1114,7 @@ zfsvfs_free(zfsvfs_t *zfsvfs)
 	mutex_destroy(&zfsvfs->z_znodes_lock);
 	mutex_destroy(&zfsvfs->z_lock);
 	list_destroy(&zfsvfs->z_all_znodes);
-	rrw_destroy(&zfsvfs->z_teardown_lock);
+	rrm_destroy(&zfsvfs->z_teardown_lock);
 	rw_destroy(&zfsvfs->z_teardown_inactive_lock);
 	rw_destroy(&zfsvfs->z_fuid_lock);
 	for (i = 0; i != ZFS_OBJ_MTX_SZ; i++)
@@ -1233,7 +1244,7 @@ out:
 		dmu_objset_disown(zfsvfs->z_os, zfsvfs);
 		zfsvfs_free(zfsvfs);
 	} else {
-		atomic_add_32(&zfs_active_fs_count, 1);
+		atomic_inc_32(&zfs_active_fs_count);
 	}
 
 	return (error);
@@ -1832,7 +1843,7 @@ zfsvfs_teardown(zfsvfs_t *zfsvfs, boolean_t unmounting)
 {
 	znode_t	*zp;
 
-	rrw_enter(&zfsvfs->z_teardown_lock, RW_WRITER, FTAG);
+	rrm_enter(&zfsvfs->z_teardown_lock, RW_WRITER, FTAG);
 
 	if (!unmounting) {
 		/*
@@ -1865,7 +1876,7 @@ zfsvfs_teardown(zfsvfs_t *zfsvfs, boolean_t unmounting)
 	 */
 	if (!unmounting && (zfsvfs->z_unmounted || zfsvfs->z_os == NULL)) {
 		rw_exit(&zfsvfs->z_teardown_inactive_lock);
-		rrw_exit(&zfsvfs->z_teardown_lock, FTAG);
+		rrm_exit(&zfsvfs->z_teardown_lock, FTAG);
 		return (SET_ERROR(EIO));
 	}
 
@@ -1892,7 +1903,7 @@ zfsvfs_teardown(zfsvfs_t *zfsvfs, boolean_t unmounting)
 	 */
 	if (unmounting) {
 		zfsvfs->z_unmounted = B_TRUE;
-		rrw_exit(&zfsvfs->z_teardown_lock, FTAG);
+		rrm_exit(&zfsvfs->z_teardown_lock, FTAG);
 		rw_exit(&zfsvfs->z_teardown_inactive_lock);
 	}
 
@@ -1969,9 +1980,9 @@ zfs_umount(vfs_t *vfsp, int fflag)
 		 * vflush(FORCECLOSE). This way we ensure no future vnops
 		 * will be called and risk operating on DOOMED vnodes.
 		 */
-		rrw_enter(&zfsvfs->z_teardown_lock, RW_WRITER, FTAG);
+		rrm_enter(&zfsvfs->z_teardown_lock, RW_WRITER, FTAG);
 		zfsvfs->z_unmounted = B_TRUE;
-		rrw_exit(&zfsvfs->z_teardown_lock, FTAG);
+		rrm_exit(&zfsvfs->z_teardown_lock, FTAG);
 	}
 
 	/*
@@ -2075,8 +2086,6 @@ zfs_vget(vfs_t *vfsp, ino_t ino, int flags, vnode_t **vpp)
 		err = vn_lock(*vpp, flags);
 	if (err != 0)
 		*vpp = NULL;
-	else
-		(*vpp)->v_hash = ino;
 	return (err);
 }
 
@@ -2239,7 +2248,7 @@ zfs_resume_fs(zfsvfs_t *zfsvfs, const char *osname)
 	znode_t *zp;
 	uint64_t sa_obj = 0;
 
-	ASSERT(RRW_WRITE_HELD(&zfsvfs->z_teardown_lock));
+	ASSERT(RRM_WRITE_HELD(&zfsvfs->z_teardown_lock));
 	ASSERT(RW_WRITE_HELD(&zfsvfs->z_teardown_inactive_lock));
 
 	/*
@@ -2295,7 +2304,7 @@ zfs_resume_fs(zfsvfs_t *zfsvfs, const char *osname)
 bail:
 	/* release the VOPs */
 	rw_exit(&zfsvfs->z_teardown_inactive_lock);
-	rrw_exit(&zfsvfs->z_teardown_lock, FTAG);
+	rrm_exit(&zfsvfs->z_teardown_lock, FTAG);
 
 	if (err) {
 		/*
@@ -2326,7 +2335,7 @@ zfs_freevfs(vfs_t *vfsp)
 
 	zfsvfs_free(zfsvfs);
 
-	atomic_add_32(&zfs_active_fs_count, -1);
+	atomic_dec_32(&zfs_active_fs_count);
 }
 
 #ifdef __i386__

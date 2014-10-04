@@ -43,6 +43,7 @@ __FBSDID("$FreeBSD$");
 #include "opt_inet.h"
 #include "opt_inet6.h"
 #include "opt_ipsec.h"
+#include "opt_rss.h"
 
 #include <sys/param.h>
 #include <sys/domain.h>
@@ -89,6 +90,7 @@ __FBSDID("$FreeBSD$");
 #include <netinet/udp.h>
 #include <netinet/udp_var.h>
 #include <netinet/udplite.h>
+#include <netinet/in_rss.h>
 
 #ifdef IPSEC
 #include <netipsec/ipsec.h>
@@ -206,6 +208,13 @@ void
 udp_init(void)
 {
 
+	/*
+	 * For now default to 2-tuple UDP hashing - until the fragment
+	 * reassembly code can also update the flowid.
+	 *
+	 * Once we can calculate the flowid that way and re-establish
+	 * a 4-tuple, flip this to 4-tuple.
+	 */
 	in_pcbinfo_init(&V_udbinfo, "udp", &V_udb, UDBHASHSIZE, UDBHASHSIZE,
 	    "udp_inpcb", udp_inpcb_init, NULL, UMA_ZONE_NOFREE,
 	    IPI_HASHFIELDS_2TUPLE);
@@ -368,10 +377,9 @@ udp_append(struct inpcb *inp, struct ip *ip, struct mbuf *n, int off,
 		sorwakeup_locked(so);
 }
 
-void
-udp_input(struct mbuf *m, int off)
+int
+udp_input(struct mbuf **mp, int *offp, int proto)
 {
-	int iphlen = off;
 	struct ip *ip;
 	struct udphdr *uh;
 	struct ifnet *ifp;
@@ -380,11 +388,14 @@ udp_input(struct mbuf *m, int off)
 	struct inpcbinfo *pcbinfo;
 	struct ip save_ip;
 	struct sockaddr_in udp_in;
+	struct mbuf *m;
 	struct m_tag *fwd_tag;
-	int cscov_partial;
-	uint8_t pr;
+	int cscov_partial, iphlen;
 
+	m = *mp;
+	iphlen = *offp;
 	ifp = m->m_pkthdr.rcvif;
+	*mp = NULL;
 	UDPSTAT_INC(udps_ipackets);
 
 	/*
@@ -404,13 +415,12 @@ udp_input(struct mbuf *m, int off)
 	if (m->m_len < iphlen + sizeof(struct udphdr)) {
 		if ((m = m_pullup(m, iphlen + sizeof(struct udphdr))) == NULL) {
 			UDPSTAT_INC(udps_hdrops);
-			return;
+			return (IPPROTO_DONE);
 		}
 		ip = mtod(m, struct ip *);
 	}
 	uh = (struct udphdr *)((caddr_t)ip + iphlen);
-	pr = ip->ip_p;
-	cscov_partial = (pr == IPPROTO_UDPLITE) ? 1 : 0;
+	cscov_partial = (proto == IPPROTO_UDPLITE) ? 1 : 0;
 
 	/*
 	 * Destination port of 0 is illegal, based on RFC768.
@@ -434,9 +444,10 @@ udp_input(struct mbuf *m, int off)
 	 */
 	len = ntohs((u_short)uh->uh_ulen);
 	ip_len = ntohs(ip->ip_len) - iphlen;
-	if (pr == IPPROTO_UDPLITE && len == 0) {
+	if (proto == IPPROTO_UDPLITE && (len == 0 || len == ip_len)) {
 		/* Zero means checksum over the complete packet. */
-		len = ip_len;
+		if (len == 0)
+			len = ip_len;
 		cscov_partial = 0;
 	}
 	if (ip_len != len) {
@@ -444,7 +455,7 @@ udp_input(struct mbuf *m, int off)
 			UDPSTAT_INC(udps_badlen);
 			goto badunlocked;
 		}
-		if (pr == IPPROTO_UDP)
+		if (proto == IPPROTO_UDP)
 			m_adj(m, len - ip_len);
 	}
 
@@ -470,14 +481,14 @@ udp_input(struct mbuf *m, int off)
 			else
 				uh_sum = in_pseudo(ip->ip_src.s_addr,
 				    ip->ip_dst.s_addr, htonl((u_short)len +
-				    m->m_pkthdr.csum_data + pr));
+				    m->m_pkthdr.csum_data + proto));
 			uh_sum ^= 0xffff;
 		} else {
 			char b[9];
 
 			bcopy(((struct ipovly *)ip)->ih_x1, b, 9);
 			bzero(((struct ipovly *)ip)->ih_x1, 9);
-			((struct ipovly *)ip)->ih_len = (pr == IPPROTO_UDP) ?
+			((struct ipovly *)ip)->ih_len = (proto == IPPROTO_UDP) ?
 			    uh->uh_ulen : htons(ip_len);
 			uh_sum = in_cksum(m, len + sizeof (struct ip));
 			bcopy(b, ((struct ipovly *)ip)->ih_x1, 9);
@@ -485,12 +496,20 @@ udp_input(struct mbuf *m, int off)
 		if (uh_sum) {
 			UDPSTAT_INC(udps_badsum);
 			m_freem(m);
-			return;
+			return (IPPROTO_DONE);
 		}
-	} else
-		UDPSTAT_INC(udps_nosum);
+	} else {
+		if (proto == IPPROTO_UDP) {
+			UDPSTAT_INC(udps_nosum);
+		} else {
+			/* UDPLite requires a checksum */
+			/* XXX: What is the right UDPLite MIB counter here? */
+			m_freem(m);
+			return (IPPROTO_DONE);
+		}
+	}
 
-	pcbinfo = get_inpcbinfo(pr);
+	pcbinfo = get_inpcbinfo(proto);
 	if (IN_MULTICAST(ntohl(ip->ip_dst.s_addr)) ||
 	    in_broadcast(ip->ip_dst, ifp)) {
 		struct inpcb *last;
@@ -498,7 +517,7 @@ udp_input(struct mbuf *m, int off)
 		struct ip_moptions *imo;
 
 		INP_INFO_RLOCK(pcbinfo);
-		pcblist = get_pcblist(pr);
+		pcblist = get_pcblist(proto);
 		last = NULL;
 		LIST_FOREACH(inp, pcblist, inp_list) {
 			if (inp->inp_lport != uh->uh_dport)
@@ -592,7 +611,7 @@ udp_input(struct mbuf *m, int off)
 		udp_append(last, ip, m, iphlen, &udp_in);
 		INP_RUNLOCK(last);
 		INP_INFO_RUNLOCK(pcbinfo);
-		return;
+		return (IPPROTO_DONE);
 	}
 
 	/*
@@ -654,7 +673,7 @@ udp_input(struct mbuf *m, int off)
 			goto badunlocked;
 		*ip = save_ip;
 		icmp_error(m, ICMP_UNREACH, ICMP_UNREACH_PORT, 0, 0);
-		return;
+		return (IPPROTO_DONE);
 	}
 
 	/*
@@ -664,26 +683,27 @@ udp_input(struct mbuf *m, int off)
 	if (inp->inp_ip_minttl && inp->inp_ip_minttl > ip->ip_ttl) {
 		INP_RUNLOCK(inp);
 		m_freem(m);
-		return;
+		return (IPPROTO_DONE);
 	}
 	if (cscov_partial) {
 		struct udpcb *up;
 
 		up = intoudpcb(inp);
-		if (up->u_rxcslen > len) {
+		if (up->u_rxcslen == 0 || up->u_rxcslen > len) {
 			INP_RUNLOCK(inp);
 			m_freem(m);
-			return;
+			return (IPPROTO_DONE);
 		}
 	}
 
 	UDP_PROBE(receive, NULL, inp, ip, inp, uh);
 	udp_append(inp, ip, m, iphlen, &udp_in);
 	INP_RUNLOCK(inp);
-	return;
+	return (IPPROTO_DONE);
 
 badunlocked:
 	m_freem(m);
+	return (IPPROTO_DONE);
 }
 #endif /* INET */
 
@@ -1006,7 +1026,7 @@ udp_ctloutput(struct socket *so, struct sockopt *sopt)
 			INP_WLOCK(inp);
 			up = intoudpcb(inp);
 			KASSERT(up != NULL, ("%s: up == NULL", __func__));
-			if (optval != 0 && optval < 8) {
+			if ((optval != 0 && optval < 8) || (optval > 65535)) {
 				INP_WUNLOCK(inp);
 				error = EINVAL;
 				break;
@@ -1082,6 +1102,9 @@ udp_output(struct inpcb *inp, struct mbuf *m, struct sockaddr *addr,
 	u_char tos;
 	uint8_t pr;
 	uint16_t cscov = 0;
+	uint32_t flowid = 0;
+	int flowid_type = 0;
+	int use_flowid = 0;
 
 	/*
 	 * udp_output() may need to temporarily bind or connect the current
@@ -1145,6 +1168,32 @@ udp_output(struct inpcb *inp, struct mbuf *m, struct sockaddr *addr,
 				tos = *(u_char *)CMSG_DATA(cm);
 				break;
 
+			case IP_FLOWID:
+				if (cm->cmsg_len != CMSG_LEN(sizeof(uint32_t))) {
+					error = EINVAL;
+					break;
+				}
+				flowid = *(uint32_t *) CMSG_DATA(cm);
+				break;
+
+			case IP_FLOWTYPE:
+				if (cm->cmsg_len != CMSG_LEN(sizeof(uint32_t))) {
+					error = EINVAL;
+					break;
+				}
+				flowid_type = *(uint32_t *) CMSG_DATA(cm);
+				use_flowid = 1;
+				break;
+
+#ifdef	RSS
+			case IP_RSSBUCKETID:
+				if (cm->cmsg_len != CMSG_LEN(sizeof(uint32_t))) {
+					error = EINVAL;
+					break;
+				}
+				/* This is just a placeholder for now */
+				break;
+#endif	/* RSS */
 			default:
 				error = ENOPROTOOPT;
 				break;
@@ -1392,6 +1441,59 @@ udp_output(struct inpcb *inp, struct mbuf *m, struct sockaddr *addr,
 	((struct ip *)ui)->ip_ttl = inp->inp_ip_ttl;	/* XXX */
 	((struct ip *)ui)->ip_tos = tos;		/* XXX */
 	UDPSTAT_INC(udps_opackets);
+
+	/*
+	 * Setup flowid / RSS information for outbound socket.
+	 *
+	 * Once the UDP code decides to set a flowid some other way,
+	 * this allows the flowid to be overridden by userland.
+	 */
+	if (use_flowid) {
+		m->m_flags |= M_FLOWID;
+		m->m_pkthdr.flowid = flowid;
+		M_HASHTYPE_SET(m, flowid_type);
+#ifdef	RSS
+	} else {
+		uint32_t hash_val, hash_type;
+		/*
+		 * Calculate an appropriate RSS hash for UDP and
+		 * UDP Lite.
+		 *
+		 * The called function will take care of figuring out
+		 * whether a 2-tuple or 4-tuple hash is required based
+		 * on the currently configured scheme.
+		 *
+		 * Later later on connected socket values should be
+		 * cached in the inpcb and reused, rather than constantly
+		 * re-calculating it.
+		 *
+		 * UDP Lite is a different protocol number and will
+		 * likely end up being hashed as a 2-tuple until
+		 * RSS / NICs grow UDP Lite protocol awareness.
+		 */
+		if (rss_proto_software_hash_v4(faddr, laddr, fport, lport,
+		    pr, &hash_val, &hash_type) == 0) {
+			m->m_pkthdr.flowid = hash_val;
+			m->m_flags |= M_FLOWID;
+			M_HASHTYPE_SET(m, hash_type);
+		}
+#endif
+	}
+
+#ifdef	RSS
+	/*
+	 * Don't override with the inp cached flowid value.
+	 *
+	 * Depending upon the kind of send being done, the inp
+	 * flowid/flowtype values may actually not be appropriate
+	 * for this particular socket send.
+	 *
+	 * We should either leave the flowid at zero (which is what is
+	 * currently done) or set it to some software generated
+	 * hash value based on the packet contents.
+	 */
+	ipflags |= IP_NODEFAULTFLOWID;
+#endif	/* RSS */
 
 	if (unlock_udbinfo == UH_WLOCKED)
 		INP_HASH_WUNLOCK(pcbinfo);

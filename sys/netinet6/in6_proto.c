@@ -146,7 +146,7 @@ static	struct pr_usrreqs nousrreqs;
 	.pr_usrreqs =		&nousrreqs	\
 }
 
-struct ip6protosw inet6sw[] = {
+struct protosw inet6sw[] = {
 {
 	.pr_type =		0,
 	.pr_domain =		&inet6domain,

@@ -124,7 +124,7 @@
 .\" ========================================================================
 .\"
 .IX Title "ASN1PARSE 1"
-.TH ASN1PARSE 1 "2014-06-05" "1.0.1h" "OpenSSL"
+.TH ASN1PARSE 1 "2014-08-06" "1.0.1i" "OpenSSL"
 .\" For nroff, turn off justification.  Always turn off hyphenation; it makes
 .\" way too many mistakes in technical documents.
 .if n .ad l
@@ -142,6 +142,8 @@ asn1parse \- ASN.1 parsing tool
 [\fB\-length number\fR]
 [\fB\-i\fR]
 [\fB\-oid filename\fR]
+[\fB\-dump\fR]
+[\fB\-dlimit num\fR]
 [\fB\-strparse offset\fR]
 [\fB\-genstr string\fR]
 [\fB\-genconf file\fR]
@@ -179,6 +181,12 @@ indents the output according to the \*(L"depth\*(R" of the structures.
 .IX Item "-oid filename"
 a file containing additional \s-1OBJECT\s0 IDENTIFIERs (OIDs). The format of this
 file is described in the \s-1NOTES\s0 section below.
+.IP "\fB\-dump\fR" 4
+.IX Item "-dump"
+dump unknown data in hex format.
+.IP "\fB\-dlimit num\fR" 4
+.IX Item "-dlimit num"
+like \fB\-dump\fR, but only the first \fBnum\fR bytes are output.
 .IP "\fB\-strparse offset\fR" 4
 .IX Item "-strparse offset"
 parse the contents octets of the \s-1ASN\s0.1 object starting at \fBoffset\fR. This

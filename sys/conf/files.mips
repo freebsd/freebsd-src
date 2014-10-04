@@ -51,6 +51,7 @@ mips/mips/vm_machdep.c			standard
 kern/kern_clocksource.c			standard
 kern/link_elf_obj.c			standard
 kern/subr_dummy_vdso_tc.c		standard
+kern/subr_sfbuf.c			optional	mips | mipsel | mipsn32
 
 # gcc/clang runtime
 libkern/ffsl.c				standard
@@ -68,7 +69,7 @@ dev/cfe/cfe_env.c			optional	cfe_env
 
 # syscons support
 dev/fb/fb.c				optional	sc
-dev/kbd/kbd.c				optional	sc
+dev/kbd/kbd.c				optional	sc | vt
 dev/syscons/scgfbrndr.c			optional	sc
 dev/syscons/scterm-teken.c		optional	sc
 dev/syscons/scvtb.c			optional	sc

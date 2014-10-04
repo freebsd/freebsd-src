@@ -12,7 +12,10 @@ SUBDIR= ${_toolkit}
 _toolkit=	toolkit
 .endif
 
-SCRIPTS=	nfsclienttime hotopen
+SCRIPTS=	disklatency \
+		disklatencycmd \
+		hotopen \
+		nfsclienttime
 
 SCRIPTSDIR= ${SHAREDIR}/dtrace
 

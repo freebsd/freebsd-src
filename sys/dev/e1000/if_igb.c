@@ -204,6 +204,7 @@ static void	igb_start(struct ifnet *);
 static void	igb_start_locked(struct tx_ring *, struct ifnet *ifp);
 #endif
 static int	igb_ioctl(struct ifnet *, u_long, caddr_t);
+static uint64_t	igb_get_counter(if_t, ift_counter);
 static void	igb_init(void *);
 static void	igb_init_locked(struct adapter *);
 static void	igb_stop(void *);
@@ -1045,9 +1046,9 @@ igb_mq_start_locked(struct ifnet *ifp, struct tx_ring *txr)
 		}
 		drbr_advance(ifp, txr->br);
 		enq++;
-		ifp->if_obytes += next->m_pkthdr.len;
+		if_inc_counter(ifp, IFCOUNTER_OBYTES, next->m_pkthdr.len);
 		if (next->m_flags & M_MCAST)
-			ifp->if_omcasts++;
+			if_inc_counter(ifp, IFCOUNTER_OMCASTS, 1);
 		ETHER_BPF_MTAP(ifp, next);
 		if ((ifp->if_drv_flags & IFF_DRV_RUNNING) == 0)
 			break;
@@ -3211,6 +3212,7 @@ igb_setup_interface(device_t dev, struct adapter *adapter)
 	ifp->if_softc = adapter;
 	ifp->if_flags = IFF_BROADCAST | IFF_SIMPLEX | IFF_MULTICAST;
 	ifp->if_ioctl = igb_ioctl;
+	ifp->if_get_counter = igb_get_counter;
 #ifndef IGB_LEGACY_TX
 	ifp->if_transmit = igb_mq_start;
 	ifp->if_qflush = igb_qflush;
@@ -3241,7 +3243,7 @@ igb_setup_interface(device_t dev, struct adapter *adapter)
 	 * Tell the upper layer(s) we
 	 * support full VLAN capability.
 	 */
-	ifp->if_data.ifi_hdrlen = sizeof(struct ether_vlan_header);
+	ifp->if_hdrlen = sizeof(struct ether_vlan_header);
 	ifp->if_capabilities |= IFCAP_VLAN_HWTAGGING
 			     |  IFCAP_VLAN_HWTSO
 			     |  IFCAP_VLAN_MTU;
@@ -3629,7 +3631,7 @@ igb_setup_transmit_ring(struct tx_ring *txr)
 		if (slot) {
 			int si = netmap_idx_n2k(&na->tx_rings[txr->me], i);
 			/* no need to set the address */
-			netmap_load_map(txr->txtag, txbuf->map, NMB(slot + si));
+			netmap_load_map(na, txr->txtag, txbuf->map, NMB(na, slot + si));
 		}
 #endif /* DEV_NETMAP */
 		/* clear the watch index */
@@ -4127,7 +4129,7 @@ igb_txeof(struct tx_ring *txr)
 		}
 		++txr->packets;
 		++processed;
-		++ifp->if_opackets;
+		if_inc_counter(ifp, IFCOUNTER_OPACKETS, 1);
 		txr->watchdog_time = ticks;
 
 		/* Try the next packet */
@@ -4433,8 +4435,8 @@ igb_setup_receive_ring(struct rx_ring *rxr)
 			uint64_t paddr;
 			void *addr;
 
-			addr = PNMB(slot + sj, &paddr);
-			netmap_load_map(rxr->ptag, rxbuf->pmap, addr);
+			addr = PNMB(na, slot + sj, &paddr);
+			netmap_load_map(na, rxr->ptag, rxbuf->pmap, addr);
 			/* Update descriptor */
 			rxr->rx_base[j].read.pkt_addr = htole64(paddr);
 			continue;
@@ -4495,7 +4497,6 @@ skip_head:
 
 	rxr->fmp = NULL;
 	rxr->lmp = NULL;
-	rxr->discard = FALSE;
 
 	bus_dmamap_sync(rxr->rxdma.dma_tag, rxr->rxdma.dma_map,
 	    BUS_DMASYNC_PREREAD | BUS_DMASYNC_PREWRITE);
@@ -4569,12 +4570,8 @@ igb_initialise_rss_mapping(struct adapter *adapter)
 	struct e1000_hw *hw = &adapter->hw;
 	int i;
 	int queue_id;
-
+	u32 reta;
 	u32 rss_key[10], mrqc, shift = 0;
-	union igb_reta {
-		u32 dword;
-		u8  bytes[4];
-	} reta;
 
 	/* XXX? */
 	if (adapter->hw.mac.type == e1000_82575)
@@ -4594,6 +4591,7 @@ igb_initialise_rss_mapping(struct adapter *adapter)
 	 */
 
 	/* Warning FM follows */
+	reta = 0;
 	for (i = 0; i < 128; i++) {
 #ifdef	RSS
 		queue_id = rss_get_indirection_to_bucket(i);
@@ -4614,13 +4612,20 @@ igb_initialise_rss_mapping(struct adapter *adapter)
 #else
 		queue_id = (i % adapter->num_queues);
 #endif
-		reta.bytes[i & 3] = queue_id << shift;
+		/* Adjust if required */
+		queue_id = queue_id << shift;
 
-		if ((i & 3) == 3)
-			E1000_WRITE_REG(hw,
-			    E1000_RETA(i >> 2), reta.dword);
+		/*
+		 * The low 8 bits are for hash value (n+0);
+		 * The next 8 bits are for hash value (n+1), etc.
+		 */
+		reta = reta >> 8;
+		reta = reta | ( ((uint32_t) queue_id) << 24);
+		if ((i & 3) == 3) {
+			E1000_WRITE_REG(hw, E1000_RETA(i >> 2), reta);
+			reta = 0;
+		}
 	}
-
 
 	/* Now fill in hash table */
 
@@ -4706,6 +4711,18 @@ igb_initialize_receive_units(struct adapter *adapter)
 		rctl &= ~E1000_RCTL_LPE;
 		srrctl |= 2048 >> E1000_SRRCTL_BSIZEPKT_SHIFT;
 		rctl |= E1000_RCTL_SZ_2048;
+	}
+
+	/*
+	 * If TX flow control is disabled and there's >1 queue defined,
+	 * enable DROP.
+	 *
+	 * This drops frames rather than hanging the RX MAC for all queues.
+	 */
+	if ((adapter->num_queues > 1) &&
+	    (adapter->fc == e1000_fc_none ||
+	     adapter->fc == e1000_fc_rx_pause)) {
+		srrctl |= E1000_SRRCTL_DROP_EN;
 	}
 
 	/* Setup the Base and Length of the Rx Descriptor Rings */
@@ -5023,15 +5040,16 @@ igb_rxeof(struct igb_queue *que, int count, int *done)
 		pkt_info = le16toh(cur->wb.lower.lo_dword.hs_rss.pkt_info);
 		eop = ((staterr & E1000_RXD_STAT_EOP) == E1000_RXD_STAT_EOP);
 
-		/* Make sure all segments of a bad packet are discarded */
-		if (((staterr & E1000_RXDEXT_ERR_FRAME_ERR_MASK) != 0) ||
-		    (rxr->discard)) {
+		/*
+		 * Free the frame (all segments) if we're at EOP and
+		 * it's an error.
+		 *
+		 * The datasheet states that EOP + status is only valid for
+		 * the final segment in a multi-segment frame.
+		 */
+		if (eop && ((staterr & E1000_RXDEXT_ERR_FRAME_ERR_MASK) != 0)) {
 			adapter->dropped_pkts++;
 			++rxr->rx_discarded;
-			if (!eop) /* Catch subsequent segs */
-				rxr->discard = TRUE;
-			else
-				rxr->discard = FALSE;
 			igb_rx_discard(rxr, i);
 			goto next_desc;
 		}
@@ -5105,7 +5123,7 @@ igb_rxeof(struct igb_queue *que, int count, int *done)
 
 		if (eop) {
 			rxr->fmp->m_pkthdr.rcvif = ifp;
-			ifp->if_ipackets++;
+			if_inc_counter(ifp, IFCOUNTER_IPACKETS, 1);
 			rxr->rx_packets++;
 			/* capture data for AIM */
 			rxr->packets++;
@@ -5532,6 +5550,30 @@ igb_led_func(void *arg, int onoff)
 	IGB_CORE_UNLOCK(adapter);
 }
 
+static uint64_t
+igb_get_counter(if_t ifp, ift_counter cnt)
+{
+	struct adapter *adapter;
+	struct e1000_hw_stats *stats;
+
+	adapter = if_getsoftc(ifp);
+	stats = (struct e1000_hw_stats *)adapter->stats;
+
+	switch (cnt) {
+	case IFCOUNTER_IERRORS:
+		return (adapter->dropped_pkts + stats->rxerrc +
+		    stats->crcerrs + stats->algnerrc +
+		    stats->ruc + stats->roc + stats->mpc + stats->cexterr);
+	case IFCOUNTER_OERRORS:
+		return (stats->ecol + stats->latecol +
+		    adapter->watchdog_events);
+	case IFCOUNTER_COLLISIONS:
+		return (stats->colc);
+	default:
+		return (if_get_counter_default(ifp, cnt));
+	}
+}
+
 /**********************************************************************
  *
  *  Update the board statistics counters.
@@ -5540,7 +5582,6 @@ igb_led_func(void *arg, int onoff)
 static void
 igb_update_stats_counters(struct adapter *adapter)
 {
-	struct ifnet		*ifp;
         struct e1000_hw		*hw = &adapter->hw;
 	struct e1000_hw_stats	*stats;
 
@@ -5657,18 +5698,6 @@ igb_update_stats_counters(struct adapter *adapter)
 	stats->cexterr += E1000_READ_REG(hw, E1000_CEXTERR);
 	stats->tsctc += E1000_READ_REG(hw, E1000_TSCTC);
 	stats->tsctfc += E1000_READ_REG(hw, E1000_TSCTFC);
-
-	ifp = adapter->ifp;
-	ifp->if_collisions = stats->colc;
-
-	/* Rx Errors */
-	ifp->if_ierrors = adapter->dropped_pkts + stats->rxerrc +
-	    stats->crcerrs + stats->algnerrc +
-	    stats->ruc + stats->roc + stats->mpc + stats->cexterr;
-
-	/* Tx Errors */
-	ifp->if_oerrors = stats->ecol +
-	    stats->latecol + adapter->watchdog_events;
 
 	/* Driver specific counters */
 	adapter->device_control = E1000_READ_REG(hw, E1000_CTRL);
@@ -5853,7 +5882,7 @@ igb_add_hw_stats(struct adapter *adapter)
  				"Transmit Descriptor Tail");
 		SYSCTL_ADD_QUAD(ctx, queue_list, OID_AUTO, "no_desc_avail", 
 				CTLFLAG_RD, &txr->no_desc_avail,
-				"Queue No Descriptor Available");
+				"Queue Descriptors Unavailable");
 		SYSCTL_ADD_UQUAD(ctx, queue_list, OID_AUTO, "tx_packets",
 				CTLFLAG_RD, &txr->total_packets,
 				"Queue Packets Transmitted");
@@ -6251,6 +6280,7 @@ igb_set_flowcntl(SYSCTL_HANDLER_ARGS)
 
 	adapter->hw.fc.current_mode = adapter->hw.fc.requested_mode;
 	e1000_force_mac_fc(&adapter->hw);
+	/* XXX TODO: update DROP_EN on each RX queue if appropriate */
 	return (error);
 }
 

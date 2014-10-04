@@ -67,7 +67,7 @@ fputws_l(const wchar_t * __restrict ws, FILE * __restrict fp, locale_t locale)
 		    &fp->_mbstate);
 		if (nbytes == (size_t)-1)
 			goto error;
-		iov.iov_len = uio.uio_resid = nbytes;
+		uio.uio_resid = iov.iov_len = nbytes;
 		if (__sfvwrite(fp, &uio) != 0)
 			goto error;
 	} while (wsp != NULL);

@@ -11,7 +11,8 @@ SUBDIR=	sendmail
 SUBDIR+=tests
 .endif
 
-BIN1=	crontab \
+BIN1=	auto_master \
+	crontab \
 	devd.conf \
 	devfs.conf \
 	ddb.conf \
@@ -225,6 +226,7 @@ distribution:
 		echo "./etc/spwd.db type=file mode=0600 uname=root gname=wheel"; \
 	) | ${METALOG.add}
 .endif
+	${_+_}cd ${.CURDIR}/autofs; ${MAKE} install
 .if ${MK_BLUETOOTH} != "no"
 	${_+_}cd ${.CURDIR}/bluetooth; ${MAKE} install
 .endif

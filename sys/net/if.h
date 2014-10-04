@@ -304,7 +304,7 @@ struct ifa_msghdr {
 	int	ifam_addrs;	/* like rtm_addrs */
 	int	ifam_flags;	/* value of ifa_flags */
 	u_short	ifam_index;	/* index for associated ifp */
-	int	ifam_metric;	/* value of ifa_metric */
+	int	ifam_metric;	/* value of ifa_ifp->if_metric */
 };
 
 /*
@@ -329,7 +329,7 @@ struct ifa_msghdrl {
 	u_short _ifam_spare1;	/* spare space to grow if_index, see if_var.h */
 	u_short	ifam_len;	/* length of ifa_msghdrl incl. if_data */
 	u_short	ifam_data_off;	/* offset of if_data from beginning */
-	int	ifam_metric;	/* value of ifa_metric */
+	int	ifam_metric;	/* value of ifa_ifp->if_metric */
 	struct	if_data ifam_data;/* statistics and other data about if or
 				 * address */
 };
@@ -509,6 +509,19 @@ struct ifgroupreq {
 #define ifgr_group	ifgr_ifgru.ifgru_group
 #define ifgr_groups	ifgr_ifgru.ifgru_groups
 };
+
+/*
+ * Structure used to request i2c data
+ * from interface transceivers.
+ */
+struct ifi2creq {
+	uint8_t dev_addr;	/* i2c address (0xA0, 0xA2) */
+	uint8_t offset;		/* read offset */
+	uint8_t len;		/* read length */
+	uint8_t spare0;
+	uint32_t spare1;
+	uint8_t data[8];	/* read buffer */
+}; 
 
 #endif /* __BSD_VISIBLE */
 

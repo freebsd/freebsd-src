@@ -97,7 +97,8 @@ PMC_SOFT_DEFINE( , , page_fault, write);
 #include <sys/dtrace_bsd.h>
 #endif
 
-extern void trap(struct trapframe *frame);
+extern void __noinline trap(struct trapframe *frame);
+extern void trap_check(struct trapframe *frame);
 extern void syscall(struct trapframe *frame);
 void dblfault_handler(struct trapframe *frame);
 
@@ -217,18 +218,6 @@ trap(struct trapframe *frame)
 		mca_intr();
 		goto out;
 	}
-
-#ifdef KDTRACE_HOOKS
-	/*
-	 * A trap can occur while DTrace executes a probe. Before
-	 * executing the probe, DTrace blocks re-scheduling and sets
-	 * a flag in its per-cpu flags to indicate that it doesn't
-	 * want to fault. On returning from the probe, the no-fault
-	 * flag is cleared and finally re-scheduling is enabled.
-	 */
-	if (dtrace_trap_func != NULL && (*dtrace_trap_func)(frame, type))
-		goto out;
-#endif
 
 	if ((frame->tf_rflags & PSL_I) == 0) {
 		/*
@@ -447,8 +436,8 @@ trap(struct trapframe *frame)
 		case T_XMMFLT:		/* SIMD floating-point exception */
 		case T_FPOPFLT:		/* FPU operand fetch fault */
 			/*
-			 * XXXKIB for now disable any FPU traps in kernel
-			 * handler registration seems to be overkill
+			 * For now, supporting kernel handler
+			 * registration for FPU traps is overkill.
 			 */
 			trap_fatal(frame, 0);
 			goto out;
@@ -614,6 +603,21 @@ user:
 userout:
 out:
 	return;
+}
+
+/*
+ * Ensure that we ignore any DTrace-induced faults. This function cannot
+ * be instrumented, so it cannot generate such faults itself.
+ */
+void
+trap_check(struct trapframe *frame)
+{
+
+#ifdef KDTRACE_HOOKS
+	if (dtrace_trap_func != NULL && (*dtrace_trap_func)(frame))
+		return;
+#endif
+	trap(frame);
 }
 
 static int

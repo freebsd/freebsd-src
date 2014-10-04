@@ -33,7 +33,7 @@
 #include <sys/zio.h>
 #include <sys/range_tree.h>
 
-static kmem_cache_t *range_seg_cache;
+kmem_cache_t *range_seg_cache;
 
 void
 range_tree_init(void)
@@ -81,6 +81,7 @@ range_tree_stat_incr(range_tree_t *rt, range_seg_t *rs)
 	uint64_t size = rs->rs_end - rs->rs_start;
 	int idx = highbit64(size) - 1;
 
+	ASSERT(size != 0);
 	ASSERT3U(idx, <,
 	    sizeof (rt->rt_histogram) / sizeof (*rt->rt_histogram));
 
@@ -95,6 +96,7 @@ range_tree_stat_decr(range_tree_t *rt, range_seg_t *rs)
 	uint64_t size = rs->rs_end - rs->rs_start;
 	int idx = highbit64(size) - 1;
 
+	ASSERT(size != 0);
 	ASSERT3U(idx, <,
 	    sizeof (rt->rt_histogram) / sizeof (*rt->rt_histogram));
 

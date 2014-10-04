@@ -1241,7 +1241,7 @@ CollectTemplateParams(const TemplateParameterList *TPList,
         V = CGM.GetAddrOfFunction(FD);
       // Member data pointers have special handling too to compute the fixed
       // offset within the object.
-      if (isa<FieldDecl>(D)) {
+      if (isa<FieldDecl>(D) || isa<IndirectFieldDecl>(D)) {
         // These five lines (& possibly the above member function pointer
         // handling) might be able to be refactored to use similar code in
         // CodeGenModule::getMemberPointerConstant
@@ -2235,9 +2235,10 @@ llvm::DICompositeType CGDebugInfo::CreateLimitedType(const RecordType *Ty) {
   if (T && (!T.isForwardDecl() || !RD->getDefinition()))
       return T;
 
-  // If this is just a forward declaration, construct an appropriately
-  // marked node and just return it.
-  if (!RD->getDefinition())
+  // If this is just a forward or incomplete declaration, construct an
+  // appropriately marked node and just return it.
+  const RecordDecl *D = RD->getDefinition();
+  if (!D || !D->isCompleteDefinition())
     return getOrCreateRecordFwdDecl(Ty, RDContext);
 
   uint64_t Size = CGM.getContext().getTypeSize(Ty);

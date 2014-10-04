@@ -32,8 +32,10 @@
  * IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGES.
  *
- * $FreeBSD$
  */
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #include <sys/ioctl.h>
 #include <sys/types.h>
@@ -851,9 +853,12 @@ kernel_port_add(struct target *targ)
 	req.args[0].value = &port_id;
 	req.args[0].flags = CTL_BEARG_WR;
 	str_arg(&req.args[1], "cfiscsi_target", targ->t_name);
-	str_arg(&req.args[2], "cfiscsi_target_alias", targ->t_alias);
 	snprintf(tagstr, sizeof(tagstr), "%d", targ->t_portal_group->pg_tag);
-	str_arg(&req.args[3], "cfiscsi_portal_group_tag", tagstr);
+	str_arg(&req.args[2], "cfiscsi_portal_group_tag", tagstr);
+	if (targ->t_alias)
+		str_arg(&req.args[3], "cfiscsi_target_alias", targ->t_alias);
+	else
+		req.num_args--;
 
 	error = ioctl(ctl_fd, CTL_PORT_REQ, &req);
 	free(req.args);

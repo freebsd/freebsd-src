@@ -2484,7 +2484,7 @@ dc_attach(device_t dev)
 	/*
 	 * Tell the upper layer(s) we support long frames.
 	 */
-	ifp->if_data.ifi_hdrlen = sizeof(struct ether_vlan_header);
+	ifp->if_hdrlen = sizeof(struct ether_vlan_header);
 	ifp->if_capabilities |= IFCAP_VLAN_MTU;
 	ifp->if_capenable = ifp->if_capabilities;
 #ifdef DEVICE_POLLING
@@ -2915,9 +2915,9 @@ dc_rxeof(struct dc_softc *sc)
 			    (rxstat & (DC_RXSTAT_CRCERR | DC_RXSTAT_DRIBBLE |
 				       DC_RXSTAT_MIIERE | DC_RXSTAT_COLLSEEN |
 				       DC_RXSTAT_RUNT   | DC_RXSTAT_DE))) {
-				ifp->if_ierrors++;
+				if_inc_counter(ifp, IFCOUNTER_IERRORS, 1);
 				if (rxstat & DC_RXSTAT_COLLSEEN)
-					ifp->if_collisions++;
+					if_inc_counter(ifp, IFCOUNTER_COLLISIONS, 1);
 				dc_discard_rxbuf(sc, i);
 				if (rxstat & DC_RXSTAT_CRCERR)
 					continue;
@@ -2943,7 +2943,7 @@ dc_rxeof(struct dc_softc *sc)
 		 */
 		if (dc_newbuf(sc, i) != 0) {
 			dc_discard_rxbuf(sc, i);
-			ifp->if_iqdrops++;
+			if_inc_counter(ifp, IFCOUNTER_IQDROPS, 1);
 			continue;
 		}
 		m->m_pkthdr.rcvif = ifp;
@@ -2956,14 +2956,14 @@ dc_rxeof(struct dc_softc *sc)
 				ETHER_ALIGN, ifp, NULL);
 			dc_discard_rxbuf(sc, i);
 			if (m0 == NULL) {
-				ifp->if_iqdrops++;
+				if_inc_counter(ifp, IFCOUNTER_IQDROPS, 1);
 				continue;
 			}
 			m = m0;
 		}
 #endif
 
-		ifp->if_ipackets++;
+		if_inc_counter(ifp, IFCOUNTER_IPACKETS, 1);
 		DC_UNLOCK(sc);
 		(*ifp->if_input)(ifp, m);
 		DC_LOCK(sc);
@@ -3054,19 +3054,19 @@ dc_txeof(struct dc_softc *sc)
 		}
 
 		if (txstat & DC_TXSTAT_ERRSUM) {
-			ifp->if_oerrors++;
+			if_inc_counter(ifp, IFCOUNTER_OERRORS, 1);
 			if (txstat & DC_TXSTAT_EXCESSCOLL)
-				ifp->if_collisions++;
+				if_inc_counter(ifp, IFCOUNTER_COLLISIONS, 1);
 			if (txstat & DC_TXSTAT_LATECOLL)
-				ifp->if_collisions++;
+				if_inc_counter(ifp, IFCOUNTER_COLLISIONS, 1);
 			if (!(txstat & DC_TXSTAT_UNDERRUN)) {
 				ifp->if_drv_flags &= ~IFF_DRV_RUNNING;
 				dc_init_locked(sc);
 				return;
 			}
 		} else
-			ifp->if_opackets++;
-		ifp->if_collisions += (txstat & DC_TXSTAT_COLLCNT) >> 3;
+			if_inc_counter(ifp, IFCOUNTER_OPACKETS, 1);
+		if_inc_counter(ifp, IFCOUNTER_COLLISIONS, (txstat & DC_TXSTAT_COLLCNT) >> 3);
 
 		bus_dmamap_sync(sc->dc_tx_mtag, sc->dc_cdata.dc_tx_map[idx],
 		    BUS_DMASYNC_POSTWRITE);
@@ -3261,7 +3261,7 @@ dc_poll(struct ifnet *ifp, enum poll_cmd cmd, int count)
 
 		if (status & (DC_ISR_RX_WATDOGTIMEO | DC_ISR_RX_NOBUF)) {
 			uint32_t r = CSR_READ_4(sc, DC_FRAMESDISCARDED);
-			ifp->if_ierrors += (r & 0xffff) + ((r >> 17) & 0x7ff);
+			if_inc_counter(ifp, IFCOUNTER_IERRORS, (r & 0xffff) + ((r >> 17) & 0x7ff));
 
 			if (dc_rx_resync(sc))
 				dc_rxeof(sc);
@@ -3343,7 +3343,7 @@ dc_intr(void *arg)
 		if ((status & DC_ISR_RX_WATDOGTIMEO)
 		    || (status & DC_ISR_RX_NOBUF)) {
 			r = CSR_READ_4(sc, DC_FRAMESDISCARDED);
-			ifp->if_ierrors += (r & 0xffff) + ((r >> 17) & 0x7ff);
+			if_inc_counter(ifp, IFCOUNTER_IERRORS, (r & 0xffff) + ((r >> 17) & 0x7ff));
 			if (dc_rxeof(sc) == 0) {
 				while (dc_rx_resync(sc))
 					dc_rxeof(sc);
@@ -3941,7 +3941,7 @@ dc_watchdog(void *xsc)
 	}
 
 	ifp = sc->dc_ifp;
-	ifp->if_oerrors++;
+	if_inc_counter(ifp, IFCOUNTER_OERRORS, 1);
 	device_printf(sc->dc_dev, "watchdog timeout\n");
 
 	ifp->if_drv_flags &= ~IFF_DRV_RUNNING;

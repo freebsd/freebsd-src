@@ -40,20 +40,12 @@ __FBSDID("$FreeBSD$");
 #include <sys/proc.h>
 #include <sys/kthread.h>
 
-#if (__FreeBSD_version >= 500000)
 #include <sys/mutex.h>
 #include <sys/module.h>
-#endif
+#include <sys/sx.h>
 
-#if (__FreeBSD_version >= 500000)
 #include <dev/pci/pcireg.h>
 #include <dev/pci/pcivar.h>
-#else 
-#include <pci/pcireg.h>
-#include <pci/pcivar.h>
-#include <sys/wait.h>
-#include <sys/sysproto.h>
-#endif
 
 #ifndef __KERNEL__
 #define __KERNEL__
@@ -119,6 +111,7 @@ static void HPTLIBAPI fOsCommandDone(_VBUS_ARG PCommand pCmd);
 static void ccb_done(union ccb *ccb);
 static void hpt_queue_ccb(union ccb **ccb_Q, union ccb *ccb);
 static void hpt_free_ccb(union ccb **ccb_Q, union ccb *ccb);
+static void hpt_intr_locked(IAL_ADAPTER_T *pAdapter);
 static void	hptmv_free_edma_queues(IAL_ADAPTER_T *pAdapter);
 static void	hptmv_free_channel(IAL_ADAPTER_T *pAdapter, MV_U8 channelNum);
 static void	handleEdmaError(_VBUS_ARG PCommand pCmd);
@@ -143,6 +136,8 @@ static MV_BOOLEAN hptmv_event_notify(MV_SATA_ADAPTER *pMvSataAdapter,
 #define ccb_ccb_ptr spriv_ptr0
 #define ccb_adapter ccb_h.spriv_ptr1
 
+static struct sx hptmv_list_lock;
+SX_SYSINIT(hptmv_list_lock, &hptmv_list_lock, "hptmv list");
 IAL_ADAPTER_T *gIal_Adapter = 0;
 IAL_ADAPTER_T *pCurAdapter = 0;
 static MV_SATA_CHANNEL gMvSataChannels[MAX_VBUS][MV_SATA_CHANNELS_NUM];
@@ -159,47 +154,10 @@ UCHAR DPC_Request_Nums = 0;
 static ST_HPT_DPC DpcQueue[MAX_DPC];
 static int DpcQueue_First=0;
 static int DpcQueue_Last = 0;
+static struct mtx DpcQueue_Lock;
+MTX_SYSINIT(hpmtv_dpc_lock, &DpcQueue_Lock, "hptmv dpc", MTX_DEF);
 
 char DRIVER_VERSION[] = "v1.16";
-
-#if (__FreeBSD_version >= 500000)
-static struct mtx driver_lock;
-intrmask_t lock_driver()
-{
-
-	intrmask_t spl = 0;
-	mtx_lock(&driver_lock);
-	return spl;
-}
-void unlock_driver(intrmask_t spl)
-{
-	mtx_unlock(&driver_lock);
-}
-#else 
-static int driver_locked = 0;
-intrmask_t lock_driver()
-{
-	intrmask_t spl = splcam();
-loop:
-	while (driver_locked)
-		tsleep(&driver_locked, PRIBIO, "hptlck", hz);
-	atomic_add_int(&driver_locked, 1);
-	if (driver_locked>1) {
-		atomic_subtract_int(&driver_locked, 1);
-		goto loop;
-	}
-	return spl;
-}
-
-void unlock_driver(intrmask_t spl)
-{
-	atomic_subtract_int(&driver_locked, 1);
-	if (driver_locked==0) {
-		wakeup(&driver_locked);
-	}
-	splx(spl);
-}
-#endif
 
 /*******************************************************************************
  *	Name:	hptmv_free_channel
@@ -790,7 +748,8 @@ hptmv_handle_event(void * data, int flag)
 	IAL_ADAPTER_T   *pAdapter = (IAL_ADAPTER_T *)data;
 	MV_SATA_ADAPTER *pMvSataAdapter = &pAdapter->mvSataAdapter;
 	MV_U8           channelIndex;
- 
+
+	mtx_assert(&pAdapter->lock, MA_OWNED);
 /*	mvOsSemTake(&pMvSataAdapter->semaphore); */
 	for (channelIndex = 0; channelIndex < MV_SATA_CHANNELS_NUM; channelIndex++)
 	{
@@ -898,7 +857,7 @@ hptmv_event_notify(MV_SATA_ADAPTER *pMvSataAdapter, MV_EVENT_TYPE eventType,
 					KdPrint(("RR18xx [%d,%d]: device connected event received\n",
 							 pMvSataAdapter->adapterId, channel));
 					/* Delete previous timers (if multiple drives connected in the same time */
-					pAdapter->event_timer_connect = timeout(hptmv_handle_event_connect, pAdapter, 10*hz);
+					callout_reset(&pAdapter->event_timer_connect, 10 * hz, hptmv_handle_event_connect, pAdapter);
 				}
 				else if (param1 == EVENT_DISCONNECT)
 				{
@@ -907,7 +866,7 @@ hptmv_event_notify(MV_SATA_ADAPTER *pMvSataAdapter, MV_EVENT_TYPE eventType,
 							 pMvSataAdapter->adapterId, channel));
 					device_change(pAdapter, channel, FALSE);
 					/* Delete previous timers (if multiple drives disconnected in the same time */
-					/*pAdapter->event_timer_disconnect = timeout(hptmv_handle_event_disconnect, pAdapter, 10*hz); */
+					/*callout_reset(&pAdapter->event_timer_disconnect, 10 * hz, hptmv_handle_event_disconnect, pAdapter); */
 					/*It is not necessary to wait, handle it directly*/
 					hptmv_handle_event_disconnect(pAdapter);
 				}
@@ -1286,18 +1245,6 @@ dmamap_put(PBUS_DMAMAP p)
 	p->pAdapter->pbus_dmamap_list = p;
 }
 
-/*Since mtx not provide the initialize when declare, so we Final init here to initialize the global mtx*/
-#if __FreeBSD_version >= 500000
-#define override_kernel_driver()
-
-static void hpt_init(void *dummy)
-{
-	override_kernel_driver();	
-	mtx_init(&driver_lock, "hptsleeplock", NULL, MTX_DEF);
-}
-SYSINIT(hptinit, SI_SUB_CONFIGURE, SI_ORDER_FIRST, hpt_init, NULL);
-#endif
-
 static int num_adapters = 0;
 static int
 init_adapter(IAL_ADAPTER_T *pAdapter)
@@ -1308,8 +1255,11 @@ init_adapter(IAL_ADAPTER_T *pAdapter)
 
 	PVDevice pVDev;
 
-	intrmask_t oldspl = lock_driver();
+	mtx_init(&pAdapter->lock, "hptsleeplock", NULL, MTX_DEF);
+	callout_init_mtx(&pAdapter->event_timer_connect, &pAdapter->lock, 0);
+	callout_init_mtx(&pAdapter->event_timer_disconnect, &pAdapter->lock, 0);
 
+	sx_xlock(&hptmv_list_lock);
 	pAdapter->next = 0;
 
 	if(gIal_Adapter == 0){
@@ -1320,6 +1270,7 @@ init_adapter(IAL_ADAPTER_T *pAdapter)
 		pCurAdapter->next = pAdapter;
 		pCurAdapter = pAdapter;
 	}
+	sx_xunlock(&hptmv_list_lock);
 
 	pAdapter->outstandingCommands = 0;
 
@@ -1337,10 +1288,8 @@ init_adapter(IAL_ADAPTER_T *pAdapter)
 			MAX_SG_DESCRIPTORS, /* nsegments */
 			0x10000,	/* maxsegsize */
 			BUS_DMA_WAITOK, 	/* flags */
-#if __FreeBSD_version>502000
 			busdma_lock_mutex,	/* lockfunc */
-			&driver_lock,		/* lockfuncarg */
-#endif
+			&pAdapter->lock,	/* lockfuncarg */
 			&pAdapter->io_dma_parent /* tag */))
 		{
 			return ENXIO;
@@ -1350,7 +1299,6 @@ init_adapter(IAL_ADAPTER_T *pAdapter)
 	if (hptmv_allocate_edma_queues(pAdapter))
 	{
 		MV_ERROR("RR18xx: Failed to allocate memory for EDMA queues\n");
-		unlock_driver(oldspl);
 		return ENOMEM;
 	}
 
@@ -1363,7 +1311,6 @@ init_adapter(IAL_ADAPTER_T *pAdapter)
 	{
 		MV_ERROR("RR18xx: Failed to remap memory space\n");
 		hptmv_free_edma_queues(pAdapter);
-		unlock_driver(oldspl);
 		return ENXIO;
 	}
 	else
@@ -1393,7 +1340,6 @@ init_adapter(IAL_ADAPTER_T *pAdapter)
 unregister:
 		bus_release_resource(pAdapter->hpt_dev, SYS_RES_MEMORY, rid, pAdapter->mem_res);
 		hptmv_free_edma_queues(pAdapter);
-		unlock_driver(oldspl);
 		return ENXIO;
 	}
 	pAdapter->ver_601 = pMvSataAdapter->pcbVersion;
@@ -1438,7 +1384,7 @@ unregister:
 			free(pAdapter->pbus_dmamap, M_DEVBUF);
 			goto unregister;
 		}
-		callout_handle_init(&pmap->timeout_ch);
+		callout_init_mtx(&pmap->timeout, &pAdapter->lock, 0);
 	}
 	/* setup PRD Tables */
 	KdPrint(("Allocate PRD Tables\n"));
@@ -1537,7 +1483,6 @@ unregister:
 #endif
 
 	mvSataUnmaskAdapterInterrupt(pMvSataAdapter);
-	unlock_driver(oldspl);
 	return 0;
 }
 
@@ -2036,20 +1981,7 @@ hpt_attach(device_t dev)
 	struct cam_devq *devq;
 	struct cam_sim *hpt_vsim;
 
-	printf("%s Version %s \n", DRIVER_NAME, DRIVER_VERSION);
-
-	if (!pAdapter)
-	{
-		pAdapter = (IAL_ADAPTER_T *)malloc(sizeof (IAL_ADAPTER_T), M_DEVBUF, M_NOWAIT);
-#if __FreeBSD_version > 410000
-		device_set_softc(dev, (void *)pAdapter);
-#else 
-		device_set_driver(dev, (driver_t *)pAdapter);
-#endif
-	}
-
-	if (!pAdapter) return (ENOMEM);
-	bzero(pAdapter, sizeof(IAL_ADAPTER_T));
+	device_printf(dev, "%s Version %s \n", DRIVER_NAME, DRIVER_VERSION);
 
 	pAdapter->hpt_dev = dev;
 	
@@ -2064,13 +1996,9 @@ hpt_attach(device_t dev)
 		return(ENXIO);
 	}
 
-#if __FreeBSD_version <700000
-	if (bus_setup_intr(pAdapter->hpt_dev, pAdapter->hpt_irq, INTR_TYPE_CAM,
-				hpt_intr, pAdapter, &pAdapter->hpt_intr))
-#else 
-	if (bus_setup_intr(pAdapter->hpt_dev, pAdapter->hpt_irq, INTR_TYPE_CAM,
+	if (bus_setup_intr(pAdapter->hpt_dev, pAdapter->hpt_irq,
+				INTR_TYPE_CAM | INTR_MPSAFE,
 				NULL, hpt_intr, pAdapter, &pAdapter->hpt_intr))
-#endif
 	{
 		hpt_printk(("can't set up interrupt\n"));
 		free(pAdapter, M_DEVBUF);
@@ -2100,25 +2028,19 @@ hpt_attach(device_t dev)
 	/*
 	 * Construct our SIM entry
 	 */
-#if __FreeBSD_version <700000
 	hpt_vsim = cam_sim_alloc(hpt_action, hpt_poll, __str(PROC_DIR_NAME),
-			pAdapter, device_get_unit(pAdapter->hpt_dev), 1, 8, devq);
-#else 
-	hpt_vsim = cam_sim_alloc(hpt_action, hpt_poll, __str(PROC_DIR_NAME),
-			pAdapter, device_get_unit(pAdapter->hpt_dev), &Giant, 1, 8, devq);
-#endif
+			pAdapter, device_get_unit(pAdapter->hpt_dev),
+			&pAdapter->lock, 1, 8, devq);
 	if (hpt_vsim == NULL) {
 		cam_simq_free(devq);
 		return ENOMEM;
 	}
 
-#if __FreeBSD_version <700000
-	if (xpt_bus_register(hpt_vsim, 0) != CAM_SUCCESS)
-#else 
+	mtx_lock(&pAdapter->lock);
 	if (xpt_bus_register(hpt_vsim, dev, 0) != CAM_SUCCESS)
-#endif
 	{
 		cam_sim_free(hpt_vsim, /*free devq*/ TRUE);
+		mtx_unlock(&pAdapter->lock);
 		hpt_vsim = NULL;
 		return ENXIO;
 	}
@@ -2129,9 +2051,11 @@ hpt_attach(device_t dev)
 	{
 		xpt_bus_deregister(cam_sim_path(hpt_vsim));
 		cam_sim_free(hpt_vsim, /*free_devq*/TRUE);
+		mtx_unlock(&pAdapter->lock);
 		hpt_vsim = NULL;
 		return ENXIO;
 	}
+	mtx_unlock(&pAdapter->lock);
 
 	xpt_setup_ccb(&(ccb->ccb_h), pAdapter->path, /*priority*/5);
 	ccb->ccb_h.func_code = XPT_SASYNC_CB;
@@ -2164,7 +2088,11 @@ hpt_detach(device_t dev)
 static void
 hpt_poll(struct cam_sim *sim)
 {
-	hpt_intr((void *)cam_sim_softc(sim));
+	IAL_ADAPTER_T *pAdapter;
+
+	pAdapter = cam_sim_softc(sim);
+	
+	hpt_intr_locked((void *)cam_sim_softc(sim));
 }
 
 /****************************************************************
@@ -2174,9 +2102,19 @@ hpt_poll(struct cam_sim *sim)
 static void
 hpt_intr(void *arg)
 {
-	IAL_ADAPTER_T *pAdapter = (IAL_ADAPTER_T *)arg;
-	intrmask_t oldspl = lock_driver();
-	
+	IAL_ADAPTER_T *pAdapter;
+
+	pAdapter = arg;
+	mtx_lock(&pAdapter->lock);
+	hpt_intr_locked(pAdapter);
+	mtx_unlock(&pAdapter->lock);
+}
+
+static void
+hpt_intr_locked(IAL_ADAPTER_T *pAdapter)
+{
+
+	mtx_assert(&pAdapter->lock, MA_OWNED);
 	/* KdPrintI(("----- Entering Isr() -----\n")); */
 	if (mvSataInterruptServiceRoutine(&pAdapter->mvSataAdapter) == MV_TRUE)
 	{
@@ -2185,7 +2123,6 @@ hpt_intr(void *arg)
 	}
 
 	/* KdPrintI(("----- Leaving Isr() -----\n")); */
-	unlock_driver(oldspl);
 }
 
 /**********************************************************
@@ -2228,11 +2165,11 @@ hpt_shutdown(device_t dev)
 		IAL_ADAPTER_T *pAdapter;
 	
 		pAdapter = device_get_softc(dev);
-		if (pAdapter == NULL)
-			return (EINVAL);
 
 		EVENTHANDLER_DEREGISTER(shutdown_final, pAdapter->eh);
+		mtx_lock(&pAdapter->lock);
 		FlushAdapter(pAdapter);
+		mtx_unlock(&pAdapter->lock);
 		  /* give the flush some time to happen, 
 		    *otherwise "shutdown -p now" will make file system corrupted */
 		DELAY(1000 * 1000 * 5);
@@ -2288,6 +2225,7 @@ ccb_done(union ccb *ccb)
 	{
 		if(DPC_Request_Nums == 0)
 			Check_Idle_Call(pAdapter);
+		wakeup(pAdapter);
 	}
 }
 
@@ -2301,11 +2239,11 @@ ccb_done(union ccb *ccb)
 void
 hpt_action(struct cam_sim *sim, union ccb *ccb)
 {
-	intrmask_t oldspl;
 	IAL_ADAPTER_T * pAdapter = (IAL_ADAPTER_T *) cam_sim_softc(sim);
 	PBUS_DMAMAP  pmap;
 	_VBUS_INST(&pAdapter->VBus)
 
+	mtx_assert(&pAdapter->lock, MA_OWNED);
 	CAM_DEBUG(ccb->ccb_h.path, CAM_DEBUG_TRACE, ("hpt_action\n"));
 	KdPrint(("hpt_action(%lx,%lx{%x})\n", (u_long)sim, (u_long)ccb, ccb->ccb_h.func_code));
 
@@ -2327,7 +2265,6 @@ hpt_action(struct cam_sim *sim, union ccb *ccb)
 				return;
 			}
 
-			oldspl = lock_driver();
 			if (pAdapter->outstandingCommands==0 && DPC_Request_Nums==0)
 				Check_Idle_Call(pAdapter);
 
@@ -2340,7 +2277,6 @@ hpt_action(struct cam_sim *sim, union ccb *ccb)
 				hpt_queue_ccb(&pAdapter->pending_Q, ccb);
 			else
 				OsSendCommand(_VBUS_P ccb);
-			unlock_driver(oldspl);
 
 			/* KdPrint(("leave scsiio\n")); */
 			break;
@@ -2348,9 +2284,7 @@ hpt_action(struct cam_sim *sim, union ccb *ccb)
 
 		case XPT_RESET_BUS:
 			KdPrint(("reset bus\n"));
-			oldspl = lock_driver();
 			fResetVBus(_VBUS_P0);
-			unlock_driver(oldspl);
 			xpt_done(ccb);
 			break;
 
@@ -2374,29 +2308,7 @@ hpt_action(struct cam_sim *sim, union ccb *ccb)
 			break;
 
 		case XPT_CALC_GEOMETRY:
-#if __FreeBSD_version >= 500000
 			cam_calc_geometry(&ccb->ccg, 1);
-#else
-			{
-			struct	  ccb_calc_geometry *ccg;
-			u_int32_t size_mb;
-			u_int32_t secs_per_cylinder;
-
-			ccg = &ccb->ccg;
-			size_mb = ccg->volume_size / ((1024L * 1024L) / ccg->block_size);
-
-			if (size_mb > 1024 ) {
-				ccg->heads = 255;
-				ccg->secs_per_track = 63;
-			} else {
-				ccg->heads = 64;
-				ccg->secs_per_track = 32;
-			}
-			secs_per_cylinder = ccg->heads * ccg->secs_per_track;
-			ccg->cylinders = ccg->volume_size / secs_per_cylinder;
-			ccb->ccb_h.status = CAM_REQ_CMP;
-			}
-#endif
 			xpt_done(ccb);
 			break;
 
@@ -2482,20 +2394,20 @@ hpt_free_ccb(union ccb **ccb_Q, union ccb *ccb)
  ***************************************************************************/
 static void hpt_worker_thread(void)
 {
-	intrmask_t oldspl;
 
 	for(;;)	{
+		mtx_lock(&DpcQueue_Lock);
 		while (DpcQueue_First!=DpcQueue_Last) {
 			ST_HPT_DPC p;
-			oldspl = lock_driver();
 			p = DpcQueue[DpcQueue_First];
 			DpcQueue_First++;
 			DpcQueue_First %= MAX_DPC;
 			DPC_Request_Nums++;
-			unlock_driver(oldspl);
+			mtx_unlock(&DpcQueue_Lock);
 			p.dpc(p.pAdapter, p.arg, p.flags);
 
-			oldspl = lock_driver();
+			mtx_lock(&p.pAdapter->lock);
+			mtx_lock(&DpcQueue_Lock);
 			DPC_Request_Nums--;
 			/* since we may have prevented Check_Idle_Call, do it here */
 			if (DPC_Request_Nums==0) {
@@ -2505,28 +2417,22 @@ static void hpt_worker_thread(void)
 					CheckPendingCall(_VBUS_P0);
 				}
 			}
-			unlock_driver(oldspl);
+			mtx_unlock(&p.pAdapter->lock);
+			mtx_unlock(&DpcQueue_Lock);
 
 			/*Schedule out*/
-#if (__FreeBSD_version < 500000)
-			YIELD_THREAD;
-#else 
-#if (__FreeBSD_version > 700033)
-			pause("sched", 1);
-#else
-			tsleep((caddr_t)hpt_worker_thread, PPAUSE, "sched", 1); 
-#endif
-#endif
 			if (SIGISMEMBER(curproc->p_siglist, SIGSTOP)) {
 				/* abort rebuilding process. */
 				IAL_ADAPTER_T *pAdapter;
 				PVDevice      pArray;
 				PVBus         _vbus_p;
 				int i;
+
+				sx_slock(&hptmv_list_lock);
 				pAdapter = gIal_Adapter;
 
 				while(pAdapter != 0){
-
+					mtx_lock(&pAdapter->lock);
 					_vbus_p = &pAdapter->VBus;
 
 					for (i=0;i<MAX_ARRAY_PER_VBUS;i++) 
@@ -2540,34 +2446,24 @@ static void hpt_worker_thread(void)
 								pArray->u.array.rf_abort_rebuild = 1;
 							}
 					}
+					mtx_unlock(&pAdapter->lock);
 					pAdapter = pAdapter->next;
 				}
+				sx_sunlock(&hptmv_list_lock);
 			}
+			mtx_lock(&DpcQueue_Lock);
 		}
+		mtx_unlock(&DpcQueue_Lock);
 
 /*Remove this debug option*/
 /*
 #ifdef DEBUG
 		if (SIGISMEMBER(curproc->p_siglist, SIGSTOP))
-#if (__FreeBSD_version > 700033)
 			pause("hptrdy", 2*hz);
-#else
-			tsleep((caddr_t)hpt_worker_thread, PPAUSE, "hptrdy", 2*hz);
-#endif
 #endif
 */
-	#if (__FreeBSD_version >= 800002)
 		kproc_suspend_check(curproc);
-	#elif (__FreeBSD_version >= 500043)
-		kthread_suspend_check(curproc);
-	#else 
-		kproc_suspend_loop(curproc);
-	#endif
-#if (__FreeBSD_version > 700033)
-		pause("hptrdy", 2*hz);  /* wait for something to do */
-#else
-		tsleep((caddr_t)hpt_worker_thread, PPAUSE, "hptrdy", 2*hz);  /* wait for something to do */
-#endif
+		pause("-", 2*hz);  /* wait for something to do */
 	}
 }
 
@@ -2586,6 +2482,7 @@ launch_worker_thread(void)
 	
 	kproc_start(&hpt_kp);
 
+	sx_slock(&hptmv_list_lock);
 	for (pAdapTemp = gIal_Adapter; pAdapTemp; pAdapTemp = pAdapTemp->next) {
 
 		_VBUS_INST(&pAdapTemp->VBus)
@@ -2601,17 +2498,13 @@ launch_worker_thread(void)
 					(UCHAR)((pVDev->u.array.CriticalMembers || pVDev->VDeviceType == VD_RAID_1)? DUPLICATE : REBUILD_PARITY));
 			}
 	}
+	sx_sunlock(&hptmv_list_lock);
 
 	/*
 	 * hpt_worker_thread needs to be suspended after shutdown sync, when fs sync finished.
 	 */
-#if (__FreeBSD_version < 500043)
-	EVENTHANDLER_REGISTER(shutdown_post_sync, shutdown_kproc, hptdaemonproc,
-	    SHUTDOWN_PRI_LAST);
-#else 
 	EVENTHANDLER_REGISTER(shutdown_post_sync, kproc_shutdown, hptdaemonproc,
 	    SHUTDOWN_PRI_LAST);
-#endif
 }
 /*
  *SYSINIT(hptwt, SI_SUB_KTHREAD_IDLE, SI_ORDER_FIRST, launch_worker_thread, NULL);
@@ -2721,10 +2614,12 @@ SetInquiryData(PINQUIRYDATA inquiryData, PVDevice pVDev)
 static void
 hpt_timeout(void *arg)
 {
-	_VBUS_INST(&((PBUS_DMAMAP)((union ccb *)arg)->ccb_adapter)->pAdapter->VBus)
-	intrmask_t oldspl = lock_driver();
+	PBUS_DMAMAP pmap = (PBUS_DMAMAP)((union ccb *)arg)->ccb_adapter;
+	IAL_ADAPTER_T *pAdapter = pmap->pAdapter;
+	_VBUS_INST(&pAdapter->VBus)
+
+	mtx_assert(&pAdapter->lock, MA_OWNED);
 	fResetVBus(_VBUS_P0);
-	unlock_driver(oldspl);
 }
 
 static void 
@@ -2766,7 +2661,7 @@ hpt_io_dmamap_callback(void *arg, bus_dma_segment_t *segs, int nsegs, int error)
 		}
 	}
 
-	pmap->timeout_ch = timeout(hpt_timeout, (caddr_t)ccb, 20*hz);
+	callout_reset(&pmap->timeout, 20 * hz, hpt_timeout, ccb);
 	pVDev->pfnSendCommand(_VBUS_P pCmd);
 	CheckPendingCall(_VBUS_P0);
 }
@@ -2964,6 +2859,8 @@ OsSendCommand(_VBUS_ARG union ccb *ccb)
 				ccb->ccb_h.status = CAM_REQ_CMP_ERR;
 				dmamap_put(pmap);
 				pAdapter->outstandingCommands--;
+				if (pAdapter->outstandingCommands == 0)
+					wakeup(pAdapter);
 				xpt_done(ccb);
 			}
 			goto Command_Complished;
@@ -2987,8 +2884,8 @@ fOsCommandDone(_VBUS_ARG PCommand pCmd)
 	IAL_ADAPTER_T *pAdapter = pmap->pAdapter;
 
 	KdPrint(("fOsCommandDone(pcmd=%p, result=%d)\n", pCmd, pCmd->Result));
-	
-	untimeout(hpt_timeout, (caddr_t)ccb, pmap->timeout_ch);
+
+	callout_stop(&pmap->timeout);
 	
 	switch(pCmd->Result) {
 	case RETURN_SUCCESS:
@@ -3032,9 +2929,11 @@ hpt_queue_dpc(HPT_DPC dpc, IAL_ADAPTER_T * pAdapter, void *arg, UCHAR flags)
 {
 	int p;
 
+	mtx_lock(&DpcQueue_Lock);
 	p = (DpcQueue_Last + 1) % MAX_DPC;
 	if (p==DpcQueue_First) {
 		KdPrint(("DPC Queue full!\n"));
+		mtx_unlock(&DpcQueue_Lock);
 		return -1;
 	}
 
@@ -3043,6 +2942,7 @@ hpt_queue_dpc(HPT_DPC dpc, IAL_ADAPTER_T * pAdapter, void *arg, UCHAR flags)
 	DpcQueue[DpcQueue_Last].arg = arg;
 	DpcQueue[DpcQueue_Last].flags = flags;
 	DpcQueue_Last = p;
+	mtx_unlock(&DpcQueue_Lock);
 
 	return 0;
 }

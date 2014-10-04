@@ -9,7 +9,7 @@
 #include <osreldate.h>
 
 /* Bug report URL. */
-#define BUG_REPORT_URL "http://llvm.org/bugs/"
+#define BUG_REPORT_URL "https://bugs.freebsd.org/submit/"
 
 /* Define if we have libxml2 */
 /* #undef CLANG_HAVE_LIBXML */

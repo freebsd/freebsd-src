@@ -122,8 +122,12 @@ ar724x_pci_read_config(device_t dev, u_int bus, u_int slot, u_int func,
 
 	/* Register access is 32-bit aligned */
 	shift = (reg & 3) * 8;
-	if (shift)
-		mask = (1 << shift) - 1;
+
+	/* Create a mask based on the width, post-shift */
+	if (bytes == 2)
+		mask = 0xffff;
+	else if (bytes == 1)
+		mask = 0xff;
 	else
 		mask = 0xffffffff;
 
@@ -155,10 +159,18 @@ ar724x_pci_write_config(device_t dev, u_int bus, u_int slot, u_int func,
 		return;
 
 	/*
-	 * WAR for BAR issue on AR7240 - We are unable to access the PCI device
-	 * space if we set the BAR with proper base address.
+	 * WAR for BAR issue on AR7240 - We are unable to access the PCI
+	 * device space if we set the BAR with proper base address.
+	 *
+	 * However, we _do_ want to allow programming in the probe value
+	 * (0xffffffff) so the PCI code can find out how big the memory
+	 * map is for this device.  Without it, it'll think the memory
+	 * map is 32 bits wide, the PCI code will then end up thinking
+	 * the register window is '0' and fail to allocate resources.
 	 */
-	if (reg == PCIR_BAR(0) && bytes == 4 && ar71xx_soc == AR71XX_SOC_AR7240)
+	if (reg == PCIR_BAR(0) && bytes == 4
+	    && ar71xx_soc == AR71XX_SOC_AR7240
+	    && data != 0xffffffff)
 		ar724x_pci_write(AR724X_PCI_CFG_BASE, reg, 0xffff, bytes);
 	else
 		ar724x_pci_write(AR724X_PCI_CFG_BASE, reg, data, bytes);
@@ -337,7 +349,6 @@ ar724x_pci_slot_fixup(device_t dev)
 			return;
 		}
 
-
 		device_printf(dev, "found EEPROM at 0x%lx on %d.%d.%d\n",
 		    flash_addr, 0, 0, 0);
 		ar724x_pci_fixup(dev, flash_addr, size);
@@ -485,7 +496,6 @@ ar724x_pci_alloc_resource(device_t bus, device_t child, int type, int *rid,
 			return (NULL);
 		}
 	} 
-
 
 	return (rv);
 }

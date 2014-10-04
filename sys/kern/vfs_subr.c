@@ -275,14 +275,6 @@ static int vnlru_nowhere;
 SYSCTL_INT(_debug, OID_AUTO, vnlru_nowhere, CTLFLAG_RW,
     &vnlru_nowhere, 0, "Number of times the vnlru process ran without success");
 
-/*
- * Macros to control when a vnode is freed and recycled.  All require
- * the vnode interlock.
- */
-#define VCANRECYCLE(vp) (((vp)->v_iflag & VI_FREE) && !(vp)->v_holdcnt)
-#define VSHOULDFREE(vp) (!((vp)->v_iflag & VI_FREE) && !(vp)->v_holdcnt)
-#define VSHOULDBUSY(vp) (((vp)->v_iflag & VI_FREE) && (vp)->v_holdcnt)
-
 /* Shift count for (uintptr_t)vp to initialize vp->v_hash. */
 static int vnsz2log;
 
@@ -849,11 +841,21 @@ vnlru_free(int count)
 			TAILQ_INSERT_TAIL(&vnode_free_list, vp, v_actfreelist);
 			continue;
 		}
-		VNASSERT(VCANRECYCLE(vp), vp,
-		    ("vp inconsistent on freelist"));
+		VNASSERT((vp->v_iflag & VI_FREE) != 0 && vp->v_holdcnt == 0,
+		    vp, ("vp inconsistent on freelist"));
+
+		/*
+		 * The clear of VI_FREE prevents activation of the
+		 * vnode.  There is no sense in putting the vnode on
+		 * the mount point active list, only to remove it
+		 * later during recycling.  Inline the relevant part
+		 * of vholdl(), to avoid triggering assertions or
+		 * activating.
+		 */
 		freevnodes--;
 		vp->v_iflag &= ~VI_FREE;
-		vholdl(vp);
+		vp->v_holdcnt++;
+
 		mtx_unlock(&vnode_free_list_mtx);
 		VI_UNLOCK(vp);
 		vtryrecycle(vp);
@@ -1861,8 +1863,15 @@ sched_sync(void)
 				continue;
 			}
 
-			if (first_printf == 0)
+			if (first_printf == 0) {
+				/*
+				 * Drop the sync mutex, because some watchdog
+				 * drivers need to sleep while patting
+				 */
+				mtx_unlock(&sync_mtx);
 				wdog_kern_pat(WD_LASTVAL);
+				mtx_lock(&sync_mtx);
+			}
 
 		}
 		if (syncer_state == SYNCER_FINAL_DELAY && syncer_final_iter > 0)
@@ -2042,13 +2051,13 @@ v_incr_usecount(struct vnode *vp)
 {
 
 	CTR2(KTR_VFS, "%s: vp %p", __func__, vp);
+	vholdl(vp);
 	vp->v_usecount++;
 	if (vp->v_type == VCHR && vp->v_rdev != NULL) {
 		dev_lock();
 		vp->v_rdev->si_usecount++;
 		dev_unlock();
 	}
-	vholdl(vp);
 }
 
 /*
@@ -2325,11 +2334,18 @@ vholdl(struct vnode *vp)
 	struct mount *mp;
 
 	CTR2(KTR_VFS, "%s: vp %p", __func__, vp);
+#ifdef INVARIANTS
+	/* getnewvnode() calls v_incr_usecount() without holding interlock. */
+	if (vp->v_type != VNON || vp->v_data != NULL) {
+		ASSERT_VI_LOCKED(vp, "vholdl");
+		VNASSERT(vp->v_holdcnt > 0 || (vp->v_iflag & VI_FREE) != 0,
+		    vp, ("vholdl: free vnode is held"));
+	}
+#endif
 	vp->v_holdcnt++;
-	if (!VSHOULDBUSY(vp))
+	if ((vp->v_iflag & VI_FREE) == 0)
 		return;
-	ASSERT_VI_LOCKED(vp, "vholdl");
-	VNASSERT((vp->v_iflag & VI_FREE) != 0, vp, ("vnode not free"));
+	VNASSERT(vp->v_holdcnt == 1, vp, ("vholdl: wrong hold count"));
 	VNASSERT(vp->v_op != NULL, vp, ("vholdl: vnode already reclaimed."));
 	/*
 	 * Remove a vnode from the free list, mark it as in use,
@@ -2392,7 +2408,7 @@ vdropl(struct vnode *vp)
 		    ("vdropl: vnode already reclaimed."));
 		VNASSERT((vp->v_iflag & VI_FREE) == 0, vp,
 		    ("vnode already free"));
-		VNASSERT(VSHOULDFREE(vp), vp,
+		VNASSERT(vp->v_holdcnt == 0, vp,
 		    ("vdropl: freeing when we shouldn't"));
 		active = vp->v_iflag & VI_ACTIVE;
 		vp->v_iflag &= ~VI_ACTIVE;
@@ -3224,6 +3240,7 @@ sysctl_vfs_conflist(SYSCTL_HANDLER_ARGS)
 	int error;
 
 	error = 0;
+	vfsconf_slock();
 	TAILQ_FOREACH(vfsp, &vfsconf, vfc_list) {
 #ifdef COMPAT_FREEBSD32
 		if (req->flags & SCTL_MASK32)
@@ -3234,11 +3251,12 @@ sysctl_vfs_conflist(SYSCTL_HANDLER_ARGS)
 		if (error)
 			break;
 	}
+	vfsconf_sunlock();
 	return (error);
 }
 
-SYSCTL_PROC(_vfs, OID_AUTO, conflist, CTLTYPE_OPAQUE | CTLFLAG_RD,
-    NULL, 0, sysctl_vfs_conflist,
+SYSCTL_PROC(_vfs, OID_AUTO, conflist, CTLTYPE_OPAQUE | CTLFLAG_RD |
+    CTLFLAG_MPSAFE, NULL, 0, sysctl_vfs_conflist,
     "S,xvfsconf", "List of all configured filesystems");
 
 #ifndef BURN_BRIDGES
@@ -3268,9 +3286,12 @@ vfs_sysctl(SYSCTL_HANDLER_ARGS)
 	case VFS_CONF:
 		if (namelen != 3)
 			return (ENOTDIR);	/* overloaded */
-		TAILQ_FOREACH(vfsp, &vfsconf, vfc_list)
+		vfsconf_slock();
+		TAILQ_FOREACH(vfsp, &vfsconf, vfc_list) {
 			if (vfsp->vfc_typenum == name[2])
 				break;
+		}
+		vfsconf_sunlock();
 		if (vfsp == NULL)
 			return (EOPNOTSUPP);
 #ifdef COMPAT_FREEBSD32
@@ -3283,8 +3304,9 @@ vfs_sysctl(SYSCTL_HANDLER_ARGS)
 	return (EOPNOTSUPP);
 }
 
-static SYSCTL_NODE(_vfs, VFS_GENERIC, generic, CTLFLAG_RD | CTLFLAG_SKIP,
-    vfs_sysctl, "Generic filesystem");
+static SYSCTL_NODE(_vfs, VFS_GENERIC, generic, CTLFLAG_RD | CTLFLAG_SKIP |
+    CTLFLAG_MPSAFE, vfs_sysctl,
+    "Generic filesystem");
 
 #if 1 || defined(COMPAT_PRELITE2)
 
@@ -3295,6 +3317,7 @@ sysctl_ovfs_conf(SYSCTL_HANDLER_ARGS)
 	struct vfsconf *vfsp;
 	struct ovfsconf ovfs;
 
+	vfsconf_slock();
 	TAILQ_FOREACH(vfsp, &vfsconf, vfc_list) {
 		bzero(&ovfs, sizeof(ovfs));
 		ovfs.vfc_vfsops = vfsp->vfc_vfsops;	/* XXX used as flag */
@@ -3303,10 +3326,13 @@ sysctl_ovfs_conf(SYSCTL_HANDLER_ARGS)
 		ovfs.vfc_refcount = vfsp->vfc_refcount;
 		ovfs.vfc_flags = vfsp->vfc_flags;
 		error = SYSCTL_OUT(req, &ovfs, sizeof ovfs);
-		if (error)
-			return error;
+		if (error != 0) {
+			vfsconf_sunlock();
+			return (error);
+		}
 	}
-	return 0;
+	vfsconf_sunlock();
+	return (0);
 }
 
 #endif /* 1 || COMPAT_PRELITE2 */
@@ -3404,8 +3430,9 @@ sysctl_vnode(SYSCTL_HANDLER_ARGS)
 	return (error);
 }
 
-SYSCTL_PROC(_kern, KERN_VNODE, vnode, CTLTYPE_OPAQUE|CTLFLAG_RD,
-    0, 0, sysctl_vnode, "S,xvnode", "");
+SYSCTL_PROC(_kern, KERN_VNODE, vnode, CTLTYPE_OPAQUE | CTLFLAG_RD |
+    CTLFLAG_MPSAFE, 0, 0, sysctl_vnode, "S,xvnode",
+    "");
 #endif
 
 /*

@@ -20,7 +20,7 @@
  */
 /*
  * Copyright (c) 2005, 2010, Oracle and/or its affiliates. All rights reserved.
- * Copyright (c) 2013 by Delphix. All rights reserved.
+ * Copyright (c) 2012, 2014 by Delphix. All rights reserved.
  * Copyright (c) 2013 by Saso Kiselkov. All rights reserved.
  */
 
@@ -66,8 +66,13 @@ extern "C" {
  *		|			 |
  *		|			 |
  *		+--------> NOFILL -------+
+ *
+ * DB_SEARCH is an invalid state for a dbuf. It is used by dbuf_free_range
+ * to find all dbufs in a range of a dnode and must be less than any other
+ * dbuf_states_t (see comment on dn_dbufs in dnode.h).
  */
 typedef enum dbuf_states {
+	DB_SEARCH = -1,
 	DB_UNCACHED,
 	DB_FILL,
 	DB_NOFILL,
@@ -217,7 +222,7 @@ typedef struct dmu_buf_impl {
 	 * Our link on the owner dnodes's dn_dbufs list.
 	 * Protected by its dn_dbufs_mtx.
 	 */
-	list_node_t db_link;
+	avl_node_t db_link;
 
 	/* Data which is unique to data (leaf) blocks: */
 

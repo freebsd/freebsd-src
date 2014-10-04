@@ -537,11 +537,7 @@ ivybridge_irq_handler(void *arg)
 		notify_ring(dev, &dev_priv->rings[BCS]);
 
 	if (de_iir & DE_GSE_IVB) {
-#if 1
-		KIB_NOTYET();
-#else
 		intel_opregion_gse_intr(dev);
-#endif
 	}
 
 	if (de_iir & DE_PLANEA_FLIP_DONE_IVB) {
@@ -649,11 +645,7 @@ ironlake_irq_handler(void *arg)
 		notify_ring(dev, &dev_priv->rings[BCS]);
 
 	if (de_iir & DE_GSE) {
-#if 1
-		KIB_NOTYET();
-#else
 		intel_opregion_gse_intr(dev);
-#endif
 	}
 
 	if (de_iir & DE_PLANEA_FLIP_DONE) {
@@ -725,7 +717,7 @@ i915_error_work_func(void *context, int pending)
 	if (atomic_load_acq_int(&dev_priv->mm.wedged)) {
 		DRM_DEBUG("i915: resetting chip\n");
 		/* kobject_uevent_env(&dev->primary->kdev.kobj, KOBJ_CHANGE, reset_event); */
-		if (!i915_reset(dev, GRDOM_RENDER)) {
+		if (!i915_reset(dev)) {
 			atomic_store_rel_int(&dev_priv->mm.wedged, 0);
 			/* kobject_uevent_env(&dev->primary->kdev.kobj, KOBJ_CHANGE, reset_done_event); */
 		}
@@ -1055,11 +1047,7 @@ i915_driver_irq_handler(void *arg)
 
 
 		if (blc_event || (iir & I915_ASLE_INTERRUPT)) {
-#if 1
-			KIB_NOTYET();
-#else
 			intel_opregion_asle_intr(dev);
-#endif
 		}
 
 		/* With MSI, interrupts are only generated when iir
@@ -1781,11 +1769,7 @@ i915_driver_irq_postinstall(struct drm_device *dev)
 		I915_WRITE(PORT_HOTPLUG_EN, hotplug_en);
 	}
 
-#if 1
-	KIB_NOTYET();
-#else
 	intel_opregion_enable_asle(dev);
-#endif
 
 	return 0;
 }

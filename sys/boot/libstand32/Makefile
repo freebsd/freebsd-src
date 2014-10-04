@@ -67,9 +67,6 @@ SRCS+=	bcmp.c bcopy.c bzero.c ffs.c memccpy.c memchr.c memcmp.c memcpy.c \
 .if ${MACHINE_CPUARCH} == "arm"
 .PATH: ${LIBC}/arm/gen
 
-.if ${MK_ARM_EABI} == "no"
-SRCS+= divsi3.S
-.else
 # Compiler support functions
 .PATH: ${.CURDIR}/../../../contrib/compiler-rt/lib/
 # __clzsi2 and ctzsi2 for various builtin functions
@@ -81,7 +78,6 @@ SRCS+=	udivmoddi4.c udivmodsi4.c udivdi3.c udivsi3.c umoddi3.c umodsi3.c
 .PATH: ${.CURDIR}/../../../contrib/compiler-rt/lib/arm/
 SRCS+=	aeabi_idivmod.S aeabi_ldivmod.S aeabi_uidivmod.S aeabi_uldivmod.S
 SRCS+=	aeabi_memcmp.S aeabi_memcpy.S aeabi_memmove.S aeabi_memset.S
-.endif
 
 .endif
 .if ${MACHINE_CPUARCH} == "powerpc"
@@ -166,6 +162,7 @@ SRCS+=	bootp.c rarp.c bootparam.c
 SRCS+=	ufs.c nfs.c cd9660.c tftp.c gzipfs.c bzipfs.c
 SRCS+=	dosfs.c ext2fs.c
 SRCS+=	splitfs.c
+SRCS+=	pkgfs.c
 .if ${MK_NAND} != "no"
 SRCS+=	nandfs.c
 .endif
@@ -173,11 +170,8 @@ SRCS+=	nandfs.c
 .include <bsd.lib.mk>
 
 .if ${MACHINE_CPUARCH} == "amd64"
+CLEANFILES+= machine
 beforedepend ${OBJS}: machine
-cleandepend: cleanmachine
-cleanmachine:
-	rm -f machine
-
 machine:
-	ln -s ${.CURDIR}/../../i386/include machine
+	ln -fs ${.CURDIR}/../../i386/include machine
 .endif

@@ -17,7 +17,7 @@
 #
 
 # Which version of config(8) is required.
-%VERSREQ=	600012
+%VERSREQ=	600013
 
 STD8X16FONT?=	iso
 
@@ -30,7 +30,7 @@ S=	../../..
 .endif
 .include "$S/conf/kern.pre.mk"
 
-INCLUDES+= -I$S/contrib/libfdt
+INCLUDES+= -I$S/contrib/libfdt -I$S/gnu/dts/include 
 
 SYSTEM_LD:= ${SYSTEM_LD:$S/conf/ldscript.$M=ldscript.$M}
 SYSTEM_DEP:= ${SYSTEM_DEP:$S/conf/ldscript.$M=ldscript.$M}
@@ -42,11 +42,7 @@ STRIP_FLAGS = -S
 # We don't support gcc's thump interwork stuff, so disable it
 CFLAGS.gcc += -mno-thumb-interwork
 
-.if empty(DDB_ENABLED)
-.if ${MK_ARM_EABI} == "no"
-CFLAGS.gcc += -mno-apcs-frame
-.endif
-.elif ${MK_ARM_EABI} != "no"
+.if !empty(DDB_ENABLED)
 CFLAGS += -funwind-tables
 # clang requires us to tell it to emit assembly with unwind information
 CFLAGS.clang += -mllvm -arm-enable-ehabi
@@ -55,7 +51,7 @@ CFLAGS.clang += -mllvm -arm-enable-ehabi
 # hack because genassym.c includes sys/bus.h which includes these.
 genassym.o: bus_if.h device_if.h
 
-SYSTEM_LD_ = ${LD} -Bdynamic -T ldscript.$M.noheader ${LDFLAGS} \
+SYSTEM_LD_ = ${LD} -Bdynamic -T ldscript.$M.noheader ${_LDFLAGS} \
 	  -warn-common -export-dynamic -dynamic-linker /red/herring -o \
 	   ${FULLKERNEL}.noheader -X ${SYSTEM_OBJS} vers.o
 SYSTEM_LD_TAIL +=;sed s/" + SIZEOF_HEADERS"// ldscript.$M\

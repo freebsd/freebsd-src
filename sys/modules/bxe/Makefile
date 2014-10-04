@@ -1,5 +1,8 @@
 # $FreeBSD$
-BXE	= ${.CURDIR}/../../dev/bxe
+
+SYSDIR	?= ${.CURDIR}/../..
+
+BXE	= ${SYSDIR}/dev/bxe
 .PATH:	${BXE}
 
 KMOD	= if_bxe
@@ -14,10 +17,5 @@ SRCS	+= bxe.c               \
            57712_init_values.c
 
 CFLAGS += -I${BXE}
-
-clean:
-	rm -f opt_bdg.h device_if.h bus_if.h pci_if.h export_syms
-	rm -f *.o *.kld *.ko
-	rm -f @ machine x86
 
 .include <bsd.kmod.mk>

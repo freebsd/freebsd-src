@@ -231,8 +231,8 @@ static boolean_t	pmap_pv_insert_section(pmap_t, vm_offset_t,
 static struct pv_entry	*pmap_remove_pv(struct vm_page *, pmap_t, vm_offset_t);
 static int		pmap_pvh_wired_mappings(struct md_page *, int);
 
-static void		pmap_enter_locked(pmap_t, vm_offset_t, vm_prot_t,
-    vm_page_t, vm_prot_t, boolean_t, int);
+static int		pmap_enter_locked(pmap_t, vm_offset_t, vm_page_t,
+    vm_prot_t, u_int);
 static vm_paddr_t	pmap_extract_locked(pmap_t pmap, vm_offset_t va);
 static void		pmap_alloc_l1(pmap_t);
 static void		pmap_free_l1(pmap_t);
@@ -2369,7 +2369,7 @@ pmap_kenter_section(vm_offset_t va, vm_offset_t pa, int flags)
  * to be used for panic dumps.
  */
 void *
-pmap_kenter_temp(vm_paddr_t pa, int i)
+pmap_kenter_temporary(vm_paddr_t pa, int i)
 {
 	vm_offset_t va;
 
@@ -2752,16 +2752,6 @@ pmap_change_attr(vm_offset_t sva, vm_size_t len, int mode)
 	offset = sva & PAGE_MASK;
 	size = roundup(offset + len, PAGE_SIZE);
 
-#ifdef checkit
-	/*
-	 * Only supported on kernel virtual addresses, including the direct
-	 * map but excluding the recursive map.
-	 */
-	if (base < DMAP_MIN_ADDRESS) {
-		PMAP_UNLOCK(kernel_pmap);
-		return (EINVAL);
-	}
-#endif
 	for (tmpva = base; tmpva < base + size; ) {
 		next_bucket = L2_NEXT_BUCKET(tmpva);
 		if (next_bucket > base + size)
@@ -2852,11 +2842,11 @@ pmap_protect(pmap_t pmap, vm_offset_t sva, vm_offset_t eva, vm_prot_t prot)
 			 * Are we protecting the entire large page? If not,
 			 * demote the mapping and fall through.
 			 */
-			if (sva + L1_S_SIZE == L2_NEXT_BUCKET(sva) &&
-			    eva >= L2_NEXT_BUCKET(sva)) {
+			if (sva + L1_S_SIZE == next_bucket &&
+			    eva >= next_bucket) {
 				l1pd &= ~(L1_S_PROT_MASK | L1_S_XN);
 				if (!(prot & VM_PROT_EXECUTE))
-					*pl1pd |= L1_S_XN;
+					l1pd |= L1_S_XN;
 				/*
 				 * At this point we are always setting
 				 * write-protect bit.
@@ -2944,35 +2934,38 @@ pmap_protect(pmap_t pmap, vm_offset_t sva, vm_offset_t eva, vm_prot_t prot)
  *	insert this page into the given map NOW.
  */
 
-void
-pmap_enter(pmap_t pmap, vm_offset_t va, vm_prot_t access, vm_page_t m,
-    vm_prot_t prot, boolean_t wired)
+int
+pmap_enter(pmap_t pmap, vm_offset_t va, vm_page_t m, vm_prot_t prot,
+    u_int flags, int8_t psind __unused)
 {
 	struct l2_bucket *l2b;
+	int rv;
 
 	rw_wlock(&pvh_global_lock);
 	PMAP_LOCK(pmap);
-	pmap_enter_locked(pmap, va, access, m, prot, wired, M_WAITOK);
-	/*
-	 * If both the l2b_occupancy and the reservation are fully
-	 * populated, then attempt promotion.
-	 */
-	l2b = pmap_get_l2_bucket(pmap, va);
-	if ((l2b != NULL) && (l2b->l2b_occupancy == L2_PTE_NUM_TOTAL) &&
-	    sp_enabled && (m->flags & PG_FICTITIOUS) == 0 &&
-	    vm_reserv_level_iffullpop(m) == 0)
-		pmap_promote_section(pmap, va);
-
+	rv = pmap_enter_locked(pmap, va, m, prot, flags);
+	if (rv == KERN_SUCCESS) {
+		/*
+		 * If both the l2b_occupancy and the reservation are fully
+		 * populated, then attempt promotion.
+		 */
+		l2b = pmap_get_l2_bucket(pmap, va);
+		if (l2b != NULL && l2b->l2b_occupancy == L2_PTE_NUM_TOTAL &&
+		    sp_enabled && (m->flags & PG_FICTITIOUS) == 0 &&
+		    vm_reserv_level_iffullpop(m) == 0)
+			pmap_promote_section(pmap, va);
+	}
 	PMAP_UNLOCK(pmap);
 	rw_wunlock(&pvh_global_lock);
+	return (rv);
 }
 
 /*
  *	The pvh global and pmap locks must be held.
  */
-static void
-pmap_enter_locked(pmap_t pmap, vm_offset_t va, vm_prot_t access, vm_page_t m,
-    vm_prot_t prot, boolean_t wired, int flags)
+static int
+pmap_enter_locked(pmap_t pmap, vm_offset_t va, vm_page_t m, vm_prot_t prot,
+    u_int flags)
 {
 	struct l2_bucket *l2b = NULL;
 	struct vm_page *om;
@@ -2990,9 +2983,8 @@ pmap_enter_locked(pmap_t pmap, vm_offset_t va, vm_prot_t access, vm_page_t m,
 		pa = systempage.pv_pa;
 		m = NULL;
 	} else {
-		KASSERT((m->oflags & VPO_UNMANAGED) != 0 ||
-		    vm_page_xbusied(m) || (flags & M_NOWAIT) != 0,
-		    ("pmap_enter_locked: page %p is not busy", m));
+		if ((m->oflags & VPO_UNMANAGED) == 0 && !vm_page_xbusied(m))
+			VM_OBJECT_ASSERT_LOCKED(m->object);
 		pa = VM_PAGE_TO_PHYS(m);
 	}
 
@@ -3013,12 +3005,12 @@ pmap_enter_locked(pmap_t pmap, vm_offset_t va, vm_prot_t access, vm_page_t m,
 
 	if (prot & VM_PROT_WRITE)
 		nflags |= PVF_WRITE;
-	if (wired)
+	if ((flags & PMAP_ENTER_WIRED) != 0)
 		nflags |= PVF_WIRED;
 
 	PDEBUG(1, printf("pmap_enter: pmap = %08x, va = %08x, m = %08x, "
-	    "prot = %x, wired = %x\n", (uint32_t) pmap, va, (uint32_t) m,
-	    prot, wired));
+	    "prot = %x, flags = %x\n", (uint32_t) pmap, va, (uint32_t) m,
+	    prot, flags));
 
 	if (pmap == pmap_kernel()) {
 		l2b = pmap_get_l2_bucket(pmap, va);
@@ -3028,7 +3020,7 @@ pmap_enter_locked(pmap_t pmap, vm_offset_t va, vm_prot_t access, vm_page_t m,
 do_l2b_alloc:
 		l2b = pmap_alloc_l2_bucket(pmap, va);
 		if (l2b == NULL) {
-			if (flags & M_WAITOK) {
+			if ((flags & PMAP_ENTER_NOSLEEP) == 0) {
 				PMAP_UNLOCK(pmap);
 				rw_wunlock(&pvh_global_lock);
 				VM_WAIT;
@@ -3036,7 +3028,7 @@ do_l2b_alloc:
 				PMAP_LOCK(pmap);
 				goto do_l2b_alloc;
 			}
-			return;
+			return (KERN_RESOURCE_SHORTAGE);
 		}
 	}
 
@@ -3195,6 +3187,7 @@ validate:
 
 	if ((pmap != pmap_kernel()) && (pmap == &curproc->p_vmspace->vm_pmap))
 		cpu_icache_sync_range(va, PAGE_SIZE);
+	return (KERN_SUCCESS);
 }
 
 /*
@@ -3216,13 +3209,12 @@ pmap_enter_object(pmap_t pmap, vm_offset_t start, vm_offset_t end,
 	vm_offset_t va;
 	vm_page_t m;
 	vm_pindex_t diff, psize;
-	vm_prot_t access;
 
 	VM_OBJECT_ASSERT_LOCKED(m_start->object);
 
 	psize = atop(end - start);
 	m = m_start;
-	access = prot = prot & (VM_PROT_READ | VM_PROT_EXECUTE);
+	prot &= VM_PROT_READ | VM_PROT_EXECUTE;
 	rw_wlock(&pvh_global_lock);
 	PMAP_LOCK(pmap);
 	while (m != NULL && (diff = m->pindex - m_start->pindex) < psize) {
@@ -3232,8 +3224,8 @@ pmap_enter_object(pmap_t pmap, vm_offset_t start, vm_offset_t end,
 		    pmap_enter_section(pmap, va, m, prot))
 			m = &m[L1_S_SIZE / PAGE_SIZE - 1];
 		else
-			pmap_enter_locked(pmap, va, access, m, prot,
-			    FALSE, M_NOWAIT);
+			pmap_enter_locked(pmap, va, m, prot,
+			    PMAP_ENTER_NOSLEEP);
 		m = TAILQ_NEXT(m, listq);
 	}
 	PMAP_UNLOCK(pmap);
@@ -3252,64 +3244,86 @@ pmap_enter_object(pmap_t pmap, vm_offset_t start, vm_offset_t end,
 void
 pmap_enter_quick(pmap_t pmap, vm_offset_t va, vm_page_t m, vm_prot_t prot)
 {
-	vm_prot_t access;
 
-	access = prot = prot & (VM_PROT_READ | VM_PROT_EXECUTE);
+	prot &= VM_PROT_READ | VM_PROT_EXECUTE;
 	rw_wlock(&pvh_global_lock);
 	PMAP_LOCK(pmap);
-	pmap_enter_locked(pmap, va, access, m, prot, FALSE, M_NOWAIT);
+	pmap_enter_locked(pmap, va, m, prot, PMAP_ENTER_NOSLEEP);
 	PMAP_UNLOCK(pmap);
 	rw_wunlock(&pvh_global_lock);
 }
 
 /*
- *	Routine:	pmap_change_wiring
- *	Function:	Change the wiring attribute for a map/virtual-address
- *			pair.
- *	In/out conditions:
- *			The mapping must already exist in the pmap.
+ *	Clear the wired attribute from the mappings for the specified range of
+ *	addresses in the given pmap.  Every valid mapping within that range
+ *	must have the wired attribute set.  In contrast, invalid mappings
+ *	cannot have the wired attribute set, so they are ignored.
+ *
+ *	XXX Wired mappings of unmanaged pages cannot be counted by this pmap
+ *	implementation.
  */
 void
-pmap_change_wiring(pmap_t pmap, vm_offset_t va, boolean_t wired)
+pmap_unwire(pmap_t pmap, vm_offset_t sva, vm_offset_t eva)
 {
 	struct l2_bucket *l2b;
 	struct md_page *pvh;
-	struct pv_entry *pve;
-	pd_entry_t *pl1pd, l1pd;
+	pd_entry_t l1pd;
 	pt_entry_t *ptep, pte;
+	pv_entry_t pv;
+	vm_offset_t next_bucket;
+	vm_paddr_t pa;
 	vm_page_t m;
-
+ 
 	rw_wlock(&pvh_global_lock);
 	PMAP_LOCK(pmap);
-	pl1pd = &pmap->pm_l1->l1_kva[L1_IDX(va)];
-	l1pd = *pl1pd;
-	if ((l1pd & L1_TYPE_MASK) == L1_S_PROTO) {
-		m = PHYS_TO_VM_PAGE(l1pd & L1_S_FRAME);
-		KASSERT((m != NULL) && ((m->oflags & VPO_UNMANAGED) == 0),
-		    ("pmap_change_wiring: unmanaged superpage should not "
-		     "be changed"));
-		KASSERT(pmap != pmap_kernel(),
-		    ("pmap_change_wiring: managed kernel superpage "
-		     "should not exist"));
-		pvh = pa_to_pvh(l1pd & L1_S_FRAME);
-		pve = pmap_find_pv(pvh, pmap, trunc_1mpage(va));
-		if (!wired != ((pve->pv_flags & PVF_WIRED) == 0)) {
-			if (!pmap_demote_section(pmap, va))
-				panic("pmap_change_wiring: demotion failed");
-		} else
-			goto out;
+	while (sva < eva) {
+		next_bucket = L2_NEXT_BUCKET(sva);
+		l1pd = pmap->pm_l1->l1_kva[L1_IDX(sva)];
+		if ((l1pd & L1_TYPE_MASK) == L1_S_PROTO) {
+			pa = l1pd & L1_S_FRAME;
+			m = PHYS_TO_VM_PAGE(pa);
+			KASSERT(m != NULL && (m->oflags & VPO_UNMANAGED) == 0,
+			    ("pmap_unwire: unmanaged 1mpage %p", m));
+			pvh = pa_to_pvh(pa);
+			pv = pmap_find_pv(pvh, pmap, trunc_1mpage(sva));
+			if ((pv->pv_flags & PVF_WIRED) == 0)
+				panic("pmap_unwire: pv %p isn't wired", pv);
+
+			/*
+			 * Are we unwiring the entire large page? If not,
+			 * demote the mapping and fall through.
+			 */
+			if (sva + L1_S_SIZE == next_bucket &&
+			    eva >= next_bucket) {
+				pv->pv_flags &= ~PVF_WIRED;
+				pmap->pm_stats.wired_count -= L2_PTE_NUM_TOTAL;
+				sva = next_bucket;
+				continue;
+			} else if (!pmap_demote_section(pmap, sva))
+				panic("pmap_unwire: demotion failed");
+		}
+		if (next_bucket > eva)
+			next_bucket = eva;
+		l2b = pmap_get_l2_bucket(pmap, sva);
+		if (l2b == NULL) {
+			sva = next_bucket;
+			continue;
+		}
+		for (ptep = &l2b->l2b_kva[l2pte_index(sva)]; sva < next_bucket;
+		    sva += PAGE_SIZE, ptep++) {
+			if ((pte = *ptep) == 0 ||
+			    (m = PHYS_TO_VM_PAGE(l2pte_pa(pte))) == NULL ||
+			    (m->oflags & VPO_UNMANAGED) != 0)
+				continue;
+			pv = pmap_find_pv(&m->md, pmap, sva);
+			if ((pv->pv_flags & PVF_WIRED) == 0)
+				panic("pmap_unwire: pv %p isn't wired", pv);
+			pv->pv_flags &= ~PVF_WIRED;
+			pmap->pm_stats.wired_count--;
+		}
 	}
-	l2b = pmap_get_l2_bucket(pmap, va);
-	KASSERT(l2b, ("No l2b bucket in pmap_change_wiring"));
-	ptep = &l2b->l2b_kva[l2pte_index(va)];
-	pte = *ptep;
-	m = PHYS_TO_VM_PAGE(l2pte_pa(pte));
-	if (m != NULL)
-		pmap_modify_pv(m, pmap, va, PVF_WIRED,
-		    wired == TRUE ? PVF_WIRED : 0);
-out:
 	rw_wunlock(&pvh_global_lock);
-	PMAP_UNLOCK(pmap);
+ 	PMAP_UNLOCK(pmap);
 }
 
 
@@ -3486,8 +3500,8 @@ pmap_pinit(pmap_t pmap)
 	pmap->pm_stats.resident_count = 1;
 	if (vector_page < KERNBASE) {
 		pmap_enter(pmap, vector_page,
-		    VM_PROT_READ, PHYS_TO_VM_PAGE(systempage.pv_pa),
-		    VM_PROT_READ, 1);
+		    PHYS_TO_VM_PAGE(systempage.pv_pa), VM_PROT_READ,
+		    PMAP_ENTER_WIRED, 0);
 	}
 	return (1);
 }
@@ -4315,7 +4329,7 @@ pmap_remove(pmap_t pmap, vm_offset_t sva, vm_offset_t eva)
 {
 	struct l2_bucket *l2b;
 	vm_offset_t next_bucket;
-	pd_entry_t *pl1pd, l1pd;
+	pd_entry_t l1pd;
 	pt_entry_t *ptep;
 	u_int total;
 	u_int mappings, is_exec, is_refd;
@@ -4330,11 +4344,12 @@ pmap_remove(pmap_t pmap, vm_offset_t sva, vm_offset_t eva)
 	PMAP_LOCK(pmap);
 	total = 0;
 	while (sva < eva) {
+		next_bucket = L2_NEXT_BUCKET(sva);
+
 		/*
 		 * Check for large page.
 		 */
-		pl1pd = &pmap->pm_l1->l1_kva[L1_IDX(sva)];
-		l1pd = *pl1pd;
+		l1pd = pmap->pm_l1->l1_kva[L1_IDX(sva)];
 		if ((l1pd & L1_TYPE_MASK) == L1_S_PROTO) {
 			KASSERT((l1pd & L1_S_DOM_MASK) !=
 			    L1_S_DOM(PMAP_DOMAIN_KERNEL), ("pmap_remove: "
@@ -4343,21 +4358,20 @@ pmap_remove(pmap_t pmap, vm_offset_t sva, vm_offset_t eva)
 			 * Are we removing the entire large page?  If not,
 			 * demote the mapping and fall through.
 			 */
-			if (sva + L1_S_SIZE == L2_NEXT_BUCKET(sva) &&
-			    eva >= L2_NEXT_BUCKET(sva)) {
+			if (sva + L1_S_SIZE == next_bucket &&
+			    eva >= next_bucket) {
 				pmap_remove_section(pmap, sva);
-				sva = L2_NEXT_BUCKET(sva);
+				sva = next_bucket;
 				continue;
 			} else if (!pmap_demote_section(pmap, sva)) {
 				/* The large page mapping was destroyed. */
-				sva = L2_NEXT_BUCKET(sva);
+				sva = next_bucket;
 				continue;
 			}
 		}
 		/*
 		 * Do one L2 bucket's worth at a time.
 		 */
-		next_bucket = L2_NEXT_BUCKET(sva);
 		if (next_bucket > eva)
 			next_bucket = eva;
 
@@ -4856,7 +4870,7 @@ pmap_advise(pmap_t pmap, vm_offset_t sva, vm_offset_t eva, int advice)
 {
 	struct l2_bucket *l2b;
 	struct pv_entry *pve;
-	pd_entry_t *pl1pd, l1pd;
+	pd_entry_t l1pd;
 	pt_entry_t *ptep, opte, pte;
 	vm_offset_t next_bucket;
 	vm_page_t m;
@@ -4869,8 +4883,7 @@ pmap_advise(pmap_t pmap, vm_offset_t sva, vm_offset_t eva, int advice)
 		next_bucket = L2_NEXT_BUCKET(sva);
 		if (next_bucket < sva)
 			next_bucket = eva;
-		pl1pd = &pmap->pm_l1->l1_kva[L1_IDX(sva)];
-		l1pd = *pl1pd;
+		l1pd = pmap->pm_l1->l1_kva[L1_IDX(sva)];
 		if ((l1pd & L1_TYPE_MASK) == L1_S_PROTO) {
 			if (pmap == pmap_kernel())
 				continue;

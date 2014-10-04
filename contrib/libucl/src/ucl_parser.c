@@ -393,9 +393,16 @@ ucl_expand_single_variable (struct ucl_parser *parser, const char *ptr,
 
 		/* Leave variable as is */
 		if (!found) {
-			memcpy (d, ptr, 2);
-			d += 2;
-			ret --;
+			if (strict) {
+				/* Copy '${' */
+				memcpy (d, ptr, 2);
+				d += 2;
+				ret --;
+			}
+			else {
+				memcpy (d, ptr, 1);
+				d ++;
+			}
 		}
 	}
 
@@ -1654,6 +1661,11 @@ ucl_state_machine (struct ucl_parser *parser)
 				return false;
 			}
 			else {
+				/* Skip any spaces */
+				while (p < chunk->end && ucl_test_character (*p,
+						UCL_CHARACTER_WHITESPACE_UNSAFE)) {
+					ucl_chunk_skipc (chunk, p);
+				}
 				p = chunk->pos;
 				if (*p == '[') {
 					parser->state = UCL_STATE_VALUE;

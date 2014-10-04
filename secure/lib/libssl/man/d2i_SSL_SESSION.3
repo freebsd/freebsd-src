@@ -124,7 +124,7 @@
 .\" ========================================================================
 .\"
 .IX Title "d2i_SSL_SESSION 3"
-.TH d2i_SSL_SESSION 3 "2014-06-05" "1.0.1h" "OpenSSL"
+.TH d2i_SSL_SESSION 3 "2014-08-06" "1.0.1i" "OpenSSL"
 .\" For nroff, turn off justification.  Always turn off hyphenation; it makes
 .\" way too many mistakes in technical documents.
 .if n .ad l
@@ -175,6 +175,16 @@ known limit on the size of the created \s-1ASN1\s0 representation, so the necess
 amount of space should be obtained by first calling \fIi2d_SSL_SESSION()\fR with
 \&\fBpp=NULL\fR, and obtain the size needed, then allocate the memory and
 call \fIi2d_SSL_SESSION()\fR again.
+Note that this will advance the value contained in \fB*pp\fR so it is necessary
+to save a copy of the original allocation.
+For example:
+ int i,j;
+ char *p, *temp;
+ i = i2d_SSL_SESSION(sess, \s-1NULL\s0);
+ p = temp = malloc(i);
+ j = i2d_SSL_SESSION(sess, &temp);
+ assert(i == j);
+ assert(p+i == temp);
 .SH "RETURN VALUES"
 .IX Header "RETURN VALUES"
 \&\fId2i_SSL_SESSION()\fR returns a pointer to the newly allocated \s-1SSL_SESSION\s0

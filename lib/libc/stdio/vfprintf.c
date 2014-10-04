@@ -455,8 +455,10 @@ __vfprintf(FILE *fp, locale_t locale, const char *fmt0, va_list ap)
 		return (__xvprintf(fp, fmt0, ap));
 
 	/* sorry, fprintf(read_only_file, "") returns EOF, not 0 */
-	if (prepwrite(fp) != 0)
+	if (prepwrite(fp) != 0) {
+		errno = EBADF;
 		return (EOF);
+	}
 
 	convbuf = NULL;
 	fmt = (char *)fmt0;

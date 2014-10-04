@@ -14,6 +14,4 @@ DPADD+= ${LIBEVENT}
 
 WARNS?=	3
 
-NO_PIE=	yes
-
 .include <bsd.prog.mk>

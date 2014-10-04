@@ -250,9 +250,9 @@ bad:            m_freem (m);
 
 	switch (proto) {
 	default:
-		++ifp->if_noproto;
-drop:		++ifp->if_ierrors;
-		++ifp->if_iqdrops;
+		if_inc_counter(ifp, IFCOUNTER_NOPROTO, 1);
+drop:		if_inc_counter(ifp, IFCOUNTER_IERRORS, 1);
+		if_inc_counter(ifp, IFCOUNTER_IQDROPS, 1);
 		m_freem (m);
 		return;
 #ifdef INET
@@ -394,7 +394,7 @@ void sppp_fr_keepalive (struct sppp *sp)
 			(u_char) sp->pp_rseq[IDX_LCP]);
 
 	if (! IF_HANDOFF_ADJ(&sp->pp_cpq, m, ifp, 3))
-		++ifp->if_oerrors;
+		if_inc_counter(ifp, IFCOUNTER_OERRORS, 1);
 }
 
 /*
@@ -508,7 +508,7 @@ static void sppp_fr_arp (struct sppp *sp, struct arp_req *req,
 	reply->ptarget2 = htonl (his_ip_address) >> 16;
 
 	if (! IF_HANDOFF_ADJ(&sp->pp_cpq, m, ifp, 3))
-		++ifp->if_oerrors;
+		if_inc_counter(ifp, IFCOUNTER_OERRORS, 1);
 }
 
 /*

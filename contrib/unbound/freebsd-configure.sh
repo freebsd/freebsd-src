@@ -32,13 +32,6 @@ autoheader
 	--with-run-dir=/var/unbound \
 	--with-username=unbound
 
-# Regenerate the configuration parser
-{
-cat <<EOF
-#include "config.h"
-#include "util/configyyrename.h"
-EOF
-/usr/bin/flex -L -t util/configlexer.lex
-} >util/configlexer.c
-
-/usr/bin/yacc -d -o util/configparser.c util/configparser.y
+# Don't try to provide bogus memory usage statistics based on sbrk(2).
+sed -n -i.orig -e '/HAVE_SBRK/!p' config.status
+./config.status config.h

@@ -42,6 +42,8 @@ elif [ -r /etc/rc.conf ]; then
 	. /etc/rc.conf 2>/dev/null
 fi
 
+[ $(/sbin/sysctl -n security.jail.jailed) = 0 ] || exit 0
+
 case ${entropy_dir} in
 [Nn][Oo])
 	exit 0

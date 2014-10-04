@@ -1,4 +1,4 @@
-/*	$NetBSD: fparseln.c,v 1.9 1999/09/20 04:48:06 lukem Exp $	*/
+/*	$NetBSD: fparseln.c,v 1.7 2007/03/08 19:57:53 drochner Exp $	*/
 
 /*
  * Copyright (c) 1997 Christos Zoulas.  All rights reserved.
@@ -59,7 +59,7 @@ isescaped(const char *sp, const char *p, int esc)
 
 	/* No escape character */
 	if (esc == '\0')
-		return 1;
+		return 0;
 
 	/* Count the number of escape characters that precede ours */
 	for (ne = 0, cp = p; --cp >= sp && *cp == esc; ne++)
@@ -135,13 +135,19 @@ fparseln(FILE *fp, size_t *size, size_t *lineno, const char str[3], int flags)
 			cp = &ptr[s - 1];
 
 			if (*cp == con && !isescaped(ptr, cp, esc)) {
-				s--;	/* forget escape */
+				s--;	/* forget continuation char */
 				cnt = 1;
 			}
 		}
 
-		if (s == 0 && buf != NULL)
-			continue;
+		if (s == 0) {
+			/*
+			 * nothing to add, skip realloc except in case
+			 * we need a minimal buf to return an empty line
+			 */
+			if (cnt || buf != NULL)
+				continue;
+		}
 
 		if ((cp = realloc(buf, len + s + 1)) == NULL) {
 			free(buf);

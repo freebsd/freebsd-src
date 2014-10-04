@@ -261,11 +261,6 @@ die()
 	exit 1
 }
 
-create_amd64_diskimage()
-{
-	create_i386_diskimage "$*"
-}
-
 # Automatically include the packaging port here so it is always first so it
 # builds the port and adds the package so we can add other packages.
 add_port ports-mgmt/pkg

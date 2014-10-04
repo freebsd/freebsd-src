@@ -76,7 +76,7 @@ VNET_PCPUSTAT_DECLARE(struct pfkeystat, pfkeystat);
     VNET_PCPUSTAT_ADD(struct pfkeystat, pfkeystat, name, (val))
 #define	PFKEYSTAT_INC(name)		PFKEYSTAT_ADD(name, 1)
 
-extern int key_output(struct mbuf *m, struct socket *so);
+extern int key_output(struct mbuf *m, struct socket *so, ...);
 extern int key_usrreq __P((struct socket *,
 	int, struct mbuf *, struct mbuf *, struct mbuf *));
 

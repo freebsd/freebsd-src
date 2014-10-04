@@ -43,8 +43,6 @@ __FBSDID("$FreeBSD$");
 #include <machine/machdep.h>
 #include <machine/platform.h> 
 
-#include <dev/fdt/fdt_common.h>
-
 vm_offset_t
 platform_lastaddr(void)
 {

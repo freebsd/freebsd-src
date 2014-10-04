@@ -390,6 +390,11 @@ SYSCTL_PROC(_vm_pmap, OID_AUTO, pcid_save_cnt, CTLTYPE_U64 | CTLFLAG_RW |
     CTLFLAG_MPSAFE, NULL, 0, pmap_pcid_save_cnt_proc, "QU",
     "Count of saved TLB context on switch");
 
+/* pmap_copy_pages() over non-DMAP */
+static struct mtx cpage_lock;
+static vm_offset_t cpage_a;
+static vm_offset_t cpage_b;
+
 /*
  * Crashdump maps.
  */
@@ -826,7 +831,7 @@ pmap_bootstrap(vm_paddr_t *firstaddr)
 
 
 	/* XXX do %cr0 as well */
-	load_cr4(rcr4() | CR4_PGE | CR4_PSE);
+	load_cr4(rcr4() | CR4_PGE);
 	load_cr3(KPML4phys);
 	if (cpu_stdext_feature & CPUID_STDEXT_SMEP)
 		load_cr4(rcr4() | CR4_SMEP);
@@ -1055,6 +1060,10 @@ pmap_init(void)
 	    M_WAITOK | M_ZERO);
 	for (i = 0; i < pv_npg; i++)
 		TAILQ_INIT(&pv_table[i].pv_list);
+
+	mtx_init(&cpage_lock, "cpage", NULL, MTX_DEF);
+	cpage_a = kva_alloc(PAGE_SIZE);
+	cpage_b = kva_alloc(PAGE_SIZE);
 }
 
 static SYSCTL_NODE(_vm_pmap, OID_AUTO, pde, CTLFLAG_RD, 0,
@@ -2562,7 +2571,7 @@ pmap_growkernel(vm_offset_t addr)
 	 * "kernel_vm_end" and the kernel page table as they were.
 	 *
 	 * The correctness of this action is based on the following
-	 * argument: vm_map_findspace() allocates contiguous ranges of the
+	 * argument: vm_map_insert() allocates contiguous ranges of the
 	 * kernel virtual address space.  It calls this function if a range
 	 * ends after "kernel_vm_end".  If the kernel is mapped between
 	 * "kernel_vm_end" and "addr", then the range cannot begin at
@@ -3836,7 +3845,8 @@ pmap_protect(pmap_t pmap, vm_offset_t sva, vm_offset_t eva, vm_prot_t prot)
 	pt_entry_t *pte, PG_G, PG_M, PG_RW, PG_V;
 	boolean_t anychanged, pv_lists_locked;
 
-	if ((prot & VM_PROT_READ) == VM_PROT_NONE) {
+	KASSERT((prot & ~VM_PROT_ALL) == 0, ("invalid prot %x", prot));
+	if (prot == VM_PROT_NONE) {
 		pmap_remove(pmap, sva, eva);
 		return;
 	}
@@ -4107,9 +4117,9 @@ setpte:
  *	or lose information.  That is, this routine must actually
  *	insert this page into the given map NOW.
  */
-void
-pmap_enter(pmap_t pmap, vm_offset_t va, vm_prot_t access, vm_page_t m,
-    vm_prot_t prot, boolean_t wired)
+int
+pmap_enter(pmap_t pmap, vm_offset_t va, vm_page_t m, vm_prot_t prot,
+    u_int flags, int8_t psind __unused)
 {
 	struct rwlock *lock;
 	pd_entry_t *pde;
@@ -4118,6 +4128,7 @@ pmap_enter(pmap_t pmap, vm_offset_t va, vm_prot_t access, vm_page_t m,
 	pv_entry_t pv;
 	vm_paddr_t opa, pa;
 	vm_page_t mpte, om;
+	boolean_t nosleep;
 
 	PG_A = pmap_accessed_bit(pmap);
 	PG_G = pmap_global_bit(pmap);
@@ -4134,18 +4145,18 @@ pmap_enter(pmap_t pmap, vm_offset_t va, vm_prot_t access, vm_page_t m,
 	    va >= kmi.clean_eva,
 	    ("pmap_enter: managed mapping within the clean submap"));
 	if ((m->oflags & VPO_UNMANAGED) == 0 && !vm_page_xbusied(m))
-		VM_OBJECT_ASSERT_WLOCKED(m->object);
+		VM_OBJECT_ASSERT_LOCKED(m->object);
 	pa = VM_PAGE_TO_PHYS(m);
 	newpte = (pt_entry_t)(pa | PG_A | PG_V);
-	if ((access & VM_PROT_WRITE) != 0)
+	if ((flags & VM_PROT_WRITE) != 0)
 		newpte |= PG_M;
 	if ((prot & VM_PROT_WRITE) != 0)
 		newpte |= PG_RW;
 	KASSERT((newpte & (PG_M | PG_RW)) != PG_M,
-	    ("pmap_enter: access includes VM_PROT_WRITE but prot doesn't"));
+	    ("pmap_enter: flags includes VM_PROT_WRITE but prot doesn't"));
 	if ((prot & VM_PROT_EXECUTE) == 0)
 		newpte |= pg_nx;
-	if (wired)
+	if ((flags & PMAP_ENTER_WIRED) != 0)
 		newpte |= PG_W;
 	if (va < VM_MAXUSER_ADDRESS)
 		newpte |= PG_U;
@@ -4187,7 +4198,16 @@ retry:
 		 * Here if the pte page isn't mapped, or if it has been
 		 * deallocated.
 		 */
-		mpte = _pmap_allocpte(pmap, pmap_pde_pindex(va), &lock);
+		nosleep = (flags & PMAP_ENTER_NOSLEEP) != 0;
+		mpte = _pmap_allocpte(pmap, pmap_pde_pindex(va),
+		    nosleep ? NULL : &lock);
+		if (mpte == NULL && nosleep) {
+			if (lock != NULL)
+				rw_wunlock(lock);
+			rw_runlock(&pvh_global_lock);
+			PMAP_UNLOCK(pmap);
+			return (KERN_RESOURCE_SHORTAGE);
+		}
 		goto retry;
 	} else
 		panic("pmap_enter: invalid page directory va=%#lx", va);
@@ -4319,6 +4339,7 @@ unchanged:
 		rw_wunlock(lock);
 	rw_runlock(&pvh_global_lock);
 	PMAP_UNLOCK(pmap);
+	return (KERN_SUCCESS);
 }
 
 /*
@@ -4684,58 +4705,6 @@ pmap_object_init_pt(pmap_t pmap, vm_offset_t addr, vm_object_t object,
 }
 
 /*
- *	Routine:	pmap_change_wiring
- *	Function:	Change the wiring attribute for a map/virtual-address
- *			pair.
- *	In/out conditions:
- *			The mapping must already exist in the pmap.
- */
-void
-pmap_change_wiring(pmap_t pmap, vm_offset_t va, boolean_t wired)
-{
-	pd_entry_t *pde;
-	pt_entry_t *pte;
-	boolean_t pv_lists_locked;
-
-	pv_lists_locked = FALSE;
-
-	/*
-	 * Wiring is not a hardware characteristic so there is no need to
-	 * invalidate TLB.
-	 */
-retry:
-	PMAP_LOCK(pmap);
-	pde = pmap_pde(pmap, va);
-	if ((*pde & PG_PS) != 0) {
-		if (!wired != ((*pde & PG_W) == 0)) {
-			if (!pv_lists_locked) {
-				pv_lists_locked = TRUE;
-				if (!rw_try_rlock(&pvh_global_lock)) {
-					PMAP_UNLOCK(pmap);
-					rw_rlock(&pvh_global_lock);
-					goto retry;
-				}
-			}
-			if (!pmap_demote_pde(pmap, pde, va))
-				panic("pmap_change_wiring: demotion failed");
-		} else
-			goto out;
-	}
-	pte = pmap_pde_to_pte(pde, va);
-	if (wired && (*pte & PG_W) == 0) {
-		pmap->pm_stats.wired_count++;
-		atomic_set_long(pte, PG_W);
-	} else if (!wired && (*pte & PG_W) != 0) {
-		pmap->pm_stats.wired_count--;
-		atomic_clear_long(pte, PG_W);
-	}
-out:
-	if (pv_lists_locked)
-		rw_runlock(&pvh_global_lock);
-	PMAP_UNLOCK(pmap);
-}
-
-/*
  *	Clear the wired attribute from the mappings for the specified range of
  *	addresses in the given pmap.  Every valid mapping within that range
  *	must have the wired attribute set.  In contrast, invalid mappings
@@ -5064,19 +5033,66 @@ pmap_copy_pages(vm_page_t ma[], vm_offset_t a_offset, vm_page_t mb[],
     vm_offset_t b_offset, int xfersize)
 {
 	void *a_cp, *b_cp;
+	vm_page_t m_a, m_b;
+	vm_paddr_t p_a, p_b;
+	pt_entry_t *pte;
 	vm_offset_t a_pg_offset, b_pg_offset;
 	int cnt;
+	boolean_t pinned;
 
+	/*
+	 * NB:  The sequence of updating a page table followed by accesses
+	 * to the corresponding pages used in the !DMAP case is subject to
+	 * the situation described in the "AMD64 Architecture Programmer's
+	 * Manual Volume 2: System Programming" rev. 3.23, "7.3.1 Special
+	 * Coherency Considerations".  Therefore, issuing the INVLPG right
+	 * after modifying the PTE bits is crucial.
+	 */
+	pinned = FALSE;
 	while (xfersize > 0) {
 		a_pg_offset = a_offset & PAGE_MASK;
-		cnt = min(xfersize, PAGE_SIZE - a_pg_offset);
-		a_cp = (char *)PHYS_TO_DMAP(ma[a_offset >> PAGE_SHIFT]->
-		    phys_addr) + a_pg_offset;
+		m_a = ma[a_offset >> PAGE_SHIFT];
+		p_a = m_a->phys_addr;
 		b_pg_offset = b_offset & PAGE_MASK;
+		m_b = mb[b_offset >> PAGE_SHIFT];
+		p_b = m_b->phys_addr;
+		cnt = min(xfersize, PAGE_SIZE - a_pg_offset);
 		cnt = min(cnt, PAGE_SIZE - b_pg_offset);
-		b_cp = (char *)PHYS_TO_DMAP(mb[b_offset >> PAGE_SHIFT]->
-		    phys_addr) + b_pg_offset;
+		if (__predict_false(p_a < DMAP_MIN_ADDRESS ||
+		    p_a > DMAP_MIN_ADDRESS + dmaplimit)) {
+			mtx_lock(&cpage_lock);
+			sched_pin();
+			pinned = TRUE;
+			pte = vtopte(cpage_a);
+			*pte = p_a | X86_PG_A | X86_PG_V |
+			    pmap_cache_bits(kernel_pmap, m_a->md.pat_mode, 0);
+			invlpg(cpage_a);
+			a_cp = (char *)cpage_a + a_pg_offset;
+		} else {
+			a_cp = (char *)PHYS_TO_DMAP(p_a) + a_pg_offset;
+		}
+		if (__predict_false(p_b < DMAP_MIN_ADDRESS ||
+		    p_b > DMAP_MIN_ADDRESS + dmaplimit)) {
+			if (!pinned) {
+				mtx_lock(&cpage_lock);
+				sched_pin();
+				pinned = TRUE;
+			}
+			pte = vtopte(cpage_b);
+			*pte = p_b | X86_PG_A | X86_PG_M | X86_PG_RW |
+			    X86_PG_V | pmap_cache_bits(kernel_pmap,
+			    m_b->md.pat_mode, 0);
+			invlpg(cpage_b);
+			b_cp = (char *)cpage_b + b_pg_offset;
+		} else {
+			b_cp = (char *)PHYS_TO_DMAP(p_b) + b_pg_offset;
+		}
 		bcopy(a_cp, b_cp, cnt);
+		if (__predict_false(pinned)) {
+			sched_unpin();
+			mtx_unlock(&cpage_lock);
+			pinned = FALSE;
+		}
 		a_offset += cnt;
 		b_offset += cnt;
 		xfersize -= cnt;

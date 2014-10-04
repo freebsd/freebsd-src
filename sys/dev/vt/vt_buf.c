@@ -76,44 +76,47 @@ vthistory_seek(struct vt_buf *vb, int offset, int whence)
 		}
 		return (0); /* No changes */
 	}
-	top = (vb->vb_flags & VBF_HISTORY_FULL)?
-	    (vb->vb_curroffset + vb->vb_scr_size.tp_row):vb->vb_history_size;
-	bottom = vb->vb_curroffset + vb->vb_history_size;
 
-	/*
-	 * Operate on copy of offset value, since it temporary can be bigger
-	 * than amount of rows in buffer.
-	 */
-	roffset = vb->vb_roffset + vb->vb_history_size;
+	/* "top" may be a negative integer. */
+	bottom = vb->vb_curroffset;
+	top = (vb->vb_flags & VBF_HISTORY_FULL) ?
+	    bottom + vb->vb_scr_size.tp_row - vb->vb_history_size :
+	    0;
+
+	roffset = 0; /* Make gcc happy. */
 	switch (whence) {
 	case VHS_SET:
-		roffset = offset + vb->vb_history_size;
+		if (offset < 0)
+			offset = 0;
+		roffset = top + offset;
 		break;
 	case VHS_CUR:
+		/*
+		 * Operate on copy of offset value, since it temporary
+		 * can be bigger than amount of rows in buffer.
+		 */
+		roffset = vb->vb_roffset;
+		if (roffset >= bottom + vb->vb_scr_size.tp_row)
+			roffset -= vb->vb_history_size;
+
 		roffset += offset;
+		roffset = MAX(roffset, top);
+		roffset = MIN(roffset, bottom);
+
+		if (roffset < 0)
+			roffset = vb->vb_history_size + roffset;
+
 		break;
 	case VHS_END:
 		/* Go to current offset. */
-		roffset = vb->vb_curroffset + vb->vb_history_size;
+		roffset = vb->vb_curroffset;
 		break;
 	}
 
-	roffset = (roffset < top)?top:roffset;
-	roffset = (roffset > bottom)?bottom:roffset;
+	diff = vb->vb_roffset != roffset;
+	vb->vb_roffset = roffset;
 
-	roffset %= vb->vb_history_size;
-
-	if (vb->vb_roffset != roffset) {
-		diff = vb->vb_roffset - roffset;
-		vb->vb_roffset = roffset;
-		/*
-		 * Offset changed, please update Nth lines on sceen.
-		 * +N - Nth lines at top;
-		 * -N - Nth lines at bottom.
-		 */
-		return (diff);
-	}
-	return (0); /* No changes */
+	return (diff);
 }
 
 void
@@ -123,6 +126,8 @@ vthistory_addlines(struct vt_buf *vb, int offset)
 	vb->vb_curroffset += offset;
 	if (vb->vb_curroffset < 0)
 		vb->vb_curroffset = 0;
+	if (vb->vb_curroffset + vb->vb_scr_size.tp_row >= vb->vb_history_size)
+		vb->vb_flags |= VBF_HISTORY_FULL;
 	vb->vb_curroffset %= vb->vb_history_size;
 	if ((vb->vb_flags & VBF_SCROLL) == 0) {
 		vb->vb_roffset = vb->vb_curroffset;
@@ -148,7 +153,7 @@ vtbuf_wth(struct vt_buf *vb, int row)
 
 /* Translate history row to current view row number. */
 static int
-vtbuf_htw(struct vt_buf *vb, int row)
+vtbuf_htw(const struct vt_buf *vb, int row)
 {
 
 	/*
@@ -162,7 +167,7 @@ vtbuf_htw(struct vt_buf *vb, int row)
 }
 
 int
-vtbuf_iscursor(struct vt_buf *vb, int row, int col)
+vtbuf_iscursor(const struct vt_buf *vb, int row, int col)
 {
 	int sc, sr, ec, er, tmp;
 
@@ -195,44 +200,10 @@ vtbuf_iscursor(struct vt_buf *vb, int row, int col)
 	return (0);
 }
 
-static inline uint64_t
-vtbuf_dirty_axis(unsigned int begin, unsigned int end)
-{
-	uint64_t left, right, mask;
-
-	/*
-	 * Mark all bits between begin % 64 and end % 64 dirty.
-	 * This code is functionally equivalent to:
-	 *
-	 * 	for (i = begin; i < end; i++)
-	 * 		mask |= (uint64_t)1 << (i % 64);
-	 */
-
-	/* Obvious case. Mark everything dirty. */
-	if (end - begin >= 64)
-		return (VBM_DIRTY);
-
-	/* 1....0; used bits on the left. */
-	left = VBM_DIRTY << begin % 64;
-	/* 0....1; used bits on the right. */
-	right = VBM_DIRTY >> -end % 64;
-
-	/*
-	 * Only take the intersection.  If the result of that is 0, it
-	 * means that the selection crossed a 64 bit boundary along the
-	 * way, which means we have to take the complement.
-	 */
-	mask = left & right;
-	if (mask == 0)
-		mask = left | right;
-	return (mask);
-}
-
 static inline void
-vtbuf_dirty(struct vt_buf *vb, const term_rect_t *area)
+vtbuf_dirty_locked(struct vt_buf *vb, const term_rect_t *area)
 {
 
-	VTBUF_LOCK(vb);
 	if (vb->vb_dirtyrect.tr_begin.tp_row > area->tr_begin.tp_row)
 		vb->vb_dirtyrect.tr_begin.tp_row = area->tr_begin.tp_row;
 	if (vb->vb_dirtyrect.tr_begin.tp_col > area->tr_begin.tp_col)
@@ -241,22 +212,26 @@ vtbuf_dirty(struct vt_buf *vb, const term_rect_t *area)
 		vb->vb_dirtyrect.tr_end.tp_row = area->tr_end.tp_row;
 	if (vb->vb_dirtyrect.tr_end.tp_col < area->tr_end.tp_col)
 		vb->vb_dirtyrect.tr_end.tp_col = area->tr_end.tp_col;
-	vb->vb_dirtymask.vbm_row |=
-	    vtbuf_dirty_axis(area->tr_begin.tp_row, area->tr_end.tp_row);
-	vb->vb_dirtymask.vbm_col |=
-	    vtbuf_dirty_axis(area->tr_begin.tp_col, area->tr_end.tp_col);
+}
+
+void
+vtbuf_dirty(struct vt_buf *vb, const term_rect_t *area)
+{
+
+	VTBUF_LOCK(vb);
+	vtbuf_dirty_locked(vb, area);
 	VTBUF_UNLOCK(vb);
 }
 
 static inline void
-vtbuf_dirty_cell(struct vt_buf *vb, const term_pos_t *p)
+vtbuf_dirty_cell_locked(struct vt_buf *vb, const term_pos_t *p)
 {
 	term_rect_t area;
 
 	area.tr_begin = *p;
 	area.tr_end.tp_row = p->tp_row + 1;
 	area.tr_end.tp_col = p->tp_col + 1;
-	vtbuf_dirty(vb, &area);
+	vtbuf_dirty_locked(vb, &area);
 }
 
 static void
@@ -265,16 +240,14 @@ vtbuf_make_undirty(struct vt_buf *vb)
 
 	vb->vb_dirtyrect.tr_begin = vb->vb_scr_size;
 	vb->vb_dirtyrect.tr_end.tp_row = vb->vb_dirtyrect.tr_end.tp_col = 0;
-	vb->vb_dirtymask.vbm_row = vb->vb_dirtymask.vbm_col = 0;
 }
 
 void
-vtbuf_undirty(struct vt_buf *vb, term_rect_t *r, struct vt_bufmask *m)
+vtbuf_undirty(struct vt_buf *vb, term_rect_t *r)
 {
 
 	VTBUF_LOCK(vb);
 	*r = vb->vb_dirtyrect;
-	*m = vb->vb_dirtymask;
 	vtbuf_make_undirty(vb);
 	VTBUF_UNLOCK(vb);
 }
@@ -314,7 +287,7 @@ vtbuf_copy(struct vt_buf *vb, const term_rect_t *r, const term_pos_t *p2)
 	if (r->tr_begin.tp_row > p2->tp_row && r->tr_begin.tp_col == 0 &&
 	    r->tr_end.tp_col == vb->vb_scr_size.tp_col && /* Full row. */
 	    (rows + rdiff) == vb->vb_scr_size.tp_row && /* Whole screen. */
-	    rdiff > 0) { /* Only forward dirrection. Do not eat history. */
+	    rdiff > 0) { /* Only forward direction. Do not eat history. */
 		vthistory_addlines(vb, rdiff);
 	} else if (p2->tp_row < p1->tp_row) {
 		/* Handle overlapping copies of line segments. */
@@ -373,9 +346,8 @@ vtbuf_fill_locked(struct vt_buf *vb, const term_rect_t *r, term_char_t c)
 
 	VTBUF_LOCK(vb);
 	vtbuf_fill(vb, r, c);
+	vtbuf_dirty_locked(vb, r);
 	VTBUF_UNLOCK(vb);
-
-	vtbuf_dirty(vb, r);
 }
 
 static void
@@ -404,9 +376,9 @@ vtbuf_init_early(struct vt_buf *vb)
 
 	vtbuf_init_rows(vb);
 	rect.tr_begin.tp_row = rect.tr_begin.tp_col = 0;
-	rect.tr_end = vb->vb_scr_size;
-	vtbuf_fill(vb, &rect, VTBUF_SPACE_CHAR((boothowto & RB_MUTE) == 0 ?
-	    TERMINAL_KERN_ATTR : TERMINAL_NORM_ATTR));
+	rect.tr_end.tp_col = vb->vb_scr_size.tp_col;
+	rect.tr_end.tp_row = vb->vb_history_size;
+	vtbuf_fill(vb, &rect, VTBUF_SPACE_CHAR(TERMINAL_NORM_ATTR));
 	vtbuf_make_undirty(vb);
 	if ((vb->vb_flags & VBF_MTX_INIT) == 0) {
 		mtx_init(&vb->vb_lock, "vtbuf", NULL, MTX_SPIN);
@@ -445,73 +417,157 @@ vtbuf_sethistory_size(struct vt_buf *vb, int size)
 }
 
 void
-vtbuf_grow(struct vt_buf *vb, const term_pos_t *p, int history_size)
+vtbuf_grow(struct vt_buf *vb, const term_pos_t *p, unsigned int history_size)
 {
-	term_char_t *old, *new, **rows, **oldrows, **copyrows, *row;
-	int bufsize, rowssize, w, h, c, r;
+	term_char_t *old, *new, **rows, **oldrows, **copyrows, *row, *oldrow;
+	int bufsize, rowssize, w, h, c, r, history_was_full;
+	unsigned int old_history_size;
 	term_rect_t rect;
 
 	history_size = MAX(history_size, p->tp_row);
 
-	/* If new screen/history size bigger or buffer is VBF_STATIC. */
-	if ((history_size > vb->vb_history_size) || (p->tp_col >
-	    vb->vb_scr_size.tp_col) || (vb->vb_flags & VBF_STATIC)) {
-		/* Allocate new buffer. */
-		bufsize = history_size * p->tp_col * sizeof(term_char_t);
-		new = malloc(bufsize, M_VTBUF, M_WAITOK | M_ZERO);
-		rowssize = history_size * sizeof(term_pos_t *);
-		rows = malloc(rowssize, M_VTBUF, M_WAITOK | M_ZERO);
+	/* Allocate new buffer. */
+	bufsize = history_size * p->tp_col * sizeof(term_char_t);
+	new = malloc(bufsize, M_VTBUF, M_WAITOK | M_ZERO);
+	rowssize = history_size * sizeof(term_pos_t *);
+	rows = malloc(rowssize, M_VTBUF, M_WAITOK | M_ZERO);
 
-		/* Toggle it. */
-		VTBUF_LOCK(vb);
-		old = vb->vb_flags & VBF_STATIC ? NULL : vb->vb_buffer;
-		oldrows = vb->vb_flags & VBF_STATIC ? NULL : vb->vb_rows;
-		copyrows = vb->vb_rows;
-		w = vb->vb_scr_size.tp_col;
-		h = vb->vb_history_size;
+	/* Toggle it. */
+	VTBUF_LOCK(vb);
+	old = vb->vb_flags & VBF_STATIC ? NULL : vb->vb_buffer;
+	oldrows = vb->vb_flags & VBF_STATIC ? NULL : vb->vb_rows;
+	copyrows = vb->vb_rows;
 
-		vb->vb_history_size = history_size;
-		vb->vb_buffer = new;
-		vb->vb_rows = rows;
-		vb->vb_flags &= ~VBF_STATIC;
-		vb->vb_scr_size = *p;
-		vtbuf_init_rows(vb);
+	w = vb->vb_scr_size.tp_col;
+	h = vb->vb_scr_size.tp_row;
+	old_history_size = vb->vb_history_size;
+	history_was_full = vb->vb_flags & VBF_HISTORY_FULL;
 
-		/* Copy history and fill extra space. */
-		for (r = 0; r < history_size; r ++) {
+	vb->vb_history_size = history_size;
+	vb->vb_buffer = new;
+	vb->vb_rows = rows;
+	vb->vb_flags &= ~VBF_STATIC;
+	vb->vb_scr_size = *p;
+	vtbuf_init_rows(vb);
+
+	/* Copy history and fill extra space if needed. */
+	if (history_size > old_history_size) {
+		/*
+		 * Copy rows to the new buffer. The first row in the history
+		 * is back to index 0, ie. the new buffer doesn't cycle.
+		 *
+		 * The rest of the new buffer is initialized with blank
+		 * content.
+		 */
+		for (r = 0; r < old_history_size; r ++) {
+			row = rows[r];
+
+			/* Compute the corresponding row in the old buffer. */
+			if (history_was_full)
+				/*
+				 * The buffer is full, the "top" row is
+				 * the one just after the viewable area
+				 * (curroffset + viewable height) in the
+				 * cycling buffer. The corresponding row
+				 * is computed from this top row.
+				 */
+				oldrow = copyrows[
+				    (vb->vb_curroffset + h + r) %
+				    old_history_size];
+			else
+				/*
+				 * The buffer is not full, therefore,
+				 * we didn't cycle already. The
+				 * corresponding rows are the same in
+				 * both buffers.
+				 */
+				oldrow = copyrows[r];
+
+			memmove(row, oldrow,
+			    MIN(p->tp_col, w) * sizeof(term_char_t));
+
 			/*
 			 * XXX VTBUF_SPACE_CHAR(TERMINAL_NORM_ATTR) will
 			 * extended lines of kernel text using the wrong
 			 * background color.
 			 */
-			row = rows[r];
-			if (r < h) { /* Copy. */
-				memmove(rows[r], copyrows[r],
-				    MIN(p->tp_col, w) * sizeof(term_char_t));
-				for (c = MIN(p->tp_col, w); c < p->tp_col;
-				    c++) {
-					row[c] = VTBUF_SPACE_CHAR(
-					    TERMINAL_NORM_ATTR);
-				}
-			} else { /* Just fill. */
-				rect.tr_begin.tp_col = 0;
-				rect.tr_begin.tp_row = r;
-				rect.tr_end.tp_col = p->tp_col;
-				rect.tr_end.tp_row = p->tp_row;
-				vtbuf_fill(vb, &rect,
-				    VTBUF_SPACE_CHAR(TERMINAL_NORM_ATTR));
-				break;
+			for (c = MIN(p->tp_col, w); c < p->tp_col; c++) {
+				row[c] = VTBUF_SPACE_CHAR(TERMINAL_NORM_ATTR);
 			}
 		}
-		vtbuf_make_undirty(vb);
-		VTBUF_UNLOCK(vb);
-		/* Deallocate old buffer. */
-		free(old, M_VTBUF);
-		free(oldrows, M_VTBUF);
+
+		/* Fill remaining rows. */
+		rect.tr_begin.tp_col = 0;
+		rect.tr_begin.tp_row = old_history_size;
+		rect.tr_end.tp_col = p->tp_col;
+		rect.tr_end.tp_row = p->tp_row;
+		vtbuf_fill(vb, &rect, VTBUF_SPACE_CHAR(TERMINAL_NORM_ATTR));
+
+		vb->vb_flags &= ~VBF_HISTORY_FULL;
 	} else {
-		/* Just update the size. */
-		vb->vb_scr_size = *p;
+		/*
+		 * Copy rows to the new buffer. The first row in the history
+		 * is back to index 0, ie. the new buffer doesn't cycle.
+		 *
+		 * (old_history_size - history_size) lines of history are
+		 * dropped.
+		 */
+		for (r = 0; r < history_size; r ++) {
+			row = rows[r];
+
+			/*
+			 * Compute the corresponding row in the old buffer.
+			 *
+			 * See the equivalent if{} block above for an
+			 * explanation.
+			 */
+			if (history_was_full)
+				oldrow = copyrows[
+				    (vb->vb_curroffset + h + r +
+				     (old_history_size - history_size)) %
+				    old_history_size];
+			else
+				oldrow = copyrows[
+				    (r + (old_history_size - history_size)) %
+				    old_history_size];
+
+			memmove(row, oldrow,
+			    MIN(p->tp_col, w) * sizeof(term_char_t));
+
+			/*
+			 * XXX VTBUF_SPACE_CHAR(TERMINAL_NORM_ATTR) will
+			 * extended lines of kernel text using the wrong
+			 * background color.
+			 */
+			for (c = MIN(p->tp_col, w); c < p->tp_col; c++) {
+				row[c] = VTBUF_SPACE_CHAR(TERMINAL_NORM_ATTR);
+			}
+		}
+
+		if (!history_was_full &&
+		    (vb->vb_curroffset + h) >= history_size)
+			vb->vb_flags |= VBF_HISTORY_FULL;
 	}
+
+	/*
+	 * If the screen is already filled (there are non-visible lines
+	 * above the current viewable area), adjust curroffset to the
+	 * new viewable area.
+	 */
+	if (!history_was_full && vb->vb_curroffset > 0) {
+		vb->vb_curroffset = vb->vb_curroffset + h - p->tp_row;
+		if (vb->vb_curroffset < 0)
+			vb->vb_curroffset += vb->vb_history_size;
+		vb->vb_curroffset %= vb->vb_history_size;
+		vb->vb_roffset = vb->vb_curroffset;
+	}
+
+	vtbuf_make_undirty(vb);
+	VTBUF_UNLOCK(vb);
+
+	/* Deallocate old buffer. */
+	free(old, M_VTBUF);
+	free(oldrows, M_VTBUF);
 }
 
 void
@@ -531,8 +587,8 @@ vtbuf_putchar(struct vt_buf *vb, const term_pos_t *p, term_char_t c)
 	if (row[p->tp_col] != c) {
 		VTBUF_LOCK(vb);
 		row[p->tp_col] = c;
+		vtbuf_dirty_cell_locked(vb, p);
 		VTBUF_UNLOCK(vb);
-		vtbuf_dirty_cell(vb, p);
 	}
 }
 
@@ -541,27 +597,17 @@ vtbuf_cursor_position(struct vt_buf *vb, const term_pos_t *p)
 {
 
 	if (vb->vb_flags & VBF_CURSOR) {
-		vtbuf_dirty_cell(vb, &vb->vb_cursor);
+		VTBUF_LOCK(vb);
+		vtbuf_dirty_cell_locked(vb, &vb->vb_cursor);
 		vb->vb_cursor = *p;
-		vtbuf_dirty_cell(vb, &vb->vb_cursor);
+		vtbuf_dirty_cell_locked(vb, &vb->vb_cursor);
+		VTBUF_UNLOCK(vb);
 	} else {
 		vb->vb_cursor = *p;
 	}
 }
 
 #ifndef SC_NO_CUTPASTE
-void
-vtbuf_mouse_cursor_position(struct vt_buf *vb, int col, int row)
-{
-	term_rect_t area;
-
-	area.tr_begin.tp_row = MAX(row - 1, 0);
-	area.tr_begin.tp_col = MAX(col - 1, 0);
-	area.tr_end.tp_row = MIN(row + 2, vb->vb_scr_size.tp_row);
-	area.tr_end.tp_col = MIN(col + 2, vb->vb_scr_size.tp_col);
-	vtbuf_dirty(vb, &area);
-}
-
 static void
 vtbuf_flush_mark(struct vt_buf *vb)
 {
@@ -607,7 +653,7 @@ vtbuf_get_marked_len(struct vt_buf *vb)
 	ei = e.tp_row * vb->vb_scr_size.tp_col + e.tp_col;
 
 	/* Number symbols and number of rows to inject \n */
-	sz = ei - si + ((e.tp_row - s.tp_row) * 2) + 1;
+	sz = ei - si + ((e.tp_row - s.tp_row) * 2);
 
 	return (sz * sizeof(term_char_t));
 }
@@ -724,10 +770,10 @@ vtbuf_cursor_visibility(struct vt_buf *vb, int yes)
 	else
 		vb->vb_flags &= ~VBF_CURSOR;
 	nflags = vb->vb_flags;
-	VTBUF_UNLOCK(vb);
 
 	if (oflags != nflags)
-		vtbuf_dirty_cell(vb, &vb->vb_cursor);
+		vtbuf_dirty_cell_locked(vb, &vb->vb_cursor);
+	VTBUF_UNLOCK(vb);
 }
 
 void
@@ -742,9 +788,9 @@ vtbuf_scroll_mode(struct vt_buf *vb, int yes)
 	else
 		vb->vb_flags &= ~VBF_SCROLL;
 	nflags = vb->vb_flags;
-	VTBUF_UNLOCK(vb);
 
 	if (oflags != nflags)
-		vtbuf_dirty_cell(vb, &vb->vb_cursor);
+		vtbuf_dirty_cell_locked(vb, &vb->vb_cursor);
+	VTBUF_UNLOCK(vb);
 }
 

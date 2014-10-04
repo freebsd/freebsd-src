@@ -3815,8 +3815,15 @@ cross_db_copy(svn_wc__db_wcroot_t *src_wcroot,
                     NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
                     src_wcroot, src_relpath, scratch_pool, scratch_pool));
 
-  SVN_ERR(db_read_pristine_props(&props, src_wcroot, src_relpath, FALSE,
-                                 scratch_pool, scratch_pool));
+  if (dst_status != svn_wc__db_status_not_present
+      && dst_status != svn_wc__db_status_excluded
+      && dst_status != svn_wc__db_status_server_excluded)
+    {
+      SVN_ERR(db_read_pristine_props(&props, src_wcroot, src_relpath, FALSE,
+                                     scratch_pool, scratch_pool));
+    }
+  else
+    props = NULL;
 
   blank_iwb(&iwb);
   iwb.presence = dst_status;
@@ -5129,6 +5136,17 @@ db_op_copy_shadowed_layer(svn_wc__db_wcroot_t *src_wcroot,
 
       SVN_ERR(insert_working_node(&iwb, dst_wcroot, dst_relpath,
                                     scratch_pool));
+    }
+
+  if (dst_presence == svn_wc__db_status_not_present)
+    {
+      /* Don't create descendants of a not present node! */
+
+      /* This code is currently still triggered by copying deleted nodes
+         between separate working copies. See ### comment above. */
+
+      svn_pool_destroy(iterpool);
+      return SVN_NO_ERROR;
     }
 
   SVN_ERR(gather_repo_children(&children, src_wcroot, src_relpath,

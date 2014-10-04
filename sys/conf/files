@@ -14,11 +14,11 @@ acpi_quirks.h			optional acpi				   \
 # from the specified source (DTS) file: <platform>.dts -> <platform>.dtb
 #
 fdt_dtb_file			optional fdt fdt_dtb_static \
-	compile-with "sh $S/tools/fdt/make_dtb.sh $S ${FDT_DTS_FILE} ${.CURDIR}" \
+	compile-with "sh -c 'MACHINE=${MACHINE} $S/tools/fdt/make_dtb.sh $S ${FDT_DTS_FILE} ${.CURDIR}'" \
 	no-obj no-implicit-rule before-depend	\
 	clean		"${FDT_DTS_FILE:R}.dtb"
 fdt_static_dtb.h		optional fdt fdt_dtb_static \
-	compile-with "sh $S/tools/fdt/make_dtbh.sh ${FDT_DTS_FILE} ${.CURDIR}" \
+	compile-with "sh -c 'MACHINE=${MACHINE} $S/tools/fdt/make_dtbh.sh ${FDT_DTS_FILE} ${.CURDIR}'" \
 	dependency	"fdt_dtb_file" \
 	no-obj no-implicit-rule before-depend \
 	clean		"fdt_static_dtb.h"
@@ -86,6 +86,8 @@ cam/ctl/ctl_frontend_cam_sim.c	optional ctl
 cam/ctl/ctl_frontend_internal.c	optional ctl
 cam/ctl/ctl_frontend_iscsi.c	optional ctl
 cam/ctl/ctl_scsi_all.c		optional ctl
+cam/ctl/ctl_tpc.c		optional ctl
+cam/ctl/ctl_tpc_local.c		optional ctl
 cam/ctl/ctl_error.c		optional ctl
 cam/ctl/ctl_util.c		optional ctl
 cam/ctl/scsi_ctl.c		optional ctl
@@ -109,6 +111,7 @@ cddl/compat/opensolaris/kern/opensolaris_misc.c				optional zfs compile-with "${
 cddl/compat/opensolaris/kern/opensolaris_sunddi.c			optional zfs compile-with "${ZFS_C}"
 # zfs specific
 cddl/compat/opensolaris/kern/opensolaris_acl.c				optional zfs compile-with "${ZFS_C}"
+cddl/compat/opensolaris/kern/opensolaris_dtrace.c			optional zfs compile-with "${ZFS_C}"
 cddl/compat/opensolaris/kern/opensolaris_kobj.c				optional zfs compile-with "${ZFS_C}"
 cddl/compat/opensolaris/kern/opensolaris_kstat.c			optional zfs compile-with "${ZFS_C}"
 cddl/compat/opensolaris/kern/opensolaris_lookup.c			optional zfs compile-with "${ZFS_C}"
@@ -252,6 +255,8 @@ contrib/altq/altq/altq_red.c		optional altq
 contrib/altq/altq/altq_rio.c		optional altq
 contrib/altq/altq/altq_rmclass.c	optional altq
 contrib/altq/altq/altq_subr.c		optional altq
+contrib/dev/acpica/common/ahids.c			optional acpi acpi_debug
+contrib/dev/acpica/common/ahuuids.c			optional acpi acpi_debug
 contrib/dev/acpica/components/debugger/dbcmds.c		optional acpi acpi_debug
 contrib/dev/acpica/components/debugger/dbconvert.c	optional acpi acpi_debug
 contrib/dev/acpica/components/debugger/dbdisply.c	optional acpi acpi_debug
@@ -262,6 +267,7 @@ contrib/dev/acpica/components/debugger/dbinput.c	optional acpi acpi_debug
 contrib/dev/acpica/components/debugger/dbmethod.c	optional acpi acpi_debug
 contrib/dev/acpica/components/debugger/dbnames.c	optional acpi acpi_debug
 contrib/dev/acpica/components/debugger/dbstats.c	optional acpi acpi_debug
+contrib/dev/acpica/components/debugger/dbtest.c		optional acpi acpi_debug
 contrib/dev/acpica/components/debugger/dbutils.c	optional acpi acpi_debug
 contrib/dev/acpica/components/debugger/dbxface.c	optional acpi acpi_debug
 contrib/dev/acpica/components/disassembler/dmbuffer.c	optional acpi acpi_debug
@@ -384,6 +390,7 @@ contrib/dev/acpica/components/resources/rsmisc.c	optional acpi
 contrib/dev/acpica/components/resources/rsserial.c	optional acpi
 contrib/dev/acpica/components/resources/rsutils.c	optional acpi
 contrib/dev/acpica/components/resources/rsxface.c	optional acpi
+contrib/dev/acpica/components/tables/tbdata.c		optional acpi
 contrib/dev/acpica/components/tables/tbfadt.c		optional acpi
 contrib/dev/acpica/components/tables/tbfind.c		optional acpi
 contrib/dev/acpica/components/tables/tbinstal.c		optional acpi
@@ -404,6 +411,7 @@ contrib/dev/acpica/components/utilities/uterror.c	optional acpi
 contrib/dev/acpica/components/utilities/uteval.c	optional acpi
 contrib/dev/acpica/components/utilities/utexcep.c	optional acpi
 contrib/dev/acpica/components/utilities/utglobal.c	optional acpi
+contrib/dev/acpica/components/utilities/uthex.c		optional acpi
 contrib/dev/acpica/components/utilities/utids.c		optional acpi
 contrib/dev/acpica/components/utilities/utinit.c	optional acpi
 contrib/dev/acpica/components/utilities/utlock.c	optional acpi
@@ -417,6 +425,7 @@ contrib/dev/acpica/components/utilities/utpredef.c	optional acpi
 contrib/dev/acpica/components/utilities/utresrc.c	optional acpi
 contrib/dev/acpica/components/utilities/utstate.c	optional acpi
 contrib/dev/acpica/components/utilities/utstring.c	optional acpi
+contrib/dev/acpica/components/utilities/utuuid.c	optional acpi acpi_debug
 contrib/dev/acpica/components/utilities/utxface.c	optional acpi
 contrib/dev/acpica/components/utilities/utxferror.c	optional acpi
 contrib/dev/acpica/components/utilities/utxfinit.c	optional acpi
@@ -620,8 +629,9 @@ dev/aha/aha.c			optional aha
 dev/aha/aha_isa.c		optional aha isa
 dev/aha/aha_mca.c		optional aha mca
 dev/ahb/ahb.c			optional ahb eisa
-dev/ahci/ahci.c			optional ahci pci
-dev/ahci/ahciem.c		optional ahci pci
+dev/ahci/ahci.c			optional ahci
+dev/ahci/ahciem.c		optional ahci
+dev/ahci/ahci_pci.c		optional ahci pci
 dev/aic/aic.c			optional aic
 dev/aic/aic_pccard.c		optional aic pccard
 dev/aic7xxx/ahc_eisa.c		optional ahc eisa
@@ -642,6 +652,7 @@ dev/aic7xxx/aic7xxx_pci.c	optional ahc pci
 dev/aic7xxx/aic7xxx_reg_print.c	optional ahc ahc_reg_pretty_print
 dev/alc/if_alc.c		optional alc pci
 dev/ale/if_ale.c		optional ale pci
+dev/alpm/alpm.c			optional alpm pci
 dev/altera/avgen/altera_avgen.c		optional altera_avgen
 dev/altera/avgen/altera_avgen_fdt.c	optional altera_avgen fdt
 dev/altera/avgen/altera_avgen_nexus.c	optional altera_avgen
@@ -650,6 +661,8 @@ dev/altera/sdcard/altera_sdcard_disk.c	optional altera_sdcard
 dev/altera/sdcard/altera_sdcard_io.c	optional altera_sdcard
 dev/altera/sdcard/altera_sdcard_fdt.c	optional altera_sdcard fdt
 dev/altera/sdcard/altera_sdcard_nexus.c	optional altera_sdcard
+dev/amdpm/amdpm.c		optional amdpm pci | nfpm pci
+dev/amdsmb/amdsmb.c		optional amdsmb pci
 dev/amr/amr.c			optional amr
 dev/amr/amr_cam.c		optional amrp amr
 dev/amr/amr_disk.c		optional amr
@@ -704,6 +717,8 @@ dev/ath/if_ath_ahb.c		optional ath_ahb \
 	compile-with "${NORMAL_C} -I$S/dev/ath"
 #
 dev/ath/if_ath.c		optional ath \
+	compile-with "${NORMAL_C} -I$S/dev/ath"
+dev/ath/if_ath_alq.c		optional ath \
 	compile-with "${NORMAL_C} -I$S/dev/ath"
 dev/ath/if_ath_beacon.c		optional ath \
 	compile-with "${NORMAL_C} -I$S/dev/ath"
@@ -1372,7 +1387,11 @@ dev/fatm/if_fatm.c		optional fatm pci
 dev/fb/fbd.c			optional fbd | vt
 dev/fb/fb_if.m			standard
 dev/fb/splash.c			optional sc splash
+dev/fdt/fdt_clock.c		optional fdt fdt_clock
+dev/fdt/fdt_clock_if.m		optional fdt fdt_clock
 dev/fdt/fdt_common.c		optional fdt
+dev/fdt/fdt_pinctrl.c		optional fdt fdt_pinctrl
+dev/fdt/fdt_pinctrl_if.m	optional fdt fdt_pinctrl
 dev/fdt/fdt_slicer.c		optional fdt cfi | fdt nand
 dev/fdt/fdt_static_dtb.S	optional fdt fdt_dtb_static \
 	dependency	"$S/boot/fdt/dts/${MACHINE}/${FDT_DTS_FILE}"
@@ -1420,22 +1439,6 @@ dev/hptiop/hptiop.c		optional hptiop scbus
 dev/hwpmc/hwpmc_logging.c	optional hwpmc
 dev/hwpmc/hwpmc_mod.c		optional hwpmc
 dev/hwpmc/hwpmc_soft.c		optional hwpmc
-dev/i40e/if_i40e.c		optional i40e inet \
-	compile-with "${NORMAL_C} -I$S/dev/i40e -DSMP"
-dev/i40e/i40e_txrx.c		optional i40e inet \
-	compile-with "${NORMAL_C} -I$S/dev/i40e -DSMP"
-dev/i40e/i40e_osdep.c		optional i40e inet \
-	compile-with "${NORMAL_C} -I$S/dev/i40e -DSMP"
-dev/i40e/i40e_nvm.c		optional i40e inet \
-	compile-with "${NORMAL_C} -I$S/dev/i40e -DSMP"
-dev/i40e/i40e_lan_hmc.c		optional i40e inet \
-	compile-with "${NORMAL_C} -I$S/dev/i40e -DSMP"
-dev/i40e/i40e_hmc.c		optional i40e inet \
-	compile-with "${NORMAL_C} -I$S/dev/i40e -DSMP"
-dev/i40e/i40e_common.c		optional i40e inet \
-	compile-with "${NORMAL_C} -I$S/dev/i40e -DSMP"
-dev/i40e/i40e_adminq.c		optional i40e inet \
-	compile-with "${NORMAL_C} -I$S/dev/i40e -DSMP"
 dev/ichsmb/ichsmb.c		optional ichsmb
 dev/ichsmb/ichsmb_pci.c		optional ichsmb pci
 dev/ida/ida.c			optional ida
@@ -1469,6 +1472,7 @@ dev/iicbus/s35390a.c		optional s35390a
 dev/iir/iir.c			optional iir
 dev/iir/iir_ctrl.c		optional iir
 dev/iir/iir_pci.c		optional iir pci
+dev/intpm/intpm.c		optional intpm pci
 # XXX Work around clang warning, until maintainer approves fix.
 dev/ips/ips.c			optional ips \
 	compile-with "${NORMAL_C} ${NO_WSOMETIMES_UNINITIALIZED}"
@@ -1594,6 +1598,48 @@ iwn1000.fw			optional iwn1000fw | iwnfw		\
 	compile-with	"${NORMAL_FW}"					\
 	no-obj no-implicit-rule						\
 	clean		"iwn1000.fw"
+iwn100fw.c			optional iwn100fw | iwnfw		\
+	compile-with	"${AWK} -f $S/tools/fw_stub.awk iwn100.fw:iwn100fw -miwn100fw -c${.TARGET}" \
+	no-implicit-rule before-depend local				\
+	clean		"iwn100fw.c"
+iwn100fw.fwo			optional iwn100fw | iwnfw		\
+	dependency	"iwn100.fw"					\
+	compile-with	"${NORMAL_FWO}"					\
+	no-implicit-rule						\
+	clean		"iwn100fw.fwo"
+iwn100.fw			optional iwn100fw | iwnfw		\
+	dependency	"$S/contrib/dev/iwn/iwlwifi-100-39.31.5.1.fw.uu" \
+	compile-with	"${NORMAL_FW}"					\
+	no-obj no-implicit-rule						\
+	clean		"iwn100.fw"
+iwn105fw.c			optional iwn105fw | iwnfw		\
+	compile-with	"${AWK} -f $S/tools/fw_stub.awk iwn105.fw:iwn105fw -miwn105fw -c${.TARGET}" \
+	no-implicit-rule before-depend local				\
+	clean		"iwn105fw.c"
+iwn105fw.fwo			optional iwn105fw | iwnfw		\
+	dependency	"iwn105.fw"					\
+	compile-with	"${NORMAL_FWO}"					\
+	no-implicit-rule						\
+	clean		"iwn105fw.fwo"
+iwn105.fw			optional iwn105fw | iwnfw		\
+	dependency	"$S/contrib/dev/iwn/iwlwifi-105-6-18.168.6.1.fw.uu" \
+	compile-with	"${NORMAL_FW}"					\
+	no-obj no-implicit-rule						\
+	clean		"iwn105.fw"
+iwn135fw.c			optional iwn135fw | iwnfw		\
+	compile-with	"${AWK} -f $S/tools/fw_stub.awk iwn135.fw:iwn135fw -miwn135fw -c${.TARGET}" \
+	no-implicit-rule before-depend local				\
+	clean		"iwn135fw.c"
+iwn135fw.fwo			optional iwn135fw | iwnfw		\
+	dependency	"iwn135.fw"					\
+	compile-with	"${NORMAL_FWO}"					\
+	no-implicit-rule						\
+	clean		"iwn135fw.fwo"
+iwn135.fw			optional iwn135fw | iwnfw		\
+	dependency	"$S/contrib/dev/iwn/iwlwifi-135-6-18.168.6.1.fw.uu" \
+	compile-with	"${NORMAL_FW}"					\
+	no-obj no-implicit-rule						\
+	clean		"iwn135.fw"
 iwn2000fw.c			optional iwn2000fw | iwnfw		\
 	compile-with	"${AWK} -f $S/tools/fw_stub.awk iwn2000.fw:iwn2000fw -miwn2000fw -c${.TARGET}" \
 	no-implicit-rule before-depend local				\
@@ -1724,7 +1770,7 @@ dev/ixgb/if_ixgb.c		optional ixgb
 dev/ixgb/ixgb_ee.c		optional ixgb
 dev/ixgb/ixgb_hw.c		optional ixgb
 dev/ixgbe/ixgbe.c		optional ixgbe inet \
-	compile-with "${NORMAL_C} -I$S/dev/ixgbe -DSMP -DIXGBE_FDIR"
+	compile-with "${NORMAL_C} -I$S/dev/ixgbe -DSMP"
 dev/ixgbe/ixv.c			optional ixgbe inet \
 	compile-with "${NORMAL_C} -I$S/dev/ixgbe"
 dev/ixgbe/ixgbe_phy.c		optional ixgbe inet \
@@ -1909,6 +1955,7 @@ dev/nand/nandsim_ctrl.c		optional nandsim nand
 dev/nand/nandsim_log.c		optional nandsim nand
 dev/nand/nandsim_swap.c		optional nandsim nand
 dev/nand/nfc_if.m		optional nand
+dev/ncr/ncr.c			optional ncr pci
 dev/ncv/ncr53c500.c		optional ncv
 dev/ncv/ncr53c500_pccard.c	optional ncv pccard
 dev/netmap/netmap.c		optional netmap
@@ -1916,10 +1963,12 @@ dev/netmap/netmap_freebsd.c	optional netmap
 dev/netmap/netmap_generic.c	optional netmap
 dev/netmap/netmap_mbq.c		optional netmap
 dev/netmap/netmap_mem2.c	optional netmap
+dev/netmap/netmap_monitor.c	optional netmap
 dev/netmap/netmap_offloadings.c	optional netmap
 dev/netmap/netmap_pipe.c	optional netmap
 dev/netmap/netmap_vale.c	optional netmap
 # compile-with "${NORMAL_C} -Wconversion -Wextra"
+dev/nfsmb/nfsmb.c		optional nfsmb pci
 dev/nge/if_nge.c		optional nge
 dev/nxge/if_nxge.c		optional nxge \
 	compile-with "${NORMAL_C} ${NO_WSELF_ASSIGN}"
@@ -2094,6 +2143,7 @@ dev/random/fortuna.c		optional random
 dev/random/hash.c		optional random
 dev/rc/rc.c			optional rc
 dev/re/if_re.c			optional re
+dev/rl/if_rl.c			optional rl pci
 dev/rndtest/rndtest.c		optional rndtest
 dev/rp/rp.c			optional rp
 dev/rp/rp_isa.c			optional rp isa
@@ -2133,6 +2183,7 @@ dev/smbus/smbconf.c		optional smbus
 dev/smbus/smbus.c		optional smbus
 dev/smbus/smbus_if.m		optional smbus
 dev/smc/if_smc.c		optional smc
+dev/smc/if_smc_fdt.c		optional smc fdt
 dev/sn/if_sn.c			optional sn
 dev/sn/if_sn_isa.c		optional sn isa
 dev/sn/if_sn_pccard.c		optional sn pccard
@@ -2487,6 +2538,7 @@ dev/usb/serial/usb_serial.c 	optional ucom | u3g | uark | ubsa | ubser | \
 #
 dev/usb/misc/ufm.c		optional ufm
 dev/usb/misc/udbp.c		optional udbp
+dev/usb/misc/uled.c		optional uled
 #
 # USB input drivers
 #
@@ -2511,6 +2563,7 @@ dev/usb/template/usb_template_modem.c	optional usb_template
 dev/usb/template/usb_template_mouse.c	optional usb_template
 dev/usb/template/usb_template_msc.c	optional usb_template
 dev/usb/template/usb_template_mtp.c	optional usb_template
+dev/usb/template/usb_template_phone.c	optional usb_template
 #
 # USB END
 #
@@ -2518,7 +2571,7 @@ dev/utopia/idtphy.c		optional utopia
 dev/utopia/suni.c		optional utopia
 dev/utopia/utopia.c		optional utopia
 dev/vge/if_vge.c		optional vge
-
+dev/viapm/viapm.c		optional viapm pci
 dev/vkbd/vkbd.c			optional vkbd
 dev/vr/if_vr.c			optional vr pci
 dev/vt/colors/vt_termcolors.c	optional vt
@@ -2590,8 +2643,14 @@ dev/xen/netfront/netfront.c	optional xen | xenhvm
 dev/xen/xenpci/xenpci.c		optional xenpci
 dev/xen/timer/timer.c		optional xen | xenhvm
 dev/xen/pvcpu/pvcpu.c		optional xen | xenhvm
+dev/xen/xenstore/xenstore.c	optional xen | xenhvm
+dev/xen/xenstore/xenstore_dev.c	optional xen | xenhvm
+dev/xen/xenstore/xenstored_dev.c	optional xen | xenhvm
 dev/xl/if_xl.c			optional xl pci
 dev/xl/xlphy.c			optional xl pci
+fs/autofs/autofs.c		optional autofs
+fs/autofs/autofs_vfsops.c	optional autofs
+fs/autofs/autofs_vnops.c	optional autofs
 fs/deadfs/dead_vnops.c		standard
 fs/devfs/devfs_devs.c		standard
 fs/devfs/devfs_dir.c		standard
@@ -3014,7 +3073,7 @@ kern/tty_outq.c			standard
 kern/tty_pts.c			standard
 kern/tty_tty.c			standard
 kern/tty_ttydisc.c		standard
-kern/uipc_accf.c		optional inet
+kern/uipc_accf.c		standard
 kern/uipc_debug.c		optional ddb
 kern/uipc_domain.c		standard
 kern/uipc_mbuf.c		standard
@@ -3116,8 +3175,9 @@ libkern/inet_pton.c		standard
 libkern/jenkins_hash.c		standard
 libkern/mcount.c		optional profiling-routine
 libkern/memcchr.c		standard
-libkern/memchr.c		optional fdt
+libkern/memchr.c		optional fdt | gdb
 libkern/memcmp.c		standard
+libkern/memmem.c		optional gdb
 libkern/qsort.c			standard
 libkern/qsort_r.c		standard
 libkern/random.c		standard
@@ -3129,6 +3189,7 @@ libkern/strcmp.c		standard
 libkern/strcpy.c		standard
 libkern/strcspn.c		standard
 libkern/strdup.c		standard
+libkern/strndup.c		standard
 libkern/strlcat.c		standard
 libkern/strlcpy.c		standard
 libkern/strlen.c		standard
@@ -3727,7 +3788,7 @@ ofed/drivers/net/mlx4/sys_tune.c		optional mlx4ib | mlxen	\
 ofed/drivers/net/mlx4/en_cq.c			optional mlxen		\
 	no-depend obj-prefix "mlx4_"					\
 	compile-with "${OFED_C_NOIMP} -I$S/ofed/drivers/net/mlx4/"
-ofed/drivers/net/mlx4/en_frag.c			optional mlxen		\
+ofed/drivers/net/mlx4/utils.c			optional mlxen		\
 	no-depend obj-prefix "mlx4_"					\
 	compile-with "${OFED_C_NOIMP} -I$S/ofed/drivers/net/mlx4/"
 ofed/drivers/net/mlx4/en_main.c			optional mlxen		\
@@ -3797,15 +3858,6 @@ opencrypto/cryptodeflate.c	optional crypto
 opencrypto/rmd160.c		optional crypto | ipsec
 opencrypto/skipjack.c		optional crypto
 opencrypto/xform.c		optional crypto
-pci/alpm.c			optional alpm pci
-pci/amdpm.c			optional amdpm pci | nfpm pci
-pci/amdsmb.c			optional amdsmb pci
-pci/if_rl.c			optional rl pci
-pci/intpm.c			optional intpm pci
-pci/ncr.c			optional ncr pci \
-	compile-with "${NORMAL_C} -Wno-unused"
-pci/nfsmb.c			optional nfsmb pci
-pci/viapm.c			optional viapm pci
 rpc/auth_none.c			optional krpc | nfslockd | nfsclient | nfsserver | nfscl | nfsd
 rpc/auth_unix.c			optional krpc | nfslockd | nfsclient | nfscl | nfsd
 rpc/authunix_prot.c		optional krpc | nfslockd | nfsclient | nfsserver | nfscl | nfsd
@@ -3932,8 +3984,6 @@ xen/xenbus/xenbusb_if.m		optional xen | xenhvm
 xen/xenbus/xenbusb.c		optional xen | xenhvm
 xen/xenbus/xenbusb_front.c	optional xen | xenhvm
 xen/xenbus/xenbusb_back.c	optional xen | xenhvm
-xen/xenstore/xenstore.c		optional xen | xenhvm
-xen/xenstore/xenstore_dev.c	optional xen | xenhvm
 xdr/xdr.c			optional krpc | nfslockd | nfsclient | nfsserver | nfscl | nfsd
 xdr/xdr_array.c			optional krpc | nfslockd | nfsclient | nfsserver | nfscl | nfsd
 xdr/xdr_mbuf.c			optional krpc | nfslockd | nfsclient | nfsserver | nfscl | nfsd

@@ -614,6 +614,10 @@ xhci_init(struct xhci_softc *sc, device_t self)
 	sc->sc_bus.devices = sc->sc_devices;
 	sc->sc_bus.devices_max = XHCI_MAX_DEVICES;
 
+	/* set default cycle state in case of early interrupts */
+	sc->sc_event_ccs = 1;
+	sc->sc_command_ccs = 1;
+
 	/* setup command queue mutex and condition varible */
 	cv_init(&sc->sc_cmd_cv, "CMDQ");
 	sx_init(&sc->sc_cmd_sx, "CMDQ lock");
@@ -2248,7 +2252,14 @@ xhci_configure_mask(struct usb_device *udev, uint32_t mask, uint8_t drop)
 		xhci_ctx_set_le32(sc, &pinp->ctx_input.dwInCtx0, mask);
 		xhci_ctx_set_le32(sc, &pinp->ctx_input.dwInCtx1, 0);
 	} else {
-		xhci_ctx_set_le32(sc, &pinp->ctx_input.dwInCtx0, 0);
+		/*
+		 * Some hardware requires that we drop the endpoint
+		 * context before adding it again:
+		 */
+		xhci_ctx_set_le32(sc, &pinp->ctx_input.dwInCtx0,
+		    mask & XHCI_INCTX_NON_CTRL_MASK);
+
+		/* Add new endpoint context */
 		xhci_ctx_set_le32(sc, &pinp->ctx_input.dwInCtx1, mask);
 
 		/* find most significant set bit */
@@ -2260,14 +2271,17 @@ xhci_configure_mask(struct usb_device *udev, uint32_t mask, uint8_t drop)
 		/* adjust */
 		x--;
 
-		/* figure out maximum */
-		if (x > sc->sc_hw.devs[index].context_num) {
+		/* figure out the maximum number of contexts */
+		if (x > sc->sc_hw.devs[index].context_num)
 			sc->sc_hw.devs[index].context_num = x;
-			temp = xhci_ctx_get_le32(sc, &pinp->ctx_slot.dwSctx0);
-			temp &= ~XHCI_SCTX_0_CTX_NUM_SET(31);
-			temp |= XHCI_SCTX_0_CTX_NUM_SET(x + 1);
-			xhci_ctx_set_le32(sc, &pinp->ctx_slot.dwSctx0, temp);
-		}
+		else
+			x = sc->sc_hw.devs[index].context_num;
+
+		/* update number of contexts */
+		temp = xhci_ctx_get_le32(sc, &pinp->ctx_slot.dwSctx0);
+		temp &= ~XHCI_SCTX_0_CTX_NUM_SET(31);
+		temp |= XHCI_SCTX_0_CTX_NUM_SET(x + 1);
+		xhci_ctx_set_le32(sc, &pinp->ctx_slot.dwSctx0, temp);
 	}
 	return (0);
 }
@@ -2678,24 +2692,23 @@ xhci_alloc_device_ext(struct usb_device *udev)
 		goto error;
 	}
 
-	pc = &sc->sc_hw.devs[index].endpoint_pc;
-	pg = &sc->sc_hw.devs[index].endpoint_pg;
-
-	/* need to initialize the page cache */
-	pc->tag_parent = sc->sc_bus.dma_parent_tag;
-
-	if (usb_pc_alloc_mem(pc, pg,
-	    sizeof(struct xhci_dev_endpoint_trbs), XHCI_PAGE_SIZE)) {
-		goto error;
-	}
-
 	/* initialise all endpoint LINK TRBs */
 
 	for (i = 0; i != XHCI_MAX_ENDPOINTS; i++) {
 
+		pc = &sc->sc_hw.devs[index].endpoint_pc[i];
+		pg = &sc->sc_hw.devs[index].endpoint_pg[i];
+
+		/* need to initialize the page cache */
+		pc->tag_parent = sc->sc_bus.dma_parent_tag;
+
+		if (usb_pc_alloc_mem(pc, pg,
+		    sizeof(struct xhci_dev_endpoint_trbs), XHCI_TRB_ALIGN)) {
+			goto error;
+		}
+
 		/* lookup endpoint TRB ring */
-		usbd_get_page(pc, (uintptr_t)&
-		    ((struct xhci_dev_endpoint_trbs *)0)->trb[i][0], &buf_ep);
+		usbd_get_page(pc, 0, &buf_ep);
 
 		/* get TRB pointer */
 		trb = buf_ep.buffer;
@@ -2709,9 +2722,9 @@ xhci_alloc_device_ext(struct usb_device *udev)
 		trb->dwTrb2 = htole32(XHCI_TRB_2_IRQ_SET(0));
 		trb->dwTrb3 = htole32(XHCI_TRB_3_CYCLE_BIT |
 		    XHCI_TRB_3_TYPE_SET(XHCI_TRB_TYPE_LINK));
-	}
 
-	usb_pc_cpu_flush(pc);
+		usb_pc_cpu_flush(pc);
+	}
 
 	xhci_set_slot_pointer(sc, index, buf_dev.physaddr);
 
@@ -2728,13 +2741,15 @@ xhci_free_device_ext(struct usb_device *udev)
 {
 	struct xhci_softc *sc = XHCI_BUS2SC(udev->bus);
 	uint8_t index;
+	uint8_t i;
 
 	index = udev->controller_slot_id;
 	xhci_set_slot_pointer(sc, index, 0);
 
 	usb_pc_free_mem(&sc->sc_hw.devs[index].device_pc);
 	usb_pc_free_mem(&sc->sc_hw.devs[index].input_pc);
-	usb_pc_free_mem(&sc->sc_hw.devs[index].endpoint_pc);
+	for (i = 0; i != XHCI_MAX_ENDPOINTS; i++)
+		usb_pc_free_mem(&sc->sc_hw.devs[index].endpoint_pc[i]);
 }
 
 static struct xhci_endpoint_ext *
@@ -2755,10 +2770,9 @@ xhci_get_endpoint_ext(struct usb_device *udev, struct usb_endpoint_descriptor *e
 
 	index = udev->controller_slot_id;
 
-	pc = &sc->sc_hw.devs[index].endpoint_pc;
+	pc = &sc->sc_hw.devs[index].endpoint_pc[epno];
 
-	usbd_get_page(pc, (uintptr_t)&((struct xhci_dev_endpoint_trbs *)0)->
-	    trb[epno][0], &buf_ep);
+	usbd_get_page(pc, 0, &buf_ep);
 
 	pepext = &sc->sc_hw.devs[index].endp[epno];
 	pepext->page_cache = pc;

@@ -28,7 +28,7 @@
 .\"	@(#)ktrace.1	8.1 (Berkeley) 6/6/93
 .\" $FreeBSD$
 .\"
-.Dd May 31, 2012
+.Dd August 26, 2014
 .Dt KTRACE 1
 .Os
 .Sh NAME
@@ -81,7 +81,7 @@ Append to the trace file instead of recreating it.
 Disable tracing on all user-owned processes, and, if executed by root, all
 processes in the system.
 .It Fl c
-Clear the trace points associated with the specified file or processes.
+Clear the specified trace points associated with the given file or processes.
 .It Fl d
 Descendants; perform the operation for all current children of the
 designated processes.
@@ -102,8 +102,10 @@ Enable (disable) tracing on the indicated process id (only one
 .Fl p
 flag is permitted).
 .It Fl t Ar trstr
-The string argument represents the kernel trace points, one per letter.
-The following table equates the letters with the tracepoints:
+Specify the list of trace points to enable or disable, one per letter.
+If an explicit list is not specified, the default set of trace points is used.
+.Pp
+The following trace points are supported:
 .Pp
 .Bl -tag -width flag -compact
 .It Cm c

@@ -171,7 +171,7 @@ struct protosw in_stf_protosw = {
 	.pr_protocol =		IPPROTO_IPV6,
 	.pr_flags =		PR_ATOMIC|PR_ADDR,
 	.pr_input =		in_stf_input,
-	.pr_output =		(pr_output_t *)rip_output,
+	.pr_output =		rip_output,
 	.pr_ctloutput =		rip_ctloutput,
 	.pr_usrreqs =		&rip_usrreqs
 };
@@ -442,7 +442,7 @@ stf_output(struct ifnet *ifp, struct mbuf *m, const struct sockaddr *dst,
 	/* just in case */
 	if ((ifp->if_flags & IFF_UP) == 0) {
 		m_freem(m);
-		ifp->if_oerrors++;
+		if_inc_counter(ifp, IFCOUNTER_OERRORS, 1);
 		return ENETDOWN;
 	}
 
@@ -454,7 +454,7 @@ stf_output(struct ifnet *ifp, struct mbuf *m, const struct sockaddr *dst,
 	ia6 = stf_getsrcifa6(ifp);
 	if (ia6 == NULL) {
 		m_freem(m);
-		ifp->if_oerrors++;
+		if_inc_counter(ifp, IFCOUNTER_OERRORS, 1);
 		return ENETDOWN;
 	}
 
@@ -462,7 +462,7 @@ stf_output(struct ifnet *ifp, struct mbuf *m, const struct sockaddr *dst,
 		m = m_pullup(m, sizeof(*ip6));
 		if (!m) {
 			ifa_free(&ia6->ia_ifa);
-			ifp->if_oerrors++;
+			if_inc_counter(ifp, IFCOUNTER_OERRORS, 1);
 			return ENOBUFS;
 		}
 	}
@@ -481,7 +481,7 @@ stf_output(struct ifnet *ifp, struct mbuf *m, const struct sockaddr *dst,
 	else {
 		ifa_free(&ia6->ia_ifa);
 		m_freem(m);
-		ifp->if_oerrors++;
+		if_inc_counter(ifp, IFCOUNTER_OERRORS, 1);
 		return ENETUNREACH;
 	}
 	bcopy(ptr, &in4, sizeof(in4));
@@ -503,7 +503,7 @@ stf_output(struct ifnet *ifp, struct mbuf *m, const struct sockaddr *dst,
 		m = m_pullup(m, sizeof(struct ip));
 	if (m == NULL) {
 		ifa_free(&ia6->ia_ifa);
-		ifp->if_oerrors++;
+		if_inc_counter(ifp, IFCOUNTER_OERRORS, 1);
 		return ENOBUFS;
 	}
 	ip = mtod(m, struct ip *);
@@ -549,7 +549,7 @@ stf_output(struct ifnet *ifp, struct mbuf *m, const struct sockaddr *dst,
 		if (sc->sc_ro.ro_rt == NULL) {
 			m_freem(m);
 			mtx_unlock(&(sc)->sc_ro_mtx);
-			ifp->if_oerrors++;
+			if_inc_counter(ifp, IFCOUNTER_OERRORS, 1);
 			return ENETUNREACH;
 		}
 	}
@@ -557,7 +557,7 @@ stf_output(struct ifnet *ifp, struct mbuf *m, const struct sockaddr *dst,
 
 sendit:
 	M_SETFIB(m, sc->sc_fibnum);
-	ifp->if_opackets++;
+	if_inc_counter(ifp, IFCOUNTER_OPACKETS, 1);
 	error = ip_output(m, NULL, cached_route, 0, NULL, NULL);
 
 	if (cached_route != NULL)
@@ -678,23 +678,23 @@ stf_checkaddr6(sc, in6, inifp)
 	return 0;
 }
 
-void
-in_stf_input(m, off)
-	struct mbuf *m;
-	int off;
+int
+in_stf_input(struct mbuf **mp, int *offp, int proto)
 {
-	int proto;
 	struct stf_softc *sc;
 	struct ip *ip;
 	struct ip6_hdr *ip6;
+	struct mbuf *m;
 	u_int8_t otos, itos;
 	struct ifnet *ifp;
+	int off;
 
-	proto = mtod(m, struct ip *)->ip_p;
+	m = *mp;
+	off = *offp;
 
 	if (proto != IPPROTO_IPV6) {
 		m_freem(m);
-		return;
+		return (IPPROTO_DONE);
 	}
 
 	ip = mtod(m, struct ip *);
@@ -703,7 +703,7 @@ in_stf_input(m, off)
 
 	if (sc == NULL || (STF2IFP(sc)->if_flags & IFF_UP) == 0) {
 		m_freem(m);
-		return;
+		return (IPPROTO_DONE);
 	}
 
 	ifp = STF2IFP(sc);
@@ -719,7 +719,7 @@ in_stf_input(m, off)
 	if (stf_checkaddr4(sc, &ip->ip_dst, NULL) < 0 ||
 	    stf_checkaddr4(sc, &ip->ip_src, m->m_pkthdr.rcvif) < 0) {
 		m_freem(m);
-		return;
+		return (IPPROTO_DONE);
 	}
 
 	otos = ip->ip_tos;
@@ -728,7 +728,7 @@ in_stf_input(m, off)
 	if (m->m_len < sizeof(*ip6)) {
 		m = m_pullup(m, sizeof(*ip6));
 		if (!m)
-			return;
+			return (IPPROTO_DONE);
 	}
 	ip6 = mtod(m, struct ip6_hdr *);
 
@@ -739,7 +739,7 @@ in_stf_input(m, off)
 	if (stf_checkaddr6(sc, &ip6->ip6_dst, NULL) < 0 ||
 	    stf_checkaddr6(sc, &ip6->ip6_src, m->m_pkthdr.rcvif) < 0) {
 		m_freem(m);
-		return;
+		return (IPPROTO_DONE);
 	}
 
 	itos = (ntohl(ip6->ip6_flow) >> 20) & 0xff;
@@ -770,10 +770,11 @@ in_stf_input(m, off)
 	 * See net/if_gif.c for possible issues with packet processing
 	 * reorder due to extra queueing.
 	 */
-	ifp->if_ipackets++;
-	ifp->if_ibytes += m->m_pkthdr.len;
+	if_inc_counter(ifp, IFCOUNTER_IPACKETS, 1);
+	if_inc_counter(ifp, IFCOUNTER_IBYTES, m->m_pkthdr.len);
 	M_SETFIB(m, ifp->if_fib);
 	netisr_dispatch(NETISR_IPV6, m);
+	return (IPPROTO_DONE);
 }
 
 /* ARGSUSED */

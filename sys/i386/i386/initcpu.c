@@ -48,12 +48,6 @@ __FBSDID("$FreeBSD$");
 #define CPU_ENABLE_SSE
 #endif
 
-#if defined(I586_CPU) && defined(CPU_WT_ALLOC)
-void	enable_K5_wt_alloc(void);
-void	enable_K6_wt_alloc(void);
-void	enable_K6_2_wt_alloc(void);
-#endif
-
 #ifdef I486_CPU
 static void init_5x86(void);
 static void init_bluelightning(void);
@@ -64,6 +58,12 @@ static void init_i486_on_386(void);
 #endif
 static void init_6x86(void);
 #endif /* I486_CPU */
+
+#if defined(I586_CPU) && defined(CPU_WT_ALLOC)
+static void	enable_K5_wt_alloc(void);
+static void	enable_K6_wt_alloc(void);
+static void	enable_K6_2_wt_alloc(void);
+#endif
 
 #ifdef I686_CPU
 static void	init_6x86MX(void);
@@ -81,35 +81,36 @@ SYSCTL_INT(_hw, OID_AUTO, instruction_sse, CTLFLAG_RD,
  */
 static int	hw_clflush_disable = -1;
 
-/* Must *NOT* be BSS or locore will bzero these after setting them */
-int	cpu = 0;		/* Are we 386, 386sx, 486, etc? */
-u_int	cpu_feature = 0;	/* Feature flags */
-u_int	cpu_feature2 = 0;	/* Feature flags */
-u_int	amd_feature = 0;	/* AMD feature flags */
-u_int	amd_feature2 = 0;	/* AMD feature flags */
-u_int	amd_pminfo = 0;		/* AMD advanced power management info */
-u_int	via_feature_rng = 0;	/* VIA RNG features */
-u_int	via_feature_xcrypt = 0;	/* VIA ACE features */
-u_int	cpu_high = 0;		/* Highest arg to CPUID */
-u_int	cpu_id = 0;		/* Stepping ID */
-u_int	cpu_procinfo = 0;	/* HyperThreading Info / Brand Index / CLFUSH */
-u_int	cpu_procinfo2 = 0;	/* Multicore info */
-char	cpu_vendor[20] = "";	/* CPU Origin code */
-u_int	cpu_vendor_id = 0;	/* CPU vendor ID */
+int	cpu;			/* Are we 386, 386sx, 486, etc? */
+u_int	cpu_feature;		/* Feature flags */
+u_int	cpu_feature2;		/* Feature flags */
+u_int	amd_feature;		/* AMD feature flags */
+u_int	amd_feature2;		/* AMD feature flags */
+u_int	amd_pminfo;		/* AMD advanced power management info */
+u_int	via_feature_rng;	/* VIA RNG features */
+u_int	via_feature_xcrypt;	/* VIA ACE features */
+u_int	cpu_high;		/* Highest arg to CPUID */
+u_int	cpu_exthigh;		/* Highest arg to extended CPUID */
+u_int	cpu_id;			/* Stepping ID */
+u_int	cpu_procinfo;		/* HyperThreading Info / Brand Index / CLFUSH */
+u_int	cpu_procinfo2;		/* Multicore info */
+char	cpu_vendor[20];		/* CPU Origin code */
+u_int	cpu_vendor_id;		/* CPU vendor ID */
+#ifdef CPU_ENABLE_SSE
+u_int	cpu_fxsr;		/* SSE enabled */
+u_int	cpu_mxcsr_mask;		/* Valid bits in mxcsr */
+#endif
 u_int	cpu_clflush_line_size = 32;
+u_int	cpu_stdext_feature;
 u_int	cpu_mon_mwait_flags;	/* MONITOR/MWAIT flags (CPUID.05H.ECX) */
 u_int	cpu_mon_min_size;	/* MONITOR minimum range size, bytes */
 u_int	cpu_mon_max_size;	/* MONITOR minimum range size, bytes */
+u_int	cyrix_did;		/* Device ID of Cyrix CPU */
 
 SYSCTL_UINT(_hw, OID_AUTO, via_feature_rng, CTLFLAG_RD,
 	&via_feature_rng, 0, "VIA RNG feature available in CPU");
 SYSCTL_UINT(_hw, OID_AUTO, via_feature_xcrypt, CTLFLAG_RD,
 	&via_feature_xcrypt, 0, "VIA xcrypt feature available in CPU");
-
-#ifdef CPU_ENABLE_SSE
-u_int	cpu_fxsr;		/* SSE enabled */
-u_int	cpu_mxcsr_mask;		/* valid bits in mxcsr */
-#endif
 
 #ifdef I486_CPU
 /*
@@ -456,7 +457,7 @@ init_winchip(void)
 	fcr &= ~(1ULL << 11);
 
 	/*
-	 * Additioanlly, set EBRPRED, E2MMX and EAMD3D for WinChip 2 and 3.
+	 * Additionally, set EBRPRED, E2MMX and EAMD3D for WinChip 2 and 3.
 	 */
 	if (CPUID_TO_MODEL(cpu_id) >= 8)
 		fcr |= (1 << 12) | (1 << 19) | (1 << 20);
@@ -532,6 +533,8 @@ init_6x86MX(void)
 	intr_restore(saveintr);
 }
 
+static int ppro_apic_used = -1;
+
 static void
 init_ppro(void)
 {
@@ -540,9 +543,29 @@ init_ppro(void)
 	/*
 	 * Local APIC should be disabled if it is not going to be used.
 	 */
-	apicbase = rdmsr(MSR_APICBASE);
-	apicbase &= ~APICBASE_ENABLED;
-	wrmsr(MSR_APICBASE, apicbase);
+	if (ppro_apic_used != 1) {
+		apicbase = rdmsr(MSR_APICBASE);
+		apicbase &= ~APICBASE_ENABLED;
+		wrmsr(MSR_APICBASE, apicbase);
+		ppro_apic_used = 0;
+	}
+}
+
+/*
+ * If the local APIC is going to be used after being disabled above,
+ * re-enable it and don't disable it in the future.
+ */
+void
+ppro_reenable_apic(void)
+{
+	u_int64_t	apicbase;
+
+	if (ppro_apic_used == 0) {
+		apicbase = rdmsr(MSR_APICBASE);
+		apicbase |= APICBASE_ENABLED;
+		wrmsr(MSR_APICBASE, apicbase);
+		ppro_apic_used = 1;
+	}
 }
 
 /*
@@ -651,20 +674,6 @@ init_transmeta(void)
 }
 #endif
 
-/*
- * Initialize CR4 (Control register 4) to enable SSE instructions.
- */
-void
-enable_sse(void)
-{
-#if defined(CPU_ENABLE_SSE)
-	if ((cpu_feature & CPUID_XMM) && (cpu_feature & CPUID_FXSR)) {
-		load_cr4(rcr4() | CR4_FXSR | CR4_XMM);
-		cpu_fxsr = hw_instruction_sse = 1;
-	}
-#endif
-}
-
 extern int elf32_nxstack;
 
 void
@@ -697,6 +706,27 @@ initializecpu(void)
 #ifdef I586_CPU
 	case CPU_586:
 		switch (cpu_vendor_id) {
+		case CPU_VENDOR_AMD:
+#ifdef CPU_WT_ALLOC
+			if (((cpu_id & 0x0f0) > 0) &&
+			    ((cpu_id & 0x0f0) < 0x60) &&
+			    ((cpu_id & 0x00f) > 3))
+				enable_K5_wt_alloc();
+			else if (((cpu_id & 0x0f0) > 0x80) ||
+			    (((cpu_id & 0x0f0) == 0x80) &&
+				(cpu_id & 0x00f) > 0x07))
+				enable_K6_2_wt_alloc();
+			else if ((cpu_id & 0x0f0) > 0x50)
+				enable_K6_wt_alloc();
+#endif
+			if ((cpu_id & 0xf0) == 0xa0)
+				/*
+				 * Make sure the TSC runs through
+				 * suspension, otherwise we can't use
+				 * it as timecounter
+				 */
+				wrmsr(0x1900, rdmsr(0x1900) | 0x20ULL);
+			break;
 		case CPU_VENDOR_CENTAUR:
 			init_winchip();
 			break;
@@ -767,7 +797,17 @@ initializecpu(void)
 	default:
 		break;
 	}
-	enable_sse();
+#if defined(CPU_ENABLE_SSE)
+	if ((cpu_feature & CPUID_XMM) && (cpu_feature & CPUID_FXSR)) {
+		load_cr4(rcr4() | CR4_FXSR | CR4_XMM);
+		cpu_fxsr = hw_instruction_sse = 1;
+	}
+#endif
+}
+
+void
+initializecpucache(void)
+{
 
 	/*
 	 * CPUID with %eax = 1, %ebx returns
@@ -844,7 +884,7 @@ initializecpu(void)
  * Enable write allocate feature of AMD processors.
  * Following two functions require the Maxmem variable being set.
  */
-void
+static void
 enable_K5_wt_alloc(void)
 {
 	u_int64_t	msr;
@@ -890,7 +930,7 @@ enable_K5_wt_alloc(void)
 	}
 }
 
-void
+static void
 enable_K6_wt_alloc(void)
 {
 	quad_t	size;
@@ -950,7 +990,7 @@ enable_K6_wt_alloc(void)
 	intr_restore(saveintr);
 }
 
-void
+static void
 enable_K6_2_wt_alloc(void)
 {
 	quad_t	size;

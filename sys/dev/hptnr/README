@@ -1,10 +1,19 @@
 Rocket Controller Driver for FreeBSD
-Copyright (C) 2013 HighPoint Technologies, Inc. All rights reserved.
+Copyright (C) 2014 HighPoint Technologies, Inc. All rights reserved.
 
 #############################################################################
 Revision History:
+   v1.0.1 2014-8-19
+     * Do not retry the command and reset the disk when failed to enable or 
+       disable spin up feature.
+     * Fix up a bug that disk failed to probe if driver failed to access the
+       10th LBA.
+     * Fix a bug that request timeout but it has been completed in certain 
+       cases.
+     * Support smartmontool for R750.
+
    v1.0 2013-7-3
-        First source code release
+     *First source code release
 
 #############################################################################
 
@@ -40,7 +49,7 @@ Revision History:
   2) Extract the driver files under the kernel source tree:
 
      # cd /usr/src/sys/
-     # tar xvzf /your/path/to/hptnr-freebsd-src-v1.0-130701.tgz
+     # tar xvzf /your/path/to/hptnr_freebsd_src_v1.0.1_14_08_19.tgz
 
   3) Update the kernel configuration file to include the HighPoint source.
      Assume the configure file is GENERIC, and new kernel configure file is 
