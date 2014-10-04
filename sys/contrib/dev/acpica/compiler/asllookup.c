@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2013, Intel Corp.
+ * Copyright (C) 2000 - 2014, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -40,7 +40,6 @@
  * IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGES.
  */
-
 
 #include <contrib/dev/acpica/compiler/aslcompiler.h>
 #include "aslcompiler.y.h"
@@ -105,7 +104,9 @@ LkFindUnreferencedObjects (
  * DESCRIPTION: Check for an unreferenced namespace object and emit a warning.
  *              We have to be careful, because some types and names are
  *              typically or always unreferenced, we don't want to issue
- *              excessive warnings.
+ *              excessive warnings. Note: Names that are declared within a
+ *              control method are temporary, so we always issue a remark
+ *              if they are not referenced.
  *
  ******************************************************************************/
 
@@ -117,6 +118,7 @@ LkIsObjectUsed (
     void                    **ReturnValue)
 {
     ACPI_NAMESPACE_NODE     *Node = ACPI_CAST_PTR (ACPI_NAMESPACE_NODE, ObjHandle);
+    ACPI_NAMESPACE_NODE     *Next;
 
 
     /* Referenced flag is set during the namespace xref */
@@ -126,23 +128,19 @@ LkIsObjectUsed (
         return (AE_OK);
     }
 
-    /*
-     * Ignore names that start with an underscore,
-     * these are the reserved ACPI names and are typically not referenced,
-     * they are called by the host OS.
-     */
-    if (Node->Name.Ascii[0] == '_')
+    if (!Node->Op)
     {
         return (AE_OK);
     }
 
-    /* There are some types that are typically not referenced, ignore them */
+    /* These types are typically never directly referenced, ignore them */
 
     switch (Node->Type)
     {
     case ACPI_TYPE_DEVICE:
     case ACPI_TYPE_PROCESSOR:
     case ACPI_TYPE_POWER:
+    case ACPI_TYPE_THERMAL:
     case ACPI_TYPE_LOCAL_RESOURCE:
 
         return (AE_OK);
@@ -152,12 +150,47 @@ LkIsObjectUsed (
         break;
     }
 
-    /* All others are valid unreferenced namespace objects */
+    /* Determine if the name is within a control method */
 
-    if (Node->Op)
+    Next = Node->Parent;
+    while (Next)
     {
-        AslError (ASL_WARNING2, ASL_MSG_NOT_REFERENCED, LkGetNameOp (Node->Op), NULL);
+        if (Next->Type == ACPI_TYPE_METHOD)
+        {
+            /*
+             * Name is within a method, therefore it is temporary.
+             * Issue a remark even if it is a reserved name (starts
+             * with an underscore).
+             */
+            sprintf (MsgBuffer, "Name is within method [%4.4s]",
+                Next->Name.Ascii);
+            AslError (ASL_REMARK, ASL_MSG_NOT_REFERENCED,
+                LkGetNameOp (Node->Op), MsgBuffer);
+            return (AE_OK);
+        }
+
+        Next = Next->Parent;
     }
+
+    /* The name is not within a control method */
+
+    /*
+     * Ignore names that start with an underscore. These are the reserved
+     * ACPI names and are typically not referenced since they are meant
+     * to be called by the host OS.
+     */
+    if (Node->Name.Ascii[0] == '_')
+    {
+        return (AE_OK);
+    }
+
+    /*
+     * What remains is an unresolved user name that is not within a method.
+     * However, the object could be referenced via another table, so issue
+     * the warning at level 2.
+     */
+    AslError (ASL_WARNING2, ASL_MSG_NOT_REFERENCED,
+        LkGetNameOp (Node->Op), NULL);
     return (AE_OK);
 }
 

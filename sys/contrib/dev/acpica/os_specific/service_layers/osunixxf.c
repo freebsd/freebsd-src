@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2013, Intel Corp.
+ * Copyright (C) 2000 - 2014, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -41,7 +41,6 @@
  * POSSIBILITY OF SUCH DAMAGES.
  */
 
-
 /*
  * These interfaces are required in order to compile the ASL compiler and the
  * various ACPICA tools under Linux or other Unix-like system.
@@ -65,15 +64,10 @@
         ACPI_MODULE_NAME    ("osunixxf")
 
 
-extern FILE                    *AcpiGbl_DebugFile;
-FILE                           *AcpiGbl_OutputFile;
+BOOLEAN                        AcpiGbl_DebugTimeout = FALSE;
 
 
 /* Upcalls to AcpiExec */
-
-ACPI_PHYSICAL_ADDRESS
-AeLocalGetRootPointer (
-    void);
 
 void
 AeTableOverride (
@@ -84,7 +78,127 @@ typedef void* (*PTHREAD_CALLBACK) (void *);
 
 /* Buffer used by AcpiOsVprintf */
 
-#define ACPI_VPRINTF_BUFFER_SIZE        512
+#define ACPI_VPRINTF_BUFFER_SIZE    512
+#define _ASCII_NEWLINE              '\n'
+
+/* Terminal support for AcpiExec only */
+
+#ifdef ACPI_EXEC_APP
+#include <termios.h>
+
+struct termios              OriginalTermAttributes;
+int                         TermAttributesWereSet = 0;
+
+ACPI_STATUS
+AcpiUtReadLine (
+    char                    *Buffer,
+    UINT32                  BufferLength,
+    UINT32                  *BytesRead);
+
+static void
+OsEnterLineEditMode (
+    void);
+
+static void
+OsExitLineEditMode (
+    void);
+
+
+/******************************************************************************
+ *
+ * FUNCTION:    OsEnterLineEditMode, OsExitLineEditMode
+ *
+ * PARAMETERS:  None
+ *
+ * RETURN:      None
+ *
+ * DESCRIPTION: Enter/Exit the raw character input mode for the terminal.
+ *
+ * Interactive line-editing support for the AML debugger. Used with the
+ * common/acgetline module.
+ *
+ * readline() is not used because of non-portability. It is not available
+ * on all systems, and if it is, often the package must be manually installed.
+ *
+ * Therefore, we use the POSIX tcgetattr/tcsetattr and do the minimal line
+ * editing that we need in AcpiOsGetLine.
+ *
+ * If the POSIX tcgetattr/tcsetattr interfaces are unavailable, these
+ * calls will also work:
+ *     For OsEnterLineEditMode: system ("stty cbreak -echo")
+ *     For OsExitLineEditMode:  system ("stty cooked echo")
+ *
+ *****************************************************************************/
+
+static void
+OsEnterLineEditMode (
+    void)
+{
+    struct termios          LocalTermAttributes;
+
+
+    TermAttributesWereSet = 0;
+
+    /* STDIN must be a terminal */
+
+    if (!isatty (STDIN_FILENO))
+    {
+        return;
+    }
+
+    /* Get and keep the original attributes */
+
+    if (tcgetattr (STDIN_FILENO, &OriginalTermAttributes))
+    {
+        fprintf (stderr, "Could not get terminal attributes!\n");
+        return;
+    }
+
+    /* Set the new attributes to enable raw character input */
+
+    memcpy (&LocalTermAttributes, &OriginalTermAttributes,
+        sizeof (struct termios));
+
+    LocalTermAttributes.c_lflag &= ~(ICANON | ECHO);
+    LocalTermAttributes.c_cc[VMIN] = 1;
+    LocalTermAttributes.c_cc[VTIME] = 0;
+
+    if (tcsetattr (STDIN_FILENO, TCSANOW, &LocalTermAttributes))
+    {
+        fprintf (stderr, "Could not set terminal attributes!\n");
+        return;
+    }
+
+    TermAttributesWereSet = 1;
+}
+
+
+static void
+OsExitLineEditMode (
+    void)
+{
+
+    if (!TermAttributesWereSet)
+    {
+        return;
+    }
+
+    /* Set terminal attributes back to the original values */
+
+    if (tcsetattr (STDIN_FILENO, TCSANOW, &OriginalTermAttributes))
+    {
+        fprintf (stderr, "Could not restore terminal attributes!\n");
+    }
+}
+
+
+#else
+
+/* These functions are not needed for other ACPICA utilities */
+
+#define OsEnterLineEditMode()
+#define OsExitLineEditMode()
+#endif
 
 
 /******************************************************************************
@@ -95,7 +209,7 @@ typedef void* (*PTHREAD_CALLBACK) (void *);
  *
  * RETURN:      Status
  *
- * DESCRIPTION: Init and terminate. Nothing to do.
+ * DESCRIPTION: Initialize and terminate this module.
  *
  *****************************************************************************/
 
@@ -103,21 +217,33 @@ ACPI_STATUS
 AcpiOsInitialize (
     void)
 {
+    ACPI_STATUS            Status;
+
 
     AcpiGbl_OutputFile = stdout;
+
+    OsEnterLineEditMode ();
+
+    Status = AcpiOsCreateLock (&AcpiGbl_PrintLock);
+    if (ACPI_FAILURE (Status))
+    {
+        return (Status);
+    }
+
     return (AE_OK);
 }
-
 
 ACPI_STATUS
 AcpiOsTerminate (
     void)
 {
 
+    OsExitLineEditMode ();
     return (AE_OK);
 }
 
 
+#ifndef ACPI_USE_NATIVE_RSDP_POINTER
 /******************************************************************************
  *
  * FUNCTION:    AcpiOsGetRootPointer
@@ -135,8 +261,9 @@ AcpiOsGetRootPointer (
     void)
 {
 
-    return (AeLocalGetRootPointer ());
+    return (0);
 }
+#endif
 
 
 /******************************************************************************
@@ -370,6 +497,7 @@ AcpiOsVprintf (
 }
 
 
+#ifndef ACPI_EXEC_APP
 /******************************************************************************
  *
  * FUNCTION:    AcpiOsGetLine
@@ -380,7 +508,9 @@ AcpiOsVprintf (
  *
  * RETURN:      Status and actual bytes read
  *
- * DESCRIPTION: Formatted input with argument list pointer
+ * DESCRIPTION: Get the next input line from the terminal. NOTE: For the
+ *              AcpiExec utility, we use the acgetline module instead to
+ *              provide line-editing and history support.
  *
  *****************************************************************************/
 
@@ -390,44 +520,49 @@ AcpiOsGetLine (
     UINT32                  BufferLength,
     UINT32                  *BytesRead)
 {
-    int                     Temp;
-    UINT32                  i;
+    int                     InputChar;
+    UINT32                  EndOfLine;
 
 
-    for (i = 0; ; i++)
+    /* Standard AcpiOsGetLine for all utilities except AcpiExec */
+
+    for (EndOfLine = 0; ; EndOfLine++)
     {
-        if (i >= BufferLength)
+        if (EndOfLine >= BufferLength)
         {
             return (AE_BUFFER_OVERFLOW);
         }
 
-        if ((Temp = getchar ()) == EOF)
+        if ((InputChar = getchar ()) == EOF)
         {
             return (AE_ERROR);
         }
 
-        if (!Temp || Temp == '\n')
+        if (!InputChar || InputChar == _ASCII_NEWLINE)
         {
             break;
         }
 
-        Buffer [i] = (char) Temp;
+        Buffer[EndOfLine] = (char) InputChar;
     }
 
     /* Null terminate the buffer */
 
-    Buffer [i] = 0;
+    Buffer[EndOfLine] = 0;
 
     /* Return the number of bytes in the string */
 
     if (BytesRead)
     {
-        *BytesRead = i;
+        *BytesRead = EndOfLine;
     }
+
     return (AE_OK);
 }
+#endif
 
 
+#ifndef ACPI_USE_NATIVE_MEMORY_MAPPING
 /******************************************************************************
  *
  * FUNCTION:    AcpiOsMapMemory
@@ -473,6 +608,7 @@ AcpiOsUnmapMemory (
 
     return;
 }
+#endif
 
 
 /******************************************************************************
@@ -497,6 +633,32 @@ AcpiOsAllocate (
     Mem = (void *) malloc ((size_t) size);
     return (Mem);
 }
+
+
+#ifdef USE_NATIVE_ALLOCATE_ZEROED
+/******************************************************************************
+ *
+ * FUNCTION:    AcpiOsAllocateZeroed
+ *
+ * PARAMETERS:  Size                - Amount to allocate, in bytes
+ *
+ * RETURN:      Pointer to the new allocation. Null on error.
+ *
+ * DESCRIPTION: Allocate and zero memory. Algorithm is dependent on the OS.
+ *
+ *****************************************************************************/
+
+void *
+AcpiOsAllocateZeroed (
+    ACPI_SIZE               size)
+{
+    void                    *Mem;
+
+
+    Mem = (void *) calloc (1, (size_t) size);
+    return (Mem);
+}
+#endif
 
 
 /******************************************************************************
@@ -1005,7 +1167,7 @@ AcpiOsGetTimer (
  * FUNCTION:    AcpiOsReadPciConfiguration
  *
  * PARAMETERS:  PciId               - Seg/Bus/Dev
- *              Register            - Device Register
+ *              PciRegister         - Device Register
  *              Value               - Buffer where value is placed
  *              Width               - Number of bits
  *
@@ -1018,7 +1180,7 @@ AcpiOsGetTimer (
 ACPI_STATUS
 AcpiOsReadPciConfiguration (
     ACPI_PCI_ID             *PciId,
-    UINT32                  Register,
+    UINT32                  PciRegister,
     UINT64                  *Value,
     UINT32                  Width)
 {
@@ -1033,7 +1195,7 @@ AcpiOsReadPciConfiguration (
  * FUNCTION:    AcpiOsWritePciConfiguration
  *
  * PARAMETERS:  PciId               - Seg/Bus/Dev
- *              Register            - Device Register
+ *              PciRegister         - Device Register
  *              Value               - Value to be written
  *              Width               - Number of bits
  *
@@ -1046,7 +1208,7 @@ AcpiOsReadPciConfiguration (
 ACPI_STATUS
 AcpiOsWritePciConfiguration (
     ACPI_PCI_ID             *PciId,
-    UINT32                  Register,
+    UINT32                  PciRegister,
     UINT64                  Value,
     UINT32                  Width)
 {
@@ -1242,7 +1404,7 @@ AcpiOsWritable (
  *
  * FUNCTION:    AcpiOsSignal
  *
- * PARAMETERS:  Function            - ACPI CA signal function code
+ * PARAMETERS:  Function            - ACPI A signal function code
  *              Info                - Pointer to function-dependent structure
  *
  * RETURN:      Status
@@ -1332,6 +1494,26 @@ AcpiOsExecute (
         AcpiOsPrintf("Create thread failed");
     }
     return (0);
+}
+
+#else /* ACPI_SINGLE_THREADED */
+ACPI_THREAD_ID
+AcpiOsGetThreadId (
+    void)
+{
+    return (1);
+}
+
+ACPI_STATUS
+AcpiOsExecute (
+    ACPI_EXECUTE_TYPE       Type,
+    ACPI_OSD_EXEC_CALLBACK  Function,
+    void                    *Context)
+{
+
+    Function (Context);
+
+    return (AE_OK);
 }
 
 #endif /* ACPI_SINGLE_THREADED */

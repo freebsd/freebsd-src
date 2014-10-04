@@ -39,6 +39,8 @@
 
 	aliases {
 		soc = &SOC;
+		rstmgr = &rstmgr;
+		l3regs = &l3regs;
 		serial0 = &serial0;
 		serial1 = &serial1;
 	};
@@ -67,6 +69,29 @@
 			      < 0xfffec600 0x100 >; /* Private Timer */
 			interrupts = < 27 29 >;
 			interrupt-parent = < &GIC >;
+		};
+
+		sysmgr: sysmgr@ffd08000 {
+			compatible = "altr,sys-mgr";
+			reg = <0xffd08000 0x1000>;
+		};
+
+		rstmgr: rstmgr@ffd05000 {
+			compatible = "altr,rst-mgr";
+			reg = <0xffd05000 0x1000>;
+		};
+
+		l3regs: l3regs@ff800000 {
+			compatible = "altr,l3regs";
+			reg = <0xff800000 0x1000>;
+		};
+
+		fpgamgr: fpgamgr@ff706000 {
+			compatible = "altr,fpga-mgr";
+			reg = <0xff706000 0x1000>, /* FPGAMGRREGS */
+			      <0xffb90000 0x1000>; /* FPGAMGRDATA */
+			interrupts = < 207 >;
+			interrupt-parent = <&GIC>;
 		};
 
 		serial0: serial@ffc02000 {
@@ -105,6 +130,26 @@
 			interrupts = <160>;
 			interrupt-parent = <&GIC>;
 			dr_mode = "host";
+			status = "disabled";
+		};
+
+		gmac0: ethernet@ff700000 {
+			compatible = "altr,socfpga-stmmac",
+				"snps,dwmac-3.70a", "snps,dwmac";
+			reg = <0xff700000 0x2000>;
+			interrupts = <147>;
+			interrupt-parent = <&GIC>;
+			phy-mode = "rgmii";
+			status = "disabled";
+		};
+
+		gmac1: ethernet@ff702000 {
+			compatible = "altr,socfpga-stmmac",
+				"snps,dwmac-3.70a", "snps,dwmac";
+			reg = <0xff702000 0x2000>;
+			interrupts = <152>;
+			interrupt-parent = <&GIC>;
+			phy-mode = "rgmii";
 			status = "disabled";
 		};
 	};

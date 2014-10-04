@@ -291,8 +291,8 @@ edsc_start(struct ifnet *ifp)
 		/*
 		 * Update the interface counters.
 		 */
-		ifp->if_obytes += m->m_pkthdr.len;
-		ifp->if_opackets++;
+		if_inc_counter(ifp, IFCOUNTER_OBYTES, m->m_pkthdr.len);
+		if_inc_counter(ifp, IFCOUNTER_OPACKETS, 1);
 
 		/*
 		 * Finally, just drop the packet.

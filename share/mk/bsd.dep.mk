@@ -123,8 +123,8 @@ ${_YC:R}.o: ${_YC}
 # DTrace probe definitions
 # libelf is currently needed for drti.o
 .if ${SRCS:M*.d}
-LDFLAGS+=	-lelf
-LDADD+=		${LIBELF}
+LDADD+=		-lelf
+DPADD+=		${LIBELF}
 CFLAGS+=	-I${.OBJDIR}
 .endif
 .for _DSRC in ${SRCS:M*.d:N*/*}
@@ -215,8 +215,10 @@ cleandepend:
 .endif
 
 .if !target(checkdpadd) && (defined(DPADD) || defined(LDADD))
-_LDADD_FROM_DPADD=	${DPADD:C;^/usr/lib/lib(.*)\.a$;-l\1;}
-_LDADD_CANONICALIZED=	${LDADD:S/$//}
+_LDADD_FROM_DPADD=	${DPADD:R:T:C;^lib(.*)$;-l\1;g}
+# Ignore -Wl,--start-group/-Wl,--end-group as it might be required in the
+# LDADD list due to unresolved symbols
+_LDADD_CANONICALIZED=	${LDADD:N:R:T:C;^lib(.*)$;-l\1;g:N-Wl,--[es]*-group}
 checkdpadd:
 .if ${_LDADD_FROM_DPADD} != ${_LDADD_CANONICALIZED}
 	@echo ${.CURDIR}

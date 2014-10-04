@@ -336,11 +336,11 @@ XFLAGS+=	-B${CROSS_BINUTILS_PREFIX}
 .else
 XFLAGS+=	-B${WORLDTMP}/usr/bin
 .endif
-.if ${TARGET} == "arm" && ${MK_ARM_EABI} != "no"
-.if ${TARGET_ARCH:M*eb*} == ""
-TARGET_ABI=	gnueabi
-.elif ${TARGET_ARCH} == "armv6hf"
+.if ${TARGET} == "arm"
+.if ${TARGET_ARCH:M*hf*} != ""
 TARGET_ABI=	gnueabihf
+.else
+TARGET_ABI=	gnueabi
 .endif
 .endif
 TARGET_ABI?=	unknown
@@ -352,6 +352,7 @@ WMAKE=		${WMAKEENV} ${MAKE} ${WORLD_FLAGS} -f Makefile.inc1 DESTDIR=${WORLDTMP}
 
 .if ${TARGET_ARCH} == "amd64" || ${TARGET_ARCH} == "powerpc64"
 # 32 bit world
+LIB32_OBJTREE=	${OBJTREE}${.CURDIR}/world32
 LIB32TMP=	${OBJTREE}${.CURDIR}/lib32
 
 .if ${TARGET_ARCH} == "amd64"
@@ -387,7 +388,7 @@ LIB32FLAGS+=		--sysroot=${WORLDTMP}
 .endif
 
 # Yes, the flags are redundant.
-LIB32WMAKEENV+=	MAKEOBJDIRPREFIX=${OBJTREE}/lib32 \
+LIB32WMAKEENV+=	MAKEOBJDIRPREFIX=${LIB32_OBJTREE} \
 		_SHLIBDIRPREFIX=${LIB32TMP} \
 		_LDSCRIPTROOT=${LIB32TMP} \
 		VERSION="${VERSION}" \
@@ -611,7 +612,7 @@ build32:
 	cd ${.CURDIR}/${_dir}; \
 	    WORLDTMP=${WORLDTMP} \
 	    MAKEFLAGS="-m ${.CURDIR}/tools/build/mk ${.MAKEFLAGS}" \
-	    MAKEOBJDIRPREFIX=${OBJTREE}/lib32 ${MAKE} SSP_CFLAGS= DESTDIR= \
+	    MAKEOBJDIRPREFIX=${LIB32_OBJTREE} ${MAKE} SSP_CFLAGS= DESTDIR= \
 	    DIRPRFX=${_dir}/ -DNO_LINT -DNO_CPU_CFLAGS MK_WARNS=no MK_CTF=no \
 	    build-tools
 .endfor
@@ -910,7 +911,7 @@ packageworld:
 # and do a 'make reinstall' on the *client* to install new binaries from the
 # most recent server build.
 #
-reinstall:
+reinstall: .MAKE
 	@echo "--------------------------------------------------------------"
 	@echo ">>> Making hierarchy"
 	@echo "--------------------------------------------------------------"
@@ -925,7 +926,7 @@ reinstall:
 	${_+_}cd ${.CURDIR}; ${MAKE} -f Makefile.inc1 install32
 .endif
 
-redistribute:
+redistribute: .MAKE
 	@echo "--------------------------------------------------------------"
 	@echo ">>> Distributing everything"
 	@echo "--------------------------------------------------------------"
@@ -935,7 +936,7 @@ redistribute:
 	    DISTRIBUTION=lib32
 .endif
 
-distrib-dirs distribution:
+distrib-dirs distribution: .MAKE
 	cd ${.CURDIR}/etc; ${CROSSENV} PATH=${TMPPATH} ${MAKE} \
 	    ${IMAKE_INSTALL} ${IMAKE_MTREE} METALOG=${METALOG} ${.TARGET}
 
@@ -1463,7 +1464,7 @@ native-xtools: .MAKE
 #
 # hierarchy - ensure that all the needed directories are present
 #
-hierarchy hier:
+hierarchy hier: .MAKE
 	cd ${.CURDIR}/etc && ${HMAKE} distrib-dirs
 
 #
@@ -1530,7 +1531,9 @@ _prebuild_libs=	${_kerberos5_lib_libasn1} \
 		lib/ncurses/ncurses lib/ncurses/ncursesw \
 		lib/libopie lib/libpam ${_lib_libthr} \
 		lib/libradius lib/libsbuf lib/libtacplus \
+		lib/libgeom \
 		${_cddl_lib_libumem} ${_cddl_lib_libnvpair} \
+		${_cddl_lib_libuutil} \
 		${_cddl_lib_libavl} \
 		${_cddl_lib_libzfs_core} \
 		lib/libutil lib/libpjdlog ${_lib_libypclnt} lib/libz lib/msun \
@@ -1541,6 +1544,8 @@ _prebuild_libs+= gnu/lib/libstdc++ gnu/lib/libsupc++
 gnu/lib/libstdc++__L: lib/msun__L
 gnu/lib/libsupc++__L: gnu/lib/libstdc++__L
 .endif
+
+lib/libgeom__L: lib/libexpat__L
 
 .if defined(WITH_ATF) || ${MK_TESTS} != "no"
 .if !defined(WITH_ATF)
@@ -1579,9 +1584,11 @@ lib/libopie__L lib/libtacplus__L: lib/libmd__L
 _cddl_lib_libumem= cddl/lib/libumem
 _cddl_lib_libnvpair= cddl/lib/libnvpair
 _cddl_lib_libavl= cddl/lib/libavl
+_cddl_lib_libuutil= cddl/lib/libuutil
 _cddl_lib_libzfs_core= cddl/lib/libzfs_core
 _cddl_lib= cddl/lib
 cddl/lib/libzfs_core__L: cddl/lib/libnvpair__L
+cddl/lib/libzfs__L: lib/libgeom__L
 .endif
 
 .if ${MK_CRYPT} != "no"

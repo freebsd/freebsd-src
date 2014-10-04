@@ -26,7 +26,6 @@ SUBDIR=	adduser \
 	digictl \
 	diskinfo \
 	dumpcis \
-	etcupdate \
 	extattr \
 	extattrctl \
 	fifolog \
@@ -276,6 +275,10 @@ SUBDIR+=	repquota
 
 .if ${MK_RCMDS} != "no"
 SUBDIR+=	rwhod
+.endif
+
+.if ${MK_RCS} != "no"
+SUBDIR+=	etcupdate
 .endif
 
 .if ${MK_SENDMAIL} != "no"

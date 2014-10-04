@@ -803,6 +803,12 @@ main(int argc, char *argv[])
 		exit(1);
 	}
 
+	error = init_msr();
+	if (error) {
+		fprintf(stderr, "init_msr error %d", error);
+		exit(1);
+	}
+
 	init_mem();
 	init_inout();
 	pci_irq_init(ctx);

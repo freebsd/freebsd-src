@@ -93,6 +93,7 @@ struct acpi_interface {
 
 /* Global mutex for locking access to the ACPI subsystem. */
 struct mtx	acpi_mutex;
+struct callout	acpi_sleep_timer;
 
 /* Bitmap of device quirks. */
 int		acpi_quirks;
@@ -255,16 +256,6 @@ static char acpi_remove_interface[256];
 TUNABLE_STR("hw.acpi.remove_interface", acpi_remove_interface,
     sizeof(acpi_remove_interface));
 
-/*
- * Allow override of whether methods execute in parallel or not.
- * Enable this for serial behavior, which fixes "AE_ALREADY_EXISTS"
- * errors for AML that really can't handle parallel method execution.
- * It is off by default since this breaks recursive methods and
- * some IBMs use such code.
- */
-static int acpi_serialize_methods;
-TUNABLE_INT("hw.acpi.serialize_methods", &acpi_serialize_methods);
-
 /* Allow users to dump Debug objects without ACPI debugger. */
 static int acpi_debug_objects;
 TUNABLE_INT("debug.acpi.enable_debug_objects", &acpi_debug_objects);
@@ -277,6 +268,12 @@ static int acpi_interpreter_slack = 1;
 TUNABLE_INT("debug.acpi.interpreter_slack", &acpi_interpreter_slack);
 SYSCTL_INT(_debug_acpi, OID_AUTO, interpreter_slack, CTLFLAG_RDTUN,
     &acpi_interpreter_slack, 1, "Turn on interpreter slack mode.");
+
+/* Ignore register widths set by FADT and use default widths instead. */
+static int acpi_ignore_reg_width = 1;
+TUNABLE_INT("debug.acpi.default_register_width", &acpi_ignore_reg_width);
+SYSCTL_INT(_debug_acpi, OID_AUTO, default_register_width, CTLFLAG_RDTUN,
+    &acpi_ignore_reg_width, 1, "Ignore register widths set by FADT");
 
 #ifdef __amd64__
 /* Reset system clock while resuming.  XXX Remove once tested. */
@@ -473,9 +470,9 @@ acpi_attach(device_t dev)
      * Set the globals from our tunables.  This is needed because ACPI-CA
      * uses UINT8 for some values and we have no tunable_byte.
      */
-    AcpiGbl_AllMethodsSerialized = acpi_serialize_methods ? TRUE : FALSE;
     AcpiGbl_EnableInterpreterSlack = acpi_interpreter_slack ? TRUE : FALSE;
     AcpiGbl_EnableAmlDebugObject = acpi_debug_objects ? TRUE : FALSE;
+    AcpiGbl_UseDefaultRegisterWidths = acpi_ignore_reg_width ? TRUE : FALSE;
 
 #ifndef ACPI_DEBUG
     /*
@@ -683,7 +680,9 @@ acpi_attach(device_t dev)
 	    AcpiFormatException(status));
 
     /* Allow sleep request after a while. */
-    timeout(acpi_sleep_enable, sc, hz * ACPI_MINIMUM_AWAKETIME);
+    callout_init_mtx(&acpi_sleep_timer, &acpi_mutex, 0);
+    callout_reset(&acpi_sleep_timer, hz * ACPI_MINIMUM_AWAKETIME,
+	acpi_sleep_enable, sc);
 
     error = 0;
 
@@ -851,11 +850,18 @@ acpi_child_location_str_method(device_t cbdev, device_t child, char *buf,
     size_t buflen)
 {
     struct acpi_device *dinfo = device_get_ivars(child);
+    char buf2[32];
+    int pxm;
 
-    if (dinfo->ad_handle)
-	snprintf(buf, buflen, "handle=%s", acpi_name(dinfo->ad_handle));
-    else
-	snprintf(buf, buflen, "unknown");
+    if (dinfo->ad_handle) {
+        snprintf(buf, buflen, "handle=%s", acpi_name(dinfo->ad_handle));
+        if (ACPI_SUCCESS(acpi_GetInteger(dinfo->ad_handle, "_PXM", &pxm))) {
+                snprintf(buf2, 32, " _PXM=%d", pxm);
+                strlcat(buf, buf2, buflen);
+        }
+    } else {
+        snprintf(buf, buflen, "unknown");
+    }
     return (0);
 }
 
@@ -2483,8 +2489,8 @@ acpi_sleep_force(void *arg)
     device_printf(sc->acpi_dev,
 	"suspend request timed out, forcing sleep now\n");
     /*
-     * XXX Suspending from callout cause the freeze in DEVICE_SUSPEND().
-     * Suspend from acpi_task thread in stead.
+     * XXX Suspending from callout causes freezes in DEVICE_SUSPEND().
+     * Suspend from acpi_task thread instead.
      */
     if (ACPI_FAILURE(AcpiOsExecute(OSL_NOTIFY_HANDLER,
 	acpi_sleep_force_task, sc)))
@@ -2636,15 +2642,15 @@ acpi_sleep_enable(void *arg)
 {
     struct acpi_softc	*sc = (struct acpi_softc *)arg;
 
+    ACPI_LOCK_ASSERT(acpi);
+
     /* Reschedule if the system is not fully up and running. */
     if (!AcpiGbl_SystemAwakeAndRunning) {
-	timeout(acpi_sleep_enable, sc, hz * ACPI_MINIMUM_AWAKETIME);
+	callout_schedule(&acpi_sleep_timer, hz * ACPI_MINIMUM_AWAKETIME);
 	return;
     }
 
-    ACPI_LOCK(acpi);
     sc->acpi_sleep_disabled = FALSE;
-    ACPI_UNLOCK(acpi);
 }
 
 static ACPI_STATUS
@@ -2859,7 +2865,7 @@ backout:
     EVENTHANDLER_INVOKE(power_resume);
 
     /* Allow another sleep request after a while. */
-    timeout(acpi_sleep_enable, sc, hz * ACPI_MINIMUM_AWAKETIME);
+    callout_schedule(&acpi_sleep_timer, hz * ACPI_MINIMUM_AWAKETIME);
 
     /* Run /etc/rc.resume after we are back. */
     if (devctl_process_running())

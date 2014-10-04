@@ -92,12 +92,19 @@
 static const char gifname[] = "gif";
 
 /*
- * gif_mtx protects the global gif_softc_list.
+ * gif_mtx protects a per-vnet gif_softc_list.
  */
-static struct mtx gif_mtx;
+static VNET_DEFINE(struct mtx, gif_mtx);
+#define	V_gif_mtx		VNET(gif_mtx)
 static MALLOC_DEFINE(M_GIF, "gif", "Generic Tunnel Interface");
 static VNET_DEFINE(LIST_HEAD(, gif_softc), gif_softc_list);
 #define	V_gif_softc_list	VNET(gif_softc_list)
+
+#define	GIF_LIST_LOCK_INIT(x)		mtx_init(&V_gif_mtx, "gif_mtx", \
+					    NULL, MTX_DEF)
+#define	GIF_LIST_LOCK_DESTROY(x)	mtx_destroy(&V_gif_mtx)
+#define	GIF_LIST_LOCK(x)		mtx_lock(&V_gif_mtx)
+#define	GIF_LIST_UNLOCK(x)		mtx_unlock(&V_gif_mtx)
 
 void	(*ng_gif_input_p)(struct ifnet *ifp, struct mbuf **mp, int af);
 void	(*ng_gif_input_orphan_p)(struct ifnet *ifp, struct mbuf *m, int af);
@@ -107,7 +114,8 @@ void	(*ng_gif_detach_p)(struct ifnet *ifp);
 static void	gif_start(struct ifnet *);
 static int	gif_clone_create(struct if_clone *, int, caddr_t);
 static void	gif_clone_destroy(struct ifnet *);
-static struct if_clone *gif_cloner;
+static VNET_DEFINE(struct if_clone *, gif_cloner);
+#define	V_gif_cloner	VNET(gif_cloner)
 
 static int gifmodevent(module_t, int, void *);
 
@@ -189,9 +197,9 @@ gif_clone_create(struct if_clone *ifc, int unit, caddr_t params)
 	if (ng_gif_attach_p != NULL)
 		(*ng_gif_attach_p)(GIF2IFP(sc));
 
-	mtx_lock(&gif_mtx);
+	GIF_LIST_LOCK();
 	LIST_INSERT_HEAD(&V_gif_softc_list, sc, gif_list);
-	mtx_unlock(&gif_mtx);
+	GIF_LIST_UNLOCK();
 
 	return (0);
 }
@@ -204,9 +212,9 @@ gif_clone_destroy(struct ifnet *ifp)
 #endif
 	struct gif_softc *sc = ifp->if_softc;
 
-	mtx_lock(&gif_mtx);
+	GIF_LIST_LOCK();
 	LIST_REMOVE(sc, gif_list);
-	mtx_unlock(&gif_mtx);
+	GIF_LIST_UNLOCK();
 
 	gif_delete_tunnel(ifp);
 #ifdef INET6
@@ -238,9 +246,22 @@ vnet_gif_init(const void *unused __unused)
 {
 
 	LIST_INIT(&V_gif_softc_list);
+	GIF_LIST_LOCK_INIT();
+	V_gif_cloner = if_clone_simple(gifname, gif_clone_create,
+	    gif_clone_destroy, 0);
 }
-VNET_SYSINIT(vnet_gif_init, SI_SUB_PSEUDO, SI_ORDER_MIDDLE, vnet_gif_init,
-    NULL);
+VNET_SYSINIT(vnet_gif_init, SI_SUB_PROTO_IFATTACHDOMAIN, SI_ORDER_ANY,
+    vnet_gif_init, NULL);
+
+static void
+vnet_gif_uninit(const void *unused __unused)
+{
+
+	if_clone_detach(V_gif_cloner);
+	GIF_LIST_LOCK_DESTROY();
+}
+VNET_SYSUNINIT(vnet_gif_uninit, SI_SUB_PROTO_IFATTACHDOMAIN, SI_ORDER_ANY,
+    vnet_gif_uninit, NULL);
 
 static int
 gifmodevent(module_t mod, int type, void *data)
@@ -248,19 +269,12 @@ gifmodevent(module_t mod, int type, void *data)
 
 	switch (type) {
 	case MOD_LOAD:
-		mtx_init(&gif_mtx, "gif_mtx", NULL, MTX_DEF);
-		gif_cloner = if_clone_simple(gifname, gif_clone_create,
-		    gif_clone_destroy, 0);
-		break;
-
 	case MOD_UNLOAD:
-		if_clone_detach(gif_cloner);
-		mtx_destroy(&gif_mtx);
 		break;
 	default:
-		return EOPNOTSUPP;
+		return (EOPNOTSUPP);
 	}
-	return 0;
+	return (0);
 }
 
 static moduledata_t gif_mod = {
@@ -364,7 +378,7 @@ gif_start(struct ifnet *ifp)
 #endif
 #ifdef INET6
 		if (sc->gif_psrc->sa_family == AF_INET6) 
-		    m->m_pkthdr.len -= GIF_HDR_LEN6;
+			m->m_pkthdr.len -= GIF_HDR_LEN6;
 #endif
 #endif
 		/* 
@@ -373,15 +387,15 @@ gif_start(struct ifnet *ifp)
 		 */
 		af = m->m_pkthdr.csum_data;
 		
+		/* override to IPPROTO_ETHERIP for bridged traffic */
 		if (ifp->if_bridge)
 			af = AF_LINK;
 
 		BPF_MTAP2(ifp, &af, sizeof(af), m);
-		ifp->if_opackets++;	
+		if_inc_counter(ifp, IFCOUNTER_OPACKETS, 1);	
 
 /*              Done by IFQ_HANDOFF */
-/* 		ifp->if_obytes += m->m_pkthdr.len;*/
-		/* override to IPPROTO_ETHERIP for bridged traffic */
+/* 		if_inc_counter(ifp, IFCOUNTER_OBYTES, m->m_pkthdr.len);*/
 
 		M_SETFIB(m, sc->gif_fibnum);
 		/* inner AF-specific encapsulation */
@@ -403,7 +417,7 @@ gif_start(struct ifnet *ifp)
 			error = ENETDOWN;
 		}
 		if (error)
-			ifp->if_oerrors++;
+			if_inc_counter(ifp, IFCOUNTER_OERRORS, 1);
 
 	}
 	ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
@@ -513,7 +527,7 @@ gif_output(struct ifnet *ifp, struct mbuf *m, const struct sockaddr *dst,
 	IFQ_HANDOFF(ifp, m, error);
   end:
 	if (error)
-		ifp->if_oerrors++;
+		if_inc_counter(ifp, IFCOUNTER_OERRORS, 1);
 	return (error);
 }
 
@@ -544,8 +558,8 @@ gif_input(struct mbuf *m, int af, struct ifnet *ifp)
 	}
 
 	if ((ifp->if_flags & IFF_MONITOR) != 0) {
-		ifp->if_ipackets++;
-		ifp->if_ibytes += m->m_pkthdr.len;
+		if_inc_counter(ifp, IFCOUNTER_IPACKETS, 1);
+		if_inc_counter(ifp, IFCOUNTER_IBYTES, m->m_pkthdr.len);
 		m_freem(m);
 		return;
 	}
@@ -583,7 +597,7 @@ gif_input(struct mbuf *m, int af, struct ifnet *ifp)
 		if (n > m->m_len) {
 			m = m_pullup(m, n);
 			if (m == NULL) {
-				ifp->if_ierrors++;
+				if_inc_counter(ifp, IFCOUNTER_IERRORS, 1);
 				return;
 			}
 		}
@@ -622,7 +636,7 @@ gif_input(struct mbuf *m, int af, struct ifnet *ifp)
 					m->m_flags |= M_BCAST;
 				else
 					m->m_flags |= M_MCAST;
-				ifp->if_imcasts++;
+				if_inc_counter(ifp, IFCOUNTER_IMCASTS, 1);
 			}
 			BRIDGE_INPUT(ifp, m);
 
@@ -647,8 +661,8 @@ gif_input(struct mbuf *m, int af, struct ifnet *ifp)
 		return;
 	}
 
-	ifp->if_ipackets++;
-	ifp->if_ibytes += m->m_pkthdr.len;
+	if_inc_counter(ifp, IFCOUNTER_IPACKETS, 1);
+	if_inc_counter(ifp, IFCOUNTER_IBYTES, m->m_pkthdr.len);
 	M_SETFIB(m, ifp->if_fib);
 	netisr_dispatch(isr, m);
 }
@@ -904,7 +918,7 @@ gif_set_tunnel(struct ifnet *ifp, struct sockaddr *src, struct sockaddr *dst)
 	struct sockaddr *osrc, *odst, *sa;
 	int error = 0; 
 
-	mtx_lock(&gif_mtx);
+	GIF_LIST_LOCK();
 	LIST_FOREACH(sc2, &V_gif_softc_list, gif_list) {
 		if (sc2 == sc)
 			continue;
@@ -924,13 +938,13 @@ gif_set_tunnel(struct ifnet *ifp, struct sockaddr *src, struct sockaddr *dst)
 		    bcmp(sc2->gif_pdst, dst, dst->sa_len) == 0 &&
 		    bcmp(sc2->gif_psrc, src, src->sa_len) == 0) {
 			error = EADDRNOTAVAIL;
-			mtx_unlock(&gif_mtx);
+			GIF_LIST_UNLOCK();
 			goto bad;
 		}
 
 		/* XXX both end must be valid? (I mean, not 0.0.0.0) */
 	}
-	mtx_unlock(&gif_mtx);
+	GIF_LIST_UNLOCK();
 
 	/* XXX we can detach from both, but be polite just in case */
 	if (sc->gif_psrc)

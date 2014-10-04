@@ -764,11 +764,13 @@ sfp_status(int s, struct ifreq *ifr, int verbose)
 	/*
 	 * Try to read byte 0 from i2c:
 	 * Both SFF-8472 and SFF-8436 use it as
-	 * 'identification byte'
+	 * 'identification byte'.
+	 * Stop reading status on zero as value - 
+	 * this might happen in case of empty transceiver slot.
 	 */
 	id_byte = 0;
 	ii.f(&ii, SFF_8472_BASE, SFF_8472_ID, 1, (caddr_t)&id_byte);
-	if (ii.error != 0)
+	if (ii.error != 0 || id_byte == 0)
 		return;
 
 	switch (id_byte) {

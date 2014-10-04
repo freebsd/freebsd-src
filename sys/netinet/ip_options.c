@@ -65,18 +65,21 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/socketvar.h>
 
-static int	ip_dosourceroute = 0;
-SYSCTL_INT(_net_inet_ip, IPCTL_SOURCEROUTE, sourceroute, CTLFLAG_RW,
-    &ip_dosourceroute, 0, "Enable forwarding source routed IP packets");
+static VNET_DEFINE(int, ip_dosourceroute);
+SYSCTL_INT(_net_inet_ip, IPCTL_SOURCEROUTE, sourceroute,
+    CTLFLAG_VNET | CTLFLAG_RW, &VNET_NAME(ip_dosourceroute), 0,
+    "Enable forwarding source routed IP packets");
+#define	V_ip_dosourceroute	VNET(ip_dosourceroute)
 
-static int	ip_acceptsourceroute = 0;
+static VNET_DEFINE(int,	ip_acceptsourceroute);
 SYSCTL_INT(_net_inet_ip, IPCTL_ACCEPTSOURCEROUTE, accept_sourceroute, 
-    CTLFLAG_RW, &ip_acceptsourceroute, 0, 
+    CTLFLAG_VNET | CTLFLAG_RW, &VNET_NAME(ip_acceptsourceroute), 0, 
     "Enable accepting source routed IP packets");
+#define	V_ip_acceptsourceroute	VNET(ip_acceptsourceroute)
 
-int		ip_doopts = 1;	/* 0 = ignore, 1 = process, 2 = reject */
-SYSCTL_INT(_net_inet_ip, OID_AUTO, process_options, CTLFLAG_RW,
-    &ip_doopts, 0, "Enable IP options processing ([LS]SRR, RR, TS)");
+VNET_DEFINE(int, ip_doopts) = 1; /* 0 = ignore, 1 = process, 2 = reject */
+SYSCTL_INT(_net_inet_ip, OID_AUTO, process_options, CTLFLAG_VNET | CTLFLAG_RW,
+    &VNET_NAME(ip_doopts), 0, "Enable IP options processing ([LS]SRR, RR, TS)");
 
 static void	save_rte(struct mbuf *m, u_char *, struct in_addr);
 
@@ -104,9 +107,9 @@ ip_dooptions(struct mbuf *m, int pass)
 	struct	sockaddr_in ipaddr = { sizeof(ipaddr), AF_INET };
 
 	/* Ignore or reject packets with IP options. */
-	if (ip_doopts == 0)
+	if (V_ip_doopts == 0)
 		return 0;
-	else if (ip_doopts == 2) {
+	else if (V_ip_doopts == 2) {
 		type = ICMP_UNREACH;
 		code = ICMP_UNREACH_FILTER_PROHIB;
 		goto bad;
@@ -167,7 +170,7 @@ ip_dooptions(struct mbuf *m, int pass)
 					code = ICMP_UNREACH_SRCFAIL;
 					goto bad;
 				}
-				if (!ip_dosourceroute)
+				if (!V_ip_dosourceroute)
 					goto nosourcerouting;
 				/*
 				 * Loose routing, and not at next destination
@@ -180,7 +183,7 @@ ip_dooptions(struct mbuf *m, int pass)
 				/*
 				 * End of source route.  Should be for us.
 				 */
-				if (!ip_acceptsourceroute)
+				if (!V_ip_acceptsourceroute)
 					goto nosourcerouting;
 				save_rte(m, cp, ip->ip_src);
 				break;
@@ -189,7 +192,7 @@ ip_dooptions(struct mbuf *m, int pass)
 			if (V_ipstealth)
 				goto dropit;
 #endif
-			if (!ip_dosourceroute) {
+			if (!V_ip_dosourceroute) {
 				if (V_ipforwarding) {
 					char buf[16]; /* aaa.bbb.ccc.ddd\0 */
 					/*
@@ -227,8 +230,11 @@ dropit:
 			if (opt == IPOPT_SSRR) {
 #define	INA	struct in_ifaddr *
 #define	SA	struct sockaddr *
-			    if ((ia = (INA)ifa_ifwithdstaddr((SA)&ipaddr)) == NULL)
-				    ia = (INA)ifa_ifwithnet((SA)&ipaddr, 0);
+			    ia = (INA)ifa_ifwithdstaddr((SA)&ipaddr,
+					    RT_ALL_FIBS);
+			    if (ia == NULL)
+				    ia = (INA)ifa_ifwithnet((SA)&ipaddr, 0,
+						    RT_ALL_FIBS);
 			} else
 /* XXX MRT 0 for routing */
 				ia = ip_rtaddr(ipaddr.sin_addr, M_GETFIB(m));

@@ -1,6 +1,7 @@
 /*
  * Copyright (c) 2004 Christian Limpach.
  * Copyright (c) 2004-2006,2008 Kip Macy
+ * Copyright (c) 2008 The NetBSD Foundation, Inc.
  * Copyright (c) 2013 Roger Pau Monné <roger.pau@citrix.com>
  * All rights reserved.
  *
@@ -29,12 +30,15 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include "opt_ddb.h"
+
 #include <sys/param.h>
 #include <sys/bus.h>
 #include <sys/kernel.h>
 #include <sys/reboot.h>
 #include <sys/systm.h>
 #include <sys/malloc.h>
+#include <sys/linker.h>
 #include <sys/lock.h>
 #include <sys/rwlock.h>
 #include <sys/boot.h>
@@ -56,15 +60,21 @@ __FBSDID("$FreeBSD$");
 #include <x86/init.h>
 #include <machine/pc/bios.h>
 #include <machine/smp.h>
+#include <machine/intr_machdep.h>
 
 #include <xen/xen-os.h>
 #include <xen/hypervisor.h>
 #include <xen/xenstore/xenstorevar.h>
 #include <xen/xen_pv.h>
+#include <xen/xen_msi.h>
 
 #include <xen/interface/vcpu.h>
 
 #include <dev/xen/timer/timer.h>
+
+#ifdef DDB
+#include <ddb/ddb.h>
+#endif
 
 /* Native initial function */
 extern u_int64_t hammer_time(u_int64_t, u_int64_t);
@@ -93,6 +103,12 @@ extern int bootAP;
 extern char *bootSTK;
 #endif
 
+/*
+ * Placed by the linker at the end of the bss section, which is the last
+ * section loaded by Xen before loading the symtab and strtab.
+ */
+extern uint32_t end;
+
 /*-------------------------------- Global Data -------------------------------*/
 /* Xen init_ops implementation. */
 struct init_ops xen_init_ops = {
@@ -103,6 +119,7 @@ struct init_ops xen_init_ops = {
 #ifdef SMP
 	.start_all_aps			= xen_pv_start_all_aps,
 #endif
+	.msi_init =			xen_msi_init,
 };
 
 static struct bios_smap xen_smap[MAX_E820_ENTRIES];
@@ -297,12 +314,78 @@ xen_pv_set_boothowto(void)
 	}
 }
 
+#ifdef DDB
+/*
+ * The way Xen loads the symtab is different from the native boot loader,
+ * because it's tailored for NetBSD. So we have to adapt and use the same
+ * method as NetBSD. Portions of the code below have been picked from NetBSD:
+ * sys/kern/kern_ksyms.c CVS Revision 1.71.
+ */
+static void
+xen_pv_parse_symtab(void)
+{
+	Elf_Ehdr *ehdr;
+	Elf_Shdr *shdr;
+	vm_offset_t sym_end;
+	uint32_t size;
+	int i, j;
+
+	size = end;
+	sym_end = HYPERVISOR_start_info->mod_start != 0 ?
+	    HYPERVISOR_start_info->mod_start :
+	    HYPERVISOR_start_info->mfn_list;
+
+	/*
+	 * Make sure the size is right headed, sym_end is just a
+	 * high boundary, but at least allows us to fail earlier.
+	 */
+	if ((vm_offset_t)&end + size > sym_end) {
+		xc_printf("Unable to load ELF symtab: size mismatch\n");
+		return;
+	}
+
+	ehdr = (Elf_Ehdr *)(&end + 1);
+	if (memcmp(ehdr->e_ident, ELFMAG, SELFMAG) ||
+	    ehdr->e_ident[EI_CLASS] != ELF_TARG_CLASS ||
+	    ehdr->e_version > 1) {
+		xc_printf("Unable to load ELF symtab: invalid symbol table\n");
+		return;
+	}
+
+	shdr = (Elf_Shdr *)((uint8_t *)ehdr + ehdr->e_shoff);
+	/* Find the symbol table and the corresponding string table. */
+	for (i = 1; i < ehdr->e_shnum; i++) {
+		if (shdr[i].sh_type != SHT_SYMTAB)
+			continue;
+		if (shdr[i].sh_offset == 0)
+			continue;
+		ksymtab = (uintptr_t)((uint8_t *)ehdr + shdr[i].sh_offset);
+		ksymtab_size = shdr[i].sh_size;
+		j = shdr[i].sh_link;
+		if (shdr[j].sh_offset == 0)
+			continue; /* Can this happen? */
+		kstrtab = (uintptr_t)((uint8_t *)ehdr + shdr[j].sh_offset);
+		break;
+	}
+
+	if (ksymtab == 0 || kstrtab == 0) {
+		xc_printf(
+    "Unable to load ELF symtab: could not find symtab or strtab\n");
+		return;
+	}
+}
+#endif
+
 static caddr_t
 xen_pv_parse_preload_data(u_int64_t modulep)
 {
 	/* Parse the extra boot information given by Xen */
 	xen_pv_set_env();
 	xen_pv_set_boothowto();
+
+#ifdef DDB
+	xen_pv_parse_symtab();
+#endif
 
 	return (NULL);
 }

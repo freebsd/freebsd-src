@@ -203,17 +203,17 @@ sys_mmap(td, uap)
 	struct vnode *vp;
 	vm_offset_t addr;
 	vm_size_t size, pageoff;
-	vm_prot_t cap_maxprot, prot, maxprot;
+	vm_prot_t cap_maxprot, maxprot;
 	void *handle;
 	objtype_t handle_type;
-	int align, error, flags;
+	int align, error, flags, prot;
 	off_t pos;
 	struct vmspace *vms = td->td_proc->p_vmspace;
 	cap_rights_t rights;
 
 	addr = (vm_offset_t) uap->addr;
 	size = uap->len;
-	prot = uap->prot & VM_PROT_ALL;
+	prot = uap->prot;
 	flags = uap->flags;
 	pos = uap->pos;
 
@@ -244,7 +244,20 @@ sys_mmap(td, uap)
 		flags |= MAP_ANON;
 		pos = 0;
 	}
+	if ((flags & ~(MAP_SHARED | MAP_PRIVATE | MAP_FIXED | MAP_RENAME |
+	    MAP_NORESERVE | MAP_HASSEMAPHORE | MAP_STACK | MAP_NOSYNC |
+	    MAP_ANON | MAP_EXCL | MAP_NOCORE | MAP_PREFAULT_READ |
+#ifdef MAP_32BIT
+	    MAP_32BIT |
+#endif
+	    MAP_ALIGNMENT_MASK)) != 0)
+		return (EINVAL);
 	if ((flags & (MAP_EXCL | MAP_FIXED)) == MAP_EXCL)
+		return (EINVAL);
+	if ((flags & (MAP_SHARED | MAP_PRIVATE)) == (MAP_SHARED | MAP_PRIVATE))
+		return (EINVAL);
+	if (prot != PROT_NONE &&
+	    (prot & ~(PROT_READ | PROT_WRITE | PROT_EXEC)) != 0)
 		return (EINVAL);
 
 	/*
@@ -342,6 +355,11 @@ sys_mmap(td, uap)
 		error = fget_mmap(td, uap->fd, &rights, &cap_maxprot, &fp);
 		if (error != 0)
 			goto done;
+		if ((flags & (MAP_SHARED | MAP_PRIVATE)) == 0 &&
+		    td->td_proc->p_osrel >= P_OSREL_MAP_FSTRICT) {
+			error = EINVAL;
+			goto done;
+		}
 		if (fp->f_type == DTYPE_SHM) {
 			handle = fp->f_data;
 			handle_type = OBJT_SWAP;
@@ -415,6 +433,8 @@ sys_mmap(td, uap)
 map:
 	td->td_fpop = fp;
 	maxprot &= cap_maxprot;
+
+	/* This relies on VM_PROT_* matching PROT_*. */
 	error = vm_mmap(&vms->vm_map, &addr, size, prot, maxprot,
 	    flags, handle_type, handle, pos);
 	td->td_fpop = NULL;

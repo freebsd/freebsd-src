@@ -391,25 +391,24 @@ soalloc(struct vnet *vnet)
 	sx_init(&so->so_snd.sb_sx, "so_snd_sx");
 	sx_init(&so->so_rcv.sb_sx, "so_rcv_sx");
 	TAILQ_INIT(&so->so_aiojobq);
+#ifdef VIMAGE
+	VNET_ASSERT(vnet != NULL, ("%s:%d vnet is NULL, so=%p",
+	    __func__, __LINE__, so));
+	so->so_vnet = vnet;
+#endif
+	/* We shouldn't need the so_global_mtx */
+	if (hhook_run_socket(so, NULL, HHOOK_SOCKET_CREATE)) {
+		/* Do we need more comprehensive error returns? */
+		uma_zfree(socket_zone, so);
+		return (NULL);
+	}
 	mtx_lock(&so_global_mtx);
 	so->so_gencnt = ++so_gencnt;
 	++numopensockets;
 #ifdef VIMAGE
-	VNET_ASSERT(vnet != NULL, ("%s:%d vnet is NULL, so=%p",
-	    __func__, __LINE__, so));
 	vnet->vnet_sockcnt++;
-	so->so_vnet = vnet;
 #endif
 	mtx_unlock(&so_global_mtx);
-
-	CURVNET_SET(vnet);
-	/* We shouldn't need the so_global_mtx */
-	if (V_socket_hhh[HHOOK_SOCKET_CREATE]->hhh_nhooks > 0) {
-		if (hhook_run_socket(so, NULL, HHOOK_SOCKET_CREATE))
-			/* Do we need more comprehensive error returns? */
-			so = NULL;
-	}
-	CURVNET_RESTORE();
 
 	return (so);
 }
@@ -447,10 +446,7 @@ sodealloc(struct socket *so)
 #ifdef MAC
 	mac_socket_destroy(so);
 #endif
-	CURVNET_SET(so->so_vnet);
-	if (V_socket_hhh[HHOOK_SOCKET_CLOSE]->hhh_nhooks > 0)
-		hhook_run_socket(so, NULL, HHOOK_SOCKET_CLOSE);
-	CURVNET_RESTORE();
+	hhook_run_socket(so, NULL, HHOOK_SOCKET_CLOSE);
 
 	crfree(so->so_cred);
 	khelp_destroy_osd(&so->osd);
@@ -2406,10 +2402,13 @@ hhook_run_socket(struct socket *so, void *hctx, int32_t h_id)
 	struct socket_hhook_data hhook_data = {
 		.so = so,
 		.hctx = hctx,
-		.m = NULL
+		.m = NULL,
+		.status = 0
 	};
 
-	hhook_run_hooks(V_socket_hhh[h_id], &hhook_data, &so->osd);
+	CURVNET_SET(so->so_vnet);
+	HHOOKS_RUN_IF(V_socket_hhh[h_id], &hhook_data, &so->osd);
+	CURVNET_RESTORE();
 
 	/* Ugly but needed, since hhooks return void for now */
 	return (hhook_data.status);
@@ -3265,11 +3264,8 @@ filt_soread(struct knote *kn, long hint)
 			return 1;
 	}
 
-	if (V_socket_hhh[HHOOK_FILT_SOREAD]->hhh_nhooks > 0)
-		/* This hook returning non-zero indicates an event, not error */
-		return (hhook_run_socket(so, NULL, HHOOK_FILT_SOREAD));
-	
-	return (0);
+	/* This hook returning non-zero indicates an event, not error */
+	return (hhook_run_socket(so, NULL, HHOOK_FILT_SOREAD));
 }
 
 static void
@@ -3294,8 +3290,7 @@ filt_sowrite(struct knote *kn, long hint)
 	SOCKBUF_LOCK_ASSERT(&so->so_snd);
 	kn->kn_data = sbspace(&so->so_snd);
 
-	if (V_socket_hhh[HHOOK_FILT_SOWRITE]->hhh_nhooks > 0)
-		hhook_run_socket(so, kn, HHOOK_FILT_SOWRITE);
+	hhook_run_socket(so, kn, HHOOK_FILT_SOWRITE);
 
 	if (so->so_snd.sb_state & SBS_CANTSENDMORE) {
 		kn->kn_flags |= EV_EOF;

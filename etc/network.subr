@@ -25,9 +25,7 @@
 # $FreeBSD$
 #
 IFCONFIG_CMD="/sbin/ifconfig"
-
-# Maximum number of addresses expanded from a address range specification.
-_IPEXPANDMAX=31
+: ${netif_ipexpand_max:=2048}
 
 #
 # Subroutines commonly used from network startup scripts.
@@ -886,8 +884,8 @@ ifalias_expand_addr_inet()
 		_ipcount=$_iplow
 		while [ "$_ipcount" -le "$_iphigh" ]; do
 			_retstr="${_retstr} ${_iphead}${_iphead:+.}${_ipcount}${_iptail:+.}${_iptail}${_plen:+/}${_plen}"
-			if [ $_ipcount -gt $(($_iplow + $_IPEXPANDMAX)) ]; then
-				warn "Range specification is too large (${_iphead}${_iphead:+.}${_iplow}${_iptail:+.}${_iptail}-${_iphead}${_iphead:+.}${_iphigh}${_iptail:+.}${_iptail}).  ${_iphead}${_iphead:+.}${_iplow}${_iptail:+.}${_iptail}-${_iphead}${_iphead:+.}${_ipcount}${_iptail:+.}${_iptail} was processed."
+			if [ $_ipcount -gt $(($_iplow + $netif_ipexpand_max)) ]; then
+				warn "Range specification is too large (${_iphead}${_iphead:+.}${_iplow}${_iptail:+.}${_iptail}-${_iphead}${_iphead:+.}${_iphigh}${_iptail:+.}${_iptail}).  ${_iphead}${_iphead:+.}${_iplow}${_iptail:+.}${_iptail}-${_iphead}${_iphead:+.}${_ipcount}${_iptail:+.}${_iptail} was processed.  Increase \$netif_ipexpand_max in rc.conf."
 				break
 			else
 				_ipcount=$(($_ipcount + 1))
@@ -976,9 +974,9 @@ ifalias_expand_addr_inet6()
 					    $_ipleft $_ipcount $_ipright \
 					    ${_plen:+/}$_plen`
 					_retstr="$_retstr $_r"
-					if [ $_ipcount -gt $(($_iplow + $_IPEXPANDMAX)) ]
+					if [ $_ipcount -gt $(($_iplow + $netif_ipexpand_max)) ]
 					then
-						warn "Range specification is too large $(printf '(%s:%04x%s-%s:%04x%s)' $_ipleft $_iplow $_ipright $_ipleft $_iphigh $_ipright). $(printf '%s:%04x%s-%s:%04x%s' $_ipleft $_iplow $_ipright $_ipleft $_ipcount $_ipright) was processed."
+						warn "Range specification is too large $(printf '(%s:%x%s-%s:%x%s)' "$_ipleft" "$_iplow" "$_ipright" "$_ipleft" "$_iphigh" "$_ipright"). $(printf '%s:%x%s-%s:%x%s' "$_ipleft" "$_iplow" "$_ipright" "$_ipleft" "$_ipcount" "$_ipright") was processed.  Increase \$netif_ipexpand_max in rc.conf."
 						break
 					else
 						_ipcount=$(($_ipcount + 1))

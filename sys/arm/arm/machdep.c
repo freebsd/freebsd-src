@@ -111,6 +111,10 @@ __FBSDID("$FreeBSD$");
 #include <dev/ofw/openfirm.h>
 #endif
 
+#ifdef DDB
+#include <ddb/ddb.h>
+#endif
+
 #ifdef DEBUG
 #define	debugf(fmt, args...) printf(fmt, ##args)
 #else
@@ -131,9 +135,6 @@ int _min_memcpy_size = 0;
 int _min_bzero_size = 0;
 
 extern int *end;
-#ifdef DDB
-extern vm_offset_t ksym_start, ksym_end;
-#endif
 
 #ifdef FDT
 /*
@@ -620,7 +621,7 @@ spinlock_enter(void)
 
 	td = curthread;
 	if (td->td_md.md_spinlock_count == 0) {
-		cspr = disable_interrupts(I32_bit | F32_bit);
+		cspr = disable_interrupts(PSR_I | PSR_F);
 		td->td_md.md_spinlock_count = 1;
 		td->td_md.md_saved_cspr = cspr;
 	} else
@@ -747,7 +748,7 @@ sys_sigreturn(td, uap)
 	 */
 	spsr = uc.uc_mcontext.__gregs[_REG_CPSR];
 	if ((spsr & PSR_MODE) != PSR_USR32_MODE ||
-	    (spsr & (I32_bit | F32_bit)) != 0)
+	    (spsr & (PSR_I | PSR_F)) != 0)
 		return (EINVAL);
 		/* Restore register context. */
 	set_mcontext(td, &uc.uc_mcontext);
@@ -817,8 +818,7 @@ fake_preload_metadata(struct arm_boot_params *abp __unused)
 		lastaddr = *(uint32_t *)(KERNVIRTADDR + 8);
 		zend = lastaddr;
 		zstart = *(uint32_t *)(KERNVIRTADDR + 4);
-		ksym_start = zstart;
-		ksym_end = zend;
+		db_fetch_ksymtab(zstart, zend);
 	} else
 #endif
 		lastaddr = (vm_offset_t)&end;
@@ -912,6 +912,10 @@ freebsd_parse_boot_param(struct arm_boot_params *abp)
 	vm_offset_t lastaddr = 0;
 	void *mdp;
 	void *kmdp;
+#ifdef DDB
+	vm_offset_t ksym_start;
+	vm_offset_t ksym_end;
+#endif
 
 	/*
 	 * Mask metadata pointer: it is supposed to be on page boundary. If
@@ -934,6 +938,7 @@ freebsd_parse_boot_param(struct arm_boot_params *abp)
 #ifdef DDB
 	ksym_start = MD_FETCH(kmdp, MODINFOMD_SSYM, uintptr_t);
 	ksym_end = MD_FETCH(kmdp, MODINFOMD_ESYM, uintptr_t);
+	db_fetch_ksymtab(ksym_start, ksym_end);
 #endif
 	preload_addr_relocate = KERNVIRTADDR - abp->abp_physaddr;
 	return lastaddr;

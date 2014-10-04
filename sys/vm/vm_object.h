@@ -199,7 +199,7 @@ struct vm_object {
 
 #define OBJPC_SYNC	0x1			/* sync I/O */
 #define OBJPC_INVAL	0x2			/* invalidate */
-#define OBJPC_NOSYNC	0x4			/* skip if PG_NOSYNC */
+#define OBJPC_NOSYNC	0x4			/* skip if VPO_NOSYNC */
 
 /*
  * The following options are supported by vm_object_page_remove().

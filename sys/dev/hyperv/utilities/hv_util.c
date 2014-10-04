@@ -1,7 +1,5 @@
 /*-
- * Copyright (c) 2009-2012 Microsoft Corp.
- * Copyright (c) 2012 NetApp Inc.
- * Copyright (c) 2012 Citrix Inc.
+ * Copyright (c) 2014 Microsoft Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -24,9 +22,11 @@
  * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ *
+ * $FreeBSD$
  */
 
-/**
+/*
  * A common driver for all hyper-V util services.
  */
 
@@ -53,7 +53,7 @@ static void hv_timesync_cb(void *context);
 
 static int hv_timesync_init(hv_vmbus_service *serv);
 
-/**
+/*
  * Note: GUID codes below are predefined by the host hypervisor
  * (Hyper-V and Azure)interface and required for correct operation.
  */
@@ -80,7 +80,16 @@ hv_vmbus_service service_table[] = {
 			0xab, 0x55, 0x38, 0x2f, 0x3b, 0xd5, 0x42, 0x2d},
 	  .name = "Hyper-V Heartbeat Service\n",
 	  .enabled = TRUE,
-          .callback = hv_heartbeat_cb,
+  	  .callback = hv_heartbeat_cb,
+	},
+
+        /* KVP (Key Value Pair) Service */
+        { .guid.data = {0xe7, 0xf4, 0xa0, 0xa9, 0x45, 0x5a, 0x96, 0x4d,
+			0xb8, 0x27, 0x8a, 0x84, 0x1e, 0x8c, 0x3,  0xe6},
+	  .name = "Hyper-V KVP Service\n",
+	  .enabled = TRUE,
+	  .init = hv_kvp_init,
+	  .callback = hv_kvp_callback,
 	},
 };
 
@@ -89,6 +98,8 @@ hv_vmbus_service service_table[] = {
  * buffer is allocated during attach().
  */
 uint8_t *receive_buffer[HV_MAX_UTIL_SERVICES];
+
+static boolean_t destroyed_kvp = FALSE;
 
 struct hv_ictimesync_data {
 	uint64_t    parenttime;
@@ -143,7 +154,7 @@ hv_negotiate_version(
 static void
 hv_set_host_time(void *context)
 {
- 	time_sync_data *time_msg = context;	
+ 	time_sync_data* time_msg = (time_sync_data*) context;	
 	uint64_t hosttime = time_msg->data;
 	struct timespec guest_ts, host_ts;
 	uint64_t host_tns;
@@ -253,12 +264,12 @@ hv_timesync_cb(void *context)
 static void
 hv_shutdown_cb(void *context)
 {
-	uint8_t*			buf;
+	uint8_t*		buf;
 	hv_vmbus_channel*		channel = context;
-	uint8_t				execute_shutdown = 0;
+	uint8_t			execute_shutdown = 0;
 	hv_vmbus_icmsg_hdr*		icmsghdrp;
-	uint32_t			recv_len;
-	uint64_t			request_id;
+	uint32_t		recv_len;
+	uint64_t		request_id;
 	int				ret;
 	hv_vmbus_shutdown_msg_data*	shutdown_msg;
 
@@ -421,6 +432,11 @@ hv_util_detach(device_t dev)
 	struct hv_vmbus_service*	service;
 	size_t				receive_buffer_offset;
 
+	if (!destroyed_kvp) {
+		hv_kvp_deinit();
+		destroyed_kvp = TRUE;
+	}
+
 	hv_dev = vmbus_get_devctx(dev);
 
 	hv_vmbus_channel_close(hv_dev->channel);
@@ -432,21 +448,22 @@ hv_util_detach(device_t dev)
 
 	free(receive_buffer[receive_buffer_offset], M_DEVBUF);
 	receive_buffer[receive_buffer_offset] = NULL;
-
 	return (0);
 }
 
-static void hv_util_init(void)
+static void
+hv_util_init(void)
 {
 }
 
-static int hv_util_modevent(module_t mod, int event, void *arg)
+static int
+hv_util_modevent(module_t mod, int event, void *arg)
 {
 	switch (event) {
         case MOD_LOAD:
                 break;
         case MOD_UNLOAD:
-                break;
+		break;
 	default:
 		break;
         }

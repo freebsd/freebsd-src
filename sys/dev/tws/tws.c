@@ -198,6 +198,7 @@ tws_attach(device_t dev)
     mtx_init( &sc->sim_lock,  "tws_sim_lock", NULL, MTX_DEF);
     mtx_init( &sc->gen_lock,  "tws_gen_lock", NULL, MTX_DEF);
     mtx_init( &sc->io_lock,  "tws_io_lock", NULL, MTX_DEF | MTX_RECURSE);
+    callout_init(&sc->stats_timer, CALLOUT_MPSAFE);
 
     if ( tws_init_trace_q(sc) == FAILURE )
         printf("trace init failure\n");
@@ -408,11 +409,20 @@ tws_detach(device_t dev)
             TWS_TRACE(sc, "bus release mem resource", 0, sc->reg_res_id);
     }
 
+    for ( i=0; i< tws_queue_depth; i++) {
+	    if (sc->reqs[i].dma_map)
+		    bus_dmamap_destroy(sc->data_tag, sc->reqs[i].dma_map);
+	    callout_drain(&sc->reqs[i].timeout);
+    }
+
+    callout_drain(&sc->stats_timer);
     free(sc->reqs, M_TWS);
     free(sc->sense_bufs, M_TWS);
     free(sc->scan_ccb, M_TWS);
     if (sc->ioctl_data_mem)
             bus_dmamem_free(sc->data_tag, sc->ioctl_data_mem, sc->ioctl_data_map);
+    if (sc->data_tag)
+	    bus_dma_tag_destroy(sc->data_tag);
     free(sc->aen_q.q, M_TWS);
     free(sc->trace_q.q, M_TWS);
     mtx_destroy(&sc->q_lock);
@@ -709,7 +719,7 @@ tws_init_reqs(struct tws_softc *sc, u_int32_t dma_mem_size)
 
         sc->reqs[i].cmd_pkt->hdr.header_desc.size_header = 128;
 
-	callout_handle_init(&sc->reqs[i].thandle);
+	callout_init(&sc->reqs[i].timeout, CALLOUT_MPSAFE);
         sc->reqs[i].state = TWS_REQ_STATE_FREE;
         if ( i >= TWS_RESERVED_REQS )
             tws_q_insert_tail(sc, &sc->reqs[i], TWS_FREE_Q);
@@ -859,7 +869,7 @@ tws_get_request(struct tws_softc *sc, u_int16_t type)
         r->error_code = TWS_REQ_RET_INVALID;
         r->cb = NULL;
         r->ccb_ptr = NULL;
-        r->thandle.callout = NULL;
+	callout_stop(&r->timeout);
         r->next = r->prev = NULL;
 
         r->state = ((type == TWS_REQ_TYPE_SCSI_IO) ? TWS_REQ_STATE_TRAN : TWS_REQ_STATE_BUSY);

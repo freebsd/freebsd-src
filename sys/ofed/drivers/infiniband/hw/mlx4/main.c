@@ -1005,7 +1005,7 @@ static int flow_spec_to_net_rule(struct ib_device *dev, struct ib_flow_spec *flo
 	case IB_FLOW_IB_UC:
 		spec_l2->id = MLX4_NET_TRANS_RULE_ID_IB;
 		if(flow_spec->l2_id.ib_uc.qpn) {
-			spec_l2->ib.r_u_qpn = cpu_to_be32(flow_spec->l2_id.ib_uc.qpn);
+			spec_l2->ib.l3_qpn = cpu_to_be32(flow_spec->l2_id.ib_uc.qpn);
 			spec_l2->ib.qpn_msk = cpu_to_be32(0xffffff);
                     }
 		break;
@@ -2013,7 +2013,7 @@ static void *mlx4_ib_add(struct mlx4_dev *dev)
 	for (i = 0; i < ibdev->num_ports; ++i) {
 		if (mlx4_ib_port_link_layer(&ibdev->ib_dev, i + 1) ==
 						IB_LINK_LAYER_ETHERNET) {
-			err = mlx4_counter_alloc(ibdev->dev, &ibdev->counters[i]);
+			err = mlx4_counter_alloc(ibdev->dev, i + 1, &ibdev->counters[i]);
 			if (err)
 				ibdev->counters[i] = -1;
 		} else
@@ -2112,7 +2112,7 @@ err_steer_qp_release:
 err_counter:
 	for (; i; --i)
 		if (ibdev->counters[i - 1] != -1)
-			mlx4_counter_free(ibdev->dev, ibdev->counters[i - 1]);
+			mlx4_counter_free(ibdev->dev, i, ibdev->counters[i - 1]);
 
 err_map:
 	iounmap(ibdev->priv_uar.map);
@@ -2200,7 +2200,7 @@ static void mlx4_ib_remove(struct mlx4_dev *dev, void *ibdev_ptr)
 	iounmap(ibdev->priv_uar.map);
 	for (p = 0; p < ibdev->num_ports; ++p)
 		if (ibdev->counters[p] != -1)
-			mlx4_counter_free(ibdev->dev, ibdev->counters[p]);
+			mlx4_counter_free(ibdev->dev, p + 1, ibdev->counters[p]);
 	mlx4_foreach_port(p, dev, MLX4_PORT_TYPE_IB)
 		mlx4_CLOSE_PORT(dev, p);
 

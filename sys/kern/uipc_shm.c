@@ -75,6 +75,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/time.h>
 #include <sys/vnode.h>
 #include <sys/unistd.h>
+#include <sys/user.h>
 
 #include <security/mac/mac_framework.h>
 
@@ -120,29 +121,28 @@ static int	shm_dotruncate(struct shmfd *shmfd, off_t length);
 static fo_rdwr_t	shm_read;
 static fo_rdwr_t	shm_write;
 static fo_truncate_t	shm_truncate;
-static fo_ioctl_t	shm_ioctl;
-static fo_poll_t	shm_poll;
-static fo_kqfilter_t	shm_kqfilter;
 static fo_stat_t	shm_stat;
 static fo_close_t	shm_close;
 static fo_chmod_t	shm_chmod;
 static fo_chown_t	shm_chown;
 static fo_seek_t	shm_seek;
+static fo_fill_kinfo_t	shm_fill_kinfo;
 
 /* File descriptor operations. */
 static struct fileops shm_ops = {
 	.fo_read = shm_read,
 	.fo_write = shm_write,
 	.fo_truncate = shm_truncate,
-	.fo_ioctl = shm_ioctl,
-	.fo_poll = shm_poll,
-	.fo_kqfilter = shm_kqfilter,
+	.fo_ioctl = invfo_ioctl,
+	.fo_poll = invfo_poll,
+	.fo_kqfilter = invfo_kqfilter,
 	.fo_stat = shm_stat,
 	.fo_close = shm_close,
 	.fo_chmod = shm_chmod,
 	.fo_chown = shm_chown,
 	.fo_sendfile = vn_sendfile,
 	.fo_seek = shm_seek,
+	.fo_fill_kinfo = shm_fill_kinfo,
 	.fo_flags = DFLAG_PASSABLE | DFLAG_SEEKABLE
 };
 
@@ -352,29 +352,6 @@ shm_truncate(struct file *fp, off_t length, struct ucred *active_cred,
 		return (error);
 #endif
 	return (shm_dotruncate(shmfd, length));
-}
-
-static int
-shm_ioctl(struct file *fp, u_long com, void *data,
-    struct ucred *active_cred, struct thread *td)
-{
-
-	return (EOPNOTSUPP);
-}
-
-static int
-shm_poll(struct file *fp, int events, struct ucred *active_cred,
-    struct thread *td)
-{
-
-	return (EOPNOTSUPP);
-}
-
-static int
-shm_kqfilter(struct file *fp, struct knote *kn)
-{
-
-	return (EOPNOTSUPP);
 }
 
 static int
@@ -1048,14 +1025,24 @@ shm_unmap(struct file *fp, void *mem, size_t size)
 	return (0);
 }
 
-void
-shm_path(struct shmfd *shmfd, char *path, size_t size)
+static int
+shm_fill_kinfo(struct file *fp, struct kinfo_file *kif, struct filedesc *fdp)
 {
+	struct shmfd *shmfd;
 
-	if (shmfd->shm_path == NULL)
-		return;
-	sx_slock(&shm_dict_lock);
-	if (shmfd->shm_path != NULL)
-		strlcpy(path, shmfd->shm_path, size);
-	sx_sunlock(&shm_dict_lock);
+	kif->kf_type = KF_TYPE_SHM;
+	shmfd = fp->f_data;
+
+	mtx_lock(&shm_timestamp_lock);
+	kif->kf_un.kf_file.kf_file_mode = S_IFREG | shmfd->shm_mode;	/* XXX */
+	mtx_unlock(&shm_timestamp_lock);
+	kif->kf_un.kf_file.kf_file_size = shmfd->shm_size;
+	if (shmfd->shm_path != NULL) {
+		sx_slock(&shm_dict_lock);
+		if (shmfd->shm_path != NULL)
+			strlcpy(kif->kf_path, shmfd->shm_path,
+			    sizeof(kif->kf_path));
+		sx_sunlock(&shm_dict_lock);
+	}
+	return (0);
 }

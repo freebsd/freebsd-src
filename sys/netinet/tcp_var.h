@@ -199,9 +199,12 @@ struct tcpcb {
 	u_int	t_keepintvl;		/* interval between keepalives */
 	u_int	t_keepcnt;		/* number of keepalives before close */
 
-	u_int	t_tsomax;		/* tso burst length limit */
+	u_int	t_tsomax;		/* TSO total burst length limit in bytes */
 
-	uint32_t t_ispare[8];		/* 5 UTO, 3 TBD */
+	uint32_t t_ispare[6];		/* 5 UTO, 1 TBD */
+	uint32_t t_tsomaxsegcount;	/* TSO maximum segment count */
+	uint32_t t_tsomaxsegsize;	/* TSO maximum segment size in bytes */
+
 	void	*t_pspare2[4];		/* 1 TCP_SIGNATURE, 3 TBD */
 	uint64_t _pad[6];		/* 6 TBD (1-2 CC/RTT?) */
 };
@@ -324,6 +327,8 @@ struct hc_metrics_lite {	/* must stay in sync with hc_metrics */
 struct tcp_ifcap {
 	int	ifcap;
 	u_int	tsomax;
+	u_int	tsomaxsegcount;
+	u_int	tsomaxsegsize;
 };
 
 #ifndef _NETINET_IN_PCB_H_
@@ -680,9 +685,15 @@ int	 tcp_twcheck(struct inpcb *, struct tcpopt *, struct tcphdr *,
 	    struct mbuf *, int);
 void	 tcp_setpersist(struct tcpcb *);
 #ifdef TCP_SIGNATURE
+struct secasvar;
+struct secasvar *tcp_get_sav(struct mbuf *, u_int);
+int	 tcp_signature_do_compute(struct mbuf *, int, int, u_char *,
+	    struct secasvar *);
 int	 tcp_signature_compute(struct mbuf *, int, int, int, u_char *, u_int);
 int	 tcp_signature_verify(struct mbuf *, int, int, int, struct tcpopt *,
 	    struct tcphdr *, u_int);
+int	tcp_signature_check(struct mbuf *m, int off0, int tlen, int optlen,
+	    struct tcpopt *to, struct tcphdr *th, u_int tcpbflag);
 #endif
 void	 tcp_slowtimo(void);
 struct tcptemp *

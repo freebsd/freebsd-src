@@ -76,6 +76,7 @@
 __FBSDID("$FreeBSD$");
 
 #include "opt_vm.h"
+#include "opt_kdtrace.h"
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/kernel.h>
@@ -89,6 +90,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/racct.h>
 #include <sys/resourcevar.h>
 #include <sys/sched.h>
+#include <sys/sdt.h>
 #include <sys/signalvar.h>
 #include <sys/smp.h>
 #include <sys/vnode.h>
@@ -132,6 +134,10 @@ static struct kproc_desc page_kp = {
 };
 SYSINIT(pagedaemon, SI_SUB_KTHREAD_PAGE, SI_ORDER_SECOND, kproc_start,
     &page_kp);
+
+SDT_PROVIDER_DEFINE(vm);
+SDT_PROBE_DEFINE(vm, , , vm__lowmem_cache);
+SDT_PROBE_DEFINE(vm, , , vm__lowmem_scan);
 
 #if !defined(NO_SWAPPING)
 /* the kernel process "vm_daemon"*/
@@ -667,6 +673,7 @@ vm_pageout_grow_cache(int tries, vm_paddr_t low, vm_paddr_t high)
 		 * may acquire locks and/or sleep, so they can only be invoked
 		 * when "tries" is greater than zero.
 		 */
+		SDT_PROBE0(vm, , , vm__lowmem_cache);
 		EVENTHANDLER_INVOKE(vm_lowmem, 0);
 
 		/*
@@ -916,10 +923,11 @@ vm_pageout_scan(struct vm_domain *vmd, int pass)
 	 * some.  We rate limit to avoid thrashing.
 	 */
 	if (vmd == &vm_dom[0] && pass > 0 &&
-	    lowmem_ticks + (lowmem_period * hz) < ticks) {
+	    (ticks - lowmem_ticks) / hz >= lowmem_period) {
 		/*
 		 * Decrease registered cache sizes.
 		 */
+		SDT_PROBE0(vm, , , vm__lowmem_scan);
 		EVENTHANDLER_INVOKE(vm_lowmem, 0);
 		/*
 		 * We do this explicitly after the caches have been

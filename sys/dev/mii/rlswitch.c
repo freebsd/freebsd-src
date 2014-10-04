@@ -55,7 +55,7 @@ __FBSDID("$FreeBSD$");
 #include "miidevs.h"
 
 #include <machine/bus.h>
-#include <pci/if_rlreg.h>
+#include <dev/rl/if_rlreg.h>
 
 #include "miibus_if.h"
 

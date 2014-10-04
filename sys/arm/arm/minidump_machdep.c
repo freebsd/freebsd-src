@@ -154,7 +154,7 @@ blk_write(struct dumperinfo *di, char *ptr, vm_paddr_t pa, size_t sz)
 			sz -= len;
 		} else {
 			for (i = 0; i < len; i += PAGE_SIZE)
-				dump_va = pmap_kenter_temp(pa + i,
+				dump_va = pmap_kenter_temporary(pa + i,
 				    (i + fragsz) >> PAGE_SHIFT);
 			fragsz += len;
 			pa += len;
@@ -244,7 +244,7 @@ minidumpsys(struct dumperinfo *di)
 		}
 		if (pmap_pde_v(pdp) && pmap_pde_page(pdp)) {
 			/* Set bit for each valid page in this 1MB block */
-			addr = pmap_kenter_temp(*pdp & L1_C_ADDR_MASK, 0);
+			addr = pmap_kenter_temporary(*pdp & L1_C_ADDR_MASK, 0);
 			pt = (pt_entry_t*)(addr +
 			    (((uint32_t)*pdp  & L1_C_ADDR_MASK) & PAGE_MASK));
 			for (k = 0; k < 256; k++) {

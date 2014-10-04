@@ -1812,9 +1812,11 @@ kern_jail_set(struct thread *td, struct uio *optuio, int flags)
 
 #ifdef RACCT
 	if (!created) {
-		sx_sunlock(&allprison_lock);
+		if (!(flags & JAIL_ATTACH))
+			sx_sunlock(&allprison_lock);
 		prison_racct_modify(pr);
-		sx_slock(&allprison_lock);
+		if (!(flags & JAIL_ATTACH))
+			sx_slock(&allprison_lock);
 	}
 #endif
 

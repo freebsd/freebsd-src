@@ -179,31 +179,31 @@ static struct {
 	    AHCI_Q_EDGEIS | AHCI_Q_NONCQ | AHCI_Q_NOCOUNT},
 	{0x614511ab, 0x00, "Marvell 88SE6145",	AHCI_Q_NOFORCE | AHCI_Q_4CH |
 	    AHCI_Q_EDGEIS | AHCI_Q_NONCQ | AHCI_Q_NOCOUNT},
-	{0x91201b4b, 0x00, "Marvell 88SE912x",	AHCI_Q_EDGEIS|AHCI_Q_NOBSYRES},
-	{0x91231b4b, 0x11, "Marvell 88SE912x",	AHCI_Q_NOBSYRES|AHCI_Q_ALTSIG},
-	{0x91231b4b, 0x00, "Marvell 88SE912x",	AHCI_Q_EDGEIS|AHCI_Q_SATA2|AHCI_Q_NOBSYRES},
-	{0x91251b4b, 0x00, "Marvell 88SE9125",	AHCI_Q_NOBSYRES},
-	{0x91281b4b, 0x00, "Marvell 88SE9128",	AHCI_Q_NOBSYRES|AHCI_Q_ALTSIG},
-	{0x91301b4b, 0x00, "Marvell 88SE9130",  AHCI_Q_NOBSYRES|AHCI_Q_ALTSIG},
-	{0x91721b4b, 0x00, "Marvell 88SE9172",	AHCI_Q_NOBSYRES},
-	{0x91821b4b, 0x00, "Marvell 88SE9182",	AHCI_Q_NOBSYRES},
-	{0x91831b4b, 0x00, "Marvell 88SS9183",	AHCI_Q_NOBSYRES},
-	{0x91a01b4b, 0x00, "Marvell 88SE91Ax",	AHCI_Q_NOBSYRES},
-	{0x92151b4b, 0x00, "Marvell 88SE9215",  AHCI_Q_NOBSYRES},
-	{0x92201b4b, 0x00, "Marvell 88SE9220",  AHCI_Q_NOBSYRES|AHCI_Q_ALTSIG},
-	{0x92301b4b, 0x00, "Marvell 88SE9230",  AHCI_Q_NOBSYRES|AHCI_Q_ALTSIG},
-	{0x92351b4b, 0x00, "Marvell 88SE9235",  AHCI_Q_NOBSYRES},
-	{0x06201103, 0x00, "HighPoint RocketRAID 620",	AHCI_Q_NOBSYRES},
-	{0x06201b4b, 0x00, "HighPoint RocketRAID 620",	AHCI_Q_NOBSYRES},
-	{0x06221103, 0x00, "HighPoint RocketRAID 622",	AHCI_Q_NOBSYRES},
-	{0x06221b4b, 0x00, "HighPoint RocketRAID 622",	AHCI_Q_NOBSYRES},
-	{0x06401103, 0x00, "HighPoint RocketRAID 640",	AHCI_Q_NOBSYRES},
-	{0x06401b4b, 0x00, "HighPoint RocketRAID 640",	AHCI_Q_NOBSYRES},
-	{0x06441103, 0x00, "HighPoint RocketRAID 644",	AHCI_Q_NOBSYRES},
-	{0x06441b4b, 0x00, "HighPoint RocketRAID 644",	AHCI_Q_NOBSYRES},
-	{0x06411103, 0x00, "HighPoint RocketRAID 640L",	AHCI_Q_NOBSYRES},
-	{0x06421103, 0x00, "HighPoint RocketRAID 642L",	AHCI_Q_NOBSYRES},
-	{0x06451103, 0x00, "HighPoint RocketRAID 644L",	AHCI_Q_NOBSYRES},
+	{0x91201b4b, 0x00, "Marvell 88SE912x",	AHCI_Q_EDGEIS},
+	{0x91231b4b, 0x11, "Marvell 88SE912x",	AHCI_Q_ALTSIG},
+	{0x91231b4b, 0x00, "Marvell 88SE912x",	AHCI_Q_EDGEIS|AHCI_Q_SATA2},
+	{0x91251b4b, 0x00, "Marvell 88SE9125",	0},
+	{0x91281b4b, 0x00, "Marvell 88SE9128",	AHCI_Q_ALTSIG},
+	{0x91301b4b, 0x00, "Marvell 88SE9130",  AHCI_Q_ALTSIG},
+	{0x91721b4b, 0x00, "Marvell 88SE9172",	0},
+	{0x91821b4b, 0x00, "Marvell 88SE9182",	0},
+	{0x91831b4b, 0x00, "Marvell 88SS9183",	0},
+	{0x91a01b4b, 0x00, "Marvell 88SE91Ax",	0},
+	{0x92151b4b, 0x00, "Marvell 88SE9215",  0},
+	{0x92201b4b, 0x00, "Marvell 88SE9220",  AHCI_Q_ALTSIG},
+	{0x92301b4b, 0x00, "Marvell 88SE9230",  AHCI_Q_ALTSIG},
+	{0x92351b4b, 0x00, "Marvell 88SE9235",  0},
+	{0x06201103, 0x00, "HighPoint RocketRAID 620",	0},
+	{0x06201b4b, 0x00, "HighPoint RocketRAID 620",	0},
+	{0x06221103, 0x00, "HighPoint RocketRAID 622",	0},
+	{0x06221b4b, 0x00, "HighPoint RocketRAID 622",	0},
+	{0x06401103, 0x00, "HighPoint RocketRAID 640",	0},
+	{0x06401b4b, 0x00, "HighPoint RocketRAID 640",	0},
+	{0x06441103, 0x00, "HighPoint RocketRAID 644",	0},
+	{0x06441b4b, 0x00, "HighPoint RocketRAID 644",	0},
+	{0x06411103, 0x00, "HighPoint RocketRAID 640L",	0},
+	{0x06421103, 0x00, "HighPoint RocketRAID 642L",	0},
+	{0x06451103, 0x00, "HighPoint RocketRAID 644L",	0},
 	{0x044c10de, 0x00, "NVIDIA MCP65",	AHCI_Q_NOAA},
 	{0x044d10de, 0x00, "NVIDIA MCP65",	AHCI_Q_NOAA},
 	{0x044e10de, 0x00, "NVIDIA MCP65",	AHCI_Q_NOAA},
@@ -273,6 +273,7 @@ static struct {
 	{0x0d8d10de, 0x00, "NVIDIA MCP89",	AHCI_Q_NOAA},
 	{0x0d8e10de, 0x00, "NVIDIA MCP89",	AHCI_Q_NOAA},
 	{0x0d8f10de, 0x00, "NVIDIA MCP89",	AHCI_Q_NOAA},
+	{0x3781105a, 0x00, "Promise TX8660",	0},
 	{0x33491106, 0x00, "VIA VT8251",	AHCI_Q_NOPMP|AHCI_Q_NONCQ},
 	{0x62871106, 0x00, "VIA VT8251",	AHCI_Q_NOPMP|AHCI_Q_NONCQ},
 	{0x11841039, 0x00, "SiS 966",		0},
@@ -415,13 +416,6 @@ ahci_pci_attach(device_t dev)
 	if (ctlr->msi && pci_alloc_msi(dev, &ctlr->numirqs) != 0) {
 		ctlr->msi = 0;
 		ctlr->numirqs = 1;
-	}
-
-	if (ahci_setup_interrupt(dev)) {
-		if (ctlr->msi)
-			pci_release_msi(dev);
-		bus_release_resource(dev, SYS_RES_MEMORY, ctlr->r_rid, ctlr->r_mem);
-		return ENXIO;
 	}
 
 	error = ahci_attach(dev);

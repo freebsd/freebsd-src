@@ -136,7 +136,9 @@ ip_output(struct mbuf *m, struct mbuf *opt, struct route *ro, int flags,
 	struct rtentry *rte;	/* cache for ro->ro_rt */
 	struct in_addr odst;
 	struct m_tag *fwd_tag = NULL;
+	uint32_t fibnum;
 	int have_ia_ref;
+	int needfiblookup;
 #ifdef IPSEC
 	int no_route_but_check_spd = 0;
 #endif
@@ -145,7 +147,8 @@ ip_output(struct mbuf *m, struct mbuf *opt, struct route *ro, int flags,
 	if (inp != NULL) {
 		INP_LOCK_ASSERT(inp);
 		M_SETFIB(m, inp->inp_inc.inc_fibnum);
-		if (inp->inp_flags & (INP_HW_FLOWID|INP_SW_FLOWID)) {
+		if (((flags & IP_NODEFAULTFLOWID) == 0) &&
+		    inp->inp_flags & (INP_HW_FLOWID|INP_SW_FLOWID)) {
 			m->m_pkthdr.flowid = inp->inp_flowid;
 			M_HASHTYPE_SET(m, inp->inp_flowtype);
 			m->m_flags |= M_FLOWID;
@@ -201,6 +204,7 @@ ip_output(struct mbuf *m, struct mbuf *opt, struct route *ro, int flags,
 	 * therefore we need restore gw if we're redoing lookup.
 	 */
 	gw = dst = (struct sockaddr_in *)&ro->ro_dst;
+	fibnum = (inp != NULL) ? inp->inp_inc.inc_fibnum : M_GETFIB(m);
 again:
 	ia = NULL;
 	have_ia_ref = 0;
@@ -234,8 +238,10 @@ again:
 	 * or the destination address of a ptp interface.
 	 */
 	if (flags & IP_SENDONES) {
-		if ((ia = ifatoia(ifa_ifwithbroadaddr(sintosa(dst)))) == NULL &&
-		    (ia = ifatoia(ifa_ifwithdstaddr(sintosa(dst)))) == NULL) {
+		if ((ia = ifatoia(ifa_ifwithbroadaddr(sintosa(dst),
+						      M_GETFIB(m)))) == NULL &&
+		    (ia = ifatoia(ifa_ifwithdstaddr(sintosa(dst),
+						    M_GETFIB(m)))) == NULL) {
 			IPSTAT_INC(ips_noroute);
 			error = ENETUNREACH;
 			goto bad;
@@ -247,8 +253,10 @@ again:
 		ip->ip_ttl = 1;
 		isbroadcast = 1;
 	} else if (flags & IP_ROUTETOIF) {
-		if ((ia = ifatoia(ifa_ifwithdstaddr(sintosa(dst)))) == NULL &&
-		    (ia = ifatoia(ifa_ifwithnet(sintosa(dst), 0))) == NULL) {
+		if ((ia = ifatoia(ifa_ifwithdstaddr(sintosa(dst),
+						    M_GETFIB(m)))) == NULL &&
+		    (ia = ifatoia(ifa_ifwithnet(sintosa(dst), 0,
+						M_GETFIB(m)))) == NULL) {
 			IPSTAT_INC(ips_noroute);
 			error = ENETUNREACH;
 			goto bad;
@@ -278,10 +286,9 @@ again:
 #ifdef RADIX_MPATH
 			rtalloc_mpath_fib(ro,
 			    ntohl(ip->ip_src.s_addr ^ ip->ip_dst.s_addr),
-			    inp ? inp->inp_inc.inc_fibnum : M_GETFIB(m));
+			    fibnum);
 #else
-			in_rtalloc_ign(ro, 0,
-			    inp ? inp->inp_inc.inc_fibnum : M_GETFIB(m));
+			in_rtalloc_ign(ro, 0, fibnum);
 #endif
 			rte = ro->ro_rt;
 		}
@@ -441,43 +448,6 @@ again:
 	}
 
 	/*
-	 * Both in the SMP world, pre-emption world if_transmit() world,
-	 * the following code doesn't really function as intended any further.
-	 *
-	 * + There can and will be multiple CPUs running this code path
-	 *   in parallel, and we do no lock holding when checking the
-	 *   queue depth;
-	 * + And since other threads can be running concurrently, even if
-	 *   we do pass this check, another thread may queue some frames
-	 *   before this thread does and it will end up partially or fully
-	 *   failing to send anyway;
-	 * + if_transmit() based drivers don't necessarily set ifq_len
-	 *   at all.
-	 *
-	 * This should be replaced with a method of pushing an entire list
-	 * of fragment frames to the driver and have the driver decide
-	 * whether it can queue or not queue the entire set.
-	 */
-#if 0
-	/*
-	 * Verify that we have any chance at all of being able to queue the
-	 * packet or packet fragments, unless ALTQ is enabled on the given
-	 * interface in which case packetdrop should be done by queueing.
-	 */
-	n = ip_len / mtu + 1; /* how many fragments ? */
-	if (
-#ifdef ALTQ
-	    (!ALTQ_IS_ENABLED(&ifp->if_snd)) &&
-#endif /* ALTQ */
-	    (ifp->if_snd.ifq_len + n) >= ifp->if_snd.ifq_maxlen ) {
-		error = ENOBUFS;
-		IPSTAT_INC(ips_odropped);
-		ifp->if_snd.ifq_drops += n;
-		goto bad;
-	}
-#endif
-
-	/*
 	 * Look for broadcast address and
 	 * verify user is allowed to send
 	 * such a packet.
@@ -536,6 +506,7 @@ sendit:
 		goto done;
 
 	ip = mtod(m, struct ip *);
+	needfiblookup = 0;
 
 	/* See if destination IP address was changed by packet filter. */
 	if (odst.s_addr != ip->ip_dst.s_addr) {
@@ -561,9 +532,18 @@ sendit:
 		} else {
 			if (have_ia_ref)
 				ifa_free(&ia->ia_ifa);
-			goto again;	/* Redo the routing table lookup. */
+			needfiblookup = 1; /* Redo the routing table lookup. */
 		}
 	}
+	/* See if fib was changed by packet filter. */
+	if (fibnum != M_GETFIB(m)) {
+		m->m_flags |= M_SKIP_FIREWALL;
+		fibnum = M_GETFIB(m);
+		RO_RTFREE(ro);
+		needfiblookup = 1;
+	}
+	if (needfiblookup)
+		goto again;
 
 	/* See if local, if yes, send it to netisr with IP_FASTFWD_OURS. */
 	if (m->m_flags & M_FASTFWD_OURS) {
@@ -1015,6 +995,10 @@ ip_ctloutput(struct socket *so, struct sockopt *sopt)
 		case IP_ONESBCAST:
 		case IP_DONTFRAG:
 		case IP_RECVTOS:
+		case IP_RECVFLOWID:
+#ifdef	RSS
+		case IP_RECVRSSBUCKETID:
+#endif
 			error = sooptcopyin(sopt, &optval, sizeof optval,
 					    sizeof optval);
 			if (error)
@@ -1093,6 +1077,9 @@ ip_ctloutput(struct socket *so, struct sockopt *sopt)
 			case IP_BINDMULTI:
 				OPTSET2(INP_BINDMULTI, optval);
 				break;
+			case IP_RECVFLOWID:
+				OPTSET2(INP_RECVFLOWID, optval);
+				break;
 #ifdef	RSS
 			case IP_RSS_LISTEN_BUCKET:
 				if ((optval >= 0) &&
@@ -1102,6 +1089,9 @@ ip_ctloutput(struct socket *so, struct sockopt *sopt)
 				} else {
 					error = EINVAL;
 				}
+				break;
+			case IP_RECVRSSBUCKETID:
+				OPTSET2(INP_RECVRSSBUCKETID, optval);
 				break;
 #endif
 			}
@@ -1218,8 +1208,10 @@ ip_ctloutput(struct socket *so, struct sockopt *sopt)
 		case IP_BINDMULTI:
 		case IP_FLOWID:
 		case IP_FLOWTYPE:
+		case IP_RECVFLOWID:
 #ifdef	RSS
 		case IP_RSSBUCKETID:
+		case IP_RECVRSSBUCKETID:
 #endif
 			switch (sopt->sopt_name) {
 
@@ -1289,6 +1281,9 @@ ip_ctloutput(struct socket *so, struct sockopt *sopt)
 			case IP_FLOWTYPE:
 				optval = inp->inp_flowtype;
 				break;
+			case IP_RECVFLOWID:
+				optval = OPTBIT2(INP_RECVFLOWID);
+				break;
 #ifdef	RSS
 			case IP_RSSBUCKETID:
 				retval = rss_hash2bucket(inp->inp_flowid,
@@ -1298,6 +1293,9 @@ ip_ctloutput(struct socket *so, struct sockopt *sopt)
 					optval = rss_bucket;
 				else
 					error = EINVAL;
+				break;
+			case IP_RECVRSSBUCKETID:
+				optval = OPTBIT2(INP_RECVRSSBUCKETID);
 				break;
 #endif
 			case IP_BINDMULTI:

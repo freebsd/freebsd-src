@@ -41,18 +41,52 @@
 TAILQ_HEAD(nvl_head, nvpair);
 
 void nvpair_assert(const nvpair_t *nvp);
-const nvlist_t *nvpair_nvlist(const nvpair_t *nvp);
+nvlist_t *nvpair_nvlist(const nvpair_t *nvp);
 nvpair_t *nvpair_next(const nvpair_t *nvp);
 nvpair_t *nvpair_prev(const nvpair_t *nvp);
 void nvpair_insert(struct nvl_head *head, nvpair_t *nvp, nvlist_t *nvl);
 void nvpair_remove(struct nvl_head *head, nvpair_t *nvp, const nvlist_t *nvl);
 size_t nvpair_header_size(void);
 size_t nvpair_size(const nvpair_t *nvp);
-unsigned char *nvpair_pack(nvpair_t *nvp, unsigned char *ptr, int64_t *fdidxp,
-    size_t *leftp);
 const unsigned char *nvpair_unpack(int flags, const unsigned char *ptr,
-    size_t *leftp, const int *fds, size_t nfds, nvpair_t **nvpp);
+    size_t *leftp, nvpair_t **nvpp);
 void nvpair_free_structure(nvpair_t *nvp);
+void nvpair_init_datasize(nvpair_t *nvp);
 const char *nvpair_type_string(int type);
+
+/* Pack functions. */
+unsigned char *nvpair_pack_header(const nvpair_t *nvp, unsigned char *ptr,
+    size_t *leftp);
+unsigned char *nvpair_pack_null(const nvpair_t *nvp, unsigned char *ptr,
+    size_t *leftp);
+unsigned char *nvpair_pack_bool(const nvpair_t *nvp, unsigned char *ptr,
+    size_t *leftp);
+unsigned char *nvpair_pack_number(const nvpair_t *nvp, unsigned char *ptr,
+    size_t *leftp);
+unsigned char *nvpair_pack_string(const nvpair_t *nvp, unsigned char *ptr,
+    size_t *leftp);
+unsigned char *nvpair_pack_descriptor(const nvpair_t *nvp, unsigned char *ptr,
+    int64_t *fdidxp, size_t *leftp);
+unsigned char *nvpair_pack_binary(const nvpair_t *nvp, unsigned char *ptr,
+    size_t *leftp);
+unsigned char *nvpair_pack_nvlist_up(unsigned char *ptr, size_t *leftp);
+
+/* Unpack data functions. */
+const unsigned char *nvpair_unpack_header(int flags, nvpair_t *nvp,
+    const unsigned char *ptr, size_t *leftp);
+const unsigned char *nvpair_unpack_null(int flags, nvpair_t *nvp,
+    const unsigned char *ptr, size_t *leftp);
+const unsigned char *nvpair_unpack_bool(int flags, nvpair_t *nvp,
+    const unsigned char *ptr, size_t *leftp);
+const unsigned char *nvpair_unpack_number(int flags, nvpair_t *nvp,
+    const unsigned char *ptr, size_t *leftp);
+const unsigned char *nvpair_unpack_string(int flags, nvpair_t *nvp,
+    const unsigned char *ptr, size_t *leftp);
+const unsigned char *nvpair_unpack_nvlist(int *flagsp, nvpair_t *nvp,
+    const unsigned char *ptr, size_t *leftp, size_t nvlist, nvlist_t **child);
+const unsigned char *nvpair_unpack_descriptor(int flags, nvpair_t *nvp,
+    const unsigned char *ptr, size_t *leftp, const int *fds, size_t nfds);
+const unsigned char *nvpair_unpack_binary(int flags, nvpair_t *nvp,
+    const unsigned char *ptr, size_t *leftp);
 
 #endif	/* !_NVPAIR_IMPL_H_ */

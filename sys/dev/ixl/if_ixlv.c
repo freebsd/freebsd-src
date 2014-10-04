@@ -755,8 +755,10 @@ ixlv_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 			ifp->if_flags |= IFF_UP;
 			if (!(ifp->if_drv_flags & IFF_DRV_RUNNING))
 				ixlv_init(sc);
+#ifdef INET
 			if (!(ifp->if_flags & IFF_NOARP))
 				arp_ifinit(ifp, ifa);
+#endif
 		} else
 			error = ether_ioctl(ifp, command, data);
 		break;
@@ -1135,6 +1137,7 @@ ixlv_allocate_pci_resources(struct ixlv_sc *sc)
 	sc->osdep.mem_bus_space_handle =
 		rman_get_bushandle(sc->pci_mem);
 	sc->osdep.mem_bus_space_size = rman_get_size(sc->pci_mem);
+	sc->osdep.flush_reg = I40E_VFGEN_RSTAT;
 	sc->hw.hw_addr = (u8 *) &sc->osdep.mem_bus_space_handle;
 
 	sc->hw.back = &sc->osdep;
@@ -1353,6 +1356,10 @@ ixlv_setup_interface(device_t dev, struct ixlv_sc *sc)
 	ifp->if_flags = IFF_BROADCAST | IFF_SIMPLEX | IFF_MULTICAST;
 	ifp->if_ioctl = ixlv_ioctl;
 
+#if __FreeBSD_version >= 1100000
+	if_setgetcounterfn(ifp, ixl_get_counter);
+#endif
+
 	ifp->if_transmit = ixl_mq_start;
 
 	ifp->if_qflush = ixl_qflush;
@@ -1457,8 +1464,8 @@ ixlv_setup_queues(struct ixlv_sc *sc)
 		tsize = roundup2((que->num_desc *
 		    sizeof(struct i40e_tx_desc)) +
 		    sizeof(u32), DBA_ALIGN);
-		if (i40e_allocate_dma(&sc->hw,
-		    &txr->dma, tsize, DBA_ALIGN)) {
+		if (i40e_allocate_dma_mem(&sc->hw,
+		    &txr->dma, i40e_mem_reserved, tsize, DBA_ALIGN)) {
 			device_printf(dev,
 			    "Unable to allocate TX Descriptor memory\n");
 			error = ENOMEM;
@@ -1497,8 +1504,8 @@ ixlv_setup_queues(struct ixlv_sc *sc)
 		    device_get_nameunit(dev), que->me);
 		mtx_init(&rxr->mtx, rxr->mtx_name, NULL, MTX_DEF);
 
-		if (i40e_allocate_dma(&sc->hw,
-		    &rxr->dma, rsize, 4096)) { //JFV - should this be DBA?
+		if (i40e_allocate_dma_mem(&sc->hw,
+		    &rxr->dma, i40e_mem_reserved, rsize, 4096)) { //JFV - should this be DBA?
 			device_printf(dev,
 			    "Unable to allocate RX Descriptor memory\n");
 			error = ENOMEM;
@@ -1525,9 +1532,9 @@ fail:
 		rxr = &que->rxr;
 		txr = &que->txr;
 		if (rxr->base)
-			i40e_free_dma(&sc->hw, &rxr->dma);
+			i40e_free_dma_mem(&sc->hw, &rxr->dma);
 		if (txr->base)
-			i40e_free_dma(&sc->hw, &txr->dma);
+			i40e_free_dma_mem(&sc->hw, &txr->dma);
 	}
 
 early:
@@ -2346,7 +2353,7 @@ ixlv_free_queues(struct ixl_vsi *vsi)
 		IXL_TX_LOCK(txr);
 		ixl_free_que_tx(que);
 		if (txr->base)
-			i40e_free_dma(&sc->hw, &txr->dma);
+			i40e_free_dma_mem(&sc->hw, &txr->dma);
 		IXL_TX_UNLOCK(txr);
 		IXL_TX_LOCK_DESTROY(txr);
 
@@ -2355,7 +2362,7 @@ ixlv_free_queues(struct ixl_vsi *vsi)
 		IXL_RX_LOCK(rxr);
 		ixl_free_que_rx(que);
 		if (rxr->base)
-			i40e_free_dma(&sc->hw, &rxr->dma);
+			i40e_free_dma_mem(&sc->hw, &rxr->dma);
 		IXL_RX_UNLOCK(rxr);
 		IXL_RX_LOCK_DESTROY(rxr);
 		

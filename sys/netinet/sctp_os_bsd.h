@@ -152,15 +152,9 @@ MALLOC_DECLARE(SCTP_M_MCORE);
 #define V_system_base_info VNET(system_base_info)
 #define SCTP_BASE_INFO(__m) V_system_base_info.sctppcbinfo.__m
 #define SCTP_BASE_STATS V_system_base_info.sctpstat
-#define SCTP_BASE_STATS_SYSCTL VNET_NAME(system_base_info.sctpstat)
-#define SCTP_BASE_STAT(__m)     V_system_base_info.sctpstat.__m
-#define SCTP_BASE_SYSCTL(__m) VNET_NAME(system_base_info.sctpsysctl.__m)
+#define SCTP_BASE_STAT(__m) V_system_base_info.sctpstat.__m
+#define SCTP_BASE_SYSCTL(__m) V_system_base_info.sctpsysctl.__m
 #define SCTP_BASE_VAR(__m) V_system_base_info.__m
-
-/*
- *
- */
-#define USER_ADDR_NULL	(NULL)	/* FIX ME: temp */
 
 #define SCTP_PRINTF(params...)	printf(params)
 #if defined(SCTP_DEBUG)
@@ -175,9 +169,9 @@ MALLOC_DECLARE(SCTP_M_MCORE);
 #define SCTPDBG_ADDR(level, addr)					\
 {									\
 	do {								\
-	if (SCTP_BASE_SYSCTL(sctp_debug_on) & level ) {			\
-		sctp_print_address(addr);				\
-	}								\
+		if (SCTP_BASE_SYSCTL(sctp_debug_on) & level ) {		\
+			sctp_print_address(addr);			\
+		}							\
 	} while (0);							\
 }
 #else
@@ -328,7 +322,7 @@ typedef struct callout sctp_os_timer_t;
 /*      MTU              */
 /*************************/
 #define SCTP_GATHER_MTU_FROM_IFN_INFO(ifn, ifn_index, af) ((struct ifnet *)ifn)->if_mtu
-#define SCTP_GATHER_MTU_FROM_ROUTE(sctp_ifa, sa, rt) ((rt != NULL) ? rt->rt_mtu : 0)
+#define SCTP_GATHER_MTU_FROM_ROUTE(sctp_ifa, sa, rt) ((uint32_t)((rt != NULL) ? rt->rt_mtu : 0))
 #define SCTP_GATHER_MTU_FROM_INTFC(sctp_ifn) ((sctp_ifn->ifn_p != NULL) ? ((struct ifnet *)(sctp_ifn->ifn_p))->if_mtu : 0)
 #define SCTP_SET_MTU_OF_ROUTE(sa, rt, mtu) do { \
                                               if (rt != NULL) \

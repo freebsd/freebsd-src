@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2013, Intel Corp.
+ * Copyright (C) 2000 - 2014, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -41,7 +41,6 @@
  * POSSIBILITY OF SUCH DAMAGES.
  */
 
-
 #include <contrib/dev/acpica/compiler/aslcompiler.h>
 #include <contrib/dev/acpica/include/actables.h>
 #include <contrib/dev/acpica/include/acdisasm.h>
@@ -51,17 +50,7 @@
         ACPI_MODULE_NAME    ("aslstartup")
 
 
-#define ASL_MAX_FILES   256
-static char             *FileList[ASL_MAX_FILES];
-static BOOLEAN          AslToFile = TRUE;
-
-
 /* Local prototypes */
-
-static char **
-AsDoWildcard (
-    char                    *DirectoryPathname,
-    char                    *FileSpecifier);
 
 static UINT8
 AslDetectSourceFileType (
@@ -70,6 +59,11 @@ AslDetectSourceFileType (
 static ACPI_STATUS
 AslDoDisassembly (
     void);
+
+
+/* Globals */
+
+static BOOLEAN          AslToFile = TRUE;
 
 
 /*******************************************************************************
@@ -128,82 +122,6 @@ AslInitializeGlobals (
         Gbl_Files[i].Handle = NULL;
         Gbl_Files[i].Filename = NULL;
     }
-}
-
-
-/******************************************************************************
- *
- * FUNCTION:    AsDoWildcard
- *
- * PARAMETERS:  None
- *
- * RETURN:      None
- *
- * DESCRIPTION: Process files via wildcards. This function is for the Windows
- *              case only.
- *
- ******************************************************************************/
-
-static char **
-AsDoWildcard (
-    char                    *DirectoryPathname,
-    char                    *FileSpecifier)
-{
-#ifdef WIN32
-    void                    *DirInfo;
-    char                    *Filename;
-    int                     FileCount;
-
-
-    FileCount = 0;
-
-    /* Open parent directory */
-
-    DirInfo = AcpiOsOpenDirectory (DirectoryPathname, FileSpecifier, REQUEST_FILE_ONLY);
-    if (!DirInfo)
-    {
-        /* Either the directory of file does not exist */
-
-        Gbl_Files[ASL_FILE_INPUT].Filename = FileSpecifier;
-        FlFileError (ASL_FILE_INPUT, ASL_MSG_OPEN);
-        AslAbort ();
-    }
-
-    /* Process each file that matches the wildcard specification */
-
-    while ((Filename = AcpiOsGetNextFilename (DirInfo)))
-    {
-        /* Add the filename to the file list */
-
-        FileList[FileCount] = AcpiOsAllocate (strlen (Filename) + 1);
-        strcpy (FileList[FileCount], Filename);
-        FileCount++;
-
-        if (FileCount >= ASL_MAX_FILES)
-        {
-            printf ("Max files reached\n");
-            FileList[0] = NULL;
-            return (FileList);
-        }
-    }
-
-    /* Cleanup */
-
-    AcpiOsCloseDirectory (DirInfo);
-    FileList[FileCount] = NULL;
-    return (FileList);
-
-#else
-    /*
-     * Linux/Unix cases - Wildcards are expanded by the shell automatically.
-     * Just return the filename in a null terminated list
-     */
-    FileList[0] = AcpiOsAllocate (strlen (FileSpecifier) + 1);
-    strcpy (FileList[0], FileSpecifier);
-    FileList[1] = NULL;
-
-    return (FileList);
-#endif
 }
 
 
@@ -332,7 +250,7 @@ AslDoDisassembly (
     AcpiGbl_DbOpt_disasm = TRUE;
     Status = AdAmlDisassemble (AslToFile,
         Gbl_Files[ASL_FILE_INPUT].Filename, Gbl_OutputFilenamePrefix,
-        &Gbl_Files[ASL_FILE_INPUT].Filename, Gbl_GetAllTables);
+        &Gbl_Files[ASL_FILE_INPUT].Filename);
     if (ACPI_FAILURE (Status))
     {
         return (Status);
@@ -365,8 +283,11 @@ AslDoDisassembly (
         return (AE_CTRL_CONTINUE);
     }
 
-    ACPI_FREE (Gbl_Files[ASL_FILE_INPUT].Filename);
+    /* No need to free the filename string */
+
     Gbl_Files[ASL_FILE_INPUT].Filename = NULL;
+
+    CmDeleteCaches ();
     return (AE_OK);
 }
 
@@ -395,12 +316,29 @@ AslDoOneFile (
     AslInitializeGlobals ();
     PrInitializeGlobals ();
 
-    Gbl_Files[ASL_FILE_INPUT].Filename = Filename;
+    /*
+     * Extract the directory path. This path is used for possible include
+     * files and the optional AML filename embedded in the input file
+     * DefinitionBlock declaration.
+     */
+    Status = FlSplitInputPathname (Filename, &Gbl_DirectoryPath, NULL);
+    if (ACPI_FAILURE (Status))
+    {
+        return (Status);
+    }
+
+    /* Take a copy of the input filename, convert any backslashes */
+
+    Gbl_Files[ASL_FILE_INPUT].Filename =
+        UtStringCacheCalloc (strlen (Filename) + 1);
+
+    strcpy (Gbl_Files[ASL_FILE_INPUT].Filename, Filename);
+    UtConvertBackslashes (Gbl_Files[ASL_FILE_INPUT].Filename);
 
     /*
      * AML Disassembly (Optional)
      */
-    if (Gbl_DisasmFlag || Gbl_GetAllTables)
+    if (Gbl_DisasmFlag)
     {
         Status = AslDoDisassembly ();
         if (Status != AE_CTRL_CONTINUE)
@@ -465,7 +403,6 @@ AslDoOneFile (
 
         if (Gbl_Signature)
         {
-            ACPI_FREE (Gbl_Signature);
             Gbl_Signature = NULL;
         }
 
@@ -538,77 +475,6 @@ AslDoOneFile (
         printf ("Unknown file type %X\n", Gbl_FileType);
         return (AE_ERROR);
     }
-}
-
-
-/*******************************************************************************
- *
- * FUNCTION:    AslDoOnePathname
- *
- * PARAMETERS:  Pathname            - Full pathname, possibly with wildcards
- *
- * RETURN:      Status
- *
- * DESCRIPTION: Process one pathname, possible terminated with a wildcard
- *              specification. If a wildcard, it is expanded and the multiple
- *              files are processed.
- *
- ******************************************************************************/
-
-ACPI_STATUS
-AslDoOnePathname (
-    char                    *Pathname,
-    ASL_PATHNAME_CALLBACK   PathCallback)
-{
-    ACPI_STATUS             Status = AE_OK;
-    char                    **WildcardList;
-    char                    *Filename;
-    char                    *FullPathname;
-
-
-    /* Split incoming path into a directory/filename combo */
-
-    Status = FlSplitInputPathname (Pathname, &Gbl_DirectoryPath, &Filename);
-    if (ACPI_FAILURE (Status))
-    {
-        return (Status);
-    }
-
-    /* Expand possible wildcard into a file list (Windows/DOS only) */
-
-    WildcardList = AsDoWildcard (Gbl_DirectoryPath, Filename);
-    while (*WildcardList)
-    {
-        FullPathname = ACPI_ALLOCATE (
-            strlen (Gbl_DirectoryPath) + strlen (*WildcardList) + 1);
-
-        /* Construct a full path to the file */
-
-        strcpy (FullPathname, Gbl_DirectoryPath);
-        strcat (FullPathname, *WildcardList);
-
-        /*
-         * If -p not specified, we will use the input filename as the
-         * output filename prefix
-         */
-        if (Gbl_UseDefaultAmlFilename)
-        {
-            Gbl_OutputFilenamePrefix = FullPathname;
-        }
-
-        /* Save status from all compiles */
-
-        Status |= (*PathCallback) (FullPathname);
-
-        ACPI_FREE (FullPathname);
-        ACPI_FREE (*WildcardList);
-        *WildcardList = NULL;
-        WildcardList++;
-    }
-
-    ACPI_FREE (Gbl_DirectoryPath);
-    ACPI_FREE (Filename);
-    return (Status);
 }
 
 
