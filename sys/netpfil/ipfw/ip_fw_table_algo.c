@@ -45,6 +45,7 @@ __FBSDID("$FreeBSD: projects/ipfw/sys/netpfil/ipfw/ip_fw_table.c 267384 2014-06-
 #include <sys/kernel.h>
 #include <sys/lock.h>
 #include <sys/rwlock.h>
+#include <sys/rmlock.h>
 #include <sys/socket.h>
 #include <sys/queue.h>
 #include <net/if.h>	/* ip_fw.h requires IFNAMSIZ */
@@ -1819,11 +1820,11 @@ static void if_notifier(struct ip_fw_chain *ch, void *cbdata, uint16_t ifindex);
 int
 compare_ifidx(const void *k, const void *v)
 {
-	struct ifidx *ifidx;
+	const struct ifidx *ifidx;
 	uint16_t key;
 
-	key = *((uint16_t *)k);
-	ifidx = (struct ifidx *)v;
+	key = *((const uint16_t *)k);
+	ifidx = (const struct ifidx *)v;
 
 	if (key < ifidx->kidx)
 		return (-1);
@@ -2484,11 +2485,11 @@ int compare_numarray(const void *k, const void *v);
 int
 compare_numarray(const void *k, const void *v)
 {
-	struct numarray *na;
+	const struct numarray *na;
 	uint32_t key;
 
-	key = *((uint32_t *)k);
-	na = (struct numarray *)v;
+	key = *((const uint32_t *)k);
+	na = (const struct numarray *)v;
 
 	if (key < na->number)
 		return (-1);

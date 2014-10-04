@@ -556,6 +556,7 @@ add_table_entry(struct ip_fw_chain *ch, struct tid_info *ti,
 	caddr_t ta_buf_m, v;
 
 	memset(&ts, 0, sizeof(ts));
+	ta = NULL;
 	IPFW_UH_WLOCK(ch);
 
 	/*
