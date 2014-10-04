@@ -940,7 +940,7 @@ ipfw_getrules(struct ip_fw_chain *chain, void *buf, size_t space)
 int
 ipfw_ctl(struct sockopt *sopt)
 {
-#define	RULE_MAXSIZE	(256*sizeof(u_int32_t))
+#define	RULE_MAXSIZE	(512*sizeof(u_int32_t))
 	int error;
 	size_t size, len, valsize;
 	struct ip_fw *buf, *rule;
