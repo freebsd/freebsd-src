@@ -897,7 +897,7 @@ fix_obsolete_keys(int *argc, char **argv)
 						}
 					}
 				}
-				sprintf(sopt, "-k%d.%d", f1, c1);
+				sprintf(sopt, "-k%d.%d%s", f1, c1, sopts1);
 				argv[i] = sort_strdup(sopt);
 			}
 		}

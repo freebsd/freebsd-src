@@ -122,6 +122,7 @@ mvs_ch_attach(device_t dev)
 	ch->unit = (intptr_t)device_get_ivars(dev);
 	ch->quirks = ctlr->quirks;
 	mtx_init(&ch->mtx, "MVS channel lock", NULL, MTX_DEF);
+	ch->pm_level = 0;
 	resource_int_value(device_get_name(dev),
 	    device_get_unit(dev), "pm_level", &ch->pm_level);
 	if (ch->pm_level > 3)

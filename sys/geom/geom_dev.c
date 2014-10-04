@@ -281,7 +281,7 @@ g_dev_open(struct cdev *dev, int flags, int fmt, struct thread *td)
 
 	cp = dev->si_drv2;
 	if (cp == NULL)
-		return(ENXIO);		/* g_dev_taste() not done yet */
+		return (ENXIO);		/* g_dev_taste() not done yet */
 	g_trace(G_T_ACCESS, "g_dev_open(%s, %d, %d, %p)",
 	    cp->geom->name, flags, fmt, td);
 
@@ -312,7 +312,7 @@ g_dev_open(struct cdev *dev, int flags, int fmt, struct thread *td)
 		sc->sc_open += r + w + e;
 		mtx_unlock(&sc->sc_mtx);
 	}
-	return(error);
+	return (error);
 }
 
 static int
@@ -324,10 +324,10 @@ g_dev_close(struct cdev *dev, int flags, int fmt, struct thread *td)
 
 	cp = dev->si_drv2;
 	if (cp == NULL)
-		return(ENXIO);
+		return (ENXIO);
 	g_trace(G_T_ACCESS, "g_dev_close(%s, %d, %d, %p)",
 	    cp->geom->name, flags, fmt, td);
-	
+
 	r = flags & FREAD ? -1 : 0;
 	w = flags & FWRITE ? -1 : 0;
 #ifdef notyet
@@ -361,7 +361,6 @@ g_dev_ioctl(struct cdev *dev, u_long cmd, caddr_t data, int fflag, struct thread
 	struct g_kerneldump kd;
 	off_t offset, length, chunk;
 	int i, error;
-	u_int u;
 
 	cp = dev->si_drv2;
 	pp = cp->provider;
@@ -396,19 +395,17 @@ g_dev_ioctl(struct cdev *dev, u_long cmd, caddr_t data, int fflag, struct thread
 		error = g_io_getattr("GEOM::frontstuff", cp, &i, data);
 		break;
 	case DIOCSKERNELDUMP:
-		u = *((u_int *)data);
-		if (!u) {
-			set_dumper(NULL, NULL);
-			error = 0;
+		if (*(u_int *)data == 0) {
+			error = set_dumper(NULL, NULL);
 			break;
 		}
 		kd.offset = 0;
 		kd.length = OFF_MAX;
 		i = sizeof kd;
 		error = g_io_getattr("GEOM::kerneldump", cp, &i, &kd);
-		if (!error) {
+		if (error == 0) {
 			error = set_dumper(&kd.di, devtoname(dev));
-			if (!error)
+			if (error == 0)
 				dev->si_flags |= SI_DUMPDEV;
 		}
 		break;
@@ -425,7 +422,7 @@ g_dev_ioctl(struct cdev *dev, u_long cmd, caddr_t data, int fflag, struct thread
 			error = EINVAL;
 			break;
 		}
-		while (length > 0) { 
+		while (length > 0) {
 			chunk = length;
 			if (g_dev_del_max_sectors != 0 && chunk >
 			    g_dev_del_max_sectors * cp->provider->sectorsize) {
@@ -618,7 +615,7 @@ g_dev_orphan(struct g_consumer *cp)
 
 	/* Reset any dump-area set on this device */
 	if (dev->si_flags & SI_DUMPDEV)
-		set_dumper(NULL, NULL);
+		(void)set_dumper(NULL, NULL);
 
 	/* Destroy the struct cdev *so we get no more requests */
 	destroy_dev_sched_cb(dev, g_dev_callback, cp);

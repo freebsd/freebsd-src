@@ -139,6 +139,8 @@ struct ctl_lba_len_flags {
 	uint64_t lba;
 	uint32_t len;
 	uint32_t flags;
+#define CTL_LLF_FUA	0x04000000
+#define CTL_LLF_DPO	0x08000000
 #define CTL_LLF_READ	0x10000000
 #define CTL_LLF_WRITE	0x20000000
 #define CTL_LLF_VERIFY	0x40000000

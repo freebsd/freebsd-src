@@ -87,12 +87,6 @@ static int vt_##_name = _default;					\
 SYSCTL_INT(_kern_vt, OID_AUTO, _name, CTLFLAG_RWTUN, &vt_##_name, _default,\
 		_descr);
 
-/* Allow to disable some special keys by users. */
-#define	VT_DEBUG_KEY_ENABLED	(1 << 0)
-#define	VT_REBOOT_KEY_ENABLED	(1 << 1)
-#define	VT_HALT_KEY_ENABLED	(1 << 2)
-#define	VT_POWEROFF_KEY_ENABLED	(1 << 3)
-
 struct vt_driver;
 
 void vt_allocate(struct vt_driver *, void *);
@@ -119,11 +113,17 @@ typedef unsigned int 	vt_axis_t;
 struct vt_mouse_cursor;
 #endif
 
+struct vt_pastebuf {
+	term_char_t		*vpb_buf;	/* Copy-paste buffer. */
+	unsigned int		 vpb_bufsz;	/* Buffer size. */
+	unsigned int		 vpb_len;	/* Length of a last selection. */
+};
+
 struct vt_device {
 	struct vt_window	*vd_windows[VT_MAXWINDOWS]; /* (c) Windows. */
 	struct vt_window	*vd_curwindow;	/* (d) Current window. */
 	struct vt_window	*vd_savedwindow;/* (?) Saved for suspend. */
-	struct vt_window	*vd_markedwin;	/* (?) Copy/paste buf owner. */
+	struct vt_pastebuf	 vd_pastebuf;	/* (?) Copy/paste buf. */
 	const struct vt_driver	*vd_driver;	/* (c) Graphics driver. */
 	void			*vd_softc;	/* (u) Driver data. */
 #ifndef SC_NO_CUTPASTE
@@ -157,6 +157,10 @@ struct vt_device {
 	unsigned int		 vd_unit;	/* (c) Device unit. */
 };
 
+#define	VD_PASTEBUF(vd)	((vd)->vd_pastebuf.vpb_buf)
+#define	VD_PASTEBUFSZ(vd)	((vd)->vd_pastebuf.vpb_bufsz)
+#define	VD_PASTEBUFLEN(vd)	((vd)->vd_pastebuf.vpb_len)
+
 /*
  * Per-window terminal screen buffer.
  *
@@ -167,11 +171,6 @@ struct vt_device {
  * of bitmasks to keep track of the rows and columns (mod 64) that have
  * been modified.
  */
-
-struct vt_bufmask {
-	uint64_t		 vbm_row, vbm_col;
-#define	VBM_DIRTY		UINT64_MAX
-};
 
 struct vt_buf {
 	struct mtx		 vb_lock;	/* Buffer lock. */
@@ -191,7 +190,6 @@ struct vt_buf {
 	term_pos_t		 vb_mark_end;	/* (b) Copy region end. */
 	int			 vb_mark_last;	/* Last mouse event. */
 	term_rect_t		 vb_dirtyrect;	/* (b) Dirty rectangle. */
-	struct vt_bufmask	 vb_dirtymask;	/* (b) Dirty bitmasks. */
 	term_char_t		*vb_buffer;	/* (u) Data buffer. */
 	term_char_t		**vb_rows;	/* (u) Array of rows */
 };
@@ -205,7 +203,7 @@ void vtbuf_putchar(struct vt_buf *, const term_pos_t *, term_char_t);
 void vtbuf_cursor_position(struct vt_buf *, const term_pos_t *);
 void vtbuf_scroll_mode(struct vt_buf *vb, int yes);
 void vtbuf_dirty(struct vt_buf *vb, const term_rect_t *area);
-void vtbuf_undirty(struct vt_buf *, term_rect_t *, struct vt_bufmask *);
+void vtbuf_undirty(struct vt_buf *, term_rect_t *);
 void vtbuf_sethistory_size(struct vt_buf *, int);
 int vtbuf_iscursor(const struct vt_buf *vb, int row, int col);
 void vtbuf_cursor_visibility(struct vt_buf *, int);
@@ -262,6 +260,7 @@ struct vt_window {
 	unsigned int		 vw_number;	/* (c) Window number. */
 	int			 vw_kbdmode;	/* (?) Keyboard mode. */
 	int			 vw_prev_kbdmode;/* (?) Previous mode. */
+	int			 vw_kbdstate;	/* (?) Keyboard state. */
 	int			 vw_grabbed;	/* (?) Grab count. */
 	char			*vw_kbdsq;	/* Escape sequence queue*/
 	unsigned int		 vw_flags;	/* (d) Per-window flags. */

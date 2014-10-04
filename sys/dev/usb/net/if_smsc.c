@@ -123,7 +123,24 @@ SYSCTL_INT(_hw_usb_smsc, OID_AUTO, debug, CTLFLAG_RW, &smsc_debug, 0,
  */
 static const struct usb_device_id smsc_devs[] = {
 #define	SMSC_DEV(p,i) { USB_VPI(USB_VENDOR_SMC2, USB_PRODUCT_SMC2_##p, i) }
+	SMSC_DEV(LAN89530_ETH, 0),
+	SMSC_DEV(LAN9500_ETH, 0),
+	SMSC_DEV(LAN9500_ETH_2, 0),
+	SMSC_DEV(LAN9500A_ETH, 0),
+	SMSC_DEV(LAN9500A_ETH_2, 0),
+	SMSC_DEV(LAN9505_ETH, 0),
+	SMSC_DEV(LAN9505A_ETH, 0),
 	SMSC_DEV(LAN9514_ETH, 0),
+	SMSC_DEV(LAN9514_ETH_2, 0),
+	SMSC_DEV(LAN9530_ETH, 0),
+	SMSC_DEV(LAN9730_ETH, 0),
+	SMSC_DEV(LAN9500_SAL10, 0),
+	SMSC_DEV(LAN9505_SAL10, 0),
+	SMSC_DEV(LAN9500A_SAL10, 0),
+	SMSC_DEV(LAN9505A_SAL10, 0),
+	SMSC_DEV(LAN9514_SAL10, 0),
+	SMSC_DEV(LAN9500A_HAL, 0),
+	SMSC_DEV(LAN9505A_HAL, 0),
 #undef SMSC_DEV
 };
 
@@ -989,9 +1006,9 @@ smsc_bulk_read_callback(struct usb_xfer *xfer, usb_error_t error)
 			
 			if (rxhdr & SMSC_RX_STAT_ERROR) {
 				smsc_dbg_printf(sc, "rx error (hdr 0x%08x)\n", rxhdr);
-				ifp->if_ierrors++;
+				if_inc_counter(ifp, IFCOUNTER_IERRORS, 1);
 				if (rxhdr & SMSC_RX_STAT_COLLISION)
-					ifp->if_collisions++;
+					if_inc_counter(ifp, IFCOUNTER_COLLISIONS, 1);
 			} else {
 
 				/* Check if the ethernet frame is too big or too small */
@@ -1002,7 +1019,7 @@ smsc_bulk_read_callback(struct usb_xfer *xfer, usb_error_t error)
 				m = uether_newbuf();
 				if (m == NULL) {
 					smsc_warn_printf(sc, "failed to create new mbuf\n");
-					ifp->if_iqdrops++;
+					if_inc_counter(ifp, IFCOUNTER_IQDROPS, 1);
 					goto tr_setup;
 				}
 				
@@ -1158,7 +1175,7 @@ tr_setup:
 			usbd_m_copy_in(pc, frm_len, m, 0, m->m_pkthdr.len);
 			frm_len += m->m_pkthdr.len;
 
-			ifp->if_opackets++;
+			if_inc_counter(ifp, IFCOUNTER_OPACKETS, 1);
 
 			/* If there's a BPF listener, bounce a copy of this frame to him */
 			BPF_MTAP(ifp, m);
@@ -1176,7 +1193,7 @@ tr_setup:
 		return;
 
 	default:
-		ifp->if_oerrors++;
+		if_inc_counter(ifp, IFCOUNTER_OERRORS, 1);
 		ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
 		
 		if (error != USB_ERR_CANCELLED) {

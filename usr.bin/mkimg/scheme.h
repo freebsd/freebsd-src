@@ -62,7 +62,7 @@ struct mkimg_scheme {
 	const char	*name;
 	const char	*description;
 	struct mkimg_alias *aliases;
-	u_int		(*metadata)(u_int);
+	lba_t		(*metadata)(u_int, lba_t);
 #define	SCHEME_META_IMG_START	1
 #define	SCHEME_META_IMG_END	2
 #define	SCHEME_META_PART_BEFORE	3

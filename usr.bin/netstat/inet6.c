@@ -346,7 +346,7 @@ static const char *srcrule_str[] = {
 	"public/temporary address",
 	"alive interface",
 	"better virtual status",
-	"rule #10",
+	"preferred source",
 	"rule #11",
 	"rule #12",
 	"rule #13",

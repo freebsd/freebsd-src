@@ -405,30 +405,11 @@ printcpuinfo(void)
 			break;
 		case 0x5a0:
 			strcat(cpu_model, "Geode LX");
-			/*
-			 * Make sure the TSC runs through suspension,
-			 * otherwise we can't use it as timecounter
-			 */
-			wrmsr(0x1900, rdmsr(0x1900) | 0x20ULL);
 			break;
 		default:
 			strcat(cpu_model, "Unknown");
 			break;
 		}
-#if defined(I586_CPU) && defined(CPU_WT_ALLOC)
-		if ((cpu_id & 0xf00) == 0x500) {
-			if (((cpu_id & 0x0f0) > 0)
-			    && ((cpu_id & 0x0f0) < 0x60)
-			    && ((cpu_id & 0x00f) > 3))
-				enable_K5_wt_alloc();
-			else if (((cpu_id & 0x0f0) > 0x80)
-				 || (((cpu_id & 0x0f0) == 0x80)
-				     && (cpu_id & 0x00f) > 0x07))
-				enable_K6_2_wt_alloc();
-			else if ((cpu_id & 0x0f0) > 0x50)
-				enable_K6_wt_alloc();
-		}
-#endif
 #else
 		if ((cpu_id & 0xf00) == 0xf00)
 			strcat(cpu_model, "AMD64 Processor");
@@ -930,6 +911,19 @@ printcpuinfo(void)
 				       "\035AVX512CD"
 				       "\036SHA"
 				       );
+			}
+
+			if ((cpu_feature2 & CPUID2_XSAVE) != 0) {
+				cpuid_count(0xd, 0x1, regs);
+				if (regs[0] != 0) {
+					printf("\n  XSAVE Features=0x%b",
+					    regs[0],
+					    "\020"
+					    "\001XSAVEOPT"
+					    "\002XSAVEC"
+					    "\003XINUSE"
+					    "\004XSAVES");
+				}
 			}
 
 			if (via_feature_rng != 0 || via_feature_xcrypt != 0)

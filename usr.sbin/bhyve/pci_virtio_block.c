@@ -133,6 +133,7 @@ static struct virtio_consts vtblk_vi_consts = {
 	pci_vtblk_notify,	/* device-wide qnotify */
 	pci_vtblk_cfgread,	/* read PCI config */
 	pci_vtblk_cfgwrite,	/* write PCI config */
+	NULL,			/* apply negotiated features */
 	VTBLK_S_HOSTCAPS,	/* our capabilities */
 };
 

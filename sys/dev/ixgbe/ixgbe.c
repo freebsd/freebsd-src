@@ -120,6 +120,7 @@ static int      ixgbe_ioctl(struct ifnet *, u_long, caddr_t);
 static void	ixgbe_init(void *);
 static void	ixgbe_init_locked(struct adapter *);
 static void     ixgbe_stop(void *);
+static uint64_t	ixgbe_get_counter(struct ifnet *, ift_counter);
 static void     ixgbe_media_status(struct ifnet *, struct ifmediareq *);
 static int      ixgbe_media_change(struct ifnet *);
 static void     ixgbe_identify_hardware(struct adapter *);
@@ -514,7 +515,7 @@ ixgbe_attach(device_t dev)
 	}
 
 	if (((ixgbe_rxd * sizeof(union ixgbe_adv_rx_desc)) % DBA_ALIGN) != 0 ||
-	    ixgbe_rxd < MIN_TXD || ixgbe_rxd > MAX_TXD) {
+	    ixgbe_rxd < MIN_RXD || ixgbe_rxd > MAX_RXD) {
 		device_printf(dev, "RXD config issue, using default!\n");
 		adapter->num_rx_desc = DEFAULT_RXD;
 	} else
@@ -2721,6 +2722,7 @@ ixgbe_setup_interface(device_t dev, struct adapter *adapter)
 	ifp->if_softc = adapter;
 	ifp->if_flags = IFF_BROADCAST | IFF_SIMPLEX | IFF_MULTICAST;
 	ifp->if_ioctl = ixgbe_ioctl;
+	ifp->if_get_counter = ixgbe_get_counter;
 #ifndef IXGBE_LEGACY_TX
 	ifp->if_transmit = ixgbe_mq_start;
 	ifp->if_qflush = ixgbe_qflush;
@@ -4142,7 +4144,6 @@ ixgbe_setup_receive_ring(struct rx_ring *rxr)
 	rxr->lro_enabled = FALSE;
 	rxr->rx_copies = 0;
 	rxr->rx_bytes = 0;
-	rxr->discard = FALSE;
 	rxr->vtag_strip = FALSE;
 
 	bus_dmamap_sync(rxr->rxdma.dma_tag, rxr->rxdma.dma_map,
@@ -4523,11 +4524,6 @@ ixgbe_rx_discard(struct rx_ring *rxr, int i)
 
 	rbuf = &rxr->rx_buffers[i];
 
-        if (rbuf->fmp != NULL) {/* Partial chain ? */
-		rbuf->fmp->m_flags |= M_PKTHDR;
-                m_freem(rbuf->fmp);
-                rbuf->fmp = NULL;
-	}
 
 	/*
 	** With advanced descriptors the writeback
@@ -4536,7 +4532,13 @@ ixgbe_rx_discard(struct rx_ring *rxr, int i)
 	** the normal refresh path to get new buffers
 	** and mapping.
 	*/
-	if (rbuf->buf) {
+
+	if (rbuf->fmp != NULL) {/* Partial chain ? */
+		rbuf->fmp->m_flags |= M_PKTHDR;
+		m_freem(rbuf->fmp);
+		rbuf->fmp = NULL;
+		rbuf->buf = NULL; /* rbuf->buf is part of fmp's chain */
+	} else if (rbuf->buf) {
 		m_free(rbuf->buf);
 		rbuf->buf = NULL;
 	}
@@ -4617,13 +4619,8 @@ ixgbe_rxeof(struct ix_queue *que)
 		eop = ((staterr & IXGBE_RXD_STAT_EOP) != 0);
 
 		/* Make sure bad packets are discarded */
-		if (((staterr & IXGBE_RXDADV_ERR_FRAME_ERR_MASK) != 0) ||
-		    (rxr->discard)) {
+		if (eop && (staterr & IXGBE_RXDADV_ERR_FRAME_ERR_MASK) != 0) {
 			rxr->rx_discarded++;
-			if (eop)
-				rxr->discard = FALSE;
-			else
-				rxr->discard = TRUE;
 			ixgbe_rx_discard(rxr, i);
 			goto next_desc;
 		}
@@ -5369,10 +5366,8 @@ ixgbe_reinit_fdir(void *context, int pending)
 static void
 ixgbe_update_stats_counters(struct adapter *adapter)
 {
-	struct ifnet   *ifp = adapter->ifp;
 	struct ixgbe_hw *hw = &adapter->hw;
 	u32  missed_rx = 0, bprc, lxon, lxoff, total;
-	u64  total_missed_rx = 0;
 
 	adapter->stats.crcerrs += IXGBE_READ_REG(hw, IXGBE_CRCERRS);
 	adapter->stats.illerrc += IXGBE_READ_REG(hw, IXGBE_ILLERRC);
@@ -5391,8 +5386,6 @@ ixgbe_update_stats_counters(struct adapter *adapter)
 		missed_rx += mp;
 		/* global total per queue */
         	adapter->stats.mpc[i] += mp;
-		/* Running comprehensive total for stats display */
-		total_missed_rx += adapter->stats.mpc[i];
 		if (hw->mac.type == ixgbe_mac_82598EB) {
 			adapter->stats.rnbc[i] +=
 			    IXGBE_READ_REG(hw, IXGBE_RNBC(i));
@@ -5502,19 +5495,41 @@ ixgbe_update_stats_counters(struct adapter *adapter)
 		adapter->stats.fcoedwrc += IXGBE_READ_REG(hw, IXGBE_FCOEDWRC);
 		adapter->stats.fcoedwtc += IXGBE_READ_REG(hw, IXGBE_FCOEDWTC);
 	}
+}
 
-	/* Fill out the OS statistics structure */
-	ifp->if_ipackets = adapter->stats.gprc;
-	ifp->if_opackets = adapter->stats.gptc;
-	ifp->if_ibytes = adapter->stats.gorc;
-	ifp->if_obytes = adapter->stats.gotc;
-	ifp->if_imcasts = adapter->stats.mprc;
-	ifp->if_omcasts = adapter->stats.mptc;
-	ifp->if_collisions = 0;
+static uint64_t
+ixgbe_get_counter(struct ifnet *ifp, ift_counter cnt)
+{
+	struct adapter *adapter;
+	uint64_t rv;
 
-	/* Rx Errors */
-	ifp->if_iqdrops = total_missed_rx;
-	ifp->if_ierrors = adapter->stats.crcerrs + adapter->stats.rlec;
+	adapter = if_getsoftc(ifp);
+
+	switch (cnt) {
+	case IFCOUNTER_IPACKETS:
+		return (adapter->stats.gprc);
+	case IFCOUNTER_OPACKETS:
+		return (adapter->stats.gptc);
+	case IFCOUNTER_IBYTES:
+		return (adapter->stats.gorc);
+	case IFCOUNTER_OBYTES:
+		return (adapter->stats.gotc);
+	case IFCOUNTER_IMCASTS:
+		return (adapter->stats.mprc);
+	case IFCOUNTER_OMCASTS:
+		return (adapter->stats.mptc);
+	case IFCOUNTER_COLLISIONS:
+		return (0);
+	case IFCOUNTER_IQDROPS:
+		rv = 0;
+		for (int i = 0; i < 8; i++)
+			rv += adapter->stats.mpc[i];
+		return (rv);
+	case IFCOUNTER_IERRORS:
+		return (adapter->stats.crcerrs + adapter->stats.rlec);
+	default:
+		return (if_get_counter_default(ifp, cnt));
+	}
 }
 
 /** ixgbe_sysctl_tdh_handler - Handler function

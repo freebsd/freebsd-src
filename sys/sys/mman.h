@@ -234,7 +234,6 @@ int	shm_mmap(struct shmfd *shmfd, vm_size_t objsize, vm_ooffset_t foff,
 	    vm_object_t *obj);
 int	shm_map(struct file *fp, size_t size, off_t offset, void **memp);
 int	shm_unmap(struct file *fp, void *mem, size_t size);
-void	shm_path(struct shmfd *shmfd, char *path, size_t size);
 
 #else /* !_KERNEL */
 

@@ -102,23 +102,22 @@ struct mtag_gre_nesting {
  * gre_mtx protects all global variables in if_gre.c.
  * XXX: gre_softc data not protected yet.
  */
-struct mtx gre_mtx;
+VNET_DEFINE(struct mtx, gre_mtx);
+VNET_DEFINE(struct gre_softc_head, gre_softc_list);
+
 static const char grename[] = "gre";
 static MALLOC_DEFINE(M_GRE, grename, "Generic Routing Encapsulation");
 
-struct gre_softc_head gre_softc_list;
-
 static int	gre_clone_create(struct if_clone *, int, caddr_t);
 static void	gre_clone_destroy(struct ifnet *);
-static struct if_clone *gre_cloner;
+static VNET_DEFINE(struct if_clone *, gre_cloner);
+#define	V_gre_cloner	VNET(gre_cloner)
 
 static int	gre_ioctl(struct ifnet *, u_long, caddr_t);
 static int	gre_output(struct ifnet *, struct mbuf *,
 		    const struct sockaddr *, struct route *);
 
 static int gre_compute_route(struct gre_softc *sc);
-
-static void	greattach(void);
 
 #ifdef INET
 extern struct domain inetdomain;
@@ -160,26 +159,34 @@ static SYSCTL_NODE(_net_link, IFT_TUNNEL, gre, CTLFLAG_RW, 0,
  */
 #define MAX_GRE_NEST 1
 #endif
-static int max_gre_nesting = MAX_GRE_NEST;
-SYSCTL_INT(_net_link_gre, OID_AUTO, max_nesting, CTLFLAG_RW,
-    &max_gre_nesting, 0, "Max nested tunnels");
+static VNET_DEFINE(int, max_gre_nesting) = MAX_GRE_NEST;
+#define	V_max_gre_nesting	VNET(max_gre_nesting)
+SYSCTL_INT(_net_link_gre, OID_AUTO, max_nesting, CTLFLAG_RW | CTLFLAG_VNET,
+    &VNET_NAME(max_gre_nesting), 0, "Max nested tunnels");
 
-/* ARGSUSED */
 static void
-greattach(void)
+vnet_gre_init(const void *unused __unused)
 {
-
-	mtx_init(&gre_mtx, "gre_mtx", NULL, MTX_DEF);
-	LIST_INIT(&gre_softc_list);
-	gre_cloner = if_clone_simple(grename, gre_clone_create,
+	LIST_INIT(&V_gre_softc_list);
+	GRE_LIST_LOCK_INIT();
+	V_gre_cloner = if_clone_simple(grename, gre_clone_create,
 	    gre_clone_destroy, 0);
 }
+VNET_SYSINIT(vnet_gre_init, SI_SUB_PROTO_IFATTACHDOMAIN, SI_ORDER_ANY,
+    vnet_gre_init, NULL);
+
+static void
+vnet_gre_uninit(const void *unused __unused)
+{
+
+	if_clone_detach(V_gre_cloner);
+	GRE_LIST_LOCK_DESTROY();
+}
+VNET_SYSUNINIT(vnet_gre_uninit, SI_SUB_PROTO_IFATTACHDOMAIN, SI_ORDER_ANY,
+    vnet_gre_uninit, NULL);
 
 static int
-gre_clone_create(ifc, unit, params)
-	struct if_clone *ifc;
-	int unit;
-	caddr_t params;
+gre_clone_create(struct if_clone *ifc, int unit, caddr_t params)
 {
 	struct gre_softc *sc;
 
@@ -210,21 +217,20 @@ gre_clone_create(ifc, unit, params)
 	sc->key = 0;
 	if_attach(GRE2IFP(sc));
 	bpfattach(GRE2IFP(sc), DLT_NULL, sizeof(u_int32_t));
-	mtx_lock(&gre_mtx);
-	LIST_INSERT_HEAD(&gre_softc_list, sc, sc_list);
-	mtx_unlock(&gre_mtx);
+	GRE_LIST_LOCK();
+	LIST_INSERT_HEAD(&V_gre_softc_list, sc, sc_list);
+	GRE_LIST_UNLOCK();
 	return (0);
 }
 
 static void
-gre_clone_destroy(ifp)
-	struct ifnet *ifp;
+gre_clone_destroy(struct ifnet *ifp)
 {
 	struct gre_softc *sc = ifp->if_softc;
 
-	mtx_lock(&gre_mtx);
+	GRE_LIST_LOCK();
 	LIST_REMOVE(sc, sc_list);
-	mtx_unlock(&gre_mtx);
+	GRE_LIST_UNLOCK();
 
 #ifdef INET
 	if (sc->encap != NULL)
@@ -269,7 +275,7 @@ gre_output(struct ifnet *ifp, struct mbuf *m, const struct sockaddr *dst,
 
 		gt = (struct mtag_gre_nesting *)(mtag + 1);
 		gt->count++;
-		if (gt->count > min(gt->max,max_gre_nesting)) {
+		if (gt->count > min(gt->max, V_max_gre_nesting)) {
 			printf("%s: hit maximum recursion limit %u on %s\n",
 				__func__, gt->count - 1, ifp->if_xname);
 			m_freem(m);
@@ -301,7 +307,7 @@ gre_output(struct ifnet *ifp, struct mbuf *m, const struct sockaddr *dst,
 		 * Note: the sysctl does not actually check for saneness, so we
 		 * limit the maximum numbers of possible recursions here.
 		 */
-		max = imin(max_gre_nesting, 256);
+		max = imin(V_max_gre_nesting, 256);
 		/* If someone sets the sysctl <= 0, we want at least 1. */
 		max = imax(max, 1);
 		len = sizeof(struct mtag_gre_nesting) +
@@ -361,7 +367,7 @@ gre_output(struct ifnet *ifp, struct mbuf *m, const struct sockaddr *dst,
 			 * be encapsulated.
 			 */
 			if (ip->ip_off & htons(IP_MF | IP_OFFMASK)) {
-				_IF_DROP(&ifp->if_snd);
+				if_inc_counter(ifp, IFCOUNTER_OERRORS, 1);
 				m_freem(m);
 				error = EINVAL;    /* is there better errno? */
 				goto end;
@@ -390,7 +396,7 @@ gre_output(struct ifnet *ifp, struct mbuf *m, const struct sockaddr *dst,
 			if ((m->m_data - msiz) < m->m_pktdat) {
 				m0 = m_gethdr(M_NOWAIT, MT_DATA);
 				if (m0 == NULL) {
-					_IF_DROP(&ifp->if_snd);
+					if_inc_counter(ifp, IFCOUNTER_OERRORS, 1);
 					m_freem(m);
 					error = ENOBUFS;
 					goto end;
@@ -415,7 +421,7 @@ gre_output(struct ifnet *ifp, struct mbuf *m, const struct sockaddr *dst,
 			memcpy((caddr_t)(ip + 1), &mob_h, (unsigned)msiz);
 			ip->ip_len = htons(ntohs(ip->ip_len) + msiz);
 		} else {  /* AF_INET */
-			_IF_DROP(&ifp->if_snd);
+			if_inc_counter(ifp, IFCOUNTER_OERRORS, 1);
 			m_freem(m);
 			error = EINVAL;
 			goto end;
@@ -440,7 +446,7 @@ gre_output(struct ifnet *ifp, struct mbuf *m, const struct sockaddr *dst,
 			break;
 #endif
 		default:
-			_IF_DROP(&ifp->if_snd);
+			if_inc_counter(ifp, IFCOUNTER_OERRORS, 1);
 			m_freem(m);
 			error = EAFNOSUPPORT;
 			goto end;
@@ -452,14 +458,14 @@ gre_output(struct ifnet *ifp, struct mbuf *m, const struct sockaddr *dst,
 			hdrlen += sizeof(uint32_t);
 		M_PREPEND(m, hdrlen, M_NOWAIT);
 	} else {
-		_IF_DROP(&ifp->if_snd);
+		if_inc_counter(ifp, IFCOUNTER_OERRORS, 1);
 		m_freem(m);
 		error = EINVAL;
 		goto end;
 	}
 
 	if (m == NULL) {	/* mbuf allocation failed */
-		_IF_DROP(&ifp->if_snd);
+		if_inc_counter(ifp, IFCOUNTER_OERRORS, 1);
 		error = ENOBUFS;
 		goto end;
 	}
@@ -494,8 +500,8 @@ gre_output(struct ifnet *ifp, struct mbuf *m, const struct sockaddr *dst,
 		gh->gi_len = htons(m->m_pkthdr.len);
 	}
 
-	ifp->if_opackets++;
-	ifp->if_obytes += m->m_pkthdr.len;
+	if_inc_counter(ifp, IFCOUNTER_OPACKETS, 1);
+	if_inc_counter(ifp, IFCOUNTER_OBYTES, m->m_pkthdr.len);
 	/*
 	 * Send it off and with IP_FORWARD flag to prevent it from
 	 * overwriting the ip_id again.  ip_id is already set to the
@@ -505,7 +511,7 @@ gre_output(struct ifnet *ifp, struct mbuf *m, const struct sockaddr *dst,
 	    (struct ip_moptions *)NULL, (struct inpcb *)NULL);
   end:
 	if (error)
-		ifp->if_oerrors++;
+		if_inc_counter(ifp, IFCOUNTER_OERRORS, 1);
 	return (error);
 }
 
@@ -909,16 +915,12 @@ gremodevent(module_t mod, int type, void *data)
 
 	switch (type) {
 	case MOD_LOAD:
-		greattach();
-		break;
 	case MOD_UNLOAD:
-		if_clone_detach(gre_cloner);
-		mtx_destroy(&gre_mtx);
 		break;
 	default:
-		return EOPNOTSUPP;
+		return (EOPNOTSUPP);
 	}
-	return 0;
+	return (0);
 }
 
 static moduledata_t gre_mod = {

@@ -673,11 +673,21 @@ node_find(struct node *node, const char *path)
 {
 	struct node *child, *found;
 	char *tmp;
+	size_t tmplen;
 
 	//log_debugx("looking up %s in %s", path, node->n_key);
 
 	tmp = node_path(node);
-	if (strncmp(tmp, path, strlen(tmp)) != 0) {
+	tmplen = strlen(tmp);
+	if (strncmp(tmp, path, tmplen) != 0) {
+		free(tmp);
+		return (NULL);
+	}
+	if (path[tmplen] != '/' && path[tmplen] != '\0') {
+		/*
+		 * If we have two map entries like 'foo' and 'foobar', make
+		 * sure the search for 'foobar' won't match 'foo' instead.
+		 */
 		free(tmp);
 		return (NULL);
 	}

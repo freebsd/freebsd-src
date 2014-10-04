@@ -503,7 +503,9 @@ extern struct vnodeop_desc *vnodeop_descs[];
  * reliable since if the thread sleeps between changing the lock
  * state and checking it with the assert, some other thread could
  * change the state.  They are good enough for debugging a single
- * filesystem using a single-threaded test.
+ * filesystem using a single-threaded test.  Note that the unreliability is
+ * limited to false negatives; efforts were made to ensure that false
+ * positives cannot occur.
  */
 void	assert_vi_locked(struct vnode *vp, const char *str);
 void	assert_vi_unlocked(struct vnode *vp, const char *str);

@@ -134,7 +134,6 @@ static const int MODPARM_rx_flip = 0;
  * to mirror the Linux MAX_SKB_FRAGS constant.
  */
 #define	MAX_TX_REQ_FRAGS (65536 / PAGE_SIZE + 2)
-#define	NF_TSO_MAXBURST ((IP_MAXPACKET / PAGE_SIZE) * MCLBYTES)
 
 #define RX_COPY_THRESHOLD 256
 
@@ -1056,7 +1055,7 @@ xn_rxeof(struct netfront_info *np)
 		 * Break the mbuf chain first though.
 		 */
 		while ((m = mbufq_dequeue(&rxq)) != NULL) {
-			ifp->if_ipackets++;
+			if_inc_counter(ifp, IFCOUNTER_IPACKETS, 1);
 			
 			/*
 			 * Do we really need to drop the rx lock?
@@ -1147,7 +1146,7 @@ xn_txeof(struct netfront_info *np)
 			 * mbuf of the chain.
 			 */
 			if (!m->m_next)
-				ifp->if_opackets++;
+				if_inc_counter(ifp, IFCOUNTER_OPACKETS, 1);
 			if (__predict_false(gnttab_query_foreign_access(
 			    np->grant_tx_ref[id]) != 0)) {
 				panic("%s: grant id %u still in use by the "
@@ -2102,7 +2101,9 @@ create_netdev(device_t dev)
 	
     	ifp->if_hwassist = XN_CSUM_FEATURES;
     	ifp->if_capabilities = IFCAP_HWCSUM;
-	ifp->if_hw_tsomax = NF_TSO_MAXBURST;
+	ifp->if_hw_tsomax = 65536 - (ETHER_HDR_LEN + ETHER_VLAN_ENCAP_LEN);
+	ifp->if_hw_tsomaxsegcount = MAX_TX_REQ_FRAGS;
+	ifp->if_hw_tsomaxsegsize = PAGE_SIZE;
 	
     	ether_ifattach(ifp, np->mac);
     	callout_init(&np->xn_stat_ch, CALLOUT_MPSAFE);

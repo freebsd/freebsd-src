@@ -56,6 +56,8 @@ LDFLAGS=	-static -Ttext 0x0
 LIBPC98=	${.OBJDIR}/../libpc98/libpc98.a
 CFLAGS+=	-I${.CURDIR}/..
 
+LIBSTAND=	${.OBJDIR}/../../libstand32/libstand.a
+
 # BTX components
 CFLAGS+=	-I${.CURDIR}/../btx/lib
 

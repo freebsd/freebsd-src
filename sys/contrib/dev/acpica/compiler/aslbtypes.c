@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2013, Intel Corp.
+ * Copyright (C) 2000 - 2014, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -40,7 +40,6 @@
  * IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGES.
  */
-
 
 #include <contrib/dev/acpica/compiler/aslcompiler.h>
 #include "aslcompiler.y.h"
@@ -243,7 +242,7 @@ AnMapEtypeToBtype (
 
             return (ACPI_BTYPE_INTEGER | ACPI_BTYPE_DDB_HANDLE);
 
-        case ACPI_BTYPE_DEBUG_OBJECT:
+        case ACPI_TYPE_DEBUG_OBJECT:
 
             /* Cannot be used as a source operand */
 

@@ -54,6 +54,7 @@ struct drm_gem_names {
 void drm_gem_names_init(struct drm_gem_names *names);
 void drm_gem_names_fini(struct drm_gem_names *names);
 uint32_t drm_gem_find_name(struct drm_gem_names *names, void *ptr);
+void *drm_gem_find_ptr(struct drm_gem_names *names, uint32_t name);
 void *drm_gem_name_ref(struct drm_gem_names *names, uint32_t name,
     void (*ref)(void *));
 int drm_gem_name_create(struct drm_gem_names *names, void *obj, uint32_t *name);

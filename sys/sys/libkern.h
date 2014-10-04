@@ -103,6 +103,7 @@ int	 locc(int, char *, u_int);
 void	*memchr(const void *s, int c, size_t n);
 void	*memcchr(const void *s, int c, size_t n);
 int	 memcmp(const void *b1, const void *b2, size_t len);
+void	*memmem(const void *l, size_t l_len, const void *s, size_t s_len);
 void	 qsort(void *base, size_t nmemb, size_t size,
 	    int (*compar)(const void *, const void *));
 void	 qsort_r(void *base, size_t nmemb, size_t size, void *thunk,

@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2013, Intel Corp.
+ * Copyright (C) 2000 - 2014, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -432,7 +432,7 @@ AcpiEvGpeDetect (
                   GpeRegisterInfo->EnableForWake))
             {
                 ACPI_DEBUG_PRINT ((ACPI_DB_INTERRUPTS,
-                    "Ignore disabled registers for GPE%02X-GPE%02X: "
+                    "Ignore disabled registers for GPE %02X-%02X: "
                     "RunEnable=%02X, WakeEnable=%02X\n",
                     GpeRegisterInfo->BaseGpeNumber,
                     GpeRegisterInfo->BaseGpeNumber + (ACPI_GPE_REGISTER_WIDTH - 1),
@@ -458,7 +458,7 @@ AcpiEvGpeDetect (
             }
 
             ACPI_DEBUG_PRINT ((ACPI_DB_INTERRUPTS,
-                "Read registers for GPE%02X-GPE%02X: Status=%02X, Enable=%02X, "
+                "Read registers for GPE %02X-%02X: Status=%02X, Enable=%02X, "
                 "RunEnable=%02X, WakeEnable=%02X\n",
                 GpeRegisterInfo->BaseGpeNumber,
                 GpeRegisterInfo->BaseGpeNumber + (ACPI_GPE_REGISTER_WIDTH - 1),
@@ -549,6 +549,7 @@ AcpiEvAsynchExecuteGpeMethod (
     Status = AcpiUtAcquireMutex (ACPI_MTX_EVENTS);
     if (ACPI_FAILURE (Status))
     {
+        ACPI_FREE (LocalGpeEventInfo);
         return_VOID;
     }
 
@@ -557,6 +558,7 @@ AcpiEvAsynchExecuteGpeMethod (
     if (!AcpiEvValidGpeEvent (GpeEventInfo))
     {
         Status = AcpiUtReleaseMutex (ACPI_MTX_EVENTS);
+        ACPI_FREE (LocalGpeEventInfo);
         return_VOID;
     }
 
@@ -570,6 +572,7 @@ AcpiEvAsynchExecuteGpeMethod (
     Status = AcpiUtReleaseMutex (ACPI_MTX_EVENTS);
     if (ACPI_FAILURE (Status))
     {
+        ACPI_FREE (LocalGpeEventInfo);
         return_VOID;
     }
 
@@ -758,22 +761,6 @@ AcpiEvGpeDispatch (
     }
 
     /*
-     * If edge-triggered, clear the GPE status bit now. Note that
-     * level-triggered events are cleared after the GPE is serviced.
-     */
-    if ((GpeEventInfo->Flags & ACPI_GPE_XRUPT_TYPE_MASK) ==
-            ACPI_GPE_EDGE_TRIGGERED)
-    {
-        Status = AcpiHwClearGpe (GpeEventInfo);
-        if (ACPI_FAILURE (Status))
-        {
-            ACPI_EXCEPTION ((AE_INFO, Status,
-                "Unable to clear GPE%02X", GpeNumber));
-            return_UINT32 (ACPI_INTERRUPT_NOT_HANDLED);
-        }
-    }
-
-    /*
      * Always disable the GPE so that it does not keep firing before
      * any asynchronous activity completes (either from the execution
      * of a GPE method or an asynchronous GPE handler.)
@@ -786,8 +773,26 @@ AcpiEvGpeDispatch (
     if (ACPI_FAILURE (Status))
     {
         ACPI_EXCEPTION ((AE_INFO, Status,
-            "Unable to disable GPE%02X", GpeNumber));
+            "Unable to disable GPE %02X", GpeNumber));
         return_UINT32 (ACPI_INTERRUPT_NOT_HANDLED);
+    }
+
+    /*
+     * If edge-triggered, clear the GPE status bit now. Note that
+     * level-triggered events are cleared after the GPE is serviced.
+     */
+    if ((GpeEventInfo->Flags & ACPI_GPE_XRUPT_TYPE_MASK) ==
+            ACPI_GPE_EDGE_TRIGGERED)
+    {
+        Status = AcpiHwClearGpe (GpeEventInfo);
+        if (ACPI_FAILURE (Status))
+        {
+            ACPI_EXCEPTION ((AE_INFO, Status,
+                "Unable to clear GPE %02X", GpeNumber));
+            (void) AcpiHwLowSetGpe (GpeEventInfo,
+                    ACPI_GPE_CONDITIONAL_ENABLE);
+            return_UINT32 (ACPI_INTERRUPT_NOT_HANDLED);
+        }
     }
 
     /*
@@ -826,7 +831,7 @@ AcpiEvGpeDispatch (
         if (ACPI_FAILURE (Status))
         {
             ACPI_EXCEPTION ((AE_INFO, Status,
-                "Unable to queue handler for GPE%02X - event disabled",
+                "Unable to queue handler for GPE %02X - event disabled",
                 GpeNumber));
         }
         break;
@@ -838,7 +843,7 @@ AcpiEvGpeDispatch (
          * a GPE to be enabled if it has no handler or method.
          */
         ACPI_ERROR ((AE_INFO,
-            "No handler or method for GPE%02X, disabling event",
+            "No handler or method for GPE %02X, disabling event",
             GpeNumber));
         break;
     }

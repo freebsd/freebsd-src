@@ -213,6 +213,7 @@ login_handle_redirection(struct connection *conn, struct pdu *response)
 
 	log_debugx("received redirection to \"%s\"", target_address);
 	kernel_modify(conn, target_address);
+	keys_delete(response_keys);
 }
 
 static struct pdu *
@@ -574,7 +575,7 @@ login_negotiate(struct connection *conn)
 	struct pdu *request, *response;
 	struct keys *request_keys, *response_keys;
 	struct iscsi_bhs_login_response *bhslr;
-	int i;
+	int i, nrequests = 0;
 
 	log_debugx("beginning operational parameter negotiation");
 	request = login_new_request(conn, BHSLR_STAGE_OPERATIONAL_NEGOTIATION);
@@ -628,19 +629,41 @@ login_negotiate(struct connection *conn)
 		    response_keys->keys_names[i], response_keys->keys_values[i]);
 	}
 
-	bhslr = (struct iscsi_bhs_login_response *)response->pdu_bhs;
-	if ((bhslr->bhslr_flags & BHSLR_FLAGS_TRANSIT) == 0)
-		log_warnx("received final login response "
-		    "without the \"T\" flag");
-	else if (login_nsg(response) != BHSLR_STAGE_FULL_FEATURE_PHASE)
+	keys_delete(response_keys);
+	response_keys = NULL;
+
+	for (;;) {
+		bhslr = (struct iscsi_bhs_login_response *)response->pdu_bhs;
+		if ((bhslr->bhslr_flags & BHSLR_FLAGS_TRANSIT) != 0)
+			break;
+
+		nrequests++;
+		if (nrequests > 5) {
+			log_warnx("received login response "
+			    "without the \"T\" flag too many times; giving up");
+			break;
+		}
+
+		log_debugx("received login response "
+		    "without the \"T\" flag; sending another request");
+
+		pdu_delete(response);
+
+		request = login_new_request(conn,
+		    BHSLR_STAGE_OPERATIONAL_NEGOTIATION);
+		pdu_send(request);
+		pdu_delete(request);
+
+		response = login_receive(conn);
+	}
+
+	if (login_nsg(response) != BHSLR_STAGE_FULL_FEATURE_PHASE)
 		log_warnx("received final login response with wrong NSG 0x%x",
 		    login_nsg(response));
+	pdu_delete(response);
 
 	log_debugx("operational parameter negotiation done; "
 	    "transitioning to Full Feature phase");
-
-	keys_delete(response_keys);
-	pdu_delete(response);
 }
 
 static void

@@ -46,13 +46,6 @@
  * call sleepq_set_timeout() after sleepq_add() to setup a timeout.  It
  * should then use one of the sleepq_timedwait() functions to block.
  *
- * If the thread wants the sleep to be interruptible by signals, it can
- * call sleepq_catch_signals() after sleepq_add().  It should then use
- * one of the sleepq_wait_sig() functions to block.  After the thread has
- * been resumed, it should call sleepq_calc_signal_retval() to determine
- * if it should return EINTR or ERESTART passing in the value returned from
- * the earlier call to sleepq_catch_signals().
- *
  * A thread is normally resumed from a sleep queue by either the
  * sleepq_signal() or sleepq_broadcast() functions.  Sleepq_signal() wakes
  * the thread with the highest priority that is sleeping on the specified

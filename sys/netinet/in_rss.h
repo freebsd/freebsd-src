@@ -83,6 +83,16 @@
 #define	RSS_KEYSIZE	40
 
 /*
+ * For RSS hash methods that do a software hash on an mbuf, the packet
+ * direction (ingress / egress) is required.
+ *
+ * The default direction (INGRESS) is the "receive into the NIC" - ie,
+ * what the hardware is hashing on.
+ */
+#define	RSS_HASH_PKT_INGRESS	0
+#define	RSS_HASH_PKT_EGRESS	1
+
+/*
  * Device driver interfaces to query RSS properties that must be programmed
  * into hardware.
  */
@@ -115,5 +125,18 @@ u_int		rss_hash2cpuid(uint32_t hash_val, uint32_t hash_type);
 int		rss_hash2bucket(uint32_t hash_val, uint32_t hash_type,
 		uint32_t *bucket_id);
 int		rss_m2bucket(struct mbuf *m, uint32_t *bucket_id);
+
+/*
+ * Functions to calculate a software RSS hash for a given mbuf or
+ * packet detail.
+ */
+int		rss_mbuf_software_hash_v4(const struct mbuf *m, int dir,
+		    uint32_t *hashval, uint32_t *hashtype);
+int		rss_proto_software_hash_v4(struct in_addr src,
+		    struct in_addr dst, u_short src_port, u_short dst_port,
+		    int proto, uint32_t *hashval,
+		    uint32_t *hashtype);
+struct mbuf *	rss_soft_m2cpuid(struct mbuf *m, uintptr_t source,
+		    u_int *cpuid);
 
 #endif /* !_NETINET_IN_RSS_H_ */

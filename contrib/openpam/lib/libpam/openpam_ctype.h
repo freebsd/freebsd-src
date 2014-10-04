@@ -26,7 +26,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: openpam_ctype.h 666 2013-03-17 14:22:17Z des $
+ * $Id: openpam_ctype.h 763 2014-02-26 16:29:16Z des $
  */
 
 #ifndef OPENPAM_CTYPE_H_INCLUDED

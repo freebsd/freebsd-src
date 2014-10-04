@@ -1837,7 +1837,7 @@ cpsw_tx_watchdog(struct cpsw_softc *sc)
 		++sc->watchdog.timer;
 		if (sc->watchdog.timer > 2) {
 			sc->watchdog.timer = 0;
-			++ifp->if_oerrors;
+			if_inc_counter(ifp, IFCOUNTER_OERRORS, 1);
 			++sc->watchdog.resets;
 			cpsw_tx_watchdog_full_reset(sc);
 		}

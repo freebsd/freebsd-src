@@ -2403,8 +2403,8 @@ sctp_calculate_rto(struct sctp_tcb *stcb,
 	net->rtt = (uint64_t) 1000000 *(uint64_t) now.tv_sec +
 	        (uint64_t) now.tv_usec;
 
-	/* computer rtt in ms */
-	rtt = net->rtt / 1000;
+	/* compute rtt in ms */
+	rtt = (int32_t) (net->rtt / 1000);
 	if ((asoc->cc_functions.sctp_rtt_calculated) && (rtt_from_sack == SCTP_RTT_FROM_DATA)) {
 		/*
 		 * Tell the CC module that a new update has just occurred
@@ -6710,7 +6710,7 @@ sctp_local_addr_count(struct sctp_tcb *stcb)
 					if (ipv4_addr_legal) {
 						struct sockaddr_in *sin;
 
-						sin = (struct sockaddr_in *)&sctp_ifa->address.sa;
+						sin = &sctp_ifa->address.sin;
 						if (sin->sin_addr.s_addr == 0) {
 							/*
 							 * skip unspecified
@@ -6738,7 +6738,7 @@ sctp_local_addr_count(struct sctp_tcb *stcb)
 					if (ipv6_addr_legal) {
 						struct sockaddr_in6 *sin6;
 
-						sin6 = (struct sockaddr_in6 *)&sctp_ifa->address.sa;
+						sin6 = &sctp_ifa->address.sin6;
 						if (IN6_IS_ADDR_UNSPECIFIED(&sin6->sin6_addr)) {
 							continue;
 						}

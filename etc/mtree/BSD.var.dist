@@ -42,6 +42,8 @@
         ..
         freebsd-update  mode=0700
         ..
+        hyperv          mode=0700
+        ..
         ipf             mode=0700
         ..
         pkg

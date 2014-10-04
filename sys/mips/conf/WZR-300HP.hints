@@ -108,7 +108,7 @@ hint.map.4.name="rootfs"
 hint.map.4.readonly=1
 
 #hint.map.5.at="flash/spi1"
-hint.map.5.at="flash/spi0"
+hint.map.5.at="flash/spi1"
 hint.map.5.start=0x00FF0000
 hint.map.5.end=  0x01000000
 hint.map.5.name="cfg"

@@ -21,6 +21,7 @@ SRCS+=	u8_textprep.c
 
 .PATH:	${SYSDIR}/cddl/compat/opensolaris/kern
 SRCS+=	opensolaris_acl.c
+SRCS+=	opensolaris_dtrace.c
 SRCS+=	opensolaris_kobj.c
 SRCS+=	opensolaris_kstat.c
 SRCS+=	opensolaris_lookup.c
@@ -93,8 +94,10 @@ CFLAGS+=-DBUILDING_ZFS
 CFLAGS+=-mminimal-toc
 .endif
 
-#CFLAGS+=-DDEBUG=1
-#DEBUG_FLAGS=-g
+.ifdef ZFS_DEBUG
+CFLAGS+=-DDEBUG=1
+DEBUG_FLAGS=-g
+.endif
 
 .include <bsd.kmod.mk>
 

@@ -44,7 +44,6 @@ FILES=	DAEMON \
 	dumpon \
 	faith \
 	fsck \
-	ftp-proxy \
 	ftpd \
 	gbde \
 	geli \
@@ -73,7 +72,6 @@ FILES=	DAEMON \
 	jail \
 	kadmind \
 	kdc \
-	keyserv \
 	kfd \
 	kld \
 	kldxref \
@@ -133,7 +131,6 @@ FILES=	DAEMON \
 	rpcbind \
 	rtadvd \
 	rtsold \
-	rwho \
 	savecore \
 	sdpd \
 	securelevel \
@@ -169,18 +166,6 @@ FILES=	DAEMON \
 	zfs \
 	zvol
 
-.if ${MK_OFED} != "no"
-_opensm=	opensm
-.endif
-
-.if ${MK_OPENSSH} != "no"
-_sshd=		sshd
-.endif
-
-.if ${MK_NS_CACHING} != "no"
-_nscd=		nscd
-.endif
-
 .if ${MK_BLUETOOTH} != "no"
 _bluetooth=	bluetooth
 _bthidd=	bthidd
@@ -190,6 +175,30 @@ _ubthidhci=	ubthidhci
 
 .if ${MK_CASPER} != "no"
 _casperd=	casperd
+.endif
+
+.if ${MK_NS_CACHING} != "no"
+_nscd=		nscd
+.endif
+
+.if ${MK_OFED} != "no"
+_opensm=	opensm
+.endif
+
+.if ${MK_OPENSSL} != "no"
+FILES+=		keyserv
+.endif
+
+.if ${MK_OPENSSH} != "no"
+_sshd=		sshd
+.endif
+
+.if ${MK_PF} != "no"
+FILES+=		ftp-proxy
+.endif
+
+.if ${MK_RCMDS} != "no"
+FILES+=		rwho
 .endif
 
 .if ${MK_UNBOUND} != "no"

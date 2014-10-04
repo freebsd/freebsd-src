@@ -1181,10 +1181,11 @@ struct ath_hal;
 
 extern  struct ath_hal_9300 * ar9300_new_state(u_int16_t devid,
         HAL_SOFTC sc, HAL_BUS_TAG st, HAL_BUS_HANDLE sh, uint16_t *eepromdata,
+        HAL_OPS_CONFIG *ah_config,
         HAL_STATUS *status);
 extern  struct ath_hal * ar9300_attach(u_int16_t devid,
         HAL_SOFTC sc, HAL_BUS_TAG st, HAL_BUS_HANDLE sh, uint16_t *eepromdata,
-        HAL_STATUS *status);
+        HAL_OPS_CONFIG *ah_config, HAL_STATUS *status);
 extern  void ar9300_detach(struct ath_hal *ah);
 extern void ar9300_read_revisions(struct ath_hal *ah);
 extern  HAL_BOOL ar9300_chip_test(struct ath_hal *ah);

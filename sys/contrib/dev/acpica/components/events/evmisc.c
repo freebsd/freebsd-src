@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2013, Intel Corp.
+ * Copyright (C) 2000 - 2014, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -181,7 +181,7 @@ AcpiEvQueueNotifyRequest (
     ACPI_DEBUG_PRINT ((ACPI_DB_INFO,
         "Dispatching Notify on [%4.4s] (%s) Value 0x%2.2X (%s) Node %p\n",
         AcpiUtGetNodeName (Node), AcpiUtGetTypeName (Node->Type),
-        NotifyValue, AcpiUtGetNotifyName (NotifyValue), Node));
+        NotifyValue, AcpiUtGetNotifyName (NotifyValue, ACPI_TYPE_ANY), Node));
 
     Status = AcpiOsExecute (OSL_NOTIFY_HANDLER, AcpiEvNotifyDispatch,
         Info);

@@ -25,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd February 21, 2014
+.Dd September 21, 2014
 .Dt ADA 4
 .Os
 .Sh NAME
@@ -123,11 +123,13 @@ seconds.
 This variable determines whether to spin-down disks when shutting down.
 Set to 1 to enable spin-down, 0 to disable.
 The default is currently enabled.
+.It Va kern.cam.ada.read_ahead
+.It Va kern.cam.ada. Ns Ar X Ns Va .read_ahead
 .It Va kern.cam.ada.write_cache
 .It Va kern.cam.ada. Ns Ar X Ns Va .write_cache
 .Pp
-These variables determine whether device write cache should be enabled
-globally or per-device or disabled.
+These variables determine whether device read-ahead and write caches
+should be enabled globally or per-device or disabled.
 Set to 1 to enable write cache, 0 to disable, -1 to leave it as-is.
 Values modified at runtime take effect only after device reset 
 .Pq using the reset subcommand of Xr camcontrol 8 .

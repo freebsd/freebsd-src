@@ -82,6 +82,7 @@ enum vm_reg_name {
 	VM_REG_GUEST_PDPTE1,
 	VM_REG_GUEST_PDPTE2,
 	VM_REG_GUEST_PDPTE3,
+	VM_REG_GUEST_INTR_SHADOW,
 	VM_REG_LAST
 };
 
@@ -194,7 +195,6 @@ void vm_nmi_clear(struct vm *vm, int vcpuid);
 int vm_inject_extint(struct vm *vm, int vcpu);
 int vm_extint_pending(struct vm *vm, int vcpuid);
 void vm_extint_clear(struct vm *vm, int vcpuid);
-uint64_t *vm_guest_msrs(struct vm *vm, int cpu);
 struct vlapic *vm_lapic(struct vm *vm, int cpu);
 struct vioapic *vm_ioapic(struct vm *vm);
 struct vhpet *vm_hpet(struct vm *vm);

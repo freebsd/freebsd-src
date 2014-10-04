@@ -42,10 +42,15 @@ PROG ?= $t
 
 .if defined(PROG)
 # just one of many
-PROG_VARS += BINDIR CFLAGS CPPFLAGS CXXFLAGS DPADD DPLIBS LDADD MAN SRCS
+PROG_OVERRIDE_VARS += BINDIR MAN SRCS
+PROG_VARS += CFLAGS CPPFLAGS CXXFLAGS DPADD DPLIBS LDADD ${PROG_OVERRIDE_VARS}
 .for v in ${PROG_VARS:O:u}
-.if defined(${v}.${PROG}) || defined(${v}_${PROG})
-$v += ${${v}_${PROG}:U${${v}.${PROG}}}
+.if empty(${PROG_OVERRIDE_VARS:M$v})
+.if defined(${v}.${PROG})
+$v += ${${v}.${PROG}}
+.elif defined(${v}_${PROG})
+$v += ${${v}_${PROG}}
+.endif
 .else
 $v ?=
 .endif
@@ -61,7 +66,7 @@ UPDATE_DEPENDFILE ?= NO
 DEPENDFILE?= .depend.${PROG}
 # prog.mk will do the rest
 .else
-all: ${PROGS}
+all: ${FILES} ${PROGS} ${SCRIPTS}
 
 # We cannot capture dependencies for meta mode here
 UPDATE_DEPENDFILE = NO
@@ -75,7 +80,7 @@ UPDATE_DEPENDFILE = NO
 
 .ifndef _RECURSING_PROGS
 # tell progs.mk we might want to install things
-PROGS_TARGETS+= cleandepend cleandir cleanobj depend install
+PROGS_TARGETS+= checkdpadd clean cleandepend cleandir cleanobj depend install
 
 .for p in ${PROGS}
 .if defined(PROGS_CXX) && !empty(PROGS_CXX:M$p)
@@ -98,18 +103,15 @@ $p.$t: .PHONY .MAKE
 $t: ${PROGS:%=%.$t}
 .endfor
 
-SCRIPTS_TARGETS+= cleandepend cleandir cleanobj depend install
+.if empty(PROGS) && !empty(SCRIPTS)
 
-.for p in ${SCRIPTS}
-.for t in ${SCRIPTS_TARGETS:O:u}
-$p.$t: .PHONY .MAKE
-	(cd ${.CURDIR} && ${MAKE} -f ${MAKEFILE} _RECURSING_PROGS= \
-	    SUBDIR= SCRIPT=$p ${x.$p} ${@:E})
-.endfor
+.for t in ${PROGS_TARGETS:O:u}
+scripts.$t: .PHONY .MAKE
+	(cd ${.CURDIR} && ${MAKE} -f ${MAKEFILE} SUBDIR= _RECURSING_PROGS= \
+	    $t)
+$t: scripts.$t
 .endfor
 
-.for t in ${SCRIPTS_TARGETS:O:u}
-$t: ${SCRIPTS:%=%.$t}
-.endfor
+.endif
 
 .endif

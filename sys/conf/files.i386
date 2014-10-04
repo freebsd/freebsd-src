@@ -83,6 +83,7 @@ compat/linux/linux_socket.c	optional compat_linux
 compat/linux/linux_stats.c	optional compat_linux
 compat/linux/linux_sysctl.c	optional compat_linux
 compat/linux/linux_time.c	optional compat_linux
+compat/linux/linux_timer.c	optional compat_linux
 compat/linux/linux_uid16.c	optional compat_linux
 compat/linux/linux_util.c	optional compat_linux
 compat/ndis/kern_ndis.c		optional ndisapi pci
@@ -215,6 +216,7 @@ dev/hyperv/netvsc/hv_netvsc_drv_freebsd.c		optional	hyperv
 dev/hyperv/netvsc/hv_rndis_filter.c			optional	hyperv
 dev/hyperv/stordisengage/hv_ata_pci_disengage.c		optional	hyperv
 dev/hyperv/storvsc/hv_storvsc_drv_freebsd.c		optional	hyperv
+dev/hyperv/utilities/hv_kvp.c				optional	hyperv
 dev/hyperv/utilities/hv_util.c				optional	hyperv
 dev/hyperv/vmbus/hv_channel.c				optional	hyperv
 dev/hyperv/vmbus/hv_channel_mgmt.c			optional	hyperv
@@ -597,3 +599,4 @@ x86/xen/xen_intr.c		optional xen | xenhvm
 x86/xen/xen_apic.c		optional xenhvm
 x86/xen/xenpv.c			optional xen | xenhvm
 x86/xen/xen_nexus.c		optional xen | xenhvm
+x86/xen/xen_msi.c		optional xen | xenhvm

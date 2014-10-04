@@ -77,3 +77,24 @@ PORTBRANCH="ports/head@rHEAD"
 ## as TARGET/TARGET_ARCH.
 #CHROOT_MAKEENV=
 
+## Set to a non-empty value to build virtual machine images as part of the
+## release build.
+#WITH_VMIMAGES=
+
+## Set to a non-empty value to compress virtual machine images with xz(1)
+## as part of the release build.
+#WITH_COMPRESSED_VMIMAGES=
+
+## If WITH_VMIMAGES is set to a non-empty value, this is the name of the
+## file to use for the installed userland/kernel.
+#VMBASE="vm"
+
+## If WITH_VMIMAGES is set to a non-empty value, this is the size of the
+## virtual machine disk filesystem.  Valid size values are described in
+## the truncate(1) manual page.
+#VMSIZE="20G"
+
+## If WITH_VMIMAGES is set to a non-empty value, this is a list of disk
+## image formats to create.  Valid values are listed in the mkimg(1)
+## manual page, as well as 'mkimg --formats' output.
+#VMFORMATS="vhdf vmdk qcow2 raw"
