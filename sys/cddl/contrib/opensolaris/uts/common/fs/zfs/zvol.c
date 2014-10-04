@@ -167,6 +167,14 @@ static LIST_HEAD(, zvol_state) all_zvols;
  */
 int zvol_maxphys = DMU_MAX_ACCESS/2;
 
+/*
+ * Toggle unmap functionality.
+ */
+boolean_t zvol_unmap_enabled = B_TRUE;
+SYSCTL_INT(_vfs_zfs_vol, OID_AUTO, unmap_enabled, CTLFLAG_RWTUN,
+    &zvol_unmap_enabled, 0,
+    "Enable UNMAP functionality");
+
 static d_open_t		zvol_d_open;
 static d_close_t	zvol_d_close;
 static d_read_t		zvol_read;
@@ -1971,6 +1979,9 @@ zvol_ioctl(dev_t dev, int cmd, intptr_t arg, int flag, cred_t *cr, int *rvalp)
 		dkioc_free_t df;
 		dmu_tx_t *tx;
 
+		if (!zvol_unmap_enabled)
+			break;
+
 		if (ddi_copyin((void *)arg, &df, sizeof (df), flag)) {
 			error = SET_ERROR(EFAULT);
 			break;
@@ -2815,6 +2826,9 @@ zvol_d_ioctl(struct cdev *dev, u_long cmd, caddr_t data, int fflag, struct threa
 		zil_commit(zv->zv_zilog, ZVOL_OBJ);
 		break;
 	case DIOCGDELETE:
+		if (!zvol_unmap_enabled)
+			break;
+
 		offset = ((off_t *)data)[0];
 		length = ((off_t *)data)[1];
 		if ((offset % DEV_BSIZE) != 0 || (length % DEV_BSIZE) != 0 ||
