@@ -149,6 +149,7 @@ i386/i386/initcpu.c		standard
 i386/i386/io.c			optional io
 i386/i386/k6_mem.c		optional mem
 i386/i386/locore.s		standard	no-obj
+i386/i386/machdep.c		standard
 i386/i386/mem.c			optional mem
 i386/i386/minidump_machdep.c	standard
 i386/i386/mp_clock.c		optional smp
@@ -237,7 +238,6 @@ pc98/pc98/busiosubr.c		standard
 pc98/pc98/canbepm.c		optional canbepm
 pc98/pc98/canbus.c		optional canbus
 pc98/pc98/canbus_if.m		optional canbus
-pc98/pc98/machdep.c		standard
 pc98/pc98/pc98_machdep.c	standard
 #
 # x86 shared code between IA32, AMD64 and PC98 architectures
