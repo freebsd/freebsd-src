@@ -2677,7 +2677,7 @@ ipfw_ctl3(struct sockopt *sopt)
 int
 ipfw_ctl(struct sockopt *sopt)
 {
-#define	RULE_MAXSIZE	(256*sizeof(u_int32_t))
+#define	RULE_MAXSIZE	(512*sizeof(u_int32_t))
 	int error;
 	size_t size, valsize;
 	struct ip_fw *buf;
