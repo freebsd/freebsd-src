@@ -33,7 +33,9 @@
 #ifndef _SYS_FILEDESC_H_
 #define	_SYS_FILEDESC_H_
 
+#ifdef _KERNEL
 #include "opt_capsicum.h"
+#endif
 
 #include <sys/caprights.h>
 #include <sys/queue.h>
