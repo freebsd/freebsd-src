@@ -38,7 +38,6 @@
 
 #include "ipfw2.h"
 
-static void table_list(ipfw_xtable_info *i, int need_header);
 static void table_modify_record(ipfw_obj_header *oh, int ac, char *av[],
     int add, int quiet, int update, int atomic);
 static int table_flush(ipfw_obj_header *oh);
@@ -1386,6 +1385,7 @@ tentry_fill_value(ipfw_obj_header *oh, ipfw_obj_tentry *tent, char *arg,
 	uint32_t a4, flag, val, vm;
 	ipfw_table_value *v;
 	uint32_t i;
+	int dval;
 	char *comma, *e, *etype, *n, *p;
 
 	v = &tent->v.value;
@@ -1480,9 +1480,10 @@ tentry_fill_value(ipfw_obj_header *oh, ipfw_obj_tentry *tent, char *arg,
 			break;
 		case IPFW_VTYPE_DSCP:
 			if (isalpha(*n)) {
-				if ((v->dscp = match_token(f_ipdscp, n)) != -1)
+				if ((dval = match_token(f_ipdscp, n)) != -1) {
+					v->dscp = dval;
 					break;
-				else
+				} else
 					etype = "DSCP code";
 			} else {
 				v->dscp = strtol(n, &e, 10);

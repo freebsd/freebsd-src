@@ -3599,7 +3599,7 @@ chkarg:
 			errx(EX_USAGE, "missing argument for %s", *(av - 1));
 		if (isdigit(**av)) {
 			action->arg1 = strtoul(*av, NULL, 10);
-			if (action->arg1 <= 0 || action->arg1 >= IP_FW_TARG)
+			if (action->arg1 <= 0 || action->arg1 >= IP_FW_TABLEARG)
 				errx(EX_DATAERR, "illegal argument for %s",
 				    *(av - 1));
 		} else if (_substrcmp(*av, "tablearg") == 0) {
