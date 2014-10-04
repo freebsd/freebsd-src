@@ -504,10 +504,8 @@ proc_name2ctf(struct proc_handle *p, const char *name)
 	prmap_t *map;
 	int error;
 
-	if ((map = proc_name2map(p, name)) == NULL) {
-		DPRINTFX("ERROR: couldn't find object %s", object);
+	if ((map = proc_name2map(p, name)) == NULL)
 		return (NULL);
-	}
 
 	return (ctf_open(map->pr_mapname, &error));
 #else
