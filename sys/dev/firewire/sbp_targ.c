@@ -1,7 +1,7 @@
 /*-
  * Copyright (C) 2003
  * 	Hidetoshi Shimokawa. All rights reserved.
- * 
+ *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
  * are met:
@@ -18,7 +18,7 @@
  * 4. Neither the name of the author nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
- * 
+ *
  * THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
  * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
@@ -30,7 +30,7 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- * 
+ *
  * $FreeBSD$
  */
 
@@ -104,16 +104,16 @@ struct sbp_targ_login {
 	struct sbp_targ_lstate *lstate;
 	struct fw_device *fwdev;
 	struct sbp_login_res loginres;
-	uint16_t fifo_hi; 
+	uint16_t fifo_hi;
 	uint16_t last_hi;
-	uint32_t fifo_lo; 
+	uint32_t fifo_lo;
 	uint32_t last_lo;
 	STAILQ_HEAD(, orb_info) orbs;
 	STAILQ_ENTRY(sbp_targ_login) link;
 	uint16_t hold_sec;
 	uint16_t id;
-	uint8_t flags; 
-	uint8_t spd; 
+	uint8_t flags;
+	uint8_t spd;
 	struct callout hold_callout;
 };
 
@@ -124,7 +124,7 @@ struct sbp_targ_lstate {
 	struct ccb_hdr_slist accept_tios;
 	struct ccb_hdr_slist immed_notifies;
 	struct crom_chunk model;
-	uint32_t flags; 
+	uint32_t flags;
 	STAILQ_HEAD(, sbp_targ_login) logins;
 };
 
@@ -205,7 +205,7 @@ struct orb_info {
 	struct sbp_targ_login *login;
 	union ccb *ccb;
 	struct ccb_accept_tio *atio;
-	uint8_t state; 
+	uint8_t state;
 #define ORBI_STATUS_NONE	0
 #define ORBI_STATUS_FETCH	1
 #define ORBI_STATUS_ATIO	2
@@ -213,7 +213,7 @@ struct orb_info {
 #define ORBI_STATUS_STATUS	4
 #define ORBI_STATUS_POINTER	5
 #define ORBI_STATUS_ABORTED	7
-	uint8_t refcount; 
+	uint8_t refcount;
 	uint16_t orb_hi;
 	uint32_t orb_lo;
 	uint32_t data_hi;
@@ -250,8 +250,8 @@ sbp_targ_probe(device_t dev)
 	device_t pa;
 
 	pa = device_get_parent(dev);
-	if(device_get_unit(dev) != device_get_unit(pa)){
-		return(ENXIO);
+	if (device_get_unit(dev) != device_get_unit(pa)) {
+		return (ENXIO);
 	}
 
 	device_set_desc(dev, "SBP-2/SCSI over FireWire target mode");
@@ -336,7 +336,7 @@ sbp_targ_post_busreset(void *arg)
 	crom_add_entry(unit, CROM_MGM, SBP_TARG_MGM >> 2);
 	crom_add_entry(unit, CSRKEY_UNIT_CH, (10<<8) | 8);
 
-	for (i = 0; i < MAX_LUN; i ++) {
+	for (i = 0; i < MAX_LUN; i++) {
 		lstate = sc->lstate[i];
 		if (lstate == NULL)
 			continue;
@@ -347,7 +347,7 @@ sbp_targ_post_busreset(void *arg)
 	}
 
 	/* Process for reconnection hold time */
-	for (i = 0; i < MAX_LOGINS; i ++) {
+	for (i = 0; i < MAX_LOGINS; i++) {
 		login = sc->logins[i];
 		if (login == NULL)
 			continue;
@@ -355,7 +355,7 @@ sbp_targ_post_busreset(void *arg)
 		if (login->flags & F_LOGIN) {
 			login->flags |= F_HOLD;
 			callout_reset(&login->hold_callout,
-			    hz * login->hold_sec, 
+			    hz * login->hold_sec,
 			    sbp_targ_hold_expire, (void *)login);
 		}
 	}
@@ -392,7 +392,7 @@ sbp_targ_find_devs(struct sbp_targ_softc *sc, union ccb *ccb,
 	lun = ccb->ccb_h.target_lun;
 	if (lun >= MAX_LUN)
 		return (CAM_LUN_INVALID);
-	
+
 	*lstate = sc->lstate[lun];
 
 	if (notfound_failure != 0 && *lstate == NULL) {
@@ -840,7 +840,7 @@ sbp_targ_cam_done(struct fw_xfer *xfer)
 		sbp_targ_abort(orbi->sc, STAILQ_NEXT(orbi, link));
 	}
 
-	orbi->refcount --;
+	orbi->refcount--;
 
 	ccb = orbi->ccb;
 	if (orbi->refcount == 0) {
@@ -916,7 +916,7 @@ sbp_targ_abort_ccb(struct sbp_targ_softc *sc, union ccb *ccb)
 		found = 1;
 		SLIST_REMOVE_HEAD(list, sim_links.sle);
 	} else {
-		while(curelm != NULL) {
+		while (curelm != NULL) {
 			struct ccb_hdr *nextelm;
 
 			nextelm = SLIST_NEXT(curelm, sim_links.sle);
@@ -982,7 +982,7 @@ sbp_targ_xfer_buf(struct orb_info *orbi, u_int offset,
 		if (xfer == NULL) {
 			printf("%s: xfer == NULL", __func__);
 			/* XXX what should we do?? */
-			orbi->refcount --;
+			orbi->refcount--;
 		}
 		off += len;
 	}
@@ -1354,7 +1354,7 @@ sbp_targ_action1(struct cam_sim *sim, union ccb *ccb)
 			ccb->ccb_h.status = CAM_UA_ABORT;
 			break;
 		default:
-			printf("%s: aborting unknown function %d\n", 
+			printf("%s: aborting unknown function %d\n",
 				__func__, accb->ccb_h.func_code);
 			ccb->ccb_h.status = CAM_REQ_INVALID;
 			break;
@@ -1464,7 +1464,7 @@ sbp_targ_cmd_handler(struct fw_xfer *xfer)
 
 	orb = orbi->orb;
 	/* swap payload except SCSI command */
-	for (i = 0; i < 5; i ++)
+	for (i = 0; i < 5; i++)
 		orb[i] = ntohl(orb[i]);
 
 	orb4 = (struct corb4 *)&orb[4];
@@ -1545,12 +1545,12 @@ sbp_targ_get_login(struct sbp_targ_softc *sc, struct fw_device *fwdev, int lun)
 	int i;
 
 	lstate = sc->lstate[lun];
-	
+
 	STAILQ_FOREACH(login, &lstate->logins, link)
 		if (login->fwdev == fwdev)
 			return (login);
 
-	for (i = 0; i < MAX_LOGINS; i ++)
+	for (i = 0; i < MAX_LOGINS; i++)
 		if (sc->logins[i] == NULL)
 			goto found;
 
@@ -1607,7 +1607,7 @@ sbp_targ_mgm_handler(struct fw_xfer *xfer)
 
 	orb = orbi->orb;
 	/* swap payload */
-	for (i = 0; i < 8; i ++) {
+	for (i = 0; i < 8; i++) {
 		orb[i] = ntohl(orb[i]);
 	}
 	orb4 = (struct morb4 *)&orb[4];
@@ -1628,10 +1628,10 @@ sbp_targ_mgm_handler(struct fw_xfer *xfer)
 		lstate = orbi->sc->lstate[lun];
 
 		if (lun >= MAX_LUN || lstate == NULL ||
-		    (exclusive && 
+		    (exclusive &&
 		    STAILQ_FIRST(&lstate->logins) != NULL &&
 		    STAILQ_FIRST(&lstate->logins)->fwdev != orbi->fwdev)
-		    ) {
+		   ) {
 			/* error */
 			orbi->status.dead = 1;
 			orbi->status.status = STATUS_ACCESS_DENY;
@@ -1819,16 +1819,16 @@ sbp_targ_cmd(struct fw_xfer *xfer, struct fw_device *fwdev, int login_id,
 	int rtcode = 0;
 
 	if (login_id < 0 || login_id >= MAX_LOGINS)
-		return(RESP_ADDRESS_ERROR);
+		return (RESP_ADDRESS_ERROR);
 
 	sc = (struct sbp_targ_softc *)xfer->sc;
 	login = sc->logins[login_id];
 	if (login == NULL)
-		return(RESP_ADDRESS_ERROR);
+		return (RESP_ADDRESS_ERROR);
 
 	if (login->fwdev != fwdev) {
 		/* XXX */
-		return(RESP_ADDRESS_ERROR);
+		return (RESP_ADDRESS_ERROR);
 	}
 
 	switch (reg) {
@@ -1895,17 +1895,17 @@ sbp_targ_mgm(struct fw_xfer *xfer, struct fw_device *fwdev)
 	sc = (struct sbp_targ_softc *)xfer->sc;
 
 	fp = &xfer->recv.hdr;
-	if (fp->mode.wreqb.tcode != FWTCODE_WREQB){
+	if (fp->mode.wreqb.tcode != FWTCODE_WREQB) {
 		printf("%s: tcode = %d\n", __func__, fp->mode.wreqb.tcode);
-		return(RESP_TYPE_ERROR);
+		return (RESP_TYPE_ERROR);
         }
 
 	sbp_targ_fetch_orb(sc, fwdev,
 	    ntohl(xfer->recv.payload[0]),
 	    ntohl(xfer->recv.payload[1]),
 	    NULL, FETCH_MGM);
-	
-	return(0);
+
+	return (0);
 }
 
 static void
@@ -2023,9 +2023,9 @@ sbp_targ_detach(device_t dev)
 	xpt_free_path(sc->path);
 	xpt_bus_deregister(cam_sim_path(sc->sim));
 	SBP_UNLOCK(sc);
-	cam_sim_free(sc->sim, /*free_devq*/TRUE); 
+	cam_sim_free(sc->sim, /*free_devq*/TRUE);
 
-	for (i = 0; i < MAX_LUN; i ++) {
+	for (i = 0; i < MAX_LUN; i++) {
 		lstate = sc->lstate[i];
 		if (lstate != NULL) {
 			xpt_free_path(lstate->path);
@@ -2036,7 +2036,7 @@ sbp_targ_detach(device_t dev)
 		xpt_free_path(sc->black_hole->path);
 		free(sc->black_hole, M_SBP_TARG);
 	}
-			
+
 	fw_bindremove(sc->fd.fc, &sc->fwb);
 	fw_xferlist_remove(&sc->fwb.xferlist);
 

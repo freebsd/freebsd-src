@@ -145,9 +145,11 @@ in6_cksum_pseudo(struct ip6_hdr *ip6, uint32_t len, uint8_t nxt, uint16_t csum)
  * off is an offset where TCP/UDP/ICMP6 header starts.
  * len is a total length of a transport segment.
  * (e.g. TCP header + TCP payload)
+ * cov is the number of bytes to be taken into account for the checksum
  */
 int
-in6_cksum(struct mbuf *m, u_int8_t nxt, u_int32_t off, u_int32_t len)
+in6_cksum_partial(struct mbuf *m, u_int8_t nxt, u_int32_t off,
+    u_int32_t len, u_int32_t cov)
 {
 	struct ip6_hdr *ip6;
 	u_int16_t *w, scope;
@@ -215,9 +217,9 @@ in6_cksum(struct mbuf *m, u_int8_t nxt, u_int32_t off, u_int32_t len)
 	}
 	w = (u_int16_t *)(mtod(m, u_char *) + off);
 	mlen = m->m_len - off;
-	if (len < mlen)
-		mlen = len;
-	len -= mlen;
+	if (cov < mlen)
+		mlen = cov;
+	cov -= mlen;
 	/*
 	 * Force to even boundary.
 	 */
@@ -273,7 +275,7 @@ in6_cksum(struct mbuf *m, u_int8_t nxt, u_int32_t off, u_int32_t len)
 	 * Lastly calculate a summary of the rest of mbufs.
 	 */
 
-	for (;m && len; m = m->m_next) {
+	for (;m && cov; m = m->m_next) {
 		if (m->m_len == 0)
 			continue;
 		w = mtod(m, u_int16_t *);
@@ -290,12 +292,12 @@ in6_cksum(struct mbuf *m, u_int8_t nxt, u_int32_t off, u_int32_t len)
 			sum += s_util.s;
 			w = (u_int16_t *)((char *)w + 1);
 			mlen = m->m_len - 1;
-			len--;
+			cov--;
 		} else
 			mlen = m->m_len;
-		if (len < mlen)
-			mlen = len;
-		len -= mlen;
+		if (cov < mlen)
+			mlen = cov;
+		cov -= mlen;
 		/*
 		 * Force to even boundary.
 		 */
@@ -343,7 +345,7 @@ in6_cksum(struct mbuf *m, u_int8_t nxt, u_int32_t off, u_int32_t len)
 		} else if (mlen == -1)
 			s_util.c[0] = *(char *)w;
 	}
-	if (len)
+	if (cov)
 		panic("in6_cksum: out of data");
 	if (mlen == -1) {
 		/* The last mbuf has odd # of bytes. Follow the
@@ -354,4 +356,10 @@ in6_cksum(struct mbuf *m, u_int8_t nxt, u_int32_t off, u_int32_t len)
 	}
 	REDUCE;
 	return (~sum & 0xffff);
+}
+
+int
+in6_cksum(struct mbuf *m, u_int8_t nxt, u_int32_t off, u_int32_t len)
+{
+	return (in6_cksum_partial(m, nxt, off, len, len));
 }

@@ -41,6 +41,10 @@
 #include <sys/lock.h>		/* XXX */
 #include <sys/mutex.h>		/* struct ifqueue */
 
+/*
+ * Couple of ugly extra definitions that are required since ifq.h
+ * is splitted from if_var.h.
+ */
 #define	IF_DUNIT_NONE	-1
 
 #include <altq/if_altq.h>
@@ -245,13 +249,13 @@ do {									\
 	mflags = (m)->m_flags;						\
 	IFQ_ENQUEUE(&(ifp)->if_snd, m, err);				\
 	if ((err) == 0) {						\
-		(ifp)->if_obytes += len + (adj);			\
+		if_inc_counter((ifp), IFCOUNTER_OBYTES, len + (adj));	\
 		if (mflags & M_MCAST)					\
-			(ifp)->if_omcasts++;				\
+			if_inc_counter((ifp), IFCOUNTER_OMCASTS, 1);	\
 		if (((ifp)->if_drv_flags & IFF_DRV_OACTIVE) == 0)	\
 			if_start(ifp);					\
 	} else								\
-		ifp->if_oqdrops++;					\
+		if_inc_counter((ifp), IFCOUNTER_OQDROPS, 1);		\
 } while (0)
 
 #define	IFQ_HANDOFF(ifp, m, err)					\
@@ -318,7 +322,7 @@ drbr_enqueue(struct ifnet *ifp, struct buf_ring *br, struct mbuf *m)
 	if (ALTQ_IS_ENABLED(&ifp->if_snd)) {
 		IFQ_ENQUEUE(&ifp->if_snd, m, error);
 		if (error)
-			ifp->if_oqdrops++;
+			if_inc_counter((ifp), IFCOUNTER_OQDROPS, 1);
 		return (error);
 	}
 #endif
@@ -475,18 +479,6 @@ extern	int ifqmaxlen;
 void	if_qflush(struct ifnet *);
 void	ifq_init(struct ifaltq *, struct ifnet *ifp);
 void	ifq_delete(struct ifaltq *);
-
-#ifdef DEVICE_POLLING
-enum poll_cmd {	POLL_ONLY, POLL_AND_CHECK_STATUS };
-
-typedef	int poll_handler_t(struct ifnet *ifp, enum poll_cmd cmd, int count);
-int    ether_poll_register(poll_handler_t *h, struct ifnet *ifp);
-int    ether_poll_deregister(struct ifnet *ifp);
-/* The following should be temporary, till all drivers use the driver API */
-typedef	int poll_handler_drv_t(if_t ifh, enum poll_cmd cmd, int count);
-int	ether_poll_register_drv(poll_handler_drv_t *h, if_t ifh);
-int	ether_poll_deregister_drv(if_t ifh);
-#endif /* DEVICE_POLLING */
 
 #endif /* _KERNEL */
 #endif /* !_NET_IFQ_H_ */

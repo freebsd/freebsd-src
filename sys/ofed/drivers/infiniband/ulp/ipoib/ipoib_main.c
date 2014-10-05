@@ -665,7 +665,7 @@ ipoib_unicast_send(struct mbuf *mb, struct ipoib_dev_priv *priv, struct ipoib_he
 			} else
 				__path_add(priv, path);
 		} else {
-			++priv->dev->if_oerrors;
+			if_inc_counter(priv->dev, IFCOUNTER_OERRORS, 1);
 			m_freem(mb);
 		}
 
@@ -680,7 +680,7 @@ ipoib_unicast_send(struct mbuf *mb, struct ipoib_dev_priv *priv, struct ipoib_he
 		    path->queue.ifq_len < IPOIB_MAX_PATH_REC_QUEUE) {
 		_IF_ENQUEUE(&path->queue, mb);
 	} else {
-		++priv->dev->if_oerrors;
+		if_inc_counter(priv->dev, IFCOUNTER_OERRORS, 1);
 		m_freem(mb);
 	}
 }

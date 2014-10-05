@@ -96,7 +96,7 @@ VNET_DECLARE(struct pfil_head, link_pfil_hook);	/* packet filter hooks */
 #endif /* _KERNEL */
 
 typedef enum {
-	IFCOUNTER_IPACKETS = 1,
+	IFCOUNTER_IPACKETS = 0,
 	IFCOUNTER_IERRORS,
 	IFCOUNTER_OPACKETS,
 	IFCOUNTER_OERRORS,
@@ -108,6 +108,7 @@ typedef enum {
 	IFCOUNTER_IQDROPS,
 	IFCOUNTER_OQDROPS,
 	IFCOUNTER_NOPROTO,
+	IFCOUNTERS /* Array size. */
 } ift_counter;
 
 typedef struct ifnet * if_t;
@@ -227,28 +228,15 @@ struct ifnet {
 		(struct ifnet *, struct vnet *, char *);
 	if_get_counter_t if_get_counter; /* get counter values */
 
+	/* Statistics. */
+	counter_u64_t	if_counters[IFCOUNTERS];
+
 	/* Stuff that's only temporary and doesn't belong here. */
 	u_int	if_hw_tsomax;		/* TSO total burst length
 					 * limit in bytes. A value of
 					 * zero means no limit. Have
 					 * to find a better place for
 					 * it eventually. */
-	/*
-	 * Old, racy and expensive statistics, should not be used in
-	 * new drivers.
-	 */
-	uint64_t	if_ipackets;	/* packets received on interface */
-	uint64_t	if_ierrors;	/* input errors on interface */
-	uint64_t	if_opackets;	/* packets sent on interface */
-	uint64_t	if_oerrors;	/* output errors on interface */
-	uint64_t	if_collisions;	/* collisions on csma interfaces */
-	uint64_t	if_ibytes;	/* total number of octets received */
-	uint64_t	if_obytes;	/* total number of octets sent */
-	uint64_t	if_imcasts;	/* packets received via multicast */
-	uint64_t	if_omcasts;	/* packets sent via multicast */
-	uint64_t	if_iqdrops;	/* dropped on input */
-	uint64_t	if_oqdrops;	/* dropped on output */
-	uint64_t	if_noproto;	/* destined for unsupported protocol */
 
 	/* TSO fields for segment limits. If a field is zero below, there is no limit. */
 	u_int		if_hw_tsomaxsegcount;	/* TSO maximum segment count */
@@ -260,8 +248,6 @@ struct ifnet {
 	 * binary interface.
 	 */
 };
-
-#include <net/ifq.h>	/* XXXAO: temporary unconditional include */
 
 /* for compatibility with other BSDs */
 #define	if_addrlist	if_addrhead
@@ -611,5 +597,16 @@ int drbr_enqueue_drv(if_t ifp, struct buf_ring *br, struct mbuf *m);
 void if_hw_tsomax_common(if_t ifp, struct ifnet_hw_tsomax *);
 int if_hw_tsomax_update(if_t ifp, struct ifnet_hw_tsomax *);
 
+#ifdef DEVICE_POLLING
+enum poll_cmd { POLL_ONLY, POLL_AND_CHECK_STATUS };
+
+typedef	int poll_handler_t(if_t ifp, enum poll_cmd cmd, int count);
+int    ether_poll_register(poll_handler_t *h, if_t ifp);
+int    ether_poll_deregister(if_t ifp);
+#endif /* DEVICE_POLLING */
+
 #endif /* _KERNEL */
+
+#include <net/ifq.h>	/* XXXAO: temporary unconditional include */
+
 #endif /* !_NET_IF_VAR_H_ */

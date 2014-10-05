@@ -30,21 +30,13 @@
  * STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
  * ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
- * 
+ *
  * $FreeBSD$
  *
  */
 
-#ifdef __DragonFly__
-typedef	d_thread_t fw_proc;
-#include <sys/select.h>
-#elif __FreeBSD_version >= 500000
 typedef	struct thread fw_proc;
 #include <sys/selinfo.h>
-#else
-typedef	struct proc fw_proc;
-#include <sys/select.h>
-#endif
 
 #include <sys/uio.h>
 #include <sys/mutex.h>
@@ -54,7 +46,7 @@ typedef	struct proc fw_proc;
 
 STAILQ_HEAD(fw_xferlist, fw_xfer);
 
-struct fw_device{
+struct fw_device {
 	uint16_t dst;
 	struct fw_eui64 eui;
 	uint8_t speed;
@@ -64,7 +56,7 @@ struct fw_device{
 #define CSRROMOFF 0x400
 #define CSRROMSIZE 0x400
 	int rommax;	/* offset from 0xffff f000 0000 */
-	uint32_t csrrom[CSRROMSIZE/4];
+	uint32_t csrrom[CSRROMSIZE / 4];
 	int rcnt;
 	struct firewire_comm *fc;
 	uint32_t status;
@@ -101,11 +93,11 @@ struct tcode_info {
 	u_char valid_res;
 };
 
-struct firewire_comm{
+struct firewire_comm {
 	device_t dev;
 	device_t bdev;
 	uint16_t busid:10,
-		  nodeid:6;
+		 nodeid:6;
 	u_int mode;
 	u_int nport;
 	u_int speed;
@@ -137,7 +129,7 @@ struct firewire_comm{
 	STAILQ_HEAD(, fw_device) devices;
 	u_int  sid_cnt;
 #define CSRSIZE 0x4000
-	uint32_t csr_arc[CSRSIZE/4];
+	uint32_t csr_arc[CSRSIZE / 4];
 #define CROMSIZE 0x400
 	uint32_t *config_rom;
 	struct crom_src_buf *crom_src_buf;
@@ -149,7 +141,7 @@ struct firewire_comm{
 	struct callout bmr_callout;
 	struct callout timeout_callout;
 	struct task task_timeout;
-	uint32_t (*cyctimer) (struct  firewire_comm *);
+	uint32_t (*cyctimer) (struct firewire_comm *);
 	void (*ibr) (struct firewire_comm *);
 	uint32_t (*set_bmr) (struct firewire_comm *, uint32_t);
 	int (*ioctl) (struct cdev *, u_long, caddr_t, int, fw_proc *);
@@ -169,7 +161,7 @@ struct firewire_comm{
 	struct taskqueue *taskqueue;
 	struct proc *probe_thread;
 };
-#define CSRARC(sc, offset) ((sc)->csr_arc[(offset)/4])
+#define CSRARC(sc, offset) ((sc)->csr_arc[(offset) / 4])
 
 #define FW_GMTX(fc)		(&(fc)->mtx)
 #define FW_GLOCK(fc)		mtx_lock(FW_GMTX(fc))
@@ -190,7 +182,7 @@ struct fw_xferq {
 
 #define FWXFERQ_HANDLER (1 << 16)
 #define FWXFERQ_WAKEUP (1 << 17)
-	void (*start) (struct firewire_comm*);
+	void (*start) (struct firewire_comm *);
 	int dmach;
 	struct fw_xferlist q;
 	u_int queued;
@@ -209,7 +201,7 @@ struct fw_xferq {
 	void (*hand) (struct fw_xferq *);
 };
 
-struct fw_bulkxfer{
+struct fw_bulkxfer {
 	int poffset;
 	struct mbuf *mbuf;
 	STAILQ_ENTRY(fw_bulkxfer) link;
@@ -218,7 +210,7 @@ struct fw_bulkxfer{
 	int resp;
 };
 
-struct fw_bind{
+struct fw_bind {
 	u_int64_t start;
 	u_int64_t end;
 	struct fw_xferlist xferlist;
@@ -227,7 +219,7 @@ struct fw_bind{
 	void *sc;
 };
 
-struct fw_xfer{
+struct fw_xfer {
 	caddr_t sc;
 	struct firewire_comm *fc;
 	struct fw_xferq *q;
@@ -267,9 +259,9 @@ struct fw_rcv_buf {
 
 void fw_sidrcv (struct firewire_comm *, uint32_t *, u_int);
 void fw_rcv (struct fw_rcv_buf *);
-void fw_xfer_unload ( struct fw_xfer*);
-void fw_xfer_free_buf ( struct fw_xfer*);
-void fw_xfer_free ( struct fw_xfer*);
+void fw_xfer_unload (struct fw_xfer *);
+void fw_xfer_free_buf (struct fw_xfer *);
+void fw_xfer_free (struct fw_xfer*);
 struct fw_xfer *fw_xfer_alloc (struct malloc_type *);
 struct fw_xfer *fw_xfer_alloc_buf (struct malloc_type *, int, int);
 void fw_init (struct firewire_comm *);
@@ -280,7 +272,7 @@ int fw_bindremove (struct firewire_comm *, struct fw_bind *);
 int fw_xferlist_add (struct fw_xferlist *, struct malloc_type *, int, int, int,
     struct firewire_comm *, void *, void (*)(struct fw_xfer *));
 void fw_xferlist_remove (struct fw_xferlist *);
-int fw_asyreq (struct firewire_comm *, int, struct fw_xfer*);
+int fw_asyreq (struct firewire_comm *, int, struct fw_xfer *);
 void fw_busreset (struct firewire_comm *, uint32_t);
 uint16_t fw_crc16 (uint32_t *, uint32_t);
 void fw_xfer_timeout (void *);
@@ -301,7 +293,7 @@ extern int firewire_debug;
 extern devclass_t firewire_devclass;
 extern int firewire_phydma_enable;
 
-#define		FWPRI		((PZERO+8)|PCATCH)
+#define	FWPRI		((PZERO + 8) | PCATCH)
 
 #define CALLOUT_INIT(x) callout_init(x, 1 /* mpsafe */)
 

@@ -2177,6 +2177,7 @@ ixl_allocate_pci_resources(struct ixl_pf *pf)
 	pf->osdep.mem_bus_space_handle =
 		rman_get_bushandle(pf->pci_mem);
 	pf->osdep.mem_bus_space_size = rman_get_size(pf->pci_mem);
+	pf->osdep.flush_reg = I40E_GLGEN_STAT;
 	pf->hw.hw_addr = (u8 *) &pf->osdep.mem_bus_space_handle;
 
 	pf->hw.back = &pf->osdep;
@@ -2274,6 +2275,10 @@ ixl_setup_interface(device_t dev, struct ixl_vsi *vsi)
 	ifp->if_softc = vsi;
 	ifp->if_flags = IFF_BROADCAST | IFF_SIMPLEX | IFF_MULTICAST;
 	ifp->if_ioctl = ixl_ioctl;
+
+#if __FreeBSD_version >= 1100000
+	if_setgetcounterfn(ifp, ixl_get_counter);
+#endif
 
 	ifp->if_transmit = ixl_mq_start;
 
@@ -3700,7 +3705,6 @@ ixl_update_stats_counters(struct ixl_pf *pf)
 {
 	struct i40e_hw	*hw = &pf->hw;
 	struct ixl_vsi *vsi = &pf->vsi;
-	struct ifnet	*ifp = vsi->ifp;
 
 	struct i40e_hw_port_stats *nsd = &pf->stats;
 	struct i40e_hw_port_stats *osd = &pf->stats_offsets;
@@ -3893,7 +3897,7 @@ ixl_update_stats_counters(struct ixl_pf *pf)
 
 	/* OS statistics */
 	// ERJ - these are per-port, update all vsis?
-	ifp->if_ierrors = nsd->crc_errors + nsd->illegal_bytes;
+	IXL_SET_IERRORS(vsi, nsd->crc_errors + nsd->illegal_bytes);
 }
 
 /*
@@ -4027,13 +4031,16 @@ void ixl_update_eth_stats(struct ixl_vsi *vsi)
 {
 	struct ixl_pf *pf = (struct ixl_pf *)vsi->back;
 	struct i40e_hw *hw = &pf->hw;
-	struct ifnet *ifp = vsi->ifp;
 	struct i40e_eth_stats *es;
 	struct i40e_eth_stats *oes;
+	int i;
+	uint64_t tx_discards;
+	struct i40e_hw_port_stats *nsd;
 	u16 stat_idx = vsi->info.stat_counter_idx;
 
 	es = &vsi->eth_stats;
 	oes = &vsi->eth_stats_offsets;
+	nsd = &pf->stats;
 
 	/* Gather up the stats that the hw collects */
 	ixl_stat_update32(hw, I40E_GLV_TEPC(stat_idx),
@@ -4078,22 +4085,27 @@ void ixl_update_eth_stats(struct ixl_vsi *vsi)
 			   &oes->tx_broadcast, &es->tx_broadcast);
 	vsi->stat_offsets_loaded = true;
 
-	/* Update ifnet stats */
-	ifp->if_ipackets = es->rx_unicast +
-	                   es->rx_multicast +
-			   es->rx_broadcast;
-	ifp->if_opackets = es->tx_unicast +
-	                   es->tx_multicast +
-			   es->tx_broadcast;
-	ifp->if_ibytes = es->rx_bytes;
-	ifp->if_obytes = es->tx_bytes;
-	ifp->if_imcasts = es->rx_multicast;
-	ifp->if_omcasts = es->tx_multicast;
+	tx_discards = es->tx_discards + nsd->tx_dropped_link_down;
+	for (i = 0; i < vsi->num_queues; i++)
+		tx_discards += vsi->queues[i].txr.br->br_drops;
 
-	ifp->if_oerrors = es->tx_errors;
-	ifp->if_iqdrops = es->rx_discards;
-	ifp->if_noproto = es->rx_unknown_protocol;
-	ifp->if_collisions = 0;
+	/* Update ifnet stats */
+	IXL_SET_IPACKETS(vsi, es->rx_unicast +
+	                   es->rx_multicast +
+			   es->rx_broadcast);
+	IXL_SET_OPACKETS(vsi, es->tx_unicast +
+	                   es->tx_multicast +
+			   es->tx_broadcast);
+	IXL_SET_IBYTES(vsi, es->rx_bytes);
+	IXL_SET_OBYTES(vsi, es->tx_bytes);
+	IXL_SET_IMCASTS(vsi, es->rx_multicast);
+	IXL_SET_OMCASTS(vsi, es->tx_multicast);
+
+	IXL_SET_OERRORS(vsi, es->tx_errors);
+	IXL_SET_IQDROPS(vsi, es->rx_discards + nsd->eth.rx_discards);
+	IXL_SET_OQDROPS(vsi, tx_discards);
+	IXL_SET_NOPROTO(vsi, es->rx_unknown_protocol);
+	IXL_SET_COLLISIONS(vsi, 0);
 }
 
 /**

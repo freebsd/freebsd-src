@@ -870,6 +870,17 @@ zfsvfs_create(const char *osname, zfsvfs_t **zfvp)
 	int i, error;
 	uint64_t sa_obj;
 
+	/*
+	 * XXX: Fix struct statfs so this isn't necessary!
+	 *
+	 * The 'osname' is used as the filesystem's special node, which means
+	 * it must fit in statfs.f_mntfromname, or else it can't be
+	 * enumerated, so libzfs_mnttab_find() returns NULL, which causes
+	 * 'zfs unmount' to think it's not mounted when it is.
+	 */
+	if (strlen(osname) >= MNAMELEN)
+		return (SET_ERROR(ENAMETOOLONG));
+
 	zfsvfs = kmem_zalloc(sizeof (zfsvfs_t), KM_SLEEP);
 
 	/*

@@ -252,9 +252,6 @@ ar9300_attach_freebsd_ops(struct ath_hal *ah)
 	/* LNA diversity functions */
 	ah->ah_divLnaConfGet = ar9300_ant_div_comb_get_config;
 	ah->ah_divLnaConfSet = ar9300_ant_div_comb_set_config;
-
-	/* Setup HAL configuration defaults */
-	ah->ah_config.ath_hal_ant_ctrl_comm2g_switch_enable = 0x000bbb88;
 }
 
 HAL_BOOL
@@ -338,9 +335,11 @@ ar9300_ani_poll_freebsd(struct ath_hal *ah,
  * wants.
  */
 void
-ar9300_config_defaults_freebsd(struct ath_hal *ah)
+ar9300_config_defaults_freebsd(struct ath_hal *ah, HAL_OPS_CONFIG *ah_config)
 {
 
+	/* Until FreeBSD's HAL does this by default - just copy */
+	OS_MEMCPY(&ah->ah_config, ah_config, sizeof(HAL_OPS_CONFIG));
 	ah->ah_config.ath_hal_enable_ani = AH_TRUE;
 }
 

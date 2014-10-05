@@ -799,7 +799,7 @@ dwc_rxfinish_locked(struct dwc_softc *sc)
 			m->m_pkthdr.rcvif = ifp;
 			m->m_pkthdr.len = len;
 			m->m_len = len;
-			ifp->if_ipackets++;
+			if_inc_counter(ifp, IFCOUNTER_IPACKETS, 1);
 
 			DWC_UNLOCK(sc);
 			(*ifp->if_input)(ifp, m);

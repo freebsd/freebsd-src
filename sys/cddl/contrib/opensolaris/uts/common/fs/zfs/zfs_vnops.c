@@ -2837,6 +2837,7 @@ zfs_getattr(vnode_t *vp, vattr_t *vap, int flags, cred_t *cr,
 #endif
 	vap->va_seq = zp->z_seq;
 	vap->va_flags = 0;	/* FreeBSD: Reset chflags(2) flags. */
+     	vap->va_filerev = zp->z_seq;
 
 	/*
 	 * Add in any requested optional attributes and the create time.

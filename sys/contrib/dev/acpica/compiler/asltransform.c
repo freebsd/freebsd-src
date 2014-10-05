@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2013, Intel Corp.
+ * Copyright (C) 2000 - 2014, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -40,7 +40,6 @@
  * IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGES.
  */
-
 
 #include <contrib/dev/acpica/compiler/aslcompiler.h>
 #include "aslcompiler.y.h"
@@ -377,7 +376,6 @@ TrDoDefinitionBlock (
  *
  * RETURN:      None
  *
- *
  * DESCRIPTION: Translate ASL SWITCH statement to if/else pairs. There is
  *              no actual AML opcode for SWITCH -- it must be simulated.
  *
@@ -450,10 +448,6 @@ TrDoSwitch (
             {
                 /* Add an ELSE to complete the previous CASE */
 
-                if (!Conditional)
-                {
-                    return;
-                }
                 NewOp             = TrCreateLeafNode (PARSEOP_ELSE);
                 NewOp->Asl.Parent = Conditional->Asl.Parent;
                 TrAmlInitLineNumbers (NewOp, NewOp->Asl.Parent);
@@ -619,11 +613,6 @@ TrDoSwitch (
         if (CaseOp)
         {
             /* Convert the DEFAULT node to an ELSE */
-
-            if (!Conditional)
-            {
-                return;
-            }
 
             TrAmlInitNode (DefaultOp, PARSEOP_ELSE);
             DefaultOp->Asl.Parent = Conditional->Asl.Parent;

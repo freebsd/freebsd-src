@@ -67,7 +67,7 @@ static int fwohci_pci_detach(device_t self);
  * The probe routine.
  */
 static int
-fwohci_pci_probe( device_t dev )
+fwohci_pci_probe(device_t dev)
 {
 	uint32_t id;
 
@@ -211,7 +211,7 @@ fwohci_pci_init(device_t self)
 	cmd = pci_read_config(self, PCIR_COMMAND, 2);
 	cmd |= PCIM_CMD_BUSMASTEREN | PCIM_CMD_MWRICEN;
 #if 1  /* for broken hardware */
-	cmd &= ~PCIM_CMD_MWRICEN; 
+	cmd &= ~PCIM_CMD_MWRICEN;
 #endif
 	pci_write_config(self, PCIR_COMMAND, cmd, 2);
 
@@ -311,14 +311,15 @@ fwohci_pci_attach(device_t self)
 				/*lockarg*/FW_GMTX(&sc->fc),
 				&sc->fc.dmat);
 	if (err != 0) {
-		printf("fwohci_pci_attach: Could not allocate DMA tag "
-			"- error %d\n", err);
-			return (ENOMEM);
+		device_printf(self, "fwohci_pci_attach: Could not allocate DMA "
+		    "tag - error %d\n", err);
+		fwohci_pci_detach(self);
+		return (ENOMEM);
 	}
 
 	err = fwohci_init(sc, self);
 
-	if (err) {
+	if (err != 0) {
 		device_printf(self, "fwohci_init failed with err=%d\n", err);
 		fwohci_pci_detach(self);
 		return EIO;
@@ -337,13 +338,13 @@ fwohci_pci_detach(device_t self)
 	fwohci_softc_t *sc = device_get_softc(self);
 	int s;
 
-
 	s = splfw();
 
 	if (sc->bsr)
 		fwohci_stop(sc, self);
 
 	bus_generic_detach(self);
+
 	if (sc->fc.bdev) {
 		device_delete_child(self, sc->fc.bdev);
 		sc->fc.bdev = NULL;
@@ -368,7 +369,7 @@ fwohci_pci_detach(device_t self)
 	}
 
 	if (sc->bsr) {
-		bus_release_resource(self, SYS_RES_MEMORY,PCI_CBMEM,sc->bsr);
+		bus_release_resource(self, SYS_RES_MEMORY, PCI_CBMEM, sc->bsr);
 		sc->bsr = NULL;
 		sc->bst = 0;
 		sc->bsh = 0;
@@ -428,7 +429,7 @@ fwohci_pci_add_child(device_t dev, u_int order, const char *name, int unit)
 		return (child);
 
 	sc->fc.bdev = child;
-	device_set_ivars(child, (void *)&sc->fc);
+	device_set_ivars(child, &sc->fc);
 
 	err = device_probe_and_attach(child);
 	if (err) {
@@ -447,7 +448,7 @@ fwohci_pci_add_child(device_t dev, u_int order, const char *name, int unit)
 		int s;
 		DELAY(250); /* 2 cycles */
 		s = splfw();
-		fwohci_poll((void *)sc, 0, -1);
+		fwohci_poll(&sc->fc, 0, -1);
 		splx(s);
 	}
 

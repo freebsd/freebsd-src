@@ -94,8 +94,10 @@ CFLAGS+=-DBUILDING_ZFS
 CFLAGS+=-mminimal-toc
 .endif
 
-#CFLAGS+=-DDEBUG=1
-#DEBUG_FLAGS=-g
+.ifdef ZFS_DEBUG
+CFLAGS+=-DDEBUG=1
+DEBUG_FLAGS=-g
+.endif
 
 .include <bsd.kmod.mk>
 

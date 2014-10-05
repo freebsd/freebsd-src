@@ -138,9 +138,28 @@ struct lagg_reqflags {
 #define	SIOCGLAGGFLAGS		_IOWR('i', 145, struct lagg_reqflags)
 #define	SIOCSLAGGHASH		 _IOW('i', 146, struct lagg_reqflags)
 
-#ifdef _KERNEL
+struct lagg_reqopts {
+	char			ro_ifname[IFNAMSIZ];	/* name of the lagg */
 
-#include <sys/counter.h>
+	int			ro_opts;		/* Option bitmap */
+#define	LAGG_OPT_NONE			0x00
+#define	LAGG_OPT_USE_FLOWID		0x01		/* use M_FLOWID */
+/* Pseudo flags which are used in ro_opts but not stored into sc_opts. */
+#define	LAGG_OPT_FLOWIDSHIFT		0x02		/* Set flowid */
+#define	LAGG_OPT_FLOWIDSHIFT_MASK	0x1f		/* flowid is uint32_t */
+#define	LAGG_OPT_LACP_STRICT		0x10		/* LACP strict mode */
+#define	LAGG_OPT_LACP_TXTEST		0x20		/* LACP debug: txtest */
+#define	LAGG_OPT_LACP_RXTEST		0x40		/* LACP debug: rxtest */
+	u_int			ro_count;		/* number of ports */
+	u_int			ro_active;		/* active port count */
+	u_int			ro_flapping;		/* number of flapping */
+	int			ro_flowid_shift;	/* shift the flowid */
+};
+
+#define	SIOCGLAGGOPTS		_IOWR('i', 152, struct lagg_reqopts)
+#define	SIOCSLAGGOPTS		 _IOW('i', 153, struct lagg_reqopts)
+
+#ifdef _KERNEL
 
 /*
  * Internal kernel part
@@ -187,10 +206,13 @@ struct lagg_llq {
 	SLIST_ENTRY(lagg_llq)	llq_entries;
 };
 
+struct lagg_counters {
+	uint64_t	val[IFCOUNTERS];
+};
+
 struct lagg_softc {
 	struct ifnet			*sc_ifp;	/* virtual interface */
 	struct rmlock			sc_mtx;
-	struct mtx			sc_call_mtx;
 	int				sc_proto;	/* lagg protocol */
 	u_int				sc_count;	/* number of ports */
 	u_int				sc_active;	/* active port count */
@@ -202,11 +224,6 @@ struct lagg_softc {
 	uint32_t			sc_seq;		/* sequence counter */
 	uint32_t			sc_flags;
 
-	counter_u64_t			sc_ipackets;
-	counter_u64_t			sc_opackets;
-	counter_u64_t			sc_ibytes;
-	counter_u64_t			sc_obytes;
-
 	SLIST_HEAD(__tplhd, lagg_port)	sc_ports;	/* list of interfaces */
 	SLIST_ENTRY(lagg_softc)	sc_entries;
 
@@ -216,10 +233,9 @@ struct lagg_softc {
 	eventhandler_tag vlan_attach;
 	eventhandler_tag vlan_detach;
 	struct callout			sc_callout;
-	struct sysctl_ctx_list		ctx;		/* sysctl variables */
-	struct sysctl_oid		*sc_oid;	/* sysctl tree oid */
-	int				use_flowid;	/* use M_FLOWID */
+	u_int				sc_opts;
 	int				flowid_shift;	/* shift the flowid */
+	struct lagg_counters		detached_counters; /* detached ports sum */
 };
 
 struct lagg_port {
@@ -241,6 +257,7 @@ struct lagg_port {
 	int	(*lp_ioctl)(struct ifnet *, u_long, caddr_t);
 	int	(*lp_output)(struct ifnet *, struct mbuf *,
 		     const struct sockaddr *, struct route *);
+	struct lagg_counters		port_counters;	/* ifp counters copy */
 
 	SLIST_ENTRY(lagg_port)		lp_entries;
 };
@@ -253,11 +270,6 @@ struct lagg_port {
 #define	LAGG_WUNLOCK(_sc)	rm_wunlock(&(_sc)->sc_mtx)
 #define	LAGG_RLOCK_ASSERT(_sc)	rm_assert(&(_sc)->sc_mtx, RA_RLOCKED)
 #define	LAGG_WLOCK_ASSERT(_sc)	rm_assert(&(_sc)->sc_mtx, RA_WLOCKED)
-
-#define	LAGG_CALLOUT_LOCK_INIT(_sc)					\
-	    mtx_init(&(_sc)->sc_call_mtx, "if_lagg callout mutex", NULL,\
-	    MTX_DEF)
-#define	LAGG_CALLOUT_LOCK_DESTROY(_sc)	mtx_destroy(&(_sc)->sc_call_mtx)
 
 extern struct mbuf *(*lagg_input_p)(struct ifnet *, struct mbuf *);
 extern void	(*lagg_linkstate_p)(struct ifnet *, int );

@@ -177,6 +177,7 @@ struct init_ops init_ops = {
 	.mp_bootaddress =		mp_bootaddress,
 	.start_all_aps =		native_start_all_aps,
 #endif
+	.msi_init =			msi_init,
 };
 
 /*

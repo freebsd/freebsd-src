@@ -227,21 +227,26 @@ udp6_input(struct mbuf **mp, int *offp, int proto)
 
 	nxt = ip6->ip6_nxt;
 	cscov_partial = (nxt == IPPROTO_UDPLITE) ? 1 : 0;
-	if (nxt == IPPROTO_UDPLITE && ulen == 0) {
+	if (nxt == IPPROTO_UDPLITE) {
 		/* Zero means checksum over the complete packet. */
-		ulen = plen;
-		cscov_partial = 0;
-	}
-	if (plen != ulen) {
-		UDPSTAT_INC(udps_badlen);
-		goto badunlocked;
-	}
-
-	/*
-	 * Checksum extended UDP header and data.
-	 */
-	if (uh->uh_sum == 0) {
-		if (ulen > plen || ulen < sizeof(struct udphdr)) {
+		if (ulen == 0)
+			ulen = plen;
+		if (ulen == plen)
+			cscov_partial = 0;
+		if ((ulen < sizeof(struct udphdr)) || (ulen > plen)) {
+			/* XXX: What is the right UDPLite MIB counter? */
+			goto badunlocked;
+		}
+		if (uh->uh_sum == 0) {
+			/* XXX: What is the right UDPLite MIB counter? */
+			goto badunlocked;
+		}
+	} else {
+		if ((ulen < sizeof(struct udphdr)) || (plen != ulen)) {
+			UDPSTAT_INC(udps_badlen);
+			goto badunlocked;
+		}
+		if (uh->uh_sum == 0) {
 			UDPSTAT_INC(udps_nosum);
 			goto badunlocked;
 		}
@@ -256,11 +261,11 @@ udp6_input(struct mbuf **mp, int *offp, int proto)
 			    m->m_pkthdr.csum_data);
 		uh_sum ^= 0xffff;
 	} else
-		uh_sum = in6_cksum(m, nxt, off, ulen);
+		uh_sum = in6_cksum_partial(m, nxt, off, plen, ulen);
 
 	if (uh_sum != 0) {
 		UDPSTAT_INC(udps_badsum);
-		goto badunlocked;
+		/*goto badunlocked;*/
 	}
 
 	/*
@@ -480,7 +485,7 @@ udp6_input(struct mbuf **mp, int *offp, int proto)
 	INP_RLOCK_ASSERT(inp);
 	up = intoudpcb(inp);
 	if (cscov_partial) {
-		if (up->u_rxcslen > ulen) {
+		if (up->u_rxcslen == 0 || up->u_rxcslen > ulen) {
 			INP_RUNLOCK(inp);
 			m_freem(m);
 			return (IPPROTO_DONE);
@@ -843,8 +848,8 @@ udp6_output(struct inpcb *inp, struct mbuf *m, struct sockaddr *addr6,
 		ip6->ip6_dst	= *faddr;
 
 		if (cscov_partial) {
-			if ((udp6->uh_sum = in6_cksum(m, 0,
-			    sizeof(struct ip6_hdr), cscov)) == 0)
+			if ((udp6->uh_sum = in6_cksum_partial(m, nxt,
+			    sizeof(struct ip6_hdr), plen, cscov)) == 0)
 				udp6->uh_sum = 0xffff;
 		} else {
 			udp6->uh_sum = in6_cksum_pseudo(ip6, plen, nxt, 0);

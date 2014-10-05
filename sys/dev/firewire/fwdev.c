@@ -30,7 +30,7 @@
  * STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
  * ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
- * 
+ *
  * $FreeBSD$
  *
  */
@@ -52,19 +52,11 @@
 
 #include <sys/ioccom.h>
 
-#ifdef __DragonFly__
-#include "firewire.h"
-#include "firewirereg.h"
-#include "fwdma.h"
-#include "fwmem.h"
-#include "iec68113.h"
-#else
 #include <dev/firewire/firewire.h>
 #include <dev/firewire/firewirereg.h>
 #include <dev/firewire/fwdma.h>
 #include <dev/firewire/fwmem.h>
 #include <dev/firewire/iec68113.h>
-#endif
 
 #define	FWNODE_INVAL 0xffff
 
@@ -78,12 +70,6 @@ static	d_mmap_t	fw_mmap;
 static	d_strategy_t	fw_strategy;
 
 struct cdevsw firewire_cdevsw = {
-#ifdef __DragonFly__
-#define CDEV_MAJOR 127
-	"fw", CDEV_MAJOR, D_MEM, NULL, 0,
-	fw_open, fw_close, fw_read, fw_write, fw_ioctl,
-	fw_poll, fw_mmap, fw_strategy, nodump, nopsize,
-#elif __FreeBSD_version >= 500104
 	.d_version =	D_VERSION,
 	.d_open =	fw_open,
 	.d_close =	fw_close,
@@ -95,12 +81,6 @@ struct cdevsw firewire_cdevsw = {
 	.d_strategy =	fw_strategy,
 	.d_name =	"fw",
 	.d_flags =	D_MEM
-#else
-#define CDEV_MAJOR 127
-	fw_open, fw_close, fw_read, fw_write, fw_ioctl,
-	fw_poll, fw_mmap, fw_strategy, "fw", CDEV_MAJOR,
-	nodump, nopsize, D_MEM, -1
-#endif
 };
 
 struct fw_drv1 {
@@ -119,22 +99,21 @@ fwdev_allocbuf(struct firewire_comm *fc, struct fw_xferq *q,
 	int i;
 
 	if (q->flag & (FWXFERQ_RUNNING | FWXFERQ_EXTBUF))
-		return(EBUSY);
+		return (EBUSY);
 
-	q->bulkxfer = (struct fw_bulkxfer *) malloc(
-		sizeof(struct fw_bulkxfer) * b->nchunk,
-		M_FW, M_WAITOK);
+	q->bulkxfer = malloc(sizeof(struct fw_bulkxfer) * b->nchunk,
+	    M_FW, M_WAITOK);
 	if (q->bulkxfer == NULL)
-		return(ENOMEM);
+		return (ENOMEM);
 
 	b->psize = roundup2(b->psize, sizeof(uint32_t));
 	q->buf = fwdma_malloc_multiseg(fc, sizeof(uint32_t),
-			b->psize, b->nchunk * b->npacket, BUS_DMA_WAITOK);
+	    b->psize, b->nchunk * b->npacket, BUS_DMA_WAITOK);
 
 	if (q->buf == NULL) {
 		free(q->bulkxfer, M_FW);
 		q->bulkxfer = NULL;
-		return(ENOMEM);
+		return (ENOMEM);
 	}
 	q->bnchunk = b->nchunk;
 	q->bnpacket = b->npacket;
@@ -146,7 +125,7 @@ fwdev_allocbuf(struct firewire_comm *fc, struct fw_xferq *q,
 	STAILQ_INIT(&q->stdma);
 	q->stproc = NULL;
 
-	for(i = 0 ; i < q->bnchunk; i++){
+	for (i = 0; i < q->bnchunk; i++) {
 		q->bulkxfer[i].poffset = i * q->bnpacket;
 		q->bulkxfer[i].mbuf = NULL;
 		STAILQ_INSERT_TAIL(&q->stfree, &q->bulkxfer[i], link);
@@ -177,7 +156,7 @@ fwdev_freebuf(struct fw_xferq *q)
 
 
 static int
-fw_open (struct cdev *dev, int flags, int fmt, fw_proc *td)
+fw_open(struct cdev *dev, int flags, int fmt, fw_proc *td)
 {
 	int err = 0;
 	int unit = DEV2UNIT(dev);
@@ -209,10 +188,10 @@ fw_open (struct cdev *dev, int flags, int fmt, fw_proc *td)
 		int sub = DEV2SUB(dev);
 
 		make_dev(&firewire_cdevsw, dev2unit(dev),
-			UID_ROOT, GID_OPERATOR, 0660,
-			"fw%d.%d", unit, sub);
+		    UID_ROOT, GID_OPERATOR, 0660, "fw%d.%d", unit, sub);
 	}
-	d = (struct fw_drv1 *)dev->si_drv1;
+
+	d = dev->si_drv1;
 	d->fc = sc->fc;
 	STAILQ_INIT(&d->binds);
 	STAILQ_INIT(&d->rq);
@@ -221,7 +200,7 @@ fw_open (struct cdev *dev, int flags, int fmt, fw_proc *td)
 }
 
 static int
-fw_close (struct cdev *dev, int flags, int fmt, fw_proc *td)
+fw_close(struct cdev *dev, int flags, int fmt, fw_proc *td)
 {
 	struct firewire_comm *fc;
 	struct fw_drv1 *d;
@@ -232,12 +211,12 @@ fw_close (struct cdev *dev, int flags, int fmt, fw_proc *td)
 	if (DEV_FWMEM(dev))
 		return fwmem_close(dev, flags, fmt, td);
 
-	d = (struct fw_drv1 *)dev->si_drv1;
+	d = dev->si_drv1;
 	fc = d->fc;
 
 	/* remove binding */
 	for (fwb = STAILQ_FIRST(&d->binds); fwb != NULL;
-			fwb = STAILQ_FIRST(&d->binds)) {
+	    fwb = STAILQ_FIRST(&d->binds)) {
 		fw_bindremove(fc, fwb);
 		STAILQ_REMOVE_HEAD(&d->binds, chlist);
 		fw_xferlist_remove(&fwb->xferlist);
@@ -256,15 +235,15 @@ fw_close (struct cdev *dev, int flags, int fmt, fw_proc *td)
 		fwdev_freebuf(ir);
 		/* drain receiving buffer */
 		for (xfer = STAILQ_FIRST(&ir->q);
-			xfer != NULL; xfer = STAILQ_FIRST(&ir->q)) {
-			ir->queued --;
+		    xfer != NULL; xfer = STAILQ_FIRST(&ir->q)) {
+			ir->queued--;
 			STAILQ_REMOVE_HEAD(&ir->q, link);
 
 			xfer->resp = 0;
 			fw_xfer_done(xfer);
 		}
-		ir->flag &= ~(FWXFERQ_OPEN |
-			FWXFERQ_MODEMASK | FWXFERQ_CHTAGMASK);
+		ir->flag &= ~(FWXFERQ_OPEN | FWXFERQ_MODEMASK |
+		    FWXFERQ_CHTAGMASK);
 		d->ir = NULL;
 
 	}
@@ -280,7 +259,7 @@ fw_close (struct cdev *dev, int flags, int fmt, fw_proc *td)
 		/* free extbuf */
 		fwdev_freebuf(it);
 		it->flag &= ~(FWXFERQ_OPEN |
-			FWXFERQ_MODEMASK | FWXFERQ_CHTAGMASK);
+		    FWXFERQ_MODEMASK | FWXFERQ_CHTAGMASK);
 		d->it = NULL;
 	}
 	free(dev->si_drv1, M_FW);
@@ -317,10 +296,10 @@ fw_read_async(struct fw_drv1 *d, struct uio *uio, int ioflag)
 		fc->irx_post(fc, fp->mode.ld);
 #endif
 	tinfo = &xfer->fc->tcode[fp->mode.hdr.tcode];
-	err = uiomove((void *)fp, tinfo->hdr_len, uio);
+	err = uiomove(fp, tinfo->hdr_len, uio);
 	if (err)
 		goto out;
-	err = uiomove((void *)xfer->recv.payload, xfer->recv.pay_len, uio);
+	err = uiomove(xfer->recv.payload, xfer->recv.pay_len, uio);
 
 out:
 	/* recycle this xfer */
@@ -337,7 +316,7 @@ out:
  * read request.
  */
 static int
-fw_read (struct cdev *dev, struct uio *uio, int ioflag)
+fw_read(struct cdev *dev, struct uio *uio, int ioflag)
 {
 	struct fw_drv1 *d;
 	struct fw_xferq *ir;
@@ -348,7 +327,7 @@ fw_read (struct cdev *dev, struct uio *uio, int ioflag)
 	if (DEV_FWMEM(dev))
 		return (physio(dev, uio, ioflag));
 
-	d = (struct fw_drv1 *)dev->si_drv1;
+	d = dev->si_drv1;
 	fc = d->fc;
 	ir = d->ir;
 
@@ -383,21 +362,21 @@ readloop:
 			err = EIO;
 		FW_GUNLOCK(fc);
 		return err;
-	} else if(ir->stproc != NULL) {
+	} else if (ir->stproc != NULL) {
 		/* iso bulkxfer */
 		FW_GUNLOCK(fc);
-		fp = (struct fw_pkt *)fwdma_v_addr(ir->buf, 
-				ir->stproc->poffset + ir->queued);
-		if(fc->irx_post != NULL)
+		fp = (struct fw_pkt *)fwdma_v_addr(ir->buf,
+		    ir->stproc->poffset + ir->queued);
+		if (fc->irx_post != NULL)
 			fc->irx_post(fc, fp->mode.ld);
-		if(fp->mode.stream.len == 0){
+		if (fp->mode.stream.len == 0) {
 			err = EIO;
 			return err;
 		}
 		err = uiomove((caddr_t)fp,
 			fp->mode.stream.len + sizeof(uint32_t), uio);
-		ir->queued ++;
-		if(ir->queued >= ir->bnpacket){
+		ir->queued++;
+		if (ir->queued >= ir->bnpacket) {
 			s = splfw();
 			STAILQ_INSERT_TAIL(&ir->stfree, ir->stproc, link);
 			splx(s);
@@ -470,7 +449,7 @@ out:
 }
 
 static int
-fw_write (struct cdev *dev, struct uio *uio, int ioflag)
+fw_write(struct cdev *dev, struct uio *uio, int ioflag)
 {
 	int err = 0;
 	int s, slept = 0;
@@ -482,7 +461,7 @@ fw_write (struct cdev *dev, struct uio *uio, int ioflag)
 	if (DEV_FWMEM(dev))
 		return (physio(dev, uio, ioflag));
 
-	d = (struct fw_drv1 *)dev->si_drv1;
+	d = dev->si_drv1;
 	fc = d->fc;
 	it = d->it;
 
@@ -523,7 +502,7 @@ isoloop:
 	err = uiomove((caddr_t)fp, sizeof(struct fw_isohdr), uio);
 	err = uiomove((caddr_t)fp->mode.stream.payload,
 				fp->mode.stream.len, uio);
-	it->queued ++;
+	it->queued++;
 	if (it->queued >= it->bnpacket) {
 		s = splfw();
 		STAILQ_INSERT_TAIL(&it->stvalid, it->stproc, link);
@@ -550,7 +529,7 @@ fw_hand(struct fw_xfer *xfer)
 	struct fw_drv1 *d;
 
 	fwb = (struct fw_bind *)xfer->sc;
-	d = (struct fw_drv1 *)fwb->sc;
+	d = fwb->sc;
 	FW_GLOCK(xfer->fc);
 	STAILQ_INSERT_TAIL(&d->rq, xfer, link);
 	FW_GUNLOCK(xfer->fc);
@@ -561,7 +540,7 @@ fw_hand(struct fw_xfer *xfer)
  * ioctl support.
  */
 int
-fw_ioctl (struct cdev *dev, u_long cmd, caddr_t data, int flag, fw_proc *td)
+fw_ioctl(struct cdev *dev, u_long cmd, caddr_t data, int flag, fw_proc *td)
 {
 	struct firewire_comm *fc;
 	struct fw_drv1 *d;
@@ -585,9 +564,9 @@ fw_ioctl (struct cdev *dev, u_long cmd, caddr_t data, int flag, fw_proc *td)
 		return fwmem_ioctl(dev, cmd, data, flag, td);
 
 	if (!data)
-		return(EINVAL);
+		return (EINVAL);
 
-	d = (struct fw_drv1 *)dev->si_drv1;
+	d = dev->si_drv1;
 	fc = d->fc;
 	ir = d->ir;
 	it = d->it;
@@ -703,7 +682,7 @@ fw_ioctl (struct cdev *dev, u_long cmd, caddr_t data, int flag, fw_proc *td)
 		bcopy(fp, (void *)&xfer->send.hdr, tinfo->hdr_len);
 		if (pay_len > 0)
 			bcopy((char *)fp + tinfo->hdr_len,
-			    (void *)xfer->send.payload, pay_len);
+			    xfer->send.payload, pay_len);
 		xfer->send.spd = asyreq->req.sped;
 		xfer->hand = fw_xferwake;
 
@@ -725,7 +704,7 @@ fw_ioctl (struct cdev *dev, u_long cmd, caddr_t data, int flag, fw_proc *td)
 			pay_len = xfer->recv.pay_len;
 			if (asyreq->req.len >= xfer->recv.pay_len + tinfo->hdr_len) {
 				asyreq->req.len = xfer->recv.pay_len +
-					tinfo->hdr_len;
+				    tinfo->hdr_len;
 			} else {
 				err = EINVAL;
 				pay_len = 0;
@@ -745,7 +724,7 @@ out:
 	case FW_CBINDADDR:
 		fwb = fw_bindlookup(fc,
 				bindreq->start.hi, bindreq->start.lo);
-		if(fwb == NULL){
+		if (fwb == NULL) {
 			err = EINVAL;
 			break;
 		}
@@ -755,30 +734,30 @@ out:
 		free(fwb, M_FW);
 		break;
 	case FW_SBINDADDR:
-		if(bindreq->len <= 0 ){
+		if (bindreq->len <= 0) {
 			err = EINVAL;
 			break;
 		}
-		if(bindreq->start.hi > 0xffff ){
+		if (bindreq->start.hi > 0xffff) {
 			err = EINVAL;
 			break;
 		}
-		fwb = (struct fw_bind *)malloc(sizeof (struct fw_bind), M_FW, M_WAITOK);
-		if(fwb == NULL){
+		fwb = malloc(sizeof(struct fw_bind), M_FW, M_WAITOK);
+		if (fwb == NULL) {
 			err = ENOMEM;
 			break;
 		}
 		fwb->start = ((u_int64_t)bindreq->start.hi << 32) |
 		    bindreq->start.lo;
 		fwb->end = fwb->start +  bindreq->len;
-		fwb->sc = (void *)d;
+		fwb->sc = d;
 		STAILQ_INIT(&fwb->xferlist);
 		err = fw_bindadd(fc, fwb);
 		if (err == 0) {
 			fw_xferlist_add(&fwb->xferlist, M_FWXFER,
 			    /* XXX */
 			    PAGE_SIZE, PAGE_SIZE, 5,
-			    fc, (void *)fwb, fw_hand);
+			    fc, fwb, fw_hand);
 			STAILQ_INSERT_TAIL(&d->binds, fwb, chlist);
 		}
 		break;
@@ -791,11 +770,11 @@ out:
 		devinfo->eui.hi = fc->eui.hi;
 		devinfo->eui.lo = fc->eui.lo;
 		STAILQ_FOREACH(fwdev, &fc->devices, link) {
-			if(len < FW_MAX_DEVLST){
+			if (len < FW_MAX_DEVLST) {
 				devinfo = &fwdevlst->dev[len++];
 				devinfo->dst = fwdev->dst;
-				devinfo->status = 
-					(fwdev->status == FWDEVINVAL)?0:1;
+				devinfo->status =
+					(fwdev->status == FWDEVINVAL) ? 0 : 1;
 				devinfo->eui.hi = fwdev->eui.hi;
 				devinfo->eui.lo = fwdev->eui.lo;
 			}
@@ -806,7 +785,7 @@ out:
 		break;
 	case FW_GTPMAP:
 		bcopy(fc->topology_map, data,
-				(fc->topology_map->crc_len + 1) * 4);
+		    (fc->topology_map->crc_len + 1) * 4);
 		break;
 	case FW_GCROM:
 		STAILQ_FOREACH(fwdev, &fc->devices, link)
@@ -841,7 +820,7 @@ out:
 			free(ptr, M_FW);
 		break;
 	default:
-		fc->ioctl (dev, cmd, data, flag, td);
+		fc->ioctl(dev, cmd, data, flag, td);
 		break;
 	}
 	return err;
@@ -867,7 +846,7 @@ fw_poll(struct cdev *dev, int events, fw_proc *td)
 	}
 	tmp = POLLOUT | POLLWRNORM;
 	if (events & tmp) {
-		/* XXX should be fixed */	
+		/* XXX should be fixed */
 		revents |= tmp;
 	}
 
@@ -877,7 +856,7 @@ fw_poll(struct cdev *dev, int events, fw_proc *td)
 static int
 fw_mmap (struct cdev *dev, vm_ooffset_t offset, vm_paddr_t *paddr,
     int nproto, vm_memattr_t *memattr)
-{  
+{
 
 	if (DEV_FWMEM(dev))
 		return fwmem_mmap(dev, offset, paddr, nproto, memattr);
@@ -912,12 +891,9 @@ fwdev_makedev(struct firewire_softc *sc)
 
 	unit = device_get_unit(sc->fc->bdev);
 	sc->dev = make_dev(&firewire_cdevsw, MAKEMINOR(0, unit, 0),
-			UID_ROOT, GID_OPERATOR, 0660,
-			"fw%d.%d", unit, 0);
-	d = make_dev(&firewire_cdevsw,
-			MAKEMINOR(FWMEM_FLAG, unit, 0),
-			UID_ROOT, GID_OPERATOR, 0660,
-			"fwmem%d.%d", unit, 0);
+	    UID_ROOT, GID_OPERATOR, 0660, "fw%d.%d", unit, 0);
+	d = make_dev(&firewire_cdevsw, MAKEMINOR(FWMEM_FLAG, unit, 0),
+	    UID_ROOT, GID_OPERATOR, 0660, "fwmem%d.%d", unit, 0);
 	dev_depends(sc->dev, d);
 	make_dev_alias(sc->dev, "fw%d", unit);
 	make_dev_alias(d, "fwmem%d", unit);

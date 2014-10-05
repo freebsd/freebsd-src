@@ -282,7 +282,7 @@ acpi_pci_probe(device_t dev)
 	if (acpi_get_handle(dev) == NULL)
 		return (ENXIO);
 	device_set_desc(dev, "ACPI PCI bus");
-	return (0);
+	return (BUS_PROBE_DEFAULT);
 }
 
 static int
