@@ -295,7 +295,7 @@ _fdfree(struct filedesc *fdp, int fd, int last)
 	filecaps_free(&fde->fde_caps);
 	if (last)
 		return;
-	bzero(fde_change(fde), fde_change_size);
+	bzero(fde, fde_change_size);
 	fdunused(fdp, fd);
 #ifdef CAPABILITIES
 	seq_write_end(&fde->fde_seq);
@@ -894,7 +894,7 @@ do_dup(struct thread *td, int flags, int old, int new,
 	seq_write_begin(&newfde->fde_seq);
 #endif
 	filecaps_free(&newfde->fde_caps);
-	memcpy(fde_change(newfde), fde_change(oldfde), fde_change_size);
+	memcpy(newfde, oldfde, fde_change_size);
 	filecaps_copy(&oldfde->fde_caps, &newfde->fde_caps);
 	if ((flags & DUP_CLOEXEC) != 0)
 		newfde->fde_flags = oldfde->fde_flags | UF_EXCLOSE;
@@ -2778,7 +2778,7 @@ dupfdopen(struct thread *td, struct filedesc *fdp, int dfd, int mode,
 #ifdef CAPABILITIES
 		seq_write_begin(&newfde->fde_seq);
 #endif
-		memcpy(fde_change(newfde), fde_change(oldfde), fde_change_size);
+		memcpy(newfde, oldfde, fde_change_size);
 		filecaps_copy(&oldfde->fde_caps, &newfde->fde_caps);
 #ifdef CAPABILITIES
 		seq_write_end(&newfde->fde_seq);
@@ -2793,8 +2793,8 @@ dupfdopen(struct thread *td, struct filedesc *fdp, int dfd, int mode,
 #ifdef CAPABILITIES
 		seq_write_begin(&newfde->fde_seq);
 #endif
-		memcpy(fde_change(newfde), fde_change(oldfde), fde_change_size);
-		bzero(fde_change(oldfde), fde_change_size);
+		memcpy(newfde, oldfde, fde_change_size);
+		bzero(oldfde, fde_change_size);
 		fdunused(fdp, dfd);
 #ifdef CAPABILITIES
 		seq_write_end(&newfde->fde_seq);
