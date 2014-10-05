@@ -552,7 +552,8 @@ label:
 				strncpy(zonestr, buf, cp - buf);
 				zonestr[cp - buf] = '\0';
 				tzset();
-				if (0 == strcmp(zonestr, "GMT")) {
+				if (0 == strcmp(zonestr, "GMT") ||
+				    0 == strcmp(zonestr, "UTC")) {
 				    *GMTp = 1;
 				} else if (0 == strcmp(zonestr, tzname[0])) {
 				    tm->tm_isdst = 0;
@@ -674,6 +675,9 @@ strptime_l(const char * __restrict buf, const char * __restrict fmt,
 	ret = _strptime(buf, fmt, tm, &gmt, loc);
 	if (ret && gmt) {
 		time_t t = timegm(tm);
+
+		if (t == -1)
+			return (NULL);
 		localtime_r(&t, tm);
 	}
 
