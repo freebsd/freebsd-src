@@ -78,8 +78,8 @@ disk_strategy(void *devdata, int rw, daddr_t blk, size_t size, char *buf,
 		return (-1);
 	if (rsize)
 		*rsize = 0;
-	printf("read %lu bytes from the block %ld [+%ld]\n", size,
-	    blk, dev->d_offset);
+	printf("read %zu bytes from the block %lld [+%lld]\n", size,
+	    (long long)blk, (long long)dev->d_offset);
 	ret = pread(disk.fd, buf, size,
 	    (blk + dev->d_offset) * disk.sectorsize);
 	if (ret != size)
