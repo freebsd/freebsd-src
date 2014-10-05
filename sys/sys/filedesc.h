@@ -51,10 +51,10 @@ struct filecaps {
 };
 
 struct filedescent {
-	struct file	*fde_file;		/* file structure for open file */
-	struct filecaps	 fde_caps;		/* per-descriptor rights */
-	uint8_t		 fde_flags;		/* per-process open file flags */
-	seq_t		 fde_seq;		/* if you need fde_file and fde_caps in sync */
+	struct file	*fde_file;	/* file structure for open file */
+	struct filecaps	 fde_caps;	/* per-descriptor rights */
+	uint8_t		 fde_flags;	/* per-process open file flags */
+	seq_t		 fde_seq;	/* keep file and caps in sync */
 };
 #define	fde_rights	fde_caps.fc_rights
 #define	fde_fcntls	fde_caps.fc_fcntls
