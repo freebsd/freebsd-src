@@ -4860,7 +4860,7 @@ ipfw_get_tracked_ifaces(ipfw_obj_lheader **polh)
 	memset(&req, 0, sizeof(req));
 	sz = sizeof(req);
 
-	if (do_get3(IP_FW_XIFLIST, &olh->opheader, &sz) != 0) {
+	if (do_get3(IP_FW_XIFLIST, &req.opheader, &sz) != 0) {
 		if (errno != ENOMEM)
 			return (errno);
 	}
