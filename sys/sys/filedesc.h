@@ -33,10 +33,6 @@
 #ifndef _SYS_FILEDESC_H_
 #define	_SYS_FILEDESC_H_
 
-#ifdef _KERNEL
-#include "opt_capsicum.h"
-#endif
-
 #include <sys/caprights.h>
 #include <sys/queue.h>
 #include <sys/event.h>
@@ -55,24 +51,16 @@ struct filecaps {
 };
 
 struct filedescent {
-#ifdef CAPABILITIES
-	seq_t		 fde_seq;		/* if you need fde_file and fde_caps in sync */
-#endif
 	struct file	*fde_file;		/* file structure for open file */
 	struct filecaps	 fde_caps;		/* per-descriptor rights */
 	uint8_t		 fde_flags;		/* per-process open file flags */
+	seq_t		 fde_seq;		/* if you need fde_file and fde_caps in sync */
 };
 #define	fde_rights	fde_caps.fc_rights
 #define	fde_fcntls	fde_caps.fc_fcntls
 #define	fde_ioctls	fde_caps.fc_ioctls
 #define	fde_nioctls	fde_caps.fc_nioctls
-#ifdef CAPABILITIES
-#define	fde_change(fde)	((char *)(fde) + sizeof(seq_t))
-#define	fde_change_size	(sizeof(struct filedescent) - sizeof(seq_t))
-#else
-#define	fde_change(fde)	((fde))
-#define	fde_change_size	(sizeof(struct filedescent))
-#endif
+#define	fde_change_size	(offsetof(struct filedescent, fde_seq))
 
 /*
  * This structure is used for the management of descriptors.  It may be
@@ -97,9 +85,7 @@ struct filedesc {
 	int	fd_holdleaderscount;	/* block fdfree() for shared close() */
 	int	fd_holdleaderswakeup;	/* fdfree() needs wakeup */
 };
-#ifdef	CAPABILITIES
 #define	fd_seq(fdp, fd)	(&(fdp)->fd_ofiles[(fd)].fde_seq)
-#endif
 
 /*
  * Structure to keep track of (process leader, struct fildedesc) tuples.
