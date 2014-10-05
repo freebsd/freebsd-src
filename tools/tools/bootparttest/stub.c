@@ -28,6 +28,7 @@
 __FBSDID("$FreeBSD$");
 
 #include <stdlib.h>
+#include <stdio.h>
 
 void*
 Malloc(size_t size, const char *file, int line)
@@ -41,4 +42,11 @@ Free(void *ptr, const char *file, int line)
 {
 
 	return (free(ptr));
+}
+
+void
+pager_output(const char *s)
+{
+
+	printf("%s", s);
 }
