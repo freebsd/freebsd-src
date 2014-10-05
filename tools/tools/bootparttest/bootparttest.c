@@ -53,7 +53,7 @@ struct devsw {
 	void		*dv_close;
 	void		*dv_ioctl;
 	void		*dv_print;
-	void		*dv_cleanupa;
+	void		*dv_cleanup;
 } udisk = {
 	.dv_name = "disk",
 	.dv_strategy = disk_strategy
