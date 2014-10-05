@@ -1126,6 +1126,7 @@ ahci_ch_intr_direct(void *arg)
 	struct ahci_channel *ch = (struct ahci_channel *)arg;
 	struct ccb_hdr *ccb_h;
 	uint32_t istatus;
+	STAILQ_HEAD(, ccb_hdr) tmp_doneq = STAILQ_HEAD_INITIALIZER(tmp_doneq);
 
 	/* Read interrupt statuses. */
 	istatus = ATA_INL(ch->r_mem, AHCI_P_IS);
@@ -1136,9 +1137,14 @@ ahci_ch_intr_direct(void *arg)
 	ch->batch = 1;
 	ahci_ch_intr_main(ch, istatus);
 	ch->batch = 0;
+	/*
+	 * Prevent the possibility of issues caused by processing the queue
+	 * while unlocked below by moving the contents to a local queue.
+	 */
+	STAILQ_CONCAT(&tmp_doneq, &ch->doneq);
 	mtx_unlock(&ch->mtx);
-	while ((ccb_h = STAILQ_FIRST(&ch->doneq)) != NULL) {
-		STAILQ_REMOVE_HEAD(&ch->doneq, sim_links.stqe);
+	while ((ccb_h = STAILQ_FIRST(&tmp_doneq)) != NULL) {
+		STAILQ_REMOVE_HEAD(&tmp_doneq, sim_links.stqe);
 		xpt_done_direct((union ccb *)ccb_h);
 	}
 }

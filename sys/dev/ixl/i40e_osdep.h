@@ -152,6 +152,7 @@ struct i40e_osdep
 	bus_space_tag_t		mem_bus_space_tag;
 	bus_space_handle_t	mem_bus_space_handle;
 	bus_size_t		mem_bus_space_size;
+	uint32_t		flush_reg;
 	struct device		*dev;
 };
 
@@ -208,6 +209,13 @@ wr32_osdep(struct i40e_osdep *osdep, uint32_t reg, uint32_t value)
 	    osdep->mem_bus_space_handle, reg, value);
 }
 
+static __inline void
+ixl_flush_osdep(struct i40e_osdep *osdep)
+{
+
+	rd32_osdep(osdep, osdep->flush_reg);
+}
+
 #define rd32(a, reg)		rd32_osdep((a)->back, (reg))
 #define wr32(a, reg, value)	wr32_osdep((a)->back, (reg), (value))
 
@@ -221,9 +229,6 @@ wr32_osdep(struct i40e_osdep *osdep, uint32_t reg, uint32_t value)
                      ((struct i40e_osdep *)(a)->back)->mem_bus_space_handle, \
                      reg, value))
 
-#define ixl_flush(a) (\
-   bus_space_read_4( ((struct i40e_osdep *)(a)->back)->mem_bus_space_tag, \
-                     ((struct i40e_osdep *)(a)->back)->mem_bus_space_handle, \
-                     I40E_GLGEN_STAT))
+#define ixl_flush(a)		ixl_flush_osdep((a)->back)
 
 #endif /* _I40E_OSDEP_H_ */

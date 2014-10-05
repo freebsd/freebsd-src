@@ -28,7 +28,7 @@
 .\"     From: @(#)ifconfig.8	8.3 (Berkeley) 1/5/94
 .\" $FreeBSD$
 .\"
-.Dd September 9, 2014
+.Dd October 1, 2014
 .Dt IFCONFIG 8
 .Os
 .Sh NAME
@@ -679,7 +679,7 @@ Set a flag to enable Neighbor Unreachability Detection.
 Clear a flag
 .Cm nud .
 .It Cm no_prefer_iface
-Set a flag to not honor rule 5 of source address selection in RFC 3484.         
+Set a flag to not honor rule 5 of source address selection in RFC 3484.
 In practice this means the address on the outgoing interface will not be
 preferred, effectively yielding the decision to the address selection
 policy table, configurable with
@@ -2331,9 +2331,16 @@ Remove the interface named by
 from the aggregation interface.
 .It Cm laggproto Ar proto
 Set the aggregation protocol.
-The default is failover.
-The available options are failover, lacp, loadbalance, roundrobin, broadcast
-and none.
+The default is
+.Li failover .
+The available options are
+.Li failover ,
+.Li lacp ,
+.Li loadbalance ,
+.Li roundrobin ,
+.Li broadcast
+and
+.Li none .
 .It Cm lagghash Ar option Ns Oo , Ns Ar option Oc
 Set the packet layers to hash for aggregation protocols which load balance.
 The default is
@@ -2348,6 +2355,34 @@ src/dst address for IPv4 or IPv6.
 .It Cm l4
 src/dst port for TCP/UDP/SCTP.
 .El
+.It Cm use_flowid
+Enable local hash computation for RSS hash on the interface.
+The
+.Li loadbalance
+and
+.Li lacp
+modes will use the RSS hash from the network card if available
+to avoid computing one, this may give poor traffic distribution
+if the hash is invalid or uses less of the protocol header information.
+.Cm use_flowid
+disables use of RSS hash from the network card.
+The default value can be set via the
+.Va net.link.lagg.default_use_flowid
+.Xr sysctl 8
+variable.
+.Li 0
+means
+.Dq disabled
+and
+.Li 1
+means
+.Dq enabled .
+.It Cm -use_flowid
+Disable local hash computation for RSS hash on the interface.
+.It Cm flowid_shift Ar number
+Set a shift parameter for RSS local hash computation.
+Hash is calculated by using flowid bits in a packet header mbuf
+which are shifted by the number of this parameter.
 .El
 .Pp
 The following parameters are specific to IP tunnel interfaces,

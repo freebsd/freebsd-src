@@ -1137,6 +1137,7 @@ ixlv_allocate_pci_resources(struct ixlv_sc *sc)
 	sc->osdep.mem_bus_space_handle =
 		rman_get_bushandle(sc->pci_mem);
 	sc->osdep.mem_bus_space_size = rman_get_size(sc->pci_mem);
+	sc->osdep.flush_reg = I40E_VFGEN_RSTAT;
 	sc->hw.hw_addr = (u8 *) &sc->osdep.mem_bus_space_handle;
 
 	sc->hw.back = &sc->osdep;
@@ -1354,6 +1355,10 @@ ixlv_setup_interface(device_t dev, struct ixlv_sc *sc)
 	ifp->if_softc = vsi;
 	ifp->if_flags = IFF_BROADCAST | IFF_SIMPLEX | IFF_MULTICAST;
 	ifp->if_ioctl = ixlv_ioctl;
+
+#if __FreeBSD_version >= 1100000
+	if_setgetcounterfn(ifp, ixl_get_counter);
+#endif
 
 	ifp->if_transmit = ixl_mq_start;
 

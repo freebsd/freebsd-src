@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2013, Intel Corp.
+ * Copyright (C) 2000 - 2014, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -41,8 +41,8 @@
  * POSSIBILITY OF SUCH DAMAGES.
  */
 
-
 #define __EVXFEVNT_C__
+#define EXPORT_ACPI_INTERFACES
 
 #include <contrib/dev/acpica/include/acpi.h>
 #include <contrib/dev/acpica/include/accommon.h>
@@ -364,7 +364,9 @@ AcpiGetEventStatus (
     UINT32                  Event,
     ACPI_EVENT_STATUS       *EventStatus)
 {
-    ACPI_STATUS             Status = AE_OK;
+    ACPI_STATUS             Status;
+    ACPI_EVENT_STATUS       LocalEventStatus = 0;
+    UINT32                  InByte;
 
 
     ACPI_FUNCTION_TRACE (AcpiGetEventStatus);
@@ -382,12 +384,43 @@ AcpiGetEventStatus (
         return_ACPI_STATUS (AE_BAD_PARAMETER);
     }
 
-    /* Get the status of the requested fixed event */
+    /* Fixed event currently can be dispatched? */
+
+    if (AcpiGbl_FixedEventHandlers[Event].Handler)
+    {
+        LocalEventStatus |= ACPI_EVENT_FLAG_HAS_HANDLER;
+    }
+
+    /* Fixed event currently enabled? */
 
     Status = AcpiReadBitRegister (
-                AcpiGbl_FixedEventInfo[Event].StatusRegisterId, EventStatus);
+                AcpiGbl_FixedEventInfo[Event].EnableRegisterId, &InByte);
+    if (ACPI_FAILURE (Status))
+    {
+        return_ACPI_STATUS (Status);
+    }
 
-    return_ACPI_STATUS (Status);
+    if (InByte)
+    {
+        LocalEventStatus |= ACPI_EVENT_FLAG_ENABLED;
+    }
+
+    /* Fixed event currently active? */
+
+    Status = AcpiReadBitRegister (
+                AcpiGbl_FixedEventInfo[Event].StatusRegisterId, &InByte);
+    if (ACPI_FAILURE (Status))
+    {
+        return_ACPI_STATUS (Status);
+    }
+
+    if (InByte)
+    {
+        LocalEventStatus |= ACPI_EVENT_FLAG_SET;
+    }
+
+    (*EventStatus) = LocalEventStatus;
+    return_ACPI_STATUS (AE_OK);
 }
 
 ACPI_EXPORT_SYMBOL (AcpiGetEventStatus)

@@ -68,6 +68,39 @@ list_vars()
 	done; }
 }
 
+# set_rcvar [var] [defval] [desc]
+#
+#	Echo or define a rc.conf(5) variable name.  Global variable
+#	$rcvars is used.
+#
+#	If no argument is specified, echo "${name}_enable".
+#
+#	If only a var is specified, echo "${var}_enable".
+#
+#	If var and defval are specified, the ${var} is defined as
+#	rc.conf(5) variable and the default value is ${defvar}.  An
+#	optional argument $desc can also be specified to add a
+#	description for that.
+#
+set_rcvar()
+{
+	local _var
+
+	case $# in
+	0)	echo ${name}_enable ;;
+	1)	echo ${1}_enable ;;
+	*)
+		debug "set_rcvar: \$$1=$2 is added" \
+		    " as a rc.conf(5) variable."
+		_var=$1
+		rcvars="${rcvars# } $_var"
+		eval ${_var}_defval=\"$2\"
+		shift 2
+		eval ${_var}_desc=\"$*\"
+	;;
+	esac
+}
+
 # set_rcvar_obsolete oldvar [newvar] [msg]
 #	Define obsolete variable.
 #	Global variable $rcvars_obsolete is used.
@@ -76,7 +109,7 @@ set_rcvar_obsolete()
 {
 	local _var
 	_var=$1
-	debug "rcvar_obsolete: \$$1(old) -> \$$2(new) is defined"
+	debug "set_rcvar_obsolete: \$$1(old) -> \$$2(new) is defined"
 
 	rcvars_obsolete="${rcvars_obsolete# } $1"
 	eval ${1}_newvar=\"$2\"
@@ -1091,8 +1124,8 @@ $command $rc_flags $command_args"
 				echo ""
 			fi
 			echo "#"
-			# Get unique vars in $rcvar
-			for _v in $rcvar; do
+			# Get unique vars in $rcvar $rcvars
+			for _v in $rcvar $rcvars; do
 				case $v in
 				$_v\ *|\ *$_v|*\ $_v\ *) ;;
 				*)	v="${v# } $_v" ;;
@@ -1238,7 +1271,7 @@ run_rc_script()
 
 	unset	name command command_args command_interpreter \
 		extra_commands pidfile procname \
-		rcvar rcvars_obsolete required_dirs required_files \
+		rcvar rcvars rcvars_obsolete required_dirs required_files \
 		required_vars
 	eval unset ${_arg}_cmd ${_arg}_precmd ${_arg}_postcmd
 
@@ -1306,7 +1339,7 @@ load_rc_config()
 	done
 
 	# Set defaults if defined.
-	for _var in $rcvar; do
+	for _var in $rcvar $rcvars; do
 		eval _defval=\$${_var}_defval
 		if [ -n "$_defval" ]; then
 			eval : \${$_var:=\$${_var}_defval}

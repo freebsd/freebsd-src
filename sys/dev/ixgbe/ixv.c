@@ -634,9 +634,9 @@ ixv_mq_start_locked(struct ifnet *ifp, struct tx_ring *txr, struct mbuf *m)
 		}
 		drbr_advance(ifp, txr->br);
 		enqueued++;
-		ifp->if_obytes += next->m_pkthdr.len;
+		if_inc_counter(ifp, IFCOUNTER_OBYTES, next->m_pkthdr.len);
 		if (next->m_flags & M_MCAST)
-			ifp->if_omcasts++;
+			if_inc_counter(ifp, IFCOUNTER_OMCASTS, 1);
 		/* Send a copy of the frame to the BPF listener */
 		ETHER_BPF_MTAP(ifp, next);
 		if ((ifp->if_drv_flags & IFF_DRV_RUNNING) == 0)
@@ -2651,7 +2651,7 @@ ixv_txeof(struct tx_ring *txr)
 			tx_desc =
 			    (struct ixgbe_legacy_tx_desc *)&txr->tx_base[first];
 		}
-		++ifp->if_opackets;
+		if_inc_counter(ifp, IFCOUNTER_OPACKETS, 1);
 		/* See if there is more work now */
 		last = tx_buffer->eop_index;
 		if (last != -1) {
@@ -3341,7 +3341,7 @@ ixv_rxeof(struct ix_queue *que, int count)
 		/* Make sure all parts of a bad packet are discarded */
 		if (((staterr & IXGBE_RXDADV_ERR_FRAME_ERR_MASK) != 0) ||
 		    (rxr->discard)) {
-			ifp->if_ierrors++;
+			if_inc_counter(ifp, IFCOUNTER_IERRORS, 1);
 			rxr->rx_discarded++;
 			if (!eop)
 				rxr->discard = TRUE;
@@ -3455,7 +3455,7 @@ ixv_rxeof(struct ix_queue *que, int count)
 		/* Sending this frame? */
 		if (eop) {
 			sendmp->m_pkthdr.rcvif = ifp;
-			ifp->if_ipackets++;
+			if_inc_counter(ifp, IFCOUNTER_IPACKETS, 1);
 			rxr->rx_packets++;
 			/* capture data for AIM */
 			rxr->bytes += sendmp->m_pkthdr.len;

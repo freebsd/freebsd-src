@@ -42,6 +42,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/namei.h>
 #include <sys/signalvar.h>
 #include <sys/systm.h>
+#include <sys/taskqueue.h>
 #include <sys/vnode.h>
 #include <machine/atomic.h>
 #include <vm/uma.h>
@@ -276,22 +277,22 @@ autofs_lookup(struct vop_lookup_args *ap)
 		}
 	}
 
-	AUTOFS_LOCK(amp);
+	AUTOFS_SLOCK(amp);
 	error = autofs_node_find(anp, cnp->cn_nameptr, cnp->cn_namelen, &child);
 	if (error != 0) {
 		if ((cnp->cn_flags & ISLASTCN) && cnp->cn_nameiop == CREATE) {
-			AUTOFS_UNLOCK(amp);
+			AUTOFS_SUNLOCK(amp);
 			return (EJUSTRETURN);
 		}
 
-		AUTOFS_UNLOCK(amp);
+		AUTOFS_SUNLOCK(amp);
 		return (ENOENT);
 	}
 
 	/*
 	 * XXX: Dropping the node here is ok, because we never remove nodes.
 	 */
-	AUTOFS_UNLOCK(amp);
+	AUTOFS_SUNLOCK(amp);
 
 	error = autofs_node_vn(child, mp, vpp);
 	if (error != 0) {
@@ -324,14 +325,14 @@ autofs_mkdir(struct vop_mkdir_args *ap)
 	if (autofs_ignore_thread(curthread) == false)
 		return (EPERM);
 
-	AUTOFS_LOCK(amp);
+	AUTOFS_XLOCK(amp);
 	error = autofs_node_new(anp, amp, ap->a_cnp->cn_nameptr,
 	    ap->a_cnp->cn_namelen, &child);
 	if (error != 0) {
-		AUTOFS_UNLOCK(amp);
+		AUTOFS_XUNLOCK(amp);
 		return (error);
 	}
-	AUTOFS_UNLOCK(amp);
+	AUTOFS_XUNLOCK(amp);
 
 	error = autofs_node_vn(child, vp->v_mount, ap->a_vpp);
 
@@ -426,7 +427,7 @@ autofs_readdir(struct vop_readdir_args *ap)
 	}
 
 	i = 2; /* Account for "." and "..". */
-	AUTOFS_LOCK(amp);
+	AUTOFS_SLOCK(amp);
 	TAILQ_FOREACH(child, &anp->an_children, an_next) {
 		if (resid < AUTOFS_DELEN) {
 			if (ap->a_eofflag != NULL)
@@ -444,14 +445,14 @@ autofs_readdir(struct vop_readdir_args *ap)
 		error = autofs_readdir_one(uio, child->an_name,
 		    child->an_fileno);
 		if (error != 0) {
-			AUTOFS_UNLOCK(amp);
+			AUTOFS_SUNLOCK(amp);
 			return (error);
 		}
 		offset += AUTOFS_DELEN;
 		resid -= AUTOFS_DELEN;
 	}
 
-	AUTOFS_UNLOCK(amp);
+	AUTOFS_SUNLOCK(amp);
 	return (0);
 }
 
@@ -504,7 +505,7 @@ autofs_node_new(struct autofs_node *parent, struct autofs_mount *amp,
 	struct autofs_node *anp;
 
 	if (parent != NULL)
-		AUTOFS_ASSERT_LOCKED(parent->an_mount);
+		AUTOFS_ASSERT_XLOCKED(parent->an_mount);
 
 	anp = uma_zalloc(autofs_node_zone, M_WAITOK | M_ZERO);
 	if (namelen >= 0)
@@ -566,7 +567,7 @@ autofs_node_delete(struct autofs_node *anp)
 {
 	struct autofs_node *parent;
 
-	AUTOFS_ASSERT_LOCKED(anp->an_mount);
+	AUTOFS_ASSERT_XLOCKED(anp->an_mount);
 	KASSERT(TAILQ_EMPTY(&anp->an_children), ("have children"));
 
 	callout_drain(&anp->an_callout);

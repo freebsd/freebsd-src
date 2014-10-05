@@ -35,6 +35,7 @@ __FBSDID("$FreeBSD$");
 #include <errno.h>
 #include <err.h>
 #include <fcntl.h>
+#include <getopt.h>
 #include <libutil.h>
 #include <limits.h>
 #include <stdio.h>
@@ -47,6 +48,17 @@ __FBSDID("$FreeBSD$");
 #include "format.h"
 #include "mkimg.h"
 #include "scheme.h"
+
+#define	LONGOPT_FORMATS	0x01000001
+#define	LONGOPT_SCHEMES	0x01000002
+#define	LONGOPT_VERSION	0x01000003
+
+static struct option longopts[] = {
+	{ "formats", no_argument, NULL, LONGOPT_FORMATS },
+	{ "schemes", no_argument, NULL, LONGOPT_SCHEMES },
+	{ "version", no_argument, NULL, LONGOPT_VERSION },
+	{ NULL, 0, NULL, 0 }
+};
 
 struct partlisthead partlist = STAILQ_HEAD_INITIALIZER(partlist);
 u_int nparts = 0;
@@ -61,15 +73,79 @@ u_int secsz = 512;
 u_int blksz = 0;
 
 static void
-usage(const char *why)
+print_formats(int usage)
 {
 	struct mkimg_format *f, **f_iter;
+	const char *sep;
+
+	if (usage) {
+		fprintf(stderr, "    formats:\n");
+		SET_FOREACH(f_iter, formats) {
+			f = *f_iter;
+			fprintf(stderr, "\t%s\t-  %s\n", f->name,
+			    f->description);
+		}
+	} else {
+		sep = "";
+		SET_FOREACH(f_iter, formats) {
+			f = *f_iter;
+			printf("%s%s", sep, f->name);
+			sep = " ";
+		}
+		putchar('\n');
+	}
+}
+
+static void
+print_schemes(int usage)
+{
 	struct mkimg_scheme *s, **s_iter;
+	const char *sep;
+
+	if (usage) {
+		fprintf(stderr, "    schemes:\n");
+		SET_FOREACH(s_iter, schemes) {
+			s = *s_iter;
+			fprintf(stderr, "\t%s\t-  %s\n", s->name,
+			    s->description);
+		}
+	} else {
+		sep = "";
+		SET_FOREACH(s_iter, schemes) {
+			s = *s_iter;
+			printf("%s%s", sep, s->name);
+			sep = " ";
+		}
+		putchar('\n');
+	}
+}
+
+static void
+print_version(void)
+{
+	u_int width;
+
+#ifdef __LP64__
+	width = 64;
+#else
+	width = 32;
+#endif
+	printf("mkimg %u (%u-bit)\n", MKIMG_VERSION, width);
+}
+
+static void
+usage(const char *why)
+{
 
 	warnx("error: %s", why);
-	fprintf(stderr, "\nusage: %s <options>\n", getprogname());
+	fputc('\n', stderr);
+	fprintf(stderr, "usage: %s <options>\n", getprogname());
 
 	fprintf(stderr, "    options:\n");
+	fprintf(stderr, "\t--formats\t-  list image formats\n");
+	fprintf(stderr, "\t--schemes\t-  list partition schemes\n");
+	fprintf(stderr, "\t--version\t-  show version information\n");
+	fputc('\n', stderr);
 	fprintf(stderr, "\t-b <file>\t-  file containing boot code\n");
 	fprintf(stderr, "\t-f <format>\n");
 	fprintf(stderr, "\t-o <file>\t-  file to write image into\n");
@@ -81,20 +157,12 @@ usage(const char *why)
 	fprintf(stderr, "\t-P <num>\t-  physical sector size\n");
 	fprintf(stderr, "\t-S <num>\t-  logical sector size\n");
 	fprintf(stderr, "\t-T <num>\t-  number of tracks to simulate\n");
-
-	fprintf(stderr, "\n    formats:\n");
-	SET_FOREACH(f_iter, formats) {
-		f = *f_iter;
-		fprintf(stderr, "\t%s\t-  %s\n", f->name, f->description);
-	}
-
-	fprintf(stderr, "\n    schemes:\n");
-	SET_FOREACH(s_iter, schemes) {
-		s = *s_iter;
-		fprintf(stderr, "\t%s\t-  %s\n", s->name, s->description);
-	}
-
-	fprintf(stderr, "\n    partition specification:\n");
+	fputc('\n', stderr);
+	print_formats(1);
+	fputc('\n', stderr);
+	print_schemes(1);
+	fputc('\n', stderr);
+	fprintf(stderr, "    partition specification:\n");
 	fprintf(stderr, "\t<t>[/<l>]::<size>\t-  empty partition of given "
 	    "size\n");
 	fprintf(stderr, "\t<t>[/<l>]:=<file>\t-  partition content and size "
@@ -366,7 +434,8 @@ main(int argc, char *argv[])
 
 	bcfd = -1;
 	outfd = 1;	/* Write to stdout by default */
-	while ((c = getopt(argc, argv, "b:f:o:p:s:vyH:P:S:T:")) != -1) {
+	while ((c = getopt_long(argc, argv, "b:f:o:p:s:vyH:P:S:T:",
+	    longopts, NULL)) != -1) {
 		switch (c) {
 		case 'b':	/* BOOT CODE */
 			if (bcfd != -1)
@@ -432,6 +501,18 @@ main(int argc, char *argv[])
 			if (error)
 				errc(EX_DATAERR, error, "track size");
 			break;
+		case LONGOPT_FORMATS:
+			print_formats(0);
+			exit(EX_OK);
+			/*NOTREACHED*/
+		case LONGOPT_SCHEMES:
+			print_schemes(0);
+			exit(EX_OK);
+			/*NOTREACHED*/
+		case LONGOPT_VERSION:
+			print_version();
+			exit(EX_OK);
+			/*NOTREACHED*/
 		default:
 			usage("unknown option");
 		}

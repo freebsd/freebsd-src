@@ -136,7 +136,9 @@ ip_output(struct mbuf *m, struct mbuf *opt, struct route *ro, int flags,
 	struct rtentry *rte;	/* cache for ro->ro_rt */
 	struct in_addr odst;
 	struct m_tag *fwd_tag = NULL;
+	uint32_t fibnum;
 	int have_ia_ref;
+	int needfiblookup;
 #ifdef IPSEC
 	int no_route_but_check_spd = 0;
 #endif
@@ -202,6 +204,7 @@ ip_output(struct mbuf *m, struct mbuf *opt, struct route *ro, int flags,
 	 * therefore we need restore gw if we're redoing lookup.
 	 */
 	gw = dst = (struct sockaddr_in *)&ro->ro_dst;
+	fibnum = (inp != NULL) ? inp->inp_inc.inc_fibnum : M_GETFIB(m);
 again:
 	ia = NULL;
 	have_ia_ref = 0;
@@ -283,10 +286,9 @@ again:
 #ifdef RADIX_MPATH
 			rtalloc_mpath_fib(ro,
 			    ntohl(ip->ip_src.s_addr ^ ip->ip_dst.s_addr),
-			    inp ? inp->inp_inc.inc_fibnum : M_GETFIB(m));
+			    fibnum);
 #else
-			in_rtalloc_ign(ro, 0,
-			    inp ? inp->inp_inc.inc_fibnum : M_GETFIB(m));
+			in_rtalloc_ign(ro, 0, fibnum);
 #endif
 			rte = ro->ro_rt;
 		}
@@ -504,6 +506,7 @@ sendit:
 		goto done;
 
 	ip = mtod(m, struct ip *);
+	needfiblookup = 0;
 
 	/* See if destination IP address was changed by packet filter. */
 	if (odst.s_addr != ip->ip_dst.s_addr) {
@@ -529,9 +532,18 @@ sendit:
 		} else {
 			if (have_ia_ref)
 				ifa_free(&ia->ia_ifa);
-			goto again;	/* Redo the routing table lookup. */
+			needfiblookup = 1; /* Redo the routing table lookup. */
 		}
 	}
+	/* See if fib was changed by packet filter. */
+	if (fibnum != M_GETFIB(m)) {
+		m->m_flags |= M_SKIP_FIREWALL;
+		fibnum = M_GETFIB(m);
+		RO_RTFREE(ro);
+		needfiblookup = 1;
+	}
+	if (needfiblookup)
+		goto again;
 
 	/* See if local, if yes, send it to netisr with IP_FASTFWD_OURS. */
 	if (m->m_flags & M_FASTFWD_OURS) {

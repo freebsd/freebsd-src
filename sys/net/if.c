@@ -468,6 +468,10 @@ if_alloc(u_char type)
 
 	refcount_init(&ifp->if_refcount, 1);	/* Index reference. */
 	ifnet_setbyindex(ifp->if_index, ifp);
+
+	for (int i = 0; i < IFCOUNTERS; i++)
+		ifp->if_counters[i] = counter_u64_alloc(M_WAITOK);
+
 	return (ifp);
 }
 
@@ -495,6 +499,10 @@ if_free_internal(struct ifnet *ifp)
 	IF_AFDATA_DESTROY(ifp);
 	IF_ADDR_LOCK_DESTROY(ifp);
 	ifq_delete(&ifp->if_snd);
+
+	for (int i = 0; i < IFCOUNTERS; i++)
+		counter_u64_free(ifp->if_counters[i]);
+
 	free(ifp, M_IFNET);
 }
 
@@ -1460,39 +1468,15 @@ if_rtdel(struct radix_node *rn, void *arg)
 }
 
 /*
- * Return counter values from old racy non-pcpu counters.
+ * Return counter values from counter(9)s stored in ifnet.
  */
 uint64_t
 if_get_counter_default(struct ifnet *ifp, ift_counter cnt)
 {
 
-	switch (cnt) {
-		case IFCOUNTER_IPACKETS:
-			return (ifp->if_ipackets);
-		case IFCOUNTER_IERRORS:
-			return (ifp->if_ierrors);
-		case IFCOUNTER_OPACKETS:
-			return (ifp->if_opackets);
-		case IFCOUNTER_OERRORS:
-			return (ifp->if_oerrors);
-		case IFCOUNTER_COLLISIONS:
-			return (ifp->if_collisions);
-		case IFCOUNTER_IBYTES:
-			return (ifp->if_ibytes);
-		case IFCOUNTER_OBYTES:
-			return (ifp->if_obytes);
-		case IFCOUNTER_IMCASTS:
-			return (ifp->if_imcasts);
-		case IFCOUNTER_OMCASTS:
-			return (ifp->if_omcasts);
-		case IFCOUNTER_IQDROPS:
-			return (ifp->if_iqdrops);
-		case IFCOUNTER_OQDROPS:
-			return (ifp->if_oqdrops);
-		case IFCOUNTER_NOPROTO:
-			return (ifp->if_noproto);
-	}
-	panic("%s: unknown counter %d", __func__, cnt);
+	KASSERT(cnt < IFCOUNTERS, ("%s: invalid cnt %d", __func__, cnt));
+
+	return (counter_u64_fetch(ifp->if_counters[cnt]));
 }
 
 /*
@@ -1503,46 +1487,9 @@ void
 if_inc_counter(struct ifnet *ifp, ift_counter cnt, int64_t inc)
 {
 
-	switch (cnt) {
-		case IFCOUNTER_IPACKETS:
-			ifp->if_ipackets += inc;
-			break;
-		case IFCOUNTER_IERRORS:
-			ifp->if_ierrors += inc;
-			break;
-		case IFCOUNTER_OPACKETS:
-			ifp->if_opackets += inc;
-			break;
-		case IFCOUNTER_OERRORS:
-			ifp->if_oerrors += inc;
-			break;
-		case IFCOUNTER_COLLISIONS:
-			ifp->if_collisions += inc;
-			break;
-		case IFCOUNTER_IBYTES:
-			ifp->if_ibytes += inc;
-			break;
-		case IFCOUNTER_OBYTES:
-			ifp->if_obytes += inc;
-			break;
-		case IFCOUNTER_IMCASTS:
-			ifp->if_imcasts += inc;
-			break;
-		case IFCOUNTER_OMCASTS:
-			ifp->if_omcasts += inc;
-			break;
-		case IFCOUNTER_IQDROPS:
-			ifp->if_iqdrops += inc;
-			break;
-		case IFCOUNTER_OQDROPS:
-			ifp->if_oqdrops += inc;
-			break;
-		case IFCOUNTER_NOPROTO:
-			ifp->if_noproto += inc;
-			break;
-		default:
-			panic("%s: unknown counter %d", __func__, cnt);
-	}
+	KASSERT(cnt < IFCOUNTERS, ("%s: invalid cnt %d", __func__, cnt));
+
+	counter_u64_add(ifp->if_counters[cnt], inc);
 }
 
 /*
@@ -3596,14 +3543,14 @@ if_handoff(struct ifqueue *ifq, struct mbuf *m, struct ifnet *ifp, int adjust)
 	IF_LOCK(ifq);
 	if (_IF_QFULL(ifq)) {
 		IF_UNLOCK(ifq);
-		ifp->if_oqdrops++;
+		if_inc_counter(ifp, IFCOUNTER_OQDROPS, 1);
 		m_freem(m);
 		return (0);
 	}
 	if (ifp != NULL) {
-		ifp->if_obytes += m->m_pkthdr.len + adjust;
+		if_inc_counter(ifp, IFCOUNTER_OBYTES, m->m_pkthdr.len + adjust);
 		if (m->m_flags & (M_BCAST|M_MCAST))
-			ifp->if_omcasts++;
+			if_inc_counter(ifp, IFCOUNTER_OMCASTS, 1);
 		active = ifp->if_drv_flags & IFF_DRV_OACTIVE;
 	}
 	_IF_ENQUEUE(ifq, m);

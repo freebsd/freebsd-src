@@ -48,7 +48,6 @@ __DEFAULT_YES_OPTIONS = \
     ACPI \
     AMD \
     APM \
-    ARM_EABI \
     AT \
     ATM \
     AUDIT \
@@ -194,7 +193,7 @@ __TT=${MACHINE}
 # Clang is only for x86, powerpc and little-endian arm right now, by default.
 .if ${__T} == "amd64" || ${__T} == "i386" || ${__T:Mpowerpc*}
 __DEFAULT_YES_OPTIONS+=CLANG CLANG_FULL CLANG_BOOTSTRAP
-.elif ${__T} == "arm" || ${__T} == "armv6" || ${__T} == "armv6hf"
+.elif ${__TT} == "arm" && ${__T:Marm*eb*} == ""
 __DEFAULT_YES_OPTIONS+=CLANG CLANG_BOOTSTRAP
 # GCC is unable to build the full clang on arm, disable it by default.
 __DEFAULT_NO_OPTIONS+=CLANG_FULL
@@ -202,8 +201,8 @@ __DEFAULT_NO_OPTIONS+=CLANG_FULL
 __DEFAULT_NO_OPTIONS+=CLANG CLANG_FULL CLANG_BOOTSTRAP
 .endif
 # Clang the default system compiler only on little-endian arm and x86.
-.if ${__T} == "amd64" || ${__T} == "arm" || ${__T} == "armv6" || \
-    ${__T} == "armv6hf" || ${__T} == "i386"
+.if ${__T} == "amd64" || (${__TT} == "arm" && ${__T:Marm*eb*} == "") || \
+    ${__T} == "i386"
 __DEFAULT_YES_OPTIONS+=CLANG_IS_CC
 __DEFAULT_NO_OPTIONS+=GCC GCC_BOOTSTRAP GNUCXX
 .else
