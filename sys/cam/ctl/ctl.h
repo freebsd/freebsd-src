@@ -162,6 +162,8 @@ int ctl_ffz(uint32_t *mask, uint32_t size);
 int ctl_set_mask(uint32_t *mask, uint32_t bit);
 int ctl_clear_mask(uint32_t *mask, uint32_t bit);
 int ctl_is_set(uint32_t *mask, uint32_t bit);
+int ctl_caching_sp_handler(struct ctl_scsiio *ctsio,
+			 struct ctl_page_index *page_index, uint8_t *page_ptr);
 int ctl_control_page_handler(struct ctl_scsiio *ctsio,
 			     struct ctl_page_index *page_index,
 			     uint8_t *page_ptr);
