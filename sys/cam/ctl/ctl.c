@@ -7979,7 +7979,8 @@ retry:
 			scsi_ulto2b(i / CTL_MAX_INIT_PER_PORT,
 			    res_desc->rel_trgt_port_id);
 			len = 0;
-			port = softc->ctl_ports[i / CTL_MAX_INIT_PER_PORT];
+			port = softc->ctl_ports[
+			    ctl_port_idx(i / CTL_MAX_INIT_PER_PORT)];
 			if (port != NULL)
 				len = ctl_create_iid(port,
 				    i % CTL_MAX_INIT_PER_PORT,
