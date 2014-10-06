@@ -2545,7 +2545,7 @@ ctl_ioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flag,
 
 		mtx_lock(&softc->ctl_lock);
 		if (((ooa_hdr->flags & CTL_OOA_FLAG_ALL_LUNS) == 0)
-		 && ((ooa_hdr->lun_num > CTL_MAX_LUNS)
+		 && ((ooa_hdr->lun_num >= CTL_MAX_LUNS)
 		  || (softc->ctl_luns[ooa_hdr->lun_num] == NULL))) {
 			mtx_unlock(&softc->ctl_lock);
 			free(entries, M_CTL);
@@ -2740,7 +2740,7 @@ ctl_ioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flag,
 #ifdef CTL_IO_DELAY
 		mtx_lock(&softc->ctl_lock);
 
-		if ((delay_info->lun_id > CTL_MAX_LUNS)
+		if ((delay_info->lun_id >= CTL_MAX_LUNS)
 		 || (softc->ctl_luns[delay_info->lun_id] == NULL)) {
 			delay_info->status = CTL_DELAY_STATUS_INVALID_LUN;
 		} else {
