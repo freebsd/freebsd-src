@@ -961,6 +961,13 @@ This allows to offload copying between different iSCSI targets residing
 on the same host in trusted environments.
 .It Va readcache
 Set to "off", disables read caching for the LUN, if supported by the backend.
+.It Va reordering
+Set to "unrestricted", allows target to process commands with SIMPLE task
+attribute in arbitrary order.  Any data integrity exposures related to
+command sequence order shall be explicitly handled by the application
+client through the selection of appropriate commands and task attributes.
+The default value is "restricted".  It improves data integrity, but may
+introduce some additional delays.
 .It Va unmap
 Set to "on", enables UNMAP support for the LUN, if supported by the backend.
 .It Va writecache
