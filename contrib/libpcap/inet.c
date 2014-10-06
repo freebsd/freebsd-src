@@ -737,6 +737,10 @@ pcap_lookupnet(device, netp, maskp, errbuf)
 #ifdef PCAP_SUPPORT_USB
 	    || strstr(device, "usbmon") != NULL
 #endif
+#ifdef PCAP_SUPPORT_NETMAP
+	    || !strncmp(device, "netmap:", 7)
+	    || !strncmp(device, "vale", 4)
+#endif
 #ifdef HAVE_SNF_API
 	    || strstr(device, "snf") != NULL
 #endif
