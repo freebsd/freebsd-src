@@ -443,4 +443,6 @@ bitcount16(uint32_t x)
 	return (x);
 }
 
+void	intr_prof_stack_use(struct thread *td, struct trapframe *frame);
+
 #endif /* !_SYS_SYSTM_H_ */

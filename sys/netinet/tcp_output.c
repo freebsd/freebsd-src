@@ -806,41 +806,40 @@ send:
 			 * Check if we should limit by maximum segment
 			 * size and count:
 			 */
-			if (if_hw_tsomaxsegcount != 0 && if_hw_tsomaxsegsize != 0) {
+			if (if_hw_tsomaxsegcount != 0 &&
+			    if_hw_tsomaxsegsize != 0) {
 				max_len = 0;
 				mb = sbsndmbuf(&so->so_snd, off, &moff);
 
 				while (mb != NULL && (u_int)max_len < len) {
-					u_int cur_length;
-					u_int cur_frags;
+					u_int mlen;
+					u_int frags;
 
 					/*
 					 * Get length of mbuf fragment
-					 * and how many hardware
-					 * frags, rounded up, it would
-					 * use:
+					 * and how many hardware frags,
+					 * rounded up, it would use:
 					 */
-					cur_length = (mb->m_len - moff);
-					cur_frags = (cur_length + if_hw_tsomaxsegsize -
-					    1) / if_hw_tsomaxsegsize;
+					mlen = (mb->m_len - moff);
+					frags = howmany(mlen,
+					    if_hw_tsomaxsegsize);
 
 					/* Handle special case: Zero Length Mbuf */
-					if (cur_frags == 0)
-						cur_frags = 1;
+					if (frags == 0)
+						frags = 1;
 
 					/*
 					 * Check if the fragment limit
-					 * will be reached or
-					 * exceeded:
+					 * will be reached or exceeded:
 					 */
-					if (cur_frags >= if_hw_tsomaxsegcount) {
-						max_len += min(cur_length,
+					if (frags >= if_hw_tsomaxsegcount) {
+						max_len += min(mlen,
 						    if_hw_tsomaxsegcount *
 						    if_hw_tsomaxsegsize);
 						break;
 					}
-					max_len += cur_length;
-					if_hw_tsomaxsegcount -= cur_frags;
+					max_len += mlen;
+					if_hw_tsomaxsegcount -= frags;
 					moff = 0;
 					mb = mb->m_next;
 				}

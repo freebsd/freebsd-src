@@ -2474,6 +2474,7 @@ ipfw_del_sopt_handler(struct ipfw_sopt_handler *sh, size_t count)
 static int
 ipfw_flush_sopt_data(struct sockopt_data *sd)
 {
+#define	RULE_MAXSIZE	(512*sizeof(u_int32_t))
 	int error;
 	size_t sz;
 

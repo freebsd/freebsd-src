@@ -17,6 +17,7 @@ static const char rcsid[] =
 #include <net/ethernet.h>
 #include <net/if.h>
 #include <net/if_lagg.h>
+#include <net/ieee8023ad_lacp.h>
 #include <net/route.h>
 
 #include <ctype.h>
@@ -246,18 +247,9 @@ lagg_status(int s)
 		putchar('\n');
 		if (verbose) {
 			printf("\tlagg options:\n");
-			printf("\t\tuse_flowid: %d\n",
-			    (ro.ro_opts & LAGG_OPT_USE_FLOWID) ? 1 : 0);
+			printb("\t\tflags", ro.ro_opts, LAGG_OPT_BITS);
+			putchar('\n');
 			printf("\t\tflowid_shift: %d\n", ro.ro_flowid_shift);
-			switch (ra.ra_proto) {
-			case LAGG_PROTO_LACP:
-				printf("\t\tlacp_strict: %d\n",
-				   (ro.ro_opts & LAGG_OPT_LACP_STRICT) ? 1 : 0);
-				printf("\t\tlacp_rxtest: %d\n",
-				   (ro.ro_opts & LAGG_OPT_LACP_RXTEST) ? 1 : 0);
-				printf("\t\tlacp_txtest: %d\n",
-				   (ro.ro_opts & LAGG_OPT_LACP_TXTEST) ? 1 : 0);
-			}
 			printf("\tlagg statistics:\n");
 			printf("\t\tactive ports: %d\n", ro.ro_active);
 			printf("\t\tflapping: %u\n", ro.ro_flapping);
@@ -272,7 +264,8 @@ lagg_status(int s)
 			printf("\tlaggport: %s ", rpbuf[i].rp_portname);
 			printb("flags", rpbuf[i].rp_flags, LAGG_PORT_BITS);
 			if (verbose && ra.ra_proto == LAGG_PROTO_LACP)
-				printf(" state=%X", lp->actor_state);
+				printb(" state", lp->actor_state,
+				    LACP_STATE_BITS);
 			putchar('\n');
 			if (verbose && ra.ra_proto == LAGG_PROTO_LACP)
 				printf("\t\t%s\n",
