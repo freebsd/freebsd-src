@@ -5066,10 +5066,14 @@ pmap_mapdev_attr(vm_paddr_t pa, vm_size_t size, int mode)
 	size = roundup(offset + size, PAGE_SIZE);
 	pa = pa & PG_FRAME;
 
-	if (pa < KERNLOAD && pa + size <= KERNLOAD)
+	if (pa < KERNLOAD && pa + size <= KERNLOAD) {
 		va = KERNBASE + pa;
-	else
+	} else {
 		va = kmem_alloc_nofault(kernel_map, size);
+		PMAP_LOCK(kernel_pmap);
+		kernel_pmap->pm_stats.resident_count += OFF_TO_IDX(size);
+		PMAP_UNLOCK(kernel_pmap);
+	}
 	if (!va)
 		panic("pmap_mapdev: Couldn't alloc kernel virtual memory");
 

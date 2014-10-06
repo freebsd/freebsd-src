@@ -5040,6 +5040,9 @@ pmap_mapdev_attr(vm_paddr_t pa, vm_size_t size, int mode)
 	pa = trunc_page(pa);
 	for (tmpsize = 0; tmpsize < size; tmpsize += PAGE_SIZE)
 		pmap_kenter_attr(va + tmpsize, pa + tmpsize, mode);
+	PMAP_LOCK(kernel_pmap);
+	pmap_resident_count_inc(kernel_pmap, OFF_TO_IDX(size));
+	PMAP_UNLOCK(kernel_pmap);
 	pmap_invalidate_range(kernel_pmap, va, va + tmpsize);
 	pmap_invalidate_cache_range(va, va + tmpsize);
 	return ((void *)(va + offset));
