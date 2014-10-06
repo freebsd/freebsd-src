@@ -10482,7 +10482,7 @@ ctl_inquiry_std(struct ctl_scsiio *ctsio)
 	struct ctl_softc *ctl_softc;
 	struct ctl_lun *lun;
 	char *val;
-	uint32_t alloc_len;
+	uint32_t alloc_len, data_len;
 	ctl_port_type port_type;
 
 	ctl_softc = control_softc;
@@ -10506,16 +10506,17 @@ ctl_inquiry_std(struct ctl_scsiio *ctsio)
 	 * in.  If the user only asks for less, we'll give him
 	 * that much.
 	 */
-	ctsio->kern_data_ptr = malloc(sizeof(*inq_ptr), M_CTL, M_WAITOK | M_ZERO);
+	data_len = offsetof(struct scsi_inquiry_data, vendor_specific1);
+	ctsio->kern_data_ptr = malloc(data_len, M_CTL, M_WAITOK | M_ZERO);
 	inq_ptr = (struct scsi_inquiry_data *)ctsio->kern_data_ptr;
 	ctsio->kern_sg_entries = 0;
 	ctsio->kern_data_resid = 0;
 	ctsio->kern_rel_offset = 0;
 
-	if (sizeof(*inq_ptr) < alloc_len) {
-		ctsio->residual = alloc_len - sizeof(*inq_ptr);
-		ctsio->kern_data_len = sizeof(*inq_ptr);
-		ctsio->kern_total_len = sizeof(*inq_ptr);
+	if (data_len < alloc_len) {
+		ctsio->residual = alloc_len - data_len;
+		ctsio->kern_data_len = data_len;
+		ctsio->kern_total_len = data_len;
 	} else {
 		ctsio->residual = 0;
 		ctsio->kern_data_len = alloc_len;
@@ -10595,8 +10596,7 @@ ctl_inquiry_std(struct ctl_scsiio *ctsio)
 	 */
 	inq_ptr->response_format = SID_HiSup | 2;
 
-	inq_ptr->additional_length =
-	    offsetof(struct scsi_inquiry_data, vendor_specific1) -
+	inq_ptr->additional_length = data_len -
 	    (offsetof(struct scsi_inquiry_data, additional_length) + 1);
 	CTL_DEBUG_PRINT(("additional_length = %d\n",
 			 inq_ptr->additional_length));
