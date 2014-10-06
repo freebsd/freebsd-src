@@ -5995,6 +5995,14 @@ ctl_write_same(struct ctl_scsiio *ctsio)
 		break; /* NOTREACHED */
 	}
 
+	/* NDOB flag can be used only together with UNMAP */
+	if ((byte2 & (SWS_NDOB | SWS_UNMAP)) == SWS_NDOB) {
+		ctl_set_invalid_field(ctsio, /*sks_valid*/ 1,
+		    /*command*/ 1, /*field*/ 1, /*bit_valid*/ 1, /*bit*/ 0);
+		ctl_done((union ctl_io *)ctsio);
+		return (CTL_RETVAL_COMPLETE);
+	}
+
 	/*
 	 * The first check is to make sure we're in bounds, the second
 	 * check is to catch wrap-around problems.  If the lba + num blocks
@@ -6029,7 +6037,8 @@ ctl_write_same(struct ctl_scsiio *ctsio)
 	 * If we've got a kernel request that hasn't been malloced yet,
 	 * malloc it and tell the caller the data buffer is here.
 	 */
-	if ((ctsio->io_hdr.flags & CTL_FLAG_ALLOCATED) == 0) {
+	if ((byte2 & SWS_NDOB) == 0 &&
+	    (ctsio->io_hdr.flags & CTL_FLAG_ALLOCATED) == 0) {
 		ctsio->kern_data_ptr = malloc(len, M_CTL, M_WAITOK);;
 		ctsio->kern_data_len = len;
 		ctsio->kern_total_len = len;

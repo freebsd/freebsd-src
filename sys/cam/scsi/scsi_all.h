@@ -1030,6 +1030,7 @@ struct scsi_write_same_16
 {
 	uint8_t	opcode;
 	uint8_t	byte2;
+#define	SWS_NDOB	0x01
 	uint8_t	addr[8];
 	uint8_t	length[4];
 	uint8_t	group;
