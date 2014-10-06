@@ -1273,10 +1273,12 @@ restore_bytes(struct restorearg *ra, void *buf, int len, off_t off, ssize_t *res
 }
 
 static void *
-restore_read(struct restorearg *ra, int len)
+restore_read(struct restorearg *ra, int len, char *buf)
 {
-	void *rv;
 	int done = 0;
+
+	if (buf == NULL)
+		buf = ra->buf;
 
 	/* some things will require 8-byte alignment, so everything must */
 	ASSERT0(len % 8);
@@ -1284,7 +1286,7 @@ restore_read(struct restorearg *ra, int len)
 	while (done < len) {
 		ssize_t resid;
 
-		ra->err = restore_bytes(ra, (caddr_t)ra->buf + done,
+		ra->err = restore_bytes(ra, buf + done,
 		    len - done, ra->voff, &resid);
 
 		if (resid == len - done)
@@ -1296,12 +1298,11 @@ restore_read(struct restorearg *ra, int len)
 	}
 
 	ASSERT3U(done, ==, len);
-	rv = ra->buf;
 	if (ra->byteswap)
-		fletcher_4_incremental_byteswap(rv, len, &ra->cksum);
+		fletcher_4_incremental_byteswap(buf, len, &ra->cksum);
 	else
-		fletcher_4_incremental_native(rv, len, &ra->cksum);
-	return (rv);
+		fletcher_4_incremental_native(buf, len, &ra->cksum);
+	return (buf);
 }
 
 static void
@@ -1416,7 +1417,7 @@ restore_object(struct restorearg *ra, objset_t *os, struct drr_object *drro)
 		return (SET_ERROR(EINVAL));
 
 	if (drro->drr_bonuslen) {
-		data = restore_read(ra, P2ROUNDUP(drro->drr_bonuslen, 8));
+		data = restore_read(ra, P2ROUNDUP(drro->drr_bonuslen, 8), NULL);
 		if (ra->err != 0)
 			return (ra->err);
 	}
@@ -1513,12 +1514,21 @@ restore_write(struct restorearg *ra, objset_t *os,
 	    !DMU_OT_IS_VALID(drrw->drr_type))
 		return (SET_ERROR(EINVAL));
 
-	data = restore_read(ra, drrw->drr_length);
-	if (data == NULL)
-		return (ra->err);
-
 	if (dmu_object_info(os, drrw->drr_object, NULL) != 0)
 		return (SET_ERROR(EINVAL));
+
+	dmu_buf_t *bonus;
+	if (dmu_bonus_hold(os, drrw->drr_object, FTAG, &bonus) != 0)
+		return (SET_ERROR(EINVAL));
+
+	arc_buf_t *abuf = dmu_request_arcbuf(bonus, drrw->drr_length);
+
+	data = restore_read(ra, drrw->drr_length, abuf->b_data);
+	if (data == NULL) {
+		dmu_return_arcbuf(abuf);
+		dmu_buf_rele(bonus, FTAG);
+		return (ra->err);
+	}
 
 	tx = dmu_tx_create(os);
 
@@ -1526,6 +1536,8 @@ restore_write(struct restorearg *ra, objset_t *os,
 	    drrw->drr_offset, drrw->drr_length);
 	err = dmu_tx_assign(tx, TXG_WAIT);
 	if (err != 0) {
+		dmu_return_arcbuf(abuf);
+		dmu_buf_rele(bonus, FTAG);
 		dmu_tx_abort(tx);
 		return (err);
 	}
@@ -1534,9 +1546,9 @@ restore_write(struct restorearg *ra, objset_t *os,
 		    DMU_OT_BYTESWAP(drrw->drr_type);
 		dmu_ot_byteswap[byteswap].ob_func(data, drrw->drr_length);
 	}
-	dmu_write(os, drrw->drr_object,
-	    drrw->drr_offset, drrw->drr_length, data, tx);
+	dmu_assign_arcbuf(bonus, drrw->drr_offset, abuf, tx);
 	dmu_tx_commit(tx);
+	dmu_buf_rele(bonus, FTAG);
 	return (0);
 }
 
@@ -1618,7 +1630,7 @@ restore_write_embedded(struct restorearg *ra, objset_t *os,
 	if (drrwnp->drr_compression >= ZIO_COMPRESS_FUNCTIONS)
 		return (EINVAL);
 
-	data = restore_read(ra, P2ROUNDUP(drrwnp->drr_psize, 8));
+	data = restore_read(ra, P2ROUNDUP(drrwnp->drr_psize, 8), NULL);
 	if (data == NULL)
 		return (ra->err);
 
@@ -1653,7 +1665,7 @@ restore_spill(struct restorearg *ra, objset_t *os, struct drr_spill *drrs)
 	    drrs->drr_length > SPA_MAXBLOCKSIZE)
 		return (SET_ERROR(EINVAL));
 
-	data = restore_read(ra, drrs->drr_length);
+	data = restore_read(ra, drrs->drr_length, NULL);
 	if (data == NULL)
 		return (ra->err);
 
@@ -1795,7 +1807,7 @@ dmu_recv_stream(dmu_recv_cookie_t *drc, struct file *fp, offset_t *voffp,
 	 */
 	pcksum = ra.cksum;
 	while (ra.err == 0 &&
-	    NULL != (drr = restore_read(&ra, sizeof (*drr)))) {
+	    NULL != (drr = restore_read(&ra, sizeof (*drr), NULL))) {
 		if (issig(JUSTLOOKING) && issig(FORREAL)) {
 			ra.err = SET_ERROR(EINTR);
 			goto out;
