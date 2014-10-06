@@ -1,4 +1,4 @@
-/* $Id: reader.c,v 1.47 2014/04/09 21:09:27 tom Exp $ */
+/* $Id: reader.c,v 1.57 2014/10/06 00:52:44 tom Exp $ */
 
 #include "defs.h"
 
@@ -70,6 +70,7 @@ static bucket *default_destructor[3] =
 static bucket *
 lookup_type_destructor(char *tag)
 {
+    const char fmt[] = "%.*s destructor";
     char name[1024] = "\0";
     bucket *bp, **bpp = &default_destructor[TYPE_SPECIFIED];
 
@@ -80,7 +81,8 @@ lookup_type_destructor(char *tag)
 	bpp = &bp->link;
     }
 
-    *bpp = bp = make_bucket(strcat(strcpy(name, tag), " destructor"));
+    sprintf(name, fmt, (int)(sizeof(name) - sizeof(fmt)), tag);
+    *bpp = bp = make_bucket(name);
     bp->tag = tag;
 
     return (bp);
@@ -205,7 +207,7 @@ skip_comment(void)
 }
 
 static int
-nextc(void)
+next_inline(void)
 {
     char *s;
 
@@ -221,27 +223,6 @@ nextc(void)
     {
 	switch (*s)
 	{
-	case '\n':
-	    get_line();
-	    if (line == 0)
-		return (EOF);
-	    s = cptr;
-	    break;
-
-	case ' ':
-	case '\t':
-	case '\f':
-	case '\r':
-	case '\v':
-	case ',':
-	case ';':
-	    ++s;
-	    break;
-
-	case '\\':
-	    cptr = s;
-	    return ('%');
-
 	case '/':
 	    if (s[1] == '*')
 	    {
@@ -265,6 +246,41 @@ nextc(void)
 	    return (*s);
 	}
     }
+}
+
+static int
+nextc(void)
+{
+    int ch;
+    int finish = 0;
+
+    do
+    {
+	switch (ch = next_inline())
+	{
+	case '\n':
+	    get_line();
+	    break;
+	case ' ':
+	case '\t':
+	case '\f':
+	case '\r':
+	case '\v':
+	case ',':
+	case ';':
+	    ++cptr;
+	    break;
+	case '\\':
+	    ch = '%';
+	    /* FALLTHRU */
+	default:
+	    finish = 1;
+	    break;
+	}
+    }
+    while (!finish);
+
+    return ch;
 }
 /* *INDENT-OFF* */
 static struct keyword
@@ -644,92 +660,109 @@ copy_union(void)
     }
 }
 
-/*
- * Keep a linked list of parameters
- */
-static void
-copy_param(int k)
+static char *
+after_blanks(char *s)
 {
-    char *buf;
-    int c;
-    param *head, *p;
-    int i;
-    int name, type2;
+    while (*s != '\0' && isspace(UCH(*s)))
+	++s;
+    return s;
+}
 
-    c = nextc();
-    if (c == EOF)
-	unexpected_EOF();
-    if (c != L_CURL)
-	goto out;
-    cptr++;
-
-    c = nextc();
-    if (c == EOF)
-	unexpected_EOF();
-    if (c == R_CURL)
-	goto out;
-
-    buf = TMALLOC(char, linesize);
-    NO_SPACE(buf);
-
-    for (i = 0; (c = *cptr++) != R_CURL; i++)
+/*
+ * Trim leading/trailing blanks, and collapse multiple embedded blanks to a
+ * single space.  Return index to last character in the buffer.
+ */
+static int
+trim_blanks(char *buffer)
+{
+    if (*buffer != '\0')
     {
-	if (c == '\0')
-	    missing_brace();
-	if (c == EOF)
-	    unexpected_EOF();
-	buf[i] = (char)c;
-    }
+	char *d = buffer;
+	char *s = after_blanks(d);
 
-    if (i == 0)
-	goto out;
-
-    buf[i--] = '\0';
-    while (i > 0 && isspace(UCH(buf[i])))
-	buf[i--] = '\0';
-
-    if (buf[i] == ']')
-    {
-	int level = 1;
-	while (i >= 0 && level > 0 && buf[i] != '[')
+	while ((*d++ = *s++) != '\0')
 	{
-	    if (buf[i] == ']')
-		++level;
-	    else if (buf[i] == '[')
-		--level;
-	    i--;
+	    ;
 	}
-	if (i <= 0)
-	    unexpected_EOF();
-	type2 = i--;
+
+	--d;
+	while ((--d != buffer) && isspace(UCH(*d)))
+	    *d = '\0';
+
+	for (s = d = buffer; (*d++ = *s++) != '\0';)
+	{
+	    if (isspace(UCH(*s)))
+	    {
+		*s = ' ';
+		while (isspace(UCH(*s)))
+		{
+		    *s++ = ' ';
+		}
+		--s;
+	    }
+	}
     }
-    else
+
+    return (int)strlen(buffer) - 1;
+}
+
+/*
+ * Scan forward in the current line-buffer looking for a right-curly bracket.
+ *
+ * Parameters begin with a left-curly bracket, and continue until there are no
+ * more interesting characters after the last right-curly bracket on the
+ * current line.  Bison documents parameters as separated like this:
+ *	{type param1} {type2 param2}
+ * but also accepts commas (although some versions of bison mishandle this)
+ *	{type param1,  type2 param2}
+ */
+static int
+more_curly(void)
+{
+    char *save = cptr;
+    int result = 0;
+    int finish = 0;
+    do
     {
-	type2 = i + 1;
+	switch (next_inline())
+	{
+	case 0:
+	case '\n':
+	    finish = 1;
+	    break;
+	case R_CURL:
+	    finish = 1;
+	    result = 1;
+	    break;
+	}
+	++cptr;
     }
+    while (!finish);
+    cptr = save;
+    return result;
+}
 
-    while (i > 0 && (isalnum(UCH(buf[i])) ||
-		     UCH(buf[i]) == '_'))
-	i--;
-
-    if (!isspace(UCH(buf[i])) && buf[i] != '*')
-	goto out;
-
-    name = i + 1;
+static void
+save_param(int k, char *buffer, int name, int type2)
+{
+    param *head, *p;
 
     p = TMALLOC(param, 1);
     NO_SPACE(p);
 
-    p->type2 = strdup(buf + type2);
+    p->type2 = strdup(buffer + type2);
     NO_SPACE(p->type2);
+    buffer[type2] = '\0';
+    (void)trim_blanks(p->type2);
 
-    buf[type2] = '\0';
-
-    p->name = strdup(buf + name);
+    p->name = strdup(buffer + name);
     NO_SPACE(p->name);
+    buffer[name] = '\0';
+    (void)trim_blanks(p->name);
 
-    buf[name] = '\0';
-    p->type = buf;
+    p->type = strdup(buffer);
+    NO_SPACE(p->type);
+    (void)trim_blanks(p->type);
 
     if (k == LEX_PARAM)
 	head = lex_param;
@@ -750,9 +783,169 @@ copy_param(int k)
 	    parse_param = p;
     }
     p->next = NULL;
+}
+
+/*
+ * Keep a linked list of parameters.  This may be multi-line, if the trailing
+ * right-curly bracket is absent.
+ */
+static void
+copy_param(int k)
+{
+    int c;
+    int name, type2;
+    int curly = 0;
+    char *buf = 0;
+    int i = -1;
+    size_t buf_size = 0;
+    int st_lineno = lineno;
+    char *comma;
+
+    do
+    {
+	int state = curly;
+	c = next_inline();
+	switch (c)
+	{
+	case EOF:
+	    unexpected_EOF();
+	    break;
+	case L_CURL:
+	    if (curly == 1)
+	    {
+		goto oops;
+	    }
+	    curly = 1;
+	    st_lineno = lineno;
+	    break;
+	case R_CURL:
+	    if (curly != 1)
+	    {
+		goto oops;
+	    }
+	    curly = 2;
+	    break;
+	case '\n':
+	    if (curly == 0)
+	    {
+		goto oops;
+	    }
+	    break;
+	case '%':
+	    if ((curly == 1) && (cptr == line))
+	    {
+		lineno = st_lineno;
+		missing_brace();
+	    }
+	    /* FALLTHRU */
+	case '"':
+	case '\'':
+	    goto oops;
+	default:
+	    if (curly == 0 && !isspace(UCH(c)))
+	    {
+		goto oops;
+	    }
+	    break;
+	}
+	if (buf == 0)
+	{
+	    buf_size = (size_t) linesize;
+	    buf = TMALLOC(char, buf_size);
+	}
+	else if (c == '\n')
+	{
+	    get_line();
+	    if (line == 0)
+		unexpected_EOF();
+	    --cptr;
+	    buf_size += (size_t) linesize;
+	    buf = TREALLOC(char, buf, buf_size);
+	}
+	NO_SPACE(buf);
+	if (curly)
+	{
+	    if ((state == 2) && (c == L_CURL))
+	    {
+		buf[++i] = ',';
+	    }
+	    else if ((state == 2) && isspace(UCH(c)))
+	    {
+		;
+	    }
+	    else if ((c != L_CURL) && (c != R_CURL))
+	    {
+		buf[++i] = (char)c;
+	    }
+	}
+	cptr++;
+    }
+    while (curly < 2 || more_curly());
+
+    if (i == 0)
+    {
+	if (curly == 1)
+	{
+	    lineno = st_lineno;
+	    missing_brace();
+	}
+	goto oops;
+    }
+
+    buf[i--] = '\0';
+    i = trim_blanks(buf);
+
+    comma = buf - 1;
+    do
+    {
+	char *parms = (comma + 1);
+	comma = strchr(parms, ',');
+	if (comma != 0)
+	    *comma = '\0';
+
+	(void)trim_blanks(parms);
+	i = (int)strlen(parms) - 1;
+	if (i < 0)
+	{
+	    goto oops;
+	}
+
+	if (parms[i] == ']')
+	{
+	    int level = 1;
+	    while (i >= 0 && level > 0 && parms[i] != '[')
+	    {
+		if (parms[i] == ']')
+		    ++level;
+		else if (parms[i] == '[')
+		    --level;
+		i--;
+	    }
+	    if (i <= 0)
+		unexpected_EOF();
+	    type2 = i--;
+	}
+	else
+	{
+	    type2 = i + 1;
+	}
+
+	while (i > 0 && (isalnum(UCH(parms[i])) || UCH(parms[i]) == '_'))
+	    i--;
+
+	if (!isspace(UCH(parms[i])) && parms[i] != '*')
+	    goto oops;
+
+	name = i + 1;
+
+	save_param(k, parms, name, type2);
+    }
+    while (comma != 0);
+    FREE(buf);
     return;
 
-  out:
+  oops:
+    FREE(buf);
     syntax_error(lineno, line, cptr);
 }
 
@@ -1634,10 +1827,11 @@ compile_arg(char **theptr, char *yyvaltag)
     {
 	offsets = TMALLOC(Value_t, maxoffset + 1);
 	NO_SPACE(offsets);
+
+	for (j = 0, i++; i < nitems; i++)
+	    if (pitem[i]->class != ARGUMENT)
+		offsets[++j] = (Value_t) (i - nitems + 1);
     }
-    for (j = 0, i++; i < nitems; i++)
-	if (pitem[i]->class != ARGUMENT)
-	    offsets[++j] = (Value_t) (i - nitems + 1);
     rhs = pitem + nitems - 1;
 
     if (yyvaltag)
@@ -1664,7 +1858,7 @@ compile_arg(char **theptr, char *yyvaltag)
 		    dollar_warning(rescan_lineno, val);
 		    i = val - maxoffset;
 		}
-		else
+		else if (maxoffset > 0)
 		{
 		    i = offsets[val];
 		    if (!tag && !(tag = rhs[i]->tag) && havetags)
@@ -2020,14 +2214,6 @@ add_symbol(void)
     pitem[nitems - 1] = bp;
 }
 
-static char *
-after_blanks(char *s)
-{
-    while (*s != '\0' && isspace(UCH(*s)))
-	++s;
-    return s;
-}
-
 static void
 copy_action(void)
 {
@@ -2084,12 +2270,13 @@ copy_action(void)
     {
 	offsets = TMALLOC(Value_t, maxoffset + 1);
 	NO_SPACE(offsets);
-    }
-    for (j = 0, i++; i < nitems; i++)
-    {
-	if (pitem[i]->class != ARGUMENT)
+
+	for (j = 0, i++; i < nitems; i++)
 	{
-	    offsets[++j] = (Value_t) (i - nitems + 1);
+	    if (pitem[i]->class != ARGUMENT)
+	    {
+		offsets[++j] = (Value_t) (i - nitems + 1);
+	    }
 	}
     }
     rhs = pitem + nitems - 1;
@@ -2177,7 +2364,7 @@ copy_action(void)
 	{
 	    ++cptr;
 	    i = get_number();
-	    if (havetags)
+	    if (havetags && offsets)
 	    {
 		if (i <= 0 || i > maxoffset)
 		    unknown_rhs(i);
