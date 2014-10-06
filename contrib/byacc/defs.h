@@ -1,4 +1,4 @@
-/* $Id: defs.h,v 1.49 2014/04/22 23:34:34 tom Exp $ */
+/* $Id: defs.h,v 1.51 2014/10/02 22:38:13 tom Exp $ */
 
 #ifdef HAVE_CONFIG_H
 #include <config.h>
@@ -367,6 +367,7 @@ extern reductions **reduction_table;
 extern unsigned *LA;
 extern Value_t *LAruleno;
 extern Value_t *lookaheads;
+extern Value_t *goto_base;
 extern Value_t *goto_map;
 extern Value_t *from_state;
 extern Value_t *to_state;
