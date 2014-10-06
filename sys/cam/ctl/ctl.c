@@ -5281,9 +5281,10 @@ ctl_config_write_done(union ctl_io *io)
 	 * If there is an error, though, we don't want to keep processing.
 	 * Instead, just send status back to the initiator.
 	 */
-	if ((io->io_hdr.flags & CTL_FLAG_IO_CONT)
-	 && (((io->io_hdr.status & CTL_STATUS_MASK) == CTL_STATUS_NONE)
-	  || ((io->io_hdr.status & CTL_STATUS_MASK) == CTL_SUCCESS))) {
+	if ((io->io_hdr.flags & CTL_FLAG_IO_CONT) &&
+	    (io->io_hdr.flags & CTL_FLAG_ABORT) == 0 &&
+	    ((io->io_hdr.status & CTL_STATUS_MASK) == CTL_STATUS_NONE ||
+	     (io->io_hdr.status & CTL_STATUS_MASK) == CTL_SUCCESS)) {
 		io->scsiio.io_cont(io);
 		return;
 	}
