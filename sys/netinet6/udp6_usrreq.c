@@ -235,9 +235,17 @@ udp6_input(struct mbuf **mp, int *offp, int proto)
 			/* XXX: What is the right UDPLite MIB counter? */
 			goto badunlocked;
 		}
+		if (uh->uh_sum == 0) {
+			/* XXX: What is the right UDPLite MIB counter? */
+			goto badunlocked;
+		}
 	} else {
 		if ((ulen < sizeof(struct udphdr)) || (plen != ulen)) {
 			UDPSTAT_INC(udps_badlen);
+			goto badunlocked;
+		}
+		if (uh->uh_sum == 0) {
+			UDPSTAT_INC(udps_nosum);
 			goto badunlocked;
 		}
 	}
