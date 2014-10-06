@@ -207,6 +207,8 @@
 %type	<l_tok>		unary_operator
 %type	<l_tok>		struct_or_union
 
+%type	<l_str>		dtrace_keyword_ident
+
 %%
 
 dtrace_program: d_expression DT_TOK_EOF { return (dt_node_root($1)); }
@@ -391,10 +393,16 @@ postfix_expression:
 	|	postfix_expression DT_TOK_DOT DT_TOK_TNAME {
 			$$ = OP2(DT_TOK_DOT, $1, dt_node_ident($3));
 		}
+	|	postfix_expression DT_TOK_DOT dtrace_keyword_ident {
+			$$ = OP2(DT_TOK_DOT, $1, dt_node_ident($3));
+		}
 	|	postfix_expression DT_TOK_PTR DT_TOK_IDENT {
 			$$ = OP2(DT_TOK_PTR, $1, dt_node_ident($3));
 		}
 	|	postfix_expression DT_TOK_PTR DT_TOK_TNAME {
+			$$ = OP2(DT_TOK_PTR, $1, dt_node_ident($3));
+		}
+	|	postfix_expression DT_TOK_PTR dtrace_keyword_ident {
 			$$ = OP2(DT_TOK_PTR, $1, dt_node_ident($3));
 		}
 	|	postfix_expression DT_TOK_ADDADD {
@@ -409,6 +417,10 @@ postfix_expression:
 		}
 	|	DT_TOK_OFFSETOF DT_TOK_LPAR type_name DT_TOK_COMMA 
 		    DT_TOK_TNAME DT_TOK_RPAR {
+			$$ = dt_node_offsetof($3, $5);
+		}
+	|	DT_TOK_OFFSETOF DT_TOK_LPAR type_name DT_TOK_COMMA
+		    dtrace_keyword_ident DT_TOK_RPAR {
 			$$ = dt_node_offsetof($3, $5);
 		}
 	|	DT_TOK_XLATE DT_TOK_LT type_name DT_TOK_GT
@@ -833,6 +845,17 @@ function:	DT_TOK_LPAR { dt_scope_push(NULL, CTF_ERR); }
 function_parameters:
 		/* empty */ 		{ $$ = NULL; }
 	|	parameter_type_list	{ $$ = $1; }
+	;
+
+dtrace_keyword_ident:
+	  DT_KEY_PROBE { $$ = DUP("probe"); }
+	| DT_KEY_PROVIDER { $$ = DUP("provider"); }
+	| DT_KEY_SELF { $$ = DUP("self"); }
+	| DT_KEY_STRING { $$ = DUP("string"); }
+	| DT_TOK_STRINGOF { $$ = DUP("stringof"); }
+	| DT_KEY_USERLAND { $$ = DUP("userland"); }
+	| DT_TOK_XLATE { $$ = DUP("xlate"); }
+	| DT_KEY_XLATOR { $$ = DUP("translator"); }
 	;
 
 %%
