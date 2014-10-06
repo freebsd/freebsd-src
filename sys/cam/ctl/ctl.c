@@ -4097,6 +4097,7 @@ ctl_init_page_index(struct ctl_lun *lun)
 	int i;
 	struct ctl_page_index *page_index;
 	struct ctl_softc *softc;
+	const char *value;
 
 	memcpy(&lun->mode_pages.index, page_index_template,
 	       sizeof(page_index_template));
@@ -4246,25 +4247,30 @@ ctl_init_page_index(struct ctl_lun *lun)
 			break;
 		}
 		case SMS_CACHING_PAGE: {
+			struct scsi_caching_page *caching_page;
 
 			if (page_index->subpage != SMS_SUBPAGE_PAGE_0)
 				panic("invalid subpage value %d",
 				      page_index->subpage);
-			/*
-			 * Defaults should be okay here, no calculations
-			 * needed.
-			 */
-			memcpy(&lun->mode_pages.caching_page[CTL_PAGE_CURRENT],
+			memcpy(&lun->mode_pages.caching_page[CTL_PAGE_DEFAULT],
 			       &caching_page_default,
 			       sizeof(caching_page_default));
 			memcpy(&lun->mode_pages.caching_page[
 			       CTL_PAGE_CHANGEABLE], &caching_page_changeable,
 			       sizeof(caching_page_changeable));
-			memcpy(&lun->mode_pages.caching_page[CTL_PAGE_DEFAULT],
-			       &caching_page_default,
-			       sizeof(caching_page_default));
 			memcpy(&lun->mode_pages.caching_page[CTL_PAGE_SAVED],
 			       &caching_page_default,
+			       sizeof(caching_page_default));
+			caching_page = &lun->mode_pages.caching_page[
+			    CTL_PAGE_SAVED];
+			value = ctl_get_opt(&lun->be_lun->options, "writecache");
+			if (value != NULL && strcmp(value, "off") == 0)
+				caching_page->flags1 &= ~SCP_WCE;
+			value = ctl_get_opt(&lun->be_lun->options, "readcache");
+			if (value != NULL && strcmp(value, "off") == 0)
+				caching_page->flags1 |= SCP_RCD;
+			memcpy(&lun->mode_pages.caching_page[CTL_PAGE_CURRENT],
+			       &lun->mode_pages.caching_page[CTL_PAGE_SAVED],
 			       sizeof(caching_page_default));
 			page_index->page_data =
 				(uint8_t *)lun->mode_pages.caching_page;
