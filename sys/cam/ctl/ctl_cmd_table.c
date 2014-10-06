@@ -636,7 +636,7 @@ const struct ctl_cmd_entry ctl_cmd_table[256] =
 				    CTL_CMD_FLAG_OK_ON_SECONDARY |
 				    CTL_FLAG_DATA_IN |
 				    CTL_CMD_FLAG_ALLOW_ON_PR_RESV,
- CTL_LUN_PAT_NONE, 6, {0x08, 0xff, 0, 0xff, 0x07}},
+ CTL_LUN_PAT_NONE, 6, {0x08, 0xff, 0xff, 0xff, 0x07}},
 
 /* 1B START STOP UNIT */
 {ctl_start_stop, CTL_SERIDX_START, CTL_CMD_FLAG_OK_ON_SLUN |
@@ -890,7 +890,7 @@ const struct ctl_cmd_entry ctl_cmd_table[256] =
 				    CTL_CMD_FLAG_OK_ON_SECONDARY |
 				    CTL_FLAG_DATA_IN |
 				    CTL_CMD_FLAG_ALLOW_ON_PR_RESV,
- CTL_LUN_PAT_NONE, 10, {0x18, 0xff, 0, 0, 0, 0, 0xff, 0xff, 0x07} },
+ CTL_LUN_PAT_NONE, 10, {0x18, 0xff, 0xff, 0, 0, 0, 0xff, 0xff, 0x07} },
 
 /* 5B CLOSE TRACK/SESSION */
 {NULL, CTL_SERIDX_INVLD, CTL_CMD_FLAG_NONE, CTL_LUN_PAT_NONE},
