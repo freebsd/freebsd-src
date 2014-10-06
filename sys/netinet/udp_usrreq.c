@@ -679,7 +679,7 @@ udp_input(struct mbuf *m, int off)
 		struct udpcb *up;
 
 		up = intoudpcb(inp);
-		if (up->u_rxcslen > len) {
+		if (up->u_rxcslen == 0 || up->u_rxcslen > len) {
 			INP_RUNLOCK(inp);
 			m_freem(m);
 			return;
