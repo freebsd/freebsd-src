@@ -322,11 +322,11 @@ SYSCTL_INT(_kern_cam_ctl, OID_AUTO, verbose, CTLFLAG_RWTUN,
 
 /*
  * Supported pages (0x00), Serial number (0x80), Device ID (0x83),
- * Mode Page Policy (0x87),
+ * Extended INQUIRY Data (0x86), Mode Page Policy (0x87),
  * SCSI Ports (0x88), Third-party Copy (0x8F), Block limits (0xB0),
  * Block Device Characteristics (0xB1) and Logical Block Provisioning (0xB2)
  */
-#define SCSI_EVPD_NUM_SUPPORTED_PAGES	9
+#define SCSI_EVPD_NUM_SUPPORTED_PAGES	10
 
 static void ctl_isc_event_handler(ctl_ha_channel chanel, ctl_ha_event event,
 				  int param);
@@ -382,6 +382,7 @@ static void ctl_hndl_per_res_out_on_other_sc(union ctl_ha_msg *msg);
 static int ctl_inquiry_evpd_supported(struct ctl_scsiio *ctsio, int alloc_len);
 static int ctl_inquiry_evpd_serial(struct ctl_scsiio *ctsio, int alloc_len);
 static int ctl_inquiry_evpd_devid(struct ctl_scsiio *ctsio, int alloc_len);
+static int ctl_inquiry_evpd_eid(struct ctl_scsiio *ctsio, int alloc_len);
 static int ctl_inquiry_evpd_mpp(struct ctl_scsiio *ctsio, int alloc_len);
 static int ctl_inquiry_evpd_scsi_ports(struct ctl_scsiio *ctsio,
 					 int alloc_len);
@@ -9851,18 +9852,20 @@ ctl_inquiry_evpd_supported(struct ctl_scsiio *ctsio, int alloc_len)
 	pages->page_list[1] = SVPD_UNIT_SERIAL_NUMBER;
 	/* Device Identification */
 	pages->page_list[2] = SVPD_DEVICE_ID;
+	/* Extended INQUIRY Data */
+	pages->page_list[3] = SVPD_EXTENDED_INQUIRY_DATA;
 	/* Mode Page Policy */
-	pages->page_list[3] = SVPD_MODE_PAGE_POLICY;
+	pages->page_list[4] = SVPD_MODE_PAGE_POLICY;
 	/* SCSI Ports */
-	pages->page_list[4] = SVPD_SCSI_PORTS;
+	pages->page_list[5] = SVPD_SCSI_PORTS;
 	/* Third-party Copy */
-	pages->page_list[5] = SVPD_SCSI_TPC;
+	pages->page_list[6] = SVPD_SCSI_TPC;
 	/* Block limits */
-	pages->page_list[6] = SVPD_BLOCK_LIMITS;
+	pages->page_list[7] = SVPD_BLOCK_LIMITS;
 	/* Block Device Characteristics */
-	pages->page_list[7] = SVPD_BDC;
+	pages->page_list[8] = SVPD_BDC;
 	/* Logical Block Provisioning */
-	pages->page_list[8] = SVPD_LBP;
+	pages->page_list[9] = SVPD_LBP;
 
 	ctsio->scsi_status = SCSI_STATUS_OK;
 
@@ -9929,6 +9932,57 @@ ctl_inquiry_evpd_serial(struct ctl_scsiio *ctsio, int alloc_len)
 	return (CTL_RETVAL_COMPLETE);
 }
 
+
+static int
+ctl_inquiry_evpd_eid(struct ctl_scsiio *ctsio, int alloc_len)
+{
+	struct scsi_vpd_extended_inquiry_data *eid_ptr;
+	struct ctl_lun *lun;
+	int data_len;
+
+	lun = (struct ctl_lun *)ctsio->io_hdr.ctl_private[CTL_PRIV_LUN].ptr;
+
+	data_len = sizeof(struct scsi_vpd_mode_page_policy) +
+	    sizeof(struct scsi_vpd_mode_page_policy_descr);
+
+	ctsio->kern_data_ptr = malloc(data_len, M_CTL, M_WAITOK | M_ZERO);
+	eid_ptr = (struct scsi_vpd_extended_inquiry_data *)ctsio->kern_data_ptr;
+	ctsio->kern_sg_entries = 0;
+
+	if (data_len < alloc_len) {
+		ctsio->residual = alloc_len - data_len;
+		ctsio->kern_data_len = data_len;
+		ctsio->kern_total_len = data_len;
+	} else {
+		ctsio->residual = 0;
+		ctsio->kern_data_len = alloc_len;
+		ctsio->kern_total_len = alloc_len;
+	}
+	ctsio->kern_data_resid = 0;
+	ctsio->kern_rel_offset = 0;
+	ctsio->kern_sg_entries = 0;
+
+	/*
+	 * The control device is always connected.  The disk device, on the
+	 * other hand, may not be online all the time.
+	 */
+	if (lun != NULL)
+		eid_ptr->device = (SID_QUAL_LU_CONNECTED << 5) |
+				     lun->be_lun->lun_type;
+	else
+		eid_ptr->device = (SID_QUAL_LU_OFFLINE << 5) | T_DIRECT;
+	eid_ptr->page_code = SVPD_EXTENDED_INQUIRY_DATA;
+	eid_ptr->page_length = data_len - 4;
+	eid_ptr->flags2 = SVPD_EID_HEADSUP | SVPD_EID_ORDSUP | SVPD_EID_SIMPSUP;
+	eid_ptr->flags3 = SVPD_EID_V_SUP;
+
+	ctsio->scsi_status = SCSI_STATUS_OK;
+	ctsio->io_hdr.flags |= CTL_FLAG_ALLOCATED;
+	ctsio->be_move_done = ctl_config_move_done;
+	ctl_datamove((union ctl_io *)ctsio);
+
+	return (CTL_RETVAL_COMPLETE);
+}
 
 static int
 ctl_inquiry_evpd_mpp(struct ctl_scsiio *ctsio, int alloc_len)
@@ -10411,6 +10465,9 @@ ctl_inquiry_evpd(struct ctl_scsiio *ctsio)
 		break;
 	case SVPD_DEVICE_ID:
 		retval = ctl_inquiry_evpd_devid(ctsio, alloc_len);
+		break;
+	case SVPD_EXTENDED_INQUIRY_DATA:
+		retval = ctl_inquiry_evpd_eid(ctsio, alloc_len);
 		break;
 	case SVPD_MODE_PAGE_POLICY:
 		retval = ctl_inquiry_evpd_mpp(ctsio, alloc_len);
