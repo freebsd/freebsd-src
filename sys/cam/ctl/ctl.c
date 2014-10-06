@@ -12032,12 +12032,11 @@ ctl_lun_reset(struct ctl_lun *lun, union ctl_io *io, ctl_ua_type ua_type)
 	return (0);
 }
 
-static int
+static void
 ctl_abort_tasks_lun(struct ctl_lun *lun, uint32_t targ_port, uint32_t init_id,
     int other_sc)
 {
 	union ctl_io *xio;
-	int found;
 
 	mtx_assert(&lun->lun_lock, MA_OWNED);
 
@@ -12059,7 +12058,6 @@ ctl_abort_tasks_lun(struct ctl_lun *lun, uint32_t targ_port, uint32_t init_id,
 			    init_id != xio->io_hdr.nexus.initid.id)
 				xio->io_hdr.flags |= CTL_FLAG_ABORT_STATUS;
 			xio->io_hdr.flags |= CTL_FLAG_ABORT;
-			found = 1;
 			if (!other_sc && !(lun->flags & CTL_LUN_PRIMARY_SC)) {
 				union ctl_ha_msg msg_info;
 
@@ -12075,7 +12073,6 @@ ctl_abort_tasks_lun(struct ctl_lun *lun, uint32_t targ_port, uint32_t init_id,
 			}
 		}
 	}
-	return (found);
 }
 
 static int
