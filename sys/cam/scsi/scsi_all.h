@@ -317,6 +317,7 @@ struct scsi_per_res_cap
 #define	SPRI_ALLOW_2		0x20
 #define	SPRI_ALLOW_3		0x30
 #define	SPRI_ALLOW_4		0x40
+#define	SPRI_ALLOW_5		0x50
 #define	SPRI_PTPL_A		0x01
 	uint8_t type_mask[2];
 #define	SPRI_TM_WR_EX_AR	0x8000
