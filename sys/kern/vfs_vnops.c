@@ -504,13 +504,16 @@ vn_rdwr(enum uio_rw rw, struct vnode *vp, void *base, int len, off_t offset,
 	error = 0;
 
 	if ((ioflg & IO_NODELOCKED) == 0) {
-		if (rw == UIO_READ) {
-			rl_cookie = vn_rangelock_rlock(vp, offset,
-			    offset + len);
-		} else {
-			rl_cookie = vn_rangelock_wlock(vp, offset,
-			    offset + len);
-		}
+		if ((ioflg & IO_RANGELOCKED) == 0) {
+			if (rw == UIO_READ) {
+				rl_cookie = vn_rangelock_rlock(vp, offset,
+				    offset + len);
+			} else {
+				rl_cookie = vn_rangelock_wlock(vp, offset,
+				    offset + len);
+			}
+		} else
+			rl_cookie = NULL;
 		mp = NULL;
 		if (rw == UIO_WRITE) { 
 			if (vp->v_type != VCHR &&
@@ -2234,12 +2237,10 @@ vn_utimes_perm(struct vnode *vp, struct vattr *vap, struct ucred *cred,
 {
 	int error;
 
-	error = VOP_ACCESSX(vp, VWRITE_ATTRIBUTES, cred, td);
-
 	/*
-	 * From utimes(2):
-	 * Grant permission if the caller is the owner of the file or
-	 * the super-user.  If the time pointer is null, then write
+	 * Grant permission if the caller is the owner of the file, or
+	 * the super-user, or has ACL_WRITE_ATTRIBUTES permission on
+	 * on the file.  If the time pointer is null, then write
 	 * permission on the file is also sufficient.
 	 *
 	 * From NFSv4.1, draft 21, 6.2.1.3.1, Discussion of Mask Attributes:
@@ -2247,6 +2248,7 @@ vn_utimes_perm(struct vnode *vp, struct vattr *vap, struct ucred *cred,
 	 * will be allowed to set the times [..] to the current
 	 * server time.
 	 */
+	error = VOP_ACCESSX(vp, VWRITE_ATTRIBUTES, cred, td);
 	if (error != 0 && (vap->va_vaflags & VA_UTIMES_NULL) != 0)
 		error = VOP_ACCESS(vp, VWRITE, cred, td);
 	return (error);

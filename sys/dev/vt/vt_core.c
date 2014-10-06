@@ -1269,7 +1269,8 @@ vtterm_cnprobe(struct terminal *tm, struct consdev *cp)
 	 * that we have the real viewable size, fix it in the static
 	 * buffer.
 	 */
-	vt_termsize(vd, vw->vw_font, &vw->vw_buf.vb_scr_size);
+	if (vd->vd_width != 0 && vd->vd_height != 0)
+		vt_termsize(vd, vw->vw_font, &vw->vw_buf.vb_scr_size);
 
 	vtbuf_init_early(&vw->vw_buf);
 	vt_winsize(vd, vw->vw_font, &wsz);

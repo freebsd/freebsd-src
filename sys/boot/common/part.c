@@ -301,6 +301,7 @@ ptable_gptread(struct ptable *table, void *dev, diskread_t dread)
 			}
 		}
 	}
+	DEBUG("GPT detected");
 	if (pri == 0 && sec == 0) {
 		/* Both primary and backup tables are invalid. */
 		table->type = PTABLE_NONE;
@@ -378,6 +379,7 @@ ptable_ebrread(struct ptable *table, void *dev, diskread_t dread)
 	buf = malloc(table->sectorsize);
 	if (buf == NULL)
 		return (table);
+	DEBUG("EBR detected");
 	for (i = 0; i < MAXEBRENTRIES; i++) {
 #if 0	/* Some BIOSes return an incorrect number of sectors */
 		if (offset >= table->sectors)
@@ -470,6 +472,7 @@ ptable_bsdread(struct ptable *table, void *dev, diskread_t dread)
 		DEBUG("invalid number of partitions");
 		goto out;
 	}
+	DEBUG("BSD detected");
 	part = &dl->d_partitions[0];
 	raw_offset = le32toh(part[RAW_PART].p_offset);
 	for (i = 0; i < dl->d_npartitions; i++, part++) {
@@ -553,6 +556,7 @@ ptable_vtoc8read(struct ptable *table, void *dev, diskread_t dread)
 		DEBUG("invalid geometry");
 		goto out;
 	}
+	DEBUG("VTOC8 detected");
 	for (i = 0; i < VTOC8_NPARTS; i++) {
 		dl->part[i].tag = be16toh(dl->part[i].tag);
 		if (i == VTOC_RAW_PART ||
@@ -665,6 +669,7 @@ ptable_open(void *dev, off_t sectors, uint16_t sectorsize,
 #endif
 #ifdef LOADER_MBR_SUPPORT
 	/* Read MBR. */
+	DEBUG("MBR detected");
 	table->type = PTABLE_MBR;
 	for (i = has_ext = 0; i < NDOSPART; i++) {
 		if (dp[i].dp_typ == 0)

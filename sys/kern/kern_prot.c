@@ -1884,23 +1884,13 @@ crfree(struct ucred *cr)
 }
 
 /*
- * Check to see if this ucred is shared.
- */
-int
-crshared(struct ucred *cr)
-{
-
-	return (cr->cr_ref > 1);
-}
-
-/*
  * Copy a ucred's contents from a template.  Does not block.
  */
 void
 crcopy(struct ucred *dest, struct ucred *src)
 {
 
-	KASSERT(crshared(dest) == 0, ("crcopy of shared ucred"));
+	KASSERT(dest->cr_ref == 1, ("crcopy of shared ucred"));
 	bcopy(&src->cr_startcopy, &dest->cr_startcopy,
 	    (unsigned)((caddr_t)&src->cr_endcopy -
 		(caddr_t)&src->cr_startcopy));

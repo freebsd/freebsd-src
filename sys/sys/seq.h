@@ -29,6 +29,16 @@
 #define _SYS_SEQ_H_
 
 #ifdef _KERNEL
+#include <sys/systm.h>
+#endif
+#include <sys/types.h>
+
+/*
+ * seq_t may be included in structs visible to userspace
+ */
+typedef uint32_t seq_t;
+
+#ifdef _KERNEL
 
 /*
  * Typical usage:
@@ -54,10 +64,7 @@
  * 	foo(lobj);
  */		
 
-typedef uint32_t seq_t;
-
 /* A hack to get MPASS macro */
-#include <sys/systm.h>
 #include <sys/lock.h>
 
 #include <machine/cpu.h>

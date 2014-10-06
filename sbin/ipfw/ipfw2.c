@@ -3341,13 +3341,34 @@ add_dstip(ipfw_insn *cmd, char *av, int cblen, struct tidx *tstate)
 	return cmd;
 }
 
+static struct _s_x f_reserved_keywords[] = {
+	{ "altq",	TOK_OR },
+	{ "//",		TOK_OR },
+	{ "diverted",	TOK_OR },
+	{ "dst-port",	TOK_OR },
+	{ "src-port",	TOK_OR },
+	{ "established",	TOK_OR },
+	{ "keep-state",	TOK_OR },
+	{ "frag",	TOK_OR },
+	{ "icmptypes",	TOK_OR },
+	{ "in",		TOK_OR },
+	{ "out",	TOK_OR },
+	{ "ip6",	TOK_OR },
+	{ "any",	TOK_OR },
+	{ "to",		TOK_OR },
+	{ "via",	TOK_OR },
+	{ "{",		TOK_OR },
+	{ NULL, 0 }	/* terminator */
+};
+
 static ipfw_insn *
 add_ports(ipfw_insn *cmd, char *av, u_char proto, int opcode, int cblen)
 {
-	/* XXX "any" is trapped before. Perhaps "to" */
-	if (_substrcmp(av, "any") == 0) {
-		return NULL;
-	} else if (fill_newports((ipfw_insn_u16 *)cmd, av, proto, cblen)) {
+
+	if (match_token(f_reserved_keywords, av) != -1)
+		return (NULL);
+
+	if (fill_newports((ipfw_insn_u16 *)cmd, av, proto, cblen)) {
 		/* XXX todo: check that we have a protocol with ports */
 		cmd->opcode = opcode;
 		return cmd;
