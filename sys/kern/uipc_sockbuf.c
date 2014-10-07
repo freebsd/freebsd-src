@@ -151,16 +151,18 @@ sbfree(struct sockbuf *sb, struct mbuf *m)
 		sb->sb_acc -= m->m_len;
 
 	if (m == sb->sb_fnrdy) {
+		struct mbuf *n;
+
 		KASSERT(m->m_flags & M_NOTREADY,
 		    ("%s: m %p !M_NOTREADY", __func__, m));
 
-		m = m->m_next;
-		while (m != NULL && !(m->m_flags & M_NOTREADY)) {
-			m->m_flags &= ~M_BLOCKED;
-			sb->sb_acc += m->m_len;
-			m = m->m_next;
+		n = m->m_next;
+		while (n != NULL && !(n->m_flags & M_NOTREADY)) {
+			n->m_flags &= ~M_BLOCKED;
+			sb->sb_acc += n->m_len;
+			n = m->m_next;
 		}
-		sb->sb_fnrdy = m;
+		sb->sb_fnrdy = n;
 	}
 
 	if (m->m_type != MT_DATA && m->m_type != MT_OOBDATA)
