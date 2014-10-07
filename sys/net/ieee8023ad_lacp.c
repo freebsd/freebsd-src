@@ -584,10 +584,20 @@ lacp_req(struct lagg_softc *sc, caddr_t data)
 {
 	struct lacp_opreq *req = (struct lacp_opreq *)data;
 	struct lacp_softc *lsc = LACP_SOFTC(sc);
-	struct lacp_aggregator *la = lsc->lsc_active_aggregator;
+	struct lacp_aggregator *la;
 
-	LACP_LOCK(lsc);
 	bzero(req, sizeof(struct lacp_opreq));
+	
+	/* 
+	 * If the LACP softc is NULL, return with the opreq structure full of
+	 * zeros.  It is normal for the softc to be NULL while the lagg is
+	 * being destroyed.
+	 */
+	if (NULL == lsc)
+		return;
+
+	la = lsc->lsc_active_aggregator;
+	LACP_LOCK(lsc);
 	if (la != NULL) {
 		req->actor_prio = ntohs(la->la_actor.lip_systemid.lsi_prio);
 		memcpy(&req->actor_mac, &la->la_actor.lip_systemid.lsi_mac,
