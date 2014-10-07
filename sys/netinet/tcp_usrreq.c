@@ -1107,6 +1107,7 @@ struct pr_usrreqs tcp6_usrreqs = {
 	.pru_rcvd =		tcp_usr_rcvd,
 	.pru_rcvoob =		tcp_usr_rcvoob,
 	.pru_send =		tcp_usr_send,
+	.pru_ready =		tcp_usr_ready,
 	.pru_shutdown =		tcp_usr_shutdown,
 	.pru_sockaddr =		in6_mapped_sockaddr,
 	.pru_sosetlabel =	in_pcbsosetlabel,
