@@ -1062,10 +1062,7 @@ uipc_ready(struct socket *so, struct mbuf *m, int count)
 	so2 = unp2->unp_socket;
 
 	SOCKBUF_LOCK(&so2->so_rcv);
-	if (so2->so_rcv.sb_state & SBS_CANTRCVMORE) {
-		SOCKBUF_UNLOCK(&so2->so_rcv);
-		error = ENOTCONN;
-	} else if ((error = sbready(&so2->so_rcv, m, count)) == 0)
+	if ((error = sbready(&so2->so_rcv, m, count)) == 0)
 		sorwakeup_locked(so2);
 	else
 		SOCKBUF_UNLOCK(&so2->so_rcv);
