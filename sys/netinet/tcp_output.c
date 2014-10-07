@@ -322,7 +322,7 @@ after_sack_rexmit:
 			 * to send then the probe will be the FIN
 			 * itself.
 			 */
-			if (off < sbavail(&so->so_snd))
+			if (off < sbused(&so->so_snd))
 				flags &= ~TH_FIN;
 			sendwin = 1;
 		} else {
@@ -503,11 +503,11 @@ after_sack_rexmit:
 		tso = 1;
 
 	if (sack_rxmit) {
-		if (SEQ_LT(p->rxmit + len, tp->snd_una + sbavail(&so->so_snd)))
+		if (SEQ_LT(p->rxmit + len, tp->snd_una + sbused(&so->so_snd)))
 			flags &= ~TH_FIN;
 	} else {
 		if (SEQ_LT(tp->snd_nxt + len, tp->snd_una +
-		    sbavail(&so->so_snd)))
+		    sbused(&so->so_snd)))
 			flags &= ~TH_FIN;
 	}
 
@@ -979,7 +979,7 @@ send:
 		 * give data to the user when a buffer fills or
 		 * a PUSH comes in.)
 		 */
-		if (off + len == sbavail(&so->so_snd))
+		if (off + len == sbused(&so->so_snd))
 			flags |= TH_PUSH;
 		SOCKBUF_UNLOCK(&so->so_snd);
 	} else {
