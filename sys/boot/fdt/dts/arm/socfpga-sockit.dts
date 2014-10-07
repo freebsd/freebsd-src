@@ -55,6 +55,19 @@
 		gmac1: ethernet@ff702000 {
 			status = "okay";
 		};
+
+		mmc: dwmmc@ff704000 {
+			status = "okay";
+			num-slots = <1>;
+			supports-highspeed;
+			broken-cd;
+			bus-frequency = <25000000>;
+
+			slot@0 {
+				reg = <0>;
+				bus-width = <4>;
+			};	
+		};
 	};
 
 	chosen {
