@@ -941,17 +941,10 @@ tcp_usr_ready(struct socket *so, struct mbuf *m, int count)
 	tp = intotcpcb(inp);
 
 	SOCKBUF_LOCK(&so->so_snd);
-	if (so->so_snd.sb_state & SBS_CANTSENDMORE) {
-		SOCKBUF_UNLOCK(&so->so_snd);
-		error = ENOTCONN;
-	} else if (sbready(&so->so_snd, m, count) == 0) {
-		SOCKBUF_UNLOCK(&so->so_snd);
+	error = sbready(&so->so_snd, m, count);
+	SOCKBUF_UNLOCK(&so->so_snd);
+	if (error == 0)
 		error = tcp_output(tp);
-	} else {
-		SOCKBUF_UNLOCK(&so->so_snd);
-		error = EINPROGRESS;
-	}
-
 	INP_WUNLOCK(inp);
 
 	return (error);
