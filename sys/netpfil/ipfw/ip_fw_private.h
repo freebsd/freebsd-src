@@ -355,8 +355,6 @@ struct ipfw_ifc {
 	struct ipfw_iface	*iface;
 	ipfw_ifc_cb		*cb;
 	void			*cbdata;
-	int			linked;
-	int			spare;
 };
 
 /* Macro for working with various counters */
