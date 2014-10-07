@@ -110,7 +110,7 @@ typedef struct zfid_short {
 } zfid_short_t;
 
 /*
- * Filesystems under .zfs/snapshot have a total file ID size of 22 bytes
+ * Filesystems under .zfs/snapshot have a total file ID size of 22[*] bytes
  * (including the length field).  This makes files under .zfs/snapshot
  * accessible by NFSv3 and NFSv4, but not NFSv2.
  *
@@ -120,10 +120,13 @@ typedef struct zfid_short {
  *	6 bytes		object number (48 bits)
  *	4 bytes		generation number (32 bits)
  *	6 bytes		objset id (48 bits)
- *	4 bytes		currently just zero (32 bits)
+ *	4 bytes[**]	currently just zero (32 bits)
  *
  * We reserve only 48 bits for the object number and objset id, as these are
  * the limits currently defined and imposed by the DMU.
+ *
+ * [*] 20 bytes on FreeBSD to fit into the size of struct fid.
+ * [**] 2 bytes on FreeBSD for the above reason.
  */
 typedef struct zfid_long {
 	zfid_short_t	z_fid;
