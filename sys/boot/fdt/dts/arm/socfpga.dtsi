@@ -152,5 +152,14 @@
 			phy-mode = "rgmii";
 			status = "disabled";
 		};
+
+		mmc: dwmmc@ff704000 {
+			compatible = "altr,socfpga-dw-mshc";
+			reg = <0xff704000 0x1000>;
+			interrupts = <171>;
+			interrupt-parent = <&GIC>;
+			fifo-depth = <0x400>;
+			status = "disabled";
+		};
 	};
 };
