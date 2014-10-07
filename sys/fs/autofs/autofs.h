@@ -42,20 +42,26 @@ extern uma_zone_t autofs_node_zone;
 extern int autofs_debug;
 extern int autofs_mount_on_stat;
 
-#define	AUTOFS_DEBUG(X, ...)					\
-	if (autofs_debug > 1) {					\
-		printf("%s: " X "\n", __func__, ## __VA_ARGS__);\
+#define	AUTOFS_DEBUG(X, ...)						\
+	do {								\
+		if (autofs_debug > 1)					\
+			printf("%s: " X "\n", __func__, ## __VA_ARGS__);\
 	} while (0)
 
-#define	AUTOFS_WARN(X, ...)					\
-	if (autofs_debug > 0) {					\
-		printf("WARNING: %s: " X "\n",			\
-		    __func__, ## __VA_ARGS__);			\
+#define	AUTOFS_WARN(X, ...)						\
+	do {								\
+		if (autofs_debug > 0) {					\
+			printf("WARNING: %s: " X "\n",			\
+		    	    __func__, ## __VA_ARGS__);			\
+		}							\
 	} while (0)
 
-#define AUTOFS_LOCK(X)		sx_xlock(&X->am_lock)
-#define AUTOFS_UNLOCK(X)	sx_xunlock(&X->am_lock)
-#define AUTOFS_ASSERT_LOCKED(X)	sx_assert(&X->am_lock, SA_XLOCKED)
+#define AUTOFS_SLOCK(X)		sx_slock(&X->am_lock)
+#define AUTOFS_XLOCK(X)		sx_xlock(&X->am_lock)
+#define AUTOFS_SUNLOCK(X)	sx_sunlock(&X->am_lock)
+#define AUTOFS_XUNLOCK(X)	sx_xunlock(&X->am_lock)
+#define AUTOFS_ASSERT_LOCKED(X)		sx_assert(&X->am_lock, SA_LOCKED)
+#define AUTOFS_ASSERT_XLOCKED(X)	sx_assert(&X->am_lock, SA_XLOCKED)
 #define AUTOFS_ASSERT_UNLOCKED(X)	sx_assert(&X->am_lock, SA_UNLOCKED)
 
 struct autofs_node {
@@ -97,7 +103,7 @@ struct autofs_request {
 	char				ar_prefix[MAXPATHLEN];
 	char				ar_key[MAXPATHLEN];
 	char				ar_options[MAXPATHLEN];
-	struct callout			ar_callout;
+	struct timeout_task		ar_task;
 	volatile u_int			ar_refcount;
 };
 
@@ -132,6 +138,6 @@ int	autofs_node_find(struct autofs_node *parent,
 	    const char *name, int namelen, struct autofs_node **anpp);
 void	autofs_node_delete(struct autofs_node *anp);
 int	autofs_node_vn(struct autofs_node *anp, struct mount *mp,
-	    struct vnode **vpp);
+	    int flags, struct vnode **vpp);
 
 #endif /* !AUTOFS_H */

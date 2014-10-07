@@ -138,6 +138,7 @@
 #include <sys/sdt.h>
 
 #include <vm/vm_pageout.h>
+#include <machine/vmparam.h>
 
 #ifdef illumos
 #ifndef _KERNEL
@@ -201,7 +202,7 @@ int zfs_arc_shrink_shift = 0;
 int zfs_arc_p_min_shift = 0;
 int zfs_disable_dup_eviction = 0;
 uint64_t zfs_arc_average_blocksize = 8 * 1024; /* 8KB */
-u_int zfs_arc_free_target = (1 << 19); /* default before pagedaemon init only */
+u_int zfs_arc_free_target = 0;
 
 static int sysctl_vfs_zfs_arc_free_target(SYSCTL_HANDLER_ARGS);
 
@@ -210,11 +211,10 @@ static void
 arc_free_target_init(void *unused __unused)
 {
 
-	zfs_arc_free_target = kmem_free_target();
+	zfs_arc_free_target = vm_pageout_wakeup_thresh;
 }
 SYSINIT(arc_free_target_init, SI_SUB_KTHREAD_PAGE, SI_ORDER_ANY,
     arc_free_target_init, NULL);
-#endif
 
 TUNABLE_QUAD("vfs.zfs.arc_meta_limit", &zfs_arc_meta_limit);
 SYSCTL_DECL(_vfs_zfs);
@@ -245,15 +245,16 @@ sysctl_vfs_zfs_arc_free_target(SYSCTL_HANDLER_ARGS)
 	if (err != 0 || req->newptr == NULL)
 		return (err);
 
-	if (val < kmem_free_min())
+	if (val < minfree)
 		return (EINVAL);
-	if (val > kmem_page_count())
+	if (val > vm_cnt.v_page_count)
 		return (EINVAL);
 
 	zfs_arc_free_target = val;
 
 	return (0);
 }
+#endif
 
 /*
  * Note that buffers can be in one of 6 states:
@@ -2445,8 +2446,8 @@ arc_shrink(void)
 	if (arc_c > arc_c_min) {
 		uint64_t to_free;
 
-		DTRACE_PROBE2(arc__shrink, uint64_t, arc_c, uint64_t,
-			arc_c_min);
+		DTRACE_PROBE4(arc__shrink, uint64_t, arc_c, uint64_t,
+			arc_c_min, uint64_t, arc_p, uint64_t, to_free);
 #ifdef _KERNEL
 		to_free = arc_c >> arc_shrink_shift;
 #else
@@ -2462,6 +2463,10 @@ arc_shrink(void)
 			arc_c = MAX(arc_size, arc_c_min);
 		if (arc_p > arc_c)
 			arc_p = (arc_c >> 1);
+
+		DTRACE_PROBE2(arc__shrunk, uint64_t, arc_c, uint64_t,
+			arc_p);
+
 		ASSERT(arc_c >= arc_c_min);
 		ASSERT((int64_t)arc_p >= 0);
 	}
@@ -2486,18 +2491,13 @@ arc_reclaim_needed(void)
 		return (1);
 	}
 
-	if (kmem_free_count() < zfs_arc_free_target) {
-		DTRACE_PROBE2(arc__reclaim_freetarget, uint64_t,
-		    kmem_free_count(), uint64_t, zfs_arc_free_target);
-		return (1);
-	}
-
 	/*
 	 * Cooperate with pagedaemon when it's time for it to scan
 	 * and reclaim some pages.
 	 */
-	if (vm_paging_needed()) {
-		DTRACE_PROBE(arc__reclaim_paging);
+	if (freemem < zfs_arc_free_target) {
+		DTRACE_PROBE2(arc__reclaim_freemem, uint64_t,
+		    freemem, uint64_t, zfs_arc_free_target);
 		return (1);
 	}
 
@@ -2527,7 +2527,18 @@ arc_reclaim_needed(void)
 	if (availrmem < swapfs_minfree + swapfs_reserve + extra)
 		return (1);
 
-#if defined(__i386)
+	/*
+	 * Check that we have enough availrmem that memory locking (e.g., via
+	 * mlock(3C) or memcntl(2)) can still succeed.  (pages_pp_maximum
+	 * stores the number of pages that cannot be locked; when availrmem
+	 * drops below pages_pp_maximum, page locking mechanisms such as
+	 * page_pp_lock() will fail.)
+	 */
+	if (availrmem <= pages_pp_maximum)
+		return (1);
+
+#endif	/* sun */
+#if defined(__i386) || !defined(UMA_MD_SMALL_ALLOC)
 	/*
 	 * If we're on an i386 platform, it's possible that we'll exhaust the
 	 * kernel heap space before we ever run out of available physical
@@ -2539,25 +2550,33 @@ arc_reclaim_needed(void)
 	 * heap is allocated.  (Or, in the calculation, if less than 1/4th is
 	 * free)
 	 */
-	if (btop(vmem_size(heap_arena, VMEM_FREE)) <
-	    (btop(vmem_size(heap_arena, VMEM_FREE | VMEM_ALLOC)) >> 2))
-		return (1);
-#endif
-#else	/* sun */
-#ifdef __i386__
-	/* i386 has KVA limits that the raw page counts above don't consider */
-	if (kmem_used() > (kmem_size() * 3) / 4) {
+	if (vmem_size(heap_arena, VMEM_FREE) <
+	    (vmem_size(heap_arena, VMEM_FREE | VMEM_ALLOC) >> 2)) {
 		DTRACE_PROBE2(arc__reclaim_used, uint64_t,
-		    kmem_used(), uint64_t, (kmem_size() * 3) / 4);
+		    vmem_size(heap_arena, VMEM_FREE), uint64_t,
+		    (vmem_size(heap_arena, VMEM_FREE | VMEM_ALLOC)) >> 2);
 		return (1);
 	}
 #endif
+#ifdef sun
+	/*
+	 * If zio data pages are being allocated out of a separate heap segment,
+	 * then enforce that the size of available vmem for this arena remains
+	 * above about 1/16th free.
+	 *
+	 * Note: The 1/16th arena free requirement was put in place
+	 * to aggressively evict memory from the arc in order to avoid
+	 * memory fragmentation issues.
+	 */
+	if (zio_arena != NULL &&
+	    vmem_size(zio_arena, VMEM_FREE) <
+	    (vmem_size(zio_arena, VMEM_ALLOC) >> 4))
+		return (1);
 #endif	/* sun */
-
-#else
+#else	/* _KERNEL */
 	if (spa_get_random(100) == 0)
 		return (1);
-#endif
+#endif	/* _KERNEL */
 	DTRACE_PROBE(arc__reclaim_no);
 
 	return (0);
@@ -2565,14 +2584,16 @@ arc_reclaim_needed(void)
 
 extern kmem_cache_t	*zio_buf_cache[];
 extern kmem_cache_t	*zio_data_buf_cache[];
+extern kmem_cache_t	*range_seg_cache;
 
-static void
+static void __noinline
 arc_kmem_reap_now(arc_reclaim_strategy_t strat)
 {
 	size_t			i;
 	kmem_cache_t		*prev_cache = NULL;
 	kmem_cache_t		*prev_data_cache = NULL;
 
+	DTRACE_PROBE(arc__kmem_reap_start);
 #ifdef _KERNEL
 	if (arc_meta_used >= arc_meta_limit) {
 		/*
@@ -2608,6 +2629,17 @@ arc_kmem_reap_now(arc_reclaim_strategy_t strat)
 	}
 	kmem_cache_reap_now(buf_cache);
 	kmem_cache_reap_now(hdr_cache);
+	kmem_cache_reap_now(range_seg_cache);
+
+#ifdef sun
+	/*
+	 * Ask the vmem arena to reclaim unused memory from its
+	 * quantum caches.
+	 */
+	if (zio_arena != NULL && strat == ARC_RECLAIM_AGGR)
+		vmem_qcache_reap(zio_arena);
+#endif
+	DTRACE_PROBE(arc__kmem_reap_end);
 }
 
 static void
@@ -2625,6 +2657,7 @@ arc_reclaim_thread(void *dummy __unused)
 
 			if (arc_no_grow) {
 				if (last_reclaim == ARC_RECLAIM_CONS) {
+					DTRACE_PROBE(arc__reclaim_aggr_no_grow);
 					last_reclaim = ARC_RECLAIM_AGGR;
 				} else {
 					last_reclaim = ARC_RECLAIM_CONS;
@@ -2632,6 +2665,7 @@ arc_reclaim_thread(void *dummy __unused)
 			} else {
 				arc_no_grow = TRUE;
 				last_reclaim = ARC_RECLAIM_AGGR;
+				DTRACE_PROBE(arc__reclaim_aggr);
 				membar_producer();
 			}
 
@@ -2736,6 +2770,7 @@ arc_adapt(int bytes, arc_state_t *state)
 	 * cache size, increment the target cache size
 	 */
 	if (arc_size > arc_c - (2ULL << SPA_MAXBLOCKSHIFT)) {
+		DTRACE_PROBE1(arc__inc_adapt, int, bytes);
 		atomic_add_64(&arc_c, (int64_t)bytes);
 		if (arc_c > arc_c_max)
 			arc_c = arc_c_max;
@@ -2756,20 +2791,6 @@ arc_evict_needed(arc_buf_contents_t type)
 {
 	if (type == ARC_BUFC_METADATA && arc_meta_used >= arc_meta_limit)
 		return (1);
-
-#ifdef sun
-#ifdef _KERNEL
-	/*
-	 * If zio data pages are being allocated out of a separate heap segment,
-	 * then enforce that the size of available vmem for this area remains
-	 * above about 1/32nd free.
-	 */
-	if (type == ARC_BUFC_DATA && zio_arena != NULL &&
-	    vmem_size(zio_arena, VMEM_FREE) <
-	    (vmem_size(zio_arena, VMEM_ALLOC) >> 5))
-		return (1);
-#endif
-#endif	/* sun */
 
 	if (arc_reclaim_needed())
 		return (1);
@@ -3929,20 +3950,16 @@ static int
 arc_memory_throttle(uint64_t reserve, uint64_t txg)
 {
 #ifdef _KERNEL
-	uint64_t available_memory =
-	    ptoa((uintmax_t)vm_cnt.v_free_count + vm_cnt.v_cache_count);
+	uint64_t available_memory = ptob(freemem);
 	static uint64_t page_load = 0;
 	static uint64_t last_txg = 0;
 
-#ifdef sun
-#if defined(__i386)
+#if defined(__i386) || !defined(UMA_MD_SMALL_ALLOC)
 	available_memory =
-	    MIN(available_memory, vmem_size(heap_arena, VMEM_FREE));
+	    MIN(available_memory, ptob(vmem_size(heap_arena, VMEM_FREE)));
 #endif
-#endif	/* sun */
 
-	if (vm_cnt.v_free_count + vm_cnt.v_cache_count >
-	    (uint64_t)physmem * arc_lotsfree_percent / 100)
+	if (freemem > (uint64_t)physmem * arc_lotsfree_percent / 100)
 		return (0);
 
 	if (txg > last_txg) {
@@ -3955,7 +3972,7 @@ arc_memory_throttle(uint64_t reserve, uint64_t txg)
 	 * continue to let page writes occur as quickly as possible.
 	 */
 	if (curproc == pageproc) {
-		if (page_load > available_memory / 4)
+		if (page_load > MAX(ptob(minfree), available_memory) / 4)
 			return (SET_ERROR(ERESTART));
 		/* Note: reserve is inflated, so we deflate */
 		page_load += reserve / 8;
@@ -3983,8 +4000,10 @@ arc_tempreserve_space(uint64_t reserve, uint64_t txg)
 	int error;
 	uint64_t anon_size;
 
-	if (reserve > arc_c/4 && !arc_no_grow)
+	if (reserve > arc_c/4 && !arc_no_grow) {
 		arc_c = MIN(arc_c_max, reserve * 4);
+		DTRACE_PROBE1(arc__set_reserve, uint64_t, arc_c);
+	}
 	if (reserve > arc_c)
 		return (SET_ERROR(ENOMEM));
 
@@ -4038,6 +4057,7 @@ arc_lowmem(void *arg __unused, int howto __unused)
 	mutex_enter(&arc_lowmem_lock);
 	mutex_enter(&arc_reclaim_thr_lock);
 	needfree = 1;
+	DTRACE_PROBE(arc__needfree);
 	cv_signal(&arc_reclaim_thr_cv);
 
 	/*

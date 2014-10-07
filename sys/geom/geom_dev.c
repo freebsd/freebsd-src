@@ -395,7 +395,7 @@ g_dev_ioctl(struct cdev *dev, u_long cmd, caddr_t data, int fflag, struct thread
 		error = g_io_getattr("GEOM::frontstuff", cp, &i, data);
 		break;
 	case DIOCSKERNELDUMP:
-		if (*(u_int *)data != 0) {
+		if (*(u_int *)data == 0) {
 			error = set_dumper(NULL, NULL);
 			break;
 		}

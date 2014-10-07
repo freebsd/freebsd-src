@@ -42,6 +42,9 @@ STRIP_FLAGS = -S
 # We don't support gcc's thump interwork stuff, so disable it
 CFLAGS.gcc += -mno-thumb-interwork
 
+# We generally don't want fpu instructions in the kernel.
+CFLAGS.clang += -mfpu=none
+
 .if !empty(DDB_ENABLED)
 CFLAGS += -funwind-tables
 # clang requires us to tell it to emit assembly with unwind information

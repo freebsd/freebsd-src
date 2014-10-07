@@ -1208,21 +1208,25 @@ kern_proc_out(struct proc *p, struct sbuf *sb, int flags)
 #ifdef COMPAT_FREEBSD32
 		if ((flags & KERN_PROC_MASK32) != 0) {
 			freebsd32_kinfo_proc_out(&ki, &ki32);
-			error = sbuf_bcat(sb, &ki32, sizeof(ki32));
+			if (sbuf_bcat(sb, &ki32, sizeof(ki32)) != 0)
+				error = ENOMEM;
 		} else
 #endif
-			error = sbuf_bcat(sb, &ki, sizeof(ki));
+			if (sbuf_bcat(sb, &ki, sizeof(ki)) != 0)
+				error = ENOMEM;
 	} else {
 		FOREACH_THREAD_IN_PROC(p, td) {
 			fill_kinfo_thread(td, &ki, 1);
 #ifdef COMPAT_FREEBSD32
 			if ((flags & KERN_PROC_MASK32) != 0) {
 				freebsd32_kinfo_proc_out(&ki, &ki32);
-				error = sbuf_bcat(sb, &ki32, sizeof(ki32));
+				if (sbuf_bcat(sb, &ki32, sizeof(ki32)) != 0)
+					error = ENOMEM;
 			} else
 #endif
-				error = sbuf_bcat(sb, &ki, sizeof(ki));
-			if (error)
+				if (sbuf_bcat(sb, &ki, sizeof(ki)) != 0)
+					error = ENOMEM;
+			if (error != 0)
 				break;
 		}
 	}
@@ -1777,7 +1781,8 @@ proc_getauxv(struct thread *td, struct proc *p, struct sbuf *sb)
 		else
 #endif
 			size = vsize * sizeof(Elf_Auxinfo);
-		error = sbuf_bcat(sb, auxv, size);
+		if (sbuf_bcat(sb, auxv, size) != 0)
+			error = ENOMEM;
 		free(auxv, M_TEMP);
 	}
 	return (error);
@@ -2363,9 +2368,10 @@ kern_proc_vmmap_out(struct proc *p, struct sbuf *sb)
 		    strlen(kve->kve_path) + 1;
 		kve->kve_structsize = roundup(kve->kve_structsize,
 		    sizeof(uint64_t));
-		error = sbuf_bcat(sb, kve, kve->kve_structsize);
+		if (sbuf_bcat(sb, kve, kve->kve_structsize) != 0)
+			error = ENOMEM;
 		vm_map_lock_read(map);
-		if (error)
+		if (error != 0)
 			break;
 		if (last_timestamp != map->timestamp) {
 			vm_map_lookup_entry(map, addr - 1, &tmp_entry);

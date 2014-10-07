@@ -934,10 +934,10 @@ acpi_handle_dmar_remapping_structure(void *addr, int remaining)
 	case ACPI_DMAR_TYPE_RESERVED_MEMORY:
 		acpi_handle_dmar_rmrr(addr);
 		break;
-	case ACPI_DMAR_TYPE_ATSR:
+	case ACPI_DMAR_TYPE_ROOT_ATS:
 		acpi_handle_dmar_atsr(addr);
 		break;
-	case ACPI_DMAR_HARDWARE_AFFINITY:
+	case ACPI_DMAR_TYPE_HARDWARE_AFFINITY:
 		acpi_handle_dmar_rhsa(addr);
 		break;
 	default:

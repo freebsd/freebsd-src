@@ -298,6 +298,97 @@ vt_switch_timer(void *arg)
 }
 
 static int
+vt_save_kbd_mode(struct vt_window *vw, keyboard_t *kbd)
+{
+	int mode, ret;
+
+	mode = 0;
+	ret = kbdd_ioctl(kbd, KDGKBMODE, (caddr_t)&mode);
+	if (ret == ENOIOCTL)
+		ret = ENODEV;
+	if (ret != 0)
+		return (ret);
+
+	vw->vw_kbdmode = mode;
+
+	return (0);
+}
+
+static int
+vt_update_kbd_mode(struct vt_window *vw, keyboard_t *kbd)
+{
+	int ret;
+
+	ret = kbdd_ioctl(kbd, KDSKBMODE, (caddr_t)&vw->vw_kbdmode);
+	if (ret == ENOIOCTL)
+		ret = ENODEV;
+
+	return (ret);
+}
+
+static int
+vt_save_kbd_state(struct vt_window *vw, keyboard_t *kbd)
+{
+	int state, ret;
+
+	state = 0;
+	ret = kbdd_ioctl(kbd, KDGKBSTATE, (caddr_t)&state);
+	if (ret == ENOIOCTL)
+		ret = ENODEV;
+	if (ret != 0)
+		return (ret);
+
+	vw->vw_kbdstate &= ~LOCK_MASK;
+	vw->vw_kbdstate |= state & LOCK_MASK;
+
+	return (0);
+}
+
+static int
+vt_update_kbd_state(struct vt_window *vw, keyboard_t *kbd)
+{
+	int state, ret;
+
+	state = vw->vw_kbdstate & LOCK_MASK;
+	ret = kbdd_ioctl(kbd, KDSKBSTATE, (caddr_t)&state);
+	if (ret == ENOIOCTL)
+		ret = ENODEV;
+
+	return (ret);
+}
+
+static int
+vt_save_kbd_leds(struct vt_window *vw, keyboard_t *kbd)
+{
+	int leds, ret;
+
+	leds = 0;
+	ret = kbdd_ioctl(kbd, KDGETLED, (caddr_t)&leds);
+	if (ret == ENOIOCTL)
+		ret = ENODEV;
+	if (ret != 0)
+		return (ret);
+
+	vw->vw_kbdstate &= ~LED_MASK;
+	vw->vw_kbdstate |= leds & LED_MASK;
+
+	return (0);
+}
+
+static int
+vt_update_kbd_leds(struct vt_window *vw, keyboard_t *kbd)
+{
+	int leds, ret;
+
+	leds = vw->vw_kbdstate & LED_MASK;
+	ret = kbdd_ioctl(kbd, KDSETLED, (caddr_t)&leds);
+	if (ret == ENOIOCTL)
+		ret = ENODEV;
+
+	return (ret);
+}
+
+static int
 vt_window_preswitch(struct vt_window *vw, struct vt_window *curvw)
 {
 
@@ -409,7 +500,11 @@ vt_window_switch(struct vt_window *vw)
 	mtx_lock(&Giant);
 	kbd = kbd_get_keyboard(vd->vd_keyboard);
 	if (kbd != NULL) {
-		kbdd_ioctl(kbd, KDSKBMODE, (void *)&vw->vw_kbdmode);
+		if (curvw->vw_kbdmode == K_XLATE)
+			vt_save_kbd_state(curvw, kbd);
+
+		vt_update_kbd_mode(vw, kbd);
+		vt_update_kbd_state(vw, kbd);
 	}
 	mtx_unlock(&Giant);
 	DPRINTF(10, "%s(ttyv%d) done\n", __func__, vw->vw_number);
@@ -602,7 +697,6 @@ static int
 vt_processkey(keyboard_t *kbd, struct vt_device *vd, int c)
 {
 	struct vt_window *vw = vd->vd_curwindow;
-	int state = 0;
 
 #if VT_ALT_TO_ESC_HACK
 	if (c & RELKEY) {
@@ -665,10 +759,9 @@ vt_processkey(keyboard_t *kbd, struct vt_device *vd, int c)
 				vt_proc_window_switch(vw);
 			return (0);
 		case SLK: {
-
-			kbdd_ioctl(kbd, KDGKBSTATE, (caddr_t)&state);
+			vt_save_kbd_state(vw, kbd);
 			VT_LOCK(vd);
-			if (state & SLKED) {
+			if (vw->vw_kbdstate & SLKED) {
 				/* Turn scrolling on. */
 				vw->vw_flags |= VWF_SCROLL;
 				VTBUF_SLCK_ENABLE(&vw->vw_buf);
@@ -1176,7 +1269,8 @@ vtterm_cnprobe(struct terminal *tm, struct consdev *cp)
 	 * that we have the real viewable size, fix it in the static
 	 * buffer.
 	 */
-	vt_termsize(vd, vw->vw_font, &vw->vw_buf.vb_scr_size);
+	if (vd->vd_width != 0 && vd->vd_height != 0)
+		vt_termsize(vd, vw->vw_font, &vw->vw_buf.vb_scr_size);
 
 	vtbuf_init_early(&vw->vw_buf);
 	vt_winsize(vd, vw->vw_font, &wsz);
@@ -1201,13 +1295,11 @@ vtterm_cngetc(struct terminal *tm)
 	struct vt_window *vw = tm->tm_softc;
 	struct vt_device *vd = vw->vw_device;
 	keyboard_t *kbd;
-	int state;
 	u_int c;
 
 	if (vw->vw_kbdsq && *vw->vw_kbdsq)
 		return (*vw->vw_kbdsq++);
 
-	state = 0;
 	/* Make sure the splash screen is not there. */
 	if (vd->vd_flags & VDF_SPLASH) {
 		/* Remove splash */
@@ -1223,8 +1315,8 @@ vtterm_cngetc(struct terminal *tm)
 		return (-1);
 
 	/* Force keyboard input mode to K_XLATE */
-	c = K_XLATE;
-	kbdd_ioctl(kbd, KDSKBMODE, (void *)&c);
+	vw->vw_kbdmode = K_XLATE;
+	vt_update_kbd_mode(vw, kbd);
 
 	/* Switch the keyboard to polling to make it work here. */
 	kbdd_poll(kbd, TRUE);
@@ -1243,8 +1335,8 @@ vtterm_cngetc(struct terminal *tm)
 	if (c & SPCLKEY) {
 		switch (c) {
 		case SPCLKEY | SLK:
-			kbdd_ioctl(kbd, KDGKBSTATE, (caddr_t)&state);
-			if (state & SLKED) {
+			vt_save_kbd_state(vw, kbd);
+			if (vw->vw_kbdstate & SLKED) {
 				/* Turn scrolling on. */
 				vw->vw_flags |= VWF_SCROLL;
 				VTBUF_SLCK_ENABLE(&vw->vw_buf);
@@ -1311,7 +1403,7 @@ vtterm_cngrab(struct terminal *tm)
 	/* We shall always use the keyboard in the XLATE mode here. */
 	vw->vw_prev_kbdmode = vw->vw_kbdmode;
 	vw->vw_kbdmode = K_XLATE;
-	(void)kbdd_ioctl(kbd, KDSKBMODE, (caddr_t)&vw->vw_kbdmode);
+	vt_update_kbd_mode(vw, kbd);
 
 	kbdd_poll(kbd, TRUE);
 }
@@ -1336,7 +1428,7 @@ vtterm_cnungrab(struct terminal *tm)
 	kbdd_poll(kbd, FALSE);
 
 	vw->vw_kbdmode = vw->vw_prev_kbdmode;
-	(void)kbdd_ioctl(kbd, KDSKBMODE, (caddr_t)&vw->vw_kbdmode);
+	vt_update_kbd_mode(vw, kbd);
 	kbdd_disable(kbd);
 }
 
@@ -1890,12 +1982,8 @@ skip_thunk:
 	case SETFKEY:
 	case KDGKBINFO:
 	case KDGKBTYPE:
-	case KDSKBSTATE:	/* set keyboard state (locks) */
-	case KDGKBSTATE:	/* get keyboard state (locks) */
 	case KDGETREPEAT:	/* get keyboard repeat & delay rates */
 	case KDSETREPEAT:	/* set keyboard repeat & delay rates (new) */
-	case KDSETLED:		/* set keyboard LED status */
-	case KDGETLED:		/* get keyboard LED status */
 	case KBADDKBD:		/* add/remove keyboard to/from mux */
 	case KBRELKBD: {
 		error = 0;
@@ -1915,18 +2003,101 @@ skip_thunk:
 		}
 		return (error);
 	}
-	case KDGKBMODE: {
-		int mode = -1;
+	case KDGKBSTATE: {	/* get keyboard state (locks) */
+		error = 0;
 
-		mtx_lock(&Giant);
-		kbd = kbd_get_keyboard(vd->vd_keyboard);
-		if (kbd != NULL) {
-			kbdd_ioctl(kbd, KDGKBMODE, (void *)&mode);
+		if (vw == vd->vd_curwindow) {
+			mtx_lock(&Giant);
+			kbd = kbd_get_keyboard(vd->vd_keyboard);
+			if (kbd != NULL)
+				error = vt_save_kbd_state(vw, kbd);
+			mtx_unlock(&Giant);
+
+			if (error != 0)
+				return (error);
 		}
-		mtx_unlock(&Giant);
-		DPRINTF(20, "mode %d, vw_kbdmode %d\n", mode, vw->vw_kbdmode);
-		*(int *)data = mode;
-		return (0);
+
+		*(int *)data = vw->vw_kbdstate & LOCK_MASK;
+
+		return (error);
+	}
+	case KDSKBSTATE: {	/* set keyboard state (locks) */
+		int state;
+
+		state = *(int *)data;
+		if (state & ~LOCK_MASK)
+			return (EINVAL);
+
+		vw->vw_kbdstate &= ~LOCK_MASK;
+		vw->vw_kbdstate |= state;
+
+		error = 0;
+		if (vw == vd->vd_curwindow) {
+			mtx_lock(&Giant);
+			kbd = kbd_get_keyboard(vd->vd_keyboard);
+			if (kbd != NULL)
+				error = vt_update_kbd_state(vw, kbd);
+			mtx_unlock(&Giant);
+		}
+
+		return (error);
+	}
+	case KDGETLED: {	/* get keyboard LED status */
+		error = 0;
+
+		if (vw == vd->vd_curwindow) {
+			mtx_lock(&Giant);
+			kbd = kbd_get_keyboard(vd->vd_keyboard);
+			if (kbd != NULL)
+				error = vt_save_kbd_leds(vw, kbd);
+			mtx_unlock(&Giant);
+
+			if (error != 0)
+				return (error);
+		}
+
+		*(int *)data = vw->vw_kbdstate & LED_MASK;
+
+		return (error);
+	}
+	case KDSETLED: {	/* set keyboard LED status */
+		int leds;
+
+		leds = *(int *)data;
+		if (leds & ~LED_MASK)
+			return (EINVAL);
+
+		vw->vw_kbdstate &= ~LED_MASK;
+		vw->vw_kbdstate |= leds;
+
+		error = 0;
+		if (vw == vd->vd_curwindow) {
+			mtx_lock(&Giant);
+			kbd = kbd_get_keyboard(vd->vd_keyboard);
+			if (kbd != NULL)
+				error = vt_update_kbd_leds(vw, kbd);
+			mtx_unlock(&Giant);
+		}
+
+		return (error);
+	}
+	case KDGKBMODE: {
+		error = 0;
+
+		if (vw == vd->vd_curwindow) {
+			mtx_lock(&Giant);
+			kbd = kbd_get_keyboard(vd->vd_keyboard);
+			if (kbd != NULL)
+				error = vt_save_kbd_mode(vw, kbd);
+			mtx_unlock(&Giant);
+
+			if (error != 0)
+				return (error);
+		}
+
+		*(int *)data = vw->vw_kbdmode;
+
+		return (error);
 	}
 	case KDSKBMODE: {
 		int mode;
@@ -1937,19 +2108,17 @@ skip_thunk:
 		case K_RAW:
 		case K_CODE:
 			vw->vw_kbdmode = mode;
-			if (vw == vd->vd_curwindow) {
-				keyboard_t *kbd;
-				error = 0;
 
+			error = 0;
+			if (vw == vd->vd_curwindow) {
 				mtx_lock(&Giant);
 				kbd = kbd_get_keyboard(vd->vd_keyboard);
-				if (kbd != NULL) {
-					error = kbdd_ioctl(kbd, KDSKBMODE,
-					    (void *)&mode);
-				}
+				if (kbd != NULL)
+					error = vt_update_kbd_mode(vw, kbd);
 				mtx_unlock(&Giant);
 			}
-			return (0);
+
+			return (error);
 		default:
 			return (EINVAL);
 		}
@@ -1977,8 +2146,17 @@ skip_thunk:
 		return (0);
 	case CONS_GETINFO: {
 		vid_info_t *vi = (vid_info_t *)data;
+		if (vi->size != sizeof(struct vid_info))
+			return (EINVAL);
+
+		if (vw == vd->vd_curwindow) {
+			kbd = kbd_get_keyboard(vd->vd_keyboard);
+			if (kbd != NULL)
+				vt_save_kbd_state(vw, kbd);
+		}
 
 		vi->m_num = vd->vd_curwindow->vw_number + 1;
+		vi->mk_keylock = vw->vw_kbdstate & LOCK_MASK;
 		/* XXX: other fields! */
 		return (0);
 	}
@@ -2093,13 +2271,14 @@ skip_thunk:
 			    (void *)vd, vt_kbdevent, vd);
 			if (i >= 0) {
 				if (vd->vd_keyboard != -1) {
+					vt_save_kbd_state(vd->vd_curwindow, kbd);
 					kbd_release(kbd, (void *)vd);
 				}
 				kbd = kbd_get_keyboard(i);
 				vd->vd_keyboard = i;
 
-				(void)kbdd_ioctl(kbd, KDSKBMODE,
-				    (caddr_t)&vd->vd_curwindow->vw_kbdmode);
+				vt_update_kbd_mode(vd->vd_curwindow, kbd);
+				vt_update_kbd_state(vd->vd_curwindow, kbd);
 			} else {
 				error = EPERM;	/* XXX */
 			}
@@ -2115,6 +2294,7 @@ skip_thunk:
 				mtx_unlock(&Giant);
 				return (EINVAL);
 			}
+			vt_save_kbd_state(vd->vd_curwindow, kbd);
 			error = kbd_release(kbd, (void *)vd);
 			if (error == 0) {
 				vd->vd_keyboard = -1;

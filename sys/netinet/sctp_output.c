@@ -6784,13 +6784,6 @@ sctp_sendall_completes(void *ptr, uint32_t val SCTP_UNUSED)
 	SCTP_FREE(ca, SCTP_M_COPYAL);
 }
 
-
-#define	MC_ALIGN(m, len) do {						\
-	SCTP_BUF_RESV_UF(m, ((MCLBYTES - (len)) & ~(sizeof(long) - 1));	\
-} while (0)
-
-
-
 static struct mbuf *
 sctp_copy_out_all(struct uio *uio, int len)
 {
