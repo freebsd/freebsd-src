@@ -68,25 +68,6 @@ static	u_long sb_efficiency = 8;	/* parameter for sbreserve() */
 static struct mbuf	*sbcut_internal(struct sockbuf *sb, int len);
 static void	sbflush_internal(struct sockbuf *sb);
 
-static void
-sb_shift_nrdy(struct sockbuf *sb, struct mbuf *m)
-{
-
-#if 0	/* XXX: not yet: soclose() call path comes here w/o lock. */
-	SOCKBUF_LOCK_ASSERT(sb);
-#endif
-	KASSERT(m->m_flags & M_NOTREADY, ("%s: m %p !M_NOTREADY", __func__, m));
-
-	m = m->m_next;
-	while (m != NULL && !(m->m_flags & M_NOTREADY)) {
-		m->m_flags &= ~M_BLOCKED;
-		sb->sb_acc += m->m_len;
-		m = m->m_next;
-	}
-
-	sb->sb_fnrdy = m;
-}
-
 int
 sbready(struct sockbuf *sb, struct mbuf *m, int count)
 {
@@ -169,8 +150,18 @@ sbfree(struct sockbuf *sb, struct mbuf *m)
 	if (!(m->m_flags & M_NOTAVAIL))
 		sb->sb_acc -= m->m_len;
 
-	if (sb->sb_fnrdy == m)
-		sb_shift_nrdy(sb, m);
+	if (m == sb->sb_fnrdy) {
+		KASSERT(m->m_flags & M_NOTREADY,
+		    ("%s: m %p !M_NOTREADY", __func__, m));
+
+		m = m->m_next;
+		while (m != NULL && !(m->m_flags & M_NOTREADY)) {
+			m->m_flags &= ~M_BLOCKED;
+			sb->sb_acc += m->m_len;
+			m = m->m_next;
+		}
+		sb->sb_fnrdy = m;
+	}
 
 	if (m->m_type != MT_DATA && m->m_type != MT_OOBDATA)
 		sb->sb_ctl -= m->m_len;
