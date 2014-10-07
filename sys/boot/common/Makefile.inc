@@ -73,3 +73,6 @@ CFLAGS+=	-DBOOT_PROMPT_123
 .endif
 
 MAN+=	loader.8
+.if ${MK_ZFS} != "no"
+MAN+=	zfsloader.8
+.endif
