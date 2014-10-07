@@ -565,7 +565,7 @@ static int
 lagg_port_create(struct lagg_softc *sc, struct ifnet *ifp)
 {
 	struct lagg_softc *sc_ptr;
-	struct lagg_port *lp;
+	struct lagg_port *lp, *tlp;
 	int error = 0;
 
 	LAGG_WLOCK_ASSERT(sc);
@@ -672,8 +672,18 @@ lagg_port_create(struct lagg_softc *sc, struct ifnet *ifp)
 		lagg_port_lladdr(lp, IF_LLADDR(sc->sc_ifp));
 	}
 
-	/* Insert into the list of ports */
-	SLIST_INSERT_HEAD(&sc->sc_ports, lp, lp_entries);
+	/* Insert into the list of ports. Keep ports sorted by if_index. */
+	SLIST_FOREACH(tlp, &sc->sc_ports, lp_entries) {
+		if (tlp->lp_ifp->if_index < ifp->if_index && (
+		    SLIST_NEXT(tlp, lp_entries) == NULL ||
+		    SLIST_NEXT(tlp, lp_entries)->lp_ifp->if_index <
+		    ifp->if_index))
+			break;
+	}
+	if (tlp != NULL)
+		SLIST_INSERT_AFTER(tlp, lp, lp_entries);
+	else
+		SLIST_INSERT_HEAD(&sc->sc_ports, lp, lp_entries);
 	sc->sc_count++;
 
 	/* Update lagg capabilities */
