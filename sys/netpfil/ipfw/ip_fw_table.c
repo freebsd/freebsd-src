@@ -1280,6 +1280,10 @@ restart:
 	tc->ti = ti_new;
 	tc->count = 0;
 
+	/* Notify algo on real @ti address */
+	if (ta->change_ti != NULL)
+		ta->change_ti(tc->astate, &tablestate[kidx]);
+
 	/*
 	 * Stage 4: unref values.
 	 */
