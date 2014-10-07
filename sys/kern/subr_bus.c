@@ -1812,6 +1812,8 @@ device_add_child_ordered(device_t dev, u_int order, const char *name, int unit)
 
 	PDEBUG(("%s at %s with order %u as unit %d",
 	    name, DEVICENAME(dev), order, unit));
+	KASSERT(name != NULL || unit == -1,
+	    ("child device with wildcard name and specific unit number"));
 
 	child = make_device(dev, name, unit);
 	if (child == NULL)
