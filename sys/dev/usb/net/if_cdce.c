@@ -273,6 +273,7 @@ static const struct usb_ether_methods cdce_ue_methods = {
 
 static const STRUCT_USB_HOST_ID cdce_switch_devs[] = {
 	{USB_VPI(USB_VENDOR_HUAWEI, USB_PRODUCT_HUAWEI_E3272_INIT, MSC_EJECT_HUAWEI2)},
+	{USB_VPI(USB_VENDOR_HUAWEI, USB_PRODUCT_HUAWEI_R215_INIT, MSC_EJECT_HUAWEI2)},
 };
 
 static const STRUCT_USB_HOST_ID cdce_host_devs[] = {
