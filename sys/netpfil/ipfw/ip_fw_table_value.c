@@ -251,10 +251,9 @@ unref_table_value(struct namedobj_instance *vi, struct table_value *pval,
 {
 	struct table_val_link *ptvl;
 
-	if (pval[kidx].refcnt > 1) {
-		pval[kidx].refcnt--;
+	KASSERT(pval[kidx].refcnt > 0, ("Refcount is 0 on kidx %d", kidx));
+	if (--pval[kidx].refcnt > 0)
 		return;
-	}
 
 	/* Last reference, delete item */
 	ptvl = (struct table_val_link *)ipfw_objhash_lookup_kidx(vi, kidx);
@@ -306,6 +305,8 @@ ipfw_unref_table_values(struct ip_fw_chain *ch, struct table_config *tc,
     struct table_algo *ta, void *astate, struct table_info *ti)
 {
 	struct flush_args fa;
+
+	IPFW_UH_WLOCK_ASSERT(ch);
 
 	memset(&fa, 0, sizeof(fa));
 	fa.ch = ch;

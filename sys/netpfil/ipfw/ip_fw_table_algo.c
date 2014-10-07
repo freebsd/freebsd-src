@@ -2045,8 +2045,10 @@ ta_prepare_add_ifidx(struct ip_fw_chain *ch, struct tentry_info *tei,
 	ife->ic.cb = if_notifier;
 	ife->ic.cbdata = ife;
 
-	if (ipfw_iface_ref(ch, ifname, &ife->ic) != 0)
+	if (ipfw_iface_ref(ch, ifname, &ife->ic) != 0) {
+		free(ife, M_IPFW_TBL);
 		return (EINVAL);
+	}
 
 	/* Use ipfw_iface 'ifname' field as stable storage */
 	ife->no.name = ife->ic.iface->ifname;

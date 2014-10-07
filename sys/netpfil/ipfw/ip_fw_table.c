@@ -564,10 +564,14 @@ add_table_entry(struct ip_fw_chain *ch, struct tid_info *ti,
 	 */
 restart:
 	if (ts.modified != 0) {
+		IPFW_UH_WUNLOCK(ch);
 		flush_batch_buffer(ch, ta, tei, count, rollback,
 		    ta_buf_m, ta_buf);
 		memset(&ts, 0, sizeof(ts));
+		ta = NULL;
+		IPFW_UH_WLOCK(ch);
 	}
+
 	error = find_ref_table(ch, ti, tei, count, OP_ADD, &tc);
 	if (error != 0) {
 		IPFW_UH_WUNLOCK(ch);

@@ -392,8 +392,7 @@ ipfw_iface_del_notify(struct ip_fw_chain *ch, struct ipfw_ifc *ic)
 	IPFW_UH_WLOCK_ASSERT(ch);
 
 	iif = ic->iface;
-	if (ic->linked != 0)
-		TAILQ_REMOVE(&iif->consumers, ic, next);
+	TAILQ_REMOVE(&iif->consumers, ic, next);
 }
 
 /*
