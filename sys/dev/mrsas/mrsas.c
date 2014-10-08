@@ -65,6 +65,7 @@ static d_close_t    mrsas_close;
 static d_read_t     mrsas_read;
 static d_write_t    mrsas_write;
 static d_ioctl_t    mrsas_ioctl;
+static d_poll_t	    mrsas_poll;
 
 static struct mrsas_mgmt_info mrsas_mgmt_info;
 static struct mrsas_ident *mrsas_find_ident(device_t);
@@ -184,6 +185,7 @@ static struct cdevsw mrsas_cdevsw = {
     .d_read =   mrsas_read,
     .d_write =  mrsas_write,
     .d_ioctl =  mrsas_ioctl,
+    .d_poll =	mrsas_poll,
     .d_name =   "mrsas",
 };
 
@@ -1262,6 +1264,36 @@ do_ioctl:
     }
  
     return (ret);
+}
+
+/**
+ * mrsas_poll:       poll entry point for mrsas driver fd
+ *
+ * This function is the entry point for poll from the OS.  It waits for
+ * some AEN events to be triggered from the controller and notifies back.
+ */
+static int
+mrsas_poll(struct cdev *dev, int poll_events, struct thread *td)
+{
+	struct mrsas_softc *sc;
+	int revents = 0;
+
+	sc = dev->si_drv1;
+
+	if (poll_events & (POLLIN | POLLRDNORM)) {
+		if (sc->mrsas_aen_triggered) {
+			revents |= poll_events & (POLLIN | POLLRDNORM);
+		}
+	}
+
+	if (revents == 0) {
+		if (poll_events & (POLLIN | POLLRDNORM)) {
+			sc->mrsas_poll_waiting = 1;
+			selrecord(td, &sc->mrsas_select);
+		}
+	}
+
+	return revents;
 }
 
 /**
@@ -3274,13 +3306,12 @@ mrsas_complete_mptmfi_passthru(struct mrsas_softc *sc, struct mrsas_mfi_cmd *cmd
                 mtx_unlock(&sc->raidmap_lock);
                 break;
             }
-#if 0 //currently not supporting event handling, so commenting out
             if (cmd->frame->dcmd.opcode == MR_DCMD_CTRL_EVENT_GET_INFO ||
                     cmd->frame->dcmd.opcode == MR_DCMD_CTRL_EVENT_GET) {
-                mrsas_poll_wait_aen = 0;
+				sc->mrsas_aen_triggered = 0;
             }
-#endif
-            /* See if got an event notification */
+
+			/* See if got an event notification */
             if (cmd->frame->dcmd.opcode == MR_DCMD_CTRL_EVENT_WAIT)
                 mrsas_complete_aen(sc, cmd);
             else
@@ -3967,7 +3998,11 @@ void mrsas_complete_aen(struct mrsas_softc *sc, struct mrsas_mfi_cmd *cmd)
 	* Don't signal app if it is just an aborted previously registered aen
 	*/
 	if ((!cmd->abort_aen) && (sc->remove_in_progress == 0)) {
-		/* TO DO (?) */
+		sc->mrsas_aen_triggered = 1;
+		if (sc->mrsas_poll_waiting) {
+			sc->mrsas_poll_waiting = 0;
+			selwakeup(&sc->mrsas_select);
+		}
 	}
 	else
 		cmd->abort_aen = 0;
