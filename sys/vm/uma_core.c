@@ -761,9 +761,7 @@ zone_drain_wait(uma_zone_t zone, int waitok)
 	while (zone->uz_flags & UMA_ZFLAG_DRAINING) {
 		if (waitok == M_NOWAIT)
 			goto out;
-		mtx_unlock(&uma_mtx);
 		msleep(zone, zone->uz_lock, PVM, "zonedrain", 1);
-		mtx_lock(&uma_mtx);
 	}
 	zone->uz_flags |= UMA_ZFLAG_DRAINING;
 	bucket_cache_drain(zone);
