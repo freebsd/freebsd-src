@@ -4,7 +4,9 @@ PROG=	mkimg
 SRCS=	format.c image.c mkimg.c scheme.c
 MAN=	mkimg.1
 
-MKIMG_VERSION=20141001
+MKIMG_VERSION=20141003
+mkimg.o: Makefile
+
 CFLAGS+=-DMKIMG_VERSION=${MKIMG_VERSION}
 CFLAGS+=-DSPARSE_WRITE
 
