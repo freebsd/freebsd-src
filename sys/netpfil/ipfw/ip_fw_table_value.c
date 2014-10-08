@@ -547,8 +547,15 @@ ipfw_link_table_values(struct ip_fw_chain *ch, struct tableop_state *ts)
 	IPFW_UH_WLOCK(ch);
 	tc_unref(tc);
 	del_toperation_state(ch, ts);
-	if (ts->modified != 0)
+	if (ts->modified != 0) {
+
+		/*
+		 * In general, we should free all state/indexes here
+		 * and return. However, we keep allocated state instead
+		 * to ensure we achieve some progress on each restart.
+		 */
 		return (0);
+	}
 
 	KASSERT(pval == ch->tablestate, ("resize_storage() notify failure"));
 

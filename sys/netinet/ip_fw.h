@@ -104,6 +104,8 @@ typedef struct _ip_fw3_opheader {
 #define	IP_FW_NAT44_LIST_NAT	114	/* List all NAT44 instances */
 #define	IP_FW_NAT44_XGETLOG	115	/* Get log from NAT44 instance */
 
+#define	IP_FW_DUMP_SOPTCODES	116	/* Dump available sopts/versions */
+
 /*
  * The kernel representation of ipfw rules is made of a list of
  * 'instructions' (for all practical purposes equivalent to BPF
@@ -990,5 +992,13 @@ typedef struct _ipfw_range_header {
 	ip_fw3_opheader	opheader;	/* IP_FW3 opcode		*/
 	ipfw_range_tlv	range;
 } ipfw_range_header;
+
+typedef struct _ipfw_sopt_info {
+	uint16_t	opcode;
+	uint8_t		version;
+	uint8_t		dir;
+	uint8_t		spare;
+	uint64_t	refcnt;
+} ipfw_sopt_info;
 
 #endif /* _IPFW2_H */
