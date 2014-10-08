@@ -86,7 +86,7 @@ void mrsas_set_pd_lba(MRSAS_RAID_SCSI_IO_REQUEST *io_request, u_int8_t cdb_len,
                     MR_DRV_RAID_MAP_ALL *local_map_ptr, u_int32_t ref_tag,
                     u_int32_t ld_block_size);
 static void mrsas_freeze_simq(struct mrsas_mpt_cmd *cmd, struct cam_sim *sim);
-static void mrsas_poll(struct cam_sim *sim);
+static void mrsas_cam_poll(struct cam_sim *sim);
 static void mrsas_action(struct cam_sim *sim, union ccb *ccb);
 static void mrsas_scsiio_timeout(void *data);
 static void mrsas_data_load_cb(void *arg, bus_dma_segment_t *segs,
@@ -137,7 +137,7 @@ int mrsas_cam_attach(struct mrsas_softc *sc)
     /* 
      * Create SIM for bus 0 and register, also create path 
      */
-    sc->sim_0 = cam_sim_alloc(mrsas_action, mrsas_poll, "mrsas", sc,
+    sc->sim_0 = cam_sim_alloc(mrsas_action, mrsas_cam_poll, "mrsas", sc,
         device_get_unit(sc->mrsas_dev), &sc->sim_lock, mrsas_cam_depth,
         mrsas_cam_depth, devq);
     if (sc->sim_0 == NULL){
@@ -173,7 +173,7 @@ int mrsas_cam_attach(struct mrsas_softc *sc)
     /* 
      * Create SIM for bus 1 and register, also create path 
      */
-    sc->sim_1 = cam_sim_alloc(mrsas_action, mrsas_poll, "mrsas", sc,
+    sc->sim_1 = cam_sim_alloc(mrsas_action, mrsas_cam_poll, "mrsas", sc,
         device_get_unit(sc->mrsas_dev), &sc->sim_lock, mrsas_cam_depth,
         mrsas_cam_depth, devq);
     if (sc->sim_1 == NULL){
@@ -1110,12 +1110,12 @@ void mrsas_cmd_done(struct mrsas_softc *sc, struct mrsas_mpt_cmd *cmd)
 }
 
 /**
- * mrsas_poll:               Polling entry point 
+ * mrsas_cam_poll:               Polling entry point
  * input:                    Pointer to SIM  
  *
  * This is currently a stub function.
  */
-static void mrsas_poll(struct cam_sim *sim)
+static void mrsas_cam_poll(struct cam_sim *sim)
 {
     struct mrsas_softc *sc = (struct mrsas_softc *)cam_sim_softc(sim);
     mrsas_isr((void *) sc);
