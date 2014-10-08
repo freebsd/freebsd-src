@@ -168,18 +168,21 @@ int mrsas_passthru( struct mrsas_softc *sc, void *arg, u_long ioctlCmd )
                                 NULL, NULL,             // lockfunc, lockarg
                                 &ioctl_data_tag[i])) {
 		device_printf(sc->mrsas_dev, "Cannot allocate ioctl data tag\n");
-		return (ENOMEM);
+		ret = ENOMEM;
+		goto out;
         }
         if (bus_dmamem_alloc(ioctl_data_tag[i], (void **)&ioctl_data_mem[i],
                 (BUS_DMA_NOWAIT | BUS_DMA_ZERO), &ioctl_data_dmamap[i])) {
             device_printf(sc->mrsas_dev, "Cannot allocate ioctl data mem\n");
-            return (ENOMEM);
+			ret = ENOMEM;
+			goto out;
         }
         if (bus_dmamap_load(ioctl_data_tag[i], ioctl_data_dmamap[i],
                 ioctl_data_mem[i], ioctl_data_size, mrsas_alloc_cb,
                 &ioctl_data_phys_addr[i], BUS_DMA_NOWAIT)) {
             device_printf(sc->mrsas_dev, "Cannot load ioctl data mem\n");
-            return (ENOMEM);
+			ret = ENOMEM;
+			goto out;
         }
 
         /* Save the physical address and length */
@@ -222,18 +225,21 @@ int mrsas_passthru( struct mrsas_softc *sc, void *arg, u_long ioctlCmd )
                                 NULL, NULL,             // lockfunc, lockarg
                                 &ioctl_sense_tag)) {
             device_printf(sc->mrsas_dev, "Cannot allocate ioctl sense tag\n");
-            return (ENOMEM);
+            ret = ENOMEM;
+			goto out;
         }
         if (bus_dmamem_alloc(ioctl_sense_tag, (void **)&ioctl_sense_mem,
                 (BUS_DMA_NOWAIT | BUS_DMA_ZERO), &ioctl_sense_dmamap)) {
-            device_printf(sc->mrsas_dev, "Cannot allocate ioctl data mem\n");
-            return (ENOMEM);
+            device_printf(sc->mrsas_dev, "Cannot allocate ioctl sense mem\n");
+            ret = ENOMEM;
+			goto out;
         }
         if (bus_dmamap_load(ioctl_sense_tag, ioctl_sense_dmamap,
                 ioctl_sense_mem, ioctl_sense_size, mrsas_alloc_cb,
                 &ioctl_sense_phys_addr, BUS_DMA_NOWAIT)) {
             device_printf(sc->mrsas_dev, "Cannot load ioctl sense mem\n");
-            return (ENOMEM);
+            ret = ENOMEM;
+			goto out;
         }
         sense_ptr = 
             (unsigned long *)((unsigned long)cmd->frame + user_ioc->sense_off);
@@ -299,17 +305,24 @@ out:
      */
     if (ioctl_sense_phys_addr)
         bus_dmamap_unload(ioctl_sense_tag, ioctl_sense_dmamap);
-    if (ioctl_sense_mem)
+    if (ioctl_sense_mem != NULL)
         bus_dmamem_free(ioctl_sense_tag, ioctl_sense_mem, ioctl_sense_dmamap);
-    if (ioctl_sense_tag)
+    if (ioctl_sense_tag != NULL)
         bus_dma_tag_destroy(ioctl_sense_tag);
 
     /* 
      * Release data buffers 
      */
     for (i = 0; i < user_ioc->sge_count; i++) {
-        if (!user_ioc->sgl[i].iov_len)
-            continue;
+	    if (ioctlCmd == MRSAS_IOC_FIRMWARE_PASS_THROUGH64) {
+		    if (!user_ioc->sgl[i].iov_len)
+			    continue;
+#ifdef COMPAT_FREEBSD32
+	    } else {
+		    if (!user_ioc32->sgl[i].iov_len)
+			    continue;
+#endif
+	    }
         if (ioctl_data_phys_addr[i])
             bus_dmamap_unload(ioctl_data_tag[i], ioctl_data_dmamap[i]);
         if (ioctl_data_mem[i] != NULL)
