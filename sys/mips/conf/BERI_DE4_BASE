@@ -33,8 +33,7 @@ device		cfi
 device		cfid
 options 	CFI_SUPPORT_STRATAFLASH
 options 	ATSE_CFI_HACK
-device		sc
-#device		vt
+device		vt
 device		kbdmux
 
 device		uart
