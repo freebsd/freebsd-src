@@ -263,7 +263,7 @@ udp6_input(struct mbuf **mp, int *offp, int proto)
 
 	if (uh_sum != 0) {
 		UDPSTAT_INC(udps_badsum);
-		/*goto badunlocked;*/
+		goto badunlocked;
 	}
 
 	/*
