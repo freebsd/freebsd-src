@@ -43,6 +43,7 @@ SUBDIR= cat \
 .if ${MK_CHERI} != "no"
 SUBDIR+=	cheri_helloworld
 SUBDIR+=	cheritest
+SUBDIR+=	cheri_bench
 .endif
 
 .if ${MK_RCMDS} != "no"
