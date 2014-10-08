@@ -80,8 +80,6 @@ eventcolors = [
 	("runq rem",	"yellow"),
 	("thread exit",	"grey"),
 	("proc exit",	"grey"),
-	("callwheel idle", "grey"),
-	("callout running", "green"),
 	("lock acquire", "blue"),
 	("lock contest", "purple"),
 	("failed lock try", "red"),
@@ -903,7 +901,6 @@ class KTRFile:
 		self.timestamp_f = None
 		self.timestamp_l = None
 		self.locks = {}
-		self.callwheels = {}
 		self.ticks = {}
 		self.load = {}
 		self.crit = {}
