@@ -51,6 +51,15 @@ __FBSDID("$FreeBSD$");
 #include <sys/ioccom.h>
 #endif  /* !_IOWR */
 
+#ifdef COMPAT_FREEBSD32
+/* Compilation error FIX */
+#if (__FreeBSD_version <= 900000)
+#include <sys/socket.h>
+#endif
+#include <sys/mount.h>
+#include <compat/freebsd32/freebsd32.h>
+#endif
+
 /*
  * We need to use the same values as the mfi driver until MegaCli adds 
  * support for this (mrsas) driver:
@@ -61,9 +70,14 @@ __FBSDID("$FreeBSD$");
  * These three values are encoded into a somewhat unique, 32-bit value.
  */
 
-#define MRSAS_IOC_FIRMWARE_PASS_THROUGH   _IOWR('M', 1, struct mrsas_iocpacket)
+#define MRSAS_IOC_FIRMWARE_PASS_THROUGH64   _IOWR('M', 1, struct mrsas_iocpacket)
+#ifdef COMPAT_FREEBSD32
+#define MRSAS_IOC_FIRMWARE_PASS_THROUGH32   _IOWR('M', 1, struct mrsas_iocpacket32)
+#endif
 
 #define MRSAS_IOC_SCAN_BUS                _IO('M',  10)
+
+#define MRSAS_LINUX_CMD32			0xc1144d01
 
 #define MAX_IOCTL_SGE                   16
 #define MFI_FRAME_DIR_READ              0x0010
@@ -93,5 +107,23 @@ struct mrsas_iocpacket {
     struct iovec sgl[MAX_IOCTL_SGE];
 };
 #pragma pack()
+
+#ifdef COMPAT_FREEBSD32
+#pragma pack(1)
+struct mrsas_iocpacket32 {
+    u_int16_t host_no;
+    u_int16_t __pad1;
+    u_int32_t sgl_off;
+    u_int32_t sge_count;
+    u_int32_t sense_off;
+    u_int32_t sense_len;
+    union {
+        u_int8_t raw[MEGAMFI_RAW_FRAME_SIZE];
+        struct mrsas_header hdr;
+    } frame;
+    struct iovec32 sgl[MAX_IOCTL_SGE];
+};
+#pragma pack()
+#endif /* COMPAT_FREEBSD32 */
 
 #endif /* MRSAS_IOCTL_H */

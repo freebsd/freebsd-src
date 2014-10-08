@@ -2419,6 +2419,14 @@ struct mrsas_evt_detail {
 
 } __packed;
 
+/* Controller management info added to support Linux Emulator */
+#define MAX_MGMT_ADAPTERS               1024
+
+struct mrsas_mgmt_info {
+	u_int16_t count;
+	struct mrsas_softc *sc_ptr[MAX_MGMT_ADAPTERS];
+	int max_index;
+};
 
 /*******************************************************************
  * per-instance data
