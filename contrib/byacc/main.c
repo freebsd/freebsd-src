@@ -1,4 +1,4 @@
-/* $Id: main.c,v 1.53 2014/10/06 00:55:28 tom Exp $ */
+/* $Id: main.c,v 1.54 2014/10/06 22:40:07 tom Exp $ */
 
 #include <signal.h>
 #ifndef _WIN32
@@ -574,7 +574,7 @@ open_tmpfile(const char *label)
     result = 0;
     if (name != 0)
     {
-	int save_umask = umask(0600);
+	mode_t save_umask = umask(0177);
 
 	if ((mark = strrchr(label, '_')) == 0)
 	    mark = label + strlen(label);
