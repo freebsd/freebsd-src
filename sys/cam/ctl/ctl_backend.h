@@ -144,6 +144,8 @@ typedef void (*be_lun_config_t)(void *be_lun,
  *
  * pblockoff is the lowest LBA on the LUN aligned ot physical sector.
  *
+ * atomicblock is the number of blocks that can be written atomically.
+ *
  * req_lun_id is the requested LUN ID.  CTL only pays attention to this
  * field if the CTL_LUN_FLAG_ID_REQ flag is set.  If the requested LUN ID is
  * not available, the LUN addition will fail.  If a particular LUN ID isn't
@@ -188,6 +190,7 @@ struct ctl_be_lun {
 	uint32_t		blocksize;	/* passed to CTL */
 	uint16_t		pblockexp;	/* passed to CTL */
 	uint16_t		pblockoff;	/* passed to CTL */
+	uint32_t		atomicblock;	/* passed to CTL */
 	uint32_t		req_lun_id;	/* passed to CTL */
 	uint32_t		lun_id;		/* returned from CTL */
 	uint8_t			serial_num[CTL_SN_LEN];	 /* passed to CTL */
