@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd March 26, 2014
+.Dd February 11, 2003
 .Dt DEVCTL 4
 .Os
 .Sh NAME
@@ -73,9 +73,9 @@ If you try to read this device a character at a time, you will lose
 the rest of the data.
 Listening programs are expected to cope.
 .Pp
-The sysctl
-.Va hw.bus.devctl_queue
-can be used to control queue length. It is set to 0 to disable
+The sysctl and boot parameter
+.Va hw.bus.devctl_disable
+is used to disable
 .Nm
 when no
 .Xr devd 8
