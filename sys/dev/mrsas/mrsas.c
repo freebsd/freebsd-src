@@ -65,6 +65,7 @@ static d_read_t     mrsas_read;
 static d_write_t    mrsas_write;
 static d_ioctl_t    mrsas_ioctl;
 
+static struct mrsas_mgmt_info mrsas_mgmt_info;
 static struct mrsas_ident *mrsas_find_ident(device_t);
 static void mrsas_shutdown_ctlr(struct mrsas_softc *sc, u_int32_t opcode);
 static void mrsas_flush_cache(struct mrsas_softc *sc);
@@ -137,7 +138,7 @@ extern void mrsas_free_frame(struct mrsas_softc *sc, struct mrsas_mfi_cmd *cmd);
 extern int mrsas_alloc_mfi_cmds(struct mrsas_softc *sc);
 extern void mrsas_release_mpt_cmd(struct mrsas_mpt_cmd *cmd); 
 extern struct mrsas_mpt_cmd *mrsas_get_mpt_cmd(struct mrsas_softc *sc);
-extern int mrsas_passthru(struct mrsas_softc *sc, void *arg);
+extern int mrsas_passthru(struct mrsas_softc *sc, void *arg, u_long ioctlCmd);
 extern uint8_t MR_ValidateMapInfo(struct mrsas_softc *sc);
 extern u_int16_t MR_GetLDTgtId(u_int32_t ld, MR_DRV_RAID_MAP_ALL *map);
 extern MR_LD_RAID *MR_LdRaidGet(u_int32_t ld, MR_DRV_RAID_MAP_ALL *map);
@@ -657,7 +658,7 @@ mrsas_register_aen(struct mrsas_softc *sc, u_int32_t seq_num,
 	dcmd->data_xfer_len = sizeof(struct mrsas_evt_detail);
 	dcmd->opcode = MR_DCMD_CTRL_EVENT_WAIT;
 	dcmd->mbox.w[0] = seq_num;
-    sc->last_seq_num = seq_num;
+	sc->last_seq_num = seq_num;
 	dcmd->mbox.w[1] = curr_aen.word;
 	dcmd->sgl.sge32[0].phys_addr = (u_int32_t) sc->evt_detail_phys_addr;
 	dcmd->sgl.sge32[0].length = sizeof(struct mrsas_evt_detail);
@@ -775,6 +776,8 @@ static int mrsas_attach(device_t dev)
     sc->mrsas_cdev = make_dev(&mrsas_cdevsw, device_get_unit(dev), UID_ROOT,
         GID_OPERATOR, (S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP), "mrsas%u",
         device_get_unit(dev));
+    if (device_get_unit(dev) == 0)
+		make_dev_alias(sc->mrsas_cdev, "megaraid_sas_ioctl_node");
     if (sc->mrsas_cdev)
     	sc->mrsas_cdev->si_drv1 = sc;
 
@@ -815,6 +818,17 @@ static int mrsas_attach(device_t dev)
 		printf("Error: start aen failed\n");
 		goto fail_start_aen;
 	}
+
+    /*
+     * Add this controller to mrsas_mgmt_info structure so that it
+     * can be exported to management applications
+     */
+    if (device_get_unit(dev) == 0)
+        memset(&mrsas_mgmt_info, 0, sizeof(mrsas_mgmt_info));
+
+    mrsas_mgmt_info.count++;
+    mrsas_mgmt_info.sc_ptr[mrsas_mgmt_info.max_index] = sc;
+    mrsas_mgmt_info.max_index++;
 
     return (0);
 
@@ -858,6 +872,19 @@ static int mrsas_detach(device_t dev)
 
     sc = device_get_softc(dev);
     sc->remove_in_progress = 1;
+
+    /*
+     * Take the instance off the instance array. Note that we will not
+     * decrement the max_index. We let this array be sparse array
+    */
+    for (i = 0; i < mrsas_mgmt_info.max_index; i++) {
+            if (mrsas_mgmt_info.sc_ptr[i] == sc) {
+                    mrsas_mgmt_info.count--;
+                    mrsas_mgmt_info.sc_ptr[i] = NULL;
+                    break;
+            }
+    }
+
     if(sc->ocr_thread_active)
         wakeup(&sc->ocr_chan);
     while(sc->reset_in_progress){
@@ -1101,8 +1128,19 @@ mrsas_ioctl(struct cdev *dev, u_long cmd, caddr_t arg, int flag, d_thread_t *td)
     struct mrsas_softc *sc;
     int ret = 0, i = 0; 
 
-    sc = (struct mrsas_softc *)(dev->si_drv1);
-    
+    struct mrsas_iocpacket *user_ioc = (struct mrsas_iocpacket *)arg;
+
+    /* get the Host number & the softc from data sent by the Application */
+    sc = mrsas_mgmt_info.sc_ptr[user_ioc->host_no];
+
+    if ((mrsas_mgmt_info.max_index == user_ioc->host_no) || (sc == NULL)) {
+            printf ("Please check the controller number\n");
+            if (sc == NULL)
+                    printf ("There is NO such Host no. %d\n", user_ioc->host_no);
+
+            return ENOENT;
+    }
+
     if (sc->remove_in_progress) {
         mrsas_dprint(sc, MRSAS_INFO,
             "Driver remove or shutdown called.\n");
@@ -1131,12 +1169,17 @@ mrsas_ioctl(struct cdev *dev, u_long cmd, caddr_t arg, int flag, d_thread_t *td)
 
 do_ioctl:
     switch (cmd) {
-        case MRSAS_IOC_FIRMWARE_PASS_THROUGH:
-            ret = mrsas_passthru(sc, (void *)arg);
+        case MRSAS_IOC_FIRMWARE_PASS_THROUGH64:
+#ifdef COMPAT_FREEBSD32
+        case MRSAS_IOC_FIRMWARE_PASS_THROUGH32:
+#endif
+            ret = mrsas_passthru(sc, (void *)arg, cmd);
             break;
         case MRSAS_IOC_SCAN_BUS:
             ret = mrsas_bus_scan(sc);
             break;
+	default:
+		mrsas_dprint(sc, MRSAS_TRACE, "IOCTL command 0x%lx is not handled\n", cmd);
     }
  
     return (ret);
