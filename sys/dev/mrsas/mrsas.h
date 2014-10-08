@@ -110,6 +110,7 @@ __FBSDID("$FreeBSD$");
 #define MRSAS_IO_TIMEOUT 180000      /* 180 second timeout */
 #define MRSAS_LDIO_QUEUE_DEPTH   70  /* 70 percent as default */
 #define THRESHOLD_REPLY_COUNT 50
+#define MAX_MSIX_COUNT 128
 
 /* 
  Boolean types 
@@ -1959,6 +1960,16 @@ struct mrsas_ctrl_info {
 #define MRSAS_DEFAULT_CMD_TIMEOUT             90
 #define MRSAS_THROTTLE_QUEUE_DEPTH            16
 
+/*
+ * MSI-x regsiters offset defines
+ */
+#define MPI2_SUP_REPLY_POST_HOST_INDEX_OFFSET   (0x0000030C)
+#define MPI2_REPLY_POST_HOST_INDEX_OFFSET       (0x0000006C)
+#define MR_MAX_REPLY_QUEUES_OFFSET		(0x0000001F)
+#define MR_MAX_REPLY_QUEUES_EXT_OFFSET		(0x003FC000)
+#define MR_MAX_REPLY_QUEUES_EXT_OFFSET_SHIFT	14
+#define MR_MAX_MSIX_REG_ARRAY			16
+
 /* 
  * FW reports the maximum of number of commands that it can accept (maximum
  * commands that can be outstanding) at any time. The driver must report a
@@ -1968,7 +1979,7 @@ struct mrsas_ctrl_info {
  */
 #define MRSAS_INT_CMDS                        32
 #define MRSAS_SKINNY_INT_CMDS                 5
-#define MRSAS_MAX_MSIX_QUEUES                 16
+#define MRSAS_MAX_MSIX_QUEUES                 128
 
 /*
  * FW can accept both 32 and 64 bit SGLs. We want to allocate 32/64 bit
@@ -1992,6 +2003,17 @@ struct mrsas_ctrl_info {
 #define MFI_1068_PCSR_OFFSET                    0x84
 #define MFI_1068_FW_HANDSHAKE_OFFSET            0x64
 #define MFI_1068_FW_READY                       0xDDDD0000
+
+typedef union _MFI_CAPABILITIES {
+        struct {
+                u_int32_t     support_fp_remote_lun:1;
+                u_int32_t     support_additional_msix:1;
+                u_int32_t     support_fastpath_wb:1;
+                u_int32_t     support_max_255lds:1;
+                u_int32_t     reserved:28;
+        } mfi_capabilities;
+        u_int32_t     reg;
+} MFI_CAPABILITIES;
 
 #pragma pack(1)
 struct mrsas_sge32 {
@@ -2034,18 +2056,6 @@ struct mrsas_header {
     u_int32_t data_xferlen;       /*14h */
 };
 #pragma pack()
-
-
-typedef union _MFI_CAPABILITIES {
-        struct {
-                u_int32_t     support_fp_remote_lun:1;
-                u_int32_t     support_additional_msix:1;
-                u_int32_t     support_fastpath_wb:1;
-                u_int32_t     support_max_255lds:1;
-                u_int32_t     reserved:28;
-        } mfi_capabilities;
-        u_int32_t     reg;
-} MFI_CAPABILITIES;
 
 #pragma pack(1)
 struct mrsas_init_frame {
@@ -2162,8 +2172,7 @@ struct mrsas_abort_frame {
     u_int8_t cmd_status;          /*02h */
 
     u_int8_t reserved_1;          /*03h */
-    u_int32_t reserved_2;         /*04h */
-
+    MFI_CAPABILITIES driver_operations;  /*04h */
     u_int32_t context;            /*08h */
     u_int32_t pad_0;              /*0Ch */
 
@@ -2419,6 +2428,11 @@ struct mrsas_evt_detail {
 
 } __packed;
 
+struct mrsas_irq_context {
+        struct mrsas_softc *sc;
+        uint32_t MSIxIndex;
+};
+
 /* Controller management info added to support Linux Emulator */
 #define MAX_MGMT_ADAPTERS               1024
 
@@ -2479,9 +2493,13 @@ struct mrsas_softc {
     struct mtx aen_lock;                  // aen lock
     uint32_t           max_fw_cmds;       // Max commands from FW
     uint32_t           max_num_sge;       // Max number of SGEs
-    struct resource    *mrsas_irq;        // interrupt interface window
-    void               *intr_handle;      // handle
-    int                irq_id;            // intr resource id
+    struct resource    *mrsas_irq[MAX_MSIX_COUNT];        // interrupt interface window
+    void               *intr_handle[MAX_MSIX_COUNT];      // handle
+    int                irq_id[MAX_MSIX_COUNT];            // intr resource id
+    struct mrsas_irq_context irq_context[MAX_MSIX_COUNT];
+    int                msix_vectors;      // Max msix vectors
+    int                msix_enable;      // MSI-x support
+    uint32_t           msix_reg_offset[16];
     struct mrsas_mpt_cmd   **mpt_cmd_list;
     struct mrsas_mfi_cmd   **mfi_cmd_list;
     TAILQ_HEAD(, mrsas_mpt_cmd) mrsas_mpt_cmd_list_head;
@@ -2492,7 +2510,7 @@ struct mrsas_softc {
     bus_addr_t         io_request_frames_phys;
     u_int8_t           *io_request_frames;
     bus_addr_t         reply_frames_desc_phys;
-    u_int16_t          last_reply_idx;
+    u_int16_t          last_reply_idx[MAX_MSIX_COUNT];
     u_int32_t          reply_q_depth;
     u_int32_t          request_alloc_sz;
     u_int32_t          reply_alloc_sz;
