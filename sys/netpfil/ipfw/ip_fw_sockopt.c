@@ -115,6 +115,8 @@ static int move_rules(struct ip_fw_chain *chain, ip_fw3_opheader *op3,
     struct sockopt_data *sd);
 static int manage_sets(struct ip_fw_chain *chain, ip_fw3_opheader *op3,
     struct sockopt_data *sd);
+static int dump_soptcodes(struct ip_fw_chain *chain, ip_fw3_opheader *op3,
+    struct sockopt_data *sd);
 
 /* ctl3 handler data */
 struct mtx ctl3_lock;
@@ -141,6 +143,7 @@ static struct ipfw_sopt_handler	scodes[] = {
 	{ IP_FW_SET_SWAP,	0,	HDIR_SET,	manage_sets },
 	{ IP_FW_SET_MOVE,	0,	HDIR_SET,	manage_sets },
 	{ IP_FW_SET_ENABLE,	0,	HDIR_SET,	manage_sets },
+	{ IP_FW_DUMP_SOPTCODES,	0,	HDIR_GET,	dump_soptcodes },
 };
 
 /*
@@ -2282,6 +2285,57 @@ add_rules(struct ip_fw_chain *chain, ip_fw3_opheader *op3,
 		free(cbuf, M_TEMP);
 
 	return (error);
+}
+
+/*
+ * Lists all sopts currently registered.
+ * Data layout (v0)(current):
+ * Request: [ ipfw_obj_lheader ], size = ipfw_obj_lheader.size
+ * Reply: [ ipfw_obj_lheader ipfw_sopt_info x N ]
+ *
+ * Returns 0 on success
+ */
+static int
+dump_soptcodes(struct ip_fw_chain *chain, ip_fw3_opheader *op3,
+    struct sockopt_data *sd)
+{
+	struct _ipfw_obj_lheader *olh;
+	ipfw_sopt_info *i;
+	struct ipfw_sopt_handler *sh;
+	uint32_t count, n, size;
+
+	olh = (struct _ipfw_obj_lheader *)ipfw_get_sopt_header(sd,sizeof(*olh));
+	if (olh == NULL)
+		return (EINVAL);
+	if (sd->valsize < olh->size)
+		return (EINVAL);
+
+	CTL3_LOCK();
+	count = ctl3_hsize;
+	size = count * sizeof(ipfw_sopt_info) + sizeof(ipfw_obj_lheader);
+
+	/* Fill in header regadless of buffer size */
+	olh->count = count;
+	olh->objsize = sizeof(ipfw_sopt_info);
+
+	if (size > olh->size) {
+		olh->size = size;
+		CTL3_UNLOCK();
+		return (ENOMEM);
+	}
+	olh->size = size;
+
+	for (n = 1; n <= count; n++) {
+		i = (ipfw_sopt_info *)ipfw_get_sopt_space(sd, sizeof(*i));
+		KASSERT(i != 0, ("previously checked buffer is not enough"));
+		sh = &ctl3_handlers[n];
+		i->opcode = sh->opcode;
+		i->version = sh->version;
+		i->refcnt = sh->refcnt;
+	}
+	CTL3_UNLOCK();
+
+	return (0);
 }
 
 /*
