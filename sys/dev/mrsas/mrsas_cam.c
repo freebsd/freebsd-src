@@ -49,7 +49,13 @@ __FBSDID("$FreeBSD$");
 #include <cam/scsi/scsi_all.h>
 #include <cam/scsi/scsi_message.h>
 #include <sys/taskqueue.h>
+#include <sys/kernel.h>
 
+
+#include <sys/time.h> /* XXX for pcpu.h */
+#include <sys/pcpu.h> /* XXX for PCPU_GET */
+
+#define smp_processor_id()  PCPU_GET(cpuid)
 
 /*
  * Function prototypes
@@ -794,7 +800,11 @@ int mrsas_setup_io(struct mrsas_softc *sc, struct mrsas_mpt_cmd *cmd,
             fp_possible = io_info.fpOkForIo;
     }
 
-    if (fp_possible) {
+	cmd->request_desc->SCSIIO.MSIxIndex =
+		sc->msix_vectors ? smp_processor_id() % sc->msix_vectors : 0;
+
+
+	if (fp_possible) {
         mrsas_set_pd_lba(io_request, csio->cdb_len, &io_info, ccb, map_ptr, 
             start_lba_lo, ld_block_size);
         io_request->Function = MPI2_FUNCTION_SCSI_IO_REQUEST;
@@ -881,6 +891,9 @@ int mrsas_build_dcdb(struct mrsas_softc *sc, struct mrsas_mpt_cmd *cmd,
             MRSAS_REQ_DESCRIPT_FLAGS_TYPE_SHIFT);
         cmd->request_desc->SCSIIO.DevHandle = 
             map_ptr->raidMap.devHndlInfo[device_id].curDevHdl;
+		cmd->request_desc->SCSIIO.MSIxIndex =
+			sc->msix_vectors ? smp_processor_id() % sc->msix_vectors : 0;
+
     }
     else {
         io_request->Function  = MRSAS_MPI2_FUNCTION_LD_IO_REQUEST;

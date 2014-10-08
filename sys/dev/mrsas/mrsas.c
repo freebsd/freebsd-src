@@ -54,6 +54,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/types.h>
 #include <sys/kthread.h>
 #include <sys/taskqueue.h>
+#include <sys/smp.h>
 
 
 /* 
@@ -67,6 +68,8 @@ static d_ioctl_t    mrsas_ioctl;
 
 static struct mrsas_mgmt_info mrsas_mgmt_info;
 static struct mrsas_ident *mrsas_find_ident(device_t);
+static int mrsas_setup_msix(struct mrsas_softc *sc);
+static int mrsas_allocate_msix(struct mrsas_softc *sc);
 static void mrsas_shutdown_ctlr(struct mrsas_softc *sc, u_int32_t opcode);
 static void mrsas_flush_cache(struct mrsas_softc *sc);
 static void mrsas_reset_reply_desc(struct mrsas_softc *sc);
@@ -80,7 +83,7 @@ static int mrsas_setup_irq(struct mrsas_softc *sc);
 static int mrsas_alloc_mem(struct mrsas_softc *sc);
 static int mrsas_init_fw(struct mrsas_softc *sc);
 static int mrsas_setup_raidmap(struct mrsas_softc *sc);
-static int mrsas_complete_cmd(struct mrsas_softc *sc);
+static int mrsas_complete_cmd(struct mrsas_softc *sc, u_int32_t MSIxIndex);
 static int mrsas_clear_intr(struct mrsas_softc *sc);
 static int mrsas_get_ctrl_info(struct mrsas_softc *sc, 
                           struct mrsas_ctrl_info *ctrl_info);
@@ -150,7 +153,6 @@ extern int mrsas_bus_scan_sim(struct mrsas_softc *sc, struct cam_sim *sim);
 static int mrsas_alloc_evt_log_info_cmd(struct mrsas_softc *sc);
 static void mrsas_free_evt_log_info_cmd(struct mrsas_softc *sc);
 SYSCTL_NODE(_hw, OID_AUTO, mrsas, CTLFLAG_RD, 0, "MRSAS Driver Parameters");
-
 
 /**
  * PCI device struct and table
@@ -709,8 +711,63 @@ static int mrsas_start_aen(struct mrsas_softc *sc)
 
 	return mrsas_register_aen(sc, eli.newest_seq_num + 1,
 				class_locale.word);
+
 }
 
+/**
+ * mrsas_setup_msix:	Allocate MSI-x vectors
+ * @sc:					Adapter soft state
+ */
+static int mrsas_setup_msix(struct mrsas_softc *sc)
+{
+	int i;
+	for (i = 0; i < sc->msix_vectors; i++) {
+		sc->irq_context[i].sc = sc;
+        sc->irq_context[i].MSIxIndex = i;
+		sc->irq_id[i] = i + 1;
+		sc->mrsas_irq[i] = bus_alloc_resource_any
+			(sc->mrsas_dev, SYS_RES_IRQ, &sc->irq_id[i]
+			 , RF_ACTIVE);
+		if (sc->mrsas_irq[i] == NULL) {
+			device_printf(sc->mrsas_dev, "Can't allocate MSI-x\n");
+			goto irq_alloc_failed;
+		}
+		if (bus_setup_intr(sc->mrsas_dev,
+			sc->mrsas_irq[i],
+			INTR_MPSAFE|INTR_TYPE_CAM,
+			NULL, mrsas_isr, &sc->irq_context[i],
+			&sc->intr_handle[i])) {
+			device_printf(sc->mrsas_dev,
+				"Cannot set up MSI-x interrupt handler\n");
+			goto irq_alloc_failed;
+		}
+	}
+	return SUCCESS;
+
+irq_alloc_failed:
+	mrsas_teardown_intr(sc);
+	return (FAIL);
+}
+
+/**
+ * mrsas_allocate_msix:		Setup MSI-x vectors
+ * @sc:						Adapter soft state
+ */
+static int mrsas_allocate_msix(struct mrsas_softc *sc)
+{
+	if (pci_alloc_msix(sc->mrsas_dev, &sc->msix_vectors) == 0) {
+		device_printf(sc->mrsas_dev, "Using MSI-X with %d number"
+				" of vectors\n", sc->msix_vectors);
+	} else {
+		device_printf(sc->mrsas_dev, "MSI-x setup failed\n");
+		goto irq_alloc_failed;
+	}
+	return SUCCESS;
+
+irq_alloc_failed:
+	mrsas_teardown_intr(sc);
+	return (FAIL);
+}
 /**
  * mrsas_attach:            PCI entry point
  * input:                   device struct pointer 
@@ -784,6 +841,8 @@ static int mrsas_attach(device_t dev)
     sc->adprecovery = MRSAS_HBA_OPERATIONAL;
 	sc->UnevenSpanSupport = 0;
 
+    sc->msix_enable = 0;
+
     /* Initialize Firmware */
     if (mrsas_init_fw(sc) != SUCCESS) {
         goto attach_fail_fw;
@@ -793,6 +852,7 @@ static int mrsas_attach(device_t dev)
     if ((mrsas_cam_attach(sc) != SUCCESS)) {
         goto attach_fail_cam;
     }
+
 
     /* Register IRQs */
     if (mrsas_setup_irq(sc) != SUCCESS) {
@@ -838,7 +898,9 @@ attach_fail_irq:
 attach_fail_cam:
     mrsas_cam_detach(sc);
 attach_fail_fw:
-//attach_fail_raidmap:
+    /* if MSIX vector is allocated and FW Init FAILED then release MSIX */
+    if (sc->msix_enable == 1)
+		pci_release_msi(sc->mrsas_dev);
     mrsas_free_mem(sc);
     mtx_destroy(&sc->sim_lock);
     mtx_destroy(&sc->aen_lock);
@@ -1081,11 +1143,28 @@ void mrsas_free_mem(struct mrsas_softc *sc)
  */
 void mrsas_teardown_intr(struct mrsas_softc *sc)
 {
-    if (sc->intr_handle)
-        bus_teardown_intr(sc->mrsas_dev, sc->mrsas_irq, sc->intr_handle);
-    if (sc->mrsas_irq != NULL)
-        bus_release_resource(sc->mrsas_dev, SYS_RES_IRQ, sc->irq_id, sc->mrsas_irq);
-    sc->intr_handle = NULL;
+    int i;
+    if (!sc->msix_enable) {
+	    if (sc->intr_handle[0])
+		bus_teardown_intr(sc->mrsas_dev, sc->mrsas_irq[0], sc->intr_handle[0]);
+	    if (sc->mrsas_irq[0] != NULL)
+		bus_release_resource(sc->mrsas_dev, SYS_RES_IRQ, sc->irq_id[0], sc->mrsas_irq[0]);
+	    sc->intr_handle[0] = NULL;
+    } else {
+		for (i = 0; i < sc->msix_vectors; i++) {
+			if (sc->intr_handle[i])
+				bus_teardown_intr(sc->mrsas_dev, sc->mrsas_irq[i],
+					sc->intr_handle[i]);
+
+			if (sc->mrsas_irq[i] != NULL)
+				bus_release_resource(sc->mrsas_dev, SYS_RES_IRQ,
+					sc->irq_id[i], sc->mrsas_irq[i]);
+
+			sc->intr_handle[i] = NULL;
+		}
+		pci_release_msi(sc->mrsas_dev);
+	}
+
 }
 
 /**
@@ -1195,19 +1274,29 @@ do_ioctl:
  */
 static int mrsas_setup_irq(struct mrsas_softc *sc)
 {
-    sc->irq_id = 0;
-    sc->mrsas_irq = bus_alloc_resource_any(sc->mrsas_dev, SYS_RES_IRQ,
-                        &sc->irq_id, RF_SHAREABLE | RF_ACTIVE);
-    if (sc->mrsas_irq == NULL){
-        device_printf(sc->mrsas_dev, "Cannot allocate interrupt\n");
-        return (FAIL);
-    }
-    if (bus_setup_intr(sc->mrsas_dev, sc->mrsas_irq, INTR_MPSAFE|INTR_TYPE_CAM,
-                       NULL, mrsas_isr, sc, &sc->intr_handle)) {
-        device_printf(sc->mrsas_dev, "Cannot set up interrupt\n");
-        return (FAIL);
-    }
+    if (sc->msix_enable && (mrsas_setup_msix(sc) == SUCCESS))
+		device_printf(sc->mrsas_dev, "MSI-x interrupts setup success\n");
 
+	else {
+			device_printf(sc->mrsas_dev, "Fall back to legacy interrupt\n");
+			sc->irq_context[0].sc = sc;
+			sc->irq_context[0].MSIxIndex = 0;
+			sc->irq_id[0] = 0;
+			sc->mrsas_irq[0] = bus_alloc_resource_any(sc->mrsas_dev,
+				SYS_RES_IRQ, &sc->irq_id[0], RF_SHAREABLE | RF_ACTIVE);
+			if (sc->mrsas_irq[0] == NULL){
+				device_printf(sc->mrsas_dev, "Cannot allocate legcay"
+					"interrupt\n");
+				return (FAIL);
+			}
+			if (bus_setup_intr(sc->mrsas_dev, sc->mrsas_irq[0],
+					INTR_MPSAFE|INTR_TYPE_CAM, NULL, mrsas_isr,
+					&sc->irq_context[0], &sc->intr_handle[0])) {
+					device_printf(sc->mrsas_dev, "Cannot set up legacy"
+						"interrupt\n");
+				return (FAIL);
+			}
+	}
     return (0);
 }
 
@@ -1221,16 +1310,16 @@ static int mrsas_setup_irq(struct mrsas_softc *sc)
  */
 void mrsas_isr(void *arg)
 {
-    struct mrsas_softc *sc = (struct mrsas_softc *)arg;
-    int status;
+    struct mrsas_irq_context *irq_context = (struct mrsas_irq_context *)arg;
+    struct mrsas_softc *sc = irq_context->sc;
+    int status = 0;
 
-    /* Clear FW state change interrupt */
-    status = mrsas_clear_intr(sc);
+	if (!sc->msix_vectors) {
+		status = mrsas_clear_intr(sc);
+			if (!status)
+				return;
+	}
 
-    /* Not our interrupt */
-    if (!status)
-        return;
-    
     /* If we are resetting, bail */
     if (test_bit(MRSAS_FUSION_IN_RESET, &sc->reset_flags)) {
         printf(" Entered into ISR when OCR is going active. \n");
@@ -1238,7 +1327,7 @@ void mrsas_isr(void *arg)
         return;
     }
     /* Process for reply request and clear response interrupt */
-    if (mrsas_complete_cmd(sc) != SUCCESS) 
+    if (mrsas_complete_cmd(sc, irq_context->MSIxIndex) != SUCCESS)
         mrsas_clear_intr(sc);
 
     return;
@@ -1255,7 +1344,7 @@ void mrsas_isr(void *arg)
  * the command type and perform the appropriate action.  Before we
  * return, we clear the response interrupt.
  */
-static int mrsas_complete_cmd(struct mrsas_softc *sc)
+static int mrsas_complete_cmd(struct mrsas_softc *sc, u_int32_t MSIxIndex)
 {
     Mpi2ReplyDescriptorsUnion_t *desc;
     MPI2_SCSI_IO_SUCCESS_REPLY_DESCRIPTOR *reply_desc;
@@ -1276,7 +1365,9 @@ static int mrsas_complete_cmd(struct mrsas_softc *sc)
         return (DONE);
 
     desc = sc->reply_desc_mem;
-    desc += sc->last_reply_idx;
+    //desc += sc->last_reply_idx[0];
+    desc += ((MSIxIndex * sc->reply_alloc_sz)/sizeof(MPI2_REPLY_DESCRIPTORS_UNION))
+               + sc->last_reply_idx[MSIxIndex];
 
     reply_desc = (MPI2_SCSI_IO_SUCCESS_REPLY_DESCRIPTOR *)desc;
 
@@ -1321,18 +1412,19 @@ static int mrsas_complete_cmd(struct mrsas_softc *sc)
                 break;
         }
 
-        sc->last_reply_idx++;
-        if (sc->last_reply_idx >= sc->reply_q_depth) 
-            sc->last_reply_idx = 0;
+        sc->last_reply_idx[MSIxIndex]++;
+        if (sc->last_reply_idx[MSIxIndex] >= sc->reply_q_depth)
+            sc->last_reply_idx[MSIxIndex] = 0;
 
         desc->Words = ~((uint64_t)0x00); /* set it back to all 0xFFFFFFFFs */
         num_completed++;
         threshold_reply_count++;
 
         /* Get the next reply descriptor */
-        if (!sc->last_reply_idx)
+        if (!sc->last_reply_idx[MSIxIndex]){
             desc = sc->reply_desc_mem;
-        else
+            desc += ((MSIxIndex * sc->reply_alloc_sz)/sizeof(MPI2_REPLY_DESCRIPTORS_UNION));
+        } else
             desc++;
 
         reply_desc = (MPI2_SCSI_IO_SUCCESS_REPLY_DESCRIPTOR *)desc;
@@ -1349,18 +1441,40 @@ static int mrsas_complete_cmd(struct mrsas_softc *sc)
          * completed.
          */
         if (threshold_reply_count >= THRESHOLD_REPLY_COUNT) {
-            mrsas_write_reg(sc, offsetof(mrsas_reg_set, reply_post_host_index),
-                            sc->last_reply_idx);
-            threshold_reply_count = 0;
+				if (sc->msix_enable) {
+					if ((sc->device_id == MRSAS_INVADER) ||
+						(sc->device_id == MRSAS_FURY))
+						mrsas_write_reg(sc, sc->msix_reg_offset[MSIxIndex/8],
+						   ((MSIxIndex & 0x7) << 24) |
+						   sc->last_reply_idx[MSIxIndex]);
+					 else
+						mrsas_write_reg(sc, sc->msix_reg_offset[0], (MSIxIndex << 24) |
+						   sc->last_reply_idx[MSIxIndex]);
+				 } else
+					mrsas_write_reg(sc, offsetof(mrsas_reg_set,
+					 reply_post_host_index),sc->last_reply_idx[0]);
+
+				 threshold_reply_count = 0;
+				}
         }
-    }
 
     /* No match, just return */
     if (num_completed == 0)
         return (DONE);
 
     /* Clear response interrupt */
-    mrsas_write_reg(sc, offsetof(mrsas_reg_set, reply_post_host_index),sc->last_reply_idx); 
+     if (sc->msix_enable) {
+	     if ((sc->device_id == MRSAS_INVADER) ||
+                    (sc->device_id == MRSAS_FURY)){
+		    mrsas_write_reg(sc, sc->msix_reg_offset[MSIxIndex/8],
+                       ((MSIxIndex & 0x7) << 24) |
+                       sc->last_reply_idx[MSIxIndex]);
+		} else
+		    mrsas_write_reg(sc, sc->msix_reg_offset[0], (MSIxIndex << 24) |
+                       sc->last_reply_idx[MSIxIndex]);
+     } else
+            mrsas_write_reg(sc, offsetof(mrsas_reg_set,
+                 reply_post_host_index),sc->last_reply_idx[0]);
 
     return(0);
 }
@@ -1423,7 +1537,7 @@ void mrsas_map_mpt_cmd_status(struct mrsas_mpt_cmd *cmd, u_int8_t status, u_int8
 static int mrsas_alloc_mem(struct mrsas_softc *sc)
 {
     u_int32_t verbuf_size, io_req_size, reply_desc_size, sense_size,
-              chain_frame_size, evt_detail_size;
+              chain_frame_size, evt_detail_size, count;
 
     /*
      * Allocate parent DMA tag
@@ -1537,10 +1651,11 @@ static int mrsas_alloc_mem(struct mrsas_softc *sc)
         return (ENOMEM);
     }
 
+    count = sc->msix_vectors > 0 ? sc->msix_vectors : 1;
     /*
      * Allocate Reply Descriptor Array
      */ 
-    reply_desc_size = sc->reply_alloc_sz; 
+    reply_desc_size = sc->reply_alloc_sz * count;
     if (bus_dma_tag_create( sc->mrsas_parent_tag,   // parent
                             16, 0,                   // algnmnt, boundary
                             BUS_SPACE_MAXADDR_32BIT,// lowaddr
@@ -1796,13 +1911,15 @@ ABORT:
  */
 static int mrsas_init_fw(struct mrsas_softc *sc)
 {
+
+    int ret, loop, ocr = 0;
     u_int32_t max_sectors_1;
     u_int32_t max_sectors_2;
     u_int32_t tmp_sectors;
     struct mrsas_ctrl_info *ctrl_info;
-
-    int ret, ocr = 0;
-
+    u_int32_t scratch_pad_2;
+    int msix_enable = 0;
+    int fw_msix_count = 0;
       
     /* Make sure Firmware is ready */
     ret = mrsas_transition_to_ready(sc, ocr);
@@ -1810,7 +1927,57 @@ static int mrsas_init_fw(struct mrsas_softc *sc)
         return(ret);
 	}
 
-    /* Get operational params, sge flags, send init cmd to ctlr */
+
+    /* MSI-x index 0- reply post host index register */
+	sc->msix_reg_offset[0] = MPI2_REPLY_POST_HOST_INDEX_OFFSET;
+	/* Check if MSI-X is supported while in ready state */
+	msix_enable = (mrsas_read_reg(sc, offsetof(mrsas_reg_set, outbound_scratch_pad)) & 0x4000000) >> 0x1a;
+
+	if (msix_enable) {
+		scratch_pad_2 = mrsas_read_reg(sc, offsetof(mrsas_reg_set,
+			outbound_scratch_pad_2));
+
+		/* Check max MSI-X vectors */
+		if (sc->device_id == MRSAS_TBOLT) {
+			sc->msix_vectors = (scratch_pad_2
+				& MR_MAX_REPLY_QUEUES_OFFSET) + 1;
+			fw_msix_count = sc->msix_vectors;
+		} else {
+			/* Invader/Fury supports 96 MSI-X vectors */
+			sc->msix_vectors = ((scratch_pad_2
+				& MR_MAX_REPLY_QUEUES_EXT_OFFSET)
+				>> MR_MAX_REPLY_QUEUES_EXT_OFFSET_SHIFT) +				1;
+			fw_msix_count = sc->msix_vectors;
+
+			/* Save 1-15 reply post index address to local
+			 * memory
+			 * Index 0 is already saved from reg offset
+			 * MPI2_REPLY_POST_HOST_INDEX_OFFSET
+			 */
+			for (loop = 1; loop < MR_MAX_MSIX_REG_ARRAY;
+				loop++) {
+				sc->msix_reg_offset[loop] =
+				MPI2_SUP_REPLY_POST_HOST_INDEX_OFFSET +
+				(loop * 0x10);
+			}
+		}
+
+		/* Don't bother allocating more MSI-X vectors than cpus */
+		sc->msix_vectors = min(sc->msix_vectors,
+					 mp_ncpus);
+
+		/* Allocate MSI-x vectors */
+		if (mrsas_allocate_msix(sc) == SUCCESS)
+			sc->msix_enable = 1;
+		else
+			sc->msix_enable = 0;
+
+		device_printf(sc->mrsas_dev, "FW supports <%d> MSIX vector,"
+						"Online CPU %d Current MSIX <%d>\n",
+						fw_msix_count, mp_ncpus, sc->msix_vectors);
+	}
+
+	/* Get operational params, sge flags, send init cmd to ctlr */
     if (mrsas_init_adapter(sc) != SUCCESS){
         device_printf(sc->mrsas_dev, "Adapter initialize Fail.\n");
         return(1);
@@ -1907,6 +2074,7 @@ int mrsas_init_adapter(struct mrsas_softc *sc)
     uint32_t status;
     u_int32_t max_cmd;
     int ret;
+    int i = 0;
 
     /* Read FW status register */
     status = mrsas_read_reg(sc, offsetof(mrsas_reg_set, outbound_scratch_pad));
@@ -1919,7 +2087,7 @@ int mrsas_init_adapter(struct mrsas_softc *sc)
     max_cmd = sc->max_fw_cmds;
 
     /* Determine allocation size of command frames */
-    sc->reply_q_depth = ((max_cmd *2 +1 +15)/16*16);
+    sc->reply_q_depth = ((max_cmd +1 +15)/16*16);
     sc->request_alloc_sz = sizeof(MRSAS_REQUEST_DESCRIPTOR_UNION) * max_cmd;
     sc->reply_alloc_sz = sizeof(MPI2_REPLY_DESCRIPTORS_UNION) * (sc->reply_q_depth);
     sc->io_frames_alloc_sz = MRSAS_MPI2_RAID_DEFAULT_IO_FRAME_SIZE + (MRSAS_MPI2_RAID_DEFAULT_IO_FRAME_SIZE * (max_cmd + 1));
@@ -1936,7 +2104,9 @@ int mrsas_init_adapter(struct mrsas_softc *sc)
     sc->chain_offset_io_request = (MRSAS_MPI2_RAID_DEFAULT_IO_FRAME_SIZE - 
         sizeof(MPI2_SGE_IO_UNION))/16;
 
-    sc->last_reply_idx = 0;
+    int count = sc->msix_vectors > 0 ? sc->msix_vectors : 1;
+    for (i = 0 ; i < count; i++)
+		sc->last_reply_idx[i] = 0;
 
     ret = mrsas_alloc_mem(sc);
     if (ret != SUCCESS)
@@ -1949,6 +2119,7 @@ int mrsas_init_adapter(struct mrsas_softc *sc)
     ret = mrsas_ioc_init(sc);
     if (ret != SUCCESS)
         return(ret);
+
 	
     
     return(0);
@@ -2042,11 +2213,20 @@ int mrsas_ioc_init(struct mrsas_softc *sc)
     IOCInitMsg->ReplyDescriptorPostQueueDepth = sc->reply_q_depth;
     IOCInitMsg->ReplyDescriptorPostQueueAddress = sc->reply_desc_phys_addr;
     IOCInitMsg->SystemRequestFrameBaseAddress = sc->io_request_phys_addr;
+    IOCInitMsg->HostMSIxVectors = (sc->msix_vectors > 0 ? sc->msix_vectors : 0);
 
     init_frame = (struct mrsas_init_frame *)sc->ioc_init_mem;
     init_frame->cmd = MFI_CMD_INIT;
     init_frame->cmd_status = 0xFF;
     init_frame->flags |= MFI_FRAME_DONT_POST_IN_REPLY_QUEUE;
+
+    /* driver support Extended MSIX */
+    if ((sc->device_id == MRSAS_INVADER) ||
+         (sc->device_id == MRSAS_FURY)) {
+             init_frame->driver_operations.
+                mfi_capabilities.support_additional_msix = 1;
+    }
+
 
     if (sc->verbuf_mem) {
         snprintf((char *)sc->verbuf_mem, strlen(MRSAS_VERSION)+2,"%s\n",
@@ -2113,7 +2293,7 @@ int mrsas_ioc_init(struct mrsas_softc *sc)
 int mrsas_alloc_mpt_cmds(struct mrsas_softc *sc)
 {
     int i, j;
-    u_int32_t max_cmd;
+    u_int32_t max_cmd, count;
     struct mrsas_mpt_cmd *cmd;
     pMpi2ReplyDescriptorsUnion_t reply_desc;
     u_int32_t offset, chain_offset, sense_offset;
@@ -2183,7 +2363,8 @@ int mrsas_alloc_mpt_cmds(struct mrsas_softc *sc)
     
     /* Initialize reply descriptor array to 0xFFFFFFFF */
     reply_desc = sc->reply_desc_mem;
-    for (i = 0; i < sc->reply_q_depth; i++, reply_desc++) {
+    count = sc->msix_vectors > 0 ? sc->msix_vectors : 1;
+    for (i = 0; i < sc->reply_q_depth * count ; i++, reply_desc++) {
         reply_desc->Words = MRSAS_ULONG_MAX;
     }
     return(0);
@@ -2400,11 +2581,14 @@ mrsas_ocr_thread(void *arg)
  */
 void  mrsas_reset_reply_desc(struct mrsas_softc *sc)
 {
-    int i;
+    int i, count;
     pMpi2ReplyDescriptorsUnion_t reply_desc;
 
-    sc->last_reply_idx = 0;
-    reply_desc = sc->reply_desc_mem;
+    count = sc->msix_vectors > 0 ? sc->msix_vectors : 1;
+    for (i = 0 ; i < count ; i++)
+		sc->last_reply_idx[i] = 0;
+
+	reply_desc = sc->reply_desc_mem;
     for (i = 0; i < sc->reply_q_depth; i++, reply_desc++) {
         reply_desc->Words = MRSAS_ULONG_MAX;
     }
@@ -2641,7 +2825,8 @@ void mrsas_kill_hba (struct mrsas_softc *sc)
 int mrsas_wait_for_outstanding(struct mrsas_softc *sc)
 {
     int i, outstanding, retval = 0;
-    u_int32_t fw_state;
+    u_int32_t fw_state, count, MSIxIndex;
+
 
     for (i = 0; i < MRSAS_RESET_WAIT_TIME; i++) {
         if (sc->remove_in_progress) {
@@ -2666,7 +2851,9 @@ int mrsas_wait_for_outstanding(struct mrsas_softc *sc)
         if (!(i % MRSAS_RESET_NOTICE_INTERVAL)) {
             mrsas_dprint(sc, MRSAS_OCR, "[%2d]waiting for %d "
                                 "commands to complete\n",i,outstanding);
-            mrsas_complete_cmd(sc);
+            count = sc->msix_vectors > 0 ? sc->msix_vectors : 1;
+            for (MSIxIndex = 0 ; MSIxIndex < count; MSIxIndex++)
+                  mrsas_complete_cmd(sc, MSIxIndex);
         }
         DELAY(1000 * 1000);
     }
