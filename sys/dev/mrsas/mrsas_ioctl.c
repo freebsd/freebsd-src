@@ -51,11 +51,9 @@ __FBSDID("$FreeBSD$");
  * Function prototypes 
  */
 int mrsas_alloc_mfi_cmds(struct mrsas_softc *sc);
-int mrsas_passthru(struct mrsas_softc *sc, void *arg);
+int mrsas_passthru(struct mrsas_softc *sc, void *arg, u_long ioctlCmd);
 void mrsas_free_ioc_cmd(struct mrsas_softc *sc);
 void mrsas_free_frame(struct mrsas_softc *sc, struct mrsas_mfi_cmd *cmd);
-void mrsas_dump_dcmd(struct mrsas_softc *sc, struct mrsas_dcmd_frame* dcmd);
-void mrsas_dump_ioctl(struct mrsas_softc *sc, struct mrsas_iocpacket *user_ioc);
 void * mrsas_alloc_frame(struct mrsas_softc *sc, struct mrsas_mfi_cmd *cmd);
 static int mrsas_create_frame_pool(struct mrsas_softc *sc);
 static void mrsas_alloc_cb(void *arg, bus_dma_segment_t *segs,
@@ -66,79 +64,6 @@ extern void mrsas_release_mfi_cmd(struct mrsas_mfi_cmd *cmd);
 extern int mrsas_issue_blocked_cmd(struct mrsas_softc *sc,
     struct mrsas_mfi_cmd *cmd);
 
-
-/**
- * mrsas_dump_ioctl:       Print debug output for DCMDs 
- * input:                  Adapter instance soft state
- *                         DCMD frame structure
- *
- * This function is called from mrsas_passthru() to print out debug information
- * in the handling and routing of DCMD commands.
- */
-void mrsas_dump_dcmd( struct mrsas_softc *sc, struct mrsas_dcmd_frame* dcmd )
-{
-    int i;
-
-    device_printf(sc->mrsas_dev, "dcmd->cmd:           0x%02hhx\n", dcmd->cmd);
-    device_printf(sc->mrsas_dev, "dcmd->cmd_status:    0x%02hhx\n", dcmd->cmd_status);
-    device_printf(sc->mrsas_dev, "dcmd->sge_count:     0x%02hhx\n", dcmd->sge_count);
-    device_printf(sc->mrsas_dev, "dcmd->context:       0x%08x\n", dcmd->context);
-    device_printf(sc->mrsas_dev, "dcmd->flags:         0x%04hx\n", dcmd->flags);
-    device_printf(sc->mrsas_dev, "dcmd->timeout:       0x%04hx\n", dcmd->timeout);
-    device_printf(sc->mrsas_dev, "dcmd->data_xfer_len: 0x%08x\n", dcmd->data_xfer_len);
-    device_printf(sc->mrsas_dev, "dcmd->opcode:        0x%08x\n", dcmd->opcode);
-    device_printf(sc->mrsas_dev, "dcmd->mbox.w[0]:     0x%08x\n", dcmd->mbox.w[0]);
-    device_printf(sc->mrsas_dev, "dcmd->mbox.w[1]:     0x%08x\n", dcmd->mbox.w[1]);
-    device_printf(sc->mrsas_dev, "dcmd->mbox.w[2]:     0x%08x\n", dcmd->mbox.w[2]);
-    for (i=0; i< MIN(MAX_IOCTL_SGE, dcmd->sge_count); i++) {
-        device_printf(sc->mrsas_dev, "sgl[%02d]\n", i);
-        device_printf(sc->mrsas_dev, "    sge32[%02d].phys_addr: 0x%08x\n",  
-            i, dcmd->sgl.sge32[i].phys_addr);
-        device_printf(sc->mrsas_dev, "    sge32[%02d].length:    0x%08x\n", 
-            i, dcmd->sgl.sge32[i].length);
-        device_printf(sc->mrsas_dev, "    sge64[%02d].phys_addr: 0x%08llx\n",
-            i, (long long unsigned int) dcmd->sgl.sge64[i].phys_addr);
-        device_printf(sc->mrsas_dev, "    sge64[%02d].length:    0x%08x\n", 
-            i, dcmd->sgl.sge64[i].length);
-    }
-}
-
-/**
- * mrsas_dump_ioctl:       Print debug output for ioctl 
- * input:                  Adapter instance soft state
- *                         iocpacket structure 
- *
- * This function is called from mrsas_passthru() to print out debug information
- * in the handling and routing of ioctl commands.
- */
-void mrsas_dump_ioctl(struct mrsas_softc *sc, struct mrsas_iocpacket *user_ioc)
-{
-    union mrsas_frame *in_cmd = (union mrsas_frame *) &(user_ioc->frame.raw);
-    struct mrsas_dcmd_frame* dcmd = (struct mrsas_dcmd_frame *) &(in_cmd->dcmd);
-    int i;
- 
-    device_printf(sc->mrsas_dev, 
-        "====== In %s() ======================================\n", __func__);
-    device_printf(sc->mrsas_dev, "host_no:    0x%04hx\n", user_ioc->host_no);
-    device_printf(sc->mrsas_dev, " __pad1:    0x%04hx\n", user_ioc->__pad1);
-    device_printf(sc->mrsas_dev, "sgl_off:    0x%08x\n",  user_ioc->sgl_off);
-    device_printf(sc->mrsas_dev, "sge_count:  0x%08x\n",  user_ioc->sge_count);
-    device_printf(sc->mrsas_dev, "sense_off:  0x%08x\n",  user_ioc->sense_off);
-    device_printf(sc->mrsas_dev, "sense_len:  0x%08x\n",  user_ioc->sense_len);
-
-    mrsas_dump_dcmd(sc, dcmd);
-
-    for (i=0; i< MIN(MAX_IOCTL_SGE, user_ioc->sge_count); i++) {
-        device_printf(sc->mrsas_dev, "sge[%02d]\n", i);
-        device_printf(sc->mrsas_dev, 
-            "    iov_base: %p\n", user_ioc->sgl[i].iov_base);
-        device_printf(sc->mrsas_dev, "    iov_len:  %p\n", 
-            (void*)user_ioc->sgl[i].iov_len);
-    }
-    device_printf(sc->mrsas_dev, 
-        "==================================================================\n");
-}
-
 /**
  * mrsas_passthru:        Handle pass-through commands 
  * input:                 Adapter instance soft state
@@ -147,9 +72,12 @@ void mrsas_dump_ioctl(struct mrsas_softc *sc, struct mrsas_iocpacket *user_ioc)
  * This function is called from mrsas_ioctl() to handle pass-through and 
  * ioctl commands to Firmware.  
  */
-int mrsas_passthru( struct mrsas_softc *sc, void *arg )
+int mrsas_passthru( struct mrsas_softc *sc, void *arg, u_long ioctlCmd )
 {
     struct mrsas_iocpacket *user_ioc = (struct mrsas_iocpacket *)arg;
+#ifdef COMPAT_FREEBSD32
+    struct mrsas_iocpacket32 *user_ioc32 = (struct mrsas_iocpacket32 *)arg;
+#endif
     union  mrsas_frame *in_cmd = (union mrsas_frame *) &(user_ioc->frame.raw);
     struct mrsas_mfi_cmd *cmd = NULL;
     bus_dma_tag_t ioctl_data_tag[MAX_IOCTL_SGE];
@@ -160,12 +88,11 @@ int mrsas_passthru( struct mrsas_softc *sc, void *arg )
     bus_dmamap_t ioctl_sense_dmamap = 0;
     void *ioctl_sense_mem = 0;  
     bus_addr_t ioctl_sense_phys_addr = 0; 
-    int i, adapter, ioctl_data_size, ioctl_sense_size, ret=0;
+    int i, ioctl_data_size=0, ioctl_sense_size, ret=0;
     struct mrsas_sge32 *kern_sge32;
     unsigned long *sense_ptr;
-
-    /* For debug - uncomment the following line for debug output */
-    //mrsas_dump_ioctl(sc, user_ioc); 
+    uint8_t *iov_base_ptrin=NULL;
+    size_t iov_len=0;
 
     /* 
      * Check for NOP from MegaCli... MegaCli can issue a DCMD of 0.  In this 
@@ -175,13 +102,6 @@ int mrsas_passthru( struct mrsas_softc *sc, void *arg )
         device_printf(sc->mrsas_dev, "In %s() Got a NOP\n", __func__);
         user_ioc->frame.hdr.cmd_status = MFI_STAT_OK;
         return (0);
-    }
-
-    /* Validate host_no */
-    adapter = user_ioc->host_no;
-    if (adapter != device_get_unit(sc->mrsas_dev)) {
-        device_printf(sc->mrsas_dev, "In %s() IOCTL not for me!\n", __func__);
-        return(ENOENT);
     }
 
     /* Validate SGL length */
@@ -225,9 +145,17 @@ int mrsas_passthru( struct mrsas_softc *sc, void *arg )
      * For each user buffer, create a mirror buffer and copy in
      */
     for (i=0; i < user_ioc->sge_count; i++) {
-        if (!user_ioc->sgl[i].iov_len)
-            continue;
-        ioctl_data_size = user_ioc->sgl[i].iov_len;
+	    if (ioctlCmd == MRSAS_IOC_FIRMWARE_PASS_THROUGH64) {
+		    if (!user_ioc->sgl[i].iov_len)
+			    continue;
+		    ioctl_data_size = user_ioc->sgl[i].iov_len;
+#ifdef COMPAT_FREEBSD32
+	    } else {
+		    if (!user_ioc32->sgl[i].iov_len)
+			    continue;
+		    ioctl_data_size = user_ioc32->sgl[i].iov_len;
+#endif
+	    }
         if (bus_dma_tag_create( sc->mrsas_parent_tag,   // parent
                                 1, 0,                   // algnmnt, boundary
                                 BUS_SPACE_MAXADDR_32BIT,// lowaddr
@@ -239,8 +167,8 @@ int mrsas_passthru( struct mrsas_softc *sc, void *arg )
                                 BUS_DMA_ALLOCNOW,       // flags
                                 NULL, NULL,             // lockfunc, lockarg
                                 &ioctl_data_tag[i])) {
-            device_printf(sc->mrsas_dev, "Cannot allocate ioctl data tag\n");
-            return (ENOMEM);
+		device_printf(sc->mrsas_dev, "Cannot allocate ioctl data tag\n");
+		return (ENOMEM);
         }
         if (bus_dmamem_alloc(ioctl_data_tag[i], (void **)&ioctl_data_mem[i],
                 (BUS_DMA_NOWAIT | BUS_DMA_ZERO), &ioctl_data_dmamap[i])) {
@@ -256,18 +184,31 @@ int mrsas_passthru( struct mrsas_softc *sc, void *arg )
 
         /* Save the physical address and length */
         kern_sge32[i].phys_addr = (u_int32_t)ioctl_data_phys_addr[i];
-        kern_sge32[i].length = user_ioc->sgl[i].iov_len;
+
+	if (ioctlCmd == MRSAS_IOC_FIRMWARE_PASS_THROUGH64) {
+		kern_sge32[i].length = user_ioc->sgl[i].iov_len;
+
+		iov_base_ptrin = user_ioc->sgl[i].iov_base;
+		iov_len = user_ioc->sgl[i].iov_len;
+#ifdef COMPAT_FREEBSD32
+	} else {
+		kern_sge32[i].length = user_ioc32->sgl[i].iov_len;
+
+		iov_base_ptrin = PTRIN(user_ioc32->sgl[i].iov_base);
+		iov_len = user_ioc32->sgl[i].iov_len;
+#endif
+	}
 
         /* Copy in data from user space */
-        ret = copyin(user_ioc->sgl[i].iov_base, ioctl_data_mem[i], 
-                        user_ioc->sgl[i].iov_len);
+	ret = copyin(iov_base_ptrin, ioctl_data_mem[i], iov_len);
         if (ret) {
-            device_printf(sc->mrsas_dev, "IOCTL copyin failed!\n");
-            goto out;
+		device_printf(sc->mrsas_dev, "IOCTL copyin failed!\n");
+		goto out;
         }
     }
 
     ioctl_sense_size = user_ioc->sense_len;
+
     if (user_ioc->sense_len) {
         if (bus_dma_tag_create( sc->mrsas_parent_tag,   // parent
                                 1, 0,                   // algnmnt, boundary
@@ -311,8 +252,17 @@ int mrsas_passthru( struct mrsas_softc *sc, void *arg )
      * copy out the kernel buffers to user buffers
      */
     for (i = 0; i < user_ioc->sge_count; i++) {
-        ret = copyout(ioctl_data_mem[i], user_ioc->sgl[i].iov_base, 
-            user_ioc->sgl[i].iov_len);
+	    if (ioctlCmd == MRSAS_IOC_FIRMWARE_PASS_THROUGH64) {
+		    iov_base_ptrin = user_ioc->sgl[i].iov_base;
+		    iov_len = user_ioc->sgl[i].iov_len;
+#ifdef COMPAT_FREEBSD32
+	    } else {
+		    iov_base_ptrin = PTRIN(user_ioc32->sgl[i].iov_base);
+		    iov_len = user_ioc32->sgl[i].iov_len;
+#endif
+	    }
+
+        ret = copyout(ioctl_data_mem[i], iov_base_ptrin, iov_len);
         if (ret) {
             device_printf(sc->mrsas_dev, "IOCTL copyout failed!\n");
             goto out;
@@ -368,7 +318,6 @@ out:
         if (ioctl_data_tag[i] != NULL)
             bus_dma_tag_destroy(ioctl_data_tag[i]);
     }
-
     /* Free command */
     mrsas_release_mfi_cmd(cmd);
 
