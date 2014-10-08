@@ -1,5 +1,5 @@
 # Makefile for mrsas driver
-<!-- $FreeBSD$ -->
+# $FreeBSD$
 
 KMOD=mrsas
 .PATH: ${.CURDIR}/../../dev/${KMOD}
