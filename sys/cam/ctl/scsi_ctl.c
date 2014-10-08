@@ -1115,6 +1115,7 @@ ctlfe_adjust_cdb(struct ccb_accept_tio *atio, uint32_t offset)
 	}
 	case READ_16:
 	case WRITE_16:
+	case WRITE_ATOMIC_16:
 	{
 		struct scsi_rw_16 *cdb = (struct scsi_rw_16 *)cmdbyt;
 		lba = scsi_8btou64(cdb->addr);
