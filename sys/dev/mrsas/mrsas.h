@@ -573,32 +573,55 @@ typedef struct _MPI2_IOC_INIT_REQUEST
 /*
  * MR private defines
  */
-#define MR_PD_INVALID 0xFFFF
-#define MAX_SPAN_DEPTH 8
-#define MAX_QUAD_DEPTH MAX_SPAN_DEPTH
+#define MR_PD_INVALID		0xFFFF
+#define MAX_SPAN_DEPTH		8
+#define MAX_QUAD_DEPTH		MAX_SPAN_DEPTH
 #define MAX_RAIDMAP_SPAN_DEPTH (MAX_SPAN_DEPTH)
-#define MAX_ROW_SIZE 32
-#define MAX_RAIDMAP_ROW_SIZE (MAX_ROW_SIZE)
-#define MAX_LOGICAL_DRIVES 64
-#define MAX_RAIDMAP_LOGICAL_DRIVES (MAX_LOGICAL_DRIVES)
-#define MAX_RAIDMAP_VIEWS (MAX_LOGICAL_DRIVES)
-#define MAX_ARRAYS 128
-#define MAX_RAIDMAP_ARRAYS (MAX_ARRAYS)
-#define MAX_PHYSICAL_DEVICES 256
-#define MAX_RAIDMAP_PHYSICAL_DEVICES (MAX_PHYSICAL_DEVICES)
-#define MR_DCMD_LD_MAP_GET_INFO    0x0300e101   // get the mapping information of this LD
+#define MAX_ROW_SIZE		32
+#define MAX_RAIDMAP_ROW_SIZE	(MAX_ROW_SIZE)
+#define MAX_LOGICAL_DRIVES	64
+#define MAX_LOGICAL_DRIVES_EXT  256
+
+#define MAX_RAIDMAP_LOGICAL_DRIVES	(MAX_LOGICAL_DRIVES)
+#define MAX_RAIDMAP_VIEWS		(MAX_LOGICAL_DRIVES)
+
+#define MAX_ARRAYS		128
+#define MAX_RAIDMAP_ARRAYS	(MAX_ARRAYS)
+
+#define MAX_ARRAYS_EXT		256
+#define MAX_API_ARRAYS_EXT	MAX_ARRAYS_EXT
+
+#define MAX_PHYSICAL_DEVICES	256
+#define MAX_RAIDMAP_PHYSICAL_DEVICES	(MAX_PHYSICAL_DEVICES)
+#define MR_DCMD_LD_MAP_GET_INFO	0x0300e101   // get the mapping information of this LD
+
+
+#define MRSAS_MAX_PD_CHANNELS	1
+#define MRSAS_MAX_LD_CHANNELS	1
+#define MRSAS_MAX_DEV_PER_CHANNEL	256
+#define MRSAS_DEFAULT_INIT_ID	-1
+#define MRSAS_MAX_LUN		8
+#define MRSAS_DEFAULT_CMD_PER_LUN	256
+#define MRSAS_MAX_PD		(MRSAS_MAX_PD_CHANNELS * \
+		MRSAS_MAX_DEV_PER_CHANNEL)
+#define MRSAS_MAX_LD_IDS	(MRSAS_MAX_LD_CHANNELS * \
+		MRSAS_MAX_DEV_PER_CHANNEL)
+
+
+#define VD_EXT_DEBUG  0
 
 
 /******************************************************************* 
  * RAID map related structures 
  ********************************************************************/
- 
+#pragma pack(1)
 typedef struct _MR_DEV_HANDLE_INFO {
-    u_int16_t  curDevHdl;   // the device handle currently used by fw to issue the command.
+    u_int16_t  curDevHdl; // the device handle currently used by fw to issue the command.
     u_int8_t   validHandles;      // bitmap of valid device handles.
     u_int8_t   reserved;
     u_int16_t  devHandle[2];      // 0x04 dev handles for all the paths.
 } MR_DEV_HANDLE_INFO;    
+#pragma pack()
  
 typedef struct _MR_ARRAY_INFO {
     u_int16_t      pd[MAX_RAIDMAP_ROW_SIZE];
@@ -719,6 +742,86 @@ typedef struct _MR_FW_RAID_MAP {
     MR_DEV_HANDLE_INFO devHndlInfo[MAX_RAIDMAP_PHYSICAL_DEVICES];  // 0x20a8
     MR_LD_SPAN_MAP     ldSpanMap[1]; // 0x28a8-[0-MAX_RAIDMAP_LOGICAL_DRIVES+MAX_RAIDMAP_VIEWS+1];
 } MR_FW_RAID_MAP;                            // 0x3288, Total Size
+
+
+typedef struct _MR_FW_RAID_MAP_EXT {
+	/* Not used in new map */
+	u_int32_t                 reserved;
+
+	union {
+	struct {
+		u_int32_t         maxLd;
+		u_int32_t         maxSpanDepth;
+		u_int32_t         maxRowSize;
+		u_int32_t         maxPdCount;
+		u_int32_t         maxArrays;
+	} validationInfo;
+	u_int32_t             version[5];
+	u_int32_t             reserved1[5];
+	}fw_raid_desc;
+
+	u_int8_t                  fpPdIoTimeoutSec;
+	u_int8_t                  reserved2[7];
+
+	u_int16_t                 ldCount;
+	u_int16_t                 arCount;
+	u_int16_t                 spanCount;
+	u_int16_t                 reserve3;
+
+	MR_DEV_HANDLE_INFO  devHndlInfo[MAX_RAIDMAP_PHYSICAL_DEVICES];
+	u_int8_t                  ldTgtIdToLd[MAX_LOGICAL_DRIVES_EXT];
+	MR_ARRAY_INFO       arMapInfo[MAX_API_ARRAYS_EXT];
+	MR_LD_SPAN_MAP      ldSpanMap[MAX_LOGICAL_DRIVES_EXT];
+} MR_FW_RAID_MAP_EXT;
+
+
+typedef struct _MR_DRV_RAID_MAP {
+	/* total size of this structure, including this field.
+	 * This feild will be manupulated by driver for ext raid map,
+	 * else pick the value from firmware raid map.
+	 */
+	u_int32_t                 totalSize;
+
+	union {
+	struct {
+		u_int32_t         maxLd;
+		u_int32_t         maxSpanDepth;
+		u_int32_t         maxRowSize;
+		u_int32_t         maxPdCount;
+		u_int32_t         maxArrays;
+	} validationInfo;
+	u_int32_t    version[5];
+	u_int32_t             reserved1[5];
+	}drv_raid_desc;
+
+	/* timeout value used by driver in FP IOs*/
+	u_int8_t                  fpPdIoTimeoutSec;
+	u_int8_t                  reserved2[7];
+
+	u_int16_t                 ldCount;
+	u_int16_t                 arCount;
+	u_int16_t                 spanCount;
+	u_int16_t                 reserve3;
+
+	MR_DEV_HANDLE_INFO  devHndlInfo[MAX_RAIDMAP_PHYSICAL_DEVICES];
+	u_int8_t                  ldTgtIdToLd[MAX_LOGICAL_DRIVES_EXT];
+	MR_ARRAY_INFO       arMapInfo[MAX_API_ARRAYS_EXT];
+	MR_LD_SPAN_MAP      ldSpanMap[1];
+
+}MR_DRV_RAID_MAP;
+
+/* Driver raid map size is same as raid map ext
+ * MR_DRV_RAID_MAP_ALL is created to sync with old raid.
+ * And it is mainly for code re-use purpose.
+ */
+
+#pragma pack(1)
+typedef struct _MR_DRV_RAID_MAP_ALL {
+
+	MR_DRV_RAID_MAP		raidMap;
+	MR_LD_SPAN_MAP		ldSpanMap[MAX_LOGICAL_DRIVES_EXT - 1];
+}MR_DRV_RAID_MAP_ALL;
+#pragma pack()
 
 typedef struct _LD_LOAD_BALANCE_INFO
 {
@@ -1200,22 +1303,6 @@ typedef enum    _REGION_TYPE {
     REGION_TYPE_EXCLUSIVE    = 3,    // exclusive lock (for writes)
 } REGION_TYPE;
 
-/* 
- * MR private defines 
- */
-#define MR_PD_INVALID 0xFFFF
-#define MAX_SPAN_DEPTH 8
-#define MAX_RAIDMAP_SPAN_DEPTH (MAX_SPAN_DEPTH)
-#define MAX_ROW_SIZE 32
-#define MAX_RAIDMAP_ROW_SIZE (MAX_ROW_SIZE)
-#define MAX_LOGICAL_DRIVES 64
-#define MAX_RAIDMAP_LOGICAL_DRIVES (MAX_LOGICAL_DRIVES)
-#define MAX_RAIDMAP_VIEWS (MAX_LOGICAL_DRIVES)
-#define MAX_ARRAYS 128
-#define MAX_RAIDMAP_ARRAYS (MAX_ARRAYS)
-#define MAX_PHYSICAL_DEVICES 256
-#define MAX_RAIDMAP_PHYSICAL_DEVICES (MAX_PHYSICAL_DEVICES)
-#define MR_DCMD_LD_MAP_GET_INFO 0x0300e101 
 
 /*
  * SCSI-CAM Related Defines 
@@ -1423,7 +1510,7 @@ struct MR_LD_LIST {
         u_int8_t    state;          // current LD state (MR_LD_STATE)
         u_int8_t    reserved[3];    // pad to 8-byte boundary
         u_int64_t   size;           // LD size
-    } ldList[MAX_LOGICAL_DRIVES];
+    } ldList[MAX_LOGICAL_DRIVES_EXT];
 }; 
 #pragma pack()
 
@@ -1485,7 +1572,23 @@ struct mrsas_ctrl_prop {
         u_int32_t     allowBootWithPinnedCache    : 1;
         u_int32_t     disableSpinDownHS           : 1;
         u_int32_t     enableJBOD                  : 1;
-        u_int32_t     reserved                    :18;
+        u_int32_t     disableCacheBypass          : 1;     // 1 = disable cache-bypass-performance-improvement feature
+        u_int32_t     useDiskActivityForLocate    : 1;     // 1 = drive activity LED is toggled for LOCATE
+        u_int32_t     enablePI                    : 1;     // 0 = Disable SCSI PI for controller.  Remove any active protection information
+        u_int32_t     preventPIImport             : 1;     // 1 = Prevent import of SCSI DIF protected logical disks
+        u_int32_t     useGlobalSparesForEmergency : 1;     // 1 = Use global spares for Emergency (if spare is incompatible without Emergency)
+        u_int32_t     useUnconfGoodForEmergency   : 1;     // 1 = Use uncofgured good drives for Emergency
+        u_int32_t     useEmergencySparesforSMARTer: 1;     // 1 = Use Emergency spares for SMARTer
+        u_int32_t     forceSGPIOForQuadOnly       : 1;     // 1 = Force SGPIO status per port only for four drives, affects HPC controllers
+        u_int32_t     enableConfigAutoBalance     : 1;     // 0 = Configuration auto balance disabled, 1 = Configuration auto balance enabled
+        u_int32_t     enableVirtualCache          : 1;     // 1 = Virtual caching is enabled on DFF and SFM.
+        u_int32_t     enableAutoLockRecovery      : 1;     // 1 = Auto Lock Recovery on DFF and SFM
+        u_int32_t     disableImmediateIO          : 1;     // 1 = Disable Legacy Immediate IO, 0 = Enable
+        u_int32_t     disableT10RebuildAssist     : 1;     // 1 = Disable T10 Rebuild Assist, use legacy rebuild method
+        u_int32_t     ignore64ldRestriction       : 1;     // 0 - limit LD to 64 even if more LD support exists, 1 - support more than 64 ld with new DDF format
+        u_int32_t     enableSwZone                : 1;     // 1 = enable Software Zone
+        u_int32_t     limitMaxRateSATA3G          : 1;     // 1 = negotiated link rates to direct attached SATA devices shall be limited to 3Gbps
+        u_int32_t     reserved                    :2;
     } OnOffProperties;
     u_int8_t      autoSnapVDSpace;  // % of source LD to be reserved for auto 
                                     // snapshot in snapshot repository, for 
@@ -1828,16 +1931,18 @@ struct mrsas_ctrl_info {
 		u_int32_t     reserved                    :26;
 	} cluster;
 
-	char clusterId[16];                     //0x7D4 
+	char clusterId[16];                     //0x7D4
 
-	u_int8_t          pad[0x800-0x7E4];           //0x7E4
-} __packed; 
+	char reserved6[4];			//0x7E4 RESERVED FOR IOV
 
-/* 
- * Ld and PD Max Support Defines 
- */
-#define MRSAS_MAX_PD                        256
-#define MRSAS_MAX_LD                        64
+	struct{					//0x7E8
+		u_int32_t	resrved			:5;
+		u_int32_t	supportMaxExtLDs	:1;
+		u_int32_t	reserved1		:26;
+	}adapterOperations3;
+
+	u_int8_t          pad[0x800-0x7EC];	//0x7EC
+} __packed;
 
 /*
  * When SCSI mid-layer calls driver's reset routine, driver waits for
@@ -1930,6 +2035,18 @@ struct mrsas_header {
 };
 #pragma pack()
 
+
+typedef union _MFI_CAPABILITIES {
+        struct {
+                u_int32_t     support_fp_remote_lun:1;
+                u_int32_t     support_additional_msix:1;
+                u_int32_t     support_fastpath_wb:1;
+                u_int32_t     support_max_255lds:1;
+                u_int32_t     reserved:28;
+        } mfi_capabilities;
+        u_int32_t     reg;
+} MFI_CAPABILITIES;
+
 #pragma pack(1)
 struct mrsas_init_frame {
     u_int8_t cmd;                 /*00h */
@@ -1937,8 +2054,7 @@ struct mrsas_init_frame {
     u_int8_t cmd_status;          /*02h */
 
     u_int8_t reserved_1;          /*03h */
-    u_int32_t reserved_2;         /*04h */
-
+    MFI_CAPABILITIES driver_operations; /*04h*/
     u_int32_t context;            /*08h */
     u_int32_t pad_0;              /*0Ch */
 
@@ -2423,13 +2539,29 @@ struct mrsas_softc {
     bus_addr_t         el_info_phys_addr; //get event log info cmd physical addr
     struct mrsas_pd_list pd_list[MRSAS_MAX_PD];
     struct mrsas_pd_list local_pd_list[MRSAS_MAX_PD];
-    u_int8_t           ld_ids[MRSAS_MAX_LD];
+    u_int8_t           ld_ids[MRSAS_MAX_LD_IDS];
     struct taskqueue    *ev_tq;	//taskqueue for events
     struct task     	ev_task;
     u_int32_t          CurLdCount;
     u_int64_t          reset_flags;
-    LD_LOAD_BALANCE_INFO load_balance_info[MAX_LOGICAL_DRIVES];
-    LD_SPAN_INFO log_to_span[MAX_LOGICAL_DRIVES];
+    LD_LOAD_BALANCE_INFO load_balance_info[MAX_LOGICAL_DRIVES_EXT];
+    LD_SPAN_INFO log_to_span[MAX_LOGICAL_DRIVES_EXT];
+
+    u_int8_t	max256vdSupport;
+    u_int16_t fw_supported_vd_count;
+    u_int16_t fw_supported_pd_count;
+
+    u_int16_t drv_supported_vd_count;
+    u_int16_t drv_supported_pd_count;
+
+    u_int32_t max_map_sz;
+    u_int32_t current_map_sz;
+    u_int32_t old_map_sz;
+    u_int32_t new_map_sz;
+    u_int32_t drv_map_sz;
+
+    /*Non dma-able memory. Driver local copy.*/
+    MR_DRV_RAID_MAP_ALL *ld_drv_map[2];
 };
 
 /* Compatibility shims for different OS versions */

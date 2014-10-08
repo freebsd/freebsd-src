@@ -63,54 +63,56 @@ u_int8_t mrsas_get_best_arm(PLD_LOAD_BALANCE_INFO lbInfo, u_int8_t arm,
        u_int64_t block, u_int32_t count);
 u_int8_t MR_BuildRaidContext(struct mrsas_softc *sc, 
         struct IO_REQUEST_INFO *io_info,
-        RAID_CONTEXT *pRAID_Context, MR_FW_RAID_MAP_ALL *map);
+        RAID_CONTEXT *pRAID_Context, MR_DRV_RAID_MAP_ALL *map);
 u_int8_t MR_GetPhyParams(struct mrsas_softc *sc, u_int32_t ld, 
         u_int64_t stripRow, u_int16_t stripRef, struct IO_REQUEST_INFO *io_info,
         RAID_CONTEXT *pRAID_Context, 
-        MR_FW_RAID_MAP_ALL *map);
-u_int16_t MR_TargetIdToLdGet(u_int32_t ldTgtId, MR_FW_RAID_MAP_ALL *map);
-u_int32_t MR_LdBlockSizeGet(u_int32_t ldTgtId, MR_FW_RAID_MAP_ALL *map);
-u_int16_t MR_GetLDTgtId(u_int32_t ld, MR_FW_RAID_MAP_ALL *map);
+        MR_DRV_RAID_MAP_ALL *map);
+u_int16_t MR_TargetIdToLdGet(u_int32_t ldTgtId, MR_DRV_RAID_MAP_ALL *map);
+u_int32_t MR_LdBlockSizeGet(u_int32_t ldTgtId, MR_DRV_RAID_MAP_ALL *map);
+u_int16_t MR_GetLDTgtId(u_int32_t ld, MR_DRV_RAID_MAP_ALL *map);
 u_int16_t mrsas_get_updated_dev_handle(PLD_LOAD_BALANCE_INFO lbInfo, 
         struct IO_REQUEST_INFO *io_info);
 u_int32_t mega_mod64(u_int64_t dividend, u_int32_t divisor);
 u_int32_t MR_GetSpanBlock(u_int32_t ld, u_int64_t row, u_int64_t *span_blk, 
-        MR_FW_RAID_MAP_ALL *map, int *div_error);
+        MR_DRV_RAID_MAP_ALL *map, int *div_error);
 u_int64_t mega_div64_32(u_int64_t dividend, u_int32_t divisor);
-void mrsas_update_load_balance_params(MR_FW_RAID_MAP_ALL *map, 
+void mrsas_update_load_balance_params(MR_DRV_RAID_MAP_ALL *map,
         PLD_LOAD_BALANCE_INFO lbInfo);
 void mrsas_set_pd_lba(MRSAS_RAID_SCSI_IO_REQUEST *io_request, 
         u_int8_t cdb_len, struct IO_REQUEST_INFO *io_info, union ccb *ccb,
-        MR_FW_RAID_MAP_ALL *local_map_ptr, u_int32_t ref_tag,
+        MR_DRV_RAID_MAP_ALL *local_map_ptr, u_int32_t ref_tag,
         u_int32_t ld_block_size);
 static u_int16_t MR_LdSpanArrayGet(u_int32_t ld, u_int32_t span, 
-        MR_FW_RAID_MAP_ALL *map);
-static u_int16_t MR_PdDevHandleGet(u_int32_t pd, MR_FW_RAID_MAP_ALL *map);
+        MR_DRV_RAID_MAP_ALL *map);
+static u_int16_t MR_PdDevHandleGet(u_int32_t pd, MR_DRV_RAID_MAP_ALL *map);
 static u_int16_t MR_ArPdGet(u_int32_t ar, u_int32_t arm, 
-        MR_FW_RAID_MAP_ALL *map);
+        MR_DRV_RAID_MAP_ALL *map);
 static MR_LD_SPAN *MR_LdSpanPtrGet(u_int32_t ld, u_int32_t span, 
-        MR_FW_RAID_MAP_ALL *map);
+        MR_DRV_RAID_MAP_ALL *map);
 static u_int8_t MR_LdDataArmGet(u_int32_t ld, u_int32_t armIdx, 
-        MR_FW_RAID_MAP_ALL *map);
+        MR_DRV_RAID_MAP_ALL *map);
 static MR_SPAN_BLOCK_INFO *MR_LdSpanInfoGet(u_int32_t ld, 
-        MR_FW_RAID_MAP_ALL *map);
-MR_LD_RAID *MR_LdRaidGet(u_int32_t ld, MR_FW_RAID_MAP_ALL *map);
+        MR_DRV_RAID_MAP_ALL *map);
+MR_LD_RAID *MR_LdRaidGet(u_int32_t ld, MR_DRV_RAID_MAP_ALL *map);
+void MR_PopulateDrvRaidMap (struct mrsas_softc *sc);
+
 
 /*
  * Spanset related function prototypes
  * Added for PRL11 configuration (Uneven span support)
  */
-void mr_update_span_set(MR_FW_RAID_MAP_ALL *map, PLD_SPAN_INFO ldSpanInfo);
+void mr_update_span_set(MR_DRV_RAID_MAP_ALL *map, PLD_SPAN_INFO ldSpanInfo);
 static u_int8_t mr_spanset_get_phy_params(struct mrsas_softc *sc, u_int32_t ld, 
        u_int64_t stripRow, u_int16_t stripRef, struct IO_REQUEST_INFO *io_info,
-       RAID_CONTEXT *pRAID_Context, MR_FW_RAID_MAP_ALL *map);
+       RAID_CONTEXT *pRAID_Context, MR_DRV_RAID_MAP_ALL *map);
 static u_int64_t get_row_from_strip(struct mrsas_softc *sc, u_int32_t ld, 
-       u_int64_t strip, MR_FW_RAID_MAP_ALL *map);
+       u_int64_t strip, MR_DRV_RAID_MAP_ALL *map);
 static u_int32_t mr_spanset_get_span_block(struct mrsas_softc *sc, 
        u_int32_t ld, u_int64_t row, u_int64_t *span_blk,
-       MR_FW_RAID_MAP_ALL *map, int *div_error);
+       MR_DRV_RAID_MAP_ALL *map, int *div_error);
 static u_int8_t get_arm(struct mrsas_softc *sc, u_int32_t ld, u_int8_t span,
-       u_int64_t stripe, MR_FW_RAID_MAP_ALL *map);
+       u_int64_t stripe, MR_DRV_RAID_MAP_ALL *map);
 
 
 /*
@@ -173,52 +175,52 @@ quotient;})
  * parts of the RAID map and returns the appropriate parameters. 
  */
 
-MR_LD_RAID *MR_LdRaidGet(u_int32_t ld, MR_FW_RAID_MAP_ALL *map)
+MR_LD_RAID *MR_LdRaidGet(u_int32_t ld, MR_DRV_RAID_MAP_ALL *map)
 {
     return (&map->raidMap.ldSpanMap[ld].ldRaid);
 }
 
-u_int16_t MR_GetLDTgtId(u_int32_t ld, MR_FW_RAID_MAP_ALL *map)
+u_int16_t MR_GetLDTgtId(u_int32_t ld, MR_DRV_RAID_MAP_ALL *map)
 {
     return (map->raidMap.ldSpanMap[ld].ldRaid.targetId);
 }
 
-static u_int16_t MR_LdSpanArrayGet(u_int32_t ld, u_int32_t span, MR_FW_RAID_MAP_ALL *map)
+static u_int16_t MR_LdSpanArrayGet(u_int32_t ld, u_int32_t span, MR_DRV_RAID_MAP_ALL *map)
 {
     return map->raidMap.ldSpanMap[ld].spanBlock[span].span.arrayRef;
 }
 
-static u_int8_t MR_LdDataArmGet(u_int32_t ld, u_int32_t armIdx, MR_FW_RAID_MAP_ALL *map)
+static u_int8_t MR_LdDataArmGet(u_int32_t ld, u_int32_t armIdx, MR_DRV_RAID_MAP_ALL *map)
 {
     return map->raidMap.ldSpanMap[ld].dataArmMap[armIdx];
 }
 
-static u_int16_t MR_PdDevHandleGet(u_int32_t pd, MR_FW_RAID_MAP_ALL *map)
+static u_int16_t MR_PdDevHandleGet(u_int32_t pd, MR_DRV_RAID_MAP_ALL *map)
 {
     return map->raidMap.devHndlInfo[pd].curDevHdl;
 }
 
-static u_int16_t MR_ArPdGet(u_int32_t ar, u_int32_t arm, MR_FW_RAID_MAP_ALL *map)
+static u_int16_t MR_ArPdGet(u_int32_t ar, u_int32_t arm, MR_DRV_RAID_MAP_ALL *map)
 {
     return map->raidMap.arMapInfo[ar].pd[arm];
 }
 
-static MR_LD_SPAN *MR_LdSpanPtrGet(u_int32_t ld, u_int32_t span, MR_FW_RAID_MAP_ALL *map)
+static MR_LD_SPAN *MR_LdSpanPtrGet(u_int32_t ld, u_int32_t span, MR_DRV_RAID_MAP_ALL *map)
 {
     return &map->raidMap.ldSpanMap[ld].spanBlock[span].span;
 }
 
-static MR_SPAN_BLOCK_INFO *MR_LdSpanInfoGet(u_int32_t ld, MR_FW_RAID_MAP_ALL *map)
+static MR_SPAN_BLOCK_INFO *MR_LdSpanInfoGet(u_int32_t ld, MR_DRV_RAID_MAP_ALL *map)
 {
     return &map->raidMap.ldSpanMap[ld].spanBlock[0];
 }
 
-u_int16_t MR_TargetIdToLdGet(u_int32_t ldTgtId, MR_FW_RAID_MAP_ALL *map)
+u_int16_t MR_TargetIdToLdGet(u_int32_t ldTgtId, MR_DRV_RAID_MAP_ALL *map)
 {
     return map->raidMap.ldTgtIdToLd[ldTgtId];
 }
 
-u_int32_t MR_LdBlockSizeGet(u_int32_t ldTgtId, MR_FW_RAID_MAP_ALL *map)
+u_int32_t MR_LdBlockSizeGet(u_int32_t ldTgtId, MR_DRV_RAID_MAP_ALL *map)
 {
     MR_LD_RAID *raid;
     u_int32_t ld, ldBlockSize = MRSAS_SCSIBLOCKSIZE;
@@ -239,6 +241,80 @@ u_int32_t MR_LdBlockSizeGet(u_int32_t ldTgtId, MR_FW_RAID_MAP_ALL *map)
     return ldBlockSize;
 }
 
+/*
+ * This function will Populate Driver Map using firmware raid map
+ */
+void MR_PopulateDrvRaidMap(struct mrsas_softc *sc)
+{
+	MR_FW_RAID_MAP_ALL     *fw_map_old    = NULL;
+	MR_FW_RAID_MAP         *pFwRaidMap    = NULL;
+	unsigned int i;
+
+	MR_DRV_RAID_MAP_ALL *drv_map = sc->ld_drv_map[(sc->map_id & 1)];
+	MR_DRV_RAID_MAP *pDrvRaidMap = &drv_map->raidMap;
+
+	if(sc->max256vdSupport) {
+		memcpy(sc->ld_drv_map[sc->map_id & 1],
+				sc->raidmap_mem[sc->map_id & 1],
+				sc->current_map_sz);
+		/* New Raid map will not set totalSize, so keep expected value
+		 * for legacy code in ValidateMapInfo
+		 */
+		pDrvRaidMap->totalSize = sizeof (MR_FW_RAID_MAP_EXT);
+	} else {
+		fw_map_old =(MR_FW_RAID_MAP_ALL *) sc->raidmap_mem[(sc->map_id & 1)];
+		pFwRaidMap = &fw_map_old->raidMap;
+
+#if VD_EXT_DEBUG
+		for (i = 0; i < pFwRaidMap->ldCount; i++) {
+			device_printf(sc->mrsas_dev,
+					"Index 0x%x Target Id 0x%x Seq Num 0x%x Size 0/%lx\n", i,
+					fw_map_old->raidMap.ldSpanMap[i].ldRaid.targetId,
+					fw_map_old->raidMap.ldSpanMap[i].ldRaid.seqNum,
+					fw_map_old->raidMap.ldSpanMap[i].ldRaid.size );
+		}
+#endif
+
+		memset(drv_map, 0, sc->drv_map_sz);
+		pDrvRaidMap->totalSize = pFwRaidMap->totalSize;
+		pDrvRaidMap->ldCount = pFwRaidMap->ldCount;
+		pDrvRaidMap->fpPdIoTimeoutSec =
+			pFwRaidMap->fpPdIoTimeoutSec;
+
+		for(i=0; i < MAX_RAIDMAP_LOGICAL_DRIVES+MAX_RAIDMAP_VIEWS; i++) {
+			pDrvRaidMap->ldTgtIdToLd[i] =
+				(u_int8_t)pFwRaidMap->ldTgtIdToLd[i];
+		}
+
+		for(i=0; i < pDrvRaidMap->ldCount; i++) {
+			pDrvRaidMap->ldSpanMap[i] =
+				pFwRaidMap->ldSpanMap[i];
+
+#if VD_EXT_DEBUG
+	        device_printf(sc->mrsas_dev, "pFwRaidMap->ldSpanMap[%d].ldRaid.targetId 0x%x "
+			"pFwRaidMap->ldSpanMap[%d].ldRaid.seqNum 0x%x size 0x%x\n",
+			i, i, pFwRaidMap->ldSpanMap[i].ldRaid.targetId,
+			pFwRaidMap->ldSpanMap[i].ldRaid.seqNum,
+			(u_int32_t)pFwRaidMap->ldSpanMap[i].ldRaid.rowSize);
+		device_printf(sc->mrsas_dev, "pDrvRaidMap->ldSpanMap[%d].ldRaid.targetId 0x%x"
+			"pDrvRaidMap->ldSpanMap[%d].ldRaid.seqNum 0x%x size 0x%x\n",i, i,
+			pDrvRaidMap->ldSpanMap[i].ldRaid.targetId,
+			pDrvRaidMap->ldSpanMap[i].ldRaid.seqNum,
+			(u_int32_t)pDrvRaidMap->ldSpanMap[i].ldRaid.rowSize);
+		device_printf(sc->mrsas_dev, "drv raid map all %p raid map %p LD RAID MAP %p/%p\n",
+			drv_map, pDrvRaidMap,
+			&pFwRaidMap->ldSpanMap[i].ldRaid, &pDrvRaidMap->ldSpanMap[i].ldRaid);
+#endif
+		}
+
+		memcpy(pDrvRaidMap->arMapInfo, pFwRaidMap->arMapInfo,
+			sizeof(MR_ARRAY_INFO) * MAX_RAIDMAP_ARRAYS);
+		memcpy(pDrvRaidMap->devHndlInfo, pFwRaidMap->devHndlInfo,
+			sizeof(MR_DEV_HANDLE_INFO) *
+			MAX_RAIDMAP_PHYSICAL_DEVICES);
+	}
+}
+
 /**
  * MR_ValidateMapInfo:        Validate RAID map
  * input:                     Adapter instance soft state
@@ -251,26 +327,37 @@ u_int8_t MR_ValidateMapInfo(struct mrsas_softc *sc)
 	if (!sc) {
 		return 1;
 	}
-    uint32_t total_map_sz;
-    MR_FW_RAID_MAP_ALL *map = sc->raidmap_mem[(sc->map_id & 1)];
-    MR_FW_RAID_MAP *pFwRaidMap = &map->raidMap;
+
+    MR_PopulateDrvRaidMap (sc);
+
+    MR_DRV_RAID_MAP_ALL *drv_map = sc->ld_drv_map[(sc->map_id & 1)];
+    MR_DRV_RAID_MAP *pDrvRaidMap = &drv_map->raidMap;
+
+    u_int32_t expected_map_size;
+    drv_map = sc->ld_drv_map[(sc->map_id & 1)];
+    pDrvRaidMap = &drv_map->raidMap;
     PLD_SPAN_INFO ldSpanInfo = (PLD_SPAN_INFO) &sc->log_to_span;
 
-    total_map_sz = (sizeof(MR_FW_RAID_MAP) - sizeof(MR_LD_SPAN_MAP) +
-                     (sizeof(MR_LD_SPAN_MAP) * pFwRaidMap->ldCount));
+    if(sc->max256vdSupport)
+	expected_map_size = sizeof (MR_FW_RAID_MAP_EXT);
+    else
+	expected_map_size =
+		(sizeof (MR_FW_RAID_MAP) - sizeof(MR_LD_SPAN_MAP)) +
+		(sizeof(MR_LD_SPAN_MAP) * pDrvRaidMap->ldCount);
 
-    if (pFwRaidMap->totalSize != total_map_sz) {
-        device_printf(sc->mrsas_dev, "map size %x not matching ld count\n", total_map_sz);
+    if (pDrvRaidMap->totalSize != expected_map_size) {
+        device_printf(sc->mrsas_dev, "map size %x not matching ld count\n", expected_map_size);
         device_printf(sc->mrsas_dev, "span map= %x\n", (unsigned int)sizeof(MR_LD_SPAN_MAP));
-        device_printf(sc->mrsas_dev, "pFwRaidMap->totalSize=%x\n", pFwRaidMap->totalSize);
+        device_printf(sc->mrsas_dev, "pDrvRaidMap->totalSize=%x\n", pDrvRaidMap->totalSize);
         return 1;
     }
 
     if (sc->UnevenSpanSupport) {
-        mr_update_span_set(map, ldSpanInfo);
+	printf ("Updating span set\n\n");
+        mr_update_span_set(drv_map, ldSpanInfo);
 	}
 
-    mrsas_update_load_balance_params(map, sc->load_balance_info);
+    mrsas_update_load_balance_params(drv_map, sc->load_balance_info);
 
     return 0;
 }
@@ -287,7 +374,7 @@ u_int8_t MR_ValidateMapInfo(struct mrsas_softc *sc)
  * 
  * */
 #if SPAN_DEBUG
-static int getSpanInfo(MR_FW_RAID_MAP_ALL *map, PLD_SPAN_INFO ldSpanInfo)
+static int getSpanInfo(MR_DRV_RAID_MAP_ALL *map, PLD_SPAN_INFO ldSpanInfo)
 {
 
        u_int8_t   span;
@@ -369,7 +456,7 @@ static int getSpanInfo(MR_FW_RAID_MAP_ALL *map, PLD_SPAN_INFO ldSpanInfo)
 */
 
 u_int32_t mr_spanset_get_span_block(struct mrsas_softc *sc, u_int32_t ld, u_int64_t row, 
-               u_int64_t *span_blk, MR_FW_RAID_MAP_ALL *map, int *div_error)
+               u_int64_t *span_blk, MR_DRV_RAID_MAP_ALL *map, int *div_error)
 {
        MR_LD_RAID         *raid = MR_LdRaidGet(ld, map);
        LD_SPAN_SET *span_set;
@@ -430,7 +517,7 @@ u_int32_t mr_spanset_get_span_block(struct mrsas_softc *sc, u_int32_t ld, u_int6
 */
 
 static u_int64_t  get_row_from_strip(struct mrsas_softc *sc, 
-       u_int32_t ld, u_int64_t strip, MR_FW_RAID_MAP_ALL *map)
+       u_int32_t ld, u_int64_t strip, MR_DRV_RAID_MAP_ALL *map)
 {
        MR_LD_RAID      *raid = MR_LdRaidGet(ld, map);
        LD_SPAN_SET     *span_set;
@@ -489,7 +576,7 @@ static u_int64_t  get_row_from_strip(struct mrsas_softc *sc,
 */
 
 static u_int64_t get_strip_from_row(struct mrsas_softc *sc, 
-               u_int32_t ld, u_int64_t row, MR_FW_RAID_MAP_ALL *map)
+               u_int32_t ld, u_int64_t row, MR_DRV_RAID_MAP_ALL *map)
 {
        MR_LD_RAID         *raid = MR_LdRaidGet(ld, map);
        LD_SPAN_SET *span_set;
@@ -546,7 +633,7 @@ static u_int64_t get_strip_from_row(struct mrsas_softc *sc,
 */
 
 static u_int32_t get_arm_from_strip(struct mrsas_softc *sc, 
-       u_int32_t ld, u_int64_t strip, MR_FW_RAID_MAP_ALL *map)
+       u_int32_t ld, u_int64_t strip, MR_DRV_RAID_MAP_ALL *map)
 {
        MR_LD_RAID         *raid = MR_LdRaidGet(ld, map);
        LD_SPAN_SET *span_set;
@@ -588,7 +675,7 @@ static u_int32_t get_arm_from_strip(struct mrsas_softc *sc,
 
 /* This Function will return Phys arm */
 u_int8_t get_arm(struct mrsas_softc *sc, u_int32_t ld, u_int8_t span, u_int64_t stripe, 
-               MR_FW_RAID_MAP_ALL *map)
+               MR_DRV_RAID_MAP_ALL *map)
 {
        MR_LD_RAID  *raid = MR_LdRaidGet(ld, map);
        /* Need to check correct default value */
@@ -630,7 +717,7 @@ u_int8_t get_arm(struct mrsas_softc *sc, u_int32_t ld, u_int8_t span, u_int64_t 
 */
 static u_int8_t mr_spanset_get_phy_params(struct mrsas_softc *sc, u_int32_t ld, u_int64_t stripRow,
                   u_int16_t stripRef, struct IO_REQUEST_INFO *io_info,
-                  RAID_CONTEXT *pRAID_Context, MR_FW_RAID_MAP_ALL *map)
+                  RAID_CONTEXT *pRAID_Context, MR_DRV_RAID_MAP_ALL *map)
 {
        MR_LD_RAID  *raid = MR_LdRaidGet(ld, map);
        u_int32_t     pd, arRef;
@@ -695,7 +782,7 @@ static u_int8_t mr_spanset_get_phy_params(struct mrsas_softc *sc, u_int32_t ld, 
 */
 u_int8_t 
 MR_BuildRaidContext(struct mrsas_softc *sc, struct IO_REQUEST_INFO *io_info,
-                    RAID_CONTEXT *pRAID_Context, MR_FW_RAID_MAP_ALL *map)
+                    RAID_CONTEXT *pRAID_Context, MR_DRV_RAID_MAP_ALL *map)
 {
     MR_LD_RAID *raid;
     u_int32_t ld, stripSize, stripe_mask;
@@ -915,7 +1002,7 @@ MR_BuildRaidContext(struct mrsas_softc *sc, struct IO_REQUEST_INFO *io_info,
 *    ldSpanInfo - ldSpanInfo per HBA instance
 *
 */
-void mr_update_span_set(MR_FW_RAID_MAP_ALL *map, PLD_SPAN_INFO ldSpanInfo)
+void mr_update_span_set(MR_DRV_RAID_MAP_ALL *map, PLD_SPAN_INFO ldSpanInfo)
 {
        u_int8_t   span,count;
        u_int32_t    element,span_row_width;
@@ -925,13 +1012,11 @@ void mr_update_span_set(MR_FW_RAID_MAP_ALL *map, PLD_SPAN_INFO ldSpanInfo)
        MR_QUAD_ELEMENT    *quad;
        int ldCount;
        u_int16_t ld;
-       
-	if (!ldSpanInfo)
-		return;
-          
+
        for (ldCount = 0; ldCount < MAX_LOGICAL_DRIVES; ldCount++) 
        {
                ld = MR_TargetIdToLdGet(ldCount, map);
+		printf ("ld = %d\n\n", ld);
                if (ld >= MAX_LOGICAL_DRIVES)
                        continue;
                raid = MR_LdRaidGet(ld, map);
@@ -1031,7 +1116,7 @@ void mr_update_span_set(MR_FW_RAID_MAP_ALL *map, PLD_SPAN_INFO ldSpanInfo)
  * This function updates the load balance parameters for the LD config
  * of a two drive optimal RAID-1.  
  */
-void mrsas_update_load_balance_params(MR_FW_RAID_MAP_ALL *map, 
+void mrsas_update_load_balance_params(MR_DRV_RAID_MAP_ALL *map,
         PLD_LOAD_BALANCE_INFO lbInfo)
 {
     int ldCount;
@@ -1085,7 +1170,7 @@ void mrsas_update_load_balance_params(MR_FW_RAID_MAP_ALL *map,
  */
 void mrsas_set_pd_lba(MRSAS_RAID_SCSI_IO_REQUEST *io_request, u_int8_t cdb_len,
     struct IO_REQUEST_INFO *io_info, union ccb *ccb,
-    MR_FW_RAID_MAP_ALL *local_map_ptr, u_int32_t ref_tag,
+    MR_DRV_RAID_MAP_ALL *local_map_ptr, u_int32_t ref_tag,
     u_int32_t ld_block_size)
 {
     MR_LD_RAID *raid;
@@ -1338,7 +1423,7 @@ u_int16_t mrsas_get_updated_dev_handle(PLD_LOAD_BALANCE_INFO lbInfo,
 u_int8_t MR_GetPhyParams(struct mrsas_softc *sc, u_int32_t ld, 
             u_int64_t stripRow,
             u_int16_t stripRef, struct IO_REQUEST_INFO *io_info,
-            RAID_CONTEXT *pRAID_Context, MR_FW_RAID_MAP_ALL *map)
+            RAID_CONTEXT *pRAID_Context, MR_DRV_RAID_MAP_ALL *map)
 {
     MR_LD_RAID  *raid = MR_LdRaidGet(ld, map);
     u_int32_t pd, arRef;
@@ -1419,7 +1504,7 @@ u_int8_t MR_GetPhyParams(struct mrsas_softc *sc, u_int32_t ld,
  * This routine calculates the span from the span block info.  
  */
 u_int32_t MR_GetSpanBlock(u_int32_t ld, u_int64_t row, u_int64_t *span_blk, 
-        MR_FW_RAID_MAP_ALL *map, int *div_error)
+        MR_DRV_RAID_MAP_ALL *map, int *div_error)
 {
     MR_SPAN_BLOCK_INFO *pSpanBlock = MR_LdSpanInfoGet(ld, map);
     MR_QUAD_ELEMENT *quad;

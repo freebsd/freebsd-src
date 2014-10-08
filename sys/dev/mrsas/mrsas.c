@@ -139,8 +139,8 @@ extern void mrsas_release_mpt_cmd(struct mrsas_mpt_cmd *cmd);
 extern struct mrsas_mpt_cmd *mrsas_get_mpt_cmd(struct mrsas_softc *sc);
 extern int mrsas_passthru(struct mrsas_softc *sc, void *arg);
 extern uint8_t MR_ValidateMapInfo(struct mrsas_softc *sc);
-extern u_int16_t MR_GetLDTgtId(u_int32_t ld, MR_FW_RAID_MAP_ALL *map);
-extern MR_LD_RAID *MR_LdRaidGet(u_int32_t ld, MR_FW_RAID_MAP_ALL *map);
+extern u_int16_t MR_GetLDTgtId(u_int32_t ld, MR_DRV_RAID_MAP_ALL *map);
+extern MR_LD_RAID *MR_LdRaidGet(u_int32_t ld, MR_DRV_RAID_MAP_ALL *map);
 extern void mrsas_xpt_freeze(struct mrsas_softc *sc);
 extern void mrsas_xpt_release(struct mrsas_softc *sc);
 extern MRSAS_REQUEST_DESCRIPTOR_UNION *mrsas_get_request_desc(struct mrsas_softc *sc,
@@ -928,6 +928,9 @@ void mrsas_free_mem(struct mrsas_softc *sc)
             bus_dmamem_free(sc->raidmap_tag[i], sc->raidmap_mem[i], sc->raidmap_dmamap[i]);
         if (sc->raidmap_tag[i] != NULL)
             bus_dma_tag_destroy(sc->raidmap_tag[i]);
+
+	if (sc->ld_drv_map[i] != NULL)
+		free(sc->ld_drv_map[i], M_MRSAS);
     }
 
     /* 
@@ -1634,9 +1637,58 @@ mrsas_addr_cb(void *arg, bus_dma_segment_t *segs, int nsegs, int error)
  * Allocate DMA memory for the RAID maps and perform setup.
  */
 static int mrsas_setup_raidmap(struct mrsas_softc *sc)
-{       
-    sc->map_sz = sizeof(MR_FW_RAID_MAP) +
-                (sizeof(MR_LD_SPAN_MAP) * (MAX_LOGICAL_DRIVES - 1));
+{
+	int i;
+
+	sc->drv_supported_vd_count =
+		MRSAS_MAX_LD_CHANNELS * MRSAS_MAX_DEV_PER_CHANNEL;
+	sc->drv_supported_pd_count =
+		MRSAS_MAX_PD_CHANNELS * MRSAS_MAX_DEV_PER_CHANNEL;
+
+	if(sc->max256vdSupport) {
+		sc->fw_supported_vd_count = MAX_LOGICAL_DRIVES_EXT;
+		sc->fw_supported_pd_count = MAX_PHYSICAL_DEVICES;
+	} else {
+		sc->fw_supported_vd_count = MAX_LOGICAL_DRIVES;
+		sc->fw_supported_pd_count = MAX_PHYSICAL_DEVICES;
+	}
+
+#if VD_EXT_DEBUG
+	device_printf(sc->mrsas_dev, "FW supports: max256vdSupport = %s\n",
+			sc->max256vdSupport ? "YES":"NO");
+	device_printf(sc->mrsas_dev, "FW supports %dVDs %dPDs\n"
+		"DRIVER supports %dVDs  %dPDs \n",
+		sc->fw_supported_vd_count, sc->fw_supported_pd_count,
+		sc->drv_supported_vd_count, sc->drv_supported_pd_count);
+#endif
+
+	sc->old_map_sz = sizeof(MR_FW_RAID_MAP) +
+		(sizeof(MR_LD_SPAN_MAP) * (sc->fw_supported_vd_count - 1));
+	sc->new_map_sz = sizeof(MR_FW_RAID_MAP_EXT);
+	sc->drv_map_sz = sizeof(MR_DRV_RAID_MAP) +
+		(sizeof(MR_LD_SPAN_MAP) * (sc->drv_supported_vd_count-1));
+
+	for (i = 0; i < 2; i++) {
+		sc->ld_drv_map[i] =
+			(void*) malloc(sc->drv_map_sz, M_MRSAS, M_NOWAIT);
+		/* Do Error handling */
+		if (!sc->ld_drv_map[i]) {
+			device_printf(sc->mrsas_dev, "Could not allocate memory for local map");
+
+			if (i == 1)
+				free (sc->ld_drv_map[0], M_MRSAS);
+			//ABORT driver initialization
+			goto ABORT;
+		}
+	}
+
+    sc->max_map_sz = max(sc->old_map_sz, sc->new_map_sz);
+
+    if(sc->max256vdSupport)
+	sc->current_map_sz = sc->new_map_sz;
+    else
+	sc->current_map_sz = sc->old_map_sz;
+
 
     for (int i=0; i < 2; i++)
     {
@@ -1645,28 +1697,36 @@ static int mrsas_setup_raidmap(struct mrsas_softc *sc)
                             BUS_SPACE_MAXADDR_32BIT,// lowaddr
                             BUS_SPACE_MAXADDR,      // highaddr
                             NULL, NULL,             // filter, filterarg
-                            sc->map_sz,             // maxsize
+                            sc->max_map_sz,         // maxsize
                             1,                      // nsegments
-                            sc->map_sz,             // maxsegsize
+                            sc->max_map_sz,         // maxsegsize
                             BUS_DMA_ALLOCNOW,       // flags
                             NULL, NULL,             // lockfunc, lockarg
                             &sc->raidmap_tag[i])) {
-            device_printf(sc->mrsas_dev, "Cannot allocate raid map tag.\n");
-            return (ENOMEM);
+		device_printf(sc->mrsas_dev,
+				"Cannot allocate raid map tag.\n");
+		return (ENOMEM);
         }
-        if (bus_dmamem_alloc(sc->raidmap_tag[i], (void **)&sc->raidmap_mem[i],
-                BUS_DMA_NOWAIT, &sc->raidmap_dmamap[i])) {
-            device_printf(sc->mrsas_dev, "Cannot allocate raidmap memory.\n");
-            return (ENOMEM);
+        if (bus_dmamem_alloc(sc->raidmap_tag[i],
+				(void **)&sc->raidmap_mem[i],
+				BUS_DMA_NOWAIT, &sc->raidmap_dmamap[i])) {
+		device_printf(sc->mrsas_dev,
+				"Cannot allocate raidmap memory.\n");
+		return (ENOMEM);
         }
+
+	bzero (sc->raidmap_mem[i], sc->max_map_sz);
+
         if (bus_dmamap_load(sc->raidmap_tag[i], sc->raidmap_dmamap[i],
-                sc->raidmap_mem[i], sc->map_sz, mrsas_addr_cb, &sc->raidmap_phys_addr[i],
-                BUS_DMA_NOWAIT)){
+				sc->raidmap_mem[i], sc->max_map_sz,
+				mrsas_addr_cb, &sc->raidmap_phys_addr[i],
+				BUS_DMA_NOWAIT)){
             device_printf(sc->mrsas_dev, "Cannot load raidmap memory.\n");
             return (ENOMEM);
         }
         if (!sc->raidmap_mem[i]) {
-            device_printf(sc->mrsas_dev, "Cannot allocate memory for raid map.\n");
+            device_printf(sc->mrsas_dev,
+			    "Cannot allocate memory for raid map.\n");
             return (ENOMEM);
         }
     }
@@ -1675,6 +1735,9 @@ static int mrsas_setup_raidmap(struct mrsas_softc *sc)
         mrsas_sync_map_info(sc);
 
     return (0);
+
+ABORT:
+    return (1);
 }
 
 /**
@@ -1708,13 +1771,32 @@ static int mrsas_init_fw(struct mrsas_softc *sc)
     if (mrsas_init_adapter(sc) != SUCCESS){
         device_printf(sc->mrsas_dev, "Adapter initialize Fail.\n");
         return(1);
-    } 
+    }
 
     /* Allocate internal commands for pass-thru */
     if (mrsas_alloc_mfi_cmds(sc) != SUCCESS){
         device_printf(sc->mrsas_dev, "Allocate MFI cmd failed.\n");
         return(1);
-    } 
+    }
+
+    /*
+     * Get the controller info from FW, so that
+     * the MAX VD support availability can be decided.
+     */
+    ctrl_info = malloc(sizeof(struct mrsas_ctrl_info), M_MRSAS, M_NOWAIT);
+    if (!ctrl_info)
+        device_printf(sc->mrsas_dev, "Malloc for ctrl_info failed.\n");
+
+    if (mrsas_get_ctrl_info(sc, ctrl_info)) {
+        device_printf(sc->mrsas_dev, "Unable to get FW ctrl_info.\n");
+    }
+
+    sc->max256vdSupport =
+	    (u_int8_t) ctrl_info->adapterOperations3.supportMaxExtLDs;
+
+    if (ctrl_info->max_lds > 64){
+	sc->max256vdSupport = 1;
+	}
        
     if (mrsas_setup_raidmap(sc) != SUCCESS) {
         device_printf(sc->mrsas_dev, "Set up RAID map failed.\n");
@@ -1722,15 +1804,12 @@ static int mrsas_init_fw(struct mrsas_softc *sc)
 	}
 
     /* For pass-thru, get PD/LD list and controller info */
-    memset(sc->pd_list, 0, MRSAS_MAX_PD * sizeof(struct mrsas_pd_list));
+    memset(sc->pd_list, 0,
+		    MRSAS_MAX_PD * sizeof(struct mrsas_pd_list));
     mrsas_get_pd_list(sc);
 
-    memset(sc->ld_ids, 0xff, MRSAS_MAX_LD);
+    memset(sc->ld_ids, 0xff, MRSAS_MAX_LD_IDS);
     mrsas_get_ld_list(sc);
-
-	//memset(sc->log_to_span, 0, MRSAS_MAX_LD * sizeof(LD_SPAN_INFO));
-
-    ctrl_info = malloc(sizeof(struct mrsas_ctrl_info), M_MRSAS, M_NOWAIT);
 
     /*
      * Compute the max allowed sectors per IO: The controller info has two
@@ -1742,33 +1821,32 @@ static int mrsas_init_fw(struct mrsas_softc *sc)
      * to calculate max_sectors_1. So the number ended up as zero always.
      */
     tmp_sectors = 0;
-    if (ctrl_info && !mrsas_get_ctrl_info(sc, ctrl_info)) {
-        max_sectors_1 = (1 << ctrl_info->stripe_sz_ops.min) *
-                    ctrl_info->max_strips_per_io;
-        max_sectors_2 = ctrl_info->max_request_size;
-        tmp_sectors = min(max_sectors_1 , max_sectors_2);
-        sc->disableOnlineCtrlReset = 
-            ctrl_info->properties.OnOffProperties.disableOnlineCtrlReset;
-        sc->UnevenSpanSupport = 
-            ctrl_info->adapterOperations2.supportUnevenSpans;
-        if(sc->UnevenSpanSupport) {
-            device_printf(sc->mrsas_dev, "FW supports: UnevenSpanSupport=%x\n",
-                sc->UnevenSpanSupport);
-            if (MR_ValidateMapInfo(sc))
-           	    sc->fast_path_io = 1;
-            else
-                sc->fast_path_io = 0;
-
-        }
-    }
+    max_sectors_1 = (1 << ctrl_info->stripe_sz_ops.min) *
+	    ctrl_info->max_strips_per_io;
+    max_sectors_2 = ctrl_info->max_request_size;
+    tmp_sectors = min(max_sectors_1 , max_sectors_2);
     sc->max_sectors_per_req = sc->max_num_sge * MRSAS_PAGE_SIZE / 512;
 
     if (tmp_sectors && (sc->max_sectors_per_req > tmp_sectors))
         sc->max_sectors_per_req = tmp_sectors;
 
+    sc->disableOnlineCtrlReset =
+            ctrl_info->properties.OnOffProperties.disableOnlineCtrlReset;
+    sc->UnevenSpanSupport =
+            ctrl_info->adapterOperations2.supportUnevenSpans;
+    if(sc->UnevenSpanSupport) {
+        printf("FW supports: UnevenSpanSupport=%x\n\n",
+			sc->UnevenSpanSupport);
+
+       if (MR_ValidateMapInfo(sc))
+	    sc->fast_path_io = 1;
+        else
+            sc->fast_path_io = 0;
+    }
+
     if (ctrl_info)
         free(ctrl_info, M_MRSAS);
-   
+
     return(0);
 }
 
@@ -1934,6 +2012,7 @@ int mrsas_ioc_init(struct mrsas_softc *sc)
         init_frame->driver_ver_hi = 0;
     }
 
+    init_frame->driver_operations.mfi_capabilities.support_max_255lds = 1;
     phys_addr = (bus_addr_t)sc->ioc_init_phys_mem + 1024;
     init_frame->queue_info_new_phys_addr_lo = phys_addr;
     init_frame->data_xfer_len = sizeof(Mpi2IOCInitRequest_t);
@@ -2468,7 +2547,7 @@ int mrsas_reset_ctrl(struct mrsas_softc *sc)
 
             /* Reset load balance info */
             memset(sc->load_balance_info, 0, 
-                   sizeof(LD_LOAD_BALANCE_INFO) * MAX_LOGICAL_DRIVES); 
+                   sizeof(LD_LOAD_BALANCE_INFO) * MAX_LOGICAL_DRIVES_EXT);
 
             if (!mrsas_get_map_info(sc))
                 mrsas_sync_map_info(sc);
@@ -3135,25 +3214,27 @@ static int mrsas_get_ld_map_info(struct mrsas_softc *sc)
     int retcode = 0;
     struct mrsas_mfi_cmd *cmd;
     struct mrsas_dcmd_frame *dcmd;
-    MR_FW_RAID_MAP_ALL *map;
+    void *map;
     bus_addr_t map_phys_addr = 0;
 
     cmd = mrsas_get_mfi_cmd(sc);
     if (!cmd) {
-        device_printf(sc->mrsas_dev, "Cannot alloc for ld map info cmd.\n");
+        device_printf(sc->mrsas_dev,
+			"Cannot alloc for ld map info cmd.\n");
         return 1;
     }
 
     dcmd = &cmd->frame->dcmd;
 
-    map = sc->raidmap_mem[(sc->map_id & 1)];
+    map = (void *)sc->raidmap_mem[(sc->map_id & 1)];
     map_phys_addr = sc->raidmap_phys_addr[(sc->map_id & 1)];
     if (!map) {
-        device_printf(sc->mrsas_dev, "Failed to alloc mem for ld map info.\n");
+        device_printf(sc->mrsas_dev,
+			"Failed to alloc mem for ld map info.\n");
         mrsas_release_mfi_cmd(cmd);
         return (ENOMEM);
     }
-    memset(map, 0, sizeof(*map));
+    memset(map, 0, sizeof(sc->max_map_sz));
     memset(dcmd->mbox.b, 0, MFI_MBOX_SIZE);
 
     dcmd->cmd = MFI_CMD_DCMD;
@@ -3162,18 +3243,21 @@ static int mrsas_get_ld_map_info(struct mrsas_softc *sc)
     dcmd->flags = MFI_FRAME_DIR_READ;
     dcmd->timeout = 0;
     dcmd->pad_0 = 0;
-    dcmd->data_xfer_len = sc->map_sz;
+    dcmd->data_xfer_len = sc->current_map_sz;
     dcmd->opcode = MR_DCMD_LD_MAP_GET_INFO;
     dcmd->sgl.sge32[0].phys_addr = map_phys_addr;
-    dcmd->sgl.sge32[0].length = sc->map_sz;
+    dcmd->sgl.sge32[0].length = sc->current_map_sz;
+
     if (!mrsas_issue_polled(sc, cmd))
         retcode = 0;
-    else  
+    else
     {
-        device_printf(sc->mrsas_dev, "Fail to send get LD map info cmd.\n");
+        device_printf(sc->mrsas_dev,
+			"Fail to send get LD map info cmd.\n");
         retcode = 1;
     }
     mrsas_release_mfi_cmd(cmd);
+
     return(retcode);
 }
 
@@ -3191,26 +3275,28 @@ static int mrsas_sync_map_info(struct mrsas_softc *sc)
     struct mrsas_dcmd_frame *dcmd;
     uint32_t size_sync_info, num_lds;
     MR_LD_TARGET_SYNC *target_map = NULL;
-    MR_FW_RAID_MAP_ALL *map;
+    MR_DRV_RAID_MAP_ALL *map;
     MR_LD_RAID  *raid;
     MR_LD_TARGET_SYNC *ld_sync;
     bus_addr_t map_phys_addr = 0;
 
     cmd = mrsas_get_mfi_cmd(sc);
     if (!cmd) {
-        device_printf(sc->mrsas_dev, "Cannot alloc for sync map info cmd\n");
+        device_printf(sc->mrsas_dev,
+			"Cannot alloc for sync map info cmd\n");
         return 1;
     }
 
-    map = sc->raidmap_mem[sc->map_id & 1];
+    map = sc->ld_drv_map[sc->map_id & 1];
     num_lds = map->raidMap.ldCount;
-    
+
     dcmd = &cmd->frame->dcmd;
     size_sync_info = sizeof(MR_LD_TARGET_SYNC) * num_lds;
     memset(dcmd->mbox.b, 0, MFI_MBOX_SIZE);
 
-    target_map = (MR_LD_TARGET_SYNC *)sc->raidmap_mem[(sc->map_id - 1) & 1];
-    memset(target_map, 0, sizeof(MR_FW_RAID_MAP_ALL));
+    target_map =
+	    (MR_LD_TARGET_SYNC *)sc->raidmap_mem[(sc->map_id - 1) & 1];
+    memset(target_map, 0, sc->max_map_sz);
 
     map_phys_addr = sc->raidmap_phys_addr[(sc->map_id - 1) & 1];
 
@@ -3228,16 +3314,17 @@ static int mrsas_sync_map_info(struct mrsas_softc *sc)
     dcmd->flags = MFI_FRAME_DIR_WRITE;
     dcmd->timeout = 0;
     dcmd->pad_0 = 0;
-    dcmd->data_xfer_len = sc->map_sz;
+    dcmd->data_xfer_len = sc->current_map_sz;
     dcmd->mbox.b[0] = num_lds;
     dcmd->mbox.b[1] = MRSAS_DCMD_MBOX_PEND_FLAG;
     dcmd->opcode = MR_DCMD_LD_MAP_GET_INFO;
     dcmd->sgl.sge32[0].phys_addr = map_phys_addr;
-    dcmd->sgl.sge32[0].length = sc->map_sz;
+    dcmd->sgl.sge32[0].length = sc->current_map_sz;
 
     sc->map_update_cmd = cmd;
     if (mrsas_issue_dcmd(sc, cmd)) {
-        device_printf(sc->mrsas_dev, "Fail to send sync map info command.\n");
+        device_printf(sc->mrsas_dev,
+			"Fail to send sync map info command.\n");
         return(1);
     }
     return(retcode);
@@ -3263,7 +3350,8 @@ static int mrsas_get_pd_list(struct mrsas_softc *sc)
 
     cmd = mrsas_get_mfi_cmd(sc);
     if (!cmd) {
-        device_printf(sc->mrsas_dev, "Cannot alloc for get PD list cmd\n");
+        device_printf(sc->mrsas_dev,
+			"Cannot alloc for get PD list cmd\n");
         return 1;
     }
 
@@ -3272,7 +3360,8 @@ static int mrsas_get_pd_list(struct mrsas_softc *sc)
     tcmd = malloc(sizeof(struct mrsas_tmp_dcmd), M_MRSAS, M_NOWAIT);
     pd_list_size = MRSAS_MAX_PD * sizeof(struct MR_PD_LIST);
     if (mrsas_alloc_tmp_dcmd(sc, tcmd, pd_list_size) != SUCCESS) {
-        device_printf(sc->mrsas_dev, "Cannot alloc dmamap for get PD list cmd\n");
+        device_printf(sc->mrsas_dev,
+			"Cannot alloc dmamap for get PD list cmd\n");
         mrsas_release_mfi_cmd(cmd);
         return(ENOMEM);
     }
@@ -3304,11 +3393,14 @@ static int mrsas_get_pd_list(struct mrsas_softc *sc)
     pd_count = MRSAS_MAX_PD;
     pd_addr = pd_list_mem->addr;
     if (retcode == 0 && pd_list_mem->count < pd_count) {
-        memset(sc->local_pd_list, 0, MRSAS_MAX_PD * sizeof(struct mrsas_pd_list));
+        memset(sc->local_pd_list, 0,
+			MRSAS_MAX_PD * sizeof(struct mrsas_pd_list));
         for (pd_index = 0; pd_index < pd_list_mem->count; pd_index++) {
             sc->local_pd_list[pd_addr->deviceId].tid = pd_addr->deviceId;
-            sc->local_pd_list[pd_addr->deviceId].driveType = pd_addr->scsiDevType;
-            sc->local_pd_list[pd_addr->deviceId].driveState = MR_PD_STATE_SYSTEM;
+            sc->local_pd_list[pd_addr->deviceId].driveType =
+		    pd_addr->scsiDevType;
+            sc->local_pd_list[pd_addr->deviceId].driveState =
+		    MR_PD_STATE_SYSTEM;
             pd_addr++;
         }
     }
@@ -3340,7 +3432,8 @@ static int mrsas_get_ld_list(struct mrsas_softc *sc)
 
     cmd = mrsas_get_mfi_cmd(sc);
     if (!cmd) {
-        device_printf(sc->mrsas_dev, "Cannot alloc for get LD list cmd\n");
+        device_printf(sc->mrsas_dev,
+			"Cannot alloc for get LD list cmd\n");
         return 1;
     }
 
@@ -3349,7 +3442,8 @@ static int mrsas_get_ld_list(struct mrsas_softc *sc)
     tcmd = malloc(sizeof(struct mrsas_tmp_dcmd), M_MRSAS, M_NOWAIT);
     ld_list_size = sizeof(struct MR_LD_LIST);
     if (mrsas_alloc_tmp_dcmd(sc, tcmd, ld_list_size) != SUCCESS) {
-        device_printf(sc->mrsas_dev, "Cannot alloc dmamap for get LD list cmd\n");
+        device_printf(sc->mrsas_dev,
+			"Cannot alloc dmamap for get LD list cmd\n");
         mrsas_release_mfi_cmd(cmd);
         return(ENOMEM);
     }
@@ -3358,6 +3452,9 @@ static int mrsas_get_ld_list(struct mrsas_softc *sc)
         ld_list_phys_addr = tcmd->tmp_dcmd_phys_addr;
     }
     memset(dcmd->mbox.b, 0, MFI_MBOX_SIZE);
+
+    if (sc->max256vdSupport)
+        dcmd->mbox.b[0]=1;
 
     dcmd->cmd = MFI_CMD_DCMD;
     dcmd->cmd_status = 0xFF;
@@ -3375,10 +3472,15 @@ static int mrsas_get_ld_list(struct mrsas_softc *sc)
     else 
         retcode = 1;
 
+#if VD_EXT_DEBUG
+    printf ("Number of LDs %d\n", ld_list_mem->ldCount);
+#endif
+
      /* Get the instance LD list */ 
-     if ((retcode == 0) && (ld_list_mem->ldCount <= (MAX_LOGICAL_DRIVES))){
+     if ((retcode == 0) &&
+		     (ld_list_mem->ldCount <= sc->fw_supported_vd_count)){
         sc->CurLdCount = ld_list_mem->ldCount;
-        memset(sc->ld_ids, 0xff, MRSAS_MAX_LD);
+        memset(sc->ld_ids, 0xff, MAX_LOGICAL_DRIVES_EXT);
         for (ld_index = 0; ld_index < ld_list_mem->ldCount; ld_index++) {
             if (ld_list_mem->ldList[ld_index].state != 0) {
                 ids = ld_list_mem->ldList[ld_index].ref.ld_context.targetId;
