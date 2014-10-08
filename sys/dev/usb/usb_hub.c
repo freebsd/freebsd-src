@@ -111,6 +111,9 @@ struct uhub_softc {
 	struct mtx sc_mtx;		/* our mutex */
 	struct usb_device *sc_udev;	/* USB device */
 	struct usb_xfer *sc_xfer[UHUB_N_TRANSFER];	/* interrupt xfer */
+#if USB_HAVE_DISABLE_ENUM
+	int sc_disable_enumeration;
+#endif
 	uint8_t	sc_flags;
 #define	UHUB_FLAG_DID_EXPLORE 0x01
 };
@@ -993,6 +996,13 @@ uhub_explore(struct usb_device *udev)
 
 	DPRINTFN(11, "udev=%p addr=%d\n", udev, udev->address);
 
+#if USB_HAVE_DISABLE_ENUM
+	/* check if we should skip enumeration from this USB HUB */
+	if (sc->sc_disable_enumeration != 0) {
+		DPRINTF("Enumeration is disabled!\n");
+		return (0);
+	}
+#endif
 	/* ignore devices that are too deep */
 	if (uhub_is_too_deep(udev))
 		return (USB_ERR_TOO_DEEP);
@@ -1188,6 +1198,10 @@ uhub_attach(device_t dev)
 	struct usb_hub *hub;
 	struct usb_hub_descriptor hubdesc20;
 	struct usb_hub_ss_descriptor hubdesc30;
+#if USB_HAVE_DISABLE_ENUM
+	struct sysctl_ctx_list *sysctl_ctx;
+	struct sysctl_oid *sysctl_tree;
+#endif
 	uint16_t pwrdly;
 	uint16_t nports;
 	uint8_t x;
@@ -1469,6 +1483,19 @@ uhub_attach(device_t dev)
 
 	usbd_set_power_mode(udev, USB_POWER_MODE_SAVE);
 
+#if USB_HAVE_DISABLE_ENUM
+	/* Add device sysctls */
+
+	sysctl_ctx = device_get_sysctl_ctx(dev);
+	sysctl_tree = device_get_sysctl_tree(dev);
+
+	if (sysctl_ctx != NULL && sysctl_tree != NULL) {
+		(void) SYSCTL_ADD_INT(sysctl_ctx, SYSCTL_CHILDREN(sysctl_tree),
+		    OID_AUTO, "disable_enumeration", CTLFLAG_RWTUN,
+		    &sc->sc_disable_enumeration, 0,
+		    "Set to disable enumeration on this USB HUB.");
+	}
+#endif
 	return (0);
 
 error:
