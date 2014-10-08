@@ -33,27 +33,27 @@
 .Dt TIMEOUT 9
 .Os
 .Sh NAME
-.Nm timeout ,
-.Nm untimeout ,
+.Nm callout_active ,
+.Nm callout_deactivate ,
+.Nm callout_drain ,
 .Nm callout_handle_init ,
 .Nm callout_init ,
 .Nm callout_init_mtx ,
 .Nm callout_init_rm ,
 .Nm callout_init_rw ,
-.Nm callout_stop ,
-.Nm callout_drain ,
-.Nm callout_reset ,
-.Nm callout_reset_on ,
-.Nm callout_reset_curcpu ,
-.Nm callout_reset_sbt ,
-.Nm callout_reset_sbt_on ,
-.Nm callout_reset_sbt_curcpu ,
-.Nm callout_schedule ,
-.Nm callout_schedule_on ,
-.Nm callout_schedule_curcpu ,
 .Nm callout_pending ,
-.Nm callout_active ,
-.Nm callout_deactivate
+.Nm callout_reset ,
+.Nm callout_reset_curcpu ,
+.Nm callout_reset_on ,
+.Nm callout_reset_sbt ,
+.Nm callout_reset_sbt_curcpu ,
+.Nm callout_reset_sbt_on ,
+.Nm callout_schedule ,
+.Nm callout_schedule_curcpu ,
+.Nm callout_schedule_on ,
+.Nm callout_stop ,
+.Nm timeout ,
+.Nm untimeout
 .Nd execute a function after a specified length of time
 .Sh SYNOPSIS
 .In sys/types.h
@@ -61,15 +61,17 @@
 .Bd -literal
 typedef void timeout_t (void *);
 .Ed
-.Ft struct callout_handle
-.Fn timeout "timeout_t *func" "void *arg" "int ticks"
+.Ft int
+.Fn callout_active "struct callout *c"
+.Ft void
+.Fn callout_deactivate "struct callout *c"
+.Ft int
+.Fn callout_drain "struct callout *c"
 .Ft void
 .Fn callout_handle_init "struct callout_handle *handle"
 .Bd -literal
 struct callout_handle handle = CALLOUT_HANDLE_INITIALIZER(&handle);
 .Ed
-.Ft void
-.Fn untimeout "timeout_t *func" "void *arg" "struct callout_handle handle"
 .Ft void
 .Fn callout_init "struct callout *c" "int mpsafe"
 .Ft void
@@ -79,46 +81,279 @@ struct callout_handle handle = CALLOUT_HANDLE_INITIALIZER(&handle);
 .Ft void
 .Fn callout_init_rw "struct callout *c" "struct rwlock *rw" "int flags"
 .Ft int
-.Fn callout_stop "struct callout *c"
-.Ft int
-.Fn callout_drain "struct callout *c"
+.Fn callout_pending "struct callout *c"
 .Ft int
 .Fn callout_reset "struct callout *c" "int ticks" "timeout_t *func" "void *arg"
-.Ft int
-.Fn callout_reset_on "struct callout *c" "int ticks" "timeout_t *func" \
-"void *arg" "int cpu"
-.Ft int
-.Fn callout_reset_sbt_on "struct callout *c" "sbintime_t sbt" \
-"sbintime_t pr" "timeout_t *func" "void *arg" "int cpu" "int flags"
 .Ft int
 .Fn callout_reset_curcpu "struct callout *c" "int ticks" "timeout_t *func" \
 "void *arg"
 .Ft int
-.Fn callout_schedule "struct callout *c" "int ticks"
+.Fn callout_reset_on "struct callout *c" "int ticks" "timeout_t *func" \
+"void *arg" "int cpu"
 .Ft int
-.Fn callout_schedule_on "struct callout *c" "int ticks" "int cpu"
+.Fn callout_reset_sbt "struct callout *c" "sbintime_t sbt" \
+"sbintime_t pr" "timeout_t *func" "void *arg" "int flags"
+.Ft int
+.Fn callout_reset_sbt_curcpu "struct callout *c" "sbintime_t sbt" \
+"sbintime_t pr" "timeout_t *func" "void *arg" "int flags"
+.Ft int
+.Fn callout_reset_sbt_on "struct callout *c" "sbintime_t sbt" \
+"sbintime_t pr" "timeout_t *func" "void *arg" "int cpu" "int flags"
+.Ft int
+.Fn callout_schedule "struct callout *c" "int ticks"
 .Ft int
 .Fn callout_schedule_curcpu "struct callout *c" "int ticks"
 .Ft int
-.Fn callout_pending "struct callout *c"
+.Fn callout_schedule_on "struct callout *c" "int ticks" "int cpu"
 .Ft int
-.Fn callout_active "struct callout *c"
+.Fn callout_stop "struct callout *c"
+.Ft struct callout_handle
+.Fn timeout "timeout_t *func" "void *arg" "int ticks"
 .Ft void
-.Fn callout_deactivate "struct callout *c"
+.Fn untimeout "timeout_t *func" "void *arg" "struct callout_handle handle"
 .Sh DESCRIPTION
+The
+.Nm callout
+API is used to schedule a call to an arbitrary function at a specific
+time in the future.
+Consumers of this API are required to allocate a callout structure
+.Pq struct callout
+for each pending function invocation.
+This structure stores state about the pending function invocation including
+the function to be called and the time at which the function should be invoked.
+Pending function calls can be cancelled or rescheduled to a different time.
+In addition,
+a callout structure may be reused to schedule a new function call after a
+scheduled call is completed.
+.Pp
+Callouts only provide a single-shot mode.
+If a consumer requires a periodic timer,
+it must explicitly reschedule each function call.
+This is normally done by rescheduling the subsequent call within the called
+function.
+.Pp
+Callout functions must not sleep.
+They may not acquire sleepable locks,
+wait on condition variables,
+perform blocking allocation requests,
+or invoke any other action that might sleep.
+.Pp
+Each callout structure must be initialized by
+.Fn callout_init ,
+.Fn callout_init_mtx ,
+.Fn callout_init_rm ,
+or
+.Fn callout_init_rw
+before it is passed to any of the other callout functions.
+The
+.Fn callout_init
+function initializes a callout structure in
+.Fa c
+that is not associated with a specific lock.
+If the
+.Fa mpsafe
+argument is zero,
+the callout structure is not considered to be
+.Dq multi-processor safe ;
+and the Giant lock will be acquired before calling the callout function
+and released when the callout function returns.
+.Pp
+The
+.Fn callout_init_mtx ,
+.Fn callout_init_rm ,
+and
+.Fn callout_init_rw
+functions initialize a callout structure in
+.Fa c
+that is associated with a specific lock.
+The lock is specified by the
+.Fa mtx ,
+.Fa rm ,
+or
+.Fa rw
+parameter.
+The associated lock must be held while stopping or rescheduling the
+callout.
+The callout subsystem acquires the associated lock before calling the
+callout function and releases it after the function returns.
+If the callout was cancelled while the callout subsystem waited for the
+associated lock,
+the callout function is not called,
+and the associated lock is released.
+This ensures that stopping or rescheduling the callout will abort any
+previously scheduled invocation.
+.Pp
+Only regular mutexes may be used with
+.Fn callout_init_mtx ;
+spin mutexes are not supported.
+A sleepable read-mostly lock
+.Po
+one initialized with the
+.Dv RM_SLEEPABLE
+flag
+.Pc
+may not be used with
+.Fn callout_init_rm .
+Similarly, other sleepable lock types such as
+.Xr sx 9
+and
+.Xr lockmgr 9
+cannot be used with callouts because sleeping is not permitted in
+the callout subsystem.
+.Pp
+These
+.Fa flags
+may be specified for
+.Fn callout_init_mtx ,
+.Fn callout_init_rm ,
+or
+.Fn callout_init_rw :
+.Bl -tag -width ".Dv CALLOUT_RETURNUNLOCKED"
+.It Dv CALLOUT_RETURNUNLOCKED
+The callout function will release the associated lock itself,
+so the callout subsystem should not attempt to unlock it
+after the callout function returns.
+.It Dv CALLOUT_SHAREDLOCK
+The lock is only acquired in read mode when running the callout handler.
+This flag is ignored by
+.Fn callout_init_mtx .
+.El
+.Pp
 The function
-.Fn timeout
-schedules a call to the function given by the argument
-.Fa func
-to take place after
+.Fn callout_stop
+cancels a callout
+.Fa c
+if it is currently pending.
+If the callout is pending, then
+.Fn callout_stop
+returns a non-zero value.
+If the callout is not set,
+has already been serviced,
+or is currently being serviced,
+then zero will be returned.
+If the callout has an associated lock,
+then that lock must be held when this function is called.
+.Pp
+The function
+.Fn callout_drain
+is identical to
+.Fn callout_stop
+except that it will wait for the callout
+.Fa c
+to complete if it is already in progress.
+This function MUST NOT be called while holding any
+locks on which the callout might block, or deadlock will result.
+Note that if the callout subsystem has already begun processing this
+callout, then the callout function may be invoked before
+.Fn callout_drain
+returns.
+However, the callout subsystem does guarantee that the callout will be
+fully stopped before
+.Fn callout_drain
+returns.
+.Pp
+The
+.Fn callout_reset
+and
+.Fn callout_schedule
+function families schedule a future function invocation for callout
+.Fa c .
+If
+.Fa c
+already has a pending callout,
+it is cancelled before the new invocation is scheduled.
+These functions return a non-zero value if a pending callout was cancelled
+and zero if there was no pending callout.
+If the callout has an associated lock,
+then that lock must be held when any of these functions are called.
+.Pp
+The time at which the callout function will be invoked is determined by
+either the
+.Fa ticks
+argument or the
+.Fa sbt ,
+.Fa pr ,
+and
+.Fa flags
+arguments.
+When
+.Fa ticks
+is used,
+the callout is scheduled to execute after
 .Fa ticks Ns No /hz
 seconds.
 Non-positive values of
 .Fa ticks
 are silently converted to the value
 .Sq 1 .
+.Pp
+The
+.Fa sbt ,
+.Fa pr ,
+and
+.Fa flags
+arguments provide more control over the scheduled time including
+support for higher resolution times,
+specifying the precision of the scheduled time,
+and setting an absolute deadline instead of a relative timeout.
+The callout is scheduled to execute in a time window which begins at
+the time specified in
+.Fa sbt
+and extends for the amount of time specified in
+.Fa pr .
+If
+.Fa sbt
+specifies a time in the past,
+the window is adjusted to start at the current time.
+A non-zero value for
+.Fa pr
+allows the callout subsystem to coalesce callouts scheduled close to each
+other into fewer timer interrupts,
+reducing processing overhead and power consumption.
+These
+.Fa flags
+may be specified to adjust the interpretation of
+.Fa sbt
+and
+.Fa pr :
+.Bl -tag -width ".Dv C_DIRECT_EXEC"
+.It Dv C_ABSOLUTE
+Handle the
+.Fa sbt
+argument as an absolute time since boot.
+By default,
+.Fa sbt
+is treated as a relative amount of time,
+similar to
+.Fa ticks .
+.It Dv C_DIRECT_EXEC
+Run the handler directly from hardware interrupt context instead of from the
+softclock thread.
+This reduces latency and overhead, but puts more constraints on the callout
+function.
+Callout functions run in this context may use only spin mutexes for locking
+and should be as small as possible because they run with absolute priority.
+.It Fn C_PREL
+Specifies relative event time precision as binary logarithm of time interval
+divided by acceptable time deviation: 1 -- 1/2, 2 -- 1/4, etc.
+Note that the larger of
+.Fa pr
+or this value is used as the length of the time window.
+Smaller values
+.Pq which result in larger time intervals
+allow the callout subsystem to aggregate more events in one timer interrupt.
+.It Dv C_HARDCLOCK
+Align the timeouts to
+.Fn hardclock
+calls if possible.
+.El
+.Pp
+The
+.Fn callout_reset
+functions accept a
 .Fa func
-should be a pointer to a function that takes a
+argument which identifies the function to be called when the time expires.
+It must be a pointer to a function that takes a single
 .Fa void *
 argument.
 Upon invocation,
@@ -126,267 +361,57 @@ Upon invocation,
 will receive
 .Fa arg
 as its only argument.
-The return value from
-.Fn timeout
-is a
-.Ft struct callout_handle
-which can be used in conjunction with the
-.Fn untimeout
-function to request that a scheduled timeout be canceled.
 The
-.Fn timeout
-call is the old style and new code should use the
-.Fn callout_*
-functions.
-.Pp
-The function
-.Fn callout_handle_init
-can be used to initialize a handle to a state which will cause
-any calls to
-.Fn untimeout
-with that handle to return with no side
-effects.
-.Pp
-Assigning a callout handle the value of
-.Fn CALLOUT_HANDLE_INITIALIZER
-performs the same function as
-.Fn callout_handle_init
-and is provided for use on statically declared or global callout handles.
-.Pp
-The function
-.Fn untimeout
-cancels the timeout associated with
-.Fa handle
-using the
+.Fn callout_schedule
+functions reuse the
 .Fa func
 and
 .Fa arg
-arguments to validate the handle.
-If the handle does not correspond to a timeout with
-the function
-.Fa func
-taking the argument
-.Fa arg
-no action is taken.
-.Fa handle
-must be initialized by a previous call to
-.Fn timeout ,
-.Fn callout_handle_init ,
-or assigned the value of
-.Fn CALLOUT_HANDLE_INITIALIZER "&handle"
-before being passed to
-.Fn untimeout .
-The behavior of calling
-.Fn untimeout
-with an uninitialized handle
-is undefined.
-The
-.Fn untimeout
-call is the old style and new code should use the
-.Fn callout_*
-functions.
-.Pp
-As handles are recycled by the system, it is possible (although unlikely)
-that a handle from one invocation of
-.Fn timeout
-may match the handle of another invocation of
-.Fn timeout
-if both calls used the same function pointer and argument, and the first
-timeout is expired or canceled before the second call.
-The timeout facility offers O(1) running time for
-.Fn timeout
-and
-.Fn untimeout .
-Timeouts are executed from
-.Fn softclock
-with the
-.Va Giant
-lock held.
-Thus they are protected from re-entrancy.
-.Pp
-The functions
-.Fn callout_init ,
-.Fn callout_init_mtx ,
-.Fn callout_init_rm ,
-.Fn callout_init_rw ,
-.Fn callout_stop ,
-.Fn callout_drain ,
+arguments from the previous callout.
+Note that one of the
 .Fn callout_reset
-and
-.Fn callout_schedule
-are low-level routines for clients who wish to allocate their own
-callout structures.
-.Pp
-The function
-.Fn callout_init
-initializes a callout so it can be passed to
-.Fn callout_stop ,
-.Fn callout_drain ,
-.Fn callout_reset
-or
-.Fn callout_schedule
-without any side effects.
-If the
-.Fa mpsafe
-argument is zero,
-the callout structure is not considered to be
-.Dq multi-processor safe ;
-that is,
-the Giant lock will be acquired before calling the callout function,
-and released when the callout function returns.
-.Pp
-The
-.Fn callout_init_mtx
-function may be used as an alternative to
-.Fn callout_init .
-The parameter
-.Fa mtx
-specifies a mutex that is to be acquired by the callout subsystem
-before calling the callout function, and released when the callout
-function returns.
-The following
-.Fa flags
-may be specified:
-.Bl -tag -width ".Dv CALLOUT_RETURNUNLOCKED"
-.It Dv CALLOUT_RETURNUNLOCKED
-The callout function will release
-.Fa mtx
-itself, so the callout subsystem should not attempt to unlock it
-after the callout function returns.
-.El
-.Pp
-The
-.Fn callout_init_rw
-and the
-.Fn callout_init_rm
-fuctions serve the need of using rwlocks and rmlocks in conjunction
-with callouts.
-The functions do the same as
-.Fn callout_init
-with the possibility of specifying an extra
-.Fa rw
-or
-.Fa rm
-argument.
-If an
-.Fa rm
-argument is specified, the lock should be created without passing the
-.Dv RM_SLEEPABLE
-flag.
-The usable lock classes are currently limited to mutexes, rwlocks and
-non-sleepable rmlocks, because callout handlers run in softclock swi,
-so they cannot sleep nor acquire sleepable locks like sx or lockmgr.
-The following
-.Fa flags
-may be specified:
-.Bl -tag -width ".Dv CALLOUT_SHAREDLOCK"
-.It Dv CALLOUT_SHAREDLOCK
-The lock is only acquired in read mode when running the callout handler.
-It has no effects when used in conjunction with
-.Fa mtx .
-.El
-.Pp
-The function
-.Fn callout_stop
-cancels a callout if it is currently pending.
-If the callout is pending, then
-.Fn callout_stop
-will return a non-zero value.
-If the callout is not set, has already been serviced or is currently
-being serviced, then zero will be returned.
-If the callout has an associated mutex, then that mutex must be
-held when this function is called.
-.Pp
-The function
-.Fn callout_drain
-is identical to
-.Fn callout_stop
-except that it will wait for the callout to be completed if it is
-already in progress.
-This function MUST NOT be called while holding any
-locks on which the callout might block, or deadlock will result.
-Note that if the callout subsystem has already begun processing this
-callout, then the callout function may be invoked during the execution of
-.Fn callout_drain .
-However, the callout subsystem does guarantee that the callout will be
-fully stopped before
-.Fn callout_drain
-returns.
-.Pp
-The function
-.Fn callout_reset
-first performs the equivalent of
-.Fn callout_stop
-to disestablish the callout, and then establishes a new callout in the
-same manner as
-.Fn timeout .
-If there was already a pending callout and it was rescheduled, then
-.Fn callout_reset
-will return a non-zero value.
-If the callout has an associated mutex, then that mutex must be
-held when this function is called.
-The function
-.Fn callout_schedule
-(re)schedules an existing callout for a new period of time;
-it is equivalent to calling
-.Fn callout_reset
-with the
+functions must always be called to initialize
 .Fa func
 and
 .Fa arg
-parameters extracted from the callout structure (though possibly with
-lower overhead).
+before one of the
+.Fn callout_schedule
+functions can be used.
 .Pp
-The functions
-.Fn callout_reset_on
+The callout subsystem provides a softclock thread for each CPU in the system.
+Callouts are assigned to a single CPU and are executed by the softclock thread
+for that CPU.
+Initially,
+callouts are assigned to CPU 0.
+The
+.Fn callout_reset_on ,
+.Fn callout_reset_sbt_on ,
 and
 .Fn callout_schedule_on
-are equivalent to
-.Fn callout_reset
-and
-.Fn callout_schedule
-but take an extra parameter specifying the target CPU for the callout.
-.Pp
-The function
-.Fn callout_reset_sbt_on
-allows to get higher time resolution, taking relative or absolute time
-and precision instead of relative ticks count.
-If specified time is in past, it will be silently converted to present
-to run handler as soon as possible.
-.Pp
-The following
-.Fa flags
-may be specified:
-.Bl -tag -width ".Dv C_DIRECT_EXEC"
-.It Dv C_ABSOLUTE
-Handle the
-.Fa sbt
-argument as absolute time of the event since boot, or relative time otherwise.
-.It Dv C_DIRECT_EXEC
-Run handler directly from hardware interrupt context instead of softclock swi.
-It is faster, but puts more constraints on handlers.
-Handlers may use only spin mutexes for locking, and they must be fast because
-they run with absolute priority.
-.It Fn C_PREL
-Specifies relative event time precision as binary logarithm of time interval
-divided by acceptable time deviation: 1 -- 1/2, 2 -- 1/4, etc.
-Smaller value allows to aggregate more events in one timer interrupt to
-reduce processing overhead and power consumption.
-.It Dv C_HARDCLOCK
-Align the timeouts, if possible, to 
-.Fn hardclock  
-calls.
-.El
-.Pp
-The functions
-.Fn callout_reset_curcpu
+functions assign the callout to CPU
+.Fa cpu .
+The
+.Fn callout_reset_curcpu ,
+.Fn callout_reset_sbt_curpu ,
 and
 .Fn callout_schedule_curcpu
-are wrappers for
-.Fn callout_reset_on
+functions assign the callout to the current CPU.
+The
+.Fn callout_reset ,
+.Fn callout_reset_sbt ,
 and
-.Fn callout_schedule_on
-using the current CPU as the target CPU.
+.Fn callout_schedule
+functions schedule the callout to execute in the softclock thread of the CPU
+to which it is currently assigned.
+.Pp
+Softclock threads are not pinned to their respective CPUs by default.
+The softclock thread for CPU 0 can be pinned to CPU 0 by setting the
+.Va kern.pin_default_swi
+loader tunable to a non-zero value.
+Softclock threads for CPUs other than zero can be pinned to their
+respective CPUs by setting the
+.Va kern.pin_pcpu_swi
+loader tunable to a non-zero value.
 .Pp
 The macros
 .Fn callout_pending ,
@@ -394,10 +419,6 @@ The macros
 and
 .Fn callout_deactivate
 provide access to the current state of the callout.
-Careful use of these macros can avoid many of the race conditions
-that are inherent in asynchronous timer facilities; see
-.Sx "Avoiding Race Conditions"
-below for further details.
 The
 .Fn callout_pending
 macro checks whether a callout is
@@ -410,7 +431,8 @@ starts to process this callout,
 .Fn callout_pending
 will return
 .Dv FALSE
-even though the callout function may not have finished (or even begun)
+even though the callout function may not have finished
+.Pq or even begun
 executing.
 The
 .Fn callout_active
@@ -434,45 +456,64 @@ but it
 clear it when a callout expires normally via the execution of the
 callout function.
 .Ss "Avoiding Race Conditions"
-The callout subsystem invokes callout functions from its own timer
+The callout subsystem invokes callout functions from its own thread
 context.
-Without some kind of synchronization it is possible that a callout
+Without some kind of synchronization,
+it is possible that a callout
 function will be invoked concurrently with an attempt to stop or reset
 the callout by another thread.
-In particular, since callout functions typically acquire a mutex as
+In particular, since callout functions typically acquire a lock as
 their first action, the callout function may have already been invoked,
-but be blocked waiting for that mutex at the time that another thread
+but is blocked waiting for that lock at the time that another thread
 tries to reset or stop the callout.
 .Pp
-The callout subsystem provides a number of mechanisms to address these
-synchronization concerns:
+There are three main techniques for addressing these
+synchronization concerns.
+The first approach is preferred as it is the simplest:
 .Bl -enum -offset indent
 .It
-If the callout has an associated mutex that was specified using the
-.Fn callout_init_mtx
-function (or implicitly specified as the
-.Va Giant
-mutex using
+Callouts can be associated with a specific lock when they are initialized
+by
+.Fn callout_init_mtx ,
+.Fn callout_init_rm ,
+or
+.Fn callout_init_rw .
+When a callout is associated with a lock,
+the callout subsystem acquires the lock before the callout function is
+invoked.
+This allows the callout subsystem to transparently handle races between
+callout cancellation,
+scheduling,
+and execution.
+Note that the associated lock must be acquired before calling
+.Fn callout_stop
+or one of the
+.Fn callout_reset
+or
+.Fn callout_schedule
+functions to provide this safety.
+.Pp
+A callout initialized via
 .Fn callout_init
 with
 .Fa mpsafe
-set to
-.Dv FALSE ) ,
-then this mutex is used to avoid the race conditions.
-The associated mutex must be acquired by the caller before calling
-.Fn callout_stop
-or
-.Fn callout_reset
-and it is guaranteed that the callout will be correctly stopped
-or reset as expected.
-Note that it is still necessary to use
-.Fn callout_drain
-before destroying the callout or its associated mutex.
+set to zero is implicitly associated with the
+.Va Giant
+mutex.
+If
+.Va Giant
+is held when cancelling or rescheduling the callout,
+then its use will prevent races with the callout function.
 .It
 The return value from
 .Fn callout_stop
-and
+.Po
+or the
 .Fn callout_reset
+and
+.Fn callout_schedule
+function families
+.Pc
 indicates whether or not the callout was removed.
 If it is known that the callout was set and the callout function has
 not yet executed, then a return value of
@@ -607,19 +648,134 @@ data objects that have already been destroyed or recycled.
 To ensure that the callout is completely finished, a call to
 .Fn callout_drain
 should be used.
+In particular,
+a callout should always be drained prior to destroying its associated lock
+or releasing the storage for the callout structure.
+.Sh LEGACY API
+.Bf Sy
+The functions below are a legacy API that will be removed in a future release.
+New code should not use these routines.
+.Ef
+.Pp
+The function
+.Fn timeout
+schedules a call to the function given by the argument
+.Fa func
+to take place after
+.Fa ticks Ns No /hz
+seconds.
+Non-positive values of
+.Fa ticks
+are silently converted to the value
+.Sq 1 .
+.Fa func
+should be a pointer to a function that takes a
+.Fa void *
+argument.
+Upon invocation,
+.Fa func
+will receive
+.Fa arg
+as its only argument.
+The return value from
+.Fn timeout
+is a
+.Ft struct callout_handle
+which can be used in conjunction with the
+.Fn untimeout
+function to request that a scheduled timeout be canceled.
+.Pp
+The function
+.Fn callout_handle_init
+can be used to initialize a handle to a state which will cause
+any calls to
+.Fn untimeout
+with that handle to return with no side
+effects.
+.Pp
+Assigning a callout handle the value of
+.Fn CALLOUT_HANDLE_INITIALIZER
+performs the same function as
+.Fn callout_handle_init
+and is provided for use on statically declared or global callout handles.
+.Pp
+The function
+.Fn untimeout
+cancels the timeout associated with
+.Fa handle
+using the
+.Fa func
+and
+.Fa arg
+arguments to validate the handle.
+If the handle does not correspond to a timeout with
+the function
+.Fa func
+taking the argument
+.Fa arg
+no action is taken.
+.Fa handle
+must be initialized by a previous call to
+.Fn timeout ,
+.Fn callout_handle_init ,
+or assigned the value of
+.Fn CALLOUT_HANDLE_INITIALIZER "&handle"
+before being passed to
+.Fn untimeout .
+The behavior of calling
+.Fn untimeout
+with an uninitialized handle
+is undefined.
+.Pp
+As handles are recycled by the system, it is possible (although unlikely)
+that a handle from one invocation of
+.Fn timeout
+may match the handle of another invocation of
+.Fn timeout
+if both calls used the same function pointer and argument, and the first
+timeout is expired or canceled before the second call.
+The timeout facility offers O(1) running time for
+.Fn timeout
+and
+.Fn untimeout .
+Timeouts are executed from
+.Fn softclock
+with the
+.Va Giant
+lock held.
+Thus they are protected from re-entrancy.
 .Sh RETURN VALUES
 The
-.Fn timeout
-function returns a
-.Ft struct callout_handle
-that can be passed to
-.Fn untimeout .
+.Fn callout_active
+macro returns the state of a callout's
+.Em active
+flag.
+.Pp
+The
+.Fn callout_pending
+macro returns the state of a callout's
+.Em pending
+flag.
+.Pp
+The
+.Fn callout_reset
+and
+.Fn callout_schedule
+function families return non-zero if the callout was pending before the new
+function invocation was scheduled.
+.Pp
 The
 .Fn callout_stop
 and
 .Fn callout_drain
 functions return non-zero if the callout was still pending when it was
 called or zero otherwise.
+The
+.Fn timeout
+function returns a
+.Ft struct callout_handle
+that can be passed to
+.Fn untimeout .
 .Sh HISTORY
 The current timeout and untimeout routines are based on the work of
 .An Adam M. Costello
