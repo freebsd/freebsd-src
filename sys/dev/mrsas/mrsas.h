@@ -2491,6 +2491,9 @@ struct mrsas_softc {
     struct mtx mfi_cmd_pool_lock;         // lock for cmd pool linked list
     struct mtx raidmap_lock;              // lock for raid map access/update
     struct mtx aen_lock;                  // aen lock
+    struct selinfo mrsas_select;	  // poll select interface for application
+    uint32_t mrsas_aen_triggered;
+    uint32_t mrsas_poll_waiting;
     uint32_t           max_fw_cmds;       // Max commands from FW
     uint32_t           max_num_sge;       // Max number of SGEs
     struct resource    *mrsas_irq[MAX_MSIX_COUNT];        // interrupt interface window
