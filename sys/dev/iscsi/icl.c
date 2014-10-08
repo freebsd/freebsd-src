@@ -771,6 +771,7 @@ icl_receive_thread(void *arg)
 
 	ICL_CONN_LOCK(ic);
 	ic->ic_receive_running = false;
+	cv_signal(&ic->ic_send_cv);
 	ICL_CONN_UNLOCK(ic);
 	kthread_exit();
 }
@@ -1023,6 +1024,7 @@ icl_send_thread(void *arg)
 	STAILQ_CONCAT(&ic->ic_to_send, &queue);
 
 	ic->ic_send_running = false;
+	cv_signal(&ic->ic_send_cv);
 	ICL_CONN_UNLOCK(ic);
 	kthread_exit();
 }
@@ -1342,15 +1344,11 @@ icl_conn_close(struct icl_conn *ic)
 	/*
 	 * Wake up the threads, so they can properly terminate.
 	 */
-	cv_signal(&ic->ic_receive_cv);
-	cv_signal(&ic->ic_send_cv);
 	while (ic->ic_receive_running || ic->ic_send_running) {
 		//ICL_DEBUG("waiting for send/receive threads to terminate");
-		ICL_CONN_UNLOCK(ic);
 		cv_signal(&ic->ic_receive_cv);
 		cv_signal(&ic->ic_send_cv);
-		pause("icl_close", 1 * hz);
-		ICL_CONN_LOCK(ic);
+		cv_wait(&ic->ic_send_cv, ic->ic_lock);
 	}
 	//ICL_DEBUG("send/receive threads terminated");
 
