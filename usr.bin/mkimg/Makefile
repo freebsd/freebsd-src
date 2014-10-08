@@ -4,6 +4,8 @@ PROG=	mkimg
 SRCS=	format.c image.c mkimg.c scheme.c
 MAN=	mkimg.1
 
+MKIMG_VERSION=20140927
+CFLAGS+=-DMKIMG_VERSION=${MKIMG_VERSION}
 CFLAGS+=-DSPARSE_WRITE
 
 # List of formats to support

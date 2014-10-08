@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd September 12, 2014
+.Dd September 27, 2014
 .Dt MKIMG 1
 .Os
 .Sh NAME
@@ -44,6 +44,8 @@
 .Fl s Ar scheme
 .Fl p Ar partition
 .Op Fl p Ar partition ...
+.Nm
+.Ar --formats | --schemes | --version
 .Sh DESCRIPTION
 The
 .Nm
@@ -122,10 +124,32 @@ utility will generate predictable values for Universally Unique Identifiers
 .Nm
 utility will create images that are identical.
 .Pp
-For a complete list of supported partitioning schemes or supported output
-format, or for a detailed description of how to specify partitions, run the
+A set of long options exist to query about the
+.Nm
+utilty itself.
+Options in this set should be given by themselves because the
+.Nm
+utility exits immediately after providing the requested information.
+The version of the
+.Nm
+utility is printed when the
+.Ar --version
+option is given.
+The list of supported output formats is printed when the
+.Ar --formats
+option is given and the list of supported partitioning schemes is printed
+when the
+.Ar --schemes
+option is given.
+Both the format and scheme lists a space-separated lists for easy handling
+in scripts.
+.Pp
+For a more descriptive list of supported partitioning schemes or supported
+output format, or for a detailed description of how to specify partitions,
+run the
 .Nm
 utility without any arguments.
+This will print a usage message with all the necessary details.
 .Sh ENVIRONMENT
 .Bl -tag -width "TMPDIR" -compact
 .It Ev TMPDIR
