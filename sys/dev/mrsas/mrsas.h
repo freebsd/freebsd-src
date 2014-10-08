@@ -67,11 +67,15 @@ __FBSDID("$FreeBSD$");
 #include <dev/pci/pcireg.h>
 
 #include <sys/types.h>
+#include <sys/lock.h>
+#include <sys/sema.h>
 #include <sys/sysctl.h>
 #include <sys/stat.h>
 #include <sys/taskqueue.h>
 #include <sys/poll.h>
 #include <sys/selinfo.h>
+
+#define IOCTL_SEMA_DESCRIPTION	"mrsas semaphore for MFI pool"
 
 /*
  * Device IDs and PCI
@@ -2494,6 +2498,8 @@ struct mrsas_softc {
     struct selinfo mrsas_select;	  // poll select interface for application
     uint32_t mrsas_aen_triggered;
     uint32_t mrsas_poll_waiting;
+
+    struct sema ioctl_count_sema;         // counting semaphore for ioctl
     uint32_t           max_fw_cmds;       // Max commands from FW
     uint32_t           max_num_sge;       // Max number of SGEs
     struct resource    *mrsas_irq[MAX_MSIX_COUNT];        // interrupt interface window

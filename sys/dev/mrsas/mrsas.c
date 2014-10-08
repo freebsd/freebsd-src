@@ -823,6 +823,9 @@ static int mrsas_attach(device_t dev)
     mtx_init(&sc->mfi_cmd_pool_lock, "mrsas_mfi_cmd_pool_lock", NULL, MTX_DEF);
     mtx_init(&sc->raidmap_lock, "mrsas_raidmap_lock", NULL, MTX_DEF);
 
+    /* Intialize a counting Semaphore to take care no. of concurrent IOCTLs */
+    sema_init(&sc->ioctl_count_sema, MRSAS_MAX_MFI_CMDS-5, IOCTL_SEMA_DESCRIPTION);
+
     /* Intialize linked list */
     TAILQ_INIT(&sc->mrsas_mpt_cmd_list_head);
     TAILQ_INIT(&sc->mrsas_mfi_cmd_list_head);
@@ -912,6 +915,8 @@ attach_fail_fw:
     mtx_destroy(&sc->mpt_cmd_pool_lock);
     mtx_destroy(&sc->mfi_cmd_pool_lock);
     mtx_destroy(&sc->raidmap_lock);
+    /* Destroy the counting semaphore created for Ioctl */
+    sema_destroy(&sc->ioctl_count_sema);
 attach_fail:
     destroy_dev(sc->mrsas_cdev);
     if (sc->reg_res){
@@ -937,10 +942,13 @@ static int mrsas_detach(device_t dev)
     sc = device_get_softc(dev);
     sc->remove_in_progress = 1;
 
+    /* Destroy the character device so no other IOCTL will be handled */
+    destroy_dev(sc->mrsas_cdev);
+
     /*
      * Take the instance off the instance array. Note that we will not
      * decrement the max_index. We let this array be sparse array
-    */
+     */
     for (i = 0; i < mrsas_mgmt_info.max_index; i++) {
             if (mrsas_mgmt_info.sc_ptr[i] == sc) {
                     mrsas_mgmt_info.count--;
@@ -984,13 +992,22 @@ static int mrsas_detach(device_t dev)
     mtx_destroy(&sc->mpt_cmd_pool_lock);
     mtx_destroy(&sc->mfi_cmd_pool_lock);
     mtx_destroy(&sc->raidmap_lock);
+
+    /* Wait for all the semaphores to be released */
+    while (sema_value(&sc->ioctl_count_sema) != (MRSAS_MAX_MFI_CMDS-5))
+        pause("mr_shutdown", hz);
+
+    /* Destroy the counting semaphore created for Ioctl */
+    sema_destroy(&sc->ioctl_count_sema);
+
     if (sc->reg_res){
         bus_release_resource(sc->mrsas_dev,
                  SYS_RES_MEMORY, sc->reg_res_id, sc->reg_res);
     }
-    destroy_dev(sc->mrsas_cdev);
+
     if (sc->sysctl_tree != NULL)
         sysctl_ctx_free(&sc->sysctl_ctx);
+
     return (0);
 }
 
@@ -1254,13 +1271,21 @@ do_ioctl:
 #ifdef COMPAT_FREEBSD32
         case MRSAS_IOC_FIRMWARE_PASS_THROUGH32:
 #endif
+            /* Decrement the Ioctl counting Semaphore before getting an mfi command */
+            sema_wait(&sc->ioctl_count_sema);
+
             ret = mrsas_passthru(sc, (void *)arg, cmd);
+
+	    /* Increment the Ioctl counting semaphore value */
+	    sema_post(&sc->ioctl_count_sema);
+
             break;
         case MRSAS_IOC_SCAN_BUS:
             ret = mrsas_bus_scan(sc);
             break;
 	default:
 		mrsas_dprint(sc, MRSAS_TRACE, "IOCTL command 0x%lx is not handled\n", cmd);
+		ret = ENOENT;
     }
  
     return (ret);
