@@ -30,9 +30,10 @@ devd_prestart ()
 {
 	find_pidfile
 
-	# If devd is disabled, turn it off in the kernel to avoid memory leaks.
+	# If devd is disabled, turn it off in the kernel to avoid unnecessary
+	# memory usage.
 	if ! checkyesno ${rcvar}; then
-	    $SYSCTL hw.bus.devctl_disable=1
+	    $SYSCTL hw.bus.devctl_queue=0
 	fi
 }
 
