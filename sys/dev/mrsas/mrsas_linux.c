@@ -39,10 +39,10 @@
  * Mail to: LSI Corporation, 1621 Barber Lane, Milpitas, CA 95035
  *    ATTN: MegaRaid FreeBSD
  *
+ * $FreeBSD$
  */
 
 #include <sys/cdefs.h>
-<!-- $FreeBSD$ -->
 
 #include <sys/param.h>
 #include <sys/systm.h>
