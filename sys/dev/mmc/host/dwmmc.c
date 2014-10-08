@@ -348,9 +348,10 @@ dwmmc_tasklet(struct dwmmc_softc *sc)
 	if (cmd == NULL)
 		return;
 
-	if (cmd->error != MMC_ERR_NONE) {
-		dwmmc_next_operation(sc);
-	} else if (!cmd->data && sc->cmd_done) {
+	if (!sc->cmd_done)
+		return;
+
+	if (cmd->error != MMC_ERR_NONE || !cmd->data) {
 		dwmmc_next_operation(sc);
 	} else if (cmd->data && sc->dto_rcvd) {
 		if ((cmd->opcode == MMC_WRITE_MULTIPLE_BLOCK ||
@@ -394,11 +395,8 @@ dwmmc_intr(void *arg)
 			dprintf("data err 0x%08x cmd 0x%08x\n",
 				reg, cmd->opcode);
 			cmd->error = MMC_ERR_FAILED;
-
 			dma_done(sc, cmd);
 			dma_stop(sc);
-			DWMMC_UNLOCK(sc);
-			return;
 		}
 
 		if (reg & SDMMC_INTMASK_CMD_DONE) {
