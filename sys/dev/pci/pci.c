@@ -207,6 +207,7 @@ struct pci_quirk {
 #define	PCI_QUIRK_ENABLE_MSI_VM	3 /* Older chipset in VM where MSI works */
 #define	PCI_QUIRK_UNMAP_REG	4 /* Ignore PCI map register */
 #define	PCI_QUIRK_DISABLE_MSIX	5 /* MSI-X doesn't work */
+#define	PCI_QUIRK_MSI_INTX_BUG	5 /* PCIM_CMD_INTxDIS disables MSI */
 	int	arg1;
 	int	arg2;
 };
@@ -265,6 +266,15 @@ static const struct pci_quirk pci_quirks[] = {
 	 * For SB700 and later, it is unused and hardcoded to zero.
 	 */
 	{ 0x43851002, PCI_QUIRK_UNMAP_REG,	0x14,	0 },
+
+	/*
+	 * Atheros AR8161/AR8162/E2200 ethernet controller has a bug that
+	 * MSI interrupt does not assert if PCIM_CMD_INTxDIS bit of the
+	 * command register is set.
+	 */
+	{ 0x10911969, PCI_QUIRK_MSI_INTX_BUG,	0,	0 },
+	{ 0xE0911969, PCI_QUIRK_MSI_INTX_BUG,	0,	0 },
+	{ 0x10901969, PCI_QUIRK_MSI_INTX_BUG,	0,	0 },
 
 	{ 0 }
 };
@@ -3856,8 +3866,14 @@ pci_setup_intr(device_t dev, device_t child, struct resource *irq, int flags,
 			mte->mte_handlers++;
 		}
 
-		/* Make sure that INTx is disabled if we are using MSI/MSIX */
-		pci_set_command_bit(dev, child, PCIM_CMD_INTxDIS);
+		if (!pci_has_quirk(pci_get_devid(dev),
+		    PCI_QUIRK_MSI_INTX_BUG)) {
+			/*
+			 * Make sure that INTx is disabled if we are
+			 * using MSI/MSIX
+			 */
+			pci_set_command_bit(dev, child, PCIM_CMD_INTxDIS);
+		}
 	bad:
 		if (error) {
 			(void)bus_generic_teardown_intr(dev, child, irq,
