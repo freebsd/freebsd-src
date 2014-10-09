@@ -88,8 +88,10 @@ static void nd6_dad_na_input(struct ifaddr *);
 static void nd6_na_output_fib(struct ifnet *, const struct in6_addr *,
     const struct in6_addr *, u_long, int, struct sockaddr *, u_int);
 
-VNET_DEFINE(int, dad_ignore_ns) = 0;	/* ignore NS in DAD - specwise incorrect*/
-VNET_DEFINE(int, dad_maxtry) = 15;	/* max # of *tries* to transmit DAD packet */
+static VNET_DEFINE(int, dad_ignore_ns) = 0;	/* ignore NS in DAD
+						   - specwise incorrect */
+static VNET_DEFINE(int, dad_maxtry) = 15;	/* max # of *tries* to
+						   transmit DAD packet */
 #define	V_dad_ignore_ns			VNET(dad_ignore_ns)
 #define	V_dad_maxtry			VNET(dad_maxtry)
 
@@ -1165,20 +1167,30 @@ struct dadq {
 };
 
 static VNET_DEFINE(TAILQ_HEAD(, dadq), dadq);
-VNET_DEFINE(int, dad_init) = 0;
-#define	V_dadq				VNET(dadq)
-#define	V_dad_init			VNET(dad_init)
+static VNET_DEFINE(struct rwlock, dad_rwlock);
+#define	V_dadq			VNET(dadq)
+#define	V_dad_rwlock		VNET(dad_rwlock)
+
+#define	DADQ_LOCK_INIT()	rw_init(&V_dad_rwlock, "nd6 DAD queue")	
+#define	DADQ_LOCK_DESTROY()	rw_destroy(&V_dad_rwlock)	
+#define	DADQ_LOCK_INITIALIZED()	rw_initialized(&V_dad_rwlock)	
+#define	DADQ_RLOCK()		rw_rlock(&V_dad_rwlock)	
+#define	DADQ_RUNLOCK()		rw_runlock(&V_dad_rwlock)	
+#define	DADQ_WLOCK()		rw_wlock(&V_dad_rwlock)	
+#define	DADQ_WUNLOCK()		rw_wunlock(&V_dad_rwlock)	
 
 static struct dadq *
 nd6_dad_find(struct ifaddr *ifa)
 {
 	struct dadq *dp;
 
+	DADQ_RLOCK();
 	TAILQ_FOREACH(dp, &V_dadq, dad_list)
 		if (dp->dad_ifa == ifa)
-			return (dp);
+			break;
+	DADQ_RUNLOCK();
 
-	return (NULL);
+	return (dp);
 }
 
 static void
@@ -1206,9 +1218,9 @@ nd6_dad_start(struct ifaddr *ifa, int delay)
 	struct dadq *dp;
 	char ip6buf[INET6_ADDRSTRLEN];
 
-	if (!V_dad_init) {
+	if (DADQ_LOCK_INITIALIZED() == 0) {
+		DADQ_LOCK_INIT();
 		TAILQ_INIT(&V_dadq);
-		V_dad_init++;
 	}
 
 	/*
@@ -1258,7 +1270,9 @@ nd6_dad_start(struct ifaddr *ifa, int delay)
 #ifdef VIMAGE
 	dp->dad_vnet = curvnet;
 #endif
+	DADQ_WLOCK();
 	TAILQ_INSERT_TAIL(&V_dadq, (struct dadq *)dp, dad_list);
+	DADQ_WUNLOCK();
 
 	nd6log((LOG_DEBUG, "%s: starting DAD for %s\n", if_name(ifa->ifa_ifp),
 	    ip6_sprintf(ip6buf, &ia->ia_addr.sin6_addr)));
@@ -1291,7 +1305,7 @@ nd6_dad_stop(struct ifaddr *ifa)
 {
 	struct dadq *dp;
 
-	if (!V_dad_init)
+	if (DADQ_LOCK_INITIALIZED() == 0)
 		return;
 	dp = nd6_dad_find(ifa);
 	if (!dp) {
@@ -1301,7 +1315,9 @@ nd6_dad_stop(struct ifaddr *ifa)
 
 	nd6_dad_stoptimer(dp);
 
+	DADQ_WLOCK();
 	TAILQ_REMOVE(&V_dadq, (struct dadq *)dp, dad_list);
+	DADQ_WUNLOCK();
 	free(dp, M_IP6NDP);
 	dp = NULL;
 	ifa_free(ifa);
@@ -1340,7 +1356,9 @@ nd6_dad_timer(struct dadq *dp)
 		nd6log((LOG_INFO, "%s: could not run DAD, driver problem?\n",
 		    if_name(ifa->ifa_ifp)));
 
+		DADQ_WLOCK();
 		TAILQ_REMOVE(&V_dadq, (struct dadq *)dp, dad_list);
+		DADQ_WUNLOCK();
 		free(dp, M_IP6NDP);
 		dp = NULL;
 		ifa_free(ifa);
@@ -1393,7 +1411,9 @@ nd6_dad_timer(struct dadq *dp)
 			    if_name(ifa->ifa_ifp),
 			    ip6_sprintf(ip6buf, &ia->ia_addr.sin6_addr)));
 
+			DADQ_WLOCK();
 			TAILQ_REMOVE(&V_dadq, (struct dadq *)dp, dad_list);
+			DADQ_WUNLOCK();
 			free(dp, M_IP6NDP);
 			dp = NULL;
 			ifa_free(ifa);
@@ -1470,7 +1490,9 @@ nd6_dad_duplicated(struct ifaddr *ifa)
 		}
 	}
 
+	DADQ_WLOCK();
 	TAILQ_REMOVE(&V_dadq, (struct dadq *)dp, dad_list);
+	DADQ_WUNLOCK();
 	free(dp, M_IP6NDP);
 	dp = NULL;
 	ifa_free(ifa);
