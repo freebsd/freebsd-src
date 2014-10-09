@@ -97,6 +97,12 @@ SYSCTL_INT(_hw_usb, OID_AUTO, power_timeout, CTLFLAG_RW,
     &usb_power_timeout, 0, "USB power timeout");
 #endif
 
+#if USB_HAVE_DISABLE_ENUM
+static int usb_disable_enumeration = 0;
+SYSCTL_INT(_hw_usb, OID_AUTO, disable_enumeration, CTLFLAG_RWTUN,
+    &usb_disable_enumeration, 0, "Set to disable all USB device enumeration.");
+#endif
+
 struct uhub_current_state {
 	uint16_t port_change;
 	uint16_t port_status;
@@ -621,9 +627,9 @@ repeat:
 	err = usbd_req_clear_port_feature(udev, NULL,
 	    portno, UHF_C_PORT_CONNECTION);
 
-	if (err) {
+	if (err)
 		goto error;
-	}
+
 	/* check if there is a child */
 
 	if (child != NULL) {
@@ -636,14 +642,22 @@ repeat:
 	/* get fresh status */
 
 	err = uhub_read_port_status(sc, portno);
-	if (err) {
+	if (err)
+		goto error;
+
+#if USB_HAVE_DISABLE_ENUM
+	/* check if we should skip enumeration from this USB HUB */
+	if (usb_disable_enumeration != 0 ||
+	    sc->sc_disable_enumeration != 0) {
+		DPRINTF("Enumeration is disabled!\n");
 		goto error;
 	}
+#endif
 	/* check if nothing is connected to the port */
 
-	if (!(sc->sc_st.port_status & UPS_CURRENT_CONNECT_STATUS)) {
+	if (!(sc->sc_st.port_status & UPS_CURRENT_CONNECT_STATUS))
 		goto error;
-	}
+
 	/* check if there is no power on the port and print a warning */
 
 	switch (udev->speed) {
@@ -996,13 +1010,6 @@ uhub_explore(struct usb_device *udev)
 
 	DPRINTFN(11, "udev=%p addr=%d\n", udev, udev->address);
 
-#if USB_HAVE_DISABLE_ENUM
-	/* check if we should skip enumeration from this USB HUB */
-	if (sc->sc_disable_enumeration != 0) {
-		DPRINTF("Enumeration is disabled!\n");
-		return (0);
-	}
-#endif
 	/* ignore devices that are too deep */
 	if (uhub_is_too_deep(udev))
 		return (USB_ERR_TOO_DEEP);

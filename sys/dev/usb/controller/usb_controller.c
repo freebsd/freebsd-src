@@ -102,14 +102,6 @@ static int usb_no_shutdown_wait = 0;
 SYSCTL_INT(_hw_usb, OID_AUTO, no_shutdown_wait, CTLFLAG_RWTUN,
     &usb_no_shutdown_wait, 0, "No USB device waiting at system shutdown.");
 
-#if USB_HAVE_DISABLE_ENUM
-static int usb_disable_enumeration = 0;
-SYSCTL_INT(_hw_usb, OID_AUTO, disable_enumeration, CTLFLAG_RWTUN,
-    &usb_disable_enumeration, 0, "Set to disable all USB device enumeration.");
-#else
-#define	usb_disable_enumeration 0
-#endif
-
 static devclass_t usb_devclass;
 
 static device_method_t usb_methods[] = {
@@ -379,8 +371,7 @@ usb_bus_explore(struct usb_proc_msg *pm)
 		USB_BUS_LOCK(bus);
 	}
 
-	if (usb_disable_enumeration == 0 &&
-	    udev != NULL && udev->hub != NULL) {
+	if (udev != NULL && udev->hub != NULL) {
 
 		if (bus->do_probe) {
 			bus->do_probe = 0;
