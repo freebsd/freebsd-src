@@ -1212,7 +1212,7 @@ static moduledata_t ipfw_nat_mod = {
 
 DECLARE_MODULE(ipfw_nat, ipfw_nat_mod, IPFW_NAT_SI_SUB_FIREWALL, SI_ORDER_ANY);
 MODULE_DEPEND(ipfw_nat, libalias, 1, 1, 1);
-MODULE_DEPEND(ipfw_nat, ipfw, 2, 2, 2);
+MODULE_DEPEND(ipfw_nat, ipfw, 3, 3, 3);
 MODULE_VERSION(ipfw_nat, 1);
 
 SYSINIT(ipfw_nat_init, IPFW_NAT_SI_SUB_FIREWALL, IPFW_NAT_MODULE_ORDER,
