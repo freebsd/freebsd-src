@@ -60,6 +60,8 @@ __FBSDID("$FreeBSD$");
 #include <net/if.h>
 #include <net/route.h>
 #include <net/vnet.h>
+#include <vm/vm.h>
+#include <vm/vm_extern.h>
 
 #include <netinet/in.h>
 #include <netinet/ip_var.h> /* hooks */
@@ -1957,7 +1959,7 @@ dump_static_rules(struct ip_fw_chain *chain, struct dump_args *da,
  * Data layout (version 0)(current):
  * Request: [ ipfw_cfg_lheader ] + IPFW_CFG_GET_* flags
  *   size = ipfw_cfg_lheader.size
- * Reply: [ ipfw_rules_lheader 
+ * Reply: [ ipfw_cfg_lheader 
  *   [ ipfw_obj_ctlv(IPFW_TLV_TBL_LIST) ipfw_obj_ntlv x N ] (optional)
  *   [ ipfw_obj_ctlv(IPFW_TLV_RULE_LIST)
  *     ipfw_obj_tlv(IPFW_TLV_RULE_ENT) [ ip_fw_bcounter (optional) ip_fw_rule ]
@@ -1997,7 +1999,7 @@ dump_config(struct ip_fw_chain *chain, ip_fw3_opheader *op3,
 	 * STAGE 1: Determine size/count for objects in range.
 	 * Prepare used tables bitmask.
 	 */
-	sz = 0;
+	sz = sizeof(ipfw_cfg_lheader);
 	memset(&da, 0, sizeof(da));
 
 	da.b = 0;
@@ -2550,7 +2552,7 @@ ipfw_flush_sopt_data(struct sockopt_data *sd)
 		sd->kavail = sd->valsize - sd->ktotal;
 
 	/* Update sopt buffer */
-	sd->sopt->sopt_valsize = sd->kavail;
+	sd->sopt->sopt_valsize = sd->ktotal;
 	sd->sopt->sopt_val = sd->sopt_val + sd->ktotal;
 
 	return (0);
@@ -2612,7 +2614,7 @@ ipfw_get_sopt_header(struct sockopt_data *sd, size_t needed)
 int
 ipfw_ctl3(struct sockopt *sopt)
 {
-	int error;
+	int error, locked;
 	size_t size, valsize;
 	struct ip_fw_chain *chain;
 	char xbuf[256];
@@ -2663,6 +2665,7 @@ ipfw_ctl3(struct sockopt *sopt)
 	 * Fill in sockopt_data structure that may be useful for
 	 * IP_FW3 get requests.
 	 */
+	locked = 0;
 	if (valsize <= sizeof(xbuf)) {
 		/* use on-stack buffer */
 		sdata.kbuf = xbuf;
@@ -2686,6 +2689,14 @@ ipfw_ctl3(struct sockopt *sopt)
 		} else {
 			/* Get request. Allocate sliding window buffer */
 			size = (valsize<CTL3_SMALLBUF) ? valsize:CTL3_SMALLBUF;
+
+			if (size < valsize) {
+				/* We have to wire user buffer */
+				error = vslock(sopt->sopt_val, valsize);
+				if (error != 0)
+					return (error);
+				locked = 1;
+			}
 		}
 
 		sdata.kbuf = malloc(size, M_TEMP, M_WAITOK | M_ZERO);
@@ -2717,6 +2728,9 @@ ipfw_ctl3(struct sockopt *sopt)
 		error = ipfw_flush_sopt_data(&sdata);
 	else
 		ipfw_flush_sopt_data(&sdata);
+
+	if (locked != 0)
+		vsunlock(sdata.sopt_val, valsize);
 
 	/* Restore original pointer and set number of bytes written */
 	sopt->sopt_val = sdata.sopt_val;
