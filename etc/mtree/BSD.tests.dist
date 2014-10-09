@@ -143,6 +143,8 @@
         usr.bin
             apply
             ..
+            basename
+            ..
             bmake
                 archives
                     fmt_44bsd
