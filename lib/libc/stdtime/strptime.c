@@ -103,9 +103,6 @@ _strptime(const char *buf, const char *fmt, struct tm *tm, int *GMTp,
 
 	ptr = fmt;
 	while (*ptr != 0) {
-		if (*buf == 0)
-			break;
-
 		c = *ptr++;
 
 		if (c != '%') {
@@ -123,7 +120,6 @@ _strptime(const char *buf, const char *fmt, struct tm *tm, int *GMTp,
 label:
 		c = *ptr++;
 		switch (c) {
-		case 0:
 		case '%':
 			if (*buf++ != '%')
 				return (NULL);
@@ -600,6 +596,9 @@ label:
 			while (isspace_l((unsigned char)*buf, locale))
 				buf++;
 			break;
+
+		default:
+			return (NULL);
 		}
 	}
 
@@ -676,8 +675,6 @@ strptime_l(const char * __restrict buf, const char * __restrict fmt,
 	if (ret && gmt) {
 		time_t t = timegm(tm);
 
-		if (t == -1)
-			return (NULL);
 		localtime_r(&t, tm);
 	}
 
