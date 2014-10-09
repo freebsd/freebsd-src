@@ -1018,6 +1018,8 @@ table_modify_record(ipfw_obj_header *oh, int ac, char *av[], int add,
 
 	if (error == 0)
 		return;
+	/* Get real OS error */
+	error = errno;
 
 	/* Try to provide more human-readable error */
 	switch (error) {
@@ -1551,12 +1553,11 @@ tables_foreach(table_cb_t *f, void *arg, int sort)
 
 		olh->size = sz;
 		if (do_get3(IP_FW_TABLES_XLIST, &olh->opheader, &sz) != 0) {
+			sz = olh->size;
 			free(olh);
-			if (errno == ENOMEM) {
-				sz = olh->size;
-				continue;
-			}
-			return (errno);
+			if (errno != ENOMEM)
+				return (errno);
+			continue;
 		}
 
 		if (sort != 0)
