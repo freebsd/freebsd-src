@@ -347,7 +347,7 @@ TARGET_ABI=	gnueabihf
 TARGET_ABI=	gnueabi
 .endif
 .endif
-.if ${X_COMPILER_TYPE} == gcc
+.if defined(X_COMPILER_TYPE) && ${X_COMPILER_TYPE} == gcc
 XFLAGS+=	-isystem ${WORLDTMP}/usr/include -L${WORLDTMP}/usr/lib
 .else
 TARGET_ABI?=	unknown
