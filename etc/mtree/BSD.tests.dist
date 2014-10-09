@@ -261,6 +261,8 @@
             ..
             grep
             ..
+            gzip
+            ..
             join
             ..
             jot
