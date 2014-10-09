@@ -257,6 +257,8 @@
             ..
             file2c
             ..
+            grep
+            ..
             join
             ..
             jot
