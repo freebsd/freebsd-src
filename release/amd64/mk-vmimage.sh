@@ -32,7 +32,7 @@
 # $FreeBSD$
 #
 
-PATH="/bin:/usr/bin:/sbin:/usr/sbin"
+PATH="/bin:/usr/bin:/sbin:/usr/sbin:/usr/local/bin:/usr/local/sbin"
 export PATH
 
 usage_vm_base() {
