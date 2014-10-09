@@ -85,7 +85,7 @@ struct table_config {
 	char		tablename[64];	/* table name */
 	struct table_algo	*ta;	/* Callbacks for given algo */
 	void		*astate;	/* algorithm state */
-	struct table_info	ti;	/* data to put to table_info */
+	struct table_info	ti_copy;	/* data to put to table_info */
 	struct namedobj_instance	*vi;
 };
 
@@ -1277,7 +1277,7 @@ restart:
 
 	astate_old = tc->astate;
 	tc->astate = astate_new;
-	tc->ti = ti_new;
+	tc->ti_copy = ti_new;
 	tc->count = 0;
 
 	/* Notify algo on real @ti address */
@@ -1430,8 +1430,8 @@ swap_tables(struct ip_fw_chain *ch, struct tid_info *a,
 	IPFW_WUNLOCK(ch);
 
 	/* Ensure tc.ti copies are in sync */
-	tc_a->ti = tablestate[tc_a->no.kidx];
-	tc_b->ti = tablestate[tc_b->no.kidx];
+	tc_a->ti_copy = tablestate[tc_a->no.kidx];
+	tc_b->ti_copy = tablestate[tc_b->no.kidx];
 
 	/* Notify both tables on @ti change */
 	if (tc_a->ta->change_ti != NULL)
@@ -1481,8 +1481,7 @@ destroy_table(struct ip_fw_chain *ch, struct tid_info *ti)
 		    tc->no.kidx, tc->tablename);
 
 	/* Unref values used in tables while holding UH lock */
-	ipfw_unref_table_values(ch, tc, tc->ta, tc->astate,
-	    &((struct table_info *)ch->tablestate)[tc->no.kidx]);
+	ipfw_unref_table_values(ch, tc, tc->ta, tc->astate, &tc->ti_copy);
 	IPFW_UH_WUNLOCK(ch);
 
 	free_table_config(ni, tc);
@@ -3008,7 +3007,7 @@ alloc_table_config(struct ip_fw_chain *ch, struct tid_info *ti,
 	}
 
 	/* Preallocate data structures for new tables */
-	error = ta->init(ch, &tc->astate, &tc->ti, aname, tflags);
+	error = ta->init(ch, &tc->astate, &tc->ti_copy, aname, tflags);
 	if (error != 0) {
 		free(tc, M_IPFW);
 		return (NULL);
@@ -3030,7 +3029,7 @@ free_table_config(struct namedobj_instance *ni, struct table_config *tc)
 	 * We're using ta without any locking/referencing.
 	 * TODO: fix this if we're going to use unloadable algos.
 	 */
-	tc->ta->destroy(tc->astate, &tc->ti);
+	tc->ta->destroy(tc->astate, &tc->ti_copy);
 	free(tc, M_IPFW);
 }
 
@@ -3054,7 +3053,7 @@ link_table(struct ip_fw_chain *ch, struct table_config *tc)
 	ipfw_objhash_add(ni, &tc->no);
 
 	ti = KIDX_TO_TI(ch, kidx);
-	*ti = tc->ti;
+	*ti = tc->ti_copy;
 
 	/* Notify algo on real @ti address */
 	if (tc->ta->change_ti != NULL)
