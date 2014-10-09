@@ -287,6 +287,8 @@ in6_status(int s __unused, const struct ifaddrs *ifa)
 		printf("autoconf ");
 	if ((flags6 & IN6_IFF_TEMPORARY) != 0)
 		printf("temporary ");
+	if ((flags6 & IN6_IFF_PREFER_SOURCE) != 0)
+		printf("prefer_source ");
 
         if (scopeid)
 		printf("scopeid 0x%x ", scopeid);
@@ -497,6 +499,8 @@ static struct cmd inet6_cmds[] = {
 	DEF_CMD("-deprecated", -IN6_IFF_DEPRECATED,	setip6flags),
 	DEF_CMD("autoconf",	IN6_IFF_AUTOCONF,	setip6flags),
 	DEF_CMD("-autoconf",	-IN6_IFF_AUTOCONF,	setip6flags),
+	DEF_CMD("prefer_source",IN6_IFF_PREFER_SOURCE,	setip6flags),
+	DEF_CMD("-prefer_source",-IN6_IFF_PREFER_SOURCE,setip6flags),
 	DEF_CMD("accept_rtadv",	ND6_IFF_ACCEPT_RTADV,	setnd6flags),
 	DEF_CMD("-accept_rtadv",-ND6_IFF_ACCEPT_RTADV,	setnd6flags),
 	DEF_CMD("no_radr",	ND6_IFF_NO_RADR,	setnd6flags),
@@ -507,8 +511,6 @@ static struct cmd inet6_cmds[] = {
 	DEF_CMD("-ifdisabled",	-ND6_IFF_IFDISABLED,	setnd6flags),
 	DEF_CMD("nud",		ND6_IFF_PERFORMNUD,	setnd6flags),
 	DEF_CMD("-nud",		-ND6_IFF_PERFORMNUD,	setnd6flags),
-	DEF_CMD("prefer_source",ND6_IFF_PREFER_SOURCE,	setnd6flags),
-	DEF_CMD("-prefer_source",-ND6_IFF_PREFER_SOURCE,setnd6flags),
 	DEF_CMD("auto_linklocal",ND6_IFF_AUTO_LINKLOCAL,setnd6flags),
 	DEF_CMD("-auto_linklocal",-ND6_IFF_AUTO_LINKLOCAL,setnd6flags),
 	DEF_CMD("no_prefer_iface",ND6_IFF_NO_PREFER_IFACE,setnd6flags),

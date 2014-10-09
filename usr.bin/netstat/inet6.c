@@ -346,7 +346,7 @@ static char *srcrule_str[] = {
 	"public/temporary address",
 	"alive interface",
 	"preferred interface",
-	"rule #10",
+	"preferred source",
 	"rule #11",
 	"rule #12",
 	"rule #13",

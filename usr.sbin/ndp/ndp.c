@@ -1013,9 +1013,6 @@ ifinfo(ifname, argc, argv)
 #ifdef ND6_IFF_AUTO_LINKLOCAL
 		SETFLAG("auto_linklocal", ND6_IFF_AUTO_LINKLOCAL);
 #endif
-#ifdef ND6_IFF_PREFER_SOURCE
-		SETFLAG("prefer_source", ND6_IFF_PREFER_SOURCE);
-#endif
 #ifdef ND6_IFF_NO_PREFER_IFACE
 		SETFLAG("no_prefer_iface", ND6_IFF_NO_PREFER_IFACE);
 #endif
@@ -1091,10 +1088,6 @@ ifinfo(ifname, argc, argv)
 #ifdef ND6_IFF_AUTO_LINKLOCAL
 		if ((ND.flags & ND6_IFF_AUTO_LINKLOCAL))
 			printf("auto_linklocal ");
-#endif
-#ifdef ND6_IFF_PREFER_SOURCE
-		if ((ND.flags & ND6_IFF_PREFER_SOURCE))
-			printf("prefer_source ");
 #endif
 #ifdef ND6_IFF_NO_PREFER_IFACE
 		if ((ND.flags & ND6_IFF_NO_PREFER_IFACE))
