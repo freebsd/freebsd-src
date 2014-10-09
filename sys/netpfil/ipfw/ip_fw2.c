@@ -2877,7 +2877,7 @@ static moduledata_t ipfwmod = {
 
 DECLARE_MODULE(ipfw, ipfwmod, IPFW_SI_SUB_FIREWALL, IPFW_MODEVENT_ORDER);
 FEATURE(ipfw_ctl3, "ipfw new sockopt calls");
-MODULE_VERSION(ipfw, 2);
+MODULE_VERSION(ipfw, 3);
 /* should declare some dependencies here */
 
 /*
