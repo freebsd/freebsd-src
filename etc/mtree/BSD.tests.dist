@@ -47,6 +47,8 @@
                 set-e
                 ..
             ..
+            sleep
+            ..
             test
             ..
         ..
