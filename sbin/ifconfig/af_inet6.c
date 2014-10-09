@@ -254,6 +254,8 @@ in6_status(int s __unused, const struct ifaddrs *ifa)
 		printf("autoconf ");
 	if ((flags6 & IN6_IFF_TEMPORARY) != 0)
 		printf("temporary ");
+	if ((flags6 & IN6_IFF_PREFER_SOURCE) != 0)
+		printf("prefer_source ");
 
 	if (((struct sockaddr_in6 *)(ifa->ifa_addr))->sin6_scope_id)
 		printf("scopeid 0x%x ",
@@ -465,6 +467,8 @@ static struct cmd inet6_cmds[] = {
 	DEF_CMD("-deprecated", -IN6_IFF_DEPRECATED,	setip6flags),
 	DEF_CMD("autoconf",	IN6_IFF_AUTOCONF,	setip6flags),
 	DEF_CMD("-autoconf",	-IN6_IFF_AUTOCONF,	setip6flags),
+	DEF_CMD("prefer_source",IN6_IFF_PREFER_SOURCE,	setip6flags),
+	DEF_CMD("-prefer_source",-IN6_IFF_PREFER_SOURCE,setip6flags),
 	DEF_CMD("accept_rtadv",	ND6_IFF_ACCEPT_RTADV,	setnd6flags),
 	DEF_CMD("-accept_rtadv",-ND6_IFF_ACCEPT_RTADV,	setnd6flags),
 	DEF_CMD("no_radr",	ND6_IFF_NO_RADR,	setnd6flags),
