@@ -28,7 +28,7 @@
 .\"     From: @(#)ifconfig.8	8.3 (Berkeley) 1/5/94
 .\" $FreeBSD$
 .\"
-.Dd January 10, 2013
+.Dd September 9, 2014
 .Dt IFCONFIG 8
 .Os
 .Sh NAME
@@ -716,12 +716,6 @@ Set a flag to enable Neighbor Unreachability Detection.
 .It Cm -nud
 Clear a flag
 .Cm nud .
-.It Cm prefer_source
-Set a flag to prefer addresses on the interface as candidates of the
-source address for outgoing packets.
-.It Cm -prefer_source
-Clear a flag
-.Cm prefer_source .
 .It Cm no_prefer_iface
 Set a flag to not prefer address on the interface as candidates of the
 source address for outgoing packets, even when the interface is
@@ -729,6 +723,19 @@ outgoing interface.
 .It Cm -no_prefer_iface
 Clear a flag
 .Cm no_prefer_iface .
+.El
+.Pp
+The following parameters are specific for IPv6 addresses.
+Note that the address family keyword
+.Dq Li inet6
+is needed for them:
+.Bl -tag -width indent
+.It Cm prefer_source
+Set a flag to prefer address as a candidate of the source address for
+outgoing packets.
+.It Cm -prefer_source
+Clear a flag
+.Cm prefer_source .
 .El
 .Pp
 The following parameters are specific to cloning
