@@ -297,9 +297,9 @@ ip_fastforward(struct mbuf *m)
 	 * Only IP packets without options
 	 */
 	if (ip->ip_hl != (sizeof(struct ip) >> 2)) {
-		if (ip_doopts == 1)
+		if (V_ip_doopts == 1)
 			return m;
-		else if (ip_doopts == 2) {
+		else if (V_ip_doopts == 2) {
 			icmp_error(m, ICMP_UNREACH, ICMP_UNREACH_FILTER_PROHIB,
 				0, 0);
 			return NULL;	/* mbuf already free'd */
