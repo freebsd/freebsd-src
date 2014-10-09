@@ -35,6 +35,18 @@
 PATH="/bin:/usr/bin:/sbin:/usr/sbin:/usr/local/bin:/usr/local/sbin"
 export PATH
 
+vm_prebuild_setup() {
+	return 0
+}
+
+vm_setup() {
+	return 0
+}
+
+vm_postbuild_setup() {
+	return 0
+}
+
 usage_vm_base() {
 	echo -n "$(basename ${0}) vm-base <base image> <source tree>"
 	echo	" <dest dir> <disk image size>"
