@@ -1780,7 +1780,8 @@ print_getmsg(struct rt_msghdr *rtm, int msglen, int fib)
 		clock_gettime(CLOCK_REALTIME_FAST, &ts);
 	else
 		ts.tv_sec = 0;
-	printf("%8ld%c\n", rtm->rtm_rmx.rmx_expire - ts.tv_sec, lock(EXPIRE));
+	printf("%8ld%c\n", (long)(rtm->rtm_rmx.rmx_expire - ts.tv_sec),
+	    lock(EXPIRE));
 #undef lock
 #undef msec
 #define	RTA_IGN	(RTA_DST|RTA_GATEWAY|RTA_NETMASK|RTA_IFP|RTA_IFA|RTA_BRD)
