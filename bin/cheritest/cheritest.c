@@ -488,6 +488,8 @@ static const u_int cheri_tests_len = sizeof(cheri_tests) /
 /* Shared memory page with child process. */
 struct cheritest_child_state *ccsp;
 
+int tests_failed, tests_passed;
+
 static void
 usage(void)
 {
@@ -711,12 +713,14 @@ cheritest_run_test(const struct cheri_test *ctp)
 	}
 
 	fprintf(stderr, "PASS: %s\n", ctp->ct_name);
+	tests_passed++;
 	close(pipefd_stdin[1]);
 	close(pipefd_stdout[0]);
 	return;
 
 fail:
 	fprintf(stderr, "FAIL: %s: %s\n", ctp->ct_name, reason);
+	tests_failed++;
 	close(pipefd_stdin[1]);
 	close(pipefd_stdout[0]);
 }
@@ -790,6 +794,12 @@ main(__unused int argc, __unused char *argv[])
 		for (i = 0; i < argc; i++)
 			cheritest_run_test_name(argv[i]);
 	}
+	if (tests_passed + tests_failed > 1)
+		fprintf(stderr, "SUMMARY: passed %d failed %d\n",
+		    tests_passed, tests_failed);
+
 	cheritest_libcheri_destroy();
+	if (tests_failed > 0)
+		exit(-1);
 	exit(EX_OK);
 }
