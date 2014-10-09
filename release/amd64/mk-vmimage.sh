@@ -92,6 +92,9 @@ panic() {
 }
 
 vm_create_baseimage() {
+	# Run anything that is needed before the virtual machine disk image
+	# is created.
+	vm_prebuild_setup
 	# Creates the UFS root filesystem for the virtual machine disk,
 	# written to the formatted disk image with mkimg(1).
 	#
@@ -125,6 +128,9 @@ vm_create_baseimage() {
 		>> ${DESTDIR}/etc/fstab
 	echo '/dev/gpt/swapfs	none	swap	sw	0	0' \
 		>> ${DESTDIR}/etc/fstab
+	# Run anything that is needed while the virtual machine disk image
+	# userland filesystem is still mounted as a md(4) device.
+	vm_setup
 	sync
 	while ! umount ${DESTDIR}; do
 		i=$(( $i + 1 ))
@@ -184,6 +190,9 @@ vm_create_vmdisk() {
 		-p freebsd-ufs/rootfs:=${VMBASE} \
 		-o ${VMIMAGE}
 
+	# Run anything that is needed for the virtual machine disk image
+	# after it has been created.
+	vm_postbuild_setup
 	return 0
 }
 
