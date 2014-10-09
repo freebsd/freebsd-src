@@ -101,6 +101,10 @@ SYSCTL_INT(_hw_usb, OID_AUTO, power_timeout, CTLFLAG_RW,
 static int usb_disable_enumeration = 0;
 SYSCTL_INT(_hw_usb, OID_AUTO, disable_enumeration, CTLFLAG_RWTUN,
     &usb_disable_enumeration, 0, "Set to disable all USB device enumeration.");
+
+static int usb_disable_port_power = 0;
+SYSCTL_INT(_hw_usb, OID_AUTO, disable_port_power, CTLFLAG_RWTUN,
+    &usb_disable_port_power, 0, "Set to disable all USB port power.");
 #endif
 
 struct uhub_current_state {
@@ -119,6 +123,7 @@ struct uhub_softc {
 	struct usb_xfer *sc_xfer[UHUB_N_TRANSFER];	/* interrupt xfer */
 #if USB_HAVE_DISABLE_ENUM
 	int sc_disable_enumeration;
+	int sc_disable_port_power;
 #endif
 	uint8_t	sc_flags;
 #define	UHUB_FLAG_DID_EXPLORE 0x01
@@ -1406,6 +1411,24 @@ uhub_attach(device_t dev)
 	/* wait with power off for a while */
 	usb_pause_mtx(NULL, USB_MS_TO_TICKS(USB_POWER_DOWN_TIME));
 
+#if USB_HAVE_DISABLE_ENUM
+	/* Add device sysctls */
+
+	sysctl_ctx = device_get_sysctl_ctx(dev);
+	sysctl_tree = device_get_sysctl_tree(dev);
+
+	if (sysctl_ctx != NULL && sysctl_tree != NULL) {
+		(void) SYSCTL_ADD_INT(sysctl_ctx, SYSCTL_CHILDREN(sysctl_tree),
+		    OID_AUTO, "disable_enumeration", CTLFLAG_RWTUN,
+		    &sc->sc_disable_enumeration, 0,
+		    "Set to disable enumeration on this USB HUB.");
+
+		(void) SYSCTL_ADD_INT(sysctl_ctx, SYSCTL_CHILDREN(sysctl_tree),
+		    OID_AUTO, "disable_port_power", CTLFLAG_RWTUN,
+		    &sc->sc_disable_port_power, 0,
+		    "Set to disable USB port power on this USB HUB.");
+	}
+#endif
 	/*
 	 * To have the best chance of success we do things in the exact same
 	 * order as Windoze98.  This should not be necessary, but some
@@ -1460,13 +1483,27 @@ uhub_attach(device_t dev)
 			removable++;
 			break;
 		}
-		if (!err) {
-			/* turn the power on */
-			err = usbd_req_set_port_feature(udev, NULL,
-			    portno, UHF_PORT_POWER);
+		if (err == 0) {
+#if USB_HAVE_DISABLE_ENUM
+			/* check if we should disable USB port power or not */
+			if (usb_disable_port_power != 0 ||
+			    sc->sc_disable_port_power != 0) {
+				/* turn the power off */
+				DPRINTFN(0, "Turning port %d power off\n", portno);
+				err = usbd_req_clear_port_feature(udev, NULL,
+				    portno, UHF_PORT_POWER);
+			} else {
+#endif
+				/* turn the power on */
+				DPRINTFN(0, "Turning port %d power on\n", portno);
+				err = usbd_req_set_port_feature(udev, NULL,
+				    portno, UHF_PORT_POWER);
+#if USB_HAVE_DISABLE_ENUM
+			}
+#endif
 		}
-		if (err) {
-			DPRINTFN(0, "port %d power on failed, %s\n",
+		if (err != 0) {
+			DPRINTFN(0, "port %d power on or off failed, %s\n",
 			    portno, usbd_errstr(err));
 		}
 		DPRINTF("turn on port %d power\n",
@@ -1490,19 +1527,6 @@ uhub_attach(device_t dev)
 
 	usbd_set_power_mode(udev, USB_POWER_MODE_SAVE);
 
-#if USB_HAVE_DISABLE_ENUM
-	/* Add device sysctls */
-
-	sysctl_ctx = device_get_sysctl_ctx(dev);
-	sysctl_tree = device_get_sysctl_tree(dev);
-
-	if (sysctl_ctx != NULL && sysctl_tree != NULL) {
-		(void) SYSCTL_ADD_INT(sysctl_ctx, SYSCTL_CHILDREN(sysctl_tree),
-		    OID_AUTO, "disable_enumeration", CTLFLAG_RWTUN,
-		    &sc->sc_disable_enumeration, 0,
-		    "Set to disable enumeration on this USB HUB.");
-	}
-#endif
 	return (0);
 
 error:
