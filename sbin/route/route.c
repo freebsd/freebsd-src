@@ -67,6 +67,7 @@ __FBSDID("$FreeBSD$");
 #include <stdlib.h>
 #include <string.h>
 #include <sysexits.h>
+#include <time.h>
 #include <unistd.h>
 #include <ifaddrs.h>
 
@@ -741,6 +742,7 @@ static void
 set_metric(char *value, int key)
 {
 	int flag = 0;
+	char *endptr;
 	u_long noval, *valp = &noval;
 
 	switch (key) {
@@ -760,7 +762,18 @@ set_metric(char *value, int key)
 		rt_metrics.rmx_locks |= flag;
 	if (locking)
 		locking = 0;
-	*valp = atoi(value);
+	errno = 0;
+	*valp = strtol(value, &endptr, 0);
+	if (errno == 0 && *endptr != '\0')
+		errno = EINVAL;
+	if (errno)
+		err(EX_USAGE, "%s", value);
+	if (flag & RTV_EXPIRE && (value[0] == '+' || value[0] == '-')) {
+		struct timespec ts;
+
+		clock_gettime(CLOCK_REALTIME_FAST, &ts);
+		*valp += ts.tv_sec;
+	}
 }
 
 #define	F_ISHOST	0x01
@@ -846,6 +859,9 @@ newroute(int argc, char **argv)
 				break;
 			case K_PROTO2:
 				flags |= RTF_PROTO2;
+				break;
+			case K_PROTO3:
+				flags |= RTF_PROTO3;
 				break;
 			case K_PROXY:
 				nrflags |= F_PROXY;
@@ -1701,6 +1717,7 @@ static void
 print_getmsg(struct rt_msghdr *rtm, int msglen, int fib)
 {
 	struct sockaddr *sp[RTAX_MAX];
+	struct timespec ts;
 	char *cp;
 	int i;
 
@@ -1753,15 +1770,17 @@ print_getmsg(struct rt_msghdr *rtm, int msglen, int fib)
 #define msec(u)	(((u) + 500) / 1000)		/* usec to msec */
 	printf("\n%9s %9s %9s %9s %9s %10s %9s\n", "recvpipe",
 	    "sendpipe", "ssthresh", "rtt,msec", "mtu   ", "weight", "expire");
-	printf("%8ld%c ", rtm->rtm_rmx.rmx_recvpipe, lock(RPIPE));
-	printf("%8ld%c ", rtm->rtm_rmx.rmx_sendpipe, lock(SPIPE));
-	printf("%8ld%c ", rtm->rtm_rmx.rmx_ssthresh, lock(SSTHRESH));
-	printf("%8ld%c ", msec(rtm->rtm_rmx.rmx_rtt), lock(RTT));
-	printf("%8ld%c ", rtm->rtm_rmx.rmx_mtu, lock(MTU));
-	printf("%8ld%c ", rtm->rtm_rmx.rmx_weight, lock(WEIGHT));
-	if (rtm->rtm_rmx.rmx_expire)
-		rtm->rtm_rmx.rmx_expire -= time(0);
-	printf("%8ld%c\n", rtm->rtm_rmx.rmx_expire, lock(EXPIRE));
+	printf("%8lu%c ", rtm->rtm_rmx.rmx_recvpipe, lock(RPIPE));
+	printf("%8lu%c ", rtm->rtm_rmx.rmx_sendpipe, lock(SPIPE));
+	printf("%8lu%c ", rtm->rtm_rmx.rmx_ssthresh, lock(SSTHRESH));
+	printf("%8lu%c ", msec(rtm->rtm_rmx.rmx_rtt), lock(RTT));
+	printf("%8lu%c ", rtm->rtm_rmx.rmx_mtu, lock(MTU));
+	printf("%8lu%c ", rtm->rtm_rmx.rmx_weight, lock(WEIGHT));
+	if (rtm->rtm_rmx.rmx_expire > 0)
+		clock_gettime(CLOCK_REALTIME_FAST, &ts);
+	else
+		ts.tv_sec = 0;
+	printf("%8ld%c\n", rtm->rtm_rmx.rmx_expire - ts.tv_sec, lock(EXPIRE));
 #undef lock
 #undef msec
 #define	RTA_IGN	(RTA_DST|RTA_GATEWAY|RTA_NETMASK|RTA_IFP|RTA_IFA|RTA_BRD)
