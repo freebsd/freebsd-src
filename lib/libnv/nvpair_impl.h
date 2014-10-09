@@ -48,7 +48,7 @@ void nvpair_insert(struct nvl_head *head, nvpair_t *nvp, nvlist_t *nvl);
 void nvpair_remove(struct nvl_head *head, nvpair_t *nvp, const nvlist_t *nvl);
 size_t nvpair_header_size(void);
 size_t nvpair_size(const nvpair_t *nvp);
-const unsigned char *nvpair_unpack(int flags, const unsigned char *ptr,
+const unsigned char *nvpair_unpack(bool isbe, const unsigned char *ptr,
     size_t *leftp, nvpair_t **nvpp);
 void nvpair_free_structure(nvpair_t *nvp);
 void nvpair_init_datasize(nvpair_t *nvp);
@@ -72,21 +72,21 @@ unsigned char *nvpair_pack_binary(const nvpair_t *nvp, unsigned char *ptr,
 unsigned char *nvpair_pack_nvlist_up(unsigned char *ptr, size_t *leftp);
 
 /* Unpack data functions. */
-const unsigned char *nvpair_unpack_header(int flags, nvpair_t *nvp,
+const unsigned char *nvpair_unpack_header(bool isbe, nvpair_t *nvp,
     const unsigned char *ptr, size_t *leftp);
-const unsigned char *nvpair_unpack_null(int flags, nvpair_t *nvp,
+const unsigned char *nvpair_unpack_null(bool isbe, nvpair_t *nvp,
     const unsigned char *ptr, size_t *leftp);
-const unsigned char *nvpair_unpack_bool(int flags, nvpair_t *nvp,
+const unsigned char *nvpair_unpack_bool(bool isbe, nvpair_t *nvp,
     const unsigned char *ptr, size_t *leftp);
-const unsigned char *nvpair_unpack_number(int flags, nvpair_t *nvp,
+const unsigned char *nvpair_unpack_number(bool isbe, nvpair_t *nvp,
     const unsigned char *ptr, size_t *leftp);
-const unsigned char *nvpair_unpack_string(int flags, nvpair_t *nvp,
+const unsigned char *nvpair_unpack_string(bool isbe, nvpair_t *nvp,
     const unsigned char *ptr, size_t *leftp);
-const unsigned char *nvpair_unpack_nvlist(int *flagsp, nvpair_t *nvp,
+const unsigned char *nvpair_unpack_nvlist(bool isbe, nvpair_t *nvp,
     const unsigned char *ptr, size_t *leftp, size_t nvlist, nvlist_t **child);
-const unsigned char *nvpair_unpack_descriptor(int flags, nvpair_t *nvp,
+const unsigned char *nvpair_unpack_descriptor(bool isbe, nvpair_t *nvp,
     const unsigned char *ptr, size_t *leftp, const int *fds, size_t nfds);
-const unsigned char *nvpair_unpack_binary(int flags, nvpair_t *nvp,
+const unsigned char *nvpair_unpack_binary(bool isbe, nvpair_t *nvp,
     const unsigned char *ptr, size_t *leftp);
 
 #endif	/* !_NVPAIR_IMPL_H_ */
