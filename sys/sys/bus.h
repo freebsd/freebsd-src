@@ -327,6 +327,7 @@ int	bus_generic_detach(device_t dev);
 void	bus_generic_driver_added(device_t dev, driver_t *driver);
 bus_dma_tag_t
 	bus_generic_get_dma_tag(device_t dev, device_t child);
+int	bus_generic_get_domain(device_t dev, device_t child, int *domain);
 struct resource_list *
 	bus_generic_get_resource_list (device_t, device_t);
 void	bus_generic_new_pass(device_t dev);
@@ -364,8 +365,6 @@ int	bus_generic_teardown_intr(device_t dev, device_t child,
 				  struct resource *irq, void *cookie);
 int	bus_generic_write_ivar(device_t dev, device_t child, int which,
 			       uintptr_t value);
-
-int	bus_generic_get_domain(device_t dev, device_t child, int *domain);
 
 /*
  * Wrapper functions for the BUS_*_RESOURCE methods to make client code
