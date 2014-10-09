@@ -249,6 +249,8 @@
             ..
             comm
             ..
+            dirname
+            ..
             file2c
             ..
             join
