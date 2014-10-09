@@ -287,6 +287,8 @@
             ..
             newsyslog
             ..
+            nmtree
+            ..
             pw
             ..
             sa
