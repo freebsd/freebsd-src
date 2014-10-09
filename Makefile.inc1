@@ -299,6 +299,10 @@ HMAKE+=		PATH=${TMPPATH} METALOG=${METALOG} -DNO_ROOT
 WMAKEENV+=	MK_CTF=no
 .endif
 
+.if defined(CROSS_TOOLCHAIN)
+LOCALBASE?=	/usr/local
+.include "${LOCALBASE}/share/toolchains/${CROSS_TOOLCHAIN}.mk"
+.endif
 .if defined(CROSS_TOOLCHAIN_PREFIX)
 CROSS_COMPILER_PREFIX?=${CROSS_TOOLCHAIN_PREFIX}
 CROSS_BINUTILS_PREFIX?=${CROSS_TOOLCHAIN_PREFIX}
@@ -343,9 +347,13 @@ TARGET_ABI=	gnueabihf
 TARGET_ABI=	gnueabi
 .endif
 .endif
+.if ${X_COMPILER_TYPE} == gcc
+XFLAGS+=	-isystem ${WORLDTMP}/usr/include -L${WORLDTMP}/usr/lib
+.else
 TARGET_ABI?=	unknown
 TARGET_TRIPLE?=	${TARGET_ARCH:C/amd64/x86_64/}-${TARGET_ABI}-freebsd11.0
 XFLAGS+=	-target ${TARGET_TRIPLE}
+.endif
 .endif
 
 WMAKE=		${WMAKEENV} ${MAKE} ${WORLD_FLAGS} -f Makefile.inc1 DESTDIR=${WORLDTMP}
