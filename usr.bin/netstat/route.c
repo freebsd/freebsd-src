@@ -604,6 +604,8 @@ p_rtable_sysctl(int fibnum, int af)
 	lim  = buf + needed;
 	for (next = buf; next < lim; next += rtm->rtm_msglen) {
 		rtm = (struct rt_msghdr *)next;
+		if (rtm->rtm_version != RTM_VERSION)
+			continue;
 		/*
 		 * Peek inside header to determine AF
 		 */
@@ -616,6 +618,7 @@ p_rtable_sysctl(int fibnum, int af)
 		}
 		p_rtentry_sysctl(rtm);
 	}
+	free(buf);
 }
 
 static void
@@ -993,9 +996,9 @@ in6_fillscopeid(struct sockaddr_in6 *sa6)
 	if (IN6_IS_ADDR_LINKLOCAL(&sa6->sin6_addr) ||
 	    IN6_IS_ADDR_MC_NODELOCAL(&sa6->sin6_addr) ||
 	    IN6_IS_ADDR_MC_LINKLOCAL(&sa6->sin6_addr)) {
-		/* XXX: override is ok? */
-		sa6->sin6_scope_id =
-		    ntohs(*(u_int16_t *)&sa6->sin6_addr.s6_addr[2]);
+		if (sa6->sin6_scope_id == 0)
+			sa6->sin6_scope_id =
+			    ntohs(*(u_int16_t *)&sa6->sin6_addr.s6_addr[2]);
 		sa6->sin6_addr.s6_addr[2] = sa6->sin6_addr.s6_addr[3] = 0;
 	}
 #endif
