@@ -89,6 +89,9 @@ platform_devmap_init(void)
 	 */
 	arm_devmap_add_entry(0xffb00000, 0x100000);
 
+	/* dwmmc */
+	arm_devmap_add_entry(0xff700000, 0x100000);
+
 	return (0);
 }
 

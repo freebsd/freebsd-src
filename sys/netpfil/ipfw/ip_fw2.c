@@ -1774,12 +1774,10 @@ do {								\
 				break;
 
 			case O_TCPOPTS:
-				if (proto == IPPROTO_TCP && ulp != NULL) {
+				if (proto == IPPROTO_TCP && offset == 0 && ulp){
 					PULLUP_LEN(hlen, ulp,
 					    (TCP(ulp)->th_off << 2));
-					match = (proto == IPPROTO_TCP &&
-					    offset == 0 &&
-					    tcpopts_match(TCP(ulp), cmd));
+					match = tcpopts_match(TCP(ulp), cmd);
 				}
 				break;
 

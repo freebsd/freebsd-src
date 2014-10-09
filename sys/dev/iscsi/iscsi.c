@@ -367,7 +367,6 @@ static void
 iscsi_maintenance_thread_reconnect(struct iscsi_session *is)
 {
 
-	icl_conn_shutdown(is->is_conn);
 	icl_conn_close(is->is_conn);
 
 	ISCSI_SESSION_LOCK(is);

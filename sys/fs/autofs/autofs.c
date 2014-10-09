@@ -367,7 +367,7 @@ autofs_trigger_one(struct autofs_node *anp,
 	char *key, *path;
 	int error = 0, request_error, last;
 
-	amp = VFSTOAUTOFS(anp->an_vnode->v_mount);
+	amp = anp->an_mount;
 
 	sx_assert(&autofs_softc->sc_lock, SA_XLOCKED);
 

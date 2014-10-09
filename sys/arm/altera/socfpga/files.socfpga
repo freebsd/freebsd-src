@@ -19,3 +19,4 @@ arm/altera/socfpga/socfpga_manager.c		standard
 arm/altera/socfpga/socfpga_rstmgr.c		standard
 
 dev/dwc/if_dwc.c				optional dwc
+dev/mmc/host/dwmmc.c				optional dwmmc
