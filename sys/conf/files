@@ -3429,6 +3429,7 @@ netinet/sctp_output.c		optional inet sctp | inet6 sctp
 netinet/sctp_pcb.c		optional inet sctp | inet6 sctp
 netinet/sctp_peeloff.c		optional inet sctp | inet6 sctp
 netinet/sctp_ss_functions.c	optional inet sctp | inet6 sctp
+netinet/sctp_syscalls.c		optional inet sctp | inet6 sctp
 netinet/sctp_sysctl.c		optional inet sctp | inet6 sctp
 netinet/sctp_timer.c		optional inet sctp | inet6 sctp
 netinet/sctp_usrreq.c		optional inet sctp | inet6 sctp
