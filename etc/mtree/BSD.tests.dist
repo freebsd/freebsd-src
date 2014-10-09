@@ -251,6 +251,8 @@
             ..
             comm
             ..
+            cut
+            ..
             dirname
             ..
             file2c
