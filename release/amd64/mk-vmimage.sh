@@ -188,8 +188,27 @@ vm_create_vmdisk() {
 }
 
 main() {
+	vm_config=
+	while getopts "c:" arg; do
+		case ${arg} in
+			c)
+				vm_config="${OPTARG}"
+				;;
+			*)
+				;;
+		esac
+	done
+	shift $(( ${OPTIND} - 1 ))
+
 	cmd="${1}"
 	shift 1
+
+	if [ ! -z "${vm_config}" ]; then
+		if [ ! -e "${vm_config}" ]; then
+			panic "Configuration file ${vm_config} not found."
+		fi
+		. ${vm_config}
+	fi
 
 	case ${cmd} in
 		vm-base)
