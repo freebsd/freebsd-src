@@ -331,6 +331,7 @@ struct resource_list *
 	bus_generic_get_resource_list (device_t, device_t);
 void	bus_generic_new_pass(device_t dev);
 int	bus_print_child_header(device_t dev, device_t child);
+int	bus_print_child_domain(device_t dev, device_t child);
 int	bus_print_child_footer(device_t dev, device_t child);
 int	bus_generic_print_child(device_t dev, device_t child);
 int	bus_generic_probe(device_t dev);
@@ -363,6 +364,8 @@ int	bus_generic_teardown_intr(device_t dev, device_t child,
 				  struct resource *irq, void *cookie);
 int	bus_generic_write_ivar(device_t dev, device_t child, int which,
 			       uintptr_t value);
+
+int	bus_generic_get_domain(device_t dev, device_t child, int *domain);
 
 /*
  * Wrapper functions for the BUS_*_RESOURCE methods to make client code
