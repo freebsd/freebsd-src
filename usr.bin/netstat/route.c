@@ -238,13 +238,13 @@ pr_family(int af1)
 #ifndef INET6
 #define	WID_DST_DEFAULT(af) 	18	/* width of destination column */
 #define	WID_GW_DEFAULT(af)	18	/* width of gateway column */
-#define	WID_IF_DEFAULT(af)	(Wflag ? 8 : 6)	/* width of netif column */
+#define	WID_IF_DEFAULT(af)	(Wflag ? 10 : 8) /* width of netif column */
 #else
 #define	WID_DST_DEFAULT(af) \
 	((af) == AF_INET6 ? (numeric_addr ? 33: 18) : 18)
 #define	WID_GW_DEFAULT(af) \
 	((af) == AF_INET6 ? (numeric_addr ? 29 : 18) : 18)
-#define	WID_IF_DEFAULT(af)	((af) == AF_INET6 ? 8 : (Wflag ? 8 : 6))
+#define	WID_IF_DEFAULT(af)	((af) == AF_INET6 ? 8 : (Wflag ? 10 : 8))
 #endif /*INET6*/
 
 static int wid_dst;
@@ -594,16 +594,13 @@ p_rtable_sysctl(int fibnum, int af)
 	mib[4] = NET_RT_DUMP;
 	mib[5] = 0;
 	mib[6] = fibnum;
-	if (sysctl(mib, 7, NULL, &needed, NULL, 0) < 0) {
-		err(1, "sysctl: net.route.0.%d.dump.%d estimate", af, fibnum);
-	}
-
-	if ((buf = malloc(needed)) == 0) {
+	if (sysctl(mib, nitems(mib), NULL, &needed, NULL, 0) < 0)
+		err(EX_OSERR, "sysctl: net.route.0.%d.dump.%d estimate", af,
+		    fibnum);
+	if ((buf = malloc(needed)) == NULL)
 		errx(2, "malloc(%lu)", (unsigned long)needed);
-	}
-	if (sysctl(mib, 6, buf, &needed, NULL, 0) < 0) {
+	if (sysctl(mib, nitems(mib), buf, &needed, NULL, 0) < 0)
 		err(1, "sysctl: net.route.0.%d.dump.%d", af, fibnum);
-	}
 	lim  = buf + needed;
 	for (next = buf; next < lim; next += rtm->rtm_msglen) {
 		rtm = (struct rt_msghdr *)next;
