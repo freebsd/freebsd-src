@@ -160,7 +160,7 @@ sbfree(struct sockbuf *sb, struct mbuf *m)
 		while (n != NULL && !(n->m_flags & M_NOTREADY)) {
 			n->m_flags &= ~M_BLOCKED;
 			sb->sb_acc += n->m_len;
-			n = m->m_next;
+			n = n->m_next;
 		}
 		sb->sb_fnrdy = n;
 	}
