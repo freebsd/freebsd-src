@@ -31,6 +31,9 @@
  */
 
 
+#if defined(__FreeBSD__)
+#include <sys/stat.h>
+#endif
 #include <atf-c.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -248,6 +251,7 @@ ATF_TC_BODY(t_spawn_open_nonexistent, tc)
 	posix_spawn_file_actions_destroy(&fa);
 }
 
+#if defined(__NetBSD__)
 ATF_TC(t_spawn_open_nonexistent_diag);
 
 ATF_TC_HEAD(t_spawn_open_nonexistent_diag, tc)
@@ -283,6 +287,7 @@ ATF_TC_BODY(t_spawn_open_nonexistent_diag, tc)
 	posix_spawn_file_actions_destroy(&fa);
 	posix_spawnattr_destroy(&attr);
 }
+#endif
 
 ATF_TC(t_spawn_fileactions);
 
@@ -376,7 +381,9 @@ ATF_TP_ADD_TCS(tp)
 {
 	ATF_TP_ADD_TC(tp, t_spawn_fileactions);
 	ATF_TP_ADD_TC(tp, t_spawn_open_nonexistent);
+#if defined(__NetBSD__)
 	ATF_TP_ADD_TC(tp, t_spawn_open_nonexistent_diag);
+#endif
 	ATF_TP_ADD_TC(tp, t_spawn_reopen);
 	ATF_TP_ADD_TC(tp, t_spawn_openmode);
 	ATF_TP_ADD_TC(tp, t_spawn_empty_fileactions);
