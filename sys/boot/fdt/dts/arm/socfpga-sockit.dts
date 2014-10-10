@@ -38,6 +38,9 @@
 	model = "Terasic SoCKit";
 	compatible = "altr,socfpga-cyclone5", "altr,socfpga";
 
+	/* Reserve first page for secondary CPU trampoline code */
+	memreserve = < 0x00000000 0x1000 >;
+
 	memory {
 		device_type = "memory";
 		reg = < 0x00000000 0x40000000 >;	/* 1G RAM */
