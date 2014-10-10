@@ -66,7 +66,6 @@ typedef struct kmem_cache {
 void *zfs_kmem_alloc(size_t size, int kmflags);
 void zfs_kmem_free(void *buf, size_t size);
 uint64_t kmem_size(void);
-uint64_t kmem_used(void);
 kmem_cache_t *kmem_cache_create(char *name, size_t bufsize, size_t align,
     int (*constructor)(void *, void *, int), void (*destructor)(void *, void *),
     void (*reclaim)(void *) __unused, void *private, vmem_t *vmp, int cflags);
@@ -78,6 +77,9 @@ void kmem_reap(void);
 int kmem_debugging(void);
 void *calloc(size_t n, size_t s);
 
+#define	freemem				(cnt.v_free_count + cnt.v_cache_count)
+#define	minfree				cnt.v_free_min
+#define	heap_arena			kmem_arena
 #define	kmem_alloc(size, kmflags)	zfs_kmem_alloc((size), (kmflags))
 #define	kmem_zalloc(size, kmflags)	zfs_kmem_alloc((size), (kmflags) | M_ZERO)
 #define	kmem_free(buf, size)		zfs_kmem_free((buf), (size))
