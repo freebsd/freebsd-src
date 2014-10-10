@@ -46,7 +46,13 @@ __RCSID("$NetBSD: t_glob.c,v 1.3 2013/01/02 11:28:48 martin Exp $");
 #include <string.h>
 #include <errno.h>
 
+#if defined(__FreeBSD__)
+#include "h_macros.h"
+#define	__gl_stat_t struct stat
+#define	_S_IFDIR S_IFDIR
+#else
 #include "../../../h_macros.h"
+#endif
 
 
 #ifdef DEBUG
@@ -132,7 +138,11 @@ gl_readdir(void *v)
 		dir.d_ino = dd->pos;
 		dir.d_type = f->dir ? DT_DIR : DT_REG;
 		DPRINTF(("readdir %s %d\n", dir.d_name, dir.d_type));
+#if defined(__FreeBSD__)
+		dir.d_reclen = -1; /* Does not have _DIRENT_RECLEN */
+#else
 		dir.d_reclen = _DIRENT_RECLEN(&dir, dir.d_namlen);
+#endif
 		return &dir;
 	}
 	return NULL;
@@ -213,6 +223,7 @@ run(const char *p, int flags, const char **res, size_t len)
 }
 
 
+#if !defined(__FreeBSD__)
 ATF_TC(glob_star);
 ATF_TC_HEAD(glob_star, tc)
 {
@@ -224,6 +235,7 @@ ATF_TC_BODY(glob_star, tc)
 {
 	run("a/**", GLOB_STAR, glob_star, __arraycount(glob_star));
 }
+#endif
 
 ATF_TC(glob_star_not);
 ATF_TC_HEAD(glob_star_not, tc)
@@ -260,7 +272,9 @@ ATF_TC_BODY(glob_nocheck, tc)
 
 ATF_TP_ADD_TCS(tp)
 {
+#if !defined(__FreeBSD__)
 	ATF_TP_ADD_TC(tp, glob_star);
+#endif
 	ATF_TP_ADD_TC(tp, glob_star_not);
 /*
  * Remove this test for now - the GLOB_NOCHECK return value has been
