@@ -2580,7 +2580,7 @@ ipfw_show_config(struct cmdline_opts *co, struct format_opts *fo,
 		list_static_range(co, fo, &bp, rbase, rcnt);
 
 		if (co->do_dynamic && dynsz > 0) {
-			printf("## Dynamic rules (%d %lu):\n", fo->dcnt, dynsz);
+			printf("## Dynamic rules (%d %zu):\n", fo->dcnt, dynsz);
 			list_dyn_range(co, fo, &bp, dynbase, dynsz);
 		}
 
