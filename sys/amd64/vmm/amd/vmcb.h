@@ -164,6 +164,45 @@ struct svm_softc;
 #define VMCB_EXITINTINFO_VALID(x)	(((x) & BIT(31)) ? 1 : 0)
 #define VMCB_EXITINTINFO_EC(x)		(((x) >> 32) & 0xFFFFFFFF)
 
+/* Offset of various VMCB fields. */
+#define	VMCB_OFF_CTRL(x)		(x)
+#define	VMCB_OFF_STATE(x)		((x) + 0x400)
+
+#define	VMCB_OFF_CR_INTERCEPT		VMCB_OFF_CTRL(0x0)
+#define	VMCB_OFF_DR_INTERCEPT		VMCB_OFF_CTRL(0x4)
+#define	VMCB_OFF_EXC_INTERCEPT		VMCB_OFF_CTRL(0x8)
+#define	VMCB_OFF_INST1_INTERCEPT	VMCB_OFF_CTRL(0xC)
+#define	VMCB_OFF_INST2_INTERCEPT	VMCB_OFF_CTRL(0x10)
+#define	VMCB_OFF_IO_PERM		VMCB_OFF_CTRL(0x40)
+#define	VMCB_OFF_MSR_PERM		VMCB_OFF_CTRL(0x48)
+#define	VMCB_OFF_TSC_OFFSET		VMCB_OFF_CTRL(0x50)
+#define	VMCB_OFF_ASID			VMCB_OFF_CTRL(0x58)
+#define	VMCB_OFF_TLB_CTRL		VMCB_OFF_CTRL(0x5C)
+#define	VMCB_OFF_VIRQ			VMCB_OFF_CTRL(0x60)
+#define	VMCB_OFF_EXIT_REASON		VMCB_OFF_CTRL(0x70)
+#define	VMCB_OFF_EXITINFO1		VMCB_OFF_CTRL(0x78)
+#define	VMCB_OFF_EXITINFO2		VMCB_OFF_CTRL(0x80)
+#define	VMCB_OFF_EXITINTINFO		VMCB_OFF_CTRL(0x88)
+#define	VMCB_OFF_AVIC_BAR		VMCB_OFF_CTRL(0x98)
+#define	VMCB_OFF_NPT_BASE		VMCB_OFF_CTRL(0xB0)
+#define	VMCB_OFF_AVIC_PAGE		VMCB_OFF_CTRL(0xE0)
+#define	VMCB_OFF_AVIC_LT		VMCB_OFF_CTRL(0xF0)
+#define	VMCB_OFF_AVIC_PT		VMCB_OFF_CTRL(0xF8)
+#define	VMCB_OFF_SYSENTER_CS		VMCB_OFF_STATE(0x228)
+#define	VMCB_OFF_SYSENTER_ESP		VMCB_OFF_STATE(0x230)
+#define	VMCB_OFF_SYSENTER_EIP		VMCB_OFF_STATE(0x238)
+#define	VMCB_OFF_GUEST_PAT		VMCB_OFF_STATE(0x268)
+
+/*
+ * Encode the VMCB offset and bytes that we want to read from VMCB.
+ */
+#define	VMCB_ACCESS(o, w)		(0x80000000 | (((w) & 0xF) << 16) | \
+					((o) & 0xFFF))
+#define	VMCB_ACCESS_OK(v)               ((v) & 0x80000000 )
+#define	VMCB_ACCESS_BYTES(v)            (((v) >> 16) & 0xF)
+#define	VMCB_ACCESS_OFFSET(v)           ((v) & 0xFFF)
+
+#ifdef _KERNEL
 /* VMCB save state area segment format */
 struct vmcb_segment {
 	uint16_t	selector;
@@ -287,4 +326,5 @@ int	vmcb_setdesc(void *arg, int vcpu, int ident, struct seg_desc *desc);
 int	vmcb_getdesc(void *arg, int vcpu, int ident, struct seg_desc *desc);
 int	vmcb_seg(struct vmcb *vmcb, int ident, struct vmcb_segment *seg);
 
+#endif /* _KERNEL */
 #endif /* _VMCB_H_ */
