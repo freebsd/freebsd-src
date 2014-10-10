@@ -569,15 +569,15 @@ lagg_clone_destroy(struct ifnet *ifp)
 static void
 lagg_lladdr(struct lagg_softc *sc, uint8_t *lladdr)
 {
-	struct ifnet *ifp = sc->sc_ifp;
+	struct lagg_port lp;
 
-	if (memcmp(lladdr, IF_LLADDR(ifp), ETHER_ADDR_LEN) == 0)
-		return;
+	LAGG_WLOCK_ASSERT(sc);
 
-	bcopy(lladdr, IF_LLADDR(ifp), ETHER_ADDR_LEN);
-	/* Let the protocol know the MAC has changed */
-	lagg_proto_lladdr(sc);
-	EVENTHANDLER_INVOKE(iflladdr_event, ifp);
+	bzero(&lp, sizeof(lp));
+	lp.lp_ifp = sc->sc_ifp;
+	lp.lp_softc = sc;
+
+	lagg_port_lladdr(&lp, lladdr);
 }
 
 static void
@@ -648,6 +648,7 @@ lagg_port_lladdr(struct lagg_port *lp, uint8_t *lladdr)
 
 	/* Update the lladdr even if pending, it may have changed */
 	llq->llq_ifp = ifp;
+	llq->llq_primary = (sc->sc_primary->lp_ifp == ifp) ? 1 : 0;
 	bcopy(lladdr, llq->llq_lladdr, ETHER_ADDR_LEN);
 
 	if (!pending)
@@ -680,14 +681,35 @@ lagg_port_setlladdr(void *arg, int pending)
 	for (llq = head; llq != NULL; llq = head) {
 		ifp = llq->llq_ifp;
 
-		/* Set the link layer address */
 		CURVNET_SET(ifp->if_vnet);
-		error = if_setlladdr(ifp, llq->llq_lladdr, ETHER_ADDR_LEN);
+		if (llq->llq_primary == 0) {
+			/*
+			 * Set the link layer address on the laggport interface.
+			 * if_setlladdr() triggers gratuitous ARPs for INET.
+			 */
+			error = if_setlladdr(ifp, llq->llq_lladdr,
+			    ETHER_ADDR_LEN);
+			if (error)
+				printf("%s: setlladdr failed on %s\n", __func__,
+				    ifp->if_xname);
+		} else {
+			/*
+			 * Set the link layer address on the lagg interface.
+			 * lagg_proto_lladdr() notifies the MAC change to
+			 * the aggregation protocol.  iflladdr_event handler
+			 * may trigger gratuitous ARPs for INET.
+			 */
+			if (memcmp(llq->llq_lladdr, IF_LLADDR(ifp),
+			    ETHER_ADDR_LEN) != 0) {
+				bcopy(llq->llq_lladdr, IF_LLADDR(ifp),
+				    ETHER_ADDR_LEN);
+				LAGG_WLOCK(sc);
+				lagg_proto_lladdr(sc);
+				LAGG_WUNLOCK(sc);
+				EVENTHANDLER_INVOKE(iflladdr_event, ifp);
+			}
+		}
 		CURVNET_RESTORE();
-		if (error)
-			printf("%s: setlladdr failed on %s\n", __func__,
-			    ifp->if_xname);
-
 		head = SLIST_NEXT(llq, llq_entries);
 		free(llq, M_DEVBUF);
 	}
@@ -1639,7 +1661,7 @@ lagg_input(struct ifnet *ifp, struct mbuf *m)
 
 	ETHER_BPF_MTAP(scifp, m);
 
-	m = lagg_proto_input(sc, lp, m);
+	m = (lp->lp_detaching == 0) ? lagg_proto_input(sc, lp, m) : NULL;
 
 	if (m != NULL) {
 		if (scifp->if_flags & IFF_MONITOR) {

@@ -273,19 +273,11 @@ case "${targ}" in
     targ_defvec=bfd_elf32_littlearm_vec
     targ_selvecs=bfd_elf32_bigarm_vec
     ;;
-  armeb-*-freebsd*)
+  arm*eb*-*-freebsd*)
     targ_defvec=bfd_elf32_bigarm_vec
     targ_selvecs=bfd_elf32_littlearm_vec
     ;;
-  armv6eb-*-freebsd*)
-    targ_defvec=bfd_elf32_bigarm_vec
-    targ_selvecs=bfd_elf32_littlearm_vec
-    ;;
-  armv6-*-freebsd* | armv6hf-*-freebsd*)
-    targ_defvec=bfd_elf32_littlearm_vec
-    targ_selvecs=bfd_elf32_bigarm_vec
-    ;;
-  arm-*-elf | arm-*-freebsd* | arm*-*-linux-* | arm*-*-conix* | \
+  arm-*-elf | arm*-*-freebsd* | arm*-*-linux-* | arm*-*-conix* | \
   arm*-*-uclinux* | arm-*-kfreebsd*-gnu | \
   arm*-*-eabi* )
     targ_defvec=bfd_elf32_littlearm_vec

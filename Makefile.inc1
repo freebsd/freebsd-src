@@ -299,6 +299,10 @@ HMAKE+=		PATH=${TMPPATH} METALOG=${METALOG} -DNO_ROOT
 WMAKEENV+=	MK_CTF=no
 .endif
 
+.if defined(CROSS_TOOLCHAIN)
+LOCALBASE?=	/usr/local
+.include "${LOCALBASE}/share/toolchains/${CROSS_TOOLCHAIN}.mk"
+.endif
 .if defined(CROSS_TOOLCHAIN_PREFIX)
 CROSS_COMPILER_PREFIX?=${CROSS_TOOLCHAIN_PREFIX}
 CROSS_BINUTILS_PREFIX?=${CROSS_TOOLCHAIN_PREFIX}
@@ -311,7 +315,7 @@ X${COMPILER}?=	${CROSS_COMPILER_PREFIX}${${COMPILER}}
 X${COMPILER}?=	${${COMPILER}}
 .endif
 .endfor
-XBINUTILS=	AS AR LD NM OBJDUMP RANLIB STRINGS
+XBINUTILS=	AS AR LD NM OBJCOPY OBJDUMP RANLIB SIZE STRINGS
 .for BINUTIL in ${XBINUTILS}
 .if defined(CROSS_BINUTILS_PREFIX)
 X${BINUTIL}?=	${CROSS_BINUTILS_PREFIX}${${BINUTIL}}
@@ -322,7 +326,9 @@ X${BINUTIL}?=	${${BINUTIL}}
 WMAKEENV+=	CC="${XCC} ${XFLAGS}" CXX="${XCXX} ${XFLAGS}" \
 		CPP="${XCPP} ${XFLAGS}" \
 		AS="${XAS}" AR="${XAR}" LD="${XLD}" NM=${XNM} \
-		OBJDUMP=${XOBJDUMP} RANLIB=${XRANLIB} STRINGS=${XSTRINGS}
+		OBJDUMP=${XOBJDUMP} OBJCOPY="${XOBJCOPY}" \
+		RANLIB=${XRANLIB} STRINGS=${XSTRINGS} \
+		SIZE="${XSIZE}"
 
 .if ${XCC:M/*}
 XFLAGS=		--sysroot=${WORLDTMP}
@@ -343,9 +349,13 @@ TARGET_ABI=	gnueabihf
 TARGET_ABI=	gnueabi
 .endif
 .endif
+.if defined(X_COMPILER_TYPE) && ${X_COMPILER_TYPE} == gcc
+XFLAGS+=	-isystem ${WORLDTMP}/usr/include -L${WORLDTMP}/usr/lib
+.else
 TARGET_ABI?=	unknown
 TARGET_TRIPLE?=	${TARGET_ARCH:C/amd64/x86_64/}-${TARGET_ABI}-freebsd11.0
 XFLAGS+=	-target ${TARGET_TRIPLE}
+.endif
 .endif
 
 WMAKE=		${WMAKEENV} ${MAKE} ${WORLD_FLAGS} -f Makefile.inc1 DESTDIR=${WORLDTMP}
@@ -1531,9 +1541,12 @@ _prebuild_libs=	${_kerberos5_lib_libasn1} \
 		lib/ncurses/ncurses lib/ncurses/ncursesw \
 		lib/libopie lib/libpam ${_lib_libthr} \
 		lib/libradius lib/libsbuf lib/libtacplus \
+		lib/libgeom \
 		${_cddl_lib_libumem} ${_cddl_lib_libnvpair} \
+		${_cddl_lib_libuutil} \
 		${_cddl_lib_libavl} \
 		${_cddl_lib_libzfs_core} \
+		${_cddl_lib_libctf} \
 		lib/libutil lib/libpjdlog ${_lib_libypclnt} lib/libz lib/msun \
 		${_secure_lib_libcrypto} ${_lib_libldns} \
 		${_secure_lib_libssh} ${_secure_lib_libssl}
@@ -1542,6 +1555,8 @@ _prebuild_libs+= gnu/lib/libstdc++ gnu/lib/libsupc++
 gnu/lib/libstdc++__L: lib/msun__L
 gnu/lib/libsupc++__L: gnu/lib/libstdc++__L
 .endif
+
+lib/libgeom__L: lib/libexpat__L
 
 .if defined(WITH_ATF) || ${MK_TESTS} != "no"
 .if !defined(WITH_ATF)
@@ -1580,9 +1595,13 @@ lib/libopie__L lib/libtacplus__L: lib/libmd__L
 _cddl_lib_libumem= cddl/lib/libumem
 _cddl_lib_libnvpair= cddl/lib/libnvpair
 _cddl_lib_libavl= cddl/lib/libavl
+_cddl_lib_libuutil= cddl/lib/libuutil
 _cddl_lib_libzfs_core= cddl/lib/libzfs_core
+_cddl_lib_libctf= cddl/lib/libctf
 _cddl_lib= cddl/lib
 cddl/lib/libzfs_core__L: cddl/lib/libnvpair__L
+cddl/lib/libzfs__L: lib/libgeom__L
+cddl/lib/libctf__L: lib/libz__L
 .endif
 
 .if ${MK_CRYPT} != "no"

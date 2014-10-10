@@ -141,9 +141,19 @@ udp6_append(struct inpcb *inp, struct mbuf *n, int off,
 {
 	struct socket *so;
 	struct mbuf *opts;
+	struct udpcb *up;
 
 	INP_LOCK_ASSERT(inp);
 
+	/*
+	 * Engage the tunneling protocol.
+	 */
+	up = intoudpcb(inp);
+	if (up->u_tun_func != NULL) {
+		(*up->u_tun_func)(n, off, inp, (struct sockaddr *)fromsa,
+		    up->u_tun_ctx);
+		return;
+	}
 #ifdef IPSEC
 	/* Check AH/ESP integrity. */
 	if (ipsec6_in_reject(n, inp)) {
@@ -265,7 +275,7 @@ udp6_input(struct mbuf **mp, int *offp, int proto)
 
 	if (uh_sum != 0) {
 		UDPSTAT_INC(udps_badsum);
-		/*goto badunlocked;*/
+		goto badunlocked;
 	}
 
 	/*
@@ -361,20 +371,9 @@ udp6_input(struct mbuf **mp, int *offp, int proto)
 
 				if ((n = m_copy(m, 0, M_COPYALL)) != NULL) {
 					INP_RLOCK(last);
-					up = intoudpcb(last);
-					if (up->u_tun_func == NULL) {
-						udp6_append(last, n, off, &fromsa);
-					} else {
-						/*
-						 * Engage the tunneling
-						 * protocol we will have to
-						 * leave the info_lock up,
-						 * since we are hunting
-						 * through multiple UDP's.
-						 * 
-						 */
-						(*up->u_tun_func)(n, off, last);
-					}
+					UDP_PROBE(receive, NULL, last, ip6,
+					    last, uh);
+					udp6_append(last, n, off, &fromsa);
 					INP_RUNLOCK(last);
 				}
 			}
@@ -404,16 +403,8 @@ udp6_input(struct mbuf **mp, int *offp, int proto)
 		}
 		INP_RLOCK(last);
 		INP_INFO_RUNLOCK(pcbinfo);
-		up = intoudpcb(last);
 		UDP_PROBE(receive, NULL, last, ip6, last, uh);
-		if (up->u_tun_func == NULL) {
-			udp6_append(last, m, off, &fromsa);
-		} else {
-			/*
-			 * Engage the tunneling protocol.
-			 */
-			(*up->u_tun_func)(m, off, last);
-		}
+		udp6_append(last, m, off, &fromsa);
 		INP_RUNLOCK(last);
 		return (IPPROTO_DONE);
 	}
@@ -492,15 +483,7 @@ udp6_input(struct mbuf **mp, int *offp, int proto)
 		}
 	}
 	UDP_PROBE(receive, NULL, inp, ip6, inp, uh);
-	if (up->u_tun_func == NULL) {
-		udp6_append(inp, m, off, &fromsa);
-	} else {
-		/*
-		 * Engage the tunneling protocol.
-		 */
-
-		(*up->u_tun_func)(m, off, inp);
-	}
+	udp6_append(inp, m, off, &fromsa);
 	INP_RUNLOCK(inp);
 	return (IPPROTO_DONE);
 

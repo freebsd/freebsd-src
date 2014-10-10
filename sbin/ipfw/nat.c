@@ -30,13 +30,12 @@
 
 #include <ctype.h>
 #include <err.h>
+#include <errno.h>
 #include <netdb.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <sysexits.h>
-
-#define IPFW_INTERNAL	/* Access to protected structures in ip_fw.h. */
 
 #include <net/if.h>
 #include <net/if_dl.h>
@@ -45,6 +44,14 @@
 #include <netinet/ip_fw.h>
 #include <arpa/inet.h>
 #include <alias.h>
+
+typedef int (nat_cb_t)(struct nat44_cfg_nat *cfg, void *arg);
+static void nat_show_cfg(struct nat44_cfg_nat *n, void *arg);
+static void nat_show_log(struct nat44_cfg_nat *n, void *arg);
+static int nat_show_data(struct nat44_cfg_nat *cfg, void *arg);
+static int natname_cmp(const void *a, const void *b);
+static int nat_foreach(nat_cb_t *f, void *arg, int sort);
+static int nat_get_cmd(char *name, uint16_t cmd, ipfw_obj_header **ooh);
 
 static struct _s_x nat_params[] = {
 	{ "ip",			TOK_IP },
@@ -71,7 +78,7 @@ static struct _s_x nat_params[] = {
  * n->if_name   copy of interface name "ifn"
  */
 static void
-set_addr_dynamic(const char *ifn, struct cfg_nat *n)
+set_addr_dynamic(const char *ifn, struct nat44_cfg_nat *n)
 {
 	size_t needed;
 	int mib[6];
@@ -288,15 +295,15 @@ StrToAddrAndPortRange (const char* str, struct in_addr* addr, char* proto,
  * and SetupProtoRedirect() from natd.c.
  *
  * Every setup_* function fills at least one redirect entry
- * (struct cfg_redir) and zero or more server pool entry (struct cfg_spool)
- * in buf.
+ * (struct nat44_cfg_redir) and zero or more server pool entry
+ * (struct nat44_cfg_spool) in buf.
  *
  * The format of data in buf is:
  *
- *     cfg_nat    cfg_redir    cfg_spool    ......  cfg_spool
+ *  nat44_cfg_nat nat44_cfg_redir nat44_cfg_spool    ......  nat44_cfg_spool
  *
  *    -------------------------------------        ------------
- *   |          | .....X ... |          |         |           |  .....
+ *   |           | .....X ..... |          |         |           |  .....
  *    ------------------------------------- ...... ------------
  *                     ^
  *                spool_cnt       n=0       ......   n=(X-1)
@@ -314,7 +321,7 @@ StrToAddrAndPortRange (const char* str, struct in_addr* addr, char* proto,
 static int
 estimate_redir_addr(int *ac, char ***av)
 {
-	size_t space = sizeof(struct cfg_redir);
+	size_t space = sizeof(struct nat44_cfg_redir);
 	char *sep = **av;
 	u_int c = 0;
 
@@ -327,7 +334,7 @@ estimate_redir_addr(int *ac, char ***av)
 	if (c > 0)
 		c++;
 
-	space += c * sizeof(struct cfg_spool);
+	space += c * sizeof(struct nat44_cfg_spool);
 
 	return (space);
 }
@@ -335,31 +342,31 @@ estimate_redir_addr(int *ac, char ***av)
 static int
 setup_redir_addr(char *buf, int *ac, char ***av)
 {
-	struct cfg_redir *r;
+	struct nat44_cfg_redir *r;
 	char *sep;
 	size_t space;
 
-	r = (struct cfg_redir *)buf;
+	r = (struct nat44_cfg_redir *)buf;
 	r->mode = REDIR_ADDR;
-	/* Skip cfg_redir at beginning of buf. */
-	buf = &buf[sizeof(struct cfg_redir)];
-	space = sizeof(struct cfg_redir);
+	/* Skip nat44_cfg_redir at beginning of buf. */
+	buf = &buf[sizeof(struct nat44_cfg_redir)];
+	space = sizeof(struct nat44_cfg_redir);
 
 	/* Extract local address. */
 	if (strchr(**av, ',') != NULL) {
-		struct cfg_spool *spool;
+		struct nat44_cfg_spool *spool;
 
 		/* Setup LSNAT server pool. */
 		r->laddr.s_addr = INADDR_NONE;
 		sep = strtok(**av, ",");
 		while (sep != NULL) {
-			spool = (struct cfg_spool *)buf;
-			space += sizeof(struct cfg_spool);
+			spool = (struct nat44_cfg_spool *)buf;
+			space += sizeof(struct nat44_cfg_spool);
 			StrToAddr(sep, &spool->addr);
 			spool->port = ~0;
 			r->spool_cnt++;
-			/* Point to the next possible cfg_spool. */
-			buf = &buf[sizeof(struct cfg_spool)];
+			/* Point to the next possible nat44_cfg_spool. */
+			buf = &buf[sizeof(struct nat44_cfg_spool)];
 			sep = strtok(NULL, ",");
 		}
 	} else
@@ -376,7 +383,7 @@ setup_redir_addr(char *buf, int *ac, char ***av)
 static int
 estimate_redir_port(int *ac, char ***av)
 {
-	size_t space = sizeof(struct cfg_redir);
+	size_t space = sizeof(struct nat44_cfg_redir);
 	char *sep = **av;
 	u_int c = 0;
 
@@ -389,7 +396,7 @@ estimate_redir_port(int *ac, char ***av)
 	if (c > 0)
 		c++;
 
-	space += c * sizeof(struct cfg_spool);
+	space += c * sizeof(struct nat44_cfg_spool);
 
 	return (space);
 }
@@ -397,7 +404,7 @@ estimate_redir_port(int *ac, char ***av)
 static int
 setup_redir_port(char *buf, int *ac, char ***av)
 {
-	struct cfg_redir *r;
+	struct nat44_cfg_redir *r;
 	char *sep, *protoName, *lsnat = NULL;
 	size_t space;
 	u_short numLocalPorts;
@@ -405,11 +412,11 @@ setup_redir_port(char *buf, int *ac, char ***av)
 
 	numLocalPorts = 0;
 
-	r = (struct cfg_redir *)buf;
+	r = (struct nat44_cfg_redir *)buf;
 	r->mode = REDIR_PORT;
-	/* Skip cfg_redir at beginning of buf. */
-	buf = &buf[sizeof(struct cfg_redir)];
-	space = sizeof(struct cfg_redir);
+	/* Skip nat44_cfg_redir at beginning of buf. */
+	buf = &buf[sizeof(struct nat44_cfg_redir)];
+	space = sizeof(struct nat44_cfg_redir);
 
 	/*
 	 * Extract protocol.
@@ -516,12 +523,12 @@ setup_redir_port(char *buf, int *ac, char ***av)
 
 	/* Setup LSNAT server pool. */
 	if (lsnat != NULL) {
-		struct cfg_spool *spool;
+		struct nat44_cfg_spool *spool;
 
 		sep = strtok(lsnat, ",");
 		while (sep != NULL) {
-			spool = (struct cfg_spool *)buf;
-			space += sizeof(struct cfg_spool);
+			spool = (struct nat44_cfg_spool *)buf;
+			space += sizeof(struct nat44_cfg_spool);
 			/*
 			 * The sctp nat does not allow the port numbers to
 			 * be mapped to new port numbers. Therefore, no ports
@@ -549,8 +556,8 @@ setup_redir_port(char *buf, int *ac, char ***av)
 				spool->port = GETLOPORT(portRange);
 			}
 			r->spool_cnt++;
-			/* Point to the next possible cfg_spool. */
-			buf = &buf[sizeof(struct cfg_spool)];
+			/* Point to the next possible nat44_cfg_spool. */
+			buf = &buf[sizeof(struct nat44_cfg_spool)];
 			sep = strtok(NULL, ",");
 		}
 	}
@@ -561,15 +568,15 @@ setup_redir_port(char *buf, int *ac, char ***av)
 static int
 setup_redir_proto(char *buf, int *ac, char ***av)
 {
-	struct cfg_redir *r;
+	struct nat44_cfg_redir *r;
 	struct protoent *protoent;
 	size_t space;
 
-	r = (struct cfg_redir *)buf;
+	r = (struct nat44_cfg_redir *)buf;
 	r->mode = REDIR_PROTO;
-	/* Skip cfg_redir at beginning of buf. */
-	buf = &buf[sizeof(struct cfg_redir)];
-	space = sizeof(struct cfg_redir);
+	/* Skip nat44_cfg_redir at beginning of buf. */
+	buf = &buf[sizeof(struct nat44_cfg_redir)];
+	space = sizeof(struct nat44_cfg_redir);
 
 	/*
 	 * Extract protocol.
@@ -616,18 +623,28 @@ setup_redir_proto(char *buf, int *ac, char ***av)
 }
 
 static void
-print_nat_config(unsigned char *buf)
+nat_show_log(struct nat44_cfg_nat *n, void *arg)
 {
-	struct cfg_nat *n;
+	char *buf;
+
+	buf = (char *)(n + 1);
+	if (buf[0] != '\0')
+		printf("nat %s: %s\n", n->name, buf);
+}
+
+static void
+nat_show_cfg(struct nat44_cfg_nat *n, void *arg)
+{
 	int i, cnt, flag, off;
-	struct cfg_redir *t;
-	struct cfg_spool *s;
+	struct nat44_cfg_redir *t;
+	struct nat44_cfg_spool *s;
+	caddr_t buf;
 	struct protoent *p;
 
-	n = (struct cfg_nat *)buf;
+	buf = (caddr_t)n;
 	flag = 1;
-	off  = sizeof(*n);
-	printf("ipfw nat %u config", n->id);
+	off = sizeof(*n);
+	printf("ipfw nat %s config", n->name);
 	if (strlen(n->if_name) != 0)
 		printf(" if %s", n->if_name);
 	else if (n->ip.s_addr != 0)
@@ -661,8 +678,8 @@ print_nat_config(unsigned char *buf)
 	}
 	/* Print all the redirect's data configuration. */
 	for (cnt = 0; cnt < n->redir_cnt; cnt++) {
-		t = (struct cfg_redir *)&buf[off];
-		off += SOF_REDIR;
+		t = (struct nat44_cfg_redir *)&buf[off];
+		off += sizeof(struct nat44_cfg_redir);
 		switch (t->mode) {
 		case REDIR_ADDR:
 			printf(" redirect_addr");
@@ -670,13 +687,13 @@ print_nat_config(unsigned char *buf)
 				printf(" %s", inet_ntoa(t->laddr));
 			else
 				for (i = 0; i < t->spool_cnt; i++) {
-					s = (struct cfg_spool *)&buf[off];
+					s = (struct nat44_cfg_spool *)&buf[off];
 					if (i)
 						printf(",");
 					else
 						printf(" ");
 					printf("%s", inet_ntoa(s->addr));
-					off += SOF_SPOOL;
+					off += sizeof(struct nat44_cfg_spool);
 				}
 			printf(" %s", inet_ntoa(t->paddr));
 			break;
@@ -690,12 +707,12 @@ print_nat_config(unsigned char *buf)
 					    t->pport_cnt - 1);
 			} else
 				for (i=0; i < t->spool_cnt; i++) {
-					s = (struct cfg_spool *)&buf[off];
+					s = (struct nat44_cfg_spool *)&buf[off];
 					if (i)
 						printf(",");
 					printf("%s:%u", inet_ntoa(s->addr),
 					    s->port);
-					off += SOF_SPOOL;
+					off += sizeof(struct nat44_cfg_spool);
 				}
 
 			printf(" ");
@@ -736,7 +753,8 @@ print_nat_config(unsigned char *buf)
 void
 ipfw_config_nat(int ac, char **av)
 {
-	struct cfg_nat *n;		/* Nat instance configuration. */
+	ipfw_obj_header *oh;
+	struct nat44_cfg_nat *n;		/* Nat instance configuration. */
 	int i, off, tok, ac1;
 	char *id, *buf, **av1, *end;
 	size_t len;
@@ -755,7 +773,7 @@ ipfw_config_nat(int ac, char **av)
 	if (ac == 0)
 		errx(EX_DATAERR, "missing option");
 
-	len = sizeof(struct cfg_nat);
+	len = sizeof(*oh) + sizeof(*n);
 	ac1 = ac;
 	av1 = av;
 	while (ac1 > 0) {
@@ -804,7 +822,7 @@ ipfw_config_nat(int ac, char **av)
 			if (ac1 < 2)
 				errx(EX_DATAERR, "redirect_proto: "
 				    "not enough arguments");
-			len += sizeof(struct cfg_redir);
+			len += sizeof(struct nat44_cfg_redir);
 			av1 += 2;
 			ac1 -= 2;
 			/* Skip optional remoteIP/port */
@@ -825,11 +843,14 @@ ipfw_config_nat(int ac, char **av)
 	if ((buf = malloc(len)) == NULL)
 		errx(EX_OSERR, "malloc failed");
 
-	/* Offset in buf: save space for n at the beginning. */
-	off = sizeof(*n);
+	/* Offset in buf: save space for header at the beginning. */
+	off = sizeof(*oh) + sizeof(*n);
 	memset(buf, 0, len);
-	n = (struct cfg_nat *)buf;
-	n->id = i;
+	oh = (ipfw_obj_header *)buf;
+	n = (struct nat44_cfg_nat *)(oh + 1);
+	oh->ntlv.head.length = sizeof(oh->ntlv);
+	snprintf(oh->ntlv.name, sizeof(oh->ntlv.name), "%d", i);
+	snprintf(n->name, sizeof(n->name), "%d", i);
 
 	while (ac > 0) {
 		tok = match_token(nat_params, *av);
@@ -900,9 +921,9 @@ ipfw_config_nat(int ac, char **av)
 		}
 	}
 
-	i = do_cmd(IP_FW_NAT_CFG, buf, off);
-	if (i)
-		err(1, "setsockopt(%s)", "IP_FW_NAT_CFG");
+	i = do_set3(IP_FW_NAT44_XCONFIG, &oh->opheader, len);
+	if (i != 0)
+		err(1, "setsockopt(%s)", "IP_FW_NAT44_XCONFIG");
 
 	if (!co.do_quiet) {
 		/* After every modification, we show the resultant rule. */
@@ -912,23 +933,147 @@ ipfw_config_nat(int ac, char **av)
 	}
 }
 
+struct nat_list_arg {
+	uint16_t	cmd;
+	int		is_all;
+};
+
+static int
+nat_show_data(struct nat44_cfg_nat *cfg, void *arg)
+{
+	struct nat_list_arg *nla;
+	ipfw_obj_header *oh;
+
+	nla = (struct nat_list_arg *)arg;
+
+	switch (nla->cmd) {
+	case IP_FW_NAT44_XGETCONFIG:
+		if (nat_get_cmd(cfg->name, nla->cmd, &oh) != 0) {
+			warnx("Error getting nat instance %s info", cfg->name);
+			break;
+		}
+		nat_show_cfg((struct nat44_cfg_nat *)(oh + 1), NULL);
+		free(oh);
+		break;
+	case IP_FW_NAT44_XGETLOG:
+		if (nat_get_cmd(cfg->name, nla->cmd, &oh) == 0) {
+			nat_show_log((struct nat44_cfg_nat *)(oh + 1), NULL);
+			free(oh);
+			break;
+		}
+		/* Handle error */
+		if (nla->is_all != 0 && errno == ENOENT)
+			break;
+		warn("Error getting nat instance %s info", cfg->name);
+		break;
+	}
+
+	return (0);
+}
+
+/*
+ * Compare nat names.
+ * Honor number comparison.
+ */
+static int
+natname_cmp(const void *a, const void *b)
+{
+	struct nat44_cfg_nat *ia, *ib;
+
+	ia = (struct nat44_cfg_nat *)a;
+	ib = (struct nat44_cfg_nat *)b;
+
+	return (stringnum_cmp(ia->name, ib->name));
+}
+
+/*
+ * Retrieves nat list from kernel,
+ * optionally sorts it and calls requested function for each table.
+ * Returns 0 on success.
+ */
+static int
+nat_foreach(nat_cb_t *f, void *arg, int sort)
+{
+	ipfw_obj_lheader *olh;
+	struct nat44_cfg_nat *cfg;
+	size_t sz;
+	int i, error;
+
+	/* Start with reasonable default */
+	sz = sizeof(*olh) + 16 * sizeof(struct nat44_cfg_nat);
+
+	for (;;) {
+		if ((olh = calloc(1, sz)) == NULL)
+			return (ENOMEM);
+
+		olh->size = sz;
+		if (do_get3(IP_FW_NAT44_LIST_NAT, &olh->opheader, &sz) != 0) {
+			free(olh);
+			if (errno == ENOMEM) {
+				sz = olh->size;
+				continue;
+			}
+			return (errno);
+		}
+
+		if (sort != 0)
+			qsort(olh + 1, olh->count, olh->objsize, natname_cmp);
+
+		cfg = (struct nat44_cfg_nat*)(olh + 1);
+		for (i = 0; i < olh->count; i++) {
+			error = f(cfg, arg); /* Ignore errors for now */
+			cfg = (struct nat44_cfg_nat *)((caddr_t)cfg +
+			    olh->objsize);
+		}
+
+		free(olh);
+		break;
+	}
+
+	return (0);
+}
+
+static int
+nat_get_cmd(char *name, uint16_t cmd, ipfw_obj_header **ooh)
+{
+	ipfw_obj_header *oh;
+	struct nat44_cfg_nat *cfg;
+	size_t sz;
+
+	/* Start with reasonable default */
+	sz = sizeof(*oh) + sizeof(*cfg) + 128;
+
+	for (;;) {
+		if ((oh = calloc(1, sz)) == NULL)
+			return (ENOMEM);
+		cfg = (struct nat44_cfg_nat *)(oh + 1);
+		oh->ntlv.head.length = sizeof(oh->ntlv);
+		strlcpy(oh->ntlv.name, name, sizeof(oh->ntlv.name));
+		strlcpy(cfg->name, name, sizeof(cfg->name));
+
+		if (do_get3(cmd, &oh->opheader, &sz) != 0) {
+			sz = cfg->size;
+			free(oh);
+			if (errno == ENOMEM)
+				continue;
+			return (errno);
+		}
+
+		*ooh = oh;
+		break;
+	}
+
+	return (0);
+}
 
 void
 ipfw_show_nat(int ac, char **av)
 {
-	struct cfg_nat *n;
-	struct cfg_redir *e;
-	int cmd, i, nbytes, do_cfg, do_rule, frule, lrule, nalloc, size;
-	int nat_cnt, redir_cnt, r;
-	uint8_t *data, *p;
-	char *endptr;
+	ipfw_obj_header *oh;
+	char *name;
+	int cmd;
+	struct nat_list_arg nla;
 
-	do_rule = 0;
-	nalloc = 1024;
-	size = 0;
-	data = NULL;
-	frule = 0;
-	lrule = IPFW_DEFAULT_RULE; /* max ipfw rule number */
 	ac--;
 	av++;
 
@@ -936,55 +1081,35 @@ ipfw_show_nat(int ac, char **av)
 		return;
 
 	/* Parse parameters. */
-	for (cmd = IP_FW_NAT_GET_LOG, do_cfg = 0; ac != 0; ac--, av++) {
+	cmd = 0; /* XXX: Change to IP_FW_NAT44_XGETLOG @ MFC */
+	name = NULL;
+	for ( ; ac != 0; ac--, av++) {
 		if (!strncmp(av[0], "config", strlen(av[0]))) {
-			cmd = IP_FW_NAT_GET_CONFIG, do_cfg = 1;
+			cmd = IP_FW_NAT44_XGETCONFIG;
 			continue;
 		}
-		/* Convert command line rule #. */
-		frule = lrule = strtoul(av[0], &endptr, 10);
-		if (*endptr == '-')
-			lrule = strtoul(endptr+1, &endptr, 10);
-		if (lrule == 0)
-			err(EX_USAGE, "invalid rule number: %s", av[0]);
-		do_rule = 1;
+		if (strcmp(av[0], "log") == 0) {
+			cmd = IP_FW_NAT44_XGETLOG;
+			continue;
+		}
+		if (name != NULL)
+			err(EX_USAGE,"only one instance name may be specified");
+		name = av[0];
 	}
 
-	nbytes = nalloc;
-	while (nbytes >= nalloc) {
-		nalloc = nalloc * 2;
-		nbytes = nalloc;
-		data = safe_realloc(data, nbytes);
-		if (do_cmd(cmd, data, (uintptr_t)&nbytes) < 0)
-			err(EX_OSERR, "getsockopt(IP_FW_GET_%s)",
-			    (cmd == IP_FW_NAT_GET_LOG) ? "LOG" : "CONFIG");
-	}
-	if (nbytes == 0)
-		exit(0);
-	if (do_cfg) {
-		nat_cnt = *((int *)data);
-		for (i = sizeof(nat_cnt); nat_cnt; nat_cnt--) {
-			n = (struct cfg_nat *)&data[i];
-			if (frule <= n->id && lrule >= n->id)
-				print_nat_config(&data[i]);
-			i += sizeof(struct cfg_nat);
-			for (redir_cnt = 0; redir_cnt < n->redir_cnt; redir_cnt++) {
-				e = (struct cfg_redir *)&data[i];
-				i += sizeof(struct cfg_redir) + e->spool_cnt *
-				    sizeof(struct cfg_spool);
-			}
-		}
+	if (cmd == 0)
+		errx(EX_USAGE, "Please specify action. Available: config,log");
+
+	if (name == NULL) {
+		memset(&nla, 0, sizeof(nla));
+		nla.cmd = cmd;
+		nla.is_all = 1;
+		nat_foreach(nat_show_data, &nla, 1);
 	} else {
-		for (i = 0; 1; i += LIBALIAS_BUF_SIZE + sizeof(int)) {
-			p = &data[i];
-			if (p == data + nbytes)
-				break;
-			bcopy(p, &r, sizeof(int));
-			if (do_rule) {
-				if (!(frule <= r && lrule >= r))
-					continue;
-			}
-			printf("nat %u: %s\n", r, p+sizeof(int));
-		}
+		if (nat_get_cmd(name, cmd, &oh) != 0)
+			err(EX_OSERR, "Error getting nat %s instance info", name);
+		nat_show_cfg((struct nat44_cfg_nat *)(oh + 1), NULL);
+		free(oh);
 	}
 }
+

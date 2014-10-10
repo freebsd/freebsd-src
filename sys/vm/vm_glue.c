@@ -62,6 +62,7 @@ __FBSDID("$FreeBSD$");
 #include "opt_vm.h"
 #include "opt_kstack_pages.h"
 #include "opt_kstack_max_pages.h"
+#include "opt_kstack_usage_prof.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -97,6 +98,8 @@ __FBSDID("$FreeBSD$");
 #include <vm/vm_extern.h>
 #include <vm/vm_pager.h>
 #include <vm/swap_pager.h>
+
+#include <machine/cpu.h>
 
 #ifndef NO_SWAPPING
 static int swapout(struct proc *);
@@ -485,6 +488,52 @@ kstack_cache_init(void *nulll)
 }
 
 SYSINIT(vm_kstacks, SI_SUB_KTHREAD_INIT, SI_ORDER_ANY, kstack_cache_init, NULL);
+
+#ifdef KSTACK_USAGE_PROF
+/*
+ * Track maximum stack used by a thread in kernel.
+ */
+static int max_kstack_used;
+
+SYSCTL_INT(_debug, OID_AUTO, max_kstack_used, CTLFLAG_RD,
+    &max_kstack_used, 0,
+    "Maxiumum stack depth used by a thread in kernel");
+
+void
+intr_prof_stack_use(struct thread *td, struct trapframe *frame)
+{
+	vm_offset_t stack_top;
+	vm_offset_t current;
+	int used, prev_used;
+
+	/*
+	 * Testing for interrupted kernel mode isn't strictly
+	 * needed. It optimizes the execution, since interrupts from
+	 * usermode will have only the trap frame on the stack.
+	 */
+	if (TRAPF_USERMODE(frame))
+		return;
+
+	stack_top = td->td_kstack + td->td_kstack_pages * PAGE_SIZE;
+	current = (vm_offset_t)(uintptr_t)&stack_top;
+
+	/*
+	 * Try to detect if interrupt is using kernel thread stack.
+	 * Hardware could use a dedicated stack for interrupt handling.
+	 */
+	if (stack_top <= current || current < td->td_kstack)
+		return;
+
+	used = stack_top - current;
+	for (;;) {
+		prev_used = max_kstack_used;
+		if (prev_used >= used)
+			break;
+		if (atomic_cmpset_int(&max_kstack_used, prev_used, used))
+			break;
+	}
+}
+#endif /* KSTACK_USAGE_PROF */
 
 #ifndef NO_SWAPPING
 /*

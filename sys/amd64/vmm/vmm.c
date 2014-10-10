@@ -1497,6 +1497,10 @@ restart:
 		case VM_EXITCODE_INOUT_STR:
 			error = vm_handle_inout(vm, vcpuid, vme, &retu);
 			break;
+		case VM_EXITCODE_MONITOR:
+		case VM_EXITCODE_MWAIT:
+			vm_inject_ud(vm, vcpuid);
+			break;
 		default:
 			retu = true;	/* handled in userland */
 			break;
