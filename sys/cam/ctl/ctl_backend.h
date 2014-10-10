@@ -73,6 +73,8 @@
  * The DEV_TYPE flag tells us that the device_type field is filled in.
  *
  * The UNMAP flag tells us that this LUN supports UNMAP.
+ *
+ * The OFFLINE flag tells us that this LUN can not access backing store.
  */
 typedef enum {
 	CTL_LUN_FLAG_ID_REQ		= 0x01,
@@ -82,7 +84,8 @@ typedef enum {
 	CTL_LUN_FLAG_SERIAL_NUM		= 0x10,
 	CTL_LUN_FLAG_DEVID		= 0x20,
 	CTL_LUN_FLAG_DEV_TYPE		= 0x40,
-	CTL_LUN_FLAG_UNMAP		= 0x80
+	CTL_LUN_FLAG_UNMAP		= 0x80,
+	CTL_LUN_FLAG_OFFLINE		= 0x100
 } ctl_backend_lun_flags;
 
 #ifdef _KERNEL

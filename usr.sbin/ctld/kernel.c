@@ -700,20 +700,22 @@ kernel_lun_add(struct lun *lun)
 		return (1);
 	}
 
-	if (req.status == CTL_LUN_ERROR) {
-		log_warnx("error returned from LUN creation request: %s",
-		    req.error_str);
+	switch (req.status) {
+	case CTL_LUN_ERROR:
+		log_warnx("LUN creation error: %s", req.error_str);
 		return (1);
-	}
-
-	if (req.status != CTL_LUN_OK) {
-		log_warnx("unknown LUN creation request status %d",
+	case CTL_LUN_WARNING:
+		log_warnx("LUN creation warning: %s", req.error_str);
+		break;
+	case CTL_LUN_OK:
+		break;
+	default:
+		log_warnx("unknown LUN creation status: %d",
 		    req.status);
 		return (1);
 	}
 
 	lun_set_ctl_lun(lun, req.reqdata.create.req_lun_id);
-
 	return (0);
 }
 
@@ -735,14 +737,17 @@ kernel_lun_resize(struct lun *lun)
 		return (1);
 	}
 
-	if (req.status == CTL_LUN_ERROR) {
-		log_warnx("error returned from LUN modification request: %s",
-		    req.error_str);
+	switch (req.status) {
+	case CTL_LUN_ERROR:
+		log_warnx("LUN modification error: %s", req.error_str);
 		return (1);
-	}
-
-	if (req.status != CTL_LUN_OK) {
-		log_warnx("unknown LUN modification request status %d",
+	case CTL_LUN_WARNING:
+		log_warnx("LUN modification warning: %s", req.error_str);
+		break;
+	case CTL_LUN_OK:
+		break;
+	default:
+		log_warnx("unknown LUN modification status: %d",
 		    req.status);
 		return (1);
 	}
@@ -767,14 +772,17 @@ kernel_lun_remove(struct lun *lun)
 		return (1);
 	}
 
-	if (req.status == CTL_LUN_ERROR) {
-		log_warnx("error returned from LUN removal request: %s",
-		    req.error_str);
+	switch (req.status) {
+	case CTL_LUN_ERROR:
+		log_warnx("LUN removal error: %s", req.error_str);
 		return (1);
-	}
-	
-	if (req.status != CTL_LUN_OK) {
-		log_warnx("unknown LUN removal request status %d", req.status);
+	case CTL_LUN_WARNING:
+		log_warnx("LUN removal warning: %s", req.error_str);
+		break;
+	case CTL_LUN_OK:
+		break;
+	default:
+		log_warnx("unknown LUN removal status: %d", req.status);
 		return (1);
 	}
 
