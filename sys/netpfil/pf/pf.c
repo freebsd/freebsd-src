@@ -374,9 +374,9 @@ pf_hashkey(struct pf_state_key *sk)
 {
 	uint32_t h;
 
-	h = jenkins_hash32((uint32_t *)sk,
-	    sizeof(struct pf_state_key_cmp)/sizeof(uint32_t),
-	    V_pf_hashseed);
+	h = murmur3_aligned_32((uint32_t *)sk,
+			       sizeof(struct pf_state_key_cmp),
+			       V_pf_hashseed);
 
 	return (h & pf_hashmask);
 }
@@ -388,12 +388,12 @@ pf_hashsrc(struct pf_addr *addr, sa_family_t af)
 
 	switch (af) {
 	case AF_INET:
-		h = jenkins_hash32((uint32_t *)&addr->v4,
-		    sizeof(addr->v4)/sizeof(uint32_t), V_pf_hashseed);
+		h = murmur3_aligned_32((uint32_t *)&addr->v4,
+				       sizeof(addr->v4), V_pf_hashseed);
 		break;
 	case AF_INET6:
-		h = jenkins_hash32((uint32_t *)&addr->v6,
-		    sizeof(addr->v6)/sizeof(uint32_t), V_pf_hashseed);
+		h = murmur3_aligned_32((uint32_t *)&addr->v6,
+				       sizeof(addr->v6), V_pf_hashseed);
 		break;
 	default:
 		panic("%s: unknown address family %u", __func__, af);

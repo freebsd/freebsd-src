@@ -3175,6 +3175,7 @@ libkern/inet_ntoa.c		standard
 libkern/inet_ntop.c		standard
 libkern/inet_pton.c		standard
 libkern/jenkins_hash.c		standard
+libkern/murmur3_32.c		standard
 libkern/mcount.c		optional profiling-routine
 libkern/memcchr.c		standard
 libkern/memchr.c		optional fdt | gdb
