@@ -410,8 +410,7 @@ static int cx_is_free_res (device_t dev, int rid, int type, u_long start,
 {
 	struct resource *res;
 	
-	if (!(res = bus_alloc_resource (dev, type, &rid, start, end, count,
-	    RF_ALLOCATED)))
+	if (!(res = bus_alloc_resource (dev, type, &rid, start, end, count, 0)))
 		return 0;
 		
 	bus_release_resource (dev, type, rid, res);
