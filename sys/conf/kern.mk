@@ -38,7 +38,7 @@ CWARNEXTRA?=	-Wno-error-tautological-compare -Wno-error-empty-body \
 # building with gcc 4.8 and newer. Nothing older has been tested.
 CWARNEXTRA?=	-Wno-error=inline -Wno-error=enum-compare -Wno-error=unused-but-set-variable \
 		-Wno-error=aggressive-loop-optimizations -Wno-error=maybe-uninitialized \
-		-Wno-error=unused-local-typedefs -Wno-error=array-bounds -Wno-error=address \
+		-Wno-error=array-bounds -Wno-error=address \
 		-Wno-error=cast-qual -Wno-error=sequence-point -Wno-error=attributes
 .endif
 
