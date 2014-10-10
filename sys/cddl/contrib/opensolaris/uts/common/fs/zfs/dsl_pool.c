@@ -148,8 +148,10 @@ SYSCTL_UQUAD(_vfs_zfs, OID_AUTO, dirty_data_max_max, CTLFLAG_RDTUN,
     "The absolute cap on dirty_data_max when auto calculating");
 
 TUNABLE_INT("vfs.zfs.dirty_data_max_percent", &zfs_dirty_data_max_percent);
-SYSCTL_INT(_vfs_zfs, OID_AUTO, dirty_data_max_percent, CTLFLAG_RDTUN,
-    &zfs_dirty_data_max_percent, 0,
+static int sysctl_zfs_dirty_data_max_percent(SYSCTL_HANDLER_ARGS);
+SYSCTL_PROC(_vfs_zfs, OID_AUTO, dirty_data_max_percent,
+    CTLTYPE_INT | CTLFLAG_MPSAFE | CTLFLAG_RWTUN, 0, sizeof(int),
+    sysctl_zfs_dirty_data_max_percent, "I",
     "The percent of physical memory used to auto calculate dirty_data_max");
 
 TUNABLE_QUAD("vfs.zfs.dirty_data_sync", &zfs_dirty_data_sync);
@@ -170,6 +172,24 @@ SYSCTL_PROC(_vfs_zfs, OID_AUTO, delay_scale,
     CTLTYPE_U64 | CTLFLAG_MPSAFE | CTLFLAG_RW, 0, sizeof(uint64_t),
     sysctl_zfs_delay_scale, "QU",
     "Controls how quickly the delay approaches infinity");
+
+static int
+sysctl_zfs_dirty_data_max_percent(SYSCTL_HANDLER_ARGS)
+{
+	int val, err;
+
+	val = zfs_dirty_data_max_percent;
+	err = sysctl_handle_int(oidp, &val, 0, req);
+	if (err != 0 || req->newptr == NULL)
+		return (err);
+
+	if (val < 0 || val > 100)
+		return (EINVAL);
+
+	zfs_dirty_data_max_percent = val;
+
+	return (0);
+}
 
 static int
 sysctl_zfs_delay_min_dirty_percent(SYSCTL_HANDLER_ARGS)

@@ -176,24 +176,43 @@ int zfs_vdev_write_gap_limit = 4 << 10;
 
 #ifdef __FreeBSD__
 SYSCTL_DECL(_vfs_zfs_vdev);
+
+TUNABLE_INT("vfs.zfs.vdev.async_write_active_min_dirty_percent",
+    &zfs_vdev_async_write_active_min_dirty_percent);
+static int sysctl_zfs_async_write_active_min_dirty_percent(SYSCTL_HANDLER_ARGS);
+SYSCTL_PROC(_vfs_zfs_vdev, OID_AUTO, async_write_active_min_dirty_percent,
+    CTLTYPE_UINT | CTLFLAG_MPSAFE | CTLFLAG_RWTUN, 0, sizeof(int),
+    sysctl_zfs_async_write_active_min_dirty_percent, "I",
+    "Percentage of async write dirty data below which "
+    "async_write_min_active is used.");
+
+TUNABLE_INT("vfs.zfs.vdev.async_write_active_max_dirty_percent",
+    &zfs_vdev_async_write_active_max_dirty_percent);
+static int sysctl_zfs_async_write_active_max_dirty_percent(SYSCTL_HANDLER_ARGS);
+SYSCTL_PROC(_vfs_zfs_vdev, OID_AUTO, async_write_active_max_dirty_percent,
+    CTLTYPE_UINT | CTLFLAG_MPSAFE | CTLFLAG_RWTUN, 0, sizeof(int),
+    sysctl_zfs_async_write_active_max_dirty_percent, "I",
+    "Percentage of async write dirty data above which "
+    "async_write_max_active is used.");
+
 TUNABLE_INT("vfs.zfs.vdev.max_active", &zfs_vdev_max_active);
-SYSCTL_UINT(_vfs_zfs_vdev, OID_AUTO, max_active, CTLFLAG_RW,
+SYSCTL_UINT(_vfs_zfs_vdev, OID_AUTO, max_active, CTLFLAG_RWTUN,
     &zfs_vdev_max_active, 0,
     "The maximum number of I/Os of all types active for each device.");
 
 #define ZFS_VDEV_QUEUE_KNOB_MIN(name)					\
 TUNABLE_INT("vfs.zfs.vdev." #name "_min_active",			\
     &zfs_vdev_ ## name ## _min_active);					\
-SYSCTL_UINT(_vfs_zfs_vdev, OID_AUTO, name ## _min_active, CTLFLAG_RW,	\
-    &zfs_vdev_ ## name ## _min_active, 0,				\
+SYSCTL_UINT(_vfs_zfs_vdev, OID_AUTO, name ## _min_active,		\
+    CTLFLAG_RWTUN, &zfs_vdev_ ## name ## _min_active, 0,		\
     "Initial number of I/O requests of type " #name			\
     " active for each device");
 
 #define ZFS_VDEV_QUEUE_KNOB_MAX(name)					\
 TUNABLE_INT("vfs.zfs.vdev." #name "_max_active",			\
     &zfs_vdev_ ## name ## _max_active);					\
-SYSCTL_UINT(_vfs_zfs_vdev, OID_AUTO, name ## _max_active, CTLFLAG_RW,	\
-    &zfs_vdev_ ## name ## _max_active, 0,				\
+SYSCTL_UINT(_vfs_zfs_vdev, OID_AUTO, name ## _max_active,		\
+    CTLFLAG_RWTUN, &zfs_vdev_ ## name ## _max_active, 0,		\
     "Maximum number of I/O requests of type " #name			\
     " active for each device");
 
@@ -213,17 +232,55 @@ ZFS_VDEV_QUEUE_KNOB_MAX(trim);
 #undef ZFS_VDEV_QUEUE_KNOB
 
 TUNABLE_INT("vfs.zfs.vdev.aggregation_limit", &zfs_vdev_aggregation_limit);
-SYSCTL_INT(_vfs_zfs_vdev, OID_AUTO, aggregation_limit, CTLFLAG_RW,
+SYSCTL_INT(_vfs_zfs_vdev, OID_AUTO, aggregation_limit, CTLFLAG_RWTUN,
     &zfs_vdev_aggregation_limit, 0,
     "I/O requests are aggregated up to this size");
 TUNABLE_INT("vfs.zfs.vdev.read_gap_limit", &zfs_vdev_read_gap_limit);
-SYSCTL_INT(_vfs_zfs_vdev, OID_AUTO, read_gap_limit, CTLFLAG_RW,
+SYSCTL_INT(_vfs_zfs_vdev, OID_AUTO, read_gap_limit, CTLFLAG_RWTUN,
     &zfs_vdev_read_gap_limit, 0,
     "Acceptable gap between two reads being aggregated");
 TUNABLE_INT("vfs.zfs.vdev.write_gap_limit", &zfs_vdev_write_gap_limit);
-SYSCTL_INT(_vfs_zfs_vdev, OID_AUTO, write_gap_limit, CTLFLAG_RW,
+SYSCTL_INT(_vfs_zfs_vdev, OID_AUTO, write_gap_limit, CTLFLAG_RWTUN,
     &zfs_vdev_write_gap_limit, 0,
     "Acceptable gap between two writes being aggregated");
+
+static int
+sysctl_zfs_async_write_active_min_dirty_percent(SYSCTL_HANDLER_ARGS)
+{
+	int val, err;
+
+	val = zfs_vdev_async_write_active_min_dirty_percent;
+	err = sysctl_handle_int(oidp, &val, 0, req);
+	if (err != 0 || req->newptr == NULL)
+		return (err);
+	
+	if (val < 0 || val > 100 ||
+	    val >= zfs_vdev_async_write_active_max_dirty_percent)
+		return (EINVAL);
+
+	zfs_vdev_async_write_active_min_dirty_percent = val;
+
+	return (0);
+}
+
+static int
+sysctl_zfs_async_write_active_max_dirty_percent(SYSCTL_HANDLER_ARGS)
+{
+	int val, err;
+
+	val = zfs_vdev_async_write_active_max_dirty_percent;
+	err = sysctl_handle_int(oidp, &val, 0, req);
+	if (err != 0 || req->newptr == NULL)
+		return (err);
+
+	if (val < 0 || val > 100 ||
+	    val <= zfs_vdev_async_write_active_min_dirty_percent)
+		return (EINVAL);
+
+	zfs_vdev_async_write_active_max_dirty_percent = val;
+
+	return (0);
+}
 #endif
 
 int
