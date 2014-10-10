@@ -1932,7 +1932,6 @@ struct ta_buf_ifidx
 };
 
 int compare_ifidx(const void *k, const void *v);
-static void if_notifier(struct ip_fw_chain *ch, void *cbdata, uint16_t ifindex);
 static struct ifidx * ifidx_find(struct table_info *ti, void *key);
 static int ta_lookup_ifidx(struct table_info *ti, void *key, uint32_t keylen,
     uint32_t *val);
