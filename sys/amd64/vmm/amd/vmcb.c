@@ -111,6 +111,48 @@ vmcb_segptr(struct vmcb *vmcb, int type)
 	return (seg);
 }
 
+static int
+vmcb_access(struct svm_softc *softc, int vcpu, int write, int ident,
+	uint64_t *val)
+{
+	struct vmcb *vmcb;
+	int off, bytes;
+	char *ptr;
+
+	vmcb	= svm_get_vmcb(softc, vcpu);
+	off	= VMCB_ACCESS_OFFSET(ident);
+	bytes	= VMCB_ACCESS_BYTES(ident);
+
+	if ((off + bytes) >= sizeof (struct vmcb))
+		return (EINVAL);
+
+	ptr = (char *)vmcb;
+
+	if (!write)
+		*val = 0;
+
+	switch (bytes) {
+	case 8:
+	case 4:
+	case 2:
+		if (write)
+			memcpy(ptr + off, val, bytes);
+		else
+			memcpy(val, ptr + off, bytes);
+		break;
+	default:
+		VCPU_CTR1(softc->vm, vcpu,
+		    "Invalid size %d for VMCB access: %d", bytes);
+		return (EINVAL);
+	}
+
+	/* Invalidate all VMCB state cached by h/w. */
+	if (write)
+		svm_set_dirty(softc, vcpu, 0xffffffff);
+
+	return (0);
+}
+
 /*
  * Read from segment selector, control and general purpose register of VMCB.
  */
@@ -125,6 +167,9 @@ vmcb_read(struct svm_softc *sc, int vcpu, int ident, uint64_t *retval)
 	vmcb = svm_get_vmcb(sc, vcpu);
 	state = &vmcb->state;
 	err = 0;
+
+	if (VMCB_ACCESS_OK(ident))
+		return (vmcb_access(sc, vcpu, 0, ident, retval));
 
 	switch (ident) {
 	case VM_REG_GUEST_CR0:
@@ -209,6 +254,9 @@ vmcb_write(struct svm_softc *sc, int vcpu, int ident, uint64_t val)
 	state = &vmcb->state;
 	dirtyseg = 0;
 	err = 0;
+
+	if (VMCB_ACCESS_OK(ident))
+		return (vmcb_access(sc, vcpu, 1, ident, &val));
 
 	switch (ident) {
 	case VM_REG_GUEST_CR0:
