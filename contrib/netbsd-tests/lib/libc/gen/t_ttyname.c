@@ -107,6 +107,9 @@ ATF_TC_BODY(ttyname_r_err, tc)
 		ATF_REQUIRE(rv == ERANGE);
 	}
 
+#if defined(__FreeBSD__)
+	atf_tc_expect_fail("FreeBSD returns ENOTTY instead of EBADF; see bin/191936");
+#endif
 	rv = ttyname_r(-1, buf, ttymax);
 	ATF_REQUIRE(rv == EBADF);
 
