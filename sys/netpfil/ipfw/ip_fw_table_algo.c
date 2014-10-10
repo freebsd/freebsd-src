@@ -380,7 +380,6 @@ static int ta_find_radix_tentry(void *ta_state, struct table_info *ti,
     ipfw_obj_tentry *tent);
 static void ta_foreach_radix(void *ta_state, struct table_info *ti,
     ta_foreach_f *f, void *arg);
-static inline void ipv6_writemask(struct in6_addr *addr6, uint8_t mask);
 static void tei_to_sockaddr_ent(struct tentry_info *tei, struct sockaddr *sa,
     struct sockaddr *ma, int *set_mask);
 static int ta_prepare_add_radix(struct ip_fw_chain *ch, struct tentry_info *tei,
@@ -579,6 +578,8 @@ ta_foreach_radix(void *ta_state, struct table_info *ti, ta_foreach_f *f,
 
 
 #ifdef INET6
+static inline void ipv6_writemask(struct in6_addr *addr6, uint8_t mask);
+
 static inline void
 ipv6_writemask(struct in6_addr *addr6, uint8_t mask)
 {
@@ -638,8 +639,8 @@ tei_to_sockaddr_ent(struct tentry_info *tei, struct sockaddr *sa,
 			*set_mask = 1;
 		else
 			*set_mask = 0;
-	}
 #endif
+	}
 }
 
 static int
@@ -648,7 +649,9 @@ ta_prepare_add_radix(struct ip_fw_chain *ch, struct tentry_info *tei,
 {
 	struct ta_buf_radix *tb;
 	struct radix_addr_entry *ent;
+#ifdef INET6
 	struct radix_addr_xentry *xent;
+#endif
 	struct sockaddr *addr, *mask;
 	int mlen, set_mask;
 
@@ -931,13 +934,17 @@ struct ta_buf_chash
 	struct chashentry ent;
 };
 
+#ifdef INET
 static __inline uint32_t hash_ip(uint32_t addr, int hsize);
+#endif
+#ifdef INET6
 static __inline uint32_t hash_ip6(struct in6_addr *addr6, int hsize);
 static __inline uint16_t hash_ip64(struct in6_addr *addr6, int hsize);
 static __inline uint32_t hash_ip6_slow(struct in6_addr *addr6, void *key,
     int mask, int hsize);
 static __inline uint32_t hash_ip6_al(struct in6_addr *addr6, void *key, int mask,
     int hsize);
+#endif
 static int ta_lookup_chash_slow(struct table_info *ti, void *key, uint32_t keylen,
     uint32_t *val);
 static int ta_lookup_chash_aligned(struct table_info *ti, void *key,
@@ -982,13 +989,16 @@ static void ta_modify_chash(void *ta_state, struct table_info *ti, void *ta_buf,
 static void ta_flush_mod_chash(void *ta_buf);
 
 
+#ifdef INET
 static __inline uint32_t
 hash_ip(uint32_t addr, int hsize)
 {
 
 	return (addr % (hsize - 1));
 }
+#endif
 
+#ifdef INET6
 static __inline uint32_t
 hash_ip6(struct in6_addr *addr6, int hsize)
 {
@@ -1034,6 +1044,7 @@ hash_ip6_al(struct in6_addr *addr6, void *key, int mask, int hsize)
 	memcpy(addr6, key, mask);
 	return (hash_ip6(addr6, hsize));
 }
+#endif
 
 static int
 ta_lookup_chash_slow(struct table_info *ti, void *key, uint32_t keylen,
@@ -1045,6 +1056,7 @@ ta_lookup_chash_slow(struct table_info *ti, void *key, uint32_t keylen,
 	uint8_t imask;
 
 	if (keylen == sizeof(in_addr_t)) {
+#ifdef INET
 		head = (struct chashbhead *)ti->state;
 		imask = ti->data >> 24;
 		hsize = 1 << ((ti->data & 0xFFFF) >> 8);
@@ -1058,7 +1070,9 @@ ta_lookup_chash_slow(struct table_info *ti, void *key, uint32_t keylen,
 				return (1);
 			}
 		}
+#endif
 	} else {
+#ifdef INET6
 		/* IPv6: worst scenario: non-round mask */
 		struct in6_addr addr6;
 		head = (struct chashbhead *)ti->xstate;
@@ -1071,6 +1085,7 @@ ta_lookup_chash_slow(struct table_info *ti, void *key, uint32_t keylen,
 				return (1);
 			}
 		}
+#endif
 	}
 
 	return (0);
@@ -1086,6 +1101,7 @@ ta_lookup_chash_aligned(struct table_info *ti, void *key, uint32_t keylen,
 	uint8_t imask;
 
 	if (keylen == sizeof(in_addr_t)) {
+#ifdef INET
 		head = (struct chashbhead *)ti->state;
 		imask = ti->data >> 24;
 		hsize = 1 << ((ti->data & 0xFFFF) >> 8);
@@ -1099,7 +1115,9 @@ ta_lookup_chash_aligned(struct table_info *ti, void *key, uint32_t keylen,
 				return (1);
 			}
 		}
+#endif
 	} else {
+#ifdef INET6
 		/* IPv6: aligned to 8bit mask */
 		struct in6_addr addr6;
 		uint64_t *paddr, *ptmp;
@@ -1116,6 +1134,7 @@ ta_lookup_chash_aligned(struct table_info *ti, void *key, uint32_t keylen,
 				return (1);
 			}
 		}
+#endif
 	}
 
 	return (0);
@@ -1131,6 +1150,7 @@ ta_lookup_chash_64(struct table_info *ti, void *key, uint32_t keylen,
 	uint8_t imask;
 
 	if (keylen == sizeof(in_addr_t)) {
+#ifdef INET
 		head = (struct chashbhead *)ti->state;
 		imask = ti->data >> 24;
 		hsize = 1 << ((ti->data & 0xFFFF) >> 8);
@@ -1144,7 +1164,9 @@ ta_lookup_chash_64(struct table_info *ti, void *key, uint32_t keylen,
 				return (1);
 			}
 		}
+#endif
 	} else {
+#ifdef INET6
 		/* IPv6: /64 */
 		uint64_t a6, *paddr;
 		head = (struct chashbhead *)ti->xstate;
@@ -1159,6 +1181,7 @@ ta_lookup_chash_64(struct table_info *ti, void *key, uint32_t keylen,
 				return (1);
 			}
 		}
+#endif
 	}
 
 	return (0);
@@ -1369,13 +1392,19 @@ hash_ent(struct chashentry *ent, int af, int mlen, uint32_t size)
 {
 	uint32_t hash;
 
+	hash = 0;
+
 	if (af == AF_INET) {
+#ifdef INET
 		hash = hash_ip(ent->a.a4, size);
+#endif
 	} else {
+#ifdef INET6
 		if (mlen == 64)
 			hash = hash_ip64(&ent->a.a6, size);
 		else
 			hash = hash_ip6(&ent->a.a6, size);
+#endif
 	}
 
 	return (hash);
@@ -1384,8 +1413,10 @@ hash_ent(struct chashentry *ent, int af, int mlen, uint32_t size)
 static int
 tei_to_chash_ent(struct tentry_info *tei, struct chashentry *ent)
 {
-	struct in6_addr mask6;
 	int mlen;
+#ifdef INET6
+	struct in6_addr mask6;
+#endif
 
 
 	mlen = tei->masklen;
@@ -3357,8 +3388,12 @@ ta_dump_fhash_tentry(void *ta_state, struct table_info *ti, void *e,
 static int
 tei_to_fhash_ent(struct tentry_info *tei, struct fhashentry *ent)
 {
+#ifdef INET
 	struct fhashentry4 *fe4;
+#endif
+#ifdef INET6
 	struct fhashentry6 *fe6;
+#endif
 	struct tflow_entry *tfe;
 
 	tfe = (struct tflow_entry *)tei->paddr;
@@ -3905,8 +3940,12 @@ ta_dump_kfib_tentry(void *ta_state, struct table_info *ti, void *e,
     ipfw_obj_tentry *tent)
 {
 	struct rtentry *rte;
+#ifdef INET
 	struct sockaddr_in *addr, *mask;
+#endif
+#ifdef INET6
 	struct sockaddr_in6 *addr6, *mask6;
+#endif
 	int len;
 
 	rte = (struct rtentry *)e;
@@ -3915,6 +3954,7 @@ ta_dump_kfib_tentry(void *ta_state, struct table_info *ti, void *e,
 	len = 0;
 
 	/* Guess IPv4/IPv6 radix by sockaddr family */
+#ifdef INET
 	if (addr->sin_family == AF_INET) {
 		tent->k.addr.s_addr = addr->sin_addr.s_addr;
 		len = 32;
@@ -3925,8 +3965,10 @@ ta_dump_kfib_tentry(void *ta_state, struct table_info *ti, void *e,
 		tent->masklen = len;
 		tent->subtype = AF_INET;
 		tent->v.kidx = 0; /* Do we need to put GW here? */
+	}
+#endif
 #ifdef INET6
-	} else if (addr->sin_family == AF_INET6) {
+	if (addr->sin_family == AF_INET6) {
 		addr6 = (struct sockaddr_in6 *)addr;
 		mask6 = (struct sockaddr_in6 *)mask;
 		memcpy(&tent->k, &addr6->sin6_addr, sizeof(struct in6_addr));
@@ -3938,8 +3980,8 @@ ta_dump_kfib_tentry(void *ta_state, struct table_info *ti, void *e,
 		tent->masklen = len;
 		tent->subtype = AF_INET6;
 		tent->v.kidx = 0;
-#endif
 	}
+#endif
 
 	return (0);
 }
