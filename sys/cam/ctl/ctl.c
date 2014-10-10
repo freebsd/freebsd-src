@@ -4599,6 +4599,9 @@ ctl_alloc_lun(struct ctl_softc *ctl_softc, struct ctl_lun *ctl_lun,
 	be_lun->ctl_lun = lun;
 	be_lun->lun_id = lun_number;
 	atomic_add_int(&be_lun->be->num_luns, 1);
+	if (be_lun->flags & CTL_LUN_FLAG_OFFLINE)
+		lun->flags |= CTL_LUN_OFFLINE;
+
 	if (be_lun->flags & CTL_LUN_FLAG_POWERED_OFF)
 		lun->flags |= CTL_LUN_STOPPED;
 
