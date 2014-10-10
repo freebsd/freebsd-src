@@ -63,8 +63,20 @@ ATF_TC_BODY(sethostname_basic, tc)
 
 		(void)memset(name, 0, sizeof(name));
 
+#if defined(__FreeBSD__)
+		/* 
+		 * Sanity checks to ensure that the wrong invariant isn't being
+		 * tested for per PR # 181127
+		 */
+		ATF_REQUIRE_EQ(sizeof(hosts[i]), MAXHOSTNAMELEN);
+		ATF_REQUIRE_EQ(sizeof(name), MAXHOSTNAMELEN);
+
+		ATF_REQUIRE(sethostname(hosts[i], sizeof(hosts[i]) - 1) == 0);
+		ATF_REQUIRE(gethostname(name, sizeof(name) - 1) == 0);
+#else
 		ATF_REQUIRE(sethostname(hosts[i], sizeof(hosts[i])) == 0);
 		ATF_REQUIRE(gethostname(name, sizeof(name)) == 0);
+#endif
 		ATF_REQUIRE(strcmp(hosts[i], name) == 0);
 	}
 
@@ -94,6 +106,10 @@ ATF_TC_BODY(sethostname_limit, tc)
 
 ATF_TC_CLEANUP(sethostname_limit, tc)
 {
+#if defined(__FreeBSD__)
+	ATF_REQUIRE(sethostname(host, MAXHOSTNAMELEN - 1 ) == 0);
+	ATF_REQUIRE(sethostname(host, MAXHOSTNAMELEN) == -1);
+#endif
 	(void)sethostname(host, sizeof(host));
 }
 
