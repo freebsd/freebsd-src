@@ -28,6 +28,7 @@
 __FBSDID("$FreeBSD$");
 
 #include "opt_ddb.h"
+#include "opt_kstack_usage_prof.h"
 
 #include <sys/param.h>
 #include <sys/bus.h>
@@ -1395,6 +1396,10 @@ intr_event_handle(struct intr_event *ie, struct trapframe *frame)
 	int error, ret, thread;
 
 	td = curthread;
+
+#ifdef KSTACK_USAGE_PROF
+	intr_prof_stack_use(td, frame);
+#endif
 
 	/* An interrupt with no event or handlers is a stray interrupt. */
 	if (ie == NULL || TAILQ_EMPTY(&ie->ie_handlers))

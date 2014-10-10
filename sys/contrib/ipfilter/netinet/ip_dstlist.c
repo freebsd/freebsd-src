@@ -1193,7 +1193,7 @@ ipf_dstlist_select(fin, d)
 		MD5Update(&ctx, (u_char *)&fin->fin_dst6,
 			  sizeof(fin->fin_dst6));
 		MD5Final((u_char *)hash, &ctx);
-		x = hash[0] % d->ipld_nodes;
+		x = ntohl(hash[0]) % d->ipld_nodes;
 		sel = d->ipld_dests[x];
 		break;
 
@@ -1203,7 +1203,7 @@ ipf_dstlist_select(fin, d)
 		MD5Update(&ctx, (u_char *)&fin->fin_src6,
 			  sizeof(fin->fin_src6));
 		MD5Final((u_char *)hash, &ctx);
-		x = hash[0] % d->ipld_nodes;
+		x = ntohl(hash[0]) % d->ipld_nodes;
 		sel = d->ipld_dests[x];
 		break;
 
@@ -1213,7 +1213,7 @@ ipf_dstlist_select(fin, d)
 		MD5Update(&ctx, (u_char *)&fin->fin_dst6,
 			  sizeof(fin->fin_dst6));
 		MD5Final((u_char *)hash, &ctx);
-		x = hash[0] % d->ipld_nodes;
+		x = ntohl(hash[0]) % d->ipld_nodes;
 		sel = d->ipld_dests[x];
 		break;
 

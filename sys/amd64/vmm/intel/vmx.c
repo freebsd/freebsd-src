@@ -81,6 +81,8 @@ __FBSDID("$FreeBSD$");
 
 #define	PROCBASED_CTLS_ONE_SETTING 					\
 	(PROCBASED_SECONDARY_CONTROLS	|				\
+	 PROCBASED_MWAIT_EXITING	|				\
+	 PROCBASED_MONITOR_EXITING	|				\
 	 PROCBASED_IO_EXITING		|				\
 	 PROCBASED_MSR_BITMAPS		|				\
 	 PROCBASED_CTLS_WINDOW_SETTING	|				\
@@ -2371,6 +2373,12 @@ vmx_exit_process(struct vmx *vmx, int vcpu, struct vm_exit *vmexit)
 		break;
 	case EXIT_REASON_XSETBV:
 		handled = vmx_emulate_xsetbv(vmx, vcpu, vmexit);
+		break;
+	case EXIT_REASON_MONITOR:
+		vmexit->exitcode = VM_EXITCODE_MONITOR;
+		break;
+	case EXIT_REASON_MWAIT:
+		vmexit->exitcode = VM_EXITCODE_MWAIT;
 		break;
 	default:
 		vmm_stat_incr(vmx->vm, vcpu, VMEXIT_UNKNOWN, 1);

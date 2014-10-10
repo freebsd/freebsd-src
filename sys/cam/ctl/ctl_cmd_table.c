@@ -1117,8 +1117,11 @@ const struct ctl_cmd_entry ctl_cmd_table[256] =
 /* 9B */
 {NULL, CTL_SERIDX_INVLD, CTL_CMD_FLAG_NONE, CTL_LUN_PAT_NONE},
 
-/* 9C */
-{NULL, CTL_SERIDX_INVLD, CTL_CMD_FLAG_NONE, CTL_LUN_PAT_NONE},
+/* 9C WRITE ATOMIC (16) */
+{ctl_read_write, CTL_SERIDX_WRITE, CTL_CMD_FLAG_OK_ON_SLUN| CTL_FLAG_DATA_OUT,
+ CTL_LUN_PAT_WRITE | CTL_LUN_PAT_RANGE,
+ 16, {0x18, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
+      0xff, 0xff, 0, 0, 0xff, 0xff, 0, 0x07}},
 
 /* 9D */
 {NULL, CTL_SERIDX_INVLD, CTL_CMD_FLAG_NONE, CTL_LUN_PAT_NONE},

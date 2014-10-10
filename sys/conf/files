@@ -3163,6 +3163,7 @@ libkern/arc4random.c		standard
 libkern/bcd.c			standard
 libkern/bsearch.c		standard
 libkern/crc32.c			standard
+libkern/explicit_bzero.c	standard
 libkern/fnmatch.c		standard
 libkern/iconv.c			optional libiconv
 libkern/iconv_converter_if.m	optional libiconv
@@ -3428,6 +3429,7 @@ netinet/sctp_output.c		optional inet sctp | inet6 sctp
 netinet/sctp_pcb.c		optional inet sctp | inet6 sctp
 netinet/sctp_peeloff.c		optional inet sctp | inet6 sctp
 netinet/sctp_ss_functions.c	optional inet sctp | inet6 sctp
+netinet/sctp_syscalls.c		optional inet sctp | inet6 sctp
 netinet/sctp_sysctl.c		optional inet sctp | inet6 sctp
 netinet/sctp_timer.c		optional inet sctp | inet6 sctp
 netinet/sctp_usrreq.c		optional inet sctp | inet6 sctp
@@ -3512,6 +3514,9 @@ netpfil/ipfw/ip_fw_log.c	optional inet ipfirewall
 netpfil/ipfw/ip_fw_pfil.c	optional inet ipfirewall
 netpfil/ipfw/ip_fw_sockopt.c	optional inet ipfirewall
 netpfil/ipfw/ip_fw_table.c	optional inet ipfirewall
+netpfil/ipfw/ip_fw_table_algo.c	optional inet ipfirewall
+netpfil/ipfw/ip_fw_table_value.c	optional inet ipfirewall
+netpfil/ipfw/ip_fw_iface.c	optional inet ipfirewall
 netpfil/ipfw/ip_fw_nat.c	optional inet ipfirewall_nat
 netpfil/pf/if_pflog.c		optional pflog pf inet
 netpfil/pf/if_pfsync.c		optional pfsync pf inet

@@ -159,6 +159,9 @@ struct lagg_reqopts {
 #define	SIOCGLAGGOPTS		_IOWR('i', 152, struct lagg_reqopts)
 #define	SIOCSLAGGOPTS		 _IOW('i', 153, struct lagg_reqopts)
 
+#define	LAGG_OPT_BITS		"\020\001USE_FLOWID\005LACP_STRICT" \
+				"\006LACP_TXTEST\007LACP_RXTEST"
+
 #ifdef _KERNEL
 
 /*
@@ -203,6 +206,7 @@ struct lagg_mc {
 struct lagg_llq {
 	struct ifnet		*llq_ifp;
 	uint8_t			llq_lladdr[ETHER_ADDR_LEN];
+	uint8_t			llq_primary;
 	SLIST_ENTRY(lagg_llq)	llq_entries;
 };
 

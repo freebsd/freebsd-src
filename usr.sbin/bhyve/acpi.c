@@ -492,7 +492,7 @@ basl_fwrite_fadt(FILE *fp)
 	EFPRINTF(fp,
 	    "[0012]\t\tPM Timer Block : [Generic Address Structure]\n");
 	EFPRINTF(fp, "[0001]\t\tSpace ID : 01 [SystemIO]\n");
-	EFPRINTF(fp, "[0001]\t\tBit Width : 32\n");
+	EFPRINTF(fp, "[0001]\t\tBit Width : 20\n");
 	EFPRINTF(fp, "[0001]\t\tBit Offset : 00\n");
 	EFPRINTF(fp,
 	    "[0001]\t\tEncoded Access Width : 03 [DWord Access:32]\n");
@@ -502,7 +502,7 @@ basl_fwrite_fadt(FILE *fp)
 
 	EFPRINTF(fp, "[0012]\t\tGPE0 Block : [Generic Address Structure]\n");
 	EFPRINTF(fp, "[0001]\t\tSpace ID : 01 [SystemIO]\n");
-	EFPRINTF(fp, "[0001]\t\tBit Width : 80\n");
+	EFPRINTF(fp, "[0001]\t\tBit Width : 00\n");
 	EFPRINTF(fp, "[0001]\t\tBit Offset : 00\n");
 	EFPRINTF(fp, "[0001]\t\tEncoded Access Width : 01 [Byte Access:8]\n");
 	EFPRINTF(fp, "[0008]\t\tAddress : 0000000000000000\n");

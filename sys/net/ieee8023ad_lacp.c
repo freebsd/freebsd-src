@@ -579,12 +579,13 @@ lacp_port_destroy(struct lagg_port *lgp)
 	lacp_disable_distributing(lp);
 	lacp_unselect(lp);
 
+	LIST_REMOVE(lp, lp_next);
+	LACP_UNLOCK(lsc);
+
 	/* The address may have already been removed by if_purgemaddrs() */
 	if (!lgp->lp_detaching)
 		if_delmulti_ifma(lp->lp_ifma);
 
-	LIST_REMOVE(lp, lp_next);
-	LACP_UNLOCK(lsc);
 	free(lp, M_DEVBUF);
 }
 
@@ -745,7 +746,9 @@ lacp_transit_expire(void *vp)
 
 	LACP_LOCK_ASSERT(lsc);
 
+	CURVNET_SET(lsc->lsc_softc->sc_ifp->if_vnet);
 	LACP_TRACE(NULL);
+	CURVNET_RESTORE();
 
 	lsc->lsc_suppress_distributing = FALSE;
 }
