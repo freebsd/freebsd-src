@@ -34,7 +34,11 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#if defined(__FreeBSD__)
+#include <libutil.h>
+#else
 #include <util.h>
+#endif
 
 const struct hnopts {
 	size_t ho_len;
@@ -78,6 +82,7 @@ const struct hnopts {
 	/*
 	 * Truncated output.  Rev. 1.7 produces "1.0 K".
 	 */
+#if !defined(__FreeBSD__)
 	{ 6, 1000, "A", HN_AUTOSCALE, HN_DECIMAL, -1, "" },
 
 	/*
@@ -90,6 +95,7 @@ const struct hnopts {
 	/* Similar case it prints 1000 where it shouldn't */
 	{ 5, 1023488, "",
 	  HN_AUTOSCALE, HN_B | HN_NOSPACE | HN_DECIMAL, 4, "1.0M" },
+#endif
 	{ 5, 1023999, "",
 	  HN_AUTOSCALE, HN_B | HN_NOSPACE | HN_DECIMAL, 4, "1.0M" },
 };
