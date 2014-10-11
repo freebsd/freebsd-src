@@ -2472,7 +2472,8 @@ isp_add_wwn_entry(ispsoftc_t *isp, int chan, uint64_t ini, uint16_t nphdl, uint3
 
 	lp = NULL;
 	if (fcp->isp_tgt_map[nphdl]) {
-		lp = &fcp->portdb[fcp->isp_tgt_map[nphdl] - 1];
+		i = fcp->isp_tgt_map[nphdl] - 1;
+		lp = &fcp->portdb[i];
 	} else {
 		/*
 		 * Make sure the addition of a new target mode entry doesn't duplicate entries
