@@ -627,7 +627,7 @@ ffs_read(ap)
 	}
 
 	if ((error == 0 || uio->uio_resid != orig_resid) &&
-	    (vp->v_mount->mnt_flag & MNT_NOATIME) == 0 &&
+	    (vp->v_mount->mnt_flag & (MNT_NOATIME | MNT_RDONLY)) == 0 &&
 	    (ip->i_flag & IN_ACCESS) == 0) {
 		VI_LOCK(vp);
 		ip->i_flag |= IN_ACCESS;
