@@ -125,7 +125,7 @@ get_line(void)
 	if (line)
 	    FREE(line);
 	linesize = LINESIZE + 1;
-	line = TMALLOC(char, linesize);
+	line = TCMALLOC(char, linesize);
 	NO_SPACE(line);
     }
 

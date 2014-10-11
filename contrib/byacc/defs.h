@@ -157,6 +157,7 @@
 #define CALLOC(k,n)	(calloc((size_t)(k),(size_t)(n)))
 #define	FREE(x)		(free((char*)(x)))
 #define MALLOC(n)	(malloc((size_t)(n)))
+#define TCMALLOC(t,n)	((t*) calloc((size_t)(n), sizeof(t)))
 #define TMALLOC(t,n)	((t*) malloc((size_t)(n) * sizeof(t)))
 #define	NEW(t)		((t*)allocate(sizeof(t)))
 #define	NEW2(n,t)	((t*)allocate(((size_t)(n)*sizeof(t))))
