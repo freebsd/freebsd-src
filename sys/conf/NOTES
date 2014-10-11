@@ -2950,6 +2950,7 @@ options 	SC_RENDER_DEBUG	# syscons rendering debugging
 options 	VFS_BIO_DEBUG	# VFS buffer I/O debugging
 
 options 	KSTACK_MAX_PAGES=32 # Maximum pages to give the kernel stack
+options 	KSTACK_USAGE_PROF
 
 # Adaptec Array Controller driver options
 options 	AAC_DEBUG	# Debugging levels:
