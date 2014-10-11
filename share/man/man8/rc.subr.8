@@ -29,7 +29,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd September 23, 2012
+.Dd October 12, 2014
 .Dt RC.SUBR 8
 .Os
 .Sh NAME
@@ -568,6 +568,22 @@ to before running
 Only supported after
 .Pa /usr
 is mounted.
+.It Va ${name}_env
+A list of environment variables to run
+.Va command
+with.
+This will be passed as arguments to
+.Xr env 1
+utility.
+.It Va ${name}_fib
+FIB
+.Pa Routing Table
+number to run
+.Va command
+with.
+See
+.Xr setfib 1
+for more details.
 .It Va ${name}_flags
 Arguments to call
 .Va command
@@ -622,6 +638,14 @@ as.
 Comma separated list of supplementary groups to run the chrooted
 .Va command
 with.
+.It Va ${name}_prepend
+Commands to be prepended to
+.Va command .
+This is a generic version of
+.Va ${name}_env ,
+.Va ${name}_fib ,
+or
+.Va ${name}_nice .
 .It Ar argument Ns Va _cmd
 Shell commands which override the default method for
 .Ar argument .
