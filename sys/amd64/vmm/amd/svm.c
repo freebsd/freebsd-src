@@ -174,10 +174,10 @@ svm_cleanup(void)
 }
 
 /*
- * Check for required BHyVe SVM features in a CPU.
+ * Verify that all the features required by bhyve are available.
  */
 static int
-svm_cpuid_features(void)
+check_svm_features(void)
 {
 	u_int regs[4];
 
@@ -185,11 +185,13 @@ svm_cpuid_features(void)
 	do_cpuid(0x8000000A, regs);
 	svm_feature = regs[3];
 
-	printf("SVM rev: 0x%x NASID:0x%x\n", regs[0] & 0xFF, regs[1]);
+	printf("SVM: Revision %d\n", regs[0] & 0xFF);
+	printf("SVM: NumASID %u\n", regs[1]);
+
 	nasid = regs[1];
 	KASSERT(nasid > 1, ("Insufficient ASIDs for guests: %#x", nasid));
 
-	printf("SVM Features:0x%b\n", svm_feature,
+	printf("SVM: Features 0x%b\n", svm_feature,
 		"\020"
 		"\001NP"		/* Nested paging */
 		"\002LbrVirt"		/* LBR virtualization */
@@ -199,32 +201,27 @@ svm_cpuid_features(void)
 		"\006VmcbClean"		/* VMCB clean bits */
 		"\007FlushByAsid"	/* Flush by ASID */
 		"\010DecodeAssist"	/* Decode assist */
-		"\011<b20>"
-		"\012<b20>"
+		"\011<b8>"
+		"\012<b9>"
 		"\013PauseFilter"	
-		"\014<b20>"
+		"\014<b11>"
 		"\015PauseFilterThreshold"	
 		"\016AVIC"	
 		);
 
-	/* SVM Lock */ 
-	if (!(svm_feature & AMD_CPUID_SVM_SVML)) {
-		printf("SVM is disabled by BIOS, please enable in BIOS.\n");
+	/* bhyve requires the Nested Paging feature */
+	if (!(svm_feature & AMD_CPUID_SVM_NP)) {
+		printf("SVM: Nested Paging feature not available.\n");
 		return (ENXIO);
 	}
 
-	/*
-	 * bhyve need RVI to work.
-	 */
-	if (!(svm_feature & AMD_CPUID_SVM_NP)) {
-		printf("Missing Nested paging or RVI SVM support in processor.\n");
-		return (EIO);
+	/* bhyve requires the NRIP Save feature */
+	if (!(svm_feature & AMD_CPUID_SVM_NRIP_SAVE)) {
+		printf("SVM: NRIP Save feature not available.\n");
+		return (ENXIO);
 	}
 
-	if (svm_feature & AMD_CPUID_SVM_NRIP_SAVE) 
-		return (0);
-
-	return (EIO);
+	return (0);
 }
 
 static __inline int
@@ -260,27 +257,26 @@ svm_enable(void *arg __unused)
 }
 
 /*
- * Check if a processor support SVM.
+ * Verify that SVM is enabled and the processor has all the required features.
  */
 static int
 is_svm_enabled(void)
 {
 	uint64_t msr;
 
-	 /* Section 15.4 Enabling SVM from APM2. */
+	/* Section 15.4 Enabling SVM from APM2. */
 	if ((amd_feature2 & AMDID2_SVM) == 0) {
-		printf("SVM is not supported on this processor.\n");
+		printf("SVM: not available.\n");
 		return (ENXIO);
 	}
 
 	msr = rdmsr(MSR_VM_CR);
-	/* Make sure SVM is not disabled by BIOS. */
-	if ((msr & VM_CR_SVMDIS) == 0) {
-		return svm_cpuid_features();
+	if ((msr & VM_CR_SVMDIS) != 0) {
+		printf("SVM: disabled by BIOS.\n");
+		return (ENXIO);
 	}
 
-	printf("SVM disabled by Key, consult TPM/BIOS manual.\n");
-	return (ENXIO);
+	return (check_svm_features());
 }
 
 /*
