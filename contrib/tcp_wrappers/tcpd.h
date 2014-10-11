@@ -73,6 +73,7 @@ extern void fromhost();			/* get/validate client host info */
 #endif
 
 extern int hosts_access();		/* access control */
+extern int hosts_ctl();			/* wrapper around request_init() */
 extern void shell_cmd();		/* execute shell command */
 extern char *percent_x();		/* do %<char> expansion */
 extern void rfc931();			/* client name from RFC 931 daemon */
