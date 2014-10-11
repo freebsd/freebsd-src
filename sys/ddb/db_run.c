@@ -54,7 +54,7 @@ static int	db_run_mode;
 #define	STEP_RETURN	2
 #define	STEP_CALLT	3
 #define	STEP_CONTINUE	4
-#define STEP_INVISIBLE	5
+#define	STEP_INVISIBLE	5
 #define	STEP_COUNT	6
 
 static boolean_t	db_sstep_print;

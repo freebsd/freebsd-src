@@ -648,7 +648,7 @@ db_kill(dummy1, dummy2, dummy3, dummy4)
 	db_expr_t old_radix, pid, sig;
 	struct proc *p;
 
-#define DB_ERROR(f)	do { db_printf f; db_flush_lex(); goto out; } while (0)
+#define	DB_ERROR(f)	do { db_printf f; db_flush_lex(); goto out; } while (0)
 
 	/*
 	 * PIDs and signal numbers are typically represented in base

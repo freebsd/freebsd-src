@@ -303,8 +303,8 @@ db_deletehwatch_cmd(addr, have_addr, count, modif)
 {
 	int rc;
 
-        if (count < 0)
-                count = 4;
+	if (count < 0)
+		count = 4;
 
 	rc = db_md_clr_watchpoint(addr, count);
 	if (rc < 0)
@@ -322,8 +322,8 @@ db_hwatchpoint_cmd(addr, have_addr, count, modif)
 {
 	int rc;
 
-        if (count < 0)
-                count = 4;
+	if (count < 0)
+		count = 4;
 
 	rc = db_md_set_watchpoint(addr, count);
 	if (rc < 0)
