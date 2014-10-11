@@ -37,13 +37,7 @@ __FBSDID("$FreeBSD$");
 #include <vm/vm_extern.h>
 
 #include <machine/pmap.h>
-#include <machine/md_var.h>
-#include <machine/vmparam.h>
-#include <machine/vmm.h>
 
-#include "svm.h"
-#include "vmcb.h"
-#include "svm_softc.h"
 #include "npt.h"
 
 SYSCTL_DECL(_hw_vmm);
@@ -54,6 +48,7 @@ SYSCTL_INT(_hw_vmm_npt, OID_AUTO, pmap_flags, CTLFLAG_RD,
 	&npt_flags, 0, NULL);
 
 #define NPT_IPIMASK	0xFF
+
 /*
  * AMD nested page table init.
  */
@@ -69,8 +64,6 @@ svm_npt_init(int ipinum)
 	
 	return (0);
 }
-
-
 
 static int
 npt_pinit(pmap_t pmap)
