@@ -33,6 +33,36 @@
 
 #include <machine/pte.h>
 
+#if defined(MIPS_EXC_CNTRS) && defined(CPU_CHERI)
+#define	PCPU_MD_COMMON_FIELDS						\
+	pd_entry_t	*pc_segbase;		/* curthread segbase */	\
+	struct	pmap	*pc_curpmap;		/* pmap of curthread */	\
+	register_t	pc_tlb_miss_cnt;	/* TLB miss count */    \
+	register_t	pc_tlb_invalid_cnt;	/* TLB invalid count */ \
+	register_t	pc_tlb_mod_cnt;		/* TLB modification count */ \
+	register_t	pc_cheri_ccall_cnt;	/* Cheri ccall count */ \
+	register_t	pc_cheri_creturn_cnt;	/* Cheri creturn count */ \
+	u_int32_t	pc_next_asid;		/* next ASID to alloc */ \
+	u_int32_t	pc_asid_generation;	/* current ASID generation */ \
+	u_int		pc_pending_ipis;	/* IPIs pending to this CPU */
+
+#define	PCPU_NUM_EXC_CNTRS	5
+
+#elif defined(MIPS_EXC_CNTRS) && !defined(CPU_CHERI)
+#define	PCPU_MD_COMMON_FIELDS						\
+	pd_entry_t	*pc_segbase;		/* curthread segbase */	\
+	struct	pmap	*pc_curpmap;		/* pmap of curthread */	\
+	register_t	pc_tlb_miss_cnt;	/* TLB miss count */    \
+	register_t	pc_tlb_invalid_cnt;	/* TLB invalid count */ \
+	register_t	pc_tlb_mod_cnt;		/* TLB modification count */ \
+	u_int32_t	pc_next_asid;		/* next ASID to alloc */ \
+	u_int32_t	pc_asid_generation;	/* current ASID generation */ \
+	u_int		pc_pending_ipis;	/* IPIs pending to this CPU */
+
+#define	PCPU_NUM_EXC_CNTRS	3
+
+#else /* ! defined(MIPS_EXC_CNTRS) */
+
 #define	PCPU_MD_COMMON_FIELDS						\
 	pd_entry_t	*pc_segbase;		/* curthread segbase */	\
 	struct	pmap	*pc_curpmap;		/* pmap of curthread */	\
@@ -40,14 +70,18 @@
 	u_int32_t	pc_asid_generation;	/* current ASID generation */ \
 	u_int		pc_pending_ipis;	/* IPIs pending to this CPU */
 
+#define	PCPU_NUM_EXC_CNTRS	0
+
+#endif /* ! defined(MIPS_EXC_CNTRS) */
+
 #ifdef	__mips_n64
 #define	PCPU_MD_MIPS64_FIELDS						\
 	PCPU_MD_COMMON_FIELDS						\
-	char		__pad[61]
+	char		__pad[(61 - (PCPU_NUM_EXC_CNTRS * 8))]
 #else
 #define	PCPU_MD_MIPS32_FIELDS						\
 	PCPU_MD_COMMON_FIELDS						\
-	char		__pad[133]
+	char		__pad[(133 - (PCPU_NUM_EXC_CNTRS * 4))]
 #endif
 
 #ifdef	__mips_n64

@@ -77,6 +77,11 @@ MAXMEM			opt_global.h
 MIPS_DISABLE_L1_CACHE	opt_global.h
 
 #
+# Enable exception counters sysctls:
+#
+MIPS_EXC_CNTRS		opt_global.h
+
+#
 # Options that control the Cavium Simple Executive.
 #
 OCTEON_MODEL			opt_cvmx.h

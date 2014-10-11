@@ -114,6 +114,9 @@ dtrace_invop_calltrap_addr:
 VECTOR(MipsTLBMiss, unknown)
 	.set push
 	.set noat
+
+	# Increment exception counter, if enabled.
+	INC_EXCEPTION_CNTR(TLB_MISS_CNT)
 #ifdef CPU_CHERI
 	CHERI_EXCEPTION_ENTER(k0)
 #endif
@@ -950,11 +953,27 @@ NESTED_NOPROFILE(MipsUserIntr, CALLFRAME_SIZ, ra)
 	.set	at
 END(MipsUserIntr)
 
+#if defined(MIPS_EXC_CNTRS)
+/* A stub for counting TLB modification exceptions. */
+LEAF_NOPROFILE(MipsTLBModException)
+	.set push
+	.set noat
+
+	# Increment exception counter, if enabled.
+	INC_EXCEPTION_CNTR(TLB_MOD_CNT)
+	j 	MipsKernGenException
+	nop
+	.set pop
+END(MipsTLBModException)
+#endif /* defined(MIPS_EXC_CNTRS) */
+
 LEAF_NOPROFILE(MipsTLBInvalidException)
 	.set push
 	.set noat
 	.set noreorder
 
+	# Increment exception counter, if enabled.
+	INC_EXCEPTION_CNTR(TLB_INVALID_CNT)
 	MFC0		k0, MIPS_COP_0_BAD_VADDR
 	PTR_LI		k1, VM_MAXUSER_ADDRESS
 	sltu		k1, k0, k1

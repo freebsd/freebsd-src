@@ -122,6 +122,9 @@ CHERICCall:
         .set push
         .set noat
 
+	/* Increment the exception counter for ccall, if enabled. */
+	INC_EXCEPTION_CNTR(CHERI_CCALL_CNT)
+
 	/*
 	 * The effective ABI requires that the code capability be in $c0, and
 	 * the data capability be in $c1.  Throw an exception if this isn't
@@ -492,8 +495,12 @@ CHERICReturn:
 #endif
 	nop
 
+	/* Increment the exception counter for creturn, if enabled. */
+	INC_EXCEPTION_CNTR(CHERI_CRETURN_CNT)
+
 	/* Retrieve current PCB pointer. */
-	GET_CPU_PCPU(k1)   
+	GET_CPU_PCPU(k1)   		/* XXXss Redundant if
+					   INC_EXCEPTION_CNTR is enabled. */
 	PTR_L		k1, PC_CURPCB(k1)
 
 	/*

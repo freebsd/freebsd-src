@@ -113,6 +113,9 @@ void MipsKernGenException(void);
 void MipsKernIntr(void);
 void MipsTLBInvalidException(void);
 void MipsTLBMissException(void);
+#if defined(MIPS_EXC_CNTRS)
+void MipsTLBModException(void);
+#endif
 void MipsUserGenException(void);
 void MipsUserIntr(void);
 

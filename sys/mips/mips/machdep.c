@@ -486,6 +486,16 @@ cpu_pcpu_init(struct pcpu *pcpu, int cpuid, size_t size)
 
 	pcpu->pc_next_asid = 1;
 	pcpu->pc_asid_generation = 1;
+#if defined(MIPS_EXC_CNTRS)
+	pcpu->pc_tlb_miss_cnt = 0;
+	pcpu->pc_tlb_invalid_cnt = 0;
+	pcpu->pc_tlb_mod_cnt = 0;
+#ifdef CPU_CHERI
+	pcpu->pc_cheri_ccall_cnt = 0;
+	pcpu->pc_cheri_creturn_cnt = 0;
+#endif /* CPU_CHERI */
+#endif /* defined(MIPS_EXC_CNTRS) */
+
 #ifdef SMP
 	if ((vm_offset_t)pcpup >= VM_MIN_KERNEL_ADDRESS &&
 	    (vm_offset_t)pcpup <= VM_MAX_KERNEL_ADDRESS) {
@@ -581,3 +591,96 @@ is_cacheable_mem(vm_paddr_t pa)
 
 	return (0);
 }
+
+#if defined(MIPS_EXC_CNTRS)
+extern int mp_ncpus;
+static struct sysctl_ctx_list ctx;
+
+#if defined(__mips_n64)
+static int
+sysctl_handler_exc_cnts(SYSCTL_HANDLER_ARGS)
+{
+	uint64_t tmpout =  *((uint64_t *)arg1);
+
+	/* If there is an attempt to write just reset the counter. */
+	if (req->newptr)
+		*((uint64_t *)arg1) = 0;
+
+	return (SYSCTL_OUT(req, &tmpout, sizeof(uint64_t)));
+}
+
+#define	SYSCTL_ADD_CNTR(ptr, cpu, name, descr)				\
+		(void)SYSCTL_ADD_PROC(&ctx, cpuN_tree, OID_AUTO, name,	\
+			CTLTYPE_U64 | CTLFLAG_RW, ptr, cpu,		\
+			sysctl_handler_exc_cnts, "QU", descr)
+
+#else /* ! defined(__mips_n64) */
+
+static int
+sysctl_handler_exc_cnts(SYSCTL_HANDLER_ARGS)
+{
+	uint32_t tmpout =  *((uint32_t *)arg1);
+
+	/* If there is an attempt to write just reset the counter. */
+	if (req->newptr)
+		*((uint32_t *)arg1) = 0;
+
+	return (SYSCTL_OUT(req, &tmpout, sizeof(uint32_t)));
+}
+
+#define	SYSCTL_ADD_CNTR(ptr, cpu, name, descr)				\
+		(void)SYSCTL_ADD_PROC(&ctx, cpuN_tree, OID_AUTO, name,	\
+			CTLTYPE_UINT | CTLFLAG_RD, ptr, cpu,		\
+			sysctl_handler_exc_cnts, "IU", descr)
+#endif /* ! defined(__mips_n64) */
+
+static void
+mips_exc_cntrs_sysctl_register(void *arg)
+{
+	/* static uint64_t value = 1234; */
+	struct sysctl_oid *cpu_node, *cpuN_node;
+	struct sysctl_oid_list *cpu_tree, *cpuN_tree;
+	char cpubuf[5];
+	int cpu;
+	int error = sysctl_ctx_init(&ctx);
+
+	if (error) {
+		printf("mips_sysctl_register() failed (error = %d)\n", error);
+		return;
+	}
+
+	cpu_node = SYSCTL_ADD_NODE(&ctx, SYSCTL_STATIC_CHILDREN(_hw), OID_AUTO,
+			"cpu", CTLFLAG_RD, NULL, "CPU or Core");
+	cpu_tree = SYSCTL_CHILDREN(cpu_node);
+
+	/* Foreach CPU... */
+	for (cpu = 0; cpu < mp_ncpus; cpu++) {
+		struct pcpu *pcpupg = (struct pcpu *)pcpu_space[cpu];
+
+		snprintf(cpubuf, sizeof(cpubuf),"%d", cpu);
+		cpuN_node = SYSCTL_ADD_NODE(&ctx, cpu_tree, OID_AUTO, cpubuf,
+				CTLFLAG_RD, NULL, "CPU Number");
+		cpuN_tree = SYSCTL_CHILDREN(cpuN_node);
+
+		SYSCTL_ADD_CNTR(&pcpupg->pc_tlb_invalid_cnt, cpu,
+			"tlb_invalid_cnt",
+			"TLB invalid exception count for cpu N");
+		SYSCTL_ADD_CNTR(&pcpupg->pc_tlb_miss_cnt, cpu,
+			"tlb_miss_cnt",
+			"TLB miss exception count for cpu N");
+		SYSCTL_ADD_CNTR(&pcpupg->pc_tlb_mod_cnt, cpu,
+			"tlb_mod_cnt",
+			"TLB modification exception count for cpu N");
+#ifdef CPU_CHERI
+		SYSCTL_ADD_CNTR(&pcpupg->pc_cheri_ccall_cnt, cpu,
+			"cheri_ccall_cnt",
+			"Cheri ccall exception count for cpu N");
+		SYSCTL_ADD_CNTR(&pcpupg->pc_cheri_creturn_cnt, cpu,
+			"cheri_creturn_cnt",
+			"Cheri creturn exception count for cpu N");
+#endif /* CPU_CHERI */
+	}
+}
+
+SYSINIT(sysctl, SI_SUB_KMEM, SI_ORDER_ANY, mips_exc_cntrs_sysctl_register, 0);
+#endif /* defined((MIPS_EXC_CNTRS) */

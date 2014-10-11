@@ -639,6 +639,20 @@ _C_LABEL(x):
 #define	GET_CPU_PCPU(reg)		\
 	PTR_L	reg, _C_LABEL(pcpup);
 
+#if defined(MIPS_EXC_CNTRS)
+
+#define	INC_EXCEPTION_CNTR(name)				\
+	PTR_L		k1, _C_LABEL(pcpup);			\
+	PTR_L		k0, PC_ ## name ## (k1);		\
+	PTR_ADDIU	k0, k0, 1;				\
+	PTR_S		k0, PC_ ## name ## (k1)
+
+#else /* ! defined(MIPS_EXC_CNTRS) */
+
+#define	INC_EXCEPTION_CNTR(name)
+
+#endif /* ! defined(MIPS_EXC_CNTRS) */
+
 /*
  * Description of the setjmp buffer
  *

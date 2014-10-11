@@ -186,7 +186,11 @@ void (*machExceptionTable[]) (void)= {
  * The kernel exception handlers.
  */
 	MipsKernIntr,		/* external interrupt */
+#if defined(MIPS_EXC_CNTRS)
+	MipsTLBModException,	/* TLB modification */
+#else
 	MipsKernGenException,	/* TLB modification */
+#endif
 	MipsTLBInvalidException,/* TLB miss (load or instr. fetch) */
 	MipsTLBInvalidException,/* TLB miss (store) */
 	MipsKernGenException,	/* address error (load or I-fetch) */
