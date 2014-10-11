@@ -224,7 +224,8 @@ static void 		ctlfe_dump(void);
 static struct periph_driver ctlfe_driver =
 {
 	ctlfeperiphinit, "ctl",
-	TAILQ_HEAD_INITIALIZER(ctlfe_driver.units), /*generation*/ 0
+	TAILQ_HEAD_INITIALIZER(ctlfe_driver.units), /*generation*/ 0,
+	CAM_PERIPH_DRV_EARLY
 };
 
 static struct ctl_frontend ctlfe_frontend =
