@@ -28,7 +28,7 @@
 .\"     From: @(#)swapon.8	8.1 (Berkeley) 6/5/93
 .\" $FreeBSD$
 .\"
-.Dd April 29, 2013
+.Dd October 8, 2014
 .Dt DUMPON 8
 .Os
 .Sh NAME
@@ -124,9 +124,18 @@ performs a
 on
 .Pa /dev/null
 and thus instructs the kernel not to save crash dumps.
+.Pp
+Since
+.Nm
+cannot be used during kernel initialization, the
+.Va dumpdev
+variable of
+.Xr loader 8
+must be used to enable dumps for system panics which occur
+during kernel initialization.
 .Sh FILES
-.Bl -tag -width "/dev/{ad,da}?s?b" -compact
-.It Pa /dev/{ad,da}?s?b
+.Bl -tag -width "/dev/{ada,da}?s?b" -compact
+.It Pa /dev/{ada,da}?s?b
 standard swap areas
 .It Pa /etc/rc.conf
 boot-time system configuration
@@ -136,6 +145,7 @@ boot-time system configuration
 .Xr rc.conf 5 ,
 .Xr config 8 ,
 .Xr init 8 ,
+.Xr loader 8 ,
 .Xr rc 8 ,
 .Xr savecore 8 ,
 .Xr swapon 8 ,

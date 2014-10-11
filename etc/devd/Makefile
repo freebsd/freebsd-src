@@ -11,7 +11,7 @@ FILES+=	asus.conf
 .endif
 
 .if ${MK_USB} != "no"
-FILES+=	uath.conf usb.conf
+FILES+=	uath.conf ulpt.conf usb.conf
 .endif
 
 .if ${MK_ZFS} != "no"

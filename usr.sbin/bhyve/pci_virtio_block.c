@@ -94,6 +94,8 @@ struct vtblk_config {
 struct virtio_blk_hdr {
 #define	VBH_OP_READ		0
 #define	VBH_OP_WRITE		1
+#define	VBH_OP_FLUSH		4
+#define	VBH_OP_FLUSH_OUT	5
 #define	VBH_OP_IDENT		8		
 #define	VBH_FLAG_BARRIER	0x80000000	/* OR'ed into vbh_type */
 	uint32_t       	vbh_type;
@@ -216,6 +218,10 @@ pci_vtblk_proc(struct pci_vtblk_softc *sc, struct vqueue_info *vq)
 		strlcpy(iov[1].iov_base, sc->vbsc_ident,
 		    MIN(iov[1].iov_len, sizeof(sc->vbsc_ident)));
 		err = 0;
+		break;
+	case VBH_OP_FLUSH:
+	case VBH_OP_FLUSH_OUT:
+		err = fsync(sc->vbsc_fd);
 		break;
 	default:
 		err = -ENOSYS;

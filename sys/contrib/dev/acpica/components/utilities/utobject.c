@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2013, Intel Corp.
+ * Copyright (C) 2000 - 2014, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -400,7 +400,7 @@ AcpiUtValidInternalObject (
     default:
 
         ACPI_DEBUG_PRINT ((ACPI_DB_EXEC,
-                "%p is not not an ACPI operand obj [%s]\n",
+                "%p is not an ACPI operand obj [%s]\n",
                 Object, AcpiUtGetDescriptorName (Object)));
         break;
     }

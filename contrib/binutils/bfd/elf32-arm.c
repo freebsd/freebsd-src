@@ -6965,7 +6965,8 @@ elf32_arm_merge_eabi_attributes (bfd *ibfd, bfd *obfd)
 
   for (; in_list; in_list = in_list->next)
     {
-      if ((in_list->tag & 128) < 64)
+      if ((in_list->tag & 128) < 64
+          && in_list->tag != Tag_Virtualization_use)
 	{
 	  _bfd_error_handler
 	    (_("Warning: %B: Unknown EABI object attribute %d"),

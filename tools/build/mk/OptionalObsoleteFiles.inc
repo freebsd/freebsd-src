@@ -591,13 +591,18 @@ OLD_FILES+=usr/share/man/man1/ctm_smail.1.gz
 OLD_FILES+=usr/share/man/man5/ctm.5.gz
 .endif
 
-# devd(8) and gperf(1) not listed here on purpose
+# devd(8) not listed here on purpose
 .if ${MK_CXX} == no
 OLD_FILES+=usr/bin/CC
 OLD_FILES+=usr/bin/c++
 OLD_FILES+=usr/bin/c++filt
 OLD_FILES+=usr/bin/g++
 OLD_FILES+=usr/libexec/cc1plus
+.if ${MK_GCC} == no
+OLD_FILES+=usr/bin/gperf
+OLD_FILES+=usr/share/info/gperf.info.gz
+OLD_FILES+=usr/share/man/man1/gperf.1.gz
+.endif
 .endif
 
 .if ${MK_FMTREE} == no

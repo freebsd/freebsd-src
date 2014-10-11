@@ -569,9 +569,10 @@ filt_timerexpire(void *knx)
 
 	if ((kn->kn_flags & EV_ONESHOT) != EV_ONESHOT) {
 		calloutp = (struct callout *)kn->kn_hook;
-		callout_reset_sbt_on(calloutp,
-		    timer2sbintime(kn->kn_sdata, kn->kn_sfflags), 0,
-		    filt_timerexpire, kn, PCPU_GET(cpuid), 0);
+		*kn->kn_ptr.p_nexttime += timer2sbintime(kn->kn_sdata, 
+		    kn->kn_sfflags);
+		callout_reset_sbt_on(calloutp, *kn->kn_ptr.p_nexttime, 0,
+		    filt_timerexpire, kn, PCPU_GET(cpuid), C_ABSOLUTE);
 	}
 }
 
@@ -607,11 +608,13 @@ filt_timerattach(struct knote *kn)
 
 	kn->kn_flags |= EV_CLEAR;		/* automatically set */
 	kn->kn_status &= ~KN_DETACHED;		/* knlist_add clears it */
+	kn->kn_ptr.p_nexttime = malloc(sizeof(sbintime_t), M_KQUEUE, M_WAITOK);
 	calloutp = malloc(sizeof(*calloutp), M_KQUEUE, M_WAITOK);
 	callout_init(calloutp, CALLOUT_MPSAFE);
 	kn->kn_hook = calloutp;
-	callout_reset_sbt_on(calloutp, to, 0,
-	    filt_timerexpire, kn, PCPU_GET(cpuid), 0);
+	*kn->kn_ptr.p_nexttime = to + sbinuptime();
+	callout_reset_sbt_on(calloutp, *kn->kn_ptr.p_nexttime, 0,
+	    filt_timerexpire, kn, PCPU_GET(cpuid), C_ABSOLUTE);
 
 	return (0);
 }
@@ -625,6 +628,7 @@ filt_timerdetach(struct knote *kn)
 	calloutp = (struct callout *)kn->kn_hook;
 	callout_drain(calloutp);
 	free(calloutp, M_KQUEUE);
+	free(kn->kn_ptr.p_nexttime, M_KQUEUE);
 	old = atomic_fetch_sub_explicit(&kq_ncallouts, 1, memory_order_relaxed);
 	KASSERT(old > 0, ("Number of callouts cannot become negative"));
 	kn->kn_status |= KN_DETACHED;	/* knlist_remove sets it */

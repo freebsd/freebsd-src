@@ -489,5 +489,16 @@ ACPI_HANDLE	acpi_GetReference(ACPI_HANDLE scope, ACPI_OBJECT *obj);
 
 SYSCTL_DECL(_debug_acpi);
 
+/*
+ * Map a PXM to a VM domain.
+ *
+ * Returns the VM domain ID if found, or -1 if not found / invalid.
+ */
+#if MAXMEMDOM > 1
+extern	int acpi_map_pxm_to_vm_domainid(int pxm);
+#endif
+
+extern	int acpi_get_domain(device_t dev, device_t child, int *domain);
+
 #endif /* _KERNEL */
 #endif /* !_ACPIVAR_H_ */

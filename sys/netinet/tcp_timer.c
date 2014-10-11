@@ -66,6 +66,9 @@ __FBSDID("$FreeBSD$");
 #include <netinet/tcp_fsm.h>
 #include <netinet/tcp_timer.h>
 #include <netinet/tcp_var.h>
+#ifdef INET6
+#include <netinet6/tcp6_var.h>
+#endif
 #include <netinet/tcpip.h>
 #ifdef TCPDEBUG
 #include <netinet/tcp_debug.h>
@@ -126,6 +129,54 @@ static int	tcp_rexmit_drop_options = 0;
 SYSCTL_INT(_net_inet_tcp, OID_AUTO, rexmit_drop_options, CTLFLAG_RW,
     &tcp_rexmit_drop_options, 0,
     "Drop TCP options from 3rd and later retransmitted SYN");
+
+static VNET_DEFINE(int, tcp_pmtud_blackhole_detect);
+#define	V_tcp_pmtud_blackhole_detect	VNET(tcp_pmtud_blackhole_detect)
+SYSCTL_INT(_net_inet_tcp, OID_AUTO, pmtud_blackhole_detection,
+    CTLTYPE_INT|CTLFLAG_RW|CTLFLAG_VNET,
+    &VNET_NAME(tcp_pmtud_blackhole_detect), 0,
+    "Path MTU Discovery Black Hole Detection Enabled");
+
+static VNET_DEFINE(int, tcp_pmtud_blackhole_activated);
+#define	V_tcp_pmtud_blackhole_activated \
+    VNET(tcp_pmtud_blackhole_activated)
+SYSCTL_INT(_net_inet_tcp, OID_AUTO, pmtud_blackhole_activated,
+    CTLTYPE_INT|CTLFLAG_RD|CTLFLAG_VNET,
+    &VNET_NAME(tcp_pmtud_blackhole_activated), 0,
+    "Path MTU Discovery Black Hole Detection, Activation Count");
+
+static VNET_DEFINE(int, tcp_pmtud_blackhole_activated_min_mss);
+#define	V_tcp_pmtud_blackhole_activated_min_mss \
+    VNET(tcp_pmtud_blackhole_activated_min_mss)
+SYSCTL_INT(_net_inet_tcp, OID_AUTO, pmtud_blackhole_activated_min_mss,
+    CTLTYPE_INT|CTLFLAG_RD|CTLFLAG_VNET,
+    &VNET_NAME(tcp_pmtud_blackhole_activated_min_mss), 0,
+    "Path MTU Discovery Black Hole Detection, Activation Count at min MSS");
+
+static VNET_DEFINE(int, tcp_pmtud_blackhole_failed);
+#define	V_tcp_pmtud_blackhole_failed	VNET(tcp_pmtud_blackhole_failed)
+SYSCTL_INT(_net_inet_tcp, OID_AUTO, pmtud_blackhole_failed,
+    CTLTYPE_INT|CTLFLAG_RD|CTLFLAG_VNET,
+    &VNET_NAME(tcp_pmtud_blackhole_failed), 0,
+    "Path MTU Discovery Black Hole Detection, Failure Count");
+
+#ifdef INET
+static VNET_DEFINE(int, tcp_pmtud_blackhole_mss) = 1200;
+#define	V_tcp_pmtud_blackhole_mss	VNET(tcp_pmtud_blackhole_mss)
+SYSCTL_INT(_net_inet_tcp, OID_AUTO, pmtud_blackhole_mss,
+    CTLTYPE_INT|CTLFLAG_RW|CTLFLAG_VNET,
+    &VNET_NAME(tcp_pmtud_blackhole_mss), 0,
+    "Path MTU Discovery Black Hole Detection lowered MSS");
+#endif
+
+#ifdef INET6
+static VNET_DEFINE(int, tcp_v6pmtud_blackhole_mss) = 1220;
+#define	V_tcp_v6pmtud_blackhole_mss	VNET(tcp_v6pmtud_blackhole_mss)
+SYSCTL_INT(_net_inet_tcp, OID_AUTO, v6pmtud_blackhole_mss,
+    CTLTYPE_INT|CTLFLAG_RW|CTLFLAG_VNET,
+    &VNET_NAME(tcp_v6pmtud_blackhole_mss), 0,
+    "Path MTU Discovery IPv6 Black Hole Detection lowered MSS");
+#endif
 
 #ifdef	RSS
 static int	per_cpu_timers = 1;
@@ -539,6 +590,7 @@ tcp_timer_rexmt(void * xtp)
 
 	ostate = tp->t_state;
 #endif
+
 	INP_INFO_RLOCK(&V_tcbinfo);
 	inp = tp->t_inpcb;
 	/*
@@ -640,6 +692,102 @@ tcp_timer_rexmt(void * xtp)
 		rexmt = TCP_REXMTVAL(tp) * tcp_backoff[tp->t_rxtshift];
 	TCPT_RANGESET(tp->t_rxtcur, rexmt,
 		      tp->t_rttmin, TCPTV_REXMTMAX);
+
+	if (V_tcp_pmtud_blackhole_detect && (tp->t_state == TCPS_ESTABLISHED)) {
+		int optlen;
+#ifdef INET6
+		int isipv6;
+#endif
+
+		if (((tp->t_flags2 & (TF2_PLPMTU_PMTUD|TF2_PLPMTU_MAXSEGSNT)) ==
+		    (TF2_PLPMTU_PMTUD|TF2_PLPMTU_MAXSEGSNT)) &&
+		    (tp->t_rxtshift <= 2)) {
+			/*
+			 * Enter Path MTU Black-hole Detection mechanism:
+			 * - Disable Path MTU Discovery (IP "DF" bit).
+			 * - Reduce MTU to lower value than what we
+			 *   negotiated with peer.
+			 */
+			/* Record that we may have found a black hole. */
+			tp->t_flags2 |= TF2_PLPMTU_BLACKHOLE;
+
+			/* Keep track of previous MSS. */
+			optlen = tp->t_maxopd - tp->t_maxseg;
+			tp->t_pmtud_saved_maxopd = tp->t_maxopd;
+
+			/* 
+			 * Reduce the MSS to blackhole value or to the default
+			 * in an attempt to retransmit.
+			 */
+#ifdef INET6
+			isipv6 = (tp->t_inpcb->inp_vflag & INP_IPV6) ? 1 : 0;
+			if (isipv6 &&
+			    tp->t_maxopd > V_tcp_v6pmtud_blackhole_mss) {
+				/* Use the sysctl tuneable blackhole MSS. */
+				tp->t_maxopd = V_tcp_v6pmtud_blackhole_mss;
+				V_tcp_pmtud_blackhole_activated++;
+			} else if (isipv6) {
+				/* Use the default MSS. */
+				tp->t_maxopd = V_tcp_v6mssdflt;
+				/*
+				 * Disable Path MTU Discovery when we switch to
+				 * minmss.
+				 */
+				tp->t_flags2 &= ~TF2_PLPMTU_PMTUD;
+				V_tcp_pmtud_blackhole_activated_min_mss++;
+			}
+#endif
+#if defined(INET6) && defined(INET)
+			else
+#endif
+#ifdef INET
+			if (tp->t_maxopd > V_tcp_pmtud_blackhole_mss) {
+				/* Use the sysctl tuneable blackhole MSS. */
+				tp->t_maxopd = V_tcp_pmtud_blackhole_mss;
+				V_tcp_pmtud_blackhole_activated++;
+			} else {
+				/* Use the default MSS. */
+				tp->t_maxopd = V_tcp_mssdflt;
+				/*
+				 * Disable Path MTU Discovery when we switch to
+				 * minmss.
+				 */
+				tp->t_flags2 &= ~TF2_PLPMTU_PMTUD;
+				V_tcp_pmtud_blackhole_activated_min_mss++;
+			}
+#endif
+			tp->t_maxseg = tp->t_maxopd - optlen;
+			/*
+			 * Reset the slow-start flight size
+			 * as it may depend on the new MSS.
+			 */
+			if (CC_ALGO(tp)->conn_init != NULL)
+				CC_ALGO(tp)->conn_init(tp->ccv);
+		} else {
+			/*
+			 * If further retransmissions are still unsuccessful
+			 * with a lowered MTU, maybe this isn't a blackhole and
+			 * we restore the previous MSS and blackhole detection
+			 * flags.
+			 */
+			if ((tp->t_flags2 & TF2_PLPMTU_BLACKHOLE) &&
+			    (tp->t_rxtshift > 4)) {
+				tp->t_flags2 |= TF2_PLPMTU_PMTUD;
+				tp->t_flags2 &= ~TF2_PLPMTU_BLACKHOLE;
+				optlen = tp->t_maxopd - tp->t_maxseg;
+				tp->t_maxopd = tp->t_pmtud_saved_maxopd;
+				tp->t_maxseg = tp->t_maxopd - optlen;
+				V_tcp_pmtud_blackhole_failed++;
+				/*
+				 * Reset the slow-start flight size as it
+				 * may depend on the new MSS.
+				 */
+				if (CC_ALGO(tp)->conn_init != NULL)
+					CC_ALGO(tp)->conn_init(tp->ccv);
+			}
+		}
+	}
+
 	/*
 	 * Disable RFC1323 and SACK if we haven't got any response to
 	 * our third SYN to work-around some broken terminal servers

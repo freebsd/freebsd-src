@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2013, Intel Corp.
+ * Copyright (C) 2000 - 2014, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -41,7 +41,6 @@
  * POSSIBILITY OF SUCH DAMAGES.
  */
 
-
 #include <contrib/dev/acpica/compiler/aslcompiler.h>
 
 #define _COMPONENT          ACPI_COMPILER
@@ -59,9 +58,7 @@
  *
  * FUNCTION:    RsDoExtendedIoDescriptor
  *
- * PARAMETERS:  Op                  - Parent resource descriptor parse node
- *              CurrentByteOffset   - Offset into the resource template AML
- *                                    buffer (to track references to the desc)
+ * PARAMETERS:  Info                - Parse Op and resource template offset
  *
  * RETURN:      Completed resource node
  *
@@ -71,8 +68,7 @@
 
 ASL_RESOURCE_NODE *
 RsDoExtendedIoDescriptor (
-    ACPI_PARSE_OBJECT       *Op,
-    UINT32                  CurrentByteOffset)
+    ASL_RESOURCE_INFO       *Info)
 {
     AML_RESOURCE            *Descriptor;
     ACPI_PARSE_OBJECT       *InitializerOp;
@@ -82,11 +78,13 @@ RsDoExtendedIoDescriptor (
     ACPI_PARSE_OBJECT       *GranOp = NULL;
     ASL_RESOURCE_NODE       *Rnode;
     UINT16                  StringLength = 0;
+    UINT32                  CurrentByteOffset;
     UINT32                  i;
 
 
-    InitializerOp = Op->Asl.Child;
+    InitializerOp = Info->DescriptorTypeOp->Asl.Child;
     StringLength = RsGetStringDataLength (InitializerOp);
+    CurrentByteOffset = Info->CurrentByteOffset;
 
     Rnode = RsAllocateResourceNode (
                 sizeof (AML_RESOURCE_EXTENDED_ADDRESS64) + 1 + StringLength);
@@ -187,7 +185,7 @@ RsDoExtendedIoDescriptor (
 
         case 11: /* ResourceTag */
 
-            UtAttachNamepathToOwner (Op, InitializerOp);
+            UtAttachNamepathToOwner (Info->DescriptorTypeOp, InitializerOp);
             break;
 
         case 12: /* Type */
@@ -221,9 +219,10 @@ RsDoExtendedIoDescriptor (
         Descriptor->ExtAddress64.AddressLength,
         Descriptor->ExtAddress64.Granularity,
         Descriptor->ExtAddress64.Flags,
-        MinOp, MaxOp, LengthOp, GranOp, Op);
+        MinOp, MaxOp, LengthOp, GranOp, Info->DescriptorTypeOp);
 
-    Rnode->BufferLength = sizeof (AML_RESOURCE_EXTENDED_ADDRESS64) + StringLength;
+    Rnode->BufferLength = sizeof (AML_RESOURCE_EXTENDED_ADDRESS64) +
+        StringLength;
     return (Rnode);
 }
 
@@ -232,9 +231,7 @@ RsDoExtendedIoDescriptor (
  *
  * FUNCTION:    RsDoExtendedMemoryDescriptor
  *
- * PARAMETERS:  Op                  - Parent resource descriptor parse node
- *              CurrentByteOffset   - Offset into the resource template AML
- *                                    buffer (to track references to the desc)
+ * PARAMETERS:  Info                - Parse Op and resource template offset
  *
  * RETURN:      Completed resource node
  *
@@ -244,8 +241,7 @@ RsDoExtendedIoDescriptor (
 
 ASL_RESOURCE_NODE *
 RsDoExtendedMemoryDescriptor (
-    ACPI_PARSE_OBJECT       *Op,
-    UINT32                  CurrentByteOffset)
+    ASL_RESOURCE_INFO       *Info)
 {
     AML_RESOURCE            *Descriptor;
     ACPI_PARSE_OBJECT       *InitializerOp;
@@ -255,11 +251,13 @@ RsDoExtendedMemoryDescriptor (
     ACPI_PARSE_OBJECT       *GranOp = NULL;
     ASL_RESOURCE_NODE       *Rnode;
     UINT16                  StringLength = 0;
+    UINT32                  CurrentByteOffset;
     UINT32                  i;
 
 
-    InitializerOp = Op->Asl.Child;
+    InitializerOp = Info->DescriptorTypeOp->Asl.Child;
     StringLength = RsGetStringDataLength (InitializerOp);
+    CurrentByteOffset = Info->CurrentByteOffset;
 
     Rnode = RsAllocateResourceNode (
                 sizeof (AML_RESOURCE_EXTENDED_ADDRESS64) + 1 + StringLength);
@@ -367,7 +365,7 @@ RsDoExtendedMemoryDescriptor (
 
         case 12: /* ResourceTag */
 
-            UtAttachNamepathToOwner (Op, InitializerOp);
+            UtAttachNamepathToOwner (Info->DescriptorTypeOp, InitializerOp);
             break;
 
 
@@ -402,9 +400,10 @@ RsDoExtendedMemoryDescriptor (
         Descriptor->ExtAddress64.AddressLength,
         Descriptor->ExtAddress64.Granularity,
         Descriptor->ExtAddress64.Flags,
-        MinOp, MaxOp, LengthOp, GranOp, Op);
+        MinOp, MaxOp, LengthOp, GranOp, Info->DescriptorTypeOp);
 
-    Rnode->BufferLength = sizeof (AML_RESOURCE_EXTENDED_ADDRESS64) + StringLength;
+    Rnode->BufferLength = sizeof (AML_RESOURCE_EXTENDED_ADDRESS64) +
+        StringLength;
     return (Rnode);
 }
 
@@ -413,9 +412,7 @@ RsDoExtendedMemoryDescriptor (
  *
  * FUNCTION:    RsDoExtendedSpaceDescriptor
  *
- * PARAMETERS:  Op                  - Parent resource descriptor parse node
- *              CurrentByteOffset   - Offset into the resource template AML
- *                                    buffer (to track references to the desc)
+ * PARAMETERS:  Info                - Parse Op and resource template offset
  *
  * RETURN:      Completed resource node
  *
@@ -425,8 +422,7 @@ RsDoExtendedMemoryDescriptor (
 
 ASL_RESOURCE_NODE *
 RsDoExtendedSpaceDescriptor (
-    ACPI_PARSE_OBJECT       *Op,
-    UINT32                  CurrentByteOffset)
+    ASL_RESOURCE_INFO       *Info)
 {
     AML_RESOURCE            *Descriptor;
     ACPI_PARSE_OBJECT       *InitializerOp;
@@ -436,11 +432,13 @@ RsDoExtendedSpaceDescriptor (
     ACPI_PARSE_OBJECT       *GranOp = NULL;
     ASL_RESOURCE_NODE       *Rnode;
     UINT16                  StringLength = 0;
+    UINT32                  CurrentByteOffset;
     UINT32                  i;
 
 
-    InitializerOp = Op->Asl.Child;
+    InitializerOp = Info->DescriptorTypeOp->Asl.Child;
     StringLength = RsGetStringDataLength (InitializerOp);
+    CurrentByteOffset = Info->CurrentByteOffset;
 
     Rnode = RsAllocateResourceNode (
                 sizeof (AML_RESOURCE_EXTENDED_ADDRESS64) + 1 + StringLength);
@@ -545,7 +543,7 @@ RsDoExtendedSpaceDescriptor (
 
         case 12: /* ResourceTag */
 
-            UtAttachNamepathToOwner (Op, InitializerOp);
+            UtAttachNamepathToOwner (Info->DescriptorTypeOp, InitializerOp);
             break;
 
         default:
@@ -565,8 +563,9 @@ RsDoExtendedSpaceDescriptor (
         Descriptor->ExtAddress64.AddressLength,
         Descriptor->ExtAddress64.Granularity,
         Descriptor->ExtAddress64.Flags,
-        MinOp, MaxOp, LengthOp, GranOp, Op);
+        MinOp, MaxOp, LengthOp, GranOp, Info->DescriptorTypeOp);
 
-    Rnode->BufferLength = sizeof (AML_RESOURCE_EXTENDED_ADDRESS64) + StringLength;
+    Rnode->BufferLength = sizeof (AML_RESOURCE_EXTENDED_ADDRESS64) +
+        StringLength;
     return (Rnode);
 }

@@ -270,10 +270,12 @@ in6_inithead(void **head, int off)
 	if (!rn_inithead(head, offsetof(struct sockaddr_in6, sin6_addr) << 3))
 		return 0;		/* See above */
 
+	rnh = *head;
+	RADIX_NODE_HEAD_LOCK_INIT(rnh);
+
 	if (off == 0)		/* See above */
 		return 1;	/* only do the rest for the real thing */
 
-	rnh = *head;
 	rnh->rnh_addaddr = in6_addroute;
 
 	if (V__in6_rt_was_here == 0) {

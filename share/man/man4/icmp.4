@@ -28,7 +28,7 @@
 .\"     @(#)icmp.4	8.1 (Berkeley) 6/5/93
 .\" $FreeBSD$
 .\"
-.Dd February 9, 2007
+.Dd September 30, 2014
 .Dt ICMP 4
 .Os
 .Sh NAME
@@ -216,6 +216,10 @@ instead of the possibly different return path.
 Number of bytes from original packet to quote in ICMP reply.
 This number is internally enforced to be at least 8 bytes (per RFC792)
 and at most the maximal space left in the ICMP reply mbuf.
+.It Va tstamprepl
+.Pq Vt boolean
+Enable/disable replies to ICMP Timestamp packets.
+Defaults to true.
 .El
 .Sh ERRORS
 A socket operation may fail with one of the following errors returned:

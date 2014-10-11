@@ -1720,6 +1720,7 @@ struct ata_pass_16 {
 #define	VERIFY_16		0x8F
 #define	SYNCHRONIZE_CACHE_16	0x91
 #define	WRITE_SAME_16		0x93
+#define	WRITE_ATOMIC_16		0x9C
 #define	SERVICE_ACTION_IN	0x9E
 #define	REPORT_LUNS		0xA0
 #define	ATA_PASS_12		0xA1
@@ -2437,8 +2438,7 @@ struct scsi_vpd_logical_block_prov
 };
 
 /*
- * Block Limits VDP Page based on
- * T10/1799-D Revision 31
+ * Block Limits VDP Page based on SBC-4 Revision 2
  */
 struct scsi_vpd_block_limits
 {
@@ -2459,7 +2459,10 @@ struct scsi_vpd_block_limits
 	u_int8_t opt_unmap_grain[4];
 	u_int8_t unmap_grain_align[4];
 	u_int8_t max_write_same_length[8];
-	u_int8_t reserved2[20];
+	u_int8_t max_atomic_transfer_length[4];
+	u_int8_t atomic_alignment[4];
+	u_int8_t atomic_transfer_length_granularity[4];
+	u_int8_t reserved2[8];
 };
 
 struct scsi_read_capacity

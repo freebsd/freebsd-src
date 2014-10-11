@@ -141,9 +141,19 @@ udp6_append(struct inpcb *inp, struct mbuf *n, int off,
 {
 	struct socket *so;
 	struct mbuf *opts;
+	struct udpcb *up;
 
 	INP_LOCK_ASSERT(inp);
 
+	/*
+	 * Engage the tunneling protocol.
+	 */
+	up = intoudpcb(inp);
+	if (up->u_tun_func != NULL) {
+		(*up->u_tun_func)(n, off, inp, (struct sockaddr *)fromsa,
+		    up->u_tun_ctx);
+		return;
+	}
 #ifdef IPSEC
 	/* Check AH/ESP integrity. */
 	if (ipsec6_in_reject(n, inp)) {
@@ -227,21 +237,26 @@ udp6_input(struct mbuf **mp, int *offp, int proto)
 
 	nxt = ip6->ip6_nxt;
 	cscov_partial = (nxt == IPPROTO_UDPLITE) ? 1 : 0;
-	if (nxt == IPPROTO_UDPLITE && ulen == 0) {
+	if (nxt == IPPROTO_UDPLITE) {
 		/* Zero means checksum over the complete packet. */
-		ulen = plen;
-		cscov_partial = 0;
-	}
-	if (nxt == IPPROTO_UDP && plen != ulen) {
-		UDPSTAT_INC(udps_badlen);
-		goto badunlocked;
-	}
-
-	/*
-	 * Checksum extended UDP header and data.
-	 */
-	if (uh->uh_sum == 0) {
-		if (ulen > plen || ulen < sizeof(struct udphdr)) {
+		if (ulen == 0)
+			ulen = plen;
+		if (ulen == plen)
+			cscov_partial = 0;
+		if ((ulen < sizeof(struct udphdr)) || (ulen > plen)) {
+			/* XXX: What is the right UDPLite MIB counter? */
+			goto badunlocked;
+		}
+		if (uh->uh_sum == 0) {
+			/* XXX: What is the right UDPLite MIB counter? */
+			goto badunlocked;
+		}
+	} else {
+		if ((ulen < sizeof(struct udphdr)) || (plen != ulen)) {
+			UDPSTAT_INC(udps_badlen);
+			goto badunlocked;
+		}
+		if (uh->uh_sum == 0) {
 			UDPSTAT_INC(udps_nosum);
 			goto badunlocked;
 		}
@@ -256,7 +271,7 @@ udp6_input(struct mbuf **mp, int *offp, int proto)
 			    m->m_pkthdr.csum_data);
 		uh_sum ^= 0xffff;
 	} else
-		uh_sum = in6_cksum(m, nxt, off, ulen);
+		uh_sum = in6_cksum_partial(m, nxt, off, plen, ulen);
 
 	if (uh_sum != 0) {
 		UDPSTAT_INC(udps_badsum);
@@ -356,20 +371,9 @@ udp6_input(struct mbuf **mp, int *offp, int proto)
 
 				if ((n = m_copy(m, 0, M_COPYALL)) != NULL) {
 					INP_RLOCK(last);
-					up = intoudpcb(last);
-					if (up->u_tun_func == NULL) {
-						udp6_append(last, n, off, &fromsa);
-					} else {
-						/*
-						 * Engage the tunneling
-						 * protocol we will have to
-						 * leave the info_lock up,
-						 * since we are hunting
-						 * through multiple UDP's.
-						 * 
-						 */
-						(*up->u_tun_func)(n, off, last);
-					}
+					UDP_PROBE(receive, NULL, last, ip6,
+					    last, uh);
+					udp6_append(last, n, off, &fromsa);
 					INP_RUNLOCK(last);
 				}
 			}
@@ -399,16 +403,8 @@ udp6_input(struct mbuf **mp, int *offp, int proto)
 		}
 		INP_RLOCK(last);
 		INP_INFO_RUNLOCK(pcbinfo);
-		up = intoudpcb(last);
 		UDP_PROBE(receive, NULL, last, ip6, last, uh);
-		if (up->u_tun_func == NULL) {
-			udp6_append(last, m, off, &fromsa);
-		} else {
-			/*
-			 * Engage the tunneling protocol.
-			 */
-			(*up->u_tun_func)(m, off, last);
-		}
+		udp6_append(last, m, off, &fromsa);
 		INP_RUNLOCK(last);
 		return (IPPROTO_DONE);
 	}
@@ -480,22 +476,14 @@ udp6_input(struct mbuf **mp, int *offp, int proto)
 	INP_RLOCK_ASSERT(inp);
 	up = intoudpcb(inp);
 	if (cscov_partial) {
-		if (up->u_rxcslen > ulen) {
+		if (up->u_rxcslen == 0 || up->u_rxcslen > ulen) {
 			INP_RUNLOCK(inp);
 			m_freem(m);
 			return (IPPROTO_DONE);
 		}
 	}
 	UDP_PROBE(receive, NULL, inp, ip6, inp, uh);
-	if (up->u_tun_func == NULL) {
-		udp6_append(inp, m, off, &fromsa);
-	} else {
-		/*
-		 * Engage the tunneling protocol.
-		 */
-
-		(*up->u_tun_func)(m, off, inp);
-	}
+	udp6_append(inp, m, off, &fromsa);
 	INP_RUNLOCK(inp);
 	return (IPPROTO_DONE);
 
@@ -843,8 +831,8 @@ udp6_output(struct inpcb *inp, struct mbuf *m, struct sockaddr *addr6,
 		ip6->ip6_dst	= *faddr;
 
 		if (cscov_partial) {
-			if ((udp6->uh_sum = in6_cksum(m, 0,
-			    sizeof(struct ip6_hdr), cscov)) == 0)
+			if ((udp6->uh_sum = in6_cksum_partial(m, nxt,
+			    sizeof(struct ip6_hdr), plen, cscov)) == 0)
 				udp6->uh_sum = 0xffff;
 		} else {
 			udp6->uh_sum = in6_cksum_pseudo(ip6, plen, nxt, 0);

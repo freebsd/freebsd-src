@@ -198,7 +198,8 @@ typedef enum {
 	CTL_LUN_OFFLINE		= 0x080,
 	CTL_LUN_PR_RESERVED	= 0x100,
 	CTL_LUN_PRIMARY_SC	= 0x200,
-	CTL_LUN_SENSE_DESC	= 0x400
+	CTL_LUN_SENSE_DESC	= 0x400,
+	CTL_LUN_READONLY	= 0x800
 } ctl_lun_flags;
 
 typedef enum {
@@ -352,11 +353,6 @@ typedef enum {
 	CTL_PR_FLAG_ACTIVE_RES	= 0x02
 } ctl_per_res_flags;
 
-struct ctl_per_res_info {
-	struct scsi_per_res_key res_key;
-	uint8_t  registered;
-};
-
 #define CTL_PR_ALL_REGISTRANTS  0xFFFFFFFF
 #define CTL_PR_NO_RESERVATION   0xFFFFFFF0
 
@@ -397,8 +393,8 @@ struct ctl_lun {
 	struct ctl_mode_pages		mode_pages;
 	struct ctl_lun_io_stats		stats;
 	uint32_t			res_idx;
-	struct ctl_per_res_info		per_res[2*CTL_MAX_INITIATORS];
 	unsigned int			PRGeneration;
+	uint64_t			pr_keys[2*CTL_MAX_INITIATORS];
 	int				pr_key_count;
 	uint32_t			pr_res_idx;
 	uint8_t				res_type;

@@ -255,6 +255,8 @@ contrib/altq/altq/altq_red.c		optional altq
 contrib/altq/altq/altq_rio.c		optional altq
 contrib/altq/altq/altq_rmclass.c	optional altq
 contrib/altq/altq/altq_subr.c		optional altq
+contrib/dev/acpica/common/ahids.c			optional acpi acpi_debug
+contrib/dev/acpica/common/ahuuids.c			optional acpi acpi_debug
 contrib/dev/acpica/components/debugger/dbcmds.c		optional acpi acpi_debug
 contrib/dev/acpica/components/debugger/dbconvert.c	optional acpi acpi_debug
 contrib/dev/acpica/components/debugger/dbdisply.c	optional acpi acpi_debug
@@ -265,6 +267,7 @@ contrib/dev/acpica/components/debugger/dbinput.c	optional acpi acpi_debug
 contrib/dev/acpica/components/debugger/dbmethod.c	optional acpi acpi_debug
 contrib/dev/acpica/components/debugger/dbnames.c	optional acpi acpi_debug
 contrib/dev/acpica/components/debugger/dbstats.c	optional acpi acpi_debug
+contrib/dev/acpica/components/debugger/dbtest.c		optional acpi acpi_debug
 contrib/dev/acpica/components/debugger/dbutils.c	optional acpi acpi_debug
 contrib/dev/acpica/components/debugger/dbxface.c	optional acpi acpi_debug
 contrib/dev/acpica/components/disassembler/dmbuffer.c	optional acpi acpi_debug
@@ -387,6 +390,7 @@ contrib/dev/acpica/components/resources/rsmisc.c	optional acpi
 contrib/dev/acpica/components/resources/rsserial.c	optional acpi
 contrib/dev/acpica/components/resources/rsutils.c	optional acpi
 contrib/dev/acpica/components/resources/rsxface.c	optional acpi
+contrib/dev/acpica/components/tables/tbdata.c		optional acpi
 contrib/dev/acpica/components/tables/tbfadt.c		optional acpi
 contrib/dev/acpica/components/tables/tbfind.c		optional acpi
 contrib/dev/acpica/components/tables/tbinstal.c		optional acpi
@@ -407,6 +411,7 @@ contrib/dev/acpica/components/utilities/uterror.c	optional acpi
 contrib/dev/acpica/components/utilities/uteval.c	optional acpi
 contrib/dev/acpica/components/utilities/utexcep.c	optional acpi
 contrib/dev/acpica/components/utilities/utglobal.c	optional acpi
+contrib/dev/acpica/components/utilities/uthex.c		optional acpi
 contrib/dev/acpica/components/utilities/utids.c		optional acpi
 contrib/dev/acpica/components/utilities/utinit.c	optional acpi
 contrib/dev/acpica/components/utilities/utlock.c	optional acpi
@@ -420,6 +425,7 @@ contrib/dev/acpica/components/utilities/utpredef.c	optional acpi
 contrib/dev/acpica/components/utilities/utresrc.c	optional acpi
 contrib/dev/acpica/components/utilities/utstate.c	optional acpi
 contrib/dev/acpica/components/utilities/utstring.c	optional acpi
+contrib/dev/acpica/components/utilities/utuuid.c	optional acpi acpi_debug
 contrib/dev/acpica/components/utilities/utxface.c	optional acpi
 contrib/dev/acpica/components/utilities/utxferror.c	optional acpi
 contrib/dev/acpica/components/utilities/utxfinit.c	optional acpi
@@ -2638,6 +2644,9 @@ dev/xen/netfront/netfront.c	optional xen | xenhvm
 dev/xen/xenpci/xenpci.c		optional xenpci
 dev/xen/timer/timer.c		optional xen | xenhvm
 dev/xen/pvcpu/pvcpu.c		optional xen | xenhvm
+dev/xen/xenstore/xenstore.c	optional xen | xenhvm
+dev/xen/xenstore/xenstore_dev.c	optional xen | xenhvm
+dev/xen/xenstore/xenstored_dev.c	optional xen | xenhvm
 dev/xl/if_xl.c			optional xl pci
 dev/xl/xlphy.c			optional xl pci
 fs/autofs/autofs.c		optional autofs
@@ -3154,6 +3163,7 @@ libkern/arc4random.c		standard
 libkern/bcd.c			standard
 libkern/bsearch.c		standard
 libkern/crc32.c			standard
+libkern/explicit_bzero.c	standard
 libkern/fnmatch.c		standard
 libkern/iconv.c			optional libiconv
 libkern/iconv_converter_if.m	optional libiconv
@@ -3165,6 +3175,7 @@ libkern/inet_ntoa.c		standard
 libkern/inet_ntop.c		standard
 libkern/inet_pton.c		standard
 libkern/jenkins_hash.c		standard
+libkern/murmur3_32.c		standard
 libkern/mcount.c		optional profiling-routine
 libkern/memcchr.c		standard
 libkern/memchr.c		optional fdt | gdb
@@ -3419,6 +3430,7 @@ netinet/sctp_output.c		optional inet sctp | inet6 sctp
 netinet/sctp_pcb.c		optional inet sctp | inet6 sctp
 netinet/sctp_peeloff.c		optional inet sctp | inet6 sctp
 netinet/sctp_ss_functions.c	optional inet sctp | inet6 sctp
+netinet/sctp_syscalls.c		optional inet sctp | inet6 sctp
 netinet/sctp_sysctl.c		optional inet sctp | inet6 sctp
 netinet/sctp_timer.c		optional inet sctp | inet6 sctp
 netinet/sctp_usrreq.c		optional inet sctp | inet6 sctp
@@ -3503,6 +3515,9 @@ netpfil/ipfw/ip_fw_log.c	optional inet ipfirewall
 netpfil/ipfw/ip_fw_pfil.c	optional inet ipfirewall
 netpfil/ipfw/ip_fw_sockopt.c	optional inet ipfirewall
 netpfil/ipfw/ip_fw_table.c	optional inet ipfirewall
+netpfil/ipfw/ip_fw_table_algo.c	optional inet ipfirewall
+netpfil/ipfw/ip_fw_table_value.c	optional inet ipfirewall
+netpfil/ipfw/ip_fw_iface.c	optional inet ipfirewall
 netpfil/ipfw/ip_fw_nat.c	optional inet ipfirewall_nat
 netpfil/pf/if_pflog.c		optional pflog pf inet
 netpfil/pf/if_pfsync.c		optional pfsync pf inet
@@ -3976,8 +3991,6 @@ xen/xenbus/xenbusb_if.m		optional xen | xenhvm
 xen/xenbus/xenbusb.c		optional xen | xenhvm
 xen/xenbus/xenbusb_front.c	optional xen | xenhvm
 xen/xenbus/xenbusb_back.c	optional xen | xenhvm
-xen/xenstore/xenstore.c		optional xen | xenhvm
-xen/xenstore/xenstore_dev.c	optional xen | xenhvm
 xdr/xdr.c			optional krpc | nfslockd | nfsclient | nfsserver | nfscl | nfsd
 xdr/xdr_array.c			optional krpc | nfslockd | nfsclient | nfsserver | nfscl | nfsd
 xdr/xdr_mbuf.c			optional krpc | nfslockd | nfsclient | nfsserver | nfscl | nfsd

@@ -43,6 +43,9 @@ OLD_FILES+=usr/share/man/man9/sleepq_calc_signal_retval.9.gz
 OLD_FILES+=usr/share/man/man9/sleepq_catch_signals.9.gz
 # 20140917: hv_kvpd rc.d script removed in favor of devd configuration
 OLD_FILES+=etc/rc.d/hv_kvpd
+# 20140917: libnv was accidentally being installed to /usr/lib instead of /lib
+OLD_LIBS+=usr/lib/libnv.a
+OLD_LIBS+=usr/lib/libnv.so.0
 # 20140814: libopie version bump
 OLD_LIBS+=usr/lib/libopie.so.7
 OLD_LIBS+=usr/lib32/libopie.so.7
@@ -1493,6 +1496,7 @@ OLD_LIBS+=usr/lib/libpanel.so.4
 OLD_LIBS+=usr/lib/libpanelw.so.4
 OLD_LIBS+=usr/lib/libpmc.so.4
 OLD_LIBS+=usr/lib/libproc.so.1
+OLD_LIBS+=usr/lib/libproc.so.2
 OLD_LIBS+=usr/lib/libradius.so.3
 OLD_LIBS+=usr/lib/librpcsvc.so.4
 OLD_LIBS+=usr/lib/libsdp.so.3
