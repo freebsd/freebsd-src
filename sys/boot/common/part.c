@@ -53,6 +53,7 @@ static const uuid_t gpt_uuid_unused = GPT_ENT_TYPE_UNUSED;
 static const uuid_t gpt_uuid_ms_basic_data = GPT_ENT_TYPE_MS_BASIC_DATA;
 static const uuid_t gpt_uuid_freebsd_ufs = GPT_ENT_TYPE_FREEBSD_UFS;
 static const uuid_t gpt_uuid_efi = GPT_ENT_TYPE_EFI;
+static const uuid_t gpt_uuid_freebsd = GPT_ENT_TYPE_FREEBSD;
 static const uuid_t gpt_uuid_freebsd_boot = GPT_ENT_TYPE_FREEBSD_BOOT;
 static const uuid_t gpt_uuid_freebsd_nandfs = GPT_ENT_TYPE_FREEBSD_NANDFS;
 static const uuid_t gpt_uuid_freebsd_swap = GPT_ENT_TYPE_FREEBSD_SWAP;
@@ -139,6 +140,8 @@ gpt_parttype(uuid_t type)
 		return (PART_FREEBSD_VINUM);
 	else if (uuid_equal(&type, &gpt_uuid_freebsd_nandfs, NULL))
 		return (PART_FREEBSD_NANDFS);
+	else if (uuid_equal(&type, &gpt_uuid_freebsd, NULL))
+		return (PART_FREEBSD);
 	return (PART_UNKNOWN);
 }
 
