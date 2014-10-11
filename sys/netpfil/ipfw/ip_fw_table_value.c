@@ -25,7 +25,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD: projects/ipfw/sys/netpfil/ipfw/ip_fw_table.c 270407 2014-08-23 12:41:39Z melifaro $");
+__FBSDID("$FreeBSD$");
 
 /*
  * Multi-field value support for ipfw tables.
@@ -557,7 +557,7 @@ ipfw_link_table_values(struct ip_fw_chain *ch, struct tableop_state *ts)
 		return (0);
 	}
 
-	KASSERT(pval == ch->tablestate, ("resize_storage() notify failure"));
+	KASSERT(pval == ch->valuestate, ("resize_storage() notify failure"));
 
 	/* Let's try to link values */
 	for (i = 0; i < count; i++) {
