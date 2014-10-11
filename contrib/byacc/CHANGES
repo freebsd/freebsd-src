@@ -1,3 +1,9 @@
+2014-10-02  Thomas E. Dickey  <tom@invisible-island.net>
+
+	* reader.c, defs.h:
+	use calloc in get_line() when allocating line to ensure it is fully initialized,
+	fixes a later uninitialized value in copy_param() (FreeBSD #193499).
+
 2014-07-15  Thomas E. Dickey  <tom@invisible-island.net>
 
 	* aclocal.m4: resync with my-autoconf (no change to configure script)
