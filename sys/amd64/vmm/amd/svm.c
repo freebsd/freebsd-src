@@ -43,15 +43,10 @@ __FBSDID("$FreeBSD$");
 #include <machine/psl.h>
 #include <machine/pmap.h>
 #include <machine/md_var.h>
-#include <machine/vmparam.h>
 #include <machine/specialreg.h>
-#include <machine/segments.h>
 #include <machine/smp.h>
 #include <machine/vmm.h>
-#include <machine/vmm_dev.h>
 #include <machine/vmm_instruction_emul.h>
-
-#include <x86/apicreg.h>
 
 #include "vmm_lapic.h"
 #include "vmm_stat.h"
@@ -99,8 +94,8 @@ static uint32_t vmcb_clean = VMCB_CACHE_DEFAULT;
 SYSCTL_INT(_hw_vmm_svm, OID_AUTO, vmcb_clean, CTLFLAG_RDTUN, &vmcb_clean,
     0, NULL);
 
-MALLOC_DEFINE(M_SVM, "svm", "svm");
-MALLOC_DEFINE(M_SVM_VLAPIC, "svm-vlapic", "svm-vlapic");
+static MALLOC_DEFINE(M_SVM, "svm", "svm");
+static MALLOC_DEFINE(M_SVM_VLAPIC, "svm-vlapic", "svm-vlapic");
 
 /* Per-CPU context area. */
 extern struct pcpu __pcpu[];
@@ -132,38 +127,32 @@ static VMM_STAT_AMD(VMEXIT_VINTR, "VM exits due to interrupt window");
 
 static int svm_setreg(void *arg, int vcpu, int ident, uint64_t val);
 
-/* 
- * Common function to enable or disabled SVM for a CPU.
- */
-static int
-cpu_svm_enable_disable(boolean_t enable)
+static __inline int
+flush_by_asid(void)
 {
-	uint64_t efer_msr;
 
-	efer_msr = rdmsr(MSR_EFER);
-
-	if (enable) 
-		efer_msr |= EFER_SVM;
-	else 
-		efer_msr &= ~EFER_SVM;
-
-	wrmsr(MSR_EFER, efer_msr);
-
-	return(0);
+	return (svm_feature & AMD_CPUID_SVM_FLUSH_BY_ASID);
 }
 
-/*
- * Disable SVM on a CPU.
- */
+static __inline int
+decode_assist(void)
+{
+
+	return (svm_feature & AMD_CPUID_SVM_DECODE_ASSIST);
+}
+
 static void
 svm_disable(void *arg __unused)
 {
+	uint64_t efer;
 
-	(void)cpu_svm_enable_disable(FALSE);
+	efer = rdmsr(MSR_EFER);
+	efer &= ~EFER_SVM;
+	wrmsr(MSR_EFER, efer);
 }
 
 /*
- * Disable SVM for all CPUs.
+ * Disable SVM on all CPUs.
  */
 static int
 svm_cleanup(void)
@@ -224,72 +213,52 @@ check_svm_features(void)
 	return (0);
 }
 
-static __inline int
-flush_by_asid(void)
-{
-
-	return (svm_feature & AMD_CPUID_SVM_FLUSH_BY_ASID);
-}
-
-static __inline int
-decode_assist(void)
-{
-
-	return (svm_feature & AMD_CPUID_SVM_DECODE_ASSIST);
-}
-
-/*
- * Enable SVM for a CPU.
- */
 static void
 svm_enable(void *arg __unused)
 {
-	uint64_t hsave_pa;
+	uint64_t efer;
 
-	(void)cpu_svm_enable_disable(TRUE);
+	efer = rdmsr(MSR_EFER);
+	efer |= EFER_SVM;
+	wrmsr(MSR_EFER, efer);
 
-	hsave_pa = vtophys(hsave[curcpu]);
-	wrmsr(MSR_VM_HSAVE_PA, hsave_pa);
-
-	if (rdmsr(MSR_VM_HSAVE_PA) != hsave_pa) {
-		panic("VM_HSAVE_PA is wrong on CPU%d\n", curcpu);
-	}
+	wrmsr(MSR_VM_HSAVE_PA, vtophys(hsave[curcpu]));
 }
 
 /*
- * Verify that SVM is enabled and the processor has all the required features.
+ * Return 1 if SVM is enabled on this processor and 0 otherwise.
  */
 static int
-is_svm_enabled(void)
+svm_available(void)
 {
 	uint64_t msr;
 
 	/* Section 15.4 Enabling SVM from APM2. */
 	if ((amd_feature2 & AMDID2_SVM) == 0) {
 		printf("SVM: not available.\n");
-		return (ENXIO);
+		return (0);
 	}
 
 	msr = rdmsr(MSR_VM_CR);
 	if ((msr & VM_CR_SVMDIS) != 0) {
 		printf("SVM: disabled by BIOS.\n");
-		return (ENXIO);
+		return (0);
 	}
 
-	return (check_svm_features());
+	return (1);
 }
 
-/*
- * Enable SVM on CPU and initialize nested page table h/w.
- */
 static int
 svm_init(int ipinum)
 {
-	int err, cpu;
+	int error, cpu;
 
-	err = is_svm_enabled();
-	if (err) 
-		return (err);
+	if (!svm_available())
+		return (ENXIO);
+
+	error = check_svm_features();
+	if (error)
+		return (error);
 
 	vmcb_clean &= VMCB_CACHE_DEFAULT;
 
@@ -307,7 +276,7 @@ svm_init(int ipinum)
 	svm_msr_init();
 	svm_npt_init(ipinum);
 
-	/* Start SVM on all CPUs */
+	/* Enable SVM on all CPUs */
 	smp_rendezvous(NULL, svm_enable, NULL, NULL);
 
 	return (0);
@@ -316,18 +285,9 @@ svm_init(int ipinum)
 static void
 svm_restore(void)
 {
+
 	svm_enable(NULL);
 }		
-
-/*
- * Get index and bit position for a MSR in MSR permission
- * bitmap. Two bits are used for each MSR, lower bit is
- * for read and higher bit is for write.
- */
-static int
-svm_msr_index(uint64_t msr, int *index, int *bit)
-{
-	uint32_t base, off;
 
 /* Pentium compatible MSRs */
 #define MSR_PENTIUM_START 	0	
@@ -338,6 +298,15 @@ svm_msr_index(uint64_t msr, int *index, int *bit)
 /* AMD 7th and 8th generation compatible MSRs */
 #define MSR_AMD7TH_START 	0xC0010000UL	
 #define MSR_AMD7TH_END 		0xC0011FFFUL	
+
+/*
+ * Get the index and bit position for a MSR in permission bitmap.
+ * Two bits are used for each MSR: lower bit for read and higher bit for write.
+ */
+static int
+svm_msr_index(uint64_t msr, int *index, int *bit)
+{
+	uint32_t base, off;
 
 	*index = -1;
 	*bit = (msr % 4) * 2;
@@ -362,53 +331,43 @@ svm_msr_index(uint64_t msr, int *index, int *bit)
 		return (0);
 	}
 
-	return (EIO);
+	return (EINVAL);
 }
 
 /*
- * Give virtual cpu the complete access to MSR(read & write).
+ * Allow vcpu to read or write the 'msr' without trapping into the hypervisor.
  */
-static int
+static void
 svm_msr_perm(uint8_t *perm_bitmap, uint64_t msr, bool read, bool write)
 {
-	int index, bit, err;
+	int index, bit, error;
 
-	err = svm_msr_index(msr, &index, &bit);
-	if (err) {
-		ERR("MSR 0x%lx is not writeable by guest.\n", msr);
-		return (err);
-	}
+	error = svm_msr_index(msr, &index, &bit);
+	KASSERT(error == 0, ("%s: invalid msr %#lx", __func__, msr));
+	KASSERT(index >= 0 && index < SVM_MSR_BITMAP_SIZE,
+	    ("%s: invalid index %d for msr %#lx", __func__, index, msr));
+	KASSERT(bit >= 0 && bit <= 6, ("%s: invalid bit position %d "
+	    "msr %#lx", __func__, bit, msr));
 
-	if (index < 0 || index > (SVM_MSR_BITMAP_SIZE)) {
-		ERR("MSR 0x%lx index out of range(%d).\n", msr, index);
-		return (EINVAL);
-	}
-	if (bit < 0 || bit > 8) {
-		ERR("MSR 0x%lx bit out of range(%d).\n", msr, bit);
-		return (EINVAL);
-	}
-
-	/* Disable intercept for read and write. */
 	if (read)
 		perm_bitmap[index] &= ~(1UL << bit);
+
 	if (write)
 		perm_bitmap[index] &= ~(2UL << bit);
-	CTR2(KTR_VMM, "Guest has control:0x%x on SVM:MSR(0x%lx).\n", 
-		(perm_bitmap[index] >> bit) & 0x3, msr);
-
-	return (0);
 }
 
-static int
+static void
 svm_msr_rw_ok(uint8_t *perm_bitmap, uint64_t msr)
 {
-	return svm_msr_perm(perm_bitmap, msr, true, true);
+
+	svm_msr_perm(perm_bitmap, msr, true, true);
 }
 
-static int
+static void
 svm_msr_rd_ok(uint8_t *perm_bitmap, uint64_t msr)
 {
-	return svm_msr_perm(perm_bitmap, msr, true, false);
+
+	svm_msr_perm(perm_bitmap, msr, true, false);
 }
 
 static __inline int
@@ -449,12 +408,14 @@ svm_set_intercept(struct svm_softc *sc, int vcpu, int idx, uint32_t bitmask,
 static __inline void
 svm_disable_intercept(struct svm_softc *sc, int vcpu, int off, uint32_t bitmask)
 {
+
 	svm_set_intercept(sc, vcpu, off, bitmask, 0);
 }
 
 static __inline void
 svm_enable_intercept(struct svm_softc *sc, int vcpu, int off, uint32_t bitmask)
 {
+
 	svm_set_intercept(sc, vcpu, off, bitmask, 1);
 }
 
@@ -542,7 +503,7 @@ vmcb_init(struct svm_softc *sc, int vcpu, uint64_t iopm_base_pa,
 }
 
 /*
- * Initialise a virtual machine.
+ * Initialize a virtual machine.
  */
 static void *
 svm_vminit(struct vm *vm, pmap_t pmap)
@@ -552,20 +513,19 @@ svm_vminit(struct vm *vm, pmap_t pmap)
 	vm_paddr_t msrpm_pa, iopm_pa, pml4_pa;	
 	int i;
 
-	svm_sc = (struct svm_softc *)malloc(sizeof (struct svm_softc),
-			M_SVM, M_WAITOK | M_ZERO);
-
+	svm_sc = malloc(sizeof (struct svm_softc), M_SVM, M_WAITOK | M_ZERO);
 	svm_sc->vm = vm;
 	svm_sc->nptp = (vm_offset_t)vtophys(pmap->pm_pml4);
 
 	/*
-	 * Intercept MSR access to all MSRs except GSBASE, FSBASE,... etc.
-	 */	
-	 memset(svm_sc->msr_bitmap, 0xFF, sizeof(svm_sc->msr_bitmap));
+	 * Intercept read and write accesses to all MSRs.
+	 */
+	memset(svm_sc->msr_bitmap, 0xFF, sizeof(svm_sc->msr_bitmap));
 
 	/*
-	 * Following MSR can be completely controlled by virtual machines
-	 * since access to following are translated to access to VMCB.
+	 * Access to the following MSRs is redirected to the VMCB when the
+	 * guest is executing. Therefore it is safe to allow the guest to
+	 * read/write these MSRs directly without hypervisor involvement.
 	 */
 	svm_msr_rw_ok(svm_sc->msr_bitmap, MSR_GSBASE);
 	svm_msr_rw_ok(svm_sc->msr_bitmap, MSR_FSBASE);
@@ -578,8 +538,6 @@ svm_vminit(struct vm *vm, pmap_t pmap)
 	svm_msr_rw_ok(svm_sc->msr_bitmap, MSR_SYSENTER_CS_MSR);
 	svm_msr_rw_ok(svm_sc->msr_bitmap, MSR_SYSENTER_ESP_MSR);
 	svm_msr_rw_ok(svm_sc->msr_bitmap, MSR_SYSENTER_EIP_MSR);
-	
-	/* For Nested Paging/RVI only. */
 	svm_msr_rw_ok(svm_sc->msr_bitmap, MSR_PAT);
 
 	svm_msr_rd_ok(svm_sc->msr_bitmap, MSR_TSC);
@@ -589,14 +547,12 @@ svm_vminit(struct vm *vm, pmap_t pmap)
 	 */
 	svm_msr_rd_ok(svm_sc->msr_bitmap, MSR_EFER);
 
-	 /* Intercept access to all I/O ports. */
+	/* Intercept access to all I/O ports. */
 	memset(svm_sc->iopm_bitmap, 0xFF, sizeof(svm_sc->iopm_bitmap));
 
-	/* Cache physical address for multiple vcpus. */
 	iopm_pa = vtophys(svm_sc->iopm_bitmap);
 	msrpm_pa = vtophys(svm_sc->msr_bitmap);
 	pml4_pa = svm_sc->nptp;
-
 	for (i = 0; i < VM_MAXCPU; i++) {
 		vcpu = svm_get_vcpu(svm_sc, i);
 		vcpu->lastcpu = NOCPU;
@@ -791,13 +747,13 @@ svm_handle_io(struct svm_softc *svm_sc, int vcpu, struct vm_exit *vmexit)
 }
 
 static int
-svm_npf_paging(uint64_t exitinfo1)
+npf_fault_type(uint64_t exitinfo1)
 {
 
 	if (exitinfo1 & VMCB_NPF_INFO1_W)
 		return (VM_PROT_WRITE);
-
-	return (VM_PROT_READ);
+	else
+		return (VM_PROT_READ);
 }
 
 static bool
@@ -1368,7 +1324,7 @@ svm_vmexit(struct svm_softc *svm_sc, int vcpu, struct vm_exit *vmexit)
 		} else if (vm_mem_allocated(svm_sc->vm, info2)) {
 			vmexit->exitcode = VM_EXITCODE_PAGING;
 			vmexit->u.paging.gpa = info2;
-			vmexit->u.paging.fault_type = svm_npf_paging(info1);
+			vmexit->u.paging.fault_type = npf_fault_type(info1);
 			vmm_stat_incr(svm_sc->vm, vcpu, VMEXIT_NESTED_FAULT, 1);
 			VCPU_CTR3(svm_sc->vm, vcpu, "nested page fault "
 			    "on gpa %#lx/%#lx at rip %#lx",
@@ -1759,6 +1715,20 @@ check_asid(struct svm_softc *sc, int vcpuid, pmap_t pmap, u_int thiscpu)
 	    ("ASID mismatch: %u/%u", ctrl->asid, vcpustate->asid.num));
 }
 
+static __inline void
+disable_gintr(void)
+{
+
+        __asm __volatile("clgi" : : :);
+}
+
+static __inline void
+enable_gintr(void)
+{
+
+        __asm __volatile("stgi" : : :);
+}
+
 /*
  * Start vcpu with specified RIP.
  */
@@ -1912,69 +1882,52 @@ svm_vmrun(void *arg, int vcpu, register_t rip, pmap_t pmap,
 	return (0);
 }
 
-/*
- * Cleanup for virtual machine.
- */
 static void
 svm_vmcleanup(void *arg)
 {
-	struct svm_softc *svm_sc;
+	struct svm_softc *sc = arg;
 
-	svm_sc = arg;
-	
-	VCPU_CTR0(svm_sc->vm, 0, "SVM:cleanup\n");
-
-	free(svm_sc, M_SVM);
+	free(sc, M_SVM);
 }
 
-/*
- * Return pointer to hypervisor saved register state.
- */
 static register_t *
 swctx_regptr(struct svm_regctx *regctx, int reg)
 {
 
 	switch (reg) {
-		case VM_REG_GUEST_RBX:
-			return (&regctx->sctx_rbx);
-		case VM_REG_GUEST_RCX:
-			return (&regctx->sctx_rcx);
-		case VM_REG_GUEST_RDX:
-			return (&regctx->sctx_rdx);
-		case VM_REG_GUEST_RDI:
-			return (&regctx->sctx_rdi);
-		case VM_REG_GUEST_RSI:
-			return (&regctx->sctx_rsi);
-		case VM_REG_GUEST_RBP:
-			return (&regctx->sctx_rbp);
-		case VM_REG_GUEST_R8:
-			return (&regctx->sctx_r8);
-		case VM_REG_GUEST_R9:
-			return (&regctx->sctx_r9);
-		case VM_REG_GUEST_R10:
-			return (&regctx->sctx_r10);
-		case VM_REG_GUEST_R11:
-			return (&regctx->sctx_r11);
-		case VM_REG_GUEST_R12:
-			return (&regctx->sctx_r12);
-		case VM_REG_GUEST_R13:
-			return (&regctx->sctx_r13);
-		case VM_REG_GUEST_R14:
-			return (&regctx->sctx_r14);
-		case VM_REG_GUEST_R15:
-			return (&regctx->sctx_r15);
-		default:
-			ERR("Unknown register requested, reg=%d.\n", reg);
-			break;
+	case VM_REG_GUEST_RBX:
+		return (&regctx->sctx_rbx);
+	case VM_REG_GUEST_RCX:
+		return (&regctx->sctx_rcx);
+	case VM_REG_GUEST_RDX:
+		return (&regctx->sctx_rdx);
+	case VM_REG_GUEST_RDI:
+		return (&regctx->sctx_rdi);
+	case VM_REG_GUEST_RSI:
+		return (&regctx->sctx_rsi);
+	case VM_REG_GUEST_RBP:
+		return (&regctx->sctx_rbp);
+	case VM_REG_GUEST_R8:
+		return (&regctx->sctx_r8);
+	case VM_REG_GUEST_R9:
+		return (&regctx->sctx_r9);
+	case VM_REG_GUEST_R10:
+		return (&regctx->sctx_r10);
+	case VM_REG_GUEST_R11:
+		return (&regctx->sctx_r11);
+	case VM_REG_GUEST_R12:
+		return (&regctx->sctx_r12);
+	case VM_REG_GUEST_R13:
+		return (&regctx->sctx_r13);
+	case VM_REG_GUEST_R14:
+		return (&regctx->sctx_r14);
+	case VM_REG_GUEST_R15:
+		return (&regctx->sctx_r15);
+	default:
+		return (NULL);
 	}
-
-	return (NULL);
 }
 
-/*
- * Interface to read guest registers.
- * This can be SVM h/w saved or hypervisor saved register.
- */
 static int
 svm_getreg(void *arg, int vcpu, int ident, uint64_t *val)
 {
@@ -1998,14 +1951,10 @@ svm_getreg(void *arg, int vcpu, int ident, uint64_t *val)
 		return (0);
 	}
 
- 	ERR("SVM_ERR:reg type %x is not saved in VMCB.\n", ident);
+	VCPU_CTR1(svm_sc->vm, vcpu, "svm_getreg: unknown register %#x", ident);
 	return (EINVAL);
 }
 
-/*
- * Interface to write to guest registers.
- * This can be SVM h/w saved or hypervisor saved register.
- */
 static int
 svm_setreg(void *arg, int vcpu, int ident, uint64_t val)
 {
@@ -2035,7 +1984,7 @@ svm_setreg(void *arg, int vcpu, int ident, uint64_t val)
 	 * whether 'running' is true/false.
 	 */
 
- 	ERR("SVM_ERR:reg type %x is not saved in VMCB.\n", ident);
+	VCPU_CTR1(svm_sc->vm, vcpu, "svm_setreg: unknown register %#x", ident);
 	return (EINVAL);
 }
 
@@ -2109,7 +2058,7 @@ svm_vlapic_init(void *arg, int vcpuid)
 	vlapic->apic_page = (struct LAPIC *)&svm_sc->apic_page[vcpuid];
 
 	vlapic_init(vlapic);
-	
+
 	return (vlapic);
 }
 

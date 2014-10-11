@@ -31,6 +31,8 @@
 
 struct svm_softc;
 
+#define BIT(n)			(1ULL << n)
+
 /*
  * Secure Virtual Machine: AMD64 Programmer's Manual Vol2, Chapter 15
  * Layout of VMCB: AMD64 Programmer's Manual Vol2, Appendix B
