@@ -38,7 +38,8 @@ struct asid {
 };
 
 /*
- * svm_vpcu contains SVM VMCB state and vcpu register state.
+ * XXX separate out 'struct vmcb' from 'svm_vcpu' to avoid wasting space
+ * due to VMCB alignment requirements.
  */
 struct svm_vcpu {
 	struct vmcb	vmcb;	 /* hardware saved vcpu context */
@@ -54,29 +55,12 @@ struct svm_vcpu {
  * SVM softc, one per virtual machine.
  */
 struct svm_softc {
-	/*
-	 * IO permission map, VMCB.ctrl.iopm_base_pa should point to this.
-	 * If a bit is set, access to I/O port is intercepted.
-	 */
-	uint8_t iopm_bitmap[SVM_IO_BITMAP_SIZE];
-
-	/*
-	 * MSR permission bitmap, VMCB.ctrl.msrpm_base_pa should point to this.
-	 * Two bits are used for each MSR with the LSB used for read access
-	 * and the MSB used for write access. A value of '1' indicates that
-	 * the operation is intercepted.
-	 */
-	uint8_t	msr_bitmap[SVM_MSR_BITMAP_SIZE];
-
+	uint8_t iopm_bitmap[SVM_IO_BITMAP_SIZE];    /* shared by all vcpus */
+	uint8_t msr_bitmap[SVM_MSR_BITMAP_SIZE];    /* shared by all vcpus */
 	uint8_t apic_page[VM_MAXCPU][PAGE_SIZE];
-	/* Nested Paging */
-	vm_offset_t 	nptp;	
-
-	/* Virtual machine pointer. */
-	struct vm	*vm;
-
-	/* Guest VCPU h/w and s/w context. */
 	struct svm_vcpu vcpu[VM_MAXCPU];
+	vm_offset_t 	nptp;			    /* nested page table */
+	struct vm	*vm;
 } __aligned(PAGE_SIZE);
 
 CTASSERT((offsetof(struct svm_softc, nptp) & PAGE_MASK) == 0);
