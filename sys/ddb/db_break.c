@@ -161,13 +161,13 @@ db_breakpoint_t
 db_find_breakpoint_here(addr)
 	db_addr_t	addr;
 {
-    return db_find_breakpoint(db_map_addr(addr), addr);
+	return db_find_breakpoint(db_map_addr(addr), addr);
 }
 
 static boolean_t	db_breakpoints_inserted = TRUE;
 
 #ifndef BKPT_WRITE
-#define BKPT_WRITE(addr, storage)				\
+#define	BKPT_WRITE(addr, storage)				\
 do {								\
 	*storage = db_get_value(addr, BKPT_SIZE, FALSE);	\
 	db_put_value(addr, BKPT_SIZE, BKPT_SET(*storage));	\
@@ -175,7 +175,7 @@ do {								\
 #endif
 
 #ifndef BKPT_CLEAR
-#define BKPT_CLEAR(addr, storage) \
+#define	BKPT_CLEAR(addr, storage) \
 	db_put_value(addr, BKPT_SIZE, *storage)
 #endif
 
