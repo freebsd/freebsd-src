@@ -341,7 +341,6 @@ struct rx_ring {
 	struct lro_ctrl		lro;
 	bool			lro_enabled;
 	bool			hw_rsc;
-	bool			discard;
 	bool			vtag_strip;
         u16			next_to_refresh;
         u16 			next_to_check;
