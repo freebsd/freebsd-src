@@ -4511,6 +4511,24 @@ OLD_DIRS+=usr/tests/usr.bin/make/archives/fmt_44bsd_mod
 OLD_DIRS+=usr/tests/usr.bin/make/archives/fmt_44bsd
 OLD_DIRS+=usr/tests/usr.bin/make/archives
 OLD_DIRS+=usr/tests/usr.bin/make
+OLD_FILES+=usr/tests/usr.bin/yacc/legacy_test
+OLD_FILES+=usr/tests/usr.bin/yacc/regress.00.out
+OLD_FILES+=usr/tests/usr.bin/yacc/regress.01.out
+OLD_FILES+=usr/tests/usr.bin/yacc/regress.02.out
+OLD_FILES+=usr/tests/usr.bin/yacc/regress.03.out
+OLD_FILES+=usr/tests/usr.bin/yacc/regress.04.out
+OLD_FILES+=usr/tests/usr.bin/yacc/regress.05.out
+OLD_FILES+=usr/tests/usr.bin/yacc/regress.06.out
+OLD_FILES+=usr/tests/usr.bin/yacc/regress.07.out
+OLD_FILES+=usr/tests/usr.bin/yacc/regress.08.out
+OLD_FILES+=usr/tests/usr.bin/yacc/regress.09.out
+OLD_FILES+=usr/tests/usr.bin/yacc/regress.10.out
+OLD_FILES+=usr/tests/usr.bin/yacc/regress.11.out
+OLD_FILES+=usr/tests/usr.bin/yacc/regress.12.out
+OLD_FILES+=usr/tests/usr.bin/yacc/regress.13.out
+OLD_FILES+=usr/tests/usr.bin/yacc/regress.14.out
+OLD_FILES+=usr/tests/usr.bin/yacc/regress.sh
+OLD_FILES+=usr/tests/usr.bin/yacc/undefined.y
 .endif
 .else
 # ATF libraries.
