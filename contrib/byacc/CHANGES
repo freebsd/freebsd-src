@@ -1,3 +1,23 @@
+2014-10-06  Thomas E. Dickey  <tom@invisible-island.net>
+
+	* package/debian/source/format:
+	change to native format to work around regression in Debian packaging.
+
+	* VERSION, package/byacc.spec, package/debian/changelog, package/mingw-byacc.spec, package/pkgsrc/Makefile:
+	bump
+
+	* configure: regen
+
+	* main.c:
+	correct parameter for umask - for very old mkstemp's - and use type mode_t
+	to quiet compiler warning
+
+	* configure.in: add configure check for mode_t
+
+	* reader.c:
+	better fix for get_line, by ensuring there is enough space to null-terminate
+	its result (prompted by discussion with Craig Rodrigues).
+
 2014-10-05  Thomas E. Dickey  <tom@invisible-island.net>
 
 	* main.c:

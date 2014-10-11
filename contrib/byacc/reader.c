@@ -1,4 +1,4 @@
-/* $Id: reader.c,v 1.57 2014/10/06 00:52:44 tom Exp $ */
+/* $Id: reader.c,v 1.58 2014/10/06 22:15:08 tom Exp $ */
 
 #include "defs.h"
 
@@ -127,7 +127,7 @@ get_line(void)
 	if (line)
 	    FREE(line);
 	linesize = LINESIZE + 1;
-	line = TCMALLOC(char, linesize);
+	line = TMALLOC(char, linesize);
 	NO_SPACE(line);
     }
 
@@ -135,10 +135,10 @@ get_line(void)
     ++lineno;
     for (;;)
     {
-	line[i] = (char)c;
+	line[i++] = (char)c;
 	if (c == '\n')
 	    break;
-	if (++i >= linesize)
+	if ((i + 3) >= linesize)
 	{
 	    linesize += LINESIZE;
 	    line = TREALLOC(char, line, linesize);
@@ -147,11 +147,12 @@ get_line(void)
 	c = getc(f);
 	if (c == EOF)
 	{
-	    line[i] = '\n';
+	    line[i++] = '\n';
 	    saw_eof = 1;
 	    break;
 	}
     }
+    line[i] = '\0';
     cptr = line;
     return;
 }
