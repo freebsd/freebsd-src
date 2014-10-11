@@ -504,8 +504,12 @@ autofs_node_new(struct autofs_node *parent, struct autofs_mount *amp,
 {
 	struct autofs_node *anp;
 
-	if (parent != NULL)
+	if (parent != NULL) {
 		AUTOFS_ASSERT_XLOCKED(parent->an_mount);
+
+		KASSERT(autofs_node_find(parent, name, namelen, NULL) == ENOENT,
+		    ("node \"%s\" already exists", name));
+	}
 
 	anp = uma_zalloc(autofs_node_zone, M_WAITOK | M_ZERO);
 	if (namelen >= 0)
