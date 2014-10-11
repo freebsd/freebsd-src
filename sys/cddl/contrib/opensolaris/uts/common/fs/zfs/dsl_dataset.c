@@ -21,7 +21,7 @@
 /*
  * Copyright (c) 2005, 2010, Oracle and/or its affiliates. All rights reserved.
  * Portions Copyright (c) 2011 Martin Matuska <mm@FreeBSD.org>
- * Copyright (c) 2013, 2014 by Delphix. All rights reserved.
+ * Copyright (c) 2011, 2014 by Delphix. All rights reserved.
  * Copyright (c) 2014, Joyent, Inc. All rights reserved.
  * Copyright (c) 2014 RackTop Systems.
  */
@@ -699,7 +699,13 @@ dsl_dataset_create_sync_dd(dsl_dir_t *dd, dsl_dataset_t *origin,
 		dsphys->ds_uncompressed_bytes =
 		    origin->ds_phys->ds_uncompressed_bytes;
 		dsphys->ds_bp = origin->ds_phys->ds_bp;
-		dsphys->ds_flags |= origin->ds_phys->ds_flags;
+
+		/*
+		 * Inherit flags that describe the dataset's contents
+		 * (INCONSISTENT) or properties (Case Insensitive).
+		 */
+		dsphys->ds_flags |= origin->ds_phys->ds_flags &
+		    (DS_FLAG_INCONSISTENT | DS_FLAG_CI_DATASET);
 
 		dmu_buf_will_dirty(origin->ds_dbuf, tx);
 		origin->ds_phys->ds_num_children++;
@@ -2257,6 +2263,9 @@ dsl_dataset_promote_sync(void *arg, dmu_tx_t *tx)
 	dsl_dir_t *odd = NULL;
 	uint64_t oldnext_obj;
 	int64_t delta;
+#if defined(__FreeBSD__) && defined(_KERNEL)
+	char *oldname, *newname;
+#endif
 
 	VERIFY0(promote_hold(ddpa, dp, FTAG));
 	hds = ddpa->ddpa_clone;
@@ -2322,6 +2331,14 @@ dsl_dataset_promote_sync(void *arg, dmu_tx_t *tx)
 		    dd->dd_phys->dd_clones, origin_head->ds_object, tx));
 	}
 
+#if defined(__FreeBSD__) && defined(_KERNEL)
+	/* Take the spa_namespace_lock early so zvol renames don't deadlock. */
+	mutex_enter(&spa_namespace_lock);
+
+	oldname = kmem_alloc(MAXPATHLEN, KM_SLEEP);
+	newname = kmem_alloc(MAXPATHLEN, KM_SLEEP);
+#endif
+
 	/* move snapshots to this dir */
 	for (snap = list_head(&ddpa->shared_snaps); snap;
 	    snap = list_next(&ddpa->shared_snaps, snap)) {
@@ -2355,6 +2372,12 @@ dsl_dataset_promote_sync(void *arg, dmu_tx_t *tx)
 		dsl_dir_rele(ds->ds_dir, ds);
 		VERIFY0(dsl_dir_hold_obj(dp, dd->dd_object,
 		    NULL, ds, &ds->ds_dir));
+
+#if defined(__FreeBSD__) && defined(_KERNEL)
+		dsl_dataset_name(ds, newname);
+		zfsvfs_update_fromname(oldname, newname);
+		zvol_rename_minors(oldname, newname);
+#endif
 
 		/* move any clone references */
 		if (ds->ds_phys->ds_next_clones_obj &&
@@ -2393,6 +2416,12 @@ dsl_dataset_promote_sync(void *arg, dmu_tx_t *tx)
 		ASSERT(!dsl_prop_hascb(ds));
 	}
 
+#if defined(__FreeBSD__) && defined(_KERNEL)
+	mutex_exit(&spa_namespace_lock);
+
+	kmem_free(newname, MAXPATHLEN);
+	kmem_free(oldname, MAXPATHLEN);
+#endif
 	/*
 	 * Change space accounting.
 	 * Note, pa->*usedsnap and dd_used_breakdown[SNAP] will either

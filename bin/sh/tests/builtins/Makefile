@@ -100,6 +100,7 @@ FILES+=		jobid2.0
 FILES+=		kill1.0 kill2.0
 FILES+=		lineno.0 lineno.0.stdout
 FILES+=		lineno2.0
+FILES+=		lineno3.0 lineno3.0.stdout
 FILES+=		local1.0
 FILES+=		local2.0
 FILES+=		local3.0

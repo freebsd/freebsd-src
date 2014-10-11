@@ -51,6 +51,7 @@ __FBSDID("$FreeBSD$");
 
 #include <machine/intr_machdep.h>
 #include <x86/apicvar.h>
+#include <x86/apicreg.h>
 #include <machine/smp.h>
 #include <machine/stdarg.h>
 
@@ -63,6 +64,7 @@ __FBSDID("$FreeBSD$");
 #include <xen/evtchn/evtchnvar.h>
 
 #include <dev/xen/xenpci/xenpcivar.h>
+#include <dev/pci/pcivar.h>
 
 #ifdef DDB
 #include <ddb/ddb.h>
@@ -1368,6 +1370,64 @@ xen_register_pirq(int vector, enum intr_trigger trig, enum intr_polarity pol)
 	isrc->xi_pirq = vector;
 	isrc->xi_activehi = pol == INTR_POLARITY_HIGH ? 1 : 0;
 	isrc->xi_edgetrigger = trig == INTR_TRIGGER_EDGE ? 1 : 0;
+
+	return (0);
+}
+
+int
+xen_register_msi(device_t dev, int vector, int count)
+{
+	struct physdev_map_pirq msi_irq;
+	struct xenisrc *isrc;
+	int ret;
+
+	memset(&msi_irq, 0, sizeof(msi_irq));
+	msi_irq.domid = DOMID_SELF;
+	msi_irq.type = count == 1 ?
+	    MAP_PIRQ_TYPE_MSI_SEG : MAP_PIRQ_TYPE_MULTI_MSI;
+	msi_irq.index = -1;
+	msi_irq.pirq = -1;
+	msi_irq.bus = pci_get_bus(dev) | (pci_get_domain(dev) << 16);
+	msi_irq.devfn = (pci_get_slot(dev) << 3) | pci_get_function(dev);
+	msi_irq.entry_nr = count;
+
+	ret = HYPERVISOR_physdev_op(PHYSDEVOP_map_pirq, &msi_irq);
+	if (ret != 0)
+		return (ret);
+	if (count != msi_irq.entry_nr) {
+		panic("unable to setup all requested MSI vectors "
+		    "(expected %d got %d)", count, msi_irq.entry_nr);
+	}
+
+	mtx_lock(&xen_intr_isrc_lock);
+	for (int i = 0; i < count; i++) {
+		isrc = xen_intr_alloc_isrc(EVTCHN_TYPE_PIRQ, vector + i);
+		KASSERT(isrc != NULL,
+		    ("xen: unable to allocate isrc for interrupt"));
+		isrc->xi_pirq = msi_irq.pirq + i;
+	}
+	mtx_unlock(&xen_intr_isrc_lock);
+
+	return (0);
+}
+
+int
+xen_release_msi(int vector)
+{
+	struct physdev_unmap_pirq unmap;
+	struct xenisrc *isrc;
+	int ret;
+
+	isrc = (struct xenisrc *)intr_lookup_source(vector);
+	if (isrc == NULL)
+		return (ENXIO);
+
+	unmap.pirq = isrc->xi_pirq;
+	ret = HYPERVISOR_physdev_op(PHYSDEVOP_unmap_pirq, &unmap);
+	if (ret != 0)
+		return (ret);
+
+	xen_intr_release_isrc(isrc);
 
 	return (0);
 }

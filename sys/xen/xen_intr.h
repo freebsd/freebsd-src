@@ -224,4 +224,26 @@ void xen_intr_signal(xen_intr_handle_t handle);
  */
 evtchn_port_t xen_intr_port(xen_intr_handle_t handle);
 
+/**
+ * Setup MSI vector interrupt(s).
+ *
+ * \param dev     The device that requests the binding.
+ *
+ * \param vector  Requested initial vector to bind the MSI interrupt(s) to.
+ *
+ * \param count   Number of vectors to allocate.
+ *
+ * \returns  0 on success, otherwise an errno.
+ */
+int xen_register_msi(device_t dev, int vector, int count);
+
+/**
+ * Teardown a MSI vector interrupt.
+ *
+ * \param vector  Requested vector to release.
+ *
+ * \returns  0 on success, otherwise an errno.
+ */
+int xen_release_msi(int vector);
+
 #endif /* _XEN_INTR_H_ */

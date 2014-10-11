@@ -545,22 +545,25 @@ devfs_close(struct vop_close_args *ap)
 	 * if the reference count is 2 (this last descriptor
 	 * plus the session), release the reference from the session.
 	 */
-	oldvp = NULL;
-	sx_xlock(&proctree_lock);
 	if (td && vp == td->td_proc->p_session->s_ttyvp) {
-		SESS_LOCK(td->td_proc->p_session);
-		VI_LOCK(vp);
-		if (count_dev(dev) == 2 && (vp->v_iflag & VI_DOOMED) == 0) {
-			td->td_proc->p_session->s_ttyvp = NULL;
-			td->td_proc->p_session->s_ttydp = NULL;
-			oldvp = vp;
+		oldvp = NULL;
+		sx_xlock(&proctree_lock);
+		if (vp == td->td_proc->p_session->s_ttyvp) {
+			SESS_LOCK(td->td_proc->p_session);
+			VI_LOCK(vp);
+			if (count_dev(dev) == 2 &&
+			    (vp->v_iflag & VI_DOOMED) == 0) {
+				td->td_proc->p_session->s_ttyvp = NULL;
+				td->td_proc->p_session->s_ttydp = NULL;
+				oldvp = vp;
+			}
+			VI_UNLOCK(vp);
+			SESS_UNLOCK(td->td_proc->p_session);
 		}
-		VI_UNLOCK(vp);
-		SESS_UNLOCK(td->td_proc->p_session);
+		sx_xunlock(&proctree_lock);
+		if (oldvp != NULL)
+			vrele(oldvp);
 	}
-	sx_xunlock(&proctree_lock);
-	if (oldvp != NULL)
-		vrele(oldvp);
 	/*
 	 * We do not want to really close the device if it
 	 * is still in use unless we are trying to close it

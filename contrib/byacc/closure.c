@@ -1,4 +1,4 @@
-/* $Id: closure.c,v 1.10 2014/02/19 00:45:42 Tom.Shields Exp $ */
+/* $Id: closure.c,v 1.11 2014/09/18 00:40:07 tom Exp $ */
 
 #include "defs.h"
 
@@ -6,6 +6,7 @@ Value_t *itemset;
 Value_t *itemsetend;
 unsigned *ruleset;
 
+static unsigned *first_base;
 static unsigned *first_derives;
 static unsigned *EFF;
 
@@ -68,7 +69,8 @@ set_first_derives(void)
 
     rulesetsize = WORDSIZE(nrules);
     varsetsize = WORDSIZE(nvars);
-    first_derives = NEW2(nvars * rulesetsize, unsigned) - ntokens * rulesetsize;
+    first_base = NEW2(nvars * rulesetsize, unsigned);
+    first_derives = first_base - ntokens * rulesetsize;
 
     set_EFF();
 
@@ -176,7 +178,7 @@ finalize_closure(void)
 {
     FREE(itemset);
     FREE(ruleset);
-    FREE(first_derives + ntokens * WORDSIZE(nrules));
+    FREE(first_base);
 }
 
 #ifdef	DEBUG

@@ -293,7 +293,7 @@ static struct scsi_control_page control_page_changeable = {
 	/*page_length*/sizeof(struct scsi_control_page) - 2,
 	/*rlec*/SCP_DSENSE,
 	/*queue_flags*/SCP_QUEUE_ALG_MASK,
-	/*eca_and_aen*/0,
+	/*eca_and_aen*/SCP_SWP,
 	/*flags4*/0,
 	/*aen_holdoff_period*/{0, 0},
 	/*busy_timeout_period*/{0, 0},
@@ -2990,12 +2990,11 @@ ctl_ioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flag,
 			for (j = 0; j < (CTL_MAX_PORTS * 2); j++) {
 				for (k = 0; k < CTL_MAX_INIT_PER_PORT; k++){
 					idx = j * CTL_MAX_INIT_PER_PORT + k;
-					if (lun->per_res[idx].registered == 0)
+					if (lun->pr_keys[idx] == 0)
 						continue;
 					printf("  LUN %d port %d iid %d key "
 					       "%#jx\n", i, j, k,
-					       (uintmax_t)scsi_8btou64(
-					       lun->per_res[idx].res_key.key));
+					       (uintmax_t)lun->pr_keys[idx]);
 				}
 			}
 		}
@@ -4447,7 +4446,7 @@ ctl_alloc_lun(struct ctl_softc *ctl_softc, struct ctl_lun *ctl_lun,
 	struct ctl_port *port;
 	struct scsi_vpd_id_descriptor *desc;
 	struct scsi_vpd_id_t10 *t10id;
-	const char *eui, *naa, *scsiname, *vendor;
+	const char *eui, *naa, *scsiname, *vendor, *value;
 	int lun_number, i, lun_malloced;
 	int devidlen, idlen1, idlen2 = 0, len;
 
@@ -4600,6 +4599,9 @@ ctl_alloc_lun(struct ctl_softc *ctl_softc, struct ctl_lun *ctl_lun,
 	be_lun->ctl_lun = lun;
 	be_lun->lun_id = lun_number;
 	atomic_add_int(&be_lun->be->num_luns, 1);
+	if (be_lun->flags & CTL_LUN_FLAG_OFFLINE)
+		lun->flags |= CTL_LUN_OFFLINE;
+
 	if (be_lun->flags & CTL_LUN_FLAG_POWERED_OFF)
 		lun->flags |= CTL_LUN_STOPPED;
 
@@ -4608,6 +4610,10 @@ ctl_alloc_lun(struct ctl_softc *ctl_softc, struct ctl_lun *ctl_lun,
 
 	if (be_lun->flags & CTL_LUN_FLAG_PRIMARY)
 		lun->flags |= CTL_LUN_PRIMARY_SC;
+
+	value = ctl_get_opt(&be_lun->options, "readonly");
+	if (value != NULL && strcmp(value, "on") == 0)
+		lun->flags |= CTL_LUN_READONLY;
 
 	lun->ctl_softc = ctl_softc;
 	TAILQ_INIT(&lun->ooa_queue);
@@ -5532,7 +5538,7 @@ ctl_start_stop(struct ctl_scsiio *ctsio)
 		uint32_t residx;
 
 		residx = ctl_get_resindex(&ctsio->io_hdr.nexus);
-		if (!lun->per_res[residx].registered
+		if (lun->pr_keys[residx] == 0
 		 || (lun->pr_res_idx!=residx && lun->res_type < 4)) {
 
 			ctl_set_reservation_conflict(ctsio);
@@ -5823,7 +5829,7 @@ ctl_read_buffer(struct ctl_scsiio *ctsio)
 		  && residx != lun->pr_res_idx)
 		 || ((lun->res_type == SPR_TYPE_EX_AC_RO
 		   || lun->res_type == SPR_TYPE_EX_AC_AR)
-		  && !lun->per_res[residx].registered)) {
+		  && lun->pr_keys[residx] == 0)) {
 			ctl_set_reservation_conflict(ctsio);
 			ctl_done((union ctl_io *)ctsio);
 			return (CTL_RETVAL_COMPLETE);
@@ -6217,6 +6223,14 @@ ctl_control_page_handler(struct ctl_scsiio *ctsio,
 		current_cp->queue_flags |= user_cp->queue_flags & SCP_QUEUE_ALG_MASK;
 		saved_cp->queue_flags &= ~SCP_QUEUE_ALG_MASK;
 		saved_cp->queue_flags |= user_cp->queue_flags & SCP_QUEUE_ALG_MASK;
+		set_ua = 1;
+	}
+	if ((current_cp->eca_and_aen & SCP_SWP) !=
+	    (user_cp->eca_and_aen & SCP_SWP)) {
+		current_cp->eca_and_aen &= ~SCP_SWP;
+		current_cp->eca_and_aen |= user_cp->eca_and_aen & SCP_SWP;
+		saved_cp->eca_and_aen &= ~SCP_SWP;
+		saved_cp->eca_and_aen |= user_cp->eca_and_aen & SCP_SWP;
 		set_ua = 1;
 	}
 	if (set_ua != 0) {
@@ -6870,7 +6884,7 @@ ctl_mode_sense(struct ctl_scsiio *ctsio)
 		  && residx != lun->pr_res_idx)
 		 || ((lun->res_type == SPR_TYPE_EX_AC_RO
 		   || lun->res_type == SPR_TYPE_EX_AC_AR)
-		  && !lun->per_res[residx].registered)) {
+		  && lun->pr_keys[residx] == 0)) {
 			ctl_set_reservation_conflict(ctsio);
 			ctl_done((union ctl_io *)ctsio);
 			return (CTL_RETVAL_COMPLETE);
@@ -7045,8 +7059,13 @@ ctl_mode_sense(struct ctl_scsiio *ctsio)
 		header = (struct scsi_mode_hdr_6 *)ctsio->kern_data_ptr;
 
 		header->datalen = ctl_min(total_len - 1, 254);
-		if (control_dev == 0)
+		if (control_dev == 0) {
 			header->dev_specific = 0x10; /* DPOFUA */
+			if ((lun->flags & CTL_LUN_READONLY) ||
+			    (lun->mode_pages.control_page[CTL_PAGE_CURRENT]
+			    .eca_and_aen & SCP_SWP) != 0)
+				    header->dev_specific |= 0x80; /* WP */
+		}
 		if (dbd)
 			header->block_descr_len = 0;
 		else
@@ -7063,8 +7082,13 @@ ctl_mode_sense(struct ctl_scsiio *ctsio)
 
 		datalen = ctl_min(total_len - 2, 65533);
 		scsi_ulto2b(datalen, header->datalen);
-		if (control_dev == 0)
+		if (control_dev == 0) {
 			header->dev_specific = 0x10; /* DPOFUA */
+			if ((lun->flags & CTL_LUN_READONLY) ||
+			    (lun->mode_pages.control_page[CTL_PAGE_CURRENT]
+			    .eca_and_aen & SCP_SWP) != 0)
+				    header->dev_specific |= 0x80; /* WP */
+		}
 		if (dbd)
 			scsi_ulto2b(0, header->block_descr_len);
 		else
@@ -7803,7 +7827,7 @@ retry:
 			     lun->pr_key_count, res_keys->header.length);
 
 		for (i = 0, key_count = 0; i < 2*CTL_MAX_INITIATORS; i++) {
-			if (!lun->per_res[i].registered)
+			if (lun->pr_keys[i] == 0)
 				continue;
 
 			/*
@@ -7829,10 +7853,8 @@ retry:
 				key_count++;
 				continue;
 			}
-			memcpy(res_keys->keys[key_count].key,
-			       lun->per_res[i].res_key.key,
-			       ctl_min(sizeof(res_keys->keys[key_count].key),
-			       sizeof(lun->per_res[i].res_key)));
+			scsi_u64to8b(lun->pr_keys[i],
+			    res_keys->keys[key_count].key);
 			key_count++;
 		}
 		break;
@@ -7883,9 +7905,8 @@ retry:
 		 * is 0, since it doesn't really matter.
 		 */
 		if (lun->pr_res_idx != CTL_PR_ALL_REGISTRANTS) {
-			memcpy(res->data.reservation,
-			       &lun->per_res[lun->pr_res_idx].res_key,
-			       sizeof(struct scsi_per_res_key));
+			scsi_u64to8b(lun->pr_keys[lun->pr_res_idx],
+			    res->data.reservation);
 		}
 		res->data.scopetype = lun->res_type;
 		break;
@@ -7936,11 +7957,10 @@ retry:
 
 		res_desc = &res_status->desc[0];
 		for (i = 0; i < 2*CTL_MAX_INITIATORS; i++) {
-			if (!lun->per_res[i].registered)
+			if (lun->pr_keys[i] == 0)
 				continue;
 
-			memcpy(&res_desc->res_key, &lun->per_res[i].res_key.key,
-			    sizeof(res_desc->res_key));
+			scsi_u64to8b(lun->pr_keys[i], res_desc->res_key.key);
 			if ((lun->flags & CTL_LUN_PR_RESERVED) &&
 			    (lun->pr_res_idx == i ||
 			     lun->pr_res_idx == CTL_PR_ALL_REGISTRANTS)) {
@@ -8033,15 +8053,12 @@ ctl_pro_preempt(struct ctl_softc *softc, struct ctl_lun *lun, uint64_t res_key,
 				return (1);
 		        }
 
-			/* temporarily unregister this nexus */
-			lun->per_res[residx].registered = 0;
-
 			/*
 			 * Unregister everybody else and build UA for
 			 * them
 			 */
 			for(i=0; i < 2*CTL_MAX_INITIATORS; i++) {
-				if (lun->per_res[i].registered == 0)
+				if (i == residx || lun->pr_keys[i] == 0)
 					continue;
 
 				if (!persis_offset
@@ -8052,11 +8069,8 @@ ctl_pro_preempt(struct ctl_softc *softc, struct ctl_lun *lun, uint64_t res_key,
 				      && i >= persis_offset)
 					lun->pending_ua[i-persis_offset] |=
 						CTL_UA_REG_PREEMPT;
-				lun->per_res[i].registered = 0;
-				memset(&lun->per_res[i].res_key, 0,
-				       sizeof(struct scsi_per_res_key));
+				lun->pr_keys[i] = 0;
 			}
-			lun->per_res[residx].registered = 1;
 			lun->pr_key_count = 1;
 			lun->res_type = type;
 			if (lun->res_type != SPR_TYPE_WR_EX_AR
@@ -8120,16 +8134,11 @@ ctl_pro_preempt(struct ctl_softc *softc, struct ctl_lun *lun, uint64_t res_key,
 		}
 
 		for (i=0; i < 2*CTL_MAX_INITIATORS; i++) {
-			if (lun->per_res[i].registered
-			 && memcmp(param->serv_act_res_key,
-			    lun->per_res[i].res_key.key,
-			    sizeof(struct scsi_per_res_key)) != 0)
+			if (lun->pr_keys[i] != sa_res_key)
 				continue;
 
 			found = 1;
-			lun->per_res[i].registered = 0;
-			memset(&lun->per_res[i].res_key, 0,
-			       sizeof(struct scsi_per_res_key));
+			lun->pr_keys[i] = 0;
 			lun->pr_key_count--;
 
 			if (!persis_offset && i < CTL_MAX_INITIATORS)
@@ -8163,9 +8172,7 @@ ctl_pro_preempt(struct ctl_softc *softc, struct ctl_lun *lun, uint64_t res_key,
 	} else {
 		/* Reserved but not all registrants */
 		/* sa_res_key is res holder */
-		if (memcmp(param->serv_act_res_key,
-                   lun->per_res[lun->pr_res_idx].res_key.key,
-                   sizeof(struct scsi_per_res_key)) == 0) {
+		if (sa_res_key == lun->pr_keys[lun->pr_res_idx]) {
 			/* validate scope and type */
 			if ((cdb->scope_type & SPR_SCOPE_MASK) !=
 			     SPR_LU_SCOPE) {
@@ -8206,22 +8213,12 @@ ctl_pro_preempt(struct ctl_softc *softc, struct ctl_lun *lun, uint64_t res_key,
 			 * except don't unregister the res holder.
 			 */
 
-			/*
-			 * Temporarily unregister so it won't get
-			 * removed or UA generated
-			 */
-			lun->per_res[residx].registered = 0;
 			for(i=0; i < 2*CTL_MAX_INITIATORS; i++) {
-				if (lun->per_res[i].registered == 0)
+				if (i == residx || lun->pr_keys[i] == 0)
 					continue;
 
-				if (memcmp(param->serv_act_res_key,
-				    lun->per_res[i].res_key.key,
-				    sizeof(struct scsi_per_res_key)) == 0) {
-					lun->per_res[i].registered = 0;
-					memset(&lun->per_res[i].res_key,
-					       0,
-					       sizeof(struct scsi_per_res_key));
+				if (sa_res_key == lun->pr_keys[i]) {
+					lun->pr_keys[i] = 0;
 					lun->pr_key_count--;
 
 					if (!persis_offset
@@ -8246,7 +8243,6 @@ ctl_pro_preempt(struct ctl_softc *softc, struct ctl_lun *lun, uint64_t res_key,
 							CTL_UA_RES_RELEASE;
 				}
 			}
-			lun->per_res[residx].registered = 1;
 			lun->res_type = type;
 			if (lun->res_type != SPR_TYPE_WR_EX_AR
 			 && lun->res_type != SPR_TYPE_EX_AC_AR)
@@ -8277,15 +8273,11 @@ ctl_pro_preempt(struct ctl_softc *softc, struct ctl_lun *lun, uint64_t res_key,
 			int found=0;
 
 			for (i=0; i < 2*CTL_MAX_INITIATORS; i++) {
-				if (memcmp(param->serv_act_res_key,
-				    lun->per_res[i].res_key.key,
-				    sizeof(struct scsi_per_res_key)) != 0)
+				if (sa_res_key != lun->pr_keys[i])
 					continue;
 
 				found = 1;
-				lun->per_res[i].registered = 0;
-				memset(&lun->per_res[i].res_key, 0,
-				       sizeof(struct scsi_per_res_key));
+				lun->pr_keys[i] = 0;
 				lun->pr_key_count--;
 
 				if (!persis_offset
@@ -8332,26 +8324,22 @@ ctl_pro_preempt(struct ctl_softc *softc, struct ctl_lun *lun, uint64_t res_key,
 static void
 ctl_pro_preempt_other(struct ctl_lun *lun, union ctl_ha_msg *msg)
 {
+	uint64_t sa_res_key;
 	int i;
+
+	sa_res_key = scsi_8btou64(msg->pr.pr_info.sa_res_key);
 
 	if (lun->pr_res_idx == CTL_PR_ALL_REGISTRANTS
 	 || lun->pr_res_idx == CTL_PR_NO_RESERVATION
-	 || memcmp(&lun->per_res[lun->pr_res_idx].res_key,
-		   msg->pr.pr_info.sa_res_key,
-		   sizeof(struct scsi_per_res_key)) != 0) {
-		uint64_t sa_res_key;
-		sa_res_key = scsi_8btou64(msg->pr.pr_info.sa_res_key);
-
+	 || sa_res_key != lun->pr_keys[lun->pr_res_idx]) {
 		if (sa_res_key == 0) {
-			/* temporarily unregister this nexus */
-			lun->per_res[msg->pr.pr_info.residx].registered = 0;
-
 			/*
 			 * Unregister everybody else and build UA for
 			 * them
 			 */
 			for(i=0; i < 2*CTL_MAX_INITIATORS; i++) {
-				if (lun->per_res[i].registered == 0)
+				if (i == msg->pr.pr_info.residx ||
+				    lun->pr_keys[i] == 0)
 					continue;
 
 				if (!persis_offset
@@ -8361,12 +8349,9 @@ ctl_pro_preempt_other(struct ctl_lun *lun, union ctl_ha_msg *msg)
 				else if (persis_offset && i >= persis_offset)
 					lun->pending_ua[i - persis_offset] |=
 						CTL_UA_REG_PREEMPT;
-				lun->per_res[i].registered = 0;
-				memset(&lun->per_res[i].res_key, 0,
-				       sizeof(struct scsi_per_res_key));
+				lun->pr_keys[i] = 0;
 			}
 
-			lun->per_res[msg->pr.pr_info.residx].registered = 1;
 			lun->pr_key_count = 1;
 			lun->res_type = msg->pr.pr_info.res_type;
 			if (lun->res_type != SPR_TYPE_WR_EX_AR
@@ -8374,14 +8359,10 @@ ctl_pro_preempt_other(struct ctl_lun *lun, union ctl_ha_msg *msg)
 				lun->pr_res_idx = msg->pr.pr_info.residx;
 		} else {
 		        for (i=0; i < 2*CTL_MAX_INITIATORS; i++) {
-				if (memcmp(msg->pr.pr_info.sa_res_key,
-		                   lun->per_res[i].res_key.key,
-		                   sizeof(struct scsi_per_res_key)) != 0)
+				if (sa_res_key == lun->pr_keys[i])
 					continue;
 
-				lun->per_res[i].registered = 0;
-				memset(&lun->per_res[i].res_key, 0,
-				       sizeof(struct scsi_per_res_key));
+				lun->pr_keys[i] = 0;
 				lun->pr_key_count--;
 
 				if (!persis_offset
@@ -8395,21 +8376,13 @@ ctl_pro_preempt_other(struct ctl_lun *lun, union ctl_ha_msg *msg)
 			}
 		}
 	} else {
-		/*
-		 * Temporarily unregister so it won't get removed
-		 * or UA generated
-		 */
-		lun->per_res[msg->pr.pr_info.residx].registered = 0;
 		for (i=0; i < 2*CTL_MAX_INITIATORS; i++) {
-			if (lun->per_res[i].registered == 0)
+			if (i == msg->pr.pr_info.residx ||
+			    lun->pr_keys[i] == 0)
 				continue;
 
-			if (memcmp(msg->pr.pr_info.sa_res_key,
-	                   lun->per_res[i].res_key.key,
-	                   sizeof(struct scsi_per_res_key)) == 0) {
-				lun->per_res[i].registered = 0;
-				memset(&lun->per_res[i].res_key, 0,
-				       sizeof(struct scsi_per_res_key));
+			if (sa_res_key == lun->pr_keys[i]) {
+				lun->pr_keys[i] = 0;
 				lun->pr_key_count--;
 				if (!persis_offset
 				 && i < CTL_MAX_INITIATORS)
@@ -8432,7 +8405,6 @@ ctl_pro_preempt_other(struct ctl_lun *lun, union ctl_ha_msg *msg)
 						CTL_UA_RES_RELEASE;
 			}
 		}
-		lun->per_res[msg->pr.pr_info.residx].registered = 1;
 		lun->res_type = msg->pr.pr_info.res_type;
 		if (lun->res_type != SPR_TYPE_WR_EX_AR
 		 && lun->res_type != SPR_TYPE_EX_AC_AR)
@@ -8530,11 +8502,8 @@ ctl_persistent_reserve_out(struct ctl_scsiio *ctsio)
 	 */
 	if ((cdb->action & SPRO_ACTION_MASK) != SPRO_REG_IGNO) {
 		mtx_lock(&lun->lun_lock);
-		if (lun->per_res[residx].registered) {
-		    if (memcmp(param->res_key.key,
-			       lun->per_res[residx].res_key.key,
-			       ctl_min(sizeof(param->res_key),
-			       sizeof(lun->per_res[residx].res_key))) != 0) {
+		if (lun->pr_keys[residx] != 0) {
+		    if (res_key != lun->pr_keys[residx]) {
 				/*
 				 * The current key passed in doesn't match
 				 * the one the initiator previously
@@ -8615,14 +8584,12 @@ ctl_persistent_reserve_out(struct ctl_scsiio *ctsio)
 			if ((res_key == 0
 			  && (cdb->action & SPRO_ACTION_MASK) == SPRO_REGISTER)
 			 || ((cdb->action & SPRO_ACTION_MASK) == SPRO_REG_IGNO
-			  && !lun->per_res[residx].registered)) {
+			  && lun->pr_keys[residx] == 0)) {
 				mtx_unlock(&lun->lun_lock);
 				goto done;
 			}
 
-			lun->per_res[residx].registered = 0;
-			memset(&lun->per_res[residx].res_key,
-			       0, sizeof(lun->per_res[residx].res_key));
+			lun->pr_keys[residx] = 0;
 			lun->pr_key_count--;
 
 			if (residx == lun->pr_res_idx) {
@@ -8641,9 +8608,8 @@ ctl_persistent_reserve_out(struct ctl_scsiio *ctsio)
 					 */
 
 					for (i = 0; i < CTL_MAX_INITIATORS;i++){
-						if (lun->per_res[
-						    i+persis_offset].registered
-						    == 0)
+						if (lun->pr_keys[
+						    i + persis_offset] == 0)
 							continue;
 						lun->pending_ua[i] |=
 							CTL_UA_RES_RELEASE;
@@ -8673,15 +8639,9 @@ ctl_persistent_reserve_out(struct ctl_scsiio *ctsio)
 			 * If we aren't registered currently then increment
 			 * the key count and set the registered flag.
 			 */
-			if (!lun->per_res[residx].registered) {
+			if (lun->pr_keys[residx] == 0)
 				lun->pr_key_count++;
-				lun->per_res[residx].registered = 1;
-			}
-
-			memcpy(&lun->per_res[residx].res_key,
-			       param->serv_act_res_key,
-			       ctl_min(sizeof(param->serv_act_res_key),
-			       sizeof(lun->per_res[residx].res_key)));
+			lun->pr_keys[residx] = sa_res_key;
 
 			persis_io.hdr.nexus = ctsio->io_hdr.nexus;
 			persis_io.hdr.msg_type = CTL_MSG_PERS_ACTION;
@@ -8794,20 +8754,12 @@ ctl_persistent_reserve_out(struct ctl_scsiio *ctsio)
 		 */
 		if (type != SPR_TYPE_EX_AC
 		 && type != SPR_TYPE_WR_EX) {
-			/*
-			 * temporarily unregister so we don't generate UA
-			 */
-			lun->per_res[residx].registered = 0;
-
 			for (i = 0; i < CTL_MAX_INITIATORS; i++) {
-				if (lun->per_res[i+persis_offset].registered
-				    == 0)
+				if (i == residx ||
+				    lun->pr_keys[i + persis_offset] == 0)
 					continue;
-				lun->pending_ua[i] |=
-					CTL_UA_RES_RELEASE;
+				lun->pending_ua[i] |= CTL_UA_RES_RELEASE;
 			}
-
-			lun->per_res[residx].registered = 1;
 		}
 		mtx_unlock(&lun->lun_lock);
 		/* Send msg to other side */
@@ -8830,13 +8782,10 @@ ctl_persistent_reserve_out(struct ctl_scsiio *ctsio)
 		lun->pr_key_count = 0;
 		lun->pr_res_idx = CTL_PR_NO_RESERVATION;
 
-
-		memset(&lun->per_res[residx].res_key,
-		       0, sizeof(lun->per_res[residx].res_key));
-		lun->per_res[residx].registered = 0;
+		lun->pr_keys[residx] = 0;
 
 		for (i=0; i < 2*CTL_MAX_INITIATORS; i++)
-			if (lun->per_res[i].registered) {
+			if (lun->pr_keys[i] != 0) {
 				if (!persis_offset && i < CTL_MAX_INITIATORS)
 					lun->pending_ua[i] |=
 						CTL_UA_RES_PREEMPT;
@@ -8844,9 +8793,7 @@ ctl_persistent_reserve_out(struct ctl_scsiio *ctsio)
 					lun->pending_ua[i-persis_offset] |=
 					    CTL_UA_RES_PREEMPT;
 
-				memset(&lun->per_res[i].res_key,
-				       0, sizeof(struct scsi_per_res_key));
-				lun->per_res[i].registered = 0;
+				lun->pr_keys[i] = 0;
 			}
 		lun->PRGeneration++;
 		mtx_unlock(&lun->lun_lock);
@@ -8902,20 +8849,15 @@ ctl_hndl_per_res_out_on_other_sc(union ctl_ha_msg *msg)
 	mtx_lock(&lun->lun_lock);
 	switch(msg->pr.pr_info.action) {
 	case CTL_PR_REG_KEY:
-		if (!lun->per_res[msg->pr.pr_info.residx].registered) {
-			lun->per_res[msg->pr.pr_info.residx].registered = 1;
+		if (lun->pr_keys[msg->pr.pr_info.residx] == 0)
 			lun->pr_key_count++;
-		}
+		lun->pr_keys[msg->pr.pr_info.residx] =
+		    scsi_8btou64(msg->pr.pr_info.sa_res_key);
 		lun->PRGeneration++;
-		memcpy(&lun->per_res[msg->pr.pr_info.residx].res_key,
-		       msg->pr.pr_info.sa_res_key,
-		       sizeof(struct scsi_per_res_key));
 		break;
 
 	case CTL_PR_UNREG_KEY:
-		lun->per_res[msg->pr.pr_info.residx].registered = 0;
-		memset(&lun->per_res[msg->pr.pr_info.residx].res_key,
-		       0, sizeof(struct scsi_per_res_key));
+		lun->pr_keys[msg->pr.pr_info.residx] = 0;
 		lun->pr_key_count--;
 
 		/* XXX Need to see if the reservation has been released */
@@ -8936,8 +8878,8 @@ ctl_hndl_per_res_out_on_other_sc(union ctl_ha_msg *msg)
 				 */
 
 				for (i = 0; i < CTL_MAX_INITIATORS; i++) {
-					if (lun->per_res[i+
-					    persis_offset].registered == 0)
+					if (lun->pr_keys[i+
+					    persis_offset] == 0)
 						continue;
 
 					lun->pending_ua[i] |=
@@ -8970,7 +8912,7 @@ ctl_hndl_per_res_out_on_other_sc(union ctl_ha_msg *msg)
 		if (lun->res_type != SPR_TYPE_EX_AC
 		 && lun->res_type != SPR_TYPE_WR_EX) {
 			for (i = 0; i < CTL_MAX_INITIATORS; i++)
-				if (lun->per_res[i+persis_offset].registered)
+				if (lun->pr_keys[i+persis_offset] != 0)
 					lun->pending_ua[i] |=
 						CTL_UA_RES_RELEASE;
 		}
@@ -8990,7 +8932,7 @@ ctl_hndl_per_res_out_on_other_sc(union ctl_ha_msg *msg)
 		lun->pr_res_idx = CTL_PR_NO_RESERVATION;
 
 		for (i=0; i < 2*CTL_MAX_INITIATORS; i++) {
-			if (lun->per_res[i].registered == 0)
+			if (lun->pr_keys[i] == 0)
 				continue;
 			if (!persis_offset
 			 && i < CTL_MAX_INITIATORS)
@@ -8999,9 +8941,7 @@ ctl_hndl_per_res_out_on_other_sc(union ctl_ha_msg *msg)
 			      && i >= persis_offset)
 				lun->pending_ua[i-persis_offset] |=
 					CTL_UA_RES_PREEMPT;
-			memset(&lun->per_res[i].res_key, 0,
-			       sizeof(struct scsi_per_res_key));
-			lun->per_res[i].registered = 0;
+			lun->pr_keys[i] = 0;
 		}
 		lun->PRGeneration++;
 		break;
@@ -9040,7 +8980,7 @@ ctl_read_write(struct ctl_scsiio *ctsio)
 		  && residx != lun->pr_res_idx)
 		 || ((lun->res_type == SPR_TYPE_EX_AC_RO
 		   || lun->res_type == SPR_TYPE_EX_AC_AR)
-		  && !lun->per_res[residx].registered)) {
+		  && lun->pr_keys[residx] == 0)) {
 			ctl_set_reservation_conflict(ctsio);
 			ctl_done((union ctl_io *)ctsio);
 			return (CTL_RETVAL_COMPLETE);
@@ -9124,6 +9064,31 @@ ctl_read_write(struct ctl_scsiio *ctsio)
 			flags |= CTL_LLF_DPO;
 		lba = scsi_8btou64(cdb->addr);
 		num_blocks = scsi_4btoul(cdb->length);
+		break;
+	}
+	case WRITE_ATOMIC_16: {
+		struct scsi_rw_16 *cdb;
+
+		if (lun->be_lun->atomicblock == 0) {
+			ctl_set_invalid_opcode(ctsio);
+			ctl_done((union ctl_io *)ctsio);
+			return (CTL_RETVAL_COMPLETE);
+		}
+
+		cdb = (struct scsi_rw_16 *)ctsio->cdb;
+		if (cdb->byte2 & SRW12_FUA)
+			flags |= CTL_LLF_FUA;
+		if (cdb->byte2 & SRW12_DPO)
+			flags |= CTL_LLF_DPO;
+		lba = scsi_8btou64(cdb->addr);
+		num_blocks = scsi_4btoul(cdb->length);
+		if (num_blocks > lun->be_lun->atomicblock) {
+			ctl_set_invalid_field(ctsio, /*sks_valid*/ 1,
+			    /*command*/ 1, /*field*/ 12, /*bit_valid*/ 0,
+			    /*bit*/ 0);
+			ctl_done((union ctl_io *)ctsio);
+			return (CTL_RETVAL_COMPLETE);
+		}
 		break;
 	}
 	case WRITE_VERIFY_16: {
@@ -9912,9 +9877,7 @@ ctl_inquiry_evpd_eid(struct ctl_scsiio *ctsio, int alloc_len)
 
 	lun = (struct ctl_lun *)ctsio->io_hdr.ctl_private[CTL_PRIV_LUN].ptr;
 
-	data_len = sizeof(struct scsi_vpd_mode_page_policy) +
-	    sizeof(struct scsi_vpd_mode_page_policy_descr);
-
+	data_len = sizeof(struct scsi_vpd_extended_inquiry_data);
 	ctsio->kern_data_ptr = malloc(data_len, M_CTL, M_WAITOK | M_ZERO);
 	eid_ptr = (struct scsi_vpd_extended_inquiry_data *)ctsio->kern_data_ptr;
 	ctsio->kern_sg_entries = 0;
@@ -10301,6 +10264,10 @@ ctl_inquiry_evpd_block_limits(struct ctl_scsiio *ctsio, int alloc_len)
 				    bl_ptr->unmap_grain_align);
 			}
 		}
+		scsi_ulto4b(lun->be_lun->atomicblock,
+		    bl_ptr->max_atomic_transfer_length);
+		scsi_ulto4b(0, bl_ptr->atomic_alignment);
+		scsi_ulto4b(0, bl_ptr->atomic_transfer_length_granularity);
 	}
 	scsi_u64to8b(UINT64_MAX, bl_ptr->max_write_same_length);
 
@@ -10696,13 +10663,13 @@ ctl_inquiry_std(struct ctl_scsiio *ctsio)
 	}
 
 	if (lun == NULL) {
-		/* SBC-3 (no version claimed) */
-		scsi_ulto2b(0x04C0, inq_ptr->version4);
+		/* SBC-4 (no version claimed) */
+		scsi_ulto2b(0x0600, inq_ptr->version4);
 	} else {
 		switch (lun->be_lun->lun_type) {
 		case T_DIRECT:
-			/* SBC-3 (no version claimed) */
-			scsi_ulto2b(0x04C0, inq_ptr->version4);
+			/* SBC-4 (no version claimed) */
+			scsi_ulto2b(0x0600, inq_ptr->version4);
 			break;
 		case T_PROCESSOR:
 		default:
@@ -10820,7 +10787,8 @@ ctl_get_lba_len(union ctl_io *io, uint64_t *lba, uint64_t *len)
 		break;
 	}
 	case READ_16:
-	case WRITE_16: {
+	case WRITE_16:
+	case WRITE_ATOMIC_16: {
 		struct scsi_rw_16 *cdb;
 
 		cdb = (struct scsi_rw_16 *)io->scsiio.cdb;
@@ -10834,7 +10802,6 @@ ctl_get_lba_len(union ctl_io *io, uint64_t *lba, uint64_t *len)
 
 		cdb = (struct scsi_write_verify_16 *)io->scsiio.cdb;
 
-		
 		*lba = scsi_8btou64(cdb->addr);
 		*len = scsi_4btoul(cdb->length);
 		break;
@@ -11286,6 +11253,24 @@ ctl_scsiio_lun_check(struct ctl_softc *ctl_softc, struct ctl_lun *lun,
 	}
 #endif
 
+	if (entry->pattern & CTL_LUN_PAT_WRITE) {
+		if (lun->flags & CTL_LUN_READONLY) {
+			ctl_set_sense(ctsio, /*current_error*/ 1,
+			    /*sense_key*/ SSD_KEY_DATA_PROTECT,
+			    /*asc*/ 0x27, /*ascq*/ 0x01, SSD_ELEM_NONE);
+			retval = 1;
+			goto bailout;
+		}
+		if ((lun->mode_pages.control_page[CTL_PAGE_CURRENT]
+		    .eca_and_aen & SCP_SWP) != 0) {
+			ctl_set_sense(ctsio, /*current_error*/ 1,
+			    /*sense_key*/ SSD_KEY_DATA_PROTECT,
+			    /*asc*/ 0x27, /*ascq*/ 0x02, SSD_ELEM_NONE);
+			retval = 1;
+			goto bailout;
+		}
+	}
+
 	/*
 	 * Check for a reservation conflict.  If this command isn't allowed
 	 * even on reserved LUNs, and if this initiator isn't the one who
@@ -11312,7 +11297,7 @@ ctl_scsiio_lun_check(struct ctl_softc *ctl_softc, struct ctl_lun *lun,
 		 * type reservations are checked in the particular command
 		 * for a conflict. Read and SSU are the only ones.
 		 */
-		if (!lun->per_res[residx].registered
+		if (lun->pr_keys[residx] == 0
 		 || (residx != lun->pr_res_idx && lun->res_type < 4)) {
 			ctsio->scsi_status = SCSI_STATUS_RESERV_CONFLICT;
 			ctsio->io_hdr.status = CTL_SCSI_ERROR;

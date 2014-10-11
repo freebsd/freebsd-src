@@ -37,6 +37,7 @@
 #define	_RACCT_H_
 
 #include <sys/cdefs.h>
+#include <sys/stdint.h>
 #include <sys/queue.h>
 #include <sys/types.h>
 
@@ -141,6 +142,8 @@ struct racct {
 	LIST_HEAD(, rctl_rule_link)	r_rule_links;
 };
 
+#ifdef RACCT
+
 int	racct_add(struct proc *p, int resource, uint64_t amount);
 void	racct_add_cred(struct ucred *cred, int resource, uint64_t amount);
 void	racct_add_force(struct proc *p, int resource, uint64_t amount);
@@ -161,5 +164,89 @@ void	racct_proc_exit(struct proc *p);
 void	racct_proc_ucred_changed(struct proc *p, struct ucred *oldcred,
 	    struct ucred *newcred);
 void	racct_move(struct racct *dest, struct racct *src);
+
+#else
+
+static inline int
+racct_add(struct proc *p, int resource, uint64_t amount)
+{
+
+	return (0);
+}
+
+static inline void
+racct_add_cred(struct ucred *cred, int resource, uint64_t amount)
+{
+}
+
+static inline void
+racct_add_force(struct proc *p, int resource, uint64_t amount)
+{
+}
+
+static inline int
+racct_set(struct proc *p, int resource, uint64_t amount)
+{
+
+	return (0);
+}
+
+static inline void
+racct_set_force(struct proc *p, int resource, uint64_t amount)
+{
+}
+
+static inline void
+racct_sub(struct proc *p, int resource, uint64_t amount)
+{
+}
+
+static inline void
+racct_sub_cred(struct ucred *cred, int resource, uint64_t amount)
+{
+}
+
+static inline uint64_t
+racct_get_limit(struct proc *p, int resource)
+{
+
+	return (UINT64_MAX);
+}
+
+static inline uint64_t
+racct_get_available(struct proc *p, int resource)
+{
+
+	return (UINT64_MAX);
+}
+
+static inline void
+racct_create(struct racct **racctp)
+{
+}
+
+static inline void
+racct_destroy(struct racct **racctp)
+{
+}
+
+static inline int
+racct_proc_fork(struct proc *parent, struct proc *child)
+{
+
+	return (0);
+}
+
+static inline void
+racct_proc_fork_done(struct proc *child)
+{
+}
+
+static inline void
+racct_proc_exit(struct proc *p)
+{
+}
+
+#endif
 
 #endif /* !_RACCT_H_ */

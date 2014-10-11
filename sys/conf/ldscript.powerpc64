@@ -1,6 +1,7 @@
 /* $FreeBSD$ */
 
-OUTPUT_FORMAT("elf64-powerpc", "elf64-powerpc", "elf64-powerpc")
+OUTPUT_FORMAT("elf64-powerpc-freebsd", "elf64-powerpc-freebsd",
+	      "elf64-powerpc-freebsd")
 OUTPUT_ARCH(powerpc:common64)
 ENTRY(__start)
 SEARCH_DIR(/usr/lib);

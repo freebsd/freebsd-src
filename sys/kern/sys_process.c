@@ -1240,7 +1240,7 @@ protect_setchild(struct thread *td, struct proc *p, int flags)
 {
 
 	PROC_LOCK_ASSERT(p, MA_OWNED);
-	if (p->p_flag & P_SYSTEM || p_cansee(td, p) != 0)
+	if (p->p_flag & P_SYSTEM || p_cansched(td, p) != 0)
 		return (0);
 	if (flags & PPROT_SET) {
 		p->p_flag |= P_PROTECTED;

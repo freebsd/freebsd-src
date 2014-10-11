@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2009-2011 Spectra Logic Corporation
+ * Copyright (c) 2009-2012 Spectra Logic Corporation
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -784,6 +784,12 @@ struct xbb_softc {
 	/** Number of requests we have completed*/
 	uint64_t		  reqs_completed;
 
+	/** Number of requests we queued but not pushed*/
+	uint64_t		  reqs_queued_for_completion;
+
+	/** Number of requests we completed with an error status*/
+	uint64_t		  reqs_completed_with_error;
+
 	/** How many forced dispatches (i.e. without coalescing) have happend */
 	uint64_t		  forced_dispatch;
 
@@ -1143,7 +1149,7 @@ xbb_release_reqlist(struct xbb_softc *xbb, struct xbb_xen_reqlist *reqlist,
 		    int wakeup)
 {
 
-	mtx_lock(&xbb->lock);
+	mtx_assert(&xbb->lock, MA_OWNED);
 
 	if (wakeup) {
 		wakeup = xbb->flags & XBBF_RESOURCE_SHORTAGE;
@@ -1166,8 +1172,6 @@ xbb_release_reqlist(struct xbb_softc *xbb, struct xbb_xen_reqlist *reqlist,
 		 */
 		xbb_shutdown(xbb);
 	}
-
-	mtx_unlock(&xbb->lock);
 
 	if (wakeup != 0)
 		taskqueue_enqueue(xbb->io_taskqueue, &xbb->io_task); 
@@ -1261,16 +1265,16 @@ bailout_error:
 	if (nreq != NULL)
 		xbb_release_req(xbb, nreq);
 
-	mtx_unlock(&xbb->lock);
-
 	if (nreqlist != NULL)
 		xbb_release_reqlist(xbb, nreqlist, /*wakeup*/ 0);
+
+	mtx_unlock(&xbb->lock);
 
 	return (1);
 }
 
 /**
- * Create and transmit a response to a blkif request.
+ * Create and queue a response to a blkif request.
  * 
  * \param xbb     Per-instance xbb configuration structure.
  * \param req     The request structure to which to respond.
@@ -1278,20 +1282,28 @@ bailout_error:
  *                in sys/xen/interface/io/blkif.h.
  */
 static void
-xbb_send_response(struct xbb_softc *xbb, struct xbb_xen_req *req, int status)
+xbb_queue_response(struct xbb_softc *xbb, struct xbb_xen_req *req, int status)
 {
 	blkif_response_t *resp;
-	int		  more_to_do;
-	int		  notify;
 
-	more_to_do = 0;
+	/*
+	 * The mutex is required here, and should be held across this call
+	 * until after the subsequent call to xbb_push_responses().  This
+	 * is to guarantee that another context won't queue responses and
+	 * push them while we're active.
+	 *
+	 * That could lead to the other end being notified of responses
+	 * before the resources have been freed on this end.  The other end
+	 * would then be able to queue additional I/O, and we may run out
+ 	 * of resources because we haven't freed them all yet.
+	 */
+	mtx_assert(&xbb->lock, MA_OWNED);
 
 	/*
 	 * Place on the response ring for the relevant domain.
 	 * For now, only the spacing between entries is different
 	 * in the different ABIs, not the response entry layout.
 	 */
-	mtx_lock(&xbb->lock);
 	switch (xbb->abi) {
 	case BLKIF_PROTOCOL_NATIVE:
 		resp = RING_GET_RESPONSE(&xbb->rings.native,
@@ -1315,8 +1327,38 @@ xbb_send_response(struct xbb_softc *xbb, struct xbb_xen_req *req, int status)
 	resp->operation = req->operation;
 	resp->status    = status;
 
+	if (status != BLKIF_RSP_OKAY)
+		xbb->reqs_completed_with_error++;
+
 	xbb->rings.common.rsp_prod_pvt += BLKIF_SEGS_TO_BLOCKS(req->nr_pages);
-	RING_PUSH_RESPONSES_AND_CHECK_NOTIFY(&xbb->rings.common, notify);
+
+	xbb->reqs_queued_for_completion++;
+
+}
+
+/**
+ * Send queued responses to blkif requests.
+ * 
+ * \param xbb            Per-instance xbb configuration structure.
+ * \param run_taskqueue  Flag that is set to 1 if the taskqueue
+ *			 should be run, 0 if it does not need to be run.
+ * \param notify	 Flag that is set to 1 if the other end should be
+ * 			 notified via irq, 0 if the other end should not be
+ *			 notified.
+ */
+static void
+xbb_push_responses(struct xbb_softc *xbb, int *run_taskqueue, int *notify)
+{
+	int more_to_do;
+
+	/*
+	 * The mutex is required here.
+	 */
+	mtx_assert(&xbb->lock, MA_OWNED);
+
+	more_to_do = 0;
+
+	RING_PUSH_RESPONSES_AND_CHECK_NOTIFY(&xbb->rings.common, *notify);
 
 	if (xbb->rings.common.rsp_prod_pvt == xbb->rings.common.req_cons) {
 
@@ -1331,15 +1373,10 @@ xbb_send_response(struct xbb_softc *xbb, struct xbb_xen_req *req, int status)
 		more_to_do = 1;
 	}
 
-	xbb->reqs_completed++;
+	xbb->reqs_completed += xbb->reqs_queued_for_completion;
+	xbb->reqs_queued_for_completion = 0;
 
-	mtx_unlock(&xbb->lock);
-
-	if (more_to_do)
-		taskqueue_enqueue(xbb->io_taskqueue, &xbb->io_task); 
-
-	if (notify)
-		xen_intr_signal(xbb->xen_intr_handle);
+	*run_taskqueue = more_to_do;
 }
 
 /**
@@ -1353,23 +1390,29 @@ xbb_complete_reqlist(struct xbb_softc *xbb, struct xbb_xen_reqlist *reqlist)
 {
 	struct xbb_xen_req *nreq;
 	off_t		    sectors_sent;
+	int		    notify, run_taskqueue;
 
 	sectors_sent = 0;
 
 	if (reqlist->flags & XBB_REQLIST_MAPPED)
 		xbb_unmap_reqlist(reqlist);
 
+	mtx_lock(&xbb->lock);
+
 	/*
-	 * All I/O is done, send the response.  A lock should not be
-	 * necessary here because the request list is complete, and
-	 * therefore this is the only context accessing this request
-	 * right now.  The functions we call do their own locking if
-	 * necessary.
+	 * All I/O is done, send the response. A lock is not necessary
+	 * to protect the request list, because all requests have
+	 * completed.  Therefore this is the only context accessing this
+	 * reqlist right now.  However, in order to make sure that no one
+	 * else queues responses onto the queue or pushes them to the other
+	 * side while we're active, we need to hold the lock across the
+	 * calls to xbb_queue_response() and xbb_push_responses().
 	 */
 	STAILQ_FOREACH(nreq, &reqlist->contig_req_list, links) {
 		off_t cur_sectors_sent;
 
-		xbb_send_response(xbb, nreq, reqlist->status);
+		/* Put this response on the ring, but don't push yet */
+		xbb_queue_response(xbb, nreq, reqlist->status);
 
 		/* We don't report bytes sent if there is an error. */
 		if (reqlist->status == BLKIF_RSP_OKAY)
@@ -1404,6 +1447,16 @@ xbb_complete_reqlist(struct xbb_softc *xbb, struct xbb_xen_reqlist *reqlist)
 				/*then*/&reqlist->ds_t0);
 
 	xbb_release_reqlist(xbb, reqlist, /*wakeup*/ 1);
+
+	xbb_push_responses(xbb, &run_taskqueue, &notify);
+
+	mtx_unlock(&xbb->lock);
+
+	if (run_taskqueue)
+		taskqueue_enqueue(xbb->io_taskqueue, &xbb->io_task); 
+
+	if (notify)
+		xen_intr_signal(xbb->xen_intr_handle);
 }
 
 /**
@@ -3587,6 +3640,16 @@ xbb_setup_sysctl(struct xbb_softc *xbb)
 	SYSCTL_ADD_UQUAD(sysctl_ctx, SYSCTL_CHILDREN(sysctl_tree), OID_AUTO,
 			 "reqs_completed", CTLFLAG_RW, &xbb->reqs_completed,
 			 "how many I/O requests have been completed");
+
+	SYSCTL_ADD_UQUAD(sysctl_ctx, SYSCTL_CHILDREN(sysctl_tree), OID_AUTO,
+			 "reqs_queued_for_completion", CTLFLAG_RW,
+			 &xbb->reqs_queued_for_completion,
+			 "how many I/O requests queued but not yet pushed");
+
+	SYSCTL_ADD_UQUAD(sysctl_ctx, SYSCTL_CHILDREN(sysctl_tree), OID_AUTO,
+			 "reqs_completed_with_error", CTLFLAG_RW,
+			 &xbb->reqs_completed_with_error,
+			 "how many I/O requests completed with error status");
 
 	SYSCTL_ADD_UQUAD(sysctl_ctx, SYSCTL_CHILDREN(sysctl_tree), OID_AUTO,
 			 "forced_dispatch", CTLFLAG_RW, &xbb->forced_dispatch,

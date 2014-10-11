@@ -6,7 +6,8 @@
 CFLAGS+= -I${LIBC_SRCTOP}/locale
 
 # machine-independent string sources
-MISRCS+=bcmp.c bcopy.c bzero.c ffs.c ffsl.c ffsll.c fls.c flsl.c flsll.c \
+MISRCS+=bcmp.c bcopy.c bzero.c explicit_bzero.c \
+	ffs.c ffsl.c ffsll.c fls.c flsl.c flsll.c \
 	memccpy.c memchr.c memrchr.c memcmp.c \
 	memcpy.c memmem.c memmove.c memset.c \
 	stpcpy.c stpncpy.c strcasecmp.c \
@@ -35,6 +36,7 @@ MAN+=	bcmp.3 bcopy.3 bstring.3 bzero.3 ffs.3 index.3 memccpy.3 memchr.3 \
 	strspn.3 strstr.3 strtok.3 strxfrm.3 swab.3 wcscoll.3 wcstok.3 \
 	wcswidth.3 wcsxfrm.3 wmemchr.3
 
+MLINKS+=bzero.3 explicit_bzero.3
 MLINKS+=ffs.3 ffsl.3 \
 	ffs.3 ffsll.3 \
 	ffs.3 fls.3 \

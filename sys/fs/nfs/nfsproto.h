@@ -996,7 +996,11 @@ struct nfsv3_sattr {
  	NFSATTRBM_TIMEDELTA |						\
  	NFSATTRBM_TIMEMETADATA |					\
  	NFSATTRBM_TIMEMODIFY |						\
- 	NFSATTRBM_MOUNTEDONFILEID)
+ 	NFSATTRBM_MOUNTEDONFILEID |					\
+	NFSATTRBM_QUOTAHARD |                        			\
+    	NFSATTRBM_QUOTASOFT |                        			\
+    	NFSATTRBM_QUOTAUSED)
+
 
 #ifdef QUOTA
 /*
