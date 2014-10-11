@@ -414,10 +414,9 @@ int	witness_skipspin = 0;
 #endif
 SYSCTL_INT(_debug_witness, OID_AUTO, skipspin, CTLFLAG_RDTUN, &witness_skipspin, 0, "");
 
-/* tunable for Witness count */
-int witness_count = WITNESS_COUNT;
-int badstack_sbuf_size = WITNESS_COUNT * 256;
+int badstack_sbuf_size;
 
+int witness_count = WITNESS_COUNT;
 SYSCTL_INT(_debug_witness, OID_AUTO, witness_count, CTLFLAG_RDTUN, 
     &witness_count, 0, "");
 
@@ -732,17 +731,17 @@ witness_initialize(void *dummy __unused)
 	int i;
 
 	w_data = malloc(sizeof (struct witness) * witness_count, M_WITNESS,
-	    M_NOWAIT | M_ZERO);
+	    M_WAITOK | M_ZERO);
 
-	w_rmatrix = malloc(sizeof(uint8_t *) * (witness_count+1),
-	    M_WITNESS, M_NOWAIT | M_ZERO);
+	w_rmatrix = malloc(sizeof(*w_rmatrix) * (witness_count + 1),
+	    M_WITNESS, M_WAITOK | M_ZERO);
 
-	for(i = 0; i < witness_count+1; i++) {
-		w_rmatrix[i] = malloc(sizeof(uint8_t) * (witness_count + 1), 
-		    M_WITNESS, M_NOWAIT | M_ZERO);
+	for (i = 0; i < witness_count + 1; i++) {
+		w_rmatrix[i] = malloc(sizeof(*w_rmatrix[i]) *
+		    (witness_count + 1), M_WITNESS, M_WAITOK | M_ZERO);
 	}
 	badstack_sbuf_size = witness_count * 256;
-	
+
 	/*
 	 * We have to release Giant before initializing its witness
 	 * structure so that WITNESS doesn't get confused.
@@ -766,8 +765,8 @@ witness_initialize(void *dummy __unused)
 	STAILQ_REMOVE_HEAD(&w_free, w_list);
 	w_free_cnt--;
 
-	for(i = 0; i < witness_count; i++) {
-		memset(w_rmatrix[i], 0, sizeof(uint8_t) * 
+	for (i = 0; i < witness_count; i++) {
+		memset(w_rmatrix[i], 0, sizeof(*w_rmatrix[i]) * 
 		    (witness_count + 1));
 	}
 
