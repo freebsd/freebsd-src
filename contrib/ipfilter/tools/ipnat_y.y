@@ -1164,17 +1164,19 @@ hexnumber:
 
 hostname:
 	YY_STR				{ i6addr_t addr;
+					  int family;
 
+#ifdef USE_INET6
+					  if (nat->in_v[0] == 6)
+						family = AF_INET6;
+					  else
+#endif
+						family = AF_INET;
 					  bzero(&$$, sizeof($$));
-					  if (gethost(AF_INET, $1,
+					  $$.f = family;
+					  if (gethost(family, $1,
 						      &addr) == 0) {
 						$$.a = addr;
-						$$.f = AF_INET;
-					  } else
-					  if (gethost(AF_INET6, $1,
-						      &addr) == 0) {
-						$$.a = addr;
-						$$.f = AF_INET6;
 					  } else {
 						FPRINTF(stderr,
 							"Unknown host '%s'\n",
