@@ -11846,7 +11846,7 @@ sctp_add_an_in_stream(struct sctp_tmit_chunk *chk,
 
 int
 sctp_send_str_reset_req(struct sctp_tcb *stcb,
-    int number_entries, uint16_t * list,
+    uint16_t number_entries, uint16_t * list,
     uint8_t send_out_req,
     uint8_t send_in_req,
     uint8_t send_tsn_req,
@@ -11878,6 +11878,14 @@ sctp_send_str_reset_req(struct sctp_tcb *stcb,
 		/* error, can't do that */
 		SCTP_LTRACE_ERR_RET(NULL, stcb, NULL, SCTP_FROM_SCTP_OUTPUT, EINVAL);
 		return (EINVAL);
+	}
+	if (number_entries > (MCLBYTES -
+	    SCTP_MIN_OVERHEAD -
+	    sizeof(struct sctp_chunkhdr) -
+	    sizeof(struct sctp_stream_reset_out_request)) /
+	    sizeof(uint16_t)) {
+		SCTP_LTRACE_ERR_RET(NULL, stcb, NULL, SCTP_FROM_SCTP_OUTPUT, ENOMEM);
+		return (ENOMEM);
 	}
 	sctp_alloc_a_chunk(stcb, chk);
 	if (chk == NULL) {
