@@ -191,7 +191,7 @@ static struct ctladm_opts option_table[] = {
 	{"modesense", CTLADM_CMD_MODESENSE, CTLADM_ARG_NEED_TL, "P:S:dlm:c:"},
 	{"modify", CTLADM_CMD_MODIFY, CTLADM_ARG_NONE, "b:l:s:"},
 	{"port", CTLADM_CMD_PORT, CTLADM_ARG_NONE, "lo:p:qt:w:W:x"},
-	{"portlist", CTLADM_CMD_PORTLIST, CTLADM_ARG_NONE, "f:vx"},
+	{"portlist", CTLADM_CMD_PORTLIST, CTLADM_ARG_NONE, "f:ip:qvx"},
 	{"prin", CTLADM_CMD_PRES_IN, CTLADM_ARG_NEED_TL, "a:"},
 	{"prout", CTLADM_CMD_PRES_OUT, CTLADM_ARG_NEED_TL, "a:k:r:s:"},
 	{"read", CTLADM_CMD_READ, CTLADM_ARG_NEED_TL, rw_opts},
@@ -4100,7 +4100,8 @@ struct cctl_port {
 	char *frontend_type;
 	char *name;
 	int pp, vp;
-	char *wwnn, *wwpn;
+	char *target, *port;
+	STAILQ_HEAD(,cctl_lun_nv) init_list;
 	STAILQ_HEAD(,cctl_lun_nv) attr_list;
 	STAILQ_ENTRY(cctl_port) links;
 };
@@ -4144,6 +4145,7 @@ cctl_start_pelement(void *user_data, const char *name, const char **attr)
 		portlist->num_ports++;
 		portlist->cur_port = cur_port;
 
+		STAILQ_INIT(&cur_port->init_list);
 		STAILQ_INIT(&cur_port->attr_list);
 		STAILQ_INSERT_TAIL(&portlist->port_list, cur_port, links);
 
@@ -4205,11 +4207,11 @@ cctl_end_pelement(void *user_data, const char *name)
 		cur_port->pp = strtoull(str, NULL, 0);
 	} else if (strcmp(name, "virtual_port") == 0) {
 		cur_port->vp = strtoull(str, NULL, 0);
-	} else if (strcmp(name, "wwnn") == 0) {
-		cur_port->wwnn = str;
+	} else if (strcmp(name, "target") == 0) {
+		cur_port->target = str;
 		str = NULL;
-	} else if (strcmp(name, "wwpn") == 0) {
-		cur_port->wwpn = str;
+	} else if (strcmp(name, "port") == 0) {
+		cur_port->port = str;
 		str = NULL;
 	} else if (strcmp(name, "targ_port") == 0) {
 		portlist->cur_port = NULL;
@@ -4230,7 +4232,10 @@ cctl_end_pelement(void *user_data, const char *name)
 
 		nv->value = str;
 		str = NULL;
-		STAILQ_INSERT_TAIL(&cur_port->attr_list, nv, links);
+		if (strcmp(name, "initiator") == 0)
+			STAILQ_INSERT_TAIL(&cur_port->init_list, nv, links);
+		else
+			STAILQ_INSERT_TAIL(&cur_port->attr_list, nv, links);
 	}
 
 	free(str);
@@ -4258,7 +4263,8 @@ cctl_portlist(int fd, int argc, char **argv, char *combinedopt)
 	int dump_xml = 0;
 	int retval, c;
 	char *frontend = NULL;
-	int verbose = 0;
+	uint64_t portarg = UINT64_MAX;
+	int verbose = 0, init = 0, quiet = 0;
 
 	retval = 0;
 	port_len = 4096;
@@ -4270,6 +4276,15 @@ cctl_portlist(int fd, int argc, char **argv, char *combinedopt)
 		switch (c) {
 		case 'f':
 			frontend = strdup(optarg);
+			break;
+		case 'i':
+			init++;
+			break;
+		case 'p':
+			portarg = strtoll(optarg, NULL, 0);
+			break;
+		case 'q':
+			quiet++;
 			break;
 		case 'v':
 			verbose++;
@@ -4327,8 +4342,8 @@ retry:
 		goto bailout;
 	}
 
-	printf("Port Online Frontend %-12s pp vp %-18s %-18s\n",
-	    "Name", "WWNN", "WWPN");
+	if (quiet == 0)
+		printf("Port Online Frontend Name     pp vp\n");
 	STAILQ_FOREACH(port, &portlist.port_list, links) {
 		struct cctl_lun_nv *nv;
 
@@ -4336,16 +4351,26 @@ retry:
 		 && (strcmp(port->frontend_type, frontend) != 0))
 			continue;
 
-		printf("%-4ju %-6s %-8s %-12s %-2d %-2d %-18s %-18s\n",
-		    (uintmax_t)port->port_id, port->online,
-		    port->frontend_type, port->name, port->pp, port->vp,
-		    port->wwnn, port->wwpn);
-
-		if (verbose == 0)
+		if ((portarg != UINT64_MAX) && (portarg != port->port_id))
 			continue;
 
-		STAILQ_FOREACH(nv, &port->attr_list, links) {
-			printf("      %s=%s\n", nv->name, nv->value);
+		printf("%-4ju %-6s %-8s %-8s %-2d %-2d %s\n",
+		    (uintmax_t)port->port_id, port->online,
+		    port->frontend_type, port->name, port->pp, port->vp,
+		    port->port ? port->port : "");
+
+		if (init || verbose) {
+			if (port->target)
+				printf("  Target: %s\n", port->target);
+			STAILQ_FOREACH(nv, &port->init_list, links) {
+				printf("  Initiator: %s\n", nv->value);
+			}
+		}
+
+		if (verbose) {
+			STAILQ_FOREACH(nv, &port->attr_list, links) {
+				printf("      %s=%s\n", nv->name, nv->value);
+			}
 		}
 	}
 bailout:
@@ -4401,7 +4426,7 @@ usage(int error)
 "                            [-s len fmt [args]] [-c] [-d delete_id]\n"
 "         ctladm port        <-l | -o <on|off> | [-w wwnn][-W wwpn]>\n"
 "                            [-p targ_port] [-t port_type] [-q] [-x]\n"
-"         ctladm portlist    [-f frontend] [-v] [-x]\n"
+"         ctladm portlist    [-f frontend] [-i] [-p targ_port] [-q] [-v] [-x]\n"
 "         ctladm islist      [-v | -x]\n"
 "         ctladm islogout    <-a | -c connection-id | -i name | -p portal>\n"
 "         ctladm isterminate <-a | -c connection-id | -i name | -p portal>\n"
@@ -4486,6 +4511,13 @@ usage(int error)
 "-t port_type             : specify fc, scsi, ioctl, internal frontend type\n"
 "-p targ_port             : specify target port number\n"
 "-q                       : omit header in list output\n"
+"-x                       : output port list in XML format\n"
+"portlist options:\n"
+"-f fronetnd              : specify frontend type\n"
+"-i                       : report target and initiators addresses\n"
+"-p targ_port             : specify target port number\n"
+"-q                       : omit header in list output\n"
+"-v                       : verbose output (report all port options)\n"
 "-x                       : output port list in XML format\n"
 "bbrread options:\n"
 "-l lba                   : starting LBA\n"
