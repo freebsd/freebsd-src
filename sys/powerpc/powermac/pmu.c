@@ -35,6 +35,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/bus.h>
 #include <sys/conf.h>
 #include <sys/kernel.h>
+#include <sys/kthread.h>
 #include <sys/clock.h>
 #include <sys/proc.h>
 #include <sys/reboot.h>
@@ -183,6 +184,9 @@ static int pmu_send(void *cookie, int cmd, int length, uint8_t *in_msg,
 static uint8_t pmu_read_reg(struct pmu_softc *sc, u_int offset);
 static void pmu_write_reg(struct pmu_softc *sc, u_int offset, uint8_t value);
 static int pmu_intr_state(struct pmu_softc *);
+static void pmu_battquery_proc(void);
+static void pmu_battery_notify(struct pmu_battstate *batt,
+	struct pmu_battstate *old);
 
 /* these values shows that number of data returned after 'send' cmd is sent */
 static signed char pm_send_cmd_type[] = {
@@ -254,6 +258,13 @@ static signed char pm_receive_cmd_type[] = {
 	  -1,   -1, 0x02,   -1,   -1,   -1,   -1, 0x00,
 	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
 	  -1,   -1,   -1,   -1,   -1,   -1,   -1,   -1,
+};
+
+static struct proc *pmubattproc;
+static struct kproc_desc pmu_batt_kp = {
+	"pmu_batt",
+	pmu_battquery_proc,
+	&pmubattproc
 };
 
 /* We only have one of each device, so globals are safe */
@@ -420,6 +431,8 @@ pmu_attach(device_t dev)
 		struct sysctl_oid *oid, *battroot;
 		char battnum[2];
 
+		/* Only start the battery monitor if we have a battery. */
+		kproc_start(&pmu_batt_kp);
 		SYSCTL_ADD_PROC(ctx, SYSCTL_CHILDREN(tree), OID_AUTO,
 		    "acline", CTLTYPE_INT | CTLFLAG_RD, sc, 0,
 		    pmu_acline_state, "I", "AC Line Status");
@@ -912,6 +925,39 @@ pmu_query_battery(struct pmu_softc *sc, int batt, struct pmu_battstate *info)
 	}
 
 	return (0);
+}
+
+static void
+pmu_battery_notify(struct pmu_battstate *batt, struct pmu_battstate *old)
+{
+	char notify_buf[16];
+	int acline;
+
+	acline = (batt->state & PMU_PWR_AC_PRESENT) ? 1 : 0;
+	if (acline != (old->state & PMU_PWR_AC_PRESENT)) {
+		snprintf(notify_buf, sizeof(notify_buf),
+		    "notify=0x%02x", acline);
+		devctl_notify("PMU", "POWER", "ACLINE", notify_buf);
+	}
+}
+
+static void
+pmu_battquery_proc()
+{
+	struct pmu_softc *sc;
+	struct pmu_battstate batt;
+	struct pmu_battstate cur_batt;
+	int error;
+
+	sc = device_get_softc(pmu);
+
+	error = pmu_query_battery(sc, 0, &cur_batt);
+	while (1) {
+		error = pmu_query_battery(sc, 0, &batt);
+		pmu_battery_notify(&batt, &cur_batt);
+		cur_batt = batt;
+		pause("pmu_batt", hz);
+	}
 }
 
 static int
