@@ -434,9 +434,10 @@ udp_input(struct mbuf *m, int off)
 	 */
 	len = ntohs((u_short)uh->uh_ulen);
 	ip_len = ntohs(ip->ip_len) - iphlen;
-	if (pr == IPPROTO_UDPLITE && len == 0) {
+	if (pr == IPPROTO_UDPLITE && (len == 0 || len == ip_len)) {
 		/* Zero means checksum over the complete packet. */
-		len = ip_len;
+		if (len == 0)
+			len = ip_len;
 		cscov_partial = 0;
 	}
 	if (ip_len != len) {
@@ -487,8 +488,16 @@ udp_input(struct mbuf *m, int off)
 			m_freem(m);
 			return;
 		}
-	} else
-		UDPSTAT_INC(udps_nosum);
+	} else {
+		if (pr == IPPROTO_UDP) {
+			UDPSTAT_INC(udps_nosum);
+		} else {
+			/* UDPLite requires a checksum */
+			/* XXX: What is the right UDPLite MIB counter here? */
+			m_freem(m);
+			return;
+		}
+	}
 
 	pcbinfo = get_inpcbinfo(pr);
 	if (IN_MULTICAST(ntohl(ip->ip_dst.s_addr)) ||
@@ -670,7 +679,7 @@ udp_input(struct mbuf *m, int off)
 		struct udpcb *up;
 
 		up = intoudpcb(inp);
-		if (up->u_rxcslen > len) {
+		if (up->u_rxcslen == 0 || up->u_rxcslen > len) {
 			INP_RUNLOCK(inp);
 			m_freem(m);
 			return;
@@ -1006,7 +1015,7 @@ udp_ctloutput(struct socket *so, struct sockopt *sopt)
 			INP_WLOCK(inp);
 			up = intoudpcb(inp);
 			KASSERT(up != NULL, ("%s: up == NULL", __func__));
-			if (optval != 0 && optval < 8) {
+			if ((optval != 0 && optval < 8) || (optval > 65535)) {
 				INP_WUNLOCK(inp);
 				error = EINVAL;
 				break;
