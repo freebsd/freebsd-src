@@ -78,8 +78,7 @@ db_breakpoint_t	db_taken_bkpt = 0;
 #endif
 
 boolean_t
-db_stop_at_pc(is_breakpoint)
-	boolean_t	*is_breakpoint;
+db_stop_at_pc(boolean_t *is_breakpoint)
 {
 	register db_addr_t	pc;
 	register db_breakpoint_t bkpt;
@@ -180,8 +179,7 @@ db_stop_at_pc(is_breakpoint)
 }
 
 void
-db_restart_at_pc(watchpt)
-	boolean_t watchpt;
+db_restart_at_pc(boolean_t watchpt)
 {
 	register db_addr_t	pc = PC_REGS();
 
@@ -328,11 +326,8 @@ db_single_step_cmd(addr, have_addr, count, modif)
 /* trace and print until call/return */
 /*ARGSUSED*/
 void
-db_trace_until_call_cmd(addr, have_addr, count, modif)
-	db_expr_t	addr;
-	boolean_t	have_addr;
-	db_expr_t	count;
-	char *		modif;
+db_trace_until_call_cmd(db_expr_t addr, boolean_t have_addr, db_expr_t count,
+    char *modif)
 {
 	boolean_t	print = FALSE;
 
@@ -350,11 +345,8 @@ db_trace_until_call_cmd(addr, have_addr, count, modif)
 
 /*ARGSUSED*/
 void
-db_trace_until_matching_cmd(addr, have_addr, count, modif)
-	db_expr_t	addr;
-	boolean_t	have_addr;
-	db_expr_t	count;
-	char *		modif;
+db_trace_until_matching_cmd(db_expr_t addr, boolean_t have_addr,
+    db_expr_t count, char *modif)
 {
 	boolean_t	print = FALSE;
 
@@ -374,11 +366,8 @@ db_trace_until_matching_cmd(addr, have_addr, count, modif)
 /* continue */
 /*ARGSUSED*/
 void
-db_continue_cmd(addr, have_addr, count, modif)
-	db_expr_t	addr;
-	boolean_t	have_addr;
-	db_expr_t	count;
-	char *		modif;
+db_continue_cmd(db_expr_t addr, boolean_t have_addr, db_expr_t count,
+    char *modif)
 {
 	if (modif[0] == 'c')
 	    db_run_mode = STEP_COUNT;
