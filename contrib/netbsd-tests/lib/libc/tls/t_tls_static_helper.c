@@ -34,7 +34,9 @@
 #include <sys/cdefs.h>
 __RCSID("$NetBSD: t_tls_static_helper.c,v 1.2 2012/01/17 20:34:57 joerg Exp $");
 
+#if defined(__NetBSD__)
 #include <sys/tls.h>
+#endif
 
 #ifdef __HAVE_NO___THREAD
 #define	__thread
