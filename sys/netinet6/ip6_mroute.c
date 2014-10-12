@@ -126,9 +126,6 @@ __FBSDID("$FreeBSD$");
 
 static MALLOC_DEFINE(M_MRTABLE6, "mf6c", "multicast forwarding cache entry");
 
-/* XXX: this is a very common idiom; move to <sys/mbuf.h> ? */
-#define M_HASCL(m) ((m)->m_flags & M_EXT)
-
 static int	ip6_mdq(struct mbuf *, struct ifnet *, struct mf6c *);
 static void	phyint_send(struct ip6_hdr *, struct mif6 *, struct mbuf *);
 static int	register_send(struct ip6_hdr *, struct mif6 *, struct mbuf *);
@@ -1128,7 +1125,7 @@ X_ip6_mforward(struct ip6_hdr *ip6, struct ifnet *ifp, struct mbuf *m)
 	 * Pullup packet header if needed before storing it,
 	 * as other references may modify it in the meantime.
 	 */
-	if (mb0 && (M_HASCL(mb0) || mb0->m_len < sizeof(struct ip6_hdr)))
+	if (mb0 && (!M_WRITABLE(mb0) || mb0->m_len < sizeof(struct ip6_hdr)))
 		mb0 = m_pullup(mb0, sizeof(struct ip6_hdr));
 	if (mb0 == NULL) {
 		free(rte, M_MRTABLE6);
@@ -1397,7 +1394,7 @@ ip6_mdq(struct mbuf *m, struct ifnet *ifp, struct mf6c *rt)
 
 				mm = m_copy(m, 0, sizeof(struct ip6_hdr));
 				if (mm &&
-				    (M_HASCL(mm) ||
+				    (!M_WRITABLE(mm) ||
 				     mm->m_len < sizeof(struct ip6_hdr)))
 					mm = m_pullup(mm, sizeof(struct ip6_hdr));
 				if (mm == NULL)
@@ -1527,7 +1524,7 @@ phyint_send(struct ip6_hdr *ip6, struct mif6 *mifp, struct mbuf *m)
 	 */
 	mb_copy = m_copy(m, 0, M_COPYALL);
 	if (mb_copy &&
-	    (M_HASCL(mb_copy) || mb_copy->m_len < sizeof(struct ip6_hdr)))
+	    (!M_WRITABLE(mb_copy) || mb_copy->m_len < sizeof(struct ip6_hdr)))
 		mb_copy = m_pullup(mb_copy, sizeof(struct ip6_hdr));
 	if (mb_copy == NULL) {
 		return;
