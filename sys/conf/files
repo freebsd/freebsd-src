@@ -3254,6 +3254,7 @@ net/radix_mpath.c		standard
 net/raw_cb.c			standard
 net/raw_usrreq.c		standard
 net/route.c			standard
+net/rt_nhops.c			standard
 net/rtsock.c			standard
 net/slcompress.c		optional netgraph_vjc | sppp | \
 					 netgraph_sppp

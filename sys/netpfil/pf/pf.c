@@ -96,6 +96,8 @@ __FBSDID("$FreeBSD$");
 #include <netinet6/in6_pcb.h>
 #endif /* INET6 */
 
+#include <net/rt_nhops.h>
+
 #include <machine/in_cksum.h>
 #include <security/mac/mac_framework.h>
 
@@ -2906,15 +2908,7 @@ pf_get_mss(struct mbuf *m, int off, u_int16_t th_off, sa_family_t af)
 static u_int16_t
 pf_calc_mss(struct pf_addr *addr, sa_family_t af, int rtableid, u_int16_t offer)
 {
-#ifdef INET
-	struct sockaddr_in	*dst;
-	struct route		 ro;
-#endif /* INET */
-#ifdef INET6
-	struct sockaddr_in6	*dst6;
-	struct route_in6	 ro6;
-#endif /* INET6 */
-	struct rtentry		*rt = NULL;
+	struct nhop64_basic	 nh;
 	int			 hlen = 0;
 	u_int16_t		 mss = V_tcp_mssdflt;
 
@@ -2922,34 +2916,19 @@ pf_calc_mss(struct pf_addr *addr, sa_family_t af, int rtableid, u_int16_t offer)
 #ifdef INET
 	case AF_INET:
 		hlen = sizeof(struct ip);
-		bzero(&ro, sizeof(ro));
-		dst = (struct sockaddr_in *)&ro.ro_dst;
-		dst->sin_family = AF_INET;
-		dst->sin_len = sizeof(*dst);
-		dst->sin_addr = addr->v4;
-		in_rtalloc_ign(&ro, 0, rtableid);
-		rt = ro.ro_rt;
+		if (fib4_lookup_nh_basic(rtableid, addr->v4, 0, &nh.u.nh4) == 0)
+			mss = nh.u.nh4.nh_mtu - hlen - sizeof(struct tcphdr);
 		break;
 #endif /* INET */
 #ifdef INET6
 	case AF_INET6:
 		hlen = sizeof(struct ip6_hdr);
-		bzero(&ro6, sizeof(ro6));
-		dst6 = (struct sockaddr_in6 *)&ro6.ro_dst;
-		dst6->sin6_family = AF_INET6;
-		dst6->sin6_len = sizeof(*dst6);
-		dst6->sin6_addr = addr->v6;
-		in6_rtalloc_ign(&ro6, 0, rtableid);
-		rt = ro6.ro_rt;
+		if (fib6_lookup_nh_basic(rtableid, addr->v6, 0, &nh.u.nh6) == 0)
+			mss = nh.u.nh6.nh_mtu - hlen - sizeof(struct tcphdr);
 		break;
 #endif /* INET6 */
 	}
 
-	if (rt && rt->rt_ifp) {
-		mss = rt->rt_ifp->if_mtu - hlen - sizeof(struct tcphdr);
-		mss = max(V_tcp_mssdflt, mss);
-		RTFREE(rt);
-	}
 	mss = min(mss, offer);
 	mss = max(mss, 64);		/* sanity - at least max opt space */
 	return (mss);
@@ -5105,37 +5084,14 @@ int
 pf_routable(struct pf_addr *addr, sa_family_t af, struct pfi_kif *kif,
     int rtableid)
 {
-#ifdef RADIX_MPATH
-	struct radix_node_head	*rnh;
-#endif
-	struct sockaddr_in	*dst;
-	int			 ret = 1;
-	int			 check_mpath;
-#ifdef INET6
-	struct sockaddr_in6	*dst6;
-	struct route_in6	 ro;
-#else
-	struct route		 ro;
-#endif
-	struct radix_node	*rn;
-	struct rtentry		*rt;
-	struct ifnet		*ifp;
+	struct nhop64_basic	nh;
 
-	check_mpath = 0;
-#ifdef RADIX_MPATH
-	/* XXX: stick to table 0 for now */
-	rnh = rt_tables_get_rnh(0, af);
-	if (rnh != NULL && rn_mpath_capable(rnh))
-		check_mpath = 1;
-#endif
-	bzero(&ro, sizeof(ro));
+	/* Skip checks for ipsec interfaces */
+	if (kif != NULL && kif->pfik_ifp->if_type == IFT_ENC)
+		return (0);
+
+	bzero(&nh, sizeof(nh));
 	switch (af) {
-	case AF_INET:
-		dst = satosin(&ro.ro_dst);
-		dst->sin_family = AF_INET;
-		dst->sin_len = sizeof(*dst);
-		dst->sin_addr = addr->v4;
-		break;
 #ifdef INET6
 	case AF_INET6:
 		/*
@@ -5143,66 +5099,33 @@ pf_routable(struct pf_addr *addr, sa_family_t af, struct pfi_kif *kif,
 		 * as they would always match anyway.
 		 */
 		if (IN6_IS_SCOPE_EMBED(&addr->v6))
-			goto out;
-		dst6 = (struct sockaddr_in6 *)&ro.ro_dst;
-		dst6->sin6_family = AF_INET6;
-		dst6->sin6_len = sizeof(*dst6);
-		dst6->sin6_addr = addr->v6;
-		break;
-#endif /* INET6 */
-	default:
-		return (0);
-	}
-
-	/* Skip checks for ipsec interfaces */
-	if (kif != NULL && kif->pfik_ifp->if_type == IFT_ENC)
-		goto out;
-
-	switch (af) {
-#ifdef INET6
-	case AF_INET6:
-		in6_rtalloc_ign(&ro, 0, rtableid);
+			return (1);
+		if (fib6_lookup_nh_basic(rtableid, addr->v6, 0, &nh.u.nh6) != 0)
+			return (0);
 		break;
 #endif
 #ifdef INET
 	case AF_INET:
-		in_rtalloc_ign((struct route *)&ro, 0, rtableid);
+		if (fib4_lookup_nh_basic(rtableid, addr->v4, 0, &nh.u.nh4) != 0)
+			return (0);
 		break;
 #endif
 	default:
-		rtalloc_ign((struct route *)&ro, 0);	/* No/default FIB. */
-		break;
+		return (0);
 	}
 
-	if (ro.ro_rt != NULL) {
-		/* No interface given, this is a no-route check */
-		if (kif == NULL)
-			goto out;
+	/* No interface given, this is a no-route check */
+	if (kif == NULL)
+		return (1);
 
-		if (kif->pfik_ifp == NULL) {
-			ret = 0;
-			goto out;
-		}
+	if (kif->pfik_ifp == NULL)
+		return (0);
 
-		/* Perform uRPF check if passed input interface */
-		ret = 0;
-		rn = (struct radix_node *)ro.ro_rt;
-		do {
-			rt = (struct rtentry *)rn;
-			ifp = rt->rt_ifp;
+	/* Perform uRPF check if passed input interface */
+	if (kif->pfik_ifp == nh.u.nh4.nh_ifp)
+		return (1);
 
-			if (kif->pfik_ifp == ifp)
-				ret = 1;
-#ifdef RADIX_MPATH
-			rn = rn_mpath_next(rn);
-#endif
-		} while (check_mpath == 1 && rn != NULL && ret == 0);
-	} else
-		ret = 0;
-out:
-	if (ro.ro_rt != NULL)
-		RTFREE(ro.ro_rt);
-	return (ret);
+	return (0);
 }
 
 #ifdef INET
