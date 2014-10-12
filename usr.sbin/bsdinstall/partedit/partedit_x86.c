@@ -49,7 +49,8 @@ x86_bootmethod(void)
 }
 
 const char *
-default_scheme(void) {
+default_scheme(void)
+{
 	return ("GPT");
 }
 
@@ -77,6 +78,7 @@ is_fs_bootable(const char *part_type, const char *fs)
 		return (1);
 
 	if (strcmp(fs, "freebsd-zfs") == 0 &&
+	    strcmp(part_type, "GPT") == 0 &&
 	    strcmp(x86_bootmethod(), "BIOS") == 0)
 		return (1);
 
