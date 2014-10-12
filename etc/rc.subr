@@ -2050,7 +2050,7 @@ check_kern_features()
 # check_namevarlist var
 #	Return "0" if ${name}_var is reserved in rc.subr.
 
-_rc_namevarlist="program chroot chdir flags fib nice user group groups"
+_rc_namevarlist="program chroot chdir env flags fib nice user group groups prepend"
 check_namevarlist()
 {
 	local _v
