@@ -2237,6 +2237,43 @@ ctl_sbuf_printf_esc(struct sbuf *sb, char *str)
 	return (retval);
 }
 
+static void
+ctl_id_sbuf(struct ctl_devid *id, struct sbuf *sb)
+{
+	struct scsi_vpd_id_descriptor *desc;
+	int i;
+
+	if (id == NULL || id->len < 4)
+		return;
+	desc = (struct scsi_vpd_id_descriptor *)id->data;
+	switch (desc->id_type & SVPD_ID_TYPE_MASK) {
+	case SVPD_ID_TYPE_T10:
+		sbuf_printf(sb, "t10.");
+		break;
+	case SVPD_ID_TYPE_EUI64:
+		sbuf_printf(sb, "eui.");
+		break;
+	case SVPD_ID_TYPE_NAA:
+		sbuf_printf(sb, "naa.");
+		break;
+	case SVPD_ID_TYPE_SCSI_NAME:
+		break;
+	}
+	switch (desc->proto_codeset & SVPD_ID_CODESET_MASK) {
+	case SVPD_ID_CODESET_BINARY:
+		for (i = 0; i < desc->length; i++)
+			sbuf_printf(sb, "%02x", desc->identifier[i]);
+		break;
+	case SVPD_ID_CODESET_ASCII:
+		sbuf_printf(sb, "%.*s", (int)desc->length,
+		    (char *)desc->identifier);
+		break;
+	case SVPD_ID_CODESET_UTF8:
+		sbuf_printf(sb, "%s", (char *)desc->identifier);
+		break;
+	}
+}
+
 static int
 ctl_ioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flag,
 	  struct thread *td)
@@ -3288,6 +3325,7 @@ ctl_ioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flag,
 		struct ctl_port *port;
 		struct ctl_lun_list *list;
 		struct ctl_option *opt;
+		int j;
 
 		list = (struct ctl_lun_list *)addr;
 
@@ -3344,15 +3382,17 @@ ctl_ioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flag,
 			if (retval != 0)
 				break;
 
-			retval = sbuf_printf(sb, "\t<wwnn>%#jx</wwnn>\n",
-			    (uintmax_t)port->wwnn);
-			if (retval != 0)
-				break;
+			if (port->target_devid != NULL) {
+				sbuf_printf(sb, "\t<target>");
+				ctl_id_sbuf(port->target_devid, sb);
+				sbuf_printf(sb, "</target>\n");
+			}
 
-			retval = sbuf_printf(sb, "\t<wwpn>%#jx</wwpn>\n",
-			    (uintmax_t)port->wwpn);
-			if (retval != 0)
-				break;
+			if (port->port_devid != NULL) {
+				sbuf_printf(sb, "\t<port>");
+				ctl_id_sbuf(port->port_devid, sb);
+				sbuf_printf(sb, "</port>\n");
+			}
 
 			if (port->port_info != NULL) {
 				retval = port->port_info(port->onoff_arg, sb);
@@ -3365,6 +3405,26 @@ ctl_ioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flag,
 				if (retval != 0)
 					break;
 			}
+
+			for (j = 0; j < CTL_MAX_INIT_PER_PORT; j++) {
+				if (port->wwpn_iid[j].in_use == 0 ||
+				    (port->wwpn_iid[j].wwpn == 0 &&
+				     port->wwpn_iid[j].name == NULL))
+					continue;
+
+				if (port->wwpn_iid[j].name != NULL)
+					retval = sbuf_printf(sb,
+					    "\t<initiator>%u %s</initiator>\n",
+					    j, port->wwpn_iid[j].name);
+				else
+					retval = sbuf_printf(sb,
+					    "\t<initiator>%u naa.%08jx</initiator>\n",
+					    j, port->wwpn_iid[j].wwpn);
+				if (retval != 0)
+					break;
+			}
+			if (retval != 0)
+				break;
 
 			retval = sbuf_printf(sb, "</targ_port>\n");
 			if (retval != 0)
