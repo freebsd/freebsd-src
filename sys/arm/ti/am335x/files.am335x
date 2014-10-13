@@ -12,5 +12,4 @@ arm/ti/am335x/am335x_scm_padconf.c	standard
 arm/ti/am335x/am335x_usbss.c		optional	musb fdt
 
 arm/ti/ti_edma3.c			standard
-arm/ti/ti_sdhci.c 			optional	sdhci
 arm/ti/cpsw/if_cpsw.c			optional	cpsw
