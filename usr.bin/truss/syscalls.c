@@ -279,6 +279,9 @@ static struct syscall syscalls[] = {
 		    { Waitoptions, 3 }, { Rusage | OUT, 4 }, { Ptr, 5 } } },
 	{ .name = "procctl", .ret_type = 1, .nargs = 4,
 	  .args = { { Idtype, 0 }, { Int, 1 }, { Procctl, 2 }, { Ptr, 3 } } },
+	{ .name = "_umtx_op", .ret_type = 1, .nargs = 5,
+	  .args = { { Ptr, 0 }, { Umtxop, 1 }, { LongHex, 2 }, { Ptr, 3 },
+		    { Ptr, 4 } } },
 	{ .name = 0 },
 };
 
@@ -410,6 +413,18 @@ static struct xlat idtype_arg[] = {
 
 static struct xlat procctl_arg[] = {
 	X(PROC_SPROTECT) XEND
+};
+
+static struct xlat umtx_ops[] = {
+	X(UMTX_OP_RESERVED0) X(UMTX_OP_RESERVED1) X(UMTX_OP_WAIT)
+	X(UMTX_OP_WAKE) X(UMTX_OP_MUTEX_TRYLOCK) X(UMTX_OP_MUTEX_LOCK)
+	X(UMTX_OP_MUTEX_UNLOCK) X(UMTX_OP_SET_CEILING) X(UMTX_OP_CV_WAIT)
+	X(UMTX_OP_CV_SIGNAL) X(UMTX_OP_CV_BROADCAST) X(UMTX_OP_WAIT_UINT)
+	X(UMTX_OP_RW_RDLOCK) X(UMTX_OP_RW_WRLOCK) X(UMTX_OP_RW_UNLOCK)
+	X(UMTX_OP_WAIT_UINT_PRIVATE) X(UMTX_OP_WAKE_PRIVATE)
+	X(UMTX_OP_MUTEX_WAIT) X(UMTX_OP_MUTEX_WAKE) X(UMTX_OP_SEM_WAIT)
+	X(UMTX_OP_SEM_WAKE) X(UMTX_OP_NWAKE_PRIVATE) X(UMTX_OP_MUTEX_WAKE2)
+	XEND
 };
 
 #undef X
@@ -608,6 +623,9 @@ print_arg(struct syscall_args *sc, unsigned long *args, long retval,
 	case Int:
 		asprintf(&tmp, "%d", (int)args[sc->offset]);
 		break;
+	case LongHex:
+		asprintf(&tmp, "0x%lx", args[sc->offset]);
+		break;		
 	case Name: {
 		/* NULL-terminated string. */
 		char *tmp2;
@@ -1274,6 +1292,9 @@ print_arg(struct syscall_args *sc, unsigned long *args, long retval,
 		break;
 	case Procctl:
 		tmp = strdup(xlookup(procctl_arg, args[sc->offset]));
+		break;
+	case Umtxop:
+		tmp = strdup(xlookup(umtx_ops, args[sc->offset]));
 		break;
 	default:
 		errx(1, "Invalid argument type %d\n", sc->type & ARG_MASK);
