@@ -57,6 +57,7 @@ extern int errno;
 #include <sys/socket.h>
 #include <sys/stat.h>
 #include <sys/sysent.h>
+#include <sys/umtx.h>
 #include <sys/un.h>
 #include <sys/queue.h>
 #include <sys/wait.h>
@@ -1268,6 +1269,26 @@ ktrsyscall(struct ktr_syscall *ktr, u_int flags)
 				ip++;
 				narg--;
 				break;
+			case SYS__umtx_op:
+				print_number(ip, narg, c);
+				putchar(',');
+				umtxopname(*ip);
+				switch (*ip) {
+				case UMTX_OP_CV_WAIT:
+					ip++;
+					narg--;
+					putchar(',');
+					umtxcvwaitflags(*ip);
+					break;
+				case UMTX_OP_RW_RDLOCK:
+					ip++;
+					narg--;
+					putchar(',');
+					umtxrwlockflags(*ip);
+					break;
+				}
+				ip++;
+				narg--;
 			}
 		}
 		while (narg > 0) {
