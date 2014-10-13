@@ -4394,8 +4394,6 @@ alc_stop_queue(struct alc_softc *sc)
 	uint32_t reg;
 	int i;
 
-	ALC_LOCK_ASSERT(sc);
-
 	/* Disable RxQ. */
 	reg = CSR_READ_4(sc, ALC_RXQ_CFG);
 	if ((sc->alc_flags & ALC_FLAG_AR816X_FAMILY) == 0) {
