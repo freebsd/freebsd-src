@@ -833,8 +833,9 @@ int
 ipfw_match_range(struct ip_fw *rule, ipfw_range_tlv *rt)
 {
 
-	/* Don't match default rule regardless of query */
-	if (rule->rulenum == IPFW_DEFAULT_RULE)
+	/* Don't match default rule for modification queries */
+	if (rule->rulenum == IPFW_DEFAULT_RULE &&
+	    (rt->flags & IPFW_RCFLAG_DEFAULT) == 0)
 		return (0);
 
 	/* Don't match rules in reserved set for flush requests */
@@ -965,7 +966,7 @@ move_range(struct ip_fw_chain *chain, ipfw_range_tlv *rt)
 	}
 
 	/* XXX: We have to do swap holding WLOCK */
-	for (i = 0; i < chain->n_rules - 1; i++) {
+	for (i = 0; i < chain->n_rules; i++) {
 		rule = chain->map[i];
 		if (ipfw_match_range(rule, rt) == 0)
 			continue;
@@ -1006,9 +1007,10 @@ clear_range(struct ip_fw_chain *chain, ipfw_range_tlv *rt, int log_only)
 	int i;
 
 	num = 0;
+	rt->flags |= IPFW_RCFLAG_DEFAULT;
 
 	IPFW_UH_WLOCK(chain);	/* arbitrate writers */
-	for (i = 0; i < chain->n_rules - 1; i++) {
+	for (i = 0; i < chain->n_rules; i++) {
 		rule = chain->map[i];
 		if (ipfw_match_range(rule, rt) == 0)
 			continue;
@@ -1029,6 +1031,9 @@ check_range_tlv(ipfw_range_tlv *rt)
 	if (rt->start_rule > rt->end_rule)
 		return (1);
 	if (rt->set >= IPFW_MAX_SETS || rt->new_set >= IPFW_MAX_SETS)
+		return (1);
+
+	if ((rt->flags & IPFW_RCFLAG_USER) != rt->flags)
 		return (1);
 
 	return (0);
@@ -2012,7 +2017,7 @@ dump_config(struct ip_fw_chain *chain, ip_fw3_opheader *op3,
 		da.b = ipfw_find_rule(chain, rnum, 0);
 		rnum = hdr->end_rule;
 		rnum = (rnum < IPFW_DEFAULT_RULE) ? rnum+1 : IPFW_DEFAULT_RULE;
-		da.e = ipfw_find_rule(chain, rnum, 0);
+		da.e = ipfw_find_rule(chain, rnum, 0) + 1;
 	}
 
 	if (hdr->flags & IPFW_CFG_GET_STATIC) {
