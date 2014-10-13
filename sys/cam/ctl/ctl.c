@@ -7389,6 +7389,89 @@ ctl_read_capacity_16(struct ctl_scsiio *ctsio)
 }
 
 int
+ctl_read_defect(struct ctl_scsiio *ctsio)
+{
+	struct scsi_read_defect_data_10 *ccb10;
+	struct scsi_read_defect_data_12 *ccb12;
+	struct scsi_read_defect_data_hdr_10 *data10;
+	struct scsi_read_defect_data_hdr_12 *data12;
+	struct ctl_lun *lun;
+	uint32_t alloc_len, data_len;
+	uint8_t format;
+
+	CTL_DEBUG_PRINT(("ctl_read_defect\n"));
+
+	lun = (struct ctl_lun *)ctsio->io_hdr.ctl_private[CTL_PRIV_LUN].ptr;
+	if (lun->flags & CTL_LUN_PR_RESERVED) {
+		uint32_t residx;
+
+		/*
+		 * XXX KDM need a lock here.
+		 */
+		residx = ctl_get_resindex(&ctsio->io_hdr.nexus);
+		if ((lun->res_type == SPR_TYPE_EX_AC
+		  && residx != lun->pr_res_idx)
+		 || ((lun->res_type == SPR_TYPE_EX_AC_RO
+		   || lun->res_type == SPR_TYPE_EX_AC_AR)
+		  && lun->pr_keys[residx] == 0)) {
+			ctl_set_reservation_conflict(ctsio);
+			ctl_done((union ctl_io *)ctsio);
+			return (CTL_RETVAL_COMPLETE);
+	        }
+	}
+
+	if (ctsio->cdb[0] == READ_DEFECT_DATA_10) {
+		ccb10 = (struct scsi_read_defect_data_10 *)&ctsio->cdb;
+		format = ccb10->format;
+		alloc_len = scsi_2btoul(ccb10->alloc_length);
+		data_len = sizeof(*data10);
+	} else {
+		ccb12 = (struct scsi_read_defect_data_12 *)&ctsio->cdb;
+		format = ccb12->format;
+		alloc_len = scsi_4btoul(ccb12->alloc_length);
+		data_len = sizeof(*data12);
+	}
+	if (alloc_len == 0) {
+		ctl_set_success(ctsio);
+		ctl_done((union ctl_io *)ctsio);
+		return (CTL_RETVAL_COMPLETE);
+	}
+
+	ctsio->kern_data_ptr = malloc(data_len, M_CTL, M_WAITOK | M_ZERO);
+	if (data_len < alloc_len) {
+		ctsio->residual = alloc_len - data_len;
+		ctsio->kern_data_len = data_len;
+		ctsio->kern_total_len = data_len;
+	} else {
+		ctsio->residual = 0;
+		ctsio->kern_data_len = alloc_len;
+		ctsio->kern_total_len = alloc_len;
+	}
+	ctsio->kern_data_resid = 0;
+	ctsio->kern_rel_offset = 0;
+	ctsio->kern_sg_entries = 0;
+
+	if (ctsio->cdb[0] == READ_DEFECT_DATA_10) {
+		data10 = (struct scsi_read_defect_data_hdr_10 *)
+		    ctsio->kern_data_ptr;
+		data10->format = format;
+		scsi_ulto2b(0, data10->length);
+	} else {
+		data12 = (struct scsi_read_defect_data_hdr_12 *)
+		    ctsio->kern_data_ptr;
+		data12->format = format;
+		scsi_ulto2b(0, data12->generation);
+		scsi_ulto4b(0, data12->length);
+	}
+
+	ctsio->scsi_status = SCSI_STATUS_OK;
+	ctsio->io_hdr.flags |= CTL_FLAG_ALLOCATED;
+	ctsio->be_move_done = ctl_config_move_done;
+	ctl_datamove((union ctl_io *)ctsio);
+	return (CTL_RETVAL_COMPLETE);
+}
+
+int
 ctl_report_tagret_port_groups(struct ctl_scsiio *ctsio)
 {
 	struct scsi_maintenance_in *cdb;
