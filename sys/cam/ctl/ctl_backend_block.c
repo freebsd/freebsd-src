@@ -1542,6 +1542,7 @@ ctl_be_block_open_file(struct ctl_be_block_lun *be_lun, struct ctl_lun_req *req)
 	struct ctl_be_block_filedata *file_data;
 	struct ctl_lun_create_params *params;
 	struct vattr		      vattr;
+	off_t			      pss;
 	int			      error;
 
 	error = 0;
@@ -1590,21 +1591,21 @@ ctl_be_block_open_file(struct ctl_be_block_lun *be_lun, struct ctl_lun_req *req)
 	be_lun->flags |= CTL_BE_BLOCK_LUN_MULTI_THREAD;
 
 	/*
-	 * XXX KDM vattr.va_blocksize may be larger than 512 bytes here.
-	 * With ZFS, it is 131072 bytes.  Block sizes that large don't work
-	 * with disklabel and UFS on FreeBSD at least.  Large block sizes
-	 * may not work with other OSes as well.  So just export a sector
-	 * size of 512 bytes, which should work with any OS or
-	 * application.  Since our backing is a file, any block size will
-	 * work fine for the backing store.
+	 * For files we can use any logical block size.  Prefer 512 bytes
+	 * for compatibility reasons.  If file's vattr.va_blocksize
+	 * (preferred I/O block size) is bigger and multiple to chosen
+	 * logical block size -- report it as physical block size.
 	 */
-#if 0
-	be_lun->blocksize= vattr.va_blocksize;
-#endif
 	if (params->blocksize_bytes != 0)
 		be_lun->blocksize = params->blocksize_bytes;
 	else
 		be_lun->blocksize = 512;
+	pss = vattr.va_blocksize / be_lun->blocksize;
+	if ((pss > 0) && (pss * be_lun->blocksize == vattr.va_blocksize) &&
+	    ((pss & (pss - 1)) == 0)) {
+		be_lun->pblockexp = fls(pss) - 1;
+		be_lun->pblockoff = 0;
+	}
 
 	/*
 	 * Sanity check.  The media size has to be at least one
