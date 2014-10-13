@@ -1621,9 +1621,7 @@ ti_mmchs_activate(device_t dev)
 		goto errout;
 
 	/* Set the register offset */
-	if (ti_chip() == CHIP_OMAP_3)
-		sc->sc_reg_off = OMAP3_MMCHS_REG_OFFSET;
-	else if (ti_chip() == CHIP_OMAP_4)
+	if (ti_chip() == CHIP_OMAP_4)
 		sc->sc_reg_off = OMAP4_MMCHS_REG_OFFSET;
 	else if (ti_chip() == CHIP_AM335X)
 		sc->sc_reg_off = AM335X_MMCHS_REG_OFFSET;
