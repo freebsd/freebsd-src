@@ -238,7 +238,7 @@ static struct test {
 { L"          -0X.",	12,	0,			0 },
 #endif
 /* XXX: FIXME */
-#if defined(__NetBSD__) || defined(__linux__)
+#if defined(__NetBSD__) || defined(__linux__) || defined(__FreeBSD__)
 { L"0X.0",		4,	0,			0 },
 { L"+0X.0",		5,	0,			0 },
 { L"-0X.0",		5,	0,			0 },
