@@ -3662,7 +3662,6 @@ zfs_ioc_destroy_bookmarks(const char *poolname, nvlist_t *innvl,
 		if (strncmp(name, poolname, poollen) != 0 ||
 		    (name[poollen] != '/' && name[poollen] != '#'))
 			return (SET_ERROR(EXDEV));
-		(void) zvol_remove_minor(name);
 	}
 
 	error = dsl_bookmark_destroy(innvl, outnvl);
