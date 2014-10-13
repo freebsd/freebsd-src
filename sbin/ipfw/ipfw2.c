@@ -2111,13 +2111,19 @@ static int
 do_range_cmd(int cmd, ipfw_range_tlv *rt)
 {
 	ipfw_range_header rh;
+	size_t sz;
 
 	memset(&rh, 0, sizeof(rh));
 	memcpy(&rh.range, rt, sizeof(*rt));
 	rh.range.head.length = sizeof(*rt);
 	rh.range.head.type = IPFW_TLV_RANGE;
+	sz = sizeof(rh);
 
-	return (do_set3(cmd, &rh.opheader, sizeof(rh)));
+	if (do_get3(cmd, &rh.opheader, &sz) != 0)
+		return (-1);
+	/* Save number of matched objects */
+	rt->new_set = rh.range.new_set;
+	return (0);
 }
 
 /*
@@ -4792,6 +4798,9 @@ ipfw_zero(int ac, char *av[], int optname)
 				warn("rule %u: setsockopt(IP_FW_X%s)",
 				    arg, name);
 				failed = EX_UNAVAILABLE;
+			} else if (rt.new_set == 0) {
+				printf("Entry %d not found\n", arg);
+				failed = EX_UNAVAILABLE;
 			} else if (!co.do_quiet)
 				printf("Entry %d %s.\n", arg,
 				    optname == IP_FW_XZERO ?
@@ -4799,6 +4808,7 @@ ipfw_zero(int ac, char *av[], int optname)
 		} else {
 			errx(EX_USAGE, "invalid rule number ``%s''", *av);
 		}
+		av++; ac--;
 	}
 	if (failed != EX_OK)
 		exit(failed);
