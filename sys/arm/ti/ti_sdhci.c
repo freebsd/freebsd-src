@@ -494,9 +494,7 @@ ti_sdhci_attach(device_t dev)
 	 * Set the offset from the device's memory start to the MMCHS registers.
 	 * Also for OMAP4 disable high speed mode due to erratum ID i626.
 	 */
-	if (ti_chip() == CHIP_OMAP_3)
-		sc->mmchs_reg_off = OMAP3_MMCHS_REG_OFFSET;
-	else if (ti_chip() == CHIP_OMAP_4) {
+	if (ti_chip() == CHIP_OMAP_4) {
 		sc->mmchs_reg_off = OMAP4_MMCHS_REG_OFFSET;
 		sc->disable_highspeed = true;
         } else if (ti_chip() == CHIP_AM335X)
