@@ -886,6 +886,11 @@ typedef struct _ipfw_range_tlv {
 #define	IPFW_RCFLAG_RANGE	0x01	/* rule range is set		*/
 #define	IPFW_RCFLAG_ALL		0x02	/* match ALL rules		*/
 #define	IPFW_RCFLAG_SET		0x04	/* match rules in given set	*/
+/* User-settable flags */
+#define	IPFW_RCFLAG_USER	(IPFW_RCFLAG_RANGE | IPFW_RCFLAG_ALL | \
+	IPFW_RCFLAG_SET)
+/* Internally used flags */
+#define	IPFW_RCFLAG_DEFAULT	0x0100	/* Do not skip defaul rule	*/
 
 typedef struct _ipfw_ta_tinfo {
 	uint32_t	flags;		/* Format flags			*/
