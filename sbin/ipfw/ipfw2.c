@@ -4799,6 +4799,7 @@ ipfw_zero(int ac, char *av[], int optname)
 		} else {
 			errx(EX_USAGE, "invalid rule number ``%s''", *av);
 		}
+		av++; ac--;
 	}
 	if (failed != EX_OK)
 		exit(failed);
