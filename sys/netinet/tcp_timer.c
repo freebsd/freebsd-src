@@ -693,7 +693,15 @@ tcp_timer_rexmt(void * xtp)
 	TCPT_RANGESET(tp->t_rxtcur, rexmt,
 		      tp->t_rttmin, TCPTV_REXMTMAX);
 
-	if (V_tcp_pmtud_blackhole_detect && (tp->t_state == TCPS_ESTABLISHED)) {
+	/*
+	 * We enter the path for PLMTUD if connection is established or, if
+	 * connection is FIN_WAIT_1 status, reason for the last is that if
+	 * amount of data we send is very small, we could send it in couple of
+	 * packets and process straight to FIN. In that case we won't catch
+	 * ESTABLISHED state.
+	 */
+	if (V_tcp_pmtud_blackhole_detect && (((tp->t_state == TCPS_ESTABLISHED))
+	    || (tp->t_state == TCPS_FIN_WAIT_1))) {
 		int optlen;
 #ifdef INET6
 		int isipv6;
