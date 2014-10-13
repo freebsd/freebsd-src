@@ -5232,7 +5232,7 @@ l2arc_write_buffers(spa_t *spa, l2arc_dev_t *dev, uint64_t target_sz,
 	ARCSTAT_INCR(arcstat_l2_write_bytes, write_asize);
 	ARCSTAT_INCR(arcstat_l2_size, write_sz);
 	ARCSTAT_INCR(arcstat_l2_asize, write_asize);
-	vdev_space_update(dev->l2ad_vdev, write_asize, 0, 0);
+	vdev_space_update(dev->l2ad_vdev, write_psize, 0, 0);
 
 	/*
 	 * Bump device hand to the device start if it is approaching the end.
