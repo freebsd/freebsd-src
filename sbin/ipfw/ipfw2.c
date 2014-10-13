@@ -3009,7 +3009,6 @@ fill_flags_cmd(ipfw_insn *cmd, enum ipfw_opcodes opcode,
 void
 ipfw_delete(char *av[])
 {
-	uint32_t rulenum;
 	int i;
 	int exitval = EX_OK;
 	int do_set = 0;
@@ -3059,7 +3058,15 @@ ipfw_delete(char *av[])
 			if (i != 0) {
 				exitval = EX_UNAVAILABLE;
 				warn("rule %u: setsockopt(IP_FW_XDEL)",
-				    rulenum);
+				    rt.start_rule);
+			} else if (rt.new_set == 0) {
+				exitval = EX_UNAVAILABLE;
+				if (rt.start_rule != rt.end_rule)
+					warnx("no rules rules in %u-%u range",
+					    rt.start_rule, rt.end_rule);
+				else
+					warnx("rule %u not found",
+					    rt.start_rule);
 			}
 		}
 	}
