@@ -850,7 +850,7 @@ mrsas_attach(device_t dev)
 	TAILQ_INIT(&sc->mrsas_mpt_cmd_list_head);
 	TAILQ_INIT(&sc->mrsas_mfi_cmd_list_head);
 
-	atomic_set(&sc->fw_outstanding, 0);
+	mrsas_atomic_set(&sc->fw_outstanding, 0);
 
 	sc->io_cmds_highwater = 0;
 
@@ -1392,7 +1392,7 @@ mrsas_isr(void *arg)
 			return;
 	}
 	/* If we are resetting, bail */
-	if (test_bit(MRSAS_FUSION_IN_RESET, &sc->reset_flags)) {
+	if (mrsas_test_bit(MRSAS_FUSION_IN_RESET, &sc->reset_flags)) {
 		printf(" Entered into ISR when OCR is going active. \n");
 		mrsas_clear_intr(sc);
 		return;
@@ -1462,7 +1462,7 @@ mrsas_complete_cmd(struct mrsas_softc *sc, u_int32_t MSIxIndex)
 			lbinfo = &sc->load_balance_info[device_id];
 			if (cmd_mpt->load_balance == MRSAS_LOAD_BALANCE_FLAG) {
 				arm = lbinfo->raid1DevHandle[0] == scsi_io_req->DevHandle ? 0 : 1;
-				atomic_dec(&lbinfo->scsi_pending_cmds[arm]);
+				mrsas_atomic_dec(&lbinfo->scsi_pending_cmds[arm]);
 				cmd_mpt->load_balance &= ~MRSAS_LOAD_BALANCE_FLAG;
 			}
 			/* Fall thru and complete IO */
@@ -1471,7 +1471,7 @@ mrsas_complete_cmd(struct mrsas_softc *sc, u_int32_t MSIxIndex)
 			mrsas_cmd_done(sc, cmd_mpt);
 			scsi_io_req->RaidContext.status = 0;
 			scsi_io_req->RaidContext.exStatus = 0;
-			atomic_dec(&sc->fw_outstanding);
+			mrsas_atomic_dec(&sc->fw_outstanding);
 			break;
 		case MRSAS_MPI2_FUNCTION_PASSTHRU_IO_REQUEST:	/* MFI command */
 			cmd_mfi = sc->mfi_cmd_list[cmd_mpt->sync_cmd_idx];
@@ -2672,7 +2672,7 @@ mrsas_reset_ctrl(struct mrsas_softc *sc)
 		    "mrsas: Hardware critical error, returning FAIL.\n");
 		return FAIL;
 	}
-	set_bit(MRSAS_FUSION_IN_RESET, &sc->reset_flags);
+	mrsas_set_bit(MRSAS_FUSION_IN_RESET, &sc->reset_flags);
 	sc->adprecovery = MRSAS_ADPRESET_SM_INFAULT;
 	mrsas_disable_intr(sc);
 	DELAY(1000 * 1000);
@@ -2689,7 +2689,7 @@ mrsas_reset_ctrl(struct mrsas_softc *sc)
 				ccb = (union ccb *)(mpt_cmd->ccb_ptr);
 				ccb->ccb_h.status = CAM_SCSI_BUS_RESET;
 				mrsas_cmd_done(sc, mpt_cmd);
-				atomic_dec(&sc->fw_outstanding);
+				mrsas_atomic_dec(&sc->fw_outstanding);
 			}
 		}
 
@@ -2787,7 +2787,7 @@ mrsas_reset_ctrl(struct mrsas_softc *sc)
 				mrsas_dprint(sc, MRSAS_OCR, "mrsas_ioc_init() failed!\n");
 				continue;
 			}
-			clear_bit(MRSAS_FUSION_IN_RESET, &sc->reset_flags);
+			mrsas_clear_bit(MRSAS_FUSION_IN_RESET, &sc->reset_flags);
 			mrsas_enable_intr(sc);
 			sc->adprecovery = MRSAS_HBA_OPERATIONAL;
 
@@ -2833,12 +2833,12 @@ mrsas_reset_ctrl(struct mrsas_softc *sc)
 		mrsas_kill_hba(sc);
 		retval = FAIL;
 	} else {
-		clear_bit(MRSAS_FUSION_IN_RESET, &sc->reset_flags);
+		mrsas_clear_bit(MRSAS_FUSION_IN_RESET, &sc->reset_flags);
 		mrsas_enable_intr(sc);
 		sc->adprecovery = MRSAS_HBA_OPERATIONAL;
 	}
 out:
-	clear_bit(MRSAS_FUSION_IN_RESET, &sc->reset_flags);
+	mrsas_clear_bit(MRSAS_FUSION_IN_RESET, &sc->reset_flags);
 	mrsas_dprint(sc, MRSAS_OCR,
 	    "Reset Exit with %d.\n", retval);
 	return retval;
@@ -2890,7 +2890,7 @@ mrsas_wait_for_outstanding(struct mrsas_softc *sc)
 			retval = 1;
 			goto out;
 		}
-		outstanding = atomic_read(&sc->fw_outstanding);
+		outstanding = mrsas_atomic_read(&sc->fw_outstanding);
 		if (!outstanding)
 			goto out;
 
@@ -2904,7 +2904,7 @@ mrsas_wait_for_outstanding(struct mrsas_softc *sc)
 		DELAY(1000 * 1000);
 	}
 
-	if (atomic_read(&sc->fw_outstanding)) {
+	if (mrsas_atomic_read(&sc->fw_outstanding)) {
 		mrsas_dprint(sc, MRSAS_OCR,
 		    " pending commands remain after waiting,"
 		    " will reset adapter.\n");
