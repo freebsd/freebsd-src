@@ -317,12 +317,6 @@ static const struct ctl_page_index page_index_template[] = {
 	{SMS_INFO_EXCEPTIONS_PAGE | SMPH_SPF, 0x02,
 	 sizeof(struct scsi_logical_block_provisioning_page), NULL,
 	 CTL_PAGE_FLAG_DISK_ONLY, NULL, NULL},
-   	{SMS_VENDOR_SPECIFIC_PAGE | SMPH_SPF, PWR_SUBPAGE_CODE,
-	 sizeof(struct copan_power_subpage), NULL, CTL_PAGE_FLAG_NONE,
-	 ctl_power_sp_sense_handler, ctl_power_sp_handler},
-	{SMS_VENDOR_SPECIFIC_PAGE | SMPH_SPF, APS_SUBPAGE_CODE,
-	 sizeof(struct copan_aps_subpage), NULL, CTL_PAGE_FLAG_NONE,
-	 NULL, ctl_aps_sp_handler},
 	{SMS_VENDOR_SPECIFIC_PAGE | SMPH_SPF, DBGCNF_SUBPAGE_CODE,
 	 sizeof(struct copan_debugconf_subpage), NULL, CTL_PAGE_FLAG_NONE,
 	 ctl_debugconf_sp_sense_handler, ctl_debugconf_sp_select_handler},
@@ -339,8 +333,6 @@ struct ctl_mode_pages {
 	struct scsi_control_page	control_page[4];
 	struct scsi_info_exceptions_page ie_page[4];
 	struct scsi_logical_block_provisioning_page lbp_page[4];
-	struct copan_power_subpage	power_subpage[4];
-	struct copan_aps_subpage	aps_subpage[4];
 	struct copan_debugconf_subpage	debugconf_subpage[4];
 	struct ctl_page_index		index[CTL_NUM_MODE_PAGES];
 };
@@ -469,7 +461,6 @@ struct ctl_softc {
 	uint32_t ctl_lun_mask[(CTL_MAX_LUNS + 31) / 32];
 	struct ctl_lun *ctl_luns[CTL_MAX_LUNS];
 	uint32_t ctl_port_mask[(CTL_MAX_PORTS + 31) / 32];
-	uint64_t aps_locked_lun;
 	STAILQ_HEAD(, ctl_lun) lun_list;
 	STAILQ_HEAD(, ctl_be_lun) pending_lun_queue;
 	uint32_t num_frontends;
