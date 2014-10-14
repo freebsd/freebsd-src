@@ -172,12 +172,6 @@ int ctl_failover_sp_handler(struct ctl_scsiio *ctsio,
 			    struct ctl_page_index *page_index,
 			    uint8_t *page_ptr);
 **/
-int ctl_power_sp_handler(struct ctl_scsiio *ctsio,
-			 struct ctl_page_index *page_index, uint8_t *page_ptr);
-int ctl_power_sp_sense_handler(struct ctl_scsiio *ctsio,
-			       struct ctl_page_index *page_index, int pc);
-int ctl_aps_sp_handler(struct ctl_scsiio *ctsio,
-		       struct ctl_page_index *page_index, uint8_t *page_ptr);
 int ctl_debugconf_sp_sense_handler(struct ctl_scsiio *ctsio,
 				   struct ctl_page_index *page_index,
 				   int pc);
