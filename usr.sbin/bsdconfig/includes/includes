@@ -71,8 +71,10 @@ show_include()
 		-v show_desc=${SHOW_DESC:-0} '
         function asorti(src, dest)
         {
+		k = nitems = 0;
+
 		# Copy src indices to dest and calculate array length
-		nitems = 0; for (i in src) dest[++nitems] = i
+		for (i in src) dest[++nitems] = i
 
 		# Sort the array of indices (dest) using insertion sort method
 		for (i = 1; i <= nitems; k = i++)
