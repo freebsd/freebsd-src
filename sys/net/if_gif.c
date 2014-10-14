@@ -744,7 +744,9 @@ gif_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 	error = 0;
 	switch (cmd) {
 	case SIOCSIFPHYADDR:
+#ifdef INET6
 	case SIOCSIFPHYADDR_IN6:
+#endif
 		error = EINVAL;
 		switch (cmd) {
 #ifdef INET
@@ -840,8 +842,10 @@ gif_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 		break;
 	case SIOCGIFPSRCADDR:
 	case SIOCGIFPDSTADDR:
+#ifdef INET6
 	case SIOCGIFPSRCADDR_IN6:
 	case SIOCGIFPDSTADDR_IN6:
+#endif
 		if (sc->gif_family == 0) {
 			error = EADDRNOTAVAIL;
 			break;
@@ -1057,7 +1061,9 @@ gif_set_tunnel(struct ifnet *ifp, struct sockaddr *src, struct sockaddr *dst)
 	sc->gif_family = src->sa_family;
 	sc->gif_hdr = hdr;
 	GIF_WUNLOCK(sc);
+#if defined(INET) || defined(INET6)
 bad:
+#endif
 	if (error == 0 && sc->gif_family != 0)
 		ifp->if_drv_flags |= IFF_DRV_RUNNING;
 	else
