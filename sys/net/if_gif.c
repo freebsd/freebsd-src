@@ -918,9 +918,9 @@ gif_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 			    (struct sockaddr *)sin6);
 			if (error == 0)
 				error = sa6_recoverscope(sin6);
-#endif
 			if (error != 0)
 				memset(sin6, 0, sizeof(*sin6));
+#endif
 		}
 		break;
 	case GIFGOPTS:
