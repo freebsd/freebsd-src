@@ -709,40 +709,6 @@ struct scsi_caching_page {
 /*
  * XXX KDM move this off to a vendor shim.
  */
-struct copan_power_subpage {
-	uint8_t page_code;
-#define	PWR_PAGE_CODE		0x00
-	uint8_t subpage;
-#define	PWR_SUBPAGE_CODE	0x02
-	uint8_t page_length[2];
-	uint8_t page_version;
-#define	PWR_VERSION		    0x01
-	uint8_t total_luns;
-	uint8_t max_active_luns;
-#define	PWR_DFLT_MAX_LUNS	    0x07
-	uint8_t reserved[25];
-};
-
-/*
- * XXX KDM move this off to a vendor shim.
- */
-struct copan_aps_subpage {
-	uint8_t page_code;
-#define	APS_PAGE_CODE		0x00
-	uint8_t subpage;
-#define	APS_SUBPAGE_CODE	0x03
-	uint8_t page_length[2];
-	uint8_t page_version;
-#define	APS_VERSION		    0x00
-	uint8_t lock_active;
-#define	APS_LOCK_ACTIVE	    0x01
-#define	APS_LOCK_INACTIVE	0x00
-	uint8_t reserved[26];
-};
-
-/*
- * XXX KDM move this off to a vendor shim.
- */
 struct copan_debugconf_subpage {
 	uint8_t page_code;
 #define DBGCNF_PAGE_CODE		0x00
