@@ -185,6 +185,7 @@ cat <<_EOF_
 #include <sys/ipc.h>
 #include <sys/rtprio.h>
 #include <sys/shm.h>
+#include <sys/umtx.h>
 #include <nfsserver/nfs.h>
 #include <ufs/ufs/quota.h>
 #include <sys/capsicum.h>
@@ -489,6 +490,7 @@ auto_if_type     "sockipprotoname"     "IPPROTO_[[:alnum:]]+[[:space:]]+"       
 auto_switch_type "sockoptname"         "SO_[A-Z]+[[:space:]]+0x[0-9]+"                "sys/socket.h"
 auto_switch_type "socktypename"        "SOCK_[A-Z]+[[:space:]]+[1-9]+[0-9]*"          "sys/socket.h"
 auto_or_type     "thrcreateflagsname"  "THR_[A-Z]+[[:space:]]+0x[0-9]+"               "sys/thr.h"
+auto_switch_type "umtxopname"          "UMTX_OP_[[:alnum:]_]+[[:space:]]+[0-9]+"            "sys/umtx.h"
 auto_switch_type "vmresultname"        "KERN_[A-Z]+[[:space:]]+[0-9]+"                "vm/vm_param.h"
 auto_or_type     "wait6optname"        "W[A-Z]+[[:space:]]+[0-9]+"                    "sys/wait.h"
 auto_switch_type "whencename"          "SEEK_[A-Z]+[[:space:]]+[0-9]+"                "sys/unistd.h"
@@ -677,6 +679,62 @@ cat <<_EOF_
 	}
 }
 
+/*
+ * AUTO - Special
+ *
+ * Just print 0 as 0.
+ */
+void
+umtxcvwaitflags(intmax_t arg)
+{
+	int or = 0;
+	if (arg == 0) {
+		printf("0");
+		return;
+	}
+	printf("%#jx<", (uintmax_t)arg);
+_EOF_
+	egrep "^#[[:space:]]*define[[:space:]]+CVWAIT_[A-Z_]+[[:space:]]+0x[0-9]+[[:space:]]*" \
+		$include_dir/sys/umtx.h | \
+	awk '{ for (i = 1; i <= NF; i++) \
+		if ($i ~ /define/) \
+			break; \
+		++i; \
+		printf "\tif (!((arg > 0) ^ ((%s) > 0)))\n\t\tif_print_or(arg, %s, or);\n", $i, $i }'
+cat <<_EOF_
+	printf(">");
+	if (or == 0)
+		printf("<invalid>%jd", arg);
+}
+
+
+/*
+ * AUTO - Special
+ *
+ * Just print 0 as 0.
+ */
+void
+umtxrwlockflags(intmax_t arg)
+{
+	int or = 0;
+	if (arg == 0) {
+		printf("0");
+		return;
+	}
+	printf("%#jx<", (uintmax_t)arg);
+_EOF_
+	egrep "^#[[:space:]]*define[[:space:]]+URWLOCK_PREFER_READER[[:space:]]+0x[0-9]+[[:space:]]*" \
+		$include_dir/sys/umtx.h | \
+	awk '{ for (i = 1; i <= NF; i++) \
+		if ($i ~ /define/) \
+			break; \
+		++i; \
+		printf "\tif (!((arg > 0) ^ ((%s) > 0)))\n\t\tif_print_or(arg, %s, or);\n", $i, $i }'
+cat <<_EOF_
+	printf(">");
+	if (or == 0)
+		printf("<invalid>%jd", arg);
+}
 _EOF_
 egrep '#define[[:space:]]+CAP_[A-Z_]+[[:space:]]+CAPRIGHT\([0-9],[[:space:]]+0x[0-9]{16}ULL\)' \
 	$include_dir/sys/capsicum.h | \

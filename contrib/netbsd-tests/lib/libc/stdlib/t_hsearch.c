@@ -75,6 +75,7 @@ __RCSID("$NetBSD: t_hsearch.c,v 1.4 2014/07/20 20:17:21 christos Exp $");
 
 #define REQUIRE_ERRNO(x) ATF_REQUIRE_MSG(x, "%s", strerror(errno))
 
+#if defined(__NetBSD__)
 ATF_TC(hsearch_basic);
 ATF_TC_HEAD(hsearch_basic, tc)
 {
@@ -123,6 +124,7 @@ ATF_TC_BODY(hsearch_basic, tc)
 
 	hdestroy1(free, NULL);
 }
+#endif
 
 ATF_TC(hsearch_duplicate);
 ATF_TC_HEAD(hsearch_duplicate, tc)
@@ -229,6 +231,7 @@ ATF_TC_BODY(hsearch_two, tc)
 	hdestroy();
 }
 
+#if defined(__NetBSD__)
 ATF_TC(hsearch_r_basic);
 ATF_TC_HEAD(hsearch_r_basic, tc)
 {
@@ -276,6 +279,7 @@ ATF_TC_BODY(hsearch_r_basic, tc)
 
 	hdestroy1_r(&t, free, NULL);
 }
+#endif
 
 ATF_TC(hsearch_r_duplicate);
 ATF_TC_HEAD(hsearch_r_duplicate, tc)
@@ -385,12 +389,16 @@ ATF_TC_BODY(hsearch_r_two, tc)
 ATF_TP_ADD_TCS(tp)
 {
 
+#if defined(__NetBSD__)
 	ATF_TP_ADD_TC(tp, hsearch_basic);
+#endif
 	ATF_TP_ADD_TC(tp, hsearch_duplicate);
 	ATF_TP_ADD_TC(tp, hsearch_nonexistent);
 	ATF_TP_ADD_TC(tp, hsearch_two);
 
+#if defined(__NetBSD__)
 	ATF_TP_ADD_TC(tp, hsearch_r_basic);
+#endif
 	ATF_TP_ADD_TC(tp, hsearch_r_duplicate);
 	ATF_TP_ADD_TC(tp, hsearch_r_nonexistent);
 	ATF_TP_ADD_TC(tp, hsearch_r_two);

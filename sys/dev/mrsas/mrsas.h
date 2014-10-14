@@ -101,7 +101,7 @@ __FBSDID("$FreeBSD$");
  */
 #define	BYTE_ALIGNMENT					1
 #define	MRSAS_MAX_NAME_LENGTH			32
-#define	MRSAS_VERSION					"06.705.10.01-fbsd"
+#define	MRSAS_VERSION					"06.705.10.02-fbsd"
 #define	MRSAS_ULONG_MAX					0xFFFFFFFFFFFFFFFF
 #define	MRSAS_DEFAULT_TIMEOUT			0x14	/* Temporarily set */
 #define	DONE							0
@@ -513,12 +513,12 @@ Mpi2ReplyDescriptorsUnion_t, MPI2_POINTER pMpi2ReplyDescriptorsUnion_t;
 
 typedef struct {
 	volatile unsigned int val;
-} atomic_t;
+} mrsas_atomic_t;
 
-#define	atomic_read(v)	atomic_load_acq_int(&(v)->val)
-#define	atomic_set(v,i)	atomic_store_rel_int(&(v)->val, i)
-#define	atomic_dec(v)	atomic_fetchadd_int(&(v)->val, -1)
-#define	atomic_inc(v)	atomic_fetchadd_int(&(v)->val, 1)
+#define	mrsas_atomic_read(v)	atomic_load_acq_int(&(v)->val)
+#define	mrsas_atomic_set(v,i)	atomic_store_rel_int(&(v)->val, i)
+#define	mrsas_atomic_dec(v)	atomic_fetchadd_int(&(v)->val, -1)
+#define	mrsas_atomic_inc(v)	atomic_fetchadd_int(&(v)->val, 1)
 
 /* IOCInit Request message */
 typedef struct _MPI2_IOC_INIT_REQUEST {
@@ -813,7 +813,7 @@ typedef struct _LD_LOAD_BALANCE_INFO {
 	u_int8_t loadBalanceFlag;
 	u_int8_t reserved1;
 	u_int16_t raid1DevHandle[2];
-	atomic_t scsi_pending_cmds[2];
+	mrsas_atomic_t scsi_pending_cmds[2];
 	u_int64_t last_accessed_block[2];
 }	LD_LOAD_BALANCE_INFO, *PLD_LOAD_BALANCE_INFO;
 
@@ -2524,7 +2524,7 @@ struct mrsas_softc {
 	bus_addr_t ctlr_info_phys_addr;
 	u_int32_t max_sectors_per_req;
 	u_int8_t disableOnlineCtrlReset;
-	atomic_t fw_outstanding;
+	mrsas_atomic_t fw_outstanding;
 	u_int32_t mrsas_debug;
 	u_int32_t mrsas_io_timeout;
 	u_int32_t mrsas_fw_fault_check_delay;
@@ -2577,19 +2577,19 @@ struct mrsas_softc {
 #endif
 
 static __inline void
-clear_bit(int b, volatile void *p)
+mrsas_clear_bit(int b, volatile void *p)
 {
 	atomic_clear_int(((volatile int *)p) + (b >> 5), 1 << (b & 0x1f));
 }
 
 static __inline void
-set_bit(int b, volatile void *p)
+mrsas_set_bit(int b, volatile void *p)
 {
 	atomic_set_int(((volatile int *)p) + (b >> 5), 1 << (b & 0x1f));
 }
 
 static __inline int
-test_bit(int b, volatile void *p)
+mrsas_test_bit(int b, volatile void *p)
 {
 	return ((volatile int *)p)[b >> 5] & (1 << (b & 0x1f));
 }

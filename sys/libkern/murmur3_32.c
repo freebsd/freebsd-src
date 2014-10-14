@@ -1,10 +1,6 @@
 /*-
- * Copyright (c) 2014 Ruslan Bukin <br@bsdpad.com>
+ * Copyright (c) 2014 Dag-Erling Smørgrav
  * All rights reserved.
- *
- * This software was developed by SRI International and the University of
- * Cambridge Computer Laboratory under DARPA/AFRL contract (FA8750-10-C-0237)
- * ("CTSRD"), as part of the DARPA CRASH research programme.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -26,56 +22,53 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- *
- * $FreeBSD$
  */
 
-/dts-v1/;
+#include <sys/hash.h>
+#include <sys/endian.h>
+#include <sys/stdint.h>
+#include <sys/types.h>
 
-/include/ "socfpga.dtsi"
+#define rol32(i32, n) ((i32) << (n) | (i32) >> (32 - (n)))
 
-/ {
-	model = "Terasic SoCKit";
-	compatible = "altr,socfpga-cyclone5", "altr,socfpga";
+/*
+ * $FreeBSD$
+ * Simple implementation of the Murmur3-32 hash function optimized for
+ * aligned sequences of 32-bit words.  If len is not a multiple of 4, it
+ * will be rounded down, droping trailer bytes.
+ */
+uint32_t
+murmur3_aligned_32(const void *data, size_t len, uint32_t seed)
+{
+	const uint32_t *data32;
+	uint32_t hash, k;
+	size_t res;
 
-	/* Reserve first page for secondary CPU trampoline code */
-	memreserve = < 0x00000000 0x1000 >;
+	/* initialize */
+	len -= len % sizeof(*data32);
+	res = len;
+	data32 = data;
+	hash = seed;
 
-	memory {
-		device_type = "memory";
-		reg = < 0x00000000 0x40000000 >;	/* 1G RAM */
-	};
+	/* iterate */
+	for (res = 0; res < len; res += sizeof(*data32), data32++) {
+		k = le32toh(*data32);
+		k *= 0xcc9e2d51;
+		k = rol32(k, 15);
+		k *= 0x1b873593;
+		hash ^= k;
+		hash = rol32(hash, 13);
+		hash *= 5;
+		hash += 0xe6546b64;
+	}
 
-	SOC: socfpga {
-		serial0: serial@ffc02000 {
-			status = "okay";
-		};
+	/* finalize */
+	hash ^= (uint32_t)len;
+	hash ^= hash >> 16;
+	hash *= 0x85ebca6b;
+	hash ^= hash >> 13;
+	hash *= 0xc2b2ae35;
+	hash ^= hash >> 16;
+	return (hash);
+}
 
-		usb1: usb@ffb40000 {
-			status = "okay";
-		};
-
-		gmac1: ethernet@ff702000 {
-			status = "okay";
-		};
-
-		mmc: dwmmc@ff704000 {
-			status = "okay";
-			num-slots = <1>;
-			supports-highspeed;
-			broken-cd;
-			bus-frequency = <25000000>;
-
-			slot@0 {
-				reg = <0>;
-				bus-width = <4>;
-			};	
-		};
-	};
-
-	chosen {
-		bootargs = "-v";
-		stdin = "serial0";
-		stdout = "serial0";
-	};
-};

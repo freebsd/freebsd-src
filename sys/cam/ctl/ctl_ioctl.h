@@ -363,7 +363,8 @@ struct ctl_port_list {
 typedef enum {
 	CTL_LUN_NOSTATUS,
 	CTL_LUN_OK,
-	CTL_LUN_ERROR
+	CTL_LUN_ERROR,
+	CTL_LUN_WARNING
 } ctl_lun_status;
 
 #define	CTL_ERROR_STR_LEN	160
