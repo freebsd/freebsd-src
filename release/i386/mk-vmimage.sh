@@ -35,18 +35,6 @@
 PATH="/bin:/usr/bin:/sbin:/usr/sbin:/usr/local/bin:/usr/local/sbin"
 export PATH
 
-vm_prebuild_setup() {
-	return 0
-}
-
-vm_setup() {
-	return 0
-}
-
-vm_postbuild_setup() {
-	return 0
-}
-
 usage_vm_base() {
 	echo -n "$(basename ${0}) vm-base <base image> <source tree>"
 	echo	" <dest dir> <disk image size>"
@@ -92,9 +80,6 @@ panic() {
 }
 
 vm_create_baseimage() {
-	# Run anything that is needed before the virtual machine disk image
-	# is created.
-	vm_prebuild_setup
 	# Creates the UFS root filesystem for the virtual machine disk,
 	# written to the formatted disk image with mkimg(1).
 	#
@@ -128,9 +113,6 @@ vm_create_baseimage() {
 		>> ${DESTDIR}/etc/fstab
 	echo '/dev/gpt/swapfs	none	swap	sw	0	0' \
 		>> ${DESTDIR}/etc/fstab
-	# Run anything that is needed while the virtual machine disk image
-	# userland filesystem is still mounted as a md(4) device.
-	vm_setup
 	sync
 	while ! umount ${DESTDIR}; do
 		i=$(( $i + 1 ))
@@ -190,34 +172,12 @@ vm_create_vmdisk() {
 		-p freebsd-ufs/rootfs:=${VMBASE} \
 		-o ${VMIMAGE}
 
-	# Run anything that is needed for the virtual machine disk image
-	# after it has been created.
-	vm_postbuild_setup
 	return 0
 }
 
 main() {
-	vm_config=
-	while getopts "c:" arg; do
-		case ${arg} in
-			c)
-				vm_config="${OPTARG}"
-				;;
-			*)
-				;;
-		esac
-	done
-	shift $(( ${OPTIND} - 1 ))
-
 	cmd="${1}"
 	shift 1
-
-	if [ ! -z "${vm_config}" ]; then
-		if [ ! -e "${vm_config}" ]; then
-			panic "Configuration file ${vm_config} not found."
-		fi
-		. ${vm_config}
-	fi
 
 	case ${cmd} in
 		vm-base)
