@@ -67,7 +67,7 @@ vm_create_azure() {
 			usage
 	fi
 
-	trap "umount ${DESTDIR}/dev ${DESTDIR}" EXIT
+	trap "umount ${DESTDIR}/dev ${DESTDIR}" INT QUIT TRAP ABRT TERM
 
 	i=0
 	mkdir -p ${DESTDIR}
