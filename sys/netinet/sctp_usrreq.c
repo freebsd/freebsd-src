@@ -4431,6 +4431,12 @@ sctp_setopt(struct socket *so, int optname, void *optval, size_t optsize,
 				SCTP_TCB_UNLOCK(stcb);
 				break;
 			}
+			if (sizeof(struct sctp_reset_streams) +
+			    strrst->srs_number_streams * sizeof(uint16_t) > optsize) {
+				error = EINVAL;
+				SCTP_TCB_UNLOCK(stcb);
+				break;
+			}
 			if (stcb->asoc.stream_reset_outstanding) {
 				SCTP_LTRACE_ERR_RET(inp, NULL, NULL, SCTP_FROM_SCTP_USRREQ, EALREADY);
 				error = EALREADY;

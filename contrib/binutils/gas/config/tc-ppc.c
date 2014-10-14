@@ -1210,7 +1210,7 @@ ppc_target_format (void)
   return "elf32-powerpc-vxworks";
 # else
   return (target_big_endian
-	  ? (ppc_obj64 ? "elf64-powerpc" : "elf32-powerpc")
+	  ? (ppc_obj64 ? "elf64-powerpc-freebsd" : "elf32-powerpc-freebsd")
 	  : (ppc_obj64 ? "elf64-powerpcle" : "elf32-powerpcle"));
 # endif
 #endif

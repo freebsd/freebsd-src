@@ -1496,6 +1496,7 @@ OLD_LIBS+=usr/lib/libpanel.so.4
 OLD_LIBS+=usr/lib/libpanelw.so.4
 OLD_LIBS+=usr/lib/libpmc.so.4
 OLD_LIBS+=usr/lib/libproc.so.1
+OLD_LIBS+=usr/lib/libproc.so.2
 OLD_LIBS+=usr/lib/libradius.so.3
 OLD_LIBS+=usr/lib/librpcsvc.so.4
 OLD_LIBS+=usr/lib/libsdp.so.3

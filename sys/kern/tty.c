@@ -123,9 +123,10 @@ tty_watermarks(struct tty *tp)
 }
 
 static int
-tty_drain(struct tty *tp)
+tty_drain(struct tty *tp, int leaving)
 {
-	int error;
+	size_t bytesused;
+	int error, revokecnt;
 
 	if (ttyhook_hashook(tp, getc_inject))
 		/* buffer is inaccessible */
@@ -134,11 +135,27 @@ tty_drain(struct tty *tp)
 	while (ttyoutq_bytesused(&tp->t_outq) > 0) {
 		ttydevsw_outwakeup(tp);
 		/* Could be handled synchronously. */
-		if (ttyoutq_bytesused(&tp->t_outq) == 0)
+		bytesused = ttyoutq_bytesused(&tp->t_outq);
+		if (bytesused == 0)
 			return (0);
 
 		/* Wait for data to be drained. */
-		error = tty_wait(tp, &tp->t_outwait);
+		if (leaving) {
+			revokecnt = tp->t_revokecnt;
+			error = tty_timedwait(tp, &tp->t_outwait, hz);
+			switch (error) {
+			case ERESTART:
+				if (revokecnt != tp->t_revokecnt)
+					error = 0;
+				break;
+			case EWOULDBLOCK:
+				if (ttyoutq_bytesused(&tp->t_outq) < bytesused)
+					error = 0;
+				break;
+			}
+		} else
+			error = tty_wait(tp, &tp->t_outwait);
+
 		if (error)
 			return (error);
 	}
@@ -191,10 +208,8 @@ ttydev_leave(struct tty *tp)
 
 	/* Drain any output. */
 	MPASS((tp->t_flags & TF_STOPPED) == 0);
-	if (!tty_gone(tp)) {
-		while (tty_drain(tp) == ERESTART)
-			;
-	}
+	if (!tty_gone(tp))
+		tty_drain(tp, 1);
 
 	ttydisc_close(tp);
 
@@ -1392,13 +1407,13 @@ tty_timedwait(struct tty *tp, struct cv *cv, int hz)
 
 	error = cv_timedwait_sig(cv, tp->t_mtx, hz);
 
-	/* Restart the system call when we may have been revoked. */
-	if (tp->t_revokecnt != revokecnt)
-		return (ERESTART);
-
 	/* Bail out when the device slipped away. */
 	if (tty_gone(tp))
 		return (ENXIO);
+
+	/* Restart the system call when we may have been revoked. */
+	if (tp->t_revokecnt != revokecnt)
+		return (ERESTART);
 
 	return (error);
 }
@@ -1528,7 +1543,7 @@ tty_generic_ioctl(struct tty *tp, u_long cmd, void *data, int fflag,
 
 		/* Set terminal flags through tcsetattr(). */
 		if (cmd == TIOCSETAW || cmd == TIOCSETAF) {
-			error = tty_drain(tp);
+			error = tty_drain(tp, 0);
 			if (error)
 				return (error);
 			if (cmd == TIOCSETAF)
@@ -1707,7 +1722,7 @@ tty_generic_ioctl(struct tty *tp, u_long cmd, void *data, int fflag,
 	}
 	case TIOCDRAIN:
 		/* Drain TTY output. */
-		return tty_drain(tp);
+		return tty_drain(tp, 0);
 	case TIOCCONS:
 		/* Set terminal as console TTY. */
 		if (*(int *)data) {

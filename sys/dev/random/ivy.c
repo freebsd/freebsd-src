@@ -79,7 +79,7 @@ ivy_rng_store(long *buf)
 	    "2:\n\t"
 	    "mov	%2,%1\n\t" /* *buf = tmp */
 	    "3:"
-	    : "+q" (retry), "=m" (*buf), "=q" (tmp) : : "cc");
+	    : "+q" (retry), "=m" (*buf), "+q" (tmp) : : "cc");
 	return (retry);
 #else /* __GNUCLIKE_ASM */
 	return (0);

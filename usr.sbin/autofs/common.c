@@ -169,17 +169,12 @@ create_directory(const char *path)
 		if (component == NULL)
 			break;
 		concat(&partial, &component);
-		//log_debugx("checking \"%s\" for existence", partial);
-		error = access(partial, F_OK);
-		if (error == 0)
-			continue;
-		if (errno != ENOENT)
-			log_err(1, "cannot access %s", partial);
-		log_debugx("directory %s does not exist, creating",
-		    partial);
+		//log_debugx("creating \"%s\"", partial);
 		error = mkdir(partial, 0755);
-		if (error != 0)
-			log_err(1, "cannot create %s", partial);
+		if (error != 0 && errno != EEXIST) {
+			log_warn("cannot create %s", partial);
+			return;
+		}
 	}
 
 	free(tofree);

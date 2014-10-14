@@ -642,7 +642,7 @@ msdosfs_read(ap)
 		brelse(bp);
 	} while (error == 0 && uio->uio_resid > 0 && n != 0);
 	if (!isadir && (error == 0 || uio->uio_resid != orig_resid) &&
-	    (vp->v_mount->mnt_flag & MNT_NOATIME) == 0)
+	    (vp->v_mount->mnt_flag & (MNT_NOATIME | MNT_RDONLY)) == 0)
 		dep->de_flag |= DE_ACCESS;
 	return (error);
 }

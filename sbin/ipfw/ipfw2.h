@@ -207,7 +207,28 @@ enum tokens {
 	TOK_LOOKUP,
 	TOK_SOCKARG,
 	TOK_SETDSCP,
+	TOK_FLOW,
+	TOK_IFLIST,
+	/* Table tokens */
+	TOK_CREATE,
+	TOK_DESTROY,
+	TOK_LIST,
+	TOK_INFO,
+	TOK_DETAIL,
+	TOK_MODIFY,
+	TOK_FLUSH,
+	TOK_SWAP,
+	TOK_ADD,
+	TOK_DEL,
+	TOK_VALTYPE,
+	TOK_ALGO,
+	TOK_TALIST,
+	TOK_ATOMIC,
+	TOK_LOCK,
+	TOK_UNLOCK,
+	TOK_VLIST,
 };
+
 /*
  * the following macro returns an error message if we run out of
  * arguments.
@@ -236,14 +257,22 @@ void *safe_realloc(void *ptr, size_t size);
 /* string comparison functions used for historical compatibility */
 int _substrcmp(const char *str1, const char* str2);
 int _substrcmp2(const char *str1, const char* str2, const char* str3);
+int stringnum_cmp(const char *a, const char *b);
 
 /* utility functions */
 int match_token(struct _s_x *table, char *string);
+int match_token_relaxed(struct _s_x *table, char *string);
 char const *match_value(struct _s_x *p, int value);
+size_t concat_tokens(char *buf, size_t bufsize, struct _s_x *table,
+    char *delimiter);
+int fill_flags(struct _s_x *flags, char *p, char **e, uint32_t *set,
+    uint32_t *clear);
+void print_flags_buffer(char *buf, size_t sz, struct _s_x *list, uint32_t set);
 
+struct _ip_fw3_opheader;
 int do_cmd(int optname, void *optval, uintptr_t optlen);
-
-uint32_t ipfw_get_tables_max(void);
+int do_set3(int optname, struct _ip_fw3_opheader *op3, uintptr_t optlen);
+int do_get3(int optname, struct _ip_fw3_opheader *op3, size_t *optlen);
 
 struct in6_addr;
 void n2mask(struct in6_addr *mask, int n);
@@ -282,6 +311,7 @@ void ipfw_delete(char *av[]);
 void ipfw_flush(int force);
 void ipfw_zero(int ac, char *av[], int optname);
 void ipfw_list(int ac, char *av[], int show_counters);
+void ipfw_internal_handler(int ac, char *av[]);
 
 #ifdef PF
 /* altq.c */
@@ -311,3 +341,12 @@ void fill_flow6(struct _ipfw_insn_u32 *cmd, char *av, int cblen);
 void fill_unreach6_code(u_short *codep, char *str);
 void fill_icmp6types(struct _ipfw_insn_icmp6 *cmd, char *av, int cblen);
 int fill_ext6hdr(struct _ipfw_insn *cmd, char *av);
+
+/* tables.c */
+struct _ipfw_obj_ctlv;
+char *table_search_ctlv(struct _ipfw_obj_ctlv *ctlv, uint16_t idx);
+void table_sort_ctlv(struct _ipfw_obj_ctlv *ctlv);
+int table_check_name(char *tablename);
+void ipfw_list_ta(int ac, char *av[]);
+void ipfw_list_values(int ac, char *av[]);
+

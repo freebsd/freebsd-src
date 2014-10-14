@@ -2271,14 +2271,17 @@ xhci_configure_mask(struct usb_device *udev, uint32_t mask, uint8_t drop)
 		/* adjust */
 		x--;
 
-		/* figure out maximum */
-		if (x > sc->sc_hw.devs[index].context_num) {
+		/* figure out the maximum number of contexts */
+		if (x > sc->sc_hw.devs[index].context_num)
 			sc->sc_hw.devs[index].context_num = x;
-			temp = xhci_ctx_get_le32(sc, &pinp->ctx_slot.dwSctx0);
-			temp &= ~XHCI_SCTX_0_CTX_NUM_SET(31);
-			temp |= XHCI_SCTX_0_CTX_NUM_SET(x + 1);
-			xhci_ctx_set_le32(sc, &pinp->ctx_slot.dwSctx0, temp);
-		}
+		else
+			x = sc->sc_hw.devs[index].context_num;
+
+		/* update number of contexts */
+		temp = xhci_ctx_get_le32(sc, &pinp->ctx_slot.dwSctx0);
+		temp &= ~XHCI_SCTX_0_CTX_NUM_SET(31);
+		temp |= XHCI_SCTX_0_CTX_NUM_SET(x + 1);
+		xhci_ctx_set_le32(sc, &pinp->ctx_slot.dwSctx0, temp);
 	}
 	return (0);
 }

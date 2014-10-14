@@ -22,6 +22,7 @@ arm/ti/ti_pruss.c				standard
 arm/ti/ti_adc.c					optional	ti_adc
 arm/ti/ti_gpio.c				optional	gpio
 arm/ti/ti_i2c.c					optional	ti_i2c
+arm/ti/ti_sdhci.c	 			optional	sdhci
 
 dev/uart/uart_dev_ti8250.c			optional	uart
 dev/uart/uart_dev_ns8250.c			optional	uart

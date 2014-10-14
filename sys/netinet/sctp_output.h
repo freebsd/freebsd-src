@@ -181,8 +181,8 @@ sctp_add_stream_reset_result_tsn(struct sctp_tmit_chunk *,
     uint32_t, uint32_t, uint32_t, uint32_t);
 
 int
-sctp_send_str_reset_req(struct sctp_tcb *, int, uint16_t *, uint8_t, uint8_t,
-    uint8_t, uint8_t, uint16_t, uint16_t, uint8_t);
+sctp_send_str_reset_req(struct sctp_tcb *, uint16_t, uint16_t *, uint8_t,
+    uint8_t, uint8_t, uint8_t, uint16_t, uint16_t, uint8_t);
 
 void
 sctp_send_abort(struct mbuf *, int, struct sockaddr *, struct sockaddr *,

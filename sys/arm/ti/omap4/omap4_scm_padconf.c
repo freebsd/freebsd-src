@@ -131,7 +131,7 @@ __FBSDID("$FreeBSD$");
 		.muxmodes[7] = m7, \
 	}
 
-const struct ti_scm_padstate ti_padstate_devmap[] = {
+const static struct ti_scm_padstate ti_padstate_devmap[] = {
 	{"output",		PADCONF_PIN_OUTPUT},
 	{"input",		PADCONF_PIN_INPUT},
 	{"input_pullup",	PADCONF_PIN_INPUT_PULLUP},
