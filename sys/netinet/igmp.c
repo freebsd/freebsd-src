@@ -1466,7 +1466,7 @@ igmp_input(struct mbuf **mp, int *offp, int proto)
 		minlen += IGMP_V3_QUERY_MINLEN;
 	else
 		minlen += IGMP_MINLEN;
-	if ((m->m_flags & M_EXT || m->m_len < minlen) &&
+	if ((!M_WRITABLE(m) || m->m_len < minlen) &&
 	    (m = m_pullup(m, minlen)) == 0) {
 		IGMPSTAT_INC(igps_rcv_tooshort);
 		return (IPPROTO_DONE);
@@ -1557,7 +1557,7 @@ igmp_input(struct mbuf **mp, int *offp, int proto)
 				 */
 				igmpv3len = iphlen + IGMP_V3_QUERY_MINLEN +
 				    srclen;
-				if ((m->m_flags & M_EXT ||
+				if ((!M_WRITABLE(m) ||
 				     m->m_len < igmpv3len) &&
 				    (m = m_pullup(m, igmpv3len)) == NULL) {
 					IGMPSTAT_INC(igps_rcv_tooshort);

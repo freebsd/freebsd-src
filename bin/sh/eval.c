@@ -168,6 +168,8 @@ evalstring(char *s, int flags)
 			else
 				evaltree(n, flags);
 			any = 1;
+			if (evalskip)
+				break;
 		}
 		popstackmark(&smark);
 		setstackmark(&smark);

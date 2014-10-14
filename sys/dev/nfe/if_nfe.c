@@ -2063,10 +2063,6 @@ nfe_jnewbuf(struct nfe_softc *sc, int idx)
 	m = m_getjcl(M_NOWAIT, MT_DATA, M_PKTHDR, MJUM9BYTES);
 	if (m == NULL)
 		return (ENOBUFS);
-	if ((m->m_flags & M_EXT) == 0) {
-		m_freem(m);
-		return (ENOBUFS);
-	}
 	m->m_pkthdr.len = m->m_len = MJUM9BYTES;
 	m_adj(m, ETHER_ALIGN);
 

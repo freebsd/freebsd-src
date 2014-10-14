@@ -2111,13 +2111,19 @@ static int
 do_range_cmd(int cmd, ipfw_range_tlv *rt)
 {
 	ipfw_range_header rh;
+	size_t sz;
 
 	memset(&rh, 0, sizeof(rh));
 	memcpy(&rh.range, rt, sizeof(*rt));
 	rh.range.head.length = sizeof(*rt);
 	rh.range.head.type = IPFW_TLV_RANGE;
+	sz = sizeof(rh);
 
-	return (do_set3(cmd, &rh.opheader, sizeof(rh)));
+	if (do_get3(cmd, &rh.opheader, &sz) != 0)
+		return (-1);
+	/* Save number of matched objects */
+	rt->new_set = rh.range.new_set;
+	return (0);
 }
 
 /*
@@ -2580,7 +2586,7 @@ ipfw_show_config(struct cmdline_opts *co, struct format_opts *fo,
 		list_static_range(co, fo, &bp, rbase, rcnt);
 
 		if (co->do_dynamic && dynsz > 0) {
-			printf("## Dynamic rules (%d %lu):\n", fo->dcnt, dynsz);
+			printf("## Dynamic rules (%d %zu):\n", fo->dcnt, dynsz);
 			list_dyn_range(co, fo, &bp, dynbase, dynsz);
 		}
 
@@ -3003,7 +3009,6 @@ fill_flags_cmd(ipfw_insn *cmd, enum ipfw_opcodes opcode,
 void
 ipfw_delete(char *av[])
 {
-	uint32_t rulenum;
 	int i;
 	int exitval = EX_OK;
 	int do_set = 0;
@@ -3053,7 +3058,15 @@ ipfw_delete(char *av[])
 			if (i != 0) {
 				exitval = EX_UNAVAILABLE;
 				warn("rule %u: setsockopt(IP_FW_XDEL)",
-				    rulenum);
+				    rt.start_rule);
+			} else if (rt.new_set == 0) {
+				exitval = EX_UNAVAILABLE;
+				if (rt.start_rule != rt.end_rule)
+					warnx("no rules rules in %u-%u range",
+					    rt.start_rule, rt.end_rule);
+				else
+					warnx("rule %u not found",
+					    rt.start_rule);
 			}
 		}
 	}
@@ -4792,6 +4805,9 @@ ipfw_zero(int ac, char *av[], int optname)
 				warn("rule %u: setsockopt(IP_FW_X%s)",
 				    arg, name);
 				failed = EX_UNAVAILABLE;
+			} else if (rt.new_set == 0) {
+				printf("Entry %d not found\n", arg);
+				failed = EX_UNAVAILABLE;
 			} else if (!co.do_quiet)
 				printf("Entry %d %s.\n", arg,
 				    optname == IP_FW_XZERO ?
@@ -4799,6 +4815,7 @@ ipfw_zero(int ac, char *av[], int optname)
 		} else {
 			errx(EX_USAGE, "invalid rule number ``%s''", *av);
 		}
+		av++; ac--;
 	}
 	if (failed != EX_OK)
 		exit(failed);

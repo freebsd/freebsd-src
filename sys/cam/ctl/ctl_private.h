@@ -353,11 +353,6 @@ typedef enum {
 	CTL_PR_FLAG_ACTIVE_RES	= 0x02
 } ctl_per_res_flags;
 
-struct ctl_per_res_info {
-	struct scsi_per_res_key res_key;
-	uint8_t  registered;
-};
-
 #define CTL_PR_ALL_REGISTRANTS  0xFFFFFFFF
 #define CTL_PR_NO_RESERVATION   0xFFFFFFF0
 
@@ -398,8 +393,8 @@ struct ctl_lun {
 	struct ctl_mode_pages		mode_pages;
 	struct ctl_lun_io_stats		stats;
 	uint32_t			res_idx;
-	struct ctl_per_res_info		per_res[2*CTL_MAX_INITIATORS];
 	unsigned int			PRGeneration;
+	uint64_t			pr_keys[2*CTL_MAX_INITIATORS];
 	int				pr_key_count;
 	uint32_t			pr_res_idx;
 	uint8_t				res_type;
@@ -491,6 +486,7 @@ int ctl_mode_select(struct ctl_scsiio *ctsio);
 int ctl_mode_sense(struct ctl_scsiio *ctsio);
 int ctl_read_capacity(struct ctl_scsiio *ctsio);
 int ctl_read_capacity_16(struct ctl_scsiio *ctsio);
+int ctl_read_defect(struct ctl_scsiio *ctsio);
 int ctl_read_write(struct ctl_scsiio *ctsio);
 int ctl_cnw(struct ctl_scsiio *ctsio);
 int ctl_report_luns(struct ctl_scsiio *ctsio);

@@ -38,7 +38,9 @@ __RCSID("$NetBSD: t_tls_dynamic.c,v 1.3 2012/01/17 20:34:57 joerg Exp $");
 #include <pthread.h>
 #include <unistd.h>
 
+#if defined(__NetBSD__)
 #include <sys/tls.h>
+#endif
 
 #ifdef __HAVE_NO___THREAD
 #define	__thread

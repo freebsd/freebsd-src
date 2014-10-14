@@ -532,9 +532,9 @@ mrsas_startio(struct mrsas_softc *sc, struct cam_sim *sim,
 	 */
 	callout_reset(&cmd->cm_callout, (sc->mrsas_io_timeout * hz) / 1000,
 	    mrsas_scsiio_timeout, cmd);
-	atomic_inc(&sc->fw_outstanding);
+	mrsas_atomic_inc(&sc->fw_outstanding);
 
-	if (atomic_read(&sc->fw_outstanding) > sc->io_cmds_highwater)
+	if (mrsas_atomic_read(&sc->fw_outstanding) > sc->io_cmds_highwater)
 		sc->io_cmds_highwater++;
 
 	mrsas_fire_cmd(sc, req_desc->addr.u.low, req_desc->addr.u.high);

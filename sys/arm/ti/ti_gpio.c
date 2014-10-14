@@ -70,32 +70,7 @@ __FBSDID("$FreeBSD$");
 /* Register definitions */
 #define	TI_GPIO_REVISION		0x0000
 #define	TI_GPIO_SYSCONFIG		0x0010
-#if defined(SOC_OMAP3)
-#define	TI_GPIO_SYSSTATUS		0x0014
-#define	TI_GPIO_IRQSTATUS1		0x0018
-#define	TI_GPIO_IRQENABLE1		0x001C
-#define	TI_GPIO_WAKEUPENABLE		0x0020
-#define	TI_GPIO_IRQSTATUS2		0x0028
-#define	TI_GPIO_IRQENABLE2		0x002C
-#define	TI_GPIO_CTRL			0x0030
-#define	TI_GPIO_OE			0x0034
-#define	TI_GPIO_DATAIN			0x0038
-#define	TI_GPIO_DATAOUT			0x003C
-#define	TI_GPIO_LEVELDETECT0		0x0040
-#define	TI_GPIO_LEVELDETECT1		0x0044
-#define	TI_GPIO_RISINGDETECT		0x0048
-#define	TI_GPIO_FALLINGDETECT		0x004C
-#define	TI_GPIO_DEBOUNCENABLE		0x0050
-#define	TI_GPIO_DEBOUNCINGTIME		0x0054
-#define	TI_GPIO_CLEARIRQENABLE1		0x0060
-#define	TI_GPIO_SETIRQENABLE1		0x0064
-#define	TI_GPIO_CLEARIRQENABLE2		0x0070
-#define	TI_GPIO_SETIRQENABLE2		0x0074
-#define	TI_GPIO_CLEARWKUENA		0x0080
-#define	TI_GPIO_SETWKUENA		0x0084
-#define	TI_GPIO_CLEARDATAOUT		0x0090
-#define	TI_GPIO_SETDATAOUT		0x0094
-#elif defined(SOC_OMAP4) || defined(SOC_TI_AM335X)
+#if defined(SOC_OMAP4) || defined(SOC_TI_AM335X)
 #define	TI_GPIO_IRQSTATUS_RAW_0		0x0024
 #define	TI_GPIO_IRQSTATUS_RAW_1		0x0028
 #define	TI_GPIO_IRQSTATUS_0		0x002C
@@ -131,10 +106,6 @@ __FBSDID("$FreeBSD$");
 #endif
 
 /* Other SoC Specific definitions */
-#define	OMAP3_MAX_GPIO_BANKS		6
-#define	OMAP3_FIRST_GPIO_BANK		1
-#define	OMAP3_INTR_PER_BANK		1
-#define	OMAP3_GPIO_REV			0x00000025
 #define	OMAP4_MAX_GPIO_BANKS		6
 #define	OMAP4_FIRST_GPIO_BANK		1
 #define	OMAP4_INTR_PER_BANK		1
@@ -152,10 +123,6 @@ static u_int
 ti_max_gpio_banks(void)
 {
 	switch(ti_chip()) {
-#ifdef SOC_OMAP3
-	case CHIP_OMAP_3:
-		return (OMAP3_MAX_GPIO_BANKS);
-#endif
 #ifdef SOC_OMAP4
 	case CHIP_OMAP_4:
 		return (OMAP4_MAX_GPIO_BANKS);
@@ -172,10 +139,6 @@ static u_int
 ti_max_gpio_intrs(void)
 {
 	switch(ti_chip()) {
-#ifdef SOC_OMAP3
-	case CHIP_OMAP_3:
-		return (OMAP3_MAX_GPIO_BANKS * OMAP3_INTR_PER_BANK);
-#endif
 #ifdef SOC_OMAP4
 	case CHIP_OMAP_4:
 		return (OMAP4_MAX_GPIO_BANKS * OMAP4_INTR_PER_BANK);
@@ -192,10 +155,6 @@ static u_int
 ti_first_gpio_bank(void)
 {
 	switch(ti_chip()) {
-#ifdef SOC_OMAP3
-	case CHIP_OMAP_3:
-		return (OMAP3_FIRST_GPIO_BANK);
-#endif
 #ifdef SOC_OMAP4
 	case CHIP_OMAP_4:
 		return (OMAP4_FIRST_GPIO_BANK);
@@ -212,10 +171,6 @@ static uint32_t
 ti_gpio_rev(void)
 {
 	switch(ti_chip()) {
-#ifdef SOC_OMAP3
-	case CHIP_OMAP_3:
-		return (OMAP3_GPIO_REV);
-#endif
 #ifdef SOC_OMAP4
 	case CHIP_OMAP_4:
 		return (OMAP4_GPIO_REV);

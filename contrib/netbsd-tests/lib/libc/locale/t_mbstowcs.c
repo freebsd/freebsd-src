@@ -150,7 +150,14 @@ ATF_TC_BODY(mbstowcs_basic, tc)
 		int i;
 
 		ATF_REQUIRE_STREQ(setlocale(LC_ALL, "C"), "C");
+#if defined(__NetBSD__)
 		ATF_REQUIRE(setlocale(LC_CTYPE, t->locale) != NULL);
+#else
+		if (setlocale(LC_CTYPE, t->locale) == NULL) {
+			fprintf(stderr, "Locale %s not found.\n", t->locale);
+			continue;
+		}
+#endif
 
 		(void)strvis(visbuf, t->data, VIS_WHITE | VIS_OCTAL);
 		(void)printf("Checking string: \"%s\"\n", visbuf);

@@ -749,6 +749,8 @@ check_startmsgs()
 #				NOTE:	$flags from the parent environment
 #					can be used to override this.
 #
+#	${name}_env	n	Environment variables to run ${command} with.
+#
 #	${name}_fib	n	Routing table number to run ${command} with.
 #
 #	${name}_nice	n	Nice level to run ${command} at.
@@ -763,6 +765,8 @@ check_startmsgs()
 #	${name}_groups	n	Comma separated list of supplementary groups
 #				to run the chrooted ${command} with.
 #				Requires /usr to be mounted.
+#
+#	${name}_prepend	n	Command added before ${command}.
 #
 #	${rc_arg}_cmd	n	If set, use this as the method when invoked;
 #				Otherwise, use default command (see below)
@@ -937,7 +941,8 @@ run_rc_command()
 	eval _chdir=\$${name}_chdir	_chroot=\$${name}_chroot \
 	    _nice=\$${name}_nice	_user=\$${name}_user \
 	    _group=\$${name}_group	_groups=\$${name}_groups \
-	    _fib=\$${name}_fib
+	    _fib=\$${name}_fib		_env=\$${name}_env \
+	    _prepend=\$${name}_prepend
 
 	if [ -n "$_user" ]; then	# unset $_user if running as that user
 		if [ "$_user" = "$(eval $IDCMD)" ]; then
@@ -1022,12 +1027,14 @@ run_rc_command()
 				_doit="\
 ${_nice:+nice -n $_nice }\
 ${_fib:+setfib -F $_fib }\
+${_env:+env $_env }\
 chroot ${_user:+-u $_user }${_group:+-g $_group }${_groups:+-G $_groups }\
 $_chroot $command $rc_flags $command_args"
 			else
 				_doit="\
 ${_chdir:+cd $_chdir && }\
 ${_fib:+setfib -F $_fib }\
+${_env:+env $_env }\
 $command $rc_flags $command_args"
 				if [ -n "$_user" ]; then
 				    _doit="su -m $_user -c 'sh -c \"$_doit\"'"
@@ -1037,6 +1044,9 @@ $command $rc_flags $command_args"
 						_doit="sh -c \"$_doit\""
 					fi
 					_doit="nice -n $_nice $_doit"
+				fi
+				if [ -n "$_prepend" ]; then
+					_doit="$_prepend $_doit"
 				fi
 			fi
 
@@ -2040,7 +2050,7 @@ check_kern_features()
 # check_namevarlist var
 #	Return "0" if ${name}_var is reserved in rc.subr.
 
-_rc_namevarlist="program chroot chdir flags fib nice user group groups"
+_rc_namevarlist="program chroot chdir env flags fib nice user group groups prepend"
 check_namevarlist()
 {
 	local _v

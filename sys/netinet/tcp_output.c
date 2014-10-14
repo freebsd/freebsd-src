@@ -1273,6 +1273,11 @@ send:
 		 */
 		ip6->ip6_plen = htons(m->m_pkthdr.len - sizeof(*ip6));
 
+		if (V_path_mtu_discovery && tp->t_maxopd > V_tcp_minmss)
+			tp->t_flags2 |= TF2_PLPMTU_PMTUD;
+		else
+			tp->t_flags2 &= ~TF2_PLPMTU_PMTUD;
+
 		if (tp->t_state == TCPS_SYN_SENT)
 			TCP_PROBE5(connect__request, NULL, tp, ip6, tp, th);
 
