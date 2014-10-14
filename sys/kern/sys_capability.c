@@ -199,11 +199,19 @@ cap_rights_to_vmprot(cap_rights_t *havep)
  * any other way, as we want to keep all capability permission evaluation in
  * this one file.
  */
+
+cap_rights_t *
+cap_rights_fde(struct filedescent *fde)
+{
+
+	return (&fde->fde_rights);
+}
+
 cap_rights_t *
 cap_rights(struct filedesc *fdp, int fd)
 {
 
-	return (&fdp->fd_ofiles[fd].fde_rights);
+	return (cap_rights_fde(&fdp->fd_ofiles[fd]));
 }
 
 /*
@@ -486,21 +494,28 @@ out:
  * Test whether a capability grants the given fcntl command.
  */
 int
-cap_fcntl_check(struct filedesc *fdp, int fd, int cmd)
+cap_fcntl_check_fde(struct filedescent *fde, int cmd)
 {
 	uint32_t fcntlcap;
-
-	KASSERT(fd >= 0 && fd < fdp->fd_nfiles,
-	    ("%s: invalid fd=%d", __func__, fd));
 
 	fcntlcap = (1 << cmd);
 	KASSERT((CAP_FCNTL_ALL & fcntlcap) != 0,
 	    ("Unsupported fcntl=%d.", cmd));
 
-	if ((fdp->fd_ofiles[fd].fde_fcntls & fcntlcap) != 0)
+	if ((fde->fde_fcntls & fcntlcap) != 0)
 		return (0);
 
 	return (ENOTCAPABLE);
+}
+
+int
+cap_fcntl_check(struct filedesc *fdp, int fd, int cmd)
+{
+
+	KASSERT(fd >= 0 && fd < fdp->fd_nfiles,
+	    ("%s: invalid fd=%d", __func__, fd));
+
+	return (cap_fcntl_check_fde(&fdp->fd_ofiles[fd], cmd));
 }
 
 int
