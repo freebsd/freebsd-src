@@ -47,6 +47,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/kernel.h>
 #include <sys/ktr.h>
 #include <sys/lock.h>
+#include <sys/rmlock.h>
 #include <sys/socket.h>
 #include <sys/sysctl.h>
 #include <sys/syslog.h>
@@ -196,8 +197,7 @@ static int ipfw_dyn_count;	/* number of objects */
 static int last_log;	/* Log ratelimiting */
 
 static void ipfw_dyn_tick(void *vnetx);
-static void check_dyn_rules(struct ip_fw_chain *, struct ip_fw *,
-    int, int, int);
+static void check_dyn_rules(struct ip_fw_chain *, ipfw_range_tlv *, int, int);
 #ifdef SYSCTL_NODE
 
 static int sysctl_ipfw_dyn_count(SYSCTL_HANDLER_ARGS);
@@ -673,8 +673,8 @@ lookup_dyn_parent(struct ipfw_flow_id *pkt, int *pindex, struct ip_fw *rule)
  * session limitations are enforced.
  */
 int
-ipfw_install_state(struct ip_fw *rule, ipfw_insn_limit *cmd,
-    struct ip_fw_args *args, uint32_t tablearg)
+ipfw_install_state(struct ip_fw_chain *chain, struct ip_fw *rule,
+    ipfw_insn_limit *cmd, struct ip_fw_args *args, uint32_t tablearg)
 {
 	ipfw_dyn_rule *q;
 	int i;
@@ -717,10 +717,10 @@ ipfw_install_state(struct ip_fw *rule, ipfw_insn_limit *cmd,
 		uint16_t limit_mask = cmd->limit_mask;
 		int pindex;
 
-		conn_limit = IP_FW_ARG_TABLEARG(cmd->conn_limit);
+		conn_limit = IP_FW_ARG_TABLEARG(chain, cmd->conn_limit, limit);
 		  
 		DEB(
-		if (cmd->conn_limit == IP_FW_TABLEARG)
+		if (cmd->conn_limit == IP_FW_TARG)
 			printf("ipfw: %s: O_LIMIT rule, conn_limit: %u "
 			    "(tablearg)\n", __func__, conn_limit);
 		else
@@ -1008,7 +1008,7 @@ ipfw_dyn_tick(void * vnetx)
 		check_ka = 1;
 	}
 
-	check_dyn_rules(chain, NULL, RESVD_SET, check_ka, 1);
+	check_dyn_rules(chain, NULL, check_ka, 1);
 
 	callout_reset_on(&V_ipfw_timeout, hz, ipfw_dyn_tick, vnetx, 0);
 
@@ -1040,8 +1040,8 @@ ipfw_dyn_tick(void * vnetx)
  * are not freed by other instance (see stage 2, 3)
  */
 static void
-check_dyn_rules(struct ip_fw_chain *chain, struct ip_fw *rule,
-    int set, int check_ka, int timer)
+check_dyn_rules(struct ip_fw_chain *chain, ipfw_range_tlv *rt,
+    int check_ka, int timer)
 {
 	struct mbuf *m0, *m, *mnext, **mtailp;
 	struct ip *h;
@@ -1105,12 +1105,10 @@ check_dyn_rules(struct ip_fw_chain *chain, struct ip_fw *rule,
 			/*
 			 * Remove rules which are:
 			 * 1) expired
-			 * 2) created by given rule
-			 * 3) created by any rule in given set
+			 * 2) matches deletion range
 			 */
 			if ((TIME_LEQ(q->expire, time_uptime)) ||
-			    ((rule != NULL) && (q->rule == rule)) ||
-			    ((set != RESVD_SET) && (q->rule->set == set))) {
+			    (rt != NULL && ipfw_match_range(q->rule, rt))) {
 				if (TIME_LE(time_uptime, q->expire) &&
 				    q->dyn_type == O_KEEP_STATE &&
 				    V_dyn_keep_states != 0) {
@@ -1324,8 +1322,7 @@ check_dyn_rules(struct ip_fw_chain *chain, struct ip_fw *rule,
  * Deletes all dynamic rules originated by given rule or all rules in
  * given set. Specify RESVD_SET to indicate set should not be used.
  * @chain - pointer to current ipfw rules chain
- * @rule - delete all states originated by given rule if != NULL
- * @set - delete all states originated by any rule in set @set if != RESVD_SET
+ * @rr - delete all states originated by rules in matched range.
  *
  * Function has to be called with IPFW_UH_WLOCK held.
  * Additionally, function assume that dynamic rule/set is
@@ -1333,10 +1330,39 @@ check_dyn_rules(struct ip_fw_chain *chain, struct ip_fw *rule,
  * 'deleted' rules.
  */
 void
-ipfw_expire_dyn_rules(struct ip_fw_chain *chain, struct ip_fw *rule, int set)
+ipfw_expire_dyn_rules(struct ip_fw_chain *chain, ipfw_range_tlv *rt)
 {
 
-	check_dyn_rules(chain, rule, set, 0, 0);
+	check_dyn_rules(chain, rt, 0, 0);
+}
+
+/*
+ * Check if rule contains at least one dynamic opcode.
+ *
+ * Returns 1 if such opcode is found, 0 otherwise.
+ */
+int
+ipfw_is_dyn_rule(struct ip_fw *rule)
+{
+	int cmdlen, l;
+	ipfw_insn *cmd;
+
+	l = rule->cmd_len;
+	cmd = rule->cmd;
+	cmdlen = 0;
+	for ( ;	l > 0 ; l -= cmdlen, cmd += cmdlen) {
+		cmdlen = F_LEN(cmd);
+
+		switch (cmd->opcode) {
+		case O_LIMIT:
+		case O_KEEP_STATE:
+		case O_PROBE_STATE:
+		case O_CHECK_STATE:
+			return (1);
+		}
+	}
+
+	return (0);
 }
 
 void
@@ -1444,7 +1470,7 @@ sysctl_ipfw_dyn_count(SYSCTL_HANDLER_ARGS)
 #endif
 
 /*
- * Returns number of dynamic rules.
+ * Returns size of dynamic states in legacy format
  */
 int
 ipfw_dyn_len(void)
@@ -1455,7 +1481,92 @@ ipfw_dyn_len(void)
 }
 
 /*
- * Fill given buffer with dynamic states.
+ * Returns number of dynamic states.
+ * Used by dump format v1 (current).
+ */
+int
+ipfw_dyn_get_count(void)
+{
+
+	return (V_ipfw_dyn_v == NULL) ? 0 : DYN_COUNT;
+}
+
+static void
+export_dyn_rule(ipfw_dyn_rule *src, ipfw_dyn_rule *dst)
+{
+
+	memcpy(dst, src, sizeof(*src));
+	memcpy(&(dst->rule), &(src->rule->rulenum), sizeof(src->rule->rulenum));
+	/*
+	 * store set number into high word of
+	 * dst->rule pointer.
+	 */
+	memcpy((char *)&dst->rule + sizeof(src->rule->rulenum),
+	    &(src->rule->set), sizeof(src->rule->set));
+	/*
+	 * store a non-null value in "next".
+	 * The userland code will interpret a
+	 * NULL here as a marker
+	 * for the last dynamic rule.
+	 */
+	memcpy(&dst->next, &dst, sizeof(dst));
+	dst->expire =
+	    TIME_LEQ(dst->expire, time_uptime) ?  0 : dst->expire - time_uptime;
+}
+
+/*
+ * Fills int buffer given by @sd with dynamic states.
+ * Used by dump format v1 (current).
+ *
+ * Returns 0 on success.
+ */
+int
+ipfw_dump_states(struct ip_fw_chain *chain, struct sockopt_data *sd)
+{
+	ipfw_dyn_rule *p;
+	ipfw_obj_dyntlv *dst, *last;
+	ipfw_obj_ctlv *ctlv;
+	int i;
+	size_t sz;
+
+	if (V_ipfw_dyn_v == NULL)
+		return (0);
+
+	IPFW_UH_RLOCK_ASSERT(chain);
+
+	ctlv = (ipfw_obj_ctlv *)ipfw_get_sopt_space(sd, sizeof(*ctlv));
+	if (ctlv == NULL)
+		return (ENOMEM);
+	sz = sizeof(ipfw_obj_dyntlv);
+	ctlv->head.type = IPFW_TLV_DYNSTATE_LIST;
+	ctlv->objsize = sz;
+	last = NULL;
+
+	for (i = 0 ; i < V_curr_dyn_buckets; i++) {
+		IPFW_BUCK_LOCK(i);
+		for (p = V_ipfw_dyn_v[i].head ; p != NULL; p = p->next) {
+			dst = (ipfw_obj_dyntlv *)ipfw_get_sopt_space(sd, sz);
+			if (dst == NULL) {
+				IPFW_BUCK_UNLOCK(i);
+				return (ENOMEM);
+			}
+
+			export_dyn_rule(p, &dst->state);
+			dst->head.length = sz;
+			dst->head.type = IPFW_TLV_DYN_ENT;
+			last = dst;
+		}
+		IPFW_BUCK_UNLOCK(i);
+	}
+
+	if (last != NULL) /* mark last dynamic rule */
+		last->head.flags = IPFW_DF_LAST;
+
+	return (0);
+}
+
+/*
+ * Fill given buffer with dynamic states (legacy format).
  * IPFW_UH_RLOCK has to be held while calling.
  */
 void
@@ -1477,28 +1588,9 @@ ipfw_get_dynamic(struct ip_fw_chain *chain, char **pbp, const char *ep)
 			if (bp + sizeof *p <= ep) {
 				ipfw_dyn_rule *dst =
 					(ipfw_dyn_rule *)bp;
-				bcopy(p, dst, sizeof *p);
-				bcopy(&(p->rule->rulenum), &(dst->rule),
-				    sizeof(p->rule->rulenum));
-				/*
-				 * store set number into high word of
-				 * dst->rule pointer.
-				 */
-				bcopy(&(p->rule->set),
-				    (char *)&dst->rule +
-				    sizeof(p->rule->rulenum),
-				    sizeof(p->rule->set));
-				/*
-				 * store a non-null value in "next".
-				 * The userland code will interpret a
-				 * NULL here as a marker
-				 * for the last dynamic rule.
-				 */
-				bcopy(&dst, &dst->next, sizeof(dst));
+
+				export_dyn_rule(p, dst);
 				last = dst;
-				dst->expire =
-				    TIME_LEQ(dst->expire, time_uptime) ?
-					0 : dst->expire - time_uptime ;
 				bp += sizeof(ipfw_dyn_rule);
 			}
 		}

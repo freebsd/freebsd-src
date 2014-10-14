@@ -91,12 +91,11 @@
 
 static	int		mse_cbus_probe(device_t dev);
 static	int		mse_cbus_attach(device_t dev);
-static	int		mse_cbus_detach(device_t dev);
 
 static	device_method_t	mse_methods[] = {
 	DEVMETHOD(device_probe,		mse_cbus_probe),
 	DEVMETHOD(device_attach,	mse_cbus_attach),
-	DEVMETHOD(device_detach,	mse_cbus_detach),
+	DEVMETHOD(device_detach,	mse_detach),
 	{ 0, 0 }
 };
 
@@ -136,10 +135,10 @@ static struct isa_pnp_id mse_ids[] = {
 static	bus_addr_t	mse_port[] = {0, 2, 4, 6};
 
 static	int		mse_probe98m(device_t dev, mse_softc_t *sc);
-static	void		mse_disable98m(bus_space_tag_t t, bus_space_handle_t h);
-static	void		mse_get98m(bus_space_tag_t t, bus_space_handle_t h,
+static	void		mse_disable98m(struct resource *port);
+static	void		mse_get98m(struct resource *port,
 			    int *dx, int *dy, int *but);
-static	void		mse_enable98m(bus_space_tag_t t, bus_space_handle_t h);
+static	void		mse_enable98m(struct resource *port);
 
 static struct mse_types mse_types[] = {
 	{ MSE_98BUSMOUSE,
@@ -173,8 +172,6 @@ mse_cbus_probe(device_t dev)
 		bus_release_resource(dev, SYS_RES_IOPORT, rid, sc->sc_port);
 		return ENXIO;
 	}
-	sc->sc_iot = rman_get_bustag(sc->sc_port);
-	sc->sc_ioh = rman_get_bushandle(sc->sc_port);
 
 	/*
 	 * Check for each mouse type in the table.
@@ -216,31 +213,8 @@ mse_cbus_attach(device_t dev)
 		bus_release_resource(dev, SYS_RES_IOPORT, rid, sc->sc_port);
 		return ENXIO;
 	}
-	sc->sc_iot = rman_get_bustag(sc->sc_port);
-	sc->sc_ioh = rman_get_bushandle(sc->sc_port);
 
 	return (mse_common_attach(dev));
-}
-
-static int
-mse_cbus_detach(device_t dev)
-{
-	mse_softc_t *sc;
-	int rid;
-
-	sc = device_get_softc(dev);
-	if (sc->sc_flags & MSESC_OPEN)
-		return EBUSY;
-
-	rid = 0;
-	BUS_TEARDOWN_INTR(device_get_parent(dev), dev, sc->sc_intr, sc->sc_ih);
-	bus_release_resource(dev, SYS_RES_IRQ, rid, sc->sc_intr);
-	bus_release_resource(dev, SYS_RES_IOPORT, rid, sc->sc_port);
-
-	destroy_dev(sc->sc_dev);
-	destroy_dev(sc->sc_ndev);
-
-	return 0;
 }
 
 /*
@@ -255,15 +229,15 @@ static int
 mse_probe98m(device_t dev, mse_softc_t *sc)
 {
 	/* mode set */
-	bus_space_write_1(sc->sc_iot, sc->sc_ioh, MODE, 0x93);
+	bus_write_1(sc->sc_port, MODE, 0x93);
 
 	/* initialize */
 	/* INT disable */
-	bus_space_write_1(sc->sc_iot, sc->sc_ioh, INT, INT_DISABLE);
+	bus_write_1(sc->sc_port, INT, INT_DISABLE);
 	/* HC = 0 */
-	bus_space_write_1(sc->sc_iot, sc->sc_ioh, HC, HC_NO_CLEAR);
+	bus_write_1(sc->sc_port, HC, HC_NO_CLEAR);
 	/* HC = 1 */
-	bus_space_write_1(sc->sc_iot, sc->sc_ioh, HC, HC_CLEAR);
+	bus_write_1(sc->sc_port, HC, HC_CLEAR);
 
 	return (1);
 }
@@ -272,57 +246,56 @@ mse_probe98m(device_t dev, mse_softc_t *sc)
  * Initialize PC98 bus mouse and enable interrupts.
  */
 static void
-mse_enable98m(bus_space_tag_t tag, bus_space_handle_t handle)
+mse_enable98m(struct resource *port)
 {
-	bus_space_write_1(tag, handle, INT, INT_ENABLE);    /* INT enable */
-	bus_space_write_1(tag, handle, HC, HC_NO_CLEAR);    /* HC = 0 */
-	bus_space_write_1(tag, handle, HC, HC_CLEAR);       /* HC = 1 */
+	bus_write_1(port, INT, INT_ENABLE);    /* INT enable */
+	bus_write_1(port, HC, HC_NO_CLEAR);    /* HC = 0 */
+	bus_write_1(port, HC, HC_CLEAR);       /* HC = 1 */
 }
  
 /*
  * Disable interrupts for PC98 Bus mouse.
  */
 static void
-mse_disable98m(bus_space_tag_t tag, bus_space_handle_t handle)
+mse_disable98m(struct resource *port)
 {
-	bus_space_write_1(tag, handle, INT, INT_DISABLE);   /* INT disable */
-	bus_space_write_1(tag, handle, HC, HC_NO_CLEAR);    /* HC = 0 */
-	bus_space_write_1(tag, handle, HC, HC_CLEAR);       /* HC = 1 */
+	bus_write_1(port, INT, INT_DISABLE);   /* INT disable */
+	bus_write_1(port, HC, HC_NO_CLEAR);    /* HC = 0 */
+	bus_write_1(port, HC, HC_CLEAR);       /* HC = 1 */
 }
 
 /*
  * Get current dx, dy and up/down button state.
  */
 static void
-mse_get98m(bus_space_tag_t tag, bus_space_handle_t handle, int *dx, int *dy,
-    int *but)
+mse_get98m(struct resource *port, int *dx, int *dy, int *but)
 {
 	register char x, y;
 
-	bus_space_write_1(tag, handle, INT, INT_DISABLE);   /* INT disable */
+	bus_write_1(port, INT, INT_DISABLE);   /* INT disable */
 
-	bus_space_write_1(tag, handle, HC, HC_CLEAR);       /* HC = 1 */
+	bus_write_1(port, HC, HC_CLEAR);       /* HC = 1 */
 
 	/* X low */
-	bus_space_write_1(tag, handle, MSE_PORTC, 0x90 | XL);
-	x = bus_space_read_1(tag, handle, MSE_PORTA) & 0x0f;
+	bus_write_1(port, MSE_PORTC, 0x90 | XL);
+	x = bus_read_1(port, MSE_PORTA) & 0x0f;
 	/* X high */
-	bus_space_write_1(tag, handle, MSE_PORTC, 0x90 | XH);
-	x |= ((bus_space_read_1(tag, handle, MSE_PORTA)  & 0x0f) << 4);
+	bus_write_1(port, MSE_PORTC, 0x90 | XH);
+	x |= ((bus_read_1(port, MSE_PORTA)  & 0x0f) << 4);
 
 	/* Y low */
-	bus_space_write_1(tag, handle, MSE_PORTC, 0x90 | YL);
-	y = (bus_space_read_1(tag, handle, MSE_PORTA) & 0x0f);
+	bus_write_1(port, MSE_PORTC, 0x90 | YL);
+	y = (bus_read_1(port, MSE_PORTA) & 0x0f);
 	/* Y high */
-	bus_space_write_1(tag, handle, MSE_PORTC, 0x90 | YH);
-	y |= ((bus_space_read_1(tag, handle, MSE_PORTA) & 0x0f) << 4);
+	bus_write_1(port, MSE_PORTC, 0x90 | YH);
+	y |= ((bus_read_1(port, MSE_PORTA) & 0x0f) << 4);
 
-	*but = (bus_space_read_1(tag, handle, MSE_PORTA) >> 5) & 7;
+	*but = (bus_read_1(port, MSE_PORTA) >> 5) & 7;
 
 	*dx = x;
 	*dy = y;
 
-	bus_space_write_1(tag, handle, HC, HC_NO_CLEAR);    /* HC = 0 */
+	bus_write_1(port, HC, HC_NO_CLEAR);    /* HC = 0 */
 
-	bus_space_write_1(tag, handle, INT, INT_ENABLE);    /* INT enable */
+	bus_write_1(port, INT, INT_ENABLE);    /* INT enable */
 }

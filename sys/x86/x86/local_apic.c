@@ -1366,7 +1366,7 @@ apic_init(void *dummy __unused)
 		printf("APIC: Using the %s enumerator.\n",
 		    best_enum->apic_name);
 
-#ifndef __amd64__
+#ifdef I686_CPU
 	/*
 	 * To work around an errata, we disable the local APIC on some
 	 * CPUs during early startup.  We need to turn the local APIC back

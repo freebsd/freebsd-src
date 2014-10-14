@@ -80,6 +80,13 @@ emulate_rdmsr(struct vmctx *ctx, int vcpu, uint32_t num, uint64_t *val)
 		case MSR_DRAM_ENERGY_STATUS:
 			*val = 0;
 			break;
+		case MSR_RAPL_POWER_UNIT:
+			/*
+			 * Use the default value documented in section
+			 * "RAPL Interfaces" in Intel SDM vol3.
+			 */
+			*val = 0x000a1003;
+			break;
 		default:
 			error = -1;
 			break;

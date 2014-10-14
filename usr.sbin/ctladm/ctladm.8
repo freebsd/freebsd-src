@@ -34,7 +34,7 @@
 .\" $Id: //depot/users/kenm/FreeBSD-test2/usr.sbin/ctladm/ctladm.8#3 $
 .\" $FreeBSD$
 .\"
-.Dd September 13, 2014
+.Dd October 12, 2014
 .Dt CTLADM 8
 .Os
 .Sh NAME
@@ -191,6 +191,14 @@
 .Op Fl p Ar targ_port
 .Op Fl t Ar fe_type
 .Op Fl q
+.Op Fl x
+.Nm
+.Ic portlist
+.Op Fl f Ar frontend
+.Op Fl i
+.Op Fl p Ar targ_port
+.Op Fl q
+.Op Fl v
 .Op Fl x
 .Nm
 .Ic dumpooa
@@ -768,6 +776,22 @@ As a general rule, the WWPN must be different for every port in the system.
 .It Fl x
 Output the port list in XML format.
 .El
+.It Ic portlist
+List CTL frontend ports.
+.Bl -tag -width 12n
+.It Fl f Ar frontend
+Specify the frontend type.
+.It Fl i
+Report target and connected initiators addresses
+.It Fl p Ar targ_port
+Specify the frontend port number.
+.It Fl q
+Omit the header in the port list output.
+.It Fl v
+Enable verbose output (report all port options).
+.It Fl x
+Output the port list in XML format.
+.El
 .It Ic dumpooa
 Dump the OOA (Order Of Arrival) queue for each LUN registered with CTL.
 .It Ic dumpstructs
@@ -961,6 +985,9 @@ This allows to offload copying between different iSCSI targets residing
 on the same host in trusted environments.
 .It Va readcache
 Set to "off", disables read caching for the LUN, if supported by the backend.
+.It Va readonly
+Set to "on", blocks all media write operations to the LUN, reporting it
+as write protected.
 .It Va reordering
 Set to "unrestricted", allows target to process commands with SIMPLE task
 attribute in arbitrary order.  Any data integrity exposures related to
