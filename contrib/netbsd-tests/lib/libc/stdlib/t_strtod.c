@@ -221,7 +221,9 @@ ATF_TC_BODY(strtold_nan, tc)
 
 	volatile long double ld = strtold(nan_string, &end);
 	ATF_REQUIRE(isnan(ld) != 0);
+#if !defined(__FreeBSD__)
 	ATF_REQUIRE(__isnanl(ld) != 0);
+#endif
 	ATF_REQUIRE(strcmp(end, "y") == 0);
 #   else
 	atf_tc_skip("Requires long double support");

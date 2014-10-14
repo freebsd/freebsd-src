@@ -109,7 +109,14 @@ h_wctomb(const struct test *t, char tc)
 	size_t sz, ret, i;
 
 	ATF_REQUIRE_STREQ(setlocale(LC_ALL, "C"), "C");
+#if defined(__NetBSD__)
 	ATF_REQUIRE(setlocale(LC_CTYPE, t->locale) != NULL);
+#else
+	if (setlocale(LC_CTYPE, t->locale) == NULL) {
+		fprintf(stderr, "Locale %s not found.\n", t->locale);
+		return;
+	}
+#endif
 
 	(void)strvis(buf, t->data, VIS_WHITE | VIS_OCTAL);
 	(void)printf("Checking sequence: \"%s\"\n", buf);

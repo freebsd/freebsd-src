@@ -29,7 +29,7 @@ typedef struct ipf_dns_softc_s {
 
 int ipf_p_dns_allow_query __P((ipf_dns_softc_t *, dnsinfo_t *));
 int ipf_p_dns_ctl __P((ipf_main_softc_t *, void *, ap_ctl_t *));
-int ipf_p_dns_del __P((ipf_main_softc_t *, ap_session_t *));
+void ipf_p_dns_del __P((ipf_main_softc_t *, ap_session_t *));
 int ipf_p_dns_get_name __P((ipf_dns_softc_t *, char *, int, char *, int));
 int ipf_p_dns_inout __P((void *, fr_info_t *, ap_session_t *, nat_t *));
 int ipf_p_dns_match __P((fr_info_t *, ap_session_t *, nat_t *));
@@ -214,7 +214,7 @@ ipf_p_dns_new(arg, fin, aps, nat)
 
 
 /* ARGSUSED */
-int
+void
 ipf_p_dns_del(softc, aps)
 	ipf_main_softc_t *softc;
 	ap_session_t *aps;
@@ -227,7 +227,6 @@ ipf_p_dns_del(softc, aps)
 	KFREES(aps->aps_data, aps->aps_psiz);
 	aps->aps_data = NULL;
 	aps->aps_psiz = 0;
-	return 0;
 }
 
 

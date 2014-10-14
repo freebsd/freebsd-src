@@ -111,10 +111,6 @@ struct ti_i2c_clock_config
 	uint8_t hssclh;		/* High Speed mode SCL high time */
 };
 
-#if defined(SOC_OMAP3)
-#error "Unsupported SoC"
-#endif
-
 #if defined(SOC_OMAP4)
 static struct ti_i2c_clock_config ti_omap4_i2c_clock_configs[] = {
 	{ IIC_UNKNOWN,	 100000, 23, 13, 15,  0, 0},

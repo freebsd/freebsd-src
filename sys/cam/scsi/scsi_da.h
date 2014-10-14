@@ -92,28 +92,19 @@ struct scsi_reassign_blocks
 
 struct scsi_read_defect_data_10
 {
-	u_int8_t opcode;
-
-	/* 
-	 * The most significant 3 bits are the LUN, the other 5 are
-	 * reserved.
-	 */
-#define SRDD10_LUN_MASK 0xE0
-	u_int8_t byte2;
+	uint8_t opcode;
+	uint8_t byte2;
 #define SRDD10_GLIST 0x08
 #define SRDD10_PLIST 0x10
 #define SRDD10_DLIST_FORMAT_MASK 0x07
 #define SRDD10_BLOCK_FORMAT            0x00
 #define SRDD10_BYTES_FROM_INDEX_FORMAT 0x04
 #define SRDD10_PHYSICAL_SECTOR_FORMAT  0x05
-	u_int8_t format;
-
-	u_int8_t reserved[4];
-
-	u_int8_t alloc_length[2];
+	uint8_t format;
+	uint8_t reserved[4];
+	uint8_t alloc_length[2];
 #define	SRDD10_MAX_LENGTH		0xffff
-
-	u_int8_t control;
+	uint8_t control;
 };
 
 struct scsi_sanitize
@@ -143,29 +134,18 @@ struct scsi_sanitize_parameter_list
 
 struct scsi_read_defect_data_12
 {
-	u_int8_t opcode;
-
-	/* 
-	 * The most significant 3 bits are the LUN, the other 5 are
-	 * reserved.
-	 */
-#define SRDD12_LUN_MASK 0xE0
-	u_int8_t byte2;
-
+	uint8_t opcode;
 #define SRDD12_GLIST 0x08
 #define SRDD12_PLIST 0x10
 #define SRDD12_DLIST_FORMAT_MASK 0x07
 #define SRDD12_BLOCK_FORMAT            0x00
 #define SRDD12_BYTES_FROM_INDEX_FORMAT 0x04
 #define SRDD12_PHYSICAL_SECTOR_FORMAT  0x05
-	u_int8_t format;
-
-	u_int8_t reserved[4];
-
-	u_int8_t alloc_length[4];
-
-	u_int8_t control;
-	
+	uint8_t format;
+	uint8_t address_descriptor_index[4];
+	uint8_t alloc_length[4];
+	uint8_t reserved;
+	uint8_t control;
 };
 
 
@@ -376,6 +356,7 @@ struct scsi_read_defect_data_hdr_12
 #define SRDDH12_BYTES_FROM_INDEX_FORMAT 0x04
 #define SRDDH12_PHYSICAL_SECTOR_FORMAT  0x05
 	u_int8_t format;
+	u_int8_t generation[2];
 	u_int8_t length[4];
 };
 

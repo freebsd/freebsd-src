@@ -54,6 +54,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/uio.h>
 #include <sys/bus.h>
 #include <sys/interrupt.h>
+#include <sys/cpuset.h>
 
 #include <net/vnet.h>
 
@@ -3754,6 +3755,25 @@ bus_print_child_footer(device_t dev, device_t child)
 /**
  * @brief Helper function for implementing BUS_PRINT_CHILD().
  *
+ * This function prints out the VM domain for the given device.
+ *
+ * @returns the number of characters printed
+ */
+int
+bus_print_child_domain(device_t dev, device_t child)
+{
+	int domain;
+
+	/* No domain? Don't print anything */
+	if (BUS_GET_DOMAIN(dev, child, &domain) != 0)
+		return (0);
+
+	return (printf(" numa-domain %d", domain));
+}
+
+/**
+ * @brief Helper function for implementing BUS_PRINT_CHILD().
+ *
  * This function simply calls bus_print_child_header() followed by
  * bus_print_child_footer().
  *
@@ -3765,6 +3785,7 @@ bus_generic_print_child(device_t dev, device_t child)
 	int	retval = 0;
 
 	retval += bus_print_child_header(dev, child);
+	retval += bus_print_child_domain(dev, child);
 	retval += bus_print_child_footer(dev, child);
 
 	return (retval);
@@ -4177,6 +4198,16 @@ int
 bus_generic_child_present(device_t dev, device_t child)
 {
 	return (BUS_CHILD_PRESENT(device_get_parent(dev), dev));
+}
+
+int
+bus_generic_get_domain(device_t dev, device_t child, int *domain)
+{
+
+	if (dev->parent)
+		return (BUS_GET_DOMAIN(dev->parent, dev, domain));
+
+	return (ENOENT);
 }
 
 /*

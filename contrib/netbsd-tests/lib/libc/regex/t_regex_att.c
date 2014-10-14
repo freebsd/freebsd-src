@@ -48,6 +48,9 @@ __RCSID("$NetBSD: t_regex_att.c,v 1.1 2012/08/24 20:24:40 jmmv Exp $");
 #include <vis.h>
 #include <ctype.h>
 #include <atf-c.h>
+#if defined(__FreeBSD__)
+#include <libutil.h>
+#endif
 
 static const char sep[] = "\r\n\t";
 static const char delim[3] = "\\\\\0";
@@ -374,7 +377,11 @@ checkmatches(const char *matches, size_t nm, const regmatch_t *pm,
 		    " cur=%d, max=%zu", res, l, len - off);
 		off += l;
 	}
+#if defined(__FreeBSD__)
+	ATF_CHECK_STREQ_MSG(res, matches, " at line %zu", lineno);
+#else
 	ATF_REQUIRE_STREQ_MSG(res, matches, " at line %zu", lineno);
+#endif
 	free(res);
 }
 
@@ -572,6 +579,9 @@ ATF_TC_BODY(leftassoc, tc)
 	 * disabled this test in a very unconventional way without giving
 	 * any explation.  Mark as broken here, but I don't know why. */
 	atf_tc_expect_fail("Reason for breakage unknown");
+#endif
+#if defined(__FreeBSD__)
+	atf_tc_expect_fail("The expected and matched groups are mismatched on FreeBSD");
 #endif
 	att_test(tc, "leftassoc");
 }

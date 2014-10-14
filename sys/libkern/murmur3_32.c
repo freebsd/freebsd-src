@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2012 Andrey V. Elsukov <ae@FreeBSD.org>
+ * Copyright (c) 2014 Dag-Erling Smørgrav
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -24,21 +24,51 @@
  * SUCH DAMAGE.
  */
 
-#include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+#include <sys/hash.h>
+#include <sys/endian.h>
+#include <sys/stdint.h>
+#include <sys/types.h>
 
-#include <stdlib.h>
+#define rol32(i32, n) ((i32) << (n) | (i32) >> (32 - (n)))
 
-void*
-Malloc(size_t size, const char *file, int line)
+/*
+ * $FreeBSD$
+ * Simple implementation of the Murmur3-32 hash function optimized for
+ * aligned sequences of 32-bit words.  If len is not a multiple of 4, it
+ * will be rounded down, droping trailer bytes.
+ */
+uint32_t
+murmur3_aligned_32(const void *data, size_t len, uint32_t seed)
 {
+	const uint32_t *data32;
+	uint32_t hash, k;
+	size_t res;
 
-	return (malloc(size));
+	/* initialize */
+	len -= len % sizeof(*data32);
+	res = len;
+	data32 = data;
+	hash = seed;
+
+	/* iterate */
+	for (res = 0; res < len; res += sizeof(*data32), data32++) {
+		k = le32toh(*data32);
+		k *= 0xcc9e2d51;
+		k = rol32(k, 15);
+		k *= 0x1b873593;
+		hash ^= k;
+		hash = rol32(hash, 13);
+		hash *= 5;
+		hash += 0xe6546b64;
+	}
+
+	/* finalize */
+	hash ^= (uint32_t)len;
+	hash ^= hash >> 16;
+	hash *= 0x85ebca6b;
+	hash ^= hash >> 13;
+	hash *= 0xc2b2ae35;
+	hash ^= hash >> 16;
+	return (hash);
 }
 
-void
-Free(void *ptr, const char *file, int line)
-{
-
-	return (free(ptr));
-}

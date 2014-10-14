@@ -459,8 +459,8 @@ autofs_readdir(struct vop_readdir_args *ap)
 static int
 autofs_reclaim(struct vop_reclaim_args *ap)
 {
-	struct vnode *vp = ap->a_vp;
-	struct autofs_node *anp = vp->v_data;
+	struct vnode *vp;
+	struct autofs_node *anp;
 
 	vp = ap->a_vp;
 	anp = vp->v_data;
@@ -504,8 +504,12 @@ autofs_node_new(struct autofs_node *parent, struct autofs_mount *amp,
 {
 	struct autofs_node *anp;
 
-	if (parent != NULL)
+	if (parent != NULL) {
 		AUTOFS_ASSERT_XLOCKED(parent->an_mount);
+
+		KASSERT(autofs_node_find(parent, name, namelen, NULL) == ENOENT,
+		    ("node \"%s\" already exists", name));
+	}
 
 	anp = uma_zalloc(autofs_node_zone, M_WAITOK | M_ZERO);
 	if (namelen >= 0)
