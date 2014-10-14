@@ -178,6 +178,34 @@ static struct copan_debugconf_subpage debugconf_page_changeable = {
 	{0xff,0xff},			/* ctl_time_io_secs */
 };
 
+static struct scsi_da_rw_recovery_page rw_er_page_default = {
+	/*page_code*/SMS_RW_ERROR_RECOVERY_PAGE,
+	/*page_length*/sizeof(struct scsi_da_rw_recovery_page) - 2,
+	/*byte3*/SMS_RWER_AWRE|SMS_RWER_ARRE,
+	/*read_retry_count*/0,
+	/*correction_span*/0,
+	/*head_offset_count*/0,
+	/*data_strobe_offset_cnt*/0,
+	/*byte8*/0,
+	/*write_retry_count*/0,
+	/*reserved2*/0,
+	/*recovery_time_limit*/{0, 0},
+};
+
+static struct scsi_da_rw_recovery_page rw_er_page_changeable = {
+	/*page_code*/SMS_RW_ERROR_RECOVERY_PAGE,
+	/*page_length*/sizeof(struct scsi_da_rw_recovery_page) - 2,
+	/*byte3*/0,
+	/*read_retry_count*/0,
+	/*correction_span*/0,
+	/*head_offset_count*/0,
+	/*data_strobe_offset_cnt*/0,
+	/*byte8*/0,
+	/*write_retry_count*/0,
+	/*reserved2*/0,
+	/*recovery_time_limit*/{0, 0},
+};
+
 static struct scsi_format_page format_page_default = {
 	/*page_code*/SMS_FORMAT_DEVICE_PAGE,
 	/*page_length*/sizeof(struct scsi_format_page) - 2,
@@ -300,6 +328,41 @@ static struct scsi_control_page control_page_changeable = {
 	/*extended_selftest_completion_time*/{0, 0}
 };
 
+static struct scsi_info_exceptions_page ie_page_default = {
+	/*page_code*/SMS_INFO_EXCEPTIONS_PAGE,
+	/*page_length*/sizeof(struct scsi_info_exceptions_page) - 2,
+	/*info_flags*/SIEP_FLAGS_DEXCPT,
+	/*mrie*/0,
+	/*interval_timer*/{0, 0, 0, 0},
+	/*report_count*/{0, 0, 0, 0}
+};
+
+static struct scsi_info_exceptions_page ie_page_changeable = {
+	/*page_code*/SMS_INFO_EXCEPTIONS_PAGE,
+	/*page_length*/sizeof(struct scsi_info_exceptions_page) - 2,
+	/*info_flags*/0,
+	/*mrie*/0,
+	/*interval_timer*/{0, 0, 0, 0},
+	/*report_count*/{0, 0, 0, 0}
+};
+
+static struct scsi_logical_block_provisioning_page lbp_page_default = {
+	/*page_code*/SMS_INFO_EXCEPTIONS_PAGE | SMPH_SPF,
+	/*subpage_code*/0x02,
+	/*page_length*/{0, sizeof(struct scsi_logical_block_provisioning_page) - 4},
+	/*flags*/0,
+	/*reserved*/{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+	/*descr*/{}
+};
+
+static struct scsi_logical_block_provisioning_page lbp_page_changeable = {
+	/*page_code*/SMS_INFO_EXCEPTIONS_PAGE | SMPH_SPF,
+	/*subpage_code*/0x02,
+	/*page_length*/{0, sizeof(struct scsi_logical_block_provisioning_page) - 4},
+	/*flags*/0,
+	/*reserved*/{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+	/*descr*/{}
+};
 
 /*
  * XXX KDM move these into the softc.
@@ -4153,13 +4216,10 @@ ctl_init_page_index(struct ctl_lun *lun)
 {
 	int i;
 	struct ctl_page_index *page_index;
-	struct ctl_softc *softc;
 	const char *value;
 
 	memcpy(&lun->mode_pages.index, page_index_template,
 	       sizeof(page_index_template));
-
-	softc = lun->ctl_softc;
 
 	for (i = 0; i < CTL_NUM_MODE_PAGES; i++) {
 
@@ -4175,6 +4235,25 @@ ctl_init_page_index(struct ctl_lun *lun)
 			continue;
 
 		switch (page_index->page_code & SMPH_PC_MASK) {
+		case SMS_RW_ERROR_RECOVERY_PAGE: {
+			if (page_index->subpage != SMS_SUBPAGE_PAGE_0)
+				panic("subpage is incorrect!");
+			memcpy(&lun->mode_pages.rw_er_page[CTL_PAGE_CURRENT],
+			       &rw_er_page_default,
+			       sizeof(rw_er_page_default));
+			memcpy(&lun->mode_pages.rw_er_page[CTL_PAGE_CHANGEABLE],
+			       &rw_er_page_changeable,
+			       sizeof(rw_er_page_changeable));
+			memcpy(&lun->mode_pages.rw_er_page[CTL_PAGE_DEFAULT],
+			       &rw_er_page_default,
+			       sizeof(rw_er_page_default));
+			memcpy(&lun->mode_pages.rw_er_page[CTL_PAGE_SAVED],
+			       &rw_er_page_default,
+			       sizeof(rw_er_page_default));
+			page_index->page_data =
+				(uint8_t *)lun->mode_pages.rw_er_page;
+			break;
+		}
 		case SMS_FORMAT_DEVICE_PAGE: {
 			struct scsi_format_page *format_page;
 
@@ -4364,6 +4443,42 @@ ctl_init_page_index(struct ctl_lun *lun)
 			break;
 
 		}
+		case SMS_INFO_EXCEPTIONS_PAGE: {
+			switch (page_index->subpage) {
+			case SMS_SUBPAGE_PAGE_0:
+				memcpy(&lun->mode_pages.ie_page[CTL_PAGE_CURRENT],
+				       &ie_page_default,
+				       sizeof(ie_page_default));
+				memcpy(&lun->mode_pages.ie_page[
+				       CTL_PAGE_CHANGEABLE], &ie_page_changeable,
+				       sizeof(ie_page_changeable));
+				memcpy(&lun->mode_pages.ie_page[CTL_PAGE_DEFAULT],
+				       &ie_page_default,
+				       sizeof(ie_page_default));
+				memcpy(&lun->mode_pages.ie_page[CTL_PAGE_SAVED],
+				       &ie_page_default,
+				       sizeof(ie_page_default));
+				page_index->page_data =
+					(uint8_t *)lun->mode_pages.ie_page;
+				break;
+			case 0x02:
+				memcpy(&lun->mode_pages.lbp_page[CTL_PAGE_CURRENT],
+				       &lbp_page_default,
+				       sizeof(lbp_page_default));
+				memcpy(&lun->mode_pages.lbp_page[
+				       CTL_PAGE_CHANGEABLE], &lbp_page_changeable,
+				       sizeof(lbp_page_changeable));
+				memcpy(&lun->mode_pages.lbp_page[CTL_PAGE_DEFAULT],
+				       &lbp_page_default,
+				       sizeof(lbp_page_default));
+				memcpy(&lun->mode_pages.lbp_page[CTL_PAGE_SAVED],
+				       &lbp_page_default,
+				       sizeof(lbp_page_default));
+				page_index->page_data =
+					(uint8_t *)lun->mode_pages.lbp_page;
+			}
+			break;
+		}
 		case SMS_VENDOR_SPECIFIC_PAGE:{
 			switch (page_index->subpage) {
 			case PWR_SUBPAGE_CODE: {
@@ -4483,6 +4598,45 @@ ctl_init_page_index(struct ctl_lun *lun)
 			break;
     	}
 	}
+
+	return (CTL_RETVAL_COMPLETE);
+}
+
+static int
+ctl_init_log_page_index(struct ctl_lun *lun)
+{
+	struct ctl_page_index *page_index;
+	int i, j, prev;
+
+	memcpy(&lun->log_pages.index, log_page_index_template,
+	       sizeof(log_page_index_template));
+
+	prev = -1;
+	for (i = 0, j = 0; i < CTL_NUM_LOG_PAGES; i++) {
+
+		page_index = &lun->log_pages.index[i];
+		/*
+		 * If this is a disk-only mode page, there's no point in
+		 * setting it up.  For some pages, we have to have some
+		 * basic information about the disk in order to calculate the
+		 * mode page data.
+		 */
+		if ((lun->be_lun->lun_type != T_DIRECT)
+		 && (page_index->page_flags & CTL_PAGE_FLAG_DISK_ONLY))
+			continue;
+
+		if (page_index->page_code != prev) {
+			lun->log_pages.pages_page[j] = page_index->page_code;
+			prev = page_index->page_code;
+			j++;
+		}
+		lun->log_pages.subpages_page[i*2] = page_index->page_code;
+		lun->log_pages.subpages_page[i*2+1] = page_index->subpage;
+	}
+	lun->log_pages.index[0].page_data = &lun->log_pages.pages_page[0];
+	lun->log_pages.index[0].page_len = j;
+	lun->log_pages.index[1].page_data = &lun->log_pages.subpages_page[0];
+	lun->log_pages.index[1].page_len = i * 2;
 
 	return (CTL_RETVAL_COMPLETE);
 }
@@ -4682,9 +4836,10 @@ ctl_alloc_lun(struct ctl_softc *ctl_softc, struct ctl_lun *ctl_lun,
 	ctl_tpc_lun_init(lun);
 
 	/*
-	 * Initialize the mode page index.
+	 * Initialize the mode and log page index.
 	 */
 	ctl_init_page_index(lun);
+	ctl_init_log_page_index(lun);
 
 	/*
 	 * Set the poweron UA for all initiators on this LUN only.
@@ -7258,6 +7413,91 @@ ctl_mode_sense(struct ctl_scsiio *ctsio)
 
 	ctsio->scsi_status = SCSI_STATUS_OK;
 
+	ctsio->io_hdr.flags |= CTL_FLAG_ALLOCATED;
+	ctsio->be_move_done = ctl_config_move_done;
+	ctl_datamove((union ctl_io *)ctsio);
+
+	return (CTL_RETVAL_COMPLETE);
+}
+
+int
+ctl_log_sense(struct ctl_scsiio *ctsio)
+{
+	struct ctl_lun *lun;
+	int i, pc, page_code, subpage;
+	int alloc_len, total_len;
+	struct ctl_page_index *page_index;
+	struct scsi_log_sense *cdb;
+	struct scsi_log_header *header;
+
+	CTL_DEBUG_PRINT(("ctl_log_sense\n"));
+
+	lun = (struct ctl_lun *)ctsio->io_hdr.ctl_private[CTL_PRIV_LUN].ptr;
+	cdb = (struct scsi_log_sense *)ctsio->cdb;
+	pc = (cdb->page & SLS_PAGE_CTRL_MASK) >> 6;
+	page_code = cdb->page & SLS_PAGE_CODE;
+	subpage = cdb->subpage;
+	alloc_len = scsi_2btoul(cdb->length);
+
+	page_index = NULL;
+	for (i = 0; i < CTL_NUM_LOG_PAGES; i++) {
+		page_index = &lun->log_pages.index[i];
+
+		/* Look for the right page code */
+		if ((page_index->page_code & SL_PAGE_CODE) != page_code)
+			continue;
+
+		/* Look for the right subpage or the subpage wildcard*/
+		if (page_index->subpage != subpage)
+			continue;
+
+		break;
+	}
+	if (i >= CTL_NUM_LOG_PAGES) {
+		ctl_set_invalid_field(ctsio,
+				      /*sks_valid*/ 1,
+				      /*command*/ 1,
+				      /*field*/ 2,
+				      /*bit_valid*/ 0,
+				      /*bit*/ 0);
+		ctl_done((union ctl_io *)ctsio);
+		return (CTL_RETVAL_COMPLETE);
+	}
+
+	total_len = sizeof(struct scsi_log_header) + page_index->page_len;
+
+	ctsio->kern_data_ptr = malloc(total_len, M_CTL, M_WAITOK | M_ZERO);
+	ctsio->kern_sg_entries = 0;
+	ctsio->kern_data_resid = 0;
+	ctsio->kern_rel_offset = 0;
+	if (total_len < alloc_len) {
+		ctsio->residual = alloc_len - total_len;
+		ctsio->kern_data_len = total_len;
+		ctsio->kern_total_len = total_len;
+	} else {
+		ctsio->residual = 0;
+		ctsio->kern_data_len = alloc_len;
+		ctsio->kern_total_len = alloc_len;
+	}
+
+	header = (struct scsi_log_header *)ctsio->kern_data_ptr;
+	header->page = page_index->page_code;
+	if (page_index->subpage) {
+		header->page |= SL_SPF;
+		header->subpage = page_index->subpage;
+	}
+	scsi_ulto2b(page_index->page_len, header->datalen);
+
+	/*
+	 * Call the handler, if it exists, to update the
+	 * page to the latest values.
+	 */
+	if (page_index->sense_handler != NULL)
+		page_index->sense_handler(ctsio, page_index, pc);
+
+	memcpy(header + 1, page_index->page_data, page_index->page_len);
+
+	ctsio->scsi_status = SCSI_STATUS_OK;
 	ctsio->io_hdr.flags |= CTL_FLAG_ALLOCATED;
 	ctsio->be_move_done = ctl_config_move_done;
 	ctl_datamove((union ctl_io *)ctsio);
