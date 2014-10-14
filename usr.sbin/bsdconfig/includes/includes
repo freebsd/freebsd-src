@@ -69,7 +69,7 @@ show_include()
 		-v use_color=${USE_COLOR:-0} \
 		-v re="$pattern" \
 		-v show_desc=${SHOW_DESC:-0} '
-        function asorti(src, dest)
+        function _asorti(src, dest)
         {
 		k = nitems = 0;
 
@@ -120,7 +120,7 @@ show_include()
 		}
 	}
 	END {
-		n = asorti(syntax, sorted_indices)
+		n = _asorti(syntax, sorted_indices)
 		for (i = 1; i <= n; i++)
 			printf "%s", syntax[sorted_indices[i]]
 	}' "$file" )
