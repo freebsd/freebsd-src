@@ -10,7 +10,7 @@
   xmlns:xlink="http://www.w3.org/1999/xlink" version="5.0">
 
   <info>
-    <title>&os; &release.current; Errata </title>
+    <title>&os; &release.prev; Errata </title>
 
     <author><orgname>The &os; Project</orgname></author>
 
@@ -31,7 +31,7 @@
     </legalnotice>
 
     <abstract>
-      <para>This document lists errata items for &os; &release.current;,
+      <para>This document lists errata items for &os; &release.prev;,
 	containing significant information discovered after the
 	release or too late in the release cycle to be otherwise
 	included in the release documentation.  This information
@@ -41,7 +41,7 @@
 	always be consulted before installing this version of
 	&os;.</para>
 
-      <para>This errata document for &os; &release.current; will be
+      <para>This errata document for &os; &release.prev; will be
 	maintained until the release of &os; &release.next;.</para>
     </abstract>
   </info>
