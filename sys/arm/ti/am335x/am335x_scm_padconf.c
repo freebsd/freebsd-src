@@ -74,7 +74,7 @@ __FBSDID("$FreeBSD$");
 #define PADCONF_INPUT_PULLDOWN		(RXACTIVE)
 #define PADCONF_INPUT_PULLUP_SLOW	(PADCONF_INPUT_PULLUP | SLEWCTRL)
 
-const struct ti_scm_padstate ti_padstate_devmap[] = {
+const static struct ti_scm_padstate ti_padstate_devmap[] = {
 	{"output",		PADCONF_OUTPUT },
 	{"output_pullup",	PADCONF_OUTPUT_PULLUP },
 	{"input",		PADCONF_INPUT },
