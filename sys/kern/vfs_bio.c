@@ -636,6 +636,10 @@ bd_speedup(void)
 	mtx_unlock(&bdlock);
 }
 
+#ifndef NSWBUF_MIN
+#define	NSWBUF_MIN	16
+#endif
+
 #ifdef __i386__
 #define	TRANSIENT_DENOM	5
 #else
@@ -747,11 +751,10 @@ kern_vfs_bio_buffer_alloc(caddr_t v, long physmem_est)
 	 * swbufs are used as temporary holders for I/O, such as paging I/O.
 	 * We have no less then 16 and no more then 256.
 	 */
-	nswbuf = max(min(nbuf/4, 256), 16);
-#ifdef NSWBUF_MIN
+	nswbuf = min(nbuf / 4, 256);
+	TUNABLE_INT_FETCH("kern.nswbuf", &nswbuf);
 	if (nswbuf < NSWBUF_MIN)
 		nswbuf = NSWBUF_MIN;
-#endif
 
 	/*
 	 * Reserve space for the buffer cache buffers
