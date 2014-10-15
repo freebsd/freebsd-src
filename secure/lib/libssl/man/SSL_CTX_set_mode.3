@@ -124,7 +124,7 @@
 .\" ========================================================================
 .\"
 .IX Title "SSL_CTX_set_mode 3"
-.TH SSL_CTX_set_mode 3 "2014-08-06" "0.9.8zb" "OpenSSL"
+.TH SSL_CTX_set_mode 3 "2014-10-15" "0.9.8zc" "OpenSSL"
 .\" For nroff, turn off justification.  Always turn off hyphenation; it makes
 .\" way too many mistakes in technical documents.
 .if n .ad l
@@ -182,6 +182,11 @@ In a blocking environment, applications are not always prepared to
 deal with read/write operations returning without success report. The
 flag \s-1SSL_MODE_AUTO_RETRY\s0 will cause read/write operations to only
 return after the handshake and successful completion.
+.IP "\s-1SSL_MODE_FALLBACK_SCSV\s0" 4
+.IX Item "SSL_MODE_FALLBACK_SCSV"
+Send \s-1TLS_FALLBACK_SCSV\s0 in the ClientHello.
+To be set by applications that reconnect with a downgraded protocol
+version; see draft\-ietf\-tls\-downgrade\-scsv\-00 for details.
 .SH "RETURN VALUES"
 .IX Header "RETURN VALUES"
 \&\fISSL_CTX_set_mode()\fR and \fISSL_set_mode()\fR return the new mode bitmask
