@@ -11,8 +11,8 @@ First, read http://wiki.freebsd.org/SubversionPrimer/VendorImports
 # Xlist
 setenv XLIST /FreeBSD/work/openssl/svn-FREEBSD-files/FREEBSD-Xlist
 setenv FSVN "svn+ssh://svn.freebsd.org/base"
-setenv OSSLVER 1.0.1i
-# OSSLTAG format: v1_0_1i
+setenv OSSLVER 1.0.1j
+# OSSLTAG format: v1_0_1j
 
 ###setenv OSSLTAG v`echo ${OSSLVER} | tr . _`
 
