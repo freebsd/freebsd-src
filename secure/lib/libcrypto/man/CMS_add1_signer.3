@@ -123,28 +123,28 @@
 .rm #[ #] #H #V #F C
 .\" ========================================================================
 .\"
-.IX Title "CMS_sign_add1_signer 3"
-.TH CMS_sign_add1_signer 3 "2014-08-06" "1.0.1i" "OpenSSL"
+.IX Title "CMS_add1_signer 3"
+.TH CMS_add1_signer 3 "2014-10-15" "1.0.1j" "OpenSSL"
 .\" For nroff, turn off justification.  Always turn off hyphenation; it makes
 .\" way too many mistakes in technical documents.
 .if n .ad l
 .nh
 .SH "NAME"
 .Vb 1
-\& CMS_sign_add1_signer, CMS_SignerInfo_sign \- add a signer to a CMS_ContentInfo signed data structure.
+\& CMS_add1_signer, CMS_SignerInfo_sign \- add a signer to a CMS_ContentInfo signed data structure.
 .Ve
 .SH "SYNOPSIS"
 .IX Header "SYNOPSIS"
 .Vb 1
 \& #include <openssl/cms.h>
 \&
-\& CMS_SignerInfo *CMS_sign_add1_signer(CMS_ContentInfo *cms, X509 *signcert, EVP_PKEY *pkey, const EVP_MD *md, unsigned int flags);
+\& CMS_SignerInfo *CMS_add1_signer(CMS_ContentInfo *cms, X509 *signcert, EVP_PKEY *pkey, const EVP_MD *md, unsigned int flags);
 \&
 \& int CMS_SignerInfo_sign(CMS_SignerInfo *si);
 .Ve
 .SH "DESCRIPTION"
 .IX Header "DESCRIPTION"
-\&\fICMS_sign_add1_signer()\fR adds a signer with certificate \fBsigncert\fR and private
+\&\fICMS_add1_signer()\fR adds a signer with certificate \fBsigncert\fR and private
 key \fBpkey\fR using message digest \fBmd\fR to CMS_ContentInfo SignedData
 structure \fBcms\fR.
 .PP
@@ -164,7 +164,7 @@ structure, its main use is when \fB\s-1CMS_REUSE_DIGEST\s0\fR and \fB\s-1CMS_PAR
 are both set.
 .SH "NOTES"
 .IX Header "NOTES"
-The main purpose of \fICMS_sign_add1_signer()\fR is to provide finer control
+The main purpose of \fICMS_add1_signer()\fR is to provide finer control
 over a \s-1CMS\s0 signed data structure where the simpler \fICMS_sign()\fR function defaults
 are not appropriate. For example if multiple signers or non default digest
 algorithms are needed. New attributes can also be added using the returned
@@ -208,12 +208,12 @@ bit \s-1AES\s0, 128 bit \s-1AES\s0, triple \s-1DES\s0, 128 bit \s-1RC2\s0, 64 bi
 If any of these algorithms is not available then it will not be included: for example the \s-1GOST\s0 algorithms will not be included if the \s-1GOST\s0 \s-1ENGINE\s0 is
 not loaded.
 .PP
-\&\fICMS_sign_add1_signer()\fR returns an internal pointer to the CMS_SignerInfo
+\&\fICMS_add1_signer()\fR returns an internal pointer to the CMS_SignerInfo
 structure just added, this can be used to set additional attributes 
 before it is finalized.
 .SH "RETURN VALUES"
 .IX Header "RETURN VALUES"
-\&\fICMS_sign1_add_signers()\fR returns an internal pointer to the CMS_SignerInfo
+\&\fICMS_add1_signer()\fR returns an internal pointer to the CMS_SignerInfo
 structure just added or \s-1NULL\s0 if an error occurs.
 .SH "SEE ALSO"
 .IX Header "SEE ALSO"
@@ -221,4 +221,4 @@ structure just added or \s-1NULL\s0 if an error occurs.
 \&\fICMS_final\fR\|(3),
 .SH "HISTORY"
 .IX Header "HISTORY"
-\&\fICMS_sign_add1_signer()\fR was added to OpenSSL 0.9.8
+\&\fICMS_add1_signer()\fR was added to OpenSSL 0.9.8
