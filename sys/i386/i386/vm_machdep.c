@@ -799,7 +799,7 @@ sf_buf_invalidate_cache(vm_page_t m)
 			 */
 			pmap_qenter(sf->kva, &m, 1);
 			pmap_invalidate_cache_range(sf->kva, sf->kva +
-			    PAGE_SIZE);
+			    PAGE_SIZE, FALSE);
 			ret = TRUE;
 			break;
 		}
