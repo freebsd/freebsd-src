@@ -274,6 +274,7 @@ autofs_task(void *context, int pending)
 	 * XXX: EIO perhaps?
 	 */
 	ar->ar_error = ETIMEDOUT;
+	ar->ar_wildcards = true;
 	ar->ar_done = true;
 	ar->ar_in_progress = false;
 	cv_broadcast(&autofs_softc->sc_cv);
@@ -291,12 +292,13 @@ autofs_cached(struct autofs_node *anp, const char *component, int componentlen)
 	AUTOFS_ASSERT_UNLOCKED(amp);
 
 	/*
-	 * For top-level nodes we need to request automountd(8)
-	 * assistance even if the node is marked as cached,
-	 * but the requested subdirectory does not exist.  This
-	 * is necessary for wildcard indirect map keys to work.
+	 * For root node we need to request automountd(8) assistance even
+	 * if the node is marked as cached, but the requested top-level
+	 * directory does not exist.  This is necessary for wildcard indirect
+	 * map keys to work.  We don't do this if we know that there are
+	 * no wildcards.
 	 */
-	if (anp->an_parent == NULL && componentlen != 0) {
+	if (anp->an_parent == NULL && componentlen != 0 && anp->an_wildcards) {
 		AUTOFS_SLOCK(amp);
 		error = autofs_node_find(anp, component, componentlen, NULL);
 		AUTOFS_SUNLOCK(amp);
@@ -366,6 +368,7 @@ autofs_trigger_one(struct autofs_node *anp,
 	struct autofs_request *ar;
 	char *key, *path;
 	int error = 0, request_error, last;
+	bool wildcards;
 
 	amp = anp->an_mount;
 
@@ -450,6 +453,8 @@ autofs_trigger_one(struct autofs_node *anp,
 		    ar->ar_path, request_error);
 	}
 
+	wildcards = ar->ar_wildcards;
+
 	last = refcount_release(&ar->ar_refcount);
 	if (last) {
 		TAILQ_REMOVE(&autofs_softc->sc_requests, ar, ar_next);
@@ -470,6 +475,7 @@ autofs_trigger_one(struct autofs_node *anp,
 	 */
 	if (error == 0 && request_error == 0 && autofs_cache > 0) {
 		anp->an_cached = true;
+		anp->an_wildcards = wildcards;
 		callout_reset(&anp->an_callout, autofs_cache * hz,
 		    autofs_cache_callout, anp);
 	}
@@ -584,6 +590,7 @@ autofs_ioctl_done(struct autofs_daemon_done *add)
 	}
 
 	ar->ar_error = add->add_error;
+	ar->ar_wildcards = add->add_wildcards;
 	ar->ar_done = true;
 	ar->ar_in_progress = false;
 	cv_broadcast(&autofs_softc->sc_cv);

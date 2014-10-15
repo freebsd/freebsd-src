@@ -69,6 +69,7 @@ enum {
 	VIE_OP_TYPE_TWO_BYTE,
 	VIE_OP_TYPE_PUSH,
 	VIE_OP_TYPE_CMP,
+	VIE_OP_TYPE_POP,
 	VIE_OP_TYPE_LAST
 };
 
@@ -158,6 +159,11 @@ static const struct vie_op one_byte_opcodes[256] = {
 		.op_byte = 0x83,
 		.op_type = VIE_OP_TYPE_OR,
 		.op_flags = VIE_OP_F_IMM8,
+	},
+	[0x8F] = {
+		/* XXX Group 1A extended opcode - not just POP */
+		.op_byte = 0x8F,
+		.op_type = VIE_OP_TYPE_POP,
 	},
 	[0xFF] = {
 		/* XXX Group 5 extended opcode - not just PUSH */
@@ -821,7 +827,7 @@ emulate_sub(void *vm, int vcpuid, uint64_t gpa, struct vie *vie,
 }
 
 static int
-emulate_push(void *vm, int vcpuid, uint64_t mmio_gpa, struct vie *vie,
+emulate_stack_op(void *vm, int vcpuid, uint64_t mmio_gpa, struct vie *vie,
     struct vm_guest_paging *paging, mem_region_read_t memread,
     mem_region_write_t memwrite, void *arg)
 {
@@ -832,18 +838,12 @@ emulate_push(void *vm, int vcpuid, uint64_t mmio_gpa, struct vie *vie,
 #endif
 	struct seg_desc ss_desc;
 	uint64_t cr0, rflags, rsp, stack_gla, val;
-	int error, size, stackaddrsize;
+	int error, size, stackaddrsize, pushop;
 
-	/*
-	 * Table A-6, "Opcode Extensions", Intel SDM, Vol 2.
-	 *
-	 * PUSH is part of the group 5 extended opcodes and is identified
-	 * by ModRM:reg = b110.
-	 */
-	if ((vie->reg & 7) != 6)
-		return (EINVAL);
-
+	val = 0;
 	size = vie->opsize;
+	pushop = (vie->op.op_type == VIE_OP_TYPE_PUSH) ? 1 : 0;
+
 	/*
 	 * From "Address-Size Attributes for Stack Accesses", Intel SDL, Vol 1
 	 */
@@ -882,10 +882,13 @@ emulate_push(void *vm, int vcpuid, uint64_t mmio_gpa, struct vie *vie,
 
 	error = vie_read_register(vm, vcpuid, VM_REG_GUEST_RSP, &rsp);
 	KASSERT(error == 0, ("%s: error %d getting rsp", __func__, error));
+	if (pushop) {
+		rsp -= size;
+	}
 
-	rsp -= size;
 	if (vie_calculate_gla(paging->cpu_mode, VM_REG_GUEST_SS, &ss_desc,
-	    rsp, size, stackaddrsize, PROT_WRITE, &stack_gla)) {
+	    rsp, size, stackaddrsize, pushop ? PROT_WRITE : PROT_READ,
+	    &stack_gla)) {
 		vm_inject_ss(vm, vcpuid, 0);
 		return (0);
 	}
@@ -900,8 +903,8 @@ emulate_push(void *vm, int vcpuid, uint64_t mmio_gpa, struct vie *vie,
 		return (0);
 	}
 
-	error = vm_copy_setup(vm, vcpuid, paging, stack_gla, size, PROT_WRITE,
-	    copyinfo, nitems(copyinfo));
+	error = vm_copy_setup(vm, vcpuid, paging, stack_gla, size,
+	    pushop ? PROT_WRITE : PROT_READ, copyinfo, nitems(copyinfo));
 	if (error == -1) {
 		/*
 		 * XXX cannot return a negative error value here because it
@@ -914,16 +917,66 @@ emulate_push(void *vm, int vcpuid, uint64_t mmio_gpa, struct vie *vie,
 		return (0);
 	}
 
-	error = memread(vm, vcpuid, mmio_gpa, &val, size, arg);
-	if (error == 0) {
-		vm_copyout(vm, vcpuid, &val, copyinfo, size);
-		error = vie_update_register(vm, vcpuid, VM_REG_GUEST_RSP, rsp,
-		    stackaddrsize);
-		KASSERT(error == 0, ("error %d updating rsp", error));
+	if (pushop) {
+		error = memread(vm, vcpuid, mmio_gpa, &val, size, arg);
+		if (error == 0)
+			vm_copyout(vm, vcpuid, &val, copyinfo, size);
+	} else {
+		vm_copyin(vm, vcpuid, copyinfo, &val, size);
+		error = memwrite(vm, vcpuid, mmio_gpa, val, size, arg);
+		rsp += size;
 	}
 #ifdef _KERNEL
 	vm_copy_teardown(vm, vcpuid, copyinfo, nitems(copyinfo));
 #endif
+
+	if (error == 0) {
+		error = vie_update_register(vm, vcpuid, VM_REG_GUEST_RSP, rsp,
+		    stackaddrsize);
+		KASSERT(error == 0, ("error %d updating rsp", error));
+	}
+	return (error);
+}
+
+static int
+emulate_push(void *vm, int vcpuid, uint64_t mmio_gpa, struct vie *vie,
+    struct vm_guest_paging *paging, mem_region_read_t memread,
+    mem_region_write_t memwrite, void *arg)
+{
+	int error;
+
+	/*
+	 * Table A-6, "Opcode Extensions", Intel SDM, Vol 2.
+	 *
+	 * PUSH is part of the group 5 extended opcodes and is identified
+	 * by ModRM:reg = b110.
+	 */
+	if ((vie->reg & 7) != 6)
+		return (EINVAL);
+
+	error = emulate_stack_op(vm, vcpuid, mmio_gpa, vie, paging, memread,
+	    memwrite, arg);
+	return (error);
+}
+
+static int
+emulate_pop(void *vm, int vcpuid, uint64_t mmio_gpa, struct vie *vie,
+    struct vm_guest_paging *paging, mem_region_read_t memread,
+    mem_region_write_t memwrite, void *arg)
+{
+	int error;
+
+	/*
+	 * Table A-6, "Opcode Extensions", Intel SDM, Vol 2.
+	 *
+	 * POP is part of the group 1A extended opcodes and is identified
+	 * by ModRM:reg = b000.
+	 */
+	if ((vie->reg & 7) != 0)
+		return (EINVAL);
+
+	error = emulate_stack_op(vm, vcpuid, mmio_gpa, vie, paging, memread,
+	    memwrite, arg);
 	return (error);
 }
 
@@ -938,6 +991,10 @@ vmm_emulate_instruction(void *vm, int vcpuid, uint64_t gpa, struct vie *vie,
 		return (EINVAL);
 
 	switch (vie->op.op_type) {
+	case VIE_OP_TYPE_POP:
+		error = emulate_pop(vm, vcpuid, gpa, vie, paging, memread,
+		    memwrite, memarg);
+		break;
 	case VIE_OP_TYPE_PUSH:
 		error = emulate_push(vm, vcpuid, gpa, vie, paging, memread,
 		    memwrite, memarg);
