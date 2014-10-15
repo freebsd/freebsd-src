@@ -78,36 +78,36 @@ terasic_mtl_nexus_attach(device_t dev)
 	 */
 	if (resource_long_value(device_get_name(dev), device_get_unit(dev),
 	    "reg_maddr", &reg_maddr) != 0 || (reg_maddr % PAGE_SIZE != 0)) {
-		device_printf(dev, "improper register address");
+		device_printf(dev, "improper register address\n");
 		return (ENXIO);
 	}
 	if (resource_long_value(device_get_name(dev), device_get_unit(dev),
 	    "reg_msize", &reg_msize) != 0 || (reg_msize % PAGE_SIZE != 0)) {
-		device_printf(dev, "improper register size");
+		device_printf(dev, "improper register size\n");
 		return (ENXIO);
 	}
 	if (resource_long_value(device_get_name(dev), device_get_unit(dev),
 	    "pixel_maddr", &pixel_maddr) != 0 ||
 	    (pixel_maddr % PAGE_SIZE != 0)) {
-		device_printf(dev, "improper pixel frame buffer address");
+		device_printf(dev, "improper pixel frame buffer address\n");
 		return (ENXIO);
 	}
 	if (resource_long_value(device_get_name(dev), device_get_unit(dev),
 	    "pixel_msize", &pixel_msize) != 0 ||
 	    (pixel_msize % PAGE_SIZE != 0)) {
-		device_printf(dev, "improper pixel frame buffer size");
+		device_printf(dev, "improper pixel frame buffer size\n");
 		return (ENXIO);
 	}
 	if (resource_long_value(device_get_name(dev), device_get_unit(dev),
 	    "text_maddr", &text_maddr) != 0 ||
 	    (text_maddr % PAGE_SIZE != 0)) {
-		device_printf(dev, "improper text frame buffer address");
+		device_printf(dev, "improper text frame buffer address\n");
 		return (ENXIO);
 	}
 	if (resource_long_value(device_get_name(dev), device_get_unit(dev),
 	    "text_msize", &text_msize) != 0 ||
 	    (text_msize % PAGE_SIZE != 0)) {
-		device_printf(dev, "improper text frame buffer size");
+		device_printf(dev, "improper text frame buffer size\n");
 		return (ENXIO);
 	}
 

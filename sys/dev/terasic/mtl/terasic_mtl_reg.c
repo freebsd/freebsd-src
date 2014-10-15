@@ -247,7 +247,7 @@ void
 terasic_mtl_reg_blank(struct terasic_mtl_softc *sc)
 {
 
-	device_printf(sc->mtl_dev, "%s: not yet", __func__);
+	device_printf(sc->mtl_dev, "%s: not yet\n", __func__);
 }
 
 void
