@@ -43,9 +43,6 @@
  */
 static vop_lookup_t	dead_lookup;
 static vop_open_t	dead_open;
-static vop_poll_t	dead_poll;
-static vop_read_t	dead_read;
-static vop_write_t	dead_write;
 static vop_getwritemount_t dead_getwritemount;
 static vop_rename_t	dead_rename;
 
@@ -130,7 +127,7 @@ dead_open(ap)
  * Vnode op for read
  */
 /* ARGSUSED */
-static int
+int
 dead_read(ap)
 	struct vop_read_args /* {
 		struct vnode *a_vp;
@@ -151,7 +148,7 @@ dead_read(ap)
  * Vnode op for write
  */
 /* ARGSUSED */
-static int
+int
 dead_write(ap)
 	struct vop_write_args /* {
 		struct vnode *a_vp;
@@ -163,7 +160,7 @@ dead_write(ap)
 	return (EIO);
 }
 
-static int
+int
 dead_poll(ap)
 	struct vop_poll_args *ap;
 {

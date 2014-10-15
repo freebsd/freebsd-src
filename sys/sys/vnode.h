@@ -758,6 +758,9 @@ int	vop_enoent(struct vop_generic_args *ap);
 int	vop_enotty(struct vop_generic_args *ap);
 int	vop_null(struct vop_generic_args *ap);
 int	vop_panic(struct vop_generic_args *ap);
+int	dead_poll(struct vop_poll_args *ap);
+int	dead_read(struct vop_read_args *ap);
+int	dead_write(struct vop_write_args *ap);
 
 /* These are called from within the actual VOPS. */
 void	vop_create_post(void *a, int rc);
