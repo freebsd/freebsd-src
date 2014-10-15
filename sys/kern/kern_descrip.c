@@ -1740,8 +1740,6 @@ falloc_noinstall(struct thread *td, struct file **resultfp)
 	refcount_init(&fp->f_count, 1);
 	fp->f_cred = crhold(td->td_ucred);
 	fp->f_ops = &badfileops;
-	fp->f_data = NULL;
-	fp->f_vnode = NULL;
 	*resultfp = fp;
 	return (0);
 }
