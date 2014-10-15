@@ -40,7 +40,6 @@
 
 #include <linux/completion.h>
 #include <linux/device.h>
-#include <linux/ethtool.h>
 #include <linux/workqueue.h>
 #include <linux/net.h>
 #include <linux/notifier.h>
