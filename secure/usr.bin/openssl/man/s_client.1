@@ -124,7 +124,7 @@
 .\" ========================================================================
 .\"
 .IX Title "S_CLIENT 1"
-.TH S_CLIENT 1 "2014-08-06" "0.9.8zb" "OpenSSL"
+.TH S_CLIENT 1 "2014-10-15" "0.9.8zc" "OpenSSL"
 .\" For nroff, turn off justification.  Always turn off hyphenation; it makes
 .\" way too many mistakes in technical documents.
 .if n .ad l
@@ -176,6 +176,7 @@ s_client \- SSL/TLS client program
 [\fB\-no_ssl2\fR]
 [\fB\-no_ssl3\fR]
 [\fB\-no_tls1\fR]
+[\fB\-fallback_scsv\fR]
 [\fB\-bugs\fR]
 [\fB\-cipher cipherlist\fR]
 [\fB\-starttls protocol\fR]
@@ -293,10 +294,12 @@ these options disable the use of certain \s-1SSL\s0 or \s-1TLS\s0 protocols. By 
 the initial handshake uses a method which should be compatible with all
 servers and permit them to use \s-1SSL\s0 v3, \s-1SSL\s0 v2 or \s-1TLS\s0 as appropriate.
 .Sp
-Unfortunately there are a lot of ancient and broken servers in use which
+Unfortunately there are still ancient and broken servers in use which
 cannot handle this technique and will fail to connect. Some servers only
-work if \s-1TLS\s0 is turned off with the \fB\-no_tls\fR option others will only
-support \s-1SSL\s0 v2 and may need the \fB\-ssl2\fR option.
+work if \s-1TLS\s0 is turned off.
+.IP "\fB\-fallback_scsv\fR" 4
+.IX Item "-fallback_scsv"
+Send \s-1TLS_FALLBACK_SCSV\s0 in the ClientHello.
 .IP "\fB\-bugs\fR" 4
 .IX Item "-bugs"
 there are several known bug in \s-1SSL\s0 and \s-1TLS\s0 implementations. Adding this
