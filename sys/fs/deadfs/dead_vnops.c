@@ -163,16 +163,19 @@ dead_write(ap)
 	return (EIO);
 }
 
-/*
- * Trivial poll routine that always returns POLLHUP.
- * This is necessary so that a process which is polling a file
- * gets notified when that file is revoke()d.
- */
 static int
 dead_poll(ap)
 	struct vop_poll_args *ap;
 {
-	return (POLLHUP);
+
+	if (ap->a_events & ~POLLSTANDARD)
+		return (POLLNVAL);
+
+	/*
+	 * Let the user find out that the descriptor is gone.
+	 */
+	return (POLLHUP | ((POLLIN | POLLRDNORM) & ap->a_events));
+
 }
 
 static int
