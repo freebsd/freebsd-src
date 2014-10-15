@@ -104,6 +104,10 @@ static int	pmu_acline_state(SYSCTL_HANDLER_ARGS);
 static int	pmu_query_battery(struct pmu_softc *sc, int batt, 
 		    struct pmu_battstate *info);
 static int	pmu_battquery_sysctl(SYSCTL_HANDLER_ARGS);
+static int	pmu_battmon(SYSCTL_HANDLER_ARGS);
+static void	pmu_battquery_proc(void);
+static void	pmu_battery_notify(struct pmu_battstate *batt,
+		    struct pmu_battstate *old);
 
 /*
  * List of battery-related sysctls we might ask for
@@ -184,9 +188,6 @@ static int pmu_send(void *cookie, int cmd, int length, uint8_t *in_msg,
 static uint8_t pmu_read_reg(struct pmu_softc *sc, u_int offset);
 static void pmu_write_reg(struct pmu_softc *sc, u_int offset, uint8_t value);
 static int pmu_intr_state(struct pmu_softc *);
-static void pmu_battquery_proc(void);
-static void pmu_battery_notify(struct pmu_battstate *batt,
-	struct pmu_battstate *old);
 
 /* these values shows that number of data returned after 'send' cmd is sent */
 static signed char pm_send_cmd_type[] = {
@@ -260,6 +261,7 @@ static signed char pm_receive_cmd_type[] = {
 	  -1,   -1,   -1,   -1,   -1,   -1,   -1,   -1,
 };
 
+static int pmu_battmon_enabled = 1;
 static struct proc *pmubattproc;
 static struct kproc_desc pmu_batt_kp = {
 	"pmu_batt",
@@ -433,6 +435,11 @@ pmu_attach(device_t dev)
 
 		/* Only start the battery monitor if we have a battery. */
 		kproc_start(&pmu_batt_kp);
+		SYSCTL_ADD_PROC(ctx, SYSCTL_CHILDREN(tree), OID_AUTO,
+		    "monitor_batteries", CTLTYPE_INT | CTLFLAG_RW, sc, 0,
+		    pmu_battmon, "I", "Post battery events to devd");
+
+
 		SYSCTL_ADD_PROC(ctx, SYSCTL_CHILDREN(tree), OID_AUTO,
 		    "acline", CTLTYPE_INT | CTLFLAG_RD, sc, 0,
 		    pmu_acline_state, "I", "AC Line Status");
@@ -931,12 +938,14 @@ static void
 pmu_battery_notify(struct pmu_battstate *batt, struct pmu_battstate *old)
 {
 	char notify_buf[16];
-	int acline;
+	int new_acline, old_acline;
 
-	acline = (batt->state & PMU_PWR_AC_PRESENT) ? 1 : 0;
-	if (acline != (old->state & PMU_PWR_AC_PRESENT)) {
+	new_acline = (batt->state & PMU_PWR_AC_PRESENT) ? 1 : 0;
+	old_acline = (old->state & PMU_PWR_AC_PRESENT) ? 1 : 0;
+
+	if (new_acline != old_acline) {
 		snprintf(notify_buf, sizeof(notify_buf),
-		    "notify=0x%02x", acline);
+		    "notify=0x%02x", new_acline);
 		devctl_notify("PMU", "POWER", "ACLINE", notify_buf);
 	}
 }
@@ -951,13 +960,37 @@ pmu_battquery_proc()
 
 	sc = device_get_softc(pmu);
 
-	error = pmu_query_battery(sc, 0, &cur_batt);
+	bzero(&cur_batt, sizeof(cur_batt));
 	while (1) {
+		kproc_suspend_check(curproc);
 		error = pmu_query_battery(sc, 0, &batt);
 		pmu_battery_notify(&batt, &cur_batt);
 		cur_batt = batt;
 		pause("pmu_batt", hz);
 	}
+}
+
+static int
+pmu_battmon(SYSCTL_HANDLER_ARGS)
+{
+	struct pmu_softc *sc;
+	int error, result;
+
+	sc = arg1;
+	result = pmu_battmon_enabled;
+
+	error = sysctl_handle_int(oidp, &result, 0, req);
+
+	if (error || !req->newptr)
+		return (error);
+	
+	if (!result && pmu_battmon_enabled)
+		error = kproc_suspend(pmubattproc, hz);
+	else if (result && pmu_battmon_enabled == 0)
+		error = kproc_resume(pmubattproc);
+	pmu_battmon_enabled = (result != 0);
+
+	return (error);
 }
 
 static int
