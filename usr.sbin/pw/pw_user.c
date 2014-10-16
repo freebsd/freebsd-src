@@ -615,7 +615,7 @@ pw_user(struct userconf * cnf, int mode, struct cargs * args)
 		pwd->pw_dir = pw_homepolicy(cnf, args, pwd->pw_name);
 		pwd->pw_shell = pw_shellpolicy(cnf, args, NULL);
 		lc = login_getpwclass(pwd);
-		if (lc == NULL || login_setcryptfmt(lc, "md5", NULL) == NULL)
+		if (lc == NULL || login_setcryptfmt(lc, "sha512", NULL) == NULL)
 			warn("setting crypt(3) format");
 		login_close(lc);
 		pwd->pw_passwd = pw_password(cnf, args, pwd->pw_name);
@@ -690,7 +690,7 @@ pw_user(struct userconf * cnf, int mode, struct cargs * args)
 			} else {
 				lc = login_getpwclass(pwd);
 				if (lc == NULL ||
-				    login_setcryptfmt(lc, "md5", NULL) == NULL)
+				    login_setcryptfmt(lc, "sha512", NULL) == NULL)
 					warn("setting crypt(3) format");
 				login_close(lc);
 				pwd->pw_passwd = pw_pwcrypt(line);
