@@ -1204,6 +1204,18 @@ rn_inithead(void **head, int off)
 	return (1);
 }
 
+static int
+rn_freeentry(struct radix_node *rn, void *arg)
+{
+	struct radix_node_head * const rnh = arg;
+	struct radix_node *x;
+
+	x = (struct radix_node *)rn_delete(rn + 2, NULL, rnh);
+	if (x != NULL)
+		Free(x);
+	return (0);
+}
+
 int
 rn_detachhead(void **head)
 {
@@ -1214,6 +1226,7 @@ rn_detachhead(void **head)
 
 	rnh = *head;
 
+	rn_walktree(rnh->rnh_masks, rn_freeentry, rnh->rnh_masks);
 	rn_detachhead_internal((void **)&rnh->rnh_masks);
 	rn_detachhead_internal(head);
 	return (1);
