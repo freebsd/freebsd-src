@@ -132,13 +132,6 @@ ifconfig_up()
 		_cfg=0
 	fi
 
-	# ifconfig_IF
-	ifconfig_args=`ifconfig_getargs $1`
-	if [ -n "${ifconfig_args}" ]; then
-		eval ${IFCONFIG_CMD} $1 ${ifconfig_args}
-		_cfg=0
-	fi
-
 	# inet6 specific
 	if ! noafif $1 && afexists inet6; then
 		if checkyesno ipv6_activate_all_interfaces; then
@@ -174,7 +167,17 @@ ifconfig_up()
 		if [ -n "${_ipv6_opts}" ]; then
 			${IFCONFIG_CMD} $1 inet6 ${_ipv6_opts}
 		fi
+	fi
 
+	# ifconfig_IF
+	ifconfig_args=`ifconfig_getargs $1`
+	if [ -n "${ifconfig_args}" ]; then
+		eval ${IFCONFIG_CMD} $1 ${ifconfig_args}
+		_cfg=0
+	fi
+
+	# inet6 specific
+	if ! noafif $1 && afexists inet6; then
 		# ifconfig_IF_ipv6
 		ifconfig_args=`ifconfig_getargs $1 ipv6`
 		if [ -n "${ifconfig_args}" ]; then
@@ -1040,7 +1043,7 @@ ifalias_af_common_handler()
 		case $_c in
 		${_af})
 			case $_tmpargs in
-			${_af}\ *-*)
+			${_af}\ *[0-9a-fA-F]-*)
 				ifalias_af_common_handler $_if $_af $_action \
 				`ifalias_expand_addr $_af $_action ${_tmpargs#${_af}\ }`
 			;;
@@ -1058,7 +1061,7 @@ ifalias_af_common_handler()
 	# Process the last component if any.
 	if [ -n "$_tmpargs}" ]; then
 		case $_tmpargs in
-		${_af}\ *-*)
+		${_af}\ *[0-9a-fA-F]-*)
 			ifalias_af_common_handler $_if $_af $_action \
 			`ifalias_expand_addr $_af $_action ${_tmpargs#${_af}\ }`
 		;;
