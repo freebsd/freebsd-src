@@ -212,7 +212,7 @@ _kvm_kvatop(kvm_t *kd, u_long va, off_t *pa)
 	struct vmstate *vm = kd->vmst;
 	pd_entry_t pd;
 	pt_entry_t pte;
-	u_long pte_pa;
+	off_t pte_pa;
 
 	if (kd->vmst->minidump)
 		return (_kvm_minidump_kvatop(kd, va, pa));
@@ -228,7 +228,7 @@ _kvm_kvatop(kvm_t *kd, u_long va, off_t *pa)
 		return  (_kvm_pa2off(kd, *pa, pa, L1_S_SIZE));
 	}
 	pte_pa = (pd & L1_ADDR_MASK) + l2pte_index(va) * sizeof(pte);
-	_kvm_pa2off(kd, pte_pa, (off_t *)&pte_pa, L1_S_SIZE);
+	_kvm_pa2off(kd, pte_pa, &pte_pa, L1_S_SIZE);
 	if (lseek(kd->pmfd, pte_pa, 0) == -1) {
 		_kvm_syserr(kd, kd->program, "_kvm_kvatop: lseek");
 		goto invalid;
