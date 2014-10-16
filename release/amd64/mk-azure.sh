@@ -27,33 +27,17 @@
 # OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 # SUCH DAMAGE.
 #
-# mk-vmimage.sh: Create virtual machine disk images in various formats.
+# mk-azure.sh: Create virtual machine disk images for Microsoft Azure
 #
 # $FreeBSD$
 #
 
-PATH="/bin:/usr/bin:/sbin:/usr/sbin:/usr/local/bin:/usr/local/sbin"
-export PATH
-
-usage_vm_base() {
-	echo -n "$(basename ${0}) vm-base <base image> <source tree>"
-	echo	" <dest dir> <disk image size>"
-	return 0
-}
-
-usage_vm_image() {
-	echo -n "$(basename ${0}) vm-image <base image> <image format>"
-	echo	" <output image>"
-	return 0
-}
+export PATH="/bin:/usr/bin:/sbin:/usr/sbin:/usr/local/bin"
 
 usage() {
 	echo "Usage:"
-	echo "$(basename ${0}) [vm-base|vm-image] [...]"
-	echo
-	usage_vm_base
-	echo
-	usage_vm_image
+	echo -n "$(basename ${0}) vm-azure <base image>"
+	echo " <source tree> <dest dir> <disk image size> <vm image name>"
 	exit 1
 }
 
@@ -63,114 +47,105 @@ panic() {
 	if [ ! -z "${mddev}" ]; then
 		mdconfig -d -u ${mddev}
 	fi
-	case ${cmd} in
-		vm-base)
-			# If the vm-base target fails, the vm-image target
-			# cannot possibly succeed.  Touch the .TARGET file
-			# so it is not attempted.
-			touch vm-image
-			;;
-		*)
-			# FALLTHROUGH
-			;;
-	esac
 	# Do not allow one failure case to chain through any remaining image
 	# builds.
-	return 1
+	exit 0
 }
 
-vm_create_baseimage() {
-	# Creates the UFS root filesystem for the virtual machine disk,
-	# written to the formatted disk image with mkimg(1).
-	#
+vm_create_azure() {
 	# Arguments:
-	# vm-base <base image> <source tree> <dest dir> <disk image size>
+	# vm-azure <base image> <source tree> <dest dir> <disk image size> <vm image name>
 
 	VMBASE="${1}"
 	WORLDDIR="${2}"
 	DESTDIR="${3}"
 	VMSIZE="${4}"
+	VMIMAGE="${5}"
 
 	if [ -z "${VMBASE}" -o -z "${WORLDDIR}" -o -z "${DESTDIR}" \
-		-o -z "${VMSIZE}" ]; then
+		-o -z "${VMSIZE}" -o -z "${VMIMAGE}" ]; then
 			usage
 	fi
+
+	trap "umount ${DESTDIR}/dev ${DESTDIR}" INT QUIT TRAP ABRT TERM
 
 	i=0
 	mkdir -p ${DESTDIR}
 	truncate -s ${VMSIZE} ${VMBASE}
 	mddev=$(mdconfig -f ${VMBASE})
 	newfs -j /dev/${mddev}
+	mkdir -p ${DESTDIR}
 	mount /dev/${mddev} ${DESTDIR}
-	cd ${WORLDDIR} && \
-		make DESTDIR=${DESTDIR} \
+	make -C ${WORLDDIR} DESTDIR=$(realpath ${DESTDIR}) \
 		installworld installkernel distribution || \
-		panic "\n\nCannot install the base system to ${DESTDIR}."
+		panic 1 "\n\nCannot install the base system to ${DESTDIR}."
+	mount -t devfs devfs ${DESTDIR}/dev
 	chroot ${DESTDIR} /usr/bin/newaliases
 	echo '# Custom /etc/fstab for FreeBSD VM images' \
 		> ${DESTDIR}/etc/fstab
 	echo '/dev/gpt/rootfs	/	ufs	rw	2	2' \
 		>> ${DESTDIR}/etc/fstab
-	echo '/dev/gpt/swapfs	none	swap	sw	0	0' \
+	# Although a swap partition is created, it is not used in Azure.
+	echo '#/dev/gpt/swapfs	none	swap	sw	0	0' \
 		>> ${DESTDIR}/etc/fstab
+
+	chroot ${DESTDIR} /etc/rc.d/ldconfig forcestart
+	chroot ${DESTDIR} env ASSUME_ALWAYS_YES=yes /usr/sbin/pkg bootstrap -y
+	chroot ${DESTDIR} env ASSUME_ALWAYS_YES=yes /usr/sbin/pkg install -y \
+	        python python2 python27 py27-asn1 sudo bash
+	if [ ! -z "${VM_EXTRA_PACKAGES}" ]; then
+	        chroot ${DESTDIR} env ASSUME_ALWAYS_YES=yes /usr/sbin/pkg install -y \
+	                ${VM_EXTRA_PACKAGES}
+	fi
+
+	fetch -o ${DESTDIR}/usr/sbin/waagent \
+		http://people.freebsd.org/~gjb/waagent
+	chmod +x ${DESTDIR}/usr/sbin/waagent
+	rm -f ${DESTDIR}/etc/resolv.conf
+	chroot ${DESTDIR} /usr/sbin/waagent -verbose -install
+	yes | chroot ${DESTDIR} /usr/sbin/waagent -deprovision
+	echo 'sshd_enable="YES"' > ${DESTDIR}/etc/rc.conf
+	echo 'ifconfig_hn0="SYNCDHCP"' >> ${DESTDIR}/etc/rc.conf
+	echo 'waagent_enable="YES"' >> ${DESTDIR}/etc/rc.conf
+
+	echo 'console="comconsole vidconsole"' >> ${DESTDIR}/boot/loader.conf
+	echo 'comconsole_speed="115200"' >> ${DESTDIR}/boot/loader.conf
+
+	if [ ! -z "${VM_RC_LIST}" ]; then
+		for _rcvar in ${VM_RC_LIST}; do
+			echo ${_rcvar}_enable="YES" >> ${DESTDIR}/etc/rc.conf
+		done
+	fi
+
 	sync
-	while ! umount ${DESTDIR}; do
+
+	while ! umount ${DESTDIR}/dev ${DESTDIR}; do
 		i=$(( $i + 1 ))
 		if [ $i -ge 10 ]; then
 			# This should never happen.  But, it has happened.
 			msg="Cannot umount(8) ${DESTDIR}\n"
 			msg="${msg}Something has gone horribly wrong."
-			panic "${msg}"
+			panic 1 "${msg}"
 		fi
 		sleep 1
 	done
 
-	return 0
-}
+	echo "Creating image...  Please wait."
 
-vm_create_vmdisk() {
-	# Creates the virtual machine disk image from the raw disk image.
-	#
-	# Arguments:
-	# vm-image <base image> <image format> <output image>"
-
-	VMBASE="${1}"
-	FORMAT="${2}"
-	VMIMAGE="${3}"
-
-	if [ -z "${VMBASE}" -o -z "${FORMAT}" -o -z "${VMIMAGE}" ]; then
-		usage
-	fi
-
-	mkimg_version=$(mkimg --version 2>/dev/null | awk '{print $2}')
-
-	# We need mkimg(1) '--version' output, at minimum, to be able to
-	# tell what virtual machine disk image formats are available.
-	# Bail if mkimg(1) reports an empty '--version' value.
-	if [ -z "${mkimg_version}" ]; then
-		msg="Cannot determine mkimg(1) version.\n"
-		msg="${msg}Cannot continue without a known mkimg(1) version."
-		panic "${msg}"
-	fi
-
-	if ! mkimg --formats 2>/dev/null | grep -q ${FORMAT}; then
-		panic "'${FORMAT}' is not supported by this mkimg(1).\n"
-	fi
-
-	case ${FORMAT} in
-		vhd)
-			mkimg_format=vhdf
-			;;
-		*)
-			mkimg_format=${FORMAT}
-			;;
-	esac
-
-	mkimg -f ${mkimg_format} -s gpt \
+	mkimg -f vhdf -s gpt \
 		-b /boot/pmbr -p freebsd-boot/bootfs:=/boot/gptboot \
 		-p freebsd-swap/swapfs::1G \
 		-p freebsd-ufs/rootfs:=${VMBASE} \
-		-o ${VMIMAGE}
+		-o ${VMIMAGE}.raw
+
+	if [ ! -x "/usr/local/bin/qemu-img" ]; then
+		env ASSUME_ALWAYS_YES=yes pkg install -y emulators/qemu-devel
+	fi
+
+	size=$(qemu-img info -f raw --output json ${VMIMAGE}.raw | awk '/virtual-size/ {print $2}' | tr -d ',')
+	size=$(( ( ${size} / ( 1024 * 1024 ) + 1 ) * ( 1024 * 1024 ) ))
+	qemu-img resize ${VMIMAGE}.raw ${size}
+	qemu-img convert -f raw -o subformat=fixed -O vpc ${VMIMAGE}.raw ${VMIMAGE}
 
 	return 0
 }
@@ -179,12 +154,13 @@ main() {
 	cmd="${1}"
 	shift 1
 
+	if [ -e "${AZURECONF}" -a ! -c "${AZURECONF}" ]; then
+		. ${AZURECONF}
+	fi
+
 	case ${cmd} in
-		vm-base)
-			eval vm_create_baseimage "$@" || return 0
-			;;
-		vm-image)
-			eval vm_create_vmdisk "$@" || return 0
+		vm-azure)
+			eval vm_create_azure "$@" || return 0
 			;;
 		*|\?)
 			usage
