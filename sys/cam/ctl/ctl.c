@@ -326,9 +326,9 @@ SYSCTL_NODE(_kern_cam, OID_AUTO, ctl, CTLFLAG_RD, 0, "CAM Target Layer");
 static int worker_threads = -1;
 SYSCTL_INT(_kern_cam_ctl, OID_AUTO, worker_threads, CTLFLAG_RDTUN,
     &worker_threads, 1, "Number of worker threads");
-static int verbose = 0;
-SYSCTL_INT(_kern_cam_ctl, OID_AUTO, verbose, CTLFLAG_RWTUN,
-    &verbose, 0, "Show SCSI errors returned to initiator");
+static int ctl_debug = CTL_DEBUG_NONE;
+SYSCTL_INT(_kern_cam_ctl, OID_AUTO, debug, CTLFLAG_RWTUN,
+    &ctl_debug, 0, "Enabled debug flags");
 
 /*
  * Supported pages (0x00), Serial number (0x80), Device ID (0x83),
@@ -5066,6 +5066,8 @@ ctl_config_move_done(union ctl_io *io)
 		 *
 		 * - Call some other function once the data is in?
 		 */
+		if (ctl_debug & CTL_DEBUG_CDB_DATA)
+			ctl_data_print(io);
 
 		/*
 		 * XXX KDM call ctl_scsiio() again for now, and check flag
@@ -13508,17 +13510,14 @@ ctl_process_done(union ctl_io *io)
 	case CTL_IO_SCSI:
 		break;
 	case CTL_IO_TASK:
-		if (bootverbose || verbose > 0)
+		if (bootverbose || (ctl_debug & CTL_DEBUG_INFO))
 			ctl_io_error_print(io, NULL);
 		if (io->io_hdr.flags & CTL_FLAG_FROM_OTHER_SC)
 			ctl_free_io(io);
 		else
 			fe_done(io);
 		return (CTL_RETVAL_COMPLETE);
-		break;
 	default:
-		printf("ctl_process_done: invalid io type %d\n",
-		       io->io_hdr.io_type);
 		panic("ctl_process_done: invalid io type %d\n",
 		      io->io_hdr.io_type);
 		break; /* NOTREACHED */
@@ -13612,74 +13611,28 @@ ctl_process_done(union ctl_io *io)
 		ctl_set_task_aborted(&io->scsiio);
 
 	/*
-	 * We print out status for every task management command.  For SCSI
-	 * commands, we filter out any unit attention errors; they happen
-	 * on every boot, and would clutter up the log.  Note:  task
-	 * management commands aren't printed here, they are printed above,
-	 * since they should never even make it down here.
+	 * If enabled, print command error status.
+	 * We don't print UAs unless debugging was enabled explicitly.
 	 */
-	switch (io->io_hdr.io_type) {
-	case CTL_IO_SCSI: {
-		int error_code, sense_key, asc, ascq;
+	do {
+		if ((io->io_hdr.status & CTL_STATUS_MASK) == CTL_SUCCESS)
+			break;
+		if (!bootverbose && (ctl_debug & CTL_DEBUG_INFO) == 0)
+			break;
+		if ((ctl_debug & CTL_DEBUG_INFO) == 0 &&
+		    ((io->io_hdr.status & CTL_STATUS_MASK) == CTL_SCSI_ERROR) &&
+		     (io->scsiio.scsi_status == SCSI_STATUS_CHECK_COND)) {
+			int error_code, sense_key, asc, ascq;
 
-		sense_key = 0;
-
-		if (((io->io_hdr.status & CTL_STATUS_MASK) == CTL_SCSI_ERROR)
-		 && (io->scsiio.scsi_status == SCSI_STATUS_CHECK_COND)) {
-			/*
-			 * Since this is just for printing, no need to
-			 * show errors here.
-			 */
 			scsi_extract_sense_len(&io->scsiio.sense_data,
-					       io->scsiio.sense_len,
-					       &error_code,
-					       &sense_key,
-					       &asc,
-					       &ascq,
-					       /*show_errors*/ 0);
+			    io->scsiio.sense_len, &error_code, &sense_key,
+			    &asc, &ascq, /*show_errors*/ 0);
+			if (sense_key == SSD_KEY_UNIT_ATTENTION)
+				break;
 		}
 
-		if (((io->io_hdr.status & CTL_STATUS_MASK) != CTL_SUCCESS)
-		 && (((io->io_hdr.status & CTL_STATUS_MASK) != CTL_SCSI_ERROR)
-		  || (io->scsiio.scsi_status != SCSI_STATUS_CHECK_COND)
-		  || (sense_key != SSD_KEY_UNIT_ATTENTION))) {
-
-			if ((time_uptime - ctl_softc->last_print_jiffies) <= 0){
-				ctl_softc->skipped_prints++;
-			} else {
-				uint32_t skipped_prints;
-
-				skipped_prints = ctl_softc->skipped_prints;
-
-				ctl_softc->skipped_prints = 0;
-				ctl_softc->last_print_jiffies = time_uptime;
-
-				if (skipped_prints > 0) {
-#ifdef NEEDTOPORT
-					csevent_log(CSC_CTL | CSC_SHELF_SW |
-					    CTL_ERROR_REPORT,
-					    csevent_LogType_Trace,
-					    csevent_Severity_Information,
-					    csevent_AlertLevel_Green,
-					    csevent_FRU_Firmware,
-					    csevent_FRU_Unknown,
-					    "High CTL error volume, %d prints "
-					    "skipped", skipped_prints);
-#endif
-				}
-				if (bootverbose || verbose > 0)
-					ctl_io_error_print(io, NULL);
-			}
-		}
-		break;
-	}
-	case CTL_IO_TASK:
-		if (bootverbose || verbose > 0)
-			ctl_io_error_print(io, NULL);
-		break;
-	default:
-		break;
-	}
+		ctl_io_error_print(io, NULL);
+	} while (0);
 
 	/*
 	 * Tell the FETD or the other shelf controller we're done with this
@@ -13824,6 +13777,8 @@ ctl_queue(union ctl_io *io)
 	switch (io->io_hdr.io_type) {
 	case CTL_IO_SCSI:
 	case CTL_IO_TASK:
+		if (ctl_debug & CTL_DEBUG_CDB)
+			ctl_io_print(io);
 		ctl_enqueue_incoming(io);
 		break;
 	default:
