@@ -1854,11 +1854,11 @@ pfr_destroy_ktable(struct pfr_ktable *kt, int flushaddr)
 	}
 	if (kt->pfrkt_ip4 != NULL) {
 		RADIX_NODE_HEAD_DESTROY(kt->pfrkt_ip4);
-		free((caddr_t)kt->pfrkt_ip4, M_RTABLE);
+		rn_detachhead((void **)&kt->pfrkt_ip4);
 	}
 	if (kt->pfrkt_ip6 != NULL) {
 		RADIX_NODE_HEAD_DESTROY(kt->pfrkt_ip6);
-		free((caddr_t)kt->pfrkt_ip6, M_RTABLE);
+		rn_detachhead((void **)&kt->pfrkt_ip6);
 	}
 	if (kt->pfrkt_shadow != NULL)
 		pfr_destroy_ktable(kt->pfrkt_shadow, flushaddr);
