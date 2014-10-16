@@ -66,6 +66,16 @@ SYSCTL_INT(_vfs_nfsd, OID_AUTO, disable_checkutf8, CTLFLAG_RW,
     &disable_checkutf8, 0,
     "Disable the NFSv4 check for a UTF8 compliant name");
 
+static int    enable_nobodycheck = 1;
+SYSCTL_INT(_vfs_nfsd, OID_AUTO, enable_nobodycheck, CTLFLAG_RW,
+    &enable_nobodycheck, 0,
+    "Enable the NFSv4 check when setting user nobody as owner");
+
+static int    enable_nogroupcheck = 1;
+SYSCTL_INT(_vfs_nfsd, OID_AUTO, enable_nogroupcheck, CTLFLAG_RW,
+    &enable_nogroupcheck, 0,
+    "Enable the NFSv4 check when setting group nogroup as owner");
+
 static char nfsrv_hexdigit(char, int *);
 
 /*
@@ -1543,8 +1553,10 @@ nfsrv_checkuidgid(struct nfsrv_descript *nd, struct nfsvattr *nvap)
 	 */
 	if (NFSVNO_NOTSETUID(nvap) && NFSVNO_NOTSETGID(nvap))
 		goto out;
-	if ((NFSVNO_ISSETUID(nvap) && nvap->na_uid == nfsrv_defaultuid)
-	    || (NFSVNO_ISSETGID(nvap) && nvap->na_gid == nfsrv_defaultgid)) {
+	if ((NFSVNO_ISSETUID(nvap) && nvap->na_uid == nfsrv_defaultuid &&
+           enable_nobodycheck == 1)
+	    || (NFSVNO_ISSETGID(nvap) && nvap->na_gid == nfsrv_defaultgid &&
+           enable_nogroupcheck == 1)) {
 		error = NFSERR_BADOWNER;
 		goto out;
 	}
