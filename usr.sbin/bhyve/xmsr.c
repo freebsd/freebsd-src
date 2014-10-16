@@ -46,17 +46,27 @@ __FBSDID("$FreeBSD$");
 static int cpu_vendor_intel, cpu_vendor_amd;
 
 int
-emulate_wrmsr(struct vmctx *ctx, int vcpu, uint32_t code, uint64_t val)
+emulate_wrmsr(struct vmctx *ctx, int vcpu, uint32_t num, uint64_t val)
 {
 
 	if (cpu_vendor_intel) {
-		switch (code) {
+		switch (num) {
 		case 0xd04:		/* Sandy Bridge uncore PMCs */
 		case 0xc24:
 			return (0);
 		case MSR_BIOS_UPDT_TRIG:
 			return (0);
 		case MSR_BIOS_SIGN:
+			return (0);
+		default:
+			break;
+		}
+	} else if (cpu_vendor_amd) {
+		switch (num) {
+		case MSR_HWCR:
+			/*
+			 * Ignore writes to hardware configuration MSR.
+			 */
 			return (0);
 		default:
 			break;
@@ -91,6 +101,21 @@ emulate_rdmsr(struct vmctx *ctx, int vcpu, uint32_t num, uint64_t *val)
 			error = -1;
 			break;
 		}
+	} else if (cpu_vendor_amd) {
+		switch (num) {
+		case MSR_HWCR:
+			/*
+			 * Bios and Kernel Developer's Guides for AMD Families
+			 * 12H, 14H, 15H and 16H.
+			 */
+			*val = 0x01000010;	/* Reset value */
+			*val |= 1 << 9;		/* MONITOR/MWAIT disable */
+			break;
+		default:
+			break;
+		}
+	} else {
+		error = -1;
 	}
 	return (error);
 }
