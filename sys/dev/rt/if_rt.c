@@ -241,8 +241,8 @@ ether_request_mac(device_t dev, uint8_t *mac)
 	 * "kmac" is passed via argv on RouterBOOT platforms
 	 */
 #if defined(__U_BOOT__) ||  defined(__REDBOOT__) || defined(__ROUTERBOOT__)
-	if ((var = getenv("ethaddr")) != NULL ||
-	    (var = getenv("kmac")) != NULL ) {
+	if ((var = kern_getenv("ethaddr")) != NULL ||
+	    (var = kern_getenv("kmac")) != NULL ) {
 
 		if(!macaddr_atoi(var, mac)) {
 			printf("%s: use %s macaddr from KENV\n",

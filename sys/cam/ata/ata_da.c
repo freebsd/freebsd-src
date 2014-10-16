@@ -1316,7 +1316,7 @@ adaregister(struct cam_periph *periph, void *arg)
 			    softc->disk->d_name, softc->disk->d_unit);
 			snprintf(buf1, sizeof(buf1),
 			    "ad%d", legacy_id);
-			setenv(announce_buf, buf1);
+			kern_setenv(announce_buf, buf1);
 		}
 	} else
 		legacy_id = -1;
