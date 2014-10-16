@@ -752,6 +752,8 @@ npf_fault_type(uint64_t exitinfo1)
 
 	if (exitinfo1 & VMCB_NPF_INFO1_W)
 		return (VM_PROT_WRITE);
+	else if (exitinfo1 & VMCB_NPF_INFO1_ID)
+		return (VM_PROT_EXECUTE);
 	else
 		return (VM_PROT_READ);
 }
