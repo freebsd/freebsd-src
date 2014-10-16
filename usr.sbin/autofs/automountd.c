@@ -364,6 +364,33 @@ handle_request(const struct autofs_daemon_request *adr, char *cmdline_options,
 	quick_exit(0);
 }
 
+static void
+sigchld_handler(int dummy __unused)
+{
+
+	/*
+	 * The only purpose of this handler is to make SIGCHLD
+	 * interrupt the AUTOFSREQUEST ioctl(2), so we can call
+	 * wait_for_children().
+	 */
+}
+
+static void
+register_sigchld(void)
+{
+	struct sigaction sa;
+	int error;
+
+	bzero(&sa, sizeof(sa));
+	sa.sa_handler = sigchld_handler;
+	sigfillset(&sa.sa_mask);
+	error = sigaction(SIGCHLD, &sa, NULL);
+	if (error != 0)
+		log_err(1, "sigaction");
+
+}
+
+
 static int
 wait_for_children(bool block)
 {
@@ -495,6 +522,8 @@ main_automountd(int argc, char **argv)
 	}
 
 	pidfile_write(pidfh);
+
+	register_sigchld();
 
 	for (;;) {
 		log_debugx("waiting for request from the kernel");
