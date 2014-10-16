@@ -30,7 +30,7 @@
  * dynamic array of strings later when the VM subsystem is up.
  *
  * We make these available through the kenv(2) syscall for userland
- * and through getenv()/freeenv() setenv() unsetenv() testenv() for
+ * and through kern_getenv()/freeenv() kern_setenv() kern_unsetenv() testenv() for
  * the kernel.
  */
 
@@ -156,7 +156,7 @@ sys_kenv(td, uap)
 		if (error)
 			goto done;
 #endif
-		value = getenv(name);
+		value = kern_getenv(name);
 		if (value == NULL) {
 			error = ENOENT;
 			goto done;
@@ -188,7 +188,7 @@ sys_kenv(td, uap)
 		error = mac_kenv_check_set(td->td_ucred, name, value);
 		if (error == 0)
 #endif
-			setenv(name, value);
+			kern_setenv(name, value);
 		free(value, M_TEMP);
 		break;
 	case KENV_UNSET:
@@ -197,7 +197,7 @@ sys_kenv(td, uap)
 		if (error)
 			goto done;
 #endif
-		error = unsetenv(name);
+		error = kern_unsetenv(name);
 		if (error)
 			error = ENOENT;
 		break;
@@ -312,7 +312,7 @@ _getenv_static(const char *name)
  * after use.
  */
 char *
-getenv(const char *name)
+kern_getenv(const char *name)
 {
 	char buf[KENV_MNAMELEN + 1 + KENV_MVALLEN + 1];
 	char *ret;
@@ -373,7 +373,7 @@ setenv_static(const char *name, const char *value)
  * Set an environment variable by name.
  */
 int
-setenv(const char *name, const char *value)
+kern_setenv(const char *name, const char *value)
 {
 	char *buf, *cp, *oldenv;
 	int namelen, vallen, i;
@@ -422,7 +422,7 @@ setenv(const char *name, const char *value)
  * Unset an environment variable string.
  */
 int
-unsetenv(const char *name)
+kern_unsetenv(const char *name)
 {
 	char *cp, *oldenv;
 	int i, j;

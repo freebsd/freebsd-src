@@ -1319,7 +1319,7 @@ kenv_getuint(struct hatm_softc *sc, const char *var,
 	snprintf(full, sizeof(full), "hw.%s.%s",
 	    device_get_nameunit(sc->dev), var);
 
-	if ((val = getenv(full)) == NULL)
+	if ((val = kern_getenv(full)) == NULL)
 		return (0);
 	u = strtoul(val, &end, 0);
 	if (end == val || *end != '\0') {

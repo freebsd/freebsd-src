@@ -309,7 +309,7 @@ xen_pv_set_boothowto(void)
 
 	/* get equivalents from the environment */
 	for (i = 0; howto_names[i].ev != NULL; i++) {
-		if (getenv(howto_names[i].ev) != NULL)
+		if (kern_getenv(howto_names[i].ev) != NULL)
 			boothowto |= howto_names[i].mask;
 	}
 }
