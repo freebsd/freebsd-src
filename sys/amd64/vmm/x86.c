@@ -44,6 +44,8 @@ __FBSDID("$FreeBSD$");
 #include <machine/vmm.h>
 
 #include "vmm_host.h"
+#include "vmm_ktr.h"
+#include "vmm_util.h"
 #include "x86.h"
 
 SYSCTL_DECL(_hw_vmm);
@@ -54,6 +56,8 @@ static SYSCTL_NODE(_hw_vmm, OID_AUTO, topology, CTLFLAG_RD, 0, NULL);
 static const char bhyve_id[12] = "bhyve bhyve ";
 
 static uint64_t bhyve_xcpuids;
+SYSCTL_ULONG(_hw_vmm, OID_AUTO, bhyve_xcpuids, CTLFLAG_RW, &bhyve_xcpuids, 0,
+    "Number of times an unknown cpuid leaf was accessed");
 
 /*
  * The default CPU topology is a single thread per package.
@@ -91,6 +95,8 @@ x86_emulate_cpuid(struct vm *vm, int vcpu_id,
 	unsigned int func, regs[4], logical_cpus;
 	enum x2apic_state x2apic_state;
 
+	VCPU_CTR2(vm, vcpu_id, "cpuid %#x,%#x", *eax, *ecx);
+
 	/*
 	 * Requests for invalid CPUID levels should map to the highest
 	 * available level instead.
@@ -124,17 +130,33 @@ x86_emulate_cpuid(struct vm *vm, int vcpu_id,
 		case CPUID_8000_0003:
 		case CPUID_8000_0004:
 		case CPUID_8000_0006:
+			cpuid_count(*eax, *ecx, regs);
+			break;
 		case CPUID_8000_0008:
 			cpuid_count(*eax, *ecx, regs);
+			if (vmm_is_amd()) {
+				/*
+				 * XXX this might appear silly because AMD
+				 * cpus don't have threads.
+				 *
+				 * However this matches the logical cpus as
+				 * advertised by leaf 0x1 and will work even
+				 * if the 'threads_per_core' tunable is set
+				 * incorrectly on an AMD host.
+				 */
+				logical_cpus = threads_per_core *
+				    cores_per_package;
+				regs[2] = logical_cpus - 1;
+			}
 			break;
 
 		case CPUID_8000_0001:
 			cpuid_count(*eax, *ecx, regs);
 
 			/*
-			 * Hide SVM capability from guest.
+			 * Hide SVM and Topology Extension features from guest.
 			 */
-			regs[2] &= ~AMDID2_SVM;
+			regs[2] &= ~(AMDID2_SVM | AMDID2_TOPOLOGY);
 
 			/*
 			 * Hide rdtscp/ia32_tsc_aux until we know how
