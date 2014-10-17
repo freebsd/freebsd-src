@@ -2546,7 +2546,7 @@ _bfd_score_elf_check_relocs (bfd *abfd,
 	}
       else if (r_symndx >= extsymoff + NUM_SHDR_ENTRIES (symtab_hdr))
         {
-          (*_bfd_error_handler) (_("%s: Malformed reloc detected for section %s"), abfd, name);
+          (*_bfd_error_handler) (_("%B: Malformed reloc detected for section %s"), abfd, name);
           bfd_set_error (bfd_error_bad_value);
           return FALSE;
         }
