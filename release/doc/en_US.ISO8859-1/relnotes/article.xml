@@ -471,15 +471,6 @@
       <sect3 xml:id="proc">
 	<title>Hardware Support</title>
 
-	<para>&nbsp;</para>
-
-	<sect4 xml:id="mm">
-	  <title>Multimedia Support</title>
-
-	  <para>&nbsp;</para>
-
-	</sect4>
-
 	<sect4 xml:id="net-if">
 	  <title>Network Interface Support</title>
 
@@ -1535,13 +1526,6 @@
 	<literal>release</literal> &man.make.1; target, however can be
 	invoked by specifying the <literal>vm-azure</literal> target
 	directly.</para>
-    </sect2>
-
-    <sect2 xml:id="doc">
-      <title>Documentation</title>
-
-      <para>&nbsp;</para>
-
     </sect2>
   </sect1>
 
