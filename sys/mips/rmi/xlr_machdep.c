@@ -458,9 +458,9 @@ platform_start(__register_t a0 __unused,
 		printf("\t%s\n", arg);
 		n = strsep(&arg, "=");
 		if (arg == NULL)
-			setenv(n, "1");
+			kern_setenv(n, "1");
 		else
-			setenv(n, arg);
+			kern_setenv(n, arg);
 	}
 
 	xlr_set_boot_flags();
