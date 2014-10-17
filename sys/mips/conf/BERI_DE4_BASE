@@ -25,6 +25,7 @@ device		altera_atse
 device		altera_avgen
 device		altera_jtag_uart
 device		altera_sdcard
+device		pixelstream
 device		terasic_de4led
 device		terasic_mtl
 
