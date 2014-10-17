@@ -31,10 +31,10 @@
 .Nm UEFI
 .Nd Unified Extensible Firmware Interface bootstrapping procedures
 .Sh DESCRIPTION
-The 
+The
 .Nm
 Unified Extensible Firmware Interface provides boot- and run-time services
-services to operating systems.
+to operating systems.
 .Nm
 is a replacement for the legacy BIOS on the i386 and amd64 CPU architectures,
 and is also used on arm64 and ia64.
@@ -43,7 +43,7 @@ The
 .Nm
 boot process loads system bootstrap code located in an EFI System Partition
 (ESP).
-The ESP is a GPT or MBR parition with a specific identifier that contains an
+The ESP is a GPT or MBR partition with a specific identifier that contains an
 .Xr msdosfs 5
 FAT file system with a specified file hierarchy.
 .Bl -column -offset indent ".Sy Partition Scheme" ".Sy ESP Identifier"
@@ -100,7 +100,7 @@ FAT file system image containing
 for use by
 .Xr bsdinstall 8
 and the
-.Ar bootcode 
+.Ar bootcode
 argument to
 .Xr gpart 8 .
 .It Pa /boot/loader.efi
@@ -110,26 +110,6 @@ default kernel
 .It Pa /boot/kernel.old/kernel
 typical non-default kernel (optional)
 .El
-.Sh CAVEATS
-EFI environment variables are not supported by
-.Xr loader 8
-or the kernel.
-.Pp
-.Pa boot1.efi
-loads
-.Pa loader.efi
-from the first FreeBSD-UFS file system it locates, even if it is on a
-different disk.
-.Pp
-.Pa boot1.efi
-cannot load
-.Pa loader.efi
-from a
-.Xr ZFS 8
-file system.
-As a result,
-.Nm
-does not support a typical root file system on ZFS configuration.
 .Sh SEE ALSO
 .Xr vt 4 ,
 .Xr msdosfs 5 ,
@@ -150,3 +130,23 @@ and
 The
 .Fx
 Foundation sponsored portions of the work.
+.Sh CAVEATS
+EFI environment variables are not supported by
+.Xr loader 8
+or the kernel.
+.Pp
+.Pa boot1.efi
+loads
+.Pa loader.efi
+from the first FreeBSD-UFS file system it locates, even if it is on a
+different disk.
+.Pp
+.Pa boot1.efi
+cannot load
+.Pa loader.efi
+from a
+.Xr ZFS 8
+file system.
+As a result,
+.Nm
+does not support a typical root file system on ZFS configuration.

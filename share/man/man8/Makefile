@@ -28,6 +28,6 @@ MLINKS+=yp.8 NIS.8 \
 
 .if ${MACHINE_CPUARCH} == "amd64"
 _uefi.8= uefi.8
-.endif                                                                          
+.endif
 
 .include <bsd.prog.mk>
