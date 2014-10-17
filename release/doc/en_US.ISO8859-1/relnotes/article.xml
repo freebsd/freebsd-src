@@ -1013,9 +1013,9 @@
 	prints the output in a parsable format.</para>
 
       <para revision="263783">The Blowfish password format
-	implementation has been updated.  Support for &dollar;2b&dollar; has
-	been added, allowing use of passwords greater than 256
-	characters long.</para>
+	implementation has been updated.  Support for
+	&dollar;2b&dollar; has been added, allowing use of passwords
+	greater than 256 characters long.</para>
 
       <para revision="264497">The &man.iconv.3; library has been
 	updated to match NetBSD, providing several bug fixes.</para>
@@ -1513,7 +1513,7 @@
 	  class="directory">packages/</filename> structure on the
 	DVD installer.  This allows the &man.pkg.7; bootstrap utility
 	to properly locate the <filename>Latest/pkg.txz</filename>
-	file on the DVD when <literal>REPOS_DIR</literal> is set to
+	package on the DVD when <literal>REPOS_DIR</literal> is set to
 	<filename class="directory">/dist/packages/repos</filename>,
 	eliminating the need for a network connection or explicitly
 	providing the path to the version included on the DVD
