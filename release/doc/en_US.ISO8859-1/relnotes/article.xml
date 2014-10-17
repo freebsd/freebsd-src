@@ -1478,8 +1478,8 @@
     <sect2 xml:id="ports">
       <title>Ports/Packages Collection Infrastructure</title>
 
-      <para>&nbsp;</para>
-
+      <para>The &man.pkg.8; package management utility has been
+	updated to version 1.3.8.</para>
     </sect2>
 
     <sect2 xml:id="releng">
