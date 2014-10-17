@@ -2498,6 +2498,8 @@ vt_upgrade(struct vt_device *vd)
 
 	if (!vty_enabled(VTY_VT))
 		return;
+	if (main_vd->vd_driver == NULL)
+		return;
 
 	for (i = 0; i < VT_MAXWINDOWS; i++) {
 		vw = vd->vd_windows[i];
