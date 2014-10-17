@@ -2138,7 +2138,7 @@ ipfw_sets_handler(char *av[])
 {
 	uint32_t masks[2];
 	int i;
-	uint8_t cmd, new_set, rulenum;
+	uint8_t cmd, rulenum;
 	ipfw_range_tlv rt;
 	char *msg;
 	size_t size;
@@ -2202,7 +2202,7 @@ ipfw_sets_handler(char *av[])
 		if (!isdigit(*(av[0])) || (cmd == 3 && rt.set > RESVD_SET) ||
 			(cmd == 2 && rt.start_rule == IPFW_DEFAULT_RULE) )
 			errx(EX_DATAERR, "invalid source number %s\n", av[0]);
-		if (!isdigit(*(av[2])) || new_set > RESVD_SET)
+		if (!isdigit(*(av[2])) || rt.new_set > RESVD_SET)
 			errx(EX_DATAERR, "invalid dest. set %s\n", av[1]);
 		i = do_range_cmd(cmd, &rt);
 	} else if (_substrcmp(*av, "disable") == 0 ||
@@ -2543,6 +2543,7 @@ ipfw_show_config(struct cmdline_opts *co, struct format_opts *fo,
 	dynbase = NULL;
 	dynsz = 0;
 	read = sizeof(*cfg);
+	rcnt = 0;
 
 	fo->set_mask = cfg->set_mask;
 
