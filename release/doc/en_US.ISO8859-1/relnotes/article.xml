@@ -1349,6 +1349,13 @@
 	  separate configuration files for services such as
 	  <filename>netif</filename>, for example, where each network
 	  interface can have a separate configuration file.</para>
+
+	<para revision="272078">The default &man.rc.conf.5;,
+	  <filename>/etc/defaults/rc.conf</filename>, has been updated
+	  to include <filename
+	    class="directory">/usr/lib32/compat</filename> in the
+	  default <filename>ld-elf32.so.1</filename> search
+	  path.</para>
       </sect3>
     </sect2>
 
