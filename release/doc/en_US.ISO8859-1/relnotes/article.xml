@@ -1308,6 +1308,9 @@
       <para revision="271967">Support for adding empty partitions has
 	been added to the &man.mkimg.1; utility.</para>
 
+      <para revision="272819">Support for QCOW and QCOW2 disk image
+	formats has been added to the &man.mkimg.1; utility.</para>
+
       <sect3 xml:id="rc-scripts">
 	<title><filename>/etc/rc.d</filename> Scripts</title>
 
