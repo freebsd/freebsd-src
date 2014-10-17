@@ -1357,6 +1357,15 @@
 	  default <filename>ld-elf32.so.1</filename> search
 	  path.</para>
       </sect3>
+
+      <sect3 xml:id="periodic-scripts">
+	<title><filename>/etc/periodic</filename> Scripts</title>
+
+	<para revision="272430">The daily &man.periodic.8; script
+	  <filename>110.clean-tmps</filename> has been updated to
+	  avoid crossing filesystem mount boundaries when cleaning
+	  files in <filename class="directory">/tmp</filename>.</para>
+      </sect3>
     </sect2>
 
     <sect2 xml:id="contrib">
