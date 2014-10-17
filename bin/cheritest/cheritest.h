@@ -109,6 +109,7 @@ struct cheri_test {
 	register_t	 ct_cp2_exccode;
 	const char	*ct_stdin_string;
 	const char	*ct_stdout_string;
+	const char	*ct_xfail_reason;
 };
 
 /*

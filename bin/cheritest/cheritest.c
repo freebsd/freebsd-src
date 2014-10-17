@@ -304,11 +304,13 @@ static const struct cheri_test cheri_tests[] = {
 	  .ct_func = test_sandbox_divzero_catch,
 	  .ct_flags = CT_FLAG_SIGNAL | CT_FLAG_MIPS_EXCCODE,
 	  .ct_signum = SIGEMT,
-	  .ct_mips_exccode = T_TRAP },
+	  .ct_mips_exccode = T_TRAP,
+	  .ct_xfail_reason = "Clang optimizing out undefined behavior" },
 
 	{ .ct_name = "test_sandbox_divzero_nocatch",
 	  .ct_desc = "Exercise sandboxed divide-by-zero exception; uncaught",
-	  .ct_func = test_sandbox_divzero_nocatch, },
+	  .ct_func = test_sandbox_divzero_nocatch,
+	  .ct_xfail_reason = "Clang optimizing out undefined behavior" },
 
 	{ .ct_name = "test_sandbox_vm_rfault_catch",
 	  .ct_desc = "Exercise sandboxed VM read fault; caught",
@@ -488,7 +490,8 @@ static const u_int cheri_tests_len = sizeof(cheri_tests) /
 /* Shared memory page with child process. */
 struct cheritest_child_state *ccsp;
 
-int tests_failed, tests_passed;
+int tests_failed, tests_passed, tests_xfailed;
+int expected_failures;
 
 static void
 usage(void)
@@ -533,6 +536,9 @@ cheritest_run_test(const struct cheri_test *ctp)
 
 	bzero(ccsp, sizeof(*ccsp));
 	printf("TEST: %s: %s\n", ctp->ct_name, ctp->ct_desc);
+
+	if (ctp->ct_xfail_reason != NULL)
+		expected_failures++;
 
 	if (pipe(pipefd_stdin) < 0)
 		err(EX_OSERR, "pipe");
@@ -712,14 +718,24 @@ cheritest_run_test(const struct cheri_test *ctp)
 		}
 	}
 
-	fprintf(stderr, "PASS: %s\n", ctp->ct_name);
+	if (ctp->ct_xfail_reason == NULL)
+		fprintf(stderr, "PASS: %s\n", ctp->ct_name);
+	else
+		fprintf(stderr, "PASS: %s (Expected failure due to %s)\n",
+		    ctp->ct_name, ctp->ct_xfail_reason);
 	tests_passed++;
 	close(pipefd_stdin[1]);
 	close(pipefd_stdout[0]);
 	return;
 
 fail:
-	fprintf(stderr, "FAIL: %s: %s\n", ctp->ct_name, reason);
+	if (ctp->ct_xfail_reason == NULL)
+		fprintf(stderr, "FAIL: %s: %s\n", ctp->ct_name, reason);
+	else {
+		fprintf(stderr, "XFAIL: %s: %s (%s)\n", ctp->ct_name,
+		    reason, ctp->ct_xfail_reason);
+		tests_xfailed++;
+	}
 	tests_failed++;
 	close(pipefd_stdin[1]);
 	close(pipefd_stdout[0]);
@@ -794,12 +810,23 @@ main(__unused int argc, __unused char *argv[])
 		for (i = 0; i < argc; i++)
 			cheritest_run_test_name(argv[i]);
 	}
-	if (tests_passed + tests_failed > 1)
-		fprintf(stderr, "SUMMARY: passed %d failed %d\n",
-		    tests_passed, tests_failed);
+	if (tests_passed + tests_failed > 1) {
+		if (expected_failures == 0)
+			fprintf(stderr, "SUMMARY: passed %d failed %d\n",
+			    tests_passed, tests_failed);
+		else if (expected_failures == tests_xfailed)
+			fprintf(stderr, "SUMMARY: passed %d failed %d "
+			    "(%d expected)\n",
+			    tests_passed, tests_failed, expected_failures);
+		else
+			fprintf(stderr, "SUMMARY: passed %d failed %d "
+			    "(%d expected) (%d unexpected passes)\n",
+			    tests_passed, tests_failed, tests_xfailed,
+			    expected_failures - tests_xfailed);
+	}
 
 	cheritest_libcheri_destroy();
-	if (tests_failed > 0)
+	if (tests_failed > tests_xfailed)
 		exit(-1);
 	exit(EX_OK);
 }
