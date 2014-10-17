@@ -61,10 +61,10 @@ static u_int32_t nfsrv_isannfserr(u_int32_t);
 
 SYSCTL_DECL(_vfs_nfsd);
 
-static int	disable_checkutf8 = 0;
-SYSCTL_INT(_vfs_nfsd, OID_AUTO, disable_checkutf8, CTLFLAG_RW,
-    &disable_checkutf8, 0,
-    "Disable the NFSv4 check for a UTF8 compliant name");
+static int	enable_checkutf8 = 1;
+SYSCTL_INT(_vfs_nfsd, OID_AUTO, enable_checkutf8, CTLFLAG_RW,
+    &enable_checkutf8, 0,
+    "Enable the NFSv4 check for the UTF8 compliant name required by rfc3530");
 
 static int    enable_nobodycheck = 1;
 SYSCTL_INT(_vfs_nfsd, OID_AUTO, enable_nobodycheck, CTLFLAG_RW,
@@ -2005,7 +2005,7 @@ nfsrv_parsename(struct nfsrv_descript *nd, char *bufp, u_long *hashp,
 		    error = 0;
 		    goto nfsmout;
 		}
-		if (disable_checkutf8 == 0 &&
+		if (enable_checkutf8 == 1 &&
 		    nfsrv_checkutf8((u_int8_t *)bufp, outlen)) {
 		    nd->nd_repstat = NFSERR_INVAL;
 		    error = 0;
