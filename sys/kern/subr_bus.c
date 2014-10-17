@@ -3300,7 +3300,10 @@ resource_list_alloc(struct resource_list *rl, device_t bus, device_t child,
 			rle->flags |= RLE_ALLOCATED;
 			return (rle->res);
 		}
-		panic("resource_list_alloc: resource entry is busy");
+		device_printf(bus,
+		    "resource entry %#x type %d for child %s is busy\n", *rid,
+		    type, device_get_nameunit(child));
+		return (NULL);
 	}
 
 	if (isdefault) {
