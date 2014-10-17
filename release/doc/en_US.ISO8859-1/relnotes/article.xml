@@ -123,7 +123,173 @@
     <sect2 xml:id="security">
       <title>Security Advisories</title>
 
-      <para>&nbsp;</para>
+      <para>The following security advisories have been issued since
+	&os;&nbsp;&release.prev;:</para>
+
+      <informaltable frame="none" pgwide="0">
+	<tgroup cols="3">
+	  <colspec colwidth="1*" />
+	  <colspec colwidth="1*" />
+	  <colspec colwidth="3*" />
+	  <thead>
+	    <row>
+	      <entry>Advisory</entry>
+	      <entry>Date</entry>
+	      <entry>Topic</entry>
+	    </row>
+	  </thead>
+
+	  <tbody>
+	    <row>
+	      <entry><link
+		  xlink:href="http://www.freebsd.org/security/advisories/FreeBSD-SA-13:14.openssh.asc">SA-13:14.openssh</link></entry>
+	      <entry>19&nbsp;November&nbsp;2013</entry>
+	      <entry><para>OpenSSH AES-GCM memory corruption
+		vulnerability</para></entry>
+	    </row>
+
+	    <row>
+	      <entry><link
+		  xlink:href="http://www.freebsd.org/security/advisories/FreeBSD-SA-14:01.bsnmpd.asc">SA-14:01.bsnmpd</link></entry>
+	      <entry>14&nbsp;January&nbsp;2014</entry>
+	      <entry><para>bsnmpd remote denial of service
+		  vulnerability</para></entry>
+	    </row>
+
+	    <row>
+	      <entry><link
+		  xlink:href="http://www.freebsd.org/security/advisories/FreeBSD-SA-14:02.ntpd.asc">SA-14:02.ntpd</link></entry>
+	      <entry>14&nbsp;January&nbsp;2014</entry>
+	      <entry><para>ntpd distributed reflection Denial of
+		  Service vulnerability</para></entry>
+	    </row>
+
+	    <row>
+	      <entry><link
+		  xlink:href="http://www.freebsd.org/security/advisories/FreeBSD-SA-14:03.openssl.asc">SA-14:03.openssl</link></entry>
+	      <entry>14&nbsp;January&nbsp;2014</entry>
+	      <entry><para>OpenSSL multiple
+		  vulnerabilities</para></entry>
+	    </row>
+
+	    <row>
+	      <entry><link
+		  xlink:href="http://www.freebsd.org/security/advisories/FreeBSD-SA-14:04.bind.asc">SA-14:04.bind</link></entry>
+	      <entry>14&nbsp;January&nbsp;2014</entry>
+	      <entry><para>BIND remote denial of service
+		  vulnerability</para></entry>
+	    </row>
+
+	    <row>
+	      <entry><link
+		  xlink:href="http://www.freebsd.org/security/advisories/FreeBSD-SA-14:05.nfsserver.asc">SA-14:05.nfsserver</link></entry>
+	      <entry>8&nbsp;April&nbsp;2014</entry>
+	      <entry><para>Deadlock in the NFS server</para></entry>
+	    </row>
+
+	    <row>
+	      <entry><link
+		  xlink:href="http://www.freebsd.org/security/advisories/FreeBSD-SA-14:06.openssl.asc">SA-14:06.openssl</link></entry>
+	      <entry>8&nbsp;April&nbsp;2014</entry>
+	      <entry><para>OpenSSL multiple
+		  vulnerabilities</para></entry>
+	    </row>
+
+	    <row>
+	      <entry><link
+		  xlink:href="http://www.freebsd.org/security/advisories/FreeBSD-SA-14:07.devfs.asc">SA-14:07.devfs</link></entry>
+	      <entry>30&nbsp;April&nbsp;2014</entry>
+	      <entry><para>Fix devfs rules not applied by default for
+		jails</para></entry>
+	    </row>
+
+	    <row>
+	      <entry><link
+		  xlink:href="http://www.freebsd.org/security/advisories/FreeBSD-SA-14:08.tcp.asc">SA-14:08.tcp</link></entry>
+	      <entry>30&nbsp;April&nbsp;2014</entry>
+	      <entry><para>Fix TCP reassembly
+		vulnerability</para></entry>
+	    </row>
+
+	    <row>
+	      <entry><link
+		  xlink:href="http://www.freebsd.org/security/advisories/FreeBSD-SA-14:09.openssl.asc">SA-14:09.openssl</link></entry>
+	      <entry>30&nbsp;April&nbsp;2014</entry>
+	      <entry><para>Fix OpenSSL use-after-free
+		vulnerability</para></entry>
+	    </row>
+
+	    <row>
+	      <entry><link
+		  xlink:href="http://www.freebsd.org/security/advisories/FreeBSD-SA-14:10.openssl.asc">SA-14:10.openssl</link></entry>
+	      <entry>15&nbsp;May&nbsp;2014</entry>
+	      <entry><para>Fix OpenSSL NULL pointer deference
+		vulnerability</para></entry>
+	    </row>
+
+	    <row>
+	      <entry><link
+		  xlink:href="http://www.freebsd.org/security/advisories/FreeBSD-SA-14:11.sendmail.asc">SA-14:11.sendmail</link></entry>
+	      <entry>3&nbsp;June&nbsp;2014</entry>
+	      <entry><para>Fix sendmail improper close-on-exec flag
+		handling</para></entry>
+	    </row>
+
+	    <row>
+	      <entry><link
+		  xlink:href="http://www.freebsd.org/security/advisories/FreeBSD-SA-14:13.pam.asc">SA-14:13.pam</link></entry>
+	      <entry>3&nbsp;June&nbsp;2014</entry>
+	      <entry><para>Fix incorrect error handling in PAM policy
+		parser</para></entry>
+	    </row>
+
+	    <row>
+	      <entry><link
+		  xlink:href="http://www.freebsd.org/security/advisories/FreeBSD-SA-14:14.openssl.asc">SA-14:14.openssl</link></entry>
+	      <entry>5&nbsp;June&nbsp;2014</entry>
+	      <entry><para>Multiple vulnerabilities</para></entry>
+	    </row>
+
+	    <row>
+	      <entry><link
+		  xlink:href="http://www.freebsd.org/security/advisories/FreeBSD-SA-14:15.iconv.asc">SA-14:15.iconv</link></entry>
+	      <entry>24&nbsp;June&nbsp;2014</entry>
+	      <entry><para>NULL pointer dereference and out-of-bounds
+		array access</para></entry>
+	    </row>
+
+	    <row>
+	      <entry><link
+		  xlink:href="http://www.freebsd.org/security/advisories/FreeBSD-SA-14:16.file.asc">SA-14:16.file</link></entry>
+	      <entry>24&nbsp;June&nbsp;2014</entry>
+	      <entry><para>Multiple vulnerabilities</para></entry>
+	    </row>
+
+	    <row>
+	      <entry><link
+		  xlink:href="http://www.freebsd.org/security/advisories/FreeBSD-SA-14:17.kmem.asc">SA-14:17.kmem</link></entry>
+	      <entry>8&nbsp;July&nbsp;2014</entry>
+	      <entry><para>Kernel memory disclosure in control
+		  messages and SCTP notifications</para></entry>
+	    </row>
+
+	    <row>
+	      <entry><link
+		  xlink:href="http://www.freebsd.org/security/advisories/FreeBSD-SA-14:18.openssl.asc">SA-14:18.openssl</link></entry>
+	      <entry>9&nbsp;September&nbsp;2014</entry>
+	      <entry><para>Multiple vulnerabilities</para></entry>
+	    </row>
+
+	    <row>
+	      <entry><link
+		  xlink:href="http://www.freebsd.org/security/advisories/FreeBSD-SA-14:19.tcp.asc">SA-14:19.tcp</link></entry>
+	      <entry>16&nbsp;September&nbsp;2014</entry>
+	      <entry><para>Denial of Service in TCP packet
+		processing.</para></entry>
+	    </row>
+	  </tbody>
+	</tgroup>
+      </informaltable>
 
     </sect2>
 
