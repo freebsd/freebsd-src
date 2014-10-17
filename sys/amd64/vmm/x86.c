@@ -159,6 +159,14 @@ x86_emulate_cpuid(struct vm *vm, int vcpu_id,
 			regs[2] &= ~(AMDID2_SVM | AMDID2_TOPOLOGY);
 
 			/*
+			 * Don't advertise extended performance counter MSRs
+			 * to the guest.
+			 */
+			regs[2] &= ~AMDID2_PCXC;
+			regs[2] &= ~AMDID2_PNXC;
+			regs[2] &= ~AMDID2_PTSCEL2I;
+
+			/*
 			 * Hide rdtscp/ia32_tsc_aux until we know how
 			 * to deal with them.
 			 */
