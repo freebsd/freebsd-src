@@ -476,7 +476,7 @@ assym.s: genassym.o
 genassym.o: opt_global.h
 .endif
 .if !exists(@)
-assym.s: @
+assym.s:
 .else
 assym.s: @/kern/genassym.sh
 .endif
@@ -484,7 +484,7 @@ assym.s: @/kern/genassym.sh
 .if exists(@)
 genassym.o: @/${MACHINE_CPUARCH}/${MACHINE_CPUARCH}/genassym.c
 .endif
-genassym.o: @ machine ${SRCS:Mopt_*.h}
+genassym.o: ${SRCS:Mopt_*.h}
 	${CC} -c ${CFLAGS:N-fno-common} \
 	    @/${MACHINE_CPUARCH}/${MACHINE_CPUARCH}/genassym.c
 .endif
