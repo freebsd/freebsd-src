@@ -1518,6 +1518,14 @@
 	eliminating the need for a network connection or explicitly
 	providing the path to the version included on the DVD
 	installation medium.</para>
+
+      <para revision="273101" contrib="sponsor" sponsor="&ff;">The
+	&os;&nbsp;Release Engineering build tools have been updated to
+	provide support for building virtual machine disk images as
+	part of the release build process using &man.mkimg.1;.  The
+	disk image formats currently supported include QCOW2, VHD,
+	VMDK, and raw formats.  See &man.release.7; for additional
+	information.</para>
     </sect2>
 
     <sect2 xml:id="doc">
