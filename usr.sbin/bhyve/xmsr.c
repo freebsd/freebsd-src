@@ -69,6 +69,10 @@ emulate_wrmsr(struct vmctx *ctx, int vcpu, uint32_t num, uint64_t val)
 			 */
 			return (0);
 
+		case MSR_NB_CFG1:
+		case MSR_IC_CFG:
+			return (0);	/* Ignore writes */
+
 		case MSR_PERFEVSEL0:
 		case MSR_PERFEVSEL1:
 		case MSR_PERFEVSEL2:
@@ -125,6 +129,15 @@ emulate_rdmsr(struct vmctx *ctx, int vcpu, uint32_t num, uint64_t *val)
 			 */
 			*val = 0x01000010;	/* Reset value */
 			*val |= 1 << 9;		/* MONITOR/MWAIT disable */
+			break;
+
+		case MSR_NB_CFG1:
+		case MSR_IC_CFG:
+			/*
+			 * The reset value is processor family dependent so
+			 * just return 0.
+			 */
+			*val = 0;
 			break;
 
 		case MSR_PERFEVSEL0:
