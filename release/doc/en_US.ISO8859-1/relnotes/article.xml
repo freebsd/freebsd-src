@@ -1311,6 +1311,43 @@
       <para revision="272819">Support for QCOW and QCOW2 disk image
 	formats has been added to the &man.mkimg.1; utility.</para>
 
+      <para revision="273098">The &man.mkimg.1; utility has been
+	updated to include three options used to print information
+	about &man.mkimg.1; itself:</para>
+
+      <informaltable frame="none" pgwide="0">
+	<tgroup cols="2">
+	  <colspec colwidth="1*"/>
+	  <colspec colwidth="1*"/>
+	  <thead>
+	    <row>
+	      <entry>Option</entry>
+	      <entry>Output</entry>
+	    </row>
+	  </thead>
+
+	  <tbody>
+	    <row>
+	      <entry><literal>--version</literal></entry>
+	      <entry>The current version of the &man.mkimg.1;
+		utility</entry>
+	    </row>
+
+	    <row>
+	      <entry><literal>--formats</literal></entry>
+	      <entry>The disk image file formats supported by
+		&man.mkimg.1;</entry>
+	    </row>
+
+	    <row>
+	      <entry><literal>--schemes</literal></entry>
+	      <entry>The partition schemes supported by
+		&man.mkimg.1;</entry>
+	    </row>
+	  </tbody>
+	</tgroup>
+      </informaltable>
+
       <sect3 xml:id="rc-scripts">
 	<title><filename>/etc/rc.d</filename> Scripts</title>
 
