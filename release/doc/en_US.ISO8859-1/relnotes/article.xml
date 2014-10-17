@@ -1526,6 +1526,15 @@
 	disk image formats currently supported include QCOW2, VHD,
 	VMDK, and raw formats.  See &man.release.7; for additional
 	information.</para>
+
+      <para revision="273199" contrib="sponsor" sponsor="&ff;">The
+	&os;&nbsp;Release Engineering build tools have been updated to
+	provide support for building &os; virtual machine disk images
+	for the &microsoft;&nbsp;Azure cloud hosting platform.  This
+	functionality is not connected directly to the default
+	<literal>release</literal> &man.make.1; target, however can be
+	invoked by specifying the <literal>vm-azure</literal> target
+	directly.</para>
     </sect2>
 
     <sect2 xml:id="doc">
