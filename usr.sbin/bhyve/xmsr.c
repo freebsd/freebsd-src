@@ -68,6 +68,21 @@ emulate_wrmsr(struct vmctx *ctx, int vcpu, uint32_t num, uint64_t val)
 			 * Ignore writes to hardware configuration MSR.
 			 */
 			return (0);
+
+		case MSR_PERFEVSEL0:
+		case MSR_PERFEVSEL1:
+		case MSR_PERFEVSEL2:
+		case MSR_PERFEVSEL3:
+			/* Ignore writes to the PerfEvtSel MSRs */
+			return (0);
+
+		case MSR_K7_PERFCTR0:
+		case MSR_K7_PERFCTR1:
+		case MSR_K7_PERFCTR2:
+		case MSR_K7_PERFCTR3:
+			/* Ignore writes to the PerfCtr MSRs */
+			return (0);
+
 		default:
 			break;
 		}
@@ -110,6 +125,28 @@ emulate_rdmsr(struct vmctx *ctx, int vcpu, uint32_t num, uint64_t *val)
 			 */
 			*val = 0x01000010;	/* Reset value */
 			*val |= 1 << 9;		/* MONITOR/MWAIT disable */
+			break;
+
+		case MSR_PERFEVSEL0:
+		case MSR_PERFEVSEL1:
+		case MSR_PERFEVSEL2:
+		case MSR_PERFEVSEL3:
+			/*
+			 * PerfEvtSel MSRs are not properly virtualized so just
+			 * return zero.
+			 */
+			*val = 0;
+			break;
+
+		case MSR_K7_PERFCTR0:
+		case MSR_K7_PERFCTR1:
+		case MSR_K7_PERFCTR2:
+		case MSR_K7_PERFCTR3:
+			/*
+			 * PerfCtr MSRs are not properly virtualized so just
+			 * return zero.
+			 */
+			*val = 0;
 			break;
 		default:
 			break;
