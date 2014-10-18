@@ -69,7 +69,6 @@ static void			ti_wdt_intr(void *);
 static void			ti_wdt_event(void *, unsigned int, int *);
 
 struct ti_wdt_softc {
-	struct mtx		sc_mtx;
 	struct resource 	*sc_mem_res;
 	struct resource 	*sc_irq_res;
 	void            	*sc_intr;
@@ -161,7 +160,6 @@ ti_wdt_attach(device_t dev)
 
 	sc = device_get_softc(dev);
 	rid = 0;
-	mtx_init(&sc->sc_mtx, "TI WDT", NULL, MTX_DEF);
 	sc->sc_mem_res = bus_alloc_resource_any(dev, SYS_RES_MEMORY, &rid,
 	    RF_ACTIVE);
 	if (sc->sc_mem_res == NULL) {
