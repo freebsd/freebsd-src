@@ -22,6 +22,8 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
+ *
+ * $FreeBSD$
  */
 
 #include <sys/hash.h>
@@ -32,27 +34,83 @@
 #define rol32(i32, n) ((i32) << (n) | (i32) >> (32 - (n)))
 
 /*
- * $FreeBSD$
- * Simple implementation of the Murmur3-32 hash function optimized for
- * aligned sequences of 32-bit words.  If len is not a multiple of 4, it
- * will be rounded down, droping trailer bytes.
+ * Simple implementation of the Murmur3-32 hash function.
+ *
+ * This implementation is slow but safe.  It can be made significantly
+ * faster if the caller guarantees that the input is correctly aligned for
+ * 32-bit reads, and slightly faster yet if the caller guarantees that the
+ * length of the input is always a multiple of 4 bytes.
  */
 uint32_t
-murmur3_aligned_32(const void *data, size_t len, uint32_t seed)
+murmur3_32_hash(const void *data, size_t len, uint32_t seed)
 {
-	const uint32_t *data32;
+	const uint8_t *bytes;
 	uint32_t hash, k;
 	size_t res;
 
-	/* initialize */
-	len -= len % sizeof(*data32);
+	/* initialization */
+	bytes = data;
 	res = len;
-	data32 = data;
 	hash = seed;
 
+	/* main loop */
+	while (res >= 4) {
+		/* replace with le32toh() if input is aligned */
+		k = le32dec(bytes);
+		bytes += 4;
+		res -= 4;
+		k *= 0xcc9e2d51;
+		k = rol32(k, 15);
+		k *= 0x1b873593;
+		hash ^= k;
+		hash = rol32(hash, 13);
+		hash *= 5;
+		hash += 0xe6546b64;
+	}
+
+	/* remainder */
+	/* remove if input length is a multiple of 4 */
+	if (res > 0) {
+		k = 0;
+		switch (res) {
+		case 3:
+			k |= bytes[2] << 16;
+		case 2:
+			k |= bytes[1] << 8;
+		case 1:
+			k |= bytes[0];
+			k *= 0xcc9e2d51;
+			k = rol32(k, 15);
+			k *= 0x1b873593;
+			hash ^= k;
+			break;
+		}
+	}
+
+	/* finalize */
+	hash ^= (uint32_t)len;
+	hash ^= hash >> 16;
+	hash *= 0x85ebca6b;
+	hash ^= hash >> 13;
+	hash *= 0xc2b2ae35;
+	hash ^= hash >> 16;
+	return (hash);
+}
+
+/*
+ * Simplified version of the above optimized for aligned sequences of
+ * 32-bit words.  The count argument is the number of words, not the
+ * length in bytes.
+ */
+uint32_t
+murmur3_32_hash32(const uint32_t *data, size_t count, uint32_t seed)
+{
+	uint32_t hash, k;
+	size_t res;
+
 	/* iterate */
-	for (res = 0; res < len; res += sizeof(*data32), data32++) {
-		k = le32toh(*data32);
+	for (res = count, hash = seed; res > 0; res--, data++) {
+		k = le32toh(*data);
 		k *= 0xcc9e2d51;
 		k = rol32(k, 15);
 		k *= 0x1b873593;
@@ -63,7 +121,7 @@ murmur3_aligned_32(const void *data, size_t len, uint32_t seed)
 	}
 
 	/* finalize */
-	hash ^= (uint32_t)len;
+	hash ^= (uint32_t)count;
 	hash ^= hash >> 16;
 	hash *= 0x85ebca6b;
 	hash ^= hash >> 13;
