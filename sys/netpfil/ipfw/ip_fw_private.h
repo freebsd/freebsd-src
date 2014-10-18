@@ -226,12 +226,6 @@ VNET_DECLARE(unsigned int, fw_tables_sets);
 struct tables_config;
 
 #ifdef _KERNEL
-typedef struct ip_fw_cntr {
-	uint64_t	pcnt;	   /* Packet counter		*/
-	uint64_t	bcnt;	   /* Byte counter		 */
-	uint64_t	timestamp;      /* tv_sec of last match	 */
-} ip_fw_cntr;
-
 /*
  * Here we have the structure representing an ipfw rule.
  *
@@ -260,6 +254,8 @@ struct ip_fw {
 
 	ipfw_insn	cmd[1];		/* storage for commands		*/
 };
+
+#define	IPFW_RULE_CNTR_SIZE	(2 * sizeof(counter_u64_t))
 
 #endif
 
