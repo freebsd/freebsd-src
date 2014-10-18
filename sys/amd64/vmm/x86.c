@@ -171,6 +171,9 @@ x86_emulate_cpuid(struct vm *vm, int vcpu_id,
 			 */
 			regs[2] &= ~AMDID2_IBS;
 
+			/* NodeID MSR not available */
+			regs[2] &= ~AMDID2_NODE_ID;
+
 			/*
 			 * Hide rdtscp/ia32_tsc_aux until we know how
 			 * to deal with them.
