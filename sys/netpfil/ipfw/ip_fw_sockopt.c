@@ -162,7 +162,7 @@ ipfw_init_counters()
 {
 
 	V_ipfw_cntr_zone = uma_zcreate("IPFW counters",
-	    sizeof(ip_fw_cntr), NULL, NULL, NULL, NULL,
+	    IPFW_RULE_CNTR_SIZE, NULL, NULL, NULL, NULL,
 	    UMA_ALIGN_PTR, UMA_ZONE_PCPU);
 }
 
