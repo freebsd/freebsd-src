@@ -18,6 +18,7 @@ arm/arm/devmap.c		standard
 arm/arm/disassem.c		optional	ddb
 arm/arm/dump_machdep.c		standard
 arm/arm/elf_machdep.c		standard
+arm/arm/elf_note.S		standard
 arm/arm/exception.S		standard
 arm/arm/fiq.c			standard
 arm/arm/fiq_subr.S		standard
