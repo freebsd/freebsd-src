@@ -380,7 +380,7 @@ ti_i2c_transfer(device_t dev, struct iic_msg *msgs, uint32_t nmsgs)
 
 	/* If the controller is busy wait until it is available. */
 	while (sc->sc_bus_inuse == 1)
-		mtx_sleep(dev, &sc->sc_mtx, 0, "i2cbuswait", 0);
+		mtx_sleep(sc, &sc->sc_mtx, 0, "i2cbuswait", 0);
 
 	/* Now we have control over the I2C controller. */
 	sc->sc_bus_inuse = 1;
