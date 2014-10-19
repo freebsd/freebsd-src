@@ -507,7 +507,7 @@ gre_output(struct ifnet *ifp, struct mbuf *m, const struct sockaddr *dst,
 	 * overwriting the ip_id again.  ip_id is already set to the
 	 * ip_id of the encapsulated packet.
 	 */
-	error = ip_output(m, NULL, &sc->route, IP_FORWARDING,
+	error = ip_output(m, NULL, NULL, IP_FORWARDING,
 	    (struct ip_moptions *)NULL, (struct inpcb *)NULL);
   end:
 	if (error)

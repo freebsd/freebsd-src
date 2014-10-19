@@ -558,7 +558,7 @@ stf_output(struct ifnet *ifp, struct mbuf *m, const struct sockaddr *dst,
 sendit:
 	M_SETFIB(m, sc->sc_fibnum);
 	if_inc_counter(ifp, IFCOUNTER_OPACKETS, 1);
-	error = ip_output(m, NULL, cached_route, 0, NULL, NULL);
+	error = ip_output(m, NULL, NULL, 0, NULL, NULL);
 
 	if (cached_route != NULL)
 		mtx_unlock(&(sc)->sc_ro_mtx);

@@ -259,7 +259,7 @@ in_gif_output(struct ifnet *ifp, int family, struct mbuf *m)
 	}
 
 	m->m_flags &= ~(M_BCAST|M_MCAST);
-	error = ip_output(m, NULL, &sc->gif_ro, 0, NULL, NULL);
+	error = ip_output(m, NULL, NULL, 0, NULL, NULL);
 
 	if (!(GIF2IFP(sc)->if_flags & IFF_LINK0) &&
 	    sc->gif_ro.ro_rt != NULL) {
