@@ -98,12 +98,14 @@ DRIVER_MODULE(ti_wdt, simplebus, ti_wdt_driver, ti_wdt_devclass, 0, 0);
 static volatile __inline uint32_t
 ti_wdt_reg_read(struct ti_wdt_softc *sc, uint32_t reg)
 {
+
 	return (bus_space_read_4(sc->sc_bt, sc->sc_bh, reg));
 }
 
 static __inline void
 ti_wdt_reg_write(struct ti_wdt_softc *sc, uint32_t reg, uint32_t val)
 {
+
 	bus_space_write_4(sc->sc_bt, sc->sc_bh, reg, val);
 }
 
@@ -113,14 +115,15 @@ ti_wdt_reg_write(struct ti_wdt_softc *sc, uint32_t reg, uint32_t val)
 static __inline void
 ti_wdt_reg_wait(struct ti_wdt_softc *sc, uint32_t bit)
 {
+
 	while (ti_wdt_reg_read(sc, TI_WDT_WWPS) & bit)
 		DELAY(10);
-
 }
 
 static __inline void
 ti_wdt_disable(struct ti_wdt_softc *sc)
 {
+
 	DPRINTF("disabling watchdog %p\n", sc);
 	ti_wdt_reg_write(sc, TI_WDT_WSPR, 0xAAAA);
 	ti_wdt_reg_wait(sc, TI_W_PEND_WSPR);
@@ -131,6 +134,7 @@ ti_wdt_disable(struct ti_wdt_softc *sc)
 static __inline void
 ti_wdt_enable(struct ti_wdt_softc *sc)
 {
+
 	DPRINTF("enabling watchdog %p\n", sc);
 	ti_wdt_reg_write(sc, TI_WDT_WSPR, 0xBBBB);
 	ti_wdt_reg_wait(sc, TI_W_PEND_WSPR);
