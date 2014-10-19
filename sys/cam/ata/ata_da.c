@@ -457,6 +457,14 @@ static struct ada_quirk_entry ada_quirk_table[] =
 		{ T_DIRECT, SIP_MEDIA_FIXED, "*", "SAMSUNG MZ7WD*", "*" },
 		/*quirks*/ADA_Q_4K
 	},
+ 	{
+ 		/*
+		 * Samsung 850 SSDs
+		 * 4k optimised
+		 */
+		{ T_DIRECT, SIP_MEDIA_FIXED, "*", "Samsung SSD 850*", "*" },
+		/*quirks*/ADA_Q_4K
+	},
 	{
 		/*
 		 * Samsung PM853T Series SSDs
