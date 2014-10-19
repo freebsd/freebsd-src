@@ -87,6 +87,10 @@ emulate_wrmsr(struct vmctx *ctx, int vcpu, uint32_t num, uint64_t val)
 			/* Ignore writes to the PerfCtr MSRs */
 			return (0);
 
+		case MSR_P_STATE_CONTROL:
+			/* Ignore write to change the P-state */
+			return (0);
+
 		default:
 			break;
 		}
@@ -122,6 +126,9 @@ emulate_rdmsr(struct vmctx *ctx, int vcpu, uint32_t num, uint64_t *val)
 		}
 	} else if (cpu_vendor_amd) {
 		switch (num) {
+		case MSR_BIOS_SIGN:
+			*val = 0;
+			break;
 		case MSR_HWCR:
 			/*
 			 * Bios and Kernel Developer's Guides for AMD Families
@@ -161,7 +168,25 @@ emulate_rdmsr(struct vmctx *ctx, int vcpu, uint32_t num, uint64_t *val)
 			 */
 			*val = 0;
 			break;
+
+		case MSR_SMM_ADDR:
+		case MSR_SMM_MASK:
+			/*
+			 * Return the reset value defined in the AMD Bios and
+			 * Kernel Developer's Guide.
+			 */
+			*val = 0;
+			break;
+
+		case MSR_P_STATE_LIMIT:
+		case MSR_P_STATE_CONTROL:
+		case MSR_P_STATE_STATUS:
+		case MSR_P_STATE_CONFIG(0):	/* P0 configuration */
+			*val = 0;
+			break;
+
 		default:
+			error = -1;
 			break;
 		}
 	} else {
