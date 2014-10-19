@@ -133,7 +133,13 @@ simplebus_probe(device_t dev)
 	if (!ofw_bus_status_okay(dev))
 		return (ENXIO);
 
-	if (!ofw_bus_is_compatible(dev, "simple-bus") &&
+	/*
+	 * FDT data puts a "simple-bus" compatible string on many things that
+	 * have children but aren't really busses in our world.  Without a
+	 * ranges property we will fail to attach, so just fail to probe too.
+	 */
+	if (!(ofw_bus_is_compatible(dev, "simple-bus") &&
+	    ofw_bus_has_prop(dev, "ranges")) &&
 	    (ofw_bus_get_type(dev) == NULL || strcmp(ofw_bus_get_type(dev),
 	     "soc") != 0))
 		return (ENXIO);
