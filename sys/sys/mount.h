@@ -754,11 +754,10 @@ vfs_statfs_t	__vfs_statfs;
 	_rc; })
 
 #define	VFS_SUSP_CLEAN(MP) do {						\
-	if (*(MP)->mnt_op->vfs_susp_clean != NULL) {			\
-		VFS_PROLOGUE(MP);					\
-		(*(MP)->mnt_op->vfs_susp_clean)(MP);			\
-		VFS_EPILOGUE(MP);					\
-	}								\
+	MPASS(*(MP)->mnt_op->vfs_susp_clean != NULL); 			\
+	VFS_PROLOGUE(MP);						\
+	(*(MP)->mnt_op->vfs_susp_clean)(MP);				\
+	VFS_EPILOGUE(MP);						\
 } while (0)
 
 #define	VFS_RECLAIM_LOWERVP(MP, VP) do {				\
