@@ -78,6 +78,7 @@
 #ifdef INET6
 #include <netinet6/nd6.h>
 #endif
+#include <net/rt_nhops.h>
 
 int (*ef_inputp)(struct ifnet*, struct ether_header *eh, struct mbuf *m);
 int (*ef_outputp)(struct ifnet *ifp, struct mbuf **mp,
@@ -119,6 +120,14 @@ static	int ether_resolvemulti(struct ifnet *, struct sockaddr **,
 static	void ether_reassign(struct ifnet *, struct vnet *, char *);
 #endif
 
+int ether_output_full(struct ifnet *ifp, struct mbuf *m,
+    const struct sockaddr *dst, struct route *ro);
+int ether_output2(struct ifnet *ifp, struct mbuf *m, struct nhop_data *nh,
+    int af);
+
+static int loopback_frame(struct ifnet *ifp, struct mbuf *m, int family,
+    int hlen);
+
 /* XXX: should be in an arp support file, not here */
 static MALLOC_DEFINE(M_ARPCOM, "arpcom", "802.* interface internals");
 
@@ -143,6 +152,17 @@ update_mbuf_csumflags(struct mbuf *src, struct mbuf *dst)
 		dst->m_pkthdr.csum_data = 0xffff;
 }
 
+int
+ether_output(struct ifnet *ifp, struct mbuf *m,
+	const struct sockaddr *dst, struct route *ro)
+{
+	if (ro != NULL && (ro->ro_flags & RT_NHOP))
+		return (ether_output2(ifp, m, (struct nhop_data *)ro->ro_lle,
+		    (ro->ro_flags >> 8) & 0xFF));
+
+	return (ether_output_full(ifp, m, dst, ro));
+}
+
 /*
  * Ethernet output routine.
  * Encapsulate a packet of type family for the local net.
@@ -150,7 +170,7 @@ update_mbuf_csumflags(struct mbuf *src, struct mbuf *dst)
  * packet leaves a multiple of 512 bytes of data in remainder.
  */
 int
-ether_output(struct ifnet *ifp, struct mbuf *m,
+ether_output_full(struct ifnet *ifp, struct mbuf *m,
 	const struct sockaddr *dst, struct route *ro)
 {
 	short type;
@@ -287,31 +307,11 @@ ether_output(struct ifnet *ifp, struct mbuf *m,
 	 */
 	if ((ifp->if_flags & IFF_SIMPLEX) && loop_copy &&
 	    ((t = pf_find_mtag(m)) == NULL || !t->routed)) {
-		if (m->m_flags & M_BCAST) {
-			struct mbuf *n;
-
-			/*
-			 * Because if_simloop() modifies the packet, we need a
-			 * writable copy through m_dup() instead of a readonly
-			 * one as m_copy[m] would give us. The alternative would
-			 * be to modify if_simloop() to handle the readonly mbuf,
-			 * but performancewise it is mostly equivalent (trading
-			 * extra data copying vs. extra locking).
-			 *
-			 * XXX This is a local workaround.  A number of less
-			 * often used kernel parts suffer from the same bug.
-			 * See PR kern/105943 for a proposed general solution.
-			 */
-			if ((n = m_dup(m, M_NOWAIT)) != NULL) {
-				update_mbuf_csumflags(m, n);
-				(void)if_simloop(ifp, n, dst->sa_family, hlen);
-			} else
-				if_inc_counter(ifp, IFCOUNTER_IQDROPS, 1);
-		} else if (bcmp(eh->ether_dhost, eh->ether_shost,
-				ETHER_ADDR_LEN) == 0) {
-			update_mbuf_csumflags(m, m);
-			(void) if_simloop(ifp, m, dst->sa_family, hlen);
-			return (0);	/* XXX */
+		if ((m->m_flags & M_BCAST) || (bcmp(eh->ether_dhost,
+		    eh->ether_shost, ETHER_ADDR_LEN) == 0)) {
+			/* Either broadcast or to-us L2 header */
+			if (loopback_frame(ifp, m, dst->sa_family, hlen) == 1)
+				return (0);
 		}
 	}
 
@@ -344,6 +344,112 @@ bad:			if (m != NULL)
 
 	/* Continue with link-layer output */
 	return ether_output_frame(ifp, m);
+}
+
+/*
+ * We assume this function to be called for
+ * ip[6]_output(), with already pre-compiled L2 header.
+ *
+ * Function assumes all loopback routing is already done on L3,
+ * so the only reason to push packet (copy) to host is M_BCAST flag.
+ */
+int
+ether_output2(struct ifnet *ifp, struct mbuf *m, struct nhop_data *nh, int af)
+{
+	int error;
+
+#ifdef MAC
+	error = mac_ifnet_check_transmit(ifp, m);
+	if (error)
+		senderr(error);
+#endif
+
+	M_PROFILE(m);
+	if (ifp->if_flags & IFF_MONITOR)
+		senderr(ENETDOWN);
+	if (!((ifp->if_flags & IFF_UP) &&
+	    (ifp->if_drv_flags & IFF_DRV_RUNNING)))
+		senderr(ENETDOWN);
+
+	if ((ifp->if_flags & IFF_SIMPLEX) && (m->m_flags & M_BCAST)) {
+		/* We have to copy frame to-us */
+		if (loopback_frame(NH_LIFP(nh), m, af, nh->nh_count) != 0)
+			return (0);
+	}
+
+       /*
+	* Bridges require special output handling.
+	*/
+	if (ifp->if_bridge) {
+		BRIDGE_OUTPUT(ifp, m, error);
+		return (error);
+	}
+
+#if defined(INET) || defined(INET6)
+	if (ifp->if_carp) {
+		struct sockaddr_in dst;
+		memset(&dst, 0, sizeof(dst));
+		//dst.sin_addr = 
+	    	error = (*carp_output_p)(ifp, m,
+		    (const struct sockaddr *)&dst);
+		if (error != 0)
+			goto bad;
+	}
+#endif
+
+	/* Handle ng_ether(4) processing, if any */
+	if (IFP2AC(ifp)->ac_netgraph != NULL) {
+		KASSERT(ng_ether_output_p != NULL,
+		    ("ng_ether_output_p is NULL"));
+		if ((error = (*ng_ether_output_p)(ifp, &m)) != 0) {
+bad:			if (m != NULL)
+				m_freem(m);
+			return (error);
+		}
+		if (m == NULL)
+			return (0);
+	}
+
+	/* Continue with link-layer output */
+	return (ether_output_frame(ifp, m));
+}
+
+static int
+loopback_frame(struct ifnet *ifp, struct mbuf *m, int family, int hlen)
+{
+	struct ether_header *eh;
+
+	if (m->m_flags & M_BCAST) {
+		struct mbuf *n;
+
+		/*
+		 * Because if_simloop() modifies the packet, we need a
+		 * writable copy through m_dup() instead of a readonly
+		 * one as m_copy[m] would give us. The alternative would
+		 * be to modify if_simloop() to handle the readonly mbuf,
+		 * but performancewise it is mostly equivalent (trading
+		 * extra data copying vs. extra locking).
+		 *
+		 * XXX This is a local workaround.  A number of less
+		 * often used kernel parts suffer from the same bug.
+		 * See PR kern/105943 for a proposed general solution.
+		 */
+		if ((n = m_dup(m, M_NOWAIT)) != NULL) {
+			update_mbuf_csumflags(m, n);
+			if_simloop(ifp, n, family, hlen);
+		} else
+			if_inc_counter(ifp, IFCOUNTER_IQDROPS, 1);
+	} else {
+		eh = mtod(m, struct ether_header *);
+		if (bcmp(eh->ether_dhost, eh->ether_shost,
+		    ETHER_ADDR_LEN) == 0) {
+			update_mbuf_csumflags(m, m);
+			if_simloop(ifp, m, family, hlen);
+			return (1);
+		}
+	}
+
+	return (0);
 }
 
 /*

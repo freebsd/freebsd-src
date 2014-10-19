@@ -81,6 +81,8 @@ __FBSDID("$FreeBSD$");
 #include <netinet/tcp_offload.h>
 #endif
 
+#include <net/rt_nhops.h>
+
 #ifdef IPSEC
 #include <netipsec/ipsec.h>
 #endif /*IPSEC*/
@@ -1293,9 +1295,9 @@ send:
 #endif
 #ifdef INET
     {
-	struct route ro;
+	struct route_info ri;
 
-	bzero(&ro, sizeof(ro));
+	bzero(&ri, sizeof(ri));
 	ip->ip_len = htons(m->m_pkthdr.len);
 #ifdef INET6
 	if (tp->t_inpcb->inp_vflag & INP_IPV6PROTO)
@@ -1321,13 +1323,12 @@ send:
 
 	TCP_PROBE5(send, NULL, tp, ip, tp, th);
 
-	error = ip_output(m, tp->t_inpcb->inp_options, &ro,
+	error = ip_output(m, tp->t_inpcb->inp_options, &ri,
 	    ((so->so_options & SO_DONTROUTE) ? IP_ROUTETOIF : 0), 0,
 	    tp->t_inpcb);
 
-	if (error == EMSGSIZE && ro.ro_rt != NULL)
-		mtu = ro.ro_rt->rt_mtu;
-	RO_RTFREE(&ro);
+	if (error == EMSGSIZE)
+		mtu = ri.ri_mtu;
     }
 #endif /* INET */
 

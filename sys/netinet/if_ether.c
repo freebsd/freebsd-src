@@ -283,6 +283,72 @@ arprequest(struct ifnet *ifp, const struct in_addr *sip,
 }
 
 /*
+ *
+ * Saves lle address for @dst in @dst_addr.
+ * Returns 0 if address was found&valid.
+ */
+int
+arpresolve_fast(struct ifnet *ifp, struct in_addr dst, u_int mflags,
+    u_char *dst_addr)
+{
+	int do_arp, error;
+	struct llentry *la;
+	struct sockaddr_in sin;
+
+	if (mflags & M_BCAST) {
+		memcpy(dst_addr, ifp->if_broadcastaddr, ifp->if_addrlen);
+		return (0);
+	}
+	if (mflags & M_MCAST) {
+		ETHER_MAP_IP_MULTICAST(&dst, dst_addr);
+		return (0);
+	}
+
+	do_arp = 0;
+	error = EAGAIN;
+
+	memset(&sin, 0, sizeof(sin));
+	sin.sin_addr = dst;
+	sin.sin_family = AF_INET;
+	sin.sin_len = sizeof(sin);
+
+	IF_AFDATA_RLOCK(ifp);
+	la = lla_lookup(LLTABLE(ifp), 0, (const struct sockaddr *)&sin);
+
+	/*
+	 * XXX: We need to convert all these checks to single one
+	 */
+	if (la != NULL && (la->la_flags & LLE_VALID) &&
+	    ((la->la_flags & LLE_STATIC) || la->la_expire > time_uptime)) {
+		bcopy(&la->ll_addr, dst_addr, ifp->if_addrlen);
+		/*
+		 * If entry has an expiry time and it is approaching,
+		 * see if we need to send an ARP request within this
+		 * arpt_down interval.
+		 */
+		if (!(la->la_flags & LLE_STATIC) &&
+		    time_uptime + la->la_preempt > la->la_expire) {
+			do_arp = 1;
+			la->la_preempt--;
+		}
+		error = 0;
+	}
+	if (la != NULL)
+		LLE_RUNLOCK(la);
+	IF_AFDATA_RUNLOCK(ifp);
+
+	/*
+	 * XXX: For compat reasons only.
+	 * We should delay the job to slowpath queue.
+	 */
+	if (do_arp != 0)
+		arprequest(ifp, NULL, &dst, NULL);
+
+	return (error);
+}
+
+
+/*
  * Resolve an IP address into an ethernet address.
  * On input:
  *    ifp is the interface we use

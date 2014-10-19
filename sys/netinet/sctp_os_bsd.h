@@ -442,7 +442,7 @@ typedef struct rtentry sctp_rtentry_t;
 	    local_stcb->sctp_ep->sctp_socket) \
 		o_flgs |= local_stcb->sctp_ep->sctp_socket->so_options & SO_DONTROUTE; \
 	m_clrprotoflags(o_pak); \
-	result = ip_output(o_pak, NULL, ro, o_flgs, 0, NULL); \
+	result = ip_output(o_pak, NULL, NULL, o_flgs, 0, NULL); \
 }
 
 #define SCTP_IP6_OUTPUT(result, o_pak, ro, ifp, stcb, vrf_id) \
