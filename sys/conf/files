@@ -3231,7 +3231,7 @@ net/if_ethersubr.c		optional ether
 net/if_faith.c			optional faith
 net/if_fddisubr.c		optional fddi
 net/if_fwsubr.c			optional fwip
-net/if_gif.c			optional gif | netgraph_gif
+net/if_gif.c			optional gif inet | gif inet6 | netgraph_gif
 net/if_gre.c			optional gre inet
 net/if_iso88025subr.c		optional token
 net/if_lagg.c			optional lagg

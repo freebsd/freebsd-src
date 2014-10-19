@@ -302,6 +302,8 @@ struct ctl_page_index {
 #define	CTL_PAGE_SAVED		0x03
 
 static const struct ctl_page_index page_index_template[] = {
+	{SMS_RW_ERROR_RECOVERY_PAGE, 0, sizeof(struct scsi_da_rw_recovery_page), NULL,
+	 CTL_PAGE_FLAG_DISK_ONLY, NULL, NULL},
 	{SMS_FORMAT_DEVICE_PAGE, 0, sizeof(struct scsi_format_page), NULL,
 	 CTL_PAGE_FLAG_DISK_ONLY, NULL, NULL},
 	{SMS_RIGID_DISK_PAGE, 0, sizeof(struct scsi_rigid_disk_page), NULL,
@@ -310,12 +312,11 @@ static const struct ctl_page_index page_index_template[] = {
 	 CTL_PAGE_FLAG_DISK_ONLY, NULL, ctl_caching_sp_handler},
 	{SMS_CONTROL_MODE_PAGE, 0, sizeof(struct scsi_control_page), NULL,
 	 CTL_PAGE_FLAG_NONE, NULL, ctl_control_page_handler},
-   	{SMS_VENDOR_SPECIFIC_PAGE | SMPH_SPF, PWR_SUBPAGE_CODE,
-	 sizeof(struct copan_power_subpage), NULL, CTL_PAGE_FLAG_NONE,
-	 ctl_power_sp_sense_handler, ctl_power_sp_handler},
-	{SMS_VENDOR_SPECIFIC_PAGE | SMPH_SPF, APS_SUBPAGE_CODE,
-	 sizeof(struct copan_aps_subpage), NULL, CTL_PAGE_FLAG_NONE,
-	 NULL, ctl_aps_sp_handler},
+	{SMS_INFO_EXCEPTIONS_PAGE, 0, sizeof(struct scsi_info_exceptions_page), NULL,
+	 CTL_PAGE_FLAG_NONE, NULL, NULL},
+	{SMS_INFO_EXCEPTIONS_PAGE | SMPH_SPF, 0x02,
+	 sizeof(struct scsi_logical_block_provisioning_page), NULL,
+	 CTL_PAGE_FLAG_DISK_ONLY, NULL, NULL},
 	{SMS_VENDOR_SPECIFIC_PAGE | SMPH_SPF, DBGCNF_SUBPAGE_CODE,
 	 sizeof(struct copan_debugconf_subpage), NULL, CTL_PAGE_FLAG_NONE,
 	 ctl_debugconf_sp_sense_handler, ctl_debugconf_sp_select_handler},
@@ -325,14 +326,31 @@ static const struct ctl_page_index page_index_template[] = {
 			   sizeof(page_index_template[0])
 
 struct ctl_mode_pages {
+	struct scsi_da_rw_recovery_page	rw_er_page[4];
 	struct scsi_format_page		format_page[4];
 	struct scsi_rigid_disk_page	rigid_disk_page[4];
 	struct scsi_caching_page	caching_page[4];
 	struct scsi_control_page	control_page[4];
-	struct copan_power_subpage	power_subpage[4];
-	struct copan_aps_subpage	aps_subpage[4];
+	struct scsi_info_exceptions_page ie_page[4];
+	struct scsi_logical_block_provisioning_page lbp_page[4];
 	struct copan_debugconf_subpage	debugconf_subpage[4];
 	struct ctl_page_index		index[CTL_NUM_MODE_PAGES];
+};
+
+static const struct ctl_page_index log_page_index_template[] = {
+	{SLS_SUPPORTED_PAGES_PAGE, 0, 0, NULL,
+	 CTL_PAGE_FLAG_NONE, NULL, NULL},
+	{SLS_SUPPORTED_PAGES_PAGE, SLS_SUPPORTED_SUBPAGES_SUBPAGE, 0, NULL,
+	 CTL_PAGE_FLAG_NONE, NULL, NULL},
+};
+
+#define	CTL_NUM_LOG_PAGES sizeof(log_page_index_template)/   \
+			  sizeof(log_page_index_template[0])
+
+struct ctl_log_pages {
+	uint8_t				pages_page[CTL_NUM_LOG_PAGES];
+	uint8_t				subpages_page[CTL_NUM_LOG_PAGES * 2];
+	struct ctl_page_index		index[CTL_NUM_LOG_PAGES];
 };
 
 struct ctl_lun_delay_info {
@@ -391,6 +409,7 @@ struct ctl_lun {
 #endif
 	ctl_ua_type			pending_ua[CTL_MAX_INITIATORS];
 	struct ctl_mode_pages		mode_pages;
+	struct ctl_log_pages		log_pages;
 	struct ctl_lun_io_stats		stats;
 	uint32_t			res_idx;
 	unsigned int			PRGeneration;
@@ -442,7 +461,6 @@ struct ctl_softc {
 	uint32_t ctl_lun_mask[(CTL_MAX_LUNS + 31) / 32];
 	struct ctl_lun *ctl_luns[CTL_MAX_LUNS];
 	uint32_t ctl_port_mask[(CTL_MAX_PORTS + 31) / 32];
-	uint64_t aps_locked_lun;
 	STAILQ_HEAD(, ctl_lun) lun_list;
 	STAILQ_HEAD(, ctl_be_lun) pending_lun_queue;
 	uint32_t num_frontends;
@@ -456,8 +474,6 @@ struct ctl_softc {
 	uint32_t num_pools;
 	uint32_t cur_pool_id;
 	STAILQ_HEAD(, ctl_io_pool) io_pools;
-	time_t last_print_jiffies;
-	uint32_t skipped_prints;
 	struct ctl_thread threads[CTL_MAX_THREADS];
 	TAILQ_HEAD(tpc_tokens, tpc_token) tpc_tokens;
 	struct callout tpc_timeout;
@@ -484,6 +500,7 @@ int ctl_write_same(struct ctl_scsiio *ctsio);
 int ctl_unmap(struct ctl_scsiio *ctsio);
 int ctl_mode_select(struct ctl_scsiio *ctsio);
 int ctl_mode_sense(struct ctl_scsiio *ctsio);
+int ctl_log_sense(struct ctl_scsiio *ctsio);
 int ctl_read_capacity(struct ctl_scsiio *ctsio);
 int ctl_read_capacity_16(struct ctl_scsiio *ctsio);
 int ctl_read_defect(struct ctl_scsiio *ctsio);

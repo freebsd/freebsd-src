@@ -38,7 +38,6 @@
 #include <linux/err.h>
 #include <linux/poll.h>
 #include <linux/file.h>
-#include <linux/mount.h>
 #include <linux/cdev.h>
 #include <linux/idr.h>
 #include <linux/mutex.h>

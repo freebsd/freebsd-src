@@ -2,6 +2,7 @@
 # $FreeBSD$
 
 .PATH: ${LIBC_SRCTOP}/${LIBC_ARCH}/string ${LIBC_SRCTOP}/string
+.PATH: ${LIBC_SRCTOP}/../../sys/libkern
 
 CFLAGS+= -I${LIBC_SRCTOP}/locale
 

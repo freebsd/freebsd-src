@@ -310,7 +310,7 @@ asmc_match(device_t dev)
 	int i;
 	char *model;
 
-	model = getenv("smbios.system.product");
+	model = kern_getenv("smbios.system.product");
 	if (model == NULL)
 		return (NULL);
 

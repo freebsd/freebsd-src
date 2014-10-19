@@ -241,7 +241,7 @@ sysctl_load_tunable_by_oid_locked(struct sysctl_oid *oidp)
 		req.newptr = &val_64;
 		break;
 	case CTLTYPE_STRING:
-		penv = getenv(path + rem);
+		penv = kern_getenv(path + rem);
 		if (penv == NULL)
 			return;
 		req.newlen = strlen(penv);
