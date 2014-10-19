@@ -125,6 +125,7 @@ static void consumetoken(int);
 static void synexpect(int) __dead2;
 static void synerror(const char *) __dead2;
 static void setprompt(int);
+static int pgetc_linecont(void);
 
 
 static void *
@@ -899,17 +900,17 @@ xxreadtoken(void)
 		case PEOF:
 			RETURN(TEOF);
 		case '&':
-			if (pgetc() == '&')
+			if (pgetc_linecont() == '&')
 				RETURN(TAND);
 			pungetc();
 			RETURN(TBACKGND);
 		case '|':
-			if (pgetc() == '|')
+			if (pgetc_linecont() == '|')
 				RETURN(TOR);
 			pungetc();
 			RETURN(TPIPE);
 		case ';':
-			c = pgetc();
+			c = pgetc_linecont();
 			if (c == ';')
 				RETURN(TENDCASE);
 			else if (c == '&')
@@ -991,7 +992,7 @@ parseredir(char *out, int c)
 	np = (union node *)stalloc(sizeof (struct nfile));
 	if (c == '>') {
 		np->nfile.fd = 1;
-		c = pgetc();
+		c = pgetc_linecont();
 		if (c == '>')
 			np->type = NAPPEND;
 		else if (c == '&')
@@ -1004,7 +1005,7 @@ parseredir(char *out, int c)
 		}
 	} else {	/* c == '<' */
 		np->nfile.fd = 0;
-		c = pgetc();
+		c = pgetc_linecont();
 		if (c == '<') {
 			if (sizeof (struct nfile) != sizeof (struct nhere)) {
 				np = (union node *)stalloc(sizeof (struct nhere));
@@ -1013,7 +1014,7 @@ parseredir(char *out, int c)
 			np->type = NHERE;
 			heredoc = (struct heredoc *)stalloc(sizeof (struct heredoc));
 			heredoc->here = np;
-			if ((c = pgetc()) == '-') {
+			if ((c = pgetc_linecont()) == '-') {
 				heredoc->striptabs = 1;
 			} else {
 				heredoc->striptabs = 0;
@@ -1094,25 +1095,12 @@ parsebackq(char *out, struct nodelist **pbqlist,
 				needprompt = 0;
 			}
 			CHECKSTRSPACE(2, oout);
-			c = pgetc();
+			c = pgetc_linecont();
 			if (c == '`')
 				break;
 			switch (c) {
 			case '\\':
-                                if ((c = pgetc()) == '\n') {
-					plinno++;
-					if (doprompt)
-						setprompt(2);
-					else
-						setprompt(0);
-					/*
-					 * If eating a newline, avoid putting
-					 * the newline into the new character
-					 * stream (via the USTPUTC after the
-					 * switch).
-					 */
-					continue;
-				}
+				c = pgetc();
                                 if (c != '\\' && c != '`' && c != '$'
                                     && (!dblquote || c != '"'))
                                         USTPUTC('\\', oout);
@@ -1507,7 +1495,7 @@ readtoken1(int firstc, char const *initialsyntax, const char *eofmark,
 					USTPUTC(c, out);
 					--state[level].parenlevel;
 				} else {
-					if (pgetc() == ')') {
+					if (pgetc_linecont() == ')') {
 						if (level > 0 &&
 						    state[level].category == TSTATE_ARITH) {
 							level--;
@@ -1593,9 +1581,9 @@ parsesub: {
 	int length;
 	int c1;
 
-	c = pgetc();
+	c = pgetc_linecont();
 	if (c == '(') {	/* $(command) or $((arith)) */
-		if (pgetc() == '(') {
+		if (pgetc_linecont() == '(') {
 			PARSEARITH();
 		} else {
 			pungetc();
@@ -1613,7 +1601,7 @@ parsesub: {
 		flags = 0;
 		if (c == '{') {
 			bracketed_name = 1;
-			c = pgetc();
+			c = pgetc_linecont();
 			subtype = 0;
 		}
 varname:
@@ -1621,7 +1609,7 @@ varname:
 			length = 0;
 			do {
 				STPUTC(c, out);
-				c = pgetc();
+				c = pgetc_linecont();
 				length++;
 			} while (!is_eof(c) && is_in_name(c));
 			if (length == 6 &&
@@ -1640,22 +1628,22 @@ varname:
 			if (bracketed_name) {
 				do {
 					STPUTC(c, out);
-					c = pgetc();
+					c = pgetc_linecont();
 				} while (is_digit(c));
 			} else {
 				STPUTC(c, out);
-				c = pgetc();
+				c = pgetc_linecont();
 			}
 		} else if (is_special(c)) {
 			c1 = c;
-			c = pgetc();
+			c = pgetc_linecont();
 			if (subtype == 0 && c1 == '#') {
 				subtype = VSLENGTH;
 				if (strchr(types, c) == NULL && c != ':' &&
 				    c != '#' && c != '%')
 					goto varname;
 				c1 = c;
-				c = pgetc();
+				c = pgetc_linecont();
 				if (c1 != '}' && c == '}') {
 					pungetc();
 					c = c1;
@@ -1680,7 +1668,7 @@ varname:
 			switch (c) {
 			case ':':
 				flags |= VSNUL;
-				c = pgetc();
+				c = pgetc_linecont();
 				/*FALLTHROUGH*/
 			default:
 				p = strchr(types, c);
@@ -1700,7 +1688,7 @@ varname:
 					int cc = c;
 					subtype = c == '#' ? VSTRIMLEFT :
 							     VSTRIMRIGHT;
-					c = pgetc();
+					c = pgetc_linecont();
 					if (c == cc)
 						subtype++;
 					else
@@ -1907,6 +1895,29 @@ setprompt(int which)
 		out2str(getprompt(NULL));
 		flushout(out2);
 	}
+}
+
+static int
+pgetc_linecont(void)
+{
+	int c;
+
+	while ((c = pgetc_macro()) == '\\') {
+		c = pgetc();
+		if (c == '\n') {
+			plinno++;
+			if (doprompt)
+				setprompt(2);
+			else
+				setprompt(0);
+		} else {
+			pungetc();
+			/* Allow the backslash to be pushed back. */
+			pushstring("\\", 1, NULL);
+			return (pgetc());
+		}
+	}
+	return (c);
 }
 
 /*
