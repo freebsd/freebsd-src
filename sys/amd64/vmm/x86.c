@@ -174,6 +174,9 @@ x86_emulate_cpuid(struct vm *vm, int vcpu_id,
 			/* NodeID MSR not available */
 			regs[2] &= ~AMDID2_NODE_ID;
 
+			/* Don't advertise the OS visible workaround feature */
+			regs[2] &= ~AMDID2_OSVW;
+
 			/*
 			 * Hide rdtscp/ia32_tsc_aux until we know how
 			 * to deal with them.
@@ -182,11 +185,25 @@ x86_emulate_cpuid(struct vm *vm, int vcpu_id,
 			break;
 
 		case CPUID_8000_0007:
-			cpuid_count(*eax, *ecx, regs);
 			/*
-			 * If the host TSCs are not synchronized across
-			 * physical cpus then we cannot advertise an
-			 * invariant tsc to a vcpu.
+			 * AMD uses this leaf to advertise the processor's
+			 * power monitoring and RAS capabilities. These
+			 * features are hardware-specific and exposing
+			 * them to a guest doesn't make a lot of sense.
+			 *
+			 * Intel uses this leaf only to advertise the
+			 * "Invariant TSC" feature with all other bits
+			 * being reserved (set to zero).
+			 */
+			regs[0] = 0;
+			regs[1] = 0;
+			regs[2] = 0;
+			regs[3] = 0;
+
+			/*
+			 * "Invariant TSC" can be advertised to the guest if:
+			 * - host TSC frequency is invariant
+			 * - host TSCs are synchronized across physical cpus
 			 *
 			 * XXX This still falls short because the vcpu
 			 * can observe the TSC moving backwards as it
@@ -194,8 +211,8 @@ x86_emulate_cpuid(struct vm *vm, int vcpu_id,
 			 * it should discourage the guest from using the
 			 * TSC to keep track of time.
 			 */
-			if (!smp_tsc)
-				regs[3] &= ~AMDPM_TSC_INVARIANT;
+			if (tsc_is_invariant && smp_tsc)
+				regs[3] |= AMDPM_TSC_INVARIANT;
 			break;
 
 		case CPUID_0000_0001:
