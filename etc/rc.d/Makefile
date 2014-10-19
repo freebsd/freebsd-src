@@ -71,13 +71,13 @@ FILES=	DAEMON \
 	iscsictl \
 	iscsid \
 	jail \
-	kadmind \
-	kdc \
+	${_kadmind} \
+	${_kdc} \
 	keyserv \
-	kfd \
+	${_kfd} \
 	kld \
 	kldxref \
-	kpasswdd \
+	${_kpasswdd} \
 	ldconfig \
 	local \
 	localpkg \
@@ -171,6 +171,13 @@ FILES=	DAEMON \
 
 .if ${MK_IPX} != "no"
 _ipxrouted=	ipxrouted
+.endif
+
+.if ${MK_KERBEROS} != "no"
+_kadmind=	kadmind
+_kdc=		kdc
+_kfd=		kfd
+_kpasswdd=	kpasswdd
 .endif
 
 .if ${MK_OFED} != "no"
