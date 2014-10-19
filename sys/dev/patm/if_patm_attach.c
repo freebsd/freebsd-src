@@ -579,7 +579,7 @@ patm_env_getuint(struct patm_softc *sc, u_int *var, const char *name)
 	snprintf(full, sizeof(full), "hw.%s.%s",
 	    device_get_nameunit(sc->dev), name);
 
-	if ((val = getenv(full)) != NULL) {
+	if ((val = kern_getenv(full)) != NULL) {
 		u = strtoul(val, &end, 0);
 		if (end > val && *end == '\0') {
 			if (bootverbose)

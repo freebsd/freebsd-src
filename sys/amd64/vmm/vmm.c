@@ -1950,7 +1950,7 @@ vmm_is_pptdev(int bus, int slot, int func)
 	/* set pptdevs="1/2/3 4/5/6 7/8/9 10/11/12" */
 	found = 0;
 	for (i = 0; names[i] != NULL && !found; i++) {
-		cp = val = getenv(names[i]);
+		cp = val = kern_getenv(names[i]);
 		while (cp != NULL && *cp != '\0') {
 			if ((cp2 = strchr(cp, ' ')) != NULL)
 				*cp2 = '\0';

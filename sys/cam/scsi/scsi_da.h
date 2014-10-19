@@ -527,7 +527,8 @@ struct scsi_da_rw_recovery_page {
 	u_int8_t correction_span;
 	u_int8_t head_offset_count;
 	u_int8_t data_strobe_offset_cnt;
-	u_int8_t reserved;
+	u_int8_t byte8;
+#define SMS_RWER_LBPERE			0x80
 	u_int8_t write_retry_count;
 	u_int8_t reserved2;
 	u_int8_t recovery_time_limit[2];

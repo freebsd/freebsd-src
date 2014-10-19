@@ -889,7 +889,9 @@ xxreadtoken(void)
 				continue;
 			}
 			pungetc();
-			goto breakloop;
+			/* FALLTHROUGH */
+		default:
+			return readtoken1(c, BASESYNTAX, (char *)NULL, 0);
 		case '\n':
 			plinno++;
 			needprompt = doprompt;
@@ -918,12 +920,8 @@ xxreadtoken(void)
 			RETURN(TLP);
 		case ')':
 			RETURN(TRP);
-		default:
-			goto breakloop;
 		}
 	}
-breakloop:
-	return readtoken1(c, BASESYNTAX, (char *)NULL, 0);
 #undef RETURN
 }
 
@@ -977,6 +975,63 @@ checkend(int c, const char *eofmark, int striptabs)
 	return (c);
 }
 
+
+/*
+ * Parse a redirection operator.  The variable "out" points to a string
+ * specifying the fd to be redirected.  The variable "c" contains the
+ * first character of the redirection operator.
+ */
+
+static void
+parseredir(char *out, int c)
+{
+	char fd = *out;
+	union node *np;
+
+	np = (union node *)stalloc(sizeof (struct nfile));
+	if (c == '>') {
+		np->nfile.fd = 1;
+		c = pgetc();
+		if (c == '>')
+			np->type = NAPPEND;
+		else if (c == '&')
+			np->type = NTOFD;
+		else if (c == '|')
+			np->type = NCLOBBER;
+		else {
+			np->type = NTO;
+			pungetc();
+		}
+	} else {	/* c == '<' */
+		np->nfile.fd = 0;
+		c = pgetc();
+		if (c == '<') {
+			if (sizeof (struct nfile) != sizeof (struct nhere)) {
+				np = (union node *)stalloc(sizeof (struct nhere));
+				np->nfile.fd = 0;
+			}
+			np->type = NHERE;
+			heredoc = (struct heredoc *)stalloc(sizeof (struct heredoc));
+			heredoc->here = np;
+			if ((c = pgetc()) == '-') {
+				heredoc->striptabs = 1;
+			} else {
+				heredoc->striptabs = 0;
+				pungetc();
+			}
+		} else if (c == '&')
+			np->type = NFROMFD;
+		else if (c == '>')
+			np->type = NFROMTO;
+		else {
+			np->type = NFROM;
+			pungetc();
+		}
+	}
+	if (fd != '\0')
+		np->nfile.fd = digit_val(fd);
+	redirnode = np;
+}
 
 /*
  * Called to parse command substitutions.
@@ -1039,10 +1094,10 @@ parsebackq(char *out, struct nodelist **pbqlist,
 				needprompt = 0;
 			}
 			CHECKSTRSPACE(2, oout);
-			switch (c = pgetc()) {
-			case '`':
-				goto done;
-
+			c = pgetc();
+			if (c == '`')
+				break;
+			switch (c) {
 			case '\\':
                                 if ((c = pgetc()) == '\n') {
 					plinno++;
@@ -1078,7 +1133,6 @@ parsebackq(char *out, struct nodelist **pbqlist,
 			}
 			USTPUTC(c, oout);
                 }
-done:
                 USTPUTC('\0', oout);
                 olen = oout - stackblock();
 		INTOFF;
@@ -1309,7 +1363,6 @@ readcstyleesc(char *out)
  * will run code that appears at the end of readtoken1.
  */
 
-#define PARSEREDIR()	{goto parseredir; parseredir_return:;}
 #define PARSESUB()	{goto parsesub; parsesub_return:;}
 #define	PARSEARITH()	{goto parsearith; parsearith_return:;}
 
@@ -1509,7 +1562,7 @@ endword:
 		 && quotef == 0
 		 && len <= 2
 		 && (*out == '\0' || is_digit(*out))) {
-			PARSEREDIR();
+			parseredir(out, c);
 			return lasttoken = TREDIR;
 		} else {
 			pungetc();
@@ -1521,63 +1574,6 @@ endword:
 	wordtext = out;
 	return lasttoken = TWORD;
 /* end of readtoken routine */
-
-
-/*
- * Parse a redirection operator.  The variable "out" points to a string
- * specifying the fd to be redirected.  The variable "c" contains the
- * first character of the redirection operator.
- */
-
-parseredir: {
-	char fd = *out;
-	union node *np;
-
-	np = (union node *)stalloc(sizeof (struct nfile));
-	if (c == '>') {
-		np->nfile.fd = 1;
-		c = pgetc();
-		if (c == '>')
-			np->type = NAPPEND;
-		else if (c == '&')
-			np->type = NTOFD;
-		else if (c == '|')
-			np->type = NCLOBBER;
-		else {
-			np->type = NTO;
-			pungetc();
-		}
-	} else {	/* c == '<' */
-		np->nfile.fd = 0;
-		c = pgetc();
-		if (c == '<') {
-			if (sizeof (struct nfile) != sizeof (struct nhere)) {
-				np = (union node *)stalloc(sizeof (struct nhere));
-				np->nfile.fd = 0;
-			}
-			np->type = NHERE;
-			heredoc = (struct heredoc *)stalloc(sizeof (struct heredoc));
-			heredoc->here = np;
-			if ((c = pgetc()) == '-') {
-				heredoc->striptabs = 1;
-			} else {
-				heredoc->striptabs = 0;
-				pungetc();
-			}
-		} else if (c == '&')
-			np->type = NFROMFD;
-		else if (c == '>')
-			np->type = NFROMTO;
-		else {
-			np->type = NFROM;
-			pungetc();
-		}
-	}
-	if (fd != '\0')
-		np->nfile.fd = digit_val(fd);
-	redirnode = np;
-	goto parseredir_return;
-}
 
 
 /*
