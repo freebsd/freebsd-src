@@ -1139,7 +1139,6 @@ cfiscsi_maintenance_thread(void *arg)
 			 * that anymore.  We might need to revisit that.
 			 */
 			callout_drain(&cs->cs_callout);
-			icl_conn_shutdown(cs->cs_conn);
 			icl_conn_close(cs->cs_conn);
 
 			/*
