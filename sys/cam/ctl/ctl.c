@@ -10823,15 +10823,9 @@ ctl_inquiry_std(struct ctl_scsiio *ctsio)
 	}
 
 	ctsio->scsi_status = SCSI_STATUS_OK;
-	if (ctsio->kern_data_len > 0) {
-		ctsio->io_hdr.flags |= CTL_FLAG_ALLOCATED;
-		ctsio->be_move_done = ctl_config_move_done;
-		ctl_datamove((union ctl_io *)ctsio);
-	} else {
-		ctsio->io_hdr.status = CTL_SUCCESS;
-		ctl_done((union ctl_io *)ctsio);
-	}
-
+	ctsio->io_hdr.flags |= CTL_FLAG_ALLOCATED;
+	ctsio->be_move_done = ctl_config_move_done;
+	ctl_datamove((union ctl_io *)ctsio);
 	return (CTL_RETVAL_COMPLETE);
 }
 
@@ -12899,6 +12893,12 @@ ctl_datamove(union ctl_io *io)
 		 * callback in its context.  In other cases it may get
 		 * called in the frontend's interrupt thread context.
 		 */
+		io->scsiio.be_move_done(io);
+		return;
+	}
+
+	/* Don't confuse frontend with zero length data move. */
+	if (io->scsiio.kern_data_len == 0) {
 		io->scsiio.be_move_done(io);
 		return;
 	}
