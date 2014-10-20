@@ -3582,10 +3582,8 @@ biodone(struct bio *bp)
 		bp->bio_flags |= BIO_DONE;
 		wakeup(bp);
 		mtx_unlock(mtxp);
-	} else {
-		bp->bio_flags |= BIO_DONE;
+	} else
 		done(bp);
-	}
 }
 
 /*
