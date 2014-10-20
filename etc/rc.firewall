@@ -498,7 +498,8 @@ case ${firewall_type} in
 	      ${fwcmd} add pass udp from $i to me ${j%/[Uu][Dd][Pp]}
 	    ;;
 	    *[0-9A-Za-z])
-	      echo "Consider using tcp/$j in firewall_myservices." > /dev/stderr
+	      echo "Consider using ${j}/tcp in firewall_myservices." \
+	        > /dev/stderr
 	      ${fwcmd} add pass tcp from $i to me $j
 	    ;;
 	    *)
