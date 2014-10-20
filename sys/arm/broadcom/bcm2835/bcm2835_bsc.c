@@ -441,12 +441,11 @@ bcm_bsc_transfer(device_t dev, struct iic_msg *msgs, uint32_t nmsgs)
 		/* Wait for the transaction to complete. */
 		err = mtx_sleep(dev, &sc->sc_mtx, 0, "bsciow", hz);
 
-		/* Check if we have a timeout or an I2C error. */
-		if ((sc->sc_flags & BCM_I2C_ERROR) || err == EWOULDBLOCK) {
-			device_printf(sc->sc_dev, "I2C error\n");
+		/* Check for errors. */
+		if (err != 0 && (sc->sc_flags & BCM_I2C_ERROR))
 			err = EIO;
+		if (err != 0)
 			break;
-		}
 	}
 
 	/* Clean the controller flags. */
