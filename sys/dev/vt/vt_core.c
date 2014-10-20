@@ -2207,6 +2207,9 @@ skip_thunk:
 	case PIO_VFONT: {
 		struct vt_font *vf;
 
+		if (vd->vd_flags & VDF_TEXTMODE)
+			return (ENOTSUP);
+
 		error = vtfont_load((void *)data, &vf);
 		if (error != 0)
 			return (error);
