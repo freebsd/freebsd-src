@@ -71,6 +71,7 @@ ata_jmicron_probe(device_t dev)
      { ATA_JMB365, 0, 1, 2, ATA_UDMA6, "JMB365" },
      { ATA_JMB366, 0, 2, 2, ATA_UDMA6, "JMB366" },
      { ATA_JMB368, 0, 0, 1, ATA_UDMA6, "JMB368" },
+     { ATA_JMB368_2, 0, 0, 1, ATA_UDMA6, "JMB368" },
      { 0, 0, 0, 0, 0, 0}};
     char buffer[64];
 
