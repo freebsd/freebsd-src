@@ -95,7 +95,7 @@ struct imx_gpt_softc *imx_gpt_sc = NULL;
 static const int imx_gpt_delay_count = 78;
 
 /* Try to divide down an available fast clock to this frequency. */
-#define	TARGET_FREQUENCY	10000000
+#define	TARGET_FREQUENCY	1000000000
 
 /* Don't try to set an event timer period smaller than this. */
 #define	MIN_ET_PERIOD		10LLU
