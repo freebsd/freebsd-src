@@ -877,8 +877,6 @@ icl_conn_send_pdus(struct icl_conn *ic, struct icl_pdu_stailq *queue)
 	SOCKBUF_UNLOCK(&so->so_snd);
 
 	while (!STAILQ_EMPTY(queue)) {
-		if (ic->ic_disconnecting)
-			return;
 		request = STAILQ_FIRST(queue);
 		size = icl_pdu_size(request);
 		if (available < size) {
@@ -975,11 +973,6 @@ icl_send_thread(void *arg)
 	ic->ic_send_running = true;
 
 	for (;;) {
-		if (ic->ic_disconnecting) {
-			//ICL_DEBUG("terminating");
-			break;
-		}
-
 		for (;;) {
 			/*
 			 * If the local queue is empty, populate it from
@@ -1015,6 +1008,11 @@ icl_send_thread(void *arg)
 			 * which didn't get sent due to not having enough send
 			 * space.  Wait for socket upcall.
 			 */
+			break;
+		}
+
+		if (ic->ic_disconnecting) {
+			//ICL_DEBUG("terminating");
 			break;
 		}
 
@@ -1298,21 +1296,6 @@ icl_conn_handoff(struct icl_conn *ic, int fd)
 	error = icl_conn_start(ic);
 
 	return (error);
-}
-
-void
-icl_conn_shutdown(struct icl_conn *ic)
-{
-	ICL_CONN_LOCK_ASSERT_NOT(ic);
-
-	ICL_CONN_LOCK(ic);
-	if (ic->ic_socket == NULL) {
-		ICL_CONN_UNLOCK(ic);
-		return;
-	}
-	ICL_CONN_UNLOCK(ic);
-
-	soshutdown(ic->ic_socket, SHUT_RDWR);
 }
 
 void
