@@ -1576,7 +1576,7 @@ static bool
 vn_suspendable_mp(struct mount *mp)
 {
 
-	return (mp->mnt_op->vfs_susp_clean != NULL);
+	return ((mp->mnt_kern_flag & MNTK_SUSPENDABLE) != 0);
 }
 
 static bool

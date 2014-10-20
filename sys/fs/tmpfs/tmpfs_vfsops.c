@@ -255,6 +255,7 @@ tmpfs_mount(struct mount *mp)
 
 	MNT_ILOCK(mp);
 	mp->mnt_flag |= MNT_LOCAL;
+	mp->mnt_kern_flag |= MNTK_SUSPENDABLE;
 	MNT_IUNLOCK(mp);
 
 	mp->mnt_data = tmp;
@@ -427,14 +428,6 @@ tmpfs_sync(struct mount *mp, int waitfor)
 }
 
 /*
- * A stub created so that vfs does vn_start_write for this filesystem
- */
-static void
-tmpfs_susp_clean(struct mount *mp)
-{
-}
-
-/*
  * tmpfs vfs operations.
  */
 
@@ -445,6 +438,5 @@ struct vfsops tmpfs_vfsops = {
 	.vfs_statfs =			tmpfs_statfs,
 	.vfs_fhtovp =			tmpfs_fhtovp,
 	.vfs_sync =			tmpfs_sync,
-	.vfs_susp_clean =		tmpfs_susp_clean,
 };
 VFS_SET(tmpfs_vfsops, tmpfs, VFCF_JAIL);
