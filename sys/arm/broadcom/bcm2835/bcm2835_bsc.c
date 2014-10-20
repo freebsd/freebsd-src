@@ -395,7 +395,7 @@ bcm_bsc_transfer(device_t dev, struct iic_msg *msgs, uint32_t nmsgs)
 
 	/* If the controller is busy wait until it is available. */
 	while (sc->sc_flags & BCM_I2C_BUSY)
-		mtx_sleep(dev, &sc->sc_mtx, 0, "bcm_bsc", 0);
+		mtx_sleep(dev, &sc->sc_mtx, 0, "bscbusw", 0);
 
 	/* Now we have control over the BSC controller. */
 	sc->sc_flags = BCM_I2C_BUSY;
@@ -439,7 +439,7 @@ bcm_bsc_transfer(device_t dev, struct iic_msg *msgs, uint32_t nmsgs)
 		    BCM_BSC_CTRL_ST | read | intr);
 
 		/* Wait for the transaction to complete. */
-		err = mtx_sleep(dev, &sc->sc_mtx, 0, "bcm_bsc", hz);
+		err = mtx_sleep(dev, &sc->sc_mtx, 0, "bsciow", hz);
 
 		/* Check if we have a timeout or an I2C error. */
 		if ((sc->sc_flags & BCM_I2C_ERROR) || err == EWOULDBLOCK) {
@@ -451,6 +451,9 @@ bcm_bsc_transfer(device_t dev, struct iic_msg *msgs, uint32_t nmsgs)
 
 	/* Clean the controller flags. */
 	sc->sc_flags = 0;
+
+	/* Wake up the threads waiting for bus. */
+	wakeup(dev);
 
 	BCM_BSC_UNLOCK(sc);
 
