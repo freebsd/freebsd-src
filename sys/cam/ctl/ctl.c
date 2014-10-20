@@ -9128,6 +9128,31 @@ ctl_read_write(struct ctl_scsiio *ctsio)
 		num_blocks = scsi_4btoul(cdb->length);
 		break;
 	}
+	case WRITE_ATOMIC_16: {
+		struct scsi_rw_16 *cdb;
+
+		if (lun->be_lun->atomicblock == 0) {
+			ctl_set_invalid_opcode(ctsio);
+			ctl_done((union ctl_io *)ctsio);
+			return (CTL_RETVAL_COMPLETE);
+		}
+
+		cdb = (struct scsi_rw_16 *)ctsio->cdb;
+		if (cdb->byte2 & SRW12_FUA)
+			flags |= CTL_LLF_FUA;
+		if (cdb->byte2 & SRW12_DPO)
+			flags |= CTL_LLF_DPO;
+		lba = scsi_8btou64(cdb->addr);
+		num_blocks = scsi_4btoul(cdb->length);
+		if (num_blocks > lun->be_lun->atomicblock) {
+			ctl_set_invalid_field(ctsio, /*sks_valid*/ 1,
+			    /*command*/ 1, /*field*/ 12, /*bit_valid*/ 0,
+			    /*bit*/ 0);
+			ctl_done((union ctl_io *)ctsio);
+			return (CTL_RETVAL_COMPLETE);
+		}
+		break;
+	}
 	case WRITE_VERIFY_16: {
 		struct scsi_write_verify_16 *cdb;
 
@@ -10301,6 +10326,10 @@ ctl_inquiry_evpd_block_limits(struct ctl_scsiio *ctsio, int alloc_len)
 				    bl_ptr->unmap_grain_align);
 			}
 		}
+		scsi_ulto4b(lun->be_lun->atomicblock,
+		    bl_ptr->max_atomic_transfer_length);
+		scsi_ulto4b(0, bl_ptr->atomic_alignment);
+		scsi_ulto4b(0, bl_ptr->atomic_transfer_length_granularity);
 	}
 	scsi_u64to8b(UINT64_MAX, bl_ptr->max_write_same_length);
 
@@ -10696,13 +10725,13 @@ ctl_inquiry_std(struct ctl_scsiio *ctsio)
 	}
 
 	if (lun == NULL) {
-		/* SBC-3 (no version claimed) */
-		scsi_ulto2b(0x04C0, inq_ptr->version4);
+		/* SBC-4 (no version claimed) */
+		scsi_ulto2b(0x0600, inq_ptr->version4);
 	} else {
 		switch (lun->be_lun->lun_type) {
 		case T_DIRECT:
-			/* SBC-3 (no version claimed) */
-			scsi_ulto2b(0x04C0, inq_ptr->version4);
+			/* SBC-4 (no version claimed) */
+			scsi_ulto2b(0x0600, inq_ptr->version4);
 			break;
 		case T_PROCESSOR:
 		default:
@@ -10820,7 +10849,8 @@ ctl_get_lba_len(union ctl_io *io, uint64_t *lba, uint64_t *len)
 		break;
 	}
 	case READ_16:
-	case WRITE_16: {
+	case WRITE_16:
+	case WRITE_ATOMIC_16: {
 		struct scsi_rw_16 *cdb;
 
 		cdb = (struct scsi_rw_16 *)io->scsiio.cdb;
@@ -10834,7 +10864,6 @@ ctl_get_lba_len(union ctl_io *io, uint64_t *lba, uint64_t *len)
 
 		cdb = (struct scsi_write_verify_16 *)io->scsiio.cdb;
 
-		
 		*lba = scsi_8btou64(cdb->addr);
 		*len = scsi_4btoul(cdb->length);
 		break;
