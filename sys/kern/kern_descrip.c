@@ -3138,7 +3138,6 @@ export_vnode_to_sb(struct vnode *vp, int fd, int fflags,
 int
 kern_proc_filedesc_out(struct proc *p,  struct sbuf *sb, ssize_t maxlen)
 {
-	struct thread *td;
 	struct file *fp;
 	struct filedesc *fdp;
 	struct export_fd_buf *efbuf;
@@ -3146,7 +3145,6 @@ kern_proc_filedesc_out(struct proc *p,  struct sbuf *sb, ssize_t maxlen)
 	int error, i;
 	cap_rights_t rights;
 
-	td = curthread;
 	PROC_LOCK_ASSERT(p, MA_OWNED);
 
 	/* ktrace vnode */
@@ -3301,12 +3299,10 @@ sysctl_kern_proc_ofiledesc(SYSCTL_HANDLER_ARGS)
 	struct kinfo_ofile *okif;
 	struct kinfo_file *kif;
 	struct filedesc *fdp;
-	struct thread *td;
 	int error, i, *name;
 	struct file *fp;
 	struct proc *p;
 
-	td = curthread;
 	name = (int *)arg1;
 	error = pget((pid_t)name[0], PGET_CANDEBUG | PGET_NOTWEXIT, &p);
 	if (error != 0)
