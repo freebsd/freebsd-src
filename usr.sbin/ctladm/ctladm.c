@@ -3174,14 +3174,18 @@ cctl_create_lun(int fd, int argc, char **argv, char *combinedopt)
 		goto bailout;
 	}
 
-	if (req.status == CTL_LUN_ERROR) {
-		warnx("%s: error returned from LUN creation request:\n%s",
-		      __func__, req.error_str);
+	switch (req.status) {
+	case CTL_LUN_ERROR:
+		warnx("LUN creation error: %s", req.error_str);
 		retval = 1;
 		goto bailout;
-	} else if (req.status != CTL_LUN_OK) {
-		warnx("%s: unknown LUN creation request status %d",
-		      __func__, req.status);
+	case CTL_LUN_WARNING:
+		warnx("LUN creation warning: %s", req.error_str);
+		break;
+	case CTL_LUN_OK:
+		break;
+	default:
+		warnx("unknown LUN creation status: %d", req.status);
 		retval = 1;
 		goto bailout;
 	}
@@ -3320,19 +3324,23 @@ cctl_rm_lun(int fd, int argc, char **argv, char *combinedopt)
 		goto bailout;
 	}
 
-	if (req.status == CTL_LUN_ERROR) {
-		warnx("%s: error returned from LUN removal request:\n%s",
-		      __func__, req.error_str);
+	switch (req.status) {
+	case CTL_LUN_ERROR:
+		warnx("LUN removal error: %s", req.error_str);
 		retval = 1;
 		goto bailout;
-	} else if (req.status != CTL_LUN_OK) {
-		warnx("%s: unknown LUN removal request status %d",
-		      __func__, req.status);
+	case CTL_LUN_WARNING:
+		warnx("LUN removal warning: %s", req.error_str);
+		break;
+	case CTL_LUN_OK:
+		break;
+	default:
+		warnx("unknown LUN removal status: %d", req.status);
 		retval = 1;
 		goto bailout;
 	}
 
-	printf("LUN %d deleted successfully\n", lun_id);
+	printf("LUN %d removed successfully\n", lun_id);
 
 bailout:
 	return (retval);
@@ -3397,14 +3405,18 @@ cctl_modify_lun(int fd, int argc, char **argv, char *combinedopt)
 		goto bailout;
 	}
 
-	if (req.status == CTL_LUN_ERROR) {
-		warnx("%s: error returned from LUN modification request:\n%s",
-		      __func__, req.error_str);
+	switch (req.status) {
+	case CTL_LUN_ERROR:
+		warnx("LUN modification error: %s", req.error_str);
 		retval = 1;
 		goto bailout;
-	} else if (req.status != CTL_LUN_OK) {
-		warnx("%s: unknown LUN modification request status %d",
-		      __func__, req.status);
+	case CTL_LUN_WARNING:
+		warnx("LUN modification warning: %s", req.error_str);
+		break;
+	case CTL_LUN_OK:
+		break;
+	default:
+		warnx("unknown LUN modification status: %d", req.status);
 		retval = 1;
 		goto bailout;
 	}
