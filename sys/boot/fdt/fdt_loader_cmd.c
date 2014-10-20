@@ -310,10 +310,13 @@ fdt_setup_fdtp()
 
 	/*
 	 * If the U-boot environment contains a variable giving the address of a
-	 * valid blob in memory, use it.  Board vendors use both fdtaddr and
-	 * fdt_addr names.
+	 * valid blob in memory, use it.  The U-boot README says the right
+	 * variable for fdt data loaded into ram is fdt_addr_r, so try that
+	 * first.  Board vendors also use both fdtaddr and fdt_addr names.
 	 */
-	s = ub_env_get("fdtaddr");
+	s = ub_env_get("fdt_addr_r");
+	if (s == NULL)
+		s = ub_env_get("fdtaddr");
 	if (s == NULL)
 		s = ub_env_get("fdt_addr");
 	if (s != NULL && *s != '\0') {
