@@ -400,8 +400,8 @@ ctlfeasync(void *callback_arg, uint32_t code, struct cam_path *path, void *arg)
 		 * frontend structure itself.
 	 	 */
 		port->port_name = softc->port_name;
-		port->physical_port = cpi->unit_number;
-		port->virtual_port = cpi->bus_id;
+		port->physical_port = cpi->bus_id;
+		port->virtual_port = 0;
 		port->port_online = ctlfe_online;
 		port->port_offline = ctlfe_offline;
 		port->onoff_arg = softc;
