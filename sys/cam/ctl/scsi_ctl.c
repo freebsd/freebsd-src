@@ -230,7 +230,7 @@ static struct periph_driver ctlfe_driver =
 
 static struct ctl_frontend ctlfe_frontend =
 {
-	.name = "camtarget",
+	.name = "camtgt",
 	.init = ctlfeinitialize,
 	.fe_dump = ctlfe_dump,
 	.shutdown = ctlfeshutdown,
