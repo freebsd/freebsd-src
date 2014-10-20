@@ -543,7 +543,7 @@ iscsi_callout(void *context)
 	is->is_timeout++;
 
 	if (is->is_waiting_for_iscsid) {
-		if (is->is_timeout > iscsid_timeout) {
+		if (iscsid_timeout > 0 && is->is_timeout > iscsid_timeout) {
 			ISCSI_SESSION_WARN(is, "timed out waiting for iscsid(8) "
 			    "for %d seconds; reconnecting",
 			    is->is_timeout);
@@ -553,11 +553,21 @@ iscsi_callout(void *context)
 	}
 
 	if (is->is_login_phase) {
-		if (is->is_timeout > login_timeout) {
+		if (login_timeout > 0 && is->is_timeout > login_timeout) {
 			ISCSI_SESSION_WARN(is, "login timed out after %d seconds; "
 			    "reconnecting", is->is_timeout);
 			reconnect_needed = true;
 		}
+		goto out;
+	}
+
+	if (ping_timeout <= 0) {
+		/*
+		 * Pings are disabled.  Don't send NOP-Out in this case.
+		 * Reset the timeout, to avoid triggering reconnection,
+		 * should the user decide to reenable them.
+		 */
+		is->is_timeout = 0;
 		goto out;
 	}
 
