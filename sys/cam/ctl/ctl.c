@@ -293,7 +293,7 @@ static struct scsi_control_page control_page_changeable = {
 	/*page_length*/sizeof(struct scsi_control_page) - 2,
 	/*rlec*/SCP_DSENSE,
 	/*queue_flags*/SCP_QUEUE_ALG_MASK,
-	/*eca_and_aen*/0,
+	/*eca_and_aen*/SCP_SWP,
 	/*flags4*/0,
 	/*aen_holdoff_period*/{0, 0},
 	/*busy_timeout_period*/{0, 0},
@@ -4449,7 +4449,7 @@ ctl_alloc_lun(struct ctl_softc *ctl_softc, struct ctl_lun *ctl_lun,
 	struct ctl_port *port;
 	struct scsi_vpd_id_descriptor *desc;
 	struct scsi_vpd_id_t10 *t10id;
-	const char *eui, *naa, *scsiname, *vendor;
+	const char *eui, *naa, *scsiname, *vendor, *value;
 	int lun_number, i, lun_malloced;
 	int devidlen, idlen1, idlen2 = 0, len;
 
@@ -4610,6 +4610,10 @@ ctl_alloc_lun(struct ctl_softc *ctl_softc, struct ctl_lun *ctl_lun,
 
 	if (be_lun->flags & CTL_LUN_FLAG_PRIMARY)
 		lun->flags |= CTL_LUN_PRIMARY_SC;
+
+	value = ctl_get_opt(&be_lun->options, "readonly");
+	if (value != NULL && strcmp(value, "on") == 0)
+		lun->flags |= CTL_LUN_READONLY;
 
 	lun->ctl_softc = ctl_softc;
 	TAILQ_INIT(&lun->ooa_queue);
@@ -6221,6 +6225,14 @@ ctl_control_page_handler(struct ctl_scsiio *ctsio,
 		saved_cp->queue_flags |= user_cp->queue_flags & SCP_QUEUE_ALG_MASK;
 		set_ua = 1;
 	}
+	if ((current_cp->eca_and_aen & SCP_SWP) !=
+	    (user_cp->eca_and_aen & SCP_SWP)) {
+		current_cp->eca_and_aen &= ~SCP_SWP;
+		current_cp->eca_and_aen |= user_cp->eca_and_aen & SCP_SWP;
+		saved_cp->eca_and_aen &= ~SCP_SWP;
+		saved_cp->eca_and_aen |= user_cp->eca_and_aen & SCP_SWP;
+		set_ua = 1;
+	}
 	if (set_ua != 0) {
 		int i;
 		/*
@@ -7047,8 +7059,13 @@ ctl_mode_sense(struct ctl_scsiio *ctsio)
 		header = (struct scsi_mode_hdr_6 *)ctsio->kern_data_ptr;
 
 		header->datalen = ctl_min(total_len - 1, 254);
-		if (control_dev == 0)
+		if (control_dev == 0) {
 			header->dev_specific = 0x10; /* DPOFUA */
+			if ((lun->flags & CTL_LUN_READONLY) ||
+			    (lun->mode_pages.control_page[CTL_PAGE_CURRENT]
+			    .eca_and_aen & SCP_SWP) != 0)
+				    header->dev_specific |= 0x80; /* WP */
+		}
 		if (dbd)
 			header->block_descr_len = 0;
 		else
@@ -7065,8 +7082,13 @@ ctl_mode_sense(struct ctl_scsiio *ctsio)
 
 		datalen = ctl_min(total_len - 2, 65533);
 		scsi_ulto2b(datalen, header->datalen);
-		if (control_dev == 0)
+		if (control_dev == 0) {
 			header->dev_specific = 0x10; /* DPOFUA */
+			if ((lun->flags & CTL_LUN_READONLY) ||
+			    (lun->mode_pages.control_page[CTL_PAGE_CURRENT]
+			    .eca_and_aen & SCP_SWP) != 0)
+				    header->dev_specific |= 0x80; /* WP */
+		}
 		if (dbd)
 			scsi_ulto2b(0, header->block_descr_len);
 		else
@@ -11314,6 +11336,24 @@ ctl_scsiio_lun_check(struct ctl_softc *ctl_softc, struct ctl_lun *lun,
 		goto bailout;
 	}
 #endif
+
+	if (entry->pattern & CTL_LUN_PAT_WRITE) {
+		if (lun->flags & CTL_LUN_READONLY) {
+			ctl_set_sense(ctsio, /*current_error*/ 1,
+			    /*sense_key*/ SSD_KEY_DATA_PROTECT,
+			    /*asc*/ 0x27, /*ascq*/ 0x01, SSD_ELEM_NONE);
+			retval = 1;
+			goto bailout;
+		}
+		if ((lun->mode_pages.control_page[CTL_PAGE_CURRENT]
+		    .eca_and_aen & SCP_SWP) != 0) {
+			ctl_set_sense(ctsio, /*current_error*/ 1,
+			    /*sense_key*/ SSD_KEY_DATA_PROTECT,
+			    /*asc*/ 0x27, /*ascq*/ 0x02, SSD_ELEM_NONE);
+			retval = 1;
+			goto bailout;
+		}
+	}
 
 	/*
 	 * Check for a reservation conflict.  If this command isn't allowed

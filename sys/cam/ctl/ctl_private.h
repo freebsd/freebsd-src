@@ -198,7 +198,8 @@ typedef enum {
 	CTL_LUN_OFFLINE		= 0x080,
 	CTL_LUN_PR_RESERVED	= 0x100,
 	CTL_LUN_PRIMARY_SC	= 0x200,
-	CTL_LUN_SENSE_DESC	= 0x400
+	CTL_LUN_SENSE_DESC	= 0x400,
+	CTL_LUN_READONLY	= 0x800
 } ctl_lun_flags;
 
 typedef enum {

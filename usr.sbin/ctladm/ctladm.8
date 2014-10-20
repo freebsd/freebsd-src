@@ -34,7 +34,7 @@
 .\" $Id: //depot/users/kenm/FreeBSD-test2/usr.sbin/ctladm/ctladm.8#3 $
 .\" $FreeBSD$
 .\"
-.Dd September 13, 2014
+.Dd October 8, 2014
 .Dt CTLADM 8
 .Os
 .Sh NAME
@@ -961,6 +961,9 @@ This allows to offload copying between different iSCSI targets residing
 on the same host in trusted environments.
 .It Va readcache
 Set to "off", disables read caching for the LUN, if supported by the backend.
+.It Va readonly
+Set to "on", blocks all media write operations to the LUN, reporting it
+as write protected.
 .It Va reordering
 Set to "unrestricted", allows target to process commands with SIMPLE task
 attribute in arbitrary order.  Any data integrity exposures related to
