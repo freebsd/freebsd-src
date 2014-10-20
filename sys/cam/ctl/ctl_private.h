@@ -486,6 +486,7 @@ int ctl_mode_select(struct ctl_scsiio *ctsio);
 int ctl_mode_sense(struct ctl_scsiio *ctsio);
 int ctl_read_capacity(struct ctl_scsiio *ctsio);
 int ctl_read_capacity_16(struct ctl_scsiio *ctsio);
+int ctl_read_defect(struct ctl_scsiio *ctsio);
 int ctl_read_write(struct ctl_scsiio *ctsio);
 int ctl_cnw(struct ctl_scsiio *ctsio);
 int ctl_report_luns(struct ctl_scsiio *ctsio);
