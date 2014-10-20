@@ -106,6 +106,10 @@ static const char rcsid[] _U_ =
 #include "pcap-netfilter-linux.h"
 #endif
 
+#ifdef PCAP_SUPPORT_NETMAP
+pcap_t* pcap_netmap_create(const char *device, char *ebuf, int *is_ours);
+#endif
+
 int 
 pcap_not_initialized(pcap_t *pcap)
 {
@@ -301,6 +305,9 @@ struct capture_source_type {
 	int (*findalldevs_op)(pcap_if_t **, char *);
 	pcap_t *(*create_op)(const char *, char *, int *);
 } capture_source_types[] = {
+#ifdef PCAP_SUPPORT_NETMAP
+	{ NULL, pcap_netmap_create },
+#endif
 #ifdef HAVE_DAG_API
 	{ dag_findalldevs, dag_create },
 #endif

@@ -62,6 +62,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/systm.h>
 #include <sys/tty.h>
 #include <sys/ttycom.h>
+#include <sys/user.h>
 
 #include <machine/stdarg.h>
 
@@ -253,14 +254,6 @@ done:	ttydisc_rint_done(tp);
 }
 
 static int
-ptsdev_truncate(struct file *fp, off_t length, struct ucred *active_cred,
-    struct thread *td)
-{
-
-	return (EINVAL);
-}
-
-static int
 ptsdev_ioctl(struct file *fp, u_long cmd, void *data,
     struct ucred *active_cred, struct thread *td)
 {
@@ -269,6 +262,9 @@ ptsdev_ioctl(struct file *fp, u_long cmd, void *data,
 	int error = 0, sig;
 
 	switch (cmd) {
+	case FIODTYPE:
+		*(int *)data = D_TTY;
+		return (0);
 	case FIONBIO:
 		/* This device supports non-blocking operation. */
 		return (0);
@@ -588,10 +584,22 @@ ptsdev_close(struct file *fp, struct thread *td)
 	return (0);
 }
 
+static int
+ptsdev_fill_kinfo(struct file *fp, struct kinfo_file *kif, struct filedesc *fdp)
+{
+	struct tty *tp;
+
+	kif->kf_type = KF_TYPE_PTS;
+	tp = fp->f_data;
+	kif->kf_un.kf_pts.kf_pts_dev = tty_udev(tp);
+	strlcpy(kif->kf_path, tty_devname(tp), sizeof(kif->kf_path));
+	return (0);
+}
+
 static struct fileops ptsdev_ops = {
 	.fo_read	= ptsdev_read,
 	.fo_write	= ptsdev_write,
-	.fo_truncate	= ptsdev_truncate,
+	.fo_truncate	= invfo_truncate,
 	.fo_ioctl	= ptsdev_ioctl,
 	.fo_poll	= ptsdev_poll,
 	.fo_kqfilter	= ptsdev_kqfilter,
@@ -600,6 +608,7 @@ static struct fileops ptsdev_ops = {
 	.fo_chmod	= invfo_chmod,
 	.fo_chown	= invfo_chown,
 	.fo_sendfile	= invfo_sendfile,
+	.fo_fill_kinfo	= ptsdev_fill_kinfo,
 	.fo_flags	= DFLAG_PASSABLE,
 };
 

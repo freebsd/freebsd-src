@@ -1781,3 +1781,4 @@ ENTRY(memcpy)
 	strb	r1, [r0, #0x0b]
 	bx	lr
 #endif	/* !_STANDALONE */
+END(memcpy)

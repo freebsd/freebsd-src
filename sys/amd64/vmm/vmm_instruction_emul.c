@@ -65,9 +65,11 @@ enum {
 	VIE_OP_TYPE_MOVZX,
 	VIE_OP_TYPE_AND,
 	VIE_OP_TYPE_OR,
+	VIE_OP_TYPE_SUB,
 	VIE_OP_TYPE_TWO_BYTE,
 	VIE_OP_TYPE_PUSH,
 	VIE_OP_TYPE_CMP,
+	VIE_OP_TYPE_POP,
 	VIE_OP_TYPE_LAST
 };
 
@@ -96,6 +98,10 @@ static const struct vie_op one_byte_opcodes[256] = {
 	[0x0F] = {
 		.op_byte = 0x0F,
 		.op_type = VIE_OP_TYPE_TWO_BYTE
+	},
+	[0x2B] = {
+		.op_byte = 0x2B,
+		.op_type = VIE_OP_TYPE_SUB,
 	},
 	[0x3B] = {
 		.op_byte = 0x3B,
@@ -153,6 +159,11 @@ static const struct vie_op one_byte_opcodes[256] = {
 		.op_byte = 0x83,
 		.op_type = VIE_OP_TYPE_OR,
 		.op_flags = VIE_OP_F_IMM8,
+	},
+	[0x8F] = {
+		/* XXX Group 1A extended opcode - not just POP */
+		.op_byte = 0x8F,
+		.op_type = VIE_OP_TYPE_POP,
 	},
 	[0xFF] = {
 		/* XXX Group 5 extended opcode - not just PUSH */
@@ -311,46 +322,36 @@ vie_update_register(void *vm, int vcpuid, enum vm_reg_name reg,
 	return (error);
 }
 
+#define	RFLAGS_STATUS_BITS    (PSL_C | PSL_PF | PSL_AF | PSL_Z | PSL_N | PSL_V)
+
 /*
  * Return the status flags that would result from doing (x - y).
  */
-static u_long
-getcc16(uint16_t x, uint16_t y)
-{
-	u_long rflags;
+#define	GETCC(sz)							\
+static u_long								\
+getcc##sz(uint##sz##_t x, uint##sz##_t y)				\
+{									\
+	u_long rflags;							\
+									\
+	__asm __volatile("sub %2,%1; pushfq; popq %0" :			\
+	    "=r" (rflags), "+r" (x) : "m" (y));				\
+	return (rflags);						\
+} struct __hack
 
-	__asm __volatile("sub %1,%2; pushfq; popq %0" :
-	    "=r" (rflags) : "m" (y), "r" (x));
-	return (rflags);
-}
-
-static u_long
-getcc32(uint32_t x, uint32_t y)
-{
-	u_long rflags;
-
-	__asm __volatile("sub %1,%2; pushfq; popq %0" :
-	    "=r" (rflags) : "m" (y), "r" (x));
-	return (rflags);
-}
-
-static u_long
-getcc64(uint64_t x, uint64_t y)
-{
-	u_long rflags;
-
-	__asm __volatile("sub %1,%2; pushfq; popq %0" :
-	    "=r" (rflags) : "m" (y), "r" (x));
-	return (rflags);
-}
+GETCC(8);
+GETCC(16);
+GETCC(32);
+GETCC(64);
 
 static u_long
 getcc(int opsize, uint64_t x, uint64_t y)
 {
-	KASSERT(opsize == 2 || opsize == 4 || opsize == 8,
+	KASSERT(opsize == 1 || opsize == 2 || opsize == 4 || opsize == 8,
 	    ("getcc: invalid operand size %d", opsize));
 
-	if (opsize == 2)
+	if (opsize == 1)
+		return (getcc8(x, y));
+	else if (opsize == 2)
 		return (getcc16(x, y));
 	else if (opsize == 4)
 		return (getcc32(x, y));
@@ -564,7 +565,7 @@ emulate_and(void *vm, int vcpuid, uint64_t gpa, struct vie *vie,
 {
 	int error, size;
 	enum vm_reg_name reg;
-	uint64_t val1, val2;
+	uint64_t result, rflags, rflags2, val1, val2;
 
 	size = vie->opsize;
 	error = EINVAL;
@@ -592,23 +593,21 @@ emulate_and(void *vm, int vcpuid, uint64_t gpa, struct vie *vie,
 			break;
 
 		/* perform the operation and write the result */
-		val1 &= val2;
-		error = vie_update_register(vm, vcpuid, reg, val1, size);
+		result = val1 & val2;
+		error = vie_update_register(vm, vcpuid, reg, result, size);
 		break;
 	case 0x81:
 		/*
-		 * AND mem (ModRM:r/m) with immediate and store the
+		 * AND/OR mem (ModRM:r/m) with immediate and store the
 		 * result in mem.
 		 *
-		 * 81 /4		and r/m16, imm16
-		 * 81 /4		and r/m32, imm32
-		 * REX.W + 81 /4	and r/m64, imm32 sign-extended to 64
+		 * AND: i = 4
+		 * OR:  i = 1
+		 * 81 /i		op r/m16, imm16
+		 * 81 /i		op r/m32, imm32
+		 * REX.W + 81 /i	op r/m64, imm32 sign-extended to 64
 		 *
-		 * Currently, only the AND operation of the 0x81 opcode
-		 * is implemented (ModRM:reg = b100).
 		 */
-		if ((vie->reg & 7) != 4)
-			break;
 
 		/* get the first operand */
                 error = memread(vm, vcpuid, gpa, &val1, size, arg);
@@ -616,15 +615,48 @@ emulate_and(void *vm, int vcpuid, uint64_t gpa, struct vie *vie,
 			break;
 
                 /*
-		 * perform the operation with the pre-fetched immediate
-		 * operand and write the result
-		 */
-                val1 &= vie->immediate;
-                error = memwrite(vm, vcpuid, gpa, val1, size, arg);
+                 * perform the operation with the pre-fetched immediate
+                 * operand and write the result
+                 */
+		switch (vie->reg & 7) {
+		case 0x4:
+			/* modrm:reg == b100, AND */
+			result = val1 & vie->immediate;
+			break;
+		case 0x1:
+			/* modrm:reg == b001, OR */
+			result = val1 | vie->immediate;
+			break;
+		default:
+			error = EINVAL;
+			break;
+		}
+		if (error)
+			break;
+
+		error = memwrite(vm, vcpuid, gpa, result, size, arg);
 		break;
 	default:
 		break;
 	}
+	if (error)
+		return (error);
+
+	error = vie_read_register(vm, vcpuid, VM_REG_GUEST_RFLAGS, &rflags);
+	if (error)
+		return (error);
+
+	/*
+	 * OF and CF are cleared; the SF, ZF and PF flags are set according
+	 * to the result; AF is undefined.
+	 *
+	 * The updated status flags are obtained by subtracting 0 from 'result'.
+	 */
+	rflags2 = getcc(size, result, 0);
+	rflags &= ~RFLAGS_STATUS_BITS;
+	rflags |= rflags2 & (PSL_PF | PSL_Z | PSL_N);
+
+	error = vie_update_register(vm, vcpuid, VM_REG_GUEST_RFLAGS, rflags, 8);
 	return (error);
 }
 
@@ -633,7 +665,7 @@ emulate_or(void *vm, int vcpuid, uint64_t gpa, struct vie *vie,
 	    mem_region_read_t memread, mem_region_write_t memwrite, void *arg)
 {
 	int error, size;
-	uint64_t val1;
+	uint64_t val1, result, rflags, rflags2;
 
 	size = vie->opsize;
 	error = EINVAL;
@@ -663,16 +695,32 @@ emulate_or(void *vm, int vcpuid, uint64_t gpa, struct vie *vie,
 		 * perform the operation with the pre-fetched immediate
 		 * operand and write the result
 		 */
-                val1 |= vie->immediate;
-                error = memwrite(vm, vcpuid, gpa, val1, size, arg);
+                result = val1 | vie->immediate;
+                error = memwrite(vm, vcpuid, gpa, result, size, arg);
 		break;
 	default:
 		break;
 	}
+	if (error)
+		return (error);
+
+	error = vie_read_register(vm, vcpuid, VM_REG_GUEST_RFLAGS, &rflags);
+	if (error)
+		return (error);
+
+	/*
+	 * OF and CF are cleared; the SF, ZF and PF flags are set according
+	 * to the result; AF is undefined.
+	 *
+	 * The updated status flags are obtained by subtracting 0 from 'result'.
+	 */
+	rflags2 = getcc(size, result, 0);
+	rflags &= ~RFLAGS_STATUS_BITS;
+	rflags |= rflags2 & (PSL_PF | PSL_Z | PSL_N);
+
+	error = vie_update_register(vm, vcpuid, VM_REG_GUEST_RFLAGS, rflags, 8);
 	return (error);
 }
-
-#define	RFLAGS_STATUS_BITS    (PSL_C | PSL_PF | PSL_AF | PSL_Z | PSL_N | PSL_V)
 
 static int
 emulate_cmp(void *vm, int vcpuid, uint64_t gpa, struct vie *vie,
@@ -723,7 +771,63 @@ emulate_cmp(void *vm, int vcpuid, uint64_t gpa, struct vie *vie,
 }
 
 static int
-emulate_push(void *vm, int vcpuid, uint64_t mmio_gpa, struct vie *vie,
+emulate_sub(void *vm, int vcpuid, uint64_t gpa, struct vie *vie,
+	    mem_region_read_t memread, mem_region_write_t memwrite, void *arg)
+{
+	int error, size;
+	uint64_t nval, rflags, rflags2, val1, val2;
+	enum vm_reg_name reg;
+
+	size = vie->opsize;
+	error = EINVAL;
+
+	switch (vie->op.op_byte) {
+	case 0x2B:
+		/*
+		 * SUB r/m from r and store the result in r
+		 * 
+		 * 2B/r            SUB r16, r/m16
+		 * 2B/r            SUB r32, r/m32
+		 * REX.W + 2B/r    SUB r64, r/m64
+		 */
+
+		/* get the first operand */
+		reg = gpr_map[vie->reg];
+		error = vie_read_register(vm, vcpuid, reg, &val1);
+		if (error)
+			break;
+
+		/* get the second operand */
+		error = memread(vm, vcpuid, gpa, &val2, size, arg);
+		if (error)
+			break;
+
+		/* perform the operation and write the result */
+		nval = val1 - val2;
+		error = vie_update_register(vm, vcpuid, reg, nval, size);
+		break;
+	default:
+		break;
+	}
+
+	if (!error) {
+		rflags2 = getcc(size, val1, val2);
+		error = vie_read_register(vm, vcpuid, VM_REG_GUEST_RFLAGS,
+		    &rflags);
+		if (error)
+			return (error);
+
+		rflags &= ~RFLAGS_STATUS_BITS;
+		rflags |= rflags2 & RFLAGS_STATUS_BITS;
+		error = vie_update_register(vm, vcpuid, VM_REG_GUEST_RFLAGS,
+		    rflags, 8);
+	}
+
+	return (error);
+}
+
+static int
+emulate_stack_op(void *vm, int vcpuid, uint64_t mmio_gpa, struct vie *vie,
     struct vm_guest_paging *paging, mem_region_read_t memread,
     mem_region_write_t memwrite, void *arg)
 {
@@ -734,18 +838,12 @@ emulate_push(void *vm, int vcpuid, uint64_t mmio_gpa, struct vie *vie,
 #endif
 	struct seg_desc ss_desc;
 	uint64_t cr0, rflags, rsp, stack_gla, val;
-	int error, size, stackaddrsize;
+	int error, size, stackaddrsize, pushop;
 
-	/*
-	 * Table A-6, "Opcode Extensions", Intel SDM, Vol 2.
-	 *
-	 * PUSH is part of the group 5 extended opcodes and is identified
-	 * by ModRM:reg = b110.
-	 */
-	if ((vie->reg & 7) != 6)
-		return (EINVAL);
-
+	val = 0;
 	size = vie->opsize;
+	pushop = (vie->op.op_type == VIE_OP_TYPE_PUSH) ? 1 : 0;
+
 	/*
 	 * From "Address-Size Attributes for Stack Accesses", Intel SDL, Vol 1
 	 */
@@ -784,10 +882,13 @@ emulate_push(void *vm, int vcpuid, uint64_t mmio_gpa, struct vie *vie,
 
 	error = vie_read_register(vm, vcpuid, VM_REG_GUEST_RSP, &rsp);
 	KASSERT(error == 0, ("%s: error %d getting rsp", __func__, error));
+	if (pushop) {
+		rsp -= size;
+	}
 
-	rsp -= size;
 	if (vie_calculate_gla(paging->cpu_mode, VM_REG_GUEST_SS, &ss_desc,
-	    rsp, size, stackaddrsize, PROT_WRITE, &stack_gla)) {
+	    rsp, size, stackaddrsize, pushop ? PROT_WRITE : PROT_READ,
+	    &stack_gla)) {
 		vm_inject_ss(vm, vcpuid, 0);
 		return (0);
 	}
@@ -802,8 +903,8 @@ emulate_push(void *vm, int vcpuid, uint64_t mmio_gpa, struct vie *vie,
 		return (0);
 	}
 
-	error = vm_copy_setup(vm, vcpuid, paging, stack_gla, size, PROT_WRITE,
-	    copyinfo, nitems(copyinfo));
+	error = vm_copy_setup(vm, vcpuid, paging, stack_gla, size,
+	    pushop ? PROT_WRITE : PROT_READ, copyinfo, nitems(copyinfo));
 	if (error == -1) {
 		/*
 		 * XXX cannot return a negative error value here because it
@@ -816,16 +917,66 @@ emulate_push(void *vm, int vcpuid, uint64_t mmio_gpa, struct vie *vie,
 		return (0);
 	}
 
-	error = memread(vm, vcpuid, mmio_gpa, &val, size, arg);
-	if (error == 0) {
-		vm_copyout(vm, vcpuid, &val, copyinfo, size);
-		error = vie_update_register(vm, vcpuid, VM_REG_GUEST_RSP, rsp,
-		    stackaddrsize);
-		KASSERT(error == 0, ("error %d updating rsp", error));
+	if (pushop) {
+		error = memread(vm, vcpuid, mmio_gpa, &val, size, arg);
+		if (error == 0)
+			vm_copyout(vm, vcpuid, &val, copyinfo, size);
+	} else {
+		vm_copyin(vm, vcpuid, copyinfo, &val, size);
+		error = memwrite(vm, vcpuid, mmio_gpa, val, size, arg);
+		rsp += size;
 	}
 #ifdef _KERNEL
 	vm_copy_teardown(vm, vcpuid, copyinfo, nitems(copyinfo));
 #endif
+
+	if (error == 0) {
+		error = vie_update_register(vm, vcpuid, VM_REG_GUEST_RSP, rsp,
+		    stackaddrsize);
+		KASSERT(error == 0, ("error %d updating rsp", error));
+	}
+	return (error);
+}
+
+static int
+emulate_push(void *vm, int vcpuid, uint64_t mmio_gpa, struct vie *vie,
+    struct vm_guest_paging *paging, mem_region_read_t memread,
+    mem_region_write_t memwrite, void *arg)
+{
+	int error;
+
+	/*
+	 * Table A-6, "Opcode Extensions", Intel SDM, Vol 2.
+	 *
+	 * PUSH is part of the group 5 extended opcodes and is identified
+	 * by ModRM:reg = b110.
+	 */
+	if ((vie->reg & 7) != 6)
+		return (EINVAL);
+
+	error = emulate_stack_op(vm, vcpuid, mmio_gpa, vie, paging, memread,
+	    memwrite, arg);
+	return (error);
+}
+
+static int
+emulate_pop(void *vm, int vcpuid, uint64_t mmio_gpa, struct vie *vie,
+    struct vm_guest_paging *paging, mem_region_read_t memread,
+    mem_region_write_t memwrite, void *arg)
+{
+	int error;
+
+	/*
+	 * Table A-6, "Opcode Extensions", Intel SDM, Vol 2.
+	 *
+	 * POP is part of the group 1A extended opcodes and is identified
+	 * by ModRM:reg = b000.
+	 */
+	if ((vie->reg & 7) != 0)
+		return (EINVAL);
+
+	error = emulate_stack_op(vm, vcpuid, mmio_gpa, vie, paging, memread,
+	    memwrite, arg);
 	return (error);
 }
 
@@ -840,6 +991,10 @@ vmm_emulate_instruction(void *vm, int vcpuid, uint64_t gpa, struct vie *vie,
 		return (EINVAL);
 
 	switch (vie->op.op_type) {
+	case VIE_OP_TYPE_POP:
+		error = emulate_pop(vm, vcpuid, gpa, vie, paging, memread,
+		    memwrite, memarg);
+		break;
 	case VIE_OP_TYPE_PUSH:
 		error = emulate_push(vm, vcpuid, gpa, vie, paging, memread,
 		    memwrite, memarg);
@@ -863,6 +1018,10 @@ vmm_emulate_instruction(void *vm, int vcpuid, uint64_t gpa, struct vie *vie,
 		break;
 	case VIE_OP_TYPE_OR:
 		error = emulate_or(vm, vcpuid, gpa, vie,
+				    memread, memwrite, memarg);
+		break;
+	case VIE_OP_TYPE_SUB:
+		error = emulate_sub(vm, vcpuid, gpa, vie,
 				    memread, memwrite, memarg);
 		break;
 	default:

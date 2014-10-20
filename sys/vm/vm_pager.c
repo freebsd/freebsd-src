@@ -282,6 +282,33 @@ vm_pager_object_lookup(struct pagerlst *pg_list, void *handle)
 }
 
 /*
+ * Free the non-requested pages from the given array.
+ */
+void
+vm_pager_free_nonreq(vm_object_t object, vm_page_t ma[], int reqpage,
+    int npages)
+{
+	int i;
+	boolean_t object_locked;
+
+	VM_OBJECT_ASSERT_UNLOCKED(object);
+	object_locked = FALSE;
+	for (i = 0; i < npages; ++i) {
+		if (i != reqpage) {
+			if (!object_locked) {
+				VM_OBJECT_WLOCK(object);
+				object_locked = TRUE;
+			}
+			vm_page_lock(ma[i]);
+			vm_page_free(ma[i]);
+			vm_page_unlock(ma[i]);
+		}
+	}
+	if (object_locked)
+		VM_OBJECT_WUNLOCK(object);
+}
+
+/*
  * initialize a physical buffer
  */
 

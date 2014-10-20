@@ -107,6 +107,7 @@ static int	vtnet_alloc_virtqueues(struct vtnet_softc *);
 static int	vtnet_setup_interface(struct vtnet_softc *);
 static int	vtnet_change_mtu(struct vtnet_softc *, int);
 static int	vtnet_ioctl(struct ifnet *, u_long, caddr_t);
+static uint64_t	vtnet_get_counter(struct ifnet *, ift_counter);
 
 static int	vtnet_rxq_populate(struct vtnet_rxq *);
 static void	vtnet_rxq_free_mbufs(struct vtnet_rxq *);
@@ -160,11 +161,8 @@ static void	vtnet_qflush(struct ifnet *);
 #endif
 
 static int	vtnet_watchdog(struct vtnet_txq *);
-static void	vtnet_rxq_accum_stats(struct vtnet_rxq *,
-		    struct vtnet_rxq_stats *);
-static void	vtnet_txq_accum_stats(struct vtnet_txq *,
-		    struct vtnet_txq_stats *);
-static void	vtnet_accumulate_stats(struct vtnet_softc *);
+static void	vtnet_accum_stats(struct vtnet_softc *,
+		    struct vtnet_rxq_stats *, struct vtnet_txq_stats *);
 static void	vtnet_tick(void *);
 
 static void	vtnet_start_taskqueues(struct vtnet_softc *);
@@ -921,7 +919,7 @@ vtnet_setup_interface(struct vtnet_softc *sc)
 	ifp->if_flags = IFF_BROADCAST | IFF_SIMPLEX | IFF_MULTICAST;
 	ifp->if_init = vtnet_init;
 	ifp->if_ioctl = vtnet_ioctl;
-
+	ifp->if_get_counter = vtnet_get_counter;
 #ifndef VTNET_LEGACY_TX
 	ifp->if_transmit = vtnet_txq_mq_start;
 	ifp->if_qflush = vtnet_qflush;
@@ -947,7 +945,7 @@ vtnet_setup_interface(struct vtnet_softc *sc)
 		ifp->if_capabilities |= IFCAP_LINKSTATE;
 
 	/* Tell the upper layer(s) we support long frames. */
-	ifp->if_data.ifi_hdrlen = sizeof(struct ether_vlan_header);
+	ifp->if_hdrlen = sizeof(struct ether_vlan_header);
 	ifp->if_capabilities |= IFCAP_JUMBO_MTU | IFCAP_VLAN_MTU;
 
 	if (virtio_with_feature(dev, VIRTIO_NET_F_CSUM)) {
@@ -2573,74 +2571,62 @@ vtnet_watchdog(struct vtnet_txq *txq)
 }
 
 static void
-vtnet_rxq_accum_stats(struct vtnet_rxq *rxq, struct vtnet_rxq_stats *accum)
+vtnet_accum_stats(struct vtnet_softc *sc, struct vtnet_rxq_stats *rxacc,
+    struct vtnet_txq_stats *txacc)
 {
-	struct vtnet_rxq_stats *st;
 
-	st = &rxq->vtnrx_stats;
+	bzero(rxacc, sizeof(struct vtnet_rxq_stats));
+	bzero(txacc, sizeof(struct vtnet_txq_stats));
 
-	accum->vrxs_ipackets += st->vrxs_ipackets;
-	accum->vrxs_ibytes += st->vrxs_ibytes;
-	accum->vrxs_iqdrops += st->vrxs_iqdrops;
-	accum->vrxs_csum += st->vrxs_csum;
-	accum->vrxs_csum_failed += st->vrxs_csum_failed;
-	accum->vrxs_rescheduled += st->vrxs_rescheduled;
+	for (int i = 0; i < sc->vtnet_max_vq_pairs; i++) {
+		struct vtnet_rxq_stats *rxst;
+		struct vtnet_txq_stats *txst;
+
+		rxst = &sc->vtnet_rxqs[i].vtnrx_stats;
+		rxacc->vrxs_ipackets += rxst->vrxs_ipackets;
+		rxacc->vrxs_ibytes += rxst->vrxs_ibytes;
+		rxacc->vrxs_iqdrops += rxst->vrxs_iqdrops;
+		rxacc->vrxs_csum += rxst->vrxs_csum;
+		rxacc->vrxs_csum_failed += rxst->vrxs_csum_failed;
+		rxacc->vrxs_rescheduled += rxst->vrxs_rescheduled;
+
+		txst = &sc->vtnet_txqs[i].vtntx_stats;
+		txacc->vtxs_opackets += txst->vtxs_opackets;
+		txacc->vtxs_obytes += txst->vtxs_obytes;
+		txacc->vtxs_csum += txst->vtxs_csum;
+		txacc->vtxs_tso += txst->vtxs_tso;
+		txacc->vtxs_rescheduled += txst->vtxs_rescheduled;
+	}
 }
 
-static void
-vtnet_txq_accum_stats(struct vtnet_txq *txq, struct vtnet_txq_stats *accum)
+static uint64_t
+vtnet_get_counter(if_t ifp, ift_counter cnt)
 {
-	struct vtnet_txq_stats *st;
-
-	st = &txq->vtntx_stats;
-
-	accum->vtxs_opackets += st->vtxs_opackets;
-	accum->vtxs_obytes += st->vtxs_obytes;
-	accum->vtxs_csum += st->vtxs_csum;
-	accum->vtxs_tso += st->vtxs_tso;
-	accum->vtxs_rescheduled += st->vtxs_rescheduled;
-}
-
-static void
-vtnet_accumulate_stats(struct vtnet_softc *sc)
-{
-	struct ifnet *ifp;
-	struct vtnet_statistics *st;
+	struct vtnet_softc *sc;
 	struct vtnet_rxq_stats rxaccum;
 	struct vtnet_txq_stats txaccum;
-	int i;
 
-	ifp = sc->vtnet_ifp;
-	st = &sc->vtnet_stats;
-	bzero(&rxaccum, sizeof(struct vtnet_rxq_stats));
-	bzero(&txaccum, sizeof(struct vtnet_txq_stats));
+	sc = if_getsoftc(ifp);
+	vtnet_accum_stats(sc, &rxaccum, &txaccum);
 
-	for (i = 0; i < sc->vtnet_max_vq_pairs; i++) {
-		vtnet_rxq_accum_stats(&sc->vtnet_rxqs[i], &rxaccum);
-		vtnet_txq_accum_stats(&sc->vtnet_txqs[i], &txaccum);
-	}
-
-	st->rx_csum_offloaded = rxaccum.vrxs_csum;
-	st->rx_csum_failed = rxaccum.vrxs_csum_failed;
-	st->rx_task_rescheduled = rxaccum.vrxs_rescheduled;
-	st->tx_csum_offloaded = txaccum.vtxs_csum;
-	st->tx_tso_offloaded = txaccum.vtxs_tso;
-	st->tx_task_rescheduled = txaccum.vtxs_rescheduled;
-
-	/*
-	 * With the exception of if_ierrors, these ifnet statistics are
-	 * only updated in the driver, so just set them to our accumulated
-	 * values. if_ierrors is updated in ether_input() for malformed
-	 * frames that we should have already discarded.
-	 */
-	ifp->if_ipackets = rxaccum.vrxs_ipackets;
-	ifp->if_iqdrops = rxaccum.vrxs_iqdrops;
-	ifp->if_ierrors = rxaccum.vrxs_ierrors;
-	ifp->if_opackets = txaccum.vtxs_opackets;
+	switch (cnt) {
+	case IFCOUNTER_IPACKETS:
+		return (rxaccum.vrxs_ipackets);
+	case IFCOUNTER_IQDROPS:
+		return (rxaccum.vrxs_iqdrops);
+	case IFCOUNTER_IERRORS:
+		return (rxaccum.vrxs_ierrors);
+	case IFCOUNTER_OPACKETS:
+		return (txaccum.vtxs_opackets);
 #ifndef VTNET_LEGACY_TX
-	ifp->if_obytes = txaccum.vtxs_obytes;
-	ifp->if_omcasts = txaccum.vtxs_omcasts;
+	case IFCOUNTER_OBYTES:
+		return (txaccum.vtxs_obytes);
+	case IFCOUNTER_OMCASTS:
+		return (txaccum.vtxs_omcasts);
 #endif
+	default:
+		return (if_get_counter_default(ifp, cnt));
+	}
 }
 
 static void
@@ -2655,7 +2641,6 @@ vtnet_tick(void *xsc)
 	timedout = 0;
 
 	VTNET_CORE_LOCK_ASSERT(sc);
-	vtnet_accumulate_stats(sc);
 
 	for (i = 0; i < sc->vtnet_act_vq_pairs; i++)
 		timedout |= vtnet_watchdog(&sc->vtnet_txqs[i]);
@@ -3762,8 +3747,18 @@ vtnet_setup_stat_sysctl(struct sysctl_ctx_list *ctx,
     struct sysctl_oid_list *child, struct vtnet_softc *sc)
 {
 	struct vtnet_statistics *stats;
+	struct vtnet_rxq_stats rxaccum;
+	struct vtnet_txq_stats txaccum;
+
+	vtnet_accum_stats(sc, &rxaccum, &txaccum);
 
 	stats = &sc->vtnet_stats;
+	stats->rx_csum_offloaded = rxaccum.vrxs_csum;
+	stats->rx_csum_failed = rxaccum.vrxs_csum_failed;
+	stats->rx_task_rescheduled = rxaccum.vrxs_rescheduled;
+	stats->tx_csum_offloaded = txaccum.vtxs_csum;
+	stats->tx_tso_offloaded = txaccum.vtxs_tso;
+	stats->tx_task_rescheduled = txaccum.vtxs_rescheduled;
 
 	SYSCTL_ADD_UQUAD(ctx, child, OID_AUTO, "mbuf_alloc_failed",
 	    CTLFLAG_RD, &stats->mbuf_alloc_failed,

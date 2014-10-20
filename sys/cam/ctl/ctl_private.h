@@ -115,7 +115,9 @@ struct ctl_ioctl_info {
 
 typedef enum {
 	CTL_SER_BLOCK,
+	CTL_SER_BLOCKOPT,
 	CTL_SER_EXTENT,
+	CTL_SER_EXTENTOPT,
 	CTL_SER_PASS,
 	CTL_SER_SKIP
 } ctl_serialize_action;
@@ -196,7 +198,8 @@ typedef enum {
 	CTL_LUN_OFFLINE		= 0x080,
 	CTL_LUN_PR_RESERVED	= 0x100,
 	CTL_LUN_PRIMARY_SC	= 0x200,
-	CTL_LUN_SENSE_DESC	= 0x400
+	CTL_LUN_SENSE_DESC	= 0x400,
+	CTL_LUN_READONLY	= 0x800
 } ctl_lun_flags;
 
 typedef enum {
@@ -299,20 +302,21 @@ struct ctl_page_index {
 #define	CTL_PAGE_SAVED		0x03
 
 static const struct ctl_page_index page_index_template[] = {
+	{SMS_RW_ERROR_RECOVERY_PAGE, 0, sizeof(struct scsi_da_rw_recovery_page), NULL,
+	 CTL_PAGE_FLAG_DISK_ONLY, NULL, NULL},
 	{SMS_FORMAT_DEVICE_PAGE, 0, sizeof(struct scsi_format_page), NULL,
 	 CTL_PAGE_FLAG_DISK_ONLY, NULL, NULL},
 	{SMS_RIGID_DISK_PAGE, 0, sizeof(struct scsi_rigid_disk_page), NULL,
 	 CTL_PAGE_FLAG_DISK_ONLY, NULL, NULL},
 	{SMS_CACHING_PAGE, 0, sizeof(struct scsi_caching_page), NULL,
-	 CTL_PAGE_FLAG_DISK_ONLY, NULL, NULL},
+	 CTL_PAGE_FLAG_DISK_ONLY, NULL, ctl_caching_sp_handler},
 	{SMS_CONTROL_MODE_PAGE, 0, sizeof(struct scsi_control_page), NULL,
 	 CTL_PAGE_FLAG_NONE, NULL, ctl_control_page_handler},
-   	{SMS_VENDOR_SPECIFIC_PAGE | SMPH_SPF, PWR_SUBPAGE_CODE,
-	 sizeof(struct copan_power_subpage), NULL, CTL_PAGE_FLAG_NONE,
-	 ctl_power_sp_sense_handler, ctl_power_sp_handler},
-	{SMS_VENDOR_SPECIFIC_PAGE | SMPH_SPF, APS_SUBPAGE_CODE,
-	 sizeof(struct copan_aps_subpage), NULL, CTL_PAGE_FLAG_NONE,
-	 NULL, ctl_aps_sp_handler},
+	{SMS_INFO_EXCEPTIONS_PAGE, 0, sizeof(struct scsi_info_exceptions_page), NULL,
+	 CTL_PAGE_FLAG_NONE, NULL, NULL},
+	{SMS_INFO_EXCEPTIONS_PAGE | SMPH_SPF, 0x02,
+	 sizeof(struct scsi_logical_block_provisioning_page), NULL,
+	 CTL_PAGE_FLAG_DISK_ONLY, NULL, NULL},
 	{SMS_VENDOR_SPECIFIC_PAGE | SMPH_SPF, DBGCNF_SUBPAGE_CODE,
 	 sizeof(struct copan_debugconf_subpage), NULL, CTL_PAGE_FLAG_NONE,
 	 ctl_debugconf_sp_sense_handler, ctl_debugconf_sp_select_handler},
@@ -322,14 +326,31 @@ static const struct ctl_page_index page_index_template[] = {
 			   sizeof(page_index_template[0])
 
 struct ctl_mode_pages {
+	struct scsi_da_rw_recovery_page	rw_er_page[4];
 	struct scsi_format_page		format_page[4];
 	struct scsi_rigid_disk_page	rigid_disk_page[4];
 	struct scsi_caching_page	caching_page[4];
 	struct scsi_control_page	control_page[4];
-	struct copan_power_subpage	power_subpage[4];
-	struct copan_aps_subpage	aps_subpage[4];
+	struct scsi_info_exceptions_page ie_page[4];
+	struct scsi_logical_block_provisioning_page lbp_page[4];
 	struct copan_debugconf_subpage	debugconf_subpage[4];
 	struct ctl_page_index		index[CTL_NUM_MODE_PAGES];
+};
+
+static const struct ctl_page_index log_page_index_template[] = {
+	{SLS_SUPPORTED_PAGES_PAGE, 0, 0, NULL,
+	 CTL_PAGE_FLAG_NONE, NULL, NULL},
+	{SLS_SUPPORTED_PAGES_PAGE, SLS_SUPPORTED_SUBPAGES_SUBPAGE, 0, NULL,
+	 CTL_PAGE_FLAG_NONE, NULL, NULL},
+};
+
+#define	CTL_NUM_LOG_PAGES sizeof(log_page_index_template)/   \
+			  sizeof(log_page_index_template[0])
+
+struct ctl_log_pages {
+	uint8_t				pages_page[CTL_NUM_LOG_PAGES];
+	uint8_t				subpages_page[CTL_NUM_LOG_PAGES * 2];
+	struct ctl_page_index		index[CTL_NUM_LOG_PAGES];
 };
 
 struct ctl_lun_delay_info {
@@ -349,11 +370,6 @@ typedef enum {
 	CTL_PR_FLAG_REGISTERED	= 0x01,
 	CTL_PR_FLAG_ACTIVE_RES	= 0x02
 } ctl_per_res_flags;
-
-struct ctl_per_res_info {
-	struct scsi_per_res_key res_key;
-	uint8_t  registered;
-};
 
 #define CTL_PR_ALL_REGISTRANTS  0xFFFFFFFF
 #define CTL_PR_NO_RESERVATION   0xFFFFFFF0
@@ -387,16 +403,17 @@ struct ctl_lun {
 	TAILQ_HEAD(ctl_blockq,ctl_io_hdr) blocked_queue;
 	STAILQ_ENTRY(ctl_lun)		links;
 	STAILQ_ENTRY(ctl_lun)		run_links;
-	struct ctl_nexus		rsv_nexus;
 #ifdef CTL_WITH_CA
 	uint32_t			have_ca[CTL_MAX_INITIATORS >> 5];
 	struct scsi_sense_data		pending_sense[CTL_MAX_INITIATORS];
 #endif
 	ctl_ua_type			pending_ua[CTL_MAX_INITIATORS];
 	struct ctl_mode_pages		mode_pages;
+	struct ctl_log_pages		log_pages;
 	struct ctl_lun_io_stats		stats;
-	struct ctl_per_res_info		per_res[2*CTL_MAX_INITIATORS];
+	uint32_t			res_idx;
 	unsigned int			PRGeneration;
+	uint64_t			pr_keys[2*CTL_MAX_INITIATORS];
 	int				pr_key_count;
 	uint32_t			pr_res_idx;
 	uint8_t				res_type;
@@ -441,10 +458,9 @@ struct ctl_softc {
 	struct ctl_io_pool *othersc_pool;
 	struct proc *ctl_proc;
 	int targ_online;
-	uint32_t ctl_lun_mask[CTL_MAX_LUNS >> 5];
+	uint32_t ctl_lun_mask[(CTL_MAX_LUNS + 31) / 32];
 	struct ctl_lun *ctl_luns[CTL_MAX_LUNS];
-	uint32_t ctl_port_mask;
-	uint64_t aps_locked_lun;
+	uint32_t ctl_port_mask[(CTL_MAX_PORTS + 31) / 32];
 	STAILQ_HEAD(, ctl_lun) lun_list;
 	STAILQ_HEAD(, ctl_be_lun) pending_lun_queue;
 	uint32_t num_frontends;
@@ -458,8 +474,6 @@ struct ctl_softc {
 	uint32_t num_pools;
 	uint32_t cur_pool_id;
 	STAILQ_HEAD(, ctl_io_pool) io_pools;
-	time_t last_print_jiffies;
-	uint32_t skipped_prints;
 	struct ctl_thread threads[CTL_MAX_THREADS];
 	TAILQ_HEAD(tpc_tokens, tpc_token) tpc_tokens;
 	struct callout tpc_timeout;
@@ -486,8 +500,10 @@ int ctl_write_same(struct ctl_scsiio *ctsio);
 int ctl_unmap(struct ctl_scsiio *ctsio);
 int ctl_mode_select(struct ctl_scsiio *ctsio);
 int ctl_mode_sense(struct ctl_scsiio *ctsio);
+int ctl_log_sense(struct ctl_scsiio *ctsio);
 int ctl_read_capacity(struct ctl_scsiio *ctsio);
 int ctl_read_capacity_16(struct ctl_scsiio *ctsio);
+int ctl_read_defect(struct ctl_scsiio *ctsio);
 int ctl_read_write(struct ctl_scsiio *ctsio);
 int ctl_cnw(struct ctl_scsiio *ctsio);
 int ctl_report_luns(struct ctl_scsiio *ctsio);

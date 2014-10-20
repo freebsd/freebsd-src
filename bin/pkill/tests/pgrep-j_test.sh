@@ -1,7 +1,23 @@
 #!/bin/sh
 # $FreeBSD$
 
-base=`basename $0`
+jail_name_to_jid()
+{
+	local check_name="$1"
+	(
+		line="$(jls -n 2> /dev/null | grep  name=$check_name  )"
+		for nv in $line; do
+			local name="${nv%=*}"
+			if [ "${name}" = "jid" ]; then
+				eval $nv
+				echo $jid
+				break
+			fi
+		done
+	)
+}
+
+base=pgrep_j_test
 
 echo "1..3"
 
@@ -9,21 +25,25 @@ name="pgrep -j <jid>"
 if [ `id -u` -eq 0 ]; then
 	sleep=$(pwd)/sleep.txt
 	ln -sf /bin/sleep $sleep
-	jail / $base-1 127.0.0.1 $sleep 5 &
-	chpid=$!
-	jail / $base-2 127.0.0.1 $sleep 5 &
-	chpid2=$!
-	$sleep 5 &
-	chpid3=$!
-	sleep 0.5
-	jid=`jls | awk "/127\\.0\\.0\\.1.*${base}-1/ {print \$1}"`
-	pid=`pgrep -f -j $jid $sleep`
-	if [ "$pid" = "$chpid" ]; then
+	jail -c path=/ name=${base}_1_1 ip4.addr=127.0.0.1 \
+	    command=daemon -p ${PWD}/${base}_1_1.pid $sleep 5 &
+
+	jail -c path=/ name=${base}_1_2 ip4.addr=127.0.0.1 \
+	    command=daemon -p ${PWD}/${base}_1_2.pid $sleep 5 &
+
+	jid1=$(jail_name_to_jid ${base}_1_1)
+	jid2=$(jail_name_to_jid ${base}_1_2)
+	jid="${jid1},${jid2}"
+	pid1="$(pgrep -f -x -j $jid "$sleep 5" | sort)"
+	pid2=$(printf "%s\n%s" "$(cat ${PWD}/${base}_1_1.pid)" \
+	    $(cat ${PWD}/${base}_1_2.pid) | sort)
+	if [ "$pid1" = "$pid2" ]; then
 		echo "ok 1 - $name"
 	else
 		echo "not ok 1 - $name"
 	fi
-	kill $chpid $chpid2 $chpid3
+	[ -f ${PWD}/${base}_1_1.pid ] && kill $(cat ${PWD}/${base}_1_1.pid)
+	[ -f ${PWD}/${base}_1_2.pid ] && kill $(cat ${PWD}/${base}_1_2.pid)
 	rm -f $sleep
 else
 	echo "ok 1 - $name # skip Test needs uid 0."
@@ -33,21 +53,23 @@ name="pgrep -j any"
 if [ `id -u` -eq 0 ]; then
 	sleep=$(pwd)/sleep.txt
 	ln -sf /bin/sleep $sleep
-	jail / $base-1 127.0.0.1 $sleep 5 &
-	chpid=$!
-	jail / $base-2 127.0.0.1 $sleep 5 &
-	chpid2=$!
-	$sleep 5 &
-	chpid3=$!
-	sleep 0.5
-	pids=`pgrep -f -j any $sleep | sort`
-	refpids=`{ echo $chpid; echo $chpid2; } | sort`
-	if [ "$pids" = "$refpids" ]; then
+	jail -c path=/ name=${base}_2_1 ip4.addr=127.0.0.1 \
+	    command=daemon -p ${PWD}/${base}_2_1.pid $sleep 5 &
+
+	jail -c path=/ name=${base}_2_2 ip4.addr=127.0.0.1 \
+	    command=daemon -p ${PWD}/${base}_2_2.pid $sleep 5 &
+
+	sleep 2
+	pid1="$(pgrep -f -x -j any "$sleep 5" | sort)"
+	pid2=$(printf "%s\n%s" "$(cat ${PWD}/${base}_2_1.pid)" \
+	    $(cat ${PWD}/${base}_2_2.pid) | sort)
+	if [ "$pid1" = "$pid2" ]; then
 		echo "ok 2 - $name"
 	else
 		echo "not ok 2 - $name"
 	fi
-	kill $chpid $chpid2 $chpid3
+	[ -f ${PWD}/${base}_2_1.pid ] && kill $(cat ${PWD}/${base}_2_1.pid)
+	[ -f ${PWD}/${base}_2_2.pid ] && kill $(cat ${PWD}/${base}_2_2.pid)
 	rm -f $sleep
 else
 	echo "ok 2 - $name # skip Test needs uid 0."
@@ -57,19 +79,19 @@ name="pgrep -j none"
 if [ `id -u` -eq 0 ]; then
 	sleep=$(pwd)/sleep.txt
 	ln -sf /bin/sleep $sleep
-	$sleep 5 &
-	chpid=$!
-	jail / $base 127.0.0.1 $sleep 5 &
-	chpid2=$!
-	sleep 0.5
-	pid=`pgrep -f -j none $sleep`
-	if [ "$pid" = "$chpid" ]; then
+	daemon -p ${PWD}/${base}_3_1.pid $sleep 5 &
+	jail -c path=/ name=${base}_3_2 ip4.addr=127.0.0.1 \
+	    command=daemon -p ${PWD}/${base}_3_2.pid $sleep 5 &
+	sleep 2
+	pid="$(pgrep -f -x -j none "$sleep 5")"
+	if [ "$pid" = "$(cat ${PWD}/${base}_3_1.pid)" ]; then
 		echo "ok 3 - $name"
 	else
 		echo "not ok 3 - $name"
 	fi
-	kill $chpid $chpid2
 	rm -f $sleep
+	[ -f ${PWD}/${base}_3_1.pid ] && kill $(cat $PWD/${base}_3_1.pid) 
+	[ -f ${PWD}/${base}_3_2.pid ] && kill $(cat $PWD/${base}_3_2.pid) 
 else
 	echo "ok 3 - $name # skip Test needs uid 0."
 fi

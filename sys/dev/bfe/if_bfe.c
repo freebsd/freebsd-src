@@ -514,7 +514,7 @@ bfe_attach(device_t dev)
 	/*
 	 * Tell the upper layer(s) we support long frames.
 	 */
-	ifp->if_data.ifi_hdrlen = sizeof(struct ether_vlan_header);
+	ifp->if_hdrlen = sizeof(struct ether_vlan_header);
 	ifp->if_capabilities |= IFCAP_VLAN_MTU;
 	ifp->if_capenable |= IFCAP_VLAN_MTU;
 
@@ -1310,22 +1310,22 @@ bfe_stats_update(struct bfe_softc *sc)
 	stats->rx_control_frames += mib[MIB_RX_NPAUSE];
 
 	/* Update counters in ifnet. */
-	ifp->if_opackets += (u_long)mib[MIB_TX_GOOD_P];
-	ifp->if_collisions += (u_long)mib[MIB_TX_TCOLS];
-	ifp->if_oerrors += (u_long)mib[MIB_TX_URUNS] +
+	if_inc_counter(ifp, IFCOUNTER_OPACKETS, (u_long)mib[MIB_TX_GOOD_P]);
+	if_inc_counter(ifp, IFCOUNTER_COLLISIONS, (u_long)mib[MIB_TX_TCOLS]);
+	if_inc_counter(ifp, IFCOUNTER_OERRORS, (u_long)mib[MIB_TX_URUNS] +
 	    (u_long)mib[MIB_TX_ECOLS] +
 	    (u_long)mib[MIB_TX_DEFERED] +
-	    (u_long)mib[MIB_TX_CLOST];
+	    (u_long)mib[MIB_TX_CLOST]);
 
-	ifp->if_ipackets += (u_long)mib[MIB_RX_GOOD_P];
+	if_inc_counter(ifp, IFCOUNTER_IPACKETS, (u_long)mib[MIB_RX_GOOD_P]);
 
-	ifp->if_ierrors += mib[MIB_RX_JABBER] +
+	if_inc_counter(ifp, IFCOUNTER_IERRORS, mib[MIB_RX_JABBER] +
 	    mib[MIB_RX_MISS] +
 	    mib[MIB_RX_CRCA] +
 	    mib[MIB_RX_USIZE] +
 	    mib[MIB_RX_CRC] +
 	    mib[MIB_RX_ALIGN] +
-	    mib[MIB_RX_SYM];
+	    mib[MIB_RX_SYM]);
 }
 
 static void
@@ -1403,7 +1403,7 @@ bfe_rxeof(struct bfe_softc *sc)
 		 * reuse mapped buffer from errored frame. 
 		 */
 		if (bfe_list_newbuf(sc, cons) != 0) {
-			ifp->if_iqdrops++;
+			if_inc_counter(ifp, IFCOUNTER_IQDROPS, 1);
 			bfe_discard_buf(sc, cons);
 			continue;
 		}
@@ -1818,7 +1818,7 @@ bfe_watchdog(struct bfe_softc *sc)
 
 	device_printf(sc->bfe_dev, "watchdog timeout -- resetting\n");
 
-	ifp->if_oerrors++;
+	if_inc_counter(ifp, IFCOUNTER_OERRORS, 1);
 	ifp->if_drv_flags &= ~IFF_DRV_RUNNING;
 	bfe_init_locked(sc);
 

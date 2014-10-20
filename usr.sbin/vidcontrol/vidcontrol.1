@@ -1,5 +1,5 @@
 .\"
-.\" vidcontrol - a utility for manipulating the syscons video driver
+.\" vidcontrol - a utility for manipulating the syscons or vt video driver
 .\"
 .\" Redistribution and use in source and binary forms, with or without
 .\" modification, are permitted provided that the following conditions
@@ -48,9 +48,15 @@ The
 .Nm
 utility is used to set various options for the
 .Xr syscons 4
+or
+.Xr vt 4
 console driver,
 such as video mode, colors, cursor shape, screen output map, font and screen
 saver timeout.
+Only a small subset of options is supported by
+.Xr vt 4 .
+Unsupported options lead to error messages, typically including
+the text "Inappropriate ioctl for device".
 .Pp
 The following command line options are supported:
 .Bl -tag -width indent
@@ -158,8 +164,11 @@ See also
 .Sx Video Mode Support
 and
 .Sx EXAMPLES
-below and the man page for
-.Xr syscons 4 .
+below and the man page for either
+.Xr syscons 4
+or
+.Xr vt 4
+(depending on which driver you use).
 .It Fl g Ar geometry
 Set the
 .Ar geometry
@@ -185,7 +194,10 @@ Shows the possible video modes with the current video hardware.
 Install screen output map file from
 .Ar screen_map .
 See also
-.Xr syscons 4 .
+.Xr syscons 4
+or
+.Xr vt 4
+(depending on which driver you use).
 .It Fl L
 Install default screen output map.
 .It Fl M Ar char
@@ -307,12 +319,18 @@ kernel with the
 option.
 See
 .Xr syscons 4
+or
+.Xr vt 4
+(depending on which driver you use)
 for more details on this kernel option.
 .Ss Format of Video Buffer Dump
 The
 .Nm
 utility uses the
 .Xr syscons 4
+.\" is it supported on vt(4)???
+or
+.Xr vt 4
 .Dv CONS_SCRSHOT
 .Xr ioctl 2
 to capture the current contents of the video buffer.
@@ -453,9 +471,12 @@ for details.
 .Sh FILES
 .Bl -tag -width /usr/share/syscons/scrnmaps/foo-bar -compact
 .It Pa /usr/share/syscons/fonts/*
+.It Pa /usr/share/vt/fonts/*
 font files.
 .It Pa /usr/share/syscons/scrnmaps/*
-screen output map files.
+screen output map files (relevant for
+.Xr syscons 4
+only).
 .El
 .Sh EXAMPLES
 If you want to load
@@ -467,7 +488,10 @@ as:
 .Dl vidcontrol -f 8x16 /usr/share/syscons/fonts/iso-8x16.fnt
 .Pp
 So long as the font file is in
-.Pa /usr/share/syscons/fonts ,
+.Pa /usr/share/syscons/fonts
+(if using syscons) or
+.Pa /usr/share/vt/fonts
+(if using vt),
 you may abbreviate the file name as
 .Pa iso-8x16 :
 .Pp
@@ -521,6 +545,7 @@ to the standard output in the human readable format:
 .Xr screen 4 ,
 .Xr syscons 4 ,
 .Xr vga 4 ,
+.Xr vt 4 ,
 .Xr rc.conf 5 ,
 .Xr kldload 8 ,
 .Xr moused 8 ,

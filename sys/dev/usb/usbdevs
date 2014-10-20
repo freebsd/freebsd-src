@@ -713,6 +713,7 @@ vendor LONGCHEER	0x1c9e	Longcheer Holdings, Ltd.
 vendor MPMAN		0x1cae	MpMan
 vendor DRESDENELEKTRONIK 0x1cf1 dresden elektronik
 vendor NEOTEL		0x1d09	Neotel
+vendor DREAMLINK	0x1d34	Dream Link
 vendor PEGATRON		0x1d4d	Pegatron
 vendor QISDA		0x1da5  Qisda
 vendor METAGEEK2	0x1dd5	MetaGeek
@@ -1486,6 +1487,7 @@ product COREGA FETHER_USB_TXC	0x9601	FEther USB-TXC
 
 /* Corsair products */
 product CORSAIR K60		0x0a60	Corsair Vengeance K60 keyboard
+product CORSAIR K70		0x1b09	Corsair Vengeance K70 keyboard
 
 /* Creative products */
 product CREATIVE NOMAD_II	0x1002	Nomad II MP3 player
@@ -1656,9 +1658,13 @@ product DMI DISK		0x2bcf	Generic Disk
 /* DrayTek products */
 product DRAYTEK VIGOR550	0x0550	Vigor550
 
+/* Dream Link products */
+product DREAMLINK DL100B	0x0004	USB Webmail Notifier
+
 /* dresden elektronik products */
 product DRESDENELEKTRONIK SENSORTERMINALBOARD  0x0001 SensorTerminalBoard
 product DRESDENELEKTRONIK WIRELESSHANDHELDTERMINAL  0x0004 Wireless Handheld Terminal
+product DRESDENELEKTRONIK DE_RFNODE                 0x001c deRFnode
 product DRESDENELEKTRONIK LEVELSHIFTERSTICKLOWCOST  0x0022 Levelshifter Stick Low Cost
 
 /* Dynastream Innovations */
@@ -2224,6 +2230,8 @@ product HP 3300C		0x0205	ScanJet 3300C
 product HP CDW8200		0x0207	CD-Writer Plus 8200e
 product HP MMKEYB		0x020c	Multimedia keyboard
 product HP 1220C		0x0212	DeskJet 1220C
+product HP UN2420_QDL		0x241d	UN2420 QDL Firmware Loader
+product HP UN2420		0x251d	UN2420 WWAN/GPS Module
 product HP 810C			0x0304	DeskJet 810C/812C
 product HP 4300C		0x0305	Scanjet 4300C
 product HP CDW4E		0x0307	CD-Writer+ CD-4e
@@ -2339,13 +2347,17 @@ product HUAWEI K4505		0x1464	3G modem
 product HUAWEI K3765		0x1465	3G modem
 product HUAWEI E1820		0x14ac	E1820 HSPA+ USB Slider
 product HUAWEI K3770		0x14c9  3G modem
+product HUAWEI K3772		0x14cf	K3772
 product HUAWEI K3770_INIT	0x14d1  K3770 Initial
 product HUAWEI E3131_INIT	0x14fe	3G modem initial
 product HUAWEI E392		0x1505	LTE modem
 product HUAWEI E3131		0x1506	3G modem
 product HUAWEI K3765_INIT	0x1520	K3765 Initial
 product HUAWEI K4505_INIT	0x1521	K4505 Initial
+product HUAWEI K3772_INIT	0x1526	K3772 Initial
 product HUAWEI E3272_INIT	0x155b	LTE modem initial
+product HUAWEI R215_INIT	0x1582	LTE modem initial
+product HUAWEI R215		0x1588	LTE modem
 product HUAWEI ETS2055		0x1803	CDMA modem
 product HUAWEI E173		0x1c05	3G modem
 product HUAWEI E173_INIT	0x1c0b	3G modem initial
@@ -3626,7 +3638,8 @@ product QUALCOMMINC E0078	0x0078	3G modem
 product QUALCOMMINC E0082	0x0082	3G modem
 product QUALCOMMINC E0086	0x0086	3G modem
 product QUALCOMMINC SURFSTICK	0x0117	1&1 Surf Stick
-product QUALCOMMINC K3772_Z	0x1179	3G modem
+product QUALCOMMINC K3772_Z_INIT	0x1179	K3772-Z Initial
+product QUALCOMMINC K3772_Z	0x1181	K3772-Z
 product QUALCOMMINC ZTE_STOR	0x2000	USB ZTE Storage
 product QUALCOMMINC E2002	0x2002	3G modem
 product QUALCOMMINC E2003	0x2003	3G modem
@@ -3710,6 +3723,7 @@ product REALTEK RTL8191CU	0x8177	RTL8191CU
 product REALTEK RTL8192CU	0x8178	RTL8192CU
 product REALTEK RTL8192CE	0x817c	RTL8192CE
 product REALTEK RTL8188RU_1	0x817d	RTL8188RU
+product REALTEK RTL8188RU_3	0x817f	RTL8188RU
 product REALTEK RTL8712		0x8712	RTL8712
 product REALTEK RTL8713		0x8712	RTL8713
 product REALTEK RTL8188RU_2	0x317f	RTL8188RU
@@ -4128,6 +4142,23 @@ product SMC 2862WG		0xee13	EZ Connect Wireless Adapter
 product SMC2 2020HUB		0x2020	USB Hub
 product SMC2 2514HUB		0x2514	USB Hub
 product SMC3 2662WUSB		0xa002	2662W-AR Wireless
+product SMC2 LAN9500_ETH	0x9500	USB/Ethernet
+product SMC2 LAN9505_ETH	0x9505	USB/Ethernet
+product SMC2 LAN9530_ETH	0x9530	USB/Ethernet
+product SMC2 LAN9730_ETH	0x9730	USB/Ethernet
+product SMC2 LAN9500_SAL10	0x9900	USB/Ethernet
+product SMC2 LAN9505_SAL10	0x9901	USB/Ethernet
+product SMC2 LAN9500A_SAL10	0x9902	USB/Ethernet
+product SMC2 LAN9505A_SAL10	0x9903	USB/Ethernet
+product SMC2 LAN9514_SAL10	0x9904	USB/Ethernet
+product SMC2 LAN9500A_HAL	0x9905	USB/Ethernet
+product SMC2 LAN9505A_HAL	0x9906	USB/Ethernet
+product SMC2 LAN9500_ETH_2	0x9907	USB/Ethernet
+product SMC2 LAN9500A_ETH_2	0x9908	USB/Ethernet
+product SMC2 LAN9514_ETH_2	0x9909	USB/Ethernet
+product SMC2 LAN9500A_ETH	0x9e00	USB/Ethernet
+product SMC2 LAN9505A_ETH	0x9e01	USB/Ethernet
+product SMC2 LAN89530_ETH	0x9e08	USB/Ethernet
 product SMC2 LAN9514_ETH	0xec00	USB/Ethernet
 
 /* SOHOware products */

@@ -37,6 +37,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/module.h>
 #include <sys/resource.h>
 #include <sys/rman.h>
+#include <sys/sysctl.h>
 #include <sys/taskqueue.h>
 
 #include <machine/bus.h>
@@ -493,15 +494,21 @@ ti_sdhci_attach(device_t dev)
 	 * Set the offset from the device's memory start to the MMCHS registers.
 	 * Also for OMAP4 disable high speed mode due to erratum ID i626.
 	 */
-	if (ti_chip() == CHIP_OMAP_3)
-		sc->mmchs_reg_off = OMAP3_MMCHS_REG_OFFSET;
-	else if (ti_chip() == CHIP_OMAP_4) {
+	switch (ti_chip()) {
+#ifdef SOC_OMAP4
+	case CHIP_OMAP_4:
 		sc->mmchs_reg_off = OMAP4_MMCHS_REG_OFFSET;
 		sc->disable_highspeed = true;
-        } else if (ti_chip() == CHIP_AM335X)
+		break;
+#endif
+#ifdef SOC_TI_AM335X
+	case CHIP_AM335X:
 		sc->mmchs_reg_off = AM335X_MMCHS_REG_OFFSET;
-	else
+		break;
+#endif
+	default:
 		panic("Unknown OMAP device\n");
+	}
 
 	/*
 	 * The standard SDHCI registers are at a fixed offset (the same on all

@@ -51,7 +51,9 @@ driver, provides access to the AT 84 keyboard or the AT enhanced keyboard
 which is connected to the AT keyboard controller.
 .Pp
 This driver is required for the console driver
-.Xr syscons 4 .
+.Xr syscons 4
+or
+.Xr vt 4 .
 .Pp
 There can be only one
 .Nm
@@ -211,6 +213,7 @@ In both cases, you also need to have following lines in
 .Xr atkbdc 4 ,
 .Xr psm 4 ,
 .Xr syscons 4 ,
+.Xr vt 4 ,
 .Xr kbdmap 5 ,
 .Xr loader 8
 .Sh HISTORY

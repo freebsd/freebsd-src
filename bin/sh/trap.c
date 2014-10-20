@@ -510,28 +510,25 @@ exitshell_savedstatus(void)
 			exiting_exitstatus = oexitstatus;
 	}
 	exitstatus = oexitstatus = exiting_exitstatus;
-	if (setjmp(loc1.loc)) {
-		goto l1;
+	if (!setjmp(loc1.loc)) {
+		handler = &loc1;
+		if ((p = trap[0]) != NULL && *p != '\0') {
+			/*
+			 * Reset evalskip, or the trap on EXIT could be
+			 * interrupted if the last command was a "return".
+			 */
+			evalskip = 0;
+			trap[0] = NULL;
+			evalstring(p, 0);
+		}
 	}
-	if (setjmp(loc2.loc)) {
-		goto l2;
-	}
-	handler = &loc1;
-	if ((p = trap[0]) != NULL && *p != '\0') {
-		/*
-		 * Reset evalskip, or the trap on EXIT could be
-		 * interrupted if the last command was a "return".
-		 */
-		evalskip = 0;
-		trap[0] = NULL;
-		evalstring(p, 0);
-	}
-l1:   handler = &loc2;			/* probably unnecessary */
-	flushall();
+	if (!setjmp(loc2.loc)) {
+		handler = &loc2;		/* probably unnecessary */
+		flushall();
 #if JOBS
-	setjobctl(0);
+		setjobctl(0);
 #endif
-l2:
+	}
 	if (sig != 0 && sig != SIGSTOP && sig != SIGTSTP && sig != SIGTTIN &&
 	    sig != SIGTTOU) {
 		signal(sig, SIG_DFL);

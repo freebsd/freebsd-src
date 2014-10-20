@@ -180,6 +180,7 @@ static int	lem_resume(device_t);
 static void	lem_start(if_t);
 static void	lem_start_locked(if_t ifp);
 static int	lem_ioctl(if_t, u_long, caddr_t);
+static uint64_t	lem_get_counter(if_t, ift_counter);
 static void	lem_init(void *);
 static void	lem_init_locked(struct adapter *);
 static void	lem_stop(void *);
@@ -259,7 +260,7 @@ static void	lem_add_rx_process_limit(struct adapter *, const char *,
 		    const char *, int *, int);
 
 #ifdef DEVICE_POLLING
-static poll_handler_drv_t lem_poll;
+static poll_handler_t lem_poll;
 #endif /* POLLING */
 
 /*********************************************************************
@@ -752,7 +753,7 @@ err_csb:
 
 err_pci:
 	if (adapter->ifp != (void *)NULL)
-		if_free_drv(adapter->ifp);
+		if_free(adapter->ifp);
 	lem_free_pci_resources(adapter);
 	free(adapter->mta, M_DEVBUF);
 	EM_TX_LOCK_DESTROY(adapter);
@@ -788,7 +789,7 @@ lem_detach(device_t dev)
 
 #ifdef DEVICE_POLLING
 	if (if_getcapenable(ifp) & IFCAP_POLLING)
-		ether_poll_deregister_drv(ifp);
+		ether_poll_deregister(ifp);
 #endif
 
 	if (adapter->led_dev != NULL)
@@ -811,7 +812,7 @@ lem_detach(device_t dev)
 	if (adapter->vlan_detach != NULL)
 		EVENTHANDLER_DEREGISTER(vlan_unconfig, adapter->vlan_detach); 
 
-	ether_ifdetach_drv(adapter->ifp);
+	ether_ifdetach(adapter->ifp);
 	callout_drain(&adapter->timer);
 	callout_drain(&adapter->tx_fifo_timer);
 
@@ -820,7 +821,7 @@ lem_detach(device_t dev)
 #endif /* DEV_NETMAP */
 	lem_free_pci_resources(adapter);
 	bus_generic_detach(dev);
-	if_free_drv(ifp);
+	if_free(ifp);
 
 	lem_free_transmit_structures(adapter);
 	lem_free_receive_structures(adapter);
@@ -1020,10 +1021,10 @@ lem_ioctl(if_t ifp, u_long command, caddr_t data)
 				lem_init(adapter);
 #ifdef INET
 			if (!(if_getflags(ifp) & IFF_NOARP))
-				arp_ifinit_drv(ifp, ifa);
+				arp_ifinit(ifp, ifa);
 #endif
 		} else
-			error = ether_ioctl_drv(ifp, command, data);
+			error = ether_ioctl(ifp, command, data);
 		break;
 	case SIOCSIFMTU:
 	    {
@@ -1106,7 +1107,7 @@ lem_ioctl(if_t ifp, u_long command, caddr_t data)
 	case SIOCGIFMEDIA:
 		IOCTL_DEBUGOUT("ioctl rcv'd: \
 		    SIOCxIFMEDIA (Get/Set Interface Media)");
-		error = ifmedia_ioctl_drv(ifp, ifr, &adapter->media, command);
+		error = ifmedia_ioctl(ifp, ifr, &adapter->media, command);
 		break;
 	case SIOCSIFCAP:
 	    {
@@ -1118,7 +1119,7 @@ lem_ioctl(if_t ifp, u_long command, caddr_t data)
 #ifdef DEVICE_POLLING
 		if (mask & IFCAP_POLLING) {
 			if (ifr->ifr_reqcap & IFCAP_POLLING) {
-				error = ether_poll_register_drv(lem_poll, ifp);
+				error = ether_poll_register(lem_poll, ifp);
 				if (error)
 					return (error);
 				EM_CORE_LOCK(adapter);
@@ -1126,7 +1127,7 @@ lem_ioctl(if_t ifp, u_long command, caddr_t data)
 				if_setcapenablebit(ifp, IFCAP_POLLING, 0);
 				EM_CORE_UNLOCK(adapter);
 			} else {
-				error = ether_poll_deregister_drv(ifp);
+				error = ether_poll_deregister(ifp);
 				/* Enable interrupt even in error case */
 				EM_CORE_LOCK(adapter);
 				lem_enable_intr(adapter);
@@ -1157,7 +1158,7 @@ lem_ioctl(if_t ifp, u_long command, caddr_t data)
 	    }
 
 	default:
-		error = ether_ioctl_drv(ifp, command, data);
+		error = ether_ioctl(ifp, command, data);
 		break;
 	}
 
@@ -2159,7 +2160,7 @@ lem_update_link_status(struct adapter *adapter)
 		adapter->link_active = 1;
 		adapter->smartspeed = 0;
 		if_setbaudrate(ifp, adapter->link_speed * 1000000);
-		if_linkstate_change_drv(ifp, LINK_STATE_UP);
+		if_link_state_change(ifp, LINK_STATE_UP);
 	} else if (!link_check && (adapter->link_active == 1)) {
 		if_setbaudrate(ifp, 0);
 		adapter->link_speed = 0;
@@ -2169,7 +2170,7 @@ lem_update_link_status(struct adapter *adapter)
 		adapter->link_active = 0;
 		/* Link down, disable watchdog */
 		adapter->watchdog_check = FALSE;
-		if_linkstate_change_drv(ifp, LINK_STATE_DOWN);
+		if_link_state_change(ifp, LINK_STATE_DOWN);
 	}
 }
 
@@ -2458,16 +2459,17 @@ lem_setup_interface(device_t dev, struct adapter *adapter)
 		device_printf(dev, "can not allocate ifnet structure\n");
 		return (-1);
 	}
-	if_initname_drv(ifp, device_get_name(dev), device_get_unit(dev));
+	if_initname(ifp, device_get_name(dev), device_get_unit(dev));
 	if_setinitfn(ifp,  lem_init);
 	if_setsoftc(ifp, adapter);
 	if_setflags(ifp, IFF_BROADCAST | IFF_SIMPLEX | IFF_MULTICAST);
 	if_setioctlfn(ifp, lem_ioctl);
 	if_setstartfn(ifp, lem_start);
+	if_setgetcounterfn(ifp, lem_get_counter);
 	if_setsendqlen(ifp, adapter->num_tx_desc - 1);
 	if_setsendqready(ifp);
 
-	ether_ifattach_drv(ifp, adapter->hw.mac.addr);
+	ether_ifattach(ifp, adapter->hw.mac.addr);
 
 	if_setcapabilities(ifp, 0);
 
@@ -2507,7 +2509,7 @@ lem_setup_interface(device_t dev, struct adapter *adapter)
 	 * Specify the media types supported by this adapter and register
 	 * callbacks to update media and link information
 	 */
-	ifmedia_init_drv(&adapter->media, IFM_IMASK,
+	ifmedia_init(&adapter->media, IFM_IMASK,
 	    lem_media_change, lem_media_status);
 	if ((adapter->hw.phy.media_type == e1000_media_type_fiber) ||
 	    (adapter->hw.phy.media_type == e1000_media_type_internal_serdes)) {
@@ -3122,7 +3124,7 @@ lem_txeof(struct adapter *adapter)
                 	++num_avail;
 
 			if (tx_buffer->m_head) {
-				if_incopackets(ifp, 1);
+				if_inc_counter(ifp, IFCOUNTER_OPACKETS, 1);
 				bus_dmamap_sync(adapter->txtag,
 				    tx_buffer->map,
 				    BUS_DMASYNC_POSTWRITE);
@@ -3681,7 +3683,7 @@ lem_rxeof(struct adapter *adapter, int count, int *done)
 
 		if (accept_frame) {
 			if (lem_get_buf(adapter, i) != 0) {
-				if_inciqdrops(ifp, 1);
+				if_inc_counter(ifp, IFCOUNTER_IQDROPS, 1);
 				goto discard;
 			}
 
@@ -3712,7 +3714,7 @@ lem_rxeof(struct adapter *adapter, int count, int *done)
 
 			if (eop) {
 				if_setrcvif(adapter->fmp, ifp);
-				if_incipackets(ifp, 1);
+				if_inc_counter(ifp, IFCOUNTER_IPACKETS, 1);
 				lem_receive_checksum(adapter, current_desc,
 				    adapter->fmp);
 #ifndef __NO_STRICT_ALIGNMENT
@@ -4397,7 +4399,6 @@ lem_fill_descriptors (bus_addr_t address, u32 length,
 static void
 lem_update_stats_counters(struct adapter *adapter)
 {
-	if_t ifp;
 
 	if(adapter->hw.phy.media_type == e1000_media_type_copper ||
 	   (E1000_READ_REG(&adapter->hw, E1000_STATUS) & E1000_STATUS_LU)) {
@@ -4472,19 +4473,29 @@ lem_update_stats_counters(struct adapter *adapter)
 		adapter->stats.tsctfc += 
 		E1000_READ_REG(&adapter->hw, E1000_TSCTFC);
 	}
-	ifp = adapter->ifp;
+}
 
-	if_setcollisions(ifp, adapter->stats.colc);
+static uint64_t
+lem_get_counter(if_t ifp, ift_counter cnt)
+{
+	struct adapter *adapter;
 
-	/* Rx Errors */
-	if_setierrors(ifp, adapter->dropped_pkts + adapter->stats.rxerrc +
-	    adapter->stats.crcerrs + adapter->stats.algnerrc +
-	    adapter->stats.ruc + adapter->stats.roc +
-	    adapter->stats.mpc + adapter->stats.cexterr);
+	adapter = if_getsoftc(ifp);
 
-	/* Tx Errors */
-	if_setoerrors(ifp, adapter->stats.ecol + adapter->stats.latecol +
-	    adapter->watchdog_events);
+	switch (cnt) {
+	case IFCOUNTER_COLLISIONS:
+		return (adapter->stats.colc);
+	case IFCOUNTER_IERRORS:
+		return (adapter->dropped_pkts + adapter->stats.rxerrc +
+		    adapter->stats.crcerrs + adapter->stats.algnerrc +
+		    adapter->stats.ruc + adapter->stats.roc +
+		    adapter->stats.mpc + adapter->stats.cexterr);
+	case IFCOUNTER_OERRORS:
+		return (adapter->stats.ecol + adapter->stats.latecol +
+		    adapter->watchdog_events);
+	default:
+		return (if_get_counter_default(ifp, cnt));
+	}
 }
 
 /* Export a single 32-bit register via a read-only sysctl. */

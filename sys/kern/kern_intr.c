@@ -28,6 +28,7 @@
 __FBSDID("$FreeBSD$");
 
 #include "opt_ddb.h"
+#include "opt_kstack_usage_prof.h"
 
 #include <sys/param.h>
 #include <sys/bus.h>
@@ -249,7 +250,7 @@ intr_event_update(struct intr_event *ie)
 int
 intr_event_create(struct intr_event **event, void *source, int flags, int irq,
     void (*pre_ithread)(void *), void (*post_ithread)(void *),
-    void (*post_filter)(void *), int (*assign_cpu)(void *, u_char),
+    void (*post_filter)(void *), int (*assign_cpu)(void *, int),
     const char *fmt, ...)
 {
 	struct intr_event *ie;
@@ -292,7 +293,7 @@ intr_event_create(struct intr_event **event, void *source, int flags, int irq,
  * the interrupt event.
  */
 int
-intr_event_bind(struct intr_event *ie, u_char cpu)
+intr_event_bind(struct intr_event *ie, int cpu)
 {
 	lwpid_t id;
 	int error;
@@ -361,8 +362,7 @@ intr_setaffinity(int irq, void *m)
 {
 	struct intr_event *ie;
 	cpuset_t *mask;
-	u_char cpu;
-	int n;
+	int cpu, n;
 
 	mask = m;
 	cpu = NOCPU;
@@ -376,7 +376,7 @@ intr_setaffinity(int irq, void *m)
 				continue;
 			if (cpu != NOCPU)
 				return (EINVAL);
-			cpu = (u_char)n;
+			cpu = n;
 		}
 	}
 	ie = intr_lookup(irq);
@@ -1078,7 +1078,7 @@ intr_event_schedule_thread(struct intr_event *ie, struct intr_thread *it)
  * a PIC.
  */
 static int
-swi_assign_cpu(void *arg, u_char cpu)
+swi_assign_cpu(void *arg, int cpu)
 {
 
 	return (0);
@@ -1395,6 +1395,10 @@ intr_event_handle(struct intr_event *ie, struct trapframe *frame)
 	int error, ret, thread;
 
 	td = curthread;
+
+#ifdef KSTACK_USAGE_PROF
+	intr_prof_stack_use(td, frame);
+#endif
 
 	/* An interrupt with no event or handlers is a stray interrupt. */
 	if (ie == NULL || TAILQ_EMPTY(&ie->ie_handlers))

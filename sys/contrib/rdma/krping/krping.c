@@ -36,17 +36,14 @@ __FBSDID("$FreeBSD$");
 
 #include <linux/module.h>
 #include <linux/moduleparam.h>
-#include <linux/init.h>
 #include <linux/slab.h>
 #include <linux/err.h>
 #include <linux/string.h>
-#include <linux/inet.h>
 #include <linux/list.h>
 #include <linux/in.h>
 #include <linux/device.h>
 #include <linux/pci.h>
 #include <linux/sched.h>
-#include <asm/system.h>
 
 #include <asm/atomic.h>
 

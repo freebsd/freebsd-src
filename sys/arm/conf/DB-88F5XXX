@@ -43,7 +43,7 @@ options 	NO_SWAPPING
 options 	ALT_BREAK_TO_DEBUGGER
 options 	DDB
 #options 	DEADLKRES		# Enable the deadlock resolver
-options 	DIAGNOSTIC
+#options 	DIAGNOSTIC
 #options 	INVARIANTS		# Enable calls of extra sanity checking
 #options 	INVARIANT_SUPPORT	# Extra sanity checks of internal structures, required by INVARIANTS
 options 	KDB

@@ -11,7 +11,7 @@ PROG=	bsdgrep
 CLEANFILES+= bsdgrep.1
 
 bsdgrep.1: grep.1
-	cp ${.ALLSRC} ${.TARGET}
+	cp -f ${.ALLSRC} ${.TARGET}
 .endif
 SRCS=	file.c grep.c queue.c util.c
 
@@ -83,6 +83,10 @@ DPADD+=	${LIBGNUREGEX}
 .include "${.CURDIR}/nls/Makefile.inc"
 .else
 CFLAGS+= -DWITHOUT_NLS
+.endif
+
+.if ${MK_TESTS} != "no"
+SUBDIR+=	tests
 .endif
 
 .include <bsd.prog.mk>

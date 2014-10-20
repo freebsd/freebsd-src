@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2013, Intel Corp.
+ * Copyright (C) 2000 - 2014, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -286,13 +286,13 @@ AcpiOsAcquireObject (
 
     if (!Cache)
     {
-        return (NULL);
+        return_PTR (NULL);
     }
 
     Status = AcpiUtAcquireMutex (ACPI_MTX_CACHES);
     if (ACPI_FAILURE (Status))
     {
-        return (NULL);
+        return_PTR (NULL);
     }
 
     ACPI_MEM_TRACKING (Cache->Requests++);
@@ -315,7 +315,7 @@ AcpiOsAcquireObject (
         Status = AcpiUtReleaseMutex (ACPI_MTX_CACHES);
         if (ACPI_FAILURE (Status))
         {
-            return (NULL);
+            return_PTR (NULL);
         }
 
         /* Clear (zero) the previously used Object */
@@ -340,16 +340,16 @@ AcpiOsAcquireObject (
         Status = AcpiUtReleaseMutex (ACPI_MTX_CACHES);
         if (ACPI_FAILURE (Status))
         {
-            return (NULL);
+            return_PTR (NULL);
         }
 
         Object = ACPI_ALLOCATE_ZEROED (Cache->ObjectSize);
         if (!Object)
         {
-            return (NULL);
+            return_PTR (NULL);
         }
     }
 
-    return (Object);
+    return_PTR (Object);
 }
 #endif /* ACPI_USE_LOCAL_CACHE */

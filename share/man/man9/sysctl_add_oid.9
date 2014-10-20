@@ -27,13 +27,14 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd July 31, 2014
+.Dd August 28, 2014
 .Dt SYSCTL_ADD_OID 9
 .Os
 .Sh NAME
 .Nm sysctl_add_oid ,
 .Nm sysctl_move_oid ,
-.Nm sysctl_remove_oid
+.Nm sysctl_remove_oid ,
+.Nm sysctl_remove_name
 .Nd runtime sysctl tree manipulation
 .Sh SYNOPSIS
 .In sys/types.h
@@ -59,6 +60,13 @@
 .Ft int
 .Fo sysctl_remove_oid
 .Fa "struct sysctl_oid *oidp"
+.Fa "int del"
+.Fa "int recurse"
+.Fc
+.Ft int
+.Fo sysctl_remove_name
+.Fa "struct sysctl_oid *oidp"
+.Fa "const char *name"
 .Fa "int del"
 .Fa "int recurse"
 .Fc
@@ -149,7 +157,25 @@ Be aware, though, that this may result in a system
 if other code sections continue to use removed subtrees.
 .El
 .Pp
-Again, in most cases the programmer should use contexts,
+The
+.Fn sysctl_remove_name
+function looks up the child node matching the
+.Fa name
+argument and then invokes the
+.Fn sysctl_remove_oid
+function on that node, passing along the
+.Fa del
+and
+.Fa recurse
+arguments.
+If a node having the specified name does not exist an error code of
+.Er ENOENT
+is returned.
+Else the error code from
+.Fn sysctl_remove_oid
+is returned.
+.Pp
+In most cases the programmer should use contexts,
 as described in
 .Xr sysctl_ctx_init 9 ,
 to keep track of created OIDs,

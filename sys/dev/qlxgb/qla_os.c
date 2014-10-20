@@ -699,7 +699,7 @@ qla_init_ifnet(device_t dev, qla_host_t *ha)
 
 	ifp->if_capenable = ifp->if_capabilities;
 
-	ifp->if_data.ifi_hdrlen = sizeof(struct ether_vlan_header);
+	ifp->if_hdrlen = sizeof(struct ether_vlan_header);
 
 	ifmedia_init(&ha->media, IFM_IMASK, qla_media_change, qla_media_status);
 

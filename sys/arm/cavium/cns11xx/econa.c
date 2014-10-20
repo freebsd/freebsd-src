@@ -42,6 +42,7 @@ __FBSDID("$FreeBSD$");
 #include <vm/vm_extern.h>
 
 #define	_ARM32_BUS_DMA_PRIVATE
+#include <machine/armreg.h>
 #include <machine/bus.h>
 #include <machine/intr.h>
 #include <machine/resource.h>
@@ -508,7 +509,7 @@ econa_attach(device_t dev)
 
 	bus_generic_probe(dev);
 	bus_generic_attach(dev);
-	enable_interrupts(I32_bit | F32_bit);
+	enable_interrupts(PSR_I | PSR_F);
 
 	return (0);
 }

@@ -17,15 +17,15 @@
 # $ cd ~/svn/vendor/tzdata
 # $ svn cp svn+ssh://svn.freebsd.org/base/vendor/tzdata/dist \
 #	svn+ssh://svn.freebsd.org/base/vendor/tzdata/tzdata2008X
-# $ svn update	# Commit message: "Tag of tzdata2008X"
+# $ svn commit	# Commit message: "Tag of tzdata2008X"
 #
 # Merge-from-vendor
 #
-# $ cd ~/svn/head/share/zoneinfo
+# $ cd ~/svn/head/contrib/tzdata
 # $ svn update
 # $ svn merge -c X --accept=postpone \
 #	svn+ssh://svn.freebsd.org/base/vendor/tzdata/dist .
-# $ svn update	# Commit message: "MFV of tzdata2008X"
+# $ svn commit	# Commit message: "MFV of tzdata2008X"
 #
 
 CLEANFILES+=	yearistype
@@ -79,7 +79,7 @@ zoneinfo: yearistype ${TDATA}
 
 beforeinstall:
 	cd ${TZBUILDDIR} && \
-	    find . -type f -print -exec ${INSTALL} \
+	    find * -type f -print -exec ${INSTALL} \
 	    -o ${BINOWN} -g ${BINGRP} -m ${NOBINMODE} \
 	    \{} ${DESTDIR}/usr/share/zoneinfo/\{} \;
 	${INSTALL} -o ${BINOWN} -g ${BINGRP} -m ${NOBINMODE} \

@@ -47,6 +47,8 @@
                 set-e
                 ..
             ..
+            sleep
+            ..
             test
             ..
         ..
@@ -68,6 +70,8 @@
             lib
             ..
             usr.bin
+                diff
+                ..
             ..
         ..
         lib
@@ -88,6 +92,8 @@
             libmp
             ..
             libnv
+            ..
+            libproc
             ..
             libutil
             ..
@@ -140,6 +146,8 @@
         ..
         usr.bin
             apply
+            ..
+            basename
             ..
             bmake
                 archives
@@ -241,9 +249,19 @@
             ..
             calendar
             ..
+            cmp
+            ..
             comm
             ..
+            cut
+            ..
+            dirname
+            ..
             file2c
+            ..
+            grep
+            ..
+            gzip
             ..
             join
             ..
@@ -252,6 +270,8 @@
             lastcomm
             ..
             m4
+            ..
+            mkimg
             ..
             ncal
             ..
@@ -283,8 +303,14 @@
             ..
             newsyslog
             ..
+            nmtree
+            ..
+            pw
+            ..
             sa
             ..
         ..
     ..
 ..
+
+# vim: set expandtab ts=4 sw=4:

@@ -330,7 +330,7 @@ miibus_linkchg(device_t dev)
 			link_state = LINK_STATE_DOWN;
 	} else
 		link_state = LINK_STATE_UNKNOWN;
-	if_linkstate_change_drv(mii->mii_ifp, link_state);
+	if_link_state_change(mii->mii_ifp, link_state);
 }
 
 static void
@@ -358,7 +358,7 @@ miibus_mediainit(device_t dev)
  * the PHYs to the network interface driver parent.
  */
 int
-mii_attach(device_t dev, device_t *miibus, void *ifp,
+mii_attach(device_t dev, device_t *miibus, if_t ifp,
     ifm_change_cb_t ifmedia_upd, ifm_stat_cb_t ifmedia_sts, int capmask,
     int phyloc, int offloc, int flags)
 {

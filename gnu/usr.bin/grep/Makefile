@@ -12,6 +12,7 @@ PROG=	gnugrep
 SRCS=	closeout.c dfa.c error.c exclude.c grep.c grepmat.c hard-locale.c \
 	isdir.c kwset.c obstack.c quotearg.c savedir.c search.c xmalloc.c \
 	xstrtoumax.c
+CLEANFILES+=	gnugrep.1
 
 CFLAGS+=-I${.CURDIR} -I${DESTDIR}/usr/include/gnu -DHAVE_CONFIG_H
 

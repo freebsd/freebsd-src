@@ -795,6 +795,10 @@ device		ether
 #  according to IEEE 802.1Q.
 device		vlan
 
+# The `vxlan' device implements the VXLAN encapsulation of Ethernet
+# frames in UDP packets according to RFC7348.
+device		vxlan
+
 #  The `wlan' device provides generic code to support 802.11
 #  drivers, including host AP mode; it is MANDATORY for the wi,
 #  and ath drivers and will eventually be required by all 802.11 drivers.
@@ -1677,6 +1681,7 @@ device		amrp		# SCSI Passthrough interface (optional, CAM req.)
 device		mfi		# LSI MegaRAID SAS
 device		mfip		# LSI MegaRAID SAS passthrough, requires CAM
 options 	MFI_DEBUG
+device		mrsas		# LSI/Avago MegaRAID SAS/SATA, 6Gb/s and 12Gb/s
 
 #
 # 3ware ATA RAID
@@ -2624,9 +2629,8 @@ options 	NSFBUFS=1024
 # Enable extra debugging code for locks.  This stores the filename and
 # line of whatever acquired the lock in the lock itself, and changes a
 # number of function calls to pass around the relevant data.  This is
-# not at all useful unless you are debugging lock code.  Also note
-# that it is likely to break e.g. fstat(1) unless you recompile your
-# userland with -DDEBUG_LOCKS as well.
+# not at all useful unless you are debugging lock code.  Note that
+# modules should be recompiled as this option modifies KBI.
 #
 options 	DEBUG_LOCKS
 
@@ -2650,6 +2654,8 @@ device		usb
 device		udbp
 # USB Fm Radio
 device		ufm
+# USB LED
+device		uled
 # Human Interface Device (anything with buttons and dials)
 device		uhid
 # USB keyboard
@@ -2956,6 +2962,7 @@ options 	SC_RENDER_DEBUG	# syscons rendering debugging
 options 	VFS_BIO_DEBUG	# VFS buffer I/O debugging
 
 options 	KSTACK_MAX_PAGES=32 # Maximum pages to give the kernel stack
+options 	KSTACK_USAGE_PROF
 
 # Adaptec Array Controller driver options
 options 	AAC_DEBUG	# Debugging levels:

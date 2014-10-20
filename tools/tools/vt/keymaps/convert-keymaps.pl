@@ -83,12 +83,13 @@ my $kbdfile;
 foreach $kbdfile (glob("$dir_keymaps_syscons/*.kbd")) {
     my $basename;
     ($basename = $kbdfile) =~ s:.*/::;
-    my $encoding = $ENCODING{$basename};
+    my ($encoding) = $ENCODING{$basename};
+    $encoding =~ s/\+/ /g;		# e.g. "ISO8859-1+EURO" -> "ISO8859-1 EURO"
     my $outfile = $FILE_NEW{$basename};
     if ($encoding and $outfile) {
 	if (-r $kbdfile) {
-	    print "converting from '$basename' ($encoding) to '$outfile' (Unicode)\n";
-	    my $cmdline = "$dir_convtool/convert-keymap.pl $kbdfile $ENCODING{$basename} > $dir_keymaps_output/$outfile";
+	    print "converting from '$basename' ($encoding) to '$outfile' (UCS)\n";
+	    my $cmdline = "$dir_convtool/convert-keymap.pl $kbdfile $encoding > $dir_keymaps_output/$outfile";
 	    system "$cmdline";
 	} else {
 	    print "$kbdfile not found\n";

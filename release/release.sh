@@ -89,6 +89,11 @@ NOPORTS=
 WITH_DVD=
 WITH_COMPRESSED_IMAGES=
 
+# Set to non-empty value to build virtual machine images as part of
+# the release.
+WITH_VMIMAGES=
+WITH_COMPRESSED_VMIMAGES=
+
 usage() {
 	echo "Usage: $0 [-c release.conf]"
 	exit 1
@@ -169,7 +174,7 @@ CHROOT_DMAKEFLAGS="${CONF_FILES}"
 RELEASE_WMAKEFLAGS="${MAKE_FLAGS} ${WORLD_FLAGS} ${ARCH_FLAGS} ${CONF_FILES}"
 RELEASE_KMAKEFLAGS="${MAKE_FLAGS} ${KERNEL_FLAGS} KERNCONF=\"${KERNEL}\" ${ARCH_FLAGS} ${CONF_FILES}"
 RELEASE_RMAKEFLAGS="${ARCH_FLAGS} KERNCONF=\"${KERNEL}\" ${CONF_FILES} \
-	${DOCPORTS} WITH_DVD=${WITH_DVD}"
+	${DOCPORTS} WITH_DVD=${WITH_DVD} WITH_VMIMAGES=${WITH_VMIMAGES}"
 
 # Force src checkout if configured
 FORCE_SRC_KEY=
@@ -255,11 +260,16 @@ if [ -d ${CHROOTDIR}/usr/ports ]; then
 
 	## Trick the ports 'run-autotools-fixup' target to do the right thing.
 	_OSVERSION=$(sysctl -n kern.osreldate)
+	REVISION=$(chroot ${CHROOTDIR} make -C /usr/src/release -V REVISION)
+	BRANCH=$(chroot ${CHROOTDIR} make -C /usr/src/release -V BRANCH)
+	UNAME_r=${REVISION}-${BRANCH}
 	if [ -d ${CHROOTDIR}/usr/doc ] && [ -z "${NODOC}" ]; then
 		PBUILD_FLAGS="OSVERSION=${_OSVERSION} BATCH=yes"
-		PBUILD_FLAGS="${PBUILD_FLAGS}"
+		PBUILD_FLAGS="${PBUILD_FLAGS} UNAME_r=${UNAME_r}"
+		PBUILD_FLAGS="${PBUILD_FLAGS} OSREL=${REVISION}"
 		chroot ${CHROOTDIR} make -C /usr/ports/textproc/docproj \
-			${PBUILD_FLAGS} OPTIONS_UNSET="FOP IGOR" install clean distclean
+			${PBUILD_FLAGS} OPTIONS_UNSET="FOP IGOR" \
+			install clean distclean
 	fi
 fi
 
@@ -269,4 +279,5 @@ eval chroot ${CHROOTDIR} make -C /usr/src ${RELEASE_KMAKEFLAGS} buildkernel
 eval chroot ${CHROOTDIR} make -C /usr/src/release ${RELEASE_RMAKEFLAGS} \
 	release
 eval chroot ${CHROOTDIR} make -C /usr/src/release ${RELEASE_RMAKEFLAGS} \
-	install DESTDIR=/R WITH_COMPRESSED_IMAGES=${WITH_COMPRESSED_IMAGES}
+	install DESTDIR=/R WITH_COMPRESSED_IMAGES=${WITH_COMPRESSED_IMAGES} \
+	WITH_COMPRESSED_VMIMAGES=${WITH_COMPRESSED_VMIMAGES}

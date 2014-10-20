@@ -16,7 +16,7 @@
   010   '0'    ')'    ')'    ')'    '0'    nop    '0'    '0'     O
   011   '-'    '_'    us     us     '-'    '='    '-'    '-'     O
   012   '='    '+'    '+'    '+'    '^'    '`'    rs     rs      O
-  013   '\'    '|'    fs     fs     '\'    '|'    fs     fs      O
+  013   0xa5   '|'    fs     fs     0xa5   '|'    fs     fs      O
   014   bs     bs     bs     bs     bs     bs     bs     bs      O
   015   ht     btab   ht     btab   ht     btab   ht     btab    O
   016   'q'    'Q'    dc1    dc1    'q'    'Q'    dc1    dc1     C

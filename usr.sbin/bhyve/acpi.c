@@ -430,7 +430,10 @@ basl_fwrite_fadt(FILE *fp)
 	EFPRINTF(fp, "\n");
 
 	EFPRINTF(fp, "[0001]\t\tValue to cause reset : 06\n");
-	EFPRINTF(fp, "[0003]\t\tReserved : 000000\n");
+	EFPRINTF(fp, "[0002]\t\tARM Flags (decoded below): 0000\n");
+	EFPRINTF(fp, "\t\t\tPSCI Compliant : 0\n");
+	EFPRINTF(fp, "\t\t\tMust use HVC for PSCI : 0\n");
+	EFPRINTF(fp, "[0001]\t\tFADT Minor Revision : 01\n");
 	EFPRINTF(fp, "[0008]\t\tFACS Address : 00000000%08X\n",
 	    basl_acpi_base + FACS_OFFSET);
 	EFPRINTF(fp, "[0008]\t\tDSDT Address : 00000000%08X\n",
@@ -489,7 +492,7 @@ basl_fwrite_fadt(FILE *fp)
 	EFPRINTF(fp,
 	    "[0012]\t\tPM Timer Block : [Generic Address Structure]\n");
 	EFPRINTF(fp, "[0001]\t\tSpace ID : 01 [SystemIO]\n");
-	EFPRINTF(fp, "[0001]\t\tBit Width : 32\n");
+	EFPRINTF(fp, "[0001]\t\tBit Width : 20\n");
 	EFPRINTF(fp, "[0001]\t\tBit Offset : 00\n");
 	EFPRINTF(fp,
 	    "[0001]\t\tEncoded Access Width : 03 [DWord Access:32]\n");
@@ -499,7 +502,7 @@ basl_fwrite_fadt(FILE *fp)
 
 	EFPRINTF(fp, "[0012]\t\tGPE0 Block : [Generic Address Structure]\n");
 	EFPRINTF(fp, "[0001]\t\tSpace ID : 01 [SystemIO]\n");
-	EFPRINTF(fp, "[0001]\t\tBit Width : 80\n");
+	EFPRINTF(fp, "[0001]\t\tBit Width : 00\n");
 	EFPRINTF(fp, "[0001]\t\tBit Offset : 00\n");
 	EFPRINTF(fp, "[0001]\t\tEncoded Access Width : 01 [Byte Access:8]\n");
 	EFPRINTF(fp, "[0008]\t\tAddress : 0000000000000000\n");

@@ -463,7 +463,7 @@ startagain:
          */
 	if (len + pad > ETHER_MAX_LEN) {
 		/* packet is obviously too large: toss it */
-		++ifp->if_oerrors;
+		if_inc_counter(ifp, IFCOUNTER_OERRORS, 1);
 		IF_DEQUEUE(&ifp->if_snd, m);
 		m_freem(m);
 		goto readcheck;
@@ -513,7 +513,7 @@ startagain:
 	while (pad--)
 		CSR_WRITE_1(sc, VX_W1_TX_PIO_WR_1, 0);	/* Padding */
 
-	++ifp->if_opackets;
+	if_inc_counter(ifp, IFCOUNTER_OPACKETS, 1);
 	sc->vx_timer = 1;
 
 readcheck:
@@ -610,12 +610,12 @@ vx_txstat(struct vx_softc *sc)
 		CSR_WRITE_1(sc, VX_W1_TX_STATUS, 0x0);
 
 		if (i & TXS_JABBER) {
-			++ifp->if_oerrors;
+			if_inc_counter(ifp, IFCOUNTER_OERRORS, 1);
 			if (ifp->if_flags & IFF_DEBUG)
 				if_printf(ifp, "jabber (%x)\n", i);
 			vx_reset(sc);
 		} else if (i & TXS_UNDERRUN) {
-			++ifp->if_oerrors;
+			if_inc_counter(ifp, IFCOUNTER_OERRORS, 1);
 			if (ifp->if_flags & IFF_DEBUG)
 				if_printf(ifp, "fifo underrun (%x) @%d\n", i,
 				    sc->vx_tx_start_thresh);
@@ -626,7 +626,7 @@ vx_txstat(struct vx_softc *sc)
 			sc->vx_tx_succ_ok = 0;
 			vx_reset(sc);
 		} else if (i & TXS_MAX_COLLISION) {
-			++ifp->if_collisions;
+			if_inc_counter(ifp, IFCOUNTER_COLLISIONS, 1);
 			CSR_WRITE_2(sc, VX_COMMAND, TX_ENABLE);
 			ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
 		} else
@@ -722,7 +722,7 @@ again:
 		return;
 
 	if (len & ERR_RX) {
-		++ifp->if_ierrors;
+		if_inc_counter(ifp, IFCOUNTER_IERRORS, 1);
 		goto abort;
 	}
 	len &= RX_BYTES_MASK;	/* Lower 11 bits = RX bytes. */
@@ -730,10 +730,10 @@ again:
 	/* Pull packet off interface. */
 	m = vx_get(sc, len);
 	if (m == 0) {
-		ifp->if_ierrors++;
+		if_inc_counter(ifp, IFCOUNTER_IERRORS, 1);
 		goto abort;
 	}
-	++ifp->if_ipackets;
+	if_inc_counter(ifp, IFCOUNTER_IPACKETS, 1);
 
 	{
 		struct mbuf *m0;
@@ -741,7 +741,7 @@ again:
 		m0 = m_devget(mtod(m, char *), m->m_pkthdr.len, ETHER_ALIGN,
 		    ifp, NULL);
 		if (m0 == NULL) {
-			ifp->if_ierrors++;
+			if_inc_counter(ifp, IFCOUNTER_IERRORS, 1);
 			goto abort;
 		}
 		m_freem(m);

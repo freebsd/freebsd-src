@@ -30,7 +30,7 @@
   024   'o'    'O'    si     si     0xbd   0xbc   si     si      C
   025   'p'    'P'    dle    dle    0xf7   0xe6   dle    dle     C
   026   dcir   duml   esc    esc    '['    '{'    esc    esc     O
-  027   '$'    '*'    gs     gs     0x20ac '}'    gs     gs      O
+  027   '$'    '*'    gs     gs     0xa4   '}'    gs     gs      O
   028   cr     cr     nl     nl     cr     cr     nl     nl      O
   029   lctrl  lctrl  lctrl  lctrl  lctrl  lctrl  lctrl  lctrl   O
   030   'q'    'Q'    dc1    dc1    'q'    'Q'    soh    soh     C
@@ -128,7 +128,7 @@
   dtil '~'     ( 'a'    0xe3    ) ( 'A'    0xc3    ) ( 'n'    0xf1    ) ( 'N'    0xd1    )
                ( 'o'    0xf5    ) ( 'O'    0xd5    )
 
-  duml 0x0161  ( 'a'    0xe4    ) ( 'A'    0xc4    ) ( 'e'    0xeb    ) ( 'E'    0xcb    )
+  duml 0xa8    ( 'a'    0xe4    ) ( 'A'    0xc4    ) ( 'e'    0xeb    ) ( 'E'    0xcb    )
                ( 'i'    0xef    ) ( 'I'    0xcf    ) ( 'o'    0xf6    ) ( 'O'    0xd6    )
                ( 'u'    0xfc    ) ( 'U'    0xdc    ) ( 'y'    0xff    )
 

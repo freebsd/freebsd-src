@@ -344,7 +344,7 @@ ahci_em_led(void *priv, int onoff)
 }
 
 static int
-ahci_check_ids(device_t dev, union ccb *ccb)
+ahci_check_ids(union ccb *ccb)
 {
 
 	if (ccb->ccb_h.target_id != 0) {
@@ -554,7 +554,7 @@ ahciemaction(struct cam_sim *sim, union ccb *ccb)
 	dev = enc->dev;
 	switch (ccb->ccb_h.func_code) {
 	case XPT_ATA_IO:	/* Execute the requested I/O operation */
-		if (ahci_check_ids(dev, ccb))
+		if (ahci_check_ids(ccb))
 			return;
 		ahci_em_begin_transaction(dev, ccb);
 		return;

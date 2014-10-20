@@ -136,6 +136,7 @@ KDTRACE_FRAME	opt_kdtrace.h
 KN_HASHSIZE	opt_kqueue.h
 KSTACK_MAX_PAGES
 KSTACK_PAGES
+KSTACK_USAGE_PROF
 KTRACE
 KTRACE_REQUEST_POOL	opt_ktrace.h
 LIBICONV
@@ -363,7 +364,7 @@ SYM_SETUP_PCI_PARITY	opt_sym.h	#-PCI parity checking
 SYM_SETUP_MAX_LUN	opt_sym.h	#-Number of LUNs supported
 					# default:8, range:[1..64]
 
-# Options used only in pci/ncr.c
+# Options used only in dev/ncr/*
 SCSI_NCR_DEBUG		opt_ncr.h
 SCSI_NCR_MAX_SYNC	opt_ncr.h
 SCSI_NCR_MAX_WIDE	opt_ncr.h

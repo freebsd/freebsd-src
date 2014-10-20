@@ -2116,6 +2116,7 @@ f_dialog_init()
 	f_dprintf "f_dialog_init: ARGV=[%s] GETOPTS_STDARGS=[%s]" \
 	          "$ARGV" "$GETOPTS_STDARGS"
 	SECURE=`set -- $ARGV
+		OPTIND=1
 		while getopts \
 			"$GETOPTS_STDARGS$GETOPTS_EXTRA$GETOPTS_ALLFLAGS" \
 		flag > /dev/null; do
@@ -2125,6 +2126,7 @@ f_dialog_init()
 		done
 	` # END-BACKTICK
 	USE_XDIALOG=`set -- $ARGV
+		OPTIND=1
 		while getopts \
 			"$GETOPTS_STDARGS$GETOPTS_EXTRA$GETOPTS_ALLFLAGS" \
 		flag > /dev/null; do

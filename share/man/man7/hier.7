@@ -48,13 +48,25 @@ programs and configuration files used during operating system bootstrap
 .It Pa defaults/
 default bootstrapping configuration files; see
 .Xr loader.conf 5
+.It Pa dtb/
+Compiled flattened device tree (FDT) files; see
+.Xr fdt 4 
+and
+.Xr dtc 1
+.It Pa firmware/
+Loadable modules containing binary firmware for hardware that needs
+firmware downloaded to it to function
 .It Pa kernel/
 pure kernel executable (the operating system loaded into memory
-at boot time).
+at boot time)
 .It Pa modules/
 third-party loadable kernel modules;
 see
 .Xr kldstat 8
+.It Pa zfs/
+Contains 
+.Xr zfs 8 
+zpool cache files.
 .El
 .It Pa /cdrom/
 default mount point for CD-ROM drives
@@ -632,6 +644,26 @@ localization support and utilities for
 timezone configuration information;
 see
 .Xr tzfile 5
+.El
+.It Pa vt/
+files used by vt;
+see
+.Xr vt 4
+.Bl -tag -width ".Pa scrnmaps/" -compact
+.It Pa fonts/
+console fonts;
+see
+.Xr vidcontrol 1
+and
+.Xr vidfont 1
+.It Pa keymaps/
+console keyboard maps;
+see
+.Xr kbdcontrol 1
+and
+.Xr kbdmap 1
+.\" .It Pa scrnmaps/
+.\" console screen maps
 .El
 .It Pa src/
 .Bx ,

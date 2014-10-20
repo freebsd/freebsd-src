@@ -35,13 +35,11 @@
  */
 
 #include <linux/module.h>
-#include <linux/init.h>
 #include <linux/device.h>
 #include <linux/err.h>
 #include <linux/fs.h>
 #include <linux/poll.h>
 #include <linux/file.h>
-#include <linux/mount.h>
 #include <linux/cdev.h>
 
 #include <asm/uaccess.h>
@@ -565,8 +563,12 @@ struct file *ib_uverbs_alloc_event_file(struct ib_uverbs_file *uverbs_file,
 	 * system call on a uverbs file, which will already have a
 	 * module reference.
 	 */
+#ifdef __linux__
 	filp = alloc_file(uverbs_event_mnt, dget(uverbs_event_mnt->mnt_root),
 			  FMODE_READ, fops_get(&uverbs_event_fops));
+#else
+	filp = alloc_file(FMODE_READ, fops_get(&uverbs_event_fops));
+#endif
 	if (!filp) {
 		ret = -ENFILE;
 		goto err_fd;
@@ -767,7 +769,7 @@ static ssize_t show_dev_abi_version(struct device *device,
 }
 static DEVICE_ATTR(abi_version, S_IRUGO, show_dev_abi_version, NULL);
 
-static ssize_t show_abi_version(struct class *class, char *buf)
+static ssize_t show_abi_version(struct class *class, struct class_attribute *attr, char *buf)
 {
 	return sprintf(buf, "%d\n", IB_USER_VERBS_ABI_VERSION);
 }

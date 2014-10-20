@@ -119,6 +119,13 @@ struct usb_audio_streaming_endpoint_descriptor {
 	uWord	wLockDelay;
 } __packed;
 
+struct usb_midi_streaming_endpoint_descriptor {
+	uByte	bLength;
+	uByte	bDescriptorType;
+	uByte	bDescriptorSubtype;
+	uByte	bNumEmbMIDIJack;
+} __packed;
+
 struct usb_audio_streaming_type1_descriptor {
 	uByte	bLength;
 	uByte	bDescriptorType;
@@ -378,6 +385,7 @@ struct usb_audio_extension_unit_1 {
 
 #define	MASTER_CHAN	0
 
+#define	MS_GENERAL	1
 #define	AS_GENERAL	1
 #define	FORMAT_TYPE	2
 #define	FORMAT_SPECIFIC 3

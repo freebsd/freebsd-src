@@ -166,7 +166,7 @@ tsec_fdt_attach(device_t dev)
 		return (ENXIO);
 	}
 
-	phy = OF_xref_phandle(phy);
+	phy = OF_node_from_xref(phy);
 	OF_decode_addr(OF_parent(phy), 0, &sc->phy_bst, &sc->phy_bsh);
 	OF_getencprop(phy, "reg", &sc->phyaddr, sizeof(sc->phyaddr));
 

@@ -72,8 +72,9 @@ options 	KDB
 device		loop
 device		random
 device		ether
-device		if_cgem			# Zynq-7000 gig ethernet device
+device		cgem			# Zynq-7000 gig ethernet device
 device		mii
+device		e1000phy
 device		pty
 device		uart
 device		gpio
@@ -91,7 +92,7 @@ options 	USB_DEBUG
 #options 	USB_VERBOSE
 device		ehci
 device		umass
-device		scbus			# SCSI bus (required for SCSI)
+device		scbus			# SCSI bus (required for ATA/SCSI)
 device		da			# Direct Access (disks)
 device		axe			# USB-Ethernet
 

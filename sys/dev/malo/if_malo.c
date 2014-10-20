@@ -1245,7 +1245,7 @@ malo_tx_start(struct malo_softc *sc, struct ieee80211_node *ni,
 	STAILQ_INSERT_TAIL(&txq->active, bf, bf_list);
 	MALO_TXDESC_SYNC(txq, ds, BUS_DMASYNC_PREREAD | BUS_DMASYNC_PREWRITE);
 
-	ifp->if_opackets++;
+	if_inc_counter(ifp, IFCOUNTER_OPACKETS, 1);
 	sc->malo_timer = 5;
 	MALO_TXQ_UNLOCK(txq);
 	return 0;
@@ -1283,7 +1283,7 @@ malo_start(struct ifnet *ifp)
 		 * Pass the frame to the h/w for transmission.
 		 */
 		if (malo_tx_start(sc, ni, bf, m)) {
-			ifp->if_oerrors++;
+			if_inc_counter(ifp, IFCOUNTER_OERRORS, 1);
 			if (bf != NULL) {
 				bf->bf_m = NULL;
 				bf->bf_node = NULL;
@@ -1341,7 +1341,7 @@ malo_watchdog(void *arg)
 
 		/* XXX no way to reset h/w. now  */
 
-		ifp->if_oerrors++;
+		if_inc_counter(ifp, IFCOUNTER_OERRORS, 1);
 		sc->malo_stats.mst_watchdog++;
 	}
 }
@@ -1870,7 +1870,7 @@ malo_raw_xmit(struct ieee80211_node *ni, struct mbuf *m,
 	 * Pass the frame to the h/w for transmission.
 	 */
 	if (malo_tx_start(sc, ni, bf, m) != 0) {
-		ifp->if_oerrors++;
+		if_inc_counter(ifp, IFCOUNTER_OERRORS, 1);
 		bf->bf_m = NULL;
 		bf->bf_node = NULL;
 		MALO_TXQ_LOCK(txq);
@@ -2078,7 +2078,7 @@ malo_rx_proc(void *arg, int npending)
 #endif
 		status = ds->status;
 		if (status & MALO_RXD_STATUS_DECRYPT_ERR_MASK) {
-			ifp->if_ierrors++;
+			if_inc_counter(ifp, IFCOUNTER_IERRORS, 1);
 			goto rx_next;
 		}
 		/*
@@ -2117,7 +2117,7 @@ malo_rx_proc(void *arg, int npending)
 		/* XXX don't need mbuf, just dma buffer */
 		mnew = malo_getrxmbuf(sc, bf);
 		if (mnew == NULL) {
-			ifp->if_ierrors++;
+			if_inc_counter(ifp, IFCOUNTER_IERRORS, 1);
 			goto rx_next;
 		}
 		/*
@@ -2158,7 +2158,7 @@ malo_rx_proc(void *arg, int npending)
 			    len, ds->rate, rssi);
 		}
 #endif
-		ifp->if_ipackets++;
+		if_inc_counter(ifp, IFCOUNTER_IPACKETS, 1);
 		
 		/* dispatch */
 		ni = ieee80211_find_rxnode(ic,

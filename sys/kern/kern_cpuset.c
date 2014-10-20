@@ -719,7 +719,7 @@ out:
  * Apply new cpumask to the ithread.
  */
 int
-cpuset_setithread(lwpid_t id, u_char cpu)
+cpuset_setithread(lwpid_t id, int cpu)
 {
 	struct cpuset *nset, *rset;
 	struct cpuset *parent, *old_set;
@@ -731,6 +731,7 @@ cpuset_setithread(lwpid_t id, u_char cpu)
 
 	nset = uma_zalloc(cpuset_zone, M_WAITOK);
 	rset = uma_zalloc(cpuset_zone, M_WAITOK);
+	cs_id = CPUSET_INVALID;
 
 	CPU_ZERO(&mask);
 	if (cpu == NOCPU)
@@ -739,13 +740,14 @@ cpuset_setithread(lwpid_t id, u_char cpu)
 		CPU_SET(cpu, &mask);
 
 	error = cpuset_which(CPU_WHICH_TID, id, &p, &td, &old_set);
-	if (((cs_id = alloc_unr(cpuset_unr)) == CPUSET_INVALID) || error != 0)
+	if (error != 0 || ((cs_id = alloc_unr(cpuset_unr)) == CPUSET_INVALID))
 		goto out;
 
-	thread_lock(td);
+	/* cpuset_which() returns with PROC_LOCK held. */
 	old_set = td->td_cpuset;
 
 	if (cpu == NOCPU) {
+
 		/*
 		 * roll back to default set. We're not using cpuset_shadow()
 		 * here because we can fail CPU_SUBSET() check. This can happen
@@ -759,7 +761,14 @@ cpuset_setithread(lwpid_t id, u_char cpu)
 
 	if (old_set->cs_id == 1 || (old_set->cs_id == CPUSET_INVALID &&
 	    old_set->cs_parent->cs_id == 1)) {
-		/* Default mask, we need to use new root set */
+
+		/*
+		 * Current set is either default (1) or
+		 * shadowed version of default set.
+		 *
+		 * Allocate new root set to be able to shadow it
+		 * with any mask.
+		 */
 		error = _cpuset_create(rset, cpuset_zero,
 		    &cpuset_zero->cs_mask, cs_id);
 		if (error != 0) {
@@ -772,18 +781,20 @@ cpuset_setithread(lwpid_t id, u_char cpu)
 		cs_id = CPUSET_INVALID;
 	} else {
 		/* Assume existing set was already allocated by previous call */
-		parent = td->td_cpuset;
+		parent = old_set;
 		old_set = NULL;
 	}
 
 	error = cpuset_shadow(parent, nset, &mask);
 applyset:
 	if (error == 0) {
+		thread_lock(td);
 		td->td_cpuset = nset;
 		sched_affinity(td);
+		thread_unlock(td);
 		nset = NULL;
-	}
-	thread_unlock(td);
+	} else
+		old_set = NULL;
 	PROC_UNLOCK(p);
 	if (old_set != NULL)
 		cpuset_rel(old_set);

@@ -641,7 +641,7 @@ sge_attach(device_t dev)
 	    IFCAP_VLAN_HWTSO | IFCAP_VLAN_MTU;
 	ifp->if_capenable = ifp->if_capabilities;
 	/* Tell the upper layer(s) we support long frames. */
-	ifp->if_data.ifi_hdrlen = sizeof(struct ether_vlan_header);
+	ifp->if_hdrlen = sizeof(struct ether_vlan_header);
 
 	/* Hook interrupt last to avoid having to lock softc */
 	error = bus_setup_intr(dev, sc->sge_irq, INTR_TYPE_NET | INTR_MPSAFE,
@@ -1171,13 +1171,13 @@ sge_rxeof(struct sge_softc *sc)
 			    RX_ERR_BITS);
 #endif
 			sge_discard_rxbuf(sc, cons);
-			ifp->if_ierrors++;
+			if_inc_counter(ifp, IFCOUNTER_IERRORS, 1);
 			continue;
 		}
 		m = cd->sge_rxdesc[cons].rx_m;
 		if (sge_newbuf(sc, cons) != 0) {
 			sge_discard_rxbuf(sc, cons);
-			ifp->if_iqdrops++;
+			if_inc_counter(ifp, IFCOUNTER_IQDROPS, 1);
 			continue;
 		}
 		if ((ifp->if_capenable & IFCAP_RXCSUM) != 0) {
@@ -1210,7 +1210,7 @@ sge_rxeof(struct sge_softc *sc)
 		m->m_pkthdr.len = m->m_len = SGE_RX_BYTES(rxstat) -
 		    SGE_RX_PAD_BYTES;
 		m->m_pkthdr.rcvif = ifp;
-		ifp->if_ipackets++;
+		if_inc_counter(ifp, IFCOUNTER_IPACKETS, 1);
 		SGE_UNLOCK(sc);
 		(*ifp->if_input)(ifp, m);
 		SGE_LOCK(sc);
@@ -1265,12 +1265,12 @@ sge_txeof(struct sge_softc *sc)
 			device_printf(sc->sge_dev, "Tx error : 0x%b\n",
 			    txstat, TX_ERR_BITS);
 #endif
-			ifp->if_oerrors++;
+			if_inc_counter(ifp, IFCOUNTER_OERRORS, 1);
 		} else {
 #ifdef notyet
-			ifp->if_collisions += (txstat & 0xFFFF) - 1;
+			if_inc_counter(ifp, IFCOUNTER_COLLISIONS, (txstat & 0xFFFF) - 1);
 #endif
-			ifp->if_opackets++;
+			if_inc_counter(ifp, IFCOUNTER_OPACKETS, 1);
 		}
 		txd = &cd->sge_txdesc[cons];
 		for (nsegs = 0; nsegs < txd->tx_ndesc; nsegs++) {
@@ -1856,13 +1856,13 @@ sge_watchdog(struct sge_softc *sc)
 		if (1 || bootverbose)
 			device_printf(sc->sge_dev,
 			    "watchdog timeout (lost link)\n");
-		ifp->if_oerrors++;
+		if_inc_counter(ifp, IFCOUNTER_OERRORS, 1);
 		ifp->if_drv_flags &= ~IFF_DRV_RUNNING;
 		sge_init_locked(sc);
 		return;
 	}
 	device_printf(sc->sge_dev, "watchdog timeout\n");
-	ifp->if_oerrors++;
+	if_inc_counter(ifp, IFCOUNTER_OERRORS, 1);
 
 	ifp->if_drv_flags &= ~IFF_DRV_RUNNING;
 	sge_init_locked(sc);

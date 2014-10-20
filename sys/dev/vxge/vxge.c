@@ -709,9 +709,9 @@ vxge_mq_send_locked(ifnet_t ifp, vxge_vpath_t *vpath, mbuf_t m_head)
 			VXGE_DRV_STATS(vpath, tx_again);
 			break;
 		}
-		ifp->if_obytes += next->m_pkthdr.len;
+		if_inc_counter(ifp, IFCOUNTER_OBYTES, next->m_pkthdr.len);
 		if (next->m_flags & M_MCAST)
-			ifp->if_omcasts++;
+			if_inc_counter(ifp, IFCOUNTER_OMCASTS, 1);
 
 		/* Send a copy of the frame to the BPF listener */
 		ETHER_BPF_MTAP(ifp, next);
@@ -904,11 +904,11 @@ vxge_tx_compl(vxge_hal_vpath_h vpath_handle, vxge_hal_txdl_h txdlh,
 			device_printf(vdev->ndev, "tx transfer code %d\n",
 			    t_code);
 
-			ifp->if_oerrors++;
+			if_inc_counter(ifp, IFCOUNTER_OERRORS, 1);
 			VXGE_DRV_STATS(vpath, tx_tcode);
 			vxge_hal_fifo_handle_tcode(vpath_handle, txdlh, t_code);
 		}
-		ifp->if_opackets++;
+		if_inc_counter(ifp, IFCOUNTER_OPACKETS, 1);
 		txdl_priv = (vxge_txdl_priv_t *) dtr_priv;
 
 		bus_dmamap_unload(vpath->dma_tag_tx, txdl_priv->dma_map);
@@ -1024,7 +1024,7 @@ vxge_rx_compl(vxge_hal_vpath_h vpath_handle, vxge_hal_rxd_h rxdh,
 		mbuf_up = rxd_priv->mbuf_pkt;
 		if (t_code != VXGE_HAL_RING_RXD_T_CODE_OK) {
 
-			ifp->if_ierrors++;
+			if_inc_counter(ifp, IFCOUNTER_IERRORS, 1);
 			VXGE_DRV_STATS(vpath, rx_tcode);
 			status = vxge_hal_ring_handle_tcode(vpath_handle,
 			    rxdh, t_code);
@@ -1395,7 +1395,7 @@ vxge_ifp_setup(device_t ndev)
 	IFQ_SET_MAXLEN(&ifp->if_snd, ifp->if_snd.ifq_drv_maxlen);
 	/* IFQ_SET_READY(&ifp->if_snd); */
 
-	ifp->if_data.ifi_hdrlen = sizeof(struct ether_vlan_header);
+	ifp->if_hdrlen = sizeof(struct ether_vlan_header);
 
 	ifp->if_capabilities |= IFCAP_HWCSUM | IFCAP_VLAN_HWCSUM;
 	ifp->if_capabilities |= IFCAP_VLAN_HWTAGGING | IFCAP_VLAN_MTU;

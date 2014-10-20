@@ -14,7 +14,7 @@
   005   '4'    0xe7   nop    nop    '4'    0xe7   nop    nop     O
   006   '5'    '%'    nop    nop    '5'    '%'    nop    nop     O
   007   '6'    '&'    nop    nop    0xac   0xac   nop    nop     O
-  008   '7'    '/'    nop    nop    0x0160 0x0160 nop    nop     O
+  008   '7'    '/'    nop    nop    0xa6   0xa6   nop    nop     O
   009   '8'    '('    esc    esc    0xde   0xde   esc    esc     O
   010   '9'    ')'    gs     gs     '9'    ')'    gs     gs      O
   011   '0'    '='    nop    nop    '0'    '='    nop    nop     O

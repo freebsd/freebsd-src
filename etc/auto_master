@@ -2,4 +2,4 @@
 #
 # Automounter master map, see auto_master(5) for details.
 #
-/net		-hosts		-nosuid
+/net		-hosts		-nobrowse,nosuid

@@ -340,6 +340,8 @@ typedef struct {
 #define	PT_GNU_EH_FRAME	0x6474e550
 #define	PT_GNU_STACK	0x6474e551
 #define	PT_GNU_RELRO	0x6474e552
+#define	PT_DUMP_DELTA	0x6fb5d000	/* va->pa map for kernel dumps
+					   (currently arm). */
 #define	PT_LOSUNW	0x6ffffffa
 #define	PT_SUNWBSS	0x6ffffffa	/* Sun Specific segment */
 #define	PT_SUNWSTACK	0x6ffffffb	/* describes the stack segment */
@@ -426,7 +428,7 @@ typedef struct {
 #define	DT_PLTPADSZ	0x6ffffdf9	/* pltpadding size */
 #define	DT_MOVEENT	0x6ffffdfa	/* move table entry size */
 #define	DT_MOVESZ	0x6ffffdfb	/* move table size */
-#define	DT_FEATURE_1	0x6ffffdfc	/* feature holder */
+#define	DT_FEATURE	0x6ffffdfc	/* feature holder */
 #define	DT_POSFLAG_1	0x6ffffdfd	/* flags for DT_* entries, effecting */
 					/*	the following DT_* entry. */
 					/*	See DF_P1_* definitions */

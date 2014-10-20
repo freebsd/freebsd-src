@@ -26,7 +26,6 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
  */
 /*-
  * Copyright (c) 1982, 1986, 1989, 1990, 1993
@@ -68,6 +67,9 @@
 
 #ifdef ICL_KERNEL_PROXY
 
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
+
 #include <sys/param.h>
 #include <sys/capsicum.h>
 #include <sys/condvar.h>
@@ -85,7 +87,7 @@
 #include <linux/types.h>
 #include <rdma/rdma_cm.h>
 
-#include "icl.h"
+#include <dev/iscsi/icl.h>
 
 static int debug = 1;
 

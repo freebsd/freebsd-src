@@ -675,6 +675,12 @@ just_return:
 
 send:
 	SOCKBUF_LOCK_ASSERT(&so->so_snd);
+	if (len > 0) {
+		if (len >= tp->t_maxseg)
+			tp->t_flags2 |= TF2_PLPMTU_MAXSEGSNT;
+		else
+			tp->t_flags2 &= ~TF2_PLPMTU_MAXSEGSNT;
+	}
 	/*
 	 * Before ESTABLISHED, force sending of initial options
 	 * unless TCP set not to do any options.
@@ -767,28 +773,112 @@ send:
 		flags &= ~TH_FIN;
 
 		if (tso) {
+			u_int if_hw_tsomax;
+			u_int if_hw_tsomaxsegcount;
+			u_int if_hw_tsomaxsegsize;
+			struct mbuf *mb;
+			u_int moff;
+			int max_len;
+
+			/* extract TSO information */
+			if_hw_tsomax = tp->t_tsomax;
+			if_hw_tsomaxsegcount = tp->t_tsomaxsegcount;
+			if_hw_tsomaxsegsize = tp->t_tsomaxsegsize;
+
+			/*
+			 * Limit a TSO burst to prevent it from
+			 * overflowing or exceeding the maximum length
+			 * allowed by the network interface:
+			 */
 			KASSERT(ipoptlen == 0,
 			    ("%s: TSO can't do IP options", __func__));
 
 			/*
-			 * Limit a burst to t_tsomax minus IP,
-			 * TCP and options length to keep ip->ip_len
-			 * from overflowing or exceeding the maximum
-			 * length allowed by the network interface.
+			 * Check if we should limit by maximum payload
+			 * length:
 			 */
-			if (len > tp->t_tsomax - hdrlen) {
-				len = tp->t_tsomax - hdrlen;
-				sendalot = 1;
+			if (if_hw_tsomax != 0) {
+				/* compute maximum TSO length */
+				max_len = (if_hw_tsomax - hdrlen);
+				if (max_len <= 0) {
+					len = 0;
+				} else if (len > (u_int)max_len) {
+					sendalot = 1;
+					len = (u_int)max_len;
+				}
+			}
+
+			/*
+			 * Check if we should limit by maximum segment
+			 * size and count:
+			 */
+			if (if_hw_tsomaxsegcount != 0 &&
+			    if_hw_tsomaxsegsize != 0) {
+				max_len = 0;
+				mb = sbsndmbuf(&so->so_snd, off, &moff);
+
+				while (mb != NULL && (u_int)max_len < len) {
+					u_int mlen;
+					u_int frags;
+
+					/*
+					 * Get length of mbuf fragment
+					 * and how many hardware frags,
+					 * rounded up, it would use:
+					 */
+					mlen = (mb->m_len - moff);
+					frags = howmany(mlen,
+					    if_hw_tsomaxsegsize);
+
+					/* Handle special case: Zero Length Mbuf */
+					if (frags == 0)
+						frags = 1;
+
+					/*
+					 * Check if the fragment limit
+					 * will be reached or exceeded:
+					 */
+					if (frags >= if_hw_tsomaxsegcount) {
+						max_len += min(mlen,
+						    if_hw_tsomaxsegcount *
+						    if_hw_tsomaxsegsize);
+						break;
+					}
+					max_len += mlen;
+					if_hw_tsomaxsegcount -= frags;
+					moff = 0;
+					mb = mb->m_next;
+				}
+				if (max_len <= 0) {
+					len = 0;
+				} else if (len > (u_int)max_len) {
+					sendalot = 1;
+					len = (u_int)max_len;
+				}
 			}
 
 			/*
 			 * Prevent the last segment from being
-			 * fractional unless the send sockbuf can
-			 * be emptied.
+			 * fractional unless the send sockbuf can be
+			 * emptied:
 			 */
-			if (sendalot && off + len < so->so_snd.sb_cc) {
-				len -= len % (tp->t_maxopd - optlen);
+			max_len = (tp->t_maxopd - optlen);
+			if ((off + len) < so->so_snd.sb_cc) {
+				moff = len % (u_int)max_len;
+				if (moff != 0) {
+					len -= moff;
+					sendalot = 1;
+				}
+			}
+
+			/*
+			 * In case there are too many small fragments
+			 * don't use TSO:
+			 */
+			if (len <= (u_int)max_len) {
+				len = (u_int)max_len;
 				sendalot = 1;
+				tso = 0;
 			}
 
 			/*
@@ -1183,6 +1273,11 @@ send:
 		 */
 		ip6->ip6_plen = htons(m->m_pkthdr.len - sizeof(*ip6));
 
+		if (V_path_mtu_discovery && tp->t_maxopd > V_tcp_minmss)
+			tp->t_flags2 |= TF2_PLPMTU_PMTUD;
+		else
+			tp->t_flags2 &= ~TF2_PLPMTU_PMTUD;
+
 		if (tp->t_state == TCPS_SYN_SENT)
 			TCP_PROBE5(connect__request, NULL, tp, ip6, tp, th);
 
@@ -1219,8 +1314,12 @@ send:
 	 *
 	 * NB: Don't set DF on small MTU/MSS to have a safe fallback.
 	 */
-	if (V_path_mtu_discovery && tp->t_maxopd > V_tcp_minmss)
+	if (V_path_mtu_discovery && tp->t_maxopd > V_tcp_minmss) {
 		ip->ip_off |= htons(IP_DF);
+		tp->t_flags2 |= TF2_PLPMTU_PMTUD;
+	} else {
+		tp->t_flags2 &= ~TF2_PLPMTU_PMTUD;
+	}
 
 	if (tp->t_state == TCPS_SYN_SENT)
 		TCP_PROBE5(connect__request, NULL, tp, ip, tp, th);

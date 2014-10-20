@@ -1135,6 +1135,7 @@ out:
 			u_int8_t periph_qual;
 
 			path->device->flags |= CAM_DEV_INQUIRY_DATA_VALID;
+			scsi_find_quirk(path->device);
 			inq_buf = &path->device->inq_data;
 
 			periph_qual = SID_QUAL(inq_buf);
@@ -1163,8 +1164,6 @@ out:
 					goto out;
 				}
 
-				scsi_find_quirk(path->device);
-
 				scsi_devise_transport(path);
 
 				if (path->device->lun_id == 0 &&
@@ -1192,15 +1191,9 @@ out:
 				xpt_schedule(periph, priority);
 				goto out;
 			} else if (path->device->lun_id == 0 &&
-			    SID_ANSI_REV(inq_buf) > SCSI_REV_SPC2 &&
+			    SID_ANSI_REV(inq_buf) >= SCSI_REV_SPC2 &&
 			    (SCSI_QUIRK(path->device)->quirks &
 			     CAM_QUIRK_NORPTLUNS) == 0) {
-				if (path->device->flags &
-				    CAM_DEV_UNCONFIGURED) {
-					path->device->flags &=
-					    ~CAM_DEV_UNCONFIGURED;
-					xpt_acquire_device(path->device);
-				}
 				PROBE_SET_ACTION(softc, PROBE_REPORT_LUNS);
 				periph->path->target->rpl_size = 16;
 				xpt_release_ccb(done_ccb);
@@ -1213,10 +1206,13 @@ out:
 					    : SF_RETRY_UA,
 					    &softc->saved_ccb) == ERESTART) {
 			goto outr;
-		} else if ((done_ccb->ccb_h.status & CAM_DEV_QFRZN) != 0) {
-			/* Don't wedge the queue */
-			xpt_release_devq(done_ccb->ccb_h.path, /*count*/1,
-					 /*run_queue*/TRUE);
+		} else {
+			if ((done_ccb->ccb_h.status & CAM_DEV_QFRZN) != 0) {
+				/* Don't wedge the queue */
+				xpt_release_devq(done_ccb->ccb_h.path,
+				    /*count*/1, /*run_queue*/TRUE);
+			}
+			path->device->flags &= ~CAM_DEV_INQUIRY_DATA_VALID;
 		}
 		/*
 		 * If we get to this point, we got an error status back
@@ -1308,14 +1304,6 @@ out:
 					    tlun, 8);
 					CAM_DEBUG(path, CAM_DEBUG_PROBE,
 					    ("lun 0 in position %u\n", idx));
-				} else {
-					/*
-					 * There is no lun 0 in our list. Destroy
-					 * the validity of the inquiry data so we
-					 * bail here and now.
-					 */
-					path->device->flags &=
-					    ~CAM_DEV_INQUIRY_DATA_VALID;
 				}
 			}
 			/*
@@ -1328,7 +1316,8 @@ out:
 			probe_purge_old(path, lp, softc->flags);
 			lp = NULL;
 		}
-		if (path->device->flags & CAM_DEV_INQUIRY_DATA_VALID) {
+		if (path->device->flags & CAM_DEV_INQUIRY_DATA_VALID &&
+		    SID_QUAL(&path->device->inq_data) == SID_QUAL_LU_CONNECTED) {
 			struct scsi_inquiry_data *inq_buf;
 			inq_buf = &path->device->inq_data;
 			if (INQ_DATA_TQ_ENABLED(inq_buf))
@@ -1343,6 +1332,8 @@ out:
 		if (lp) {
 			free(lp, M_CAMXPT);
 		}
+		PROBE_SET_ACTION(softc, PROBE_INVALID);
+		xpt_release_ccb(done_ccb);
 		break;
 	}
 	case PROBE_MODE_SENSE:
@@ -1975,7 +1966,7 @@ scsi_scan_bus(struct cam_periph *periph, union ccb *request_ccb)
 		struct cam_path *path, *oldpath;
 		scsi_scan_bus_info *scan_info;
 		struct cam_et *target;
-		struct cam_ed *device;
+		struct cam_ed *device, *nextdev;
 		int next_target;
 		path_id_t path_id;
 		target_id_t target_id;
@@ -1984,18 +1975,10 @@ scsi_scan_bus(struct cam_periph *periph, union ccb *request_ccb)
 		oldpath = request_ccb->ccb_h.path;
 
 		status = cam_ccb_status(request_ccb);
-		/* Reuse the same CCB to query if a device was really found */
 		scan_info = (scsi_scan_bus_info *)request_ccb->ccb_h.ppriv_ptr0;
-		xpt_setup_ccb(&request_ccb->ccb_h, request_ccb->ccb_h.path,
-			      request_ccb->ccb_h.pinfo.priority);
-		request_ccb->ccb_h.func_code = XPT_GDEV_TYPE;
-
-
 		path_id = request_ccb->ccb_h.path_id;
 		target_id = request_ccb->ccb_h.target_id;
 		lun_id = request_ccb->ccb_h.target_lun;
-		xpt_action(request_ccb);
-
 		target = request_ccb->ccb_h.path->target;
 		next_target = 1;
 
@@ -2068,56 +2051,39 @@ scsi_scan_bus(struct cam_periph *periph, union ccb *request_ccb)
 				}
 			}
 		} else {
-		    mtx_unlock(&target->luns_mtx);
-		    if (request_ccb->ccb_h.status != CAM_REQ_CMP) {
-			int phl;
-
-			/*
-			 * If we already probed lun 0 successfully, or
-			 * we have additional configured luns on this
-			 * target that might have "gone away", go onto
-			 * the next lun.
-			 */
-			/*
-			 * We may touch devices that we don't
-			 * hold references too, so ensure they
-			 * don't disappear out from under us.
-			 * The target above is referenced by the
-			 * path in the request ccb.
-			 */
-			phl = 0;
-			device = TAILQ_FIRST(&target->ed_entries);
-			if (device != NULL) {
-				phl = CAN_SRCH_HI_SPARSE(device);
-				if (device->lun_id == 0)
-					device = TAILQ_NEXT(device, links);
-			}
-			if ((lun_id != 0) || (device != NULL)) {
-				if (lun_id < (CAM_SCSI2_MAXLUN-1) || phl) {
-					lun_id++;
-					next_target = 0;
-				}
-			}
-			if (lun_id == request_ccb->ccb_h.target_lun
-			    || lun_id > scan_info->cpi->max_lun)
-				next_target = 1;
-		    } else {
-
+			mtx_unlock(&target->luns_mtx);
 			device = request_ccb->ccb_h.path->device;
-
-			if ((SCSI_QUIRK(device)->quirks &
-			    CAM_QUIRK_NOLUNS) == 0) {
-				/* Try the next lun */
-				if (lun_id < (CAM_SCSI2_MAXLUN-1)
-				  || CAN_SRCH_HI_DENSE(device)) {
-					lun_id++;
-					next_target = 0;
-				}
-			}
-			if (lun_id == request_ccb->ccb_h.target_lun
-			    || lun_id > scan_info->cpi->max_lun)
+			/* Continue sequential LUN scan if: */
+			/*  -- we have more LUNs that need recheck */
+			mtx_lock(&target->bus->eb_mtx);
+			nextdev = device;
+			while ((nextdev = TAILQ_NEXT(nextdev, links)) != NULL)
+				if ((nextdev->flags & CAM_DEV_UNCONFIGURED) == 0)
+					break;
+			mtx_unlock(&target->bus->eb_mtx);
+			if (nextdev != NULL) {
+				next_target = 0;
+			/*  -- stop if CAM_QUIRK_NOLUNS is set. */
+			} else if (SCSI_QUIRK(device)->quirks & CAM_QUIRK_NOLUNS) {
 				next_target = 1;
-		    }
+			/*  -- this LUN is connected and its SCSI version
+			 *     allows more LUNs. */
+			} else if ((device->flags & CAM_DEV_UNCONFIGURED) == 0) {
+				if (lun_id < (CAM_SCSI2_MAXLUN-1) ||
+				    CAN_SRCH_HI_DENSE(device))
+					next_target = 0;
+			/*  -- this LUN is disconnected, its SCSI version
+			 *     allows more LUNs and we guess they may be. */
+			} else if ((device->flags & CAM_DEV_INQUIRY_DATA_VALID) != 0) {
+				if (lun_id < (CAM_SCSI2_MAXLUN-1) ||
+				    CAN_SRCH_HI_SPARSE(device))
+					next_target = 0;
+			}
+			if (next_target == 0) {
+				lun_id++;
+				if (lun_id > scan_info->cpi->max_lun)
+					next_target = 1;
+			}
 		}
 
 		/*

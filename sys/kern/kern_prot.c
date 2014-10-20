@@ -105,9 +105,7 @@ sys_getpid(struct thread *td, struct getpid_args *uap)
 
 	td->td_retval[0] = p->p_pid;
 #if defined(COMPAT_43)
-	PROC_LOCK(p);
-	td->td_retval[1] = p->p_pptr->p_pid;
-	PROC_UNLOCK(p);
+	td->td_retval[1] = kern_getppid(td);
 #endif
 	return (0);
 }
@@ -121,12 +119,31 @@ struct getppid_args {
 int
 sys_getppid(struct thread *td, struct getppid_args *uap)
 {
+
+	td->td_retval[0] = kern_getppid(td);
+	return (0);
+}
+
+int
+kern_getppid(struct thread *td)
+{
 	struct proc *p = td->td_proc;
+	struct proc *pp;
+	int ppid;
 
 	PROC_LOCK(p);
-	td->td_retval[0] = p->p_pptr->p_pid;
-	PROC_UNLOCK(p);
-	return (0);
+	if (!(p->p_flag & P_TRACED)) {
+		ppid = p->p_pptr->p_pid;
+		PROC_UNLOCK(p);
+	} else {
+		PROC_UNLOCK(p);
+		sx_slock(&proctree_lock);
+		pp = proc_realparent(p);
+		ppid = pp->p_pid;
+		sx_sunlock(&proctree_lock);
+	}
+
+	return (ppid);
 }
 
 /*
@@ -1867,23 +1884,13 @@ crfree(struct ucred *cr)
 }
 
 /*
- * Check to see if this ucred is shared.
- */
-int
-crshared(struct ucred *cr)
-{
-
-	return (cr->cr_ref > 1);
-}
-
-/*
  * Copy a ucred's contents from a template.  Does not block.
  */
 void
 crcopy(struct ucred *dest, struct ucred *src)
 {
 
-	KASSERT(crshared(dest) == 0, ("crcopy of shared ucred"));
+	KASSERT(dest->cr_ref == 1, ("crcopy of shared ucred"));
 	bcopy(&src->cr_startcopy, &dest->cr_startcopy,
 	    (unsigned)((caddr_t)&src->cr_endcopy -
 		(caddr_t)&src->cr_startcopy));

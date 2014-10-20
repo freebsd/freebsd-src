@@ -45,6 +45,9 @@
 #include <linux/sysfs.h>
 #include <linux/workqueue.h>
 #include <linux/kdev_t.h>
+#include <linux/string.h>
+
+#include <asm/atomic-long.h>
 
 #include <rdma/ib_cache.h>
 #include <rdma/ib_cm.h>
@@ -3890,5 +3893,5 @@ static void __exit ib_cm_cleanup(void)
 }
 
 module_init_order(ib_cm_init, SI_ORDER_SECOND);
-module_exit(ib_cm_cleanup);
+module_exit_order(ib_cm_cleanup, SI_ORDER_FIRST);
 

@@ -26,7 +26,6 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
  */
 
 #include <sys/cdefs.h>
@@ -43,14 +42,17 @@ __FBSDID("$FreeBSD$");
 #include <sys/namei.h>
 #include <sys/signalvar.h>
 #include <sys/systm.h>
+#include <sys/taskqueue.h>
 #include <sys/vnode.h>
 #include <machine/atomic.h>
 #include <vm/uma.h>
 
-#include "autofs.h"
+#include <fs/autofs/autofs.h>
 
 static int	autofs_trigger_vn(struct vnode *vp, const char *path,
 		    int pathlen, struct vnode **newvp);
+
+extern struct autofs_softc	*autofs_softc;
 
 static int
 autofs_access(struct vop_access_args *ap)
@@ -135,12 +137,10 @@ autofs_trigger_vn(struct vnode *vp, const char *path, int pathlen,
 {
 	struct autofs_node *anp;
 	struct autofs_mount *amp;
-	struct autofs_softc *sc;
 	int error, lock_flags;
 
 	anp = vp->v_data;
 	amp = VFSTOAUTOFS(vp->v_mount);
-	sc = amp->am_softc;
 
 	/*
 	 * Release the vnode lock, so that other operations, in partcular
@@ -152,7 +152,7 @@ autofs_trigger_vn(struct vnode *vp, const char *path, int pathlen,
 	vref(vp);
 	VOP_UNLOCK(vp, 0);
 
-	sx_xlock(&sc->sc_lock);
+	sx_xlock(&autofs_softc->sc_lock);
 
 	/*
 	 * XXX: Workaround for mounting the same thing multiple times; revisit.
@@ -164,7 +164,7 @@ autofs_trigger_vn(struct vnode *vp, const char *path, int pathlen,
 
 	error = autofs_trigger(anp, path, pathlen);
 mounted:
-	sx_xunlock(&sc->sc_lock);
+	sx_xunlock(&autofs_softc->sc_lock);
 	vn_lock(vp, lock_flags | LK_RETRY);
 	vunref(vp);
 	if ((vp->v_iflag & VI_DOOMED) != 0) {
@@ -198,12 +198,12 @@ mounted:
 }
 
 static int
-autofs_vget_callback(struct mount *mp, void *arg, int lkflags __unused,
+autofs_vget_callback(struct mount *mp, void *arg, int flags,
     struct vnode **vpp)
 {
 
 
-	return (autofs_node_vn(arg, mp, vpp));
+	return (autofs_node_vn(arg, mp, flags, vpp));
 }
 
 static int
@@ -233,7 +233,7 @@ autofs_lookup(struct vop_lookup_args *ap)
 		 * use vn_vget_ino_gen() which takes care of all that.
 		 */
 		error = vn_vget_ino_gen(dvp, autofs_vget_callback,
-		    anp->an_parent, 0, vpp);
+		    anp->an_parent, cnp->cn_lkflags, vpp);
 		if (error != 0) {
 			AUTOFS_WARN("vn_vget_ino_gen() failed with error %d",
 			    error);
@@ -277,27 +277,24 @@ autofs_lookup(struct vop_lookup_args *ap)
 		}
 	}
 
-	if (cnp->cn_nameiop == RENAME)
-		return (EOPNOTSUPP);
-
-	AUTOFS_LOCK(amp);
+	AUTOFS_SLOCK(amp);
 	error = autofs_node_find(anp, cnp->cn_nameptr, cnp->cn_namelen, &child);
 	if (error != 0) {
 		if ((cnp->cn_flags & ISLASTCN) && cnp->cn_nameiop == CREATE) {
-			AUTOFS_UNLOCK(amp);
+			AUTOFS_SUNLOCK(amp);
 			return (EJUSTRETURN);
 		}
 
-		AUTOFS_UNLOCK(amp);
+		AUTOFS_SUNLOCK(amp);
 		return (ENOENT);
 	}
 
 	/*
 	 * XXX: Dropping the node here is ok, because we never remove nodes.
 	 */
-	AUTOFS_UNLOCK(amp);
+	AUTOFS_SUNLOCK(amp);
 
-	error = autofs_node_vn(child, mp, vpp);
+	error = autofs_node_vn(child, mp, cnp->cn_lkflags, vpp);
 	if (error != 0) {
 		if ((cnp->cn_flags & ISLASTCN) && cnp->cn_nameiop == CREATE)
 			return (EJUSTRETURN);
@@ -328,16 +325,16 @@ autofs_mkdir(struct vop_mkdir_args *ap)
 	if (autofs_ignore_thread(curthread) == false)
 		return (EPERM);
 
-	AUTOFS_LOCK(amp);
+	AUTOFS_XLOCK(amp);
 	error = autofs_node_new(anp, amp, ap->a_cnp->cn_nameptr,
 	    ap->a_cnp->cn_namelen, &child);
 	if (error != 0) {
-		AUTOFS_UNLOCK(amp);
+		AUTOFS_XUNLOCK(amp);
 		return (error);
 	}
-	AUTOFS_UNLOCK(amp);
+	AUTOFS_XUNLOCK(amp);
 
-	error = autofs_node_vn(child, vp->v_mount, ap->a_vpp);
+	error = autofs_node_vn(child, vp->v_mount, LK_EXCLUSIVE, ap->a_vpp);
 
 	return (error);
 }
@@ -430,7 +427,7 @@ autofs_readdir(struct vop_readdir_args *ap)
 	}
 
 	i = 2; /* Account for "." and "..". */
-	AUTOFS_LOCK(amp);
+	AUTOFS_SLOCK(amp);
 	TAILQ_FOREACH(child, &anp->an_children, an_next) {
 		if (resid < AUTOFS_DELEN) {
 			if (ap->a_eofflag != NULL)
@@ -448,22 +445,22 @@ autofs_readdir(struct vop_readdir_args *ap)
 		error = autofs_readdir_one(uio, child->an_name,
 		    child->an_fileno);
 		if (error != 0) {
-			AUTOFS_UNLOCK(amp);
+			AUTOFS_SUNLOCK(amp);
 			return (error);
 		}
 		offset += AUTOFS_DELEN;
 		resid -= AUTOFS_DELEN;
 	}
 
-	AUTOFS_UNLOCK(amp);
+	AUTOFS_SUNLOCK(amp);
 	return (0);
 }
 
 static int
 autofs_reclaim(struct vop_reclaim_args *ap)
 {
-	struct vnode *vp = ap->a_vp;
-	struct autofs_node *anp = vp->v_data;
+	struct vnode *vp;
+	struct autofs_node *anp;
 
 	vp = ap->a_vp;
 	anp = vp->v_data;
@@ -507,8 +504,12 @@ autofs_node_new(struct autofs_node *parent, struct autofs_mount *amp,
 {
 	struct autofs_node *anp;
 
-	if (parent != NULL)
-		AUTOFS_ASSERT_LOCKED(parent->an_mount);
+	if (parent != NULL) {
+		AUTOFS_ASSERT_XLOCKED(parent->an_mount);
+
+		KASSERT(autofs_node_find(parent, name, namelen, NULL) == ENOENT,
+		    ("node \"%s\" already exists", name));
+	}
 
 	anp = uma_zalloc(autofs_node_zone, M_WAITOK | M_ZERO);
 	if (namelen >= 0)
@@ -548,6 +549,8 @@ autofs_node_find(struct autofs_node *parent, const char *name,
 
 	TAILQ_FOREACH(anp, &parent->an_children, an_next) {
 		if (namelen >= 0) {
+			if (strlen(anp->an_name) != namelen)
+				continue;
 			if (strncmp(anp->an_name, name, namelen) != 0)
 				continue;
 		} else {
@@ -568,7 +571,7 @@ autofs_node_delete(struct autofs_node *anp)
 {
 	struct autofs_node *parent;
 
-	AUTOFS_ASSERT_LOCKED(anp->an_mount);
+	AUTOFS_ASSERT_XLOCKED(anp->an_mount);
 	KASSERT(TAILQ_EMPTY(&anp->an_children), ("have children"));
 
 	callout_drain(&anp->an_callout);
@@ -582,7 +585,8 @@ autofs_node_delete(struct autofs_node *anp)
 }
 
 int
-autofs_node_vn(struct autofs_node *anp, struct mount *mp, struct vnode **vpp)
+autofs_node_vn(struct autofs_node *anp, struct mount *mp, int flags,
+    struct vnode **vpp)
 {
 	struct vnode *vp;
 	int error;
@@ -593,7 +597,7 @@ autofs_node_vn(struct autofs_node *anp, struct mount *mp, struct vnode **vpp)
 
 	vp = anp->an_vnode;
 	if (vp != NULL) {
-		error = vget(vp, LK_EXCLUSIVE | LK_RETRY, curthread);
+		error = vget(vp, flags | LK_RETRY, curthread);
 		if (error != 0) {
 			AUTOFS_WARN("vget failed with error %d", error);
 			sx_xunlock(&anp->an_vnode_lock);
@@ -632,6 +636,8 @@ autofs_node_vn(struct autofs_node *anp, struct mount *mp, struct vnode **vpp)
 	if (anp->an_parent == NULL)
 		vp->v_vflag |= VV_ROOT;
 	vp->v_data = anp;
+
+	VN_LOCK_ASHARE(vp);
 
 	error = insmntque(vp, mp);
 	if (error != 0) {

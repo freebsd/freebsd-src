@@ -500,13 +500,19 @@ vatpic_pending_intr(struct vm *vm, int *vecptr)
 	VATPIC_LOCK(vatpic);
 
 	pin = vatpic_get_highest_irrpin(atpic);
-	if (pin == -1)
-		pin = 7;
 	if (pin == 2) {
 		atpic = &vatpic->atpic[1];
 		pin = vatpic_get_highest_irrpin(atpic);
 	}
 
+	/*
+	 * If there are no pins active at this moment then return the spurious
+	 * interrupt vector instead.
+	 */
+	if (pin == -1)
+		pin = 7;
+
+	KASSERT(pin >= 0 && pin <= 7, ("%s: invalid pin %d", __func__, pin));
 	*vecptr = atpic->irq_base + pin;
 
 	VATPIC_UNLOCK(vatpic);
@@ -600,20 +606,19 @@ vatpic_write(struct vatpic *vatpic, struct atpic *atpic, bool in, int port,
 	VATPIC_LOCK(vatpic);
 
 	if (port & ICU_IMR_OFFSET) {
-		if (atpic->ready) {
+		switch (atpic->icw_num) {
+		case 2:
+			error = vatpic_icw2(vatpic, atpic, val);
+			break;
+		case 3:
+			error = vatpic_icw3(vatpic, atpic, val);
+			break;
+		case 4:
+			error = vatpic_icw4(vatpic, atpic, val);
+			break;
+		default:
 			error = vatpic_ocw1(vatpic, atpic, val);
-		} else {
-			switch (atpic->icw_num) {
-			case 2:
-				error = vatpic_icw2(vatpic, atpic, val);
-				break;
-			case 3:
-				error = vatpic_icw3(vatpic, atpic, val);
-				break;
-			case 4:
-				error = vatpic_icw4(vatpic, atpic, val);
-				break;
-			}
+			break;
 		}
 	} else {
 		if (val & (1 << 4))

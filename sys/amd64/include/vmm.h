@@ -82,6 +82,7 @@ enum vm_reg_name {
 	VM_REG_GUEST_PDPTE1,
 	VM_REG_GUEST_PDPTE2,
 	VM_REG_GUEST_PDPTE3,
+	VM_REG_GUEST_INTR_SHADOW,
 	VM_REG_LAST
 };
 
@@ -194,7 +195,6 @@ void vm_nmi_clear(struct vm *vm, int vcpuid);
 int vm_inject_extint(struct vm *vm, int vcpu);
 int vm_extint_pending(struct vm *vm, int vcpuid);
 void vm_extint_clear(struct vm *vm, int vcpuid);
-uint64_t *vm_guest_msrs(struct vm *vm, int cpu);
 struct vlapic *vm_lapic(struct vm *vm, int cpu);
 struct vioapic *vm_ioapic(struct vm *vm);
 struct vhpet *vm_hpet(struct vm *vm);
@@ -485,6 +485,8 @@ enum vm_exitcode {
 	VM_EXITCODE_SUSPENDED,
 	VM_EXITCODE_INOUT_STR,
 	VM_EXITCODE_TASK_SWITCH,
+	VM_EXITCODE_MONITOR,
+	VM_EXITCODE_MWAIT,
 	VM_EXITCODE_MAX
 };
 
@@ -587,25 +589,25 @@ struct vm_exit {
 void vm_inject_fault(void *vm, int vcpuid, int vector, int errcode_valid,
     int errcode);
 
-static void __inline
+static __inline void
 vm_inject_ud(void *vm, int vcpuid)
 {
 	vm_inject_fault(vm, vcpuid, IDT_UD, 0, 0);
 }
 
-static void __inline
+static __inline void
 vm_inject_gp(void *vm, int vcpuid)
 {
 	vm_inject_fault(vm, vcpuid, IDT_GP, 1, 0);
 }
 
-static void __inline
+static __inline void
 vm_inject_ac(void *vm, int vcpuid, int errcode)
 {
 	vm_inject_fault(vm, vcpuid, IDT_AC, 1, errcode);
 }
 
-static void __inline
+static __inline void
 vm_inject_ss(void *vm, int vcpuid, int errcode)
 {
 	vm_inject_fault(vm, vcpuid, IDT_SS, 1, errcode);

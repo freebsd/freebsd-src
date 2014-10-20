@@ -4,6 +4,10 @@
 # according to Francis Leboutte on 
 # http://www.algo.be/ergo/dvorak-fr.html
 #
+# Note that letters with accents won't be correctly
+# displayed unless one uses the correct font:
+#   vidcontrol -f iso15-8x16.fnt
+#
 #   -Frédéric Praca <frederic.praca@freebsd-fr.org>
 #   -Clément Pillias <clement.pillias@free.fr> for accent keys
 #
@@ -122,28 +126,28 @@
   107   fkey64 fkey64 fkey64 fkey64 fkey64 fkey64 fkey64 fkey64  O
   108   nop    nop    nop    nop    nop    nop    nop    nop     O
 
-  dgra '`'     ( '/'    0xb1    ) ( '-'    0x0152  ) ( 0xe8   0x0153  ) ( '\'    0x0178  )
-               ( '?'    0xc6    ) ( 'C'    0xc7    )
-               ( ':'    0xe6    ) ( '`'    '$'     ) ( 0xe9   0xc9    ) ( 'g'    0x20ac  )
-               ( '.'    0xb0    ) ( 'c'    0xe7    ) ( 'm'    0xb5    )
-               ( 'O'    0xd2    ) ( 'A'    0xc0    ) ( 'U'    0xd9    ) ( 'E'    0xc8    )
-               ( 'o'    0xf2    ) ( 'a'    0xe0    ) ( 'u'    0xf9    ) ( 'e'    0xe8    )
-               ( 's'    0xab    ) ( 'n'    0xbb    )
-               ( 0xe7   0xc7    ) ( '|'    0x0152  ) ( 'I'    0xcc    )
-               ( 0xe0   0xc0    ) ( ';'    0x0153  ) ( 'q'    '{'     ) ( ','    '}'     )
-               ( 'i'    0xec    ) ( 'r'    0xba    ) ( 'p'    0xa7    )
-               ( '!'    0xa1    )
+  dgra '`' ( '/'  0xb1 ) ( '-' 0xbc ) ( 0xe8 0xbd ) ( '\' 0xbe )
+           ( '?'  0xc6 ) ( 'C' 0xc7 )
+           ( ':'  0xe6 ) ( '`' '$'  ) ( 0xe9 0xc9 ) ( 'g' 0xa4 )
+			 ( '.' 0xb0 ) ( 'c'  0xe7 ) ( 'm' 0xb5 )
+           ( 'O'  0xd2 ) ( 'A' 0xc0 ) ( 'U'  0xd9 ) ( 'E' 0xc8 )
+           ( 'o'  0xf2 ) ( 'a' 0xe0 ) ( 'u'  0xf9 ) ( 'e' 0xe8 )
+				      ( 's'  0xab ) ( 'n' 0xbb )
+           ( 0xe7 0xc7 ) ( '|' 0xbc ) ( 'I'  0xcc )
+           ( 0xe0 0xc0 ) ( ';' 0xbd ) ( 'q'  '{'  ) ( ',' '}'  )
+		         ( 'i' 0xec ) ( 'r'  0xba ) ( 'p' 0xa7 )
+           ( '!'  0xa1 )
 
-  dcir '^'     ( 'a'    0xe2    ) ( 'e'    0xea    ) ( 'i'    0xee    ) ( 'o'    0xf4    ) ( 'u'    0xfb    )
-               ( 'A'    0xc2    ) ( 'E'    0xca    ) ( 'I'    0xce    ) ( 'O'    0xd4    ) ( 'U'    0xdb    )
+  dcir '^' ( 'a'  0xe2 ) ( 'e' 0xea ) ( 'i'  0xee ) ( 'o' 0xf4 ) ( 'u' 0xfb )
+           ( 'A'  0xc2 ) ( 'E' 0xca ) ( 'I'  0xce ) ( 'O' 0xd4 ) ( 'U' 0xdb )
 
-  dtil '~'     ( 'n'    0xf1    ) ( 'N'    0xd1    )
-               ( 'a'    0xe3    ) ( 'A'    0xc3    ) ( 'o'    0xf5    ) ( 'O'    0xd5    )
+  dtil '~' ( 'n'  0xf1 ) ( 'N' 0xd1 )
+           ( 'a'  0xe3 ) ( 'A' 0xc3 ) ( 'o'  0xf5 ) ( 'O' 0xd5 )
 
-  ddia '"'     ( 'a'    0xe4    ) ( 'e'    0xeb    ) ( 'i'    0xef    ) ( 'o'    0xf6    ) ( 'u'    0xfc    )
-               ( 'A'    0xc4    ) ( 'E'    0xcb    ) ( 'I'    0xcf    ) ( 'O'    0xd6    ) ( 'U'    0xdc    )
-               ( 'y'    0xff    ) ( 'Y'    0x0178  )
+  ddia '"' ( 'a'  0xe4 ) ( 'e' 0xeb ) ( 'i'  0xef ) ( 'o' 0xf6 ) ( 'u' 0xfc )
+           ( 'A'  0xc4 ) ( 'E' 0xcb ) ( 'I'  0xcf ) ( 'O' 0xd6 ) ( 'U' 0xdc )
+           ( 'y'  0xff ) ( 'Y' 0xbe )
 
-  dacu 0x017d  ( 'a'    0xe1    ) ( 'e'    0xe9    ) ( 'i'    0xed    ) ( 'o'    0xf3    ) ( 'u'    0xfa    )
-               ( 'A'    0xc1    ) ( 'E'    0xc9    ) ( 'I'    0xcd    ) ( 'O'    0xd3    ) ( 'U'    0xda    )
-               ( 'Y'    0xdd    ) ( 'y'    0xfd    )
+  dacu 0xb4( 'a'  0xe1 ) ( 'e' 0xe9 ) ( 'i'  0xed ) ( 'o' 0xf3 ) ( 'u' 0xfa )
+           ( 'A'  0xc1 ) ( 'E' 0xc9 ) ( 'I'  0xcd ) ( 'O' 0xd3 ) ( 'U' 0xda )
+           ( 'Y'  0xdd ) ( 'y' 0xfd )

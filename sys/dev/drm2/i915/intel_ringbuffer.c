@@ -366,7 +366,7 @@ init_pipe_control(struct intel_ring_buffer *ring)
 		goto err_unpin;
 	pmap_qenter((uintptr_t)pc->cpu_page, &obj->pages[0], 1);
 	pmap_invalidate_cache_range((vm_offset_t)pc->cpu_page,
-	    (vm_offset_t)pc->cpu_page + PAGE_SIZE);
+	    (vm_offset_t)pc->cpu_page + PAGE_SIZE, FALSE);
 
 	pc->obj = obj;
 	ring->private = pc;
@@ -430,6 +430,13 @@ static int init_render_ring(struct intel_ring_buffer *ring)
 		 */
 		I915_WRITE(CACHE_MODE_0,
 			   CM0_STC_EVICT_DISABLE_LRA_SNB << CM0_MASK_SHIFT);
+
+		/* This is not explicitly set for GEN6, so read the register.
+		 * see intel_ring_mi_set_context() for why we care.
+		 * TODO: consider explicitly setting the bit for GEN5
+		 */
+		ring->itlb_before_ctx_switch =
+			!!(I915_READ(GFX_MODE) & GFX_TLB_INVALIDATE_ALWAYS);
 	}
 
 	if (INTEL_INFO(dev)->gen >= 6) {
@@ -1007,7 +1014,7 @@ static int init_status_page(struct intel_ring_buffer *ring)
 	pmap_qenter((vm_offset_t)ring->status_page.page_addr, &obj->pages[0],
 	    1);
 	pmap_invalidate_cache_range((vm_offset_t)ring->status_page.page_addr,
-	    (vm_offset_t)ring->status_page.page_addr + PAGE_SIZE);
+	    (vm_offset_t)ring->status_page.page_addr + PAGE_SIZE, FALSE);
 	ring->status_page.obj = obj;
 	memset(ring->status_page.page_addr, 0, PAGE_SIZE);
 

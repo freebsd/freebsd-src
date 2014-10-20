@@ -8,7 +8,7 @@
   002   '1'    '!'    nop    nop    nop    nop    nop    nop     O
   003   '2'    '"'    nul    nul    '@'    '@'    nul    nul     O
   004   '3'    '#'    nop    nop    0xa3   nop    nop    nop     O
-  005   '4'    0x20ac nop    nop    '$'    nop    nop    nop     O
+  005   '4'    0xa4   nop    nop    '$'    nop    nop    nop     O
   006   '5'    '%'    nop    nop    nop    nop    nop    nop     O
   007   '6'    '&'    nop    nop    nop    nop    nop    nop     O
 # Alt + Shift + 7 = Ã·
@@ -23,16 +23,16 @@
   015   ht     btab   nop    nop    ht     btab   nop    nop     O
   016   'q'    'Q'    dc1    dc1    'q'    'Q'    dc1    dc1     C
   017   'w'    'W'    etb    etb    'w'    'W'    etb    etb     C
-# Alt + Ctrl + E = French e (as in cafÃ©)
+# Alt + Ctrl + E = French e (as in café)
   018   'e'    'E'    enq    enq    0x20ac 'E'    0xe9   enq     C
-# Alt + R = Copyright sign
+# Alt + R = Registered sign
   019   'r'    'R'    dc2    dc2    0xae   'R'    dc2    dc2     C
   020   't'    'T'    dc4    dc4    't'    'T'    dc4    dc4     C
   021   'y'    'Y'    em     em     'y'    'Y'    em     em      C
-# Alt + U = Mikro,  Alt + Shift + U = German u
+# Alt + U = Mikro,  Alt + Shift + U = German U (???)
   022   'u'    'U'    nak    nak    0xb5   'U'    0xfc   0xdc    C
   023   'i'    'I'    ht     ht     'i'    'I'    ht     ht      C
-# Alt + O = Norwegian/Danish Ã
+# Alt + O = Norwegian/Danish Ø
   024   'o'    'O'    si     si     0xf8   0xd8   si     si      C
 # Alt + P = Pi
   025   'p'    'P'    dle    dle    0xb6   'P'    dle    dle     C
@@ -40,7 +40,7 @@
   027   0x0161 '^'    nop    nop    '~'    nop    nop    nop     O
   028   cr     cr     nl     nl     cr     cr     nl     nl      O
   029   lctrl  lctrl  lctrl  lctrl  lctrl  lctrl  lctrl  lctrl   O
-# Alt + A = At sign,  Ctrl+Alt = ae,  Ctrl+Alt+Shift = AE
+# Alt + A = At sign,  Ctrl+Alt = æ,  Ctrl+Alt+Shift = Æ
   030   'a'    'A'    soh    soh    '@'    'A'    0xe6   0xc6    C
   031   's'    'S'    dc3    dc3    's'    'S'    dc3    dc3     C
   032   'd'    'D'    eot    eot    'd'    'D'    eot    eot     C
@@ -58,12 +58,13 @@
 # Alt + Z = Pipe
   044   'z'    'Z'    sub    sub    '|'    'Z'    sub    sub     C
   045   'x'    'X'    can    can    'x'    'X'    can    can     C
-  046   'c'    'C'    etx    etx    'c'    'C'    etx    etx     C
+# Alt + C = Copyright sign
+  046   'c'    'C'    etx    etx    0xa9   'C'    etx    etx     C
   047   'v'    'V'    syn    syn    'v'    'V'    syn    syn     C
-# Ctrl + Shift + B = German B
+# Ctrl + Shift + B = German ß
   048   'b'    'B'    stx    0xdf   'b'    'B'    stx    stx     C
   049   'n'    'N'    so     so     'n'    'N'    so     so      C
-# Alt + M = Mikro
+# Alt + M = µ
   050   'm'    'M'    cr     cr     0xb5   'M'    cr     cr      C
 # Alt + [,/;] = <
   051   ','    ';'    nop    nop    '<'    '<'    nop    nop     O

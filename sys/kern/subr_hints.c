@@ -109,7 +109,7 @@ sysctl_hintmode(SYSCTL_HANDLER_ARGS)
 		line = malloc(i+1, M_TEMP, M_WAITOK);
 		strcpy(line, cp);
 		line[eqidx] = '\0';
-		setenv(line, line + eqidx + 1);
+		kern_setenv(line, line + eqidx + 1);
 		free(line, M_TEMP);
 		cp += i + 1;
 	}

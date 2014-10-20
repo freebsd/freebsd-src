@@ -141,6 +141,7 @@ static const STRUCT_USB_HOST_ID urtwn_devs[] = {
 	URTWN_DEV(REALTEK,	RTL8188CUS),
 	URTWN_DEV(REALTEK,	RTL8188RU_1),
 	URTWN_DEV(REALTEK,	RTL8188RU_2),
+	URTWN_DEV(REALTEK,	RTL8188RU_3),
 	URTWN_DEV(REALTEK,	RTL8191CU),
 	URTWN_DEV(REALTEK,	RTL8192CE),
 	URTWN_DEV(REALTEK,	RTL8192CU),
@@ -657,7 +658,11 @@ urtwn_rx_frame(struct urtwn_softc *sc, uint8_t *buf, int pktlen, int *rssi_p)
 		 * This should not happen since we setup our Rx filter
 		 * to not receive these frames.
 		 */
-		ifp->if_ierrors++;
+		if_inc_counter(ifp, IFCOUNTER_IERRORS, 1);
+		return (NULL);
+	}
+	if (pktlen < sizeof(*wh) || pktlen > MCLBYTES) {
+		if_inc_counter(ifp, IFCOUNTER_IERRORS, 1);
 		return (NULL);
 	}
 
@@ -742,7 +747,7 @@ urtwn_rxeof(struct usb_xfer *xfer, struct urtwn_data *data, int *rssi,
 	usbd_xfer_status(xfer, &len, NULL, NULL, NULL);
 
 	if (len < sizeof(*stat)) {
-		ifp->if_ierrors++;
+		if_inc_counter(ifp, IFCOUNTER_IERRORS, 1);
 		return (NULL);
 	}
 
@@ -857,7 +862,7 @@ tr_setup:
 		}
 		if (error != USB_ERR_CANCELLED) {
 			usbd_xfer_set_stall(xfer);
-			ifp->if_ierrors++;
+			if_inc_counter(ifp, IFCOUNTER_IERRORS, 1);
 			goto tr_setup;
 		}
 		break;
@@ -891,7 +896,7 @@ urtwn_txeof(struct usb_xfer *xfer, struct urtwn_data *data)
 		data->ni = NULL;
 	}
 	sc->sc_txtimer = 0;
-	ifp->if_opackets++;
+	if_inc_counter(ifp, IFCOUNTER_OPACKETS, 1);
 	ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
 }
 
@@ -933,7 +938,7 @@ tr_setup:
 		if (data->ni != NULL) {
 			ieee80211_free_node(data->ni);
 			data->ni = NULL;
-			ifp->if_oerrors++;
+			if_inc_counter(ifp, IFCOUNTER_OERRORS, 1);
 		}
 		if (error != USB_ERR_CANCELLED) {
 			usbd_xfer_set_stall(xfer);
@@ -1664,7 +1669,7 @@ urtwn_watchdog(void *arg)
 	if (sc->sc_txtimer > 0) {
 		if (--sc->sc_txtimer == 0) {
 			device_printf(sc->sc_dev, "device timeout\n");
-			ifp->if_oerrors++;
+			if_inc_counter(ifp, IFCOUNTER_OERRORS, 1);
 			return;
 		}
 		callout_reset(&sc->sc_watchdog_ch, hz, urtwn_watchdog, sc);
@@ -1968,7 +1973,7 @@ urtwn_start_locked(struct ifnet *ifp, struct urtwn_softc *sc)
 		m->m_pkthdr.rcvif = NULL;
 
 		if (urtwn_tx_start(sc, ni, m, bf) != 0) {
-			ifp->if_oerrors++;
+			if_inc_counter(ifp, IFCOUNTER_OERRORS, 1);
 			STAILQ_INSERT_HEAD(&sc->sc_tx_inactive, bf, next);
 			ieee80211_free_node(ni);
 			break;
@@ -3524,10 +3529,10 @@ urtwn_raw_xmit(struct ieee80211_node *ni, struct mbuf *m,
 		return (ENOBUFS);
 	}
 
-	ifp->if_opackets++;
+	if_inc_counter(ifp, IFCOUNTER_OPACKETS, 1);
 	if (urtwn_tx_start(sc, ni, m, bf) != 0) {
 		ieee80211_free_node(ni);
-		ifp->if_oerrors++;
+		if_inc_counter(ifp, IFCOUNTER_OERRORS, 1);
 		STAILQ_INSERT_HEAD(&sc->sc_tx_inactive, bf, next);
 		URTWN_UNLOCK(sc);
 		return (EIO);

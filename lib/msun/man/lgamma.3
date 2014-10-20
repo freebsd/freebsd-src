@@ -28,7 +28,7 @@
 .\"     from: @(#)lgamma.3	6.6 (Berkeley) 12/3/92
 .\" $FreeBSD$
 .\"
-.Dd January 14, 2005
+.Dd September 12, 2014
 .Dt LGAMMA 3
 .Os
 .Sh NAME
@@ -36,6 +36,8 @@
 .Nm lgamma_r ,
 .Nm lgammaf ,
 .Nm lgammaf_r ,
+.Nm lgammal ,
+.Nm lgammal_r ,
 .Nm gamma ,
 .Nm gamma_r ,
 .Nm gammaf ,
@@ -58,6 +60,10 @@
 .Fn lgammaf "float x"
 .Ft float
 .Fn lgammaf_r "float x" "int *signgamp"
+.Ft "long double"
+.Fn lgammal "long double x"
+.Ft "long double"
+.Fn lgammal_r "long double x" "int *signgamp"
 .Ft double
 .Fn gamma "double x"
 .Ft double
@@ -66,14 +72,15 @@
 .Fn gammaf "float x"
 .Ft float
 .Fn gammaf_r "float x" "int *signgamp"
-.Ft double
+.Ft "long double"
 .Fn tgamma "double x"
 .Ft float
 .Fn tgammaf "float x"
 .Sh DESCRIPTION
-.Fn lgamma x
+.Fn lgamma x ,
+.Fn lgammaf x ,
 and
-.Fn lgammaf x
+.Fn lgammal x
 .if t \{\
 return ln\||\(*G(x)| where
 .Bd -unfilled -offset indent
@@ -87,13 +94,15 @@ The external integer
 .Fa signgam
 returns the sign of \(*G(x).
 .Pp
-.Fn lgamma_r x signgamp
+.Fn lgamma_r x signgamp ,
+.Fn lgammaf_r x signgamp ,
 and
-.Fn lgammaf_r x signgamp
+.Fn lgammal_r x signgamp
 provide the same functionality as
-.Fn lgamma x
+.Fn lgamma x , 
+.Fn lgammaf x ,
 and
-.Fn lgammaf x
+.Fn lgammal x ,
 but the caller must provide an integer to store the sign of \(*G(x).
 .Pp
 The
@@ -115,6 +124,7 @@ are deprecated aliases for
 and
 .Fn lgammaf_r ,
 respectively.
+
 .Sh IDIOSYNCRASIES
 Do not use the expression
 .Dq Li signgam\(**exp(lgamma(x))
@@ -139,14 +149,18 @@ Exponentiation of
 will lose up to 10 significant bits.
 .Sh RETURN VALUES
 .Fn gamma ,
-.Fn gamma_r ,
 .Fn gammaf ,
+.Fn gammal ,
+.Fn gamma_r ,
 .Fn gammaf_r ,
+.Fn gammal_r ,
 .Fn lgamma ,
-.Fn lgamma_r ,
 .Fn lgammaf ,
+.Fn lgammal ,
+.Fn lgamma_r ,
+.Fn lgammaf_r ,
 and
-.Fn lgammaf_r
+.Fn lgammal_r
 return appropriate values unless an argument is out of range.
 Overflow will occur for sufficiently large positive values, and
 non-positive integers.
@@ -159,6 +173,7 @@ will underflow.
 The
 .Fn lgamma ,
 .Fn lgammaf ,
+.Fn lgammal ,
 .Fn tgamma ,
 and
 .Fn tgammaf

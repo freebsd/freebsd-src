@@ -200,12 +200,14 @@ MAN=	aac.4 \
 	ip.4 \
 	ip6.4 \
 	ipfirewall.4 \
+	ipheth.4 \
 	${_ipmi.4} \
 	ips.4 \
 	ipsec.4 \
 	ipw.4 \
 	ipwfw.4 \
 	isci.4 \
+	iscsi.4 \
 	iscsi_initiator.4 \
 	ismt.4 \
 	isp.4 \
@@ -437,6 +439,7 @@ MAN=	aac.4 \
 	smb.4 \
 	smbus.4 \
 	smp.4 \
+	smsc.4 \
 	sn.4 \
 	snd_ad1816.4 \
 	snd_als4000.4 \
@@ -527,6 +530,7 @@ MAN=	aac.4 \
 	uhso.4 \
 	uipaq.4 \
 	ukbd.4 \
+	uled.4 \
 	ulpt.4 \
 	umass.4 \
 	umcs.4 \
@@ -563,6 +567,7 @@ MAN=	aac.4 \
 	${_virtio_scsi.4} \
 	vkbd.4 \
 	vlan.4 \
+	vxlan.4 \
 	${_vmx.4} \
 	vpo.4 \
 	vr.4 \
@@ -656,6 +661,7 @@ MLINKS+=ip.4 rawip.4
 MLINKS+=ipfirewall.4 ipaccounting.4 \
 	ipfirewall.4 ipacct.4 \
 	ipfirewall.4 ipfw.4
+MLINKS+=ipheth.4 if_ipheth.4
 MLINKS+=ipw.4 if_ipw.4
 MLINKS+=iwi.4 if_iwi.4
 MLINKS+=iwn.4 if_iwn.4
@@ -710,6 +716,7 @@ MLINKS+=sge.4 if_sge.4
 MLINKS+=sis.4 if_sis.4
 MLINKS+=sk.4 if_sk.4
 MLINKS+=smp.4 SMP.4
+MLINKS+=smsc.4 if_smsc.4
 MLINKS+=sn.4 if_sn.4
 MLINKS+=snd_envy24.4 snd_ak452x.4
 MLINKS+=snd_sbc.4 snd_sb16.4 \
@@ -737,6 +744,7 @@ MLINKS+=urndis.4 if_urndis.4
 MLINKS+=${_urtw.4} ${_if_urtw.4}
 MLINKS+=vge.4 if_vge.4
 MLINKS+=vlan.4 if_vlan.4
+MLINKS+=vxlan.4 if_vxlan.4
 MLINKS+=${_vmx.4} ${_if_vmx.4}
 MLINKS+=vpo.4 imm.4
 MLINKS+=vr.4 if_vr.4

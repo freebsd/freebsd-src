@@ -26,8 +26,10 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
  */
+
+#include <sys/cdefs.h>
+ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -38,15 +40,16 @@
 #include <sys/module.h>
 #include <sys/mount.h>
 #include <sys/sx.h>
+#include <sys/taskqueue.h>
 #include <sys/vnode.h>
 
-#include "autofs.h"
+#include <fs/autofs/autofs.h>
 
 static const char *autofs_opts[] = {
 	"from", "master_options", "master_prefix", NULL
 };
 
-extern struct autofs_softc	*sc;
+extern struct autofs_softc	*autofs_softc;
 
 static int
 autofs_mount(struct mount *mp)
@@ -76,7 +79,6 @@ autofs_mount(struct mount *mp)
 	amp = malloc(sizeof(*amp), M_AUTOFS, M_WAITOK | M_ZERO);
 	mp->mnt_data = amp;
 	amp->am_mp = mp;
-	amp->am_softc = sc;
 	strlcpy(amp->am_from, from, sizeof(amp->am_from));
 	strlcpy(amp->am_mountpoint, fspath, sizeof(amp->am_mountpoint));
 	strlcpy(amp->am_options, options, sizeof(amp->am_options));
@@ -86,14 +88,18 @@ autofs_mount(struct mount *mp)
 
 	vfs_getnewfsid(mp);
 
-	AUTOFS_LOCK(amp);
+	MNT_ILOCK(mp);
+	mp->mnt_kern_flag |= MNTK_LOOKUP_SHARED;
+	MNT_IUNLOCK(mp);
+
+	AUTOFS_XLOCK(amp);
 	error = autofs_node_new(NULL, amp, ".", -1, &amp->am_root);
 	if (error != 0) {
-		AUTOFS_UNLOCK(amp);
+		AUTOFS_XUNLOCK(amp);
 		free(amp, M_AUTOFS);
 		return (error);
 	}
-	AUTOFS_UNLOCK(amp);
+	AUTOFS_XUNLOCK(amp);
 
 	vfs_mountedfrom(mp, from);
 
@@ -127,8 +133,8 @@ autofs_unmount(struct mount *mp, int mntflags)
 	 */
 	for (;;) {
 		found = false;
-		sx_xlock(&sc->sc_lock);
-		TAILQ_FOREACH(ar, &sc->sc_requests, ar_next) {
+		sx_xlock(&autofs_softc->sc_lock);
+		TAILQ_FOREACH(ar, &autofs_softc->sc_requests, ar_next) {
 			if (ar->ar_mount != amp)
 				continue;
 			ar->ar_error = ENXIO;
@@ -136,15 +142,15 @@ autofs_unmount(struct mount *mp, int mntflags)
 			ar->ar_in_progress = false;
 			found = true;
 		}
-		sx_xunlock(&sc->sc_lock);
+		sx_xunlock(&autofs_softc->sc_lock);
 		if (found == false)
 			break;
 
-		cv_broadcast(&sc->sc_cv);
+		cv_broadcast(&autofs_softc->sc_cv);
 		pause("autofs_umount", 1);
 	}
 
-	AUTOFS_LOCK(amp);
+	AUTOFS_XLOCK(amp);
 
 	/*
 	 * Not terribly efficient, but at least not recursive.
@@ -158,7 +164,7 @@ autofs_unmount(struct mount *mp, int mntflags)
 	autofs_node_delete(amp->am_root);
 
 	mp->mnt_data = NULL;
-	AUTOFS_UNLOCK(amp);
+	AUTOFS_XUNLOCK(amp);
 
 	sx_destroy(&amp->am_lock);
 
@@ -175,7 +181,7 @@ autofs_root(struct mount *mp, int flags, struct vnode **vpp)
 
 	amp = VFSTOAUTOFS(mp);
 
-	error = autofs_node_vn(amp->am_root, mp, vpp);
+	error = autofs_node_vn(amp->am_root, mp, flags, vpp);
 
 	return (error);
 }

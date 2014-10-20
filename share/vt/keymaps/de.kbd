@@ -16,7 +16,7 @@
   010   '9'    ')'    gs     gs     ']'    ']'    gs     gs      O
   011   '0'    '='    nop    nop    '}'    '}'    nop    nop     O
   012   0xdf   '?'    fs     fs     '\'    '\'    fs     fs      O
-  013   '''    '`'    nop    nop    0xb3   0xb4   nop    nop     O
+  013   dacu   dgra   nop    nop    0xb3   0xb4   nop    nop     O
   014   bs     bs     del    del    bs     bs     del    del     O
   015   ht     btab   nop    nop    ht     btab   nop    nop     O
   016   'q'    'Q'    dc1    dc1    '@'    '@'    nul    nul     C
@@ -44,12 +44,12 @@
   038   'l'    'L'    ff     ff     'l'    'L'    ff     ff      C
   039   0xf6   0xd6   nop    nop    0xf6   0xd6   nop    nop     C
   040   0xe4   0xc4   nop    nop    0xe4   0xc4   nop    nop     C
-  041   '^'    0xb0   rs     rs     '^'    0xb0   rs     rs      O
+  041   dcir   0xb0   rs     rs     '^'    0xb0   rs     rs      O
   042   lshift lshift lshift lshift lshift lshift lshift lshift  O
   043   '#'    '''    nop    nop    '#'    '''    nop    nop     O
   044   'y'    'Y'    em     em     'y'    'Y'    em     em      C
   045   'x'    'X'    can    can    'x'    'X'    can    can     C
-  046   'c'    'C'    etx    etx    'c'    'C'    etx    etx     C
+  046   'c'    'C'    etx    etx    0xa2   'C'    etx    etx     C
   047   'v'    'V'    syn    syn    'v'    'V'    syn    syn     C
   048   'b'    'B'    stx    stx    'b'    'B'    stx    stx     C
   049   'n'    'N'    so     so     'n'    'N'    so     so      C
@@ -89,7 +89,7 @@
   083   del    '.'    '.'    '.'    '.'    '.'    boot   boot    N
   084   nop    nop    nop    nop    nop    nop    nop    nop     O
   085   nop    nop    nop    nop    nop    nop    nop    nop     O
-  086   '<'    '>'    nop    nop    '|'    0x0160 nop    nop     O
+  086   '<'    '>'    nop    nop    '|'    0xa6   nop    nop     O
   087   fkey11 fkey23 fkey35 fkey47 scr11  scr11  scr11  scr11   O
   088   fkey12 fkey24 fkey36 fkey48 scr12  scr12  scr12  scr12   O
   089   cr     cr     nl     nl     cr     cr     nl     nl      O
@@ -112,3 +112,15 @@
   106   fkey63 fkey63 fkey63 fkey63 fkey63 fkey63 fkey63 fkey63  O
   107   fkey64 fkey64 fkey64 fkey64 fkey64 fkey64 fkey64 fkey64  O
   108   nop    nop    nop    nop    nop    nop    nop    nop     O
+
+  dgra '`'     ( 'a'    0xe0    ) ( 'A'    0xc0    ) ( 'e'    0xe8    ) ( 'E'    0xc8    )
+               ( 'i'    0xec    ) ( 'I'    0xcc    ) ( 'o'    0xf2    ) ( 'O'    0xd2    )
+               ( 'u'    0xf9    ) ( 'U'    0xd9    )
+
+  dacu 0xb4    ( 'a'    0xe1    ) ( 'A'    0xc1    ) ( 'e'    0xe9    ) ( 'E'    0xc9    )
+               ( 'i'    0xed    ) ( 'I'    0xcd    ) ( 'o'    0xf3    ) ( 'O'    0xd3    )
+               ( 'u'    0xfa    ) ( 'U'    0xda    ) ( 'y'    0xfd    ) ( 'Y'    0xdd    )
+
+  dcir '^'     ( 'a'    0xe2    ) ( 'A'    0xc2    ) ( 'e'    0xea    ) ( 'E'    0xca    )
+               ( 'i'    0xee    ) ( 'I'    0xce    ) ( 'o'    0xf4    ) ( 'O'    0xd4    )
+               ( 'u'    0xfb    ) ( 'U'    0xdb    )

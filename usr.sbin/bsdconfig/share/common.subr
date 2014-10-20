@@ -263,10 +263,10 @@ f_which()
 {
 	local __name="$1" __var_to_set="$2"
 	case "$__name" in */*|'') return $FAILURE; esac
-	local __p IFS=":" __found=
+	local __p __exec IFS=":" __found=
 	for __p in $PATH; do
-		local __exec="$__p/$__name"
-		[ -f "$__exec" -a -x "$__exec" ] && __found=1 && break
+		__exec="$__p/$__name"
+		[ -f "$__exec" -a -x "$__exec" ] && __found=1 break
 	done
 	if [ "$__found" ]; then
 		if [ "$__var_to_set" ]; then

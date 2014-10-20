@@ -1130,7 +1130,7 @@ vge_attach(device_t dev)
 	ether_ifattach(ifp, eaddr);
 
 	/* Tell the upper layer(s) we support long frames. */
-	ifp->if_data.ifi_hdrlen = sizeof(struct ether_vlan_header);
+	ifp->if_hdrlen = sizeof(struct ether_vlan_header);
 
 	/* Hook interrupt last to avoid having to lock softc */
 	error = bus_setup_intr(dev, sc->vge_irq, INTR_TYPE_NET|INTR_MPSAFE,
@@ -1400,7 +1400,7 @@ vge_freebufs(struct vge_softc *sc)
 			    txd->tx_dmamap);
 			m_freem(txd->tx_m);
 			txd->tx_m = NULL;
-			ifp->if_oerrors++;
+			if_inc_counter(ifp, IFCOUNTER_OERRORS, 1);
 		}
 	}
 }
@@ -1467,7 +1467,7 @@ vge_rxeof(struct vge_softc *sc, int count)
 		 */
 		if ((rxstat & VGE_RXPKT_SOF) != 0) {
 			if (vge_newbuf(sc, prod) != 0) {
-				ifp->if_iqdrops++;
+				if_inc_counter(ifp, IFCOUNTER_IQDROPS, 1);
 				VGE_CHAIN_RESET(sc);
 				vge_discard_rxbuf(sc, prod);
 				continue;
@@ -1498,7 +1498,7 @@ vge_rxeof(struct vge_softc *sc, int count)
 		if ((rxstat & VGE_RDSTS_RXOK) == 0 &&
 		    (rxstat & (VGE_RDSTS_VIDM | VGE_RDSTS_RLERR |
 		    VGE_RDSTS_CSUMERR)) == 0) {
-			ifp->if_ierrors++;
+			if_inc_counter(ifp, IFCOUNTER_IERRORS, 1);
 			/*
 			 * If this is part of a multi-fragment packet,
 			 * discard all the pieces.
@@ -1509,7 +1509,7 @@ vge_rxeof(struct vge_softc *sc, int count)
 		}
 
 		if (vge_newbuf(sc, prod) != 0) {
-			ifp->if_iqdrops++;
+			if_inc_counter(ifp, IFCOUNTER_IQDROPS, 1);
 			VGE_CHAIN_RESET(sc);
 			vge_discard_rxbuf(sc, prod);
 			continue;
@@ -2380,7 +2380,7 @@ vge_watchdog(void *arg)
 
 	ifp = sc->vge_ifp;
 	if_printf(ifp, "watchdog timeout\n");
-	ifp->if_oerrors++;
+	if_inc_counter(ifp, IFCOUNTER_OERRORS, 1);
 
 	vge_txeof(sc);
 	vge_rxeof(sc, VGE_RX_DESC_CNT);
@@ -2706,24 +2706,25 @@ reset_idx:
 	stats->tx_latecolls += mib[VGE_MIB_TX_LATECOLLS];
 
 	/* Update counters in ifnet. */
-	ifp->if_opackets += mib[VGE_MIB_TX_GOOD_FRAMES];
+	if_inc_counter(ifp, IFCOUNTER_OPACKETS, mib[VGE_MIB_TX_GOOD_FRAMES]);
 
-	ifp->if_collisions += mib[VGE_MIB_TX_COLLS] +
-	    mib[VGE_MIB_TX_LATECOLLS];
+	if_inc_counter(ifp, IFCOUNTER_COLLISIONS,
+	    mib[VGE_MIB_TX_COLLS] + mib[VGE_MIB_TX_LATECOLLS]);
 
-	ifp->if_oerrors += mib[VGE_MIB_TX_COLLS] +
-	    mib[VGE_MIB_TX_LATECOLLS];
+	if_inc_counter(ifp, IFCOUNTER_OERRORS,
+	    mib[VGE_MIB_TX_COLLS] + mib[VGE_MIB_TX_LATECOLLS]);
 
-	ifp->if_ipackets += mib[VGE_MIB_RX_GOOD_FRAMES];
+	if_inc_counter(ifp, IFCOUNTER_IPACKETS, mib[VGE_MIB_RX_GOOD_FRAMES]);
 
-	ifp->if_ierrors += mib[VGE_MIB_RX_FIFO_OVERRUNS] +
+	if_inc_counter(ifp, IFCOUNTER_IERRORS,
+	    mib[VGE_MIB_RX_FIFO_OVERRUNS] +
 	    mib[VGE_MIB_RX_RUNTS] +
 	    mib[VGE_MIB_RX_RUNTS_ERRS] +
 	    mib[VGE_MIB_RX_CRCERRS] +
 	    mib[VGE_MIB_RX_ALIGNERRS] +
 	    mib[VGE_MIB_RX_NOBUFS] +
 	    mib[VGE_MIB_RX_SYMERRS] +
-	    mib[VGE_MIB_RX_LENERRS];
+	    mib[VGE_MIB_RX_LENERRS]);
 }
 
 static void

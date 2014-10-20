@@ -414,6 +414,9 @@ struct iwn_softc {
 
 	/* For specific params */
 	const struct iwn_base_params *base_params;
+
+#define	IWN_UCODE_API(ver)	(((ver) & 0x0000FF00) >> 8)
+	uint32_t		ucode_rev;
 };
 
 #define IWN_LOCK_INIT(_sc) \

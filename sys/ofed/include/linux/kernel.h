@@ -2,6 +2,7 @@
  * Copyright (c) 2010 Isilon Systems, Inc.
  * Copyright (c) 2010 iX Systems, Inc.
  * Copyright (c) 2010 Panasas, Inc.
+ * Copyright (c) 2013, 2014 Mellanox Technologies, Ltd.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -33,18 +34,16 @@
 #include <sys/libkern.h>
 #include <sys/stat.h>
 #include <sys/smp.h>
+#include <sys/stddef.h>
 
 #include <linux/bitops.h>
 #include <linux/compiler.h>
 #include <linux/errno.h>
-#include <linux/stddef.h>
 #include <linux/kthread.h>
 #include <linux/types.h>
 #include <linux/jiffies.h>
 #include <linux/wait.h>
-#include <linux/fs.h>
-#include <linux/notifier.h>
-#include <linux/log2.h>
+#include <linux/log2.h> 
 #include <asm/byteorder.h>
 
 #define KERN_CONT       ""
@@ -102,6 +101,8 @@
         printk(KERN_NOTICE pr_fmt(fmt), ##__VA_ARGS__)
 #define pr_info(fmt, ...) \
         printk(KERN_INFO pr_fmt(fmt), ##__VA_ARGS__)
+#define pr_info_once(fmt, ...) \
+        printk_once(KERN_INFO pr_fmt(fmt), ##__VA_ARGS__)
 #define pr_cont(fmt, ...) \
         printk(KERN_CONT fmt, ##__VA_ARGS__)
 
@@ -133,6 +134,7 @@
 
 #define	simple_strtoul	strtoul
 #define	simple_strtol	strtol
+#define kstrtol(a,b,c) ({*(c) = strtol(a,0,b);})
 
 #define min(x, y)	(x < y ? x : y)
 #define max(x, y)	(x > y ? x : y)

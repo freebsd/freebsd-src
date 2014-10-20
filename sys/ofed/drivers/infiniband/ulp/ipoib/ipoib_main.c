@@ -40,7 +40,6 @@ static	int ipoib_resolvemulti(struct ifnet *, struct sockaddr **,
 
 #include <linux/module.h>
 
-#include <linux/init.h>
 #include <linux/slab.h>
 #include <linux/kernel.h>
 #include <linux/vmalloc.h>
@@ -666,7 +665,7 @@ ipoib_unicast_send(struct mbuf *mb, struct ipoib_dev_priv *priv, struct ipoib_he
 			} else
 				__path_add(priv, path);
 		} else {
-			++priv->dev->if_oerrors;
+			if_inc_counter(priv->dev, IFCOUNTER_OERRORS, 1);
 			m_freem(mb);
 		}
 
@@ -681,7 +680,7 @@ ipoib_unicast_send(struct mbuf *mb, struct ipoib_dev_priv *priv, struct ipoib_he
 		    path->queue.ifq_len < IPOIB_MAX_PATH_REC_QUEUE) {
 		_IF_ENQUEUE(&path->queue, mb);
 	} else {
-		++priv->dev->if_oerrors;
+		if_inc_counter(priv->dev, IFCOUNTER_OERRORS, 1);
 		m_freem(mb);
 	}
 }
@@ -746,7 +745,7 @@ ipoib_vlan_start(struct ifnet *dev)
 		if (mb == NULL)
 			break;
 		m_freem(mb);
-		dev->if_oerrors++;
+		if_inc_counter(dev, IFCOUNTER_OERRORS, 1);
 	}
 }
 
@@ -1453,7 +1452,7 @@ ipoib_input(struct ifnet *ifp, struct mbuf *m)
 			m->m_flags |= M_BCAST;
 		else
 			m->m_flags |= M_MCAST;
-		ifp->if_imcasts++;
+		if_inc_counter(ifp, IFCOUNTER_IMCASTS, 1);
 	}
 
 	ipoib_demux(ifp, m, ntohs(eh->proto));

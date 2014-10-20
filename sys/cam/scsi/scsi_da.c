@@ -354,9 +354,9 @@ static struct da_quirk_entry da_quirk_table[] =
 	},
 	{
 		/*
-		 * The STEC 842 sometimes hang on UNMAP.
+		 * The STEC SSDs sometimes hang on UNMAP.
 		 */
-		{T_DIRECT, SIP_MEDIA_FIXED, "STEC", "S842E800M2", "*"},
+		{T_DIRECT, SIP_MEDIA_FIXED, "STEC", "*", "*"},
 		/*quirks*/ DA_Q_NO_UNMAP
 	},
 	/* USB mass storage devices supported by umass(4) */
@@ -544,6 +544,13 @@ static struct da_quirk_entry da_quirk_table[] =
 		 */
 		{T_DIRECT, SIP_MEDIA_REMOVABLE, "TOSHIBA", "TransMemory",
 		"*"}, /*quirks*/ DA_Q_NO_SYNC_CACHE
+	},
+	{
+		/*
+		 * PNY USB 3.0 Flash Drives
+		*/
+		{T_DIRECT, SIP_MEDIA_REMOVABLE, "PNY", "USB 3.0 FD*",
+		"*"}, /*quirks*/ DA_Q_NO_SYNC_CACHE | DA_Q_NO_RC16
 	},
 	{
 		/*
@@ -1115,6 +1122,30 @@ static struct da_quirk_entry da_quirk_table[] =
 		 * 4k optimised & trim only works in 4k requests + 4k aligned
 		 */
 		{ T_DIRECT, SIP_MEDIA_FIXED, "ATA", "Samsung SSD 840*", "*" },
+		/*quirks*/DA_Q_4K
+	},
+	{
+		/*
+		 * Samsung 843T Series SSDs
+		 * 4k optimised
+		 */
+		{ T_DIRECT, SIP_MEDIA_FIXED, "ATA", "SAMSUNG MZ7WD*", "*" },
+		/*quirks*/DA_Q_4K
+	},
+ 	{
+ 		/*
+		 * Samsung 850 SSDs
+		 * 4k optimised & trim only works in 4k requests + 4k aligned
+		 */
+		{ T_DIRECT, SIP_MEDIA_FIXED, "ATA", "Samsung SSD 850*", "*" },
+		/*quirks*/DA_Q_4K
+	},
+	{
+		/*
+		 * Samsung PM853T Series SSDs
+		 * 4k optimised
+		 */
+		{ T_DIRECT, SIP_MEDIA_FIXED, "ATA", "SAMSUNG MZ7GE*", "*" },
 		/*quirks*/DA_Q_4K
 	},
 	{

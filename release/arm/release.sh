@@ -44,8 +44,8 @@ before_build() {
 	case ${KERNEL} in
 		BEAGLEBONE)
 			WANT_UBOOT=1
-			KNOWNHASH="4150e5a4480707c55a8d5b4570262e43af68d8ed3bdc0a433d8e7df47989a69e"
-			UBOOT_VERSION="u-boot-2013.04"
+			KNOWNHASH="7b6444bd23eb61068c43bd1d44ec7e7bfdbce5cadeca20c833eee186b4d3fd31"
+			UBOOT_VERSION="u-boot-2014.04"
 			;;
 		PANDABOARD)
 			WANT_UBOOT=1
@@ -54,8 +54,8 @@ before_build() {
 			;;
 		WANDBOARD-QUAD)
 			WANT_UBOOT=1
-			KNOWNHASH="0d71e62beb952b41ebafb20a7ee4df2f960db64c31b054721ceb79ff14014c55"
-			UBOOT_VERSION="u-boot-2013.10"
+			KNOWNHASH="b4f83b8db325c21671a997198ec3a373e2e00dde2fcf17be9b9afd7cfd727f56"
+			UBOOT_VERSION="u-boot-2014.07"
 			;;
 		*)
 			# Fallthrough.
@@ -92,6 +92,14 @@ install_uboot() {
 }
 
 main() {
+	# Fix broken ports that use kern.osreldate.
+	OSVERSION=$(chroot ${CHROOTDIR} /usr/bin/uname -U)
+	export OSVERSION
+	REVISION=$(chroot ${CHROOTDIR} make -C /usr/src/release -V REVISION)
+	BRANCH=$(chroot ${CHROOTDIR} make -C /usr/src/release -V BRANCH)
+	UNAME_r=${REVISION}-${BRANCH}
+	export UNAME_r
+
 	# Build the 'xdev' target for crochet.
 	eval chroot ${CHROOTDIR} make -C /usr/src \
 		${XDEV_FLAGS} XDEV=${XDEV} XDEV_ARCH=${XDEV_ARCH} \

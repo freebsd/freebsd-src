@@ -8,7 +8,7 @@
   002   '1'    '!'    nop    nop    nop    nop    nop    nop     O
   003   '2'    '"'    nul    nul    '@'    '@'    nul    nul     O
   004   '3'    '#'    nop    nop    0xa3   nop    nop    nop     O
-  005   '4'    0x20ac nop    nop    '$'    nop    nop    nop     O
+  005   '4'    0xa4   nop    nop    '$'    nop    nop    nop     O
   006   '5'    '%'    nop    nop    nop    nop    nop    nop     O
   007   '6'    '&'    nop    nop    nop    nop    nop    nop     O
   008   '7'    '/'    nop    nop    '{'    nop    nop    nop     O
@@ -30,7 +30,7 @@
   024   'o'    'O'    si     si     'o'    'O'    si     si      C
   025   'p'    'P'    dle    dle    'p'    'P'    dle    dle     C
   026   0xe5   0xc5   nop    nop    '}'    ']'    nop    nop     C
-  027   0x0161 '^'    nop    nop    '~'    nop    nop    nop     O
+  027   0xa8   '^'    nop    nop    '~'    nop    nop    nop     O
   028   cr     cr     nl     nl     cr     cr     nl     nl      O
   029   lctrl  lctrl  lctrl  lctrl  lctrl  lctrl  lctrl  lctrl   O
   030   'a'    'A'    soh    soh    'a'    'A'    soh    soh     C
@@ -44,7 +44,7 @@
   038   'l'    'L'    ff     ff     'l'    'L'    ff     ff      C
   039   0xf6   0xd6   nop    nop    '|'    '\'    nop    nop     C
   040   0xe4   0xc4   nop    nop    '{'    '['    nop    nop     C
-  041   0xa7   0x0153 nop    nop    '\'    '|'    nop    nop     O
+  041   0xa7   0xbd   nop    nop    '\'    '|'    nop    nop     O
   042   lshift lshift lshift lshift lshift lshift lshift lshift  O
   043   '''    '*'    nop    nop    nop    nop    nop    nop     O
   044   'z'    'Z'    sub    sub    'z'    'Z'    sub    sub     C

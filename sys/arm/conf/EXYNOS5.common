@@ -80,7 +80,7 @@ options 	NFS_ROOT		# NFS usable as /, requires NFSCLIENT
 
 device		mmc			# mmc/sd bus
 device		mmcsd			# mmc/sd flash cards
-device		sdhci			# generic sdhci
+device		dwmmc
 
 options 	ROOTDEVNAME=\"ufs:/dev/da0\"
 
@@ -104,7 +104,7 @@ device		ehci
 device		xhci
 
 device		umass
-device		scbus			# SCSI bus (required for SCSI)
+device		scbus			# SCSI bus (required for ATA/SCSI)
 device		da			# Direct Access (disks)
 device		pass
 

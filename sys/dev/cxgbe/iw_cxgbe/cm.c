@@ -42,7 +42,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/sockio.h>
 #include <sys/taskqueue.h>
 #include <netinet/in.h>
-#include <net/neighbour.h>
 #include <net/route.h>
 
 #include <netinet/in_systm.h>

@@ -34,9 +34,9 @@
   002   '1'    '!'    nop    nop    0xb9   0xa1   nop    nop     O
   003   '2'    '"'    nul    duml   0xb2   nop    nul    nul     O
   004   '3'    0xa3   nop    nop    0xb3   0xa3   nop    nop     O
-  005   '4'    '$'    nop    nop    0x0152 '$'    nop    nop     O
-  006   '5'    '%'    nop    nop    0x0153 nop    nop    nop     O
-  007   '6'    '&'    rs     rs     0x0178 nop    rs     rs      O
+  005   '4'    '$'    nop    nop    0xbc   '$'    nop    nop     O
+  006   '5'    '%'    nop    nop    0xbd   nop    nop    nop     O
+  007   '6'    '&'    rs     rs     0xbe   nop    rs     rs      O
   008   '7'    '/'    nop    nop    '{'    nop    nop    nop     O
   009   '8'    '('    nop    nop    '['    nop    nop    nop     O
   010   '9'    ')'    nop    nop    ']'    0xb1   nop    nop     O
@@ -115,7 +115,7 @@
   083   del    '.'    '.'    '.'    '.'    '.'    boot   boot    N
   084   nop    nop    nop    nop    nop    nop    nop    nop     O
   085   nop    nop    nop    nop    nop    nop    nop    nop     O
-  086   '<'    '>'    nop    nop    '|'    0x0160 nop    nop     O
+  086   '<'    '>'    nop    nop    '|'    0xa6   nop    nop     O
   087   fkey11 fkey23 fkey35 fkey47 scr11  scr11  scr11  scr11   O
   088   fkey12 fkey24 fkey36 fkey48 scr12  scr12  scr12  scr12   O
   089   cr     cr     nl     nl     cr     cr     nl     nl      O
@@ -142,7 +142,7 @@
                ( 'i'    0xec    ) ( 'I'    0xcc    ) ( 'o'    0xf2    ) ( 'O'    0xd2    )
                ( 'u'    0xf9    ) ( 'U'    0xd9    )
 
-  dacu 0xb4    ( 'a'    0xe1    ) ( 'A'    0xc1    ) ( 'e'    0xe9    ) ( 'E'    0xc9    )
+  dacu '''     ( 'a'    0xe1    ) ( 'A'    0xc1    ) ( 'e'    0xe9    ) ( 'E'    0xc9    )
                ( 'i'    0xed    ) ( 'I'    0xcd    ) ( 'o'    0xf3    ) ( 'O'    0xd3    )
                ( 'u'    0xfa    ) ( 'U'    0xda    ) ( 'y'    0xfd    ) ( 'Y'    0xdd    )
 

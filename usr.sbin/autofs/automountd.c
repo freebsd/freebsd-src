@@ -26,8 +26,10 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
  */
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #include <sys/types.h>
 #include <sys/time.h>
@@ -66,13 +68,14 @@ static int autofs_fd;
 static int request_id;
 
 static void
-done(int request_error)
+done(int request_error, bool wildcards)
 {
 	struct autofs_daemon_done add;
 	int error;
 
 	memset(&add, 0, sizeof(add));
 	add.add_id = request_id;
+	add.add_wildcards = wildcards;
 	add.add_error = request_error;
 
 	log_debugx("completing request %d with error %d",
@@ -170,7 +173,7 @@ static void
 exit_callback(void)
 {
 
-	done(EIO);
+	done(EIO, true);
 }
 
 static void
@@ -180,8 +183,9 @@ handle_request(const struct autofs_daemon_request *adr, char *cmdline_options,
 	const char *map;
 	struct node *root, *parent, *node;
 	FILE *f;
-	char *options, *fstype, *retrycnt, *tmp;
+	char *options, *fstype, *nobrowse, *retrycnt, *tmp;
 	int error;
+	bool wildcards;
 
 	log_debugx("got request %d: from %s, path %s, prefix \"%s\", "
 	    "key \"%s\", options \"%s\"", adr->adr_id, adr->adr_from,
@@ -207,9 +211,26 @@ handle_request(const struct autofs_daemon_request *adr, char *cmdline_options,
 		    checked_strdup(adr->adr_options), checked_strdup(map),
 		    checked_strdup("[kernel request]"), lineno);
 	}
-	parse_map(parent, map, adr->adr_key[0] != '\0' ? adr->adr_key : NULL);
+
+	/*
+	 * "Wildcards" here actually means "make autofs(4) request
+	 * automountd(8) action if the node being looked up does not
+	 * exist, even though the parent is marked as cached".  This
+	 * needs to be done for maps with wildcard entries, but also
+	 * for special and executable maps.
+	 */
+	parse_map(parent, map, adr->adr_key[0] != '\0' ? adr->adr_key : NULL,
+	    &wildcards);
+	if (!wildcards)
+		wildcards = node_has_wildcards(parent);
+	if (wildcards)
+		log_debugx("map may contain wildcard entries");
+	else
+		log_debugx("map does not contain wildcard entries");
+
 	if (adr->adr_key[0] != '\0')
 		node_expand_wildcard(root, adr->adr_key);
+
 	node = node_find(root, adr->adr_path);
 	if (node == NULL) {
 		log_errx(1, "map %s does not contain key for \"%s\"; "
@@ -219,6 +240,28 @@ handle_request(const struct autofs_daemon_request *adr, char *cmdline_options,
 	if (node->n_location == NULL) {
 		log_debugx("found node defined at %s:%d; not a mountpoint",
 		    node->n_config_file, node->n_config_line);
+
+		options = node_options(node);
+
+		/*
+		 * Prepend options passed via automountd(8) command line.
+		 */
+		if (cmdline_options != NULL) {
+			options =
+			    separated_concat(cmdline_options, options, ',');
+		}
+
+		nobrowse = pick_option("nobrowse", &options);
+		if (nobrowse != NULL && adr->adr_key[0] == '\0') {
+			log_debugx("skipping map %s due to \"nobrowse\" "
+			    "option; exiting", map);
+			done(0, true);
+
+			/*
+			 * Exit without calling exit_callback().
+			 */
+			quick_exit(0);
+		}
 
 		/*
 		 * Not a mountpoint; create directories in the autofs mount
@@ -237,9 +280,9 @@ handle_request(const struct autofs_daemon_request *adr, char *cmdline_options,
 			if (node != NULL)
 				create_subtree(node, false);
 		}
-		done(0);
 
 		log_debugx("nothing to mount; exiting");
+		done(0, wildcards);
 
 		/*
 		 * Exit without calling exit_callback().
@@ -270,6 +313,11 @@ handle_request(const struct autofs_daemon_request *adr, char *cmdline_options,
 	 * Append "automounted".
 	 */
 	options = separated_concat(options, "automounted", ',');
+
+	/*
+	 * Remove "nobrowse", mount(8) doesn't understand it.
+	 */
+	pick_option("nobrowse", &options);
 
 	/*
 	 * Figure out fstype.
@@ -307,14 +355,41 @@ handle_request(const struct autofs_daemon_request *adr, char *cmdline_options,
 	if (error != 0)
 		log_errx(1, "mount failed");
 
-	done(0);
 	log_debugx("mount done; exiting");
+	done(0, wildcards);
 
 	/*
 	 * Exit without calling exit_callback().
 	 */
 	quick_exit(0);
 }
+
+static void
+sigchld_handler(int dummy __unused)
+{
+
+	/*
+	 * The only purpose of this handler is to make SIGCHLD
+	 * interrupt the AUTOFSREQUEST ioctl(2), so we can call
+	 * wait_for_children().
+	 */
+}
+
+static void
+register_sigchld(void)
+{
+	struct sigaction sa;
+	int error;
+
+	bzero(&sa, sizeof(sa));
+	sa.sa_handler = sigchld_handler;
+	sigfillset(&sa.sa_mask);
+	error = sigaction(SIGCHLD, &sa, NULL);
+	if (error != 0)
+		log_err(1, "sigaction");
+
+}
+
 
 static int
 wait_for_children(bool block)
@@ -337,7 +412,7 @@ wait_for_children(bool block)
 			log_warnx("child process %d terminated with signal %d",
 			    pid, WTERMSIG(status));
 		} else if (WEXITSTATUS(status) != 0) {
-			log_warnx("child process %d terminated with exit status %d",
+			log_debugx("child process %d terminated with exit status %d",
 			    pid, WEXITSTATUS(status));
 		} else {
 			log_debugx("child process %d terminated gracefully", pid);
@@ -447,6 +522,8 @@ main_automountd(int argc, char **argv)
 	}
 
 	pidfile_write(pidfh);
+
+	register_sigchld();
 
 	for (;;) {
 		log_debugx("waiting for request from the kernel");

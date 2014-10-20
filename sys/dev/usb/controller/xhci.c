@@ -614,6 +614,10 @@ xhci_init(struct xhci_softc *sc, device_t self)
 	sc->sc_bus.devices = sc->sc_devices;
 	sc->sc_bus.devices_max = XHCI_MAX_DEVICES;
 
+	/* set default cycle state in case of early interrupts */
+	sc->sc_event_ccs = 1;
+	sc->sc_command_ccs = 1;
+
 	/* setup command queue mutex and condition varible */
 	cv_init(&sc->sc_cmd_cv, "CMDQ");
 	sx_init(&sc->sc_cmd_sx, "CMDQ lock");
@@ -2248,7 +2252,14 @@ xhci_configure_mask(struct usb_device *udev, uint32_t mask, uint8_t drop)
 		xhci_ctx_set_le32(sc, &pinp->ctx_input.dwInCtx0, mask);
 		xhci_ctx_set_le32(sc, &pinp->ctx_input.dwInCtx1, 0);
 	} else {
-		xhci_ctx_set_le32(sc, &pinp->ctx_input.dwInCtx0, 0);
+		/*
+		 * Some hardware requires that we drop the endpoint
+		 * context before adding it again:
+		 */
+		xhci_ctx_set_le32(sc, &pinp->ctx_input.dwInCtx0,
+		    mask & XHCI_INCTX_NON_CTRL_MASK);
+
+		/* Add new endpoint context */
 		xhci_ctx_set_le32(sc, &pinp->ctx_input.dwInCtx1, mask);
 
 		/* find most significant set bit */
@@ -2260,14 +2271,17 @@ xhci_configure_mask(struct usb_device *udev, uint32_t mask, uint8_t drop)
 		/* adjust */
 		x--;
 
-		/* figure out maximum */
-		if (x > sc->sc_hw.devs[index].context_num) {
+		/* figure out the maximum number of contexts */
+		if (x > sc->sc_hw.devs[index].context_num)
 			sc->sc_hw.devs[index].context_num = x;
-			temp = xhci_ctx_get_le32(sc, &pinp->ctx_slot.dwSctx0);
-			temp &= ~XHCI_SCTX_0_CTX_NUM_SET(31);
-			temp |= XHCI_SCTX_0_CTX_NUM_SET(x + 1);
-			xhci_ctx_set_le32(sc, &pinp->ctx_slot.dwSctx0, temp);
-		}
+		else
+			x = sc->sc_hw.devs[index].context_num;
+
+		/* update number of contexts */
+		temp = xhci_ctx_get_le32(sc, &pinp->ctx_slot.dwSctx0);
+		temp &= ~XHCI_SCTX_0_CTX_NUM_SET(31);
+		temp |= XHCI_SCTX_0_CTX_NUM_SET(x + 1);
+		xhci_ctx_set_le32(sc, &pinp->ctx_slot.dwSctx0, temp);
 	}
 	return (0);
 }

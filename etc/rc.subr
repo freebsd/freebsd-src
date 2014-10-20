@@ -68,6 +68,39 @@ list_vars()
 	done; }
 }
 
+# set_rcvar [var] [defval] [desc]
+#
+#	Echo or define a rc.conf(5) variable name.  Global variable
+#	$rcvars is used.
+#
+#	If no argument is specified, echo "${name}_enable".
+#
+#	If only a var is specified, echo "${var}_enable".
+#
+#	If var and defval are specified, the ${var} is defined as
+#	rc.conf(5) variable and the default value is ${defvar}.  An
+#	optional argument $desc can also be specified to add a
+#	description for that.
+#
+set_rcvar()
+{
+	local _var
+
+	case $# in
+	0)	echo ${name}_enable ;;
+	1)	echo ${1}_enable ;;
+	*)
+		debug "set_rcvar: \$$1=$2 is added" \
+		    " as a rc.conf(5) variable."
+		_var=$1
+		rcvars="${rcvars# } $_var"
+		eval ${_var}_defval=\"$2\"
+		shift 2
+		eval ${_var}_desc=\"$*\"
+	;;
+	esac
+}
+
 # set_rcvar_obsolete oldvar [newvar] [msg]
 #	Define obsolete variable.
 #	Global variable $rcvars_obsolete is used.
@@ -76,7 +109,7 @@ set_rcvar_obsolete()
 {
 	local _var
 	_var=$1
-	debug "rcvar_obsolete: \$$1(old) -> \$$2(new) is defined"
+	debug "set_rcvar_obsolete: \$$1(old) -> \$$2(new) is defined"
 
 	rcvars_obsolete="${rcvars_obsolete# } $1"
 	eval ${1}_newvar=\"$2\"
@@ -716,6 +749,8 @@ check_startmsgs()
 #				NOTE:	$flags from the parent environment
 #					can be used to override this.
 #
+#	${name}_env	n	Environment variables to run ${command} with.
+#
 #	${name}_fib	n	Routing table number to run ${command} with.
 #
 #	${name}_nice	n	Nice level to run ${command} at.
@@ -730,6 +765,8 @@ check_startmsgs()
 #	${name}_groups	n	Comma separated list of supplementary groups
 #				to run the chrooted ${command} with.
 #				Requires /usr to be mounted.
+#
+#	${name}_prepend	n	Command added before ${command}.
 #
 #	${rc_arg}_cmd	n	If set, use this as the method when invoked;
 #				Otherwise, use default command (see below)
@@ -904,7 +941,8 @@ run_rc_command()
 	eval _chdir=\$${name}_chdir	_chroot=\$${name}_chroot \
 	    _nice=\$${name}_nice	_user=\$${name}_user \
 	    _group=\$${name}_group	_groups=\$${name}_groups \
-	    _fib=\$${name}_fib
+	    _fib=\$${name}_fib		_env=\$${name}_env \
+	    _prepend=\$${name}_prepend
 
 	if [ -n "$_user" ]; then	# unset $_user if running as that user
 		if [ "$_user" = "$(eval $IDCMD)" ]; then
@@ -989,12 +1027,14 @@ run_rc_command()
 				_doit="\
 ${_nice:+nice -n $_nice }\
 ${_fib:+setfib -F $_fib }\
+${_env:+env $_env }\
 chroot ${_user:+-u $_user }${_group:+-g $_group }${_groups:+-G $_groups }\
 $_chroot $command $rc_flags $command_args"
 			else
 				_doit="\
 ${_chdir:+cd $_chdir && }\
 ${_fib:+setfib -F $_fib }\
+${_env:+env $_env }\
 $command $rc_flags $command_args"
 				if [ -n "$_user" ]; then
 				    _doit="su -m $_user -c 'sh -c \"$_doit\"'"
@@ -1004,6 +1044,9 @@ $command $rc_flags $command_args"
 						_doit="sh -c \"$_doit\""
 					fi
 					_doit="nice -n $_nice $_doit"
+				fi
+				if [ -n "$_prepend" ]; then
+					_doit="$_prepend $_doit"
 				fi
 			fi
 
@@ -1091,8 +1134,8 @@ $command $rc_flags $command_args"
 				echo ""
 			fi
 			echo "#"
-			# Get unique vars in $rcvar
-			for _v in $rcvar; do
+			# Get unique vars in $rcvar $rcvars
+			for _v in $rcvar $rcvars; do
 				case $v in
 				$_v\ *|\ *$_v|*\ $_v\ *) ;;
 				*)	v="${v# } $_v" ;;
@@ -1238,7 +1281,7 @@ run_rc_script()
 
 	unset	name command command_args command_interpreter \
 		extra_commands pidfile procname \
-		rcvar rcvars_obsolete required_dirs required_files \
+		rcvar rcvars rcvars_obsolete required_dirs required_files \
 		required_vars
 	eval unset ${_arg}_cmd ${_arg}_precmd ${_arg}_postcmd
 
@@ -1270,7 +1313,7 @@ run_rc_script()
 #
 load_rc_config()
 {
-	local _name _rcvar_val _var _defval _v _msg _new
+	local _name _rcvar_val _var _defval _v _msg _new _d
 	_name=$1
 	if [ -z "$_name" ]; then
 		err 3 'USAGE: load_rc_config name'
@@ -1289,13 +1332,24 @@ load_rc_config()
 		fi
 		_rc_conf_loaded=true
 	fi
-	if [ -f /etc/rc.conf.d/"$_name" ]; then
-		debug "Sourcing /etc/rc.conf.d/${_name}"
-		. /etc/rc.conf.d/"$_name"
-	fi
+
+	for _d in /etc ${local_startup%*/rc.d}; do
+		if [ -f ${_d}/rc.conf.d/"$_name" ]; then
+			debug "Sourcing ${_d}/rc.conf.d/$_name"
+			. ${_d}/rc.conf.d/"$_name"
+		elif [ -d ${_d}/rc.conf.d/"$_name" ] ; then
+			local _rc
+			for _rc in ${_d}/rc.conf.d/"$_name"/* ; do
+				if [ -f "$_rc" ] ; then
+					debug "Sourcing $_rc"
+					. "$_rc"
+				fi
+			done
+		fi
+	done
 
 	# Set defaults if defined.
-	for _var in $rcvar; do
+	for _var in $rcvar $rcvars; do
 		eval _defval=\$${_var}_defval
 		if [ -n "$_defval" ]; then
 			eval : \${$_var:=\$${_var}_defval}
@@ -1955,6 +2009,22 @@ check_required_after()
 	return 0
 }
 
+# check_jail mib
+#	Return true if security.jail.$mib exists and set to 1.
+
+check_jail()
+{
+	local _mib _v
+
+	_mib=$1
+	if _v=$(${SYSCTL_N} "security.jail.$_mib" 2> /dev/null); then
+		case $_v in
+		1)	return 0;;
+		esac
+	fi
+	return 1
+}
+
 # check_kern_features mib
 #	Return existence of kern.features.* sysctl MIB as true or
 #	false.  The result will be cached in $_rc_cache_kern_features_
@@ -1980,7 +2050,7 @@ check_kern_features()
 # check_namevarlist var
 #	Return "0" if ${name}_var is reserved in rc.subr.
 
-_rc_namevarlist="program chroot chdir flags fib nice user group groups"
+_rc_namevarlist="program chroot chdir env flags fib nice user group groups prepend"
 check_namevarlist()
 {
 	local _v

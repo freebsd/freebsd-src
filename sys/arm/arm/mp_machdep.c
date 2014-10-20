@@ -43,6 +43,7 @@ __FBSDID("$FreeBSD$");
 #include <vm/vm_kern.h>
 #include <vm/pmap.h>
 
+#include <machine/armreg.h>
 #include <machine/cpu.h>
 #include <machine/cpufunc.h>
 #include <machine/smp.h>
@@ -236,7 +237,7 @@ init_secondary(int cpu)
 				
 	for (int i = start; i <= end; i++)
 		arm_unmask_irq(i);
-	enable_interrupts(I32_bit);
+	enable_interrupts(PSR_I);
 
 	loop_counter = 0;
 	while (smp_started == 0) {

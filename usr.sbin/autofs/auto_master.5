@@ -27,7 +27,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd July 31, 2014
+.Dd August 23, 2014
 .Dt AUTO_MASTER 5
 .Os
 .Sh NAME
@@ -134,6 +134,10 @@ is used to specify filesystem type.
 It is not passed to the mount program as an option.
 Instead, it is passed as argument to
 .Cm "mount -t".
+The special option
+.Li nobrowse
+is used to disable creation of top-level directories for special
+and executable maps.
 .Pp
 The optional
 .Pa mountpoint

@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2013, Intel Corp.
+ * Copyright (C) 2000 - 2014, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -41,7 +41,7 @@
  * POSSIBILITY OF SUCH DAMAGES.
  */
 
-
+#include <contrib/dev/acpica/compiler/aslcompiler.h>
 #include <contrib/dev/acpica/include/acpi.h>
 #include <contrib/dev/acpica/include/accommon.h>
 #include <contrib/dev/acpica/include/acapps.h>
@@ -199,20 +199,28 @@ FlGenerateFilename (
 {
     char                    *Position;
     char                    *NewFilename;
+    char                    *DirectoryPosition;
 
 
     /*
-     * Copy the original filename to a new buffer. Leave room for the worst case
-     * where we append the suffix, an added dot and the null terminator.
+     * Copy the original filename to a new buffer. Leave room for the worst
+     * case where we append the suffix, an added dot and the null terminator.
      */
-    NewFilename = ACPI_ALLOCATE_ZEROED ((ACPI_SIZE)
+    NewFilename = UtStringCacheCalloc ((ACPI_SIZE)
         strlen (InputFilename) + strlen (Suffix) + 2);
+    if (!NewFilename)
+    {
+        return (NULL);
+    }
+
     strcpy (NewFilename, InputFilename);
 
     /* Try to find the last dot in the filename */
 
+    DirectoryPosition = strrchr (NewFilename, '/');
     Position = strrchr (NewFilename, '.');
-    if (Position)
+
+    if (Position && (Position > DirectoryPosition))
     {
         /* Tack on the new suffix */
 
@@ -247,7 +255,7 @@ FlStrdup (
     char                *NewString;
 
 
-    NewString = ACPI_ALLOCATE ((ACPI_SIZE) strlen (String) + 1);
+    NewString = UtStringCacheCalloc ((ACPI_SIZE) strlen (String) + 1);
     if (!NewString)
     {
         return (NULL);
@@ -288,7 +296,6 @@ FlSplitInputPathname (
 
 
     *OutDirectoryPath = NULL;
-    *OutFilename = NULL;
 
     if (!InputPath)
     {
@@ -334,6 +341,12 @@ FlSplitInputPathname (
     }
 
     *OutDirectoryPath = DirectoryPath;
-    *OutFilename = Filename;
+
+    if (OutFilename)
+    {
+        *OutFilename = Filename;
+        return (AE_OK);
+    }
+
     return (AE_OK);
 }

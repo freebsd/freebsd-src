@@ -28,7 +28,7 @@
 .\"	@(#)mmap.2	8.4 (Berkeley) 5/11/95
 .\" $FreeBSD$
 .\"
-.Dd June 19, 2014
+.Dd September 17, 2014
 .Dt MMAP 2
 .Os
 .Sh NAME
@@ -176,11 +176,6 @@ already exists within the range.
 .It Dv MAP_HASSEMAPHORE
 Notify the kernel that the region may contain semaphores and that special
 handling may be necessary.
-.It Dv MAP_INHERIT
-This flag never operated as advertised and is no longer supported.
-Please refer to
-.Xr minherit 2
-for further information.
 .It Dv MAP_NOCORE
 Region is not included in a core file.
 .It Dv MAP_NOSYNC
@@ -300,14 +295,6 @@ The
 system call does not unmap pages, see
 .Xr munmap 2
 for further information.
-.Pp
-The current design does not allow a process to specify the location of
-swap space.
-In the future we may define an additional mapping type,
-.Dv MAP_SWAP ,
-in which
-the file descriptor argument specifies a file or device to which swapping
-should be done.
 .Sh NOTES
 Although this implementation does not impose any alignment restrictions on
 the
@@ -371,6 +358,29 @@ The
 .Fa fd
 argument
 is not a valid open file descriptor.
+.It Bq Er EINVAL
+An invalid value was passed in the
+.Fa prot
+argument.
+.It Bq Er EINVAL
+An undefined option was set in the
+.Fa flags
+argument.
+.It Bq Er EINVAL
+Both
+.Dv MAP_PRIVATE
+and
+.Dv MAP_SHARED
+were specified.
+.It Bq Er EINVAL
+None of
+.Dv MAP_ANON ,
+.Dv MAP_PRIVATE ,
+.Dv MAP_SHARED ,
+or
+.Dv MAP_STACK
+was specified.
+At least one of these flags must be included.
 .It Bq Er EINVAL
 .Dv MAP_FIXED
 was specified and the

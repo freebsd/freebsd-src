@@ -268,6 +268,7 @@ struct isp_fc {
 	unsigned int inject_lost_data_frame;
 #endif
 #endif
+	int			num_threads;
 };
 
 struct isp_spi {
@@ -291,6 +292,7 @@ struct isp_spi {
 	struct proc *		target_proc;
 #endif
 #endif
+	int			num_threads;
 };
 
 struct isposinfo {
@@ -365,6 +367,8 @@ struct isposinfo {
 		struct isp_spi *spi;
 		void *ptr;
 	} pc;
+
+	int			is_exiting;
 };
 #define	ISP_FC_PC(isp, chan)	(&(isp)->isp_osinfo.pc.fc[(chan)])
 #define	ISP_SPI_PC(isp, chan)	(&(isp)->isp_osinfo.pc.spi[(chan)])

@@ -10,6 +10,8 @@
     boot
         defaults
         ..
+        dtb
+        ..
         firmware
         ..
         kernel
@@ -61,6 +63,8 @@
         pkg
         ..
         ppp
+        ..
+        rc.conf.d
         ..
         rc.d
         ..
