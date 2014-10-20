@@ -25,7 +25,7 @@
  */
 #include <machine/asmacros.h>
 
-#include "svm_assym.s"
+#include "svm_assym.h"
 
 /*
  * Be friendly to DTrace FBT's prologue/epilogue pattern matching.

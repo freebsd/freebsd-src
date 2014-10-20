@@ -550,7 +550,6 @@ autofs_ioctl_request(struct autofs_daemon_request *adr)
 		    &autofs_softc->sc_lock);
 		if (error != 0) {
 			sx_xunlock(&autofs_softc->sc_lock);
-			AUTOFS_DEBUG("failed with error %d", error);
 			return (error);
 		}
 	}
