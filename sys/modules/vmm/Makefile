@@ -3,6 +3,7 @@
 KMOD=	vmm
 
 SRCS=	opt_acpi.h opt_ddb.h device_if.h bus_if.h pci_if.h
+SRCS+=	vmx_assym.h svm_assym.h
 
 CFLAGS+= -DVMM_KEEP_STATS -DSMP
 CFLAGS+= -I${.CURDIR}/../../amd64/vmm
@@ -39,6 +40,7 @@ SRCS+=	iommu.c		\
 SRCS+=	ept.c		\
 	vmcs.c		\
 	vmx_msr.c	\
+	vmx_support.S	\
 	vmx.c		\
 	vtd.c
 
@@ -46,37 +48,37 @@ SRCS+=	ept.c		\
 .PATH: ${.CURDIR}/../../amd64/vmm/amd
 SRCS+=	vmcb.c		\
 	svm.c		\
+	svm_support.S	\
 	npt.c		\
 	amdv.c		\
 	svm_msr.c
 	
-OBJS=	vmx_support.o svm_support.o
+CLEANFILES=	vmx_assym.h vmx_genassym.o svm_assym.h svm_genassym.o
 
-CLEANFILES=	vmx_assym.s vmx_genassym.o svm_assym.s svm_genassym.o
-
-vmx_assym.s:    vmx_genassym.o
+vmx_assym.h:    vmx_genassym.o
 .if exists(@)
-vmx_assym.s:    @/kern/genassym.sh
+vmx_assym.h:    @/kern/genassym.sh
 .endif
 	sh @/kern/genassym.sh vmx_genassym.o > ${.TARGET}
 
-svm_assym.s:    svm_genassym.o
+svm_assym.h:    svm_genassym.o
 .if exists(@)
-svm_assym.s:    @/kern/genassym.sh
+svm_assym.h:    @/kern/genassym.sh
 .endif
 	sh @/kern/genassym.sh svm_genassym.o > ${.TARGET}
 
-vmx_support.o:	vmx_support.S vmx_assym.s
+vmx_support.o:
 	${CC} -c -x assembler-with-cpp -DLOCORE ${CFLAGS} \
 	    ${.IMPSRC} -o ${.TARGET}
 
-svm_support.o:	svm_support.S svm_assym.s
+svm_support.o:
 	${CC} -c -x assembler-with-cpp -DLOCORE ${CFLAGS} \
 	    ${.IMPSRC} -o ${.TARGET}
 
-vmx_genassym.o: vmx_genassym.c @ machine x86
+vmx_genassym.o:
 	${CC} -c ${CFLAGS:N-fno-common} ${.IMPSRC}
 
-svm_genassym.o: svm_genassym.c @ machine x86
+svm_genassym.o:
 	${CC} -c ${CFLAGS:N-fno-common} ${.IMPSRC}
+
 .include <bsd.kmod.mk>

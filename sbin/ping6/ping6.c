@@ -152,6 +152,8 @@ struct tv32 {
 #define	DEFDATALEN	ICMP6ECHOTMLEN
 #define MAXDATALEN	MAXPACKETLEN - IP6LEN - ICMP6ECHOLEN
 #define	NROUTES		9		/* number of record route slots */
+#define	MAXWAIT		10000		/* max ms to wait for response */
+#define	MAXALARM	(60 * 60)	/* max seconds for alarm timeout */
 
 #define	A(bit)		rcvd_tbl[(bit)>>3]	/* identify byte in array */
 #define	B(bit)		(1 << ((bit) & 0x07))	/* identify bit in byte */
@@ -188,6 +190,7 @@ struct tv32 {
 #define F_MISSED	0x800000
 #define F_DONTFRAG	0x1000000
 #define F_NOUSERDATA	(F_NODEADDR | F_FQDN | F_FQDNOLD | F_SUPTYPES)
+#define	F_WAITTIME	0x2000000
 u_int options;
 
 #define IN6LEN		sizeof(struct in6_addr)
@@ -228,6 +231,8 @@ long nreceived;			/* # of packets we got back */
 long nrepeats;			/* number of duplicates */
 long ntransmitted;		/* sequence # for outbound packets = #sent */
 int interval = 1000;		/* interval between packets in ms */
+int waittime = MAXWAIT;		/* timeout for each packet */
+long nrcvtimeout = 0;		/* # of packets we got back after waittime */
 
 /* timing */
 int timing;			/* flag to do timing */
@@ -312,6 +317,7 @@ main(int argc, char *argv[])
 	char *policy_out = NULL;
 #endif
 	double t;
+	u_long alarmtimeout;
 	size_t rthlen;
 #ifdef IPV6_USE_MIN_MTU
 	int mflag = 0;
@@ -321,7 +327,7 @@ main(int argc, char *argv[])
 	memset(&smsghdr, 0, sizeof(smsghdr));
 	memset(&smsgiov, 0, sizeof(smsgiov));
 
-	preload = 0;
+	alarmtimeout = preload = 0;
 	datap = &outpack[ICMP6ECHOLEN + ICMP6ECHOTMLEN];
 #ifndef IPSEC
 #define ADDOPTS
@@ -333,7 +339,7 @@ main(int argc, char *argv[])
 #endif /*IPSEC_POLICY_IPSEC*/
 #endif
 	while ((ch = getopt(argc, argv,
-	    "a:b:c:DdfHg:h:I:i:l:mnNop:qrRS:s:tvwW" ADDOPTS)) != -1) {
+	    "a:b:c:DdfHg:h:I:i:l:mnNop:qrRS:s:tvwWx:X:" ADDOPTS)) != -1) {
 #undef ADDOPTS
 		switch (ch) {
 		case 'a':
@@ -540,6 +546,24 @@ main(int argc, char *argv[])
 		case 'W':
 			options &= ~F_NOUSERDATA;
 			options |= F_FQDNOLD;
+			break;
+		case 'x':
+			t = strtod(optarg, &e);
+			if (*e || e == optarg || t > (double)INT_MAX)
+				err(EX_USAGE, "invalid timing interval: `%s'",
+				    optarg);
+			options |= F_WAITTIME;
+			waittime = (int)t;
+			break;
+		case 'X':
+			alarmtimeout = strtoul(optarg, &e, 0);
+			if ((alarmtimeout < 1) || (alarmtimeout == ULONG_MAX))
+				errx(EX_USAGE, "invalid timeout: `%s'",
+				    optarg);
+			if (alarmtimeout > MAXALARM)
+				errx(EX_USAGE, "invalid timeout: `%s' > %d",
+				    optarg, MAXALARM);
+			alarm((int)alarmtimeout);
 			break;
 #ifdef IPSEC
 #ifdef IPSEC_POLICY_IPSEC
@@ -1057,6 +1081,10 @@ main(int argc, char *argv[])
 		err(EX_OSERR, "sigaction SIGINFO");
 	seeninfo = 0;
 #endif
+	if (alarmtimeout > 0) {
+		if (sigaction(SIGALRM, &si_sa, 0) == -1)
+			err(EX_OSERR, "sigaction SIGALRM");
+	}
 	if (options & F_FLOOD) {
 		intvl.tv_sec = 0;
 		intvl.tv_usec = 10000;
@@ -1157,17 +1185,18 @@ main(int argc, char *argv[])
 			/*
 			 * If we're not transmitting any more packets,
 			 * change the timer to wait two round-trip times
-			 * if we've received any packets or ten seconds
-			 * if we haven't.
+			 * if we've received any packets or (waittime)
+			 * milliseconds if we haven't.
 			 */
-#define	MAXWAIT		10
 				intvl.tv_usec = 0;
 				if (nreceived) {
 					intvl.tv_sec = 2 * tmax / 1000;
 					if (intvl.tv_sec == 0)
 						intvl.tv_sec = 1;
-				} else
-					intvl.tv_sec = MAXWAIT;
+				} else {
+					intvl.tv_sec = waittime / 1000;
+					intvl.tv_usec = waittime % 1000 * 1000;
+				}
 			}
 			gettimeofday(&last, NULL);
 			if (ntransmitted - nreceived - 1 > nmissedmax) {
@@ -1181,6 +1210,7 @@ main(int argc, char *argv[])
 	si_sa.sa_flags = 0;
 	si_sa.sa_handler = SIG_IGN;
 	sigaction(SIGINT, &si_sa, 0);
+	sigaction(SIGALRM, &si_sa, 0);
 	summary();
 
 	if (res != NULL)
@@ -1198,6 +1228,7 @@ onsignal(int sig)
 
 	switch (sig) {
 	case SIGINT:
+	case SIGALRM:
 		seenint++;
 		break;
 #ifdef SIGINFO
@@ -1520,6 +1551,11 @@ pr_pack(u_char *buf, int cc, struct msghdr *mhdr)
 
 		if (options & F_QUIET)
 			return;
+
+		if (options & F_WAITTIME && triptime > waittime) {
+			++nrcvtimeout;
+			return;
+		}
 
 		if (options & F_FLOOD)
 			(void)write(STDOUT_FILENO, &BSPACE, 1);
@@ -2216,6 +2252,8 @@ summary(void)
 			    ((((double)ntransmitted - nreceived) * 100.0) /
 			    ntransmitted));
 	}
+	if (nrcvtimeout)
+		printf(", %ld packets out of wait time", nrcvtimeout);
 	(void)putchar('\n');
 	if (nreceived && timing) {
 		/* Only display average to microseconds */
@@ -2741,6 +2779,7 @@ usage(void)
 #endif
 	    "\n"
 	    "             [-p pattern] [-S sourceaddr] [-s packetsize] "
-	    "[hops ...] host\n");
+	    "[-x waittime]\n"
+	    "             [-X timeout] [hops ...] host\n");
 	exit(1);
 }

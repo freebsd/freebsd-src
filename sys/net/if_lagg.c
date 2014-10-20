@@ -569,9 +569,22 @@ lagg_clone_destroy(struct ifnet *ifp)
 static void
 lagg_lladdr(struct lagg_softc *sc, uint8_t *lladdr)
 {
+	struct ifnet *ifp = sc->sc_ifp;
 	struct lagg_port lp;
 
+	if (memcmp(lladdr, IF_LLADDR(ifp), ETHER_ADDR_LEN) == 0)
+		return;
+
 	LAGG_WLOCK_ASSERT(sc);
+	/*
+	 * Set the link layer address on the lagg interface.
+	 * lagg_proto_lladdr() notifies the MAC change to
+	 * the aggregation protocol.  iflladdr_event handler which
+	 * may trigger gratuitous ARPs for INET will be handled in
+	 * a taskqueue.
+	 */
+	bcopy(lladdr, IF_LLADDR(ifp), ETHER_ADDR_LEN);
+	lagg_proto_lladdr(sc);
 
 	bzero(&lp, sizeof(lp));
 	lp.lp_ifp = sc->sc_ifp;
@@ -625,11 +638,13 @@ lagg_port_lladdr(struct lagg_port *lp, uint8_t *lladdr)
 	struct ifnet *ifp = lp->lp_ifp;
 	struct lagg_llq *llq;
 	int pending = 0;
+	int primary;
 
 	LAGG_WLOCK_ASSERT(sc);
 
-	if (lp->lp_detaching ||
-	    memcmp(lladdr, IF_LLADDR(ifp), ETHER_ADDR_LEN) == 0)
+	primary = (sc->sc_primary->lp_ifp == ifp) ? 1 : 0;
+	if (primary == 0 && (lp->lp_detaching ||
+	    memcmp(lladdr, IF_LLADDR(ifp), ETHER_ADDR_LEN) == 0))
 		return;
 
 	/* Check to make sure its not already queued to be changed */
@@ -648,7 +663,7 @@ lagg_port_lladdr(struct lagg_port *lp, uint8_t *lladdr)
 
 	/* Update the lladdr even if pending, it may have changed */
 	llq->llq_ifp = ifp;
-	llq->llq_primary = (sc->sc_primary->lp_ifp == ifp) ? 1 : 0;
+	llq->llq_primary = primary;
 	bcopy(lladdr, llq->llq_lladdr, ETHER_ADDR_LEN);
 
 	if (!pending)
@@ -692,23 +707,8 @@ lagg_port_setlladdr(void *arg, int pending)
 			if (error)
 				printf("%s: setlladdr failed on %s\n", __func__,
 				    ifp->if_xname);
-		} else {
-			/*
-			 * Set the link layer address on the lagg interface.
-			 * lagg_proto_lladdr() notifies the MAC change to
-			 * the aggregation protocol.  iflladdr_event handler
-			 * may trigger gratuitous ARPs for INET.
-			 */
-			if (memcmp(llq->llq_lladdr, IF_LLADDR(ifp),
-			    ETHER_ADDR_LEN) != 0) {
-				bcopy(llq->llq_lladdr, IF_LLADDR(ifp),
-				    ETHER_ADDR_LEN);
-				LAGG_WLOCK(sc);
-				lagg_proto_lladdr(sc);
-				LAGG_WUNLOCK(sc);
-				EVENTHANDLER_INVOKE(iflladdr_event, ifp);
-			}
-		}
+		} else
+			EVENTHANDLER_INVOKE(iflladdr_event, ifp);
 		CURVNET_RESTORE();
 		head = SLIST_NEXT(llq, llq_entries);
 		free(llq, M_DEVBUF);
@@ -742,34 +742,6 @@ lagg_port_create(struct lagg_softc *sc, struct ifnet *ifp)
 	if (ifp->if_type != IFT_ETHER)
 		return (EPROTONOSUPPORT);
 
-#ifdef INET6
-	/*
-	 * The member interface should not have inet6 address because
-	 * two interfaces with a valid link-local scope zone must not be
-	 * merged in any form.  This restriction is needed to
-	 * prevent violation of link-local scope zone.  Attempts to
-	 * add a member interface which has inet6 addresses triggers
-	 * removal of all inet6 addresses on the member interface.
-	 */
-	SLIST_FOREACH(lp, &sc->sc_ports, lp_entries) {
-		if (in6ifa_llaonifp(lp->lp_ifp)) {
-			in6_ifdetach(lp->lp_ifp);
-			if_printf(sc->sc_ifp,
-			    "IPv6 addresses on %s have been removed "
-			    "before adding it as a member to prevent "
-			    "IPv6 address scope violation.\n",
-			    lp->lp_ifp->if_xname);
-		}
-	}
-	if (in6ifa_llaonifp(ifp)) {
-		in6_ifdetach(ifp);
-		if_printf(sc->sc_ifp,
-		    "IPv6 addresses on %s have been removed "
-		    "before adding it as a member to prevent "
-		    "IPv6 address scope violation.\n",
-		    ifp->if_xname);
-	}
-#endif
 	/* Allow the first Ethernet member to define the MTU */
 	if (SLIST_EMPTY(&sc->sc_ports))
 		sc->sc_ifp->if_mtu = ifp->if_mtu;
@@ -1414,6 +1386,26 @@ lagg_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 			error = EINVAL;
 			break;
 		}
+#ifdef INET6
+		/*
+		 * A laggport interface should not have inet6 address
+		 * because two interfaces with a valid link-local
+		 * scope zone must not be merged in any form.  This
+		 * restriction is needed to prevent violation of
+		 * link-local scope zone.  Attempts to add a laggport
+		 * interface which has inet6 addresses triggers
+		 * removal of all inet6 addresses on the member
+		 * interface.
+		 */
+		if (in6ifa_llaonifp(tpif)) {
+			in6_ifdetach(tpif);
+				if_printf(sc->sc_ifp,
+				    "IPv6 addresses on %s have been removed "
+				    "before adding it as a member to prevent "
+				    "IPv6 address scope violation.\n",
+				    tpif->if_xname);
+		}
+#endif
 		LAGG_WLOCK(sc);
 		error = lagg_port_create(sc, tpif);
 		LAGG_WUNLOCK(sc);
