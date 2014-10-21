@@ -121,6 +121,16 @@ TUNABLE_INT("vfs.lookup_shared", &lookup_shared);
  *		if symbolic link, massage name in buffer and continue
  *	}
  */
+static void
+namei_cleanup_cnp(struct componentname *cnp)
+{
+	uma_zfree(namei_zone, cnp->cn_pnbuf);
+#ifdef DIAGNOSTIC
+	cnp->cn_pnbuf = NULL;
+	cnp->cn_nameptr = NULL;
+#endif
+}
+
 int
 namei(struct nameidata *ndp)
 {
@@ -182,11 +192,7 @@ namei(struct nameidata *ndp)
 	}
 #endif
 	if (error) {
-		uma_zfree(namei_zone, cnp->cn_pnbuf);
-#ifdef DIAGNOSTIC
-		cnp->cn_pnbuf = NULL;
-		cnp->cn_nameptr = NULL;
-#endif
+		namei_cleanup_cnp(cnp);
 		ndp->ni_vp = NULL;
 		return (error);
 	}
@@ -248,11 +254,7 @@ namei(struct nameidata *ndp)
 			}
 		}
 		if (error) {
-			uma_zfree(namei_zone, cnp->cn_pnbuf);
-#ifdef DIAGNOSTIC
-			cnp->cn_pnbuf = NULL;
-			cnp->cn_nameptr = NULL;
-#endif
+			namei_cleanup_cnp(cnp);
 			return (error);
 		}
 	}
@@ -278,8 +280,10 @@ namei(struct nameidata *ndp)
 		if (*(cnp->cn_nameptr) == '/') {
 			vrele(dp);
 			VFS_UNLOCK_GIANT(vfslocked);
-			if (ndp->ni_strictrelative != 0)
+			if (ndp->ni_strictrelative != 0) {
+				namei_cleanup_cnp(cnp);
 				return (ENOTCAPABLE);
+			}
 			while (*(cnp->cn_nameptr) == '/') {
 				cnp->cn_nameptr++;
 				ndp->ni_pathlen--;
@@ -293,11 +297,7 @@ namei(struct nameidata *ndp)
 		ndp->ni_startdir = dp;
 		error = lookup(ndp);
 		if (error) {
-			uma_zfree(namei_zone, cnp->cn_pnbuf);
-#ifdef DIAGNOSTIC
-			cnp->cn_pnbuf = NULL;
-			cnp->cn_nameptr = NULL;
-#endif
+			namei_cleanup_cnp(cnp);
 			SDT_PROBE(vfs, namei, lookup, return, error, NULL, 0,
 			    0, 0);
 			return (error);
@@ -309,11 +309,7 @@ namei(struct nameidata *ndp)
 		 */
 		if ((cnp->cn_flags & ISSYMLINK) == 0) {
 			if ((cnp->cn_flags & (SAVENAME | SAVESTART)) == 0) {
-				uma_zfree(namei_zone, cnp->cn_pnbuf);
-#ifdef DIAGNOSTIC
-				cnp->cn_pnbuf = NULL;
-				cnp->cn_nameptr = NULL;
-#endif
+				namei_cleanup_cnp(cnp);
 			} else
 				cnp->cn_flags |= HASBUF;
 
@@ -379,11 +375,7 @@ namei(struct nameidata *ndp)
 		vput(ndp->ni_vp);
 		dp = ndp->ni_dvp;
 	}
-	uma_zfree(namei_zone, cnp->cn_pnbuf);
-#ifdef DIAGNOSTIC
-	cnp->cn_pnbuf = NULL;
-	cnp->cn_nameptr = NULL;
-#endif
+	namei_cleanup_cnp(cnp);
 	vput(ndp->ni_vp);
 	ndp->ni_vp = NULL;
 	vrele(ndp->ni_dvp);
