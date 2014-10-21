@@ -11,6 +11,19 @@ handbook:
 Items affecting the ports and packages system can be found in
 /usr/ports/UPDATING.  Please read that file before running portupgrade.
 
+20141021:	p3	FreeBSD-SA-14:20.rtsold
+			FreeBSD-SA-14:21.routed
+			FreeBSD-SA-14:22.namei
+			FreeBSD-SA-14:23.openssl
+
+	Fix rtsold(8) remote buffer overflow vulnerability. [SA-14:20]
+
+	Fix routed(8) remote denial of service vulnerability. [SA-14:21]
+
+	Fix memory leak in sandboxed namei lookup. [SA-14:22]
+
+	Fix OpenSSL multiple vulnerabilities. [SA-14:23]
+
 20140916:	p2	FreeBSD-SA-14:19.tcp
 	Fix Denial of Service in TCP packet processing. [SA-14:19]
 
