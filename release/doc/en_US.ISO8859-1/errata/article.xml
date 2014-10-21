@@ -112,6 +112,33 @@
 	    <entry><para>Denial of Service in TCP packet
 		processing.</para></entry>
 	  </row>
+
+	  <row>
+	    <entry><link xlink:href="http://www.freebsd.org/security/advisories/FreeBSD-SA-14:20.rtsold.asc">SA-14:20.rtsold</link></entry>
+	    <entry>21&nbsp;October&nbsp;2014</entry>
+	    <entry><para>Remote buffer overflow
+		vulnerability.</para></entry>
+	  </row>
+
+	  <row>
+	    <entry><link xlink:href="http://www.freebsd.org/security/advisories/FreeBSD-SA-14:21.routed.asc">SA-14:21.routed</link></entry>
+	    <entry>21&nbsp;October&nbsp;2014</entry>
+	    <entry><para>Remote denial of service
+		vulnerability.</para></entry>
+	  </row>
+
+	  <row>
+	    <entry><link xlink:href="http://www.freebsd.org/security/advisories/FreeBSD-SA-14:22.namei.asc">SA-14:22.namei</link></entry>
+	    <entry>21&nbsp;October&nbsp;2014</entry>
+	    <entry><para>Memory leak in sandboxed namei
+		lookup.</para></entry>
+	  </row>
+
+	  <row>
+	    <entry><link xlink:href="http://www.freebsd.org/security/advisories/FreeBSD-SA-14:23.openssl.asc">SA-14:23.openssl</link></entry>
+	    <entry>21&nbsp;October&nbsp;2014</entry>
+	    <entry><para>Multiple vulerabilities.</para></entry>
+	  </row>
 	</tbody>
       </tgroup>
     </informaltable>
