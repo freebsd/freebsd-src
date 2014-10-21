@@ -15,6 +15,10 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 8.x IS SLOW ON IA64 OR SUN4V:
 	debugging tools present in HEAD were left in place because
 	sun4v support still needs work to become production ready.
 
+20141022:	p18	FreeBSD-EN-14:10.tzdata
+
+	Time zone data file update. [EN-14:10]
+
 20141021:	p17	FreeBSD-SA-14:21.routed
 			FreeBSD-SA-14:23.openssl
 
