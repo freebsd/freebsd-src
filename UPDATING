@@ -15,6 +15,13 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 8.x IS SLOW ON IA64 OR SUN4V:
 	debugging tools present in HEAD were left in place because
 	sun4v support still needs work to become production ready.
 
+20141021:	p17	FreeBSD-SA-14:21.routed
+			FreeBSD-SA-14:23.openssl
+
+	Fix routed(8) remote denial of service vulnerability. [SA-14:21]
+
+	Fix OpenSSL multiple vulnerabilities. [SA-14:23]
+
 20140916:	p16	FreeBSD-SA-14:19.tcp
 	Fix Denial of Service in TCP packet processing. [SA-14:19]
 
