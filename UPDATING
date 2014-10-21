@@ -9,6 +9,10 @@ handbook.
 Items affecting the ports and packages system can be found in
 /usr/ports/UPDATING.  Please read that file before running portupgrade.
 
+20141022:	p21	FreeBSD-EN-14:10.tzdata
+
+	Time zone data file update. [EN-14:10]
+
 20141021:	p20	FreeBSD-SA-14:20.rtsold
 			FreeBSD-SA-14:21.routed
 			FreeBSD-SA-14:22.namei
