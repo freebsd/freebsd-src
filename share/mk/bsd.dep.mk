@@ -49,7 +49,7 @@ GTAGSFLAGS?=	-o
 HTAGSFLAGS?=
 
 .if ${CC} != "cc"
-MKDEPCMD?=	CC='${CC}' mkdep
+MKDEPCMD?=	CC='${CC} ${DEPFLAGS}' mkdep
 .else
 MKDEPCMD?=	mkdep
 .endif
