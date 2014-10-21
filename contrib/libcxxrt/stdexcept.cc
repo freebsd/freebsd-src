@@ -82,5 +82,13 @@ const char* bad_typeid::what() const throw()
 	return "std::bad_typeid";
 }
 
+bad_array_new_length::bad_array_new_length() throw() {}
+bad_array_new_length::~bad_array_new_length() {}
+bad_array_new_length::bad_array_new_length(const bad_array_new_length&) throw() {}
+bad_array_new_length& bad_array_new_length::operator=(const bad_array_new_length&) throw()
+{
+	return *this;
+}
+
 } // namespace std
 
