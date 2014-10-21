@@ -11,6 +11,13 @@ handbook:
 Items affecting the ports and packages system can be found in
 /usr/ports/UPDATING.  Please read that file before running portupgrade.
 
+20141022:	p4	FreeBSD-EN-14:10.tzdata
+			FreeBSD-EN-14:11.crypt
+
+	Time zone data file update. [EN-14:10]
+
+	Change crypt(3) default hashing algorithm back to DES. [EN-14:11]
+
 20141021:	p3	FreeBSD-SA-14:20.rtsold
 			FreeBSD-SA-14:21.routed
 			FreeBSD-SA-14:22.namei

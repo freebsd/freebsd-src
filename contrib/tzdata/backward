@@ -1,4 +1,3 @@
-# <pre>
 # This file is in the public domain, so clarified as of
 # 2009-05-17 by Arthur David Olson.
 
@@ -6,7 +5,7 @@
 # and their old names.  Many names changed in late 1993.
 
 Link	Africa/Asmara		Africa/Asmera
-Link	Africa/Bamako		Africa/Timbuktu
+Link	Africa/Abidjan		Africa/Timbuktu
 Link	America/Argentina/Catamarca	America/Argentina/ComodRivadavia
 Link	America/Adak		America/Atka
 Link	America/Argentina/Buenos_Aires	America/Buenos_Aires
@@ -27,8 +26,11 @@ Link	America/Port_of_Spain	America/Virgin
 Link	Pacific/Auckland	Antarctica/South_Pole
 Link	Asia/Ashgabat		Asia/Ashkhabad
 Link	Asia/Kolkata		Asia/Calcutta
-Link	Asia/Chongqing		Asia/Chungking
+Link	Asia/Shanghai		Asia/Chongqing
+Link	Asia/Shanghai		Asia/Chungking
 Link	Asia/Dhaka		Asia/Dacca
+Link	Asia/Shanghai		Asia/Harbin
+Link	Asia/Urumqi		Asia/Kashgar
 Link	Asia/Kathmandu		Asia/Katmandu
 Link	Asia/Macau		Asia/Macao
 Link	Asia/Ho_Chi_Minh	Asia/Saigon
