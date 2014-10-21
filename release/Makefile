@@ -266,7 +266,7 @@ uefi-disc1.iso: system
 
 uefi-bootonly.iso: bootonly
 .if exists(${.CURDIR}/${TARGET}/mkisoimages-uefi.sh)
-	sh ${.CURDIR}/${TARGET}/mkisoimages-uefi.sh -b ${VOLUME_LABEL}_UEFICD \
+	sh ${.CURDIR}/${TARGET}/mkisoimages-uefi.sh -b ${VOLUME_LABEL}_UEFIBO \
 		${.TARGET} bootonly
 .endif
 
