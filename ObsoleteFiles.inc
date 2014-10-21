@@ -38,6 +38,8 @@
 #   xargs -n1 | sort | uniq -d;
 # done
 
+# 20141015: OpenSSL 1.0.1j import
+OLD_FILES+=usr/share/openssl/man/man3/CMS_sign_add1_signer.3.gz
 # 20140917: hv_kvpd rc.d script removed in favor of devd configuration
 OLD_FILES+=etc/rc.d/hv_kvpd
 # 20140814: libopie version bump
