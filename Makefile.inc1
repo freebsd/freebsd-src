@@ -1561,12 +1561,7 @@ gnu/lib/libsupc++__L: gnu/lib/libstdc++__L
 
 lib/libgeom__L: lib/libexpat__L
 
-.if defined(WITH_ATF) || ${MK_TESTS} != "no"
-.if !defined(WITH_ATF)
-# Ensure that the ATF libraries will be built during make libraries, even
-# though they will have WITHOUT_TESTS
-MAKE+=		-DWITH_ATF
-.endif
+.if ${MK_TESTS} != "no"
 _lib_atf=	lib/atf
 .endif
 
