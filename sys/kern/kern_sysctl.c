@@ -1021,9 +1021,9 @@ sysctl_sysctl_name2oid(SYSCTL_HANDLER_ARGS)
 
 	p [req->newlen] = '\0';
 
-	SYSCTL_XLOCK();
+	SYSCTL_SLOCK();
 	error = name2oid(p, oid, &len, &op);
-	SYSCTL_XUNLOCK();
+	SYSCTL_SUNLOCK();
 
 	free(p, M_SYSCTL);
 
