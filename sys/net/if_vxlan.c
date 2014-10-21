@@ -716,7 +716,7 @@ vxlan_ftable_entry_init(struct vxlan_softc *sc, struct vxlan_ftable_entry *fe,
 
 	fe->vxlfe_flags = flags;
 	fe->vxlfe_expire = time_uptime + sc->vxl_ftable_timeout;
-	memcpy(fe->vxlfe_mac, mac, ETHER_HDR_LEN);
+	memcpy(fe->vxlfe_mac, mac, ETHER_ADDR_LEN);
 	vxlan_sockaddr_copy(&fe->vxlfe_raddr, sa);
 }
 
