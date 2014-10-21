@@ -303,45 +303,24 @@ struct getgroups_args {
 int
 sys_getgroups(struct thread *td, register struct getgroups_args *uap)
 {
-	gid_t *groups;
+	struct ucred *cred;
 	u_int ngrp;
 	int error;
 
-	if (uap->gidsetsize < td->td_ucred->cr_ngroups) {
-		if (uap->gidsetsize == 0)
-			ngrp = 0;
-		else
-			return (EINVAL);
-	} else
-		ngrp = td->td_ucred->cr_ngroups;
-	groups = malloc(ngrp * sizeof(*groups), M_TEMP, M_WAITOK);
-	error = kern_getgroups(td, &ngrp, groups);
-	if (error)
-		goto out;
-	if (uap->gidsetsize > 0)
-		error = copyout(groups, uap->gidset, ngrp * sizeof(gid_t));
-	if (error == 0)
-		td->td_retval[0] = ngrp;
-out:
-	free(groups, M_TEMP);
-	return (error);
-}
-
-int
-kern_getgroups(struct thread *td, u_int *ngrp, gid_t *groups)
-{
-	struct ucred *cred;
-
 	cred = td->td_ucred;
-	if (*ngrp == 0) {
-		*ngrp = cred->cr_ngroups;
-		return (0);
+	ngrp = cred->cr_ngroups;
+
+	if (uap->gidsetsize == 0) {
+		error = 0;
+		goto out;
 	}
-	if (*ngrp < cred->cr_ngroups)
+	if (uap->gidsetsize < ngrp)
 		return (EINVAL);
-	*ngrp = cred->cr_ngroups;
-	bcopy(cred->cr_groups, groups, *ngrp * sizeof(gid_t));
-	return (0);
+
+	error = copyout(cred->cr_groups, uap->gidset, ngrp * sizeof(gid_t));
+out:
+	td->td_retval[0] = ngrp;
+	return (error);
 }
 
 #ifndef _SYS_SYSPROTO_H_
