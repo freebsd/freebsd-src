@@ -126,14 +126,14 @@ sysctl_find_oidname(const char *name, struct sysctl_oid_list *list)
  * Order by number in each list.
  */
 void
-sysctl_lock(void)
+sysctl_xlock(void)
 {
 
 	SYSCTL_XLOCK();
 }
 
 void
-sysctl_unlock(void)
+sysctl_xunlock(void)
 {
 
 	SYSCTL_XUNLOCK();
