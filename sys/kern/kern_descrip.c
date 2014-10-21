@@ -3342,7 +3342,7 @@ sysctl_kern_proc_ofiledesc(SYSCTL_HANDLER_ARGS)
 }
 
 static SYSCTL_NODE(_kern_proc, KERN_PROC_OFILEDESC, ofiledesc,
-    CTLFLAG_RD||CTLFLAG_MPSAFE, sysctl_kern_proc_ofiledesc,
+    CTLFLAG_RD|CTLFLAG_MPSAFE, sysctl_kern_proc_ofiledesc,
     "Process ofiledesc entries");
 #endif	/* COMPAT_FREEBSD7 */
 

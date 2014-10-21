@@ -157,7 +157,7 @@ qla_add_sysctls(qla_host_t *ha)
 	SYSCTL_ADD_STRING(device_get_sysctl_ctx(dev),
 		SYSCTL_CHILDREN(device_get_sysctl_tree(dev)),
 		OID_AUTO, "fw_version", CTLFLAG_RD,
-		&ha->fw_ver_str, 0, "firmware version");
+		ha->fw_ver_str, 0, "firmware version");
 
 	dbg_level = 0;
         SYSCTL_ADD_UINT(device_get_sysctl_ctx(dev),

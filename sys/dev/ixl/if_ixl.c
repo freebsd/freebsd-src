@@ -400,22 +400,22 @@ ixl_attach(device_t dev)
 
 	SYSCTL_ADD_INT(device_get_sysctl_ctx(dev),
 	    SYSCTL_CHILDREN(device_get_sysctl_tree(dev)),
-	    OID_AUTO, "rx_itr", CTLTYPE_INT | CTLFLAG_RW,
+	    OID_AUTO, "rx_itr", CTLFLAG_RW,
 	    &ixl_rx_itr, IXL_ITR_8K, "RX ITR");
 
 	SYSCTL_ADD_INT(device_get_sysctl_ctx(dev),
 	    SYSCTL_CHILDREN(device_get_sysctl_tree(dev)),
-	    OID_AUTO, "dynamic_rx_itr", CTLTYPE_INT | CTLFLAG_RW,
+	    OID_AUTO, "dynamic_rx_itr", CTLFLAG_RW,
 	    &ixl_dynamic_rx_itr, 0, "Dynamic RX ITR");
 
 	SYSCTL_ADD_INT(device_get_sysctl_ctx(dev),
 	    SYSCTL_CHILDREN(device_get_sysctl_tree(dev)),
-	    OID_AUTO, "tx_itr", CTLTYPE_INT | CTLFLAG_RW,
+	    OID_AUTO, "tx_itr", CTLFLAG_RW,
 	    &ixl_tx_itr, IXL_ITR_4K, "TX ITR");
 
 	SYSCTL_ADD_INT(device_get_sysctl_ctx(dev),
 	    SYSCTL_CHILDREN(device_get_sysctl_tree(dev)),
-	    OID_AUTO, "dynamic_tx_itr", CTLTYPE_INT | CTLFLAG_RW,
+	    OID_AUTO, "dynamic_tx_itr", CTLFLAG_RW,
 	    &ixl_dynamic_tx_itr, 0, "Dynamic TX ITR");
 
 #ifdef IXL_DEBUG
