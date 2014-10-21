@@ -986,9 +986,9 @@ linker_search_symbol_name(caddr_t value, char *buf, u_int buflen,
 {
 	int error;
 
-	sx_xlock(&kld_sx);
+	sx_slock(&kld_sx);
 	error = linker_debug_search_symbol_name(value, buf, buflen, offset);
-	sx_xunlock(&kld_sx);
+	sx_sunlock(&kld_sx);
 	return (error);
 }
 
