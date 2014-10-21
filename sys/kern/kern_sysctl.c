@@ -755,7 +755,7 @@ sysctl_sysctl_debug_dump_node(struct sysctl_oid_list *l, int i)
 	int k;
 	struct sysctl_oid *oidp;
 
-	SYSCTL_ASSERT_XLOCKED();
+	SYSCTL_ASSERT_LOCKED();
 	SLIST_FOREACH(oidp, l, oid_link) {
 
 		for (k=0; k<i; k++)
@@ -800,13 +800,13 @@ sysctl_sysctl_debug(SYSCTL_HANDLER_ARGS)
 	error = priv_check(req->td, PRIV_SYSCTL_DEBUG);
 	if (error)
 		return (error);
-	SYSCTL_XLOCK();
+	SYSCTL_SLOCK();
 	sysctl_sysctl_debug_dump_node(&sysctl__children, 0);
-	SYSCTL_XUNLOCK();
+	SYSCTL_SUNLOCK();
 	return (ENOENT);
 }
 
-SYSCTL_PROC(_sysctl, 0, debug, CTLTYPE_STRING|CTLFLAG_RD,
+SYSCTL_PROC(_sysctl, 0, debug, CTLTYPE_STRING|CTLFLAG_RD|CTLFLAG_MPSAFE,
 	0, 0, sysctl_sysctl_debug, "-", "");
 #endif
 
@@ -820,7 +820,7 @@ sysctl_sysctl_name(SYSCTL_HANDLER_ARGS)
 	struct sysctl_oid_list *lsp = &sysctl__children, *lsp2;
 	char buf[10];
 
-	SYSCTL_XLOCK();
+	SYSCTL_SLOCK();
 	while (namelen) {
 		if (!lsp) {
 			snprintf(buf,sizeof(buf),"%d",*name);
@@ -863,7 +863,7 @@ sysctl_sysctl_name(SYSCTL_HANDLER_ARGS)
 	}
 	error = SYSCTL_OUT(req, "", 1);
  out:
-	SYSCTL_XUNLOCK();
+	SYSCTL_SUNLOCK();
 	return (error);
 }
 
@@ -871,7 +871,7 @@ sysctl_sysctl_name(SYSCTL_HANDLER_ARGS)
  * XXXRW/JA: Shouldn't return name data for nodes that we don't permit in
  * capability mode.
  */
-static SYSCTL_NODE(_sysctl, 1, name, CTLFLAG_RD | CTLFLAG_CAPRD,
+static SYSCTL_NODE(_sysctl, 1, name, CTLFLAG_RD | CTLFLAG_MPSAFE | CTLFLAG_CAPRD,
     sysctl_sysctl_name, "");
 
 static int
@@ -944,9 +944,9 @@ sysctl_sysctl_next(SYSCTL_HANDLER_ARGS)
 	struct sysctl_oid_list *lsp = &sysctl__children;
 	int newoid[CTL_MAXNAME];
 
-	SYSCTL_XLOCK();
+	SYSCTL_SLOCK();
 	i = sysctl_sysctl_next_ls(lsp, name, namelen, newoid, &j, 1, &oid);
-	SYSCTL_XUNLOCK();
+	SYSCTL_SUNLOCK();
 	if (i)
 		return (ENOENT);
 	error = SYSCTL_OUT(req, newoid, j * sizeof (int));
@@ -957,7 +957,7 @@ sysctl_sysctl_next(SYSCTL_HANDLER_ARGS)
  * XXXRW/JA: Shouldn't return next data for nodes that we don't permit in
  * capability mode.
  */
-static SYSCTL_NODE(_sysctl, 2, next, CTLFLAG_RD | CTLFLAG_CAPRD,
+static SYSCTL_NODE(_sysctl, 2, next, CTLFLAG_RD | CTLFLAG_MPSAFE | CTLFLAG_CAPRD,
     sysctl_sysctl_next, "");
 
 static int
@@ -1048,7 +1048,7 @@ sysctl_sysctl_oidfmt(SYSCTL_HANDLER_ARGS)
 	struct sysctl_oid *oid;
 	int error;
 
-	SYSCTL_XLOCK();
+	SYSCTL_SLOCK();
 	error = sysctl_find_oid(arg1, arg2, &oid, NULL, req);
 	if (error)
 		goto out;
@@ -1062,7 +1062,7 @@ sysctl_sysctl_oidfmt(SYSCTL_HANDLER_ARGS)
 		goto out;
 	error = SYSCTL_OUT(req, oid->oid_fmt, strlen(oid->oid_fmt) + 1);
  out:
-	SYSCTL_XUNLOCK();
+	SYSCTL_SUNLOCK();
 	return (error);
 }
 
@@ -1076,7 +1076,7 @@ sysctl_sysctl_oiddescr(SYSCTL_HANDLER_ARGS)
 	struct sysctl_oid *oid;
 	int error;
 
-	SYSCTL_XLOCK();
+	SYSCTL_SLOCK();
 	error = sysctl_find_oid(arg1, arg2, &oid, NULL, req);
 	if (error)
 		goto out;
@@ -1087,11 +1087,11 @@ sysctl_sysctl_oiddescr(SYSCTL_HANDLER_ARGS)
 	}
 	error = SYSCTL_OUT(req, oid->oid_descr, strlen(oid->oid_descr) + 1);
  out:
-	SYSCTL_XUNLOCK();
+	SYSCTL_SUNLOCK();
 	return (error);
 }
 
-static SYSCTL_NODE(_sysctl, 5, oiddescr, CTLFLAG_RD|CTLFLAG_CAPRD,
+static SYSCTL_NODE(_sysctl, 5, oiddescr, CTLFLAG_RD|CTLFLAG_MPSAFE|CTLFLAG_CAPRD,
     sysctl_sysctl_oiddescr, "");
 
 /*
