@@ -46,11 +46,11 @@ __FBSDID("$FreeBSD$");
 static int cpu_vendor_intel, cpu_vendor_amd;
 
 int
-emulate_wrmsr(struct vmctx *ctx, int vcpu, uint32_t code, uint64_t val)
+emulate_wrmsr(struct vmctx *ctx, int vcpu, uint32_t num, uint64_t val)
 {
 
 	if (cpu_vendor_intel) {
-		switch (code) {
+		switch (num) {
 		case 0xd04:		/* Sandy Bridge uncore PMCs */
 		case 0xc24:
 			return (0);
@@ -58,6 +58,39 @@ emulate_wrmsr(struct vmctx *ctx, int vcpu, uint32_t code, uint64_t val)
 			return (0);
 		case MSR_BIOS_SIGN:
 			return (0);
+		default:
+			break;
+		}
+	} else if (cpu_vendor_amd) {
+		switch (num) {
+		case MSR_HWCR:
+			/*
+			 * Ignore writes to hardware configuration MSR.
+			 */
+			return (0);
+
+		case MSR_NB_CFG1:
+		case MSR_IC_CFG:
+			return (0);	/* Ignore writes */
+
+		case MSR_PERFEVSEL0:
+		case MSR_PERFEVSEL1:
+		case MSR_PERFEVSEL2:
+		case MSR_PERFEVSEL3:
+			/* Ignore writes to the PerfEvtSel MSRs */
+			return (0);
+
+		case MSR_K7_PERFCTR0:
+		case MSR_K7_PERFCTR1:
+		case MSR_K7_PERFCTR2:
+		case MSR_K7_PERFCTR3:
+			/* Ignore writes to the PerfCtr MSRs */
+			return (0);
+
+		case MSR_P_STATE_CONTROL:
+			/* Ignore write to change the P-state */
+			return (0);
+
 		default:
 			break;
 		}
@@ -91,6 +124,73 @@ emulate_rdmsr(struct vmctx *ctx, int vcpu, uint32_t num, uint64_t *val)
 			error = -1;
 			break;
 		}
+	} else if (cpu_vendor_amd) {
+		switch (num) {
+		case MSR_BIOS_SIGN:
+			*val = 0;
+			break;
+		case MSR_HWCR:
+			/*
+			 * Bios and Kernel Developer's Guides for AMD Families
+			 * 12H, 14H, 15H and 16H.
+			 */
+			*val = 0x01000010;	/* Reset value */
+			*val |= 1 << 9;		/* MONITOR/MWAIT disable */
+			break;
+
+		case MSR_NB_CFG1:
+		case MSR_IC_CFG:
+			/*
+			 * The reset value is processor family dependent so
+			 * just return 0.
+			 */
+			*val = 0;
+			break;
+
+		case MSR_PERFEVSEL0:
+		case MSR_PERFEVSEL1:
+		case MSR_PERFEVSEL2:
+		case MSR_PERFEVSEL3:
+			/*
+			 * PerfEvtSel MSRs are not properly virtualized so just
+			 * return zero.
+			 */
+			*val = 0;
+			break;
+
+		case MSR_K7_PERFCTR0:
+		case MSR_K7_PERFCTR1:
+		case MSR_K7_PERFCTR2:
+		case MSR_K7_PERFCTR3:
+			/*
+			 * PerfCtr MSRs are not properly virtualized so just
+			 * return zero.
+			 */
+			*val = 0;
+			break;
+
+		case MSR_SMM_ADDR:
+		case MSR_SMM_MASK:
+			/*
+			 * Return the reset value defined in the AMD Bios and
+			 * Kernel Developer's Guide.
+			 */
+			*val = 0;
+			break;
+
+		case MSR_P_STATE_LIMIT:
+		case MSR_P_STATE_CONTROL:
+		case MSR_P_STATE_STATUS:
+		case MSR_P_STATE_CONFIG(0):	/* P0 configuration */
+			*val = 0;
+			break;
+
+		default:
+			error = -1;
+			break;
+		}
+	} else {
+		error = -1;
 	}
 	return (error);
 }
