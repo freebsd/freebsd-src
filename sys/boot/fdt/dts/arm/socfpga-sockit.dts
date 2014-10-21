@@ -57,6 +57,15 @@
 
 		gmac1: ethernet@ff702000 {
 			status = "okay";
+
+			rxd0-skew-ps = <0>;
+			rxd1-skew-ps = <0>;
+			rxd2-skew-ps = <0>;
+			rxd3-skew-ps = <0>;
+			txen-skew-ps = <0>;
+			txc-skew-ps = <2600>;
+			rxdv-skew-ps = <0>;
+			rxc-skew-ps = <2000>;
 		};
 
 		mmc: dwmmc@ff704000 {
@@ -69,7 +78,7 @@
 			slot@0 {
 				reg = <0>;
 				bus-width = <4>;
-			};	
+			};
 		};
 	};
 
