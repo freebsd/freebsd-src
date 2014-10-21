@@ -40,6 +40,10 @@ __RCSID("$NetBSD: t_access.c,v 1.1 2011/07/07 06:57:53 jruoho Exp $");
 
 #include <atf-c.h>
 
+#if defined(__FreeBSD__)
+#include <sys/stat.h>
+#endif
+
 static const char path[] = "access";
 static const int mode[4] = { R_OK, W_OK, X_OK, F_OK };
 
