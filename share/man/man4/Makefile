@@ -567,6 +567,7 @@ MAN=	aac.4 \
 	${_virtio_scsi.4} \
 	vkbd.4 \
 	vlan.4 \
+	vxlan.4 \
 	${_vmx.4} \
 	vpo.4 \
 	vr.4 \
@@ -743,6 +744,7 @@ MLINKS+=urndis.4 if_urndis.4
 MLINKS+=${_urtw.4} ${_if_urtw.4}
 MLINKS+=vge.4 if_vge.4
 MLINKS+=vlan.4 if_vlan.4
+MLINKS+=vxlan.4 if_vxlan.4
 MLINKS+=${_vmx.4} ${_if_vmx.4}
 MLINKS+=vpo.4 imm.4
 MLINKS+=vr.4 if_vr.4

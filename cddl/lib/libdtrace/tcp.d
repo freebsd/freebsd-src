@@ -116,6 +116,7 @@ typedef struct tcpsinfo {
 	uint32_t tcps_rto;		/* round-trip timeout, msec */
 	uint32_t tcps_mss;		/* max segment size */
 	int tcps_retransmit;		/* retransmit send event, boolean */
+	int tcps_srtt;                  /* smoothed RTT in units of (TCP_RTT_SCALE*hz) */
 } tcpsinfo_t;
 
 /*
@@ -200,6 +201,7 @@ translator tcpsinfo_t < struct tcpcb *p > {
 	tcps_rto =		p == NULL ? -1  : p->t_rxtcur / 1000; /* XXX */
 	tcps_mss =		p == NULL ? -1  : p->t_maxseg;
 	tcps_retransmit =	p == NULL ? -1 : p->t_rxtshift > 0 ? 1 : 0;
+	tcps_srtt =             p == NULL ? -1  : p->t_srtt;   /* smoothed RTT in units of (TCP_RTT_SCALE*hz) */
 };
 
 #pragma D binding "1.6.3" translator

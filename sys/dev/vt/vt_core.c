@@ -2207,6 +2207,9 @@ skip_thunk:
 	case PIO_VFONT: {
 		struct vt_font *vf;
 
+		if (vd->vd_flags & VDF_TEXTMODE)
+			return (ENOTSUP);
+
 		error = vtfont_load((void *)data, &vf);
 		if (error != 0)
 			return (error);
@@ -2497,6 +2500,8 @@ vt_upgrade(struct vt_device *vd)
 	unsigned int i;
 
 	if (!vty_enabled(VTY_VT))
+		return;
+	if (main_vd->vd_driver == NULL)
 		return;
 
 	for (i = 0; i < VT_MAXWINDOWS; i++) {

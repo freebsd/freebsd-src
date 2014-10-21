@@ -124,10 +124,6 @@
 SYSCTL_DECL(_net_link);
 static SYSCTL_NODE(_net_link, IFT_STF, stf, CTLFLAG_RW, 0, "6to4 Interface");
 
-static int stf_route_cache = 1;
-SYSCTL_INT(_net_link_stf, OID_AUTO, route_cache, CTLFLAG_RW,
-    &stf_route_cache, 0, "Caching of IPv4 routes for 6to4 Output");
-
 static int stf_permit_rfc1918 = 0;
 SYSCTL_INT(_net_link_stf, OID_AUTO, permit_rfc1918, CTLFLAG_RWTUN,
     &stf_permit_rfc1918, 0, "Permit the use of private IPv4 addresses");
@@ -144,11 +140,6 @@ SYSCTL_INT(_net_link_stf, OID_AUTO, permit_rfc1918, CTLFLAG_RWTUN,
 
 struct stf_softc {
 	struct ifnet	*sc_ifp;
-	union {
-		struct route  __sc_ro4;
-		struct route_in6 __sc_ro6; /* just for safety */
-	} __sc_ro46;
-#define sc_ro	__sc_ro46.__sc_ro4
 	struct mtx	sc_ro_mtx;
 	u_int	sc_fibnum;
 	const struct encaptab *encap_cookie;
@@ -180,7 +171,7 @@ static char *stfnames[] = {"stf0", "stf", "6to4", NULL};
 
 static int stfmodevent(module_t, int, void *);
 static int stf_encapcheck(const struct mbuf *, int, int, void *);
-static struct in6_ifaddr *stf_getsrcifa6(struct ifnet *);
+static int stf_getsrcifa6(struct ifnet *, struct in6_addr *, struct in6_addr *);
 static int stf_output(struct ifnet *, struct mbuf *, const struct sockaddr *,
 	struct route *);
 static int isrfc1918addr(struct in_addr *);
@@ -320,9 +311,9 @@ stf_encapcheck(m, off, proto, arg)
 	void *arg;
 {
 	struct ip ip;
-	struct in6_ifaddr *ia6;
 	struct stf_softc *sc;
 	struct in_addr a, b, mask;
+	struct in6_addr addr6, mask6;
 
 	sc = (struct stf_softc *)arg;
 	if (sc == NULL)
@@ -344,20 +335,16 @@ stf_encapcheck(m, off, proto, arg)
 	if (ip.ip_v != 4)
 		return 0;
 
-	ia6 = stf_getsrcifa6(STF2IFP(sc));
-	if (ia6 == NULL)
-		return 0;
+	if (stf_getsrcifa6(STF2IFP(sc), &addr6, &mask6) != 0)
+		return (0);
 
 	/*
 	 * check if IPv4 dst matches the IPv4 address derived from the
 	 * local 6to4 address.
 	 * success on: dst = 10.1.1.1, ia6->ia_addr = 2002:0a01:0101:...
 	 */
-	if (bcmp(GET_V4(&ia6->ia_addr.sin6_addr), &ip.ip_dst,
-	    sizeof(ip.ip_dst)) != 0) {
-		ifa_free(&ia6->ia_ifa);
+	if (bcmp(GET_V4(&addr6), &ip.ip_dst, sizeof(ip.ip_dst)) != 0)
 		return 0;
-	}
 
 	/*
 	 * check if IPv4 src matches the IPv4 address derived from the
@@ -366,9 +353,8 @@ stf_encapcheck(m, off, proto, arg)
 	 * fail on: src = 10.1.1.1, ia6->ia_addr = 2002:0b00:.../24
 	 */
 	bzero(&a, sizeof(a));
-	bcopy(GET_V4(&ia6->ia_addr.sin6_addr), &a, sizeof(a));
-	bcopy(GET_V4(&ia6->ia_prefixmask.sin6_addr), &mask, sizeof(mask));
-	ifa_free(&ia6->ia_ifa);
+	bcopy(GET_V4(&addr6), &a, sizeof(a));
+	bcopy(GET_V4(&mask6), &mask, sizeof(mask));
 	a.s_addr &= mask.s_addr;
 	b = ip.ip_src;
 	b.s_addr &= mask.s_addr;
@@ -379,12 +365,12 @@ stf_encapcheck(m, off, proto, arg)
 	return 32;
 }
 
-static struct in6_ifaddr *
-stf_getsrcifa6(ifp)
-	struct ifnet *ifp;
+static int
+stf_getsrcifa6(struct ifnet *ifp, struct in6_addr *addr, struct in6_addr *mask)
 {
 	struct ifaddr *ia;
 	struct in_ifaddr *ia4;
+	struct in6_ifaddr *ia6;
 	struct sockaddr_in6 *sin6;
 	struct in_addr in;
 
@@ -403,13 +389,16 @@ stf_getsrcifa6(ifp)
 		if (ia4 == NULL)
 			continue;
 
-		ifa_ref(ia);
+		ia6 = (struct in6_ifaddr *)ia;
+
+		*addr = sin6->sin6_addr;
+		*mask = ia6->ia_prefixmask.sin6_addr;
 		if_addr_runlock(ifp);
-		return (struct in6_ifaddr *)ia;
+		return (0);
 	}
 	if_addr_runlock(ifp);
 
-	return NULL;
+	return (ENOENT);
 }
 
 static int
@@ -418,14 +407,12 @@ stf_output(struct ifnet *ifp, struct mbuf *m, const struct sockaddr *dst,
 {
 	struct stf_softc *sc;
 	const struct sockaddr_in6 *dst6;
-	struct route *cached_route;
 	struct in_addr in4;
 	const void *ptr;
-	struct sockaddr_in *dst4;
 	u_int8_t tos;
 	struct ip *ip;
 	struct ip6_hdr *ip6;
-	struct in6_ifaddr *ia6;
+	struct in6_addr addr6, mask6;
 	int error;
 
 #ifdef MAC
@@ -451,8 +438,7 @@ stf_output(struct ifnet *ifp, struct mbuf *m, const struct sockaddr *dst,
 	 * we shouldn't generate output.  Without this check, we'll end up
 	 * using wrong IPv4 source.
 	 */
-	ia6 = stf_getsrcifa6(ifp);
-	if (ia6 == NULL) {
+	if (stf_getsrcifa6(ifp, &addr6, &mask6) != 0) {
 		m_freem(m);
 		if_inc_counter(ifp, IFCOUNTER_OERRORS, 1);
 		return ENETDOWN;
@@ -461,7 +447,6 @@ stf_output(struct ifnet *ifp, struct mbuf *m, const struct sockaddr *dst,
 	if (m->m_len < sizeof(*ip6)) {
 		m = m_pullup(m, sizeof(*ip6));
 		if (!m) {
-			ifa_free(&ia6->ia_ifa);
 			if_inc_counter(ifp, IFCOUNTER_OERRORS, 1);
 			return ENOBUFS;
 		}
@@ -479,7 +464,6 @@ stf_output(struct ifnet *ifp, struct mbuf *m, const struct sockaddr *dst,
 	else if (IN6_IS_ADDR_6TO4(&dst6->sin6_addr))
 		ptr = GET_V4(&dst6->sin6_addr);
 	else {
-		ifa_free(&ia6->ia_ifa);
 		m_freem(m);
 		if_inc_counter(ifp, IFCOUNTER_OERRORS, 1);
 		return ENETUNREACH;
@@ -502,7 +486,6 @@ stf_output(struct ifnet *ifp, struct mbuf *m, const struct sockaddr *dst,
 	if (m && m->m_len < sizeof(struct ip))
 		m = m_pullup(m, sizeof(struct ip));
 	if (m == NULL) {
-		ifa_free(&ia6->ia_ifa);
 		if_inc_counter(ifp, IFCOUNTER_OERRORS, 1);
 		return ENOBUFS;
 	}
@@ -510,9 +493,7 @@ stf_output(struct ifnet *ifp, struct mbuf *m, const struct sockaddr *dst,
 
 	bzero(ip, sizeof(*ip));
 
-	bcopy(GET_V4(&((struct sockaddr_in6 *)&ia6->ia_addr)->sin6_addr),
-	    &ip->ip_src, sizeof(ip->ip_src));
-	ifa_free(&ia6->ia_ifa);
+	bcopy(GET_V4(&addr6), &ip->ip_src, sizeof(ip->ip_src));
 	bcopy(&in4, &ip->ip_dst, sizeof(ip->ip_dst));
 	ip->ip_p = IPPROTO_IPV6;
 	ip->ip_ttl = ip_stf_ttl;
@@ -522,46 +503,10 @@ stf_output(struct ifnet *ifp, struct mbuf *m, const struct sockaddr *dst,
 	else
 		ip_ecn_ingress(ECN_NOCARE, &ip->ip_tos, &tos);
 
-	if (!stf_route_cache) {
-		cached_route = NULL;
-		goto sendit;
-	}
-
-	/*
-	 * Do we have a cached route?
-	 */
-	mtx_lock(&(sc)->sc_ro_mtx);
-	dst4 = (struct sockaddr_in *)&sc->sc_ro.ro_dst;
-	if (dst4->sin_family != AF_INET ||
-	    bcmp(&dst4->sin_addr, &ip->ip_dst, sizeof(ip->ip_dst)) != 0) {
-		/* cache route doesn't match */
-		dst4->sin_family = AF_INET;
-		dst4->sin_len = sizeof(struct sockaddr_in);
-		bcopy(&ip->ip_dst, &dst4->sin_addr, sizeof(dst4->sin_addr));
-		if (sc->sc_ro.ro_rt) {
-			RTFREE(sc->sc_ro.ro_rt);
-			sc->sc_ro.ro_rt = NULL;
-		}
-	}
-
-	if (sc->sc_ro.ro_rt == NULL) {
-		rtalloc_fib(&sc->sc_ro, sc->sc_fibnum);
-		if (sc->sc_ro.ro_rt == NULL) {
-			m_freem(m);
-			mtx_unlock(&(sc)->sc_ro_mtx);
-			if_inc_counter(ifp, IFCOUNTER_OERRORS, 1);
-			return ENETUNREACH;
-		}
-	}
-	cached_route = &sc->sc_ro;
-
-sendit:
 	M_SETFIB(m, sc->sc_fibnum);
 	if_inc_counter(ifp, IFCOUNTER_OPACKETS, 1);
-	error = ip_output(m, NULL, cached_route, 0, NULL, NULL);
+	error = ip_output(m, NULL, NULL, 0, NULL, NULL);
 
-	if (cached_route != NULL)
-		mtx_unlock(&(sc)->sc_ro_mtx);
 	return error;
 }
 

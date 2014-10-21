@@ -48,6 +48,8 @@ OLD_FILES+=etc/rc.d/hv_kvpd
 # 20140917: libnv was accidentally being installed to /usr/lib instead of /lib
 OLD_LIBS+=usr/lib/libnv.a
 OLD_LIBS+=usr/lib/libnv.so.0
+# 20140829: rc.d/kerberos removed
+OLD_FILES+=etc/rc.d/kerberos
 # 20140814: libopie version bump
 OLD_LIBS+=usr/lib/libopie.so.7
 OLD_LIBS+=usr/lib32/libopie.so.7

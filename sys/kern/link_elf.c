@@ -331,6 +331,22 @@ link_elf_error(const char *filename, const char *s)
 		printf("kldload: %s: %s\n", filename, s);
 }
 
+static void
+link_elf_invoke_ctors(caddr_t addr, size_t size)
+{
+	void (**ctor)(void);
+	size_t i, cnt;
+
+	if (addr == NULL || size == 0)
+		return;
+	cnt = size / sizeof(*ctor);
+	ctor = (void *)addr;
+	for (i = 0; i < cnt; i++) {
+		if (ctor[i] != NULL)
+			(*ctor[i])();
+	}
+}
+
 /*
  * Actions performed after linking/loading both the preloaded kernel and any
  * modules; whether preloaded or dynamicly loaded.
@@ -360,6 +376,8 @@ link_elf_link_common_finish(linker_file_t lf)
 	GDB_STATE(RT_CONSISTENT);
 #endif
 
+	/* Invoke .ctors */
+	link_elf_invoke_ctors(lf->ctors_addr, lf->ctors_size);
 	return (0);
 }
 
@@ -367,6 +385,8 @@ static void
 link_elf_init(void* arg)
 {
 	Elf_Dyn *dp;
+	Elf_Addr *ctors_addrp;
+	Elf_Size *ctors_sizep;
 	caddr_t modptr, baseptr, sizeptr;
 	elf_file_t ef;
 	char *modname;
@@ -408,6 +428,15 @@ link_elf_init(void* arg)
 		sizeptr = preload_search_info(modptr, MODINFO_SIZE);
 		if (sizeptr != NULL)
 			linker_kernel_file->size = *(size_t *)sizeptr;
+		ctors_addrp = (Elf_Addr *)preload_search_info(modptr,
+			MODINFO_METADATA | MODINFOMD_CTORS_ADDR);
+		ctors_sizep = (Elf_Size *)preload_search_info(modptr,
+			MODINFO_METADATA | MODINFOMD_CTORS_SIZE);
+		if (ctors_addrp != NULL && ctors_sizep != NULL) {
+			linker_kernel_file->ctors_addr = ef->address +
+			    *ctors_addrp;
+			linker_kernel_file->ctors_size = *ctors_sizep;
+		}
 	}
 	(void)link_elf_preload_parse_symbols(ef);
 
@@ -635,6 +664,8 @@ static int
 link_elf_link_preload(linker_class_t cls,
     const char* filename, linker_file_t *result)
 {
+	Elf_Addr *ctors_addrp;
+	Elf_Size *ctors_sizep;
 	caddr_t modptr, baseptr, sizeptr, dynptr;
 	char *type;
 	elf_file_t ef;
@@ -674,6 +705,15 @@ link_elf_link_preload(linker_class_t cls,
 	ef->dynamic = (Elf_Dyn *)dp;
 	lf->address = ef->address;
 	lf->size = *(size_t *)sizeptr;
+
+	ctors_addrp = (Elf_Addr *)preload_search_info(modptr,
+	    MODINFO_METADATA | MODINFOMD_CTORS_ADDR);
+	ctors_sizep = (Elf_Size *)preload_search_info(modptr,
+	    MODINFO_METADATA | MODINFOMD_CTORS_SIZE);
+	if (ctors_addrp != NULL && ctors_sizep != NULL) {
+		lf->ctors_addr = ef->address + *ctors_addrp;
+		lf->ctors_size = *ctors_sizep;
+	}
 
 	error = parse_dynamic(ef);
 	if (error == 0)
@@ -734,11 +774,14 @@ link_elf_load_file(linker_class_t cls, const char* filename,
 	Elf_Shdr *shdr;
 	int symtabindex;
 	int symstrindex;
+	int shstrindex;
 	int symcnt;
 	int strcnt;
+	char *shstrs;
 
 	shdr = NULL;
 	lf = NULL;
+	shstrs = NULL;
 
 	NDINIT(&nd, LOOKUP, FOLLOW, UIO_SYSSPACE, filename, td);
 	flags = FREAD;
@@ -977,12 +1020,31 @@ link_elf_load_file(linker_class_t cls, const char* filename,
 	    &resid, td);
 	if (error != 0)
 		goto out;
+
+	/* Read section string table */
+	shstrindex = hdr->e_shstrndx;
+	if (shstrindex != 0 && shdr[shstrindex].sh_type == SHT_STRTAB &&
+	    shdr[shstrindex].sh_size != 0) {
+		nbytes = shdr[shstrindex].sh_size;
+		shstrs = malloc(nbytes, M_LINKER, M_WAITOK | M_ZERO);
+		error = vn_rdwr(UIO_READ, nd.ni_vp, (caddr_t)shstrs, nbytes,
+		    shdr[shstrindex].sh_offset, UIO_SYSSPACE, IO_NODELOCKED,
+		    td->td_ucred, NOCRED, &resid, td);
+		if (error)
+			goto out;
+	}
+
 	symtabindex = -1;
 	symstrindex = -1;
 	for (i = 0; i < hdr->e_shnum; i++) {
 		if (shdr[i].sh_type == SHT_SYMTAB) {
 			symtabindex = i;
 			symstrindex = shdr[i].sh_link;
+		} else if (shstrs != NULL && shdr[i].sh_name != 0 &&
+		    strcmp(shstrs + shdr[i].sh_name, ".ctors") == 0) {
+			/* Record relocated address and size of .ctors. */
+			lf->ctors_addr = mapbase + shdr[i].sh_addr - base_vaddr;
+			lf->ctors_size = shdr[i].sh_size;
 		}
 	}
 	if (symtabindex < 0 || symstrindex < 0)
@@ -1027,6 +1089,8 @@ out:
 		free(shdr, M_LINKER);
 	if (firstpage != NULL)
 		free(firstpage, M_LINKER);
+	if (shstrs != NULL)
+		free(shstrs, M_LINKER);
 
 	return (error);
 }
