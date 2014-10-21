@@ -280,5 +280,13 @@
 			panel-size = < 800 600 >;
 			reg = <0x7f00d000 0x28>;
 		};
+
+		avgen@0x7f00e000 {
+			compatible = "sri-cambridge,avgen";
+			reg = <0x7f00e000 0x400>;
+			sri-cambridge,width = <4>;
+			sri-cambridge,fileio = "rw";
+			sri-cambridge,devname = "altpll_reconfig";
+		};
 	};
 };
