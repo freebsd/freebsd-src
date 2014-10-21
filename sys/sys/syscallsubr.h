@@ -109,7 +109,6 @@ int	kern_getdirentries(struct thread *td, int fd, char *buf, u_int count,
 	    long *basep, ssize_t *residp, enum uio_seg bufseg);
 int	kern_getfsstat(struct thread *td, struct statfs **buf, size_t bufsize,
 	    enum uio_seg bufseg, int flags);
-int	kern_getgroups(struct thread *td, u_int *ngrp, gid_t *groups);
 int	kern_getitimer(struct thread *, u_int, struct itimerval *);
 int	kern_getppid(struct thread *);
 int	kern_getpeername(struct thread *td, int fd, struct sockaddr **sa,
