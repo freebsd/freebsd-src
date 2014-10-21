@@ -1746,8 +1746,6 @@ inout_str_seginfo(struct vmx *vmx, int vcpuid, uint32_t inst_info, int in,
 
 	error = vmx_getdesc(vmx, vcpuid, vis->seg_name, &vis->seg_desc);
 	KASSERT(error == 0, ("%s: vmx_getdesc error %d", __func__, error));
-
-	/* XXX modify svm.c to update bit 16 of seg_desc.access (unusable) */
 }
 
 static void
@@ -1781,6 +1779,7 @@ vmexit_inst_emul(struct vm_exit *vmexit, uint64_t gpa, uint64_t gla)
 		vmexit->u.inst_emul.cs_d = 0;
 		break;
 	}
+	vie_init(&vmexit->u.inst_emul.vie, NULL, 0);
 }
 
 static int
