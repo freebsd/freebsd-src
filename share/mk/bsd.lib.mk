@@ -207,7 +207,7 @@ _LIBS+=		${SHLIB_NAME}
 
 SOLINKOPTS=	-shared -Wl,-x
 .if !defined(ALLOW_SHARED_TEXTREL)
-SOLINKOPTS+=	-Wl,--fatal-warnings -Wl,--warn-shared-textrel
+SOLINKOPTS+=	-Wl,--no-fatal-warnings -Wl,--warn-shared-textrel
 .endif
 
 .if target(beforelinking)
