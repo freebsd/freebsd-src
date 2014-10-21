@@ -1210,7 +1210,6 @@ int mlx4_multicast_promisc_add(struct mlx4_dev *dev, u32 qpn, u8 port);
 int mlx4_multicast_promisc_remove(struct mlx4_dev *dev, u32 qpn, u8 port);
 int mlx4_unicast_promisc_add(struct mlx4_dev *dev, u32 qpn, u8 port);
 int mlx4_unicast_promisc_remove(struct mlx4_dev *dev, u32 qpn, u8 port);
-int mlx4_SET_MCAST_FLTR(struct mlx4_dev *dev, u8 port, u64 mac, u64 clear, u8 mode);
 
 int mlx4_register_mac(struct mlx4_dev *dev, u8 port, u64 mac);
 void mlx4_unregister_mac(struct mlx4_dev *dev, u8 port, u64 mac);
