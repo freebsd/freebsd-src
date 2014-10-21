@@ -412,7 +412,7 @@ mrsas_setup_sysctl(struct mrsas_softc *sc)
 
 	SYSCTL_ADD_INT(sysctl_ctx, SYSCTL_CHILDREN(sysctl_tree),
 	    OID_AUTO, "fw_outstanding", CTLFLAG_RD,
-	    &sc->fw_outstanding, 0, "FW outstanding commands");
+	    &sc->fw_outstanding.val_rdonly, 0, "FW outstanding commands");
 
 	SYSCTL_ADD_INT(sysctl_ctx, SYSCTL_CHILDREN(sysctl_tree),
 	    OID_AUTO, "io_cmds_highwater", CTLFLAG_RD,

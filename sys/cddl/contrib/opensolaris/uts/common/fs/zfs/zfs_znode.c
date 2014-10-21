@@ -67,8 +67,8 @@
 #include "zfs_comutil.h"
 
 /* Used by fstat(1). */
-SYSCTL_INT(_debug_sizeof, OID_AUTO, znode, CTLFLAG_RD, 0, sizeof(znode_t),
-    "sizeof(znode_t)");
+SYSCTL_INT(_debug_sizeof, OID_AUTO, znode, CTLFLAG_RD,
+    SYSCTL_NULL_INT_PTR, sizeof(znode_t), "sizeof(znode_t)");
 
 /*
  * Define ZNODE_STATS to turn on statistic gathering. By default, it is only

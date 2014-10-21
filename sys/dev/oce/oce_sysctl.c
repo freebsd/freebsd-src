@@ -84,21 +84,21 @@ oce_add_sysctls(POCE_SOFTC sc)
 
 	SYSCTL_ADD_STRING(ctx, child,
 			OID_AUTO, "component_revision",
-			CTLTYPE_INT | CTLFLAG_RD,
-			&component_revision,
+			CTLFLAG_RD,
+			component_revision,
 			sizeof(component_revision),
 			"EMULEX One-Connect device driver revision");
 
 	SYSCTL_ADD_STRING(ctx, child,
 			OID_AUTO, "firmware_version",
-			CTLTYPE_INT | CTLFLAG_RD,
-			&sc->fw_version,
+			CTLFLAG_RD,
+			sc->fw_version,
 			sizeof(sc->fw_version),
 			"EMULEX One-Connect Firmware Version");
 
 	SYSCTL_ADD_INT(ctx, child,
 			OID_AUTO, "max_rsp_handled",
-			CTLTYPE_INT | CTLFLAG_RW,
+			CTLFLAG_RW,
 			&oce_max_rsp_handled,
 			sizeof(oce_max_rsp_handled),
 			"Maximum receive frames handled per interupt");
@@ -957,11 +957,11 @@ oce_add_stats_sysctls_xe201(POCE_SOFTC sc,
 	SYSCTL_ADD_UINT(ctx, rx_stat_list, OID_AUTO, "total_rxcp_errs",
 			CTLFLAG_RD, &stats->rx.t_rxcp_errs, 0,
 			"Total Receive completion errors");
-	SYSCTL_ADD_UINT(ctx, rx_stat_list, OID_AUTO, "pause_frames",
-			CTLFLAG_RD, &stats->u0.xe201.rx_pause_frames, 0,
+	SYSCTL_ADD_UQUAD(ctx, rx_stat_list, OID_AUTO, "pause_frames",
+			CTLFLAG_RD, &stats->u0.xe201.rx_pause_frames,
 			"Pause Frames");
-	SYSCTL_ADD_UINT(ctx, rx_stat_list, OID_AUTO, "control_frames",
-			CTLFLAG_RD, &stats->u0.xe201.rx_control_frames, 0,
+	SYSCTL_ADD_UQUAD(ctx, rx_stat_list, OID_AUTO, "control_frames",
+			CTLFLAG_RD, &stats->u0.xe201.rx_control_frames,
 			"Control Frames");
 	
 	for (i = 0; i < sc->nrqs; i++) {
@@ -1001,11 +1001,11 @@ oce_add_stats_sysctls_xe201(POCE_SOFTC sc,
 					NULL, "Receive Error Stats");
 	rx_stat_list = SYSCTL_CHILDREN(rx_stats_node);
 	
-	SYSCTL_ADD_UINT(ctx, rx_stat_list, OID_AUTO, "crc_errs",
-			CTLFLAG_RD, &stats->u0.xe201.rx_crc_errors, 0,
+	SYSCTL_ADD_UQUAD(ctx, rx_stat_list, OID_AUTO, "crc_errs",
+			CTLFLAG_RD, &stats->u0.xe201.rx_crc_errors,
 			"CRC Errors");
-	SYSCTL_ADD_UINT(ctx, rx_stat_list, OID_AUTO, "alignment_errors",
-			CTLFLAG_RD, &stats->u0.xe201.rx_alignment_errors, 0,
+	SYSCTL_ADD_UQUAD(ctx, rx_stat_list, OID_AUTO, "alignment_errors",
+			CTLFLAG_RD, &stats->u0.xe201.rx_alignment_errors,
 			"RX Alignmnet Errors");
 	SYSCTL_ADD_UINT(ctx, rx_stat_list, OID_AUTO, "in_range_errors",
 			CTLFLAG_RD, &stats->u0.xe201.rx_in_range_errors, 0,
@@ -1013,8 +1013,8 @@ oce_add_stats_sysctls_xe201(POCE_SOFTC sc,
 	SYSCTL_ADD_UINT(ctx, rx_stat_list, OID_AUTO, "out_range_errors",
 			CTLFLAG_RD, &stats->u0.xe201.rx_out_of_range_errors, 0,
 			"Out Range Errors");
-	SYSCTL_ADD_UINT(ctx, rx_stat_list, OID_AUTO, "frame_too_long",
-			CTLFLAG_RD, &stats->u0.xe201.rx_frames_too_long, 0,
+	SYSCTL_ADD_UQUAD(ctx, rx_stat_list, OID_AUTO, "frame_too_long",
+			CTLFLAG_RD, &stats->u0.xe201.rx_frames_too_long,
 			"Frame Too Long");
 	SYSCTL_ADD_UINT(ctx, rx_stat_list, OID_AUTO, "address_match_errors",
 			CTLFLAG_RD, &stats->u0.xe201.rx_address_match_errors, 0,
@@ -1077,11 +1077,11 @@ oce_add_stats_sysctls_xe201(POCE_SOFTC sc,
 			"total_ipv6_ext_hdr_tx_drop",
 			CTLFLAG_RD, &stats->tx.t_ipv6_ext_hdr_tx_drop, 0,
 			"Total Transmit IPV6 Drops");
-	SYSCTL_ADD_UINT(ctx, tx_stat_list, OID_AUTO, "pauseframes",
-			CTLFLAG_RD, &stats->u0.xe201.tx_pause_frames, 0,
+	SYSCTL_ADD_UQUAD(ctx, tx_stat_list, OID_AUTO, "pauseframes",
+			CTLFLAG_RD, &stats->u0.xe201.tx_pause_frames,
 			"Pause Frames");
-	SYSCTL_ADD_UINT(ctx, tx_stat_list, OID_AUTO, "controlframes",
-			CTLFLAG_RD, &stats->u0.xe201.tx_control_frames, 0,
+	SYSCTL_ADD_UQUAD(ctx, tx_stat_list, OID_AUTO, "controlframes",
+			CTLFLAG_RD, &stats->u0.xe201.tx_control_frames,
 			"Tx Control Frames");
 
 	for (i = 0; i < sc->nwqs; i++) {
