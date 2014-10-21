@@ -703,6 +703,12 @@ re_set_rxmode(struct rl_softc *sc)
 		rxfilt |= RL_RXCFG_RX_MULTI;
 	}
 
+	if  (sc->rl_hwrev->rl_rev == RL_HWREV_8168F) {
+		/* Disable multicast filtering due to silicon bug. */
+		hashes[0] = 0xffffffff;
+		hashes[1] = 0xffffffff;
+	}
+
 done:
 	CSR_WRITE_4(sc, RL_MAR0, hashes[0]);
 	CSR_WRITE_4(sc, RL_MAR4, hashes[1]);
