@@ -378,7 +378,7 @@ TAILQ_HEAD(sysctl_ctx_list, sysctl_ctx_entry);
 })
 
 /* Oid for a quad.  The pointer must be non NULL. */
-#define	SYSCTL_NULL_QUAD_PTR ((int64_T *)NULL)
+#define	SYSCTL_NULL_QUAD_PTR ((int64_t *)NULL)
 #define	SYSCTL_QUAD(parent, nbr, name, access, ptr, val, descr)	\
 	SYSCTL_OID(parent, nbr, name,				\
 	    CTLTYPE_S64 | CTLFLAG_MPSAFE | (access),		\
