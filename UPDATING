@@ -16,6 +16,19 @@ from older versions of FreeBSD, try WITHOUT_CLANG to bootstrap to the tip of
 stable/10, and then rebuild without this option. The bootstrap process from
 older version of current is a bit fragile.
 
+20141021:	p10	FreeBSD-SA-14:20.rtsold
+			FreeBSD-SA-14:21.routed
+			FreeBSD-SA-14:22.namei
+			FreeBSD-SA-14:23.openssl
+
+	Fix rtsold(8) remote buffer overflow vulnerability. [SA-14:20]
+
+	Fix routed(8) remote denial of service vulnerability. [SA-14:21]
+
+	Fix memory leak in sandboxed namei lookup. [SA-14:22]
+
+	Fix OpenSSL multiple vulnerabilities. [SA-14:23]
+
 20140916:	p9	FreeBSD-SA-14:19.tcp
 	Fix Denial of Service in TCP packet processing. [SA-14:19]
 

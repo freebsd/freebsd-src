@@ -650,7 +650,7 @@ unsigned char *ssl_add_clienthello_tlsext(SSL *s, unsigned char *p, unsigned cha
 #endif
 
 #ifndef OPENSSL_NO_SRTP
-        if(SSL_get_srtp_profiles(s))
+	if(SSL_IS_DTLS(s) && SSL_get_srtp_profiles(s))
                 {
                 int el;
 
@@ -784,7 +784,7 @@ unsigned char *ssl_add_serverhello_tlsext(SSL *s, unsigned char *p, unsigned cha
 #endif
 
 #ifndef OPENSSL_NO_SRTP
-        if(s->srtp_profile)
+	if(SSL_IS_DTLS(s) && s->srtp_profile)
                 {
                 int el;
 
@@ -1334,7 +1334,8 @@ int ssl_parse_clienthello_tlsext(SSL *s, unsigned char **p, unsigned char *d, in
 
 		/* session ticket processed earlier */
 #ifndef OPENSSL_NO_SRTP
-		else if (type == TLSEXT_TYPE_use_srtp)
+		else if (SSL_IS_DTLS(s) && SSL_get_srtp_profiles(s)
+			 && type == TLSEXT_TYPE_use_srtp)
 			{
 			if(ssl_parse_clienthello_use_srtp_ext(s, data, size,
 							      al))
@@ -1589,7 +1590,7 @@ int ssl_parse_serverhello_tlsext(SSL *s, unsigned char **p, unsigned char *d, in
 			}
 #endif
 #ifndef OPENSSL_NO_SRTP
-		else if (type == TLSEXT_TYPE_use_srtp)
+		else if (SSL_IS_DTLS(s) && type == TLSEXT_TYPE_use_srtp)
 			{
                         if(ssl_parse_serverhello_use_srtp_ext(s, data, size,
 							      al))
@@ -2238,7 +2239,10 @@ static int tls_decrypt_ticket(SSL *s, const unsigned char *etick, int eticklen,
 	HMAC_Final(&hctx, tick_hmac, NULL);
 	HMAC_CTX_cleanup(&hctx);
 	if (CRYPTO_memcmp(tick_hmac, etick + eticklen, mlen))
+		{
+		EVP_CIPHER_CTX_cleanup(&ctx);
 		return 2;
+		}
 	/* Attempt to decrypt session data */
 	/* Move p after IV to start of encrypted ticket, update length */
 	p = etick + 16 + EVP_CIPHER_CTX_iv_length(&ctx);
