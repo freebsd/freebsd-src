@@ -229,8 +229,8 @@ struct thread {
 	int		td_sqqueue;	/* (t) Sleepqueue queue blocked on. */
 	void		*td_wchan;	/* (t) Sleep address. */
 	const char	*td_wmesg;	/* (t) Reason for sleep. */
-	u_char		td_lastcpu;	/* (t) Last cpu we were on. */
-	u_char		td_oncpu;	/* (t) Which cpu we are on. */
+	int		td_lastcpu;	/* (t) Last cpu we were on. */
+	int		td_oncpu;	/* (t) Which cpu we are on. */
 	volatile u_char td_owepreempt;  /* (k*) Preempt on last critical_exit */
 	u_char		td_tsqueue;	/* (t) Turnstile queue blocked on. */
 	short		td_locks;	/* (k) Count of non-spin locks. */
@@ -601,7 +601,9 @@ struct proc {
 #define	p_session	p_pgrp->pg_session
 #define	p_pgid		p_pgrp->pg_id
 
-#define	NOCPU	0xff		/* For when we aren't on a CPU. */
+#define	NOCPU		(-1)	/* For when we aren't on a CPU. */
+#define	NOCPU_OLD	(255)
+#define	MAXCPU_OLD	(254)
 
 #define	PROC_SLOCK(p)	mtx_lock_spin(&(p)->p_slock)
 #define	PROC_SUNLOCK(p)	mtx_unlock_spin(&(p)->p_slock)

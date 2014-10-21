@@ -70,12 +70,12 @@ FILES=	DAEMON \
 	iscsictl \
 	iscsid \
 	jail \
-	kadmind \
-	kdc \
-	kfd \
+	${_kadmind} \
+	${_kdc} \
+	${_kfd} \
 	kld \
 	kldxref \
-	kpasswdd \
+	${_kpasswdd} \
 	ldconfig \
 	local \
 	localpkg \
@@ -179,6 +179,13 @@ _casperd=	casperd
 
 .if ${MK_NS_CACHING} != "no"
 _nscd=		nscd
+.endif
+
+.if ${MK_KERBEROS} != "no"
+_kadmind=	kadmind
+_kdc=		kdc
+_kfd=		kfd
+_kpasswdd=	kpasswdd
 .endif
 
 .if ${MK_OFED} != "no"

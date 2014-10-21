@@ -108,6 +108,18 @@ device		gpioled
 # ADC support
 device		ti_adc
 
+# Watchdog support
+# If we don't enable the watchdog driver, the system could potentially
+# reboot automatically because the boot loader might have enabled the
+# watchdog.
+device		ti_wdt
+
+# TI Programmable Realtime Unit support
+device		ti_pruss
+
+# Mailbox support
+device		ti_mbox
+
 # USB support
 device		usb
 options 	USB_HOST_ALIGN=64	# Align usb buffers to cache line size.

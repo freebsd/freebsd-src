@@ -21,3 +21,4 @@ arm/altera/socfpga/socfpga_mp.c			optional smp
 
 dev/dwc/if_dwc.c				optional dwc
 dev/mmc/host/dwmmc.c				optional dwmmc
+dev/beri/beri_ring.c				optional beri_ring
