@@ -169,8 +169,7 @@ __DEFAULT_NO_OPTIONS = \
     OPENSSH_NONE_CIPHER \
     SHARED_TOOLCHAIN \
     SORT_THREADS \
-    SVN \
-    USB_GADGET_EXAMPLES
+    SVN
 
 #
 # Default behaviour of some options depends on the architecture.  Unfortunately
