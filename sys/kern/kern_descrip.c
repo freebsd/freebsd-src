@@ -2078,23 +2078,23 @@ fdescfree(struct thread *td)
  * Since setugidsafety calls this only for fd 0, 1 and 2, this check is
  * sufficient.  We also don't check for setugidness since we know we are.
  */
-static int
+static bool
 is_unsafe(struct file *fp)
 {
-	if (fp->f_type == DTYPE_VNODE) {
-		struct vnode *vp = fp->f_vnode;
+	struct vnode *vp;
 
-		if ((vp->v_vflag & VV_PROCDEP) != 0)
-			return (1);
-	}
-	return (0);
+	if (fp->f_type != DTYPE_VNODE)
+		return (false);
+
+	vp = fp->f_vnode;
+	return ((vp->v_vflag & VV_PROCDEP) != 0);
 }
 
 /*
  * Make this setguid thing safe, if at all possible.
  */
 void
-setugidsafety(struct thread *td)
+fdsetugidsafety(struct thread *td)
 {
 	struct filedesc *fdp;
 	struct file *fp;
@@ -2102,12 +2102,10 @@ setugidsafety(struct thread *td)
 
 	fdp = td->td_proc->p_fd;
 	KASSERT(fdp->fd_refcnt == 1, ("the fdtable should not be shared"));
-	FILEDESC_XLOCK(fdp);
-	for (i = 0; i <= fdp->fd_lastfile; i++) {
-		if (i > 2)
-			break;
+	for (i = 0; i <= 2; i++) {
 		fp = fdp->fd_ofiles[i].fde_file;
 		if (fp != NULL && is_unsafe(fp)) {
+			FILEDESC_XLOCK(fdp);
 			knote_fdclose(td, i);
 			/*
 			 * NULL-out descriptor prior to close to avoid
@@ -2116,10 +2114,8 @@ setugidsafety(struct thread *td)
 			fdfree(fdp, i);
 			FILEDESC_XUNLOCK(fdp);
 			(void) closef(fp, td);
-			FILEDESC_XLOCK(fdp);
 		}
 	}
-	FILEDESC_XUNLOCK(fdp);
 }
 
 /*
