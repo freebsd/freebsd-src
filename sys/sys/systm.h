@@ -232,6 +232,7 @@ void	hexdump(const void *ptr, int length, const char *hdr, int flags);
 #define ovbcopy(f, t, l) bcopy((f), (t), (l))
 void	bcopy(const void *from, void *to, size_t len) __nonnull(1) __nonnull(2);
 void	bzero(void *buf, size_t len) __nonnull(1);
+void	explicit_bzero(void *, size_t) __nonnull(1);;
 
 void	*memcpy(void *to, const void *from, size_t len) __nonnull(1) __nonnull(2);
 void	*memmove(void *dest, const void *src, size_t n) __nonnull(1) __nonnull(2);
@@ -303,7 +304,7 @@ int	cr_cansee(struct ucred *u1, struct ucred *u2);
 int	cr_canseesocket(struct ucred *cred, struct socket *so);
 int	cr_canseeinpcb(struct ucred *cred, struct inpcb *inp);
 
-char	*getenv(const char *name);
+char	*kern_getenv(const char *name);
 void	freeenv(char *env);
 int	getenv_int(const char *name, int *data);
 int	getenv_uint(const char *name, unsigned int *data);
@@ -311,8 +312,8 @@ int	getenv_long(const char *name, long *data);
 int	getenv_ulong(const char *name, unsigned long *data);
 int	getenv_string(const char *name, char *data, int size);
 int	getenv_quad(const char *name, quad_t *data);
-int	setenv(const char *name, const char *value);
-int	unsetenv(const char *name);
+int	kern_setenv(const char *name, const char *value);
+int	kern_unsetenv(const char *name);
 int	testenv(const char *name);
 
 typedef uint64_t (cpu_tick_f)(void);
@@ -450,5 +451,7 @@ bitcount16(uint32_t x)
 	x = (x + (x >> 8)) & 0x00ff;
 	return (x);
 }
+
+void	intr_prof_stack_use(struct thread *td, struct trapframe *frame);
 
 #endif /* !_SYS_SYSTM_H_ */

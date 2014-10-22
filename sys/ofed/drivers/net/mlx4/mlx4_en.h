@@ -555,11 +555,11 @@ struct mlx4_en_priv {
 	u16 tx_usecs;
 	u16 tx_frames;
 	u32 pkt_rate_low;
-	u16 rx_usecs_low;
+	u32 rx_usecs_low;
 	u32 pkt_rate_high;
-	u16 rx_usecs_high;
-	u16 sample_interval;
-	u16 adaptive_rx_coal;
+	u32 rx_usecs_high;
+	u32 sample_interval;
+	u32 adaptive_rx_coal;
 	u32 msg_enable;
 	u32 loopback_ok;
 	u32 validate_loopback;

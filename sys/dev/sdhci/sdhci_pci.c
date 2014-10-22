@@ -260,16 +260,12 @@ sdhci_pci_attach(device_t dev)
 	struct sdhci_pci_softc *sc = device_get_softc(dev);
 	uint32_t model;
 	uint16_t subvendor;
-	uint8_t class, subclass, progif;
 	int bar, err, rid, slots, i;
 
 	sc->dev = dev;
 	model = (uint32_t)pci_get_device(dev) << 16;
 	model |= (uint32_t)pci_get_vendor(dev) & 0x0000ffff;
 	subvendor = pci_get_subvendor(dev);
-	class = pci_get_class(dev);
-	subclass = pci_get_subclass(dev);
-	progif = pci_get_progif(dev);
 	/* Apply chip specific quirks. */
 	for (i = 0; sdhci_devices[i].model != 0; i++) {
 		if (sdhci_devices[i].model == model &&

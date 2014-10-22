@@ -25,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd September 21, 2014
+.Dd October 22, 2014
 .Dt ADA 4
 .Os
 .Sh NAME
@@ -123,6 +123,13 @@ seconds.
 This variable determines whether to spin-down disks when shutting down.
 Set to 1 to enable spin-down, 0 to disable.
 The default is currently enabled.
+.It Va kern.cam.sort_io_queue
+.It Va kern.cam.ada. Ns Ar X Ns Va .sort_io_queue
+.Pp
+These variables determine whether request queue should be sorted trying
+to optimize head seeks.
+Set to 1 to enable sorting, 0 to disable, -1 to leave it as-is.
+The default is sorting enabled for HDDs and disabled SSDs.
 .It Va kern.cam.ada.read_ahead
 .It Va kern.cam.ada. Ns Ar X Ns Va .read_ahead
 .It Va kern.cam.ada.write_cache

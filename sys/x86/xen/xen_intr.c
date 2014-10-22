@@ -51,6 +51,7 @@ __FBSDID("$FreeBSD$");
 
 #include <machine/intr_machdep.h>
 #include <x86/apicvar.h>
+#include <x86/apicreg.h>
 #include <machine/smp.h>
 #include <machine/stdarg.h>
 
@@ -63,6 +64,7 @@ __FBSDID("$FreeBSD$");
 #include <xen/evtchn/evtchnvar.h>
 
 #include <dev/xen/xenpci/xenpcivar.h>
+#include <dev/pci/pcivar.h>
 
 #ifdef DDB
 #include <ddb/ddb.h>
@@ -108,10 +110,11 @@ DPCPU_DEFINE(struct xen_intr_pcpu_data, xen_intr_pcpu) = {
 
 DPCPU_DECLARE(struct vcpu_info *, vcpu_info);
 
-#define is_valid_evtchn(x)	((x) != 0)
-
 #define	XEN_EEXIST		17 /* Xen "already exists" error */
 #define	XEN_ALLOCATE_VECTOR	0 /* Allocate a vector for this event channel */
+#define	XEN_INVALID_EVTCHN	0 /* Invalid event channel */
+
+#define	is_valid_evtchn(x)	((x) != XEN_INVALID_EVTCHN)
 
 struct xenisrc {
 	struct intsrc	xi_intsrc;
@@ -121,6 +124,7 @@ struct xenisrc {
 	evtchn_port_t	xi_port;
 	int		xi_pirq;
 	int		xi_virq;
+	void		*xi_cookie;
 	u_int		xi_close:1;	/* close on unbind? */
 	u_int		xi_shared:1;	/* Shared with other domains. */
 	u_int		xi_activehi:1;
@@ -363,6 +367,7 @@ xen_intr_release_isrc(struct xenisrc *isrc)
 	isrc->xi_cpu = 0;
 	isrc->xi_type = EVTCHN_TYPE_UNBOUND;
 	isrc->xi_port = 0;
+	isrc->xi_cookie = NULL;
 	mtx_unlock(&xen_intr_isrc_lock);
 	return (0);
 }
@@ -417,17 +422,26 @@ xen_intr_bind_isrc(struct xenisrc **isrcp, evtchn_port_t local_port,
 	xen_intr_port_to_isrc[local_port] = isrc;
 	mtx_unlock(&xen_intr_isrc_lock);
 
-	error = intr_add_handler(device_get_nameunit(intr_owner),
-				 isrc->xi_vector, filter, handler, arg,
-				 flags|INTR_EXCL, port_handlep);
+	/* Assign the opaque handler (the event channel port) */
+	*port_handlep = &isrc->xi_port;
+
+	if (filter == NULL && handler == NULL) {
+		/*
+		 * No filter/handler provided, leave the event channel
+		 * masked and without a valid handler, the caller is
+		 * in charge of setting that up.
+		 */
+		*isrcp = isrc;
+		return (0);
+	}
+
+	error = xen_intr_add_handler(intr_owner, filter, handler, arg, flags,
+	    *port_handlep);
 	if (error != 0) {
-		device_printf(intr_owner,
-			      "xen_intr_bind_irq: intr_add_handler failed\n");
 		xen_intr_release_isrc(isrc);
 		return (error);
 	}
 	*isrcp = isrc;
-	evtchn_unmask_port(local_port);
 	return (0);
 }
 
@@ -444,13 +458,16 @@ xen_intr_bind_isrc(struct xenisrc **isrcp, evtchn_port_t local_port,
 static struct xenisrc *
 xen_intr_isrc(xen_intr_handle_t handle)
 {
-	struct intr_handler *ih;
+	evtchn_port_t port;
 
-	ih = handle;
-	if (ih == NULL || ih->ih_event == NULL)
+	if (handle == NULL)
 		return (NULL);
 
-	return (ih->ih_event->ie_source);
+	port = *(evtchn_port_t *)handle;
+	if (!is_valid_evtchn(port) || port >= NR_EVENT_CHANNELS)
+		return (NULL);
+
+	return (xen_intr_port_to_isrc[port]);
 }
 
 /**
@@ -1373,6 +1390,64 @@ xen_register_pirq(int vector, enum intr_trigger trig, enum intr_polarity pol)
 }
 
 int
+xen_register_msi(device_t dev, int vector, int count)
+{
+	struct physdev_map_pirq msi_irq;
+	struct xenisrc *isrc;
+	int ret;
+
+	memset(&msi_irq, 0, sizeof(msi_irq));
+	msi_irq.domid = DOMID_SELF;
+	msi_irq.type = count == 1 ?
+	    MAP_PIRQ_TYPE_MSI_SEG : MAP_PIRQ_TYPE_MULTI_MSI;
+	msi_irq.index = -1;
+	msi_irq.pirq = -1;
+	msi_irq.bus = pci_get_bus(dev) | (pci_get_domain(dev) << 16);
+	msi_irq.devfn = (pci_get_slot(dev) << 3) | pci_get_function(dev);
+	msi_irq.entry_nr = count;
+
+	ret = HYPERVISOR_physdev_op(PHYSDEVOP_map_pirq, &msi_irq);
+	if (ret != 0)
+		return (ret);
+	if (count != msi_irq.entry_nr) {
+		panic("unable to setup all requested MSI vectors "
+		    "(expected %d got %d)", count, msi_irq.entry_nr);
+	}
+
+	mtx_lock(&xen_intr_isrc_lock);
+	for (int i = 0; i < count; i++) {
+		isrc = xen_intr_alloc_isrc(EVTCHN_TYPE_PIRQ, vector + i);
+		KASSERT(isrc != NULL,
+		    ("xen: unable to allocate isrc for interrupt"));
+		isrc->xi_pirq = msi_irq.pirq + i;
+	}
+	mtx_unlock(&xen_intr_isrc_lock);
+
+	return (0);
+}
+
+int
+xen_release_msi(int vector)
+{
+	struct physdev_unmap_pirq unmap;
+	struct xenisrc *isrc;
+	int ret;
+
+	isrc = (struct xenisrc *)intr_lookup_source(vector);
+	if (isrc == NULL)
+		return (ENXIO);
+
+	unmap.pirq = isrc->xi_pirq;
+	ret = HYPERVISOR_physdev_op(PHYSDEVOP_unmap_pirq, &unmap);
+	if (ret != 0)
+		return (ret);
+
+	xen_intr_release_isrc(isrc);
+
+	return (0);
+}
+
+int
 xen_intr_describe(xen_intr_handle_t port_handle, const char *fmt, ...)
 {
 	char descr[MAXCOMLEN + 1];
@@ -1386,22 +1461,24 @@ xen_intr_describe(xen_intr_handle_t port_handle, const char *fmt, ...)
 	va_start(ap, fmt);
 	vsnprintf(descr, sizeof(descr), fmt, ap);
 	va_end(ap);
-	return (intr_describe(isrc->xi_vector, port_handle, descr));
+	return (intr_describe(isrc->xi_vector, isrc->xi_cookie, descr));
 }
 
 void
 xen_intr_unbind(xen_intr_handle_t *port_handlep)
 {
-	struct intr_handler *handler;
 	struct xenisrc *isrc;
 
-	handler = *port_handlep;
+	KASSERT(port_handlep != NULL,
+	    ("NULL xen_intr_handle_t passed to xen_intr_unbind"));
+
+	isrc = xen_intr_isrc(*port_handlep);
 	*port_handlep = NULL;
-	isrc = xen_intr_isrc(handler);
 	if (isrc == NULL)
 		return;
 
-	intr_remove_handler(handler);
+	if (isrc->xi_cookie != NULL)
+		intr_remove_handler(isrc->xi_cookie);
 	xen_intr_release_isrc(isrc);
 }
 
@@ -1430,6 +1507,29 @@ xen_intr_port(xen_intr_handle_t handle)
 		return (0);
 	
 	return (isrc->xi_port);
+}
+
+int
+xen_intr_add_handler(device_t dev, driver_filter_t filter,
+    driver_intr_t handler, void *arg, enum intr_type flags,
+    xen_intr_handle_t handle)
+{
+	struct xenisrc *isrc;
+	int error;
+
+	isrc = xen_intr_isrc(handle);
+	if (isrc == NULL || isrc->xi_cookie != NULL)
+		return (EINVAL);
+
+	error = intr_add_handler(device_get_nameunit(dev), isrc->xi_vector,
+	    filter, handler, arg, flags|INTR_EXCL, &isrc->xi_cookie);
+	if (error != 0) {
+		device_printf(dev,
+		    "xen_intr_add_handler: intr_add_handler failed: %d\n",
+		    error);
+	}
+
+	return (error);
 }
 
 #ifdef DDB

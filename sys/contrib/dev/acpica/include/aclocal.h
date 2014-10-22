@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2013, Intel Corp.
+ * Copyright (C) 2000 - 2014, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -291,6 +291,7 @@ typedef struct acpi_create_field_info
     UINT32                          FieldBitPosition;
     UINT32                          FieldBitLength;
     UINT16                          ResourceLength;
+    UINT16                          PinNumberIndex;
     UINT8                           FieldFlags;
     UINT8                           Attribute;
     UINT8                           FieldType;
@@ -516,9 +517,9 @@ typedef struct acpi_gpe_register_info
 {
     ACPI_GENERIC_ADDRESS            StatusAddress;  /* Address of status reg */
     ACPI_GENERIC_ADDRESS            EnableAddress;  /* Address of enable reg */
+    UINT16                          BaseGpeNumber;  /* Base GPE number for this register */
     UINT8                           EnableForWake;  /* GPEs to keep enabled when sleeping */
     UINT8                           EnableForRun;   /* GPEs to keep enabled when running */
-    UINT8                           BaseGpeNumber;  /* Base GPE number for this register */
 
 } ACPI_GPE_REGISTER_INFO;
 
@@ -534,10 +535,11 @@ typedef struct acpi_gpe_block_info
     struct acpi_gpe_xrupt_info      *XruptBlock;    /* Backpointer to interrupt block */
     ACPI_GPE_REGISTER_INFO          *RegisterInfo;  /* One per GPE register pair */
     ACPI_GPE_EVENT_INFO             *EventInfo;     /* One for each GPE */
-    ACPI_GENERIC_ADDRESS            BlockAddress;   /* Base address of the block */
+    UINT64                          Address;        /* Base address of the block */
     UINT32                          RegisterCount;  /* Number of register pairs in block */
     UINT16                          GpeCount;       /* Number of individual GPEs in block */
-    UINT8                           BlockBaseNumber;/* Base GPE number for this block */
+    UINT16                          BlockBaseNumber;/* Base GPE number for this block */
+    UINT8                           SpaceId;
     BOOLEAN                         Initialized;    /* TRUE if this block is initialized */
 
 } ACPI_GPE_BLOCK_INFO;
@@ -877,11 +879,13 @@ typedef union acpi_parse_value
 #define ACPI_DASM_STRING                0x02        /* Buffer is a ASCII string */
 #define ACPI_DASM_UNICODE               0x03        /* Buffer is a Unicode string */
 #define ACPI_DASM_PLD_METHOD            0x04        /* Buffer is a _PLD method bit-packed buffer */
-#define ACPI_DASM_EISAID                0x05        /* Integer is an EISAID */
-#define ACPI_DASM_MATCHOP               0x06        /* Parent opcode is a Match() operator */
-#define ACPI_DASM_LNOT_PREFIX           0x07        /* Start of a LNotEqual (etc.) pair of opcodes */
-#define ACPI_DASM_LNOT_SUFFIX           0x08        /* End  of a LNotEqual (etc.) pair of opcodes */
-#define ACPI_DASM_IGNORE                0x09        /* Not used at this time */
+#define ACPI_DASM_UUID                  0x05        /* Buffer is a UUID/GUID */
+#define ACPI_DASM_EISAID                0x06        /* Integer is an EISAID */
+#define ACPI_DASM_MATCHOP               0x07        /* Parent opcode is a Match() operator */
+#define ACPI_DASM_LNOT_PREFIX           0x08        /* Start of a LNotEqual (etc.) pair of opcodes */
+#define ACPI_DASM_LNOT_SUFFIX           0x09        /* End  of a LNotEqual (etc.) pair of opcodes */
+#define ACPI_DASM_HID_STRING            0x0A        /* String is a _HID or _CID */
+#define ACPI_DASM_IGNORE                0x0B        /* Not used at this time */
 
 /*
  * Generic operation (for example:  If, While, Store)
@@ -1218,17 +1222,17 @@ typedef struct acpi_external_list
     struct acpi_external_list   *Next;
     UINT32                      Value;
     UINT16                      Length;
+    UINT16                      Flags;
     UINT8                       Type;
-    UINT8                       Flags;
-    BOOLEAN                     Resolved;
-    BOOLEAN                     Emitted;
 
 } ACPI_EXTERNAL_LIST;
 
 /* Values for Flags field above */
 
-#define ACPI_IPATH_ALLOCATED        0x01
-#define ACPI_FROM_REFERENCE_FILE    0x02
+#define ACPI_EXT_RESOLVED_REFERENCE         0x01    /* Object was resolved during cross ref */
+#define ACPI_EXT_ORIGIN_FROM_FILE           0x02    /* External came from a file */
+#define ACPI_EXT_INTERNAL_PATH_ALLOCATED    0x04    /* Deallocate internal path on completion */
+#define ACPI_EXT_EXTERNAL_EMITTED           0x08    /* External() statement has been emitted */
 
 
 typedef struct acpi_external_file
@@ -1259,7 +1263,7 @@ typedef struct acpi_db_method_info
     char                            *Name;
     UINT32                          Flags;
     UINT32                          NumLoops;
-    char                            Pathname[128];
+    char                            Pathname[ACPI_DB_LINE_BUFFER_SIZE];
     char                            **Args;
     ACPI_OBJECT_TYPE                *Types;
 
@@ -1286,6 +1290,7 @@ typedef struct acpi_integrity_info
 } ACPI_INTEGRITY_INFO;
 
 
+#define ACPI_DB_DISABLE_OUTPUT          0x00
 #define ACPI_DB_REDIRECTABLE_OUTPUT     0x01
 #define ACPI_DB_CONSOLE_OUTPUT          0x02
 #define ACPI_DB_DUPLICATE_OUTPUT        0x03
@@ -1347,5 +1352,19 @@ typedef struct ah_predefined_name
 #endif
 
 } AH_PREDEFINED_NAME;
+
+typedef struct ah_device_id
+{
+    char            *Name;
+    char            *Description;
+
+} AH_DEVICE_ID;
+
+typedef struct ah_uuid
+{
+    char            *Description;
+    char            *String;
+
+} AH_UUID;
 
 #endif /* __ACLOCAL_H__ */

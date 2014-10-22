@@ -121,7 +121,7 @@ void *mlx4_get_protocol_dev(struct mlx4_dev *dev, enum mlx4_protocol proto,
 #ifndef ETH_ALEN
 #define ETH_ALEN	6
 #endif
-static inline u64 mlx4_mac_to_u64(u8 *addr)
+static inline u64 mlx4_mac_to_u64(const u8 *addr)
 {
 	u64 mac = 0;
 	int i;

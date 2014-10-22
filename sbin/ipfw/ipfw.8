@@ -1,7 +1,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd May 31, 2014
+.Dd Aug 13, 2014
 .Dt IPFW 8
 .Os
 .Sh NAME
@@ -48,17 +48,43 @@ in-kernel NAT.
 .Brq Cm firewall | altq | one_pass | debug | verbose | dyn_keepalive
 .Ss LOOKUP TABLES
 .Nm
-.Cm table Ar number Cm add Ar addr Ns Oo / Ns Ar masklen Oc Op Ar value
+.Oo Cm set Ar N Oc Cm table Ar name Cm create Ar create-options
 .Nm
-.Cm table Ar number Cm delete Ar addr Ns Op / Ns Ar masklen
+.Oo Cm set Ar N Oc Cm table Ar name Cm destroy
 .Nm
-.Cm table
-.Brq Ar number | all
-.Cm flush
+.Oo Cm set Ar N Oc Cm table Ar name Cm modify Ar modify-options
 .Nm
-.Cm table
-.Brq Ar number | all
+.Oo Cm set Ar N Oc Cm table Ar name Cm swap Ar name
+.Nm
+.Oo Cm set Ar N Oc Cm table Ar name Cm add Ar table-key Op Ar value
+.Nm
+.Oo Cm set Ar N Oc Cm table Ar name Cm add Op Ar table-key Ar value ...
+.Nm
+.Oo Cm set Ar N Oc Cm table Ar name Cm atomic add Op Ar table-key Ar value ...
+.Nm
+.Oo Cm set Ar N Oc Cm table Ar name Cm delete Op Ar table-key ...
+.Nm
+.Oo Cm set Ar N Oc Cm table Ar name Cm lookup Ar addr
+.Nm
+.Oo Cm set Ar N Oc Cm table Ar name Cm lock
+.Nm
+.Oo Cm set Ar N Oc Cm table Ar name Cm unlock
+.Nm
+.Oo Cm set Ar N Oc Cm table
+.Brq Ar name | all
 .Cm list
+.Nm
+.Oo Cm set Ar N Oc Cm table
+.Brq Ar name | all
+.Cm info 
+.Nm
+.Oo Cm set Ar N Oc Cm table
+.Brq Ar name | all
+.Cm detail
+.Nm
+.Oo Cm set Ar N Oc Cm table
+.Brq Ar name | all
+.Cm flush
 .Ss DUMMYNET CONFIGURATION (TRAFFIC SHAPER AND PACKET SCHEDULER)
 .Nm
 .Brq Cm pipe | queue | sched
@@ -87,6 +113,13 @@ in-kernel NAT.
 .Oc
 .Oc
 .Ar pathname
+.Ss INTERNAL DIAGNOSTICS
+.Nm
+.Cm internal iflist
+.Nm
+.Cm internal talist
+.Nm
+.Cm internal vlist
 .Sh DESCRIPTION
 The
 .Nm
@@ -822,10 +855,11 @@ It is possible to use the
 .Cm tablearg
 keyword with a skipto for a
 .Em computed
-skipto, but care should be used, as no destination caching
-is possible in this case so the rules are always walked to find it,
-starting from the
-.Cm skipto .
+skipto. Skipto may work either in O(log(N)) or in O(1) depending
+on amount of memory and/or sysctl variables.
+See the
+.Sx SYSCTL VARIABLES
+section for more details.
 .It Cm call Ar number | tablearg
 The current rule number is saved in the internal stack and
 ruleset processing continues with the first rule numbered
@@ -1152,7 +1186,7 @@ with multiple addresses) is provided for convenience only and
 its use is discouraged.
 .It Ar addr : Oo Cm not Oc Bro
 .Cm any | me | me6 |
-.Cm table Ns Pq Ar number Ns Op , Ns Ar value
+.Cm table Ns Pq Ar name Ns Op , Ns Ar value
 .Ar | addr-list | addr-set
 .Brc
 .Bl -tag -width indent
@@ -1164,8 +1198,8 @@ matches any IP address configured on an interface in the system.
 matches any IPv6 address configured on an interface in the system.
 The address list is evaluated at the time the packet is
 analysed.
-.It Cm table Ns Pq Ar number Ns Op , Ns Ar value
-Matches any IPv4 address for which an entry exists in the lookup table
+.It Cm table Ns Pq Ar name Ns Op , Ns Ar value
+Matches any IPv4 or IPv6 address for which an entry exists in the lookup table
 .Ar number .
 If an optional 32-bit unsigned
 .Ar value
@@ -1359,6 +1393,19 @@ and IPsec encapsulated security payload headers
 .It Cm fib Ar fibnum
 Matches a packet that has been tagged to use
 the given FIB (routing table) number.
+.It Cm flow Ar table Ns Pq Ar name Ns Op , Ns Ar value
+Search for the flow entry in lookup table
+.Ar name .
+If not found, the match fails.
+Otherwise, the match succeeds and
+.Cm tablearg
+is set to the value extracted from the table.
+.Pp
+This option can be useful to quickly dispatch traffic based on
+certain packet fields.
+See the
+.Sx LOOKUP TABLES
+section below for more information on lookup tables.
 .It Cm flow-id Ar labels
 Matches IPv6 packets containing any of the flow labels given in
 .Ar labels .
@@ -1550,9 +1597,9 @@ of source and destination addresses and ports can be
 specified.
 Currently,
 only IPv4 flows are supported.
-.It Cm lookup Bro Cm dst-ip | dst-port | src-ip | src-port | uid | jail Brc Ar N
+.It Cm lookup Bro Cm dst-ip | dst-port | src-ip | src-port | uid | jail Brc Ar name
 Search an entry in lookup table
-.Ar N
+.Ar name
 that matches the field specified as argument.
 If not found, the match fails.
 Otherwise, the match succeeds and
@@ -1616,13 +1663,19 @@ and they are always printed as hexadecimal (unless the
 option is used, in which case symbolic resolution will be attempted).
 .It Cm proto Ar protocol
 Matches packets with the corresponding IP protocol.
-.It Cm recv | xmit | via Brq Ar ifX | Ar if Ns Cm * | Ar table Ns Pq Ar number Ns Op , Ns Ar value | Ar ipno | Ar any
+.It Cm recv | xmit | via Brq Ar ifX | Ar if Ns Cm * | Ar table Ns Po Ar name Ns Oo , Ns Ar value Oc Pc | Ar ipno | Ar any
 Matches packets received, transmitted or going through,
 respectively, the interface specified by exact name
 .Po Ar ifX Pc ,
 by device name
 .Po Ar if* Pc ,
 by IP address, or through some interface.
+Table
+.Ar name
+may be used to match interface by its kernel ifindex.
+See the
+.Sx LOOKUP TABLES
+section below for more information on lookup tables.
 .Pp
 The
 .Cm via
@@ -1817,15 +1870,35 @@ connected networks instead of all source addresses.
 .Sh LOOKUP TABLES
 Lookup tables are useful to handle large sparse sets of
 addresses or other search keys (e.g., ports, jail IDs, interface names).
-In the rest of this section we will use the term ``address''.
-There may be up to 65535 different lookup tables, numbered 0 to 65534.
+In the rest of this section we will use the term ``key''.
+Table name needs to match the following spec:
+.Ar table-name .
+Tables with the same name can be created in different 
+.Ar sets .
+However, rule links to the tables in
+.Ar set 0
+by default.
+This behavior can be controlled by
+.Va net.inet.ip.fw.tables_sets
+variable.
+See the
+.Sx SETS OF RULES
+section for more information.
+There may be up to 65535 different lookup tables.
 .Pp
+The following table types are supported:
+.Bl -tag -width indent
+.It Ar table-type : Ar addr | iface | number | flow
+.It Ar table-key : Ar addr Ns Oo / Ns Ar masklen Oc | iface-name | number | flow-spec
+.It Ar flow-spec : Ar flow-field Ns Op , Ns Ar flow-spec
+.It Ar flow-field : src-ip | proto | src-port | dst-ip | dst-port
+.It Cm addr
+matches IPv4 or IPv6 address.
 Each entry is represented by an
 .Ar addr Ns Op / Ns Ar masklen
 and will match all addresses with base
 .Ar addr
-(specified as an IPv4/IPv6 address, a hostname or an unsigned integer)
-and mask width of
+(specified as an IPv4/IPv6 address, or a hostname) and mask width of
 .Ar masklen
 bits.
 If
@@ -1833,29 +1906,140 @@ If
 is not specified, it defaults to 32 for IPv4 and 128 for IPv6.
 When looking up an IP address in a table, the most specific
 entry will match.
-Associated with each entry is a 32-bit unsigned
-.Ar value ,
-which can optionally be checked by a rule matching code.
-When adding an entry, if
-.Ar value
-is not specified, it defaults to 0.
+.It Cm iface
+matches interface names.
+Each entry is represented by string treated as interface name.
+Wildcards are not supported.
+.It Cm number
+maches protocol ports, uids/gids or jail IDs.
+Each entry is represented by 32-bit unsigned integer.
+Ranges are not supported.
+.It Cm flow
+Matches packet fields specified by
+.Ar flow
+type suboptions with table entries.
+.El
 .Pp
-An entry can be added to a table
-.Pq Cm add ,
-or removed from a table
-.Pq Cm delete .
-A table can be examined
-.Pq Cm list
-or flushed
-.Pq Cm flush .
+Tables require explicit creation via
+.Cm create
+before use.
 .Pp
-Internally, each table is stored in a Radix tree, the same way as
-the routing table (see
+The following creation options are supported:
+.Bl -tag -width indent
+.It Ar create-options : Ar create-option | create-options
+.It Ar create-option : Cm type Ar table-type | Cm valtype Ar value-mask | Cm algo Ar algo-desc |
+.Cm limit Ar number | Cm locked
+.It Cm type
+Table key type.
+.It Cm valtype
+Table value mask.
+.It Cm algo
+Table algorithm to use (see below).
+.It Cm limit
+Maximum number of items that may be inserted into table.
+.It Cm locked
+Restrict any table modifications.
+.El
+.Pp
+Some of these options may be modified later via
+.Cm modify
+keyword.
+The following options can be changed:
+.Bl -tag -width indent
+.It Ar modify-options : Ar modify-option | modify-options
+.It Ar modify-option : Cm limit Ar number
+.It Cm limit
+Alter maximum number of items that may be inserted into table.
+.El
+.Pp
+Additionally, table can be locked or unlocked using
+.Cm lock
+or
+.Cm unlock
+commands.
+.Pp
+Tables of the same
+.Ar type
+can be swapped with each other using
+.Cm swap Ar name
+command.
+Swap may fail if tables limits are set and data exchange
+would result in limits hit.
+Operation is performed atomically.
+.Pp
+One or more entries can be added to a table at once using
+.Cm add
+command.
+Addition of all items are performed atomically.
+By default, error in addition of one entry does not influence
+addition of other entries. However, non-zero error code is returned
+in that case. 
+Special
+.Cm atomic
+keyword may be specified before
+.Cm add
+to indicate all-or-none add request.
+.Pp
+One or more entries can be removed from a table at once using
+.Cm delete
+command.
+By default, error in removal of one entry does not influence
+removing of other entries. However, non-zero error code is returned
+in that case. 
+.Pp
+It may be possible to check what entry will be found on particular
+.Ar table-key
+using
+.Cm lookup
+.Ae table-key
+command.
+This functionality is optional and may be unsupported in some algorithms.
+.Pp
+The following operations can be performed on
+.Ar one
+or
+.Cm all
+tables:
+.Bl -tag -width indent
+.It Cm list
+List all entries.
+.It Cm flush
+Removes all entries.
+.It Cm info
+Shows generic table information.
+.It Cm detail
+Shows generic table information and algo-specific data.
+.El
+.Pp
+The following lookup algorithms are supported:
+.Bl -tag -width indent
+.It Ar algo-desc : algo-name | "algo-name algo-data"
+.It Ar algo-name: Ar addr:radix | addr:hash | iface:arrray | number:array | flow:hash
+.It Cm addr:radix
+Separate Radix trees for IPv4 and IPv6, the same way as the routing table (see
 .Xr route 4 ) .
-.Pp
-Lookup tables currently support only ports, jail IDs, IPv4/IPv6  addresses
-and interface names.
-Wildcards is not supported for interface names.
+Default choice for
+.Ar addr
+type.
+.It Cm addr:hash
+Separate auto-growing hashes for IPv4 and IPv6.
+Accepts entries with the same mask length specified initially via
+.Cm "addr:hash masks=/v4,/v6"
+algorithm creation options.
+Assume /32 and /128 masks by default.
+Search removes host bits (according to mask) from supplied address and checks
+resulting key in appropriate hash.
+Mostly optimized for /64 and byte-ranged IPv6 masks.
+.It Cm iface:arrray
+Array storing sorted indexes for entries which are presented in the system.
+Optimized for very fast lookup.
+.It Cm number:array
+Array storing sorted u32 numbers.
+.It Cm flow:hash
+Auto-growing hash storing flow entries.
+Search calculates hash on required packet fields and searches for matching
+entries in selected bucket.
+.El
 .Pp
 The
 .Cm tablearg
@@ -1864,6 +2048,39 @@ the argument for a rule action, action parameter or rule option.
 This can significantly reduce number of rules in some configurations.
 If two tables are used in a rule, the result of the second (destination)
 is used.
+.Pp
+Each record may hold one or more values according to
+.Ar value-mask .
+This mask is set on table creation via
+.Cm valtype
+option.
+The following value types are supported:
+.Bl -tag -width indent
+.It Ar value-mask : Ar value-type Ns Op , Ns Ar value-mask
+.It Ar value-type : Ar skipto | pipe | fib | nat | dscp | tag | divert |
+.Ar netgraph | limit | ipv4
+.It Cm skipto
+rule number to jump to.
+.It Cm pipe
+Pipe number to use.
+.It Cm fib
+fib number to match/set.
+.It Cm nat
+nat number to jump to.
+.It Cm dscp
+dscp value to match/set.
+.It Cm tag
+tag number to match/set.
+.It Cm divert
+port number to divert traffic to.
+.It Cm netgraph
+hook number to move packet to.
+.It Cm limit
+maximum number of connections.
+.It Cm ipv4
+IPv4 nexthop to fwd packets to.
+.El
+.Pp
 The
 .Cm tablearg
 argument can be used with the following actions:
@@ -1873,32 +2090,34 @@ action parameters:
 rule options:
 .Cm limit, tagged.
 .Pp
-When used with
-.Cm fwd
-it is possible to supply table entries with values
-that are in the form of IP addresses or hostnames.
-See the
-.Sx EXAMPLES
-Section for example usage of tables and the tablearg keyword.
-.Pp
 When used with the
 .Cm skipto
 action, the user should be aware that the code will walk the ruleset
-up to a rule equal to, or past, the given number,
-and should therefore try keep the
-ruleset compact between the skipto and the target rules.
+up to a rule equal to, or past, the given number.
+.Pp
+See the
+.Sx EXAMPLES
+Section for example usage of tables and the tablearg keyword.
 .Sh SETS OF RULES
-Each rule belongs to one of 32 different
+Each rule or table belongs to one of 32 different
 .Em sets
 , numbered 0 to 31.
 Set 31 is reserved for the default rule.
 .Pp
-By default, rules are put in set 0, unless you use the
+By default, rules or tables are put in set 0, unless you use the
 .Cm set N
-attribute when entering a new rule.
+attribute when adding a new rule or table.
 Sets can be individually and atomically enabled or disabled,
 so this mechanism permits an easy way to store multiple configurations
 of the firewall and quickly (and atomically) switch between them.
+.Pp
+By default, tables from set 0 are referenced when adding rule with
+table opcodes regardless of rule set.
+This behavior can be changed by setting
+.Va net.inet.ip.fw.tables_set
+variable to 1.
+Rule's set will then be used for table references.
+.Pp
 The command to enable/disable sets is
 .Bd -ragged -offset indent
 .Nm
@@ -2968,6 +3187,22 @@ Controls whether bridged packets are passed to
 .Nm .
 Default is no.
 .El
+.Sh INTERNAL DIAGNOSTICS
+There are some commands that may be useful to understand current state
+of certain subsystems inside kernel module.
+These commands provide debugging output which may change without notice.
+.Pp
+Currently the following commands are available as
+.Cm internal
+sub-options:
+.Bl -tag -width indent
+.It Cm iflist
+Lists all interface which are currently tracked by
+.Nm
+with their in-kernel status.
+.It Cm talist
+List all table lookup algorithms currently available.
+.El
 .Sh EXAMPLES
 There are far too many possible uses of
 .Nm
@@ -3220,30 +3455,43 @@ Then we classify traffic using a single rule:
 .Dl "ipfw pipe 1 config bw 1000Kbyte/s"
 .Dl "ipfw pipe 4 config bw 4000Kbyte/s"
 .Dl "..."
-.Dl "ipfw table 1 add 192.168.2.0/24 1"
-.Dl "ipfw table 1 add 192.168.0.0/27 4"
-.Dl "ipfw table 1 add 192.168.0.2 1"
+.Dl "ipfw table T1 create type addr"
+.Dl "ipfw table T1 add 192.168.2.0/24 1"
+.Dl "ipfw table T1 add 192.168.0.0/27 4"
+.Dl "ipfw table T1 add 192.168.0.2 1"
 .Dl "..."
-.Dl "ipfw add pipe tablearg ip from table(1) to any"
+.Dl "ipfw add pipe tablearg ip from 'table(T1)' to any"
 .Pp
 Using the
 .Cm fwd
 action, the table entries may include hostnames and IP addresses.
 .Pp
-.Dl "ipfw table 1 add 192.168.2.0/24 10.23.2.1"
-.Dl "ipfw table 1 add 192.168.0.0/27 router1.dmz"
+.Dl "ipfw table T2 create type addr ftype ip"
+.Dl "ipfw table T2 add 192.168.2.0/24 10.23.2.1"
+.Dl "ipfw table T21 add 192.168.0.0/27 router1.dmz"
 .Dl "..."
 .Dl "ipfw add 100 fwd tablearg ip from any to table(1)"
 .Pp
 In the following example per-interface firewall is created:
 .Pp
-.Dl "ipfw table 10 add vlan20 12000"
-.Dl "ipfw table 10 add vlan30 13000"
-.Dl "ipfw table 20 add vlan20 22000"
-.Dl "ipfw table 20 add vlan30 23000"
+.Dl "ipfw table IN create type iface valtype skipto,fib"
+.Dl "ipfw table IN add vlan20 12000,12"
+.Dl "ipfw table IN add vlan30 13000,13"
+.Dl "ipfw table OUT create type iface valtype skipto"
+.Dl "ipfw table OUT add vlan20 22000"
+.Dl "ipfw table OUT add vlan30 23000"
 .Dl ".."
-.Dl "ipfw add 100 ipfw skipto tablearg ip from any to any recv 'table(10)' in"
-.Dl "ipfw add 200 ipfw skipto tablearg ip from any to any xmit 'table(10)' out"
+.Dl "ipfw add 100 ipfw setfib tablearg ip from any to any recv 'table(IN)' in"
+.Dl "ipfw add 200 ipfw skipto tablearg ip from any to any recv 'table(IN)' in"
+.Dl "ipfw add 300 ipfw skipto tablearg ip from any to any xmit 'table(OUT)' out"
+.Pp
+The following example illustrate usage of flow tables:
+.Pp
+.Dl "ipfw table fl create type flow:flow:src-ip,proto,dst-ip,dst-port"
+.Dl "ipfw table fl add 2a02:6b8:77::88,tcp,2a02:6b8:77::99,80 11"
+.Dl "ipfw table fl add 10.0.0.1,udp,10.0.0.2,53 12"
+.Dl ".."
+.Dl "ipfw add 100 allow ip from any to any flow 'table(fl,11)' recv ix0"
 .Ss SETS OF RULES
 To add a set of rules atomically, e.g.\& set 18:
 .Pp

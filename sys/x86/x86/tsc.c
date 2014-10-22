@@ -155,7 +155,7 @@ tsc_freq_vmware(void)
 		if (strncmp(hv_sig, "VMwareVMware", 12) != 0)
 			return (0);
 	} else {
-		p = getenv("smbios.system.serial");
+		p = kern_getenv("smbios.system.serial");
 		if (p == NULL)
 			return (0);
 		if (strncmp(p, "VMware-", 7) != 0 &&

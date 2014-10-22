@@ -164,9 +164,9 @@ _parse_bootargs(char *cmdline)
 		} else {
 			n = strsep(&v, "=");
 			if (v == NULL)
-				setenv(n, "1");
+				kern_setenv(n, "1");
 			else
-				setenv(n, v);
+				kern_setenv(n, v);
 		}
 	}
 }

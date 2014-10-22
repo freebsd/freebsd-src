@@ -1468,15 +1468,15 @@ mxge_add_sysctls(mxge_softc_t *sc)
 	/* random information */
 	SYSCTL_ADD_STRING(ctx, children, OID_AUTO,
 		       "firmware_version",
-		       CTLFLAG_RD, &sc->fw_version,
+		       CTLFLAG_RD, sc->fw_version,
 		       0, "firmware version");
 	SYSCTL_ADD_STRING(ctx, children, OID_AUTO,
 		       "serial_number",
-		       CTLFLAG_RD, &sc->serial_number_string,
+		       CTLFLAG_RD, sc->serial_number_string,
 		       0, "serial number");
 	SYSCTL_ADD_STRING(ctx, children, OID_AUTO,
 		       "product_code",
-		       CTLFLAG_RD, &sc->product_code_string,
+		       CTLFLAG_RD, sc->product_code_string,
 		       0, "product_code");
 	SYSCTL_ADD_INT(ctx, children, OID_AUTO,
 		       "pcie_link_width",

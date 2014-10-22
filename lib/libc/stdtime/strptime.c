@@ -56,7 +56,7 @@ __FBSDID("$FreeBSD$");
 #include "libc_private.h"
 #include "timelocal.h"
 #include "tzfile.h"
-#include <stdio.h>
+
 static char * _strptime(const char *, const char *, struct tm *, int *, locale_t);
 
 #define	asizeof(a)	(sizeof(a) / sizeof((a)[0]))
@@ -103,9 +103,6 @@ _strptime(const char *buf, const char *fmt, struct tm *tm, int *GMTp,
 
 	ptr = fmt;
 	while (*ptr != 0) {
-		if (*buf == 0)
-			break;
-
 		c = *ptr++;
 
 		if (c != '%') {
@@ -123,7 +120,6 @@ _strptime(const char *buf, const char *fmt, struct tm *tm, int *GMTp,
 label:
 		c = *ptr++;
 		switch (c) {
-		case 0:
 		case '%':
 			if (*buf++ != '%')
 				return (NULL);
@@ -342,6 +338,7 @@ label:
 			if (i == asizeof(tptr->weekday))
 				return (NULL);
 
+			buf += len;
 			tm->tm_wday = i;
 			flags |= FLAG_WDAY;
 			break;
@@ -502,8 +499,11 @@ label:
 			}
 			errno = sverrno;
 			buf = cp;
-			gmtime_r(&t, tm);
+			if (gmtime_r(&t, tm) == NULL)
+				return (NULL);
 			*GMTp = 1;
+			flags |= FLAG_YDAY | FLAG_WDAY | FLAG_MONTH |
+			    FLAG_MDAY | FLAG_YEAR;
 			}
 			break;
 
@@ -548,7 +548,8 @@ label:
 				strncpy(zonestr, buf, cp - buf);
 				zonestr[cp - buf] = '\0';
 				tzset();
-				if (0 == strcmp(zonestr, "GMT")) {
+				if (0 == strcmp(zonestr, "GMT") ||
+				    0 == strcmp(zonestr, "UTC")) {
 				    *GMTp = 1;
 				} else if (0 == strcmp(zonestr, tzname[0])) {
 				    tm->tm_isdst = 0;
@@ -595,6 +596,9 @@ label:
 			while (isspace_l((unsigned char)*buf, locale))
 				buf++;
 			break;
+
+		default:
+			return (NULL);
 		}
 	}
 
@@ -670,6 +674,7 @@ strptime_l(const char * __restrict buf, const char * __restrict fmt,
 	ret = _strptime(buf, fmt, tm, &gmt, loc);
 	if (ret && gmt) {
 		time_t t = timegm(tm);
+
 		localtime_r(&t, tm);
 	}
 

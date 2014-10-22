@@ -23,6 +23,9 @@
 #  WITH_DVD: if set, generate dvd1.iso
 #  WITH_COMPRESSED_IMAGES: if set, compress installation images with xz(1)
 #		(uncompressed images are not removed)
+#  WITH_VMIMAGES: if set, build virtual machine images with the release
+#  WITH_COMPRESSED_VMIMAGES: if set, compress virtual machine disk images
+#  		with xz(1) (extremely time consuming)
 #  TARGET/TARGET_ARCH: architecture of built release
 #
 
@@ -59,6 +62,8 @@ OSRELEASE=	${TYPE}-${REVISION}-${BRANCH}-${TARGET}-${TARGET_ARCH}
 .endfor
 .endif
 
+VOLUME_LABEL=	${OSRELEASE:C/[-\.]/_/g:S/^$${TYPE}_//}
+
 .if !exists(${DOCDIR})
 NODOC= true
 .endif
@@ -94,6 +99,12 @@ IMAGES+=	memstick.img
 IMAGES+=	mini-memstick.img
 .endif
 
+VMTARGETS=	vm-base vm-image
+VMFORMATS?=	vhd vmdk qcow2 raw
+VMSIZE?=	20G
+VMBASE?=	vm
+AZURECONF?=	${.CURDIR}/tools/azure.conf
+
 CLEANFILES=	packagesystem *.txz MANIFEST system ${IMAGES}
 .if defined(WITH_COMPRESSED_IMAGES) && !empty(WITH_COMPRESSED_IMAGES)
 . for I in ${IMAGES}
@@ -103,7 +114,22 @@ CLEANFILES+=	${I}.xz
 .if defined(WITH_DVD) && !empty(WITH_DVD)
 CLEANFILES+=	pkg-stage
 .endif
+.if defined(WITH_VMIMAGES) && !empty(WITH_VMIMAGES)
+CLEANFILES+=	${VMBASE}.img
+. for FORMAT in ${VMFORMATS}
+CLEANFILES+=	${VMBASE}.${FORMAT}
+. endfor
+.endif
 CLEANDIRS=	dist ftp release bootonly dvd
+.if defined(WITH_VMIMAGES) && !empty(WITH_VMIMAGES)
+CLEANDIRS+=	${VMTARGETS}
+.endif
+.if exists(${.CURDIR}/${TARGET}/mk-azure.sh)
+CLEANFILES+=	${OSRELEASE}.vhd \
+		${OSRELEASE}.vhd.raw \
+		azure.img
+CLEANDIRS+=	vm-azure
+.endif
 beforeclean:
 	chflags -R noschg .
 .include <bsd.obj.mk>
@@ -223,13 +249,13 @@ dvd:
 
 release.iso: disc1.iso
 disc1.iso: system
-	sh ${.CURDIR}/${TARGET}/mkisoimages.sh -b FreeBSD_Install ${.TARGET} release
+	sh ${.CURDIR}/${TARGET}/mkisoimages.sh -b ${VOLUME_LABEL}_CD ${.TARGET} release
 
 dvd1.iso: dvd pkg-stage
-	sh ${.CURDIR}/${TARGET}/mkisoimages.sh -b FreeBSD_Install ${.TARGET} dvd
+	sh ${.CURDIR}/${TARGET}/mkisoimages.sh -b ${VOLUME_LABEL}_DVD ${.TARGET} dvd
 
 bootonly.iso: bootonly
-	sh ${.CURDIR}/${TARGET}/mkisoimages.sh -b FreeBSD_Install ${.TARGET} bootonly
+	sh ${.CURDIR}/${TARGET}/mkisoimages.sh -b ${VOLUME_LABEL}_BO ${.TARGET} bootonly
 
 memstick: memstick.img
 memstick.img: system
@@ -263,6 +289,9 @@ ftp: packagesystem
 release:
 	${MAKE} -C ${.CURDIR} ${.MAKEFLAGS} obj
 	${MAKE} -C ${.CURDIR} ${.MAKEFLAGS} ${RELEASE_TARGETS}
+.if defined(WITH_VMIMAGES) && !empty(WITH_VMIMAGES)
+	${MAKE} -C ${.CURDIR} ${.MAKEFLAGS} ${VMTARGETS}
+.endif
 
 install:
 .if defined(DESTDIR) && !empty(DESTDIR)
@@ -277,3 +306,52 @@ install:
 .endfor
 	cd ${DESTDIR} && sha256 ${OSRELEASE}* > ${DESTDIR}/CHECKSUM.SHA256
 	cd ${DESTDIR} && md5 ${OSRELEASE}* > ${DESTDIR}/CHECKSUM.MD5
+.if defined(WITH_VMIMAGES) && !empty(WITH_VMIMAGES)
+	mkdir -p ${DESTDIR}/vmimages
+. for FORMAT in ${VMFORMATS}
+	cp -p ${VMBASE}.${FORMAT} \
+		${DESTDIR}/vmimages/${OSRELEASE}.${FORMAT}
+. endfor
+. if defined(WITH_COMPRESSED_VMIMAGES) && !empty(WITH_COMPRESSED_VMIMAGES)
+# This is very time consuming, so defer it after the images are moved to
+# the DESTDIR.
+.  for FORMAT in ${VMFORMATS}
+	# Don't keep the originals.  There is a copy in ${.OBJDIR} if needed.
+	${XZCMD} ${DESTDIR}/vmimages/${OSRELEASE}.${FORMAT}
+.  endfor
+. endif
+	cd ${DESTDIR}/vmimages && sha256 ${OSRELEASE}* > \
+		${DESTDIR}/vmimages/CHECKSUM.SHA256
+	cd ${DESTDIR}/vmimages && md5 ${OSRELEASE}* > \
+		${DESTDIR}/vmimages/CHECKSUM.MD5
+.endif
+
+vm-base:
+.if defined(WITH_VMIMAGES) && !empty(WITH_VMIMAGES)
+. if exists(${.CURDIR}/${TARGET}/mk-vmimage.sh)
+	env TARGET=${TARGET} TARGET_ARCH=${TARGET_ARCH} \
+		${.CURDIR}/${TARGET}/mk-vmimage.sh ${.TARGET} \
+		${VMBASE}.img ${WORLDDIR} ${.OBJDIR}/${.TARGET} ${VMSIZE}
+. endif
+.endif
+	touch ${.TARGET}
+
+vm-image: vm-base
+.if defined(WITH_VMIMAGES) && !empty(WITH_VMIMAGES)
+. if exists(${.CURDIR}/${TARGET}/mk-vmimage.sh)
+.  for FORMAT in ${VMFORMATS}
+	env TARGET=${TARGET} TARGET_ARCH=${TARGET_ARCH} \
+		${.CURDIR}/${TARGET}/mk-vmimage.sh ${.TARGET} \
+		${VMBASE}.img ${FORMAT} ${VMBASE}.${FORMAT}
+.  endfor
+. endif
+.endif
+	touch ${.TARGET}
+
+vm-azure:
+.if exists(${.CURDIR}/${TARGET}/mk-azure.sh)
+	env TARGET=${TARGET} TARGET_ARCH=${TARGET_ARCH} AZURECONF=${AZURECONF} \
+		${.CURDIR}/${TARGET}/mk-azure.sh ${.TARGET} azure.img \
+		${WORLDDIR} ${.TARGET} ${VMSIZE} ${OSRELEASE}.vhd
+.endif
+	touch ${.TARGET}

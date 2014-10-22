@@ -35,7 +35,7 @@
 #include <linux/module.h>
 #include <linux/io-mapping.h>
 
-#include <asm/page.h>
+#include <linux/page.h>
 
 #include "mlx4.h"
 #include "icm.h"

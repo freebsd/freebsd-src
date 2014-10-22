@@ -27,7 +27,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd September 14, 2014
+.Dd October 22, 2014
 .Dt CTL.CONF 5
 .Os
 .Sh NAME
@@ -55,7 +55,7 @@ file is:
 
 .No portal-group Ar name No {
 .Dl listen Ar address
-.Dl listen-iser Ar address
+.\".Dl listen-iser Ar address
 .Dl discovery-auth-group Ar name
 .Dl ...
 }
@@ -109,7 +109,6 @@ A setting of 0 disables the timeout.
 .El
 .Ss auth-group Context
 .Bl -tag -width indent
-
 .It Ic auth-type Ar type
 Sets the authentication type.
 Type can be either
@@ -158,13 +157,7 @@ address.
 .It Ic discovery-auth-group Ar name
 Assign a previously defined authentication group to the portal group,
 to be used for target discovery.
-By default, portal groups that do not specify their own auth settings,
-using clauses such as
-.Sy chap
-or
-.Sy initiator-name ,
-are assigned
-predefined
+By default, portal groups are assigned predefined
 .Sy auth-group
 .Qq Ar default ,
 which denies discovery.
@@ -175,9 +168,9 @@ may be used
 to permit discovery without authentication.
 .It Ic listen Ar address
 An IPv4 or IPv6 address and port to listen on for incoming connections.
-.It Ic listen-iser Ar address
-An IPv4 or IPv6 address and port to listen on for incoming connections
-using iSER (iSCSI over RDMA) protocol.
+.\".It Ic listen-iser Ar address
+.\"An IPv4 or IPv6 address and port to listen on for incoming connections
+.\"using iSER (iSCSI over RDMA) protocol.
 .El
 .Ss target Context
 .Bl -tag -width indent
@@ -320,7 +313,7 @@ target iqn.2012-06.com.example:target0 {
 	alias "Example target"
 	auth-group no-authentication
 	lun 0 {
-		path /dev/zvol/example_0
+		path /dev/zvol/tank/example_0
 		blocksize 4096
 		size 4G
 	}
@@ -329,7 +322,7 @@ target iqn.2012-06.com.example:target0 {
 target iqn.2012-06.com.example:target3 {
 	chap chapuser chapsecret
 	lun 0 {
-		path /dev/zvol/example_3
+		path /dev/zvol/tank/example_3
 	}
 }
 
@@ -337,10 +330,10 @@ target iqn.2012-06.com.example:target2 {
 	auth-group example2
 	portal-group example2
 	lun 0 {
-		path /dev/zvol/example2_0
+		path /dev/zvol/tank/example2_0
 	}
 	lun 1 {
-		path /dev/zvol/example2_1
+		path /dev/zvol/tank/example2_1
 		option foo bar
 	}
 }

@@ -312,12 +312,10 @@ udp_append(struct inpcb *inp, struct ip *ip, struct mbuf *n, int off,
 	 */
 	up = intoudpcb(inp);
 	if (up->u_tun_func != NULL) {
-		(*up->u_tun_func)(n, off, inp);
+		(*up->u_tun_func)(n, off, inp, (struct sockaddr *)udp_in,
+		    up->u_tun_ctx);
 		return;
 	}
-
-	if (n == NULL)
-		return;
 
 	off += sizeof(struct udphdr);
 
@@ -444,9 +442,10 @@ udp_input(struct mbuf **mp, int *offp, int proto)
 	 */
 	len = ntohs((u_short)uh->uh_ulen);
 	ip_len = ntohs(ip->ip_len) - iphlen;
-	if (proto == IPPROTO_UDPLITE && len == 0) {
+	if (proto == IPPROTO_UDPLITE && (len == 0 || len == ip_len)) {
 		/* Zero means checksum over the complete packet. */
-		len = ip_len;
+		if (len == 0)
+			len = ip_len;
 		cscov_partial = 0;
 	}
 	if (ip_len != len) {
@@ -497,8 +496,16 @@ udp_input(struct mbuf **mp, int *offp, int proto)
 			m_freem(m);
 			return (IPPROTO_DONE);
 		}
-	} else
-		UDPSTAT_INC(udps_nosum);
+	} else {
+		if (proto == IPPROTO_UDP) {
+			UDPSTAT_INC(udps_nosum);
+		} else {
+			/* UDPLite requires a checksum */
+			/* XXX: What is the right UDPLite MIB counter here? */
+			m_freem(m);
+			return (IPPROTO_DONE);
+		}
+	}
 
 	pcbinfo = get_inpcbinfo(proto);
 	if (IN_MULTICAST(ntohl(ip->ip_dst.s_addr)) ||
@@ -569,8 +576,12 @@ udp_input(struct mbuf **mp, int *offp, int proto)
 			if (last != NULL) {
 				struct mbuf *n;
 
-				n = m_copy(m, 0, M_COPYALL);
-				udp_append(last, ip, n, iphlen, &udp_in);
+				if ((n = m_copy(m, 0, M_COPYALL)) != NULL) {
+					UDP_PROBE(receive, NULL, last, ip,
+					    last, uh);
+					udp_append(last, ip, n, iphlen,
+					    &udp_in);
+				}
 				INP_RUNLOCK(last);
 			}
 			last = inp;
@@ -599,6 +610,7 @@ udp_input(struct mbuf **mp, int *offp, int proto)
 			INP_INFO_RUNLOCK(pcbinfo);
 			goto badunlocked;
 		}
+		UDP_PROBE(receive, NULL, last, ip, last, uh);
 		udp_append(last, ip, m, iphlen, &udp_in);
 		INP_RUNLOCK(last);
 		INP_INFO_RUNLOCK(pcbinfo);
@@ -680,7 +692,7 @@ udp_input(struct mbuf **mp, int *offp, int proto)
 		struct udpcb *up;
 
 		up = intoudpcb(inp);
-		if (up->u_rxcslen > len) {
+		if (up->u_rxcslen == 0 || up->u_rxcslen > len) {
 			INP_RUNLOCK(inp);
 			m_freem(m);
 			return (IPPROTO_DONE);
@@ -1706,7 +1718,7 @@ udp_attach(struct socket *so, int proto, struct thread *td)
 #endif /* INET */
 
 int
-udp_set_kernel_tunneling(struct socket *so, udp_tun_func_t f)
+udp_set_kernel_tunneling(struct socket *so, udp_tun_func_t f, void *ctx)
 {
 	struct inpcb *inp;
 	struct udpcb *up;
@@ -1722,6 +1734,7 @@ udp_set_kernel_tunneling(struct socket *so, udp_tun_func_t f)
 		return (EBUSY);
 	}
 	up->u_tun_func = f;
+	up->u_tun_ctx = ctx;
 	INP_WUNLOCK(inp);
 	return (0);
 }

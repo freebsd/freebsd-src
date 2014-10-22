@@ -25,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd September 15, 2014
+.Dd October 20, 2014
 .Dt SYSCTL 9
 .Os
 .Sh NAME
@@ -39,6 +39,7 @@
 .Nm SYSCTL_ADD_ROOT_NODE ,
 .Nm SYSCTL_ADD_STRING ,
 .Nm SYSCTL_ADD_STRUCT ,
+.Nm SYSCTL_ADD_UAUTO ,
 .Nm SYSCTL_ADD_UINT ,
 .Nm SYSCTL_ADD_ULONG ,
 .Nm SYSCTL_ADD_UQUAD ,
@@ -82,7 +83,6 @@
 .Fa "const char *name"
 .Fa "int ctlflags"
 .Fa "long *ptr"
-.Fa "intptr_t val"
 .Fa "const char *descr"
 .Fc
 .Ft struct sysctl_oid *
@@ -128,7 +128,6 @@
 .Fa "const char *name"
 .Fa "int ctlflags"
 .Fa "quad_t *ptr"
-.Fa "intptr_t val"
 .Fa "const char *descr"
 .Fc
 .Ft struct sysctl_oid *
@@ -181,7 +180,6 @@
 .Fa "const char *name"
 .Fa "int ctlflags"
 .Fa "unsigned long *ptr"
-.Fa "intptr_t val"
 .Fa "const char *descr"
 .Fc
 .Ft struct sysctl_oid *
@@ -192,7 +190,16 @@
 .Fa "const char *name"
 .Fa "int ctlflags"
 .Fa "u_quad_t *ptr"
-.Fa "intptr_t val"
+.Fa "const char *descr"
+.Fc
+.Ft struct sysctl_oid *
+.Fo SYSCTL_ADD_UAUTO
+.Fa "struct sysctl_ctx_list *ctx"
+.Fa "struct sysctl_oid_list *parent"
+.Fa "int number"
+.Fa "const char *name"
+.Fa "int ctlflags"
+.Fa "void *ptr"
 .Fa "const char *descr"
 .Fc
 .Ft struct sysctl_oid_list *
@@ -283,13 +290,13 @@ For string type OIDs a length of zero means that
 will be used to get the length of the string at each access to the OID.
 .It Fa ptr
 Pointer to sysctl variable or string data.
-For sysctl values the pointer can be NULL which means the OID is read-only and the returned value should be taken from the
+For sysctl values the pointer can be SYSCTL_NULL_XXX_PTR which means the OID is read-only and the returned value should be taken from the
 .Fa val
 argument.
 .It Fa val
 If the
 .Fa ptr
-argument is NULL, gives the constant value returned by this OID.
+argument is SYSCTL_NULL_XXX_PTR, gives the constant value returned by this OID.
 Else this argument is not used.
 .It Fa struct_type
 Name of structure type.
@@ -424,8 +431,9 @@ Dynamic nodes are created using one of the
 .Fn SYSCTL_ADD_ROOT_NODE ,
 .Fn SYSCTL_ADD_STRING ,
 .Fn SYSCTL_ADD_STRUCT ,
+.Fn SYSCTL_ADD_UAUTO ,
 .Fn SYSCTL_ADD_UINT ,
-.Fn SYSCTL_ADD_ULONG
+.Fn SYSCTL_ADD_ULONG ,
 or
 .Fn SYSCTL_UQUAD
 functions.
@@ -521,10 +529,10 @@ Examples of integer, opaque, string, and procedure sysctls follow:
 .Bd -literal -offset indent
 /*
  * Example of a constant integer value.  Notice that the control
- * flags are CTLFLAG_RD, the variable pointer is NULL, and the
- * value is declared.
+ * flags are CTLFLAG_RD, the variable pointer is SYSCTL_NULL_INT_PTR,
+ * and the value is declared.
  */
-SYSCTL_INT(_debug_sizeof, OID_AUTO, bio, CTLFLAG_RD, NULL,
+SYSCTL_INT(_debug_sizeof, OID_AUTO, bio, CTLFLAG_RD, SYSCTL_NULL_INT_PTR,
     sizeof(struct bio), "sizeof(struct bio)");
 
 /*

@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2013, Intel Corp.
+ * Copyright (C) 2000 - 2014, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -239,6 +239,14 @@ AcpiHwGetGpeStatus (
     if (!EventStatus)
     {
         return (AE_BAD_PARAMETER);
+    }
+
+    /* GPE currently handled? */
+
+    if ((GpeEventInfo->Flags & ACPI_GPE_DISPATCH_MASK) !=
+            ACPI_GPE_DISPATCH_NONE)
+    {
+        LocalEventStatus |= ACPI_EVENT_FLAG_HAS_HANDLER;
     }
 
     /* Get the info block for the entire GPE register */

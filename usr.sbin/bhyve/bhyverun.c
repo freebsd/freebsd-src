@@ -445,6 +445,20 @@ vmexit_vmx(struct vmctx *ctx, struct vm_exit *vmexit, int *pvcpu)
 }
 
 static int
+vmexit_svm(struct vmctx *ctx, struct vm_exit *vmexit, int *pvcpu)
+{
+
+	fprintf(stderr, "vm exit[%d]\n", *pvcpu);
+	fprintf(stderr, "\treason\t\tSVM\n");
+	fprintf(stderr, "\trip\t\t0x%016lx\n", vmexit->rip);
+	fprintf(stderr, "\tinst_length\t%d\n", vmexit->inst_length);
+	fprintf(stderr, "\texitcode\t%#lx\n", vmexit->u.svm.exitcode);
+	fprintf(stderr, "\texitinfo1\t%#lx\n", vmexit->u.svm.exitinfo1);
+	fprintf(stderr, "\texitinfo2\t%#lx\n", vmexit->u.svm.exitinfo2);
+	return (VMEXIT_ABORT);
+}
+
+static int
 vmexit_bogus(struct vmctx *ctx, struct vm_exit *vmexit, int *pvcpu)
 {
 
@@ -555,6 +569,7 @@ static vmexit_handler_t handler[VM_EXITCODE_MAX] = {
 	[VM_EXITCODE_INOUT]  = vmexit_inout,
 	[VM_EXITCODE_INOUT_STR]  = vmexit_inout,
 	[VM_EXITCODE_VMX]    = vmexit_vmx,
+	[VM_EXITCODE_SVM]    = vmexit_svm,
 	[VM_EXITCODE_BOGUS]  = vmexit_bogus,
 	[VM_EXITCODE_RDMSR]  = vmexit_rdmsr,
 	[VM_EXITCODE_WRMSR]  = vmexit_wrmsr,

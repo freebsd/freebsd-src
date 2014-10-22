@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2013, Intel Corp.
+ * Copyright (C) 2000 - 2014, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -41,42 +41,13 @@
  * POSSIBILITY OF SUCH DAMAGES.
  */
 
-
 #include <contrib/dev/acpica/compiler/aslcompiler.h>
 
 #define _COMPONENT          ACPI_COMPILER
         ACPI_MODULE_NAME    ("asluuid")
 
 
-/*
- * UUID support functions.
- *
- * This table is used to convert an input UUID ascii string to a 16 byte
- * buffer and the reverse. The table maps a UUID buffer index 0-15 to
- * the index within the 36-byte UUID string where the associated 2-byte
- * hex value can be found.
- *
- * 36-byte UUID strings are of the form:
- *     aabbccdd-eeff-gghh-iijj-kkllmmnnoopp
- * Where aa-pp are one byte hex numbers, made up of two hex digits
- *
- * Note: This table is basically the inverse of the string-to-offset table
- * found in the ACPI spec in the description of the ToUUID macro.
- */
-static UINT8    Gbl_MapToUuidOffset[16] =
-{
-    6,4,2,0,11,9,16,14,19,21,24,26,28,30,32,34
-};
-
-#define UUID_BUFFER_LENGTH          16
-#define UUID_STRING_LENGTH          36
-
-/* Positions for required hyphens (dashes) in UUID strings */
-
-#define UUID_HYPHEN1_OFFSET         8
-#define UUID_HYPHEN2_OFFSET         13
-#define UUID_HYPHEN3_OFFSET         18
-#define UUID_HYPHEN4_OFFSET         23
+extern UINT8    AcpiGbl_MapToUuidOffset[UUID_BUFFER_LENGTH];
 
 
 /*******************************************************************************
@@ -137,42 +108,6 @@ AuValidateUuid (
 
 /*******************************************************************************
  *
- * FUNCTION:    AuConvertStringToUuid
- *
- * PARAMETERS:  InString            - 36-byte formatted UUID string
- *              UuidBuffer          - 16-byte UUID buffer
- *
- * RETURN:      Status
- *
- * DESCRIPTION: Convert 36-byte formatted UUID string to 16-byte UUID buffer
- *
- ******************************************************************************/
-
-ACPI_STATUS
-AuConvertStringToUuid (
-    char                    *InString,
-    char                    *UuidBuffer)
-{
-    UINT32                  i;
-
-
-    if (!InString || !UuidBuffer)
-    {
-        return (AE_BAD_PARAMETER);
-    }
-
-    for (i = 0; i < UUID_BUFFER_LENGTH; i++)
-    {
-        UuidBuffer[i]  = (char) (UtHexCharToValue (InString[Gbl_MapToUuidOffset[i]]) << 4);
-        UuidBuffer[i] |= (char)  UtHexCharToValue (InString[Gbl_MapToUuidOffset[i] + 1]);
-    }
-
-    return (AE_OK);
-}
-
-
-/*******************************************************************************
- *
  * FUNCTION:    AuConvertUuidToString
  *
  * PARAMETERS:  UuidBuffer          - 16-byte UUID buffer
@@ -200,8 +135,11 @@ AuConvertUuidToString (
 
     for (i = 0; i < UUID_BUFFER_LENGTH; i++)
     {
-        OutString[Gbl_MapToUuidOffset[i]] =     (UINT8) AslHexLookup[(UuidBuffer[i] >> 4) & 0xF];
-        OutString[Gbl_MapToUuidOffset[i] + 1] = (UINT8) AslHexLookup[UuidBuffer[i] & 0xF];
+        OutString[AcpiGbl_MapToUuidOffset[i]] =
+            AcpiUtHexToAsciiChar (UuidBuffer[i], 4);
+
+        OutString[AcpiGbl_MapToUuidOffset[i] + 1] =
+            AcpiUtHexToAsciiChar (UuidBuffer[i], 0);
     }
 
     /* Insert required hyphens (dashes) */

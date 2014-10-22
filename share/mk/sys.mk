@@ -147,6 +147,10 @@ RFLAGS		?=
 
 SHELL		?=	sh
 
+.if !defined(%POSIX)
+SIZE		?=	size
+.endif
+
 YACC		?=	yacc
 .if defined(%POSIX)
 YFLAGS		?=

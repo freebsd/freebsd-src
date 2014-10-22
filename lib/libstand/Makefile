@@ -64,9 +64,6 @@ SRCS+=	bcmp.c bcopy.c bzero.c ffs.c memccpy.c memchr.c memcmp.c memcpy.c \
 .if ${MACHINE_CPUARCH} == "arm"
 .PATH: ${.CURDIR}/../libc/arm/gen
 
-.if ${MK_ARM_EABI} == "no"
-SRCS+= divsi3.S
-.else
 # Compiler support functions
 .PATH: ${.CURDIR}/../../contrib/compiler-rt/lib/
 # __clzsi2 and ctzsi2 for various builtin functions
@@ -78,7 +75,6 @@ SRCS+=	udivmoddi4.c udivmodsi4.c udivdi3.c udivsi3.c umoddi3.c umodsi3.c
 .PATH: ${.CURDIR}/../../contrib/compiler-rt/lib/arm/
 SRCS+=	aeabi_idivmod.S aeabi_ldivmod.S aeabi_uidivmod.S aeabi_uldivmod.S
 SRCS+=	aeabi_memcmp.S aeabi_memcpy.S aeabi_memmove.S aeabi_memset.S
-.endif
 
 .endif
 .if ${MACHINE_CPUARCH} == "powerpc"

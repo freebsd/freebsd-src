@@ -984,6 +984,25 @@ fill_kinfo_thread(struct thread *td, struct kinfo_proc *kp, int preferthread)
 	kp->ki_wchan = td->td_wchan;
 	kp->ki_pri.pri_level = td->td_priority;
 	kp->ki_pri.pri_native = td->td_base_pri;
+
+	/*
+	 * Note: legacy fields; clamp at the old NOCPU value and/or
+	 * the maximum u_char CPU value.
+	 */
+	if (td->td_lastcpu == NOCPU)
+		kp->ki_lastcpu_old = NOCPU_OLD;
+	else if (td->td_lastcpu > MAXCPU_OLD)
+		kp->ki_lastcpu_old = MAXCPU_OLD;
+	else
+		kp->ki_lastcpu_old = td->td_lastcpu;
+
+	if (td->td_oncpu == NOCPU)
+		kp->ki_oncpu_old = NOCPU_OLD;
+	else if (td->td_oncpu > MAXCPU_OLD)
+		kp->ki_oncpu_old = MAXCPU_OLD;
+	else
+		kp->ki_oncpu_old = td->td_oncpu;
+
 	kp->ki_lastcpu = td->td_lastcpu;
 	kp->ki_oncpu = td->td_oncpu;
 	kp->ki_tdflags = td->td_flags;
@@ -1164,6 +1183,11 @@ freebsd32_kinfo_proc_out(const struct kinfo_proc *ki, struct kinfo_proc32 *ki32)
 	CP(*ki, *ki32, ki_rqindex);
 	CP(*ki, *ki32, ki_oncpu);
 	CP(*ki, *ki32, ki_lastcpu);
+
+	/* XXX TODO: wrap cpu value as appropriate */
+	CP(*ki, *ki32, ki_oncpu_old);
+	CP(*ki, *ki32, ki_lastcpu_old);
+
 	bcopy(ki->ki_tdname, ki32->ki_tdname, TDNAMLEN + 1);
 	bcopy(ki->ki_wmesg, ki32->ki_wmesg, WMESGLEN + 1);
 	bcopy(ki->ki_login, ki32->ki_login, LOGNAMELEN + 1);
@@ -1208,21 +1232,25 @@ kern_proc_out(struct proc *p, struct sbuf *sb, int flags)
 #ifdef COMPAT_FREEBSD32
 		if ((flags & KERN_PROC_MASK32) != 0) {
 			freebsd32_kinfo_proc_out(&ki, &ki32);
-			error = sbuf_bcat(sb, &ki32, sizeof(ki32));
+			if (sbuf_bcat(sb, &ki32, sizeof(ki32)) != 0)
+				error = ENOMEM;
 		} else
 #endif
-			error = sbuf_bcat(sb, &ki, sizeof(ki));
+			if (sbuf_bcat(sb, &ki, sizeof(ki)) != 0)
+				error = ENOMEM;
 	} else {
 		FOREACH_THREAD_IN_PROC(p, td) {
 			fill_kinfo_thread(td, &ki, 1);
 #ifdef COMPAT_FREEBSD32
 			if ((flags & KERN_PROC_MASK32) != 0) {
 				freebsd32_kinfo_proc_out(&ki, &ki32);
-				error = sbuf_bcat(sb, &ki32, sizeof(ki32));
+				if (sbuf_bcat(sb, &ki32, sizeof(ki32)) != 0)
+					error = ENOMEM;
 			} else
 #endif
-				error = sbuf_bcat(sb, &ki, sizeof(ki));
-			if (error)
+				if (sbuf_bcat(sb, &ki, sizeof(ki)) != 0)
+					error = ENOMEM;
+			if (error != 0)
 				break;
 		}
 	}
@@ -1777,7 +1805,8 @@ proc_getauxv(struct thread *td, struct proc *p, struct sbuf *sb)
 		else
 #endif
 			size = vsize * sizeof(Elf_Auxinfo);
-		error = sbuf_bcat(sb, auxv, size);
+		if (sbuf_bcat(sb, auxv, size) != 0)
+			error = ENOMEM;
 		free(auxv, M_TEMP);
 	}
 	return (error);
@@ -2363,9 +2392,10 @@ kern_proc_vmmap_out(struct proc *p, struct sbuf *sb)
 		    strlen(kve->kve_path) + 1;
 		kve->kve_structsize = roundup(kve->kve_structsize,
 		    sizeof(uint64_t));
-		error = sbuf_bcat(sb, kve, kve->kve_structsize);
+		if (sbuf_bcat(sb, kve, kve->kve_structsize) != 0)
+			error = ENOMEM;
 		vm_map_lock_read(map);
-		if (error)
+		if (error != 0)
 			break;
 		if (last_timestamp != map->timestamp) {
 			vm_map_lookup_entry(map, addr - 1, &tmp_entry);

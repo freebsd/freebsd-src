@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2013, Intel Corp.
+ * Copyright (C) 2000 - 2014, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -147,15 +147,17 @@ AcpiTbPrintTableHeader (
 
 
     /*
-     * The reason that the Address is cast to a void pointer is so that we
-     * can use %p which will work properly on both 32-bit and 64-bit hosts.
+     * The reason that we use ACPI_PRINTF_UINT and ACPI_FORMAT_TO_UINT is to
+     * support both 32-bit and 64-bit hosts/addresses in a consistent manner.
+     * The %p specifier does not emit uniform output on all hosts. On some,
+     * leading zeros are not supported.
      */
     if (ACPI_COMPARE_NAME (Header->Signature, ACPI_SIG_FACS))
     {
         /* FACS only has signature and length fields */
 
-        ACPI_INFO ((AE_INFO, "%4.4s %p %05X",
-            Header->Signature, ACPI_CAST_PTR (void, Address),
+        ACPI_INFO ((AE_INFO, "%-4.4s " ACPI_PRINTF_UINT " %06X",
+            Header->Signature, ACPI_FORMAT_TO_UINT (Address),
             Header->Length));
     }
     else if (ACPI_VALIDATE_RSDP_SIG (Header->Signature))
@@ -166,8 +168,8 @@ AcpiTbPrintTableHeader (
             ACPI_CAST_PTR (ACPI_TABLE_RSDP, Header)->OemId, ACPI_OEM_ID_SIZE);
         AcpiTbFixString (LocalHeader.OemId, ACPI_OEM_ID_SIZE);
 
-        ACPI_INFO ((AE_INFO, "RSDP %p %05X (v%.2d %6.6s)",
-            ACPI_CAST_PTR (void, Address),
+        ACPI_INFO ((AE_INFO, "RSDP " ACPI_PRINTF_UINT " %06X (v%.2d %-6.6s)",
+            ACPI_FORMAT_TO_UINT (Address),
             (ACPI_CAST_PTR (ACPI_TABLE_RSDP, Header)->Revision > 0) ?
                 ACPI_CAST_PTR (ACPI_TABLE_RSDP, Header)->Length : 20,
             ACPI_CAST_PTR (ACPI_TABLE_RSDP, Header)->Revision,
@@ -180,8 +182,9 @@ AcpiTbPrintTableHeader (
         AcpiTbCleanupTableHeader (&LocalHeader, Header);
 
         ACPI_INFO ((AE_INFO,
-            "%4.4s %p %05X (v%.2d %6.6s %8.8s %08X %4.4s %08X)",
-            LocalHeader.Signature, ACPI_CAST_PTR (void, Address),
+            "%-4.4s " ACPI_PRINTF_UINT
+            " %06X (v%.2d %-6.6s %-8.8s %08X %-4.4s %08X)",
+            LocalHeader.Signature, ACPI_FORMAT_TO_UINT (Address),
             LocalHeader.Length, LocalHeader.Revision, LocalHeader.OemId,
             LocalHeader.OemTableId, LocalHeader.OemRevision,
             LocalHeader.AslCompilerId, LocalHeader.AslCompilerRevision));

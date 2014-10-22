@@ -1254,7 +1254,7 @@ protect_setchild(struct thread *td, struct proc *p, int flags)
 {
 
 	PROC_LOCK_ASSERT(p, MA_OWNED);
-	if (p->p_flag & P_SYSTEM || p_cansee(td, p) != 0)
+	if (p->p_flag & P_SYSTEM || p_cansched(td, p) != 0)
 		return (0);
 	if (flags & PPROT_SET) {
 		p->p_flag |= P_PROTECTED;
@@ -1387,10 +1387,7 @@ kern_procctl(struct thread *td, idtype_t idtype, id_t id, int com, void *data)
 			error = ESRCH;
 			break;
 		}
-		if (p->p_state == PRS_NEW)
-			error = ESRCH;
-		else
-			error = p_cansee(td, p);
+		error = p_cansee(td, p);
 		if (error == 0)
 			error = kern_procctl_single(td, p, com, data);
 		PROC_UNLOCK(p);

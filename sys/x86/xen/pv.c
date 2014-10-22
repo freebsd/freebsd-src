@@ -60,11 +60,13 @@ __FBSDID("$FreeBSD$");
 #include <x86/init.h>
 #include <machine/pc/bios.h>
 #include <machine/smp.h>
+#include <machine/intr_machdep.h>
 
 #include <xen/xen-os.h>
 #include <xen/hypervisor.h>
 #include <xen/xenstore/xenstorevar.h>
 #include <xen/xen_pv.h>
+#include <xen/xen_msi.h>
 
 #include <xen/interface/vcpu.h>
 
@@ -117,6 +119,7 @@ struct init_ops xen_init_ops = {
 #ifdef SMP
 	.start_all_aps			= xen_pv_start_all_aps,
 #endif
+	.msi_init =			xen_msi_init,
 };
 
 static struct bios_smap xen_smap[MAX_E820_ENTRIES];
@@ -303,11 +306,14 @@ static void
 xen_pv_set_boothowto(void)
 {
 	int i;
+	char *env;
 
 	/* get equivalents from the environment */
 	for (i = 0; howto_names[i].ev != NULL; i++) {
-		if (getenv(howto_names[i].ev) != NULL)
+		if ((env = kern_getenv(howto_names[i].ev)) != NULL) {
 			boothowto |= howto_names[i].mask;
+			freeenv(env);
+		}
 	}
 }
 

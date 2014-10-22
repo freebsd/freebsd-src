@@ -49,7 +49,7 @@ GTAGSFLAGS?=	-o
 HTAGSFLAGS?=
 
 .if ${CC} != "cc"
-MKDEPCMD?=	CC='${CC}' mkdep
+MKDEPCMD?=	CC='${CC} ${DEPFLAGS}' mkdep
 .else
 MKDEPCMD?=	mkdep
 .endif
@@ -123,8 +123,8 @@ ${_YC:R}.o: ${_YC}
 # DTrace probe definitions
 # libelf is currently needed for drti.o
 .if ${SRCS:M*.d}
-LDFLAGS+=	-lelf
-LDADD+=		${LIBELF}
+LDADD+=		-lelf
+DPADD+=		${LIBELF}
 CFLAGS+=	-I${.OBJDIR}
 .endif
 .for _DSRC in ${SRCS:M*.d:N*/*}
@@ -132,20 +132,17 @@ CFLAGS+=	-I${.OBJDIR}
 DHDRS+=	${_D}.h
 ${_D}.h: ${_DSRC}
 	${DTRACE} -xnolibs -h -s ${.ALLSRC}
-SRCS:=	${SRCS:S/${_DSRC}/${_D}.h/}
+SRCS:=	${SRCS:S/^${_DSRC}$//}
 OBJS+=	${_D}.o
 CLEANFILES+= ${_D}.h ${_D}.o
-${_D}.o: ${_D}.h ${OBJS:S/${_D}.o//}
-	${DTRACE} -xnolibs -G -o ${.TARGET} -s ${.CURDIR}/${_DSRC} \
-		${OBJS:S/${_D}.o//}
+${_D}.o: ${_DSRC} ${OBJS:S/^${_D}.o$//}
+	${DTRACE} -xnolibs -G -o ${.TARGET} -s ${.ALLSRC}
 .if defined(LIB)
 CLEANFILES+= ${_D}.So ${_D}.po
-${_D}.So: ${_D}.h ${SOBJS:S/${_D}.So//}
-	${DTRACE} -xnolibs -G -o ${.TARGET} -s ${.CURDIR}/${_DSRC} \
-		${SOBJS:S/${_D}.So//}
-${_D}.po: ${_D}.h ${POBJS:S/${_D}.po//}
-	${DTRACE} -xnolibs -G -o ${.TARGET} -s ${.CURDIR}/${_DSRC} \
-		${POBJS:S/${_D}.po//}
+${_D}.So: ${_DSRC} ${SOBJS:S/^${_D}.So$//}
+	${DTRACE} -xnolibs -G -o ${.TARGET} -s ${.ALLSRC}
+${_D}.po: ${_DSRC} ${POBJS:S/^${_D}.po$//}
+	${DTRACE} -xnolibs -G -o ${.TARGET} -s ${.ALLSRC}
 .endif
 .endfor
 .endfor

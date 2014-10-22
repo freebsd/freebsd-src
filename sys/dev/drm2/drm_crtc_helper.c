@@ -53,7 +53,7 @@ drm_fetch_cmdline_mode_from_kenv(struct drm_connector *connector,
 	    strlen(drm_get_connector_name(connector)), M_TEMP, M_WAITOK);
 	strcpy(tun_var_name, tun_prefix);
 	strcat(tun_var_name, drm_get_connector_name(connector));
-	tun_mode = getenv(tun_var_name);
+	tun_mode = kern_getenv(tun_var_name);
 	if (tun_mode != NULL) {
 		res = drm_mode_parse_command_line_for_connector(tun_mode,
 		    connector, cmdline_mode);

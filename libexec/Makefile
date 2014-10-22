@@ -15,7 +15,6 @@ SUBDIR=	${_atf} \
 	fingerd \
 	ftpd \
 	getty \
-	${_hyperv} \
 	${_libpng_sb_helper} \
 	${_mail.local} \
 	${_mknetid} \
@@ -66,10 +65,6 @@ _dma=		dma
 _dma-mbox-create=	dma-mbox-create
 .endif
 
-.if ${MK_HYPERV} != "no"
-_hyperv=	hyperv
-.endif
-
 .if ${MK_NIS} != "no"
 _mknetid=	mknetid
 _ypxfr=		ypxfr
@@ -105,5 +100,7 @@ _telnetd=	telnetd
 _atf=		atf
 _tests=		tests
 .endif
+
+.include <bsd.arch.inc.mk>
 
 .include <bsd.subdir.mk>

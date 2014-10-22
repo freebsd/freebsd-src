@@ -28,6 +28,7 @@
 __FBSDID("$FreeBSD$");
 
 #include "opt_ddb.h"
+#include "opt_kstack_usage_prof.h"
 
 #include <sys/param.h>
 #include <sys/bus.h>
@@ -361,8 +362,7 @@ intr_setaffinity(int irq, void *m)
 {
 	struct intr_event *ie;
 	cpuset_t *mask;
-	u_char cpu;
-	int n;
+	int cpu, n;
 
 	mask = m;
 	cpu = NOCPU;
@@ -376,7 +376,7 @@ intr_setaffinity(int irq, void *m)
 				continue;
 			if (cpu != NOCPU)
 				return (EINVAL);
-			cpu = (u_char)n;
+			cpu = n;
 		}
 	}
 	ie = intr_lookup(irq);
@@ -1395,6 +1395,10 @@ intr_event_handle(struct intr_event *ie, struct trapframe *frame)
 	int error, ret, thread;
 
 	td = curthread;
+
+#ifdef KSTACK_USAGE_PROF
+	intr_prof_stack_use(td, frame);
+#endif
 
 	/* An interrupt with no event or handlers is a stray interrupt. */
 	if (ie == NULL || TAILQ_EMPTY(&ie->ie_handlers))
