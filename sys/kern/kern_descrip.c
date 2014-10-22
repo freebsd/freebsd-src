@@ -2102,6 +2102,7 @@ fdsetugidsafety(struct thread *td)
 
 	fdp = td->td_proc->p_fd;
 	KASSERT(fdp->fd_refcnt == 1, ("the fdtable should not be shared"));
+	MPASS(fdp->fd_nfiles >= 3);
 	for (i = 0; i <= 2; i++) {
 		fp = fdp->fd_ofiles[i].fde_file;
 		if (fp != NULL && is_unsafe(fp)) {
