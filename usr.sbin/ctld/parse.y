@@ -625,7 +625,7 @@ lun_device_id:	DEVICE_ID STR
 lun_option:	OPTION STR STR
 	{
 		struct lun_option *clo;
-		
+
 		clo = lun_option_new(lun, $2, $3);
 		free($2);
 		free($3);

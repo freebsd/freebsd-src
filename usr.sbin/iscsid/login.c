@@ -182,7 +182,7 @@ kernel_modify(const struct connection *conn, const char *target_address)
  *	be much more complicated: we would need to keep "dependencies"
  *	for sessions, so that, in case described in draft and using draft
  *	terminology, we would have three sessions: one for discovery,
- *	one for initial target portal, and one for redirect portal.  
+ *	one for initial target portal, and one for redirect portal.
  *	This would allow us to "backtrack" on connection failure,
  *	as described in draft.
  */
@@ -756,8 +756,8 @@ login(struct connection *conn)
 		 * to parse things such as TargetAlias.
 		 *
 		 * XXX: This is somewhat ugly.  We should have a way to apply
-		 * 	all the keys to the session and use that by default
-		 * 	instead of discarding them.
+		 *      all the keys to the session and use that by default
+		 *      instead of discarding them.
 		 */
 		if (strcmp(response_keys->keys_names[i], "AuthMethod") == 0)
 			continue;
