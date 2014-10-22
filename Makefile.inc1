@@ -574,7 +574,7 @@ _libraries:
 	@echo "--------------------------------------------------------------"
 	${_+_}cd ${.CURDIR}; \
 	    ${WMAKE} -DNO_FSCHG MK_HTML=no MK_INFO=no -DNO_LINT MK_MAN=no \
-	    MK_PROFILE=no  MK_TESTS=no libraries
+	    MK_PROFILE=no MK_TESTS=no MK_TESTS_SUPPORT=${MK_TESTS} libraries
 _depend:
 	@echo
 	@echo "--------------------------------------------------------------"
@@ -1535,7 +1535,6 @@ _prebuild_libs=	${_kerberos5_lib_libasn1} \
 		${_kerberos5_lib_libhx509} ${_kerberos5_lib_libkrb5} \
 		${_kerberos5_lib_libroken} \
 		${_kerberos5_lib_libwind} \
-		${_lib_atf} \
 		lib/libbz2 ${_libcom_err} lib/libcrypt \
 		lib/libelf lib/libexpat \
 		${_lib_libgssapi} \
@@ -1560,10 +1559,6 @@ gnu/lib/libsupc++__L: gnu/lib/libstdc++__L
 .endif
 
 lib/libgeom__L: lib/libexpat__L
-
-.if ${MK_TESTS} != "no"
-_lib_atf=	lib/atf
-.endif
 
 .if ${MK_LIBTHR} != "no"
 _lib_libthr=	lib/libthr

@@ -330,6 +330,7 @@ MK_CLANG_FULL:= no
     KVM \
     NETGRAPH \
     PAM \
+    TESTS \
     WIRELESS
 .if defined(WITHOUT_${var}_SUPPORT) || ${MK_${var}} == "no"
 MK_${var}_SUPPORT:= no

@@ -276,8 +276,10 @@ _libsmutil=	libsmutil
 _libtelnet=	libtelnet
 .endif
 
-.if ${MK_TESTS} != "no"
+.if ${MK_TESTS_SUPPORT} != "no"
 _atf=		atf
+.endif
+.if ${MK_TESTS} != "no"
 _tests=		tests
 .endif
 
