@@ -81,6 +81,12 @@
 			};
 		};
 
+		beri_mem: mem@d0000000 {
+			compatible = "sri-cambridge,beri-mem";
+			reg = <0xd0000000 0x10000000>;
+			status = "okay";
+		};
+
 		beri_debug: ring@c0000000 {
 			compatible = "sri-cambridge,beri-ring";
 			reg = <0xc0000000 0x3000>;
