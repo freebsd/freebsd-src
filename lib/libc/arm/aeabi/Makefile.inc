@@ -2,7 +2,9 @@
 
 .PATH: ${.CURDIR}/arm/aeabi
 
-SRCS+=	aeabi_atexit.c		\
+SRCS+=	aeabi_asm_double.S	\
+	aeabi_asm_float.S	\
+	aeabi_atexit.c		\
 	aeabi_double.c		\
 	aeabi_float.c		\
 	aeabi_unwind_cpp.c	\
