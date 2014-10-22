@@ -121,6 +121,7 @@ device		spibus
 
 # BERI specific
 device		beri_ring
+device		beri_mem
 
 # Ethernet
 device		ether
