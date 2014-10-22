@@ -25,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd February 8, 2012
+.Dd October 22, 2014
 .Dt DA 4
 .Os
 .Sh NAME
@@ -150,6 +150,13 @@ This variable determines how long the
 driver will wait before timing out an outstanding command.
 The units for this value are seconds, and the default is currently 60
 seconds.
+.It Va kern.cam.sort_io_queue
+.It Va kern.cam.da. Ns Ar X Ns Va .sort_io_queue
+.Pp
+These variables determine whether request queue should be sorted trying
+to optimize head seeks.
+Set to 1 to enable sorting, 0 to disable, -1 to leave it as-is.
+The default is sorting enabled for HDDs and disabled for SSDs.
 .It kern.cam.da.%d.minimum_cmd_size
 .Pp
 This variable determines what the minimum READ/WRITE CDB size is for a
