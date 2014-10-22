@@ -552,7 +552,7 @@ static void
 nfs_decode_args(struct mount *mp, struct nfsmount *nmp, struct nfs_args *argp,
     const char *hostname, struct ucred *cred, struct thread *td)
 {
-	int i, s;
+	int s;
 	int adjsock;
 	char *p;
 
@@ -621,36 +621,18 @@ nfs_decode_args(struct mount *mp, struct nfsmount *nmp, struct nfs_args *argp,
 
 	if ((argp->flags & NFSMNT_WSIZE) && argp->wsize > 0) {
 		nmp->nm_wsize = argp->wsize;
-		/*
-		 * Clip at the power of 2 below the size. There is an
-		 * issue (not isolated) that causes intermittent page
-		 * faults if this is not done.
-		 */
-		i = NFS_FABLKSIZE;
-		for (;;) {
-			if (i * 2 > nmp->nm_wsize) {
-				nmp->nm_wsize = i;
-				break;
-			}
-			i *= 2;
-		}
+		/* Round down to multiple of blocksize */
+		nmp->nm_wsize &= ~(NFS_FABLKSIZE - 1);
+		if (nmp->nm_wsize <= 0)
+			nmp->nm_wsize = NFS_FABLKSIZE;
 	}
 
 	if ((argp->flags & NFSMNT_RSIZE) && argp->rsize > 0) {
 		nmp->nm_rsize = argp->rsize;
-		/*
-		 * Clip at the power of 2 below the size. There is an
-		 * issue (not isolated) that causes intermittent page
-		 * faults if this is not done.
-		 */
-		i = NFS_FABLKSIZE;
-		for (;;) {
-			if (i * 2 > nmp->nm_rsize) {
-				nmp->nm_rsize = i;
-				break;
-			}
-			i *= 2;
-		}
+		/* Round down to multiple of blocksize */
+		nmp->nm_rsize &= ~(NFS_FABLKSIZE - 1);
+		if (nmp->nm_rsize <= 0)
+			nmp->nm_rsize = NFS_FABLKSIZE;
 	}
 
 	if ((argp->flags & NFSMNT_READDIRSIZE) && argp->readdirsize > 0) {
