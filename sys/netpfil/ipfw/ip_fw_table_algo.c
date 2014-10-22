@@ -954,7 +954,7 @@ static int ta_lookup_chash_64(struct table_info *ti, void *key, uint32_t keylen,
 static int chash_parse_opts(struct chash_cfg *cfg, char *data);
 static void ta_print_chash_config(void *ta_state, struct table_info *ti,
     char *buf, size_t bufsize);
-static int log2(uint32_t v);
+static int ta_log2(uint32_t v);
 static int ta_init_chash(struct ip_fw_chain *ch, void **ta_state,
     struct table_info *ti, char *data, uint8_t tflags);
 static void ta_destroy_chash(void *ta_state, struct table_info *ti);
@@ -1248,7 +1248,7 @@ ta_print_chash_config(void *ta_state, struct table_info *ti, char *buf,
 }
 
 static int
-log2(uint32_t v)
+ta_log2(uint32_t v)
 {
 	uint32_t r;
 
@@ -1300,7 +1300,7 @@ ta_init_chash(struct ip_fw_chain *ch, void **ta_state, struct table_info *ti,
 	ti->xstate = cfg->head6;
 
 	/* Store data depending on v6 mask length */
-	hsize = log2(cfg->size4) << 8 | log2(cfg->size6);
+	hsize = ta_log2(cfg->size4) << 8 | ta_log2(cfg->size6);
 	if (cfg->mask6 == 64) {
 		ti->data = (32 - cfg->mask4) << 24 | (128 - cfg->mask6) << 16|
 		    hsize;
@@ -1838,7 +1838,7 @@ ta_modify_chash(void *ta_state, struct table_info *ti, void *ta_buf,
 
 	/* Update lower 32 bits with new values */
 	ti->data &= 0xFFFFFFFF00000000;
-	ti->data |= log2(cfg->size4) << 8 | log2(cfg->size6);
+	ti->data |= ta_log2(cfg->size4) << 8 | ta_log2(cfg->size6);
 }
 
 /*
