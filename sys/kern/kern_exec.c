@@ -695,7 +695,7 @@ interpret:
 		 */
 		PROC_UNLOCK(p);
 		VOP_UNLOCK(imgp->vp, 0);
-		setugidsafety(td);
+		fdsetugidsafety(td);
 		error = fdcheckstd(td);
 		if (error != 0)
 			goto done1;
