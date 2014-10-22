@@ -152,8 +152,6 @@ static struct ipfw_sopt_handler	scodes[] = {
  * static variables followed by global ones
  */
 
-#ifndef USERSPACE
-
 static VNET_DEFINE(uma_zone_t, ipfw_cntr_zone);
 #define	V_ipfw_cntr_zone		VNET(ipfw_cntr_zone)
 
@@ -191,35 +189,6 @@ free_rule(struct ip_fw *rule)
 	uma_zfree(V_ipfw_cntr_zone, rule->cntr);
 	free(rule, M_IPFW);
 }
-#else
-void
-ipfw_init_counters()
-{
-}
-
-void
-ipfw_destroy_counters()
-{
-}
-
-struct ip_fw *
-ipfw_alloc_rule(struct ip_fw_chain *chain, size_t rulesize)
-{
-	struct ip_fw *rule;
-
-	rule = malloc(rulesize, M_IPFW, M_WAITOK | M_ZERO);
-
-	return (rule);
-}
-
-static void
-free_rule(struct ip_fw *rule)
-{
-
-	free(rule, M_IPFW);
-}
-
-#endif
 
 
 /*
