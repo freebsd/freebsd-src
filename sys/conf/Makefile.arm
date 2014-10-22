@@ -77,6 +77,7 @@ FILES_CPU_FUNC = \
 	$S/$M/$M/cpufunc_asm_pj4b.S $S/$M/$M/cpufunc_asm_armv6.S \
 	$S/$M/$M/cpufunc_asm_armv7.S
 
+.if defined(KERNPHYSADDR)
 KERNEL_EXTRA=trampoline
 KERNEL_EXTRA_INSTALL=kernel.gz.tramp
 trampoline: ${KERNEL_KO}.tramp
@@ -121,6 +122,7 @@ ${KERNEL_KO}.tramp: ${KERNEL_KO} $S/$M/$M/inckern.S $S/$M/$M/elf_trampoline.c
 	    ${KERNEL_KO}.gz.tramp.bin
 	rm ${KERNEL_KO}.tmp.gz ${KERNEL_KO}.tramp.noheader opt_kernname.h \
 	    inflate-tramp.o tmphack.S
+.endif
 
 %BEFORE_DEPEND
 

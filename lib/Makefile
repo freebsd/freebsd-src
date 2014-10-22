@@ -44,6 +44,7 @@ SUBDIR=	${SUBDIR_ORDERED} \
 	libdevstat \
 	libdwarf \
 	libedit \
+	${_libevent} \
 	libexecinfo \
 	libexpat \
 	libfetch \
@@ -226,6 +227,10 @@ _libnetgraph=	libnetgraph
 _libypclnt=	libypclnt
 .endif
 
+.if ${MK_PF} != "no"
+_libevent=	libevent
+.endif
+
 .if ${MACHINE_CPUARCH} == "i386" || ${MACHINE_CPUARCH} == "amd64"
 _libsmb=	libsmb
 _libvgl=	libvgl
@@ -271,8 +276,10 @@ _libsmutil=	libsmutil
 _libtelnet=	libtelnet
 .endif
 
-.if ${MK_TESTS} != "no"
+.if ${MK_TESTS_SUPPORT} != "no"
 _atf=		atf
+.endif
+.if ${MK_TESTS} != "no"
 _tests=		tests
 .endif
 

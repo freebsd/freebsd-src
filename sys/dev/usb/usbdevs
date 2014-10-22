@@ -1664,6 +1664,7 @@ product DREAMLINK DL100B	0x0004	USB Webmail Notifier
 /* dresden elektronik products */
 product DRESDENELEKTRONIK SENSORTERMINALBOARD  0x0001 SensorTerminalBoard
 product DRESDENELEKTRONIK WIRELESSHANDHELDTERMINAL  0x0004 Wireless Handheld Terminal
+product DRESDENELEKTRONIK DE_RFNODE                 0x001c deRFnode
 product DRESDENELEKTRONIK LEVELSHIFTERSTICKLOWCOST  0x0022 Levelshifter Stick Low Cost
 
 /* Dynastream Innovations */
@@ -2346,13 +2347,17 @@ product HUAWEI K4505		0x1464	3G modem
 product HUAWEI K3765		0x1465	3G modem
 product HUAWEI E1820		0x14ac	E1820 HSPA+ USB Slider
 product HUAWEI K3770		0x14c9  3G modem
+product HUAWEI K3772		0x14cf	K3772
 product HUAWEI K3770_INIT	0x14d1  K3770 Initial
 product HUAWEI E3131_INIT	0x14fe	3G modem initial
 product HUAWEI E392		0x1505	LTE modem
 product HUAWEI E3131		0x1506	3G modem
 product HUAWEI K3765_INIT	0x1520	K3765 Initial
 product HUAWEI K4505_INIT	0x1521	K4505 Initial
+product HUAWEI K3772_INIT	0x1526	K3772 Initial
 product HUAWEI E3272_INIT	0x155b	LTE modem initial
+product HUAWEI R215_INIT	0x1582	LTE modem initial
+product HUAWEI R215		0x1588	LTE modem
 product HUAWEI ETS2055		0x1803	CDMA modem
 product HUAWEI E173		0x1c05	3G modem
 product HUAWEI E173_INIT	0x1c0b	3G modem initial
@@ -3633,7 +3638,8 @@ product QUALCOMMINC E0078	0x0078	3G modem
 product QUALCOMMINC E0082	0x0082	3G modem
 product QUALCOMMINC E0086	0x0086	3G modem
 product QUALCOMMINC SURFSTICK	0x0117	1&1 Surf Stick
-product QUALCOMMINC K3772_Z	0x1179	3G modem
+product QUALCOMMINC K3772_Z_INIT	0x1179	K3772-Z Initial
+product QUALCOMMINC K3772_Z	0x1181	K3772-Z
 product QUALCOMMINC ZTE_STOR	0x2000	USB ZTE Storage
 product QUALCOMMINC E2002	0x2002	3G modem
 product QUALCOMMINC E2003	0x2003	3G modem

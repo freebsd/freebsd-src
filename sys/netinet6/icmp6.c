@@ -63,6 +63,8 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#define	MBUF_PRIVATE	/* XXXRW: Optimisation tries to avoid M_EXT mbufs */
+
 #include "opt_inet.h"
 #include "opt_inet6.h"
 #include "opt_ipsec.h"
@@ -581,7 +583,7 @@ icmp6_input(struct mbuf **mp, int *offp, int proto)
 			/* Give up remote */
 			break;
 		}
-		if ((n->m_flags & M_EXT) != 0
+		if (!M_WRITABLE(n)
 		 || n->m_len < off + sizeof(struct icmp6_hdr)) {
 			struct mbuf *n0 = n;
 			int n0len;

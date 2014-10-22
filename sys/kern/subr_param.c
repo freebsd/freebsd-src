@@ -188,7 +188,7 @@ detect_virtual(void)
 	char *sysenv;
 	int i;
 
-	sysenv = getenv("smbios.bios.vendor");
+	sysenv = kern_getenv("smbios.bios.vendor");
 	if (sysenv != NULL) {
 		for (i = 0; vm_bnames[i] != NULL; i++)
 			if (strcmp(sysenv, vm_bnames[i]) == 0) {
@@ -197,7 +197,7 @@ detect_virtual(void)
 			}
 		freeenv(sysenv);
 	}
-	sysenv = getenv("smbios.system.product");
+	sysenv = kern_getenv("smbios.system.product");
 	if (sysenv != NULL) {
 		for (i = 0; vm_pnames[i] != NULL; i++)
 			if (strcmp(sysenv, vm_pnames[i]) == 0) {

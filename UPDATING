@@ -31,6 +31,11 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 11.x IS SLOW:
 	disable the most expensive debugging functionality run
 	"ln -s 'abort:false,junk:false' /etc/malloc.conf".)
 
+20141009:
+	gperf has been removed from the base system for architectures
+	that use clang. Ports that require gperf will obtain it from the
+	devel/gperf port.
+
 20140923:
 	pjdfstest has been moved from tools/regression/pjdfstest to
 	contrib/pjdfstest .

@@ -551,7 +551,7 @@ struct scsi_log_sense
 #define	SLS_PPC				0x02
 	u_int8_t page;
 #define	SLS_PAGE_CODE 			0x3F
-#define	SLS_ALL_PAGES_PAGE		0x00
+#define	SLS_SUPPORTED_PAGES_PAGE	0x00
 #define	SLS_OVERRUN_PAGE		0x01
 #define	SLS_ERROR_WRITE_PAGE		0x02
 #define	SLS_ERROR_READ_PAGE		0x03
@@ -566,7 +566,9 @@ struct scsi_log_sense
 #define	SLS_PAGE_CTRL_CUMULATIVE	0x40
 #define	SLS_PAGE_CTRL_THRESH_DEFAULT	0x80
 #define	SLS_PAGE_CTRL_CUMUL_DEFAULT	0xC0
-	u_int8_t reserved[2];
+	u_int8_t subpage;
+#define	SLS_SUPPORTED_SUBPAGES_SUBPAGE	0xff
+	u_int8_t reserved;
 	u_int8_t paramptr[2];
 	u_int8_t length[2];
 	u_int8_t control;
@@ -592,7 +594,10 @@ struct scsi_log_select
 struct scsi_log_header
 {
 	u_int8_t page;
-	u_int8_t reserved;
+#define	SL_PAGE_CODE			0x3F
+#define	SL_SPF				0x40
+#define	SL_DS				0x80
+	u_int8_t subpage;
 	u_int8_t datalen[2];
 };
 
@@ -704,40 +709,6 @@ struct scsi_caching_page {
 /*
  * XXX KDM move this off to a vendor shim.
  */
-struct copan_power_subpage {
-	uint8_t page_code;
-#define	PWR_PAGE_CODE		0x00
-	uint8_t subpage;
-#define	PWR_SUBPAGE_CODE	0x02
-	uint8_t page_length[2];
-	uint8_t page_version;
-#define	PWR_VERSION		    0x01
-	uint8_t total_luns;
-	uint8_t max_active_luns;
-#define	PWR_DFLT_MAX_LUNS	    0x07
-	uint8_t reserved[25];
-};
-
-/*
- * XXX KDM move this off to a vendor shim.
- */
-struct copan_aps_subpage {
-	uint8_t page_code;
-#define	APS_PAGE_CODE		0x00
-	uint8_t subpage;
-#define	APS_SUBPAGE_CODE	0x03
-	uint8_t page_length[2];
-	uint8_t page_version;
-#define	APS_VERSION		    0x00
-	uint8_t lock_active;
-#define	APS_LOCK_ACTIVE	    0x01
-#define	APS_LOCK_INACTIVE	0x00
-	uint8_t reserved[26];
-};
-
-/*
- * XXX KDM move this off to a vendor shim.
- */
 struct copan_debugconf_subpage {
 	uint8_t page_code;
 #define DBGCNF_PAGE_CODE		0x00
@@ -765,6 +736,23 @@ struct scsi_info_exceptions_page {
 	u_int8_t mrie;
 	u_int8_t interval_timer[4];
 	u_int8_t report_count[4];
+};
+
+struct scsi_logical_block_provisioning_page_descr {
+	uint8_t flags;
+	uint8_t resource;
+	uint8_t reserved[2];
+	uint8_t count[4];
+};
+
+struct scsi_logical_block_provisioning_page {
+	uint8_t page_code;
+	uint8_t subpage_code;
+	uint8_t page_length[2];
+	uint8_t flags;
+#define	SLBPP_SITUA		0x01
+	uint8_t reserved[11];
+	struct scsi_logical_block_provisioning_page_descr descr[0];
 };
 
 /*
@@ -1720,6 +1708,7 @@ struct ata_pass_16 {
 #define	VERIFY_16		0x8F
 #define	SYNCHRONIZE_CACHE_16	0x91
 #define	WRITE_SAME_16		0x93
+#define	WRITE_ATOMIC_16		0x9C
 #define	SERVICE_ACTION_IN	0x9E
 #define	REPORT_LUNS		0xA0
 #define	ATA_PASS_12		0xA1
@@ -2437,8 +2426,7 @@ struct scsi_vpd_logical_block_prov
 };
 
 /*
- * Block Limits VDP Page based on
- * T10/1799-D Revision 31
+ * Block Limits VDP Page based on SBC-4 Revision 2
  */
 struct scsi_vpd_block_limits
 {
@@ -2459,7 +2447,10 @@ struct scsi_vpd_block_limits
 	u_int8_t opt_unmap_grain[4];
 	u_int8_t unmap_grain_align[4];
 	u_int8_t max_write_same_length[8];
-	u_int8_t reserved2[20];
+	u_int8_t max_atomic_transfer_length[4];
+	u_int8_t atomic_alignment[4];
+	u_int8_t atomic_transfer_length_granularity[4];
+	u_int8_t reserved2[8];
 };
 
 struct scsi_read_capacity

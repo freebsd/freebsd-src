@@ -62,6 +62,8 @@ OSRELEASE=	${TYPE}-${REVISION}-${BRANCH}-${TARGET}-${TARGET_ARCH}
 .endfor
 .endif
 
+VOLUME_LABEL=	${OSRELEASE:C/[-\.]/_/g:S/^$${TYPE}_//}
+
 .if !exists(${DOCDIR})
 NODOC= true
 .endif
@@ -101,6 +103,7 @@ VMTARGETS=	vm-base vm-image
 VMFORMATS?=	vhd vmdk qcow2 raw
 VMSIZE?=	20G
 VMBASE?=	vm
+AZURECONF?=	${.CURDIR}/tools/azure.conf
 
 CLEANFILES=	packagesystem *.txz MANIFEST system ${IMAGES}
 .if defined(WITH_COMPRESSED_IMAGES) && !empty(WITH_COMPRESSED_IMAGES)
@@ -120,6 +123,12 @@ CLEANFILES+=	${VMBASE}.${FORMAT}
 CLEANDIRS=	dist ftp release bootonly dvd
 .if defined(WITH_VMIMAGES) && !empty(WITH_VMIMAGES)
 CLEANDIRS+=	${VMTARGETS}
+.endif
+.if exists(${.CURDIR}/${TARGET}/mk-azure.sh)
+CLEANFILES+=	${OSRELEASE}.vhd \
+		${OSRELEASE}.vhd.raw \
+		azure.img
+CLEANDIRS+=	vm-azure
 .endif
 beforeclean:
 	chflags -R noschg .
@@ -240,13 +249,13 @@ dvd:
 
 release.iso: disc1.iso
 disc1.iso: system
-	sh ${.CURDIR}/${TARGET}/mkisoimages.sh -b FreeBSD_Install ${.TARGET} release
+	sh ${.CURDIR}/${TARGET}/mkisoimages.sh -b ${VOLUME_LABEL}_CD ${.TARGET} release
 
 dvd1.iso: dvd pkg-stage
-	sh ${.CURDIR}/${TARGET}/mkisoimages.sh -b FreeBSD_Install ${.TARGET} dvd
+	sh ${.CURDIR}/${TARGET}/mkisoimages.sh -b ${VOLUME_LABEL}_DVD ${.TARGET} dvd
 
 bootonly.iso: bootonly
-	sh ${.CURDIR}/${TARGET}/mkisoimages.sh -b FreeBSD_Install ${.TARGET} bootonly
+	sh ${.CURDIR}/${TARGET}/mkisoimages.sh -b ${VOLUME_LABEL}_BO ${.TARGET} bootonly
 
 memstick: memstick.img
 memstick.img: system
@@ -336,5 +345,13 @@ vm-image: vm-base
 		${VMBASE}.img ${FORMAT} ${VMBASE}.${FORMAT}
 .  endfor
 . endif
+.endif
+	touch ${.TARGET}
+
+vm-azure:
+.if exists(${.CURDIR}/${TARGET}/mk-azure.sh)
+	env TARGET=${TARGET} TARGET_ARCH=${TARGET_ARCH} AZURECONF=${AZURECONF} \
+		${.CURDIR}/${TARGET}/mk-azure.sh ${.TARGET} azure.img \
+		${WORLDDIR} ${.TARGET} ${VMSIZE} ${OSRELEASE}.vhd
 .endif
 	touch ${.TARGET}

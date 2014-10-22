@@ -172,7 +172,7 @@ valid_iscsi_name(const char *name)
 		for (i = strlen("iqn."); name[i] != '\0'; i++) {
 			/*
 			 * XXX: We should verify UTF-8 normalisation, as defined
-			 * 	by 3.2.6.2: iSCSI Name Encoding.
+			 *      by 3.2.6.2: iSCSI Name Encoding.
 			 */
 			if (isalnum(name[i]))
 				continue;

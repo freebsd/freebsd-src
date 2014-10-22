@@ -372,6 +372,10 @@ struct ata_params {
 #define ATA_WRITE_FPDMA_QUEUED          0x61    /* write DMA NCQ */
 #define ATA_NCQ_NON_DATA		0x63	/* NCQ non-data command */
 #define ATA_SEND_FPDMA_QUEUED           0x64    /* send DMA NCQ */
+#define		ATA_SFPDMA_DSM		0x00	/* Data set management */
+#define			ATA_SFPDMA_DSM_TRIM	0x01	/* Set trim bit in auxilary */
+#define		ATA_SFPDMA_HYBRID_EVICT	0x01	/* Hybrid Evict */
+#define		ATA_SFPDMA_WLDMA	0x02	/* Write Log DMA EXT */
 #define ATA_RECV_FPDMA_QUEUED           0x65    /* recieve DMA NCQ */
 #define ATA_SEP_ATTN                    0x67    /* SEP request */
 #define ATA_SEEK                        0x70    /* seek */

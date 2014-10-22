@@ -1968,8 +1968,8 @@ do_sigwork(struct sigwork_entry *swork)
 		 */
 		if (errno != ESRCH)
 			swork->sw_pidok = 0;
-		warn("can't notify %s, pid %d", swork->sw_pidtype,
-		    (int)swork->sw_pid);
+		warn("can't notify %s, pid %d = %s", swork->sw_pidtype,
+		    (int)swork->sw_pid, swork->sw_fname);
 	} else {
 		if (verbose)
 			printf("Notified %s pid %d = %s\n", swork->sw_pidtype,

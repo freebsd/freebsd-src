@@ -28,7 +28,7 @@
 .\"     From: @(#)ifconfig.8	8.3 (Berkeley) 1/5/94
 .\" $FreeBSD$
 .\"
-.Dd October 1, 2014
+.Dd October 20, 2014
 .Dt IFCONFIG 8
 .Os
 .Sh NAME
@@ -2541,6 +2541,76 @@ argument is useless and hence deprecated.
 .El
 .Pp
 The following parameters are used to configure
+.Xr vxlan 4
+interfaces.
+.Bl -tag -width indent
+.It Cm vni Ar identifier
+This value is a 24-bit VXLAN Network Identifier (VNI) that identifies the
+virtual network segment membership of the interface.
+.It Cm local Ar address
+The source address used in the encapsulating IPv4/IPv6 header.
+The address should already be assigned to an existing interface.
+When the interface is configured in unicast mode, the listening socket
+is bound to this address.
+.It Cm remote Ar address
+The interface can be configured in a unicast, or point-to-point, mode
+to create a tunnel between two hosts.
+This is the IP address of the remote end of the tunnel.
+.It Cm group Ar address
+The interface can be configured in a multicast mode
+to create a virtual network of hosts.
+This is the IP multicast group address the interface will join.
+.It Cm localport Ar port
+The port number the interface will listen on.
+The default port number is 4789.
+.It Cm remoteport Ar port
+The destination port number used in the encapsulating IPv4/IPv6 header.
+The remote host should be listening on this port.
+The default port number is 4789.
+Note some other implementations, such as Linux,
+do not default to the IANA assigned port,
+but instead listen on port 8472.
+.It Cm portrange Ar low high
+The range of source ports used in the encapsulating IPv4/IPv6 header.
+The port selected within the range is based on a hash of the inner frame.
+A range is useful to provide entropy within the outer IP header
+for more effective load balancing.
+The default range is between the
+.Xr sysctl 8
+variables
+.Va net.inet.ip.portrange.first
+and
+.Va net.inet.ip.portrange.last
+.It Cm timeout Ar timeout
+The maximum time, in seconds, before an entry in the forwarding table
+is pruned.
+The default is 1200 seconds (20 minutes).
+.It Cm maxaddr Ar max
+The maximum number of entries in the forwarding table.
+The default is 2000.
+.It Cm vxlandev Ar dev
+When the interface is configured in multicast mode, the
+.Cm dev
+interface is used to transmit IP multicast packets.
+.It Cm ttl Ar ttl
+The TTL used in the encapsulating IPv4/IPv6 header.
+The default is 64.
+.It Cm learn
+The source IP address and inner source Ethernet MAC address of
+received packets are used to dynamically populate the forwarding table.
+When in multicast mode, an entry in the forwarding table allows the
+interface to send the frame directly to the remote host instead of
+broadcasting the frame to the multicast group.
+This is the default.
+.It Fl learn
+The forwarding table is not populated by recevied packets.
+.It Cm flush
+Delete all dynamically-learned addresses from the forwarding table.
+.It Cm flushall
+Delete all addresses, including static addresses, from the forwarding table.
+.El
+.Pp
+The following parameters are used to configure
 .Xr carp 4
 protocol on an interface:
 .Bl -tag -width indent
@@ -2745,6 +2815,7 @@ tried to alter an interface's configuration.
 .Xr pfsync 4 ,
 .Xr polling 4 ,
 .Xr vlan 4 ,
+.Xr vxlan 4 ,
 .Xr devd.conf 5 ,
 .\" .Xr eon 5 ,
 .Xr devd 8 ,

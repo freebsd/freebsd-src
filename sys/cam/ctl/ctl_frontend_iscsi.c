@@ -1135,7 +1135,6 @@ cfiscsi_maintenance_thread(void *arg)
 			 * that anymore.  We might need to revisit that.
 			 */
 			callout_drain(&cs->cs_callout);
-			icl_conn_shutdown(cs->cs_conn);
 			icl_conn_close(cs->cs_conn);
 
 			/*
@@ -1997,7 +1996,8 @@ cfiscsi_ioctl_port_create(struct ctl_req *req)
 	/* XXX KDM what should the real number be here? */
 	port->num_requested_ctl_io = 4096;
 	port->port_name = "iscsi";
-	port->virtual_port = strtoul(tag, NULL, 0);
+	port->physical_port = strtoul(tag, NULL, 0);
+	port->virtual_port = ct->ct_target_id;
 	port->port_online = cfiscsi_online;
 	port->port_offline = cfiscsi_offline;
 	port->port_info = cfiscsi_info;
@@ -2030,7 +2030,7 @@ cfiscsi_ioctl_port_create(struct ctl_req *req)
 	    SVPD_ID_TYPE_SCSI_NAME;
 	desc->length = idlen;
 	snprintf(desc->identifier, idlen, "%s,t,0x%4.4x",
-	    target, port->virtual_port);
+	    target, port->physical_port);
 
 	/* Generate Target ID. */
 	idlen = strlen(target) + 1;
@@ -2258,6 +2258,9 @@ cfiscsi_target_find_or_create(struct cfiscsi_softc *softc, const char *name,
 		strlcpy(newct->ct_alias, alias, sizeof(newct->ct_alias));
 	refcount_init(&newct->ct_refcount, 1);
 	newct->ct_softc = softc;
+	if (TAILQ_EMPTY(&softc->targets))
+		softc->last_target_id = 0;
+	newct->ct_target_id = ++softc->last_target_id;
 	TAILQ_INSERT_TAIL(&softc->targets, newct, ct_next);
 	mtx_unlock(&softc->lock);
 

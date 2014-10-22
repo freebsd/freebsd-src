@@ -208,6 +208,7 @@ static device_method_t acpi_methods[] = {
     DEVMETHOD(bus_setup_intr,		bus_generic_setup_intr),
     DEVMETHOD(bus_teardown_intr,	bus_generic_teardown_intr),
     DEVMETHOD(bus_hint_device_unit,	acpi_hint_device_unit),
+    DEVMETHOD(bus_get_domain,		acpi_get_domain),
 
     /* ACPI bus */
     DEVMETHOD(acpi_id_probe,		acpi_device_id_probe),
@@ -593,7 +594,7 @@ acpi_attach(device_t dev)
     sc->acpi_sleep_delay = 1;
     if (bootverbose)
 	sc->acpi_verbose = 1;
-    if ((env = getenv("hw.acpi.verbose")) != NULL) {
+    if ((env = kern_getenv("hw.acpi.verbose")) != NULL) {
 	if (strcmp(env, "0") != 0)
 	    sc->acpi_verbose = 1;
 	freeenv(env);
@@ -794,6 +795,7 @@ acpi_print_child(device_t bus, device_t child)
     retval += resource_list_print_type(rl, "drq",   SYS_RES_DRQ,    "%ld");
     if (device_get_flags(child))
 	retval += printf(" flags %#x", device_get_flags(child));
+    retval += bus_print_child_domain(bus, child);
     retval += bus_print_child_footer(bus, child);
 
     return (retval);
@@ -1064,6 +1066,35 @@ acpi_hint_device_unit(device_t acdev, device_t child, const char *name,
 	    break;
 	}
     }
+}
+
+/*
+ * Fech the NUMA domain for the given device.
+ *
+ * If a device has a _PXM method, map that to a NUMA domain.
+ *
+ * If none is found, then it'll call the parent method.
+ * If there's no domain, return ENOENT.
+ */
+int
+acpi_get_domain(device_t dev, device_t child, int *domain)
+{
+#if MAXMEMDOM > 1
+	ACPI_HANDLE h;
+	int d, pxm;
+
+	h = acpi_get_handle(child);
+	if ((h != NULL) &&
+	    ACPI_SUCCESS(acpi_GetInteger(h, "_PXM", &pxm))) {
+		d = acpi_map_pxm_to_vm_domainid(pxm);
+		if (d < 0)
+			return (ENOENT);
+		*domain = d;
+		return (0);
+	}
+#endif
+	/* No _PXM node; go up a level */
+	return (bus_generic_get_domain(dev, child, domain));
 }
 
 /*
@@ -3306,7 +3337,7 @@ acpi_avoid(ACPI_HANDLE handle)
     np = acpi_name(handle);
     if (*np == '\\')
 	np++;
-    if ((env = getenv("debug.acpi.avoid")) == NULL)
+    if ((env = kern_getenv("debug.acpi.avoid")) == NULL)
 	return (0);
 
     /* Scan the avoid list checking for a match */
@@ -3339,7 +3370,7 @@ acpi_disabled(char *subsys)
     char	*cp, *env;
     int		len;
 
-    if ((env = getenv("debug.acpi.disabled")) == NULL)
+    if ((env = kern_getenv("debug.acpi.disabled")) == NULL)
 	return (0);
     if (strcmp(env, "all") == 0) {
 	freeenv(env);
@@ -3722,8 +3753,8 @@ acpi_set_debugging(void *junk)
 	AcpiDbgLevel = 0;
     }
 
-    layer = getenv("debug.acpi.layer");
-    level = getenv("debug.acpi.level");
+    layer = kern_getenv("debug.acpi.layer");
+    level = kern_getenv("debug.acpi.level");
     if (layer == NULL && level == NULL)
 	return;
 
@@ -3782,9 +3813,9 @@ acpi_debug_sysctl(SYSCTL_HANDLER_ARGS)
 
     /* If the user is setting a string, parse it. */
     if (error == 0 && req->newptr != NULL) {
-	*dbg = 0;
-	setenv((char *)oidp->oid_arg1, (char *)req->newptr);
-	acpi_set_debugging(NULL);
+		*dbg = 0;
+		kern_setenv((char *)oidp->oid_arg1, (char *)req->newptr);
+		acpi_set_debugging(NULL);
     }
     ACPI_SERIAL_END(acpi);
 

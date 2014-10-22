@@ -43,7 +43,7 @@ PROG ?= $t
 .if defined(PROG)
 # just one of many
 PROG_OVERRIDE_VARS += BINDIR MAN SRCS
-PROG_VARS += CFLAGS CPPFLAGS CXXFLAGS DPADD DPLIBS LDADD ${PROG_OVERRIDE_VARS}
+PROG_VARS += CFLAGS CPPFLAGS CXXFLAGS DPADD DPLIBS LDADD LDFLAGS ${PROG_OVERRIDE_VARS}
 .for v in ${PROG_VARS:O:u}
 .if empty(${PROG_OVERRIDE_VARS:M$v})
 .if defined(${v}.${PROG})
@@ -99,9 +99,11 @@ $p.$t: .PHONY .MAKE
 .endfor
 .endfor
 
+.if !empty(PROGS)
 .for t in ${PROGS_TARGETS:O:u}
 $t: ${PROGS:%=%.$t}
 .endfor
+.endif
 
 .if empty(PROGS) && !empty(SCRIPTS)
 

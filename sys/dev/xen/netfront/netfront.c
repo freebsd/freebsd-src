@@ -470,7 +470,7 @@ netfront_attach(device_t dev)
 #if __FreeBSD_version >= 700000
 	SYSCTL_ADD_INT(device_get_sysctl_ctx(dev),
 	    SYSCTL_CHILDREN(device_get_sysctl_tree(dev)),
-	    OID_AUTO, "enable_lro", CTLTYPE_INT|CTLFLAG_RW,
+	    OID_AUTO, "enable_lro", CTLFLAG_RW,
 	    &xn_enable_lro, 0, "Large Receive Offload");
 #endif
 

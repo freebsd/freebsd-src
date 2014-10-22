@@ -680,6 +680,12 @@ just_return:
 
 send:
 	SOCKBUF_LOCK_ASSERT(&so->so_snd);
+	if (len > 0) {
+		if (len >= tp->t_maxseg)
+			tp->t_flags2 |= TF2_PLPMTU_MAXSEGSNT;
+		else
+			tp->t_flags2 &= ~TF2_PLPMTU_MAXSEGSNT;
+	}
 	/*
 	 * Before ESTABLISHED, force sending of initial options
 	 * unless TCP set not to do any options.
@@ -1272,6 +1278,11 @@ send:
 		 */
 		ip6->ip6_plen = htons(m->m_pkthdr.len - sizeof(*ip6));
 
+		if (V_path_mtu_discovery && tp->t_maxopd > V_tcp_minmss)
+			tp->t_flags2 |= TF2_PLPMTU_PMTUD;
+		else
+			tp->t_flags2 &= ~TF2_PLPMTU_PMTUD;
+
 		if (tp->t_state == TCPS_SYN_SENT)
 			TCP_PROBE5(connect__request, NULL, tp, ip6, tp, th);
 
@@ -1308,8 +1319,12 @@ send:
 	 *
 	 * NB: Don't set DF on small MTU/MSS to have a safe fallback.
 	 */
-	if (V_path_mtu_discovery && tp->t_maxopd > V_tcp_minmss)
+	if (V_path_mtu_discovery && tp->t_maxopd > V_tcp_minmss) {
 		ip->ip_off |= htons(IP_DF);
+		tp->t_flags2 |= TF2_PLPMTU_PMTUD;
+	} else {
+		tp->t_flags2 &= ~TF2_PLPMTU_PMTUD;
+	}
 
 	if (tp->t_state == TCPS_SYN_SENT)
 		TCP_PROBE5(connect__request, NULL, tp, ip, tp, th);

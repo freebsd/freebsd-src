@@ -248,7 +248,7 @@ struct mbuf {
  * Flags preserved when copying m_pkthdr.
  */
 #define M_COPYFLAGS \
-    (M_PKTHDR|M_EOR|M_RDONLY|M_BCAST|M_MCAST|M_VLANTAG|M_PROMISC| \
+    (M_PKTHDR|M_EOR|M_RDONLY|M_BCAST|M_MCAST|M_PROMISC|M_VLANTAG|M_FLOWID| \
      M_PROTOFLAGS)
 
 /*

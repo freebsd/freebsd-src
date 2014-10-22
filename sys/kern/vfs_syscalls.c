@@ -1994,23 +1994,23 @@ vn_access(vp, user_flags, cred, td)
 	int error;
 
 	/* Flags == 0 means only check for existence. */
-	error = 0;
-	if (user_flags) {
-		accmode = 0;
-		if (user_flags & R_OK)
-			accmode |= VREAD;
-		if (user_flags & W_OK)
-			accmode |= VWRITE;
-		if (user_flags & X_OK)
-			accmode |= VEXEC;
+	if (user_flags == 0)
+		return (0);
+
+	accmode = 0;
+	if (user_flags & R_OK)
+		accmode |= VREAD;
+	if (user_flags & W_OK)
+		accmode |= VWRITE;
+	if (user_flags & X_OK)
+		accmode |= VEXEC;
 #ifdef MAC
-		error = mac_vnode_check_access(cred, vp, accmode);
-		if (error != 0)
-			return (error);
+	error = mac_vnode_check_access(cred, vp, accmode);
+	if (error != 0)
+		return (error);
 #endif
-		if ((accmode & VWRITE) == 0 || (error = vn_writechk(vp)) == 0)
-			error = VOP_ACCESS(vp, accmode, cred, td);
-	}
+	if ((accmode & VWRITE) == 0 || (error = vn_writechk(vp)) == 0)
+		error = VOP_ACCESS(vp, accmode, cred, td);
 	return (error);
 }
 
@@ -2064,7 +2064,7 @@ int
 kern_accessat(struct thread *td, int fd, char *path, enum uio_seg pathseg,
     int flag, int amode)
 {
-	struct ucred *cred, *tmpcred;
+	struct ucred *cred, *usecred;
 	struct vnode *vp;
 	struct nameidata nd;
 	cap_rights_t rights;
@@ -2075,31 +2075,33 @@ kern_accessat(struct thread *td, int fd, char *path, enum uio_seg pathseg,
 
 	/*
 	 * Create and modify a temporary credential instead of one that
-	 * is potentially shared.
+	 * is potentially shared (if we need one).
 	 */
-	if (!(flag & AT_EACCESS)) {
-		cred = td->td_ucred;
-		tmpcred = crdup(cred);
-		tmpcred->cr_uid = cred->cr_ruid;
-		tmpcred->cr_groups[0] = cred->cr_rgid;
-		td->td_ucred = tmpcred;
+	cred = td->td_ucred;
+	if ((flag & AT_EACCESS) == 0 &&
+	    ((cred->cr_uid != cred->cr_ruid ||
+	    cred->cr_rgid != cred->cr_groups[0]))) {
+		usecred = crdup(cred);
+		usecred->cr_uid = cred->cr_ruid;
+		usecred->cr_groups[0] = cred->cr_rgid;
+		td->td_ucred = usecred;
 	} else
-		cred = tmpcred = td->td_ucred;
+		usecred = cred;
 	AUDIT_ARG_VALUE(amode);
 	NDINIT_ATRIGHTS(&nd, LOOKUP, FOLLOW | LOCKSHARED | LOCKLEAF |
 	    AUDITVNODE1, pathseg, path, fd, cap_rights_init(&rights, CAP_FSTAT),
 	    td);
 	if ((error = namei(&nd)) != 0)
-		goto out1;
+		goto out;
 	vp = nd.ni_vp;
 
-	error = vn_access(vp, amode, tmpcred, td);
+	error = vn_access(vp, amode, usecred, td);
 	NDFREE(&nd, NDF_ONLY_PNBUF);
 	vput(vp);
-out1:
-	if (!(flag & AT_EACCESS)) {
+out:
+	if (usecred != cred) {
 		td->td_ucred = cred;
-		crfree(tmpcred);
+		crfree(usecred);
 	}
 	return (error);
 }

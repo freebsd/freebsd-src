@@ -171,7 +171,7 @@ detect_hs21(struct bce_softc *bce_sc)
 
 	found = 0;
 	if (bce_sc->bce_chipid == HS21_BCM_CHIPID) {
-		sysenv = getenv("smbios.system.product");
+		sysenv = kern_getenv("smbios.system.product");
 		if (sysenv != NULL) {
 			if (strncmp(sysenv, HS21_PRODUCT_ID,
 			    strlen(HS21_PRODUCT_ID)) == 0)

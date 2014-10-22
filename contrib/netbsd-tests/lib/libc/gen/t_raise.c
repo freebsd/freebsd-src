@@ -43,7 +43,11 @@ static int	count;
 static void	handler_err(int);
 static void	handler_ret(int);
 static void	handler_stress(int);
+#if defined(__FreeBSD__)
+static int	sig[] = { SIGALRM, SIGIO, SIGUSR1, SIGUSR2 };
+#else
 static int	sig[] = { SIGALRM, SIGIO, SIGUSR1, SIGUSR2, SIGPWR };
+#endif
 
 static void
 handler_stress(int signo)

@@ -299,6 +299,10 @@ HMAKE+=		PATH=${TMPPATH} METALOG=${METALOG} -DNO_ROOT
 WMAKEENV+=	MK_CTF=no
 .endif
 
+.if defined(CROSS_TOOLCHAIN)
+LOCALBASE?=	/usr/local
+.include "${LOCALBASE}/share/toolchains/${CROSS_TOOLCHAIN}.mk"
+.endif
 .if defined(CROSS_TOOLCHAIN_PREFIX)
 CROSS_COMPILER_PREFIX?=${CROSS_TOOLCHAIN_PREFIX}
 CROSS_BINUTILS_PREFIX?=${CROSS_TOOLCHAIN_PREFIX}
@@ -311,7 +315,7 @@ X${COMPILER}?=	${CROSS_COMPILER_PREFIX}${${COMPILER}}
 X${COMPILER}?=	${${COMPILER}}
 .endif
 .endfor
-XBINUTILS=	AS AR LD NM OBJDUMP RANLIB STRINGS
+XBINUTILS=	AS AR LD NM OBJCOPY OBJDUMP RANLIB SIZE STRINGS
 .for BINUTIL in ${XBINUTILS}
 .if defined(CROSS_BINUTILS_PREFIX)
 X${BINUTIL}?=	${CROSS_BINUTILS_PREFIX}${${BINUTIL}}
@@ -319,10 +323,13 @@ X${BINUTIL}?=	${CROSS_BINUTILS_PREFIX}${${BINUTIL}}
 X${BINUTIL}?=	${${BINUTIL}}
 .endif
 .endfor
-WMAKEENV+=	CC="${XCC} ${XFLAGS}" CXX="${XCXX} ${XFLAGS}" \
+WMAKEENV+=	CC="${XCC} ${XFLAGS}" CXX="${XCXX} ${XFLAGS} ${XXFLAGS}" \
+		DEPFLAGS="${DEPFLAGS}" \
 		CPP="${XCPP} ${XFLAGS}" \
 		AS="${XAS}" AR="${XAR}" LD="${XLD}" NM=${XNM} \
-		OBJDUMP=${XOBJDUMP} RANLIB=${XRANLIB} STRINGS=${XSTRINGS}
+		OBJDUMP=${XOBJDUMP} OBJCOPY="${XOBJCOPY}" \
+		RANLIB=${XRANLIB} STRINGS=${XSTRINGS} \
+		SIZE="${XSIZE}"
 
 .if ${XCC:M/*}
 XFLAGS=		--sysroot=${WORLDTMP}
@@ -343,9 +350,15 @@ TARGET_ABI=	gnueabihf
 TARGET_ABI=	gnueabi
 .endif
 .endif
+.if defined(X_COMPILER_TYPE) && ${X_COMPILER_TYPE} == gcc
+XFLAGS+=	-isystem ${WORLDTMP}/usr/include -L${WORLDTMP}/usr/lib
+XXFLAGS+=	-I${WORLDTMP}/usr/include/c++/v1 -std=gnu++11 -L${WORLDTMP}/../lib/libc++
+DEPFLAGS+=	-I${WORLDTMP}/usr/include/c++/v1
+.else
 TARGET_ABI?=	unknown
 TARGET_TRIPLE?=	${TARGET_ARCH:C/amd64/x86_64/}-${TARGET_ABI}-freebsd11.0
 XFLAGS+=	-target ${TARGET_TRIPLE}
+.endif
 .endif
 
 WMAKE=		${WMAKEENV} ${MAKE} ${WORLD_FLAGS} -f Makefile.inc1 DESTDIR=${WORLDTMP}
@@ -561,7 +574,7 @@ _libraries:
 	@echo "--------------------------------------------------------------"
 	${_+_}cd ${.CURDIR}; \
 	    ${WMAKE} -DNO_FSCHG MK_HTML=no MK_INFO=no -DNO_LINT MK_MAN=no \
-	    MK_PROFILE=no  MK_TESTS=no libraries
+	    MK_PROFILE=no MK_TESTS=no MK_TESTS_SUPPORT=${MK_TESTS} libraries
 _depend:
 	@echo
 	@echo "--------------------------------------------------------------"
@@ -1522,7 +1535,6 @@ _prebuild_libs=	${_kerberos5_lib_libasn1} \
 		${_kerberos5_lib_libhx509} ${_kerberos5_lib_libkrb5} \
 		${_kerberos5_lib_libroken} \
 		${_kerberos5_lib_libwind} \
-		${_lib_atf} \
 		lib/libbz2 ${_libcom_err} lib/libcrypt \
 		lib/libelf lib/libexpat \
 		${_lib_libgssapi} \
@@ -1547,15 +1559,6 @@ gnu/lib/libsupc++__L: gnu/lib/libstdc++__L
 .endif
 
 lib/libgeom__L: lib/libexpat__L
-
-.if defined(WITH_ATF) || ${MK_TESTS} != "no"
-.if !defined(WITH_ATF)
-# Ensure that the ATF libraries will be built during make libraries, even
-# though they will have WITHOUT_TESTS
-MAKE+=		-DWITH_ATF
-.endif
-_lib_atf=	lib/atf
-.endif
 
 .if ${MK_LIBTHR} != "no"
 _lib_libthr=	lib/libthr
@@ -1878,7 +1881,8 @@ check-old: check-old-files check-old-libs check-old-dirs
 # showconfig - show build configuration.
 #
 showconfig:
-	@${MAKE} -n -f src.opts.mk -V dummy -dg1 2>&1 | grep ^MK_ | sort
+	@(${MAKE} -n -f ${.CURDIR}/sys/conf/kern.opts.mk -V dummy -dg1; \
+	  ${MAKE} -n -f ${.CURDIR}/share/mk/src.opts.mk -V dummy -dg1) 2>&1 | grep ^MK_ | sort -u
 
 .if !empty(KRNLOBJDIR) && !empty(KERNCONF)
 DTBOUTPUTPATH= ${KRNLOBJDIR}/${KERNCONF}/

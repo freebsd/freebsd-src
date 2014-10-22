@@ -255,7 +255,7 @@ auth_new_chap_mutual(struct auth_group *ag, const char *user,
 		if (ag->ag_name != NULL)
 			log_warnx("cannot mix \"chap-mutual\" authentication "
 			    "with other types for auth-group \"%s\"",
-			    ag->ag_name); 
+			    ag->ag_name);
 		else
 			log_warnx("cannot mix \"chap-mutual\" authentication "
 			    "with other types for target \"%s\"",
@@ -754,7 +754,7 @@ valid_iscsi_name(const char *name)
 		for (i = strlen("iqn."); name[i] != '\0'; i++) {
 			/*
 			 * XXX: We should verify UTF-8 normalisation, as defined
-			 * 	by 3.2.6.2: iSCSI Name Encoding.
+			 *      by 3.2.6.2: iSCSI Name Encoding.
 			 */
 			if (isalnum(name[i]))
 				continue;
@@ -1164,7 +1164,7 @@ conf_verify(struct conf *conf)
 	struct portal_group *pg;
 	struct target *targ;
 	struct lun *lun;
-	bool found_lun;
+	bool found;
 	int error;
 
 	if (conf->conf_pidfile_path == NULL)
@@ -1181,14 +1181,14 @@ conf_verify(struct conf *conf)
 			    "default");
 			assert(targ->t_portal_group != NULL);
 		}
-		found_lun = false;
+		found = false;
 		TAILQ_FOREACH(lun, &targ->t_luns, l_next) {
 			error = conf_verify_lun(lun);
 			if (error != 0)
 				return (error);
-			found_lun = true;
+			found = true;
 		}
-		if (!found_lun) {
+		if (!found) {
 			log_warnx("no LUNs defined for target \"%s\"",
 			    targ->t_name);
 		}
@@ -1219,11 +1219,20 @@ conf_verify(struct conf *conf)
 		else
 			assert(ag->ag_target == NULL);
 
+		found = false;
 		TAILQ_FOREACH(targ, &conf->conf_targets, t_next) {
-			if (targ->t_auth_group == ag)
+			if (targ->t_auth_group == ag) {
+				found = true;
 				break;
+			}
 		}
-		if (targ == NULL && ag->ag_name != NULL &&
+		TAILQ_FOREACH(pg, &conf->conf_portal_groups, pg_next) {
+			if (pg->pg_discovery_auth_group == ag) {
+				found = true;
+				break;
+			}
+		}
+		if (!found && ag->ag_name != NULL &&
 		    strcmp(ag->ag_name, "default") != 0 &&
 		    strcmp(ag->ag_name, "no-authentication") != 0 &&
 		    strcmp(ag->ag_name, "no-access") != 0) {
@@ -1281,10 +1290,10 @@ conf_apply(struct conf *oldconf, struct conf *newconf)
 
 	/*
 	 * XXX: If target or lun removal fails, we should somehow "move"
-	 * 	the old lun or target into newconf, so that subsequent
-	 * 	conf_apply() would try to remove them again.  That would
-	 * 	be somewhat hairy, though, and lun deletion failures don't
-	 * 	really happen, so leave it as it is for now.
+	 *      the old lun or target into newconf, so that subsequent
+	 *      conf_apply() would try to remove them again.  That would
+	 *      be somewhat hairy, though, and lun deletion failures don't
+	 *      really happen, so leave it as it is for now.
 	 */
 	TAILQ_FOREACH_SAFE(oldtarg, &oldconf->conf_targets, t_next, tmptarg) {
 		/*
