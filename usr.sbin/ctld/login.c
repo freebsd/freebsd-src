@@ -640,7 +640,7 @@ login_negotiate(struct connection *conn, struct pdu *request)
 		if (conn->conn_target->t_alias != NULL)
 			keys_add(response_keys,
 			    "TargetAlias", conn->conn_target->t_alias);
-		keys_add_int(response_keys, "TargetPortalGroupTag", 
+		keys_add_int(response_keys, "TargetPortalGroupTag",
 		    conn->conn_portal->p_portal_group->pg_tag);
 	}
 
@@ -852,7 +852,7 @@ login(struct connection *conn)
 			if (conn->conn_target->t_alias != NULL)
 				keys_add(response_keys,
 				    "TargetAlias", conn->conn_target->t_alias);
-			keys_add_int(response_keys, "TargetPortalGroupTag", 
+			keys_add_int(response_keys, "TargetPortalGroupTag",
 			    conn->conn_portal->p_portal_group->pg_tag);
 		}
 		keys_save(response_keys, response);
@@ -903,7 +903,7 @@ login(struct connection *conn)
 		if (conn->conn_target->t_alias != NULL)
 			keys_add(response_keys,
 			    "TargetAlias", conn->conn_target->t_alias);
-		keys_add_int(response_keys, "TargetPortalGroupTag", 
+		keys_add_int(response_keys, "TargetPortalGroupTag",
 		    conn->conn_portal->p_portal_group->pg_tag);
 	}
 	keys_save(response_keys, response);
