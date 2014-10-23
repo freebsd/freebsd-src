@@ -160,7 +160,7 @@ logout_new_response(struct pdu *request)
 }
 
 static void
-discovery_add_target(struct keys *response_keys, struct target *targ)
+discovery_add_target(struct keys *response_keys, const struct target *targ)
 {
 	struct portal *portal;
 	char *buf;
@@ -206,8 +206,11 @@ discovery(struct connection *conn)
 {
 	struct pdu *request, *response;
 	struct keys *request_keys, *response_keys;
-	struct target *targ;
+	const struct portal_group *pg;
+	const struct target *targ;
 	const char *send_targets;
+
+	pg = conn->conn_portal->p_portal_group;
 
 	log_debugx("beginning discovery session; waiting for Text PDU");
 	request = text_receive(conn);
@@ -222,11 +225,8 @@ discovery(struct connection *conn)
 	response_keys = keys_new();
 
 	if (strcmp(send_targets, "All") == 0) {
-		TAILQ_FOREACH(targ,
-		    &conn->conn_portal->p_portal_group->pg_conf->conf_targets,
-		    t_next) {
-			if (targ->t_portal_group !=
-			    conn->conn_portal->p_portal_group) {
+		TAILQ_FOREACH(targ, &pg->pg_conf->conf_targets, t_next) {
+			if (targ->t_portal_group != pg) {
 				log_debugx("not returning target \"%s\"; "
 				    "belongs to a different portal group",
 				    targ->t_name);
@@ -235,8 +235,7 @@ discovery(struct connection *conn)
 			discovery_add_target(response_keys, targ);
 		}
 	} else {
-		targ = target_find(conn->conn_portal->p_portal_group->pg_conf,
-		    send_targets);
+		targ = target_find(pg->pg_conf, send_targets);
 		if (targ == NULL) {
 			log_debugx("initiator requested information on unknown "
 			    "target \"%s\"; returning nothing", send_targets);
