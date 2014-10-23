@@ -83,6 +83,8 @@ __FBSDID("$FreeBSD$");
 #include <netinet6/nd6.h>
 #endif
 
+#include <net/rt_nhops.h>
+
 #include <netinet/tcp_fsm.h>
 #include <netinet/tcp_seq.h>
 #include <netinet/tcp_timer.h>
@@ -1791,30 +1793,25 @@ tcp_mtudisc(struct inpcb *inp, int mtuoffer)
 u_long
 tcp_maxmtu(struct in_conninfo *inc, struct tcp_ifcap *cap)
 {
-	struct route sro;
-	struct sockaddr_in *dst;
+	struct nhop4_extended nh_ext;
 	struct ifnet *ifp;
+	int error;
 	u_long maxmtu = 0;
 
 	KASSERT(inc != NULL, ("tcp_maxmtu with NULL in_conninfo pointer"));
 
-	bzero(&sro, sizeof(sro));
-	if (inc->inc_faddr.s_addr != INADDR_ANY) {
-	        dst = (struct sockaddr_in *)&sro.ro_dst;
-		dst->sin_family = AF_INET;
-		dst->sin_len = sizeof(*dst);
-		dst->sin_addr = inc->inc_faddr;
-		in_rtalloc_ign(&sro, 0, inc->inc_fibnum);
-	}
-	if (sro.ro_rt != NULL) {
-		ifp = sro.ro_rt->rt_ifp;
-		if (sro.ro_rt->rt_mtu == 0)
-			maxmtu = ifp->if_mtu;
-		else
-			maxmtu = min(sro.ro_rt->rt_mtu, ifp->if_mtu);
+	if (inc->inc_faddr.s_addr == INADDR_ANY)
+		return (0);
+
+	memset(&nh_ext, 0, sizeof(nh_ext));
+	error = fib4_lookup_nh_extended(inc->inc_fibnum, inc->inc_faddr, 0,
+	    &nh_ext);
+	if (error == 0) {
+		maxmtu = nh_ext.nh_mtu;
 
 		/* Report additional interface capabilities. */
 		if (cap != NULL) {
+			ifp = nh_ext.nh_ifp;
 			if (ifp->if_capenable & IFCAP_TSO4 &&
 			    ifp->if_hwassist & CSUM_TSO) {
 				cap->ifcap |= CSUM_TSO;
@@ -1823,7 +1820,6 @@ tcp_maxmtu(struct in_conninfo *inc, struct tcp_ifcap *cap)
 				cap->tsomaxsegsize = ifp->if_hw_tsomaxsegsize;
 			}
 		}
-		RTFREE(sro.ro_rt);
 	}
 	return (maxmtu);
 }
