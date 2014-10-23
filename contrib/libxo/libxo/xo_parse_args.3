@@ -1,0 +1,133 @@
+.\" #
+.\" # Copyright (c) 2014, Juniper Networks, Inc.
+.\" # All rights reserved.
+.\" # This SOFTWARE is licensed under the LICENSE provided in the
+.\" # ../Copyright file. By downloading, installing, copying, or 
+.\" # using the SOFTWARE, you agree to be bound by the terms of that
+.\" # LICENSE.
+.\" # Phil Shafer, July 2014
+.\" 
+.Dd July, 2014
+.Dt LIBXO 3
+.Os
+.Sh NAME
+.Nm xo_parse_args
+.Nd detect, parse, and remove arguments for libxo
+.Sh LIBRARY
+.Nm libxo
+.Sh SYNOPSIS
+.In libxo/xo.h
+.Ft int
+.Fn xo_parse_args "int argc" "char **argv"
+.Sh DESCRIPTION
+The
+.Fn xo_parse_args
+function is used to process command-line arguments.
+.Em libxo -specific
+options are processed and removed
+from the argument list so the calling application does not
+need to process them.  If successful, a new value for argc
+is returned.  On failure, a message it emitted and -1 is returned.
+.Bd -literal -offset indent
+    argc = xo_parse_args(argc, argv);
+    if (argc < 0)
+        exit(1);
+.Ed
+.Pp
+Following the call to
+.Fn xo_parse_args ,
+the application can process the remaining arguments in a normal manner.
+.Pp
+.Em libxo
+uses command line options to trigger rendering behavior.  The
+following options are recognised:
+.Pp
+.Bl -tag -width "--libxo"
+.It
+\-\^\-libxo <options>
+.It
+\-\^\-libxo=<options>
+.It
+\-\^\-libxo:<brief-options>
+.El
+.Pp
+Options is a comma-separated list of tokens that correspond to output
+styles, flags, or features:
+.Pp
+.Bl -tag -width "12345678"
+.It Sy "Token   Action"
+.It dtrt
+Enable "Do The Right Thing" mode
+.It html
+Emit HTML output
+.It indent=xx
+Set the indentation level
+.It info
+Add info attributes (HTML)
+.It json
+Emit JSON output
+.It keys
+Emit the key attribute for keys (XML)
+.It no-locale
+Do not initialize the locale setting
+.It no-top
+Do not emit a top set of braces (JSON)
+.It not-first
+Pretend the 1st output item was not 1st (JSON)
+.It pretty
+Emit pretty-printed output
+.It text
+Emit TEXT output
+.It units
+Add the 'units' (XML) or 'data-units (HTML) attribute
+.It warn
+Emit warnings when libxo detects bad calls
+.It warn-xml
+Emit warnings in XML
+.It xml
+Emit XML output
+.It xpath
+Add XPath expressions (HTML)
+.El
+.Pp
+The
+.Dq brief-options
+are single letter commands, designed for those with
+too little patience to use real tokens.  No comma separator is used.
+.Bl -column "i<num>"
+.It Sy "Token   Action"
+.It "H      " "Enable HTML output (XO_STYLE_HTML)"
+.It "I      " "Enable info output (XOF_INFO)"
+.It "i<num> " "Indent by <number>"
+.It "J      " "Enable JSON output (XO_STYLE_JSON)"
+.It "P      " "Enable pretty-printed output (XOF_PRETTY)"
+.It "T      " "Enable text output (XO_STYLE_TEXT)"
+.It "W      " "Enable warnings (XOF_WARN)"
+.It "X      " "Enable XML output (XO_STYLE_XML)"
+.It "x      " "Enable XPath data (XOF_XPATH)"
+.El
+.Pp
+.Sh ADDITIONAL DOCUMENTATION
+.Pp
+Complete documentation can be found on github:
+.Bd -literal -offset indent
+http://juniper.github.io/libxo/libxo-manual.html
+.Ed
+.Pp
+libxo lives on github as:
+.Bd -literal -offset indent
+https://github.com/Juniper/libxo
+.Ed
+.Pp
+The latest release of libxo is available at:
+.Bd -literal -offset indent
+https://github.com/Juniper/libxo/releases
+.Ed
+.Sh SEE ALSO
+.Xr xo_emit 3
+.Sh HISTORY
+The
+.Fa libxo
+library was added in FreeBSD 11.0.
+.Sh AUTHOR
+Phil Shafer
