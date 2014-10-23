@@ -57,6 +57,7 @@ __FBSDID("$FreeBSD$");
 #include <machine/resource.h>
 
 #include <arm/ti/ti_cpuid.h>
+#include <arm/ti/ti_gpio.h>
 #include <arm/ti/ti_scm.h>
 #include <arm/ti/ti_prcm.h>
 
@@ -66,6 +67,7 @@ __FBSDID("$FreeBSD$");
 #include <dev/ofw/ofw_bus_subr.h>
 
 #include "gpio_if.h"
+#include "ti_gpio_if.h"
 
 /* Register definitions */
 #define	TI_GPIO_REVISION		0x0000
@@ -115,9 +117,6 @@ __FBSDID("$FreeBSD$");
 #define	AM335X_INTR_PER_BANK		2
 #define	AM335X_GPIO_REV			0x50600801
 #define	PINS_PER_BANK			32
-#define	MAX_GPIO_BANKS			6
-/* Maximum GPIOS possible, max of *_MAX_GPIO_BANKS * *_INTR_PER_BANK */
-#define	MAX_GPIO_INTRS			8
 
 static u_int
 ti_max_gpio_banks(void)
@@ -222,33 +221,6 @@ static struct resource_spec ti_gpio_irq_spec[] = {
 	{ SYS_RES_IRQ,      7,  RF_ACTIVE | RF_OPTIONAL },
 #endif
 	{ -1,               0,  0 }
-};
-
-/**
- *	Structure that stores the driver context.
- *
- *	This structure is allocated during driver attach.
- */
-struct ti_gpio_softc {
-	device_t		sc_dev;
-
-	/*
-	 * The memory resource(s) for the PRCM register set, when the device is
-	 * created the caller can assign up to 6 memory regions depending on
-	 * the SoC type.
-	 */
-	struct resource		*sc_mem_res[MAX_GPIO_BANKS];
-	struct resource		*sc_irq_res[MAX_GPIO_INTRS];
-
-	/* The handle for the register IRQ handlers. */
-	void			*sc_irq_hdl[MAX_GPIO_INTRS];
-
-	/*
-	 * The following describes the H/W revision of each of the GPIO banks.
-	 */
-	uint32_t		sc_revision[MAX_GPIO_BANKS];
-
-	struct mtx		sc_mtx;
 };
 
 /**
@@ -418,7 +390,7 @@ ti_gpio_pin_getflags(device_t dev, uint32_t pin, uint32_t *flags)
 	}
 
 	/* Get the current pin state */
-	ti_scm_padconf_get_gpioflags(pin, flags);
+	TI_GPIO_GET_FLAGS(dev, pin, flags);
 
 	TI_GPIO_UNLOCK(sc);
 
@@ -509,7 +481,7 @@ ti_gpio_pin_setflags(device_t dev, uint32_t pin, uint32_t flags)
 	}
 
 	/* Set the GPIO mode and state */
-	if (ti_scm_padconf_set_gpioflags(pin, flags) != 0) {
+	if (TI_GPIO_SET_FLAGS(dev, pin, flags) != 0) {
 		TI_GPIO_UNLOCK(sc);
 		return (EINVAL);
 	}
@@ -669,33 +641,6 @@ ti_gpio_intr(void *arg)
 	TI_GPIO_UNLOCK(sc);
 }
 
-/**
- *	ti_gpio_probe - probe function for the driver
- *	@dev: gpio device handle
- *
- *	Simply sets the name of the driver
- *
- *	LOCKING:
- *	None
- *
- *	RETURNS:
- *	Always returns 0
- */
-static int
-ti_gpio_probe(device_t dev)
-{
-
-	if (!ofw_bus_status_okay(dev))
-		return (ENXIO);
-
-	if (!ofw_bus_is_compatible(dev, "ti,gpio"))
-		return (ENXIO);
-
-	device_set_desc(dev, "TI General Purpose I/O (GPIO)");
-
-	return (0);
-}
-
 static int
 ti_gpio_attach_intr(device_t dev)
 {
@@ -776,8 +721,7 @@ ti_gpio_bank_init(device_t dev, int bank)
 	/* Init OE register based on pads configuration. */
 	reg_oe = 0xffffffff;
 	for (pin = 0; pin < PINS_PER_BANK; pin++) {
-		ti_scm_padconf_get_gpioflags(PINS_PER_BANK * bank + pin,
-		    &flags);
+		TI_GPIO_GET_FLAGS(dev, PINS_PER_BANK * bank + pin, &flags);
 		if (flags & GPIO_PIN_OUTPUT)
 			reg_oe &= ~(1UL << pin);
 	}
@@ -910,7 +854,6 @@ ti_gpio_get_node(device_t bus, device_t dev)
 }
 
 static device_method_t ti_gpio_methods[] = {
-	DEVMETHOD(device_probe, ti_gpio_probe),
 	DEVMETHOD(device_attach, ti_gpio_attach),
 	DEVMETHOD(device_detach, ti_gpio_detach),
 
@@ -930,11 +873,8 @@ static device_method_t ti_gpio_methods[] = {
 	{0, 0},
 };
 
-static driver_t ti_gpio_driver = {
+driver_t ti_gpio_driver = {
 	"gpio",
 	ti_gpio_methods,
 	sizeof(struct ti_gpio_softc),
 };
-static devclass_t ti_gpio_devclass;
-
-DRIVER_MODULE(ti_gpio, simplebus, ti_gpio_driver, ti_gpio_devclass, 0, 0);

@@ -474,8 +474,6 @@ struct ctl_softc {
 	uint32_t num_pools;
 	uint32_t cur_pool_id;
 	STAILQ_HEAD(, ctl_io_pool) io_pools;
-	time_t last_print_jiffies;
-	uint32_t skipped_prints;
 	struct ctl_thread threads[CTL_MAX_THREADS];
 	TAILQ_HEAD(tpc_tokens, tpc_token) tpc_tokens;
 	struct callout tpc_timeout;

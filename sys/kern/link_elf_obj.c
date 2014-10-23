@@ -363,6 +363,10 @@ link_elf_link_preload(linker_class_t cls, const char *filename,
 				vnet_data_copy(vnet_data, shdr[i].sh_size);
 				ef->progtab[pb].addr = vnet_data;
 #endif
+			} else if (ef->progtab[pb].name != NULL &&
+			    !strcmp(ef->progtab[pb].name, ".ctors")) {
+				lf->ctors_addr = ef->progtab[pb].addr;
+				lf->ctors_size = shdr[i].sh_size;
 			}
 
 			/* Update all symbol values with the offset. */
@@ -408,6 +412,22 @@ out:
 	return (error);
 }
 
+static void
+link_elf_invoke_ctors(caddr_t addr, size_t size)
+{
+	void (**ctor)(void);
+	size_t i, cnt;
+
+	if (addr == NULL || size == 0)
+		return;
+	cnt = size / sizeof(*ctor);
+	ctor = (void *)addr;
+	for (i = 0; i < cnt; i++) {
+		if (ctor[i] != NULL)
+			(*ctor[i])();
+	}
+}
+
 static int
 link_elf_link_preload_finish(linker_file_t lf)
 {
@@ -424,6 +444,8 @@ link_elf_link_preload_finish(linker_file_t lf)
 	if (error)
 		return (error);
 
+	/* Invoke .ctors */
+	link_elf_invoke_ctors(lf->ctors_addr, lf->ctors_size);
 	return (0);
 }
 
@@ -727,10 +749,14 @@ link_elf_load_file(linker_class_t cls, const char *filename,
 			alignmask = shdr[i].sh_addralign - 1;
 			mapbase += alignmask;
 			mapbase &= ~alignmask;
-			if (ef->shstrtab && shdr[i].sh_name != 0)
+			if (ef->shstrtab != NULL && shdr[i].sh_name != 0) {
 				ef->progtab[pb].name =
 				    ef->shstrtab + shdr[i].sh_name;
-			else if (shdr[i].sh_type == SHT_PROGBITS)
+				if (!strcmp(ef->progtab[pb].name, ".ctors")) {
+					lf->ctors_addr = (caddr_t)mapbase;
+					lf->ctors_size = shdr[i].sh_size;
+				}
+			} else if (shdr[i].sh_type == SHT_PROGBITS)
 				ef->progtab[pb].name = "<<PROGBITS>>";
 			else
 				ef->progtab[pb].name = "<<NOBITS>>";
@@ -859,6 +885,9 @@ link_elf_load_file(linker_class_t cls, const char *filename,
 	error = elf_cpu_load_file(lf);
 	if (error)
 		goto out;
+
+	/* Invoke .ctors */
+	link_elf_invoke_ctors(lf->ctors_addr, lf->ctors_size);
 
 	*result = lf;
 

@@ -63,7 +63,11 @@ run(int flags)
 	while ((i = open("/", O_RDONLY)) < 3)
 		ATF_REQUIRE(i != -1);
 
+#ifdef __FreeBSD__
+	closefrom(3);
+#else
 	ATF_REQUIRE(fcntl(3, F_CLOSEM) != -1);
+#endif
 
 	ATF_REQUIRE(socketpair(AF_UNIX, SOCK_DGRAM | flags, 0, fd) == 0);
 

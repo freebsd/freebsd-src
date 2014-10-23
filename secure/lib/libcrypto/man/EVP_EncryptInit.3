@@ -124,7 +124,7 @@
 .\" ========================================================================
 .\"
 .IX Title "EVP_EncryptInit 3"
-.TH EVP_EncryptInit 3 "2014-08-06" "1.0.1i" "OpenSSL"
+.TH EVP_EncryptInit 3 "2014-10-15" "1.0.1j" "OpenSSL"
 .\" For nroff, turn off justification.  Always turn off hyphenation; it makes
 .\" way too many mistakes in technical documents.
 .if n .ad l
@@ -493,37 +493,9 @@ The \s-1ASN1\s0 code is incomplete (and sometimes inaccurate) it has only been t
 for certain common S/MIME ciphers (\s-1RC2\s0, \s-1DES\s0, triple \s-1DES\s0) in \s-1CBC\s0 mode.
 .SH "EXAMPLES"
 .IX Header "EXAMPLES"
-Get the number of rounds used in \s-1RC5:\s0
+Encrypt a string using \s-1IDEA:\s0
 .PP
-.Vb 2
-\& int nrounds;
-\& EVP_CIPHER_CTX_ctrl(ctx, EVP_CTRL_GET_RC5_ROUNDS, 0, &nrounds);
-.Ve
-.PP
-Get the \s-1RC2\s0 effective key length:
-.PP
-.Vb 2
-\& int key_bits;
-\& EVP_CIPHER_CTX_ctrl(ctx, EVP_CTRL_GET_RC2_KEY_BITS, 0, &key_bits);
-.Ve
-.PP
-Set the number of rounds used in \s-1RC5:\s0
-.PP
-.Vb 2
-\& int nrounds;
-\& EVP_CIPHER_CTX_ctrl(ctx, EVP_CTRL_SET_RC5_ROUNDS, nrounds, NULL);
-.Ve
-.PP
-Set the effective key length used in \s-1RC2:\s0
-.PP
-.Vb 2
-\& int key_bits;
-\& EVP_CIPHER_CTX_ctrl(ctx, EVP_CTRL_SET_RC2_KEY_BITS, key_bits, NULL);
-.Ve
-.PP
-Encrypt a string using blowfish:
-.PP
-.Vb 10
+.Vb 12
 \& int do_crypt(char *outfile)
 \&        {
 \&        unsigned char outbuf[1024];
@@ -536,8 +508,9 @@ Encrypt a string using blowfish:
 \&        char intext[] = "Some Crypto Text";
 \&        EVP_CIPHER_CTX ctx;
 \&        FILE *out;
+\&
 \&        EVP_CIPHER_CTX_init(&ctx);
-\&        EVP_EncryptInit_ex(&ctx, EVP_bf_cbc(), NULL, key, iv);
+\&        EVP_EncryptInit_ex(&ctx, EVP_idea_cbc(), NULL, key, iv);
 \&
 \&        if(!EVP_EncryptUpdate(&ctx, outbuf, &outlen, intext, strlen(intext)))
 \&                {
@@ -567,31 +540,37 @@ Encrypt a string using blowfish:
 .Ve
 .PP
 The ciphertext from the above example can be decrypted using the \fBopenssl\fR
-utility with the command line:
+utility with the command line (shown on two lines for clarity):
 .PP
-.Vb 1
-\& S<openssl bf \-in cipher.bin \-K 000102030405060708090A0B0C0D0E0F \-iv 0102030405060708 \-d>
+.Vb 2
+\& openssl idea \-d <filename
+\&          \-K 000102030405060708090A0B0C0D0E0F \-iv 0102030405060708
 .Ve
 .PP
-General encryption, decryption function example using \s-1FILE\s0 I/O and \s-1RC2\s0 with an
-80 bit key:
+General encryption and decryption function example using \s-1FILE\s0 I/O and \s-1AES128\s0
+with a 128\-bit key:
 .PP
-.Vb 10
+.Vb 11
 \& int do_crypt(FILE *in, FILE *out, int do_encrypt)
 \&        {
 \&        /* Allow enough space in output buffer for additional block */
-\&        inbuf[1024], outbuf[1024 + EVP_MAX_BLOCK_LENGTH];
+\&        unsigned char inbuf[1024], outbuf[1024 + EVP_MAX_BLOCK_LENGTH];
 \&        int inlen, outlen;
+\&        EVP_CIPHER_CTX ctx;
 \&        /* Bogus key and IV: we\*(Aqd normally set these from
 \&         * another source.
 \&         */
-\&        unsigned char key[] = "0123456789";
-\&        unsigned char iv[] = "12345678";
-\&        /* Don\*(Aqt set key or IV because we will modify the parameters */
+\&        unsigned char key[] = "0123456789abcdeF";
+\&        unsigned char iv[] = "1234567887654321";
+\&
+\&        /* Don\*(Aqt set key or IV right away; we want to check lengths */
 \&        EVP_CIPHER_CTX_init(&ctx);
-\&        EVP_CipherInit_ex(&ctx, EVP_rc2(), NULL, NULL, NULL, do_encrypt);
-\&        EVP_CIPHER_CTX_set_key_length(&ctx, 10);
-\&        /* We finished modifying parameters so now we can set key and IV */
+\&        EVP_CipherInit_ex(&ctx, EVP_aes_128_cbc(), NULL, NULL, NULL,
+\&                do_encrypt);
+\&        OPENSSL_assert(EVP_CIPHER_CTX_key_length(&ctx) == 16);
+\&        OPENSSL_assert(EVP_CIPHER_CTX_iv_length(&ctx) == 16);
+\&
+\&        /* Now we can set key and IV */
 \&        EVP_CipherInit_ex(&ctx, NULL, NULL, key, iv, do_encrypt);
 \&
 \&        for(;;) 
@@ -627,3 +606,6 @@ General encryption, decryption function example using \s-1FILE\s0 I/O and \s-1RC
 \&\fIEVP_DecryptInit_ex()\fR, \fIEVP_DecryptFinal_ex()\fR, \fIEVP_CipherInit_ex()\fR,
 \&\fIEVP_CipherFinal_ex()\fR and \fIEVP_CIPHER_CTX_set_padding()\fR appeared in
 OpenSSL 0.9.7.
+.PP
+\&\s-1IDEA\s0 appeared in OpenSSL 0.9.7 but was often disabled due to
+patent concerns; the last patents expired in 2012.

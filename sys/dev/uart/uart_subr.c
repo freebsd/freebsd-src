@@ -214,9 +214,9 @@ uart_getenv(int devtype, struct uart_devinfo *di, struct uart_class *class)
 	 * port (resp).
 	 */
 	if (devtype == UART_DEV_CONSOLE)
-		spec = getenv("hw.uart.console");
+		spec = kern_getenv("hw.uart.console");
 	else if (devtype == UART_DEV_DBGPORT)
-		spec = getenv("hw.uart.dbgport");
+		spec = kern_getenv("hw.uart.dbgport");
 	else
 		spec = NULL;
 	if (spec == NULL)

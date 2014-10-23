@@ -884,24 +884,22 @@ varvalue(const char *name, int quoted, int subtype, int flag)
 	switch (*name) {
 	case '$':
 		num = rootpid;
-		goto numvar;
+		break;
 	case '?':
 		num = oexitstatus;
-		goto numvar;
+		break;
 	case '#':
 		num = shellparam.nparam;
-		goto numvar;
+		break;
 	case '!':
 		num = backgndpidval();
-numvar:
-		expdest = cvtnum(num, expdest);
 		break;
 	case '-':
 		for (i = 0 ; i < NOPTS ; i++) {
 			if (optlist[i].val)
 				STPUTC(optlist[i].letter, expdest);
 		}
-		break;
+		return;
 	case '@':
 		if (flag & EXP_FULL && quoted) {
 			for (ap = shellparam.p ; (p = *ap++) != NULL ; ) {
@@ -909,7 +907,7 @@ numvar:
 				if (*ap)
 					STPUTC('\0', expdest);
 			}
-			break;
+			return;
 		}
 		/* FALLTHROUGH */
 	case '*':
@@ -924,7 +922,7 @@ numvar:
 			if (sep || (flag & EXP_FULL && !quoted && **ap != '\0'))
 				STPUTC(sep, expdest);
 		}
-		break;
+		return;
 	default:
 		if (is_digit(*name)) {
 			num = atoi(name);
@@ -933,11 +931,12 @@ numvar:
 			else if (num > 0 && num <= shellparam.nparam)
 				p = shellparam.p[num - 1];
 			else
-				break;
+				return;
 			strtodest(p, flag, subtype, quoted);
 		}
-		break;
+		return;
 	}
+	expdest = cvtnum(num, expdest);
 }
 
 
@@ -1105,24 +1104,23 @@ expandmeta(struct strlist *str, int flag __unused)
 	/* TODO - EXP_REDIR */
 
 	while (str) {
-		if (fflag)
-			goto nometa;
-		p = str->text;
-		for (;;) {			/* fast check for meta chars */
-			if ((c = *p++) == '\0')
-				goto nometa;
-			if (c == '*' || c == '?' || c == '[')
-				break;
-		}
 		savelastp = exparg.lastp;
-		INTOFF;
-		expmeta(expdir, str->text);
-		INTON;
+		if (!fflag) {
+			p = str->text;
+			for (; (c = *p) != '\0'; p++) {
+				/* fast check for meta chars */
+				if (c == '*' || c == '?' || c == '[') {
+					INTOFF;
+					expmeta(expdir, str->text);
+					INTON;
+					break;
+				}
+			}
+		}
 		if (exparg.lastp == savelastp) {
 			/*
 			 * no matches
 			 */
-nometa:
 			*exparg.lastp = str;
 			rmescapes(str->text);
 			exparg.lastp = &str->next;

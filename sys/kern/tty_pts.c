@@ -262,6 +262,9 @@ ptsdev_ioctl(struct file *fp, u_long cmd, void *data,
 	int error = 0, sig;
 
 	switch (cmd) {
+	case FIODTYPE:
+		*(int *)data = D_TTY;
+		return (0);
 	case FIONBIO:
 		/* This device supports non-blocking operation. */
 		return (0);

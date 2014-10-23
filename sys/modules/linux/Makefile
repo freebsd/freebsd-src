@@ -15,15 +15,14 @@ SRCS=	linux_fork.c linux${SFX}_dummy.c linux_emul.c linux_file.c \
 	linux${SFX}_sysvec.c linux_uid16.c linux_util.c linux_time.c \
 	linux_timer.c \
 	opt_inet6.h opt_compat.h opt_posix.h opt_usb.h vnode_if.h \
-	device_if.h bus_if.h assym.s
+	device_if.h bus_if.h assym.s \
+	linux${SFX}_locore.s linux${SFX}_support.s
 
 # XXX: for assym.s
 SRCS+=  opt_kstack_pages.h opt_nfs.h opt_compat.h opt_hwpmc_hooks.h
 .if ${MACHINE_CPUARCH} == "i386"
 SRCS+=	opt_apic.h
 .endif
-
-OBJS=	linux${SFX}_locore.o linux${SFX}_support.o
 
 .if ${MACHINE_CPUARCH} == "i386"
 SRCS+=	linux_ptrace.c imgact_linux.c opt_cpu.h
@@ -45,15 +44,15 @@ linux${SFX}_assym.h: @/kern/genassym.sh
 .endif
 	sh @/kern/genassym.sh linux${SFX}_genassym.o > ${.TARGET}
 
-linux${SFX}_locore.o: linux${SFX}_locore.s linux${SFX}_assym.h
+linux${SFX}_locore.o: linux${SFX}_assym.h assym.s
 	${CC} -c -x assembler-with-cpp -DLOCORE ${CFLAGS} \
 	    ${.IMPSRC} -o ${.TARGET}
 
-linux${SFX}_support.o: linux${SFX}_support.s assym.s linux${SFX}_assym.h
+linux${SFX}_support.o: linux${SFX}_assym.h assym.s
 	${CC} -c -x assembler-with-cpp -DLOCORE ${CFLAGS} \
 	    ${.IMPSRC} -o ${.TARGET}
 
-linux${SFX}_genassym.o: linux${SFX}_genassym.c linux.h @ machine x86
+linux${SFX}_genassym.o:
 	${CC} -c ${CFLAGS:N-fno-common} ${.IMPSRC}
 
 .if !defined(KERNBUILDDIR)

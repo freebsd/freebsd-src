@@ -61,8 +61,9 @@ static void
 g_confdot_provider(struct sbuf *sb, struct g_provider *pp)
 {
 
-	sbuf_printf(sb, "z%p [shape=hexagon,label=\"%s\\nr%dw%de%d\\nerr#%d\"];\n",
-	    pp, pp->name, pp->acr, pp->acw, pp->ace, pp->error);
+	sbuf_printf(sb, "z%p [shape=hexagon,label=\"%s\\nr%dw%de%d\\nerr#%d\\n"
+	    "sector=%u\\nstripe=%u\"];\n", pp, pp->name, pp->acr, pp->acw,
+	    pp->ace, pp->error, pp->sectorsize, pp->stripesize);
 }
 
 static void

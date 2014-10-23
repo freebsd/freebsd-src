@@ -1462,7 +1462,7 @@ loadfw(int argc, const char *argv[])
 	}
 
 	data.len = st.st_size;
-	data.data = mmap(0, data.len, PROT_READ, 0, fd, 0);
+	data.data = mmap(0, data.len, PROT_READ, MAP_PRIVATE, fd, 0);
 	if (data.data == MAP_FAILED) {
 		warn("mmap");
 		close(fd);

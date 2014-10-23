@@ -86,7 +86,7 @@ struct secpolicy {
 	u_int state;			/* 0: dead, others: alive */
 #define IPSEC_SPSTATE_DEAD	0
 #define IPSEC_SPSTATE_ALIVE	1
-	u_int16_t policy;		/* policy_type per pfkeyv2.h */
+	u_int policy;			/* policy_type per pfkeyv2.h */
 	u_int16_t scangen;		/* scan generation # */
 	struct ipsecrequest *req;
 				/* pointer to the ipsec request tree, */

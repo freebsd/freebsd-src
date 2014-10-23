@@ -2646,6 +2646,8 @@ dev/xen/pvcpu/pvcpu.c		optional xen | xenhvm
 dev/xen/xenstore/xenstore.c	optional xen | xenhvm
 dev/xen/xenstore/xenstore_dev.c	optional xen | xenhvm
 dev/xen/xenstore/xenstored_dev.c	optional xen | xenhvm
+dev/xen/evtchn/evtchn_dev.c	optional xen | xenhvm
+dev/xen/privcmd/privcmd.c	optional xen | xenhvm
 dev/xl/if_xl.c			optional xl pci
 dev/xl/xlphy.c			optional xl pci
 fs/autofs/autofs.c		optional autofs
@@ -3230,7 +3232,8 @@ net/if_ethersubr.c		optional ether
 net/if_faith.c			optional faith
 net/if_fddisubr.c		optional fddi
 net/if_fwsubr.c			optional fwip
-net/if_gif.c			optional gif inet | gif inet6 | netgraph_gif
+net/if_gif.c			optional gif inet | gif inet6 | \
+					 netgraph_gif inet | netgraph_gif inet6
 net/if_gre.c			optional gre inet
 net/if_iso88025subr.c		optional token
 net/if_lagg.c			optional lagg
@@ -3244,6 +3247,7 @@ net/if_stf.c			optional stf inet inet6
 net/if_tun.c			optional tun
 net/if_tap.c			optional tap
 net/if_vlan.c			optional vlan
+net/if_vxlan.c			optional vxlan inet | vxlan inet6
 net/mppcc.c			optional netgraph_mppc_compression
 net/mppcd.c			optional netgraph_mppc_compression
 net/netisr.c			standard
@@ -3356,7 +3360,7 @@ netgraph/ng_eiface.c		optional netgraph_eiface
 netgraph/ng_ether.c		optional netgraph_ether
 netgraph/ng_ether_echo.c	optional netgraph_ether_echo
 netgraph/ng_frame_relay.c	optional netgraph_frame_relay
-netgraph/ng_gif.c		optional netgraph_gif
+netgraph/ng_gif.c		optional netgraph_gif inet6 | netgraph_gif inet
 netgraph/ng_gif_demux.c		optional netgraph_gif_demux
 netgraph/ng_hole.c		optional netgraph_hole
 netgraph/ng_iface.c		optional netgraph_iface

@@ -99,9 +99,11 @@ $p.$t: .PHONY .MAKE
 .endfor
 .endfor
 
+.if !empty(PROGS)
 .for t in ${PROGS_TARGETS:O:u}
 $t: ${PROGS:%=%.$t}
 .endfor
+.endif
 
 .if empty(PROGS) && !empty(SCRIPTS)
 

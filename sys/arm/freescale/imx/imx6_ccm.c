@@ -76,6 +76,28 @@ WR4(struct ccm_softc *sc, bus_size_t off, uint32_t val)
 	bus_write_4(sc->mem_res, off, val);
 }
 
+/*
+ * Until we have a fully functional ccm driver which implements the fdt_clock
+ * interface, use the age-old workaround of unconditionally enabling the clocks
+ * for devices we might need to use.  The SoC defaults to most clocks enabled,
+ * but the rom boot code and u-boot disable a few of them.  We turn on only
+ * what's needed to run the chip plus devices we have drivers for, and turn off
+ * devices we don't yet have drivers for.  (Note that USB is not turned on here
+ * because that is one we do when the driver asks for it.)
+ */
+static void
+ccm_init_gates(struct ccm_softc *sc)
+{
+                                        /* Turns on... */
+	WR4(sc, CCM_CCGR0, 0x0000003f); /* ahpbdma, aipstz 1 & 2 busses */
+	WR4(sc, CCM_CCGR1, 0x00300c00); /* gpt, enet */
+	WR4(sc, CCM_CCGR2, 0x0fffffc0); /* ipmux & ipsync (bridges), iomux, i2c */
+	WR4(sc, CCM_CCGR3, 0x3ff00000); /* DDR memory controller */
+	WR4(sc, CCM_CCGR4, 0x0000f300); /* pl301 bus crossbar */
+	WR4(sc, CCM_CCGR5, 0x0f000000); /* uarts */
+	WR4(sc, CCM_CCGR6, 0x000000cc); /* usdhc 1 & 3 */
+}
+
 static int
 ccm_detach(device_t dev)
 {
@@ -129,6 +151,8 @@ ccm_attach(device_t dev)
 	reg = RD4(sc, CCM_CLPCR);
 	reg = (reg & ~CCM_CLPCR_LPM_MASK) | CCM_CLPCR_LPM_RUN;
 	WR4(sc, CCM_CLPCR, reg);
+
+	ccm_init_gates(sc);
 
 	err = 0;
 
@@ -261,5 +285,6 @@ static driver_t ccm_driver = {
 
 static devclass_t ccm_devclass;
 
-DRIVER_MODULE(ccm, simplebus, ccm_driver, ccm_devclass, 0, 0);
+EARLY_DRIVER_MODULE(ccm, simplebus, ccm_driver, ccm_devclass, 0, 0, 
+    BUS_PASS_CPU + BUS_PASS_ORDER_EARLY);
 

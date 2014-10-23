@@ -422,8 +422,8 @@ case ${firewall_type} in
 
 [Ww][Oo][Rr][Kk][Ss][Tt][Aa][Tt][Ii][Oo][Nn])
 	# Configuration:
-	#  firewall_myservices:		List of TCP ports on which this host
-	#			 	 offers services.
+	#  firewall_myservices:		List of ports/protocols on which this
+	#				 host offers services.
 	#  firewall_allowservices:	List of IPv4 and/or IPv6 addresses
 	#				 that have access to
 	#				 $firewall_myservices.
@@ -487,7 +487,25 @@ case ${firewall_type} in
 	#
 	for i in ${firewall_allowservices} ; do
 	  for j in ${firewall_myservices} ; do
-	    ${fwcmd} add pass tcp from $i to me $j
+	    case $j in
+	    [0-9A-Za-z]*/[Pp][Rr][Oo][Tt][Oo])
+	      ${fwcmd} add pass ${j%/[Pp][Rr][Oo][Tt][Oo]} from $i to me
+	    ;;
+	    [0-9A-Za-z]*/[Tt][Cc][Pp])
+	      ${fwcmd} add pass tcp from $i to me ${j%/[Tt][Cc][Pp]}
+	    ;;
+	    [0-9A-Za-z]*/[Uu][Dd][Pp])
+	      ${fwcmd} add pass udp from $i to me ${j%/[Uu][Dd][Pp]}
+	    ;;
+	    *[0-9A-Za-z])
+	      echo "Consider using ${j}/tcp in firewall_myservices." \
+	        > /dev/stderr
+	      ${fwcmd} add pass tcp from $i to me $j
+	    ;;
+	    *)
+	      echo "Invalid port in firewall_myservices: $j" > /dev/stderr
+	    ;;
+	    esac
 	  done
 	done
 

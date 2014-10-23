@@ -306,11 +306,14 @@ static void
 xen_pv_set_boothowto(void)
 {
 	int i;
+	char *env;
 
 	/* get equivalents from the environment */
 	for (i = 0; howto_names[i].ev != NULL; i++) {
-		if (getenv(howto_names[i].ev) != NULL)
+		if ((env = kern_getenv(howto_names[i].ev)) != NULL) {
 			boothowto |= howto_names[i].mask;
+			freeenv(env);
+		}
 	}
 }
 

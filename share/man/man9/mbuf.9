@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd June 5, 2014
+.Dd October 21, 2014
 .Dt MBUF 9
 .Os
 .\"
@@ -355,7 +355,7 @@ developer with common utilities.
 Convert an
 .Fa mbuf
 pointer to a data pointer.
-The macro expands to the data pointer cast to the pointer of the specified
+The macro expands to the data pointer cast to the specified
 .Fa type .
 .Sy Note :
 It is advisable to ensure that there is enough contiguous data in
@@ -738,15 +738,16 @@ the offset in the data region of the
 to the data contained in the returned mbuf is stored in
 .Fa *offsetp .
 If
-.Fa offp
+.Fa offsetp
 is NULL, the region may be accessed using
 .Fn mtod mbuf type .
 If
-.Fa offp
+.Fa offsetp
 is non-NULL, the region may be accessed using
-.Fn mtod mbuf uint8_t + *offsetp .
+.Fn mtod mbuf uint8_t
++ *offsetp.
 The region of the mbuf chain between its beginning and
-.Fa off
+.Fa offset
 is not modified, therefore it is safe to hold pointers to data within
 this region before calling
 .Fn m_pulldown .
