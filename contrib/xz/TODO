@@ -12,10 +12,6 @@ Known bugs
     it would be  possible by switching from BT2/BT3/BT4 match finder to
     HC3/HC4.
 
-    The code to detect number of CPU cores doesn't count hyperthreading
-    as multiple cores. In context of xz, it probably should.
-    Hyperthreading is good at least with p7zip.
-
     XZ Utils compress some files significantly worse than LZMA Utils.
     This is due to faster compression presets used by XZ Utils, and
     can often be worked around by using "xz --extreme". With some files
