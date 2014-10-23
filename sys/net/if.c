@@ -467,11 +467,10 @@ if_alloc(u_char type)
 	ifq_init(&ifp->if_snd, ifp);
 
 	refcount_init(&ifp->if_refcount, 1);	/* Index reference. */
-	ifnet_setbyindex(ifp->if_index, ifp);
-
 	for (int i = 0; i < IFCOUNTERS; i++)
 		ifp->if_counters[i] = counter_u64_alloc(M_WAITOK);
-
+	ifp->if_get_counter = if_get_counter_default;
+	ifnet_setbyindex(ifp->if_index, ifp);
 	return (ifp);
 }
 
@@ -673,9 +672,6 @@ if_attach_internal(struct ifnet *ifp, int vmove)
 		ifp->if_transmit = if_transmit;
 		ifp->if_qflush = if_qflush;
 	}
-
-	if (ifp->if_get_counter == NULL)
-		ifp->if_get_counter = if_get_counter_default;
 
 	if (!vmove) {
 #ifdef MAC
