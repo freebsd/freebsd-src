@@ -1,0 +1,128 @@
+.\" #
+.\" # Copyright (c) 2014, Juniper Networks, Inc.
+.\" # All rights reserved.
+.\" # This SOFTWARE is licensed under the LICENSE provided in the
+.\" # ../Copyright file. By downloading, installing, copying, or 
+.\" # using the SOFTWARE, you agree to be bound by the terms of that
+.\" # LICENSE.
+.\" # Phil Shafer, July 2014
+.\" 
+.Dd July, 2014
+.Dt LIBXO 3
+.Os
+.Sh NAME
+.Nm xo_emit
+.Nd emit formatted output based on format string and arguments
+.Sh LIBRARY
+.Lb libxo
+.Sh SYNOPSIS
+.In libxo/xo.h
+.Ft void
+.Fn xo_set_flags "xo_handle_t *handle" "unsigned flags"
+.Ft void
+.Fn xo_clear_flags "xo_handle_t *handle" "xo_xof_flags_t flags"
+.Sh DESCRIPTION
+Use the
+.Fn xo_set_flags
+function to set the flags for a
+.Em libxo
+handle. To use the default handle, pass a NULL handle.
+.Pp
+The set of valid flags include:
+.Bl -tag -width "XOF_UNDERSCORES"
+.It Sy "Flag            Description"
+.It XOF_CLOSE_FP
+Close file pointer on xo_destroy().  This
+flag will trigger the call of the close_func
+(provided via
+.Fn xo_set_writer 3 )
+when the handle is destroyed.
+.It XOF_DTRT
+Enable "do the right thing" mode
+.It XOF_INFO
+Display info data attributes (HTML)
+.It XOF_KEYS
+Emit the key attribute (XML)
+.It XOF_NO_ENV
+Do not use the LIBXO_OPTIONS env var
+.It XOF_PRETTY
+Make 'pretty printed' output, with the
+addition of indentation and newlines to enhance the readability of
+XML, JSON, and HTML output.  Text output is not affected.
+.It XOF_UNDERSCORES
+Replaces hyphens with underscores
+.It XOF_UNITS
+Display units (XML and HMTL)
+.It XOF_WARN
+Generate warnings for broken calls, triggering diagnostic
+output (on standard error) when the library notices errors during
+operations, or with arguments to functions.  Without warning enabled,
+such conditions are ignored.
+Warnings allow developers to debug their interaction with libxo.
+The function "xo_failure" can used as a breakpoint for a debugger,
+regardless of whether warnings are enabled.
+.It XOF_WARN_XML
+Generate warnings in XML on stdout
+.It XOF_XPATH
+Emit XPath expressions (HTML)
+.It XOF_COLUMNS
+Force xo_emit to return columns used
+.It XOF_FLUSH
+Flush output after each xo_emit call
+.El
+.Pp
+If the style is XO_STYLE_HTML, the following additional flags can be
+used:
+.Bl -tag -width "XOF_UNDERSCORES"
+.It Sy "Flag            Description"
+.It XOF_XPATH
+Emit "data-xpath" attributes
+.It XOF_INFO
+Emit additional informational fields for HTML
+output.  See
+.Xr xo_set_info 3
+for details.
+.El
+.Pp
+The
+.Em XOF_XPATH
+flag enables the emission of XPath expressions detailing
+the hierarchy of XML elements used to encode the data field, if the
+XPATH style of output were requested.
+.Pp
+If the style is XO_STYLE_XML, the following additional flags can be
+used:
+.Bl -tag -width "XOF_UNDERSCORES"
+.It Sy "Flag            Description"
+.It XOF_KEYS
+Add 'key' attribute to the XML encoding for
+field definitions that use the 'k' modifier.  The key attribute has
+the value "key".
+.El
+.Pp
+The xo_clear_flags() function turns off the given flags in a specific
+handle. 
+.Sh ADDITIONAL DOCUMENTATION
+.Pp
+Complete documentation can be found on github:
+.Bd -literal -offset indent
+http://juniper.github.io/libxo/libxo-manual.html
+.Ed
+.Pp
+libxo lives on github as:
+.Bd -literal -offset indent
+https://github.com/Juniper/libxo
+.Ed
+.Pp
+The latest release of libxo is available at:
+.Bd -literal -offset indent
+https://github.com/Juniper/libxo/releases
+.Ed
+.Sh SEE ALSO
+.Xr xo_emit 3
+.Sh HISTORY
+The
+.Fa libxo
+library was added in FreeBSD 11.0.
+.Sh AUTHOR
+Phil Shafer
