@@ -1602,7 +1602,8 @@ selfdfree(struct seltd *stp, struct selfd *sfp)
 	STAILQ_REMOVE(&stp->st_selq, sfp, selfd, sf_link);
 	if (sfp->sf_si != NULL) {
 		mtx_lock(sfp->sf_mtx);
-		TAILQ_REMOVE(&sfp->sf_si->si_tdlist, sfp, sf_threads);
+		if (sfp->sf_si != NULL)
+			TAILQ_REMOVE(&sfp->sf_si->si_tdlist, sfp, sf_threads);
 		mtx_unlock(sfp->sf_mtx);
 	}
 	uma_zfree(selfd_zone, sfp);
