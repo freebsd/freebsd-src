@@ -62,6 +62,8 @@ __FBSDID("$FreeBSD$");
 #include <netinet/ip_var.h>
 #include <netinet/igmp_var.h>
 
+#include <net/rt_nhops.h>
+
 #ifndef KTR_IGMPV3
 #define KTR_IGMPV3 KTR_INET
 #endif
@@ -1877,6 +1879,7 @@ inp_getmoptions(struct inpcb *inp, struct sockopt *sopt)
  * Returns NULL if no ifp could be found.
  *
  * SMPng: TODO: Acquire the appropriate locks for INADDR_TO_IFP.
+ * TODO: Provide guarantees @ifp won't disappear
  * FUTURE: Implement IPv4 source-address selection.
  */
 static struct ifnet *
@@ -1893,15 +1896,11 @@ inp_lookup_mcast_ifp(const struct inpcb *inp,
 	if (!in_nullhost(ina)) {
 		INADDR_TO_IFP(ina, ifp);
 	} else {
-		struct route ro;
-
-		ro.ro_rt = NULL;
-		memcpy(&ro.ro_dst, gsin, sizeof(struct sockaddr_in));
-		in_rtalloc_ign(&ro, 0, inp ? inp->inp_inc.inc_fibnum : 0);
-		if (ro.ro_rt != NULL) {
-			ifp = ro.ro_rt->rt_ifp;
-			KASSERT(ifp != NULL, ("%s: null ifp", __func__));
-			RTFREE(ro.ro_rt);
+		struct nhop4_basic nh4;
+	
+		if (fib4_lookup_nh_basic(inp ? inp->inp_inc.inc_fibnum : 0,
+		    gsin->sin_addr, 0, &nh4) != 0) {
+			return (nh4.nh_ifp);
 		} else {
 			struct in_ifaddr *ia;
 			struct ifnet *mifp;
