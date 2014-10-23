@@ -232,7 +232,7 @@ suffix_set(const char *suffix)
 	// Empty suffix and suffixes having a directory separator are
 	// rejected. Such suffixes would break things later.
 	if (suffix[0] == '\0' || has_dir_sep(suffix))
-		message_fatal(_("%s: Invalid filename suffix"), optarg);
+		message_fatal(_("%s: Invalid filename suffix"), suffix);
 
 	// Replace the old custom_suffix (if any) with the new suffix.
 	free(custom_suffix);
