@@ -1,5 +1,5 @@
-.\"	$NetBSD: zmore.1,v 1.3 2003/12/28 12:47:52 wiz Exp $
-.\"	$OpenBSD: zmore.1,v 1.3 2003/06/23 21:00:48 deraadt Exp $
+.\"	$NetBSD: zmore.1,v 1.4 2013/11/12 21:58:37 pettai Exp $
+.\"	$OpenBSD: zmore.1,v 1.10 2009/08/16 09:41:08 sobrado Exp $
 .\"
 .\" Copyright (c) 2003 Todd C. Miller <Todd.Miller@courtesan.com>
 .\"
@@ -20,16 +20,20 @@
 .\" Materiel Command, USAF, under agreement number F39502-99-1-0512.
 .\"
 .\" $FreeBSD$
-.Dd February 6, 2011
+.Dd October 22, 2014
 .Dt ZMORE 1
 .Os
 .Sh NAME
-.Nm zmore
+.Nm zmore ,
+.Nm zless
 .Nd view compressed files
 .Sh SYNOPSIS
 .Nm zmore
 .Op Ar flags
-.Op Ar file ...
+.Op Ar
+.Nm zless
+.Op Ar flags
+.Op Ar
 .Sh DESCRIPTION
 .Nm
 is a filter that allows the viewing of files compressed with Lempel-Ziv
@@ -50,6 +54,14 @@ that are specified are passed to the user's preferred
 (which is
 .Pa /usr/bin/more
 by default).
+.Pp
+.Nm zless
+is equivalent to
+.Nm zmore
+but uses
+.Xr less 1
+as a pager instead of
+.Xr more 1 .
 .Pp
 When multiple files are specified,
 .Nm
@@ -86,7 +98,11 @@ style compression since there is no suffix on which to make a decision.
 Program used to display files.
 If unset,
 .Pa /usr/bin/more
-is used.
+is used
+.Pq Nm zmore
+or
+.Pa /usr/bin/less
+.Pq Nm zless .
 .El
 .Sh SEE ALSO
 .Xr compress 1 ,
