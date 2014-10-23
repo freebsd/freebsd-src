@@ -106,6 +106,7 @@ SUBDIR=	${SUBDIR_ORDERED} \
 	${_libvgl} \
 	${_libvmmapi} \
 	libwrap \
+	libxo \
 	liby \
 	${_libypclnt} \
 	libz \
