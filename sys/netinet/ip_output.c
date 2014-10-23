@@ -101,9 +101,6 @@ SYSCTL_INT(_net_inet_ip, OID_AUTO, mbuf_frag_size, CTLFLAG_RW,
 #endif
 
 static void ip_mloopback (struct ifnet *, struct mbuf *, int);
-static inline int ip_sendmbuf(struct ifnet *ifp, struct mbuf *m,
-    struct nhop_data *nh, struct in_addr dst);
-
 
 extern int in_mcast_loop;
 extern	struct protosw inetsw[];
@@ -672,7 +669,7 @@ passout:
 		 */
 		m_clrprotoflags(m);
 		IP_PROBE(send, NULL, NULL, ip, ifp, ip, NULL);
-		error = ip_sendmbuf(ifp, m, nh, dst);
+		error = fib4_sendmbuf(ifp, m, nh, dst);
 		goto done;
 	}
 
@@ -709,7 +706,7 @@ passout:
 			m_clrprotoflags(m);
 
 			IP_PROBE(send, NULL, NULL, ip, ifp, ip, NULL);
-			error = ip_sendmbuf(ifp, m, nh, dst);
+			error = fib4_sendmbuf(ifp, m, nh, dst);
 		} else
 			m_freem(m);
 	}
@@ -724,45 +721,6 @@ done:
 bad:
 	m_freem(m);
 	goto done;
-}
-
-static inline int
-ip_sendmbuf(struct ifnet *ifp, struct mbuf *m, struct nhop_data *nh,
-    struct in_addr dst)
-{
-	int error;
-
-	if (nh != NULL && (nh->nh_flags & NH_FLAGS_L2_INCOMPLETE) == 0) {
-
-		/*
-		 * Fast path case. Most packets should
-		 * be sent from here.
-		 * TODO: Make special ifnet
-		 * 'if_output_frame' handler for that.
-		 */
-		struct route_compat rc;
-		struct ether_header *eh;
-		rc.ro_flags = AF_INET << 8 | RT_NHOP;
-		rc.ro_nh = nh;
-
-		M_PREPEND(m, nh->nh_count, M_NOWAIT);
-		if (m == NULL)
-			return (ENOBUFS);
-		eh = mtod(m, struct ether_header *);
-		memcpy(eh, nh->d.data, nh->nh_count);
-		error = (*ifp->if_output)(ifp, m,
-		    NULL, (struct route *)&rc);
-	} else {
-		struct sockaddr_in gw_out;
-		memset(&gw_out, 0, sizeof(gw_out));
-		gw_out.sin_len = sizeof(gw_out);
-		gw_out.sin_family = AF_INET;
-		gw_out.sin_addr = nh ? nh->d.gw4 : dst;
-		error = (*ifp->if_output)(ifp, m,
-		    (const struct sockaddr *)&gw_out, NULL);
-	}
-
-	return (error);
 }
 
 /*
