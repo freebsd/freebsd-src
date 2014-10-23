@@ -524,7 +524,7 @@ ATF_TP_ADD_TCS(tp)
 	ATF_TP_ADD_TC(tp, setrlimit_nofile_2);
 	ATF_TP_ADD_TC(tp, setrlimit_nproc);
 	ATF_TP_ADD_TC(tp, setrlimit_perm);
-#ifdef __FreeBSD__
+#ifdef __NetBSD__
 	ATF_TP_ADD_TC(tp, setrlimit_nthr);
 #endif
 
