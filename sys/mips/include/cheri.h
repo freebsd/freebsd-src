@@ -514,12 +514,12 @@ cheri_capability_store(u_int crn_from, struct chericap *cp)
  * Routines for measuring time -- depends on a later MIPS userspace cycle
  * counter.
  */
-static __inline uint64_t
+static __inline uint32_t
 cheri_get_cyclecount(void)
 {
 	uint64_t _time;
 	__asm __volatile("rdhwr %0, $2" : "=r" (_time));
-	return (_time);
+	return (_time & 0xffffffff);
 }
 
 #ifdef _KERNEL
