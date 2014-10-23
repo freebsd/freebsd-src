@@ -67,6 +67,9 @@ struct i2c_info {
 	int chip_id;
 };
 
+static void dump_i2c_data(struct i2c_info *ii, uint8_t addr, uint8_t off,
+    uint8_t len);
+
 struct _nv {
 	int v;
 	const char *n;
@@ -326,6 +329,9 @@ get_sfp_transceiver_class(struct i2c_info *ii, char *buf, size_t size)
 {
 	const char *tech_class;
 	uint8_t code;
+
+	unsigned char qbuf[8];
+	ii->f(ii, SFF_8472_BASE, SFF_8472_TRANS_START, 8, (caddr_t)qbuf);
 
 	/* Check 10G Ethernet/IB first */
 	ii->f(ii, SFF_8472_BASE, SFF_8472_TRANS_START, 1, (caddr_t)&code);
@@ -662,6 +668,30 @@ read_i2c_generic(struct i2c_info *ii, uint8_t addr, uint8_t off, uint8_t len,
 }
 
 static void
+dump_i2c_data(struct i2c_info *ii, uint8_t addr, uint8_t off, uint8_t len)
+{
+	unsigned char buf[16];
+	int i, read;
+
+	while (len > 0) {
+		memset(buf, 0, sizeof(buf));
+		read = (len > sizeof(buf)) ? sizeof(buf) : len;
+		ii->f(ii, addr, off, read, buf);
+		if (ii->error != 0) {
+			fprintf(stderr, "Error reading i2c info\n");
+			return;
+		}
+
+		printf("\t");
+		for (i = 0; i < read; i++)
+			printf("%02X ", buf[i]);
+		printf("\n");
+		len -= read;
+		off += read;
+	}
+}
+
+static void
 print_qsfp_status(struct i2c_info *ii, int verbose)
 {
 	char buf[80], buf2[40], buf3[40];
@@ -703,6 +733,13 @@ print_qsfp_status(struct i2c_info *ii, int verbose)
 			printf("\tlane %d: RX: %s TX: %s\n", i, buf, buf2);
 		}
 	}
+
+	if (verbose > 2) {
+		printf("\n\tSFF8436 DUMP (0xA0 128..255 range):\n");
+		dump_i2c_data(ii, SFF_8436_BASE, 128, 128);
+		printf("\n\tSFF8436 DUMP (0xA0 0..81 range):\n");
+		dump_i2c_data(ii, SFF_8436_BASE, 0, 82);
+	}
 }
 
 static void
@@ -730,12 +767,12 @@ print_sfp_status(struct i2c_info *ii, int verbose)
 	get_sfp_connector(ii, buf3, sizeof(buf3));
 	if (ii->error == 0)
 		printf("\tplugged: %s %s (%s)\n", buf, buf2, buf3);
-	if (verbose > 2)
-		printf_sfp_transceiver_descr(ii, buf, sizeof(buf));
 	print_sfp_vendor(ii, buf, sizeof(buf));
 	if (ii->error == 0)
 		printf("\t%s\n", buf);
 
+	if (verbose > 5)
+		printf_sfp_transceiver_descr(ii, buf, sizeof(buf));
 	/*
 	 * Request current measurements iff they are provided:
 	 */
@@ -746,6 +783,11 @@ print_sfp_status(struct i2c_info *ii, int verbose)
 		get_sfp_rx_power(ii, buf, sizeof(buf));
 		get_sfp_tx_power(ii, buf2, sizeof(buf2));
 		printf("\tRX: %s TX: %s\n", buf, buf2);
+	}
+
+	if (verbose > 2) {
+		printf("\n\tSFF8472 DUMP (0xA0 0..127 range):\n");
+		dump_i2c_data(ii, SFF_8472_BASE, 0, 128);
 	}
 }
 
