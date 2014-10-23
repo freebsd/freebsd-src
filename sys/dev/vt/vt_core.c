@@ -2218,6 +2218,11 @@ skip_thunk:
 		vtfont_unref(vf);
 		return (error);
 	}
+	case PIO_VFONT_DEFAULT: {
+		/* Reset to default font. */
+		error = vt_change_font(vw, &vt_font_default);
+		return (error);
+	}
 	case GIO_SCRNMAP: {
 		scrmap_t *sm = (scrmap_t *)data;
 
