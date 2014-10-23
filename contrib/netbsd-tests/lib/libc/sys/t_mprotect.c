@@ -44,7 +44,9 @@ __RCSID("$NetBSD: t_mprotect.c,v 1.3 2011/07/20 22:53:44 jym Exp $");
 
 #include <atf-c.h>
 
+#ifdef __NetBSD__
 #include "../common/exec_prot.h"
+#endif
 
 static long	page = 0;
 static int	pax_global = -1;
@@ -160,6 +162,7 @@ ATF_TC_BODY(mprotect_err, tc)
 	ATF_REQUIRE(errno == EINVAL);
 }
 
+#ifdef __NetBSD__
 ATF_TC(mprotect_exec);
 ATF_TC_HEAD(mprotect_exec, tc)
 {
@@ -242,6 +245,7 @@ ATF_TC_BODY(mprotect_exec, tc)
 		break;
 	}
 }
+#endif
 
 ATF_TC(mprotect_pax);
 ATF_TC_HEAD(mprotect_pax, tc)
@@ -351,7 +355,9 @@ ATF_TP_ADD_TCS(tp)
 
 	ATF_TP_ADD_TC(tp, mprotect_access);
 	ATF_TP_ADD_TC(tp, mprotect_err);
+#ifdef __NetBSD__
 	ATF_TP_ADD_TC(tp, mprotect_exec);
+#endif
 	ATF_TP_ADD_TC(tp, mprotect_pax);
 	ATF_TP_ADD_TC(tp, mprotect_write);
 
