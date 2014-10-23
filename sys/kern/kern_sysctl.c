@@ -280,11 +280,10 @@ sysctl_load_tunable_by_oid_locked(struct sysctl_oid *oidp)
 	}
 	error = sysctl_root_handler_locked(oidp, oidp->oid_arg1,
 	    oidp->oid_arg2, &req);
-	if (error != 0) {
-		printf("Setting sysctl '%s' to '%s' failed: %d\n",
-		    path, penv, error);
-	}
-	freeenv(penv);
+	if (error != 0)
+		printf("Setting sysctl %s failed: %d\n", path, error);
+	if (penv != NULL)
+		freeenv(penv);
 }
 
 void
