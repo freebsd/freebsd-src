@@ -41,7 +41,12 @@
 
 #include "gpio_if.h"
 
+#ifdef FDT
+#define	GPIOBUS_IVAR(d) (struct gpiobus_ivar *)				\
+	&((struct ofw_gpiobus_devinfo *)device_get_ivars(d))->opd_dinfo
+#else
 #define	GPIOBUS_IVAR(d) (struct gpiobus_ivar *) device_get_ivars(d)
+#endif
 #define	GPIOBUS_SOFTC(d) (struct gpiobus_softc *) device_get_softc(d)
 #define	GPIOBUS_LOCK(_sc) mtx_lock(&(_sc)->sc_mtx)
 #define	GPIOBUS_UNLOCK(_sc) mtx_unlock(&(_sc)->sc_mtx)
