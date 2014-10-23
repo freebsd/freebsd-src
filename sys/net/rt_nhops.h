@@ -198,6 +198,9 @@ void fib4_choose_prepend(uint32_t fibnum, struct nhop_data *nh_src,
 int fib4_lookup_prepend(uint32_t fibnum, struct in_addr dst, struct mbuf *m,
     struct nhop_data *nh, struct nhop4_extended *nh_ext);
 
+int fib4_sendmbuf(struct ifnet *ifp, struct mbuf *m, struct nhop_data *nh,
+    struct in_addr dst);
+
 void fib6_free_nh(uint32_t fibnum, struct nhop_data *nh);
 void fib6_choose_prepend(uint32_t fibnum, struct nhop_data *nh_src,
     uint32_t flowid, struct nhop_data *nh, struct nhop6_extended *nh_ext);

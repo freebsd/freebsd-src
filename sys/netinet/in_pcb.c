@@ -91,6 +91,7 @@ __FBSDID("$FreeBSD$");
 #include <netinet6/in6_var.h>
 #include <netinet6/ip6_var.h>
 #endif /* INET6 */
+#include <net/rt_nhops.h>
 
 
 #ifdef IPSEC
@@ -750,8 +751,10 @@ in_pcbladdr(struct inpcb *inp, struct in_addr *faddr, struct in_addr *laddr,
 {
 	struct ifaddr *ifa;
 	struct sockaddr *sa;
-	struct sockaddr_in *sin;
-	struct route sro;
+	struct sockaddr_in *sin, sin_storage;
+	struct nhop_data nhd, *pnhd;
+	struct nhop4_extended nh_ext;
+	u_int fibnum;
 	int error;
 
 	KASSERT(laddr != NULL, ("%s: laddr NULL", __func__));
@@ -764,9 +767,8 @@ in_pcbladdr(struct inpcb *inp, struct in_addr *faddr, struct in_addr *laddr,
 		return (0);
 
 	error = 0;
-	bzero(&sro, sizeof(sro));
 
-	sin = (struct sockaddr_in *)&sro.ro_dst;
+	sin = &sin_storage;
 	sin->sin_family = AF_INET;
 	sin->sin_len = sizeof(struct sockaddr_in);
 	sin->sin_addr.s_addr = faddr->s_addr;
@@ -777,8 +779,17 @@ in_pcbladdr(struct inpcb *inp, struct in_addr *faddr, struct in_addr *laddr,
 	 *
 	 * Find out route to destination.
 	 */
+	fibnum = inp->inp_inc.inc_fibnum;
+	pnhd = &nhd;
+	memset(&nhd, 0, sizeof(nhd));
+	memset(&nh_ext, 0, sizeof(nh_ext));
 	if ((inp->inp_socket->so_options & SO_DONTROUTE) == 0)
-		in_rtalloc_ign(&sro, 0, inp->inp_inc.inc_fibnum);
+		error = fib4_lookup_prepend(fibnum, *faddr,
+		    NULL, &nhd, &nh_ext);
+	if (error != 0) {
+		pnhd = NULL;
+		error = 0;
+	}
 
 	/*
 	 * If we found a route, use the address corresponding to
@@ -788,7 +799,7 @@ in_pcbladdr(struct inpcb *inp, struct in_addr *faddr, struct in_addr *laddr,
 	 * network and try to find a corresponding interface to take
 	 * the source address from.
 	 */
-	if (sro.ro_rt == NULL || sro.ro_rt->rt_ifp == NULL) {
+	if (pnhd == NULL) {
 		struct in_ifaddr *ia;
 		struct ifnet *ifp;
 
@@ -844,23 +855,22 @@ in_pcbladdr(struct inpcb *inp, struct in_addr *faddr, struct in_addr *laddr,
 	 *    belonging to this jail. If so use it.
 	 * 3. as a last resort return the 'default' jail address.
 	 */
-	if ((sro.ro_rt->rt_ifp->if_flags & IFF_LOOPBACK) == 0) {
+	if ((nh_ext.nh_ifp->if_flags & IFF_LOOPBACK) == 0) {
 		struct in_ifaddr *ia;
 		struct ifnet *ifp;
+		struct in_addr addr;
 
 		/* If not jailed, use the default returned. */
 		if (cred == NULL || !prison_flag(cred, PR_IP4)) {
-			ia = (struct in_ifaddr *)sro.ro_rt->rt_ifa;
-			laddr->s_addr = ia->ia_addr.sin_addr.s_addr;
+			laddr->s_addr = nh_ext.nh_src.s_addr;
 			goto done;
 		}
 
 		/* Jailed. */
 		/* 1. Check if the iface address belongs to the jail. */
-		sin = (struct sockaddr_in *)sro.ro_rt->rt_ifa->ifa_addr;
-		if (prison_check_ip4(cred, &sin->sin_addr) == 0) {
-			ia = (struct in_ifaddr *)sro.ro_rt->rt_ifa;
-			laddr->s_addr = ia->ia_addr.sin_addr.s_addr;
+		addr = nh_ext.nh_src;
+		if (prison_check_ip4(cred, &addr) == 0) {
+			laddr->s_addr = nh_ext.nh_src.s_addr;
 			goto done;
 		}
 
@@ -869,7 +879,7 @@ in_pcbladdr(struct inpcb *inp, struct in_addr *faddr, struct in_addr *laddr,
 		 *    belonging to this jail.
 		 */
 		ia = NULL;
-		ifp = sro.ro_rt->rt_ifp;
+		ifp = nh_ext.nh_ifp;
 		IF_ADDR_RLOCK(ifp);
 		TAILQ_FOREACH(ifa, &ifp->if_addrhead, ifa_link) {
 			sa = ifa->ifa_addr;
@@ -902,7 +912,7 @@ in_pcbladdr(struct inpcb *inp, struct in_addr *faddr, struct in_addr *laddr,
 	 * In case of jails, check that it is an address of the jail
 	 * and if we cannot find, fall back to the 'default' jail address.
 	 */
-	if ((sro.ro_rt->rt_ifp->if_flags & IFF_LOOPBACK) != 0) {
+	if ((nh_ext.nh_ifp->if_flags & IFF_LOOPBACK) != 0) {
 		struct sockaddr_in sain;
 		struct in_ifaddr *ia;
 
@@ -963,8 +973,8 @@ in_pcbladdr(struct inpcb *inp, struct in_addr *faddr, struct in_addr *laddr,
 	}
 
 done:
-	if (sro.ro_rt != NULL)
-		RTFREE(sro.ro_rt);
+	if (pnhd != NULL)
+		fib4_free_nh(fibnum, pnhd);
 	return (error);
 }
 
