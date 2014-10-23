@@ -1,0 +1,2400 @@
+#
+# Copyright (c) 2014, Juniper Networks, Inc.
+# All rights reserved.
+# This SOFTWARE is licensed under the LICENSE provided in the
+# ../Copyright file. By downloading, installing, copying, or 
+# using the SOFTWARE, you agree to be bound by the terms of that
+# LICENSE.
+# Phil Shafer, July 2014
+#
+
+* libxo
+
+libxo - A Library for Generating Text, XML, JSON, and HTML Output
+
+You live in the present, but you want to live in the future.  You'd
+love a flying car, but need to get to work today.  You want to support
+features like XML, JSON, and HTML rendering to allow integration with
+NETCONF, REST, and web browsers, but you need to make text output for
+command line users.  And you don't want multiple code paths that can't
+help but get out of sync.  None of this "if (xml) {... } else {...}"
+logic.  And ifdefs are right out.  But you'd really, really like all
+the fancy features that modern encoding formats can provide.
+
+The libxo library allows an application to generate text, XML, JSON,
+and HTML output using a common set of function calls.  The application
+decides at run time which output style should be produced.  The
+application calls a function "xo_emit" to product output that is
+described in a format string.  A "field descriptor" tells libxo what
+the field is and what it means.  Each field descriptor is placed in
+braces with a printf-like format string:
+
+    xo_emit(" {:lines/%7ju} {:words/%7ju} "
+            "{:characters/%7ju}{d:filename/%s}\n",
+            linect, wordct, charct, file);
+
+Each field can have a role, with the 'value' role being the default,
+and the role tells libxo how and when to render that field.  Output
+can then be generated in various style, using the "--libxo" option:
+
+    % wc /etc/motd
+          25     165    1140 /etc/motd
+    % wc --libxo xml,pretty,warn /etc/motd
+    <wc>
+      <file>
+        <filename>/etc/motd</filename>
+        <lines>25</lines>
+        <words>165</words>
+        <characters>1140</characters>
+      </file>
+    </wc>
+    % wc --libxo json,pretty,warn /etc/motd
+    {
+      "wc": {
+        "file": [
+          {
+            "filename": "/etc/motd",
+            "lines": 25,
+            "words": 165,
+            "characters": 1140
+          }
+        ]
+      }
+    }
+    % wc --libxo html,pretty,warn /etc/motd
+    <div class="line">
+      <div class="text"> </div>
+      <div class="data" data-tag="lines">     25</div>
+      <div class="text"> </div>
+      <div class="data" data-tag="words">    165</div>
+      <div class="text"> </div>
+      <div class="data" data-tag="characters">   1140</div>
+      <div class="text"> </div>
+      <div class="data" data-tag="filename">/etc/motd</div>
+    </div>
+
+** Getting libxo
+
+libxo lives on github as:
+
+  https://github.com/Juniper/libxo
+
+The latest release of libxo is available at:
+
+  https://github.com/Juniper/libxo/releases
+
+We are following the branching scheme from 
+^http://nvie.com/posts/a-successful-git-branching-model/^
+which means we will do development under the "develop" branch, and
+release from the master.  To clone a developer tree, run the following
+command:
+
+  git clone https://github.com/Juniper/libxo.git -b develop
+
+We're using semantic release numbering.
+
+* Overview
+
+Most unix commands emit text output aimed at humans.  It is designed
+to be parsed and understood by a user.  Humans are gifted at extracted
+details and pattern matching.  Often programmers need to extract
+information from this human-oriented output.  Programmers use tools
+like grep, awk, and regular expressions to ferret out the pieces of
+information they need.  Such solutions are fragile and require
+updates when output contents change or evolve, requiring testing and
+validation.
+
+Modern tool developers favors encoding schemes like XML and JSON,
+which allow trivial parsing and extraction of data.  Such formats are
+simple, well understood, hierarchical, easily parsed, and often
+integrate easier with common tools and environments.
+
+In addition, modern reality means that more output ends up in web
+browsers than in terminals, making HTML output valuable.
+
+libxo allows a single set of function calls in source code to generate
+traditional text output, as well as XML and JSON formatted data.  HTML
+can also be generated; "<div>" elements surround the traditional text
+output, with attributes that detail how to render the data.
+
+A single libxo function call in source code is all that's required:
+
+    xo_emit("Connecting to {:host}.{:domain}...\n", host, domain);
+
+    Text:
+      Connection to my-box.example.com...
+    XML:
+      <host>my-box</host>
+      <domain>example.com</domain>
+    JSON:
+      "host": my-box",
+      "domain": "example.com"
+      
+For brevity, the HTML output is emitted.
+
+** Encoding Styles
+
+There are four encoding styles supported by libxo: TEXT, HTML, JSON,
+and XML.  JSON and XML are suitable for encoding data, while TEXT and
+HTML are suited for display to the user.  TEXT output can be display
+on a terminal session, allowing compatibility with traditional usage.
+HTML can be matched with a small CSS file to permit rendering in any
+HTML5 browser.  XML output is suitable for tools like XPath and
+protocols like NETCONF.  JSON output can be used for RESTful APIs.
+
+*** Text Output
+
+Most traditional programs generate text output on standard output,
+with contents like:
+
+    36      ./src
+    40      ./bin
+    90      .
+
+In this example (taken from du source code), the code to generate this
+data might look like:
+
+    printf("%d\t%s\n", num_blocks, path);
+
+Simple, direct, obvious.  But it's only making text output.  Imagine
+using a single code path to make text, XML, JSON or HTML, deciding at
+run time which to generate.
+
+libxo expands on the idea of printf format strings to make a single
+format containing instructions for creating multiple output styles:
+
+    xo_emit("{:blocks/%d}\t{:path/%s}\n", num_blocks, path);
+
+This line will generate the same text output as the earlier printf
+call, but also has enough information to generate XML, JSON, and HTML.
+
+The following sections introduce the other formats.
+
+*** XML Output
+
+XML output consists of a hierarchical set of elements, each encoded
+with a start tag and an end tag.  The element should be named for data
+value that it is encoding:
+
+    <item>
+      <blocks>36</blocks>
+      <path>./src</path>
+    </item>
+    <item>
+      <blocks>40</blocks>
+      <path>./bin</path>
+    </item>
+    <item>
+      <blocks>90</blocks>
+      <path>.</path>
+    </item>
+
+XML is a W3C standard for encoding data.  See w3c.org/TR/xml for
+additional information.
+
+*** JSON Output
+
+JSON output consists of a hierarchical set of objects and lists, each
+encoded with a quoted name, a colon, and a value.  If the value is a
+string, it must be quoted, but numbers are not quoted.  Objects are
+encoded using braces; lists are encoded using square brackets.
+Data inside objects and lists is separated using commas:
+
+    items: [
+        { "blocks": 36, "path" : "./src" },
+        { "blocks": 40, "path" : "./bin" },
+        { "blocks": 90, "path" : "./" }
+    ]
+
+*** HTML Output
+
+HTML output is designed to allow the output to be rendered in a web
+browser with minimal effort.  Each piece of output data is rendered
+inside a <div> element, with a class name related to the role of the
+data.  By using a small set of class attribute values, a CSS
+stylesheet can render the HTML into rich text that mirrors the
+traditional text content.
+
+Additional attributes can be enabled to provide more details about the
+data, including data type, description, and an XPath location.
+
+    <div class="line">
+      <div class="data" data-tag="blocks">36</div>
+      <div class="padding">      </div>
+      <div class="data data-tag="path">./src</div>
+    </div>
+    <div class="line">
+      <div class="data" data-tag="blocks">40</div>
+      <div class="padding">      </div>
+      <div class="data data-tag="path">./bin</div>
+    </div>
+    <div class="line">
+      <div class="data" data-tag="blocks">90</div>
+      <div class="padding">      </div>
+      <div class="data data-tag="path">./</div>
+    </div>
+
+** Format Strings @format-strings@
+
+libxo uses format strings to control the rendering of data into the
+various output styles.  Each format string contains a set of zero or
+more field descriptions, which describe independent data fields.  Each
+field description contains a set of modifiers, a content string, and
+zero, one, or two format descriptors.  The modifiers tell libxo what
+the field is and how to treat it, while the format descriptors are
+formatting instructions using printf-style format strings, telling
+libxo how to format the field.  The field description is placed inside
+a set of braces, with a colon (":") after the modifiers and a slash
+("/") before each format descriptors.  Text may be intermixed with
+field descriptions within the format string.
+
+The field description is given as follows:
+
+    '{' [ role | modifier ]* ':' [ content ]
+            [ '/' field-format [ '/' encoding-format ]] '}'
+
+The role describes the function of the field, while the modifiers
+enable optional behaviors.  The contents, field-format, and
+encoding-format are used in varying ways, based on the role.  These
+are described in the following sections.
+
+In the following example, three field descriptors appear.  The first
+is a padding field containing three spaces of padding, the second is a
+label ("In stock"), and the third is a value field ("in-stock").  The
+in-stock field has a "%u" format that will parse the next argument
+passed to the xo_emit function as an unsigned integer.
+
+        xo_emit("{P:   }{Lwc:In stock}{:in-stock/%u}\n", 65);
+
+This single line of code can generate text (" In stock: 65\n"), XML
+("<in-stock>65</in-stock>"), JSON ('"in-stock": 6'), or HTML (too
+lengthy to be listed here).
+
+*** Modifier Roles
+
+Modifiers are optional, and indicate the role and formatting of the
+content.  The roles are listed below; only one role is permitted:
+
+|---+--------------+-------------------------------------------------|
+| M | Name         | Description                                     |
+|---+--------------+-------------------------------------------------|
+| D | decoration   | Field is non-text (e.g. colon, comma)           |
+| E | error        | Field is an error message                       |
+| L | label        | Field is text that prefixes a value             |
+| N | note         | Field is text that follows a value              |
+| P | padding      | Field is spaces needed for vertical alignment   |
+| T | title        | Field is a title value for headings             |
+| U | units        | Field is the units for the previous value field |
+| V | value        | Field is the name of field (the default)        |
+| W | warning      | Field is a warning message                      |
+| [ | start anchor | Begin a section of anchored variable-width text |
+| ] | stop anchor  | End a section of anchored variable-width text   |
+|---+--------------+-------------------------------------------------|
+
+**** The Decoration Role ({D:})
+
+Decorations are typically punctuation marks such as colons,
+semi-colons, and commas used to decorate the text and make it simpler
+for human readers.  By marking these distinctly, HTML usage scenarios
+can use CSS to direct their display parameters.
+
+    xo_emit("{D:((}{:name}{D:))}\n", name);
+
+**** The Label Role ({L:})
+
+Labels are text that appears before a value.
+
+    xo_emit("{Lwc:Cost}{:cost/%u}\n", cost);
+
+**** The Note Role ({N:})
+
+Notes are text that appears after a value.
+
+    xo_emit("{:cost/%u} {N:per year}\n", cost);
+
+**** The Padding Role ({P:})
+
+Padding represents whitespace used before and between fields.
+
+The padding content can be either static, when placed directly within
+the field descriptor, or a printf-style format descriptor can be used,
+if preceded by a slash ("/"):
+
+    xo_emit("{P:        }{Lwc:Cost}{:cost/%u}\n", cost);
+    xo_emit("{P:/30s}{Lwc:Cost}{:cost/%u}\n", "", cost);
+
+**** The Title Role ({T:})
+
+Title are heading or column headers that are meant to be displayed to
+the user.  The title can be either static, when placed directly within
+the field descriptor, or a printf-style format descriptor can be used,
+if preceded by a slash ("/"):
+
+    xo_emit("{T:Interface Statistics}\n");
+    xo_emit("{T:/%20.20s}{T:/%6.6s}\n", "Item Name", "Cost");
+
+**** The Units Role ({U:})
+
+Units are the dimension by which values are measured, such as degrees,
+miles, bytes, and decibels.  The units field carries this information
+for the previous value field.
+
+    xo_emit("{Lwc:Distance}{:distance/%u}{Uw:miles}\n", miles);
+
+Note that the sense of the 'w' modifier is reversed for units;
+a blank is added before the contents, rather than after it.
+
+When the XOF_UNITS flag is set, units are rendered in XML as the
+"units" attribute:
+
+    <distance units="miles">50</distance>
+
+Units can also be rendered in HTML as the "data-units" attribute:
+
+    <div class="data" data-tag="distance" data-units="miles"
+         data-xpath="/top/data/distance">50</div>
+
+**** The Value Role ({V:} and {:})
+
+The value role is used to represent the a data value that is
+interesting for the non-display output styles (XML and JSON).  Value
+is the default role; if no other role designation is given, the field
+is a value.  The field name must appear within the field descriptor,
+followed by one or two format descriptors.  The first format
+descriptor is used for display styles (TEXT and HTML), while the
+second one is used for encoding styles (XML and JSON).  If no second
+format is given, the encoding format defaults to the first format,
+with any minimum width removed.  If no first format is given, both
+format descriptors default to "%s".
+
+    xo_emit("{:length/%02u}x{:width/%02u}x{:height/%02u}\n",
+            length, width, height);
+    xo_emit("{:author} wrote \"{:poem}\" in {:year/%4d}\n,
+            author, poem, year);
+
+**** The Anchor Modifiers ({[:} and {]:})
+
+The anchor roles allow a set of strings by be padded as a group,
+but still be visible to xo_emit as distinct fields.  Either the start
+or stop anchor can give a field width and it can be either directly in
+the descriptor or passed as an argument.  Any fields between the start
+and stop anchor are padded to meet the minimum width given.
+
+To give a width directly, encode it as the content of the anchor tag:
+
+    xo_emit("({[:10}{:min/%d}/{:max/%d}{]:})\n", min, max);
+
+To pass a width as an argument, use "%d" as the format, which must
+appear after the "/".  Note that only "%d" is supported for widths.
+Using any other value could ruin your day.
+
+    xo_emit("({[:/%d}{:min/%d}/{:max/%d}{]:})\n", width, min, max);
+
+If the width is negative, padding will be added on the right, suitable
+for left justification.  Otherwise the padding will be added to the
+left of the fields between the start and stop anchors, suitable for
+right justification.  If the width is zero, nothing happens.  If the
+number of columns of output between the start and stop anchors is less
+than the absolute value of the given width, nothing happens.
+
+Widths over 8k are considered probable errors and not supported.  If
+XOF_WARN is set, a warning will be generated.
+
+*** Modifier Flags
+
+The modifiers can also include the following flags, which modify the
+content emitted for some output styles:
+
+|---+--------------+-------------------------------------------------|
+| M | Name         | Description                                     |
+|---+--------------+-------------------------------------------------|
+| c | colon        | A colon (":") is appended after the label       |
+| d | display      | Only emit field for display styles (text/HTML)  |
+| e | encoding     | Only emit for encoding styles (XML/JSON)        |
+| k | key          | Field is a key, suitable for XPath predicates   |
+| n | no-quotes    | Do not quote the field when using JSON style    |
+| q | quotes       | Quote the field when using JSON style           |
+| w | white space  | A blank (" ") is appended after the label       |
+|---+--------------+-------------------------------------------------|
+
+For example, the modifier string "Lwc" means the field has a label
+role (text that describes the next field) and should be followed by a
+colon ('c') and a space ('w').  The modifier string "Vkq" means the
+field has a value role, that it is a key for the current instance, and
+that the value should be quoted when encoded for JSON.
+
+**** The Colon Modifier ({c:})
+
+The colon modifier appends a single colon to the data value:
+
+    EXAMPLE:
+      xo_emit("{Lc:Name}{:name}\n", "phil");
+    TEXT:
+      Name:phil
+
+The colon modifier is only used for the TEXT and HTML output
+styles. It is commonly combined with the space modifier ('{w:').
+It is purely a convenience feature.
+
+**** The Display Modifier ({d:})
+
+The display modifier indicated the field should only be generated for
+the display output styles, TEXT and HTML.
+
+    EXAMPLE:
+      xo_emit("{Lcw:Name}{d:name} {:id/%d}\n", "phil", 1);
+    TEXT:
+      Name: phil 1
+    XML:
+      <id>1</id>
+
+The display modifier is the opposite of the encoding modifier, and
+they are often used to give to distinct views of the underlying data.
+
+**** The Encoding Modifier ({e:}) @e-modifier@
+
+The display modifier indicated the field should only be generated for
+the display output styles, TEXT and HTML.
+
+    EXAMPLE:
+      xo_emit("{Lcw:Name}{:name} {e:id/%d}\n", "phil", 1);
+    TEXT:
+      Name: phil
+    XML:
+      <name>phil</name><id>1</id>
+
+The encoding modifier is the opposite of the display modifier, and
+they are often used to give to distinct views of the underlying data.
+
+**** The Key Modifier ({k:})
+
+The key modifier is used to indicate that a particular field helps
+uniquely identify an instance of list data.
+
+    EXAMPLE:
+        xo_open_list("user");
+        for (i = 0; i < num_users; i++) {
+	    xo_open_instance("user");
+            xo_emit("User {k:name} has {:count} tickets\n",
+               user[i].u_name, user[i].u_tickets);
+            xo_close_instance("user");
+        }
+        xo_close_list("user");
+
+Currently the key modifier is only used when generating XPath value
+for the HTML output style when XOF_XPATH is set, but other uses are
+likely in the near future.
+
+**** The No-Quotes Modifier ({n:})
+
+The no-quotes modifier (and its twin, the 'quotes' modifier) affect
+the quoting of values in the JSON output style.  JSON uses quotes for
+string value, but no quotes for numeric, boolean, and null data.
+xo_emit applies a simple heuristic to determine whether quotes are
+needed, but often this needs to be controlled by the caller.
+
+    EXAMPLE:
+      const char *bool = is_true ? "true" : "false";
+      xo_emit("{n:fancy/%s}", bool);
+    JSON:
+      "fancy": true
+
+**** The Quotes Modifier ({q:})
+
+The quotes modifier (and its twin, the 'no-quotes' modifier) affect
+the quoting of values in the JSON output style.  JSON uses quotes for
+string value, but no quotes for numeric, boolean, and null data.
+xo_emit applies a simple heuristic to determine whether quotes are
+needed, but often this needs to be controlled by the caller.
+
+    EXAMPLE:
+      xo_emit("{q:time/%d}", 2014);
+    JSON:
+      "year": "2014"
+
+**** The White Space Modifier ({w:})
+
+The white space modifier appends a single space to the data value:
+
+    EXAMPLE:
+      xo_emit("{Lw:Name}{:name}\n", "phil");
+    TEXT:
+      Name phil
+
+The white space modifier is only used for the TEXT and HTML output
+styles. It is commonly combined with the colon modifier ('{c:').
+It is purely a convenience feature.
+
+Note that the sense of the 'w' modifier is reversed for the units role
+({Uw:}); a blank is added before the contents, rather than after it.
+
+*** Field Formatting
+
+The field format is similar to the format string for printf(3).  It's
+used varies based on the role of the field, but generally is used to
+format the field's contents.
+
+If not provided, the format string defaults to "%s".
+
+Note a field definition can contain zero or more printf-style
+'directives', which are sequences that start with a '%' and end with a
+one of following characters: "diouxXDOUeEfFgGaAcCsSp".  Each directive
+is matched by one of more arguments to the xo_emit function.
+
+The format string has the form:
+
+  '%' format-modifier * format-character
+
+The format- modifier can be:
+- a '#' character, indicating the output value should be prefixed with
+'0x', typically to indicate a base 16 (hex) value.
+- a minus sign ('-'), indicating the output value should be padded on
+the right instead of the left.
+- a leading zero ('0') indicating the output value should be padded on the
+left with zeroes instead of spaces (' ').
+- one or more digits ('0' - '9') indicating the minimum width of the
+argument.  If the width in columns of the output value is less that
+the minumum width, the value will be padded to reach the minimum.
+- a period followed by one or more digits indicating the maximum
+number of bytes which will be examined for a string argument, or the maximum
+width for a non-string argument.  When handling ASCII strings this is
+functions as the field width but for multi-byte characters, a single
+character may be composed of multiple bytes.
+xo_emit will never dereference memory beyond the given number of bytes.
+- a second period followed by one or more digits indicating the maximum
+width for a string argument.  This modifier cannot be given for non-string
+arguments. 
+- one or more 'h' characters, indicating shorter input data.
+- one or more 'l' characters, indicating longer input data.
+- a 'z' character, indicating a 'size_t' argument.
+- a 't' character, indicating a 'ptrdiff_t' argument.
+- a ' ' character, indicating a space should be emitted before
+positive numbers.
+- a '+' character, indicating sign should emitted before any number.
+
+Note that 'q', 'D', 'O', and 'U' are considered deprecated and will be
+removed eventually.
+
+The format character is described in the following table:
+
+|-----+-----------------+----------------------|
+| Ltr | Argument Type   | Format               |
+|-----+-----------------+----------------------|
+| d   | int             | base 10 (decimal)    |
+| i   | int             | base 10 (decimal)    |
+| o   | int             | base 8 (octal)       |
+| u   | unsigned        | base 10 (decimal)    |
+| x   | unsigned        | base 16 (hex)        |
+| X   | unsigned long   | base 16 (hex)        |
+| D   | long            | base 10 (decimal)    |
+| O   | unsigned long   | base 8 (octal)       |
+| U   | unsigned long   | base 10 (decimal)    |
+| e   | double          | [-]d.ddde+-dd        |
+| E   | double          | [-]d.dddE+-dd        |
+| f   | double          | [-]ddd.ddd           |
+| F   | double          | [-]ddd.ddd           |
+| g   | double          | as 'e' or 'f'        |
+| G   | double          | as 'E' or 'F'        |
+| a   | double          | [-]0xh.hhhp[+-]d     |
+| A   | double          | [-]0Xh.hhhp[+-]d     |
+| c   | unsigned char   | a character          |
+| C   | wint_t          | a character          |
+| s   | char *          | a UTF-8 string       |
+| S   | wchar_t *       | a unicode/WCS string |
+| p   | void *          | '%#lx'               |
+|-----+-----------------+----------------------|
+
+The 'h' and 'l' modifiers affect the size and treatment of the
+argument:
+
+|-----+-------------+--------------------|
+| Mod | d, i        | o, u, x, X         |
+|-----+-------------+--------------------|
+| hh  | signed char | unsigned char      |
+| h   | short       | unsigned short     |
+| l   | long        | unsigned long      |
+| ll  | long long   | unsigned long long |
+| j   | intmax_t    | uintmax_t          |
+| t   | ptrdiff_t   | ptrdiff_t          |
+| z   | size_t      | size_t             |
+| q   | quad_t      | u_quad_t           |
+|-----+-------------+--------------------|
+
+*** UTF-8 and Locale Strings
+
+For strings, the 'h' and 'l' modifiers affect the interpretation of
+the bytes pointed to argument.  The default '%s' string is a 'char *'
+pointer to a string encoded as UTF-8.  Since UTF-8 is compatible with
+ASCII data, a normal 7-bit ASCII string can be used.  '%ls' expects a
+'wchar_t *' pointer to a wide-character string, encoded as a 32-bit
+Unicode values.  '%hs' expects a 'char *' pointer to a multi-byte
+string encoded with the current locale, as given by the LC_CTYPE,
+LANG, or LC_ALL environment varibles.  The first of this list of
+variables is used and if none of the variables, the locale defaults to
+"UTF-8".
+
+For example, a function is passed a locale-base name, a hat size,
+and a time value.  The hat size is formatted in a UTF-8 (ASCII)
+string, and the time value is formatted into a wchar_t string.
+
+    void print_order (const char *name, int size,
+                      struct tm *timep) {
+        char buf[32];
+        const char *size_val = "unknown";
+
+	if (size > 0)
+            snprintf(buf, sizeof(buf), "%d", size);
+            size_val = buf;
+        }
+
+        wchar_t when[32];
+        wcsftime(when, sizeof(when), L"%d%b%y", timep);
+
+        xo_emit("The hat for {:name/%hs} is {:size/%s}.\n",
+                name, size_val);
+        xo_emit("It was ordered on {:order-time/%ls}.\n",
+                when);
+    }
+
+It is important to note that xo_emit will perform the conversion
+required to make appropriate output.  Text style output uses the
+current locale (as described above), while XML, JSON, and HTML use
+UTF-8.
+
+UTF-8 and locale-encoded strings can use multiple bytes to encode one
+column of data.  The traditional "precision'" (aka "max-width") value
+for "%s" printf formatting becomes overloaded since it specifies both
+the number of bytes that can be safely referenced and the maximum
+number of columns to emit.  xo_emit uses the precision as the former,
+and adds a third value for specifying the maximum number of columns.
+
+In this example, the name field is printed with a minimum of 3 columns
+and a maximum of 6.  Up to ten bytes are in used in filling those
+columns. 
+
+    xo_emit("{:name/%3.10.6s}", name);
+
+*** Characters Outside of Field Definitions
+
+Characters in the format string are not part of a field definition are
+copied to the output for the TEXT style, and are ignored for the JSON
+and XML styles.  For HTML, these characters are placed in a <div> with
+class "text".
+
+  EXAMPLE:
+      xo_emit("The hat is {:size/%s}.\n", size_val);
+  TEXT:
+      The hat is extra small.
+  XML:
+      <size>extra small</size>
+  JSON:
+      "size": "extra small"
+  HTML:
+      <div class="text">The hat is </div>
+      <div class="data" data-tag="size">extra small</div>
+      <div class="text">.</div>
+
+*** "%n" is Not Supported
+
+libxo does not support the '%n' directive.  It's a bad idea and we
+just don't do it.
+
+*** The Encoding Format (eformat)
+
+The "eformat" string is the format string used when encoding the field
+for JSON and XML.  If not provided, it defaults to the primary format
+with any minimum width removed.  If the primary is not given, both
+default to "%s".
+
+*** Content Strings
+
+For padding and labels, the content string is considered the content,
+unless a format is given.
+
+*** Example
+
+In this example, the value for the number of items in stock is emitted:
+
+        xo_emit("{P:   }{Lwc:In stock}{:in-stock/%u}\n",
+                instock);
+
+This call will generate the following output:
+
+  TEXT: 
+       In stock: 144
+  XML:
+      <in-stock>144</in-stock>
+  JSON:
+      "in-stock": 144,
+  HTML:
+      <div class="line">
+        <div class="padding">   </div>
+        <div class="label">In stock</div>
+        <div class="decoration">:</div>
+        <div class="padding"> </div>
+        <div class="data" data-tag="in-stock">144</div>
+      </div>
+
+Clearly HTML wins the verbosity award, and this output does
+not include XOF_XPATH or XOF_INFO data, which would expand the
+penultimate line to:
+
+       <div class="data" data-tag="in-stock"
+          data-xpath="/top/data/item/in-stock"
+          data-type="number"
+          data-help="Number of items in stock">144</div>
+
+** Command-line Arguments
+
+libxo uses command line options to trigger rendering behavior.  The
+following options are recognised:
+
+- --libxo <options>
+- --libxo=<options>
+- --libxo:<brief-options>
+
+Options is a comma-separated list of tokens that correspond to output
+styles, flags, or features:
+
+|-----------+-------------------------------------------------------|
+| Token     | Action                                                |
+|-----------+-------------------------------------------------------|
+| dtrt      | Enable "Do The Right Thing" mode                      |
+| html      | Emit HTML output                                      |
+| indent=xx | Set the indentation level                             |
+| info      | Add info attributes (HTML)                            |
+| json      | Emit JSON output                                      |
+| keys      | Emit the key attribute for keys (XML)                 |
+| no-locale | Do not initialize the locale setting                  |
+| no-top    | Do not emit a top set of braces (JSON)                |
+| not-first | Pretend the 1st output item was not 1st (JSON)        |
+| pretty    | Emit pretty-printed output                            |
+| text      | Emit TEXT output                                      |
+| units     | Add the 'units' (XML) or 'data-units (HTML) attribute |
+| warn      | Emit warnings when libxo detects bad calls            |
+| warn-xml  | Emit warnings in XML                                  |
+| xml       | Emit XML output                                       |
+| xpath     | Add XPath expressions (HTML)                          |
+|-----------+-------------------------------------------------------|
+
+The brief options are detailed in ^LIBXO_OPTIONS^.
+
+** Representing Hierarchy
+
+For XML and JSON, individual fields appear inside hierarchies which
+provide context and meaning to the fields.  Unfortunately, these
+encoding have a basic disconnect between how lists is similar objects
+are represented.
+
+XML encodes lists as set of sequential elements:
+
+    <user>phil</user>
+    <user>pallavi</user>
+    <user>sjg</user>
+
+JSON encodes lists using a single name and square brackets:
+
+    "user": [ "phil", "pallavi", "sjg" ]
+
+This means libxo needs three distinct indications of hierarchy: one
+for containers of hierarchy appear only once for any specific parent,
+one for lists, and one for each item in a list.
+
+*** Containers
+
+A "container" is an element of a hierarchy that appears only once
+under any specific parent.  The container has no value, but serves to
+contain other nodes.
+
+To open a container, call xo_open_container() or
+xo_open_container_h().  The former uses the default handle and
+the latter accepts a specific handle.
+
+    int xo_open_container_h (xo_handle_t *xop, const char *name);
+    int xo_open_container (const char *name);
+
+To close a level, use the xo_close_container() or
+xo_close_container_h() functions:
+
+    int xo_close_container_h (xo_handle_t *xop, const char *name);
+    int xo_close_container (const char *name);
+
+Each open call must have a matching close call.  If the XOF_WARN flag
+is set and the name given does not match the name of the currently open
+container, a warning will be generated.
+
+    Example:
+
+        xo_open_container("top");
+        xo_open_container("system");
+        xo_emit("{:host-name/%s%s%s", hostname,
+                domainname ? "." : "", domainname ?: "");
+        xo_close_container("system");
+        xo_close_container("top");
+
+    Sample Output:
+      Text:
+        my-host.example.org
+      XML:
+        <top>
+          <system>
+              <host-name>my-host.example.org</host-name>
+          </system>
+        </top>
+      JSON:
+        "top" : {
+          "system" : {
+              "host-name": "my-host.example.org"
+          }
+        }
+      HTML:
+        <div class="data"
+             data-tag="host-name">my-host.example.org</div>
+
+*** Lists and Instances
+
+A list is set of one or more instances that appear under the same
+parent.  The instances contains details about a specific object.  One
+can think of instances as objects or records.  A call is needed to
+open and close the list, while a distinct call is needed to open and
+close each instance of the list:
+
+    xo_open_list("item");
+
+    for (ip = list; ip->i_title; ip++) {
+        xo_open_instance("item");
+        xo_emit("{L:Item} '{:name/%s}':\n", ip->i_title);
+        xo_close_instance("item");
+    }
+
+    xo_close_list("item");
+
+Getting the list and instance calls correct is critical to the proper
+generation of XML and JSON data.
+
+*** DTRT Mode
+
+Some user may find tracking the names of open containers, lists, and
+instances inconvenient.  libxo offers "Do The Right Thing" mode, where
+libxo will track the names of open containers, lists, and instances so
+the close function can be called without a name.  To enable DTRT mode,
+turn on the XOF_DTRT flag prior to making any other libxo output.
+
+    xo_set_flags(NULL, XOF_DTRT);
+
+Each open and close function has a version with the suffix "_d", which
+will close the open container, list, or instance:
+
+    xo_open_container("top");
+    ...
+    xo_close_container_d();
+
+Note that the XOF_WARN flag will also cause libxo to track open
+containers, lists, and instances.  A warning is generated with the
+name given to the close function and the name recorded do not match.
+
+** Handles
+
+libxo uses "handles" to control its rendering functionality.  The
+handle contains state and buffered data, as well as callback functions
+to process data.
+
+A default handle is used when a NULL is passed to functions accepting
+a handle.  This handle is initialized to write its data to stdout
+using the default style of text (XO_STYLE_TEXT).
+
+For the convenience of callers, the libxo library includes handle-less
+functions that implicitly use the default handle.  Any function that
+takes a handle will use the default handle is a value of NULL is
+passed in place of a valid handle.
+
+For example, the following are equivalent:
+
+    xo_emit("test");
+    xo_emit_h(NULL, "test");
+
+Handles are created using xo_create() and destroy using xo_destroy().
+
+** UTF-8
+
+All strings for libxo must be UTF-8.  libxo will handle turning them
+into locale-based strings for display to the user.
+
+The only exception is argument formatted using the "%ls" format, which
+require a wide character string (wchar_t *) as input.  libxo will
+convert these arguments as needed to either UTF-8 (for XML, JSON, and
+HTML styles) or locale-based strings for display in text style.
+
+   xo_emit("Alll strings are utf-8 content {:tag/%ls}",
+           L"except for wide strings");
+
+"%S" is equivalent to "%ls".
+
+* The libxo API
+
+This section gives details about the functions in libxo, how to call
+them, and the actions they perform.
+
+** Handles
+
+Handles give an abstraction for libxo that encapsulates the state of a
+stream of output.  Handles have the data type "xo_handle_t" and are
+opaque to the caller.
+
+The library has a default handle that is automatically initialized.
+By default, this handle will send text style output to standard output.
+The xo_set_style and xo_set_flags functions can be used to change this
+behavior.
+
+Many libxo functions take a handle as their first parameter; most that
+do not use the default handle.  Any function taking a handle can
+be passed NULL to access the default handle.
+
+For the typical command that is generating output on standard output,
+there is no need to create an explicit handle, but they are available
+when needed, e.g. for daemons that generate multiple streams of
+output.
+
+*** xo_create
+
+A handle can be allocated using the xo_create() function:
+
+    xo_handle_t *xo_create (unsigned style, unsigned flags);
+
+  Example:
+    xo_handle_t *xop = xo_create(XO_STYLE_JSON, XOF_WARN);
+    ....
+    xo_emit_h(xop, "testing\n");
+
+See also ^styles^ and ^flags^.
+
+*** xo_create_to_file
+
+By default, libxo writes output to standard output.  A convenience
+function is provided for situations when output should be written to
+different file:
+
+    xo_handle_t *xo_create_to_file (FILE *fp, unsigned style,
+                                    unsigned flags);
+
+Use the XOF_CLOSE_FP flag to trigger a call to fclose() for
+the FILE pointer when the handle is destroyed.
+
+*** xo_set_writer
+
+The xo_set_writer function allows custom 'write' functions
+which can tailor how libxo writes data.  An opaque argument is
+recorded and passed back to the write function, allowing the function
+to acquire context information. The 'close' function can
+release this opaque data and any other resources as needed.
+
+    void xo_set_writer (xo_handle_t *xop, void *opaque,
+                        xo_write_func_t write_func,
+                        xo_close_func_t close_func);
+
+*** xo_set_style
+
+To set the style, use the xo_set_style() function:
+
+    void xo_set_style(xo_handle_t *xop, unsigned style);
+
+To use the default handle, pass a NULL handle:
+
+    xo_set_style(NULL, XO_STYLE_XML);
+
+**** Output Styles (XO_STYLE_*) @styles@
+
+The libxo functions accept a set of output styles:
+
+|---------------+-------------------------|
+| Flag          | Description             |
+|---------------+-------------------------|
+| XO_STYLE_TEXT | Traditional text output |
+| XO_STYLE_XML  | XML encoded data        |
+| XO_STYLE_JSON | JSON encoded data       |
+| XO_STYLE_HTML | HTML encoded data       |
+|---------------+-------------------------|
+
+**** xo_set_style_name
+
+The xo_set_style_name() can be used to set the style based on a name
+encoded as a string:
+
+    int xo_set_style_name (xo_handle_t *xop, const char *style);
+
+The name can be any of the styles: "text", "xml", "json", or "html".
+
+    EXAMPLE:
+        xo_set_style_name(NULL, "html");
+
+*** xo_set_flags
+
+To set the flags, use the xo_set_flags() function:
+
+    void xo_set_flags(xo_handle_t *xop, unsigned flags);
+
+To use the default handle, pass a NULL handle:
+
+    xo_set_style(NULL, XO_STYLE_XML);
+
+**** Flags (XOF_*) @flags@
+
+The set of valid flags include:
+
+|-----------------+---------------------------------------|
+| Flag            | Description                           |
+|-----------------+---------------------------------------|
+| XOF_CLOSE_FP    | Close file pointer on xo_destroy()    |
+| XOF_DTRT        | Enable "do the right thing" mode      |
+| XOF_INFO        | Display info data attributes (HTML)   |
+| XOF_KEYS        | Emit the key attribute (XML)          |
+| XOF_NO_ENV      | Do not use the LIBXO_OPTIONS env var  |
+| XOF_PRETTY      | Make 'pretty printed' output          |
+| XOF_UNDERSCORES | Replaces hyphens with underscores     |
+| XOF_UNITS       | Display units (XML and HMTL)          |
+| XOF_WARN        | Generate warnings for broken calls    |
+| XOF_WARN_XML    | Generate warnings in XML on stdout    |
+| XOF_XPATH       | Emit XPath expressions (HTML)         |
+| XOF_COLUMNS     | Force xo_emit to return columns used  |
+| XOF_FLUSH       | Flush output after each xo_emit call  |
+|-----------------+---------------------------------------|
+
+The XOF_CLOSE_FP flag will trigger the call of the close_func
+(provided via xo_set_writer()) when the handle is destroyed.
+
+The XOF_PRETTY flag requests 'pretty printing', which will trigger the
+addition of indentation and newlines to enhance the readability of
+XML, JSON, and HTML output.  Text output is not affected.
+
+The XOF_WARN flag requests that warnings will trigger diagnostic
+output (on standard error) when the library notices errors during
+operations, or with arguments to functions.  Without warning enabled,
+such conditions are ignored.
+
+Warnings allow developers to debug their interaction with libxo.
+The function "xo_failure" can used as a breakpoint for a debugger,
+regardless of whether warnings are enabled.
+
+If the style is XO_STYLE_HTML, the following additional flags can be
+used:
+
+|---------------+-----------------------------------------|
+| Flag          | Description                             |
+|---------------+-----------------------------------------|
+| XOF_XPATH     | Emit "data-xpath" attributes            |
+| XOF_INFO      | Emit additional info fields             |
+|---------------+-----------------------------------------|
+
+The XOF_XPATH flag enables the emission of XPath expressions detailing
+the hierarchy of XML elements used to encode the data field, if the
+XPATH style of output were requested.
+
+The XOF_INFO flag encodes additional informational fields for HTML
+output.  See ^info^ for details.
+
+If the style is XO_STYLE_XML, the following additional flags can be
+used:
+
+|---------------+-----------------------------------------|
+| Flag          | Description                             |
+|---------------+-----------------------------------------|
+| XOF_KEYS      | Flag 'key' fields for xml               |
+|---------------+-----------------------------------------|
+
+The XOF_KEYS flag adds 'key' attribute to the XML encoding for
+field definitions that use the 'k' modifier.  The key attribute has
+the value "key":
+
+    xo_emit("{k:name}", item);
+
+  XML:
+      <name key="key">truck</name>
+
+**** xo_clear_flags
+
+The xo_clear_flags() function turns off the given flags in a specific
+handle. 
+
+    void xo_clear_flags (xo_handle_t *xop, xo_xof_flags_t flags);
+
+**** xo_set_options
+
+The xo_set_options() function accepts a comma-separated list of styles
+and flags and enables them for a specific handle.
+
+    int xo_set_options (xo_handle_t *xop, const char *input);
+
+The options are identical to those listed in ^command-line-arguments^.
+
+*** xo_destroy
+
+The xo_destroy function releases a handle and any resources it is
+using.  Calling xo_destroy with a NULL handle will release any
+resources associated with the default handle.
+
+    void xo_destroy(xo_handle_t *xop);
+
+** Emitting Content (xo_emit)
+
+The following functions are used to emit output:
+
+    int xo_emit (const char *fmt, ...);
+    int xo_emit_h (xo_handle_t *xop, const char *fmt, ...);
+    int xo_emit_hv (xo_handle_t *xop, const char *fmt, va_list vap);
+
+The "fmt" argument is a string containing field descriptors as
+specified in ^format-strings^.  The use of a handle is optional and
+NULL can be passed to access the internal 'default' handle.  See
+^handles^.
+
+The remaining arguments to xo_emit() and xo_emit_h() are a set of
+arguments corresponding to the fields in the format string.  Care must
+be taken to ensure the argument types match the fields in the format
+string, since an inappropriate cast can ruin your day.  The vap
+argument to xo_emit_hv() points to a variable argument list that can
+be used to retrieve arguments via va_arg().
+
+*** Attributes (xo_attr) @xo_attr@
+
+The xo_attr() function emits attributes for the XML output style.
+
+
+    int xo_attr (const char *name, const char *fmt, ...);
+    int xo_attr_h (xo_handle_t *xop, const char *name, 
+                   const char *fmt, ...);
+    int xo_attr_hv (xo_handle_t *xop, const char *name, 
+                   const char *fmt, va_list vap);
+
+The name parameter give the name of the attribute to be encoded.  The
+fmt parameter gives a printf-style format string used to format the
+value of the attribute using any remaining arguments, or the vap
+parameter passed to xo_attr_hv().
+
+    EXAMPLE:
+      xo_attr("seconds", "%ld", (unsigned long) login_time);
+      struct tm *tmp = localtime(login_time);
+      strftime(buf, sizeof(buf), "%R", tmp);
+      xo_emit("Logged in at {:login-time}\n", buf);
+    XML:
+        <login-time seconds="1408336270">00:14</login-time>
+
+*** Flushing Output (xo_flush)
+
+libxo buffers data, both for performance and consistency, but also to
+allow some advanced features to work properly.  At various times, the
+caller may wish to flush any data buffered within the library.  The
+xo_flush() call is used for this:
+
+    void xo_flush (void);
+    void xo_flush_h (xo_handle_t *xop);
+
+*** Finishing Output (xo_finish)
+
+When the program is ready to exit or close a handle, a call to
+xo_finish() is required.  This flushes any buffered data, closes
+open libxo constructs, and completes any pending operations.
+
+    void xo_finish (void);
+    void xo_finish_h (xo_handle_t *xop);
+
+Calling this function is vital to the proper operation of libxo,
+especially for the non-TEXT output styles.
+
+** Emitting Hierarchy
+
+libxo represents to types of hierarchy: containers and lists.  A
+container appears once under a given parent where a list contains
+instances that can appear multiple times.  A container is used to hold
+related fields and to give the data organization and scope.
+
+To create a container, use the xo_open_container and
+xo_close_container functions:
+
+    int xo_open_container (const char *name);
+    int xo_open_container_h (xo_handle_t *xop, const char *name);
+    int xo_open_container_hd (xo_handle_t *xop, const char *name);
+    int xo_open_container_d (const char *name);
+
+    int xo_close_container (const char *name);
+    int xo_close_container_h (xo_handle_t *xop, const char *name);
+    int xo_close_container_hd (xo_handle_t *xop);
+    int xo_close_container_d (void);
+
+The name parameter gives the name of the container, encoded in UTF-8.
+Since ASCII is a proper subset of UTF-8, traditional C strings can be
+used directly.
+
+The close functions with the "_d" suffix are used in "Do The Right
+Thing" mode, where the name of the open containers, lists, and
+instances are maintained internally by libxo to allow the caller to
+avoid keeping track of the open container name.
+
+Use the XOF_WARN flag to generate a warning if the name given on the
+close does not match the current open container.
+
+For TEXT and HTML output, containers are not rendered into output
+text, though for HTML they are used when the XOF_XPATH flag is set.
+
+    EXAMPLE:
+       xo_open_container("system");
+       xo_emit("The host name is {:host-name}\n", hn);
+       xo_close_container("system");
+    XML:
+       <system><host-name>foo</host-name></system>
+
+*** Lists and Instances
+
+Lists are sequences of instances of homogeneous data objects.  Two
+distinct levels of calls are needed to represent them in our output
+styles.  Calls must be made to open and close a list, and for each
+instance of data in that list, calls must be make to open and close
+that instance.
+
+The name given to all calls must be identical, and it is strong
+suggested that the name be singular, not plural, as a matter of
+style and usage expectations.
+
+    EXAMPLE:
+        xo_open_list("user");
+        for (i = 0; i < num_users; i++) {
+            xo_open_instance("user");
+            xo_emit("{k:name}:{:uid/%u}:{:gid/%u}:{:home}\n",
+                    pw[i].pw_name, pw[i].pw_uid,
+                    pw[i].pw_gid, pw[i].pw_dir);
+            xo_close_instance("user");
+        }
+        xo_close_list("user");
+    TEXT:
+        phil:1001:1001:/home/phil
+        pallavi:1002:1002:/home/pallavi
+    XML:
+        <user>
+            <name>phil</name>
+            <uid>1001</uid>
+            <gid>1001</gid>
+            <home>/home/phil</home>
+        </user>
+        <user>
+            <name>pallavi</name>
+            <uid>1002</uid>
+            <gid>1002</gid>
+            <home>/home/pallavi</home>
+        </user>
+    JSON:
+        user: [
+            {
+                "name": "phil",
+                "uid": 1001,
+                "gid": 1001,
+                "home": "/home/phil",
+            },
+            {
+                "name": "pallavi",
+                "uid": 1002,
+                "gid": 1002,
+                "home": "/home/pallavi",
+            }
+        ]
+
+** Additional Functionality
+
+*** Parsing Command-line Arguments (xo_parse_args)
+
+The xo_parse_args() function is used to process a program's
+arguments.  libxo-specific options are processed and removed
+from the argument list so the calling application does not
+need to process them.  If successful, a new value for argc
+is returned.  On failure, a message it emitted and -1 is returned.
+
+    argc = xo_parse_args(argc, argv);
+    if (argc < 0)
+        exit(1);
+
+Following the call to xo_parse_args, the application can process the
+remaining arguments in a normal manner.  See ^command-line-arguments^
+for a description of valid arguments.
+
+*** Field Information (xo_info_t) @info@
+
+HTML data can include additional information in attributes that
+begin with "data-".  To enable this, three things must occur:
+
+First the application must build an array of xo_info_t structures,
+one per tag.  The array must be sorted by name, since libxo uses a
+binary search to find the entry that matches names from format
+instructions.
+
+Second, the application must inform libxo about this information using
+the xo_set_info() call:
+
+    typedef struct xo_info_s {
+        const char *xi_name;    /* Name of the element */
+        const char *xi_type;    /* Type of field */
+        const char *xi_help;    /* Description of field */
+    } xo_info_t;
+
+    void xo_set_info (xo_handle_t *xop, xo_info_t *infop, int count);
+
+Like other libxo calls, passing NULL for the handle tells libxo to use
+the default handle.
+
+If the count is -1, libxo will count the elements of infop, but there
+must be an empty element at the end.  More typically, the number is
+known to the application:
+
+    xo_info_t info[] = {
+        { "in-stock", "number", "Number of items in stock" },
+        { "name", "string", "Name of the item" },
+        { "on-order", "number", "Number of items on order" },
+        { "sku", "string", "Stock Keeping Unit" },
+        { "sold", "number", "Number of items sold" },
+    };
+    int info_count = (sizeof(info) / sizeof(info[0]));
+    ...
+    xo_set_info(NULL, info, info_count);
+
+Third, the emitting of info must be triggered with the XOF_INFO flag
+using either the xo_set_flags() function or the "--libxo=info" command
+line argument.
+
+The type and help values, if present, are emitted as the "data-type"
+and "data-help" attributes:
+
+  <div class="data" data-tag="sku" data-type="string" 
+       data-help="Stock Keeping Unit">GRO-000-533</div>
+
+*** Memory Allocation
+
+The xo_set_allocator function allows libxo to be used in environments
+where the standard realloc() and free() functions are not available.
+
+    void xo_set_allocator (xo_realloc_func_t realloc_func,
+                           xo_free_func_t free_func);
+
+realloc_func should expect the same arguments as realloc(3) and return
+a pointer to memory following the same convention.  free_func will
+receive the same argument as free(3) and should release it, as
+appropriate for the environment.
+
+By default, the standard realloc() and free() functions are used.
+
+*** LIBXO_OPTIONS @LIBXO_OPTIONS@
+
+The environment variable "LIBXO_OPTIONS" can be set to a string of
+options:
+
+|--------+-------------------------------------------|
+| Option | Action                                    |
+|--------+-------------------------------------------|
+| H      | Enable HTML output (XO_STYLE_HTML)        |
+| I      | Enable info output (XOF_INFO)             |
+| i<num> | Indent by <number>                        |
+| J      | Enable JSON output (XO_STYLE_JSON)        |
+| P      | Enable pretty-printed output (XOF_PRETTY) |
+| T      | Enable text output (XO_STYLE_TEXT)        |
+| W      | Enable warnings (XOF_WARN)                |
+| X      | Enable XML output (XO_STYLE_XML)          |
+| x      | Enable XPath data (XOF_XPATH)             |
+|--------+-------------------------------------------|
+
+For example, warnings can be enabled by:
+
+    % env LIBXO_OPTIONS=W my-app
+
+Complete HTML output can be generated with:
+
+    % env LIBXO_OPTIONS=HXI my-app
+
+*** Errors, Warnings, and Messages
+
+Many programs make use of the standard library functions err() and
+warn() to generate errors and warnings for the user.  libxo wants to
+pass that information via the current output style, and provides
+compatible functions to allow this:
+
+    void xo_warn (const char *fmt, ...);
+    void xo_warnx (const char *fmt, ...);
+    void xo_warn_c (int code, const char *fmt, ...);
+    void xo_warn_hc (xo_handle_t *xop, int code,
+                     const char *fmt, ...);
+    void xo_err (int eval, const char *fmt, ...);
+    void xo_errc (int eval, int code, const char *fmt, ...);
+    void xo_errx (int eval, const char *fmt, ...);
+    void xo_message (const char *fmt, ...);
+    void xo_message_c (int code, const char *fmt, ...);
+    void xo_message_hc (xo_handle_t *xop, int code,
+                        const char *fmt, ...);
+    void xo_message_hcv (xo_handle_t *xop, int code, 
+                         const char *fmt, va_list vap);
+
+These functions display the program name, a colon, a formatted message
+based on the arguments, and then optionally a colon and an error
+message associated with either "errno" or the "code" parameter.
+
+    EXAMPLE:
+        if (open(filename, O_RDONLY) < 0)
+            xo_err(1, "cannot open file '%s'", filename);
+
+*** xo_no_setlocale
+
+libxo automatically initializes the locale based on setting of the
+environment variables LC_CTYPE, LANG, and LC_ALL.  The first of this
+list of variables is used and if none of the variables, the locale
+defaults to "UTF-8".  The caller may wish to avoid this behavior, and
+can do so by calling the xo_no_setlocale() function.
+
+    void xo_no_setlocale (void);
+
+* The "xo" Utility
+
+The "xo" utility allows command line access to the functionality of
+the libxo library.  Using "xo", shell scripts can emit XML, JSON, and
+HTML using the same commands that emit text output.
+
+The style of output can be selected using a specific option: "-X" for
+XML, "-J" for JSON, "-H" for HTML, or "-T" for TEXT, which is the
+default.  The "--style <style>" option can also be used.  The
+LIBXO_OPTIONS environment variable can also be used to set the style,
+as well as other flags.
+
+The "xo" utility accepts a format string suitable for xo_emit() and a
+set of zero or more arguments used to supply data for that string.
+
+    xo "The {k:name} weighs {:weight/%d} pounds.\n" fish 6
+
+  TEXT:
+    The fish weighs 6 pounds.
+  XML:
+    <name>fish</name>
+    <weight>6</weight>
+  JSON:
+    "name": "fish",
+    "weight": 6
+  HTML:
+    <div class="line">
+      <div class="text">The </div>
+      <div class="data" data-tag="name">fish</div>
+      <div class="text"> weighs </div>
+      <div class="data" data-tag="weight">6</div>
+      <div class="text"> pounds.</div>
+    </div>
+
+The "--wrap <path>" option can be used to wrap emitted content in a
+specific hierarchy.  The path is a set of hierarchical names separated
+by the '/' character.
+
+    xo --wrap top/a/b/c '{:tag}' value
+
+  XML:
+    <top>
+      <a>
+        <b>
+          <c>
+            <tag>value</tag>
+          </c>
+        </b>
+      </a>
+    </top>
+  JSON:
+    "top": {
+      "a": {
+        "b": {
+          "c": {
+            "tag": "value"
+          }
+        }
+      }
+    }
+
+The "--open <path>" and "--close <path>" can be used to emit
+hierarchical information without the matching close and open
+tag.  This allows a shell script to emit open tags, data, and
+then close tags.  The "--depth" option may be used to set the
+depth for indentation.  The "--leading-xpath" may be used to
+prepend data to the XPath values used for HTML output style.
+
+    #!/bin/sh
+    xo --open top/data
+    xo --depth 2 '{tag}' value
+    xo --close top/data
+  XML:
+    <top>
+      <data>
+        <tag>value</tag>
+      </data>
+    </top>
+  JSON:
+    "top": {
+      "data": {
+        "tag": "value"
+      }
+    }
+
+** Command Line Options
+
+Usage: xo [options] format [fields]
+  --close <path>        Close tags for the given path
+  --depth <num>         Set the depth for pretty printing
+  --help                Display this help text
+  --html OR -H          Generate HTML output
+  --json OR -J          Generate JSON output
+  --leading-xpath <path> Add a prefix to generated XPaths (HTML)
+  --open <path>         Open tags for the given path
+  --pretty OR -p        Make 'pretty' output (add indent, newlines)
+  --style <style>       Generate given style (xml, json, text, html)
+  --text OR -T          Generate text output (the default style)
+  --version             Display version information
+  --warn OR -W          Display warnings in text on stderr
+  --warn-xml            Display warnings in xml on stdout
+  --wrap <path>         Wrap output in a set of containers
+  --xml OR -X           Generate XML output
+  --xpath               Add XPath data to HTML output);
+
+** Example
+
+  % xo 'The {:product} is {:status}\n' stereo "in route"
+  The stereo is in route
+  % ./xo/xo -p -X 'The {:product} is {:status}\n' stereo "in route"
+  <product>stereo</product>
+  <status>in route</status>
+
+* xolint
+
+xolint is a tool for reporting common mistakes in format strings
+in source code that invokes xo_emit().  It allows these errors
+to be diagnosed at build time, rather than waiting until runtime.
+
+xolint takes the one or more C files as arguments, and reports
+and errors, warning, or informational messages as needed.
+
+|------------+---------------------------------------------------|
+| Option     | Meaning                                           |
+|------------+---------------------------------------------------|
+| -c         | Invoke 'cpp' against the input file               |
+| -C <flags> | Flags that are passed to 'cpp                     |
+| -d         | Enable debug output                               |
+| -D         | Generate documentation for all xolint messages    |
+| -I         | Generate info table code                          |
+| -p         | Print the offending lines after the message       |
+| -V         | Print vocabulary of all field names               |
+| -X         | Extract samples from xolint, suitable for testing |
+|------------+---------------------------------------------------|
+
+Output message contain the source filename and line number, the
+class of the message, the message, and, if -p is given, the
+line that contains the error:
+
+    % xolint.pl -t xolint.c
+    xolint.c: 16: error: anchor format should be "%d"
+    16         xo_emit("{[:/%s}");
+
+The "-I" option will generate a table of xo_info_t structures , 
+
+The "-V" option does not report errors, but prints a complete list of
+all field names, sorted alphabetically.  The output can help spot
+inconsistencies and spelling errors.
+
+* FAQs
+
+This section contains the set of questions that users typically ask,
+along with answers that might be helpful.
+
+!! list-sections
+
+** General
+
+*** Can you share the history of libxo?
+
+In 2001, we added an XML API to the JUNOS operating system, which is
+built on top of FreeBSD.  Eventually this API became standardized as
+the NETCONF API (RFC 6241).  As part of this effort, we modified many
+FreeBSD utilities to emit XML, typically via a "-X" switch.  The
+results were mixed.  The cost of maintaining this code, updating it
+and carrying it were non-trivial, and contributed to our expense (and
+the associated delay) with upgrading the version of FreeBSD on which
+each release of JUNOS is based.
+
+A recent (2014) effort within JUNOS aims at removing our modifications
+to the underlying FreeBSD code as a means of reducing the expense and
+delay.  JUNOS is structured to have system components generate XML
+that is rendered by the CLI (think: login shell) into human-readable
+text.  This allows the API to use the same plumbing as the CLI, and
+ensures that all components emit XML, and that it is emitted with
+knowledge of the consumer of that XML, yielding an API that have no
+incremental cost or feature delay.
+
+libxo is an effort to mix the best aspects of the JUNOS strategy into
+FreeBSD in a seemless way, allowing commands to make printf-like
+output calls without needing to care how the output is rendered.
+
+*** What makes a good field name?
+
+To make useful, consistent field names, follow these guidelines:
+
+= Use lower case, even for TLAs
+Lower case is more civilized.  Even TLAs should be lower case
+to avoid scenarios where the differences between "XPath" and
+"Xpath" drive your users crazy.  Using "xpath" is simpler and better.
+= Use hyphens, not underscores
+Use of hyphens is traditional in XML, and the XOF_UNDERSCORES
+flag can be used to generate underscores in JSON, if desired.
+But the raw field name should use hyphens.
+= Use full words
+Don't abbreviate especially when the abbreviation is not obvious or
+not widely used.  Use "data-size", not "dsz" or "dsize".  Use
+"interface" instead of "ifname", "if-name", "iface", "if", or "intf".
+= Use <verb>-<units>
+Using the form <verb>-<units> or <verb>-<classifier>-<units> helps in
+making consistent, useful names, avoiding the situation where one app
+uses "sent-packet" and another "packets-sent" and another
+"packets-we-have-sent".  The <units> can be dropped when it is
+obvious, as can obvious words in the classification.
+Use "receive-after-window-packets" instead of
+"received-packets-of-data-after-window".
+= Reuse existing field names
+Nothing's worse than writing expressions like:
+
+    if ($src1/process[pid == $pid]/name == 
+        $src2/proc-table/proc/p[process-id == $pid]/proc-name) {
+        ...
+    }
+
+Find someone else who is expressing similar data and follow their
+field's and hierarchy.  Remember the quote is not "Consistency is the
+hobgoblin of little minds", but "A foolish consistency is the
+hobgoblin of little minds".
+= Think about your users
+Have empathy for your users, choosing clear and useful fields that
+contain clear and useful data.  You may need to augment the display
+content with xo_attr() calls (^xo_attr^) or "{e:}" fields
+(^e-modifier^) to make the data useful.
+= Don't use an arbitrary number postfix
+What does "errors2" mean?  No one will know.  "errors-after-restart"
+would be a better choice.  Think of you users, and think of the
+future.  If you make "errors2", the next guy will happily make
+"errors3" and before you know it, someone will be asking what's the
+difference between errors37 and errors63.
+= Be consistent, uniform, unsurprising, and predictable
+Think of your field vocabulary as an API.  You want it useful,
+expressive, meaningful, direct, and obvious.  You want the client
+application's programmer to move between without the need to
+understand a variety of opinions on how fields are named.  They should
+see the system as a single cohesive whole, not a sack of cats.
+
+Field names constitute the means by which client programmers interact
+with our system.  By choosing wise names now, you are making their
+lives better.
+
+After using "xolint" to find errors in your field descriptors, use
+"xolint -V" to spell check your field names and to detect different
+names for the same data.  "dropped-short" and "dropped-too-short" are
+both reasonable names, but using them both will lead users to ask the
+difference between the two fields.  If there isn't a difference,
+use only one of the field names.  If there is a difference, change the
+names to make that difference more obvious.
+
+** What does this message mean?
+
+!!include-file xolint.txt
+
+* Examples
+
+** Unit Test
+
+Here is the unit test example:
+
+    int
+    main (int argc, char **argv)
+    {
+        static char base_grocery[] = "GRO";
+        static char base_hardware[] = "HRD";
+        struct item {
+            const char *i_title;
+            int i_sold;
+            int i_instock;
+            int i_onorder;
+            const char *i_sku_base;
+            int i_sku_num;
+        };
+        struct item list[] = {
+            { "gum", 1412, 54, 10, base_grocery, 415 },
+            { "rope", 85, 4, 2, base_hardware, 212 },
+            { "ladder", 0, 2, 1, base_hardware, 517 },
+            { "bolt", 4123, 144, 42, base_hardware, 632 },
+            { "water", 17, 14, 2, base_grocery, 2331 },
+            { NULL, 0, 0, 0, NULL, 0 }
+        };
+        struct item list2[] = {
+            { "fish", 1321, 45, 1, base_grocery, 533 },
+        };
+        struct item *ip;
+        xo_info_t info[] = {
+            { "in-stock", "number", "Number of items in stock" },
+            { "name", "string", "Name of the item" },
+            { "on-order", "number", "Number of items on order" },
+            { "sku", "string", "Stock Keeping Unit" },
+            { "sold", "number", "Number of items sold" },
+            { NULL, NULL, NULL },
+        };
+        int info_count = (sizeof(info) / sizeof(info[0])) - 1;
+        
+        argc = xo_parse_args(argc, argv);
+        if (argc < 0)
+            exit(1);
+    
+        xo_set_info(NULL, info, info_count);
+    
+        xo_open_container_h(NULL, "top");
+    
+        xo_open_container("data");
+        xo_open_list("item");
+    
+        for (ip = list; ip->i_title; ip++) {
+            xo_open_instance("item");
+    
+            xo_emit("{L:Item} '{k:name/%s}':\n", ip->i_title);
+            xo_emit("{P:   }{L:Total sold}: {n:sold/%u%s}\n",
+                    ip->i_sold, ip->i_sold ? ".0" : "");
+            xo_emit("{P:   }{Lwc:In stock}{:in-stock/%u}\n", 
+                    ip->i_instock);
+            xo_emit("{P:   }{Lwc:On order}{:on-order/%u}\n", 
+                    ip->i_onorder);
+            xo_emit("{P:   }{L:SKU}: {q:sku/%s-000-%u}\n",
+                    ip->i_sku_base, ip->i_sku_num);
+    
+            xo_close_instance("item");
+        }
+    
+        xo_close_list("item");
+        xo_close_container("data");
+    
+        xo_open_container("data");
+        xo_open_list("item");
+    
+        for (ip = list2; ip->i_title; ip++) {
+            xo_open_instance("item");
+    
+            xo_emit("{L:Item} '{:name/%s}':\n", ip->i_title);
+            xo_emit("{P:   }{L:Total sold}: {n:sold/%u%s}\n",
+                    ip->i_sold, ip->i_sold ? ".0" : "");
+            xo_emit("{P:   }{Lwc:In stock}{:in-stock/%u}\n", 
+                    ip->i_instock);
+            xo_emit("{P:   }{Lwc:On order}{:on-order/%u}\n", 
+                    ip->i_onorder);
+            xo_emit("{P:   }{L:SKU}: {q:sku/%s-000-%u}\n",
+                    ip->i_sku_base, ip->i_sku_num);
+    
+            xo_close_instance("item");
+        }
+    
+        xo_close_list("item");
+        xo_close_container("data");
+    
+        xo_close_container_h(NULL, "top");
+    
+        return 0;
+    }
+
+Text output:
+
+    % ./testxo --libxo text
+    Item 'gum':
+       Total sold: 1412.0
+       In stock: 54
+       On order: 10
+       SKU: GRO-000-415
+    Item 'rope':
+       Total sold: 85.0
+       In stock: 4
+       On order: 2
+       SKU: HRD-000-212
+    Item 'ladder':
+       Total sold: 0
+       In stock: 2
+       On order: 1
+       SKU: HRD-000-517
+    Item 'bolt':
+       Total sold: 4123.0
+       In stock: 144
+       On order: 42
+       SKU: HRD-000-632
+    Item 'water':
+       Total sold: 17.0
+       In stock: 14
+       On order: 2
+       SKU: GRO-000-2331
+    Item 'fish':
+       Total sold: 1321.0
+       In stock: 45
+       On order: 1
+       SKU: GRO-000-533
+
+JSON output:
+
+    % ./testxo --libxo json,pretty
+    "top": {
+      "data": {
+        "item": [
+          {
+            "name": "gum",
+            "sold": 1412.0,
+            "in-stock": 54,
+            "on-order": 10,
+            "sku": "GRO-000-415"
+          },
+          {
+            "name": "rope",
+            "sold": 85.0,
+            "in-stock": 4,
+            "on-order": 2,
+            "sku": "HRD-000-212"
+          },
+          {
+            "name": "ladder",
+            "sold": 0,
+            "in-stock": 2,
+            "on-order": 1,
+            "sku": "HRD-000-517"
+          },
+          {
+            "name": "bolt",
+            "sold": 4123.0,
+            "in-stock": 144,
+            "on-order": 42,
+            "sku": "HRD-000-632"
+          },
+          {
+            "name": "water",
+            "sold": 17.0,
+            "in-stock": 14,
+            "on-order": 2,
+            "sku": "GRO-000-2331"
+          }
+        ]
+      },
+      "data": {
+        "item": [
+          {
+            "name": "fish",
+            "sold": 1321.0,
+            "in-stock": 45,
+            "on-order": 1,
+            "sku": "GRO-000-533"
+          }
+        ]
+      }
+    }
+
+XML output:
+
+    % ./testxo --libxo pretty,xml
+    <top>
+      <data>
+        <item>
+          <name>gum</name>
+          <sold>1412.0</sold>
+          <in-stock>54</in-stock>
+          <on-order>10</on-order>
+          <sku>GRO-000-415</sku>
+        </item>
+        <item>
+          <name>rope</name>
+          <sold>85.0</sold>
+          <in-stock>4</in-stock>
+          <on-order>2</on-order>
+          <sku>HRD-000-212</sku>
+        </item>
+        <item>
+          <name>ladder</name>
+          <sold>0</sold>
+          <in-stock>2</in-stock>
+          <on-order>1</on-order>
+          <sku>HRD-000-517</sku>
+        </item>
+        <item>
+          <name>bolt</name>
+          <sold>4123.0</sold>
+          <in-stock>144</in-stock>
+          <on-order>42</on-order>
+          <sku>HRD-000-632</sku>
+        </item>
+        <item>
+          <name>water</name>
+          <sold>17.0</sold>
+          <in-stock>14</in-stock>
+          <on-order>2</on-order>
+          <sku>GRO-000-2331</sku>
+        </item>
+      </data>
+      <data>
+        <item>
+          <name>fish</name>
+          <sold>1321.0</sold>
+          <in-stock>45</in-stock>
+          <on-order>1</on-order>
+          <sku>GRO-000-533</sku>
+        </item>
+      </data>
+    </top>
+
+HMTL output:
+
+    % ./testxo --libxo pretty,html
+    <div class="line">
+      <div class="label">Item</div>
+      <div class="text"> '</div>
+      <div class="data" data-tag="name">gum</div>
+      <div class="text">':</div>
+    </div>
+    <div class="line">
+      <div class="padding">   </div>
+      <div class="label">Total sold</div>
+      <div class="text">: </div>
+      <div class="data" data-tag="sold">1412.0</div>
+    </div>
+    <div class="line">
+      <div class="padding">   </div>
+      <div class="label">In stock</div>
+      <div class="decoration">:</div>
+      <div class="padding"> </div>
+      <div class="data" data-tag="in-stock">54</div>
+    </div>
+    <div class="line">
+      <div class="padding">   </div>
+      <div class="label">On order</div>
+      <div class="decoration">:</div>
+      <div class="padding"> </div>
+      <div class="data" data-tag="on-order">10</div>
+    </div>
+    <div class="line">
+      <div class="padding">   </div>
+      <div class="label">SKU</div>
+      <div class="text">: </div>
+      <div class="data" data-tag="sku">GRO-000-415</div>
+    </div>
+    <div class="line">
+      <div class="label">Item</div>
+      <div class="text"> '</div>
+      <div class="data" data-tag="name">rope</div>
+      <div class="text">':</div>
+    </div>
+    <div class="line">
+      <div class="padding">   </div>
+      <div class="label">Total sold</div>
+      <div class="text">: </div>
+      <div class="data" data-tag="sold">85.0</div>
+    </div>
+    <div class="line">
+      <div class="padding">   </div>
+      <div class="label">In stock</div>
+      <div class="decoration">:</div>
+      <div class="padding"> </div>
+      <div class="data" data-tag="in-stock">4</div>
+    </div>
+    <div class="line">
+      <div class="padding">   </div>
+      <div class="label">On order</div>
+      <div class="decoration">:</div>
+      <div class="padding"> </div>
+      <div class="data" data-tag="on-order">2</div>
+    </div>
+    <div class="line">
+      <div class="padding">   </div>
+      <div class="label">SKU</div>
+      <div class="text">: </div>
+      <div class="data" data-tag="sku">HRD-000-212</div>
+    </div>
+    <div class="line">
+      <div class="label">Item</div>
+      <div class="text"> '</div>
+      <div class="data" data-tag="name">ladder</div>
+      <div class="text">':</div>
+    </div>
+    <div class="line">
+      <div class="padding">   </div>
+      <div class="label">Total sold</div>
+      <div class="text">: </div>
+      <div class="data" data-tag="sold">0</div>
+    </div>
+    <div class="line">
+      <div class="padding">   </div>
+      <div class="label">In stock</div>
+      <div class="decoration">:</div>
+      <div class="padding"> </div>
+      <div class="data" data-tag="in-stock">2</div>
+    </div>
+    <div class="line">
+      <div class="padding">   </div>
+      <div class="label">On order</div>
+      <div class="decoration">:</div>
+      <div class="padding"> </div>
+      <div class="data" data-tag="on-order">1</div>
+    </div>
+    <div class="line">
+      <div class="padding">   </div>
+      <div class="label">SKU</div>
+      <div class="text">: </div>
+      <div class="data" data-tag="sku">HRD-000-517</div>
+    </div>
+    <div class="line">
+      <div class="label">Item</div>
+      <div class="text"> '</div>
+      <div class="data" data-tag="name">bolt</div>
+      <div class="text">':</div>
+    </div>
+    <div class="line">
+      <div class="padding">   </div>
+      <div class="label">Total sold</div>
+      <div class="text">: </div>
+      <div class="data" data-tag="sold">4123.0</div>
+    </div>
+    <div class="line">
+      <div class="padding">   </div>
+      <div class="label">In stock</div>
+      <div class="decoration">:</div>
+      <div class="padding"> </div>
+      <div class="data" data-tag="in-stock">144</div>
+    </div>
+    <div class="line">
+      <div class="padding">   </div>
+      <div class="label">On order</div>
+      <div class="decoration">:</div>
+      <div class="padding"> </div>
+      <div class="data" data-tag="on-order">42</div>
+    </div>
+    <div class="line">
+      <div class="padding">   </div>
+      <div class="label">SKU</div>
+      <div class="text">: </div>
+      <div class="data" data-tag="sku">HRD-000-632</div>
+    </div>
+    <div class="line">
+      <div class="label">Item</div>
+      <div class="text"> '</div>
+      <div class="data" data-tag="name">water</div>
+      <div class="text">':</div>
+    </div>
+    <div class="line">
+      <div class="padding">   </div>
+      <div class="label">Total sold</div>
+      <div class="text">: </div>
+      <div class="data" data-tag="sold">17.0</div>
+    </div>
+    <div class="line">
+      <div class="padding">   </div>
+      <div class="label">In stock</div>
+      <div class="decoration">:</div>
+      <div class="padding"> </div>
+      <div class="data" data-tag="in-stock">14</div>
+    </div>
+    <div class="line">
+      <div class="padding">   </div>
+      <div class="label">On order</div>
+      <div class="decoration">:</div>
+      <div class="padding"> </div>
+      <div class="data" data-tag="on-order">2</div>
+    </div>
+    <div class="line">
+      <div class="padding">   </div>
+      <div class="label">SKU</div>
+      <div class="text">: </div>
+      <div class="data" data-tag="sku">GRO-000-2331</div>
+    </div>
+    <div class="line">
+      <div class="label">Item</div>
+      <div class="text"> '</div>
+      <div class="data" data-tag="name">fish</div>
+      <div class="text">':</div>
+    </div>
+    <div class="line">
+      <div class="padding">   </div>
+      <div class="label">Total sold</div>
+      <div class="text">: </div>
+      <div class="data" data-tag="sold">1321.0</div>
+    </div>
+    <div class="line">
+      <div class="padding">   </div>
+      <div class="label">In stock</div>
+      <div class="decoration">:</div>
+      <div class="padding"> </div>
+      <div class="data" data-tag="in-stock">45</div>
+    </div>
+    <div class="line">
+      <div class="padding">   </div>
+      <div class="label">On order</div>
+      <div class="decoration">:</div>
+      <div class="padding"> </div>
+      <div class="data" data-tag="on-order">1</div>
+    </div>
+    <div class="line">
+      <div class="padding">   </div>
+      <div class="label">SKU</div>
+      <div class="text">: </div>
+      <div class="data" data-tag="sku">GRO-000-533</div>
+    </div>
+
+HTML output with xpath and info flags:
+
+    % ./testxo --libxo pretty,html,xpath,info
+    <div class="line">
+      <div class="label">Item</div>
+      <div class="text"> '</div>
+      <div class="data" data-tag="name"
+           data-xpath="/top/data/item/name" data-type="string"
+           data-help="Name of the item">gum</div>
+      <div class="text">':</div>
+    </div>
+    <div class="line">
+      <div class="padding">   </div>
+      <div class="label">Total sold</div>
+      <div class="text">: </div>
+      <div class="data" data-tag="sold"
+           data-xpath="/top/data/item/sold" data-type="number"
+           data-help="Number of items sold">1412.0</div>
+    </div>
+    <div class="line">
+      <div class="padding">   </div>
+      <div class="label">In stock</div>
+      <div class="decoration">:</div>
+      <div class="padding"> </div>
+      <div class="data" data-tag="in-stock"
+           data-xpath="/top/data/item/in-stock" data-type="number"
+           data-help="Number of items in stock">54</div>
+    </div>
+    <div class="line">
+      <div class="padding">   </div>
+      <div class="label">On order</div>
+      <div class="decoration">:</div>
+      <div class="padding"> </div>
+      <div class="data" data-tag="on-order"
+           data-xpath="/top/data/item/on-order" data-type="number"
+           data-help="Number of items on order">10</div>
+    </div>
+    <div class="line">
+      <div class="padding">   </div>
+      <div class="label">SKU</div>
+      <div class="text">: </div>
+      <div class="data" data-tag="sku"
+           data-xpath="/top/data/item/sku" data-type="string"
+           data-help="Stock Keeping Unit">GRO-000-415</div>
+    </div>
+    <div class="line">
+      <div class="label">Item</div>
+      <div class="text"> '</div>
+      <div class="data" data-tag="name"
+           data-xpath="/top/data/item/name" data-type="string"
+           data-help="Name of the item">rope</div>
+      <div class="text">':</div>
+    </div>
+    <div class="line">
+      <div class="padding">   </div>
+      <div class="label">Total sold</div>
+      <div class="text">: </div>
+      <div class="data" data-tag="sold"
+           data-xpath="/top/data/item/sold" data-type="number"
+           data-help="Number of items sold">85.0</div>
+    </div>
+    <div class="line">
+      <div class="padding">   </div>
+      <div class="label">In stock</div>
+      <div class="decoration">:</div>
+      <div class="padding"> </div>
+      <div class="data" data-tag="in-stock"
+           data-xpath="/top/data/item/in-stock" data-type="number"
+           data-help="Number of items in stock">4</div>
+    </div>
+    <div class="line">
+      <div class="padding">   </div>
+      <div class="label">On order</div>
+      <div class="decoration">:</div>
+      <div class="padding"> </div>
+      <div class="data" data-tag="on-order"
+           data-xpath="/top/data/item/on-order" data-type="number"
+           data-help="Number of items on order">2</div>
+    </div>
+    <div class="line">
+      <div class="padding">   </div>
+      <div class="label">SKU</div>
+      <div class="text">: </div>
+      <div class="data" data-tag="sku"
+           data-xpath="/top/data/item/sku" data-type="string"
+           data-help="Stock Keeping Unit">HRD-000-212</div>
+    </div>
+    <div class="line">
+      <div class="label">Item</div>
+      <div class="text"> '</div>
+      <div class="data" data-tag="name"
+           data-xpath="/top/data/item/name" data-type="string"
+           data-help="Name of the item">ladder</div>
+      <div class="text">':</div>
+    </div>
+    <div class="line">
+      <div class="padding">   </div>
+      <div class="label">Total sold</div>
+      <div class="text">: </div>
+      <div class="data" data-tag="sold"
+           data-xpath="/top/data/item/sold" data-type="number"
+           data-help="Number of items sold">0</div>
+    </div>
+    <div class="line">
+      <div class="padding">   </div>
+      <div class="label">In stock</div>
+      <div class="decoration">:</div>
+      <div class="padding"> </div>
+      <div class="data" data-tag="in-stock"
+           data-xpath="/top/data/item/in-stock" data-type="number"
+           data-help="Number of items in stock">2</div>
+    </div>
+    <div class="line">
+      <div class="padding">   </div>
+      <div class="label">On order</div>
+      <div class="decoration">:</div>
+      <div class="padding"> </div>
+      <div class="data" data-tag="on-order"
+           data-xpath="/top/data/item/on-order" data-type="number"
+           data-help="Number of items on order">1</div>
+    </div>
+    <div class="line">
+      <div class="padding">   </div>
+      <div class="label">SKU</div>
+      <div class="text">: </div>
+      <div class="data" data-tag="sku"
+           data-xpath="/top/data/item/sku" data-type="string"
+           data-help="Stock Keeping Unit">HRD-000-517</div>
+    </div>
+    <div class="line">
+      <div class="label">Item</div>
+      <div class="text"> '</div>
+      <div class="data" data-tag="name"
+           data-xpath="/top/data/item/name" data-type="string"
+           data-help="Name of the item">bolt</div>
+      <div class="text">':</div>
+    </div>
+    <div class="line">
+      <div class="padding">   </div>
+      <div class="label">Total sold</div>
+      <div class="text">: </div>
+      <div class="data" data-tag="sold"
+           data-xpath="/top/data/item/sold" data-type="number"
+           data-help="Number of items sold">4123.0</div>
+    </div>
+    <div class="line">
+      <div class="padding">   </div>
+      <div class="label">In stock</div>
+      <div class="decoration">:</div>
+      <div class="padding"> </div>
+      <div class="data" data-tag="in-stock"
+           data-xpath="/top/data/item/in-stock" data-type="number"
+           data-help="Number of items in stock">144</div>
+    </div>
+    <div class="line">
+      <div class="padding">   </div>
+      <div class="label">On order</div>
+      <div class="decoration">:</div>
+      <div class="padding"> </div>
+      <div class="data" data-tag="on-order"
+           data-xpath="/top/data/item/on-order" data-type="number"
+           data-help="Number of items on order">42</div>
+    </div>
+    <div class="line">
+      <div class="padding">   </div>
+      <div class="label">SKU</div>
+      <div class="text">: </div>
+      <div class="data" data-tag="sku"
+           data-xpath="/top/data/item/sku" data-type="string"
+           data-help="Stock Keeping Unit">HRD-000-632</div>
+    </div>
+    <div class="line">
+      <div class="label">Item</div>
+      <div class="text"> '</div>
+      <div class="data" data-tag="name"
+           data-xpath="/top/data/item/name" data-type="string"
+           data-help="Name of the item">water</div>
+      <div class="text">':</div>
+    </div>
+    <div class="line">
+      <div class="padding">   </div>
+      <div class="label">Total sold</div>
+      <div class="text">: </div>
+      <div class="data" data-tag="sold"
+           data-xpath="/top/data/item/sold" data-type="number"
+           data-help="Number of items sold">17.0</div>
+    </div>
+    <div class="line">
+      <div class="padding">   </div>
+      <div class="label">In stock</div>
+      <div class="decoration">:</div>
+      <div class="padding"> </div>
+      <div class="data" data-tag="in-stock"
+           data-xpath="/top/data/item/in-stock" data-type="number"
+           data-help="Number of items in stock">14</div>
+    </div>
+    <div class="line">
+      <div class="padding">   </div>
+      <div class="label">On order</div>
+      <div class="decoration">:</div>
+      <div class="padding"> </div>
+      <div class="data" data-tag="on-order"
+           data-xpath="/top/data/item/on-order" data-type="number"
+           data-help="Number of items on order">2</div>
+    </div>
+    <div class="line">
+      <div class="padding">   </div>
+      <div class="label">SKU</div>
+      <div class="text">: </div>
+      <div class="data" data-tag="sku"
+           data-xpath="/top/data/item/sku" data-type="string"
+           data-help="Stock Keeping Unit">GRO-000-2331</div>
+    </div>
+    <div class="line">
+      <div class="label">Item</div>
+      <div class="text"> '</div>
+      <div class="data" data-tag="name"
+           data-xpath="/top/data/item/name" data-type="string"
+           data-help="Name of the item">fish</div>
+      <div class="text">':</div>
+    </div>
+    <div class="line">
+      <div class="padding">   </div>
+      <div class="label">Total sold</div>
+      <div class="text">: </div>
+      <div class="data" data-tag="sold"
+           data-xpath="/top/data/item/sold" data-type="number"
+           data-help="Number of items sold">1321.0</div>
+    </div>
+    <div class="line">
+      <div class="padding">   </div>
+      <div class="label">In stock</div>
+      <div class="decoration">:</div>
+      <div class="padding"> </div>
+      <div class="data" data-tag="in-stock"
+           data-xpath="/top/data/item/in-stock" data-type="number"
+           data-help="Number of items in stock">45</div>
+    </div>
+    <div class="line">
+      <div class="padding">   </div>
+      <div class="label">On order</div>
+      <div class="decoration">:</div>
+      <div class="padding"> </div>
+      <div class="data" data-tag="on-order"
+           data-xpath="/top/data/item/on-order" data-type="number"
+           data-help="Number of items on order">1</div>
+    </div>
+    <div class="line">
+      <div class="padding">   </div>
+      <div class="label">SKU</div>
+      <div class="text">: </div>
+      <div class="data" data-tag="sku"
+           data-xpath="/top/data/item/sku" data-type="string"
+           data-help="Stock Keeping Unit">GRO-000-533</div>
+    </div>
+
+{{document:
+    name libxo-manual;
+    private "The libxo Project";
+    ipr none;
+    category exp;
+    abbreviation LIBXO-MANUAL;
+    title "libxo: The Easy Way to Generate text, XML, JSON, and HTML output";
+    contributor "author:Phil Shafer:Juniper Networks:phil@juniper.net";
+}}
