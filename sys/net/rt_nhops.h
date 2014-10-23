@@ -192,6 +192,10 @@ int fib4_lookup_nh_basic(uint32_t fibnum, struct in_addr dst, uint32_t flowid,
 int fib6_lookup_nh_basic(uint32_t fibnum, struct in6_addr dst, uint32_t flowid,
     struct nhop6_basic *pnh6);
 
+int fib4_lookup_nh_extended(uint32_t fibnum, struct in_addr dst,
+    uint32_t flowid, struct nhop4_extended *pnh4);
+void fib4_free_nh_ext(uint32_t fibnum, struct nhop4_extended *pnh4);
+
 void fib4_free_nh(uint32_t fibnum, struct nhop_data *nh);
 void fib4_choose_prepend(uint32_t fibnum, struct nhop_data *nh_src,
     uint32_t flowid, struct nhop_data *nh, struct nhop4_extended *nh_ext);

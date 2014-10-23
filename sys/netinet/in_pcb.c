@@ -752,8 +752,7 @@ in_pcbladdr(struct inpcb *inp, struct in_addr *faddr, struct in_addr *laddr,
 	struct ifaddr *ifa;
 	struct sockaddr *sa;
 	struct sockaddr_in *sin, sin_storage;
-	struct nhop_data nhd, *pnhd;
-	struct nhop4_extended nh_ext;
+	struct nhop4_extended nh_ext, *pnh4;
 	u_int fibnum;
 	int error;
 
@@ -780,14 +779,12 @@ in_pcbladdr(struct inpcb *inp, struct in_addr *faddr, struct in_addr *laddr,
 	 * Find out route to destination.
 	 */
 	fibnum = inp->inp_inc.inc_fibnum;
-	pnhd = &nhd;
-	memset(&nhd, 0, sizeof(nhd));
+	pnh4 = &nh_ext;
 	memset(&nh_ext, 0, sizeof(nh_ext));
 	if ((inp->inp_socket->so_options & SO_DONTROUTE) == 0)
-		error = fib4_lookup_prepend(fibnum, *faddr,
-		    NULL, &nhd, &nh_ext);
+		error = fib4_lookup_nh_extended(fibnum, *faddr, 0, &nh_ext);
 	if (error != 0) {
-		pnhd = NULL;
+		pnh4 = NULL;
 		error = 0;
 	}
 
@@ -799,7 +796,7 @@ in_pcbladdr(struct inpcb *inp, struct in_addr *faddr, struct in_addr *laddr,
 	 * network and try to find a corresponding interface to take
 	 * the source address from.
 	 */
-	if (pnhd == NULL) {
+	if (pnh4 == NULL) {
 		struct in_ifaddr *ia;
 		struct ifnet *ifp;
 
@@ -973,8 +970,8 @@ in_pcbladdr(struct inpcb *inp, struct in_addr *faddr, struct in_addr *laddr,
 	}
 
 done:
-	if (pnhd != NULL)
-		fib4_free_nh(fibnum, pnhd);
+	if (pnh4 != NULL)
+		fib4_free_nh_ext(fibnum, pnh4);
 	return (error);
 }
 
