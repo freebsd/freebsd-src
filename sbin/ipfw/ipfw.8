@@ -2014,7 +2014,7 @@ Shows generic table information and algo-specific data.
 The following lookup algorithms are supported:
 .Bl -tag -width indent
 .It Ar algo-desc : algo-name | "algo-name algo-data"
-.It Ar algo-name: Ar addr:radix | addr:hash | iface:arrray | number:array | flow:hash
+.It Ar algo-name: Ar addr:radix | addr:hash | iface:array | number:array | flow:hash
 .It Cm addr:radix
 Separate Radix trees for IPv4 and IPv6, the same way as the routing table (see
 .Xr route 4 ) .
@@ -2030,7 +2030,7 @@ Assume /32 and /128 masks by default.
 Search removes host bits (according to mask) from supplied address and checks
 resulting key in appropriate hash.
 Mostly optimized for /64 and byte-ranged IPv6 masks.
-.It Cm iface:arrray
+.It Cm iface:array
 Array storing sorted indexes for entries which are presented in the system.
 Optimized for very fast lookup.
 .It Cm number:array
