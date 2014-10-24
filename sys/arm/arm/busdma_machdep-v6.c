@@ -719,6 +719,8 @@ bus_dmamap_create(bus_dma_tag_t dmat, int flags, bus_dmamap_t *mapp)
 	if (map->flags & DMAMAP_COHERENT)
 		atomic_add_32(&maps_coherent, 1);
 	atomic_add_32(&maps_total, 1);
+	dmat->map_count++;
+
 	return (0);
 }
 
