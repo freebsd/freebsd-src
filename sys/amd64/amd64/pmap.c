@@ -6791,9 +6791,19 @@ retry:
 	if (ftype == VM_PROT_WRITE) {
 		if ((*pte & PG_RW) == 0)
 			goto done;
-		*pte |= PG_M;
+		/*
+		 * Set the modified and accessed bits simultaneously.
+		 *
+		 * Intel EPT PTEs that do software emulation of A/D bits map
+		 * PG_A and PG_M to EPT_PG_READ and EPT_PG_WRITE respectively.
+		 * An EPT misconfiguration is triggered if the PTE is writable
+		 * but not readable (WR=10). This is avoided by setting PG_A
+		 * and PG_M simultaneously.
+		 */
+		*pte |= PG_M | PG_A;
+	} else {
+		*pte |= PG_A;
 	}
-	*pte |= PG_A;
 
 	/* try to promote the mapping */
 	if (va < VM_MAXUSER_ADDRESS)
