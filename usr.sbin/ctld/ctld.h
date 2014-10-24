@@ -263,11 +263,15 @@ const struct auth_name	*auth_name_new(struct auth_group *ag,
 bool			auth_name_defined(const struct auth_group *ag);
 const struct auth_name	*auth_name_find(const struct auth_group *ag,
 			    const char *initiator_name);
+int			auth_name_check(const struct auth_group *ag,
+			    const char *initiator_name);
 
 const struct auth_portal	*auth_portal_new(struct auth_group *ag,
 				    const char *initiator_portal);
 bool			auth_portal_defined(const struct auth_group *ag);
 const struct auth_portal	*auth_portal_find(const struct auth_group *ag,
+				    const struct sockaddr_storage *sa);
+int				auth_portal_check(const struct auth_group *ag,
 				    const struct sockaddr_storage *sa);
 
 struct portal_group	*portal_group_new(struct conf *conf, const char *name);

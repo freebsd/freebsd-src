@@ -780,28 +780,15 @@ login(struct connection *conn)
 	/*
 	 * Enforce initiator-name and initiator-portal.
 	 */
-	if (auth_name_defined(ag)) {
-		if (auth_name_find(ag, initiator_name) == NULL) {
-			login_send_error(request, 0x02, 0x02);
-			log_errx(1, "initiator does not match allowed "
-			    "initiator names");
-		}
-		log_debugx("initiator matches allowed initiator names");
-	} else {
-		log_debugx("auth-group does not define initiator name "
-		    "restrictions");
+	if (auth_name_check(ag, initiator_name) != 0) {
+		login_send_error(request, 0x02, 0x02);
+		log_errx(1, "initiator does not match allowed initiator names");
 	}
 
-	if (auth_portal_defined(ag)) {
-		if (auth_portal_find(ag, &conn->conn_initiator_sa) == NULL) {
-			login_send_error(request, 0x02, 0x02);
-			log_errx(1, "initiator does not match allowed "
-			    "initiator portals");
-		}
-		log_debugx("initiator matches allowed initiator portals");
-	} else {
-		log_debugx("auth-group does not define initiator portal "
-		    "restrictions");
+	if (auth_portal_check(ag, &conn->conn_initiator_sa) != 0) {
+		login_send_error(request, 0x02, 0x02);
+		log_errx(1, "initiator does not match allowed "
+		    "initiator portals");
 	}
 
 	/*
