@@ -689,14 +689,14 @@ storvsc_probe(device_t dev)
 			if(bootverbose)
 				device_printf(dev,
 					"Enlightened ATA/IDE detected\n");
-			ret = 0;
+			ret = BUS_PROBE_DEFAULT;
 		} else if(bootverbose)
 			device_printf(dev, "Emulated ATA/IDE set (hw.ata.disk_enable set)\n");
 		break;
 	case DRIVER_STORVSC:
 		if(bootverbose)
 			device_printf(dev, "Enlightened SCSI device detected\n");
-		ret = 0;
+		ret = BUS_PROBE_DEFAULT;
 		break;
 	default:
 		ret = ENXIO;
