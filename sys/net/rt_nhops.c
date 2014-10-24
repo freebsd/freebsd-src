@@ -393,6 +393,8 @@ fib4_rte_to_nh_extended(struct rtentry *rte, struct in_addr dst,
 
 	/* Set flags */
 	pnh4->nh_flags = rte->rt_flags & NHOP_FLAGS_MASK;
+	if (rte->rt_flags & (RTF_DYNAMIC|RTF_MODIFIED))
+		pnh4->nh_flags |= NHOP_REDIRECT;
 	gw = (struct sockaddr_in *)rt_key(rte);
 	if (gw->sin_addr.s_addr == 0)
 		pnh4->nh_flags |= NHOP_DEFAULT;
@@ -414,6 +416,8 @@ fib4_rte_to_nh_basic(struct rtentry *rte, struct in_addr dst,
 		pnh4->nh_addr = dst;
 	/* Set flags */
 	pnh4->nh_flags = rte->rt_flags & NHOP_FLAGS_MASK;
+	if (rte->rt_flags & (RTF_DYNAMIC|RTF_MODIFIED))
+		pnh4->nh_flags |= NHOP_REDIRECT;
 	gw = (struct sockaddr_in *)rt_key(rte);
 	if (gw->sin_addr.s_addr == 0)
 		pnh4->nh_flags |= NHOP_DEFAULT;
