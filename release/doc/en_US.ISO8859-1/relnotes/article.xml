@@ -1621,9 +1621,6 @@
 	<literal>ldns</literal> have been updated to version
 	1.4.22.</para>
 
-      <para revision="269686"><application>OpenSSL</application> has
-	been updated to version 1.0.1i.</para>
-
       <para revision="269847">The <quote>lite</quote> version of
 	<application>Subversion</application> included in the
 	&os;&nbsp;base system and its dependencies have been
@@ -1666,6 +1663,9 @@
 
       <para revision="271947"><application>OpenPAM</application> has
 	been updated to Ourouparia (20140912).</para>
+
+      <para revision="273399"><application>OpenSSL</application> has
+	been updated to version 1.0.1j.</para>
     </sect2>
 
     <sect2 xml:id="ports">
