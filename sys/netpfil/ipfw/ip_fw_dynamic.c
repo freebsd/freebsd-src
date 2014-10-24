@@ -592,8 +592,9 @@ add_dyn_rule(struct ipfw_flow_id *id, int i, u_int8_t dyn_type, struct ip_fw *ru
 	if (r == NULL) {
 		if (last_log != time_uptime) {
 			last_log = time_uptime;
-			log(LOG_DEBUG, "ipfw: %s: Cannot allocate rule\n",
-			    __func__);
+			log(LOG_DEBUG,
+			    "ipfw: Cannot allocate dynamic state, "
+			    "consider increasing net.inet.ip.fw.dyn_max\n");
 		}
 		return NULL;
 	}
@@ -1385,7 +1386,7 @@ ipfw_dyn_init(struct ip_fw_chain *chain)
         V_dyn_keepalive = 1;    /* do send keepalives */
 	V_dyn_keepalive_last = time_uptime;
         
-        V_dyn_max = 4096;       /* max # of dynamic rules */
+        V_dyn_max = 16384; /* max # of dynamic rules */
 
 	V_ipfw_dyn_rule_zone = uma_zcreate("IPFW dynamic rule",
 	    sizeof(ipfw_dyn_rule), NULL, NULL, NULL, NULL,
