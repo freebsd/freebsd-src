@@ -307,8 +307,10 @@ __collate_strdup(u_char *s)
 void
 __collate_err(int ex, const char *f)
 {
+#ifndef __CHERI_SANDBOX__
 	const char *s;
 	int serrno = errno;
+#endif
 
 #ifdef __CHERI_SANDBOX__
 	abort();
