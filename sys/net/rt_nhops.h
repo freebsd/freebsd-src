@@ -209,8 +209,9 @@ void fib6_free_nh(uint32_t fibnum, struct nhop_data *nh);
 void fib6_choose_prepend(uint32_t fibnum, struct nhop_data *nh_src,
     uint32_t flowid, struct nhop_data *nh, struct nhop6_extended *nh_ext);
 
-#define	NHOP_REJECT	RTF_REJECT
-#define	NHOP_BLACKHOLE	RTF_BLACKHOLE
+#define	NHOP_REJECT	0x08	/* RTF_REJECT */
+#define	NHOP_BLACKHOLE	0x1000	/* RTF_BLACKHOLE */
+#define	NHOP_REDIRECT	0x10	/* RTF_DYNAMIC|RTF_MODIFIED */
 #define	NHOP_DEFAULT	0x80	/* Default route */
 
 #define	FWD_INET	0
