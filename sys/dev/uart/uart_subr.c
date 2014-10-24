@@ -196,7 +196,7 @@ out:
 int
 uart_getenv(int devtype, struct uart_devinfo *di, struct uart_class *class)
 {
-	const char *spec;
+	const char *cp, *spec;
 	bus_addr_t addr = ~0U;
 	int error;
 
@@ -214,12 +214,12 @@ uart_getenv(int devtype, struct uart_devinfo *di, struct uart_class *class)
 	 * port (resp).
 	 */
 	if (devtype == UART_DEV_CONSOLE)
-		spec = kern_getenv("hw.uart.console");
+		cp = kern_getenv("hw.uart.console");
 	else if (devtype == UART_DEV_DBGPORT)
-		spec = kern_getenv("hw.uart.dbgport");
+		cp = kern_getenv("hw.uart.dbgport");
 	else
-		spec = NULL;
-	if (spec == NULL)
+		cp = NULL;
+	if (cp == NULL)
 		return (ENXIO);
 
 	/* Set defaults. */
@@ -232,6 +232,7 @@ uart_getenv(int devtype, struct uart_devinfo *di, struct uart_class *class)
 	di->parity = UART_PARITY_NONE;
 
 	/* Parse the attributes. */
+	spec = cp;
 	while (1) {
 		switch (uart_parse_tag(&spec)) {
 		case UART_TAG_BR:
@@ -267,14 +268,18 @@ uart_getenv(int devtype, struct uart_devinfo *di, struct uart_class *class)
 			di->bas.rclk = uart_parse_long(&spec);
 			break;
 		default:
+			freeenv(__DECONST(char *, cp));
 			return (EINVAL);
 		}
 		if (*spec == '\0')
 			break;
-		if (*spec != ',')
+		if (*spec != ',') {
+			freeenv(__DECONST(char *, cp));
 			return (EINVAL);
+		}
 		spec++;
 	}
+	freeenv(__DECONST(char *, cp));
 
 	/*
 	 * If we still have an invalid address, the specification must be
