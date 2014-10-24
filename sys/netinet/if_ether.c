@@ -69,6 +69,8 @@ __FBSDID("$FreeBSD$");
 #include <netinet/ip_carp.h>
 #endif
 
+#include <net/rt_nhops.h>
+
 #include <net/if_arc.h>
 #include <net/iso88025.h>
 
@@ -602,7 +604,6 @@ in_arpinput(struct mbuf *m)
 	struct arphdr *ah;
 	struct ifnet *ifp = m->m_pkthdr.rcvif;
 	struct llentry *la = NULL;
-	struct rtentry *rt;
 	struct ifaddr *ifa;
 	struct in_ifaddr *ia;
 	struct sockaddr sa;
@@ -612,6 +613,7 @@ in_arpinput(struct mbuf *m)
 	int req_len;
 	int bridged = 0, is_bridge = 0;
 	int carped;
+	struct nhop4_extended nh_ext;
 	struct sockaddr_in sin;
 	sin.sin_len = sizeof(struct sockaddr_in);
 	sin.sin_family = AF_INET;
@@ -885,8 +887,7 @@ reply:
 
 			sin.sin_addr = itaddr;
 			/* XXX MRT use table 0 for arp reply  */
-			rt = in_rtalloc1((struct sockaddr *)&sin, 0, 0UL, 0);
-			if (!rt)
+			if (fib4_lookup_nh_extended(0, itaddr, 0, &nh_ext) != 0)
 				goto drop;
 
 			/*
@@ -894,11 +895,8 @@ reply:
 			 * as this one came out of, or we'll get into a fight
 			 * over who claims what Ether address.
 			 */
-			if (!rt->rt_ifp || rt->rt_ifp == ifp) {
-				RTFREE_LOCKED(rt);
+			if (nh_ext.nh_ifp == ifp)
 				goto drop;
-			}
-			RTFREE_LOCKED(rt);
 
 			(void)memcpy(ar_tha(ah), ar_sha(ah), ah->ar_hln);
 			(void)memcpy(ar_sha(ah), enaddr, ah->ar_hln);
@@ -912,18 +910,14 @@ reply:
 			sin.sin_addr = isaddr;
 
 			/* XXX MRT use table 0 for arp checks */
-			rt = in_rtalloc1((struct sockaddr *)&sin, 0, 0UL, 0);
-			if (!rt)
+			if (fib4_lookup_nh_extended(0, isaddr, 0, &nh_ext) != 0)
 				goto drop;
-			if (rt->rt_ifp != ifp) {
+			if (nh_ext.nh_ifp != ifp) {
 				ARP_LOG(LOG_INFO, "proxy: ignoring request"
-				    " from %s via %s, expecting %s\n",
-				    inet_ntoa(isaddr), ifp->if_xname,
-				    rt->rt_ifp->if_xname);
-				RTFREE_LOCKED(rt);
+				    " from %s via wrong interface %s\n",
+				    inet_ntoa(isaddr), ifp->if_xname);
 				goto drop;
 			}
-			RTFREE_LOCKED(rt);
 
 #ifdef DEBUG_PROXY
 			printf("arp: proxying for %s\n", inet_ntoa(itaddr));
