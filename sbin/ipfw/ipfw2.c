@@ -1225,9 +1225,10 @@ print_ip(struct buf_pr *bp, struct format_opts *fo, ipfw_insn_ip *cmd,
 	else {		/* numeric IP followed by some kind of mask */
 		ia = (struct in_addr *)&a[0];
 		bprintf(bp, "%s", inet_ntoa(*ia));
-		if (mb < 0)
-			bprintf(bp, ":%s", inet_ntoa(*ia ) );
-		else if (mb < 32)
+		if (mb < 0) {
+			ia = (struct in_addr *)&a[1];
+			bprintf(bp, ":%s", inet_ntoa(*ia));
+		} else if (mb < 32)
 			bprintf(bp, "/%d", mb);
 	}
 	if (len > 1)
