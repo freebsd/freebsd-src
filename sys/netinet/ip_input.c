@@ -1415,33 +1415,6 @@ ipproto_unregister(short ipproto)
 	return (0);
 }
 
-/*
- * Given address of next destination (final or next hop), return (referenced)
- * internet address info of interface to be used to get there.
- */
-struct in_ifaddr *
-ip_rtaddr(struct in_addr dst, u_int fibnum)
-{
-	struct route sro;
-	struct sockaddr_in *sin;
-	struct in_ifaddr *ia;
-
-	bzero(&sro, sizeof(sro));
-	sin = (struct sockaddr_in *)&sro.ro_dst;
-	sin->sin_family = AF_INET;
-	sin->sin_len = sizeof(*sin);
-	sin->sin_addr = dst;
-	in_rtalloc_ign(&sro, 0, fibnum);
-
-	if (sro.ro_rt == NULL)
-		return (NULL);
-
-	ia = ifatoia(sro.ro_rt->rt_ifa);
-	ifa_ref(&ia->ia_ifa);
-	RTFREE(sro.ro_rt);
-	return (ia);
-}
-
 u_char inetctlerrmap[PRC_NCMDS] = {
 	0,		0,		0,		0,
 	0,		EMSGSIZE,	EHOSTDOWN,	EHOSTUNREACH,
@@ -1469,9 +1442,9 @@ void
 ip_forward(struct mbuf *m, int srcrt)
 {
 	struct ip *ip = mtod(m, struct ip *);
-	struct in_ifaddr *ia;
 	struct mbuf *mcopy;
 	struct in_addr dest;
+	struct nhop4_basic nh4, *pnh4;
 	struct route ro;
 	struct route_info ri;
 	int error, type = 0, code = 0, mtu = 0;
@@ -1493,14 +1466,16 @@ ip_forward(struct mbuf *m, int srcrt)
 	}
 #endif
 
-	ia = ip_rtaddr(ip->ip_dst, M_GETFIB(m));
+	pnh4 = &nh4;
+	if (fib4_lookup_nh_basic(M_GETFIB(m), ip->ip_dst, 0, &nh4) != 0)
+		pnh4 = NULL;
 #ifndef IPSEC
 	/*
 	 * 'ia' may be NULL if there is no route for this destination.
 	 * In case of IPsec, Don't discard it just yet, but pass it to
 	 * ip_output in case of outgoing IPsec policy.
 	 */
-	if (!srcrt && ia == NULL) {
+	if (!srcrt && pnh4 == NULL) {
 		icmp_error(m, ICMP_UNREACH, ICMP_UNREACH_HOST, 0, 0);
 		return;
 	}
@@ -1557,7 +1532,7 @@ ip_forward(struct mbuf *m, int srcrt)
 	 */
 	dest.s_addr = 0;
 	if (!srcrt && V_ipsendredirects &&
-	    ia != NULL && ia->ia_ifp == m->m_pkthdr.rcvif) {
+	    pnh4 != NULL && nh4.nh_ifp == m->m_pkthdr.rcvif) {
 		struct sockaddr_in *sin;
 		struct rtentry *rt;
 
@@ -1610,14 +1585,10 @@ ip_forward(struct mbuf *m, int srcrt)
 		else {
 			if (mcopy)
 				m_freem(mcopy);
-			if (ia != NULL)
-				ifa_free(&ia->ia_ifa);
 			return;
 		}
 	}
 	if (mcopy == NULL) {
-		if (ia != NULL)
-			ifa_free(&ia->ia_ifa);
 		return;
 	}
 
@@ -1645,24 +1616,8 @@ ip_forward(struct mbuf *m, int srcrt)
 		 * If IPsec is configured for this path,
 		 * override any possibly mtu value set by ip_output.
 		 */ 
-		mtu = ip_ipsec_mtu(mcopy, mtu);
+		mtu = min(ri.ri_mtu, ip_ipsec_mtu(mcopy, mtu));
 #endif /* IPSEC */
-		/*
-		 * If the MTU was set before make sure we are below the
-		 * interface MTU.
-		 * If the MTU wasn't set before use the interface mtu or
-		 * fall back to the next smaller mtu step compared to the
-		 * current packet size.
-		 */
-		if (mtu != 0) {
-			if (ia != NULL)
-				mtu = min(mtu, ia->ia_ifp->if_mtu);
-		} else {
-			if (ia != NULL)
-				mtu = ia->ia_ifp->if_mtu;
-			else
-				mtu = ip_next_mtu(ntohs(ip->ip_len), 0);
-		}
 		IPSTAT_INC(ips_cantfrag);
 		break;
 
@@ -1677,8 +1632,6 @@ ip_forward(struct mbuf *m, int srcrt)
 		 */
 		if (V_ip_sendsourcequench == 0) {
 			m_freem(mcopy);
-			if (ia != NULL)
-				ifa_free(&ia->ia_ifa);
 			return;
 		} else {
 			type = ICMP_SOURCEQUENCH;
@@ -1688,12 +1641,8 @@ ip_forward(struct mbuf *m, int srcrt)
 
 	case EACCES:			/* ipfw denied packet */
 		m_freem(mcopy);
-		if (ia != NULL)
-			ifa_free(&ia->ia_ifa);
 		return;
 	}
-	if (ia != NULL)
-		ifa_free(&ia->ia_ifa);
 	icmp_error(mcopy, type, code, dest.s_addr, mtu);
 }
 
