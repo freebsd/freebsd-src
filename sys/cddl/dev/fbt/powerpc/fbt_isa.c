@@ -48,7 +48,7 @@
 
 #define	FBT_ENTRY	"entry"
 #define	FBT_RETURN	"return"
-#define FBT_AFRAMES	7
+#define	FBT_AFRAMES	7
 
 int
 fbt_invop(uintptr_t addr, uintptr_t *stack, uintptr_t rval)
