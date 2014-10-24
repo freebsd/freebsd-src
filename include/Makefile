@@ -158,7 +158,7 @@ copies:
 .endfor
 	cd ${.CURDIR}/../sys/dev/acpica; \
 	${INSTALL} -C -o ${BINOWN} -g ${BINGRP} -m 444 acpiio.h \
-	    ${DESTDIR}${INCLUDEDIR}/dev/acpica
+	    ${DESTDIR}${INCLUDEDIR}/dev/acpica; \
 	${INSTALL} -C -o ${BINOWN} -g ${BINGRP} -m 444 acpi_hpet.h \
 	    ${DESTDIR}${INCLUDEDIR}/dev/acpica
 	cd ${.CURDIR}/../sys/dev/agp; \
