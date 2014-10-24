@@ -666,9 +666,6 @@ cpsw_attach(device_t dev)
 	sc->mac_addr[4] = reg & 0xFF;
 	sc->mac_addr[5] = (reg >>  8) & 0xFF;
 
-	ether_ifattach(ifp, sc->mac_addr);
-	callout_init(&sc->watchdog.callout, 0);
-
 	/* Initialze MDIO - ENABLE, PREAMBLE=0, FAULTENB, CLKDIV=0xFF */
 	/* TODO Calculate MDCLK=CLK/(CLKDIV+1) */
 	cpsw_write_4(sc, MDIOCONTROL, 1 << 30 | 1 << 18 | 0xFF);
@@ -702,6 +699,9 @@ cpsw_attach(device_t dev)
 		cpsw_detach(dev);
 		return (ENXIO);
 	}
+
+	ether_ifattach(ifp, sc->mac_addr);
+	callout_init(&sc->watchdog.callout, 0);
 
 	return (0);
 }
@@ -740,15 +740,21 @@ cpsw_detach(device_t dev)
 	}
 
 	bus_generic_detach(dev);
-	device_delete_child(dev, sc->miibus);
+	if (sc->miibus)
+		device_delete_child(dev, sc->miibus);
 
 	/* Stop and release all interrupts */
 	cpsw_detach_interrupts(sc);
 
 	/* Free dmamaps and mbufs */
-	for (i = 0; i < sizeof(sc->_slots) / sizeof(sc->_slots[0]); ++i) {
+	for (i = 0; i < sizeof(sc->_slots) / sizeof(sc->_slots[0]); ++i)
 		cpsw_free_slot(sc, &sc->_slots[i]);
+	if (sc->null_mbuf_dmamap) {
+		error = bus_dmamap_destroy(sc->mbuf_dtag, sc->null_mbuf_dmamap);
+		KASSERT(error == 0, ("Mapping still active"));
 	}
+	if (sc->null_mbuf)
+		m_freem(sc->null_mbuf);
 
 	/* Free DMA tag */
 	error = bus_dma_tag_destroy(sc->mbuf_dtag);
@@ -756,6 +762,9 @@ cpsw_detach(device_t dev)
 
 	/* Free IO memory handler */
 	bus_release_resources(dev, res_spec, sc->res);
+
+	if (sc->ifp != NULL)
+		if_free(sc->ifp);
 
 	/* Destroy mutexes */
 	mtx_destroy(&sc->rx.lock);
