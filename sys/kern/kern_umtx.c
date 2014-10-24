@@ -2710,6 +2710,7 @@ out:
 	return (error);
 }
 
+#if defined(COMPAT_FREEBSD9) || defined(COMPAT_FREEBSD10)
 static int
 do_sem_wait(struct thread *td, struct _usem *sem, struct _umtx_time *timeout)
 {
@@ -2731,7 +2732,7 @@ do_sem_wait(struct thread *td, struct _usem *sem, struct _umtx_time *timeout)
 	umtxq_busy(&uq->uq_key);
 	umtxq_insert(uq);
 	umtxq_unlock(&uq->uq_key);
-	casuword32(__DEVOLATILE(uint32_t *, &sem->_has_waiters), 0, 1);
+	casuword32(&sem->_has_waiters, 0, 1);
 	count = fuword32(__DEVOLATILE(uint32_t *, &sem->_count));
 	if (count != 0) {
 		umtxq_lock(&uq->uq_key);
@@ -2761,7 +2762,7 @@ do_sem_wait(struct thread *td, struct _usem *sem, struct _umtx_time *timeout)
 }
 
 /*
- * Signal a userland condition variable.
+ * Signal a userland semaphore.
  */
 static int
 do_sem_wake(struct thread *td, struct _usem *sem)
@@ -2787,6 +2788,119 @@ do_sem_wake(struct thread *td, struct _usem *sem)
 			umtxq_unlock(&key);
 			error = suword32(
 			    __DEVOLATILE(uint32_t *, &sem->_has_waiters), 0);
+			umtxq_lock(&key);
+		}
+	}
+	umtxq_unbusy(&key);
+	umtxq_unlock(&key);
+	umtx_key_release(&key);
+	return (error);
+}
+#endif
+
+static int
+do_sem2_wait(struct thread *td, struct _usem2 *sem, struct _umtx_time *timeout)
+{
+	struct abs_timeout timo;
+	struct umtx_q *uq;
+	uint32_t count, flags;
+	int error;
+
+	uq = td->td_umtxq;
+	flags = fuword32(&sem->_flags);
+	error = umtx_key_get(sem, TYPE_SEM, GET_SHARE(flags), &uq->uq_key);
+	if (error != 0)
+		return (error);
+
+	if (timeout != NULL)
+		abs_timeout_init2(&timo, timeout);
+
+	umtxq_lock(&uq->uq_key);
+	umtxq_busy(&uq->uq_key);
+	umtxq_insert(uq);
+	umtxq_unlock(&uq->uq_key);
+	count = fuword32(__DEVOLATILE(uint32_t *, &sem->_count));
+	if (count == -1) {
+		umtxq_lock(&uq->uq_key);
+		umtxq_unbusy(&uq->uq_key);
+		umtxq_remove(uq);
+		umtxq_unlock(&uq->uq_key);
+		umtx_key_release(&uq->uq_key);
+		return (EFAULT);
+	}
+	for (;;) {
+		if (USEM_COUNT(count) != 0) {
+			umtxq_lock(&uq->uq_key);
+			umtxq_unbusy(&uq->uq_key);
+			umtxq_remove(uq);
+			umtxq_unlock(&uq->uq_key);
+			umtx_key_release(&uq->uq_key);
+			return (0);
+		}
+		if (count == USEM_HAS_WAITERS)
+			break;
+		count = casuword32(&sem->_count, 0, USEM_HAS_WAITERS);
+		if (count == -1) {
+			umtxq_lock(&uq->uq_key);
+			umtxq_unbusy(&uq->uq_key);
+			umtxq_remove(uq);
+			umtxq_unlock(&uq->uq_key);
+			umtx_key_release(&uq->uq_key);
+			return (EFAULT);
+		}
+		if (count == 0)
+			break;
+	}
+	umtxq_lock(&uq->uq_key);
+	umtxq_unbusy(&uq->uq_key);
+
+	error = umtxq_sleep(uq, "usem", timeout == NULL ? NULL : &timo);
+
+	if ((uq->uq_flags & UQF_UMTXQ) == 0)
+		error = 0;
+	else {
+		umtxq_remove(uq);
+		/* A relative timeout cannot be restarted. */
+		if (error == ERESTART && timeout != NULL &&
+		    (timeout->_flags & UMTX_ABSTIME) == 0)
+			error = EINTR;
+	}
+	umtxq_unlock(&uq->uq_key);
+	umtx_key_release(&uq->uq_key);
+	return (error);
+}
+
+/*
+ * Signal a userland semaphore.
+ */
+static int
+do_sem2_wake(struct thread *td, struct _usem2 *sem)
+{
+	struct umtx_key key;
+	int error, cnt;
+	uint32_t count, flags;
+
+	flags = fuword32(&sem->_flags);
+	if ((error = umtx_key_get(sem, TYPE_SEM, GET_SHARE(flags), &key)) != 0)
+		return (error);	
+	umtxq_lock(&key);
+	umtxq_busy(&key);
+	cnt = umtxq_count(&key);
+	if (cnt > 0) {
+		umtxq_signal(&key, 1);
+
+		/*
+		 * If this was the last sleeping thread, clear the waiters
+		 * flag in _count.
+		 */
+		if (cnt == 1) {
+			umtxq_unlock(&key);
+			count = fuword32(&sem->_count);
+			while (count != -1 && count & USEM_HAS_WAITERS)
+				count = casuword32(&sem->_count, count,
+				    count & ~USEM_HAS_WAITERS);
+			if (count == -1)
+				error = EFAULT;
 			umtxq_lock(&key);
 		}
 	}
@@ -3066,6 +3180,7 @@ __umtx_op_rw_unlock(struct thread *td, struct _umtx_op_args *uap)
 	return do_rw_unlock(td, uap->obj);
 }
 
+#if defined(COMPAT_FREEBSD9) || defined(COMPAT_FREEBSD10)
 static int
 __umtx_op_sem_wait(struct thread *td, struct _umtx_op_args *uap)
 {
@@ -3090,11 +3205,37 @@ __umtx_op_sem_wake(struct thread *td, struct _umtx_op_args *uap)
 {
 	return do_sem_wake(td, uap->obj);
 }
+#endif
 
 static int
 __umtx_op_wake2_umutex(struct thread *td, struct _umtx_op_args *uap)
 {
 	return do_wake2_umutex(td, uap->obj, uap->val);
+}
+
+static int
+__umtx_op_sem2_wait(struct thread *td, struct _umtx_op_args *uap)
+{
+	struct _umtx_time *tm_p, timeout;
+	int error;
+
+	/* Allow a null timespec (wait forever). */
+	if (uap->uaddr2 == NULL)
+		tm_p = NULL;
+	else {
+		error = umtx_copyin_umtx_time(
+		    uap->uaddr2, (size_t)uap->uaddr1, &timeout);
+		if (error != 0)
+			return (error);
+		tm_p = &timeout;
+	}
+	return (do_sem2_wait(td, uap->obj, tm_p));
+}
+
+static int
+__umtx_op_sem2_wake(struct thread *td, struct _umtx_op_args *uap)
+{
+	return do_sem2_wake(td, uap->obj);
 }
 
 typedef int (*_umtx_op_func)(struct thread *td, struct _umtx_op_args *uap);
@@ -3119,10 +3260,17 @@ static _umtx_op_func op_table[] = {
 	__umtx_op_wake_private,		/* UMTX_OP_WAKE_PRIVATE */
 	__umtx_op_wait_umutex,		/* UMTX_OP_MUTEX_WAIT */
 	__umtx_op_wake_umutex,		/* UMTX_OP_MUTEX_WAKE */
+#if defined(COMPAT_FREEBSD9) || defined(COMPAT_FREEBSD10)
 	__umtx_op_sem_wait,		/* UMTX_OP_SEM_WAIT */
 	__umtx_op_sem_wake,		/* UMTX_OP_SEM_WAKE */
+#else
+	__umtx_op_unimpl,		/* UMTX_OP_SEM_WAIT */
+	__umtx_op_unimpl,		/* UMTX_OP_SEM_WAKE */
+#endif
 	__umtx_op_nwake_private,	/* UMTX_OP_NWAKE_PRIVATE */
-	__umtx_op_wake2_umutex		/* UMTX_OP_MUTEX_WAKE2 */
+	__umtx_op_wake2_umutex,		/* UMTX_OP_MUTEX_WAKE2 */
+	__umtx_op_sem2_wait,		/* UMTX_OP_SEM2_WAIT */
+	__umtx_op_sem2_wake,		/* UMTX_OP_SEM2_WAKE */
 };
 
 int
@@ -3320,6 +3468,7 @@ __umtx_op_wait_uint_private_compat32(struct thread *td, struct _umtx_op_args *ua
 	return do_wait(td, uap->obj, uap->val, tm_p, 1, 1);
 }
 
+#if defined(COMPAT_FREEBSD9) || defined(COMPAT_FREEBSD10)
 static int
 __umtx_op_sem_wait_compat32(struct thread *td, struct _umtx_op_args *uap)
 {
@@ -3337,6 +3486,26 @@ __umtx_op_sem_wait_compat32(struct thread *td, struct _umtx_op_args *uap)
 		tm_p = &timeout;
 	}
 	return (do_sem_wait(td, uap->obj, tm_p));
+}
+#endif
+
+static int
+__umtx_op_sem2_wait_compat32(struct thread *td, struct _umtx_op_args *uap)
+{
+	struct _umtx_time *tm_p, timeout;
+	int error;
+
+	/* Allow a null timespec (wait forever). */
+	if (uap->uaddr2 == NULL)
+		tm_p = NULL;
+	else {
+		error = umtx_copyin_umtx_time32(uap->uaddr2,
+		    (size_t)uap->uaddr1, &timeout);
+		if (error != 0)
+			return (error);
+		tm_p = &timeout;
+	}
+	return (do_sem2_wait(td, uap->obj, tm_p));
 }
 
 static int
@@ -3385,10 +3554,17 @@ static _umtx_op_func op_table_compat32[] = {
 	__umtx_op_wake_private,		/* UMTX_OP_WAKE_PRIVATE */
 	__umtx_op_wait_umutex_compat32, /* UMTX_OP_MUTEX_WAIT */
 	__umtx_op_wake_umutex,		/* UMTX_OP_MUTEX_WAKE */
+#if defined(COMPAT_FREEBSD9) || defined(COMPAT_FREEBSD10)
 	__umtx_op_sem_wait_compat32,	/* UMTX_OP_SEM_WAIT */
 	__umtx_op_sem_wake,		/* UMTX_OP_SEM_WAKE */
+#else
+	__umtx_op_unimpl,		/* UMTX_OP_SEM_WAIT */
+	__umtx_op_unimpl,		/* UMTX_OP_SEM_WAKE */
+#endif
 	__umtx_op_nwake_private32,	/* UMTX_OP_NWAKE_PRIVATE */
-	__umtx_op_wake2_umutex		/* UMTX_OP_MUTEX_WAKE2 */
+	__umtx_op_wake2_umutex,		/* UMTX_OP_MUTEX_WAKE2 */
+	__umtx_op_sem2_wait_compat32,	/* UMTX_OP_SEM2_WAIT */
+	__umtx_op_sem2_wake,		/* UMTX_OP_SEM2_WAKE */
 };
 
 int

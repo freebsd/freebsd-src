@@ -52,6 +52,11 @@
 /* _usem flags */
 #define SEM_NAMED	0x0002
 
+/* _usem2 count field */
+#define	USEM_HAS_WAITERS	0x80000000U
+#define	USEM_MAX_COUNT		0x7fffffffU
+#define	USEM_COUNT(c)		((c) & USEM_MAX_COUNT)
+
 /* op code for _umtx_op */
 #define	UMTX_OP_RESERVED0	0
 #define	UMTX_OP_RESERVED1	1
@@ -72,11 +77,13 @@
 #define	UMTX_OP_WAKE_PRIVATE	16
 #define	UMTX_OP_MUTEX_WAIT	17
 #define	UMTX_OP_MUTEX_WAKE	18	/* deprecated */
-#define	UMTX_OP_SEM_WAIT	19
-#define	UMTX_OP_SEM_WAKE	20
+#define	UMTX_OP_SEM_WAIT	19	/* deprecated */
+#define	UMTX_OP_SEM_WAKE	20	/* deprecated */
 #define	UMTX_OP_NWAKE_PRIVATE   21
 #define	UMTX_OP_MUTEX_WAKE2	22
-#define	UMTX_OP_MAX		23
+#define	UMTX_OP_SEM2_WAIT	23
+#define	UMTX_OP_SEM2_WAKE	24
+#define	UMTX_OP_MAX		25
 
 /* Flags for UMTX_OP_CV_WAIT */
 #define	CVWAIT_CHECK_UNPARKING	0x01
