@@ -159,6 +159,8 @@ copies:
 	cd ${.CURDIR}/../sys/dev/acpica; \
 	${INSTALL} -C -o ${BINOWN} -g ${BINGRP} -m 444 acpiio.h \
 	    ${DESTDIR}${INCLUDEDIR}/dev/acpica
+	${INSTALL} -C -o ${BINOWN} -g ${BINGRP} -m 444 acpi_hpet.h \
+	    ${DESTDIR}${INCLUDEDIR}/dev/acpica
 	cd ${.CURDIR}/../sys/dev/agp; \
 	${INSTALL} -C -o ${BINOWN} -g ${BINGRP} -m 444 agpreg.h \
 	    ${DESTDIR}${INCLUDEDIR}/dev/agp
@@ -243,7 +245,7 @@ symlinks:
 	done
 .endfor
 	cd ${.CURDIR}/../sys/dev/acpica; \
-	for h in acpiio.h; do \
+	for h in acpiio.h acpi_hpet.h; do \
 		ln -fs ../../../../sys/dev/acpica/$$h \
 		    ${DESTDIR}${INCLUDEDIR}/dev/acpica; \
 	done

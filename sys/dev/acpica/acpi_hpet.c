@@ -35,11 +35,13 @@ __FBSDID("$FreeBSD$");
 #include "opt_apic.h"
 #endif
 #include <sys/param.h>
+#include <sys/conf.h>
 #include <sys/bus.h>
 #include <sys/kernel.h>
 #include <sys/module.h>
 #include <sys/proc.h>
 #include <sys/rman.h>
+#include <sys/mman.h>
 #include <sys/time.h>
 #include <sys/smp.h>
 #include <sys/sysctl.h>
@@ -106,6 +108,23 @@ struct hpet_softc {
 		char			name[8];
 	} 			t[32];
 	int			num_timers;
+	struct cdev		*pdev;
+	int			mmap_allow;
+	int			mmap_allow_write;
+	int			devinuse;
+};
+
+static d_open_t hpet_open;
+static d_close_t hpet_close;
+static d_mmap_t hpet_mmap;
+
+static struct cdevsw hpet_cdevsw = {
+	.d_version =	D_VERSION,
+	.d_flags =	D_TRACKCLOSE,
+	.d_name =	"hpet",
+	.d_open =	hpet_open,
+	.d_close =	hpet_close,
+	.d_mmap =	hpet_mmap,
 };
 
 static u_int hpet_get_timecount(struct timecounter *tc);
@@ -315,6 +334,47 @@ hpet_find_irq_rid(device_t dev, u_long start, u_long end)
 		if (error != 0 || (start <= irq && irq <= end))
 			return (rid);
 	}
+}
+
+static int
+hpet_open(struct cdev *cdev, int oflags, int devtype, struct thread *td)
+{
+	struct hpet_softc *sc;
+
+	sc = cdev->si_drv1;
+	if (!sc->mmap_allow)
+		return (EPERM);
+	if (atomic_cmpset_32(&sc->devinuse, 0, 1) == 0)
+		return (EBUSY);
+	else
+		return (0);
+}
+
+static int
+hpet_close(struct cdev *cdev, int fflag, int devtype, struct thread *td)
+{
+	struct hpet_softc *sc;
+
+	sc = cdev->si_drv1;
+	sc->devinuse = 0;
+
+	return (0);
+}
+
+static int
+hpet_mmap(struct cdev *cdev, vm_ooffset_t offset, vm_paddr_t *paddr,
+    int nprot, vm_memattr_t *memattr)
+{
+	struct hpet_softc *sc;
+
+	sc = cdev->si_drv1;
+	if (offset > rman_get_size(sc->mem_res))
+		return (EINVAL);
+	if (!sc->mmap_allow_write && (nprot & PROT_WRITE))
+		return (EPERM);
+	*paddr = rman_get_start(sc->mem_res) + offset;
+
+	return (0);
 }
 
 /* Discover the HPET via the ACPI table of the same name. */
@@ -701,6 +761,26 @@ hpet_attach(device_t dev)
 			maxhpetet++;
 		}
 	}
+
+	sc->pdev = make_dev(&hpet_cdevsw, 0, UID_ROOT, GID_WHEEL,
+	    0600, "hpet%d", device_get_unit(dev));
+	if (sc->pdev) {
+		sc->pdev->si_drv1 = sc;
+		sc->mmap_allow = 1;
+		TUNABLE_INT_FETCH("hw.acpi.hpet.mmap_allow",
+		    &sc->mmap_allow);
+		sc->mmap_allow_write = 1;
+		TUNABLE_INT_FETCH("hw.acpi.hpet.mmap_allow_write",
+		    &sc->mmap_allow_write);
+		SYSCTL_ADD_INT(device_get_sysctl_ctx(dev),
+		    SYSCTL_CHILDREN(device_get_sysctl_tree(dev)),
+		    OID_AUTO, "mmap_allow",
+		    CTLFLAG_RW, &sc->mmap_allow, 0,
+		    "Allow userland to memory map HPET");
+	} else
+		device_printf(dev, "could not create /dev/hpet%d\n",
+		    device_get_unit(dev));
+
 	return (0);
 }
 
