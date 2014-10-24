@@ -115,6 +115,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/proc.h>
 #include <sys/rwlock.h>
 #include <sys/sx.h>
+#include <sys/vmem.h>
 #include <sys/vmmeter.h>
 #include <sys/sched.h>
 #include <sys/sysctl.h>
@@ -401,11 +402,6 @@ pmap_pcid_save_cnt_proc(SYSCTL_HANDLER_ARGS)
 SYSCTL_PROC(_vm_pmap, OID_AUTO, pcid_save_cnt, CTLTYPE_U64 | CTLFLAG_RW |
     CTLFLAG_MPSAFE, NULL, 0, pmap_pcid_save_cnt_proc, "QU",
     "Count of saved TLB context on switch");
-
-/* pmap_copy_pages() over non-DMAP */
-static struct mtx cpage_lock;
-static vm_offset_t cpage_a;
-static vm_offset_t cpage_b;
 
 /*
  * Crashdump maps.
@@ -1072,10 +1068,6 @@ pmap_init(void)
 	    M_WAITOK | M_ZERO);
 	for (i = 0; i < pv_npg; i++)
 		TAILQ_INIT(&pv_table[i].pv_list);
-
-	mtx_init(&cpage_lock, "cpage", NULL, MTX_DEF);
-	cpage_a = kva_alloc(PAGE_SIZE);
-	cpage_b = kva_alloc(PAGE_SIZE);
 }
 
 static SYSCTL_NODE(_vm_pmap, OID_AUTO, pde, CTLFLAG_RD, 0,
@@ -5056,66 +5048,24 @@ pmap_copy_pages(vm_page_t ma[], vm_offset_t a_offset, vm_page_t mb[],
     vm_offset_t b_offset, int xfersize)
 {
 	void *a_cp, *b_cp;
-	vm_page_t m_a, m_b;
-	vm_paddr_t p_a, p_b;
-	pt_entry_t *pte;
-	vm_offset_t a_pg_offset, b_pg_offset;
+	vm_page_t pages[2];
+	vm_offset_t vaddr[2], a_pg_offset, b_pg_offset;
 	int cnt;
-	boolean_t pinned;
+	boolean_t mapped;
 
-	/*
-	 * NB:  The sequence of updating a page table followed by accesses
-	 * to the corresponding pages used in the !DMAP case is subject to
-	 * the situation described in the "AMD64 Architecture Programmer's
-	 * Manual Volume 2: System Programming" rev. 3.23, "7.3.1 Special
-	 * Coherency Considerations".  Therefore, issuing the INVLPG right
-	 * after modifying the PTE bits is crucial.
-	 */
-	pinned = FALSE;
 	while (xfersize > 0) {
 		a_pg_offset = a_offset & PAGE_MASK;
-		m_a = ma[a_offset >> PAGE_SHIFT];
-		p_a = m_a->phys_addr;
+		pages[0] = ma[a_offset >> PAGE_SHIFT];
 		b_pg_offset = b_offset & PAGE_MASK;
-		m_b = mb[b_offset >> PAGE_SHIFT];
-		p_b = m_b->phys_addr;
+		pages[1] = mb[b_offset >> PAGE_SHIFT];
 		cnt = min(xfersize, PAGE_SIZE - a_pg_offset);
 		cnt = min(cnt, PAGE_SIZE - b_pg_offset);
-		if (__predict_false(p_a < DMAP_MIN_ADDRESS ||
-		    p_a > DMAP_MIN_ADDRESS + dmaplimit)) {
-			mtx_lock(&cpage_lock);
-			sched_pin();
-			pinned = TRUE;
-			pte = vtopte(cpage_a);
-			*pte = p_a | X86_PG_A | X86_PG_V |
-			    pmap_cache_bits(kernel_pmap, m_a->md.pat_mode, 0);
-			invlpg(cpage_a);
-			a_cp = (char *)cpage_a + a_pg_offset;
-		} else {
-			a_cp = (char *)PHYS_TO_DMAP(p_a) + a_pg_offset;
-		}
-		if (__predict_false(p_b < DMAP_MIN_ADDRESS ||
-		    p_b > DMAP_MIN_ADDRESS + dmaplimit)) {
-			if (!pinned) {
-				mtx_lock(&cpage_lock);
-				sched_pin();
-				pinned = TRUE;
-			}
-			pte = vtopte(cpage_b);
-			*pte = p_b | X86_PG_A | X86_PG_M | X86_PG_RW |
-			    X86_PG_V | pmap_cache_bits(kernel_pmap,
-			    m_b->md.pat_mode, 0);
-			invlpg(cpage_b);
-			b_cp = (char *)cpage_b + b_pg_offset;
-		} else {
-			b_cp = (char *)PHYS_TO_DMAP(p_b) + b_pg_offset;
-		}
+		mapped = pmap_map_io_transient(pages, vaddr, 2, FALSE);
+		a_cp = (char *)vaddr[0] + a_pg_offset;
+		b_cp = (char *)vaddr[1] + b_pg_offset;
 		bcopy(a_cp, b_cp, cnt);
-		if (__predict_false(pinned)) {
-			sched_unpin();
-			mtx_unlock(&cpage_lock);
-			pinned = FALSE;
-		}
+		if (__predict_false(mapped))
+			pmap_unmap_io_transient(pages, vaddr, 2, FALSE);
 		a_offset += cnt;
 		b_offset += cnt;
 		xfersize -= cnt;
@@ -6899,6 +6849,107 @@ pmap_get_mapping(pmap_t pmap, vm_offset_t va, uint64_t *ptr, int *num)
 done:
 	PMAP_UNLOCK(pmap);
 	*num = idx;
+}
+
+/**
+ * Get the kernel virtual address of a set of physical pages. If there are
+ * physical addresses not covered by the DMAP perform a transient mapping
+ * that will be removed when calling pmap_unmap_io_transient.
+ *
+ * \param page        The pages the caller wishes to obtain the virtual
+ *                    address on the kernel memory map.
+ * \param vaddr       On return contains the kernel virtual memory address
+ *                    of the pages passed in the page parameter.
+ * \param count       Number of pages passed in.
+ * \param can_fault   TRUE if the thread using the mapped pages can take
+ *                    page faults, FALSE otherwise.
+ *
+ * \returns TRUE if the caller must call pmap_unmap_io_transient when
+ *          finished or FALSE otherwise.
+ *
+ */
+boolean_t
+pmap_map_io_transient(vm_page_t page[], vm_offset_t vaddr[], int count,
+    boolean_t can_fault)
+{
+	vm_paddr_t paddr;
+	boolean_t needs_mapping;
+	pt_entry_t *pte;
+	int cache_bits, error, i;
+
+	/*
+	 * Allocate any KVA space that we need, this is done in a separate
+	 * loop to prevent calling vmem_alloc while pinned.
+	 */
+	needs_mapping = FALSE;
+	for (i = 0; i < count; i++) {
+		paddr = VM_PAGE_TO_PHYS(page[i]);
+		if (__predict_false(paddr >= dmaplimit)) {
+			error = vmem_alloc(kernel_arena, PAGE_SIZE,
+			    M_BESTFIT | M_WAITOK, &vaddr[i]);
+			KASSERT(error == 0, ("vmem_alloc failed: %d", error));
+			needs_mapping = TRUE;
+		} else {
+			vaddr[i] = PHYS_TO_DMAP(paddr);
+		}
+	}
+
+	/* Exit early if everything is covered by the DMAP */
+	if (!needs_mapping)
+		return (FALSE);
+
+	/*
+	 * NB:  The sequence of updating a page table followed by accesses
+	 * to the corresponding pages used in the !DMAP case is subject to
+	 * the situation described in the "AMD64 Architecture Programmer's
+	 * Manual Volume 2: System Programming" rev. 3.23, "7.3.1 Special
+	 * Coherency Considerations".  Therefore, issuing the INVLPG right
+	 * after modifying the PTE bits is crucial.
+	 */
+	if (!can_fault)
+		sched_pin();
+	for (i = 0; i < count; i++) {
+		paddr = VM_PAGE_TO_PHYS(page[i]);
+		if (paddr >= dmaplimit) {
+			if (can_fault) {
+				/*
+				 * Slow path, since we can get page faults
+				 * while mappings are active don't pin the
+				 * thread to the CPU and instead add a global
+				 * mapping visible to all CPUs.
+				 */
+				pmap_qenter(vaddr[i], &page[i], 1);
+			} else {
+				pte = vtopte(vaddr[i]);
+				cache_bits = pmap_cache_bits(kernel_pmap,
+				    page[i]->md.pat_mode, 0);
+				pte_store(pte, paddr | X86_PG_RW | X86_PG_V |
+				    cache_bits);
+				invlpg(vaddr[i]);
+			}
+		}
+	}
+
+	return (needs_mapping);
+}
+
+void
+pmap_unmap_io_transient(vm_page_t page[], vm_offset_t vaddr[], int count,
+    boolean_t can_fault)
+{
+	vm_paddr_t paddr;
+	int i;
+
+	if (!can_fault)
+		sched_unpin();
+	for (i = 0; i < count; i++) {
+		paddr = VM_PAGE_TO_PHYS(page[i]);
+		if (paddr >= dmaplimit) {
+			if (can_fault)
+				pmap_qremove(vaddr[i], 1);
+			vmem_free(kernel_arena, vaddr[i], PAGE_SIZE);
+		}
+	}
 }
 
 #include "opt_ddb.h"
