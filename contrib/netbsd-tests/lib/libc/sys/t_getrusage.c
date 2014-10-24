@@ -47,7 +47,11 @@ static void		sighandler(int);
 static const size_t	maxiter = 2000;
 
 static void
+#if defined(__FreeBSD__)
+sighandler(int signo __unused)
+#else
 sighandler(int signo)
+#endif
 {
 	/* Nothing. */
 }
@@ -168,7 +172,9 @@ ATF_TC_BODY(getrusage_utime_zero, tc)
 	 *
 	 * See also (duplicate) PR port-amd64/41734.
 	 */
+#if defined(__NetBSD__)
 	atf_tc_expect_fail("PR kern/30115");
+#endif
 
 	for (i = 0; i < maxiter; i++) {
 
@@ -182,7 +188,9 @@ ATF_TC_BODY(getrusage_utime_zero, tc)
 			atf_tc_fail("zero user time from getrusage(2)");
 	}
 
+#if defined(__NetBSD__)
 	atf_tc_fail("anticipated error did not occur");
+#endif
 }
 
 ATF_TP_ADD_TCS(tp)
