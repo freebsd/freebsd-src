@@ -111,19 +111,15 @@ struct hpet_softc {
 	struct cdev		*pdev;
 	int			mmap_allow;
 	int			mmap_allow_write;
-	int			devinuse;
 };
 
 static d_open_t hpet_open;
-static d_close_t hpet_close;
 static d_mmap_t hpet_mmap;
 
 static struct cdevsw hpet_cdevsw = {
 	.d_version =	D_VERSION,
-	.d_flags =	D_TRACKCLOSE,
 	.d_name =	"hpet",
 	.d_open =	hpet_open,
-	.d_close =	hpet_close,
 	.d_mmap =	hpet_mmap,
 };
 
@@ -344,21 +340,8 @@ hpet_open(struct cdev *cdev, int oflags, int devtype, struct thread *td)
 	sc = cdev->si_drv1;
 	if (!sc->mmap_allow)
 		return (EPERM);
-	if (atomic_cmpset_32(&sc->devinuse, 0, 1) == 0)
-		return (EBUSY);
 	else
 		return (0);
-}
-
-static int
-hpet_close(struct cdev *cdev, int fflag, int devtype, struct thread *td)
-{
-	struct hpet_softc *sc;
-
-	sc = cdev->si_drv1;
-	sc->devinuse = 0;
-
-	return (0);
 }
 
 static int
@@ -378,7 +361,7 @@ hpet_mmap(struct cdev *cdev, vm_ooffset_t offset, vm_paddr_t *paddr,
 }
 
 /* Discover the HPET via the ACPI table of the same name. */
-static void 
+static void
 hpet_identify(driver_t *driver, device_t parent)
 {
 	ACPI_TABLE_HPET *hpet;
@@ -710,8 +693,8 @@ hpet_attach(device_t dev)
 #ifdef DEV_APIC
 		if ((t->caps & HPET_TCAP_FSB_INT_DEL) && t->irq >= 0) {
 			uint64_t addr;
-			uint32_t data;	
-			
+			uint32_t data;
+
 			if (PCIB_MAP_MSI(
 			    device_get_parent(device_get_parent(dev)), dev,
 			    t->irq, &addr, &data) == 0) {
@@ -825,8 +808,8 @@ hpet_resume(device_t dev)
 #ifdef DEV_APIC
 		if (t->irq >= 0 && (sc->legacy_route == 0 || i >= 2)) {
 			uint64_t addr;
-			uint32_t data;	
-			
+			uint32_t data;
+
 			if (PCIB_MAP_MSI(
 			    device_get_parent(device_get_parent(dev)), dev,
 			    t->irq, &addr, &data) == 0) {
@@ -897,7 +880,7 @@ hpet_remap_intr(device_t dev, device_t child, u_int irq)
 	struct hpet_softc *sc = device_get_softc(dev);
 	struct hpet_timer *t;
 	uint64_t addr;
-	uint32_t data;	
+	uint32_t data;
 	int error, i;
 
 	for (i = 0; i < sc->num_timers; i++) {
