@@ -61,7 +61,9 @@ __weak_reference(_sem_unlink, sem_unlink);
 __weak_reference(_sem_wait, sem_wait);
 
 #define SEM_PREFIX	"/tmp/SEMD"
-#define SEM_MAGIC	((u_int32_t)0x73656d31)
+#define SEM_MAGIC	((u_int32_t)0x73656d32)
+
+_Static_assert(SEM_VALUE_MAX <= USEM_MAX_COUNT, "SEM_VALUE_MAX too large");
 
 struct sem_nameinfo {
 	int open_count;
@@ -131,7 +133,6 @@ _sem_init(sem_t *sem, int pshared, unsigned int value)
 	bzero(sem, sizeof(sem_t));
 	sem->_magic = SEM_MAGIC;
 	sem->_kern._count = (u_int32_t)value;
-	sem->_kern._has_waiters = 0;
 	sem->_kern._flags = pshared ? USYNC_PROCESS_SHARED : 0;
 	return (0);
 }
@@ -212,7 +213,6 @@ _sem_open(const char *name, int flags, ...)
 		sem_t tmp;
 
 		tmp._magic = SEM_MAGIC;
-		tmp._kern._has_waiters = 0;
 		tmp._kern._count = value;
 		tmp._kern._flags = USYNC_PROCESS_SHARED | SEM_NAMED;
 		if (_write(fd, &tmp, sizeof(tmp)) != sizeof(tmp))
@@ -332,18 +332,18 @@ _sem_getvalue(sem_t * __restrict sem, int * __restrict sval)
 	if (sem_check_validity(sem) != 0)
 		return (-1);
 
-	*sval = (int)sem->_kern._count;
+	*sval = (int)USEM_COUNT(sem->_kern._count);
 	return (0);
 }
 
 static __inline int
-usem_wake(struct _usem *sem)
+usem_wake(struct _usem2 *sem)
 {
-	return _umtx_op(sem, UMTX_OP_SEM_WAKE, 0, NULL, NULL);
+	return _umtx_op(sem, UMTX_OP_SEM2_WAKE, 0, NULL, NULL);
 }
 
 static __inline int
-usem_wait(struct _usem *sem, const struct timespec *abstime)
+usem_wait(struct _usem2 *sem, const struct timespec *abstime)
 {
 	struct _umtx_time *tm_p, timeout;
 	size_t tm_size;
@@ -358,7 +358,7 @@ usem_wait(struct _usem *sem, const struct timespec *abstime)
 		tm_p = &timeout;
 		tm_size = sizeof(timeout);
 	}
-	return _umtx_op(sem, UMTX_OP_SEM_WAIT, 0, 
+	return _umtx_op(sem, UMTX_OP_SEM2_WAIT, 0, 
 		    (void *)tm_size, __DECONST(void*, tm_p));
 }
 
@@ -370,7 +370,7 @@ _sem_trywait(sem_t *sem)
 	if (sem_check_validity(sem) != 0)
 		return (-1);
 
-	while ((val = sem->_kern._count) > 0) {
+	while (USEM_COUNT(val = sem->_kern._count) > 0) {
 		if (atomic_cmpset_acq_int(&sem->_kern._count, val, val - 1))
 			return (0);
 	}
@@ -390,7 +390,7 @@ _sem_timedwait(sem_t * __restrict sem,
 	retval = 0;
 	_pthread_testcancel();
 	for (;;) {
-		while ((val = sem->_kern._count) > 0) {
+		while (USEM_COUNT(val = sem->_kern._count) > 0) {
 			if (atomic_cmpset_acq_int(&sem->_kern._count, val, val - 1))
 				return (0);
 		}
@@ -439,9 +439,10 @@ _sem_post(sem_t *sem)
 
 	do {
 		count = sem->_kern._count;
-		if (count + 1 > SEM_VALUE_MAX)
+		if (USEM_COUNT(count) + 1 > SEM_VALUE_MAX)
 			return (EOVERFLOW);
-	} while(!atomic_cmpset_rel_int(&sem->_kern._count, count, count+1));
-	(void)usem_wake(&sem->_kern);
+	} while (!atomic_cmpset_rel_int(&sem->_kern._count, count, count + 1));
+	if (count & USEM_HAS_WAITERS)
+		usem_wake(&sem->_kern);
 	return (0);
 }
