@@ -133,7 +133,9 @@ ATF_TC_BODY(getrusage_utime_back, tc)
 	/*
 	 * Test that two consecutive calls are sane.
 	 */
+#ifdef __NetBSD__
 	atf_tc_expect_fail("PR kern/30115");
+#endif
 
 	for (i = 0; i < maxiter; i++) {
 
@@ -152,7 +154,9 @@ ATF_TC_BODY(getrusage_utime_back, tc)
 			atf_tc_fail("user time went backwards");
 	}
 
+#ifdef __NetBSD__
 	atf_tc_fail("anticipated error did not occur");
+#endif
 }
 
 ATF_TC(getrusage_utime_zero);
@@ -166,15 +170,18 @@ ATF_TC_BODY(getrusage_utime_zero, tc)
 	struct rusage ru;
 	size_t i;
 
+#ifdef __FreeBSD__
+	atf_tc_skip("this testcase passes/fails sporadically on FreeBSD/i386 "
+	    "@ r273153 (at least)");
+#endif
+
 	/*
 	 * Test that getrusage(2) does not return
 	 * zero user time for the calling process.
 	 *
 	 * See also (duplicate) PR port-amd64/41734.
 	 */
-#if defined(__NetBSD__)
 	atf_tc_expect_fail("PR kern/30115");
-#endif
 
 	for (i = 0; i < maxiter; i++) {
 
@@ -188,9 +195,7 @@ ATF_TC_BODY(getrusage_utime_zero, tc)
 			atf_tc_fail("zero user time from getrusage(2)");
 	}
 
-#if defined(__NetBSD__)
 	atf_tc_fail("anticipated error did not occur");
-#endif
 }
 
 ATF_TP_ADD_TCS(tp)
