@@ -218,7 +218,7 @@ netvsc_probe(device_t dev)
 		if (bootverbose)
 			printf("Netvsc probe... DONE \n");
 
-		return (0);
+		return (BUS_PROBE_DEFAULT);
 	}
 
 	return (ENXIO);
