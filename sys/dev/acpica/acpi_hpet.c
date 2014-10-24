@@ -760,6 +760,11 @@ hpet_attach(device_t dev)
 		    OID_AUTO, "mmap_allow",
 		    CTLFLAG_RW, &sc->mmap_allow, 0,
 		    "Allow userland to memory map HPET");
+		SYSCTL_ADD_INT(device_get_sysctl_ctx(dev),
+		    SYSCTL_CHILDREN(device_get_sysctl_tree(dev)),
+		    OID_AUTO, "mmap_allow_write",
+		    CTLFLAG_RW, &sc->mmap_allow_write, 0,
+		    "Allow userland write to the HPET register space");
 	} else
 		device_printf(dev, "could not create /dev/hpet%d\n",
 		    device_get_unit(dev));
