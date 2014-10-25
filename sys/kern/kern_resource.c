@@ -1168,7 +1168,6 @@ lim_free(limp)
 	struct plimit *limp;
 {
 
-	KASSERT(limp->pl_refcnt > 0, ("plimit refcnt underflow"));
 	if (refcount_release(&limp->pl_refcnt))
 		free((void *)limp, M_PLIMIT);
 }
