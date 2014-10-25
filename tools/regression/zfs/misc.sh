@@ -39,6 +39,7 @@ fi
 die()
 {
 	echo "${1}" > /dev/stderr
+	echo "Bail out!"
 	exit 1
 }
 
@@ -363,7 +364,7 @@ files_destroy()
 
 name_create()
 {
-	echo "zfstest_`dd if=/dev/urandom bs=1k count=1 2>/dev/null | openssl md5 | cut -b -8`"
+	echo "zfstest_`dd if=/dev/urandom bs=1k count=1 2>/dev/null | openssl md5 | awk '{ print $NF }'`"
 }
 
 names_create()
