@@ -114,6 +114,12 @@ device		ti_adc
 # watchdog.
 device		ti_wdt
 
+# TI Programmable Realtime Unit support
+device		ti_pruss
+
+# Mailbox support
+device		ti_mbox
+
 # USB support
 device		usb
 options 	USB_HOST_ALIGN=64	# Cacheline size is 64 on AM335x.
