@@ -335,6 +335,7 @@ static int addr6_resolve(struct sockaddr_in6 *src_in,
 
 #else
 #include <netinet/if_ether.h>
+#include <net/rt_nhops.h>
 
 static int addr_resolve(struct sockaddr *src_in,
 			struct sockaddr *dst_in,
@@ -347,7 +348,8 @@ static int addr_resolve(struct sockaddr *src_in,
 #if defined(INET) || defined(INET6)
 	struct llentry *lle;
 #endif
-	struct rtentry *rte;
+	struct nhopu_extended nhu;
+	uint32_t fibnum;
 	in_port_t port;
 	u_char edst[MAX_ADDR_LEN];
 	int multi;
@@ -363,7 +365,6 @@ static int addr_resolve(struct sockaddr *src_in,
 	sin = NULL;
 	sin6 = NULL;
 	ifp = NULL;
-	rte = NULL;
 	switch (dst_in->sa_family) {
 #ifdef INET
 	case AF_INET:
@@ -421,10 +422,26 @@ static int addr_resolve(struct sockaddr *src_in,
 	/*
 	 * Make sure the route exists and has a valid link.
 	 */
-	rte = rtalloc1(dst_in, 1, 0);
-	if (rte == NULL || rte->rt_ifp == NULL || !RT_LINK_IS_UP(rte->rt_ifp)) {
-		if (rte) 
-			RTFREE_LOCKED(rte);
+	fibnum = RT_DEFAULT_FIB;
+#ifdef INET
+	if (dst_in->sa_family == AF_INET) {
+		error = fib4_lookup_nh_ext(fibnum,
+		    ((struct sockaddr_in *)dst_in)->sin_addr, 0,
+		    NHOP_LOOKUP_REF, &nhu.u.nh4);
+	} else
+#endif
+#ifdef INET6
+	if (dst_in->sa_family == AF_INET6) {
+		struct sockaddr_in6 *dst6;
+		dst6 = (struct sockaddr_in6 *)dst_in;
+		error = fib6_lookup_nh_ext(fibnum,
+		    dst6->sin6_addr, dst6->sin6_scope_id, 0,
+		    NHOP_LOOKUP_REF, &nhu.u.nh6);
+	}
+#endif
+	if (error != 0 || !RT_LINK_IS_UP(nhu.u.nh4.nh_ifp)) {
+		if (error == 0) 
+			fib_free_nh_ext(fibnum, &nhu);
 		return -EHOSTUNREACH;
 	}
 	/*
@@ -434,15 +451,14 @@ static int addr_resolve(struct sockaddr *src_in,
 	 */
 	if (multi || bcast) {
 		if (ifp == NULL)
-			ifp = rte->rt_ifp;
-		RTFREE_LOCKED(rte);
-	} else if (ifp && ifp != rte->rt_ifp) {
-		RTFREE_LOCKED(rte);
+			ifp = nhu.u.nh4.nh_ifp;
+		fib_free_nh_ext(fibnum, &nhu);
+	} else if (ifp && ifp != nhu.u.nh4.nh_ifp) {
+		fib_free_nh_ext(fibnum, &nhu);
 		return -ENETUNREACH;
 	} else {
 		if (ifp == NULL)
-			ifp = rte->rt_ifp;
-		RT_UNLOCK(rte);
+			ifp = nhu.u.nh4.nh_ifp;
 	}
 mcast:
 	if (bcast)
@@ -464,7 +480,8 @@ mcast:
 	switch (dst_in->sa_family) {
 #ifdef INET
 	case AF_INET:
-		error = arpresolve(ifp, rte, NULL, dst_in, edst, &lle);
+		/* XXX: Pass NH flags to generate proper error */
+		error = arpresolve(ifp, NULL, NULL, dst_in, edst, &lle);
 		break;
 #endif
 #ifdef INET6
@@ -476,7 +493,7 @@ mcast:
 		/* XXX: Shouldn't happen. */
 		error = -EINVAL;
 	}
-	RTFREE(rte);
+	fib_free_nh_ext(fibnum, &nhu);
 	if (error == 0)
 		return rdma_copy_addr(addr, ifp, edst);
 	if (error == EWOULDBLOCK)
