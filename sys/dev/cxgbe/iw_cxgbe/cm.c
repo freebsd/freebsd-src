@@ -52,6 +52,8 @@ __FBSDID("$FreeBSD$");
 #include <netinet/tcp.h>
 #include <netinet/tcpip.h>
 
+#include <net/rt_nhops.h>
+
 #include <netinet/toecore.h>
 
 struct sge_iq;
@@ -86,8 +88,6 @@ static void __state_set(struct c4iw_ep_common *epc, enum c4iw_ep_state tostate);
 static void state_set(struct c4iw_ep_common *epc, enum c4iw_ep_state tostate);
 static void *alloc_ep(int size, gfp_t flags);
 void __free_ep(struct c4iw_ep_common *epc);
-static struct rtentry * find_route(__be32 local_ip, __be32 peer_ip, __be16 local_port,
-		__be16 peer_port, u8 tos);
 static int close_socket(struct c4iw_ep_common *epc, int close);
 static int shutdown_socket(struct c4iw_ep_common *epc);
 static void abort_socket(struct c4iw_ep *ep);
@@ -199,25 +199,6 @@ done:
 	INP_WUNLOCK(inp);
 	return (rc);
 
-}
-
-static struct rtentry *
-find_route(__be32 local_ip, __be32 peer_ip, __be16 local_port,
-		__be16 peer_port, u8 tos)
-{
-	struct route iproute;
-	struct sockaddr_in *dst = (struct sockaddr_in *)&iproute.ro_dst;
-
-	CTR5(KTR_IW_CXGBE, "%s:frtB %x, %x, %d, %d", __func__, local_ip,
-	    peer_ip, ntohs(local_port), ntohs(peer_port));
-	bzero(&iproute, sizeof iproute);
-	dst->sin_family = AF_INET;
-	dst->sin_len = sizeof *dst;
-	dst->sin_addr.s_addr = peer_ip;
-
-	rtalloc(&iproute);
-	CTR2(KTR_IW_CXGBE, "%s:frtE %p", __func__, (uint64_t)iproute.ro_rt);
-	return iproute.ro_rt;
 }
 
 static int
@@ -2017,7 +1998,7 @@ int c4iw_connect(struct iw_cm_id *cm_id, struct iw_cm_conn_param *conn_param)
 	int err = 0;
 	struct c4iw_dev *dev = to_c4iw_dev(cm_id->device);
 	struct c4iw_ep *ep = NULL;
-	struct rtentry *rt;
+	struct nhop4_extended nh_ext;
 	struct toedev *tdev;
 
 	CTR2(KTR_IW_CXGBE, "%s:ccB %p", __func__, cm_id);
@@ -2073,13 +2054,8 @@ int c4iw_connect(struct iw_cm_id *cm_id, struct iw_cm_conn_param *conn_param)
 	init_sock(&ep->com);
 
 	/* find a route */
-	rt = find_route(
-		cm_id->local_addr.sin_addr.s_addr,
-		cm_id->remote_addr.sin_addr.s_addr,
-		cm_id->local_addr.sin_port,
-		cm_id->remote_addr.sin_port, 0);
-
-	if (!rt) {
+	if (fib4_lookup_nh_ext(RT_DEFAULT_FIB, cm_id->remote_addr.sin_addr, 0,
+	    NHOP_LOOKUP_REF, &nh_ext) != 0) {
 
 		CTR2(KTR_IW_CXGBE, "%s:cc7 %p", __func__, ep);
 		printk(KERN_ERR MOD "%s - cannot find route.\n", __func__);
@@ -2102,7 +2078,7 @@ int c4iw_connect(struct iw_cm_id *cm_id, struct iw_cm_conn_param *conn_param)
 		printf("%s - No toedev for interface.\n", __func__);
 		goto fail3;
 	}
-	RTFREE(rt);
+	fib4_free_nh_ext(RT_DEFAULT_FIB, &nh_ext);
 
 	state_set(&ep->com, CONNECTING);
 	ep->tos = 0;
@@ -2119,7 +2095,7 @@ int c4iw_connect(struct iw_cm_id *cm_id, struct iw_cm_conn_param *conn_param)
 
 fail3:
 	CTR2(KTR_IW_CXGBE, "%s:ccb %p", __func__, ep);
-	RTFREE(rt);
+	fib4_free_nh_ext(RT_DEFAULT_FIB, &nh_ext);
 fail2:
 	cm_id->rem_ref(cm_id);
 	c4iw_put_ep(&ep->com);

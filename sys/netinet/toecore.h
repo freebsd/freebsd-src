@@ -36,6 +36,7 @@
 struct tcpopt;
 struct tcphdr;
 struct in_conninfo;
+struct nhopu_extended;
 
 struct toedev {
 	TAILQ_ENTRY(toedev) link;	/* glue for toedev_list */
@@ -45,8 +46,8 @@ struct toedev {
 	 * Active open.  If a failure occurs, it is reported back by the driver
 	 * via toe_connect_failed.
 	 */
-	int (*tod_connect)(struct toedev *, struct socket *, struct rtentry *,
-	    struct sockaddr *);
+	int (*tod_connect)(struct toedev *, struct socket *,
+	    struct nhopu_extended *, struct sockaddr *);
 
 	/* Passive open. */
 	int (*tod_listen_start)(struct toedev *, struct tcpcb *);
@@ -89,7 +90,7 @@ struct toedev {
 
 	/* XXX.  Route has been redirected. */
 	void (*tod_route_redirect)(struct toedev *, struct ifnet *,
-	    struct rtentry *, struct rtentry *);
+	    struct nhopu_extended *, struct nhopu_extended *);
 
 	/* Syncache interaction. */
 	void (*tod_syncache_added)(struct toedev *, void *);

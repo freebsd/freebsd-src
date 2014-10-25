@@ -2908,7 +2908,7 @@ pf_get_mss(struct mbuf *m, int off, u_int16_t th_off, sa_family_t af)
 static u_int16_t
 pf_calc_mss(struct pf_addr *addr, sa_family_t af, int rtableid, u_int16_t offer)
 {
-	struct nhop64_basic	 nh;
+	struct nhopu_basic	 nh;
 	int			 hlen = 0;
 	u_int16_t		 mss = V_tcp_mssdflt;
 
@@ -5084,7 +5084,7 @@ int
 pf_routable(struct pf_addr *addr, sa_family_t af, struct pfi_kif *kif,
     int rtableid)
 {
-	struct nhop64_basic	nh;
+	struct nhopu_basic	nh;
 
 	/* Skip checks for ipsec interfaces */
 	if (kif != NULL && kif->pfik_ifp->if_type == IFT_ENC)
