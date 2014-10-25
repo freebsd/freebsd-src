@@ -249,8 +249,8 @@ dropit:
 				ifa_free(&ia->ia_ifa);
 			} else {
 				/* XXX MRT 0 for routing */
-				if (fib4_lookup_nh_extended(M_GETFIB(m),
-				    ipaddr.sin_addr, 0, &nh_ext) != 0) {
+				if (fib4_lookup_nh_ext(M_GETFIB(m),
+				    ipaddr.sin_addr, 0, 0, &nh_ext) != 0) {
 					type = ICMP_UNREACH;
 					code = ICMP_UNREACH_SRCFAIL;
 					goto bad;
@@ -297,8 +297,8 @@ dropit:
 				memcpy(cp + off, &(IA_SIN(ia)->sin_addr),
 				    sizeof(struct in_addr));
 				ifa_free(&ia->ia_ifa);
-			} else if (fib4_lookup_nh_extended(M_GETFIB(m),
-			    ipaddr.sin_addr, 0, &nh_ext) == 0) {
+			} else if (fib4_lookup_nh_ext(M_GETFIB(m),
+			    ipaddr.sin_addr, 0, 0, &nh_ext) == 0) {
 				memcpy(cp + off, &nh_ext.nh_src,
 				    sizeof(struct in_addr));
 			} else {

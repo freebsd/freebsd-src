@@ -782,7 +782,8 @@ in_pcbladdr(struct inpcb *inp, struct in_addr *faddr, struct in_addr *laddr,
 	pnh4 = &nh_ext;
 	memset(&nh_ext, 0, sizeof(nh_ext));
 	if ((inp->inp_socket->so_options & SO_DONTROUTE) == 0)
-		error = fib4_lookup_nh_extended(fibnum, *faddr, 0, &nh_ext);
+		error = fib4_lookup_nh_ext(fibnum, *faddr, 0, NHOP_LOOKUP_REF,
+		    &nh_ext);
 	if (error != 0) {
 		pnh4 = NULL;
 		error = 0;

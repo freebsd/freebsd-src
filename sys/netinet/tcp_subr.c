@@ -1804,8 +1804,8 @@ tcp_maxmtu(struct in_conninfo *inc, struct tcp_ifcap *cap)
 		return (0);
 
 	memset(&nh_ext, 0, sizeof(nh_ext));
-	error = fib4_lookup_nh_extended(inc->inc_fibnum, inc->inc_faddr, 0,
-	    &nh_ext);
+	error = fib4_lookup_nh_ext(inc->inc_fibnum, inc->inc_faddr, 0,
+	    NHOP_LOOKUP_REF, &nh_ext);
 	if (error == 0) {
 		maxmtu = nh_ext.nh_mtu;
 

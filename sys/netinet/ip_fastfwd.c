@@ -128,7 +128,7 @@ ip_fastforward(struct mbuf *m)
 {
 	struct ip *ip;
 	struct mbuf *m0 = NULL;
-	struct nhop_data nhd, *pnhd;
+	struct nhop_prepend nhd, *pnhd;
 	struct ifnet *ifp;
 	struct in_addr odest, dest;
 	uint16_t sum, ip_len, ip_off;
@@ -395,7 +395,7 @@ passin:
 	 * for either the all-ones or all-zero subnet addresses on
 	 * locally attached networks.
 	 */
-	if ((nhd.nh_flags & (NHOP_BLACKHOLE|RTF_BROADCAST)) != 0)
+	if ((nhd.nh_flags & (NHF_BLACKHOLE|NHF_BROADCAST)) != 0)
 		goto drop;
 
 	/*
@@ -434,7 +434,7 @@ forwardlocal:
 			 */
 			m->m_flags |= M_FASTFWD_OURS;
 			if (pnhd != NULL)
-				fib4_free_nh(fibnum, pnhd);
+				fib4_free_nh_prepend(fibnum, pnhd);
 			return m;
 		}
 		/*
@@ -446,7 +446,7 @@ forwardlocal:
 			m_tag_delete(m, fwd_tag);
 			m->m_flags &= ~M_IP_NEXTHOP;
 		}
-		fib4_free_nh(fibnum, pnhd);
+		fib4_free_nh_prepend(fibnum, pnhd);
 
 
 		if (fib4_lookup_prepend(fibnum, dest, m, &nhd, NULL) != 0) {
@@ -476,7 +476,7 @@ passout:
 		goto consumed;
 	}
 #endif
-	if ((nhd.nh_flags & NHOP_REJECT) != 0) {
+	if ((nhd.nh_flags & NHF_REJECT) != 0) {
 		icmp_error(m, ICMP_UNREACH, ICMP_UNREACH_HOST, 0, 0);
 		goto consumed;
 	}
@@ -568,12 +568,12 @@ passout:
 		IPSTAT_INC(ips_fastforward);
 	}
 consumed:
-	fib4_free_nh(fibnum, &nhd);
+	fib4_free_nh_prepend(fibnum, &nhd);
 	return NULL;
 drop:
 	if (m)
 		m_freem(m);
 	if (pnhd != NULL)
-		fib4_free_nh(fibnum, pnhd);
+		fib4_free_nh_prepend(fibnum, pnhd);
 	return NULL;
 }

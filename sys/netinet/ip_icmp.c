@@ -804,7 +804,7 @@ icmp_reflect(struct mbuf *m)
 	 * When we don't have a route back to the packet source, stop here
 	 * and drop the packet.
 	 */
-	if (fib4_lookup_nh_extended(M_GETFIB(m), ip->ip_dst, 0, &nh_ext) != 0) {
+	if (fib4_lookup_nh_ext(M_GETFIB(m), ip->ip_dst, 0, 0, &nh_ext) != 0) {
 		m_freem(m);
 		ICMPSTAT_INC(icps_noroute);
 		goto done;
