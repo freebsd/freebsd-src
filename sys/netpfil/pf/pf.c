@@ -5177,23 +5177,23 @@ pf_route(struct mbuf **m, struct pf_rule *r, int dir, struct ifnet *oifp,
 	dst.sin_addr = ip->ip_dst;
 
 	if (r->rt == PF_FASTROUTE) {
-		struct rtentry *rt;
+		uint32_t fibnum;
+		struct nhop4_extended nh_ext;
 
 		if (s)
 			PF_STATE_UNLOCK(s);
-		rt = rtalloc1_fib(sintosa(&dst), 0, 0, M_GETFIB(m0));
-		if (rt == NULL) {
+
+		fibnum = M_GETFIB(m0);
+		if (fib4_lookup_nh_ext(fibnum, ip->ip_dst,
+		    m0->m_pkthdr.flowid, NHOP_LOOKUP_REF, &nh_ext) != 0) {
 			KMOD_IPSTAT_INC(ips_noroute);
 			error = EHOSTUNREACH;
 			goto bad;
 		}
 
-		ifp = rt->rt_ifp;
-		counter_u64_add(rt->rt_pksent, 1);
-
-		if (rt->rt_flags & RTF_GATEWAY)
-			bcopy(satosin(rt->rt_gateway), &dst, sizeof(dst));
-		RTFREE_LOCKED(rt);
+		ifp = nh_ext.nh_ifp;
+		dst.sin_addr = nh_ext.nh_addr;
+		fib4_free_nh_ext(fibnum, &nh_ext);
 	} else {
 		if (TAILQ_EMPTY(&r->rpool.list)) {
 			DPFPRINTF(PF_DEBUG_URGENT,
