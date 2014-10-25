@@ -146,11 +146,21 @@ struct target {
 	char				*t_alias;
 };
 
+struct isns {
+	TAILQ_ENTRY(isns)		i_next;
+	struct conf			*i_conf;
+	char				*i_addr;
+	struct addrinfo			*i_ai;
+};
+
 struct conf {
 	char				*conf_pidfile_path;
 	TAILQ_HEAD(, target)		conf_targets;
 	TAILQ_HEAD(, auth_group)	conf_auth_groups;
 	TAILQ_HEAD(, portal_group)	conf_portal_groups;
+	TAILQ_HEAD(, isns)		conf_isns;
+	int				conf_isns_period;
+	int				conf_isns_timeout;
 	int				conf_debug;
 	int				conf_timeout;
 	int				conf_maxproc;
@@ -281,6 +291,12 @@ struct portal_group	*portal_group_find(const struct conf *conf,
 int			portal_group_add_listen(struct portal_group *pg,
 			    const char *listen, bool iser);
 
+int			isns_new(struct conf *conf, const char *addr);
+void			isns_delete(struct isns *is);
+void			isns_register(struct isns *isns, struct isns *oldisns);
+void			isns_check(struct isns *isns);
+void			isns_deregister(struct isns *isns);
+
 struct target		*target_new(struct conf *conf, const char *name);
 void			target_delete(struct target *target);
 struct target		*target_find(struct conf *conf,
@@ -358,6 +374,7 @@ void			log_debugx(const char *, ...) __printflike(1, 2);
 
 char			*checked_strdup(const char *);
 bool			valid_iscsi_name(const char *name);
+void			set_timeout(int timeout, int fatal);
 bool			timed_out(void);
 
 #endif /* !CTLD_H */

@@ -67,6 +67,9 @@ maxproc			{ return MAXPROC; }
 option			{ return OPTION; }
 path			{ return PATH; }
 pidfile			{ return PIDFILE; }
+isns-server		{ return ISNS_SERVER; }
+isns-period		{ return ISNS_PERIOD; }
+isns-timeout		{ return ISNS_TIMEOUT; }
 portal-group		{ return PORTAL_GROUP; }
 serial			{ return SERIAL; }
 size			{ return SIZE; }

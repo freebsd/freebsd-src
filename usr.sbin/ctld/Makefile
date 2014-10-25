@@ -1,7 +1,8 @@
 # $FreeBSD$
 
 PROG=		ctld
-SRCS=		chap.c ctld.c discovery.c kernel.c keys.c log.c login.c parse.y pdu.c token.l y.tab.h
+SRCS=		chap.c ctld.c discovery.c isns.c kernel.c keys.c log.c
+SRCS+=		login.c parse.y pdu.c token.l y.tab.h
 CFLAGS+=	-I${.CURDIR}
 CFLAGS+=	-I${.CURDIR}/../../sys
 CFLAGS+=	-I${.CURDIR}/../../sys/cam/ctl

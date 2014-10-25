@@ -27,7 +27,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd October 22, 2014
+.Dd October 23, 2014
 .Dt CTL.CONF 5
 .Os
 .Sh NAME
@@ -106,6 +106,13 @@ The timeout for login sessions, after which the connection
 will be forcibly terminated.
 The default is 60.
 A setting of 0 disables the timeout.
+.It Ic isns-server Ar address
+An IPv4 or IPv6 address and optionally port of iSNS server to register on.
+.It Ic isns-period Ar seconds
+iSNS registration period.
+Registered Network Entity not updated during this period will be unregistered.
+.It Ic isns-timeout Ar seconds
+Timeout for iSNS requests.
 .El
 .Ss auth-group Context
 .Bl -tag -width indent
