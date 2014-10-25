@@ -451,11 +451,11 @@ verify_path(struct in_addr src, struct ifnet *ifp, u_int fib)
 		return (0);
 
 	/* if no ifp provided, check if rtentry is not default route */
-	if (ifp == NULL && (nh4.nh_flags & NHOP_DEFAULT) != 0)
+	if (ifp == NULL && (nh4.nh_flags & NHF_DEFAULT) != 0)
 		return (0);
 
 	/* or if this is a blackhole/reject route */
-	if (ifp == NULL && (nh4.nh_flags & (NHOP_REJECT|NHOP_BLACKHOLE)) != 0)
+	if (ifp == NULL && (nh4.nh_flags & (NHF_REJECT|NHF_BLACKHOLE)) != 0)
 		return (0);
 
 	return (1);
@@ -523,11 +523,11 @@ verify_path6(struct in6_addr *src, struct ifnet *ifp, u_int fib)
 		return (0);
 
 	/* if no ifp provided, check if rtentry is not default route */
-	if (ifp == NULL && (nh6.nh_flags & NHOP_DEFAULT) != 0)
+	if (ifp == NULL && (nh6.nh_flags & NHF_DEFAULT) != 0)
 		return (0);
 
 	/* or if this is a blackhole/reject route */
-	if (ifp == NULL && (nh6.nh_flags & (NHOP_REJECT|NHOP_BLACKHOLE)) != 0)
+	if (ifp == NULL && (nh6.nh_flags & (NHF_REJECT|NHF_BLACKHOLE)) != 0)
 		return (0);
 
 	return (1);

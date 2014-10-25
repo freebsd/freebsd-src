@@ -122,7 +122,7 @@ static	void ether_reassign(struct ifnet *, struct vnet *, char *);
 
 int ether_output_full(struct ifnet *ifp, struct mbuf *m,
     const struct sockaddr *dst, struct route *ro);
-int ether_output2(struct ifnet *ifp, struct mbuf *m, struct nhop_data *nh,
+int ether_output2(struct ifnet *ifp, struct mbuf *m, struct nhop_prepend *nh,
     int af);
 
 static int loopback_frame(struct ifnet *ifp, struct mbuf *m, int family,
@@ -157,7 +157,7 @@ ether_output(struct ifnet *ifp, struct mbuf *m,
 	const struct sockaddr *dst, struct route *ro)
 {
 	if (ro != NULL && (ro->ro_flags & RT_NHOP))
-		return (ether_output2(ifp, m, (struct nhop_data *)ro->ro_lle,
+		return (ether_output2(ifp, m, (struct nhop_prepend *)ro->ro_lle,
 		    (ro->ro_flags >> 8) & 0xFF));
 
 	return (ether_output_full(ifp, m, dst, ro));
@@ -354,7 +354,7 @@ bad:			if (m != NULL)
  * so the only reason to push packet (copy) to host is M_BCAST flag.
  */
 int
-ether_output2(struct ifnet *ifp, struct mbuf *m, struct nhop_data *nh, int af)
+ether_output2(struct ifnet *ifp, struct mbuf *m, struct nhop_prepend *nh,int af)
 {
 	int error;
 

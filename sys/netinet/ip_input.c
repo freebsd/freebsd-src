@@ -1533,7 +1533,7 @@ ip_forward(struct mbuf *m, int srcrt)
 	if (!srcrt && V_ipsendredirects &&
 	    pnh4 != NULL && nh4.nh_ifp == m->m_pkthdr.rcvif) {
 
-		if ((nh4.nh_flags & (NHOP_REDIRECT|NHOP_DEFAULT)) == 0) {
+		if ((nh4.nh_flags & (NHF_REDIRECT|NHF_DEFAULT)) == 0) {
 			dest = nh4.nh_addr;
 			/*Router requirements says to only send host redirects*/
 			type = ICMP_REDIRECT;

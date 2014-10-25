@@ -887,7 +887,7 @@ reply:
 
 			sin.sin_addr = itaddr;
 			/* XXX MRT use table 0 for arp reply  */
-			if (fib4_lookup_nh_extended(0, itaddr, 0, &nh_ext) != 0)
+			if (fib4_lookup_nh_ext(0, itaddr, 0, 0, &nh_ext) != 0)
 				goto drop;
 
 			/*
@@ -910,7 +910,7 @@ reply:
 			sin.sin_addr = isaddr;
 
 			/* XXX MRT use table 0 for arp checks */
-			if (fib4_lookup_nh_extended(0, isaddr, 0, &nh_ext) != 0)
+			if (fib4_lookup_nh_ext(0, isaddr, 0, 0, &nh_ext) != 0)
 				goto drop;
 			if (nh_ext.nh_ifp != ifp) {
 				ARP_LOG(LOG_INFO, "proxy: ignoring request"

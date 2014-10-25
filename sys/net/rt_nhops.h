@@ -52,27 +52,29 @@ struct nhop_mpath_info {
 
 /* mutator info */
 struct nhop_mutator_info;
-struct nhop_data;
+struct nhop_prepend;
 
-typedef int nhop_mutate_t(struct mbuf **, struct nhop_data *nd, void *storage);
+typedef int nhop_mutate_t(struct mbuf **, struct nhop_prepend *nd, void *storage);
 struct nhop_mutator_info {
 	nhop_mutate_t	*func;
 	char		data[];
 };
 
 /* Structures used for forwarding purposes */
-#define	MAX_PREPEND_LEN		56	/* Max data that can be prepended */
+#define	MAX_PREPEND_LEN		48	/* Max data that can be prepended */
 
 /* Non-recursive nexthop */
-struct nhop_data {
-	uint8_t		nh_flags;		/* NH flags */
-	uint8_t		nh_count;		/* Number of nexthops or data length */
+struct nhop_prepend {
+	uint16_t	nh_flags;	/* NH flags */
+	uint8_t		nh_count;	/* Number of nexthops or data length */
+	uint8_t		spare0;
 	uint16_t	nh_mtu;		/* given nhop MTU */
 	uint16_t	lifp_idx;	/* Logical interface index */
 	union {
 		uint16_t	ifp_idx;	/* Transmit interface index */
 		uint16_t	nhop_idx;	/* L2 multipath nhop index */
 	} i;
+	uint16_t	spare1[3];
 	union {
 		char	data[MAX_PREPEND_LEN];	/* data to prepend */
 #ifdef INET
@@ -83,11 +85,19 @@ struct nhop_data {
 #endif
 	} d;
 };
+
 /* Internal flags */
-#define	NH_FLAGS_RECURSE	0x01	/* Nexthop structure is recursive */
-#define	NH_FLAGS_L2_NHOP	0x02	/* L2 interface has to be selected */
-#define	NH_FLAGS_L2_ME		0x04	/* dst L2 address is our address */
-#define	NH_FLAGS_L2_INCOMPLETE 	0x08	/* L2 header not prepended */
+#define	NHF_RECURSE		0x0001	/* Nexthop structure is recursive */
+#define	NHF_L2_NHOP		0x0002	/* L2 interface has to be selected */
+#define	NHF_L2_ME		0x0004	/* dst L2 address is our address */
+#define	NHF_L2_INCOMPLETE 	0x0008	/* L2 header not prepended */
+
+/* External flags */
+#define	NHF_REJECT		0x0010	/* RTF_REJECT */
+#define	NHF_BLACKHOLE		0x0020	/* RTF_BLACKHOLE */
+#define	NHF_REDIRECT		0x0040	/* RTF_DYNAMIC|RTF_MODIFIED */
+#define	NHF_DEFAULT		0x0080	/* Default route */
+#define	NHF_BROADCAST		0x0100	/* RTF_BROADCAST */
 
 #define	NH_LIFP(nh)	ifnet_byindex_locked((nh)->lifp_idx)
 #define	NH_TIFP(nh)	ifnet_byindex_locked((nh)->i.ifp_idx)
@@ -114,7 +124,7 @@ struct nhops_descr {
 
 
 #if 0
-typedef int nhop_resolve_t(struct sockaddr *dst, u_int fib, struct nhop_data *nd, struct nhop_info *nf);
+typedef int nhop_resolve_t(struct sockaddr *dst, u_int fib, struct nhop_prepend *nd, struct nhop_info *nf);
 
 
 
@@ -174,14 +184,14 @@ struct nhop64_extended {
 };
 
 struct route_info {
-	struct nhop_data	*ri_nh;		/* Desired nexthop to use */
+	struct nhop_prepend	*ri_nh;		/* Desired nexthop to use */
 	struct nhop64_basic	*ri_nh_info;	/* Get selected route info */
 	uint16_t		ri_mtu;
 	uint16_t		spare[3];
 };
 
 struct route_compat {
-	struct nhop_data	*ro_nh;
+	struct nhop_prepend	*ro_nh;
 	void			*spare0;
 	void			*spare1;
 	int			ro_flags;
@@ -192,27 +202,23 @@ int fib4_lookup_nh_basic(uint32_t fibnum, struct in_addr dst, uint32_t flowid,
 int fib6_lookup_nh_basic(uint32_t fibnum, struct in6_addr dst, uint32_t flowid,
     struct nhop6_basic *pnh6);
 
-int fib4_lookup_nh_extended(uint32_t fibnum, struct in_addr dst,
-    uint32_t flowid, struct nhop4_extended *pnh4);
+int fib4_lookup_nh_ext(uint32_t fibnum, struct in_addr dst,
+    uint32_t flowid, uint32_t flags, struct nhop4_extended *pnh4);
 void fib4_free_nh_ext(uint32_t fibnum, struct nhop4_extended *pnh4);
+#define	NHOP_LOOKUP_REF	0x01
 
-void fib4_free_nh(uint32_t fibnum, struct nhop_data *nh);
-void fib4_choose_prepend(uint32_t fibnum, struct nhop_data *nh_src,
-    uint32_t flowid, struct nhop_data *nh, struct nhop4_extended *nh_ext);
+void fib4_free_nh_prepend(uint32_t fibnum, struct nhop_prepend *nh);
+void fib4_choose_prepend(uint32_t fibnum, struct nhop_prepend *nh_src,
+    uint32_t flowid, struct nhop_prepend *nh, struct nhop4_extended *nh_ext);
 int fib4_lookup_prepend(uint32_t fibnum, struct in_addr dst, struct mbuf *m,
-    struct nhop_data *nh, struct nhop4_extended *nh_ext);
+    struct nhop_prepend *nh, struct nhop4_extended *nh_ext);
 
-int fib4_sendmbuf(struct ifnet *ifp, struct mbuf *m, struct nhop_data *nh,
+int fib4_sendmbuf(struct ifnet *ifp, struct mbuf *m, struct nhop_prepend *nh,
     struct in_addr dst);
 
-void fib6_free_nh(uint32_t fibnum, struct nhop_data *nh);
-void fib6_choose_prepend(uint32_t fibnum, struct nhop_data *nh_src,
-    uint32_t flowid, struct nhop_data *nh, struct nhop6_extended *nh_ext);
-
-#define	NHOP_REJECT	0x08	/* RTF_REJECT */
-#define	NHOP_BLACKHOLE	0x1000	/* RTF_BLACKHOLE */
-#define	NHOP_REDIRECT	0x10	/* RTF_DYNAMIC|RTF_MODIFIED */
-#define	NHOP_DEFAULT	0x80	/* Default route */
+void fib6_free_nh_prepend(uint32_t fibnum, struct nhop_prepend *nh);
+void fib6_choose_prepend(uint32_t fibnum, struct nhop_prepend *nh_src,
+    uint32_t flowid, struct nhop_prepend *nh, struct nhop6_extended *nh_ext);
 
 #define	FWD_INET	0
 #define	FWD_INET6	1
