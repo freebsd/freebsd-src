@@ -145,7 +145,7 @@ cheri_invoke:
 	csc		$c0, $sp, 64($c11)	# Save CHERI legacy capability
 	csc		$c11, $sp, 32($c11)	# Save CHERI stack capability
 	csc		$c26, $sp, 0($c11)	# Save original $idc
-	cfromptr	$c26, $c0, $sp
+	cfromptr	$c26, $c11, $sp
 	dli		$t0, 128
 	csetlen		$c26, $c26, $t0
 
