@@ -71,11 +71,13 @@ extern void (*zynq7_cpu_reset);
 #define	ZSLCR_UNLOCK(sc)		mtx_unlock(&(sc)->sc_mtx)
 #define ZSLCR_LOCK_INIT(sc) \
 	mtx_init(&(sc)->sc_mtx, device_get_nameunit((sc)->dev),	\
-	    "zy7_slcr", MTX_SPIN)
+	    "zy7_slcr", MTX_DEF)
 #define ZSLCR_LOCK_DESTROY(_sc)	mtx_destroy(&_sc->sc_mtx);
 
 #define RD4(sc, off) 		(bus_read_4((sc)->mem_res, (off)))
 #define WR4(sc, off, val) 	(bus_write_4((sc)->mem_res, (off), (val)))
+
+#define ZYNQ_DEFAULT_PS_CLK_FREQUENCY	33333333	/* 33.3 Mhz */
 
 
 SYSCTL_NODE(_hw, OID_AUTO, zynq, CTLFLAG_RD, 0, "Xilinx Zynq-7000");
@@ -84,13 +86,29 @@ static char zynq_bootmode[64];
 SYSCTL_STRING(_hw_zynq, OID_AUTO, bootmode, CTLFLAG_RD, zynq_bootmode, 0,
 	      "Zynq boot mode");
 
-static char zynq_pssid[80];
+static char zynq_pssid[100];
 SYSCTL_STRING(_hw_zynq, OID_AUTO, pssid, CTLFLAG_RD, zynq_pssid, 0,
 	   "Zynq PSS IDCODE");
 
 static uint32_t zynq_reboot_status;
 SYSCTL_INT(_hw_zynq, OID_AUTO, reboot_status, CTLFLAG_RD, &zynq_reboot_status,
 	   0, "Zynq REBOOT_STATUS register");
+
+static int ps_clk_frequency;
+SYSCTL_INT(_hw_zynq, OID_AUTO, ps_clk_frequency, CTLFLAG_RD, &ps_clk_frequency,
+	   0, "Zynq PS_CLK Frequency");
+
+static int io_pll_frequency;
+SYSCTL_INT(_hw_zynq, OID_AUTO, io_pll_frequency, CTLFLAG_RD, &io_pll_frequency,
+	   0, "Zynq IO PLL Frequency");
+
+static int arm_pll_frequency;
+SYSCTL_INT(_hw_zynq, OID_AUTO, arm_pll_frequency, CTLFLAG_RD,
+	   &arm_pll_frequency, 0, "Zynq ARM PLL Frequency");
+
+static int ddr_pll_frequency;
+SYSCTL_INT(_hw_zynq, OID_AUTO, ddr_pll_frequency, CTLFLAG_RD,
+	   &ddr_pll_frequency, 0, "Zynq DDR PLL Frequency");
 
 static void
 zy7_slcr_unlock(struct zy7_slcr_softc *sc)
@@ -189,6 +207,54 @@ zy7_slcr_postload_pl(int en_level_shifters)
 	ZSLCR_UNLOCK(sc);
 }
 
+/* Override cgem_set_refclk() in gigabit ethernet driver
+ * (sys/dev/cadence/if_cgem.c).  This function is called to
+ * request a change in the gem's reference clock speed.
+ */
+int
+cgem_set_ref_clk(int unit, int frequency)
+{
+	struct zy7_slcr_softc *sc = zy7_slcr_softc_p;
+	int div0, div1;
+
+	if (!sc)
+		return (-1);
+
+	/* Find suitable divisor pairs.  Round result to nearest khz
+	 * to test for match.
+	 */
+	for (div1 = 1; div1 <= ZY7_SLCR_GEM_CLK_CTRL_DIVISOR1_MAX; div1++) {
+		div0 = (io_pll_frequency + div1 * frequency / 2) /
+			div1 / frequency;
+		if (div0 > 0 && div0 <= ZY7_SLCR_GEM_CLK_CTRL_DIVISOR_MAX &&
+		    ((io_pll_frequency / div0 / div1) + 500) / 1000 ==
+		    (frequency + 500) / 1000)
+			break;
+	}
+
+	if (div1 > ZY7_SLCR_GEM_CLK_CTRL_DIVISOR1_MAX)
+		return (-1);
+
+	ZSLCR_LOCK(sc);
+
+	/* Unlock SLCR registers. */
+	zy7_slcr_unlock(sc);
+
+	/* Modify GEM reference clock. */
+	WR4(sc, unit ? ZY7_SLCR_GEM1_CLK_CTRL : ZY7_SLCR_GEM0_CLK_CTRL,
+	    (div1 << ZY7_SLCR_GEM_CLK_CTRL_DIVISOR1_SHIFT) |
+	    (div0 << ZY7_SLCR_GEM_CLK_CTRL_DIVISOR_SHIFT) |
+	    ZY7_SLCR_GEM_CLK_CTRL_SRCSEL_IO_PLL |
+	    ZY7_SLCR_GEM_CLK_CTRL_CLKACT);
+
+	/* Lock SLCR registers. */
+	zy7_slcr_lock(sc);
+
+	ZSLCR_UNLOCK(sc);
+
+	return (0);
+}
+
 static int
 zy7_slcr_probe(device_t dev)
 {
@@ -208,8 +274,13 @@ zy7_slcr_attach(device_t dev)
 {
 	struct zy7_slcr_softc *sc = device_get_softc(dev);
 	int rid;
+	phandle_t node;
+	pcell_t cell;
 	uint32_t bootmode;
 	uint32_t pss_idcode;
+	uint32_t arm_pll_ctrl;
+	uint32_t ddr_pll_ctrl;
+	uint32_t io_pll_ctrl;
 	static char *bootdev_names[] = {
 		"JTAG", "Quad-SPI", "NOR", "(3?)",
 		"NAND", "SD Card", "(6?)", "(7?)"
@@ -259,6 +330,53 @@ zy7_slcr_attach(device_t dev)
 		 ZY7_SLCR_PSS_IDCODE_REVISION_SHIFT);
 
 	zynq_reboot_status = RD4(sc, ZY7_SLCR_REBOOT_STAT);
+
+	/* Derive PLL frequencies from PS_CLK. */
+	node = ofw_bus_get_node(dev);
+	if (OF_getprop(node, "clock-frequency", &cell, sizeof(cell)) > 0)
+		ps_clk_frequency = fdt32_to_cpu(cell);
+	else
+		ps_clk_frequency = ZYNQ_DEFAULT_PS_CLK_FREQUENCY;
+
+	arm_pll_ctrl = RD4(sc, ZY7_SLCR_ARM_PLL_CTRL);
+	ddr_pll_ctrl = RD4(sc, ZY7_SLCR_DDR_PLL_CTRL);
+	io_pll_ctrl = RD4(sc, ZY7_SLCR_IO_PLL_CTRL);
+
+	/* Determine ARM PLL frequency. */
+	if (((arm_pll_ctrl & ZY7_SLCR_PLL_CTRL_BYPASS_QUAL) == 0 &&
+	     (arm_pll_ctrl & ZY7_SLCR_PLL_CTRL_BYPASS_FORCE) != 0) ||
+	    ((arm_pll_ctrl & ZY7_SLCR_PLL_CTRL_BYPASS_QUAL) != 0 &&
+	     (bootmode & ZY7_SLCR_BOOT_MODE_PLL_BYPASS) != 0))
+		/* PLL is bypassed. */
+		arm_pll_frequency = ps_clk_frequency;
+	else
+		arm_pll_frequency = ps_clk_frequency *
+			((arm_pll_ctrl & ZY7_SLCR_PLL_CTRL_FDIV_MASK) >>
+			 ZY7_SLCR_PLL_CTRL_FDIV_SHIFT);
+
+	/* Determine DDR PLL frequency. */
+	if (((ddr_pll_ctrl & ZY7_SLCR_PLL_CTRL_BYPASS_QUAL) == 0 &&
+	     (ddr_pll_ctrl & ZY7_SLCR_PLL_CTRL_BYPASS_FORCE) != 0) ||
+	    ((ddr_pll_ctrl & ZY7_SLCR_PLL_CTRL_BYPASS_QUAL) != 0 &&
+	     (bootmode & ZY7_SLCR_BOOT_MODE_PLL_BYPASS) != 0))
+		/* PLL is bypassed. */
+		ddr_pll_frequency = ps_clk_frequency;
+	else
+		ddr_pll_frequency = ps_clk_frequency *
+			((ddr_pll_ctrl & ZY7_SLCR_PLL_CTRL_FDIV_MASK) >>
+			 ZY7_SLCR_PLL_CTRL_FDIV_SHIFT);
+
+	/* Determine IO PLL frequency. */
+	if (((io_pll_ctrl & ZY7_SLCR_PLL_CTRL_BYPASS_QUAL) == 0 &&
+	     (io_pll_ctrl & ZY7_SLCR_PLL_CTRL_BYPASS_FORCE) != 0) ||
+	    ((io_pll_ctrl & ZY7_SLCR_PLL_CTRL_BYPASS_QUAL) != 0 &&
+	     (bootmode & ZY7_SLCR_BOOT_MODE_PLL_BYPASS) != 0))
+		/* PLL is bypassed. */
+		io_pll_frequency = ps_clk_frequency;
+	else
+		io_pll_frequency = ps_clk_frequency *
+			((io_pll_ctrl & ZY7_SLCR_PLL_CTRL_FDIV_MASK) >>
+			 ZY7_SLCR_PLL_CTRL_FDIV_SHIFT);
 
 	/* Lock SLCR registers. */
 	zy7_slcr_lock(sc);
