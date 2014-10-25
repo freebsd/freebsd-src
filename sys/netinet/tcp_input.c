@@ -675,12 +675,14 @@ tcp_input(struct mbuf **mp, int *offp, int proto)
 			/*
 			 * Checksum extended TCP header and data.
 			 */
+			u_int8_t tos = ip->ip_tos;
 			len = off0 + tlen;
 			bzero(ipov->ih_x1, sizeof(ipov->ih_x1));
 			ipov->ih_len = htons(tlen);
 			th->th_sum = in_cksum(m, len);
 			/* Reset length for SDT probes. */
 			ip->ip_len = htons(tlen + off0);
+			ip->ip_tos = tos;
 		}
 
 		if (th->th_sum) {
