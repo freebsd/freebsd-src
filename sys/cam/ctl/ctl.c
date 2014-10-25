@@ -46,6 +46,7 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/systm.h>
+#include <sys/ctype.h>
 #include <sys/kernel.h>
 #include <sys/types.h>
 #include <sys/kthread.h>
@@ -4349,6 +4350,36 @@ ctl_init_log_page_index(struct ctl_lun *lun)
 	return (CTL_RETVAL_COMPLETE);
 }
 
+static int
+hex2bin(const char *str, uint8_t *buf, int buf_size)
+{
+	int i;
+	u_char c;
+
+	memset(buf, 0, buf_size);
+	while (isspace(str[0]))
+		str++;
+	if (str[0] == '0' && (str[1] == 'x' || str[1] == 'X'))
+		str += 2;
+	buf_size *= 2;
+	for (i = 0; str[i] != 0 && i < buf_size; i++) {
+		c = str[i];
+		if (isdigit(c))
+			c -= '0';
+		else if (isalpha(c))
+			c -= isupper(c) ? 'A' - 10 : 'a' - 10;
+		else
+			break;
+		if (c >= 16)
+			break;
+		if ((i & 1) == 0)
+			buf[i / 2] |= (c << 4);
+		else
+			buf[i / 2] |= c;
+	}
+	return ((i + 1) / 2);
+}
+
 /*
  * LUN allocation.
  *
@@ -4414,15 +4445,14 @@ ctl_alloc_lun(struct ctl_softc *ctl_softc, struct ctl_lun *ctl_lun,
 	}
 	eui = ctl_get_opt(&be_lun->options, "eui");
 	if (eui != NULL) {
-		len += sizeof(struct scsi_vpd_id_descriptor) + 8;
+		len += sizeof(struct scsi_vpd_id_descriptor) + 16;
 	}
 	naa = ctl_get_opt(&be_lun->options, "naa");
 	if (naa != NULL) {
-		len += sizeof(struct scsi_vpd_id_descriptor) + 8;
+		len += sizeof(struct scsi_vpd_id_descriptor) + 16;
 	}
 	lun->lun_devid = malloc(sizeof(struct ctl_devid) + len,
 	    M_CTL, M_WAITOK | M_ZERO);
-	lun->lun_devid->len = len;
 	desc = (struct scsi_vpd_id_descriptor *)lun->lun_devid->data;
 	desc->proto_codeset = SVPD_ID_CODESET_ASCII;
 	desc->id_type = SVPD_ID_PIV | SVPD_ID_ASSOC_LUN | SVPD_ID_TYPE_T10;
@@ -4452,8 +4482,10 @@ ctl_alloc_lun(struct ctl_softc *ctl_softc, struct ctl_lun *ctl_lun,
 		desc->proto_codeset = SVPD_ID_CODESET_BINARY;
 		desc->id_type = SVPD_ID_PIV | SVPD_ID_ASSOC_LUN |
 		    SVPD_ID_TYPE_EUI64;
-		desc->length = 8;
-		scsi_u64to8b(strtouq(eui, NULL, 0), desc->identifier);
+		desc->length = hex2bin(eui, desc->identifier, 16);
+		desc->length = desc->length > 12 ? 16 :
+		    (desc->length > 8 ? 12 : 8);
+		len -= 16 - desc->length;
 	}
 	if (naa != NULL) {
 		desc = (struct scsi_vpd_id_descriptor *)(&desc->identifier[0] +
@@ -4461,9 +4493,11 @@ ctl_alloc_lun(struct ctl_softc *ctl_softc, struct ctl_lun *ctl_lun,
 		desc->proto_codeset = SVPD_ID_CODESET_BINARY;
 		desc->id_type = SVPD_ID_PIV | SVPD_ID_ASSOC_LUN |
 		    SVPD_ID_TYPE_NAA;
-		desc->length = 8;
-		scsi_u64to8b(strtouq(naa, NULL, 0), desc->identifier);
+		desc->length = hex2bin(naa, desc->identifier, 16);
+		desc->length = desc->length > 8 ? 16 : 8;
+		len -= 16 - desc->length;
 	}
+	lun->lun_devid->len = len;
 
 	mtx_lock(&ctl_softc->ctl_lock);
 	/*
