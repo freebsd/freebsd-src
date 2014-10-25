@@ -132,6 +132,49 @@ boot</screen>
 	  instability may be present on virtual machines running
 	  on other hypervisors, such as Xen or KVM.</para>
       </listitem>
+
+      <listitem>
+	<para>&os;/&arch.i386;&nbsp;&release.current; configured with
+	  a multi-disk ZFS dataset (mirror, raidz1, raidz2, raidz3)
+	  may crash during boot when the ZFS pool mount is attempted
+	  while booting an unmodified <literal>GENERIC</literal>
+	  kernel.</para>
+
+	<para>As described in <filename>/usr/src/UPDATING</filename>
+	  entry <literal>20121223</literal>, rebuilding the kernel
+	  with <literal>options KSTACK_PAGES=4</literal> has been
+	  observed to resolve the boot-time crash.  This, however, is
+	  not an ideal solution for inclusion in the
+	  <literal>GENERIC</literal> kernel configuration, as
+	  increasing <literal>KSTACK_PAGES</literal> implicitly
+	  decreases available usermode threads in an environment that
+	  is already resource-starved.</para>
+
+	<para>Taking into account the heavy resource requirements of
+	  ZFS, in addition to the &arch.i386;-specific tuning
+	  requirements for general workloads, using ZFS with the
+	  &os;/&arch.i386;&nbsp;<literal>GENERIC</literal> kernel
+	  is strongly discouraged.</para>
+
+	<warning>
+	  <para>It is extremely important to take note that, by
+	    default, &man.freebsd-update.8; will install the
+	    <literal>GENERIC</literal> kernel configuration, and
+	    as such, &man.freebsd-update.8; consumers are strongly
+	    encouraged to avoid &os;-provided kernel binary upgrades
+	    with such configurations.</para>
+	</warning>
+
+	<note>
+	  <para>Although there is slight change in how the crash
+	    manifests on &os;/&arch.i386; between &release.prev; and
+	    &release.current;, and given the date of the
+	    <filename>/usr/src/UPDATING</filename> entry, there is no
+	    evidence suggesting this is a regression between
+	    &os;&nbsp;&release.prev; and &os;&nbsp;&release.current;
+	    directly.</para>
+	</note>
+      </listitem>
     </itemizedlist>
   </sect1>
 
