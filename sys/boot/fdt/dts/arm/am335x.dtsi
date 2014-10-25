@@ -83,7 +83,7 @@
  		};
 
 		wdt1@44E35000 {
-			compatible = "ti,wdt";
+			compatible = "ti,omap3-wdt";
 			reg = <0x44E35000 0x1000>;
 			interrupts = <91>;
 			interrupt-parent = <&AINTC>;
