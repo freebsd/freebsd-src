@@ -356,6 +356,7 @@ hpet_mmap(struct cdev *cdev, vm_ooffset_t offset, vm_paddr_t *paddr,
 	if (!sc->mmap_allow_write && (nprot & PROT_WRITE))
 		return (EPERM);
 	*paddr = rman_get_start(sc->mem_res) + offset;
+	*memattr = VM_MEMATTR_UNCACHEABLE;
 
 	return (0);
 }
