@@ -1,4 +1,4 @@
-/* $OpenBSD: netcat.c,v 1.117 2013/10/26 21:33:29 sthen Exp $ */
+/* $OpenBSD: netcat.c,v 1.122 2014/07/20 01:38:40 guenther Exp $ */
 /*
  * Copyright (c) 2001 Eric Jackson <ericj@monkey.org>
  *
@@ -155,9 +155,6 @@ main(int argc, char *argv[])
 	host = NULL;
 	uport = NULL;
 	sv = NULL;
-#if 0
-	rtableid = getrtable();
-#endif
 
 	while ((ch = getopt_long(argc, argv,
 	    "46DdEe:FhI:i:klNnoO:P:p:rSs:tT:UuV:vw:X:x:z",
@@ -662,7 +659,7 @@ remote_connect(const char *host, const char *port, struct addrinfo hints)
 
 			if (bind(s, (struct sockaddr *)ares->ai_addr,
 			    ares->ai_addrlen) < 0)
-				errx(1, "bind failed: %s", strerror(errno));
+				err(1, "bind failed");
 			freeaddrinfo(ares);
 		}
 
@@ -751,7 +748,7 @@ local_listen(char *host, char *port, struct addrinfo hints)
 		    res0->ai_protocol)) < 0)
 			continue;
 
-		if (rtableid >= 0 && (setsockopt(s, IPPROTO_IP, SO_SETFIB,
+		if (rtableid >= 0 && (setsockopt(s, SOL_SOCKET, SO_SETFIB,
 		    &rtableid, sizeof(rtableid)) == -1))
 			err(1, "setsockopt SO_SETFIB");
 
@@ -796,12 +793,12 @@ void
 readwrite(int nfd)
 {
 	struct pollfd pfd[2];
-	unsigned char buf[16384];
+	unsigned char buf[16 * 1024];
 	int n, wfd = fileno(stdin);
 	int lfd = fileno(stdout);
 	int plen;
 
-	plen = 2048;
+	plen = sizeof(buf);
 
 	/* Setup Network FD */
 	pfd[0].fd = nfd;
@@ -816,8 +813,9 @@ readwrite(int nfd)
 			sleep(iflag);
 
 		if ((n = poll(pfd, 2 - dflag, timeout)) < 0) {
+			int saved_errno = errno;
 			close(nfd);
-			err(1, "Polling Error");
+			errc(1, saved_errno, "Polling Error");
 		}
 
 		if (n == 0)
