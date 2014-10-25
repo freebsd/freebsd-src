@@ -74,7 +74,7 @@ static eventhandler_tag route_redirect_eh;
 
 static int
 toedev_connect(struct toedev *tod __unused, struct socket *so __unused,
-    struct rtentry *rt __unused, struct sockaddr *nam __unused)
+    struct nhopu_extended *nh __unused, struct sockaddr *nam __unused)
 {
 
 	return (ENOTSUP);
@@ -135,7 +135,7 @@ toedev_l2_update(struct toedev *tod __unused, struct ifnet *ifp __unused,
 
 static void
 toedev_route_redirect(struct toedev *tod __unused, struct ifnet *ifp __unused,
-    struct rtentry *rt0 __unused, struct rtentry *rt1 __unused)
+    struct nhopu_extended *nh0 __unused, struct nhopu_extended *nh1 __unused)
 {
 
 	return;
@@ -438,8 +438,8 @@ toe_lle_event(void *arg __unused, struct llentry *lle, int evt)
  * XXX: implement.
  */
 static void
-toe_route_redirect_event(void *arg __unused, struct rtentry *rt0,
-    struct rtentry *rt1, struct sockaddr *sa)
+toe_route_redirect_event(void *arg __unused, struct nhopu_extended *nh0,
+    struct nhopu_extended *nh1, struct sockaddr *sa)
 {
 
 	return;

@@ -65,6 +65,7 @@
 #include <netinet/in_var.h>
 #include <netinet/ip_mroute.h>
 #include <netinet/ip6.h>
+#include <netinet6/in6_var.h>
 
 #include <net/if_types.h>
 #include <netinet/if_ether.h>
@@ -117,6 +118,8 @@ static void fib4_rte_to_nh_basic(struct rtentry *rte, struct in_addr dst,
     struct nhop4_basic *pnh4);
 #endif
 #ifdef INET
+static void fib6_rte_to_nh_extended(struct rtentry *rte, struct in6_addr dst,
+    struct nhop6_extended *pnh6);
 static void fib6_rte_to_nh_basic(struct rtentry *rte, struct in6_addr dst,
     struct nhop6_basic *pnh6);
 #endif
@@ -385,33 +388,6 @@ fib_rte_to_nh_flags(int rt_flags)
 	return (res);
 }
 
-
-static void
-fib4_rte_to_nh_extended(struct rtentry *rte, struct in_addr dst,
-    struct nhop4_extended *pnh4)
-{
-	struct sockaddr_in *gw;
-	struct in_ifaddr *ia;
-
-	pnh4->nh_ifp = rte->rt_ifp;
-	pnh4->nh_mtu = min(rte->rt_mtu, rte->rt_ifp->if_mtu);
-	if (rte->rt_flags & RTF_GATEWAY) {
-		gw = (struct sockaddr_in *)rte->rt_gateway;
-		pnh4->nh_addr = gw->sin_addr;
-	} else
-		pnh4->nh_addr = dst;
-
-	ia = ifatoia(rte->rt_ifa);
-	pnh4->nh_src = IA_SIN(ia)->sin_addr;
-
-	/* Set flags */
-	pnh4->nh_flags = fib_rte_to_nh_flags(rte->rt_flags);
-	gw = (struct sockaddr_in *)rt_key(rte);
-	if (gw->sin_addr.s_addr == 0)
-		pnh4->nh_flags |= NHF_DEFAULT;
-}
-
-
 static void
 fib4_rte_to_nh_basic(struct rtentry *rte, struct in_addr dst,
     struct nhop4_basic *pnh4)
@@ -430,6 +406,30 @@ fib4_rte_to_nh_basic(struct rtentry *rte, struct in_addr dst,
 	gw = (struct sockaddr_in *)rt_key(rte);
 	if (gw->sin_addr.s_addr == 0)
 		pnh4->nh_flags |= NHF_DEFAULT;
+}
+
+static void
+fib4_rte_to_nh_extended(struct rtentry *rte, struct in_addr dst,
+    struct nhop4_extended *pnh4)
+{
+	struct sockaddr_in *gw;
+	struct in_ifaddr *ia;
+
+	pnh4->nh_ifp = rte->rt_ifa->ifa_ifp;
+	pnh4->nh_mtu = min(rte->rt_mtu, rte->rt_ifp->if_mtu);
+	if (rte->rt_flags & RTF_GATEWAY) {
+		gw = (struct sockaddr_in *)rte->rt_gateway;
+		pnh4->nh_addr = gw->sin_addr;
+	} else
+		pnh4->nh_addr = dst;
+	/* Set flags */
+	pnh4->nh_flags = fib_rte_to_nh_flags(rte->rt_flags);
+	gw = (struct sockaddr_in *)rt_key(rte);
+	if (gw->sin_addr.s_addr == 0)
+		pnh4->nh_flags |= NHF_DEFAULT;
+
+	ia = ifatoia(rte->rt_ifa);
+	pnh4->nh_src = IA_SIN(ia)->sin_addr;
 }
 
 /*
@@ -560,7 +560,6 @@ fib6_choose_prepend(uint32_t fibnum, struct nhop_prepend *nh_src,
 */
 }
 
-
 static void
 fib6_rte_to_nh_basic(struct rtentry *rte, struct in6_addr dst,
     struct nhop6_basic *pnh6)
@@ -581,6 +580,30 @@ fib6_rte_to_nh_basic(struct rtentry *rte, struct in6_addr dst,
 		pnh6->nh_flags |= NHF_DEFAULT;
 }
 
+static void
+fib6_rte_to_nh_extended(struct rtentry *rte, struct in6_addr dst,
+    struct nhop6_extended *pnh6)
+{
+	struct sockaddr_in6 *gw;
+	struct in6_ifaddr *ia;
+
+	pnh6->nh_ifp = rte->rt_ifa->ifa_ifp;
+	pnh6->nh_mtu = min(rte->rt_mtu, rte->rt_ifp->if_mtu);
+	if (rte->rt_flags & RTF_GATEWAY) {
+		gw = (struct sockaddr_in6 *)rte->rt_gateway;
+		pnh6->nh_addr = gw->sin6_addr;
+	} else
+		pnh6->nh_addr = dst;
+	/* Set flags */
+	pnh6->nh_flags = fib_rte_to_nh_flags(rte->rt_flags);
+	gw = (struct sockaddr_in6 *)rt_key(rte);
+	if (IN6_IS_ADDR_UNSPECIFIED(&gw->sin6_addr))
+		pnh6->nh_flags |= NHF_DEFAULT;
+
+	ia = ifatoia6(rte->rt_ifa);
+	pnh6->nh_src = IA6_SIN6(ia)->sin6_addr;
+}
+
 int
 fib6_lookup_nh_basic(uint32_t fibnum, struct in6_addr dst, uint32_t flowid,
     struct nhop6_basic *pnh6)
@@ -591,7 +614,7 @@ fib6_lookup_nh_basic(uint32_t fibnum, struct in6_addr dst, uint32_t flowid,
 	struct rtentry *rte;
 
 	KASSERT((fibnum < rt_numfibs), ("fib6_lookup_nh_basic: bad fibnum"));
-	rnh = rt_tables_get_rnh(fibnum, AF_INET);
+	rnh = rt_tables_get_rnh(fibnum, AF_INET6);
 	if (rnh == NULL)
 		return (ENOENT);
 
@@ -614,7 +637,68 @@ fib6_lookup_nh_basic(uint32_t fibnum, struct in6_addr dst, uint32_t flowid,
 
 	return (ENOENT);
 }
+
+/*
+ * Performs IPv6 route table lookup on @dst. Returns 0 on success.
+ * Stores extende nexthop info provided @pnh4 structure.
+ * Note that
+ * - nh_ifp cannot be safely dereferenced unless NHOP_LOOKUP_REF is specified.
+ * - in that case you need to call fib6_free_nh_ext()
+ * - nh_ifp represents logical transmit interface (rt_ifp)
+ * - mtu from logical transmit interface will be returned.
+ */
+int
+fib6_lookup_nh_ext(uint32_t fibnum, struct in6_addr dst, uint32_t scopeid,
+    uint32_t flowid, uint32_t flags, struct nhop6_extended *pnh6)
+{
+	struct radix_node_head *rnh;
+	struct radix_node *rn;
+	struct sockaddr_in6 sin6;
+	struct rtentry *rte;
+
+	KASSERT((fibnum < rt_numfibs), ("fib4_lookup_nh_ext: bad fibnum"));
+	rnh = rt_tables_get_rnh(fibnum, AF_INET6);
+	if (rnh == NULL)
+		return (ENOENT);
+
+	/* Prepare lookup key */
+	memset(&sin6, 0, sizeof(sin6));
+	sin6.sin6_len = sizeof(struct sockaddr_in6);
+	sin6.sin6_addr = dst;
+
+	RADIX_NODE_HEAD_RLOCK(rnh);
+	rn = rnh->rnh_matchaddr((void *)&sin6, rnh);
+	if (rn != NULL && ((rn->rn_flags & RNF_ROOT) == 0)) {
+		rte = RNTORT(rn);
+		/* Ensure route & ifp is UP */
+		if (RT_LINK_IS_UP(rte->rt_ifp)) {
+			fib6_rte_to_nh_extended(rte, dst, pnh6);
+			if ((flags & NHOP_LOOKUP_REF) != 0) {
+				/* TODO: Do lwref on egress ifp's */
+			}
+			RADIX_NODE_HEAD_RUNLOCK(rnh);
+
+			return (0);
+		}
+	}
+	RADIX_NODE_HEAD_RUNLOCK(rnh);
+
+	return (ENOENT);
+}
+
+void
+fib6_free_nh_ext(uint32_t fibnum, struct nhop6_extended *pnh6)
+{
+
+}
+
 #endif
+
+void
+fib_free_nh_ext(uint32_t fibnum, struct nhopu_extended *pnhu)
+{
+
+}
 
 
 #if 0

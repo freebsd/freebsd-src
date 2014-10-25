@@ -255,7 +255,7 @@ void release_lip(struct tom_data *, struct clip_entry *);
 
 /* t4_connect.c */
 void t4_init_connect_cpl_handlers(struct adapter *);
-int t4_connect(struct toedev *, struct socket *, struct rtentry *,
+int t4_connect(struct toedev *, struct socket *, struct nhopu_extended *,
     struct sockaddr *);
 void act_open_failure_cleanup(struct adapter *, u_int, u_int);
 

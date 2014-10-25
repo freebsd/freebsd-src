@@ -58,6 +58,7 @@ __FBSDID("$FreeBSD$");
 #define TCPSTATES
 #include <netinet/tcp_fsm.h>
 #include <netinet/toecore.h>
+#include <net/rt_nhops.h>
 
 #include "common/common.h"
 #include "common/t4_msg.h"
@@ -1123,45 +1124,40 @@ static struct l2t_entry *
 get_l2te_for_nexthop(struct port_info *pi, struct ifnet *ifp,
     struct in_conninfo *inc)
 {
-	struct rtentry *rt;
 	struct l2t_entry *e;
 	struct sockaddr_in6 sin6;
+	struct nhopu_extended nhu;
 	struct sockaddr *dst = (void *)&sin6;
  
 	if (inc->inc_flags & INC_ISIPV6) {
 		dst->sa_len = sizeof(struct sockaddr_in6);
 		dst->sa_family = AF_INET6;
-		((struct sockaddr_in6 *)dst)->sin6_addr = inc->inc6_faddr;
 
 		if (IN6_IS_ADDR_LINKLOCAL(&inc->inc6_laddr)) {
 			/* no need for route lookup */
 			e = t4_l2t_get(pi, ifp, dst);
 			return (e);
 		}
+
+		/* TODO: Multipath */
+		if (fib6_lookup_nh_ext(inc->inc_fibnum, inc->inc6_faddr,
+		    0, 0, 0, &nhu.u.nh6) != 0)
+			return (NULL);
+		((struct sockaddr_in6 *)dst)->sin6_addr = nhu.u.nh6.nh_addr;
 	} else {
 		dst->sa_len = sizeof(struct sockaddr_in);
 		dst->sa_family = AF_INET;
-		((struct sockaddr_in *)dst)->sin_addr = inc->inc_faddr;
+
+		/* TODO: Multipath */
+		if (fib4_lookup_nh_ext(inc->inc_fibnum, inc->inc_faddr,
+		    0, 0, &nhu.u.nh4) != 0)
+			return (NULL);
+		((struct sockaddr_in *)dst)->sin_addr = nhu.u.nh4.nh_addr;
 	}
 
-	rt = rtalloc1(dst, 0, 0);
-	if (rt == NULL)
+	if (nhu.u.nh4.nh_ifp != ifp)
 		return (NULL);
-	else {
-		struct sockaddr *nexthop;
-
-		RT_UNLOCK(rt);
-		if (rt->rt_ifp != ifp)
-			e = NULL;
-		else {
-			if (rt->rt_flags & RTF_GATEWAY)
-				nexthop = rt->rt_gateway;
-			else
-				nexthop = dst;
-			e = t4_l2t_get(pi, ifp, nexthop);
-		}
-		RTFREE(rt);
-	}
+	e = t4_l2t_get(pi, ifp, dst);
 
 	return (e);
 }

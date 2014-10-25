@@ -711,7 +711,7 @@ ipf_fastroute(m0, mpp, fin, fdp)
 	u_int fibnum;
 	struct ifnet *ifp, *sifp;
 	struct in_addr dst;
-	struct nhop_data nhd, *pnhd;
+	struct nhop_prepend nhd, *pnhd;
 	u_short ip_off;
 	frdest_t node;
 	frentry_t *fr;
@@ -934,7 +934,7 @@ done:
 		ipfmain.ipf_frouteok[1]++;
 
 	if (pnhd != NULL)
-		fib4_free_nh(fibnum, pnhd);
+		fib4_free_nh_prepend(fibnum, pnhd);
 	return 0;
 bad:
 	if (error == EMSGSIZE) {
