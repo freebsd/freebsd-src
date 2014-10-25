@@ -4910,6 +4910,12 @@ run_update_beacon(struct ieee80211vap *vap, int item)
 	}
 
 	setbit(rvp->bo.bo_flags, item);
+	if (rvp->beacon_mbuf == NULL) {
+		rvp->beacon_mbuf = ieee80211_beacon_alloc(vap->iv_bss,
+		    &rvp->bo);
+		if (rvp->beacon_mbuf == NULL)
+			return;
+	}
 	ieee80211_beacon_update(vap->iv_bss, &rvp->bo, rvp->beacon_mbuf, mcast);
 
 	i = RUN_CMDQ_GET(&sc->cmdq_store);
@@ -5487,7 +5493,7 @@ run_rt3070_rf_init(struct run_softc *sc)
 		run_rt3070_rf_write(sc, 17, rf);
 	}
 
-	if (sc->mac_rev == 0x3071) {
+	if (sc->mac_ver == 0x3071) {
 		run_rt3070_rf_read(sc, 1, &rf);
 		rf &= ~(RT3070_RX0_PD | RT3070_TX0_PD);
 		rf |= RT3070_RF_BLOCK | RT3070_RX1_PD | RT3070_TX1_PD;
