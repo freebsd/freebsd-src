@@ -72,8 +72,9 @@ options 	KDB
 device		loop
 device		random
 device		ether
-device		if_cgem			# Zynq-7000 gig ethernet device
+device		cgem			# Zynq-7000 gig ethernet device
 device		mii
+device		e1000phy
 device		pty
 device		uart
 device		gpio
