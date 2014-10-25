@@ -109,6 +109,8 @@ __FBSDID("$FreeBSD$");
 #include <netinet6/scope6_var.h>
 #include <netinet6/nd6.h>
 
+#include <net/rt_nhops.h>
+
 static struct mtx addrsel_lock;
 #define	ADDRSEL_LOCK_INIT()	mtx_init(&addrsel_lock, "addrsel_lock", NULL, MTX_DEF)
 #define	ADDRSEL_LOCK()		mtx_lock(&addrsel_lock)
@@ -890,19 +892,17 @@ in6_selecthlim(struct inpcb *in6p, struct ifnet *ifp)
 	else if (ifp)
 		return (ND_IFINFO(ifp)->chlim);
 	else if (in6p && !IN6_IS_ADDR_UNSPECIFIED(&in6p->in6p_faddr)) {
-		struct route_in6 ro6;
-		struct ifnet *lifp;
+		struct nhop6_extended nh_ext;
+		uint32_t fibnum;
+		int hlim;
 
-		bzero(&ro6, sizeof(ro6));
-		ro6.ro_dst.sin6_family = AF_INET6;
-		ro6.ro_dst.sin6_len = sizeof(struct sockaddr_in6);
-		ro6.ro_dst.sin6_addr = in6p->in6p_faddr;
-		in6_rtalloc(&ro6, in6p->inp_inc.inc_fibnum);
-		if (ro6.ro_rt) {
-			lifp = ro6.ro_rt->rt_ifp;
-			RTFREE(ro6.ro_rt);
-			if (lifp)
-				return (ND_IFINFO(lifp)->chlim);
+		fibnum = in6p->inp_inc.inc_fibnum;
+
+		if (fib6_lookup_nh_ext(fibnum, in6p->in6p_faddr, 0, 0,
+		    NHOP_LOOKUP_REF, &nh_ext) == 0) {
+			hlim = ND_IFINFO(nh_ext.nh_ifp)->chlim;
+			fib6_free_nh_ext(fibnum, &nh_ext);
+			return (hlim);
 		}
 	}
 	return (V_ip6_defhlim);
