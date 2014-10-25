@@ -167,8 +167,8 @@ create_memdisk()
 		if [ -n "${devname}" ]; then
 			devparam="-u ${devname}"
 		fi
-		cmd="mdconfig -a -t swap -s ${size} ${devparam} 2>/dev/null"
-		DISKNAME=`${cmd}` || die "failed: ${cmd}"
+		cmd="mdconfig -a -t swap -s ${size} ${devparam}"
+		DISKNAME=`$cmd 2>/dev/null` || die "failed: ${cmd}"
 		if [ -n "${devname}" ]; then
 			DISKNAME="${devname}"
 		fi
