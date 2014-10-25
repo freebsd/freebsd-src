@@ -2895,7 +2895,7 @@ do_sem2_wake(struct thread *td, struct _usem2 *sem)
 		 */
 		if (cnt == 1) {
 			umtxq_unlock(&key);
-			count = fuword32(&sem->_count);
+			count = fuword32(__DEVOLATILE(void *, &sem->_count));
 			while (count != -1 && count & USEM_HAS_WAITERS)
 				count = casuword32(&sem->_count, count,
 				    count & ~USEM_HAS_WAITERS);
