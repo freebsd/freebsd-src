@@ -208,7 +208,7 @@ ofw_fdt_instance_to_package(ofw_t ofw, ihandle_t instance)
 {
 
 	/* Where real OF uses ihandles in the tree, FDT uses xref phandles */
-	return (OF_xref_phandle(instance));
+	return (OF_node_from_xref(instance));
 }
 
 /* Get the length of a property of a package. */
