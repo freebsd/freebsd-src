@@ -30,6 +30,13 @@
 #define	IMX_IOMUXVAR_H
 
 /*
+ * IOMUX interface functions
+ */
+void     iomux_set_function(u_int pin, u_int fn);
+void     iomux_set_pad(u_int pin, u_int cfg);
+u_int    iomux_get_pad_config(u_int pin);
+
+/*
  * The IOMUX Controller device has a small set of "general purpose registers" 
  * which control various aspects of SoC operation that really have nothing to do
  * with IO pin assignments or pad control.  These functions let other soc level
