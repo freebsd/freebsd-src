@@ -154,8 +154,8 @@ options  	FREEBSD_BOOT_LOADER	# Process metadata passed from loader(8)
 
 # SoC-specific devices
 device  	ffec			# Freescale Fast Ethernet Controller
-#device  	fsliic			# Freescale i2c/iic (not ready yet)
-#device  	iic			# iic protocol
-#device  	iicbus			# iic bus
+device  	fsliic			# Freescale i2c/iic
+device  	iic			# iic protocol
+device  	iicbus			# iic bus
 #device  	imxwdt			# Watchdog. WARNING: can't be disabled!!!
 
