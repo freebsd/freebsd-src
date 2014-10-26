@@ -130,7 +130,8 @@ ssize_t		OF_package_to_path(phandle_t node, char *buf, size_t len);
  * real phandle. If one can't be found (or running on OF implementations
  * without this property), returns its input.
  */
-phandle_t	OF_xref_phandle(phandle_t xref);
+phandle_t	OF_node_from_xref(phandle_t xref);
+phandle_t	OF_xref_from_node(phandle_t node);
 
 /* Device I/O functions */
 ihandle_t	OF_open(const char *path);

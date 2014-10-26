@@ -129,7 +129,7 @@ ofw_gpiobus_parse_gpios(struct gpiobus_softc *sc, struct gpiobus_ivar *dinfo,
 			i++;
 			continue;
 		}
-		gpio = OF_xref_phandle(gpios[i]);
+		gpio = OF_node_from_xref(gpios[i]);
 		/* Verify if we're attaching to the correct GPIO controller. */
 		if (!OF_hasprop(gpio, "gpio-controller") ||
 		    gpio != ofw_bus_get_node(sc->sc_dev)) {
@@ -168,7 +168,7 @@ ofw_gpiobus_parse_gpios(struct gpiobus_softc *sc, struct gpiobus_ivar *dinfo,
 			continue;
 		}
 
-		gpio = OF_xref_phandle(gpios[i]);
+		gpio = OF_node_from_xref(gpios[i]);
 		/* Read gpio-cells property for this GPIO controller. */
 		if (OF_getencprop(gpio, "#gpio-cells", &cells,
 		    sizeof(cells)) < 0) {
