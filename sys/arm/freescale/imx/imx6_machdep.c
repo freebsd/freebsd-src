@@ -38,12 +38,25 @@ __FBSDID("$FreeBSD$");
 
 #include <machine/bus.h>
 #include <machine/devmap.h>
+#include <machine/intr.h>
 #include <machine/machdep.h>
 
 #include <arm/arm/mpcore_timervar.h>
 #include <arm/freescale/imx/imx6_anatopreg.h>
 #include <arm/freescale/imx/imx6_anatopvar.h>
 #include <arm/freescale/imx/imx_machdep.h>
+
+#include <dev/fdt/fdt_common.h>
+#include <dev/ofw/openfirm.h>
+
+struct fdt_fixup_entry fdt_fixup_table[] = {
+	{ NULL, NULL }
+};
+
+fdt_pic_decode_t fdt_pic_table[] = {
+	&gic_decode_fdt,
+	NULL
+};
 
 vm_offset_t
 initarm_lastaddr(void)
