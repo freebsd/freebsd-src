@@ -10207,6 +10207,8 @@ ctl_inquiry_evpd_bdc(struct ctl_scsiio *ctsio, int alloc_len)
 {
 	struct scsi_vpd_block_device_characteristics *bdc_ptr;
 	struct ctl_lun *lun;
+	const char *value;
+	u_int i;
 
 	lun = (struct ctl_lun *)ctsio->io_hdr.ctl_private[CTL_PRIV_LUN].ptr;
 
@@ -10239,7 +10241,18 @@ ctl_inquiry_evpd_bdc(struct ctl_scsiio *ctsio, int alloc_len)
 		bdc_ptr->device = (SID_QUAL_LU_OFFLINE << 5) | T_DIRECT;
 	bdc_ptr->page_code = SVPD_BDC;
 	scsi_ulto2b(sizeof(*bdc_ptr) - 4, bdc_ptr->page_length);
-	scsi_ulto2b(SVPD_NON_ROTATING, bdc_ptr->medium_rotation_rate);
+	if (lun != NULL &&
+	    (value = ctl_get_opt(&lun->be_lun->options, "rpm")) != NULL)
+		i = strtol(value, NULL, 0);
+	else
+		i = SVPD_NON_ROTATING;
+	scsi_ulto2b(i, bdc_ptr->medium_rotation_rate);
+	if (lun != NULL &&
+	    (value = ctl_get_opt(&lun->be_lun->options, "formfactor")) != NULL)
+		i = strtol(value, NULL, 0);
+	else
+		i = 0;
+	bdc_ptr->wab_wac_ff = (i & 0x0f);
 	bdc_ptr->flags = SVPD_FUAB | SVPD_VBULS;
 
 	ctsio->scsi_status = SCSI_STATUS_OK;
