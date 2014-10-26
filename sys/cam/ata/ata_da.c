@@ -1483,8 +1483,14 @@ ada_dsmtrim(struct ada_softc *softc, struct bio *bp, struct ccb_ataio *ataio)
 static void
 ada_cfaerase(struct ada_softc *softc, struct bio *bp, struct ccb_ataio *ataio)
 {
+	struct trim_request *req = &softc->trim_req;
 	uint64_t lba = bp->bio_pblkno;
 	uint16_t count = bp->bio_bcount / softc->params.secsize;
+
+	bzero(req, sizeof(*req));
+	TAILQ_INIT(&req->bps);
+	bioq_remove(&softc->trim_queue, bp);
+	TAILQ_INSERT_TAIL(&req->bps, bp, bio_queue);
 
 	cam_fill_ataio(ataio,
 	    ada_retry_count,
