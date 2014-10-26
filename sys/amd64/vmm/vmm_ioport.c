@@ -41,6 +41,7 @@ __FBSDID("$FreeBSD$");
 
 #include "vatpic.h"
 #include "vatpit.h"
+#include "vpmtmr.h"
 #include "vmm_ioport.h"
 #include "vmm_ktr.h"
 
@@ -58,6 +59,7 @@ ioport_handler_func_t ioport_handler[MAX_IOPORTS] = {
 	[IO_ICU2 + ICU_IMR_OFFSET] = vatpic_slave_handler,
 	[IO_ELCR1] = vatpic_elc_handler,
 	[IO_ELCR2] = vatpic_elc_handler,
+	[IO_PMTMR] = vpmtmr_handler,
 };
 
 #ifdef KTR
