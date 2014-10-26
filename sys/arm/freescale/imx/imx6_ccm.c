@@ -238,6 +238,12 @@ imx_ccm_uart_hz(void)
 	return (80000000);
 }
 
+uint32_t
+imx_ccm_ahb_hz(void)
+{
+	return (132000000);
+}
+
 static device_method_t ccm_methods[] = {
 	/* Device interface */
 	DEVMETHOD(device_probe,  ccm_probe),
