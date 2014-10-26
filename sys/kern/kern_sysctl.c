@@ -77,7 +77,7 @@ static MALLOC_DEFINE(M_SYSCTLTMP, "sysctltmp", "sysctl temp output buffer");
  * The sysctllock protects the MIB tree.  It also protects sysctl
  * contexts used with dynamic sysctls.  The sysctl_register_oid() and
  * sysctl_unregister_oid() routines require the sysctllock to already
- * be held, so the sysctl_lock() and sysctl_unlock() routines are
+ * be held, so the sysctl_xlock() and sysctl_xunlock() routines are
  * provided for the few places in the kernel which need to use that
  * API rather than using the dynamic API.  Use of the dynamic API is
  * strongly encouraged for most code.
@@ -96,6 +96,7 @@ static struct sx sysctlmemlock;
 #define	SYSCTL_XLOCKED()	sx_xlocked(&sysctllock)
 #define	SYSCTL_ASSERT_LOCKED()	sx_assert(&sysctllock, SA_LOCKED)
 #define	SYSCTL_ASSERT_XLOCKED()	sx_assert(&sysctllock, SA_XLOCKED)
+#define	SYSCTL_ASSERT_SLOCKED()	sx_assert(&sysctllock, SA_SLOCKED)
 #define	SYSCTL_INIT()		sx_init(&sysctllock, "sysctl lock")
 #define	SYSCTL_SLEEP(ch, wmesg, timo)					\
 				sx_sleep(ch, &sysctllock, 0, wmesg, timo)
@@ -1572,7 +1573,7 @@ sysctl_root(SYSCTL_HANDLER_ARGS)
 	struct sysctl_oid *oid;
 	int error, indx, lvl;
 
-	SYSCTL_ASSERT_LOCKED();
+	SYSCTL_ASSERT_SLOCKED();
 
 	error = sysctl_find_oid(arg1, arg2, &oid, &indx, req);
 	if (error)
