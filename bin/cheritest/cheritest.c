@@ -197,6 +197,17 @@ static const struct cheri_test cheri_tests[] = {
 	  .ct_cp2_exccode = CHERI_EXCCODE_ACCESS_EPCC },
 
 	/*
+	 * Unsandboxed, non-faulting virtual-mwmory tests.
+	 */
+	{ .ct_name = "cheritest_vm_cow_read",
+	  .ct_desc = "read capabilities from a copy-on-write page",
+	  .ct_func = cheritest_vm_cow_read, },
+
+	{ .ct_name = "cheritest_vm_cow_write",
+	  .ct_desc = "read capabilities from a faulted copy-on-write page",
+	  .ct_func = cheritest_vm_cow_write, },
+
+	/*
 	 * Simple CCall/CReturn tests that sometimes generate signals.
 	 */
 	{ .ct_name = "test_fault_creturn",

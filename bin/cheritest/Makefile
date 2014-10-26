@@ -12,7 +12,8 @@ SRCS=	cheritest.c							\
 	cheritest_stack.c						\
 	cheritest_syscall.c						\
 	cheritest_util.c						\
-	cheritest_var.c
+	cheritest_var.c							\
+	cheritest_vm.c
 
 MAN=
 USE_CHERI=	yes

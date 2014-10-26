@@ -214,4 +214,8 @@ void	test_sandbox_var_bss(const struct cheri_test *ctp);
 void	test_sandbox_var_data(const struct cheri_test *ctp);
 void	test_sandbox_var_constructor(const struct cheri_test *ctp);
 
+/* cheritest_vm.c */
+void	cheritest_vm_cow_read(const struct cheri_test *ctp);
+void	cheritest_vm_cow_write(const struct cheri_test *ctp);
+
 #endif /* !_CHERITEST_H_ */
