@@ -238,6 +238,7 @@ extern void	mallocstats(void);
 extern int	printf(const char *fmt, ...) __printflike(1, 2);
 extern void	vprintf(const char *fmt, __va_list);
 extern int	sprintf(char *buf, const char *cfmt, ...) __printflike(2, 3);
+extern int	snprintf(char *buf, size_t size, const char *cfmt, ...) __printflike(3, 4);
 extern void	vsprintf(char *buf, const char *cfmt, __va_list);
 
 extern void	twiddle(void);
