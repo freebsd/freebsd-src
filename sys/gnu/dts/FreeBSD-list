@@ -64,6 +64,7 @@ src/arm/sama5d3_uart.dtsi
 src/arm/sama5d3xcm.dtsi
 src/arm/sama5d3xdm.dtsi
 src/arm/sama5d3xmb.dtsi
+src/arm/skeleton.dtsi
 src/arm/tny_a9260.dts
 src/arm/tny_a9260_common.dtsi
 src/arm/tny_a9263.dts
