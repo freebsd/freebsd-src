@@ -806,17 +806,24 @@ int
 sys_setgroups(struct thread *td, struct setgroups_args *uap)
 {
 	gid_t *groups = NULL;
+	gid_t smallgroups[XU_NGROUPS];
+	u_int gidsetsize;
 	int error;
 
-	if (uap->gidsetsize > ngroups_max + 1)
+	gidsetsize = uap->gidsetsize;
+	if (gidsetsize > ngroups_max + 1)
 		return (EINVAL);
-	groups = malloc(uap->gidsetsize * sizeof(gid_t), M_TEMP, M_WAITOK);
-	error = copyin(uap->gidset, groups, uap->gidsetsize * sizeof(gid_t));
+	if (gidsetsize > XU_NGROUPS)
+		groups = malloc(gidsetsize * sizeof(gid_t), M_TEMP, M_WAITOK);
+	else
+		groups = smallgroups;
+	error = copyin(uap->gidset, groups, gidsetsize * sizeof(gid_t));
 	if (error)
 		goto out;
-	error = kern_setgroups(td, uap->gidsetsize, groups);
+	error = kern_setgroups(td, gidsetsize, groups);
 out:
-	free(groups, M_TEMP);
+	if (gidsetsize > XU_NGROUPS)
+		free(groups, M_TEMP);
 	return (error);
 }
 
