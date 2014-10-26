@@ -835,7 +835,7 @@ kern_setgroups(struct thread *td, u_int ngrp, gid_t *groups)
 	struct ucred *newcred, *oldcred;
 	int error;
 
-	MPASS(ngrp <= ngroups_max);
+	MPASS(ngrp <= ngroups_max + 1);
 	AUDIT_ARG_GROUPSET(groups, ngrp);
 	newcred = crget();
 	crextend(newcred, ngrp);
