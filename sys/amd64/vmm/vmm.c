@@ -74,6 +74,7 @@ __FBSDID("$FreeBSD$");
 #include "vhpet.h"
 #include "vioapic.h"
 #include "vlapic.h"
+#include "vpmtmr.h"
 #include "vmm_ipi.h"
 #include "vmm_stat.h"
 #include "vmm_lapic.h"
@@ -134,6 +135,7 @@ struct vm {
 	struct vioapic	*vioapic;		/* (i) virtual ioapic */
 	struct vatpic	*vatpic;		/* (i) virtual atpic */
 	struct vatpit	*vatpit;		/* (i) virtual atpit */
+	struct vpmtmr	*vpmtmr;		/* (i) virtual ACPI PM timer */
 	volatile cpuset_t active_cpus;		/* (i) active vcpus */
 	int		suspend;		/* (i) stop VM execution */
 	volatile cpuset_t suspended_cpus; 	/* (i) suspended vcpus */
@@ -360,6 +362,7 @@ vm_init(struct vm *vm, bool create)
 	vm->vhpet = vhpet_init(vm);
 	vm->vatpic = vatpic_init(vm);
 	vm->vatpit = vatpit_init(vm);
+	vm->vpmtmr = vpmtmr_init(vm);
 
 	CPU_ZERO(&vm->active_cpus);
 
@@ -422,6 +425,7 @@ vm_cleanup(struct vm *vm, bool destroy)
 	if (vm->iommu != NULL)
 		iommu_destroy_domain(vm->iommu);
 
+	vpmtmr_cleanup(vm->vpmtmr);
 	vatpit_cleanup(vm->vatpit);
 	vhpet_cleanup(vm->vhpet);
 	vatpic_cleanup(vm->vatpic);
@@ -2197,6 +2201,13 @@ struct vatpit *
 vm_atpit(struct vm *vm)
 {
 	return (vm->vatpit);
+}
+
+struct vpmtmr *
+vm_pmtmr(struct vm *vm)
+{
+
+	return (vm->vpmtmr);
 }
 
 enum vm_reg_name
