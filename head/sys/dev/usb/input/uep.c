@@ -122,8 +122,10 @@ static usb_fifo_cmd_t	uep_stop_read;
 static usb_fifo_open_t	uep_open;
 static usb_fifo_close_t	uep_close;
 
+#ifdef EVDEV
 static evdev_open_t uep_ev_open;
 static evdev_close_t uep_ev_close;
+#endif
 
 static void uep_put_queue(struct uep_softc *, u_char *);
 
@@ -135,10 +137,12 @@ static struct usb_fifo_methods uep_fifo_methods = {
 	.basename[0] = "uep",
 };
 
+#ifdef EVDEV
 static struct evdev_methods uep_evdev_methods = {
 	.ev_open = &uep_ev_open,
 	.ev_close = &uep_ev_close,
 };
+#endif
 
 static int
 get_pkt_len(u_char *buf)
@@ -484,6 +488,7 @@ uep_close(struct usb_fifo *fifo, int fflags)
 	}
 }
 
+#ifdef EVDEV
 static void
 uep_ev_close(struct evdev_dev *evdev, void *ev_softc)
 {
@@ -513,6 +518,7 @@ uep_ev_open(struct evdev_dev *evdev, void *ev_softc)
 
 	return (0);
 }
+#endif
 
 static devclass_t uep_devclass;
 
