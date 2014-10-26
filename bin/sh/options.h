@@ -38,6 +38,7 @@ struct shparam {
 	unsigned char malloc;	/* if parameter list dynamically allocated */
 	unsigned char reset;	/* if getopts has been reset */
 	char **p;		/* parameter list */
+	char **optp;		/* parameter list for getopts */
 	char **optnext;		/* next parameter to be processed by getopts */
 	char *optptr;		/* used by getopts */
 };
