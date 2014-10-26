@@ -828,7 +828,7 @@ dovmstat(unsigned int interval, int reps)
 }
 
 static void
-printhdr(int ncpus, u_long cpumask)
+printhdr(int maxid, u_long cpumask)
 {
 	int i, num_shown;
 
@@ -844,7 +844,7 @@ printhdr(int ncpus, u_long cpumask)
 		(void)printf("   disk");
 	(void)printf("   faults      ");
 	if (Pflag) {
-		for (i = 0; i < ncpus; i++) {
+		for (i = 0; i <= maxid; i++) {
 			if (cpumask & (1ul << i))
 				printf("  cpu%d   ", i);
 		}
@@ -864,7 +864,7 @@ printhdr(int ncpus, u_long cpumask)
 				     dev_select[i].unit_number);
 	(void)printf("  in    sy    cs");
 	if (Pflag) {
-		for (i = 0; i < ncpus; i++) {
+		for (i = 0; i <= maxid; i++) {
 			if (cpumask & (1ul << i))
 				printf(" us sy id");
 		}
