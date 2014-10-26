@@ -338,6 +338,27 @@
 			reg = <0x02100000 0x00100000>;
 			ranges;
 
+			i2c1: i2c@021a0000 {
+				compatible = "fsl,imx6q-i2c";
+				reg = <0x021a0000 0x4000>;
+				interrupts = < 68 >;
+				status = "disabled";
+			};
+
+			i2c2: i2c@021a4000 {
+				compatible = "fsl,imx6q-i2c";
+				reg = <0x021a4000 0x4000>;
+				interrupts = < 69 >;
+				status = "disabled";
+			};
+
+			i2c3: i2c@021ac000 {
+				compatible = "fsl,imx6q-i2c";
+				reg = <0x021a8000 0x4000>;
+				interrupts = < 70 >;
+				status = "disabled";
+			};
+
 			fec1: ethernet@02188000 {
 				compatible = "fsl,imx6q-fec";
 				reg = <0x02188000 0x4000>;
