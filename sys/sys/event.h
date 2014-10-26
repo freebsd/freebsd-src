@@ -214,6 +214,7 @@ struct knote {
 		struct		proc *p_proc;	/* proc pointer */
 		struct		aiocblist *p_aio;	/* AIO job pointer */
 		struct		aioliojob *p_lio;	/* LIO job pointer */ 
+		sbintime_t	*p_nexttime;	/* next timer event fires at */
 	} kn_ptr;
 	struct			filterops *kn_fop;
 	void			*kn_hook;
