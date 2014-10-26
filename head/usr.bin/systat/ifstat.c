@@ -68,14 +68,14 @@ struct if_stat {
 	struct	ifmibdata if_mib;
 	struct	timeval tv;
 	struct	timeval tv_lastchanged;
-	u_long	if_in_curtraffic;
-	u_long	if_out_curtraffic;
-	u_long	if_in_traffic_peak;
-	u_long	if_out_traffic_peak;
-	u_long	if_in_curpps;
-	u_long	if_out_curpps;
-	u_long	if_in_pps_peak;
-	u_long	if_out_pps_peak;
+	uint64_t if_in_curtraffic;
+	uint64_t if_out_curtraffic;
+	uint64_t if_in_traffic_peak;
+	uint64_t if_out_traffic_peak;
+	uint64_t if_in_curpps;
+	uint64_t if_out_curpps;
+	uint64_t if_in_pps_peak;
+	uint64_t if_out_pps_peak;
 	u_int	if_row;			/* Index into ifmib sysctl */
 	int 	if_ypos;		/* -1 if not being displayed */
 	u_int	display;
@@ -269,8 +269,8 @@ fetchifstat(void)
 	struct	if_stat *ifp = NULL;
 	struct	timeval tv, new_tv, old_tv;
 	double	elapsed = 0.0;
-	u_int	new_inb, new_outb, old_inb, old_outb = 0;
-	u_int	new_inp, new_outp, old_inp, old_outp = 0;
+	uint64_t new_inb, new_outb, old_inb, old_outb = 0;
+	uint64_t new_inp, new_outp, old_inp, old_outp = 0;
 
 	SLIST_FOREACH(ifp, &curlist, link) {
 		/*

@@ -50,7 +50,6 @@ struct	ifaltq {
 	struct	mbuf *ifq_tail;
 	int	ifq_len;
 	int	ifq_maxlen;
-	int	ifq_drops;
 #ifdef __FreeBSD__
 	struct	mtx ifq_mtx;
 #endif

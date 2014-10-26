@@ -30,7 +30,7 @@
 #ifndef _LINUX_VMALLOC_H_
 #define	_LINUX_VMALLOC_H_
 
-#include <asm/page.h>
+#include <linux/page.h>
 
 #define	VM_MAP		0x0000
 #define	PAGE_KERNEL	0x0000

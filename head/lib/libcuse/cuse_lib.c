@@ -87,17 +87,11 @@ static TAILQ_HEAD(, cuse_dev_entered) h_cuse_entered __guarded_by(m_cuse);
 static struct cuse_vm_allocation a_cuse[CUSE_ALLOC_UNIT_MAX]
     __guarded_by(m_cuse);
 
-static void
-cuse_lock(void) __locks_exclusive(m_cuse)
-{
-	pthread_mutex_lock(&m_cuse);
-}
+#define	CUSE_LOCK() \
+	pthread_mutex_lock(&m_cuse)
 
-static void
-cuse_unlock(void) __unlocks(m_cuse)
-{
-	pthread_mutex_unlock(&m_cuse);
-}
+#define	CUSE_UNLOCK() \
+	pthread_mutex_unlock(&m_cuse)
 
 int
 cuse_init(void)
@@ -150,7 +144,7 @@ cuse_vmoffset(void *_ptr)
 	unsigned long remainder;
 	int n;
 
-	cuse_lock();
+	CUSE_LOCK();
 	for (n = 0; n != CUSE_ALLOC_UNIT_MAX; n++) {
 		if (a_cuse[n].ptr == NULL)
 			continue;
@@ -160,7 +154,7 @@ cuse_vmoffset(void *_ptr)
 
 		if ((ptr >= ptr_min) && (ptr <= ptr_max)) {
 
-			cuse_unlock();
+			CUSE_UNLOCK();
 
 			remainder = (ptr - ptr_min);
 
@@ -169,7 +163,7 @@ cuse_vmoffset(void *_ptr)
 			return ((n * PAGE_SIZE * CUSE_ALLOC_PAGES_MAX) + remainder);
 		}
 	}
-	cuse_unlock();
+	CUSE_UNLOCK();
 
 	return (0x80000000UL);		/* failure */
 }
@@ -192,7 +186,7 @@ cuse_vmalloc(int size)
 
 	info.page_count = (size + PAGE_SIZE - 1) / PAGE_SIZE;
 
-	cuse_lock();
+	CUSE_LOCK();
 	for (n = 0; n != CUSE_ALLOC_UNIT_MAX; n++) {
 
 		if (a_cuse[n].ptr != NULL)
@@ -201,7 +195,7 @@ cuse_vmalloc(int size)
 		a_cuse[n].ptr = ((uint8_t *)1);	/* reserve */
 		a_cuse[n].size = 0;
 
-		cuse_unlock();
+		CUSE_UNLOCK();
 
 		info.alloc_nr = n;
 
@@ -209,7 +203,7 @@ cuse_vmalloc(int size)
 
 		if (error) {
 
-			cuse_lock();
+			CUSE_LOCK();
 
 			a_cuse[n].ptr = NULL;
 
@@ -230,20 +224,20 @@ cuse_vmalloc(int size)
 			if (error) {
 				/* ignore */
 			}
-			cuse_lock();
+			CUSE_LOCK();
 
 			a_cuse[n].ptr = NULL;
 
 			break;
 		}
-		cuse_lock();
+		CUSE_LOCK();
 		a_cuse[n].ptr = ptr;
 		a_cuse[n].size = size;
-		cuse_unlock();
+		CUSE_UNLOCK();
 
 		return (ptr);		/* success */
 	}
-	cuse_unlock();
+	CUSE_UNLOCK();
 	return (NULL);			/* failure */
 }
 
@@ -255,12 +249,12 @@ cuse_is_vmalloc_addr(void *ptr)
 	if (f_cuse < 0 || ptr == NULL)
 		return (0);		/* false */
 
-	cuse_lock();
+	CUSE_LOCK();
 	for (n = 0; n != CUSE_ALLOC_UNIT_MAX; n++) {
 		if (a_cuse[n].ptr == ptr)
 			break;
 	}
-	cuse_unlock();
+	CUSE_UNLOCK();
 
 	return (n != CUSE_ALLOC_UNIT_MAX);
 }
@@ -268,6 +262,7 @@ cuse_is_vmalloc_addr(void *ptr)
 void
 cuse_vmfree(void *ptr)
 {
+	struct cuse_vm_allocation temp;
 	struct cuse_alloc_info info;
 	int error;
 	int n;
@@ -275,32 +270,35 @@ cuse_vmfree(void *ptr)
 	if (f_cuse < 0)
 		return;
 
-	memset(&info, 0, sizeof(info));
-
-	cuse_lock();
+	CUSE_LOCK();
 	for (n = 0; n != CUSE_ALLOC_UNIT_MAX; n++) {
 		if (a_cuse[n].ptr != ptr)
 			continue;
 
-		cuse_unlock();
+		temp = a_cuse[n];
+
+		CUSE_UNLOCK();
+
+		munmap(temp.ptr, temp.size);
+
+		memset(&info, 0, sizeof(info));
 
 		info.alloc_nr = n;
 
-		munmap(ptr, a_cuse[n].size);
-
 		error = ioctl(f_cuse, CUSE_IOCTL_FREE_MEMORY, &info);
 
-		if (error) {
-			/* ignore */
+		if (error != 0) {
+			/* ignore any errors */
+			DPRINTF("Freeing memory failed: %d\n", errno);
 		}
-		cuse_lock();
+		CUSE_LOCK();
 
 		a_cuse[n].ptr = NULL;
 		a_cuse[n].size = 0;
 
 		break;
 	}
-	cuse_unlock();
+	CUSE_UNLOCK();
 }
 
 int
@@ -407,9 +405,9 @@ cuse_dev_create(const struct cuse_methods *mtod, void *priv0, void *priv1,
 		free(cdev);
 		return (NULL);
 	}
-	cuse_lock();
+	CUSE_LOCK();
 	TAILQ_INSERT_TAIL(&h_cuse, cdev, entry);
-	cuse_unlock();
+	CUSE_UNLOCK();
 
 	return (cdev);
 }
@@ -423,9 +421,9 @@ cuse_dev_destroy(struct cuse_dev *cdev)
 	if (f_cuse < 0)
 		return;
 
-	cuse_lock();
+	CUSE_LOCK();
 	TAILQ_REMOVE(&h_cuse, cdev, entry);
-	cuse_unlock();
+	CUSE_UNLOCK();
 
 	error = ioctl(f_cuse, CUSE_IOCTL_DESTROY_DEV, &cdev);
 	if (error)
@@ -477,7 +475,7 @@ cuse_wait_and_process(void)
 
 	cdev = info.dev;
 
-	cuse_lock();
+	CUSE_LOCK();
 	enter.thread = curr;
 	enter.per_file_handle = (void *)info.per_file_handle;
 	enter.cmd = info.command;
@@ -485,7 +483,7 @@ cuse_wait_and_process(void)
 	enter.got_signal = 0;
 	enter.cdev = cdev;
 	TAILQ_INSERT_TAIL(&h_cuse_entered, &enter, entry);
-	cuse_unlock();
+	CUSE_UNLOCK();
 
 	DPRINTF("cuse: Command = %d = %s, flags = %d, arg = 0x%08x, ptr = 0x%08x\n",
 	    (int)info.command, cuse_cmd_str(info.command), (int)info.fflags,
@@ -507,7 +505,7 @@ cuse_wait_and_process(void)
 
 			error = 0;
 
-			cuse_lock();
+			CUSE_LOCK();
 			TAILQ_FOREACH(pe, &h_cuse_entered, entry) {
 				if (pe->cdev != cdev)
 					continue;
@@ -520,7 +518,7 @@ cuse_wait_and_process(void)
 				pthread_kill(pe->thread, SIGHUP);
 				error = CUSE_ERR_BUSY;
 			}
-			cuse_unlock();
+			CUSE_UNLOCK();
 
 			if (error == 0)
 				break;
@@ -571,7 +569,7 @@ cuse_wait_and_process(void)
 		break;
 
 	case CUSE_CMD_SIGNAL:
-		cuse_lock();
+		CUSE_LOCK();
 		TAILQ_FOREACH(pe, &h_cuse_entered, entry) {
 			if (pe->cdev != cdev)
 				continue;
@@ -583,7 +581,7 @@ cuse_wait_and_process(void)
 			pe->got_signal = 1;
 			pthread_kill(pe->thread, SIGHUP);
 		}
-		cuse_unlock();
+		CUSE_UNLOCK();
 		break;
 
 	default:
@@ -594,9 +592,9 @@ cuse_wait_and_process(void)
 	DPRINTF("cuse: Command error = %d for %s\n",
 	    error, cuse_cmd_str(info.command));
 
-	cuse_lock();
+	CUSE_LOCK();
 	TAILQ_REMOVE(&h_cuse_entered, &enter, entry);
-	cuse_unlock();
+	CUSE_UNLOCK();
 
 	/* we ignore any sync command failures */
 	ioctl(f_cuse, CUSE_IOCTL_SYNC_COMMAND, &error);
@@ -610,12 +608,12 @@ cuse_dev_get_entered(void)
 	struct cuse_dev_entered *pe;
 	pthread_t curr = pthread_self();
 
-	cuse_lock();
+	CUSE_LOCK();
 	TAILQ_FOREACH(pe, &h_cuse_entered, entry) {
 		if (pe->thread == curr)
 			break;
 	}
-	cuse_unlock();
+	CUSE_UNLOCK();
 	return (pe);
 }
 

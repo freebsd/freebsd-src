@@ -297,7 +297,7 @@ ar5416GetRadioRev(struct ath_hal *ah)
 static struct ath_hal *
 ar5416Attach(uint16_t devid, HAL_SOFTC sc,
 	HAL_BUS_TAG st, HAL_BUS_HANDLE sh, uint16_t *eepromdata,
-	HAL_STATUS *status)
+	HAL_OPS_CONFIG *ah_config, HAL_STATUS *status)
 {
 	struct ath_hal_5416 *ahp5416;
 	struct ath_hal_5212 *ahp;

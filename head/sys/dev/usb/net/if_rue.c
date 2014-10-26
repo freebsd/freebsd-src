@@ -648,9 +648,9 @@ rue_intr_callback(struct usb_xfer *xfer, usb_error_t error)
 			pc = usbd_xfer_get_frame(xfer, 0);
 			usbd_copy_out(pc, 0, &pkt, sizeof(pkt));
 
-			ifp->if_ierrors += pkt.rue_rxlost_cnt;
-			ifp->if_ierrors += pkt.rue_crcerr_cnt;
-			ifp->if_collisions += pkt.rue_col_cnt;
+			if_inc_counter(ifp, IFCOUNTER_IERRORS, pkt.rue_rxlost_cnt);
+			if_inc_counter(ifp, IFCOUNTER_IERRORS, pkt.rue_crcerr_cnt);
+			if_inc_counter(ifp, IFCOUNTER_COLLISIONS, pkt.rue_col_cnt);
 		}
 		/* FALLTHROUGH */
 	case USB_ST_SETUP:
@@ -685,7 +685,7 @@ rue_bulk_read_callback(struct usb_xfer *xfer, usb_error_t error)
 	case USB_ST_TRANSFERRED:
 
 		if (actlen < 4) {
-			ifp->if_ierrors++;
+			if_inc_counter(ifp, IFCOUNTER_IERRORS, 1);
 			goto tr_setup;
 		}
 		pc = usbd_xfer_get_frame(xfer, 0);
@@ -695,7 +695,7 @@ rue_bulk_read_callback(struct usb_xfer *xfer, usb_error_t error)
 		/* check recieve packet was valid or not */
 		status = le16toh(status);
 		if ((status & RUE_RXSTAT_VALID) == 0) {
-			ifp->if_ierrors++;
+			if_inc_counter(ifp, IFCOUNTER_IERRORS, 1);
 			goto tr_setup;
 		}
 		uether_rxbuf(ue, pc, 0, actlen);
@@ -732,7 +732,7 @@ rue_bulk_write_callback(struct usb_xfer *xfer, usb_error_t error)
 	switch (USB_GET_STATE(xfer)) {
 	case USB_ST_TRANSFERRED:
 		DPRINTFN(11, "transfer complete\n");
-		ifp->if_opackets++;
+		if_inc_counter(ifp, IFCOUNTER_OPACKETS, 1);
 
 		/* FALLTHROUGH */
 	case USB_ST_SETUP:
@@ -782,7 +782,7 @@ tr_setup:
 		DPRINTFN(11, "transfer error, %s\n",
 		    usbd_errstr(error));
 
-		ifp->if_oerrors++;
+		if_inc_counter(ifp, IFCOUNTER_OERRORS, 1);
 
 		if (error != USB_ERR_CANCELLED) {
 			/* try to clear stall first */

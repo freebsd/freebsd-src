@@ -1222,9 +1222,7 @@ found:
 		M_HASHTYPE_SET(m, rss_type);
 		m->m_flags |= M_FLOWID;
 	}
-#endif
 
-#ifdef	RSS
 	/*
 	 * Queue/dispatch for reprocessing.
 	 *

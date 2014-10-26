@@ -671,7 +671,9 @@ rss_mbuf_software_hash_v4(const struct mbuf *m, int dir, uint32_t *hashval,
 	 * XXX TODO: does the hardware hash on 4-tuple if IP
 	 *    options are present?
 	 */
-	if (proto == IPPROTO_TCP && is_frag == 0) {
+	if ((rss_gethashconfig_local() & RSS_HASHTYPE_RSS_TCP_IPV4) &&
+	    (proto == IPPROTO_TCP) &&
+	    (is_frag == 0)) {
 		if (m->m_len < iphlen + sizeof(struct tcphdr)) {
 			printf("%s: short TCP frame?\n", __func__);
 			return (-1);
@@ -683,7 +685,9 @@ rss_mbuf_software_hash_v4(const struct mbuf *m, int dir, uint32_t *hashval,
 		    proto,
 		    hashval,
 		    hashtype);
-	} else if (proto == IPPROTO_UDP && is_frag == 0) {
+	} else if ((rss_gethashconfig_local() & RSS_HASHTYPE_RSS_UDP_IPV4) &&
+	    (proto == IPPROTO_UDP) &&
+	    (is_frag == 0)) {
 		uh = (struct udphdr *)((caddr_t)ip + iphlen);
 		if (m->m_len < iphlen + sizeof(struct udphdr)) {
 			printf("%s: short UDP frame?\n", __func__);
@@ -695,7 +699,7 @@ rss_mbuf_software_hash_v4(const struct mbuf *m, int dir, uint32_t *hashval,
 		    proto,
 		    hashval,
 		    hashtype);
-	} else {
+	} else if (rss_gethashconfig_local() & RSS_HASHTYPE_RSS_IPV4) {
 		/* Default to 2-tuple hash */
 		return rss_proto_software_hash_v4(ip->ip_src, ip->ip_dst,
 		    0,	/* source port */
@@ -703,6 +707,9 @@ rss_mbuf_software_hash_v4(const struct mbuf *m, int dir, uint32_t *hashval,
 		    0,	/* IPPROTO_IP */
 		    hashval,
 		    hashtype);
+	} else {
+		printf("%s: no available hashtypes!\n", __func__);
+		return (-1);
 	}
 }
 

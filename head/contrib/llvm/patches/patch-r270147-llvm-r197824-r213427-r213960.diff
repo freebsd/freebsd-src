@@ -1,3 +1,27 @@
+Backport r197824, r213427 and r213960 from LLVM trunk:
+
+  r197824 | rdivacky | 2013-12-20 19:08:54 +0100 (Fri, 20 Dec 2013) | 2 lines
+
+  Implement initial-exec TLS for PPC32.
+
+  r213427 | hfinkel | 2014-07-19 01:29:49 +0200 (Sat, 19 Jul 2014) | 7 lines
+
+  [PowerPC] 32-bit ELF PIC support
+
+  This adds initial support for PPC32 ELF PIC (Position Independent Code; the
+  -fPIC variety), thus rectifying a long-standing deficiency in the PowerPC
+  backend.
+
+  Patch by Justin Hibbits!
+
+  r213960 | hfinkel | 2014-07-25 19:47:22 +0200 (Fri, 25 Jul 2014) | 3 lines
+
+  [PowerPC] Support TLS on PPC32/ELF
+
+  Patch by Justin Hibbits!
+
+Introduced here: http://svnweb.freebsd.org/changeset/base/270147
+
 Index: include/llvm/Support/ELF.h
 ===================================================================
 --- include/llvm/Support/ELF.h	(revision 270019)

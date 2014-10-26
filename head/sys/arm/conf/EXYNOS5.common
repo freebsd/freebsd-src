@@ -80,7 +80,7 @@ options 	NFS_ROOT		# NFS usable as /, requires NFSCLIENT
 
 device		mmc			# mmc/sd bus
 device		mmcsd			# mmc/sd flash cards
-device		sdhci			# generic sdhci
+device		dwmmc
 
 options 	ROOTDEVNAME=\"ufs:/dev/da0\"
 

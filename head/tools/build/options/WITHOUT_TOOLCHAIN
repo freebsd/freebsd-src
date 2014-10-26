@@ -1,5 +1,5 @@
 .\" $FreeBSD$
-Set to not install
+Set to not install header or
 programs used for program development,
 compilers, debuggers etc.
 .Bf -symbolic

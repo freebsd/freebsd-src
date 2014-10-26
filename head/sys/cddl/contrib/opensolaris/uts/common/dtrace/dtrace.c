@@ -13052,7 +13052,7 @@ dtrace_dof_property(const char *name)
 	char *p;
 	char *p_env;
 
-	if ((p_env = getenv(name)) == NULL)
+	if ((p_env = kern_getenv(name)) == NULL)
 		return (NULL);
 
 	len = strlen(p_env) / 2;

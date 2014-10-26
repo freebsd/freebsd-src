@@ -19,7 +19,7 @@ arm/arm/bus_space-v6.c			standard
 arm/freescale/imx/tzic.c		standard
 
 # IOMUX - external pins multiplexor
-arm/freescale/imx/imx51_iomux.c		standard
+arm/freescale/imx/imx_iomux.c		standard
 
 # GPIO
 arm/freescale/imx/imx_gpio.c		optional gpio

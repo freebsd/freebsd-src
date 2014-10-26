@@ -31,8 +31,10 @@ FILES=	INDEX.keymaps \
 	es.dvorak.kbd \
 	es.kbd \
 	fi.kbd \
+	fr.acc.kbd \
 	fr.dvorak.acc.kbd \
 	fr.dvorak.kbd \
+	fr.kbd \
 	fr.macbook.kbd \
 	gr.101.acc.kbd \
 	gr.elot.acc.kbd \

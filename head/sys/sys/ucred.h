@@ -108,7 +108,6 @@ void	cred_update_thread(struct thread *td);
 void	crfree(struct ucred *cr);
 struct ucred	*crget(void);
 struct ucred	*crhold(struct ucred *cr);
-int	crshared(struct ucred *cr);
 void	cru2x(struct ucred *cr, struct xucred *xcr);
 void	crsetgroups(struct ucred *cr, int n, gid_t *groups);
 int	groupmember(gid_t gid, struct ucred *cred);

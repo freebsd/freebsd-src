@@ -28,7 +28,7 @@
 .\"     @(#)accept.2	8.2 (Berkeley) 12/11/93
 .\" $FreeBSD$
 .\"
-.Dd October 1, 2013
+.Dd October 9, 2014
 .Dt ACCEPT 2
 .Os
 .Sh NAME
@@ -201,7 +201,7 @@ The
 .Fa addr
 argument is not in a writable part of the
 user address space.
-.It Bq Er EWOULDBLOCK
+.It Bo Er EWOULDBLOCK Bc or Bq Er EAGAIN
 The socket is marked non-blocking and no connections
 are present to be accepted.
 .It Bq Er ECONNABORTED

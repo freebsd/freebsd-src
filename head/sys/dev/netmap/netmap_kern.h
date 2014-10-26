@@ -63,6 +63,12 @@
 #define NM_ATOMIC_TEST_AND_SET(p)       (!atomic_cmpset_acq_int((p), 0, 1))
 #define NM_ATOMIC_CLEAR(p)              atomic_store_rel_int((p), 0)
 
+#if __FreeBSD_version >= 1100030
+#define	WNA(_ifp)	(_ifp)->if_netmap
+#else /* older FreeBSD */
+#define	WNA(_ifp)	(_ifp)->if_pspare[0]
+#endif /* older FreeBSD */
+
 #if __FreeBSD_version >= 1100005
 struct netmap_adapter *netmap_getna(if_t ifp);
 #endif
@@ -1186,9 +1192,6 @@ extern int netmap_generic_rings;
  * NA returns a pointer to the struct netmap adapter from the ifp,
  * WNA is used to write it.
  */
-#ifndef WNA
-#define	WNA(_ifp)	(_ifp)->if_netmap
-#endif
 #define	NA(_ifp)	((struct netmap_adapter *)WNA(_ifp))
 
 /*

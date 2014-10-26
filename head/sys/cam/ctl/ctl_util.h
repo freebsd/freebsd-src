@@ -99,19 +99,20 @@ void ctl_scsi_free_io(union ctl_io *io);
 #endif /* !_KERNEL */
 void ctl_scsi_zero_io(union ctl_io *io);
 const char *ctl_scsi_task_string(struct ctl_taskio *taskio);
+void ctl_io_sbuf(union ctl_io *io, struct sbuf *sb);
 void ctl_io_error_sbuf(union ctl_io *io,
 		       struct scsi_inquiry_data *inq_data, struct sbuf *sb);
+char *ctl_io_string(union ctl_io *io, char *str, int str_len);
 char *ctl_io_error_string(union ctl_io *io,
 			  struct scsi_inquiry_data *inq_data, char *str,
 			  int str_len);
 #ifdef _KERNEL
-
+void ctl_io_print(union ctl_io *io);
 void ctl_io_error_print(union ctl_io *io, struct scsi_inquiry_data *inq_data);
+void ctl_data_print(union ctl_io *io);
 #else /* _KERNEL */
-void
-ctl_io_error_print(union ctl_io *io, struct scsi_inquiry_data *inq_data,
+void ctl_io_error_print(union ctl_io *io, struct scsi_inquiry_data *inq_data,
 		   FILE *ofile);
-
 #endif /* _KERNEL */
 
 __END_DECLS

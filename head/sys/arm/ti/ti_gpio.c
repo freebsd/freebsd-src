@@ -57,6 +57,7 @@ __FBSDID("$FreeBSD$");
 #include <machine/resource.h>
 
 #include <arm/ti/ti_cpuid.h>
+#include <arm/ti/ti_gpio.h>
 #include <arm/ti/ti_scm.h>
 #include <arm/ti/ti_prcm.h>
 
@@ -66,36 +67,12 @@ __FBSDID("$FreeBSD$");
 #include <dev/ofw/ofw_bus_subr.h>
 
 #include "gpio_if.h"
+#include "ti_gpio_if.h"
 
 /* Register definitions */
 #define	TI_GPIO_REVISION		0x0000
 #define	TI_GPIO_SYSCONFIG		0x0010
-#if defined(SOC_OMAP3)
-#define	TI_GPIO_SYSSTATUS		0x0014
-#define	TI_GPIO_IRQSTATUS1		0x0018
-#define	TI_GPIO_IRQENABLE1		0x001C
-#define	TI_GPIO_WAKEUPENABLE		0x0020
-#define	TI_GPIO_IRQSTATUS2		0x0028
-#define	TI_GPIO_IRQENABLE2		0x002C
-#define	TI_GPIO_CTRL			0x0030
-#define	TI_GPIO_OE			0x0034
-#define	TI_GPIO_DATAIN			0x0038
-#define	TI_GPIO_DATAOUT			0x003C
-#define	TI_GPIO_LEVELDETECT0		0x0040
-#define	TI_GPIO_LEVELDETECT1		0x0044
-#define	TI_GPIO_RISINGDETECT		0x0048
-#define	TI_GPIO_FALLINGDETECT		0x004C
-#define	TI_GPIO_DEBOUNCENABLE		0x0050
-#define	TI_GPIO_DEBOUNCINGTIME		0x0054
-#define	TI_GPIO_CLEARIRQENABLE1		0x0060
-#define	TI_GPIO_SETIRQENABLE1		0x0064
-#define	TI_GPIO_CLEARIRQENABLE2		0x0070
-#define	TI_GPIO_SETIRQENABLE2		0x0074
-#define	TI_GPIO_CLEARWKUENA		0x0080
-#define	TI_GPIO_SETWKUENA		0x0084
-#define	TI_GPIO_CLEARDATAOUT		0x0090
-#define	TI_GPIO_SETDATAOUT		0x0094
-#elif defined(SOC_OMAP4) || defined(SOC_TI_AM335X)
+#if defined(SOC_OMAP4) || defined(SOC_TI_AM335X)
 #define	TI_GPIO_IRQSTATUS_RAW_0		0x0024
 #define	TI_GPIO_IRQSTATUS_RAW_1		0x0028
 #define	TI_GPIO_IRQSTATUS_0		0x002C
@@ -131,10 +108,6 @@ __FBSDID("$FreeBSD$");
 #endif
 
 /* Other SoC Specific definitions */
-#define	OMAP3_MAX_GPIO_BANKS		6
-#define	OMAP3_FIRST_GPIO_BANK		1
-#define	OMAP3_INTR_PER_BANK		1
-#define	OMAP3_GPIO_REV			0x00000025
 #define	OMAP4_MAX_GPIO_BANKS		6
 #define	OMAP4_FIRST_GPIO_BANK		1
 #define	OMAP4_INTR_PER_BANK		1
@@ -144,18 +117,11 @@ __FBSDID("$FreeBSD$");
 #define	AM335X_INTR_PER_BANK		2
 #define	AM335X_GPIO_REV			0x50600801
 #define	PINS_PER_BANK			32
-#define	MAX_GPIO_BANKS			6
-/* Maximum GPIOS possible, max of *_MAX_GPIO_BANKS * *_INTR_PER_BANK */
-#define	MAX_GPIO_INTRS			8
 
 static u_int
 ti_max_gpio_banks(void)
 {
 	switch(ti_chip()) {
-#ifdef SOC_OMAP3
-	case CHIP_OMAP_3:
-		return (OMAP3_MAX_GPIO_BANKS);
-#endif
 #ifdef SOC_OMAP4
 	case CHIP_OMAP_4:
 		return (OMAP4_MAX_GPIO_BANKS);
@@ -172,10 +138,6 @@ static u_int
 ti_max_gpio_intrs(void)
 {
 	switch(ti_chip()) {
-#ifdef SOC_OMAP3
-	case CHIP_OMAP_3:
-		return (OMAP3_MAX_GPIO_BANKS * OMAP3_INTR_PER_BANK);
-#endif
 #ifdef SOC_OMAP4
 	case CHIP_OMAP_4:
 		return (OMAP4_MAX_GPIO_BANKS * OMAP4_INTR_PER_BANK);
@@ -192,10 +154,6 @@ static u_int
 ti_first_gpio_bank(void)
 {
 	switch(ti_chip()) {
-#ifdef SOC_OMAP3
-	case CHIP_OMAP_3:
-		return (OMAP3_FIRST_GPIO_BANK);
-#endif
 #ifdef SOC_OMAP4
 	case CHIP_OMAP_4:
 		return (OMAP4_FIRST_GPIO_BANK);
@@ -212,10 +170,6 @@ static uint32_t
 ti_gpio_rev(void)
 {
 	switch(ti_chip()) {
-#ifdef SOC_OMAP3
-	case CHIP_OMAP_3:
-		return (OMAP3_GPIO_REV);
-#endif
 #ifdef SOC_OMAP4
 	case CHIP_OMAP_4:
 		return (OMAP4_GPIO_REV);
@@ -267,33 +221,6 @@ static struct resource_spec ti_gpio_irq_spec[] = {
 	{ SYS_RES_IRQ,      7,  RF_ACTIVE | RF_OPTIONAL },
 #endif
 	{ -1,               0,  0 }
-};
-
-/**
- *	Structure that stores the driver context.
- *
- *	This structure is allocated during driver attach.
- */
-struct ti_gpio_softc {
-	device_t		sc_dev;
-
-	/*
-	 * The memory resource(s) for the PRCM register set, when the device is
-	 * created the caller can assign up to 6 memory regions depending on
-	 * the SoC type.
-	 */
-	struct resource		*sc_mem_res[MAX_GPIO_BANKS];
-	struct resource		*sc_irq_res[MAX_GPIO_INTRS];
-
-	/* The handle for the register IRQ handlers. */
-	void			*sc_irq_hdl[MAX_GPIO_INTRS];
-
-	/*
-	 * The following describes the H/W revision of each of the GPIO banks.
-	 */
-	uint32_t		sc_revision[MAX_GPIO_BANKS];
-
-	struct mtx		sc_mtx;
 };
 
 /**
@@ -463,7 +390,7 @@ ti_gpio_pin_getflags(device_t dev, uint32_t pin, uint32_t *flags)
 	}
 
 	/* Get the current pin state */
-	ti_scm_padconf_get_gpioflags(pin, flags);
+	TI_GPIO_GET_FLAGS(dev, pin, flags);
 
 	TI_GPIO_UNLOCK(sc);
 
@@ -554,7 +481,7 @@ ti_gpio_pin_setflags(device_t dev, uint32_t pin, uint32_t flags)
 	}
 
 	/* Set the GPIO mode and state */
-	if (ti_scm_padconf_set_gpioflags(pin, flags) != 0) {
+	if (TI_GPIO_SET_FLAGS(dev, pin, flags) != 0) {
 		TI_GPIO_UNLOCK(sc);
 		return (EINVAL);
 	}
@@ -714,33 +641,6 @@ ti_gpio_intr(void *arg)
 	TI_GPIO_UNLOCK(sc);
 }
 
-/**
- *	ti_gpio_probe - probe function for the driver
- *	@dev: gpio device handle
- *
- *	Simply sets the name of the driver
- *
- *	LOCKING:
- *	None
- *
- *	RETURNS:
- *	Always returns 0
- */
-static int
-ti_gpio_probe(device_t dev)
-{
-
-	if (!ofw_bus_status_okay(dev))
-		return (ENXIO);
-
-	if (!ofw_bus_is_compatible(dev, "ti,gpio"))
-		return (ENXIO);
-
-	device_set_desc(dev, "TI General Purpose I/O (GPIO)");
-
-	return (0);
-}
-
 static int
 ti_gpio_attach_intr(device_t dev)
 {
@@ -821,8 +721,7 @@ ti_gpio_bank_init(device_t dev, int bank)
 	/* Init OE register based on pads configuration. */
 	reg_oe = 0xffffffff;
 	for (pin = 0; pin < PINS_PER_BANK; pin++) {
-		ti_scm_padconf_get_gpioflags(PINS_PER_BANK * bank + pin,
-		    &flags);
+		TI_GPIO_GET_FLAGS(dev, PINS_PER_BANK * bank + pin, &flags);
 		if (flags & GPIO_PIN_OUTPUT)
 			reg_oe &= ~(1UL << pin);
 	}
@@ -955,7 +854,6 @@ ti_gpio_get_node(device_t bus, device_t dev)
 }
 
 static device_method_t ti_gpio_methods[] = {
-	DEVMETHOD(device_probe, ti_gpio_probe),
 	DEVMETHOD(device_attach, ti_gpio_attach),
 	DEVMETHOD(device_detach, ti_gpio_detach),
 
@@ -975,11 +873,8 @@ static device_method_t ti_gpio_methods[] = {
 	{0, 0},
 };
 
-static driver_t ti_gpio_driver = {
+driver_t ti_gpio_driver = {
 	"gpio",
 	ti_gpio_methods,
 	sizeof(struct ti_gpio_softc),
 };
-static devclass_t ti_gpio_devclass;
-
-DRIVER_MODULE(ti_gpio, simplebus, ti_gpio_driver, ti_gpio_devclass, 0, 0);

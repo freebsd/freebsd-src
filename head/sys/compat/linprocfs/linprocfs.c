@@ -1139,26 +1139,26 @@ linprocfs_donetdev(PFS_FILL_ARGS)
 		linux_ifname(ifp, ifname, sizeof ifname);
 		sbuf_printf(sb, "%6.6s: ", ifname);
 		sbuf_printf(sb, "%7ju %7ju %4ju %4ju %4lu %5lu %10lu %9ju ",
-		    (uintmax_t )ifp->if_ibytes,	/* rx_bytes */
-		    (uintmax_t )ifp->if_ipackets,	/* rx_packets */
-		    (uintmax_t )ifp->if_ierrors,	/* rx_errors */
-		    (uintmax_t )ifp->if_iqdrops,	/* rx_dropped +
-							 * rx_missed_errors */
+		    (uintmax_t )ifp->if_get_counter(ifp, IFCOUNTER_IBYTES),
+		    (uintmax_t )ifp->if_get_counter(ifp, IFCOUNTER_IPACKETS),
+		    (uintmax_t )ifp->if_get_counter(ifp, IFCOUNTER_IERRORS),
+		    (uintmax_t )ifp->if_get_counter(ifp, IFCOUNTER_IQDROPS),
+							/* rx_missed_errors */
 		    0UL,				/* rx_fifo_errors */
 		    0UL,				/* rx_length_errors +
 							 * rx_over_errors +
 							 * rx_crc_errors +
 							 * rx_frame_errors */
 		    0UL,				/* rx_compressed */
-		    (uintmax_t )ifp->if_imcasts);	/* multicast,
-							 * XXX-BZ rx only? */
-		sbuf_printf(sb, "%8ju %7ju %4ju %4lu %4lu %5ju %7lu %10lu\n",
-		    (uintmax_t )ifp->if_obytes,	/* tx_bytes */
-		    (uintmax_t )ifp->if_opackets,	/* tx_packets */
-		    (uintmax_t )ifp->if_oerrors,	/* tx_errors */
-		    0UL,				/* tx_dropped */
+		    (uintmax_t )ifp->if_get_counter(ifp, IFCOUNTER_IMCASTS));
+							/* XXX-BZ rx only? */
+		sbuf_printf(sb, "%8ju %7ju %4ju %4ju %4lu %5ju %7lu %10lu\n",
+		    (uintmax_t )ifp->if_get_counter(ifp, IFCOUNTER_OBYTES),
+		    (uintmax_t )ifp->if_get_counter(ifp, IFCOUNTER_OPACKETS),
+		    (uintmax_t )ifp->if_get_counter(ifp, IFCOUNTER_OERRORS),
+		    (uintmax_t )ifp->if_get_counter(ifp, IFCOUNTER_OQDROPS),
 		    0UL,				/* tx_fifo_errors */
-		    (uintmax_t )ifp->if_collisions,	/* collisions */
+		    (uintmax_t )ifp->if_get_counter(ifp, IFCOUNTER_COLLISIONS),
 		    0UL,				/* tx_carrier_errors +
 							 * tx_aborted_errors +
 							 * tx_window_errors +

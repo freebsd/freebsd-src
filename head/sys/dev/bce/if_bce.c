@@ -457,9 +457,10 @@ static struct mbuf *bce_tso_setup	(struct bce_softc *,
     struct mbuf **, u16 *);
 static int  bce_tx_encap			(struct bce_softc *, struct mbuf **);
 static void bce_start_locked		(struct ifnet *);
-static void bce_start				(struct ifnet *);
-static int  bce_ioctl				(struct ifnet *, u_long, caddr_t);
-static void bce_watchdog			(struct bce_softc *);
+static void bce_start			(struct ifnet *);
+static int  bce_ioctl			(struct ifnet *, u_long, caddr_t);
+static uint64_t bce_get_counter		(struct ifnet *, ift_counter);
+static void bce_watchdog		(struct bce_softc *);
 static int  bce_ifmedia_upd		(struct ifnet *);
 static int  bce_ifmedia_upd_locked	(struct ifnet *);
 static void bce_ifmedia_sts		(struct ifnet *, struct ifmediareq *);
@@ -1389,6 +1390,7 @@ bce_attach(device_t dev)
 	ifp->if_flags	= IFF_BROADCAST | IFF_SIMPLEX | IFF_MULTICAST;
 	ifp->if_ioctl	= bce_ioctl;
 	ifp->if_start	= bce_start;
+	ifp->if_get_counter = bce_get_counter;
 	ifp->if_init	= bce_init;
 	ifp->if_mtu	= ETHERMTU;
 
@@ -6747,9 +6749,7 @@ bce_rx_intr(struct bce_softc *sc)
 		    L2_FHDR_ERRORS_TOO_SHORT  | L2_FHDR_ERRORS_GIANT_FRAME)) {
 
 			/* Log the error and release the mbuf. */
-			ifp->if_ierrors++;
 			sc->l2fhdr_error_count++;
-
 			m_freem(m0);
 			m0 = NULL;
 			goto bce_rx_intr_next_rx;
@@ -6830,7 +6830,7 @@ bce_rx_intr(struct bce_softc *sc)
 		}
 
 		/* Increment received packet statistics. */
-		ifp->if_ipackets++;
+		if_inc_counter(ifp, IFCOUNTER_IPACKETS, 1);
 
 bce_rx_intr_next_rx:
 		sw_rx_cons = NEXT_RX_BD(sw_rx_cons);
@@ -6988,7 +6988,7 @@ bce_tx_intr(struct bce_softc *sc)
 			sc->tx_mbuf_ptr[sw_tx_chain_cons] = NULL;
 			DBRUN(sc->debug_tx_mbuf_alloc--);
 
-			ifp->if_opackets++;
+			if_inc_counter(ifp, IFCOUNTER_OPACKETS, 1);
 		}
 
 		sc->used_tx_bd--;
@@ -7901,7 +7901,7 @@ bce_watchdog(struct bce_softc *sc)
 	sc->bce_ifp->if_drv_flags &= ~IFF_DRV_RUNNING;
 
 	bce_init_locked(sc);
-	sc->bce_ifp->if_oerrors++;
+	sc->watchdog_timeouts++;
 
 bce_watchdog_exit:
 	REG_WR(sc, BCE_EMAC_RX_STATUS, status);
@@ -8157,26 +8157,13 @@ bce_set_rx_mode(struct bce_softc *sc)
 static void
 bce_stats_update(struct bce_softc *sc)
 {
-	struct ifnet *ifp;
 	struct statistics_block *stats;
 
 	DBENTER(BCE_EXTREME_MISC);
 
-	ifp = sc->bce_ifp;
-
 	bus_dmamap_sync(sc->stats_tag, sc->stats_map, BUS_DMASYNC_POSTREAD);
 
 	stats = (struct statistics_block *) sc->stats_block;
-
-	/*
-	 * Certain controllers don't report
-	 * carrier sense errors correctly.
-	 * See errata E11_5708CA0_1165.
-	 */
-	if (!(BCE_CHIP_NUM(sc) == BCE_CHIP_NUM_5706) &&
-	    !(BCE_CHIP_ID(sc) == BCE_CHIP_ID_5708_A0))
-		ifp->if_oerrors +=
-		    (u_long) stats->stat_Dot3StatsCarrierSenseErrors;
 
 	/*
 	 * Update the sysctl statistics from the
@@ -8359,33 +8346,49 @@ bce_stats_update(struct bce_softc *sc)
 
 	sc->com_no_buffers = REG_RD_IND(sc, 0x120084);
 
-	/*
-	 * Update the interface statistics from the
-	 * hardware statistics.
-	 */
-	ifp->if_collisions =
-	    (u_long) sc->stat_EtherStatsCollisions;
-
-	/* ToDo: This method loses soft errors. */
-	ifp->if_ierrors =
-	    (u_long) sc->stat_EtherStatsUndersizePkts +
-	    (u_long) sc->stat_EtherStatsOversizePkts +
-	    (u_long) sc->stat_IfInMBUFDiscards +
-	    (u_long) sc->stat_Dot3StatsAlignmentErrors +
-	    (u_long) sc->stat_Dot3StatsFCSErrors +
-	    (u_long) sc->stat_IfInRuleCheckerDiscards +
-	    (u_long) sc->stat_IfInFTQDiscards +
-	    (u_long) sc->com_no_buffers;
-
-	/* ToDo: This method loses soft errors. */
-	ifp->if_oerrors =
-	    (u_long) sc->stat_emac_tx_stat_dot3statsinternalmactransmiterrors +
-	    (u_long) sc->stat_Dot3StatsExcessiveCollisions +
-	    (u_long) sc->stat_Dot3StatsLateCollisions;
-
 	/* ToDo: Add additional statistics? */
 
 	DBEXIT(BCE_EXTREME_MISC);
+}
+
+static uint64_t
+bce_get_counter(struct ifnet *ifp, ift_counter cnt)
+{
+	struct bce_softc *sc;
+	uint64_t rv;
+
+	sc = if_getsoftc(ifp);
+
+	switch (cnt) {
+	case IFCOUNTER_COLLISIONS:
+		return (sc->stat_EtherStatsCollisions);
+	case IFCOUNTER_IERRORS:
+		return (sc->stat_EtherStatsUndersizePkts +
+		    sc->stat_EtherStatsOversizePkts +
+		    sc->stat_IfInMBUFDiscards +
+		    sc->stat_Dot3StatsAlignmentErrors +
+		    sc->stat_Dot3StatsFCSErrors +
+		    sc->stat_IfInRuleCheckerDiscards +
+		    sc->stat_IfInFTQDiscards +
+		    sc->l2fhdr_error_count +
+		    sc->com_no_buffers);
+	case IFCOUNTER_OERRORS:
+		rv = sc->stat_Dot3StatsExcessiveCollisions +
+		    sc->stat_emac_tx_stat_dot3statsinternalmactransmiterrors +
+		    sc->stat_Dot3StatsLateCollisions +
+		    sc->watchdog_timeouts;
+		/*
+		 * Certain controllers don't report
+		 * carrier sense errors correctly.
+		 * See errata E11_5708CA0_1165.
+		 */
+		if (!(BCE_CHIP_NUM(sc) == BCE_CHIP_NUM_5706) &&
+		    !(BCE_CHIP_ID(sc) == BCE_CHIP_ID_5708_A0))
+			rv += sc->stat_Dot3StatsCarrierSenseErrors;
+		return (rv);
+	default:
+		return (if_get_counter_default(ifp, cnt));
+	}
 }
 
 

@@ -771,6 +771,7 @@ icl_receive_thread(void *arg)
 
 	ICL_CONN_LOCK(ic);
 	ic->ic_receive_running = false;
+	cv_signal(&ic->ic_send_cv);
 	ICL_CONN_UNLOCK(ic);
 	kthread_exit();
 }
@@ -872,8 +873,6 @@ icl_conn_send_pdus(struct icl_conn *ic, struct icl_pdu_stailq *queue)
 	SOCKBUF_UNLOCK(&so->so_snd);
 
 	while (!STAILQ_EMPTY(queue)) {
-		if (ic->ic_disconnecting)
-			return;
 		request = STAILQ_FIRST(queue);
 		size = icl_pdu_size(request);
 		if (available < size) {
@@ -970,11 +969,6 @@ icl_send_thread(void *arg)
 	ic->ic_send_running = true;
 
 	for (;;) {
-		if (ic->ic_disconnecting) {
-			//ICL_DEBUG("terminating");
-			break;
-		}
-
 		for (;;) {
 			/*
 			 * If the local queue is empty, populate it from
@@ -1013,6 +1007,11 @@ icl_send_thread(void *arg)
 			break;
 		}
 
+		if (ic->ic_disconnecting) {
+			//ICL_DEBUG("terminating");
+			break;
+		}
+
 		cv_wait(&ic->ic_send_cv, ic->ic_lock);
 	}
 
@@ -1023,6 +1022,7 @@ icl_send_thread(void *arg)
 	STAILQ_CONCAT(&ic->ic_to_send, &queue);
 
 	ic->ic_send_running = false;
+	cv_signal(&ic->ic_send_cv);
 	ICL_CONN_UNLOCK(ic);
 	kthread_exit();
 }
@@ -1296,21 +1296,6 @@ icl_conn_handoff(struct icl_conn *ic, int fd)
 }
 
 void
-icl_conn_shutdown(struct icl_conn *ic)
-{
-	ICL_CONN_LOCK_ASSERT_NOT(ic);
-
-	ICL_CONN_LOCK(ic);
-	if (ic->ic_socket == NULL) {
-		ICL_CONN_UNLOCK(ic);
-		return;
-	}
-	ICL_CONN_UNLOCK(ic);
-
-	soshutdown(ic->ic_socket, SHUT_RDWR);
-}
-
-void
 icl_conn_close(struct icl_conn *ic)
 {
 	struct icl_pdu *pdu;
@@ -1342,15 +1327,11 @@ icl_conn_close(struct icl_conn *ic)
 	/*
 	 * Wake up the threads, so they can properly terminate.
 	 */
-	cv_signal(&ic->ic_receive_cv);
-	cv_signal(&ic->ic_send_cv);
 	while (ic->ic_receive_running || ic->ic_send_running) {
 		//ICL_DEBUG("waiting for send/receive threads to terminate");
-		ICL_CONN_UNLOCK(ic);
 		cv_signal(&ic->ic_receive_cv);
 		cv_signal(&ic->ic_send_cv);
-		pause("icl_close", 1 * hz);
-		ICL_CONN_LOCK(ic);
+		cv_wait(&ic->ic_send_cv, ic->ic_lock);
 	}
 	//ICL_DEBUG("send/receive threads terminated");
 

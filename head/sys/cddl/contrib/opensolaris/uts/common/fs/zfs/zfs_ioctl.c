@@ -3540,6 +3540,7 @@ zfs_destroy_unmount_origin(const char *fsname)
 static int
 zfs_ioc_destroy_snaps(const char *poolname, nvlist_t *innvl, nvlist_t *outnvl)
 {
+	int error, poollen;
 	nvlist_t *snaps;
 	nvpair_t *pair;
 	boolean_t defer;
@@ -3548,9 +3549,25 @@ zfs_ioc_destroy_snaps(const char *poolname, nvlist_t *innvl, nvlist_t *outnvl)
 		return (SET_ERROR(EINVAL));
 	defer = nvlist_exists(innvl, "defer");
 
+	poollen = strlen(poolname);
 	for (pair = nvlist_next_nvpair(snaps, NULL); pair != NULL;
 	    pair = nvlist_next_nvpair(snaps, pair)) {
-		(void) zfs_unmount_snap(nvpair_name(pair));
+		const char *name = nvpair_name(pair);
+
+		/*
+		 * The snap must be in the specified pool to prevent the
+		 * invalid removal of zvol minors below.
+		 */
+		if (strncmp(name, poolname, poollen) != 0 ||
+		    (name[poollen] != '/' && name[poollen] != '@'))
+			return (SET_ERROR(EXDEV));
+
+		error = zfs_unmount_snap(name);
+		if (error != 0)
+			return (error);
+#if defined(__FreeBSD__)
+		zvol_remove_minors(name);
+#endif
 	}
 
 	return (dsl_destroy_snapshots_nvl(snaps, defer, outnvl));
@@ -3644,7 +3661,6 @@ zfs_ioc_destroy_bookmarks(const char *poolname, nvlist_t *innvl,
 		if (strncmp(name, poolname, poollen) != 0 ||
 		    (name[poollen] != '/' && name[poollen] != '#'))
 			return (SET_ERROR(EXDEV));
-		(void) zvol_remove_minor(name);
 	}
 
 	error = dsl_bookmark_destroy(innvl, outnvl);
@@ -3675,7 +3691,11 @@ zfs_ioc_destroy(zfs_cmd_t *zc)
 	else
 		err = dsl_destroy_head(zc->zc_name);
 	if (zc->zc_objset_type == DMU_OST_ZVOL && err == 0)
+#ifdef __FreeBSD__
+		zvol_remove_minors(zc->zc_name);
+#else
 		(void) zvol_remove_minor(zc->zc_name);
+#endif
 	return (err);
 }
 

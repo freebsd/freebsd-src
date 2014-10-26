@@ -92,6 +92,7 @@ static struct fd_type fd_types_auto[1] =
 
 
 static struct fd_type fd_types_288m[] = {
+#ifndef PC98
 #if 0
 	{ FDF_3_2880 },
 #endif
@@ -102,30 +103,18 @@ static struct fd_type fd_types_288m[] = {
 	{ FDF_3_820 },
 	{ FDF_3_800 },
 	{ FDF_3_720 },
+#endif	/* !PC98 */
 	{ 0,0,0,0,0,0,0,0,0,0,0,0 }
 };
 
 static struct fd_type fd_types_144m[] = {
 #ifdef PC98
-#if 0
-	{ FDF_3_1722 },
-	{ FDF_3_1476 },
-#endif
 	{ FDF_3_1440 },
 	{ FDF_3_1200 },
-#if 0
-	{ FDF_3_820 },
-	{ FDF_3_800 },
-#endif
 	{ FDF_3_720 },
 	{ FDF_3_360 },
 	{ FDF_3_640 },
 	{ FDF_3_1230 },
-#if 0
-	{ FDF_3_1280 },
-	{ FDF_3_1480 },
-	{ FDF_3_1640 },
-#endif
 	{ 0,0,0,0,0,0,0,0,0,0,0,0 }
 #else
 	{ FDF_3_1722 },
@@ -142,17 +131,10 @@ static struct fd_type fd_types_144m[] = {
 static struct fd_type fd_types_12m[] = {
 #ifdef PC98
 	{ FDF_5_1200 },
-#if 0
-	{ FDF_5_820 },
-	{ FDF_5_800 },
-#endif
 	{ FDF_5_720 },
 	{ FDF_5_360 },
 	{ FDF_5_640 },
 	{ FDF_5_1230 },
-#if 0
-	{ FDF_5_1280 },
-#endif
 	{ 0,0,0,0,0,0,0,0,0,0,0,0 }
 #else
 	{ FDF_5_1200 },
@@ -170,13 +152,17 @@ static struct fd_type fd_types_12m[] = {
 
 static struct fd_type fd_types_720k[] =
 {
+#ifndef PC98
 	{ FDF_3_720 },
+#endif
 	{ 0,0,0,0,0,0,0,0,0,0,0,0 }
 };
 
 static struct fd_type fd_types_360k[] =
 {
+#ifndef PC98
 	{ FDF_5_360 },
+#endif
 	{ 0,0,0,0,0,0,0,0,0,0,0,0 }
 };
 

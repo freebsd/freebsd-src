@@ -2566,7 +2566,7 @@ qla_hw_tx_done_locked(qla_host_t *ha, uint32_t txr_idx)
 		comp_count++;
 
 		if (txb->m_head) {
-			ha->ifp->if_opackets++;
+			if_inc_counter(ha->ifp, IFCOUNTER_OPACKETS, 1);
 
 			bus_dmamap_sync(ha->tx_tag, txb->map,
 				BUS_DMASYNC_POSTWRITE);

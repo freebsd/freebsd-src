@@ -178,7 +178,7 @@ blk_write(struct dumperinfo *di, char *ptr, vm_paddr_t pa, size_t sz)
 /* A fake page table page, to avoid having to handle both 4K and 2M pages */
 static pt_entry_t fakept[NPTEPG];
 
-void
+int
 minidumpsys(struct dumperinfo *di)
 {
 	uint64_t dumpsize;
@@ -377,7 +377,7 @@ minidumpsys(struct dumperinfo *di)
 	/* Signal completion, signoff and exit stage left. */
 	dump_write(di, NULL, 0, 0, 0);
 	printf("\nDump complete\n");
-	return;
+	return (0);
 
  fail:
 	if (error < 0)
@@ -389,6 +389,7 @@ minidumpsys(struct dumperinfo *di)
 		printf("\nDump failed. Partition too small.\n");
 	else
 		printf("\n** DUMP FAILED (ERROR %d) **\n", error);
+	return (error);
 }
 
 void

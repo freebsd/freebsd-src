@@ -8,10 +8,13 @@ FILES+=	apple.conf
 
 .if ${MACHINE} == "amd64" || ${MACHINE} == "i386"
 FILES+=	asus.conf
+.if ${MK_HYPERV} != "no"
+FILES+=	hyperv.conf
+.endif
 .endif
 
 .if ${MK_USB} != "no"
-FILES+=	uath.conf usb.conf
+FILES+=	uath.conf ulpt.conf usb.conf
 .endif
 
 .if ${MK_ZFS} != "no"

@@ -149,7 +149,7 @@ hatm_rx(struct hatm_softc *sc, u_int cid, u_int flags, struct mbuf *m0,
 			m_freem(vcc->chain);
 		vcc->chain = vcc->last = NULL;
 		sc->istats.crc_error++;
-		sc->ifp->if_ierrors++;
+		if_inc_counter(sc->ifp, IFCOUNTER_IERRORS, 1);
 		return;
 	}
 	if (flags & HE_REGM_RBRQ_LEN_ERROR) {
@@ -157,7 +157,7 @@ hatm_rx(struct hatm_softc *sc, u_int cid, u_int flags, struct mbuf *m0,
 			m_freem(vcc->chain);
 		vcc->chain = vcc->last = NULL;
 		sc->istats.len_error++;
-		sc->ifp->if_ierrors++;
+		if_inc_counter(sc->ifp, IFCOUNTER_IERRORS, 1);
 		return;
 	}
 
@@ -240,9 +240,9 @@ hatm_rx(struct hatm_softc *sc, u_int cid, u_int flags, struct mbuf *m0,
 	ATM_PH_VPI(&aph) = vpi;
 	ATM_PH_SETVCI(&aph, vci);
 
-	sc->ifp->if_ipackets++;
+	if_inc_counter(sc->ifp, IFCOUNTER_IPACKETS, 1);
 	/* this is in if_atmsubr.c */
-	/* sc->ifp->if_ibytes += len; */
+	/* if_inc_counter(sc->ifp, IFCOUNTER_IBYTES, len); */
 
 	vcc->ibytes += len;
 	vcc->ipackets++;

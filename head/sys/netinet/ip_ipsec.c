@@ -63,15 +63,12 @@ __FBSDID("$FreeBSD$");
 
 #include <machine/in_cksum.h>
 
-#ifdef IPSEC
 #include <netipsec/ipsec.h>
 #include <netipsec/xform.h>
 #include <netipsec/key.h>
-#endif /*IPSEC*/
 
 extern	struct protosw inetsw[];
 
-#ifdef IPSEC
 #ifdef IPSEC_FILTERTUNNEL
 static VNET_DEFINE(int, ip4_ipsec_filtertunnel) = 1;
 #else
@@ -83,7 +80,6 @@ SYSCTL_DECL(_net_inet_ipsec);
 SYSCTL_VNET_INT(_net_inet_ipsec, OID_AUTO, filtertunnel,
 	CTLFLAG_RW, &VNET_NAME(ip4_ipsec_filtertunnel), 0,
 	"If set filter packets from an IPsec tunnel.");
-#endif /* IPSEC */
 
 /*
  * Check if we have to jump over firewall processing for this packet.
@@ -93,7 +89,6 @@ SYSCTL_VNET_INT(_net_inet_ipsec, OID_AUTO, filtertunnel,
 int
 ip_ipsec_filtertunnel(struct mbuf *m)
 {
-#ifdef IPSEC
 
 	/*
 	 * Bypass packet filtering for packets previously handled by IPsec.
@@ -101,7 +96,6 @@ ip_ipsec_filtertunnel(struct mbuf *m)
 	if (!V_ip4_ipsec_filtertunnel &&
 	    m_tag_find(m, PACKET_TAG_IPSEC_IN_DONE, NULL) != NULL)
 		return 1;
-#endif
 	return 0;
 }
 
@@ -114,7 +108,6 @@ ip_ipsec_filtertunnel(struct mbuf *m)
 int
 ip_ipsec_fwd(struct mbuf *m)
 {
-#ifdef IPSEC
 	struct m_tag *mtag;
 	struct tdb_ident *tdbi;
 	struct secpolicy *sp;
@@ -143,7 +136,6 @@ ip_ipsec_fwd(struct mbuf *m)
 		IPSTAT_INC(ips_cantforward);
 		return 1;
 	}
-#endif /* IPSEC */
 	return 0;
 }
 
@@ -157,7 +149,6 @@ ip_ipsec_fwd(struct mbuf *m)
 int
 ip_ipsec_input(struct mbuf *m)
 {
-#ifdef IPSEC
 	struct ip *ip = mtod(m, struct ip *);
 	struct m_tag *mtag;
 	struct tdb_ident *tdbi;
@@ -198,7 +189,6 @@ ip_ipsec_input(struct mbuf *m)
 		if (error)
 			return 1;
 	}
-#endif /* IPSEC */
 	return 0;
 }
 
@@ -256,7 +246,6 @@ ip_ipsec_mtu(struct mbuf *m, int mtu)
 int
 ip_ipsec_output(struct mbuf **m, struct inpcb *inp, int *flags, int *error)
 {
-#ifdef IPSEC
 	struct secpolicy *sp = NULL;
 	struct tdb_ident *tdbi;
 	struct m_tag *mtag;
@@ -388,6 +377,4 @@ bad:
 	if (sp != NULL)
 		KEY_FREESP(&sp);
 	return 1;
-#endif /* IPSEC */
-	return 0;
 }

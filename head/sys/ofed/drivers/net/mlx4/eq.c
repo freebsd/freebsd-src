@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2005, 2006, 2007, 2008 Mellanox Technologies. All rights reserved.
+ * Copyright (c) 2005, 2006, 2007, 2008, 2014 Mellanox Technologies. All rights reserved.
  * Copyright (c) 2005, 2006, 2007 Cisco Systems, Inc. All rights reserved.
  *
  * This software is available to you under a choice of one of two
@@ -33,6 +33,7 @@
 
 #include <linux/interrupt.h>
 #include <linux/slab.h>
+#include <linux/module.h>
 #include <linux/mm.h>
 #include <linux/dma-mapping.h>
 
@@ -86,6 +87,8 @@ static u64 get_async_ev_mask(struct mlx4_dev *dev)
 	u64 async_ev_mask = MLX4_ASYNC_EVENT_MASK;
 	if (dev->caps.flags & MLX4_DEV_CAP_FLAG_PORT_MNG_CHG_EV)
 		async_ev_mask |= (1ull << MLX4_EVENT_TYPE_PORT_MNG_CHG_EVENT);
+	if (dev->caps.flags2 & MLX4_DEV_CAP_FLAG2_RECOVERABLE_ERROR_EVENT)
+		async_ev_mask |= (1ull << MLX4_EVENT_TYPE_RECOVERABLE_ERROR_EVENT);
 
 	return async_ev_mask;
 }
@@ -147,12 +150,9 @@ void mlx4_gen_slave_eqe(struct work_struct *work)
 		/* All active slaves need to receive the event */
 		if (slave == ALL_SLAVES) {
 			for (i = 0; i < dev->num_slaves; i++) {
-				if (i != dev->caps.function &&
-				    master->slave_state[i].active)
-					if (mlx4_GEN_EQE(dev, i, eqe))
-						mlx4_warn(dev, "Failed to "
-							  " generate event "
-							  "for slave %d\n", i);
+				if (mlx4_GEN_EQE(dev, i, eqe))
+					mlx4_warn(dev, "Failed to generate "
+						  "event for slave %d\n", i);
 			}
 		} else {
 			if (mlx4_GEN_EQE(dev, slave, eqe))
@@ -197,13 +197,13 @@ static void mlx4_slave_event(struct mlx4_dev *dev, int slave,
 			     struct mlx4_eqe *eqe)
 {
 	struct mlx4_priv *priv = mlx4_priv(dev);
-	struct mlx4_slave_state *s_slave =
-		&priv->mfunc.master.slave_state[slave];
 
-	if (!s_slave->active) {
-		/*mlx4_warn(dev, "Trying to pass event to inactive slave\n");*/
+	if (slave < 0 || slave >= dev->num_slaves ||
+	    slave == dev->caps.function)
 		return;
-	}
+
+	if (!priv->mfunc.master.slave_state[slave].active)
+		return;
 
 	slave_event(dev, slave, eqe);
 }
@@ -375,7 +375,7 @@ out:
 
 EXPORT_SYMBOL(set_and_calc_slave_port_state);
 
-int mlx4_gen_slaves_port_mgt_ev(struct mlx4_dev *dev, u8 port, int attr)
+int mlx4_gen_slaves_port_mgt_ev(struct mlx4_dev *dev, u8 port, int attr, u16 sm_lid, u8 sm_sl)
 {
 	struct mlx4_eqe eqe;
 
@@ -386,6 +386,12 @@ int mlx4_gen_slaves_port_mgt_ev(struct mlx4_dev *dev, u8 port, int attr)
 	eqe.event.port_mgmt_change.port = port;
 	eqe.event.port_mgmt_change.params.port_info.changed_attr =
 		cpu_to_be32((u32) attr);
+	if (attr & MSTR_SM_CHANGE_MASK) {
+		eqe.event.port_mgmt_change.params.port_info.mstr_sm_lid =
+			cpu_to_be16(sm_lid);
+		eqe.event.port_mgmt_change.params.port_info.mstr_sm_sl =
+			sm_sl;
+	}
 
 	slave_event(dev, ALL_SLAVES, &eqe);
 	return 0;
@@ -446,6 +452,7 @@ static int mlx4_eq_int(struct mlx4_dev *dev, struct mlx4_eq *eq)
 	int i;
 	enum slave_port_gen_event gen_event;
 	unsigned long flags;
+	struct mlx4_vport_state *s_info;
 
 	while ((eqe = next_eqe_sw(eq, dev->caps.eqe_factor))) {
 		/*
@@ -495,8 +502,9 @@ static int mlx4_eq_int(struct mlx4_dev *dev, struct mlx4_eq *eq)
 			break;
 
 		case MLX4_EVENT_TYPE_SRQ_LIMIT:
-			mlx4_warn(dev, "%s: MLX4_EVENT_TYPE_SRQ_LIMIT\n",
-				  __func__);
+			mlx4_dbg(dev, "%s: MLX4_EVENT_TYPE_SRQ_LIMIT\n",
+				 __func__);
+		/* fall through */
 		case MLX4_EVENT_TYPE_SRQ_CATAS_ERROR:
 			if (mlx4_is_master(dev)) {
 				/* forward only to slave owning the SRQ */
@@ -513,17 +521,15 @@ static int mlx4_eq_int(struct mlx4_dev *dev, struct mlx4_eq *eq)
 						  eq->eqn, eq->cons_index, ret);
 					break;
 				}
-				mlx4_warn(dev, "%s: slave:%d, srq_no:0x%x,"
-					  " event: %02x(%02x)\n", __func__,
-					  slave,
-					  be32_to_cpu(eqe->event.srq.srqn),
-					  eqe->type, eqe->subtype);
+				mlx4_dbg(dev, "%s: slave:%d, srq_no:0x%x, event: %02x(%02x)\n",
+					 __func__, slave,
+					 be32_to_cpu(eqe->event.srq.srqn),
+					 eqe->type, eqe->subtype);
 
 				if (!ret && slave != dev->caps.function) {
-					mlx4_warn(dev, "%s: sending event "
-						  "%02x(%02x) to slave:%d\n",
-						   __func__, eqe->type,
-						  eqe->subtype, slave);
+					mlx4_dbg(dev, "%s: sending event %02x(%02x) to slave:%d\n",
+						 __func__, eqe->type,
+						 eqe->subtype, slave);
 					mlx4_slave_event(dev, slave, eqe);
 					break;
 				}
@@ -554,7 +560,9 @@ static int mlx4_eq_int(struct mlx4_dev *dev, struct mlx4_eq *eq)
 						mlx4_dbg(dev, "%s: Sending MLX4_PORT_CHANGE_SUBTYPE_DOWN"
 							 " to slave: %d, port:%d\n",
 							 __func__, i, port);
-						mlx4_slave_event(dev, i, eqe);
+						s_info = &priv->mfunc.master.vf_oper[slave].vport[port].state;
+						if (IFLA_VF_LINK_STATE_AUTO == s_info->link_state)
+							mlx4_slave_event(dev, i, eqe);
 					} else {  /* IB port */
 						set_and_calc_slave_port_state(dev, i, port,
 									      MLX4_PORT_STATE_DEV_EVENT_PORT_DOWN,
@@ -578,7 +586,9 @@ static int mlx4_eq_int(struct mlx4_dev *dev, struct mlx4_eq *eq)
 					for (i = 0; i < dev->num_slaves; i++) {
 						if (i == mlx4_master_func_num(dev))
 							continue;
-						mlx4_slave_event(dev, i, eqe);
+						s_info = &priv->mfunc.master.vf_oper[slave].vport[port].state;
+						if (IFLA_VF_LINK_STATE_AUTO == s_info->link_state)
+							mlx4_slave_event(dev, i, eqe);
 					}
 				else /* IB port */
 					/* port-up event will be sent to a slave when the
@@ -635,11 +645,18 @@ static int mlx4_eq_int(struct mlx4_dev *dev, struct mlx4_eq *eq)
 					       "for non master device\n");
 				break;
 			}
+
 			memcpy(&priv->mfunc.master.comm_arm_bit_vector,
 			       eqe->event.comm_channel_arm.bit_vec,
 			       sizeof eqe->event.comm_channel_arm.bit_vec);
-			queue_work(priv->mfunc.master.comm_wq,
-				   &priv->mfunc.master.comm_work);
+
+			if (!queue_work(priv->mfunc.master.comm_wq,
+				   &priv->mfunc.master.comm_work))
+				mlx4_warn(dev, "Failed to queue comm channel work\n");
+
+			if (!queue_work(priv->mfunc.master.comm_wq,
+				   &priv->mfunc.master.arm_comm_work))
+				mlx4_warn(dev, "Failed to queue arm comm channel work\n");
 			break;
 
 		case MLX4_EVENT_TYPE_FLR_EVENT:
@@ -704,6 +721,27 @@ static int mlx4_eq_int(struct mlx4_dev *dev, struct mlx4_eq *eq)
 					    (unsigned long) eqe);
 			break;
 
+		case MLX4_EVENT_TYPE_RECOVERABLE_ERROR_EVENT:
+			switch (eqe->subtype) {
+			case MLX4_RECOVERABLE_ERROR_EVENT_SUBTYPE_BAD_CABLE:
+				mlx4_warn(dev, "Bad cable detected on port %u\n",
+					  eqe->event.bad_cable.port);
+				break;
+			case MLX4_RECOVERABLE_ERROR_EVENT_SUBTYPE_UNSUPPORTED_CABLE:
+				mlx4_warn(dev, "Unsupported cable detected\n");
+				break;
+			default:
+				mlx4_dbg(dev, "Unhandled recoverable error event "
+					 "detected: %02x(%02x) on EQ %d at index %u. "
+					 "owner=%x, nent=0x%x, ownership=%s\n",
+					 eqe->type, eqe->subtype, eq->eqn,
+					 eq->cons_index, eqe->owner, eq->nent,
+					 !!(eqe->owner & 0x80) ^
+					 !!(eq->cons_index & eq->nent) ? "HW" : "SW");
+				break;
+			}
+			break;
+
 		case MLX4_EVENT_TYPE_EEC_CATAS_ERROR:
 		case MLX4_EVENT_TYPE_ECC_DETECT:
 		default:
@@ -747,7 +785,6 @@ static irqreturn_t mlx4_interrupt(int irq, void *dev_ptr)
 	int work = 0;
 	int i;
 
-
 	writel(priv->eq_table.clr_mask, priv->eq_table.clr_int);
 
 	for (i = 0; i < dev->caps.num_comp_vectors + 1; ++i)
@@ -777,7 +814,7 @@ int mlx4_MAP_EQ_wrapper(struct mlx4_dev *dev, int slave,
 	struct mlx4_slave_event_eq_info *event_eq =
 		priv->mfunc.master.slave_state[slave].event_eq;
 	u32 in_modifier = vhcr->in_modifier;
-	u32 eqn = in_modifier & 0x1FF;
+	u32 eqn = in_modifier & 0x3FF;
 	u64 in_param =  vhcr->in_param;
 	int err = 0;
 	int i;
@@ -956,7 +993,7 @@ err_out_free_mtt:
 	mlx4_mtt_cleanup(dev, &eq->mtt);
 
 err_out_free_eq:
-	mlx4_bitmap_free(&priv->eq_table.bitmap, eq->eqn);
+	mlx4_bitmap_free(&priv->eq_table.bitmap, eq->eqn, MLX4_USE_RR);
 
 err_out_free_pages:
 	for (i = 0; i < npages; ++i)
@@ -1011,7 +1048,7 @@ static void mlx4_free_eq(struct mlx4_dev *dev,
 				    eq->page_list[i].map);
 
 	kfree(eq->page_list);
-	mlx4_bitmap_free(&priv->eq_table.bitmap, eq->eqn);
+	mlx4_bitmap_free(&priv->eq_table.bitmap, eq->eqn, MLX4_USE_RR);
 	mlx4_free_cmd_mailbox(dev, mailbox);
 }
 
@@ -1306,7 +1343,7 @@ int mlx4_test_interrupts(struct mlx4_dev *dev)
 }
 EXPORT_SYMBOL(mlx4_test_interrupts);
 
-int mlx4_assign_eq(struct mlx4_dev *dev, char *name, int *vector)
+int mlx4_assign_eq(struct mlx4_dev *dev, char* name, int * vector)
 {
 
 	struct mlx4_priv *priv = mlx4_priv(dev);

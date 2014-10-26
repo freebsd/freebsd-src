@@ -78,6 +78,8 @@ static struct vt_driver vt_ps3fb_driver = {
 	.vd_blank = vt_fb_blank,
 	.vd_bitblt_text = vt_fb_bitblt_text,
 	.vd_bitblt_bmp = vt_fb_bitblt_bitmap,
+	.vd_drawrect = vt_fb_drawrect,
+	.vd_setpixel = vt_fb_setpixel,
 	.vd_fb_ioctl = vt_fb_ioctl,
 	.vd_fb_mmap = vt_fb_mmap,
 	/* Better than VGA, but still generic driver. */

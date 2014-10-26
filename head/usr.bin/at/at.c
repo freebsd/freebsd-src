@@ -367,6 +367,7 @@ writefile(time_t runtimer, char queue)
 
 	if (export)
 	{
+	    (void)fputs("export ", fp);
 	    fwrite(*atenv, sizeof(char), eqp-*atenv, fp);
 	    for(ap = eqp;*ap != '\0'; ap++)
 	    {
@@ -389,8 +390,6 @@ writefile(time_t runtimer, char queue)
 		    fputc(*ap, fp);
 		}
 	    }
-	    fputs("; export ", fp);
-	    fwrite(*atenv, sizeof(char), eqp-*atenv -1, fp);
 	    fputc('\n', fp);
 	    
 	}

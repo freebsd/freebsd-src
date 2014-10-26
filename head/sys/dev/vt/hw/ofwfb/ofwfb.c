@@ -53,7 +53,7 @@ struct ofwfb_softc {
 
 	phandle_t	sc_node;
 	ihandle_t	sc_handle;
-	bus_space_tag_t	sc_memt; 
+	bus_space_tag_t	sc_memt;
 };
 
 static vd_probe_t	ofwfb_probe;

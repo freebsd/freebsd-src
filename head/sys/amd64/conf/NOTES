@@ -310,6 +310,8 @@ options 	DRM_DEBUG	# Include debug printfs (slow)
 # iwn:	Intel Wireless WiFi Link 1000/105/135/2000/4965/5000/6000/6050 abgn
 #	802.11 network adapters
 #	Requires the iwn firmware module
+# ixl:	Intel XL710 40Gbe PCIE Ethernet
+# ixlv:	Intel XL710 40Gbe VF PCIE Ethernet
 # mlx4ib: Mellanox ConnectX HCA InfiniBand
 # mlxen: Mellanox ConnectX HCA Ethernet
 # mthca: Mellanox HCA InfiniBand
@@ -327,6 +329,8 @@ options 	ED_SIC
 device		ipw		# Intel 2100 wireless NICs.
 device		iwi		# Intel 2200BG/2225BG/2915ABG wireless NICs.
 device		iwn		# Intel 4965/1000/5000/6000 wireless NICs.
+device		ixl		# Intel XL710 40Gbe PCIE Ethernet
+device		ixlv		# Intel XL710 40Gbe VF PCIE Ethernet
 device  	mlx4ib		# Mellanox ConnectX HCA InfiniBand
 device  	mlxen		# Mellanox ConnectX HCA Ethernet
 device  	mthca		# Mellanox HCA InfiniBand

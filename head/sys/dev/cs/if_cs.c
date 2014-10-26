@@ -707,7 +707,7 @@ cs_get_packet(struct cs_softc *sc)
 #ifdef CS_DEBUG
 		device_printf(sc->dev, "bad pkt stat %x\n", status);
 #endif
-		ifp->if_ierrors++;
+		if_inc_counter(ifp, IFCOUNTER_IERRORS, 1);
 		return (-1);
 	}
 
@@ -742,7 +742,7 @@ cs_get_packet(struct cs_softc *sc)
 	    (ifp->if_flags & IFF_MULTICAST && status & RX_HASHED)) {
 		/* Feed the packet to the upper layer */
 		(*ifp->if_input)(ifp, m);
-		ifp->if_ipackets++;
+		if_inc_counter(ifp, IFCOUNTER_IPACKETS, 1);
 		if (length == ETHER_MAX_LEN-ETHER_CRC_LEN)
 			DELAY(cs_recv_delay);
 	} else {
@@ -780,9 +780,9 @@ csintr(void *arg)
 
 		case ISQ_TRANSMITTER_EVENT:
 			if (status & TX_OK)
-				ifp->if_opackets++;
+				if_inc_counter(ifp, IFCOUNTER_OPACKETS, 1);
 			else
-				ifp->if_oerrors++;
+				if_inc_counter(ifp, IFCOUNTER_OERRORS, 1);
 			ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
 			sc->tx_timeout = 0;
 			break;
@@ -796,16 +796,16 @@ csintr(void *arg)
 			if (status & TX_UNDERRUN) {
 				ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
 				sc->tx_timeout = 0;
-				ifp->if_oerrors++;
+				if_inc_counter(ifp, IFCOUNTER_OERRORS, 1);
 			}
 			break;
 
 		case ISQ_RX_MISS_EVENT:
-			ifp->if_ierrors+=(status>>6);
+			if_inc_counter(ifp, IFCOUNTER_IERRORS, status >> 6);
 			break;
 
 		case ISQ_TX_COL_EVENT:
-			ifp->if_collisions+=(status>>6);
+			if_inc_counter(ifp, IFCOUNTER_COLLISIONS, status >> 6);
 			break;
 		}
 	}
@@ -1114,7 +1114,7 @@ cs_watchdog(void *arg)
 
 	CS_ASSERT_LOCKED(sc);
 	if (sc->tx_timeout && --sc->tx_timeout == 0) {
-		ifp->if_oerrors++;
+		if_inc_counter(ifp, IFCOUNTER_OERRORS, 1);
 		log(LOG_ERR, "%s: device timeout\n", ifp->if_xname);
 
 		/* Reset the interface */

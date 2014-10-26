@@ -42,6 +42,18 @@
 
 __FBSDID("$FreeBSD$");
 
+/*
+ * Sanity check the configuration.
+ * FLASHADDR and LOADERRAMADDR depend on PHYSADDR in some cases.
+ * ARMv4 and ARMv5 make assumptions on where they are loaded.
+ *
+ * TODO: Fix the ARMv4/v5 case.
+ */
+#if (defined(FLASHADDR) || defined(LOADERRAMADDR) || !defined(_ARM_ARCH_6)) && \
+    !defined(PHYSADDR)
+#error PHYSADDR must be defined for this configuration
+#endif
+
 /* What size should this really be ? It is only used by initarm() */
 #define INIT_ARM_STACK_SIZE	(2048 * 4)
 
@@ -54,15 +66,21 @@ __FBSDID("$FreeBSD$");
 	CPWAIT_BRANCH			/* branch to next insn */
 
 /*
- * This is for kvm_mkdb, and should be the address of the beginning
+ * This is for libkvm, and should be the address of the beginning
  * of the kernel text segment (not necessarily the same as kernbase).
+ *
+ * These are being phased out. Newer copies of libkvm don't need these
+ * values as the information is added to the core file by inspecting
+ * the running kernel.
  */
 	.text
 	.align	0
+#ifdef PHYSADDR
 .globl kernbase
 .set kernbase,KERNBASE
 .globl physaddr
 .set physaddr,PHYSADDR
+#endif
 
 /*
  * On entry for FreeBSD boot ABI:
@@ -88,7 +106,7 @@ ASENTRY_NP(_start)
 
 	/* Make sure interrupts are disabled. */
 	mrs	r7, cpsr
-	orr	r7, r7, #(I32_bit|F32_bit)
+	orr	r7, r7, #(PSR_I | PSR_F)
 	msr	cpsr_c, r7
 
 #if defined (FLASHADDR) && defined(LOADERRAMADDR)
@@ -386,7 +404,7 @@ ASENTRY_NP(mpentry)
 
 	/* Make sure interrupts are disabled. */
 	mrs	r7, cpsr
-	orr	r7, r7, #(I32_bit|F32_bit)
+	orr	r7, r7, #(PSR_I | PSR_F)
 	msr	cpsr_c, r7
 
 	/* Disable MMU.  It should be disabled already, but make sure. */
@@ -466,7 +484,7 @@ ENTRY_NP(cpu_halt)
 	mrs     r2, cpsr
 	bic	r2, r2, #(PSR_MODE)
 	orr     r2, r2, #(PSR_SVC32_MODE)
-	orr	r2, r2, #(I32_bit | F32_bit)
+	orr	r2, r2, #(PSR_I | PSR_F)
 	msr     cpsr_fsxc, r2
 
 	ldr	r4, .Lcpu_reset_address

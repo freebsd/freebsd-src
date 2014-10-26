@@ -99,6 +99,34 @@ gpiobus_print_pins(struct gpiobus_ivar *devi)
 		printf("%d", range_start);
 }
 
+int
+gpiobus_init_softc(device_t dev)
+{
+	struct gpiobus_softc *sc;
+
+	sc = GPIOBUS_SOFTC(dev);
+	sc->sc_busdev = dev;
+	sc->sc_dev = device_get_parent(dev);
+
+	if (GPIO_PIN_MAX(sc->sc_dev, &sc->sc_npins) != 0)
+		return (ENXIO);
+
+	KASSERT(sc->sc_npins != 0, ("GPIO device with no pins"));
+
+	/* Pins = GPIO_PIN_MAX() + 1 */
+	sc->sc_npins++;
+
+	sc->sc_pins_mapped = malloc(sizeof(int) * sc->sc_npins, M_DEVBUF, 
+	    M_NOWAIT | M_ZERO);
+	if (sc->sc_pins_mapped == NULL)
+		return (ENOMEM);
+
+	/* Initialize the bus lock. */
+	GPIOBUS_LOCK_INIT(sc);
+
+	return (0);
+}
+
 static int
 gpiobus_parse_pins(struct gpiobus_softc *sc, device_t child, int mask)
 {
@@ -163,30 +191,11 @@ gpiobus_probe(device_t dev)
 static int
 gpiobus_attach(device_t dev)
 {
-	struct gpiobus_softc *sc = GPIOBUS_SOFTC(dev);
-	int res;
+	int err;
 
-	sc->sc_busdev = dev;
-	sc->sc_dev = device_get_parent(dev);
-	res = GPIO_PIN_MAX(sc->sc_dev, &sc->sc_npins);
-	if (res)
-		return (ENXIO);
-
-	KASSERT(sc->sc_npins != 0, ("GPIO device with no pins"));
-
-	/*
-	 * Increase to get number of pins
-	 */
-	sc->sc_npins++;
-
-	sc->sc_pins_mapped = malloc(sizeof(int) * sc->sc_npins, M_DEVBUF, 
-	    M_NOWAIT | M_ZERO);
-
-	if (!sc->sc_pins_mapped)
-		return (ENOMEM);
-
-	/* init bus lock */
-	GPIOBUS_LOCK_INIT(sc);
+	err = gpiobus_init_softc(dev);
+	if (err != 0)
+		return (err);
 
 	/*
 	 * Get parent's pins and mark them as unmapped

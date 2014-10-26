@@ -783,8 +783,6 @@ ixl_get_tx_head(struct ixl_queue *que)
 bool
 ixl_txeof(struct ixl_queue *que)
 {
-	struct ixl_vsi		*vsi = que->vsi;
-	struct ifnet		*ifp = vsi->ifp;
 	struct tx_ring		*txr = &que->txr;
 	u32			first, last, head, done, processed;
 	struct ixl_tx_buf	*buf;
@@ -857,7 +855,6 @@ ixl_txeof(struct ixl_queue *que)
 			tx_desc = &txr->base[first];
 		}
 		++txr->packets;
-		++ifp->if_opackets;
 		/* See if there is more work now */
 		last = buf->eop_index;
 		if (last != -1) {
@@ -1085,10 +1082,12 @@ ixl_allocate_rx_data(struct ixl_queue *que)
 int
 ixl_init_rx_ring(struct ixl_queue *que)
 {
+	struct	rx_ring 	*rxr = &que->rxr;
+#if defined(INET6) || defined(INET)
 	struct ixl_vsi		*vsi = que->vsi;
 	struct ifnet		*ifp = vsi->ifp;
-	struct	rx_ring 	*rxr = &que->rxr;
 	struct lro_ctrl		*lro = &rxr->lro;
+#endif
 	struct ixl_rx_buf	*buf;
 	bus_dma_segment_t	pseg[1], hseg[1];
 	int			rsize, nsegs, error = 0;
@@ -1187,6 +1186,7 @@ skip_head:
 	rxr->bytes = 0;
 	rxr->discard = FALSE;
 
+#if defined(INET6) || defined(INET)
 	/*
 	** Now set up the LRO interface:
 	*/
@@ -1200,6 +1200,7 @@ skip_head:
 		rxr->lro_enabled = TRUE;
 		lro->ifp = vsi->ifp;
 	}
+#endif
 
 	bus_dmamap_sync(rxr->dma.tag, rxr->dma.map,
 	    BUS_DMASYNC_PREREAD | BUS_DMASYNC_PREWRITE);
@@ -1274,6 +1275,8 @@ ixl_free_que_rx(struct ixl_queue *que)
 static __inline void
 ixl_rx_input(struct rx_ring *rxr, struct ifnet *ifp, struct mbuf *m, u8 ptype)
 {
+
+#if defined(INET6) || defined(INET)
         /*
          * ATM LRO is only for IPv4/TCP packets and TCP checksum of the packet
          * should be computed by hardware. Also it should not have VLAN tag in
@@ -1293,6 +1296,7 @@ ixl_rx_input(struct rx_ring *rxr, struct ifnet *ifp, struct mbuf *m, u8 ptype)
                         if (tcp_lro_rx(&rxr->lro, m, 0) == 0)
                                 return;
         }
+#endif
 	IXL_RX_UNLOCK(rxr);
         (*ifp->if_input)(ifp, m);
 	IXL_RX_LOCK(rxr);
@@ -1350,8 +1354,10 @@ ixl_rxeof(struct ixl_queue *que, int count)
 	struct ixl_vsi		*vsi = que->vsi;
 	struct rx_ring		*rxr = &que->rxr;
 	struct ifnet		*ifp = vsi->ifp;
+#if defined(INET6) || defined(INET)
 	struct lro_ctrl		*lro = &rxr->lro;
 	struct lro_entry	*queued;
+#endif
 	int			i, nextp, processed = 0;
 	union i40e_rx_desc	*cur;
 	struct ixl_rx_buf	*rbuf, *nbuf;
@@ -1411,7 +1417,6 @@ ixl_rxeof(struct ixl_queue *que, int count)
 		** error results.
 		*/
                 if (eop && (error & (1 << I40E_RX_DESC_ERROR_RXE_SHIFT))) {
-			ifp->if_ierrors++;
 			rxr->discarded++;
 			ixl_rx_discard(rxr, i);
 			goto next_desc;
@@ -1520,7 +1525,6 @@ ixl_rxeof(struct ixl_queue *que, int count)
 		if (eop) {
 			sendmp->m_pkthdr.rcvif = ifp;
 			/* gather stats */
-			ifp->if_ipackets++;
 			rxr->rx_packets++;
 			rxr->rx_bytes += sendmp->m_pkthdr.len;
 			/* capture data for dynamic ITR adjustment */
@@ -1559,6 +1563,7 @@ next_desc:
 
 	rxr->next_check = i;
 
+#if defined(INET6) || defined(INET)
 	/*
 	 * Flush any outstanding LRO work
 	 */
@@ -1566,6 +1571,7 @@ next_desc:
 		SLIST_REMOVE_HEAD(&lro->lro_active, next);
 		tcp_lro_flush(lro, queued);
 	}
+#endif
 
 	IXL_RX_UNLOCK(rxr);
 	return (FALSE);
@@ -1614,3 +1620,43 @@ ixl_rx_checksum(struct mbuf * mp, u32 status, u32 error, u8 ptype)
 	}
 	return;
 }
+
+#if __FreeBSD_version >= 1100000
+uint64_t
+ixl_get_counter(if_t ifp, ift_counter cnt)
+{
+	struct ixl_vsi *vsi;
+
+	vsi = if_getsoftc(ifp);
+
+	switch (cnt) {
+	case IFCOUNTER_IPACKETS:
+		return (vsi->ipackets);
+	case IFCOUNTER_IERRORS:
+		return (vsi->ierrors);
+	case IFCOUNTER_OPACKETS:
+		return (vsi->opackets);
+	case IFCOUNTER_OERRORS:
+		return (vsi->oerrors);
+	case IFCOUNTER_COLLISIONS:
+		/* Collisions are by standard impossible in 40G/10G Ethernet */
+		return (0);
+	case IFCOUNTER_IBYTES:
+		return (vsi->ibytes);
+	case IFCOUNTER_OBYTES:
+		return (vsi->obytes);
+	case IFCOUNTER_IMCASTS:
+		return (vsi->imcasts);
+	case IFCOUNTER_OMCASTS:
+		return (vsi->omcasts);
+	case IFCOUNTER_IQDROPS:
+		return (vsi->iqdrops);
+	case IFCOUNTER_OQDROPS:
+		return (vsi->oqdrops);
+	case IFCOUNTER_NOPROTO:
+		return (vsi->noproto);
+	default:
+		return (if_get_counter_default(ifp, cnt));
+	}
+}
+#endif

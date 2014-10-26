@@ -113,7 +113,7 @@ MALLOC_DECLARE(M_USBHC);
 
 /* Allow for marginal and non-conforming devices. */
 #define	USB_PORT_RESET_DELAY		50	/* ms */
-#define	USB_PORT_ROOT_RESET_DELAY	250	/* ms */
+#define	USB_PORT_ROOT_RESET_DELAY	200	/* ms */
 #define	USB_PORT_RESET_RECOVERY		250	/* ms */
 #define	USB_PORT_POWERUP_DELAY		300	/* ms */
 #define	USB_PORT_RESUME_DELAY		(20*2)	/* ms */

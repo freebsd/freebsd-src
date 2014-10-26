@@ -837,6 +837,8 @@
 
       &hwlist.igb;
 
+      &hwlist.ipheth;
+
       &hwlist.ixgb;
 
       &hwlist.ixgbe;
@@ -885,6 +887,8 @@
 
       &hwlist.sk;
 
+      &hwlist.smsc;
+
       &hwlist.sn;
 
       &hwlist.snc;
@@ -903,6 +907,8 @@
       &hwlist.txp;
 
       &hwlist.udav;
+
+      &hwlist.urndis;
 
       &hwlist.vge;
 

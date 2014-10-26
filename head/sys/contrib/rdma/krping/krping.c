@@ -39,7 +39,6 @@ __FBSDID("$FreeBSD$");
 #include <linux/slab.h>
 #include <linux/err.h>
 #include <linux/string.h>
-#include <linux/inet.h>
 #include <linux/list.h>
 #include <linux/in.h>
 #include <linux/device.h>

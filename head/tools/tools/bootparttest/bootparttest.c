@@ -33,140 +33,106 @@ __FBSDID("$FreeBSD$");
 #include <err.h>
 #include <fcntl.h>
 #include <libgeom.h>
-#include <libutil.h>
+#include <disk.h>
 #include <part.h>
 #include <stdio.h>
+#include <string.h>
 #include <unistd.h>
 
+static int disk_strategy(void *devdata, int rw, daddr_t blk,
+    size_t size, char *buf, size_t *rsize);
+
+/* stub struct devsw */
+struct devsw {
+	const char	dv_name[8];
+	int		dv_type;
+	void		*dv_init;
+	int		(*dv_strategy)(void *devdata, int rw, daddr_t blk,
+			    size_t size, char *buf, size_t *rsize);
+	void		*dv_open;
+	void		*dv_close;
+	void		*dv_ioctl;
+	void		*dv_print;
+	void		*dv_cleanup;
+} udisk = {
+	.dv_name = "disk",
+	.dv_strategy = disk_strategy
+};
+
 struct disk {
-	const char	*name;
 	uint64_t	mediasize;
 	uint16_t	sectorsize;
 
 	int		fd;
 	int		file;
-	off_t		offset;
-};
+} disk;
 
 static int
-diskread(void *arg, void *buf, size_t blocks, off_t offset)
+disk_strategy(void *devdata, int rw, daddr_t blk, size_t size, char *buf,
+    size_t *rsize)
 {
-	struct disk *dp;
+	struct disk_devdesc *dev = devdata;
+	int ret;
 
-	dp = (struct disk *)arg;
-	printf("%s: read %lu blocks from the offset %jd [+%jd]\n", dp->name,
-	    blocks, offset, dp->offset);
-	if (offset >= dp->mediasize / dp->sectorsize)
+	if (rw != 1 /* F_READ */)
 		return (-1);
-
-	return (pread(dp->fd, buf, blocks * dp->sectorsize,
-	    (offset + dp->offset) * dp->sectorsize) != blocks * dp->sectorsize);
-}
-
-static const char*
-ptable_type2str(const struct ptable *table)
-{
-
-	switch (ptable_gettype(table)) {
-	case PTABLE_NONE:
-		return ("None");
-	case PTABLE_BSD:
-		return ("BSD");
-	case PTABLE_MBR:
-		return ("MBR");
-	case PTABLE_GPT:
-		return ("GPT");
-	case PTABLE_VTOC8:
-		return ("VTOC8");
-	};
-	return ("Unknown");
-}
-
-#define	PWIDTH	35
-static void
-ptable_print(void *arg, const char *pname, const struct ptable_entry *part)
-{
-	struct ptable *table;
-	struct disk *dp, bsd;
-	char line[80], size[6];
-
-	dp = (struct disk *)arg;
-	sprintf(line, "  %s%s: %s", dp->file ? "disk0": dp->name, pname,
-	    parttype2str(part->type));
-	humanize_number(size, sizeof(size),
-	    (part->end - part->start + 1) * dp->sectorsize, "",
-	    HN_AUTOSCALE, HN_B | HN_NOSPACE | HN_DECIMAL);
-	printf("%-*s%s\n", PWIDTH, line, size);
-	if (part->type == PART_FREEBSD) {
-		sprintf(line, "%s%s", dp->file ? "disk0": dp->name, pname);
-		bsd.name = line;
-		bsd.fd = dp->fd;
-		bsd.file = 0;	/* to use dp->name in the next sprintf */
-		bsd.offset = dp->offset + part->start;
-		bsd.sectorsize = dp->sectorsize;
-		bsd.mediasize = (part->end - part->start + 1) * dp->sectorsize;
-		table = ptable_open(&bsd, bsd.mediasize / bsd.sectorsize,
-		    bsd.sectorsize, diskread);
-		if (table == NULL)
-			return;
-		ptable_iterate(table, &bsd, ptable_print);
-		ptable_close(table);
-	}
-}
-#undef PWIDTH
-
-static void
-inspect_disk(struct disk *dp)
-{
-	struct ptable *table;
-
-	table = ptable_open(dp, dp->mediasize / dp->sectorsize,
-	    dp->sectorsize, diskread);
-	if (table == NULL) {
-		printf("ptable_open failed\n");
-		return;
-	}
-	printf("Partition table detected: %s\n", ptable_type2str(table));
-	ptable_iterate(table, dp, ptable_print);
-	ptable_close(table);
+	if (rsize)
+		*rsize = 0;
+	printf("read %zu bytes from the block %lld [+%lld]\n", size,
+	    (long long)blk, (long long)dev->d_offset);
+	ret = pread(disk.fd, buf, size,
+	    (blk + dev->d_offset) * disk.sectorsize);
+	if (ret != size)
+		return (-1);
+	return (0);
 }
 
 int
 main(int argc, char **argv)
 {
+	struct disk_devdesc dev;
 	struct stat sb;
-	struct disk d;
+	const char *p;
 
 	if (argc < 2)
 		errx(1, "Usage: %s <GEOM provider name> | "
 		    "<disk image file name>", argv[0]);
-	d.name = argv[1];
-	if (stat(d.name, &sb) == 0 && S_ISREG(sb.st_mode)) {
-		d.fd = open(d.name, O_RDONLY);
-		if (d.fd < 0)
-			err(1, "open %s", d.name);
-		d.mediasize = sb.st_size;
-		d.sectorsize = 512;
-		d.file = 1;
+	memset(&disk, 0, sizeof(disk));
+	memset(&dev, 0, sizeof(dev));
+	dev.d_dev = &udisk;
+	dev.d_slice = -1;
+	dev.d_partition = -1;
+	if (stat(argv[1], &sb) == 0 && S_ISREG(sb.st_mode)) {
+		disk.fd = open(argv[1], O_RDONLY);
+		if (disk.fd < 0)
+			err(1, "open %s", argv[1]);
+		disk.mediasize = sb.st_size;
+		disk.sectorsize = 512;
+		disk.file = 1;
 	} else {
-		d.fd = g_open(d.name, 0);
-		if (d.fd < 0)
-			err(1, "g_open %s", d.name);
-		d.mediasize = g_mediasize(d.fd);
-		d.sectorsize = g_sectorsize(d.fd);
-		d.file = 0;
+		disk.fd = g_open(argv[1], 0);
+		if (disk.fd < 0)
+			err(1, "g_open %s", argv[1]);
+		disk.mediasize = g_mediasize(disk.fd);
+		disk.sectorsize = g_sectorsize(disk.fd);
+		p = strpbrk(argv[1], "0123456789");
+		if (p != NULL)
+			disk_parsedev(&dev, p, NULL);
 	}
-	d.offset = 0;
-	printf("%s \"%s\" opened\n", d.file ? "Disk image": "GEOM provider",
-	    d.name);
+	printf("%s \"%s\" opened\n", disk.file ? "Disk image": "GEOM provider",
+	    argv[1]);
 	printf("Mediasize: %ju Bytes (%ju sectors)\nSectorsize: %u Bytes\n",
-	    d.mediasize, d.mediasize / d.sectorsize, d.sectorsize);
+	    disk.mediasize, disk.mediasize / disk.sectorsize, disk.sectorsize);
 
-	inspect_disk(&d);
+	if (disk_open(&dev, disk.mediasize, disk.sectorsize, 0) != 0)
+		errx(1, "disk_open failed");
+	printf("\tdisk0:\n");
+	disk_print(&dev, "\tdisk0", 1);
+	disk_close(&dev);
 
-	if (d.file)
-		close(d.fd);
+	if (disk.file)
+		close(disk.fd);
 	else
-		g_close(d.fd);
+		g_close(disk.fd);
 	return (0);
 }

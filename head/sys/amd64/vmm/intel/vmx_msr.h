@@ -29,6 +29,15 @@
 #ifndef _VMX_MSR_H_
 #define	_VMX_MSR_H_
 
+struct vmx;
+
+void vmx_msr_init(void);
+void vmx_msr_guest_init(struct vmx *vmx, int vcpuid);
+void vmx_msr_guest_enter(struct vmx *vmx, int vcpuid);
+void vmx_msr_guest_exit(struct vmx *vmx, int vcpuid);
+int vmx_rdmsr(struct vmx *, int vcpuid, u_int num, uint64_t *val, bool *retu);
+int vmx_wrmsr(struct vmx *, int vcpuid, u_int num, uint64_t val, bool *retu);
+
 uint32_t vmx_revision(void);
 
 int vmx_set_ctlreg(int ctl_reg, int true_ctl_reg, uint32_t ones_mask,
@@ -51,5 +60,11 @@ int vmx_set_ctlreg(int ctl_reg, int true_ctl_reg, uint32_t ones_mask,
 #define	MSR_BITMAP_ACCESS_RW	(MSR_BITMAP_ACCESS_READ|MSR_BITMAP_ACCESS_WRITE)
 void	msr_bitmap_initialize(char *bitmap);
 int	msr_bitmap_change_access(char *bitmap, u_int msr, int access);
+
+#define	guest_msr_rw(vmx, msr) \
+    msr_bitmap_change_access((vmx)->msr_bitmap, (msr), MSR_BITMAP_ACCESS_RW)
+
+#define	guest_msr_ro(vmx, msr) \
+    msr_bitmap_change_access((vmx)->msr_bitmap, (msr), MSR_BITMAP_ACCESS_READ)
 
 #endif

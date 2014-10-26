@@ -3222,7 +3222,7 @@ bxe_tpa_stop(struct bxe_softc          *sc,
         m->m_flags |= M_FLOWID;
 #endif
 
-        if_incipackets(ifp, 1);
+        if_inc_counter(ifp, IFCOUNTER_IPACKETS, 1);
         fp->eth_q_stats.rx_tpa_pkts++;
 
         /* pass the frame to the stack */
@@ -3465,7 +3465,7 @@ next_rx:
 
         /* pass the frame to the stack */
         if (__predict_true(m != NULL)) {
-            if_incipackets(ifp, 1);
+            if_inc_counter(ifp, IFCOUNTER_IPACKETS, 1);
             rx_pkts++;
             if_input(ifp, m);
         }
@@ -13279,6 +13279,7 @@ bxe_init_ifnet(struct bxe_softc *sc)
     if_setflags(ifp, (IFF_BROADCAST | IFF_SIMPLEX | IFF_MULTICAST));
     if_setioctlfn(ifp, bxe_ioctl);
     if_setstartfn(ifp, bxe_tx_start);
+    if_setgetcounterfn(ifp, bxe_get_counter);
 #if __FreeBSD_version >= 800000
     if_settransmitfn(ifp, bxe_tx_mq_start);
     if_setqflushfn(ifp, bxe_mq_flush);
@@ -16215,7 +16216,7 @@ bxe_add_sysctls(struct bxe_softc *sc)
                       "version");
 
     SYSCTL_ADD_STRING(ctx, children, OID_AUTO, "bc_version",
-                      CTLFLAG_RD, &sc->devinfo.bc_ver_str, 0,
+                      CTLFLAG_RD, sc->devinfo.bc_ver_str, 0,
                       "bootcode version");
 
     snprintf(sc->fw_ver_str, sizeof(sc->fw_ver_str), "%d.%d.%d.%d",
@@ -16224,7 +16225,7 @@ bxe_add_sysctls(struct bxe_softc *sc)
              BCM_5710_FW_REVISION_VERSION,
              BCM_5710_FW_ENGINEERING_VERSION);
     SYSCTL_ADD_STRING(ctx, children, OID_AUTO, "fw_version",
-                      CTLFLAG_RD, &sc->fw_ver_str, 0,
+                      CTLFLAG_RD, sc->fw_ver_str, 0,
                       "firmware version");
 
     snprintf(sc->mf_mode_str, sizeof(sc->mf_mode_str), "%s",
@@ -16234,7 +16235,7 @@ bxe_add_sysctls(struct bxe_softc *sc)
          (sc->devinfo.mf_info.mf_mode == MULTI_FUNCTION_AFEX) ? "MF-AFEX" :
                                                                 "Unknown"));
     SYSCTL_ADD_STRING(ctx, children, OID_AUTO, "mf_mode",
-                      CTLFLAG_RD, &sc->mf_mode_str, 0,
+                      CTLFLAG_RD, sc->mf_mode_str, 0,
                       "multifunction mode");
 
     SYSCTL_ADD_UINT(ctx, children, OID_AUTO, "mf_vnics",
@@ -16242,7 +16243,7 @@ bxe_add_sysctls(struct bxe_softc *sc)
                     "multifunction vnics per port");
 
     SYSCTL_ADD_STRING(ctx, children, OID_AUTO, "mac_addr",
-                      CTLFLAG_RD, &sc->mac_addr_str, 0,
+                      CTLFLAG_RD, sc->mac_addr_str, 0,
                       "mac address");
 
     snprintf(sc->pci_link_str, sizeof(sc->pci_link_str), "%s x%d",
@@ -16252,12 +16253,12 @@ bxe_add_sysctls(struct bxe_softc *sc)
                                               "???GT/s"),
         sc->devinfo.pcie_link_width);
     SYSCTL_ADD_STRING(ctx, children, OID_AUTO, "pci_link",
-                      CTLFLAG_RD, &sc->pci_link_str, 0,
+                      CTLFLAG_RD, sc->pci_link_str, 0,
                       "pci link status");
 
     sc->debug = bxe_debug;
-    SYSCTL_ADD_UINT(ctx, children, OID_AUTO, "debug",
-                    CTLFLAG_RW, &sc->debug, 0,
+    SYSCTL_ADD_ULONG(ctx, children, OID_AUTO, "debug",
+                    CTLFLAG_RW, &sc->debug,
                     "debug logging mode");
 
     sc->rx_budget = bxe_rx_budget;

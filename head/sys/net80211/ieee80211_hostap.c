@@ -368,7 +368,7 @@ hostap_deliver_data(struct ieee80211vap *vap,
 	/*
 	 * Do accounting.
 	 */
-	ifp->if_ipackets++;
+	if_inc_counter(ifp, IFCOUNTER_IPACKETS, 1);
 	IEEE80211_NODE_STAT(ni, rx_data);
 	IEEE80211_NODE_STAT_ADD(ni, rx_bytes, m->m_pkthdr.len);
 	if (ETHER_IS_MULTICAST(eh->ether_dhost)) {
@@ -384,7 +384,7 @@ hostap_deliver_data(struct ieee80211vap *vap,
 		if (m->m_flags & M_MCAST) {
 			mcopy = m_dup(m, M_NOWAIT);
 			if (mcopy == NULL)
-				ifp->if_oerrors++;
+				if_inc_counter(ifp, IFCOUNTER_OERRORS, 1);
 			else
 				mcopy->m_flags |= M_MCAST;
 		} else {
@@ -422,7 +422,7 @@ hostap_deliver_data(struct ieee80211vap *vap,
 			if (err) {
 				/* NB: IFQ_HANDOFF reclaims mcopy */
 			} else {
-				ifp->if_opackets++;
+				if_inc_counter(ifp, IFCOUNTER_OPACKETS, 1);
 			}
 		}
 	}
@@ -909,7 +909,7 @@ hostap_input(struct ieee80211_node *ni, struct mbuf *m, int rssi, int nf)
 		break;
 	}
 err:
-	ifp->if_ierrors++;
+	if_inc_counter(ifp, IFCOUNTER_IERRORS, 1);
 out:
 	if (m != NULL) {
 		if (need_tap && ieee80211_radiotap_active_vap(vap))

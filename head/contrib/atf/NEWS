@@ -14,6 +14,9 @@ the 'tools' directory for your own consumption.
 * Removed the deprecated tools.  This includes atf-config, atf-report,
   atf-run and atf-version.
 
+* Issue #8: Fixed atf-c/macros_test:use test failures spotted by the clang
+  that ships with FreeBSD 11.0-CURRENT.
+
 
 Changes in version 0.19
 ***********************

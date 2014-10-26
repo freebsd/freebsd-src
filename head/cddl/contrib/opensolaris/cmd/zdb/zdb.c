@@ -76,8 +76,10 @@
 
 #ifndef lint
 extern boolean_t zfs_recover;
+extern uint64_t zfs_arc_max, zfs_arc_meta_limit;
 #else
 boolean_t zfs_recover;
+uint64_t zfs_arc_max, zfs_arc_meta_limit;
 #endif
 
 const char cmdname[] = "zdb";
@@ -89,7 +91,7 @@ extern void dump_intent_log(zilog_t *);
 uint64_t *zopt_object = NULL;
 int zopt_objects = 0;
 libzfs_handle_t *g_zfs;
-uint64_t max_inflight = 200;
+uint64_t max_inflight = 1000;
 
 /*
  * These libumem hooks provide a reasonable set of defaults for the allocator's
@@ -1461,6 +1463,11 @@ dump_deadlist(dsl_deadlist_t *dl)
 	if (dump_opt['d'] < 3)
 		return;
 
+	if (dl->dl_oldfmt) {
+		dump_bpobj(&dl->dl_bpobj, "old-format deadlist", 0);
+		return;
+	}
+
 	zdb_nicenum(dl->dl_phys->dl_used, bytes);
 	zdb_nicenum(dl->dl_phys->dl_comp, comp);
 	zdb_nicenum(dl->dl_phys->dl_uncomp, uncomp);
@@ -2377,7 +2384,7 @@ zdb_blkptr_cb(spa_t *spa, zilog_t *zilog, const blkptr_t *bp,
 
 	zcb->zcb_readfails = 0;
 
-	if (dump_opt['b'] < 5 && isatty(STDERR_FILENO) &&
+	if (dump_opt['b'] < 5 &&
 	    gethrtime() > zcb->zcb_lastprint + NANOSEC) {
 		uint64_t now = gethrtime();
 		char buf[10];
@@ -2462,9 +2469,9 @@ zdb_leak_init(spa_t *spa, zdb_cb_t *zcb)
 
 	if (!dump_opt['L']) {
 		vdev_t *rvd = spa->spa_root_vdev;
-		for (int c = 0; c < rvd->vdev_children; c++) {
+		for (uint64_t c = 0; c < rvd->vdev_children; c++) {
 			vdev_t *vd = rvd->vdev_child[c];
-			for (int m = 0; m < vd->vdev_ms_count; m++) {
+			for (uint64_t m = 0; m < vd->vdev_ms_count; m++) {
 				metaslab_t *msp = vd->vdev_ms[m];
 				mutex_enter(&msp->ms_lock);
 				metaslab_unload(msp);
@@ -2477,6 +2484,15 @@ zdb_leak_init(spa_t *spa, zdb_cb_t *zcb)
 				 * interfaces.
 				 */
 				if (msp->ms_sm != NULL) {
+					(void) fprintf(stderr,
+					    "\rloading space map for "
+					    "vdev %llu of %llu, "
+					    "metaslab %llu of %llu ...",
+					    (longlong_t)c,
+					    (longlong_t)rvd->vdev_children,
+					    (longlong_t)m,
+					    (longlong_t)vd->vdev_ms_count);
+
 					msp->ms_ops = &zdb_metaslab_ops;
 					VERIFY0(space_map_load(msp->ms_sm,
 					    msp->ms_tree, SM_ALLOC));
@@ -2485,6 +2501,7 @@ zdb_leak_init(spa_t *spa, zdb_cb_t *zcb)
 				mutex_exit(&msp->ms_lock);
 			}
 		}
+		(void) fprintf(stderr, "\n");
 	}
 
 	spa_config_enter(spa, SCL_CONFIG, FTAG, RW_READER);
@@ -2594,10 +2611,12 @@ dump_block_stats(spa_t *spa)
 	 * all async I/Os to complete.
 	 */
 	if (dump_opt['c']) {
-		(void) zio_wait(spa->spa_async_zio_root);
-		spa->spa_async_zio_root = zio_root(spa, NULL, NULL,
-		    ZIO_FLAG_CANFAIL | ZIO_FLAG_SPECULATIVE |
-		    ZIO_FLAG_GODFATHER);
+		for (int i = 0; i < max_ncpus; i++) {
+			(void) zio_wait(spa->spa_async_zio_root[i]);
+			spa->spa_async_zio_root[i] = zio_root(spa, NULL, NULL,
+			    ZIO_FLAG_CANFAIL | ZIO_FLAG_SPECULATIVE |
+			    ZIO_FLAG_GODFATHER);
+		}
 	}
 
 	if (zcb.zcb_haderrors) {
@@ -3482,6 +3501,12 @@ main(int argc, char **argv)
 		(void) fprintf(stderr, "-p option requires use of -e\n");
 		usage();
 	}
+
+	/*
+	 * ZDB does not typically re-read blocks; therefore limit the ARC
+	 * to 256 MB, which can be used entirely for metadata.
+	 */
+	zfs_arc_max = zfs_arc_meta_limit = 256 * 1024 * 1024;
 
 	kernel_init(FREAD);
 	g_zfs = libzfs_init();

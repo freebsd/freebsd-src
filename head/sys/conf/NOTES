@@ -351,6 +351,12 @@ options 	COMPAT_FREEBSD6
 # Enable FreeBSD7 compatibility syscalls
 options 	COMPAT_FREEBSD7
 
+# Enable FreeBSD9 compatibility syscalls
+options 	COMPAT_FREEBSD9
+
+# Enable FreeBSD10 compatibility syscalls
+options 	COMPAT_FREEBSD10
+
 #
 # These three options provide support for System V Interface
 # Definition-style interprocess communication, in the form of shared
@@ -794,6 +800,10 @@ device		ether
 #  The `vlan' device implements the VLAN tagging of Ethernet frames
 #  according to IEEE 802.1Q.
 device		vlan
+
+# The `vxlan' device implements the VXLAN encapsulation of Ethernet
+# frames in UDP packets according to RFC7348.
+device		vxlan
 
 #  The `wlan' device provides generic code to support 802.11
 #  drivers, including host AP mode; it is MANDATORY for the wi,
@@ -2095,8 +2105,6 @@ device		em		# Intel Pro/1000 Gigabit Ethernet
 device		igb		# Intel Pro/1000 PCIE Gigabit Ethernet
 device		ixgb		# Intel Pro/10Gbe PCI-X Ethernet
 device		ixgbe		# Intel Pro/10Gbe PCIE Ethernet
-device		ixl		# Intel XL710 40Gbe PCIE Ethernet
-device		ixlv		# Intel XL710 40Gbe VF PCIE Ethernet
 device		le		# AMD Am7900 LANCE and Am79C9xx PCnet
 device		mxge		# Myricom Myri-10G 10GbE NIC
 device		nxge		# Neterion Xframe 10GbE Server/Storage Adapter
@@ -2627,9 +2635,8 @@ options 	NSFBUFS=1024
 # Enable extra debugging code for locks.  This stores the filename and
 # line of whatever acquired the lock in the lock itself, and changes a
 # number of function calls to pass around the relevant data.  This is
-# not at all useful unless you are debugging lock code.  Also note
-# that it is likely to break e.g. fstat(1) unless you recompile your
-# userland with -DDEBUG_LOCKS as well.
+# not at all useful unless you are debugging lock code.  Note that
+# modules should be recompiled as this option modifies KBI.
 #
 options 	DEBUG_LOCKS
 
@@ -2961,6 +2968,7 @@ options 	SC_RENDER_DEBUG	# syscons rendering debugging
 options 	VFS_BIO_DEBUG	# VFS buffer I/O debugging
 
 options 	KSTACK_MAX_PAGES=32 # Maximum pages to give the kernel stack
+options 	KSTACK_USAGE_PROF
 
 # Adaptec Array Controller driver options
 options 	AAC_DEBUG	# Debugging levels:

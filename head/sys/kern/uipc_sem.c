@@ -62,6 +62,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/sysproto.h>
 #include <sys/systm.h>
 #include <sys/sx.h>
+#include <sys/user.h>
 #include <sys/vnode.h>
 
 #include <security/mac/mac_framework.h>
@@ -126,81 +127,30 @@ static int	ksem_module_init(void);
 static int	ksem_remove(char *path, Fnv32_t fnv, struct ucred *ucred);
 static int	sem_modload(struct module *module, int cmd, void *arg);
 
-static fo_rdwr_t	ksem_read;
-static fo_rdwr_t	ksem_write;
-static fo_truncate_t	ksem_truncate;
-static fo_ioctl_t	ksem_ioctl;
-static fo_poll_t	ksem_poll;
-static fo_kqfilter_t	ksem_kqfilter;
 static fo_stat_t	ksem_stat;
 static fo_close_t	ksem_closef;
 static fo_chmod_t	ksem_chmod;
 static fo_chown_t	ksem_chown;
+static fo_fill_kinfo_t	ksem_fill_kinfo;
 
 /* File descriptor operations. */
 static struct fileops ksem_ops = {
-	.fo_read = ksem_read,
-	.fo_write = ksem_write,
-	.fo_truncate = ksem_truncate,
-	.fo_ioctl = ksem_ioctl,
-	.fo_poll = ksem_poll,
-	.fo_kqfilter = ksem_kqfilter,
+	.fo_read = invfo_rdwr,
+	.fo_write = invfo_rdwr,
+	.fo_truncate = invfo_truncate,
+	.fo_ioctl = invfo_ioctl,
+	.fo_poll = invfo_poll,
+	.fo_kqfilter = invfo_kqfilter,
 	.fo_stat = ksem_stat,
 	.fo_close = ksem_closef,
 	.fo_chmod = ksem_chmod,
 	.fo_chown = ksem_chown,
 	.fo_sendfile = invfo_sendfile,
+	.fo_fill_kinfo = ksem_fill_kinfo,
 	.fo_flags = DFLAG_PASSABLE
 };
 
 FEATURE(posix_sem, "POSIX semaphores");
-
-static int
-ksem_read(struct file *fp, struct uio *uio, struct ucred *active_cred,
-    int flags, struct thread *td)
-{
-
-	return (EOPNOTSUPP);
-}
-
-static int
-ksem_write(struct file *fp, struct uio *uio, struct ucred *active_cred,
-    int flags, struct thread *td)
-{
-
-	return (EOPNOTSUPP);
-}
-
-static int
-ksem_truncate(struct file *fp, off_t length, struct ucred *active_cred,
-    struct thread *td)
-{
-
-	return (EINVAL);
-}
-
-static int
-ksem_ioctl(struct file *fp, u_long com, void *data,
-    struct ucred *active_cred, struct thread *td)
-{
-
-	return (EOPNOTSUPP);
-}
-
-static int
-ksem_poll(struct file *fp, int events, struct ucred *active_cred,
-    struct thread *td)
-{
-
-	return (EOPNOTSUPP);
-}
-
-static int
-ksem_kqfilter(struct file *fp, struct knote *kn)
-{
-
-	return (EOPNOTSUPP);
-}
 
 static int
 ksem_stat(struct file *fp, struct stat *sb, struct ucred *active_cred,
@@ -302,6 +252,26 @@ ksem_closef(struct file *fp, struct thread *td)
 	fp->f_data = NULL;
 	ksem_drop(ks);
 
+	return (0);
+}
+
+static int
+ksem_fill_kinfo(struct file *fp, struct kinfo_file *kif, struct filedesc *fdp)
+{
+	struct ksem *ks;
+
+	kif->kf_type = KF_TYPE_SEM;
+	ks = fp->f_data;
+	mtx_lock(&sem_lock);
+	kif->kf_un.kf_sem.kf_sem_value = ks->ks_value;
+	kif->kf_un.kf_sem.kf_sem_mode = S_IFREG | ks->ks_mode;	/* XXX */
+	mtx_unlock(&sem_lock);
+	if (ks->ks_path != NULL) {
+		sx_slock(&ksem_dict_lock);
+		if (ks->ks_path != NULL)
+			strlcpy(kif->kf_path, ks->ks_path, sizeof(kif->kf_path));
+		sx_sunlock(&ksem_dict_lock);
+	}
 	return (0);
 }
 
@@ -439,20 +409,6 @@ ksem_remove(char *path, Fnv32_t fnv, struct ucred *ucred)
 	}
 
 	return (ENOENT);
-}
-
-static void
-ksem_info_impl(struct ksem *ks, char *path, size_t size, uint32_t *value)
-{
-
-	if (ks->ks_path == NULL)
-		return;
-	sx_slock(&ksem_dict_lock);
-	if (ks->ks_path != NULL)
-		strlcpy(path, ks->ks_path, size);
-	if (value != NULL)
-		*value = ks->ks_value;
-	sx_sunlock(&ksem_dict_lock);
 }
 
 static int
@@ -1036,7 +992,6 @@ ksem_module_init(void)
 	p31b_setcfg(CTL_P1003_1B_SEMAPHORES, 200112L);
 	p31b_setcfg(CTL_P1003_1B_SEM_NSEMS_MAX, SEM_MAX);
 	p31b_setcfg(CTL_P1003_1B_SEM_VALUE_MAX, SEM_VALUE_MAX);
-	ksem_info = ksem_info_impl;
 
 	error = syscall_helper_register(ksem_syscalls);
 	if (error)
@@ -1058,7 +1013,6 @@ ksem_module_destroy(void)
 #endif
 	syscall_helper_unregister(ksem_syscalls);
 
-	ksem_info = NULL;
 	p31b_setcfg(CTL_P1003_1B_SEMAPHORES, 0);
 	hashdestroy(ksem_dictionary, M_KSEM, ksem_hash);
 	sx_destroy(&ksem_dict_lock);

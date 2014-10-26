@@ -288,12 +288,12 @@ fddi_output(struct ifnet *ifp, struct mbuf *m, const struct sockaddr *dst,
 
 	error = (ifp->if_transmit)(ifp, m);
 	if (error)
-		ifp->if_oerrors++;
+		if_inc_counter(ifp, IFCOUNTER_OERRORS, 1);
 
 	return (error);
 
 bad:
-	ifp->if_oerrors++;
+	if_inc_counter(ifp, IFCOUNTER_OERRORS, 1);
 	if (m)
 		m_freem(m);
 	return (error);
@@ -317,20 +317,20 @@ fddi_input(ifp, m)
 	 */
 	if ((m->m_flags & M_PKTHDR) == 0) {
 		if_printf(ifp, "discard frame w/o packet header\n");
-		ifp->if_ierrors++;
+		if_inc_counter(ifp, IFCOUNTER_IERRORS, 1);
 		m_freem(m);
 		return;
 	}
 	if (m->m_pkthdr.rcvif == NULL) {
 		if_printf(ifp, "discard frame w/o interface pointer\n");
-		ifp->if_ierrors++;
+		if_inc_counter(ifp, IFCOUNTER_IERRORS, 1);
 		m_freem(m);
 		return;
         }
 
 	m = m_pullup(m, FDDI_HDR_LEN);
 	if (m == NULL) {
-		ifp->if_ierrors++;
+		if_inc_counter(ifp, IFCOUNTER_IERRORS, 1);
 		goto dropanyway;
 	}
 	fh = mtod(m, struct fddi_header *);
@@ -362,7 +362,7 @@ fddi_input(ifp, m)
 	/*
 	 * Update interface statistics.
 	 */
-	ifp->if_ibytes += m->m_pkthdr.len;
+	if_inc_counter(ifp, IFCOUNTER_IBYTES, m->m_pkthdr.len);
 	getmicrotime(&ifp->if_lastchange);
 
 	/*
@@ -383,7 +383,7 @@ fddi_input(ifp, m)
 			m->m_flags |= M_BCAST;
 		else
 			m->m_flags |= M_MCAST;
-		ifp->if_imcasts++;
+		if_inc_counter(ifp, IFCOUNTER_IMCASTS, 1);
 	}
 
 #ifdef M_LINK0
@@ -401,7 +401,7 @@ fddi_input(ifp, m)
 
 	m = m_pullup(m, LLC_SNAPFRAMELEN);
 	if (m == 0) {
-		ifp->if_ierrors++;
+		if_inc_counter(ifp, IFCOUNTER_IERRORS, 1);
 		goto dropanyway;
 	}
 	l = mtod(m, struct llc *);
@@ -412,13 +412,13 @@ fddi_input(ifp, m)
 		u_int16_t type;
 		if ((l->llc_control != LLC_UI) ||
 		    (l->llc_ssap != LLC_SNAP_LSAP)) {
-			ifp->if_noproto++;
+			if_inc_counter(ifp, IFCOUNTER_NOPROTO, 1);
 			goto dropanyway;
 		}
 		if (l->llc_snap.org_code[0] != 0 ||
 		    l->llc_snap.org_code[1] != 0 ||
 		    l->llc_snap.org_code[2] != 0) {
-			ifp->if_noproto++;
+			if_inc_counter(ifp, IFCOUNTER_NOPROTO, 1);
 			goto dropanyway;
 		}
 
@@ -451,7 +451,7 @@ fddi_input(ifp, m)
 #endif
 		default:
 			/* printf("fddi_input: unknown protocol 0x%x\n", type); */
-			ifp->if_noproto++;
+			if_inc_counter(ifp, IFCOUNTER_NOPROTO, 1);
 			goto dropanyway;
 		}
 		break;
@@ -459,7 +459,7 @@ fddi_input(ifp, m)
 		
 	default:
 		/* printf("fddi_input: unknown dsap 0x%x\n", l->llc_dsap); */
-		ifp->if_noproto++;
+		if_inc_counter(ifp, IFCOUNTER_NOPROTO, 1);
 		goto dropanyway;
 	}
 	M_SETFIB(m, ifp->if_fib);
@@ -467,7 +467,7 @@ fddi_input(ifp, m)
 	return;
 
 dropanyway:
-	ifp->if_iqdrops++;
+	if_inc_counter(ifp, IFCOUNTER_IQDROPS, 1);
 	if (m)
 		m_freem(m);
 	return;

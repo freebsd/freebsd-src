@@ -1819,6 +1819,8 @@ tcp_maxmtu(struct in_conninfo *inc, struct tcp_ifcap *cap)
 			    ifp->if_hwassist & CSUM_TSO) {
 				cap->ifcap |= CSUM_TSO;
 				cap->tsomax = ifp->if_hw_tsomax;
+				cap->tsomaxsegcount = ifp->if_hw_tsomaxsegcount;
+				cap->tsomaxsegsize = ifp->if_hw_tsomaxsegsize;
 			}
 		}
 		RTFREE(sro.ro_rt);
@@ -1858,6 +1860,8 @@ tcp_maxmtu6(struct in_conninfo *inc, struct tcp_ifcap *cap)
 			    ifp->if_hwassist & CSUM_TSO) {
 				cap->ifcap |= CSUM_TSO;
 				cap->tsomax = ifp->if_hw_tsomax;
+				cap->tsomaxsegcount = ifp->if_hw_tsomaxsegcount;
+				cap->tsomaxsegsize = ifp->if_hw_tsomaxsegsize;
 			}
 		}
 		RTFREE(sro6.ro_rt);
@@ -1924,55 +1928,20 @@ tcp_signature_apply(void *fstate, void *data, u_int len)
 }
 
 /*
- * Compute TCP-MD5 hash of a TCP segment. (RFC2385)
- *
- * Parameters:
- * m		pointer to head of mbuf chain
- * _unused	
- * len		length of TCP segment data, excluding options
- * optlen	length of TCP segment options
- * buf		pointer to storage for computed MD5 digest
- * direction	direction of flow (IPSEC_DIR_INBOUND or OUTBOUND)
- *
- * We do this over ip, tcphdr, segment data, and the key in the SADB.
- * When called from tcp_input(), we can be sure that th_sum has been
- * zeroed out and verified already.
- *
- * Return 0 if successful, otherwise return -1.
- *
  * XXX The key is retrieved from the system's PF_KEY SADB, by keying a
  * search with the destination IP address, and a 'magic SPI' to be
  * determined by the application. This is hardcoded elsewhere to 1179
- * right now. Another branch of this code exists which uses the SPD to
- * specify per-application flows but it is unstable.
- */
-int
-tcp_signature_compute(struct mbuf *m, int _unused, int len, int optlen,
-    u_char *buf, u_int direction)
+*/
+struct secasvar *
+tcp_get_sav(struct mbuf *m, u_int direction)
 {
 	union sockaddr_union dst;
-#ifdef INET
-	struct ippseudo ippseudo;
-#endif
-	MD5_CTX ctx;
-	int doff;
-	struct ip *ip;
-#ifdef INET
-	struct ipovly *ipovly;
-#endif
 	struct secasvar *sav;
-	struct tcphdr *th;
+	struct ip *ip;
 #ifdef INET6
 	struct ip6_hdr *ip6;
-	struct in6_addr in6;
 	char ip6buf[INET6_ADDRSTRLEN];
-	uint32_t plen;
-	uint16_t nhdr;
 #endif
-	u_short savecsum;
-
-	KASSERT(m != NULL, ("NULL mbuf chain"));
-	KASSERT(buf != NULL, ("NULL signature pointer"));
 
 	/* Extract the destination from the IP header in the mbuf. */
 	bzero(&dst, sizeof(union sockaddr_union));
@@ -1999,7 +1968,7 @@ tcp_signature_compute(struct mbuf *m, int _unused, int len, int optlen,
 		break;
 #endif
 	default:
-		return (EINVAL);
+		return (NULL);
 		/* NOTREACHED */
 		break;
 	}
@@ -2014,8 +1983,60 @@ tcp_signature_compute(struct mbuf *m, int _unused, int len, int optlen,
 			    ip6_sprintf(ip6buf, &dst.sin6.sin6_addr) :
 #endif
 			"(unsupported)"));
-		return (EINVAL);
 	}
+
+	return (sav);
+}
+
+/*
+ * Compute TCP-MD5 hash of a TCP segment. (RFC2385)
+ *
+ * Parameters:
+ * m		pointer to head of mbuf chain
+ * len		length of TCP segment data, excluding options
+ * optlen	length of TCP segment options
+ * buf		pointer to storage for computed MD5 digest
+ * sav		pointer to security assosiation
+ *
+ * We do this over ip, tcphdr, segment data, and the key in the SADB.
+ * When called from tcp_input(), we can be sure that th_sum has been
+ * zeroed out and verified already.
+ *
+ * Releases reference to SADB key before return. 
+ *
+ * Return 0 if successful, otherwise return -1.
+ *
+ */
+int
+tcp_signature_do_compute(struct mbuf *m, int len, int optlen,
+    u_char *buf, struct secasvar *sav)
+{
+#ifdef INET
+	struct ippseudo ippseudo;
+#endif
+	MD5_CTX ctx;
+	int doff;
+	struct ip *ip;
+#ifdef INET
+	struct ipovly *ipovly;
+#endif
+	struct tcphdr *th;
+#ifdef INET6
+	struct ip6_hdr *ip6;
+	struct in6_addr in6;
+	uint32_t plen;
+	uint16_t nhdr;
+#endif
+	u_short savecsum;
+
+	KASSERT(m != NULL, ("NULL mbuf chain"));
+	KASSERT(buf != NULL, ("NULL signature pointer"));
+
+	/* Extract the destination from the IP header in the mbuf. */
+	ip = mtod(m, struct ip *);
+#ifdef INET6
+	ip6 = NULL;	/* Make the compiler happy. */
+#endif
 
 	MD5Init(&ctx);
 	/*
@@ -2073,7 +2094,7 @@ tcp_signature_compute(struct mbuf *m, int _unused, int len, int optlen,
 		break;
 #endif
 	default:
-		return (EINVAL);
+		return (-1);
 		/* NOTREACHED */
 		break;
 	}
@@ -2104,6 +2125,23 @@ tcp_signature_compute(struct mbuf *m, int _unused, int len, int optlen,
 	key_sa_recordxfer(sav, m);
 	KEY_FREESAV(&sav);
 	return (0);
+}
+
+/*
+ * Compute TCP-MD5 hash of a TCP segment. (RFC2385)
+ *
+ * Return 0 if successful, otherwise return -1.
+ */
+int
+tcp_signature_compute(struct mbuf *m, int _unused, int len, int optlen,
+    u_char *buf, u_int direction)
+{
+	struct secasvar *sav;
+
+	if ((sav = tcp_get_sav(m, direction)) == NULL)
+		return (-1);
+
+	return (tcp_signature_do_compute(m, len, optlen, buf, sav));
 }
 
 /*

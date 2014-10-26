@@ -511,6 +511,9 @@ struct xnb_softc {
 
 	/** The size of the global kva pool. */
 	int			kva_size;
+
+	/** Name of the interface */
+	char			 if_name[IFNAMSIZ];
 };
 
 /*---------------------------- Debugging functions ---------------------------*/
@@ -1201,6 +1204,7 @@ create_netdev(device_t dev)
 	struct ifnet *ifp;
 	struct xnb_softc *xnb;
 	int err = 0;
+	uint32_t handle;
 
 	xnb = device_get_softc(dev);
 	mtx_init(&xnb->sc_lock, "xnb_softc", "xen netback softc lock", MTX_DEF);
@@ -1225,11 +1229,24 @@ create_netdev(device_t dev)
 	 */
 	bzero(&xnb->mac[0], sizeof(xnb->mac));
 
+	/* The interface will be named using the following nomenclature:
+	 *
+	 * xnb<domid>.<handle>
+	 *
+	 * Where handle is the oder of the interface referred to the guest.
+	 */
+	err = xs_scanf(XST_NIL, xenbus_get_node(xnb->dev), "handle", NULL,
+		       "%" PRIu32, &handle);
+	if (err != 0)
+		return (err);
+	snprintf(xnb->if_name, IFNAMSIZ, "xnb%" PRIu16 ".%" PRIu32,
+	    xenbus_get_otherend_id(dev), handle);
+
 	if (err == 0) {
 		/* Set up ifnet structure */
 		ifp = xnb->xnb_ifp = if_alloc(IFT_ETHER);
 		ifp->if_softc = xnb;
-		if_initname(ifp, "xnb",  device_get_unit(dev));
+		if_initname(ifp, xnb->if_name,  IF_DUNIT_NONE);
 		ifp->if_flags = IFF_BROADCAST | IFF_SIMPLEX | IFF_MULTICAST;
 		ifp->if_ioctl = xnb_ioctl;
 		ifp->if_output = ether_output;
@@ -1829,7 +1846,7 @@ xnb_recv(netif_tx_back_ring_t *txb, domid_t otherend, struct mbuf **mbufc,
 		return 0;	/* Nothing to receive */
 
 	/* update statistics independent of errors */
-	ifnet->if_ipackets++;
+	if_inc_counter(ifnet, IFCOUNTER_IPACKETS, 1);
 
 	/*
 	 * if we got here, then 1 or more requests was consumed, but the packet
@@ -1841,7 +1858,7 @@ xnb_recv(netif_tx_back_ring_t *txb, domid_t otherend, struct mbuf **mbufc,
 		txb->req_cons += num_consumed;
 		DPRINTF("xnb_intr: garbage packet, num_consumed=%d\n",
 				num_consumed);
-		ifnet->if_ierrors++;
+		if_inc_counter(ifnet, IFCOUNTER_IERRORS, 1);
 		return EINVAL;
 	}
 
@@ -1855,7 +1872,7 @@ xnb_recv(netif_tx_back_ring_t *txb, domid_t otherend, struct mbuf **mbufc,
 		xnb_txpkt2rsp(&pkt, txb, 1);
 		DPRINTF("xnb_intr: Couldn't allocate mbufs, num_consumed=%d\n",
 		    num_consumed);
-		ifnet->if_iqdrops++;
+		if_inc_counter(ifnet, IFCOUNTER_IQDROPS, 1);
 		return ENOMEM;
 	}
 
@@ -2364,12 +2381,12 @@ xnb_start_locked(struct ifnet *ifp)
 
 				case EINVAL:
 					/* OS gave a corrupt packet.  Drop it.*/
-					ifp->if_oerrors++;
+					if_inc_counter(ifp, IFCOUNTER_OERRORS, 1);
 					/* FALLTHROUGH */
 				default:
 					/* Send succeeded, or packet had error.
 					 * Free the packet */
-					ifp->if_opackets++;
+					if_inc_counter(ifp, IFCOUNTER_OPACKETS, 1);
 					if (mbufc)
 						m_freem(mbufc);
 					break;

@@ -135,8 +135,8 @@ static LIST_HEAD(,uma_keg) uma_kegs = LIST_HEAD_INITIALIZER(uma_kegs);
 static LIST_HEAD(,uma_zone) uma_cachezones =
     LIST_HEAD_INITIALIZER(uma_cachezones);
 
-/* This mutex protects the keg list */
-static struct mtx_padalign uma_mtx;
+/* This RW lock protects the keg list */
+static struct rwlock_padalign uma_rwlock;
 
 /* Linked list of boot time pages */
 static LIST_HEAD(,uma_slab) uma_boot_pages =
@@ -897,16 +897,14 @@ zone_drain_wait(uma_zone_t zone, int waitok)
 	while (zone->uz_flags & UMA_ZFLAG_DRAINING) {
 		if (waitok == M_NOWAIT)
 			goto out;
-		mtx_unlock(&uma_mtx);
 		msleep(zone, zone->uz_lockptr, PVM, "zonedrain", 1);
-		mtx_lock(&uma_mtx);
 	}
 	zone->uz_flags |= UMA_ZFLAG_DRAINING;
 	bucket_cache_drain(zone);
 	ZONE_UNLOCK(zone);
 	/*
 	 * The DRAINING flag protects us from being freed while
-	 * we're running.  Normally the uma_mtx would protect us but we
+	 * we're running.  Normally the uma_rwlock would protect us but we
 	 * must be able to release and acquire the right lock for each keg.
 	 */
 	zone_foreach_keg(zone, &keg_drain);
@@ -1542,9 +1540,9 @@ keg_ctor(void *mem, int size, void *udata, int flags)
 
 	LIST_INSERT_HEAD(&keg->uk_zones, zone, uz_link);
 
-	mtx_lock(&uma_mtx);
+	rw_wlock(&uma_rwlock);
 	LIST_INSERT_HEAD(&uma_kegs, keg, uk_link);
-	mtx_unlock(&uma_mtx);
+	rw_wunlock(&uma_rwlock);
 	return (0);
 }
 
@@ -1594,9 +1592,9 @@ zone_ctor(void *mem, int size, void *udata, int flags)
 		zone->uz_release = arg->release;
 		zone->uz_arg = arg->arg;
 		zone->uz_lockptr = &zone->uz_lock;
-		mtx_lock(&uma_mtx);
+		rw_wlock(&uma_rwlock);
 		LIST_INSERT_HEAD(&uma_cachezones, zone, uz_link);
-		mtx_unlock(&uma_mtx);
+		rw_wunlock(&uma_rwlock);
 		goto out;
 	}
 
@@ -1613,7 +1611,7 @@ zone_ctor(void *mem, int size, void *udata, int flags)
 		zone->uz_fini = arg->fini;
 		zone->uz_lockptr = &keg->uk_lock;
 		zone->uz_flags |= UMA_ZONE_SECONDARY;
-		mtx_lock(&uma_mtx);
+		rw_wlock(&uma_rwlock);
 		ZONE_LOCK(zone);
 		LIST_FOREACH(z, &keg->uk_zones, uz_link) {
 			if (LIST_NEXT(z, uz_link) == NULL) {
@@ -1622,7 +1620,7 @@ zone_ctor(void *mem, int size, void *udata, int flags)
 			}
 		}
 		ZONE_UNLOCK(zone);
-		mtx_unlock(&uma_mtx);
+		rw_wunlock(&uma_rwlock);
 	} else if (keg == NULL) {
 		if ((keg = uma_kcreate(zone, arg->size, arg->uminit, arg->fini,
 		    arg->align, arg->flags)) == NULL)
@@ -1720,9 +1718,9 @@ zone_dtor(void *arg, int size, void *udata)
 	if (!(zone->uz_flags & UMA_ZFLAG_INTERNAL))
 		cache_drain(zone);
 
-	mtx_lock(&uma_mtx);
+	rw_wlock(&uma_rwlock);
 	LIST_REMOVE(zone, uz_link);
-	mtx_unlock(&uma_mtx);
+	rw_wunlock(&uma_rwlock);
 	/*
 	 * XXX there are some races here where
 	 * the zone can be drained but zone lock
@@ -1744,9 +1742,9 @@ zone_dtor(void *arg, int size, void *udata)
 	 * We only destroy kegs from non secondary zones.
 	 */
 	if (keg != NULL && (zone->uz_flags & UMA_ZONE_SECONDARY) == 0)  {
-		mtx_lock(&uma_mtx);
+		rw_wlock(&uma_rwlock);
 		LIST_REMOVE(keg, uk_link);
-		mtx_unlock(&uma_mtx);
+		rw_wunlock(&uma_rwlock);
 		zone_free_item(kegs, keg, NULL, SKIP_NONE);
 	}
 	ZONE_LOCK_FINI(zone);
@@ -1768,12 +1766,12 @@ zone_foreach(void (*zfunc)(uma_zone_t))
 	uma_keg_t keg;
 	uma_zone_t zone;
 
-	mtx_lock(&uma_mtx);
+	rw_rlock(&uma_rwlock);
 	LIST_FOREACH(keg, &uma_kegs, uk_link) {
 		LIST_FOREACH(zone, &keg->uk_zones, uz_link)
 			zfunc(zone);
 	}
-	mtx_unlock(&uma_mtx);
+	rw_runlock(&uma_rwlock);
 }
 
 /* Public functions */
@@ -1789,7 +1787,7 @@ uma_startup(void *bootmem, int boot_pages)
 #ifdef UMA_DEBUG
 	printf("Creating uma keg headers zone and keg.\n");
 #endif
-	mtx_init(&uma_mtx, "UMA lock", NULL, MTX_DEF);
+	rw_init(&uma_rwlock, "UMA lock");
 
 	/* "manually" create the initial zone */
 	memset(&args, 0, sizeof(args));
@@ -3364,12 +3362,12 @@ sysctl_vm_zone_count(SYSCTL_HANDLER_ARGS)
 	int count;
 
 	count = 0;
-	mtx_lock(&uma_mtx);
+	rw_rlock(&uma_rwlock);
 	LIST_FOREACH(kz, &uma_kegs, uk_link) {
 		LIST_FOREACH(z, &kz->uk_zones, uz_link)
 			count++;
 	}
-	mtx_unlock(&uma_mtx);
+	rw_runlock(&uma_rwlock);
 	return (sysctl_handle_int(oidp, &count, 0, req));
 }
 
@@ -3394,7 +3392,7 @@ sysctl_vm_zone_stats(SYSCTL_HANDLER_ARGS)
 	sbuf_new_for_sysctl(&sbuf, NULL, 128, req);
 
 	count = 0;
-	mtx_lock(&uma_mtx);
+	rw_rlock(&uma_rwlock);
 	LIST_FOREACH(kz, &uma_kegs, uk_link) {
 		LIST_FOREACH(z, &kz->uk_zones, uz_link)
 			count++;
@@ -3470,7 +3468,7 @@ skip:
 			ZONE_UNLOCK(z);
 		}
 	}
-	mtx_unlock(&uma_mtx);
+	rw_runlock(&uma_rwlock);
 	error = sbuf_finish(&sbuf);
 	sbuf_delete(&sbuf);
 	return (error);

@@ -211,8 +211,8 @@ faithoutput(struct ifnet *ifp, struct mbuf *m, const struct sockaddr *dst,
 		return (rt->rt_flags & RTF_BLACKHOLE ? 0 :
 		        rt->rt_flags & RTF_HOST ? EHOSTUNREACH : ENETUNREACH);
 	}
-	ifp->if_opackets++;
-	ifp->if_obytes += m->m_pkthdr.len;
+	if_inc_counter(ifp, IFCOUNTER_OPACKETS, 1);
+	if_inc_counter(ifp, IFCOUNTER_OBYTES, m->m_pkthdr.len);
 	switch (af) {
 #ifdef INET
 	case AF_INET:
@@ -232,8 +232,8 @@ faithoutput(struct ifnet *ifp, struct mbuf *m, const struct sockaddr *dst,
 	/* XXX do we need more sanity checks? */
 
 	m->m_pkthdr.rcvif = ifp;
-	ifp->if_ipackets++;
-	ifp->if_ibytes += m->m_pkthdr.len;
+	if_inc_counter(ifp, IFCOUNTER_IPACKETS, 1);
+	if_inc_counter(ifp, IFCOUNTER_IBYTES, m->m_pkthdr.len);
 	netisr_dispatch(isr, m);
 	return (0);
 }

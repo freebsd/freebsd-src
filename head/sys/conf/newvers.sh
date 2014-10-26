@@ -89,7 +89,7 @@ fi
 touch version
 v=`cat version` u=${USER:-root} d=`pwd` h=${HOSTNAME:-`hostname`} t=`date`
 i=`${MAKE:-make} -V KERN_IDENT`
-compiler_v=$($(${MAKE:-make} -V CC) -v 2>&1 | grep 'version')
+compiler_v=$($(${MAKE:-make} -V CC) -v 2>&1 | grep -w 'version')
 
 for dir in /usr/bin /usr/local/bin; do
 	if [ ! -z "${svnversion}" ] ; then

@@ -14,7 +14,7 @@
 
 @SET_MAKE@
 
-# $Id: Makefile.am 714 2013-08-19 15:30:21Z des $
+# $Id: Makefile.am 763 2014-02-26 16:29:16Z des $
 
 VPATH = @srcdir@
 am__is_gnu_make = test -n '$(MAKEFILE_LIST)' && test -n '$(MAKELEVEL)'
@@ -80,17 +80,15 @@ PRE_UNINSTALL = :
 POST_UNINSTALL = :
 build_triplet = @build@
 host_triplet = @host@
-TESTS = t_openpam_readword$(EXEEXT) t_openpam_readlinev$(EXEEXT)
+TESTS = t_openpam_ctype$(EXEEXT) t_openpam_readword$(EXEEXT) \
+	t_openpam_readlinev$(EXEEXT)
 check_PROGRAMS = $(am__EXEEXT_1)
 subdir = t
 DIST_COMMON = $(srcdir)/Makefile.in $(srcdir)/Makefile.am \
 	$(top_srcdir)/depcomp $(noinst_HEADERS) \
 	$(top_srcdir)/test-driver
 ACLOCAL_M4 = $(top_srcdir)/aclocal.m4
-am__aclocal_m4_deps = $(top_srcdir)/m4/libtool.m4 \
-	$(top_srcdir)/m4/ltoptions.m4 $(top_srcdir)/m4/ltsugar.m4 \
-	$(top_srcdir)/m4/ltversion.m4 $(top_srcdir)/m4/lt~obsolete.m4 \
-	$(top_srcdir)/configure.ac
+am__aclocal_m4_deps = $(top_srcdir)/configure.ac
 am__configure_deps = $(am__aclocal_m4_deps) $(CONFIGURE_DEPENDENCIES) \
 	$(ACLOCAL_M4)
 mkinstalldirs = $(install_sh) -d
@@ -106,17 +104,22 @@ libt_a_AR = $(AR) $(ARFLAGS)
 libt_a_LIBADD =
 am_libt_a_OBJECTS = t_main.$(OBJEXT) t_file.$(OBJEXT)
 libt_a_OBJECTS = $(am_libt_a_OBJECTS)
-am__EXEEXT_1 = t_openpam_readword$(EXEEXT) \
+am__EXEEXT_1 = t_openpam_ctype$(EXEEXT) t_openpam_readword$(EXEEXT) \
 	t_openpam_readlinev$(EXEEXT)
-t_openpam_readlinev_SOURCES = t_openpam_readlinev.c
-t_openpam_readlinev_OBJECTS = t_openpam_readlinev.$(OBJEXT)
-t_openpam_readlinev_LDADD = $(LDADD)
-t_openpam_readlinev_DEPENDENCIES = libt.a \
+t_openpam_ctype_SOURCES = t_openpam_ctype.c
+t_openpam_ctype_OBJECTS = t_openpam_ctype.$(OBJEXT)
+t_openpam_ctype_LDADD = $(LDADD)
+t_openpam_ctype_DEPENDENCIES = libt.a \
 	$(top_builddir)/lib/libpam/libpam.la
 AM_V_lt = $(am__v_lt_@AM_V@)
 am__v_lt_ = $(am__v_lt_@AM_DEFAULT_V@)
 am__v_lt_0 = --silent
 am__v_lt_1 = 
+t_openpam_readlinev_SOURCES = t_openpam_readlinev.c
+t_openpam_readlinev_OBJECTS = t_openpam_readlinev.$(OBJEXT)
+t_openpam_readlinev_LDADD = $(LDADD)
+t_openpam_readlinev_DEPENDENCIES = libt.a \
+	$(top_builddir)/lib/libpam/libpam.la
 t_openpam_readword_SOURCES = t_openpam_readword.c
 t_openpam_readword_OBJECTS = t_openpam_readword.$(OBJEXT)
 t_openpam_readword_LDADD = $(LDADD)
@@ -156,9 +159,10 @@ AM_V_CCLD = $(am__v_CCLD_@AM_V@)
 am__v_CCLD_ = $(am__v_CCLD_@AM_DEFAULT_V@)
 am__v_CCLD_0 = @echo "  CCLD    " $@;
 am__v_CCLD_1 = 
-SOURCES = $(libt_a_SOURCES) t_openpam_readlinev.c t_openpam_readword.c
-DIST_SOURCES = $(libt_a_SOURCES) t_openpam_readlinev.c \
+SOURCES = $(libt_a_SOURCES) t_openpam_ctype.c t_openpam_readlinev.c \
 	t_openpam_readword.c
+DIST_SOURCES = $(libt_a_SOURCES) t_openpam_ctype.c \
+	t_openpam_readlinev.c t_openpam_readword.c
 am__can_run_installinfo = \
   case $$AM_UPDATE_INFO_DIR in \
     n|no|NO) false;; \
@@ -569,6 +573,10 @@ clean-checkPROGRAMS:
 	echo " rm -f" $$list; \
 	rm -f $$list
 
+t_openpam_ctype$(EXEEXT): $(t_openpam_ctype_OBJECTS) $(t_openpam_ctype_DEPENDENCIES) $(EXTRA_t_openpam_ctype_DEPENDENCIES) 
+	@rm -f t_openpam_ctype$(EXEEXT)
+	$(AM_V_CCLD)$(LINK) $(t_openpam_ctype_OBJECTS) $(t_openpam_ctype_LDADD) $(LIBS)
+
 t_openpam_readlinev$(EXEEXT): $(t_openpam_readlinev_OBJECTS) $(t_openpam_readlinev_DEPENDENCIES) $(EXTRA_t_openpam_readlinev_DEPENDENCIES) 
 	@rm -f t_openpam_readlinev$(EXEEXT)
 	$(AM_V_CCLD)$(LINK) $(t_openpam_readlinev_OBJECTS) $(t_openpam_readlinev_LDADD) $(LIBS)
@@ -585,6 +593,7 @@ distclean-compile:
 
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/t_file.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/t_main.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/t_openpam_ctype.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/t_openpam_readlinev.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/t_openpam_readword.Po@am__quote@
 
@@ -808,6 +817,13 @@ recheck: all $(check_LIBRARIES) $(check_PROGRAMS)
 	        am__force_recheck=am--force-recheck \
 	        TEST_LOGS="$$log_list"; \
 	exit $$?
+t_openpam_ctype.log: t_openpam_ctype$(EXEEXT)
+	@p='t_openpam_ctype$(EXEEXT)'; \
+	b='t_openpam_ctype'; \
+	$(am__check_pre) $(LOG_DRIVER) --test-name "$$f" \
+	--log-file $$b.log --trs-file $$b.trs \
+	$(am__common_driver_flags) $(AM_LOG_DRIVER_FLAGS) $(LOG_DRIVER_FLAGS) -- $(LOG_COMPILE) \
+	"$$tst" $(AM_TESTS_FD_REDIRECT)
 t_openpam_readword.log: t_openpam_readword$(EXEEXT)
 	@p='t_openpam_readword$(EXEEXT)'; \
 	b='t_openpam_readword'; \

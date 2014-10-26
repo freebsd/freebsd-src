@@ -112,10 +112,10 @@ ${GEN_KX509}: kx509.asn1
 .SUFFIXES: .h .c .x .hx
 
 .x.c:
-	cp ${.IMPSRC} ${.TARGET}
+	cp -f ${.IMPSRC} ${.TARGET}
 
 .hx.h:
-	cp ${.IMPSRC} ${.TARGET}
+	cp -f ${.IMPSRC} ${.TARGET}
 	
 .include <bsd.lib.mk>
 

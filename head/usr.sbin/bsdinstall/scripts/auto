@@ -107,14 +107,14 @@ rm -f $PATH_FSTAB
 touch $PATH_FSTAB
 
 PMODES="\
-Guided \"Partitioning Tool (Recommended for Beginners)\" \
-Manual \"Manually Configure Partitions (Expert)\" \
+\"Auto (UFS)\" \"Guided Disk Setup\" \
+Manual \"Manual Disk Setup (experts)\" \
 Shell \"Open a shell and partition by hand\""
 
 CURARCH=$( uname -m )
 case $CURARCH in
 	amd64|i386)	# Booting ZFS Supported
-		PMODES="$PMODES ZFS \"Automatic Root-on-ZFS (Experimental)\""
+		PMODES="$PMODES \"Auto (ZFS)\" \"Guided Root-on-ZFS\""
 		;;
 	*)		# Booting ZFS Unspported
 		;;
@@ -128,7 +128,7 @@ PARTMODE=`echo $PMODES | xargs dialog --backtitle "FreeBSD Installer" \
 exec 3>&-
 
 case "$PARTMODE" in
-"Guided")	# Guided
+"Auto (UFS)")	# Guided
 	bsdinstall autopart || error "Partitioning error"
 	bsdinstall mount || error "Failed to mount filesystem"
 	;;
@@ -146,7 +146,7 @@ case "$PARTMODE" in
 	fi
 	bsdinstall mount || error "Failed to mount filesystem"
 	;;
-"ZFS")	# ZFS
+"Auto (ZFS)")	# ZFS
 	bsdinstall zfsboot || error "ZFS setup failed"
 	bsdinstall mount || error "Failed to mount filesystem"
 	;;
@@ -252,7 +252,8 @@ if [ ! -z "$BSDINSTALL_FETCHDEST" ]; then
 fi
 
 dialog --backtitle "FreeBSD Installer" --title "Manual Configuration" \
-    --yesno "The installation is now finished. Before exiting the installer, would you like to open a shell in the new system to make any final manual modifications?" 0 0
+    --default-button no --yesno \
+   "The installation is now finished. Before exiting the installer, would you like to open a shell in the new system to make any final manual modifications?" 0 0
 if [ $? -eq 0 ]; then
 	clear
 	mount -t devfs devfs "$BSDINSTALL_CHROOT/dev"

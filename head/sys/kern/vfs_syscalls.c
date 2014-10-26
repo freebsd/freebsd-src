@@ -1551,10 +1551,10 @@ kern_linkat(struct thread *td, int fd1, int fd2, char *path1, char *path2,
 	cap_rights_t rights;
 	int error;
 
+again:
 	bwillwrite();
 	NDINIT_AT(&nd, LOOKUP, follow | AUDITVNODE1, segflg, path1, fd1, td);
 
-again:
 	if ((error = namei(&nd)) != 0)
 		return (error);
 	NDFREE(&nd, NDF_ONLY_PNBUF);
@@ -1563,50 +1563,65 @@ again:
 		vrele(vp);
 		return (EPERM);		/* POSIX */
 	}
-	if ((error = vn_start_write(vp, &mp, V_WAIT | PCATCH)) != 0) {
-		vrele(vp);
-		return (error);
-	}
 	NDINIT_ATRIGHTS(&nd, CREATE, LOCKPARENT | SAVENAME | AUDITVNODE2,
 	    segflg, path2, fd2, cap_rights_init(&rights, CAP_LINKAT), td);
 	if ((error = namei(&nd)) == 0) {
 		if (nd.ni_vp != NULL) {
+			NDFREE(&nd, NDF_ONLY_PNBUF);
 			if (nd.ni_dvp == nd.ni_vp)
 				vrele(nd.ni_dvp);
 			else
 				vput(nd.ni_dvp);
 			vrele(nd.ni_vp);
-			error = EEXIST;
-		} else if ((error = vn_lock(vp, LK_EXCLUSIVE)) == 0) {
+			vrele(vp);
+			return (EEXIST);
+		} else if (nd.ni_dvp->v_mount != vp->v_mount) {
 			/*
-			 * Check for cross-device links.  No need to
-			 * recheck vp->v_type, since it cannot change
-			 * for non-doomed vnode.
+			 * Cross-device link.  No need to recheck
+			 * vp->v_type, since it cannot change, except
+			 * to VBAD.
 			 */
-			if (nd.ni_dvp->v_mount != vp->v_mount)
-				error = EXDEV;
-			else
-				error = can_hardlink(vp, td->td_ucred);
-			if (error == 0)
+			NDFREE(&nd, NDF_ONLY_PNBUF);
+			vput(nd.ni_dvp);
+			vrele(vp);
+			return (EXDEV);
+		} else if ((error = vn_lock(vp, LK_EXCLUSIVE)) == 0) {
+			error = can_hardlink(vp, td->td_ucred);
 #ifdef MAC
+			if (error == 0)
 				error = mac_vnode_check_link(td->td_ucred,
 				    nd.ni_dvp, vp, &nd.ni_cnd);
-			if (error == 0)
 #endif
-				error = VOP_LINK(nd.ni_dvp, vp, &nd.ni_cnd);
+			if (error != 0) {
+				vput(vp);
+				vput(nd.ni_dvp);
+				NDFREE(&nd, NDF_ONLY_PNBUF);
+				return (error);
+			}
+			error = vn_start_write(vp, &mp, V_NOWAIT);
+			if (error != 0) {
+				vput(vp);
+				vput(nd.ni_dvp);
+				NDFREE(&nd, NDF_ONLY_PNBUF);
+				error = vn_start_write(NULL, &mp,
+				    V_XSLEEP | PCATCH);
+				if (error != 0)
+					return (error);
+				goto again;
+			}
+			error = VOP_LINK(nd.ni_dvp, vp, &nd.ni_cnd);
 			VOP_UNLOCK(vp, 0);
 			vput(nd.ni_dvp);
+			vn_finished_write(mp);
+			NDFREE(&nd, NDF_ONLY_PNBUF);
 		} else {
 			vput(nd.ni_dvp);
 			NDFREE(&nd, NDF_ONLY_PNBUF);
 			vrele(vp);
-			vn_finished_write(mp);
 			goto again;
 		}
-		NDFREE(&nd, NDF_ONLY_PNBUF);
 	}
 	vrele(vp);
-	vn_finished_write(mp);
 	return (error);
 }
 
@@ -1979,23 +1994,23 @@ vn_access(vp, user_flags, cred, td)
 	int error;
 
 	/* Flags == 0 means only check for existence. */
-	error = 0;
-	if (user_flags) {
-		accmode = 0;
-		if (user_flags & R_OK)
-			accmode |= VREAD;
-		if (user_flags & W_OK)
-			accmode |= VWRITE;
-		if (user_flags & X_OK)
-			accmode |= VEXEC;
+	if (user_flags == 0)
+		return (0);
+
+	accmode = 0;
+	if (user_flags & R_OK)
+		accmode |= VREAD;
+	if (user_flags & W_OK)
+		accmode |= VWRITE;
+	if (user_flags & X_OK)
+		accmode |= VEXEC;
 #ifdef MAC
-		error = mac_vnode_check_access(cred, vp, accmode);
-		if (error != 0)
-			return (error);
+	error = mac_vnode_check_access(cred, vp, accmode);
+	if (error != 0)
+		return (error);
 #endif
-		if ((accmode & VWRITE) == 0 || (error = vn_writechk(vp)) == 0)
-			error = VOP_ACCESS(vp, accmode, cred, td);
-	}
+	if ((accmode & VWRITE) == 0 || (error = vn_writechk(vp)) == 0)
+		error = VOP_ACCESS(vp, accmode, cred, td);
 	return (error);
 }
 
@@ -2049,39 +2064,44 @@ int
 kern_accessat(struct thread *td, int fd, char *path, enum uio_seg pathseg,
     int flag, int amode)
 {
-	struct ucred *cred, *tmpcred;
+	struct ucred *cred, *usecred;
 	struct vnode *vp;
 	struct nameidata nd;
 	cap_rights_t rights;
 	int error;
 
+	if (amode != F_OK && (amode & ~(R_OK | W_OK | X_OK)) != 0)
+		return (EINVAL);
+
 	/*
 	 * Create and modify a temporary credential instead of one that
-	 * is potentially shared.
+	 * is potentially shared (if we need one).
 	 */
-	if (!(flag & AT_EACCESS)) {
-		cred = td->td_ucred;
-		tmpcred = crdup(cred);
-		tmpcred->cr_uid = cred->cr_ruid;
-		tmpcred->cr_groups[0] = cred->cr_rgid;
-		td->td_ucred = tmpcred;
+	cred = td->td_ucred;
+	if ((flag & AT_EACCESS) == 0 &&
+	    ((cred->cr_uid != cred->cr_ruid ||
+	    cred->cr_rgid != cred->cr_groups[0]))) {
+		usecred = crdup(cred);
+		usecred->cr_uid = cred->cr_ruid;
+		usecred->cr_groups[0] = cred->cr_rgid;
+		td->td_ucred = usecred;
 	} else
-		cred = tmpcred = td->td_ucred;
+		usecred = cred;
 	AUDIT_ARG_VALUE(amode);
 	NDINIT_ATRIGHTS(&nd, LOOKUP, FOLLOW | LOCKSHARED | LOCKLEAF |
 	    AUDITVNODE1, pathseg, path, fd, cap_rights_init(&rights, CAP_FSTAT),
 	    td);
 	if ((error = namei(&nd)) != 0)
-		goto out1;
+		goto out;
 	vp = nd.ni_vp;
 
-	error = vn_access(vp, amode, tmpcred, td);
+	error = vn_access(vp, amode, usecred, td);
 	NDFREE(&nd, NDF_ONLY_PNBUF);
 	vput(vp);
-out1:
-	if (!(flag & AT_EACCESS)) {
+out:
+	if (usecred != cred) {
 		td->td_ucred = cred;
-		crfree(tmpcred);
+		crfree(usecred);
 	}
 	return (error);
 }
@@ -3516,6 +3536,7 @@ kern_renameat(struct thread *td, int oldfd, char *old, int newfd, char *new,
 	cap_rights_t rights;
 	int error;
 
+again:
 	bwillwrite();
 #ifdef MAC
 	NDINIT_ATRIGHTS(&fromnd, DELETE, LOCKPARENT | LOCKLEAF | SAVESTART |
@@ -3536,14 +3557,6 @@ kern_renameat(struct thread *td, int oldfd, char *old, int newfd, char *new,
 		VOP_UNLOCK(fromnd.ni_vp, 0);
 #endif
 	fvp = fromnd.ni_vp;
-	if (error == 0)
-		error = vn_start_write(fvp, &mp, V_WAIT | PCATCH);
-	if (error != 0) {
-		NDFREE(&fromnd, NDF_ONLY_PNBUF);
-		vrele(fromnd.ni_dvp);
-		vrele(fvp);
-		goto out1;
-	}
 	NDINIT_ATRIGHTS(&tond, RENAME, LOCKPARENT | LOCKLEAF | NOCACHE |
 	    SAVESTART | AUDITVNODE2, pathseg, new, newfd,
 	    cap_rights_init(&rights, CAP_LINKAT), td);
@@ -3556,11 +3569,30 @@ kern_renameat(struct thread *td, int oldfd, char *old, int newfd, char *new,
 		NDFREE(&fromnd, NDF_ONLY_PNBUF);
 		vrele(fromnd.ni_dvp);
 		vrele(fvp);
-		vn_finished_write(mp);
 		goto out1;
 	}
 	tdvp = tond.ni_dvp;
 	tvp = tond.ni_vp;
+	error = vn_start_write(fvp, &mp, V_NOWAIT);
+	if (error != 0) {
+		NDFREE(&fromnd, NDF_ONLY_PNBUF);
+		NDFREE(&tond, NDF_ONLY_PNBUF);
+		if (tvp != NULL)
+			vput(tvp);
+		if (tdvp == tvp)
+			vrele(tdvp);
+		else
+			vput(tdvp);
+		vrele(fromnd.ni_dvp);
+		vrele(fvp);
+		vrele(tond.ni_startdir);
+		if (fromnd.ni_startdir != NULL)
+			vrele(fromnd.ni_startdir);
+		error = vn_start_write(NULL, &mp, V_XSLEEP | PCATCH);
+		if (error != 0)
+			return (error);
+		goto again;
+	}
 	if (tvp != NULL) {
 		if (fvp->v_type == VDIR && tvp->v_type != VDIR) {
 			error = ENOTDIR;

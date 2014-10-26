@@ -1472,7 +1472,7 @@ urtw_start(struct ifnet *ifp)
 		m->m_pkthdr.rcvif = NULL;
 
 		if (urtw_tx_start(sc, ni, m, bf, URTW_PRIORITY_NORMAL) != 0) {
-			ifp->if_oerrors++;
+			if_inc_counter(ifp, IFCOUNTER_OERRORS, 1);
 			STAILQ_INSERT_HEAD(&sc->sc_tx_inactive, bf, next);
 			ieee80211_free_node(ni);
 			break;
@@ -1582,10 +1582,10 @@ urtw_raw_xmit(struct ieee80211_node *ni, struct mbuf *m,
 		return (ENOBUFS);		/* XXX */
 	}
 
-	ifp->if_opackets++;
+	if_inc_counter(ifp, IFCOUNTER_OPACKETS, 1);
 	if (urtw_tx_start(sc, ni, m, bf, URTW_PRIORITY_LOW) != 0) {
 		ieee80211_free_node(ni);
-		ifp->if_oerrors++;
+		if_inc_counter(ifp, IFCOUNTER_OERRORS, 1);
 		STAILQ_INSERT_HEAD(&sc->sc_tx_inactive, bf, next);
 		URTW_UNLOCK(sc);
 		return (EIO);
@@ -1918,7 +1918,7 @@ urtw_watchdog(void *arg)
 	if (sc->sc_txtimer > 0) {
 		if (--sc->sc_txtimer == 0) {
 			device_printf(sc->sc_dev, "device timeout\n");
-			ifp->if_oerrors++;
+			if_inc_counter(ifp, IFCOUNTER_OERRORS, 1);
 			return;
 		}
 		callout_reset(&sc->sc_watchdog_ch, hz, urtw_watchdog, sc);
@@ -3993,7 +3993,7 @@ urtw_rxeof(struct usb_xfer *xfer, struct urtw_data *data, int *rssi_p,
 	usbd_xfer_status(xfer, &actlen, NULL, NULL, NULL);
 
 	if (actlen < (int)URTW_MIN_RXBUFSZ) {
-		ifp->if_ierrors++;
+		if_inc_counter(ifp, IFCOUNTER_IERRORS, 1);
 		return (NULL);
 	}
 
@@ -4004,7 +4004,7 @@ urtw_rxeof(struct usb_xfer *xfer, struct urtw_data *data, int *rssi_p,
 		    (actlen - (sizeof(struct urtw_8187b_rxhdr))));
 		flen = le32toh(rx->flag) & 0xfff;
 		if (flen > actlen) {
-			ifp->if_ierrors++;
+			if_inc_counter(ifp, IFCOUNTER_IERRORS, 1);
 			return (NULL);
 		}
 		rate = (le32toh(rx->flag) >> URTW_RX_FLAG_RXRATE_SHIFT) & 0xf;
@@ -4018,7 +4018,7 @@ urtw_rxeof(struct usb_xfer *xfer, struct urtw_data *data, int *rssi_p,
 		    (actlen - (sizeof(struct urtw_8187l_rxhdr))));
 		flen = le32toh(rx->flag) & 0xfff;
 		if (flen > actlen) {
-			ifp->if_ierrors++;
+			if_inc_counter(ifp, IFCOUNTER_IERRORS, 1);
 			return (NULL);
 		}
 
@@ -4030,7 +4030,7 @@ urtw_rxeof(struct usb_xfer *xfer, struct urtw_data *data, int *rssi_p,
 
 	mnew = m_getcl(M_NOWAIT, MT_DATA, M_PKTHDR);
 	if (mnew == NULL) {
-		ifp->if_ierrors++;
+		if_inc_counter(ifp, IFCOUNTER_IERRORS, 1);
 		return (NULL);
 	}
 
@@ -4127,7 +4127,7 @@ setup:
 		}
 		if (error != USB_ERR_CANCELLED) {
 			usbd_xfer_set_stall(xfer);
-			ifp->if_ierrors++;
+			if_inc_counter(ifp, IFCOUNTER_IERRORS, 1);
 			goto setup;
 		}
 		break;
@@ -4156,7 +4156,7 @@ urtw_txstatus_eof(struct usb_xfer *xfer)
 		pktretry = val & 0xff;
 		seq = (val >> 16) & 0xff;
 		if (pktretry == URTW_TX_MAXRETRY)
-			ifp->if_oerrors++;
+			if_inc_counter(ifp, IFCOUNTER_OERRORS, 1);
 		DPRINTF(sc, URTW_DEBUG_TXSTATUS, "pktretry %d seq %#x\n",
 		    pktretry, seq);
 	}
@@ -4184,7 +4184,7 @@ setup:
 	default:
 		if (error != USB_ERR_CANCELLED) {
 			usbd_xfer_set_stall(xfer);
-			ifp->if_ierrors++;
+			if_inc_counter(ifp, IFCOUNTER_IERRORS, 1);
 			goto setup;
 		}
 		break;
@@ -4218,7 +4218,7 @@ urtw_txeof(struct usb_xfer *xfer, struct urtw_data *data)
 		data->ni = NULL;
 	}
 	sc->sc_txtimer = 0;
-	ifp->if_opackets++;
+	if_inc_counter(ifp, IFCOUNTER_OPACKETS, 1);
 	ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
 }
 
@@ -4265,7 +4265,7 @@ setup:
 		if (data->ni != NULL) {
 			ieee80211_free_node(data->ni);
 			data->ni = NULL;
-			ifp->if_oerrors++;
+			if_inc_counter(ifp, IFCOUNTER_OERRORS, 1);
 		}
 		if (error != USB_ERR_CANCELLED) {
 			usbd_xfer_set_stall(xfer);

@@ -268,7 +268,7 @@ __elf_fdnlist(fd, list)
 	}
 
 	/* mmap section header table */
-	base = mmap(NULL, (size_t)shdr_size, PROT_READ, 0, fd,
+	base = mmap(NULL, (size_t)shdr_size, PROT_READ, MAP_PRIVATE, fd,
 	    (off_t)ehdr.e_shoff);
 	if (base == MAP_FAILED)
 		return (-1);
@@ -301,7 +301,7 @@ __elf_fdnlist(fd, list)
 	 * making the memory allocation permanent as with malloc/free
 	 * (i.e., munmap will return it to the system).
 	 */
-	base = mmap(NULL, (size_t)symstrsize, PROT_READ, 0, fd,
+	base = mmap(NULL, (size_t)symstrsize, PROT_READ, MAP_PRIVATE, fd,
 	    (off_t)symstroff);
 	if (base == MAP_FAILED)
 		goto done;

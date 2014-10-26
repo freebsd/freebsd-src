@@ -32,9 +32,9 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.\" $Id: pam_conv.3 741 2013-09-07 13:34:02Z des $
+.\" $Id: pam_conv.3 816 2014-09-12 07:50:22Z des $
 .\"
-.Dd September 7, 2013
+.Dd September 12, 2014
 .Dt PAM_CONV 3
 .Os
 .Sh NAME
@@ -76,7 +76,7 @@ item.
 .Pp
 The conversation function's first argument specifies the number of
 messages (up to
-.Dv PAM_NUM_MSG )
+.Dv PAM_MAX_NUM_MSG )
 to process.
 The second argument is a pointer to an array of pointers to
 .Vt pam_message

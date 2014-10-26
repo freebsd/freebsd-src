@@ -717,7 +717,7 @@ i915_error_work_func(void *context, int pending)
 	if (atomic_load_acq_int(&dev_priv->mm.wedged)) {
 		DRM_DEBUG("i915: resetting chip\n");
 		/* kobject_uevent_env(&dev->primary->kdev.kobj, KOBJ_CHANGE, reset_event); */
-		if (!i915_reset(dev, GRDOM_RENDER)) {
+		if (!i915_reset(dev)) {
 			atomic_store_rel_int(&dev_priv->mm.wedged, 0);
 			/* kobject_uevent_env(&dev->primary->kdev.kobj, KOBJ_CHANGE, reset_done_event); */
 		}

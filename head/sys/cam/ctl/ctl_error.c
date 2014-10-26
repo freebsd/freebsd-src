@@ -367,44 +367,42 @@ ctl_set_ua(struct ctl_scsiio *ctsio, int asc, int ascq)
 }
 
 ctl_ua_type
-ctl_build_ua(ctl_ua_type ua_type, struct scsi_sense_data *sense,
+ctl_build_ua(ctl_ua_type *ua_type, struct scsi_sense_data *sense,
 	     scsi_sense_data_type sense_format)
 {
-	ctl_ua_type ua_to_build;
-	int i, asc, ascq;
+	ctl_ua_type ua_to_build, ua_to_clear;
+	int asc, ascq;
 
-	if (ua_type == CTL_UA_NONE)
-		return (ua_type);
+	if (*ua_type == CTL_UA_NONE)
+		return (CTL_UA_NONE);
 
-	ua_to_build = CTL_UA_NONE;
-
-	for (i = 0; i < (sizeof(ua_type) * 8); i++) {
-		if (ua_type & (1 << i)) {
-			ua_to_build = 1 << i;
-			break;
-		}
-	}
+	ua_to_build = (1 << (ffs(*ua_type) - 1));
+	ua_to_clear = ua_to_build;
 
 	switch (ua_to_build) {
 	case CTL_UA_POWERON:
 		/* 29h/01h  POWER ON OCCURRED */
 		asc = 0x29;
 		ascq = 0x01;
+		ua_to_clear = ~0;
 		break;
 	case CTL_UA_BUS_RESET:
 		/* 29h/02h  SCSI BUS RESET OCCURRED */
 		asc = 0x29;
 		ascq = 0x02;
+		ua_to_clear = ~0;
 		break;
 	case CTL_UA_TARG_RESET:
 		/* 29h/03h  BUS DEVICE RESET FUNCTION OCCURRED*/
 		asc = 0x29;
 		ascq = 0x03;
+		ua_to_clear = ~0;
 		break;
 	case CTL_UA_I_T_NEXUS_LOSS:
 		/* 29h/07h  I_T NEXUS LOSS OCCURRED */
 		asc = 0x29;
 		ascq = 0x07;
+		ua_to_clear = ~0;
 		break;
 	case CTL_UA_LUN_RESET:
 		/* 29h/00h  POWER ON, RESET, OR BUS DEVICE RESET OCCURRED */
@@ -466,9 +464,7 @@ ctl_build_ua(ctl_ua_type ua_type, struct scsi_sense_data *sense,
 		ascq = 0x09;
 		break;
 	default:
-		ua_to_build = CTL_UA_NONE;
-		return (ua_to_build);
-		break; /* NOTREACHED */
+		panic("ctl_build_ua: Unknown UA %x", ua_to_build);
 	}
 
 	ctl_set_sense_data(sense,
@@ -479,6 +475,9 @@ ctl_build_ua(ctl_ua_type ua_type, struct scsi_sense_data *sense,
 			   asc,
 			   ascq,
 			   SSD_ELEM_NONE);
+
+	/* We're reporting this UA, so clear it */
+	*ua_type &= ~ua_to_clear;
 
 	return (ua_to_build);
 }
@@ -694,7 +693,7 @@ ctl_set_lun_not_ready(struct ctl_scsiio *ctsio)
 		      /*current_error*/ 1,
 		      /*sense_key*/ SSD_KEY_NOT_READY,
 		      /*asc*/ 0x04,
-		      /*ascq*/ 0x05,
+		      /*ascq*/ 0x03,
 		      SSD_ELEM_NONE);
 }
 

@@ -122,7 +122,7 @@ SYSCTL_VNET_INT(_net_inet_tcp, OID_AUTO, syncookies_only, CTLFLAG_RW,
 static void	 syncache_drop(struct syncache *, struct syncache_head *);
 static void	 syncache_free(struct syncache *);
 static void	 syncache_insert(struct syncache *, struct syncache_head *);
-static int	 syncache_respond(struct syncache *);
+static int	 syncache_respond(struct syncache *, struct syncache_head *, int);
 static struct	 socket *syncache_socket(struct syncache *, struct socket *,
 		    struct mbuf *m);
 static void	 syncache_timeout(struct syncache *sc, struct syncache_head *sch,
@@ -467,7 +467,7 @@ syncache_timer(void *xsch)
 			free(s, M_TCPLOG);
 		}
 
-		(void) syncache_respond(sc);
+		syncache_respond(sc, sch, 1);
 		TCPSTAT_INC(tcps_sc_retransmitted);
 		syncache_timeout(sc, sch, 0);
 	}
@@ -1213,7 +1213,7 @@ syncache_add(struct in_conninfo *inc, struct tcpopt *to, struct tcphdr *th,
 			    s, __func__);
 			free(s, M_TCPLOG);
 		}
-		if (syncache_respond(sc) == 0) {
+		if (syncache_respond(sc, sch, 1) == 0) {
 			sc->sc_rxmits = 0;
 			syncache_timeout(sc, sch, 1);
 			TCPSTAT_INC(tcps_sndacks);
@@ -1325,11 +1325,9 @@ syncache_add(struct in_conninfo *inc, struct tcpopt *to, struct tcphdr *th,
 	}
 #ifdef TCP_SIGNATURE
 	/*
-	 * If listening socket requested TCP digests, and received SYN
+	 * If listening socket requested TCP digests, OR received SYN
 	 * contains the option, flag this in the syncache so that
 	 * syncache_respond() will do the right thing with the SYN+ACK.
-	 * XXX: Currently we always record the option by default and will
-	 * attempt to use it in syncache_respond().
 	 */
 	if (to->to_flags & TOF_SIGNATURE || ltflags & TF_SIGNATURE)
 		sc->sc_flags |= SCF_SIGNATURE;
@@ -1359,7 +1357,7 @@ syncache_add(struct in_conninfo *inc, struct tcpopt *to, struct tcphdr *th,
 	/*
 	 * Do a standard 3-way handshake.
 	 */
-	if (syncache_respond(sc) == 0) {
+	if (syncache_respond(sc, sch, 0) == 0) {
 		if (V_tcp_syncookies && V_tcp_syncookiesonly && sc != &scs)
 			syncache_free(sc);
 		else if (sc != &scs)
@@ -1387,7 +1385,7 @@ done:
 }
 
 static int
-syncache_respond(struct syncache *sc)
+syncache_respond(struct syncache *sc, struct syncache_head *sch, int locked)
 {
 	struct ip *ip = NULL;
 	struct mbuf *m;
@@ -1397,6 +1395,9 @@ syncache_respond(struct syncache *sc)
 	struct tcpopt to;
 #ifdef INET6
 	struct ip6_hdr *ip6 = NULL;
+#endif
+#ifdef TCP_SIGNATURE
+	struct secasvar *sav;
 #endif
 
 	hlen =
@@ -1508,8 +1509,29 @@ syncache_respond(struct syncache *sc)
 		if (sc->sc_flags & SCF_SACK)
 			to.to_flags |= TOF_SACKPERM;
 #ifdef TCP_SIGNATURE
-		if (sc->sc_flags & SCF_SIGNATURE)
-			to.to_flags |= TOF_SIGNATURE;
+		sav = NULL;
+		if (sc->sc_flags & SCF_SIGNATURE) {
+			sav = tcp_get_sav(m, IPSEC_DIR_OUTBOUND);
+			if (sav != NULL)
+				to.to_flags |= TOF_SIGNATURE;
+			else {
+
+				/*
+				 * We've got SCF_SIGNATURE flag
+				 * inherited from listening socket,
+				 * but to SADB key for given source
+				 * address. Assume signature is not
+				 * required and remove signature flag
+				 * instead of silently dropping
+				 * connection.
+				 */
+				if (locked == 0)
+					SCH_LOCK(sch);
+				sc->sc_flags &= ~SCF_SIGNATURE;
+				if (locked == 0)
+					SCH_UNLOCK(sch);
+			}
+		}
 #endif
 		optlen = tcp_addoptions(&to, (u_char *)(th + 1));
 
@@ -1520,8 +1542,8 @@ syncache_respond(struct syncache *sc)
 
 #ifdef TCP_SIGNATURE
 		if (sc->sc_flags & SCF_SIGNATURE)
-			tcp_signature_compute(m, 0, 0, optlen,
-			    to.to_signature, IPSEC_DIR_OUTBOUND);
+			tcp_signature_do_compute(m, 0, optlen,
+			    to.to_signature, sav);
 #endif
 #ifdef INET6
 		if (sc->sc_inc.inc_flags & INC_ISIPV6)

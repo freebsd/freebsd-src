@@ -80,8 +80,6 @@ eventcolors = [
 	("runq rem",	"yellow"),
 	("thread exit",	"grey"),
 	("proc exit",	"grey"),
-	("callwheel idle", "grey"),
-	("callout running", "green"),
 	("lock acquire", "blue"),
 	("lock contest", "purple"),
 	("failed lock try", "red"),
@@ -856,7 +854,7 @@ class EventSource:
 		return (Y_EVENTSOURCE)
 
 	def eventat(self, i):
-		if (i >= len(self.events)):
+		if (i >= len(self.events) or i < 0):
 			return (None)
 		event = self.events[i]
 		return (event)
@@ -903,7 +901,6 @@ class KTRFile:
 		self.timestamp_f = None
 		self.timestamp_l = None
 		self.locks = {}
-		self.callwheels = {}
 		self.ticks = {}
 		self.load = {}
 		self.crit = {}

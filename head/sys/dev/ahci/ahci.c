@@ -159,6 +159,7 @@ ahci_attach(device_t dev)
 	device_t child;
 
 	ctlr->dev = dev;
+	ctlr->ccc = 0;
 	resource_int_value(device_get_name(dev),
 	    device_get_unit(dev), "ccc", &ctlr->ccc);
 
@@ -359,7 +360,7 @@ ahci_setup_interrupt(device_t dev)
 	for (i = 0; i < ctlr->numirqs; i++) {
 		ctlr->irqs[i].ctlr = ctlr;
 		ctlr->irqs[i].r_irq_rid = i + (ctlr->msi ? 1 : 0);
-		if (ctlr->channels == 1 && !ctlr->ccc)
+		if (ctlr->channels == 1 && !ctlr->ccc && ctlr->msi)
 			ctlr->irqs[i].mode = AHCI_IRQ_MODE_ONE;
 		else if (ctlr->numirqs == 1 || i >= ctlr->channels ||
 		    (ctlr->ccc && i == ctlr->cccv))
@@ -624,6 +625,7 @@ ahci_ch_attach(device_t dev)
 	ch->subdeviceid = ctlr->subdeviceid;
 	ch->numslots = ((ch->caps & AHCI_CAP_NCS) >> AHCI_CAP_NCS_SHIFT) + 1;
 	mtx_init(&ch->mtx, "AHCI channel lock", NULL, MTX_DEF);
+	ch->pm_level = 0;
 	resource_int_value(device_get_name(dev),
 	    device_get_unit(dev), "pm_level", &ch->pm_level);
 	STAILQ_INIT(&ch->doneq);
@@ -1124,6 +1126,7 @@ ahci_ch_intr_direct(void *arg)
 	struct ahci_channel *ch = (struct ahci_channel *)arg;
 	struct ccb_hdr *ccb_h;
 	uint32_t istatus;
+	STAILQ_HEAD(, ccb_hdr) tmp_doneq = STAILQ_HEAD_INITIALIZER(tmp_doneq);
 
 	/* Read interrupt statuses. */
 	istatus = ATA_INL(ch->r_mem, AHCI_P_IS);
@@ -1134,9 +1137,14 @@ ahci_ch_intr_direct(void *arg)
 	ch->batch = 1;
 	ahci_ch_intr_main(ch, istatus);
 	ch->batch = 0;
+	/*
+	 * Prevent the possibility of issues caused by processing the queue
+	 * while unlocked below by moving the contents to a local queue.
+	 */
+	STAILQ_CONCAT(&tmp_doneq, &ch->doneq);
 	mtx_unlock(&ch->mtx);
-	while ((ccb_h = STAILQ_FIRST(&ch->doneq)) != NULL) {
-		STAILQ_REMOVE_HEAD(&ch->doneq, sim_links.stqe);
+	while ((ccb_h = STAILQ_FIRST(&tmp_doneq)) != NULL) {
+		STAILQ_REMOVE_HEAD(&tmp_doneq, sim_links.stqe);
 		xpt_done_direct((union ccb *)ccb_h);
 	}
 }

@@ -442,7 +442,7 @@ nfs_mountroot(struct mount *mp)
 	error = ifioctl(so, SIOCAIFADDR, (caddr_t)&nd->myif, td);
 	if (error)
 		panic("nfs_mountroot: SIOCAIFADDR: %d", error);
-	if ((cp = getenv("boot.netif.mtu")) != NULL) {
+	if ((cp = kern_getenv("boot.netif.mtu")) != NULL) {
 		ir.ifr_mtu = strtol(cp, NULL, 10);
 		bcopy(nd->myif.ifra_name, ir.ifr_name, IFNAMSIZ);
 		freeenv(cp);
@@ -621,17 +621,27 @@ nfs_decode_args(struct mount *mp, struct nfsmount *nmp, struct nfs_args *argp,
 
 	if ((argp->flags & NFSMNT_WSIZE) && argp->wsize > 0) {
 		nmp->nm_wsize = argp->wsize;
-		/* Round down to multiple of blocksize */
-		nmp->nm_wsize &= ~(NFS_FABLKSIZE - 1);
-		if (nmp->nm_wsize <= 0)
+		/*
+		 * Clip at the power of 2 below the size. There is an
+		 * issue (not isolated) that causes intermittent page
+		 * faults if this is not done.
+		 */
+		if (nmp->nm_wsize > NFS_FABLKSIZE)
+			nmp->nm_wsize = 1 << (fls(nmp->nm_wsize) - 1);
+		else
 			nmp->nm_wsize = NFS_FABLKSIZE;
 	}
 
 	if ((argp->flags & NFSMNT_RSIZE) && argp->rsize > 0) {
 		nmp->nm_rsize = argp->rsize;
-		/* Round down to multiple of blocksize */
-		nmp->nm_rsize &= ~(NFS_FABLKSIZE - 1);
-		if (nmp->nm_rsize <= 0)
+		/*
+		 * Clip at the power of 2 below the size. There is an
+		 * issue (not isolated) that causes intermittent page
+		 * faults if this is not done.
+		 */
+		if (nmp->nm_rsize > NFS_FABLKSIZE)
+			nmp->nm_rsize = 1 << (fls(nmp->nm_rsize) - 1);
+		else
 			nmp->nm_rsize = NFS_FABLKSIZE;
 	}
 

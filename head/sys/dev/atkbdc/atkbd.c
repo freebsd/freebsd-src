@@ -69,6 +69,26 @@ __FBSDID("$FreeBSD$");
 #endif
 
 static timeout_t	atkbd_timeout;
+
+typedef struct atkbd_state {
+	KBDC		kbdc;		/* keyboard controller */
+	int		ks_mode;	/* input mode (K_XLATE,K_RAW,K_CODE) */
+	int		ks_flags;	/* flags */
+#define COMPOSE		(1 << 0)
+	int		ks_polling;
+	int		ks_state;	/* shift/lock key state */
+	int		ks_accents;	/* accent key index (> 0) */
+	u_int		ks_composed_char; /* composed char code (> 0) */
+	u_char		ks_prefix;	/* AT scan code prefix */
+	struct callout	ks_timer;
+#ifdef EVDEV
+	struct evdev_dev *ks_evdev;
+	int		ks_evdev_opened;
+	int		ks_evdev_state;
+#endif
+} atkbd_state_t;
+
+static void		atkbd_timeout(void *arg);
 static void		atkbd_shutdown_final(void *v);
 
 struct atkbd_args
@@ -103,6 +123,7 @@ atkbd_attach_unit(device_t dev, keyboard_t **kbd, int irq, int flags)
 {
 	keyboard_switch_t *sw;
 	struct atkbd_args args;
+	atkbd_state_t *state;
 	int error;
 	int unit;
 
@@ -135,6 +156,8 @@ atkbd_attach_unit(device_t dev, keyboard_t **kbd, int irq, int flags)
 	 * This is a kludge to compensate for lost keyboard interrupts.
 	 * A similar code used to be in syscons. See below. XXX
 	 */
+	state = (atkbd_state_t *)(*kbd)->kb_data;
+	callout_init(&state->ks_timer, 0);
 	atkbd_timeout(*kbd);
 
 	if (bootverbose)
@@ -149,6 +172,7 @@ atkbd_attach_unit(device_t dev, keyboard_t **kbd, int irq, int flags)
 static void
 atkbd_timeout(void *arg)
 {
+	atkbd_state_t *state;
 	keyboard_t *kbd;
 	int s;
 
@@ -190,29 +214,13 @@ atkbd_timeout(void *arg)
 			kbdd_intr(kbd, NULL);
 	}
 	splx(s);
-	timeout(atkbd_timeout, arg, hz/10);
+	state = (atkbd_state_t *)kbd->kb_data;
+	callout_reset(&state->ks_timer, hz / 10, atkbd_timeout, arg);
 }
 
 /* LOW-LEVEL */
 
 #define ATKBD_DEFAULT	0
-
-typedef struct atkbd_state {
-	KBDC		kbdc;		/* keyboard controller */
-	int		ks_mode;	/* input mode (K_XLATE,K_RAW,K_CODE) */
-	int		ks_flags;	/* flags */
-#define COMPOSE		(1 << 0)
-	int		ks_polling;
-	int		ks_state;	/* shift/lock key state */
-	int		ks_accents;	/* accent key index (> 0) */
-	u_int		ks_composed_char; /* composed char code (> 0) */
-	u_char		ks_prefix;	/* AT scan code prefix */
-#ifdef EVDEV
-	struct evdev_dev *ks_evdev;
-	bool		ks_evdev_opened;
-	int		ks_evdev_state;
-#endif
-} atkbd_state_t;
 
 /* keyboard driver declaration */
 static int		atkbd_configure(int flags);
@@ -528,7 +536,10 @@ bad:
 static int
 atkbd_term(keyboard_t *kbd)
 {
+	atkbd_state_t *state = (atkbd_state_t *)kbd->kb_data;
+
 	kbd_unregister(kbd);
+	callout_drain(&state->ks_timer);
 	return 0;
 }
 

@@ -393,10 +393,7 @@ ng_iface_output(struct ifnet *ifp, struct mbuf *m,
 	if (ALTQ_IS_ENABLED(&ifp->if_snd)) {
 		M_PREPEND(m, sizeof(sa_family_t), M_NOWAIT);
 		if (m == NULL) {
-			IFQ_LOCK(&ifp->if_snd);
-			IFQ_INC_DROPS(&ifp->if_snd);
-			IFQ_UNLOCK(&ifp->if_snd);
-			ifp->if_oerrors++;
+			if_inc_counter(ifp, IFCOUNTER_OQDROPS, 1);
 			return (ENOBUFS);
 		}
 		*(sa_family_t *)m->m_data = af;
@@ -472,8 +469,8 @@ ng_iface_send(struct ifnet *ifp, struct mbuf *m, sa_family_t sa)
 
 	/* Update stats. */
 	if (error == 0) {
-		ifp->if_obytes += len;
-		ifp->if_opackets++;
+		if_inc_counter(ifp, IFCOUNTER_OBYTES, len);
+		if_inc_counter(ifp, IFCOUNTER_OPACKETS, 1);
 	}
 
 	return (error);
@@ -736,8 +733,8 @@ ng_iface_rcvdata(hook_p hook, item_p item)
 	}
 
 	/* Update interface stats */
-	ifp->if_ipackets++;
-	ifp->if_ibytes += m->m_pkthdr.len;
+	if_inc_counter(ifp, IFCOUNTER_IPACKETS, 1);
+	if_inc_counter(ifp, IFCOUNTER_IBYTES, m->m_pkthdr.len);
 
 	/* Note receiving interface */
 	m->m_pkthdr.rcvif = ifp;

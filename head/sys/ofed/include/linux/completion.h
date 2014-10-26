@@ -27,8 +27,8 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef	_FBSD_COMPLETION_H_
-#define	_FBSD_COMPLETION_H_
+#ifndef	_LINUX_COMPLETION_H_
+#define	_LINUX_COMPLETION_H_
 
 #include <linux/errno.h>
 

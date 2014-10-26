@@ -4,11 +4,11 @@
 # Generic mechanism to deal with WITH and WITHOUT options and turn
 # them into MK_ options.
 #
-# For each option FOO in __DEFUALT_YES_OPTIONS, MK_FOO is set to
+# For each option FOO in __DEFAULT_YES_OPTIONS, MK_FOO is set to
 # "yes", unless WITHOUT_FOO is defined, in which case it is set to
 # "no".
 #
-# For each option FOO in __DEFUALT_NO_OPTIONS, MK_FOO is set to "no",
+# For each option FOO in __DEFAULT_NO_OPTIONS, MK_FOO is set to "no",
 # unless WITH_FOO is defined, in which case it is set to "yes".
 #
 # If both WITH_FOO and WITHOUT_FOO are defined, WITHOUT_FOO wins and

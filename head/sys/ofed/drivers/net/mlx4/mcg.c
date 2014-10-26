@@ -1,6 +1,6 @@
 /*
  * Copyright (c) 2006, 2007 Cisco Systems, Inc.  All rights reserved.
- * Copyright (c) 2007, 2008 Mellanox Technologies. All rights reserved.
+ * Copyright (c) 2007, 2008, 2014 Mellanox Technologies. All rights reserved.
  *
  * This software is available to you under a choice of one of two
  * licenses.  You may choose to be licensed under the terms of the GNU
@@ -32,8 +32,10 @@
  */
 
 #include <linux/string.h>
+#include <linux/etherdevice.h>
 
 #include <linux/mlx4/cmd.h>
+#include <linux/module.h>
 
 #include "mlx4.h"
 
@@ -124,8 +126,13 @@ static struct mlx4_promisc_qp *get_promisc_qp(struct mlx4_dev *dev, u8 port,
 					      enum mlx4_steer_type steer,
 					      u32 qpn)
 {
-	struct mlx4_steer *s_steer = &mlx4_priv(dev)->steer[port - 1];
+	struct mlx4_steer *s_steer;
 	struct mlx4_promisc_qp *pqp;
+
+	if (port < 1 || port > dev->caps.num_ports)
+		return NULL;
+
+	s_steer = &mlx4_priv(dev)->steer[port - 1];
 
 	list_for_each_entry(pqp, &s_steer->promisc_qps[steer], list) {
 		if (pqp->qpn == qpn)
@@ -152,6 +159,9 @@ static int new_steering_entry(struct mlx4_dev *dev, u8 port,
 	struct mlx4_promisc_qp *dqp = NULL;
 	u32 prot;
 	int err;
+
+	if (port < 1 || port > dev->caps.num_ports)
+		return -EINVAL;
 
 	s_steer = &mlx4_priv(dev)->steer[port - 1];
 	new_entry = kzalloc(sizeof *new_entry, GFP_KERNEL);
@@ -237,6 +247,9 @@ static int existing_steering_entry(struct mlx4_dev *dev, u8 port,
 	struct mlx4_promisc_qp *pqp;
 	struct mlx4_promisc_qp *dqp;
 
+	if (port < 1 || port > dev->caps.num_ports)
+		return -EINVAL;
+
 	s_steer = &mlx4_priv(dev)->steer[port - 1];
 
 	pqp = get_promisc_qp(dev, port, steer, qpn);
@@ -258,7 +271,7 @@ static int existing_steering_entry(struct mlx4_dev *dev, u8 port,
 	 * we need to add it as a duplicate to this entry
 	 * for future references */
 	list_for_each_entry(dqp, &entry->duplicates, list) {
-		if (qpn == pqp->qpn)
+		if (qpn == dqp->qpn)
 			return 0; /* qp is already duplicated */
 	}
 
@@ -281,6 +294,9 @@ static bool check_duplicate_entry(struct mlx4_dev *dev, u8 port,
 	struct mlx4_steer *s_steer;
 	struct mlx4_steer_index *tmp_entry, *entry = NULL;
 	struct mlx4_promisc_qp *dqp, *tmp_dqp;
+
+	if (port < 1 || port > dev->caps.num_ports)
+		return NULL;
 
 	s_steer = &mlx4_priv(dev)->steer[port - 1];
 
@@ -309,19 +325,23 @@ static bool check_duplicate_entry(struct mlx4_dev *dev, u8 port,
 	return true;
 }
 
-/* I a steering entry contains only promisc QPs, it can be removed. */
-static bool can_remove_steering_entry(struct mlx4_dev *dev, u8 port,
+/*
+ * returns true if all the QPs != tqpn contained in this entry
+ * are Promisc QPs. return false otherwise.
+ */
+static bool promisc_steering_entry(struct mlx4_dev *dev, u8 port,
 				      enum mlx4_steer_type steer,
-				      unsigned int index, u32 tqpn)
+				      unsigned int index, u32 tqpn, u32 *members_count)
 {
 	struct mlx4_steer *s_steer;
 	struct mlx4_cmd_mailbox *mailbox;
 	struct mlx4_mgm *mgm;
-	struct mlx4_steer_index *entry = NULL, *tmp_entry;
-	u32 qpn;
-	u32 members_count;
+	u32 m_count;
 	bool ret = false;
 	int i;
+
+	if (port < 1 || port > dev->caps.num_ports)
+		return false;
 
 	s_steer = &mlx4_priv(dev)->steer[port - 1];
 
@@ -332,15 +352,42 @@ static bool can_remove_steering_entry(struct mlx4_dev *dev, u8 port,
 
 	if (mlx4_READ_ENTRY(dev, index, mailbox))
 		goto out;
-	members_count = be32_to_cpu(mgm->members_count) & 0xffffff;
-	for (i = 0;  i < members_count; i++) {
-		qpn = be32_to_cpu(mgm->qp[i]) & MGM_QPN_MASK;
+	m_count = be32_to_cpu(mgm->members_count) & 0xffffff;
+	if (members_count)
+		*members_count = m_count;
+
+	for (i = 0;  i < m_count; i++) {
+		u32 qpn = be32_to_cpu(mgm->qp[i]) & MGM_QPN_MASK;
 		if (!get_promisc_qp(dev, port, steer, qpn) && qpn != tqpn) {
 			/* the qp is not promisc, the entry can't be removed */
 			goto out;
 		}
 	}
-	 /* All the qps currently registered for this entry are promiscuous,
+	ret = true;
+out:
+	mlx4_free_cmd_mailbox(dev, mailbox);
+	return ret;
+}
+
+/* IF a steering entry contains only promisc QPs, it can be removed. */
+static bool can_remove_steering_entry(struct mlx4_dev *dev, u8 port,
+				      enum mlx4_steer_type steer,
+				      unsigned int index, u32 tqpn)
+{
+	struct mlx4_steer *s_steer;
+	struct mlx4_steer_index *entry = NULL, *tmp_entry;
+	u32 members_count;
+	bool ret = false;
+
+	if (port < 1 || port > dev->caps.num_ports)
+		return NULL;
+
+	s_steer = &mlx4_priv(dev)->steer[port - 1];
+
+	if (!promisc_steering_entry(dev, port, steer, index, tqpn, &members_count))
+		goto out;
+
+	/* All the qps currently registered for this entry are promiscuous,
 	  * Checking for duplicates */
 	ret = true;
 	list_for_each_entry_safe(entry, tmp_entry, &s_steer->steer_entries[steer], list) {
@@ -369,7 +416,6 @@ static bool can_remove_steering_entry(struct mlx4_dev *dev, u8 port,
 	}
 
 out:
-	mlx4_free_cmd_mailbox(dev, mailbox);
 	return ret;
 }
 
@@ -388,6 +434,9 @@ static int add_promisc_qp(struct mlx4_dev *dev, u8 port,
 	bool found;
 	int err;
 	struct mlx4_priv *priv = mlx4_priv(dev);
+
+	if (port < 1 || port > dev->caps.num_ports)
+		return -EINVAL;
 
 	s_steer = &mlx4_priv(dev)->steer[port - 1];
 
@@ -412,42 +461,44 @@ static int add_promisc_qp(struct mlx4_dev *dev, u8 port,
 	}
 	mgm = mailbox->buf;
 
-	/* the promisc qp needs to be added for each one of the steering
-	 * entries, if it already exists, needs to be added as a duplicate
-	 * for this entry */
-	list_for_each_entry(entry, &s_steer->steer_entries[steer], list) {
-		err = mlx4_READ_ENTRY(dev, entry->index, mailbox);
-		if (err)
-			goto out_mailbox;
+	if (!(mlx4_is_mfunc(dev) && steer == MLX4_UC_STEER)) {
+		/* the promisc qp needs to be added for each one of the steering
+		 * entries, if it already exists, needs to be added as a duplicate
+		 * for this entry */
+		list_for_each_entry(entry, &s_steer->steer_entries[steer], list) {
+			err = mlx4_READ_ENTRY(dev, entry->index, mailbox);
+			if (err)
+				goto out_mailbox;
 
-		members_count = be32_to_cpu(mgm->members_count) & 0xffffff;
-		prot = be32_to_cpu(mgm->members_count) >> 30;
-		found = false;
-		for (i = 0; i < members_count; i++) {
-			if ((be32_to_cpu(mgm->qp[i]) & MGM_QPN_MASK) == qpn) {
-				/* Entry already exists, add to duplicates */
-				dqp = kmalloc(sizeof *dqp, GFP_KERNEL);
-				if (!dqp) {
+			members_count = be32_to_cpu(mgm->members_count) & 0xffffff;
+			prot = be32_to_cpu(mgm->members_count) >> 30;
+			found = false;
+			for (i = 0; i < members_count; i++) {
+				if ((be32_to_cpu(mgm->qp[i]) & MGM_QPN_MASK) == qpn) {
+					/* Entry already exists, add to duplicates */
+					dqp = kmalloc(sizeof *dqp, GFP_KERNEL);
+					if (!dqp) {
+						err = -ENOMEM;
+						goto out_mailbox;
+					}
+					dqp->qpn = qpn;
+					list_add_tail(&dqp->list, &entry->duplicates);
+					found = true;
+				}
+			}
+			if (!found) {
+				/* Need to add the qpn to mgm */
+				if (members_count == dev->caps.num_qp_per_mgm) {
+					/* entry is full */
 					err = -ENOMEM;
 					goto out_mailbox;
 				}
-				dqp->qpn = qpn;
-				list_add_tail(&dqp->list, &entry->duplicates);
-				found = true;
+				mgm->qp[members_count++] = cpu_to_be32(qpn & MGM_QPN_MASK);
+				mgm->members_count = cpu_to_be32(members_count | (prot << 30));
+				err = mlx4_WRITE_ENTRY(dev, entry->index, mailbox);
+				if (err)
+					goto out_mailbox;
 			}
-		}
-		if (!found) {
-			/* Need to add the qpn to mgm */
-			if (members_count == dev->caps.num_qp_per_mgm) {
-				/* entry is full */
-				err = -ENOMEM;
-				goto out_mailbox;
-			}
-			mgm->qp[members_count++] = cpu_to_be32(qpn & MGM_QPN_MASK);
-			mgm->members_count = cpu_to_be32(members_count | (prot << 30));
-			err = mlx4_WRITE_ENTRY(dev, entry->index, mailbox);
-			if (err)
-				goto out_mailbox;
 		}
 	}
 
@@ -492,7 +543,7 @@ static int remove_promisc_qp(struct mlx4_dev *dev, u8 port,
 	struct mlx4_steer *s_steer;
 	struct mlx4_cmd_mailbox *mailbox;
 	struct mlx4_mgm *mgm;
-	struct mlx4_steer_index *entry;
+	struct mlx4_steer_index *entry, *tmp_entry;
 	struct mlx4_promisc_qp *pqp;
 	struct mlx4_promisc_qp *dqp;
 	u32 members_count;
@@ -500,6 +551,9 @@ static int remove_promisc_qp(struct mlx4_dev *dev, u8 port,
 	bool back_to_list = false;
 	int i, loc = -1;
 	int err;
+
+	if (port < 1 || port > dev->caps.num_ports)
+		return -EINVAL;
 
 	s_steer = &mlx4_priv(dev)->steer[port - 1];
 	mutex_lock(&priv->mcg_table.mutex);
@@ -533,49 +587,58 @@ static int remove_promisc_qp(struct mlx4_dev *dev, u8 port,
 	if (err)
 		goto out_mailbox;
 
-	/* remove the qp from all the steering entries*/
-	list_for_each_entry(entry, &s_steer->steer_entries[steer], list) {
-		found = false;
-		list_for_each_entry(dqp, &entry->duplicates, list) {
-			if (dqp->qpn == qpn) {
-				found = true;
-				break;
-			}
-		}
-		if (found) {
-			/* a duplicate, no need to change the mgm,
-			 * only update the duplicates list */
-			list_del(&dqp->list);
-			kfree(dqp);
-		} else {
-			err = mlx4_READ_ENTRY(dev, entry->index, mailbox);
-				if (err)
-					goto out_mailbox;
-			members_count = be32_to_cpu(mgm->members_count) & 0xffffff;
-			for (i = 0; i < members_count; ++i)
-				if ((be32_to_cpu(mgm->qp[i]) & MGM_QPN_MASK) == qpn) {
-					loc = i;
+	if (!(mlx4_is_mfunc(dev) && steer == MLX4_UC_STEER)) {
+		/* remove the qp from all the steering entries*/
+		list_for_each_entry_safe(entry, tmp_entry, &s_steer->steer_entries[steer], list) {
+			found = false;
+			list_for_each_entry(dqp, &entry->duplicates, list) {
+				if (dqp->qpn == qpn) {
+					found = true;
 					break;
 				}
-
-			if (loc < 0) {
-				mlx4_err(dev, "QP %06x wasn't found in entry %d\n",
-					 qpn, entry->index);
-				err = -EINVAL;
-				goto out_mailbox;
 			}
+			if (found) {
+				/* a duplicate, no need to change the mgm,
+				 * only update the duplicates list */
+				list_del(&dqp->list);
+				kfree(dqp);
+			} else {
+				err = mlx4_READ_ENTRY(dev, entry->index, mailbox);
+					if (err)
+						goto out_mailbox;
+				members_count = be32_to_cpu(mgm->members_count) & 0xffffff;
+				if (!members_count) {
+					mlx4_warn(dev, "QP %06x wasn't found in entry %x mcount=0."
+					               " deleting entry...\n", qpn, entry->index);
+					list_del(&entry->list);
+					kfree(entry);
+					continue;
+				}
 
-			/* copy the last QP in this MGM over removed QP */
-			mgm->qp[loc] = mgm->qp[members_count - 1];
-			mgm->qp[members_count - 1] = 0;
-			mgm->members_count = cpu_to_be32(--members_count |
-							 (MLX4_PROT_ETH << 30));
+				for (i = 0; i < members_count; ++i)
+					if ((be32_to_cpu(mgm->qp[i]) & MGM_QPN_MASK) == qpn) {
+						loc = i;
+						break;
+					}
 
-			err = mlx4_WRITE_ENTRY(dev, entry->index, mailbox);
-				if (err)
+				if (loc < 0) {
+					mlx4_err(dev, "QP %06x wasn't found in entry %d\n",
+						 qpn, entry->index);
+					err = -EINVAL;
 					goto out_mailbox;
-		}
+				}
 
+				/* copy the last QP in this MGM over removed QP */
+				mgm->qp[loc] = mgm->qp[members_count - 1];
+				mgm->qp[members_count - 1] = 0;
+				mgm->members_count = cpu_to_be32(--members_count |
+								 (MLX4_PROT_ETH << 30));
+
+				err = mlx4_WRITE_ENTRY(dev, entry->index, mailbox);
+					if (err)
+						goto out_mailbox;
+			}
+		}
 	}
 
 out_mailbox:
@@ -661,26 +724,37 @@ static int find_entry(struct mlx4_dev *dev, u8 port,
 	return err;
 }
 
+static const u8 __promisc_mode[] = {
+	[MLX4_FS_REGULAR]   = 0x0,
+	[MLX4_FS_ALL_DEFAULT] = 0x1,
+	[MLX4_FS_MC_DEFAULT] = 0x3,
+	[MLX4_FS_UC_SNIFFER] = 0x4,
+	[MLX4_FS_MC_SNIFFER] = 0x5,
+};
+
+int map_sw_to_hw_steering_mode(struct mlx4_dev *dev,
+			       enum mlx4_net_trans_promisc_mode flow_type)
+{
+	if (flow_type >= MLX4_FS_MODE_NUM || flow_type < 0) {
+		mlx4_err(dev, "Invalid flow type. type = %d\n", flow_type);
+		return -EINVAL;
+	}
+	return __promisc_mode[flow_type];
+}
+EXPORT_SYMBOL_GPL(map_sw_to_hw_steering_mode);
+
 static void trans_rule_ctrl_to_hw(struct mlx4_net_trans_rule *ctrl,
 				  struct mlx4_net_trans_rule_hw_ctrl *hw)
 {
-	static const u8 __promisc_mode[] = {
-		[MLX4_FS_REGULAR]   = 0x0,
-		[MLX4_FS_ALL_DEFAULT] = 0x1,
-		[MLX4_FS_MC_DEFAULT] = 0x3,
-		[MLX4_FS_UC_SNIFFER] = 0x4,
-		[MLX4_FS_MC_SNIFFER] = 0x5,
-	};
+	u8 flags = 0;
 
-	u32 dw = 0;
+	flags = ctrl->queue_mode == MLX4_NET_TRANS_Q_LIFO ? 1 : 0;
+	flags |= ctrl->exclusive ? (1 << 2) : 0;
+	flags |= ctrl->allow_loopback ? (1 << 3) : 0;
 
-	dw = ctrl->queue_mode == MLX4_NET_TRANS_Q_LIFO ? 1 : 0;
-	dw |= ctrl->exclusive ? (1 << 2) : 0;
-	dw |= ctrl->allow_loopback ? (1 << 3) : 0;
-	dw |= __promisc_mode[ctrl->promisc_mode] << 8;
-	dw |= ctrl->priority << 16;
-
-	hw->ctrl = cpu_to_be32(dw);
+	hw->flags = flags;
+	hw->type = __promisc_mode[ctrl->promisc_mode];
+	hw->prio = cpu_to_be16(ctrl->priority);
 	hw->port = ctrl->port;
 	hw->qpn = cpu_to_be32(ctrl->qpn);
 }
@@ -694,29 +768,51 @@ const u16 __sw_id_hw[] = {
 	[MLX4_NET_TRANS_RULE_ID_UDP]     = 0xE006
 };
 
+int map_sw_to_hw_steering_id(struct mlx4_dev *dev,
+			     enum mlx4_net_trans_rule_id id)
+{
+	if (id >= MLX4_NET_TRANS_RULE_NUM || id < 0) {
+		mlx4_err(dev, "Invalid network rule id. id = %d\n", id);
+		return -EINVAL;
+	}
+	return __sw_id_hw[id];
+}
+EXPORT_SYMBOL_GPL(map_sw_to_hw_steering_id);
+
+static const int __rule_hw_sz[] = {
+	[MLX4_NET_TRANS_RULE_ID_ETH] =
+		sizeof(struct mlx4_net_trans_rule_hw_eth),
+	[MLX4_NET_TRANS_RULE_ID_IB] =
+		sizeof(struct mlx4_net_trans_rule_hw_ib),
+	[MLX4_NET_TRANS_RULE_ID_IPV6] = 0,
+	[MLX4_NET_TRANS_RULE_ID_IPV4] =
+		sizeof(struct mlx4_net_trans_rule_hw_ipv4),
+	[MLX4_NET_TRANS_RULE_ID_TCP] =
+		sizeof(struct mlx4_net_trans_rule_hw_tcp_udp),
+	[MLX4_NET_TRANS_RULE_ID_UDP] =
+		sizeof(struct mlx4_net_trans_rule_hw_tcp_udp)
+};
+
+int hw_rule_sz(struct mlx4_dev *dev,
+	       enum mlx4_net_trans_rule_id id)
+{
+	if (id >= MLX4_NET_TRANS_RULE_NUM || id < 0) {
+		mlx4_err(dev, "Invalid network rule id. id = %d\n", id);
+		return -EINVAL;
+	}
+
+	return __rule_hw_sz[id];
+}
+EXPORT_SYMBOL_GPL(hw_rule_sz);
+
 static int parse_trans_rule(struct mlx4_dev *dev, struct mlx4_spec_list *spec,
 			    struct _rule_hw *rule_hw)
 {
-	static const size_t __rule_hw_sz[] = {
-		[MLX4_NET_TRANS_RULE_ID_ETH] =
-			sizeof(struct mlx4_net_trans_rule_hw_eth),
-		[MLX4_NET_TRANS_RULE_ID_IB] =
-			sizeof(struct mlx4_net_trans_rule_hw_ib),
-		[MLX4_NET_TRANS_RULE_ID_IPV6] = 0,
-		[MLX4_NET_TRANS_RULE_ID_IPV4] =
-			sizeof(struct mlx4_net_trans_rule_hw_ipv4),
-		[MLX4_NET_TRANS_RULE_ID_TCP] =
-			sizeof(struct mlx4_net_trans_rule_hw_tcp_udp),
-		[MLX4_NET_TRANS_RULE_ID_UDP] =
-			sizeof(struct mlx4_net_trans_rule_hw_tcp_udp)
-	};
-	if (spec->id >= MLX4_NET_TRANS_RULE_NUM) {
-		mlx4_err(dev, "Invalid network rule id. id = %d\n", spec->id);
+	if (hw_rule_sz(dev, spec->id) < 0)
 		return -EINVAL;
-	}
-	memset(rule_hw, 0, __rule_hw_sz[spec->id]);
+	memset(rule_hw, 0, hw_rule_sz(dev, spec->id));
 	rule_hw->id = cpu_to_be16(__sw_id_hw[spec->id]);
-	rule_hw->size = __rule_hw_sz[spec->id] >> 2;
+	rule_hw->size = hw_rule_sz(dev, spec->id) >> 2;
 
 	switch (spec->id) {
 	case MLX4_NET_TRANS_RULE_ID_ETH:
@@ -730,12 +826,12 @@ static int parse_trans_rule(struct mlx4_dev *dev, struct mlx4_spec_list *spec,
 			rule_hw->eth.ether_type_enable = 1;
 			rule_hw->eth.ether_type = spec->eth.ether_type;
 		}
-		rule_hw->eth.vlan_id = spec->eth.vlan_id;
-		rule_hw->eth.vlan_id_msk = spec->eth.vlan_id_msk;
+		rule_hw->eth.vlan_tag = spec->eth.vlan_id;
+		rule_hw->eth.vlan_tag_msk = spec->eth.vlan_id_msk;
 		break;
 
 	case MLX4_NET_TRANS_RULE_ID_IB:
-		rule_hw->ib.r_u_qpn = spec->ib.r_u_qpn;
+		rule_hw->ib.l3_qpn = spec->ib.l3_qpn;
 		rule_hw->ib.qpn_mask = spec->ib.qpn_msk;
 		memcpy(&rule_hw->ib.dst_gid, &spec->ib.dst_gid, 16);
 		memcpy(&rule_hw->ib.dst_gid_msk, &spec->ib.dst_gid_msk, 16);
@@ -886,7 +982,7 @@ int mlx4_flow_detach(struct mlx4_dev *dev, u64 reg_id)
 	err = mlx4_QP_FLOW_STEERING_DETACH(dev, reg_id);
 	if (err)
 		mlx4_err(dev, "Fail to detach network rule. registration id = 0x%llx\n",
-			 (long long)reg_id);
+			 (unsigned long long)reg_id);
 	return err;
 }
 EXPORT_SYMBOL_GPL(mlx4_flow_detach);
@@ -977,8 +1073,9 @@ int mlx4_qp_attach_common(struct mlx4_dev *dev, struct mlx4_qp *qp, u8 gid[16],
 	if (err)
 		goto out;
 
+	/* if !link, still add the new entry. */
 	if (!link)
-		goto out;
+		goto skip_link;
 
 	err = mlx4_READ_ENTRY(dev, prev, mailbox);
 	if (err)
@@ -990,6 +1087,7 @@ int mlx4_qp_attach_common(struct mlx4_dev *dev, struct mlx4_qp *qp, u8 gid[16],
 	if (err)
 		goto out;
 
+skip_link:
 	if (prot == MLX4_PROT_ETH) {
 		/* manage the steering entry for promisc mode */
 		if (new_entry)
@@ -1006,7 +1104,7 @@ out:
 				  index, dev->caps.num_mgms);
 		else
 			mlx4_bitmap_free(&priv->mcg_table.bitmap,
-					 index - dev->caps.num_mgms);
+					 index - dev->caps.num_mgms, MLX4_USE_RR);
 	}
 	mutex_unlock(&priv->mcg_table.mutex);
 
@@ -1045,10 +1143,14 @@ int mlx4_qp_detach_common(struct mlx4_dev *dev, struct mlx4_qp *qp, u8 gid[16],
 		goto out;
 	}
 
-	/* if this pq is also a promisc qp, it shouldn't be removed */
+	/*
+	  if this QP is also a promisc QP, it shouldn't be removed only if
+	  at least one none promisc QP is also attached to this MCG
+	*/
 	if (prot == MLX4_PROT_ETH &&
-	    check_duplicate_entry(dev, port, steer, index, qp->qpn))
-		goto out;
+	    check_duplicate_entry(dev, port, steer, index, qp->qpn) &&
+	    !promisc_steering_entry(dev, port, steer, index, qp->qpn, NULL))
+			goto out;
 
 	members_count = be32_to_cpu(mgm->members_count) & 0xffffff;
 	for (i = 0; i < members_count; ++i)
@@ -1099,7 +1201,7 @@ int mlx4_qp_detach_common(struct mlx4_dev *dev, struct mlx4_qp *qp, u8 gid[16],
 					  index, amgm_index, dev->caps.num_mgms);
 			else
 				mlx4_bitmap_free(&priv->mcg_table.bitmap,
-						 amgm_index - dev->caps.num_mgms);
+						 amgm_index - dev->caps.num_mgms, MLX4_USE_RR);
 		}
 	} else {
 		/* Remove entry from AMGM */
@@ -1119,7 +1221,7 @@ int mlx4_qp_detach_common(struct mlx4_dev *dev, struct mlx4_qp *qp, u8 gid[16],
 				  prev, index, dev->caps.num_mgms);
 		else
 			mlx4_bitmap_free(&priv->mcg_table.bitmap,
-					 index - dev->caps.num_mgms);
+					 index - dev->caps.num_mgms, MLX4_USE_RR);
 	}
 
 out:
@@ -1148,7 +1250,7 @@ static int mlx4_QP_ATTACH(struct mlx4_dev *dev, struct mlx4_qp *qp,
 	qpn = qp->qpn;
 	qpn |= (prot << 28);
 	if (attach && block_loopback)
-		qpn |= (1U << 31);
+		qpn |= (1 << 31);
 
 	err = mlx4_cmd(dev, mailbox->dma, qpn, attach,
 		       MLX4_CMD_QP_ATTACH, MLX4_CMD_TIME_CLASS_A,
@@ -1158,28 +1260,11 @@ static int mlx4_QP_ATTACH(struct mlx4_dev *dev, struct mlx4_qp *qp,
 	return err;
 }
 
-int mlx4_multicast_attach(struct mlx4_dev *dev, struct mlx4_qp *qp, u8 gid[16],
-			  u8 port, int block_mcast_loopback,
-			  enum mlx4_protocol prot, u64 *reg_id)
+int mlx4_trans_to_dmfs_attach(struct mlx4_dev *dev, struct mlx4_qp *qp,
+			      u8 gid[16], u8 port,
+			      int block_mcast_loopback,
+			      enum mlx4_protocol prot, u64 *reg_id)
 {
-
-	switch (dev->caps.steering_mode) {
-	case MLX4_STEERING_MODE_A0:
-		if (prot == MLX4_PROT_ETH)
-			return 0;
-
-	case MLX4_STEERING_MODE_B0:
-		if (prot == MLX4_PROT_ETH)
-			gid[7] |= (MLX4_MC_STEER << 1);
-
-		if (mlx4_is_mfunc(dev))
-			return mlx4_QP_ATTACH(dev, qp, gid, 1,
-					      block_mcast_loopback, prot);
-		return mlx4_qp_attach_common(dev, qp, gid,
-					     block_mcast_loopback, prot,
-					     MLX4_MC_STEER);
-
-	case MLX4_STEERING_MODE_DEVICE_MANAGED: {
 		struct mlx4_spec_list spec = { {NULL} };
 		__be64 mac_mask = cpu_to_be64(MLX4_MAC_MASK << 16);
 
@@ -1213,8 +1298,35 @@ int mlx4_multicast_attach(struct mlx4_dev *dev, struct mlx4_qp *qp, u8 gid[16],
 		list_add_tail(&spec.list, &rule.list);
 
 		return mlx4_flow_attach(dev, &rule, reg_id);
-	}
+}
 
+int mlx4_multicast_attach(struct mlx4_dev *dev, struct mlx4_qp *qp, u8 gid[16],
+			  u8 port, int block_mcast_loopback,
+			  enum mlx4_protocol prot, u64 *reg_id)
+{
+	enum mlx4_steer_type steer;
+	steer = (is_valid_ether_addr(&gid[10])) ? MLX4_UC_STEER : MLX4_MC_STEER;
+
+	switch (dev->caps.steering_mode) {
+	case MLX4_STEERING_MODE_A0:
+		if (prot == MLX4_PROT_ETH)
+			return 0;
+
+	case MLX4_STEERING_MODE_B0:
+		if (prot == MLX4_PROT_ETH)
+			gid[7] |= (steer << 1);
+
+		if (mlx4_is_mfunc(dev))
+			return mlx4_QP_ATTACH(dev, qp, gid, 1,
+					      block_mcast_loopback, prot);
+		return mlx4_qp_attach_common(dev, qp, gid,
+					     block_mcast_loopback, prot,
+					     MLX4_MC_STEER);
+
+	case MLX4_STEERING_MODE_DEVICE_MANAGED:
+		return mlx4_trans_to_dmfs_attach(dev, qp, gid, port,
+						 block_mcast_loopback,
+						 prot, reg_id);
 	default:
 		return -EINVAL;
 	}
@@ -1224,6 +1336,9 @@ EXPORT_SYMBOL_GPL(mlx4_multicast_attach);
 int mlx4_multicast_detach(struct mlx4_dev *dev, struct mlx4_qp *qp, u8 gid[16],
 			  enum mlx4_protocol prot, u64 reg_id)
 {
+	enum mlx4_steer_type steer;
+	steer = (is_valid_ether_addr(&gid[10])) ? MLX4_UC_STEER : MLX4_MC_STEER;
+
 	switch (dev->caps.steering_mode) {
 	case MLX4_STEERING_MODE_A0:
 		if (prot == MLX4_PROT_ETH)
@@ -1231,7 +1346,7 @@ int mlx4_multicast_detach(struct mlx4_dev *dev, struct mlx4_qp *qp, u8 gid[16],
 
 	case MLX4_STEERING_MODE_B0:
 		if (prot == MLX4_PROT_ETH)
-			gid[7] |= (MLX4_MC_STEER << 1);
+			gid[7] |= (steer << 1);
 
 		if (mlx4_is_mfunc(dev))
 			return mlx4_QP_ATTACH(dev, qp, gid, 0, 0, prot);
@@ -1345,8 +1460,8 @@ int mlx4_PROMISC_wrapper(struct mlx4_dev *dev, int slave,
 	u8 port = vhcr->in_param >> 62;
 	enum mlx4_steer_type steer = vhcr->in_modifier;
 
-	/* Promiscuous unicast is not allowed in mfunc */
-	if (mlx4_is_mfunc(dev) && steer == MLX4_UC_STEER)
+	/* Promiscuous unicast is not allowed in mfunc for VFs */
+	if ((slave != dev->caps.function) && (steer == MLX4_UC_STEER))
 		return 0;
 
 	if (vhcr->op_modifier)

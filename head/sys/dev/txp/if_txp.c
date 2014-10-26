@@ -149,6 +149,7 @@ static int txp_intr(void *);
 static void txp_int_task(void *, int);
 static void txp_tick(void *);
 static int txp_ioctl(struct ifnet *, u_long, caddr_t);
+static uint64_t txp_get_counter(struct ifnet *, ift_counter);
 static void txp_start(struct ifnet *);
 static void txp_start_locked(struct ifnet *);
 static int txp_encap(struct txp_softc *, struct txp_tx_ring *, struct mbuf **);
@@ -413,6 +414,7 @@ txp_attach(device_t dev)
 	ifp->if_ioctl = txp_ioctl;
 	ifp->if_start = txp_start;
 	ifp->if_init = txp_init;
+	ifp->if_get_counter = txp_get_counter;
 	ifp->if_snd.ifq_drv_maxlen = TX_ENTRIES - 1;
 	IFQ_SET_MAXLEN(&ifp->if_snd, ifp->if_snd.ifq_drv_maxlen);
 	IFQ_SET_READY(&ifp->if_snd);
@@ -2540,7 +2542,7 @@ txp_watchdog(struct txp_softc *sc)
 
 	ifp = sc->sc_ifp;
 	if_printf(ifp, "watchdog timeout -- resetting\n");
-	ifp->if_oerrors++;
+	if_inc_counter(ifp, IFCOUNTER_OERRORS, 1);
 	txp_stop(sc);
 	txp_init_locked(sc);
 }
@@ -2816,13 +2818,11 @@ out:
 static void
 txp_stats_update(struct txp_softc *sc, struct txp_rsp_desc *rsp)
 {
-	struct ifnet *ifp;
 	struct txp_hw_stats *ostats, *stats;
 	struct txp_ext_desc *ext;
 
 	TXP_LOCK_ASSERT(sc);
 
-	ifp = sc->sc_ifp;
 	ext = (struct txp_ext_desc *)(rsp + 1);
 	ostats = &sc->sc_ostats;
 	stats = &sc->sc_stats;
@@ -2856,15 +2856,34 @@ txp_stats_update(struct txp_softc *sc, struct txp_rsp_desc *rsp)
 	    le32toh(ext[4].ext_3);
 	stats->rx_oflows = ostats->rx_oflows + le32toh(ext[4].ext_4);
 	stats->rx_filtered = ostats->rx_filtered + le32toh(ext[5].ext_1);
+}
 
-	ifp->if_ierrors = stats->rx_fifo_oflows + stats->rx_badssd +
-	    stats->rx_crcerrs + stats->rx_lenerrs + stats->rx_oflows;
-	ifp->if_oerrors = stats->tx_deferred + stats->tx_carrier_lost +
-	    stats->tx_fifo_underruns + stats->tx_mcast_oflows;
-	ifp->if_collisions = stats->tx_late_colls + stats->tx_multi_colls +
-	    stats->tx_excess_colls;
-	ifp->if_opackets = stats->tx_frames;
-	ifp->if_ipackets = stats->rx_frames;
+static uint64_t
+txp_get_counter(struct ifnet *ifp, ift_counter cnt)
+{
+	struct txp_softc *sc;
+	struct txp_hw_stats *stats;
+
+	sc = if_getsoftc(ifp);
+	stats = &sc->sc_stats;
+
+	switch (cnt) {
+	case IFCOUNTER_IERRORS:
+		return (stats->rx_fifo_oflows + stats->rx_badssd +
+		    stats->rx_crcerrs + stats->rx_lenerrs + stats->rx_oflows);
+	case IFCOUNTER_OERRORS:
+		return (stats->tx_deferred + stats->tx_carrier_lost +
+		    stats->tx_fifo_underruns + stats->tx_mcast_oflows);
+	case IFCOUNTER_COLLISIONS:
+		return (stats->tx_late_colls + stats->tx_multi_colls +
+		    stats->tx_excess_colls);
+	case IFCOUNTER_OPACKETS:
+		return (stats->tx_frames);
+	case IFCOUNTER_IPACKETS:
+		return (stats->rx_frames);
+	default:
+		return (if_get_counter_default(ifp, cnt));
+	}
 }
 
 #define	TXP_SYSCTL_STAT_ADD32(c, h, n, p, d)	\

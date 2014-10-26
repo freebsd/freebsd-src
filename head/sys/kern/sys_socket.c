@@ -34,8 +34,10 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/systm.h>
+#include <sys/domain.h>
 #include <sys/file.h>
 #include <sys/filedesc.h>
+#include <sys/malloc.h>
 #include <sys/proc.h>
 #include <sys/protosw.h>
 #include <sys/sigio.h>
@@ -48,11 +50,17 @@ __FBSDID("$FreeBSD$");
 #include <sys/stat.h>
 #include <sys/uio.h>
 #include <sys/ucred.h>
+#include <sys/un.h>
+#include <sys/unpcb.h>
+#include <sys/user.h>
 
 #include <net/if.h>
 #include <net/if_var.h>
 #include <net/route.h>
 #include <net/vnet.h>
+
+#include <netinet/in.h>
+#include <netinet/in_pcb.h>
 
 #include <security/mac/mac_framework.h>
 
@@ -63,6 +71,7 @@ static fo_poll_t soo_poll;
 extern fo_kqfilter_t soo_kqfilter;
 static fo_stat_t soo_stat;
 static fo_close_t soo_close;
+static fo_fill_kinfo_t soo_fill_kinfo;
 
 struct fileops	socketops = {
 	.fo_read = soo_read,
@@ -76,6 +85,7 @@ struct fileops	socketops = {
 	.fo_chmod = invfo_chmod,
 	.fo_chown = invfo_chown,
 	.fo_sendfile = invfo_sendfile,
+	.fo_fill_kinfo = soo_fill_kinfo,
 	.fo_flags = DFLAG_PASSABLE
 };
 
@@ -292,4 +302,59 @@ soo_close(struct file *fp, struct thread *td)
 	if (so)
 		error = soclose(so);
 	return (error);
+}
+
+static int
+soo_fill_kinfo(struct file *fp, struct kinfo_file *kif, struct filedesc *fdp)
+{
+	struct sockaddr *sa;
+	struct inpcb *inpcb;
+	struct unpcb *unpcb;
+	struct socket *so;
+	int error;
+
+	kif->kf_type = KF_TYPE_SOCKET;
+	so = fp->f_data;
+	kif->kf_sock_domain = so->so_proto->pr_domain->dom_family;
+	kif->kf_sock_type = so->so_type;
+	kif->kf_sock_protocol = so->so_proto->pr_protocol;
+	kif->kf_un.kf_sock.kf_sock_pcb = (uintptr_t)so->so_pcb;
+	switch (kif->kf_sock_domain) {
+	case AF_INET:
+	case AF_INET6:
+		if (kif->kf_sock_protocol == IPPROTO_TCP) {
+			if (so->so_pcb != NULL) {
+				inpcb = (struct inpcb *)(so->so_pcb);
+				kif->kf_un.kf_sock.kf_sock_inpcb =
+				    (uintptr_t)inpcb->inp_ppcb;
+			}
+		}
+		break;
+	case AF_UNIX:
+		if (so->so_pcb != NULL) {
+			unpcb = (struct unpcb *)(so->so_pcb);
+			if (unpcb->unp_conn) {
+				kif->kf_un.kf_sock.kf_sock_unpconn =
+				    (uintptr_t)unpcb->unp_conn;
+				kif->kf_un.kf_sock.kf_sock_rcv_sb_state =
+				    so->so_rcv.sb_state;
+				kif->kf_un.kf_sock.kf_sock_snd_sb_state =
+				    so->so_snd.sb_state;
+			}
+		}
+		break;
+	}
+	error = so->so_proto->pr_usrreqs->pru_sockaddr(so, &sa);
+	if (error == 0 && sa->sa_len <= sizeof(kif->kf_sa_local)) {
+		bcopy(sa, &kif->kf_sa_local, sa->sa_len);
+		free(sa, M_SONAME);
+	}
+	error = so->so_proto->pr_usrreqs->pru_peeraddr(so, &sa);
+	if (error == 0 && sa->sa_len <= sizeof(kif->kf_sa_peer)) {
+		bcopy(sa, &kif->kf_sa_peer, sa->sa_len);
+		free(sa, M_SONAME);
+	}
+	strncpy(kif->kf_path, so->so_proto->pr_domain->dom_name,
+	    sizeof(kif->kf_path));
+	return (0);	
 }

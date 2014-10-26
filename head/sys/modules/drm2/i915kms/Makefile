@@ -7,6 +7,7 @@ SRCS	= \
 	i915_dma.c \
 	i915_drv.c \
 	i915_gem.c \
+	i915_gem_context.c \
 	i915_gem_execbuffer.c \
 	i915_gem_evict.c \
 	i915_gem_gtt.c \

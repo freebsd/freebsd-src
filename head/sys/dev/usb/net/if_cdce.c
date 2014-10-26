@@ -788,7 +788,7 @@ cdce_bulk_write_callback(struct usb_xfer *xfer, usb_error_t error)
 		DPRINTFN(11, "transfer complete: %u bytes in %u frames\n",
 		    actlen, aframes);
 
-		ifp->if_opackets++;
+		if_inc_counter(ifp, IFCOUNTER_OPACKETS, 1);
 
 		/* free all previous TX buffers */
 		cdce_free_queue(sc->sc_tx_buf, CDCE_FRAMES_MAX);
@@ -814,7 +814,7 @@ tr_setup:
 
 				if (!m_append(m, 4, (void *)&crc)) {
 					m_freem(m);
-					ifp->if_oerrors++;
+					if_inc_counter(ifp, IFCOUNTER_OERRORS, 1);
 					continue;
 				}
 			}
@@ -822,7 +822,7 @@ tr_setup:
 				mt = m_defrag(m, M_NOWAIT);
 				if (mt == NULL) {
 					m_freem(m);
-					ifp->if_oerrors++;
+					if_inc_counter(ifp, IFCOUNTER_OERRORS, 1);
 					continue;
 				}
 				m = mt;
@@ -854,7 +854,7 @@ tr_setup:
 		cdce_free_queue(sc->sc_tx_buf, CDCE_FRAMES_MAX);
 
 		/* count output errors */
-		ifp->if_oerrors++;
+		if_inc_counter(ifp, IFCOUNTER_OERRORS, 1);
 
 		if (error != USB_ERR_CANCELLED) {
 			/* try to clear stall first */
@@ -1169,7 +1169,7 @@ cdce_ncm_fill_tx_frames(struct usb_xfer *xfer, uint8_t index)
 				/* The frame won't fit in our buffer */
 				DPRINTFN(1, "Frame too big to be transmitted!\n");
 				m_freem(m);
-				ifp->if_oerrors++;
+				if_inc_counter(ifp, IFCOUNTER_OERRORS, 1);
 				n--;
 				continue;
 			}
@@ -1207,7 +1207,7 @@ cdce_ncm_fill_tx_frames(struct usb_xfer *xfer, uint8_t index)
 
 		/* Pre-increment interface counter */
 
-		ifp->if_opackets++;
+		if_inc_counter(ifp, IFCOUNTER_OPACKETS, 1);
 	}
 
 	if (n == 0)
@@ -1310,7 +1310,7 @@ cdce_ncm_bulk_write_callback(struct usb_xfer *xfer, usb_error_t error)
 		    usbd_errstr(error));
 
 		/* update error counter */
-		ifp->if_oerrors += 1;
+		if_inc_counter(ifp, IFCOUNTER_OERRORS, 1);
 
 		if (error != USB_ERR_CANCELLED) {
 			/* try to clear stall first */
@@ -1454,7 +1454,7 @@ cdce_ncm_bulk_read_callback(struct usb_xfer *xfer, usb_error_t error)
 
 				sumdata += temp;
 			} else {
-				ifp->if_ierrors++;
+				if_inc_counter(ifp, IFCOUNTER_IERRORS, 1);
 			}
 		}
 

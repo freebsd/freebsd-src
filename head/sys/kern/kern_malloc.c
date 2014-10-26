@@ -717,6 +717,8 @@ kmeminit(void)
 	 * a given architecture.
 	 */
 	mem_size = vm_cnt.v_page_count;
+	if (mem_size <= 32768) /* delphij XXX 128MB */
+		kmem_zmax = PAGE_SIZE;
 
 	if (vm_kmem_size_scale < 1)
 		vm_kmem_size_scale = VM_KMEM_SIZE_SCALE;

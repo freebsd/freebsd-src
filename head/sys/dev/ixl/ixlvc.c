@@ -837,22 +837,33 @@ ixlv_request_stats(struct ixlv_sc *sc)
 void
 ixlv_update_stats_counters(struct ixlv_sc *sc, struct i40e_eth_stats *es)
 {
-	struct ifnet *ifp = sc->vsi.ifp;
+	struct ixl_vsi *vsi;
+	uint64_t tx_discards;
+	int i;
 
-	ifp->if_ipackets = es->rx_unicast +
+	vsi = &sc->vsi;
+
+	tx_discards = es->tx_discards;
+	for (i = 0; i < sc->vsi.num_queues; i++)
+		tx_discards += sc->vsi.queues[i].txr.br->br_drops;
+
+	/* Update ifnet stats */
+	IXL_SET_IPACKETS(vsi, es->rx_unicast +
 	                   es->rx_multicast +
-			   es->rx_broadcast;
-	ifp->if_opackets = es->tx_unicast +
+			   es->rx_broadcast);
+	IXL_SET_OPACKETS(vsi, es->tx_unicast +
 	                   es->tx_multicast +
-			   es->tx_broadcast;
-	ifp->if_ibytes = es->rx_bytes;
-	ifp->if_obytes = es->tx_bytes;
-	ifp->if_imcasts = es->rx_multicast;
-	ifp->if_omcasts = es->tx_multicast;
+			   es->tx_broadcast);
+	IXL_SET_IBYTES(vsi, es->rx_bytes);
+	IXL_SET_OBYTES(vsi, es->tx_bytes);
+	IXL_SET_IMCASTS(vsi, es->rx_multicast);
+	IXL_SET_OMCASTS(vsi, es->tx_multicast);
 
-	ifp->if_oerrors = es->tx_errors;
-	ifp->if_iqdrops = es->rx_discards;
-	ifp->if_noproto = es->rx_unknown_protocol;
+	IXL_SET_OERRORS(vsi, es->tx_errors);
+	IXL_SET_IQDROPS(vsi, es->rx_discards);
+	IXL_SET_OQDROPS(vsi, tx_discards);
+	IXL_SET_NOPROTO(vsi, es->rx_unknown_protocol);
+	IXL_SET_COLLISIONS(vsi, 0);
 
 	sc->vsi.eth_stats = *es;
 }

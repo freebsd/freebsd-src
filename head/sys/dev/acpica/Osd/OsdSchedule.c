@@ -60,6 +60,13 @@ SYSCTL_INT(_debug_acpi, OID_AUTO, max_tasks, CTLFLAG_RDTUN, &acpi_max_tasks,
     0, "Maximum acpi tasks");
 
 /*
+ * Track and report the system's demand for task slots.
+ */
+static int acpi_tasks_hiwater;
+SYSCTL_INT(_debug_acpi, OID_AUTO, tasks_hiwater, CTLFLAG_RD,
+    &acpi_tasks_hiwater, 1, "Peak demand for ACPI event task slots.");
+
+/*
  * Allow the user to tune the number of task threads we start.  It seems
  * some systems have problems with increased parallelism.
  */
@@ -151,6 +158,10 @@ acpi_task_enqueue(int priority, ACPI_OSD_EXEC_CALLBACK Function, void *Context)
 	    acpi_task_count++;
 	    break;
 	}
+
+    if (i > acpi_tasks_hiwater)
+	atomic_cmpset_int(&acpi_tasks_hiwater, acpi_tasks_hiwater, i);
+
     if (at == NULL) {
 	printf("AcpiOsExecute: failed to enqueue task, consider increasing "
 	    "the debug.acpi.max_tasks tunable\n");

@@ -606,20 +606,19 @@ vatpic_write(struct vatpic *vatpic, struct atpic *atpic, bool in, int port,
 	VATPIC_LOCK(vatpic);
 
 	if (port & ICU_IMR_OFFSET) {
-		if (atpic->ready) {
+		switch (atpic->icw_num) {
+		case 2:
+			error = vatpic_icw2(vatpic, atpic, val);
+			break;
+		case 3:
+			error = vatpic_icw3(vatpic, atpic, val);
+			break;
+		case 4:
+			error = vatpic_icw4(vatpic, atpic, val);
+			break;
+		default:
 			error = vatpic_ocw1(vatpic, atpic, val);
-		} else {
-			switch (atpic->icw_num) {
-			case 2:
-				error = vatpic_icw2(vatpic, atpic, val);
-				break;
-			case 3:
-				error = vatpic_icw3(vatpic, atpic, val);
-				break;
-			case 4:
-				error = vatpic_icw4(vatpic, atpic, val);
-				break;
-			}
+			break;
 		}
 	} else {
 		if (val & (1 << 4))
