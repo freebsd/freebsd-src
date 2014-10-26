@@ -22,7 +22,7 @@ arm/freescale/imx/tzic.c		standard
 arm/freescale/imx/imx51_iomux.c		optional iomux
 
 # GPIO
-arm/freescale/imx/imx51_gpio.c		optional gpio
+arm/freescale/imx/imx_gpio.c		optional gpio
 
 # Generic Periodic Timer
 arm/freescale/imx/imx_gpt.c		standard
