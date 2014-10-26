@@ -26,30 +26,17 @@
  * $FreeBSD$
  */
 
-#ifndef	IMX_CCMVAR_H
-#define	IMX_CCMVAR_H
+#ifndef	IMX_IOMUXVAR_H
+#define	IMX_IOMUXVAR_H
 
 /*
- * We need a clock management system that works across unrelated SoCs and
- * devices.  For now, to keep imx development moving, define some barebones
- * functionality that can be shared within the imx family by having each SoC
- * implement functions with a common name.
- *
- * The usb enable functions are best-effort.  They turn on the usb otg, host,
- * and phy clocks in a SoC-specific manner, but it may take a lot more than that
- * to make usb work on a given board.  In particular, it can require specific
- * pinmux setup of gpio pins connected to external phy parts, voltage regulators
- * and overcurrent detectors, and so on.  On such boards, u-boot or other early
- * board setup code has to handle those things.
+ * The IOMUX Controller device has a small set of "general purpose registers" 
+ * which control various aspects of SoC operation that really have nothing to do
+ * with IO pin assignments or pad control.  These functions let other soc level
+ * code manipulate these values.
  */
-
-uint32_t imx_ccm_ipg_hz(void);
-uint32_t imx_ccm_perclk_hz(void);
-uint32_t imx_ccm_sdhci_hz(void);
-uint32_t imx_ccm_uart_hz(void);
-uint32_t imx_ccm_ahb_hz(void);
-
-void imx_ccm_usb_enable(device_t _usbdev);
-void imx_ccm_usbphy_enable(device_t _phydev);
+uint32_t imx_iomux_gpr_get(u_int regnum);
+void     imx_iomux_gpr_set(u_int regnum, uint32_t val);
+void     imx_iomux_gpr_set_masked(u_int regnum, uint32_t clrbits, uint32_t setbits);
 
 #endif
