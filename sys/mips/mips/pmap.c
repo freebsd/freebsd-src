@@ -2586,7 +2586,11 @@ pmap_copy_page(vm_page_t src, vm_page_t dst)
 		    MIPS_PHYS_TO_DIRECT(phys_dst), PAGE_SIZE);
 		va_src = MIPS_PHYS_TO_DIRECT(phys_src);
 		va_dst = MIPS_PHYS_TO_DIRECT(phys_dst);
+#ifdef CPU_CHERI
+		cheri_bcopy((caddr_t)va_src, (caddr_t)va_dst, PAGE_SIZE);
+#else
 		bcopy((caddr_t)va_src, (caddr_t)va_dst, PAGE_SIZE);
+#endif
 		mips_dcache_wbinv_range(va_dst, PAGE_SIZE);
 	} else {
 		va_src = pmap_lmem_map2(phys_src, phys_dst);
@@ -2627,14 +2631,22 @@ pmap_copy_pages(vm_page_t ma[], vm_offset_t a_offset, vm_page_t mb[],
 			    a_pg_offset;
 			b_cp = (char *)MIPS_PHYS_TO_DIRECT(b_phys) +
 			    b_pg_offset;
+#ifdef CPU_CHERI
+			cheri_bcopy(a_cp, b_cp, cnt);
+#else
 			bcopy(a_cp, b_cp, cnt);
+#endif
 			mips_dcache_wbinv_range((vm_offset_t)b_cp, cnt);
 		} else {
 			a_cp = (char *)pmap_lmem_map2(a_phys, b_phys);
 			b_cp = (char *)a_cp + PAGE_SIZE;
 			a_cp += a_pg_offset;
 			b_cp += b_pg_offset;
+#ifdef CPU_CHERI
+			cheri_bcopy(a_cp, b_cp, cnt);
+#else
 			bcopy(a_cp, b_cp, cnt);
+#endif
 			mips_dcache_wbinv_range((vm_offset_t)b_cp, cnt);
 			pmap_lmem_unmap();
 		}
