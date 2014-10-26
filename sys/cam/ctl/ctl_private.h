@@ -384,6 +384,8 @@ struct ctl_devid {
  */
 #define NUM_TARGET_PORT_GROUPS	2
 
+#define CTL_WRITE_BUFFER_SIZE	262144
+
 struct tpc_list;
 struct ctl_lun {
 	struct mtx			lun_lock;
@@ -417,7 +419,7 @@ struct ctl_lun {
 	int				pr_key_count;
 	uint32_t			pr_res_idx;
 	uint8_t				res_type;
-	uint8_t				write_buffer[262144];
+	uint8_t				*write_buffer;
 	struct ctl_devid		*lun_devid;
 	TAILQ_HEAD(tpc_lists, tpc_list) tpc_lists;
 };
