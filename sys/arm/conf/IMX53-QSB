@@ -119,8 +119,6 @@ options 	ALT_BREAK_TO_DEBUGGER
 #device		imxata
 #options 	ATA_STATIC_ID		# Static device numbering
 
-device		iomux			# IO Multiplexor
-
 device		gpio
 device		gpioled
 

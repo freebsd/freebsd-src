@@ -80,7 +80,6 @@ device  	md			# Memory "disks"
 device  	ether			# Ethernet support
 device  	miibus			# Required for ethernet
 device  	bpf			# Berkeley packet filter (required for DHCP)
-#device  	iomux			# IO Multiplexor
 
 # General-purpose input/output
 device  	gpio
