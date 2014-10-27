@@ -107,7 +107,8 @@ cc_default_algo(SYSCTL_HANDLER_ARGS)
 		CC_LIST_RLOCK();
 		STAILQ_FOREACH(funcs, &cc_list, entries) {
 			/* NOTE: "newptr" is not zero terminated */
-			if (req->newlen != strlen(funcs->name))
+			if (req->newlen != strnlen(funcs->name,
+			    TCP_CA_NAME_MAX - 1))
 				continue;
 			if (bcmp(req->newptr, funcs->name, req->newlen))
 				continue;
