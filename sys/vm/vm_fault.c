@@ -853,8 +853,14 @@ vnode_locked:
 			} else {
 				/*
 				 * Oh, well, lets copy it.
+				 *
+				 * XXXRW: Worth pondering this further; in
+				 * general, copy-on-write should propagate any
+				 * tags present in the underlying page -- at
+				 * least, if the top object is anonymously
+				 * backed.  But is this always true?
 				 */
-				pmap_copy_page(fs.m, fs.first_m);
+				pmap_copy_page_tags(fs.m, fs.first_m);
 				fs.first_m->valid = VM_PAGE_BITS_ALL;
 				if (wired && (fault_flags &
 				    VM_FAULT_CHANGE_WIRING) == 0) {
@@ -1374,7 +1380,11 @@ again:
 				VM_OBJECT_WLOCK(dst_object);
 				goto again;
 			}
-			pmap_copy_page(src_m, dst_m);
+
+			/*
+			 * XXXRW: VM preserves tags across copy-on-write.
+			 */
+			pmap_copy_page_tags(src_m, dst_m);
 			VM_OBJECT_RUNLOCK(object);
 			dst_m->valid = VM_PAGE_BITS_ALL;
 			dst_m->dirty = VM_PAGE_BITS_ALL;

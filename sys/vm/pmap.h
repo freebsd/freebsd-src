@@ -112,7 +112,10 @@ void		 pmap_align_superpage(vm_object_t, vm_ooffset_t, vm_offset_t *,
 void		 pmap_clear_modify(vm_page_t m);
 void		 pmap_copy(pmap_t, pmap_t, vm_offset_t, vm_size_t, vm_offset_t);
 void		 pmap_copy_page(vm_page_t, vm_page_t);
+void		 pmap_copy_page_tags(vm_page_t, vm_page_t);
 void		 pmap_copy_pages(vm_page_t ma[], vm_offset_t a_offset,
+		    vm_page_t mb[], vm_offset_t b_offset, int xfersize);
+void		 pmap_copy_pages_tags(vm_page_t ma[], vm_offset_t a_offset,
 		    vm_page_t mb[], vm_offset_t b_offset, int xfersize);
 int		 pmap_enter(pmap_t pmap, vm_offset_t va, vm_page_t m,
 		    vm_prot_t prot, u_int flags, int8_t psind);
@@ -155,6 +158,17 @@ void		 pmap_zero_page_idle(vm_page_t);
 
 #define	pmap_resident_count(pm)	((pm)->pm_stats.resident_count)
 #define	pmap_wired_count(pm)	((pm)->pm_stats.wired_count)
+
+/*
+ * This isn't the ideal place to put these, but avoids having to do it for
+ * every architecture.  If tags become more widely used, we might need to do
+ * so.
+ */
+#ifndef CPU_CHERI
+#define	pmap_copy_page_tags(src, dst)	pmap_copy_page((src), (dst))
+#define	pmap_copy_pages_tags(ma, a_offset, mb, b_offset, xfersize)	\
+	    pmap_copy_pages(ma, a_offset, mb, b_offset, xfersize)
+#endif
 
 #endif /* _KERNEL */
 #endif /* _PMAP_VM_ */

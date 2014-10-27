@@ -2568,8 +2568,9 @@ pmap_zero_page_idle(vm_page_t m)
  *
  * 	Use XKPHYS for 64 bit, and KSEG0 where possible for 32 bit.
  */
-void
-pmap_copy_page(vm_page_t src, vm_page_t dst)
+#define	PMAP_COPY_TAGS	0x00000001
+static void
+pmap_copy_page_internal(vm_page_t src, vm_page_t dst, int flags)
 {
 	vm_offset_t va_src, va_dst;
 	vm_paddr_t phys_src = VM_PAGE_TO_PHYS(src);
@@ -2587,9 +2588,12 @@ pmap_copy_page(vm_page_t src, vm_page_t dst)
 		va_src = MIPS_PHYS_TO_DIRECT(phys_src);
 		va_dst = MIPS_PHYS_TO_DIRECT(phys_dst);
 #ifdef CPU_CHERI
-		cheri_bcopy((caddr_t)va_src, (caddr_t)va_dst, PAGE_SIZE);
+		if (flags & PMAP_COPY_TAGS)
+			cheri_bcopy((caddr_t)va_src, (caddr_t)va_dst,
+			    PAGE_SIZE);
+		else
 #else
-		bcopy((caddr_t)va_src, (caddr_t)va_dst, PAGE_SIZE);
+			bcopy((caddr_t)va_src, (caddr_t)va_dst, PAGE_SIZE);
 #endif
 		mips_dcache_wbinv_range(va_dst, PAGE_SIZE);
 	} else {
@@ -2601,11 +2605,32 @@ pmap_copy_page(vm_page_t src, vm_page_t dst)
 	}
 }
 
-int unmapped_buf_allowed;
+/*
+ * With CHERI, it is sometimes desirable to explicitly propagate tags between
+ * pages (e.g., during copy-on-write), but not other times (e.g., copying data
+ * from VM to buffer cache).  There is more playing out here yet to do (e.g.,
+ * if any filesystems learn to preserve tags) but these KPIs allow us to
+ * capture that difference in the mean time.
+ */
+void
+pmap_copy_page(vm_page_t src, vm_page_t dst)
+{
+
+	pmap_copy_page_internal(src, dst, 0);
+}
 
 void
-pmap_copy_pages(vm_page_t ma[], vm_offset_t a_offset, vm_page_t mb[],
-    vm_offset_t b_offset, int xfersize)
+pmap_copy_page_tags(vm_page_t src, vm_page_t dst)
+{
+
+	pmap_copy_page_internal(src, dst, PMAP_COPY_TAGS);
+}
+
+int unmapped_buf_allowed;
+
+static void
+pmap_copy_pages_internal(vm_page_t ma[], vm_offset_t a_offset, vm_page_t mb[],
+    vm_offset_t b_offset, int xfersize, int flags)
 {
 	char *a_cp, *b_cp;
 	vm_page_t a_m, b_m;
@@ -2632,9 +2657,11 @@ pmap_copy_pages(vm_page_t ma[], vm_offset_t a_offset, vm_page_t mb[],
 			b_cp = (char *)MIPS_PHYS_TO_DIRECT(b_phys) +
 			    b_pg_offset;
 #ifdef CPU_CHERI
-			cheri_bcopy(a_cp, b_cp, cnt);
+			if (flags & PMAP_COPY_TAGS)
+				cheri_bcopy(a_cp, b_cp, cnt);
+			else
 #else
-			bcopy(a_cp, b_cp, cnt);
+				bcopy(a_cp, b_cp, cnt);
 #endif
 			mips_dcache_wbinv_range((vm_offset_t)b_cp, cnt);
 		} else {
@@ -2643,9 +2670,11 @@ pmap_copy_pages(vm_page_t ma[], vm_offset_t a_offset, vm_page_t mb[],
 			a_cp += a_pg_offset;
 			b_cp += b_pg_offset;
 #ifdef CPU_CHERI
-			cheri_bcopy(a_cp, b_cp, cnt);
+			if (flags & PMAP_COPY_TAGS)
+				cheri_bcopy(a_cp, b_cp, cnt);
+			else
 #else
-			bcopy(a_cp, b_cp, cnt);
+				bcopy(a_cp, b_cp, cnt);
 #endif
 			mips_dcache_wbinv_range((vm_offset_t)b_cp, cnt);
 			pmap_lmem_unmap();
@@ -2654,6 +2683,27 @@ pmap_copy_pages(vm_page_t ma[], vm_offset_t a_offset, vm_page_t mb[],
 		b_offset += cnt;
 		xfersize -= cnt;
 	}
+}
+
+/*
+ * As with pmap_copy_page(), CHERI requires tagged and non-tagged versions
+ * depending on the circumstances.
+ */
+void
+pmap_copy_pages(vm_page_t ma[], vm_offset_t a_offset, vm_page_t mb[],
+    vm_offset_t b_offset, int xfersize)
+{
+
+	pmap_copy_pages_internal(ma, a_offset, mb, b_offset, xfersize, 0);
+}
+
+void
+pmap_copy_pages_tags(vm_page_t ma[], vm_offset_t a_offset, vm_page_t mb[],
+    vm_offset_t b_offset, int xfersize)
+{
+
+	pmap_copy_pages_internal(ma, a_offset, mb, b_offset, xfersize,
+	    PMAP_COPY_TAGS);
 }
 
 /*
