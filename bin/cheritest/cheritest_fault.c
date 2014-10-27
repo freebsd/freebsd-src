@@ -154,6 +154,20 @@ test_fault_cgetcause(const struct cheri_test *ctp __unused)
 }
 
 void
+test_nofault_cfromptr(const struct cheri_test *ctp __unused)
+{
+  char buf[256];
+  __capability void * cd; /* stored into here */
+  __capability void * cb; /* derived from here */
+  void * rt;
+
+  cb = cheri_ptr(buf, 256);
+  rt = &buf[10];
+  __asm__ __volatile__ ("cfromptr %0, %1, %2" :: "r"(cd), "r"(cb), "r"(rt) : "memory");
+  cheritest_success();
+}
+
+void
 test_fault_read_kr1c(const struct cheri_test *ctp __unused)
 {
 

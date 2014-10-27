@@ -136,6 +136,7 @@ void	test_nofault_ccall_dli_creturn(const struct cheri_test *ctp);
 /* cheritest_fault.c */
 void	test_fault_bounds(const struct cheri_test *ctp);
 void	test_fault_cgetcause(const struct cheri_test *ctp);
+void	test_nofault_cfromptr(const struct cheri_test *ctp);
 void	test_fault_perm_load(const struct cheri_test *ctp);
 void	test_nofault_perm_load(const struct cheri_test *ctp);
 void	test_fault_perm_store(const struct cheri_test *ctp);

@@ -93,6 +93,12 @@ static const struct cheri_test cheri_tests[] = {
 	  .ct_signum = SIGPROT,
 	  .ct_mips_exccode = T_C2E,
 	  .ct_cp2_exccode = CHERI_EXCCODE_ACCESS_EPCC },
+ 
+  { .ct_name = "test_nofault_cfromptr",
+	  .ct_desc = "Exercise CFromPtr success",
+	  .ct_func = test_nofault_cfromptr,
+    .ct_flags = CT_FLAG_SIGNAL,
+    .ct_signum = 0 },
 
 	{ .ct_name = "test_fault_bounds",
 	  .ct_desc = "Exercise capability bounds check failure",
