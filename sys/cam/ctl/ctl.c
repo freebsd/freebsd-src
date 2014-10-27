@@ -11172,9 +11172,6 @@ ctl_scsiio_lun_check(struct ctl_softc *ctl_softc, struct ctl_lun *lun,
 		 * if we aren't registered or it's a res holder type
 		 * reservation and this isn't the res holder then set a
 		 * conflict.
-		 * NOTE: Commands which might be allowed on write exclusive
-		 * type reservations are checked in the particular command
-		 * for a conflict. Read and SSU are the only ones.
 		 */
 		if (lun->pr_keys[residx] == 0
 		 || (residx != lun->pr_res_idx && lun->res_type < 4)) {
