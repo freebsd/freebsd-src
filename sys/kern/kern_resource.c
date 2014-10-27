@@ -1215,6 +1215,7 @@ uihashinit()
 /*
  * Look up a uidinfo struct for the parameter uid.
  * uihashtbl_lock must be locked.
+ * Increase refcount on uidinfo struct returned.
  */
 static struct uidinfo *
 uilookup(uid_t uid)
@@ -1225,49 +1226,52 @@ uilookup(uid_t uid)
 	rw_assert(&uihashtbl_lock, RA_LOCKED);
 	uipp = UIHASH(uid);
 	LIST_FOREACH(uip, uipp, ui_hash)
-		if (uip->ui_uid == uid)
+		if (uip->ui_uid == uid) {
+			uihold(uip);
 			break;
+		}
 
 	return (uip);
 }
 
 /*
  * Find or allocate a struct uidinfo for a particular uid.
- * Increase refcount on uidinfo struct returned.
+ * Returns with uidinfo struct referenced.
  * uifree() should be called on a struct uidinfo when released.
  */
 struct uidinfo *
 uifind(uid_t uid)
 {
-	struct uidinfo *old_uip, *uip;
+	struct uidinfo *new_uip, *uip;
 
 	rw_rlock(&uihashtbl_lock);
 	uip = uilookup(uid);
-	if (uip == NULL) {
-		rw_runlock(&uihashtbl_lock);
-		uip = malloc(sizeof(*uip), M_UIDINFO, M_WAITOK | M_ZERO);
-		racct_create(&uip->ui_racct);
-		rw_wlock(&uihashtbl_lock);
-		/*
-		 * There's a chance someone created our uidinfo while we
-		 * were in malloc and not holding the lock, so we have to
-		 * make sure we don't insert a duplicate uidinfo.
-		 */
-		if ((old_uip = uilookup(uid)) != NULL) {
-			/* Someone else beat us to it. */
-			racct_destroy(&uip->ui_racct);
-			free(uip, M_UIDINFO);
-			uip = old_uip;
-		} else {
-			refcount_init(&uip->ui_ref, 0);
-			uip->ui_uid = uid;
-			mtx_init(&uip->ui_vmsize_mtx, "ui_vmsize", NULL,
-			    MTX_DEF);
-			LIST_INSERT_HEAD(UIHASH(uid), uip, ui_hash);
-		}
+	rw_runlock(&uihashtbl_lock);
+	if (uip != NULL)
+		return (uip);
+
+	new_uip = malloc(sizeof(*new_uip), M_UIDINFO, M_WAITOK | M_ZERO);
+	racct_create(&new_uip->ui_racct);
+	refcount_init(&new_uip->ui_ref, 1);
+	new_uip->ui_uid = uid;
+	mtx_init(&new_uip->ui_vmsize_mtx, "ui_vmsize", NULL, MTX_DEF);
+
+	rw_wlock(&uihashtbl_lock);
+	/*
+	 * There's a chance someone created our uidinfo while we
+	 * were in malloc and not holding the lock, so we have to
+	 * make sure we don't insert a duplicate uidinfo.
+	 */
+	if ((uip = uilookup(uid)) == NULL) {
+		LIST_INSERT_HEAD(UIHASH(uid), new_uip, ui_hash);
+		rw_wunlock(&uihashtbl_lock);
+		uip = new_uip;
+	} else {
+		rw_wunlock(&uihashtbl_lock);
+		racct_destroy(&new_uip->ui_racct);
+		mtx_destroy(&new_uip->ui_vmsize_mtx);
+		free(new_uip, M_UIDINFO);
 	}
-	uihold(uip);
-	rw_unlock(&uihashtbl_lock);
 	return (uip);
 }
 
@@ -1308,28 +1312,26 @@ uifree(struct uidinfo *uip)
 
 	/* Prepare for suboptimal case. */
 	rw_wlock(&uihashtbl_lock);
-	if (refcount_release(&uip->ui_ref)) {
-		racct_destroy(&uip->ui_racct);
-		LIST_REMOVE(uip, ui_hash);
+	if (refcount_release(&uip->ui_ref) == 0) {
 		rw_wunlock(&uihashtbl_lock);
-		if (uip->ui_sbsize != 0)
-			printf("freeing uidinfo: uid = %d, sbsize = %ld\n",
-			    uip->ui_uid, uip->ui_sbsize);
-		if (uip->ui_proccnt != 0)
-			printf("freeing uidinfo: uid = %d, proccnt = %ld\n",
-			    uip->ui_uid, uip->ui_proccnt);
-		if (uip->ui_vmsize != 0)
-			printf("freeing uidinfo: uid = %d, swapuse = %lld\n",
-			    uip->ui_uid, (unsigned long long)uip->ui_vmsize);
-		mtx_destroy(&uip->ui_vmsize_mtx);
-		free(uip, M_UIDINFO);
 		return;
 	}
-	/*
-	 * Someone added a reference between atomic_cmpset_int() and
-	 * rw_wlock(&uihashtbl_lock).
-	 */
+
+	racct_destroy(&uip->ui_racct);
+	LIST_REMOVE(uip, ui_hash);
 	rw_wunlock(&uihashtbl_lock);
+
+	if (uip->ui_sbsize != 0)
+		printf("freeing uidinfo: uid = %d, sbsize = %ld\n",
+		    uip->ui_uid, uip->ui_sbsize);
+	if (uip->ui_proccnt != 0)
+		printf("freeing uidinfo: uid = %d, proccnt = %ld\n",
+		    uip->ui_uid, uip->ui_proccnt);
+	if (uip->ui_vmsize != 0)
+		printf("freeing uidinfo: uid = %d, swapuse = %lld\n",
+		    uip->ui_uid, (unsigned long long)uip->ui_vmsize);
+	mtx_destroy(&uip->ui_vmsize_mtx);
+	free(uip, M_UIDINFO);
 }
 
 void
