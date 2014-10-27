@@ -4,6 +4,7 @@ KMOD=	vmm
 
 SRCS=	opt_acpi.h opt_ddb.h device_if.h bus_if.h pci_if.h
 SRCS+=	vmx_assym.h svm_assym.h
+DPSRCS=	vmx_genassym.c svm_genassym.c
 
 CFLAGS+= -DVMM_KEEP_STATS -DSMP
 CFLAGS+= -I${.CURDIR}/../../amd64/vmm
@@ -53,7 +54,7 @@ SRCS+=	vmcb.c		\
 	npt.c		\
 	amdv.c		\
 	svm_msr.c
-	
+
 CLEANFILES=	vmx_assym.h vmx_genassym.o svm_assym.h svm_genassym.o
 
 vmx_assym.h:    vmx_genassym.o
