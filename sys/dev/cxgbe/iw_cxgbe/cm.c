@@ -474,7 +474,7 @@ process_conn_error(struct c4iw_ep *ep)
 	if (state != ABORTING) {
 
 		CTR2(KTR_IW_CXGBE, "%s:pce1 %p", __func__, ep);
-		close_socket(&ep->com, 0);
+		close_socket(&ep->com, 1);
 		state_set(&ep->com, DEAD);
 		c4iw_put_ep(&ep->com);
 	}
@@ -2084,14 +2084,15 @@ int c4iw_connect(struct iw_cm_id *cm_id, struct iw_cm_conn_param *conn_param)
 		CTR2(KTR_IW_CXGBE, "%s:cc7 %p", __func__, ep);
 		printk(KERN_ERR MOD "%s - cannot find route.\n", __func__);
 		err = -EHOSTUNREACH;
-		goto fail3;
+		goto fail2;
 	}
 
-
-	if (!(rt->rt_ifp->if_flags & IFCAP_TOE)) {
+	if (!(rt->rt_ifp->if_capenable & IFCAP_TOE)) {
 
 		CTR2(KTR_IW_CXGBE, "%s:cc8 %p", __func__, ep);
 		printf("%s - interface not TOE capable.\n", __func__);
+		close_socket(&ep->com, 0);
+		err = -ENOPROTOOPT;
 		goto fail3;
 	}
 	tdev = TOEDEV(rt->rt_ifp);
