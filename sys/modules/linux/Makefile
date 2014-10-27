@@ -17,6 +17,7 @@ SRCS=	linux_fork.c linux${SFX}_dummy.c linux_emul.c linux_file.c \
 	opt_inet6.h opt_compat.h opt_posix.h opt_usb.h vnode_if.h \
 	device_if.h bus_if.h assym.s \
 	linux${SFX}_locore.s linux${SFX}_support.s
+DPSRCS=	linux${SFX}_genassym.c
 
 # XXX: for assym.s
 SRCS+=  opt_kstack_pages.h opt_nfs.h opt_compat.h opt_hwpmc_hooks.h
