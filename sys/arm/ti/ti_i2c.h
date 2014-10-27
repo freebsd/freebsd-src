@@ -69,7 +69,12 @@
 #define		I2C_STAT_NACK		(1UL << 1)
 #define		I2C_STAT_AL		(1UL << 0)
 #define	I2C_REG_SYSS		0x90
+#define		I2C_SYSS_RDONE		(1UL << 0)
 #define	I2C_REG_BUF		0x94
+#define		I2C_BUF_RXFIFO_CLR	(1UL << 14)
+#define		I2C_BUF_TXFIFO_CLR	(1UL << 6)
+#define		I2C_BUF_RXTRSH_SHIFT	8
+#define		I2C_BUF_TRSH_MASK	0x3f
 #define	I2C_REG_CNT		0x98
 #define	I2C_REG_DATA		0x9c
 #define	I2C_REG_CON		0xa4
@@ -91,10 +96,17 @@
 #define	I2C_REG_OA0		0xa8
 #define	I2C_REG_SA		0xac
 #define	I2C_REG_PSC		0xb0
+#define		I2C_PSC_MASK		0xff
 #define	I2C_REG_SCLL		0xb4
+#define		I2C_SCLL_MASK		0xff
+#define		I2C_HSSCLL_SHIFT	8
 #define	I2C_REG_SCLH		0xb8
+#define		I2C_SCLH_MASK		0xff
+#define		I2C_HSSCLH_SHIFT	8
 #define	I2C_REG_SYSTEST		0xbc
 #define	I2C_REG_BUFSTAT		0xc0
+#define		I2C_BUFSTAT_FIFODEPTH_MASK	0x3
+#define		I2C_BUFSTAT_FIFODEPTH_SHIFT	14
 #define	I2C_REG_OA1		0xc4
 #define	I2C_REG_OA2		0xc8
 #define	I2C_REG_OA3		0xcc
@@ -107,9 +119,13 @@
 #define	I2C_REG_REVNB_LO	0x00
 #define	I2C_REG_REVNB_HI	0x04
 #define	I2C_REG_SYSC		0x10
+#define		I2C_REG_SYSC_SRST	(1UL << 1)
+#define	I2C_REG_STATUS_RAW	0x24
+#define	I2C_REG_STATUS		0x28
 #define	I2C_REG_IRQENABLE_SET	0x2C
 #define	I2C_REG_IRQENABLE_CLR	0x30
 
-
+#define	I2C_CLK			96000000UL	/* 96MHz */
+#define	I2C_ICLK		12000000UL	/* 12MHz */
 
 #endif /* _TI_I2C_H_ */
