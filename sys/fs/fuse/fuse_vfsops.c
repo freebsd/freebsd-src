@@ -114,10 +114,10 @@ struct vfsops fuse_vfsops = {
 };
 
 SYSCTL_INT(_vfs_fuse, OID_AUTO, init_backgrounded, CTLFLAG_RD,
-    0, 1, "indicate async handshake");
+    SYSCTL_NULL_INT_PTR, 1, "indicate async handshake");
 static int fuse_enforce_dev_perms = 0;
 
-SYSCTL_LONG(_vfs_fuse, OID_AUTO, enforce_dev_perms, CTLFLAG_RW,
+SYSCTL_INT(_vfs_fuse, OID_AUTO, enforce_dev_perms, CTLFLAG_RW,
     &fuse_enforce_dev_perms, 0,
     "enforce fuse device permissions for secondary mounts");
 static unsigned sync_unmount = 1;
