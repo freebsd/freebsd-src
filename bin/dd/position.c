@@ -178,7 +178,7 @@ pos_out(void)
 			n = write(out.fd, out.db, out.dbsz);
 			if (n == -1)
 				err(1, "%s", out.name);
-			if (n != out.dbsz)
+			if ((size_t)n != out.dbsz)
 				errx(1, "%s: write failure", out.name);
 		}
 		break;
