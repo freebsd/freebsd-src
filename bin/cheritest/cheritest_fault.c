@@ -159,10 +159,10 @@ test_nofault_cfromptr(const struct cheri_test *ctp __unused)
   char buf[256];
   __capability void * cd; /* stored into here */
   __capability void * cb; /* derived from here */
-  void * rt;
+  int rt;
 
   cb = cheri_ptr(buf, 256);
-  rt = &buf[10];
+  rt = 10;
   __asm__ __volatile__ ("cfromptr %0, %1, %2" :: "r"(cd), "r"(cb), "r"(rt) : "memory");
   cheritest_success();
 }
