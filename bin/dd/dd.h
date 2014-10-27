@@ -38,10 +38,9 @@
 typedef struct {
 	u_char		*db;		/* buffer address */
 	u_char		*dbp;		/* current buffer I/O address */
-	/* XXX ssize_t? */
-	size_t		dbcnt;		/* current buffer byte count */
-	size_t		dbrcnt;		/* last read byte count */
-	size_t		dbsz;		/* block size */
+	ssize_t		dbcnt;		/* current buffer byte count */
+	ssize_t		dbrcnt;		/* last read byte count */
+	ssize_t		dbsz;		/* block size */
 
 #define	ISCHR		0x01		/* character device (warn on short) */
 #define	ISPIPE		0x02		/* pipe-like (see position.c) */
@@ -57,13 +56,13 @@ typedef struct {
 } IO;
 
 typedef struct {
-	uintmax_t	in_full;	/* # of full input blocks */
-	uintmax_t	in_part;	/* # of partial input blocks */
-	uintmax_t	out_full;	/* # of full output blocks */
-	uintmax_t	out_part;	/* # of partial output blocks */
-	uintmax_t	trunc;		/* # of truncated records */
-	uintmax_t	swab;		/* # of odd-length swab blocks */
-	uintmax_t	bytes;		/* # of bytes written */
+	size_t	in_full;	/* # of full input blocks */
+	size_t	in_part;	/* # of partial input blocks */
+	size_t	out_full;	/* # of full output blocks */
+	size_t	out_part;	/* # of partial output blocks */
+	size_t	trunc;		/* # of truncated records */
+	size_t	swab;		/* # of odd-length swab blocks */
+	size_t	bytes;		/* # of bytes written */
 	struct timespec	start;		/* start time of dd */
 } STAT;
 
