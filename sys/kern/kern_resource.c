@@ -92,9 +92,7 @@ struct getpriority_args {
 };
 #endif
 int
-sys_getpriority(td, uap)
-	struct thread *td;
-	register struct getpriority_args *uap;
+sys_getpriority(struct thread *td, register struct getpriority_args *uap)
 {
 	struct proc *p;
 	struct pgrp *pg;
@@ -177,9 +175,7 @@ struct setpriority_args {
 };
 #endif
 int
-sys_setpriority(td, uap)
-	struct thread *td;
-	struct setpriority_args *uap;
+sys_setpriority(struct thread *td, struct setpriority_args *uap)
 {
 	struct proc *curp, *p;
 	struct pgrp *pg;
@@ -373,9 +369,7 @@ struct rtprio_args {
 };
 #endif
 int
-sys_rtprio(td, uap)
-	struct thread *td;		/* curthread */
-	register struct rtprio_args *uap;
+sys_rtprio(struct thread *td, register struct rtprio_args *uap)
 {
 	struct proc *p;
 	struct thread *tdp;
@@ -541,9 +535,7 @@ struct osetrlimit_args {
 };
 #endif
 int
-osetrlimit(td, uap)
-	struct thread *td;
-	register struct osetrlimit_args *uap;
+osetrlimit(struct thread *td, register struct osetrlimit_args *uap)
 {
 	struct orlimit olim;
 	struct rlimit lim;
@@ -564,9 +556,7 @@ struct ogetrlimit_args {
 };
 #endif
 int
-ogetrlimit(td, uap)
-	struct thread *td;
-	register struct ogetrlimit_args *uap;
+ogetrlimit(struct thread *td, register struct ogetrlimit_args *uap)
 {
 	struct orlimit olim;
 	struct rlimit rl;
@@ -603,9 +593,7 @@ struct __setrlimit_args {
 };
 #endif
 int
-sys_setrlimit(td, uap)
-	struct thread *td;
-	register struct __setrlimit_args *uap;
+sys_setrlimit(struct thread *td, register struct __setrlimit_args *uap)
 {
 	struct rlimit alim;
 	int error;
@@ -797,9 +785,7 @@ struct __getrlimit_args {
 #endif
 /* ARGSUSED */
 int
-sys_getrlimit(td, uap)
-	struct thread *td;
-	register struct __getrlimit_args *uap;
+sys_getrlimit(struct thread *td, register struct __getrlimit_args *uap)
 {
 	struct rlimit rlim;
 	struct proc *p;
@@ -820,10 +806,7 @@ sys_getrlimit(td, uap)
  * into user and system time usage.
  */
 void
-calccru(p, up, sp)
-	struct proc *p;
-	struct timeval *up;
-	struct timeval *sp;
+calccru(struct proc *p, struct timeval *up, struct timeval *sp)
 {
 
 	PROC_LOCK_ASSERT(p, MA_OWNED);
@@ -976,9 +959,7 @@ struct getrusage_args {
 };
 #endif
 int
-sys_getrusage(td, uap)
-	register struct thread *td;
-	register struct getrusage_args *uap;
+sys_getrusage(register struct thread *td, register struct getrusage_args *uap)
 {
 	struct rusage ru;
 	int error;
@@ -1133,8 +1114,7 @@ lim_alloc()
 }
 
 struct plimit *
-lim_hold(limp)
-	struct plimit *limp;
+lim_hold(struct plimit *limp)
 {
 
 	refcount_acquire(&limp->pl_refcnt);
@@ -1142,8 +1122,7 @@ lim_hold(limp)
 }
 
 static __inline int
-lim_shared(limp)
-	struct plimit *limp;
+lim_shared(struct plimit *limp)
 {
 
 	return (limp->pl_refcnt > 1);
@@ -1164,8 +1143,7 @@ lim_fork(struct proc *p1, struct proc *p2)
 }
 
 void
-lim_free(limp)
-	struct plimit *limp;
+lim_free(struct plimit *limp)
 {
 
 	if (refcount_release(&limp->pl_refcnt))
@@ -1177,8 +1155,7 @@ lim_free(limp)
  * We share these structures copy-on-write after fork.
  */
 void
-lim_copy(dst, src)
-	struct plimit *dst, *src;
+lim_copy(struct plimit *dst, struct plimit *src)
 {
 
 	KASSERT(!lim_shared(dst), ("lim_copy to shared limit"));
@@ -1240,8 +1217,7 @@ uihashinit()
  * uihashtbl_lock must be locked.
  */
 static struct uidinfo *
-uilookup(uid)
-	uid_t uid;
+uilookup(uid_t uid)
 {
 	struct uihashhead *uipp;
 	struct uidinfo *uip;
@@ -1261,8 +1237,7 @@ uilookup(uid)
  * uifree() should be called on a struct uidinfo when released.
  */
 struct uidinfo *
-uifind(uid)
-	uid_t uid;
+uifind(uid_t uid)
 {
 	struct uidinfo *old_uip, *uip;
 
@@ -1300,8 +1275,7 @@ uifind(uid)
  * Place another refcount on a uidinfo struct.
  */
 void
-uihold(uip)
-	struct uidinfo *uip;
+uihold(struct uidinfo *uip)
 {
 
 	refcount_acquire(&uip->ui_ref);
@@ -1323,8 +1297,7 @@ uihold(uip)
  *   order to try again.
  */
 void
-uifree(uip)
-	struct uidinfo *uip;
+uifree(struct uidinfo *uip)
 {
 	int old;
 
@@ -1380,10 +1353,7 @@ ui_racct_foreach(void (*callback)(struct racct *racct,
  * a given user is using.  When 'max' is 0, don't enforce a limit
  */
 int
-chgproccnt(uip, diff, max)
-	struct	uidinfo	*uip;
-	int	diff;
-	rlim_t	max;
+chgproccnt(struct uidinfo *uip, int diff, rlim_t max)
 {
 
 	/* Don't allow them to exceed max, but allow subtraction. */
@@ -1404,11 +1374,7 @@ chgproccnt(uip, diff, max)
  * Change the total socket buffer size a user has used.
  */
 int
-chgsbsize(uip, hiwat, to, max)
-	struct	uidinfo	*uip;
-	u_int  *hiwat;
-	u_int	to;
-	rlim_t	max;
+chgsbsize(struct uidinfo *uip, u_int *hiwat, u_int to, rlim_t max)
 {
 	int diff;
 
@@ -1432,10 +1398,7 @@ chgsbsize(uip, hiwat, to, max)
  * a given user is using.  When 'max' is 0, don't enforce a limit
  */
 int
-chgptscnt(uip, diff, max)
-	struct	uidinfo	*uip;
-	int	diff;
-	rlim_t	max;
+chgptscnt(struct uidinfo *uip, int diff, rlim_t max)
 {
 
 	/* Don't allow them to exceed max, but allow subtraction. */
