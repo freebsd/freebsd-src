@@ -529,8 +529,9 @@ typedef union _MPI2_REPLY_DESCRIPTORS_UNION
 } MPI2_REPLY_DESCRIPTORS_UNION, MPI2_POINTER PTR_MPI2_REPLY_DESCRIPTORS_UNION,
     Mpi2ReplyDescriptorsUnion_t, MPI2_POINTER pMpi2ReplyDescriptorsUnion_t;
 
-typedef struct {
+typedef union {
     volatile unsigned int val;
+    unsigned int val_rdonly;
 } atomic_t;
 
 #define atomic_read(v)  atomic_load_acq_int(&(v)->val)
@@ -2406,7 +2407,7 @@ struct mrsas_softc {
     void               *ctlr_info_mem;   // get ctlr info cmd virtual addr
     bus_addr_t         ctlr_info_phys_addr; //get ctlr info cmd physical addr
     u_int32_t          max_sectors_per_req;
-    u_int8_t           disableOnlineCtrlReset;
+    u_int32_t          disableOnlineCtrlReset;
     atomic_t           fw_outstanding;
     u_int32_t          mrsas_debug;
     u_int32_t          mrsas_io_timeout;
