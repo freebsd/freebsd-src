@@ -41,7 +41,6 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/types.h>
 
-#include <ctype.h>
 #include <err.h>
 #include <errno.h>
 #include <inttypes.h>
@@ -172,7 +171,8 @@ jcl(char **argv)
 	 */
 	if (in.offset > OFF_MAX / (ssize_t)in.dbsz ||
 	    out.offset > OFF_MAX / (ssize_t)out.dbsz)
-		errx(1, "seek offsets cannot be larger than %jd", OFF_MAX);
+		errx(1, "seek offsets cannot be larger than %jd",
+		    (intmax_t)OFF_MAX);
 }
 
 static int
@@ -186,30 +186,37 @@ c_arg(const void *a, const void *b)
 static void
 f_bs(char *arg)
 {
+	uintmax_t res;
 
-	in.dbsz = out.dbsz = get_num(arg);
-	if (out.dbsz < 1 || out.dbsz > SSIZE_MAX)
-		errx(1, "bs must be between 1 and %jd", SSIZE_MAX);
+	res = get_num(arg);
+	if (res < 1 || res > SSIZE_MAX)
+		errx(1, "bs must be between 1 and %jd", (intmax_t)SSIZE_MAX);
+	in.dbsz = out.dbsz = (size_t)res;
 }
 
 static void
 f_cbs(char *arg)
 {
+	uintmax_t res;
 
-	cbsz = get_num(arg);
-	if (cbsz < 1 || cbsz > SSIZE_MAX)
-		errx(1, "cbs must be between 1 and %jd", SSIZE_MAX);
+	res = get_num(arg);
+	if (res < 1 || res > SSIZE_MAX)
+		errx(1, "cbs must be between 1 and %jd", (intmax_t)SSIZE_MAX);
+	cbsz = (size_t)res;
 }
 
 static void
 f_count(char *arg)
 {
+	intmax_t res;
 
-	cpy_cnt = get_num(arg);
-	if (cpy_cnt == SIZE_MAX)
-		errc(1, ERANGE, "%s", oper);
-	if (cpy_cnt == 0)
-		cpy_cnt = -1;
+	res = (intmax_t)get_num(arg);
+	if (res < 0)
+		errx(1, "count cannot be negative");
+	if (res == 0)
+		cpy_cnt = (uintmax_t)-1;
+	else
+		cpy_cnt = (uintmax_t)res;
 }
 
 static void
@@ -218,7 +225,7 @@ f_files(char *arg)
 
 	files_cnt = get_num(arg);
 	if (files_cnt < 1)
-		errx(1, "files must be between 1 and %ju", SIZE_MAX);
+		errx(1, "files must be between 1 and %jd", (uintmax_t)-1);
 }
 
 static void
@@ -234,11 +241,14 @@ f_fillchar(char *arg)
 static void
 f_ibs(char *arg)
 {
+	uintmax_t res;
 
 	if (!(ddflags & C_BS)) {
-		in.dbsz = get_num(arg);
-		if (in.dbsz < 1 || in.dbsz > SSIZE_MAX)
-			errx(1, "ibs must be between 1 and %ju", SSIZE_MAX);
+		res = get_num(arg);
+		if (res < 1 || res > SSIZE_MAX)
+			errx(1, "ibs must be between 1 and %jd",
+			    (intmax_t)SSIZE_MAX);
+		in.dbsz = (size_t)res;
 	}
 }
 
@@ -252,11 +262,14 @@ f_if(char *arg)
 static void
 f_obs(char *arg)
 {
+	uintmax_t res;
 
 	if (!(ddflags & C_BS)) {
-		out.dbsz = get_num(arg);
-		if (out.dbsz < 1 || out.dbsz > SSIZE_MAX)
-			errx(1, "obs must be between 1 and %jd", SSIZE_MAX);
+		res = get_num(arg);
+		if (res < 1 || res > SSIZE_MAX)
+			errx(1, "obs must be between 1 and %jd",
+			    (intmax_t)SSIZE_MAX);
+		out.dbsz = (size_t)res;
 	}
 }
 
@@ -365,17 +378,11 @@ get_num(const char *val)
 	uintmax_t num, mult, prevnum;
 	char *expr;
 
-	while (isspace(val[0]))
-		val++;
-
-	if (val[0] == '-')
-		errx(1, "%s: cannot be negative", oper);
-
 	errno = 0;
-	num = strtoull(val, &expr, 0);
+	num = strtouq(val, &expr, 0);
 	if (errno != 0)				/* Overflow or underflow. */
 		err(1, "%s", oper);
-
+	
 	if (expr == val)			/* No valid digits. */
 		errx(1, "%s: illegal numeric value", oper);
 
