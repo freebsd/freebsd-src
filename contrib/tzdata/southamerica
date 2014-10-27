@@ -1,9 +1,10 @@
 # This file is in the public domain, so clarified as of
 # 2009-05-17 by Arthur David Olson.
 
-# This data is by no means authoritative; if you think you know better,
+# This file is by no means authoritative; if you think you know better,
 # go ahead and edit the file (and please send any changes to
-# tz@iana.org for general use in the future).
+# tz@iana.org for general use in the future).  For more, please see
+# the file CONTRIBUTING in the tz distribution.
 
 # From Paul Eggert (2006-03-22):
 # A good source for time zone historical data outside the U.S. is
@@ -11,8 +12,8 @@
 # San Diego: ACS Publications, Inc. (2003).
 #
 # For data circa 1899, a common source is:
-# Milne J. Civil time. Geogr J. 1899 Feb;13(2):173-94
-# <http://www.jstor.org/stable/1774359>.
+# Milne J. Civil time. Geogr J. 1899 Feb;13(2):173-94.
+# http://www.jstor.org/stable/1774359
 #
 # Gwillim Law writes that a good source
 # for recent time zone data is the International Air Transport
@@ -187,8 +188,8 @@ Rule	Arg	2000	only	-	Mar	3	0:00	0	-
 # So there is no summer time in Argentina for now.
 
 # From Mariano Absatz (2008-10-20):
-# Decree 1693/2008 applies Law 26.350 for the summer 2008/2009 establishing DST in Argentina
-# From 2008-10-19 until 2009-03-15
+# Decree 1693/2008 applies Law 26.350 for the summer 2008/2009 establishing DST
+# in Argentina from 2008-10-19 until 2009-03-15.
 # http://www.boletinoficial.gov.ar/Bora.Portal/CustomControls/PdfContent.aspx?fp=16102008&pi=3&pf=4&s=0&sec=01
 #
 
@@ -197,14 +198,16 @@ Rule	Arg	2000	only	-	Mar	3	0:00	0	-
 # Pampa, Neuquén, Rio Negro, Chubut, Santa Cruz and Tierra del Fuego
 # http://www.boletinoficial.gov.ar/Bora.Portal/CustomControls/PdfContent.aspx?fp=17102008&pi=1&pf=1&s=0&sec=01
 #
-# Press release 235 dated Saturday October 18th, from the Government of the Province of Jujuy saying
-# it will not apply DST either (even when it was not included in Decree 1705/2008)
+# Press release 235 dated Saturday October 18th, from the Government of the
+# Province of Jujuy saying it will not apply DST either (even when it was not
+# included in Decree 1705/2008).
 # http://www.jujuy.gov.ar/index2/partes_prensa/18_10_08/235-181008.doc
 
 # From fullinet (2009-10-18):
 # As announced in
 # http://www.argentina.gob.ar/argentina/portal/paginas.dhtml?pagina=356
-# (an official .gob.ar) under title: "Sin Cambio de Hora" (english: "No hour change")
+# (an official .gob.ar) under title: "Sin Cambio de Hora"
+# (English: "No hour change").
 #
 # "Por el momento, el Gobierno Nacional resolvió no modificar la hora
 # oficial, decisión que estaba en estudio para su implementación el
@@ -225,9 +228,9 @@ Rule	Arg	2008	only	-	Oct	Sun>=15	0:00	1:00	S
 # It's Law No. 7,210.  This change is due to a public power emergency, so for
 # now we'll assume it's for this year only.
 #
-# From Paul Eggert (2006-03-22):
-# Hora de verano para la Republica Argentina (2003-06-08)
-# <http://www.spicasc.net/horvera.html>
+# From Paul Eggert (2014-08-09):
+# Hora de verano para la República Argentina
+# http://buenasiembra.com.ar/esoterismo/astrologia/hora-de-verano-de-la-republica-argentina-27.html
 # says that standard time in Argentina from 1894-10-31
 # to 1920-05-01 was -4:16:48.25.  Go with this more-precise value
 # over Shanks & Pottenger.
@@ -300,7 +303,7 @@ Rule	Arg	2008	only	-	Oct	Sun>=15	0:00	1:00	S
 # confirms that upon request the provinces San Juan and Mendoza
 # refused to follow San Luis in this change.
 #
-# The change is supposed to take place Monday the 21.st at 0:00
+# The change is supposed to take place Monday the 21st at 0:00
 # hours. As far as I understand it if this goes ahead, we need
 # a new timezone for San Luis (although there are also documented
 # independent changes in the southamerica file of San Luis in
@@ -332,9 +335,9 @@ Rule	Arg	2008	only	-	Oct	Sun>=15	0:00	1:00	S
 # back in 2004, when these provinces changed to UTC-4 for a few days, I
 # mailed them personally and never got an answer).
 
-# From Paul Eggert (2008-06-30):
-# Unless otherwise specified, data are from Shanks & Pottenger through 1992,
-# from the IATA otherwise.  As noted below, Shanks & Pottenger say that
+# From Paul Eggert (2014-08-12):
+# Unless otherwise specified, data entries are from Shanks & Pottenger through
+# 1992, from the IATA otherwise.  As noted below, Shanks & Pottenger say that
 # America/Cordoba split into 6 subregions during 1991/1992, one of which
 # was America/San_Luis, but we haven't verified this yet so for now we'll
 # keep America/Cordoba a single region rather than splitting it into the
@@ -394,7 +397,7 @@ Rule	Arg	2008	only	-	Oct	Sun>=15	0:00	1:00	S
 # ...
 
 # From Alexander Krivenyshev (2010-04-09):
-# According to news reports from El Diario de la Republica Province San
+# According to news reports from El Diario de la República Province San
 # Luis, Argentina (standard time UTC-04) will keep Daylight Saving Time
 # after April 11, 2010 - will continue to have same time as rest of
 # Argentina (UTC-3) (no DST).
@@ -414,7 +417,7 @@ Rule	Arg	2008	only	-	Oct	Sun>=15	0:00	1:00	S
 # Perhaps San Luis operates on the legal fiction that it is at UTC-4
 # with perpetual summer time, but ordinary usage typically seems to
 # just say it's at UTC-3; see, for example,
-# <http://es.wikipedia.org/wiki/Hora_oficial_argentina>.
+# http://es.wikipedia.org/wiki/Hora_oficial_argentina
 # We've documented similar situations as being plain changes to
 # standard time, so let's do that here too.  This does not change UTC
 # offsets, only tm_isdst and the time zone abbreviations.  One minor
@@ -427,8 +430,8 @@ Rule	Arg	2008	only	-	Oct	Sun>=15	0:00	1:00	S
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
 #
 # Buenos Aires (BA), Capital Federal (CF),
-Zone America/Argentina/Buenos_Aires -3:53:48 - LMT 1894 Oct 31
-			-4:16:48 -	CMT	1920 May # Córdoba Mean Time
+Zone America/Argentina/Buenos_Aires -3:53:48 - LMT	1894 Oct 31
+			-4:16:48 -	CMT	1920 May    # Córdoba Mean Time
 			-4:00	-	ART	1930 Dec
 			-4:00	Arg	AR%sT	1969 Oct  5
 			-3:00	Arg	AR%sT	1999 Oct  3
@@ -578,8 +581,8 @@ Zone America/Argentina/San_Luis -4:25:24 - LMT	1894 Oct 31
 			-3:00	-	ART
 #
 # Santa Cruz (SC)
-Zone America/Argentina/Rio_Gallegos -4:36:52 - LMT 1894 Oct 31
-			-4:16:48 -	CMT	1920 May # Córdoba Mean Time
+Zone America/Argentina/Rio_Gallegos -4:36:52 - LMT	1894 Oct 31
+			-4:16:48 -	CMT	1920 May    # Córdoba Mean Time
 			-4:00	-	ART	1930 Dec
 			-4:00	Arg	AR%sT	1969 Oct  5
 			-3:00	Arg	AR%sT	1999 Oct  3
@@ -590,8 +593,8 @@ Zone America/Argentina/Rio_Gallegos -4:36:52 - LMT 1894 Oct 31
 			-3:00	-	ART
 #
 # Tierra del Fuego, Antártida e Islas del Atlántico Sur (TF)
-Zone America/Argentina/Ushuaia -4:33:12 - LMT 1894 Oct 31
-			-4:16:48 -	CMT	1920 May # Córdoba Mean Time
+Zone America/Argentina/Ushuaia -4:33:12 - LMT	1894 Oct 31
+			-4:16:48 -	CMT	1920 May    # Córdoba Mean Time
 			-4:00	-	ART	1930 Dec
 			-4:00	Arg	AR%sT	1969 Oct  5
 			-3:00	Arg	AR%sT	1999 Oct  3
@@ -685,7 +688,7 @@ Zone	America/La_Paz	-4:32:36 -	LMT	1890
 # Oficial da União"...) in Brazil there are changes in the timezones,
 # effective today (00:00am at June 24, 2008) as follows:
 #
-# a) The timezone UTC+5 is e[x]tinguished, with all the Acre state and the
+# a) The timezone UTC+5 is extinguished, with all the Acre state and the
 # part of the Amazonas state that had this timezone now being put to the
 # timezone UTC+4
 # b) The whole Pará state now is put at timezone UTC+3, instead of just
@@ -722,8 +725,8 @@ Zone	America/La_Paz	-4:32:36 -	LMT	1890
 
 # From Paul Eggert (2002-10-10):
 # The official decrees referenced below are mostly taken from
-# Decretos sobre o Horário de Verão no Brasil
-# <http://pcdsh01.on.br/DecHV.html>.
+# Decretos sobre o Horário de Verão no Brasil.
+# http://pcdsh01.on.br/DecHV.html
 
 # From Steffen Thorsen (2008-08-29):
 # As announced by the government and many newspapers in Brazil late
@@ -986,7 +989,7 @@ Zone America/Belem	-3:13:56 -	LMT	1914
 # West Pará includes Altamira, Óbidos, Prainha, Oriximiná, and Santarém.
 Zone America/Santarem	-3:38:48 -	LMT	1914
 			-4:00	Brazil	AM%sT	1988 Sep 12
-			-4:00	-	AMT	2008 Jun 24 00:00
+			-4:00	-	AMT	2008 Jun 24  0:00
 			-3:00	-	BRT
 #
 # Maranhão (MA), Piauí (PI), Ceará (CE), Rio Grande do Norte (RN),
@@ -1041,7 +1044,7 @@ Zone America/Bahia	-2:34:04 -	LMT	1914
 # Espírito Santo (ES), Rio de Janeiro (RJ), São Paulo (SP), Paraná (PR),
 # Santa Catarina (SC), Rio Grande do Sul (RS)
 Zone America/Sao_Paulo	-3:06:28 -	LMT	1914
-			-3:00	Brazil	BR%sT	1963 Oct 23 00:00
+			-3:00	Brazil	BR%sT	1963 Oct 23  0:00
 			-3:00	1:00	BRST	1964
 			-3:00	Brazil	BR%sT
 #
@@ -1082,14 +1085,14 @@ Zone America/Eirunepe	-4:39:28 -	LMT	1914
 			-5:00	Brazil	AC%sT	1988 Sep 12
 			-5:00	-	ACT	1993 Sep 28
 			-5:00	Brazil	AC%sT	1994 Sep 22
-			-5:00	-	ACT	2008 Jun 24 00:00
+			-5:00	-	ACT	2008 Jun 24  0:00
 			-4:00	-	AMT	2013 Nov 10
 			-5:00	-	ACT
 #
 # Acre (AC)
 Zone America/Rio_Branco	-4:31:12 -	LMT	1914
 			-5:00	Brazil	AC%sT	1988 Sep 12
-			-5:00	-	ACT	2008 Jun 24 00:00
+			-5:00	-	ACT	2008 Jun 24  0:00
 			-4:00	-	AMT	2013 Nov 10
 			-5:00	-	ACT
 
@@ -1117,12 +1120,12 @@ Zone America/Rio_Branco	-4:31:12 -	LMT	1914
 # (they should have been 1990-09-15 and 1990-09-16 respectively), but
 # anyhow it clears up some doubts too.
 
-# From Paul Eggert (2006-12-27):
-# The following data for Chile and America/Santiago are from
+# From Paul Eggert (2014-08-12):
+# The following data entries for Chile and America/Santiago are from
 # <http://www.horaoficial.cl/horaof.htm> (2006-09-20), transcribed by
-# Jesper Nørgaard Welen.  The data for Pacific/Easter are from Shanks
+# Jesper Nørgaard Welen.  The data entries for Pacific/Easter are from Shanks
 # & Pottenger, except with DST transitions after 1932 cloned from
-# America/Santiago.  The pre-1980 Pacific/Easter data are dubious,
+# America/Santiago.  The pre-1980 Pacific/Easter data entries are dubious,
 # but we have no other source.
 
 # From Germán Poo-Caamaño (2008-03-03):
@@ -1146,10 +1149,10 @@ Zone America/Rio_Branco	-4:31:12 -	LMT	1914
 #
 # This is breaking news. There should be more information available later.
 
-# From Arthur Daivd Olson (2010-03-06):
+# From Arthur David Olson (2010-03-06):
 # Angel Chiang's message confirmed by Julio Pacheco; Julio provided a patch.
 
-# From Glenn Eychaner (2011-03-02): [geychaner@mac.com]
+# From Glenn Eychaner (2011-03-02):
 # It appears that the Chilean government has decided to postpone the
 # change from summer time to winter time again, by three weeks to April
 # 2nd:
@@ -1250,7 +1253,7 @@ Rule	Chile	2012	max	-	Sep	Sun>=2	4:00u	1:00	S
 # (1996-09) says 1998-03-08.  Ignore these.
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
 Zone America/Santiago	-4:42:46 -	LMT	1890
-			-4:42:46 -	SMT	1910 	    # Santiago Mean Time
+			-4:42:46 -	SMT	1910        # Santiago Mean Time
 			-5:00	-	CLT	1916 Jul  1 # Chile Time
 			-4:42:46 -	SMT	1918 Sep  1 # Santiago Mean Time
 			-4:00	-	CLT	1919 Jul  1 # Chile Time
@@ -1259,7 +1262,7 @@ Zone America/Santiago	-4:42:46 -	LMT	1890
 			-4:00	Chile	CL%sT
 Zone Pacific/Easter	-7:17:44 -	LMT	1890
 			-7:17:28 -	EMT	1932 Sep    # Easter Mean Time
-			-7:00	Chile	EAS%sT	1982 Mar 13 21:00 # Easter I Time
+			-7:00	Chile	EAS%sT	1982 Mar 13 21:00 # Easter Time
 			-6:00	Chile	EAS%sT
 #
 # Salas y Gómez Island is uninhabited.
@@ -1300,7 +1303,7 @@ Zone	America/Bogota	-4:56:16 -	LMT	1884 Mar 13
 # though, as far as we know.
 #
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
-Zone	America/Curacao	-4:35:47 -	LMT	1912 Feb 12	# Willemstad
+Zone	America/Curacao	-4:35:47 -	LMT	1912 Feb 12 # Willemstad
 			-4:30	-	ANT	1965 # Netherlands Antilles Time
 			-4:00	-	AST
 
@@ -1325,10 +1328,10 @@ Link	America/Curacao	America/Kralendijk	# Caribbean Netherlands
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
 Zone America/Guayaquil	-5:19:20 -	LMT	1890
 			-5:14:00 -	QMT	1931 # Quito Mean Time
-			-5:00	-	ECT	     # Ecuador Time
+			-5:00	-	ECT	# Ecuador Time
 Zone Pacific/Galapagos	-5:58:24 -	LMT	1931 # Puerto Baquerizo Moreno
 			-5:00	-	ECT	1986
-			-6:00	-	GALT	     # Galápagos Time
+			-6:00	-	GALT	# Galápagos Time
 
 # Falklands
 
@@ -1427,10 +1430,10 @@ Rule	Falk	2001	2010	-	Apr	Sun>=15	2:00	0	-
 Rule	Falk	2001	2010	-	Sep	Sun>=1	2:00	1:00	S
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
 Zone Atlantic/Stanley	-3:51:24 -	LMT	1890
-			-3:51:24 -	SMT	1912 Mar 12  # Stanley Mean Time
-			-4:00	Falk	FK%sT	1983 May     # Falkland Is Time
+			-3:51:24 -	SMT	1912 Mar 12 # Stanley Mean Time
+			-4:00	Falk	FK%sT	1983 May    # Falkland Is Time
 			-3:00	Falk	FK%sT	1985 Sep 15
-			-4:00	Falk	FK%sT	2010 Sep 5 02:00
+			-4:00	Falk	FK%sT	2010 Sep  5  2:00
 			-3:00	-	FKST
 
 # French Guiana
@@ -1441,7 +1444,7 @@ Zone America/Cayenne	-3:29:20 -	LMT	1911 Jul
 
 # Guyana
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
-Zone	America/Guyana	-3:52:40 -	LMT	1915 Mar	# Georgetown
+Zone	America/Guyana	-3:52:40 -	LMT	1915 Mar    # Georgetown
 			-3:45	-	GBGT	1966 May 26 # Br Guiana Time
 			-3:45	-	GYT	1975 Jul 31 # Guyana Time
 			-3:00	-	GYT	1991
@@ -1478,8 +1481,8 @@ Rule	Para	1996	only	-	Mar	 1	0:00	0	-
 # (10-01).
 #
 # Translated by Gwillim Law (2001-02-27) from
-# Noticias, a daily paper in Asunción, Paraguay (2000-10-01)
-# <http://www.diarionoticias.com.py/011000/nacional/naciona1.htm>:
+# Noticias, a daily paper in Asunción, Paraguay (2000-10-01):
+# http://www.diarionoticias.com.py/011000/nacional/naciona1.htm
 # Starting at 0:00 today, the clock will be set forward 60 minutes, in
 # fulfillment of Decree No. 7,273 of the Executive Power....  The time change
 # system has been operating for several years.  Formerly there was a separate
@@ -1506,7 +1509,7 @@ Rule	Para	2002	2003	-	Sep	Sun>=1	0:00	1:00	S
 # From Steffen Thorsen (2005-01-05):
 # Decree 1,867 (2004-03-05)
 # From Carlos Raúl Perasso via Jesper Nørgaard Welen (2006-10-13)
-# <http://www.presidencia.gov.py/decretos/D1867.pdf>
+# http://www.presidencia.gov.py/decretos/D1867.pdf
 Rule	Para	2004	2009	-	Oct	Sun>=15	0:00	1:00	S
 Rule	Para	2005	2009	-	Mar	Sun>=8	0:00	0	-
 # From Carlos Raúl Perasso (2010-02-18):
@@ -1538,7 +1541,7 @@ Rule	Para	2013	max	-	Mar	Sun>=22	0:00	0	-
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
 Zone America/Asuncion	-3:50:40 -	LMT	1890
 			-3:50:40 -	AMT	1931 Oct 10 # Asunción Mean Time
-			-4:00	-	PYT	1972 Oct # Paraguay Time
+			-4:00	-	PYT	1972 Oct    # Paraguay Time
 			-3:00	-	PYT	1974 Apr
 			-4:00	Para	PY%sT
 
@@ -1571,7 +1574,7 @@ Zone	America/Lima	-5:08:12 -	LMT	1890
 
 # South Georgia
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
-Zone Atlantic/South_Georgia -2:26:08 -	LMT	1890		# Grytviken
+Zone Atlantic/South_Georgia -2:26:08 -	LMT	1890 # Grytviken
 			-2:00	-	GST	# South Georgia Time
 
 # South Sandwich Is
@@ -1581,9 +1584,9 @@ Zone Atlantic/South_Georgia -2:26:08 -	LMT	1890		# Grytviken
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
 Zone America/Paramaribo	-3:40:40 -	LMT	1911
 			-3:40:52 -	PMT	1935     # Paramaribo Mean Time
-			-3:40:36 -	PMT	1945 Oct # The capital moved?
+			-3:40:36 -	PMT	1945 Oct    # The capital moved?
 			-3:30	-	NEGT	1975 Nov 20 # Dutch Guiana Time
-			-3:30	-	SRT	1984 Oct # Suriname Time
+			-3:30	-	SRT	1984 Oct    # Suriname Time
 			-3:00	-	SRT
 
 # Trinidad and Tobago
@@ -1657,7 +1660,7 @@ Rule	Uruguay	1990	1991	-	Oct	Sun>=21	 0:00	1:00	S
 Rule	Uruguay	1992	only	-	Oct	18	 0:00	1:00	S
 Rule	Uruguay	1993	only	-	Feb	28	 0:00	0	-
 # From Eduardo Cota (2004-09-20):
-# The uruguayan government has decreed a change in the local time....
+# The Uruguayan government has decreed a change in the local time....
 # http://www.presidencia.gub.uy/decretos/2004091502.htm
 Rule	Uruguay	2004	only	-	Sep	19	 0:00	1:00	S
 # From Steffen Thorsen (2005-03-11):
@@ -1677,8 +1680,8 @@ Rule	Uruguay	2006	max	-	Oct	Sun>=1	 2:00	1:00	S
 Rule	Uruguay	2007	max	-	Mar	Sun>=8	 2:00	0	-
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
 Zone America/Montevideo	-3:44:44 -	LMT	1898 Jun 28
-			-3:44:44 -	MMT	1920 May  1	# Montevideo MT
-			-3:30	Uruguay	UY%sT	1942 Dec 14	# Uruguay Time
+			-3:44:44 -	MMT	1920 May  1 # Montevideo MT
+			-3:30	Uruguay	UY%sT	1942 Dec 14 # Uruguay Time
 			-3:00	Uruguay	UY%sT
 
 # Venezuela
@@ -1694,6 +1697,6 @@ Zone America/Montevideo	-3:44:44 -	LMT	1898 Jun 28
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
 Zone	America/Caracas	-4:27:44 -	LMT	1890
 			-4:27:40 -	CMT	1912 Feb 12 # Caracas Mean Time?
-			-4:30	-	VET	1965	     # Venezuela Time
-			-4:00	-	VET	2007 Dec  9 03:00
+			-4:30	-	VET	1965        # Venezuela Time
+			-4:00	-	VET	2007 Dec  9  3:00
 			-4:30	-	VET
