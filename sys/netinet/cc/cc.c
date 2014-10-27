@@ -106,11 +106,13 @@ cc_default_algo(SYSCTL_HANDLER_ARGS)
 		/* Find algo with specified name and set it to default. */
 		CC_LIST_RLOCK();
 		STAILQ_FOREACH(funcs, &cc_list, entries) {
-			if (strncmp((char *)req->newptr, funcs->name,
-			    TCP_CA_NAME_MAX) == 0) {
-				found = 1;
-				V_default_cc_ptr = funcs;
-			}
+			/* NOTE: "newptr" is not zero terminated */
+			if (req->newlen != strlen(funcs->name))
+				continue;
+			if (bcmp(req->newptr, funcs->name, req->newlen))
+				continue;
+			found = 1;
+			V_default_cc_ptr = funcs;
 		}
 		CC_LIST_RUNLOCK();
 
