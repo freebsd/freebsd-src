@@ -751,7 +751,25 @@ pw_user(struct userconf * cnf, int mode, struct cargs * args)
 	 */
 
 	if (mode == M_ADD || getarg(args, 'G') != NULL) {
-		int i;
+		int i, j;
+		/* First remove the user from all group */
+		SETGRENT();
+		while ((grp = GETGRENT()) != NULL) {
+			char group[MAXLOGNAME];
+			if (grp->gr_mem == NULL)
+				continue;
+			for (i = 0; grp->gr_mem[i] != NULL; i++) {
+				if (strcmp(grp->gr_mem[i] , pwd->pw_name) != 0)
+					continue;
+				for (j = i; grp->gr_mem[j] != NULL ; j++)
+					grp->gr_mem[j] = grp->gr_mem[j+1];
+				strlcpy(group, grp->gr_name, MAXLOGNAME);
+				chggrent(group, grp);
+			}
+		}
+		ENDGRENT();
+
+		/* now add to group where needed */
 		for (i = 0; cnf->groups[i] != NULL; i++) {
 			grp = GETGRNAM(cnf->groups[i]);
 			grp = gr_add(grp, pwd->pw_name);
