@@ -178,24 +178,14 @@ struct getloginclass_args {
 int
 sys_getloginclass(struct thread *td, struct getloginclass_args *uap)
 {
-	int error = 0;
-	size_t lcnamelen;
-	struct proc *p;
 	struct loginclass *lc;
+	size_t lcnamelen;
 
-	p = td->td_proc;
-	PROC_LOCK(p);
-	lc = p->p_ucred->cr_loginclass;
-	loginclass_hold(lc);
-	PROC_UNLOCK(p);
-
+	lc = td->td_ucred->cr_loginclass;
 	lcnamelen = strlen(lc->lc_name) + 1;
 	if (lcnamelen > uap->namelen)
-		error = ERANGE;
-	if (error == 0)
-		error = copyout(lc->lc_name, uap->namebuf, lcnamelen);
-	loginclass_free(lc);
-	return (error);
+		return (ERANGE);
+	return (copyout(lc->lc_name, uap->namebuf, lcnamelen));
 }
 
 /*
