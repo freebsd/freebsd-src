@@ -281,6 +281,8 @@
                 regress.multitest.out
                 ..
             ..
+            timeout
+            ..
             tr
             ..
             truncate
