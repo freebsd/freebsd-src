@@ -321,6 +321,9 @@ pw_user(struct userconf * cnf, int mode, struct cargs * args)
 			(a_uid = a_name)->ch = 'u';
 			a_name = NULL;
 		}
+	} else {
+		if (strspn(a_uid->val, "0123456789") != strlen(a_uid->val))
+			errx(EX_USAGE, "-u expects a number");
 	}
 
 	/*
