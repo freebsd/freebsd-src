@@ -46,6 +46,7 @@ MAN=	accept_filter.9 \
 	BUS_SETUP_INTR.9 \
 	bus_space.9 \
 	byteorder.9 \
+	casuword.9 \
 	cd.9 \
 	condvar.9 \
 	config_intrhook.9 \
