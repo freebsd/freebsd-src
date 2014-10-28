@@ -196,7 +196,8 @@ out:
 int
 uart_getenv(int devtype, struct uart_devinfo *di, struct uart_class *class)
 {
-	const char *cp, *spec;
+	const char *spec;
+	char *cp;
 	bus_addr_t addr = ~0U;
 	int error;
 
@@ -213,12 +214,18 @@ uart_getenv(int devtype, struct uart_devinfo *di, struct uart_class *class)
 	 * which UART port is to be used as serial console or debug
 	 * port (resp).
 	 */
-	if (devtype == UART_DEV_CONSOLE)
+	switch (devtype) {
+	case UART_DEV_CONSOLE:
 		cp = kern_getenv("hw.uart.console");
-	else if (devtype == UART_DEV_DBGPORT)
+		break;
+	case UART_DEV_DBGPORT:
 		cp = kern_getenv("hw.uart.dbgport");
-	else
+		break;
+	default:
 		cp = NULL;
+		break;
+	}
+
 	if (cp == NULL)
 		return (ENXIO);
 
@@ -233,7 +240,7 @@ uart_getenv(int devtype, struct uart_devinfo *di, struct uart_class *class)
 
 	/* Parse the attributes. */
 	spec = cp;
-	while (1) {
+	for (;;) {
 		switch (uart_parse_tag(&spec)) {
 		case UART_TAG_BR:
 			di->baudrate = uart_parse_long(&spec);
@@ -268,18 +275,18 @@ uart_getenv(int devtype, struct uart_devinfo *di, struct uart_class *class)
 			di->bas.rclk = uart_parse_long(&spec);
 			break;
 		default:
-			freeenv(__DECONST(char *, cp));
+			freeenv(cp);
 			return (EINVAL);
 		}
 		if (*spec == '\0')
 			break;
 		if (*spec != ',') {
-			freeenv(__DECONST(char *, cp));
+			freeenv(cp);
 			return (EINVAL);
 		}
 		spec++;
 	}
-	freeenv(__DECONST(char *, cp));
+	freeenv(cp);
 
 	/*
 	 * If we still have an invalid address, the specification must be
