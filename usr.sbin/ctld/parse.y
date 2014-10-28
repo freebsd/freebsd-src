@@ -59,17 +59,15 @@ extern void	yyrestart(FILE *);
 
 %token ALIAS AUTH_GROUP AUTH_TYPE BACKEND BLOCKSIZE CHAP CHAP_MUTUAL
 %token CLOSING_BRACKET DEBUG DEVICE_ID DISCOVERY_AUTH_GROUP INITIATOR_NAME
-%token INITIATOR_PORTAL LISTEN LISTEN_ISER LUN MAXPROC NUM OPENING_BRACKET
+%token INITIATOR_PORTAL LISTEN LISTEN_ISER LUN MAXPROC OPENING_BRACKET
 %token OPTION PATH PIDFILE PORTAL_GROUP SERIAL SIZE STR TARGET TIMEOUT
 %token ISNS_SERVER ISNS_PERIOD ISNS_TIMEOUT
 
 %union
 {
-	uint64_t num;
 	char *str;
 }
 
-%token <num> NUM
 %token <str> STR
 
 %%
@@ -106,7 +104,7 @@ debug:		DEBUG STR
 		uint64_t tmp;
 
 		if (expand_number($2, &tmp) != 0) {
-			log_warnx("invalid numeric value \"%s\"", $2);
+			yyerror("invalid numeric value");
 			free($2);
 			return (1);
 		}
@@ -120,7 +118,7 @@ timeout:	TIMEOUT STR
 		uint64_t tmp;
 
 		if (expand_number($2, &tmp) != 0) {
-			log_warnx("invalid numeric value \"%s\"", $2);
+			yyerror("invalid numeric value");
 			free($2);
 			return (1);
 		}
@@ -134,7 +132,7 @@ maxproc:	MAXPROC STR
 		uint64_t tmp;
 
 		if (expand_number($2, &tmp) != 0) {
-			log_warnx("invalid numeric value \"%s\"", $2);
+			yyerror("invalid numeric value");
 			free($2);
 			return (1);
 		}
@@ -165,15 +163,31 @@ isns_server:	ISNS_SERVER STR
 	}
 	;
 
-isns_period:	ISNS_PERIOD NUM
+isns_period:	ISNS_PERIOD STR
 	{
-		conf->conf_isns_period = $2;
+		uint64_t tmp;
+
+		if (expand_number($2, &tmp) != 0) {
+			yyerror("invalid numeric value");
+			free($2);
+			return (1);
+		}
+
+		conf->conf_isns_period = tmp;
 	}
 	;
 
-isns_timeout:	ISNS_TIMEOUT NUM
+isns_timeout:	ISNS_TIMEOUT STR
 	{
-		conf->conf_isns_timeout = $2;
+		uint64_t tmp;
+
+		if (expand_number($2, &tmp) != 0) {
+			yyerror("invalid numeric value");
+			free($2);
+			return (1);
+		}
+
+		conf->conf_isns_timeout = tmp;
 	}
 	;
 
@@ -612,7 +626,7 @@ lun_number:	STR
 		uint64_t tmp;
 
 		if (expand_number($1, &tmp) != 0) {
-			log_warnx("invalid numeric value \"%s\"", $1);
+			yyerror("invalid numeric value");
 			free($1);
 			return (1);
 		}
@@ -663,7 +677,7 @@ lun_blocksize:	BLOCKSIZE STR
 		uint64_t tmp;
 
 		if (expand_number($2, &tmp) != 0) {
-			log_warnx("invalid numeric value \"%s\"", $2);
+			yyerror("invalid numeric value");
 			free($2);
 			return (1);
 		}
@@ -737,7 +751,7 @@ lun_size:	SIZE STR
 		uint64_t tmp;
 
 		if (expand_number($2, &tmp) != 0) {
-			log_warnx("invalid numeric value \"%s\"", $2);
+			yyerror("invalid numeric value");
 			free($2);
 			return (1);
 		}
