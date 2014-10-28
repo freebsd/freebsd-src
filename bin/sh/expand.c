@@ -878,7 +878,7 @@ varvalue(const char *name, int quoted, int subtype, int flag)
 	int num;
 	char *p;
 	int i;
-	char sep;
+	char sep[2];
 	char **ap;
 
 	switch (*name) {
@@ -912,15 +912,18 @@ varvalue(const char *name, int quoted, int subtype, int flag)
 		/* FALLTHROUGH */
 	case '*':
 		if (ifsset())
-			sep = ifsval()[0];
+			sep[0] = ifsval()[0];
 		else
-			sep = ' ';
+			sep[0] = ' ';
+		sep[1] = '\0';
 		for (ap = shellparam.p ; (p = *ap++) != NULL ; ) {
 			strtodest(p, flag, subtype, quoted);
 			if (!*ap)
 				break;
-			if (sep || (flag & EXP_FULL && !quoted && **ap != '\0'))
-				STPUTC(sep, expdest);
+			if (sep[0])
+				strtodest(sep, flag, subtype, quoted);
+			else if (flag & EXP_FULL && !quoted && **ap != '\0')
+				STPUTC('\0', expdest);
 		}
 		return;
 	default:
