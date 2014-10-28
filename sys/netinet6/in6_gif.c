@@ -111,8 +111,6 @@ in6_gif_output(struct ifnet *ifp, struct mbuf *m, int proto, uint8_t ecn)
 		len += ETHERIP_ALIGN;
 #endif
 	M_PREPEND(m, len, M_NOWAIT);
-	if (m != NULL && m->m_len < len)
-		m = m_pullup(m, len);
 	if (m == NULL)
 		return (ENOBUFS);
 #ifndef __NO_STRICT_ALIGNMENT

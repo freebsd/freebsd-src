@@ -31,7 +31,6 @@ SRCS=	\
 	pci_virtio_rnd.c	\
 	pci_uart.c		\
 	pm.c			\
-	pmtmr.c			\
 	post.c			\
 	rtc.c			\
 	smbiostbl.c		\

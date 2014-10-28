@@ -1,0 +1,149 @@
+.\" #
+.\" # Copyright (c) 2014, Juniper Networks, Inc.
+.\" # All rights reserved.
+.\" # This SOFTWARE is licensed under the LICENSE provided in the
+.\" # ../Copyright file. By downloading, installing, copying, or 
+.\" # using the SOFTWARE, you agree to be bound by the terms of that
+.\" # LICENSE.
+.\" # Phil Shafer, July 2014
+.\" 
+.Dd July, 2014
+.Dt LIBXO 3
+.Os
+.Sh NAME
+.Nm libxo
+.Nd library for emitting text, XML, JSON, or HTML output
+.Sh LIBRARY
+.Lb libxo
+.Sh SYNOPSIS
+.In libxo/xo.h
+.Sh DESCRIPTION
+The functions defined in
+.Lb libxo
+are used to generate a choice of
+.Em TEXT ,
+.Em XML ,
+.Em JSON ,
+or
+.Em HTML
+output.  A common set of functions are used, with
+command line switches passed to the library to control the details of
+the output.
+.Pp
+Most commands emit text output aimed at humans.  It is designed
+to be parsed and understood by a user.  Humans are gifted at extracted
+details and pattern matching.  Often programmers need to extract
+information from this human-oriented output.  Programmers use tools
+like grep, awk, and regular expressions to ferret out the pieces of
+information they need.  Such solutions are fragile and require
+updates when output contents change or evolve, requiring testing and
+validation.
+.Pp
+Modern tool developers favors encoding schemes like XML and JSON,
+which allow trivial parsing and extraction of data.  Such formats are
+simple, well understood, hierarchical, easily parsed, and often
+integrate easier with common tools and environments.
+.Pp
+In addition, modern reality means that more output ends up in web
+browsers than in terminals, making HTML output valuable.
+.Pp
+.Em libxo
+allows a single set of function calls in source code to generate
+traditional text output, as well as XML and JSON formatted data.  HTML
+can also be generated; "<div>" elements surround the traditional text
+output, with attributes that detail how to render the data.
+.Pp
+There are four encoding styles supported by libxo: TEXT, HTML, JSON,
+and XML.  JSON and XML are suitable for encoding data, while TEXT and
+HTML are suited for display to the user.  TEXT output can be display
+on a terminal session, allowing compatibility with traditional usage.
+HTML can be matched with a small CSS file to permit rendering in any
+HTML5 browser.  XML output is suitable for tools like XPath and
+protocols like NETCONF.  JSON output can be used for RESTful APIs.
+.Pp
+The
+.Em libxo
+library allows an application to generate text, XML, JSON,
+and HTML output using a common set of function calls.  The application
+decides at run time which output style should be produced.  The
+application calls a function
+.Fn xo_emit
+to product output that is
+described in a format string.  A "field descriptor" tells libxo what
+the field is and what it means.  Each field descriptor is placed in
+braces with a printf-like format string:
+.Bd -literal -offset indent
+    xo_emit(" {:lines/%7ju} {:words/%7ju} "
+            "{:characters/%7ju}{d:filename/%s}\\n",
+            linect, wordct, charct, file);
+.Ed
+.Pp
+Each field can have a role, with the 'value' role being the default,
+and the role tells libxo how and when to render that field, as well as
+a
+.Xr printf 3 -like
+format string.
+.Pp
+Output
+can then be generated in various style, using the "--libxo" option.
+.Sh DEFAULT HANDLE
+Handles give an abstraction for libxo that encapsulates the state of a
+stream of output.  Handles have the data type "xo_handle_t" and are
+opaque to the caller.
+
+The library has a default handle that is automatically initialized.
+By default, this handle will send text style output to standard output.
+The xo_set_style and xo_set_flags functions can be used to change this
+behavior.
+
+Many libxo functions take a handle as their first parameter; most that
+do not use the default handle.  Any function taking a handle can
+be passed NULL to access the default handle.
+
+For the typical command that is generating output on standard output,
+there is no need to create an explicit handle, but they are available
+when needed, e.g. for daemons that generate multiple streams of
+output.
+.Sh ADDITIONAL DOCUMENTATION
+.Pp
+Complete documentation can be found on github:
+.Bd -literal -offset indent
+http://juniper.github.io/libxo/libxo-manual.html
+.Ed
+.Pp
+libxo lives on github as:
+.Bd -literal -offset indent
+https://github.com/Juniper/libxo
+.Ed
+.Pp
+The latest release of libxo is available at:
+.Bd -literal -offset indent
+https://github.com/Juniper/libxo/releases
+.Ed
+.Sh SEE ALSO
+.Xr xo_attr 3 ,
+.Xr xo_create 3 ,
+.Xr xo_emit 3 ,
+.Xr xo_err 3 ,
+.Xr xo_finish 3 ,
+.Xr xo_flush 3 ,
+.Xr xo_format 5 ,
+.Xr xo_no_setlocale 3 ,
+.Xr xo_open_container 3 ,
+.Xr xo_open_list 3 ,
+.Xr xo_parse_args 3 ,
+.Xr xo_set_allocator 3 ,
+.Xr xo_set_flags 3 ,
+.Xr xo_set_info 3 ,
+.Xr xo_set_options 3 ,
+.Xr xo_set_style 3 ,
+.Xr xo_set_writer 3 ,
+.Xr xo 1 ,
+and
+.Xr xolint 1 .
+.Sh HISTORY
+The
+.Fa libxo
+library was added in FreeBSD 11.0.
+.Sh AUTHOR
+Phil Shafer

@@ -149,7 +149,7 @@ extern int gfs_get_parent_ino(vnode_t *, cred_t *, caller_context_t *,
 extern int gfs_lookup_dot(vnode_t **, vnode_t *, vnode_t *, const char *);
 
 extern int gfs_vop_readdir(struct vop_readdir_args *);
-extern int gfs_vop_inactive(struct vop_inactive_args *);
+extern int gfs_vop_reclaim(struct vop_reclaim_args *);
 
 
 #ifdef	__cplusplus

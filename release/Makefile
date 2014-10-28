@@ -56,13 +56,17 @@ ${_V}!=	eval $$(awk '/^${_V}=/{print}' ${.CURDIR}/../sys/conf/newvers.sh); echo 
 .for _V in ${TARGET_ARCH}
 .if !empty(TARGET:M${_V})
 OSRELEASE=	${TYPE}-${REVISION}-${BRANCH}-${TARGET}
+VOLUME_LABEL=	${REVISION:C/\./_/g:}_${BRANCH}_${TARGET}
 .else
 OSRELEASE=	${TYPE}-${REVISION}-${BRANCH}-${TARGET}-${TARGET_ARCH}
+VOLUME_LABEL=	${REVISION:C/\./_/g:}_${BRANCH}_${TARGET_ARCH}
 .endif
 .endfor
 .endif
 
-VOLUME_LABEL=	${OSRELEASE:C/[-\.]/_/g:S/^$${TYPE}_//}
+.if !defined(VOLUME_LABEL) || empty(VOLUME_LABEL)
+VOLUME_LABEL=	FreeBSD_Install
+.endif
 
 .if !exists(${DOCDIR})
 NODOC= true

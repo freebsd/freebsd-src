@@ -552,7 +552,7 @@ static void
 nfs_decode_args(struct mount *mp, struct nfsmount *nmp, struct nfs_args *argp,
     const char *hostname, struct ucred *cred, struct thread *td)
 {
-	int i, s;
+	int s;
 	int adjsock;
 	char *p;
 
@@ -626,14 +626,10 @@ nfs_decode_args(struct mount *mp, struct nfsmount *nmp, struct nfs_args *argp,
 		 * issue (not isolated) that causes intermittent page
 		 * faults if this is not done.
 		 */
-		i = NFS_FABLKSIZE;
-		for (;;) {
-			if (i * 2 > nmp->nm_wsize) {
-				nmp->nm_wsize = i;
-				break;
-			}
-			i *= 2;
-		}
+		if (nmp->nm_wsize > NFS_FABLKSIZE)
+			nmp->nm_wsize = 1 << (fls(nmp->nm_wsize) - 1);
+		else
+			nmp->nm_wsize = NFS_FABLKSIZE;
 	}
 
 	if ((argp->flags & NFSMNT_RSIZE) && argp->rsize > 0) {
@@ -643,14 +639,10 @@ nfs_decode_args(struct mount *mp, struct nfsmount *nmp, struct nfs_args *argp,
 		 * issue (not isolated) that causes intermittent page
 		 * faults if this is not done.
 		 */
-		i = NFS_FABLKSIZE;
-		for (;;) {
-			if (i * 2 > nmp->nm_rsize) {
-				nmp->nm_rsize = i;
-				break;
-			}
-			i *= 2;
-		}
+		if (nmp->nm_rsize > NFS_FABLKSIZE)
+			nmp->nm_rsize = 1 << (fls(nmp->nm_rsize) - 1);
+		else
+			nmp->nm_rsize = NFS_FABLKSIZE;
 	}
 
 	if ((argp->flags & NFSMNT_READDIRSIZE) && argp->readdirsize > 0) {

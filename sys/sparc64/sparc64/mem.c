@@ -65,13 +65,13 @@ __FBSDID("$FreeBSD$");
 #include <vm/vm.h>
 #include <vm/vm_param.h>
 #include <vm/vm_page.h>
+#include <vm/vm_phys.h>
 #include <vm/vm_kern.h>
 #include <vm/pmap.h>
 #include <vm/vm_extern.h>
 
 #include <machine/cache.h>
 #include <machine/md_var.h>
-#include <machine/pmap.h>
 #include <machine/tlb.h>
 
 #include <machine/memdev.h>
@@ -92,7 +92,6 @@ memrw(struct cdev *dev, struct uio *uio, int flags)
 	vm_size_t cnt;
 	vm_page_t m;
 	int error;
-	int i;
 	uint32_t colors;
 
 	cnt = 0;
@@ -124,15 +123,7 @@ memrw(struct cdev *dev, struct uio *uio, int flags)
 			cnt = ulmin(cnt, PAGE_SIZE - off);
 			cnt = ulmin(cnt, iov->iov_len);
 
-			m = NULL;
-			for (i = 0; phys_avail[i] != 0; i += 2) {
-				if (pa >= phys_avail[i] &&
-				    pa < phys_avail[i + 1]) {
-					m = PHYS_TO_VM_PAGE(pa);
-					break;
-				}
-			}
-
+			m = vm_phys_paddr_to_vm_page(pa);
 			if (m != NULL) {
 				if (ova == 0) {
 					if (dcache_color_ignore == 0)
