@@ -30,7 +30,18 @@ group_do_not_delete_wheel_if_group_unkown_body() {
 	atf_check -s exit:0 -o inline:"wheel:*:0:root\n" -x pw -V ${HOME} groupshow wheel
 }
 
+atf_test_case user_do_not_try_to_delete_root_if_user_unkown
+user_do_not_try_to_delete_root_if_user_unkown_head() {
+	atf_set "descr" "Make sure not to try to remove root if deleteing an unknown user"
+}
+
+user_do_not_try_to_delete_root_if_user_unkown_body() {
+	populate_etc_skel
+	atf_check -e inline:"pw: -u expects a number\n" -s exit:64 -x pw -V ${HOME} userdel -u plop
+}
+
 atf_init_test_cases() {
 	atf_add_test_case rmuser_seperate_group
 	atf_add_test_case group_do_not_delete_wheel_if_group_unkown
+	atf_add_test_case user_do_not_try_to_delete_root_if_user_unkown
 }
