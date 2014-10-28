@@ -76,6 +76,7 @@ static u_int find_cpu_vendor_id(void);
 static void print_AMD_info(void);
 static void print_INTEL_info(void);
 static void print_INTEL_TLB(u_int data);
+static void print_svm_info(void);
 static void print_via_padlock_info(void);
 static void print_vmx_info(void);
 
@@ -932,6 +933,9 @@ printcpuinfo(void)
 			if (cpu_feature2 & CPUID2_VMX)
 				print_vmx_info();
 
+			if (amd_feature2 & AMDID2_SVM)
+				print_svm_info();
+
 			if ((cpu_feature & CPUID_HTT) &&
 			    cpu_vendor_id == CPU_VENDOR_AMD)
 				cpu_feature &= ~CPUID_HTT;
@@ -1733,6 +1737,67 @@ print_INTEL_TLB(u_int data)
 		printf("Data TLB: 4 KB Pages, 4-way set associative, 128 entries\n");
 		break;
 	}
+}
+
+static void
+print_svm_info(void)
+{
+	u_int features, regs[4];
+	uint64_t msr;
+	int comma;
+
+	printf("\n  SVM: ");
+	do_cpuid(0x8000000A, regs);
+	features = regs[3];
+
+	msr = rdmsr(MSR_VM_CR);
+	if ((msr & VM_CR_SVMDIS) == VM_CR_SVMDIS)
+		printf("(disabled in BIOS) ");
+
+	if (!bootverbose) {
+		comma = 0;
+		if (features & (1 << 0)) {
+			printf("%sNP", comma ? "," : "");
+                        comma = 1; 
+		}
+		if (features & (1 << 3)) {
+			printf("%sNRIP", comma ? "," : "");
+                        comma = 1; 
+		}
+		if (features & (1 << 5)) {
+			printf("%sVClean", comma ? "," : "");
+                        comma = 1; 
+		}
+		if (features & (1 << 6)) {
+			printf("%sAFlush", comma ? "," : "");
+                        comma = 1; 
+		}
+		if (features & (1 << 7)) {
+			printf("%sDAssist", comma ? "," : "");
+                        comma = 1; 
+		}
+		printf("%sNAsids=%d", comma ? "," : "", regs[1]);
+		return;
+	}
+
+	printf("Features=0x%b", features,
+	       "\020"
+	       "\001NP"			/* Nested paging */
+	       "\002LbrVirt"		/* LBR virtualization */
+	       "\003SVML"		/* SVM lock */
+	       "\004NRIPS"		/* NRIP save */
+	       "\005TscRateMsr"		/* MSR based TSC rate control */
+	       "\006VmcbClean"		/* VMCB clean bits */
+	       "\007FlushByAsid"	/* Flush by ASID */
+	       "\010DecodeAssist"	/* Decode assist */
+	       "\011<b8>"
+	       "\012<b9>"
+	       "\013PauseFilter"	/* PAUSE intercept filter */    
+	       "\014<b11>"
+	       "\015PauseFilterThreshold" /* PAUSE filter threshold */
+	       "\016AVIC"		/* virtual interrupt controller */
+                );
+	printf("\nRevision=%d, ASIDs=%d", regs[0] & 0xff, regs[1]);
 }
 
 #ifdef __i386__

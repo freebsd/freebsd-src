@@ -899,6 +899,7 @@ acpi_ibm_handlerevents_sysctl(SYSCTL_HANDLER_ARGS)
 	char			*cp, *ep;
 	int			l, val;
 	unsigned int		handler_events;
+	char			temp[128];
 
 	ACPI_FUNCTION_TRACE((char *)(uintptr_t)__func__);
 
@@ -920,17 +921,18 @@ acpi_ibm_handlerevents_sysctl(SYSCTL_HANDLER_ARGS)
 
 	sbuf_trim(&sb);
 	sbuf_finish(&sb);
-
-	/* Copy out the old values to the user. */
-	error = SYSCTL_OUT(req, sbuf_data(&sb), sbuf_len(&sb));
+	strlcpy(temp, sbuf_data(&sb), sizeof(temp));
 	sbuf_delete(&sb);
 
+	error = sysctl_handle_string(oidp, temp, sizeof(temp), req);
+
+	/* Check for error or no change */
 	if (error != 0 || req->newptr == NULL)
 		goto out;
 
 	/* If the user is setting a string, parse it. */
 	handler_events = 0;
-	cp = (char *)req->newptr;
+	cp = temp;
 	while (*cp) {
 		if (isspace(*cp)) {
 			cp++;

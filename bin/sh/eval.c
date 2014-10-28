@@ -1039,6 +1039,7 @@ evalcommand(union node *cmd, int flags, struct backcmd *backcmd)
 		shellparam.reset = 1;
 		shellparam.nparam = argc - 1;
 		shellparam.p = argv + 1;
+		shellparam.optp = NULL;
 		shellparam.optnext = NULL;
 		INTOFF;
 		savelocalvars = localvars;

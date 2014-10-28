@@ -196,6 +196,7 @@ SUBDIR=	alias \
 	xargs \
 	xinstall \
 	${_xlint} \
+	xo \
 	${_xstr} \
 	xz \
 	xzdec \

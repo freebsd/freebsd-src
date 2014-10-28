@@ -144,6 +144,7 @@ typedef enum {
 	CTL_CMD_FLAG_NO_SENSE		= 0x0010,
 	CTL_CMD_FLAG_OK_ON_ALL_LUNS	= 0x0020,
 	CTL_CMD_FLAG_ALLOW_ON_RESV	= 0x0040,
+	CTL_CMD_FLAG_ALLOW_ON_PR_WRESV	= 0x0080,
 	CTL_CMD_FLAG_OK_ON_PROC		= 0x0100,
 	CTL_CMD_FLAG_OK_ON_SLUN		= 0x0200,
 	CTL_CMD_FLAG_OK_ON_BOTH		= 0x0300,
@@ -384,6 +385,8 @@ struct ctl_devid {
  */
 #define NUM_TARGET_PORT_GROUPS	2
 
+#define CTL_WRITE_BUFFER_SIZE	262144
+
 struct tpc_list;
 struct ctl_lun {
 	struct mtx			lun_lock;
@@ -417,7 +420,7 @@ struct ctl_lun {
 	int				pr_key_count;
 	uint32_t			pr_res_idx;
 	uint8_t				res_type;
-	uint8_t				write_buffer[262144];
+	uint8_t				*write_buffer;
 	struct ctl_devid		*lun_devid;
 	TAILQ_HEAD(tpc_lists, tpc_list) tpc_lists;
 };

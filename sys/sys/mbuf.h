@@ -393,7 +393,7 @@ void sf_ext_free(void *, void *);
  * Outbound flags that are set by upper protocol layers requesting lower
  * layers, or ideally the hardware, to perform these offloading tasks.
  * For outbound packets this field and its flags can be directly tested
- * against if_data.ifi_hwassist.
+ * against ifnet if_hwassist.
  */
 #define	CSUM_IP			0x00000001	/* IP header checksum offload */
 #define	CSUM_IP_UDP		0x00000002	/* UDP checksum offload */

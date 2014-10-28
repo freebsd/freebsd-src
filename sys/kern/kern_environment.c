@@ -262,7 +262,7 @@ void
 freeenv(char *env)
 {
 
-	if (dynamic_kenv) {
+	if (dynamic_kenv && env != NULL) {
 		memset(env, 0, strlen(env));
 		free(env, M_KENV);
 	}

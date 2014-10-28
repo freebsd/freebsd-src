@@ -400,8 +400,6 @@ gif_transmit(struct ifnet *ifp, struct mbuf *m)
 	case AF_LINK:
 		proto = IPPROTO_ETHERIP;
 		M_PREPEND(m, sizeof(struct etherip_header), M_NOWAIT);
-		if (m != NULL && m->m_len < sizeof(struct etherip_header))
-			m = m_pullup(m, sizeof(struct etherip_header));
 		if (m == NULL) {
 			error = ENOBUFS;
 			goto err;
