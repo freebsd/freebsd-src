@@ -67,6 +67,11 @@ pw_group(struct userconf * cnf, int mode, struct cargs * args)
 		NULL
 	};
 
+	if (a_gid != NULL) {
+		if (strspn(a_gid->val, "0123456789") != strlen(a_gid->val))
+			errx(EX_USAGE, "-g expects a number");
+	}
+
 	if (mode == M_LOCK || mode == M_UNLOCK)
 		errx(EX_USAGE, "'lock' command is not available for groups");
 
