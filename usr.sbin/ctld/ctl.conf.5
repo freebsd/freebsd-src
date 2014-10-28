@@ -27,7 +27,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd October 23, 2014
+.Dd October 28, 2014
 .Dt CTL.CONF 5
 .Os
 .Sh NAME
@@ -111,8 +111,10 @@ An IPv4 or IPv6 address and optionally port of iSNS server to register on.
 .It Ic isns-period Ar seconds
 iSNS registration period.
 Registered Network Entity not updated during this period will be unregistered.
+The default is 900.
 .It Ic isns-timeout Ar seconds
 Timeout for iSNS requests.
+The default is 5.
 .El
 .Ss auth-group Context
 .Bl -tag -width indent
