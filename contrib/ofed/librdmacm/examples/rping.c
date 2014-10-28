@@ -1148,8 +1148,9 @@ int main(int argc, char *argv[])
 			if ((cb->size < RPING_MIN_BUFSIZE) ||
 			    (cb->size > (RPING_BUFSIZE - 1))) {
 				fprintf(stderr, "Invalid size %d "
-				       "(valid range is %Zd to %d)\n",
-				       cb->size, RPING_MIN_BUFSIZE, RPING_BUFSIZE);
+				       "(valid range is %d to %d)\n",
+				       (int)cb->size, (int)(RPING_MIN_BUFSIZE),
+				       (int)(RPING_BUFSIZE));
 				ret = EINVAL;
 			} else
 				DEBUG_LOG("size %d\n", (int) atoi(optarg));
