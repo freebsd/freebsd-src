@@ -97,12 +97,6 @@ IMAGES+=	memstick.img
 IMAGES+=	mini-memstick.img
 .endif
 
-VMTARGETS=	vm-base vm-image
-VMFORMATS?=	vhd vmdk qcow2 raw
-VMSIZE?=	20G
-VMBASE?=	vm
-AZURECONF?=	${.CURDIR}/tools/azure.conf
-
 CLEANFILES=	packagesystem *.txz MANIFEST system ${IMAGES}
 .if defined(WITH_COMPRESSED_IMAGES) && !empty(WITH_COMPRESSED_IMAGES)
 . for I in ${IMAGES}
@@ -112,22 +106,7 @@ CLEANFILES+=	${I}.xz
 .if defined(WITH_DVD) && !empty(WITH_DVD)
 CLEANFILES+=	pkg-stage
 .endif
-.if defined(WITH_VMIMAGES) && !empty(WITH_VMIMAGES)
-CLEANFILES+=	${VMBASE}.img
-. for FORMAT in ${VMFORMATS}
-CLEANFILES+=	${VMBASE}.${FORMAT}
-. endfor
-.endif
 CLEANDIRS=	dist ftp release bootonly dvd
-.if defined(WITH_VMIMAGES) && !empty(WITH_VMIMAGES)
-CLEANDIRS+=	${VMTARGETS}
-.endif
-.if exists(${.CURDIR}/${TARGET}/mk-azure.sh)
-CLEANFILES+=	${OSRELEASE}.vhd \
-		${OSRELEASE}.vhd.raw \
-		azure.img
-CLEANDIRS+=	vm-azure
-.endif
 beforeclean:
 	chflags -R noschg .
 .include <bsd.obj.mk>
@@ -324,32 +303,4 @@ install:
 		${DESTDIR}/vmimages/CHECKSUM.MD5
 .endif
 
-vm-base:
-.if defined(WITH_VMIMAGES) && !empty(WITH_VMIMAGES)
-. if exists(${.CURDIR}/${TARGET}/mk-vmimage.sh)
-	env TARGET=${TARGET} TARGET_ARCH=${TARGET_ARCH} \
-		${.CURDIR}/${TARGET}/mk-vmimage.sh ${.TARGET} \
-		${VMBASE}.img ${WORLDDIR} ${.OBJDIR}/${.TARGET} ${VMSIZE}
-. endif
-.endif
-	touch ${.TARGET}
-
-vm-image: vm-base
-.if defined(WITH_VMIMAGES) && !empty(WITH_VMIMAGES)
-. if exists(${.CURDIR}/${TARGET}/mk-vmimage.sh)
-.  for FORMAT in ${VMFORMATS}
-	env TARGET=${TARGET} TARGET_ARCH=${TARGET_ARCH} \
-		${.CURDIR}/${TARGET}/mk-vmimage.sh ${.TARGET} \
-		${VMBASE}.img ${FORMAT} ${VMBASE}.${FORMAT}
-.  endfor
-. endif
-.endif
-	touch ${.TARGET}
-
-vm-azure:
-.if exists(${.CURDIR}/${TARGET}/mk-azure.sh)
-	env TARGET=${TARGET} TARGET_ARCH=${TARGET_ARCH} AZURECONF=${AZURECONF} \
-		${.CURDIR}/${TARGET}/mk-azure.sh ${.TARGET} azure.img \
-		${WORLDDIR} ${.TARGET} ${VMSIZE} ${OSRELEASE}.vhd
-.endif
-	touch ${.TARGET}
+.include "${.CURDIR}/Makefile.vm"
