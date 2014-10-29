@@ -78,7 +78,7 @@ vm_create_azure() {
 	mount /dev/${mddev} ${DESTDIR}
 	make -C ${WORLDDIR} DESTDIR=$(realpath ${DESTDIR}) \
 		installworld installkernel distribution || \
-		panic 1 "\n\nCannot install the base system to ${DESTDIR}."
+		panic "\n\nCannot install the base system to ${DESTDIR}."
 	mount -t devfs devfs ${DESTDIR}/dev
 	chroot ${DESTDIR} /usr/bin/newaliases
 	echo '# Custom /etc/fstab for FreeBSD VM images' \
@@ -125,7 +125,7 @@ vm_create_azure() {
 			# This should never happen.  But, it has happened.
 			msg="Cannot umount(8) ${DESTDIR}\n"
 			msg="${msg}Something has gone horribly wrong."
-			panic 1 "${msg}"
+			panic "${msg}"
 		fi
 		sleep 1
 	done
