@@ -269,6 +269,9 @@ release:
 .if defined(WITH_VMIMAGES) && !empty(WITH_VMIMAGES)
 	${MAKE} -C ${.CURDIR} ${.MAKEFLAGS} ${VMTARGETS}
 .endif
+.if defined(WITH_CLOUDWARE) && !empty(WITH_CLOUDWARE) && !empty(CLOUDWARE)
+	${MAKE} -C ${.CURDIR} ${.MAKEFLAGS} ${CLOUDTARGETS}
+.endif
 
 install:
 .if defined(DESTDIR) && !empty(DESTDIR)

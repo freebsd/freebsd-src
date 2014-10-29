@@ -9,7 +9,22 @@ VMTARGETS=	vm-base vm-image
 VMFORMATS?=	vhd vmdk qcow2 raw
 VMSIZE?=	20G
 VMBASE?=	vm
-AZURECONF?=	${.CURDIR}/tools/azure.conf
+
+CLOUDWARE?=	AZURE
+AZURE_FORMAT=	vhd
+
+.if defined(WITH_CLOUDWARE) && !empty(WITH_CLOUDWARE) && !empty(CLOUDWARE)
+. for _CW in ${CLOUDWARE}
+CLOUDTARGETS+=	vm-${_CW:tl}
+CLEANDIRS+=	vm-${_CW:tl}
+CLEANFILES+=	${_CW:tl}.img \
+		${_CW:tl}.${${_CW:tu}_FORMAT} \
+		${_CW:tl}.${${_CW:tu}_FORMAT}.raw
+.  if exists(${.CURDIR}/tools/${_CW:tl}.conf) && !defined(${_CW:tu}CONF)
+${_CW:tu}CONF?=	${.CURDIR}/tools/${_CW:tl}.conf
+.  endif
+. endfor
+.endif
 
 .if defined(WITH_VMIMAGES) && !empty(WITH_VMIMAGES)
 CLEANDIRS+=	${VMTARGETS}
@@ -17,13 +32,6 @@ CLEANFILES+=	${VMBASE}.img
 . for FORMAT in ${VMFORMATS}
 CLEANFILES+=	${VMBASE}.${FORMAT}
 . endfor
-.endif
-
-.if exists(${.CURDIR}/${TARGET}/mk-azure.sh)
-CLEANFILES+=	${OSRELEASE}.vhd \
-		${OSRELEASE}.vhd.raw \
-		azure.img
-CLEANDIRS+=	vm-azure
 .endif
 
 vm-base:
