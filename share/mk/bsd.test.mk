@@ -55,7 +55,7 @@ _TESTS=
 .include <tap.test.mk>
 
 .for ts in ${TESTS_SUBDIRS}
-.if empty(SUBDIR:N${ts})
+.if empty(SUBDIR:M${ts})
 SUBDIR+= ${ts}
 .endif
 .endfor
