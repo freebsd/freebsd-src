@@ -69,6 +69,196 @@
 #include "cheritest.h"
 
 /*
+ * Tests to check that tags are ... or aren't ... preserved for various page
+ * types.  'Anonymous' pages provided by the VM subsystem should always
+ * preserve tags.  Pages from the filesystem should not -- unless they are
+ * mapped MAP_PRIVATE, in which case they should, since they are effectively
+ * anonymous pages.  Or so I claim.
+ */
+void
+cheritest_vm_tag_mmap_anon(const struct cheri_test *ctp __unused)
+{
+	__capability void * volatile *cp;
+	__capability void *cp_value;
+	int v;
+
+	cp = mmap(NULL, getpagesize(), PROT_READ | PROT_WRITE, MAP_ANON, -1,
+	    0);
+	if (cp == MAP_FAILED)
+		cheritest_failure_err("mmap");
+	cp_value = cheri_ptr(&v, sizeof(v));
+	*cp = cp_value;
+	cp_value = *cp;
+	if (cheri_gettag(cp_value) == 0)
+		cheritest_failure_errx("tag lost");
+	if (munmap((void *)cp, getpagesize()) < 0)
+		cheritest_failure_err("munmap");
+	cheritest_success();
+}
+
+void
+cheritest_vm_tag_shm_open_anon_shared(const struct cheri_test *ctp __unused)
+{
+	__capability void * volatile *cp;
+	__capability void *cp_value;
+	int fd, v;
+
+	fd = shm_open(SHM_ANON, O_RDWR, 0600);
+	if (fd < 0)
+		cheritest_failure_err("shm_open");
+	if (ftruncate(fd, getpagesize()) < 0)
+		cheritest_failure_err("ftruncate");
+	cp = mmap(NULL, getpagesize(), PROT_READ | PROT_WRITE, MAP_SHARED, fd,
+	    0);
+	if (cp == MAP_FAILED)
+		cheritest_failure_err("mmap");
+	cp_value = cheri_ptr(&v, sizeof(v));
+	*cp = cp_value;
+	cp_value = *cp;
+	if (cheri_gettag(cp_value) == 0)
+		cheritest_failure_errx("tag lost");
+	if (munmap((void *)cp, getpagesize()) < 0)
+		cheritest_failure_err("munmap");
+	if (close(fd) < 0)
+		cheritest_failure_err("close");
+	cheritest_success();
+}
+
+void
+cheritest_vm_tag_shm_open_anon_private(const struct cheri_test *ctp __unused)
+{
+	__capability void * volatile *cp;
+	__capability void *cp_value;
+	int fd, v;
+
+	fd = shm_open(SHM_ANON, O_RDWR, 0600);
+	if (fd < 0)
+		cheritest_failure_err("shm_open");
+	if (ftruncate(fd, getpagesize()) < 0)
+		cheritest_failure_err("ftruncate");
+	cp = mmap(NULL, getpagesize(), PROT_READ | PROT_WRITE, MAP_PRIVATE,
+	    fd, 0);
+	if (cp == MAP_FAILED)
+		cheritest_failure_err("mmap");
+	cp_value = cheri_ptr(&v, sizeof(v));
+	*cp = cp_value;
+	cp_value = *cp;
+	if (cheri_gettag(cp_value) == 0)
+		cheritest_failure_errx("tag lost");
+	if (munmap((void *)cp, getpagesize()) < 0)
+		cheritest_failure_err("munmap");
+	if (close(fd) < 0)
+		cheritest_failure_err("close");
+	cheritest_success();
+}
+
+void
+cheritest_vm_tag_dev_zero_shared(const struct cheri_test *ctp __unused)
+{
+	__capability void * volatile *cp;
+	__capability void *cp_value;
+	int fd, v;
+
+	fd = open("/dev/zero", O_RDWR);
+	if (fd < 0)
+		cheritest_failure_err("/dev/zero");
+	cp = mmap(NULL, getpagesize(), PROT_READ | PROT_WRITE, MAP_SHARED, fd,
+	    0);
+	if (cp == MAP_FAILED)
+		cheritest_failure_err("mmap");
+	cp_value = cheri_ptr(&v, sizeof(v));
+	*cp = cp_value;
+	cp_value = *cp;
+	if (cheri_gettag(cp_value) == 0)
+		cheritest_failure_errx("tag lost");
+	if (munmap((void *)cp, getpagesize()) < 0)
+		cheritest_failure_err("munmap");
+	if (close(fd) < 0)
+		cheritest_failure_err("close");
+	cheritest_success();
+}
+
+void
+cheritest_vm_tag_dev_zero_private(const struct cheri_test *ctp __unused)
+{
+	__capability void * volatile *cp;
+	__capability void *cp_value;
+	int fd, v;
+
+	fd = open("/dev/zero", O_RDWR);
+	if (fd < 0)
+		cheritest_failure_err("/dev/zero");
+	cp = mmap(NULL, getpagesize(), PROT_READ | PROT_WRITE, MAP_PRIVATE,
+	    fd, 0);
+	if (cp == MAP_FAILED)
+		cheritest_failure_err("mmap");
+	cp_value = cheri_ptr(&v, sizeof(v));
+	*cp = cp_value;
+	cp_value = *cp;
+	if (cheri_gettag(cp_value) == 0)
+		cheritest_failure_errx("tag lost");
+	if (munmap((void *)cp, getpagesize()) < 0)
+		cheritest_failure_err("munmap");
+	if (close(fd) < 0)
+		cheritest_failure_err("close");
+	cheritest_success();
+}
+
+/*
+ * This case should fault.
+ */
+void
+cheritest_vm_notag_tmpfile_shared(const struct cheri_test *ctp __unused)
+{
+	__capability void * volatile *cp;
+	__capability void *cp_value;
+	char template[] = "/tmp/cheritest.XXXXXXXX";
+	int fd, v;
+
+	fd = mkstemp(template);
+	if (fd < 0)
+		cheritest_failure_err("%s", template);
+	if (ftruncate(fd, getpagesize()) < 0)
+		cheritest_failure_err("ftruncate");
+	cp = mmap(NULL, getpagesize(), PROT_READ | PROT_WRITE, MAP_SHARED,
+	    fd, 0);
+	if (cp == MAP_FAILED)
+		cheritest_failure_err("mmap");
+	cp_value = cheri_ptr(&v, sizeof(v));
+	*cp = cp_value;
+	cheritest_failure_errx("tagged store succeeded");
+}
+
+void
+cheritest_vm_tag_tmpfile_private(const struct cheri_test *ctp __unused)
+{
+	__capability void * volatile *cp;
+	__capability void *cp_value;
+	char template[] = "/tmp/cheritest.XXXXXXXX";
+	int fd, v;
+
+	fd = mkstemp(template);
+	if (fd < 0)
+		cheritest_failure_err("%s", template);
+	if (ftruncate(fd, getpagesize()) < 0)
+		cheritest_failure_err("ftruncate");
+	cp = mmap(NULL, getpagesize(), PROT_READ | PROT_WRITE, MAP_PRIVATE,
+	    fd, 0);
+	if (cp == MAP_FAILED)
+		cheritest_failure_err("mmap");
+	cp_value = cheri_ptr(&v, sizeof(v));
+	*cp = cp_value;
+	cp_value = *cp;
+	if (cheri_gettag(cp_value) == 0)
+		cheritest_failure_errx("tag lost");
+	if (munmap((void *)cp, getpagesize()) < 0)
+		cheritest_failure_err("munmap");
+	if (close(fd) < 0)
+		cheritest_failure_err("close");
+	cheritest_success();
+}
+
+/*
  * Exercise copy-on-write:
  *
  * 1) Create a new anonymous shared memory object, extend to page size, map,

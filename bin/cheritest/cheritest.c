@@ -203,8 +203,41 @@ static const struct cheri_test cheri_tests[] = {
 	  .ct_cp2_exccode = CHERI_EXCCODE_ACCESS_EPCC },
 
 	/*
-	 * Unsandboxed, non-faulting virtual-mwmory tests.
+	 * Unsandboxed virtual-memory tests.
 	 */
+	{ .ct_name = "cheritest_vm_tag_mmap_anon",
+	  .ct_desc = "check tags are stored for MAP_ANON pages",
+	  .ct_func = cheritest_vm_tag_mmap_anon, },
+
+	{ .ct_name = "cheritest_vm_tag_shm_open_anon_shared",
+	  .ct_desc = "check tags are stored for SHM_ANON MAP_SHARED pages",
+	  .ct_func = cheritest_vm_tag_shm_open_anon_shared, },
+
+	{ .ct_name = "cheritest_vm_tag_shm_open_anon_private",
+	  .ct_desc = "check tags are stored for SHM_ANON MAP_PRIVATE pages",
+	  .ct_func = cheritest_vm_tag_shm_open_anon_private, },
+
+	{ .ct_name = "cheritest_vm_tag_dev_zero_shared",
+	  .ct_desc = "check tags are stored for /dev/zero MAP_SHARED pages",
+	  .ct_func = cheritest_vm_tag_dev_zero_shared, },
+
+	{ .ct_name = "cheritest_vm_tag_dev_zero_private",
+	  .ct_desc = "check tags are stored for /dev/zero MAP_PRIVATE pages",
+	  .ct_func = cheritest_vm_tag_dev_zero_private, },
+
+	/* XXXRW: Also need a load case. */
+	{ .ct_name = "cheritest_vm_notag_tmpfile_shared",
+	  .ct_desc = "check tags are not stored for tmpfile() MAP_SHARED pages",
+	  .ct_func = cheritest_vm_notag_tmpfile_shared,
+	  .ct_flags = CT_FLAG_SIGNAL | CT_FLAG_MIPS_EXCCODE,
+	  .ct_signum = SIGSEGV,
+	  .ct_mips_exccode = 17,	/* XXXRW: Use a constant here. */
+	  .ct_xfail_reason = "VM doesn't enforce no tags on file mappings", },
+
+	{ .ct_name = "cheritest_vm_tag_tmpfile_private",
+	  .ct_desc = "check tags are stored for tmpfile() MAP_PRIVATE pages",
+	  .ct_func = cheritest_vm_tag_tmpfile_private, },
+
 	{ .ct_name = "cheritest_vm_cow_read",
 	  .ct_desc = "read capabilities from a copy-on-write page",
 	  .ct_func = cheritest_vm_cow_read, },

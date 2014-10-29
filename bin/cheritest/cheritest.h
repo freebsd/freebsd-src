@@ -216,6 +216,17 @@ void	test_sandbox_var_data(const struct cheri_test *ctp);
 void	test_sandbox_var_constructor(const struct cheri_test *ctp);
 
 /* cheritest_vm.c */
+void	cheritest_vm_tag_mmap_anon(const struct cheri_test *ctp __unused);
+void	cheritest_vm_tag_shm_open_anon_shared(const struct cheri_test *ctp
+	    __unused);
+void	cheritest_vm_tag_shm_open_anon_private(const struct cheri_test *ctp
+	    __unused);
+void	cheritest_vm_tag_dev_zero_shared(const struct cheri_test *ctp
+	    __unused);
+void	cheritest_vm_tag_dev_zero_private(const struct cheri_test *ctp
+	    __unused);
+void	cheritest_vm_notag_tmpfile_shared(const struct cheri_test *ctp __unused);
+void	cheritest_vm_tag_tmpfile_private(const struct cheri_test *ctp __unused);
 void	cheritest_vm_cow_read(const struct cheri_test *ctp);
 void	cheritest_vm_cow_write(const struct cheri_test *ctp);
 
