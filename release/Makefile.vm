@@ -11,7 +11,7 @@ VMSIZE?=	20G
 VMBASE?=	vm
 
 CLOUDWARE?=	AZURE
-AZURE_FORMAT=	vhd
+AZURE_FORMAT=	vhdf
 
 .if defined(WITH_CLOUDWARE) && !empty(WITH_CLOUDWARE) && !empty(CLOUDWARE)
 . for _CW in ${CLOUDWARE}
@@ -20,6 +20,7 @@ CLEANDIRS+=	vm-${_CW:tl}
 CLEANFILES+=	${_CW:tl}.img \
 		${_CW:tl}.${${_CW:tu}_FORMAT} \
 		${_CW:tl}.${${_CW:tu}_FORMAT}.raw
+${_CW:tu}IMAGE=	${_CW:tl}.${${_CW:tu}_FORMAT}
 .  if exists(${.CURDIR}/tools/${_CW:tl}.conf) && !defined(${_CW:tu}CONF)
 ${_CW:tu}CONF?=	${.CURDIR}/tools/${_CW:tl}.conf
 .  endif
@@ -59,7 +60,8 @@ vm-image: vm-base
 vm-azure:
 .if exists(${.CURDIR}/${TARGET}/mk-azure.sh)
 	env TARGET=${TARGET} TARGET_ARCH=${TARGET_ARCH} AZURECONF=${AZURECONF} \
+		AZURE_FORMAT=${AZURE_FORMAT} \
 		${.CURDIR}/${TARGET}/mk-azure.sh ${.TARGET} azure.img \
-		${WORLDDIR} ${.TARGET} ${VMSIZE} ${OSRELEASE}.vhd
+		${WORLDDIR} ${.TARGET} ${VMSIZE} ${AZUREIMAGE}
 .endif
 	touch ${.TARGET}

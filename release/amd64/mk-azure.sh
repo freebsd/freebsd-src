@@ -132,7 +132,7 @@ vm_create_azure() {
 
 	echo "Creating image...  Please wait."
 
-	mkimg -f vhdf -s gpt \
+	mkimg -f ${AZURE_FORMAT} -s gpt \
 		-b /boot/pmbr -p freebsd-boot/bootfs:=/boot/gptboot \
 		-p freebsd-swap/swapfs::1G \
 		-p freebsd-ufs/rootfs:=${VMBASE} \
