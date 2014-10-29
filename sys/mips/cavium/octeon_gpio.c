@@ -441,8 +441,9 @@ octeon_gpio_attach(device_t dev)
 		}
 	}
 
-	device_add_child(dev, "gpioc", device_get_unit(dev));
-	device_add_child(dev, "gpiobus", device_get_unit(dev));
+	device_add_child(dev, "gpioc", -1);
+	device_add_child(dev, "gpiobus", -1);
+
 	return (bus_generic_attach(dev));
 }
 

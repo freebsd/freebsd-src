@@ -64,6 +64,8 @@ extern	u_int	cyrix_did;
 #if defined(I586_CPU) && !defined(NO_F00F_HACK)
 extern	int	has_f00f_bug;
 #endif
+extern	u_int	hv_high;
+extern	char	hv_vendor[];
 extern	char	kstack[];
 extern	char	sigcode[];
 extern	int	szsigcode;
