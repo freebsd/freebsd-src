@@ -209,8 +209,10 @@ struct tcpcb {
 	u_int	t_keepcnt;		/* number of keepalives before close */
 
 	u_int	t_tsomax;		/* tso burst length limit */
+	u_int	t_pmtud_saved_maxopd;	/* pre-blackhole MSS */
+	u_int	t_flags2;		/* More tcpcb flags storage */
 
-	uint32_t t_ispare[8];		/* 5 UTO, 3 TBD */
+	uint32_t t_ispare[6];		/* 5 UTO, 1 TBD */
 	void	*t_pspare2[4];		/* 1 TCP_SIGNATURE, 3 TBD */
 	uint64_t _pad[6];		/* 6 TBD (1-2 CC/RTT?) */
 };
@@ -282,6 +284,13 @@ struct tcpcb {
  */
 #define	TCP_SIG_SPI	0x1000
 #endif /* TCP_SIGNATURE */
+
+/*
+ * Flags for PLPMTU handling, t_flags2
+ */
+#define	TF2_PLPMTU_BLACKHOLE	0x00000001 /* Possible PLPMTUD Black Hole. */
+#define	TF2_PLPMTU_PMTUD	0x00000002 /* Allowed to attempt PLPMTUD. */
+#define	TF2_PLPMTU_MAXSEGSNT	0x00000004 /* Last seg sent was full seg. */
 
 /*
  * Structure to hold TCP options that are only used during segment
