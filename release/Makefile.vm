@@ -10,8 +10,10 @@ VMFORMATS?=	vhd vmdk qcow2 raw
 VMSIZE?=	20G
 VMBASE?=	vm
 
-CLOUDWARE?=	AZURE
+CLOUDWARE?=	AZURE \
+		OPENSTACK
 AZURE_FORMAT=	vhdf
+OPENSTACK_FORMAT=qcow2
 
 .if defined(WITH_CLOUDWARE) && !empty(WITH_CLOUDWARE) && !empty(CLOUDWARE)
 . for _CW in ${CLOUDWARE}
@@ -63,5 +65,15 @@ vm-azure:
 		AZURE_FORMAT=${AZURE_FORMAT} \
 		${.CURDIR}/${TARGET}/mk-azure.sh ${.TARGET} azure.img \
 		${WORLDDIR} ${.TARGET} ${VMSIZE} ${AZUREIMAGE}
+.endif
+	touch ${.TARGET}
+
+vm-openstack:
+.if exists(${.CURDIR}/${TARGET}/mk-openstack.sh)
+	env TARGET=${TARGET} TARGET_ARCH=${TARGET_ARCH} \
+		OPENSTACKCONF=${OPENSTACKCONF}
+		OPENSTACK_FORMAT=${OPENSTACK_FORMAT} \
+		${.CURDIR}/${TARGET}/mk-openstack.sh ${.TARGET} openstack.img \
+		${WORLDDIR} ${.TARGET} ${VMSIZE} ${OPENSTACKIMAGE}
 .endif
 	touch ${.TARGET}
