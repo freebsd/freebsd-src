@@ -112,11 +112,15 @@ void		 pmap_align_superpage(vm_object_t, vm_ooffset_t, vm_offset_t *,
 void		 pmap_clear_modify(vm_page_t m);
 void		 pmap_copy(pmap_t, pmap_t, vm_offset_t, vm_size_t, vm_offset_t);
 void		 pmap_copy_page(vm_page_t, vm_page_t);
+#ifdef CPU_CHERI
 void		 pmap_copy_page_tags(vm_page_t, vm_page_t);
+#endif
 void		 pmap_copy_pages(vm_page_t ma[], vm_offset_t a_offset,
 		    vm_page_t mb[], vm_offset_t b_offset, int xfersize);
+#ifdef CPU_CHERI
 void		 pmap_copy_pages_tags(vm_page_t ma[], vm_offset_t a_offset,
 		    vm_page_t mb[], vm_offset_t b_offset, int xfersize);
+#endif
 int		 pmap_enter(pmap_t pmap, vm_offset_t va, vm_page_t m,
 		    vm_prot_t prot, u_int flags, int8_t psind);
 void		 pmap_enter_object(pmap_t pmap, vm_offset_t start,
