@@ -125,7 +125,7 @@ vm_create_openstack() {
 		-b /boot/pmbr -p freebsd-boot/bootfs:=/boot/gptboot \
 		-p freebsd-swap/swapfs::1G \
 		-p freebsd-ufs/rootfs:=${VMBASE} \
-		-o ${VMIMAGE}.raw
+		-o ${VMIMAGE}
 
 	return 0
 }
