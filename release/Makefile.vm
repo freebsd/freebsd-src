@@ -1,0 +1,57 @@
+#
+# $FreeBSD$
+#
+#
+# Makefile for building virtual machine and cloud provider disk images.
+#
+
+VMTARGETS=	vm-base vm-image
+VMFORMATS?=	vhd vmdk qcow2 raw
+VMSIZE?=	20G
+VMBASE?=	vm
+AZURECONF?=	${.CURDIR}/tools/azure.conf
+
+.if defined(WITH_VMIMAGES) && !empty(WITH_VMIMAGES)
+CLEANDIRS+=	${VMTARGETS}
+CLEANFILES+=	${VMBASE}.img
+. for FORMAT in ${VMFORMATS}
+CLEANFILES+=	${VMBASE}.${FORMAT}
+. endfor
+.endif
+
+.if exists(${.CURDIR}/${TARGET}/mk-azure.sh)
+CLEANFILES+=	${OSRELEASE}.vhd \
+		${OSRELEASE}.vhd.raw \
+		azure.img
+CLEANDIRS+=	vm-azure
+.endif
+
+vm-base:
+.if defined(WITH_VMIMAGES) && !empty(WITH_VMIMAGES)
+. if exists(${.CURDIR}/${TARGET}/mk-vmimage.sh)
+	env TARGET=${TARGET} TARGET_ARCH=${TARGET_ARCH} \
+		${.CURDIR}/${TARGET}/mk-vmimage.sh ${.TARGET} \
+		${VMBASE}.img ${WORLDDIR} ${.OBJDIR}/${.TARGET} ${VMSIZE}
+. endif
+.endif
+	touch ${.TARGET}
+
+vm-image: vm-base
+.if defined(WITH_VMIMAGES) && !empty(WITH_VMIMAGES)
+. if exists(${.CURDIR}/${TARGET}/mk-vmimage.sh)
+.  for FORMAT in ${VMFORMATS}
+	env TARGET=${TARGET} TARGET_ARCH=${TARGET_ARCH} \
+		${.CURDIR}/${TARGET}/mk-vmimage.sh ${.TARGET} \
+		${VMBASE}.img ${FORMAT} ${VMBASE}.${FORMAT}
+.  endfor
+. endif
+.endif
+	touch ${.TARGET}
+
+vm-azure:
+.if exists(${.CURDIR}/${TARGET}/mk-azure.sh)
+	env TARGET=${TARGET} TARGET_ARCH=${TARGET_ARCH} AZURECONF=${AZURECONF} \
+		${.CURDIR}/${TARGET}/mk-azure.sh ${.TARGET} azure.img \
+		${WORLDDIR} ${.TARGET} ${VMSIZE} ${OSRELEASE}.vhd
+.endif
+	touch ${.TARGET}
