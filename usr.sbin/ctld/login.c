@@ -441,7 +441,12 @@ login_chap(struct connection *conn, struct auth_group *ag)
 	    "transitioning to Negotiation Phase", auth->a_user);
 	login_send_chap_success(request, auth);
 	pdu_delete(request);
-	chap_delete(chap);
+
+	/*
+	 * Leave username and CHAP information for discovery().
+	 */
+	conn->conn_user = auth->a_user;
+	conn->conn_chap = chap;
 }
 
 static void
