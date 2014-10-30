@@ -150,7 +150,7 @@ static int	getmaxfd(struct proc *p);
  * the process exits.
  */
 struct freetable {
-	struct filedescent *ft_table;
+	struct fdescenttbl *ft_table;
 	SLIST_ENTRY(freetable) ft_next;
 };
 
@@ -158,10 +158,16 @@ struct freetable {
  * Initial allocation: a filedesc structure + the head of SLIST used to
  * keep track of old ofiles + enough space for NDFILE descriptors.
  */
+
+struct fdescenttbl0 {
+	int	fdt_nfiles;
+	struct	filedescent fdt_ofiles[NDFILE];
+};
+
 struct filedesc0 {
 	struct filedesc fd_fd;
 	SLIST_HEAD(, freetable) fd_free;
-	struct	filedescent fd_dfiles[NDFILE];
+	struct	fdescenttbl0 fd_dfiles;
 	NDSLOTTYPE fd_dmap[NDSLOTS(NDFILE)];
 };
 
@@ -1516,8 +1522,8 @@ fdgrowtable(struct filedesc *fdp, int nfd)
 {
 	struct filedesc0 *fdp0;
 	struct freetable *ft;
-	struct filedescent *ntable;
-	struct filedescent *otable;
+	struct fdescenttbl *ntable;
+	struct fdescenttbl *otable;
 	int nnfiles, onfiles;
 	NDSLOTTYPE *nmap, *omap;
 
@@ -1527,7 +1533,7 @@ fdgrowtable(struct filedesc *fdp, int nfd)
 
 	/* save old values */
 	onfiles = fdp->fd_nfiles;
-	otable = fdp->fd_ofiles;
+	otable = fdp->fd_files;
 	omap = fdp->fd_map;
 
 	/* compute the size of the new table */
@@ -1537,17 +1543,20 @@ fdgrowtable(struct filedesc *fdp, int nfd)
 		return;
 
 	/*
-	 * Allocate a new table.  We need enough space for the
-	 * file entries themselves and the struct freetable we will use
+	 * Allocate a new table.  We need enough space for the number of
+	 * entries, file entries themselves and the struct freetable we will use
 	 * when we decommission the table and place it on the freelist.
 	 * We place the struct freetable in the middle so we don't have
 	 * to worry about padding.
 	 */
-	ntable = malloc(nnfiles * sizeof(ntable[0]) + sizeof(struct freetable),
+	ntable = malloc(offsetof(struct fdescenttbl, fdt_ofiles) +
+	    nnfiles * sizeof(ntable->fdt_ofiles[0]) +
+	    sizeof(struct freetable),
 	    M_FILEDESC, M_ZERO | M_WAITOK);
-	/* copy the old data over and point at the new tables */
-	memcpy(ntable, otable, onfiles * sizeof(*otable));
-	fdp->fd_ofiles = ntable;
+	/* copy the old data */
+	ntable->fdt_nfiles = nnfiles;
+	memcpy(ntable->fdt_ofiles, otable->fdt_ofiles,
+	    onfiles * sizeof(ntable->fdt_ofiles[0]));
 
 	/*
 	 * Allocate a new map only if the old is not large enough.  It will
@@ -1563,13 +1572,11 @@ fdgrowtable(struct filedesc *fdp, int nfd)
 	}
 
 	/*
-	 * In order to have a valid pattern for fget_unlocked()
-	 * fdp->fd_nfiles must be the last member to be updated, otherwise
-	 * fget_unlocked() consumers may reference a new, higher value for
-	 * fdp->fd_nfiles before to access the fdp->fd_ofiles array,
-	 * resulting in OOB accesses.
+	 * Make sure that ntable is correctly initialized before we replace
+	 * fd_files poiner. Otherwise fget_unlocked() may see inconsistent
+	 * data.
 	 */
-	atomic_store_rel_int(&fdp->fd_nfiles, nnfiles);
+	atomic_store_rel_ptr((volatile void *)&fdp->fd_files, (uintptr_t)ntable);
 
 	/*
 	 * Do not free the old file table, as some threads may still
@@ -1581,7 +1588,7 @@ fdgrowtable(struct filedesc *fdp, int nfd)
 	 * which must not be freed.
 	 */
 	if (onfiles > NDFILE) {
-		ft = (struct freetable *)&otable[onfiles];
+		ft = (struct freetable *)&otable->fdt_ofiles[onfiles];
 		fdp0 = (struct filedesc0 *)fdp;
 		ft->ft_table = otable;
 		SLIST_INSERT_HEAD(&fdp0->fd_free, ft, ft_next);
@@ -1813,8 +1820,8 @@ fdinit(struct filedesc *fdp)
 	newfdp->fd_fd.fd_refcnt = 1;
 	newfdp->fd_fd.fd_holdcnt = 1;
 	newfdp->fd_fd.fd_cmask = CMASK;
-	newfdp->fd_fd.fd_ofiles = newfdp->fd_dfiles;
-	newfdp->fd_fd.fd_nfiles = NDFILE;
+	newfdp->fd_dfiles.fdt_nfiles = NDFILE;
+	newfdp->fd_fd.fd_files = (struct fdescenttbl *)&newfdp->fd_dfiles;
 	newfdp->fd_fd.fd_map = newfdp->fd_dmap;
 	newfdp->fd_fd.fd_lastfile = -1;
 	return (&newfdp->fd_fd);
@@ -2054,10 +2061,10 @@ fdescfree(struct thread *td)
 		}
 	}
 
-	if (fdp->fd_nfiles > NDFILE)
-		free(fdp->fd_ofiles, M_FILEDESC);
 	if (NDSLOTS(fdp->fd_nfiles) > NDSLOTS(NDFILE))
 		free(fdp->fd_map, M_FILEDESC);
+	if (fdp->fd_nfiles > NDFILE)
+		free(fdp->fd_files, M_FILEDESC);
 
 	if (cdir != NULL)
 		vrele(cdir);
@@ -2305,6 +2312,7 @@ fget_unlocked(struct filedesc *fdp, int fd, cap_rights_t *needrightsp,
 #ifdef CAPABILITIES
 	struct filedescent fde;
 #endif
+	struct fdescenttbl *fdt;
 	struct file *fp;
 	u_int count;
 #ifdef CAPABILITIES
@@ -2313,11 +2321,8 @@ fget_unlocked(struct filedesc *fdp, int fd, cap_rights_t *needrightsp,
 	int error;
 #endif
 
-	/*
-	 * Avoid reads reordering and then a first access to the
-	 * fdp->fd_ofiles table which could result in OOB operation.
-	 */
-	if (fd < 0 || fd >= atomic_load_acq_int(&fdp->fd_nfiles))
+	fdt = fdp->fd_files;
+	if (fd < 0 || fd >= fdt->fdt_nfiles)
 		return (EBADF);
 	/*
 	 * Fetch the descriptor locklessly.  We avoid fdrop() races by
@@ -2329,15 +2334,15 @@ fget_unlocked(struct filedesc *fdp, int fd, cap_rights_t *needrightsp,
 	 */
 	for (;;) {
 #ifdef CAPABILITIES
-		seq = seq_read(fd_seq(fdp, fd));
-		fde = fdp->fd_ofiles[fd];
-		if (!seq_consistent(fd_seq(fdp, fd), seq)) {
+		seq = seq_read(fd_seq(fdt, fd));
+		fde = fdt->fdt_ofiles[fd];
+		if (!seq_consistent(fd_seq(fdt, fd), seq)) {
 			cpu_spinwait();
 			continue;
 		}
 		fp = fde.fde_file;
 #else
-		fp = fdp->fd_ofiles[fd].fde_file;
+		fp = fdt->fdt_ofiles[fd].fde_file;
 #endif
 		if (fp == NULL)
 			return (EBADF);
@@ -2355,18 +2360,23 @@ fget_unlocked(struct filedesc *fdp, int fd, cap_rights_t *needrightsp,
 		}
 #endif
 		count = fp->f_count;
-		if (count == 0)
+		if (count == 0) {
+			fdt = fdp->fd_files;
 			continue;
+		}
 		/*
-		 * Use an acquire barrier to prevent caching of fd_ofiles
-		 * so it is refreshed for verification.
+		 * Use an acquire barrier to force re-reading of fdt so it is
+		 * refreshed for verification.
 		 */
-		if (atomic_cmpset_acq_int(&fp->f_count, count, count + 1) != 1)
+		if (atomic_cmpset_acq_int(&fp->f_count, count, count + 1) == 0) {
+			fdt = fdp->fd_files;
 			continue;
+		}
+		fdt = fdp->fd_files;
 #ifdef	CAPABILITIES
-		if (seq_consistent_nomb(fd_seq(fdp, fd), seq))
+		if (seq_consistent_nomb(fd_seq(fdt, fd), seq))
 #else
-		if (fp == fdp->fd_ofiles[fd].fde_file)
+		if (fp == fdt->fdt_ofiles[fd].fde_file)
 #endif
 			break;
 		fdrop(fp, curthread);
