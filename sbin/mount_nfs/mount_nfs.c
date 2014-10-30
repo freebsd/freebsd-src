@@ -282,6 +282,35 @@ main(int argc, char *argv[])
 						err(1, "asprintf");
 				} else if (strcmp(opt, "principal") == 0) {
 					got_principal = 1;
+				} else if (strcmp(opt, "proto") == 0) {
+					pass_flag_to_nmount=0;
+					if (strcmp(val, "tcp") == 0) {
+						nfsproto = IPPROTO_TCP;
+						opflags |= OF_NOINET6;
+						build_iovec(&iov, &iovlen,
+						    "tcp", NULL, 0);
+					} else if (strcmp(val, "udp") == 0) {
+						mnttcp_ok = 0;
+						nfsproto = IPPROTO_UDP;
+						opflags |= OF_NOINET6;
+						build_iovec(&iov, &iovlen,
+						    "udp", NULL, 0);
+					} else if (strcmp(val, "tcp6") == 0) {
+						nfsproto = IPPROTO_TCP;
+						opflags |= OF_NOINET4;
+						build_iovec(&iov, &iovlen,
+						    "tcp", NULL, 0);
+					} else if (strcmp(val, "udp6") == 0) {
+						mnttcp_ok = 0;
+						nfsproto = IPPROTO_UDP;
+						opflags |= OF_NOINET4;
+						build_iovec(&iov, &iovlen,
+						    "udp", NULL, 0);
+					} else {
+						errx(1,
+						    "illegal proto value -- %s",
+						    val);
+					}
 				} else if (strcmp(opt, "sec") == 0) {
 					/*
 					 * Don't add this option to
