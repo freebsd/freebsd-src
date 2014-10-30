@@ -1,6 +1,3 @@
-dnl
-dnl Automated Testing Framework (atf)
-dnl
 dnl Copyright (c) 2007 The NetBSD Foundation, Inc.
 dnl All rights reserved.
 dnl
@@ -25,13 +22,13 @@ dnl INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER
 dnl IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR
 dnl OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN
 dnl IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-dnl
 
 dnl -----------------------------------------------------------------------
 dnl Initialize the GNU build system.
 dnl -----------------------------------------------------------------------
 
-AC_INIT([Automated Testing Framework], [0.20], [atf-devel@NetBSD.org], [atf],
+AC_INIT([Automated Testing Framework], [0.21],
+        [atf-discuss@googlegroups.com], [atf],
         [https://github.com/jmmv/atf/])
 AC_PREREQ([2.65])
 AC_COPYRIGHT([Copyright (c) 2007-2012 The NetBSD Foundation, Inc.])
@@ -39,7 +36,7 @@ AC_DEFINE([PACKAGE_COPYRIGHT],
           ["Copyright (c) 2007-2012 The NetBSD Foundation, Inc."],
           [Define to the copyright string applicable to this package.])
 AC_CONFIG_AUX_DIR([admin])
-AC_CONFIG_HEADERS([bconfig.h])
+AC_CONFIG_HEADERS([config.h])
 AC_CONFIG_MACRO_DIR([m4])
 AC_CONFIG_SRCDIR([atf-c.h])
 AC_CONFIG_TESTDIR([bootstrap])
@@ -76,6 +73,9 @@ fi
 
 KYUA_DEVELOPER_MODE([C,C++])
 
+dnl TODO(jmmv): Remove once the atf-*-api.3 symlinks are removed.
+AC_PROG_LN_S
+
 ATF_MODULE_APPLICATION
 ATF_MODULE_DEFS
 ATF_MODULE_ENV
@@ -111,28 +111,6 @@ AC_SUBST([target_srcdir])
 dnl -----------------------------------------------------------------------
 dnl User-customizable variables.
 dnl -----------------------------------------------------------------------
-
-AC_ARG_VAR([ATF_WORKDIR],
-           [Default location to use for ATF work directories])
-if test x"${ATF_WORKDIR}" = x""; then
-    for t in /tmp /var/tmp; do
-        if test -d ${t}; then
-            ATF_WORKDIR=${t}
-            break
-        fi
-    done
-    if test x"${ATF_WORKDIR}" = x""; then
-        AC_MSG_ERROR([Could not guess a value for ATF_WORKDIR])
-    fi
-else
-    case ${ATF_WORKDIR} in
-    /*)
-        ;;
-    *)
-        AC_MSG_ERROR([ATF_WORKDIR must hold an absolute path])
-        ;;
-    esac
-fi
 
 AC_SUBST(atf_aclocaldir, \${datadir}/aclocal)
 AC_SUBST(atf_pkgconfigdir, \${libdir}/pkgconfig)

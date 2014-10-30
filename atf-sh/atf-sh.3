@@ -1,6 +1,3 @@
-.\"
-.\" Automated Testing Framework (atf)
-.\"
 .\" Copyright (c) 2008 The NetBSD Foundation, Inc.
 .\" All rights reserved.
 .\"
@@ -25,9 +22,8 @@
 .\" IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR
 .\" OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN
 .\" IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-.\"
-.Dd October 13, 2013
-.Dt ATF-SH-API 3
+.Dd October 13, 2014
+.Dt ATF-SH 3
 .Os
 .Sh NAME
 .Nm atf_add_test_case ,
@@ -51,25 +47,52 @@
 .Nm atf_test_case
 .Nd POSIX shell API to write ATF-based test programs
 .Sh SYNOPSIS
-.Fn atf_add_test_case "name"
-.Fn atf_check "command"
-.Fn atf_check_equal "expr1" "expr2"
-.Fn atf_config_get "var_name"
-.Fn atf_config_has "var_name"
-.Fn atf_expect_death "reason" "..."
-.Fn atf_expect_exit "exitcode" "reason" "..."
-.Fn atf_expect_fail "reason" "..."
-.Fn atf_expect_pass
-.Fn atf_expect_signal "signo" "reason" "..."
-.Fn atf_expect_timeout "reason" "..."
-.Fn atf_fail "reason"
-.Fn atf_get "var_name"
-.Fn atf_get_srcdir
-.Fn atf_pass
-.Fn atf_require_prog "prog_name"
-.Fn atf_set "var_name" "value"
-.Fn atf_skip "reason"
-.Fn atf_test_case "name" "cleanup"
+.Nm atf_add_test_case
+.Qq name
+.Nm atf_check
+.Qq command
+.Nm atf_check_equal
+.Qq expected_expression
+.Qq actual_expression
+.Nm atf_config_get
+.Qq var_name
+.Nm atf_config_has
+.Qq var_name
+.Nm atf_expect_death
+.Qq reason
+.Qq ...
+.Nm atf_expect_exit
+.Qq exitcode
+.Qq reason
+.Qq ...
+.Nm atf_expect_fail
+.Qq reason
+.Qq ...
+.Nm atf_expect_pass
+.Qq
+.Nm atf_expect_signal
+.Qq signo
+.Qq reason
+.Qq ...
+.Nm atf_expect_timeout
+.Qq reason
+.Qq ...
+.Nm atf_fail
+.Qq reason
+.Nm atf_get
+.Qq var_name
+.Nm atf_get_srcdir
+.Nm atf_pass
+.Nm atf_require_prog
+.Qq prog_name
+.Nm atf_set
+.Qq var_name
+.Qq value
+.Nm atf_skip
+.Qq reason
+.Nm atf_test_case
+.Qq name
+.Qq cleanup
 .Sh DESCRIPTION
 ATF
 provides a simple but powerful interface to easily write test programs in
@@ -120,7 +143,7 @@ the header, the body and an optional cleanup routine, all of which are
 described in
 .Xr atf-test-case 4 .
 To define test cases, one can use the
-.Fn atf_test_case
+.Nm atf_test_case
 function, which takes a first parameter specifiying the test case's
 name and instructs the library to set things up to accept it as a valid
 test case.
@@ -132,33 +155,33 @@ It is important to note that this function
 .Em does not
 set the test case up for execution when the program is run.
 In order to do so, a later registration is needed through the
-.Fn atf_add_test_case
+.Nm atf_add_test_case
 function detailed in
 .Sx Program initialization .
 .Pp
 Later on, one must define the three parts of the body by providing two
 or three functions (remember that the cleanup routine is optional).
 These functions are named after the test case's identifier, and are
-.Fn <id>_head ,
-.Fn <id>_body
+.Nm \*(Ltid\*(Gt_head ,
+.Nm \*(Ltid\*(Gt_body
 and
-.Fn <id>_cleanup.
+.Nm \*(Ltid\*(Gt_cleanup .
 None of these take parameters when executed.
 .Ss Program initialization
 The test program must define an
-.Fn atf_init_test_cases
+.Nm atf_init_test_cases
 function, which is in charge of registering the test cases that will be
 executed at run time by using the
-.Fn atf_add_test_case
+.Nm atf_add_test_case
 function, which takes the name of a test case as its single parameter.
 This main function should not do anything else, except maybe sourcing
 auxiliary source files that define extra variables and functions.
 .Ss Configuration variables
 The test case has read-only access to the current configuration variables
 through the
-.Fn atf_config_has
+.Nm atf_config_has
 and
-.Fn atf_config_get
+.Nm atf_config_get
 methods.
 The former takes a single parameter specifying a variable name and returns
 a boolean indicating whether the variable is defined or not.
@@ -170,17 +193,17 @@ if the variable is not available.
 .Ss Access to the source directory
 It is possible to get the path to the test case's source directory from
 anywhere in the test program by using the
-.Fn atf_get_srcdir
+.Nm atf_get_srcdir
 function.
 It is interesting to note that this can be used inside
-.Fn atf_init_test_cases
+.Nm atf_init_test_cases
 to silently include additional helper files from the source directory.
 .Ss Requiring programs
 Aside from the
 .Va require.progs
 meta-data variable available in the header only, one can also check for
 additional programs in the test case's body by using the
-.Fn atf_require_prog
+.Nm atf_require_prog
 function, which takes the base name or full path of a single binary.
 Relative paths are forbidden.
 If it is not found, the test case will be automatically skipped.
@@ -189,19 +212,19 @@ The test case finalizes either when the body reaches its end, at which
 point the test is assumed to have
 .Em passed ,
 or at any explicit call to
-.Fn atf_pass ,
-.Fn atf_fail
+.Nm atf_pass ,
+.Nm atf_fail
 or
-.Fn atf_skip .
+.Nm atf_skip .
 These three functions terminate the execution of the test case immediately.
 The cleanup routine will be processed afterwards in a completely automated
 way, regardless of the test case's termination reason.
 .Pp
-.Fn atf_pass
+.Nm atf_pass
 does not take any parameters.
-.Fn atf_fail
+.Nm atf_fail
 and
-.Fn atf_skip
+.Nm atf_skip
 take a single string parameter that describes why the test case failed or
 was skipped, respectively.
 It is very important to provide a clear error message in both cases so that
@@ -215,20 +238,19 @@ Each test case has an internal state called
 that describes what the test case expectations are at any point in time.
 The value of this property can change during execution by any of:
 .Bl -tag -width indent
-.It Fn atf_expect_death "reason" "..."
+.It Nm atf_expect_death Qo reason Qc Qo ... Qc
 Expects the test case to exit prematurely regardless of the nature of the
 exit.
-.It Fn atf_expect_exit "exitcode" "reason" "..."
+.It Nm atf_expect_exit Qo exitcode Qc Qo reason Qc Qo ... Qc
 Expects the test case to exit cleanly.
 If
 .Va exitcode
 is not
 .Sq -1 ,
-.Xr atf-run 1
-will validate that the exit code of the test case matches the one provided
-in this call.
+the runtime engine will validate that the exit code of the test case
+matches the one provided in this call.
 Otherwise, the exact value will be ignored.
-.It Fn atf_expect_fail "reason"
+.It Nm atf_expect_fail Qo reason Qc
 Any failure raised in this mode is recorded, but such failures do not report
 the test case as failed; instead, the test case finalizes cleanly and is
 reported as
@@ -247,38 +269,45 @@ adjusted to the new conditions.
 In this situation, it is useful, for example, to set
 .Fa reason
 as the bug number for tracking purposes.
-.It Fn atf_expect_pass
+.It Nm atf_expect_pass
 This is the normal mode of execution.
 In this mode, any failure is reported as such to the user and the test case
 is marked as
 .Sq failed .
-.It Fn atf_expect_signal "signo" "reason" "..."
+.It Nm atf_expect_signal Qo signo Qc Qo reason Qc Qo ... Qc
 Expects the test case to terminate due to the reception of a signal.
 If
 .Va signo
 is not
 .Sq -1 ,
-.Xr atf-run 1
-will validate that the signal that terminated the test case matches the one
-provided in this call.
+the runtime engine will validate that the signal that terminated the test
+case matches the one provided in this call.
 Otherwise, the exact value will be ignored.
-.It Fn atf_expect_timeout "reason" "..."
+.It Nm atf_expect_timeout Qo reason Qc Qo ... Qc
 Expects the test case to execute for longer than its timeout.
 .El
 .Ss Helper functions for common checks
-.Fn atf_check [options] command [args]
+.Bl -tag -width indent
+.It Nm atf_check Qo [options] Qc Qo command Qc Qo [args] Qc
+Executes a command, performs checks on its exit code and its output, and
+fails the test case if any of the checks is not successful.
+This function is particularly useful in integration tests that verify the
+correct functioning of a binary.
 .Pp
-This function wraps the execution of the
-.Nm atf-check
-tool and makes the test case fail if the tool reports failure.
-You should always use this function instead of the tool in your scripts.
-For more details on the parameters of this function, refer to
-.Xr atf-check 1 .
-.Pp
-.Fn atf_check_equal expr1 expr2
-.Pp
+Internally, this function is just a wrapper over the
+.Xr atf-check 1
+tool (whose manual page provides all details on the calling syntax).
+You should always use the
+.Nm atf_check
+function instead of the
+.Xr atf-check 1
+tool in your scripts; the latter is not even in the path.
+.It Nm atf_check_equal Qo expected_expression Qc Qo actual_expression Qc
 This function takes two expressions, evaluates them and, if their
 results differ, aborts the test case with an appropriate failure message.
+The common style is to put the expected value in the first parameter and the
+actual value in the second parameter.
+.El
 .Sh EXAMPLES
 The following shows a complete test program with a single test case that
 validates the addition operator:
@@ -288,13 +317,13 @@ addition_head() {
     atf_set "descr" "Sample tests for the addition operator"
 }
 addition_body() {
-    atf_check_equal $((0 + 0)) 0
-    atf_check_equal $((0 + 1)) 1
-    atf_check_equal $((1 + 0)) 0
+    atf_check_equal 0 $((0 + 0))
+    atf_check_equal 1 $((0 + 1))
+    atf_check_equal 1 $((1 + 0))
 
-    atf_check_equal $((1 + 1)) 2
+    atf_check_equal 2 $((1 + 1))
 
-    atf_check_equal $((100 + 200)) 300
+    atf_check_equal 300 $((100 + 200))
 }
 
 atf_init_test_cases() {
@@ -316,7 +345,7 @@ atf_init_test_cases() {
 .Ed
 .Pp
 This example demonstrates the use of the very useful
-.Fn atf_check
+.Nm atf_check
 function:
 .Bd -literal -offset indent
 # Check for silent output
@@ -337,7 +366,7 @@ grep foo ls || atf_fail "foo file not found in listing"
 atf_check -s exit:0 -o match:"^foo$" -e empty 'ls'
 .Ed
 .Sh SEE ALSO
+.Xr atf-check 1 ,
 .Xr atf-sh 1 ,
 .Xr atf-test-program 1 ,
-.Xr atf-test-case 4 ,
-.Xr atf 7
+.Xr atf-test-case 4

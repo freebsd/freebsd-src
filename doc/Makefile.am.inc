@@ -1,6 +1,3 @@
-#
-# Automated Testing Framework (atf)
-#
 # Copyright (c) 2007 The NetBSD Foundation, Inc.
 # All rights reserved.
 #
@@ -25,9 +22,19 @@
 # IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR
 # OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN
 # IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-#
 
 dist_man_MANS += doc/atf-test-case.4 \
                  doc/atf-test-program.1
+
+man_MANS += doc/atf.7
+CLEANFILES += doc/atf.7
+EXTRA_DIST += doc/atf.7.in
+
+doc/atf.7: $(srcdir)/doc/atf.7.in
+	$(AM_V_GEN)test -d doc || mkdir -p doc; \
+	sed -e 's#__DOCDIR__#$(docdir)#g' \
+	    -e 's#__TESTSDIR__#$(testsdir)#g' \
+	    <$(srcdir)/doc/atf.7.in >doc/atf.7.tmp; \
+	mv doc/atf.7.tmp doc/atf.7
 
 # vim: syntax=make:noexpandtab:shiftwidth=8:softtabstop=8

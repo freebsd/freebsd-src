@@ -1,4 +1,4 @@
-/* bconfig.h.in.  Generated from configure.ac by autoheader.  */
+/* config.h.in.  Generated from configure.ac by autoheader.  */
 
 /* Define to 1 if basename takes a constant pointer */
 #undef HAVE_CONST_BASENAME
@@ -57,8 +57,7 @@
 /* Define to 1 if vsnprintf is in std */
 #undef HAVE_VSNPRINTF_IN_STD
 
-/* Define to the sub-directory in which libtool stores uninstalled libraries.
-   */
+/* Define to the sub-directory where libtool stores uninstalled libraries. */
 #undef LT_OBJDIR
 
 /* Name of package */
