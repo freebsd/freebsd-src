@@ -485,7 +485,7 @@ agp_generic_alloc_memory(device_t dev, int type, vm_size_t size)
 	if ((size & (AGP_PAGE_SIZE - 1)) != 0)
 		return 0;
 
-	if (sc->as_allocated + size > sc->as_maxmem)
+	if (size > sc->as_maxmem - sc->as_allocated)
 		return 0;
 
 	if (type != 0) {
