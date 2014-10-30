@@ -370,7 +370,8 @@ LAN and WAN configurations compared to UDP.
 Some old NFS servers do not support this method; UDP mounts may be required
 for interoperability.
 .It Cm timeout Ns = Ns Aq Ar value
-Set the initial retransmit timeout to the specified value.
+Set the initial retransmit timeout to the specified value,
+expressed in tenths of a second.
 May be useful for fine tuning UDP mounts over internetworks
 with high packet loss rates or an overloaded server.
 Try increasing the interval if
