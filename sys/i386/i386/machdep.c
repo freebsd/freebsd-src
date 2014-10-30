@@ -3428,6 +3428,8 @@ smap_sysctl_handler(SYSCTL_HANDLER_ARGS)
 	kmdp = preload_search_by_type("elf kernel");
 	if (kmdp == NULL)
 		kmdp = preload_search_by_type("elf32 kernel");
+	if (kmdp == NULL)
+		return (0);
 	smapbase = (struct bios_smap *)preload_search_info(kmdp,
 	    MODINFO_METADATA | MODINFOMD_SMAP);
 	if (smapbase == NULL)
