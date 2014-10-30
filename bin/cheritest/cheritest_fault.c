@@ -156,15 +156,20 @@ test_fault_cgetcause(const struct cheri_test *ctp __unused)
 void
 test_nofault_cfromptr(const struct cheri_test *ctp __unused)
 {
-  char buf[256];
-  __capability void * cd; /* stored into here */
-  __capability void * cb; /* derived from here */
-  int rt;
+	char buf[256];
+	__capability void * cd; /* stored into here */
+	__capability void * cb; /* derived from here */
+	int rt;
 
-  cb = cheri_ptr(buf, 256);
-  rt = 10;
-  __asm__ __volatile__ ("cfromptr %0, %1, %2" :: "r"(cd), "r"(cb), "r"(rt) : "memory");
-  cheritest_success();
+	/*
+	 * XXXRW: Could we be using CHERI_CFROMPTR() here to avoid explicit
+	 * inline assembly?
+	 */
+	cb = cheri_ptr(buf, 256);
+	rt = 10;
+	__asm__ __volatile__ ("cfromptr %0, %1, %2" :: "r"(cd), "r"(cb),
+	    "r"(rt) : "memory");
+	cheritest_success();
 }
 
 void
