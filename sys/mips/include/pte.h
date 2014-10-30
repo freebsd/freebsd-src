@@ -72,9 +72,13 @@ typedef	pt_entry_t *pd_entry_t;
  * NOTE: This means that for 32-bit use of CP0, we aren't able to set the top
  * bit of PFN to a non-zero value, as software is using it!  This physical
  * memory size limit may not be sufficiently enforced elsewhere.
+ *
+ * XXXRW: On CHERI, bits 63 and 62 are used for additional permissions that
+ * prevent loading and storing of capabilities, so we have reduced the 55-bit
+ * shift to 53 bits.
  */
 #if defined(__mips_n64) || defined(__mips_n32) /*  PHYSADDR_64_BIT */
-#define	TLBLO_SWBITS_SHIFT	(55)
+#define	TLBLO_SWBITS_SHIFT	(53)		/* XXXRW: Was 55. */
 #define	TLBLO_SWBITS_CLEAR_SHIFT	(9)
 #define	TLBLO_PFN_MASK		0x3FFFFFFC0ULL
 #else
@@ -137,6 +141,15 @@ typedef	pt_entry_t *pd_entry_t;
 #define	PTE_D			0x04
 #define	PTE_V			0x02
 #define	PTE_G			0x01
+
+#ifdef CPU_CHERI
+/*
+ * CHERI EntryLo extensions that limit storing loading and storing tagged
+ * values.
+ */
+#define	PTE_SC			(0x1ULL << 63)
+#define	PTE_LC			(0x1ULL << 62)
+#endif
 
 /*
  * VM flags managed in software:
