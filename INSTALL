@@ -153,14 +153,6 @@ script:
   library.  If empty, the configure script will try to find a suitable
   interpreter for you.
 
-* ATF_WORKDIR
-  Possible values: empty, an absolute path.
-  Default: /tmp or /var/tmp, depending on availability.
-
-  Specifies the directory that ATF will use to place its temporary files
-  and work directories for test cases.  This is just a default and can be
-  overriden at run time.
-
 The following flags are specific to ATF's 'configure' script:
 
 * --enable-developer

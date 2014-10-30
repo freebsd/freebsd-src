@@ -14,9 +14,6 @@
 
 @SET_MAKE@
 
-#
-# Automated Testing Framework (atf)
-#
 # Copyright (c) 2007 The NetBSD Foundation, Inc.
 # All rights reserved.
 #
@@ -41,11 +38,7 @@
 # IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR
 # OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN
 # IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-#
 
-#
-# Automated Testing Framework (atf)
-#
 # Copyright (c) 2007 The NetBSD Foundation, Inc.
 # All rights reserved.
 #
@@ -70,11 +63,7 @@
 # IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR
 # OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN
 # IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-#
 
-#
-# Automated Testing Framework (atf)
-#
 # Copyright (c) 2007 The NetBSD Foundation, Inc.
 # All rights reserved.
 #
@@ -99,11 +88,7 @@
 # IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR
 # OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN
 # IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-#
 
-#
-# Automated Testing Framework (atf)
-#
 # Copyright (c) 2007 The NetBSD Foundation, Inc.
 # All rights reserved.
 #
@@ -128,11 +113,7 @@
 # IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR
 # OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN
 # IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-#
 
-#
-# Automated Testing Framework (atf)
-#
 # Copyright (c) 2007 The NetBSD Foundation, Inc.
 # All rights reserved.
 #
@@ -157,11 +138,7 @@
 # IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR
 # OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN
 # IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-#
 
-#
-# Automated Testing Framework (atf)
-#
 # Copyright (c) 2007 The NetBSD Foundation, Inc.
 # All rights reserved.
 #
@@ -186,11 +163,7 @@
 # IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR
 # OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN
 # IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-#
 
-#
-# Automated Testing Framework (atf)
-#
 # Copyright (c) 2007 The NetBSD Foundation, Inc.
 # All rights reserved.
 #
@@ -215,11 +188,7 @@
 # IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR
 # OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN
 # IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-#
 
-#
-# Automated Testing Framework (atf)
-#
 # Copyright (c) 2007 The NetBSD Foundation, Inc.
 # All rights reserved.
 #
@@ -244,11 +213,7 @@
 # IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR
 # OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN
 # IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-#
 
-#
-# Automated Testing Framework (atf)
-#
 # Copyright (c) 2007 The NetBSD Foundation, Inc.
 # All rights reserved.
 #
@@ -273,11 +238,7 @@
 # IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR
 # OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN
 # IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-#
 
-#
-# Automated Testing Framework (atf)
-#
 # Copyright (c) 2007 The NetBSD Foundation, Inc.
 # All rights reserved.
 #
@@ -302,7 +263,6 @@
 # IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR
 # OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN
 # IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-#
 
 
 
@@ -385,7 +345,7 @@ DIST_COMMON = $(srcdir)/admin/Makefile.am.inc \
 	$(srcdir)/doc/Makefile.am.inc \
 	$(srcdir)/test-programs/Makefile.am.inc $(srcdir)/Makefile.in \
 	$(srcdir)/Makefile.am $(top_srcdir)/configure \
-	$(am__configure_deps) $(srcdir)/bconfig.h.in \
+	$(am__configure_deps) $(srcdir)/config.h.in \
 	$(top_srcdir)/atf-c/defs.h.in $(top_srcdir)/admin/depcomp \
 	$(dist_man_MANS) $(atf_c_HEADERS) $(atf_c___HEADERS) \
 	$(include_HEADERS) AUTHORS COPYING INSTALL NEWS README \
@@ -397,9 +357,9 @@ DIST_COMMON = $(srcdir)/admin/Makefile.am.inc \
 	$(top_srcdir)/admin/ltmain.sh $(top_srcdir)/admin/missing
 tests_atf_c_PROGRAMS = atf-c/atf_c_test$(EXEEXT) \
 	atf-c/build_test$(EXEEXT) atf-c/check_test$(EXEEXT) \
-	atf-c/config_test$(EXEEXT) atf-c/error_test$(EXEEXT) \
-	atf-c/macros_test$(EXEEXT) atf-c/tc_test$(EXEEXT) \
-	atf-c/tp_test$(EXEEXT) atf-c/utils_test$(EXEEXT)
+	atf-c/error_test$(EXEEXT) atf-c/macros_test$(EXEEXT) \
+	atf-c/tc_test$(EXEEXT) atf-c/tp_test$(EXEEXT) \
+	atf-c/utils_test$(EXEEXT)
 tests_atf_c_detail_PROGRAMS = atf-c/detail/dynstr_test$(EXEEXT) \
 	atf-c/detail/env_test$(EXEEXT) atf-c/detail/fs_test$(EXEEXT) \
 	atf-c/detail/list_test$(EXEEXT) atf-c/detail/map_test$(EXEEXT) \
@@ -411,8 +371,8 @@ tests_atf_c_detail_PROGRAMS = atf-c/detail/dynstr_test$(EXEEXT) \
 	atf-c/detail/version_helper$(EXEEXT)
 tests_atf_c___PROGRAMS = atf-c++/atf_c++_test$(EXEEXT) \
 	atf-c++/build_test$(EXEEXT) atf-c++/check_test$(EXEEXT) \
-	atf-c++/config_test$(EXEEXT) atf-c++/macros_test$(EXEEXT) \
-	atf-c++/tests_test$(EXEEXT) atf-c++/utils_test$(EXEEXT)
+	atf-c++/macros_test$(EXEEXT) atf-c++/tests_test$(EXEEXT) \
+	atf-c++/utils_test$(EXEEXT)
 tests_atf_c___detail_PROGRAMS =  \
 	atf-c++/detail/application_test$(EXEEXT) \
 	atf-c++/detail/auto_array_test$(EXEEXT) \
@@ -420,7 +380,6 @@ tests_atf_c___detail_PROGRAMS =  \
 	atf-c++/detail/exceptions_test$(EXEEXT) \
 	atf-c++/detail/fs_test$(EXEEXT) \
 	atf-c++/detail/process_test$(EXEEXT) \
-	atf-c++/detail/sanity_test$(EXEEXT) \
 	atf-c++/detail/text_test$(EXEEXT) \
 	atf-c++/detail/version_helper$(EXEEXT)
 check_PROGRAMS = bootstrap/h_tp_basic_c$(EXEEXT) \
@@ -444,7 +403,7 @@ am__configure_deps = $(am__aclocal_m4_deps) $(CONFIGURE_DEPENDENCIES) \
 am__CONFIG_DISTCLEAN_FILES = config.status config.cache config.log \
  configure.lineno config.status.lineno
 mkinstalldirs = $(install_sh) -d
-CONFIG_HEADER = bconfig.h
+CONFIG_HEADER = config.h
 CONFIG_CLEAN_FILES = atf-c/defs.h
 CONFIG_CLEAN_VPATH_FILES =
 am__vpath_adj_setup = srcdirstrip=`echo "$(srcdir)" | sed 's|.|.|g'`;
@@ -484,7 +443,7 @@ am__installdirs = "$(DESTDIR)$(libdir)" "$(DESTDIR)$(bindir)" \
 	"$(DESTDIR)$(tests_atf_shdir)" \
 	"$(DESTDIR)$(tests_test_programsdir)" "$(DESTDIR)$(man1dir)" \
 	"$(DESTDIR)$(man3dir)" "$(DESTDIR)$(man4dir)" \
-	"$(DESTDIR)$(atf_aclocaldir)" \
+	"$(DESTDIR)$(man7dir)" "$(DESTDIR)$(atf_aclocaldir)" \
 	"$(DESTDIR)$(atf_c__dirpkgconfigdir)" \
 	"$(DESTDIR)$(atf_cpkgconfigdir)" "$(DESTDIR)$(atf_shdir)" \
 	"$(DESTDIR)$(atf_shpkgconfigdir)" "$(DESTDIR)$(docdir)" \
@@ -494,12 +453,12 @@ am__installdirs = "$(DESTDIR)$(libdir)" "$(DESTDIR)$(bindir)" \
 	"$(DESTDIR)$(tests_atf_c_detaildir)" \
 	"$(DESTDIR)$(tests_atf_shdir)" \
 	"$(DESTDIR)$(tests_test_programsdir)" "$(DESTDIR)$(atf_cdir)" \
-	"$(DESTDIR)$(atf_c__dir)" "$(DESTDIR)$(includedir)"
+	"$(DESTDIR)$(atf_c__dir)" "$(DESTDIR)$(includedir)" \
+	"$(DESTDIR)$(atf_cdir)"
 LTLIBRARIES = $(lib_LTLIBRARIES) $(noinst_LTLIBRARIES)
 atf_c___detail_libtest_helpers_la_LIBADD =
 am__dirstamp = $(am__leading_dot)dirstamp
-am_atf_c___detail_libtest_helpers_la_OBJECTS =  \
-	atf-c++/detail/test_helpers.lo
+am_atf_c___detail_libtest_helpers_la_OBJECTS = atf-c++/detail/atf_c___detail_libtest_helpers_la-test_helpers.lo
 atf_c___detail_libtest_helpers_la_OBJECTS =  \
 	$(am_atf_c___detail_libtest_helpers_la_OBJECTS)
 AM_V_lt = $(am__v_lt_@AM_V@)
@@ -513,7 +472,7 @@ atf_c_detail_libtest_helpers_la_OBJECTS =  \
 	$(am_atf_c_detail_libtest_helpers_la_OBJECTS)
 libatf_c___la_DEPENDENCIES = libatf-c.la
 am_libatf_c___la_OBJECTS = atf-c++/build.lo atf-c++/check.lo \
-	atf-c++/config.lo atf-c++/tests.lo atf-c++/utils.lo \
+	atf-c++/tests.lo atf-c++/utils.lo \
 	atf-c++/detail/application.lo atf-c++/detail/env.lo \
 	atf-c++/detail/exceptions.lo atf-c++/detail/fs.lo \
 	atf-c++/detail/process.lo atf-c++/detail/text.lo
@@ -524,10 +483,9 @@ libatf_c___la_LINK = $(LIBTOOL) $(AM_V_lt) --tag=CXX \
 	-o $@
 libatf_c_la_LIBADD =
 am_libatf_c_la_OBJECTS = atf-c/libatf_c_la-build.lo \
-	atf-c/libatf_c_la-check.lo atf-c/libatf_c_la-config.lo \
-	atf-c/libatf_c_la-error.lo atf-c/libatf_c_la-tc.lo \
-	atf-c/libatf_c_la-tp.lo atf-c/libatf_c_la-utils.lo \
-	atf-c/detail/libatf_c_la-dynstr.lo \
+	atf-c/libatf_c_la-check.lo atf-c/libatf_c_la-error.lo \
+	atf-c/libatf_c_la-tc.lo atf-c/libatf_c_la-tp.lo \
+	atf-c/libatf_c_la-utils.lo atf-c/detail/libatf_c_la-dynstr.lo \
 	atf-c/detail/libatf_c_la-env.lo atf-c/detail/libatf_c_la-fs.lo \
 	atf-c/detail/libatf_c_la-list.lo \
 	atf-c/detail/libatf_c_la-map.lo \
@@ -556,10 +514,6 @@ atf_c___build_test_DEPENDENCIES = atf-c++/detail/libtest_helpers.la \
 am_atf_c___check_test_OBJECTS = atf-c++/check_test.$(OBJEXT)
 atf_c___check_test_OBJECTS = $(am_atf_c___check_test_OBJECTS)
 atf_c___check_test_DEPENDENCIES = atf-c++/detail/libtest_helpers.la \
-	$(ATF_CXX_LIBS)
-am_atf_c___config_test_OBJECTS = atf-c++/config_test.$(OBJEXT)
-atf_c___config_test_OBJECTS = $(am_atf_c___config_test_OBJECTS)
-atf_c___config_test_DEPENDENCIES = atf-c++/detail/libtest_helpers.la \
 	$(ATF_CXX_LIBS)
 am_atf_c___detail_application_test_OBJECTS =  \
 	atf-c++/detail/application_test.$(OBJEXT)
@@ -595,12 +549,6 @@ atf_c___detail_process_test_OBJECTS =  \
 	$(am_atf_c___detail_process_test_OBJECTS)
 atf_c___detail_process_test_DEPENDENCIES =  \
 	atf-c++/detail/libtest_helpers.la $(ATF_CXX_LIBS)
-am_atf_c___detail_sanity_test_OBJECTS =  \
-	atf-c++/detail/sanity_test.$(OBJEXT)
-atf_c___detail_sanity_test_OBJECTS =  \
-	$(am_atf_c___detail_sanity_test_OBJECTS)
-atf_c___detail_sanity_test_DEPENDENCIES =  \
-	atf-c++/detail/libtest_helpers.la $(ATF_CXX_LIBS)
 am_atf_c___detail_text_test_OBJECTS =  \
 	atf-c++/detail/text_test.$(OBJEXT)
 atf_c___detail_text_test_OBJECTS =  \
@@ -635,10 +583,6 @@ atf_c_build_test_DEPENDENCIES = atf-c/detail/libtest_helpers.la \
 am_atf_c_check_test_OBJECTS = atf-c/check_test.$(OBJEXT)
 atf_c_check_test_OBJECTS = $(am_atf_c_check_test_OBJECTS)
 atf_c_check_test_DEPENDENCIES = atf-c/detail/libtest_helpers.la \
-	libatf-c.la
-am_atf_c_config_test_OBJECTS = atf-c/config_test.$(OBJEXT)
-atf_c_config_test_OBJECTS = $(am_atf_c_config_test_OBJECTS)
-atf_c_config_test_DEPENDENCIES = atf-c/detail/libtest_helpers.la \
 	libatf-c.la
 am_atf_c_detail_dynstr_test_OBJECTS =  \
 	atf-c/detail/dynstr_test.$(OBJEXT)
@@ -712,10 +656,11 @@ am_atf_c_utils_test_OBJECTS = atf-c/utils_test.$(OBJEXT)
 atf_c_utils_test_OBJECTS = $(am_atf_c_utils_test_OBJECTS)
 atf_c_utils_test_DEPENDENCIES = atf-c/detail/libtest_helpers.la \
 	libatf-c.la
-am_atf_sh_atf_check_OBJECTS = atf-sh/atf-check.$(OBJEXT)
+am_atf_sh_atf_check_OBJECTS =  \
+	atf-sh/atf_sh_atf_check-atf-check.$(OBJEXT)
 atf_sh_atf_check_OBJECTS = $(am_atf_sh_atf_check_OBJECTS)
 atf_sh_atf_check_DEPENDENCIES = $(ATF_CXX_LIBS)
-am_atf_sh_atf_sh_OBJECTS = atf-sh/atf-sh.$(OBJEXT)
+am_atf_sh_atf_sh_OBJECTS = atf-sh/atf_sh_atf_sh-atf-sh.$(OBJEXT)
 atf_sh_atf_sh_OBJECTS = $(am_atf_sh_atf_sh_OBJECTS)
 atf_sh_atf_sh_DEPENDENCIES = $(ATF_CXX_LIBS)
 am_bootstrap_h_tp_basic_c_OBJECTS = bootstrap/h_tp_basic_c.$(OBJEXT)
@@ -795,20 +740,17 @@ SOURCES = $(atf_c___detail_libtest_helpers_la_SOURCES) \
 	$(libatf_c___la_SOURCES) $(libatf_c_la_SOURCES) \
 	$(nodist_libatf_c_la_SOURCES) $(atf_c___atf_c___test_SOURCES) \
 	$(atf_c___build_test_SOURCES) $(atf_c___check_test_SOURCES) \
-	$(atf_c___config_test_SOURCES) \
 	$(atf_c___detail_application_test_SOURCES) \
 	$(atf_c___detail_auto_array_test_SOURCES) \
 	$(atf_c___detail_env_test_SOURCES) \
 	$(atf_c___detail_exceptions_test_SOURCES) \
 	$(atf_c___detail_fs_test_SOURCES) \
 	$(atf_c___detail_process_test_SOURCES) \
-	$(atf_c___detail_sanity_test_SOURCES) \
 	$(atf_c___detail_text_test_SOURCES) \
 	$(atf_c___detail_version_helper_SOURCES) \
 	$(atf_c___macros_test_SOURCES) $(atf_c___tests_test_SOURCES) \
 	$(atf_c___utils_test_SOURCES) $(atf_c_atf_c_test_SOURCES) \
 	$(atf_c_build_test_SOURCES) $(atf_c_check_test_SOURCES) \
-	$(atf_c_config_test_SOURCES) \
 	$(atf_c_detail_dynstr_test_SOURCES) \
 	$(atf_c_detail_env_test_SOURCES) \
 	$(atf_c_detail_fs_test_SOURCES) \
@@ -831,20 +773,18 @@ DIST_SOURCES = $(atf_c___detail_libtest_helpers_la_SOURCES) \
 	$(atf_c_detail_libtest_helpers_la_SOURCES) \
 	$(libatf_c___la_SOURCES) $(libatf_c_la_SOURCES) \
 	$(atf_c___atf_c___test_SOURCES) $(atf_c___build_test_SOURCES) \
-	$(atf_c___check_test_SOURCES) $(atf_c___config_test_SOURCES) \
+	$(atf_c___check_test_SOURCES) \
 	$(atf_c___detail_application_test_SOURCES) \
 	$(atf_c___detail_auto_array_test_SOURCES) \
 	$(atf_c___detail_env_test_SOURCES) \
 	$(atf_c___detail_exceptions_test_SOURCES) \
 	$(atf_c___detail_fs_test_SOURCES) \
 	$(atf_c___detail_process_test_SOURCES) \
-	$(atf_c___detail_sanity_test_SOURCES) \
 	$(atf_c___detail_text_test_SOURCES) \
 	$(atf_c___detail_version_helper_SOURCES) \
 	$(atf_c___macros_test_SOURCES) $(atf_c___tests_test_SOURCES) \
 	$(atf_c___utils_test_SOURCES) $(atf_c_atf_c_test_SOURCES) \
 	$(atf_c_build_test_SOURCES) $(atf_c_check_test_SOURCES) \
-	$(atf_c_config_test_SOURCES) \
 	$(atf_c_detail_dynstr_test_SOURCES) \
 	$(atf_c_detail_env_test_SOURCES) \
 	$(atf_c_detail_fs_test_SOURCES) \
@@ -871,6 +811,7 @@ am__can_run_installinfo = \
 man1dir = $(mandir)/man1
 man3dir = $(mandir)/man3
 man4dir = $(mandir)/man4
+man7dir = $(mandir)/man7
 NROFF = nroff
 MANS = $(dist_man_MANS) $(man_MANS)
 DATA = $(atf_aclocal_DATA) $(atf_c__dirpkgconfig_DATA) \
@@ -879,9 +820,10 @@ DATA = $(atf_aclocal_DATA) $(atf_c__dirpkgconfig_DATA) \
 	$(tests_atf_c_DATA) $(tests_atf_c___DATA) \
 	$(tests_atf_c___detail_DATA) $(tests_atf_c_detail_DATA) \
 	$(tests_atf_sh_DATA) $(tests_test_programs_DATA)
-HEADERS = $(atf_c_HEADERS) $(atf_c___HEADERS) $(include_HEADERS)
+HEADERS = $(atf_c_HEADERS) $(atf_c___HEADERS) $(include_HEADERS) \
+	$(nodist_atf_c_HEADERS)
 am__tagged_files = $(HEADERS) $(SOURCES) $(TAGS_FILES) \
-	$(LISP)bconfig.h.in
+	$(LISP)config.h.in
 # Read a list of newline-separated strings from the standard input,
 # and print each of them once, without duplicates.  Input order is
 # *not* preserved.
@@ -930,7 +872,6 @@ ATF_BUILD_CPPFLAGS = @ATF_BUILD_CPPFLAGS@
 ATF_BUILD_CXX = @ATF_BUILD_CXX@
 ATF_BUILD_CXXFLAGS = @ATF_BUILD_CXXFLAGS@
 ATF_SHELL = @ATF_SHELL@
-ATF_WORKDIR = @ATF_WORKDIR@
 ATTRIBUTE_FORMAT_PRINTF = @ATTRIBUTE_FORMAT_PRINTF@
 ATTRIBUTE_NORETURN = @ATTRIBUTE_NORETURN@
 ATTRIBUTE_UNUSED = @ATTRIBUTE_UNUSED@
@@ -1067,7 +1008,7 @@ CLEANFILES = atf-c/atf-c.pc atf-c/pkg_config_test atf-c++/atf-c++.pc \
 	atf-sh/integration_test atf-sh/normalize_test atf-sh/tc_test \
 	atf-sh/tp_test bootstrap/h_tp_basic_sh \
 	bootstrap/h_tp_atf_check_sh bootstrap/h_tp_fail \
-	bootstrap/h_tp_pass test-programs/sh_helpers \
+	bootstrap/h_tp_pass doc/atf.7 test-programs/sh_helpers \
 	test-programs/config_test test-programs/expect_test \
 	test-programs/meta_data_test test-programs/result_test \
 	test-programs/srcdir_test
@@ -1087,18 +1028,18 @@ EXTRA_DIST = admin/check-style-common.awk admin/check-style-c.awk \
 	bootstrap/h_tp_basic_sh.sh bootstrap/h_tp_atf_check_sh.sh \
 	bootstrap/h_tp_fail.sh bootstrap/h_tp_pass.sh \
 	bootstrap/testsuite bootstrap/package.m4 \
-	bootstrap/testsuite.at $(testsuite_incs) \
+	bootstrap/testsuite.at $(testsuite_incs) doc/atf.7.in \
 	$(tests_test_programs_DATA) test-programs/common.sh \
 	test-programs/sh_helpers.sh test-programs/config_test.sh \
 	test-programs/expect_test.sh test-programs/meta_data_test.sh \
 	test-programs/result_test.sh test-programs/srcdir_test.sh \
 	$(doc_DATA) INSTALL README $(pkgtests_DATA)
-dist_man_MANS = atf-c/atf-c-api.3 atf-c++/atf-c++-api.3 \
-	atf-sh/atf-check.1 atf-sh/atf-sh.1 atf-sh/atf-sh-api.3 \
-	doc/atf-test-case.4 doc/atf-test-program.1
+dist_man_MANS = atf-c/atf-c.3 atf-c++/atf-c++.3 atf-sh/atf-check.1 \
+	atf-sh/atf-sh.1 atf-sh/atf-sh.3 doc/atf-test-case.4 \
+	doc/atf-test-program.1
 include_HEADERS = atf-c.h atf-c++.hpp
 lib_LTLIBRARIES = libatf-c.la libatf-c++.la
-man_MANS = 
+man_MANS = doc/atf.7
 noinst_DATA = INSTALL README
 noinst_LTLIBRARIES = atf-c/detail/libtest_helpers.la \
 	atf-c++/detail/libtest_helpers.la
@@ -1108,38 +1049,31 @@ INSTALLCHECK_TARGETS = installcheck-bootstrap $(am__append_1)
 # Custom targets.
 #
 PHONY_TARGETS = check-style installcheck-bootstrap installcheck-kyua \
-	clean-all release release-test
+	clean-all
 ACLOCAL_AMFLAGS = -I m4
 AM_DISTCHECK_CONFIGURE_FLAGS = --enable-tools
 libatf_c_la_SOURCES = atf-c/build.c atf-c/build.h atf-c/check.c \
-	atf-c/check.h atf-c/config.c atf-c/config.h atf-c/error.c \
-	atf-c/error.h atf-c/error_fwd.h atf-c/macros.h atf-c/tc.c \
-	atf-c/tc.h atf-c/tp.c atf-c/tp.h atf-c/utils.c atf-c/utils.h \
-	atf-c/detail/dynstr.c atf-c/detail/dynstr.h atf-c/detail/env.c \
-	atf-c/detail/env.h atf-c/detail/fs.c atf-c/detail/fs.h \
-	atf-c/detail/list.c atf-c/detail/list.h atf-c/detail/map.c \
-	atf-c/detail/map.h atf-c/detail/process.c \
-	atf-c/detail/process.h atf-c/detail/sanity.c \
-	atf-c/detail/sanity.h atf-c/detail/text.c atf-c/detail/text.h \
-	atf-c/detail/tp_main.c atf-c/detail/user.c atf-c/detail/user.h
+	atf-c/check.h atf-c/error.c atf-c/error.h atf-c/error_fwd.h \
+	atf-c/macros.h atf-c/tc.c atf-c/tc.h atf-c/tp.c atf-c/tp.h \
+	atf-c/utils.c atf-c/utils.h atf-c/detail/dynstr.c \
+	atf-c/detail/dynstr.h atf-c/detail/env.c atf-c/detail/env.h \
+	atf-c/detail/fs.c atf-c/detail/fs.h atf-c/detail/list.c \
+	atf-c/detail/list.h atf-c/detail/map.c atf-c/detail/map.h \
+	atf-c/detail/process.c atf-c/detail/process.h \
+	atf-c/detail/sanity.c atf-c/detail/sanity.h \
+	atf-c/detail/text.c atf-c/detail/text.h atf-c/detail/tp_main.c \
+	atf-c/detail/user.c atf-c/detail/user.h
 nodist_libatf_c_la_SOURCES = atf-c/defs.h
 libatf_c_la_CPPFLAGS = "-DATF_BUILD_CC=\"$(ATF_BUILD_CC)\"" \
                        "-DATF_BUILD_CFLAGS=\"$(ATF_BUILD_CFLAGS)\"" \
                        "-DATF_BUILD_CPP=\"$(ATF_BUILD_CPP)\"" \
                        "-DATF_BUILD_CPPFLAGS=\"$(ATF_BUILD_CPPFLAGS)\"" \
                        "-DATF_BUILD_CXX=\"$(ATF_BUILD_CXX)\"" \
-                       "-DATF_BUILD_CXXFLAGS=\"$(ATF_BUILD_CXXFLAGS)\"" \
-                       "-DATF_INCLUDEDIR=\"$(includedir)\"" \
-                       "-DATF_LIBEXECDIR=\"$(libexecdir)\"" \
-                       "-DATF_PKGDATADIR=\"$(pkgdatadir)\"" \
-                       "-DATF_SHELL=\"$(ATF_SHELL)\"" \
-                       "-DATF_WORKDIR=\"$(ATF_WORKDIR)\""
+                       "-DATF_BUILD_CXXFLAGS=\"$(ATF_BUILD_CXXFLAGS)\""
 
-libatf_c_la_LDFLAGS = -version-info 0:0:0
+libatf_c_la_LDFLAGS = -version-info 1:0:0
 atf_c_HEADERS = atf-c/build.h \
                 atf-c/check.h \
-                atf-c/config.h \
-                atf-c/defs.h \
                 atf-c/error.h \
                 atf-c/error_fwd.h \
                 atf-c/macros.h \
@@ -1147,6 +1081,7 @@ atf_c_HEADERS = atf-c/build.h \
                 atf-c/tp.h \
                 atf-c/utils.h
 
+nodist_atf_c_HEADERS = atf-c/defs.h
 atf_cdir = $(includedir)/atf-c
 atf_cpkgconfigdir = $(atf_pkgconfigdir)
 atf_cpkgconfig_DATA = atf-c/atf-c.pc
@@ -1161,8 +1096,6 @@ atf_c_build_test_SOURCES = atf-c/build_test.c atf-c/h_build.h
 atf_c_build_test_LDADD = atf-c/detail/libtest_helpers.la libatf-c.la
 atf_c_check_test_SOURCES = atf-c/check_test.c
 atf_c_check_test_LDADD = atf-c/detail/libtest_helpers.la libatf-c.la
-atf_c_config_test_SOURCES = atf-c/config_test.c
-atf_c_config_test_LDADD = atf-c/detail/libtest_helpers.la libatf-c.la
 atf_c_error_test_SOURCES = atf-c/error_test.c
 atf_c_error_test_LDADD = atf-c/detail/libtest_helpers.la libatf-c.la
 atf_c_macros_test_SOURCES = atf-c/macros_test.c
@@ -1179,7 +1112,9 @@ tests_atf_c_detaildir = $(pkgtestsdir)/atf-c/detail
 atf_c_detail_libtest_helpers_la_SOURCES = atf-c/detail/test_helpers.c \
                                           atf-c/detail/test_helpers.h
 
-atf_c_detail_libtest_helpers_la_CPPFLAGS = -I$(srcdir)/atf-c
+atf_c_detail_libtest_helpers_la_CPPFLAGS = -I$(srcdir)/atf-c \
+                                           -DATF_INCLUDEDIR=\"$(includedir)\"
+
 atf_c_detail_dynstr_test_SOURCES = atf-c/detail/dynstr_test.c
 atf_c_detail_dynstr_test_LDADD = atf-c/detail/libtest_helpers.la libatf-c.la
 atf_c_detail_env_test_SOURCES = atf-c/detail/env_test.c
@@ -1203,20 +1138,19 @@ atf_c_detail_version_helper_SOURCES = atf-c/detail/version_helper.c
 ATF_CXX_LIBS = libatf-c++.la libatf-c.la
 libatf_c___la_LIBADD = libatf-c.la
 libatf_c___la_SOURCES = atf-c++/build.cpp atf-c++/build.hpp \
-	atf-c++/check.cpp atf-c++/check.hpp atf-c++/config.cpp \
-	atf-c++/config.hpp atf-c++/macros.hpp atf-c++/tests.cpp \
-	atf-c++/tests.hpp atf-c++/utils.cpp atf-c++/utils.hpp \
-	atf-c++/detail/application.cpp atf-c++/detail/application.hpp \
-	atf-c++/detail/auto_array.hpp atf-c++/detail/env.cpp \
-	atf-c++/detail/env.hpp atf-c++/detail/exceptions.cpp \
-	atf-c++/detail/exceptions.hpp atf-c++/detail/fs.cpp \
-	atf-c++/detail/fs.hpp atf-c++/detail/process.cpp \
-	atf-c++/detail/process.hpp atf-c++/detail/sanity.hpp \
-	atf-c++/detail/text.cpp atf-c++/detail/text.hpp
-libatf_c___la_LDFLAGS = -version-info 1:0:0
+	atf-c++/check.cpp atf-c++/check.hpp atf-c++/macros.hpp \
+	atf-c++/tests.cpp atf-c++/tests.hpp atf-c++/utils.cpp \
+	atf-c++/utils.hpp atf-c++/detail/application.cpp \
+	atf-c++/detail/application.hpp atf-c++/detail/auto_array.hpp \
+	atf-c++/detail/env.cpp atf-c++/detail/env.hpp \
+	atf-c++/detail/exceptions.cpp atf-c++/detail/exceptions.hpp \
+	atf-c++/detail/fs.cpp atf-c++/detail/fs.hpp \
+	atf-c++/detail/process.cpp atf-c++/detail/process.hpp \
+	atf-c++/detail/sanity.hpp atf-c++/detail/text.cpp \
+	atf-c++/detail/text.hpp
+libatf_c___la_LDFLAGS = -version-info 2:0:0
 atf_c___HEADERS = atf-c++/build.hpp \
                   atf-c++/check.hpp \
-                  atf-c++/config.hpp \
                   atf-c++/macros.hpp \
                   atf-c++/tests.hpp \
                   atf-c++/utils.hpp
@@ -1235,8 +1169,6 @@ atf_c___build_test_SOURCES = atf-c++/build_test.cpp atf-c/h_build.h
 atf_c___build_test_LDADD = atf-c++/detail/libtest_helpers.la $(ATF_CXX_LIBS)
 atf_c___check_test_SOURCES = atf-c++/check_test.cpp
 atf_c___check_test_LDADD = atf-c++/detail/libtest_helpers.la $(ATF_CXX_LIBS)
-atf_c___config_test_SOURCES = atf-c++/config_test.cpp
-atf_c___config_test_LDADD = atf-c++/detail/libtest_helpers.la $(ATF_CXX_LIBS)
 atf_c___macros_test_SOURCES = atf-c++/macros_test.cpp
 atf_c___macros_test_LDADD = atf-c++/detail/libtest_helpers.la $(ATF_CXX_LIBS)
 tests_atf_c___SCRIPTS = atf-c++/pkg_config_test
@@ -1249,6 +1181,7 @@ tests_atf_c___detaildir = $(pkgtestsdir)/atf-c++/detail
 atf_c___detail_libtest_helpers_la_SOURCES = atf-c++/detail/test_helpers.cpp \
                                             atf-c++/detail/test_helpers.hpp
 
+atf_c___detail_libtest_helpers_la_CPPFLAGS = -DATF_INCLUDEDIR=\"$(includedir)\"
 atf_c___detail_application_test_SOURCES = atf-c++/detail/application_test.cpp
 atf_c___detail_application_test_LDADD = atf-c++/detail/libtest_helpers.la $(ATF_CXX_LIBS)
 atf_c___detail_auto_array_test_SOURCES = atf-c++/detail/auto_array_test.cpp
@@ -1261,14 +1194,17 @@ atf_c___detail_fs_test_SOURCES = atf-c++/detail/fs_test.cpp
 atf_c___detail_fs_test_LDADD = atf-c++/detail/libtest_helpers.la $(ATF_CXX_LIBS)
 atf_c___detail_process_test_SOURCES = atf-c++/detail/process_test.cpp
 atf_c___detail_process_test_LDADD = atf-c++/detail/libtest_helpers.la $(ATF_CXX_LIBS)
-atf_c___detail_sanity_test_SOURCES = atf-c++/detail/sanity_test.cpp
-atf_c___detail_sanity_test_LDADD = atf-c++/detail/libtest_helpers.la $(ATF_CXX_LIBS)
 atf_c___detail_text_test_SOURCES = atf-c++/detail/text_test.cpp
 atf_c___detail_text_test_LDADD = atf-c++/detail/libtest_helpers.la $(ATF_CXX_LIBS)
 atf_c___detail_version_helper_SOURCES = atf-c++/detail/version_helper.cpp
 atf_sh_atf_check_SOURCES = atf-sh/atf-check.cpp
 atf_sh_atf_check_LDADD = $(ATF_CXX_LIBS)
+atf_sh_atf_check_CPPFLAGS = -DATF_SHELL=\"$(ATF_SHELL)\"
 atf_sh_atf_sh_SOURCES = atf-sh/atf-sh.cpp
+atf_sh_atf_sh_CPPFLAGS = -DATF_LIBEXECDIR=\"$(libexecdir)\" \
+                         -DATF_PKGDATADIR=\"$(pkgdatadir)\" \
+                         -DATF_SHELL=\"$(ATF_SHELL)\"
+
 atf_sh_atf_sh_LDADD = $(ATF_CXX_LIBS)
 atf_sh_DATA = atf-sh/libatf-sh.subr
 atf_shdir = $(pkgdatadir)
@@ -1320,16 +1256,24 @@ doc_DATA = AUTHORS COPYING NEWS README
 TESTS_ENVIRONMENT = PATH=$(prefix)/bin:$${PATH} \
                     PKG_CONFIG_PATH=$(prefix)/lib/pkgconfig
 
+
+# Allow the caller to override the configuration file to passed to our
+# test runs below.
+KYUA_TEST_CONFIG_FILE = none
 testsdir = $(exec_prefix)/tests
 pkgtestsdir = $(testsdir)/$(PACKAGE)
 pkgtests_DATA = Kyuafile
 BUILD_SH_TP = \
-	echo "Creating $${dst}"; \
-	echo "\#! $(bindir)/atf-sh" >$${dst}; \
-	cat $${src} >>$${dst}; \
-	chmod +x $${dst}
+	test -d "$$(dirname "$${dst}")" || mkdir -p "$$(dirname "$${dst}")"; \
+	echo "\#! $(bindir)/atf-sh" >"$${dst}"; \
+	if [ -n "$${substs}" ]; then \
+	    cat $${src} | sed $${substs} >>"$${dst}"; \
+	else \
+	    cat $${src} >>"$${dst}"; \
+	fi; \
+	chmod +x "$${dst}"
 
-all: $(BUILT_SOURCES) bconfig.h
+all: $(BUILT_SOURCES) config.h
 	$(MAKE) $(AM_MAKEFLAGS) all-am
 
 .SUFFIXES:
@@ -1370,20 +1314,20 @@ $(ACLOCAL_M4):  $(am__aclocal_m4_deps)
 	$(am__cd) $(srcdir) && $(ACLOCAL) $(ACLOCAL_AMFLAGS)
 $(am__aclocal_m4_deps):
 
-bconfig.h: stamp-h1
+config.h: stamp-h1
 	@test -f $@ || rm -f stamp-h1
 	@test -f $@ || $(MAKE) $(AM_MAKEFLAGS) stamp-h1
 
-stamp-h1: $(srcdir)/bconfig.h.in $(top_builddir)/config.status
+stamp-h1: $(srcdir)/config.h.in $(top_builddir)/config.status
 	@rm -f stamp-h1
-	cd $(top_builddir) && $(SHELL) ./config.status bconfig.h
-$(srcdir)/bconfig.h.in:  $(am__configure_deps) 
+	cd $(top_builddir) && $(SHELL) ./config.status config.h
+$(srcdir)/config.h.in:  $(am__configure_deps) 
 	($(am__cd) $(top_srcdir) && $(AUTOHEADER))
 	rm -f stamp-h1
 	touch $@
 
 distclean-hdr:
-	-rm -f bconfig.h stamp-h1
+	-rm -f config.h stamp-h1
 atf-c/defs.h: $(top_builddir)/config.status $(top_srcdir)/atf-c/defs.h.in
 	cd $(top_builddir) && $(SHELL) ./config.status $@
 
@@ -1438,7 +1382,8 @@ atf-c++/detail/$(am__dirstamp):
 atf-c++/detail/$(DEPDIR)/$(am__dirstamp):
 	@$(MKDIR_P) atf-c++/detail/$(DEPDIR)
 	@: > atf-c++/detail/$(DEPDIR)/$(am__dirstamp)
-atf-c++/detail/test_helpers.lo: atf-c++/detail/$(am__dirstamp) \
+atf-c++/detail/atf_c___detail_libtest_helpers_la-test_helpers.lo:  \
+	atf-c++/detail/$(am__dirstamp) \
 	atf-c++/detail/$(DEPDIR)/$(am__dirstamp)
 
 atf-c++/detail/libtest_helpers.la: $(atf_c___detail_libtest_helpers_la_OBJECTS) $(atf_c___detail_libtest_helpers_la_DEPENDENCIES) $(EXTRA_atf_c___detail_libtest_helpers_la_DEPENDENCIES) atf-c++/detail/$(am__dirstamp)
@@ -1464,8 +1409,6 @@ atf-c++/$(DEPDIR)/$(am__dirstamp):
 atf-c++/build.lo: atf-c++/$(am__dirstamp) \
 	atf-c++/$(DEPDIR)/$(am__dirstamp)
 atf-c++/check.lo: atf-c++/$(am__dirstamp) \
-	atf-c++/$(DEPDIR)/$(am__dirstamp)
-atf-c++/config.lo: atf-c++/$(am__dirstamp) \
 	atf-c++/$(DEPDIR)/$(am__dirstamp)
 atf-c++/tests.lo: atf-c++/$(am__dirstamp) \
 	atf-c++/$(DEPDIR)/$(am__dirstamp)
@@ -1495,8 +1438,6 @@ atf-c/$(DEPDIR)/$(am__dirstamp):
 atf-c/libatf_c_la-build.lo: atf-c/$(am__dirstamp) \
 	atf-c/$(DEPDIR)/$(am__dirstamp)
 atf-c/libatf_c_la-check.lo: atf-c/$(am__dirstamp) \
-	atf-c/$(DEPDIR)/$(am__dirstamp)
-atf-c/libatf_c_la-config.lo: atf-c/$(am__dirstamp) \
 	atf-c/$(DEPDIR)/$(am__dirstamp)
 atf-c/libatf_c_la-error.lo: atf-c/$(am__dirstamp) \
 	atf-c/$(DEPDIR)/$(am__dirstamp)
@@ -1899,12 +1840,6 @@ atf-c++/check_test.$(OBJEXT): atf-c++/$(am__dirstamp) \
 atf-c++/check_test$(EXEEXT): $(atf_c___check_test_OBJECTS) $(atf_c___check_test_DEPENDENCIES) $(EXTRA_atf_c___check_test_DEPENDENCIES) atf-c++/$(am__dirstamp)
 	@rm -f atf-c++/check_test$(EXEEXT)
 	$(AM_V_CXXLD)$(CXXLINK) $(atf_c___check_test_OBJECTS) $(atf_c___check_test_LDADD) $(LIBS)
-atf-c++/config_test.$(OBJEXT): atf-c++/$(am__dirstamp) \
-	atf-c++/$(DEPDIR)/$(am__dirstamp)
-
-atf-c++/config_test$(EXEEXT): $(atf_c___config_test_OBJECTS) $(atf_c___config_test_DEPENDENCIES) $(EXTRA_atf_c___config_test_DEPENDENCIES) atf-c++/$(am__dirstamp)
-	@rm -f atf-c++/config_test$(EXEEXT)
-	$(AM_V_CXXLD)$(CXXLINK) $(atf_c___config_test_OBJECTS) $(atf_c___config_test_LDADD) $(LIBS)
 atf-c++/detail/application_test.$(OBJEXT):  \
 	atf-c++/detail/$(am__dirstamp) \
 	atf-c++/detail/$(DEPDIR)/$(am__dirstamp)
@@ -1944,12 +1879,6 @@ atf-c++/detail/process_test.$(OBJEXT): atf-c++/detail/$(am__dirstamp) \
 atf-c++/detail/process_test$(EXEEXT): $(atf_c___detail_process_test_OBJECTS) $(atf_c___detail_process_test_DEPENDENCIES) $(EXTRA_atf_c___detail_process_test_DEPENDENCIES) atf-c++/detail/$(am__dirstamp)
 	@rm -f atf-c++/detail/process_test$(EXEEXT)
 	$(AM_V_CXXLD)$(CXXLINK) $(atf_c___detail_process_test_OBJECTS) $(atf_c___detail_process_test_LDADD) $(LIBS)
-atf-c++/detail/sanity_test.$(OBJEXT): atf-c++/detail/$(am__dirstamp) \
-	atf-c++/detail/$(DEPDIR)/$(am__dirstamp)
-
-atf-c++/detail/sanity_test$(EXEEXT): $(atf_c___detail_sanity_test_OBJECTS) $(atf_c___detail_sanity_test_DEPENDENCIES) $(EXTRA_atf_c___detail_sanity_test_DEPENDENCIES) atf-c++/detail/$(am__dirstamp)
-	@rm -f atf-c++/detail/sanity_test$(EXEEXT)
-	$(AM_V_CXXLD)$(CXXLINK) $(atf_c___detail_sanity_test_OBJECTS) $(atf_c___detail_sanity_test_LDADD) $(LIBS)
 atf-c++/detail/text_test.$(OBJEXT): atf-c++/detail/$(am__dirstamp) \
 	atf-c++/detail/$(DEPDIR)/$(am__dirstamp)
 
@@ -1999,12 +1928,6 @@ atf-c/check_test.$(OBJEXT): atf-c/$(am__dirstamp) \
 atf-c/check_test$(EXEEXT): $(atf_c_check_test_OBJECTS) $(atf_c_check_test_DEPENDENCIES) $(EXTRA_atf_c_check_test_DEPENDENCIES) atf-c/$(am__dirstamp)
 	@rm -f atf-c/check_test$(EXEEXT)
 	$(AM_V_CCLD)$(LINK) $(atf_c_check_test_OBJECTS) $(atf_c_check_test_LDADD) $(LIBS)
-atf-c/config_test.$(OBJEXT): atf-c/$(am__dirstamp) \
-	atf-c/$(DEPDIR)/$(am__dirstamp)
-
-atf-c/config_test$(EXEEXT): $(atf_c_config_test_OBJECTS) $(atf_c_config_test_DEPENDENCIES) $(EXTRA_atf_c_config_test_DEPENDENCIES) atf-c/$(am__dirstamp)
-	@rm -f atf-c/config_test$(EXEEXT)
-	$(AM_V_CCLD)$(LINK) $(atf_c_config_test_OBJECTS) $(atf_c_config_test_LDADD) $(LIBS)
 atf-c/detail/dynstr_test.$(OBJEXT): atf-c/detail/$(am__dirstamp) \
 	atf-c/detail/$(DEPDIR)/$(am__dirstamp)
 
@@ -2107,13 +2030,13 @@ atf-sh/$(am__dirstamp):
 atf-sh/$(DEPDIR)/$(am__dirstamp):
 	@$(MKDIR_P) atf-sh/$(DEPDIR)
 	@: > atf-sh/$(DEPDIR)/$(am__dirstamp)
-atf-sh/atf-check.$(OBJEXT): atf-sh/$(am__dirstamp) \
+atf-sh/atf_sh_atf_check-atf-check.$(OBJEXT): atf-sh/$(am__dirstamp) \
 	atf-sh/$(DEPDIR)/$(am__dirstamp)
 
 atf-sh/atf-check$(EXEEXT): $(atf_sh_atf_check_OBJECTS) $(atf_sh_atf_check_DEPENDENCIES) $(EXTRA_atf_sh_atf_check_DEPENDENCIES) atf-sh/$(am__dirstamp)
 	@rm -f atf-sh/atf-check$(EXEEXT)
 	$(AM_V_CXXLD)$(CXXLINK) $(atf_sh_atf_check_OBJECTS) $(atf_sh_atf_check_LDADD) $(LIBS)
-atf-sh/atf-sh.$(OBJEXT): atf-sh/$(am__dirstamp) \
+atf-sh/atf_sh_atf_sh-atf-sh.$(OBJEXT): atf-sh/$(am__dirstamp) \
 	atf-sh/$(DEPDIR)/$(am__dirstamp)
 
 atf-sh/atf-sh$(EXEEXT): $(atf_sh_atf_sh_OBJECTS) $(atf_sh_atf_sh_DEPENDENCIES) $(EXTRA_atf_sh_atf_sh_DEPENDENCIES) atf-sh/$(am__dirstamp)
@@ -2318,8 +2241,6 @@ distclean-compile:
 @AMDEP_TRUE@@am__include@ @am__quote@atf-c++/$(DEPDIR)/build_test.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@atf-c++/$(DEPDIR)/check.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@atf-c++/$(DEPDIR)/check_test.Po@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@atf-c++/$(DEPDIR)/config.Plo@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@atf-c++/$(DEPDIR)/config_test.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@atf-c++/$(DEPDIR)/macros_test.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@atf-c++/$(DEPDIR)/tests.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@atf-c++/$(DEPDIR)/tests_test.Po@am__quote@
@@ -2327,6 +2248,7 @@ distclean-compile:
 @AMDEP_TRUE@@am__include@ @am__quote@atf-c++/$(DEPDIR)/utils_test.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@atf-c++/detail/$(DEPDIR)/application.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@atf-c++/detail/$(DEPDIR)/application_test.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@atf-c++/detail/$(DEPDIR)/atf_c___detail_libtest_helpers_la-test_helpers.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@atf-c++/detail/$(DEPDIR)/auto_array_test.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@atf-c++/detail/$(DEPDIR)/env.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@atf-c++/detail/$(DEPDIR)/env_test.Po@am__quote@
@@ -2336,19 +2258,15 @@ distclean-compile:
 @AMDEP_TRUE@@am__include@ @am__quote@atf-c++/detail/$(DEPDIR)/fs_test.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@atf-c++/detail/$(DEPDIR)/process.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@atf-c++/detail/$(DEPDIR)/process_test.Po@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@atf-c++/detail/$(DEPDIR)/sanity_test.Po@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@atf-c++/detail/$(DEPDIR)/test_helpers.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@atf-c++/detail/$(DEPDIR)/text.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@atf-c++/detail/$(DEPDIR)/text_test.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@atf-c++/detail/$(DEPDIR)/version_helper.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@atf-c/$(DEPDIR)/atf_c_test.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@atf-c/$(DEPDIR)/build_test.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@atf-c/$(DEPDIR)/check_test.Po@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@atf-c/$(DEPDIR)/config_test.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@atf-c/$(DEPDIR)/error_test.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@atf-c/$(DEPDIR)/libatf_c_la-build.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@atf-c/$(DEPDIR)/libatf_c_la-check.Plo@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@atf-c/$(DEPDIR)/libatf_c_la-config.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@atf-c/$(DEPDIR)/libatf_c_la-error.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@atf-c/$(DEPDIR)/libatf_c_la-tc.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@atf-c/$(DEPDIR)/libatf_c_la-tp.Plo@am__quote@
@@ -2379,8 +2297,8 @@ distclean-compile:
 @AMDEP_TRUE@@am__include@ @am__quote@atf-c/detail/$(DEPDIR)/text_test.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@atf-c/detail/$(DEPDIR)/user_test.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@atf-c/detail/$(DEPDIR)/version_helper.Po@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@atf-sh/$(DEPDIR)/atf-check.Po@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@atf-sh/$(DEPDIR)/atf-sh.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@atf-sh/$(DEPDIR)/atf_sh_atf_check-atf-check.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@atf-sh/$(DEPDIR)/atf_sh_atf_sh-atf-sh.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@bootstrap/$(DEPDIR)/h_tp_basic_c.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@bootstrap/$(DEPDIR)/h_tp_basic_cpp.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@test-programs/$(DEPDIR)/c_helpers.Po@am__quote@
@@ -2430,13 +2348,6 @@ atf-c/libatf_c_la-check.lo: atf-c/check.c
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='atf-c/check.c' object='atf-c/libatf_c_la-check.lo' libtool=yes @AMDEPBACKSLASH@
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
 @am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libatf_c_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o atf-c/libatf_c_la-check.lo `test -f 'atf-c/check.c' || echo '$(srcdir)/'`atf-c/check.c
-
-atf-c/libatf_c_la-config.lo: atf-c/config.c
-@am__fastdepCC_TRUE@	$(AM_V_CC)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libatf_c_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT atf-c/libatf_c_la-config.lo -MD -MP -MF atf-c/$(DEPDIR)/libatf_c_la-config.Tpo -c -o atf-c/libatf_c_la-config.lo `test -f 'atf-c/config.c' || echo '$(srcdir)/'`atf-c/config.c
-@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) atf-c/$(DEPDIR)/libatf_c_la-config.Tpo atf-c/$(DEPDIR)/libatf_c_la-config.Plo
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='atf-c/config.c' object='atf-c/libatf_c_la-config.lo' libtool=yes @AMDEPBACKSLASH@
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libatf_c_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o atf-c/libatf_c_la-config.lo `test -f 'atf-c/config.c' || echo '$(srcdir)/'`atf-c/config.c
 
 atf-c/libatf_c_la-error.lo: atf-c/error.c
 @am__fastdepCC_TRUE@	$(AM_V_CC)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libatf_c_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT atf-c/libatf_c_la-error.lo -MD -MP -MF atf-c/$(DEPDIR)/libatf_c_la-error.Tpo -c -o atf-c/libatf_c_la-error.lo `test -f 'atf-c/error.c' || echo '$(srcdir)/'`atf-c/error.c
@@ -2559,6 +2470,41 @@ atf-c/detail/libatf_c_la-user.lo: atf-c/detail/user.c
 @AMDEP_TRUE@@am__fastdepCXX_FALSE@	$(AM_V_CXX)source='$<' object='$@' libtool=yes @AMDEPBACKSLASH@
 @AMDEP_TRUE@@am__fastdepCXX_FALSE@	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) @AMDEPBACKSLASH@
 @am__fastdepCXX_FALSE@	$(AM_V_CXX@am__nodep@)$(LTCXXCOMPILE) -c -o $@ $<
+
+atf-c++/detail/atf_c___detail_libtest_helpers_la-test_helpers.lo: atf-c++/detail/test_helpers.cpp
+@am__fastdepCXX_TRUE@	$(AM_V_CXX)$(LIBTOOL) $(AM_V_lt) --tag=CXX $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(atf_c___detail_libtest_helpers_la_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -MT atf-c++/detail/atf_c___detail_libtest_helpers_la-test_helpers.lo -MD -MP -MF atf-c++/detail/$(DEPDIR)/atf_c___detail_libtest_helpers_la-test_helpers.Tpo -c -o atf-c++/detail/atf_c___detail_libtest_helpers_la-test_helpers.lo `test -f 'atf-c++/detail/test_helpers.cpp' || echo '$(srcdir)/'`atf-c++/detail/test_helpers.cpp
+@am__fastdepCXX_TRUE@	$(AM_V_at)$(am__mv) atf-c++/detail/$(DEPDIR)/atf_c___detail_libtest_helpers_la-test_helpers.Tpo atf-c++/detail/$(DEPDIR)/atf_c___detail_libtest_helpers_la-test_helpers.Plo
+@AMDEP_TRUE@@am__fastdepCXX_FALSE@	$(AM_V_CXX)source='atf-c++/detail/test_helpers.cpp' object='atf-c++/detail/atf_c___detail_libtest_helpers_la-test_helpers.lo' libtool=yes @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCXX_FALSE@	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCXX_FALSE@	$(AM_V_CXX@am__nodep@)$(LIBTOOL) $(AM_V_lt) --tag=CXX $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(atf_c___detail_libtest_helpers_la_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -c -o atf-c++/detail/atf_c___detail_libtest_helpers_la-test_helpers.lo `test -f 'atf-c++/detail/test_helpers.cpp' || echo '$(srcdir)/'`atf-c++/detail/test_helpers.cpp
+
+atf-sh/atf_sh_atf_check-atf-check.o: atf-sh/atf-check.cpp
+@am__fastdepCXX_TRUE@	$(AM_V_CXX)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(atf_sh_atf_check_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -MT atf-sh/atf_sh_atf_check-atf-check.o -MD -MP -MF atf-sh/$(DEPDIR)/atf_sh_atf_check-atf-check.Tpo -c -o atf-sh/atf_sh_atf_check-atf-check.o `test -f 'atf-sh/atf-check.cpp' || echo '$(srcdir)/'`atf-sh/atf-check.cpp
+@am__fastdepCXX_TRUE@	$(AM_V_at)$(am__mv) atf-sh/$(DEPDIR)/atf_sh_atf_check-atf-check.Tpo atf-sh/$(DEPDIR)/atf_sh_atf_check-atf-check.Po
+@AMDEP_TRUE@@am__fastdepCXX_FALSE@	$(AM_V_CXX)source='atf-sh/atf-check.cpp' object='atf-sh/atf_sh_atf_check-atf-check.o' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCXX_FALSE@	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCXX_FALSE@	$(AM_V_CXX@am__nodep@)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(atf_sh_atf_check_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -c -o atf-sh/atf_sh_atf_check-atf-check.o `test -f 'atf-sh/atf-check.cpp' || echo '$(srcdir)/'`atf-sh/atf-check.cpp
+
+atf-sh/atf_sh_atf_check-atf-check.obj: atf-sh/atf-check.cpp
+@am__fastdepCXX_TRUE@	$(AM_V_CXX)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(atf_sh_atf_check_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -MT atf-sh/atf_sh_atf_check-atf-check.obj -MD -MP -MF atf-sh/$(DEPDIR)/atf_sh_atf_check-atf-check.Tpo -c -o atf-sh/atf_sh_atf_check-atf-check.obj `if test -f 'atf-sh/atf-check.cpp'; then $(CYGPATH_W) 'atf-sh/atf-check.cpp'; else $(CYGPATH_W) '$(srcdir)/atf-sh/atf-check.cpp'; fi`
+@am__fastdepCXX_TRUE@	$(AM_V_at)$(am__mv) atf-sh/$(DEPDIR)/atf_sh_atf_check-atf-check.Tpo atf-sh/$(DEPDIR)/atf_sh_atf_check-atf-check.Po
+@AMDEP_TRUE@@am__fastdepCXX_FALSE@	$(AM_V_CXX)source='atf-sh/atf-check.cpp' object='atf-sh/atf_sh_atf_check-atf-check.obj' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCXX_FALSE@	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCXX_FALSE@	$(AM_V_CXX@am__nodep@)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(atf_sh_atf_check_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -c -o atf-sh/atf_sh_atf_check-atf-check.obj `if test -f 'atf-sh/atf-check.cpp'; then $(CYGPATH_W) 'atf-sh/atf-check.cpp'; else $(CYGPATH_W) '$(srcdir)/atf-sh/atf-check.cpp'; fi`
+
+atf-sh/atf_sh_atf_sh-atf-sh.o: atf-sh/atf-sh.cpp
+@am__fastdepCXX_TRUE@	$(AM_V_CXX)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(atf_sh_atf_sh_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -MT atf-sh/atf_sh_atf_sh-atf-sh.o -MD -MP -MF atf-sh/$(DEPDIR)/atf_sh_atf_sh-atf-sh.Tpo -c -o atf-sh/atf_sh_atf_sh-atf-sh.o `test -f 'atf-sh/atf-sh.cpp' || echo '$(srcdir)/'`atf-sh/atf-sh.cpp
+@am__fastdepCXX_TRUE@	$(AM_V_at)$(am__mv) atf-sh/$(DEPDIR)/atf_sh_atf_sh-atf-sh.Tpo atf-sh/$(DEPDIR)/atf_sh_atf_sh-atf-sh.Po
+@AMDEP_TRUE@@am__fastdepCXX_FALSE@	$(AM_V_CXX)source='atf-sh/atf-sh.cpp' object='atf-sh/atf_sh_atf_sh-atf-sh.o' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCXX_FALSE@	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCXX_FALSE@	$(AM_V_CXX@am__nodep@)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(atf_sh_atf_sh_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -c -o atf-sh/atf_sh_atf_sh-atf-sh.o `test -f 'atf-sh/atf-sh.cpp' || echo '$(srcdir)/'`atf-sh/atf-sh.cpp
+
+atf-sh/atf_sh_atf_sh-atf-sh.obj: atf-sh/atf-sh.cpp
+@am__fastdepCXX_TRUE@	$(AM_V_CXX)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(atf_sh_atf_sh_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -MT atf-sh/atf_sh_atf_sh-atf-sh.obj -MD -MP -MF atf-sh/$(DEPDIR)/atf_sh_atf_sh-atf-sh.Tpo -c -o atf-sh/atf_sh_atf_sh-atf-sh.obj `if test -f 'atf-sh/atf-sh.cpp'; then $(CYGPATH_W) 'atf-sh/atf-sh.cpp'; else $(CYGPATH_W) '$(srcdir)/atf-sh/atf-sh.cpp'; fi`
+@am__fastdepCXX_TRUE@	$(AM_V_at)$(am__mv) atf-sh/$(DEPDIR)/atf_sh_atf_sh-atf-sh.Tpo atf-sh/$(DEPDIR)/atf_sh_atf_sh-atf-sh.Po
+@AMDEP_TRUE@@am__fastdepCXX_FALSE@	$(AM_V_CXX)source='atf-sh/atf-sh.cpp' object='atf-sh/atf_sh_atf_sh-atf-sh.obj' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCXX_FALSE@	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCXX_FALSE@	$(AM_V_CXX@am__nodep@)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(atf_sh_atf_sh_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -c -o atf-sh/atf_sh_atf_sh-atf-sh.obj `if test -f 'atf-sh/atf-sh.cpp'; then $(CYGPATH_W) 'atf-sh/atf-sh.cpp'; else $(CYGPATH_W) '$(srcdir)/atf-sh/atf-sh.cpp'; fi`
 
 mostlyclean-libtool:
 	-rm -f *.lo
@@ -2704,6 +2650,49 @@ uninstall-man4:
 	} | sed -e 's,.*/,,;h;s,.*\.,,;s,^[^4][0-9a-z]*$$,4,;x' \
 	      -e 's,\.[0-9a-z]*$$,,;$(transform);G;s,\n,.,'`; \
 	dir='$(DESTDIR)$(man4dir)'; $(am__uninstall_files_from_dir)
+install-man7: $(dist_man_MANS) $(man_MANS)
+	@$(NORMAL_INSTALL)
+	@list1=''; \
+	list2='$(dist_man_MANS) $(man_MANS)'; \
+	test -n "$(man7dir)" \
+	  && test -n "`echo $$list1$$list2`" \
+	  || exit 0; \
+	echo " $(MKDIR_P) '$(DESTDIR)$(man7dir)'"; \
+	$(MKDIR_P) "$(DESTDIR)$(man7dir)" || exit 1; \
+	{ for i in $$list1; do echo "$$i"; done;  \
+	if test -n "$$list2"; then \
+	  for i in $$list2; do echo "$$i"; done \
+	    | sed -n '/\.7[a-z]*$$/p'; \
+	fi; \
+	} | while read p; do \
+	  if test -f $$p; then d=; else d="$(srcdir)/"; fi; \
+	  echo "$$d$$p"; echo "$$p"; \
+	done | \
+	sed -e 'n;s,.*/,,;p;h;s,.*\.,,;s,^[^7][0-9a-z]*$$,7,;x' \
+	      -e 's,\.[0-9a-z]*$$,,;$(transform);G;s,\n,.,' | \
+	sed 'N;N;s,\n, ,g' | { \
+	list=; while read file base inst; do \
+	  if test "$$base" = "$$inst"; then list="$$list $$file"; else \
+	    echo " $(INSTALL_DATA) '$$file' '$(DESTDIR)$(man7dir)/$$inst'"; \
+	    $(INSTALL_DATA) "$$file" "$(DESTDIR)$(man7dir)/$$inst" || exit $$?; \
+	  fi; \
+	done; \
+	for i in $$list; do echo "$$i"; done | $(am__base_list) | \
+	while read files; do \
+	  test -z "$$files" || { \
+	    echo " $(INSTALL_DATA) $$files '$(DESTDIR)$(man7dir)'"; \
+	    $(INSTALL_DATA) $$files "$(DESTDIR)$(man7dir)" || exit $$?; }; \
+	done; }
+
+uninstall-man7:
+	@$(NORMAL_UNINSTALL)
+	@list=''; test -n "$(man7dir)" || exit 0; \
+	files=`{ for i in $$list; do echo "$$i"; done; \
+	l2='$(dist_man_MANS) $(man_MANS)'; for i in $$l2; do echo "$$i"; done | \
+	  sed -n '/\.7[a-z]*$$/p'; \
+	} | sed -e 's,.*/,,;h;s,.*\.,,;s,^[^7][0-9a-z]*$$,7,;x' \
+	      -e 's,\.[0-9a-z]*$$,,;$(transform);G;s,\n,.,'`; \
+	dir='$(DESTDIR)$(man7dir)'; $(am__uninstall_files_from_dir)
 install-atf_aclocalDATA: $(atf_aclocal_DATA)
 	@$(NORMAL_INSTALL)
 	@list='$(atf_aclocal_DATA)'; test -n "$(atf_aclocaldir)" || list=; \
@@ -3040,6 +3029,27 @@ uninstall-includeHEADERS:
 	@list='$(include_HEADERS)'; test -n "$(includedir)" || list=; \
 	files=`for p in $$list; do echo $$p; done | sed -e 's|^.*/||'`; \
 	dir='$(DESTDIR)$(includedir)'; $(am__uninstall_files_from_dir)
+install-nodist_atf_cHEADERS: $(nodist_atf_c_HEADERS)
+	@$(NORMAL_INSTALL)
+	@list='$(nodist_atf_c_HEADERS)'; test -n "$(atf_cdir)" || list=; \
+	if test -n "$$list"; then \
+	  echo " $(MKDIR_P) '$(DESTDIR)$(atf_cdir)'"; \
+	  $(MKDIR_P) "$(DESTDIR)$(atf_cdir)" || exit 1; \
+	fi; \
+	for p in $$list; do \
+	  if test -f "$$p"; then d=; else d="$(srcdir)/"; fi; \
+	  echo "$$d$$p"; \
+	done | $(am__base_list) | \
+	while read files; do \
+	  echo " $(INSTALL_HEADER) $$files '$(DESTDIR)$(atf_cdir)'"; \
+	  $(INSTALL_HEADER) $$files "$(DESTDIR)$(atf_cdir)" || exit $$?; \
+	done
+
+uninstall-nodist_atf_cHEADERS:
+	@$(NORMAL_UNINSTALL)
+	@list='$(nodist_atf_c_HEADERS)'; test -n "$(atf_cdir)" || list=; \
+	files=`for p in $$list; do echo $$p; done | sed -e 's|^.*/||'`; \
+	dir='$(DESTDIR)$(atf_cdir)'; $(am__uninstall_files_from_dir)
 
 ID: $(am__tagged_files)
 	$(am__define_uniq_tagged_files); mkid -fID $$unique
@@ -3276,11 +3286,11 @@ check-am: all-am
 check: $(BUILT_SOURCES)
 	$(MAKE) $(AM_MAKEFLAGS) check-am
 all-am: Makefile $(LTLIBRARIES) $(PROGRAMS) $(SCRIPTS) $(MANS) $(DATA) \
-		$(HEADERS) bconfig.h
+		$(HEADERS) config.h
 install-binPROGRAMS: install-libLTLIBRARIES
 
 installdirs:
-	for dir in "$(DESTDIR)$(libdir)" "$(DESTDIR)$(bindir)" "$(DESTDIR)$(libexecdir)" "$(DESTDIR)$(tests_atf_cdir)" "$(DESTDIR)$(tests_atf_c__dir)" "$(DESTDIR)$(tests_atf_c___detaildir)" "$(DESTDIR)$(tests_atf_c_detaildir)" "$(DESTDIR)$(tests_test_programsdir)" "$(DESTDIR)$(tests_atf_cdir)" "$(DESTDIR)$(tests_atf_c__dir)" "$(DESTDIR)$(tests_atf_shdir)" "$(DESTDIR)$(tests_test_programsdir)" "$(DESTDIR)$(man1dir)" "$(DESTDIR)$(man3dir)" "$(DESTDIR)$(man4dir)" "$(DESTDIR)$(atf_aclocaldir)" "$(DESTDIR)$(atf_c__dirpkgconfigdir)" "$(DESTDIR)$(atf_cpkgconfigdir)" "$(DESTDIR)$(atf_shdir)" "$(DESTDIR)$(atf_shpkgconfigdir)" "$(DESTDIR)$(docdir)" "$(DESTDIR)$(pkgtestsdir)" "$(DESTDIR)$(tests_atf_cdir)" "$(DESTDIR)$(tests_atf_c__dir)" "$(DESTDIR)$(tests_atf_c___detaildir)" "$(DESTDIR)$(tests_atf_c_detaildir)" "$(DESTDIR)$(tests_atf_shdir)" "$(DESTDIR)$(tests_test_programsdir)" "$(DESTDIR)$(atf_cdir)" "$(DESTDIR)$(atf_c__dir)" "$(DESTDIR)$(includedir)"; do \
+	for dir in "$(DESTDIR)$(libdir)" "$(DESTDIR)$(bindir)" "$(DESTDIR)$(libexecdir)" "$(DESTDIR)$(tests_atf_cdir)" "$(DESTDIR)$(tests_atf_c__dir)" "$(DESTDIR)$(tests_atf_c___detaildir)" "$(DESTDIR)$(tests_atf_c_detaildir)" "$(DESTDIR)$(tests_test_programsdir)" "$(DESTDIR)$(tests_atf_cdir)" "$(DESTDIR)$(tests_atf_c__dir)" "$(DESTDIR)$(tests_atf_shdir)" "$(DESTDIR)$(tests_test_programsdir)" "$(DESTDIR)$(man1dir)" "$(DESTDIR)$(man3dir)" "$(DESTDIR)$(man4dir)" "$(DESTDIR)$(man7dir)" "$(DESTDIR)$(atf_aclocaldir)" "$(DESTDIR)$(atf_c__dirpkgconfigdir)" "$(DESTDIR)$(atf_cpkgconfigdir)" "$(DESTDIR)$(atf_shdir)" "$(DESTDIR)$(atf_shpkgconfigdir)" "$(DESTDIR)$(docdir)" "$(DESTDIR)$(pkgtestsdir)" "$(DESTDIR)$(tests_atf_cdir)" "$(DESTDIR)$(tests_atf_c__dir)" "$(DESTDIR)$(tests_atf_c___detaildir)" "$(DESTDIR)$(tests_atf_c_detaildir)" "$(DESTDIR)$(tests_atf_shdir)" "$(DESTDIR)$(tests_test_programsdir)" "$(DESTDIR)$(atf_cdir)" "$(DESTDIR)$(atf_c__dir)" "$(DESTDIR)$(includedir)" "$(DESTDIR)$(atf_cdir)"; do \
 	  test -z "$$dir" || $(MKDIR_P) "$$dir"; \
 	done
 install: $(BUILT_SOURCES)
@@ -3363,18 +3373,19 @@ install-data-am: install-atf_aclocalDATA install-atf_cHEADERS \
 	install-atf_c__HEADERS install-atf_c__dirpkgconfigDATA \
 	install-atf_cpkgconfigDATA install-atf_shDATA \
 	install-atf_shpkgconfigDATA install-docDATA \
-	install-includeHEADERS install-man install-pkgtestsDATA \
-	install-tests_atf_cDATA install-tests_atf_cPROGRAMS \
-	install-tests_atf_cSCRIPTS install-tests_atf_c__DATA \
-	install-tests_atf_c__PROGRAMS install-tests_atf_c__SCRIPTS \
-	install-tests_atf_c___detailDATA \
+	install-includeHEADERS install-man install-nodist_atf_cHEADERS \
+	install-pkgtestsDATA install-tests_atf_cDATA \
+	install-tests_atf_cPROGRAMS install-tests_atf_cSCRIPTS \
+	install-tests_atf_c__DATA install-tests_atf_c__PROGRAMS \
+	install-tests_atf_c__SCRIPTS install-tests_atf_c___detailDATA \
 	install-tests_atf_c___detailPROGRAMS \
 	install-tests_atf_c_detailDATA \
 	install-tests_atf_c_detailPROGRAMS install-tests_atf_shDATA \
 	install-tests_atf_shSCRIPTS install-tests_test_programsDATA \
 	install-tests_test_programsPROGRAMS \
 	install-tests_test_programsSCRIPTS
-
+	@$(NORMAL_INSTALL)
+	$(MAKE) $(AM_MAKEFLAGS) install-data-hook
 install-dvi: install-dvi-am
 
 install-dvi-am:
@@ -3390,7 +3401,7 @@ install-info: install-info-am
 
 install-info-am:
 
-install-man: install-man1 install-man3 install-man4
+install-man: install-man1 install-man3 install-man4 install-man7
 
 install-pdf: install-pdf-am
 
@@ -3428,7 +3439,8 @@ uninstall-am: uninstall-atf_aclocalDATA uninstall-atf_cHEADERS \
 	uninstall-atf_shpkgconfigDATA uninstall-binPROGRAMS \
 	uninstall-docDATA uninstall-includeHEADERS \
 	uninstall-libLTLIBRARIES uninstall-libexecPROGRAMS \
-	uninstall-man uninstall-pkgtestsDATA uninstall-tests_atf_cDATA \
+	uninstall-man uninstall-nodist_atf_cHEADERS \
+	uninstall-pkgtestsDATA uninstall-tests_atf_cDATA \
 	uninstall-tests_atf_cPROGRAMS uninstall-tests_atf_cSCRIPTS \
 	uninstall-tests_atf_c__DATA uninstall-tests_atf_c__PROGRAMS \
 	uninstall-tests_atf_c__SCRIPTS \
@@ -3441,9 +3453,11 @@ uninstall-am: uninstall-atf_aclocalDATA uninstall-atf_cHEADERS \
 	uninstall-tests_test_programsPROGRAMS \
 	uninstall-tests_test_programsSCRIPTS
 
-uninstall-man: uninstall-man1 uninstall-man3 uninstall-man4
+uninstall-man: uninstall-man1 uninstall-man3 uninstall-man4 \
+	uninstall-man7
 
-.MAKE: all check check-am install install-am install-strip
+.MAKE: all check check-am install install-am install-data-am \
+	install-strip
 
 .PHONY: CTAGS GTAGS TAGS all all-am am--refresh check check-am clean \
 	clean-binPROGRAMS clean-checkPROGRAMS clean-cscope \
@@ -3463,11 +3477,12 @@ uninstall-man: uninstall-man1 uninstall-man3 uninstall-man4
 	install-atf_c__HEADERS install-atf_c__dirpkgconfigDATA \
 	install-atf_cpkgconfigDATA install-atf_shDATA \
 	install-atf_shpkgconfigDATA install-binPROGRAMS install-data \
-	install-data-am install-docDATA install-dvi install-dvi-am \
-	install-exec install-exec-am install-html install-html-am \
-	install-includeHEADERS install-info install-info-am \
-	install-libLTLIBRARIES install-libexecPROGRAMS install-man \
-	install-man1 install-man3 install-man4 install-pdf \
+	install-data-am install-data-hook install-docDATA install-dvi \
+	install-dvi-am install-exec install-exec-am install-html \
+	install-html-am install-includeHEADERS install-info \
+	install-info-am install-libLTLIBRARIES install-libexecPROGRAMS \
+	install-man install-man1 install-man3 install-man4 \
+	install-man7 install-nodist_atf_cHEADERS install-pdf \
 	install-pdf-am install-pkgtestsDATA install-ps install-ps-am \
 	install-strip install-tests_atf_cDATA \
 	install-tests_atf_cPROGRAMS install-tests_atf_cSCRIPTS \
@@ -3490,6 +3505,7 @@ uninstall-man: uninstall-man1 uninstall-man3 uninstall-man4
 	uninstall-docDATA uninstall-includeHEADERS \
 	uninstall-libLTLIBRARIES uninstall-libexecPROGRAMS \
 	uninstall-man uninstall-man1 uninstall-man3 uninstall-man4 \
+	uninstall-man7 uninstall-nodist_atf_cHEADERS \
 	uninstall-pkgtestsDATA uninstall-tests_atf_cDATA \
 	uninstall-tests_atf_cPROGRAMS uninstall-tests_atf_cSCRIPTS \
 	uninstall-tests_atf_c__DATA uninstall-tests_atf_c__PROGRAMS \
@@ -3509,97 +3525,78 @@ check-style:
 	$(srcdir)/admin/check-style.sh
 
 # vim: syntax=make:noexpandtab:shiftwidth=8:softtabstop=8
-
-# XXX For some reason, the nodist line above does not work as expected.
-# Work this problem around.
-dist-hook: kill-defs-h
-kill-defs-h:
-	rm -f $(distdir)/atf-c/defs.h
 atf-c/atf-c.pc: $(srcdir)/atf-c/atf-c.pc.in Makefile
-	test -d atf-c || mkdir -p atf-c
+	$(AM_V_GEN)test -d atf-c || mkdir -p atf-c; \
 	sed -e 's#__ATF_VERSION__#$(PACKAGE_VERSION)#g' \
 	    -e 's#__CC__#$(CC)#g' \
 	    -e 's#__INCLUDEDIR__#$(includedir)#g' \
 	    -e 's#__LIBDIR__#$(libdir)#g' \
-	    <$(srcdir)/atf-c/atf-c.pc.in >atf-c/atf-c.pc.tmp
+	    <$(srcdir)/atf-c/atf-c.pc.in >atf-c/atf-c.pc.tmp; \
 	mv atf-c/atf-c.pc.tmp atf-c/atf-c.pc
 atf-c/pkg_config_test: $(srcdir)/atf-c/pkg_config_test.sh
-	test -d atf-c || mkdir -p atf-c
-	@src="$(srcdir)/atf-c/pkg_config_test.sh"; \
+	$(AM_V_GEN)src="$(srcdir)/atf-c/pkg_config_test.sh"; \
 	dst="atf-c/pkg_config_test"; $(BUILD_SH_TP)
 
 # vim: syntax=make:noexpandtab:shiftwidth=8:softtabstop=8
 
 # vim: syntax=make:noexpandtab:shiftwidth=8:softtabstop=8
 atf-c++/atf-c++.pc: $(srcdir)/atf-c++/atf-c++.pc.in Makefile
-	test -d atf-c++ || mkdir -p atf-c++
+	$(AM_V_GEN)test -d atf-c++ || mkdir -p atf-c++; \
 	sed -e 's#__ATF_VERSION__#$(PACKAGE_VERSION)#g' \
 	    -e 's#__CXX__#$(CXX)#g' \
 	    -e 's#__INCLUDEDIR__#$(includedir)#g' \
 	    -e 's#__LIBDIR__#$(libdir)#g' \
-	    <$(srcdir)/atf-c++/atf-c++.pc.in >atf-c++/atf-c++.pc.tmp
+	    <$(srcdir)/atf-c++/atf-c++.pc.in >atf-c++/atf-c++.pc.tmp; \
 	mv atf-c++/atf-c++.pc.tmp atf-c++/atf-c++.pc
 atf-c++/pkg_config_test: $(srcdir)/atf-c++/pkg_config_test.sh
-	test -d atf-c++ || mkdir -p atf-c++
-	@src="$(srcdir)/atf-c++/pkg_config_test.sh"; \
+	$(AM_V_GEN)src="$(srcdir)/atf-c++/pkg_config_test.sh"; \
 	dst="atf-c++/pkg_config_test"; $(BUILD_SH_TP)
 
 # vim: syntax=make:noexpandtab:shiftwidth=8:softtabstop=8
 
 # vim: syntax=make:noexpandtab:shiftwidth=8:softtabstop=8
 atf-sh/atf-sh.pc: $(srcdir)/atf-sh/atf-sh.pc.in Makefile
-	test -d atf-sh || mkdir -p atf-sh
+	$(AM_V_GEN)test -d atf-sh || mkdir -p atf-sh; \
 	sed -e 's#__ATF_VERSION__#$(PACKAGE_VERSION)#g' \
 	    -e 's#__EXEC_PREFIX__#$(exec_prefix)#g' \
-	    <$(srcdir)/atf-sh/atf-sh.pc.in >atf-sh/atf-sh.pc.tmp
+	    <$(srcdir)/atf-sh/atf-sh.pc.in >atf-sh/atf-sh.pc.tmp; \
 	mv atf-sh/atf-sh.pc.tmp atf-sh/atf-sh.pc
 atf-sh/misc_helpers: $(srcdir)/atf-sh/misc_helpers.sh
-	test -d atf-sh || mkdir -p atf-sh
-	@src="$(srcdir)/atf-sh/misc_helpers.sh"; \
+	$(AM_V_GEN)src="$(srcdir)/atf-sh/misc_helpers.sh"; \
 	dst="atf-sh/misc_helpers"; $(BUILD_SH_TP)
 atf-sh/atf_check_test: $(srcdir)/atf-sh/atf_check_test.sh
-	test -d atf-sh || mkdir -p atf-sh
-	@src="$(srcdir)/atf-sh/atf_check_test.sh"; \
+	$(AM_V_GEN)src="$(srcdir)/atf-sh/atf_check_test.sh"; \
 	dst="atf-sh/atf_check_test"; $(BUILD_SH_TP)
 atf-sh/atf-check_test: $(srcdir)/atf-sh/atf-check_test.sh
-	test -d atf-sh || mkdir -p atf-sh
-	@src="$(srcdir)/atf-sh/atf-check_test.sh"; \
+	$(AM_V_GEN)src="$(srcdir)/atf-sh/atf-check_test.sh"; \
 	dst="atf-sh/atf-check_test"; $(BUILD_SH_TP)
 atf-sh/config_test: $(srcdir)/atf-sh/config_test.sh
-	test -d atf-sh || mkdir -p atf-sh
-	@src="$(srcdir)/atf-sh/config_test.sh"; \
+	$(AM_V_GEN)src="$(srcdir)/atf-sh/config_test.sh"; \
 	dst="atf-sh/config_test"; $(BUILD_SH_TP)
 atf-sh/integration_test: $(srcdir)/atf-sh/integration_test.sh
-	test -d atf-sh || mkdir -p atf-sh
-	@src="$(srcdir)/atf-sh/integration_test.sh"; \
-	dst="atf-sh/integration_test"; $(BUILD_SH_TP)
+	$(AM_V_GEN)src="$(srcdir)/atf-sh/integration_test.sh"; \
+	dst="atf-sh/integration_test"; \
+	substs="s,__ATF_SH__,$(exec_prefix)/bin/atf-sh,g"; $(BUILD_SH_TP)
 atf-sh/normalize_test: $(srcdir)/atf-sh/normalize_test.sh
-	test -d atf-sh || mkdir -p atf-sh
-	@src="$(srcdir)/atf-sh/normalize_test.sh"; \
+	$(AM_V_GEN)src="$(srcdir)/atf-sh/normalize_test.sh"; \
 	dst="atf-sh/normalize_test"; $(BUILD_SH_TP)
 atf-sh/tc_test: $(srcdir)/atf-sh/tc_test.sh
-	test -d atf-sh || mkdir -p atf-sh
-	@src="$(srcdir)/atf-sh/tc_test.sh"; \
+	$(AM_V_GEN)src="$(srcdir)/atf-sh/tc_test.sh"; \
 	dst="atf-sh/tc_test"; $(BUILD_SH_TP)
 atf-sh/tp_test: $(srcdir)/atf-sh/tp_test.sh
-	test -d atf-sh || mkdir -p atf-sh
-	@src="$(srcdir)/atf-sh/tp_test.sh"; \
+	$(AM_V_GEN)src="$(srcdir)/atf-sh/tp_test.sh"; \
 	dst="atf-sh/tp_test"; $(BUILD_SH_TP)
 
 # vim: syntax=make:noexpandtab:shiftwidth=8:softtabstop=8
 bootstrap/h_tp_basic_sh: $(srcdir)/bootstrap/h_tp_basic_sh.sh
-	test -d bootstrap || mkdir -p bootstrap
-	@src=$(srcdir)/bootstrap/h_tp_basic_sh.sh; dst=$@; $(BUILD_SH_TP)
+	$(AM_V_GEN)src=$(srcdir)/bootstrap/h_tp_basic_sh.sh; dst=$@; $(BUILD_SH_TP)
 bootstrap/h_tp_atf_check_sh: \
 		$(srcdir)/bootstrap/h_tp_atf_check_sh.sh
-	test -d bootstrap || mkdir -p bootstrap
-	@src=$(srcdir)/bootstrap/h_tp_atf_check_sh.sh; dst=$@; $(BUILD_SH_TP)
+	$(AM_V_GEN)src=$(srcdir)/bootstrap/h_tp_atf_check_sh.sh; dst=$@; $(BUILD_SH_TP)
 bootstrap/h_tp_fail: $(srcdir)/bootstrap/h_tp_fail.sh
-	test -d bootstrap || mkdir -p bootstrap
-	@src=$(srcdir)/bootstrap/h_tp_fail.sh; dst=$@; $(BUILD_SH_TP)
+	$(AM_V_GEN)src=$(srcdir)/bootstrap/h_tp_fail.sh; dst=$@; $(BUILD_SH_TP)
 bootstrap/h_tp_pass: $(srcdir)/bootstrap/h_tp_pass.sh
-	test -d bootstrap || mkdir -p bootstrap
-	@src=$(srcdir)/bootstrap/h_tp_pass.sh; dst=$@; $(BUILD_SH_TP)
+	$(AM_V_GEN)src=$(srcdir)/bootstrap/h_tp_pass.sh; dst=$@; $(BUILD_SH_TP)
 
 distclean-local:
 	-rm -rf testsuite.dir
@@ -3626,45 +3623,51 @@ installcheck-bootstrap: @target_srcdir@bootstrap/testsuite check
 
 # vim: syntax=make:noexpandtab:shiftwidth=8:softtabstop=8
 
+doc/atf.7: $(srcdir)/doc/atf.7.in
+	$(AM_V_GEN)test -d doc || mkdir -p doc; \
+	sed -e 's#__DOCDIR__#$(docdir)#g' \
+	    -e 's#__TESTSDIR__#$(testsdir)#g' \
+	    <$(srcdir)/doc/atf.7.in >doc/atf.7.tmp; \
+	mv doc/atf.7.tmp doc/atf.7
+
 # vim: syntax=make:noexpandtab:shiftwidth=8:softtabstop=8
 test-programs/sh_helpers: $(srcdir)/test-programs/sh_helpers.sh
-	test -d test-programs || mkdir -p test-programs
-	@src="$(srcdir)/test-programs/sh_helpers.sh $(common_sh)"; \
+	$(AM_V_GEN)src="$(srcdir)/test-programs/sh_helpers.sh $(common_sh)"; \
 	dst="test-programs/sh_helpers"; $(BUILD_SH_TP)
 test-programs/config_test: $(srcdir)/test-programs/config_test.sh
-	test -d test-programs || mkdir -p test-programs
-	@src="$(srcdir)/test-programs/config_test.sh $(common_sh)"; \
+	$(AM_V_GEN)src="$(srcdir)/test-programs/config_test.sh $(common_sh)"; \
 	dst="test-programs/config_test"; $(BUILD_SH_TP)
 test-programs/expect_test: $(srcdir)/test-programs/expect_test.sh
-	test -d test-programs || mkdir -p test-programs
-	@src="$(srcdir)/test-programs/expect_test.sh $(common_sh)"; \
+	$(AM_V_GEN)src="$(srcdir)/test-programs/expect_test.sh $(common_sh)"; \
 	dst="test-programs/expect_test"; $(BUILD_SH_TP)
 test-programs/meta_data_test: $(srcdir)/test-programs/meta_data_test.sh
-	test -d test-programs || mkdir -p test-programs
-	@src="$(srcdir)/test-programs/meta_data_test.sh $(common_sh)"; \
+	$(AM_V_GEN)src="$(srcdir)/test-programs/meta_data_test.sh $(common_sh)"; \
 	dst="test-programs/meta_data_test"; $(BUILD_SH_TP)
 test-programs/result_test: $(srcdir)/test-programs/result_test.sh
-	test -d test-programs || mkdir -p test-programs
-	@src="$(srcdir)/test-programs/result_test.sh $(common_sh)"; \
+	$(AM_V_GEN)src="$(srcdir)/test-programs/result_test.sh $(common_sh)"; \
 	dst="test-programs/result_test"; $(BUILD_SH_TP)
 test-programs/srcdir_test: $(srcdir)/test-programs/srcdir_test.sh
-	test -d test-programs || mkdir -p test-programs
-	@src="$(srcdir)/test-programs/srcdir_test.sh $(common_sh)"; \
+	$(AM_V_GEN)src="$(srcdir)/test-programs/srcdir_test.sh $(common_sh)"; \
 	dst="test-programs/srcdir_test"; $(BUILD_SH_TP)
 
 # vim: syntax=make:noexpandtab:shiftwidth=8:softtabstop=8
 @HAVE_KYUA_TRUE@installcheck-kyua:
-@HAVE_KYUA_TRUE@	cd $(pkgtestsdir) && $(TESTS_ENVIRONMENT) $(KYUA) test
+@HAVE_KYUA_TRUE@	cd $(pkgtestsdir) && $(TESTS_ENVIRONMENT) \
+@HAVE_KYUA_TRUE@	    $(KYUA) --config='$(KYUA_TEST_CONFIG_FILE)' test
 
 installcheck-local: $(INSTALLCHECK_TARGETS)
 clean-all:
 	GIT="$(GIT)" $(SH) $(srcdir)/admin/clean-all.sh
-release:
-	$(SH) $(srcdir)/admin/release.sh $(PACKAGE_VERSION) $(DIST_ARCHIVES)
-release-test:
-	$(SH) $(srcdir)/admin/release-test.sh $(DIST_ARCHIVES)
 
 .PHONY: $(PHONY_TARGETS)
+
+# TODO(jmmv): Remove after atf 0.22.
+install-data-hook:
+	cd $(DESTDIR)$(man3dir) && \
+	for binding in c c++ sh; do \
+	    rm -f "atf-$${binding}-api.3"; \
+	    $(LN_S) "atf-$${binding}.3" "atf-$${binding}-api.3"; \
+	done
 
 # vim: syntax=make:noexpandtab:shiftwidth=8:softtabstop=8
 

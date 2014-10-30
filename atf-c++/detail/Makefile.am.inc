@@ -1,6 +1,3 @@
-#
-# Automated Testing Framework (atf)
-#
 # Copyright (c) 2007 The NetBSD Foundation, Inc.
 # All rights reserved.
 #
@@ -25,7 +22,6 @@
 # IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR
 # OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN
 # IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-#
 
 libatf_c___la_SOURCES += atf-c++/detail/application.cpp \
                          atf-c++/detail/application.hpp \
@@ -49,6 +45,7 @@ EXTRA_DIST += $(tests_atf_c___detail_DATA)
 noinst_LTLIBRARIES += atf-c++/detail/libtest_helpers.la
 atf_c___detail_libtest_helpers_la_SOURCES = atf-c++/detail/test_helpers.cpp \
                                             atf-c++/detail/test_helpers.hpp
+atf_c___detail_libtest_helpers_la_CPPFLAGS = -DATF_INCLUDEDIR=\"$(includedir)\"
 
 tests_atf_c___detail_PROGRAMS = atf-c++/detail/application_test
 atf_c___detail_application_test_SOURCES = atf-c++/detail/application_test.cpp
@@ -73,10 +70,6 @@ atf_c___detail_fs_test_LDADD = atf-c++/detail/libtest_helpers.la $(ATF_CXX_LIBS)
 tests_atf_c___detail_PROGRAMS += atf-c++/detail/process_test
 atf_c___detail_process_test_SOURCES = atf-c++/detail/process_test.cpp
 atf_c___detail_process_test_LDADD = atf-c++/detail/libtest_helpers.la $(ATF_CXX_LIBS)
-
-tests_atf_c___detail_PROGRAMS += atf-c++/detail/sanity_test
-atf_c___detail_sanity_test_SOURCES = atf-c++/detail/sanity_test.cpp
-atf_c___detail_sanity_test_LDADD = atf-c++/detail/libtest_helpers.la $(ATF_CXX_LIBS)
 
 tests_atf_c___detail_PROGRAMS += atf-c++/detail/text_test
 atf_c___detail_text_test_SOURCES = atf-c++/detail/text_test.cpp

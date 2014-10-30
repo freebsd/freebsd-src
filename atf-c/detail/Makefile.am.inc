@@ -1,6 +1,3 @@
-#
-# Automated Testing Framework (atf)
-#
 # Copyright (c) 2007 The NetBSD Foundation, Inc.
 # All rights reserved.
 #
@@ -25,7 +22,6 @@
 # IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR
 # OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN
 # IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-#
 
 libatf_c_la_SOURCES += atf-c/detail/dynstr.c \
                        atf-c/detail/dynstr.h \
@@ -54,7 +50,8 @@ EXTRA_DIST += $(tests_atf_c_detail_DATA)
 noinst_LTLIBRARIES += atf-c/detail/libtest_helpers.la
 atf_c_detail_libtest_helpers_la_SOURCES = atf-c/detail/test_helpers.c \
                                           atf-c/detail/test_helpers.h
-atf_c_detail_libtest_helpers_la_CPPFLAGS = -I$(srcdir)/atf-c
+atf_c_detail_libtest_helpers_la_CPPFLAGS = -I$(srcdir)/atf-c \
+                                           -DATF_INCLUDEDIR=\"$(includedir)\"
 
 tests_atf_c_detail_PROGRAMS = atf-c/detail/dynstr_test
 atf_c_detail_dynstr_test_SOURCES = atf-c/detail/dynstr_test.c

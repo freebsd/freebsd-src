@@ -1,6 +1,3 @@
-#
-# Automated Testing Framework (atf)
-#
 # Copyright (c) 2007 The NetBSD Foundation, Inc.
 # All rights reserved.
 #
@@ -25,15 +22,12 @@
 # IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR
 # OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN
 # IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-#
 
 lib_LTLIBRARIES += libatf-c.la
 libatf_c_la_SOURCES = atf-c/build.c \
                       atf-c/build.h \
                       atf-c/check.c \
                       atf-c/check.h \
-                      atf-c/config.c \
-                      atf-c/config.h \
                       atf-c/error.c \
                       atf-c/error.h \
                       atf-c/error_fwd.h \
@@ -50,34 +44,22 @@ libatf_c_la_CPPFLAGS = "-DATF_BUILD_CC=\"$(ATF_BUILD_CC)\"" \
                        "-DATF_BUILD_CPP=\"$(ATF_BUILD_CPP)\"" \
                        "-DATF_BUILD_CPPFLAGS=\"$(ATF_BUILD_CPPFLAGS)\"" \
                        "-DATF_BUILD_CXX=\"$(ATF_BUILD_CXX)\"" \
-                       "-DATF_BUILD_CXXFLAGS=\"$(ATF_BUILD_CXXFLAGS)\"" \
-                       "-DATF_INCLUDEDIR=\"$(includedir)\"" \
-                       "-DATF_LIBEXECDIR=\"$(libexecdir)\"" \
-                       "-DATF_PKGDATADIR=\"$(pkgdatadir)\"" \
-                       "-DATF_SHELL=\"$(ATF_SHELL)\"" \
-                       "-DATF_WORKDIR=\"$(ATF_WORKDIR)\""
-libatf_c_la_LDFLAGS = -version-info 0:0:0
-
-# XXX For some reason, the nodist line above does not work as expected.
-# Work this problem around.
-dist-hook: kill-defs-h
-kill-defs-h:
-	rm -f $(distdir)/atf-c/defs.h
+                       "-DATF_BUILD_CXXFLAGS=\"$(ATF_BUILD_CXXFLAGS)\""
+libatf_c_la_LDFLAGS = -version-info 1:0:0
 
 include_HEADERS += atf-c.h
 atf_c_HEADERS = atf-c/build.h \
                 atf-c/check.h \
-                atf-c/config.h \
-                atf-c/defs.h \
                 atf-c/error.h \
                 atf-c/error_fwd.h \
                 atf-c/macros.h \
                 atf-c/tc.h \
                 atf-c/tp.h \
                 atf-c/utils.h
+nodist_atf_c_HEADERS = atf-c/defs.h
 atf_cdir = $(includedir)/atf-c
 
-dist_man_MANS += atf-c/atf-c-api.3
+dist_man_MANS += atf-c/atf-c.3
 
 atf_aclocal_DATA += atf-c/atf-common.m4 atf-c/atf-c.m4
 EXTRA_DIST += atf-c/atf-common.m4 atf-c/atf-c.m4
@@ -87,12 +69,12 @@ atf_cpkgconfig_DATA = atf-c/atf-c.pc
 CLEANFILES += atf-c/atf-c.pc
 EXTRA_DIST += atf-c/atf-c.pc.in
 atf-c/atf-c.pc: $(srcdir)/atf-c/atf-c.pc.in Makefile
-	test -d atf-c || mkdir -p atf-c
+	$(AM_V_GEN)test -d atf-c || mkdir -p atf-c; \
 	sed -e 's#__ATF_VERSION__#$(PACKAGE_VERSION)#g' \
 	    -e 's#__CC__#$(CC)#g' \
 	    -e 's#__INCLUDEDIR__#$(includedir)#g' \
 	    -e 's#__LIBDIR__#$(libdir)#g' \
-	    <$(srcdir)/atf-c/atf-c.pc.in >atf-c/atf-c.pc.tmp
+	    <$(srcdir)/atf-c/atf-c.pc.in >atf-c/atf-c.pc.tmp; \
 	mv atf-c/atf-c.pc.tmp atf-c/atf-c.pc
 
 tests_atf_c_DATA = atf-c/Kyuafile \
@@ -113,10 +95,6 @@ tests_atf_c_PROGRAMS += atf-c/check_test
 atf_c_check_test_SOURCES = atf-c/check_test.c
 atf_c_check_test_LDADD = atf-c/detail/libtest_helpers.la libatf-c.la
 
-tests_atf_c_PROGRAMS += atf-c/config_test
-atf_c_config_test_SOURCES = atf-c/config_test.c
-atf_c_config_test_LDADD = atf-c/detail/libtest_helpers.la libatf-c.la
-
 tests_atf_c_PROGRAMS += atf-c/error_test
 atf_c_error_test_SOURCES = atf-c/error_test.c
 atf_c_error_test_LDADD = atf-c/detail/libtest_helpers.la libatf-c.la
@@ -129,8 +107,7 @@ tests_atf_c_SCRIPTS = atf-c/pkg_config_test
 CLEANFILES += atf-c/pkg_config_test
 EXTRA_DIST += atf-c/pkg_config_test.sh
 atf-c/pkg_config_test: $(srcdir)/atf-c/pkg_config_test.sh
-	test -d atf-c || mkdir -p atf-c
-	@src="$(srcdir)/atf-c/pkg_config_test.sh"; \
+	$(AM_V_GEN)src="$(srcdir)/atf-c/pkg_config_test.sh"; \
 	dst="atf-c/pkg_config_test"; $(BUILD_SH_TP)
 
 tests_atf_c_PROGRAMS += atf-c/tc_test

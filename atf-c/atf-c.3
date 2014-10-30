@@ -1,6 +1,3 @@
-.\"
-.\" Automated Testing Framework (atf)
-.\"
 .\" Copyright (c) 2008 The NetBSD Foundation, Inc.
 .\" All rights reserved.
 .\"
@@ -25,12 +22,11 @@
 .\" IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR
 .\" OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN
 .\" IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-.\"
-.Dd November 15, 2013
-.Dt ATF-C-API 3
+.Dd October 13, 2014
+.Dt ATF-C 3
 .Os
 .Sh NAME
-.Nm atf-c-api ,
+.Nm atf-c ,
 .Nm ATF_CHECK ,
 .Nm ATF_CHECK_MSG ,
 .Nm ATF_CHECK_EQ ,
@@ -93,24 +89,26 @@
 .Nd C API to write ATF-based test programs
 .Sh SYNOPSIS
 .In atf-c.h
+.\" NO_CHECK_STYLE_BEGIN
 .Fn ATF_CHECK "expression"
 .Fn ATF_CHECK_MSG "expression" "fail_msg_fmt" ...
-.Fn ATF_CHECK_EQ "expression_1" "expression_2"
-.Fn ATF_CHECK_EQ_MSG "expression_1" "expression_2" "fail_msg_fmt" ...
+.Fn ATF_CHECK_EQ "expected_expression" "actual_expression"
+.Fn ATF_CHECK_EQ_MSG "expected_expression" "actual_expression" "fail_msg_fmt" ...
 .Fn ATF_CHECK_MATCH "regexp" "string"
 .Fn ATF_CHECK_MATCH_MSG "regexp" "string" "fail_msg_fmt" ...
 .Fn ATF_CHECK_STREQ "string_1" "string_2"
 .Fn ATF_CHECK_STREQ_MSG "string_1" "string_2" "fail_msg_fmt" ...
-.Fn ATF_CHECK_ERRNO "exp_errno" "bool_expression"
+.Fn ATF_CHECK_ERRNO "expected_errno" "bool_expression"
 .Fn ATF_REQUIRE "expression"
 .Fn ATF_REQUIRE_MSG "expression" "fail_msg_fmt" ...
-.Fn ATF_REQUIRE_EQ "expression_1" "expression_2"
-.Fn ATF_REQUIRE_EQ_MSG "expression_1" "expression_2" "fail_msg_fmt" ...
+.Fn ATF_REQUIRE_EQ "expected_expression" "actual_expression"
+.Fn ATF_REQUIRE_EQ_MSG "expected_expression" "actual_expression" "fail_msg_fmt" ...
 .Fn ATF_REQUIRE_MATCH "regexp" "string"
 .Fn ATF_REQUIRE_MATCH_MSG "regexp" "string" "fail_msg_fmt" ...
-.Fn ATF_REQUIRE_STREQ "string_1" "string_2"
-.Fn ATF_REQUIRE_STREQ_MSG "string_1" "string_2" "fail_msg_fmt" ...
-.Fn ATF_REQUIRE_ERRNO "exp_errno" "bool_expression"
+.Fn ATF_REQUIRE_STREQ "expected_string" "actual_string"
+.Fn ATF_REQUIRE_STREQ_MSG "expected_string" "actual_string" "fail_msg_fmt" ...
+.Fn ATF_REQUIRE_ERRNO "expected_errno" "bool_expression"
+.\" NO_CHECK_STYLE_END
 .Fn ATF_TC "name"
 .Fn ATF_TC_BODY "name" "tc"
 .Fn ATF_TC_BODY_NAME "name"
@@ -409,9 +407,8 @@ If
 .Va exitcode
 is not
 .Sq -1 ,
-.Xr atf-run 1
-will validate that the exit code of the test case matches the one provided
-in this call.
+the runtime engine will validate that the exit code of the test case
+matches the one provided in this call.
 Otherwise, the exact value will be ignored.
 .It Fn atf_tc_expect_fail "reason" "..."
 Any failure (be it fatal or non-fatal) raised in this mode is recorded.
@@ -443,9 +440,8 @@ If
 .Va signo
 is not
 .Sq -1 ,
-.Xr atf-run 1
-will validate that the signal that terminated the test case matches the one
-provided in this call.
+the runtime engine will validate that the signal that terminated the test
+case matches the one provided in this call.
 Otherwise, the exact value will be ignored.
 .It Fn atf_tc_expect_timeout "reason" "..."
 Expects the test case to execute for longer than its timeout.
@@ -497,6 +493,8 @@ take an expression and fail if the expression evaluates to false.
 and
 .Fn ATF_REQUIRE_EQ_MSG
 take two expressions and fail if the two evaluated values are not equal.
+The common style is to put the expected value in the first parameter and the
+actual value in the second parameter.
 .Pp
 .Fn ATF_CHECK_MATCH ,
 .Fn ATF_CHECK_MATCH_MSG ,
@@ -514,6 +512,8 @@ the string.
 and
 .Fn ATF_REQUIRE_STREQ_MSG
 take two strings and fail if the two are not equal character by character.
+The common style is to put the expected string in the first parameter and the
+actual string in the second parameter.
 .Pp
 .Fn ATF_CHECK_ERRNO
 and
@@ -698,6 +698,25 @@ strings are prefixed with
 then they specify the name of the file into which to store the stdout or stderr
 of the subprocess, and no comparison is performed.
 .Ed
+.Sh ENVIRONMENT
+The following variables are recognized by
+.Nm
+but should not be overridden other than for testing purposes:
+.Pp
+.Bl -tag -width ATFXBUILDXCXXFLAGSXX -compact
+.It Va ATF_BUILD_CC
+Path to the C compiler.
+.It Va ATF_BUILD_CFLAGS
+C compiler flags.
+.It Va ATF_BUILD_CPP
+Path to the C/C++ preprocessor.
+.It Va ATF_BUILD_CPPFLAGS
+C/C++ preprocessor flags.
+.It Va ATF_BUILD_CXX
+Path to the C++ compiler.
+.It Va ATF_BUILD_CXXFLAGS
+C++ compiler flags.
+.El
 .Sh EXAMPLES
 The following shows a complete test program with a single test case that
 validates the addition operator:
@@ -712,13 +731,13 @@ ATF_TC_HEAD(addition, tc)
 }
 ATF_TC_BODY(addition, tc)
 {
-    ATF_CHECK_EQ(0 + 0, 0);
-    ATF_CHECK_EQ(0 + 1, 1);
-    ATF_CHECK_EQ(1 + 0, 1);
+    ATF_CHECK_EQ(0, 0 + 0);
+    ATF_CHECK_EQ(1, 0 + 1);
+    ATF_CHECK_EQ(1, 1 + 0);
 
-    ATF_CHECK_EQ(1 + 1, 2);
+    ATF_CHECK_EQ(2, 1 + 1);
 
-    ATF_CHECK_EQ(100 + 200, 300);
+    ATF_CHECK_EQ(300, 100 + 200);
 }
 
 ATF_TC(string_formatting);
@@ -771,5 +790,4 @@ ATF_TP_ADD_TCS(tp)
 .Ed
 .Sh SEE ALSO
 .Xr atf-test-program 1 ,
-.Xr atf-test-case 4 ,
-.Xr atf 7
+.Xr atf-test-case 4

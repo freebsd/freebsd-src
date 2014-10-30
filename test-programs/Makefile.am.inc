@@ -1,6 +1,3 @@
-#
-# Automated Testing Framework (atf)
-#
 # Copyright (c) 2007 The NetBSD Foundation, Inc.
 # All rights reserved.
 #
@@ -25,7 +22,6 @@
 # IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR
 # OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN
 # IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-#
 
 tests_test_programs_DATA = test-programs/Kyuafile
 tests_test_programsdir = $(pkgtestsdir)/test-programs
@@ -46,48 +42,42 @@ tests_test_programs_SCRIPTS = test-programs/sh_helpers
 CLEANFILES += test-programs/sh_helpers
 EXTRA_DIST += test-programs/sh_helpers.sh
 test-programs/sh_helpers: $(srcdir)/test-programs/sh_helpers.sh
-	test -d test-programs || mkdir -p test-programs
-	@src="$(srcdir)/test-programs/sh_helpers.sh $(common_sh)"; \
+	$(AM_V_GEN)src="$(srcdir)/test-programs/sh_helpers.sh $(common_sh)"; \
 	dst="test-programs/sh_helpers"; $(BUILD_SH_TP)
 
 tests_test_programs_SCRIPTS += test-programs/config_test
 CLEANFILES += test-programs/config_test
 EXTRA_DIST += test-programs/config_test.sh
 test-programs/config_test: $(srcdir)/test-programs/config_test.sh
-	test -d test-programs || mkdir -p test-programs
-	@src="$(srcdir)/test-programs/config_test.sh $(common_sh)"; \
+	$(AM_V_GEN)src="$(srcdir)/test-programs/config_test.sh $(common_sh)"; \
 	dst="test-programs/config_test"; $(BUILD_SH_TP)
 
 tests_test_programs_SCRIPTS += test-programs/expect_test
 CLEANFILES += test-programs/expect_test
 EXTRA_DIST += test-programs/expect_test.sh
 test-programs/expect_test: $(srcdir)/test-programs/expect_test.sh
-	test -d test-programs || mkdir -p test-programs
-	@src="$(srcdir)/test-programs/expect_test.sh $(common_sh)"; \
+	$(AM_V_GEN)src="$(srcdir)/test-programs/expect_test.sh $(common_sh)"; \
 	dst="test-programs/expect_test"; $(BUILD_SH_TP)
 
 tests_test_programs_SCRIPTS += test-programs/meta_data_test
 CLEANFILES += test-programs/meta_data_test
 EXTRA_DIST += test-programs/meta_data_test.sh
 test-programs/meta_data_test: $(srcdir)/test-programs/meta_data_test.sh
-	test -d test-programs || mkdir -p test-programs
-	@src="$(srcdir)/test-programs/meta_data_test.sh $(common_sh)"; \
+	$(AM_V_GEN)src="$(srcdir)/test-programs/meta_data_test.sh $(common_sh)"; \
 	dst="test-programs/meta_data_test"; $(BUILD_SH_TP)
 
 tests_test_programs_SCRIPTS += test-programs/result_test
 CLEANFILES += test-programs/result_test
 EXTRA_DIST += test-programs/result_test.sh
 test-programs/result_test: $(srcdir)/test-programs/result_test.sh
-	test -d test-programs || mkdir -p test-programs
-	@src="$(srcdir)/test-programs/result_test.sh $(common_sh)"; \
+	$(AM_V_GEN)src="$(srcdir)/test-programs/result_test.sh $(common_sh)"; \
 	dst="test-programs/result_test"; $(BUILD_SH_TP)
 
 tests_test_programs_SCRIPTS += test-programs/srcdir_test
 CLEANFILES += test-programs/srcdir_test
 EXTRA_DIST += test-programs/srcdir_test.sh
 test-programs/srcdir_test: $(srcdir)/test-programs/srcdir_test.sh
-	test -d test-programs || mkdir -p test-programs
-	@src="$(srcdir)/test-programs/srcdir_test.sh $(common_sh)"; \
+	$(AM_V_GEN)src="$(srcdir)/test-programs/srcdir_test.sh $(common_sh)"; \
 	dst="test-programs/srcdir_test"; $(BUILD_SH_TP)
 
 # vim: syntax=make:noexpandtab:shiftwidth=8:softtabstop=8
