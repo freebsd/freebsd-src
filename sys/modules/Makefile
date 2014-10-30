@@ -270,6 +270,7 @@ SUBDIR=	\
 	${_opensolaris} \
 	oce \
 	${_padlock} \
+	${_padlock_rng} \
 	patm \
 	${_pccard} \
 	${_pcfclock} \
@@ -297,6 +298,7 @@ SUBDIR=	\
 	${_random} \
 	rc4 \
 	${_rdma} \
+	${_rdrand_rng} \
 	re \
 	reiserfs \
 	rl \
@@ -583,6 +585,8 @@ _nvram=		nvram
 _nxge=		nxge
 .if ${MK_CRYPT} != "no" || defined(ALL_MODULES)
 _padlock=	padlock
+_padlock_rng=	padlock_rng
+_rdrand_rng=	rdrand_rng
 .endif
 _s3=		s3
 _tpm=		tpm
@@ -602,6 +606,17 @@ _x86bios=	x86bios
 _ixl=		ixl
 _ixlv=		ixlv
 _ntb=		ntb
+_nvd=		nvd
+_nvme=		nvme
+_nvram=		nvram
+_nxge=		nxge
+.if ${MK_CDDL} != "no" || defined(ALL_MODULES)
+_opensolaris=	opensolaris
+.endif
+.if ${MK_CRYPT} != "no" || defined(ALL_MODULES)
+_padlock=	padlock
+.endif
+_pccard=	pccard
 _qlxge=		qlxge
 _qlxgb=		qlxgb
 _qlxgbe=	qlxgbe

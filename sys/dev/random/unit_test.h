@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2000-2013 Mark R. V. Murray
+ * Copyright (c) 2013 Mark R V Murray
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -26,49 +26,47 @@
  * $FreeBSD$
  */
 
-#ifndef	_SYS_RANDOM_H_
-#define	_SYS_RANDOM_H_
 
-#ifdef _KERNEL
+#ifndef UNIT_TEST_H_INCLUDED
+#define UNIT_TEST_H_INCLUDED
 
-int read_random(void *, int);
+void random_adaptor_unblock(void);
 
-/*
- * Note: if you add or remove members of random_entropy_source, remember to also update the
- * KASSERT regarding what valid members are in random_harvest_internal(), and remember the
- * strings in the static array random_source_descr[] in random_harvestq.c.
- *
- * NOTE: complain loudly to markm@ or on the lists if this enum gets more than 32
- * distinct values (0-31)! ENTROPYSOURCE may be == 32, but not > 32.
- */
+static __inline uint64_t
+get_cyclecount(void)
+{
+
+	/* Shaddup! */
+	return (4ULL);
+}
+
+// #define PAGE_SIZE	4096
+#define HARVESTSIZE	16
+
 enum random_entropy_source {
 	RANDOM_START = 0,
 	RANDOM_CACHED = 0,
-	/* Environmental sources */
-	RANDOM_ATTACH,
-	RANDOM_KEYBOARD,
-	RANDOM_MOUSE,
-	RANDOM_NET_TUN,
-	RANDOM_NET_ETHER,
-	RANDOM_NET_NG,
-	RANDOM_INTERRUPT,
-	RANDOM_SWI,
-	RANDOM_UMA_ALLOC,
-	RANDOM_ENVIRONMENTAL_END, /* This one is wasted */
-	/* High-quality HW RNGs from here on. */
-	RANDOM_PURE_OCTEON,
-	RANDOM_PURE_SAFE,
-	RANDOM_PURE_GLXSB,
-	RANDOM_PURE_UBSEC,
-	RANDOM_PURE_HIFN,
-	RANDOM_PURE_RDRAND,
-	RANDOM_PURE_NEHEMIAH,
-	RANDOM_PURE_RNDTEST,
-	RANDOM_PURE_VIRTIO,
-	ENTROPYSOURCE
+	ENTROPYSOURCE = 32
 };
-void random_harvest(const void *, u_int, u_int, enum random_entropy_source);
 
-#endif /* _KERNEL */
+struct harvest_event {
+	uintmax_t			he_somecounter;		/* fast counter for clock jitter */
+	uint8_t				he_entropy[HARVESTSIZE];/* some harvested entropy */
+	u_int				he_size;		/* harvested entropy byte count */
+	u_int				he_bits;		/* stats about the entropy */
+	u_int				he_destination;		/* destination pool of this entropy */
+	enum random_entropy_source	he_source;		/* origin of the entropy */
+	void *				he_next;		/* next item on the list */
+};
 
-#endif /* _SYS_RANDOM_H_ */
+struct sysctl_ctx_list;
+
+#define	CTASSERT(x)	_Static_assert(x, "compile-time assertion failed")
+#define	KASSERT(exp,msg) do {	\
+	if (!(exp)) {		\
+		printf msg;	\
+		exit(0);	\
+	}			\
+} while (0)
+
+#endif /* UNIT_TEST_H_INCLUDED */
