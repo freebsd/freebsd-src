@@ -36,7 +36,7 @@
 #include <infiniband/kern-abi.h>
 
 #define MLX4_UVERBS_MIN_ABI_VERSION	2
-#define MLX4_UVERBS_MAX_ABI_VERSION	3
+#define MLX4_UVERBS_MAX_ABI_VERSION	4
 
 struct mlx4_alloc_ucontext_resp {
 	struct ibv_get_context_resp	ibv_resp;

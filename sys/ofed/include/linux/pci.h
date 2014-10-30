@@ -2,6 +2,7 @@
  * Copyright (c) 2010 Isilon Systems, Inc.
  * Copyright (c) 2010 iX Systems, Inc.
  * Copyright (c) 2010 Panasas, Inc.
+ * Copyright (c) 2013, 2014 Mellanox Technologies, Ltd.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -43,7 +44,6 @@
 
 #include <machine/resource.h>
 
-#include <linux/init.h>
 #include <linux/list.h>
 #include <linux/dmapool.h>
 #include <linux/dma-mapping.h>
@@ -72,6 +72,9 @@ struct pci_device_id {
 #define	PCI_DEVICE_ID_MELLANOX_SINAI_OLD	0x5e8c
 #define	PCI_DEVICE_ID_MELLANOX_SINAI		0x6274
 
+#define PCI_DEVFN(slot, func)   ((((slot) & 0x1f) << 3) | ((func) & 0x07))
+#define PCI_SLOT(devfn)         (((devfn) >> 3) & 0x1f)
+#define PCI_FUNC(devfn)         ((devfn) & 0x07)
 
 #define PCI_VDEVICE(_vendor, _device)					\
 	    .vendor = PCI_VENDOR_ID_##_vendor, .device = (_device),	\
@@ -82,10 +85,35 @@ struct pci_device_id {
 
 #define	to_pci_dev(n)	container_of(n, struct pci_dev, dev)
 
-#define	PCI_VENDOR_ID	PCIR_DEVVENDOR
-#define	PCI_COMMAND	PCIR_COMMAND
-#define	PCI_EXP_DEVCTL	PCIER_DEVICE_CTL
-#define	PCI_EXP_LNKCTL	PCIER_LINK_CTL
+#define	PCI_VENDOR_ID		PCIR_DEVVENDOR
+#define	PCI_COMMAND		PCIR_COMMAND
+#define	PCI_EXP_DEVCTL		PCIER_DEVICE_CTL		/* Device Control */
+#define	PCI_EXP_LNKCTL		PCIER_LINK_CTL			/* Link Control */
+#define	PCI_EXP_FLAGS_TYPE	PCIEM_FLAGS_TYPE		/* Device/Port type */
+#define	PCI_EXP_DEVCAP		PCIER_DEVICE_CAP		/* Device capabilities */
+#define	PCI_EXP_DEVSTA		PCIER_DEVICE_STA		/* Device Status */
+#define	PCI_EXP_LNKCAP		PCIER_LINK_CAP			/* Link Capabilities */
+#define	PCI_EXP_LNKSTA		PCIER_LINK_STA			/* Link Status */
+#define	PCI_EXP_SLTCAP		PCIER_SLOT_CAP			/* Slot Capabilities */
+#define	PCI_EXP_SLTCTL		PCIER_SLOT_CTL			/* Slot Control */
+#define	PCI_EXP_SLTSTA		PCIER_SLOT_STA			/* Slot Status */
+#define	PCI_EXP_RTCTL		PCIER_ROOT_CTL			/* Root Control */
+#define	PCI_EXP_RTCAP		PCIER_ROOT_CAP			/* Root Capabilities */
+#define	PCI_EXP_RTSTA		PCIER_ROOT_STA			/* Root Status */
+#define	PCI_EXP_DEVCAP2		PCIER_DEVICE_CAP2		/* Device Capabilities 2 */
+#define	PCI_EXP_DEVCTL2		PCIER_DEVICE_CTL2		/* Device Control 2 */
+#define	PCI_EXP_LNKCAP2		PCIER_LINK_CAP2			/* Link Capabilities 2 */
+#define	PCI_EXP_LNKCTL2		PCIER_LINK_CTL2			/* Link Control 2 */
+#define	PCI_EXP_LNKSTA2		PCIER_LINK_STA2			/* Link Status 2 */
+#define	PCI_EXP_FLAGS		PCIER_FLAGS			/* Capabilities register */
+#define	PCI_EXP_FLAGS_VERS	PCIEM_FLAGS_VERSION		/* Capability version */
+#define	PCI_EXP_TYPE_ROOT_PORT	PCIEM_TYPE_ROOT_PORT		/* Root Port */
+#define	PCI_EXP_TYPE_ENDPOINT	PCIEM_TYPE_ENDPOINT		/* Express Endpoint */
+#define	PCI_EXP_TYPE_LEG_END	PCIEM_TYPE_LEGACY_ENDPOINT	/* Legacy Endpoint */
+#define	PCI_EXP_TYPE_DOWNSTREAM PCIEM_TYPE_DOWNSTREAM_PORT	/* Downstream Port */
+#define	PCI_EXP_FLAGS_SLOT	PCIEM_FLAGS_SLOT		/* Slot implemented */
+#define	PCI_EXP_TYPE_RC_EC	PCIEM_TYPE_ROOT_EC		/* Root Complex Event Collector */
+
 
 #define	IORESOURCE_MEM	SYS_RES_MEMORY
 #define	IORESOURCE_IO	SYS_RES_IOPORT
@@ -93,14 +121,18 @@ struct pci_device_id {
 
 struct pci_dev;
 
+
 struct pci_driver {
 	struct list_head		links;
 	char				*name;
-	struct pci_device_id		*id_table;
+	const struct pci_device_id		*id_table;
 	int  (*probe)(struct pci_dev *dev, const struct pci_device_id *id);
 	void (*remove)(struct pci_dev *dev);
+        int  (*suspend) (struct pci_dev *dev, pm_message_t state);      /* Device suspended */
+        int  (*resume) (struct pci_dev *dev);                   /* Device woken up */
 	driver_t			driver;
 	devclass_t			bsdclass;
+        const struct pci_error_handlers       *err_handler;
 };
 
 extern struct list_head pci_drivers;
@@ -117,6 +149,9 @@ struct pci_dev {
 	uint16_t		device;
 	uint16_t		vendor;
 	unsigned int		irq;
+        unsigned int            devfn;
+        u8                      revision;
+        struct pci_devinfo      *bus; /* bus this device is on, equivalent to linux struct pci_bus */
 };
 
 static inline struct resource_list_entry *
@@ -296,6 +331,7 @@ pci_disable_msix(struct pci_dev *pdev)
 #define	PCI_CAP_ID_EXP	PCIY_EXPRESS
 #define	PCI_CAP_ID_PCIX	PCIY_PCIX
 
+
 static inline int
 pci_find_capability(struct pci_dev *pdev, int capid)
 {
@@ -305,6 +341,26 @@ pci_find_capability(struct pci_dev *pdev, int capid)
 		return (0);
 	return (reg);
 }
+
+
+
+
+/**
+ * pci_pcie_cap - get the saved PCIe capability offset
+ * @dev: PCI device
+ *
+ * PCIe capability offset is calculated at PCI device initialization
+ * time and saved in the data structure. This function returns saved
+ * PCIe capability offset. Using this instead of pci_find_capability()
+ * reduces unnecessary search in the PCI configuration space. If you
+ * need to calculate PCIe capability offset from raw device for some
+ * reasons, please use pci_find_capability() instead.
+ */
+static inline int pci_pcie_cap(struct pci_dev *dev)
+{
+        return pci_find_capability(dev, PCI_CAP_ID_EXP);
+}
+
 
 static inline int
 pci_read_config_byte(struct pci_dev *pdev, int where, u8 *val)
@@ -355,9 +411,9 @@ pci_write_config_dword(struct pci_dev *pdev, int where, u32 val)
 }
 
 static struct pci_driver *
-linux_pci_find(device_t dev, struct pci_device_id **idp)
+linux_pci_find(device_t dev, const struct pci_device_id **idp)
 {
-	struct pci_device_id *id;
+	const struct pci_device_id *id;
 	struct pci_driver *pdrv;
 	uint16_t vendor;
 	uint16_t device;
@@ -382,7 +438,7 @@ linux_pci_find(device_t dev, struct pci_device_id **idp)
 static inline int
 linux_pci_probe(device_t dev)
 {
-	struct pci_device_id *id;
+	const struct pci_device_id *id;
 	struct pci_driver *pdrv;
 
 	if ((pdrv = linux_pci_find(dev, &id)) == NULL)
@@ -399,7 +455,7 @@ linux_pci_attach(device_t dev)
 	struct resource_list_entry *rle;
 	struct pci_dev *pdev;
 	struct pci_driver *pdrv;
-	struct pci_device_id *id;
+	const struct pci_device_id *id;
 	int error;
 
 	pdrv = linux_pci_find(dev, &id);
@@ -529,6 +585,30 @@ pci_enable_msix(struct pci_dev *pdev, struct msix_entry *entries, int nreq)
 	return (0);
 }
 
+static inline int pci_channel_offline(struct pci_dev *pdev)
+{
+        return false;
+}
+
+static inline int pci_enable_sriov(struct pci_dev *dev, int nr_virtfn)
+{
+        return -ENODEV;
+}
+static inline void pci_disable_sriov(struct pci_dev *dev)
+{
+}
+
+/**
+ * DEFINE_PCI_DEVICE_TABLE - macro used to describe a pci device table
+ * @_table: device table name
+ *
+ * This macro is used to create a struct pci_device_id array (a device table)
+ * in a generic manner.
+ */
+#define DEFINE_PCI_DEVICE_TABLE(_table) \
+	const struct pci_device_id _table[] __devinitdata
+
+
 /* XXX This should not be necessary. */
 #define	pcix_set_mmrbc(d, v)	0
 #define	pcix_get_max_mmrbc(d)	0
@@ -577,6 +657,174 @@ pci_enable_msix(struct pci_dev *pdev, struct msix_entry *entries, int nreq)
 #define	pci_unmap_addr_set	dma_unmap_addr_set
 #define	pci_unmap_len		dma_unmap_len
 #define	pci_unmap_len_set	dma_unmap_len_set
+
+typedef unsigned int __bitwise pci_channel_state_t;
+typedef unsigned int __bitwise pci_ers_result_t;
+
+enum pci_channel_state {
+        /* I/O channel is in normal state */
+        pci_channel_io_normal = (__force pci_channel_state_t) 1,
+
+        /* I/O to channel is blocked */
+        pci_channel_io_frozen = (__force pci_channel_state_t) 2,
+
+        /* PCI card is dead */
+        pci_channel_io_perm_failure = (__force pci_channel_state_t) 3,
+};
+
+enum pci_ers_result {
+        /* no result/none/not supported in device driver */
+        PCI_ERS_RESULT_NONE = (__force pci_ers_result_t) 1,
+
+        /* Device driver can recover without slot reset */
+        PCI_ERS_RESULT_CAN_RECOVER = (__force pci_ers_result_t) 2,
+
+        /* Device driver wants slot to be reset. */
+        PCI_ERS_RESULT_NEED_RESET = (__force pci_ers_result_t) 3,
+
+        /* Device has completely failed, is unrecoverable */
+        PCI_ERS_RESULT_DISCONNECT = (__force pci_ers_result_t) 4,
+
+        /* Device driver is fully recovered and operational */
+        PCI_ERS_RESULT_RECOVERED = (__force pci_ers_result_t) 5,
+};
+
+
+/* PCI bus error event callbacks */
+struct pci_error_handlers {
+        /* PCI bus error detected on this device */
+        pci_ers_result_t (*error_detected)(struct pci_dev *dev,
+                        enum pci_channel_state error);
+
+        /* MMIO has been re-enabled, but not DMA */
+        pci_ers_result_t (*mmio_enabled)(struct pci_dev *dev);
+
+        /* PCI Express link has been reset */
+        pci_ers_result_t (*link_reset)(struct pci_dev *dev);
+
+        /* PCI slot has been reset */
+        pci_ers_result_t (*slot_reset)(struct pci_dev *dev);
+
+        /* Device driver may resume normal operations */
+        void (*resume)(struct pci_dev *dev);
+};
+
+/* freeBSD does not support SRIOV - yet */
+static inline struct pci_dev *pci_physfn(struct pci_dev *dev)
+{
+        return dev;
+}
+
+static inline bool pci_is_pcie(struct pci_dev *dev)
+{
+        return !!pci_pcie_cap(dev);
+}
+
+static inline u16 pcie_flags_reg(struct pci_dev *dev)
+{
+        int pos;
+        u16 reg16;
+
+        pos = pci_find_capability(dev, PCI_CAP_ID_EXP);
+        if (!pos)
+                return 0;
+
+        pci_read_config_word(dev, pos + PCI_EXP_FLAGS, &reg16);
+
+        return reg16;
+}
+
+
+static inline int pci_pcie_type(struct pci_dev *dev)
+{
+        return (pcie_flags_reg(dev) & PCI_EXP_FLAGS_TYPE) >> 4;
+}
+
+static inline int pcie_cap_version(struct pci_dev *dev)
+{
+        return pcie_flags_reg(dev) & PCI_EXP_FLAGS_VERS;
+}
+
+static inline bool pcie_cap_has_lnkctl(struct pci_dev *dev)
+{
+        int type = pci_pcie_type(dev);
+
+        return pcie_cap_version(dev) > 1 ||
+               type == PCI_EXP_TYPE_ROOT_PORT ||
+               type == PCI_EXP_TYPE_ENDPOINT ||
+               type == PCI_EXP_TYPE_LEG_END;
+}
+
+static inline bool pcie_cap_has_devctl(const struct pci_dev *dev)
+{
+                return true;
+}
+
+static inline bool pcie_cap_has_sltctl(struct pci_dev *dev)
+{
+        int type = pci_pcie_type(dev);
+
+        return pcie_cap_version(dev) > 1 ||
+               type == PCI_EXP_TYPE_ROOT_PORT ||
+               (type == PCI_EXP_TYPE_DOWNSTREAM &&
+                pcie_flags_reg(dev) & PCI_EXP_FLAGS_SLOT);
+}
+
+static inline bool pcie_cap_has_rtctl(struct pci_dev *dev)
+{
+        int type = pci_pcie_type(dev);
+
+        return pcie_cap_version(dev) > 1 ||
+               type == PCI_EXP_TYPE_ROOT_PORT ||
+               type == PCI_EXP_TYPE_RC_EC;
+}
+
+static bool pcie_capability_reg_implemented(struct pci_dev *dev, int pos)
+{
+        if (!pci_is_pcie(dev))
+                return false;
+
+        switch (pos) {
+        case PCI_EXP_FLAGS_TYPE:
+                return true;
+        case PCI_EXP_DEVCAP:
+        case PCI_EXP_DEVCTL:
+        case PCI_EXP_DEVSTA:
+                return pcie_cap_has_devctl(dev);
+        case PCI_EXP_LNKCAP:
+        case PCI_EXP_LNKCTL:
+        case PCI_EXP_LNKSTA:
+                return pcie_cap_has_lnkctl(dev);
+        case PCI_EXP_SLTCAP:
+        case PCI_EXP_SLTCTL:
+        case PCI_EXP_SLTSTA:
+                return pcie_cap_has_sltctl(dev);
+        case PCI_EXP_RTCTL:
+        case PCI_EXP_RTCAP:
+        case PCI_EXP_RTSTA:
+                return pcie_cap_has_rtctl(dev);
+        case PCI_EXP_DEVCAP2:
+        case PCI_EXP_DEVCTL2:
+        case PCI_EXP_LNKCAP2:
+        case PCI_EXP_LNKCTL2:
+        case PCI_EXP_LNKSTA2:
+                return pcie_cap_version(dev) > 1;
+        default:
+                return false;
+        }
+}
+
+ 
+static inline int pcie_capability_write_word(struct pci_dev *dev, int pos, u16 val)
+{
+        if (pos & 1)
+                return -EINVAL;
+
+        if (!pcie_capability_reg_implemented(dev, pos))
+                return 0;
+
+        return pci_write_config_word(dev, pci_pcie_cap(dev) + pos, val);
+}
 
 
 #endif	/* _LINUX_PCI_H_ */

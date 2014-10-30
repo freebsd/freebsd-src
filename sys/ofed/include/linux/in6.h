@@ -2,6 +2,7 @@
  * Copyright (c) 2010 Isilon Systems, Inc.
  * Copyright (c) 2010 iX Systems, Inc.
  * Copyright (c) 2010 Panasas, Inc.
+ * Copyright (c) 2013 Mellanox Technologies, Ltd.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -29,6 +30,8 @@
 #ifndef	_LINUX_IN6_H_
 #define	_LINUX_IN6_H_
 
+#ifndef KLD_MODULE
 #include "opt_inet6.h"
+#endif
 
 #endif	/* _LINUX_IN6_H_ */

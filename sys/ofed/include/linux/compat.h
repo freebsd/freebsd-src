@@ -2,6 +2,7 @@
  * Copyright (c) 2010 Isilon Systems, Inc.
  * Copyright (c) 2010 iX Systems, Inc.
  * Copyright (c) 2010 Panasas, Inc.
+ * Copyright (c) 2013, 2014 Mellanox Technologies, Ltd.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -28,6 +29,9 @@
 
 #ifndef	_LINUX_COMPAT_H_
 #define	_LINUX_COMPAT_H_
+
+#define is_multicast_ether_addr(x) 0
+#define is_broadcast_ether_addr(x) 0
 
 
 #endif	/* _LINUX_COMPAT_H_ */

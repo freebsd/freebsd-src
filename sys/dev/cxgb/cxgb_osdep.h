@@ -91,8 +91,6 @@ struct t3_mbuf_hdr {
 #endif
 #endif
 
-#define __read_mostly __attribute__((__section__(".data.read_mostly")))
-
 /*
  * Workaround for weird Chelsio issue
  */

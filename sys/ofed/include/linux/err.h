@@ -2,6 +2,7 @@
  * Copyright (c) 2010 Isilon Systems, Inc.
  * Copyright (c) 2010 iX Systems, Inc.
  * Copyright (c) 2010 Panasas, Inc.
+ * Copyright (c) 2013, 2014 Mellanox Technologies, Ltd.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -56,5 +57,16 @@ ERR_CAST(void *ptr)
 {
 	return (void *)ptr;
 }
+
+static inline int
+PTR_ERR_OR_ZERO(const void *ptr)
+{
+        if (IS_ERR(ptr))
+                return PTR_ERR(ptr);
+        else
+                return 0;
+}
+
+#define PTR_RET(p) PTR_ERR_OR_ZERO(p)
 
 #endif	/* _LINUX_ERR_H_ */

@@ -2,6 +2,7 @@
  * Copyright (c) 2010 Isilon Systems, Inc.
  * Copyright (c) 2010 iX Systems, Inc.
  * Copyright (c) 2010 Panasas, Inc.
+ * Copyright (c) 2013, 2014 Mellanox Technologies, Ltd.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -25,10 +26,12 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-#ifndef	_LINUX_BITMAP_H_
-#define	_LINUX_BITMAP_H_
 
-#include <linux/bitops.h>
-#include <linux/string.h>
+#ifndef	_LINUX_CACHE_H_
+#define _LINUX_CACHE_H_
 
-#endif	/* _LINUX_BITMAP_H_ */
+
+#define	cache_line_size()	CACHE_LINE_SIZE
+
+
+#endif	/* _LINUX_CACHE_H_ */

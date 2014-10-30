@@ -35,7 +35,6 @@
  */
 
 #include <linux/module.h>
-#include <linux/init.h>
 #include <linux/device.h>
 #include <linux/err.h>
 #include <linux/fs.h>
@@ -110,8 +109,8 @@ static ssize_t (*uverbs_cmd_table[])(struct ib_uverbs_file *file,
 	[IB_USER_VERBS_CMD_QUERY_SRQ]     	= ib_uverbs_query_srq,
 	[IB_USER_VERBS_CMD_DESTROY_SRQ]   	= ib_uverbs_destroy_srq,
 	[IB_USER_VERBS_CMD_CREATE_XRC_SRQ]	= ib_uverbs_create_xrc_srq,
-	[IB_USER_VERBS_CMD_OPEN_XRC_DOMAIN]	= ib_uverbs_open_xrc_domain,
-	[IB_USER_VERBS_CMD_CLOSE_XRC_DOMAIN]	= ib_uverbs_close_xrc_domain,
+	[IB_USER_VERBS_CMD_OPEN_XRCD]	        = ib_uverbs_open_xrc_domain,
+	[IB_USER_VERBS_CMD_CLOSE_XRCD]	        = ib_uverbs_close_xrc_domain,
 	[IB_USER_VERBS_CMD_CREATE_XRC_RCV_QP]	= ib_uverbs_create_xrc_rcv_qp,
 	[IB_USER_VERBS_CMD_MODIFY_XRC_RCV_QP]	= ib_uverbs_modify_xrc_rcv_qp,
 	[IB_USER_VERBS_CMD_QUERY_XRC_RCV_QP]	= ib_uverbs_query_xrc_rcv_qp,
@@ -258,7 +257,7 @@ static int ib_uverbs_cleanup_ucontext(struct ib_uverbs_file *file,
 	}
 
 	mutex_lock(&file->device->ib_dev->xrcd_table_mutex);
-	list_for_each_entry_safe(uobj, tmp, &context->xrc_domain_list, list) {
+	list_for_each_entry_safe(uobj, tmp, &context->xrcd_list, list) {
 		struct ib_xrcd *xrcd = uobj->object;
 		struct ib_uxrc_rcv_object *xrc_qp_obj, *tmp1;
 		struct ib_uxrcd_object *xrcd_uobj =
@@ -565,8 +564,12 @@ struct file *ib_uverbs_alloc_event_file(struct ib_uverbs_file *uverbs_file,
 	 * system call on a uverbs file, which will already have a
 	 * module reference.
 	 */
+#ifdef __linux__
 	filp = alloc_file(uverbs_event_mnt, dget(uverbs_event_mnt->mnt_root),
 			  FMODE_READ, fops_get(&uverbs_event_fops));
+#else
+	filp = alloc_file(FMODE_READ, fops_get(&uverbs_event_fops));
+#endif
 	if (!filp) {
 		ret = -ENFILE;
 		goto err_fd;
@@ -629,8 +632,7 @@ static ssize_t ib_uverbs_write(struct file *filp, const char __user *buf,
 	if (hdr.in_words * 4 != count)
 		return -EINVAL;
 
-	if (hdr.command < 0				||
-	    hdr.command >= ARRAY_SIZE(uverbs_cmd_table) ||
+	if (hdr.command >= ARRAY_SIZE(uverbs_cmd_table) ||
 	    !uverbs_cmd_table[hdr.command]		||
 	    !(file->device->ib_dev->uverbs_cmd_mask & (1ull << hdr.command)))
 		return -EINVAL;
@@ -768,7 +770,7 @@ static ssize_t show_dev_abi_version(struct device *device,
 }
 static DEVICE_ATTR(abi_version, S_IRUGO, show_dev_abi_version, NULL);
 
-static ssize_t show_abi_version(struct class *class, char *buf)
+static ssize_t show_abi_version(struct class *class, struct class_attribute *attr, char *buf)
 {
 	return sprintf(buf, "%d\n", IB_USER_VERBS_ABI_VERSION);
 }

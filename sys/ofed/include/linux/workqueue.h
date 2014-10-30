@@ -2,6 +2,7 @@
  * Copyright (c) 2010 Isilon Systems, Inc.
  * Copyright (c) 2010 iX Systems, Inc.
  * Copyright (c) 2010 Panasas, Inc.
+ * Copyright (c) 2013, 2014 Mellanox Technologies, Ltd.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -80,7 +81,7 @@ do {									\
 	callout_init(&(_work)->timer, CALLOUT_MPSAFE);			\
 } while (0)
 
-#define	INIT_DELAYED_WORK_DEFERRABLE	INIT_DELAYED_WORK
+#define	INIT_DEFERRABLE_WORK	INIT_DELAYED_WORK
 
 #define	schedule_work(work)						\
 do {									\
@@ -90,11 +91,12 @@ do {									\
 
 #define	flush_scheduled_work()	flush_taskqueue(taskqueue_thread)
 
-#define	queue_work(q, work)						\
-do {									\
-	(work)->taskqueue = (q)->taskqueue;				\
-	taskqueue_enqueue((q)->taskqueue, &(work)->work_task);		\
-} while (0)
+static inline int queue_work (struct workqueue_struct *q, struct work_struct *work)
+{
+	(work)->taskqueue = (q)->taskqueue;
+	/* Return opposite val to align with Linux logic */
+        return !taskqueue_enqueue((q)->taskqueue, &(work)->work_task);
+}
 
 static inline void
 _delayed_work_fn(void *arg)
@@ -119,6 +121,14 @@ queue_delayed_work(struct workqueue_struct *wq, struct delayed_work *work,
 		_delayed_work_fn((void *)work);
 
 	return (!pending);
+}
+
+static inline bool schedule_delayed_work(struct delayed_work *dwork,
+                                         unsigned long delay)
+{
+        struct workqueue_struct wq;
+        wq.taskqueue = taskqueue_thread;
+        return queue_delayed_work(&wq, dwork, delay);
 }
 
 static inline struct workqueue_struct *
@@ -188,6 +198,26 @@ cancel_delayed_work(struct delayed_work *work)
 		return (taskqueue_cancel(work->work.taskqueue,
 		    &work->work.work_task, NULL) == 0);
 	return 0;
+}
+
+static inline int
+cancel_delayed_work_sync(struct delayed_work *work)
+{
+
+        callout_drain(&work->timer);
+        if (work->work.taskqueue &&
+            taskqueue_cancel(work->work.taskqueue, &work->work.work_task, NULL))
+                taskqueue_drain(work->work.taskqueue, &work->work.work_task);
+        return 0;
+}
+
+static inline bool
+mod_delayed_work(struct workqueue_struct *wq, struct delayed_work *dwork,
+		                      unsigned long delay)
+{
+	cancel_delayed_work(dwork);
+	queue_delayed_work(wq, dwork, delay);
+	return false;
 }
 
 #endif	/* _LINUX_WORKQUEUE_H_ */
