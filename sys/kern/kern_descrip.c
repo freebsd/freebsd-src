@@ -2362,7 +2362,12 @@ fget_unlocked(struct filedesc *fdp, int fd, cap_rights_t *needrightsp,
 	retry:
 		count = fp->f_count;
 		if (count == 0) {
-			fdt = fdp->fd_files;
+			/*
+			 * Force a reload. Other thread could reallocate the
+			 * table before this fd was closed, so it possible that
+			 * there is a stale fp pointer in cached version.
+			 */
+			fdt = *(struct fdescenttbl * volatile *)&(fdp->fd_files);
 			continue;
 		}
 		/*
