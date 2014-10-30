@@ -824,7 +824,7 @@ nfs_mount(struct mount *mp)
 	if (vfs_getopt(mp->mnt_optnew, "noconn", NULL, NULL) == 0)
 		args.flags |= NFSMNT_NOCONN;
 	if (vfs_getopt(mp->mnt_optnew, "conn", NULL, NULL) == 0)
-		args.flags |= NFSMNT_NOCONN;
+		args.flags &= ~NFSMNT_NOCONN;
 	if (vfs_getopt(mp->mnt_optnew, "nolockd", NULL, NULL) == 0)
 		args.flags |= NFSMNT_NOLOCKD;
 	if (vfs_getopt(mp->mnt_optnew, "lockd", NULL, NULL) == 0)
