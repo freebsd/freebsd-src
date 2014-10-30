@@ -31,7 +31,7 @@
  *
  */
 
-#include <asm/page.h>
+#include <linux/page.h>
 #include <linux/mlx4/cq.h>
 #include <linux/slab.h>
 #include <linux/mlx4/qp.h>
