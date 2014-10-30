@@ -477,35 +477,6 @@ main(int argc, char *argv[])
 }
 
 static int
-findopt(struct iovec *iov, int iovlen, const char *name,
-    char **valuep, int *lenp)
-{
-	int i;
-
-	for (i = 0; i < iovlen/2; i++, iov += 2) {
-		if (strcmp(name, iov[0].iov_base) == 0) {
-			if (valuep)
-				*valuep = iov[1].iov_base;
-			if (lenp)
-				*lenp = iov[1].iov_len;
-			return (0);
-		}
-	}
-	return (ENOENT);
-}
-
-static void
-copyopt(struct iovec **newiov, int *newiovlen,
-    struct iovec *iov, int iovlen, const char *name)
-{
-	char *value;
-	int len;
-
-	if (findopt(iov, iovlen, name, &value, &len) == 0)
-		build_iovec(newiov, newiovlen, name, value, len);
-}
-
-static int
 sec_name_to_num(char *sec)
 {
 	if (!strcmp(sec, "krb5"))
