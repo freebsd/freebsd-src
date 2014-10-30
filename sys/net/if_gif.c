@@ -546,6 +546,7 @@ gif_input(m, af, ifp)
 	}
 	sc = ifp->if_softc;
 	m->m_pkthdr.rcvif = ifp;
+	m_clrprotoflags(m);
 
 #ifdef MAC
 	mac_ifnet_create_mbuf(ifp, m);
