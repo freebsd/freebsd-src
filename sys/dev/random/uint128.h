@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2000-2013 Mark R. V. Murray
+ * Copyright (c) 2014 Mark R V Murray
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -26,49 +26,50 @@
  * $FreeBSD$
  */
 
-#ifndef	_SYS_RANDOM_H_
-#define	_SYS_RANDOM_H_
+#ifndef SYS_DEV_RANDOM_UINT128_H_INCLUDED
+#define SYS_DEV_RANDOM_UINT128_H_INCLUDED
 
-#ifdef _KERNEL
-
-int read_random(void *, int);
-
-/*
- * Note: if you add or remove members of random_entropy_source, remember to also update the
- * KASSERT regarding what valid members are in random_harvest_internal(), and remember the
- * strings in the static array random_source_descr[] in random_harvestq.c.
+/* This whole thing is a crock :-(
  *
- * NOTE: complain loudly to markm@ or on the lists if this enum gets more than 32
- * distinct values (0-31)! ENTROPYSOURCE may be == 32, but not > 32.
+ * Everyone knows you always need the __uint128_t types!
  */
-enum random_entropy_source {
-	RANDOM_START = 0,
-	RANDOM_CACHED = 0,
-	/* Environmental sources */
-	RANDOM_ATTACH,
-	RANDOM_KEYBOARD,
-	RANDOM_MOUSE,
-	RANDOM_NET_TUN,
-	RANDOM_NET_ETHER,
-	RANDOM_NET_NG,
-	RANDOM_INTERRUPT,
-	RANDOM_SWI,
-	RANDOM_UMA_ALLOC,
-	RANDOM_ENVIRONMENTAL_END, /* This one is wasted */
-	/* High-quality HW RNGs from here on. */
-	RANDOM_PURE_OCTEON,
-	RANDOM_PURE_SAFE,
-	RANDOM_PURE_GLXSB,
-	RANDOM_PURE_UBSEC,
-	RANDOM_PURE_HIFN,
-	RANDOM_PURE_RDRAND,
-	RANDOM_PURE_NEHEMIAH,
-	RANDOM_PURE_RNDTEST,
-	RANDOM_PURE_VIRTIO,
-	ENTROPYSOURCE
-};
-void random_harvest(const void *, u_int, u_int, enum random_entropy_source);
 
-#endif /* _KERNEL */
+#ifdef __SIZEOF_INT128__
+typedef __uint128_t uint128_t;
+#else
+typedef uint64_t uint128_t[2];
+#endif
 
-#endif /* _SYS_RANDOM_H_ */
+static __inline void
+uint128_clear(uint128_t *big_uint)
+{
+#ifdef __SIZEOF_INT128__
+	(*big_uint) = 0ULL;
+#else
+	(*big_uint)[0] = (*big_uint)[1] = 0UL;
+#endif
+}
+
+static __inline void
+uint128_increment(uint128_t *big_uint)
+{
+#ifdef __SIZEOF_INT128__
+	(*big_uint)++;
+#else
+	(*big_uint)[0]++;
+	if ((*big_uint)[0] == 0UL)
+		(*big_uint)[1]++;
+#endif
+}
+
+static __inline int
+uint128_is_zero(uint128_t big_uint)
+{
+#ifdef __SIZEOF_INT128__
+	return (big_uint == 0ULL);
+#else
+	return (big_uint[0] == 0UL && big_uint[1] == 0UL);
+#endif
+}
+
+#endif /* SYS_DEV_RANDOM_UINT128_H_INCLUDED */
