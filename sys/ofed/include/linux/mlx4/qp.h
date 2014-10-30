@@ -39,6 +39,15 @@
 
 #define MLX4_INVALID_LKEY	0x100
 
+enum ib_m_qp_attr_mask {
+	IB_M_EXT_CLASS_1 = 1 << 28,
+	IB_M_EXT_CLASS_2 = 1 << 29,
+	IB_M_EXT_CLASS_3 = 1 << 30,
+
+	IB_M_QP_MOD_VEND_MASK = (IB_M_EXT_CLASS_1 | IB_M_EXT_CLASS_2 |
+				 IB_M_EXT_CLASS_3)
+};
+
 enum mlx4_qp_optpar {
 	MLX4_QP_OPTPAR_ALT_ADDR_PATH		= 1 << 0,
 	MLX4_QP_OPTPAR_RRE			= 1 << 1,
@@ -95,11 +104,42 @@ enum {
 	MLX4_QP_BIT_RWE				= 1 << 14,
 	MLX4_QP_BIT_RAE				= 1 << 13,
 	MLX4_QP_BIT_RIC				= 1 <<	4,
+	MLX4_QP_BIT_COLL_SYNC_RQ                = 1 << 2,
+	MLX4_QP_BIT_COLL_SYNC_SQ                = 1 << 1,
+	MLX4_QP_BIT_COLL_MASTER                 = 1 << 0
+};
+
+enum {
+	MLX4_RSS_HASH_XOR			= 0,
+	MLX4_RSS_HASH_TOP			= 1,
+
+	MLX4_RSS_UDP_IPV6			= 1 << 0,
+	MLX4_RSS_UDP_IPV4			= 1 << 1,
+	MLX4_RSS_TCP_IPV6			= 1 << 2,
+	MLX4_RSS_IPV6				= 1 << 3,
+	MLX4_RSS_TCP_IPV4			= 1 << 4,
+	MLX4_RSS_IPV4				= 1 << 5,
+
+	/* offset of mlx4_rss_context within mlx4_qp_context.pri_path */
+	MLX4_RSS_OFFSET_IN_QPC_PRI_PATH		= 0x24,
+	/* offset of being RSS indirection QP within mlx4_qp_context.flags */
+	MLX4_RSS_QPC_FLAG_OFFSET		= 13,
+};
+
+struct mlx4_rss_context {
+	__be32			base_qpn;
+	__be32			default_qpn;
+	u16			reserved;
+	u8			hash_fn;
+	u8			flags;
+	__be32			rss_key[10];
+	__be32			base_qpn_udp;
 };
 
 struct mlx4_qp_path {
 	u8			fl;
-	u8			reserved1[2];
+	u8			vlan_control;
+	u8			disable_pkey_check;
 	u8			pkey_index;
 	u8			counter_index;
 	u8			grh_mylmc;
@@ -112,9 +152,34 @@ struct mlx4_qp_path {
 	u8			rgid[16];
 	u8			sched_queue;
 	u8			vlan_index;
-	u8			reserved3[2];
+	u8			feup;
+	u8			fvl_rx;
 	u8			reserved4[2];
 	u8			dmac[6];
+};
+
+enum { /* fl */
+	MLX4_FL_CV	= 1 << 6,
+	MLX4_FL_ETH_HIDE_CQE_VLAN	= 1 << 2,
+	MLX4_FL_ETH_SRC_CHECK_MC_LB	= 1 << 1,
+	MLX4_FL_ETH_SRC_CHECK_UC_LB	= 1 << 0,
+};
+enum { /* vlan_control */
+	MLX4_VLAN_CTRL_ETH_SRC_CHECK_IF_COUNTER	= 1 << 7,
+	MLX4_VLAN_CTRL_ETH_TX_BLOCK_TAGGED	= 1 << 6,
+	MLX4_VLAN_CTRL_ETH_RX_BLOCK_TAGGED	= 1 << 2,
+	MLX4_VLAN_CTRL_ETH_RX_BLOCK_PRIO_TAGGED	= 1 << 1,/* 802.1p priorty tag*/
+	MLX4_VLAN_CTRL_ETH_RX_BLOCK_UNTAGGED	= 1 << 0
+};
+
+enum { /* feup */
+	MLX4_FEUP_FORCE_ETH_UP		= 1 << 6, /* force Eth UP */
+	MLX4_FSM_FORCE_ETH_SRC_MAC	= 1 << 5, /* force Source MAC */
+	MLX4_FVL_FORCE_ETH_VLAN		= 1 << 3  /* force Eth vlan */
+};
+
+enum { /* fvl_rx */
+	MLX4_FVL_RX_FORCE_ETH_VLAN	= 1 << 0 /* enforce Eth rx vlan */
 };
 
 struct mlx4_qp_context {
@@ -153,17 +218,47 @@ struct mlx4_qp_context {
 	u8			reserved4[2];
 	u8			mtt_base_addr_h;
 	__be32			mtt_base_addr_l;
-	u8			VE;
-	u8			reserved5;
-	__be16			VFT_id_prio;
-	u8			reserved6;
-	u8			exch_size;
-	__be16			exch_base;
-	u8			VFT_hop_cnt;
-	u8			my_fc_id_idx;
-	__be16			reserved7;
-	u32			reserved8[7];
+	u32			reserved5[10];
 };
+
+struct mlx4_update_qp_context {
+	__be64			qp_mask;
+	__be64			primary_addr_path_mask;
+	__be64			secondary_addr_path_mask;
+	u64			reserved1;
+	struct mlx4_qp_context	qp_context;
+	u64			reserved2[58];
+};
+
+enum {
+	MLX4_UPD_QP_MASK_PM_STATE	= 32,
+	MLX4_UPD_QP_MASK_VSD		= 33,
+};
+
+enum {
+	MLX4_UPD_QP_PATH_MASK_PKEY_INDEX		= 0 + 32,
+	MLX4_UPD_QP_PATH_MASK_FSM			= 1 + 32,
+	MLX4_UPD_QP_PATH_MASK_MAC_INDEX			= 2 + 32,
+	MLX4_UPD_QP_PATH_MASK_FVL			= 3 + 32,
+	MLX4_UPD_QP_PATH_MASK_CV			= 4 + 32,
+	MLX4_UPD_QP_PATH_MASK_VLAN_INDEX		= 5 + 32,
+	MLX4_UPD_QP_PATH_MASK_ETH_HIDE_CQE_VLAN		= 6 + 32,
+	MLX4_UPD_QP_PATH_MASK_ETH_TX_BLOCK_UNTAGGED	= 7 + 32,
+	MLX4_UPD_QP_PATH_MASK_ETH_TX_BLOCK_1P		= 8 + 32,
+	MLX4_UPD_QP_PATH_MASK_ETH_TX_BLOCK_TAGGED	= 9 + 32,
+	MLX4_UPD_QP_PATH_MASK_ETH_RX_BLOCK_UNTAGGED	= 10 + 32,
+	MLX4_UPD_QP_PATH_MASK_ETH_RX_BLOCK_1P		= 11 + 32,
+	MLX4_UPD_QP_PATH_MASK_ETH_RX_BLOCK_TAGGED	= 12 + 32,
+	MLX4_UPD_QP_PATH_MASK_FEUP			= 13 + 32,
+	MLX4_UPD_QP_PATH_MASK_SCHED_QUEUE		= 14 + 32,
+	MLX4_UPD_QP_PATH_MASK_IF_COUNTER_INDEX		= 15 + 32,
+	MLX4_UPD_QP_PATH_MASK_FVL_RX			= 16 + 32,
+};
+
+enum { /* param3 */
+	MLX4_STRIP_VLAN	= 1 << 30
+};
+
 
 /* Which firmware version adds support for NEC (NoErrorCompletion) bit */
 #define MLX4_FW_VER_WQE_CTRL_NEC mlx4_fw_ver(2, 2, 232)
@@ -192,8 +287,12 @@ struct mlx4_wqe_ctrl_seg {
 	 * [4]   IP checksum
 	 * [3:2] C (generate completion queue entry)
 	 * [1]   SE (solicited event)
+	 * [0]   FL (force loopback)
 	 */
-	__be32			srcrb_flags;
+	union {
+		__be32			srcrb_flags;
+		__be16			srcrb_flags16[2];
+	};
 	/*
 	 * imm is immediate data for send/RDMA write w/ immediate;
 	 * also invalidation key for send with invalidate; input
@@ -204,15 +303,15 @@ struct mlx4_wqe_ctrl_seg {
 
 enum {
 	MLX4_WQE_MLX_VL15	= 1 << 17,
-	MLX4_WQE_MLX_SLR	= 1 << 16,
-	MLX4_WQE_MLX_ICRC	= 1 << 4
+	MLX4_WQE_MLX_SLR	= 1 << 16
 };
 
 struct mlx4_wqe_mlx_seg {
 	u8			owner;
 	u8			reserved1[2];
 	u8			opcode;
-	u8			reserved2[3];
+	__be16			sched_prio;
+	u8			reserved2;
 	u8			size;
 	/*
 	 * [17]    VL15
@@ -241,6 +340,11 @@ struct mlx4_wqe_lso_seg {
 	__be32			header[0];
 };
 
+enum mlx4_wqe_bind_seg_flags2 {
+	MLX4_WQE_BIND_TYPE_2     = (1<<31),
+	MLX4_WQE_BIND_ZERO_BASED = (1<<30),
+};
+
 struct mlx4_wqe_bind_seg {
 	__be32			flags1;
 	__be32			flags2;
@@ -253,9 +357,9 @@ struct mlx4_wqe_bind_seg {
 enum {
 	MLX4_WQE_FMR_PERM_LOCAL_READ	= 1 << 27,
 	MLX4_WQE_FMR_PERM_LOCAL_WRITE	= 1 << 28,
-	MLX4_WQE_FMR_PERM_REMOTE_READ	= 1 << 29,
-	MLX4_WQE_FMR_PERM_REMOTE_WRITE	= 1 << 30,
-	MLX4_WQE_FMR_PERM_ATOMIC	= 1 << 31
+	MLX4_WQE_FMR_AND_BIND_PERM_REMOTE_READ	= 1 << 29,
+	MLX4_WQE_FMR_AND_BIND_PERM_REMOTE_WRITE	= 1 << 30,
+	MLX4_WQE_FMR_AND_BIND_PERM_ATOMIC	= 1 << 31
 };
 
 struct mlx4_wqe_fmr_seg {
@@ -280,12 +384,10 @@ struct mlx4_wqe_fmr_ext_seg {
 };
 
 struct mlx4_wqe_local_inval_seg {
-	__be32			flags;
-	u32			reserved1;
+	u64			reserved1;
 	__be32			mem_key;
-	u32			reserved2[2];
-	__be32			guest_id;
-	__be64			pa;
+	u32			reserved2;
+	u64			reserved3[2];
 };
 
 struct mlx4_wqe_raddr_seg {
@@ -338,9 +440,6 @@ static inline struct mlx4_qp *__mlx4_qp_lookup(struct mlx4_dev *dev, u32 qpn)
 	return radix_tree_lookup(&dev->qp_table_tree, qpn & (dev->caps.num_qps - 1));
 }
 
-struct mlx4_qp *mlx4_qp_lookup_lock(struct mlx4_dev *dev, u32 qpn);
 void mlx4_qp_remove(struct mlx4_dev *dev, struct mlx4_qp *qp);
-int mlx4_qp_get_region(struct mlx4_dev *dev, enum mlx4_qp_region region,
-			int *base_qpn, int *cnt);
 
 #endif /* MLX4_QP_H */

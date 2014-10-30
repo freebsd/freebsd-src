@@ -32,7 +32,6 @@
  */
 
 #include <linux/completion.h>
-#include <linux/init.h>
 #include <linux/fs.h>
 #include <linux/module.h>
 #include <linux/device.h>
@@ -43,6 +42,7 @@
 #include <linux/cdev.h>
 #include <linux/idr.h>
 #include <linux/mutex.h>
+#include <linux/string.h>
 
 #include <asm/uaccess.h>
 
@@ -103,9 +103,6 @@ enum {
 	IB_UCM_BASE_MINOR = 224,
 	IB_UCM_MAX_DEVICES = 32
 };
-
-/* ib_cm and ib_user_cm modules share /sys/class/infiniband_cm */
-extern struct class cm_class;
 
 #define IB_UCM_BASE_DEV MKDEV(IB_UCM_MAJOR, IB_UCM_BASE_MINOR)
 
@@ -1298,7 +1295,7 @@ static void ib_ucm_remove_one(struct ib_device *device)
 	device_unregister(&ucm_dev->dev);
 }
 
-static ssize_t show_abi_version(struct class *class, char *buf)
+static ssize_t show_abi_version(struct class *class, struct class_attribute *attr, char *buf)
 {
 	return sprintf(buf, "%d\n", IB_USER_CM_ABI_VERSION);
 }

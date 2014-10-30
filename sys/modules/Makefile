@@ -123,6 +123,7 @@ SUBDIR=	\
 	${_hptrr} \
 	hwpmc \
 	${_i2c} \
+	${_ibcore} \
 	${_ibcs2} \
 	${_ichwd} \
 	${_ida} \
@@ -146,6 +147,7 @@ SUBDIR=	\
 	${_iir} \
 	${_io} \
 	ipdivert \
+	${_ipoib} \
 	${_ipfilter} \
 	${_ipfw} \
 	ipfw_nat \
@@ -488,11 +490,17 @@ _fe=		fe
 _glxiic=	glxiic
 _glxsb=		glxsb
 _i2c=		i2c
+.if ${MK_OFED} != "no" || defined(ALL_MODULES)
+_ibcore=        ibcore
+.endif
 _ibcs2=		ibcs2
 _ie=		ie
 _if_ndis=	if_ndis
 _igb=		igb
 _io=		io
+.if ${MK_OFED} != "no" || defined(ALL_MODULES)
+_ipoib=         ipoib
+.endif
 _lindev=	lindev
 _linprocfs=	linprocfs
 _linsysfs=	linsysfs
@@ -668,6 +676,9 @@ _hptnr=		hptnr
 _hptrr=		hptrr
 .endif
 _i2c=		i2c
+.if ${MK_OFED} != "no" || defined(ALL_MODULES)
+_ibcore=        ibcore
+.endif
 _ichwd=		ichwd
 _ida=		ida
 _if_ndis=	if_ndis
@@ -675,6 +686,9 @@ _igb=		igb
 _iir=		iir
 _io=		io
 _ipmi=		ipmi
+.if ${MK_OFED} != "no" || defined(ALL_MODULES)
+_ipoib=         ipoib
+.endif
 _ips=		ips
 _ipw=		ipw
 .if ${MK_SOURCELESS_UCODE} != "no"
