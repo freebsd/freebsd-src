@@ -996,3 +996,76 @@ void agp_memory_info(device_t dev, void *handle, struct
 	mi->ami_offset = mem->am_offset;
 	mi->ami_is_bound = mem->am_is_bound;
 }
+
+int
+agp_bind_pages(device_t dev, vm_page_t *pages, vm_size_t size,
+    vm_offset_t offset)
+{
+	struct agp_softc *sc;
+	vm_offset_t i, j, k, pa;
+	vm_page_t m;
+	int error;
+
+	if ((size & (AGP_PAGE_SIZE - 1)) != 0 ||
+	    (offset & (AGP_PAGE_SIZE - 1)) != 0)
+		return (EINVAL);
+
+	sc = device_get_softc(dev);
+
+	mtx_lock(&sc->as_lock);
+	for (i = 0; i < size; i += PAGE_SIZE) {
+		m = pages[OFF_TO_IDX(i)];
+
+		/*
+		 * Install entries in the GATT, making sure that if
+		 * AGP_PAGE_SIZE < PAGE_SIZE and size is not
+		 * aligned to PAGE_SIZE, we don't modify too many GATT 
+		 * entries.
+		 */
+		for (j = 0; j < PAGE_SIZE && i + j < size; j += AGP_PAGE_SIZE) {
+			pa = VM_PAGE_TO_PHYS(m) + j;
+			AGP_DPF("binding offset %#jx to pa %#jx\n",
+				(uintmax_t)offset + i + j, (uintmax_t)pa);
+			error = AGP_BIND_PAGE(dev, offset + i + j, pa);
+			if (error) {
+				/*
+				 * Bail out. Reverse all the mappings.
+				 */
+				for (k = 0; k < i + j; k += AGP_PAGE_SIZE)
+					AGP_UNBIND_PAGE(dev, offset + k);
+
+				mtx_unlock(&sc->as_lock);
+				return (error);
+			}
+		}
+	}
+
+	agp_flush_cache();
+	AGP_FLUSH_TLB(dev);
+
+	mtx_unlock(&sc->as_lock);
+	return (0);
+}
+
+int
+agp_unbind_pages(device_t dev, vm_size_t size, vm_offset_t offset)
+{
+	struct agp_softc *sc;
+	vm_offset_t i;
+
+	if ((size & (AGP_PAGE_SIZE - 1)) != 0 ||
+	    (offset & (AGP_PAGE_SIZE - 1)) != 0)
+		return (EINVAL);
+
+	sc = device_get_softc(dev);
+
+	mtx_lock(&sc->as_lock);
+	for (i = 0; i < size; i += AGP_PAGE_SIZE)
+		AGP_UNBIND_PAGE(dev, offset + i);
+
+	agp_flush_cache();
+	AGP_FLUSH_TLB(dev);
+
+	mtx_unlock(&sc->as_lock);
+	return (0);
+}
