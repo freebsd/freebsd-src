@@ -26,14 +26,19 @@
  * $FreeBSD$
  */
 
-#ifndef SYS_DEV_RANDOM_RWFILE_H_INCLUDED
-#define SYS_DEV_RANDOM_RWFILE_H_INCLUDED
+#ifndef SYS_DEV_RANDOM_FORTUNA_H_INCLUDED
+#define SYS_DEV_RANDOM_FORTUNA_H_INCLUDED
 
-#ifdef RANDOM_RWFILE
-
-int randomdev_read_file(const char *filename, void *buf, size_t);
-int randomdev_write_file(const char *filename, void *buf, size_t);
-
+#ifdef _KERNEL
+typedef struct mtx mtx_t;
 #endif
+
+void random_fortuna_init_alg(void);
+void random_fortuna_deinit_alg(void);
+void random_fortuna_read(uint8_t *, u_int);
+void random_fortuna_write(uint8_t *, u_int);
+void random_fortuna_reseed(void);
+int random_fortuna_seeded(void);
+void random_fortuna_process_event(struct harvest_event *event);
 
 #endif

@@ -35,11 +35,11 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/kernel.h>
+#include <sys/conf.h>
 #include <sys/lock.h>
 #include <sys/malloc.h>
 #include <sys/module.h>
 #include <sys/random.h>
-#include <sys/selinfo.h>
 #include <sys/systm.h>
 
 #include <machine/md_var.h>
@@ -47,18 +47,17 @@ __FBSDID("$FreeBSD$");
 
 #include <dev/random/randomdev.h>
 #include <dev/random/randomdev_soft.h>
-#include <dev/random/random_harvestq.h>
-#include <dev/random/live_entropy_sources.h>
 #include <dev/random/random_adaptors.h>
+#include <dev/random/live_entropy_sources.h>
 
 #define	RETRY_COUNT	10
 
-static int random_ivy_read(void *, int);
+static u_int random_ivy_read(void *, u_int);
 
-static struct random_hardware_source random_ivy = {
-	.ident = "Hardware, Intel Secure Key RNG",
-	.source = RANDOM_PURE_RDRAND,
-	.read = random_ivy_read
+static struct live_entropy_source random_ivy = {
+	.les_ident = "Intel Secure Key RNG",
+	.les_source = RANDOM_PURE_RDRAND,
+	.les_read = random_ivy_read
 };
 
 static inline int
@@ -86,15 +85,17 @@ ivy_rng_store(long *buf)
 #endif
 }
 
-static int
-random_ivy_read(void *buf, int c)
+/* It is specifically allowed that buf is a multiple of sizeof(long) */
+static u_int
+random_ivy_read(void *buf, u_int c)
 {
 	long *b;
-	int count;
+	u_int count;
 
-	KASSERT(c % sizeof(long) == 0, ("partial read %d", c));
-	for (b = buf, count = c; count > 0; count -= sizeof(long), b++) {
-		if (ivy_rng_store(b) == 0)
+	KASSERT(c % sizeof(*b) == 0, ("partial read %d", c));
+	b = buf;
+	for (count = c; count > 0; count -= sizeof(*b)) {
+		if (ivy_rng_store(b++) == 0)
 			break;
 	}
 	return (c - count);
@@ -107,14 +108,10 @@ rdrand_modevent(module_t mod, int type, void *unused)
 
 	switch (type) {
 	case MOD_LOAD:
-		if (cpu_feature2 & CPUID2_RDRAND)
+		if (cpu_feature2 & CPUID2_RDRAND) {
 			live_entropy_source_register(&random_ivy);
-		else
-#ifndef KLD_MODULE
-			if (bootverbose)
-#endif
-				printf("%s: RDRAND is not present\n",
-				    random_ivy.ident);
+			printf("random: live provider: \"%s\"\n", random_ivy.les_ident);
+		}
 		break;
 
 	case MOD_UNLOAD:
@@ -134,4 +131,6 @@ rdrand_modevent(module_t mod, int type, void *unused)
 	return (error);
 }
 
-LIVE_ENTROPY_SRC_MODULE(random_rdrand, rdrand_modevent, 1);
+DEV_MODULE(rdrand, rdrand_modevent, NULL);
+MODULE_VERSION(rdrand, 1);
+MODULE_DEPEND(rdrand, random_adaptors, 1, 1, 1);
