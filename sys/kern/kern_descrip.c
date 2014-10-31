@@ -101,8 +101,7 @@ static uma_zone_t file_zone;
 
 static int	closefp(struct filedesc *fdp, int fd, struct file *fp,
 		    struct thread *td, int holdleaders);
-static int	do_dup(struct thread *td, int flags, int old, int new,
-		    register_t *retval);
+static int	do_dup(struct thread *td, int flags, int old, int new);
 static int	fd_first_free(struct filedesc *fdp, int low, int size);
 static int	fd_last_used(struct filedesc *fdp, int size);
 static void	fdgrowtable(struct filedesc *fdp, int nfd);
@@ -361,8 +360,7 @@ int
 sys_dup2(struct thread *td, struct dup2_args *uap)
 {
 
-	return (do_dup(td, DUP_FIXED, (int)uap->from, (int)uap->to,
-		    td->td_retval));
+	return (do_dup(td, DUP_FIXED, (int)uap->from, (int)uap->to));
 }
 
 /*
@@ -378,7 +376,7 @@ int
 sys_dup(struct thread *td, struct dup_args *uap)
 {
 
-	return (do_dup(td, 0, (int)uap->fd, 0, td->td_retval));
+	return (do_dup(td, 0, (int)uap->fd, 0));
 }
 
 /*
@@ -487,24 +485,22 @@ kern_fcntl(struct thread *td, int fd, int cmd, intptr_t arg)
 	switch (cmd) {
 	case F_DUPFD:
 		tmp = arg;
-		error = do_dup(td, DUP_FCNTL, fd, tmp, td->td_retval);
+		error = do_dup(td, DUP_FCNTL, fd, tmp);
 		break;
 
 	case F_DUPFD_CLOEXEC:
 		tmp = arg;
-		error = do_dup(td, DUP_FCNTL | DUP_CLOEXEC, fd, tmp,
-		    td->td_retval);
+		error = do_dup(td, DUP_FCNTL | DUP_CLOEXEC, fd, tmp);
 		break;
 
 	case F_DUP2FD:
 		tmp = arg;
-		error = do_dup(td, DUP_FIXED, fd, tmp, td->td_retval);
+		error = do_dup(td, DUP_FIXED, fd, tmp);
 		break;
 
 	case F_DUP2FD_CLOEXEC:
 		tmp = arg;
-		error = do_dup(td, DUP_FIXED | DUP_CLOEXEC, fd, tmp,
-		    td->td_retval);
+		error = do_dup(td, DUP_FIXED | DUP_CLOEXEC, fd, tmp);
 		break;
 
 	case F_GETFD:
@@ -803,8 +799,7 @@ getmaxfd(struct proc *p)
  * Common code for dup, dup2, fcntl(F_DUPFD) and fcntl(F_DUP2FD).
  */
 static int
-do_dup(struct thread *td, int flags, int old, int new,
-    register_t *retval)
+do_dup(struct thread *td, int flags, int old, int new)
 {
 	struct filedesc *fdp;
 	struct filedescent *oldfde, *newfde;
@@ -836,7 +831,7 @@ do_dup(struct thread *td, int flags, int old, int new,
 	}
 	oldfde = &fdp->fd_ofiles[old];
 	if (flags & DUP_FIXED && old == new) {
-		*retval = new;
+		td->td_retval[0] = new;
 		if (flags & DUP_CLOEXEC)
 			fdp->fd_ofiles[new].fde_flags |= UF_EXCLOSE;
 		FILEDESC_XUNLOCK(fdp);
@@ -906,7 +901,7 @@ do_dup(struct thread *td, int flags, int old, int new,
 #ifdef CAPABILITIES
 	seq_write_end(&newfde->fde_seq);
 #endif
-	*retval = new;
+	td->td_retval[0] = new;
 
 	if (delfp != NULL) {
 		(void) closefp(fdp, new, delfp, td, 1);
@@ -2191,7 +2186,7 @@ int
 fdcheckstd(struct thread *td)
 {
 	struct filedesc *fdp;
-	register_t retval, save;
+	register_t save;
 	int i, error, devnull;
 
 	fdp = td->td_proc->p_fd;
@@ -2211,7 +2206,9 @@ fdcheckstd(struct thread *td)
 				break;
 			KASSERT(devnull == i, ("oof, we didn't get our fd"));
 		} else {
-			error = do_dup(td, DUP_FIXED, devnull, i, &retval);
+			save = td->td_retval[0];
+			error = do_dup(td, DUP_FIXED, devnull, i);
+			td->td_retval[0] = save;
 			if (error != 0)
 				break;
 		}
