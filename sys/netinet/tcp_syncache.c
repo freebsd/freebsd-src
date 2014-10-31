@@ -1519,7 +1519,7 @@ syncache_respond(struct syncache *sc, struct syncache_head *sch, int locked)
 				/*
 				 * We've got SCF_SIGNATURE flag
 				 * inherited from listening socket,
-				 * but to SADB key for given source
+				 * but no SADB key for given source
 				 * address. Assume signature is not
 				 * required and remove signature flag
 				 * instead of silently dropping
