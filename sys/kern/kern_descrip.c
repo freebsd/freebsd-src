@@ -2088,7 +2088,7 @@ fdescfree(struct thread *td)
  * otherwise be off-limits to the process.  We check for filesystems where
  * the vnode can change out from under us after execve (like [lin]procfs).
  *
- * Since setugidsafety calls this only for fd 0, 1 and 2, this check is
+ * Since fdsetugidsafety calls this only for fd 0, 1 and 2, this check is
  * sufficient.  We also don't check for setugidness since we know we are.
  */
 static bool
