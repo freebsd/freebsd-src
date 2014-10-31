@@ -684,14 +684,18 @@ static int
 sysctl_stat_get(SYSCTL_HANDLER_ARGS)
 {
 	int cpu, error;
-	struct sctpstat sb, *sarry, *cpin = NULL;
+	struct sctpstat sb, sb_temp, *sarry, *cpin = NULL;
 
 	if ((req->newptr) && (req->newlen == sizeof(struct sctpstat))) {
 		/*
 		 * User wants us to clear or at least reset the counters to
 		 * the specified values.
 		 */
-		cpin = (struct sctpstat *)req->newptr;
+		cpin = &sb_temp;
+		memset(&sb_temp, 0, sizeof(sb_temp));
+		error = SYSCTL_IN(req, &sb_temp, sizeof(sb_temp));
+		if (error != 0)
+			return (error);
 	} else if (req->newptr) {
 		/* Must be a stat structure */
 		return (EINVAL);
