@@ -33,7 +33,9 @@ __FBSDID("$FreeBSD$");
 #include <sys/systm.h>
 #include <sys/cpuset.h>
 
+#include <machine/clock.h>
 #include <machine/cpufunc.h>
+#include <machine/md_var.h>
 #include <machine/specialreg.h>
 #include <machine/vmm.h>
 
@@ -176,11 +178,64 @@ msr_bitmap_change_access(char *bitmap, u_int msr, int access)
 }
 
 static uint64_t misc_enable;
+static uint64_t platform_info;
+static uint64_t turbo_ratio_limit;
 static uint64_t host_msrs[GUEST_MSR_NUM];
+
+static bool
+nehalem_cpu(void)
+{
+	u_int family, model;
+
+	/*
+	 * The family:model numbers belonging to the Nehalem microarchitecture
+	 * are documented in Section 35.5, Intel SDM dated Feb 2014.
+	 */
+	family = CPUID_TO_FAMILY(cpu_id);
+	model = CPUID_TO_MODEL(cpu_id);
+	if (family == 0x6) {
+		switch (model) {
+		case 0x1A:
+		case 0x1E:
+		case 0x1F:
+		case 0x2E:
+			return (true);
+		default:
+			break;
+		}
+	}
+	return (false);
+}
+
+static bool
+westmere_cpu(void)
+{
+	u_int family, model;
+
+	/*
+	 * The family:model numbers belonging to the Westmere microarchitecture
+	 * are documented in Section 35.6, Intel SDM dated Feb 2014.
+	 */
+	family = CPUID_TO_FAMILY(cpu_id);
+	model = CPUID_TO_MODEL(cpu_id);
+	if (family == 0x6) {
+		switch (model) {
+		case 0x25:
+		case 0x2C:
+			return (true);
+		default:
+			break;
+		}
+	}
+	return (false);
+}
 
 void
 vmx_msr_init(void)
 {
+	uint64_t bus_freq, ratio;
+	int i;
+
 	/*
 	 * It is safe to cache the values of the following MSRs because
 	 * they don't change based on curcpu, curproc or curthread.
@@ -204,6 +259,44 @@ vmx_msr_init(void)
 	 */
 	misc_enable |= (1 << 12) | (1 << 11);
 	misc_enable &= ~((1 << 18) | (1 << 16));
+
+	if (nehalem_cpu() || westmere_cpu())
+		bus_freq = 133330000;		/* 133Mhz */
+	else
+		bus_freq = 100000000;		/* 100Mhz */
+
+	/*
+	 * XXXtime
+	 * The ratio should really be based on the virtual TSC frequency as
+	 * opposed to the host TSC.
+	 */
+	ratio = (tsc_freq / bus_freq) & 0xff;
+
+	/*
+	 * The register definition is based on the micro-architecture
+	 * but the following bits are always the same:
+	 * [15:8]  Maximum Non-Turbo Ratio
+	 * [28]    Programmable Ratio Limit for Turbo Mode
+	 * [29]    Programmable TDC-TDP Limit for Turbo Mode
+	 * [47:40] Maximum Efficiency Ratio
+	 *
+	 * The other bits can be safely set to 0 on all
+	 * micro-architectures up to Haswell.
+	 */
+	platform_info = (ratio << 8) | (ratio << 40);
+
+	/*
+	 * The number of valid bits in the MSR_TURBO_RATIO_LIMITx register is
+	 * dependent on the maximum cores per package supported by the micro-
+	 * architecture. For e.g., Westmere supports 6 cores per package and
+	 * uses the low 48 bits. Sandybridge support 8 cores per package and
+	 * uses up all 64 bits.
+	 *
+	 * However, the unused bits are reserved so we pretend that all bits
+	 * in this MSR are valid.
+	 */
+	for (i = 0; i < 8; i++)
+		turbo_ratio_limit = (turbo_ratio_limit << 8) | ratio;
 }
 
 void
@@ -265,6 +358,13 @@ vmx_rdmsr(struct vmx *vmx, int vcpuid, u_int num, uint64_t *val, bool *retu)
 	switch (num) {
 	case MSR_IA32_MISC_ENABLE:
 		*val = misc_enable;
+		break;
+	case MSR_PLATFORM_INFO:
+		*val = platform_info;
+		break;
+	case MSR_TURBO_RATIO_LIMIT:
+	case MSR_TURBO_RATIO_LIMIT1:
+		*val = turbo_ratio_limit;
 		break;
 	default:
 		error = EINVAL;

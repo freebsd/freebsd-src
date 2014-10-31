@@ -94,6 +94,7 @@ static device_method_t acpi_pci_methods[] = {
 	DEVMETHOD(bus_write_ivar,	acpi_pci_write_ivar),
 	DEVMETHOD(bus_child_location_str, acpi_pci_child_location_str_method),
 	DEVMETHOD(bus_get_dma_tag,	acpi_pci_get_dma_tag),
+	DEVMETHOD(bus_get_domain,	acpi_get_domain),
 
 	/* PCI interface */
 	DEVMETHOD(pci_set_powerstate,	acpi_pci_set_powerstate_method),
@@ -282,7 +283,7 @@ acpi_pci_probe(device_t dev)
 	if (acpi_get_handle(dev) == NULL)
 		return (ENXIO);
 	device_set_desc(dev, "ACPI PCI bus");
-	return (0);
+	return (BUS_PROBE_DEFAULT);
 }
 
 static int

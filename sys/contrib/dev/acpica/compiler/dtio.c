@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2013, Intel Corp.
+ * Copyright (C) 2000 - 2014, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -45,6 +45,7 @@
 
 #include <contrib/dev/acpica/compiler/aslcompiler.h>
 #include <contrib/dev/acpica/compiler/dtcompiler.h>
+#include <contrib/dev/acpica/include/acapps.h>
 
 #define _COMPONENT          DT_COMPILER
         ACPI_MODULE_NAME    ("dtio")
@@ -132,7 +133,7 @@ DtTrim (
 
     if (!ACPI_STRCMP (String, " "))
     {
-        ReturnString = UtLocalCalloc (1);
+        ReturnString = UtStringCacheCalloc (1);
         return (ReturnString);
     }
 
@@ -180,7 +181,7 @@ DtTrim (
     /* Create the trimmed return string */
 
     Length = ACPI_PTR_DIFF (End, Start) + 1;
-    ReturnString = UtLocalCalloc (Length + 1);
+    ReturnString = UtStringCacheCalloc (Length + 1);
     if (ACPI_STRLEN (Start))
     {
         ACPI_STRNCPY (ReturnString, Start, Length);
@@ -369,7 +370,7 @@ DtParseLine (
 
     if ((Value && *Value) || IsNullString)
     {
-        Field = UtLocalCalloc (sizeof (DT_FIELD));
+        Field = UtFieldCacheCalloc ();
         Field->Name = Name;
         Field->Value = Value;
         Field->Line = Line;
@@ -379,11 +380,7 @@ DtParseLine (
 
         DtLinkField (Field);
     }
-    else /* Ignore this field, it has no valid data */
-    {
-        ACPI_FREE (Name);
-        ACPI_FREE (Value);
-    }
+    /* Else -- Ignore this field, it has no valid data */
 
     return (AE_OK);
 }
@@ -737,7 +734,11 @@ DtScanFile (
 
     /* Get the file size */
 
-    Gbl_InputByteCount = DtGetFileSize (Handle);
+    Gbl_InputByteCount = CmGetFileSize (Handle);
+    if (Gbl_InputByteCount == ACPI_UINT32_MAX)
+    {
+        AslAbort ();
+    }
 
     Gbl_CurrentLineNumber = 0;
     Gbl_CurrentLineOffset = 0;
@@ -816,7 +817,12 @@ DtOutputBinary (
     /* Walk the entire parse tree, emitting the binary data */
 
     DtWalkTableTree (RootTable, DtWriteBinary, NULL, NULL);
-    Gbl_TableLength = DtGetFileSize (Gbl_Files[ASL_FILE_AML_OUTPUT].Handle);
+
+    Gbl_TableLength = CmGetFileSize (Gbl_Files[ASL_FILE_AML_OUTPUT].Handle);
+    if (Gbl_TableLength == ACPI_UINT32_MAX)
+    {
+        AslAbort ();
+    }
 }
 
 
@@ -1025,6 +1031,8 @@ DtDumpSubtableList (
     DbgPrint (ASL_DEBUG_OUTPUT,
         "\nSubtable Tree: (Depth, Subtable, Length, TotalLength)\n\n");
     DtWalkTableTree (Gbl_RootTable, DtDumpSubtableTree, NULL, NULL);
+
+    DbgPrint (ASL_DEBUG_OUTPUT, "\n");
 }
 
 

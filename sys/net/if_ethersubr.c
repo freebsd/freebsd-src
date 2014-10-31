@@ -576,8 +576,7 @@ ether_input_internal(struct ifnet *ifp, struct mbuf *m)
 			m->m_flags |= M_PROMISC;
 	}
 
-	if (harvest.ethernet)
-		random_harvest(&(m->m_data), 12, 2, RANDOM_NET_ETHER);
+	random_harvest(&(m->m_data), 12, 2, RANDOM_NET_ETHER);
 
 	ether_demux(ifp, m);
 	CURVNET_RESTORE();

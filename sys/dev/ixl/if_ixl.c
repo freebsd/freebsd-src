@@ -400,22 +400,22 @@ ixl_attach(device_t dev)
 
 	SYSCTL_ADD_INT(device_get_sysctl_ctx(dev),
 	    SYSCTL_CHILDREN(device_get_sysctl_tree(dev)),
-	    OID_AUTO, "rx_itr", CTLTYPE_INT | CTLFLAG_RW,
+	    OID_AUTO, "rx_itr", CTLFLAG_RW,
 	    &ixl_rx_itr, IXL_ITR_8K, "RX ITR");
 
 	SYSCTL_ADD_INT(device_get_sysctl_ctx(dev),
 	    SYSCTL_CHILDREN(device_get_sysctl_tree(dev)),
-	    OID_AUTO, "dynamic_rx_itr", CTLTYPE_INT | CTLFLAG_RW,
+	    OID_AUTO, "dynamic_rx_itr", CTLFLAG_RW,
 	    &ixl_dynamic_rx_itr, 0, "Dynamic RX ITR");
 
 	SYSCTL_ADD_INT(device_get_sysctl_ctx(dev),
 	    SYSCTL_CHILDREN(device_get_sysctl_tree(dev)),
-	    OID_AUTO, "tx_itr", CTLTYPE_INT | CTLFLAG_RW,
+	    OID_AUTO, "tx_itr", CTLFLAG_RW,
 	    &ixl_tx_itr, IXL_ITR_4K, "TX ITR");
 
 	SYSCTL_ADD_INT(device_get_sysctl_ctx(dev),
 	    SYSCTL_CHILDREN(device_get_sysctl_tree(dev)),
-	    OID_AUTO, "dynamic_tx_itr", CTLTYPE_INT | CTLFLAG_RW,
+	    OID_AUTO, "dynamic_tx_itr", CTLFLAG_RW,
 	    &ixl_dynamic_tx_itr, 0, "Dynamic TX ITR");
 
 #ifdef IXL_DEBUG
@@ -2177,6 +2177,7 @@ ixl_allocate_pci_resources(struct ixl_pf *pf)
 	pf->osdep.mem_bus_space_handle =
 		rman_get_bushandle(pf->pci_mem);
 	pf->osdep.mem_bus_space_size = rman_get_size(pf->pci_mem);
+	pf->osdep.flush_reg = I40E_GLGEN_STAT;
 	pf->hw.hw_addr = (u8 *) &pf->osdep.mem_bus_space_handle;
 
 	pf->hw.back = &pf->osdep;

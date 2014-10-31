@@ -27,12 +27,12 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd September 25, 2014
+.Dd September 30, 2014
 .Dt IPHETH 4
 .Os
 .Sh NAME
 .Nm ipheth
-.Nd "USB Apple iPhone/iPad Ethernet driver"
+.Nd "USB Apple iPhone/iPad tethered Ethernet driver"
 .Sh SYNOPSIS
 To load the driver as a module at boot time, place the
 following line in
@@ -61,6 +61,7 @@ In most cases this must be explicitly enabled on the device first.
 .Pp
 For more information on configuring this device, see
 .Xr ifconfig 8 .
+The device does not support different media types or options.
 .Sh HARDWARE
 The following devices are supported by the
 .Nm
@@ -68,9 +69,9 @@ driver:
 .Pp
 .Bl -bullet -compact
 .It
-Apple iPhone (all models)
+Apple iPhone tethering (all models)
 .It
-Apple iPad (all models)
+Apple iPad tethering (all models)
 .El
 .Sh SEE ALSO
 .Xr arp 4 ,
@@ -80,6 +81,7 @@ Apple iPad (all models)
 .Xr urndis 4 ,
 .Xr usb 4 ,
 .Xr ifconfig 8
+.Xr usbconfig 8
 .Sh HISTORY
 The
 .Nm
@@ -91,3 +93,14 @@ The
 .Nm
 driver was written by
 .An Hans Petter Selasky Aq Mt hselasky@FreeBSD.org .
+.Sh BUGS
+Some devices may need to be manually configured to use an alternative
+configuration with the
+.Xr usbconfig 8
+utility.
+A command similar to
+.Dl usbconfig -u 1 -a 2 set_config 3
+may be required if the device is not recognised automatically by
+.Nm
+after it is connected.
+

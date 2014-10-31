@@ -1812,6 +1812,7 @@ tpc_create_token(struct ctl_lun *lun, struct ctl_port *port, off_t len,
 	static int id = 0;
 	struct scsi_vpd_id_descriptor *idd = NULL;
 	struct scsi_ec_cscd_id *cscd;
+	struct scsi_read_capacity_data_long *dtsd;
 	int targid_len;
 
 	scsi_ulto4b(ROD_TYPE_AUR, token->type);
@@ -1830,9 +1831,19 @@ tpc_create_token(struct ctl_lun *lun, struct ctl_port *port, off_t len,
 		cscd->type_code = EC_CSCD_ID;
 		cscd->luidt_pdt = T_DIRECT;
 		memcpy(&cscd->codeset, idd, 4 + idd->length);
+		scsi_ulto3b(lun->be_lun->blocksize, cscd->dtsp.block_length);
 	}
-	scsi_u64to8b(0, &token->body[40]);
+	scsi_u64to8b(0, &token->body[40]); /* XXX: Should be 128bit value. */
 	scsi_u64to8b(len, &token->body[48]);
+
+	/* ROD token device type specific data (RC16 without first field) */
+	dtsd = (struct scsi_read_capacity_data_long *)&token->body[88 - 8];
+	scsi_ulto4b(lun->be_lun->blocksize, dtsd->length);
+	dtsd->prot_lbppbe = lun->be_lun->pblockexp & SRC16_LBPPBE;
+	scsi_ulto2b(lun->be_lun->pblockoff & SRC16_LALBA_A, dtsd->lalba_lbp);
+	if (lun->be_lun->flags & CTL_LUN_FLAG_UNMAP)
+		dtsd->lalba_lbp[0] |= SRC16_LBPME | SRC16_LBPRZ;
+
 	if (port->target_devid) {
 		targid_len = port->target_devid->len;
 		memcpy(&token->body[120], port->target_devid->data, targid_len);
@@ -1938,6 +1949,8 @@ ctl_populate_token(struct ctl_scsiio *ctsio)
 	token->range = &data->desc[0];
 	token->nrange = scsi_2btoul(data->range_descriptor_length) /
 	    sizeof(struct scsi_range_desc);
+	list->cursectors = tpc_ranges_length(token->range, token->nrange);
+	list->curbytes = (off_t)list->cursectors * lun->be_lun->blocksize;
 	tpc_create_token(lun, port, list->curbytes,
 	    (struct scsi_token *)token->token);
 	token->active = 0;
@@ -1954,8 +1967,6 @@ ctl_populate_token(struct ctl_scsiio *ctsio)
 	}
 	memcpy(list->res_token, token->token, sizeof(list->res_token));
 	list->res_token_valid = 1;
-	list->cursectors = tpc_ranges_length(token->range, token->nrange);
-	list->curbytes = (off_t)list->cursectors * lun->be_lun->blocksize;
 	list->curseg = 0;
 	list->completed = 1;
 	list->last_active = time_uptime;

@@ -359,9 +359,9 @@ u_long	pf_srchashmask;
 static u_long	pf_hashsize;
 static u_long	pf_srchashsize;
 
-SYSCTL_UINT(_net_pf, OID_AUTO, states_hashsize, CTLFLAG_RDTUN,
+SYSCTL_ULONG(_net_pf, OID_AUTO, states_hashsize, CTLFLAG_RDTUN,
     &pf_hashsize, 0, "Size of pf(4) states hashtable");
-SYSCTL_UINT(_net_pf, OID_AUTO, source_nodes_hashsize, CTLFLAG_RDTUN,
+SYSCTL_ULONG(_net_pf, OID_AUTO, source_nodes_hashsize, CTLFLAG_RDTUN,
     &pf_srchashsize, 0, "Size of pf(4) source nodes hashtable");
 
 VNET_DEFINE(void *, pf_swi_cookie);
@@ -374,7 +374,7 @@ pf_hashkey(struct pf_state_key *sk)
 {
 	uint32_t h;
 
-	h = jenkins_hash32((uint32_t *)sk,
+	h = murmur3_32_hash32((uint32_t *)sk,
 	    sizeof(struct pf_state_key_cmp)/sizeof(uint32_t),
 	    V_pf_hashseed);
 
@@ -388,11 +388,11 @@ pf_hashsrc(struct pf_addr *addr, sa_family_t af)
 
 	switch (af) {
 	case AF_INET:
-		h = jenkins_hash32((uint32_t *)&addr->v4,
+		h = murmur3_32_hash32((uint32_t *)&addr->v4,
 		    sizeof(addr->v4)/sizeof(uint32_t), V_pf_hashseed);
 		break;
 	case AF_INET6:
-		h = jenkins_hash32((uint32_t *)&addr->v6,
+		h = murmur3_32_hash32((uint32_t *)&addr->v6,
 		    sizeof(addr->v6)/sizeof(uint32_t), V_pf_hashseed);
 		break;
 	default:

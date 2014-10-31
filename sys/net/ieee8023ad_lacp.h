@@ -75,6 +75,7 @@
 	"\007DEFAULTED"		\
 	"\010EXPIRED"
 
+#ifdef _KERNEL
 /*
  * IEEE802.3 slow protocols
  *
@@ -336,3 +337,4 @@ lacp_isdistributing(struct lagg_port *lgp)
 #define	LACP_LAGIDSTR_MAX	\
 	(1 + LACP_PARTNERSTR_MAX + 1 + LACP_PARTNERSTR_MAX + 1)
 #define	LACP_STATESTR_MAX	(255) /* XXX */
+#endif	/* _KERNEL */

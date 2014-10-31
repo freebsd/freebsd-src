@@ -87,6 +87,8 @@ round_track(lba_t n)
 ssize_t sparse_write(int, const void *, size_t);
 #endif
 
+void mkimg_chs(lba_t, u_int, u_int *, u_int *, u_int *);
+
 struct uuid;
 void mkimg_uuid(struct uuid *);
 

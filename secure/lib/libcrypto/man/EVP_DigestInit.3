@@ -124,7 +124,7 @@
 .\" ========================================================================
 .\"
 .IX Title "EVP_DigestInit 3"
-.TH EVP_DigestInit 3 "2014-08-06" "1.0.1i" "OpenSSL"
+.TH EVP_DigestInit 3 "2014-10-15" "1.0.1j" "OpenSSL"
 .\" For nroff, turn off justification.  Always turn off hyphenation; it makes
 .\" way too many mistakes in technical documents.
 .if n .ad l
@@ -154,13 +154,13 @@ EVP digest routines
 \& int EVP_MD_CTX_cleanup(EVP_MD_CTX *ctx);
 \& void EVP_MD_CTX_destroy(EVP_MD_CTX *ctx);
 \&
-\& int EVP_MD_CTX_copy_ex(EVP_MD_CTX *out,const EVP_MD_CTX *in);  
+\& int EVP_MD_CTX_copy_ex(EVP_MD_CTX *out,const EVP_MD_CTX *in);
 \&
 \& int EVP_DigestInit(EVP_MD_CTX *ctx, const EVP_MD *type);
 \& int EVP_DigestFinal(EVP_MD_CTX *ctx, unsigned char *md,
 \&        unsigned int *s);
 \&
-\& int EVP_MD_CTX_copy(EVP_MD_CTX *out,EVP_MD_CTX *in);  
+\& int EVP_MD_CTX_copy(EVP_MD_CTX *out,EVP_MD_CTX *in);
 \&
 \& #define EVP_MAX_MD_SIZE 64     /* SHA512 */
 \&
@@ -267,7 +267,7 @@ structures for the \s-1MD2\s0, \s-1MD5\s0, \s-1SHA\s0, \s-1SHA1\s0, \s-1SHA224\s
 and \s-1RIPEMD160\s0 digest algorithms respectively.
 .PP
 \&\fIEVP_dss()\fR and \fIEVP_dss1()\fR return \fB\s-1EVP_MD\s0\fR structures for \s-1SHA\s0 and \s-1SHA1\s0 digest
-algorithms but using \s-1DSS\s0 (\s-1DSA\s0) for the signature algorithm. Note: there is 
+algorithms but using \s-1DSS\s0 (\s-1DSA\s0) for the signature algorithm. Note: there is
 no need to use these pseudo-digests in OpenSSL 1.0.0 and later, they are
 however retained for compatibility.
 .PP
@@ -303,15 +303,15 @@ The \fB\s-1EVP\s0\fR interface to message digests should almost always be used i
 preference to the low level interfaces. This is because the code then becomes
 transparent to the digest used and much more flexible.
 .PP
-New applications should use the \s-1SHA2\s0 digest algorithms such as \s-1SHA256\s0. 
+New applications should use the \s-1SHA2\s0 digest algorithms such as \s-1SHA256\s0.
 The other digest algorithms are still in common use.
 .PP
 For most applications the \fBimpl\fR parameter to \fIEVP_DigestInit_ex()\fR will be
 set to \s-1NULL\s0 to use the default digest implementation.
 .PP
-The functions \fIEVP_DigestInit()\fR, \fIEVP_DigestFinal()\fR and \fIEVP_MD_CTX_copy()\fR are 
+The functions \fIEVP_DigestInit()\fR, \fIEVP_DigestFinal()\fR and \fIEVP_MD_CTX_copy()\fR are
 obsolete but are retained to maintain compatibility with existing code. New
-applications should use \fIEVP_DigestInit_ex()\fR, \fIEVP_DigestFinal_ex()\fR and 
+applications should use \fIEVP_DigestInit_ex()\fR, \fIEVP_DigestFinal_ex()\fR and
 \&\fIEVP_MD_CTX_copy_ex()\fR because they can efficiently reuse a digest context
 instead of initializing and cleaning it up on each call and allow non default
 implementations of digests to be specified.
@@ -374,15 +374,19 @@ digest name passed on the command line.
 \& EVP_MD_CTX_destroy(mdctx);
 \&
 \& printf("Digest is: ");
-\& for(i = 0; i < md_len; i++) printf("%02x", md_value[i]);
+\& for(i = 0; i < md_len; i++)
+\&        printf("%02x", md_value[i]);
 \& printf("\en");
+\&
+\& /* Call this once before exit. */
+\& EVP_cleanup();
+\& exit(0);
 \& }
 .Ve
 .SH "SEE ALSO"
 .IX Header "SEE ALSO"
-\&\fIevp\fR\|(3), \fIhmac\fR\|(3), \fImd2\fR\|(3),
-\&\fImd5\fR\|(3), \fImdc2\fR\|(3), \fIripemd\fR\|(3),
-\&\fIsha\fR\|(3), \fIdgst\fR\|(1)
+\&\fIdgst\fR\|(1),
+\&\fIevp\fR\|(3)
 .SH "HISTORY"
 .IX Header "HISTORY"
 \&\fIEVP_DigestInit()\fR, \fIEVP_DigestUpdate()\fR and \fIEVP_DigestFinal()\fR are
@@ -397,7 +401,7 @@ and \fIEVP_DigestFinal_ex()\fR were added in OpenSSL 0.9.7.
 changed to return truely const \s-1EVP_MD\s0 * in OpenSSL 0.9.7.
 .PP
 The link between digests and signing algorithms was fixed in OpenSSL 1.0 and
-later, so now \fIEVP_sha1()\fR can be used with \s-1RSA\s0 and \s-1DSA\s0, there is no need to
+later, so now \fIEVP_sha1()\fR can be used with \s-1RSA\s0 and \s-1DSA\s0; there is no need to
 use \fIEVP_dss1()\fR any more.
 .PP
 OpenSSL 1.0 and later does not include the \s-1MD2\s0 digest algorithm in the

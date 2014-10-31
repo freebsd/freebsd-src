@@ -1,0 +1,71 @@
+.\" #
+.\" # Copyright (c) 2014, Juniper Networks, Inc.
+.\" # All rights reserved.
+.\" # This SOFTWARE is licensed under the LICENSE provided in the
+.\" # ../Copyright file. By downloading, installing, copying, or 
+.\" # using the SOFTWARE, you agree to be bound by the terms of that
+.\" # LICENSE.
+.\" # Phil Shafer, July 2014
+.\" 
+.Dd July, 2014
+.Dt LIBXO 3
+.Os
+.Sh NAME
+.Nm xo_emit
+.Nd emit formatted output based on format string and arguments
+.Sh LIBRARY
+.Lb libxo
+.Sh SYNOPSIS
+.In libxo/xo.h
+.Ft int
+.Fn xo_emit "const char *fmt"  "..."
+.Ft int
+.Fn xo_emit_h "xo_handle_t *xop" "const char *fmt" "..."
+.Ft int
+.Fn xo_emit_hv "xo_handle_t *xop" "const char *fmt" "va_list vap"
+.Sh DESCRIPTION
+The
+.Fn xo_emit
+function emits formatted output using the description in a format
+string along with a set of zero or more arguments, in a style similar
+to
+.Xr printf 3
+but using a more complex format description string, as described in
+.Xr xo_format 5 .
+.Pp
+.Fn xo_emit
+uses the default output handle, as described in
+.Xf libxo 3 ,
+where
+.Fn xo_emit_h
+uses an explicit handle.
+.Fn xo_emit_hv
+accepts a
+.Fa va_list
+for additional flexibility.
+.Sh ADDITIONAL DOCUMENTATION
+.Pp
+Complete documentation can be found on github:
+.Bd -literal -offset indent
+http://juniper.github.io/libxo/libxo-manual.html
+.Ed
+.Pp
+libxo lives on github as:
+.Bd -literal -offset indent
+https://github.com/Juniper/libxo
+.Ed
+.Pp
+The latest release of libxo is available at:
+.Bd -literal -offset indent
+https://github.com/Juniper/libxo/releases
+.Ed
+.Sh SEE ALSO
+.Xr xo_open_container 3 ,
+.Xr xo_open_list 3 , and
+.Xr xo_format 5 .
+.Sh HISTORY
+The
+.Fa libxo
+library was added in FreeBSD 11.0.
+.Sh AUTHOR
+Phil Shafer

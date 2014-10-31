@@ -351,6 +351,12 @@ options 	COMPAT_FREEBSD6
 # Enable FreeBSD7 compatibility syscalls
 options 	COMPAT_FREEBSD7
 
+# Enable FreeBSD9 compatibility syscalls
+options 	COMPAT_FREEBSD9
+
+# Enable FreeBSD10 compatibility syscalls
+options 	COMPAT_FREEBSD10
+
 #
 # These three options provide support for System V Interface
 # Definition-style interprocess communication, in the form of shared
@@ -794,6 +800,10 @@ device		ether
 #  The `vlan' device implements the VLAN tagging of Ethernet frames
 #  according to IEEE 802.1Q.
 device		vlan
+
+# The `vxlan' device implements the VXLAN encapsulation of Ethernet
+# frames in UDP packets according to RFC7348.
+device		vxlan
 
 #  The `wlan' device provides generic code to support 802.11
 #  drivers, including host AP mode; it is MANDATORY for the wi,
@@ -2958,6 +2968,7 @@ options 	SC_RENDER_DEBUG	# syscons rendering debugging
 options 	VFS_BIO_DEBUG	# VFS buffer I/O debugging
 
 options 	KSTACK_MAX_PAGES=32 # Maximum pages to give the kernel stack
+options 	KSTACK_USAGE_PROF
 
 # Adaptec Array Controller driver options
 options 	AAC_DEBUG	# Debugging levels:
@@ -2982,10 +2993,10 @@ options 	BROOKTREE_ALLOC_PAGES=(217*4+1)
 options 	MAXFILES=999
 
 # Random number generator
-options 	RANDOM_YARROW	# Yarrow RNG
-##options 	RANDOM_FORTUNA	# Fortuna RNG - not yet implemented
+# Only ONE of the below two may be used; they are mutually exclusive.
+options 	RANDOM_YARROW	# Yarrow CSPRNG (Default)
+#options 	RANDOM_FORTUNA	# Fortuna CSPRNG
 options 	RANDOM_DEBUG	# Debugging messages
-options 	RANDOM_RWFILE	# Read and write entropy cache
 
 # Module to enable execution of application via emulators like QEMU
 options         IMAGACT_BINMISC

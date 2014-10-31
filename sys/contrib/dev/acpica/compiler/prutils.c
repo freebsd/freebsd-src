@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2013, Intel Corp.
+ * Copyright (C) 2000 - 2014, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -149,7 +149,7 @@ PrGetNextToken (
 void
 PrError (
     UINT8                   Level,
-    UINT8                   MessageId,
+    UINT16                  MessageId,
     UINT32                  Column)
 {
 #if 0
@@ -340,7 +340,6 @@ PrOpenIncludeWithPrefix (
     if (!IncludeFile)
     {
         fprintf (stderr, "Could not open include file %s\n", Pathname);
-        ACPI_FREE (Pathname);
         return (NULL);
     }
 
@@ -393,15 +392,17 @@ PrPushInputFileStack (
 
     /* Reset the global line count and filename */
 
-    Gbl_Files[ASL_FILE_INPUT].Filename = Filename;
+    Gbl_Files[ASL_FILE_INPUT].Filename =
+        UtStringCacheCalloc (strlen (Filename) + 1);
+    strcpy (Gbl_Files[ASL_FILE_INPUT].Filename, Filename);
+
     Gbl_Files[ASL_FILE_INPUT].Handle = InputFile;
     Gbl_PreviousLineNumber = 0;
     Gbl_CurrentLineNumber = 0;
 
     /* Emit a new #line directive for the include file */
 
-    FlPrintFile (ASL_FILE_PREPROCESSOR, "#line %u \"%s\"\n",
-        1, Filename);
+    FlPrintFile (ASL_FILE_PREPROCESSOR, "#line %u \"%s\"\n", 1, Filename);
 }
 
 

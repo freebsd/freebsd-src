@@ -40,6 +40,7 @@
 #include <sys/module.h>
 #include <sys/mount.h>
 #include <sys/sx.h>
+#include <sys/taskqueue.h>
 #include <sys/vnode.h>
 
 #include <fs/autofs/autofs.h>
@@ -87,14 +88,18 @@ autofs_mount(struct mount *mp)
 
 	vfs_getnewfsid(mp);
 
-	AUTOFS_LOCK(amp);
+	MNT_ILOCK(mp);
+	mp->mnt_kern_flag |= MNTK_LOOKUP_SHARED;
+	MNT_IUNLOCK(mp);
+
+	AUTOFS_XLOCK(amp);
 	error = autofs_node_new(NULL, amp, ".", -1, &amp->am_root);
 	if (error != 0) {
-		AUTOFS_UNLOCK(amp);
+		AUTOFS_XUNLOCK(amp);
 		free(amp, M_AUTOFS);
 		return (error);
 	}
-	AUTOFS_UNLOCK(amp);
+	AUTOFS_XUNLOCK(amp);
 
 	vfs_mountedfrom(mp, from);
 
@@ -145,7 +150,7 @@ autofs_unmount(struct mount *mp, int mntflags)
 		pause("autofs_umount", 1);
 	}
 
-	AUTOFS_LOCK(amp);
+	AUTOFS_XLOCK(amp);
 
 	/*
 	 * Not terribly efficient, but at least not recursive.
@@ -159,7 +164,7 @@ autofs_unmount(struct mount *mp, int mntflags)
 	autofs_node_delete(amp->am_root);
 
 	mp->mnt_data = NULL;
-	AUTOFS_UNLOCK(amp);
+	AUTOFS_XUNLOCK(amp);
 
 	sx_destroy(&amp->am_lock);
 
@@ -176,7 +181,7 @@ autofs_root(struct mount *mp, int flags, struct vnode **vpp)
 
 	amp = VFSTOAUTOFS(mp);
 
-	error = autofs_node_vn(amp->am_root, mp, vpp);
+	error = autofs_node_vn(amp->am_root, mp, flags, vpp);
 
 	return (error);
 }

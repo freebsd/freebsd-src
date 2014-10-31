@@ -45,6 +45,7 @@ struct cfiscsi_target {
 	char				ct_alias[CTL_ISCSI_ALIAS_LEN];
 	int				ct_state;
 	int				ct_online;
+	int				ct_target_id;
 	struct ctl_port			ct_port;
 };
 
@@ -56,6 +57,7 @@ struct cfiscsi_data_wait {
 	int				cdw_sg_index;
 	char				*cdw_sg_addr;
 	size_t				cdw_sg_len;
+	uint32_t			cdw_r2t_end;
 };
 
 #define CFISCSI_SESSION_STATE_INVALID		0
@@ -109,6 +111,7 @@ struct cfiscsi_softc {
 	struct mtx			lock;
 	char				port_name[32];
 	int				online;
+	int				last_target_id;
 	unsigned int			last_session_id;
 	TAILQ_HEAD(, cfiscsi_target)	targets;
 	TAILQ_HEAD(, cfiscsi_session)	sessions;

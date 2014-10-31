@@ -566,7 +566,7 @@ powerpc_init(vm_offset_t startkernel, vm_offset_t endkernel,
 	/*
 	 * Grab booted kernel's name
 	 */
-        env = getenv("kernelname");
+        env = kern_getenv("kernelname");
         if (env != NULL) {
 		strlcpy(kernelname, env, sizeof(kernelname));
 		freeenv(env);

@@ -4,7 +4,7 @@
 #
 
 # PROVIDE: random
-# REQUIRE: initrandom FILESYSTEMS
+# REQUIRE: FILESYSTEMS
 # BEFORE: netif
 # KEYWORD: nojail shutdown
 

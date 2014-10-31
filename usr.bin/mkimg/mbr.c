@@ -59,12 +59,14 @@ mbr_metadata(u_int where, lba_t blk)
 }
 
 static void
-mbr_chs(u_char *cyl, u_char *hd, u_char *sec, uint32_t lba __unused)
+mbr_chs(u_char *cylp, u_char *hdp, u_char *secp, lba_t lba)
 {
+	u_int cyl, hd, sec;
 
-	*cyl = 0xff;		/* XXX */
-	*hd = 0xff;		/* XXX */
-	*sec = 0xff;		/* XXX */
+	mkimg_chs(lba, 1023, &cyl, &hd, &sec);
+	*cylp = cyl;
+	*hdp = hd;
+	*secp = (sec & 0x3f) | ((cyl >> 2) & 0xc0);
 }
 
 static int
@@ -73,6 +75,7 @@ mbr_write(lba_t imgsz __unused, void *bootcode)
 	u_char *mbr;
 	struct dos_partition *dpbase, *dp;
 	struct part *part;
+	lba_t size;
 	int error;
 
 	mbr = malloc(secsz);
@@ -86,15 +89,16 @@ mbr_write(lba_t imgsz __unused, void *bootcode)
 	le16enc(mbr + DOSMAGICOFFSET, DOSMAGIC);
 	dpbase = (void *)(mbr + DOSPARTOFF);
 	STAILQ_FOREACH(part, &partlist, link) {
+		size = round_track(part->size);
 		dp = dpbase + part->index;
 		dp->dp_flag = (part->index == 0 && bootcode != NULL) ? 0x80 : 0;
 		mbr_chs(&dp->dp_scyl, &dp->dp_shd, &dp->dp_ssect,
 		    part->block);
 		dp->dp_typ = ALIAS_TYPE2INT(part->type);
 		mbr_chs(&dp->dp_ecyl, &dp->dp_ehd, &dp->dp_esect,
-		    part->block + part->size - 1);
+		    part->block + size - 1);
 		le32enc(&dp->dp_start, part->block);
-		le32enc(&dp->dp_size, part->size);
+		le32enc(&dp->dp_size, size);
 	}
 	error = image_write(0, mbr, 1);
 	free(mbr);

@@ -148,9 +148,10 @@ static SYSCTL_NODE(_net_link, IFT_L2VLAN, vlan, CTLFLAG_RW, 0,
 static SYSCTL_NODE(_net_link_vlan, PF_LINK, link, CTLFLAG_RW, 0,
     "for consistency");
 
-static int soft_pad = 0;
-SYSCTL_INT(_net_link_vlan, OID_AUTO, soft_pad, CTLFLAG_RW, &soft_pad, 0,
-	   "pad short frames before tagging");
+static VNET_DEFINE(int, soft_pad);
+#define	V_soft_pad	VNET(soft_pad)
+SYSCTL_INT(_net_link_vlan, OID_AUTO, soft_pad, CTLFLAG_RW | CTLFLAG_VNET,
+    &VNET_NAME(soft_pad), 0, "pad short frames before tagging");
 
 static const char vlanname[] = "vlan";
 static MALLOC_DEFINE(M_VLAN, vlanname, "802.1Q Virtual LAN Interface");
@@ -1082,7 +1083,7 @@ vlan_transmit(struct ifnet *ifp, struct mbuf *m)
 	 * devices that just discard such runts instead or mishandle
 	 * them somehow.
 	 */
-	if (soft_pad && p->if_type == IFT_ETHER) {
+	if (V_soft_pad && p->if_type == IFT_ETHER) {
 		static char pad[8];	/* just zeros */
 		int n;
 

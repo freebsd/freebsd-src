@@ -227,6 +227,7 @@ ATF_TC_HEAD(map_alias_name2sym, tc)
 ATF_TC_BODY(map_alias_name2sym, tc)
 {
 	GElf_Sym sym1, sym2;
+	prsyminfo_t si1, si2;
 	struct proc_handle *phdl;
 	int error;
 
@@ -239,14 +240,15 @@ ATF_TC_BODY(map_alias_name2sym, tc)
 	 * Make sure that "target_prog:main" and "a.out:main" return the same
 	 * symbol.
 	 */
-	error = proc_name2sym(phdl, target_prog_file, "main", &sym1);
+	error = proc_name2sym(phdl, target_prog_file, "main", &sym1, &si1);
 	ATF_REQUIRE_EQ_MSG(error, 0, "failed to look up 'main' via %s",
 	    target_prog_file);
-	error = proc_name2sym(phdl, aout_object, "main", &sym2);
+	error = proc_name2sym(phdl, aout_object, "main", &sym2, &si2);
 	ATF_REQUIRE_EQ_MSG(error, 0, "failed to look up 'main' via %s",
 	    aout_object);
 
 	ATF_CHECK_EQ(memcmp(&sym1, &sym2, sizeof(sym1)), 0);
+	ATF_CHECK_EQ(si1.prs_id, si2.prs_id);
 
 	ATF_CHECK_EQ_MSG(proc_continue(phdl), 0, "failed to resume execution");
 
@@ -271,11 +273,11 @@ ATF_TC_BODY(symbol_lookup, tc)
 
 	phdl = start_prog(tc, false);
 
-	error = proc_name2sym(phdl, target_prog_file, "main", &main_sym);
+	error = proc_name2sym(phdl, target_prog_file, "main", &main_sym, NULL);
 	ATF_REQUIRE_EQ_MSG(error, 0, "failed to look up 'main'");
 
 	error = proc_name2sym(phdl, ldelf_object, "r_debug_state",
-	    &r_debug_state_sym);
+	    &r_debug_state_sym, NULL);
 	ATF_REQUIRE_EQ_MSG(error, 0, "failed to look up 'r_debug_state'");
 
 	set_bkpt(phdl, r_debug_state_sym.st_value, &saved);

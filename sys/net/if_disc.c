@@ -50,6 +50,7 @@
 #include <net/if_types.h>
 #include <net/route.h>
 #include <net/bpf.h>
+#include <net/vnet.h>
 
 #include "opt_inet.h"
 #include "opt_inet6.h"
@@ -74,7 +75,8 @@ static void	disc_clone_destroy(struct ifnet *);
 static const char discname[] = "disc";
 static MALLOC_DEFINE(M_DISC, discname, "Discard interface");
 
-static struct if_clone *disc_cloner;
+static VNET_DEFINE(struct if_clone *, disc_cloner);
+#define	V_disc_cloner	VNET(disc_cloner)
 
 static int
 disc_clone_create(struct if_clone *ifc, int unit, caddr_t params)
@@ -129,17 +131,32 @@ disc_clone_destroy(struct ifnet *ifp)
 	free(sc, M_DISC);
 }
 
+static void
+vnet_disc_init(const void *unused __unused)
+{
+
+	V_disc_cloner = if_clone_simple(discname, disc_clone_create,
+	    disc_clone_destroy, 0);
+}
+VNET_SYSINIT(vnet_disc_init, SI_SUB_PROTO_IFATTACHDOMAIN, SI_ORDER_ANY,
+    vnet_disc_init, NULL);
+
+static void
+vnet_disc_uninit(const void *unused __unused)
+{
+
+	if_clone_detach(V_disc_cloner);
+}
+VNET_SYSUNINIT(vnet_disc_uninit, SI_SUB_PROTO_IFATTACHDOMAIN, SI_ORDER_ANY,
+    vnet_disc_uninit, NULL);
+
 static int
 disc_modevent(module_t mod, int type, void *data)
 {
 
 	switch (type) {
 	case MOD_LOAD:
-		disc_cloner = if_clone_simple(discname, disc_clone_create,
-		    disc_clone_destroy, 0);
-		break;
 	case MOD_UNLOAD:
-		if_clone_detach(disc_cloner);
 		break;
 	default:
 		return (EOPNOTSUPP);
@@ -185,6 +202,7 @@ discoutput(struct ifnet *ifp, struct mbuf *m, const struct sockaddr *dst,
 static void
 discrtrequest(int cmd, struct rtentry *rt, struct rt_addrinfo *info)
 {
+
 	RT_LOCK_ASSERT(rt);
 	rt->rt_mtu = DSMTU;
 }
@@ -200,7 +218,6 @@ discioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 	int error = 0;
 
 	switch (cmd) {
-
 	case SIOCSIFADDR:
 		ifp->if_flags |= IFF_UP;
 		ifa = (struct ifaddr *)data;
@@ -210,7 +227,6 @@ discioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 		 * Everything else is done at a higher level.
 		 */
 		break;
-
 	case SIOCADDMULTI:
 	case SIOCDELMULTI:
 		if (ifr == 0) {
@@ -218,7 +234,6 @@ discioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 			break;
 		}
 		switch (ifr->ifr_addr.sa_family) {
-
 #ifdef INET
 		case AF_INET:
 			break;
@@ -227,17 +242,14 @@ discioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 		case AF_INET6:
 			break;
 #endif
-
 		default:
 			error = EAFNOSUPPORT;
 			break;
 		}
 		break;
-
 	case SIOCSIFMTU:
 		ifp->if_mtu = ifr->ifr_mtu;
 		break;
-
 	default:
 		error = EINVAL;
 	}

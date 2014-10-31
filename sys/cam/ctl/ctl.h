@@ -156,7 +156,7 @@ int ctl_port_list(struct ctl_port_entry *entries, int num_entries_alloced,
  * Put a string into an sbuf, escaping characters that are illegal or not
  * recommended in XML.  Note this doesn't escape everything, just > < and &.
  */
-int ctl_sbuf_printf_esc(struct sbuf *sb, char *str);
+int ctl_sbuf_printf_esc(struct sbuf *sb, char *str, int size);
 
 int ctl_ffz(uint32_t *mask, uint32_t size);
 int ctl_set_mask(uint32_t *mask, uint32_t bit);
@@ -172,12 +172,6 @@ int ctl_failover_sp_handler(struct ctl_scsiio *ctsio,
 			    struct ctl_page_index *page_index,
 			    uint8_t *page_ptr);
 **/
-int ctl_power_sp_handler(struct ctl_scsiio *ctsio,
-			 struct ctl_page_index *page_index, uint8_t *page_ptr);
-int ctl_power_sp_sense_handler(struct ctl_scsiio *ctsio,
-			       struct ctl_page_index *page_index, int pc);
-int ctl_aps_sp_handler(struct ctl_scsiio *ctsio,
-		       struct ctl_page_index *page_index, uint8_t *page_ptr);
 int ctl_debugconf_sp_sense_handler(struct ctl_scsiio *ctsio,
 				   struct ctl_page_index *page_index,
 				   int pc);

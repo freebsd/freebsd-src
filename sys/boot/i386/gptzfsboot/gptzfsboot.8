@@ -56,7 +56,7 @@ itself was loaded.
 Other disks are probed in BIOS defined order.
 After a disk is probed and
 .Nm
-determines that the whole disk is not a ZFS pool member, then
+determines that the whole disk is not a ZFS pool member, the
 individual partitions are probed in their partition table order.
 Currently GPT and MBR partition schemes are supported.
 With the GPT scheme, only partitions of type
@@ -103,9 +103,9 @@ accepts all the options that
 .Xr boot 8
 supports.
 .Pp
-Filesystem specification and the path to
+The filesystem specification and the path to
 .Xr zfsloader 8
-is different from
+are different from
 .Xr boot 8 .
 The format is
 .Pp

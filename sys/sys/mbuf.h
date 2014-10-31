@@ -248,7 +248,7 @@ struct mbuf {
  * Flags preserved when copying m_pkthdr.
  */
 #define M_COPYFLAGS \
-    (M_PKTHDR|M_EOR|M_RDONLY|M_BCAST|M_MCAST|M_VLANTAG|M_PROMISC| \
+    (M_PKTHDR|M_EOR|M_RDONLY|M_BCAST|M_MCAST|M_PROMISC|M_VLANTAG|M_FLOWID| \
      M_PROTOFLAGS)
 
 /*
@@ -393,7 +393,7 @@ void sf_ext_free(void *, void *);
  * Outbound flags that are set by upper protocol layers requesting lower
  * layers, or ideally the hardware, to perform these offloading tasks.
  * For outbound packets this field and its flags can be directly tested
- * against if_data.ifi_hwassist.
+ * against ifnet if_hwassist.
  */
 #define	CSUM_IP			0x00000001	/* IP header checksum offload */
 #define	CSUM_IP_UDP		0x00000002	/* UDP checksum offload */

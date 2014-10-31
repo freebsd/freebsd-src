@@ -82,6 +82,25 @@
 #define	ATH_BEACON_CWMAX_DEFAULT 0	/* default cwmax for ap beacon q */
 
 /*
+ * The following bits can be set during the PCI (and perhaps non-PCI
+ * later) device probe path.
+ *
+ * It controls some of the driver and HAL behaviour.
+ */
+
+#define	ATH_PCI_CUS198		0x0001
+#define	ATH_PCI_CUS230		0x0002
+#define	ATH_PCI_CUS217		0x0004
+#define	ATH_PCI_CUS252		0x0008
+#define	ATH_PCI_WOW		0x0010
+#define	ATH_PCI_BT_ANT_DIV	0x0020
+#define	ATH_PCI_D3_L1_WAR	0x0040
+#define	ATH_PCI_AR9565_1ANT	0x0080
+#define	ATH_PCI_AR9565_2ANT	0x0100
+#define	ATH_PCI_NO_PLL_PWRSAVE	0x0200
+#define	ATH_PCI_KILLER		0x0400
+
+/*
  * The key cache is used for h/w cipher state and also for
  * tracking station state such as the current tx antenna.
  * We also setup a mapping table between key cache slot indices
@@ -884,6 +903,9 @@ struct ath_softc {
 	HAL_POWER_MODE		sc_cur_powerstate;
 
 	int			sc_powersave_refcnt;
+
+	/* ATH_PCI_* flags */
+	uint32_t		sc_pci_devinfo;
 };
 
 #define	ATH_LOCK_INIT(_sc) \

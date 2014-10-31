@@ -389,7 +389,7 @@ nvpair_init_datasize(nvpair_t *nvp)
 }
 
 const unsigned char *
-nvpair_unpack_header(int flags, nvpair_t *nvp, const unsigned char *ptr,
+nvpair_unpack_header(bool isbe, nvpair_t *nvp, const unsigned char *ptr,
     size_t *leftp)
 {
 	struct nvpair_header nvphdr;
@@ -411,12 +411,12 @@ nvpair_unpack_header(int flags, nvpair_t *nvp, const unsigned char *ptr,
 	}
 
 #if BYTE_ORDER == BIG_ENDIAN
-	if ((flags & NV_FLAG_BIG_ENDIAN) == 0) {
+	if (!isbe) {
 		nvphdr.nvph_namesize = le16toh(nvphdr.nvph_namesize);
 		nvphdr.nvph_datasize = le64toh(nvphdr.nvph_datasize);
 	}
 #else
-	if ((flags & NV_FLAG_BIG_ENDIAN) != 0) {
+	if (isbe) {
 		nvphdr.nvph_namesize = be16toh(nvphdr.nvph_namesize);
 		nvphdr.nvph_datasize = be64toh(nvphdr.nvph_datasize);
 	}
@@ -451,7 +451,7 @@ failed:
 }
 
 const unsigned char *
-nvpair_unpack_null(int flags __unused, nvpair_t *nvp, const unsigned char *ptr,
+nvpair_unpack_null(bool isbe __unused, nvpair_t *nvp, const unsigned char *ptr,
     size_t *leftp __unused)
 {
 
@@ -466,7 +466,7 @@ nvpair_unpack_null(int flags __unused, nvpair_t *nvp, const unsigned char *ptr,
 }
 
 const unsigned char *
-nvpair_unpack_bool(int flags __unused, nvpair_t *nvp, const unsigned char *ptr,
+nvpair_unpack_bool(bool isbe __unused, nvpair_t *nvp, const unsigned char *ptr,
     size_t *leftp)
 {
 	uint8_t value;
@@ -497,7 +497,7 @@ nvpair_unpack_bool(int flags __unused, nvpair_t *nvp, const unsigned char *ptr,
 }
 
 const unsigned char *
-nvpair_unpack_number(int flags, nvpair_t *nvp, const unsigned char *ptr,
+nvpair_unpack_number(bool isbe, nvpair_t *nvp, const unsigned char *ptr,
      size_t *leftp)
 {
 
@@ -512,7 +512,7 @@ nvpair_unpack_number(int flags, nvpair_t *nvp, const unsigned char *ptr,
 		return (NULL);
 	}
 
-	if ((flags & NV_FLAG_BIG_ENDIAN) != 0)
+	if (isbe)
 		nvp->nvp_data = be64dec(ptr);
 	else
 		nvp->nvp_data = le64dec(ptr);
@@ -523,7 +523,7 @@ nvpair_unpack_number(int flags, nvpair_t *nvp, const unsigned char *ptr,
 }
 
 const unsigned char *
-nvpair_unpack_string(int flags __unused, nvpair_t *nvp,
+nvpair_unpack_string(bool isbe __unused, nvpair_t *nvp,
     const unsigned char *ptr, size_t *leftp)
 {
 
@@ -551,8 +551,8 @@ nvpair_unpack_string(int flags __unused, nvpair_t *nvp,
 }
 
 const unsigned char *
-nvpair_unpack_nvlist(int *flagsp, nvpair_t *nvp, const unsigned char *ptr,
-    size_t *leftp, size_t nfds, nvlist_t **child)
+nvpair_unpack_nvlist(bool isbe __unused, nvpair_t *nvp,
+    const unsigned char *ptr, size_t *leftp, size_t nfds, nvlist_t **child)
 {
 	nvlist_t *value;
 
@@ -567,7 +567,7 @@ nvpair_unpack_nvlist(int *flagsp, nvpair_t *nvp, const unsigned char *ptr,
 	if (value == NULL)
 		return (NULL);
 
-	ptr = nvlist_unpack_header(value, ptr, nfds, flagsp, leftp);
+	ptr = nvlist_unpack_header(value, ptr, nfds, NULL, leftp);
 	if (ptr == NULL)
 		return (NULL);
 
@@ -578,7 +578,7 @@ nvpair_unpack_nvlist(int *flagsp, nvpair_t *nvp, const unsigned char *ptr,
 }
 
 const unsigned char *
-nvpair_unpack_descriptor(int flags, nvpair_t *nvp, const unsigned char *ptr,
+nvpair_unpack_descriptor(bool isbe, nvpair_t *nvp, const unsigned char *ptr,
     size_t *leftp, const int *fds, size_t nfds)
 {
 	int64_t idx;
@@ -594,7 +594,7 @@ nvpair_unpack_descriptor(int flags, nvpair_t *nvp, const unsigned char *ptr,
 		return (NULL);
 	}
 
-	if ((flags & NV_FLAG_BIG_ENDIAN) != 0)
+	if (isbe)
 		idx = be64dec(ptr);
 	else
 		idx = le64dec(ptr);
@@ -618,7 +618,7 @@ nvpair_unpack_descriptor(int flags, nvpair_t *nvp, const unsigned char *ptr,
 }
 
 const unsigned char *
-nvpair_unpack_binary(int flags __unused, nvpair_t *nvp,
+nvpair_unpack_binary(bool isbe __unused, nvpair_t *nvp,
     const unsigned char *ptr, size_t *leftp)
 {
 	void *value;
@@ -644,7 +644,7 @@ nvpair_unpack_binary(int flags __unused, nvpair_t *nvp,
 }
 
 const unsigned char *
-nvpair_unpack(int flags, const unsigned char *ptr, size_t *leftp,
+nvpair_unpack(bool isbe, const unsigned char *ptr, size_t *leftp,
     nvpair_t **nvpp)
 {
 	nvpair_t *nvp, *tmp;
@@ -654,7 +654,7 @@ nvpair_unpack(int flags, const unsigned char *ptr, size_t *leftp,
 		return (NULL);
 	nvp->nvp_name = (char *)(nvp + 1);
 
-	ptr = nvpair_unpack_header(flags, nvp, ptr, leftp);
+	ptr = nvpair_unpack_header(isbe, nvp, ptr, leftp);
 	if (ptr == NULL)
 		goto failed;
 	tmp = realloc(nvp, sizeof(*nvp) + strlen(nvp->nvp_name) + 1);

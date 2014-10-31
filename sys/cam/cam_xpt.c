@@ -2195,7 +2195,7 @@ xptperiphtraverse(struct cam_ed *device, struct cam_periph *start_periph,
 		next_periph = SLIST_NEXT(periph, periph_links);
 		while (next_periph != NULL &&
 		    (next_periph->flags & CAM_PERIPH_FREE) != 0)
-			next_periph = SLIST_NEXT(periph, periph_links);
+			next_periph = SLIST_NEXT(next_periph, periph_links);
 		if (next_periph)
 			next_periph->refcount++;
 		mtx_unlock(&bus->eb_mtx);
@@ -2269,7 +2269,7 @@ xptpdperiphtraverse(struct periph_driver **pdrv,
 		next_periph = TAILQ_NEXT(periph, unit_links);
 		while (next_periph != NULL &&
 		    (next_periph->flags & CAM_PERIPH_FREE) != 0)
-			next_periph = TAILQ_NEXT(periph, unit_links);
+			next_periph = TAILQ_NEXT(next_periph, unit_links);
 		if (next_periph)
 			next_periph->refcount++;
 		xpt_unlock_buses();

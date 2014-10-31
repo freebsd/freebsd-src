@@ -698,7 +698,7 @@ nvlist_check_header(struct nvlist_header *nvlhdrp)
 
 const unsigned char *
 nvlist_unpack_header(nvlist_t *nvl, const unsigned char *ptr, size_t nfds,
-    int *flagsp, size_t *leftp)
+    bool *isbep, size_t *leftp)
 {
 	struct nvlist_header nvlhdr;
 
@@ -725,7 +725,8 @@ nvlist_unpack_header(nvlist_t *nvl, const unsigned char *ptr, size_t nfds,
 	nvl->nvl_flags = (nvlhdr.nvlh_flags & NV_FLAG_PUBLIC_MASK);
 
 	ptr += sizeof(nvlhdr);
-	*flagsp = (int)nvlhdr.nvlh_flags;
+	if (isbep != NULL)
+		*isbep = (((int)nvlhdr.nvlh_flags & NV_FLAG_BIG_ENDIAN) != 0);
 	*leftp -= sizeof(nvlhdr);
 
 	return (ptr);
@@ -741,7 +742,7 @@ nvlist_xunpack(const void *buf, size_t size, const int *fds, size_t nfds)
 	nvlist_t *nvl, *retnvl, *tmpnvl;
 	nvpair_t *nvp;
 	size_t left;
-	int flags;
+	bool isbe;
 
 	left = size;
 	ptr = buf;
@@ -751,44 +752,43 @@ nvlist_xunpack(const void *buf, size_t size, const int *fds, size_t nfds)
 	if (nvl == NULL)
 		goto failed;
 
-	ptr = nvlist_unpack_header(nvl, ptr, nfds, &flags, &left);
+	ptr = nvlist_unpack_header(nvl, ptr, nfds, &isbe, &left);
 	if (ptr == NULL)
 		goto failed;
 
 	while (left > 0) {
-		ptr = nvpair_unpack(flags, ptr, &left, &nvp);
+		ptr = nvpair_unpack(isbe, ptr, &left, &nvp);
 		if (ptr == NULL)
 			goto failed;
 		switch (nvpair_type(nvp)) {
 		case NV_TYPE_NULL:
-			ptr = nvpair_unpack_null(flags, nvp, ptr, &left);
+			ptr = nvpair_unpack_null(isbe, nvp, ptr, &left);
 			break;
 		case NV_TYPE_BOOL:
-			ptr = nvpair_unpack_bool(flags, nvp, ptr, &left);
+			ptr = nvpair_unpack_bool(isbe, nvp, ptr, &left);
 			break;
 		case NV_TYPE_NUMBER:
-			ptr = nvpair_unpack_number(flags, nvp, ptr, &left);
+			ptr = nvpair_unpack_number(isbe, nvp, ptr, &left);
 			break;
 		case NV_TYPE_STRING:
-			ptr = nvpair_unpack_string(flags, nvp, ptr, &left);
+			ptr = nvpair_unpack_string(isbe, nvp, ptr, &left);
 			break;
 		case NV_TYPE_NVLIST:
-			ptr = nvpair_unpack_nvlist(&flags, nvp, ptr, &left,
-			    nfds, &tmpnvl);
+			ptr = nvpair_unpack_nvlist(isbe, nvp, ptr, &left, nfds,
+			    &tmpnvl);
 			nvlist_set_parent(tmpnvl, nvp);
 			break;
 		case NV_TYPE_DESCRIPTOR:
-			ptr = nvpair_unpack_descriptor(flags, nvp, ptr, &left,
+			ptr = nvpair_unpack_descriptor(isbe, nvp, ptr, &left,
 			    fds, nfds);
 			break;
 		case NV_TYPE_BINARY:
-			ptr = nvpair_unpack_binary(flags, nvp, ptr, &left);
+			ptr = nvpair_unpack_binary(isbe, nvp, ptr, &left);
 			break;
 		case NV_TYPE_NVLIST_UP:
 			if (nvl->nvl_parent == NULL)
 				goto failed;
 			nvl = nvpair_nvlist(nvl->nvl_parent);
-			flags = nvl->nvl_flags;
 			continue;
 		default:
 			PJDLOG_ABORT("Invalid type (%d).", nvpair_type(nvp));

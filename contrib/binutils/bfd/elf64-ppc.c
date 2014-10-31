@@ -58,7 +58,7 @@ static bfd_vma opd_entry_value
 #define TARGET_LITTLE_SYM	bfd_elf64_powerpcle_vec
 #define TARGET_LITTLE_NAME	"elf64-powerpcle"
 #define TARGET_BIG_SYM		bfd_elf64_powerpc_vec
-#define TARGET_BIG_NAME		"elf64-powerpc"
+#define TARGET_BIG_NAME		"elf64-powerpc-freebsd"
 #define ELF_ARCH		bfd_arch_powerpc
 #define ELF_MACHINE_CODE	EM_PPC64
 #define ELF_MAXPAGESIZE		0x10000

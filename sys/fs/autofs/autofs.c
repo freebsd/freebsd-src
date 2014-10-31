@@ -76,6 +76,7 @@
 #include <sys/sx.h>
 #include <sys/sysctl.h>
 #include <sys/syscallsubr.h>
+#include <sys/taskqueue.h>
 #include <sys/vnode.h>
 #include <machine/atomic.h>
 #include <vm/uma.h>
@@ -260,7 +261,7 @@ autofs_path(struct autofs_node *anp)
 }
 
 static void
-autofs_callout(void *context)
+autofs_task(void *context, int pending)
 {
 	struct autofs_request *ar;
 
@@ -273,6 +274,7 @@ autofs_callout(void *context)
 	 * XXX: EIO perhaps?
 	 */
 	ar->ar_error = ETIMEDOUT;
+	ar->ar_wildcards = true;
 	ar->ar_done = true;
 	ar->ar_in_progress = false;
 	cv_broadcast(&autofs_softc->sc_cv);
@@ -290,15 +292,16 @@ autofs_cached(struct autofs_node *anp, const char *component, int componentlen)
 	AUTOFS_ASSERT_UNLOCKED(amp);
 
 	/*
-	 * For top-level nodes we need to request automountd(8)
-	 * assistance even if the node is marked as cached,
-	 * but the requested subdirectory does not exist.  This
-	 * is necessary for wildcard indirect map keys to work.
+	 * For root node we need to request automountd(8) assistance even
+	 * if the node is marked as cached, but the requested top-level
+	 * directory does not exist.  This is necessary for wildcard indirect
+	 * map keys to work.  We don't do this if we know that there are
+	 * no wildcards.
 	 */
-	if (anp->an_parent == NULL && componentlen != 0) {
-		AUTOFS_LOCK(amp);
+	if (anp->an_parent == NULL && componentlen != 0 && anp->an_wildcards) {
+		AUTOFS_SLOCK(amp);
 		error = autofs_node_find(anp, component, componentlen, NULL);
-		AUTOFS_UNLOCK(amp);
+		AUTOFS_SUNLOCK(amp);
 		if (error != 0)
 			return (false);
 	}
@@ -365,8 +368,9 @@ autofs_trigger_one(struct autofs_node *anp,
 	struct autofs_request *ar;
 	char *key, *path;
 	int error = 0, request_error, last;
+	bool wildcards;
 
-	amp = VFSTOAUTOFS(anp->an_vnode->v_mount);
+	amp = anp->an_mount;
 
 	sx_assert(&autofs_softc->sc_lock, SA_XLOCKED);
 
@@ -414,9 +418,14 @@ autofs_trigger_one(struct autofs_node *anp,
 		strlcpy(ar->ar_options,
 		    amp->am_options, sizeof(ar->ar_options));
 
-		callout_init(&ar->ar_callout, 1);
-		callout_reset(&ar->ar_callout,
-		    autofs_timeout * hz, autofs_callout, ar);
+		TIMEOUT_TASK_INIT(taskqueue_thread, &ar->ar_task, 0,
+		    autofs_task, ar);
+		error = taskqueue_enqueue_timeout(taskqueue_thread,
+		    &ar->ar_task, autofs_timeout * hz);
+		if (error != 0) {
+			AUTOFS_WARN("taskqueue_enqueue_timeout() failed "
+			    "with error %d", error);
+		}
 		refcount_init(&ar->ar_refcount, 1);
 		TAILQ_INSERT_TAIL(&autofs_softc->sc_requests, ar, ar_next);
 	}
@@ -444,16 +453,19 @@ autofs_trigger_one(struct autofs_node *anp,
 		    ar->ar_path, request_error);
 	}
 
+	wildcards = ar->ar_wildcards;
+
 	last = refcount_release(&ar->ar_refcount);
 	if (last) {
 		TAILQ_REMOVE(&autofs_softc->sc_requests, ar, ar_next);
 		/*
-		 * XXX: Is it safe?
+		 * Unlock the sc_lock, so that autofs_task() can complete.
 		 */
 		sx_xunlock(&autofs_softc->sc_lock);
-		callout_drain(&ar->ar_callout);
-		sx_xlock(&autofs_softc->sc_lock);
+		taskqueue_cancel_timeout(taskqueue_thread, &ar->ar_task, NULL);
+		taskqueue_drain_timeout(taskqueue_thread, &ar->ar_task);
 		uma_zfree(autofs_request_zone, ar);
+		sx_xlock(&autofs_softc->sc_lock);
 	}
 
 	/*
@@ -463,6 +475,7 @@ autofs_trigger_one(struct autofs_node *anp,
 	 */
 	if (error == 0 && request_error == 0 && autofs_cache > 0) {
 		anp->an_cached = true;
+		anp->an_wildcards = wildcards;
 		callout_reset(&anp->an_callout, autofs_cache * hz,
 		    autofs_cache_callout, anp);
 	}
@@ -537,7 +550,6 @@ autofs_ioctl_request(struct autofs_daemon_request *adr)
 		    &autofs_softc->sc_lock);
 		if (error != 0) {
 			sx_xunlock(&autofs_softc->sc_lock);
-			AUTOFS_DEBUG("failed with error %d", error);
 			return (error);
 		}
 	}
@@ -577,6 +589,7 @@ autofs_ioctl_done(struct autofs_daemon_done *add)
 	}
 
 	ar->ar_error = add->add_error;
+	ar->ar_wildcards = add->add_wildcards;
 	ar->ar_done = true;
 	ar->ar_in_progress = false;
 	cv_broadcast(&autofs_softc->sc_cv);

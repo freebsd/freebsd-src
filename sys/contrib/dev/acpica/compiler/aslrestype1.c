@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2013, Intel Corp.
+ * Copyright (C) 2000 - 2014, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -41,7 +41,6 @@
  * POSSIBILITY OF SUCH DAMAGES.
  */
 
-
 #include <contrib/dev/acpica/compiler/aslcompiler.h>
 #include "aslcompiler.y.h"
 
@@ -65,9 +64,7 @@
  *
  * FUNCTION:    RsDoEndTagDescriptor
  *
- * PARAMETERS:  Op                  - Parent resource descriptor parse node
- *              CurrentByteOffset   - Offset into the resource template AML
- *                                    buffer (to track references to the desc)
+ * PARAMETERS:  Info                - Parse Op and resource template offset
  *
  * RETURN:      Completed resource node
  *
@@ -77,8 +74,7 @@
 
 ASL_RESOURCE_NODE *
 RsDoEndTagDescriptor (
-    ACPI_PARSE_OBJECT       *Op,
-    UINT32                  CurrentByteOffset)
+    ASL_RESOURCE_INFO       *Info)
 {
     AML_RESOURCE            *Descriptor;
     ASL_RESOURCE_NODE       *Rnode;
@@ -99,9 +95,7 @@ RsDoEndTagDescriptor (
  *
  * FUNCTION:    RsDoEndDependentDescriptor
  *
- * PARAMETERS:  Op                  - Parent resource descriptor parse node
- *              CurrentByteOffset   - Offset into the resource template AML
- *                                    buffer (to track references to the desc)
+ * PARAMETERS:  Info                - Parse Op and resource template offset
  *
  * RETURN:      Completed resource node
  *
@@ -111,8 +105,7 @@ RsDoEndTagDescriptor (
 
 ASL_RESOURCE_NODE *
 RsDoEndDependentDescriptor (
-    ACPI_PARSE_OBJECT       *Op,
-    UINT32                  CurrentByteOffset)
+    ASL_RESOURCE_INFO       *Info)
 {
     AML_RESOURCE            *Descriptor;
     ASL_RESOURCE_NODE       *Rnode;
@@ -131,9 +124,7 @@ RsDoEndDependentDescriptor (
  *
  * FUNCTION:    RsDoMemory24Descriptor
  *
- * PARAMETERS:  Op                  - Parent resource descriptor parse node
- *              CurrentByteOffset   - Offset into the resource template AML
- *                                    buffer (to track references to the desc)
+ * PARAMETERS:  Info                - Parse Op and resource template offset
  *
  * RETURN:      Completed resource node
  *
@@ -143,8 +134,7 @@ RsDoEndDependentDescriptor (
 
 ASL_RESOURCE_NODE *
 RsDoMemory24Descriptor (
-    ACPI_PARSE_OBJECT       *Op,
-    UINT32                  CurrentByteOffset)
+    ASL_RESOURCE_INFO       *Info)
 {
     AML_RESOURCE            *Descriptor;
     ACPI_PARSE_OBJECT       *InitializerOp;
@@ -152,10 +142,12 @@ RsDoMemory24Descriptor (
     ACPI_PARSE_OBJECT       *MaxOp = NULL;
     ACPI_PARSE_OBJECT       *LengthOp = NULL;
     ASL_RESOURCE_NODE       *Rnode;
+    UINT32                  CurrentByteOffset;
     UINT32                  i;
 
 
-    InitializerOp = Op->Asl.Child;
+    InitializerOp = Info->DescriptorTypeOp->Asl.Child;
+    CurrentByteOffset = Info->CurrentByteOffset;
     Rnode = RsAllocateResourceNode (sizeof (AML_RESOURCE_MEMORY24));
 
     Descriptor = Rnode->Buffer;
@@ -208,7 +200,7 @@ RsDoMemory24Descriptor (
 
         case 5: /* Name */
 
-            UtAttachNamepathToOwner (Op, InitializerOp);
+            UtAttachNamepathToOwner (Info->DescriptorTypeOp, InitializerOp);
             break;
 
         default:
@@ -227,7 +219,7 @@ RsDoMemory24Descriptor (
         Descriptor->Memory24.Maximum,
         Descriptor->Memory24.AddressLength,
         Descriptor->Memory24.Alignment,
-        MinOp, MaxOp, LengthOp, NULL, Op);
+        MinOp, MaxOp, LengthOp, NULL, Info->DescriptorTypeOp);
 
     return (Rnode);
 }
@@ -237,9 +229,7 @@ RsDoMemory24Descriptor (
  *
  * FUNCTION:    RsDoMemory32Descriptor
  *
- * PARAMETERS:  Op                  - Parent resource descriptor parse node
- *              CurrentByteOffset   - Offset into the resource template AML
- *                                    buffer (to track references to the desc)
+ * PARAMETERS:  Info                - Parse Op and resource template offset
  *
  * RETURN:      Completed resource node
  *
@@ -249,8 +239,7 @@ RsDoMemory24Descriptor (
 
 ASL_RESOURCE_NODE *
 RsDoMemory32Descriptor (
-    ACPI_PARSE_OBJECT       *Op,
-    UINT32                  CurrentByteOffset)
+    ASL_RESOURCE_INFO       *Info)
 {
     AML_RESOURCE            *Descriptor;
     ACPI_PARSE_OBJECT       *InitializerOp;
@@ -259,10 +248,12 @@ RsDoMemory32Descriptor (
     ACPI_PARSE_OBJECT       *LengthOp = NULL;
     ACPI_PARSE_OBJECT       *AlignOp = NULL;
     ASL_RESOURCE_NODE       *Rnode;
+    UINT32                  CurrentByteOffset;
     UINT32                  i;
 
 
-    InitializerOp = Op->Asl.Child;
+    InitializerOp = Info->DescriptorTypeOp->Asl.Child;
+    CurrentByteOffset = Info->CurrentByteOffset;
     Rnode = RsAllocateResourceNode (sizeof (AML_RESOURCE_MEMORY32));
 
     Descriptor = Rnode->Buffer;
@@ -316,7 +307,7 @@ RsDoMemory32Descriptor (
 
         case 5: /* Name */
 
-            UtAttachNamepathToOwner (Op, InitializerOp);
+            UtAttachNamepathToOwner (Info->DescriptorTypeOp, InitializerOp);
             break;
 
         default:
@@ -335,7 +326,7 @@ RsDoMemory32Descriptor (
         Descriptor->Memory32.Maximum,
         Descriptor->Memory32.AddressLength,
         Descriptor->Memory32.Alignment,
-        MinOp, MaxOp, LengthOp, AlignOp, Op);
+        MinOp, MaxOp, LengthOp, AlignOp, Info->DescriptorTypeOp);
 
     return (Rnode);
 }
@@ -345,9 +336,7 @@ RsDoMemory32Descriptor (
  *
  * FUNCTION:    RsDoMemory32FixedDescriptor
  *
- * PARAMETERS:  Op                  - Parent resource descriptor parse node
- *              CurrentByteOffset   - Offset into the resource template AML
- *                                    buffer (to track references to the desc)
+ * PARAMETERS:  Info                - Parse Op and resource template offset
  *
  * RETURN:      Completed resource node
  *
@@ -357,16 +346,17 @@ RsDoMemory32Descriptor (
 
 ASL_RESOURCE_NODE *
 RsDoMemory32FixedDescriptor (
-    ACPI_PARSE_OBJECT       *Op,
-    UINT32                  CurrentByteOffset)
+    ASL_RESOURCE_INFO       *Info)
 {
     AML_RESOURCE            *Descriptor;
     ACPI_PARSE_OBJECT       *InitializerOp;
     ASL_RESOURCE_NODE       *Rnode;
+    UINT32                  CurrentByteOffset;
     UINT32                  i;
 
 
-    InitializerOp = Op->Asl.Child;
+    InitializerOp = Info->DescriptorTypeOp->Asl.Child;
+    CurrentByteOffset = Info->CurrentByteOffset;
     Rnode = RsAllocateResourceNode (sizeof (AML_RESOURCE_FIXED_MEMORY32));
 
     Descriptor = Rnode->Buffer;
@@ -402,7 +392,7 @@ RsDoMemory32FixedDescriptor (
 
         case 3: /* Name */
 
-            UtAttachNamepathToOwner (Op, InitializerOp);
+            UtAttachNamepathToOwner (Info->DescriptorTypeOp, InitializerOp);
             break;
 
         default:
@@ -422,9 +412,7 @@ RsDoMemory32FixedDescriptor (
  *
  * FUNCTION:    RsDoStartDependentDescriptor
  *
- * PARAMETERS:  Op                  - Parent resource descriptor parse node
- *              CurrentByteOffset   - Offset into the resource template AML
- *                                    buffer (to track references to the desc)
+ * PARAMETERS:  Info                - Parse Op and resource template offset
  *
  * RETURN:      Completed resource node
  *
@@ -434,19 +422,21 @@ RsDoMemory32FixedDescriptor (
 
 ASL_RESOURCE_NODE *
 RsDoStartDependentDescriptor (
-    ACPI_PARSE_OBJECT       *Op,
-    UINT32                  CurrentByteOffset)
+    ASL_RESOURCE_INFO       *Info)
 {
     AML_RESOURCE            *Descriptor;
     ACPI_PARSE_OBJECT       *InitializerOp;
     ASL_RESOURCE_NODE       *Rnode;
     ASL_RESOURCE_NODE       *PreviousRnode;
     ASL_RESOURCE_NODE       *NextRnode;
+    ASL_RESOURCE_INFO       NextInfo;
+    UINT32                  CurrentByteOffset;
     UINT32                  i;
     UINT8                   State;
 
 
-    InitializerOp = Op->Asl.Child;
+    InitializerOp = Info->DescriptorTypeOp->Asl.Child;
+    CurrentByteOffset = Info->CurrentByteOffset;
     Rnode = RsAllocateResourceNode (sizeof (AML_RESOURCE_START_DEPENDENT));
 
     PreviousRnode = Rnode;
@@ -492,8 +482,10 @@ RsDoStartDependentDescriptor (
 
         default:
 
-            NextRnode = RsDoOneResourceDescriptor  (InitializerOp,
-                        CurrentByteOffset, &State);
+            NextInfo.CurrentByteOffset = CurrentByteOffset;
+            NextInfo.DescriptorTypeOp = InitializerOp;
+
+            NextRnode = RsDoOneResourceDescriptor (&NextInfo, &State);
 
             /*
              * Update current byte offset to indicate the number of bytes from the
@@ -517,9 +509,7 @@ RsDoStartDependentDescriptor (
  *
  * FUNCTION:    RsDoStartDependentNoPriDescriptor
  *
- * PARAMETERS:  Op                  - Parent resource descriptor parse node
- *              CurrentByteOffset   - Offset into the resource template AML
- *                                    buffer (to track references to the desc)
+ * PARAMETERS:  Info                - Parse Op and resource template offset
  *
  * RETURN:      Completed resource node
  *
@@ -529,18 +519,20 @@ RsDoStartDependentDescriptor (
 
 ASL_RESOURCE_NODE *
 RsDoStartDependentNoPriDescriptor (
-    ACPI_PARSE_OBJECT       *Op,
-    UINT32                  CurrentByteOffset)
+    ASL_RESOURCE_INFO       *Info)
 {
     AML_RESOURCE            *Descriptor;
     ACPI_PARSE_OBJECT       *InitializerOp;
     ASL_RESOURCE_NODE       *Rnode;
     ASL_RESOURCE_NODE       *PreviousRnode;
     ASL_RESOURCE_NODE       *NextRnode;
+    ASL_RESOURCE_INFO       NextInfo;
+    UINT32                  CurrentByteOffset;
     UINT8                   State;
 
 
-    InitializerOp = Op->Asl.Child;
+    InitializerOp = Info->DescriptorTypeOp->Asl.Child;
+    CurrentByteOffset = Info->CurrentByteOffset;
     Rnode = RsAllocateResourceNode (sizeof (AML_RESOURCE_START_DEPENDENT_NOPRIO));
 
     Descriptor = Rnode->Buffer;
@@ -557,8 +549,10 @@ RsDoStartDependentNoPriDescriptor (
     State = ACPI_RSTATE_START_DEPENDENT;
     while (InitializerOp)
     {
-        NextRnode = RsDoOneResourceDescriptor  (InitializerOp,
-                        CurrentByteOffset, &State);
+        NextInfo.CurrentByteOffset = CurrentByteOffset;
+        NextInfo.DescriptorTypeOp = InitializerOp;
+
+        NextRnode = RsDoOneResourceDescriptor (&NextInfo, &State);
 
         /*
          * Update current byte offset to indicate the number of bytes from the
@@ -579,9 +573,7 @@ RsDoStartDependentNoPriDescriptor (
  *
  * FUNCTION:    RsDoVendorSmallDescriptor
  *
- * PARAMETERS:  Op                  - Parent resource descriptor parse node
- *              CurrentByteOffset   - Offset into the resource template AML
- *                                    buffer (to track references to the desc)
+ * PARAMETERS:  Info                - Parse Op and resource template offset
  *
  * RETURN:      Completed resource node
  *
@@ -591,8 +583,7 @@ RsDoStartDependentNoPriDescriptor (
 
 ASL_RESOURCE_NODE *
 RsDoVendorSmallDescriptor (
-    ACPI_PARSE_OBJECT       *Op,
-    UINT32                  CurrentByteOffset)
+    ASL_RESOURCE_INFO       *Info)
 {
     AML_RESOURCE            *Descriptor;
     ACPI_PARSE_OBJECT       *InitializerOp;
@@ -601,7 +592,7 @@ RsDoVendorSmallDescriptor (
     UINT32                  i;
 
 
-    InitializerOp = Op->Asl.Child;
+    InitializerOp = Info->DescriptorTypeOp->Asl.Child;
 
     /* Allocate worst case - 7 vendor bytes */
 

@@ -460,7 +460,7 @@ ixgbe_attach(device_t dev)
 
         SYSCTL_ADD_INT(device_get_sysctl_ctx(dev),
 			SYSCTL_CHILDREN(device_get_sysctl_tree(dev)),
-			OID_AUTO, "enable_aim", CTLTYPE_INT|CTLFLAG_RW,
+			OID_AUTO, "enable_aim", CTLFLAG_RW,
 			&ixgbe_enable_aim, 1, "Interrupt Moderation");
 
 	/*
@@ -4377,6 +4377,20 @@ ixgbe_initialize_receive_units(struct adapter *adapter)
 		srrctl &= ~IXGBE_SRRCTL_BSIZEPKT_MASK;
 		srrctl |= bufsz;
 		srrctl |= IXGBE_SRRCTL_DESCTYPE_ADV_ONEBUF;
+
+		/*
+		 * Set DROP_EN iff we have no flow control and >1 queue.
+		 * Note that srrctl was cleared shortly before during reset,
+		 * so we do not need to clear the bit, but do it just in case
+		 * this code is moved elsewhere.
+		 */
+		if (adapter->num_queues > 1 &&
+		    adapter->hw.fc.requested_mode == ixgbe_fc_none) {
+			srrctl |= IXGBE_SRRCTL_DROP_EN;
+		} else {
+			srrctl &= ~IXGBE_SRRCTL_DROP_EN;
+		}
+
 		IXGBE_WRITE_REG(hw, IXGBE_SRRCTL(i), srrctl);
 
 		/* Setup the HW Rx Head and Tail Descriptor Pointers */

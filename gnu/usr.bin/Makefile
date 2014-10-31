@@ -18,7 +18,9 @@ SUBDIR= ${_binutils} \
 	${_texinfo}
 
 .if ${MK_CXX} != "no"
+.if ${MK_GCC} != "no"
 _gperf=		gperf
+.endif
 .if ${MK_GROFF} != "no"
 _groff=		groff
 .endif

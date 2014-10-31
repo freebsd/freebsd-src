@@ -11,7 +11,8 @@ extern	HAL_STATUS ar9300_eeprom_get_freebsd(struct ath_hal *, int param,
 extern	HAL_BOOL ar9300_stop_tx_dma_freebsd(struct ath_hal *ah, u_int q);
 extern	void ar9300_ani_poll_freebsd(struct ath_hal *ah,
 	    const struct ieee80211_channel *chan);
-extern	void ar9300_config_defaults_freebsd(struct ath_hal *ah);
+extern	void ar9300_config_defaults_freebsd(struct ath_hal *ah,
+	    HAL_OPS_CONFIG *ah_config);
 extern	HAL_BOOL ar9300_stop_dma_receive_freebsd(struct ath_hal *ah);
 extern	HAL_BOOL ar9300_get_pending_interrupts_freebsd(struct ath_hal *ah,
 	    HAL_INT *masked);

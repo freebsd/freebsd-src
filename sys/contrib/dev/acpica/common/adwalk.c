@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2013, Intel Corp.
+ * Copyright (C) 2000 - 2014, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -40,7 +40,6 @@
  * IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGES.
  */
-
 
 #include <contrib/dev/acpica/include/acpi.h>
 #include <contrib/dev/acpica/include/accommon.h>
@@ -469,8 +468,9 @@ AcpiDmFindOrphanDescending (
             !ChildOp->Common.Node)
         {
             AcpiNsExternalizeName (ACPI_UINT32_MAX, ChildOp->Common.Value.String,
-                            NULL, &Path);
-            AcpiOsPrintf ("/* %-16s A-NAMEPATH: %s  */\n", Op->Common.AmlOpName, Path);
+                NULL, &Path);
+            AcpiOsPrintf ("/* %-16s A-NAMEPATH: %s  */\n",
+                Op->Common.AmlOpName, Path);
             ACPI_FREE (Path);
 
             NextOp = Op->Common.Next;
@@ -478,22 +478,26 @@ AcpiDmFindOrphanDescending (
             {
                 /* This NamePath has no args, assume it is an integer */
 
-                AcpiDmAddToExternalList (ChildOp, ChildOp->Common.Value.String, ACPI_TYPE_INTEGER, 0);
+                AcpiDmAddOpToExternalList (ChildOp,
+                    ChildOp->Common.Value.String, ACPI_TYPE_INTEGER, 0, 0);
                 return (AE_OK);
             }
 
             ArgCount = AcpiDmInspectPossibleArgs (3, 1, NextOp);
-            AcpiOsPrintf ("/* A-CHILDREN: %u Actual %u */\n", ArgCount, AcpiDmCountChildren (Op));
+            AcpiOsPrintf ("/* A-CHILDREN: %u Actual %u */\n",
+                ArgCount, AcpiDmCountChildren (Op));
 
             if (ArgCount < 1)
             {
                 /* One Arg means this is just a Store(Name,Target) */
 
-                AcpiDmAddToExternalList (ChildOp, ChildOp->Common.Value.String, ACPI_TYPE_INTEGER, 0);
+                AcpiDmAddOpToExternalList (ChildOp,
+                    ChildOp->Common.Value.String, ACPI_TYPE_INTEGER, 0, 0);
                 return (AE_OK);
             }
 
-            AcpiDmAddToExternalList (ChildOp, ChildOp->Common.Value.String, ACPI_TYPE_METHOD, ArgCount);
+            AcpiDmAddOpToExternalList (ChildOp,
+                ChildOp->Common.Value.String, ACPI_TYPE_METHOD, ArgCount, 0);
         }
         break;
 #endif
@@ -509,7 +513,8 @@ AcpiDmFindOrphanDescending (
             {
                 /* This NamePath has no args, assume it is an integer */
 
-                AcpiDmAddToExternalList (ChildOp, ChildOp->Common.Value.String, ACPI_TYPE_INTEGER, 0);
+                AcpiDmAddOpToExternalList (ChildOp,
+                    ChildOp->Common.Value.String, ACPI_TYPE_INTEGER, 0, 0);
                 return (AE_OK);
             }
 
@@ -518,11 +523,13 @@ AcpiDmFindOrphanDescending (
             {
                 /* One Arg means this is just a Store(Name,Target) */
 
-                AcpiDmAddToExternalList (ChildOp, ChildOp->Common.Value.String, ACPI_TYPE_INTEGER, 0);
+                AcpiDmAddOpToExternalList (ChildOp,
+                    ChildOp->Common.Value.String, ACPI_TYPE_INTEGER, 0, 0);
                 return (AE_OK);
             }
 
-            AcpiDmAddToExternalList (ChildOp, ChildOp->Common.Value.String, ACPI_TYPE_METHOD, ArgCount);
+            AcpiDmAddOpToExternalList (ChildOp,
+                ChildOp->Common.Value.String, ACPI_TYPE_METHOD, ArgCount, 0);
         }
         break;
 
@@ -554,7 +561,8 @@ AcpiDmFindOrphanDescending (
                      /* And namepath is the first argument */
                      (ParentOp->Common.Value.Arg == Op))
                 {
-                    AcpiDmAddToExternalList (Op, Op->Common.Value.String, ACPI_TYPE_INTEGER, 0);
+                    AcpiDmAddOpToExternalList (Op,
+                        Op->Common.Value.String, ACPI_TYPE_INTEGER, 0, 0);
                     break;
                 }
             }
@@ -564,8 +572,8 @@ AcpiDmFindOrphanDescending (
              * operator) - it *must* be a method invocation, nothing else is
              * grammatically possible.
              */
-            AcpiDmAddToExternalList (Op, Op->Common.Value.String, ACPI_TYPE_METHOD, ArgCount);
-
+            AcpiDmAddOpToExternalList (Op,
+                Op->Common.Value.String, ACPI_TYPE_METHOD, ArgCount, 0);
         }
         break;
 
@@ -741,6 +749,7 @@ AcpiDmXrefDescendingOp (
     ACPI_NAMESPACE_NODE     *Node;
     ACPI_OPERAND_OBJECT     *Object;
     UINT32                  ParamCount = 0;
+    char                    *Pathname;
 
 
     WalkState = Info->WalkState;
@@ -750,10 +759,12 @@ AcpiDmXrefDescendingOp (
 
     if ((!(OpInfo->Flags & AML_NAMED)) &&
         (!(OpInfo->Flags & AML_CREATE)) &&
-        (Op->Common.AmlOpcode != AML_INT_NAMEPATH_OP))
+        (Op->Common.AmlOpcode != AML_INT_NAMEPATH_OP) &&
+        (Op->Common.AmlOpcode != AML_NOTIFY_OP))
     {
         goto Exit;
     }
+
 
     /* Get the NamePath from the appropriate place */
 
@@ -791,6 +802,10 @@ AcpiDmXrefDescendingOp (
             Path = NextOp->Common.Value.String;
         }
     }
+    else if (Op->Common.AmlOpcode == AML_NOTIFY_OP)
+    {
+        Path = Op->Common.Value.Arg->Asl.Value.String;
+    }
     else
     {
         Path = Op->Common.Value.String;
@@ -808,11 +823,14 @@ AcpiDmXrefDescendingOp (
      * The namespace is also used as a lookup table for references to resource
      * descriptors and the fields within them.
      */
+    Node = NULL;
     Status = AcpiNsLookup (WalkState->ScopeInfo, Path, ACPI_TYPE_ANY,
                 ACPI_IMODE_EXECUTE, ACPI_NS_SEARCH_PARENT | ACPI_NS_DONT_OPEN_SCOPE,
                 WalkState, &Node);
     if (ACPI_SUCCESS (Status) && (Node->Flags & ANOBJ_IS_EXTERNAL))
     {
+        /* Node was created by an External() statement */
+
         Status = AE_NOT_FOUND;
     }
 
@@ -820,25 +838,38 @@ AcpiDmXrefDescendingOp (
     {
         if (Status == AE_NOT_FOUND)
         {
-            AcpiDmAddToExternalList (Op, Path, (UINT8) ObjectType, 0);
-
             /*
-             * We could install this into the namespace, but we catch duplicate
-             * externals when they are added to the list.
+             * Add this symbol as an external declaration, except if the
+             * parent is a CondRefOf operator. For this operator, we do not
+             * need an external, nor do we want one, since this can cause
+             * disassembly problems if the symbol is actually a control
+             * method.
              */
-#if 0
-            Status = AcpiNsLookup (WalkState->ScopeInfo, Path, ACPI_TYPE_ANY,
-                       ACPI_IMODE_LOAD_PASS1, ACPI_NS_DONT_OPEN_SCOPE,
-                       WalkState, &Node);
-#endif
+            if (!(Op->Asl.Parent &&
+                (Op->Asl.Parent->Asl.AmlOpcode == AML_COND_REF_OF_OP)))
+            {
+                if (Node)
+                {
+                    AcpiDmAddNodeToExternalList (Node,
+                        (UINT8) ObjectType, 0, 0);
+                }
+                else
+                {
+                    AcpiDmAddOpToExternalList (Op, Path,
+                        (UINT8) ObjectType, 0, 0);
+                }
+            }
         }
     }
 
     /*
-     * Found the node in external table, add it to external list
-     * Node->OwnerId == 0 indicates built-in ACPI Names, _OS_ etc
+     * Found the node, but check if it came from an external table.
+     * Add it to external list. Note: Node->OwnerId == 0 indicates
+     * one of the built-in ACPI Names (_OS_ etc.) which can safely
+     * be ignored.
      */
-    else if (Node->OwnerId && WalkState->OwnerId != Node->OwnerId)
+    else if (Node->OwnerId &&
+            (WalkState->OwnerId != Node->OwnerId))
     {
         ObjectType2 = ObjectType;
 
@@ -852,7 +883,16 @@ AcpiDmXrefDescendingOp (
             }
         }
 
-        AcpiDmAddToExternalList (Op, Path, (UINT8) ObjectType2, ParamCount | 0x80);
+        Pathname = AcpiNsGetExternalPathname (Node);
+        if (!Pathname)
+        {
+            return (AE_NO_MEMORY);
+        }
+
+        AcpiDmAddNodeToExternalList (Node, (UINT8) ObjectType2,
+            ParamCount, ACPI_EXT_RESOLVED_REFERENCE);
+
+        ACPI_FREE (Pathname);
         Op->Common.Node = Node;
     }
     else

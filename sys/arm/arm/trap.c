@@ -79,28 +79,15 @@
  */
 
 
-#include "opt_ktrace.h"
-
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
-#include <sys/bus.h>
 #include <sys/systm.h>
 #include <sys/proc.h>
-#include <sys/kernel.h>
 #include <sys/lock.h>
 #include <sys/mutex.h>
-#include <sys/syscall.h>
-#include <sys/sysent.h>
 #include <sys/signalvar.h>
-#include <sys/ktr.h>
-#ifdef KTRACE
-#include <sys/uio.h>
-#include <sys/ktrace.h>
-#endif
-#include <sys/ptrace.h>
-#include <sys/pioctl.h>
 
 #include <vm/vm.h>
 #include <vm/pmap.h>
@@ -108,27 +95,15 @@ __FBSDID("$FreeBSD$");
 #include <vm/vm_map.h>
 #include <vm/vm_extern.h>
 
-#include <machine/armreg.h>
-#include <machine/cpuconf.h>
-#include <machine/vmparam.h>
-#include <machine/frame.h>
 #include <machine/cpu.h>
-#include <machine/intr.h>
+#include <machine/frame.h>
+#include <machine/machdep.h>
 #include <machine/pcb.h>
-#include <machine/proc.h>
-#include <machine/swi.h>
-
-#include <security/audit/audit.h>
+#include <machine/vmparam.h>
 
 #ifdef KDB
 #include <sys/kdb.h>
 #endif
-
-
-void swi_handler(struct trapframe *);
-
-#include <machine/disassem.h>
-#include <machine/machdep.h>
 
 extern char fusubailout[];
 
@@ -776,105 +751,3 @@ badaddr_read(void *addr, size_t size, void *rptr)
 	/* Return EFAULT if the address was invalid, else zero */
 	return (rv);
 }
-
-int
-cpu_fetch_syscall_args(struct thread *td, struct syscall_args *sa)
-{
-	struct proc *p;
-	register_t *ap;
-	int error;
-
-#ifdef __ARM_EABI__
-	sa->code = td->td_frame->tf_r7;
-#else
-	sa->code = sa->insn & 0x000fffff;
-#endif
-	ap = &td->td_frame->tf_r0;
-	if (sa->code == SYS_syscall) {
-		sa->code = *ap++;
-		sa->nap--;
-	} else if (sa->code == SYS___syscall) {
-		sa->code = ap[_QUAD_LOWWORD];
-		sa->nap -= 2;
-		ap += 2;
-	}
-	p = td->td_proc;
-	if (p->p_sysent->sv_mask)
-		sa->code &= p->p_sysent->sv_mask;
-	if (sa->code >= p->p_sysent->sv_size)
-		sa->callp = &p->p_sysent->sv_table[0];
-	else
-		sa->callp = &p->p_sysent->sv_table[sa->code];
-	sa->narg = sa->callp->sy_narg;
-	error = 0;
-	memcpy(sa->args, ap, sa->nap * sizeof(register_t));
-	if (sa->narg > sa->nap) {
-		error = copyin((void *)td->td_frame->tf_usr_sp, sa->args +
-		    sa->nap, (sa->narg - sa->nap) * sizeof(register_t));
-	}
-	if (error == 0) {
-		td->td_retval[0] = 0;
-		td->td_retval[1] = 0;
-	}
-	return (error);
-}
-
-#include "../../kern/subr_syscall.c"
-
-static void
-syscall(struct thread *td, struct trapframe *frame)
-{
-	struct syscall_args sa;
-	int error;
-
-#ifndef __ARM_EABI__
-	sa.insn = *(uint32_t *)(frame->tf_pc - INSN_SIZE);
-	switch (sa.insn & SWI_OS_MASK) {
-	case 0: /* XXX: we need our own one. */
-		break;
-	default:
-		call_trapsignal(td, SIGILL, 0);
-		userret(td, frame);
-		return;
-	}
-#endif
-	sa.nap = 4;
-
-	error = syscallenter(td, &sa);
-	KASSERT(error != 0 || td->td_ar == NULL,
-	    ("returning from syscall with td_ar set!"));
-	syscallret(td, error, &sa);
-}
-
-void
-swi_handler(struct trapframe *frame)
-{
-	struct thread *td = curthread;
-
-	td->td_frame = frame;
-
-	td->td_pticks = 0;
-	/*
-      	 * Make sure the program counter is correctly aligned so we
-	 * don't take an alignment fault trying to read the opcode.
-	 */
-	if (__predict_false(((frame->tf_pc - INSN_SIZE) & 3) != 0)) {
-		call_trapsignal(td, SIGILL, 0);
-		userret(td, frame);
-		return;
-	}
-	/*
-	 * Enable interrupts if they were enabled before the exception.
-	 * Since all syscalls *should* come from user mode it will always
-	 * be safe to enable them, but check anyway.
-	 */
-	if (td->td_md.md_spinlock_count == 0) {
-		if (__predict_true(frame->tf_spsr & PSR_I) == 0)
-			enable_interrupts(PSR_I);
-		if (__predict_true(frame->tf_spsr & PSR_F) == 0)
-			enable_interrupts(PSR_F);
-	}
-
-	syscall(td, frame);
-}
-

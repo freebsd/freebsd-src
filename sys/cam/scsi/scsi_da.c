@@ -1132,6 +1132,22 @@ static struct da_quirk_entry da_quirk_table[] =
 		{ T_DIRECT, SIP_MEDIA_FIXED, "ATA", "SAMSUNG MZ7WD*", "*" },
 		/*quirks*/DA_Q_4K
 	},
+ 	{
+ 		/*
+		 * Samsung 850 SSDs
+		 * 4k optimised & trim only works in 4k requests + 4k aligned
+		 */
+		{ T_DIRECT, SIP_MEDIA_FIXED, "ATA", "Samsung SSD 850*", "*" },
+		/*quirks*/DA_Q_4K
+	},
+	{
+		/*
+		 * Samsung PM853T Series SSDs
+		 * 4k optimised
+		 */
+		{ T_DIRECT, SIP_MEDIA_FIXED, "ATA", "SAMSUNG MZ7GE*", "*" },
+		/*quirks*/DA_Q_4K
+	},
 	{
 		/*
 		 * SuperTalent TeraDrive CT SSDs

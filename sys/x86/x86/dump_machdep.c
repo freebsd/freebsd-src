@@ -275,10 +275,9 @@ dumpsys(struct dumperinfo *di)
 	size_t hdrsz;
 	int error;
 
-	if (do_minidump) {
-		minidumpsys(di);
-		return (0);
-	}
+	if (do_minidump)
+		return (minidumpsys(di));
+
 	bzero(&ehdr, sizeof(ehdr));
 	ehdr.e_ident[EI_MAG0] = ELFMAG0;
 	ehdr.e_ident[EI_MAG1] = ELFMAG1;

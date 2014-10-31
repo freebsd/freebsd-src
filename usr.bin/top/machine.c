@@ -941,7 +941,7 @@ format_next_process(caddr_t handle, char *(*get_userid)(int), int flags)
 	/* generate "STATE" field */
 	switch (state = pp->ki_stat) {
 	case SRUN:
-		if (smpmode && pp->ki_oncpu != 0xff)
+		if (smpmode && pp->ki_oncpu != NOCPU)
 			sprintf(status, "CPU%d", pp->ki_oncpu);
 		else
 			strcpy(status, "RUN");
@@ -1100,7 +1100,7 @@ format_next_process(caddr_t handle, char *(*get_userid)(int), int flags)
 
 	/* format this entry */
 	if (smpmode) {
-		if (state == SRUN && pp->ki_oncpu != 0xff)
+		if (state == SRUN && pp->ki_oncpu != NOCPU)
 			cpu = pp->ki_oncpu;
 		else
 			cpu = pp->ki_lastcpu;

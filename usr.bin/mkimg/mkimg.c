@@ -340,6 +340,27 @@ sparse_write(int fd, const void *ptr, size_t sz)
 #endif /* SPARSE_WRITE */
 
 void
+mkimg_chs(lba_t lba, u_int maxcyl, u_int *cylp, u_int *hdp, u_int *secp)
+{
+	u_int hd, sec;
+
+	*cylp = *hdp = *secp = ~0U;
+	if (nsecs == 1 || nheads == 1)
+		return;
+
+	sec = lba % nsecs + 1;
+	lba /= nsecs;
+	hd = lba % nheads;
+	lba /= nheads;
+	if (lba > maxcyl)
+		return;
+
+	*cylp = lba;
+	*hdp = hd;
+	*secp = sec;
+}
+
+void
 mkimg_uuid(struct uuid *uuid)
 {
 	static uint8_t gen[sizeof(struct uuid)];

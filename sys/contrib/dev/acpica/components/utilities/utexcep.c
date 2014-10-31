@@ -5,7 +5,7 @@
  ******************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2013, Intel Corp.
+ * Copyright (C) 2000 - 2014, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -41,8 +41,8 @@
  * POSSIBILITY OF SUCH DAMAGES.
  */
 
-
 #define __UTEXCEP_C__
+#define EXPORT_ACPI_INTERFACES
 
 #define ACPI_DEFINE_EXCEPTION_TABLE
 #include <contrib/dev/acpica/include/acpi.h>

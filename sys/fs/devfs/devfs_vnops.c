@@ -545,22 +545,25 @@ devfs_close(struct vop_close_args *ap)
 	 * if the reference count is 2 (this last descriptor
 	 * plus the session), release the reference from the session.
 	 */
-	oldvp = NULL;
-	sx_xlock(&proctree_lock);
 	if (td && vp == td->td_proc->p_session->s_ttyvp) {
-		SESS_LOCK(td->td_proc->p_session);
-		VI_LOCK(vp);
-		if (count_dev(dev) == 2 && (vp->v_iflag & VI_DOOMED) == 0) {
-			td->td_proc->p_session->s_ttyvp = NULL;
-			td->td_proc->p_session->s_ttydp = NULL;
-			oldvp = vp;
+		oldvp = NULL;
+		sx_xlock(&proctree_lock);
+		if (vp == td->td_proc->p_session->s_ttyvp) {
+			SESS_LOCK(td->td_proc->p_session);
+			VI_LOCK(vp);
+			if (count_dev(dev) == 2 &&
+			    (vp->v_iflag & VI_DOOMED) == 0) {
+				td->td_proc->p_session->s_ttyvp = NULL;
+				td->td_proc->p_session->s_ttydp = NULL;
+				oldvp = vp;
+			}
+			VI_UNLOCK(vp);
+			SESS_UNLOCK(td->td_proc->p_session);
 		}
-		VI_UNLOCK(vp);
-		SESS_UNLOCK(td->td_proc->p_session);
+		sx_xunlock(&proctree_lock);
+		if (oldvp != NULL)
+			vrele(oldvp);
 	}
-	sx_xunlock(&proctree_lock);
-	if (oldvp != NULL)
-		vrele(oldvp);
 	/*
 	 * We do not want to really close the device if it
 	 * is still in use unless we are trying to close it
@@ -734,8 +737,10 @@ devfs_ioctl_f(struct file *fp, u_long com, void *data, struct ucred *cred, struc
 
 	fpop = td->td_fpop;
 	error = devfs_fp_check(fp, &dev, &dsw, &ref);
-	if (error)
+	if (error != 0) {
+		error = vnops.fo_ioctl(fp, com, data, cred, td);
 		return (error);
+	}
 
 	if (com == FIODTYPE) {
 		*(int *)data = dsw->d_flags & D_TYPEMASK;
@@ -1149,8 +1154,10 @@ devfs_poll_f(struct file *fp, int events, struct ucred *cred, struct thread *td)
 
 	fpop = td->td_fpop;
 	error = devfs_fp_check(fp, &dev, &dsw, &ref);
-	if (error)
-		return (poll_no_poll(events));
+	if (error != 0) {
+		error = vnops.fo_poll(fp, events, cred, td);
+		return (error);
+	}
 	error = dsw->d_poll(dev, events, td);
 	td->td_fpop = fpop;
 	dev_relthread(dev, ref);
@@ -1182,8 +1189,10 @@ devfs_read_f(struct file *fp, struct uio *uio, struct ucred *cred,
 		return (EINVAL);
 	fpop = td->td_fpop;
 	error = devfs_fp_check(fp, &dev, &dsw, &ref);
-	if (error)
+	if (error != 0) {
+		error = vnops.fo_read(fp, uio, cred, flags, td);
 		return (error);
+	}
 	resid = uio->uio_resid;
 	ioflag = fp->f_flag & (O_NONBLOCK | O_DIRECT);
 	if (ioflag & O_DIRECT)
@@ -1657,8 +1666,10 @@ devfs_write_f(struct file *fp, struct uio *uio, struct ucred *cred,
 		return (EINVAL);
 	fpop = td->td_fpop;
 	error = devfs_fp_check(fp, &dev, &dsw, &ref);
-	if (error)
+	if (error != 0) {
+		error = vnops.fo_write(fp, uio, cred, flags, td);
 		return (error);
+	}
 	KASSERT(uio->uio_td == td, ("uio_td %p is not td %p", uio->uio_td, td));
 	ioflag = fp->f_flag & (O_NONBLOCK | O_DIRECT | O_FSYNC);
 	if (ioflag & O_DIRECT)
@@ -1741,8 +1752,9 @@ static struct vop_vector devfs_specops = {
 	.vop_mknod =		VOP_PANIC,
 	.vop_open =		devfs_open,
 	.vop_pathconf =		devfs_pathconf,
+	.vop_poll =		dead_poll,
 	.vop_print =		devfs_print,
-	.vop_read =		VOP_PANIC,
+	.vop_read =		dead_read,
 	.vop_readdir =		VOP_PANIC,
 	.vop_readlink =		VOP_PANIC,
 	.vop_reallocblks =	VOP_PANIC,
@@ -1758,7 +1770,7 @@ static struct vop_vector devfs_specops = {
 	.vop_strategy =		VOP_PANIC,
 	.vop_symlink =		VOP_PANIC,
 	.vop_vptocnp =		devfs_vptocnp,
-	.vop_write =		VOP_PANIC,
+	.vop_write =		dead_write,
 };
 
 /*

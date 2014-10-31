@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2013, Intel Corp.
+ * Copyright (C) 2000 - 2014, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -53,17 +53,10 @@
 
 
 /*
- * Stubs to simplify linkage to the ACPI CA core subsystem.
+ * Stubs to simplify linkage to the ACPICA core subsystem.
  * Things like Events, Global Lock, etc. are not used
  * by the compiler, so they are stubbed out here.
  */
-ACPI_PHYSICAL_ADDRESS
-AeLocalGetRootPointer (
-    void)
-{
-    return (0);
-}
-
 void
 AcpiNsExecModuleCodeList (
     void)
@@ -229,24 +222,6 @@ AcpiTbFindTable (
     char                    *OemId,
     char                    *OemTableId,
     UINT32                  *TableIndex)
-{
-    return (AE_SUPPORT);
-}
-
-/* OSL interfaces */
-
-ACPI_THREAD_ID
-AcpiOsGetThreadId (
-    void)
-{
-    return (0xFFFF);
-}
-
-ACPI_STATUS
-AcpiOsExecute (
-    ACPI_EXECUTE_TYPE       Type,
-    ACPI_OSD_EXEC_CALLBACK  Function,
-    void                    *Context)
 {
     return (AE_SUPPORT);
 }

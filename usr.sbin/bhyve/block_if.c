@@ -55,8 +55,7 @@ __FBSDID("$FreeBSD$");
 enum blockop {
 	BOP_READ,
 	BOP_WRITE,
-	BOP_FLUSH,
-	BOP_CANCEL
+	BOP_FLUSH
 };
 
 enum blockstat {
@@ -158,9 +157,6 @@ blockif_proc(struct blockif_ctxt *bc, struct blockif_elem *be)
 			err = errno;
 		break;
 	case BOP_FLUSH:
-		break;
-	case BOP_CANCEL:
-		err = EINTR;
 		break;
 	default:
 		err = EINVAL;
@@ -356,9 +352,28 @@ blockif_flush(struct blockif_ctxt *bc, struct blockif_req *breq)
 int
 blockif_cancel(struct blockif_ctxt *bc, struct blockif_req *breq)
 {
+	struct blockif_elem *be;
 
 	assert(bc->bc_magic == BLOCKIF_SIG);
-	return (blockif_request(bc, breq, BOP_CANCEL));
+
+	pthread_mutex_lock(&bc->bc_mtx);
+	TAILQ_FOREACH(be, &bc->bc_inuseq, be_link) {
+		if (be->be_req == breq)
+			break;
+	}
+	if (be == NULL) {
+		pthread_mutex_unlock(&bc->bc_mtx);
+		return (EINVAL);
+	}
+
+	TAILQ_REMOVE(&bc->bc_inuseq, be, be_link);
+	be->be_status = BST_FREE;
+	be->be_req = NULL;
+	TAILQ_INSERT_TAIL(&bc->bc_freeq, be, be_link);
+	bc->bc_req_count--;
+	pthread_mutex_unlock(&bc->bc_mtx);
+
+	return (0);
 }
 
 int

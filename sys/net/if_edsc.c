@@ -51,6 +51,7 @@
 #include <net/if_clone.h>	/* network interface cloning */
 #include <net/if_types.h>	/* IFT_ETHER and friends */
 #include <net/if_var.h>		/* kernel-only part of ifnet(9) */
+#include <net/vnet.h>
 
 static const char edscname[] = "edsc";
 
@@ -69,7 +70,8 @@ struct edsc_softc {
 /*
  * Attach to the interface cloning framework.
  */
-static struct if_clone *edsc_cloner;
+static VNET_DEFINE(struct if_clone *, edsc_cloner);
+#define	V_edsc_cloner	VNET(edsc_cloner)
 static int	edsc_clone_create(struct if_clone *, int, caddr_t);
 static void	edsc_clone_destroy(struct ifnet *);
 
@@ -307,6 +309,36 @@ edsc_start(struct ifnet *ifp)
 	 */
 }
 
+static void
+vnet_edsc_init(const void *unused __unused)
+{
+
+	/*
+	 * Connect to the network interface cloning framework.
+	 * The last argument is the number of units to be created
+	 * from the outset.  It's also the minimum number of units
+	 * allowed.  We don't want any units created as soon as the
+	 * driver is loaded.
+	 */
+	V_edsc_cloner = if_clone_simple(edscname, edsc_clone_create,
+	    edsc_clone_destroy, 0);
+}
+VNET_SYSINIT(vnet_edsc_init, SI_SUB_PROTO_IFATTACHDOMAIN, SI_ORDER_ANY,
+    vnet_edsc_init, NULL);
+
+static void
+vnet_edsc_uninit(const void *unused __unused)
+{
+
+	/*
+	 * Disconnect from the cloning framework.
+	 * Existing interfaces will be disposed of properly.
+	 */
+	if_clone_detach(V_edsc_cloner);
+}
+VNET_SYSUNINIT(vnet_edsc_uninit, SI_SUB_PROTO_IFATTACHDOMAIN, SI_ORDER_ANY,
+    vnet_edsc_uninit, NULL);
+
 /*
  * This function provides handlers for module events, namely load and unload.
  */
@@ -316,25 +348,8 @@ edsc_modevent(module_t mod, int type, void *data)
 
 	switch (type) {
 	case MOD_LOAD:
-		/*
-		 * Connect to the network interface cloning framework.
-		 * The last argument is the number of units to be created
-		 * from the outset.  It's also the minimum number of units
-		 * allowed.  We don't want any units created as soon as the
-		 * driver is loaded.
-		 */
-		edsc_cloner = if_clone_simple(edscname, edsc_clone_create,
-		    edsc_clone_destroy, 0);
-		break;
-
 	case MOD_UNLOAD:
-		/*
-		 * Disconnect from the cloning framework.
-		 * Existing interfaces will be disposed of properly.
-		 */
-		if_clone_detach(edsc_cloner);
 		break;
-
 	default:
 		/*
 		 * There are other event types, but we don't handle them.

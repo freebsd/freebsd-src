@@ -46,7 +46,7 @@ LDFLAGS+=	-shared -Wl,-Bsymbolic
 DPADD=		${LIBC_PIC}
 LDADD=		-lc_pic
 
-.if ${MACHINE_CPUARCH} == "arm" && ${MK_ARM_EABI} != "no"
+.if ${MACHINE_CPUARCH} == "arm"
 # Some of the required math functions (div & mod) are implemented in
 # libcompiler_rt on ARM. The library also needs to be placed first to be
 # correctly linked. As some of the functions are used before we have

@@ -4,7 +4,7 @@
 #
 
 # PROVIDE: postrandom
-# REQUIRE: initrandom random FILESYSTEMS
+# REQUIRE: random FILESYSTEMS
 # BEFORE: LOGIN
 # KEYWORD: nojail
 

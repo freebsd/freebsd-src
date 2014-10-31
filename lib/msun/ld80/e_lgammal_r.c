@@ -14,12 +14,11 @@
 __FBSDID("$FreeBSD$");
 
 /*
- * See s_lgamma_r.c for complete comments.
+ * See e_lgamma_r.c for complete comments.
  *
  * Converted to long double by Steven G. Kargl.
  */
 
-#include <float.h>
 #ifdef __i386__
 #include <ieeefp.h>
 #endif
@@ -219,8 +218,8 @@ sin_pil(long double x)
 
 	y = -x;
 
-	vz = y+0x1p63L;
-	z = vz-0x1p63L;
+	vz = y+0x1p63;
+	z = vz-0x1p63;
 	if (z == y)
 	    return zero;
 
@@ -243,7 +242,7 @@ sin_pil(long double x)
 	    case 5:
 	    case 6:   y = -__kernel_cosl(pi*(y-1.5),zero); break;
 	    default:  y =  __kernel_sinl(pi*(y-2.0),zero,0); break;
-	}
+	    }
 	return -y;
 }
 
@@ -253,31 +252,29 @@ lgammal_r(long double x, int *signgamp)
 	long double nadj,p,p1,p2,p3,q,r,t,w,y,z;
 	uint64_t lx;
 	int i;
-	uint16_t hx;
+	uint16_t hx,ix;
 
 	EXTRACT_LDBL80_WORDS(hx,lx,x);
 
-    /* purge off +-inf, NaN, +-0 */
+    /* purge +-Inf and NaNs */
 	*signgamp = 1;
-	if((hx & 0x7fff) == 0x7fff)	/* x is +-Inf or NaN */
-		return x*x;
-	if((hx==0||hx==0x8000)&&lx==0) {
-	    if (hx&0x8000)
-		*signgamp = -1;
-	    return one/vzero;
-	}
+	ix = hx&0x7fff;
+	if(ix==0x7fff) return x*x;
 
 	ENTERI();
 
-    /* purge off tiny and negative arguments */
-	if(fabsl(x)<0x1p-70L) {		/* |x|<2**-70, return -log(|x|) */
-	    if(hx&0x8000) {
-	        *signgamp = -1;
-	        RETURNI(-logl(-x));
-	    } else RETURNI(-logl(x));
+    /* purge +-0 and tiny arguments */
+	*signgamp = 1-2*(hx>>15);
+	if(ix<0x3fff-67) {		/* |x|<2**-(p+3), return -log(|x|) */
+	    if((ix|lx)==0)
+		RETURNI(one/vzero);
+	    RETURNI(-logl(fabsl(x)));
 	}
+
+    /* purge negative integers and start evaluation for other x < 0 */
 	if(hx&0x8000) {
-	    if(fabsl(x)>=0x1p63) 	/* |x|>=2**(p-1), must be -integer */
+	    *signgamp = 1;
+	    if(ix>=0x3fff+63) 		/* |x|>=2**(p-1), must be -integer */
 		RETURNI(one/vzero);
 	    t = sin_pil(x);
 	    if(t==zero) RETURNI(one/vzero); /* -integer */
@@ -286,19 +283,30 @@ lgammal_r(long double x, int *signgamp)
 	    x = -x;
 	}
 
-    /* purge off 1 and 2 */
-	if(x == 1 || x == 2) r = 0;
+    /* purge 1 and 2 */
+	if((ix==0x3fff || ix==0x4000) && lx==0x8000000000000000ULL) r = 0;
     /* for x < 2.0 */
-	else if(x<2) {
-	    if(x<=0.8999996185302734) {	/* lgamma(x) = lgamma(x+1)-log(x) */
-		r = - logl(x);
-		if(x>=0.7315998077392578) {y = 1-x; i= 0;}
-		else if(x>=0.2316399812698364) {y= x-(tc-1); i=1;}
-	  	else {y = x; i=2;}
+	else if(ix<0x4000) {
+    /*
+     * XXX Supposedly, one can use the following information to replace the
+     * XXX FP rational expressions.  A similar approach is appropriate
+     * XXX for ld128, but one (may need?) needs to consider llx, too.
+     *
+     * 8.9999961853027344e-01 3ffe e666600000000000
+     * 7.3159980773925781e-01 3ffe bb4a200000000000
+     * 2.3163998126983643e-01 3ffc ed33080000000000
+     * 1.7316312789916992e+00 3fff dda6180000000000
+     * 1.2316322326660156e+00 3fff 9da6200000000000
+     */
+	    if(x<8.9999961853027344e-01) {
+		r = -logl(x);
+		if(x>=7.3159980773925781e-01) {y = 1-x; i= 0;}
+		else if(x>=2.3163998126983643e-01) {y= x-(tc-1); i=1;}
+		else {y = x; i=2;}
 	    } else {
 		r = 0;
-	        if(x>=1.7316312789916992) {y=2-x;i=0;}
-	        else if(x>=1.2316322326660156) {y=x-tc;i=1;}
+		if(x>=1.7316312789916992e+00) {y=2-x;i=0;}
+		else if(x>=1.2316322326660156e+00) {y=x-tc;i=1;}
 		else {y=x-1;i=2;}
 	    }
 	    switch(i) {
@@ -307,19 +315,20 @@ lgammal_r(long double x, int *signgamp)
 		p1 = a0+z*(a2+z*(a4+z*(a6+z*(a8+z*(a10+z*a12)))));
 		p2 = z*(a1+z*(a3+z*(a5+z*(a7+z*(a9+z*(a11+z*a13))))));
 		p  = y*p1+p2;
-		r  += (p-y/2); break;
+		r  += p-y/2; break;
 	      case 1:
 		p = t0+y*t1+tt+y*y*(t2+y*(t3+y*(t4+y*(t5+y*(t6+y*(t7+y*(t8+
 		    y*(t9+y*(t10+y*(t11+y*(t12+y*(t13+y*(t14+y*(t15+y*(t16+
 		    y*(t17+y*t18))))))))))))))));
-		r += (tf + p); break;
+		r += tf + p; break;
 	      case 2:
 		p1 = y*(u0+y*(u1+y*(u2+y*(u3+y*(u4+y*(u5+y*u6))))));
 		p2 = 1+y*(v1+y*(v2+y*(v3+y*(v4+y*(v5+y*v6)))));
-		r += (-y/2 + p1/p2);
+		r += p1/p2-y/2;
 	    }
 	}
-	else if(x<8) {
+    /* x < 8.0 */
+	else if(ix<0x4002) {
 	    i = x;
 	    y = x-i;
 	    p = y*(s0+y*(s1+y*(s2+y*(s3+y*(s4+y*(s5+y*s6))))));
@@ -334,15 +343,15 @@ lgammal_r(long double x, int *signgamp)
 	    case 3: z *= (y+2);		/* FALLTHRU */
 		    r += logl(z); break;
 	    }
-    /* 8.0 <= x < 2**70 */
-	} else if (x < 0x1p70L) {
+    /* 8.0 <= x < 2**(p+3) */
+	} else if (ix<0x3fff+67) {
 	    t = logl(x);
 	    z = one/x;
 	    y = z*z;
 	    w = w0+z*(w1+y*(w2+y*(w3+y*(w4+y*(w5+y*(w6+y*(w7+y*w8)))))));
 	    r = (x-half)*(t-one)+w;
+    /* 2**(p+3) <= x <= inf */
 	} else 
-    /* 2**70 <= x <= inf */
 	    r =  x*(logl(x)-1);
 	if(hx&0x8000) r = nadj - r;
 	RETURNI(r);

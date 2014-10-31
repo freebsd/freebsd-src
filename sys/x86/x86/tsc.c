@@ -47,6 +47,7 @@ __FBSDID("$FreeBSD$");
 #include <machine/cputypes.h>
 #include <machine/md_var.h>
 #include <machine/specialreg.h>
+#include <x86/vmware.h>
 
 #include "cpufreq_if.h"
 
@@ -102,72 +103,11 @@ static struct timecounter tsc_timecounter = {
 	800,			/* quality (adjusted in code) */
 };
 
-#define	VMW_HVMAGIC		0x564d5868
-#define	VMW_HVPORT		0x5658
-#define	VMW_HVCMD_GETVERSION	10
-#define	VMW_HVCMD_GETHZ		45
-
-static __inline void
-vmware_hvcall(u_int cmd, u_int *p)
-{
-
-	__asm __volatile("inl %w3, %0"
-	: "=a" (p[0]), "=b" (p[1]), "=c" (p[2]), "=d" (p[3])
-	: "0" (VMW_HVMAGIC), "1" (UINT_MAX), "2" (cmd), "3" (VMW_HVPORT)
-	: "memory");
-}
-
-static int
+static void
 tsc_freq_vmware(void)
 {
-	char hv_sig[13];
 	u_int regs[4];
-	char *p;
-	u_int hv_high;
-	int i;
 
-	/*
-	 * [RFC] CPUID usage for interaction between Hypervisors and Linux.
-	 * http://lkml.org/lkml/2008/10/1/246
-	 *
-	 * KB1009458: Mechanisms to determine if software is running in
-	 * a VMware virtual machine
-	 * http://kb.vmware.com/kb/1009458
-	 */
-	hv_high = 0;
-	if ((cpu_feature2 & CPUID2_HV) != 0) {
-		do_cpuid(0x40000000, regs);
-		hv_high = regs[0];
-		for (i = 1, p = hv_sig; i < 4; i++, p += sizeof(regs) / 4)
-			memcpy(p, &regs[i], sizeof(regs[i]));
-		*p = '\0';
-		if (bootverbose) {
-			/*
-			 * HV vendor	ID string
-			 * ------------+--------------
-			 * KVM		"KVMKVMKVM"
-			 * Microsoft	"Microsoft Hv"
-			 * VMware	"VMwareVMware"
-			 * Xen		"XenVMMXenVMM"
-			 */
-			printf("Hypervisor: Origin = \"%s\"\n", hv_sig);
-		}
-		if (strncmp(hv_sig, "VMwareVMware", 12) != 0)
-			return (0);
-	} else {
-		p = getenv("smbios.system.serial");
-		if (p == NULL)
-			return (0);
-		if (strncmp(p, "VMware-", 7) != 0 &&
-		    strncmp(p, "VMW", 3) != 0) {
-			freeenv(p);
-			return (0);
-		}
-		freeenv(p);
-		vmware_hvcall(VMW_HVCMD_GETVERSION, regs);
-		if (regs[1] != VMW_HVMAGIC)
-			return (0);
-	}
 	if (hv_high >= 0x40000010) {
 		do_cpuid(0x40000010, regs);
 		tsc_freq = regs[0] * 1000;
@@ -177,7 +117,6 @@ tsc_freq_vmware(void)
 			tsc_freq = regs[0] | ((uint64_t)regs[1] << 32);
 	}
 	tsc_is_invariant = 1;
-	return (1);
 }
 
 static void
@@ -261,8 +200,10 @@ probe_tsc_freq(void)
 		}
 	}
 
-	if (tsc_freq_vmware())
+	if (vm_guest == VM_GUEST_VMWARE) {
+		tsc_freq_vmware();
 		return;
+	}
 
 	switch (cpu_vendor_id) {
 	case CPU_VENDOR_AMD:

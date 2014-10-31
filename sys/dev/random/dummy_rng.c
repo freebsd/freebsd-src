@@ -1,5 +1,6 @@
 /*-
  * Copyright (c) 2013 Arthur Mesh <arthurmesh@gmail.com>
+ * Copyright (c) 2013 Mark R V Murray
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -27,98 +28,92 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include "opt_random.h"
+
 #include <sys/param.h>
+#include <sys/conf.h>
 #include <sys/fcntl.h>
 #include <sys/kernel.h>
+#include <sys/lock.h>
 #include <sys/malloc.h>
-#include <sys/module.h>
 #include <sys/random.h>
-#include <sys/selinfo.h>
+#include <sys/syslog.h>
 #include <sys/systm.h>
-#include <sys/time.h>
 
-#include <dev/random/random_adaptors.h>
 #include <dev/random/randomdev.h>
-
-static struct mtx	dummy_random_mtx;
-
-/* Used to fake out unused random calls in random_adaptor */
-static void
-random_null_func(void)
-{
-}
+#include <dev/random/random_adaptors.h>
 
 static int
-dummy_random_poll(int events __unused, struct thread *td __unused)
+dummy_random_zero(void)
 {
 
 	return (0);
 }
 
-static int
-dummy_random_block(int flag)
+static void
+dummy_random(void)
 {
-	int error = 0;
-
-	mtx_lock(&dummy_random_mtx);
-
-	/* Blocking logic */
-	while (!error) {
-		if (flag & O_NONBLOCK)
-			error = EWOULDBLOCK;
-		else {
-			printf("random: dummy device blocking on read.\n");
-			error = msleep(&dummy_random_block,
-			    &dummy_random_mtx,
-			    PUSER | PCATCH, "block", 0);
-		}
-	}
-	mtx_unlock(&dummy_random_mtx);
-
-	return (error);
 }
 
+/* ARGSUSED */
 static void
 dummy_random_init(void)
 {
 
-	mtx_init(&dummy_random_mtx, "sleep mtx for dummy_random",
-	    NULL, MTX_DEF);
+#ifdef RANDOM_DEBUG
+	printf("random: %s\n", __func__);
+#endif
+
+	randomdev_init_reader(dummy_random_read_phony);
 }
 
-static void
-dummy_random_deinit(void)
+/* This is used only by the internal read_random(9) call, and then only
+ * if no entropy processor is loaded.
+ *
+ * Make a token effort to provide _some_ kind of output. No warranty of
+ * the quality of this output is made, mainly because its lousy.
+ *
+ * This is only used by the internal read_random(9) call when no other
+ * adaptor is active.
+ *
+ * It has external scope due to the way things work in
+ * randomdev_[de]init_reader() that the rest of the world doesn't need to
+ * know about.
+ *
+ * Caveat Emptor.
+ */
+u_int
+dummy_random_read_phony(uint8_t *buf, u_int count)
 {
+	/* If no entropy device is loaded, don't spam the console with warnings */
+	static int warned = 0;
+	u_long randval;
+	size_t size, i;
 
-	mtx_destroy(&dummy_random_mtx);
-}
-
-struct random_adaptor dummy_random = {
-	.ident = "Dummy entropy device that always blocks",
-	.init = dummy_random_init,
-	.deinit = dummy_random_deinit,
-	.block = dummy_random_block,
-	.poll = dummy_random_poll,
-	.read = (random_read_func_t *)random_null_func,
-	.reseed = (random_reseed_func_t *)random_null_func,
-	.seeded = 0, /* This device can never be seeded */
-	.priority = 1, /* Bottom priority, so goes to last position */
-};
-
-static int
-dummy_random_modevent(module_t mod __unused, int type, void *unused __unused)
-{
-
-	switch (type) {
-	case MOD_LOAD:
-		random_adaptor_register("dummy", &dummy_random);
-		EVENTHANDLER_INVOKE(random_adaptor_attach,
-		    &dummy_random);
-
-		return (0);
+	if (!warned) {
+		log(LOG_WARNING, "random device not loaded/active; using insecure pseudo-random number generator\n");
+		warned = 1;
 	}
 
-	return (EINVAL);
+	/* srandom() is called in kern/init_main.c:proc0_post() */
+
+	/* Fill buf[] with random(9) output */
+	for (i = 0; i < count; i += sizeof(randval)) {
+		randval = random();
+		size = MIN(count - i, sizeof(randval));
+		memcpy(buf + i, &randval, (size_t)size);
+	}
+
+	return (count);
 }
 
-RANDOM_ADAPTOR_MODULE(dummy, dummy_random_modevent, 1);
+struct random_adaptor randomdev_dummy = {
+	.ra_ident = "Dummy",
+	.ra_priority = 1, /* Bottom priority, so goes to last position */
+	.ra_reseed = dummy_random,
+	.ra_seeded = (random_adaptor_seeded_func_t *)dummy_random_zero,
+	.ra_read = (random_adaptor_read_func_t *)dummy_random_zero,
+	.ra_write = (random_adaptor_write_func_t *)dummy_random_zero,
+	.ra_init = dummy_random_init,
+	.ra_deinit = dummy_random,
+};

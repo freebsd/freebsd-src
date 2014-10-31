@@ -81,6 +81,7 @@
 #define	EFER_LME 0x000000100	/* Long mode enable (R/W) */
 #define	EFER_LMA 0x000000400	/* Long mode active (R) */
 #define	EFER_NXE 0x000000800	/* PTE No-Execute bit enable (R/W) */
+#define	EFER_SVM 0x000001000	/* SVM enable bit for AMD, reserved for Intel */
 
 /*
  * Intel Extended Features registers
@@ -381,6 +382,7 @@
 #define	MSR_BIOS_SIGN		0x08b
 #define	MSR_PERFCTR0		0x0c1
 #define	MSR_PERFCTR1		0x0c2
+#define	MSR_PLATFORM_INFO	0x0ce
 #define	MSR_MPERF		0x0e7
 #define	MSR_APERF		0x0e8
 #define	MSR_IA32_EXT_CONFIG	0x0ee	/* Undocumented. Core Solo/Duo only */
@@ -404,6 +406,8 @@
 #define	MSR_THERM_STATUS	0x19c
 #define	MSR_IA32_MISC_ENABLE	0x1a0
 #define	MSR_IA32_TEMPERATURE_TARGET	0x1a2
+#define	MSR_TURBO_RATIO_LIMIT	0x1ad
+#define	MSR_TURBO_RATIO_LIMIT1	0x1ae
 #define	MSR_DEBUGCTLMSR		0x1d9
 #define	MSR_LASTBRANCHFROMIP	0x1db
 #define	MSR_LASTBRANCHTOIP	0x1dc
@@ -437,6 +441,7 @@
 #define	MSR_MC4_STATUS		0x411
 #define	MSR_MC4_ADDR		0x412
 #define	MSR_MC4_MISC		0x413
+#define	MSR_RAPL_POWER_UNIT	0x606
 #define	MSR_PKG_ENERGY_STATUS	0x611
 #define	MSR_DRAM_ENERGY_STATUS	0x619
 #define	MSR_PP0_ENERGY_STATUS	0x639
@@ -779,8 +784,21 @@
 #define	MSR_IORRMASK1	0xc0010019
 #define	MSR_TOP_MEM	0xc001001a	/* boundary for ram below 4G */
 #define	MSR_TOP_MEM2	0xc001001d	/* boundary for ram above 4G */
+#define	MSR_NB_CFG1	0xc001001f	/* NB configuration 1 */
+#define	MSR_P_STATE_LIMIT 0xc0010061	/* P-state Current Limit Register */
+#define	MSR_P_STATE_CONTROL 0xc0010062	/* P-state Control Register */
+#define	MSR_P_STATE_STATUS 0xc0010063	/* P-state Status Register */
+#define	MSR_P_STATE_CONFIG(n) (0xc0010064 + (n)) /* P-state Config */
+#define	MSR_SMM_ADDR	0xc0010112	/* SMM TSEG base address */
+#define	MSR_SMM_MASK	0xc0010113	/* SMM TSEG address mask */
+#define	MSR_IC_CFG	0xc0011021	/* Instruction Cache Configuration */
 #define	MSR_K8_UCODE_UPDATE	0xc0010020	/* update microcode */
 #define	MSR_MC0_CTL_MASK	0xc0010044
+#define	MSR_VM_CR		0xc0010114 /* SVM: feature control */
+#define	MSR_VM_HSAVE_PA		0xc0010117 /* SVM: host save area address */
+
+/* MSR_VM_CR related */
+#define	VM_CR_SVMDIS		0x10	/* SVM: disabled by BIOS */
 
 /* VIA ACE crypto featureset: for via_feature_rng */
 #define	VIA_HAS_RNG		1	/* cpu has RNG */

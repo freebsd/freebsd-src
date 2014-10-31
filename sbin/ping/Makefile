@@ -7,7 +7,7 @@ PROG=	ping
 MAN=	ping.8
 BINOWN=	root
 BINMODE=4555
-WARNS?=	2
+WARNS?=	3
 DPADD=	${LIBM}
 LDADD=	-lm
 

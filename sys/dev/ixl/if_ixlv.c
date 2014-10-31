@@ -1137,6 +1137,7 @@ ixlv_allocate_pci_resources(struct ixlv_sc *sc)
 	sc->osdep.mem_bus_space_handle =
 		rman_get_bushandle(sc->pci_mem);
 	sc->osdep.mem_bus_space_size = rman_get_size(sc->pci_mem);
+	sc->osdep.flush_reg = I40E_VFGEN_RSTAT;
 	sc->hw.hw_addr = (u8 *) &sc->osdep.mem_bus_space_handle;
 
 	sc->hw.back = &sc->osdep;

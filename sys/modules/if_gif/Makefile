@@ -6,7 +6,7 @@ SYSDIR?=${.CURDIR}/../..
 .PATH: ${SYSDIR}/net ${SYSDIR}/netinet ${SYSDIR}/netinet6
 
 KMOD=	if_gif
-SRCS=	if_gif.c in_gif.c opt_inet.h opt_inet6.h opt_mrouting.h
+SRCS=	if_gif.c in_gif.c opt_inet.h opt_inet6.h
 
 .if defined(KERNBUILDDIR)
 OPT_INET6!= cat ${KERNBUILDDIR}/opt_inet6.h; echo

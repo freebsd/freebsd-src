@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd August 3, 2010
+.Dd October 9, 2014
 .Dt ISCSI_INITIATOR 4
 .Os
 .Sh NAME
@@ -45,6 +45,16 @@ module at boot time, place the following line in
 iscsi_initiator_load="YES"
 .Ed
 .Sh DESCRIPTION
+.Bf -symbolic
+This driver, along with its userspace counterpart
+.Xr iscontrol 8 , 
+is obsolete.
+Users are advised to use
+.Xr iscsi 4
+instead.
+.Ef
+.Pp
+
 The
 .Nm
 implements the kernel side of the Internet SCSI (iSCSI) network

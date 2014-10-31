@@ -15,7 +15,7 @@ MK_SSP=	no
 
 .include "${.CURDIR}/../../usr.bin/cc/Makefile.tgt"
 
-.if ${TARGET_CPUARCH} == "arm" && ${MK_ARM_EABI} != "no"
+.if ${TARGET_CPUARCH} == "arm"
 CFLAGS+=	-DTARGET_ARM_EABI
 .endif
 
@@ -56,7 +56,7 @@ LIB2FUNCS+= _fixuns${mode}si
 .endfor
 
 # Likewise double-word routines.
-.if ${TARGET_CPUARCH} != "arm" || ${MK_ARM_EABI} == "no"
+.if ${TARGET_CPUARCH} != "arm"
 # These are implemented in an ARM specific file but will not be filtered out
 .for mode in sf df xf tf
 LIB2FUNCS+= _fix${mode}di _fixuns${mode}di
@@ -117,14 +117,10 @@ CFLAGS.clang+=	-fheinous-gnu-extensions
 
 LIB1ASMSRC =	lib1funcs.asm
 LIB1ASMFUNCS =  _dvmd_tls _bb_init_func
-.if ${MK_ARM_EABI} != "no"
 LIB2ADDEH =	unwind-arm.c libunwind.S pr-support.c unwind-c.c
 # Some compilers generate __aeabi_ functions libgcc_s is missing
 DPADD+=		${LIBCOMPILER_RT}
 LDADD+=		-lcompiler_rt
-.else
-LIB2FUNCS_EXTRA = floatunsidf.c floatunsisf.c
-.endif
 .endif
 
 .if ${TARGET_CPUARCH} == mips
@@ -319,7 +315,7 @@ CLEANFILES += cs-*.h option*
 SHLIB_MKMAP      = ${GCCDIR}/mkmap-symver.awk
 SHLIB_MKMAP_OPTS =
 SHLIB_MAPFILES   = ${GCCDIR}/libgcc-std.ver
-.if ${TARGET_CPUARCH} == "arm" && ${MK_ARM_EABI} != "no"
+.if ${TARGET_CPUARCH} == "arm"
 SHLIB_MAPFILES  += ${GCCDIR}/config/arm/libgcc-bpabi.ver
 .endif
 VERSION_MAP      = libgcc.map

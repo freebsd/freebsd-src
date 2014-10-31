@@ -46,7 +46,6 @@
  * is splitted from if_var.h.
  */
 #define	IF_DUNIT_NONE	-1
-void if_inc_counter(struct ifnet *, ift_counter, int64_t inc);
 
 #include <altq/if_altq.h>
 
@@ -480,18 +479,6 @@ extern	int ifqmaxlen;
 void	if_qflush(struct ifnet *);
 void	ifq_init(struct ifaltq *, struct ifnet *ifp);
 void	ifq_delete(struct ifaltq *);
-
-#ifdef DEVICE_POLLING
-enum poll_cmd {	POLL_ONLY, POLL_AND_CHECK_STATUS };
-
-typedef	int poll_handler_t(struct ifnet *ifp, enum poll_cmd cmd, int count);
-int    ether_poll_register(poll_handler_t *h, struct ifnet *ifp);
-int    ether_poll_deregister(struct ifnet *ifp);
-/* The following should be temporary, till all drivers use the driver API */
-typedef	int poll_handler_drv_t(if_t ifh, enum poll_cmd cmd, int count);
-int	ether_poll_register_drv(poll_handler_drv_t *h, if_t ifh);
-int	ether_poll_deregister_drv(if_t ifh);
-#endif /* DEVICE_POLLING */
 
 #endif /* _KERNEL */
 #endif /* !_NET_IFQ_H_ */

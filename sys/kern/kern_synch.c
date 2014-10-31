@@ -101,8 +101,7 @@ static fixpt_t cexp[3] = {
 };
 
 /* kernel uses `FSCALE', userland (SHOULD) use kern.fscale */
-static int      fscale __unused = FSCALE;
-SYSCTL_INT(_kern, OID_AUTO, fscale, CTLFLAG_RD, 0, FSCALE, "");
+SYSCTL_INT(_kern, OID_AUTO, fscale, CTLFLAG_RD, SYSCTL_NULL_INT_PTR, FSCALE, "");
 
 static void	loadav(void *arg);
 

@@ -39,7 +39,6 @@ __FBSDID("$FreeBSD$");
 #include <linux/slab.h>
 #include <linux/err.h>
 #include <linux/string.h>
-#include <linux/inet.h>
 #include <linux/list.h>
 #include <linux/in.h>
 #include <linux/device.h>
@@ -1012,9 +1011,17 @@ static void krping_test_server(struct krping_cb *cb)
 		DEBUG_LOG(cb, "server received read complete\n");
 
 		/* Display data in recv buf */
-		if (cb->verbose)
-			PRINTF(cb, "server ping data: %s\n", 
-				cb->rdma_buf);
+		if (cb->verbose) {
+			if (strlen(cb->rdma_buf) > 128) {
+				char msgbuf[128];
+
+				strlcpy(msgbuf, cb->rdma_buf, sizeof(msgbuf));
+				PRINTF(cb, "server ping data stripped: %s\n",
+				       msgbuf);
+			} else
+				PRINTF(cb, "server ping data: %s\n",
+				       cb->rdma_buf);
+		}
 
 		/* Tell client to continue */
 		if (cb->server && cb->server_invalidate) {
@@ -1714,8 +1721,16 @@ static void krping_test_client(struct krping_cb *cb)
 				break;
 			}
 
-		if (cb->verbose)
-			PRINTF(cb, "ping data: %s\n", cb->rdma_buf);
+		if (cb->verbose) {
+			if (strlen(cb->rdma_buf) > 128) {
+				char msgbuf[128];
+
+				strlcpy(msgbuf, cb->rdma_buf, sizeof(msgbuf));
+				PRINTF(cb, "ping data stripped: %s\n",
+				       msgbuf);
+			} else
+				PRINTF(cb, "ping data: %s\n", cb->rdma_buf);
+		}
 #ifdef SLOW_KRPING
 		wait_event_interruptible_timeout(cb->sem, cb->state == ERROR, HZ);
 #endif

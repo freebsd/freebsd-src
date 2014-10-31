@@ -1043,6 +1043,9 @@ mprsas_action(struct cam_sim *sim, union ccb *ccb)
 		case 0x0a:
 			sas->bitrate = 600000;
 			break;
+		case 0x0b:
+			sas->bitrate = 1200000;
+			break;
 		default:
 			sas->valid = 0;
 		}

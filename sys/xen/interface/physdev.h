@@ -151,6 +151,7 @@ DEFINE_XEN_GUEST_HANDLE(physdev_irq_t);
 #define MAP_PIRQ_TYPE_GSI               0x1
 #define MAP_PIRQ_TYPE_UNKNOWN           0x2
 #define MAP_PIRQ_TYPE_MSI_SEG           0x3
+#define MAP_PIRQ_TYPE_MULTI_MSI         0x4
 
 #define PHYSDEVOP_map_pirq               13
 struct physdev_map_pirq {
