@@ -1524,7 +1524,13 @@ fdgrowtable(struct filedesc *fdp, int nfd)
 	int nnfiles, onfiles;
 	NDSLOTTYPE *nmap, *omap;
 
-	FILEDESC_XLOCK_ASSERT(fdp);
+	/*
+	 * If lastfile is -1 this struct filedesc was just allocated and we are
+	 * growing it to accomodate for the one we are going to copy from. There
+	 * is no need to have a lock on this one as it's not visible to anyone.
+	 */
+	if (fdp->fd_lastfile != -1)
+		FILEDESC_XLOCK_ASSERT(fdp);
 
 	KASSERT(fdp->fd_nfiles > 0, ("zero-length file table"));
 
@@ -1791,37 +1797,52 @@ finstall(struct thread *td, struct file *fp, int *fd, int flags,
 /*
  * Build a new filedesc structure from another.
  * Copy the current, root, and jail root vnode references.
+ *
+ * If fdp is not NULL, return with it shared locked.
  */
 struct filedesc *
 fdinit(struct filedesc *fdp)
 {
-	struct filedesc0 *newfdp;
+	struct filedesc0 *newfdp0;
+	struct filedesc *newfdp;
 
-	newfdp = malloc(sizeof *newfdp, M_FILEDESC, M_WAITOK | M_ZERO);
-	FILEDESC_LOCK_INIT(&newfdp->fd_fd);
-	if (fdp != NULL) {
-		FILEDESC_SLOCK(fdp);
-		newfdp->fd_fd.fd_cdir = fdp->fd_cdir;
-		if (newfdp->fd_fd.fd_cdir)
-			VREF(newfdp->fd_fd.fd_cdir);
-		newfdp->fd_fd.fd_rdir = fdp->fd_rdir;
-		if (newfdp->fd_fd.fd_rdir)
-			VREF(newfdp->fd_fd.fd_rdir);
-		newfdp->fd_fd.fd_jdir = fdp->fd_jdir;
-		if (newfdp->fd_fd.fd_jdir)
-			VREF(newfdp->fd_fd.fd_jdir);
-		FILEDESC_SUNLOCK(fdp);
-	}
+	newfdp0 = malloc(sizeof *newfdp0, M_FILEDESC, M_WAITOK | M_ZERO);
+	newfdp = &newfdp0->fd_fd;
 
 	/* Create the file descriptor table. */
-	newfdp->fd_fd.fd_refcnt = 1;
-	newfdp->fd_fd.fd_holdcnt = 1;
-	newfdp->fd_fd.fd_cmask = CMASK;
-	newfdp->fd_dfiles.fdt_nfiles = NDFILE;
-	newfdp->fd_fd.fd_files = (struct fdescenttbl *)&newfdp->fd_dfiles;
-	newfdp->fd_fd.fd_map = newfdp->fd_dmap;
-	newfdp->fd_fd.fd_lastfile = -1;
-	return (&newfdp->fd_fd);
+	FILEDESC_LOCK_INIT(newfdp);
+	newfdp->fd_refcnt = 1;
+	newfdp->fd_holdcnt = 1;
+	newfdp->fd_cmask = CMASK;
+	newfdp->fd_map = newfdp0->fd_dmap;
+	newfdp->fd_lastfile = -1;
+	newfdp->fd_files = (struct fdescenttbl *)&newfdp0->fd_dfiles;
+	newfdp->fd_files->fdt_nfiles = NDFILE;
+
+	if (fdp == NULL)
+		return (newfdp);
+
+	if (fdp->fd_lastfile >= newfdp->fd_nfiles)
+		fdgrowtable(newfdp, fdp->fd_lastfile + 1);
+
+	FILEDESC_SLOCK(fdp);
+	newfdp->fd_cdir = fdp->fd_cdir;
+	if (newfdp->fd_cdir)
+		VREF(newfdp->fd_cdir);
+	newfdp->fd_rdir = fdp->fd_rdir;
+	if (newfdp->fd_rdir)
+		VREF(newfdp->fd_rdir);
+	newfdp->fd_jdir = fdp->fd_jdir;
+	if (newfdp->fd_jdir)
+		VREF(newfdp->fd_jdir);
+
+	while (fdp->fd_lastfile >= newfdp->fd_nfiles) {
+		FILEDESC_SUNLOCK(fdp);
+		fdgrowtable(newfdp, fdp->fd_lastfile + 1);
+		FILEDESC_SLOCK(fdp);
+	}
+
+	return (newfdp);
 }
 
 static struct filedesc *
@@ -1905,14 +1926,6 @@ fdcopy(struct filedesc *fdp)
 		return (NULL);
 
 	newfdp = fdinit(fdp);
-	FILEDESC_SLOCK(fdp);
-	while (fdp->fd_lastfile >= newfdp->fd_nfiles) {
-		FILEDESC_SUNLOCK(fdp);
-		FILEDESC_XLOCK(newfdp);
-		fdgrowtable(newfdp, fdp->fd_lastfile + 1);
-		FILEDESC_XUNLOCK(newfdp);
-		FILEDESC_SLOCK(fdp);
-	}
 	/* copy all passable descriptors (i.e. not kqueue) */
 	newfdp->fd_freefile = -1;
 	for (i = 0; i <= fdp->fd_lastfile; ++i) {
