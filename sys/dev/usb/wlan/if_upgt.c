@@ -428,7 +428,7 @@ upgt_get_stats(struct upgt_softc *sc)
 
 	data_cmd = upgt_getbuf(sc);
 	if (data_cmd == NULL) {
-		device_printf(sc->sc_dev, "%s: out of buffer.\n", __func__);
+		device_printf(sc->sc_dev, "%s: out of buffers.\n", __func__);
 		return;
 	}
 
