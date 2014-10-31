@@ -92,7 +92,7 @@ SYSCTL_VNET_PROC(_net_inet_tcp_reass, OID_AUTO, cursegments,
 static VNET_DEFINE(int, tcp_reass_overflows) = 0;
 #define	V_tcp_reass_overflows		VNET(tcp_reass_overflows)
 SYSCTL_VNET_INT(_net_inet_tcp_reass, OID_AUTO, overflows,
-    CTLTYPE_INT | CTLFLAG_RD,
+    CTLFLAG_RD,
     &VNET_NAME(tcp_reass_overflows), 0,
     "Global number of TCP Segment Reassembly Queue Overflows");
 

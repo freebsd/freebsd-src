@@ -164,10 +164,10 @@ struct ieee80211_hwmp_state {
 static SYSCTL_NODE(_net_wlan, OID_AUTO, hwmp, CTLFLAG_RD, 0,
     "IEEE 802.11s HWMP parameters");
 static int	ieee80211_hwmp_targetonly = 0;
-SYSCTL_INT(_net_wlan_hwmp, OID_AUTO, targetonly, CTLTYPE_INT | CTLFLAG_RW,
+SYSCTL_INT(_net_wlan_hwmp, OID_AUTO, targetonly, CTLFLAG_RW,
     &ieee80211_hwmp_targetonly, 0, "Set TO bit on generated PREQs");
 static int	ieee80211_hwmp_replyforward = 1;
-SYSCTL_INT(_net_wlan_hwmp, OID_AUTO, replyforward, CTLTYPE_INT | CTLFLAG_RW,
+SYSCTL_INT(_net_wlan_hwmp, OID_AUTO, replyforward, CTLFLAG_RW,
     &ieee80211_hwmp_replyforward, 0, "Set RF bit on generated PREQs");
 static int	ieee80211_hwmp_pathtimeout = -1;
 SYSCTL_PROC(_net_wlan_hwmp, OID_AUTO, pathlifetime, CTLTYPE_INT | CTLFLAG_RW,
