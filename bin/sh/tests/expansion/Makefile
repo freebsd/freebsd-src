@@ -72,6 +72,7 @@ FILES+=		plus-minus7.0
 FILES+=		plus-minus8.0
 FILES+=		question1.0
 FILES+=		readonly1.0
+FILES+=		redir1.0
 FILES+=		set-u1.0
 FILES+=		set-u2.0
 FILES+=		set-u3.0
