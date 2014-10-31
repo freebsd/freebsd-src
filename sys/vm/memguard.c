@@ -226,11 +226,11 @@ memguard_sysinit(void)
 
 	parent = SYSCTL_STATIC_CHILDREN(_vm_memguard);
 
-	SYSCTL_ADD_ULONG(NULL, parent, OID_AUTO, "mapstart", CTLFLAG_RD,
+	SYSCTL_ADD_UAUTO(NULL, parent, OID_AUTO, "mapstart", CTLFLAG_RD,
 	    &memguard_map->min_offset, "MemGuard KVA base");
-	SYSCTL_ADD_ULONG(NULL, parent, OID_AUTO, "maplimit", CTLFLAG_RD,
+	SYSCTL_ADD_UAUTO(NULL, parent, OID_AUTO, "maplimit", CTLFLAG_RD,
 	    &memguard_map->max_offset, "MemGuard KVA end");
-	SYSCTL_ADD_ULONG(NULL, parent, OID_AUTO, "mapused", CTLFLAG_RD,
+	SYSCTL_ADD_UAUTO(NULL, parent, OID_AUTO, "mapused", CTLFLAG_RD,
 	    &memguard_map->size, "MemGuard KVA used");
 }
 SYSINIT(memguard, SI_SUB_KLD, SI_ORDER_ANY, memguard_sysinit, NULL);

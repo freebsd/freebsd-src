@@ -34,6 +34,9 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include <sys/param.h>
+#include <sys/systm.h>
+
 #include "opt_inet6.h"
 #include "opt_kgssapi.h"
 

@@ -130,7 +130,7 @@ CTASSERT(sizeof(struct pcb) % XSAVE_AREA_ALIGN == 0);
 static	void	fpu_clean_state(void);
 
 SYSCTL_INT(_hw, HW_FLOATINGPT, floatingpoint, CTLFLAG_RD,
-    NULL, 1, "Floating point instructions executed in hardware");
+    SYSCTL_NULL_INT_PTR, 1, "Floating point instructions executed in hardware");
 
 int use_xsave;			/* non-static for cpu_switch.S */
 uint64_t xsave_mask;		/* the same */

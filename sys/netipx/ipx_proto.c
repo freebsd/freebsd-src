@@ -65,6 +65,7 @@ __FBSDID("$FreeBSD$");
 #include "opt_ipx.h"
 
 #include <sys/param.h>
+#include <sys/systm.h>
 #include <sys/socket.h>
 #include <sys/protosw.h>
 #include <sys/domain.h>

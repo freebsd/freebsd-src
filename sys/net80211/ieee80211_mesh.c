@@ -112,7 +112,7 @@ SYSCTL_PROC(_net_wlan_mesh, OID_AUTO, confirmtimeout, CTLTYPE_INT | CTLFLAG_RW,
     &ieee80211_mesh_confirmtimeout, 0, ieee80211_sysctl_msecs_ticks, "I",
     "Confirm state timeout (msec)");
 static int ieee80211_mesh_maxretries = 2;
-SYSCTL_INT(_net_wlan_mesh, OID_AUTO, maxretries, CTLTYPE_INT | CTLFLAG_RW,
+SYSCTL_INT(_net_wlan_mesh, OID_AUTO, maxretries, CTLFLAG_RW,
     &ieee80211_mesh_maxretries, 0,
     "Maximum retries during peer link establishment");
 
