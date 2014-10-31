@@ -1664,6 +1664,7 @@ product DREAMLINK DL100B	0x0004	USB Webmail Notifier
 /* dresden elektronik products */
 product DRESDENELEKTRONIK SENSORTERMINALBOARD  0x0001 SensorTerminalBoard
 product DRESDENELEKTRONIK WIRELESSHANDHELDTERMINAL  0x0004 Wireless Handheld Terminal
+product DRESDENELEKTRONIK DE_RFNODE                 0x001c deRFnode
 product DRESDENELEKTRONIK LEVELSHIFTERSTICKLOWCOST  0x0022 Levelshifter Stick Low Cost
 
 /* Dynastream Innovations */
@@ -1675,7 +1676,7 @@ product DYNASTREAM ANTDEVBOARD2	0x1006	ANT dev board
 product EDIMAX EW7318USG	0x7318	USB Wireless dongle
 product EDIMAX RTL8192SU_1	0x7611	RTL8192SU
 product EDIMAX RTL8192SU_2	0x7612	RTL8192SU
-product EDIMAX RTL8192SU_3	0x7622	RTL8192SU
+product EDIMAX EW7622UMN	0x7622	EW-7622UMn
 product EDIMAX RT2870_1		0x7711	RT2870
 product EDIMAX EW7717		0x7717	EW-7717
 product EDIMAX EW7718		0x7718	EW-7718
@@ -1852,7 +1853,8 @@ product FTDI 232H		0x6014	FTDI compatible adapter
 product FTDI 232EX		0x6015	FTDI compatible adapter
 product FTDI SERIAL_2232D	0x9e90	FT2232D Dual port Serial
 product FTDI SERIAL_4232H	0x6011	FT4232H Quad port Serial
-product FTDI BEAGLEBONE		0xa6d0	BeagleBone
+product FTDI XDS100V2		0xa6d0	TI XDS100V1/V2 and early Beaglebones
+product FTDI XDS100V3		0xa6d1	TI XDS100V3
 product FTDI KTLINK		0xbbe2	KT-LINK Embedded Hackers Multitool
 product FTDI TURTELIZER2	0xbdc8	egnite Turtelizer 2 JTAG/RS232 Adapter
 /* Gude Analog- und Digitalsysteme products also uses FTDI's id: */
@@ -2345,15 +2347,21 @@ product HUAWEI K4505		0x1464	3G modem
 product HUAWEI K3765		0x1465	3G modem
 product HUAWEI E1820		0x14ac	E1820 HSPA+ USB Slider
 product HUAWEI K3770		0x14c9  3G modem
+product HUAWEI K3772		0x14cf	K3772
 product HUAWEI K3770_INIT	0x14d1  K3770 Initial
 product HUAWEI E3131_INIT	0x14fe	3G modem initial
 product HUAWEI E392		0x1505	LTE modem
 product HUAWEI E3131		0x1506	3G modem
 product HUAWEI K3765_INIT	0x1520	K3765 Initial
 product HUAWEI K4505_INIT	0x1521	K4505 Initial
+product HUAWEI K3772_INIT	0x1526	K3772 Initial
+product HUAWEI E3272_INIT	0x155b	LTE modem initial
+product HUAWEI R215_INIT	0x1582	LTE modem initial
+product HUAWEI R215		0x1588	LTE modem
 product HUAWEI ETS2055		0x1803	CDMA modem
 product HUAWEI E173		0x1c05	3G modem
 product HUAWEI E173_INIT	0x1c0b	3G modem initial
+product HUAWEI E3272		0x1c1e	LTE modem
 
 /* HUAWEI 3com products */
 product HUAWEI3COM WUB320G	0x0009	Aolynk WUB320g
@@ -3240,6 +3248,7 @@ product NOVATEL EU740		0x2410	Expedite EU740
 product NOVATEL EU870D		0x2420	Expedite EU870D
 product NOVATEL U727		0x4100	Merlin U727 CDMA
 product NOVATEL MC950D		0x4400	Novatel MC950D HSUPA
+product NOVATEL MC990D		0x7001	Novatel MC990D
 product NOVATEL ZEROCD		0x5010	Novatel ZeroCD
 product NOVATEL MIFI2200V	0x5020	Novatel MiFi 2200 CDMA Virgin Mobile
 product NOVATEL ZEROCD2		0x5030	Novatel ZeroCD
@@ -3629,7 +3638,8 @@ product QUALCOMMINC E0078	0x0078	3G modem
 product QUALCOMMINC E0082	0x0082	3G modem
 product QUALCOMMINC E0086	0x0086	3G modem
 product QUALCOMMINC SURFSTICK	0x0117	1&1 Surf Stick
-product QUALCOMMINC K3772_Z	0x1179	3G modem
+product QUALCOMMINC K3772_Z_INIT	0x1179	K3772-Z Initial
+product QUALCOMMINC K3772_Z	0x1181	K3772-Z
 product QUALCOMMINC ZTE_STOR	0x2000	USB ZTE Storage
 product QUALCOMMINC E2002	0x2002	3G modem
 product QUALCOMMINC E2003	0x2003	3G modem
@@ -3791,6 +3801,7 @@ product SANDISK SDDR05		0x0005	ImageMate SDDR-05
 product SANDISK SDDR12		0x0100	ImageMate SDDR-12
 product SANDISK SDDR09		0x0200	ImageMate SDDR-09
 product SANDISK SDDR75		0x0810	ImageMate SDDR-75
+product SANDISK SDCZ2_128	0x7100	Cruzer Mini 128MB
 product SANDISK SDCZ2_256	0x7104	Cruzer Mini 256MB
 product SANDISK SDCZ4_128	0x7112	Cruzer Micro 128MB
 product SANDISK SDCZ4_256	0x7113	Cruzer Micro 256MB
@@ -4131,6 +4142,23 @@ product SMC 2862WG		0xee13	EZ Connect Wireless Adapter
 product SMC2 2020HUB		0x2020	USB Hub
 product SMC2 2514HUB		0x2514	USB Hub
 product SMC3 2662WUSB		0xa002	2662W-AR Wireless
+product SMC2 LAN9500_ETH	0x9500	USB/Ethernet
+product SMC2 LAN9505_ETH	0x9505	USB/Ethernet
+product SMC2 LAN9530_ETH	0x9530	USB/Ethernet
+product SMC2 LAN9730_ETH	0x9730	USB/Ethernet
+product SMC2 LAN9500_SAL10	0x9900	USB/Ethernet
+product SMC2 LAN9505_SAL10	0x9901	USB/Ethernet
+product SMC2 LAN9500A_SAL10	0x9902	USB/Ethernet
+product SMC2 LAN9505A_SAL10	0x9903	USB/Ethernet
+product SMC2 LAN9514_SAL10	0x9904	USB/Ethernet
+product SMC2 LAN9500A_HAL	0x9905	USB/Ethernet
+product SMC2 LAN9505A_HAL	0x9906	USB/Ethernet
+product SMC2 LAN9500_ETH_2	0x9907	USB/Ethernet
+product SMC2 LAN9500A_ETH_2	0x9908	USB/Ethernet
+product SMC2 LAN9514_ETH_2	0x9909	USB/Ethernet
+product SMC2 LAN9500A_ETH	0x9e00	USB/Ethernet
+product SMC2 LAN9505A_ETH	0x9e01	USB/Ethernet
+product SMC2 LAN89530_ETH	0x9e08	USB/Ethernet
 product SMC2 LAN9514_ETH	0xec00	USB/Ethernet
 
 /* SOHOware products */
@@ -4552,5 +4580,6 @@ product ZYXEL G220V2		0x340f	G-220 v2
 product ZYXEL G202		0x3410	G-202
 product ZYXEL RT2870_1		0x3416	RT2870
 product ZYXEL RT2870_2		0x341a	RT2870
+product ZYXEL RT3070		0x341e	NWD2105
 product ZYXEL RTL8192CU		0x341f	RTL8192CU
 product ZYXEL NWD2705		0x3421	NWD2705
