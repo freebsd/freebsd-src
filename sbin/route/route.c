@@ -1533,9 +1533,18 @@ rtmsg(int cmd, int flags, int fib)
 	if (debugonly)
 		return (0);
 	if ((rlen = write(s, (char *)&m_rtmsg, l)) < 0) {
-		if (errno == EPERM)
+		switch (errno) {
+		case EPERM:
 			err(1, "writing to routing socket");
-		warn("writing to routing socket");
+		case ESRCH:
+			warnx("route has not been found");
+			break;
+		case EEXIST:
+			/* Handled by newroute() */
+			break;
+		default:
+			warn("writing to routing socket");
+		}
 		return (-1);
 	}
 	if (cmd == RTM_GET) {
