@@ -291,37 +291,27 @@ fdunused(struct filedesc *fdp, int fd)
  * Avoid some work if fdp is about to be destroyed.
  */
 static inline void
-_fdfree(struct filedesc *fdp, int fd, int last)
+fdefree_last(struct filedescent *fde)
 {
-	struct filedescent *fde;
 
-	fde = &fdp->fd_ofiles[fd];
-#ifdef CAPABILITIES
-	if (!last)
-		seq_write_begin(&fde->fde_seq);
-#endif
 	filecaps_free(&fde->fde_caps);
-	if (last)
-		return;
-	bzero(fde, fde_change_size);
-	fdunused(fdp, fd);
-#ifdef CAPABILITIES
-	seq_write_end(&fde->fde_seq);
-#endif
 }
 
 static inline void
 fdfree(struct filedesc *fdp, int fd)
 {
+	struct filedescent *fde;
 
-	_fdfree(fdp, fd, 0);
-}
-
-static inline void
-fdfree_last(struct filedesc *fdp, int fd)
-{
-
-	_fdfree(fdp, fd, 1);
+	fde = &fdp->fd_ofiles[fd];
+#ifdef CAPABILITIES
+	seq_write_begin(&fde->fde_seq);
+#endif
+	fdefree_last(fde);
+	bzero(fde, fde_change_size);
+	fdunused(fdp, fd);
+#ifdef CAPABILITIES
+	seq_write_end(&fde->fde_seq);
+#endif
 }
 
 /*
@@ -1956,6 +1946,7 @@ fdescfree(struct thread *td)
 	struct filedesc *fdp;
 	int i;
 	struct filedesc_to_leader *fdtol;
+	struct filedescent *fde;
 	struct file *fp;
 	struct vnode *cdir, *jdir, *rdir, *vp;
 	struct flock lf;
@@ -2055,9 +2046,10 @@ fdescfree(struct thread *td)
 	FILEDESC_XUNLOCK(fdp);
 
 	for (i = 0; i <= fdp->fd_lastfile; i++) {
-		fp = fdp->fd_ofiles[i].fde_file;
+		fde = &fdp->fd_ofiles[i];
+		fp = fde->fde_file;
 		if (fp != NULL) {
-			fdfree_last(fdp, i);
+			fdefree_last(fde);
 			(void) closef(fp, td);
 		}
 	}
