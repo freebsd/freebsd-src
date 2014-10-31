@@ -80,7 +80,7 @@ int	setfault(faultbuf);	/* defined in locore.S */
 
 #ifdef __powerpc64__
 static __inline void
-set_user_sr(pmap_t pm, const void *addr)
+set_user_sr(pmap_t pm, volatile const void *addr)
 {
 	struct slb *slb;
 	register_t slbv;
@@ -113,7 +113,7 @@ set_user_sr(pmap_t pm, const void *addr)
 }
 #else
 static __inline void
-set_user_sr(pmap_t pm, const void *addr)
+set_user_sr(pmap_t pm, volatile const void *addr)
 {
 	register_t vsid;
 
@@ -135,7 +135,7 @@ set_user_sr(pmap_t pm, const void *addr)
 #endif
 
 static __inline int
-map_user_ptr(pmap_t pm, const void *uaddr, void **kaddr, size_t ulen,
+map_user_ptr(pmap_t pm, volatile const void *uaddr, void **kaddr, size_t ulen,
     size_t *klen)
 {
 	size_t l;
@@ -156,7 +156,7 @@ map_user_ptr(pmap_t pm, const void *uaddr, void **kaddr, size_t ulen,
 }
 #else /* Book-E uses a combined kernel/user mapping */
 static __inline int
-map_user_ptr(pmap_t pm, const void *uaddr, void **kaddr, size_t ulen,
+map_user_ptr(pmap_t pm, volatile const void *uaddr, void **kaddr, size_t ulen,
     size_t *klen)
 {
 
@@ -281,7 +281,7 @@ copyinstr(const void *udaddr, void *kaddr, size_t len, size_t *done)
 }
 
 int
-subyte(void *addr, int byte)
+subyte(volatile void *addr, int byte)
 {
 	struct		thread *td;
 	pmap_t		pm;
@@ -309,7 +309,7 @@ subyte(void *addr, int byte)
 
 #ifdef __powerpc64__
 int
-suword32(void *addr, int word)
+suword32(volatile void *addr, int word)
 {
 	struct		thread *td;
 	pmap_t		pm;
@@ -337,7 +337,7 @@ suword32(void *addr, int word)
 #endif
 
 int
-suword(void *addr, long word)
+suword(volatile void *addr, long word)
 {
 	struct		thread *td;
 	pmap_t		pm;
@@ -365,20 +365,20 @@ suword(void *addr, long word)
 
 #ifdef __powerpc64__
 int
-suword64(void *addr, int64_t word)
+suword64(volatile void *addr, int64_t word)
 {
 	return (suword(addr, (long)word));
 }
 #else
 int
-suword32(void *addr, int32_t word)
+suword32(volatile void *addr, int32_t word)
 {
 	return (suword(addr, (long)word));
 }
 #endif
 
 int
-fubyte(const void *addr)
+fubyte(volatile const void *addr)
 {
 	struct		thread *td;
 	pmap_t		pm;
@@ -406,7 +406,7 @@ fubyte(const void *addr)
 }
 
 int
-fuword16(const void *addr)
+fuword16(volatile const void *addr)
 {
 	struct		thread *td;
 	pmap_t		pm;
@@ -433,7 +433,7 @@ fuword16(const void *addr)
 }
 
 int
-fueword32(const void *addr, int32_t *val)
+fueword32(volatile const void *addr, int32_t *val)
 {
 	struct		thread *td;
 	pmap_t		pm;
@@ -461,7 +461,7 @@ fueword32(const void *addr, int32_t *val)
 
 #ifdef __powerpc64__
 int
-fueword64(const void *addr, int64_t *val)
+fueword64(volatile const void *addr, int64_t *val)
 {
 	struct		thread *td;
 	pmap_t		pm;
@@ -489,7 +489,7 @@ fueword64(const void *addr, int64_t *val)
 #endif
 
 int
-fueword(const void *addr, long *val)
+fueword(volatile const void *addr, long *val)
 {
 	struct		thread *td;
 	pmap_t		pm;

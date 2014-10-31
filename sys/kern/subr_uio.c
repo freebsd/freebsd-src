@@ -453,7 +453,7 @@ copyout_unmap(struct thread *td, vm_offset_t addr, size_t sz)
  */
 
 int
-fueword(const void *base, long *val)
+fueword(volatile const void *base, long *val)
 {
 	long res;
 
@@ -465,7 +465,7 @@ fueword(const void *base, long *val)
 }
 
 int
-fueword32(const void *base, int32_t *val)
+fueword32(volatile const void *base, int32_t *val)
 {
 	int32_t res;
 
@@ -478,7 +478,7 @@ fueword32(const void *base, int32_t *val)
 
 #ifdef _LP64
 int
-fueword64(const void *base, int64_t *val)
+fueword64(volatile const void *base, int64_t *val)
 {
 	int32_t res;
 
@@ -516,7 +516,7 @@ casueword(volatile u_long *p, u_long oldval, u_long *oldvalp, u_long newval)
 }
 #else /* NO_FUEWORD */
 int32_t
-fuword32(const void *addr)
+fuword32(volatile const void *addr)
 {
 	int rv;
 	int32_t val;
@@ -527,7 +527,7 @@ fuword32(const void *addr)
 
 #ifdef _LP64
 int64_t
-fuword64(const void *addr)
+fuword64(volatile const void *addr)
 {
 	int rv;
 	int64_t val;
@@ -538,7 +538,7 @@ fuword64(const void *addr)
 #endif /* _LP64 */
 
 long
-fuword(const void *addr)
+fuword(volatile const void *addr)
 {
 	long val;
 	int rv;
