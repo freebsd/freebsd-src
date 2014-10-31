@@ -528,6 +528,7 @@ MAN=	aac.4 \
 	uhso.4 \
 	uipaq.4 \
 	ukbd.4 \
+	uled.4 \
 	ulpt.4 \
 	umass.4 \
 	umcs.4 \
