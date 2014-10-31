@@ -56,6 +56,9 @@
 #define	GPIOBUS_ASSERT_LOCKED(_sc) mtx_assert(&_sc->sc_mtx, MA_OWNED)
 #define	GPIOBUS_ASSERT_UNLOCKED(_sc) mtx_assert(&_sc->sc_mtx, MA_NOTOWNED)
 
+#define	GPIOBUS_WAIT		1
+#define	GPIOBUS_DONTWAIT	2
+
 struct gpiobus_softc
 {
 	struct mtx	sc_mtx;		/* bus mutex */
