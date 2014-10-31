@@ -233,6 +233,7 @@ fd_last_used(struct filedesc *fdp, int size)
 	return (-1);
 }
 
+#ifdef INVARIANTS
 static int
 fdisused(struct filedesc *fdp, int fd)
 {
@@ -244,6 +245,7 @@ fdisused(struct filedesc *fdp, int fd)
 
 	return ((fdp->fd_map[NDSLOT(fd)] & NDBIT(fd)) != 0);
 }
+#endif
 
 /*
  * Mark a file descriptor as used.
@@ -1920,9 +1922,8 @@ fdcopy(struct filedesc *fdp)
 	newfdp->fd_freefile = -1;
 	for (i = 0; i <= fdp->fd_lastfile; ++i) {
 		ofde = &fdp->fd_ofiles[i];
-		if (fdisused(fdp, i) &&
-		    (ofde->fde_file->f_ops->fo_flags & DFLAG_PASSABLE) &&
-		    ofde->fde_file->f_ops != &badfileops) {
+		if (ofde->fde_file != NULL &&
+		    ofde->fde_file->f_ops->fo_flags & DFLAG_PASSABLE) {
 			nfde = &newfdp->fd_ofiles[i];
 			*nfde = *ofde;
 			filecaps_copy(&ofde->fde_caps, &nfde->fde_caps);
