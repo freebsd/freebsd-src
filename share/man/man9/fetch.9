@@ -34,7 +34,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd October 21, 2014
+.Dd October 29, 2014
 .Dt FETCH 9
 .Os
 .Sh NAME
@@ -53,21 +53,21 @@
 .In sys/types.h
 .In sys/systm.h
 .Ft int
-.Fn fubyte "const void *base"
+.Fn fubyte "volatile const void *base"
 .Ft long
-.Fn fuword "const void *base"
+.Fn fuword "volatile const void *base"
 .Ft int
-.Fn fuword16 "void *base"
+.Fn fuword16 "volatile const void *base"
 .Ft int32_t
-.Fn fuword32 "const void *base"
+.Fn fuword32 "volatile const void *base"
 .Ft int64_t
-.Fn fuword64 "const void *base"
+.Fn fuword64 "volatile const void *base"
 .Ft long
-.Fn fueword "const void *base" "long *val"
+.Fn fueword "volatile const void *base" "long *val"
 .Ft int32_t
-.Fn fueword32 "const void *base" "int32_t *val"
+.Fn fueword32 "volatile const void *base" "int32_t *val"
 .Ft int64_t
-.Fn fueword64 "const void *base" "int64_t *val"
+.Fn fueword64 "volatile const void *base" "int64_t *val"
 .In sys/resourcevar.h
 .Ft int
 .Fn fuswintr "void *base"
