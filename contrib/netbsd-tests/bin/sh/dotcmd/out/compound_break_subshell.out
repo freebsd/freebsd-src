@@ -1,8 +1,0 @@
-compound start
-before dotcmd
-subshell start
-before break
-after break, return value: 0
-subshell end
-after dotcmd, return value: 0
-compound end

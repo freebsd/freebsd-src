@@ -1,5 +1,0 @@
-#XScale IXP425 generic configuration
-#$FreeBSD$
-files		"../xscale/ixp425/files.ixp425"
-include		"../xscale/std.xscale-be"
-cpu 		CPU_XSCALE_IXP425

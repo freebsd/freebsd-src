@@ -1,6 +1,0 @@
-# $FreeBSD$
-
-unalias -a
-alias command=command
-alias true='echo bad'
-eval 'command true'

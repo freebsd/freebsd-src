@@ -1,6 +1,0 @@
-.\" $FreeBSD$
-Set to install the GCC compiler as
-.Pa /usr/bin/cc ,
-.Pa /usr/bin/c++
-and
-.Pa /usr/bin/cpp .

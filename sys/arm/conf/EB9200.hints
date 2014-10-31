@@ -1,6 +1,0 @@
-# $FreeBSD$
-
-# should likely list CF here since its address isn't fixed.
-# but since it is at an external chip select, do we use that or the address
-# to configure it as its bus address?  Need to fix arbitrary bus mapping
-# before I can list it here.

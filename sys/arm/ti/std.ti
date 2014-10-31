@@ -1,6 +1,0 @@
-# $FreeBSD$
-
-cpu 		CPU_CORTEXA
-machine 	arm	armv6
-
-files		"../ti/files.ti"

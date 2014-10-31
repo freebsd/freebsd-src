@@ -1,4 +1,0 @@
-# $FreeBSD$
-
-{ echo bad 0>&3; } 2>/dev/null 3>/dev/null 3>&-
-exit 0
