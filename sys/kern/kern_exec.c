@@ -688,10 +688,8 @@ interpret:
 		 * Close any file descriptors 0..2 that reference procfs,
 		 * then make sure file descriptors 0..2 are in use.
 		 *
-		 * setugidsafety() may call closef() and then pfind()
-		 * which may grab the process lock.
-		 * fdcheckstd() may call falloc() which may block to
-		 * allocate memory, so temporarily drop the process lock.
+		 * Both fdsetugidsafety() and fdcheckstd() may call functions
+		 * taking sleepable locks, so temporarily drop our locks.
 		 */
 		PROC_UNLOCK(p);
 		VOP_UNLOCK(imgp->vp, 0);
