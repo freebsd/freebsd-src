@@ -252,19 +252,19 @@ int	copyout(const void * __restrict kaddr, void * __restrict udaddr,
 int	copyout_nofault(const void * __restrict kaddr, void * __restrict udaddr,
 	    size_t len) __nonnull(1) __nonnull(2);
 
-int	fubyte(const void *base);
-long	fuword(const void *base);
-int	fuword16(const void *base);
-int32_t	fuword32(const void *base);
-int64_t	fuword64(const void *base);
-int	fueword(const void *base, long *val);
-int	fueword32(const void *base, int32_t *val);
-int	fueword64(const void *base, int64_t *val);
-int	subyte(void *base, int byte);
-int	suword(void *base, long word);
-int	suword16(void *base, int word);
-int	suword32(void *base, int32_t word);
-int	suword64(void *base, int64_t word);
+int	fubyte(volatile const void *base);
+long	fuword(volatile const void *base);
+int	fuword16(volatile const void *base);
+int32_t	fuword32(volatile const void *base);
+int64_t	fuword64(volatile const void *base);
+int	fueword(volatile const void *base, long *val);
+int	fueword32(volatile const void *base, int32_t *val);
+int	fueword64(volatile const void *base, int64_t *val);
+int	subyte(volatile void *base, int byte);
+int	suword(volatile void *base, long word);
+int	suword16(volatile void *base, int word);
+int	suword32(volatile void *base, int32_t word);
+int	suword64(volatile void *base, int64_t word);
 uint32_t casuword32(volatile uint32_t *base, uint32_t oldval, uint32_t newval);
 u_long	casuword(volatile u_long *p, u_long oldval, u_long newval);
 int	casueword32(volatile uint32_t *base, uint32_t oldval, uint32_t *oldvalp,
