@@ -187,6 +187,10 @@ struct vm_object {
 #define OBJ_PIPWNT	0x0040		/* paging in progress wanted */
 #define OBJ_MIGHTBEDIRTY 0x0100		/* object might be dirty, only for vnode */
 #define	OBJ_TMPFS_NODE	0x0200		/* object belongs to tmpfs VREG node */
+#ifdef CPU_CHERI
+#define	OBJ_NOLOADTAGS	0x0400		/* no tagged loads via pages */
+#define	OBJ_NOSTORETAGS	0x0800		/* no tagged stores via pages */
+#endif
 #define	OBJ_COLORED	0x1000		/* pg_color is defined */
 #define	OBJ_ONEMAPPING	0x2000		/* One USE (a single, non-forked) mapping flag */
 #define	OBJ_DISCONNECTWNT 0x4000	/* disconnect from vnode wanted */

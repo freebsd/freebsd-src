@@ -241,6 +241,18 @@ _vm_object_allocate(objtype_t type, vm_pindex_t size, vm_object_t object)
 	default:
 		panic("_vm_object_allocate: type %d is undefined", type);
 	}
+#ifdef CPU_CHERI
+	/*
+	 * XXXRW: For now, allow tags to be associated only with words stored
+	 * in anonymously backed pages.  There's also an argument that they
+	 * should be enabled for other types, such as device-backed pages,
+	 * and perhaps (eventually) filesystem-backed pages if any filesystems
+	 * grow tagging support.
+	 */
+	if ((type == OBJT_DEFAULT) || (type == OBJT_SWAP))
+		object->flags |= OBJ_NOLOADTAGS | OBJ_NOSTORETAGS;
+
+#endif
 	object->size = size;
 	object->generation = 1;
 	object->ref_count = 1;

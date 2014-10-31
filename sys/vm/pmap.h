@@ -103,6 +103,10 @@ extern vm_offset_t kernel_vm_end;
  */
 #define	PMAP_ENTER_NOSLEEP	0x0100
 #define	PMAP_ENTER_WIRED	0x0200
+#ifdef CPU_CHERI
+#define	PMAP_ENTER_NOLOADTAGS	0x0400
+#define	PMAP_ENTER_NOSTORETAGS	0x0800
+#endif
 
 void		 pmap_activate(struct thread *td);
 void		 pmap_advise(pmap_t pmap, vm_offset_t sva, vm_offset_t eva,

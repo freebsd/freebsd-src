@@ -295,6 +295,7 @@ vm_fault_hold(vm_map_t map, vm_offset_t vaddr, vm_prot_t fault_type,
 	long ahead, behind;
 	int alloc_req, era, faultcount, nera, reqpage, result;
 	boolean_t growstack, is_first_object_locked, wired;
+	u_int flags;
 	int map_generation;
 	vm_object_t next_object;
 	vm_page_t marray[VM_FAULT_READ_MAX];
@@ -374,9 +375,16 @@ RetryFault:;
 		if (m == NULL || ((prot & VM_PROT_WRITE) != 0 &&
 		    vm_page_busied(m)) || m->valid != VM_PAGE_BITS_ALL)
 			goto fast_failed;
-		result = pmap_enter(fs.map->pmap, vaddr, m, prot,
-		   fault_type | PMAP_ENTER_NOSLEEP | (wired ? PMAP_ENTER_WIRED :
-		   0), 0);
+		flags = fault_type | PMAP_ENTER_NOSLEEP;
+		if (wired)
+			flags |= PMAP_ENTER_WIRED;
+#ifdef CPU_CHERI
+		if (fs.first_object->flags & OBJ_NOLOADTAGS)
+			flags |= PMAP_ENTER_NOLOADTAGS;
+		if (fs.first_object->flags & OBJ_NOSTORETAGS)
+			flags |= PMAP_ENTER_NOSTORETAGS;
+#endif
+		result = pmap_enter(fs.map->pmap, vaddr, m, prot, flags, 0);
 		if (result != KERN_SUCCESS)
 			goto fast_failed;
 		if (m_hold != NULL) {
@@ -982,8 +990,16 @@ vnode_locked:
 	 * back on the active queue until later so that the pageout daemon
 	 * won't find it (yet).
 	 */
-	pmap_enter(fs.map->pmap, vaddr, fs.m, prot,
-	    fault_type | (wired ? PMAP_ENTER_WIRED : 0), 0);
+	flags = fault_type;
+	if (wired)
+		flags |= PMAP_ENTER_WIRED;
+#ifdef CPU_CHERI
+	if (fs.first_object->flags & OBJ_NOLOADTAGS)
+		flags |= PMAP_ENTER_NOLOADTAGS;
+	if (fs.first_object->flags & OBJ_NOSTORETAGS)
+		flags |= PMAP_ENTER_NOSTORETAGS;
+#endif
+	pmap_enter(fs.map->pmap, vaddr, fs.m, prot, flags, 0);
 	if (faultcount != 1 && (fault_flags & VM_FAULT_CHANGE_WIRING) == 0 &&
 	    wired == 0)
 		vm_fault_prefault(&fs, vaddr, faultcount, reqpage);
@@ -1149,6 +1165,10 @@ vm_fault_prefault(const struct faultstate *fs, vm_offset_t addra,
 			VM_OBJECT_RUNLOCK(lobject);
 			break;
 		}
+
+		/*
+		 * XXXRW: No flags argument we can use to pass NOTAGS!
+		 */
 		if (m->valid == VM_PAGE_BITS_ALL &&
 		    (m->flags & PG_FICTITIOUS) == 0)
 			pmap_enter_quick(pmap, addr, m, entry->protection);
@@ -1259,6 +1279,7 @@ vm_fault_copy_entry(vm_map_t dst_map, vm_map_t src_map,
 	vm_offset_t vaddr;
 	vm_page_t dst_m;
 	vm_page_t src_m;
+	u_int flags;
 	boolean_t upgrade;
 
 #ifdef	lint
@@ -1403,8 +1424,16 @@ again:
 		 * mapping is being replaced by a write-enabled
 		 * mapping, then wire that new mapping.
 		 */
-		pmap_enter(dst_map->pmap, vaddr, dst_m, prot,
-		    access | (upgrade ? PMAP_ENTER_WIRED : 0), 0);
+		flags = access;
+		if (upgrade)
+			access |= PMAP_ENTER_WIRED;
+#ifdef CPU_CHERI
+		if (dst_object->flags & OBJ_NOLOADTAGS)
+			flags |= PMAP_ENTER_NOLOADTAGS;
+		if (dst_object->flags & OBJ_NOSTORETAGS)
+			flags |= PMAP_ENTER_NOSTORETAGS;
+#endif
+		pmap_enter(dst_map->pmap, vaddr, dst_m, prot, flags, 0);
 
 		/*
 		 * Mark it no longer busy, and put it on the active list.
