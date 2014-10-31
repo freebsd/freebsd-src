@@ -238,8 +238,6 @@ static int
 fdisused(struct filedesc *fdp, int fd)
 {
 
-	FILEDESC_LOCK_ASSERT(fdp);
-
 	KASSERT(fd >= 0 && fd < fdp->fd_nfiles,
 	    ("file descriptor %d out of range (0, %d)", fd, fdp->fd_nfiles));
 
@@ -251,14 +249,21 @@ fdisused(struct filedesc *fdp, int fd)
  * Mark a file descriptor as used.
  */
 static void
+fdused_init(struct filedesc *fdp, int fd)
+{
+
+	KASSERT(!fdisused(fdp, fd), ("fd=%d is already used", fd));
+
+	fdp->fd_map[NDSLOT(fd)] |= NDBIT(fd);
+}
+
+static void
 fdused(struct filedesc *fdp, int fd)
 {
 
 	FILEDESC_XLOCK_ASSERT(fdp);
 
-	KASSERT(!fdisused(fdp, fd), ("fd=%d is already used", fd));
-
-	fdp->fd_map[NDSLOT(fd)] |= NDBIT(fd);
+	fdused_init(fdp, fd);
 	if (fd > fdp->fd_lastfile)
 		fdp->fd_lastfile = fd;
 	if (fd == fdp->fd_freefile)
@@ -1912,28 +1917,23 @@ fdcopy(struct filedesc *fdp)
 	newfdp->fd_freefile = -1;
 	for (i = 0; i <= fdp->fd_lastfile; ++i) {
 		ofde = &fdp->fd_ofiles[i];
-		if (ofde->fde_file != NULL &&
-		    ofde->fde_file->f_ops->fo_flags & DFLAG_PASSABLE) {
-			nfde = &newfdp->fd_ofiles[i];
-			*nfde = *ofde;
-			filecaps_copy(&ofde->fde_caps, &nfde->fde_caps);
-			fhold(nfde->fde_file);
-			newfdp->fd_lastfile = i;
-		} else {
+		if (ofde->fde_file == NULL ||
+		    (ofde->fde_file->f_ops->fo_flags & DFLAG_PASSABLE) == 0) {
 			if (newfdp->fd_freefile == -1)
 				newfdp->fd_freefile = i;
+			continue;
 		}
-	}
-	newfdp->fd_cmask = fdp->fd_cmask;
-	FILEDESC_SUNLOCK(fdp);
-	FILEDESC_XLOCK(newfdp);
-	for (i = 0; i <= newfdp->fd_lastfile; ++i) {
-		if (newfdp->fd_ofiles[i].fde_file != NULL)
-			fdused(newfdp, i);
+		nfde = &newfdp->fd_ofiles[i];
+		*nfde = *ofde;
+		filecaps_copy(&ofde->fde_caps, &nfde->fde_caps);
+		fhold(nfde->fde_file);
+		fdused_init(newfdp, i);
+		newfdp->fd_lastfile = i;
 	}
 	if (newfdp->fd_freefile == -1)
 		newfdp->fd_freefile = i;
-	FILEDESC_XUNLOCK(newfdp);
+	newfdp->fd_cmask = fdp->fd_cmask;
+	FILEDESC_SUNLOCK(fdp);
 	return (newfdp);
 }
 
