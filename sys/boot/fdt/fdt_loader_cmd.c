@@ -93,9 +93,9 @@ static int fdt_cmd_mres(int argc, char *argv[]);
 typedef int cmdf_t(int, char *[]);
 
 struct cmdtab {
-	char	*name;
-	cmdf_t	*handler;
-	int	flags;
+	const char	*name;
+	cmdf_t		*handler;
+	int		flags;
 };
 
 static const struct cmdtab commands[] = {
