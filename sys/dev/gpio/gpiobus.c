@@ -53,9 +53,7 @@ static void gpiobus_hinted_child(device_t, const char *, int);
 /*
  * GPIOBUS interface
  */
-static void gpiobus_lock_bus(device_t);
-static void gpiobus_unlock_bus(device_t);
-static void gpiobus_acquire_bus(device_t, device_t);
+static int gpiobus_acquire_bus(device_t, device_t, int);
 static void gpiobus_release_bus(device_t, device_t);
 static int gpiobus_pin_setflags(device_t, device_t, uint32_t, uint32_t);
 static int gpiobus_pin_getflags(device_t, device_t, uint32_t, uint32_t*);
@@ -326,37 +324,26 @@ gpiobus_hinted_child(device_t bus, const char *dname, int dunit)
 		device_delete_child(bus, child);
 }
 
-static void
-gpiobus_lock_bus(device_t busdev)
+static int
+gpiobus_acquire_bus(device_t busdev, device_t child, int how)
 {
 	struct gpiobus_softc *sc;
 
 	sc = device_get_softc(busdev);
 	GPIOBUS_ASSERT_UNLOCKED(sc);
 	GPIOBUS_LOCK(sc);
-}
-
-static void
-gpiobus_unlock_bus(device_t busdev)
-{
-	struct gpiobus_softc *sc;
-
-	sc = device_get_softc(busdev);
-	GPIOBUS_ASSERT_LOCKED(sc);
-	GPIOBUS_UNLOCK(sc);
-}
-
-static void
-gpiobus_acquire_bus(device_t busdev, device_t child)
-{
-	struct gpiobus_softc *sc;
-
-	sc = device_get_softc(busdev);
-	GPIOBUS_ASSERT_LOCKED(sc);
-
-	if (sc->sc_owner)
-		panic("gpiobus: cannot serialize the access to device.");
+	if (sc->sc_owner != NULL) {
+		if (how == GPIOBUS_DONTWAIT) {
+			GPIOBUS_UNLOCK(sc);
+			return (EWOULDBLOCK);
+		}
+		while (sc->sc_owner != NULL)
+			mtx_sleep(sc, &sc->sc_mtx, 0, "gpiobuswait", 0);
+	}
 	sc->sc_owner = child;
+	GPIOBUS_UNLOCK(sc);
+
+	return (0);
 }
 
 static void
@@ -365,14 +352,15 @@ gpiobus_release_bus(device_t busdev, device_t child)
 	struct gpiobus_softc *sc;
 
 	sc = device_get_softc(busdev);
-	GPIOBUS_ASSERT_LOCKED(sc);
-
-	if (!sc->sc_owner)
+	GPIOBUS_ASSERT_UNLOCKED(sc);
+	GPIOBUS_LOCK(sc);
+	if (sc->sc_owner == NULL)
 		panic("gpiobus: releasing unowned bus.");
 	if (sc->sc_owner != child)
 		panic("gpiobus: you don't own the bus. game over.");
-
 	sc->sc_owner = NULL;
+	wakeup(sc);
+	GPIOBUS_UNLOCK(sc);
 }
 
 static int
@@ -469,8 +457,6 @@ static device_method_t gpiobus_methods[] = {
 	DEVMETHOD(bus_hinted_child,	gpiobus_hinted_child),
 
 	/* GPIO protocol */
-	DEVMETHOD(gpiobus_lock_bus,	gpiobus_lock_bus),
-	DEVMETHOD(gpiobus_unlock_bus,	gpiobus_unlock_bus),
 	DEVMETHOD(gpiobus_acquire_bus,	gpiobus_acquire_bus),
 	DEVMETHOD(gpiobus_release_bus,	gpiobus_release_bus),
 	DEVMETHOD(gpiobus_pin_getflags,	gpiobus_pin_getflags),
