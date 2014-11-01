@@ -45,8 +45,14 @@ __RCSID("$NetBSD: t_dup.c,v 1.8 2012/03/18 07:00:51 jruoho Exp $");
 #include <unistd.h>
 #include <sysexits.h>
 
+#ifdef __FreeBSD__
+#include <stdbool.h>
+#endif
+
 static char	path[] = "dup";
+#ifdef __NetBSD__
 static void	check_mode(bool, bool, bool);
+#endif
 
 static void
 check_mode(bool _dup, bool _dup2, bool _dup3)
@@ -207,10 +213,24 @@ ATF_TC_BODY(dup3_err, tc)
 	ATF_REQUIRE(fd >= 0);
 
 	errno = 0;
+#if defined(__FreeBSD__) || defined(__linux__)
+	/*
+	 * FreeBSD and linux return EINVAL, because...
+	 *
+	 * [EINVAL] The oldd argument is equal to the newd argument.
+	 */
+	ATF_REQUIRE(dup3(fd, fd, O_CLOEXEC) == -1);
+#else
 	ATF_REQUIRE(dup3(fd, fd, O_CLOEXEC) != -1);
+#endif
 
 	errno = 0;
+#if defined(__FreeBSD__) || defined(__linux__)
+	ATF_REQUIRE_ERRNO(EINVAL, dup3(-1, -1, O_CLOEXEC) == -1);
+	ATF_REQUIRE_ERRNO(EBADF, dup3(fd, -1, O_CLOEXEC) == -1);
+#else
 	ATF_REQUIRE_ERRNO(EBADF, dup3(-1, -1, O_CLOEXEC) == -1);
+#endif
 
 	errno = 0;
 	ATF_REQUIRE_ERRNO(EBADF, dup3(fd, -1, O_CLOEXEC) == -1);
