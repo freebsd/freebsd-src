@@ -1,7 +1,4 @@
-/*
- * Automated Testing Framework (atf)
- *
- * Copyright (c) 2008 The NetBSD Foundation, Inc.
+/* Copyright (c) 2008 The NetBSD Foundation, Inc.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -24,18 +21,20 @@
  * INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER
  * IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR
  * OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN
- * IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
- */
+ * IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.  */
 
-#if defined(TESTS_ATF_ATF_C_TEST_HELPERS_H)
+#if defined(ATF_C_DETAIL_TEST_HELPERS_H)
 #   error "Cannot include test_helpers.h more than once."
 #else
-#   define TESTS_ATF_ATF_C_TEST_HELPERS_H
+#   define ATF_C_DETAIL_TEST_HELPERS_H
 #endif
 
 #include <stdbool.h>
 
-#include "atf-c/error_fwd.h"
+#include <atf-c.h>
+
+#include <atf-c/error_fwd.h>
+#include <atf-c/tc.h>
 
 struct atf_dynstr;
 struct atf_fs_path;
