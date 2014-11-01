@@ -38,6 +38,7 @@ __FBSDID("$FreeBSD$");
 #include <machine/elf.h>
 
 #include "bootstrap.h"
+#include "fdt_platform.h"
 #include "glue.h"
 
 #ifdef DEBUG
