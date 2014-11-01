@@ -31,11 +31,9 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/systm.h>
-#include <sys/bio.h>
 #include <sys/bus.h>
-#include <sys/conf.h>
+#include <sys/gpio.h>
 #include <sys/kernel.h>
-#include <sys/kthread.h>
 #include <sys/lock.h>
 #include <sys/malloc.h>
 #include <sys/module.h>
@@ -43,12 +41,12 @@ __FBSDID("$FreeBSD$");
 
 #ifdef FDT
 #include <dev/fdt/fdt_common.h>
-#include <dev/gpio/gpiobusvar.h>
 #include <dev/ofw/ofw_bus.h>
 #endif
 
+#include <dev/gpio/gpiobusvar.h>
 #include <dev/led/led.h>
-#include <sys/gpio.h>
+
 #include "gpiobus_if.h"
 
 /*
