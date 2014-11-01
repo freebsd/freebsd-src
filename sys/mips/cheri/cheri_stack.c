@@ -74,10 +74,6 @@
  * CCall populates it with a default return context (e.g., the language
  * runtime).  But does that make sense to anyone else?
  *
- * XXXRW: I wonder if somewhere near the CHERI stack is where signal
- * configuration goes -- e.g., the capability to "invoke" to enter a signal
- * handler.
- *
  * XXXRW: A fixed-size stack here may or may not be the right thing.
  */
 void
