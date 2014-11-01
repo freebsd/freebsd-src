@@ -1532,6 +1532,7 @@ vt_change_font(struct vt_window *vw, struct vt_font *vf)
 	terminal_mute(tm, 1);
 	vtbuf_grow(&vw->vw_buf, &size, vw->vw_buf.vb_history_size);
 	terminal_set_winsize_blank(tm, &wsz, 0, NULL);
+	terminal_set_cursor(tm, &vw->vw_buf.vb_cursor);
 	terminal_mute(tm, 0);
 
 	/* Actually apply the font to the current window. */
