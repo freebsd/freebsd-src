@@ -160,7 +160,7 @@ syscall_module_handler(struct module *mod, int what, void *arg)
 	switch (what) {
 	case MOD_LOAD:
 		error = syscall_register(data->offset, data->new_sysent,
-		    &data->old_sysent, SY_THR_STATIC_KLD);
+		    &data->old_sysent, data->flags);
 		if (error) {
 			/* Leave a mark so we know to safely unload below. */
 			data->offset = NULL;
