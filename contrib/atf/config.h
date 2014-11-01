@@ -1,5 +1,5 @@
-/* bconfig.h.  Generated from bconfig.h.in by configure.  */
-/* bconfig.h.in.  Generated from configure.ac by autoheader.  */
+/* config.h.  Generated from config.h.in by configure.  */
+/* config.h.in.  Generated from configure.ac by autoheader.  */
 
 /* Define to 1 if basename takes a constant pointer */
 #define HAVE_CONST_BASENAME 1
@@ -58,15 +58,14 @@
 /* Define to 1 if vsnprintf is in std */
 /* #undef HAVE_VSNPRINTF_IN_STD */
 
-/* Define to the sub-directory in which libtool stores uninstalled libraries.
-   */
+/* Define to the sub-directory where libtool stores uninstalled libraries. */
 #define LT_OBJDIR ".libs/"
 
 /* Name of package */
 #define PACKAGE "atf"
 
 /* Define to the address where bug reports for this package should be sent. */
-#define PACKAGE_BUGREPORT "atf-devel@NetBSD.org"
+#define PACKAGE_BUGREPORT "atf-discuss@googlegroups.com"
 
 /* Define to the copyright string applicable to this package. */
 #define PACKAGE_COPYRIGHT "Copyright (c) 2007-2012 The NetBSD Foundation, Inc."
@@ -75,7 +74,7 @@
 #define PACKAGE_NAME "Automated Testing Framework"
 
 /* Define to the full name and version of this package. */
-#define PACKAGE_STRING "Automated Testing Framework 0.20"
+#define PACKAGE_STRING "Automated Testing Framework 0.21"
 
 /* Define to the one symbol short name of this package. */
 #define PACKAGE_TARNAME "atf"
@@ -84,10 +83,10 @@
 #define PACKAGE_URL "https://github.com/jmmv/atf/"
 
 /* Define to the version of this package. */
-#define PACKAGE_VERSION "0.20"
+#define PACKAGE_VERSION "0.21"
 
 /* Define to 1 if you have the ANSI C header files. */
 #define STDC_HEADERS 1
 
 /* Version number of package */
-#define VERSION "0.20"
+#define VERSION "0.21"
