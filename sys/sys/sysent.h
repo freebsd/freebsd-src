@@ -175,6 +175,7 @@ struct syscall_module_data {
 	int	*offset;		/* offset into sysent */
 	struct sysent *new_sysent;	/* new sysent */
 	struct sysent old_sysent;	/* old sysent */
+	int	flags;			/* flags for syscall_register */
 };
 
 #define	MAKE_SYSENT(syscallname)				\

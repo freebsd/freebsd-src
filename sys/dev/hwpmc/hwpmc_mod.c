@@ -320,7 +320,8 @@ static struct syscall_module_data pmc_syscall_mod = {
 	NULL,
 	&pmc_syscall_num,
 	&pmc_sysent,
-	{ 0, NULL }
+	{ 0, NULL },
+	SY_THR_STATIC_KLD,
 };
 
 static moduledata_t pmc_mod = {
