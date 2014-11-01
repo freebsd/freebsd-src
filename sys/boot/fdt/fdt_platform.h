@@ -29,7 +29,26 @@
 #ifndef FDT_PLATFORM_H
 #define FDT_PLATFORM_H
 
-extern int fdt_copy(vm_offset_t);
-extern int fdt_setup_fdtp(void);
+struct fdt_header;
+
+struct fdt_mem_region {
+	unsigned long	start;
+	unsigned long	size;
+};
+
+#define	TMP_MAX_ETH	8
+
+int fdt_copy(vm_offset_t);
+void fdt_fixup_cpubusfreqs(unsigned long, unsigned long);
+void fdt_fixup_ethernet(const char *, char *, int);
+void fdt_fixup_memory(struct fdt_mem_region *, size_t);
+void fdt_fixup_stdout(const char *);
+int fdt_load_dtb_addr(struct fdt_header *);
+int fdt_load_dtb_file(const char *);
+int fdt_setup_fdtp(void);
+
+/* The platform library needs to implement these functions */
+int fdt_platform_load_dtb(void);
+void fdt_platform_fixups(void);
 
 #endif /* FDT_PLATFORM_H */
