@@ -1946,18 +1946,97 @@ fdcopy(struct filedesc *fdp)
 }
 
 /*
+ * Clear POSIX style locks. This is only used when fdp looses a reference (i.e.
+ * one of processes using it exits) and the table used to be shared.
+ */
+static void
+fdclearlocks(struct thread *td)
+{
+	struct filedesc *fdp;
+	struct filedesc_to_leader *fdtol;
+	struct flock lf;
+	struct file *fp;
+	struct proc *p;
+	struct vnode *vp;
+	int i;
+
+	p = td->td_proc;
+	fdp = p->p_fd;
+	fdtol = p->p_fdtol;
+	MPASS(fdtol != NULL);
+
+	FILEDESC_XLOCK(fdp);
+	KASSERT(fdtol->fdl_refcount > 0,
+	    ("filedesc_to_refcount botch: fdl_refcount=%d",
+	    fdtol->fdl_refcount));
+	if (fdtol->fdl_refcount == 1 &&
+	    (p->p_leader->p_flag & P_ADVLOCK) != 0) {
+		for (i = 0; i <= fdp->fd_lastfile; i++) {
+			fp = fdp->fd_ofiles[i].fde_file;
+			if (fp == NULL || fp->f_type != DTYPE_VNODE)
+				continue;
+			fhold(fp);
+			FILEDESC_XUNLOCK(fdp);
+			lf.l_whence = SEEK_SET;
+			lf.l_start = 0;
+			lf.l_len = 0;
+			lf.l_type = F_UNLCK;
+			vp = fp->f_vnode;
+			(void) VOP_ADVLOCK(vp,
+			    (caddr_t)p->p_leader, F_UNLCK,
+			    &lf, F_POSIX);
+			FILEDESC_XLOCK(fdp);
+			fdrop(fp, td);
+		}
+	}
+retry:
+	if (fdtol->fdl_refcount == 1) {
+		if (fdp->fd_holdleaderscount > 0 &&
+		    (p->p_leader->p_flag & P_ADVLOCK) != 0) {
+			/*
+			 * close() or do_dup() has cleared a reference
+			 * in a shared file descriptor table.
+			 */
+			fdp->fd_holdleaderswakeup = 1;
+			sx_sleep(&fdp->fd_holdleaderscount,
+			    FILEDESC_LOCK(fdp), PLOCK, "fdlhold", 0);
+			goto retry;
+		}
+		if (fdtol->fdl_holdcount > 0) {
+			/*
+			 * Ensure that fdtol->fdl_leader remains
+			 * valid in closef().
+			 */
+			fdtol->fdl_wakeup = 1;
+			sx_sleep(fdtol, FILEDESC_LOCK(fdp), PLOCK,
+			    "fdlhold", 0);
+			goto retry;
+		}
+	}
+	fdtol->fdl_refcount--;
+	if (fdtol->fdl_refcount == 0 &&
+	    fdtol->fdl_holdcount == 0) {
+		fdtol->fdl_next->fdl_prev = fdtol->fdl_prev;
+		fdtol->fdl_prev->fdl_next = fdtol->fdl_next;
+	} else
+		fdtol = NULL;
+	p->p_fdtol = NULL;
+	FILEDESC_XUNLOCK(fdp);
+	if (fdtol != NULL)
+		free(fdtol, M_FILEDESC_TO_LEADER);
+}
+
+/*
  * Release a filedesc structure.
  */
 void
 fdescfree(struct thread *td)
 {
 	struct filedesc *fdp;
-	int i;
-	struct filedesc_to_leader *fdtol;
 	struct filedescent *fde;
 	struct file *fp;
-	struct vnode *cdir, *jdir, *rdir, *vp;
-	struct flock lf;
+	struct vnode *cdir, *jdir, *rdir;
+	int i;
 
 	/* Certain daemons might not have file descriptors. */
 	fdp = td->td_proc->p_fd;
@@ -1970,69 +2049,8 @@ fdescfree(struct thread *td)
 	PROC_UNLOCK(td->td_proc);
 #endif
 
-	/* Check for special need to clear POSIX style locks */
-	fdtol = td->td_proc->p_fdtol;
-	if (fdtol != NULL) {
-		FILEDESC_XLOCK(fdp);
-		KASSERT(fdtol->fdl_refcount > 0,
-		    ("filedesc_to_refcount botch: fdl_refcount=%d",
-		    fdtol->fdl_refcount));
-		if (fdtol->fdl_refcount == 1 &&
-		    (td->td_proc->p_leader->p_flag & P_ADVLOCK) != 0) {
-			for (i = 0; i <= fdp->fd_lastfile; i++) {
-				fp = fdp->fd_ofiles[i].fde_file;
-				if (fp == NULL || fp->f_type != DTYPE_VNODE)
-					continue;
-				fhold(fp);
-				FILEDESC_XUNLOCK(fdp);
-				lf.l_whence = SEEK_SET;
-				lf.l_start = 0;
-				lf.l_len = 0;
-				lf.l_type = F_UNLCK;
-				vp = fp->f_vnode;
-				(void) VOP_ADVLOCK(vp,
-				    (caddr_t)td->td_proc->p_leader, F_UNLCK,
-				    &lf, F_POSIX);
-				FILEDESC_XLOCK(fdp);
-				fdrop(fp, td);
-			}
-		}
-	retry:
-		if (fdtol->fdl_refcount == 1) {
-			if (fdp->fd_holdleaderscount > 0 &&
-			    (td->td_proc->p_leader->p_flag & P_ADVLOCK) != 0) {
-				/*
-				 * close() or do_dup() has cleared a reference
-				 * in a shared file descriptor table.
-				 */
-				fdp->fd_holdleaderswakeup = 1;
-				sx_sleep(&fdp->fd_holdleaderscount,
-				    FILEDESC_LOCK(fdp), PLOCK, "fdlhold", 0);
-				goto retry;
-			}
-			if (fdtol->fdl_holdcount > 0) {
-				/*
-				 * Ensure that fdtol->fdl_leader remains
-				 * valid in closef().
-				 */
-				fdtol->fdl_wakeup = 1;
-				sx_sleep(fdtol, FILEDESC_LOCK(fdp), PLOCK,
-				    "fdlhold", 0);
-				goto retry;
-			}
-		}
-		fdtol->fdl_refcount--;
-		if (fdtol->fdl_refcount == 0 &&
-		    fdtol->fdl_holdcount == 0) {
-			fdtol->fdl_next->fdl_prev = fdtol->fdl_prev;
-			fdtol->fdl_prev->fdl_next = fdtol->fdl_next;
-		} else
-			fdtol = NULL;
-		td->td_proc->p_fdtol = NULL;
-		FILEDESC_XUNLOCK(fdp);
-		if (fdtol != NULL)
-			free(fdtol, M_FILEDESC_TO_LEADER);
-	}
+	if (td->td_proc->p_fdtol != NULL)
+		fdclearlocks(td);
 
 	mtx_lock(&fdesc_mtx);
 	td->td_proc->p_fd = NULL;
