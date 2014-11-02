@@ -49,6 +49,7 @@ FILES=	DAEMON \
 	geli \
 	geli2 \
 	gptboot \
+	growfs \
 	gssd \
 	hastd \
 	${_hcsecd} \
