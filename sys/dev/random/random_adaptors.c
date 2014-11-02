@@ -171,9 +171,8 @@ random_adaptor_register(const char *name, struct random_adaptor *ra)
 	sx_xlock(&random_adaptors_lock);
 	LIST_INSERT_HEAD(&random_adaptors_list, rra, rra_entries);
 	random_adaptor_choose();
-	sx_xunlock(&random_adaptors_lock);
-
 	KASSERT(random_adaptor != NULL, ("No active random adaptor in %s", __func__));
+	sx_xunlock(&random_adaptors_lock);
 }
 
 void
@@ -182,9 +181,9 @@ random_adaptor_deregister(const char *name)
 	struct random_adaptors *rra;
 
 	KASSERT(name != NULL, ("invalid input to %s", __func__));
-	KASSERT(random_adaptor != NULL, ("No active random adaptor in %s", __func__));
 
 	sx_xlock(&random_adaptors_lock);
+	KASSERT(random_adaptor != NULL, ("No active random adaptor in %s", __func__));
 	LIST_FOREACH(rra, &random_adaptors_list, rra_entries)
 		if (strcmp(rra->rra_name, name) == 0) {
 			LIST_REMOVE(rra, rra_entries);
@@ -208,23 +207,28 @@ random_adaptor_read(struct cdev *dev __unused, struct uio *uio, int flags)
 	printf("random: %s %ld\n", __func__, uio->uio_resid);
 #endif
 
-	KASSERT(random_adaptor != NULL, ("No active random adaptor in %s", __func__));
+	random_buf = malloc(PAGE_SIZE, M_ENTROPY, M_WAITOK);
 
 	sx_slock(&random_adaptors_lock);
+
+	KASSERT(random_adaptor != NULL, ("No active random adaptor in %s", __func__));
 
 	/* Let the entropy source do any pre-read setup. */
 	(random_adaptor->ra_read)(NULL, 0);
 
 	/* (Un)Blocking logic */
 	error = 0;
-	while (!random_adaptor->ra_seeded()) {
+	while (!random_adaptor->ra_seeded() && error == 0) {
 		if (flags & O_NONBLOCK)	{
 			error = EWOULDBLOCK;
 			break;
 		}
 
 		/* Sleep instead of going into a spin-frenzy */
-		tsleep(&random_adaptor, PUSER | PCATCH, "block", hz/10);
+		error = sx_sleep(&random_adaptor, &random_adaptors_lock,
+		    PUSER | PCATCH, "randrd", hz/10);
+		KASSERT(random_adaptor != NULL, ("No active random adaptor in %s",
+		    __func__));
 
 		/* keep tapping away at the pre-read until we seed/unblock. */
 		(random_adaptor->ra_read)(NULL, 0);
@@ -241,12 +245,10 @@ random_adaptor_read(struct cdev *dev __unused, struct uio *uio, int flags)
 
 	mtx_unlock(&random_read_rate_mtx);
 
-	if (!error) {
+	if (error == 0) {
+		nbytes = uio->uio_resid;
 
 		/* The actual read */
-
-		random_buf = malloc(PAGE_SIZE, M_ENTROPY, M_WAITOK);
-
 		while (uio->uio_resid && !error) {
 			c = MIN(uio->uio_resid, PAGE_SIZE);
 			(random_adaptor->ra_read)(random_buf, c);
@@ -256,10 +258,14 @@ random_adaptor_read(struct cdev *dev __unused, struct uio *uio, int flags)
 		/* Let the entropy source do any post-read cleanup. */
 		(random_adaptor->ra_read)(NULL, 1);
 
-		free(random_buf, M_ENTROPY);
-	}
+		if (nbytes != uio->uio_resid && (error == ERESTART ||
+		    error == EINTR) )
+			error = 0;	/* Return partial read, not error. */
 
+	}
 	sx_sunlock(&random_adaptors_lock);
+
+	free(random_buf, M_ENTROPY);
 
 	return (error);
 }
@@ -268,6 +274,8 @@ int
 random_adaptor_read_rate(void)
 {
 	int ret;
+
+	sx_assert(&random_adaptors_lock, SA_LOCKED);
 
 	KASSERT(random_adaptor != NULL, ("No active random adaptor in %s", __func__));
 
@@ -287,18 +295,20 @@ random_adaptor_write(struct cdev *dev __unused, struct uio *uio, int flags __unu
 {
 	int c, error = 0;
 	void *random_buf;
+	ssize_t nbytes;
 
 #ifdef RANDOM_DEBUG
 	printf("random: %s %zd\n", __func__, uio->uio_resid);
 #endif
 
-	KASSERT(random_adaptor != NULL, ("No active random adaptor in %s", __func__));
+	random_buf = malloc(PAGE_SIZE, M_ENTROPY, M_WAITOK);
 
 	sx_slock(&random_adaptors_lock);
 
-	random_buf = malloc(PAGE_SIZE, M_ENTROPY, M_WAITOK);
+	KASSERT(random_adaptor != NULL, ("No active random adaptor in %s", __func__));
 
-	while (uio->uio_resid > 0) {
+	nbytes = uio->uio_resid;
+	while (uio->uio_resid > 0 && error == 0) {
 		c = MIN(uio->uio_resid, PAGE_SIZE);
 		error = uiomove(random_buf, c, uio);
 		if (error)
@@ -306,12 +316,19 @@ random_adaptor_write(struct cdev *dev __unused, struct uio *uio, int flags __unu
 		(random_adaptor->ra_write)(random_buf, c);
 
 		/* Introduce an annoying delay to stop swamping */
-		tsleep(&random_adaptor, PUSER | PCATCH, "block", hz/10);
+		error = sx_sleep(&random_adaptor, &random_adaptors_lock,
+		    PUSER | PCATCH, "randwr", hz/10);
+		KASSERT(random_adaptor != NULL, ("No active random adaptor in %s",
+		    __func__));
 	}
 
-	free(random_buf, M_ENTROPY);
-
 	sx_sunlock(&random_adaptors_lock);
+
+	if (nbytes != uio->uio_resid && (error == ERESTART ||
+	    error == EINTR) )
+		error = 0;	/* Partial write, not error. */
+
+	free(random_buf, M_ENTROPY);
 
 	return (error);
 }
@@ -325,9 +342,9 @@ random_adaptor_poll(struct cdev *dev __unused, int events, struct thread *td __u
 	printf("random: %s\n", __func__);
 #endif
 
-	KASSERT(random_adaptor != NULL, ("No active random adaptor in %s", __func__));
-
 	sx_slock(&random_adaptors_lock);
+
+	KASSERT(random_adaptor != NULL, ("No active random adaptor in %s", __func__));
 
 	if (events & (POLLIN | POLLRDNORM)) {
 		if (random_adaptor->ra_seeded())
@@ -382,9 +399,9 @@ random_sysctl_active_adaptor_handler(SYSCTL_HANDLER_ARGS)
 	struct sbuf sbuf;
 	int error;
 
+	sx_slock(&random_adaptors_lock);
 	KASSERT(random_adaptor != NULL, ("No active random adaptor in %s", __func__));
 
-	sx_slock(&random_adaptors_lock);
 	sbuf_new_for_sysctl(&sbuf, NULL, 16, req);
 	LIST_FOREACH(rra, &random_adaptors_list, rra_entries)
 		if (rra->rra_ra == random_adaptor) {
@@ -454,9 +471,9 @@ static void
 random_adaptors_seed(void *unused __unused)
 {
  
+	sx_slock(&random_adaptors_lock);
 	KASSERT(random_adaptor != NULL, ("No active random adaptor in %s", __func__));
 
-	sx_slock(&random_adaptors_lock);
 	random_adaptor->ra_reseed();
 	sx_sunlock(&random_adaptors_lock);
 
