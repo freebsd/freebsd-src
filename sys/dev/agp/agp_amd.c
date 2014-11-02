@@ -347,9 +347,6 @@ agp_amd_bind_page(device_t dev, vm_offset_t offset, vm_offset_t physical)
 		return EINVAL;
 
 	sc->gatt->ag_virtual[offset >> AGP_PAGE_SHIFT] = physical | 1;
-
-	/* invalidate the cache */
-	AGP_FLUSH_TLB(dev);
 	return 0;
 }
 
