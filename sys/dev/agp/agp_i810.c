@@ -66,6 +66,8 @@ __FBSDID("$FreeBSD$");
 #include <dev/pci/pci_private.h>
 
 #include <vm/vm.h>
+#include <vm/vm_extern.h>
+#include <vm/vm_kern.h>
 #include <vm/vm_param.h>
 #include <vm/vm_object.h>
 #include <vm/vm_page.h>
@@ -1388,17 +1390,16 @@ agp_i810_install_gatt(device_t dev)
 		sc->dcache_size = 0;
 
 	/* According to the specs the gatt on the i810 must be 64k. */
-	sc->gatt->ag_virtual = contigmalloc(64 * 1024, M_AGP, 0, 0, ~0,
-	    PAGE_SIZE, 0);
+	sc->gatt->ag_virtual = (void *)kmem_alloc_contig(kernel_arena,
+	    64 * 1024, M_NOWAIT | M_ZERO, 0, ~0, PAGE_SIZE,
+	    0, VM_MEMATTR_WRITE_COMBINING);
 	if (sc->gatt->ag_virtual == NULL) {
 		if (bootverbose)
 			device_printf(dev, "contiguous allocation failed\n");
 		return (ENOMEM);
 	}
 
-	bzero(sc->gatt->ag_virtual, sc->gatt->ag_entries * sizeof(u_int32_t));
 	sc->gatt->ag_physical = vtophys((vm_offset_t)sc->gatt->ag_virtual);
-	agp_flush_cache();
 	/* Install the GATT. */
 	bus_write_4(sc->sc_res[0], AGP_I810_PGTBL_CTL,
 	    sc->gatt->ag_physical | 1);
@@ -1497,7 +1498,7 @@ agp_i810_deinstall_gatt(device_t dev)
 
 	sc = device_get_softc(dev);
 	bus_write_4(sc->sc_res[0], AGP_I810_PGTBL_CTL, 0);
-	contigfree(sc->gatt->ag_virtual, 64 * 1024, M_AGP);
+	kmem_free(kernel_arena, (vm_offset_t)sc->gatt->ag_virtual, 64 * 1024);
 }
 
 static void
@@ -2052,7 +2053,6 @@ agp_i810_bind_memory(device_t dev, struct agp_memory *mem, vm_offset_t offset)
 			sc->match->driver->install_gtt_pte(dev, (offset + i) >>
 			    AGP_PAGE_SHIFT, mem->am_physical + i, 0);
 		}
-		agp_flush_cache();
 		mem->am_offset = offset;
 		mem->am_is_bound = 1;
 		mtx_unlock(&sc->agp.as_lock);
@@ -2093,7 +2093,6 @@ agp_i810_unbind_memory(device_t dev, struct agp_memory *mem)
 			sc->match->driver->install_gtt_pte(dev,
 			    (mem->am_offset + i) >> AGP_PAGE_SHIFT, 0, 0);
 		}
-		agp_flush_cache();
 		mem->am_is_bound = 0;
 		mtx_unlock(&sc->agp.as_lock);
 		return (0);
