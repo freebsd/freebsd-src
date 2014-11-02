@@ -14,6 +14,7 @@ MAN=	adding_user.7 \
 	environ.7 \
 	ffs.7 \
 	firewall.7 \
+	growfs.7 \
 	hier.7 \
 	hostname.7 \
 	intro.7 \
