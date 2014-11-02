@@ -645,6 +645,9 @@ agp_generic_unbind_memory(device_t dev, struct agp_memory *mem)
 	 */
 	for (i = 0; i < mem->am_size; i += AGP_PAGE_SIZE)
 		AGP_UNBIND_PAGE(dev, mem->am_offset + i);
+
+	AGP_FLUSH_TLB(dev);
+
 	VM_OBJECT_WLOCK(mem->am_obj);
 	for (i = 0; i < mem->am_size; i += PAGE_SIZE) {
 		m = vm_page_lookup(mem->am_obj, atop(i));
@@ -653,8 +656,6 @@ agp_generic_unbind_memory(device_t dev, struct agp_memory *mem)
 		vm_page_unlock(m);
 	}
 	VM_OBJECT_WUNLOCK(mem->am_obj);
-		
-	AGP_FLUSH_TLB(dev);
 
 	mem->am_offset = 0;
 	mem->am_is_bound = 0;
@@ -1000,6 +1001,8 @@ agp_bind_pages(device_t dev, vm_page_t *pages, vm_size_t size,
 	mtx_lock(&sc->as_lock);
 	for (i = 0; i < size; i += PAGE_SIZE) {
 		m = pages[OFF_TO_IDX(i)];
+		KASSERT(m->wire_count > 0,
+		    ("agp_bind_pages: page %p hasn't been wired", m));
 
 		/*
 		 * Install entries in the GATT, making sure that if
