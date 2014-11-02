@@ -1856,8 +1856,6 @@ fdhold(struct proc *p)
 static void
 fddrop(struct filedesc *fdp)
 {
-	struct filedesc0 *fdp0;
-	struct freetable *ft;
 	int i;
 
 	mtx_lock(&fdesc_mtx);
@@ -1867,11 +1865,6 @@ fddrop(struct filedesc *fdp)
 		return;
 
 	FILEDESC_LOCK_DESTROY(fdp);
-	fdp0 = (struct filedesc0 *)fdp;
-	while ((ft = SLIST_FIRST(&fdp0->fd_free)) != NULL) {
-		SLIST_REMOVE_HEAD(&fdp0->fd_free, ft_next);
-		free(ft->ft_table, M_FILEDESC);
-	}
 	free(fdp, M_FILEDESC);
 }
 
@@ -2032,7 +2025,9 @@ retry:
 void
 fdescfree(struct thread *td)
 {
+	struct filedesc0 *fdp0;
 	struct filedesc *fdp;
+	struct freetable *ft;
 	struct filedescent *fde;
 	struct file *fp;
 	struct vnode *cdir, *jdir, *rdir;
@@ -2084,6 +2079,12 @@ fdescfree(struct thread *td)
 		free(fdp->fd_map, M_FILEDESC);
 	if (fdp->fd_nfiles > NDFILE)
 		free(fdp->fd_files, M_FILEDESC);
+
+	fdp0 = (struct filedesc0 *)fdp;
+	while ((ft = SLIST_FIRST(&fdp0->fd_free)) != NULL) {
+		SLIST_REMOVE_HEAD(&fdp0->fd_free, ft_next);
+		free(ft->ft_table, M_FILEDESC);
+	}
 
 	if (cdir != NULL)
 		vrele(cdir);
