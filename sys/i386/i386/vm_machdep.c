@@ -118,7 +118,6 @@ static u_int	cpu_reset_proxyid;
 static volatile u_int	cpu_reset_proxy_active;
 #endif
 
-extern int	_ucodesel, _udatasel;
 
 /*
  * Finish a fork operation, with process p2 nearly set up.
