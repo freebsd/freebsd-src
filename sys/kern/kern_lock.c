@@ -615,7 +615,7 @@ __lockmgr_args(struct lock *lk, u_int flags, struct lock_object *ilk,
 						    __func__, lk, spintries, i);
 					x = lk->lk_lock;
 					if ((x & LK_SHARE) == 0 ||
-					    LK_CAN_SHARE(x) != 0)
+					    LK_CAN_SHARE(x, flags) != 0)
 						break;
 					cpu_spinwait();
 				}
