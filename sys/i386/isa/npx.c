@@ -55,6 +55,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/syslog.h>
 #endif
 #include <sys/signalvar.h>
+#include <vm/uma.h>
 
 #include <machine/asmacros.h>
 #include <machine/cputypes.h>
@@ -99,6 +100,7 @@ __FBSDID("$FreeBSD$");
 #ifdef CPU_ENABLE_SSE
 #define	fxrstor(addr)		__asm __volatile("fxrstor %0" : : "m" (*(addr)))
 #define	fxsave(addr)		__asm __volatile("fxsave %0" : "=m" (*(addr)))
+#define	ldmxcsr(csr)		__asm __volatile("ldmxcsr %0" : : "m" (csr))
 #define	stmxcsr(addr)		__asm __volatile("stmxcsr %0" : : "m" (*(addr)))
 #endif
 #else	/* !(__GNUCLIKE_ASM && !lint) */
@@ -114,6 +116,7 @@ void	frstor(caddr_t addr);
 #ifdef CPU_ENABLE_SSE
 void	fxsave(caddr_t addr);
 void	fxrstor(caddr_t addr);
+void	ldmxcsr(u_int csr);
 void	stmxcsr(u_int *csr);
 #endif
 
@@ -364,6 +367,12 @@ npxinit(void)
 #endif
 	control = __INITIAL_NPXCW__;
 	fldcw(control);
+#ifdef CPU_ENABLE_SSE
+	if (cpu_fxsr) {
+		mxcsr = __INITIAL_MXCSR__;
+		ldmxcsr(mxcsr);
+	}
+#endif
 	start_emulating();
 	intr_restore(saveintr);
 }
