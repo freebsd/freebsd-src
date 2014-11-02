@@ -1602,14 +1602,6 @@ exec_setregs(struct thread *td, struct image_params *imgp, u_long stack)
                 pcb->pcb_flags &= ~PCB_DBREGS;
         }
 
-	/*
-	 * Initialize the math emulator (if any) for the current process.
-	 * Actually, just clear the bit that says that the emulator has
-	 * been initialized.  Initialization is delayed until the process
-	 * traps to the emulator (if it is done at all) mainly because
-	 * emulators don't provide an entry point for initialization.
-	 */
-	td->td_pcb->pcb_flags &= ~FP_SOFTFP;
 	pcb->pcb_initial_npxcw = __INITIAL_NPXCW__;
 
 	/*
