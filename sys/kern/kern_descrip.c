@@ -2160,19 +2160,17 @@ fdcloseexec(struct thread *td)
 
 	fdp = td->td_proc->p_fd;
 	KASSERT(fdp->fd_refcnt == 1, ("the fdtable should not be shared"));
-	FILEDESC_XLOCK(fdp);
 	for (i = 0; i <= fdp->fd_lastfile; i++) {
 		fde = &fdp->fd_ofiles[i];
 		fp = fde->fde_file;
 		if (fp != NULL && (fp->f_type == DTYPE_MQUEUE ||
 		    (fde->fde_flags & UF_EXCLOSE))) {
+			FILEDESC_XLOCK(fdp);
 			fdfree(fdp, i);
 			(void) closefp(fdp, i, fp, td, 0);
 			/* closefp() drops the FILEDESC lock. */
-			FILEDESC_XLOCK(fdp);
 		}
 	}
-	FILEDESC_XUNLOCK(fdp);
 }
 
 /*
