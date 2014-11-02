@@ -2189,29 +2189,28 @@ fdcheckstd(struct thread *td)
 
 	fdp = td->td_proc->p_fd;
 	KASSERT(fdp->fd_refcnt == 1, ("the fdtable should not be shared"));
+	MPASS(fdp->fd_nfiles >= 3);
 	devnull = -1;
-	error = 0;
-	for (i = 0; i < 3; i++) {
+	for (i = 0; i <= 2; i++) {
 		if (fdp->fd_ofiles[i].fde_file != NULL)
 			continue;
-		if (devnull < 0) {
-			save = td->td_retval[0];
+
+		save = td->td_retval[0];
+		if (devnull != -1) {
+			error = do_dup(td, DUP_FIXED, devnull, i);
+		} else {
 			error = kern_open(td, "/dev/null", UIO_SYSSPACE,
 			    O_RDWR, 0);
-			devnull = td->td_retval[0];
-			td->td_retval[0] = save;
-			if (error)
-				break;
-			KASSERT(devnull == i, ("oof, we didn't get our fd"));
-		} else {
-			save = td->td_retval[0];
-			error = do_dup(td, DUP_FIXED, devnull, i);
-			td->td_retval[0] = save;
-			if (error != 0)
-				break;
+			if (error == 0) {
+				devnull = td->td_retval[0];
+				KASSERT(devnull == i, ("we didn't get our fd"));
+			}
 		}
+		td->td_retval[0] = save;
+		if (error != 0)
+			return (error);
 	}
-	return (error);
+	return (0);
 }
 
 /*
