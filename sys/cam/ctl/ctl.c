@@ -2202,13 +2202,14 @@ ctl_copyout_args(int num_args, struct ctl_be_arg *args)
  * Escape characters that are illegal or not recommended in XML.
  */
 int
-ctl_sbuf_printf_esc(struct sbuf *sb, char *str)
+ctl_sbuf_printf_esc(struct sbuf *sb, char *str, int size)
 {
+	char *end = str + size;
 	int retval;
 
 	retval = 0;
 
-	for (; *str; str++) {
+	for (; *str && str < end; str++) {
 		switch (*str) {
 		case '&':
 			retval = sbuf_printf(sb, "&amp;");
@@ -3200,7 +3201,8 @@ ctl_ioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flag,
 				break;
 
 			retval = ctl_sbuf_printf_esc(sb,
-						     lun->be_lun->serial_num);
+			    lun->be_lun->serial_num,
+			    sizeof(lun->be_lun->serial_num));
 
 			if (retval != 0)
 				break;
@@ -3215,7 +3217,9 @@ ctl_ioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flag,
 			if (retval != 0)
 				break;
 
-			retval = ctl_sbuf_printf_esc(sb,lun->be_lun->device_id);
+			retval = ctl_sbuf_printf_esc(sb,
+			    lun->be_lun->device_id,
+			    sizeof(lun->be_lun->device_id));
 
 			if (retval != 0)
 				break;

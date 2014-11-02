@@ -156,7 +156,7 @@ int ctl_port_list(struct ctl_port_entry *entries, int num_entries_alloced,
  * Put a string into an sbuf, escaping characters that are illegal or not
  * recommended in XML.  Note this doesn't escape everything, just > < and &.
  */
-int ctl_sbuf_printf_esc(struct sbuf *sb, char *str);
+int ctl_sbuf_printf_esc(struct sbuf *sb, char *str, int size);
 
 int ctl_ffz(uint32_t *mask, uint32_t size);
 int ctl_set_mask(uint32_t *mask, uint32_t bit);
