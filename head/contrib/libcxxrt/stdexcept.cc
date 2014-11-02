@@ -82,5 +82,23 @@ const char* bad_typeid::what() const throw()
 	return "std::bad_typeid";
 }
 
+__attribute__((weak))
+bad_array_new_length::bad_array_new_length() throw() {}
+__attribute__((weak))
+bad_array_new_length::~bad_array_new_length() {}
+__attribute__((weak))
+bad_array_new_length::bad_array_new_length(const bad_array_new_length&) throw() {}
+__attribute__((weak))
+bad_array_new_length& bad_array_new_length::operator=(const bad_array_new_length&) throw()
+{
+	return *this;
+}
+
+__attribute__((weak))
+const char *bad_array_new_length::what() const throw()
+{
+	return "std::bad_array_new_length";
+}
+
 } // namespace std
 

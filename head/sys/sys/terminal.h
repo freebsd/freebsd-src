@@ -155,6 +155,9 @@ typedef void tc_done_t(struct terminal *tm);
 typedef void tc_cnprobe_t(struct terminal *tm, struct consdev *cd);
 typedef int tc_cngetc_t(struct terminal *tm);
 
+typedef void tc_cngrab_t(struct terminal *tm);
+typedef void tc_cnungrab_t(struct terminal *tm);
+
 typedef void tc_opened_t(struct terminal *tm, int opened);
 typedef int tc_ioctl_t(struct terminal *tm, u_long cmd, caddr_t data,
     struct thread *td);
@@ -174,6 +177,10 @@ struct terminal_class {
 	/* Low-level console interface. */
 	tc_cnprobe_t	*tc_cnprobe;
 	tc_cngetc_t	*tc_cngetc;
+
+	/* DDB & panic handling. */
+	tc_cngrab_t	*tc_cngrab;
+	tc_cnungrab_t	*tc_cnungrab;
 
 	/* Misc. */
 	tc_opened_t	*tc_opened;
@@ -200,6 +207,7 @@ struct terminal {
 
 struct terminal *terminal_alloc(const struct terminal_class *tc, void *softc);
 void	terminal_maketty(struct terminal *tm, const char *fmt, ...);
+void	terminal_set_cursor(struct terminal *tm, const term_pos_t *pos);
 void	terminal_set_winsize_blank(struct terminal *tm,
     const struct winsize *size, int blank, const term_attr_t *attr);
 void	terminal_set_winsize(struct terminal *tm, const struct winsize *size);

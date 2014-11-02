@@ -92,6 +92,11 @@ struct pcb {
 	uint16_t	pcb_tr;
 };
 
+struct susppcb {
+	struct pcb	sp_pcb;
+	union savefpu	sp_fpususpend;
+};
+
 #ifdef _KERNEL
 struct trapframe;
 

@@ -235,25 +235,6 @@ g_disk_done(struct bio *bp)
 	g_destroy_bio(bp);
 }
 
-static void
-g_disk_done_single(struct bio *bp)
-{
-	struct bintime now;
-	struct g_disk_softc *sc;
-
-	bp->bio_completed = bp->bio_length - bp->bio_resid;
-	bp->bio_done = (void *)bp->bio_to;
-	bp->bio_to = LIST_FIRST(&bp->bio_disk->d_geom->provider);
-	if ((bp->bio_cmd & (BIO_READ|BIO_WRITE|BIO_DELETE|BIO_FLUSH)) != 0) {
-		binuptime(&now);
-		sc = bp->bio_to->private;
-		mtx_lock(&sc->done_mtx);
-		devstat_end_transaction_bio_bt(sc->dp->d_devstat, bp, &now);
-		mtx_unlock(&sc->done_mtx);
-	}
-	g_io_deliver(bp, bp->bio_error);
-}
-
 static int
 g_disk_ioctl(struct g_provider *pp, u_long cmd, void * data, int fflag, struct thread *td)
 {
@@ -277,7 +258,7 @@ g_disk_start(struct bio *bp)
 	struct disk *dp;
 	struct g_disk_softc *sc;
 	int error;
-	off_t d_maxsize, off;
+	off_t off;
 
 	sc = bp->bio_to->private;
 	if (sc == NULL || (dp = sc->dp) == NULL || dp->d_destroyed) {
@@ -294,20 +275,6 @@ g_disk_start(struct bio *bp)
 		/* fall-through */
 	case BIO_READ:
 	case BIO_WRITE:
-		d_maxsize = (bp->bio_cmd == BIO_DELETE) ?
-		    dp->d_delmaxsize : dp->d_maxsize;
-		if (bp->bio_length <= d_maxsize) {
-			bp->bio_disk = dp;
-			bp->bio_to = (void *)bp->bio_done;
-			bp->bio_done = g_disk_done_single;
-			bp->bio_pblkno = bp->bio_offset / dp->d_sectorsize;
-			bp->bio_bcount = bp->bio_length;
-			mtx_lock(&sc->start_mtx);
-			devstat_start_transaction_bio(dp->d_devstat, bp);
-			mtx_unlock(&sc->start_mtx);
-			dp->d_strategy(bp);
-			break;
-		}
 		off = 0;
 		bp3 = NULL;
 		bp2 = g_clone_bio(bp);
@@ -316,6 +283,10 @@ g_disk_start(struct bio *bp)
 			break;
 		}
 		do {
+			off_t d_maxsize;
+
+			d_maxsize = (bp->bio_cmd == BIO_DELETE) ?
+			    dp->d_delmaxsize : dp->d_maxsize;
 			bp2->bio_offset += off;
 			bp2->bio_length -= off;
 			if ((bp->bio_flags & BIO_UNMAPPED) == 0) {
@@ -415,13 +386,17 @@ g_disk_start(struct bio *bp)
 			error = EOPNOTSUPP;
 			break;
 		}
-		bp->bio_disk = dp;
-		bp->bio_to = (void *)bp->bio_done;
-		bp->bio_done = g_disk_done_single;
-		mtx_lock(&sc->start_mtx); 
-		devstat_start_transaction_bio(dp->d_devstat, bp);
-		mtx_unlock(&sc->start_mtx); 
-		dp->d_strategy(bp);
+		bp2 = g_clone_bio(bp);
+		if (bp2 == NULL) {
+			g_io_deliver(bp, ENOMEM);
+			return;
+		}
+		bp2->bio_done = g_disk_done;
+		bp2->bio_disk = dp;
+		mtx_lock(&sc->start_mtx);
+		devstat_start_transaction_bio(dp->d_devstat, bp2);
+		mtx_unlock(&sc->start_mtx);
+		dp->d_strategy(bp2);
 		break;
 	default:
 		error = EOPNOTSUPP;

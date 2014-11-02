@@ -97,6 +97,7 @@ int	kern_fchmodat(struct thread *td, int fd, char *path,
 int	kern_fchownat(struct thread *td, int fd, char *path,
 	    enum uio_seg pathseg, int uid, int gid, int flag);
 int	kern_fcntl(struct thread *td, int fd, int cmd, intptr_t arg);
+int	kern_fcntl_freebsd(struct thread *td, int fd, int cmd, long arg);
 int	kern_fhstat(struct thread *td, fhandle_t fh, struct stat *buf);
 int	kern_fhstatfs(struct thread *td, fhandle_t fh, struct statfs *buf);
 int	kern_fstat(struct thread *td, int fd, struct stat *sbp);
@@ -108,8 +109,8 @@ int	kern_getdirentries(struct thread *td, int fd, char *buf, u_int count,
 	    long *basep, ssize_t *residp, enum uio_seg bufseg);
 int	kern_getfsstat(struct thread *td, struct statfs **buf, size_t bufsize,
 	    enum uio_seg bufseg, int flags);
-int	kern_getgroups(struct thread *td, u_int *ngrp, gid_t *groups);
 int	kern_getitimer(struct thread *, u_int, struct itimerval *);
+int	kern_getppid(struct thread *);
 int	kern_getpeername(struct thread *td, int fd, struct sockaddr **sa,
 	    socklen_t *alen);
 int	kern_getrusage(struct thread *td, int who, struct rusage *rup);

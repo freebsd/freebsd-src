@@ -242,19 +242,26 @@ in_control(struct socket *so, u_long cmd, caddr_t data, struct ifnet *ifp,
 		return (EADDRNOTAVAIL);
 
 	/*
-	 * For SIOCGIFADDR, pick the first address.  For the rest of
-	 * ioctls, try to find specified address.
+	 * Find address for this interface, if it exists.  If an
+	 * address was specified, find that one instead of the
+	 * first one on the interface, if possible.
 	 */
 	IF_ADDR_RLOCK(ifp);
 	TAILQ_FOREACH(ifa, &ifp->if_addrhead, ifa_link) {
 		if (ifa->ifa_addr->sa_family != AF_INET)
 			continue;
 		ia = (struct in_ifaddr *)ifa;
-		if (cmd == SIOCGIFADDR || addr->sin_addr.s_addr == INADDR_ANY)
-			break;
 		if (ia->ia_addr.sin_addr.s_addr == addr->sin_addr.s_addr)
 			break;
 	}
+	if (ifa == NULL)
+		TAILQ_FOREACH(ifa, &ifp->if_addrhead, ifa_link)
+			if (ifa->ifa_addr->sa_family == AF_INET) {
+				ia = (struct in_ifaddr *)ifa;
+				if (prison_check_ip4(td->td_ucred,
+				    &ia->ia_addr.sin_addr) == 0)
+					break;
+			}
 
 	if (ifa == NULL) {
 		IF_ADDR_RUNLOCK(ifp);
@@ -667,7 +674,7 @@ in_addprefix(struct in_ifaddr *target, int flags)
 			} else {
 				int fibnum;
 
-				fibnum = rt_add_addr_allfibs ? RT_ALL_FIBS :
+				fibnum = V_rt_add_addr_allfibs ? RT_ALL_FIBS :
 					target->ia_ifp->if_fib;
 				rt_addrmsg(RTM_ADD, &target->ia_ifa, fibnum);
 				IN_IFADDR_RUNLOCK();
@@ -738,7 +745,7 @@ in_scrubprefix(struct in_ifaddr *target, u_int flags)
 	if ((target->ia_flags & IFA_ROUTE) == 0) {
 		int fibnum;
 		
-		fibnum = rt_add_addr_allfibs ? RT_ALL_FIBS :
+		fibnum = V_rt_add_addr_allfibs ? RT_ALL_FIBS :
 			target->ia_ifp->if_fib;
 		rt_addrmsg(RTM_DELETE, &target->ia_ifa, fibnum);
 		return (0);

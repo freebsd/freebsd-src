@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd July 4, 2014
+.Dd September 27, 2014
 .Dt MKIMG 1
 .Os
 .Sh NAME
@@ -44,6 +44,8 @@
 .Fl s Ar scheme
 .Fl p Ar partition
 .Op Fl p Ar partition ...
+.Nm
+.Ar --formats | --schemes | --version
 .Sh DESCRIPTION
 The
 .Nm
@@ -122,10 +124,32 @@ utility will generate predictable values for Universally Unique Identifiers
 .Nm
 utility will create images that are identical.
 .Pp
-For a complete list of supported partitioning schemes or supported output
-format, or for a detailed description of how to specify partitions, run the
+A set of long options exist to query about the
+.Nm
+utilty itself.
+Options in this set should be given by themselves because the
+.Nm
+utility exits immediately after providing the requested information.
+The version of the
+.Nm
+utility is printed when the
+.Ar --version
+option is given.
+The list of supported output formats is printed when the
+.Ar --formats
+option is given and the list of supported partitioning schemes is printed
+when the
+.Ar --schemes
+option is given.
+Both the format and scheme lists a space-separated lists for easy handling
+in scripts.
+.Pp
+For a more descriptive list of supported partitioning schemes or supported
+output format, or for a detailed description of how to specify partitions,
+run the
 .Nm
 utility without any arguments.
+This will print a usage message with all the necessary details.
 .Sh ENVIRONMENT
 .Bl -tag -width "TMPDIR" -compact
 .It Ev TMPDIR
@@ -170,6 +194,25 @@ To do this, run the
 utility as follows:
 .Dl % mkimg -s mbr -b /boot/mbr -p freebsd:-'mkimg -s bsd -b /boot/boot \
 -p freebsd-ufs:=root-file-system.ufs -p freebsd-swap::1G' -o mbr-bsd.img
+.Pp
+To accomodate the need to have partitions named or numbered in a certain
+way, the
+.Nm
+utility allows for the specification of empty partitions.
+For example, to create an image that is compatible with partition layouts
+found in
+.Pa /etc/disktab ,
+the 'd' partition often needs to be skipped.
+This is accomplished by inserting an unused partition after the first 2
+partition specifications.
+It is worth noting at this time that the BSD scheme will automatically
+skip the 'c' partition by virtue of it referring to the entire disk.
+To create an image that is compatible with the qp120at disk, use the
+.Nm
+utility as follows:
+.Dl % mkimg -s bsd -b /boot/boot -p freebsd-ufs:=root-file-system.ufs \
+-p freebsd-swap::20M -p- -p- -p- -p- -p freebsd-ufs:=usr-file-system.ufs \
+-o bsd.img
 .Pp
 For partitioning schemes that feature partition labels, the
 .Nm

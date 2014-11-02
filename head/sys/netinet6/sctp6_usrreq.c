@@ -844,7 +844,7 @@ sctp6_connect(struct socket *so, struct sockaddr *addr, struct thread *p)
 #ifdef INET
 	struct in6pcb *inp6;
 	struct sockaddr_in6 *sin6;
-	struct sockaddr_storage ss;
+	union sctp_sockstore store;
 
 #endif
 
@@ -928,8 +928,8 @@ sctp6_connect(struct socket *so, struct sockaddr *addr, struct thread *p)
 	}
 	if (IN6_IS_ADDR_V4MAPPED(&sin6->sin6_addr)) {
 		/* convert v4-mapped into v4 addr */
-		in6_sin6_2_sin((struct sockaddr_in *)&ss, sin6);
-		addr = (struct sockaddr *)&ss;
+		in6_sin6_2_sin(&store.sin, sin6);
+		addr = &store.sa;
 	}
 #endif				/* INET */
 	/* Now do we connect? */
@@ -1057,7 +1057,7 @@ sctp6_getaddr(struct socket *so, struct sockaddr **addr)
 			if (laddr->ifa->address.sa.sa_family == AF_INET6) {
 				struct sockaddr_in6 *sin_a;
 
-				sin_a = (struct sockaddr_in6 *)&laddr->ifa->address.sin6;
+				sin_a = &laddr->ifa->address.sin6;
 				sin6->sin6_addr = sin_a->sin6_addr;
 				fnd = 1;
 				break;

@@ -36,6 +36,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/malloc.h>
 #include <sys/mbuf.h>
 #include <sys/socket.h>
+#include <sys/sockio.h>
 #include <sys/systm.h>
 #include <sys/queue.h>
 #include <sys/sysctl.h>
@@ -79,6 +80,9 @@ static VNET_DEFINE(struct scope6_id, sid_default);
 #define SID(ifp) \
 	(((struct in6_ifextra *)(ifp)->if_afdata[AF_INET6])->scope6_id)
 
+static int	scope6_get(struct ifnet *, struct scope6_id *);
+static int	scope6_set(struct ifnet *, struct scope6_id *);
+
 void
 scope6_init(void)
 {
@@ -96,22 +100,14 @@ scope6_ifattach(struct ifnet *ifp)
 {
 	struct scope6_id *sid;
 
-	sid = (struct scope6_id *)malloc(sizeof(*sid), M_IFADDR, M_WAITOK);
-	bzero(sid, sizeof(*sid));
-
+	sid = malloc(sizeof(*sid), M_IFADDR, M_WAITOK | M_ZERO);
 	/*
 	 * XXX: IPV6_ADDR_SCOPE_xxx macros are not standard.
 	 * Should we rather hardcode here?
 	 */
 	sid->s6id_list[IPV6_ADDR_SCOPE_INTFACELOCAL] = ifp->if_index;
 	sid->s6id_list[IPV6_ADDR_SCOPE_LINKLOCAL] = ifp->if_index;
-#ifdef MULTI_SCOPE
-	/* by default, we don't care about scope boundary for these scopes. */
-	sid->s6id_list[IPV6_ADDR_SCOPE_SITELOCAL] = 1;
-	sid->s6id_list[IPV6_ADDR_SCOPE_ORGLOCAL] = 1;
-#endif
-
-	return sid;
+	return (sid);
 }
 
 void
@@ -122,6 +118,30 @@ scope6_ifdetach(struct scope6_id *sid)
 }
 
 int
+scope6_ioctl(u_long cmd, caddr_t data, struct ifnet *ifp)
+{
+	struct in6_ifreq *ifr;
+
+	if (ifp->if_afdata[AF_INET6] == NULL)
+		return (EPFNOSUPPORT);
+
+	ifr = (struct in6_ifreq *)data;
+	switch (cmd) {
+	case SIOCSSCOPE6:
+		return (scope6_set(ifp,
+		    (struct scope6_id *)ifr->ifr_ifru.ifru_scope_id));
+	case SIOCGSCOPE6:
+		return (scope6_get(ifp,
+		    (struct scope6_id *)ifr->ifr_ifru.ifru_scope_id));
+	case SIOCGSCOPE6DEF:
+		return (scope6_get_default(
+		    (struct scope6_id *)ifr->ifr_ifru.ifru_scope_id));
+	default:
+		return (EOPNOTSUPP);
+	}
+}
+
+static int
 scope6_set(struct ifnet *ifp, struct scope6_id *idlist)
 {
 	int i;
@@ -184,7 +204,7 @@ scope6_set(struct ifnet *ifp, struct scope6_id *idlist)
 	return (error);
 }
 
-int
+static int
 scope6_get(struct ifnet *ifp, struct scope6_id *idlist)
 {
 	struct scope6_id *sid;
@@ -203,67 +223,28 @@ scope6_get(struct ifnet *ifp, struct scope6_id *idlist)
 	return (0);
 }
 
-
 /*
  * Get a scope of the address. Node-local, link-local, site-local or global.
  */
 int
-in6_addrscope(struct in6_addr *addr)
+in6_addrscope(const struct in6_addr *addr)
 {
-	int scope;
 
-	if (addr->s6_addr[0] == 0xfe) {
-		scope = addr->s6_addr[1] & 0xc0;
-
-		switch (scope) {
-		case 0x80:
-			return IPV6_ADDR_SCOPE_LINKLOCAL;
-			break;
-		case 0xc0:
-			return IPV6_ADDR_SCOPE_SITELOCAL;
-			break;
-		default:
-			return IPV6_ADDR_SCOPE_GLOBAL; /* just in case */
-			break;
-		}
-	}
-
-
-	if (addr->s6_addr[0] == 0xff) {
-		scope = addr->s6_addr[1] & 0x0f;
-
+	if (IN6_IS_ADDR_MULTICAST(addr)) {
 		/*
-		 * due to other scope such as reserved,
-		 * return scope doesn't work.
+		 * Addresses with reserved value F must be treated as
+		 * global multicast addresses.
 		 */
-		switch (scope) {
-		case IPV6_ADDR_SCOPE_INTFACELOCAL:
-			return IPV6_ADDR_SCOPE_INTFACELOCAL;
-			break;
-		case IPV6_ADDR_SCOPE_LINKLOCAL:
-			return IPV6_ADDR_SCOPE_LINKLOCAL;
-			break;
-		case IPV6_ADDR_SCOPE_SITELOCAL:
-			return IPV6_ADDR_SCOPE_SITELOCAL;
-			break;
-		default:
-			return IPV6_ADDR_SCOPE_GLOBAL;
-			break;
-		}
+		if (IPV6_ADDR_MC_SCOPE(addr) == 0x0f)
+			return (IPV6_ADDR_SCOPE_GLOBAL);
+		return (IPV6_ADDR_MC_SCOPE(addr));
 	}
-
-	/*
-	 * Regard loopback and unspecified addresses as global, since
-	 * they have no ambiguity.
-	 */
-	if (bcmp(&in6addr_loopback, addr, sizeof(*addr) - 1) == 0) {
-		if (addr->s6_addr[15] == 1) /* loopback */
-			return IPV6_ADDR_SCOPE_LINKLOCAL;
-		if (addr->s6_addr[15] == 0) /* unspecified */
-			return IPV6_ADDR_SCOPE_GLOBAL; /* XXX: correct? */
-	}
-
-	return IPV6_ADDR_SCOPE_GLOBAL;
+	if (IN6_IS_ADDR_LINKLOCAL(addr) ||
+	    IN6_IS_ADDR_LOOPBACK(addr))
+		return (IPV6_ADDR_SCOPE_LINKLOCAL);
+	if (IN6_IS_ADDR_SITELOCAL(addr))
+		return (IPV6_ADDR_SCOPE_SITELOCAL);
+	return (IPV6_ADDR_SCOPE_GLOBAL);
 }
 
 /*
@@ -478,3 +459,77 @@ in6_getscope(struct in6_addr *in6)
 
 	return (0);
 }
+
+/*
+ * Return pointer to ifnet structure, corresponding to the zone id of
+ * link-local scope.
+ */
+struct ifnet*
+in6_getlinkifnet(uint32_t zoneid)
+{
+
+	return (ifnet_byindex((u_short)zoneid));
+}
+
+/*
+ * Return zone id for the specified scope.
+ */
+uint32_t
+in6_getscopezone(const struct ifnet *ifp, int scope)
+{
+
+	if (scope == IPV6_ADDR_SCOPE_INTFACELOCAL ||
+	    scope == IPV6_ADDR_SCOPE_LINKLOCAL)
+		return (ifp->if_index);
+	if (scope >= 0 && scope < IPV6_ADDR_SCOPES_COUNT)
+		return (SID(ifp)->s6id_list[scope]);
+	return (0);
+}
+
+/*
+ * This function is for checking sockaddr_in6 structure passed
+ * from the application level (usually).
+ *
+ * sin6_scope_id should be set for link-local unicast, link-local and
+ * interface-local  multicast addresses.
+ *
+ * If it is zero, then look into default zone ids. If default zone id is
+ * not set or disabled, then return error.
+ */
+int
+sa6_checkzone(struct sockaddr_in6 *sa6)
+{
+	int scope;
+
+	scope = in6_addrscope(&sa6->sin6_addr);
+	if (scope == IPV6_ADDR_SCOPE_GLOBAL)
+		return (sa6->sin6_scope_id ? EINVAL: 0);
+	if (IN6_IS_ADDR_MULTICAST(&sa6->sin6_addr) &&
+	    scope != IPV6_ADDR_SCOPE_LINKLOCAL &&
+	    scope != IPV6_ADDR_SCOPE_INTFACELOCAL) {
+		if (sa6->sin6_scope_id == 0 && V_ip6_use_defzone != 0)
+			sa6->sin6_scope_id = V_sid_default.s6id_list[scope];
+		return (0);
+	}
+	/*
+	 * Since ::1 address always configured on the lo0, we can
+	 * automatically set its zone id, when it is not specified.
+	 * Return error, when specified zone id doesn't match with
+	 * actual value.
+	 */
+	if (IN6_IS_ADDR_LOOPBACK(&sa6->sin6_addr)) {
+		if (sa6->sin6_scope_id == 0)
+			sa6->sin6_scope_id = in6_getscopezone(V_loif, scope);
+		else if (sa6->sin6_scope_id != in6_getscopezone(V_loif, scope))
+			return (EADDRNOTAVAIL);
+	}
+	/* XXX: we can validate sin6_scope_id here */
+	if (sa6->sin6_scope_id != 0)
+		return (0);
+	if (V_ip6_use_defzone != 0)
+		sa6->sin6_scope_id = V_sid_default.s6id_list[scope];
+	/* Return error if we can't determine zone id */
+	return (sa6->sin6_scope_id ? 0: EADDRNOTAVAIL);
+}
+
+

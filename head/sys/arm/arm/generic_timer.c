@@ -67,7 +67,7 @@ __FBSDID("$FreeBSD$");
 
 #define	GT_CNTKCTL_PL0PTEN	(1 << 9) /* PL0 Physical timer reg access */
 #define	GT_CNTKCTL_PL0VTEN	(1 << 8) /* PL0 Virtual timer reg access */
-#define	GT_CNTKCTL_EVNTI	(1 << 4) /* Virtual counter event bits */
+#define	GT_CNTKCTL_EVNTI	(0xf << 4) /* Virtual counter event bits */
 #define	GT_CNTKCTL_EVNTDIR	(1 << 3) /* Virtual counter event transition */
 #define	GT_CNTKCTL_EVNTEN	(1 << 2) /* Enables virtual counter events */
 #define	GT_CNTKCTL_PL0VCTEN	(1 << 1) /* PL0 CNTVCT and CNTFRQ access */
@@ -78,6 +78,7 @@ struct arm_tmr_softc {
 	void			*ihl[4];
 	uint32_t		clkfreq;
 	struct eventtimer	et;
+	bool			physical;
 };
 
 static struct arm_tmr_softc *arm_tmr_sc = NULL;
@@ -101,81 +102,83 @@ static struct timecounter arm_tmr_timecount = {
 	.tc_quality        = 1000,
 };
 
-static inline int
+static int
 get_freq(void)
 {
 	uint32_t val;
 
+	/* cntfrq */
 	__asm volatile("mrc p15, 0, %0, c14, c0, 0" : "=r" (val));
 
 	return (val);
 }
 
-static inline int
-set_freq(uint32_t val)
-{
-
-	__asm volatile("mcr p15, 0, %[val], c14, c0, 0" : :
-	    [val] "r" (val));
-	isb();
-
-	return (val);
-}
-
-
-static inline long
-get_cntpct(void)
+static long
+get_cntxct(bool physical)
 {
 	uint64_t val;
 
-	__asm volatile("mrrc p15, 0, %Q0, %R0, c14" : "=r" (val));
+	isb();
+	if (physical)
+		/* cntpct */
+		__asm volatile("mrrc p15, 0, %Q0, %R0, c14" : "=r" (val));
+	else
+		/* cntvct */
+		__asm volatile("mrrc p15, 1, %Q0, %R0, c14" : "=r" (val));
 
 	return (val);
 }
 
-static inline int
-set_ctrl(uint32_t val)
+static int
+set_ctrl(uint32_t val, bool physical)
 {
 
-	__asm volatile("mcr p15, 0, %[val], c14, c2, 1" : :
-	    [val] "r" (val));
+	if (physical)
+		/* cntp_ctl */
+		__asm volatile("mcr p15, 0, %[val], c14, c2, 1" : :
+		    [val] "r" (val));
+	else
+		/* cntv_ctl */
+		__asm volatile("mcr p15, 0, %[val], c14, c3, 1" : :
+		    [val] "r" (val));
 	isb();
 
 	return (0);
 }
 
-static inline int
-set_tval(uint32_t val)
+static int
+set_tval(uint32_t val, bool physical)
 {
 
-	__asm volatile("mcr p15, 0, %[val], c14, c2, 0" : :
-	    [val] "r" (val));
+	if (physical)
+		/* cntp_tval */
+		__asm volatile("mcr p15, 0, %[val], c14, c2, 0" : :
+		    [val] "r" (val));
+	else
+		/* cntv_tval */
+		__asm volatile("mcr p15, 0, %[val], c14, c3, 0" : :
+		    [val] "r" (val));
 	isb();
 
 	return (0);
 }
 
-static inline int
-get_ctrl(void)
+static int
+get_ctrl(bool physical)
 {
 	uint32_t val;
 
-	__asm volatile("mrc p15, 0, %0, c14, c2, 1" : "=r" (val));
+	if (physical)
+		/* cntp_ctl */
+		__asm volatile("mrc p15, 0, %0, c14, c2, 1" : "=r" (val));
+	else
+		/* cntv_ctl */
+		__asm volatile("mrc p15, 0, %0, c14, c3, 1" : "=r" (val));
 
 	return (val);
 }
 
-static inline int
-get_tval(void)
-{
-	uint32_t val;
-
-	__asm volatile("mrc p15, 0, %0, c14, c2, 0" : "=r" (val));
-
-	return (val);
-}
-
-static inline void
+static void
 disable_user_access(void)
 {
 	uint32_t cntkctl;
@@ -191,7 +194,7 @@ static unsigned
 arm_tmr_get_timecount(struct timecounter *tc)
 {
 
-	return (get_cntpct());
+	return (get_cntxct(arm_tmr_sc->physical));
 }
 
 static int
@@ -204,11 +207,11 @@ arm_tmr_start(struct eventtimer *et, sbintime_t first, sbintime_t period)
 
 	if (first != 0) {
 		counts = ((uint32_t)et->et_frequency * first) >> 32;
-		ctrl = get_ctrl();
+		ctrl = get_ctrl(sc->physical);
 		ctrl &= ~GT_CTRL_INT_MASK;
 		ctrl |= GT_CTRL_ENABLE;
-		set_tval(counts);
-		set_ctrl(ctrl);
+		set_tval(counts, sc->physical);
+		set_ctrl(ctrl, sc->physical);
 		return (0);
 	}
 
@@ -219,11 +222,14 @@ arm_tmr_start(struct eventtimer *et, sbintime_t first, sbintime_t period)
 static int
 arm_tmr_stop(struct eventtimer *et)
 {
+	struct arm_tmr_softc *sc;
 	int ctrl;
 
-	ctrl = get_ctrl();
+	sc = (struct arm_tmr_softc *)et->et_priv;
+
+	ctrl = get_ctrl(sc->physical);
 	ctrl &= GT_CTRL_ENABLE;
-	set_ctrl(ctrl);
+	set_ctrl(ctrl, sc->physical);
 
 	return (0);
 }
@@ -235,10 +241,10 @@ arm_tmr_intr(void *arg)
 	int ctrl;
 
 	sc = (struct arm_tmr_softc *)arg;
-	ctrl = get_ctrl();
+	ctrl = get_ctrl(sc->physical);
 	if (ctrl & GT_CTRL_INT_STAT) {
 		ctrl |= GT_CTRL_INT_MASK;
-		set_ctrl(ctrl);
+		set_ctrl(ctrl, sc->physical);
 	}
 
 	if (sc->et.et_active)
@@ -295,12 +301,14 @@ arm_tmr_attach(device_t dev)
 	if (bus_alloc_resources(dev, timer_spec, sc->res)) {
 		device_printf(dev, "could not allocate resources\n");
 		return (ENXIO);
-	};
+	}
+
+	sc->physical = true;
 
 	arm_tmr_sc = sc;
 
-	/* Setup secure and non-secure IRQs handler */
-	for (i = 0; i < 2; i++) {
+	/* Setup secure, non-secure and virtual IRQs handler */
+	for (i = 0; i < 3; i++) {
 		error = bus_setup_intr(dev, sc->res[i], INTR_TYPE_CLK,
 		    arm_tmr_intr, NULL, sc, &sc->ihl[i]);
 		if (error) {
@@ -381,10 +389,10 @@ DELAY(int usec)
 	else
 		counts = usec * counts_per_usec;
 
-	first = get_cntpct();
+	first = get_cntxct(arm_tmr_sc->physical);
 
 	while (counts > 0) {
-		last = get_cntpct();
+		last = get_cntxct(arm_tmr_sc->physical);
 		counts -= (int32_t)(last - first);
 		first = last;
 	}

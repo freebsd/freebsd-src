@@ -29,7 +29,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd September 27, 2003
+.Dd September 12, 2014
 .Dt VOP_GETPAGES 9
 .Os
 .Sh NAME
@@ -41,9 +41,9 @@
 .In sys/vnode.h
 .In vm/vm.h
 .Ft int
-.Fn VOP_GETPAGES "struct vnode *vp" "vm_page_t *ma" "int count" "int reqpage" "vm_ooffset_t offset"
+.Fn VOP_GETPAGES "struct vnode *vp" "vm_page_t *ma" "int count" "int reqpage"
 .Ft int
-.Fn VOP_PUTPAGES "struct vnode *vp" "vm_page_t *ma" "int count" "int sync" "int *rtvals" "vm_ooffset_t offset"
+.Fn VOP_PUTPAGES "struct vnode *vp" "vm_page_t *ma" "int count" "int sync" "int *rtvals"
 .Sh DESCRIPTION
 The
 .Fn VOP_GETPAGES
@@ -81,8 +81,6 @@ page written by
 .It Fa reqpage
 The index in the page array of the requested page; i.e., the one page which
 the implementation of this method must handle.
-.It Fa offset
-Offset in the file at which the mapped pages begin.
 .El
 .Pp
 The status of the
@@ -156,7 +154,7 @@ is
 .Sh SEE ALSO
 .Xr vm_object_pip_wakeup 9 ,
 .Xr vm_page_free 9 ,
-.Xr vm_pagge_sunbusy 9 ,
+.Xr vm_page_sunbusy 9 ,
 .Xr vm_page_undirty 9 ,
 .Xr vm_page_xunbusy 9 ,
 .Xr vnode 9

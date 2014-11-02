@@ -1,7 +1,4 @@
-/*
- * Automated Testing Framework (atf)
- *
- * Copyright (c) 2008 The NetBSD Foundation, Inc.
+/* Copyright (c) 2008 The NetBSD Foundation, Inc.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -24,11 +21,10 @@
  * INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER
  * IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR
  * OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN
- * IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
- */
+ * IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.  */
 
 #if defined(HAVE_CONFIG_H)
-#include "bconfig.h"
+#include "config.h"
 #endif
 
 #include <ctype.h>
@@ -38,16 +34,15 @@
 #include <string.h>
 #include <unistd.h>
 
+#include "atf-c/detail/dynstr.h"
+#include "atf-c/detail/env.h"
+#include "atf-c/detail/fs.h"
+#include "atf-c/detail/map.h"
+#include "atf-c/detail/sanity.h"
 #include "atf-c/error.h"
 #include "atf-c/tc.h"
 #include "atf-c/tp.h"
 #include "atf-c/utils.h"
-
-#include "dynstr.h"
-#include "env.h"
-#include "fs.h"
-#include "map.h"
-#include "sanity.h"
 
 #if defined(HAVE_GNU_GETOPT)
 #   define GETOPT_POSIX "+"
@@ -499,7 +494,7 @@ run_tc(const atf_tp_t *tp, struct params *p, int *exitcode)
     if (!atf_env_has("__RUNNING_INSIDE_ATF_RUN") || strcmp(atf_env_get(
         "__RUNNING_INSIDE_ATF_RUN"), "internal-yes-value") != 0)
     {
-        print_warning("Running test cases without atf-run(1) is unsupported");
+        print_warning("Running test cases outside of kyua(1) is unsupported");
         print_warning("No isolation nor timeout control is being applied; you "
                       "may get unexpected failures; see atf-test-case(4)");
     }

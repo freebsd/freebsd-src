@@ -99,37 +99,18 @@ sysctl_ifdata(SYSCTL_HANDLER_ARGS) /* XXX bad syntax! */
 		bzero(&ifmd, sizeof(ifmd));
 		strlcpy(ifmd.ifmd_name, ifp->if_xname, sizeof(ifmd.ifmd_name));
 
-#define COPY(fld) ifmd.ifmd_##fld = ifp->if_##fld
-		COPY(pcount);
-		COPY(data);
-#undef COPY
+		ifmd.ifmd_pcount = ifp->if_pcount;
+		if_data_copy(ifp, &ifmd.ifmd_data);
+
 		ifmd.ifmd_flags = ifp->if_flags | ifp->if_drv_flags;
 		ifmd.ifmd_snd_len = ifp->if_snd.ifq_len;
 		ifmd.ifmd_snd_maxlen = ifp->if_snd.ifq_maxlen;
-		ifmd.ifmd_snd_drops = ifp->if_snd.ifq_drops;
+		ifmd.ifmd_snd_drops =
+		    ifp->if_get_counter(ifp, IFCOUNTER_OQDROPS);
 
 		error = SYSCTL_OUT(req, &ifmd, sizeof ifmd);
-		if (error || !req->newptr)
-			goto out;
-
-		error = SYSCTL_IN(req, &ifmd, sizeof ifmd);
 		if (error)
 			goto out;
-
-#define DONTCOPY(fld) ifmd.ifmd_data.ifi_##fld = ifp->if_data.ifi_##fld
-		DONTCOPY(type);
-		DONTCOPY(physical);
-		DONTCOPY(addrlen);
-		DONTCOPY(hdrlen);
-		DONTCOPY(mtu);
-		DONTCOPY(metric);
-		DONTCOPY(baudrate);
-#undef DONTCOPY
-#define COPY(fld) ifp->if_##fld = ifmd.ifmd_##fld
-		COPY(data);
-		ifp->if_snd.ifq_maxlen = ifmd.ifmd_snd_maxlen;
-		ifp->if_snd.ifq_drops = ifmd.ifmd_snd_drops;
-#undef COPY
 		break;
 
 	case IFDATA_LINKSPECIFIC:

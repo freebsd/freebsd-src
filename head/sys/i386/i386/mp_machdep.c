@@ -147,7 +147,7 @@ void *bootstacks[MAXCPU];
 static void *dpcpu;
 
 struct pcb stoppcbs[MAXCPU];
-struct pcb **susppcbs = NULL;
+struct susppcb **susppcbs;
 
 /* Variables needed for SMP tlb shootdown. */
 vm_offset_t smp_tlb_addr1;
@@ -745,24 +745,14 @@ init_secondary(void)
 	/* set up CPU registers and state */
 	cpu_setregs();
 
+	/* set up SSE/NX */
+	initializecpu();
+
 	/* set up FPU state on the AP */
 	npxinit();
 
-	/* set up SSE registers */
-	enable_sse();
-
 	if (cpu_ops.cpu_init)
 		cpu_ops.cpu_init();
-
-#ifdef PAE
-	/* Enable the PTE no-execute bit. */
-	if ((amd_feature & AMDID_NX) != 0) {
-		uint64_t msr;
-
-		msr = rdmsr(MSR_EFER) | EFER_NXE;
-		wrmsr(MSR_EFER, msr);
-	}
-#endif
 
 	/* A quick check from sanity claus */
 	cpuid = PCPU_GET(cpuid);
@@ -1521,11 +1511,14 @@ cpususpend_handler(void)
 	mtx_assert(&smp_ipi_mtx, MA_NOTOWNED);
 
 	cpu = PCPU_GET(cpuid);
-	if (savectx(susppcbs[cpu])) {
+	if (savectx(&susppcbs[cpu]->sp_pcb)) {
+		npxsuspend(&susppcbs[cpu]->sp_fpususpend);
 		wbinvd();
 		CPU_SET_ATOMIC(cpu, &suspended_cpus);
 	} else {
+		npxresume(&susppcbs[cpu]->sp_fpususpend);
 		pmap_init_pat();
+		initializecpu();
 		PCPU_SET(switchtime, 0);
 		PCPU_SET(switchticks, ticks);
 

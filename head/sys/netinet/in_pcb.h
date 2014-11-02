@@ -94,6 +94,7 @@ struct in_endpoints {
 		struct	in_addr_4in6 ie46_local;
 		struct	in6_addr ie6_local;
 	} ie_dependladdr;
+	u_int32_t	ie6_zoneid;		/* scope zone id */
 };
 #define	ie_faddr	ie_dependfaddr.ie46_foreign.ia46_addr4
 #define	ie_laddr	ie_dependladdr.ie46_local.ia46_addr4
@@ -124,6 +125,7 @@ struct in_conninfo {
 #define	inc_laddr	inc_ie.ie_laddr
 #define	inc6_faddr	inc_ie.ie6_faddr
 #define	inc6_laddr	inc_ie.ie6_laddr
+#define	inc6_zoneid	inc_ie.ie6_zoneid
 
 struct	icmp6_filter;
 
@@ -229,6 +231,7 @@ struct inpcb {
 
 #define	in6p_faddr	inp_inc.inc6_faddr
 #define	in6p_laddr	inp_inc.inc6_laddr
+#define	in6p_zoneid	inp_inc.inc6_zoneid
 #define	in6p_hops	inp_depend6.inp6_hops	/* default hop limit */
 #define	in6p_flowinfo	inp_flow
 #define	in6p_options	inp_depend6.inp6_options
@@ -487,6 +490,7 @@ short	inp_so_options(const struct inpcb *inp);
 	(((faddr) ^ ((faddr) >> 16) ^ ntohs((lport) ^ (fport))) & (mask))
 #define INP_PCBPORTHASH(lport, mask) \
 	(ntohs((lport)) & (mask))
+#define	INP6_PCBHASHKEY(faddr)	((faddr)->s6_addr32[3])
 
 /*
  * Flags for inp_vflags -- historically version flags only
@@ -549,6 +553,8 @@ short	inp_so_options(const struct inpcb *inp);
 #define	INP_REUSEADDR		0x00000020 /* SO_REUSEADDR option is set */
 #define	INP_BINDMULTI		0x00000040 /* IP_BINDMULTI option is set */
 #define	INP_RSS_BUCKET_SET	0x00000080 /* IP_RSS_LISTEN_BUCKET is set */
+#define	INP_RECVFLOWID		0x00000100 /* populate recv datagram with flow info */
+#define	INP_RECVRSSBUCKETID	0x00000200 /* populate recv datagram with bucket id */
 
 /*
  * Flags passed to in_pcblookup*() functions.

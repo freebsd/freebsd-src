@@ -48,7 +48,7 @@ MNTROOT=`mktemp -dt acltools`
 MD1=`mdconfig -at swap -s 64m`
 MNT1=$MNTROOT/nfs4
 mkdir $MNT1
-zpool create -R $MNT1 acltools /dev/$MD1
+zpool create -m $MNT1 acltools /dev/$MD1
 if [ $? -ne 0 ]; then
 	echo "not ok 1 - 'zpool create' failed."
 	exit 1

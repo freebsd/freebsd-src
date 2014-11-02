@@ -129,7 +129,7 @@ ofw_gpiobus_parse_gpios(struct gpiobus_softc *sc, struct gpiobus_ivar *dinfo,
 			i++;
 			continue;
 		}
-		gpio = OF_xref_phandle(gpios[i]);
+		gpio = OF_node_from_xref(gpios[i]);
 		/* Verify if we're attaching to the correct GPIO controller. */
 		if (!OF_hasprop(gpio, "gpio-controller") ||
 		    gpio != ofw_bus_get_node(sc->sc_dev)) {
@@ -168,7 +168,7 @@ ofw_gpiobus_parse_gpios(struct gpiobus_softc *sc, struct gpiobus_ivar *dinfo,
 			continue;
 		}
 
-		gpio = OF_xref_phandle(gpios[i]);
+		gpio = OF_node_from_xref(gpios[i]);
 		/* Read gpio-cells property for this GPIO controller. */
 		if (OF_getencprop(gpio, "#gpio-cells", &cells,
 		    sizeof(cells)) < 0) {
@@ -264,33 +264,13 @@ ofw_gpiobus_probe(device_t dev)
 static int
 ofw_gpiobus_attach(device_t dev)
 {
-	struct gpiobus_softc *sc;
+	int err;
 	phandle_t child;
 
-	sc = GPIOBUS_SOFTC(dev);
-	sc->sc_busdev = dev;
-	sc->sc_dev = device_get_parent(dev);
-
-	/* Read the pin max. value */
-	if (GPIO_PIN_MAX(sc->sc_dev, &sc->sc_npins) != 0)
-		return (ENXIO);
-
-	KASSERT(sc->sc_npins != 0, ("GPIO device with no pins"));
-
-	/*
-	 * Increase to get number of pins.
-	 */
-	sc->sc_npins++;
-
-	sc->sc_pins_mapped = malloc(sizeof(int) * sc->sc_npins, M_DEVBUF, 
-	    M_NOWAIT | M_ZERO);
-
-	if (!sc->sc_pins_mapped)
-		return (ENOMEM);
-
-	/* Init the bus lock. */
-	GPIOBUS_LOCK_INIT(sc);
-
+	err = gpiobus_init_softc(dev);
+	if (err != 0)
+		return (err);
+ 
 	bus_generic_probe(dev);
 	bus_enumerate_hinted_children(dev);
 

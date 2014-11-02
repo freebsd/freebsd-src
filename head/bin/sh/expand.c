@@ -328,24 +328,19 @@ exptilde(char *p, int flag)
 done:
 	*p = '\0';
 	if (*(startp+1) == '\0') {
-		if ((home = lookupvar("HOME")) == NULL)
-			goto lose;
+		home = lookupvar("HOME");
 	} else {
-		if ((pw = getpwnam(startp+1)) == NULL)
-			goto lose;
-		home = pw->pw_dir;
+		pw = getpwnam(startp+1);
+		home = pw != NULL ? pw->pw_dir : NULL;
 	}
-	if (*home == '\0')
-		goto lose;
 	*p = c;
+	if (home == NULL || *home == '\0')
+		return (startp);
 	if (quotes)
 		STPUTS_QUOTES(home, SQSYNTAX, expdest);
 	else
 		STPUTS(home, expdest);
 	return (p);
-lose:
-	*p = c;
-	return (startp);
 }
 
 
@@ -867,7 +862,7 @@ varisset(const char *name, int nulok)
 static void
 strtodest(const char *p, int flag, int subtype, int quoted)
 {
-	if (flag & (EXP_FULL | EXP_CASE) && subtype != VSLENGTH)
+	if (flag & (EXP_FULL | EXP_CASE | EXP_REDIR) && subtype != VSLENGTH)
 		STPUTS_QUOTES(p, quoted ? DQSYNTAX : BASESYNTAX, expdest);
 	else
 		STPUTS(p, expdest);
@@ -883,30 +878,28 @@ varvalue(const char *name, int quoted, int subtype, int flag)
 	int num;
 	char *p;
 	int i;
-	char sep;
+	char sep[2];
 	char **ap;
 
 	switch (*name) {
 	case '$':
 		num = rootpid;
-		goto numvar;
+		break;
 	case '?':
 		num = oexitstatus;
-		goto numvar;
+		break;
 	case '#':
 		num = shellparam.nparam;
-		goto numvar;
+		break;
 	case '!':
 		num = backgndpidval();
-numvar:
-		expdest = cvtnum(num, expdest);
 		break;
 	case '-':
 		for (i = 0 ; i < NOPTS ; i++) {
 			if (optlist[i].val)
 				STPUTC(optlist[i].letter, expdest);
 		}
-		break;
+		return;
 	case '@':
 		if (flag & EXP_FULL && quoted) {
 			for (ap = shellparam.p ; (p = *ap++) != NULL ; ) {
@@ -914,22 +907,25 @@ numvar:
 				if (*ap)
 					STPUTC('\0', expdest);
 			}
-			break;
+			return;
 		}
 		/* FALLTHROUGH */
 	case '*':
 		if (ifsset())
-			sep = ifsval()[0];
+			sep[0] = ifsval()[0];
 		else
-			sep = ' ';
+			sep[0] = ' ';
+		sep[1] = '\0';
 		for (ap = shellparam.p ; (p = *ap++) != NULL ; ) {
 			strtodest(p, flag, subtype, quoted);
 			if (!*ap)
 				break;
-			if (sep || (flag & EXP_FULL && !quoted && **ap != '\0'))
-				STPUTC(sep, expdest);
+			if (sep[0])
+				strtodest(sep, flag, subtype, quoted);
+			else if (flag & EXP_FULL && !quoted && **ap != '\0')
+				STPUTC('\0', expdest);
 		}
-		break;
+		return;
 	default:
 		if (is_digit(*name)) {
 			num = atoi(name);
@@ -938,11 +934,12 @@ numvar:
 			else if (num > 0 && num <= shellparam.nparam)
 				p = shellparam.p[num - 1];
 			else
-				break;
+				return;
 			strtodest(p, flag, subtype, quoted);
 		}
-		break;
+		return;
 	}
+	expdest = cvtnum(num, expdest);
 }
 
 
@@ -1110,24 +1107,23 @@ expandmeta(struct strlist *str, int flag __unused)
 	/* TODO - EXP_REDIR */
 
 	while (str) {
-		if (fflag)
-			goto nometa;
-		p = str->text;
-		for (;;) {			/* fast check for meta chars */
-			if ((c = *p++) == '\0')
-				goto nometa;
-			if (c == '*' || c == '?' || c == '[')
-				break;
-		}
 		savelastp = exparg.lastp;
-		INTOFF;
-		expmeta(expdir, str->text);
-		INTON;
+		if (!fflag) {
+			p = str->text;
+			for (; (c = *p) != '\0'; p++) {
+				/* fast check for meta chars */
+				if (c == '*' || c == '?' || c == '[') {
+					INTOFF;
+					expmeta(expdir, str->text);
+					INTON;
+					break;
+				}
+			}
+		}
 		if (exparg.lastp == savelastp) {
 			/*
 			 * no matches
 			 */
-nometa:
 			*exparg.lastp = str;
 			rmescapes(str->text);
 			exparg.lastp = &str->next;

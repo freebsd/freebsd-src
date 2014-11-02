@@ -190,6 +190,13 @@ terminal_maketty(struct terminal *tm, const char *fmt, ...)
 }
 
 void
+terminal_set_cursor(struct terminal *tm, const term_pos_t *pos)
+{
+
+	teken_set_cursor(&tm->tm_emulator, pos);
+}
+
+void
 terminal_set_winsize_blank(struct terminal *tm, const struct winsize *size,
     int blank, const term_attr_t *attr)
 {
@@ -476,13 +483,17 @@ termcn_cnregister(struct terminal *tm)
 static void
 termcn_cngrab(struct consdev *cp)
 {
+	struct terminal *tm = cp->cn_arg;
 
+	tm->tm_class->tc_cngrab(tm);
 }
 
 static void
 termcn_cnungrab(struct consdev *cp)
 {
+	struct terminal *tm = cp->cn_arg;
 
+	tm->tm_class->tc_cnungrab(tm);
 }
 
 static void

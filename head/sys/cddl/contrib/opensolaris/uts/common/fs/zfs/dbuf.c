@@ -70,12 +70,6 @@ dbuf_cons(void *vdb, void *unused, int kmflag)
 	cv_init(&db->db_changed, NULL, CV_DEFAULT, NULL);
 	refcount_create(&db->db_holds);
 
-#if defined(illumos) || !defined(_KERNEL)
-	db->db_creation = gethrtime();
-#else
-	db->db_creation = cpu_ticks() ^ ((uint64_t)CPU_SEQID << 48);
-#endif
-
 	return (0);
 }
 
@@ -677,6 +671,8 @@ dbuf_read(dmu_buf_impl_t *db, zio_t *zio, uint32_t flags)
 			    db->db_state == DB_FILL) {
 				ASSERT(db->db_state == DB_READ ||
 				    (flags & DB_RF_HAVESTRUCT) == 0);
+				DTRACE_PROBE2(blocked__read, dmu_buf_impl_t *,
+				    db, zio_t *, zio);
 				cv_wait(&db->db_changed, &db->db_mtx);
 			}
 			if (db->db_state == DB_UNCACHED)
@@ -823,7 +819,7 @@ dbuf_free_range(dnode_t *dn, uint64_t start_blkid, uint64_t end_blkid,
 
 	db_search.db_level = 0;
 	db_search.db_blkid = start_blkid;
-	db_search.db_creation = 0;
+	db_search.db_state = DB_SEARCH;
 
 	mutex_enter(&dn->dn_dbufs_mtx);
 	if (start_blkid >= dn->dn_unlisted_l0_blkid) {

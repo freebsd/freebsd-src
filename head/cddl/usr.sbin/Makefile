@@ -5,6 +5,7 @@
 SUBDIR=	${_dtrace} \
 	${_dtruss} \
 	${_lockstat} \
+	${_plockstat} \
 	${_tests} \
 	${_zdb} \
 	${_zhack}
@@ -24,6 +25,9 @@ _zhack=	zhack
 _dtrace=	dtrace
 _dtruss=	dtruss
 _lockstat=	lockstat
+.if defined(WITH_PLOCKSTAT)
+_plockstat=	plockstat
+.endif
 .endif
 
 .if ${MACHINE_CPUARCH} == "mips"

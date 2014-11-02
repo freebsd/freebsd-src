@@ -752,7 +752,8 @@ route_output(struct mbuf *m, struct socket *so, ...)
 			    rt->rt_ifp->if_type == IFT_PROPVIRTUAL) {
 				struct ifaddr *ifa;
 
-				ifa = ifa_ifwithnet(info.rti_info[RTAX_DST], 1);
+				ifa = ifa_ifwithnet(info.rti_info[RTAX_DST], 1,
+						RT_ALL_FIBS);
 				if (ifa != NULL)
 					rt_maskedcopy(ifa->ifa_addr,
 						      &laddr,
@@ -1252,7 +1253,7 @@ rt_ifmsg(struct ifnet *ifp)
 	ifm = mtod(m, struct if_msghdr *);
 	ifm->ifm_index = ifp->if_index;
 	ifm->ifm_flags = ifp->if_flags | ifp->if_drv_flags;
-	ifm->ifm_data = ifp->if_data;
+	if_data_copy(ifp, &ifm->ifm_data);
 	ifm->ifm_addrs = 0;
 	rt_dispatch(m, AF_UNSPEC);
 }
@@ -1574,10 +1575,7 @@ sysctl_iflist_ifml(struct ifnet *ifp, struct rt_addrinfo *info,
 		ifd = &ifm->ifm_data;
 	}
 
-	*ifd = ifp->if_data;
-
-	/* Some drivers still use ifqueue(9), add its stats. */
-	ifd->ifi_oqdrops += ifp->if_snd.ifq_drops;
+	if_data_copy(ifp, ifd);
 
 	return (SYSCTL_OUT(w->w_req, (caddr_t)ifm, len));
 }
@@ -1609,10 +1607,7 @@ sysctl_iflist_ifm(struct ifnet *ifp, struct rt_addrinfo *info,
 		ifd = &ifm->ifm_data;
 	}
 
-	*ifd = ifp->if_data;
-
-	/* Some drivers still use ifqueue(9), add its stats. */
-	ifd->ifi_oqdrops += ifp->if_snd.ifq_drops;
+	if_data_copy(ifp, ifd);
 
 	return (SYSCTL_OUT(w->w_req, (caddr_t)ifm, len));
 }

@@ -230,6 +230,7 @@ ipsec_filter(struct mbuf **mp, int dir, int flags)
 {
 	int error, i;
 	struct ip *ip;
+	struct ifnet *rcvif;
 
 	KASSERT(encif != NULL, ("%s: encif is null", __func__));
 	KASSERT(flags & (ENC_IN|ENC_OUT),
@@ -268,6 +269,8 @@ ipsec_filter(struct mbuf **mp, int dir, int flags)
 	}
 
 	error = 0;
+	rcvif = (*mp)->m_pkthdr.rcvif;
+	(*mp)->m_pkthdr.rcvif = encif;
 	ip = mtod(*mp, struct ip *);
 	switch (ip->ip_v) {
 #ifdef INET
@@ -298,6 +301,7 @@ ipsec_filter(struct mbuf **mp, int dir, int flags)
 	if (error != 0)
 		goto bad;
 
+	(*mp)->m_pkthdr.rcvif = rcvif;
 	return (error);
 
 bad:

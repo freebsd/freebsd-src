@@ -21,6 +21,10 @@ LIBBSDSTATDIR=	${ROOTOBJDIR}/lib/libbsdstat
 LDBSDSTAT?=	${LIBBSDSTATDIR}/libbsdstat.so
 LIBBSDSTAT?=	${LIBBSDSTATDIR}/libbsdstat.a
 
+LIBEVENTDIR=	${ROOTOBJDIR}/lib/libevent
+LDEVENT?=	${LIBEVENTDIR}/libevent.so
+LIBEVENT?=	${LIBEVENTDIR}/libevent.a
+
 LIBHEIMIPCCDIR=	${ROOTOBJDIR}/kerberos5/lib/libheimipcc
 LDHEIMIPCC?=	${LIBHEIMIPCCDIR}/libheimipcc.so
 LIBHEIMIPCC?=	${LIBHEIMIPCCDIR}/libheimipcc.a

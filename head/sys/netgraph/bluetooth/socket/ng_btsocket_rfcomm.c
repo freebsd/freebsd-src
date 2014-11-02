@@ -434,7 +434,7 @@ ng_btsocket_rfcomm_attach(struct socket *so, int proto, struct thread *td)
 	pcb->rx_cred = RFCOMM_DEFAULT_CREDITS;
 
 	mtx_init(&pcb->pcb_mtx, "btsocks_rfcomm_pcb_mtx", NULL, MTX_DEF);
-	callout_handle_init(&pcb->timo);
+	callout_init_mtx(&pcb->timo, &pcb->pcb_mtx, 0);
 
 	/* Add the PCB to the list */
 	mtx_lock(&ng_btsocket_rfcomm_sockets_mtx);
@@ -3451,8 +3451,8 @@ ng_btsocket_rfcomm_timeout(ng_btsocket_rfcomm_pcb_p pcb)
 	if (!(pcb->flags & NG_BTSOCKET_RFCOMM_DLC_TIMO)) {
 		pcb->flags |= NG_BTSOCKET_RFCOMM_DLC_TIMO;
 		pcb->flags &= ~NG_BTSOCKET_RFCOMM_DLC_TIMEDOUT;
-		pcb->timo = timeout(ng_btsocket_rfcomm_process_timeout, pcb,
-					ng_btsocket_rfcomm_timo * hz);
+		callout_reset(&pcb->timo, ng_btsocket_rfcomm_timo * hz,
+		    ng_btsocket_rfcomm_process_timeout, pcb);
 	} else
 		panic("%s: Duplicated socket timeout?!\n", __func__);
 } /* ng_btsocket_rfcomm_timeout */
@@ -3467,7 +3467,7 @@ ng_btsocket_rfcomm_untimeout(ng_btsocket_rfcomm_pcb_p pcb)
 	mtx_assert(&pcb->pcb_mtx, MA_OWNED);
 
 	if (pcb->flags & NG_BTSOCKET_RFCOMM_DLC_TIMO) {
-		untimeout(ng_btsocket_rfcomm_process_timeout, pcb, pcb->timo);
+		callout_stop(&pcb->timo);
 		pcb->flags &= ~NG_BTSOCKET_RFCOMM_DLC_TIMO;
 		pcb->flags &= ~NG_BTSOCKET_RFCOMM_DLC_TIMEDOUT;
 	} else
@@ -3483,7 +3483,7 @@ ng_btsocket_rfcomm_process_timeout(void *xpcb)
 {
 	ng_btsocket_rfcomm_pcb_p	pcb = (ng_btsocket_rfcomm_pcb_p) xpcb;
 
-	mtx_lock(&pcb->pcb_mtx);
+	mtx_assert(&pcb->pcb_mtx, MA_OWNED);
 
 	NG_BTSOCKET_RFCOMM_INFO(
 "%s: Timeout, so=%p, dlci=%d, state=%d, flags=%#x\n",
@@ -3510,8 +3510,6 @@ ng_btsocket_rfcomm_process_timeout(void *xpcb)
 	}
 
 	ng_btsocket_rfcomm_task_wakeup();
-
-	mtx_unlock(&pcb->pcb_mtx);
 } /* ng_btsocket_rfcomm_process_timeout */
 
 /*

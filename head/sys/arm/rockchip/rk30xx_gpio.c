@@ -504,8 +504,8 @@ rk30_gpio_attach(device_t dev)
 	}
 	sc->sc_gpio_npins = i;
 
-	device_add_child(dev, "gpioc", device_get_unit(dev));
-	device_add_child(dev, "gpiobus", device_get_unit(dev));
+	device_add_child(dev, "gpioc", -1);
+	device_add_child(dev, "gpiobus", -1);
 
 	rk30_gpio_sc = sc;
 
@@ -656,7 +656,7 @@ rk30_gpio_init(void)
 				 * contain a ref. to a node defining GPIO
 				 * controller.
 				 */
-				ctrl = OF_xref_phandle(fdt32_to_cpu(gpios[0]));
+				ctrl = OF_node_from_xref(fdt32_to_cpu(gpios[0]));
 
 				if (fdt_is_compatible(ctrl, e->compat))
 					/* Call a handler. */

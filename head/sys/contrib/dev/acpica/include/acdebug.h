@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2013, Intel Corp.
+ * Copyright (C) 2000 - 2014, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -163,6 +163,11 @@ ACPI_HW_DEPENDENT_RETURN_VOID (
 void
 AcpiDbGenerateSci (
     void))
+
+void
+AcpiDbExecuteTest (
+    char                    *TypeArg);
+
 
 /*
  * dbconvert - miscellaneous conversion routines
@@ -372,11 +377,6 @@ AcpiDbGetTableFromFile (
     char                    *Filename,
     ACPI_TABLE_HEADER       **Table);
 
-ACPI_STATUS
-AcpiDbReadTableFromFile (
-    char                    *Filename,
-    ACPI_TABLE_HEADER       **Table);
-
 
 /*
  * dbhistry - debugger HISTORY command
@@ -392,6 +392,10 @@ AcpiDbDisplayHistory (
 char *
 AcpiDbGetFromHistory (
     char                    *CommandNumArg);
+
+char *
+AcpiDbGetHistoryByIndex (
+    UINT32                  CommanddNum);
 
 
 /*

@@ -659,33 +659,28 @@ ibcs2_getgroups(td, uap)
 	struct thread *td;
 	struct ibcs2_getgroups_args *uap;
 {
+	struct ucred *cred;
 	ibcs2_gid_t *iset;
-	gid_t *gp;
 	u_int i, ngrp;
 	int error;
 
-	if (uap->gidsetsize < td->td_ucred->cr_ngroups) {
-		if (uap->gidsetsize == 0)
-			ngrp = 0;
-		else
-			return (EINVAL);
-	} else
-		ngrp = td->td_ucred->cr_ngroups;
-	gp = malloc(ngrp * sizeof(*gp), M_TEMP, M_WAITOK);
-	error = kern_getgroups(td, &ngrp, gp);
-	if (error)
+	cred = td->td_ucred;
+	ngrp = cred->cr_ngroups;
+
+	if (uap->gidsetsize == 0) {
+		error = 0;
 		goto out;
-	if (uap->gidsetsize > 0) {
-		iset = malloc(ngrp * sizeof(*iset), M_TEMP, M_WAITOK);
-		for (i = 0; i < ngrp; i++)
-			iset[i] = (ibcs2_gid_t)gp[i];
-		error = copyout(iset, uap->gidset, ngrp * sizeof(ibcs2_gid_t));
-		free(iset, M_TEMP);
 	}
-	if (error == 0)
-		td->td_retval[0] = ngrp;
+	if (uap->gidsetsize < ngrp)
+		return (EINVAL);
+
+	iset = malloc(ngrp * sizeof(*iset), M_TEMP, M_WAITOK);
+	for (i = 0; i < ngrp; i++)
+		iset[i] = (ibcs2_gid_t)cred->cr_groups[i];
+	error = copyout(iset, uap->gidset, ngrp * sizeof(ibcs2_gid_t));
+	free(iset, M_TEMP);
 out:
-	free(gp, M_TEMP);
+	td->td_retval[0] = ngrp;
 	return (error);
 }
 

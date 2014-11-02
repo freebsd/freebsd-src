@@ -1832,16 +1832,21 @@ freebsd32_sysctl(struct thread *td, struct freebsd32_sysctl_args *uap)
 {
 	int error, name[CTL_MAXNAME];
 	size_t j, oldlen;
+	uint32_t tmp;
 
 	if (uap->namelen > CTL_MAXNAME || uap->namelen < 2)
 		return (EINVAL);
  	error = copyin(uap->name, name, uap->namelen * sizeof(int));
  	if (error)
 		return (error);
-	if (uap->oldlenp)
-		oldlen = fuword32(uap->oldlenp);
-	else
+	if (uap->oldlenp) {
+		error = fueword32(uap->oldlenp, &tmp);
+		oldlen = tmp;
+	} else {
 		oldlen = 0;
+	}
+	if (error != 0)
+		return (EFAULT);
 	error = userland_sysctl(td, name, uap->namelen,
 		uap->old, &oldlen, 1,
 		uap->new, uap->newlen, &j, SCTL_MASK32);
@@ -2628,8 +2633,12 @@ freebsd32_xxx(struct thread *td, struct freebsd32_xxx_args *uap)
 
 int
 syscall32_register(int *offset, struct sysent *new_sysent,
-    struct sysent *old_sysent)
+    struct sysent *old_sysent, int flags)
 {
+
+	if ((flags & ~SY_THR_STATIC) != 0)
+		return (EINVAL);
+
 	if (*offset == NO_SYSCALL) {
 		int i;
 
@@ -2648,16 +2657,19 @@ syscall32_register(int *offset, struct sysent *new_sysent,
 
 	*old_sysent = freebsd32_sysent[*offset];
 	freebsd32_sysent[*offset] = *new_sysent;
-	return 0;
+	atomic_store_rel_32(&freebsd32_sysent[*offset].sy_thrcnt, flags);
+	return (0);
 }
 
 int
 syscall32_deregister(int *offset, struct sysent *old_sysent)
 {
 
-	if (*offset)
-		freebsd32_sysent[*offset] = *old_sysent;
-	return 0;
+	if (*offset == 0)
+		return (0);
+
+	freebsd32_sysent[*offset] = *old_sysent;
+	return (0);
 }
 
 int
@@ -2670,7 +2682,7 @@ syscall32_module_handler(struct module *mod, int what, void *arg)
 	switch (what) {
 	case MOD_LOAD:
 		error = syscall32_register(data->offset, data->new_sysent,
-		    &data->old_sysent);
+		    &data->old_sysent, SY_THR_STATIC_KLD);
 		if (error) {
 			/* Leave a mark so we know to safely unload below. */
 			data->offset = NULL;
@@ -2707,14 +2719,14 @@ syscall32_module_handler(struct module *mod, int what, void *arg)
 }
 
 int
-syscall32_helper_register(struct syscall_helper_data *sd)
+syscall32_helper_register(struct syscall_helper_data *sd, int flags)
 {
 	struct syscall_helper_data *sd1;
 	int error;
 
 	for (sd1 = sd; sd1->syscall_no != NO_SYSCALL; sd1++) {
 		error = syscall32_register(&sd1->syscall_no, &sd1->new_sysent,
-		    &sd1->old_sysent);
+		    &sd1->old_sysent, flags);
 		if (error != 0) {
 			syscall32_helper_unregister(sd);
 			return (error);
@@ -2979,4 +2991,29 @@ freebsd32_procctl(struct thread *td, struct freebsd32_procctl_args *uap)
 	}
 	return (kern_procctl(td, uap->idtype, PAIR32TO64(id_t, uap->id),
 	    uap->com, data));
+}
+
+int
+freebsd32_fcntl(struct thread *td, struct freebsd32_fcntl_args *uap)
+{
+	long tmp;
+
+	switch (uap->cmd) {
+	/*
+	 * Do unsigned conversion for arg when operation
+	 * interprets it as flags or pointer.
+	 */
+	case F_SETLK_REMOTE:
+	case F_SETLKW:
+	case F_SETLK:
+	case F_GETLK:
+	case F_SETFD:
+	case F_SETFL:
+		tmp = (unsigned int)(uap->arg);
+		break;
+	default:
+		tmp = uap->arg;
+		break;
+	}
+	return (kern_fcntl_freebsd(td, uap->fd, uap->cmd, tmp));
 }

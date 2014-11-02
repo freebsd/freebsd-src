@@ -137,7 +137,6 @@ CRUNCH_ALIAS_bsdlabel= disklabel
 .endif
 
 .if ${MACHINE} == "pc98"
-CRUNCH_PROGS_sbin+= bsdlabel
 CRUNCH_SRCDIR_fdisk= $(.CURDIR)/../../sbin/fdisk_pc98
 .endif
 

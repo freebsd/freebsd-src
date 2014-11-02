@@ -185,3 +185,7 @@ METHOD uint16_t get_rid {
 	device_t	child;
 };
 
+METHOD void child_added {
+	device_t	dev;
+	device_t	child;
+};

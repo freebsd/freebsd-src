@@ -120,7 +120,7 @@ cpu_fork(register struct thread *td1, register struct proc *p2,
 	sf->sf_r4 = (u_int)fork_return;
 	sf->sf_r5 = (u_int)td2;
 	sf->sf_pc = (u_int)fork_trampoline;
-	tf->tf_spsr &= ~PSR_C_bit;
+	tf->tf_spsr &= ~PSR_C;
 	tf->tf_r0 = 0;
 	tf->tf_r1 = 0;
 	pcb2->un_32.pcb32_sp = (u_int)sf;
@@ -190,7 +190,7 @@ cpu_set_syscall_retval(struct thread *td, int error)
 			frame->tf_r0 = td->td_retval[0];
 			frame->tf_r1 = td->td_retval[1];
 		}
-		frame->tf_spsr &= ~PSR_C_bit;   /* carry bit */
+		frame->tf_spsr &= ~PSR_C;   /* carry bit */
 		break;
 	case ERESTART:
 		/*
@@ -203,7 +203,7 @@ cpu_set_syscall_retval(struct thread *td, int error)
 		break;
 	default:
 		frame->tf_r0 = error;
-		frame->tf_spsr |= PSR_C_bit;    /* carry bit */
+		frame->tf_spsr |= PSR_C;    /* carry bit */
 		break;
 	}
 }
@@ -228,7 +228,7 @@ cpu_set_upcall(struct thread *td, struct thread *td0)
 	sf->sf_r4 = (u_int)fork_return;
 	sf->sf_r5 = (u_int)td;
 	sf->sf_pc = (u_int)fork_trampoline;
-	tf->tf_spsr &= ~PSR_C_bit;
+	tf->tf_spsr &= ~PSR_C;
 	tf->tf_r0 = 0;
 	td->td_pcb->un_32.pcb32_sp = (u_int)sf;
 	KASSERT((td->td_pcb->un_32.pcb32_sp & 7) == 0,

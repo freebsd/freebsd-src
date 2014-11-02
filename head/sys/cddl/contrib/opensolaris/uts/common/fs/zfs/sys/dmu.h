@@ -25,6 +25,7 @@
  * Copyright 2011 Nexenta Systems, Inc. All rights reserved.
  * Copyright (c) 2012, Joyent, Inc. All rights reserved.
  * Copyright 2013 DEY Storage Systems, Inc.
+ * Copyright 2014 HybridCluster. All rights reserved.
  */
 
 /* Portions Copyright 2010 Robert Milkowski */
@@ -341,7 +342,7 @@ uint64_t dmu_object_alloc(objset_t *os, dmu_object_type_t ot,
 int dmu_object_claim(objset_t *os, uint64_t object, dmu_object_type_t ot,
     int blocksize, dmu_object_type_t bonus_type, int bonus_len, dmu_tx_t *tx);
 int dmu_object_reclaim(objset_t *os, uint64_t object, dmu_object_type_t ot,
-    int blocksize, dmu_object_type_t bonustype, int bonuslen);
+    int blocksize, dmu_object_type_t bonustype, int bonuslen, dmu_tx_t *txp);
 
 /*
  * Free an object from this objset.
@@ -616,6 +617,7 @@ void dmu_write(objset_t *os, uint64_t object, uint64_t offset, uint64_t size,
 void dmu_prealloc(objset_t *os, uint64_t object, uint64_t offset, uint64_t size,
 	dmu_tx_t *tx);
 int dmu_read_uio(objset_t *os, uint64_t object, struct uio *uio, uint64_t size);
+int dmu_read_uio_dbuf(dmu_buf_t *zdb, struct uio *uio, uint64_t size);
 int dmu_write_uio(objset_t *os, uint64_t object, struct uio *uio, uint64_t size,
     dmu_tx_t *tx);
 int dmu_write_uio_dbuf(dmu_buf_t *zdb, struct uio *uio, uint64_t size,
@@ -661,7 +663,8 @@ typedef struct dmu_object_info {
 	uint8_t doi_indirection;		/* 2 = dnode->indirect->data */
 	uint8_t doi_checksum;
 	uint8_t doi_compress;
-	uint8_t doi_pad[5];
+	uint8_t doi_nblkptr;
+	uint8_t doi_pad[4];
 	uint64_t doi_physical_blocks_512;	/* data + metadata, 512b blks */
 	uint64_t doi_max_offset;
 	uint64_t doi_fill_count;		/* number of non-empty blocks */

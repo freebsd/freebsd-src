@@ -761,6 +761,43 @@ npxsave(addr)
 	PCPU_SET(fpcurthread, NULL);
 }
 
+/*
+ * Unconditionally save the current co-processor state across suspend and
+ * resume.
+ */
+void
+npxsuspend(union savefpu *addr)
+{
+	register_t cr0;
+
+	if (!hw_float)
+		return;
+	if (PCPU_GET(fpcurthread) == NULL) {
+		*addr = npx_initialstate;
+		return;
+	}
+	cr0 = rcr0();
+	clts();
+	fpusave(addr);
+	load_cr0(cr0);
+}
+
+void
+npxresume(union savefpu *addr)
+{
+	register_t cr0;
+
+	if (!hw_float)
+		return;
+
+	cr0 = rcr0();
+	clts();
+	npxinit();
+	stop_emulating();
+	fpurstor(addr);
+	load_cr0(cr0);
+}
+
 void
 npxdrop()
 {

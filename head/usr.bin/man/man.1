@@ -25,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd June 3, 2011
+.Dd September 26, 2014
 .Dt MAN 1
 .Os
 .Sh NAME
@@ -57,6 +57,28 @@ If
 is provided,
 .Nm
 restricts the search to the specific section of the manual.
+.Pp
+The sections of the manual are:
+.Bl -enum -offset indent -compact
+.It
+.Fx General Commands Manual
+.It
+.Fx System Calls Manual
+.It
+.Fx Library Functions Manual
+.It
+.Fx Kernel Interfaces Manual
+.It
+.Fx File Formats Manual
+.It
+.Fx Games Manual
+.It
+.Fx Miscellaneous Information Manual
+.It
+.Fx System Manager's Manual
+.It
+.Fx Kernel Developer's Manual
+.El
 .Pp
 Options that
 .Nm
@@ -318,6 +340,14 @@ Local configuration files.
 .Sh SEE ALSO
 .Xr apropos 1 ,
 .Xr intro 1 ,
+.Xr intro 2 ,
+.Xr intro 3 ,
+.Xr intro 4 ,
+.Xr intro 5 ,
+.Xr intro 6 ,
+.Xr intro 7 ,
+.Xr intro 8 ,
+.Xr intro 9 ,
 .Xr locale 1 ,
 .Xr manpath 1 ,
 .Xr nroff 1 ,

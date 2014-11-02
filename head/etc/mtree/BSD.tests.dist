@@ -47,6 +47,8 @@
                 set-e
                 ..
             ..
+            sleep
+            ..
             test
             ..
         ..
@@ -70,6 +72,8 @@
             lib
             ..
             usr.bin
+                diff
+                ..
             ..
         ..
         lib
@@ -90,6 +94,8 @@
             libmp
             ..
             libnv
+            ..
+            libproc
             ..
             libutil
             ..
@@ -413,6 +419,8 @@
         usr.bin
             apply
             ..
+            basename
+            ..
             bmake
                 archives
                     fmt_44bsd
@@ -513,9 +521,19 @@
             ..
             calendar
             ..
+            cmp
+            ..
             comm
             ..
+            cut
+            ..
+            dirname
+            ..
             file2c
+            ..
+            grep
+            ..
+            gzip
             ..
             join
             ..
@@ -525,6 +543,8 @@
             ..
             m4
             ..
+            mkimg
+            ..
             ncal
             ..
             printf
@@ -532,6 +552,8 @@
             sed
                 regress.multitest.out
                 ..
+            ..
+            timeout
             ..
             tr
             ..
@@ -555,8 +577,14 @@
             ..
             newsyslog
             ..
+            nmtree
+            ..
+            pw
+            ..
             sa
             ..
         ..
     ..
 ..
+
+# vim: set expandtab ts=4 sw=4:

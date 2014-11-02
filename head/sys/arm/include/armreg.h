@@ -44,21 +44,29 @@
 #define INSN_SIZE	4
 #define INSN_COND_MASK	0xf0000000	/* Condition mask */
 #define PSR_MODE        0x0000001f      /* mode mask */
-#define PSR_USR26_MODE  0x00000000
-#define PSR_FIQ26_MODE  0x00000001
-#define PSR_IRQ26_MODE  0x00000002
-#define PSR_SVC26_MODE  0x00000003
 #define PSR_USR32_MODE  0x00000010
 #define PSR_FIQ32_MODE  0x00000011
 #define PSR_IRQ32_MODE  0x00000012
 #define PSR_SVC32_MODE  0x00000013
+#define PSR_MON32_MODE	0x00000016
 #define PSR_ABT32_MODE  0x00000017
+#define PSR_HYP32_MODE	0x0000001a
 #define PSR_UND32_MODE  0x0000001b
 #define PSR_SYS32_MODE  0x0000001f
 #define PSR_32_MODE     0x00000010
-#define PSR_FLAGS	0xf0000000    /* flags */
-
-#define PSR_C_bit (1 << 29)       /* carry */
+#define PSR_T		0x00000020	/* Instruction set bit */
+#define PSR_F		0x00000040	/* FIQ disable bit */
+#define PSR_I		0x00000080	/* IRQ disable bit */
+#define PSR_A		0x00000100	/* Imprecise abort bit */
+#define PSR_E		0x00000200	/* Data endianess bit */
+#define PSR_GE		0x000f0000	/* Greater than or equal to bits */
+#define PSR_J		0x01000000	/* Java bit */
+#define PSR_Q		0x08000000	/* Sticky overflow bit */
+#define PSR_V		0x10000000	/* Overflow bit */
+#define PSR_C		0x20000000	/* Carry bit */
+#define PSR_Z		0x40000000	/* Zero bit */
+#define PSR_N		0x80000000	/* Negative bit */
+#define PSR_FLAGS	0xf0000000	/* Flags mask. */
 
 /* The high-order byte is always the implementor */
 #define CPU_ID_IMPLEMENTOR_MASK	0xff000000
@@ -236,16 +244,23 @@
 #define CPU_CONTROL_SYST_ENABLE 0x00000100 /* S: System protection bit */
 #define CPU_CONTROL_ROM_ENABLE	0x00000200 /* R: ROM protection bit */
 #define CPU_CONTROL_CPCLK	0x00000400 /* F: Implementation defined */
+#define CPU_CONTROL_SW_ENABLE	0x00000400 /* SW: SWP instruction enable */
 #define CPU_CONTROL_BPRD_ENABLE 0x00000800 /* Z: Branch prediction enable */
 #define CPU_CONTROL_IC_ENABLE   0x00001000 /* I: IC enable */
 #define CPU_CONTROL_VECRELOC	0x00002000 /* V: Vector relocation */
 #define CPU_CONTROL_ROUNDROBIN	0x00004000 /* RR: Predictable replacement */
 #define CPU_CONTROL_V4COMPAT	0x00008000 /* L4: ARMv4 compat LDR R15 etc */
+#define CPU_CONTROL_HAF_ENABLE	0x00020000 /* HA: Hardware Access Flag Enable */
 #define CPU_CONTROL_FI_ENABLE	0x00200000 /* FI: Low interrupt latency */
 #define CPU_CONTROL_UNAL_ENABLE 0x00400000 /* U: unaligned data access */
 #define CPU_CONTROL_V6_EXTPAGE	0x00800000 /* XP: ARMv6 extended page tables */
+#define CPU_CONTROL_V_ENABLE	0x01000000 /* VE: Interrupt vectors enable */
+#define CPU_CONTROL_EX_BEND	0x02000000 /* EE: exception endianness */
 #define CPU_CONTROL_L2_ENABLE	0x04000000 /* L2 Cache enabled */
-#define CPU_CONTROL_AF_ENABLE	0x20000000 /* Access Flag enable */
+#define CPU_CONTROL_NMFI	0x08000000 /* NMFI: Non maskable FIQ */
+#define CPU_CONTROL_TR_ENABLE	0x10000000 /* TRE: TEX Remap*/
+#define CPU_CONTROL_AF_ENABLE	0x20000000 /* AFE: Access Flag enable */
+#define CPU_CONTROL_TE_ENABLE	0x40000000 /* TE: Thumb Exception enable */
 
 #define CPU_CONTROL_IDC_ENABLE	CPU_CONTROL_DC_ENABLE
 
@@ -361,6 +376,15 @@
 #define	FAULT_IMPRECISE	0x400	/* Imprecise exception (XSCALE) */
 #define	FAULT_EXTERNAL	0x400	/* External abort (armv6+) */
 #define	FAULT_WNR	0x800	/* Write-not-Read access (armv6+) */
+
+/* Fault status register definitions - v6+ */
+#define	FSR_STATUS_TO_IDX(fsr)	(((fsr) & 0xF) | 			\
+				 (((fsr) & (1 << 10)>> (10 - 4))))
+#define	FSR_LPAE		(1 <<  9) /* LPAE indicator */
+#define	FSR_WNR			(1 << 11) /* Write-not-Read access */
+#define	FSR_EXT			(1 << 12) /* DECERR/SLVERR for external*/
+#define	FSR_CM			(1 << 13) /* Cache maintenance fault */
+
 
 /*
  * Address of the vector page, low and high versions.

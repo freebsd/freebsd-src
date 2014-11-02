@@ -17,7 +17,7 @@
 .\" the suitability of this software for any purpose.  It is
 .\" provided "as is" without express or implied warranty.
 .\"
-.Dd May 19, 2014
+.Dd September 23, 2014
 .Dt NEWSYSLOG 8
 .Os
 .Sh NAME
@@ -156,6 +156,7 @@ will create the
 .Dq rotated
 logfiles using the specified time format instead of the default
 sequential filenames.
+The filename used will be kept until it is deleted.
 The time format is described in the
 .Xr strftime 3
 manual page.

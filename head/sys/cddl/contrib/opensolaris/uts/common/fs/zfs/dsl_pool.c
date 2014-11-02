@@ -116,8 +116,8 @@ int zfs_delay_min_dirty_percent = 60;
 
 /*
  * This controls how quickly the delay approaches infinity.
- * Larger values cause it to delay less for a given amount of dirty data.
- * Therefore larger values will cause there to be more dirty data for a
+ * Larger values cause it to delay more for a given amount of dirty data.
+ * Therefore larger values will cause there to be less dirty data for a
  * given throughput.
  *
  * For the smoothest delay, this value should be about 1 billion divided
@@ -129,11 +129,6 @@ int zfs_delay_min_dirty_percent = 60;
  */
 uint64_t zfs_delay_scale = 1000 * 1000 * 1000 / 2000;
 
-
-/*
- * XXX someday maybe turn these into #defines, and you have to tune it on a
- * per-pool basis using zfs.conf.
- */
 
 #ifdef __FreeBSD__
 
@@ -150,8 +145,10 @@ SYSCTL_UQUAD(_vfs_zfs, OID_AUTO, dirty_data_max_max, CTLFLAG_RDTUN,
     &zfs_dirty_data_max_max, 0,
     "The absolute cap on dirty_data_max when auto calculating");
 
-SYSCTL_INT(_vfs_zfs, OID_AUTO, dirty_data_max_percent, CTLFLAG_RDTUN,
-    &zfs_dirty_data_max_percent, 0,
+static int sysctl_zfs_dirty_data_max_percent(SYSCTL_HANDLER_ARGS);
+SYSCTL_PROC(_vfs_zfs, OID_AUTO, dirty_data_max_percent,
+    CTLTYPE_INT | CTLFLAG_MPSAFE | CTLFLAG_RWTUN, 0, sizeof(int),
+    sysctl_zfs_dirty_data_max_percent, "I",
     "The percent of physical memory used to auto calculate dirty_data_max");
 
 SYSCTL_UQUAD(_vfs_zfs, OID_AUTO, dirty_data_sync, CTLFLAG_RWTUN,
@@ -171,6 +168,24 @@ SYSCTL_PROC(_vfs_zfs, OID_AUTO, delay_scale,
     CTLTYPE_U64 | CTLFLAG_MPSAFE | CTLFLAG_RW, 0, sizeof(uint64_t),
     sysctl_zfs_delay_scale, "QU",
     "Controls how quickly the delay approaches infinity");
+
+static int
+sysctl_zfs_dirty_data_max_percent(SYSCTL_HANDLER_ARGS)
+{
+	int val, err;
+
+	val = zfs_dirty_data_max_percent;
+	err = sysctl_handle_int(oidp, &val, 0, req);
+	if (err != 0 || req->newptr == NULL)
+		return (err);
+
+	if (val < 0 || val > 100)
+		return (EINVAL);
+
+	zfs_dirty_data_max_percent = val;
+
+	return (0);
+}
 
 static int
 sysctl_zfs_delay_min_dirty_percent(SYSCTL_HANDLER_ARGS)

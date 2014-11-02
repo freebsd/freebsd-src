@@ -410,7 +410,7 @@ lem_netmap_rxsync(struct netmap_kring *kring, int flags)
 				netmap_idx_n2k(kring, adapter->next_rx_desc_to_check),
 				kring->nr_hwtail);
 			adapter->next_rx_desc_to_check = nic_i;
-			// ifp->if_ipackets += n;
+			// if_inc_counter(ifp, IFCOUNTER_IPACKETS, n);
 			kring->nr_hwtail = nm_i;
 		}
 		kring->nr_kflags &= ~NKR_PENDINTR;

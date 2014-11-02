@@ -1,0 +1,84 @@
+.\" #
+.\" # Copyright (c) 2014, Juniper Networks, Inc.
+.\" # All rights reserved.
+.\" # This SOFTWARE is licensed under the LICENSE provided in the
+.\" # ../Copyright file. By downloading, installing, copying, or 
+.\" # using the SOFTWARE, you agree to be bound by the terms of that
+.\" # LICENSE.
+.\" # Phil Shafer, July 2014
+.\" 
+.Dd July, 2014
+.Dt LIBXO 3
+.Os
+.Sh NAME
+.Nm xo_err
+.Nd emit errors and warnings in multiple formats
+.Sh LIBRARY
+.Lb libxo
+.Sh SYNOPSIS
+.In libxo/xo.h
+.Ft void
+.Fn xo_warn "const char *fmt"  "..."
+.Ft void
+.Fn xo_warnx "const char *fmt" "..."
+.Ft void
+.Fn xo_warn_c "int code" "const char *fmt" "..."
+.Ft void
+.Fn xo_warn_hc "xo_handle_t *xop" "int code, const char *fmt" "..."
+.Ft void
+.Fn xo_err "int eval" "const char *fmt" "..."
+.Ft void
+.Fn xo_errc "int eval" "int code" "const char *fmt" "..."
+.Ft void
+.Fn xo_errx "int eval" "const char *fmt" "..."
+.Ft void
+.Fn xo_message "const char *fmt" "..."
+.Ft void
+.Fn xo_message_c "int code" "const char *fmt" "..."
+.Ft void
+.Fn xo_message_hc "xo_handle_t *xop" "int code, const char *fmt" "..."
+.Ft void
+.Fn xo_message_hcv "xo_handle_t *xop" "int code" "const char *fmt" "va_list vap"
+.Sh DESCRIPTION
+Many programs make use of the standard library functions
+.Xr err 3
+and
+.Xr warn 3
+to generate errors and warnings for the user.
+.Em libxo
+wants to
+pass that information via the current output style, and provides
+compatible functions to allow this.
+.Pp
+These functions display the program name, a colon, a formatted message
+based on the arguments, and then optionally a colon and an error
+message associated with either "errno" or the "code" parameter.
+.Bd -literal -offset indent
+    EXAMPLE:
+        if (open(filename, O_RDONLY) < 0)
+            xo_err(1, "cannot open file '%s'", filename);
+.Ed
+.Sh ADDITIONAL DOCUMENTATION
+.Pp
+Complete documentation can be found on github:
+.Bd -literal -offset indent
+http://juniper.github.io/libxo/libxo-manual.html
+.Ed
+.Pp
+libxo lives on github as:
+.Bd -literal -offset indent
+https://github.com/Juniper/libxo
+.Ed
+.Pp
+The latest release of libxo is available at:
+.Bd -literal -offset indent
+https://github.com/Juniper/libxo/releases
+.Ed
+.Sh SEE ALSO
+.Xr xo_emit 3
+.Sh HISTORY
+The
+.Fa libxo
+library was added in FreeBSD 11.0.
+.Sh AUTHOR
+Phil Shafer

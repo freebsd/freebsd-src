@@ -69,6 +69,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/conf.h>
 #include <sys/syslog.h>
 #include <sys/unistd.h>
+#include <sys/user.h>
 
 #include <security/audit/audit.h>
 #include <security/mac/mac_framework.h>
@@ -103,6 +104,7 @@ struct 	fileops vnops = {
 	.fo_chown = vn_chown,
 	.fo_sendfile = vn_sendfile,
 	.fo_seek = vn_seek,
+	.fo_fill_kinfo = vn_fill_kinfo,
 	.fo_flags = DFLAG_PASSABLE | DFLAG_SEEKABLE
 };
 
@@ -438,7 +440,8 @@ static int
 sequential_heuristic(struct uio *uio, struct file *fp)
 {
 
-	if (atomic_load_acq_int(&(fp->f_flag)) & FRDAHEAD)
+	ASSERT_VOP_LOCKED(fp->f_vnode, __func__);
+	if (fp->f_flag & FRDAHEAD)
 		return (fp->f_seqcount << IO_SEQSHIFT);
 
 	/*
@@ -501,13 +504,16 @@ vn_rdwr(enum uio_rw rw, struct vnode *vp, void *base, int len, off_t offset,
 	error = 0;
 
 	if ((ioflg & IO_NODELOCKED) == 0) {
-		if (rw == UIO_READ) {
-			rl_cookie = vn_rangelock_rlock(vp, offset,
-			    offset + len);
-		} else {
-			rl_cookie = vn_rangelock_wlock(vp, offset,
-			    offset + len);
-		}
+		if ((ioflg & IO_RANGELOCKED) == 0) {
+			if (rw == UIO_READ) {
+				rl_cookie = vn_rangelock_rlock(vp, offset,
+				    offset + len);
+			} else {
+				rl_cookie = vn_rangelock_wlock(vp, offset,
+				    offset + len);
+			}
+		} else
+			rl_cookie = NULL;
 		mp = NULL;
 		if (rw == UIO_WRITE) { 
 			if (vp->v_type != VCHR &&
@@ -1566,6 +1572,25 @@ vn_closefile(fp, td)
 	return (error);
 }
 
+static bool
+vn_suspendable_mp(struct mount *mp)
+{
+
+	return ((mp->mnt_kern_flag & MNTK_SUSPENDABLE) != 0);
+}
+
+static bool
+vn_suspendable(struct vnode *vp, struct mount **mpp)
+{
+
+	if (vp != NULL)
+		*mpp = vp->v_mount;
+	if (*mpp == NULL)
+		return (false);
+
+	return (vn_suspendable_mp(*mpp));
+}
+
 /*
  * Preparing to start a filesystem write operation. If the operation is
  * permitted, then we bump the count of operations in progress and
@@ -1615,6 +1640,9 @@ vn_start_write(vp, mpp, flags)
 	struct mount *mp;
 	int error;
 
+	if (!vn_suspendable(vp, mpp))
+		return (0);
+
 	error = 0;
 	/*
 	 * If a vnode is provided, get and return the mount point that
@@ -1660,6 +1688,9 @@ vn_start_secondary_write(vp, mpp, flags)
 {
 	struct mount *mp;
 	int error;
+
+	if (!vn_suspendable(vp, mpp))
+		return (0);
 
  retry:
 	if (vp != NULL) {
@@ -1718,7 +1749,7 @@ void
 vn_finished_write(mp)
 	struct mount *mp;
 {
-	if (mp == NULL)
+	if (mp == NULL || !vn_suspendable_mp(mp))
 		return;
 	MNT_ILOCK(mp);
 	MNT_REL(mp);
@@ -1741,7 +1772,7 @@ void
 vn_finished_secondary_write(mp)
 	struct mount *mp;
 {
-	if (mp == NULL)
+	if (mp == NULL || !vn_suspendable_mp(mp))
 		return;
 	MNT_ILOCK(mp);
 	MNT_REL(mp);
@@ -1763,6 +1794,8 @@ int
 vfs_write_suspend(struct mount *mp, int flags)
 {
 	int error;
+
+	MPASS(vn_suspendable_mp(mp));
 
 	MNT_ILOCK(mp);
 	if (mp->mnt_susp_owner == curthread) {
@@ -1805,6 +1838,8 @@ void
 vfs_write_resume(struct mount *mp, int flags)
 {
 
+	MPASS(vn_suspendable_mp(mp));
+
 	MNT_ILOCK(mp);
 	if ((mp->mnt_kern_flag & MNTK_SUSPEND) != 0) {
 		KASSERT(mp->mnt_susp_owner == curthread, ("mnt_susp_owner"));
@@ -1838,6 +1873,7 @@ vfs_write_suspend_umnt(struct mount *mp)
 {
 	int error;
 
+	MPASS(vn_suspendable_mp(mp));
 	KASSERT((curthread->td_pflags & TDP_IGNSUSP) == 0,
 	    ("vfs_write_suspend_umnt: recursed"));
 
@@ -2231,12 +2267,10 @@ vn_utimes_perm(struct vnode *vp, struct vattr *vap, struct ucred *cred,
 {
 	int error;
 
-	error = VOP_ACCESSX(vp, VWRITE_ATTRIBUTES, cred, td);
-
 	/*
-	 * From utimes(2):
-	 * Grant permission if the caller is the owner of the file or
-	 * the super-user.  If the time pointer is null, then write
+	 * Grant permission if the caller is the owner of the file, or
+	 * the super-user, or has ACL_WRITE_ATTRIBUTES permission on
+	 * on the file.  If the time pointer is null, then write
 	 * permission on the file is also sufficient.
 	 *
 	 * From NFSv4.1, draft 21, 6.2.1.3.1, Discussion of Mask Attributes:
@@ -2244,7 +2278,66 @@ vn_utimes_perm(struct vnode *vp, struct vattr *vap, struct ucred *cred,
 	 * will be allowed to set the times [..] to the current
 	 * server time.
 	 */
+	error = VOP_ACCESSX(vp, VWRITE_ATTRIBUTES, cred, td);
 	if (error != 0 && (vap->va_vaflags & VA_UTIMES_NULL) != 0)
 		error = VOP_ACCESS(vp, VWRITE, cred, td);
 	return (error);
+}
+
+int
+vn_fill_kinfo(struct file *fp, struct kinfo_file *kif, struct filedesc *fdp)
+{
+	struct vnode *vp;
+	int error;
+
+	if (fp->f_type == DTYPE_FIFO)
+		kif->kf_type = KF_TYPE_FIFO;
+	else
+		kif->kf_type = KF_TYPE_VNODE;
+	vp = fp->f_vnode;
+	vref(vp);
+	FILEDESC_SUNLOCK(fdp);
+	error = vn_fill_kinfo_vnode(vp, kif);
+	vrele(vp);
+	FILEDESC_SLOCK(fdp);
+	return (error);
+}
+
+int
+vn_fill_kinfo_vnode(struct vnode *vp, struct kinfo_file *kif)
+{
+	struct vattr va;
+	char *fullpath, *freepath;
+	int error;
+
+	kif->kf_vnode_type = vntype_to_kinfo(vp->v_type);
+	freepath = NULL;
+	fullpath = "-";
+	error = vn_fullpath(curthread, vp, &fullpath, &freepath);
+	if (error == 0) {
+		strlcpy(kif->kf_path, fullpath, sizeof(kif->kf_path));
+	}
+	if (freepath != NULL)
+		free(freepath, M_TEMP);
+
+	/*
+	 * Retrieve vnode attributes.
+	 */
+	va.va_fsid = VNOVAL;
+	va.va_rdev = NODEV;
+	vn_lock(vp, LK_SHARED | LK_RETRY);
+	error = VOP_GETATTR(vp, &va, curthread->td_ucred);
+	VOP_UNLOCK(vp, 0);
+	if (error != 0)
+		return (error);
+	if (va.va_fsid != VNOVAL)
+		kif->kf_un.kf_file.kf_file_fsid = va.va_fsid;
+	else
+		kif->kf_un.kf_file.kf_file_fsid =
+		    vp->v_mount->mnt_stat.f_fsid.val[0];
+	kif->kf_un.kf_file.kf_file_fileid = va.va_fileid;
+	kif->kf_un.kf_file.kf_file_mode = MAKEIMODE(va.va_type, va.va_mode);
+	kif->kf_un.kf_file.kf_file_size = va.va_size;
+	kif->kf_un.kf_file.kf_file_rdev = va.va_rdev;
+	return (0);
 }

@@ -241,5 +241,8 @@ extern vm_offset_t vm_max_kernel_address;
 
 #define	SFBUF
 #define	SFBUF_MAP
+#define	SFBUF_OPTIONAL_DIRECT_MAP	dcache_color_ignore
+#include <machine/tlb.h>
+#define	SFBUF_PHYS_DMAP(x)		TLB_PHYS_TO_DIRECT(x)
 
 #endif /* !_MACHINE_VMPARAM_H_ */

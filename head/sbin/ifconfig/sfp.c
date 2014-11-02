@@ -67,6 +67,9 @@ struct i2c_info {
 	int chip_id;
 };
 
+static void dump_i2c_data(struct i2c_info *ii, uint8_t addr, uint8_t off,
+    uint8_t len);
+
 struct _nv {
 	int v;
 	const char *n;
@@ -326,6 +329,9 @@ get_sfp_transceiver_class(struct i2c_info *ii, char *buf, size_t size)
 {
 	const char *tech_class;
 	uint8_t code;
+
+	unsigned char qbuf[8];
+	ii->f(ii, SFF_8472_BASE, SFF_8472_TRANS_START, 8, (caddr_t)qbuf);
 
 	/* Check 10G Ethernet/IB first */
 	ii->f(ii, SFF_8472_BASE, SFF_8472_TRANS_START, 1, (caddr_t)&code);
@@ -624,53 +630,65 @@ get_qsfp_tx_power(struct i2c_info *ii, char *buf, size_t size, int chan)
 	convert_sff_power(ii, buf, size, xbuf);
 }
 
-/* Intel ixgbe-specific structures and handlers */
-struct ixgbe_i2c_req {
-	uint8_t dev_addr;
-	uint8_t	offset;
-	uint8_t len;
-	uint8_t data[8];
-};
-#define	SIOCGI2C	SIOCGIFGENERIC
-
-static int
-read_i2c_ixgbe(struct i2c_info *ii, uint8_t addr, uint8_t off, uint8_t len,
-    caddr_t buf)
-{
-	struct ixgbe_i2c_req ixreq;
-	int i;
-
-	if (ii->error != 0)
-		return (ii->error);
-
-	ii->ifr->ifr_data = (caddr_t)&ixreq;
-
-	memset(&ixreq, 0, sizeof(ixreq));
-	ixreq.dev_addr = addr;
-
-	for (i = 0; i < len; i += 1) {
-		ixreq.offset = off + i;
-		ixreq.len = 1;
-		ixreq.data[0] = '\0';
-
-		if (ioctl(ii->s, SIOCGI2C, ii->ifr) != 0) {
-			ii->error = errno;
-			return (errno);
-		}
-		memcpy(&buf[i], ixreq.data, 1);
-	}
-
-	return (0);
-}
-
 /* Generic handler */
 static int
 read_i2c_generic(struct i2c_info *ii, uint8_t addr, uint8_t off, uint8_t len,
     caddr_t buf)
 {
+	struct ifi2creq req;
+	int i, l;
 
-	ii->error = EINVAL;
-	return (-1);
+	if (ii->error != 0)
+		return (ii->error);
+
+	ii->ifr->ifr_data = (caddr_t)&req;
+
+	i = 0;
+	l = 0;
+	memset(&req, 0, sizeof(req));
+	req.dev_addr = addr;
+	req.offset = off;
+	req.len = len;
+
+	while (len > 0) {
+		l = (len > sizeof(req.data)) ? sizeof(req.data) : len;
+		req.len = l;
+		if (ioctl(ii->s, SIOCGI2C, ii->ifr) != 0) {
+			ii->error = errno;
+			return (errno);
+		}
+
+		memcpy(&buf[i], req.data, l);
+		len -= l;
+		i += l;
+		req.offset += l;
+	}
+
+	return (0);
+}
+
+static void
+dump_i2c_data(struct i2c_info *ii, uint8_t addr, uint8_t off, uint8_t len)
+{
+	unsigned char buf[16];
+	int i, read;
+
+	while (len > 0) {
+		memset(buf, 0, sizeof(buf));
+		read = (len > sizeof(buf)) ? sizeof(buf) : len;
+		ii->f(ii, addr, off, read, buf);
+		if (ii->error != 0) {
+			fprintf(stderr, "Error reading i2c info\n");
+			return;
+		}
+
+		printf("\t");
+		for (i = 0; i < read; i++)
+			printf("%02X ", buf[i]);
+		printf("\n");
+		len -= read;
+		off += read;
+	}
 }
 
 static void
@@ -715,6 +733,13 @@ print_qsfp_status(struct i2c_info *ii, int verbose)
 			printf("\tlane %d: RX: %s TX: %s\n", i, buf, buf2);
 		}
 	}
+
+	if (verbose > 2) {
+		printf("\n\tSFF8436 DUMP (0xA0 128..255 range):\n");
+		dump_i2c_data(ii, SFF_8436_BASE, 128, 128);
+		printf("\n\tSFF8436 DUMP (0xA0 0..81 range):\n");
+		dump_i2c_data(ii, SFF_8436_BASE, 0, 82);
+	}
 }
 
 static void
@@ -742,12 +767,12 @@ print_sfp_status(struct i2c_info *ii, int verbose)
 	get_sfp_connector(ii, buf3, sizeof(buf3));
 	if (ii->error == 0)
 		printf("\tplugged: %s %s (%s)\n", buf, buf2, buf3);
-	if (verbose > 2)
-		printf_sfp_transceiver_descr(ii, buf, sizeof(buf));
 	print_sfp_vendor(ii, buf, sizeof(buf));
 	if (ii->error == 0)
 		printf("\t%s\n", buf);
 
+	if (verbose > 5)
+		printf_sfp_transceiver_descr(ii, buf, sizeof(buf));
 	/*
 	 * Request current measurements iff they are provided:
 	 */
@@ -759,31 +784,44 @@ print_sfp_status(struct i2c_info *ii, int verbose)
 		get_sfp_tx_power(ii, buf2, sizeof(buf2));
 		printf("\tRX: %s TX: %s\n", buf, buf2);
 	}
+
+	if (verbose > 2) {
+		printf("\n\tSFF8472 DUMP (0xA0 0..127 range):\n");
+		dump_i2c_data(ii, SFF_8472_BASE, 0, 128);
+	}
 }
 
 void
 sfp_status(int s, struct ifreq *ifr, int verbose)
 {
 	struct i2c_info ii;
+	uint8_t id_byte;
 
+	memset(&ii, 0, sizeof(ii));
 	/* Prepare necessary into to pass to NIC handler */
 	ii.s = s;
 	ii.ifr = ifr;
+	ii.f = read_i2c_generic;
 
 	/*
-	 * Check if we have i2c support for particular driver.
-	 * TODO: Determine driver by original name.
+	 * Try to read byte 0 from i2c:
+	 * Both SFF-8472 and SFF-8436 use it as
+	 * 'identification byte'.
+	 * Stop reading status on zero as value - 
+	 * this might happen in case of empty transceiver slot.
 	 */
-	memset(&ii, 0, sizeof(ii));
-	if (strncmp(ifr->ifr_name, "ix", 2) == 0) {
-		ii.f = read_i2c_ixgbe;
-		print_sfp_status(&ii, verbose);
-	} else if (strncmp(ifr->ifr_name, "cxl", 3) == 0) {
-		ii.port_id = atoi(&ifr->ifr_name[3]);
-		ii.f = read_i2c_generic;
-		ii.cfd = -1;
-		print_qsfp_status(&ii, verbose);
-	} else
+	id_byte = 0;
+	ii.f(&ii, SFF_8472_BASE, SFF_8472_ID, 1, (caddr_t)&id_byte);
+	if (ii.error != 0 || id_byte == 0)
 		return;
+
+	switch (id_byte) {
+	case SFF_8024_ID_QSFP:
+	case SFF_8024_ID_QSFPPLUS:
+		print_qsfp_status(&ii, verbose);
+		break;
+	default:
+		print_sfp_status(&ii, verbose);
+	};
 }
 

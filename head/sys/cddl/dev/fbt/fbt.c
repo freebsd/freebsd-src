@@ -121,7 +121,7 @@ fbt_doubletrap(void)
 		fbt = fbt_probetab[i];
 
 		for (; fbt != NULL; fbt = fbt->fbtp_next)
-			*fbt->fbtp_patchpoint = fbt->fbtp_savedval;
+			fbt_patch_tracepoint(fbt, fbt->fbtp_savedval);
 	}
 }
 
@@ -253,7 +253,7 @@ fbt_disable(void *arg, dtrace_id_t id, void *parg)
 		return;
 
 	for (; fbt != NULL; fbt = fbt->fbtp_next)
-		fbt_patch_tracepoint(fbt, fbt->fbtp_patchval);
+		fbt_patch_tracepoint(fbt, fbt->fbtp_savedval);
 }
 
 static void
@@ -268,7 +268,7 @@ fbt_suspend(void *arg, dtrace_id_t id, void *parg)
 		return;
 
 	for (; fbt != NULL; fbt = fbt->fbtp_next)
-		fbt_patch_tracepoint(fbt, fbt->fbtp_patchval);
+		fbt_patch_tracepoint(fbt, fbt->fbtp_savedval);
 }
 
 static void

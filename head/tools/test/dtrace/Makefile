@@ -85,7 +85,8 @@ IGNORE=		\
 	${TESTSRCDIR}/tst/common/ip/tst.localtcpstate.ksh		\
 	${TESTSRCDIR}/tst/common/ip/tst.remotetcpstate.ksh		\
 	${TESTSRCDIR}/tst/common/scripting/tst.projid.ksh		\
-	${TESTSRCDIR}/tst/common/scripting/tst.taskid.ksh
+	${TESTSRCDIR}/tst/common/scripting/tst.taskid.ksh		\
+	${TESTSRCDIR}/tst/common/json/tst.usdt.c
 
 
 

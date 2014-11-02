@@ -376,8 +376,8 @@ ipsec4_common_input_cb(struct mbuf *m, struct secasvar *sav,
 	prot = ip->ip_p;
 
 #ifdef DEV_ENC
-	encif->if_ipackets++;
-	encif->if_ibytes += m->m_pkthdr.len;
+	if_inc_counter(encif, IFCOUNTER_IPACKETS, 1);
+	if_inc_counter(encif, IFCOUNTER_IBYTES, m->m_pkthdr.len);
 
 	/*
 	 * Pass the mbuf to enc0 for bpf and pfil. We will filter the IPIP
@@ -391,7 +391,8 @@ ipsec4_common_input_cb(struct mbuf *m, struct secasvar *sav,
 #endif /* DEV_ENC */
 
 	/* IP-in-IP encapsulation */
-	if (prot == IPPROTO_IPIP) {
+	if (prot == IPPROTO_IPIP &&
+	    saidx->mode != IPSEC_MODE_TRANSPORT) {
 
 		if (m->m_pkthdr.len - skip < sizeof(struct ip)) {
 			IPSEC_ISTAT(sproto, hdrops);
@@ -431,7 +432,8 @@ ipsec4_common_input_cb(struct mbuf *m, struct secasvar *sav,
 	}
 #ifdef INET6
 	/* IPv6-in-IP encapsulation. */
-	if (prot == IPPROTO_IPV6) {
+	if (prot == IPPROTO_IPV6 &&
+	    saidx->mode != IPSEC_MODE_TRANSPORT) {
 
 		if (m->m_pkthdr.len - skip < sizeof(struct ip6_hdr)) {
 			IPSEC_ISTAT(sproto, hdrops);
@@ -502,6 +504,12 @@ ipsec4_common_input_cb(struct mbuf *m, struct secasvar *sav,
 
 	key_sa_recordxfer(sav, m);		/* record data transfer */
 
+	/*
+	 * In transport mode requeue decrypted mbuf back to IPv4 protocol
+	 * handler. This is necessary to correctly expose rcvif.
+	 */
+	if (saidx->mode == IPSEC_MODE_TRANSPORT)
+		prot = IPPROTO_IPIP;
 #ifdef DEV_ENC
 	/*
 	 * Pass the mbuf to enc0 for bpf and pfil.
@@ -663,8 +671,8 @@ ipsec6_common_input_cb(struct mbuf *m, struct secasvar *sav, int skip, int proto
 	m_copydata(m, protoff, 1, (unsigned char *) &prot);
 
 #ifdef DEV_ENC
-	encif->if_ipackets++;
-	encif->if_ibytes += m->m_pkthdr.len;
+	if_inc_counter(encif, IFCOUNTER_IPACKETS, 1);
+	if_inc_counter(encif, IFCOUNTER_IBYTES, m->m_pkthdr.len);
 
 	/*
 	 * Pass the mbuf to enc0 for bpf and pfil. We will filter the IPIP

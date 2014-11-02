@@ -411,6 +411,7 @@ void	in_rtqdrain(void);
 int	in_addprefix(struct in_ifaddr *, int);
 int	in_scrubprefix(struct in_ifaddr *, u_int);
 void	ip_input(struct mbuf *);
+void	ip_direct_input(struct mbuf *);
 void	in_ifadown(struct ifaddr *ifa, int);
 struct	mbuf	*ip_fastforward(struct mbuf *);
 void	*in_domifattach(struct ifnet *);

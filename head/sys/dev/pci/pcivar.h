@@ -506,6 +506,13 @@ pci_get_rid(device_t dev)
 	return (PCI_GET_RID(device_get_parent(dev), dev));
 }
 
+static __inline void
+pci_child_added(device_t dev)
+{
+
+    return (PCI_CHILD_ADDED(device_get_parent(dev), dev));
+}
+
 device_t pci_find_bsf(uint8_t, uint8_t, uint8_t);
 device_t pci_find_dbsf(uint32_t, uint8_t, uint8_t, uint8_t);
 device_t pci_find_device(uint16_t, uint16_t);

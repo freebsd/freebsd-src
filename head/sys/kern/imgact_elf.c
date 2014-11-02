@@ -1112,8 +1112,8 @@ core_output(struct vnode *vp, void *base, size_t len, off_t offset,
 #endif
 	} else {
 		error = vn_rdwr_inchunks(UIO_WRITE, vp, base, len, offset,
-		    UIO_USERSPACE, IO_UNIT | IO_DIRECT, active_cred, file_cred,
-		    NULL, td);
+		    UIO_USERSPACE, IO_UNIT | IO_DIRECT | IO_RANGELOCKED,
+		    active_cred, file_cred, NULL, td);
 	}
 	return (error);
 }
@@ -1160,8 +1160,8 @@ sbuf_drain_core_output(void *arg, const char *data, int len)
 #endif
 		error = vn_rdwr_inchunks(UIO_WRITE, p->vp,
 		    __DECONST(void *, data), len, p->offset, UIO_SYSSPACE,
-		    IO_UNIT | IO_DIRECT, p->active_cred, p->file_cred, NULL,
-		    p->td);
+		    IO_UNIT | IO_DIRECT | IO_RANGELOCKED, p->active_cred,
+		    p->file_cred, NULL, p->td);
 	if (locked)
 		PROC_LOCK(p->td->td_proc);
 	if (error != 0)
@@ -1783,8 +1783,10 @@ __elfN(note_procstat_proc)(void *arg, struct sbuf *sb, size_t *sizep)
 		KASSERT(*sizep == size, ("invalid size"));
 		structsize = sizeof(elf_kinfo_proc_t);
 		sbuf_bcat(sb, &structsize, sizeof(structsize));
+		sx_slock(&proctree_lock);
 		PROC_LOCK(p);
 		kern_proc_out(p, sb, ELF_KERN_PROC_MASK);
+		sx_sunlock(&proctree_lock);
 	}
 	*sizep = size;
 }

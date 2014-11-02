@@ -124,7 +124,7 @@
 .\" ========================================================================
 .\"
 .IX Title "EVP_PKEY_sign 3"
-.TH EVP_PKEY_sign 3 "2014-08-06" "1.0.1i" "OpenSSL"
+.TH EVP_PKEY_sign 3 "2014-10-15" "1.0.1j" "OpenSSL"
 .\" For nroff, turn off justification.  Always turn off hyphenation; it makes
 .\" way too many mistakes in technical documents.
 .if n .ad l
@@ -155,9 +155,14 @@ before the call the \fBsiglen\fR parameter should contain the length of the
 \&\fBsig\fR and the amount of data written to \fBsiglen\fR.
 .SH "NOTES"
 .IX Header "NOTES"
+\&\fIEVP_PKEY_sign()\fR does not hash the data to be signed, and therefore is
+normally used to sign digests. For signing arbitrary messages, see the
+\&\fIEVP_DigestSignInit\fR\|(3) and
+\&\fIEVP_SignInit\fR\|(3) signing interfaces instead.
+.PP
 After the call to \fIEVP_PKEY_sign_init()\fR algorithm specific control
 operations can be performed to set any appropriate parameters for the
-operation.
+operation (see \fIEVP_PKEY_CTX_ctrl\fR\|(3)).
 .PP
 The function \fIEVP_PKEY_sign()\fR can be called more than once on the same
 context if several operations are performed using the same parameters.
@@ -175,13 +180,17 @@ Sign data using \s-1RSA\s0 with PKCS#1 padding and \s-1SHA256\s0 digest:
 \& #include <openssl/rsa.h>
 \&
 \& EVP_PKEY_CTX *ctx;
+\& /* md is a SHA\-256 digest in this example. */
 \& unsigned char *md, *sig;
-\& size_t mdlen, siglen; 
+\& size_t mdlen = 32, siglen;
 \& EVP_PKEY *signing_key;
-\& /* NB: assumes signing_key, md and mdlen are already set up
-\&  * and that signing_key is an RSA private key
+\&
+\& /*
+\&  * NB: assumes signing_key and md are set up before the next
+\&  * step. signing_key must be an RSA private key and md must
+\&  * point to the SHA\-256 digest to be signed.
 \&  */
-\& ctx = EVP_PKEY_CTX_new(signing_key);
+\& ctx = EVP_PKEY_CTX_new(signing_key, NULL /* no engine */);
 \& if (!ctx)
 \&        /* Error occurred */
 \& if (EVP_PKEY_sign_init(ctx) <= 0)
@@ -208,6 +217,7 @@ Sign data using \s-1RSA\s0 with PKCS#1 padding and \s-1SHA256\s0 digest:
 .SH "SEE ALSO"
 .IX Header "SEE ALSO"
 \&\fIEVP_PKEY_CTX_new\fR\|(3),
+\&\fIEVP_PKEY_CTX_ctrl\fR\|(3),
 \&\fIEVP_PKEY_encrypt\fR\|(3),
 \&\fIEVP_PKEY_decrypt\fR\|(3),
 \&\fIEVP_PKEY_verify\fR\|(3),

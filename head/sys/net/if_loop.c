@@ -226,8 +226,8 @@ looutput(struct ifnet *ifp, struct mbuf *m, const struct sockaddr *dst,
 		        rt->rt_flags & RTF_HOST ? EHOSTUNREACH : ENETUNREACH);
 	}
 
-	ifp->if_opackets++;
-	ifp->if_obytes += m->m_pkthdr.len;
+	if_inc_counter(ifp, IFCOUNTER_OPACKETS, 1);
+	if_inc_counter(ifp, IFCOUNTER_OBYTES, m->m_pkthdr.len);
 
 	/* BPF writes need to be handled specially. */
 	if (dst->sa_family == AF_UNSPEC)
@@ -358,8 +358,8 @@ if_simloop(struct ifnet *ifp, struct mbuf *m, int af, int hlen)
 		m_freem(m);
 		return (EAFNOSUPPORT);
 	}
-	ifp->if_ipackets++;
-	ifp->if_ibytes += m->m_pkthdr.len;
+	if_inc_counter(ifp, IFCOUNTER_IPACKETS, 1);
+	if_inc_counter(ifp, IFCOUNTER_IBYTES, m->m_pkthdr.len);
 	netisr_queue(isr, m);	/* mbuf is free'd on failure. */
 	return (0);
 }

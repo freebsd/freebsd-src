@@ -32,17 +32,16 @@
  */
 
 #include <linux/completion.h>
-#include <linux/init.h>
 #include <linux/fs.h>
 #include <linux/module.h>
 #include <linux/device.h>
 #include <linux/err.h>
 #include <linux/poll.h>
 #include <linux/file.h>
-#include <linux/mount.h>
 #include <linux/cdev.h>
 #include <linux/idr.h>
 #include <linux/mutex.h>
+#include <linux/string.h>
 
 #include <asm/uaccess.h>
 
@@ -1295,7 +1294,7 @@ static void ib_ucm_remove_one(struct ib_device *device)
 	device_unregister(&ucm_dev->dev);
 }
 
-static ssize_t show_abi_version(struct class *class, char *buf)
+static ssize_t show_abi_version(struct class *class, struct class_attribute *attr, char *buf)
 {
 	return sprintf(buf, "%d\n", IB_USER_CM_ABI_VERSION);
 }

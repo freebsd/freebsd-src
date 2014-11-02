@@ -1866,7 +1866,7 @@ again:
 		 * comes up in the ring.
 		 */
 		if (rxstat & XL_RXSTAT_UP_ERROR) {
-			ifp->if_ierrors++;
+			if_inc_counter(ifp, IFCOUNTER_IERRORS, 1);
 			cur_rx->xl_ptr->xl_status = 0;
 			bus_dmamap_sync(sc->xl_ldata.xl_rx_tag,
 			    sc->xl_ldata.xl_rx_dmamap, BUS_DMASYNC_PREWRITE);
@@ -1881,7 +1881,7 @@ again:
 		if (!(rxstat & XL_RXSTAT_UP_CMPLT)) {
 			device_printf(sc->xl_dev,
 			    "bad receive status -- packet dropped\n");
-			ifp->if_ierrors++;
+			if_inc_counter(ifp, IFCOUNTER_IERRORS, 1);
 			cur_rx->xl_ptr->xl_status = 0;
 			bus_dmamap_sync(sc->xl_ldata.xl_rx_tag,
 			    sc->xl_ldata.xl_rx_dmamap, BUS_DMASYNC_PREWRITE);
@@ -1901,7 +1901,7 @@ again:
 		 * can do in this situation.
 		 */
 		if (xl_newbuf(sc, cur_rx)) {
-			ifp->if_ierrors++;
+			if_inc_counter(ifp, IFCOUNTER_IERRORS, 1);
 			cur_rx->xl_ptr->xl_status = 0;
 			bus_dmamap_sync(sc->xl_ldata.xl_rx_tag,
 			    sc->xl_ldata.xl_rx_dmamap, BUS_DMASYNC_PREWRITE);
@@ -1910,7 +1910,7 @@ again:
 		bus_dmamap_sync(sc->xl_ldata.xl_rx_tag,
 		    sc->xl_ldata.xl_rx_dmamap, BUS_DMASYNC_PREWRITE);
 
-		ifp->if_ipackets++;
+		if_inc_counter(ifp, IFCOUNTER_IPACKETS, 1);
 		m->m_pkthdr.rcvif = ifp;
 		m->m_pkthdr.len = m->m_len = total_len;
 
@@ -2014,7 +2014,7 @@ xl_txeof(struct xl_softc *sc)
 		bus_dmamap_unload(sc->xl_mtag, cur_tx->xl_map);
 		m_freem(cur_tx->xl_mbuf);
 		cur_tx->xl_mbuf = NULL;
-		ifp->if_opackets++;
+		if_inc_counter(ifp, IFCOUNTER_OPACKETS, 1);
 		ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
 
 		cur_tx->xl_next = sc->xl_cdata.xl_tx_free;
@@ -2061,7 +2061,7 @@ xl_txeof_90xB(struct xl_softc *sc)
 			cur_tx->xl_mbuf = NULL;
 		}
 
-		ifp->if_opackets++;
+		if_inc_counter(ifp, IFCOUNTER_OPACKETS, 1);
 
 		sc->xl_cdata.xl_tx_cnt--;
 		XL_INC(idx, XL_TX_LIST_CNT);
@@ -2185,7 +2185,7 @@ xl_intr(void *arg)
 		}
 
 		if (status & XL_STAT_TX_COMPLETE) {
-			ifp->if_oerrors++;
+			if_inc_counter(ifp, IFCOUNTER_OERRORS, 1);
 			xl_txeoc(sc);
 		}
 
@@ -2255,7 +2255,7 @@ xl_poll_locked(struct ifnet *ifp, enum poll_cmd cmd, int count)
 			    XL_CMD_INTR_ACK|(status & XL_INTRS));
 
 			if (status & XL_STAT_TX_COMPLETE) {
-				ifp->if_oerrors++;
+				if_inc_counter(ifp, IFCOUNTER_OERRORS, 1);
 				xl_txeoc(sc);
 			}
 
@@ -2312,10 +2312,12 @@ xl_stats_update(struct xl_softc *sc)
 	for (i = 0; i < 16; i++)
 		*p++ = CSR_READ_1(sc, XL_W6_CARRIER_LOST + i);
 
-	ifp->if_ierrors += xl_stats.xl_rx_overrun;
+	if_inc_counter(ifp, IFCOUNTER_IERRORS, xl_stats.xl_rx_overrun);
 
-	ifp->if_collisions += xl_stats.xl_tx_multi_collision +
-	    xl_stats.xl_tx_single_collision + xl_stats.xl_tx_late_collision;
+	if_inc_counter(ifp, IFCOUNTER_COLLISIONS,
+	    xl_stats.xl_tx_multi_collision +
+	    xl_stats.xl_tx_single_collision +
+	    xl_stats.xl_tx_late_collision);
 
 	/*
 	 * Boomerang and cyclone chips have an extra stats counter
@@ -3121,7 +3123,7 @@ xl_watchdog(struct xl_softc *sc)
 		return (0);
 	}
 
-	ifp->if_oerrors++;
+	if_inc_counter(ifp, IFCOUNTER_OERRORS, 1);
 	XL_SEL_WIN(4);
 	status = CSR_READ_2(sc, XL_W4_MEDIA_STATUS);
 	device_printf(sc->xl_dev, "watchdog timeout\n");

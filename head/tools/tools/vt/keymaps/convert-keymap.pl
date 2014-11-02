@@ -7,7 +7,7 @@ use strict;
 use utf8;
 
 # command line parsing
-die "Usage: $0 filename.kbd CHARSET [EURO]"
+die "Usage: $0 filename.kbd charset [EURO|YEN]\n"
     unless ($ARGV[1]);
 
 my $inputfile = shift;					# first command argument
@@ -51,7 +51,7 @@ sub local_to_UCS_code
 
     my $ucs_char = ord(Encode::decode("UTF-8", local_to_UCS_string($char)));
 
-    $current_char = lc(chr($ucs_char)), print("SETCUR: $ucs_char\n")
+    $current_char = lc(chr($ucs_char))
 	if $current_char eq "";
 
     $ucs_char = 0x20ac	# replace with Euro character
@@ -60,8 +60,8 @@ sub local_to_UCS_code
     $ucs_char = 0xa5	# replace with Jap. Yen character on PC kbd
 	if $ucs_char == ord('\\') and $use_yen and $current_scancode == 125;
 
-    $ucs_char = 0xa5	# replace with Jap. Yen character on PC98x1 kbd
-	if $ucs_char == ord('\\') and $use_yen and $current_scancode == 13;
+#    $ucs_char = 0xa5	# replace with Jap. Yen character on PC98x1 kbd
+#	if $ucs_char == ord('\\') and $use_yen and $current_scancode == 13;
 
     return prettyprint_token($ucs_char);
 }

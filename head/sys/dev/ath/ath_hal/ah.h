@@ -1264,6 +1264,7 @@ typedef struct
 	int ath_hal_show_bb_panic;
 	int ath_hal_ant_ctrl_comm2g_switch_enable;
 	int ath_hal_ext_atten_margin_cfg;
+	int ath_hal_min_gainidx;
 	int ath_hal_war70c;
 	uint32_t ath_hal_mci_config;
 } HAL_OPS_CONFIG;
@@ -1616,7 +1617,8 @@ extern	const char *__ahdecl ath_hal_probe(uint16_t vendorid, uint16_t devid);
  * be returned if the status parameter is non-zero.
  */
 extern	struct ath_hal * __ahdecl ath_hal_attach(uint16_t devid, HAL_SOFTC,
-		HAL_BUS_TAG, HAL_BUS_HANDLE, uint16_t *eepromdata, HAL_STATUS* status);
+		HAL_BUS_TAG, HAL_BUS_HANDLE, uint16_t *eepromdata,
+		HAL_OPS_CONFIG *ah_config, HAL_STATUS* status);
 
 extern	const char *ath_hal_mac_name(struct ath_hal *);
 extern	const char *ath_hal_rf_name(struct ath_hal *);

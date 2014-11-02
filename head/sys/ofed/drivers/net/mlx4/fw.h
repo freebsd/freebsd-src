@@ -1,6 +1,6 @@
 /*
  * Copyright (c) 2004, 2005 Topspin Communications.  All rights reserved.
- * Copyright (c) 2005, 2006, 2007, 2008 Mellanox Technologies. All rights reserved.
+ * Copyright (c) 2005, 2006, 2007, 2008, 2014 Mellanox Technologies. All rights reserved.
  * Copyright (c) 2006, 2007 Cisco Systems.  All rights reserved.
  *
  * This software is available to you under a choice of one of two
@@ -143,10 +143,13 @@ struct mlx4_func_cap {
 	u32	qp1_proxy_qpn;
 	u8	physical_port;
 	u8	port_flags;
+	u8	def_counter_index;
 };
 
 struct mlx4_adapter {
+	u16 vsd_vendor_id;
 	char board_id[MLX4_BOARD_ID_LEN];
+	char vsd[MLX4_VSD_LEN];
 	u8   inta_pin;
 };
 
@@ -175,6 +178,8 @@ struct mlx4_init_hca_param {
 	u8  log_mpt_sz;
 	u8  log_uar_sz;
 	u8  uar_page_sz; /* log pg sz in 4k chunks */
+	u8  mw_enable;	/* Enable memory windows */
+	u8  fs_hash_enable_bits;
 	u8  steering_mode; /* for QUERY_HCA */
 	u64 dev_cap_enabled;
 };
@@ -218,8 +223,6 @@ int mlx4_QUERY_HCA(struct mlx4_dev *dev, struct mlx4_init_hca_param *param);
 int mlx4_CLOSE_HCA(struct mlx4_dev *dev, int panic);
 int mlx4_map_cmd(struct mlx4_dev *dev, u16 op, struct mlx4_icm *icm, u64 virt);
 int mlx4_SET_ICM_SIZE(struct mlx4_dev *dev, u64 icm_size, u64 *aux_pages);
-int mlx4_MAP_ICM_AUX(struct mlx4_dev *dev, struct mlx4_icm *icm);
-int mlx4_UNMAP_ICM_AUX(struct mlx4_dev *dev);
 int mlx4_NOP(struct mlx4_dev *dev);
 int mlx4_MOD_STAT_CFG(struct mlx4_dev *dev, struct mlx4_mod_stat_cfg *cfg);
 void mlx4_opreq_action(struct work_struct *work);

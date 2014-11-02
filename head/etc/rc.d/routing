@@ -23,32 +23,33 @@ ROUTE_CMD="/sbin/route"
 
 routing_start()
 {
-	local _cmd _af _if _a
+	local _cmd _af _if _a _ret
 	_cmd=$1
 	_af=$2
 	_if=$3
+	_ret=0
 
 	case $_if in
 	""|[Aa][Ll][Ll]|[Aa][Nn][Yy])	_if="" ;;
 	esac
 
 	case $_af in
-	inet|inet6|atm)
+	""|[Aa][Ll][Ll]|[Aa][Nn][Yy])
+		for _a in inet inet6 atm; do
+			afexists $_a || continue
+			setroutes $_cmd $_a $_if || _ret=1
+		done
+	;;
+	*)
 		if afexists $_af; then
-			setroutes $_cmd $_af $_if
+			setroutes $_cmd $_af $_if || _ret=1
 		else
 			err 1 "Unsupported address family: $_af."
 		fi
-		;;
-	""|[Aa][Ll][Ll]|[Aa][Nn][Yy])
-		for _a in inet inet6 atm; do
-			afexists $_a && setroutes $_cmd $_a $_if
-		done
-		;;
-	*)
-		err 1 "Unsupported address family: $_af."
-		;;
+	;;
 	esac
+
+	return $_ret
 }
 
 routing_stop()
@@ -62,17 +63,6 @@ routing_stop()
 	esac
 
 	case $_af in
-	inet|inet6|atm)
-		if afexists $_af; then
-			eval static_${_af} delete $_if 
-			# When $_if is specified, do not flush routes.
-			if ! [ -n "$_if" ]; then
-				eval routing_stop_${_af}
-			fi
-		else
-			err 1 "Unsupported address family: $_af."
-		fi
-		;;
 	""|[Aa][Ll][Ll]|[Aa][Nn][Yy])
 		for _a in inet inet6 atm; do
 			afexists $_a || continue
@@ -82,10 +72,18 @@ routing_stop()
 				eval routing_stop_${_a}
 			fi
 		done
-		;;
+	;;
 	*)
-		err 1 "Unsupported address family: $_af."
-		;;
+		if afexists $_af; then
+			eval static_${_af} delete $_if 
+			# When $_if is specified, do not flush routes.
+			if ! [ -n "$_if" ]; then
+				eval routing_stop_${_af}
+			fi
+		else
+			err 1 "Unsupported address family: $_af."
+		fi
+	;;
 	esac
 }
 

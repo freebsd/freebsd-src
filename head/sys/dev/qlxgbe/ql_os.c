@@ -160,7 +160,7 @@ qla_add_sysctls(qla_host_t *ha)
         SYSCTL_ADD_STRING(device_get_sysctl_ctx(dev),
                 SYSCTL_CHILDREN(device_get_sysctl_tree(dev)),
                 OID_AUTO, "fw_version", CTLFLAG_RD,
-                &ha->fw_ver_str, 0, "firmware version");
+                ha->fw_ver_str, 0, "firmware version");
 
         SYSCTL_ADD_PROC(device_get_sysctl_ctx(dev),
                 SYSCTL_CHILDREN(device_get_sysctl_tree(dev)),
@@ -775,7 +775,7 @@ qla_init_ifnet(device_t dev, qla_host_t *ha)
 
 	ifp->if_capenable = ifp->if_capabilities;
 
-	ifp->if_data.ifi_hdrlen = sizeof(struct ether_vlan_header);
+	ifp->if_hdrlen = sizeof(struct ether_vlan_header);
 
 	ifmedia_init(&ha->media, IFM_IMASK, qla_media_change, qla_media_status);
 

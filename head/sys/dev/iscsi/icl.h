@@ -107,7 +107,6 @@ struct icl_conn {
 struct icl_conn		*icl_conn_new(const char *name, struct mtx *lock);
 void			icl_conn_free(struct icl_conn *ic);
 int			icl_conn_handoff(struct icl_conn *ic, int fd);
-void			icl_conn_shutdown(struct icl_conn *ic);
 void			icl_conn_close(struct icl_conn *ic);
 bool			icl_conn_connected(struct icl_conn *ic);
 

@@ -51,6 +51,14 @@ struct bios_smap {
     u_int32_t	type;
 } __packed;
 
+/* Structure extended to include extended attribute field in ACPI 3.0. */
+struct bios_smap_xattr {
+    u_int64_t	base;
+    u_int64_t	length;
+    u_int32_t	type;
+    u_int32_t	xattr;
+} __packed;
+	
 /*
  * System Management BIOS
  */

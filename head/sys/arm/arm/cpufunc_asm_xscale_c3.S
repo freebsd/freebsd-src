@@ -73,6 +73,7 @@
  * XScale core 3 assembly functions for CPU / MMU / TLB specific operations
  */
 
+#include <machine/armreg.h>
 #include <machine/asm.h>
 __FBSDID("$FreeBSD$");
 
@@ -122,7 +123,7 @@ __FBSDID("$FreeBSD$");
 #define	XSCALE_CACHE_CLEAN_BLOCK					\
 	stmfd	sp!, {r4}					;	\
 	mrs	r4, cpsr					;	\
-	orr	r0, r4, #(I32_bit | F32_bit)			;	\
+	orr	r0, r4, #(PSR_I | PSR_F)			;	\
 	msr	cpsr_fsxc, r0
 
 #define	XSCALE_CACHE_CLEAN_UNBLOCK					\
@@ -350,7 +351,7 @@ END(xscalec3_l2cache_flush_rng)
 ENTRY(xscalec3_setttb)
 #ifdef CACHE_CLEAN_BLOCK_INTR
 	mrs	r3, cpsr
-	orr	r1, r3, #(I32_bit | F32_bit)
+	orr	r1, r3, #(PSR_I | PSR_F)
 	msr	cpsr_fsxc, r1
 #else
 	ldr	r3, .Lblock_userspace_access

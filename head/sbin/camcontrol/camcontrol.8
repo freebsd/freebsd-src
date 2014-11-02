@@ -27,7 +27,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd November 20, 2013
+.Dd August 31, 2014
 .Dt CAMCONTROL 8
 .Os
 .Sh NAME
@@ -1884,12 +1884,12 @@ camcontrol security ada0
 .Pp
 Report security support and settings for ada0
 .Bd -literal -offset indent
-camcontrol security ada0 -u user -s MyPass
+camcontrol security ada0 -U user -s MyPass
 .Ed
 .Pp
 Enable security on device ada0 with the password MyPass
 .Bd -literal -offset indent
-camcontrol security ada0 -u user -e MyPass
+camcontrol security ada0 -U user -e MyPass
 .Ed
 .Pp
 Secure erase ada0 which has had security enabled with user password MyPass

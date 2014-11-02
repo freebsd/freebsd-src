@@ -1,5 +1,7 @@
 # $FreeBSD$
 
+.include <src.opts.mk>
+
 LIBCXXRTDIR=	${.CURDIR}/../../contrib/libcxxrt
 HDRDIR=		${.CURDIR}/../../contrib/libc++/include
 SRCDIR=		${.CURDIR}/../../contrib/libc++/src
@@ -57,7 +59,7 @@ cxxrt_${_S}:
 WARNS=		0
 CFLAGS+=	-I${HDRDIR} -I${LIBCXXRTDIR} -nostdlib -DLIBCXXRT
 .if empty(CXXFLAGS:M-std=*)
-CXXFLAGS+=	-std=c++0x
+CXXFLAGS+=	-std=c++11
 .endif
 
 DPADD=		${LIBCXXRT}
@@ -191,5 +193,15 @@ EXT_HEADERS=	__hash\
 EXT+=		${HDRDIR}/ext/${hdr}
 .endfor
 EXTDIR=		${CXXINCLUDEDIR}/ext
+
+.if ${MK_GNUCXX} == "no" && ${COMPILER_TYPE} == "gcc"
+CLEANFILES+=	libstdc++.so libstdc++.a
+
+afterinstall:
+	ln -sf ${DESTDIR}${LIBDIR}/lib${LIB}.so \
+		${.OBJDIR}/libstdc++.so
+	ln -sf ${DESTDIR}${LIBDIR}/lib${LIB}.a \
+		${.OBJDIR}/libstdc++.a
+.endif
 
 .include <bsd.lib.mk>

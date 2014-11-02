@@ -49,7 +49,6 @@
 #include <linux/scatterlist.h>
 #include <linux/workqueue.h>
 
-#include <linux/atomic.h>
 #include <asm/uaccess.h>
 #include <linux/rbtree.h>
 #include <linux/mutex.h>
