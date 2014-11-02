@@ -211,7 +211,7 @@ acpi_sleep_machdep(struct acpi_softc *sc, int state)
 #ifdef __amd64__
 		fpususpend(susppcbs[0]->sp_fpususpend);
 #elif defined(DEV_NPX)
-		npxsuspend(&susppcbs[0]->sp_fpususpend);
+		npxsuspend(susppcbs[0]->sp_fpususpend);
 #endif
 #ifdef SMP
 		if (!CPU_EMPTY(&suspcpus) && suspend_cpus(suspcpus) == 0) {
@@ -248,7 +248,7 @@ acpi_sleep_machdep(struct acpi_softc *sc, int state)
 #ifdef __amd64__
 		fpuresume(susppcbs[0]->sp_fpususpend);
 #elif defined(DEV_NPX)
-		npxresume(&susppcbs[0]->sp_fpususpend);
+		npxresume(susppcbs[0]->sp_fpususpend);
 #endif
 	}
 
@@ -327,9 +327,7 @@ acpi_alloc_wakeup_handler(void)
 	susppcbs = malloc(mp_ncpus * sizeof(*susppcbs), M_DEVBUF, M_WAITOK);
 	for (i = 0; i < mp_ncpus; i++) {
 		susppcbs[i] = malloc(sizeof(**susppcbs), M_DEVBUF, M_WAITOK);
-#ifdef __amd64__
 		susppcbs[i]->sp_fpususpend = alloc_fpusave(M_WAITOK);
-#endif
 	}
 
 	return (wakeaddr);
