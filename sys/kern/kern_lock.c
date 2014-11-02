@@ -115,10 +115,11 @@ CTASSERT(LK_UNLOCKED == (LK_UNLOCKED &
 	}								\
 } while (0)
 
-#define	LK_CAN_SHARE(x)							\
-	(((x) & LK_SHARE) && (((x) & LK_EXCLUSIVE_WAITERS) == 0 ||	\
-	((x) & LK_EXCLUSIVE_SPINNERS) == 0 ||				\
-	curthread->td_lk_slocks || (curthread->td_pflags & TDP_DEADLKTREAT)))
+#define	LK_CAN_SHARE(x, flags)						\
+	(((x) & LK_SHARE) &&						\
+	(((x) & (LK_EXCLUSIVE_WAITERS | LK_EXCLUSIVE_SPINNERS)) == 0 ||	\
+	(curthread->td_lk_slocks != 0 && !(flags & LK_NODDLKTREAT)) ||	\
+	(curthread->td_pflags & TDP_DEADLKTREAT)))
 #define	LK_TRYOP(x)							\
 	((x) & LK_NOWAIT)
 
@@ -530,7 +531,7 @@ __lockmgr_args(struct lock *lk, u_int flags, struct lock_object *ilk,
 			 * waiters, if we fail to acquire the shared lock
 			 * loop back and retry.
 			 */
-			if (LK_CAN_SHARE(x)) {
+			if (LK_CAN_SHARE(x, flags)) {
 				if (atomic_cmpset_acq_ptr(&lk->lk_lock, x,
 				    x + LK_ONE_SHARER))
 					break;
@@ -635,7 +636,7 @@ __lockmgr_args(struct lock *lk, u_int flags, struct lock_object *ilk,
 			 * if the lock can be acquired in shared mode, try
 			 * again.
 			 */
-			if (LK_CAN_SHARE(x)) {
+			if (LK_CAN_SHARE(x, flags)) {
 				sleepq_release(&lk->lock_object);
 				continue;
 			}
