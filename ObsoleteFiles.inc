@@ -38,6 +38,8 @@
 #   xargs -n1 | sort | uniq -d;
 # done
 
+# 20141102: postrandom obsoleted by new /dev/random code
+OLD_FILES+=etc/rc.d/postrandom
 # 20141031: initrandom obsoleted by new /dev/random code
 OLD_FILES+=etc/rc.d/initrandom
 # 20141028: debug files accidentally installed as directory name
