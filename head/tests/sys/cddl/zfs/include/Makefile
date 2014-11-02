@@ -11,7 +11,6 @@ FILES+=		libsas.kshlib
 FILES+=		logapi.kshlib
 FILES+=		libtest.kshlib
 FILES+=		stf.shlib
-FILES+=		stf.kshlib
 
 FILES+=		commands.cfg
 commands.cfg:	translatecommands.awk commands.txt

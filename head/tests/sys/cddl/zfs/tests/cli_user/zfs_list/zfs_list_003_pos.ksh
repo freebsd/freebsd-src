@@ -72,13 +72,14 @@ for fs in $DATASETS ; do
 	children="$children $TESTPOOL/$TESTFS/$fs"
 done
 
-cd $TMPDIR
+cd /tmp
 
 for path in $TESTPOOL/$TESTFS $TESTDIR ./../$TESTDIR ; do
 	$ZFS list -rH -o name $path > $tmpfile
 	for fs in $children ; do
-		$GREP "^${fs}$" $tmpfile > /dev/null 2>&1
+		$GREP -q "^${fs}$" $tmpfile
 		if (( $? != 0 )); then
+			cat $tmpfile
 			log_fail "$fs not shown in the output list."
 		fi
 	done

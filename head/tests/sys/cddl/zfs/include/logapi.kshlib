@@ -31,7 +31,7 @@
 # other ksh scripts and not executed directly.
 #
 
-. ${STF_SUITE}/include/stf.kshlib
+. ${STF_SUITE}/include/stf.shlib
 
 # Output an assertion
 #
@@ -49,18 +49,6 @@ function log_assert
 function log_note
 {
 	_printline NOTE: "$@"
-}
-
-# Execute and print command with status where success equals non-zero result
-#
-# $@ - command to execute
-#
-# return 0 if command fails, otherwise return 1
-
-function log_neg
-{
-	log_neg_expect ""  "$@"
-	return $?
 }
 
 # Execute a positive test and exit $STF_FAIL is test fails
@@ -83,34 +71,24 @@ function log_mustnot
 	(( $? != 0 )) && log_fail
 }
 
-# Execute a negative test with keyword expected, and exit
-# $STF_FAIL if test passes
-#
-# $1 - keyword expected 
-# $2-$@ - command to execute
-
-function log_mustnot_expect
-{
-	log_neg_expect "$@"
-	(( $? != 0 )) && log_fail
-}
-
 # Execute and print command with status where success equals non-zero result
 # or output includes expected keyword
 #
-# $1 - keyword expected 
 # $2-$@ - command to execute
+#
+# Summary: execute $@.  Return 1 if any of the following hold:
+#		1) The command exited 0, 127, 138, or 139
+#		2) The command's stderr included "internal error" or
+#		   "assertion failed"
 #
 # return 0 if command fails, or the output contains the keyword expected,
 # return 1 otherwise
 
-function log_neg_expect
+function log_neg
 {
 	typeset out=""
 	typeset logfile="$TMPDIR/log.$$"
 	typeset ret=1
-	typeset expect=$1
-	shift
 
 	while [[ -e $logfile ]]; do
 		logfile="$logfile.$$"
@@ -144,14 +122,6 @@ function log_neg_expect
 			print -u2 $($out)
 			_printerror "$@" "internal error or assertion failure" \
 				" exited $status"
-		elif [[ -n $expect ]] ; then
-			$out | /usr/bin/grep -i "$expect" > /dev/null 2>&1
-			if (( $? == 0 )); then
-				ret=0
-			else
-				print -u2 $($out)
-				_printerror "$@" "unexpectedly exited $status"
-			fi
 		else
 			ret=0
 		fi
@@ -168,6 +138,10 @@ function log_neg_expect
 # Execute and print command with status where success equals zero result
 #
 # $@ command to execute
+#
+# Summary: run $@.  return 1 if its exit status was nonzero or if it printed
+#		 "internal error" or "assertion failed" to stderr.
+#		print stderr on failure or if LOGAPI_DEBUG is set.
 #
 # return command exit status
 
@@ -323,6 +297,10 @@ function log_other
 
 # Perform cleanup and exit 
 #
+# Summary:	Runs any cleanup routine registered with log_onexit.  Prints a
+# 		message and exits $1.  Note: the _recursive_output does
+# 		nothing, because the rest of this api guarantees that the
+# 		logfile will not exist.
 # $1 - stf exit code
 # $2-$n - message text
 

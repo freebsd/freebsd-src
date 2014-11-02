@@ -218,6 +218,7 @@ function invalid_user_property
 function user_property_value
 {
 	typeset -i len=${1:-100}
+	((len < 1 )) && len=1
 
 	typeset value=$(random_string ALL_CHAR $len)
 

@@ -26,14 +26,6 @@
 # ident	"@(#)stf.shlib	1.2	07/04/12 SMI"
 #
 
-#
-# This file is for bourne shell functionality only.
-# Any ksh functionality must go into stf.kshlib.
-# stf.kshlib includes this file, so any code here must
-# work for ksh also or the sharable code must be moved
-# to a different (new) common file
-#
-
 STF_PASS=0
 STF_FAIL=1
 STF_UNRESOLVED=2

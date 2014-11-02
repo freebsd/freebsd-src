@@ -315,6 +315,40 @@ zfsd_hotspare_006_pos_cleanup()
 	ksh93 $(atf_get_srcdir)/hotspare_cleanup.ksh || atf_fail "Cleanup failed"
 }
 
+atf_test_case zfsd_hotspare_007_pos cleanup
+zfsd_hotspare_007_pos_head()
+{
+	atf_set "descr" "zfsd will swap failed drives at startup"
+	atf_set "require.config" rt_long
+	atf_set "require.config" at_least_5_disks
+	atf_set "require.progs"  zpool camcontrol zfsd
+	atf_set "timeout" 3600
+}
+zfsd_hotspare_007_pos_body()
+{
+	atf_expect_fail "P3_28731: ZFSD will not replace a vdev that dissappears while power is off"
+	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
+	. $(atf_get_srcdir)/../../include/default.cfg
+	. $(atf_get_srcdir)/../hotspare/hotspare.kshlib
+	. $(atf_get_srcdir)/../hotspare/hotspare.cfg
+
+	ksh93 $(atf_get_srcdir)/hotspare_setup.ksh || atf_fail "Setup failed"
+	ksh93 $(atf_get_srcdir)/zfsd_hotspare_007_pos.ksh
+	if [[ $? != 0 ]]; then
+		save_artifacts
+		atf_fail "Testcase failed"
+	fi
+}
+zfsd_hotspare_007_pos_cleanup()
+{
+	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
+	. $(atf_get_srcdir)/../../include/default.cfg
+	. $(atf_get_srcdir)/../hotspare/hotspare.kshlib
+	. $(atf_get_srcdir)/../hotspare/hotspare.cfg
+
+	ksh93 $(atf_get_srcdir)/hotspare_cleanup.ksh || atf_fail "Cleanup failed"
+}
+
 atf_test_case zfsd_autoreplace_001_neg cleanup
 zfsd_autoreplace_001_neg_head()
 {
@@ -553,6 +587,7 @@ atf_init_test_cases()
 	atf_add_test_case zfsd_hotspare_004_pos
 	atf_add_test_case zfsd_hotspare_005_pos
 	atf_add_test_case zfsd_hotspare_006_pos
+	atf_add_test_case zfsd_hotspare_007_pos
 	atf_add_test_case zfsd_autoreplace_001_neg
 	atf_add_test_case zfsd_autoreplace_002_pos
 	atf_add_test_case zfsd_autoreplace_003_pos

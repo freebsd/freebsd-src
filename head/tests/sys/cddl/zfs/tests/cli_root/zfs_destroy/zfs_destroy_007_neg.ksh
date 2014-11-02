@@ -75,13 +75,10 @@ fssnap=$fs@snap
 clone=$fs/clone
 clonesnap=$fs/clone@snap
 
-# Define key word for expected failure.
-KEY_WORDS="filesystem has children"
-
 log_must $ZFS snapshot $fssnap
 log_must $ZFS clone $fssnap $clone
 log_must $ZFS promote $clone
-log_mustnot_expect "$KEY_WORDS" $ZFS destroy $fs
-log_mustnot_expect "$KEY_WORDS" $ZFS destroy $clone
+log_mustnot $ZFS destroy $fs
+log_mustnot $ZFS destroy $clone
 
 log_pass "Destroy dataset which is namespace-parent of origin passed."

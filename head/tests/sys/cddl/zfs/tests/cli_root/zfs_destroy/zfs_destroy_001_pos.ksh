@@ -120,9 +120,19 @@ function test_n_check
 				make_dir_unbusy $TESTDIR1
 			fi
 			;;
-		$FSSNAP|$VOLSNAP)
+		$FSSNAP)
 			if [[ $opt == *f* ]]; then
 				mpt_dir=$(snapshot_mountpoint $dtst)
+				init_dir=$PWD
+				make_dir_busy $mpt_dir
+				log_must $ZFS destroy -rR $dtst
+				log_must $ZFS snapshot $dtst
+				make_dir_unbusy $mpt_dir
+			fi
+			;;
+		$VOLSNAP)
+			if [[ $opt == *f* ]]; then
+				mpt_dir=$TESTDIR1
 				init_dir=$PWD
 				make_dir_busy $mpt_dir
 				log_must $ZFS destroy -rR $dtst
