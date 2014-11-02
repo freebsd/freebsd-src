@@ -447,30 +447,8 @@ random_adaptors_deinit(void)
 }
 
 /*
- * First seed.
- *
- * NB! NB! NB!
- * NB! NB! NB!
- *
- * It turns out this is bloody dangerous. I was fiddling with code elsewhere
- * and managed to get conditions where a safe (i.e. seeded) entropy device should
- * not have been possible. This managed to hide that by unblocking the device anyway.
- * As crap randomness is not directly distinguishable from good randomness, this
- * could have gone unnoticed for quite a while.
- *
- * NB! NB! NB!
- * NB! NB! NB!
- *
- * Very luckily, the probe-time entropy is very nearly good enough to cause a
- * first seed all of the time, and the default settings for other entropy
- * harvesting causes a proper, safe, first seed (unblock) in short order after that.
- *
- * That said, the below would be useful where folks are more concerned with
- * a quick start than with extra paranoia in a low-entropy environment.
- *
- * markm - October 2013.
+ * Reseed the active adaptor shortly before starting init(8).
  */
-#ifdef RANDOM_AUTOSEED
 /* ARGSUSED */
 static void
 random_adaptors_seed(void *unused __unused)
@@ -484,6 +462,5 @@ random_adaptors_seed(void *unused __unused)
 
 	arc4rand(NULL, 0, 1);
 }
-SYSINIT(random_seed, SI_SUB_INTRINSIC_POST, SI_ORDER_LAST,
-    random_adaptors_reseed, NULL);
-#endif /*  RANDOM_AUTOSEED */
+SYSINIT(random_seed, SI_SUB_KTHREAD_INIT, SI_ORDER_FIRST,
+    random_adaptors_seed, NULL);
