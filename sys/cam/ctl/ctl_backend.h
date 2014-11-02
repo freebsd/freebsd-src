@@ -280,14 +280,6 @@ int ctl_lun_inoperable(struct ctl_be_lun *be_lun);
 int ctl_lun_operable(struct ctl_be_lun *be_lun);
 
 /*
- * If a LUN is locked on or unlocked from a power/APS standpoint, call
- * ctl_lun_power_lock() to update the current status in CTL's APS subpage.
- * Set the lock flag to 1 to lock the LUN, set it to 0 to unlock the LUN.
- */
-int ctl_lun_power_lock(struct ctl_be_lun *be_lun, struct ctl_nexus *nexus,
-		       int lock);
-
-/*
  * To take a LUN offline, call ctl_lun_offline().  Generally the LUN will
  * be online again once the user sends a SCSI START STOP UNIT command with
  * the start and on/offline bits set.  The backend can bring the LUN back
