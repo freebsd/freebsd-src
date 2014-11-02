@@ -45,17 +45,24 @@
 
 #ifdef _KERNEL
 
+struct fpu_kern_ctx;
+
 #define	PCB_USER_FPU(pcb) (((pcb)->pcb_flags & PCB_KERNNPX) == 0)
+
+#define	XSAVE_AREA_ALIGN	64
 
 int	npxdna(void);
 void	npxdrop(void);
 void	npxexit(struct thread *td);
 int	npxformat(void);
 int	npxgetregs(struct thread *td);
-void	npxinit(void);
+void	npxinit(bool bsp);
 void	npxresume(union savefpu *addr);
 void	npxsave(union savefpu *addr);
-void	npxsetregs(struct thread *td, union savefpu *addr);
+int	npxsetregs(struct thread *td, union savefpu *addr,
+	    char *xfpustate, size_t xfpustate_size);
+int	npxsetxstate(struct thread *td, char *xfpustate,
+	    size_t xfpustate_size);
 void	npxsuspend(union savefpu *addr);
 int	npxtrap_x87(void);
 int	npxtrap_sse(void);
@@ -68,8 +75,12 @@ int	fpu_kern_leave(struct thread *td, struct fpu_kern_ctx *ctx);
 int	fpu_kern_thread(u_int flags);
 int	is_fpu_kern_thread(u_int flags);
 
+union savefpu	*fpu_save_area_alloc(void);
+void	fpu_save_area_free(union savefpu *fsa);
+void	fpu_save_area_reset(union savefpu *fsa);
+
 /*
- * Flags for fpu_kern_enter() and fpu_kern_thread().
+ * Flags for fpu_kern_alloc_ctx(), fpu_kern_enter() and fpu_kern_thread().
  */
 #define	FPU_KERN_NORMAL	0x0000
 #define	FPU_KERN_NOWAIT	0x0001
