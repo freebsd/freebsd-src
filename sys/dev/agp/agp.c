@@ -50,6 +50,8 @@ __FBSDID("$FreeBSD$");
 #include <dev/pci/pcireg.h>
 
 #include <vm/vm.h>
+#include <vm/vm_extern.h>
+#include <vm/vm_kern.h>
 #include <vm/vm_param.h>
 #include <vm/vm_object.h>
 #include <vm/vm_page.h>
@@ -83,14 +85,6 @@ static struct cdevsw agp_cdevsw = {
 static devclass_t agp_devclass;
 
 /* Helper functions for implementing chipset mini drivers. */
-
-void
-agp_flush_cache()
-{
-#if defined(__i386__) || defined(__amd64__)
-	wbinvd();
-#endif
-}
 
 u_int8_t
 agp_find_caps(device_t dev)
@@ -158,17 +152,16 @@ agp_alloc_gatt(device_t dev)
 		return 0;
 
 	gatt->ag_entries = entries;
-	gatt->ag_virtual = contigmalloc(entries * sizeof(u_int32_t), M_AGP, 0,
-					0, ~0, PAGE_SIZE, 0);
+	gatt->ag_virtual = (void *)kmem_alloc_contig(kernel_arena,
+	    entries * sizeof(u_int32_t), M_NOWAIT | M_ZERO, 0, ~0, PAGE_SIZE,
+	    0, VM_MEMATTR_WRITE_COMBINING);
 	if (!gatt->ag_virtual) {
 		if (bootverbose)
 			device_printf(dev, "contiguous allocation failed\n");
 		free(gatt, M_AGP);
 		return 0;
 	}
-	bzero(gatt->ag_virtual, entries * sizeof(u_int32_t));
 	gatt->ag_physical = vtophys((vm_offset_t) gatt->ag_virtual);
-	agp_flush_cache();
 
 	return gatt;
 }
@@ -176,8 +169,8 @@ agp_alloc_gatt(device_t dev)
 void
 agp_free_gatt(struct agp_gatt *gatt)
 {
-	contigfree(gatt->ag_virtual,
-		   gatt->ag_entries * sizeof(u_int32_t), M_AGP);
+	kmem_free(kernel_arena, (vm_offset_t)gatt->ag_virtual,
+	    gatt->ag_entries * sizeof(u_int32_t));
 	free(gatt, M_AGP);
 }
 
@@ -280,7 +273,6 @@ agp_free_res(device_t dev)
 		bus_release_resource(dev, SYS_RES_MEMORY, sc->as_aperture_rid,
 		    sc->as_aperture);
 	mtx_destroy(&sc->as_lock);
-	agp_flush_cache();
 }
 
 int
@@ -605,12 +597,6 @@ agp_generic_bind_memory(device_t dev, struct agp_memory *mem,
 	VM_OBJECT_WUNLOCK(mem->am_obj);
 
 	/*
-	 * Flush the cpu cache since we are providing a new mapping
-	 * for these pages.
-	 */
-	agp_flush_cache();
-
-	/*
 	 * Make sure the chipset gets the new mappings.
 	 */
 	AGP_FLUSH_TLB(dev);
@@ -668,7 +654,6 @@ agp_generic_unbind_memory(device_t dev, struct agp_memory *mem)
 	}
 	VM_OBJECT_WUNLOCK(mem->am_obj);
 		
-	agp_flush_cache();
 	AGP_FLUSH_TLB(dev);
 
 	mem->am_offset = 0;
@@ -1040,7 +1025,6 @@ agp_bind_pages(device_t dev, vm_page_t *pages, vm_size_t size,
 		}
 	}
 
-	agp_flush_cache();
 	AGP_FLUSH_TLB(dev);
 
 	mtx_unlock(&sc->as_lock);
@@ -1063,7 +1047,6 @@ agp_unbind_pages(device_t dev, vm_size_t size, vm_offset_t offset)
 	for (i = 0; i < size; i += AGP_PAGE_SIZE)
 		AGP_UNBIND_PAGE(dev, offset + i);
 
-	agp_flush_cache();
 	AGP_FLUSH_TLB(dev);
 
 	mtx_unlock(&sc->as_lock);
