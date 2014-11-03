@@ -649,6 +649,7 @@ sys_ioctl(struct thread *td, struct ioctl_args *uap)
 	u_long com;
 	int arg, error;
 	u_int size;
+	u_char smalldata[128];
 	caddr_t data;
 
 	if (uap->com > 0xffffffff) {
@@ -680,17 +681,18 @@ sys_ioctl(struct thread *td, struct ioctl_args *uap)
 			arg = (intptr_t)uap->data;
 			data = (void *)&arg;
 			size = 0;
-		} else
-			data = malloc((u_long)size, M_IOCTLOPS, M_WAITOK);
+		} else {
+			if (size <= sizeof(smalldata))
+				data = smalldata;
+			else
+				data = malloc((u_long)size, M_IOCTLOPS, M_WAITOK);
+		}
 	} else
 		data = (void *)&uap->data;
 	if (com & IOC_IN) {
 		error = copyin(uap->data, data, (u_int)size);
-		if (error) {
-			if (size > 0)
-				free(data, M_IOCTLOPS);
-			return (error);
-		}
+		if (error != 0)
+			goto out;
 	} else if (com & IOC_OUT) {
 		/*
 		 * Zero the buffer so the user always
@@ -704,7 +706,8 @@ sys_ioctl(struct thread *td, struct ioctl_args *uap)
 	if (error == 0 && (com & IOC_OUT))
 		error = copyout(data, uap->data, (u_int)size);
 
-	if (size > 0)
+out:
+	if (size > 0 && data != (caddr_t)&smalldata)
 		free(data, M_IOCTLOPS);
 	return (error);
 }
