@@ -2,10 +2,6 @@
 
 .include <bsd.own.mk>
 
-# XXX: clang can compile the boot code just fine, but boot2 gets too big
-CC:=		gcc
-COMPILER_TYPE:=	gcc
-
 FILES=		boot boot1 boot2
 
 NM?=		nm
@@ -24,10 +20,7 @@ BOOT2_UFS?=	UFS1_AND_UFS2
 #BOOT2_UFS?=	UFS1_ONLY
 
 CFLAGS=	-Os \
-	-fno-guess-branch-probability \
 	-fomit-frame-pointer \
-	-fno-unit-at-a-time \
-	-mno-align-long-strings \
 	-mrtd \
 	-mregparm=3 \
 	-D${BOOT2_UFS} \
@@ -42,9 +35,13 @@ CFLAGS=	-Os \
 	-Wall -Waggregate-return -Wbad-function-cast -Wcast-align \
 	-Wmissing-declarations -Wmissing-prototypes -Wnested-externs \
 	-Wpointer-arith -Wshadow -Wstrict-prototypes -Wwrite-strings \
-	-Winline
+	-Winline \
+	${CLANG_OPT_SMALL}
 
-CFLAGS.gcc+=	--param max-inline-insns-single=100
+CFLAGS.gcc+=	-fno-guess-branch-probability \
+		-fno-unit-at-a-time \
+		-mno-align-long-strings \
+		--param max-inline-insns-single=100
 
 # Set machine type to PC98_SYSTEM_PARAMETER
 #CFLAGS+=	-DSET_MACHINE_TYPE
@@ -110,3 +107,7 @@ boot2.h: boot1.out
 	    REL1=`printf "%d" ${REL1}` > ${.TARGET}
 
 .include <bsd.prog.mk>
+
+# XXX: clang integrated-as doesn't grok .codeNN directives yet
+CFLAGS.boot1.S=		${CLANG_NO_IAS}
+CFLAGS+=		${CFLAGS.${.IMPSRC:T}}
