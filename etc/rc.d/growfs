@@ -49,20 +49,20 @@ rcvar="growfs_enable"
 
 growfs_start ()
 {
-    echo "Growing root partition to fill device"
-    rootdev=$(df / | tail -n 1 | awk '{ sub("/dev/", "", $1); print $1 }')
-    if [ x"$rootdev" = x"${rootdev%/*}" ]; then
-	# raw device
-	rawdev="$rootdev"
-    else
-	rawdev=$(glabel status | awk '$1 == "'"$rootdev"'" { print $3 }')
-	if [ x"$rawdev" = x"" ]; then
-	    echo "Can't figure out device for: $rootdev"
-	    return
+	echo "Growing root partition to fill device"
+	rootdev=$(df / | tail -n 1 | awk '{ sub("/dev/", "", $1); print $1 }')
+	if [ x"$rootdev" = x"${rootdev%/*}" ]; then
+		# raw device
+		rawdev="$rootdev"
+	else
+		rawdev=$(glabel status | awk '$1 == "'"$rootdev"'" { print $3 }')
+		if [ x"$rawdev" = x"" ]; then
+			echo "Can't figure out device for: $rootdev"
+			return
+		fi
 	fi
-    fi
 
-    sysctl -b kern.geom.conftxt | awk '
+	sysctl -b kern.geom.conftxt | awk '
 {
 	lvl=$1
 	device[lvl] = $3
@@ -91,7 +91,7 @@ growfs_start ()
 		exit 0
 	}
 }' dev="$rawdev"
-    growfs -y /dev/"$rootdev"
+	growfs -y /dev/"$rootdev"
 }
 
 load_rc_config $name
