@@ -3623,6 +3623,8 @@ tcp_mss(struct tcpcb *tp, int offer)
 	if (cap.ifcap & CSUM_TSO) {
 		tp->t_flags |= TF_TSO;
 		tp->t_tsomax = cap.tsomax;
+		tp->t_tsomaxsegcount = cap.tsomaxsegcount;
+		tp->t_tsomaxsegsize = cap.tsomaxsegsize;
 	}
 }
 
