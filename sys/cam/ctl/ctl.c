@@ -5343,8 +5343,7 @@ ctl_scsi_reserve(struct ctl_scsiio *ctsio)
 
 	mtx_lock(&lun->lun_lock);
 	if ((lun->flags & CTL_LUN_RESERVED) && (lun->res_idx != residx)) {
-		ctsio->scsi_status = SCSI_STATUS_RESERV_CONFLICT;
-		ctsio->io_hdr.status = CTL_SCSI_ERROR;
+		ctl_set_reservation_conflict(ctsio);
 		goto bailout;
 	}
 
@@ -5694,24 +5693,6 @@ ctl_read_buffer(struct ctl_scsiio *ctsio)
 
 	lun = (struct ctl_lun *)ctsio->io_hdr.ctl_private[CTL_PRIV_LUN].ptr;
 	cdb = (struct scsi_read_buffer *)ctsio->cdb;
-
-	if (lun->flags & CTL_LUN_PR_RESERVED) {
-		uint32_t residx;
-
-		/*
-		 * XXX KDM need a lock here.
-		 */
-		residx = ctl_get_resindex(&ctsio->io_hdr.nexus);
-		if ((lun->res_type == SPR_TYPE_EX_AC
-		  && residx != lun->pr_res_idx)
-		 || ((lun->res_type == SPR_TYPE_EX_AC_RO
-		   || lun->res_type == SPR_TYPE_EX_AC_AR)
-		  && lun->pr_keys[residx] == 0)) {
-			ctl_set_reservation_conflict(ctsio);
-			ctl_done((union ctl_io *)ctsio);
-			return (CTL_RETVAL_COMPLETE);
-	        }
-	}
 
 	if ((cdb->byte2 & RWB_MODE) != RWB_MODE_DATA &&
 	    (cdb->byte2 & RWB_MODE) != RWB_MODE_ECHO_DESCR &&
@@ -6644,24 +6625,6 @@ ctl_mode_sense(struct ctl_scsiio *ctsio)
 	else
 		control_dev = 0;
 
-	if (lun->flags & CTL_LUN_PR_RESERVED) {
-		uint32_t residx;
-
-		/*
-		 * XXX KDM need a lock here.
-		 */
-		residx = ctl_get_resindex(&ctsio->io_hdr.nexus);
-		if ((lun->res_type == SPR_TYPE_EX_AC
-		  && residx != lun->pr_res_idx)
-		 || ((lun->res_type == SPR_TYPE_EX_AC_RO
-		   || lun->res_type == SPR_TYPE_EX_AC_AR)
-		  && lun->pr_keys[residx] == 0)) {
-			ctl_set_reservation_conflict(ctsio);
-			ctl_done((union ctl_io *)ctsio);
-			return (CTL_RETVAL_COMPLETE);
-		}
-	}
-
 	switch (ctsio->cdb[0]) {
 	case MODE_SENSE_6: {
 		struct scsi_mode_sense_6 *cdb;
@@ -7198,23 +7161,6 @@ ctl_read_defect(struct ctl_scsiio *ctsio)
 	CTL_DEBUG_PRINT(("ctl_read_defect\n"));
 
 	lun = (struct ctl_lun *)ctsio->io_hdr.ctl_private[CTL_PRIV_LUN].ptr;
-	if (lun->flags & CTL_LUN_PR_RESERVED) {
-		uint32_t residx;
-
-		/*
-		 * XXX KDM need a lock here.
-		 */
-		residx = ctl_get_resindex(&ctsio->io_hdr.nexus);
-		if ((lun->res_type == SPR_TYPE_EX_AC
-		  && residx != lun->pr_res_idx)
-		 || ((lun->res_type == SPR_TYPE_EX_AC_RO
-		   || lun->res_type == SPR_TYPE_EX_AC_AR)
-		  && lun->pr_keys[residx] == 0)) {
-			ctl_set_reservation_conflict(ctsio);
-			ctl_done((union ctl_io *)ctsio);
-			return (CTL_RETVAL_COMPLETE);
-	        }
-	}
 
 	if (ctsio->cdb[0] == READ_DEFECT_DATA_10) {
 		ccb10 = (struct scsi_read_defect_data_10 *)&ctsio->cdb;
@@ -8908,24 +8854,6 @@ ctl_read_write(struct ctl_scsiio *ctsio)
 
 	isread = ctsio->cdb[0] == READ_6  || ctsio->cdb[0] == READ_10
 	      || ctsio->cdb[0] == READ_12 || ctsio->cdb[0] == READ_16;
-	if (lun->flags & CTL_LUN_PR_RESERVED && isread) {
-		uint32_t residx;
-
-		/*
-		 * XXX KDM need a lock here.
-		 */
-		residx = ctl_get_resindex(&ctsio->io_hdr.nexus);
-		if ((lun->res_type == SPR_TYPE_EX_AC
-		  && residx != lun->pr_res_idx)
-		 || ((lun->res_type == SPR_TYPE_EX_AC_RO
-		   || lun->res_type == SPR_TYPE_EX_AC_AR)
-		  && lun->pr_keys[residx] == 0)) {
-			ctl_set_reservation_conflict(ctsio);
-			ctl_done((union ctl_io *)ctsio);
-			return (CTL_RETVAL_COMPLETE);
-	        }
-	}
-
 	switch (ctsio->cdb[0]) {
 	case READ_6:
 	case WRITE_6: {
@@ -11227,27 +11155,29 @@ ctl_scsiio_lun_check(struct ctl_softc *ctl_softc, struct ctl_lun *lun,
 	if ((lun->flags & CTL_LUN_RESERVED)
 	 && ((entry->flags & CTL_CMD_FLAG_ALLOW_ON_RESV) == 0)) {
 		if (lun->res_idx != residx) {
-			ctsio->scsi_status = SCSI_STATUS_RESERV_CONFLICT;
-			ctsio->io_hdr.status = CTL_SCSI_ERROR;
+			ctl_set_reservation_conflict(ctsio);
 			retval = 1;
 			goto bailout;
 		}
 	}
 
-	if ((lun->flags & CTL_LUN_PR_RESERVED)
-	 && ((entry->flags & CTL_CMD_FLAG_ALLOW_ON_PR_RESV) == 0)) {
+	if ((lun->flags & CTL_LUN_PR_RESERVED) == 0 ||
+	    (entry->flags & CTL_CMD_FLAG_ALLOW_ON_PR_RESV)) {
+		/* No reservation or command is allowed. */;
+	} else if ((entry->flags & CTL_CMD_FLAG_ALLOW_ON_PR_WRESV) &&
+	    (lun->res_type == SPR_TYPE_WR_EX ||
+	     lun->res_type == SPR_TYPE_WR_EX_RO ||
+	     lun->res_type == SPR_TYPE_WR_EX_AR)) {
+		/* The command is allowed for Write Exclusive resv. */;
+	} else {
 		/*
 		 * if we aren't registered or it's a res holder type
 		 * reservation and this isn't the res holder then set a
 		 * conflict.
-		 * NOTE: Commands which might be allowed on write exclusive
-		 * type reservations are checked in the particular command
-		 * for a conflict. Read and SSU are the only ones.
 		 */
 		if (lun->pr_keys[residx] == 0
 		 || (residx != lun->pr_res_idx && lun->res_type < 4)) {
-			ctsio->scsi_status = SCSI_STATUS_RESERV_CONFLICT;
-			ctsio->io_hdr.status = CTL_SCSI_ERROR;
+			ctl_set_reservation_conflict(ctsio);
 			retval = 1;
 			goto bailout;
 		}
