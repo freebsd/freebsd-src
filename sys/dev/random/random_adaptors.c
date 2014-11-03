@@ -275,10 +275,6 @@ random_adaptor_read_rate(void)
 {
 	int ret;
 
-	sx_assert(&random_adaptors_lock, SA_LOCKED);
-
-	KASSERT(random_adaptor != NULL, ("No active random adaptor in %s", __func__));
-
 	mtx_lock(&random_read_rate_mtx);
 
 	ret = random_adaptor_read_rate_cache;
