@@ -1746,7 +1746,7 @@ linux_ioctl_sound(struct thread *td, struct linux_ioctl_args *args)
 		switch ((args->cmd >> 16) & 0x1fff) {
 		case 0x005c: {	/* SOUND_MIXER_INFO */
 			args->cmd = SOUND_MIXER_INFO;
-			return (sys_ioctl(td, (struct ioctl_args *)args));
+			return (ioctl(td, (struct ioctl_args *)args));
 		}
 		case 0x0030: {	/* SOUND_OLD_MIXER_INFO */
 			struct linux_old_mixer_info info;
