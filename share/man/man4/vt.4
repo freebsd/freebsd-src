@@ -208,21 +208,24 @@ is used on computers that boot from UEFI.
 .It Va kern.vt.fb.default_mode
 Set this value to a graphic mode to override the default mode picked by the
 .Nm
-backend. The mode is applied to all output connectors. This is currently
-only supported by the
+backend.
+The mode is applied to all output connectors.
+This is currently only supported by the
 .Cm vt_fb
 backend when it's paired with a KMS video driver.
 .It Va kern.vt.fb.modes. Ns Pa connector_name
 Set this value to a graphic mode to override the default mode picked by the
 .Nm
-backend. This mode is applied to the output connector
+backend.
+This mode is applied to the output connector
 .Pa connector_name
 only. It has precedence over
 .Va kern.vt.fb.default_mode .
 The names of available connector names can be found in
 .Xr dmesg 8
-after loading the KMS driver. It will contain a list of connectors and
-their associated tunables. This is currently only supported by the
+after loading the KMS driver.
+It will contain a list of connectors and their associated tunables.
+This is currently only supported by the
 .Cm vt_fb
 backend when it's paired with a KMS video driver.
 .El
