@@ -238,9 +238,12 @@ struct ifnet {
 					 * to find a better place for
 					 * it eventually. */
 
-	/* TSO fields for segment limits. If a field is zero below, there is no limit. */
-	u_int		if_hw_tsomaxsegcount;	/* TSO maximum segment count */
-	u_int		if_hw_tsomaxsegsize;	/* TSO maximum segment size in bytes */
+	/*
+	 * TSO fields for segment limits. If a field below is zero,
+	 * there is no TSO segment limit.
+	 */
+	u_int	if_hw_tsomaxsegcount;	/* TSO maximum segment count */
+	u_int	if_hw_tsomaxsegsize;	/* TSO maximum segment size in bytes */
 
 	/*
 	 * Spare fields to be added before branching a stable branch, so
