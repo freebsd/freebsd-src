@@ -139,7 +139,7 @@ uk.*)				echo uk;;
 us.iso.acc)			echo us.acc;;
 us.pc-ctrl)			echo us.ctrl;;
 us.iso)				echo us;;
-    esac
+	esac
 }
 
 kbdcontrol_load_keymap()
