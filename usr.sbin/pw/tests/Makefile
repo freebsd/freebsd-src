@@ -7,6 +7,9 @@ TESTSDIR=	${TESTSBASE}/usr.sbin/pw
 
 ATF_TESTS_SH=	pw_delete pw_modify
 
+TEST_METADATA.pw_delete+=	required_user="root"
+TEST_METADATA.pw_modify+=	required_user="root"
+
 FILES=		group helper_functions.shin master.passwd
 FILESDIR=       ${TESTSDIR}
 
