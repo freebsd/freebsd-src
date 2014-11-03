@@ -98,6 +98,7 @@ MALLOC_DEFINE(M_FILECAPS, "filecaps", "descriptor capabilities");
 MALLOC_DECLARE(M_FADVISE);
 
 static uma_zone_t file_zone;
+static uma_zone_t filedesc0_zone;
 
 static int	closefp(struct filedesc *fdp, int fd, struct file *fp,
 		    struct thread *td, int holdleaders);
@@ -1801,7 +1802,7 @@ fdinit(struct filedesc *fdp)
 	struct filedesc0 *newfdp0;
 	struct filedesc *newfdp;
 
-	newfdp0 = malloc(sizeof *newfdp0, M_FILEDESC, M_WAITOK | M_ZERO);
+	newfdp0 = uma_zalloc(filedesc0_zone, M_WAITOK | M_ZERO);
 	newfdp = &newfdp0->fd_fd;
 
 	/* Create the file descriptor table. */
@@ -1865,7 +1866,7 @@ fddrop(struct filedesc *fdp)
 		return;
 
 	FILEDESC_LOCK_DESTROY(fdp);
-	free(fdp, M_FILEDESC);
+	uma_zfree(filedesc0_zone, fdp);
 }
 
 /*
@@ -3538,6 +3539,8 @@ filelistinit(void *dummy)
 
 	file_zone = uma_zcreate("Files", sizeof(struct file), NULL, NULL,
 	    NULL, NULL, UMA_ALIGN_PTR, UMA_ZONE_NOFREE);
+	filedesc0_zone = uma_zcreate("filedesc0", sizeof(struct filedesc0),
+	    NULL, NULL, NULL, NULL, UMA_ALIGN_PTR, 0);
 	mtx_init(&sigio_lock, "sigio lock", NULL, MTX_DEF);
 	mtx_init(&fdesc_mtx, "fdesc", NULL, MTX_DEF);
 }
