@@ -219,11 +219,10 @@ backend. This mode is applied to the output connector
 .Pa connector_name
 only. It has precedence over
 .Va kern.vt.fb.default_mode .
-To know the list of available connectors, load the KMS driver and look
-at
-.Xr dmesg 8 :
-it'll contain a list of connectors and their associated tunables. This
-is currently only supported by the
+The names of available connector names can be found in
+.Xr dmesg 8
+after loading the KMS driver. It will contain a list of connectors and
+their associated tunables. This is currently only supported by the
 .Cm vt_fb
 backend when it's paired with a KMS video driver.
 .El
