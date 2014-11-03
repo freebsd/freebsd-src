@@ -55,33 +55,40 @@ __FBSDID("$FreeBSD$");
 
 #include "virtio_if.h"
 
-#define VTCON_MAX_PORTS	1
+#define VTCON_MAX_PORTS 32
 #define VTCON_TTY_PREFIX "V"
 #define VTCON_BULK_BUFSZ 128
 
+/*
+ * The buffer cannot cross more than one page boundary due to the
+ * size of the sglist segment array used.
+ */
+CTASSERT(VTCON_BULK_BUFSZ <= PAGE_SIZE);
+
 struct vtcon_softc;
+struct vtcon_softc_port;
 
 struct vtcon_port {
-	struct vtcon_softc	*vtcport_sc;
-	TAILQ_ENTRY(vtcon_port)  vtcport_next;
-	struct mtx		 vtcport_mtx;
-	int			 vtcport_id;
-	struct tty		*vtcport_tty;
-	struct virtqueue	*vtcport_invq;
-	struct virtqueue	*vtcport_outvq;
-	char			 vtcport_name[16];
+	struct mtx			 vtcport_mtx;
+	struct vtcon_softc		*vtcport_sc;
+	struct vtcon_softc_port		*vtcport_scport;
+	struct tty			*vtcport_tty;
+	struct virtqueue		*vtcport_invq;
+	struct virtqueue		*vtcport_outvq;
+	int				 vtcport_id;
+	int				 vtcport_flags;
+#define VTCON_PORT_FLAG_GONE	0x01
 };
 
-#define VTCON_PORT_MTX(_port)		&(_port)->vtcport_mtx
-#define VTCON_PORT_LOCK_INIT(_port) \
-    mtx_init(VTCON_PORT_MTX((_port)), (_port)->vtcport_name, NULL, MTX_DEF)
-#define VTCON_PORT_LOCK(_port)		mtx_lock(VTCON_PORT_MTX((_port)))
-#define VTCON_PORT_UNLOCK(_port)	mtx_unlock(VTCON_PORT_MTX((_port)))
-#define VTCON_PORT_LOCK_DESTROY(_port)	mtx_destroy(VTCON_PORT_MTX((_port)))
-#define VTCON_PORT_LOCK_ASSERT(_port) \
-    mtx_assert(VTCON_PORT_MTX((_port)), MA_OWNED)
-#define VTCON_PORT_LOCK_ASSERT_NOTOWNED(_port) \
-    mtx_assert(VTCON_PORT_MTX((_port)), MA_NOTOWNED)
+#define VTCON_PORT_LOCK(_port)		mtx_lock(&(_port)->vtcport_mtx)
+#define VTCON_PORT_UNLOCK(_port)	mtx_unlock(&(_port)->vtcport_mtx)
+
+struct vtcon_softc_port {
+	struct vtcon_softc	*vcsp_sc;
+	struct vtcon_port	*vcsp_port;
+	struct virtqueue	*vcsp_invq;
+	struct virtqueue	*vcsp_outvq;
+};
 
 struct vtcon_softc {
 	device_t		 vtcon_dev;
@@ -95,38 +102,33 @@ struct vtcon_softc {
 	struct task		 vtcon_ctrl_task;
 	struct virtqueue	*vtcon_ctrl_rxvq;
 	struct virtqueue	*vtcon_ctrl_txvq;
+	struct mtx		 vtcon_ctrl_tx_mtx;
 
 	uint32_t		 vtcon_max_ports;
-	TAILQ_HEAD(, vtcon_port)
-				 vtcon_ports;
 
 	/*
 	 * Ports can be added and removed during runtime, but we have
 	 * to allocate all the virtqueues during attach. This array is
 	 * indexed by the port ID.
 	 */
-	struct vtcon_port_extra {
-		struct vtcon_port	*port;
-		struct virtqueue	*invq;
-		struct virtqueue	*outvq;
-	}			*vtcon_portsx;
+	struct vtcon_softc_port	*vtcon_ports;
 };
 
-#define VTCON_MTX(_sc)		&(_sc)->vtcon_mtx
-#define VTCON_LOCK_INIT(_sc, _name) \
-    mtx_init(VTCON_MTX((_sc)), (_name), NULL, MTX_DEF)
-#define VTCON_LOCK(_sc)		mtx_lock(VTCON_MTX((_sc)))
-#define VTCON_UNLOCK(_sc)	mtx_unlock(VTCON_MTX((_sc)))
-#define VTCON_LOCK_DESTROY(_sc)	mtx_destroy(VTCON_MTX((_sc)))
-#define VTCON_LOCK_ASSERT(_sc)	mtx_assert(VTCON_MTX((_sc)), MA_OWNED)
-#define VTCON_LOCK_ASSERT_NOTOWNED(_sc) \
-    mtx_assert(VTCON_MTX((_sc)), MA_NOTOWNED)
+#define VTCON_LOCK(_sc)			mtx_lock(&(_sc)->vtcon_mtx)
+#define VTCON_UNLOCK(_sc)		mtx_unlock(&(_sc)->vtcon_mtx)
+#define VTCON_LOCK_ASSERT(_sc)		\
+    mtx_assert(&(_sc)->vtcon_mtx, MA_OWNED)
+#define VTCON_LOCK_ASSERT_NOTOWNED(_sc)	\
+    mtx_assert(&(_sc)->vtcon_mtx, MA_NOTOWNED)
+
+#define VTCON_CTRL_TX_LOCK(_sc)		mtx_lock(&(_sc)->vtcon_ctrl_tx_mtx)
+#define VTCON_CTRL_TX_UNLOCK(_sc)	mtx_unlock(&(_sc)->vtcon_ctrl_tx_mtx)
 
 #define VTCON_ASSERT_VALID_PORTID(_sc, _id)			\
     KASSERT((_id) >= 0 && (_id) < (_sc)->vtcon_max_ports,	\
         ("%s: port ID %d out of range", __func__, _id))
 
-#define VTCON_FEATURES  0
+#define VTCON_FEATURES  VIRTIO_CONSOLE_F_MULTIPORT
 
 static struct virtio_feature_desc vtcon_feature_desc[] = {
 	{ VIRTIO_CONSOLE_F_SIZE,	"ConsoleSize"	},
@@ -136,62 +138,66 @@ static struct virtio_feature_desc vtcon_feature_desc[] = {
 };
 
 static int	 vtcon_modevent(module_t, int, void *);
+static void	 vtcon_drain_all(void);
 
 static int	 vtcon_probe(device_t);
 static int	 vtcon_attach(device_t);
 static int	 vtcon_detach(device_t);
 static int	 vtcon_config_change(device_t);
 
+static void	 vtcon_setup_features(struct vtcon_softc *);
 static void	 vtcon_negotiate_features(struct vtcon_softc *);
+static int	 vtcon_alloc_scports(struct vtcon_softc *);
 static int	 vtcon_alloc_virtqueues(struct vtcon_softc *);
 static void	 vtcon_read_config(struct vtcon_softc *,
 		     struct virtio_console_config *);
 
 static void	 vtcon_determine_max_ports(struct vtcon_softc *,
 		     struct virtio_console_config *);
-static void	 vtcon_deinit_ports(struct vtcon_softc *);
+static void	 vtcon_destroy_ports(struct vtcon_softc *);
 static void	 vtcon_stop(struct vtcon_softc *);
 
-static void	 vtcon_ctrl_rx_vq_intr(void *);
-static int	 vtcon_ctrl_enqueue_msg(struct vtcon_softc *,
+static int	 vtcon_ctrl_event_enqueue(struct vtcon_softc *,
 		     struct virtio_console_control *);
-static int	 vtcon_ctrl_add_msg(struct vtcon_softc *);
-static void	 vtcon_ctrl_readd_msg(struct vtcon_softc *,
+static int	 vtcon_ctrl_event_create(struct vtcon_softc *);
+static void	 vtcon_ctrl_event_requeue(struct vtcon_softc *,
 		     struct virtio_console_control *);
-static int	 vtcon_ctrl_populate(struct vtcon_softc *);
-static void	 vtcon_ctrl_send_msg(struct vtcon_softc *,
-		     struct virtio_console_control *control);
-static void	 vtcon_ctrl_send_event(struct vtcon_softc *, uint32_t,
-		     uint16_t, uint16_t);
+static int	 vtcon_ctrl_event_populate(struct vtcon_softc *);
+static void	 vtcon_ctrl_event_drain(struct vtcon_softc *);
 static int	 vtcon_ctrl_init(struct vtcon_softc *);
-static void	 vtcon_ctrl_drain(struct vtcon_softc *);
 static void	 vtcon_ctrl_deinit(struct vtcon_softc *);
 static void	 vtcon_ctrl_port_add_event(struct vtcon_softc *, int);
 static void	 vtcon_ctrl_port_remove_event(struct vtcon_softc *, int);
 static void	 vtcon_ctrl_port_console_event(struct vtcon_softc *, int);
 static void	 vtcon_ctrl_port_open_event(struct vtcon_softc *, int);
-static void	 vtcon_ctrl_process_msg(struct vtcon_softc *,
+static void	 vtcon_ctrl_process_event(struct vtcon_softc *,
 		     struct virtio_console_control *);
 static void	 vtcon_ctrl_task_cb(void *, int);
+static void	 vtcon_ctrl_event_intr(void *);
+static void	 vtcon_ctrl_poll(struct vtcon_softc *,
+		     struct virtio_console_control *control);
+static void	 vtcon_ctrl_send_control(struct vtcon_softc *, uint32_t,
+		     uint16_t, uint16_t);
 
-static int	 vtcon_port_add_inbuf(struct vtcon_port *);
-static void	 vtcon_port_readd_inbuf(struct vtcon_port *, void *);
+static int	 vtcon_port_enqueue_buf(struct vtcon_port *, void *, size_t);
+static int	 vtcon_port_create_buf(struct vtcon_port *);
+static void	 vtcon_port_requeue_buf(struct vtcon_port *, void *);
 static int	 vtcon_port_populate(struct vtcon_port *);
 static void	 vtcon_port_destroy(struct vtcon_port *);
-static int	 vtcon_port_create(struct vtcon_softc *, int,
-		     struct vtcon_port **);
-static void	 vtcon_port_drain_inbufs(struct vtcon_port *);
-static void	 vtcon_port_teardown(struct vtcon_port *, int);
+static int	 vtcon_port_create(struct vtcon_softc *, int);
+static void	 vtcon_port_drain_bufs(struct virtqueue *);
+static void	 vtcon_port_drain(struct vtcon_port *);
+static void	 vtcon_port_teardown(struct vtcon_port *);
 static void	 vtcon_port_change_size(struct vtcon_port *, uint16_t,
 		     uint16_t);
+static void	 vtcon_port_update_console_size(struct vtcon_softc *);
 static void	 vtcon_port_enable_intr(struct vtcon_port *);
 static void	 vtcon_port_disable_intr(struct vtcon_port *);
-static void	 vtcon_port_intr(struct vtcon_port *);
-static void	 vtcon_port_in_vq_intr(void *);
-static void	 vtcon_port_put(struct vtcon_port *, void *, int);
-static void	 vtcon_port_send_ctrl_msg(struct vtcon_port *, uint16_t,
+static void	 vtcon_port_in(struct vtcon_port *);
+static void	 vtcon_port_intr(void *);
+static void	 vtcon_port_out(struct vtcon_port *, void *, int);
+static void	 vtcon_port_submit_event(struct vtcon_port *, uint16_t,
 		     uint16_t);
-static struct vtcon_port *vtcon_port_lookup_by_id(struct vtcon_softc *, int);
 
 static int	 vtcon_tty_open(struct tty *);
 static void	 vtcon_tty_close(struct tty *);
@@ -248,9 +254,11 @@ vtcon_modevent(module_t mod, int type, void *unused)
 		error = 0;
 		break;
 	case MOD_QUIESCE:
+		error = 0;
+		break;
 	case MOD_UNLOAD:
-		error = vtcon_pending_free != 0 ? EBUSY : 0;
-		/* error = EOPNOTSUPP; */
+		vtcon_drain_all();
+		error = 0;
 		break;
 	case MOD_SHUTDOWN:
 		error = 0;
@@ -261,6 +269,20 @@ vtcon_modevent(module_t mod, int type, void *unused)
 	}
 
 	return (error);
+}
+
+static void
+vtcon_drain_all(void)
+{
+	int first;
+
+	for (first = 1; vtcon_pending_free != 0; first = 0) {
+		if (first != 0) {
+			printf("virtio_console: Waiting for all detached TTY "
+			    "devices to have open fds closed.\n");
+		}
+		pause("vtcondra", hz);
+	}
 }
 
 static int
@@ -285,20 +307,20 @@ vtcon_attach(device_t dev)
 	sc = device_get_softc(dev);
 	sc->vtcon_dev = dev;
 
-	VTCON_LOCK_INIT(sc, device_get_nameunit(dev));
-	TASK_INIT(&sc->vtcon_ctrl_task, 0, vtcon_ctrl_task_cb, sc);
-	TAILQ_INIT(&sc->vtcon_ports);
+	mtx_init(&sc->vtcon_mtx, "vtconmtx", NULL, MTX_DEF);
+	mtx_init(&sc->vtcon_ctrl_tx_mtx, "vtconctrlmtx", NULL, MTX_DEF);
 
 	virtio_set_feature_desc(dev, vtcon_feature_desc);
-	vtcon_negotiate_features(sc);
-
-	if (virtio_with_feature(dev, VIRTIO_CONSOLE_F_SIZE))
-		sc->vtcon_flags |= VTCON_FLAG_SIZE;
-	if (virtio_with_feature(dev, VIRTIO_CONSOLE_F_MULTIPORT))
-		sc->vtcon_flags |= VTCON_FLAG_MULTIPORT;
+	vtcon_setup_features(sc);
 
 	vtcon_read_config(sc, &concfg);
 	vtcon_determine_max_ports(sc, &concfg);
+
+	error = vtcon_alloc_scports(sc);
+	if (error) {
+		device_printf(dev, "cannot allocate softc port structures\n");
+		goto fail;
+	}
 
 	error = vtcon_alloc_virtqueues(sc);
 	if (error) {
@@ -306,10 +328,11 @@ vtcon_attach(device_t dev)
 		goto fail;
 	}
 
-	if (sc->vtcon_flags & VTCON_FLAG_MULTIPORT)
+	if (sc->vtcon_flags & VTCON_FLAG_MULTIPORT) {
+		TASK_INIT(&sc->vtcon_ctrl_task, 0, vtcon_ctrl_task_cb, sc);
 		error = vtcon_ctrl_init(sc);
-	else
-		error = vtcon_port_create(sc, 0, NULL);
+	} else
+		error = vtcon_port_create(sc, 0);
 	if (error)
 		goto fail;
 
@@ -321,7 +344,7 @@ vtcon_attach(device_t dev)
 
 	vtcon_enable_interrupts(sc);
 
-	vtcon_ctrl_send_event(sc, VIRTIO_CONSOLE_BAD_ID,
+	vtcon_ctrl_send_control(sc, VIRTIO_CONSOLE_BAD_ID,
 	    VIRTIO_CONSOLE_DEVICE_READY, 1);
 
 fail:
@@ -344,14 +367,14 @@ vtcon_detach(device_t dev)
 		vtcon_stop(sc);
 	VTCON_UNLOCK(sc);
 
-	taskqueue_drain(taskqueue_thread, &sc->vtcon_ctrl_task);
-
-	if (sc->vtcon_flags & VTCON_FLAG_MULTIPORT)
+	if (sc->vtcon_flags & VTCON_FLAG_MULTIPORT) {
+		taskqueue_drain(taskqueue_thread, &sc->vtcon_ctrl_task);
 		vtcon_ctrl_deinit(sc);
+	}
 
-	vtcon_deinit_ports(sc);
-
-	VTCON_LOCK_DESTROY(sc);
+	vtcon_destroy_ports(sc);
+	mtx_destroy(&sc->vtcon_mtx);
+	mtx_destroy(&sc->vtcon_ctrl_tx_mtx);
 
 	return (0);
 }
@@ -360,30 +383,16 @@ static int
 vtcon_config_change(device_t dev)
 {
 	struct vtcon_softc *sc;
-	struct vtcon_port *port;
-	uint16_t cols, rows;
 
 	sc = device_get_softc(dev);
 
 	/*
-	 * With the multiport feature, all configuration changes are
-	 * done through control virtqueue events. This is a spurious
-	 * interrupt.
+	 * When the multiport feature is negotiated, all configuration
+	 * changes are done through control virtqueue events.
 	 */
-	if (sc->vtcon_flags & VTCON_FLAG_MULTIPORT)
-		return (0);
-
-	if (sc->vtcon_flags & VTCON_FLAG_SIZE) {
-		/*
-		 * For now, assume the first (only) port is the 'console'.
-		 * Note QEMU does not implement this feature yet.
-		 */
-		VTCON_LOCK(sc);
-		if ((port = vtcon_port_lookup_by_id(sc, 0)) != NULL) {
-			vtcon_get_console_size(sc, &cols, &rows);
-			vtcon_port_change_size(port, cols, rows);
-		}
-		VTCON_UNLOCK(sc);
+	if ((sc->vtcon_flags & VTCON_FLAG_MULTIPORT) == 0) {
+		if (sc->vtcon_flags & VTCON_FLAG_SIZE)
+			vtcon_port_update_console_size(sc);
 	}
 
 	return (0);
@@ -399,6 +408,21 @@ vtcon_negotiate_features(struct vtcon_softc *sc)
 	features = VTCON_FEATURES;
 
 	sc->vtcon_features = virtio_negotiate_features(dev, features);
+}
+
+static void
+vtcon_setup_features(struct vtcon_softc *sc)
+{
+	device_t dev;
+
+	dev = sc->vtcon_dev;
+
+	vtcon_negotiate_features(sc);
+
+	if (virtio_with_feature(dev, VIRTIO_CONSOLE_F_SIZE))
+		sc->vtcon_flags |= VTCON_FLAG_SIZE;
+	if (virtio_with_feature(dev, VIRTIO_CONSOLE_F_MULTIPORT))
+		sc->vtcon_flags |= VTCON_FLAG_MULTIPORT;
 }
 
 #define VTCON_GET_CONFIG(_dev, _feature, _field, _cfg)			\
@@ -417,7 +441,6 @@ vtcon_read_config(struct vtcon_softc *sc, struct virtio_console_config *concfg)
 
 	bzero(concfg, sizeof(struct virtio_console_config));
 
-	/* Read the configuration if the feature was negotiated. */
 	VTCON_GET_CONFIG(dev, VIRTIO_CONSOLE_F_SIZE, cols, concfg);
 	VTCON_GET_CONFIG(dev, VIRTIO_CONSOLE_F_SIZE, rows, concfg);
 	VTCON_GET_CONFIG(dev, VIRTIO_CONSOLE_F_MULTIPORT, max_nr_ports, concfg);
@@ -426,19 +449,35 @@ vtcon_read_config(struct vtcon_softc *sc, struct virtio_console_config *concfg)
 #undef VTCON_GET_CONFIG
 
 static int
+vtcon_alloc_scports(struct vtcon_softc *sc)
+{
+	struct vtcon_softc_port *scport;
+	int max, i;
+
+	max = sc->vtcon_max_ports;
+
+	sc->vtcon_ports = malloc(sizeof(struct vtcon_softc_port) * max,
+	    M_DEVBUF, M_NOWAIT | M_ZERO);
+	if (sc->vtcon_ports == NULL)
+		return (ENOMEM);
+
+	for (i = 0; i < max; i++) {
+		scport = &sc->vtcon_ports[i];
+		scport->vcsp_sc = sc;
+	}
+
+	return (0);
+}
+
+static int
 vtcon_alloc_virtqueues(struct vtcon_softc *sc)
 {
 	device_t dev;
 	struct vq_alloc_info *info;
-	struct vtcon_port_extra *portx;
+	struct vtcon_softc_port *scport;
 	int i, idx, portidx, nvqs, error;
 
 	dev = sc->vtcon_dev;
-
-	sc->vtcon_portsx = malloc(sizeof(struct vtcon_port_extra) *
-	    sc->vtcon_max_ports, M_DEVBUF, M_NOWAIT | M_ZERO);
-	if (sc->vtcon_portsx == NULL)
-		return (ENOMEM);
 
 	nvqs = sc->vtcon_max_ports * 2;
 	if (sc->vtcon_flags & VTCON_FLAG_MULTIPORT)
@@ -448,12 +487,12 @@ vtcon_alloc_virtqueues(struct vtcon_softc *sc)
 	if (info == NULL)
 		return (ENOMEM);
 
-	for (i = 0, idx = 0, portidx = 0; i < nvqs / 2; i++, idx+=2) {
+	for (i = 0, idx = 0, portidx = 0; i < nvqs / 2; i++, idx += 2) {
 
 		if (i == 1) {
 			/* The control virtqueues are after the first port. */
 			VQ_ALLOC_INFO_INIT(&info[idx], 0,
-			    vtcon_ctrl_rx_vq_intr, sc, &sc->vtcon_ctrl_rxvq,
+			    vtcon_ctrl_event_intr, sc, &sc->vtcon_ctrl_rxvq,
 			    "%s-control rx", device_get_nameunit(dev));
 			VQ_ALLOC_INFO_INIT(&info[idx+1], 0,
 			    NULL, sc, &sc->vtcon_ctrl_txvq,
@@ -461,14 +500,14 @@ vtcon_alloc_virtqueues(struct vtcon_softc *sc)
 			continue;
 		}
 
-		portx = &sc->vtcon_portsx[portidx];
+		scport = &sc->vtcon_ports[portidx];
 
-		VQ_ALLOC_INFO_INIT(&info[idx], 0, vtcon_port_in_vq_intr,
-		    portx, &portx->invq, "%s-port%d in",
-		    device_get_nameunit(dev), portidx);
+		VQ_ALLOC_INFO_INIT(&info[idx], 0, vtcon_port_intr,
+		    scport, &scport->vcsp_invq, "%s-port%d in",
+		    device_get_nameunit(dev), i);
 		VQ_ALLOC_INFO_INIT(&info[idx+1], 0, NULL,
-		    NULL, &portx->outvq, "%s-port%d out",
-		    device_get_nameunit(dev), portidx);
+		    NULL, &scport->vcsp_outvq, "%s-port%d out",
+		    device_get_nameunit(dev), i);
 
 		portidx++;
 	}
@@ -494,18 +533,37 @@ vtcon_determine_max_ports(struct vtcon_softc *sc,
 }
 
 static void
-vtcon_deinit_ports(struct vtcon_softc *sc)
+vtcon_destroy_ports(struct vtcon_softc *sc)
 {
-	struct vtcon_port *port, *tmp;
+	struct vtcon_softc_port *scport;
+	struct vtcon_port *port;
+	struct virtqueue *vq;
+	int i;
 
-	TAILQ_FOREACH_SAFE(port, &sc->vtcon_ports, vtcport_next, tmp) {
-		vtcon_port_teardown(port, 1);
-	}
+	if (sc->vtcon_ports == NULL)
+		return;
 
-	if (sc->vtcon_portsx != NULL) {
-		free(sc->vtcon_portsx, M_DEVBUF);
-		sc->vtcon_portsx = NULL;
+	VTCON_LOCK(sc);
+	for (i = 0; i < sc->vtcon_max_ports; i++) {
+		scport = &sc->vtcon_ports[i];
+
+		port = scport->vcsp_port;
+		if (port != NULL) {
+			scport->vcsp_port = NULL;
+			VTCON_PORT_LOCK(port);
+			VTCON_UNLOCK(sc);
+			vtcon_port_teardown(port);
+			VTCON_LOCK(sc);
+		}
+
+		vq = scport->vcsp_invq;
+		if (vq != NULL)
+			vtcon_port_drain_bufs(vq);
 	}
+	VTCON_UNLOCK(sc);
+
+	free(sc->vtcon_ports, M_DEVBUF);
+	sc->vtcon_ports = NULL;
 }
 
 static void
@@ -516,50 +574,38 @@ vtcon_stop(struct vtcon_softc *sc)
 	virtio_stop(sc->vtcon_dev);
 }
 
-static void
-vtcon_ctrl_rx_vq_intr(void *xsc)
-{
-	struct vtcon_softc *sc;
-
-	sc = xsc;
-
-	/*
-	 * Some events require us to potentially block, but it easier
-	 * to just defer all event handling to a seperate thread.
-	 */
-	taskqueue_enqueue(taskqueue_thread, &sc->vtcon_ctrl_task);
-}
-
 static int
-vtcon_ctrl_enqueue_msg(struct vtcon_softc *sc,
+vtcon_ctrl_event_enqueue(struct vtcon_softc *sc,
     struct virtio_console_control *control)
 {
-	struct sglist_seg segs[1];
+	struct sglist_seg segs[2];
 	struct sglist sg;
 	struct virtqueue *vq;
-	int error __unused;
+	int error;
 
 	vq = sc->vtcon_ctrl_rxvq;
 
-	sglist_init(&sg, 1, segs);
-	error = sglist_append(&sg, control, sizeof(*control));
-	KASSERT(error == 0 && sg.sg_nseg == 1,
-	    ("%s: error %d adding control msg to sglist", __func__, error));
+	sglist_init(&sg, 2, segs);
+	error = sglist_append(&sg, control,
+	    sizeof(struct virtio_console_control));
+	KASSERT(error == 0, ("%s: error %d adding control to sglist",
+	    __func__, error));
 
-	return (virtqueue_enqueue(vq, control, &sg, 0, 1));
+	return (virtqueue_enqueue(vq, control, &sg, 0, sg.sg_nseg));
 }
 
 static int
-vtcon_ctrl_add_msg(struct vtcon_softc *sc)
+vtcon_ctrl_event_create(struct vtcon_softc *sc)
 {
 	struct virtio_console_control *control;
 	int error;
 
-	control = malloc(sizeof(*control), M_DEVBUF, M_ZERO | M_NOWAIT);
+	control = malloc(sizeof(struct virtio_console_control), M_DEVBUF,
+	    M_ZERO | M_NOWAIT);
 	if (control == NULL)
 		return (ENOMEM);
 
-	error = vtcon_ctrl_enqueue_msg(sc, control);
+	error = vtcon_ctrl_event_enqueue(sc, control);
 	if (error)
 		free(control, M_DEVBUF);
 
@@ -567,20 +613,20 @@ vtcon_ctrl_add_msg(struct vtcon_softc *sc)
 }
 
 static void
-vtcon_ctrl_readd_msg(struct vtcon_softc *sc,
+vtcon_ctrl_event_requeue(struct vtcon_softc *sc,
     struct virtio_console_control *control)
 {
 	int error;
 
-	bzero(control, sizeof(*control));
+	bzero(control, sizeof(struct virtio_console_control));
 
-	error = vtcon_ctrl_enqueue_msg(sc, control);
+	error = vtcon_ctrl_event_enqueue(sc, control);
 	KASSERT(error == 0,
 	    ("%s: cannot requeue control buffer %d", __func__, error));
 }
 
 static int
-vtcon_ctrl_populate(struct vtcon_softc *sc)
+vtcon_ctrl_event_populate(struct vtcon_softc *sc)
 {
 	struct virtqueue *vq;
 	int nbufs, error;
@@ -589,78 +635,21 @@ vtcon_ctrl_populate(struct vtcon_softc *sc)
 	error = ENOSPC;
 
 	for (nbufs = 0; !virtqueue_full(vq); nbufs++) {
-		error = vtcon_ctrl_add_msg(sc);
+		error = vtcon_ctrl_event_create(sc);
 		if (error)
 			break;
 	}
 
 	if (nbufs > 0) {
 		virtqueue_notify(vq);
-		/*
-		 * EMSGSIZE signifies the virtqueue did not have enough
-		 * entries available to hold the last buf. This is not
-		 * an error.
-		 */
-		if (error == EMSGSIZE)
-			error = 0;
+		error = 0;
 	}
 
 	return (error);
 }
 
 static void
-vtcon_ctrl_send_msg(struct vtcon_softc *sc,
-    struct virtio_console_control *control)
-{
-	struct sglist_seg segs[1];
-	struct sglist sg;
-	struct virtqueue *vq;
-	int error;
-
-	vq = sc->vtcon_ctrl_txvq;
-	KASSERT(virtqueue_empty(vq),
-	    ("%s: virtqueue is not emtpy", __func__));
-
-	sglist_init(&sg, 1, segs);
-	error = sglist_append(&sg, control, sizeof(*control));
-	KASSERT(error == 0 && sg.sg_nseg == 1,
-	    ("%s: error %d adding control msg to sglist", __func__, error));
-
-	error = virtqueue_enqueue(vq, control, &sg, 1, 0);
-	if (error == 0) {
-		virtqueue_notify(vq);
-		virtqueue_poll(vq, NULL);
-	}
-}
-
-static void
-vtcon_ctrl_send_event(struct vtcon_softc *sc, uint32_t portid, uint16_t event,
-    uint16_t value)
-{
-	struct virtio_console_control control;
-
-	if ((sc->vtcon_flags & VTCON_FLAG_MULTIPORT) == 0)
-		return;
-
-	control.id = portid;
-	control.event = event;
-	control.value = value;
-
-	vtcon_ctrl_send_msg(sc, &control);
-}
-
-static int
-vtcon_ctrl_init(struct vtcon_softc *sc)
-{
-	int error;
-
-	error = vtcon_ctrl_populate(sc);
-
-	return (error);
-}
-
-static void
-vtcon_ctrl_drain(struct vtcon_softc *sc)
+vtcon_ctrl_event_drain(struct vtcon_softc *sc)
 {
 	struct virtio_console_control *control;
 	struct virtqueue *vq;
@@ -672,93 +661,112 @@ vtcon_ctrl_drain(struct vtcon_softc *sc)
 	if (vq == NULL)
 		return;
 
+	VTCON_LOCK(sc);
 	while ((control = virtqueue_drain(vq, &last)) != NULL)
 		free(control, M_DEVBUF);
+	VTCON_UNLOCK(sc);
+}
+
+static int
+vtcon_ctrl_init(struct vtcon_softc *sc)
+{
+	int error;
+
+	error = vtcon_ctrl_event_populate(sc);
+
+	return (error);
 }
 
 static void
 vtcon_ctrl_deinit(struct vtcon_softc *sc)
 {
 
-	vtcon_ctrl_drain(sc);
+	vtcon_ctrl_event_drain(sc);
 }
 
 static void
 vtcon_ctrl_port_add_event(struct vtcon_softc *sc, int id)
 {
 	device_t dev;
-	struct vtcon_port *port;
 	int error;
 
 	dev = sc->vtcon_dev;
 
-	if (vtcon_port_lookup_by_id(sc, id) != NULL) {
+	/* This single thread only way for ports to be created. */
+	if (sc->vtcon_ports[id].vcsp_port != NULL) {
 		device_printf(dev, "%s: adding port %d, but already exists\n",
 		    __func__, id);
 		return;
 	}
 
-	error = vtcon_port_create(sc, id, &port);
+	error = vtcon_port_create(sc, id);
 	if (error) {
 		device_printf(dev, "%s: cannot create port %d: %d\n",
 		    __func__, id, error);
 		return;
 	}
-
-	vtcon_port_send_ctrl_msg(port, VIRTIO_CONSOLE_PORT_READY, 1);
 }
 
 static void
 vtcon_ctrl_port_remove_event(struct vtcon_softc *sc, int id)
 {
 	device_t dev;
+	struct vtcon_softc_port *scport;
 	struct vtcon_port *port;
 
 	dev = sc->vtcon_dev;
+	scport = &sc->vtcon_ports[id];
 
-	port = vtcon_port_lookup_by_id(sc, id);
+	VTCON_LOCK(sc);
+	port = scport->vcsp_port;
 	if (port == NULL) {
+		VTCON_UNLOCK(sc);
 		device_printf(dev, "%s: remove port %d, but does not exist\n",
 		    __func__, id);
 		return;
 	}
 
-	vtcon_port_teardown(port, 1);
+	scport->vcsp_port = NULL;
+	VTCON_PORT_LOCK(port);
+	VTCON_UNLOCK(sc);
+	vtcon_port_teardown(port);
 }
 
 static void
 vtcon_ctrl_port_console_event(struct vtcon_softc *sc, int id)
 {
-	device_t dev;
 
-	dev = sc->vtcon_dev;
-
-	/*
-	 * BMV: I don't think we need to do anything.
-	 */
-	device_printf(dev, "%s: port %d console event\n", __func__, id);
+	device_printf(sc->vtcon_dev, "%s: port %d console event\n",
+	    __func__, id);
 }
 
 static void
 vtcon_ctrl_port_open_event(struct vtcon_softc *sc, int id)
 {
 	device_t dev;
+	struct vtcon_softc_port *scport;
 	struct vtcon_port *port;
 
 	dev = sc->vtcon_dev;
+	scport = &sc->vtcon_ports[id];
 
-	port = vtcon_port_lookup_by_id(sc, id);
+	VTCON_LOCK(sc);
+	port = scport->vcsp_port;
 	if (port == NULL) {
+		VTCON_UNLOCK(sc);
 		device_printf(dev, "%s: open port %d, but does not exist\n",
 		    __func__, id);
 		return;
 	}
 
+	VTCON_PORT_LOCK(port);
+	VTCON_UNLOCK(sc);
 	vtcon_port_enable_intr(port);
+	VTCON_PORT_UNLOCK(port);
 }
 
 static void
-vtcon_ctrl_process_msg(struct vtcon_softc *sc,
+vtcon_ctrl_process_event(struct vtcon_softc *sc,
     struct virtio_console_control *control)
 {
 	device_t dev;
@@ -803,47 +811,120 @@ vtcon_ctrl_task_cb(void *xsc, int pending)
 	struct vtcon_softc *sc;
 	struct virtqueue *vq;
 	struct virtio_console_control *control;
+	int detached;
 
 	sc = xsc;
 	vq = sc->vtcon_ctrl_rxvq;
 
 	VTCON_LOCK(sc);
-	while ((sc->vtcon_flags & VTCON_FLAG_DETACHED) == 0) {
+
+	while ((detached = (sc->vtcon_flags & VTCON_FLAG_DETACHED)) == 0) {
 		control = virtqueue_dequeue(vq, NULL);
 		if (control == NULL)
 			break;
 
 		VTCON_UNLOCK(sc);
-		vtcon_ctrl_process_msg(sc, control);
+		vtcon_ctrl_process_event(sc, control);
 		VTCON_LOCK(sc);
-		vtcon_ctrl_readd_msg(sc, control);
+		vtcon_ctrl_event_requeue(sc, control);
 	}
-	VTCON_UNLOCK(sc);
 
-	if (virtqueue_enable_intr(vq) != 0)
-		taskqueue_enqueue(taskqueue_thread, &sc->vtcon_ctrl_task);
+	if (!detached) {
+		virtqueue_notify(vq);
+		if (virtqueue_enable_intr(vq) != 0)
+			taskqueue_enqueue(taskqueue_thread,
+			    &sc->vtcon_ctrl_task);
+	}
+
+	VTCON_UNLOCK(sc);
+}
+
+static void
+vtcon_ctrl_event_intr(void *xsc)
+{
+	struct vtcon_softc *sc;
+
+	sc = xsc;
+
+	/*
+	 * Only some events require us to potentially block, but it
+	 * easier to just defer all event handling to the taskqueue.
+	 */
+	taskqueue_enqueue(taskqueue_thread, &sc->vtcon_ctrl_task);
+}
+
+static void
+vtcon_ctrl_poll(struct vtcon_softc *sc,
+    struct virtio_console_control *control)
+{
+	struct sglist_seg segs[2];
+	struct sglist sg;
+	struct virtqueue *vq;
+	int error;
+
+	vq = sc->vtcon_ctrl_txvq;
+
+	sglist_init(&sg, 2, segs);
+	error = sglist_append(&sg, control,
+	    sizeof(struct virtio_console_control));
+	KASSERT(error == 0, ("%s: error %d adding control to sglist",
+	    __func__, error));
+
+	/*
+	 * We cannot use the softc lock to serialize access to this
+	 * virtqueue since this is called from the tty layer with the
+	 * port lock held. Acquiring the softc would violate our lock
+	 * ordering.
+	 */
+	VTCON_CTRL_TX_LOCK(sc);
+	KASSERT(virtqueue_empty(vq),
+	    ("%s: virtqueue is not emtpy", __func__));
+	error = virtqueue_enqueue(vq, control, &sg, sg.sg_nseg, 0);
+	if (error == 0) {
+		virtqueue_notify(vq);
+		virtqueue_poll(vq, NULL);
+	}
+	VTCON_CTRL_TX_UNLOCK(sc);
+}
+
+static void
+vtcon_ctrl_send_control(struct vtcon_softc *sc, uint32_t portid,
+    uint16_t event, uint16_t value)
+{
+	struct virtio_console_control control;
+
+	if ((sc->vtcon_flags & VTCON_FLAG_MULTIPORT) == 0)
+		return;
+
+	control.id = portid;
+	control.event = event;
+	control.value = value;
+
+	vtcon_ctrl_poll(sc, &control);
 }
 
 static int
-vtcon_port_enqueue_inbuf(struct vtcon_port *port, void *buf, size_t len)
+vtcon_port_enqueue_buf(struct vtcon_port *port, void *buf, size_t len)
 {
-	struct sglist_seg segs[1];
+	struct sglist_seg segs[2];
 	struct sglist sg;
 	struct virtqueue *vq;
 	int error;
 
 	vq = port->vtcport_invq;
 
-	sglist_init(&sg, 1, segs);
+	sglist_init(&sg, 2, segs);
 	error = sglist_append(&sg, buf, len);
-	KASSERT(error == 0 && sg.sg_nseg == 1,
+	KASSERT(error == 0,
 	    ("%s: error %d adding buffer to sglist", __func__, error));
 
-	return (virtqueue_enqueue(vq, buf, &sg, 0, 1));
+	error = virtqueue_enqueue(vq, buf, &sg, 0, sg.sg_nseg);
+
+	return (error);
 }
 
 static int
-vtcon_port_add_inbuf(struct vtcon_port *port)
+vtcon_port_create_buf(struct vtcon_port *port)
 {
 	void *buf;
 	int error;
@@ -852,7 +933,7 @@ vtcon_port_add_inbuf(struct vtcon_port *port)
 	if (buf == NULL)
 		return (ENOMEM);
 
-	error = vtcon_port_enqueue_inbuf(port, buf, VTCON_BULK_BUFSZ);
+	error = vtcon_port_enqueue_buf(port, buf, VTCON_BULK_BUFSZ);
 	if (error)
 		free(buf, M_DEVBUF);
 
@@ -860,11 +941,11 @@ vtcon_port_add_inbuf(struct vtcon_port *port)
 }
 
 static void
-vtcon_port_readd_inbuf(struct vtcon_port *port, void *buf)
+vtcon_port_requeue_buf(struct vtcon_port *port, void *buf)
 {
-	int error __unused;
+	int error;
 
-	error = vtcon_port_enqueue_inbuf(port, buf, VTCON_BULK_BUFSZ);
+	error = vtcon_port_enqueue_buf(port, buf, VTCON_BULK_BUFSZ);
 	KASSERT(error == 0,
 	    ("%s: cannot requeue input buffer %d", __func__, error));
 }
@@ -879,20 +960,14 @@ vtcon_port_populate(struct vtcon_port *port)
 	error = ENOSPC;
 
 	for (nbufs = 0; !virtqueue_full(vq); nbufs++) {
-		error = vtcon_port_add_inbuf(port);
+		error = vtcon_port_create_buf(port);
 		if (error)
 			break;
 	}
 
 	if (nbufs > 0) {
 		virtqueue_notify(vq);
-		/*
-		 * EMSGSIZE signifies the virtqueue did not have enough
-		 * entries available to hold the last buf. This is not
-		 * an error.
-		 */
-		if (error == EMSGSIZE)
-			error = 0;
+		error = 0;
 	}
 
 	return (error);
@@ -903,49 +978,73 @@ vtcon_port_destroy(struct vtcon_port *port)
 {
 
 	port->vtcport_sc = NULL;
+	port->vtcport_scport = NULL;
+	port->vtcport_invq = NULL;
+	port->vtcport_outvq = NULL;
 	port->vtcport_id = -1;
-	VTCON_PORT_LOCK_DESTROY(port);
+	mtx_destroy(&port->vtcport_mtx);
 	free(port, M_DEVBUF);
 }
 
 static int
-vtcon_port_create(struct vtcon_softc *sc, int id, struct vtcon_port **portp)
+vtcon_port_init_vqs(struct vtcon_port *port)
+{
+	struct vtcon_softc_port *scport;
+	int error;
+
+	scport = port->vtcport_scport;
+
+	port->vtcport_invq = scport->vcsp_invq;
+	port->vtcport_outvq = scport->vcsp_outvq;
+
+	/*
+	 * Free any data left over from when this virtqueue was in use by a
+	 * prior port. We have not yet notified the host that the port is
+	 * ready, so assume nothing in the virtqueue can be for us.
+	 */
+	vtcon_port_drain(port);
+
+	KASSERT(virtqueue_empty(port->vtcport_invq),
+	    ("%s: in virtqueue is not empty", __func__));
+	KASSERT(virtqueue_empty(port->vtcport_outvq),
+	    ("%s: out virtqueue is not empty", __func__));
+
+	error = vtcon_port_populate(port);
+	if (error)
+		return (error);
+
+	return (0);
+}
+
+static int
+vtcon_port_create(struct vtcon_softc *sc, int id)
 {
 	device_t dev;
-	struct vtcon_port_extra *portx;
+	struct vtcon_softc_port *scport;
 	struct vtcon_port *port;
 	int error;
 
-	MPASS(id < sc->vtcon_max_ports);
 	dev = sc->vtcon_dev;
-	portx = &sc->vtcon_portsx[id];
+	scport = &sc->vtcon_ports[id];
 
-	if (portx->port != NULL)
-		return (EEXIST);
+	VTCON_ASSERT_VALID_PORTID(sc, id);
+	MPASS(scport->vcsp_port == NULL);
 
 	port = malloc(sizeof(struct vtcon_port), M_DEVBUF, M_NOWAIT | M_ZERO);
 	if (port == NULL)
 		return (ENOMEM);
 
 	port->vtcport_sc = sc;
+	port->vtcport_scport = scport;
 	port->vtcport_id = id;
-	snprintf(port->vtcport_name, sizeof(port->vtcport_name), "%s-port%d",
-	    device_get_nameunit(dev), id);
-	VTCON_PORT_LOCK_INIT(port);
+	mtx_init(&port->vtcport_mtx, "vtcpmtx", NULL, MTX_DEF);
 	port->vtcport_tty = tty_alloc_mutex(&vtcon_tty_class, port,
 	    &port->vtcport_mtx);
 
-	/*
-	 * Assign virtqueues saved from attach. To be safe, clear the
-	 * virtqueue too.
-	 */
-	port->vtcport_invq = portx->invq;
-	port->vtcport_outvq = portx->outvq;
-	vtcon_port_drain_inbufs(port);
-
-	error = vtcon_port_populate(port);
+	error = vtcon_port_init_vqs(port);
 	if (error) {
-		vtcon_port_teardown(port, 0);
+		VTCON_PORT_LOCK(port);
+		vtcon_port_teardown(port);
 		return (error);
 	}
 
@@ -953,65 +1052,46 @@ vtcon_port_create(struct vtcon_softc *sc, int id, struct vtcon_port **portp)
 	    device_get_unit(dev), id);
 
 	VTCON_LOCK(sc);
-	portx->port = port;
-	TAILQ_INSERT_TAIL(&sc->vtcon_ports, port, vtcport_next);
+	VTCON_PORT_LOCK(port);
+	vtcon_port_enable_intr(port);
+	scport->vcsp_port = port;
+	vtcon_port_submit_event(port, VIRTIO_CONSOLE_PORT_READY, 1);
+	VTCON_PORT_UNLOCK(port);
 	VTCON_UNLOCK(sc);
-
-	if (portp != NULL)
-		*portp = port;
 
 	return (0);
 }
 
 static void
-vtcon_port_drain_inbufs(struct vtcon_port *port)
+vtcon_port_drain_bufs(struct virtqueue *vq)
 {
-	struct virtqueue *vq;
 	void *buf;
 	int last;
 
-	vq = port->vtcport_invq;
 	last = 0;
-
-	if (vq == NULL)
-		return;
 
 	while ((buf = virtqueue_drain(vq, &last)) != NULL)
 		free(buf, M_DEVBUF);
 }
 
 static void
-vtcon_port_teardown(struct vtcon_port *port, int ontailq)
+vtcon_port_drain(struct vtcon_port *port)
 {
-	struct vtcon_softc *sc;
-	struct vtcon_port_extra *portx;
-	struct tty *tp;
-	int id;
 
-	sc = port->vtcport_sc;
-	id = port->vtcport_id;
+	vtcon_port_drain_bufs(port->vtcport_invq);
+}
+
+static void
+vtcon_port_teardown(struct vtcon_port *port)
+{
+	struct tty *tp;
+
 	tp = port->vtcport_tty;
 
-	VTCON_ASSERT_VALID_PORTID(sc, id);
-	portx = &sc->vtcon_portsx[id];
-
-	VTCON_PORT_LOCK(port);
-	vtcon_port_drain_inbufs(port);
-	VTCON_PORT_UNLOCK(port);
-
-	VTCON_LOCK(sc);
-	KASSERT(portx->port == NULL || portx->port == port,
-	    ("%s: port %d mismatch %p/%p", __func__, id, portx->port, port));
-	portx->port = NULL;
-	if (ontailq != 0)
-		TAILQ_REMOVE(&sc->vtcon_ports, port, vtcport_next);
-	VTCON_UNLOCK(sc);
+	port->vtcport_flags |= VTCON_PORT_FLAG_GONE;
 
 	if (tp != NULL) {
-		port->vtcport_tty = NULL;
 		atomic_add_int(&vtcon_pending_free, 1);
-
-		VTCON_PORT_LOCK(port);
 		tty_rel_gone(tp);
 	} else
 		vtcon_port_destroy(port);
@@ -1032,9 +1112,34 @@ vtcon_port_change_size(struct vtcon_port *port, uint16_t cols, uint16_t rows)
 	sz.ws_col = cols;
 	sz.ws_row = rows;
 
-	VTCON_PORT_LOCK(port);
 	tty_set_winsize(tp, &sz);
-	VTCON_PORT_UNLOCK(port);
+}
+
+static void
+vtcon_port_update_console_size(struct vtcon_softc *sc)
+{
+	struct vtcon_port *port;
+	struct vtcon_softc_port *scport;
+	uint16_t cols, rows;
+
+	vtcon_get_console_size(sc, &cols, &rows);
+
+	/*
+	 * For now, assume the first (only) port is the console. Note
+	 * QEMU does not implement this feature yet.
+	 */
+	scport = &sc->vtcon_ports[0];
+
+	VTCON_LOCK(sc);
+	port = scport->vcsp_port;
+
+	if (port != NULL) {
+		VTCON_PORT_LOCK(port);
+		VTCON_UNLOCK(sc);
+		vtcon_port_change_size(port, cols, rows);
+		VTCON_PORT_UNLOCK(port);
+	} else
+		VTCON_UNLOCK(sc);
 }
 
 static void
@@ -1042,10 +1147,9 @@ vtcon_port_enable_intr(struct vtcon_port *port)
 {
 
 	/*
-	 * NOTE: The out virtqueue is always polled, so we keep its
-	 * interupt disabled.
+	 * NOTE: The out virtqueue is always polled, so its interupt
+	 * kept disabled.
 	 */
-
 	virtqueue_enable_intr(port->vtcport_invq);
 }
 
@@ -1060,10 +1164,10 @@ vtcon_port_disable_intr(struct vtcon_port *port)
 }
 
 static void
-vtcon_port_intr(struct vtcon_port *port)
+vtcon_port_in(struct vtcon_port *port)
 {
-	struct tty *tp;
 	struct virtqueue *vq;
+	struct tty *tp;
 	char *buf;
 	uint32_t len;
 	int i, deq;
@@ -1074,15 +1178,13 @@ vtcon_port_intr(struct vtcon_port *port)
 again:
 	deq = 0;
 
-	VTCON_PORT_LOCK(port);
 	while ((buf = virtqueue_dequeue(vq, &len)) != NULL) {
-		deq++;
 		for (i = 0; i < len; i++)
 			ttydisc_rint(tp, buf[i], 0);
-		vtcon_port_readd_inbuf(port, buf);
+		vtcon_port_requeue_buf(port, buf);
+		deq++;
 	}
 	ttydisc_rint_done(tp);
-	VTCON_PORT_UNLOCK(port);
 
 	if (deq > 0)
 		virtqueue_notify(vq);
@@ -1092,65 +1194,61 @@ again:
 }
 
 static void
-vtcon_port_in_vq_intr(void *xportx)
+vtcon_port_intr(void *scportx)
 {
-	struct vtcon_port_extra *portx;
+	struct vtcon_softc_port *scport;
+	struct vtcon_softc *sc;
 	struct vtcon_port *port;
 
-	portx = xportx;
-	port = portx->port;
+	scport = scportx;
+	sc = scport->vcsp_sc;
 
-	if (port != NULL)
-		vtcon_port_intr(port);
+	VTCON_LOCK(sc);
+	port = scport->vcsp_port;
+	if (port == NULL) {
+		VTCON_UNLOCK(sc);
+		return;
+	}
+	VTCON_PORT_LOCK(port);
+	VTCON_UNLOCK(sc);
+	if ((port->vtcport_flags & VTCON_PORT_FLAG_GONE) == 0)
+		vtcon_port_in(port);
+	VTCON_PORT_UNLOCK(port);
 }
 
 static void
-vtcon_port_put(struct vtcon_port *port, void *buf, int bufsize)
+vtcon_port_out(struct vtcon_port *port, void *buf, int bufsize)
 {
-	struct sglist_seg segs[1];
+	struct sglist_seg segs[2];
 	struct sglist sg;
 	struct virtqueue *vq;
 	int error;
 
 	vq = port->vtcport_outvq;
+	KASSERT(virtqueue_empty(vq),
+	    ("%s: port %p out virtqueue not emtpy", __func__, port));
 
-	sglist_init(&sg, 1, segs);
+	sglist_init(&sg, 2, segs);
 	error = sglist_append(&sg, buf, bufsize);
-	KASSERT(error == 0 && sg.sg_nseg == 1,
-	    ("%s: error %d adding buffer to sglist", __func__, error));
+	KASSERT(error == 0, ("%s: error %d adding buffer to sglist",
+	    __func__, error));
 
-	KASSERT(virtqueue_empty(vq), ("%s: port %p virtqueue not emtpy",
-	     __func__, port));
-
-	if (virtqueue_enqueue(vq, buf, &sg, 1, 0) == 0) {
+	error = virtqueue_enqueue(vq, buf, &sg, sg.sg_nseg, 0);
+	if (error == 0) {
 		virtqueue_notify(vq);
 		virtqueue_poll(vq, NULL);
 	}
 }
 
 static void
-vtcon_port_send_ctrl_msg(struct vtcon_port *port, uint16_t event,
+vtcon_port_submit_event(struct vtcon_port *port, uint16_t event,
     uint16_t value)
 {
 	struct vtcon_softc *sc;
 
 	sc = port->vtcport_sc;
 
-	if (sc->vtcon_flags & VTCON_FLAG_MULTIPORT)
-		vtcon_ctrl_send_event(sc, port->vtcport_id, event, value);
-}
-
-static struct vtcon_port *
-vtcon_port_lookup_by_id(struct vtcon_softc *sc, int id)
-{
-	struct vtcon_port *port;
-
-	TAILQ_FOREACH(port, &sc->vtcon_ports, vtcport_next) {
-		if (port->vtcport_id == id)
-			break;
-	}
-
-	return (port);
+	vtcon_ctrl_send_control(sc, port->vtcport_id, event, value);
 }
 
 static int
@@ -1160,7 +1258,10 @@ vtcon_tty_open(struct tty *tp)
 
 	port = tty_softc(tp);
 
-	vtcon_port_send_ctrl_msg(port, VIRTIO_CONSOLE_PORT_OPEN, 1);
+	if (port->vtcport_flags & VTCON_PORT_FLAG_GONE)
+		return (ENXIO);
+
+	vtcon_port_submit_event(port, VIRTIO_CONSOLE_PORT_OPEN, 1);
 
 	return (0);
 }
@@ -1172,7 +1273,10 @@ vtcon_tty_close(struct tty *tp)
 
 	port = tty_softc(tp);
 
-	vtcon_port_send_ctrl_msg(port, VIRTIO_CONSOLE_PORT_OPEN, 0);
+	if (port->vtcport_flags & VTCON_PORT_FLAG_GONE)
+		return;
+
+	vtcon_port_submit_event(port, VIRTIO_CONSOLE_PORT_OPEN, 0);
 }
 
 static void
@@ -1184,8 +1288,11 @@ vtcon_tty_outwakeup(struct tty *tp)
 
 	port = tty_softc(tp);
 
+	if (port->vtcport_flags & VTCON_PORT_FLAG_GONE)
+		return;
+
 	while ((len = ttydisc_getc(tp, buf, sizeof(buf))) != 0)
-		vtcon_port_put(port, buf, len);
+		vtcon_port_out(port, buf, len);
 }
 
 static void
@@ -1216,23 +1323,51 @@ vtcon_get_console_size(struct vtcon_softc *sc, uint16_t *cols, uint16_t *rows)
 static void
 vtcon_enable_interrupts(struct vtcon_softc *sc)
 {
+	struct vtcon_softc_port *scport;
 	struct vtcon_port *port;
+	int i;
+
+	VTCON_LOCK(sc);
 
 	if (sc->vtcon_flags & VTCON_FLAG_MULTIPORT)
 		virtqueue_enable_intr(sc->vtcon_ctrl_rxvq);
 
-	TAILQ_FOREACH(port, &sc->vtcon_ports, vtcport_next)
+	for (i = 0; i < sc->vtcon_max_ports; i++) {
+		scport = &sc->vtcon_ports[i];
+
+		port = scport->vcsp_port;
+		if (port == NULL)
+			continue;
+
+		VTCON_PORT_LOCK(port);
 		vtcon_port_enable_intr(port);
+		VTCON_PORT_UNLOCK(port);
+	}
+
+	VTCON_UNLOCK(sc);
 }
 
 static void
 vtcon_disable_interrupts(struct vtcon_softc *sc)
 {
+	struct vtcon_softc_port *scport;
 	struct vtcon_port *port;
+	int i;
+
+	VTCON_LOCK_ASSERT(sc);
 
 	if (sc->vtcon_flags & VTCON_FLAG_MULTIPORT)
 		virtqueue_disable_intr(sc->vtcon_ctrl_rxvq);
 
-	TAILQ_FOREACH(port, &sc->vtcon_ports, vtcport_next)
+	for (i = 0; i < sc->vtcon_max_ports; i++) {
+		scport = &sc->vtcon_ports[i];
+
+		port = scport->vcsp_port;
+		if (port == NULL)
+			continue;
+
+		VTCON_PORT_LOCK(port);
 		vtcon_port_disable_intr(port);
+		VTCON_PORT_UNLOCK(port);
+	}
 }
