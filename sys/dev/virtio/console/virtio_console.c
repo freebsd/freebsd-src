@@ -1048,16 +1048,16 @@ vtcon_port_create(struct vtcon_softc *sc, int id)
 		return (error);
 	}
 
-	tty_makedev(port->vtcport_tty, NULL, "%s%r.%r", VTCON_TTY_PREFIX,
-	    device_get_unit(dev), id);
-
 	VTCON_LOCK(sc);
 	VTCON_PORT_LOCK(port);
-	vtcon_port_enable_intr(port);
 	scport->vcsp_port = port;
+	vtcon_port_enable_intr(port);
 	vtcon_port_submit_event(port, VIRTIO_CONSOLE_PORT_READY, 1);
 	VTCON_PORT_UNLOCK(port);
 	VTCON_UNLOCK(sc);
+
+	tty_makedev(port->vtcport_tty, NULL, "%s%r.%r", VTCON_TTY_PREFIX,
+	    device_get_unit(dev), id);
 
 	return (0);
 }
