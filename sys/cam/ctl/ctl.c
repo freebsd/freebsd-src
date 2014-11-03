@@ -4737,6 +4737,7 @@ ctl_free_lun(struct ctl_lun *lun)
 	ctl_tpc_lun_shutdown(lun);
 	mtx_destroy(&lun->lun_lock);
 	free(lun->lun_devid, M_CTL);
+	free(lun->write_buffer, M_CTL);
 	if (lun->flags & CTL_LUN_MALLOCED)
 		free(lun, M_CTL);
 
@@ -5728,7 +5729,7 @@ ctl_read_buffer(struct ctl_scsiio *ctsio)
 	len = scsi_3btoul(cdb->length);
 	buffer_offset = scsi_3btoul(cdb->offset);
 
-	if (buffer_offset + len > sizeof(lun->write_buffer)) {
+	if (buffer_offset + len > CTL_WRITE_BUFFER_SIZE) {
 		ctl_set_invalid_field(ctsio,
 				      /*sks_valid*/ 1,
 				      /*command*/ 1,
@@ -5741,14 +5742,19 @@ ctl_read_buffer(struct ctl_scsiio *ctsio)
 
 	if ((cdb->byte2 & RWB_MODE) == RWB_MODE_DESCR) {
 		descr[0] = 0;
-		scsi_ulto3b(sizeof(lun->write_buffer), &descr[1]);
+		scsi_ulto3b(CTL_WRITE_BUFFER_SIZE, &descr[1]);
 		ctsio->kern_data_ptr = descr;
 		len = min(len, sizeof(descr));
 	} else if ((cdb->byte2 & RWB_MODE) == RWB_MODE_ECHO_DESCR) {
 		ctsio->kern_data_ptr = echo_descr;
 		len = min(len, sizeof(echo_descr));
-	} else
+	} else {
+		if (lun->write_buffer == NULL) {
+			lun->write_buffer = malloc(CTL_WRITE_BUFFER_SIZE,
+			    M_CTL, M_WAITOK);
+		}
 		ctsio->kern_data_ptr = lun->write_buffer + buffer_offset;
+	}
 	ctsio->kern_data_len = len;
 	ctsio->kern_total_len = len;
 	ctsio->kern_data_resid = 0;
@@ -5786,7 +5792,7 @@ ctl_write_buffer(struct ctl_scsiio *ctsio)
 	len = scsi_3btoul(cdb->length);
 	buffer_offset = scsi_3btoul(cdb->offset);
 
-	if (buffer_offset + len > sizeof(lun->write_buffer)) {
+	if (buffer_offset + len > CTL_WRITE_BUFFER_SIZE) {
 		ctl_set_invalid_field(ctsio,
 				      /*sks_valid*/ 1,
 				      /*command*/ 1,
@@ -5802,6 +5808,10 @@ ctl_write_buffer(struct ctl_scsiio *ctsio)
 	 * malloc it and tell the caller the data buffer is here.
 	 */
 	if ((ctsio->io_hdr.flags & CTL_FLAG_ALLOCATED) == 0) {
+		if (lun->write_buffer == NULL) {
+			lun->write_buffer = malloc(CTL_WRITE_BUFFER_SIZE,
+			    M_CTL, M_WAITOK);
+		}
 		ctsio->kern_data_ptr = lun->write_buffer + buffer_offset;
 		ctsio->kern_data_len = len;
 		ctsio->kern_total_len = len;
