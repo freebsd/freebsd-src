@@ -76,35 +76,6 @@ agp_intel_match(device_t dev)
  		return ("Intel 82443GX host to PCI bridge");
  	case 0x71a18086:
  		return ("Intel 82443GX host to AGP bridge");
-	case 0x11308086:
-		return ("Intel 82815 (i815 GMCH) host to PCI bridge");
-	case 0x25008086:
-	case 0x25018086:
-		return ("Intel 82820 host to AGP bridge");
-	case 0x35758086:
-		return ("Intel 82830 host to AGP bridge");
-	case 0x1a218086:
-		return ("Intel 82840 host to AGP bridge");
-	case 0x1a308086:
-		return ("Intel 82845 host to AGP bridge");
-	case 0x25308086:
-		return ("Intel 82850 host to AGP bridge");
-	case 0x33408086:
-		return ("Intel 82855 host to AGP bridge");
-	case 0x25318086:
-		return ("Intel 82860 host to AGP bridge");
-	case 0x25708086:
-		return ("Intel 82865 host to AGP bridge");
-	case 0x255d8086:
-		return ("Intel E7205 host to AGP bridge");
-	case 0x25508086:
-		return ("Intel E7505 host to AGP bridge");
-	case 0x25788086:
-		return ("Intel 82875P host to AGP bridge");
-	case 0x25608086:
-		return ("Intel 82845G host to AGP bridge");
-	case 0x35808086:
-		return ("Intel 82855GM host to AGP bridge");
 	}
 
 	return (NULL);
@@ -158,31 +129,6 @@ agp_intel_commit_gatt(device_t dev)
 
 	/* Enable aperture accesses. */
 	switch (type) {
-	case 0x25008086: /* i820 */
-	case 0x25018086: /* i820 */
-		pci_write_config(dev, AGP_INTEL_I820_RDCR,
-				 (pci_read_config(dev, AGP_INTEL_I820_RDCR, 1)
-				  | (1 << 1)), 1);
-		break;
-	case 0x1a308086: /* i845 */
-	case 0x25608086: /* i845G */
-	case 0x33408086: /* i855 */
-	case 0x35808086: /* i855GM */
-	case 0x25708086: /* i865 */
-	case 0x25788086: /* i875P */
-		pci_write_config(dev, AGP_INTEL_I845_AGPM,
-				 (pci_read_config(dev, AGP_INTEL_I845_AGPM, 1)
-				  | (1 << 1)), 1);
-		break;
-	case 0x1a218086: /* i840 */
-	case 0x25308086: /* i850 */
-	case 0x25318086: /* i860 */
-	case 0x255d8086: /* E7205 */
-	case 0x25508086: /* E7505 */
-		pci_write_config(dev, AGP_INTEL_MCHCFG,
-				 (pci_read_config(dev, AGP_INTEL_MCHCFG, 2)
-				  | (1 << 9)), 2);
-		break;
 	default: /* Intel Generic (maybe) */
 		pci_write_config(dev, AGP_INTEL_NBXCFG,
 				 (pci_read_config(dev, AGP_INTEL_NBXCFG, 4)
@@ -191,22 +137,6 @@ agp_intel_commit_gatt(device_t dev)
 
 	/* Clear errors. */
 	switch (type) {
-	case 0x1a218086: /* i840 */
-		pci_write_config(dev, AGP_INTEL_I8XX_ERRSTS, 0xc000, 2);
-		break;
-	case 0x25008086: /* i820 */
-	case 0x25018086: /* i820 */
-	case 0x1a308086: /* i845 */
-	case 0x25608086: /* i845G */
-	case 0x25308086: /* i850 */
-	case 0x33408086: /* i855 */
-	case 0x25318086: /* i860 */
-	case 0x25708086: /* i865 */
-	case 0x25788086: /* i875P */
-	case 0x255d8086: /* E7205 */
-	case 0x25508086: /* E7505 */
-		pci_write_config(dev, AGP_INTEL_I8XX_ERRSTS, 0x00ff, 2);
-		break;
 	default: /* Intel Generic (maybe) */
 		pci_write_config(dev, AGP_INTEL_ERRSTS + 1, 7, 1);
 	}
@@ -267,31 +197,6 @@ agp_intel_detach(device_t dev)
 
 	/* Disable aperture accesses. */
 	switch (pci_get_devid(dev)) {
-	case 0x25008086: /* i820 */
-	case 0x25018086: /* i820 */
-		reg = pci_read_config(dev, AGP_INTEL_I820_RDCR, 1) & ~(1 << 1);
-		printf("%s: set RDCR to %02x\n", __func__, reg & 0xff);
-		pci_write_config(dev, AGP_INTEL_I820_RDCR, reg, 1);
-		break;
-	case 0x1a308086: /* i845 */
-	case 0x25608086: /* i845G */
-	case 0x33408086: /* i855 */
-	case 0x35808086: /* i855GM */
-	case 0x25708086: /* i865 */
-	case 0x25788086: /* i875P */
-		reg = pci_read_config(dev, AGP_INTEL_I845_AGPM, 1) & ~(1 << 1);
-		printf("%s: set AGPM to %02x\n", __func__, reg & 0xff);
-		pci_write_config(dev, AGP_INTEL_I845_AGPM, reg, 1);
-		break;
-	case 0x1a218086: /* i840 */
-	case 0x25308086: /* i850 */
-	case 0x25318086: /* i860 */
-	case 0x255d8086: /* E7205 */
-	case 0x25508086: /* E7505 */
-		reg = pci_read_config(dev, AGP_INTEL_MCHCFG, 2) & ~(1 << 9);
-		printf("%s: set MCHCFG to %x04\n", __func__, reg & 0xffff);
-		pci_write_config(dev, AGP_INTEL_MCHCFG, reg, 2);
-		break;
 	default: /* Intel Generic (maybe) */
 		reg = pci_read_config(dev, AGP_INTEL_NBXCFG, 4) & ~(1 << 9);
 		printf("%s: set NBXCFG to %08x\n", __func__, reg);
