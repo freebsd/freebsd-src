@@ -118,6 +118,9 @@ fb_get_options(const char *connector_name, char **option)
 	 */
 	snprintf(tunable, sizeof(tunable), "kern.vt.fb.modes.%s",
 	    connector_name);
+	DRM_INFO("Connector %s: get mode from tunables:\n", connector_name);
+	DRM_INFO("  - %s\n", tunable);
+	DRM_INFO("  - kern.vt.fb.default_mode\n");
 	*option = kern_getenv(tunable);
 	if (*option == NULL)
 		*option = kern_getenv("kern.vt.fb.default_mode");
