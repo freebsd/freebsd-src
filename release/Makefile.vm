@@ -59,6 +59,8 @@ vm-image: vm-base
 .endif
 	touch ${.TARGET}
 
+vm-cloudware:	${CLOUDTARGETS}
+
 vm-azure:
 .if exists(${.CURDIR}/${TARGET}/mk-azure.sh)
 	env TARGET=${TARGET} TARGET_ARCH=${TARGET_ARCH} AZURECONF=${AZURECONF} \
