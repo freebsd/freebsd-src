@@ -106,6 +106,10 @@ __FBSDID("$FreeBSD$");
 #define	NSFBUFS		(512 + maxusers * 16)
 #endif
 
+#if !defined(CPU_DISABLE_SSE) && defined(I686_CPU)
+#define CPU_ENABLE_SSE
+#endif
+
 _Static_assert(OFFSETOF_CURTHREAD == offsetof(struct pcpu, pc_curthread),
     "OFFSETOF_CURTHREAD does not correspond with offset of pc_curthread.");
 _Static_assert(OFFSETOF_CURPCB == offsetof(struct pcpu, pc_curpcb),
@@ -152,14 +156,18 @@ void *
 alloc_fpusave(int flags)
 {
 	void *res;
+#ifdef CPU_ENABLE_SSE
 	struct savefpu_ymm *sf;
+#endif
 
 	res = malloc(cpu_max_ext_state_size, M_DEVBUF, flags);
+#ifdef CPU_ENABLE_SSE
 	if (use_xsave) {
 		sf = (struct savefpu_ymm *)res;
 		bzero(&sf->sv_xstate.sx_hd, sizeof(sf->sv_xstate.sx_hd));
 		sf->sv_xstate.sx_hd.xstate_bv = xsave_mask;
 	}
+#endif
 	return (res);
 }
 /*
@@ -398,17 +406,21 @@ void
 cpu_thread_alloc(struct thread *td)
 {
 	struct pcb *pcb;
+#ifdef CPU_ENABLE_SSE
 	struct xstate_hdr *xhdr;
+#endif
 
 	td->td_pcb = pcb = get_pcb_td(td);
 	td->td_frame = (struct trapframe *)((caddr_t)pcb - 16) - 1;
 	pcb->pcb_ext = NULL; 
 	pcb->pcb_save = get_pcb_user_save_pcb(pcb);
+#ifdef CPU_ENABLE_SSE
 	if (use_xsave) {
 		xhdr = (struct xstate_hdr *)(pcb->pcb_save + 1);
 		bzero(xhdr, sizeof(*xhdr));
 		xhdr->xstate_bv = xsave_mask;
 	}
+#endif
 }
 
 void
