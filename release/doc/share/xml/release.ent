@@ -73,3 +73,17 @@
 <!ENTITY arch.pc98 "pc98">
 <!ENTITY arch.powerpc "powerpc">
 <!ENTITY arch.sparc64 "sparc64">
+
+<!-- Entities added after the doc/ tag for 10.1-RELEASE -->
+<!ENTITY amd.phenom "<trademark xmlns='http://docbook.org/ns/docbook'>AMD&nbsp;Phenom</trademark>">
+<!ENTITY amd.sempron "<trademark xmlns='http://docbook.org/ns/docbook'>AMD&nbsp;Sempron</trademark>">
+<!ENTITY amd.turion "<trademark xmlns='http://docbook.org/ns/docbook'>AMD&nbsp;Turion</trademark>">
+<!ENTITY centrino "<trademark xmlns='http://docbook.org/ns/docbook' class='registered'>Centrino</trademark>">
+<!ENTITY tm-attrib.intel "<para xmlns='http://docbook.org/ns/docbook'>Intel,
+  Celeron, Centrino, Core, EtherExpress, i386, i486, Itanium, Pentium,
+  and Xeon are trademarks or registered trademarks of Intel Corporation
+  or its subsidiaries in the United States and other countries.</para>">
+<!ENTITY tm-attrib.amd "<para xmlns='http://docbook.org/ns/docbook'>AMD,
+  AMD Athlon, AMD Opteron, AMD Phenom, AMD Sempron, AMD Turion, Athlon,
+  &Eacute;lan, Opteron, and PCnet are trademarks of Advanced Micro
+  Devices, Inc.</para>">
