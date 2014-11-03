@@ -499,6 +499,7 @@ devfs_access(struct vop_access_args *ap)
 {
 	struct vnode *vp = ap->a_vp;
 	struct devfs_dirent *de;
+	struct proc *p;
 	int error;
 
 	de = vp->v_data;
@@ -511,11 +512,16 @@ devfs_access(struct vop_access_args *ap)
 		return (0);
 	if (error != EACCES)
 		return (error);
+	p = ap->a_td->td_proc;
 	/* We do, however, allow access to the controlling terminal */
-	if (!(ap->a_td->td_proc->p_flag & P_CONTROLT))
+	PROC_LOCK(p);
+	if (!(p->p_flag & P_CONTROLT)) {
+		PROC_UNLOCK(p);
 		return (error);
-	if (ap->a_td->td_proc->p_session->s_ttydp == de->de_cdp)
-		return (0);
+	}
+	if (p->p_session->s_ttydp == de->de_cdp)
+		error = 0;
+	PROC_UNLOCK(p);
 	return (error);
 }
 
@@ -525,6 +531,7 @@ devfs_close(struct vop_close_args *ap)
 {
 	struct vnode *vp = ap->a_vp, *oldvp;
 	struct thread *td = ap->a_td;
+	struct proc *p;
 	struct cdev *dev = vp->v_rdev;
 	struct cdevsw *dsw;
 	int vp_locked, error, ref;
@@ -545,24 +552,30 @@ devfs_close(struct vop_close_args *ap)
 	 * if the reference count is 2 (this last descriptor
 	 * plus the session), release the reference from the session.
 	 */
-	if (td && vp == td->td_proc->p_session->s_ttyvp) {
-		oldvp = NULL;
-		sx_xlock(&proctree_lock);
-		if (vp == td->td_proc->p_session->s_ttyvp) {
-			SESS_LOCK(td->td_proc->p_session);
-			VI_LOCK(vp);
-			if (count_dev(dev) == 2 &&
-			    (vp->v_iflag & VI_DOOMED) == 0) {
-				td->td_proc->p_session->s_ttyvp = NULL;
-				td->td_proc->p_session->s_ttydp = NULL;
-				oldvp = vp;
+	if (td != NULL) {
+		p = td->td_proc;
+		PROC_LOCK(p);
+		if (vp == p->p_session->s_ttyvp) {
+			PROC_UNLOCK(p);
+			oldvp = NULL;
+			sx_xlock(&proctree_lock);
+			if (vp == p->p_session->s_ttyvp) {
+				SESS_LOCK(p->p_session);
+				VI_LOCK(vp);
+				if (count_dev(dev) == 2 &&
+				    (vp->v_iflag & VI_DOOMED) == 0) {
+					p->p_session->s_ttyvp = NULL;
+					p->p_session->s_ttydp = NULL;
+					oldvp = vp;
+				}
+				VI_UNLOCK(vp);
+				SESS_UNLOCK(p->p_session);
 			}
-			VI_UNLOCK(vp);
-			SESS_UNLOCK(td->td_proc->p_session);
-		}
-		sx_xunlock(&proctree_lock);
-		if (oldvp != NULL)
-			vrele(oldvp);
+			sx_xunlock(&proctree_lock);
+			if (oldvp != NULL)
+				vrele(oldvp);
+		} else
+			PROC_UNLOCK(p);
 	}
 	/*
 	 * We do not want to really close the device if it
@@ -816,6 +829,7 @@ devfs_prison_check(struct devfs_dirent *de, struct thread *td)
 {
 	struct cdev_priv *cdp;
 	struct ucred *dcr;
+	struct proc *p;
 	int error;
 
 	cdp = de->de_cdp;
@@ -829,10 +843,15 @@ devfs_prison_check(struct devfs_dirent *de, struct thread *td)
 	if (error == 0)
 		return (0);
 	/* We do, however, allow access to the controlling terminal */
-	if (!(td->td_proc->p_flag & P_CONTROLT))
+	p = td->td_proc;
+	PROC_LOCK(p);
+	if (!(p->p_flag & P_CONTROLT)) {
+		PROC_UNLOCK(p);
 		return (error);
-	if (td->td_proc->p_session->s_ttydp == cdp)
-		return (0);
+	}
+	if (p->p_session->s_ttydp == cdp)
+		error = 0;
+	PROC_UNLOCK(p);
 	return (error);
 }
 
