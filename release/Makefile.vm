@@ -71,7 +71,7 @@ vm-azure:
 vm-openstack:
 .if exists(${.CURDIR}/${TARGET}/mk-openstack.sh)
 	env TARGET=${TARGET} TARGET_ARCH=${TARGET_ARCH} \
-		OPENSTACKCONF=${OPENSTACKCONF}
+		OPENSTACKCONF=${OPENSTACKCONF} \
 		OPENSTACK_FORMAT=${OPENSTACK_FORMAT} \
 		${.CURDIR}/${TARGET}/mk-openstack.sh ${.TARGET} openstack.img \
 		${WORLDDIR} ${.TARGET} ${VMSIZE} ${OPENSTACKIMAGE}
