@@ -41,5 +41,9 @@ main(int argc, char *argv[])
 	char b[10];
 	size_t len =  atoi(argv[1]);
 	(void)memset(b, 0, len);
+#ifdef __FreeBSD__
+	return b[0]; /* keeps optimizer from zapping the call to memset() */
+#else
 	return 0;
+#endif
 }
