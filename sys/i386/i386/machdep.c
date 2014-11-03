@@ -670,10 +670,14 @@ sendsig(sig_t catcher, ksiginfo_t *ksi, sigset_t *mask)
 	regs = td->td_frame;
 	oonstack = sigonstack(regs->tf_esp);
 
+#ifdef CPU_ENABLE_SSE
 	if (cpu_max_ext_state_size > sizeof(union savefpu) && use_xsave) {
 		xfpusave_len = cpu_max_ext_state_size - sizeof(union savefpu);
 		xfpusave = __builtin_alloca(xfpusave_len);
 	} else {
+#else
+	{
+#endif
 		xfpusave_len = 0;
 		xfpusave = NULL;
 	}
@@ -2908,7 +2912,9 @@ init386(first)
 	unsigned long gdtmachpfn;
 	int error, gsel_tss, metadata_missing, x, pa;
 	struct pcpu *pc;
+#ifdef CPU_ENABLE_SSE
 	struct xstate_hdr *xhdr;
+#endif
 	struct callback_register event = {
 		.type = CALLBACKTYPE_event,
 		.address = {GSEL(GCODE_SEL, SEL_KPL), (unsigned long)Xhypervisor_callback },
@@ -3117,11 +3123,13 @@ init386(first)
 	 */
 	thread0.td_pcb = get_pcb_td(&thread0);
 	bzero(get_pcb_user_save_td(&thread0), cpu_max_ext_state_size);
+#ifdef CPU_ENABLE_SSE
 	if (use_xsave) {
 		xhdr = (struct xstate_hdr *)(get_pcb_user_save_td(&thread0) +
 		    1);
 		xhdr->xstate_bv = xsave_mask;
 	}
+#endif
 	PCPU_SET(curpcb, thread0.td_pcb);
 	/* make an initial tss so cpu can get interrupt stack on syscall! */
 	/* Note: -16 is so we can grow the trapframe if we came from vm86 */
@@ -3162,7 +3170,9 @@ init386(first)
 	struct gate_descriptor *gdp;
 	int gsel_tss, metadata_missing, x, pa;
 	struct pcpu *pc;
+#ifdef CPU_ENABLE_SSE
 	struct xstate_hdr *xhdr;
+#endif
 
 	thread0.td_kstack = proc0kstack;
 	thread0.td_kstack_pages = KSTACK_PAGES;
@@ -3417,11 +3427,13 @@ init386(first)
 	 */
 	thread0.td_pcb = get_pcb_td(&thread0);
 	bzero(get_pcb_user_save_td(&thread0), cpu_max_ext_state_size);
+#ifdef CPU_ENABLE_SSE
 	if (use_xsave) {
 		xhdr = (struct xstate_hdr *)(get_pcb_user_save_td(&thread0) +
 		    1);
 		xhdr->xstate_bv = xsave_mask;
 	}
+#endif
 	PCPU_SET(curpcb, thread0.td_pcb);
 	/* make an initial tss so cpu can get interrupt stack on syscall! */
 	/* Note: -16 is so we can grow the trapframe if we came from vm86 */
@@ -3886,7 +3898,9 @@ static void
 get_fpcontext(struct thread *td, mcontext_t *mcp, char *xfpusave,
     size_t xfpusave_len)
 {
+#ifdef CPU_ENABLE_SSE
 	size_t max_len, len;
+#endif
 
 #ifndef DEV_NPX
 	mcp->mc_fpformat = _MC_FPFMT_NODEV;
@@ -3897,6 +3911,7 @@ get_fpcontext(struct thread *td, mcontext_t *mcp, char *xfpusave,
 	bcopy(get_pcb_user_save_td(td), &mcp->mc_fpstate[0],
 	    sizeof(mcp->mc_fpstate));
 	mcp->mc_fpformat = npxformat();
+#ifdef CPU_ENABLE_SSE
 	if (!use_xsave || xfpusave_len == 0)
 		return;
 	max_len = cpu_max_ext_state_size - sizeof(union savefpu);
@@ -3908,6 +3923,7 @@ get_fpcontext(struct thread *td, mcontext_t *mcp, char *xfpusave,
 	mcp->mc_flags |= _MC_HASFPXSTATE;
 	mcp->mc_xfpustate_len = len;
 	bcopy(get_pcb_user_save_td(td) + 1, xfpusave, len);
+#endif
 #endif
 }
 
