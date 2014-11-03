@@ -4,9 +4,13 @@
 
 .PATH: ${.CURDIR}/..
 
+TESTSDIR= ${TESTSBASE}/sys
+
 TESTS_SUBDIRS+=		kern
 TESTS_SUBDIRS+=		netinet
-TESTSDIR= ${TESTSBASE}/sys
+
+# Items not integrated into kyua runs by default
+SUBDIR+=		pjdfstest
 
 KYUAFILE= yes
 
