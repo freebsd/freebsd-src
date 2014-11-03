@@ -1744,6 +1744,8 @@ tcp_maxmtu(struct in_conninfo *inc, struct tcp_ifcap *cap)
 			    ifp->if_hwassist & CSUM_TSO) {
 				cap->ifcap |= CSUM_TSO;
 				cap->tsomax = ifp->if_hw_tsomax;
+				cap->tsomaxsegcount = ifp->if_hw_tsomaxsegcount;
+				cap->tsomaxsegsize = ifp->if_hw_tsomaxsegsize;
 			}
 		}
 		RTFREE(sro.ro_rt);
@@ -1783,6 +1785,8 @@ tcp_maxmtu6(struct in_conninfo *inc, struct tcp_ifcap *cap)
 			    ifp->if_hwassist & CSUM_TSO) {
 				cap->ifcap |= CSUM_TSO;
 				cap->tsomax = ifp->if_hw_tsomax;
+				cap->tsomaxsegcount = ifp->if_hw_tsomaxsegcount;
+				cap->tsomaxsegsize = ifp->if_hw_tsomaxsegsize;
 			}
 		}
 		RTFREE(sro6.ro_rt);

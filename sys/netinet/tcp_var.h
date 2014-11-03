@@ -212,7 +212,9 @@ struct tcpcb {
 
 	uint32_t t_ispare[7];		/* 5 UTO, 2 TBD */
 	void	*t_pspare2[4];		/* 4 TBD */
-	uint64_t _pad[6];		/* 6 TBD (1-2 CC/RTT?) */
+	uint64_t _pad[5];		/* 5 TBD (1-2 CC/RTT?) */
+	uint32_t t_tsomaxsegcount;	/* TSO maximum segment count */
+	uint32_t t_tsomaxsegsize;	/* TSO maximum segment size in bytes */
 };
 
 /*
@@ -333,6 +335,8 @@ struct hc_metrics_lite {	/* must stay in sync with hc_metrics */
 struct tcp_ifcap {
 	int	ifcap;
 	u_int	tsomax;
+	u_int	tsomaxsegcount;
+	u_int	tsomaxsegsize;
 };
 
 #ifndef _NETINET_IN_PCB_H_
