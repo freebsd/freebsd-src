@@ -2106,12 +2106,12 @@ int mlx4_en_init_netdev(struct mlx4_en_dev *mdev, int port,
 
 	if (mdev->LSO_support)
 		dev->if_capabilities |= IFCAP_TSO4 | IFCAP_TSO6 | IFCAP_VLAN_HWTSO;
-#if 0
+
 	/* set TSO limits so that we don't have to drop TX packets */
 	dev->if_hw_tsomax = 65536 - (ETHER_HDR_LEN + ETHER_VLAN_ENCAP_LEN);
 	dev->if_hw_tsomaxsegcount = 16;
 	dev->if_hw_tsomaxsegsize = 65536;       /* XXX can do up to 4GByte */
-#endif
+
 	dev->if_capenable = dev->if_capabilities;
 
 	dev->if_hwassist = 0;
