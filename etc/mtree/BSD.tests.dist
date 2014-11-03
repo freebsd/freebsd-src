@@ -17,6 +17,8 @@
         doc
             atf
             ..
+            pjdfstest
+            ..
         ..
     ..
     tests
@@ -142,6 +144,38 @@
             kern
             ..
             netinet
+            ..
+            pjdfstest
+                chflags
+                ..
+                chmod
+                ..
+                chown
+                ..
+                ftruncate
+                ..
+                granular
+                ..
+                link
+                ..
+                mkdir
+                ..
+                mkfifo
+                ..
+                mknod
+                ..
+                open
+                ..
+                rename
+                ..
+                rmdir
+                ..
+                symlink
+                ..
+                truncate
+                ..
+                unlink
+                ..
             ..
         ..
         usr.bin
