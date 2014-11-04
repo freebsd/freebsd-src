@@ -1829,39 +1829,36 @@ tcp_maxmtu(struct in_conninfo *inc, struct tcp_ifcap *cap)
 u_long
 tcp_maxmtu6(struct in_conninfo *inc, struct tcp_ifcap *cap)
 {
-	struct route_in6 sro6;
 	struct ifnet *ifp;
+	struct nhop6_extended nh_ext;
+	struct in6_addr dst;
+	uint32_t scopeid;
+	uint32_t fibnum;
 	u_long maxmtu = 0;
 
 	KASSERT(inc != NULL, ("tcp_maxmtu6 with NULL in_conninfo pointer"));
 
-	bzero(&sro6, sizeof(sro6));
-	if (!IN6_IS_ADDR_UNSPECIFIED(&inc->inc6_faddr)) {
-		sro6.ro_dst.sin6_family = AF_INET6;
-		sro6.ro_dst.sin6_len = sizeof(struct sockaddr_in6);
-		sro6.ro_dst.sin6_addr = inc->inc6_faddr;
-		in6_rtalloc_ign(&sro6, 0, inc->inc_fibnum);
-	}
-	if (sro6.ro_rt != NULL) {
-		ifp = sro6.ro_rt->rt_ifp;
-		if (sro6.ro_rt->rt_mtu == 0)
-			maxmtu = IN6_LINKMTU(sro6.ro_rt->rt_ifp);
-		else
-			maxmtu = min(sro6.ro_rt->rt_mtu,
-				     IN6_LINKMTU(sro6.ro_rt->rt_ifp));
+	in6_splitscope(&inc->inc6_faddr, &dst, &scopeid);
+	fibnum = inc->inc_fibnum;
 
-		/* Report additional interface capabilities. */
-		if (cap != NULL) {
-			if (ifp->if_capenable & IFCAP_TSO6 &&
-			    ifp->if_hwassist & CSUM_TSO) {
-				cap->ifcap |= CSUM_TSO;
-				cap->tsomax = ifp->if_hw_tsomax;
-				cap->tsomaxsegcount = ifp->if_hw_tsomaxsegcount;
-				cap->tsomaxsegsize = ifp->if_hw_tsomaxsegsize;
-			}
+	if (fib6_lookup_nh_ext(fibnum, &dst, scopeid, 0,
+	    NHOP_LOOKUP_REF, &nh_ext) != 0)
+		return (0);
+
+	maxmtu = nh_ext.nh_mtu;
+	ifp = nh_ext.nh_ifp;
+
+	/* Report additional interface capabilities. */
+	if (cap != NULL) {
+		if (ifp->if_capenable & IFCAP_TSO6 &&
+		    ifp->if_hwassist & CSUM_TSO) {
+			cap->ifcap |= CSUM_TSO;
+			cap->tsomax = ifp->if_hw_tsomax;
+			cap->tsomaxsegcount = ifp->if_hw_tsomaxsegcount;
+			cap->tsomaxsegsize = ifp->if_hw_tsomaxsegsize;
 		}
-		RTFREE(sro6.ro_rt);
 	}
+	fib6_free_nh_ext(fibnum, &nh_ext);
 
 	return (maxmtu);
 }
