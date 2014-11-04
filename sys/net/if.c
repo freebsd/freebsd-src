@@ -75,6 +75,7 @@
 #include <net/if_vlan_var.h>
 #include <net/radix.h>
 #include <net/route.h>
+#include <net/route_internal.h>
 #include <net/vnet.h>
 
 #if defined(INET) || defined(INET6)
