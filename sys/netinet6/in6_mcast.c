@@ -69,6 +69,8 @@ __FBSDID("$FreeBSD$");
 #include <netinet6/mld6_var.h>
 #include <netinet6/scope6_var.h>
 
+#include <net/rt_nhops.h>
+
 #ifndef KTR_MLD
 #define KTR_MLD KTR_INET6
 #endif
@@ -1770,26 +1772,22 @@ static struct ifnet *
 in6p_lookup_mcast_ifp(const struct inpcb *in6p,
     const struct sockaddr_in6 *gsin6)
 {
-	struct route_in6	 ro6;
-	struct ifnet		*ifp;
+	struct nhop6_basic	nh6;
+	struct in6_addr		dst;
+	uint32_t		scopeid;
+	uint32_t		fibnum;
 
 	KASSERT(in6p->inp_vflag & INP_IPV6,
 	    ("%s: not INP_IPV6 inpcb", __func__));
 	KASSERT(gsin6->sin6_family == AF_INET6,
 	    ("%s: not AF_INET6 group", __func__));
 
-	ifp = NULL;
-	memset(&ro6, 0, sizeof(struct route_in6));
-	memcpy(&ro6.ro_dst, gsin6, sizeof(struct sockaddr_in6));
-	rtalloc_ign_fib((struct route *)&ro6, 0,
-	    in6p ? in6p->inp_inc.inc_fibnum : RT_DEFAULT_FIB);
-	if (ro6.ro_rt != NULL) {
-		ifp = ro6.ro_rt->rt_ifp;
-		KASSERT(ifp != NULL, ("%s: null ifp", __func__));
-		RTFREE(ro6.ro_rt);
-	}
+	in6_splitscope(&gsin6->sin6_addr, &dst, &scopeid);
+	fibnum = in6p ? in6p->inp_inc.inc_fibnum : RT_DEFAULT_FIB;
+	if (fib6_lookup_nh_ifp(fibnum, &dst, scopeid, 0, &nh6) != 0)
+		return (NULL);
 
-	return (ifp);
+	return (nh6.nh_ifp);
 }
 
 /*
