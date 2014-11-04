@@ -1957,7 +1957,6 @@ ctlfe_lun_enable(void *arg, struct ctl_id targ_id, int lun_id)
 		mtx_lock(&bus_softc->lun_softc_mtx);
 		STAILQ_INSERT_TAIL(&bus_softc->lun_softc_list, softc, links);
 		mtx_unlock(&bus_softc->lun_softc_mtx);
-		ctlfe_onoffline(arg, /*online*/ 1);
 	}
 
 	xpt_path_unlock(path);
