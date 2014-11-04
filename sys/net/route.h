@@ -107,7 +107,9 @@ VNET_DECLARE(u_int, rt_add_addr_allfibs); /* Announce interfaces to all fibs */
 #endif
 #endif
 
-#if defined(_KERNEL) || defined(_WANT_RTENTRY)
+struct rtentry;
+#if !defined(_KERNEL) || defined(_WANT_RTENTRY)
+/* This structure is kept for compatibility reasons only */
 struct rtentry {
 	struct	radix_node rt_nodes[2];	/* tree glue, and other values */
 	/*
@@ -126,11 +128,10 @@ struct rtentry {
 	u_long		rt_mtu;		/* MTU for this path */
 	u_long		rt_weight;	/* absolute weight */ 
 	u_long		rt_expire;	/* lifetime for route, e.g. redirect */
-#define	rt_endzero	rt_pksent
-	counter_u64_t	rt_pksent;	/* packets sent using this route */
+#define	rt_endzero	rt_mtx
 	struct mtx	rt_mtx;		/* mutex for routing entry */
 };
-#endif /* _KERNEL || _WANT_RTENTRY */
+#endif /* !_KERNEL || _WANT_RTENTRY */
 
 #define	RTF_UP		0x1		/* route usable */
 #define	RTF_GATEWAY	0x2		/* destination is a gateway */
@@ -290,59 +291,6 @@ struct rt_addrinfo {
 
 #define RT_LINK_IS_UP(ifp)	(!((ifp)->if_capabilities & IFCAP_LINKSTATE) \
 				 || (ifp)->if_link_state == LINK_STATE_UP)
-
-#define	RT_LOCK_INIT(_rt) \
-	mtx_init(&(_rt)->rt_mtx, "rtentry", NULL, MTX_DEF | MTX_DUPOK)
-#define	RT_LOCK(_rt)		mtx_lock(&(_rt)->rt_mtx)
-#define	RT_UNLOCK(_rt)		mtx_unlock(&(_rt)->rt_mtx)
-#define	RT_LOCK_DESTROY(_rt)	mtx_destroy(&(_rt)->rt_mtx)
-#define	RT_LOCK_ASSERT(_rt)	mtx_assert(&(_rt)->rt_mtx, MA_OWNED)
-#define	RT_UNLOCK_COND(_rt)	do {				\
-	if (mtx_owned(&(_rt)->rt_mtx))				\
-		mtx_unlock(&(_rt)->rt_mtx);			\
-} while (0)
-
-#define	RT_ADDREF(_rt)	do {					\
-	RT_LOCK_ASSERT(_rt);					\
-	KASSERT((_rt)->rt_refcnt >= 0,				\
-		("negative refcnt %d", (_rt)->rt_refcnt));	\
-	(_rt)->rt_refcnt++;					\
-} while (0)
-
-#define	RT_REMREF(_rt)	do {					\
-	RT_LOCK_ASSERT(_rt);					\
-	KASSERT((_rt)->rt_refcnt > 0,				\
-		("bogus refcnt %d", (_rt)->rt_refcnt));	\
-	(_rt)->rt_refcnt--;					\
-} while (0)
-
-#define	RTFREE_LOCKED(_rt) do {					\
-	if ((_rt)->rt_refcnt <= 1)				\
-		rtfree(_rt);					\
-	else {							\
-		RT_REMREF(_rt);					\
-		RT_UNLOCK(_rt);					\
-	}							\
-	/* guard against invalid refs */			\
-	_rt = 0;						\
-} while (0)
-
-#define	RTFREE(_rt) do {					\
-	RT_LOCK(_rt);						\
-	RTFREE_LOCKED(_rt);					\
-} while (0)
-
-#define	RO_RTFREE(_ro) do {					\
-	if ((_ro)->ro_rt) {					\
-		if ((_ro)->ro_flags & RT_NORTREF) {		\
-			(_ro)->ro_flags &= ~RT_NORTREF;		\
-			(_ro)->ro_rt = NULL;			\
-		} else {					\
-			RT_LOCK((_ro)->ro_rt);			\
-			RTFREE_LOCKED((_ro)->ro_rt);		\
-		}						\
-	}							\
-} while (0)
 
 struct radix_node_head *rt_tables_get_rnh(int, int);
 

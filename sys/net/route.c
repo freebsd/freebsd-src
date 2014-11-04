@@ -58,6 +58,7 @@
 #include <net/if_var.h>
 #include <net/if_dl.h>
 #include <net/route.h>
+#include <net/route_internal.h>
 #include <net/vnet.h>
 #include <net/flowtable.h>
 

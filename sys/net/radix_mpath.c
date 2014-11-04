@@ -48,6 +48,7 @@ __FBSDID("$FreeBSD$");
 #include <net/radix.h>
 #include <net/radix_mpath.h>
 #include <net/route.h>
+#include <net/route_internal.h>
 #include <net/if.h>
 #include <net/if_var.h>
 
