@@ -53,14 +53,15 @@ ATF_TC_HEAD(bad_big5_wprintf, tc)
 
 ATF_TC_BODY(bad_big5_wprintf, tc)
 {
+#ifdef __FreeBSD__
+	atf_tc_skip("does not fail as expected (may be implementation "
+	    "specific issue with the test)");
+#endif
+
 	/* XXX implementation detail knowledge (wchar_t encoding) */
 	wchar_t ibuf[] = { 0xcf10, 0 };
 	setlocale(LC_CTYPE, "zh_TW.Big5");
 
-#if defined(__FreeBSD__)
-	atf_tc_expect_fail("does not fail as expected (may be implementation "
-	    "specific issue with the test)");
-#endif
 	ATF_REQUIRE_ERRNO(EILSEQ, wprintf(L"%ls\n", ibuf) < 0);
 	ATF_REQUIRE(ferror(stdout));
 }
@@ -73,15 +74,16 @@ ATF_TC_HEAD(bad_big5_swprintf, tc)
 
 ATF_TC_BODY(bad_big5_swprintf, tc)
 {
+#ifdef __FreeBSD__
+	atf_tc_skip("does not fail as expected (may be implementation "
+	    "specific issue with the test)");
+#endif
+
 	/* XXX implementation detail knowledge (wchar_t encoding) */
 	wchar_t ibuf[] = { 0xcf10, 0 };
 	wchar_t obuf[20];
 	setlocale(LC_CTYPE, "zh_TW.Big5");
 
-#if defined(__FreeBSD__)
-	atf_tc_expect_fail("does not fail as expected (may be implementation "
-	    "specific issue with the test)");
-#endif
 	ATF_REQUIRE_ERRNO(EILSEQ,
 			  swprintf(obuf, sizeof(obuf), L"%ls\n", ibuf) < 0);
 }
@@ -171,7 +173,7 @@ ATF_TC_BODY(bad_big5_getwc, tc)
 
 	ATF_REQUIRE(fp != NULL);
 	setlocale(LC_CTYPE, "zh_TW.Big5");
-#if defined(__FreeBSD__)
+#ifdef __FreeBSD__
 	atf_tc_expect_fail("does not return WEOF as expected");
 #endif
 	ATF_REQUIRE_EQ(getwc(fp), WEOF);
