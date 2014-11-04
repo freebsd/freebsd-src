@@ -1536,6 +1536,7 @@ rtmsg(int cmd, int flags, int fib)
 		switch (errno) {
 		case EPERM:
 			err(1, "writing to routing socket");
+			break;
 		case ESRCH:
 			warnx("route has not been found");
 			break;
