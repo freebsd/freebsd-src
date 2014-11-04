@@ -51,7 +51,6 @@ __FBSDID("$FreeBSD$");
 #include <net/if.h>
 #include <net/if_var.h>
 #include <net/route.h>
-#include <net/route_internal.h>
 #include <net/vnet.h>
 
 #include <netinet/in.h>
@@ -68,6 +67,7 @@ __FBSDID("$FreeBSD$");
 #endif
 
 #include <net/if_gif.h>
+#include <net/rt_nhops.h>
 
 static int gif_validate4(const struct ip *, struct gif_softc *,
 	struct ifnet *);
@@ -188,22 +188,15 @@ gif_validate4(const struct ip *ip, struct gif_softc *sc, struct ifnet *ifp)
 
 	/* ingress filters on outer source */
 	if ((GIF2IFP(sc)->if_flags & IFF_LINK2) == 0 && ifp) {
-		struct sockaddr_in sin;
-		struct rtentry *rt;
+		struct nhop4_basic nh4;
+		uint32_t fibnum;
 
-		bzero(&sin, sizeof(sin));
-		sin.sin_family = AF_INET;
-		sin.sin_len = sizeof(struct sockaddr_in);
-		sin.sin_addr = ip->ip_src;
-		/* XXX MRT  check for the interface we would use on output */
-		rt = in_rtalloc1((struct sockaddr *)&sin, 0,
-		    0UL, sc->gif_fibnum);
-		if (!rt || rt->rt_ifp != ifp) {
-			if (rt)
-				RTFREE_LOCKED(rt);
+		fibnum = sc->gif_fibnum;
+
+		if (fib4_lookup_nh_basic(fibnum, ip->ip_src, 0, &nh4) != 0)
 			return (0);
-		}
-		RTFREE_LOCKED(rt);
+		if (nh4.nh_ifp != ifp)
+			return (0);
 	}
 	return (32 * 2);
 }

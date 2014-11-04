@@ -53,7 +53,6 @@ __FBSDID("$FreeBSD$");
 #include <net/if.h>
 #include <net/if_var.h>
 #include <net/route.h>
-#include <net/route_internal.h>
 #include <net/vnet.h>
 
 #include <netinet/in.h>
@@ -67,6 +66,7 @@ __FBSDID("$FreeBSD$");
 #include <netinet6/ip6_var.h>
 #include <netinet6/in6_gif.h>
 #include <netinet6/in6_var.h>
+#include <netinet6/scope6_var.h>
 #endif
 #include <netinet/ip_ecn.h>
 #ifdef INET6
@@ -74,6 +74,7 @@ __FBSDID("$FreeBSD$");
 #endif
 
 #include <net/if_gif.h>
+#include <net/rt_nhops.h>
 
 VNET_DEFINE(int, ip6_gif_hlim) = GIF_HLIM;
 #define	V_ip6_gif_hlim			VNET(ip6_gif_hlim)
@@ -195,23 +196,17 @@ gif_validate6(const struct ip6_hdr *ip6, struct gif_softc *sc,
 
 	/* ingress filters on outer source */
 	if ((GIF2IFP(sc)->if_flags & IFF_LINK2) == 0 && ifp) {
-		struct sockaddr_in6 sin6;
-		struct rtentry *rt;
+		struct nhop6_basic nh6;
+		struct in6_addr src;
+		uint32_t fibnum, scopeid;
 
-		bzero(&sin6, sizeof(sin6));
-		sin6.sin6_family = AF_INET6;
-		sin6.sin6_len = sizeof(struct sockaddr_in6);
-		sin6.sin6_addr = ip6->ip6_src;
-		sin6.sin6_scope_id = 0; /* XXX */
+		fibnum = sc->gif_fibnum;
+		in6_splitscope(&ip6->ip6_src, &src, &scopeid);
 
-		rt = in6_rtalloc1((struct sockaddr *)&sin6, 0, 0UL,
-		    sc->gif_fibnum);
-		if (!rt || rt->rt_ifp != ifp) {
-			if (rt)
-				RTFREE_LOCKED(rt);
+		if (fib6_lookup_nh_basic(fibnum, &src, scopeid, 0, &nh6) != 0)
 			return (0);
-		}
-		RTFREE_LOCKED(rt);
+		if (nh6.nh_ifp != ifp)
+			return (0);
 	}
 
 	return (128 * 2);
