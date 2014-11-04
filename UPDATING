@@ -31,6 +31,24 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 11.x IS SLOW:
 	disable the most expensive debugging functionality run
 	"ln -s 'abort:false,junk:false' /etc/malloc.conf".)
 
+20141104:
+	vt(4), the new console driver, is enabled by default. It brings
+	support for Unicode and double-width characters, as well as
+	support for UEFI and integration with the KMS kernel video
+	drivers.
+
+	You may need to update your console settings in /etc/rc.conf,
+	most probably the keymap. During boot, /etc/rc.d/syscons will
+	indicate what you need to do.
+
+	vt(4) still has issues and lacks some features compared to
+	syscons(4). See the wiki for up-to-date information:
+	  https://wiki.freebsd.org/Newcons
+
+	If you want to keep using syscons(4), you can do so by adding
+	the following line to /boot/loader.conf:
+	  kern.vty=sc
+
 20141102:
 	pjdfstest has been integrated into kyua as an opt-in test suite.
 	Please see share/doc/pjdfstest/README for a more details on how to
