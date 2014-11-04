@@ -16,6 +16,20 @@ from older versions of FreeBSD, try WITHOUT_CLANG to bootstrap to the tip of
 stable/10, and then rebuild without this option. The bootstrap process from
 older version of current is a bit fragile.
 
+20141104:	p12	FreeBSD-SA-14:24.sshd
+			FreeBSD-SA-14:25.setlogin
+			FreeBSD-SA-14:26.ftp
+			FreeBSD-EN-14:12.zfs
+
+	Fix denial of service attack against sshd(8). [SA-14:24]
+
+	Fix kernel stack disclosure in setlogin(2) / getlogin(2).
+	[SA-14:25]
+
+	Fix remote command execution in ftp(1). [SA-14:26]
+
+	Fix NFSv4 and ZFS cache consistency issue. [EN-14:12]
+
 20141022:	p11	FreeBSD-EN-14:10.tzdata
 
 	Time zone data file update. [EN-14:10]
