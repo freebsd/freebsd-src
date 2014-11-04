@@ -273,6 +273,8 @@
             ..
             newsyslog
             ..
+            pw
+            ..
             sa
             ..
         ..
