@@ -75,7 +75,7 @@ __FBSDID("$FreeBSD$");
 #define STORVSC_MAX_IO_REQUESTS		(STORVSC_MAX_LUNS_PER_TARGET * 2)
 #define BLKVSC_MAX_IDE_DISKS_PER_TARGET	(1)
 #define BLKVSC_MAX_IO_REQUESTS		STORVSC_MAX_IO_REQUESTS
-#define STORVSC_MAX_TARGETS		(1)
+#define STORVSC_MAX_TARGETS		(2)
 
 struct storvsc_softc;
 
@@ -584,7 +584,6 @@ hv_storvsc_on_iocompletion(struct storvsc_softc *sc,
 
 	vm_srb = &vstor_packet->u.vm_srb;
 
-	request->sense_info_len = 0;
 	if (((vm_srb->scsi_status & 0xFF) == SCSI_STATUS_CHECK_COND) &&
 			(vm_srb->srb_status & SRB_STATUS_AUTOSENSE_VALID)) {
 		/* Autosense data available */
@@ -690,14 +689,14 @@ storvsc_probe(device_t dev)
 			if(bootverbose)
 				device_printf(dev,
 					"Enlightened ATA/IDE detected\n");
-			ret = 0;
+			ret = BUS_PROBE_DEFAULT;
 		} else if(bootverbose)
 			device_printf(dev, "Emulated ATA/IDE set (hw.ata.disk_enable set)\n");
 		break;
 	case DRIVER_STORVSC:
 		if(bootverbose)
 			device_printf(dev, "Enlightened SCSI device detected\n");
-		ret = 0;
+		ret = BUS_PROBE_DEFAULT;
 		break;
 	default:
 		ret = ENXIO;

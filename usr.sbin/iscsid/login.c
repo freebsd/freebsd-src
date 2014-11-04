@@ -39,9 +39,6 @@ __FBSDID("$FreeBSD$");
 #include <stdlib.h>
 #include <string.h>
 #include <netinet/in.h>
-#include <openssl/err.h>
-#include <openssl/md5.h>
-#include <openssl/rand.h>
 
 #include "iscsid.h"
 #include "iscsi_proto.h"
@@ -185,7 +182,7 @@ kernel_modify(const struct connection *conn, const char *target_address)
  *	be much more complicated: we would need to keep "dependencies"
  *	for sessions, so that, in case described in draft and using draft
  *	terminology, we would have three sessions: one for discovery,
- *	one for initial target portal, and one for redirect portal.  
+ *	one for initial target portal, and one for redirect portal.
  *	This would allow us to "backtrack" on connection failure,
  *	as described in draft.
  */
@@ -327,148 +324,6 @@ login_list_prefers(const char *list,
 	}
 	free(tofree);
 	return (-1);
-}
-
-static int
-login_hex2int(const char hex)
-{
-	switch (hex) {
-	case '0':
-		return (0x00);
-	case '1':
-		return (0x01);
-	case '2':
-		return (0x02);
-	case '3':
-		return (0x03);
-	case '4':
-		return (0x04);
-	case '5':
-		return (0x05);
-	case '6':
-		return (0x06);
-	case '7':
-		return (0x07);
-	case '8':
-		return (0x08);
-	case '9':
-		return (0x09);
-	case 'a':
-	case 'A':
-		return (0x0a);
-	case 'b':
-	case 'B':
-		return (0x0b);
-	case 'c':
-	case 'C':
-		return (0x0c);
-	case 'd':
-	case 'D':
-		return (0x0d);
-	case 'e':
-	case 'E':
-		return (0x0e);
-	case 'f':
-	case 'F':
-		return (0x0f);
-	default:
-		return (-1);
-	}
-}
-
-/*
- * XXX: Review this _carefully_.
- */
-static int
-login_hex2bin(const char *hex, char **binp, size_t *bin_lenp)
-{
-	int i, hex_len, nibble;
-	bool lo = true; /* As opposed to 'hi'. */
-	char *bin;
-	size_t bin_off, bin_len;
-
-	if (strncasecmp(hex, "0x", strlen("0x")) != 0) {
-		log_warnx("malformed variable, should start with \"0x\"");
-		return (-1);
-	}
-
-	hex += strlen("0x");
-	hex_len = strlen(hex);
-	if (hex_len < 1) {
-		log_warnx("malformed variable; doesn't contain anything "
-		    "but \"0x\"");
-		return (-1);
-	}
-
-	bin_len = hex_len / 2 + hex_len % 2;
-	bin = calloc(bin_len, 1);
-	if (bin == NULL)
-		log_err(1, "calloc");
-
-	bin_off = bin_len - 1;
-	for (i = hex_len - 1; i >= 0; i--) {
-		nibble = login_hex2int(hex[i]);
-		if (nibble < 0) {
-			log_warnx("malformed variable, invalid char \"%c\"",
-			    hex[i]);
-			return (-1);
-		}
-
-		assert(bin_off < bin_len);
-		if (lo) {
-			bin[bin_off] = nibble;
-			lo = false;
-		} else {
-			bin[bin_off] |= nibble << 4;
-			bin_off--;
-			lo = true;
-		}
-	}
-
-	*binp = bin;
-	*bin_lenp = bin_len;
-	return (0);
-}
-
-static char *
-login_bin2hex(const char *bin, size_t bin_len)
-{
-	unsigned char *hex, *tmp, ch;
-	size_t hex_len;
-	size_t i;
-
-	hex_len = bin_len * 2 + 3; /* +2 for "0x", +1 for '\0'. */
-	hex = malloc(hex_len);
-	if (hex == NULL)
-		log_err(1, "malloc");
-
-	tmp = hex;
-	tmp += sprintf(tmp, "0x");
-	for (i = 0; i < bin_len; i++) {
-		ch = bin[i];
-		tmp += sprintf(tmp, "%02x", ch);
-	}
-
-	return (hex);
-}
-
-static void
-login_compute_md5(const char id, const char *secret,
-    const void *challenge, size_t challenge_len, void *response,
-    size_t response_len)
-{
-	MD5_CTX ctx;
-	int rv;
-
-	assert(response_len == MD5_DIGEST_LENGTH);
-
-	MD5_Init(&ctx);
-	MD5_Update(&ctx, &id, sizeof(id));
-	MD5_Update(&ctx, secret, strlen(secret));
-	MD5_Update(&ctx, challenge, challenge_len);
-	rv = MD5_Final(response, &ctx);
-	if (rv != 1)
-		log_errx(1, "MD5_Final");
 }
 
 static void
@@ -687,12 +542,11 @@ login_send_chap_r(struct pdu *response)
 	struct connection *conn;
 	struct pdu *request;
 	struct keys *request_keys, *response_keys;
+	struct rchap *rchap;
 	const char *chap_a, *chap_c, *chap_i;
-	char *chap_r, *challenge, response_bin[MD5_DIGEST_LENGTH];
-	size_t challenge_len;
-	int error, rv;
-	unsigned char id;
-        char *mutual_chap_c, mutual_chap_i[4];
+	char *chap_r;
+	int error;
+        char *mutual_chap_c, *mutual_chap_i;
 
 	/*
 	 * As in the rest of the initiator, 'request' means
@@ -720,17 +574,19 @@ login_send_chap_r(struct pdu *response)
 	if (chap_i == NULL)
 		log_errx(1, "received CHAP packet without CHAP_I");
 
-	if (strcmp(chap_a, "5") != 0)
+	if (strcmp(chap_a, "5") != 0) {
 		log_errx(1, "received CHAP packet "
 		    "with unsupported CHAP_A \"%s\"", chap_a);
-	id = strtoul(chap_i, NULL, 10);
-	error = login_hex2bin(chap_c, &challenge, &challenge_len);
-	if (error != 0)
-		log_errx(1, "received CHAP packet with malformed CHAP_C");
-	login_compute_md5(id, conn->conn_conf.isc_secret,
-	    challenge, challenge_len, response_bin, sizeof(response_bin));
-	free(challenge);
-	chap_r = login_bin2hex(response_bin, sizeof(response_bin));
+	}
+
+	rchap = rchap_new(conn->conn_conf.isc_secret);
+	error = rchap_receive(rchap, chap_i, chap_c);
+	if (error != 0) {
+		log_errx(1, "received CHAP packet "
+		    "with malformed CHAP_I or CHAP_C");
+	}
+	chap_r = rchap_get_response(rchap);
+	rchap_delete(rchap);
 
 	keys_delete(response_keys);
 
@@ -747,26 +603,15 @@ login_send_chap_r(struct pdu *response)
 	if (conn->conn_conf.isc_mutual_user[0] != '\0') {
 		log_debugx("requesting mutual authentication; "
 		    "binary challenge size is %zd bytes",
-		    sizeof(conn->conn_mutual_challenge));
+		    sizeof(conn->conn_mutual_chap->chap_challenge));
 
-		rv = RAND_bytes(conn->conn_mutual_challenge,
-		    sizeof(conn->conn_mutual_challenge));
-		if (rv != 1) {
-			log_errx(1, "RAND_bytes failed: %s",
-			    ERR_error_string(ERR_get_error(), NULL));
-		}
-		rv = RAND_bytes(&conn->conn_mutual_id,
-		    sizeof(conn->conn_mutual_id));
-		if (rv != 1) {
-			log_errx(1, "RAND_bytes failed: %s",
-			    ERR_error_string(ERR_get_error(), NULL));
-		}
-		mutual_chap_c = login_bin2hex(conn->conn_mutual_challenge,
-		    sizeof(conn->conn_mutual_challenge));
-		snprintf(mutual_chap_i, sizeof(mutual_chap_i),
-		    "%d", conn->conn_mutual_id);
+		assert(conn->conn_mutual_chap == NULL);
+		conn->conn_mutual_chap = chap_new();
+		mutual_chap_i = chap_get_id(conn->conn_mutual_chap);
+		mutual_chap_c = chap_get_challenge(conn->conn_mutual_chap);
 		keys_add(request_keys, "CHAP_I", mutual_chap_i);
 		keys_add(request_keys, "CHAP_C", mutual_chap_c);
+		free(mutual_chap_i);
 		free(mutual_chap_c);
 	}
 
@@ -782,8 +627,6 @@ login_verify_mutual(const struct pdu *response)
 	struct connection *conn;
 	struct keys *response_keys;
 	const char *chap_n, *chap_r;
-	char *response_bin, expected_response_bin[MD5_DIGEST_LENGTH];
-	size_t response_bin_len;
 	int error;
 
 	conn = response->pdu_connection;
@@ -797,28 +640,26 @@ login_verify_mutual(const struct pdu *response)
         chap_r = keys_find(response_keys, "CHAP_R");
         if (chap_r == NULL)
                 log_errx(1, "received CHAP Response PDU without CHAP_R");
-        error = login_hex2bin(chap_r, &response_bin, &response_bin_len);
-        if (error != 0)
-                log_errx(1, "received CHAP Response PDU with malformed CHAP_R");
+
+	error = chap_receive(conn->conn_mutual_chap, chap_r);
+	if (error != 0)
+                log_errx(1, "received CHAP Response PDU with invalid CHAP_R");
 
 	if (strcmp(chap_n, conn->conn_conf.isc_mutual_user) != 0) {
 		fail(conn, "Mutual CHAP failed");
 		log_errx(1, "mutual CHAP authentication failed: wrong user");
 	}
 
-	login_compute_md5(conn->conn_mutual_id,
-	    conn->conn_conf.isc_mutual_secret, conn->conn_mutual_challenge,
-	    sizeof(conn->conn_mutual_challenge), expected_response_bin,
-	    sizeof(expected_response_bin));
-
-        if (memcmp(response_bin, expected_response_bin,
-            sizeof(expected_response_bin)) != 0) {
+	error = chap_authenticate(conn->conn_mutual_chap,
+	    conn->conn_conf.isc_mutual_secret);
+	if (error != 0) {
 		fail(conn, "Mutual CHAP failed");
                 log_errx(1, "mutual CHAP authentication failed: wrong secret");
 	}
 
-        keys_delete(response_keys);
-        free(response_bin);
+	keys_delete(response_keys);
+	chap_delete(conn->conn_mutual_chap);
+	conn->conn_mutual_chap = NULL;
 
 	log_debugx("mutual CHAP authentication succeeded");
 }
@@ -915,8 +756,8 @@ login(struct connection *conn)
 		 * to parse things such as TargetAlias.
 		 *
 		 * XXX: This is somewhat ugly.  We should have a way to apply
-		 * 	all the keys to the session and use that by default
-		 * 	instead of discarding them.
+		 *      all the keys to the session and use that by default
+		 *      instead of discarding them.
 		 */
 		if (strcmp(response_keys->keys_names[i], "AuthMethod") == 0)
 			continue;

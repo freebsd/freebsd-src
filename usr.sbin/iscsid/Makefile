@@ -1,7 +1,7 @@
 # $FreeBSD$
 
 PROG=		iscsid
-SRCS=		discovery.c iscsid.c keys.c log.c login.c pdu.c
+SRCS=		chap.c discovery.c iscsid.c keys.c log.c login.c pdu.c
 CFLAGS+=	-I${.CURDIR}
 CFLAGS+=	-I${.CURDIR}/../../sys/cam
 CFLAGS+=	-I${.CURDIR}/../../sys/dev/iscsi

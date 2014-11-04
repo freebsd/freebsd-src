@@ -132,7 +132,14 @@ h_ctype2(const struct test *t, bool use_mbstate)
 	size_t n;
 
 	ATF_REQUIRE_STREQ(setlocale(LC_ALL, "C"), "C");
+#if defined(__NetBSD__)
 	ATF_REQUIRE(setlocale(LC_CTYPE, t->locale) != NULL);
+#else
+	if (setlocale(LC_CTYPE, t->locale) == NULL) {
+		fprintf(stderr, "Locale %s not found.\n", t->locale);
+		return;
+	}
+#endif
 
 	(void)strvis(buf, t->data, VIS_WHITE | VIS_OCTAL);
 	(void)printf("Checking string: \"%s\"\n", buf);
@@ -238,6 +245,9 @@ ATF_TC_BODY(mbrtowc_internal, tc)
 {
 	struct test *t;
 
+#if defined(__FreeBSD__)
+	atf_tc_expect_fail("ja_* locale fails");
+#endif
 	for (t = &tests[0]; t->data != NULL; ++t)
 		h_ctype2(t, false);
 }

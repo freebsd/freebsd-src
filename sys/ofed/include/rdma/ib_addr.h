@@ -41,7 +41,6 @@
 #include <linux/socket.h>
 #include <rdma/ib_verbs.h>
 #include <rdma/ib_pack.h>
-#include <linux/ethtool.h>
 #include <linux/if_vlan.h>
 
 struct rdma_addr_client {

@@ -75,8 +75,13 @@ ATF_TC_HEAD(memmem_basic, tc)
 ATF_TC_BODY(memmem_basic, tc)
 {
 
+#if defined(__darwin__) || defined(__FreeBSD__)
+	expect(memmem(b2, lb2, p0, lp0) == NULL);
+	expect(memmem(b0, lb0, p0, lp0) == NULL);
+#else
 	expect(memmem(b2, lb2, p0, lp0) == b2);
 	expect(memmem(b0, lb0, p0, lp0) == b0);
+#endif
 	expect(memmem(b0, lb0, p1, lp1) == NULL);
 	expect(memmem(b1, lb1, p1, lp1) == NULL);
 

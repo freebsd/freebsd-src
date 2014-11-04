@@ -806,6 +806,18 @@ ctl_set_task_aborted(struct ctl_scsiio *ctsio)
 }
 
 void
+ctl_set_space_alloc_fail(struct ctl_scsiio *ctsio)
+{
+	/* "Space allocation failed write protect" */
+	ctl_set_sense(ctsio,
+		      /*current_error*/ 1,
+		      /*sense_key*/ SSD_KEY_DATA_PROTECT,
+		      /*asc*/ 0x27,
+		      /*ascq*/ 0x07,
+		      SSD_ELEM_NONE);
+}
+
+void
 ctl_set_success(struct ctl_scsiio *ctsio)
 {
 	struct scsi_sense_data *sense;

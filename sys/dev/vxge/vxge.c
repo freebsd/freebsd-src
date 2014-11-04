@@ -3357,100 +3357,100 @@ vxge_device_hw_info_print(vxge_dev_t *vdev)
 
 	SYSCTL_ADD_STRING(ctx, children,
 	    OID_AUTO, "Driver version", CTLFLAG_RD,
-	    &vdev->config.nic_attr[VXGE_PRINT_DRV_VERSION],
+	    vdev->config.nic_attr[VXGE_PRINT_DRV_VERSION],
 	    0, "Driver version");
 
 	SYSCTL_ADD_STRING(ctx, children,
 	    OID_AUTO, "Serial number", CTLFLAG_RD,
-	    &vdev->config.nic_attr[VXGE_PRINT_SERIAL_NO],
+	    vdev->config.nic_attr[VXGE_PRINT_SERIAL_NO],
 	    0, "Serial number");
 
 	SYSCTL_ADD_STRING(ctx, children,
 	    OID_AUTO, "Part number", CTLFLAG_RD,
-	    &vdev->config.nic_attr[VXGE_PRINT_PART_NO],
+	    vdev->config.nic_attr[VXGE_PRINT_PART_NO],
 	    0, "Part number");
 
 	SYSCTL_ADD_STRING(ctx, children,
 	    OID_AUTO, "Firmware version", CTLFLAG_RD,
-	    &vdev->config.nic_attr[VXGE_PRINT_FW_VERSION],
+	    vdev->config.nic_attr[VXGE_PRINT_FW_VERSION],
 	    0, "Firmware version");
 
 	SYSCTL_ADD_STRING(ctx, children,
 	    OID_AUTO, "Firmware date", CTLFLAG_RD,
-	    &vdev->config.nic_attr[VXGE_PRINT_FW_DATE],
+	    vdev->config.nic_attr[VXGE_PRINT_FW_DATE],
 	    0, "Firmware date");
 
 	SYSCTL_ADD_STRING(ctx, children,
 	    OID_AUTO, "Link width", CTLFLAG_RD,
-	    &vdev->config.nic_attr[VXGE_PRINT_PCIE_INFO],
+	    vdev->config.nic_attr[VXGE_PRINT_PCIE_INFO],
 	    0, "Link width");
 
 	if (vdev->is_privilaged) {
 		SYSCTL_ADD_STRING(ctx, children,
 		    OID_AUTO, "Function mode", CTLFLAG_RD,
-		    &vdev->config.nic_attr[VXGE_PRINT_FUNC_MODE],
+		    vdev->config.nic_attr[VXGE_PRINT_FUNC_MODE],
 		    0, "Function mode");
 	}
 
 	SYSCTL_ADD_STRING(ctx, children,
 	    OID_AUTO, "Interrupt type", CTLFLAG_RD,
-	    &vdev->config.nic_attr[VXGE_PRINT_INTR_MODE],
+	    vdev->config.nic_attr[VXGE_PRINT_INTR_MODE],
 	    0, "Interrupt type");
 
 	SYSCTL_ADD_STRING(ctx, children,
 	    OID_AUTO, "VPath(s) opened", CTLFLAG_RD,
-	    &vdev->config.nic_attr[VXGE_PRINT_VPATH_COUNT],
+	    vdev->config.nic_attr[VXGE_PRINT_VPATH_COUNT],
 	    0, "VPath(s) opened");
 
 	SYSCTL_ADD_STRING(ctx, children,
 	    OID_AUTO, "Adapter Type", CTLFLAG_RD,
-	    &vdev->config.nic_attr[VXGE_PRINT_ADAPTER_TYPE],
+	    vdev->config.nic_attr[VXGE_PRINT_ADAPTER_TYPE],
 	    0, "Adapter Type");
 
 	SYSCTL_ADD_STRING(ctx, children,
 	    OID_AUTO, "pmd port 0", CTLFLAG_RD,
-	    &vdev->config.nic_attr[VXGE_PRINT_PMD_PORTS_0],
+	    vdev->config.nic_attr[VXGE_PRINT_PMD_PORTS_0],
 	    0, "pmd port");
 
 	if (hw_info->ports > 1) {
 
 		SYSCTL_ADD_STRING(ctx, children,
 		    OID_AUTO, "pmd port 1", CTLFLAG_RD,
-		    &vdev->config.nic_attr[VXGE_PRINT_PMD_PORTS_1],
+		    vdev->config.nic_attr[VXGE_PRINT_PMD_PORTS_1],
 		    0, "pmd port");
 
 		if (vdev->is_privilaged) {
 			SYSCTL_ADD_STRING(ctx, children,
 			    OID_AUTO, "Port Mode", CTLFLAG_RD,
-			    &vdev->config.nic_attr[VXGE_PRINT_PORT_MODE],
+			    vdev->config.nic_attr[VXGE_PRINT_PORT_MODE],
 			    0, "Port Mode");
 
 			if (vdev->port_mode != VXGE_HAL_DP_NP_MODE_SINGLE_PORT)
 				SYSCTL_ADD_STRING(ctx, children,
 				    OID_AUTO, "Port Failure", CTLFLAG_RD,
-				    &vdev->config.nic_attr[VXGE_PRINT_PORT_FAILURE],
+				    vdev->config.nic_attr[VXGE_PRINT_PORT_FAILURE],
 				    0, "Port Failure");
 
 			SYSCTL_ADD_STRING(ctx, children,
 			    OID_AUTO, "L2 Switch", CTLFLAG_RD,
-			    &vdev->config.nic_attr[VXGE_PRINT_L2SWITCH_MODE],
+			    vdev->config.nic_attr[VXGE_PRINT_L2SWITCH_MODE],
 			    0, "L2 Switch");
 		}
 	}
 
 	SYSCTL_ADD_STRING(ctx, children,
 	    OID_AUTO, "LRO mode", CTLFLAG_RD,
-	    &vdev->config.nic_attr[VXGE_PRINT_LRO_MODE],
+	    vdev->config.nic_attr[VXGE_PRINT_LRO_MODE],
 	    0, "LRO mode");
 
 	SYSCTL_ADD_STRING(ctx, children,
 	    OID_AUTO, "RTH mode", CTLFLAG_RD,
-	    &vdev->config.nic_attr[VXGE_PRINT_RTH_MODE],
+	    vdev->config.nic_attr[VXGE_PRINT_RTH_MODE],
 	    0, "RTH mode");
 
 	SYSCTL_ADD_STRING(ctx, children,
 	    OID_AUTO, "TSO mode", CTLFLAG_RD,
-	    &vdev->config.nic_attr[VXGE_PRINT_TSO_MODE],
+	    vdev->config.nic_attr[VXGE_PRINT_TSO_MODE],
 	    0, "TSO mode");
 }
 

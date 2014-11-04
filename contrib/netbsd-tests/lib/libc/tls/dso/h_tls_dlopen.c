@@ -36,7 +36,9 @@ __RCSID("$NetBSD: h_tls_dlopen.c,v 1.5 2013/10/21 19:14:16 joerg Exp $");
 
 #include <atf-c.h>
 #include <unistd.h>
+#if defined(__NetBSD__)
 #include <sys/tls.h>
+#endif
 
 #ifdef __HAVE_NO___THREAD
 #define	__thread

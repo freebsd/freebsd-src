@@ -3496,12 +3496,12 @@ sctp_reset_out_streams(struct sctp_tcb *stcb, uint32_t number_entries, uint16_t 
 }
 
 
-struct sctp_stream_reset_out_request *
+struct sctp_stream_reset_request *
 sctp_find_stream_reset(struct sctp_tcb *stcb, uint32_t seq, struct sctp_tmit_chunk **bchk)
 {
 	struct sctp_association *asoc;
 	struct sctp_chunkhdr *ch;
-	struct sctp_stream_reset_out_request *r;
+	struct sctp_stream_reset_request *r;
 	struct sctp_tmit_chunk *chk;
 	int len, clen;
 
@@ -3524,7 +3524,7 @@ sctp_find_stream_reset(struct sctp_tcb *stcb, uint32_t seq, struct sctp_tmit_chu
 	}
 	clen = chk->send_size;
 	ch = mtod(chk->data, struct sctp_chunkhdr *);
-	r = (struct sctp_stream_reset_out_request *)(ch + 1);
+	r = (struct sctp_stream_reset_request *)(ch + 1);
 	if (ntohl(r->request_seq) == seq) {
 		/* found it */
 		return (r);
@@ -3532,7 +3532,7 @@ sctp_find_stream_reset(struct sctp_tcb *stcb, uint32_t seq, struct sctp_tmit_chu
 	len = SCTP_SIZE32(ntohs(r->ph.param_length));
 	if (clen > (len + (int)sizeof(struct sctp_chunkhdr))) {
 		/* move to the next one, there can only be a max of two */
-		r = (struct sctp_stream_reset_out_request *)((caddr_t)r + len);
+		r = (struct sctp_stream_reset_request *)((caddr_t)r + len);
 		if (ntohl(r->request_seq) == seq) {
 			return (r);
 		}
@@ -3576,7 +3576,9 @@ sctp_handle_stream_reset_response(struct sctp_tcb *stcb,
 	int lparm_len;
 	struct sctp_association *asoc = &stcb->asoc;
 	struct sctp_tmit_chunk *chk;
-	struct sctp_stream_reset_out_request *srparam;
+	struct sctp_stream_reset_request *req_param;
+	struct sctp_stream_reset_out_request *req_out_param;
+	struct sctp_stream_reset_in_request *req_in_param;
 	uint32_t number_entries;
 
 	if (asoc->stream_reset_outstanding == 0) {
@@ -3584,35 +3586,36 @@ sctp_handle_stream_reset_response(struct sctp_tcb *stcb,
 		return (0);
 	}
 	if (seq == stcb->asoc.str_reset_seq_out) {
-		srparam = sctp_find_stream_reset(stcb, seq, &chk);
-		if (srparam) {
+		req_param = sctp_find_stream_reset(stcb, seq, &chk);
+		if (req_param != NULL) {
 			stcb->asoc.str_reset_seq_out++;
-			type = ntohs(srparam->ph.param_type);
-			lparm_len = ntohs(srparam->ph.param_length);
+			type = ntohs(req_param->ph.param_type);
+			lparm_len = ntohs(req_param->ph.param_length);
 			if (type == SCTP_STR_RESET_OUT_REQUEST) {
+				req_out_param = (struct sctp_stream_reset_out_request *)req_param;
 				number_entries = (lparm_len - sizeof(struct sctp_stream_reset_out_request)) / sizeof(uint16_t);
 				asoc->stream_reset_out_is_outstanding = 0;
 				if (asoc->stream_reset_outstanding)
 					asoc->stream_reset_outstanding--;
 				if (action == SCTP_STREAM_RESET_RESULT_PERFORMED) {
 					/* do it */
-					sctp_reset_out_streams(stcb, number_entries, srparam->list_of_streams);
+					sctp_reset_out_streams(stcb, number_entries, req_out_param->list_of_streams);
 				} else if (action == SCTP_STREAM_RESET_RESULT_DENIED) {
-					sctp_ulp_notify(SCTP_NOTIFY_STR_RESET_DENIED_OUT, stcb, number_entries, srparam->list_of_streams, SCTP_SO_NOT_LOCKED);
+					sctp_ulp_notify(SCTP_NOTIFY_STR_RESET_DENIED_OUT, stcb, number_entries, req_out_param->list_of_streams, SCTP_SO_NOT_LOCKED);
 				} else {
-					sctp_ulp_notify(SCTP_NOTIFY_STR_RESET_FAILED_OUT, stcb, number_entries, srparam->list_of_streams, SCTP_SO_NOT_LOCKED);
+					sctp_ulp_notify(SCTP_NOTIFY_STR_RESET_FAILED_OUT, stcb, number_entries, req_out_param->list_of_streams, SCTP_SO_NOT_LOCKED);
 				}
 			} else if (type == SCTP_STR_RESET_IN_REQUEST) {
-				/* Answered my request */
+				req_in_param = (struct sctp_stream_reset_in_request *)req_param;
 				number_entries = (lparm_len - sizeof(struct sctp_stream_reset_in_request)) / sizeof(uint16_t);
 				if (asoc->stream_reset_outstanding)
 					asoc->stream_reset_outstanding--;
 				if (action == SCTP_STREAM_RESET_RESULT_DENIED) {
 					sctp_ulp_notify(SCTP_NOTIFY_STR_RESET_DENIED_IN, stcb,
-					    number_entries, srparam->list_of_streams, SCTP_SO_NOT_LOCKED);
+					    number_entries, req_in_param->list_of_streams, SCTP_SO_NOT_LOCKED);
 				} else if (action != SCTP_STREAM_RESET_RESULT_PERFORMED) {
 					sctp_ulp_notify(SCTP_NOTIFY_STR_RESET_FAILED_IN, stcb,
-					    number_entries, srparam->list_of_streams, SCTP_SO_NOT_LOCKED);
+					    number_entries, req_in_param->list_of_streams, SCTP_SO_NOT_LOCKED);
 				}
 			} else if (type == SCTP_STR_RESET_ADD_OUT_STREAMS) {
 				/* Ok we now may have more streams */

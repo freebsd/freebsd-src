@@ -689,10 +689,10 @@ vty_enabled(unsigned vty)
 				vty_selected = vty_prefer;
 				break;
 			}
-#if defined(DEV_SC)
-			vty_selected = VTY_SC;
-#elif defined(DEV_VT)
+#if defined(DEV_VT)
 			vty_selected = VTY_VT;
+#elif defined(DEV_SC)
+			vty_selected = VTY_SC;
 #endif
 		} while (0);
 

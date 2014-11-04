@@ -77,10 +77,10 @@ static time_t prefix_timo = (60 * 120);	/* 2 hours.
 
 static struct rtadvd_timer *prefix_timeout(void *);
 static void makeentry(char *, size_t, int, const char *);
-static size_t dname_labelenc(char *, const char *);
+static ssize_t dname_labelenc(char *, const char *);
 
 /* Encode domain name label encoding in RFC 1035 Section 3.1 */
-static size_t
+static ssize_t
 dname_labelenc(char *dst, const char *src)
 {
 	char *dst_origin;
@@ -90,6 +90,8 @@ dname_labelenc(char *dst, const char *src)
 	dst_origin = dst;
 	len = strlen(src);
 
+	if (len + len / 64 + 1 + 1 > DNAME_LABELENC_MAXLEN)
+		return (-1);
 	/* Length fields per 63 octets + '\0' (<= DNAME_LABELENC_MAXLEN) */
 	memset(dst, 0, len + len / 64 + 1 + 1);
 
@@ -98,9 +100,13 @@ dname_labelenc(char *dst, const char *src)
 		/* Put a length field with 63 octet limitation first. */
 		p = strchr(src, '.');
 		if (p == NULL)
-			*dst++ = len = MIN(63, len);
+			*dst = len = MIN(63, len);
 		else
-			*dst++ = len = MIN(63, p - src);
+			*dst = len = MIN(63, p - src);
+		if (dst + 1 + len < dst_origin + DNAME_LABELENC_MAXLEN)
+			dst++;
+		else
+			return (-1);
 		/* Copy 63 octets at most. */
 		memcpy(dst, src, len);
 		dst += len;
@@ -866,6 +872,11 @@ getconfig_free_rdn:
 			abuf[c] = '\0';
 			ELM_MALLOC(dnsa, goto getconfig_free_dns);
 			dnsa->da_len = dname_labelenc(dnsa->da_dom, abuf);
+			if (dnsa->da_len < 0) {
+				syslog(LOG_ERR, "Invalid dnssl entry: %s",
+				    abuf);
+				goto getconfig_free_dns;
+			}
 			syslog(LOG_DEBUG, "<%s>: dnsa->da_len = %d", __func__,
 			    dnsa->da_len);
 			TAILQ_INSERT_TAIL(&dns->dn_list, dnsa, da_next);

@@ -362,8 +362,7 @@ intr_setaffinity(int irq, void *m)
 {
 	struct intr_event *ie;
 	cpuset_t *mask;
-	u_char cpu;
-	int n;
+	int cpu, n;
 
 	mask = m;
 	cpu = NOCPU;
@@ -377,7 +376,7 @@ intr_setaffinity(int irq, void *m)
 				continue;
 			if (cpu != NOCPU)
 				return (EINVAL);
-			cpu = (u_char)n;
+			cpu = n;
 		}
 	}
 	ie = intr_lookup(irq);
@@ -886,13 +885,10 @@ intr_event_schedule_thread(struct intr_event *ie)
 	 * If any of the handlers for this ithread claim to be good
 	 * sources of entropy, then gather some.
 	 */
-	if (harvest.interrupt && ie->ie_flags & IE_ENTROPY) {
-		CTR3(KTR_INTR, "%s: pid %d (%s) gathering entropy", __func__,
-		    p->p_pid, td->td_name);
+	if (ie->ie_flags & IE_ENTROPY) {
 		entropy.event = (uintptr_t)ie;
 		entropy.td = ctd;
-		random_harvest(&entropy, sizeof(entropy), 2,
-		    RANDOM_INTERRUPT);
+		random_harvest(&entropy, sizeof(entropy), 2, RANDOM_INTERRUPT);
 	}
 
 	KASSERT(p != NULL, ("ithread %s has no process", ie->ie_name));
@@ -1040,13 +1036,10 @@ intr_event_schedule_thread(struct intr_event *ie, struct intr_thread *it)
 	 * If any of the handlers for this ithread claim to be good
 	 * sources of entropy, then gather some.
 	 */
-	if (harvest.interrupt && ie->ie_flags & IE_ENTROPY) {
-		CTR3(KTR_INTR, "%s: pid %d (%s) gathering entropy", __func__,
-		    p->p_pid, td->td_name);
+	if (ie->ie_flags & IE_ENTROPY) {
 		entropy.event = (uintptr_t)ie;
 		entropy.td = ctd;
-		random_harvest(&entropy, sizeof(entropy), 2,
-		    RANDOM_INTERRUPT);
+		random_harvest(&entropy, sizeof(entropy), 2, RANDOM_INTERRUPT);
 	}
 
 	KASSERT(p != NULL, ("ithread %s has no process", ie->ie_name));
@@ -1131,14 +1124,9 @@ swi_sched(void *cookie, int flags)
 	CTR3(KTR_INTR, "swi_sched: %s %s need=%d", ie->ie_name, ih->ih_name,
 	    ih->ih_need);
 
-	if (harvest.swi) {
-		CTR2(KTR_INTR, "swi_sched: pid %d (%s) gathering entropy",
-		    curproc->p_pid, curthread->td_name);
-		entropy.event = (uintptr_t)ih;
-		entropy.td = curthread;
-		random_harvest(&entropy, sizeof(entropy), 1,
-		    RANDOM_SWI);
-	}
+	entropy.event = (uintptr_t)ih;
+	entropy.td = curthread;
+	random_harvest(&entropy, sizeof(entropy), 1, RANDOM_SWI);
 
 	/*
 	 * Set ih_need for this handler so that if the ithread is already

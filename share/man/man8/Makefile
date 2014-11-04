@@ -3,7 +3,6 @@
 
 MAN=	crash.8 \
 	diskless.8 \
-	hv_kvp_daemon.8 \
 	intro.8 \
 	nanobsd.8 \
 	picobsd.8 \
@@ -11,6 +10,7 @@ MAN=	crash.8 \
 	rc.sendmail.8 \
 	rc.subr.8 \
 	rescue.8 \
+	${_uefi.8} \
 	yp.8
 
 MLINKS=	rc.8 rc.atm.8 \
@@ -24,5 +24,9 @@ MLINKS=	rc.8 rc.atm.8 \
 MLINKS+=yp.8 NIS.8 \
 	yp.8 nis.8 \
 	yp.8 YP.8
+
+.if ${MACHINE_CPUARCH} == "amd64"
+_uefi.8= uefi.8
+.endif
 
 .include <bsd.prog.mk>

@@ -76,7 +76,7 @@
       <para>Note that there are two names for this architecture, AMD64
 	(AMD) and Intel EM64T (Extended Memory 64-bit Technology).
 	64-bit mode of the two architectures are almost compatible
-	with each other, and &os;/&arch.amd64; should support them
+	with each other, and &os;/&arch.amd64; supports them
 	both.</para>
 
       <para>As of this writing, the following processors are
@@ -92,6 +92,18 @@
 	</listitem>
 
 	<listitem>
+	  <para>&amd.sempron;.</para>
+	</listitem>
+
+	<listitem>
+	  <para>&amd.turion;.</para>
+	</listitem>
+
+	<listitem>
+	  <para>&amd.phenom;.</para>
+	</listitem>
+
+	<listitem>
 	  <para>All multi-core &intel; &xeon; processors except
 	    Sossaman have EM64T support.</para>
 	</listitem>
@@ -104,8 +116,12 @@
 	</listitem>
 
 	<listitem>
-	  <para>All &intel; Core 2 (not Core Duo) and later
+	  <para>All &intel; &core; 2 (not &core; Duo) and later
 	    processors</para>
+	</listitem>
+
+	<listitem>
+	  <para>All &intel; &core; i range of processors</para>
 	</listitem>
 
 	<listitem>
@@ -113,13 +129,17 @@
 	</listitem>
 
 	<listitem>
-	  <para>&intel; &pentium; 4s and Celeron Ds using
+	  <para>All &intel; &centrino; Duo and &centrino; Pro platforms</para>
+	</listitem>
+
+	<listitem>
+	  <para>&intel; &pentium; 4s and &celeron; Ds using
 	    the <quote>Cedar Mill</quote> core have EM64T
 	    support.</para>
 	</listitem>
 
 	<listitem>
-	  <para>Some &intel; &pentium; 4s and Celeron Ds using
+	  <para>Some &intel; &pentium; 4s and &celeron; Ds using
 	    the <quote>Prescott</quote> core have EM64T support.  See
 	    the <link xlink:href="http://processorfinder.intel.com">Intel
 	    Processor Spec Finder</link> for the definitive answer about

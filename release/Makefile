@@ -56,10 +56,16 @@ ${_V}!=	eval $$(awk '/^${_V}=/{print}' ${.CURDIR}/../sys/conf/newvers.sh); echo 
 .for _V in ${TARGET_ARCH}
 .if !empty(TARGET:M${_V})
 OSRELEASE=	${TYPE}-${REVISION}-${BRANCH}-${TARGET}
+VOLUME_LABEL=	${REVISION:C/[.-]/_/g}_${BRANCH:C/[.-]/_/g}_${TARGET}
 .else
 OSRELEASE=	${TYPE}-${REVISION}-${BRANCH}-${TARGET}-${TARGET_ARCH}
+VOLUME_LABEL=	${REVISION:C/[.-]/_/g}_${BRANCH:C/[.-]/_/g}_${TARGET_ARCH}
 .endif
 .endfor
+.endif
+
+.if !defined(VOLUME_LABEL) || empty(VOLUME_LABEL)
+VOLUME_LABEL=	FreeBSD_Install
 .endif
 
 .if !exists(${DOCDIR})
@@ -101,6 +107,7 @@ VMTARGETS=	vm-base vm-image
 VMFORMATS?=	vhd vmdk qcow2 raw
 VMSIZE?=	20G
 VMBASE?=	vm
+AZURECONF?=	${.CURDIR}/tools/azure.conf
 
 CLEANFILES=	packagesystem *.txz MANIFEST system ${IMAGES}
 .if defined(WITH_COMPRESSED_IMAGES) && !empty(WITH_COMPRESSED_IMAGES)
@@ -120,6 +127,12 @@ CLEANFILES+=	${VMBASE}.${FORMAT}
 CLEANDIRS=	dist ftp release bootonly dvd
 .if defined(WITH_VMIMAGES) && !empty(WITH_VMIMAGES)
 CLEANDIRS+=	${VMTARGETS}
+.endif
+.if exists(${.CURDIR}/${TARGET}/mk-azure.sh)
+CLEANFILES+=	${OSRELEASE}.vhd \
+		${OSRELEASE}.vhd.raw \
+		azure.img
+CLEANDIRS+=	vm-azure
 .endif
 beforeclean:
 	chflags -R noschg .
@@ -240,13 +253,13 @@ dvd:
 
 release.iso: disc1.iso
 disc1.iso: system
-	sh ${.CURDIR}/${TARGET}/mkisoimages.sh -b FreeBSD_Install ${.TARGET} release
+	sh ${.CURDIR}/${TARGET}/mkisoimages.sh -b ${VOLUME_LABEL}_CD ${.TARGET} release
 
 dvd1.iso: dvd pkg-stage
-	sh ${.CURDIR}/${TARGET}/mkisoimages.sh -b FreeBSD_Install ${.TARGET} dvd
+	sh ${.CURDIR}/${TARGET}/mkisoimages.sh -b ${VOLUME_LABEL}_DVD ${.TARGET} dvd
 
 bootonly.iso: bootonly
-	sh ${.CURDIR}/${TARGET}/mkisoimages.sh -b FreeBSD_Install ${.TARGET} bootonly
+	sh ${.CURDIR}/${TARGET}/mkisoimages.sh -b ${VOLUME_LABEL}_BO ${.TARGET} bootonly
 
 memstick: memstick.img
 memstick.img: system
@@ -336,5 +349,13 @@ vm-image: vm-base
 		${VMBASE}.img ${FORMAT} ${VMBASE}.${FORMAT}
 .  endfor
 . endif
+.endif
+	touch ${.TARGET}
+
+vm-azure:
+.if exists(${.CURDIR}/${TARGET}/mk-azure.sh)
+	env TARGET=${TARGET} TARGET_ARCH=${TARGET_ARCH} AZURECONF=${AZURECONF} \
+		${.CURDIR}/${TARGET}/mk-azure.sh ${.TARGET} azure.img \
+		${WORLDDIR} ${.TARGET} ${VMSIZE} ${OSRELEASE}.vhd
 .endif
 	touch ${.TARGET}

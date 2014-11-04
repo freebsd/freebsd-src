@@ -47,6 +47,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/bus.h>
 #include <sys/cpu.h>
 #include <sys/eventhandler.h>
+#include <sys/limits.h>
 #include <sys/systm.h>
 #include <sys/kernel.h>
 #include <sys/sysctl.h>
@@ -63,6 +64,7 @@ __FBSDID("$FreeBSD$");
 
 #include <amd64/vmm/intel/vmx_controls.h>
 #include <x86/isa/icu.h>
+#include <x86/vmware.h>
 
 #ifdef __i386__
 #define	IDENTBLUE_CYRIX486	0
@@ -76,6 +78,8 @@ static u_int find_cpu_vendor_id(void);
 static void print_AMD_info(void);
 static void print_INTEL_info(void);
 static void print_INTEL_TLB(u_int data);
+static void print_hypervisor_info(void);
+static void print_svm_info(void);
 static void print_via_padlock_info(void);
 static void print_vmx_info(void);
 
@@ -118,6 +122,11 @@ SYSCTL_STRING(_hw, HW_MODEL, model, CTLFLAG_RD,
 static int hw_clockrate;
 SYSCTL_INT(_hw, OID_AUTO, clockrate, CTLFLAG_RD,
     &hw_clockrate, 0, "CPU instruction clock rate");
+
+u_int hv_high;
+char hv_vendor[16];
+SYSCTL_STRING(_hw, OID_AUTO, hv_vendor, CTLFLAG_RD, hv_vendor, 0,
+    "Hypervisor vendor");
 
 static eventhandler_tag tsc_post_tag;
 
@@ -932,6 +941,9 @@ printcpuinfo(void)
 			if (cpu_feature2 & CPUID2_VMX)
 				print_vmx_info();
 
+			if (amd_feature2 & AMDID2_SVM)
+				print_svm_info();
+
 			if ((cpu_feature & CPUID_HTT) &&
 			    cpu_vendor_id == CPU_VENDOR_AMD)
 				cpu_feature &= ~CPUID_HTT;
@@ -945,7 +957,6 @@ printcpuinfo(void)
 				if (tsc_perf_stat)
 					printf(", performance statistics");
 			}
-
 		}
 #ifdef __i386__
 	} else if (cpu_vendor_id == CPU_VENDOR_CYRIX) {
@@ -963,17 +974,18 @@ printcpuinfo(void)
 	if (*cpu_vendor || cpu_id)
 		printf("\n");
 
-	if (!bootverbose)
-		return;
-
-	if (cpu_vendor_id == CPU_VENDOR_AMD)
-		print_AMD_info();
-	else if (cpu_vendor_id == CPU_VENDOR_INTEL)
-		print_INTEL_info();
+	if (bootverbose) {
+		if (cpu_vendor_id == CPU_VENDOR_AMD)
+			print_AMD_info();
+		else if (cpu_vendor_id == CPU_VENDOR_INTEL)
+			print_INTEL_info();
 #ifdef __i386__
-	else if (cpu_vendor_id == CPU_VENDOR_TRANSMETA)
-		print_transmeta_info();
+		else if (cpu_vendor_id == CPU_VENDOR_TRANSMETA)
+			print_transmeta_info();
 #endif
+	}
+
+	print_hypervisor_info();
 }
 
 void
@@ -1178,6 +1190,99 @@ hook_tsc_freq(void *arg __unused)
 
 SYSINIT(hook_tsc_freq, SI_SUB_CONFIGURE, SI_ORDER_ANY, hook_tsc_freq, NULL);
 
+#ifndef XEN
+static const char *const vm_bnames[] = {
+	"QEMU",				/* QEMU */
+	"Plex86",			/* Plex86 */
+	"Bochs",			/* Bochs */
+	"Xen",				/* Xen */
+	"BHYVE",			/* bhyve */
+	"Seabios",			/* KVM */
+	NULL
+};
+
+static const char *const vm_pnames[] = {
+	"VMware Virtual Platform",	/* VMWare VM */
+	"Virtual Machine",		/* Microsoft VirtualPC */
+	"VirtualBox",			/* Sun xVM VirtualBox */
+	"Parallels Virtual Platform",	/* Parallels VM */
+	"KVM",				/* KVM */
+	NULL
+};
+
+static void
+identify_hypervisor(void)
+{
+	u_int regs[4];
+	char *p;
+	int i;
+
+	/*
+	 * [RFC] CPUID usage for interaction between Hypervisors and Linux.
+	 * http://lkml.org/lkml/2008/10/1/246
+	 *
+	 * KB1009458: Mechanisms to determine if software is running in
+	 * a VMware virtual machine
+	 * http://kb.vmware.com/kb/1009458
+	 */
+	if (cpu_feature2 & CPUID2_HV) {
+		vm_guest = VM_GUEST_VM;
+		do_cpuid(0x40000000, regs);
+		if (regs[0] >= 0x40000000) {
+			hv_high = regs[0];
+			((u_int *)&hv_vendor)[0] = regs[1];
+			((u_int *)&hv_vendor)[1] = regs[2];
+			((u_int *)&hv_vendor)[2] = regs[3];
+			hv_vendor[12] = '\0';
+			if (strcmp(hv_vendor, "VMwareVMware") == 0)
+				vm_guest = VM_GUEST_VMWARE;
+		}
+		return;
+	}
+
+	/*
+	 * Examine SMBIOS strings for older hypervisors.
+	 */
+	p = kern_getenv("smbios.system.serial");
+	if (p != NULL) {
+		if (strncmp(p, "VMware-", 7) == 0 || strncmp(p, "VMW", 3) == 0) {
+			vmware_hvcall(VMW_HVCMD_GETVERSION, regs);
+			if (regs[1] == VMW_HVMAGIC) {
+				vm_guest = VM_GUEST_VMWARE;			
+				freeenv(p);
+				return;
+			}
+		}
+		freeenv(p);
+	}
+
+	/*
+	 * XXX: Some of these entries may not be needed since they were
+	 * added to FreeBSD before the checks above.
+	 */
+	p = kern_getenv("smbios.bios.vendor");
+	if (p != NULL) {
+		for (i = 0; vm_bnames[i] != NULL; i++)
+			if (strcmp(p, vm_bnames[i]) == 0) {
+				vm_guest = VM_GUEST_VM;
+				freeenv(p);
+				return;
+			}
+		freeenv(p);
+	}
+	p = kern_getenv("smbios.system.product");
+	if (p != NULL) {
+		for (i = 0; vm_pnames[i] != NULL; i++)
+			if (strcmp(p, vm_pnames[i]) == 0) {
+				vm_guest = VM_GUEST_VM;
+				freeenv(p);
+				return;
+			}
+		freeenv(p);
+	}
+}
+#endif
+
 /*
  * Final stage of CPU identification.
  */
@@ -1209,6 +1314,9 @@ identify_cpu(void)
 	cpu_feature2 = regs[2];
 #endif
 
+#ifndef XEN
+	identify_hypervisor();
+#endif
 	cpu_vendor_id = find_cpu_vendor_id();
 
 	/*
@@ -1735,6 +1843,67 @@ print_INTEL_TLB(u_int data)
 	}
 }
 
+static void
+print_svm_info(void)
+{
+	u_int features, regs[4];
+	uint64_t msr;
+	int comma;
+
+	printf("\n  SVM: ");
+	do_cpuid(0x8000000A, regs);
+	features = regs[3];
+
+	msr = rdmsr(MSR_VM_CR);
+	if ((msr & VM_CR_SVMDIS) == VM_CR_SVMDIS)
+		printf("(disabled in BIOS) ");
+
+	if (!bootverbose) {
+		comma = 0;
+		if (features & (1 << 0)) {
+			printf("%sNP", comma ? "," : "");
+                        comma = 1; 
+		}
+		if (features & (1 << 3)) {
+			printf("%sNRIP", comma ? "," : "");
+                        comma = 1; 
+		}
+		if (features & (1 << 5)) {
+			printf("%sVClean", comma ? "," : "");
+                        comma = 1; 
+		}
+		if (features & (1 << 6)) {
+			printf("%sAFlush", comma ? "," : "");
+                        comma = 1; 
+		}
+		if (features & (1 << 7)) {
+			printf("%sDAssist", comma ? "," : "");
+                        comma = 1; 
+		}
+		printf("%sNAsids=%d", comma ? "," : "", regs[1]);
+		return;
+	}
+
+	printf("Features=0x%b", features,
+	       "\020"
+	       "\001NP"			/* Nested paging */
+	       "\002LbrVirt"		/* LBR virtualization */
+	       "\003SVML"		/* SVM lock */
+	       "\004NRIPS"		/* NRIP save */
+	       "\005TscRateMsr"		/* MSR based TSC rate control */
+	       "\006VmcbClean"		/* VMCB clean bits */
+	       "\007FlushByAsid"	/* Flush by ASID */
+	       "\010DecodeAssist"	/* Decode assist */
+	       "\011<b8>"
+	       "\012<b9>"
+	       "\013PauseFilter"	/* PAUSE intercept filter */    
+	       "\014<b11>"
+	       "\015PauseFilterThreshold" /* PAUSE filter threshold */
+	       "\016AVIC"		/* virtual interrupt controller */
+                );
+	printf("\nRevision=%d, ASIDs=%d", regs[0] & 0xff, regs[1]);
+}
+
 #ifdef __i386__
 static void
 print_transmeta_info(void)
@@ -1980,4 +2149,12 @@ print_vmx_info(void)
 		"\014single-globals"
 		);
 	}
+}
+
+static void
+print_hypervisor_info(void)
+{
+
+	if (*hv_vendor)
+		printf("Hypervisor: Origin = \"%s\"\n", hv_vendor);
 }

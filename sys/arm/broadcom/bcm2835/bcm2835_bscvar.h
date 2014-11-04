@@ -56,6 +56,10 @@ struct bcm_bsc_softc {
 #define	BCM_I2C_READ		0x02
 #define	BCM_I2C_ERROR		0x04
 
+#define	BCM_BSC_SLOW		10000	/*  10 kHz. */
+#define	BCM_BSC_FAST		50000	/*  50 kHz. */
+#define	BCM_BSC_FASTEST		100000	/* 100 kHz. */
+
 #define	BCM_BSC_WRITE(_sc, _off, _val)		\
     bus_space_write_4(_sc->sc_bst, _sc->sc_bsh, _off, _val)
 #define	BCM_BSC_READ(_sc, _off)			\

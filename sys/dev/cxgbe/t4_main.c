@@ -4534,10 +4534,10 @@ t4_sysctls(struct adapter *sc)
 	    NULL, chip_rev(sc), "chip hardware revision");
 
 	SYSCTL_ADD_STRING(ctx, children, OID_AUTO, "firmware_version",
-	    CTLFLAG_RD, &sc->fw_version, 0, "firmware version");
+	    CTLFLAG_RD, sc->fw_version, 0, "firmware version");
 
 	SYSCTL_ADD_STRING(ctx, children, OID_AUTO, "cf",
-	    CTLFLAG_RD, &sc->cfg_file, 0, "configuration file");
+	    CTLFLAG_RD, sc->cfg_file, 0, "configuration file");
 
 	SYSCTL_ADD_UINT(ctx, children, OID_AUTO, "cfcsum", CTLFLAG_RD, NULL,
 	    sc->cfcsum, "config file checksum");

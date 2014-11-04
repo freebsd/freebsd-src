@@ -122,7 +122,7 @@ struct tv32 {
 };
 
 /* various options */
-int options;
+static int options;
 #define	F_FLOOD		0x0001
 #define	F_INTERVAL	0x0002
 #define	F_NUMERIC	0x0004
@@ -157,52 +157,52 @@ int options;
  * to 8192 for complete accuracy...
  */
 #define	MAX_DUP_CHK	(8 * 128)
-int mx_dup_ck = MAX_DUP_CHK;
-char rcvd_tbl[MAX_DUP_CHK / 8];
+static int mx_dup_ck = MAX_DUP_CHK;
+static char rcvd_tbl[MAX_DUP_CHK / 8];
 
-struct sockaddr_in whereto;	/* who to ping */
-int datalen = DEFDATALEN;
-int maxpayload;
-int ssend;			/* send socket file descriptor */
-int srecv;			/* receive socket file descriptor */
-u_char outpackhdr[IP_MAXPACKET], *outpack;
-char BBELL = '\a';		/* characters written for MISSED and AUDIBLE */
-char BSPACE = '\b';		/* characters written for flood */
-char DOT = '.';
-char *hostname;
-char *shostname;
-int ident;			/* process id to identify our packets */
-int uid;			/* cached uid for micro-optimization */
-u_char icmp_type = ICMP_ECHO;
-u_char icmp_type_rsp = ICMP_ECHOREPLY;
-int phdr_len = 0;
-int send_len;
+static struct sockaddr_in whereto;	/* who to ping */
+static int datalen = DEFDATALEN;
+static int maxpayload;
+static int ssend;		/* send socket file descriptor */
+static int srecv;		/* receive socket file descriptor */
+static u_char outpackhdr[IP_MAXPACKET], *outpack;
+static char BBELL = '\a';	/* characters written for MISSED and AUDIBLE */
+static char BSPACE = '\b';	/* characters written for flood */
+static char DOT = '.';
+static char *hostname;
+static char *shostname;
+static int ident;		/* process id to identify our packets */
+static int uid;			/* cached uid for micro-optimization */
+static u_char icmp_type = ICMP_ECHO;
+static u_char icmp_type_rsp = ICMP_ECHOREPLY;
+static int phdr_len = 0;
+static int send_len;
 
 /* counters */
-long nmissedmax;		/* max value of ntransmitted - nreceived - 1 */
-long npackets;			/* max packets to transmit */
-long nreceived;			/* # of packets we got back */
-long nrepeats;			/* number of duplicates */
-long ntransmitted;		/* sequence # for outbound packets = #sent */
-long snpackets;			/* max packets to transmit in one sweep */
-long snreceived;		/* # of packets we got back in this sweep */
-long sntransmitted;		/* # of packets we sent in this sweep */
-int sweepmax;			/* max value of payload in sweep */
-int sweepmin = 0;		/* start value of payload in sweep */
-int sweepincr = 1;		/* payload increment in sweep */
-int interval = 1000;		/* interval between packets, ms */
-int waittime = MAXWAIT;		/* timeout for each packet */
-long nrcvtimeout = 0;		/* # of packets we got back after waittime */
+static long nmissedmax;		/* max value of ntransmitted - nreceived - 1 */
+static long npackets;		/* max packets to transmit */
+static long nreceived;		/* # of packets we got back */
+static long nrepeats;		/* number of duplicates */
+static long ntransmitted;	/* sequence # for outbound packets = #sent */
+static long snpackets;			/* max packets to transmit in one sweep */
+static long sntransmitted;	/* # of packets we sent in this sweep */
+static int sweepmax;		/* max value of payload in sweep */
+static int sweepmin = 0;	/* start value of payload in sweep */
+static int sweepincr = 1;	/* payload increment in sweep */
+static int interval = 1000;	/* interval between packets, ms */
+static int waittime = MAXWAIT;	/* timeout for each packet */
+static long nrcvtimeout = 0;	/* # of packets we got back after waittime */
 
 /* timing */
-int timing;			/* flag to do timing */
-double tmin = 999999999.0;	/* minimum round trip time */
-double tmax = 0.0;		/* maximum round trip time */
-double tsum = 0.0;		/* sum of all times, for doing average */
-double tsumsq = 0.0;		/* sum of all times squared, for std. dev. */
+static int timing;		/* flag to do timing */
+static double tmin = 999999999.0;	/* minimum round trip time */
+static double tmax = 0.0;	/* maximum round trip time */
+static double tsum = 0.0;	/* sum of all times, for doing average */
+static double tsumsq = 0.0;	/* sum of all times squared, for std. dev. */
 
-volatile sig_atomic_t finish_up;  /* nonzero if we've been told to finish up */
-volatile sig_atomic_t siginfo_p;
+/* nonzero if we've been told to finish up */
+static volatile sig_atomic_t finish_up;
+static volatile sig_atomic_t siginfo_p;
 
 #ifdef HAVE_LIBCAPSICUM
 static cap_channel_t *capdns;
@@ -1150,7 +1150,8 @@ pr_pack(char *buf, int cc, struct sockaddr_in *from, struct timeval *tv)
 #endif
 			tp = (const char *)tp + phdr_len;
 
-			if (cc - ICMP_MINLEN - phdr_len >= sizeof(tv1)) {
+			if ((size_t)(cc - ICMP_MINLEN - phdr_len) >=
+			    sizeof(tv1)) {
 				/* Copy to avoid alignment problems: */
 				memcpy(&tv32, tp, sizeof(tv32));
 				tv1.tv_sec = ntohl(tv32.tv32_sec);

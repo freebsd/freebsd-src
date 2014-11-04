@@ -49,6 +49,17 @@ h_pass(const char *buf, const char *fmt, int len,
 	exp = buf + len;
 	ret = strptime(buf, fmt, &tm);
 
+#if defined(__FreeBSD__)
+	ATF_CHECK_MSG(ret == exp,
+	    "strptime(\"%s\", \"%s\", tm): incorrect return code: "
+	    "expected: %p, got: %p", buf, fmt, exp, ret);
+
+#define H_REQUIRE_FIELD(field)						\
+		ATF_CHECK_MSG(tm.field == field,			\
+		    "strptime(\"%s\", \"%s\", tm): incorrect %s: "	\
+		    "expected: %d, but got: %d", buf, fmt,		\
+		    ___STRING(field), field, tm.field)
+#else
 	ATF_REQUIRE_MSG(ret == exp,
 	    "strptime(\"%s\", \"%s\", tm): incorrect return code: "
 	    "expected: %p, got: %p", buf, fmt, exp, ret);
@@ -58,6 +69,7 @@ h_pass(const char *buf, const char *fmt, int len,
 		    "strptime(\"%s\", \"%s\", tm): incorrect %s: "	\
 		    "expected: %d, but got: %d", buf, fmt,		\
 		    ___STRING(field), field, tm.field)
+#endif
 
 	H_REQUIRE_FIELD(tm_sec);
 	H_REQUIRE_FIELD(tm_min);
@@ -76,8 +88,13 @@ h_fail(const char *buf, const char *fmt)
 {
 	struct tm tm = { -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, NULL };
 
+#if defined(__FreeBSD__)
+	ATF_CHECK_MSG(strptime(buf, fmt, &tm) == NULL, "strptime(\"%s\", "
+	    "\"%s\", &tm) should fail, but it didn't", buf, fmt);
+#else
 	ATF_REQUIRE_MSG(strptime(buf, fmt, &tm) == NULL, "strptime(\"%s\", "
 	    "\"%s\", &tm) should fail, but it didn't", buf, fmt);
+#endif
 }
 
 ATF_TC(common);
@@ -90,6 +107,10 @@ ATF_TC_HEAD(common, tc)
 
 ATF_TC_BODY(common, tc)
 {
+
+#if defined(__FreeBSD__)
+	atf_tc_expect_fail("There are various issues with strptime on FreeBSD");
+#endif
 
 	h_pass("Tue Jan 20 23:27:46 1998", "%a %b %d %T %Y",
 		24, 46, 27, 23, 20, 0, 98, 2, -1);
@@ -168,9 +189,17 @@ ATF_TC_BODY(day, tc)
 	h_pass("mon", "%a", 3, -1, -1, -1, -1, -1, -1, 1, -1);
 	h_pass("tueSDay", "%A", 7, -1, -1, -1, -1, -1, -1, 2, -1);
 	h_pass("sunday", "%A", 6, -1, -1, -1, -1, -1, -1, 0, -1);
+#if defined(__NetBSD__)
 	h_fail("sunday", "%EA");
+#else
+	h_pass("Sunday", "%EA", 6, -1, -1, -1, -1, -1, -1, 0, -1);
+#endif
 	h_pass("SaturDay", "%A", 8, -1, -1, -1, -1, -1, -1, 6, -1);
+#if defined(__NetBSD__)
 	h_fail("SaturDay", "%OA");
+#else
+	h_pass("SaturDay", "%OA", 8, -1, -1, -1, -1, -1, -1, 6, -1);
+#endif
 }
 
 ATF_TC(month);

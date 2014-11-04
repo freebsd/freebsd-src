@@ -84,7 +84,7 @@ static uma_zone_t cfiscsi_data_wait_zone;
 
 SYSCTL_NODE(_kern_cam_ctl, OID_AUTO, iscsi, CTLFLAG_RD, 0,
     "CAM Target Layer iSCSI Frontend");
-static int debug = 3;
+static int debug = 1;
 SYSCTL_INT(_kern_cam_ctl_iscsi, OID_AUTO, debug, CTLFLAG_RWTUN,
     &debug, 1, "Enable debug messages");
 static int ping_timeout = 5;
@@ -187,7 +187,7 @@ static struct icl_pdu *
 cfiscsi_pdu_new_response(struct icl_pdu *request, int flags)
 {
 
-	return (icl_pdu_new_bhs(request->ip_conn, flags));
+	return (icl_pdu_new(request->ip_conn, flags));
 }
 
 static bool
@@ -1040,7 +1040,7 @@ cfiscsi_callout(void *context)
 	if (cs->cs_timeout < 2)
 		return;
 
-	cp = icl_pdu_new_bhs(cs->cs_conn, M_NOWAIT);
+	cp = icl_pdu_new(cs->cs_conn, M_NOWAIT);
 	if (cp == NULL) {
 		CFISCSI_SESSION_WARN(cs, "failed to allocate memory");
 		return;
@@ -1643,7 +1643,7 @@ cfiscsi_ioctl_terminate(struct ctl_iscsi *ci)
 		    strcmp(cs->cs_initiator_addr, citp->initiator_addr) != 0)
 			continue;
 
-		response = icl_pdu_new_bhs(cs->cs_conn, M_NOWAIT);
+		response = icl_pdu_new(cs->cs_conn, M_NOWAIT);
 		if (response == NULL) {
 			/*
 			 * Oh well.  Just terminate the connection.
@@ -1693,7 +1693,7 @@ cfiscsi_ioctl_logout(struct ctl_iscsi *ci)
 		    strcmp(cs->cs_initiator_addr, cilp->initiator_addr) != 0)
 			continue;
 
-		response = icl_pdu_new_bhs(cs->cs_conn, M_NOWAIT);
+		response = icl_pdu_new(cs->cs_conn, M_NOWAIT);
 		if (response == NULL) {
 			ci->status = CTL_ISCSI_ERROR;
 			snprintf(ci->error_str, sizeof(ci->error_str),
@@ -1863,7 +1863,7 @@ cfiscsi_ioctl_send(struct ctl_iscsi *ci)
 		}
 	}
 
-	ip = icl_pdu_new_bhs(cs->cs_conn, M_WAITOK);
+	ip = icl_pdu_new(cs->cs_conn, M_WAITOK);
 	memcpy(ip->ip_bhs, cisp->bhs, sizeof(*ip->ip_bhs));
 	if (datalen > 0) {
 		icl_pdu_append_data(ip, data, datalen, M_WAITOK);
@@ -1996,7 +1996,8 @@ cfiscsi_ioctl_port_create(struct ctl_req *req)
 	/* XXX KDM what should the real number be here? */
 	port->num_requested_ctl_io = 4096;
 	port->port_name = "iscsi";
-	port->virtual_port = strtoul(tag, NULL, 0);
+	port->physical_port = strtoul(tag, NULL, 0);
+	port->virtual_port = ct->ct_target_id;
 	port->port_online = cfiscsi_online;
 	port->port_offline = cfiscsi_offline;
 	port->port_info = cfiscsi_info;
@@ -2029,7 +2030,7 @@ cfiscsi_ioctl_port_create(struct ctl_req *req)
 	    SVPD_ID_TYPE_SCSI_NAME;
 	desc->length = idlen;
 	snprintf(desc->identifier, idlen, "%s,t,0x%4.4x",
-	    target, port->virtual_port);
+	    target, port->physical_port);
 
 	/* Generate Target ID. */
 	idlen = strlen(target) + 1;
@@ -2257,6 +2258,9 @@ cfiscsi_target_find_or_create(struct cfiscsi_softc *softc, const char *name,
 		strlcpy(newct->ct_alias, alias, sizeof(newct->ct_alias));
 	refcount_init(&newct->ct_refcount, 1);
 	newct->ct_softc = softc;
+	if (TAILQ_EMPTY(&softc->targets))
+		softc->last_target_id = 0;
+	newct->ct_target_id = ++softc->last_target_id;
 	TAILQ_INSERT_TAIL(&softc->targets, newct, ct_next);
 	mtx_unlock(&softc->lock);
 

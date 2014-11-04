@@ -1,6 +1,3 @@
-.\"
-.\" Automated Testing Framework (atf)
-.\"
 .\" Copyright (c) 2008 The NetBSD Foundation, Inc.
 .\" All rights reserved.
 .\"
@@ -25,8 +22,7 @@
 .\" IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR
 .\" OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN
 .\" IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-.\"
-.Dd March 2, 2014
+.Dd October 5, 2014
 .Dt ATF-CHECK 1
 .Os
 .Sh NAME
@@ -39,12 +35,15 @@
 .Op Fl e Ar action:arg ...
 .Op Fl x
 .Ar command
-.Nm
-.Fl h
 .Sh DESCRIPTION
 .Nm
 executes a given command and analyzes its results, including
 exit code, stdout and stderr.
+.Pp
+.Em Test cases must use
+.Em Xr atf-sh 3 Ns ' Ns s
+.Em Nm atf_check
+.Em builtin function instead of calling this utility directly.
 .Pp
 In the first synopsis form,
 .Nm
@@ -67,8 +66,6 @@ will print information about all supported options and their purpose.
 .Pp
 The following options are available:
 .Bl -tag  -width XqualXvalueXX
-.It Fl h
-Shows a short summary of all available options and their purpose.
 .It Fl s Ar qual:value
 Analyzes termination status.
 Must be one of:
@@ -133,21 +130,31 @@ Path to the system shell to be used when the
 is given to run commands.
 .El
 .Sh EXAMPLES
+The following are sample invocations from within a test case.
+Note that we use the
+.Nm atf_check
+function provided by
+.Xr atf-sh 3
+instead of executing
+.Nm
+directly:
 .Bd -literal -offset indent
 # Exit code 0, nothing on stdout/stderr
-atf-check 'true'
+atf_check 'true'
 
 # Typical usage if failure is expected
-atf-check -s not-exit:0 'false'
+atf_check -s not-exit:0 'false'
 
 # Checking stdout/stderr
 echo foobar >expout
-atf-check -o file:expout -e inline:"xx\etyy\en" \e
+atf_check -o file:expout -e inline:"xx\etyy\en" \e
     'echo foobar ; printf "xx\etyy\en" >&2'
 
 # Checking for a crash
-atf-check -s signal:sigsegv my_program
+atf_check -s signal:sigsegv my_program
 
 # Combined checks
-atf-check -o match:foo -o not-match:bar echo foo baz
+atf_check -o match:foo -o not-match:bar echo foo baz
 .Ed
+.Sh SEE ALSO
+.Xr atf-sh 1

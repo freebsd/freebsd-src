@@ -1347,8 +1347,8 @@ mrsas_get_best_arm(PLD_LOAD_BALANCE_INFO lbInfo, u_int8_t arm,
 	u_int8_t bestArm;
 
 	/* get the pending cmds for the data and mirror arms */
-	pend0 = atomic_read(&lbInfo->scsi_pending_cmds[0]);
-	pend1 = atomic_read(&lbInfo->scsi_pending_cmds[1]);
+	pend0 = mrsas_atomic_read(&lbInfo->scsi_pending_cmds[0]);
+	pend1 = mrsas_atomic_read(&lbInfo->scsi_pending_cmds[1]);
 
 	/* Determine the disk whose head is nearer to the req. block */
 	diff0 = ABS_DIFF(block, lbInfo->last_accessed_block[0]);
@@ -1382,7 +1382,7 @@ mrsas_get_updated_dev_handle(PLD_LOAD_BALANCE_INFO lbInfo,
 	/* get best new arm */
 	arm = mrsas_get_best_arm(lbInfo, old_arm, io_info->ldStartBlock, io_info->numBlocks);
 	devHandle = lbInfo->raid1DevHandle[arm];
-	atomic_inc(&lbInfo->scsi_pending_cmds[arm]);
+	mrsas_atomic_inc(&lbInfo->scsi_pending_cmds[arm]);
 
 	return devHandle;
 }

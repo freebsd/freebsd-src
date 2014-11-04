@@ -445,7 +445,7 @@ parse_dir_ask_printenv(const char *var)
 {
 	char *val;
 
-	val = getenv(var);
+	val = kern_getenv(var);
 	if (val != NULL) {
 		printf("  %s=%s\n", var, val);
 		freeenv(val);
@@ -836,9 +836,9 @@ vfs_mountroot_conf0(struct sbuf *sb)
 		sbuf_printf(sb, "cd9660:/dev/acd0 ro\n");
 		sbuf_printf(sb, ".timeout %d\n", root_mount_timeout);
 	}
-	s = getenv("vfs.root.mountfrom");
+	s = kern_getenv("vfs.root.mountfrom");
 	if (s != NULL) {
-		opt = getenv("vfs.root.mountfrom.options");
+		opt = kern_getenv("vfs.root.mountfrom.options");
 		tok = s;
 		error = parse_token(&tok, &mnt);
 		while (!error) {

@@ -80,7 +80,7 @@ static const uint32_t SHA256_K[64] = {
 
 
 static void
-transform(uint32_t state[static 8], const uint32_t data[static 16])
+transform(uint32_t state[8], const uint32_t data[16])
 {
 	uint32_t W[16];
 	uint32_t T[8];

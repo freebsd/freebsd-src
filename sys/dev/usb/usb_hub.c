@@ -1489,13 +1489,13 @@ uhub_attach(device_t dev)
 			if (usb_disable_port_power != 0 ||
 			    sc->sc_disable_port_power != 0) {
 				/* turn the power off */
-				DPRINTFN(0, "Turning port %d power off\n", portno);
+				DPRINTFN(2, "Turning port %d power off\n", portno);
 				err = usbd_req_clear_port_feature(udev, NULL,
 				    portno, UHF_PORT_POWER);
 			} else {
 #endif
 				/* turn the power on */
-				DPRINTFN(0, "Turning port %d power on\n", portno);
+				DPRINTFN(2, "Turning port %d power on\n", portno);
 				err = usbd_req_set_port_feature(udev, NULL,
 				    portno, UHF_PORT_POWER);
 #if USB_HAVE_DISABLE_ENUM

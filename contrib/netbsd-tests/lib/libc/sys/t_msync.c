@@ -170,8 +170,15 @@ ATF_TC_BODY(msync_err, tc)
 	/*
 	 * Test that invalid flags error out.
 	 */
+#ifdef __FreeBSD__
+	errno = 0;
+	ATF_REQUIRE_ERRNO(EINVAL, msync_sync("error", -1) != NULL);
+	errno = 0;
+	ATF_REQUIRE_ERRNO(EINVAL, msync_sync("error", INT_MAX) != NULL);
+#else
 	ATF_REQUIRE(msync_sync("error", -1) != NULL);
 	ATF_REQUIRE(msync_sync("error", INT_MAX) != NULL);
+#endif
 
 	errno = 0;
 
@@ -185,7 +192,11 @@ ATF_TC_BODY(msync_err, tc)
 	(void)munmap(map, page);
 
 	ATF_REQUIRE(msync(map, page, MS_SYNC) != 0);
+#ifdef __FreeBSD__
+	ATF_REQUIRE(errno == ENOMEM);
+#else
 	ATF_REQUIRE(errno == EFAULT);
+#endif
 }
 
 ATF_TC(msync_invalidate);

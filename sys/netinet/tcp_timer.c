@@ -133,7 +133,7 @@ SYSCTL_INT(_net_inet_tcp, OID_AUTO, rexmit_drop_options, CTLFLAG_RW,
 static VNET_DEFINE(int, tcp_pmtud_blackhole_detect);
 #define	V_tcp_pmtud_blackhole_detect	VNET(tcp_pmtud_blackhole_detect)
 SYSCTL_INT(_net_inet_tcp, OID_AUTO, pmtud_blackhole_detection,
-    CTLTYPE_INT|CTLFLAG_RW|CTLFLAG_VNET,
+    CTLFLAG_RW|CTLFLAG_VNET,
     &VNET_NAME(tcp_pmtud_blackhole_detect), 0,
     "Path MTU Discovery Black Hole Detection Enabled");
 
@@ -141,7 +141,7 @@ static VNET_DEFINE(int, tcp_pmtud_blackhole_activated);
 #define	V_tcp_pmtud_blackhole_activated \
     VNET(tcp_pmtud_blackhole_activated)
 SYSCTL_INT(_net_inet_tcp, OID_AUTO, pmtud_blackhole_activated,
-    CTLTYPE_INT|CTLFLAG_RD|CTLFLAG_VNET,
+    CTLFLAG_RD|CTLFLAG_VNET,
     &VNET_NAME(tcp_pmtud_blackhole_activated), 0,
     "Path MTU Discovery Black Hole Detection, Activation Count");
 
@@ -149,14 +149,14 @@ static VNET_DEFINE(int, tcp_pmtud_blackhole_activated_min_mss);
 #define	V_tcp_pmtud_blackhole_activated_min_mss \
     VNET(tcp_pmtud_blackhole_activated_min_mss)
 SYSCTL_INT(_net_inet_tcp, OID_AUTO, pmtud_blackhole_activated_min_mss,
-    CTLTYPE_INT|CTLFLAG_RD|CTLFLAG_VNET,
+    CTLFLAG_RD|CTLFLAG_VNET,
     &VNET_NAME(tcp_pmtud_blackhole_activated_min_mss), 0,
     "Path MTU Discovery Black Hole Detection, Activation Count at min MSS");
 
 static VNET_DEFINE(int, tcp_pmtud_blackhole_failed);
 #define	V_tcp_pmtud_blackhole_failed	VNET(tcp_pmtud_blackhole_failed)
 SYSCTL_INT(_net_inet_tcp, OID_AUTO, pmtud_blackhole_failed,
-    CTLTYPE_INT|CTLFLAG_RD|CTLFLAG_VNET,
+    CTLFLAG_RD|CTLFLAG_VNET,
     &VNET_NAME(tcp_pmtud_blackhole_failed), 0,
     "Path MTU Discovery Black Hole Detection, Failure Count");
 
@@ -164,7 +164,7 @@ SYSCTL_INT(_net_inet_tcp, OID_AUTO, pmtud_blackhole_failed,
 static VNET_DEFINE(int, tcp_pmtud_blackhole_mss) = 1200;
 #define	V_tcp_pmtud_blackhole_mss	VNET(tcp_pmtud_blackhole_mss)
 SYSCTL_INT(_net_inet_tcp, OID_AUTO, pmtud_blackhole_mss,
-    CTLTYPE_INT|CTLFLAG_RW|CTLFLAG_VNET,
+    CTLFLAG_RW|CTLFLAG_VNET,
     &VNET_NAME(tcp_pmtud_blackhole_mss), 0,
     "Path MTU Discovery Black Hole Detection lowered MSS");
 #endif
@@ -173,7 +173,7 @@ SYSCTL_INT(_net_inet_tcp, OID_AUTO, pmtud_blackhole_mss,
 static VNET_DEFINE(int, tcp_v6pmtud_blackhole_mss) = 1220;
 #define	V_tcp_v6pmtud_blackhole_mss	VNET(tcp_v6pmtud_blackhole_mss)
 SYSCTL_INT(_net_inet_tcp, OID_AUTO, v6pmtud_blackhole_mss,
-    CTLTYPE_INT|CTLFLAG_RW|CTLFLAG_VNET,
+    CTLFLAG_RW|CTLFLAG_VNET,
     &VNET_NAME(tcp_v6pmtud_blackhole_mss), 0,
     "Path MTU Discovery IPv6 Black Hole Detection lowered MSS");
 #endif
@@ -243,7 +243,7 @@ tcp_slowtimo(void)
 	VNET_LIST_RLOCK_NOSLEEP();
 	VNET_FOREACH(vnet_iter) {
 		CURVNET_SET(vnet_iter);
-		tcp_tw_2msl_scan();
+		(void) tcp_tw_2msl_scan(0);
 		CURVNET_RESTORE();
 	}
 	VNET_LIST_RUNLOCK_NOSLEEP();
@@ -693,7 +693,15 @@ tcp_timer_rexmt(void * xtp)
 	TCPT_RANGESET(tp->t_rxtcur, rexmt,
 		      tp->t_rttmin, TCPTV_REXMTMAX);
 
-	if (V_tcp_pmtud_blackhole_detect && (tp->t_state == TCPS_ESTABLISHED)) {
+	/*
+	 * We enter the path for PLMTUD if connection is established or, if
+	 * connection is FIN_WAIT_1 status, reason for the last is that if
+	 * amount of data we send is very small, we could send it in couple of
+	 * packets and process straight to FIN. In that case we won't catch
+	 * ESTABLISHED state.
+	 */
+	if (V_tcp_pmtud_blackhole_detect && (((tp->t_state == TCPS_ESTABLISHED))
+	    || (tp->t_state == TCPS_FIN_WAIT_1))) {
 		int optlen;
 #ifdef INET6
 		int isipv6;

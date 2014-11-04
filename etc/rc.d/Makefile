@@ -49,6 +49,7 @@ FILES=	DAEMON \
 	geli \
 	geli2 \
 	gptboot \
+	growfs \
 	gssd \
 	hastd \
 	${_hcsecd} \
@@ -57,7 +58,6 @@ FILES=	DAEMON \
 	hostid_save \
 	hostname \
 	inetd \
-	initrandom \
 	ip6addrctl \
 	ipfilter \
 	ipfs \
@@ -70,12 +70,12 @@ FILES=	DAEMON \
 	iscsictl \
 	iscsid \
 	jail \
-	kadmind \
-	kdc \
-	kfd \
+	${_kadmind} \
+	${_kdc} \
+	${_kfd} \
 	kld \
 	kldxref \
-	kpasswdd \
+	${_kpasswdd} \
 	ldconfig \
 	local \
 	localpkg \
@@ -112,7 +112,6 @@ FILES=	DAEMON \
 	pf \
 	pflog \
 	pfsync \
-	postrandom \
 	powerd \
 	power_profile \
 	ppp \
@@ -179,6 +178,13 @@ _casperd=	casperd
 
 .if ${MK_NS_CACHING} != "no"
 _nscd=		nscd
+.endif
+
+.if ${MK_KERBEROS} != "no"
+_kadmind=	kadmind
+_kdc=		kdc
+_kfd=		kfd
+_kpasswdd=	kpasswdd
 .endif
 
 .if ${MK_OFED} != "no"

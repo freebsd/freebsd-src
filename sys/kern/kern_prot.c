@@ -303,45 +303,24 @@ struct getgroups_args {
 int
 sys_getgroups(struct thread *td, register struct getgroups_args *uap)
 {
-	gid_t *groups;
+	struct ucred *cred;
 	u_int ngrp;
 	int error;
 
-	if (uap->gidsetsize < td->td_ucred->cr_ngroups) {
-		if (uap->gidsetsize == 0)
-			ngrp = 0;
-		else
-			return (EINVAL);
-	} else
-		ngrp = td->td_ucred->cr_ngroups;
-	groups = malloc(ngrp * sizeof(*groups), M_TEMP, M_WAITOK);
-	error = kern_getgroups(td, &ngrp, groups);
-	if (error)
-		goto out;
-	if (uap->gidsetsize > 0)
-		error = copyout(groups, uap->gidset, ngrp * sizeof(gid_t));
-	if (error == 0)
-		td->td_retval[0] = ngrp;
-out:
-	free(groups, M_TEMP);
-	return (error);
-}
-
-int
-kern_getgroups(struct thread *td, u_int *ngrp, gid_t *groups)
-{
-	struct ucred *cred;
-
 	cred = td->td_ucred;
-	if (*ngrp == 0) {
-		*ngrp = cred->cr_ngroups;
-		return (0);
+	ngrp = cred->cr_ngroups;
+
+	if (uap->gidsetsize == 0) {
+		error = 0;
+		goto out;
 	}
-	if (*ngrp < cred->cr_ngroups)
+	if (uap->gidsetsize < ngrp)
 		return (EINVAL);
-	*ngrp = cred->cr_ngroups;
-	bcopy(cred->cr_groups, groups, *ngrp * sizeof(gid_t));
-	return (0);
+
+	error = copyout(cred->cr_groups, uap->gidset, ngrp * sizeof(gid_t));
+out:
+	td->td_retval[0] = ngrp;
+	return (error);
 }
 
 #ifndef _SYS_SYSPROTO_H_
@@ -826,18 +805,26 @@ struct setgroups_args {
 int
 sys_setgroups(struct thread *td, struct setgroups_args *uap)
 {
-	gid_t *groups = NULL;
+	gid_t smallgroups[XU_NGROUPS];
+	gid_t *groups;
+	u_int gidsetsize;
 	int error;
 
-	if (uap->gidsetsize > ngroups_max + 1)
+	gidsetsize = uap->gidsetsize;
+	if (gidsetsize > ngroups_max + 1)
 		return (EINVAL);
-	groups = malloc(uap->gidsetsize * sizeof(gid_t), M_TEMP, M_WAITOK);
-	error = copyin(uap->gidset, groups, uap->gidsetsize * sizeof(gid_t));
-	if (error)
-		goto out;
-	error = kern_setgroups(td, uap->gidsetsize, groups);
-out:
-	free(groups, M_TEMP);
+
+	if (gidsetsize > XU_NGROUPS)
+		groups = malloc(gidsetsize * sizeof(gid_t), M_TEMP, M_WAITOK);
+	else
+		groups = smallgroups;
+
+	error = copyin(uap->gidset, groups, gidsetsize * sizeof(gid_t));
+	if (error == 0)
+		error = kern_setgroups(td, gidsetsize, groups);
+
+	if (gidsetsize > XU_NGROUPS)
+		free(groups, M_TEMP);
 	return (error);
 }
 
@@ -848,8 +835,7 @@ kern_setgroups(struct thread *td, u_int ngrp, gid_t *groups)
 	struct ucred *newcred, *oldcred;
 	int error;
 
-	if (ngrp > ngroups_max + 1)
-		return (EINVAL);
+	MPASS(ngrp <= ngroups_max + 1);
 	AUDIT_ARG_GROUPSET(groups, ngrp);
 	newcred = crget();
 	crextend(newcred, ngrp);
@@ -866,7 +852,7 @@ kern_setgroups(struct thread *td, u_int ngrp, gid_t *groups)
 	if (error)
 		goto fail;
 
-	if (ngrp < 1) {
+	if (ngrp == 0) {
 		/*
 		 * setgroups(0, NULL) is a legitimate way of clearing the
 		 * groups vector on non-BSD systems (which generally do not

@@ -234,7 +234,6 @@ typedef enum {
 	CTL_MSG_MANAGE_TASKS,
 	CTL_MSG_PERS_ACTION,
 	CTL_MSG_SYNC_FE,
-	CTL_MSG_APS_LOCK,
 	CTL_MSG_DATAMOVE,
 	CTL_MSG_DATAMOVE_DONE
 } ctl_msg_type;
@@ -424,14 +423,6 @@ struct ctl_ha_msg_hdr {
 #define	CTL_HA_MAX_SG_ENTRIES	16
 
 /*
- * Used for CTL_MSG_APS_LOCK.
- */
-struct ctl_ha_msg_aps {
-	struct ctl_ha_msg_hdr	hdr;
-	uint8_t			lock_flag;
-};
-
-/*
  * Used for CTL_MSG_PERS_ACTION.
  */
 struct ctl_ha_msg_pr {
@@ -500,7 +491,6 @@ union ctl_ha_msg {
 	struct ctl_ha_msg_scsi	scsi;
 	struct ctl_ha_msg_dt	dt;
 	struct ctl_ha_msg_pr	pr;
-	struct ctl_ha_msg_aps	aps;
 };
 
 
