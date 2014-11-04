@@ -1,4 +1,4 @@
-/*	$NetBSD: t_backtrace.c,v 1.15 2014/05/01 03:46:11 joerg Exp $	*/
+/*	$NetBSD: t_backtrace.c,v 1.16 2014/11/04 00:20:19 justin Exp $	*/
 
 /*-
  * Copyright (c) 2012 The NetBSD Foundation, Inc.
@@ -29,10 +29,9 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 #include <sys/cdefs.h>
-__RCSID("$NetBSD: t_backtrace.c,v 1.15 2014/05/01 03:46:11 joerg Exp $");
+__RCSID("$NetBSD: t_backtrace.c,v 1.16 2014/11/04 00:20:19 justin Exp $");
 
 #include <atf-c.h>
-#include <atf-c/config.h>
 #include <string.h>
 #include <stdio.h>
 #include <stdlib.h>
