@@ -1824,7 +1824,6 @@ create_table(struct ip_fw_chain *ch, ip_fw3_opheader *op3,
 	char *tname, *aname;
 	struct tid_info ti;
 	struct namedobj_instance *ni;
-	struct table_config *tc;
 
 	if (sd->valsize != sizeof(*oh) + sizeof(ipfw_xtable_info))
 		return (EINVAL);
@@ -1853,7 +1852,7 @@ create_table(struct ip_fw_chain *ch, ip_fw3_opheader *op3,
 	ni = CHAIN_TO_NI(ch);
 
 	IPFW_UH_RLOCK(ch);
-	if ((tc = find_table(ni, &ti)) != NULL) {
+	if (find_table(ni, &ti) != NULL) {
 		IPFW_UH_RUNLOCK(ch);
 		return (EEXIST);
 	}
