@@ -2054,21 +2054,20 @@ struct getlogin_args {
 int
 getlogin(struct thread *td, struct getlogin_args *uap)
 {
-	int error;
 	char login[MAXLOGNAME];
 	struct proc *p = td->td_proc;
+	size_t len;
 
 	if (uap->namelen > MAXLOGNAME)
 		uap->namelen = MAXLOGNAME;
 	PROC_LOCK(p);
 	SESS_LOCK(p->p_session);
-	bcopy(p->p_session->s_login, login, uap->namelen);
+	len = strlcpy(login, p->p_session->s_login, uap->namelen) + 1;
 	SESS_UNLOCK(p->p_session);
 	PROC_UNLOCK(p);
-	if (strlen(login) + 1 > uap->namelen)
+	if (len > uap->namelen)
 		return (ERANGE);
-	error = copyout(login, uap->namebuf, uap->namelen);
-	return (error);
+	return (copyout(login, uap->namebuf, len));
 }
 
 /*
@@ -2087,21 +2086,23 @@ setlogin(struct thread *td, struct setlogin_args *uap)
 	int error;
 	char logintmp[MAXLOGNAME];
 
+	CTASSERT(sizeof(p->p_session->s_login) >= sizeof(logintmp));
+
 	error = priv_check(td, PRIV_PROC_SETLOGIN);
 	if (error)
 		return (error);
 	error = copyinstr(uap->namebuf, logintmp, sizeof(logintmp), NULL);
-	if (error == ENAMETOOLONG)
-		error = EINVAL;
-	else if (!error) {
-		PROC_LOCK(p);
-		SESS_LOCK(p->p_session);
-		(void) memcpy(p->p_session->s_login, logintmp,
-		    sizeof(logintmp));
-		SESS_UNLOCK(p->p_session);
-		PROC_UNLOCK(p);
+	if (error != 0) {
+		if (error == ENAMETOOLONG)
+			error = EINVAL;
+		return (error);
 	}
-	return (error);
+	PROC_LOCK(p);
+	SESS_LOCK(p->p_session);
+	strcpy(p->p_session->s_login, logintmp);
+	SESS_UNLOCK(p->p_session);
+	PROC_UNLOCK(p);
+	return (0);
 }
 
 void

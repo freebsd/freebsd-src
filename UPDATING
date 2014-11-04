@@ -15,6 +15,17 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 8.x IS SLOW ON IA64 OR SUN4V:
 	debugging tools present in HEAD were left in place because
 	sun4v support still needs work to become production ready.
 
+20141104:	p19	FreeBSD-SA-14:25.setlogin
+			FreeBSD-SA-14:26.ftp
+			FreeBSD-EN-14:12.zfs
+
+	Fix kernel stack disclosure in setlogin(2) / getlogin(2).
+	[SA-14:25]
+
+	Fix remote command execution in ftp(1). [SA-14:26]
+
+	Fix NFSv4 and ZFS cache consistency issue. [EN-14:12]
+
 20141022:	p18	FreeBSD-EN-14:10.tzdata
 
 	Time zone data file update. [EN-14:10]
