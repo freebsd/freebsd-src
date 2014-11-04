@@ -1140,7 +1140,7 @@ get_l2te_for_nexthop(struct port_info *pi, struct ifnet *ifp,
 		}
 
 		/* TODO: Multipath */
-		if (fib6_lookup_nh_ext(inc->inc_fibnum, inc->inc6_faddr,
+		if (fib6_lookup_nh_ext(inc->inc_fibnum, &inc->inc6_faddr,
 		    0, 0, 0, &nhu.u.nh6) != 0)
 			return (NULL);
 		((struct sockaddr_in6 *)dst)->sin6_addr = nhu.u.nh6.nh_addr;

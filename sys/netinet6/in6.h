@@ -653,6 +653,7 @@ int	in6_localaddr(struct in6_addr *);
 int	in6_localip(struct in6_addr *);
 int	in6_addrscope(const struct in6_addr *);
 struct	in6_ifaddr *in6_ifawithifp(struct ifnet *, struct in6_addr *);
+int	in6_ifawithifp_lla(struct ifnet *, struct in6_addr *);
 extern void in6_if_up(struct ifnet *);
 struct sockaddr;
 extern	u_char	ip6_protox[];

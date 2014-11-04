@@ -74,7 +74,8 @@ struct nhop_prepend {
 		uint16_t	ifp_idx;	/* Transmit interface index */
 		uint16_t	nhop_idx;	/* L2 multipath nhop index */
 	} i;
-	uint16_t	spare1[3];
+	uint16_t	aifp_idx;	/* Interface address index */
+	uint16_t	spare1[2];
 	union {
 		char	data[MAX_PREPEND_LEN];	/* data to prepend */
 #ifdef INET
@@ -102,6 +103,7 @@ struct nhop_prepend {
 
 #define	NH_LIFP(nh)	ifnet_byindex_locked((nh)->lifp_idx)
 #define	NH_TIFP(nh)	ifnet_byindex_locked((nh)->i.ifp_idx)
+#define	NH_AIFP(nh)	ifnet_byindex_locked((nh)->aifp_idx)
 
 /* L2/L3 recursive nexthop */
 struct nhop_multi {
@@ -173,7 +175,6 @@ struct nhop6_extended {
 	uint16_t	nh_flags;	/* nhop flags */
 	uint8_t		spare[4];
 	struct in6_addr	nh_addr;	/* GW/DST IPv6 address */
-	struct in6_addr	nh_src;		/* default source IPv6 address */
 	uint64_t	spare2[2];
 };
 
@@ -186,9 +187,10 @@ struct nhopu_extended {
 
 struct route_info {
 	struct nhop_prepend	*ri_nh;		/* Desired nexthop to use */
-	struct nhop64_basic	*ri_nh_info;	/* Get selected route info */
-	uint16_t		ri_mtu;
-	uint16_t		spare[3];
+	struct nhopu_basic	*ri_nh_info;	/* Get selected route info */
+	uint16_t		ri_mtu;		/* Get selected route MTU */
+	uint16_t		spare;
+	uint32_t		scopeid;	/* Desired scope id to use */
 };
 
 struct route_compat {
@@ -206,9 +208,9 @@ void fib4_free_nh_ext(uint32_t fibnum, struct nhop4_extended *pnh4);
 #define	NHOP_LOOKUP_REF	0x01
 
 
-int fib6_lookup_nh_basic(uint32_t fibnum, struct in6_addr dst, uint32_t flowid,
-    struct nhop6_basic *pnh6);
-int fib6_lookup_nh_ext(uint32_t fibnum, struct in6_addr dst,
+int fib6_lookup_nh_basic(uint32_t fibnum, struct in6_addr *dst,
+    uint32_t scopeid, uint32_t flowid, struct nhop6_basic *pnh6);
+int fib6_lookup_nh_ext(uint32_t fibnum, struct in6_addr *dst,
     uint32_t scopeid, uint32_t flowid, uint32_t flags,
     struct nhop6_extended *pnh6);
 void fib6_free_nh_ext(uint32_t fibnum, struct nhop6_extended *pnh6);
@@ -228,6 +230,11 @@ int fib4_sendmbuf(struct ifnet *ifp, struct mbuf *m, struct nhop_prepend *nh,
 void fib6_free_nh_prepend(uint32_t fibnum, struct nhop_prepend *nh);
 void fib6_choose_prepend(uint32_t fibnum, struct nhop_prepend *nh_src,
     uint32_t flowid, struct nhop_prepend *nh, struct nhop6_extended *nh_ext);
+int fib6_lookup_prepend(uint32_t fibnum, struct in6_addr *dst, uint32_t scopeid,
+    struct mbuf *m, struct nhop_prepend *nh, struct nhop6_extended *nh_ext);
+
+int fib6_sendmbuf(struct ifnet *ifp, struct ifnet *origifp, struct mbuf *m,
+    struct nhop_prepend *nh);
 
 #define	FWD_INET	0
 #define	FWD_INET6	1

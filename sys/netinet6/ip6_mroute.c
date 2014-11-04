@@ -1550,7 +1550,7 @@ phyint_send(struct ip6_hdr *ip6, struct mif6 *mifp, struct mbuf *m)
 		im6o.im6o_multicast_hlim = ip6->ip6_hlim;
 		im6o.im6o_multicast_loop = 1;
 		error = ip6_output(mb_copy, NULL, NULL, IPV6_FORWARDING, &im6o,
-		    NULL, NULL);
+		    NULL);
 
 		MRT6_DLOG(DEBUG_XMIT, "mif %u err %d",
 		    (uint16_t)(mifp - mif6table), error);
@@ -1568,7 +1568,7 @@ phyint_send(struct ip6_hdr *ip6, struct mif6 *mifp, struct mbuf *m)
 		dst6.sin6_len = sizeof(struct sockaddr_in6);
 		dst6.sin6_family = AF_INET6;
 		dst6.sin6_addr = ip6->ip6_dst;
-		ip6_mloopback(ifp, m, &dst6);
+		ip6_mloopback(ifp, m, AF_INET6);
 	}
 
 	/*

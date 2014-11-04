@@ -372,6 +372,8 @@ VNET_DECLARE(int, ip6stealth);
 
 extern struct	pr_usrreqs rip6_usrreqs;
 struct sockopt;
+struct route_info;
+struct nhop_prepend;
 
 struct inpcb;
 
@@ -412,11 +414,11 @@ int	ip6_sysctl(int *, u_int, void *, size_t *, void *, size_t);
 
 void	ip6_forward(struct mbuf *, int);
 
-void	ip6_mloopback(struct ifnet *, struct mbuf *, struct sockaddr_in6 *);
+void	ip6_mloopback(struct ifnet *, struct mbuf *, int family);
 int	ip6_output(struct mbuf *, struct ip6_pktopts *,
-			struct route_in6 *,
+			struct route_info *,
 			int,
-			struct ip6_moptions *, struct ifnet **,
+			struct ip6_moptions *,
 			struct inpcb *);
 int	ip6_ctloutput(struct socket *, struct sockopt *);
 int	ip6_raw_ctloutput(struct socket *, struct sockopt *);
@@ -445,15 +447,14 @@ int	rip6_usrreq(struct socket *,
 int	dest6_input(struct mbuf **, int *, int);
 int	none_input(struct mbuf **, int *, int);
 
-int	in6_selectsrc(struct sockaddr_in6 *, struct ip6_pktopts *,
-	struct inpcb *inp, struct route_in6 *, struct ucred *cred,
-	struct ifnet **, struct in6_addr *);
-int in6_selectroute(struct sockaddr_in6 *, struct ip6_pktopts *,
-	struct ip6_moptions *, struct route_in6 *, struct ifnet **,
-	struct rtentry **);
-int	in6_selectroute_fib(struct sockaddr_in6 *, struct ip6_pktopts *,
-	    struct ip6_moptions *, struct route_in6 *, struct ifnet **,
-	    struct rtentry **, u_int);
+int	in6_selectsrc_addr(uint32_t, struct in6_addr *, uint32_t,
+	    struct in6_addr *);
+int	in6_selectsrc_scope(struct sockaddr_in6 *, struct ip6_pktopts *,
+	    struct inpcb *, struct ucred *, int, struct in6_addr *);
+int	fib6_selectroute(uint32_t fibnum, struct in6_addr *dst,
+	    uint32_t scopeid, struct nhop_prepend *nh_src, struct mbuf *m,
+	    struct ip6_pktopts *opts, struct ip6_moptions *mopts,
+	    struct nhop_prepend *nh);
 u_int32_t ip6_randomid(void);
 u_int32_t ip6_randomflowlabel(void);
 void in6_delayed_cksum(struct mbuf *m, uint32_t plen, u_short offset);

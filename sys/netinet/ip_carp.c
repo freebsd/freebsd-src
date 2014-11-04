@@ -930,7 +930,7 @@ carp_send_ad_locked(struct carp_softc *sc)
 		CARPSTATS_INC(carps_opackets6);
 
 		carp_send_ad_error(sc, ip6_output(m, NULL, NULL, 0,
-		    &sc->sc_carpdev->if_carp->cif_im6o, NULL, NULL));
+		    &sc->sc_carpdev->if_carp->cif_im6o, NULL));
 	}
 #endif /* INET6 */
 

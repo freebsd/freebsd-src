@@ -1309,7 +1309,7 @@ check_dyn_rules(struct ip_fw_chain *chain, ipfw_range_tlv *rt,
 			ip_output(m, NULL, NULL, 0, NULL, NULL);
 #ifdef INET6
 		else
-			ip6_output(m, NULL, NULL, 0, NULL, NULL, NULL);
+			ip6_output(m, NULL, NULL, 0, NULL, NULL);
 #endif
 	}
 

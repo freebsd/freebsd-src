@@ -777,7 +777,7 @@ dummynet_send(struct mbuf *m)
 			break;
 
 		case DIR_OUT | PROTO_IPV6:
-			ip6_output(m, NULL, NULL, IPV6_FORWARDING, NULL, NULL, NULL);
+			ip6_output(m, NULL, NULL, IPV6_FORWARDING, NULL, NULL);
 			break;
 #endif
 

@@ -1378,8 +1378,7 @@ pf_intr(void *v)
 #endif /* INET */
 #ifdef INET6
 		case PFSE_IP6:
-			ip6_output(pfse->pfse_m, NULL, NULL, 0, NULL, NULL,
-			    NULL);
+			ip6_output(pfse->pfse_m, NULL, NULL, 0, NULL, NULL);
 			break;
 		case PFSE_ICMP6:
 			icmp6_error(pfse->pfse_m, pfse->pfse_icmp_type,
@@ -2923,7 +2922,8 @@ pf_calc_mss(struct pf_addr *addr, sa_family_t af, int rtableid, u_int16_t offer)
 #ifdef INET6
 	case AF_INET6:
 		hlen = sizeof(struct ip6_hdr);
-		if (fib6_lookup_nh_basic(rtableid, addr->v6, 0, &nh.u.nh6) == 0)
+		if (fib6_lookup_nh_basic(rtableid, &addr->v6, 0, 0, &nh.u.nh6)
+		    == 0)
 			mss = nh.u.nh6.nh_mtu - hlen - sizeof(struct tcphdr);
 		break;
 #endif /* INET6 */
@@ -5100,7 +5100,8 @@ pf_routable(struct pf_addr *addr, sa_family_t af, struct pfi_kif *kif,
 		 */
 		if (IN6_IS_SCOPE_EMBED(&addr->v6))
 			return (1);
-		if (fib6_lookup_nh_basic(rtableid, addr->v6, 0, &nh.u.nh6) != 0)
+		if (fib6_lookup_nh_basic(rtableid, &addr->v6, 0, 0, &nh.u.nh6)
+		    != 0)
 			return (0);
 		break;
 #endif
@@ -5360,7 +5361,7 @@ pf_route6(struct mbuf **m, struct pf_rule *r, int dir, struct ifnet *oifp,
 		if (s)
 			PF_STATE_UNLOCK(s);
 		m0->m_flags |= M_SKIP_FIREWALL;
-		ip6_output(m0, NULL, NULL, 0, NULL, NULL, NULL);
+		ip6_output(m0, NULL, NULL, 0, NULL, NULL);
 		return;
 	}
 
