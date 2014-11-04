@@ -6,7 +6,9 @@ SRCS+=	aeabi_atexit.c		\
 	aeabi_unwind_cpp.c	\
 	aeabi_unwind_exidx.c
 .if ${MACHINE_ARCH:Marm*hf*} == ""
-SRCS+=	aeabi_double.c		\
+SRCS+=	aeabi_asm_double.S	\
+	aeabi_asm_float.S	\
+	aeabi_double.c		\
 	aeabi_float.c
 .endif
 .if ${MACHINE_ARCH:Marmv6*}

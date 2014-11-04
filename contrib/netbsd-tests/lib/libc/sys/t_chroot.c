@@ -42,6 +42,10 @@ __RCSID("$NetBSD: t_chroot.c,v 1.1 2011/07/07 06:57:53 jruoho Exp $");
 #include <string.h>
 #include <unistd.h>
 
+#ifdef __FreeBSD__
+#include <sys/stat.h>
+#endif
+
 ATF_TC(chroot_basic);
 ATF_TC_HEAD(chroot_basic, tc)
 {
@@ -167,6 +171,7 @@ ATF_TC_BODY(chroot_perm, tc)
 		atf_tc_fail("chroot(2) succeeded as unprivileged user");
 }
 
+#ifdef __NetBSD__
 ATF_TC(fchroot_basic);
 ATF_TC_HEAD(fchroot_basic, tc)
 {
@@ -298,6 +303,7 @@ ATF_TC_BODY(fchroot_perm, tc)
 	if (WIFEXITED(sta) == 0 || WEXITSTATUS(sta) != EXIT_SUCCESS)
 		atf_tc_fail("fchroot(2) succeeded as unprivileged user");
 }
+#endif
 
 ATF_TP_ADD_TCS(tp)
 {
@@ -305,9 +311,11 @@ ATF_TP_ADD_TCS(tp)
 	ATF_TP_ADD_TC(tp, chroot_basic);
 	ATF_TP_ADD_TC(tp, chroot_err);
 	ATF_TP_ADD_TC(tp, chroot_perm);
+#ifdef __NetBSD__
 	ATF_TP_ADD_TC(tp, fchroot_basic);
 	ATF_TP_ADD_TC(tp, fchroot_err);
 	ATF_TP_ADD_TC(tp, fchroot_perm);
+#endif
 
 	return atf_no_error();
 }

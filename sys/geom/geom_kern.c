@@ -223,12 +223,12 @@ SYSCTL_INT(_kern_geom, OID_AUTO, collectstats, CTLFLAG_RW,
 	"Control statistics collection on GEOM providers and consumers");
 
 SYSCTL_INT(_debug_sizeof, OID_AUTO, g_class, CTLFLAG_RD,
-	0, sizeof(struct g_class), "sizeof(struct g_class)");
+	SYSCTL_NULL_INT_PTR, sizeof(struct g_class), "sizeof(struct g_class)");
 SYSCTL_INT(_debug_sizeof, OID_AUTO, g_geom, CTLFLAG_RD,
-	0, sizeof(struct g_geom), "sizeof(struct g_geom)");
+	SYSCTL_NULL_INT_PTR, sizeof(struct g_geom), "sizeof(struct g_geom)");
 SYSCTL_INT(_debug_sizeof, OID_AUTO, g_provider, CTLFLAG_RD,
-	0, sizeof(struct g_provider), "sizeof(struct g_provider)");
+	SYSCTL_NULL_INT_PTR, sizeof(struct g_provider), "sizeof(struct g_provider)");
 SYSCTL_INT(_debug_sizeof, OID_AUTO, g_consumer, CTLFLAG_RD,
-	0, sizeof(struct g_consumer), "sizeof(struct g_consumer)");
+	SYSCTL_NULL_INT_PTR, sizeof(struct g_consumer), "sizeof(struct g_consumer)");
 SYSCTL_INT(_debug_sizeof, OID_AUTO, g_bioq, CTLFLAG_RD,
-	0, sizeof(struct g_bioq), "sizeof(struct g_bioq)");
+	SYSCTL_NULL_INT_PTR, sizeof(struct g_bioq), "sizeof(struct g_bioq)");

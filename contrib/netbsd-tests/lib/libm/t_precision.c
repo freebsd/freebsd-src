@@ -1,4 +1,4 @@
-/* $NetBSD: t_precision.c,v 1.1 2013/11/11 11:10:45 joerg Exp $ */
+/* $NetBSD: t_precision.c,v 1.2 2014/11/04 00:20:19 justin Exp $ */
 
 /*-
  * Copyright (c) 2013 The NetBSD Foundation, Inc.
@@ -29,10 +29,9 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 #include <sys/cdefs.h>
-__RCSID("$NetBSD: t_precision.c,v 1.1 2013/11/11 11:10:45 joerg Exp $");
+__RCSID("$NetBSD: t_precision.c,v 1.2 2014/11/04 00:20:19 justin Exp $");
 
 #include <atf-c.h>
-#include <atf-c/config.h>
 
 #include <float.h>
 #include <stdlib.h>

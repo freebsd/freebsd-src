@@ -42,7 +42,7 @@ PROG ?= $t
 
 .if defined(PROG)
 # just one of many
-PROG_OVERRIDE_VARS += BINDIR MAN SRCS
+PROG_OVERRIDE_VARS += BINDIR DPSRCS MAN SRCS
 PROG_VARS += CFLAGS CPPFLAGS CXXFLAGS DPADD DPLIBS LDADD LDFLAGS ${PROG_OVERRIDE_VARS}
 .for v in ${PROG_VARS:O:u}
 .if empty(${PROG_OVERRIDE_VARS:M$v})
@@ -75,6 +75,12 @@ UPDATE_DEPENDFILE = NO
 .endif
 .endif
 
+# The non-recursive call to bsd.progs.mk will handle FILES; NUL out
+# FILESGROUPS so recursive calls don't duplicate the work
+.ifdef _RECURSING_PROGS
+FILESGROUPS=
+.endif
+
 # handle being called [bsd.]progs.mk
 .include <bsd.prog.mk>
 
@@ -90,18 +96,24 @@ x.$p= PROG_CXX=$p
 
 $p ${p}_p: .PHONY .MAKE
 	(cd ${.CURDIR} && ${MAKE} -f ${MAKEFILE} _RECURSING_PROGS= \
-	    SUBDIR= PROG=$p ${x.$p})
+	    SUBDIR= PROG=$p \
+	    DEPENDFILE=.depend.$p .MAKE.DEPENDFILE=.depend.$p \
+	    ${x.$p})
 
 .for t in ${PROGS_TARGETS:O:u}
 $p.$t: .PHONY .MAKE
 	(cd ${.CURDIR} && ${MAKE} -f ${MAKEFILE} _RECURSING_PROGS= \
-	    SUBDIR= PROG=$p ${x.$p} ${@:E})
+	    SUBDIR= PROG=$p \
+	    DEPENDFILE=.depend.$p .MAKE.DEPENDFILE=.depend.$p \
+	    ${x.$p} ${@:E})
 .endfor
 .endfor
 
+.if !empty(PROGS)
 .for t in ${PROGS_TARGETS:O:u}
 $t: ${PROGS:%=%.$t}
 .endfor
+.endif
 
 .if empty(PROGS) && !empty(SCRIPTS)
 

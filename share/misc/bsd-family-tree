@@ -315,6 +315,8 @@ FreeBSD 5.2           |      |                 |                       |
  |          FreeBSD   |      |                 |                       |
  |            9.3     |      |                 |                       |
  |                    |      |                 |               DragonFly 3.8.2
+ |                 Mac OS X  |                 |                       |
+ |                   10.10   |                 |                       |
  |                    |      |                 |                       |
  |                    |      |                 |                       |
  |                    |      |                 |                       |
@@ -653,6 +655,7 @@ DragonFly 3.8.1		2014-06-16 [DFB]
 DragonFly 3.6.3		2014-06-17 [DFB]
 FreeBSD 9.3		2014-07-05 [FBD]
 DragonFly 3.8.2		2014-08-08 [DFB]
+Mac OS X 10.10		2014-10-16 [APL]
 
 Bibliography
 ------------------------

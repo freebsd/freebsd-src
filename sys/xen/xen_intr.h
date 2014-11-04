@@ -246,4 +246,23 @@ int xen_register_msi(device_t dev, int vector, int count);
  */
 int xen_release_msi(int vector);
 
+/**
+ * Bind an event channel port with a handler
+ *
+ * \param dev       The device making this bind request.
+ * \param filter    An interrupt filter handler.  Specify NULL
+ *                  to always dispatch to the ithread handler.
+ * \param handler   An interrupt ithread handler.  Optional (can
+ *                  specify NULL) if all necessary event actions
+ *                  are performed by filter.
+ * \param arg       Argument to present to both filter and handler.
+ * \param irqflags  Interrupt handler flags.  See sys/bus.h.
+ * \param handle    Opaque handle used to manage this registration.
+ *
+ * \returns  0 on success, otherwise an errno.
+ */
+int xen_intr_add_handler(device_t dev, driver_filter_t filter,
+	driver_intr_t handler, void *arg, enum intr_type flags,
+	xen_intr_handle_t handle);
+
 #endif /* _XEN_INTR_H_ */

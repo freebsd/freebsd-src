@@ -90,7 +90,7 @@
  *	gfs_dir_lookup()
  *	gfs_dir_readdir()
  *
- * 	gfs_vop_inactive()
+ * 	gfs_vop_reclaim()
  * 	gfs_vop_lookup()
  * 	gfs_vop_readdir()
  * 	gfs_vop_map()
@@ -435,6 +435,8 @@ gfs_readdir_fini(gfs_readdir_state_t *st, int error, int *eofp, int eof)
 int
 gfs_lookup_dot(vnode_t **vpp, vnode_t *dvp, vnode_t *pvp, const char *nm)
 {
+	int ltype;
+
 	if (*nm == '\0' || strcmp(nm, ".") == 0) {
 		VN_HOLD(dvp);
 		*vpp = dvp;
@@ -444,11 +446,15 @@ gfs_lookup_dot(vnode_t **vpp, vnode_t *dvp, vnode_t *pvp, const char *nm)
 			ASSERT(dvp->v_flag & VROOT);
 			VN_HOLD(dvp);
 			*vpp = dvp;
+			ASSERT_VOP_ELOCKED(dvp, "gfs_lookup_dot: non-locked dvp");
 		} else {
+			ltype = VOP_ISLOCKED(dvp);
+			VOP_UNLOCK(dvp, 0);
 			VN_HOLD(pvp);
 			*vpp = pvp;
+			vn_lock(*vpp, LK_EXCLUSIVE | LK_RETRY);
+			vn_lock(dvp, ltype | LK_RETRY);
 		}
-		vn_lock(*vpp, LK_EXCLUSIVE | LK_RETRY);
 		return (0);
 	}
 
@@ -618,7 +624,7 @@ gfs_root_create_file(size_t size, vfs_t *vfsp, vnodeops_t *ops, ino64_t ino)
 /*
  * gfs_file_inactive()
  *
- * Called from the VOP_INACTIVE() routine.  If necessary, this routine will
+ * Called from the VOP_RECLAIM() routine.  If necessary, this routine will
  * remove the given vnode from the parent directory and clean up any references
  * in the VFS layer.
  *
@@ -1215,15 +1221,15 @@ gfs_vop_map(vnode_t *vp, offset_t off, struct as *as, caddr_t *addrp,
 #endif	/* sun */
 
 /*
- * gfs_vop_inactive: VOP_INACTIVE() entry point
+ * gfs_vop_reclaim: VOP_RECLAIM() entry point (solaris' VOP_INACTIVE())
  *
  * Given a vnode that is a GFS file or directory, call gfs_file_inactive() or
  * gfs_dir_inactive() as necessary, and kmem_free()s associated private data.
  */
 /* ARGSUSED */
 int
-gfs_vop_inactive(ap)
-	struct vop_inactive_args /* {
+gfs_vop_reclaim(ap)
+	struct vop_reclaim_args /* {
 		struct vnode *a_vp;
 		struct thread *a_td;
 	} */ *ap;
@@ -1236,6 +1242,7 @@ gfs_vop_inactive(ap)
 	else
 		gfs_file_inactive(vp);
 
+	vnode_destroy_vobject(vp);
 	VI_LOCK(vp);
 	vp->v_data = NULL;
 	VI_UNLOCK(vp);

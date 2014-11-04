@@ -220,6 +220,12 @@ sys_mmap(td, uap)
 	fp = NULL;
 
 	/*
+	 * Ignore old flags that used to be defined but did not do anything.
+	 */
+	if (td->td_proc->p_osrel < P_OSREL_MAP_RENAME)
+		flags &= ~(MAP_RESERVED0020 | MAP_RESERVED0040);
+	
+	/*
 	 * Enforce the constraints.
 	 * Mapping of length 0 is only allowed for old binaries.
 	 * Anonymous mapping shall specify -1 as filedescriptor and
@@ -244,9 +250,9 @@ sys_mmap(td, uap)
 		flags |= MAP_ANON;
 		pos = 0;
 	}
-	if ((flags & ~(MAP_SHARED | MAP_PRIVATE | MAP_FIXED | MAP_RENAME |
-	    MAP_NORESERVE | MAP_HASSEMAPHORE | MAP_STACK | MAP_NOSYNC |
-	    MAP_ANON | MAP_EXCL | MAP_NOCORE | MAP_PREFAULT_READ |
+	if ((flags & ~(MAP_SHARED | MAP_PRIVATE | MAP_FIXED | MAP_HASSEMAPHORE |
+	    MAP_STACK | MAP_NOSYNC | MAP_ANON | MAP_EXCL | MAP_NOCORE |
+	    MAP_PREFAULT_READ |
 #ifdef MAP_32BIT
 	    MAP_32BIT |
 #endif

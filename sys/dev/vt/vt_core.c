@@ -866,7 +866,6 @@ vt_allocate_keyboard(struct vt_device *vd)
 	keyboard_info_t	 ki;
 
 	idx0 = kbd_allocate("kbdmux", -1, vd, vt_kbdevent, vd);
-	vd->vd_keyboard = idx0;
 	if (idx0 >= 0) {
 		DPRINTF(20, "%s: kbdmux allocated, idx = %d\n", __func__, idx0);
 		k0 = kbd_get_keyboard(idx0);
@@ -894,6 +893,7 @@ vt_allocate_keyboard(struct vt_device *vd)
 			return (-1);
 		}
 	}
+	vd->vd_keyboard = idx0;
 	DPRINTF(20, "%s: vd_keyboard = %d\n", __func__, vd->vd_keyboard);
 
 	return (idx0);
@@ -1532,6 +1532,7 @@ vt_change_font(struct vt_window *vw, struct vt_font *vf)
 	terminal_mute(tm, 1);
 	vtbuf_grow(&vw->vw_buf, &size, vw->vw_buf.vb_history_size);
 	terminal_set_winsize_blank(tm, &wsz, 0, NULL);
+	terminal_set_cursor(tm, &vw->vw_buf.vb_cursor);
 	terminal_mute(tm, 0);
 
 	/* Actually apply the font to the current window. */
@@ -2207,12 +2208,20 @@ skip_thunk:
 	case PIO_VFONT: {
 		struct vt_font *vf;
 
+		if (vd->vd_flags & VDF_TEXTMODE)
+			return (ENOTSUP);
+
 		error = vtfont_load((void *)data, &vf);
 		if (error != 0)
 			return (error);
 
 		error = vt_change_font(vw, vf);
 		vtfont_unref(vf);
+		return (error);
+	}
+	case PIO_VFONT_DEFAULT: {
+		/* Reset to default font. */
+		error = vt_change_font(vw, &vt_font_default);
 		return (error);
 	}
 	case GIO_SCRNMAP: {
@@ -2497,6 +2506,8 @@ vt_upgrade(struct vt_device *vd)
 	unsigned int i;
 
 	if (!vty_enabled(VTY_VT))
+		return;
+	if (main_vd->vd_driver == NULL)
 		return;
 
 	for (i = 0; i < VT_MAXWINDOWS; i++) {

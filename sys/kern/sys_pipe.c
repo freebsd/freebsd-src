@@ -1296,13 +1296,13 @@ pipe_write(fp, uio, active_cred, flags, td)
 	}
 
 	/*
-	 * Don't return EPIPE if I/O was successful
+	 * Don't return EPIPE if any byte was written.
+	 * EINTR and other interrupts are handled by generic I/O layer.
+	 * Do not pretend that I/O succeeded for obvious user error
+	 * like EFAULT.
 	 */
-	if ((wpipe->pipe_buffer.cnt == 0) &&
-	    (uio->uio_resid == 0) &&
-	    (error == EPIPE)) {
+	if (uio->uio_resid != orig_resid && error == EPIPE)
 		error = 0;
-	}
 
 	if (error == 0)
 		vfs_timestamp(&wpipe->pipe_mtime);

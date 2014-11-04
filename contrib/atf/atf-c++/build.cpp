@@ -1,6 +1,3 @@
-//
-// Automated Testing Framework (atf)
-//
 // Copyright (c) 2009 The NetBSD Foundation, Inc.
 // All rights reserved.
 //
@@ -25,7 +22,8 @@
 // IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR
 // OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN
 // IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-//
+
+#include "atf-c++/build.hpp"
 
 extern "C" {
 #include "atf-c/build.h"
@@ -33,10 +31,8 @@ extern "C" {
 #include "atf-c/utils.h"
 }
 
-#include "build.hpp"
-
-#include "detail/exceptions.hpp"
-#include "detail/process.hpp"
+#include "atf-c++/detail/exceptions.hpp"
+#include "atf-c++/detail/process.hpp"
 
 namespace impl = atf::build;
 #define IMPL_NAME "atf::build"

@@ -27,7 +27,7 @@
  *
  */
 
-#if defined(__NetBSD__)
+#if defined(__FreeBSD__) || defined(__NetBSD__)
 #include <atf-c.h>
 #else
 #if defined(__linux__)
@@ -563,6 +563,7 @@ ATF_TC_BODY(test11, tc)
 	}
 }
 
+#ifndef __FreeBSD__
 ATF_TC(test12);
 ATF_TC_HEAD(test12, tc)
 {
@@ -620,6 +621,7 @@ ATF_TC_BODY(test12, tc)
 		}
 	}
 }
+#endif
 
 ATF_TC(test13);
 ATF_TC_HEAD(test13, tc)
@@ -629,7 +631,9 @@ ATF_TC_HEAD(test13, tc)
 ATF_TC_BODY(test13, tc)
 {
 	struct testcase *t;
+#ifndef __FreeBSD__
 	off_t i;
+#endif
 	const char **p;
 	char buf[BUFSIZ];
 	FILE *fp;
@@ -659,7 +663,9 @@ ATF_TC_BODY(test13, tc)
 			/* negative + OOB */
 			ATF_CHECK(fseeko(fp, -1, SEEK_END) == -1);
 			ATF_CHECK(ftello(fp) == (off_t)0);
+#endif
 
+#ifndef __FreeBSD__
 			/* positive */
 			for (i = 1; i <= t->n; ++i) {
 				ATF_CHECK(fseeko(fp, i, SEEK_END) == 0);
@@ -711,11 +717,13 @@ ATF_TC_BODY(test14, tc)
 			ATF_CHECK(fseeko(fp, -(len + 1), SEEK_END) == -1);
 			ATF_CHECK(ftello(fp) == len);
 
+#ifndef __FreeBSD__
 			/* positive */
 			for (i = 1; i <= rest; ++i) {
 				ATF_CHECK(fseeko(fp, i, SEEK_END) == 0);
 				ATF_CHECK(ftello(fp) == len + i);
 			}
+#endif
 
 			/* negative */
 			for (i = 1; i < len; ++i) {
@@ -733,6 +741,8 @@ const char *mode_rw1[] = {
     "w+", "wb+",
     NULL
 };
+
+#ifndef __FreeBSD__
 
 /* test15 - 18:
  * When a stream open for writing is flushed or closed, a null byte is written
@@ -1135,6 +1145,7 @@ ATF_TC_BODY(test22, tc)
 		}
 	}
 }
+#endif
 
 ATF_TP_ADD_TCS(tp)
 {
@@ -1150,9 +1161,12 @@ ATF_TP_ADD_TCS(tp)
 	ATF_TP_ADD_TC(tp, test09);
 	ATF_TP_ADD_TC(tp, test10);
 	ATF_TP_ADD_TC(tp, test11);
+#ifndef __FreeBSD__
 	ATF_TP_ADD_TC(tp, test12);
+#endif
 	ATF_TP_ADD_TC(tp, test13);
 	ATF_TP_ADD_TC(tp, test14);
+#ifndef __FreeBSD__
 	ATF_TP_ADD_TC(tp, test15);
 	ATF_TP_ADD_TC(tp, test16);
 	ATF_TP_ADD_TC(tp, test17);
@@ -1161,6 +1175,7 @@ ATF_TP_ADD_TCS(tp)
 	ATF_TP_ADD_TC(tp, test20);
 	ATF_TP_ADD_TC(tp, test21);
 	ATF_TP_ADD_TC(tp, test22);
+#endif
 
 	return atf_no_error();
 }

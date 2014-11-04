@@ -9,9 +9,6 @@ SUBDIR+=	asf
 SUBDIR+=	btxld
 .endif
 SUBDIR+=	cpucontrol
-.if ${MK_HYPERV} != "no"
-SUBDIR+=	hyperv
-.endif
 SUBDIR+=	kgmon
 SUBDIR+=	kgzip
 SUBDIR+=	lptcontrol
@@ -31,6 +28,9 @@ SUBDIR+=	zzz
 SUBDIR+=	acpi
 .endif
 SUBDIR+=	boot0cfg
+.if ${MK_HYPERV} != "no"
+SUBDIR+=	hyperv
+.endif
 .if ${MK_WIRELESS} != "no"
 SUBDIR+=	wlconfig
 .endif

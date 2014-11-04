@@ -1373,10 +1373,7 @@ kern_procctl(struct thread *td, idtype_t idtype, id_t id, int com, void *data)
 			error = ESRCH;
 			break;
 		}
-		if (p->p_state == PRS_NEW)
-			error = ESRCH;
-		else
-			error = p_cansee(td, p);
+		error = p_cansee(td, p);
 		if (error == 0)
 			error = kern_procctl_single(td, p, com, data);
 		PROC_UNLOCK(p);

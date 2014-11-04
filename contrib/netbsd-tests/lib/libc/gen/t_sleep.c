@@ -49,6 +49,11 @@
 #define KEVNT_TIMEOUT	10300		/* measured in milli-seconds */
 #define FUZZ		(40 * MILLION)	/* scheduling fuzz accepted - 40 ms */
 
+#ifdef __FreeBSD__
+#include <sys/time.h>
+#include <inttypes.h>
+#endif
+
 /*
  * Timer notes
  *
@@ -78,7 +83,9 @@ static volatile int sig;
 int sleeptest(int (*)(struct timespec *, struct timespec *), bool, bool);
 int do_nanosleep(struct timespec *, struct timespec *);
 int do_select(struct timespec *, struct timespec *);
+#ifdef __NetBSD__
 int do_poll(struct timespec *, struct timespec *);
+#endif
 int do_sleep(struct timespec *, struct timespec *);
 int do_kevent(struct timespec *, struct timespec *);
 void sigalrm(int);
@@ -116,6 +123,7 @@ do_select(struct timespec *delay, struct timespec *remain)
 	return ret;
 }
 
+#ifdef __NetBSD__
 int
 do_poll(struct timespec *delay, struct timespec *remain)
 {
@@ -129,6 +137,7 @@ do_poll(struct timespec *delay, struct timespec *remain)
 		ret = 0;
 	return ret;
 }
+#endif
 
 int
 do_sleep(struct timespec *delay, struct timespec *remain)
@@ -210,6 +219,7 @@ ATF_TC_BODY(select, tc)
 	sleeptest(do_select, true, true);
 }
 
+#ifdef __NetBSD__
 ATF_TC(poll);
 ATF_TC_HEAD(poll, tc) 
 {
@@ -223,6 +233,7 @@ ATF_TC_BODY(poll, tc)
 
 	sleeptest(do_poll, true, true);
 }
+#endif
 
 ATF_TC(sleep);
 ATF_TC_HEAD(sleep, tc) 
@@ -329,7 +340,9 @@ ATF_TP_ADD_TCS(tp)
 {
 	ATF_TP_ADD_TC(tp, nanosleep);
 	ATF_TP_ADD_TC(tp, select);
+#ifdef __NetBSD__
 	ATF_TP_ADD_TC(tp, poll); 
+#endif
 	ATF_TP_ADD_TC(tp, sleep);
 	ATF_TP_ADD_TC(tp, kevent);
  

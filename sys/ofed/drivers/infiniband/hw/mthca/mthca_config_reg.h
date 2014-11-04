@@ -34,7 +34,7 @@
 #ifndef MTHCA_CONFIG_REG_H
 #define MTHCA_CONFIG_REG_H
 
-#include <asm/page.h>
+#include <linux/page.h>
 
 #define MTHCA_HCR_BASE         0x80680
 #define MTHCA_HCR_SIZE         0x0001c

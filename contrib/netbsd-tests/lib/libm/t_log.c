@@ -1,4 +1,4 @@
-/* $NetBSD: t_log.c,v 1.11 2014/03/03 10:39:08 martin Exp $ */
+/* $NetBSD: t_log.c,v 1.12 2014/11/04 00:20:19 justin Exp $ */
 
 /*-
  * Copyright (c) 2011 The NetBSD Foundation, Inc.
@@ -29,10 +29,9 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 #include <sys/cdefs.h>
-__RCSID("$NetBSD: t_log.c,v 1.11 2014/03/03 10:39:08 martin Exp $");
+__RCSID("$NetBSD: t_log.c,v 1.12 2014/11/04 00:20:19 justin Exp $");
 
 #include <atf-c.h>
-#include <atf-c/config.h>
 
 #include <math.h>
 #include <stdio.h>

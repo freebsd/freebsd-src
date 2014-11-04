@@ -49,6 +49,17 @@ __FBSDID("$FreeBSD$");
 #include <arm/freescale/imx/imx_ccmvar.h>
 
 /*
+ * The hardare FIFOs are 32 bytes.  We want an interrupt when there are 24 bytes
+ * available to read or space for 24 more bytes to write.  While 8 bytes of
+ * slack before over/underrun might seem excessive, the hardware can run at
+ * 5mbps, which means 2uS per char, so at full speed 8 bytes provides only 16uS
+ * to get into the interrupt handler and service the fifo.
+ */
+#define	IMX_FIFOSZ		32
+#define	IMX_RXFIFO_LEVEL	24
+#define	IMX_TXFIFO_LEVEL	24
+
+/*
  * Low-level UART interface.
  */
 static int imx_uart_probe(struct uart_bas *bas);
@@ -187,6 +198,17 @@ imx_uart_init(struct uart_bas *bas, int baudrate, int databits,
 		SETREG(bas, REG(UBIR), 15);
 		SETREG(bas, REG(UBMR), (baseclk / baudrate) - 1);
 	}
+
+	/*
+	 * Program the tx lowater and rx hiwater levels at which fifo-service
+	 * interrupts are signaled.  The tx value is interpetted as "when there
+	 * are only this many bytes remaining" (not "this many free").
+	 */
+	reg = GETREG(bas, REG(UFCR));
+	reg &= ~(IMXUART_UFCR_TXTL_MASK | IMXUART_UFCR_RXTL_MASK);
+	reg |= (IMX_FIFOSZ - IMX_TXFIFO_LEVEL) << IMXUART_UFCR_TXTL_SHIFT;
+	reg |= IMX_RXFIFO_LEVEL << IMXUART_UFCR_RXTL_SHIFT;
+	SETREG(bas, REG(UFCR), reg);
 }
 
 static void
@@ -199,7 +221,7 @@ static void
 imx_uart_putc(struct uart_bas *bas, int c)
 {
 
-	while (!(IS(bas, USR2, TXFE)))
+	while (!(IS(bas, USR1, TRDY)))
 		;
 	SETREG(bas, REG(UTXD), c);
 }
@@ -302,11 +324,15 @@ imx_uart_bus_attach(struct uart_softc *sc)
 
 	(void)imx_uart_bus_getsig(sc);
 
-	ENA(bas, UCR4, DREN);
-	DIS(bas, UCR1, RRDYEN);
+	/* Clear all pending interrupts. */
+	SETREG(bas, REG(USR1), 0xffff);
+	SETREG(bas, REG(USR2), 0xffff);
+
+	DIS(bas, UCR4, DREN);
+	ENA(bas, UCR1, RRDYEN);
 	DIS(bas, UCR1, IDEN);
 	DIS(bas, UCR3, RXDSEN);
-	DIS(bas, UCR2, ATEN);
+	ENA(bas, UCR2, ATEN);
 	DIS(bas, UCR1, TXMPTYEN);
 	DIS(bas, UCR1, TRDYEN);
 	DIS(bas, UCR4, TCEN);
@@ -330,9 +356,6 @@ imx_uart_bus_attach(struct uart_softc *sc)
 	ENA(bas, UCR2, IRTS);
 	ENA(bas, UCR3, RXDMUXSEL);
 
-	/* ACK all interrupts */
-	SETREG(bas, REG(USR1), 0xffff);
-	SETREG(bas, REG(USR2), 0xffff);
 	return (0);
 }
 
@@ -404,7 +427,7 @@ imx_uart_bus_ipend(struct uart_softc *sc)
 	struct uart_bas *bas;
 	int ipend;
 	uint32_t usr1, usr2;
-	uint32_t ucr1, ucr4;
+	uint32_t ucr1, ucr2, ucr4;
 
 	bas = &sc->sc_bas;
 	ipend = 0;
@@ -419,18 +442,28 @@ imx_uart_bus_ipend(struct uart_softc *sc)
 	SETREG(bas, REG(USR2), usr2);
 
 	ucr1 = GETREG(bas, REG(UCR1));
+	ucr2 = GETREG(bas, REG(UCR2));
 	ucr4 = GETREG(bas, REG(UCR4));
 
-	if ((usr2 & FLD(USR2, TXFE)) && (ucr1 & FLD(UCR1, TXMPTYEN))) {
-		DIS(bas, UCR1, TXMPTYEN);
-		/* Continue TXing */
+	/* If we have reached tx low-water, we can tx some more now. */
+	if ((usr1 & FLD(USR1, TRDY)) && (ucr1 & FLD(UCR1, TRDYEN))) {
+		DIS(bas, UCR1, TRDYEN);
 		ipend |= SER_INT_TXIDLE;
 	}
-	if ((usr2 & FLD(USR2, RDR)) && (ucr4 & FLD(UCR4, DREN))) {
-		DIS(bas, UCR4, DREN);
-		/* Wow, new char on input */
+
+	/*
+	 * If we have reached the rx high-water, or if there are bytes in the rx
+	 * fifo and no new data has arrived for 8 character periods (aging
+	 * timer), we have input data to process.
+	 */
+	if (((usr1 & FLD(USR1, RRDY)) && (ucr1 & FLD(UCR1, RRDYEN))) || 
+	    ((usr1 & FLD(USR1, AGTIM)) && (ucr2 & FLD(UCR2, ATEN)))) {
+		DIS(bas, UCR1, RRDYEN);
+		DIS(bas, UCR2, ATEN);
 		ipend |= SER_INT_RXREADY;
 	}
+
+	/* A break can come in at any time, it never gets disabled. */
 	if ((usr2 & FLD(USR2, BRCD)) && (ucr4 & FLD(UCR4, BKEN)))
 		ipend |= SER_INT_BREAK;
 
@@ -459,8 +492,14 @@ imx_uart_bus_probe(struct uart_softc *sc)
 	if (error)
 		return (error);
 
-	sc->sc_rxfifosz = 1;
-	sc->sc_txfifosz = 1;
+	/*
+	 * On input we can read up to the full fifo size at once.  On output, we
+	 * want to write only as much as the programmed tx low water level,
+	 * because that's all we can be certain we have room for in the fifo
+	 * when we get a tx-ready interrupt.
+	 */
+	sc->sc_rxfifosz = IMX_FIFOSZ;
+	sc->sc_txfifosz = IMX_TXFIFO_LEVEL;
 
 	device_set_desc(sc->sc_dev, "Freescale i.MX UART");
 	return (0);
@@ -475,20 +514,20 @@ imx_uart_bus_receive(struct uart_softc *sc)
 	bas = &sc->sc_bas;
 	uart_lock(sc->sc_hwmtx);
 
-	/* Read while we have anything in FIFO */
+	/*
+	 * Empty the rx fifo.  We get the RRDY interrupt when IMX_RXFIFO_LEVEL
+	 * (the rx high-water level) is reached, but we set sc_rxfifosz to the
+	 * full hardware fifo size, so we can safely process however much is
+	 * there, not just the highwater size.
+	 */
 	while (IS(bas, USR2, RDR)) {
 		if (uart_rx_full(sc)) {
 			/* No space left in input buffer */
 			sc->sc_rxbuf[sc->sc_rxput] = UART_STAT_OVERRUN;
 			break;
 		}
-		out = 0;
 		xc = GETREG(bas, REG(URXD));
-
-		/* We have valid char */
-		if (xc & FLD(URXD, CHARRDY))
-			out = xc & 0x000000ff;
-
+		out = xc & 0x000000ff;
 		if (xc & FLD(URXD, FRMERR))
 			out |= UART_STAT_FRAMERR;
 		if (xc & FLD(URXD, PRERR))
@@ -500,8 +539,8 @@ imx_uart_bus_receive(struct uart_softc *sc)
 
 		uart_rx_put(sc, out);
 	}
-	/* Reenable Data Ready interrupt */
-	ENA(bas, UCR4, DREN);
+	ENA(bas, UCR1, RRDYEN);
+	ENA(bas, UCR2, ATEN);
 
 	uart_unlock(sc->sc_hwmtx);
 	return (0);
@@ -523,14 +562,17 @@ imx_uart_bus_transmit(struct uart_softc *sc)
 	bas = &sc->sc_bas;
 	uart_lock(sc->sc_hwmtx);
 
-	/* Fill TX FIFO */
+	/*
+	 * Fill the tx fifo.  The uart core puts at most IMX_TXFIFO_LEVEL bytes
+	 * into the txbuf (because that's what sc_txfifosz is set to), and
+	 * because we got the TRDY (low-water reached) interrupt we know at
+	 * least that much space is available in the fifo.
+	 */
 	for (i = 0; i < sc->sc_txdatasz; i++) {
 		SETREG(bas, REG(UTXD), sc->sc_txbuf[i] & 0xff);
 	}
-
 	sc->sc_txbusy = 1;
-	/* Call me when ready */
-	ENA(bas, UCR1, TXMPTYEN);
+	ENA(bas, UCR1, TRDYEN);
 
 	uart_unlock(sc->sc_hwmtx);
 
@@ -544,7 +586,8 @@ imx_uart_bus_grab(struct uart_softc *sc)
 
 	bas = &sc->sc_bas;
 	uart_lock(sc->sc_hwmtx);
-	DIS(bas, UCR4, DREN);
+	DIS(bas, UCR1, RRDYEN);
+	DIS(bas, UCR2, ATEN);
 	uart_unlock(sc->sc_hwmtx);
 }
 
@@ -555,6 +598,7 @@ imx_uart_bus_ungrab(struct uart_softc *sc)
 
 	bas = &sc->sc_bas;
 	uart_lock(sc->sc_hwmtx);
-	ENA(bas, UCR4, DREN);
+	ENA(bas, UCR1, RRDYEN);
+	ENA(bas, UCR2, ATEN);
 	uart_unlock(sc->sc_hwmtx);
 }

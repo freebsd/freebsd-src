@@ -457,6 +457,25 @@ rcr4(void)
 	return (data);
 }
 
+static __inline uint64_t
+rxcr(u_int reg)
+{
+	u_int low, high;
+
+	__asm __volatile("xgetbv" : "=a" (low), "=d" (high) : "c" (reg));
+	return (low | ((uint64_t)high << 32));
+}
+
+static __inline void
+load_xcr(u_int reg, uint64_t val)
+{
+	u_int low, high;
+
+	low = val;
+	high = val >> 32;
+	__asm __volatile("xsetbv" : : "c" (reg), "a" (low), "d" (high));
+}
+
 /*
  * Global TLB flush (except for thise for pages marked PG_G)
  */

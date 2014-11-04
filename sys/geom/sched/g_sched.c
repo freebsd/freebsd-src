@@ -1661,7 +1661,7 @@ g_sched_taste(struct g_class *mp, struct g_provider *pp,
 		if (pp->geom->class == mp)
                 	break;
 
-		taste_names = getenv("geom.sched.taste");
+		taste_names = kern_getenv("geom.sched.taste");
 		if (taste_names == NULL)
 			break;
 
@@ -1679,7 +1679,7 @@ g_sched_taste(struct g_class *mp, struct g_provider *pp,
 		    pp->name, s);
 
 		/* look up the provider name in the list */
-		s = getenv("geom.sched.algo");
+		s = kern_getenv("geom.sched.algo");
 		if (s == NULL)
 			s = "rr";
 

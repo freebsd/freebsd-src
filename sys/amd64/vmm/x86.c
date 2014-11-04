@@ -44,6 +44,8 @@ __FBSDID("$FreeBSD$");
 #include <machine/vmm.h>
 
 #include "vmm_host.h"
+#include "vmm_ktr.h"
+#include "vmm_util.h"
 #include "x86.h"
 
 SYSCTL_DECL(_hw_vmm);
@@ -54,6 +56,8 @@ static SYSCTL_NODE(_hw_vmm, OID_AUTO, topology, CTLFLAG_RD, 0, NULL);
 static const char bhyve_id[12] = "bhyve bhyve ";
 
 static uint64_t bhyve_xcpuids;
+SYSCTL_ULONG(_hw_vmm, OID_AUTO, bhyve_xcpuids, CTLFLAG_RW, &bhyve_xcpuids, 0,
+    "Number of times an unknown cpuid leaf was accessed");
 
 /*
  * The default CPU topology is a single thread per package.
@@ -91,6 +95,8 @@ x86_emulate_cpuid(struct vm *vm, int vcpu_id,
 	unsigned int func, regs[4], logical_cpus;
 	enum x2apic_state x2apic_state;
 
+	VCPU_CTR2(vm, vcpu_id, "cpuid %#x,%#x", *eax, *ecx);
+
 	/*
 	 * Requests for invalid CPUID levels should map to the highest
 	 * available level instead.
@@ -124,25 +130,80 @@ x86_emulate_cpuid(struct vm *vm, int vcpu_id,
 		case CPUID_8000_0003:
 		case CPUID_8000_0004:
 		case CPUID_8000_0006:
+			cpuid_count(*eax, *ecx, regs);
+			break;
 		case CPUID_8000_0008:
 			cpuid_count(*eax, *ecx, regs);
+			if (vmm_is_amd()) {
+				/*
+				 * XXX this might appear silly because AMD
+				 * cpus don't have threads.
+				 *
+				 * However this matches the logical cpus as
+				 * advertised by leaf 0x1 and will work even
+				 * if the 'threads_per_core' tunable is set
+				 * incorrectly on an AMD host.
+				 */
+				logical_cpus = threads_per_core *
+				    cores_per_package;
+				regs[2] = logical_cpus - 1;
+			}
 			break;
 
 		case CPUID_8000_0001:
+			cpuid_count(*eax, *ecx, regs);
+
+			/*
+			 * Hide SVM and Topology Extension features from guest.
+			 */
+			regs[2] &= ~(AMDID2_SVM | AMDID2_TOPOLOGY);
+
+			/*
+			 * Don't advertise extended performance counter MSRs
+			 * to the guest.
+			 */
+			regs[2] &= ~AMDID2_PCXC;
+			regs[2] &= ~AMDID2_PNXC;
+			regs[2] &= ~AMDID2_PTSCEL2I;
+
+			/*
+			 * Don't advertise Instruction Based Sampling feature.
+			 */
+			regs[2] &= ~AMDID2_IBS;
+
+			/* NodeID MSR not available */
+			regs[2] &= ~AMDID2_NODE_ID;
+
+			/* Don't advertise the OS visible workaround feature */
+			regs[2] &= ~AMDID2_OSVW;
+
 			/*
 			 * Hide rdtscp/ia32_tsc_aux until we know how
 			 * to deal with them.
 			 */
-			cpuid_count(*eax, *ecx, regs);
 			regs[3] &= ~AMDID_RDTSCP;
 			break;
 
 		case CPUID_8000_0007:
-			cpuid_count(*eax, *ecx, regs);
 			/*
-			 * If the host TSCs are not synchronized across
-			 * physical cpus then we cannot advertise an
-			 * invariant tsc to a vcpu.
+			 * AMD uses this leaf to advertise the processor's
+			 * power monitoring and RAS capabilities. These
+			 * features are hardware-specific and exposing
+			 * them to a guest doesn't make a lot of sense.
+			 *
+			 * Intel uses this leaf only to advertise the
+			 * "Invariant TSC" feature with all other bits
+			 * being reserved (set to zero).
+			 */
+			regs[0] = 0;
+			regs[1] = 0;
+			regs[2] = 0;
+			regs[3] = 0;
+
+			/*
+			 * "Invariant TSC" can be advertised to the guest if:
+			 * - host TSC frequency is invariant
+			 * - host TSCs are synchronized across physical cpus
 			 *
 			 * XXX This still falls short because the vcpu
 			 * can observe the TSC moving backwards as it
@@ -150,8 +211,8 @@ x86_emulate_cpuid(struct vm *vm, int vcpu_id,
 			 * it should discourage the guest from using the
 			 * TSC to keep track of time.
 			 */
-			if (!smp_tsc)
-				regs[3] &= ~AMDPM_TSC_INVARIANT;
+			if (tsc_is_invariant && smp_tsc)
+				regs[3] |= AMDPM_TSC_INVARIANT;
 			break;
 
 		case CPUID_0000_0001:

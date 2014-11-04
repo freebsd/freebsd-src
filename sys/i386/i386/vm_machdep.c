@@ -106,6 +106,10 @@ __FBSDID("$FreeBSD$");
 #define	NSFBUFS		(512 + maxusers * 16)
 #endif
 
+#if !defined(CPU_DISABLE_SSE) && defined(I686_CPU)
+#define CPU_ENABLE_SSE
+#endif
+
 _Static_assert(OFFSETOF_CURTHREAD == offsetof(struct pcpu, pc_curthread),
     "OFFSETOF_CURTHREAD does not correspond with offset of pc_curthread.");
 _Static_assert(OFFSETOF_CURPCB == offsetof(struct pcpu, pc_curpcb),
@@ -118,8 +122,54 @@ static u_int	cpu_reset_proxyid;
 static volatile u_int	cpu_reset_proxy_active;
 #endif
 
-extern int	_ucodesel, _udatasel;
+union savefpu *
+get_pcb_user_save_td(struct thread *td)
+{
+	vm_offset_t p;
 
+	p = td->td_kstack + td->td_kstack_pages * PAGE_SIZE -
+	    cpu_max_ext_state_size;
+	KASSERT((p % 64) == 0, ("Unaligned pcb_user_save area"));
+	return ((union savefpu *)p);
+}
+
+union savefpu *
+get_pcb_user_save_pcb(struct pcb *pcb)
+{
+	vm_offset_t p;
+
+	p = (vm_offset_t)(pcb + 1);
+	return ((union savefpu *)p);
+}
+
+struct pcb *
+get_pcb_td(struct thread *td)
+{
+	vm_offset_t p;
+
+	p = td->td_kstack + td->td_kstack_pages * PAGE_SIZE -
+	    cpu_max_ext_state_size - sizeof(struct pcb);
+	return ((struct pcb *)p);
+}
+
+void *
+alloc_fpusave(int flags)
+{
+	void *res;
+#ifdef CPU_ENABLE_SSE
+	struct savefpu_ymm *sf;
+#endif
+
+	res = malloc(cpu_max_ext_state_size, M_DEVBUF, flags);
+#ifdef CPU_ENABLE_SSE
+	if (use_xsave) {
+		sf = (struct savefpu_ymm *)res;
+		bzero(&sf->sv_xstate.sx_hd, sizeof(sf->sv_xstate.sx_hd));
+		sf->sv_xstate.sx_hd.xstate_bv = xsave_mask;
+	}
+#endif
+	return (res);
+}
 /*
  * Finish a fork operation, with process p2 nearly set up.
  * Copy and update the pcb, set up the stack so that the child
@@ -169,15 +219,16 @@ cpu_fork(td1, p2, td2, flags)
 #endif
 
 	/* Point the pcb to the top of the stack */
-	pcb2 = (struct pcb *)(td2->td_kstack +
-	    td2->td_kstack_pages * PAGE_SIZE) - 1;
+	pcb2 = get_pcb_td(td2);
 	td2->td_pcb = pcb2;
 
 	/* Copy td1's pcb */
 	bcopy(td1->td_pcb, pcb2, sizeof(*pcb2));
 
 	/* Properly initialize pcb_save */
-	pcb2->pcb_save = &pcb2->pcb_user_save;
+	pcb2->pcb_save = get_pcb_user_save_pcb(pcb2);
+	bcopy(get_pcb_user_save_td(td1), get_pcb_user_save_pcb(pcb2),
+	    cpu_max_ext_state_size);
 
 	/* Point mdproc and then copy over td1's contents */
 	mdp2 = &p2->p_md;
@@ -354,12 +405,22 @@ cpu_thread_swapout(struct thread *td)
 void
 cpu_thread_alloc(struct thread *td)
 {
+	struct pcb *pcb;
+#ifdef CPU_ENABLE_SSE
+	struct xstate_hdr *xhdr;
+#endif
 
-	td->td_pcb = (struct pcb *)(td->td_kstack +
-	    td->td_kstack_pages * PAGE_SIZE) - 1;
-	td->td_frame = (struct trapframe *)((caddr_t)td->td_pcb - 16) - 1;
-	td->td_pcb->pcb_ext = NULL; 
-	td->td_pcb->pcb_save = &td->td_pcb->pcb_user_save;
+	td->td_pcb = pcb = get_pcb_td(td);
+	td->td_frame = (struct trapframe *)((caddr_t)pcb - 16) - 1;
+	pcb->pcb_ext = NULL; 
+	pcb->pcb_save = get_pcb_user_save_pcb(pcb);
+#ifdef CPU_ENABLE_SSE
+	if (use_xsave) {
+		xhdr = (struct xstate_hdr *)(pcb->pcb_save + 1);
+		bzero(xhdr, sizeof(*xhdr));
+		xhdr->xstate_bv = xsave_mask;
+	}
+#endif
 }
 
 void
@@ -427,7 +488,9 @@ cpu_set_upcall(struct thread *td, struct thread *td0)
 	bcopy(td0->td_pcb, pcb2, sizeof(*pcb2));
 	pcb2->pcb_flags &= ~(PCB_NPXINITDONE | PCB_NPXUSERINITDONE |
 	    PCB_KERNNPX);
-	pcb2->pcb_save = &pcb2->pcb_user_save;
+	pcb2->pcb_save = get_pcb_user_save_pcb(pcb2);
+	bcopy(get_pcb_user_save_td(td0), pcb2->pcb_save,
+	    cpu_max_ext_state_size);
 
 	/*
 	 * Create a new fresh stack for the new thread.

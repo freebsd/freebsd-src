@@ -28,18 +28,33 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#ifdef _KERNEL
 #include <sys/param.h>
 #include <sys/systm.h>
+#else /* !_KERNEL */
+#include <sys/param.h>
+#include <sys/types.h>
+#include <inttypes.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <threads.h>
+#include "unit_test.h"
+#endif /* _KERNEL */
 
 #include <crypto/rijndael/rijndael-api-fst.h>
 #include <crypto/sha2/sha2.h>
 
 #include <dev/random/hash.h>
 
+/* This code presumes that KEYSIZE is twice as large as BLOCKSIZE */
+CTASSERT(KEYSIZE == 2*BLOCKSIZE);
+
 /* Initialise the hash */
 void
 randomdev_hash_init(struct randomdev_hash *context)
 {
+
 	SHA256_Init(&context->sha);
 }
 
@@ -47,6 +62,7 @@ randomdev_hash_init(struct randomdev_hash *context)
 void
 randomdev_hash_iterate(struct randomdev_hash *context, void *data, size_t size)
 {
+
 	SHA256_Update(&context->sha, data, size);
 }
 
@@ -56,6 +72,7 @@ randomdev_hash_iterate(struct randomdev_hash *context, void *data, size_t size)
 void
 randomdev_hash_finish(struct randomdev_hash *context, void *buf)
 {
+
 	SHA256_Final(buf, &context->sha);
 }
 
@@ -66,6 +83,7 @@ randomdev_hash_finish(struct randomdev_hash *context, void *buf)
 void
 randomdev_encrypt_init(struct randomdev_key *context, void *data)
 {
+
 	rijndael_cipherInit(&context->cipher, MODE_CBC, NULL);
 	rijndael_makeKey(&context->key, DIR_ENCRYPT, KEYSIZE*8, data);
 }
@@ -75,7 +93,8 @@ randomdev_encrypt_init(struct randomdev_key *context, void *data)
  * a multiple of BLOCKSIZE.
  */
 void
-randomdev_encrypt(struct randomdev_key *context, void *d_in, void *d_out, unsigned length)
+randomdev_encrypt(struct randomdev_key *context, void *d_in, void *d_out, u_int length)
 {
+
 	rijndael_blockEncrypt(&context->cipher, &context->key, d_in, length*8, d_out);
 }

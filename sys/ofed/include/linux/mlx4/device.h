@@ -1036,6 +1036,7 @@ enum mlx4_net_trans_rule_id {
 	MLX4_NET_TRANS_RULE_ID_TCP,
 	MLX4_NET_TRANS_RULE_ID_UDP,
 	MLX4_NET_TRANS_RULE_NUM, /* should be last */
+	MLX4_NET_TRANS_RULE_DUMMY = -1,	/* force enum to be signed */
 };
 
 extern const u16 __sw_id_hw[];
@@ -1058,6 +1059,7 @@ enum mlx4_net_trans_promisc_mode {
 	MLX4_FS_UC_SNIFFER,
 	MLX4_FS_MC_SNIFFER,
 	MLX4_FS_MODE_NUM, /* should be last */
+	MLX4_FS_MODE_DUMMY = -1,	/* force enum to be signed */
 };
 
 struct mlx4_spec_eth {

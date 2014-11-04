@@ -2851,7 +2851,7 @@ device_attach(device_t dev)
 	 * need to be adjusted on other platforms.
 	 */
 #ifdef RANDOM_DEBUG
-	printf("%s(): feeding %d bit(s) of entropy from %s%d\n",
+	printf("random: %s(): feeding %d bit(s) of entropy from %s%d\n",
 	    __func__, 4, dev->driver->name, dev->unit);
 #endif
 	random_harvest(&attachtime, sizeof(attachtime), 4, RANDOM_ATTACH);

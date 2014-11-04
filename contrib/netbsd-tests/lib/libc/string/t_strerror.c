@@ -37,6 +37,10 @@ __RCSID("$NetBSD: t_strerror.c,v 1.3 2011/05/10 06:55:27 jruoho Exp $");
 #include <locale.h>
 #include <string.h>
 
+#if defined(__FreeBSD__)
+#include <stdio.h>
+#endif
+
 ATF_TC(strerror_basic);
 ATF_TC_HEAD(strerror_basic, tc)
 {

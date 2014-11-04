@@ -984,6 +984,25 @@ fill_kinfo_thread(struct thread *td, struct kinfo_proc *kp, int preferthread)
 	kp->ki_wchan = td->td_wchan;
 	kp->ki_pri.pri_level = td->td_priority;
 	kp->ki_pri.pri_native = td->td_base_pri;
+
+	/*
+	 * Note: legacy fields; clamp at the old NOCPU value and/or
+	 * the maximum u_char CPU value.
+	 */
+	if (td->td_lastcpu == NOCPU)
+		kp->ki_lastcpu_old = NOCPU_OLD;
+	else if (td->td_lastcpu > MAXCPU_OLD)
+		kp->ki_lastcpu_old = MAXCPU_OLD;
+	else
+		kp->ki_lastcpu_old = td->td_lastcpu;
+
+	if (td->td_oncpu == NOCPU)
+		kp->ki_oncpu_old = NOCPU_OLD;
+	else if (td->td_oncpu > MAXCPU_OLD)
+		kp->ki_oncpu_old = MAXCPU_OLD;
+	else
+		kp->ki_oncpu_old = td->td_oncpu;
+
 	kp->ki_lastcpu = td->td_lastcpu;
 	kp->ki_oncpu = td->td_oncpu;
 	kp->ki_tdflags = td->td_flags;
@@ -1164,6 +1183,11 @@ freebsd32_kinfo_proc_out(const struct kinfo_proc *ki, struct kinfo_proc32 *ki32)
 	CP(*ki, *ki32, ki_rqindex);
 	CP(*ki, *ki32, ki_oncpu);
 	CP(*ki, *ki32, ki_lastcpu);
+
+	/* XXX TODO: wrap cpu value as appropriate */
+	CP(*ki, *ki32, ki_oncpu_old);
+	CP(*ki, *ki32, ki_lastcpu_old);
+
 	bcopy(ki->ki_tdname, ki32->ki_tdname, TDNAMLEN + 1);
 	bcopy(ki->ki_wmesg, ki32->ki_wmesg, WMESGLEN + 1);
 	bcopy(ki->ki_login, ki32->ki_login, LOGNAMELEN + 1);

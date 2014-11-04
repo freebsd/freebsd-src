@@ -85,7 +85,11 @@ ATF_TC_BODY(unlink_err, tc)
 	(void)memset(buf, 'x', sizeof(buf));
 
 	errno = 0;
+#if defined(__FreeBSD__)
+	ATF_REQUIRE_ERRNO(EISDIR, unlink("/") == -1);
+#else
 	ATF_REQUIRE_ERRNO(EBUSY, unlink("/") == -1);
+#endif
 
 	errno = 0;
 	ATF_REQUIRE_ERRNO(ENAMETOOLONG, unlink(buf) == -1);

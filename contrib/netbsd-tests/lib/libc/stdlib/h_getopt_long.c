@@ -36,6 +36,9 @@
 #include <string.h>
 #include <stdlib.h>
 #include <unistd.h>
+#if defined(__FreeBSD__)
+#include <libutil.h>
+#endif
 
 #define SKIPWS(p)	while (isspace((int)(*p))) p++
 #define	WS	"\t\n "

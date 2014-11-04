@@ -442,7 +442,7 @@ nfs_mountroot(struct mount *mp)
 	error = ifioctl(so, SIOCAIFADDR, (caddr_t)&nd->myif, td);
 	if (error)
 		panic("nfs_mountroot: SIOCAIFADDR: %d", error);
-	if ((cp = getenv("boot.netif.mtu")) != NULL) {
+	if ((cp = kern_getenv("boot.netif.mtu")) != NULL) {
 		ir.ifr_mtu = strtol(cp, NULL, 10);
 		bcopy(nd->myif.ifra_name, ir.ifr_name, IFNAMSIZ);
 		freeenv(cp);
@@ -621,17 +621,27 @@ nfs_decode_args(struct mount *mp, struct nfsmount *nmp, struct nfs_args *argp,
 
 	if ((argp->flags & NFSMNT_WSIZE) && argp->wsize > 0) {
 		nmp->nm_wsize = argp->wsize;
-		/* Round down to multiple of blocksize */
-		nmp->nm_wsize &= ~(NFS_FABLKSIZE - 1);
-		if (nmp->nm_wsize <= 0)
+		/*
+		 * Clip at the power of 2 below the size. There is an
+		 * issue (not isolated) that causes intermittent page
+		 * faults if this is not done.
+		 */
+		if (nmp->nm_wsize > NFS_FABLKSIZE)
+			nmp->nm_wsize = 1 << (fls(nmp->nm_wsize) - 1);
+		else
 			nmp->nm_wsize = NFS_FABLKSIZE;
 	}
 
 	if ((argp->flags & NFSMNT_RSIZE) && argp->rsize > 0) {
 		nmp->nm_rsize = argp->rsize;
-		/* Round down to multiple of blocksize */
-		nmp->nm_rsize &= ~(NFS_FABLKSIZE - 1);
-		if (nmp->nm_rsize <= 0)
+		/*
+		 * Clip at the power of 2 below the size. There is an
+		 * issue (not isolated) that causes intermittent page
+		 * faults if this is not done.
+		 */
+		if (nmp->nm_rsize > NFS_FABLKSIZE)
+			nmp->nm_rsize = 1 << (fls(nmp->nm_rsize) - 1);
+		else
 			nmp->nm_rsize = NFS_FABLKSIZE;
 	}
 
@@ -712,15 +722,15 @@ nfs_decode_args(struct mount *mp, struct nfsmount *nmp, struct nfs_args *argp,
 }
 
 static const char *nfs_opts[] = { "from", "nfs_args",
-    "noatime", "noexec", "suiddir", "nosuid", "nosymfollow", "union",
+    "noac", "noatime", "noexec", "suiddir", "nosuid", "nosymfollow", "union",
     "noclusterr", "noclusterw", "multilabel", "acls", "force", "update",
     "async", "noconn", "nolockd", "conn", "lockd", "intr", "rdirplus",
     "readdirsize", "soft", "hard", "mntudp", "tcp", "udp", "wsize", "rsize",
-    "retrans", "acregmin", "acregmax", "acdirmin", "acdirmax", "resvport",
-    "readahead", "hostname", "timeout", "addr", "fh", "nfsv3", "sec",
-    "principal", "nfsv4", "gssname", "allgssname", "dirpath", "minorversion",
-    "nametimeo", "negnametimeo", "nocto", "noncontigwr", "pnfs",
-    "wcommitsize",
+    "retrans", "actimeo", "acregmin", "acregmax", "acdirmin", "acdirmax",
+    "resvport", "readahead", "hostname", "timeo", "timeout", "addr", "fh",
+    "nfsv3", "sec", "principal", "nfsv4", "gssname", "allgssname", "dirpath",
+    "minorversion", "nametimeo", "negnametimeo", "nocto", "noncontigwr",
+    "pnfs", "wcommitsize",
     NULL };
 
 /*
@@ -805,10 +815,16 @@ nfs_mount(struct mount *mp)
 	}
 
 	/* Handle the new style options. */
+	if (vfs_getopt(mp->mnt_optnew, "noac", NULL, NULL) == 0) {
+		args.acdirmin = args.acdirmax =
+		    args.acregmin = args.acregmax = 0;
+		args.flags |= NFSMNT_ACDIRMIN | NFSMNT_ACDIRMAX |
+		    NFSMNT_ACREGMIN | NFSMNT_ACREGMAX;
+	}
 	if (vfs_getopt(mp->mnt_optnew, "noconn", NULL, NULL) == 0)
 		args.flags |= NFSMNT_NOCONN;
 	if (vfs_getopt(mp->mnt_optnew, "conn", NULL, NULL) == 0)
-		args.flags |= NFSMNT_NOCONN;
+		args.flags &= ~NFSMNT_NOCONN;
 	if (vfs_getopt(mp->mnt_optnew, "nolockd", NULL, NULL) == 0)
 		args.flags |= NFSMNT_NOLOCKD;
 	if (vfs_getopt(mp->mnt_optnew, "lockd", NULL, NULL) == 0)
@@ -920,6 +936,18 @@ nfs_mount(struct mount *mp)
 		}
 		args.flags |= NFSMNT_RETRANS;
 	}
+	if (vfs_getopt(mp->mnt_optnew, "actimeo", (void **)&opt, NULL) == 0) {
+		ret = sscanf(opt, "%d", &args.acregmin);
+		if (ret != 1 || args.acregmin < 0) {
+			vfs_mount_error(mp, "illegal actimeo: %s",
+			    opt);
+			error = EINVAL;
+			goto out;
+		}
+		args.acdirmin = args.acdirmax = args.acregmax = args.acregmin;
+		args.flags |= NFSMNT_ACDIRMIN | NFSMNT_ACDIRMAX |
+		    NFSMNT_ACREGMIN | NFSMNT_ACREGMAX;
+	}
 	if (vfs_getopt(mp->mnt_optnew, "acregmin", (void **)&opt, NULL) == 0) {
 		ret = sscanf(opt, "%d", &args.acregmin);
 		if (ret != 1 || args.acregmin < 0) {
@@ -968,6 +996,16 @@ nfs_mount(struct mount *mp)
 			goto out;
 		}
 		args.flags |= NFSMNT_WCOMMITSIZE;
+	}
+	if (vfs_getopt(mp->mnt_optnew, "timeo", (void **)&opt, NULL) == 0) {
+		ret = sscanf(opt, "%d", &args.timeo);
+		if (ret != 1 || args.timeo <= 0) {
+			vfs_mount_error(mp, "illegal timeo: %s",
+			    opt);
+			error = EINVAL;
+			goto out;
+		}
+		args.flags |= NFSMNT_TIMEO;
 	}
 	if (vfs_getopt(mp->mnt_optnew, "timeout", (void **)&opt, NULL) == 0) {
 		ret = sscanf(opt, "%d", &args.timeo);

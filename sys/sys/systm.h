@@ -73,7 +73,7 @@ extern int vm_guest;		/* Running as virtual machine guest? */
  * Keep in sync with vm_guest_sysctl_names[].
  */
 enum VM_GUEST { VM_GUEST_NO = 0, VM_GUEST_VM, VM_GUEST_XEN, VM_GUEST_HV,
-		VM_LAST };
+		VM_GUEST_VMWARE, VM_LAST };
 
 #if defined(WITNESS) || defined(INVARIANTS)
 void	kassert_panic(const char *fmt, ...)  __printflike(1, 2);
@@ -252,18 +252,25 @@ int	copyout(const void * __restrict kaddr, void * __restrict udaddr,
 int	copyout_nofault(const void * __restrict kaddr, void * __restrict udaddr,
 	    size_t len) __nonnull(1) __nonnull(2);
 
-int	fubyte(const void *base);
-long	fuword(const void *base);
-int	fuword16(void *base);
-int32_t	fuword32(const void *base);
-int64_t	fuword64(const void *base);
-int	subyte(void *base, int byte);
-int	suword(void *base, long word);
-int	suword16(void *base, int word);
-int	suword32(void *base, int32_t word);
-int	suword64(void *base, int64_t word);
+int	fubyte(volatile const void *base);
+long	fuword(volatile const void *base);
+int	fuword16(volatile const void *base);
+int32_t	fuword32(volatile const void *base);
+int64_t	fuword64(volatile const void *base);
+int	fueword(volatile const void *base, long *val);
+int	fueword32(volatile const void *base, int32_t *val);
+int	fueword64(volatile const void *base, int64_t *val);
+int	subyte(volatile void *base, int byte);
+int	suword(volatile void *base, long word);
+int	suword16(volatile void *base, int word);
+int	suword32(volatile void *base, int32_t word);
+int	suword64(volatile void *base, int64_t word);
 uint32_t casuword32(volatile uint32_t *base, uint32_t oldval, uint32_t newval);
-u_long	 casuword(volatile u_long *p, u_long oldval, u_long newval);
+u_long	casuword(volatile u_long *p, u_long oldval, u_long newval);
+int	casueword32(volatile uint32_t *base, uint32_t oldval, uint32_t *oldvalp,
+	    uint32_t newval);
+int	casueword(volatile u_long *p, u_long oldval, u_long *oldvalp,
+	    u_long newval);
 
 void	realitexpire(void *);
 
@@ -296,7 +303,7 @@ int	cr_cansee(struct ucred *u1, struct ucred *u2);
 int	cr_canseesocket(struct ucred *cred, struct socket *so);
 int	cr_canseeinpcb(struct ucred *cred, struct inpcb *inp);
 
-char	*getenv(const char *name);
+char	*kern_getenv(const char *name);
 void	freeenv(char *env);
 int	getenv_int(const char *name, int *data);
 int	getenv_uint(const char *name, unsigned int *data);
@@ -304,8 +311,8 @@ int	getenv_long(const char *name, long *data);
 int	getenv_ulong(const char *name, unsigned long *data);
 int	getenv_string(const char *name, char *data, int size);
 int	getenv_quad(const char *name, quad_t *data);
-int	setenv(const char *name, const char *value);
-int	unsetenv(const char *name);
+int	kern_setenv(const char *name, const char *value);
+int	kern_unsetenv(const char *name);
 int	testenv(const char *name);
 
 typedef uint64_t (cpu_tick_f)(void);

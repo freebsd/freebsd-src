@@ -79,6 +79,7 @@ __FBSDID("$FreeBSD$");
 #include <dev/if_ndis/if_ndisvar.h>
 
 #define NDIS_DUMMY_PATH "\\\\some\\bogus\\path"
+#define	NDIS_FLAG_RDONLY 1
 
 static void ndis_status_func(ndis_handle, ndis_status, void *, uint32_t);
 static void ndis_statusdone_func(ndis_handle);
@@ -326,48 +327,48 @@ ndis_create_sysctls(arg)
 	 * We qualify as the latter.
 	 */
 	ndis_add_sysctl(sc, "Environment",
-	    "Windows environment", "1", CTLFLAG_RD);
+	    "Windows environment", "1", NDIS_FLAG_RDONLY);
 
 	/* NDIS version should be 5.1. */
 	ndis_add_sysctl(sc, "NdisVersion",
-	    "NDIS API Version", "0x00050001", CTLFLAG_RD);
+	    "NDIS API Version", "0x00050001", NDIS_FLAG_RDONLY);
 
 	/*
 	 * Some miniport drivers rely on the existence of the SlotNumber,
 	 * NetCfgInstanceId and DriverDesc keys.
 	 */
-	ndis_add_sysctl(sc, "SlotNumber", "Slot Numer", "01", CTLFLAG_RD);
+	ndis_add_sysctl(sc, "SlotNumber", "Slot Numer", "01", NDIS_FLAG_RDONLY);
 	ndis_add_sysctl(sc, "NetCfgInstanceId", "NetCfgInstanceId",
-	    "{12345678-1234-5678-CAFE0-123456789ABC}", CTLFLAG_RD);
+	    "{12345678-1234-5678-CAFE0-123456789ABC}", NDIS_FLAG_RDONLY);
 	ndis_add_sysctl(sc, "DriverDesc", "Driver Description",
-	    "NDIS Network Adapter", CTLFLAG_RD);
+	    "NDIS Network Adapter", NDIS_FLAG_RDONLY);
 
 	/* Bus type (PCI, PCMCIA, etc...) */
 	sprintf(buf, "%d", (int)sc->ndis_iftype);
-	ndis_add_sysctl(sc, "BusType", "Bus Type", buf, CTLFLAG_RD);
+	ndis_add_sysctl(sc, "BusType", "Bus Type", buf, NDIS_FLAG_RDONLY);
 
 	if (sc->ndis_res_io != NULL) {
 		sprintf(buf, "0x%lx", rman_get_start(sc->ndis_res_io));
 		ndis_add_sysctl(sc, "IOBaseAddress",
-		    "Base I/O Address", buf, CTLFLAG_RD);
+		    "Base I/O Address", buf, NDIS_FLAG_RDONLY);
 	}
 
 	if (sc->ndis_irq != NULL) {
 		sprintf(buf, "%lu", rman_get_start(sc->ndis_irq));
 		ndis_add_sysctl(sc, "InterruptNumber",
-		    "Interrupt Number", buf, CTLFLAG_RD);
+		    "Interrupt Number", buf, NDIS_FLAG_RDONLY);
 	}
 
 	return (0);
 }
 
 int
-ndis_add_sysctl(arg, key, desc, val, flag)
+ndis_add_sysctl(arg, key, desc, val, flag_rdonly)
 	void			*arg;
 	char			*key;
 	char			*desc;
 	char			*val;
-	int			flag;
+	int			flag_rdonly;
 {
 	struct ndis_softc	*sc;
 	struct ndis_cfglist	*cfg;
@@ -392,13 +393,21 @@ ndis_add_sysctl(arg, key, desc, val, flag)
 
 	TAILQ_INSERT_TAIL(&sc->ndis_cfglist_head, cfg, link);
 
-	cfg->ndis_oid =
-	SYSCTL_ADD_STRING(device_get_sysctl_ctx(sc->ndis_dev),
-	    SYSCTL_CHILDREN(device_get_sysctl_tree(sc->ndis_dev)),
-	    OID_AUTO, cfg->ndis_cfg.nc_cfgkey, flag,
-	    cfg->ndis_cfg.nc_val, sizeof(cfg->ndis_cfg.nc_val),
-	    cfg->ndis_cfg.nc_cfgdesc);
-
+	if (flag_rdonly != 0) {
+		cfg->ndis_oid =
+		    SYSCTL_ADD_STRING(device_get_sysctl_ctx(sc->ndis_dev),
+		    SYSCTL_CHILDREN(device_get_sysctl_tree(sc->ndis_dev)),
+		    OID_AUTO, cfg->ndis_cfg.nc_cfgkey, CTLFLAG_RD,
+		    cfg->ndis_cfg.nc_val, sizeof(cfg->ndis_cfg.nc_val),
+		    cfg->ndis_cfg.nc_cfgdesc);
+	} else {
+		cfg->ndis_oid =
+		    SYSCTL_ADD_STRING(device_get_sysctl_ctx(sc->ndis_dev),
+		    SYSCTL_CHILDREN(device_get_sysctl_tree(sc->ndis_dev)),
+		    OID_AUTO, cfg->ndis_cfg.nc_cfgkey, CTLFLAG_RW,
+		    cfg->ndis_cfg.nc_val, sizeof(cfg->ndis_cfg.nc_val),
+		    cfg->ndis_cfg.nc_cfgdesc);
+	}
 	return (0);
 }
 

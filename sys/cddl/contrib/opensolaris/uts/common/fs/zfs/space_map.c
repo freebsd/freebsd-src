@@ -37,6 +37,8 @@
 #include <sys/refcount.h>
 #include <sys/zfeature.h>
 
+SYSCTL_DECL(_vfs_zfs);
+
 /*
  * The data for a given space map can be kept on blocks of any size.
  * Larger blocks entail fewer i/o operations, but they also cause the
@@ -44,6 +46,8 @@
  * when only a few blocks have changed since the last transaction group.
  */
 int space_map_blksz = (1 << 12);
+SYSCTL_INT(_vfs_zfs, OID_AUTO, space_map_blksz, CTLFLAG_RDTUN, &space_map_blksz, 0,
+    "Maximum block size for space map.  Must be power of 2 and greater than 4096.");
 
 /*
  * Load the space map disk into the specified range tree. Segments of maptype

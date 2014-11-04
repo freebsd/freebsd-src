@@ -41,6 +41,18 @@ dict()
 	fi
 }
 
+# Begin FreeBSD
+dict()
+{
+	if [ -f /usr/share/dict/words ]; then
+		echo /usr/share/dict/words
+	else
+		echo /nonexistent
+		atf_skip "Test requires dict/words"
+	fi
+}
+# End FreeBSD
+
 SEVEN_SEVEN="abcdefg|abcdefg|abcdefg|abcdefg|abcdefg|abcdefg|abcdefg"
 
 atf_test_case small_btree
@@ -887,7 +899,15 @@ r
 k1234
 EOF
 
+	# Begin FreeBSD
+	if true; then
+		atf_check "$(prog)" -i bsize=32768 hash in
+	else
+	# End FreeBSD
 	atf_check "$(prog)" -i bsize=65536 hash in
+	# Begin FreeBSD
+	fi
+	# End FreeBSD
 }
 
 atf_init_test_cases()

@@ -121,7 +121,6 @@ __FBSDID("$FreeBSD$");
 #endif
 
 #define		VIFI_INVALID	((vifi_t) -1)
-#define		M_HASCL(m)	((m)->m_flags & M_EXT)
 
 static VNET_DEFINE(uint32_t, last_tv_sec); /* last time we processed this */
 #define	V_last_tv_sec	VNET(last_tv_sec)
@@ -1304,7 +1303,7 @@ X_ip_mforward(struct ip *ip, struct ifnet *ifp, struct mbuf *m,
 	}
 
 	mb0 = m_copypacket(m, M_NOWAIT);
-	if (mb0 && (M_HASCL(mb0) || mb0->m_len < hlen))
+	if (mb0 && (!M_WRITABLE(mb0) || mb0->m_len < hlen))
 	    mb0 = m_pullup(mb0, hlen);
 	if (mb0 == NULL) {
 	    free(rte, M_MRTABLE);
@@ -1544,7 +1543,7 @@ ip_mdq(struct mbuf *m, struct ifnet *ifp, struct mfc *rt, vifi_t xmt_vif)
 		int hlen = ip->ip_hl << 2;
 		struct mbuf *mm = m_copy(m, 0, hlen);
 
-		if (mm && (M_HASCL(mm) || mm->m_len < hlen))
+		if (mm && (!M_WRITABLE(mm) || mm->m_len < hlen))
 		    mm = m_pullup(mm, hlen);
 		if (mm == NULL)
 		    return ENOBUFS;
@@ -1665,7 +1664,7 @@ phyint_send(struct ip *ip, struct vif *vifp, struct mbuf *m)
      * so that ip_output() only scribbles on the copy.
      */
     mb_copy = m_copypacket(m, M_NOWAIT);
-    if (mb_copy && (M_HASCL(mb_copy) || mb_copy->m_len < hlen))
+    if (mb_copy && (!M_WRITABLE(mb_copy) || mb_copy->m_len < hlen))
 	mb_copy = m_pullup(mb_copy, hlen);
     if (mb_copy == NULL)
 	return;

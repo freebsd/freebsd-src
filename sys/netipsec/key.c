@@ -410,6 +410,10 @@ struct sadb_msghdr {
 	int extlen[SADB_EXT_MAX + 1];
 };
 
+#ifndef IPSEC_DEBUG2
+static struct callout key_timer;
+#endif
+
 static struct secasvar *key_allocsa_policy __P((const struct secasindex *));
 static void key_freesp_so __P((struct secpolicy **));
 static struct secasvar *key_do_allocsa_policy __P((struct secashead *, u_int));
@@ -3902,33 +3906,14 @@ key_dup_lifemsg(const struct sadb_lifetime *src,
  *	0: false
  */
 int
-key_ismyaddr(sa)
-	struct sockaddr *sa;
+key_ismyaddr(struct sockaddr *sa)
 {
-#ifdef INET
-	struct sockaddr_in *sin;
-	struct in_ifaddr *ia;
-#endif
 
 	IPSEC_ASSERT(sa != NULL, ("null sockaddr"));
-
 	switch (sa->sa_family) {
 #ifdef INET
 	case AF_INET:
-		sin = (struct sockaddr_in *)sa;
-		IN_IFADDR_RLOCK();
-		TAILQ_FOREACH(ia, &V_in_ifaddrhead, ia_link)
-		{
-			if (sin->sin_family == ia->ia_addr.sin_family &&
-			    sin->sin_len == ia->ia_addr.sin_len &&
-			    sin->sin_addr.s_addr == ia->ia_addr.sin_addr.s_addr)
-			{
-				IN_IFADDR_RUNLOCK();
-				return 1;
-			}
-		}
-		IN_IFADDR_RUNLOCK();
-		break;
+		return (in_localip(satosin(sa)->sin_addr));
 #endif
 #ifdef INET6
 	case AF_INET6:
@@ -4525,8 +4510,8 @@ key_flush_spacq(time_t now)
  * and do to remove or to expire.
  * XXX: year 2038 problem may remain.
  */
-void
-key_timehandler(void)
+static void
+key_timehandler(void *arg)
 {
 	VNET_ITERATOR_DECL(vnet_iter);
 	time_t now = time_second;
@@ -4544,7 +4529,7 @@ key_timehandler(void)
 
 #ifndef IPSEC_DEBUG2
 	/* do exchange to tick time !! */
-	(void)timeout((void *)key_timehandler, (void *)0, hz);
+	callout_schedule(&key_timer, hz);
 #endif /* IPSEC_DEBUG2 */
 }
 
@@ -7769,7 +7754,8 @@ key_init(void)
 	SPACQ_LOCK_INIT();
 
 #ifndef IPSEC_DEBUG2
-	timeout((void *)key_timehandler, (void *)0, hz);
+	callout_init(&key_timer, CALLOUT_MPSAFE);
+	callout_reset(&key_timer, hz, key_timehandler, NULL);
 #endif /*IPSEC_DEBUG2*/
 
 	/* initialize key statistics */

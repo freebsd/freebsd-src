@@ -128,11 +128,11 @@ SYSCTL_PROC(_net_wlan_mesh, OID_AUTO, backofftimeout, CTLTYPE_INT | CTLFLAG_RW,
     "Backoff timeout (msec). This is to throutles peering forever when "
     "not receving answer or is rejected by a neighbor");
 static int ieee80211_mesh_maxretries = 2;
-SYSCTL_INT(_net_wlan_mesh, OID_AUTO, maxretries, CTLTYPE_INT | CTLFLAG_RW,
+SYSCTL_INT(_net_wlan_mesh, OID_AUTO, maxretries, CTLFLAG_RW,
     &ieee80211_mesh_maxretries, 0,
     "Maximum retries during peer link establishment");
 static int ieee80211_mesh_maxholding = 2;
-SYSCTL_INT(_net_wlan_mesh, OID_AUTO, maxholding, CTLTYPE_INT | CTLFLAG_RW,
+SYSCTL_INT(_net_wlan_mesh, OID_AUTO, maxholding, CTLFLAG_RW,
     &ieee80211_mesh_maxholding, 0,
     "Maximum times we are allowed to transition to HOLDING state before "
     "backinoff during peer link establishment");

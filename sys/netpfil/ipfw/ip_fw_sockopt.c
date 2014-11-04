@@ -152,8 +152,6 @@ static struct ipfw_sopt_handler	scodes[] = {
  * static variables followed by global ones
  */
 
-#ifndef USERSPACE
-
 static VNET_DEFINE(uma_zone_t, ipfw_cntr_zone);
 #define	V_ipfw_cntr_zone		VNET(ipfw_cntr_zone)
 
@@ -162,7 +160,7 @@ ipfw_init_counters()
 {
 
 	V_ipfw_cntr_zone = uma_zcreate("IPFW counters",
-	    sizeof(ip_fw_cntr), NULL, NULL, NULL, NULL,
+	    IPFW_RULE_CNTR_SIZE, NULL, NULL, NULL, NULL,
 	    UMA_ALIGN_PTR, UMA_ZONE_PCPU);
 }
 
@@ -191,35 +189,6 @@ free_rule(struct ip_fw *rule)
 	uma_zfree(V_ipfw_cntr_zone, rule->cntr);
 	free(rule, M_IPFW);
 }
-#else
-void
-ipfw_init_counters()
-{
-}
-
-void
-ipfw_destroy_counters()
-{
-}
-
-struct ip_fw *
-ipfw_alloc_rule(struct ip_fw_chain *chain, size_t rulesize)
-{
-	struct ip_fw *rule;
-
-	rule = malloc(rulesize, M_IPFW, M_WAITOK | M_ZERO);
-
-	return (rule);
-}
-
-static void
-free_rule(struct ip_fw *rule)
-{
-
-	free(rule, M_IPFW);
-}
-
-#endif
 
 
 /*
@@ -833,8 +802,9 @@ int
 ipfw_match_range(struct ip_fw *rule, ipfw_range_tlv *rt)
 {
 
-	/* Don't match default rule regardless of query */
-	if (rule->rulenum == IPFW_DEFAULT_RULE)
+	/* Don't match default rule for modification queries */
+	if (rule->rulenum == IPFW_DEFAULT_RULE &&
+	    (rt->flags & IPFW_RCFLAG_DEFAULT) == 0)
 		return (0);
 
 	/* Don't match rules in reserved set for flush requests */
@@ -965,7 +935,7 @@ move_range(struct ip_fw_chain *chain, ipfw_range_tlv *rt)
 	}
 
 	/* XXX: We have to do swap holding WLOCK */
-	for (i = 0; i < chain->n_rules - 1; i++) {
+	for (i = 0; i < chain->n_rules; i++) {
 		rule = chain->map[i];
 		if (ipfw_match_range(rule, rt) == 0)
 			continue;
@@ -1006,9 +976,10 @@ clear_range(struct ip_fw_chain *chain, ipfw_range_tlv *rt, int log_only)
 	int i;
 
 	num = 0;
+	rt->flags |= IPFW_RCFLAG_DEFAULT;
 
 	IPFW_UH_WLOCK(chain);	/* arbitrate writers */
-	for (i = 0; i < chain->n_rules - 1; i++) {
+	for (i = 0; i < chain->n_rules; i++) {
 		rule = chain->map[i];
 		if (ipfw_match_range(rule, rt) == 0)
 			continue;
@@ -1029,6 +1000,9 @@ check_range_tlv(ipfw_range_tlv *rt)
 	if (rt->start_rule > rt->end_rule)
 		return (1);
 	if (rt->set >= IPFW_MAX_SETS || rt->new_set >= IPFW_MAX_SETS)
+		return (1);
+
+	if ((rt->flags & IPFW_RCFLAG_USER) != rt->flags)
 		return (1);
 
 	return (0);
@@ -2012,7 +1986,7 @@ dump_config(struct ip_fw_chain *chain, ip_fw3_opheader *op3,
 		da.b = ipfw_find_rule(chain, rnum, 0);
 		rnum = hdr->end_rule;
 		rnum = (rnum < IPFW_DEFAULT_RULE) ? rnum+1 : IPFW_DEFAULT_RULE;
-		da.e = ipfw_find_rule(chain, rnum, 0);
+		da.e = ipfw_find_rule(chain, rnum, 0) + 1;
 	}
 
 	if (hdr->flags & IPFW_CFG_GET_STATIC) {
@@ -2530,30 +2504,33 @@ ipfw_del_sopt_handler(struct ipfw_sopt_handler *sh, size_t count)
 static int
 ipfw_flush_sopt_data(struct sockopt_data *sd)
 {
-#define	RULE_MAXSIZE	(512*sizeof(u_int32_t))
+	struct sockopt *sopt;
 	int error;
 	size_t sz;
 
-	if ((sz = sd->koff) == 0)
+	sz = sd->koff;
+	if (sz == 0)
 		return (0);
 
-	if (sd->sopt->sopt_dir == SOPT_GET) {
-		error = sooptcopyout(sd->sopt, sd->kbuf, sz);
+	sopt = sd->sopt;
+
+	if (sopt->sopt_dir == SOPT_GET) {
+		error = copyout(sd->kbuf, sopt->sopt_val, sz);
 		if (error != 0)
 			return (error);
 	}
 
 	memset(sd->kbuf, 0, sd->ksize);
-	sd->ktotal += sd->koff;
+	sd->ktotal += sz;
 	sd->koff = 0;
 	if (sd->ktotal + sd->ksize < sd->valsize)
 		sd->kavail = sd->ksize;
 	else
 		sd->kavail = sd->valsize - sd->ktotal;
 
-	/* Update sopt buffer */
-	sd->sopt->sopt_valsize = sd->ktotal;
-	sd->sopt->sopt_val = sd->sopt_val + sd->ktotal;
+	/* Update sopt buffer data */
+	sopt->sopt_valsize = sd->ktotal;
+	sopt->sopt_val = sd->sopt_val + sd->ktotal;
 
 	return (0);
 }

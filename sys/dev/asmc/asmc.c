@@ -310,7 +310,7 @@ asmc_match(device_t dev)
 	int i;
 	char *model;
 
-	model = getenv("smbios.system.product");
+	model = kern_getenv("smbios.system.product");
 	if (model == NULL)
 		return (NULL);
 
@@ -1052,7 +1052,7 @@ asmc_mb_sysctl_fanminspeed(SYSCTL_HANDLER_ARGS)
 	error = sysctl_handle_int(oidp, &v, 0, req);
 
 	if (error == 0 && req->newptr != NULL) {
-		unsigned int newspeed = *(unsigned int *)req->newptr;
+		unsigned int newspeed = v;
 		asmc_fan_setvalue(dev, ASMC_KEY_FANMINSPEED, fan, newspeed);
 	}
 
@@ -1071,7 +1071,7 @@ asmc_mb_sysctl_fanmaxspeed(SYSCTL_HANDLER_ARGS)
 	error = sysctl_handle_int(oidp, &v, 0, req);
 
 	if (error == 0 && req->newptr != NULL) {
-		unsigned int newspeed = *(unsigned int *)req->newptr;
+		unsigned int newspeed = v;
 		asmc_fan_setvalue(dev, ASMC_KEY_FANMAXSPEED, fan, newspeed);
 	}
 
@@ -1090,7 +1090,7 @@ asmc_mb_sysctl_fantargetspeed(SYSCTL_HANDLER_ARGS)
 	error = sysctl_handle_int(oidp, &v, 0, req);
 
 	if (error == 0 && req->newptr != NULL) {
-		unsigned int newspeed = *(unsigned int *)req->newptr;
+		unsigned int newspeed = v;
 		asmc_fan_setvalue(dev, ASMC_KEY_FANTARGETSPEED, fan, newspeed);
 	}
 
@@ -1283,7 +1283,7 @@ asmc_mb_sysctl_sms_z(SYSCTL_HANDLER_ARGS)
 
 	asmc_sms_read(dev, ASMC_KEY_SMS_Z, &val);
 	v = (int32_t) val;
-	error = sysctl_handle_int(oidp, &v, sizeof(v), req);
+	error = sysctl_handle_int(oidp, &v, 0, req);
 
 	return (error);
 }
@@ -1298,7 +1298,7 @@ asmc_mbp_sysctl_light_left(SYSCTL_HANDLER_ARGS)
 
 	asmc_key_read(dev, ASMC_KEY_LIGHTLEFT, buf, sizeof buf);
 	v = buf[2];
-	error = sysctl_handle_int(oidp, &v, sizeof(v), req);
+	error = sysctl_handle_int(oidp, &v, 0, req);
 
 	return (error);
 }
@@ -1313,7 +1313,7 @@ asmc_mbp_sysctl_light_right(SYSCTL_HANDLER_ARGS)
 	
 	asmc_key_read(dev, ASMC_KEY_LIGHTRIGHT, buf, sizeof buf);
 	v = buf[2];
-	error = sysctl_handle_int(oidp, &v, sizeof(v), req);
+	error = sysctl_handle_int(oidp, &v, 0, req);
 	
 	return (error);
 }
@@ -1324,19 +1324,19 @@ asmc_mbp_sysctl_light_control(SYSCTL_HANDLER_ARGS)
 	device_t dev = (device_t) arg1;
 	uint8_t buf[2];
 	int error;
-	unsigned int level;
-	static int32_t v;
-	
-	error = sysctl_handle_int(oidp, &v, sizeof(v), req);
+	static unsigned int level;
+	int v;
+
+	v = level;
+	error = sysctl_handle_int(oidp, &v, 0, req);
+
 	if (error == 0 && req->newptr != NULL) {
-		level = *(unsigned int *)req->newptr;
-		if (level > 255)
+		if (v < 0 || v > 255)
 			return (EINVAL);
-		v = level;
+		level = v;
 		buf[0] = level;
 		buf[1] = 0x00;
 		asmc_key_write(dev, ASMC_KEY_LIGHTVALUE, buf, sizeof buf);
 	}
-	
 	return (error);
 }

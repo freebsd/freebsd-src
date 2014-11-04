@@ -947,6 +947,11 @@ _libelf_cvt_NOTE_tom(char *dst, size_t dsz, char *src, size_t count,
 		READ_WORD(src, descsz);
 		READ_WORD(src, type);
 
+		sz = namesz;
+		ROUNDUP2(sz, 4);
+		sz += descsz;
+		ROUNDUP2(sz, 4);
+
 		/* Translate. */
 		SWAP_WORD(namesz);
 		SWAP_WORD(descsz);
@@ -961,11 +966,6 @@ _libelf_cvt_NOTE_tom(char *dst, size_t dsz, char *src, size_t count,
 		dsz -= sizeof(Elf_Note);
 		dst += sizeof(Elf_Note);
 		count -= hdrsz;
-
-		ROUNDUP2(namesz, 4);
-		ROUNDUP2(descsz, 4);
-
-		sz = namesz + descsz;
 
 		if (count < sz || dsz < sz)	/* Buffers are too small. */
 			return (0);

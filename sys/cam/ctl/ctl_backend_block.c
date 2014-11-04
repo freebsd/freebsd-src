@@ -501,6 +501,8 @@ ctl_be_block_biodone(struct bio *bio)
 	if (beio->num_errors > 0) {
 		if (error == EOPNOTSUPP) {
 			ctl_set_invalid_opcode(&io->scsiio);
+		} else if (error == ENOSPC) {
+			ctl_set_space_alloc_fail(&io->scsiio);
 		} else if (beio->bio_cmd == BIO_FLUSH) {
 			/* XXX KDM is there is a better error here? */
 			ctl_set_internal_failure(&io->scsiio,
@@ -711,14 +713,12 @@ ctl_be_block_dispatch_file(struct ctl_be_block_lun *be_lun,
 		char path_str[32];
 
 		ctl_scsi_path_string(io, path_str, sizeof(path_str));
-		/*
-		 * XXX KDM ZFS returns ENOSPC when the underlying
-		 * filesystem fills up.  What kind of SCSI error should we
-		 * return for that?
-		 */
 		printf("%s%s command returned errno %d\n", path_str,
 		       (beio->bio_cmd == BIO_READ) ? "READ" : "WRITE", error);
-		ctl_set_medium_error(&io->scsiio);
+		if (error == ENOSPC) {
+			ctl_set_space_alloc_fail(&io->scsiio);
+		} else
+			ctl_set_medium_error(&io->scsiio);
 		ctl_complete_beio(beio);
 		return;
 	}
@@ -804,7 +804,10 @@ ctl_be_block_dispatch_zvol(struct ctl_be_block_lun *be_lun,
 	 * return the I/O to the user.
 	 */
 	if (error != 0) {
-		ctl_set_medium_error(&io->scsiio);
+		if (error == ENOSPC) {
+			ctl_set_space_alloc_fail(&io->scsiio);
+		} else
+			ctl_set_medium_error(&io->scsiio);
 		ctl_complete_beio(beio);
 		return;
 	}
@@ -1542,6 +1545,7 @@ ctl_be_block_open_file(struct ctl_be_block_lun *be_lun, struct ctl_lun_req *req)
 	struct ctl_be_block_filedata *file_data;
 	struct ctl_lun_create_params *params;
 	struct vattr		      vattr;
+	off_t			      pss;
 	int			      error;
 
 	error = 0;
@@ -1590,21 +1594,21 @@ ctl_be_block_open_file(struct ctl_be_block_lun *be_lun, struct ctl_lun_req *req)
 	be_lun->flags |= CTL_BE_BLOCK_LUN_MULTI_THREAD;
 
 	/*
-	 * XXX KDM vattr.va_blocksize may be larger than 512 bytes here.
-	 * With ZFS, it is 131072 bytes.  Block sizes that large don't work
-	 * with disklabel and UFS on FreeBSD at least.  Large block sizes
-	 * may not work with other OSes as well.  So just export a sector
-	 * size of 512 bytes, which should work with any OS or
-	 * application.  Since our backing is a file, any block size will
-	 * work fine for the backing store.
+	 * For files we can use any logical block size.  Prefer 512 bytes
+	 * for compatibility reasons.  If file's vattr.va_blocksize
+	 * (preferred I/O block size) is bigger and multiple to chosen
+	 * logical block size -- report it as physical block size.
 	 */
-#if 0
-	be_lun->blocksize= vattr.va_blocksize;
-#endif
 	if (params->blocksize_bytes != 0)
 		be_lun->blocksize = params->blocksize_bytes;
 	else
 		be_lun->blocksize = 512;
+	pss = vattr.va_blocksize / be_lun->blocksize;
+	if ((pss > 0) && (pss * be_lun->blocksize == vattr.va_blocksize) &&
+	    ((pss & (pss - 1)) == 0)) {
+		be_lun->pblockexp = fls(pss) - 1;
+		be_lun->pblockoff = 0;
+	}
 
 	/*
 	 * Sanity check.  The media size has to be at least one

@@ -594,7 +594,7 @@ acpi_attach(device_t dev)
     sc->acpi_sleep_delay = 1;
     if (bootverbose)
 	sc->acpi_verbose = 1;
-    if ((env = getenv("hw.acpi.verbose")) != NULL) {
+    if ((env = kern_getenv("hw.acpi.verbose")) != NULL) {
 	if (strcmp(env, "0") != 0)
 	    sc->acpi_verbose = 1;
 	freeenv(env);
@@ -3337,7 +3337,7 @@ acpi_avoid(ACPI_HANDLE handle)
     np = acpi_name(handle);
     if (*np == '\\')
 	np++;
-    if ((env = getenv("debug.acpi.avoid")) == NULL)
+    if ((env = kern_getenv("debug.acpi.avoid")) == NULL)
 	return (0);
 
     /* Scan the avoid list checking for a match */
@@ -3370,7 +3370,7 @@ acpi_disabled(char *subsys)
     char	*cp, *env;
     int		len;
 
-    if ((env = getenv("debug.acpi.disabled")) == NULL)
+    if ((env = kern_getenv("debug.acpi.disabled")) == NULL)
 	return (0);
     if (strcmp(env, "all") == 0) {
 	freeenv(env);
@@ -3753,8 +3753,8 @@ acpi_set_debugging(void *junk)
 	AcpiDbgLevel = 0;
     }
 
-    layer = getenv("debug.acpi.layer");
-    level = getenv("debug.acpi.level");
+    layer = kern_getenv("debug.acpi.layer");
+    level = kern_getenv("debug.acpi.level");
     if (layer == NULL && level == NULL)
 	return;
 
@@ -3783,6 +3783,7 @@ acpi_debug_sysctl(SYSCTL_HANDLER_ARGS)
     int		 error, *dbg;
     struct	 debugtag *tag;
     struct	 sbuf sb;
+    char	 temp[128];
 
     if (sbuf_new(&sb, NULL, 128, SBUF_AUTOEXTEND) == NULL)
 	return (ENOMEM);
@@ -3806,15 +3807,15 @@ acpi_debug_sysctl(SYSCTL_HANDLER_ARGS)
     }
     sbuf_trim(&sb);
     sbuf_finish(&sb);
-
-    /* Copy out the old values to the user. */
-    error = SYSCTL_OUT(req, sbuf_data(&sb), sbuf_len(&sb));
+    strlcpy(temp, sbuf_data(&sb), sizeof(temp));
     sbuf_delete(&sb);
 
-    /* If the user is setting a string, parse it. */
+    error = sysctl_handle_string(oidp, temp, sizeof(temp), req);
+
+    /* Check for error or no change */
     if (error == 0 && req->newptr != NULL) {
 	*dbg = 0;
-	setenv((char *)oidp->oid_arg1, (char *)req->newptr);
+	kern_setenv((char *)oidp->oid_arg1, temp);
 	acpi_set_debugging(NULL);
     }
     ACPI_SERIAL_END(acpi);
