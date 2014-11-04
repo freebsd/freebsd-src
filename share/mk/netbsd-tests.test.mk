@@ -21,9 +21,6 @@ LIBNETBSD_SRCDIR=	${SRCTOP}/lib/libnetbsd
 LIBNETBSD_OBJDIR=	${OBJTOP}/lib/libnetbsd
 
 .for t in ${NETBSD_ATF_TESTS_C}
-# XXX: needed for atf-c/config.h after v0.2.1 upgrade. See NetBSD PR #
-# misc/49356 for more details
-CFLAGS.$t+=	-I${SRCTOP}/contrib/atf
 CFLAGS.$t+=	-I${LIBNETBSD_SRCDIR} -I${SRCTOP}/contrib/netbsd-tests
 LDFLAGS.$t+=	-L${LIBNETBSD_OBJDIR}
 
