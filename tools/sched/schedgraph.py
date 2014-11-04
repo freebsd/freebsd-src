@@ -70,6 +70,7 @@ eventcolors = [
 	("count",	"red"),
 	("running",	"green"),
 	("idle",	"grey"),
+	("spinning",	"red"),
 	("yielding",	"yellow"),
 	("swapped",	"violet"),
 	("suspended",	"purple"),
