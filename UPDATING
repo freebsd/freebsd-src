@@ -11,6 +11,20 @@ handbook:
 Items affecting the ports and packages system can be found in
 /usr/ports/UPDATING.  Please read that file before running portupgrade.
 
+20141104:	p15	FreeBSD-SA-14:24.sshd
+			FreeBSD-SA-14:25.setlogin
+			FreeBSD-SA-14:26.ftp
+			FreeBSD-EN-14:12.zfs
+
+	Fix denial of service attack against sshd(8). [SA-14:24]
+
+	Fix kernel stack disclosure in setlogin(2) / getlogin(2).
+	[SA-14:25]
+
+	Fix remote command execution in ftp(1). [SA-14:26]
+
+	Fix NFSv4 and ZFS cache consistency issue. [EN-14:12]
+
 20141022:	p14	FreeBSD-EN-14:10.tzdata
 
 	Time zone data file update. [EN-14:10]
