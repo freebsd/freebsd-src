@@ -1,4 +1,4 @@
-/*	$NetBSD: t_strtod.c,v 1.31 2012/09/26 07:24:38 jruoho Exp $ */
+/*	$NetBSD: t_strtod.c,v 1.32 2014/11/04 00:20:19 justin Exp $ */
 
 /*-
  * Copyright (c) 2011 The NetBSD Foundation, Inc.
@@ -32,7 +32,7 @@
 /* Public domain, Otto Moerbeek <otto@drijf.net>, 2006. */
 
 #include <sys/cdefs.h>
-__RCSID("$NetBSD: t_strtod.c,v 1.31 2012/09/26 07:24:38 jruoho Exp $");
+__RCSID("$NetBSD: t_strtod.c,v 1.32 2014/11/04 00:20:19 justin Exp $");
 
 #include <errno.h>
 #include <math.h>
@@ -41,7 +41,6 @@ __RCSID("$NetBSD: t_strtod.c,v 1.31 2012/09/26 07:24:38 jruoho Exp $");
 #include <string.h>
 
 #include <atf-c.h>
-#include <atf-c/config.h>
 
 #if defined(__i386__) || defined(__amd64__) || defined(__sparc__)
 #include <fenv.h>
