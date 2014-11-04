@@ -51,6 +51,7 @@ int
 pw_group(struct userconf * cnf, int mode, struct cargs * args)
 {
 	int		rc;
+	struct carg    *a_newname = getarg(args, 'l');
 	struct carg    *a_name = getarg(args, 'n');
 	struct carg    *a_gid = getarg(args, 'g');
 	struct carg    *arg;
@@ -65,6 +66,11 @@ pw_group(struct userconf * cnf, int mode, struct cargs * args)
 		-1,
 		NULL
 	};
+
+	if (a_gid != NULL) {
+		if (strspn(a_gid->val, "0123456789") != strlen(a_gid->val))
+			errx(EX_USAGE, "-g expects a number");
+	}
 
 	if (mode == M_LOCK || mode == M_UNLOCK)
 		errx(EX_USAGE, "'lock' command is not available for groups");
@@ -140,8 +146,8 @@ pw_group(struct userconf * cnf, int mode, struct cargs * args)
 		if (a_gid)
 			grp->gr_gid = (gid_t) atoi(a_gid->val);
 
-		if ((arg = getarg(args, 'l')) != NULL)
-			grp->gr_name = pw_checkname((u_char *)arg->val, 0);
+		if (a_newname != NULL)
+			grp->gr_name = pw_checkname((u_char *)a_newname->val, 0);
 	} else {
 		if (a_name == NULL)	/* Required */
 			errx(EX_DATAERR, "group name required");
@@ -270,8 +276,10 @@ pw_group(struct userconf * cnf, int mode, struct cargs * args)
 			warn("group update");
 		return EX_IOERR;
 	}
+
+	arg = a_newname != NULL ? a_newname : a_name;
 	/* grp may have been invalidated */
-	if ((grp = GETGRNAM(a_name->val)) == NULL)
+	if ((grp = GETGRNAM(arg->val)) == NULL)
 		errx(EX_SOFTWARE, "group disappeared during update");
 
 	pw_log(cnf, mode, W_GROUP, "%s(%ld)", grp->gr_name, (long) grp->gr_gid);
