@@ -1,0 +1,239 @@
+html, body {
+	margin: 0;
+	padding: 0; }
+
+body {
+	color: #000;
+	background-color: #fff;
+	font-family: sans-serif;
+	font-size: 94%;
+	margin: 0 auto;
+	position: relative; }
+
+h1, h2, h3, h4, h5, h6, h7, p, ul, dl, ol, table {
+	margin-left: 5mm;
+	margin-right: 5mm; }
+
+a:link {
+	text-decoration: underline;
+	color: #00f; }
+
+a:visited {
+	text-decoration: underline;
+	color: #60a; }
+
+a:hover {
+	text-decoration: none; }
+
+a:active {
+	text-decoration: underline;
+	color: #f00; }
+
+h1 {
+	font-size: 200%;
+	font-weight: bold; }
+
+h2 {
+	font-size: 160%;
+	padding-top: 5mm;
+	border-top: 1px solid black; }
+
+h3 {
+	font-size: 140%;
+	font-weight: bold; }
+
+h4 {
+	font-size: 120%;
+	font-weight: bold; }
+
+h5 {
+	font-size: 120%;
+	font-style: italic; }
+
+h1, h2, h3 {
+	clear: both; }
+
+dl {
+	padding: 0; }
+
+dt {
+	padding: 0;
+	font-weight: bold;
+	margin-bottom: 0.3em; }
+
+dd {
+	padding: 0;
+	margin-left: 5mm;
+	margin-bottom: 1em; }
+
+dd > ul {
+	margin-top: 0;
+	margin-left: 0.5em;
+	padding-left: 0;
+	margin-bottom: 1em; }
+
+.banner {
+	margin: 0;
+	padding: 0;
+	background-color: #94adff;
+	color: black;
+	text-align: left; }
+
+.banner img {
+	border: none;
+	color: #000;
+	height: 86px;
+	width: 308px;
+	display: block; }
+
+.footer {
+	clear: both;
+	font-style: italic;
+	color:#666;
+	text-align: right; }
+
+.footer p {
+	margin-top: 1.5em;
+	padding-top: 0.4em;
+	border-top: 2px solid #94adff; }
+
+
+/*
+ * Directory Listing Style
+ */
+
+body#dirlist {
+	background-color: #abf;
+	padding-bottom: 2em; }
+
+body#dirlist h1 {
+	padding: 5mm;
+	margin: 0;
+	border-bottom: 2px solid #bcf; }
+
+body#dirlist p {
+	padding: 2px 5mm;
+	margin: 0; }
+
+body#dirlist div {
+	display: table;
+	width: 94%;
+	margin: 5mm auto 2em auto;
+	padding: 0; }
+
+body#dirlist a, strong {
+	display: table-row;
+	margin: 0;
+	padding: 0; }
+
+body#dirlist a.odd {
+	background-color: #bcf; }
+
+body#dirlist a.even {
+	background-color: #b2c3ff; }
+
+body#dirlist span {
+	display: table-cell;
+	vertical-align: middle; }
+
+body#dirlist em > span {
+	padding-bottom: 1px; }
+
+body#dirlist a + a>span {
+	border-top: 1px solid #9af; }
+
+body#dirlist a {
+	background-position: 4px 50%;
+	background-repeat: no-repeat;
+}
+
+body#dirlist a.dir {
+	background-image: url("resource:icons/directory.png"); }
+
+body#dirlist a.file {
+	background-image: url("resource:icons/content.png"); }
+
+body#dirlist span.name {
+	padding-left: 27px;
+	min-height: 20px;}
+
+body#dirlist a.dir > span.name {
+	font-weight: bold; }
+
+body#dirlist a.dir > span.type {
+	font-weight: bold; }
+
+body#dirlist span.size {
+	text-align: right;
+	padding-right: 0.3em; }
+
+body#dirlist span.size + span.size {
+	text-align: left;
+	padding-right: 0; }
+
+
+/* 
+ * configuration listing style 
+ */
+
+body#configlist table.config {
+	border-spacing: 0; }
+
+body#configlist table.config tr:nth-child(2n-1) {
+	background: #eee; }
+
+body#configlist table.config tr:first-child th {
+	text-align: left;
+	font-weight: bold;
+	font-family: sans-serif;
+	background: #ddd; }
+
+body#configlist table.config tr th {
+	text-align: left;
+	font-weight: normal;
+	font-family: monospace; }
+
+body#configlist table.config td, body#configlist table.config th {
+	padding-left: 1em; }
+
+body#configlist table.config tr *:nth-child(3) {
+	padding-left: 3em; }
+
+body#configlist table.config tr *:nth-child(4) {
+	padding-left: 3em;
+	font-family: monospace;
+	padding-right: 1em; }
+
+body#configlist .null-content {
+        font-style: italic; }
+
+
+/*
+ * about:imagecache
+ */
+
+p.imagecachelist {
+	border-spacing: 0px;
+	margin-top: 1.2em;
+	margin-bottom: 1.2em;
+	display: table;
+}
+
+p.imagecachelist a:nth-child(2n+3) {
+	background: #e8edff;
+}
+
+p.imagecachelist strong, p.imagecachelist a {
+	display: table-row;
+}
+
+p.imagecachelist strong span {
+	background: #c8d5ff;
+}
+
+p.imagecachelist span {
+	border-top: 1px solid #bcf;
+	padding: 2px 0.5em;
+	display: table-cell;
+}
+

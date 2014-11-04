@@ -19,6 +19,7 @@ SUBDIR=	${_colldef} \
 	${_mklocale} \
 	${_monetdef} \
 	${_msgdef} \
+	${_netsurf} \
 	${_numericdef} \
 	${_sendmail} \
 	skel \
@@ -35,6 +36,10 @@ SUBDIR=	${_colldef} \
 
 .if ${MK_BSNMP} != "no"
 _snmp=		snmp
+.endif
+
+.if ${MK_CHERI} != "no"
+_netsurf=	netsurf
 .endif
 
 .if ${MK_DICT} != "no"

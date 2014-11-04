@@ -1038,6 +1038,12 @@
         ..
         mk
         ..
+        netsurf
+            icons
+            ..
+            pointers
+            ..
+        ..
         nls
             C
             ..

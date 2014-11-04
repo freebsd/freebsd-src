@@ -229,7 +229,7 @@ INCLUDES=	-I${NETSURF_DISTDIR}/libcss/include \
 OPTIONS=	-Dnsframebuffer -DWITH_JPEG -DWITH_PNG -DWITH_BMP -DWITH_GIF \
 		'-DNETSURF_UA_FORMAT_STRING="NetSurf/%d.%d (%s)"' \
 		'-DNETSURF_HOMEPAGE="about:welcome"' \
-		'-DNETSURF_FB_RESPATH="${HOME}/.netsurf/:${NETSURFRES}:/usr/local/share/netsurf/:./framebuffer/res"'
+		'-DNETSURF_FB_RESPATH="${HOME}/.netsurf/:${NETSURFRES}:/usr/share/netsurf/:./framebuffer/res"'
 		
 TTFONTS=	'-DNETSURF_FB_FONTPATH="/usr/share/fonts/truetype/ttf-dejavu:/usr/share/fonts/truetype/msttcorefonts"' \
 		'-DNETSURF_FB_FONT_SANS_SERIF="DejaVuSans.ttf"' \

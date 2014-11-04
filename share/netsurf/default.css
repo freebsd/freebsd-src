@@ -1,0 +1,146 @@
+/*
+ * This file is part of NetSurf, http://netsurf-browser.org/
+ */
+
+/* Elements ordered as in the HTML 4.01 specification. */
+
+html { display: block; }
+
+head { display: none; }
+
+body { display: block; margin: 8px; line-height: 1.33; }
+
+div { display: block; }
+
+h1 { display: block; font-size: 2em; font-weight: bold; margin: .67em 0; }
+h2 { display: block; font-size: 1.5em; font-weight: bold; margin: .69em 0; }
+h3 { display: block; font-size: 1.17em; font-weight: bold; margin: .83em 0; }
+h4 { display: block; font-weight: bold; margin: 1.12em 0; }
+h5 { display: block; font-size: .83em; font-weight: bold; margin: 1.5em 0; }
+h6 { display: block; font-size: .75em; font-weight: bold; margin: 1.67em 0; }
+
+address { display: block; font-style: italic; }
+
+em { font-style: italic; }
+strong { font-weight: bold; }
+dfn { font-style: italic; text-decoration: underline; }
+code { font-family: monospace; }
+samp { font-family: monospace; }
+kbd { font-family: monospace; font-weight: bold; }
+var { font-style: italic; }
+cite { font-style: italic; }
+abbr { font-variant: small-caps; }
+acronym { font-variant: small-caps; }
+
+blockquote { display: block; margin: 1.12em 40px;}
+
+q { font-style: italic; }
+
+sub { vertical-align: sub; font-size: .83em; }
+sup { vertical-align: super; font-size: .83em; }
+
+p { display: block; margin: 1.12em 0; }
+
+br[clear=left] { clear: left; }
+br[clear=right] { clear: right; }
+br[clear=all] { clear: both; }
+
+pre { display: block; font-family: monospace; white-space: pre; margin-bottom: 1em; }
+
+ins { color: green; text-decoration: underline; }
+del { color: red; text-decoration: line-through; }
+
+ul { display: block; padding-left: 1.5em; margin: 1.12em 0;
+	list-style-type: disc; }
+ol { display: block; padding-left: 1.5em; margin: 1.12em 0;
+	list-style-type: decimal; }
+li { display: list-item; }
+
+ul ul { list-style-type: circle; }
+ul ul ul { list-style-type: square; }
+
+ol ul, ul ol, ul ul, ol ol { margin-top: 0; margin-bottom: 0; }
+
+dl { display: block; padding-left: 1.5em; margin: 1em; }
+dt { display: block; font-weight: bold; }
+dd { display: block; padding-left: 1em; margin-bottom: 0.3em; }
+
+dir { display: block; padding-left: 1.5em; margin: 1.12em 0; }
+menu { display: block; padding-left: 1.5em; margin: 1.12em 0; }
+
+table { display: table; border-spacing: 2px; }
+
+table[border], table[border] td, table[border] tr { border-color: grey; }
+
+caption { display: table-caption; }
+
+thead { display: table-header-group; vertical-align: middle; }
+tfoot { display: table-footer-group; vertical-align: middle; }
+tbody { display: table-row-group; vertical-align: middle; }
+
+colgroup { display: table-column-group; }
+col { display: table-column; }
+
+table > tr { vertical-align: middle; }
+
+tr { display: table-row; vertical-align: inherit; }
+td, th { display: table-cell; vertical-align: inherit; padding: 1px; }
+th { font-weight: bold; text-align: center; }
+
+td[nowrap], th[nowrap] { white-space: nowrap; }
+
+a:link { color: #00f; text-decoration: underline; }
+a:visited { color: #609; }
+
+img { color: #888; }
+
+center { display: block; }
+
+tt { font-family: monospace; }
+i { font-style: italic; }
+b { font-weight: bold; }
+big { font-size: 1.17em; }
+small { font-size: .83em; }
+strike, s { text-decoration: line-through; }
+u { text-decoration: underline; }
+
+hr {	display: block; background-color: #000; height: 1px;
+	margin: 4px auto; border: 1px #d9d9d9 inset; }
+hr[noshade] { background-color: #888; height: 2px; border: none; }
+
+noframes { display: none; }
+
+iframe { width: 19em; height: 10em; }
+
+form { display: block; }
+
+input, button { background-color: #fff; color: #000; text-align: left;
+	font-family: sans-serif; width: auto; height: auto; overflow: hidden;
+	border: 2px solid #333; padding: 1px 2px; line-height: 1.33; }
+input[readonly] { background-color: #ddd; color: #333; }
+input[type=button], input[type=reset], input[type=submit], button {
+	background-color: #d9d9d9; color: #000; text-align: center;
+	border: medium outset #d9d9d9; padding: 1px 0.5em; }
+input[type=image] { background-color: transparent; color: #000;
+	border: none; padding: 0 2px; }
+input[type=checkbox], input[type=radio] { background-color: transparent;
+	border: none; padding: 0 0.1em; }
+input[type=file] { background-color: #d9d9d9; color: #000; font-style: italic;
+	border: medium inset #d9d9d9; padding: 1px 2px; }
+input[align=left] { float: left; }
+input[align=right] { float: right; }
+
+select { background-color: #d9d9d9; color: #000; text-align: left;
+	font-family: sans-serif; width: auto; height: auto; overflow: hidden;
+	margin: 1px; border: medium inset #d9d9d9; padding: 1px 3px 1px 2px;
+	white-space: nowrap; }
+select:after { content: "\25bc"; border-left: 4px ridge #d9d9d9; }
+
+textarea { background-color: #fff; color: #000; text-align: left;
+	font-family: monospace; width: auto; height: auto; overflow: scroll;
+	margin: 1px; border: 2px solid #333; padding: 0 2px; }
+textarea[readonly] { background-color: #ddd; color: #333; }
+
+fieldset { display: block; border: thin solid #888; margin: 1.12em 0; }
+
+noembed, script, style, title { display: none; }
