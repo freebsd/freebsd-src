@@ -328,7 +328,6 @@ in6_pcbladdr(register struct inpcb *inp, struct sockaddr *nam,
 {
 	register struct sockaddr_in6 *sin6 = (struct sockaddr_in6 *)nam;
 	int error = 0;
-	struct ifnet *ifp = NULL;
 	int scope_ambiguous = 0;
 	struct in6_addr in6a;
 
@@ -358,15 +357,10 @@ in6_pcbladdr(register struct inpcb *inp, struct sockaddr *nam,
 	if ((error = prison_remote_ip6(inp->inp_cred, &sin6->sin6_addr)) != 0)
 		return (error);
 
-	error = in6_selectsrc(sin6, inp->in6p_outputopts,
-	    inp, NULL, inp->inp_cred, &ifp, &in6a);
+	error = in6_selectsrc_scope(sin6, inp->in6p_outputopts,
+	    inp, inp->inp_cred, scope_ambiguous, &in6a);
 	if (error)
 		return (error);
-
-	if (ifp && scope_ambiguous &&
-	    (error = in6_setscope(&sin6->sin6_addr, ifp, NULL)) != 0) {
-		return(error);
-	}
 
 	/*
 	 * Do not update this earlier, in case we return with an error.

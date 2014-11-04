@@ -1571,7 +1571,7 @@ syncache_respond(struct syncache *sc, struct syncache_head *sch, int locked)
 			return (error);
 		}
 #endif
-		error = ip6_output(m, NULL, NULL, 0, NULL, NULL, NULL);
+		error = ip6_output(m, NULL, NULL, 0, NULL, NULL);
 	}
 #endif
 #if defined(INET6) && defined(INET)

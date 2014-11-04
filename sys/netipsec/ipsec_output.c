@@ -254,7 +254,7 @@ ipsec_process_done(struct mbuf *m, struct ipsecrequest *isr)
 		 * We don't need massage, IPv6 header fields are always in
 		 * net endian.
 		 */
-		return ip6_output(m, NULL, NULL, 0, NULL, NULL, NULL);
+		return ip6_output(m, NULL, NULL, 0, NULL, NULL);
 #endif /* INET6 */
 	}
 	panic("ipsec_process_done");

@@ -456,7 +456,7 @@ div_output(struct socket *so, struct mbuf *m, struct sockaddr_in *sin,
 			break;
 #ifdef INET6
 		case IPV6_VERSION >> 4:
-			error = ip6_output(m, NULL, NULL, 0, NULL, NULL, NULL);
+			error = ip6_output(m, NULL, NULL, 0, NULL, NULL);
 			break;
 #endif
 		}

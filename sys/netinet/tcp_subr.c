@@ -725,7 +725,7 @@ tcp_respond(struct tcpcb *tp, void *ipgen, struct tcphdr *th, struct mbuf *m,
 	TCP_PROBE5(send, NULL, tp, mtod(m, const char *), tp, nth);
 #ifdef INET6
 	if (isipv6)
-		(void) ip6_output(m, NULL, NULL, ipflags, NULL, NULL, inp);
+		(void) ip6_output(m, NULL, NULL, ipflags, NULL, inp);
 #endif /* INET6 */
 #if defined(INET) && defined(INET6)
 	else

@@ -273,9 +273,9 @@ in6_gif_output(struct ifnet *ifp,
 	 * it is too painful to ask for resend of inner packet, to achieve
 	 * path MTU discovery for encapsulated packets.
 	 */
-	error = ip6_output(m, 0, &sc->gif_ro6, IPV6_MINMTU, 0, NULL, NULL);
+	error = ip6_output(m, NULL, NULL, IPV6_MINMTU, NULL, NULL);
 #else
-	error = ip6_output(m, 0, &sc->gif_ro6, 0, 0, NULL, NULL);
+	error = ip6_output(m, NULL, NULL, 0, NULL, NULL);
 #endif
 
 	if (!(GIF2IFP(sc)->if_flags & IFF_LINK0) &&

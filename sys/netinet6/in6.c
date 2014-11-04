@@ -2000,6 +2000,33 @@ in6_prefixlen2mask(struct in6_addr *maskp, int len)
 		maskp->s6_addr[bytelen] = maskarray[bitlen - 1];
 }
 
+int
+in6_ifawithifp_lla(struct ifnet *ifp, struct in6_addr *dst)
+{
+	struct ifaddr *ifa;
+	struct in6_ifaddr *ifa6;
+	struct in6_addr a6;
+
+	KASSERT(IN6_IS_SCOPE_LINKLOCAL(dst), ("Non-linklocal address"));
+
+	a6 = *dst;
+	in6_setllascope(&a6, ifp);
+
+	IF_ADDR_RLOCK(ifp);
+	TAILQ_FOREACH(ifa, &ifp->if_addrhead, ifa_link) {
+		if (ifa->ifa_addr->sa_family != AF_INET6)
+			continue;
+		ifa6 = (struct in6_ifaddr *)ifa;
+		if (IN6_ARE_ADDR_EQUAL(&a6, &ifa6->ia_addr.sin6_addr)) {
+			IF_ADDR_RUNLOCK(ifp);
+			return (1);
+		}
+	}
+	IF_ADDR_RUNLOCK(ifp);
+
+	return (0);
+}
+
 /*
  * return the best address out of the same scope. if no address was
  * found, return the first valid address from designated IF.

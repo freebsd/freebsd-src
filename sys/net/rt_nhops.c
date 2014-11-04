@@ -66,6 +66,10 @@
 #include <netinet/ip_mroute.h>
 #include <netinet/ip6.h>
 #include <netinet6/in6_var.h>
+#include <netinet6/nd6.h>
+#include <netinet6/scope6_var.h>
+
+#include <net/if_llatbl.h>
 
 #include <net/if_types.h>
 #include <netinet/if_ether.h>
@@ -117,11 +121,20 @@ static void fib4_rte_to_nh_extended(struct rtentry *rte, struct in_addr dst,
 static void fib4_rte_to_nh_basic(struct rtentry *rte, struct in_addr dst,
     struct nhop4_basic *pnh4);
 #endif
-#ifdef INET
-static void fib6_rte_to_nh_extended(struct rtentry *rte, struct in6_addr dst,
+#ifdef INET6
+static void fib6_rte_to_nh_extended(struct rtentry *rte, struct in6_addr *dst,
     struct nhop6_extended *pnh6);
-static void fib6_rte_to_nh_basic(struct rtentry *rte, struct in6_addr dst,
+static void fib6_rte_to_nh_basic(struct rtentry *rte, struct in6_addr *dst,
     struct nhop6_basic *pnh6);
+static int fib6_storelladdr(struct ifnet *ifp, struct in6_addr *dst,
+    int mm_flags, u_char *desten);
+static uint16_t fib6_get_ifa(struct rtentry *rte);
+static int fib6_lla_to_nh_basic(struct in6_addr *dst, uint32_t scopeid,
+    struct nhop6_basic *pnh6);
+static int fib6_lla_to_nh_extended(struct in6_addr *dst, uint32_t scopeid,
+    struct nhop6_extended *pnh6);
+static int fib6_lla_to_nh(struct in6_addr *dst, uint32_t scopeid,
+    struct nhop_prepend *nh, struct ifnet **lifp);
 #endif
 
 MALLOC_DEFINE(M_RTFIB, "rtfib", "routing fwd");
@@ -292,8 +305,11 @@ fib4_lookup_prepend(uint32_t fibnum, struct in_addr dst, struct mbuf *m,
 	 * Currently all we have is rte ifp.
 	 * Simply use it.
 	 */
-	lifp = rte->rt_ifp;
+	/* Save interface address ifp */
+	lifp = rte->rt_ifa->ifa_ifp;
+	nh->aifp_idx = lifp->if_index;
 	/* Save both logical and transmit interface indexes */
+	lifp = rte->rt_ifp;
 	nh->lifp_idx = lifp->if_index;
 	nh->i.ifp_idx = nh->lifp_idx;
 
@@ -407,6 +423,7 @@ fib4_rte_to_nh_basic(struct rtentry *rte, struct in_addr dst,
 	gw = (struct sockaddr_in *)rt_key(rte);
 	if (gw->sin_addr.s_addr == 0)
 		pnh4->nh_flags |= NHF_DEFAULT;
+	/* XXX: Set RTF_BROADCAST if GW address is broadcast */
 }
 
 static void
@@ -428,6 +445,7 @@ fib4_rte_to_nh_extended(struct rtentry *rte, struct in_addr dst,
 	gw = (struct sockaddr_in *)rt_key(rte);
 	if (gw->sin_addr.s_addr == 0)
 		pnh4->nh_flags |= NHF_DEFAULT;
+	/* XXX: Set RTF_BROADCAST if GW address is broadcast */
 
 	ia = ifatoia(rte->rt_ifa);
 	pnh4->nh_src = IA_SIN(ia)->sin_addr;
@@ -561,19 +579,335 @@ fib6_choose_prepend(uint32_t fibnum, struct nhop_prepend *nh_src,
 */
 }
 
+/*
+ * Temporary function to copy ethernet address from valid lle
+ */
+static int
+fib6_storelladdr(struct ifnet *ifp, struct in6_addr *dst, int mm_flags,
+    u_char *desten)
+{
+	struct llentry *ln;
+	struct sockaddr_in6 dst_sa;
+
+	if (mm_flags & M_MCAST) {
+		ETHER_MAP_IPV6_MULTICAST(&dst, desten);
+		return (0);
+	}
+
+	memset(&dst_sa, 0, sizeof(dst_sa));
+	dst_sa.sin6_family = AF_INET6;
+	dst_sa.sin6_len = sizeof(dst_sa);
+	dst_sa.sin6_addr = *dst;
+	dst_sa.sin6_scope_id = ifp->if_index;
+	
+
+	/*
+	 * the entry should have been created in nd6_store_lladdr
+	 */
+	IF_AFDATA_RLOCK(ifp);
+	ln = lla_lookup(LLTABLE6(ifp), 0, (struct sockaddr *)&dst_sa);
+
+	/*
+	 * Perform fast path for the following cases:
+	 * 1) lle state is REACHABLE
+	 * 2) lle state is DELAY (NS message sentNS message sent)
+	 *
+	 * Every other case involves lle modification, so we handle
+	 * them separately.
+	 */
+	if (ln == NULL || (ln->ln_state != ND6_LLINFO_REACHABLE &&
+	    ln->ln_state != ND6_LLINFO_DELAY)) {
+		if (ln != NULL)
+			LLE_RUNLOCK(ln);
+		IF_AFDATA_RUNLOCK(ifp);
+		return (1);
+	}
+	bcopy(&ln->ll_addr, desten, ifp->if_addrlen);
+	LLE_RUNLOCK(ln);
+	IF_AFDATA_RUNLOCK(ifp);
+
+	return (0);
+}
+
+int
+fib6_lookup_prepend(uint32_t fibnum, struct in6_addr *dst, uint32_t scopeid,
+    struct mbuf *m, struct nhop_prepend *nh, struct nhop6_extended *nh_ext)
+{
+	struct radix_node_head *rnh;
+	struct radix_node *rn;
+	struct sockaddr_in6 sin6, *gw_sa;
+	struct in6_addr gw6;
+	struct rtentry *rte;
+	struct ifnet *lifp;
+	struct ether_header *eh;
+	uint32_t flags;
+	int error;
+
+	if (IN6_IS_SCOPE_LINKLOCAL(dst)) {
+		/* Do not lookup link-local addresses in rtable */
+		error = fib6_lla_to_nh(dst, scopeid, nh, &lifp);
+		if (error != 0)
+			return (error);
+		/* */
+		gw6 = *dst;
+		goto do_l2;
+	}
+
+
+	KASSERT((fibnum < rt_numfibs), ("fib6_lookup_prepend: bad fibnum"));
+	rnh = rt_tables_get_rnh(fibnum, AF_INET6);
+	if (rnh == NULL)
+		return (ENOENT);
+
+	/* Prepare lookup key */
+	memset(&sin6, 0, sizeof(sin6));
+	sin6.sin6_len = sizeof(struct sockaddr_in6);
+	sin6.sin6_addr = *dst;
+	sin6.sin6_scope_id = scopeid;
+	sa6_embedscope(&sin6, 0);
+	
+
+	RADIX_NODE_HEAD_RLOCK(rnh);
+	rn = rnh->rnh_matchaddr((void *)&sin6, rnh);
+	rte = RNTORT(rn);
+	if (rn == NULL || ((rn->rn_flags & RNF_ROOT) != 0) ||
+	    RT_LINK_IS_UP(rte->rt_ifp) == 0) {
+		RADIX_NODE_HEAD_RUNLOCK(rnh);
+		return (EHOSTUNREACH);
+	}
+
+	/* Explicitly zero nexthop */
+	memset(nh, 0, sizeof(*nh));
+	flags = 0;
+	nh->nh_mtu = min(rte->rt_mtu, IN6_LINKMTU(rte->rt_ifp));
+	if (rte->rt_flags & RTF_GATEWAY) {
+		gw_sa = (struct sockaddr_in6 *)rte->rt_gateway;
+		gw6 = gw_sa->sin6_addr;
+		in6_clearscope(&gw6);
+	} else
+		gw6 = *dst;
+	/* Set flags */
+	flags = fib_rte_to_nh_flags(rte->rt_flags);
+	gw_sa = (struct sockaddr_in6 *)rt_key(rte);
+	if (IN6_IS_ADDR_UNSPECIFIED(&gw_sa->sin6_addr))
+		flags |= NHF_DEFAULT;
+
+	/*
+	 * TODO: nh L2/L3 resolve.
+	 * Currently all we have is rte ifp.
+	 * Simply use it.
+	 */
+	/* Save interface address ifp */
+	nh->aifp_idx = fib6_get_ifa(rte);
+	/* Save both logical and transmit interface indexes */
+	lifp = rte->rt_ifp;
+	nh->lifp_idx = lifp->if_index;
+	nh->i.ifp_idx = nh->lifp_idx;
+
+	RADIX_NODE_HEAD_RUNLOCK(rnh);
+
+	nh->nh_flags = flags;
+do_l2:
+	/*
+	 * Try to lookup L2 info.
+	 * Do this using separate LLE locks.
+	 * TODO: move this under radix lock.
+	 */
+	if (lifp->if_type == IFT_ETHER) {
+		eh = (struct ether_header *)nh->d.data;
+
+		/*
+		 * Fill in ethernet header.
+		 * It should be already presented if we're
+		 * sending data via known gateway.
+		 */
+		error = fib6_storelladdr(lifp, &gw6, m ? m->m_flags : 0,
+		    eh->ether_dhost);
+		if (error == 0) {
+			memcpy(&eh->ether_shost, IF_LLADDR(lifp), ETHER_ADDR_LEN);
+			eh->ether_type = htons(ETHERTYPE_IPV6);
+			nh->nh_count = ETHER_HDR_LEN;
+			return (0);
+		}
+	}
+
+	/* Notify caller that no L2 info is linked */
+	nh->nh_count = 0;
+	nh->nh_flags |= NHF_L2_INCOMPLETE;
+	/* ..And save gateway address */
+	nh->d.gw6 = gw6;
+	return (0);
+}
+
+int
+fib6_sendmbuf(struct ifnet *ifp, struct ifnet *origifp, struct mbuf *m,
+    struct nhop_prepend *nh)
+{
+	int error;
+
+	if (nh != NULL && (nh->nh_flags & NHF_L2_INCOMPLETE) == 0) {
+
+		/*
+		 * Fast path case. Most packets should
+		 * be sent from here.
+		 * TODO: Make special ifnet
+		 * 'if_output_frame' handler for that.
+		 */
+		struct route_compat rc;
+		struct ether_header *eh;
+		rc.ro_flags = AF_INET6 << 8 | RT_NHOP;
+		rc.ro_nh = nh;
+
+		M_PREPEND(m, nh->nh_count, M_NOWAIT);
+		if (m == NULL)
+			return (ENOBUFS);
+		eh = mtod(m, struct ether_header *);
+		memcpy(eh, nh->d.data, nh->nh_count);
+		error = (*ifp->if_output)(ifp, m,
+		    NULL, (struct route *)&rc);
+	} else {
+		/* We need to perform ND lookup */
+		struct sockaddr_in6 gw_out;
+
+		memset(&gw_out, 0, sizeof(gw_out));
+		gw_out.sin6_family = AF_INET6;
+		gw_out.sin6_len = sizeof(gw_out);
+		gw_out.sin6_addr = nh->d.gw6;
+		gw_out.sin6_scope_id = ifp->if_index;
+		sa6_embedscope(&gw_out, 0);
+
+		error = nd6_output(ifp, origifp, m, &gw_out, NULL);
+	}
+
+	return (error);
+}
+
+static uint16_t
+fib6_get_ifa(struct rtentry *rte)
+{
+	struct ifnet *ifp;
+	struct sockaddr_dl *sdl;
+
+	ifp = rte->rt_ifp;
+	if ((ifp->if_flags & IFF_LOOPBACK) &&
+	    rte->rt_gateway->sa_family == AF_LINK) {
+		sdl = (struct sockaddr_dl *)rte->rt_gateway;
+		return (sdl->sdl_index);
+	}
+
+	return (ifp->if_index);
+#if 0
+	/* IPv6 case */
+	/* Alternative way to get interface address ifp */
+	/*
+	 * Adjust the "outgoing" interface.  If we're going to loop 
+	 * the packet back to ourselves, the ifp would be the loopback 
+	 * interface. However, we'd rather know the interface associated 
+	 * to the destination address (which should probably be one of 
+	 * our own addresses.)
+	 */
+	if (rt) {
+		if ((rt->rt_ifp->if_flags & IFF_LOOPBACK) &&
+		    (rt->rt_gateway->sa_family == AF_LINK))
+			*retifp = 
+				ifnet_byindex(((struct sockaddr_dl *)
+					       rt->rt_gateway)->sdl_index);
+	}
+	/* IPv4 case */
+	//pnh6->nh_ifp = rte->rt_ifa->ifa_ifp;
+#endif
+}
+
+static int
+fib6_lla_to_nh_basic(struct in6_addr *dst, uint32_t scopeid,
+    struct nhop6_basic *pnh6)
+{
+	struct ifnet *ifp;
+
+	ifp = ifnet_byindex_locked(scopeid);
+	if (ifp == NULL)
+		return (ENOENT);
+
+	/* Do explicit nexthop zero unless we're copying it */
+	memset(pnh6, 0, sizeof(*pnh6));
+
+	pnh6->nh_ifp = ifp;
+	pnh6->nh_mtu = IN6_LINKMTU(ifp);
+	/* No flags set */
+	pnh6->nh_addr = *dst;
+
+	return (0);
+}
+
+static int
+fib6_lla_to_nh_extended(struct in6_addr *dst, uint32_t scopeid,
+    struct nhop6_extended *pnh6)
+{
+	struct ifnet *ifp;
+
+	ifp = ifnet_byindex_locked(scopeid);
+	if (ifp == NULL)
+		return (ENOENT);
+
+	/* Do explicit nexthop zero unless we're copying it */
+	memset(pnh6, 0, sizeof(*pnh6));
+
+	pnh6->nh_ifp = ifp;
+	pnh6->nh_mtu = IN6_LINKMTU(ifp);
+	/* No flags set */
+	pnh6->nh_addr = *dst;
+
+	return (0);
+}
+
+static int
+fib6_lla_to_nh(struct in6_addr *dst, uint32_t scopeid,
+    struct nhop_prepend *nh, struct ifnet **lifp)
+{
+	struct ifnet *ifp;
+
+	ifp = ifnet_byindex_locked(scopeid);
+	if (ifp == NULL)
+		return (ENOENT);
+
+	/* Do explicit nexthop zero unless we're copying it */
+	memset(nh, 0, sizeof(*nh));
+	/* No flags set */
+	nh->nh_mtu = IN6_LINKMTU(ifp);
+
+	/* Save lifp */
+	*lifp = ifp;
+
+	nh->aifp_idx = scopeid;
+	nh->lifp_idx = scopeid;
+	/* Check id this is for-us address */
+	if (in6_ifawithifp_lla(ifp, dst)) {
+		if ((ifp = V_loif) != NULL)
+			nh->lifp_idx = ifp->if_index;
+	}
+
+	return (0);
+}
+
+
 static void
-fib6_rte_to_nh_basic(struct rtentry *rte, struct in6_addr dst,
+fib6_rte_to_nh_basic(struct rtentry *rte, struct in6_addr *dst,
     struct nhop6_basic *pnh6)
 {
 	struct sockaddr_in6 *gw;
 
-	pnh6->nh_ifp = rte->rt_ifa->ifa_ifp;
-	pnh6->nh_mtu = min(rte->rt_mtu, rte->rt_ifp->if_mtu);
+	/* Do explicit nexthop zero unless we're copying it */
+	memset(pnh6, 0, sizeof(*pnh6));
+
+	pnh6->nh_ifp = ifnet_byindex(fib6_get_ifa(rte));
+
+	pnh6->nh_mtu = min(rte->rt_mtu, IN6_LINKMTU(rte->rt_ifp));
 	if (rte->rt_flags & RTF_GATEWAY) {
 		gw = (struct sockaddr_in6 *)rte->rt_gateway;
 		pnh6->nh_addr = gw->sin6_addr;
+		in6_clearscope(&pnh6->nh_addr);
 	} else
-		pnh6->nh_addr = dst;
+		pnh6->nh_addr = *dst;
 	/* Set flags */
 	pnh6->nh_flags = fib_rte_to_nh_flags(rte->rt_flags);
 	gw = (struct sockaddr_in6 *)rt_key(rte);
@@ -582,19 +916,23 @@ fib6_rte_to_nh_basic(struct rtentry *rte, struct in6_addr dst,
 }
 
 static void
-fib6_rte_to_nh_extended(struct rtentry *rte, struct in6_addr dst,
+fib6_rte_to_nh_extended(struct rtentry *rte, struct in6_addr *dst,
     struct nhop6_extended *pnh6)
 {
 	struct sockaddr_in6 *gw;
 	struct in6_ifaddr *ia;
 
-	pnh6->nh_ifp = rte->rt_ifa->ifa_ifp;
-	pnh6->nh_mtu = min(rte->rt_mtu, rte->rt_ifp->if_mtu);
+	/* Do explicit nexthop zero unless we're copying it */
+	memset(pnh6, 0, sizeof(*pnh6));
+
+	pnh6->nh_ifp = ifnet_byindex(fib6_get_ifa(rte));
+	pnh6->nh_mtu = min(rte->rt_mtu, IN6_LINKMTU(rte->rt_ifp));
 	if (rte->rt_flags & RTF_GATEWAY) {
 		gw = (struct sockaddr_in6 *)rte->rt_gateway;
 		pnh6->nh_addr = gw->sin6_addr;
+		in6_clearscope(&pnh6->nh_addr);
 	} else
-		pnh6->nh_addr = dst;
+		pnh6->nh_addr = *dst;
 	/* Set flags */
 	pnh6->nh_flags = fib_rte_to_nh_flags(rte->rt_flags);
 	gw = (struct sockaddr_in6 *)rt_key(rte);
@@ -602,17 +940,21 @@ fib6_rte_to_nh_extended(struct rtentry *rte, struct in6_addr dst,
 		pnh6->nh_flags |= NHF_DEFAULT;
 
 	ia = ifatoia6(rte->rt_ifa);
-	pnh6->nh_src = IA6_SIN6(ia)->sin6_addr;
 }
 
 int
-fib6_lookup_nh_basic(uint32_t fibnum, struct in6_addr dst, uint32_t flowid,
-    struct nhop6_basic *pnh6)
+fib6_lookup_nh_basic(uint32_t fibnum, struct in6_addr *dst, uint32_t scopeid,
+    uint32_t flowid, struct nhop6_basic *pnh6)
 {
 	struct radix_node_head *rnh;
 	struct radix_node *rn;
 	struct sockaddr_in6 sin6;
 	struct rtentry *rte;
+
+	if (IN6_IS_SCOPE_LINKLOCAL(dst)) {
+		/* Do not lookup link-local addresses in rtable */
+		return (fib6_lla_to_nh_basic(dst, scopeid, pnh6));
+	}
 
 	KASSERT((fibnum < rt_numfibs), ("fib6_lookup_nh_basic: bad fibnum"));
 	rnh = rt_tables_get_rnh(fibnum, AF_INET6);
@@ -621,7 +963,9 @@ fib6_lookup_nh_basic(uint32_t fibnum, struct in6_addr dst, uint32_t flowid,
 
 	/* Prepare lookup key */
 	memset(&sin6, 0, sizeof(sin6));
-	sin6.sin6_addr = dst;
+	sin6.sin6_addr = *dst;
+	sin6.sin6_scope_id = scopeid;
+	sa6_embedscope(&sin6, 0);
 
 	RADIX_NODE_HEAD_RLOCK(rnh);
 	rn = rnh->rnh_matchaddr((void *)&sin6, rnh);
@@ -649,13 +993,19 @@ fib6_lookup_nh_basic(uint32_t fibnum, struct in6_addr dst, uint32_t flowid,
  * - mtu from logical transmit interface will be returned.
  */
 int
-fib6_lookup_nh_ext(uint32_t fibnum, struct in6_addr dst, uint32_t scopeid,
+fib6_lookup_nh_ext(uint32_t fibnum, struct in6_addr *dst, uint32_t scopeid,
     uint32_t flowid, uint32_t flags, struct nhop6_extended *pnh6)
 {
 	struct radix_node_head *rnh;
 	struct radix_node *rn;
 	struct sockaddr_in6 sin6;
 	struct rtentry *rte;
+
+	if (IN6_IS_SCOPE_LINKLOCAL(dst)) {
+		/* Do not lookup link-local addresses in rtable */
+		/* XXX: Do lwref on egress ifp */
+		return (fib6_lla_to_nh_extended(dst, scopeid, pnh6));
+	}
 
 	KASSERT((fibnum < rt_numfibs), ("fib4_lookup_nh_ext: bad fibnum"));
 	rnh = rt_tables_get_rnh(fibnum, AF_INET6);
@@ -665,7 +1015,9 @@ fib6_lookup_nh_ext(uint32_t fibnum, struct in6_addr dst, uint32_t scopeid,
 	/* Prepare lookup key */
 	memset(&sin6, 0, sizeof(sin6));
 	sin6.sin6_len = sizeof(struct sockaddr_in6);
-	sin6.sin6_addr = dst;
+	sin6.sin6_addr = *dst;
+	sin6.sin6_scope_id = scopeid;
+	sa6_embedscope(&sin6, 0);
 
 	RADIX_NODE_HEAD_RLOCK(rnh);
 	rn = rnh->rnh_matchaddr((void *)&sin6, rnh);

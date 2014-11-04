@@ -515,7 +515,8 @@ verify_path6(struct in6_addr *src, struct ifnet *ifp, u_int fib)
 {
 	struct nhop6_basic nh6;
 
-	if (fib6_lookup_nh_basic(fib, *src, 0, &nh6) != 0)
+	/* XXX: unembed scope? */
+	if (fib6_lookup_nh_basic(fib, src, 0, 0, &nh6) != 0)
 		return (0);
 
 	/* If ifp is provided, check for equality with route table. */
@@ -563,8 +564,7 @@ send_reject6(struct ip_fw_args *args, int code, u_int hlen, struct ip6_hdr *ip6)
 			    ntohl(tcp->th_seq), ntohl(tcp->th_ack),
 			    tcp->th_flags | TH_RST);
 			if (m0 != NULL)
-				ip6_output(m0, NULL, NULL, 0, NULL, NULL,
-				    NULL);
+				ip6_output(m0, NULL, NULL, 0, NULL, NULL);
 		}
 		FREE_PKT(m);
 	} else if (code != ICMP6_UNREACH_RST) { /* Send an ICMPv6 unreach. */

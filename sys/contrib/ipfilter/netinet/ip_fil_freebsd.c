@@ -750,7 +750,7 @@ ipf_fastroute(m0, mpp, fin, fdp)
 		 * currently "to <if>" and "to <if>:ip#" are not supported
 		 * for IPv6
 		 */
-		return ip6_output(m, NULL, NULL, 0, NULL, NULL, NULL);
+		return ip6_output(m, NULL, NULL, 0, NULL, NULL);
 	}
 #endif
 

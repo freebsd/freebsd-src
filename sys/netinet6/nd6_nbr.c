@@ -392,7 +392,6 @@ nd6_ns_output(struct ifnet *ifp, const struct in6_addr *daddr6,
 	int icmp6len;
 	int maxlen;
 	caddr_t mac;
-	struct route_in6 ro;
 
 	if (IN6_IS_ADDR_MULTICAST(taddr6))
 		return;
@@ -414,8 +413,6 @@ nd6_ns_output(struct ifnet *ifp, const struct in6_addr *daddr6,
 		m = m_gethdr(M_NOWAIT, MT_DATA);
 	if (m == NULL)
 		return;
-
-	bzero(&ro, sizeof(ro));
 
 	if (daddr6 == NULL || IN6_IS_ADDR_MULTICAST(daddr6)) {
 		m->m_flags |= M_MCAST;
@@ -493,24 +490,20 @@ nd6_ns_output(struct ifnet *ifp, const struct in6_addr *daddr6,
 			ifa_free(ifa);
 		} else {
 			int error;
-			struct sockaddr_in6 dst_sa;
-			struct in6_addr src_in;
-			struct ifnet *oifp;
+			struct in6_addr dst_in, src_in;
+			uint32_t scopeid;
 
-			bzero(&dst_sa, sizeof(dst_sa));
-			dst_sa.sin6_family = AF_INET6;
-			dst_sa.sin6_len = sizeof(dst_sa);
-			dst_sa.sin6_addr = ip6->ip6_dst;
+			in6_splitscope(&ip6->ip6_dst, &dst_in, &scopeid);
 
-			oifp = ifp;
-			error = in6_selectsrc(&dst_sa, NULL,
-			    NULL, &ro, NULL, &oifp, &src_in);
+			error = in6_selectsrc_addr(ifp->if_fib, &dst_in,
+			    scopeid, &src_in);
+		
 			if (error) {
 				char ip6buf[INET6_ADDRSTRLEN];
 				nd6log((LOG_DEBUG,
 				    "nd6_ns_output: source can't be "
 				    "determined: dst=%s, error=%d\n",
-				    ip6_sprintf(ip6buf, &dst_sa.sin6_addr),
+				    ip6_sprintf(ip6buf, &dst_in),
 				    error));
 				goto bad;
 			}
@@ -574,20 +567,14 @@ nd6_ns_output(struct ifnet *ifp, const struct in6_addr *daddr6,
 		m_tag_prepend(m, mtag);
 	}
 
-	ip6_output(m, NULL, &ro, dad ? IPV6_UNSPECSRC : 0, &im6o, NULL, NULL);
+	ip6_output(m, NULL, NULL, dad ? IPV6_UNSPECSRC : 0, &im6o, NULL);
 	icmp6_ifstat_inc(ifp, ifs6_out_msg);
 	icmp6_ifstat_inc(ifp, ifs6_out_neighborsolicit);
 	ICMP6STAT_INC(icp6s_outhist[ND_NEIGHBOR_SOLICIT]);
 
-	/* We don't cache this route. */
-	RO_RTFREE(&ro);
-
 	return;
 
   bad:
-	if (ro.ro_rt) {
-		RTFREE(ro.ro_rt);
-	}
 	m_freem(m);
 	return;
 }
@@ -956,13 +943,12 @@ nd6_na_output_fib(struct ifnet *ifp, const struct in6_addr *daddr6_0,
 {
 	struct mbuf *m;
 	struct m_tag *mtag;
-	struct ifnet *oifp;
 	struct ip6_hdr *ip6;
 	struct nd_neighbor_advert *nd_na;
 	struct ip6_moptions im6o;
-	struct in6_addr src, daddr6;
-	struct sockaddr_in6 dst_sa;
+	struct in6_addr dst, src, daddr6;
 	int icmp6len, maxlen, error;
+	uint32_t scopeid;
 	caddr_t mac = NULL;
 	struct route_in6 ro;
 
@@ -1020,22 +1006,18 @@ nd6_na_output_fib(struct ifnet *ifp, const struct in6_addr *daddr6_0,
 		flags &= ~ND_NA_FLAG_SOLICITED;
 	}
 	ip6->ip6_dst = daddr6;
-	bzero(&dst_sa, sizeof(struct sockaddr_in6));
-	dst_sa.sin6_family = AF_INET6;
-	dst_sa.sin6_len = sizeof(struct sockaddr_in6);
-	dst_sa.sin6_addr = daddr6;
 
 	/*
 	 * Select a source whose scope is the same as that of the dest.
 	 */
-	bcopy(&dst_sa, &ro.ro_dst, sizeof(dst_sa));
-	oifp = ifp;
-	error = in6_selectsrc(&dst_sa, NULL, NULL, &ro, NULL, &oifp, &src);
+	in6_splitscope(&daddr6, &dst, &scopeid);
+
+	error = in6_selectsrc_addr(ifp->if_fib, &dst, scopeid, &src);
 	if (error) {
 		char ip6buf[INET6_ADDRSTRLEN];
 		nd6log((LOG_DEBUG, "nd6_na_output: source can't be "
 		    "determined: dst=%s, error=%d\n",
-		    ip6_sprintf(ip6buf, &dst_sa.sin6_addr), error));
+		    ip6_sprintf(ip6buf, &dst), error));
 		goto bad;
 	}
 	ip6->ip6_src = src;
@@ -1101,20 +1083,14 @@ nd6_na_output_fib(struct ifnet *ifp, const struct in6_addr *daddr6_0,
 		m_tag_prepend(m, mtag);
 	}
 
-	ip6_output(m, NULL, &ro, 0, &im6o, NULL, NULL);
+	ip6_output(m, NULL, NULL, 0, &im6o, NULL);
 	icmp6_ifstat_inc(ifp, ifs6_out_msg);
 	icmp6_ifstat_inc(ifp, ifs6_out_neighboradvert);
 	ICMP6STAT_INC(icp6s_outhist[ND_NEIGHBOR_ADVERT]);
 
-	/* We don't cache this route. */
-	RO_RTFREE(&ro);
-
 	return;
 
   bad:
-	if (ro.ro_rt) {
-		RTFREE(ro.ro_rt);
-	}
 	m_freem(m);
 	return;
 }

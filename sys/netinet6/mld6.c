@@ -3120,14 +3120,14 @@ mld_dispatch_packet(struct mbuf *m)
 	mld = (struct mld_hdr *)(mtod(md, uint8_t *) + off);
 	type = mld->mld_type;
 
-	error = ip6_output(m0, &mld_po, NULL, IPV6_UNSPECSRC, &im6o,
-	    &oifp, NULL);
+	error = ip6_output(m0, &mld_po, NULL, IPV6_UNSPECSRC, &im6o, NULL);
 	if (error) {
 		CTR3(KTR_MLD, "%s: ip6_output(%p) = %d", __func__, m0, error);
 		goto out;
 	}
 	ICMP6STAT_INC(icp6s_outhist[type]);
-	if (oifp != NULL) {
+	if (error == 0) {
+		oifp = ifp;
 		icmp6_ifstat_inc(oifp, ifs6_out_msg);
 		switch (type) {
 		case MLD_LISTENER_REPORT:

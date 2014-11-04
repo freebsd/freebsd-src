@@ -596,7 +596,7 @@ tcp_twrespond(struct tcptw *tw, int flags)
 		    sizeof(struct tcphdr) + optlen, IPPROTO_TCP, 0);
 		ip6->ip6_hlim = in6_selecthlim(inp, NULL);
 		error = ip6_output(m, inp->in6p_outputopts, NULL,
-		    (tw->tw_so_options & SO_DONTROUTE), NULL, NULL, inp);
+		    (tw->tw_so_options & SO_DONTROUTE), NULL, inp);
 	}
 #endif
 #if defined(INET6) && defined(INET)
