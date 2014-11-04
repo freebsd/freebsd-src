@@ -64,7 +64,7 @@ int	in6_clearscope(struct in6_addr *);
 uint16_t in6_getscope(struct in6_addr *);
 uint32_t in6_getscopezone(const struct ifnet *, int);
 struct ifnet* in6_getlinkifnet(uint32_t);
-void	in6_splitscope(struct in6_addr *src, struct in6_addr *dst,
+void	in6_splitscope(const struct in6_addr *src, struct in6_addr *dst,
     uint32_t *scopeid);
 #endif /* _KERNEL */
 

@@ -943,6 +943,48 @@ fib6_rte_to_nh_extended(struct rtentry *rte, struct in6_addr *dst,
 }
 
 int
+fib6_lookup_nh_ifp(uint32_t fibnum, struct in6_addr *dst, uint32_t scopeid,
+    uint32_t flowid, struct nhop6_basic *pnh6)
+{
+	struct radix_node_head *rnh;
+	struct radix_node *rn;
+	struct sockaddr_in6 sin6;
+	struct rtentry *rte;
+
+	if (IN6_IS_SCOPE_LINKLOCAL(dst)) {
+		/* Do not lookup link-local addresses in rtable */
+		return (fib6_lla_to_nh_basic(dst, scopeid, pnh6));
+	}
+
+	KASSERT((fibnum < rt_numfibs), ("fib6_lookup_nh_basic: bad fibnum"));
+	rnh = rt_tables_get_rnh(fibnum, AF_INET6);
+	if (rnh == NULL)
+		return (ENOENT);
+
+	/* Prepare lookup key */
+	memset(&sin6, 0, sizeof(sin6));
+	sin6.sin6_addr = *dst;
+	sin6.sin6_scope_id = scopeid;
+	sa6_embedscope(&sin6, 0);
+
+	RADIX_NODE_HEAD_RLOCK(rnh);
+	rn = rnh->rnh_matchaddr((void *)&sin6, rnh);
+	if (rn != NULL && ((rn->rn_flags & RNF_ROOT) == 0)) {
+		rte = RNTORT(rn);
+		/* Ensure route & ifp is UP */
+		if (RT_LINK_IS_UP(rte->rt_ifp)) {
+			fib6_rte_to_nh_basic(rte, dst, pnh6);
+			pnh6->nh_ifp = rte->rt_ifp;
+			RADIX_NODE_HEAD_RUNLOCK(rnh);
+			return (0);
+		}
+	}
+	RADIX_NODE_HEAD_RUNLOCK(rnh);
+
+	return (ENOENT);
+}
+
+int
 fib6_lookup_nh_basic(uint32_t fibnum, struct in6_addr *dst, uint32_t scopeid,
     uint32_t flowid, struct nhop6_basic *pnh6)
 {
