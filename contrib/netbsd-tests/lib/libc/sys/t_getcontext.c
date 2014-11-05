@@ -101,6 +101,13 @@ ATF_TC_BODY(setcontext_link, tc)
 	ucontext_t save;
 	volatile int i = 0; /* avoid longjmp clobbering */
 
+#ifdef __FreeBSD__
+#ifdef __amd64__
+	atf_tc_expect_fail("setcontext in this testcase fails on "
+	    "FreeBSD/amd64 with rc == -1/errno == EINVAL; see PR # 194828");
+#endif
+#endif
+
 	for (i = 0; i < DEPTH; ++i) {
 		ATF_REQUIRE_EQ(getcontext(&uc[i]), 0);
 
@@ -114,8 +121,15 @@ ATF_TC_BODY(setcontext_link, tc)
 
 	ATF_REQUIRE_EQ(getcontext(&save), 0);
 
+#ifdef __FreeBSD__
+	if (calls == 0) {
+		int rc = setcontext(&uc[DEPTH-1]);
+		ATF_REQUIRE_EQ_MSG(rc, 0, "%d != 0; (errno = %d)", rc, errno);
+	}
+#else
 	if (calls == 0)
 		ATF_REQUIRE_EQ(setcontext(&uc[DEPTH-1]), 0);
+#endif
 }
 
 ATF_TP_ADD_TCS(tp)
