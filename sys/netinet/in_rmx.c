@@ -341,22 +341,11 @@ in_inithead(void **head, int off)
 {
 	struct radix_node_head *rnh;
 
-	/* XXX MRT
-	 * This can be called from vfs_export.c too in which case 'off'
-	 * will be 0. We know the correct value so just use that and
-	 * return directly if it was 0.
-	 * This is a hack that replaces an even worse hack on a bad hack
-	 * on a bad design. After RELENG_7 this should be fixed but that
-	 * will change the ABI, so for now do it this way.
-	 */
 	if (!rn_inithead(head, 32))
 		return 0;
 
 	rnh = *head;
 	RADIX_NODE_HEAD_LOCK_INIT(rnh);
-
-	if (off == 0)		/* XXX MRT  see above */
-		return 1;	/* only do the rest for a real routing table */
 
 	rnh->rnh_addaddr = in_addroute;
 	in_setmatchfunc(rnh, V_drop_redirect);
