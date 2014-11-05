@@ -1817,7 +1817,9 @@ crget(void)
 #ifdef MAC
 	mac_cred_init(cr);
 #endif
-	crextend(cr, XU_NGROUPS);
+	cr->cr_groups = cr->cr_smallgroups;
+	cr->cr_agroups =
+	    sizeof(cr->cr_smallgroups) / sizeof(cr->cr_smallgroups[0]);
 	return (cr);
 }
 
@@ -1864,7 +1866,8 @@ crfree(struct ucred *cr)
 #ifdef MAC
 		mac_cred_destroy(cr);
 #endif
-		free(cr->cr_groups, M_CRED);
+		if (cr->cr_groups != cr->cr_smallgroups)
+			free(cr->cr_groups, M_CRED);
 		free(cr, M_CRED);
 	}
 }
@@ -1997,7 +2000,7 @@ crextend(struct ucred *cr, int n)
 		cnt = roundup2(n, PAGE_SIZE / sizeof(gid_t));
 
 	/* Free the old array. */
-	if (cr->cr_groups)
+	if (cr->cr_groups != cr->cr_smallgroups)
 		free(cr->cr_groups, M_CRED);
 
 	cr->cr_groups = malloc(cnt * sizeof(gid_t), M_CRED, M_WAITOK | M_ZERO);
