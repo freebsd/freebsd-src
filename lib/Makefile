@@ -42,7 +42,6 @@ SUBDIR=	${SUBDIR_ORDERED} \
 	libcrypt \
 	libdevinfo \
 	libdevstat \
-	libdpv \
 	libdwarf \
 	libedit \
 	${_libevent} \
