@@ -211,7 +211,7 @@ gre_input2(struct mbuf *m ,int hlen, u_char proto)
 	}
 
 	m->m_pkthdr.rcvif = GRE2IFP(sc);
-	m->m_flags &= ~(M_PROTOFLAGS);
+
 	netisr_queue(isr, m);
 
 	/* Packet is done, no further processing needed. */
