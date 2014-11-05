@@ -62,7 +62,7 @@ char *title	= NULL;
 char *backtitle	= NULL;
 int dheight	= 0;
 int dwidth	= 0;
-char *dargv[64]	= { NULL };
+static char *dargv[64] = { NULL };
 
 /* TTY/Screen characteristics */
 static struct winsize *maxsize = NULL;
