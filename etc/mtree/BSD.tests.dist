@@ -145,6 +145,8 @@
             ..
             libnv
             ..
+            libpam
+            ..
             libproc
             ..
             libutil
