@@ -177,7 +177,7 @@ operate_on_bytes(struct dpv_file_node *file, int out)
 		fsync(out);
 	}
 
-	overall_read += r;
+	dpv_overall_read += r;
 	file->read += r;
 
 	/* Calculate percentage of completion (if possible) */
@@ -226,7 +226,7 @@ operate_on_lines(struct dpv_file_node *file, int out)
 	/* Process the buffer for number of lines */
 	for (p = buf; p != NULL && *p != '\0';)
 		if ((p = strchr(p, '\n')) != NULL)
-			overall_read++, p++, file->read++;
+			dpv_overall_read++, p++, file->read++;
 
 	/* Calculate percentage of completion (if possible) */
 	if (file->length >= 0) {
