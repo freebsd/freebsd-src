@@ -5,7 +5,7 @@
 # Makefile for building virtual machine and cloud provider disk images.
 #
 
-VMTARGETS=	vm-base vm-image
+VMTARGETS=	vm-image
 VMFORMATS?=	vhd vmdk qcow2 raw
 VMSIZE?=	20G
 VMBASE?=	vm
@@ -37,23 +37,17 @@ CLEANFILES+=	${VMBASE}.${FORMAT}
 . endfor
 .endif
 
-vm-base:
-.if defined(WITH_VMIMAGES) && !empty(WITH_VMIMAGES)
-. if exists(${.CURDIR}/${TARGET}/mk-vmimage.sh)
-	env TARGET=${TARGET} TARGET_ARCH=${TARGET_ARCH} \
-		${.CURDIR}/${TARGET}/mk-vmimage.sh ${.TARGET} \
-		${VMBASE}.img ${WORLDDIR} ${.OBJDIR}/${.TARGET} ${VMSIZE}
-. endif
-.endif
-	touch ${.TARGET}
+vm-base:	vm-image
 
-vm-image: vm-base
+vm-image:
 .if defined(WITH_VMIMAGES) && !empty(WITH_VMIMAGES)
 . if exists(${.CURDIR}/${TARGET}/mk-vmimage.sh)
 .  for FORMAT in ${VMFORMATS}
 	env TARGET=${TARGET} TARGET_ARCH=${TARGET_ARCH} \
-		${.CURDIR}/${TARGET}/mk-vmimage.sh ${.TARGET} \
-		${VMBASE}.img ${FORMAT} ${VMBASE}.${FORMAT}
+		${.CURDIR}/${TARGET}/mk-vmimage.sh \
+		-C ${.CURDIR}/tools/vmimage.subr -d ${.TARGET} \
+		-i ${VMBASE}.img -s ${VMSIZE} -f ${FORMAT} \
+		-S ${WORLDDIR} -o ${VMBASE}.${FORMAT}
 .  endfor
 . endif
 .endif
@@ -62,20 +56,21 @@ vm-image: vm-base
 vm-cloudware:	${CLOUDTARGETS}
 
 vm-azure:
-.if exists(${.CURDIR}/${TARGET}/mk-azure.sh)
-	env TARGET=${TARGET} TARGET_ARCH=${TARGET_ARCH} AZURECONF=${AZURECONF} \
-		AZURE_FORMAT=${AZURE_FORMAT} \
-		${.CURDIR}/${TARGET}/mk-azure.sh ${.TARGET} azure.img \
-		${WORLDDIR} ${.TARGET} ${VMSIZE} ${AZUREIMAGE}
+.if exists(${.CURDIR}/${TARGET}/mk-vmimage.sh)
+	env TARGET=${TARGET} TARGET_ARCH=${TARGET_ARCH} \
+		${.CURDIR}/${TARGET}/mk-vmimage.sh \
+		-C ${.CURDIR}/tools/vmimage.subr -d ${.TARGET} \
+		-i azure.img -s ${VMSIZE} -f ${AZURE_FORMAT} \
+		-S ${WORLDDIR} -o ${AZUREIMAGE} -c ${AZURECONF}
 .endif
 	touch ${.TARGET}
 
 vm-openstack:
-.if exists(${.CURDIR}/${TARGET}/mk-openstack.sh)
+.if exists(${.CURDIR}/${TARGET}/mk-vmimage.sh)
 	env TARGET=${TARGET} TARGET_ARCH=${TARGET_ARCH} \
-		OPENSTACKCONF=${OPENSTACKCONF} \
-		OPENSTACK_FORMAT=${OPENSTACK_FORMAT} \
-		${.CURDIR}/${TARGET}/mk-openstack.sh ${.TARGET} openstack.img \
-		${WORLDDIR} ${.TARGET} ${VMSIZE} ${OPENSTACKIMAGE}
+		${.CURDIR}/${TARGET}/mk-vmimage.sh \
+		-C ${.CURDIR}/tools/vmimage.subr -d ${.TARGET} \
+		-i openstack.img -s ${VMSIZE} -f ${OPENSTACK_FORMAT} \
+		-S ${WORLDDIR} -o ${OPENSTACKIMAGE} -c ${OPENSTACKCONF}
 .endif
 	touch ${.TARGET}
