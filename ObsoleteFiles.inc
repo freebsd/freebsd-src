@@ -14,6 +14,9 @@
 # The file is partitioned: OLD_FILES first, then OLD_LIBS and OLD_DIRS last.
 #
 
+# 20140922: sleepq_calc_signal_retval.9 and sleepq_catch_signals.9 removed
+OLD_FILES+=usr/share/man/man9/sleepq_calc_signal_retval.9.gz
+OLD_FILES+=usr/share/man/man9/sleepq_catch_signals.9.gz
 # 20130701: vfs_mount.9 removed
 OLD_FILES+=usr/share/man/man9/vfs_mount.9.gz
 # 20110915: rename congestion control manpages
