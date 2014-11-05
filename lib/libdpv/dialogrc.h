@@ -48,9 +48,9 @@ extern char gauge_color[];
 extern char separator[];
 
 __BEGIN_DECLS
-void		 dialogrc_free(void);
-int		 parse_dialogrc(void);
-struct config	*dialogrc_config_option(const char *_directive);
+void			 dialogrc_free(void);
+int			 parse_dialogrc(void);
+struct fp_config	*dialogrc_config_option(const char *_directive);
 __END_DECLS
 
 #endif /* !_DIALOGRC_H_ */
