@@ -254,10 +254,6 @@ in6_mtutimo(void *rock)
 
 /*
  * Initialize our routing tree.
- * XXX MRT When off == 0, we are being called from vfs_export.c
- * so just set up their table and leave. (we know what the correct
- * value should be so just use that).. FIX AFTER RELENG_7 is MFC'd
- * see also comments in in_inithead() vfs_export.c and domain.h
  */
 static VNET_DEFINE(int, _in6_rt_was_here);
 #define	V__in6_rt_was_here	VNET(_in6_rt_was_here)
@@ -268,13 +264,10 @@ in6_inithead(void **head, int off)
 	struct radix_node_head *rnh;
 
 	if (!rn_inithead(head, offsetof(struct sockaddr_in6, sin6_addr) << 3))
-		return 0;		/* See above */
+		return (0);
 
 	rnh = *head;
 	RADIX_NODE_HEAD_LOCK_INIT(rnh);
-
-	if (off == 0)		/* See above */
-		return 1;	/* only do the rest for the real thing */
 
 	rnh->rnh_addaddr = in6_addroute;
 
@@ -284,7 +277,7 @@ in6_inithead(void **head, int off)
 		V__in6_rt_was_here = 1;
 	}
 
-	return 1;
+	return (1);
 }
 
 #ifdef VIMAGE
