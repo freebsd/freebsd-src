@@ -249,7 +249,7 @@ _vm_object_allocate(objtype_t type, vm_pindex_t size, vm_object_t object)
 	 * and perhaps (eventually) filesystem-backed pages if any filesystems
 	 * grow tagging support.
 	 */
-	if ((type == OBJT_DEFAULT) || (type == OBJT_SWAP))
+	if (!((type == OBJT_DEFAULT) || (type == OBJT_SWAP)))
 		object->flags |= OBJ_NOLOADTAGS | OBJ_NOSTORETAGS;
 
 #endif
