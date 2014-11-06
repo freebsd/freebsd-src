@@ -2026,7 +2026,7 @@ fdescfree(struct thread *td)
 {
 	struct filedesc0 *fdp0;
 	struct filedesc *fdp;
-	struct freetable *ft;
+	struct freetable *ft, *tft;
 	struct filedescent *fde;
 	struct file *fp;
 	struct vnode *cdir, *jdir, *rdir;
@@ -2078,10 +2078,8 @@ fdescfree(struct thread *td)
 		free(fdp->fd_files, M_FILEDESC);
 
 	fdp0 = (struct filedesc0 *)fdp;
-	while ((ft = SLIST_FIRST(&fdp0->fd_free)) != NULL) {
-		SLIST_REMOVE_HEAD(&fdp0->fd_free, ft_next);
+	SLIST_FOREACH_SAFE(ft, &fdp0->fd_free, ft_next, tft)
 		free(ft->ft_table, M_FILEDESC);
-	}
 
 	if (cdir != NULL)
 		vrele(cdir);
