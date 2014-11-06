@@ -6,7 +6,8 @@ Building:
      (svn co https://dynamorio.googlecode.com/svn/trunk dr && \
       cd dr && mkdir build && cd build && \
       cmake -DDR_EXT_DRMGR_STATIC=ON -DDR_EXT_DRSYMS_STATIC=ON \
-            -DDR_EXT_DRUTIL_STATIC=ON -DDR_EXT_DRWRAP_STATIC=ON .. && \
+            -DDR_EXT_DRUTIL_STATIC=ON -DDR_EXT_DRWRAP_STATIC=ON \
+            -DDR_EXT_DRX_STATIC=ON .. && \
       make -j10 && make install)
 
   2. Download and build DrMemory (for DrSyscall extension)
@@ -31,3 +32,9 @@ Running:
   <path_to_dynamorio>/exports/bin64/drrun -c lib/clang/$VERSION/lib/linux/libclang_rt.msandr-x86_64.so -- test_binary
 
 MSan unit tests contain several tests for MSanDR (use MemorySanitizerDr.* gtest filter).
+
+Debugging:
+  Add -DCMAKE_BUILD_TYPE=Debug to the first and/or second cmake invocation(s).
+  Add -debug -v to drrun invocation line (right before -c).
+  Add -checklevel 1 to drrun (as the first argument) to make debug DR faster.
+

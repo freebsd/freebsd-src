@@ -24,9 +24,12 @@ static bool MaybeCallAsanSymbolize(const void *pc, char *out_buffer,
                              : false;
 }
 
+void PrintStack(const uptr *trace, uptr size) {
+  StackTrace::PrintStack(trace, size, MaybeCallAsanSymbolize);
+}
+
 void PrintStack(StackTrace *stack) {
-  stack->PrintStack(stack->trace, stack->size, common_flags()->symbolize,
-                    common_flags()->strip_path_prefix, MaybeCallAsanSymbolize);
+  PrintStack(stack->trace, stack->size);
 }
 
 }  // namespace __asan
@@ -37,7 +40,7 @@ void PrintStack(StackTrace *stack) {
 // and may be overriden by user if he wants to use his own symbolization.
 // ASan on Windows has its own implementation of this.
 #if !SANITIZER_WINDOWS && !SANITIZER_SUPPORTS_WEAK_HOOKS
-SANITIZER_WEAK_ATTRIBUTE SANITIZER_INTERFACE_ATTRIBUTE NOINLINE
+SANITIZER_INTERFACE_ATTRIBUTE SANITIZER_WEAK_ATTRIBUTE NOINLINE
 bool __asan_symbolize(const void *pc, char *out_buffer, int out_size) {
   return false;
 }

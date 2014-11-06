@@ -16,27 +16,28 @@
 #if SANITIZER_LINUX
 
 #include "sanitizer_common.h"
+#include "sanitizer_flags.h"
+#include "sanitizer_linux.h"
+#include "sanitizer_placement_new.h"
 #include "sanitizer_procmaps.h"
 #include "sanitizer_stacktrace.h"
 
-#ifdef __x86_64__
-#include <asm/prctl.h>
-#endif
 #include <dlfcn.h>
 #include <pthread.h>
 #include <sys/prctl.h>
 #include <sys/resource.h>
 #include <unwind.h>
 
-#ifdef __x86_64__
-extern "C" int arch_prctl(int code, __sanitizer::uptr *addr);
+#if !SANITIZER_ANDROID
+#include <elf.h>
+#include <link.h>
 #endif
 
 namespace __sanitizer {
 
 void GetThreadStackTopAndBottom(bool at_initialization, uptr *stack_top,
                                 uptr *stack_bottom) {
-  static const uptr kMaxThreadStackSize = 256 * (1 << 20);  // 256M
+  static const uptr kMaxThreadStackSize = 1 << 30;  // 1Gb
   CHECK(stack_top);
   CHECK(stack_bottom);
   if (at_initialization) {
@@ -76,9 +77,9 @@ void GetThreadStackTopAndBottom(bool at_initialization, uptr *stack_top,
   pthread_attr_getstack(&attr, &stackaddr, (size_t*)&stacksize);
   pthread_attr_destroy(&attr);
 
+  CHECK_LE(stacksize, kMaxThreadStackSize);  // Sanity check.
   *stack_top = (uptr)stackaddr + stacksize;
   *stack_bottom = (uptr)stackaddr;
-  CHECK(stacksize < kMaxThreadStackSize);  // Sanity check.
 }
 
 // Does not compile for Go because dlsym() requires -ldl
@@ -139,35 +140,33 @@ uptr Unwind_GetIP(struct _Unwind_Context *ctx) {
 #endif
 }
 
+struct UnwindTraceArg {
+  StackTrace *stack;
+  uptr max_depth;
+};
+
 _Unwind_Reason_Code Unwind_Trace(struct _Unwind_Context *ctx, void *param) {
-  StackTrace *b = (StackTrace*)param;
-  CHECK(b->size < b->max_size);
+  UnwindTraceArg *arg = (UnwindTraceArg*)param;
+  CHECK_LT(arg->stack->size, arg->max_depth);
   uptr pc = Unwind_GetIP(ctx);
-  b->trace[b->size++] = pc;
-  if (b->size == b->max_size) return UNWIND_STOP;
+  arg->stack->trace[arg->stack->size++] = pc;
+  if (arg->stack->size == arg->max_depth) return UNWIND_STOP;
   return UNWIND_CONTINUE;
 }
 
-static bool MatchPc(uptr cur_pc, uptr trace_pc) {
-  return cur_pc - trace_pc <= 64 || trace_pc - cur_pc <= 64;
-}
-
 void StackTrace::SlowUnwindStack(uptr pc, uptr max_depth) {
-  this->size = 0;
-  this->max_size = max_depth;
-  if (max_depth > 1) {
-    _Unwind_Backtrace(Unwind_Trace, this);
-    // We need to pop a few frames so that pc is on top.
-    // trace[0] belongs to the current function so we always pop it.
-    int to_pop = 1;
-    /**/ if (size > 1 && MatchPc(pc, trace[1])) to_pop = 1;
-    else if (size > 2 && MatchPc(pc, trace[2])) to_pop = 2;
-    else if (size > 3 && MatchPc(pc, trace[3])) to_pop = 3;
-    else if (size > 4 && MatchPc(pc, trace[4])) to_pop = 4;
-    else if (size > 5 && MatchPc(pc, trace[5])) to_pop = 5;
-    this->PopStackFrames(to_pop);
-  }
-  this->trace[0] = pc;
+  size = 0;
+  if (max_depth == 0)
+    return;
+  UnwindTraceArg arg = {this, Min(max_depth + 1, kStackTraceMax)};
+  _Unwind_Backtrace(Unwind_Trace, &arg);
+  // We need to pop a few frames so that pc is on top.
+  uptr to_pop = LocatePcInTrace(pc);
+  // trace[0] belongs to the current function so we always pop it.
+  if (to_pop == 0)
+    to_pop = 1;
+  PopStackFrames(to_pop);
+  trace[0] = pc;
 }
 
 #endif  // !SANITIZER_GO
@@ -200,20 +199,43 @@ uptr GetTlsSize() {
   return g_tls_size;
 }
 
+#if defined(__x86_64__) || defined(__i386__)
 // sizeof(struct thread) from glibc.
-#ifdef __x86_64__
-const uptr kThreadDescriptorSize = 2304;
+// There has been a report of this being different on glibc 2.11 and 2.13. We
+// don't know when this change happened, so 2.14 is a conservative estimate.
+#if __GLIBC_PREREQ(2, 14)
+const uptr kThreadDescriptorSize = FIRST_32_SECOND_64(1216, 2304);
+#else
+const uptr kThreadDescriptorSize = FIRST_32_SECOND_64(1168, 2304);
+#endif
 
 uptr ThreadDescriptorSize() {
   return kThreadDescriptorSize;
 }
+
+// The offset at which pointer to self is located in the thread descriptor.
+const uptr kThreadSelfOffset = FIRST_32_SECOND_64(8, 16);
+
+uptr ThreadSelfOffset() {
+  return kThreadSelfOffset;
+}
+
+uptr ThreadSelf() {
+  uptr descr_addr;
+#ifdef __i386__
+  asm("mov %%gs:%c1,%0" : "=r"(descr_addr) : "i"(kThreadSelfOffset));
+#else
+  asm("mov %%fs:%c1,%0" : "=r"(descr_addr) : "i"(kThreadSelfOffset));
 #endif
+  return descr_addr;
+}
+#endif  // defined(__x86_64__) || defined(__i386__)
 
 void GetThreadStackAndTls(bool main, uptr *stk_addr, uptr *stk_size,
                           uptr *tls_addr, uptr *tls_size) {
 #ifndef SANITIZER_GO
-#ifdef __x86_64__
-  arch_prctl(ARCH_GET_FS, tls_addr);
+#if defined(__x86_64__) || defined(__i386__)
+  *tls_addr = ThreadSelf();
   *tls_size = GetTlsSize();
   *tls_addr -= *tls_size;
   *tls_addr += kThreadDescriptorSize;
@@ -244,7 +266,7 @@ void GetThreadStackAndTls(bool main, uptr *stk_addr, uptr *stk_size,
 #endif  // SANITIZER_GO
 }
 
-void AdjustStackSizeLinux(void *attr_, int verbosity) {
+void AdjustStackSizeLinux(void *attr_) {
   pthread_attr_t *attr = (pthread_attr_t *)attr_;
   uptr stackaddr = 0;
   size_t stacksize = 0;
@@ -256,7 +278,7 @@ void AdjustStackSizeLinux(void *attr_, int verbosity) {
   const uptr minstacksize = GetTlsSize() + 128*1024;
   if (stacksize < minstacksize) {
     if (!stack_set) {
-      if (verbosity && stacksize != 0)
+      if (common_flags()->verbosity && stacksize != 0)
         Printf("Sanitizer: increasing stacksize %zu->%zu\n", stacksize,
                minstacksize);
       pthread_attr_setstacksize(attr, minstacksize);
@@ -267,6 +289,63 @@ void AdjustStackSizeLinux(void *attr_, int verbosity) {
     }
   }
 }
+
+#if SANITIZER_ANDROID
+uptr GetListOfModules(LoadedModule *modules, uptr max_modules,
+                      string_predicate_t filter) {
+  return 0;
+}
+#else  // SANITIZER_ANDROID
+typedef ElfW(Phdr) Elf_Phdr;
+
+struct DlIteratePhdrData {
+  LoadedModule *modules;
+  uptr current_n;
+  bool first;
+  uptr max_n;
+  string_predicate_t filter;
+};
+
+static int dl_iterate_phdr_cb(dl_phdr_info *info, size_t size, void *arg) {
+  DlIteratePhdrData *data = (DlIteratePhdrData*)arg;
+  if (data->current_n == data->max_n)
+    return 0;
+  InternalScopedBuffer<char> module_name(kMaxPathLength);
+  module_name.data()[0] = '\0';
+  if (data->first) {
+    data->first = false;
+    // First module is the binary itself.
+    ReadBinaryName(module_name.data(), module_name.size());
+  } else if (info->dlpi_name) {
+    internal_strncpy(module_name.data(), info->dlpi_name, module_name.size());
+  }
+  if (module_name.data()[0] == '\0')
+    return 0;
+  if (data->filter && !data->filter(module_name.data()))
+    return 0;
+  void *mem = &data->modules[data->current_n];
+  LoadedModule *cur_module = new(mem) LoadedModule(module_name.data(),
+                                                   info->dlpi_addr);
+  data->current_n++;
+  for (int i = 0; i < info->dlpi_phnum; i++) {
+    const Elf_Phdr *phdr = &info->dlpi_phdr[i];
+    if (phdr->p_type == PT_LOAD) {
+      uptr cur_beg = info->dlpi_addr + phdr->p_vaddr;
+      uptr cur_end = cur_beg + phdr->p_memsz;
+      cur_module->addAddressRange(cur_beg, cur_end);
+    }
+  }
+  return 0;
+}
+
+uptr GetListOfModules(LoadedModule *modules, uptr max_modules,
+                      string_predicate_t filter) {
+  CHECK(modules);
+  DlIteratePhdrData data = {modules, 0, true, max_modules, filter};
+  dl_iterate_phdr(dl_iterate_phdr_cb, &data);
+  return data.current_n;
+}
+#endif  // SANITIZER_ANDROID
 
 }  // namespace __sanitizer
 

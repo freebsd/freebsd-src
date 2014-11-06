@@ -43,6 +43,7 @@ ALWAYS_INLINE void FastPoisonShadow(uptr aligned_beg, uptr aligned_size,
 ALWAYS_INLINE void FastPoisonShadowPartialRightRedzone(
     uptr aligned_addr, uptr size, uptr redzone_size, u8 value) {
   DCHECK(flags()->poison_heap);
+  bool poison_partial = flags()->poison_partial;
   u8 *shadow = (u8*)MEM_TO_SHADOW(aligned_addr);
   for (uptr i = 0; i < redzone_size; i += SHADOW_GRANULARITY, shadow++) {
     if (i + SHADOW_GRANULARITY <= size) {
@@ -50,7 +51,8 @@ ALWAYS_INLINE void FastPoisonShadowPartialRightRedzone(
     } else if (i >= size) {
       *shadow = (SHADOW_GRANULARITY == 128) ? 0xff : value;  // unaddressable
     } else {
-      *shadow = size - i;  // first size-i bytes are addressable
+      // first size-i bytes are addressable
+      *shadow = poison_partial ? static_cast<u8>(size - i) : 0;
     }
   }
 }

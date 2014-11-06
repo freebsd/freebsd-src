@@ -20,6 +20,7 @@
 |*
 \*===----------------------------------------------------------------------===*/
 
+#include <errno.h>
 #include <fcntl.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -43,6 +44,11 @@ typedef unsigned int uint64_t;
 /*
  * --- GCOV file format I/O primitives ---
  */
+
+/*
+ * The current file name we're outputting. Used primarily for error logging.
+ */
+static char *filename = NULL;
 
 /*
  * The current file we're outputting.
@@ -196,17 +202,37 @@ static void recursive_mkdir(char *filename) {
   }
 }
 
-static void map_file() {
+static int map_file() {
   fseek(output_file, 0L, SEEK_END);
   file_size = ftell(output_file);
 
+  /* A size of 0 is invalid to `mmap'. Return a fail here, but don't issue an
+   * error message because it should "just work" for the user. */
+  if (file_size == 0)
+    return -1;
+
   write_buffer = mmap(0, file_size, PROT_READ | PROT_WRITE,
                       MAP_FILE | MAP_SHARED, fd, 0);
+  if (write_buffer == (void *)-1) {
+    int errnum = errno;
+    fprintf(stderr, "profiling: %s: cannot map: %s\n", filename,
+            strerror(errnum));
+    return -1;
+  }
+  return 0;
 }
 
 static void unmap_file() {
-  msync(write_buffer, file_size, MS_SYNC);
-  munmap(write_buffer, file_size);
+  if (msync(write_buffer, file_size, MS_SYNC) == -1) {
+    int errnum = errno;
+    fprintf(stderr, "profiling: %s: cannot msync: %s\n", filename,
+            strerror(errnum));
+  }
+
+  /* We explicitly ignore errors from unmapping because at this point the data
+   * is written and we don't care.
+   */
+  (void)munmap(write_buffer, file_size);
   write_buffer = NULL;
   file_size = 0;
 }
@@ -220,8 +246,8 @@ static void unmap_file() {
  * started at a time.
  */
 void llvm_gcda_start_file(const char *orig_filename, const char version[4]) {
-  char *filename = mangle_filename(orig_filename);
   const char *mode = "r+b";
+  filename = mangle_filename(orig_filename);
 
   /* Try just opening the file. */
   new_file = 0;
@@ -236,10 +262,11 @@ void llvm_gcda_start_file(const char *orig_filename, const char version[4]) {
       /* Try creating the directories first then opening the file. */
       recursive_mkdir(filename);
       fd = open(filename, O_RDWR | O_CREAT, 0644);
-      if (!output_file) {
+      if (fd == -1) {
         /* Bah! It's hopeless. */
-        fprintf(stderr, "profiling:%s: cannot open\n", filename);
-        free(filename);
+        int errnum = errno;
+        fprintf(stderr, "profiling: %s: cannot open: %s\n", filename,
+                strerror(errnum));
         return;
       }
     }
@@ -256,15 +283,20 @@ void llvm_gcda_start_file(const char *orig_filename, const char version[4]) {
     resize_write_buffer(WRITE_BUFFER_SIZE);
     memset(write_buffer, 0, WRITE_BUFFER_SIZE);
   } else {
-    map_file();
+    if (map_file() == -1) {
+      /* mmap failed, try to recover by clobbering */
+      new_file = 1;
+      write_buffer = NULL;
+      cur_buffer_size = 0;
+      resize_write_buffer(WRITE_BUFFER_SIZE);
+      memset(write_buffer, 0, WRITE_BUFFER_SIZE);
+    }
   }
 
   /* gcda file, version, stamp LLVM. */
   write_bytes("adcg", 4);
   write_bytes(version, 4);
   write_bytes("MVLL", 4);
-
-  free(filename);
 
 #ifdef DEBUG_GCDAPROFILING
   fprintf(stderr, "llvmgcda: [%s]\n", orig_filename);
@@ -334,7 +366,7 @@ void llvm_gcda_emit_arcs(uint32_t num_counters, uint64_t *counters) {
   if (val != (uint32_t)-1) {
     /* There are counters present in the file. Merge them. */
     if (val != 0x01a10000) {
-      fprintf(stderr, "profiling:invalid magic number (0x%08x)\n", val);
+      fprintf(stderr, "profiling:invalid arc tag (0x%08x)\n", val);
       return;
     }
 
@@ -368,21 +400,72 @@ void llvm_gcda_emit_arcs(uint32_t num_counters, uint64_t *counters) {
 #endif
 }
 
-void llvm_gcda_end_file() {
-  /* Write out EOF record. */
-  if (!output_file) return;
-  write_bytes("\0\0\0\0\0\0\0\0", 8);
+void llvm_gcda_summary_info() {
+  const int obj_summary_len = 9; // length for gcov compatibility
+  uint32_t i;
+  uint32_t runs = 1;
+  uint32_t val = 0;
+  uint64_t save_cur_pos = cur_pos;
 
-  if (new_file) {
-    fwrite(write_buffer, cur_pos, 1, output_file);
-    free(write_buffer);
-  } else {
-    unmap_file();
+  if (!output_file) return;
+
+  val = read_32bit_value();
+
+  if (val != (uint32_t)-1) {
+    /* There are counters present in the file. Merge them. */
+    if (val != 0xa1000000) {
+      fprintf(stderr, "profiling:invalid object tag (0x%08x)\n", val);
+      return;
+    }
+
+    val = read_32bit_value(); // length
+    if (val != obj_summary_len) {
+      fprintf(stderr, "profiling:invalid object length (%d)\n", val); // length
+      return;
+    }
+
+    read_32bit_value(); // checksum, unused
+    read_32bit_value(); // num, unused
+    runs += read_32bit_value(); // add previous run count to new counter
   }
 
-  fclose(output_file);
-  output_file = NULL;
-  write_buffer = NULL;
+  cur_pos = save_cur_pos;
+
+  /* Object summary tag */
+  write_bytes("\0\0\0\xa1", 4);
+  write_32bit_value(obj_summary_len);
+  write_32bit_value(0); // checksum, unused
+  write_32bit_value(0); // num, unused
+  write_32bit_value(runs);
+  for (i = 3; i < obj_summary_len; ++i) 
+    write_32bit_value(0);
+
+  /* Program summary tag */
+  write_bytes("\0\0\0\xa3", 4); // tag indicates 1 program
+  write_32bit_value(0); // 0 length
+
+#ifdef DEBUG_GCDAPROFILING
+  fprintf(stderr, "llvmgcda:   %u runs\n", runs);
+#endif
+}
+
+void llvm_gcda_end_file() {
+  /* Write out EOF record. */
+  if (output_file) {
+    write_bytes("\0\0\0\0\0\0\0\0", 8);
+
+    if (new_file) {
+      fwrite(write_buffer, cur_pos, 1, output_file);
+      free(write_buffer);
+    } else {
+      unmap_file();
+    }
+
+    fclose(output_file);
+    output_file = NULL;
+    write_buffer = NULL;
+  }
+  free(filename);
 
 #ifdef DEBUG_GCDAPROFILING
   fprintf(stderr, "llvmgcda: -----\n");

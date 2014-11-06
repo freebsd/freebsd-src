@@ -12,10 +12,8 @@ Configs :=
 # compiler and only define configurations we know that compiler can generate.
 CompilerTargetTriple := $(shell \
 	$(CC) -v 2>&1 | grep 'Target:' | cut -d' ' -f2)
-ifneq ($(DEBUGMAKE),)
 ifeq ($(CompilerTargetTriple),)
 $(error "unable to infer compiler target triple for $(CC)")
-endif
 endif
 
 # Only define configs if we detected a linux target.
@@ -63,7 +61,7 @@ endif
 # Build runtime libraries for x86_64.
 ifeq ($(call contains,$(SupportedArches),x86_64),true)
 Configs += full-x86_64 profile-x86_64 san-x86_64 asan-x86_64 tsan-x86_64 \
-           msan-x86_64 ubsan-x86_64 ubsan_cxx-x86_64
+           msan-x86_64 ubsan-x86_64 ubsan_cxx-x86_64 dfsan-x86_64 lsan-x86_64
 Arch.full-x86_64 := x86_64
 Arch.profile-x86_64 := x86_64
 Arch.san-x86_64 := x86_64
@@ -72,6 +70,10 @@ Arch.tsan-x86_64 := x86_64
 Arch.msan-x86_64 := x86_64
 Arch.ubsan-x86_64 := x86_64
 Arch.ubsan_cxx-x86_64 := x86_64
+Arch.dfsan-x86_64 := x86_64
+Arch.lsan-x86_64 := x86_64
+endif
+
 endif
 
 ifneq ($(LLVM_ANDROID_TOOLCHAIN_DIR),)
@@ -79,7 +81,6 @@ Configs += asan-arm-android
 Arch.asan-arm-android := arm-android
 endif
 
-endif
 endif
 
 ###
@@ -103,6 +104,8 @@ CFLAGS.ubsan-i386 := $(CFLAGS) -m32 $(SANITIZER_CFLAGS) -fno-rtti
 CFLAGS.ubsan-x86_64 := $(CFLAGS) -m64 $(SANITIZER_CFLAGS) -fno-rtti
 CFLAGS.ubsan_cxx-i386 := $(CFLAGS) -m32 $(SANITIZER_CFLAGS)
 CFLAGS.ubsan_cxx-x86_64 := $(CFLAGS) -m64 $(SANITIZER_CFLAGS)
+CFLAGS.dfsan-x86_64 := $(CFLAGS) -m64 $(SANITIZER_CFLAGS)
+CFLAGS.lsan-x86_64 := $(CFLAGS) -m64 $(SANITIZER_CFLAGS) -fno-rtti
 
 SHARED_LIBRARY.asan-arm-android := 1
 ANDROID_COMMON_FLAGS := -target arm-linux-androideabi \
@@ -114,12 +117,10 @@ LDFLAGS.asan-arm-android := $(LDFLAGS) $(ANDROID_COMMON_FLAGS) -ldl \
 	-Wl,-soname=libclang_rt.asan-arm-android.so
 
 # Use our stub SDK as the sysroot to support more portable building. For now we
-# just do this for the non-ASAN modules, because the stub SDK doesn't have
-# enough support to build ASAN.
+# just do this for the core module, because the stub SDK doesn't have
+# enough support to build the sanitizers or profile runtimes.
 CFLAGS.full-i386 += --sysroot=$(ProjSrcRoot)/SDKs/linux
 CFLAGS.full-x86_64 += --sysroot=$(ProjSrcRoot)/SDKs/linux
-CFLAGS.profile-i386 += --sysroot=$(ProjSrcRoot)/SDKs/linux
-CFLAGS.profile-x86_64 += --sysroot=$(ProjSrcRoot)/SDKs/linux
 
 FUNCTIONS.full-i386 := $(CommonFunctions) $(ArchFunctions.i386)
 FUNCTIONS.full-x86_64 := $(CommonFunctions) $(ArchFunctions.x86_64)
@@ -141,6 +142,9 @@ FUNCTIONS.ubsan-i386 := $(UbsanFunctions)
 FUNCTIONS.ubsan-x86_64 := $(UbsanFunctions)
 FUNCTIONS.ubsan_cxx-i386 := $(UbsanCXXFunctions)
 FUNCTIONS.ubsan_cxx-x86_64 := $(UbsanCXXFunctions)
+FUNCTIONS.dfsan-x86_64 := $(DfsanFunctions) $(SanitizerCommonFunctions)
+FUNCTIONS.lsan-x86_64 := $(LsanFunctions) $(InterceptionFunctions) \
+                                          $(SanitizerCommonFunctions)
 
 # Always use optimized variants.
 OPTIMIZED := 1

@@ -41,8 +41,7 @@ void ThreadContext::OnDead() {
 
 void ThreadContext::OnJoined(void *arg) {
   ThreadState *caller_thr = static_cast<ThreadState *>(arg);
-  caller_thr->clock.acquire(&sync);
-  StatInc(caller_thr, StatSyncAcquire);
+  AcquireImpl(caller_thr, 0, &sync);
   sync.Reset();
 }
 
@@ -59,10 +58,7 @@ void ThreadContext::OnCreated(void *arg) {
   args->thr->fast_state.IncrementEpoch();
   // Can't increment epoch w/o writing to the trace as well.
   TraceAddEvent(args->thr, args->thr->fast_state, EventTypeMop, 0);
-  args->thr->clock.set(args->thr->tid, args->thr->fast_state.epoch());
-  args->thr->fast_synch_epoch = args->thr->fast_state.epoch();
-  args->thr->clock.release(&sync);
-  StatInc(args->thr, StatSyncRelease);
+  ReleaseImpl(args->thr, 0, &sync);
 #ifdef TSAN_GO
   creation_stack.ObtainCurrent(args->thr, args->pc);
 #else
@@ -95,21 +91,23 @@ void ThreadContext::OnStarted(void *arg) {
   epoch1 = (u64)-1;
   new(thr) ThreadState(CTX(), tid, unique_id,
       epoch0, args->stk_addr, args->stk_size, args->tls_addr, args->tls_size);
-#ifdef TSAN_GO
+#ifndef TSAN_GO
+  thr->shadow_stack = &ThreadTrace(thr->tid)->shadow_stack[0];
+  thr->shadow_stack_pos = thr->shadow_stack;
+  thr->shadow_stack_end = thr->shadow_stack + kShadowStackSize;
+#else
   // Setup dynamic shadow stack.
   const int kInitStackSize = 8;
-  args->thr->shadow_stack = (uptr*)internal_alloc(MBlockShadowStack,
+  thr->shadow_stack = (uptr*)internal_alloc(MBlockShadowStack,
       kInitStackSize * sizeof(uptr));
-  args->thr->shadow_stack_pos = thr->shadow_stack;
-  args->thr->shadow_stack_end = thr->shadow_stack + kInitStackSize;
+  thr->shadow_stack_pos = thr->shadow_stack;
+  thr->shadow_stack_end = thr->shadow_stack + kInitStackSize;
 #endif
 #ifndef TSAN_GO
-  AllocatorThreadStart(args->thr);
+  AllocatorThreadStart(thr);
 #endif
-  thr = args->thr;
   thr->fast_synch_epoch = epoch0;
-  thr->clock.set(tid, epoch0);
-  thr->clock.acquire(&sync);
+  AcquireImpl(thr, 0, &sync);
   thr->fast_state.SetHistorySize(flags()->history_size);
   const uptr trace = (epoch0 / kTracePartSize) % TraceParts();
   Trace *thr_trace = ThreadTrace(thr->tid);
@@ -128,10 +126,7 @@ void ThreadContext::OnFinished() {
     thr->fast_state.IncrementEpoch();
     // Can't increment epoch w/o writing to the trace as well.
     TraceAddEvent(thr, thr->fast_state, EventTypeMop, 0);
-    thr->clock.set(thr->tid, thr->fast_state.epoch());
-    thr->fast_synch_epoch = thr->fast_state.epoch();
-    thr->clock.release(&sync);
-    StatInc(thr, StatSyncRelease);
+    ReleaseImpl(thr, 0, &sync);
   }
   epoch1 = thr->fast_state.epoch();
 
@@ -168,6 +163,10 @@ static void MaybeReportThreadLeak(ThreadContextBase *tctx_base, void *arg) {
 static void ThreadCheckIgnore(ThreadState *thr) {
   if (thr->ignore_reads_and_writes) {
     Printf("ThreadSanitizer: thread T%d finished with ignores enabled.\n",
+           thr->tid);
+  }
+  if (thr->ignore_sync) {
+    Printf("ThreadSanitizer: thread T%d finished with sync ignores enabled.\n",
            thr->tid);
   }
 }
@@ -374,25 +373,4 @@ void MemoryAccessRange(ThreadState *thr, uptr pc, uptr addr,
   }
 }
 
-void MemoryAccessRangeStep(ThreadState *thr, uptr pc, uptr addr,
-    uptr size, uptr step, bool is_write) {
-  if (size == 0)
-    return;
-  FastState fast_state = thr->fast_state;
-  if (fast_state.GetIgnoreBit())
-    return;
-  StatInc(thr, StatMopRange);
-  fast_state.IncrementEpoch();
-  thr->fast_state = fast_state;
-  TraceAddEvent(thr, fast_state, EventTypeMop, pc);
-
-  for (uptr addr_end = addr + size; addr < addr_end; addr += step) {
-    u64 *shadow_mem = (u64*)MemToShadow(addr);
-    Shadow cur(fast_state);
-    cur.SetWrite(is_write);
-    cur.SetAddr0AndSizeLog(addr & (kShadowCell - 1), kSizeLog1);
-    MemoryAccessImpl(thr, addr, kSizeLog1, is_write, false,
-        shadow_mem, cur);
-  }
-}
 }  // namespace __tsan

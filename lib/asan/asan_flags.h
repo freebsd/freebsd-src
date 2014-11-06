@@ -32,8 +32,6 @@ struct Flags {
   // Lower value may reduce memory usage but increase the chance of
   // false negatives.
   int  quarantine_size;
-  // Verbosity level (0 - silent, 1 - a bit of output, 2+ - more output).
-  int  verbosity;
   // Size (in bytes) of redzones around heap objects.
   // Requirement: redzone >= 32, is a power of two.
   int  redzone;
@@ -52,8 +50,10 @@ struct Flags {
   bool replace_intrin;
   // Used on Mac only.
   bool mac_ignore_invalid_free;
-  // ASan allocator flag.
-  bool use_fake_stack;
+  // Enables stack-use-after-return checking at run-time.
+  bool detect_stack_use_after_return;
+  // The minimal fake stack size log.
+  int uar_stack_size_log;
   // ASan allocator flag. max_malloc_fill_size is the maximal amount of bytes
   // that will be filled with malloc_fill_byte on malloc.
   int max_malloc_fill_size, malloc_fill_byte;
@@ -83,6 +83,9 @@ struct Flags {
   bool print_legend;
   // If set, prints ASan exit stats even after program terminates successfully.
   bool atexit;
+  // If set, coverage information will be dumped at shutdown time if the
+  // appropriate instrumentation was enabled.
+  bool coverage;
   // By default, disable core dumper on 64-bit - it makes little sense
   // to dump 16T+ core.
   bool disable_core;
@@ -93,23 +96,20 @@ struct Flags {
   // but also thread creation stacks for threads that created those threads,
   // etc. up to main thread.
   bool print_full_thread_history;
-  // ASan will write logs to "log_path.pid" instead of stderr.
-  const char *log_path;
   // Poison (or not) the heap memory on [de]allocation. Zero value is useful
   // for benchmarking the allocator or instrumentator.
   bool poison_heap;
+  // If true, poison partially addressable 8-byte aligned words (default=true).
+  // This flag affects heap and global buffers, but not stack buffers.
+  bool poison_partial;
   // Report errors on malloc/delete, new/free, new/delete[], etc.
   bool alloc_dealloc_mismatch;
-  // Use stack depot instead of storing stacks in the redzones.
-  bool use_stack_depot;
   // If true, assume that memcmp(p1, p2, n) always reads n bytes before
   // comparing p1 and p2.
   bool strict_memcmp;
   // If true, assume that dynamic initializers can never access globals from
   // other modules, even if the latter are already initialized.
   bool strict_init_order;
-  // Invoke LeakSanitizer at process exit.
-  bool detect_leaks;
 };
 
 extern Flags asan_flags_dont_use_directly;

@@ -20,13 +20,13 @@
 #include "sanitizer_common/sanitizer_stacktrace.h"
 #include "lsan_common.h"
 
+extern "C" void *memset(void *ptr, int value, uptr num);
+
 namespace __lsan {
 
-static const uptr kMaxAllowedMallocSize =
-    FIRST_32_SECOND_64(3UL << 30, 8UL << 30);
-
+static const uptr kMaxAllowedMallocSize = 8UL << 30;
 static const uptr kAllocatorSpace = 0x600000000000ULL;
-static const uptr kAllocatorSize  =  0x10000000000ULL;  // 1T.
+static const uptr kAllocatorSize  =  0x40000000000ULL;  // 4T.
 
 struct ChunkMetadata {
   bool allocated : 8;  // Must be first.
@@ -36,7 +36,7 @@ struct ChunkMetadata {
 };
 
 typedef SizeClassAllocator64<kAllocatorSpace, kAllocatorSize,
-        sizeof(ChunkMetadata), CompactSizeClassMap> PrimaryAllocator;
+        sizeof(ChunkMetadata), DefaultSizeClassMap> PrimaryAllocator;
 typedef SizeClassAllocatorLocalCache<PrimaryAllocator> AllocatorCache;
 typedef LargeMmapAllocator<> SecondaryAllocator;
 typedef CombinedAllocator<PrimaryAllocator, AllocatorCache,
@@ -54,23 +54,24 @@ void AllocatorThreadFinish() {
 }
 
 static ChunkMetadata *Metadata(void *p) {
-  return (ChunkMetadata *)allocator.GetMetaData(p);
+  return reinterpret_cast<ChunkMetadata *>(allocator.GetMetaData(p));
 }
 
 static void RegisterAllocation(const StackTrace &stack, void *p, uptr size) {
   if (!p) return;
   ChunkMetadata *m = Metadata(p);
   CHECK(m);
+  m->tag = DisabledInThisThread() ? kIgnored : kDirectlyLeaked;
   m->stack_trace_id = StackDepotPut(stack.trace, stack.size);
   m->requested_size = size;
-  atomic_store((atomic_uint8_t*)m, 1, memory_order_relaxed);
+  atomic_store(reinterpret_cast<atomic_uint8_t *>(m), 1, memory_order_relaxed);
 }
 
 static void RegisterDeallocation(void *p) {
   if (!p) return;
   ChunkMetadata *m = Metadata(p);
   CHECK(m);
-  atomic_store((atomic_uint8_t*)m, 0, memory_order_relaxed);
+  atomic_store(reinterpret_cast<atomic_uint8_t *>(m), 0, memory_order_relaxed);
 }
 
 void *Allocate(const StackTrace &stack, uptr size, uptr alignment,
@@ -78,11 +79,13 @@ void *Allocate(const StackTrace &stack, uptr size, uptr alignment,
   if (size == 0)
     size = 1;
   if (size > kMaxAllowedMallocSize) {
-      Report("WARNING: LeakSanitizer failed to allocate %p bytes\n",
-             (void*)size);
-      return 0;
+    Report("WARNING: LeakSanitizer failed to allocate %zu bytes\n", size);
+    return 0;
   }
-  void *p = allocator.Allocate(&cache, size, alignment, cleared);
+  void *p = allocator.Allocate(&cache, size, alignment, false);
+  // Do not rely on the allocator to clear the memory (it's slow).
+  if (cleared && allocator.FromPrimary(p))
+    memset(p, 0, size);
   RegisterAllocation(stack, p, size);
   return p;
 }
@@ -96,10 +99,9 @@ void *Reallocate(const StackTrace &stack, void *p, uptr new_size,
                  uptr alignment) {
   RegisterDeallocation(p);
   if (new_size > kMaxAllowedMallocSize) {
-      Report("WARNING: LeakSanitizer failed to allocate %p bytes\n",
-             (void*)new_size);
-      allocator.Deallocate(&cache, p);
-      return 0;
+    Report("WARNING: LeakSanitizer failed to allocate %zu bytes\n", new_size);
+    allocator.Deallocate(&cache, p);
+    return 0;
   }
   p = allocator.Reallocate(&cache, p, new_size, alignment);
   RegisterAllocation(stack, p, new_size);
@@ -132,26 +134,26 @@ void GetAllocatorGlobalRange(uptr *begin, uptr *end) {
   *end = *begin + sizeof(allocator);
 }
 
-void *PointsIntoChunk(void* p) {
-  if (!allocator.PointerIsMine(p)) return 0;
-  void *chunk = allocator.GetBlockBegin(p);
+uptr PointsIntoChunk(void* p) {
+  uptr addr = reinterpret_cast<uptr>(p);
+  uptr chunk = reinterpret_cast<uptr>(allocator.GetBlockBeginFastLocked(p));
   if (!chunk) return 0;
   // LargeMmapAllocator considers pointers to the meta-region of a chunk to be
   // valid, but we don't want that.
-  if (p < chunk) return 0;
-  ChunkMetadata *m = Metadata(chunk);
+  if (addr < chunk) return 0;
+  ChunkMetadata *m = Metadata(reinterpret_cast<void *>(chunk));
   CHECK(m);
-  if (m->allocated && (uptr)p < (uptr)chunk + m->requested_size)
+  if (m->allocated && addr < chunk + m->requested_size)
     return chunk;
   return 0;
 }
 
-void *GetUserBegin(void *p) {
-  return p;
+uptr GetUserBegin(uptr chunk) {
+  return chunk;
 }
 
-LsanMetadata::LsanMetadata(void *chunk) {
-  metadata_ = Metadata(chunk);
+LsanMetadata::LsanMetadata(uptr chunk) {
+  metadata_ = Metadata(reinterpret_cast<void *>(chunk));
   CHECK(metadata_);
 }
 
@@ -175,16 +177,22 @@ u32 LsanMetadata::stack_trace_id() const {
   return reinterpret_cast<ChunkMetadata *>(metadata_)->stack_trace_id;
 }
 
-template<typename Callable>
-void ForEachChunk(Callable const &callback) {
-  allocator.ForEachChunk(callback);
+void ForEachChunk(ForEachChunkCallback callback, void *arg) {
+  allocator.ForEachChunk(callback, arg);
 }
 
-template void ForEachChunk<ProcessPlatformSpecificAllocationsCb>(
-    ProcessPlatformSpecificAllocationsCb const &callback);
-template void ForEachChunk<PrintLeakedCb>(PrintLeakedCb const &callback);
-template void ForEachChunk<CollectLeaksCb>(CollectLeaksCb const &callback);
-template void ForEachChunk<MarkIndirectlyLeakedCb>(
-    MarkIndirectlyLeakedCb const &callback);
-template void ForEachChunk<ClearTagCb>(ClearTagCb const &callback);
+IgnoreObjectResult IgnoreObjectLocked(const void *p) {
+  void *chunk = allocator.GetBlockBegin(p);
+  if (!chunk || p < chunk) return kIgnoreObjectInvalid;
+  ChunkMetadata *m = Metadata(chunk);
+  CHECK(m);
+  if (m->allocated && (uptr)p < (uptr)chunk + m->requested_size) {
+    if (m->tag == kIgnored)
+      return kIgnoreObjectAlreadyIgnored;
+    m->tag = kIgnored;
+    return kIgnoreObjectSuccess;
+  } else {
+    return kIgnoreObjectInvalid;
+  }
+}
 }  // namespace __lsan

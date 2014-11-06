@@ -29,6 +29,24 @@ uptr GetMmapGranularity() {
   return GetPageSize();
 }
 
+uptr GetMaxVirtualAddress() {
+#if SANITIZER_WORDSIZE == 64
+# if defined(__powerpc64__)
+  // On PowerPC64 we have two different address space layouts: 44- and 46-bit.
+  // We somehow need to figure our which one we are using now and choose
+  // one of 0x00000fffffffffffUL and 0x00003fffffffffffUL.
+  // Note that with 'ulimit -s unlimited' the stack is moved away from the top
+  // of the address space, so simply checking the stack address is not enough.
+  return (1ULL << 44) - 1;  // 0x00000fffffffffffUL
+# else
+  return (1ULL << 47) - 1;  // 0x00007fffffffffffUL;
+# endif
+#else  // SANITIZER_WORDSIZE == 32
+  // FIXME: We can probably lower this on Android?
+  return (1ULL << 32) - 1;  // 0xffffffff;
+#endif  // SANITIZER_WORDSIZE
+}
+
 void *MmapOrDie(uptr size, const char *mem_type) {
   size = RoundUpTo(size, GetPageSizeCached());
   uptr res = internal_mmap(0, size,
@@ -153,6 +171,77 @@ void DumpProcessMap() {
 
 const char *GetPwd() {
   return GetEnv("PWD");
+}
+
+char *FindPathToBinary(const char *name) {
+  const char *path = GetEnv("PATH");
+  if (!path)
+    return 0;
+  uptr name_len = internal_strlen(name);
+  InternalScopedBuffer<char> buffer(kMaxPathLength);
+  const char *beg = path;
+  while (true) {
+    const char *end = internal_strchrnul(beg, ':');
+    uptr prefix_len = end - beg;
+    if (prefix_len + name_len + 2 <= kMaxPathLength) {
+      internal_memcpy(buffer.data(), beg, prefix_len);
+      buffer[prefix_len] = '/';
+      internal_memcpy(&buffer[prefix_len + 1], name, name_len);
+      buffer[prefix_len + 1 + name_len] = '\0';
+      if (FileExists(buffer.data()))
+        return internal_strdup(buffer.data());
+    }
+    if (*end == '\0') break;
+    beg = end + 1;
+  }
+  return 0;
+}
+
+void MaybeOpenReportFile() {
+  if (!log_to_file || (report_fd_pid == internal_getpid())) return;
+  InternalScopedBuffer<char> report_path_full(4096);
+  internal_snprintf(report_path_full.data(), report_path_full.size(),
+                    "%s.%d", report_path_prefix, internal_getpid());
+  uptr openrv = OpenFile(report_path_full.data(), true);
+  if (internal_iserror(openrv)) {
+    report_fd = kStderrFd;
+    log_to_file = false;
+    Report("ERROR: Can't open file: %s\n", report_path_full.data());
+    Die();
+  }
+  if (report_fd != kInvalidFd) {
+    // We're in the child. Close the parent's log.
+    internal_close(report_fd);
+  }
+  report_fd = openrv;
+  report_fd_pid = internal_getpid();
+}
+
+void RawWrite(const char *buffer) {
+  static const char *kRawWriteError =
+      "RawWrite can't output requested buffer!\n";
+  uptr length = (uptr)internal_strlen(buffer);
+  MaybeOpenReportFile();
+  if (length != internal_write(report_fd, buffer, length)) {
+    internal_write(report_fd, kRawWriteError, internal_strlen(kRawWriteError));
+    Die();
+  }
+}
+
+bool GetCodeRangeForFile(const char *module, uptr *start, uptr *end) {
+  uptr s, e, off, prot;
+  InternalMmapVector<char> fn(4096);
+  fn.push_back(0);
+  MemoryMappingLayout proc_maps(/*cache_enabled*/false);
+  while (proc_maps.Next(&s, &e, &off, &fn[0], fn.capacity(), &prot)) {
+    if ((prot & MemoryMappingLayout::kProtectionExecute) != 0
+        && internal_strcmp(module, &fn[0]) == 0) {
+      *start = s;
+      *end = e;
+      return true;
+    }
+  }
+  return false;
 }
 
 }  // namespace __sanitizer

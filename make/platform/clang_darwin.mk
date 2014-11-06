@@ -25,9 +25,24 @@ CheckArches = \
     done; \
     echo $$result)
 
+XCRun = \
+  $(shell \
+    result=`xcrun -find $(1) 2> /dev/null`; \
+    if [ "$$?" != "0" ]; then result=$(1); fi; \
+    echo $$result)
+XCRunSdkPath = \
+  $(shell \
+    result=`xcrun --sdk $(1) --show-sdk-path 2> /dev/null`; \
+    if [ "$$?" != "0" ]; then result=""; fi; \
+    echo $$result)
 ###
 
-CC := clang
+CC       := $(call XCRun,clang)
+AR       := $(call XCRun,ar)
+RANLIB   := $(call XCRun,ranlib)
+STRIP    := $(call XCRun,strip)
+LIPO     := $(call XCRun,lipo)
+DSYMUTIL := $(call XCRun,dsymutil)
 
 Configs :=
 UniversalArchs :=
@@ -72,6 +87,12 @@ UniversalArchs.profile_ios := $(call CheckArches,i386 x86_64 armv7,profile_ios)
 # Configurations which define the ASAN support functions.
 Configs += asan_osx_dynamic
 UniversalArchs.asan_osx_dynamic := $(call CheckArches,i386 x86_64,asan_osx_dynamic)
+
+IOSSIM_SDK_PATH := $(call XCRunSdkPath,iphonesimulator)
+ifneq ($(IOSSIM_SDK_PATH),)
+Configs += asan_iossim_dynamic
+UniversalArchs.asan_iossim_dynamic := $(call CheckArches,i386 x86_64,asan_iossim_dynamic)
+endif
 
 Configs += ubsan_osx
 UniversalArchs.ubsan_osx := $(call CheckArches,i386 x86_64,ubsan_osx)
@@ -127,12 +148,20 @@ CFLAGS.eprintf		:= $(CFLAGS) $(OSX_DEPLOYMENT_ARGS)
 CFLAGS.10.4		:= $(CFLAGS) $(OSX_DEPLOYMENT_ARGS)
 # FIXME: We can't build ASAN with our stub SDK yet.
 CFLAGS.asan_osx_dynamic := \
-	$(CFLAGS) -mmacosx-version-min=10.5 -fno-builtin \
+	$(CFLAGS) -mmacosx-version-min=10.6 -fno-builtin \
 	-gline-tables-only \
 	-DMAC_INTERPOSE_FUNCTIONS=1 \
   -DASAN_FLEXIBLE_MAPPING_AND_OFFSET=1
 
-CFLAGS.ubsan_osx	:= $(CFLAGS) -mmacosx-version-min=10.5 -fno-builtin
+CFLAGS.asan_iossim_dynamic := \
+	$(CFLAGS) -mios-simulator-version-min=7.0 \
+        -isysroot $(IOSSIM_SDK_PATH) \
+        -fno-builtin \
+	-gline-tables-only \
+	-DMAC_INTERPOSE_FUNCTIONS=1 \
+  -DASAN_FLEXIBLE_MAPPING_AND_OFFSET=1
+
+CFLAGS.ubsan_osx	:= $(CFLAGS) -mmacosx-version-min=10.6 -fno-builtin
 
 CFLAGS.ios.i386		:= $(CFLAGS) $(IOSSIM_DEPLOYMENT_ARGS)
 CFLAGS.ios.x86_64	:= $(CFLAGS) $(IOSSIM_DEPLOYMENT_ARGS)
@@ -163,7 +192,15 @@ CFLAGS.profile_ios.armv7s := $(CFLAGS) $(IOS_DEPLOYMENT_ARGS)
 
 # Configure the asan_osx_dynamic library to be built shared.
 SHARED_LIBRARY.asan_osx_dynamic := 1
-LDFLAGS.asan_osx_dynamic := -framework Foundation -lstdc++ -undefined dynamic_lookup
+LDFLAGS.asan_osx_dynamic := -lstdc++ -undefined dynamic_lookup
+
+# Configure the asan_iossim_dynamic library to be built shared.
+SHARED_LIBRARY.asan_iossim_dynamic := 1
+# configure+make uses Clang, so we're using isysroot instead of --sysroot
+# or -Wl,-syslibroot.
+LDFLAGS.asan_iossim_dynamic := -undefined dynamic_lookup \
+  -Wl,-ios_simulator_version_min,7.0.0 \
+  -mios-simulator-version-min=7.0 -isysroot $(IOSSIM_SDK_PATH)
 
 FUNCTIONS.eprintf := eprintf
 FUNCTIONS.10.4 := eprintf floatundidf floatundisf floatundixf
@@ -183,6 +220,10 @@ FUNCTIONS.profile_ios := GCDAProfiling
 FUNCTIONS.asan_osx_dynamic := $(AsanFunctions) $(InterceptionFunctions) \
                               $(SanitizerCommonFunctions) \
 	                      $(AsanDynamicFunctions)
+
+FUNCTIONS.asan_iossim_dynamic := $(AsanFunctions) $(InterceptionFunctions) \
+                                 $(SanitizerCommonFunctions) \
+	                         $(AsanDynamicFunctions)
 
 FUNCTIONS.ubsan_osx := $(UbsanFunctions) $(UbsanCXXFunctions) \
                        $(SanitizerCommonFunctions)

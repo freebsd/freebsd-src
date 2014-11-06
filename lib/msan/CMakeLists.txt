@@ -25,12 +25,23 @@ if(CAN_TARGET_${arch})
             $<TARGET_OBJECTS:RTInterception.${arch}>
             $<TARGET_OBJECTS:RTSanitizerCommon.${arch}>
             $<TARGET_OBJECTS:RTSanitizerCommonLibc.${arch}>
-    CFLAGS ${MSAN_RTL_CFLAGS}
-    SYMS msan.syms)
+    CFLAGS ${MSAN_RTL_CFLAGS})
   list(APPEND MSAN_RUNTIME_LIBRARIES clang_rt.msan-${arch})
+  if(UNIX)
+    add_sanitizer_rt_symbols(clang_rt.msan-${arch} msan.syms.extra)
+    list(APPEND MSAN_RUNTIME_LIBRARIES clang_rt.msan-${arch}-symbols)
+  endif()
 endif()
 
 add_compiler_rt_resource_file(msan_blacklist msan_blacklist.txt)
+
+# We should only build MSan unit tests if we can build instrumented libcxx.
+set(MSAN_LIBCXX_PATH ${LLVM_MAIN_SRC_DIR}/projects/libcxx)
+if(EXISTS ${MSAN_LIBCXX_PATH}/)
+  set(MSAN_CAN_INSTRUMENT_LIBCXX TRUE)
+else()
+  set(MSAN_CAN_INSTRUMENT_LIBCXX FALSE)
+endif()
 
 if(LLVM_INCLUDE_TESTS)
   add_subdirectory(tests)

@@ -75,10 +75,12 @@ void InitializeAllocator() {
 
 void AllocatorThreadStart(ThreadState *thr) {
   allocator()->InitCache(&thr->alloc_cache);
+  internal_allocator()->InitCache(&thr->internal_alloc_cache);
 }
 
 void AllocatorThreadFinish(ThreadState *thr) {
   allocator()->DestroyCache(&thr->alloc_cache);
+  internal_allocator()->DestroyCache(&thr->internal_alloc_cache);
 }
 
 void AllocatorPrintStats() {
@@ -102,14 +104,18 @@ static void SignalUnsafeCall(ThreadState *thr, uptr pc) {
 void *user_alloc(ThreadState *thr, uptr pc, uptr sz, uptr align) {
   CHECK_GT(thr->in_rtl, 0);
   if ((sz >= (1ull << 40)) || (align >= (1ull << 40)))
-    return 0;
+    return AllocatorReturnNull();
   void *p = allocator()->Allocate(&thr->alloc_cache, sz, align);
   if (p == 0)
     return 0;
   MBlock *b = new(allocator()->GetMetaData(p)) MBlock;
   b->Init(sz, thr->tid, CurrentStackId(thr, pc));
-  if (CTX() && CTX()->initialized)
-    MemoryRangeImitateWrite(thr, pc, (uptr)p, sz);
+  if (CTX() && CTX()->initialized) {
+    if (thr->ignore_reads_and_writes == 0)
+      MemoryRangeImitateWrite(thr, pc, (uptr)p, sz);
+    else
+      MemoryResetRange(thr, pc, (uptr)p, sz);
+  }
   DPrintf("#%d: alloc(%zu) = %p\n", thr->tid, sz, p);
   SignalUnsafeCall(thr, pc);
   return p;
@@ -132,8 +138,10 @@ void user_free(ThreadState *thr, uptr pc, void *p) {
     }
     b->ListReset();
   }
-  if (CTX() && CTX()->initialized && thr->in_rtl == 1)
-    MemoryRangeFreed(thr, pc, (uptr)p, b->Size());
+  if (CTX() && CTX()->initialized && thr->in_rtl == 1) {
+    if (thr->ignore_reads_and_writes == 0)
+      MemoryRangeFreed(thr, pc, (uptr)p, b->Size());
+  }
   allocator()->Deallocate(&thr->alloc_cache, p);
   SignalUnsafeCall(thr, pc);
 }
@@ -194,11 +202,12 @@ void invoke_free_hook(void *ptr) {
 void *internal_alloc(MBlockType typ, uptr sz) {
   ThreadState *thr = cur_thread();
   CHECK_GT(thr->in_rtl, 0);
+  CHECK_LE(sz, InternalSizeClassMap::kMaxSize);
   if (thr->nomalloc) {
     thr->nomalloc = 0;  // CHECK calls internal_malloc().
     CHECK(0);
   }
-  return InternalAlloc(sz);
+  return InternalAlloc(sz, &thr->internal_alloc_cache);
 }
 
 void internal_free(void *p) {
@@ -208,7 +217,7 @@ void internal_free(void *p) {
     thr->nomalloc = 0;  // CHECK calls internal_malloc().
     CHECK(0);
   }
-  InternalFree(p);
+  InternalFree(p, &thr->internal_alloc_cache);
 }
 
 }  // namespace __tsan
@@ -261,5 +270,6 @@ uptr __tsan_get_allocated_size(void *p) {
 void __tsan_on_thread_idle() {
   ThreadState *thr = cur_thread();
   allocator()->SwallowCache(&thr->alloc_cache);
+  internal_allocator()->SwallowCache(&thr->internal_alloc_cache);
 }
 }  // extern "C"
