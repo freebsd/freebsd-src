@@ -229,7 +229,8 @@ cheri_sysarch_setstack(struct thread *td, struct sysarch_args *uap)
 	 */
 	if (cs.cs_tsize != td->td_pcb->pcb_cheristack.cs_tsize)
 		return (EINVAL);
-	if (cs.cs_tsp < 0 || cs.cs_tsp > CHERI_STACK_SIZE)
+	if (cs.cs_tsp < 0 || cs.cs_tsp > CHERI_STACK_SIZE ||
+	    (cs.cs_tsp % CHERI_FRAME_SIZE) != 0)
 		return (EINVAL);
 	cheri_bcopy(&cs, &td->td_pcb->pcb_cheristack, sizeof(cs));
 	return (0);
