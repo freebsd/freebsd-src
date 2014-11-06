@@ -2019,6 +2019,14 @@ pmap_enter(pmap_t pmap, vm_offset_t va, vm_page_t m, vm_prot_t prot,
 		newpte |= PTE_C_CACHE;
 	else
 		newpte |= PTE_C_UNCACHED;
+#if 0
+#ifdef CPU_CHERI
+	if ((flags & PMAP_ENTER_NOLOADTAGS) != 0)
+		newpte |= PTE_LC;
+	if ((flags & PMAP_ENTER_NOSTORETAGS) != 0)
+		newpte |= PTE_SC;
+#endif
+#endif
 
 	mpte = NULL;
 
