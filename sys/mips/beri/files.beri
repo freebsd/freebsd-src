@@ -36,6 +36,8 @@ mips/beri/beri_pic.c			optional fdt
 mips/cheri/ccall.S			optional cpu_cheri
 mips/cheri/cheri.c			optional cpu_cheri
 mips/cheri/cheri_bcopy.S		optional cpu_cheri
+mips/cheri/cheri_exception.c		optional cpu_cheri
+mips/cheri/cheri_signal.c		optional cpu_cheri
 mips/cheri/cheri_stack.c		optional cpu_cheri
 mips/beri/beri_simplebus.c		optional fdt
 mips/beri/fdt_ic_if.m			optional fdt

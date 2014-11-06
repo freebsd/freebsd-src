@@ -616,6 +616,7 @@ extern u_int	security_cheri_debugger_on_sandbox_signal;
 extern u_int	security_cheri_debugger_on_sandbox_syscall;
 extern u_int	security_cheri_debugger_on_sandbox_unwind;
 extern u_int	security_cheri_debugger_on_sigprot;
+extern u_int	security_cheri_sandboxed_signals;
 #endif /* !_KERNEL */
 
 #endif /* _MIPS_INCLUDE_CHERI_H_ */
