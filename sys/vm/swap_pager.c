@@ -154,7 +154,7 @@ struct swblock {
 	vm_pindex_t	swb_index;
 	int		swb_count;
 #ifdef CPU_CHERI
-	uint64_t	swb_tags[(PAGE_SIZE / 32) / sizeof(uint64_t)];
+	uint64_t	swb_tags[(PAGE_SIZE / CHERICAP_SIZE) / sizeof(uint64_t)];
 #endif
 	daddr_t		swb_pages[SWAP_META_PAGES];
 };
