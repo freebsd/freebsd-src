@@ -136,6 +136,11 @@ ${PROGNAME}.debug: ${PROG_FULL}
 	${OBJCOPY} --only-keep-debug ${PROG_FULL} ${.TARGET}
 .endif
 
+.if defined(WANT_DUMP)
+${PROGNAME}.dump: ${PROG_FULL}
+	${OBJDUMP} -xsSD ${PROG_FULL} > ${.TARGET}
+.endif
+
 .if	${MK_MAN} != "no" && !defined(MAN) && \
 	!defined(MAN1) && !defined(MAN2) && !defined(MAN3) && \
 	!defined(MAN4) && !defined(MAN5) && !defined(MAN6) && \
@@ -155,6 +160,9 @@ all: _manpages
 CLEANFILES+= ${PROG}
 .if ${MK_DEBUG_FILES} != "no"
 CLEANFILES+=	${PROG_FULL} ${PROGNAME}.debug
+.endif
+.if defined(WANT_DUMP)
+CLEANFILES+=	${PROGNAME}.dump
 .endif
 .endif
 
@@ -212,6 +220,10 @@ _proginstall:
 .endif
 .endif
 .endif	# !target(realinstall)
+
+.if defined(WANT_DUMP)
+FILES+=	${PROGNAME}.dump
+.endif
 
 .if defined(SCRIPTS) && !empty(SCRIPTS)
 realinstall: _scriptsinstall
