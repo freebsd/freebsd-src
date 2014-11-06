@@ -613,6 +613,18 @@ cheritest_run_test(const struct cheri_test *ctp)
 		}
 	}
 
+	/*
+	 * Flush stdout and stderr before forking so that we don't risk seeing
+	 * the output again in the child process, which could confuse the test
+	 * framework.
+	 */
+	fflush(stdout);
+	fflush(stderr);
+
+	/*
+	 * Create a child process with suitable signal handling and stdio set
+	 * up; execute the test case.
+	 */
 	childpid = fork();
 	if (childpid < 0)
 		err(EX_OSERR, "fork");
