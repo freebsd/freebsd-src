@@ -94,8 +94,18 @@ in_addroute(void *v_arg, void *n_arg, struct radix_node_head *head,
 	if (IN_MULTICAST(ntohl(sin->sin_addr.s_addr)))
 		rt->rt_flags |= RTF_MULTICAST;
 
-	if (rt->rt_mtu == 0 && rt->rt_ifp != NULL)
-		rt->rt_mtu = rt->rt_ifp->if_mtu;
+	if (rt->rt_ifp != NULL) {
+
+		/*
+		 * Check route MTU:
+		 * inherit interface MTU if not set or
+		 * check if MTU is too large.
+		 */
+		if (rt->rt_mtu == 0) {
+			rt->rt_mtu = rt->rt_ifp->if_mtu;
+		} else if (rt->rt_mtu > rt->rt_ifp->if_mtu)
+			rt->rt_mtu = rt->rt_ifp->if_mtu;
+	}
 
 	return (rn_addroute(v_arg, n_arg, head, treenodes));
 }

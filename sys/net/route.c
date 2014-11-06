@@ -1279,6 +1279,8 @@ rtrequest1_fib(int req, struct rt_addrinfo *info, struct rtentry **ret_nrt,
 		rt->rt_ifp = ifa->ifa_ifp;
 		rt->rt_weight = 1;
 
+		rt_setmetrics(info, rt);
+
 #ifdef RADIX_MPATH
 		/* do not permit exactly the same dst/mask/gw pair */
 		if (rn_mpath_capable(rnh) &&
@@ -1373,8 +1375,6 @@ rtrequest1_fib(int req, struct rt_addrinfo *info, struct rtentry **ret_nrt,
 		if (ifa->ifa_rtrequest)
 			ifa->ifa_rtrequest(req, rt, info);
 
-		rt_setmetrics(info, rt);
-
 		/*
 		 * actually return a resultant rtentry and
 		 * give the caller a single reference.
@@ -1412,6 +1412,7 @@ rtrequest1_fib_change(struct radix_node_head *rnh, struct rt_addrinfo *info,
 	struct rtentry *rt = NULL;
 	int error = 0;
 	int free_ifa = 0;
+	int family, mtu;
 
 	rt = (struct rtentry *)rnh->rnh_lookup(info->rti_info[RTAX_DST],
 	    info->rti_info[RTAX_NETMASK], rnh);
@@ -1432,6 +1433,8 @@ rtrequest1_fib_change(struct radix_node_head *rnh, struct rt_addrinfo *info,
 #endif
 
 	RT_LOCK(rt);
+
+	rt_setmetrics(info, rt);
 
 	/*
 	 * New gateway could require new ifaddr, ifp;
@@ -1480,7 +1483,13 @@ rtrequest1_fib_change(struct radix_node_head *rnh, struct rt_addrinfo *info,
 	if (rt->rt_ifa && rt->rt_ifa->ifa_rtrequest != NULL)
 	       rt->rt_ifa->ifa_rtrequest(RTM_ADD, rt, info);
 
-	rt_setmetrics(info, rt);
+	/* Ensure route MTU is not bigger than interface MTU */
+	if (rt->rt_ifp != NULL) {
+		family = info->rti_info[RTAX_DST]->sa_family;
+		mtu = if_getmtu_family(rt->rt_ifp, family);
+		if (rt->rt_mtu > mtu)
+			rt->rt_mtu = mtu;
+	}
 
 	if (ret_nrt) {
 		*ret_nrt = rt;
