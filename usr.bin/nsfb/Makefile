@@ -251,10 +251,6 @@ CFLAGS+=	${CFLAGS.${.IMPSRC:T}}
 .include <bsd.prog.mk>
 
 CFLAGS:=	${CFLAGS:S/-O/-O2/}
-CFLAGS.content.c=	-O0
-CFLAGS.box_textarea.c=	-O0
-CFLAGS.html_interaction.c=	-O0
-CFLAGS.html_object.c=	-O0
 
 .c.o:
 	${CC} ${STATIC_CFLAGS} ${CFLAGS} -c ${.IMPSRC} -o ${.TARGET}
