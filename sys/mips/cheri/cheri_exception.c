@@ -51,14 +51,14 @@ static const char *cheri_exccode_array[] = {
 	"call trap",				/* CHERI_EXCCODE_CALL */
 	"return trap",				/* CHERI_EXCCODE_RETURN */
 	"underflow of trusted system stack",	/* CHERI_EXCCODE_UNDERFLOW */
-	"user-defined permission exception",	/* CHERI_EXCCODE_USER */
-	"reserved",				/* TBD */
-	"reserved",				/* TBD */
-	"reserved",				/* TBD */
-	"reserved",				/* TBD */
-	"reserved",				/* TBD */
-	"reserved",				/* TBD */
-	"reserved",				/* TBD */
+	"user-defined permission violation",	/* CHERI_EXCCODE_USER */
+	"TLB prohibits store capability",	/* CHERI_EXCCODE_TLBSTORE */
+	"reserved",				/* 0xa: TBD */
+	"reserved",				/* 0xb: TBD */
+	"reserved",				/* 0xc: TBD */
+	"reserved",				/* 0xd: TBD */
+	"reserved",				/* 0xe: TBD */
+	"reserved",				/* 0xf: TBD */
 	"global violation",			/* CHERI_EXCCODE_GLOBAL */
 	"permit execute violation",		/* CHERI_EXCCODE_PERM_EXECUTE */
 	"permit load violation",		/* CHERI_EXCCODE_PERM_LOAD */
@@ -68,12 +68,13 @@ static const char *cheri_exccode_array[] = {
      "permit store local capability violation", /* CHERI_EXCCODE_STORE_LOCAL */
 	"permit seal violation",		/* CHERI_EXCCODE_PERM_SEAL */
 	"permit set type violation",		/* CHERI_EXCCODE_PERM_SETTYPE */
-	"reserved",				/* TBD */
+	"reserved",				/* 0x19 */
 	"access EPCC violation",		/* CHERI_EXCCODE_ACCESS_EPCC */
 	"access KDC violation",			/* CHERI_EXCCODE_ACCESS_KDC */
 	"access KCC violation",			/* CHERI_EXCCODE_ACCESS_KCC */
 	"access KR1C violation",		/* CHERI_EXCCODE_ACCESS_KR1C */
 	"access KR2C violation",		/* CHERI_EXCCODE_ACCESS_KR2C */
+	"reserved",				/* 0x1f */
 };
 static const int cheri_exccode_array_length = sizeof(cheri_exccode_array) /
     sizeof(cheri_exccode_array[0]);
