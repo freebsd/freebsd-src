@@ -20,7 +20,7 @@ NO_WERROR=
 CFLAGS+=${DEBUG_FLAGS}
 CXXFLAGS+=${DEBUG_FLAGS}
 
-.if ${MK_CTF} != "no" && ${DEBUG_FLAGS:M-g} != ""
+.if ${MK_CTF} != "no"
 CTFFLAGS+= -g
 .endif
 .endif
