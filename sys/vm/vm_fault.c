@@ -813,6 +813,9 @@ vnode_locked:
 			 * first object.  Note that we must mark the page 
 			 * dirty in the first object so that it will go out 
 			 * to swap when needed.
+			 *
+			 * XXXRW: Will tag bits on TLB entry get properly
+			 * updated during move...?
 			 */
 			is_first_object_locked = FALSE;
 			if (
@@ -994,9 +997,9 @@ vnode_locked:
 	if (wired)
 		flags |= PMAP_ENTER_WIRED;
 #ifdef CPU_CHERI
-	if (fs.first_object->flags & OBJ_NOLOADTAGS)
+	if (fs.object->flags & OBJ_NOLOADTAGS)
 		flags |= PMAP_ENTER_NOLOADTAGS;
-	if (fs.first_object->flags & OBJ_NOSTORETAGS)
+	if (fs.object->flags & OBJ_NOSTORETAGS)
 		flags |= PMAP_ENTER_NOSTORETAGS;
 #endif
 	pmap_enter(fs.map->pmap, vaddr, fs.m, prot, flags, 0);
