@@ -270,42 +270,6 @@ cheri_exec_setregs(struct thread *td)
 }
 
 /*
- * When new threads are forked, by default simply replicate the parent
- * thread's CHERI-related signal-handling state.
- *
- * XXXRW: Is this, in fact, the right thing?
- */
-void
-cheri_signal_copy(struct pcb *dst, struct pcb *src)
-{
-
-	cheri_memcpy(&dst->pcb_cherisignal, &src->pcb_cherisignal,
-	    sizeof(dst->pcb_cherisignal));
-}
-
-/*
- * Configure CHERI register state for a thread about to resume in a signal
- * handler.  Eventually, csigp should contain configurable values, but for
- * now, this ensures handlers run with ambient authority in a useful way.
- * Note that this doesn't touch the already copied-out CHERI register frame
- * (see sendsig()), and hence when sigreturn() is called, the previous CHERI
- * state will be restored by default.
- */
-void
-cheri_sendsig(struct thread *td)
-{
-	struct cheri_frame *cfp;
-	struct cheri_signal *csigp;
-
-	cfp = &td->td_pcb->pcb_cheriframe;
-	csigp = &td->td_pcb->pcb_cherisignal;
-	cheri_capability_copy(&cfp->cf_c0, &csigp->csig_c0);
-	cheri_capability_copy(&cfp->cf_c11, &csigp->csig_c11);
-	cheri_capability_copy(&cfp->cf_idc, &csigp->csig_idc);
-	cheri_capability_copy(&cfp->cf_pcc, &csigp->csig_pcc);
-}
-
-/*
  * Only allow most system calls from either ambient authority, or from
  * sandboxes that have been explicitly delegated CHERI_PERM_SYSCALL via their
  * code capability.  Note that CHERI_PERM_SYSCALL effectively implies ambient
@@ -345,29 +309,6 @@ cheri_syscall_authorize(struct thread *td, u_int code, int nargs,
 			kdb_enter(KDB_WHY_CHERI,
 			    "Syscall rejected in CHERI sandbox");
 #endif
-		return (ECAPMODE);
-	}
-	return (0);
-}
-
-/*
- * As with system calls, handling signal delivery connotes special authority
- * in the runtime environment.  In the signal delivery code, we need to
- * determine whether to trust the executing thread to have valid stack state,
- * and use this function to query whether the execution environment is
- * suitable for direct handler execution, or if (in effect) a security-domain
- * transition is required first.
- */
-int
-cheri_signal_sandboxed(struct thread *td)
-{
-	uintmax_t c_perms;
-
-	CHERI_CLC(CHERI_CR_CTEMP0, CHERI_CR_KDC,
-	    &td->td_pcb->pcb_cheriframe.cf_pcc, 0);
-	CHERI_CGETPERM(c_perms, CHERI_CR_CTEMP0);
-	if ((c_perms & CHERI_PERM_SYSCALL) == 0) {
-		atomic_add_int(&security_cheri_sandboxed_signals, 1);
 		return (ECAPMODE);
 	}
 	return (0);
