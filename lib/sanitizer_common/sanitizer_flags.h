@@ -33,16 +33,34 @@ struct CommonFlags {
   bool fast_unwind_on_fatal;
   // Use fast (frame-pointer-based) unwinder on malloc/free (if available).
   bool fast_unwind_on_malloc;
+  // Intercept and handle ioctl requests.
+  bool handle_ioctl;
   // Max number of stack frames kept for each allocation/deallocation.
   int malloc_context_size;
+  // Write logs to "log_path.pid".
+  // The special values are "stdout" and "stderr".
+  // The default is "stderr".
+  const char *log_path;
+  // Verbosity level (0 - silent, 1 - a bit of output, 2+ - more output).
+  int  verbosity;
+  // Enable memory leak detection.
+  bool detect_leaks;
+  // Invoke leak checking in an atexit handler. Has no effect if
+  // detect_leaks=false, or if __lsan_do_leak_check() is called before the
+  // handler has a chance to run.
+  bool leak_check_at_exit;
+  // If false, the allocator will crash instead of returning 0 on out-of-memory.
+  bool allocator_may_return_null;
+  // If false, disable printing error summaries in addition to error reports.
+  bool print_summary;
 };
 
-extern CommonFlags common_flags_dont_use_directly;
-
 inline CommonFlags *common_flags() {
-  return &common_flags_dont_use_directly;
+  static CommonFlags f;
+  return &f;
 }
 
+void SetCommonFlagDefaults();
 void ParseCommonFlagsFromString(const char *str);
 
 }  // namespace __sanitizer

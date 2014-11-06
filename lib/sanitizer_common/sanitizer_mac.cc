@@ -25,6 +25,7 @@
 #include "sanitizer_common.h"
 #include "sanitizer_internal_defs.h"
 #include "sanitizer_libc.h"
+#include "sanitizer_placement_new.h"
 #include "sanitizer_procmaps.h"
 
 #include <crt_externs.h>  // for _NSGetEnviron
@@ -144,7 +145,11 @@ void GetThreadStackTopAndBottom(bool at_initialization, uptr *stack_top,
 
 const char *GetEnv(const char *name) {
   char ***env_ptr = _NSGetEnviron();
-  CHECK(env_ptr);
+  if (!env_ptr) {
+    Report("_NSGetEnviron() returned NULL. Please make sure __asan_init() is "
+           "called after libSystem_initializer().\n");
+    CHECK(env_ptr);
+  }
   char **environ = *env_ptr;
   CHECK(environ);
   uptr name_len = internal_strlen(name);
@@ -343,6 +348,10 @@ void BlockingMutex::CheckLocked() {
   CHECK_EQ((uptr)pthread_self(), owner_);
 }
 
+u64 NanoTime() {
+  return 0;
+}
+
 uptr GetTlsSize() {
   return 0;
 }
@@ -352,12 +361,50 @@ void InitTlsSize() {
 
 void GetThreadStackAndTls(bool main, uptr *stk_addr, uptr *stk_size,
                           uptr *tls_addr, uptr *tls_size) {
+#ifndef SANITIZER_GO
   uptr stack_top, stack_bottom;
   GetThreadStackTopAndBottom(main, &stack_top, &stack_bottom);
   *stk_addr = stack_bottom;
   *stk_size = stack_top - stack_bottom;
   *tls_addr = 0;
   *tls_size = 0;
+#else
+  *stk_addr = 0;
+  *stk_size = 0;
+  *tls_addr = 0;
+  *tls_size = 0;
+#endif
+}
+
+uptr GetListOfModules(LoadedModule *modules, uptr max_modules,
+                      string_predicate_t filter) {
+  MemoryMappingLayout memory_mapping(false);
+  memory_mapping.Reset();
+  uptr cur_beg, cur_end, cur_offset;
+  InternalScopedBuffer<char> module_name(kMaxPathLength);
+  uptr n_modules = 0;
+  for (uptr i = 0;
+       n_modules < max_modules &&
+           memory_mapping.Next(&cur_beg, &cur_end, &cur_offset,
+                               module_name.data(), module_name.size(), 0);
+       i++) {
+    const char *cur_name = module_name.data();
+    if (cur_name[0] == '\0')
+      continue;
+    if (filter && !filter(cur_name))
+      continue;
+    LoadedModule *cur_module = 0;
+    if (n_modules > 0 &&
+        0 == internal_strcmp(cur_name, modules[n_modules - 1].full_name())) {
+      cur_module = &modules[n_modules - 1];
+    } else {
+      void *mem = &modules[n_modules];
+      cur_module = new(mem) LoadedModule(cur_name, cur_beg);
+      n_modules++;
+    }
+    cur_module->addAddressRange(cur_beg, cur_end);
+  }
+  return n_modules;
 }
 
 }  // namespace __sanitizer

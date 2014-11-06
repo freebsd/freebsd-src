@@ -13,6 +13,7 @@
 #include "sanitizer_common/sanitizer_libc.h"
 #include "sanitizer_common/sanitizer_internal_defs.h"
 #include "sanitizer_common/sanitizer_placement_new.h"
+#include "sanitizer_common/sanitizer_stacktrace.h"
 #include "tsan_interface_ann.h"
 #include "tsan_mutex.h"
 #include "tsan_report.h"
@@ -229,12 +230,12 @@ using namespace __tsan;  // NOLINT
 extern "C" {
 void INTERFACE_ATTRIBUTE AnnotateHappensBefore(char *f, int l, uptr addr) {
   SCOPED_ANNOTATION(AnnotateHappensBefore);
-  Release(cur_thread(), CALLERPC, addr);
+  Release(thr, pc, addr);
 }
 
 void INTERFACE_ATTRIBUTE AnnotateHappensAfter(char *f, int l, uptr addr) {
   SCOPED_ANNOTATION(AnnotateHappensAfter);
-  Acquire(cur_thread(), CALLERPC, addr);
+  Acquire(thr, pc, addr);
 }
 
 void INTERFACE_ATTRIBUTE AnnotateCondVarSignal(char *f, int l, uptr cv) {
@@ -382,22 +383,32 @@ void INTERFACE_ATTRIBUTE AnnotateBenignRace(
 
 void INTERFACE_ATTRIBUTE AnnotateIgnoreReadsBegin(char *f, int l) {
   SCOPED_ANNOTATION(AnnotateIgnoreReadsBegin);
-  IgnoreCtl(cur_thread(), false, true);
+  ThreadIgnoreBegin(thr);
 }
 
 void INTERFACE_ATTRIBUTE AnnotateIgnoreReadsEnd(char *f, int l) {
   SCOPED_ANNOTATION(AnnotateIgnoreReadsEnd);
-  IgnoreCtl(cur_thread(), false, false);
+  ThreadIgnoreEnd(thr);
 }
 
 void INTERFACE_ATTRIBUTE AnnotateIgnoreWritesBegin(char *f, int l) {
   SCOPED_ANNOTATION(AnnotateIgnoreWritesBegin);
-  IgnoreCtl(cur_thread(), true, true);
+  ThreadIgnoreBegin(thr);
 }
 
 void INTERFACE_ATTRIBUTE AnnotateIgnoreWritesEnd(char *f, int l) {
   SCOPED_ANNOTATION(AnnotateIgnoreWritesEnd);
-  IgnoreCtl(thr, true, false);
+  ThreadIgnoreEnd(thr);
+}
+
+void INTERFACE_ATTRIBUTE AnnotateIgnoreSyncBegin(char *f, int l) {
+  SCOPED_ANNOTATION(AnnotateIgnoreSyncBegin);
+  ThreadIgnoreSyncBegin(thr);
+}
+
+void INTERFACE_ATTRIBUTE AnnotateIgnoreSyncEnd(char *f, int l) {
+  SCOPED_ANNOTATION(AnnotateIgnoreSyncEnd);
+  ThreadIgnoreSyncEnd(thr);
 }
 
 void INTERFACE_ATTRIBUTE AnnotatePublishMemoryRange(
@@ -447,4 +458,7 @@ const char INTERFACE_ATTRIBUTE* ThreadSanitizerQuery(const char *query) {
   else
     return "0";
 }
+
+void INTERFACE_ATTRIBUTE
+AnnotateMemoryIsInitialized(char *f, int l, uptr mem, uptr sz) {}
 }  // extern "C"

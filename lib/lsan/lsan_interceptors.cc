@@ -44,66 +44,85 @@ int pthread_setspecific(unsigned key, const void *v);
       stack_top = t->stack_end();                                            \
       stack_bottom = t->stack_begin();                                       \
     }                                                                        \
-    GetStackTrace(&stack, __sanitizer::common_flags()->malloc_context_size,  \
-                  StackTrace::GetCurrentPc(),                                \
-                  GET_CURRENT_FRAME(), stack_top, stack_bottom, fast);       \
+    stack.Unwind(__sanitizer::common_flags()->malloc_context_size,           \
+                 StackTrace::GetCurrentPc(),                                 \
+                 GET_CURRENT_FRAME(), stack_top, stack_bottom, fast);        \
   }
 
+#define ENSURE_LSAN_INITED do {   \
+  CHECK(!lsan_init_is_running);   \
+  if (!lsan_inited)               \
+    __lsan_init();                \
+} while (0)
+
 ///// Malloc/free interceptors. /////
+
+const bool kAlwaysClearMemory = true;
 
 namespace std {
   struct nothrow_t;
 }
 
 INTERCEPTOR(void*, malloc, uptr size) {
-  Init();
+  ENSURE_LSAN_INITED;
   GET_STACK_TRACE;
-  return Allocate(stack, size, 1, false);
+  return Allocate(stack, size, 1, kAlwaysClearMemory);
 }
 
 INTERCEPTOR(void, free, void *p) {
-  Init();
+  ENSURE_LSAN_INITED;
   Deallocate(p);
 }
 
 INTERCEPTOR(void*, calloc, uptr nmemb, uptr size) {
+  if (lsan_init_is_running) {
+    // Hack: dlsym calls calloc before REAL(calloc) is retrieved from dlsym.
+    const uptr kCallocPoolSize = 1024;
+    static uptr calloc_memory_for_dlsym[kCallocPoolSize];
+    static uptr allocated;
+    uptr size_in_words = ((nmemb * size) + kWordSize - 1) / kWordSize;
+    void *mem = (void*)&calloc_memory_for_dlsym[allocated];
+    allocated += size_in_words;
+    CHECK(allocated < kCallocPoolSize);
+    return mem;
+  }
   if (CallocShouldReturnNullDueToOverflow(size, nmemb)) return 0;
-  Init();
+  ENSURE_LSAN_INITED;
   GET_STACK_TRACE;
   size *= nmemb;
   return Allocate(stack, size, 1, true);
 }
 
 INTERCEPTOR(void*, realloc, void *q, uptr size) {
-  Init();
+  ENSURE_LSAN_INITED;
   GET_STACK_TRACE;
   return Reallocate(stack, q, size, 1);
 }
 
 INTERCEPTOR(void*, memalign, uptr alignment, uptr size) {
-  Init();
+  ENSURE_LSAN_INITED;
   GET_STACK_TRACE;
-  return Allocate(stack, size, alignment, false);
+  return Allocate(stack, size, alignment, kAlwaysClearMemory);
 }
 
 INTERCEPTOR(int, posix_memalign, void **memptr, uptr alignment, uptr size) {
-  Init();
+  ENSURE_LSAN_INITED;
   GET_STACK_TRACE;
-  *memptr = Allocate(stack, size, alignment, false);
+  *memptr = Allocate(stack, size, alignment, kAlwaysClearMemory);
   // FIXME: Return ENOMEM if user requested more than max alloc size.
   return 0;
 }
 
 INTERCEPTOR(void*, valloc, uptr size) {
-  Init();
+  ENSURE_LSAN_INITED;
   GET_STACK_TRACE;
   if (size == 0)
     size = GetPageSizeCached();
-  return Allocate(stack, size, GetPageSizeCached(), false);
+  return Allocate(stack, size, GetPageSizeCached(), kAlwaysClearMemory);
 }
 
 INTERCEPTOR(uptr, malloc_usable_size, void *ptr) {
-  Init();
+  ENSURE_LSAN_INITED;
   return GetMallocUsableSize(ptr);
 }
 
@@ -121,28 +140,52 @@ INTERCEPTOR(int, mallopt, int cmd, int value) {
   return -1;
 }
 
-void *operator new(uptr size) ALIAS("malloc") SANITIZER_INTERFACE_ATTRIBUTE;
-void *operator new[](uptr size) ALIAS("malloc") SANITIZER_INTERFACE_ATTRIBUTE;
-void *operator new(uptr size, std::nothrow_t const&) ALIAS("malloc")
-    SANITIZER_INTERFACE_ATTRIBUTE;
-void *operator new[](uptr size, std::nothrow_t const&) ALIAS("malloc")
-    SANITIZER_INTERFACE_ATTRIBUTE;
-void operator delete(void *ptr) ALIAS("free") SANITIZER_INTERFACE_ATTRIBUTE;
-void operator delete[](void *ptr) ALIAS("free") SANITIZER_INTERFACE_ATTRIBUTE;
-void operator delete(void *ptr, std::nothrow_t const&) ALIAS("free")
-    SANITIZER_INTERFACE_ATTRIBUTE;
-void operator delete[](void *ptr, std::nothrow_t const&) ALIAS("free")
-    SANITIZER_INTERFACE_ATTRIBUTE;
+INTERCEPTOR(void*, pvalloc, uptr size) {
+  ENSURE_LSAN_INITED;
+  GET_STACK_TRACE;
+  uptr PageSize = GetPageSizeCached();
+  size = RoundUpTo(size, PageSize);
+  if (size == 0) {
+    // pvalloc(0) should allocate one page.
+    size = PageSize;
+  }
+  return Allocate(stack, size, GetPageSizeCached(), kAlwaysClearMemory);
+}
 
-extern "C" {
-void cfree(void *p) ALIAS("free") SANITIZER_INTERFACE_ATTRIBUTE;
-void *pvalloc(uptr size) ALIAS("valloc")
-    SANITIZER_INTERFACE_ATTRIBUTE;
+INTERCEPTOR(void, cfree, void *p) ALIAS("free");
+
+#define OPERATOR_NEW_BODY                              \
+  ENSURE_LSAN_INITED;                                  \
+  GET_STACK_TRACE;                                     \
+  return Allocate(stack, size, 1, kAlwaysClearMemory);
+
+INTERCEPTOR_ATTRIBUTE
+void *operator new(uptr size) { OPERATOR_NEW_BODY; }
+INTERCEPTOR_ATTRIBUTE
+void *operator new[](uptr size) { OPERATOR_NEW_BODY; }
+INTERCEPTOR_ATTRIBUTE
+void *operator new(uptr size, std::nothrow_t const&) { OPERATOR_NEW_BODY; }
+INTERCEPTOR_ATTRIBUTE
+void *operator new[](uptr size, std::nothrow_t const&) { OPERATOR_NEW_BODY; }
+
+#define OPERATOR_DELETE_BODY \
+  ENSURE_LSAN_INITED;        \
+  Deallocate(ptr);
+
+INTERCEPTOR_ATTRIBUTE
+void operator delete(void *ptr) { OPERATOR_DELETE_BODY; }
+INTERCEPTOR_ATTRIBUTE
+void operator delete[](void *ptr) { OPERATOR_DELETE_BODY; }
+INTERCEPTOR_ATTRIBUTE
+void operator delete(void *ptr, std::nothrow_t const&) { OPERATOR_DELETE_BODY; }
+INTERCEPTOR_ATTRIBUTE
+void operator delete[](void *ptr, std::nothrow_t const &) {
+  OPERATOR_DELETE_BODY;
+}
+
 // We need this to intercept the __libc_memalign calls that are used to
 // allocate dynamic TLS space in ld-linux.so.
-void *__libc_memalign(uptr alignment, uptr size)
-    ALIAS("memalign") SANITIZER_INTERFACE_ATTRIBUTE;
-}
+INTERCEPTOR(void *, __libc_memalign, uptr align, uptr s) ALIAS("memalign");
 
 ///// Thread initialization and finalization. /////
 
@@ -166,9 +209,6 @@ struct ThreadParam {
   atomic_uintptr_t tid;
 };
 
-// PTHREAD_DESTRUCTOR_ITERATIONS from glibc.
-const uptr kPthreadDestructorIterations = 4;
-
 extern "C" void *__lsan_thread_start_func(void *arg) {
   ThreadParam *p = (ThreadParam*)arg;
   void* (*callback)(void *arg) = p->callback;
@@ -191,13 +231,14 @@ extern "C" void *__lsan_thread_start_func(void *arg) {
 
 INTERCEPTOR(int, pthread_create, void *th, void *attr,
             void *(*callback)(void *), void *param) {
-  Init();
+  ENSURE_LSAN_INITED;
+  EnsureMainThreadIDIsCorrect();
   __sanitizer_pthread_attr_t myattr;
   if (attr == 0) {
     pthread_attr_init(&myattr);
     attr = &myattr;
   }
-  AdjustStackSizeLinux(attr, 0);
+  AdjustStackSizeLinux(attr);
   int detached = 0;
   pthread_attr_getdetachstate(attr, &detached);
   ThreadParam p;
@@ -218,7 +259,7 @@ INTERCEPTOR(int, pthread_create, void *th, void *attr,
 }
 
 INTERCEPTOR(int, pthread_join, void *th, void **ret) {
-  Init();
+  ENSURE_LSAN_INITED;
   int tid = ThreadTid((uptr)th);
   int res = REAL(pthread_join)(th, ret);
   if (res == 0)
@@ -231,12 +272,14 @@ namespace __lsan {
 void InitializeInterceptors() {
   INTERCEPT_FUNCTION(malloc);
   INTERCEPT_FUNCTION(free);
+  INTERCEPT_FUNCTION(cfree);
   INTERCEPT_FUNCTION(calloc);
   INTERCEPT_FUNCTION(realloc);
   INTERCEPT_FUNCTION(memalign);
   INTERCEPT_FUNCTION(posix_memalign);
-  INTERCEPT_FUNCTION(memalign);
+  INTERCEPT_FUNCTION(__libc_memalign);
   INTERCEPT_FUNCTION(valloc);
+  INTERCEPT_FUNCTION(pvalloc);
   INTERCEPT_FUNCTION(malloc_usable_size);
   INTERCEPT_FUNCTION(mallinfo);
   INTERCEPT_FUNCTION(mallopt);

@@ -10,7 +10,9 @@
 // This file is a part of ThreadSanitizer/AddressSanitizer runtime.
 //
 //===----------------------------------------------------------------------===//
+#include "sanitizer_common/sanitizer_allocator_internal.h"
 #include "sanitizer_common/sanitizer_common.h"
+#include "sanitizer_common/sanitizer_flags.h"
 #include "sanitizer_common/sanitizer_libc.h"
 #include "sanitizer_common/sanitizer_platform.h"
 #include "gtest/gtest.h"
@@ -97,8 +99,8 @@ TEST(SanitizerCommon, SanitizerSetThreadName) {
 }
 #endif
 
-TEST(SanitizerCommon, InternalVector) {
-  InternalVector<uptr> vector(1);
+TEST(SanitizerCommon, InternalMmapVector) {
+  InternalMmapVector<uptr> vector(1);
   for (uptr i = 0; i < 100; i++) {
     EXPECT_EQ(i, vector.size());
     vector.push_back(i);
@@ -156,6 +158,102 @@ TEST(SanitizerCommon, ThreadStackTlsWorker) {
   pthread_t t;
   pthread_create(&t, 0, WorkerThread, 0);
   pthread_join(t, 0);
+}
+
+bool UptrLess(uptr a, uptr b) {
+  return a < b;
+}
+
+TEST(SanitizerCommon, InternalBinarySearch) {
+  static const uptr kSize = 5;
+  uptr arr[kSize];
+  for (uptr i = 0; i < kSize; i++) arr[i] = i * i;
+
+  for (uptr i = 0; i < kSize; i++)
+    ASSERT_EQ(InternalBinarySearch(arr, 0, kSize, i * i, UptrLess), i);
+
+  ASSERT_EQ(InternalBinarySearch(arr, 0, kSize, 7, UptrLess), kSize + 1);
+}
+
+#if SANITIZER_LINUX && !SANITIZER_ANDROID
+TEST(SanitizerCommon, FindPathToBinary) {
+  char *true_path = FindPathToBinary("true");
+  EXPECT_NE((char*)0, internal_strstr(true_path, "/bin/true"));
+  InternalFree(true_path);
+  EXPECT_EQ(0, FindPathToBinary("unexisting_binary.ergjeorj"));
+}
+#endif
+
+TEST(SanitizerCommon, StripPathPrefix) {
+  EXPECT_EQ(0, StripPathPrefix(0, "prefix"));
+  EXPECT_STREQ("foo", StripPathPrefix("foo", 0));
+  EXPECT_STREQ("dir/file.cc",
+               StripPathPrefix("/usr/lib/dir/file.cc", "/usr/lib/"));
+  EXPECT_STREQ("/file.cc", StripPathPrefix("/usr/myroot/file.cc", "/myroot"));
+  EXPECT_STREQ("file.h", StripPathPrefix("/usr/lib/./file.h", "/usr/lib/"));
+}
+
+TEST(SanitizerCommon, InternalScopedString) {
+  InternalScopedString str(10);
+  EXPECT_EQ(0U, str.length());
+  EXPECT_STREQ("", str.data());
+
+  str.append("foo");
+  EXPECT_EQ(3U, str.length());
+  EXPECT_STREQ("foo", str.data());
+
+  int x = 1234;
+  str.append("%d", x);
+  EXPECT_EQ(7U, str.length());
+  EXPECT_STREQ("foo1234", str.data());
+
+  str.append("%d", x);
+  EXPECT_EQ(9U, str.length());
+  EXPECT_STREQ("foo123412", str.data());
+
+  str.clear();
+  EXPECT_EQ(0U, str.length());
+  EXPECT_STREQ("", str.data());
+
+  str.append("0123456789");
+  EXPECT_EQ(9U, str.length());
+  EXPECT_STREQ("012345678", str.data());
+}
+
+TEST(SanitizerCommon, PrintSourceLocation) {
+  InternalScopedString str(128);
+  PrintSourceLocation(&str, "/dir/file.cc", 10, 5);
+  EXPECT_STREQ("/dir/file.cc:10:5", str.data());
+
+  str.clear();
+  PrintSourceLocation(&str, "/dir/file.cc", 11, 0);
+  EXPECT_STREQ("/dir/file.cc:11", str.data());
+
+  str.clear();
+  PrintSourceLocation(&str, "/dir/file.cc", 0, 0);
+  EXPECT_STREQ("/dir/file.cc", str.data());
+
+  // Check that we strip file prefix if necessary.
+  const char *old_strip_path_prefix = common_flags()->strip_path_prefix;
+  common_flags()->strip_path_prefix = "/dir/";
+  str.clear();
+  PrintSourceLocation(&str, "/dir/file.cc", 10, 5);
+  EXPECT_STREQ("file.cc:10:5", str.data());
+  common_flags()->strip_path_prefix = old_strip_path_prefix;
+}
+
+TEST(SanitizerCommon, PrintModuleAndOffset) {
+  InternalScopedString str(128);
+  PrintModuleAndOffset(&str, "/dir/exe", 0x123);
+  EXPECT_STREQ("(/dir/exe+0x123)", str.data());
+
+  // Check that we strip file prefix if necessary.
+  const char *old_strip_path_prefix = common_flags()->strip_path_prefix;
+  common_flags()->strip_path_prefix = "/dir/";
+  str.clear();
+  PrintModuleAndOffset(&str, "/dir/exe", 0x123);
+  EXPECT_STREQ("(exe+0x123)", str.data());
+  common_flags()->strip_path_prefix = old_strip_path_prefix;
 }
 
 }  // namespace __sanitizer

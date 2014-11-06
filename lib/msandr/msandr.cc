@@ -60,8 +60,43 @@
 
 #define VERBOSITY 0
 
+// XXX: it seems setting macro in CMakeLists.txt does not work,
+// so manually set it here now.
+
+// Building msandr client for running in DynamoRIO hybrid mode,
+// which allows some module running natively.
+// TODO: turn it on by default when hybrid is stable enough
+// #define MSANDR_NATIVE_EXEC
+
+// Building msandr client for standalone test that does not need to
+// run with msan build executables. Disable by default.
+// #define MSANDR_STANDALONE_TEST
+
+#define NUM_TLS_RETVAL 1
+#define NUM_TLS_PARAM  6
+
+#ifdef MSANDR_STANDALONE_TEST
+// For testing purpose, we map app to shadow memory at [0x100000, 0x20000).
+// Normally, the app starts at 0x400000:
+// 00400000-004e0000 r-xp 00000000 fc:00 524343       /bin/bash
+// so there should be no problem.
+# define SHADOW_MEMORY_BASE ((void *)0x100000)
+# define SHADOW_MEMORY_SIZE (0x100000)
+# define SHADOW_MEMORY_MASK (SHADOW_MEMORY_SIZE - 4 /* to avoid overflow */)
+#else
+// shadow memory range [0x200000000000, 0x400000000000)
+// assuming no app memory below 0x200000000000
+# define SHADOW_MEMORY_MASK 0x3fffffffffffULL
+#endif /* MSANDR_STANDALONE_TEST */
+
 namespace {
 
+std::string g_app_path;
+
+int msan_retval_tls_offset;
+int msan_param_tls_offset;
+
+#ifndef MSANDR_NATIVE_EXEC
 class ModuleData {
 public:
   ModuleData();
@@ -77,11 +112,6 @@ public:
   bool should_instrument_;
   bool executed_;
 };
-
-std::string g_app_path;
-
-int msan_retval_tls_offset;
-int msan_param_tls_offset;
 
 // A vector of loaded modules sorted by module bounds.  We lookup the current PC
 // in here from the bb event.  This is better than an rb tree because the lookup
@@ -99,19 +129,54 @@ ModuleData::ModuleData(const module_data_t *info)
       // We'll check the black/white lists later and adjust this.
       should_instrument_(true), executed_(false) {
 }
+#endif /* !MSANDR_NATIVE_EXEC */
 
 int(*__msan_get_retval_tls_offset)();
 int(*__msan_get_param_tls_offset)();
 void (*__msan_unpoison)(void *base, size_t size);
 bool (*__msan_is_in_loader)();
 
+#ifdef MSANDR_STANDALONE_TEST
+uint mock_msan_retval_tls_offset;
+uint mock_msan_param_tls_offset;
+static int mock_msan_get_retval_tls_offset() {
+  return (int)mock_msan_retval_tls_offset;
+}
+
+static int mock_msan_get_param_tls_offset() {
+  return (int)mock_msan_param_tls_offset;
+}
+
+static void mock_msan_unpoison(void *base, size_t size) {
+  /* do nothing */
+}
+
+static bool mock_msan_is_in_loader() {
+  return false;
+}
+#endif /* MSANDR_STANDALONE_TEST */
+
 static generic_func_t LookupCallback(module_data_t *app, const char *name) {
+#ifdef MSANDR_STANDALONE_TEST
+  if (strcmp("__msan_get_retval_tls_offset", name) == 0) {
+    return (generic_func_t)mock_msan_get_retval_tls_offset;
+  } else if (strcmp("__msan_get_param_tls_offset", name) == 0) {
+    return (generic_func_t)mock_msan_get_param_tls_offset;
+  } else if (strcmp("__msan_unpoison", name) == 0) {
+    return (generic_func_t)mock_msan_unpoison;
+  } else if (strcmp("__msan_is_in_loader", name) == 0) {
+    return (generic_func_t)mock_msan_is_in_loader;
+  }
+  CHECK(false);
+  return NULL;
+#else /* !MSANDR_STANDALONE_TEST */
   generic_func_t callback = dr_get_proc_address(app->handle, name);
   if (callback == NULL) {
     dr_printf("Couldn't find `%s` in %s\n", name, app->full_path);
     CHECK(callback);
   }
   return callback;
+#endif /* !MSANDR_STANDALONE_TEST */
 }
 
 void InitializeMSanCallbacks() {
@@ -217,21 +282,14 @@ void InstrumentMops(void *drcontext, instrlist_t *bb, instr_t *instr, opnd_t op,
   }
   CHECK(reg_is_pointer_sized(R1)); // otherwise R2 may be wrong.
 
-  // Pick R2 that's not R1 or used by the operand.  It's OK if the instr uses
-  // R2 elsewhere, since we'll restore it before instr.
-  reg_id_t GPR_TO_USE_FOR_R2[] = {
-    DR_REG_XAX, DR_REG_XBX, DR_REG_XCX, DR_REG_XDX
-    // Don't forget to update the +4 below if you add anything else!
-  };
-  std::set<reg_id_t> unused_registers(GPR_TO_USE_FOR_R2, GPR_TO_USE_FOR_R2 + 4);
-  unused_registers.erase(R1);
-  for (int j = 0; j < opnd_num_regs_used(op); j++) {
-    unused_registers.erase(opnd_get_reg_used(op, j));
+  // Pick R2 from R8 to R15.
+  // It's OK if the instr uses R2 elsewhere, since we'll restore it before instr.
+  reg_id_t R2;
+  for (R2 = DR_REG_R8; R2 <= DR_REG_R15; R2++) {
+    if (!opnd_uses_reg(op, R2))
+      break;
   }
-
-  CHECK(unused_registers.size() > 0);
-  reg_id_t R2 = *unused_registers.begin();
-  CHECK(R1 != R2);
+  CHECK((R2 <= DR_REG_R15) && R1 != R2);
 
   // Save the current values of R1 and R2.
   dr_save_reg(drcontext, bb, instr, R1, SPILL_SLOT_1);
@@ -241,21 +299,41 @@ void InstrumentMops(void *drcontext, instrlist_t *bb, instr_t *instr, opnd_t op,
   if (!address_in_R1)
     CHECK(drutil_insert_get_mem_addr(drcontext, bb, instr, op, R1, R2));
   PRE(instr, mov_imm(drcontext, opnd_create_reg(R2),
-                     OPND_CREATE_INT64(0xffffbfffffffffff)));
+                     OPND_CREATE_INT64(SHADOW_MEMORY_MASK)));
   PRE(instr, and(drcontext, opnd_create_reg(R1), opnd_create_reg(R2)));
+#ifdef MSANDR_STANDALONE_TEST
+  PRE(instr, add(drcontext, opnd_create_reg(R1),
+                 OPND_CREATE_INT32(SHADOW_MEMORY_BASE)));
+#endif
   // There is no mov_st of a 64-bit immediate, so...
   opnd_size_t op_size = opnd_get_size(op);
   CHECK(op_size != OPSZ_NA);
   uint access_size = opnd_size_in_bytes(op_size);
-  if (access_size <= 4) {
-    PRE(instr,
-        mov_st(drcontext, opnd_create_base_disp(R1, DR_REG_NULL, 0, 0, op_size),
-               opnd_create_immed_int((ptr_int_t) 0, op_size)));
+  if (access_size <= 4 || op_size == OPSZ_PTR /* x64 support sign extension */) {
+    instr_t *label = INSTR_CREATE_label(drcontext);
+    opnd_t   immed;
+    if (op_size == OPSZ_PTR || op_size == OPSZ_4)
+        immed = OPND_CREATE_INT32(0);
+    else
+        immed = opnd_create_immed_int((ptr_int_t) 0, op_size);
+    // we check if target is 0 before write to reduce unnecessary memory stores.
+    PRE(instr, cmp(drcontext,
+                   opnd_create_base_disp(R1, DR_REG_NULL, 0, 0, op_size),
+                   immed));
+    PRE(instr, jcc(drcontext, OP_je, opnd_create_instr(label)));
+    PRE(instr, mov_st(drcontext,
+                      opnd_create_base_disp(R1, DR_REG_NULL, 0, 0, op_size),
+                      immed));
+    PREF(instr, label);
   } else {
     // FIXME: tail?
     for (uint ofs = 0; ofs < access_size; ofs += 4) {
-      PRE(instr,
-          mov_st(drcontext, OPND_CREATE_MEM32(R1, ofs), OPND_CREATE_INT32(0)));
+      instr_t *label = INSTR_CREATE_label(drcontext);
+      opnd_t   immed = OPND_CREATE_INT32(0);
+      PRE(instr, cmp(drcontext, OPND_CREATE_MEM32(R1, ofs), immed));
+      PRE(instr, jcc(drcontext, OP_je, opnd_create_instr(label)));
+      PRE(instr, mov_st(drcontext, OPND_CREATE_MEM32(R1, ofs), immed));
+      PREF(instr, label)
     }
   }
 
@@ -263,6 +341,7 @@ void InstrumentMops(void *drcontext, instrlist_t *bb, instr_t *instr, opnd_t op,
   dr_restore_reg(drcontext, bb, instr, R1, SPILL_SLOT_1);
   dr_restore_reg(drcontext, bb, instr, R2, SPILL_SLOT_2);
 
+  // TODO: move aflags save/restore to per instr instead of per opnd
   if (need_to_restore_eflags) {
     if (VERBOSITY > 1)
       dr_printf("Restoring eflags\n");
@@ -278,6 +357,18 @@ void InstrumentMops(void *drcontext, instrlist_t *bb, instr_t *instr, opnd_t op,
 }
 
 void InstrumentReturn(void *drcontext, instrlist_t *bb, instr_t *instr) {
+#ifdef MSANDR_STANDALONE_TEST
+  PRE(instr,
+      mov_st(drcontext,
+             opnd_create_far_base_disp(DR_SEG_GS /* DR's TLS */,
+                                       DR_REG_NULL, DR_REG_NULL,
+                                       0, msan_retval_tls_offset,
+                                       OPSZ_PTR),
+             OPND_CREATE_INT32(0)));
+#else  /* !MSANDR_STANDALONE_TEST */
+  /* XXX: the code below only works if -mangle_app_seg and -private_loader, 
+   * which is turned of for optimized native exec
+   */
   dr_save_reg(drcontext, bb, instr, DR_REG_XAX, SPILL_SLOT_1);
 
   // Clobbers nothing except xax.
@@ -294,10 +385,27 @@ void InstrumentReturn(void *drcontext, instrlist_t *bb, instr_t *instr) {
 
   // The original instruction is left untouched. The above instrumentation is just
   // a prefix.
+#endif  /* !MSANDR_STANDALONE_TEST */
 }
 
 void InstrumentIndirectBranch(void *drcontext, instrlist_t *bb,
                               instr_t *instr) {
+#ifdef MSANDR_STANDALONE_TEST
+  for (int i = 0; i < NUM_TLS_PARAM; ++i) {
+      PRE(instr,
+          mov_st(drcontext,
+                 opnd_create_far_base_disp(DR_SEG_GS /* DR's TLS */,
+                                           DR_REG_NULL, DR_REG_NULL,
+                                           0,
+                                           msan_param_tls_offset +
+                                           i * sizeof(void *),
+                                           OPSZ_PTR),
+                 OPND_CREATE_INT32(0)));
+  }
+#else  /* !MSANDR_STANDALONE_TEST */
+  /* XXX: the code below only works if -mangle_app_seg and -private_loader, 
+   * which is turned off for optimized native exec
+   */
   dr_save_reg(drcontext, bb, instr, DR_REG_XAX, SPILL_SLOT_1);
 
   // Clobbers nothing except xax.
@@ -306,7 +414,7 @@ void InstrumentIndirectBranch(void *drcontext, instrlist_t *bb,
   CHECK(res);
 
   // TODO: unpoison more bytes?
-  for (int i = 0; i < 6; ++i) {
+  for (int i = 0; i < NUM_TLS_PARAM; ++i) {
     PRE(instr,
         mov_st(drcontext, OPND_CREATE_MEMPTR(DR_REG_XAX, msan_param_tls_offset +
                                                          i * sizeof(void *)),
@@ -317,8 +425,10 @@ void InstrumentIndirectBranch(void *drcontext, instrlist_t *bb,
 
   // The original instruction is left untouched. The above instrumentation is just
   // a prefix.
+#endif  /* !MSANDR_STANDALONE_TEST */
 }
 
+#ifndef MSANDR_NATIVE_EXEC
 // For use with binary search.  Modules shouldn't overlap, so we shouldn't have
 // to look at end_.  If that can happen, we won't support such an application.
 bool ModuleDataCompareStart(const ModuleData &left, const ModuleData &right) {
@@ -373,22 +483,26 @@ bool ShouldInstrumentPc(app_pc pc, ModuleData **pmod_data) {
   }
   return true;
 }
+#endif /* !MSANDR_NATIVE_CLIENT */
 
 // TODO(rnk): Make sure we instrument after __msan_init.
 dr_emit_flags_t
 event_basic_block_app2app(void *drcontext, void *tag, instrlist_t *bb,
                           bool for_trace, bool translating) {
+#ifndef MSANDR_NATIVE_EXEC
   app_pc pc = dr_fragment_app_pc(tag);
-
   if (ShouldInstrumentPc(pc, NULL))
     CHECK(drutil_expand_rep_string(drcontext, bb));
-
+#else  /* MSANDR_NATIVE_EXEC */
+  CHECK(drutil_expand_rep_string(drcontext, bb));
+#endif /* MSANDR_NATIVE_EXEC */
   return DR_EMIT_PERSISTABLE;
 }
 
 dr_emit_flags_t event_basic_block(void *drcontext, void *tag, instrlist_t *bb,
                                   bool for_trace, bool translating) {
   app_pc pc = dr_fragment_app_pc(tag);
+#ifndef MSANDR_NATIVE_EXEC
   ModuleData *mod_data;
 
   if (!ShouldInstrumentPc(pc, &mod_data))
@@ -411,6 +525,8 @@ dr_emit_flags_t event_basic_block(void *drcontext, void *tag, instrlist_t *bb,
           pc - mod_data->start_);
     }
   }
+#endif /* !MSANDR_NATIVE_EXEC */
+
   if (VERBOSITY > 1) {
     instrlist_disassemble(drcontext, pc, bb, STDOUT);
     instr_t *instr;
@@ -474,6 +590,7 @@ dr_emit_flags_t event_basic_block(void *drcontext, void *tag, instrlist_t *bb,
   return DR_EMIT_PERSISTABLE;
 }
 
+#ifndef MSANDR_NATIVE_EXEC
 void event_module_load(void *drcontext, const module_data_t *info,
                        bool loaded) {
   // Insert the module into the list while maintaining the ordering.
@@ -507,6 +624,7 @@ void event_module_unload(void *drcontext, const module_data_t *info) {
         it->end_ == mod_data.end_ && it->path_ == mod_data.path_);
   g_module_list.erase(it);
 }
+#endif /* !MSANDR_NATIVE_EXEC */
 
 void event_exit() {
   // Clean up so DR doesn't tell us we're leaking memory.
@@ -514,6 +632,15 @@ void event_exit() {
   drutil_exit();
   drmgr_exit();
 
+#ifdef MSANDR_STANDALONE_TEST
+  /* free tls */
+  bool res;
+  res = dr_raw_tls_cfree(msan_retval_tls_offset, NUM_TLS_RETVAL);
+  CHECK(res);
+  res = dr_raw_tls_cfree(msan_param_tls_offset, NUM_TLS_PARAM);
+  CHECK(res);
+  /* we do not bother to free the shadow memory */
+#endif /* !MSANDR_STANDALONE_TEST */
   if (VERBOSITY > 0)
     dr_printf("==DRMSAN== DONE\n");
 }
@@ -551,6 +678,7 @@ bool drsys_iter_memarg_cb(drsys_arg_t *arg, void *user_data) {
     drsys_syscall_t *syscall = (drsys_syscall_t *)user_data;
     const char *name;
     res = drsys_syscall_name(syscall, &name);
+    CHECK(res == DRMF_SUCCESS);
     dr_printf("drsyscall: syscall '%s' arg %d wrote range [%p, %p)\n",
               name, arg->ordinal, arg->start_addr,
               (char *)arg->start_addr + sz);
@@ -689,6 +817,21 @@ DR_EXPORT void dr_init(client_id_t id) {
   res = drsys_filter_all_syscalls();
   CHECK(res == DRMF_SUCCESS);
 
+#ifdef MSANDR_STANDALONE_TEST
+  reg_id_t reg_seg;
+  /* alloc tls */
+  if (!dr_raw_tls_calloc(&reg_seg, &mock_msan_retval_tls_offset, NUM_TLS_RETVAL, 0))
+      CHECK(false);
+  CHECK(reg_seg == DR_SEG_GS /* x64 only! */);
+  if (!dr_raw_tls_calloc(&reg_seg, &mock_msan_param_tls_offset, NUM_TLS_PARAM, 0))
+      CHECK(false);
+  CHECK(reg_seg == DR_SEG_GS /* x64 only! */);
+  /* alloc shadow memory */
+  if (mmap(SHADOW_MEMORY_BASE, SHADOW_MEMORY_SIZE, PROT_READ|PROT_WRITE,
+           MAP_PRIVATE | MAP_ANON, -1, 0) != SHADOW_MEMORY_BASE) {
+      CHECK(false);
+  }
+#endif /* MSANDR_STANDALONE_TEST */
   InitializeMSanCallbacks();
 
   // FIXME: the shadow is initialized earlier when DR calls one of our wrapper
@@ -719,8 +862,10 @@ DR_EXPORT void dr_init(client_id_t id) {
 
   drmgr_register_bb_app2app_event(event_basic_block_app2app, &priority);
   drmgr_register_bb_instru2instru_event(event_basic_block, &priority);
+#ifndef MSANDR_NATIVE_EXEC
   drmgr_register_module_load_event(event_module_load);
   drmgr_register_module_unload_event(event_module_unload);
+#endif /* MSANDR_NATIVE_EXEC */
   if (VERBOSITY > 0)
     dr_printf("==MSANDR== Starting!\n");
 }

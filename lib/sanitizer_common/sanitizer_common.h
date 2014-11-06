@@ -33,12 +33,14 @@ const uptr kCacheLineSize = 128;
 const uptr kCacheLineSize = 64;
 #endif
 
+const uptr kMaxPathLength = 512;
+
 extern const char *SanitizerToolName;  // Can be changed by the tool.
-extern uptr SanitizerVerbosity;
 
 uptr GetPageSize();
 uptr GetPageSizeCached();
 uptr GetMmapGranularity();
+uptr GetMaxVirtualAddress();
 // Threads
 uptr GetTid();
 uptr GetThreadSelf();
@@ -58,10 +60,6 @@ void *MmapAlignedOrDie(uptr size, uptr alignment, const char *mem_type);
 // Used to check if we can map shadow memory to a fixed location.
 bool MemoryRangeIsAvailable(uptr range_start, uptr range_end);
 void FlushUnneededShadowMemory(uptr addr, uptr size);
-
-// Internal allocator
-void *InternalAlloc(uptr size);
-void InternalFree(void *p);
 
 // InternalScopedBuffer can be used instead of large stack arrays to
 // keep frame size low.
@@ -89,6 +87,23 @@ class InternalScopedBuffer {
   void operator=(const InternalScopedBuffer&);
 };
 
+class InternalScopedString : public InternalScopedBuffer<char> {
+ public:
+  explicit InternalScopedString(uptr max_length)
+      : InternalScopedBuffer<char>(max_length), length_(0) {
+    (*this)[0] = '\0';
+  }
+  uptr length() { return length_; }
+  void clear() {
+    (*this)[0] = '\0';
+    length_ = 0;
+  }
+  void append(const char *format, ...);
+
+ private:
+  uptr length_;
+};
+
 // Simple low-level (mmap-based) allocator for internal use. Doesn't have
 // constructor, so all instances of LowLevelAllocator should be
 // linker initialized.
@@ -108,13 +123,19 @@ void SetLowLevelAllocateCallback(LowLevelAllocateCallback callback);
 // IO
 void RawWrite(const char *buffer);
 bool PrintsToTty();
+// Caching version of PrintsToTty(). Not thread-safe.
+bool PrintsToTtyCached();
 void Printf(const char *format, ...);
 void Report(const char *format, ...);
 void SetPrintfAndReportCallback(void (*callback)(const char *));
+
 // Can be used to prevent mixing error reports from different sanitizers.
 extern StaticSpinMutex CommonSanitizerReportMutex;
 void MaybeOpenReportFile();
 extern fd_t report_fd;
+extern bool log_to_file;
+extern char report_path_prefix[4096];
+extern uptr report_fd_pid;
 
 uptr OpenFile(const char *filename, bool write);
 // Opens the file 'file_name" and reads up to 'max_len' bytes.
@@ -128,6 +149,14 @@ uptr ReadFileToBuffer(const char *file_name, char **buff,
 // in '*buff_size'.
 void *MapFileToMemory(const char *file_name, uptr *buff_size);
 
+// Error report formatting.
+const char *StripPathPrefix(const char *filepath,
+                            const char *strip_file_prefix);
+void PrintSourceLocation(InternalScopedString *buffer, const char *file,
+                         int line, int column);
+void PrintModuleAndOffset(InternalScopedString *buffer,
+                          const char *module, uptr offset);
+
 // OS
 void DisableCoreDumper();
 void DumpProcessMap();
@@ -135,6 +164,7 @@ bool FileExists(const char *filename);
 const char *GetEnv(const char *name);
 bool SetEnv(const char *name, const char *value);
 const char *GetPwd();
+char *FindPathToBinary(const char *name);
 u32 GetUid();
 void ReExec();
 bool StackSizeIsUnlimited();
@@ -150,11 +180,14 @@ void SleepForMillis(int millis);
 u64 NanoTime();
 int Atexit(void (*function)(void));
 void SortArray(uptr *array, uptr size);
+// Strip the directories from the module name, return a new string allocated
+// with internal_strdup.
+char *StripModuleName(const char *module);
 
 // Exit
 void NORETURN Abort();
 void NORETURN Die();
-void NORETURN SANITIZER_INTERFACE_ATTRIBUTE
+void NORETURN
 CheckFailed(const char *file, int line, const char *cond, u64 v1, u64 v2);
 
 // Set the name of the current thread to 'name', return true on succees.
@@ -166,19 +199,27 @@ bool SanitizerGetThreadName(char *name, int max_len);
 
 // Specific tools may override behavior of "Die" and "CheckFailed" functions
 // to do tool-specific job.
-void SetDieCallback(void (*callback)(void));
+typedef void (*DieCallbackType)(void);
+void SetDieCallback(DieCallbackType);
+DieCallbackType GetDieCallback();
 typedef void (*CheckFailedCallbackType)(const char *, int, const char *,
                                        u64, u64);
 void SetCheckFailedCallback(CheckFailedCallbackType callback);
 
-// Construct a one-line string like
-//  SanitizerToolName: error_type file:line function
-// and call __sanitizer_report_error_summary on it.
+// We don't want a summary too long.
+const int kMaxSummaryLength = 1024;
+// Construct a one-line string:
+//   SUMMARY: SanitizerToolName: error_message
+// and pass it to __sanitizer_report_error_summary.
+void ReportErrorSummary(const char *error_message);
+// Same as above, but construct error_message as:
+//   error_type: file:line function
 void ReportErrorSummary(const char *error_type, const char *file,
                         int line, const char *function);
+void ReportErrorSummary(const char *error_type, StackTrace *trace);
 
 // Math
-#if SANITIZER_WINDOWS && !defined(__clang__)
+#if SANITIZER_WINDOWS && !defined(__clang__) && !defined(__GNUC__)
 extern "C" {
 unsigned char _BitScanForward(unsigned long *index, unsigned long mask);  // NOLINT
 unsigned char _BitScanReverse(unsigned long *index, unsigned long mask);  // NOLINT
@@ -192,7 +233,7 @@ unsigned char _BitScanReverse64(unsigned long *index, unsigned __int64 mask);  /
 INLINE uptr MostSignificantSetBitIndex(uptr x) {
   CHECK_NE(x, 0U);
   unsigned long up;  // NOLINT
-#if !SANITIZER_WINDOWS || defined(__clang__)
+#if !SANITIZER_WINDOWS || defined(__clang__) || defined(__GNUC__)
   up = SANITIZER_WORDSIZE - 1 - __builtin_clzl(x);
 #elif defined(_WIN64)
   _BitScanReverse64(&up, x);
@@ -231,7 +272,7 @@ INLINE bool IsAligned(uptr a, uptr alignment) {
 
 INLINE uptr Log2(uptr x) {
   CHECK(IsPowerOfTwo(x));
-#if !SANITIZER_WINDOWS || defined(__clang__)
+#if !SANITIZER_WINDOWS || defined(__clang__) || defined(__GNUC__)
   return __builtin_ctzl(x);
 #elif defined(_WIN64)
   unsigned long ret;  // NOLINT
@@ -276,15 +317,15 @@ INLINE int ToLower(int c) {
 // small vectors.
 // WARNING: The current implementation supports only POD types.
 template<typename T>
-class InternalVector {
+class InternalMmapVector {
  public:
-  explicit InternalVector(uptr initial_capacity) {
+  explicit InternalMmapVector(uptr initial_capacity) {
     CHECK_GT(initial_capacity, 0);
     capacity_ = initial_capacity;
     size_ = 0;
-    data_ = (T *)MmapOrDie(capacity_ * sizeof(T), "InternalVector");
+    data_ = (T *)MmapOrDie(capacity_ * sizeof(T), "InternalMmapVector");
   }
-  ~InternalVector() {
+  ~InternalMmapVector() {
     UnmapOrDie(data_, capacity_ * sizeof(T));
   }
   T &operator[](uptr i) {
@@ -321,12 +362,14 @@ class InternalVector {
     return capacity_;
   }
 
+  void clear() { size_ = 0; }
+
  private:
   void Resize(uptr new_capacity) {
     CHECK_GT(new_capacity, 0);
     CHECK_LE(size_, new_capacity);
     T *new_data = (T *)MmapOrDie(new_capacity * sizeof(T),
-                                 "InternalVector");
+                                 "InternalMmapVector");
     internal_memcpy(new_data, data_, size_ * sizeof(T));
     T *old_data = data_;
     data_ = new_data;
@@ -334,15 +377,15 @@ class InternalVector {
     capacity_ = new_capacity;
   }
   // Disallow evil constructors.
-  InternalVector(const InternalVector&);
-  void operator=(const InternalVector&);
+  InternalMmapVector(const InternalMmapVector&);
+  void operator=(const InternalMmapVector&);
 
   T *data_;
   uptr capacity_;
   uptr size_;
 };
 
-// HeapSort for arrays and InternalVector.
+// HeapSort for arrays and InternalMmapVector.
 template<class Container, class Compare>
 void InternalSort(Container *v, uptr size, Compare comp) {
   if (size < 2)
@@ -379,6 +422,67 @@ void InternalSort(Container *v, uptr size, Compare comp) {
   }
 }
 
+template<class Container, class Value, class Compare>
+uptr InternalBinarySearch(const Container &v, uptr first, uptr last,
+                          const Value &val, Compare comp) {
+  uptr not_found = last + 1;
+  while (last >= first) {
+    uptr mid = (first + last) / 2;
+    if (comp(v[mid], val))
+      first = mid + 1;
+    else if (comp(val, v[mid]))
+      last = mid - 1;
+    else
+      return mid;
+  }
+  return not_found;
+}
+
+// Represents a binary loaded into virtual memory (e.g. this can be an
+// executable or a shared object).
+class LoadedModule {
+ public:
+  LoadedModule(const char *module_name, uptr base_address);
+  void addAddressRange(uptr beg, uptr end);
+  bool containsAddress(uptr address) const;
+
+  const char *full_name() const { return full_name_; }
+  uptr base_address() const { return base_address_; }
+
+ private:
+  struct AddressRange {
+    uptr beg;
+    uptr end;
+  };
+  char *full_name_;
+  uptr base_address_;
+  static const uptr kMaxNumberOfAddressRanges = 6;
+  AddressRange ranges_[kMaxNumberOfAddressRanges];
+  uptr n_ranges_;
+};
+
+// OS-dependent function that fills array with descriptions of at most
+// "max_modules" currently loaded modules. Returns the number of
+// initialized modules. If filter is nonzero, ignores modules for which
+// filter(full_name) is false.
+typedef bool (*string_predicate_t)(const char *);
+uptr GetListOfModules(LoadedModule *modules, uptr max_modules,
+                      string_predicate_t filter);
+
+#if SANITIZER_POSIX
+const uptr kPthreadDestructorIterations = 4;
+#else
+// Unused on Windows.
+const uptr kPthreadDestructorIterations = 0;
+#endif
+
+// Callback type for iterating over a set of memory ranges.
+typedef void (*RangeIteratorCallback)(uptr begin, uptr end, void *arg);
 }  // namespace __sanitizer
+
+inline void *operator new(__sanitizer::operator_new_size_type size,
+                          __sanitizer::LowLevelAllocator &alloc) {
+  return alloc.Allocate(size);
+}
 
 #endif  // SANITIZER_COMMON_H

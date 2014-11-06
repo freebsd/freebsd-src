@@ -31,7 +31,7 @@
 .syntax unified
 .align 3
 DEFINE_COMPILERRT_FUNCTION(__udivmodsi4)
-#if __ARM_ARCH_7S__
+#if __ARM_ARCH_EXT_IDIV__
 	tst     r1, r1
 	beq     LOCAL_LABEL(divzero)
 	mov 	r3, r0
@@ -74,14 +74,17 @@ LOCAL_LABEL(mainLoop):
 //  this way, we can merge the two branches which is a substantial win for
 //  such a tight loop on current ARM architectures.
     subs    r,      a,  b, lsl i
+    itt hs
     orrhs   q,      q,one, lsl i
     movhs   a,      r
+    it ne
     subsne  i,      i, #1
     bhi     LOCAL_LABEL(mainLoop)
 
 //  Do the final test subtraction and update of quotient (i == 0), as it is
 //  not performed in the main loop.
     subs    r,      a,  b
+    itt hs
     orrhs   q,      #1
     movhs   a,      r
 

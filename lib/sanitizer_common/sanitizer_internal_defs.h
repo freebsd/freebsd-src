@@ -15,9 +15,10 @@
 
 #include "sanitizer_platform.h"
 
+// Only use SANITIZER_*ATTRIBUTE* before the function return type!
 #if SANITIZER_WINDOWS
-// FIXME find out what we need on Windows. __declspec(dllexport) ?
-# define SANITIZER_INTERFACE_ATTRIBUTE
+# define SANITIZER_INTERFACE_ATTRIBUTE __declspec(dllexport)
+// FIXME find out what we need on Windows, if anything.
 # define SANITIZER_WEAK_ATTRIBUTE
 #elif defined(SANITIZER_GO)
 # define SANITIZER_INTERFACE_ATTRIBUTE
@@ -31,6 +32,12 @@
 # define SANITIZER_SUPPORTS_WEAK_HOOKS 1
 #else
 # define SANITIZER_SUPPORTS_WEAK_HOOKS 0
+#endif
+
+#if __LP64__ || defined(_WIN64)
+#  define SANITIZER_WORDSIZE 64
+#else
+#  define SANITIZER_WORDSIZE 32
 #endif
 
 // GCC does not understand __has_feature
@@ -78,29 +85,37 @@ typedef u64 OFF_T;
 typedef uptr OFF_T;
 #endif
 typedef u64  OFF64_T;
+
+#if (SANITIZER_WORDSIZE == 64) || SANITIZER_MAC
+typedef uptr operator_new_size_type;
+#else
+typedef u32 operator_new_size_type;
+#endif
 }  // namespace __sanitizer
 
 extern "C" {
   // Tell the tools to write their reports to "path.<pid>" instead of stderr.
-  void __sanitizer_set_report_path(const char *path)
-      SANITIZER_INTERFACE_ATTRIBUTE;
-
-  // Tell the tools to write their reports to given file descriptor instead of
-  // stderr.
-  void __sanitizer_set_report_fd(int fd)
-      SANITIZER_INTERFACE_ATTRIBUTE;
+  // The special values are "stdout" and "stderr".
+  SANITIZER_INTERFACE_ATTRIBUTE
+  void __sanitizer_set_report_path(const char *path);
 
   // Notify the tools that the sandbox is going to be turned on. The reserved
   // parameter will be used in the future to hold a structure with functions
   // that the tools may call to bypass the sandbox.
-  void __sanitizer_sandbox_on_notify(void *reserved)
-      SANITIZER_WEAK_ATTRIBUTE SANITIZER_INTERFACE_ATTRIBUTE;
+  SANITIZER_INTERFACE_ATTRIBUTE SANITIZER_WEAK_ATTRIBUTE
+  void __sanitizer_sandbox_on_notify(void *reserved);
 
   // This function is called by the tool when it has just finished reporting
   // an error. 'error_summary' is a one-line string that summarizes
   // the error message. This function can be overridden by the client.
-  void __sanitizer_report_error_summary(const char *error_summary)
-      SANITIZER_WEAK_ATTRIBUTE SANITIZER_INTERFACE_ATTRIBUTE;
+  SANITIZER_INTERFACE_ATTRIBUTE SANITIZER_WEAK_ATTRIBUTE
+  void __sanitizer_report_error_summary(const char *error_summary);
+
+  SANITIZER_INTERFACE_ATTRIBUTE void __sanitizer_cov_dump();
+  SANITIZER_INTERFACE_ATTRIBUTE void __sanitizer_cov(void *pc);
+  SANITIZER_INTERFACE_ATTRIBUTE
+  void __sanitizer_annotate_contiguous_container(void *beg, void *end,
+                                                 void *old_mid, void *new_mid);
 }  // extern "C"
 
 
@@ -132,6 +147,8 @@ using namespace __sanitizer;  // NOLINT
 #else  // _MSC_VER
 # define ALWAYS_INLINE inline __attribute__((always_inline))
 # define ALIAS(x) __attribute__((alias(x)))
+// Please only use the ALIGNED macro before the type.
+// Using ALIGNED after the variable declaration is not portable!
 # define ALIGNED(x) __attribute__((aligned(x)))
 # define FORMAT(f, a)  __attribute__((format(printf, f, a)))
 # define NOINLINE __attribute__((noinline))
@@ -150,6 +167,14 @@ using namespace __sanitizer;  // NOLINT
 # endif
 #endif  // _MSC_VER
 
+// Unaligned versions of basic types.
+typedef ALIGNED(1) u16 uu16;
+typedef ALIGNED(1) u32 uu32;
+typedef ALIGNED(1) u64 uu64;
+typedef ALIGNED(1) s16 us16;
+typedef ALIGNED(1) s32 us32;
+typedef ALIGNED(1) s64 us64;
+
 #if SANITIZER_WINDOWS
 typedef unsigned long DWORD;  // NOLINT
 typedef DWORD thread_return_t;
@@ -160,15 +185,12 @@ typedef void* thread_return_t;
 #endif  // _WIN32
 typedef thread_return_t (THREAD_CALLING_CONV *thread_callback_t)(void* arg);
 
-#if __LP64__ || defined(_WIN64)
-#  define SANITIZER_WORDSIZE 64
-#else
-#  define SANITIZER_WORDSIZE 32
-#endif
-
 // NOTE: Functions below must be defined in each run-time.
 namespace __sanitizer {
 void NORETURN Die();
+
+// FIXME: No, this shouldn't be in the sanitizer interface.
+SANITIZER_INTERFACE_ATTRIBUTE
 void NORETURN CheckFailed(const char *file, int line, const char *cond,
                           u64 v1, u64 v2);
 }  // namespace __sanitizer

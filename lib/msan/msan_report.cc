@@ -13,6 +13,7 @@
 //===----------------------------------------------------------------------===//
 
 #include "msan.h"
+#include "sanitizer_common/sanitizer_allocator_internal.h"
 #include "sanitizer_common/sanitizer_common.h"
 #include "sanitizer_common/sanitizer_flags.h"
 #include "sanitizer_common/sanitizer_mutex.h"
@@ -24,16 +25,6 @@ using namespace __sanitizer;
 
 namespace __msan {
 
-static bool PrintsToTtyCached() {
-  static int cached = 0;
-  static bool prints_to_tty;
-  if (!cached) {  // Ok wrt threads since we are printing only from one thread.
-    prints_to_tty = PrintsToTty();
-    cached = 1;
-  }
-  return prints_to_tty;
-}
-
 class Decorator: private __sanitizer::AnsiColorDecorator {
  public:
   Decorator() : __sanitizer::AnsiColorDecorator(PrintsToTtyCached()) { }
@@ -43,17 +34,12 @@ class Decorator: private __sanitizer::AnsiColorDecorator {
   const char *End()    { return Default(); }
 };
 
-static void PrintStack(const uptr *trace, uptr size) {
-  SymbolizerScope sym_scope;
-  StackTrace::PrintStack(trace, size, true,
-                         common_flags()->strip_path_prefix, 0);
-}
-
 static void DescribeOrigin(u32 origin) {
   Decorator d;
-  if (flags()->verbosity)
+  if (common_flags()->verbosity)
     Printf("  raw origin id: %d\n", origin);
-  if (const char *so = __msan_get_origin_descr_if_stack(origin)) {
+  uptr pc;
+  if (const char *so = GetOriginDescrIfStack(origin, &pc)) {
     char* s = internal_strdup(so);
     char* sep = internal_strchr(s, '@');
     CHECK(sep);
@@ -61,30 +47,23 @@ static void DescribeOrigin(u32 origin) {
     Printf("%s", d.Origin());
     Printf("  %sUninitialized value was created by an allocation of '%s%s%s'"
            " in the stack frame of function '%s%s%s'%s\n",
-           d.Origin(), d.Name(), s, d.Origin(), d.Name(), Demangle(sep + 1),
-           d.Origin(), d.End());
+           d.Origin(), d.Name(), s, d.Origin(), d.Name(),
+           Symbolizer::Get()->Demangle(sep + 1), d.Origin(), d.End());
     InternalFree(s);
+
+    if (pc) {
+      // For some reason function address in LLVM IR is 1 less then the address
+      // of the first instruction.
+      pc += 1;
+      StackTrace::PrintStack(&pc, 1);
+    }
   } else {
     uptr size = 0;
     const uptr *trace = StackDepotGet(origin, &size);
     Printf("  %sUninitialized value was created by a heap allocation%s\n",
            d.Origin(), d.End());
-    PrintStack(trace, size);
+    StackTrace::PrintStack(trace, size);
   }
-}
-
-static void ReportSummary(const char *error_type, StackTrace *stack) {
-  if (!stack->size || !IsSymbolizerAvailable()) return;
-  AddressInfo ai;
-  uptr pc = StackTrace::GetPreviousInstructionPc(stack->trace[0]);
-  {
-    SymbolizerScope sym_scope;
-    SymbolizeCode(pc, &ai, 1);
-  }
-  ReportErrorSummary(error_type,
-                     StripPathPrefix(ai.file,
-                                     common_flags()->strip_path_prefix),
-                     ai.line, ai.function);
 }
 
 void ReportUMR(StackTrace *stack, u32 origin) {
@@ -94,20 +73,20 @@ void ReportUMR(StackTrace *stack, u32 origin) {
 
   Decorator d;
   Printf("%s", d.Warning());
-  Report(" WARNING: Use of uninitialized value\n");
+  Report(" WARNING: MemorySanitizer: use-of-uninitialized-value\n");
   Printf("%s", d.End());
-  PrintStack(stack->trace, stack->size);
+  StackTrace::PrintStack(stack->trace, stack->size);
   if (origin) {
     DescribeOrigin(origin);
   }
-  ReportSummary("use-of-uninitialized-value", stack);
+  ReportErrorSummary("use-of-uninitialized-value", stack);
 }
 
 void ReportExpectedUMRNotFound(StackTrace *stack) {
   SpinMutexLock l(&CommonSanitizerReportMutex);
 
   Printf(" WARNING: Expected use of uninitialized value not found\n");
-  PrintStack(stack->trace, stack->size);
+  StackTrace::PrintStack(stack->trace, stack->size);
 }
 
 void ReportAtExitStatistics() {
@@ -118,6 +97,5 @@ void ReportAtExitStatistics() {
   Printf("MemorySanitizer: %d warnings reported.\n", msan_report_count);
   Printf("%s", d.End());
 }
-
 
 }  // namespace __msan

@@ -14,30 +14,11 @@
 
 #include "sanitizer_platform.h"
 #if SANITIZER_WINDOWS
-#include <windows.h>
-
-#include "sanitizer_internal_defs.h"
 #include "sanitizer_symbolizer.h"
 
 namespace __sanitizer {
 
-bool StartSymbolizerSubprocess(const char *path_to_symbolizer,
-                               int *input_fd, int *output_fd) {
-  UNIMPLEMENTED();
-}
-
-uptr GetListOfModules(LoadedModule *modules, uptr max_modules,
-                      string_predicate_t filter) {
-  UNIMPLEMENTED();
-};
-
-void SymbolizerPrepareForSandboxing() {
-  // Do nothing on Windows.
-}
-
-const char *Demangle(const char *MangledName) {
-  return MangledName;
-}
+Symbolizer *Symbolizer::PlatformInit(const char *path_to_external) { return 0; }
 
 }  // namespace __sanitizer
 

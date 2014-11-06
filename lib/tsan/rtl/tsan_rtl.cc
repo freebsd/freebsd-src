@@ -39,9 +39,13 @@ THREADLOCAL char cur_thread_placeholder[sizeof(ThreadState)] ALIGNED(64);
 static char ctx_placeholder[sizeof(Context)] ALIGNED(64);
 
 // Can be overriden by a front-end.
-bool CPP_WEAK OnFinalize(bool failed) {
+#ifdef TSAN_EXTERNAL_HOOKS
+bool OnFinalize(bool failed);
+#else
+bool WEAK OnFinalize(bool failed) {
   return failed;
 }
+#endif
 
 static Context *ctx;
 Context *CTX() {
@@ -74,7 +78,7 @@ Context::Context()
       CreateThreadContext, kMaxTid, kThreadQuarantineSize))
   , racy_stacks(MBlockRacyStacks)
   , racy_addresses(MBlockRacyAddresses)
-  , fired_suppressions(MBlockRacyAddresses) {
+  , fired_suppressions(8) {
 }
 
 // The objects are allocated in TLS, so one may rely on zero-initialization.
@@ -86,7 +90,6 @@ ThreadState::ThreadState(Context *ctx, int tid, int unique_id, u64 epoch,
   // they may be accessed before the ctor.
   // , ignore_reads_and_writes()
   // , in_rtl()
-  , shadow_stack_pos(&shadow_stack[0])
 #ifndef TSAN_GO
   , jmp_bufs(MBlockJmpBuf)
 #endif
@@ -130,16 +133,37 @@ static void BackgroundThread(void *arg) {
   }
 
   u64 last_flush = NanoTime();
+  uptr last_rss = 0;
   for (int i = 0; ; i++) {
     SleepForSeconds(1);
     u64 now = NanoTime();
 
     // Flush memory if requested.
-    if (flags()->flush_memory_ms) {
+    if (flags()->flush_memory_ms > 0) {
       if (last_flush + flags()->flush_memory_ms * kMs2Ns < now) {
+        if (flags()->verbosity > 0)
+          Printf("ThreadSanitizer: periodic memory flush\n");
         FlushShadowMemory();
         last_flush = NanoTime();
       }
+    }
+    if (flags()->memory_limit_mb > 0) {
+      uptr rss = GetRSS();
+      uptr limit = uptr(flags()->memory_limit_mb) << 20;
+      if (flags()->verbosity > 0) {
+        Printf("ThreadSanitizer: memory flush check"
+               " RSS=%llu LAST=%llu LIMIT=%llu\n",
+               (u64)rss>>20, (u64)last_rss>>20, (u64)limit>>20);
+      }
+      if (2 * rss > limit + last_rss) {
+        if (flags()->verbosity > 0)
+          Printf("ThreadSanitizer: flushing memory due to RSS\n");
+        FlushShadowMemory();
+        rss = GetRSS();
+        if (flags()->verbosity > 0)
+          Printf("ThreadSanitizer: memory flushed RSS=%llu\n", (u64)rss>>20);
+      }
+      last_rss = rss;
     }
 
     // Write memory profile if requested.
@@ -176,8 +200,10 @@ void MapThreadTrace(uptr addr, uptr size) {
   DPrintf("#0: Mapping trace at %p-%p(0x%zx)\n", addr, addr + size, size);
   CHECK_GE(addr, kTraceMemBegin);
   CHECK_LE(addr + size, kTraceMemBegin + kTraceMemSize);
-  if (addr != (uptr)MmapFixedNoReserve(addr, size)) {
-    Printf("FATAL: ThreadSanitizer can not mmap thread trace\n");
+  uptr addr1 = (uptr)MmapFixedNoReserve(addr, size);
+  if (addr1 != addr) {
+    Printf("FATAL: ThreadSanitizer can not mmap thread trace (%p/%p->%p)\n",
+        addr, size, addr1);
     Die();
   }
 }
@@ -206,23 +232,21 @@ void Initialize(ThreadState *thr) {
 #endif
   InitializeFlags(&ctx->flags, env);
   // Setup correct file descriptor for error reports.
-  if (internal_strcmp(flags()->log_path, "stdout") == 0)
-    __sanitizer_set_report_fd(kStdoutFd);
-  else if (internal_strcmp(flags()->log_path, "stderr") == 0)
-    __sanitizer_set_report_fd(kStderrFd);
-  else
-    __sanitizer_set_report_path(flags()->log_path);
+  __sanitizer_set_report_path(flags()->log_path);
   InitializeSuppressions();
 #ifndef TSAN_GO
+  InitializeLibIgnore();
   // Initialize external symbolizer before internal threads are started.
   const char *external_symbolizer = flags()->external_symbolizer_path;
-  if (external_symbolizer != 0 && external_symbolizer[0] != '\0') {
-    if (!InitializeExternalSymbolizer(external_symbolizer)) {
-      Printf("Failed to start external symbolizer: '%s'\n",
-             external_symbolizer);
-      Die();
-    }
+  bool external_symbolizer_started =
+      Symbolizer::Init(external_symbolizer)->IsExternalAvailable();
+  if (external_symbolizer != 0 && external_symbolizer[0] != '\0' &&
+      !external_symbolizer_started) {
+    Printf("Failed to start external symbolizer: '%s'\n",
+           external_symbolizer);
+    Die();
   }
+  Symbolizer::Get()->AddHooks(EnterSymbolizer, ExitSymbolizer);
 #endif
   internal_start_thread(&BackgroundThread, 0);
 
@@ -556,7 +580,9 @@ static void MemoryRangeSet(ThreadState *thr, uptr pc, uptr addr, uptr size,
   // Don't want to touch lots of shadow memory.
   // If a program maps 10MB stack, there is no need reset the whole range.
   size = (size + (kShadowCell - 1)) & ~(kShadowCell - 1);
-  if (size < 64*1024) {
+  // UnmapOrDie/MmapFixedNoReserve does not work on Windows,
+  // so we do it only for C/C++.
+  if (kGoMode || size < 64*1024) {
     u64 *p = (u64*)MemToShadow(addr);
     CHECK(IsShadowMem((uptr)p));
     CHECK(IsShadowMem((uptr)(p + size * kShadowCnt / kShadowCell - 1)));
@@ -636,9 +662,9 @@ void FuncEntry(ThreadState *thr, uptr pc) {
 
   // Shadow stack maintenance can be replaced with
   // stack unwinding during trace switch (which presumably must be faster).
-  DCHECK_GE(thr->shadow_stack_pos, &thr->shadow_stack[0]);
+  DCHECK_GE(thr->shadow_stack_pos, thr->shadow_stack);
 #ifndef TSAN_GO
-  DCHECK_LT(thr->shadow_stack_pos, &thr->shadow_stack[kShadowStackSize]);
+  DCHECK_LT(thr->shadow_stack_pos, thr->shadow_stack_end);
 #else
   if (thr->shadow_stack_pos == thr->shadow_stack_end) {
     const int sz = thr->shadow_stack_end - thr->shadow_stack;
@@ -664,21 +690,38 @@ void FuncExit(ThreadState *thr) {
   thr->fast_state.IncrementEpoch();
   TraceAddEvent(thr, thr->fast_state, EventTypeFuncExit, 0);
 
-  DCHECK_GT(thr->shadow_stack_pos, &thr->shadow_stack[0]);
+  DCHECK_GT(thr->shadow_stack_pos, thr->shadow_stack);
 #ifndef TSAN_GO
-  DCHECK_LT(thr->shadow_stack_pos, &thr->shadow_stack[kShadowStackSize]);
+  DCHECK_LT(thr->shadow_stack_pos, thr->shadow_stack_end);
 #endif
   thr->shadow_stack_pos--;
 }
 
-void IgnoreCtl(ThreadState *thr, bool write, bool begin) {
-  DPrintf("#%d: IgnoreCtl(%d, %d)\n", thr->tid, write, begin);
-  thr->ignore_reads_and_writes += begin ? 1 : -1;
+void ThreadIgnoreBegin(ThreadState *thr) {
+  DPrintf("#%d: ThreadIgnoreBegin\n", thr->tid);
+  thr->ignore_reads_and_writes++;
+  CHECK_GT(thr->ignore_reads_and_writes, 0);
+  thr->fast_state.SetIgnoreBit();
+}
+
+void ThreadIgnoreEnd(ThreadState *thr) {
+  DPrintf("#%d: ThreadIgnoreEnd\n", thr->tid);
+  thr->ignore_reads_and_writes--;
   CHECK_GE(thr->ignore_reads_and_writes, 0);
-  if (thr->ignore_reads_and_writes)
-    thr->fast_state.SetIgnoreBit();
-  else
+  if (thr->ignore_reads_and_writes == 0)
     thr->fast_state.ClearIgnoreBit();
+}
+
+void ThreadIgnoreSyncBegin(ThreadState *thr) {
+  DPrintf("#%d: ThreadIgnoreSyncBegin\n", thr->tid);
+  thr->ignore_sync++;
+  CHECK_GT(thr->ignore_sync, 0);
+}
+
+void ThreadIgnoreSyncEnd(ThreadState *thr) {
+  DPrintf("#%d: ThreadIgnoreSyncEnd\n", thr->tid);
+  thr->ignore_sync--;
+  CHECK_GE(thr->ignore_sync, 0);
 }
 
 bool MD5Hash::operator==(const MD5Hash &other) const {

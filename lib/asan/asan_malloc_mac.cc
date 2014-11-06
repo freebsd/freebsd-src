@@ -19,6 +19,7 @@
 #include <CoreFoundation/CFBase.h>
 #include <dlfcn.h>
 #include <malloc/malloc.h>
+#include <sys/mman.h>
 
 #include "asan_allocator.h"
 #include "asan_interceptors.h"
@@ -42,10 +43,19 @@ INTERCEPTOR(malloc_zone_t *, malloc_create_zone,
                              vm_size_t start_size, unsigned zone_flags) {
   if (!asan_inited) __asan_init();
   GET_STACK_TRACE_MALLOC;
+  uptr page_size = GetPageSizeCached();
+  uptr allocated_size = RoundUpTo(sizeof(asan_zone), page_size);
   malloc_zone_t *new_zone =
-      (malloc_zone_t*)asan_malloc(sizeof(asan_zone), &stack);
+      (malloc_zone_t*)asan_memalign(page_size, allocated_size,
+                                    &stack, FROM_MALLOC);
   internal_memcpy(new_zone, &asan_zone, sizeof(asan_zone));
   new_zone->zone_name = NULL;  // The name will be changed anyway.
+  if (GetMacosVersion() >= MACOS_VERSION_LION) {
+    // Prevent the client app from overwriting the zone contents.
+    // Library functions that need to modify the zone will set PROT_WRITE on it.
+    // This matches the behavior of malloc_create_zone() on OSX 10.7 and higher.
+    mprotect(new_zone, allocated_size, PROT_READ);
+  }
   return new_zone;
 }
 

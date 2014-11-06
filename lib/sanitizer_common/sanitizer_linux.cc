@@ -29,6 +29,9 @@
 #include <dlfcn.h>
 #include <errno.h>
 #include <fcntl.h>
+#if !SANITIZER_ANDROID
+#include <link.h>
+#endif
 #include <pthread.h>
 #include <sched.h>
 #include <sys/mman.h>
@@ -76,14 +79,15 @@ namespace __sanitizer {
 uptr internal_mmap(void *addr, uptr length, int prot, int flags,
                     int fd, u64 offset) {
 #if SANITIZER_LINUX_USES_64BIT_SYSCALLS
-  return internal_syscall(__NR_mmap, addr, length, prot, flags, fd, offset);
+  return internal_syscall(__NR_mmap, (uptr)addr, length, prot, flags, fd,
+                          offset);
 #else
   return internal_syscall(__NR_mmap2, addr, length, prot, flags, fd, offset);
 #endif
 }
 
 uptr internal_munmap(void *addr, uptr length) {
-  return internal_syscall(__NR_munmap, addr, length);
+  return internal_syscall(__NR_munmap, (uptr)addr, length);
 }
 
 uptr internal_close(fd_t fd) {
@@ -91,11 +95,11 @@ uptr internal_close(fd_t fd) {
 }
 
 uptr internal_open(const char *filename, int flags) {
-  return internal_syscall(__NR_open, filename, flags);
+  return internal_syscall(__NR_open, (uptr)filename, flags);
 }
 
 uptr internal_open(const char *filename, int flags, u32 mode) {
-  return internal_syscall(__NR_open, filename, flags, mode);
+  return internal_syscall(__NR_open, (uptr)filename, flags, mode);
 }
 
 uptr OpenFile(const char *filename, bool write) {
@@ -105,13 +109,13 @@ uptr OpenFile(const char *filename, bool write) {
 
 uptr internal_read(fd_t fd, void *buf, uptr count) {
   sptr res;
-  HANDLE_EINTR(res, (sptr)internal_syscall(__NR_read, fd, buf, count));
+  HANDLE_EINTR(res, (sptr)internal_syscall(__NR_read, fd, (uptr)buf, count));
   return res;
 }
 
 uptr internal_write(fd_t fd, const void *buf, uptr count) {
   sptr res;
-  HANDLE_EINTR(res, (sptr)internal_syscall(__NR_write, fd, buf, count));
+  HANDLE_EINTR(res, (sptr)internal_syscall(__NR_write, fd, (uptr)buf, count));
   return res;
 }
 
@@ -137,7 +141,7 @@ static void stat64_to_stat(struct stat64 *in, struct stat *out) {
 
 uptr internal_stat(const char *path, void *buf) {
 #if SANITIZER_LINUX_USES_64BIT_SYSCALLS
-  return internal_syscall(__NR_stat, path, buf);
+  return internal_syscall(__NR_stat, (uptr)path, (uptr)buf);
 #else
   struct stat64 buf64;
   int res = internal_syscall(__NR_stat64, path, &buf64);
@@ -148,7 +152,7 @@ uptr internal_stat(const char *path, void *buf) {
 
 uptr internal_lstat(const char *path, void *buf) {
 #if SANITIZER_LINUX_USES_64BIT_SYSCALLS
-  return internal_syscall(__NR_lstat, path, buf);
+  return internal_syscall(__NR_lstat, (uptr)path, (uptr)buf);
 #else
   struct stat64 buf64;
   int res = internal_syscall(__NR_lstat64, path, &buf64);
@@ -159,7 +163,7 @@ uptr internal_lstat(const char *path, void *buf) {
 
 uptr internal_fstat(fd_t fd, void *buf) {
 #if SANITIZER_LINUX_USES_64BIT_SYSCALLS
-  return internal_syscall(__NR_fstat, fd, buf);
+  return internal_syscall(__NR_fstat, fd, (uptr)buf);
 #else
   struct stat64 buf64;
   int res = internal_syscall(__NR_fstat64, fd, &buf64);
@@ -180,11 +184,11 @@ uptr internal_dup2(int oldfd, int newfd) {
 }
 
 uptr internal_readlink(const char *path, char *buf, uptr bufsize) {
-  return internal_syscall(__NR_readlink, path, buf, bufsize);
+  return internal_syscall(__NR_readlink, (uptr)path, (uptr)buf, bufsize);
 }
 
 uptr internal_unlink(const char *path) {
-  return internal_syscall(__NR_unlink, path);
+  return internal_syscall(__NR_unlink, (uptr)path);
 }
 
 uptr internal_sched_yield() {
@@ -198,7 +202,7 @@ void internal__exit(int exitcode) {
 
 uptr internal_execve(const char *filename, char *const argv[],
                      char *const envp[]) {
-  return internal_syscall(__NR_execve, filename, argv, envp);
+  return internal_syscall(__NR_execve, (uptr)filename, (uptr)argv, (uptr)envp);
 }
 
 // ----------------- sanitizer_common.h
@@ -216,7 +220,8 @@ uptr GetTid() {
 
 u64 NanoTime() {
   kernel_timeval tv;
-  internal_syscall(__NR_gettimeofday, &tv, 0);
+  internal_memset(&tv, 0, sizeof(tv));
+  internal_syscall(__NR_gettimeofday, (uptr)&tv, 0);
   return (u64)tv.tv_sec * 1000*1000*1000 + tv.tv_usec * 1000;
 }
 
@@ -249,7 +254,7 @@ const char *GetEnv(const char *name) {
 }
 
 extern "C" {
-  extern void *__libc_stack_end SANITIZER_WEAK_ATTRIBUTE;
+  SANITIZER_WEAK_ATTRIBUTE extern void *__libc_stack_end;
 }
 
 #if !SANITIZER_GO
@@ -307,7 +312,10 @@ void PrepareForSandboxing() {
   // cached mappings.
   MemoryMappingLayout::CacheMemoryMappings();
   // Same for /proc/self/exe in the symbolizer.
-  SymbolizerPrepareForSandboxing();
+#if !SANITIZER_GO
+  if (Symbolizer *sym = Symbolizer::GetOrNull())
+    sym->PrepareForSandboxing();
+#endif
 }
 
 // ----------------- sanitizer_procmaps.h
@@ -400,6 +408,30 @@ static bool IsDecimal(char c) {
   return c >= '0' && c <= '9';
 }
 
+static bool IsHex(char c) {
+  return (c >= '0' && c <= '9')
+      || (c >= 'a' && c <= 'f');
+}
+
+static uptr ReadHex(const char *p) {
+  uptr v = 0;
+  for (; IsHex(p[0]); p++) {
+    if (p[0] >= '0' && p[0] <= '9')
+      v = v * 16 + p[0] - '0';
+    else
+      v = v * 16 + p[0] - 'a' + 10;
+  }
+  return v;
+}
+
+static uptr ReadDecimal(const char *p) {
+  uptr v = 0;
+  for (; IsDecimal(p[0]); p++)
+    v = v * 10 + p[0] - '0';
+  return v;
+}
+
+
 bool MemoryMappingLayout::Next(uptr *start, uptr *end, uptr *offset,
                                char filename[], uptr filename_size,
                                uptr *protection) {
@@ -442,7 +474,9 @@ bool MemoryMappingLayout::Next(uptr *start, uptr *end, uptr *offset,
   CHECK_EQ(*current_++, ' ');
   while (IsDecimal(*current_))
     current_++;
-  CHECK_EQ(*current_++, ' ');
+  // Qemu may lack the trailing space.
+  // http://code.google.com/p/address-sanitizer/issues/detail?id=160
+  // CHECK_EQ(*current_++, ' ');
   // Skip spaces.
   while (current_ < next_line && *current_ == ' ')
     current_++;
@@ -468,6 +502,29 @@ bool MemoryMappingLayout::GetObjectNameAndOffset(uptr addr, uptr *offset,
                                        protection);
 }
 
+void GetMemoryProfile(fill_profile_f cb, uptr *stats, uptr stats_size) {
+  char *smaps = 0;
+  uptr smaps_cap = 0;
+  uptr smaps_len = ReadFileToBuffer("/proc/self/smaps",
+      &smaps, &smaps_cap, 64<<20);
+  uptr start = 0;
+  bool file = false;
+  const char *pos = smaps;
+  while (pos < smaps + smaps_len) {
+    if (IsHex(pos[0])) {
+      start = ReadHex(pos);
+      for (; *pos != '/' && *pos > '\n'; pos++) {}
+      file = *pos == '/';
+    } else if (internal_strncmp(pos, "Rss:", 4) == 0) {
+      for (; *pos < '0' || *pos > '9'; pos++) {}
+      uptr rss = ReadDecimal(pos) * 1024;
+      cb(start, rss, file, stats, stats_size);
+    }
+    while (*pos++ != '\n') {}
+  }
+  UnmapOrDie(smaps, smaps_cap);
+}
+
 enum MutexState {
   MtxUnlocked = 0,
   MtxLocked = 1,
@@ -487,7 +544,7 @@ void BlockingMutex::Lock() {
   if (atomic_exchange(m, MtxLocked, memory_order_acquire) == MtxUnlocked)
     return;
   while (atomic_exchange(m, MtxSleeping, memory_order_acquire) != MtxUnlocked)
-    internal_syscall(__NR_futex, m, FUTEX_WAIT, MtxSleeping, 0, 0, 0);
+    internal_syscall(__NR_futex, (uptr)m, FUTEX_WAIT, MtxSleeping, 0, 0, 0);
 }
 
 void BlockingMutex::Unlock() {
@@ -495,7 +552,7 @@ void BlockingMutex::Unlock() {
   u32 v = atomic_exchange(m, MtxUnlocked, memory_order_relaxed);
   CHECK_NE(v, MtxUnlocked);
   if (v == MtxSleeping)
-    internal_syscall(__NR_futex, m, FUTEX_WAKE, 1, 0, 0, 0);
+    internal_syscall(__NR_futex, (uptr)m, FUTEX_WAKE, 1, 0, 0, 0);
 }
 
 void BlockingMutex::CheckLocked() {
@@ -516,11 +573,12 @@ struct linux_dirent {
 
 // Syscall wrappers.
 uptr internal_ptrace(int request, int pid, void *addr, void *data) {
-  return internal_syscall(__NR_ptrace, request, pid, addr, data);
+  return internal_syscall(__NR_ptrace, request, pid, (uptr)addr, (uptr)data);
 }
 
 uptr internal_waitpid(int pid, int *status, int options) {
-  return internal_syscall(__NR_wait4, pid, status, options, 0 /* rusage */);
+  return internal_syscall(__NR_wait4, pid, (uptr)status, options,
+                          0 /* rusage */);
 }
 
 uptr internal_getpid() {
@@ -532,7 +590,7 @@ uptr internal_getppid() {
 }
 
 uptr internal_getdents(fd_t fd, struct linux_dirent *dirp, unsigned int count) {
-  return internal_syscall(__NR_getdents, fd, dirp, count);
+  return internal_syscall(__NR_getdents, fd, (uptr)dirp, count);
 }
 
 uptr internal_lseek(fd_t fd, OFF_T offset, int whence) {
@@ -545,7 +603,32 @@ uptr internal_prctl(int option, uptr arg2, uptr arg3, uptr arg4, uptr arg5) {
 
 uptr internal_sigaltstack(const struct sigaltstack *ss,
                          struct sigaltstack *oss) {
-  return internal_syscall(__NR_sigaltstack, ss, oss);
+  return internal_syscall(__NR_sigaltstack, (uptr)ss, (uptr)oss);
+}
+
+uptr internal_sigaction(int signum, const __sanitizer_kernel_sigaction_t *act,
+    __sanitizer_kernel_sigaction_t *oldact) {
+  return internal_syscall(__NR_rt_sigaction, signum, act, oldact,
+      sizeof(__sanitizer_kernel_sigset_t));
+}
+
+uptr internal_sigprocmask(int how, __sanitizer_kernel_sigset_t *set,
+    __sanitizer_kernel_sigset_t *oldset) {
+  return internal_syscall(__NR_rt_sigprocmask, (uptr)how, &set->sig[0],
+      &oldset->sig[0], sizeof(__sanitizer_kernel_sigset_t));
+}
+
+void internal_sigfillset(__sanitizer_kernel_sigset_t *set) {
+  internal_memset(set, 0xff, sizeof(*set));
+}
+
+void internal_sigdelset(__sanitizer_kernel_sigset_t *set, int signum) {
+  signum -= 1;
+  CHECK_GE(signum, 0);
+  CHECK_LT(signum, sizeof(*set) * 8);
+  const uptr idx = signum / (sizeof(set->sig[0]) * 8);
+  const uptr bit = signum % (sizeof(set->sig[0]) * 8);
+  set->sig[idx] &= ~(1 << bit);
 }
 
 // ThreadLister implementation.
@@ -624,6 +707,39 @@ uptr GetPageSize() {
 #endif
 }
 
+static char proc_self_exe_cache_str[kMaxPathLength];
+static uptr proc_self_exe_cache_len = 0;
+
+uptr ReadBinaryName(/*out*/char *buf, uptr buf_len) {
+  uptr module_name_len = internal_readlink(
+      "/proc/self/exe", buf, buf_len);
+  int readlink_error;
+  if (internal_iserror(module_name_len, &readlink_error)) {
+    if (proc_self_exe_cache_len) {
+      // If available, use the cached module name.
+      CHECK_LE(proc_self_exe_cache_len, buf_len);
+      internal_strncpy(buf, proc_self_exe_cache_str, buf_len);
+      module_name_len = internal_strlen(proc_self_exe_cache_str);
+    } else {
+      // We can't read /proc/self/exe for some reason, assume the name of the
+      // binary is unknown.
+      Report("WARNING: readlink(\"/proc/self/exe\") failed with errno %d, "
+             "some stack frames may not be symbolized\n", readlink_error);
+      module_name_len = internal_snprintf(buf, buf_len, "/proc/self/exe");
+    }
+    CHECK_LT(module_name_len, buf_len);
+    buf[module_name_len] = '\0';
+  }
+  return module_name_len;
+}
+
+void CacheBinaryName() {
+  if (!proc_self_exe_cache_len) {
+    proc_self_exe_cache_len =
+        ReadBinaryName(proc_self_exe_cache_str, kMaxPathLength);
+  }
+}
+
 // Match full names of the form /path/to/base_name{-,.}*
 bool LibraryNameIs(const char *full_name, const char *base_name) {
   const char *name = full_name;
@@ -636,6 +752,107 @@ bool LibraryNameIs(const char *full_name, const char *base_name) {
   return (name[base_name_length] == '-' || name[base_name_length] == '.');
 }
 
+#if !SANITIZER_ANDROID
+// Call cb for each region mapped by map.
+void ForEachMappedRegion(link_map *map, void (*cb)(const void *, uptr)) {
+  typedef ElfW(Phdr) Elf_Phdr;
+  typedef ElfW(Ehdr) Elf_Ehdr;
+  char *base = (char *)map->l_addr;
+  Elf_Ehdr *ehdr = (Elf_Ehdr *)base;
+  char *phdrs = base + ehdr->e_phoff;
+  char *phdrs_end = phdrs + ehdr->e_phnum * ehdr->e_phentsize;
+
+  // Find the segment with the minimum base so we can "relocate" the p_vaddr
+  // fields.  Typically ET_DYN objects (DSOs) have base of zero and ET_EXEC
+  // objects have a non-zero base.
+  uptr preferred_base = (uptr)-1;
+  for (char *iter = phdrs; iter != phdrs_end; iter += ehdr->e_phentsize) {
+    Elf_Phdr *phdr = (Elf_Phdr *)iter;
+    if (phdr->p_type == PT_LOAD && preferred_base > (uptr)phdr->p_vaddr)
+      preferred_base = (uptr)phdr->p_vaddr;
+  }
+
+  // Compute the delta from the real base to get a relocation delta.
+  sptr delta = (uptr)base - preferred_base;
+  // Now we can figure out what the loader really mapped.
+  for (char *iter = phdrs; iter != phdrs_end; iter += ehdr->e_phentsize) {
+    Elf_Phdr *phdr = (Elf_Phdr *)iter;
+    if (phdr->p_type == PT_LOAD) {
+      uptr seg_start = phdr->p_vaddr + delta;
+      uptr seg_end = seg_start + phdr->p_memsz;
+      // None of these values are aligned.  We consider the ragged edges of the
+      // load command as defined, since they are mapped from the file.
+      seg_start = RoundDownTo(seg_start, GetPageSizeCached());
+      seg_end = RoundUpTo(seg_end, GetPageSizeCached());
+      cb((void *)seg_start, seg_end - seg_start);
+    }
+  }
+}
+#endif
+
+#if defined(__x86_64__)
+// We cannot use glibc's clone wrapper, because it messes with the child
+// task's TLS. It writes the PID and TID of the child task to its thread
+// descriptor, but in our case the child task shares the thread descriptor with
+// the parent (because we don't know how to allocate a new thread
+// descriptor to keep glibc happy). So the stock version of clone(), when
+// used with CLONE_VM, would end up corrupting the parent's thread descriptor.
+uptr internal_clone(int (*fn)(void *), void *child_stack, int flags, void *arg,
+                    int *parent_tidptr, void *newtls, int *child_tidptr) {
+  long long res;
+  if (!fn || !child_stack)
+    return -EINVAL;
+  CHECK_EQ(0, (uptr)child_stack % 16);
+  child_stack = (char *)child_stack - 2 * sizeof(unsigned long long);
+  ((unsigned long long *)child_stack)[0] = (uptr)fn;
+  ((unsigned long long *)child_stack)[1] = (uptr)arg;
+  register void *r8 __asm__("r8") = newtls;
+  register int *r10 __asm__("r10") = child_tidptr;
+  __asm__ __volatile__(
+                       /* %rax = syscall(%rax = __NR_clone,
+                        *                %rdi = flags,
+                        *                %rsi = child_stack,
+                        *                %rdx = parent_tidptr,
+                        *                %r8  = new_tls,
+                        *                %r10 = child_tidptr)
+                        */
+                       "syscall\n"
+
+                       /* if (%rax != 0)
+                        *   return;
+                        */
+                       "testq  %%rax,%%rax\n"
+                       "jnz    1f\n"
+
+                       /* In the child. Terminate unwind chain. */
+                       // XXX: We should also terminate the CFI unwind chain
+                       // here. Unfortunately clang 3.2 doesn't support the
+                       // necessary CFI directives, so we skip that part.
+                       "xorq   %%rbp,%%rbp\n"
+
+                       /* Call "fn(arg)". */
+                       "popq   %%rax\n"
+                       "popq   %%rdi\n"
+                       "call   *%%rax\n"
+
+                       /* Call _exit(%rax). */
+                       "movq   %%rax,%%rdi\n"
+                       "movq   %2,%%rax\n"
+                       "syscall\n"
+
+                       /* Return to parent. */
+                     "1:\n"
+                       : "=a" (res)
+                       : "a"(__NR_clone), "i"(__NR_exit),
+                         "S"(child_stack),
+                         "D"(flags),
+                         "d"(parent_tidptr),
+                         "r"(r8),
+                         "r"(r10)
+                       : "rsp", "memory", "r11", "rcx");
+  return res;
+}
+#endif  // defined(__x86_64__)
 }  // namespace __sanitizer
 
 #endif  // SANITIZER_LINUX

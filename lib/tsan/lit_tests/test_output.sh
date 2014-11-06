@@ -13,7 +13,7 @@ BLACKLIST=$ROOTDIR/lit_tests/Helpers/blacklist.txt
 
 # TODO: add testing for all of -O0...-O3
 CFLAGS="-fsanitize=thread -fsanitize-blacklist=$BLACKLIST -fPIE -O1 -g -Wall"
-LDFLAGS="-pie -lpthread -ldl $ROOTDIR/rtl/libtsan.a"
+LDFLAGS="-pie -lpthread -ldl -lrt -Wl,--whole-archive $ROOTDIR/rtl/libtsan.a -Wl,--no-whole-archive"
 
 test_file() {
   SRC=$1
@@ -38,6 +38,10 @@ if [ "$1" == "" ]; then
     fi
     if [[ $c == */load_shared_lib.cc ]]; then
       echo TEST $c is not supported
+      continue
+    fi
+    if [ "`grep "TSAN_OPTIONS" $c`" ]; then
+      echo SKIPPING $c -- requires TSAN_OPTIONS
       continue
     fi
     COMPILER=$CXX

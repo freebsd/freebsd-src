@@ -25,6 +25,14 @@
 #include "sanitizer_common/sanitizer_libc.h"
 #include "sanitizer_common/sanitizer_mutex.h"
 
+extern "C" {
+  SANITIZER_INTERFACE_ATTRIBUTE
+  int __asan_should_detect_stack_use_after_return() {
+    __asan_init();
+    return __asan_option_detect_stack_use_after_return;
+  }
+}
+
 namespace __asan {
 
 // ---------------------- Stacktraces, symbols, etc. ---------------- {{{1
@@ -52,6 +60,9 @@ void AsanTSDSet(void *tsd) {
   fake_tsd = tsd;
 }
 
+void PlatformTSDDtor(void *tsd) {
+  AsanThread::TSDDtor(tsd);
+}
 // ---------------------- Various stuff ---------------- {{{1
 void MaybeReexec() {
   // No need to re-exec on Windows.

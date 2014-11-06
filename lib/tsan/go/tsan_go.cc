@@ -116,12 +116,14 @@ void __tsan_write(ThreadState *thr, void *addr, void *pc) {
 
 void __tsan_read_range(ThreadState *thr, void *addr, uptr size, uptr step,
                        void *pc) {
-  MemoryAccessRangeStep(thr, (uptr)pc, (uptr)addr, size, step, false);
+  (void)step;
+  MemoryAccessRange(thr, (uptr)pc, (uptr)addr, size, false);
 }
 
 void __tsan_write_range(ThreadState *thr, void *addr, uptr size, uptr step,
                         void *pc) {
-  MemoryAccessRangeStep(thr, (uptr)pc, (uptr)addr, size, step, true);
+  (void)step;
+  MemoryAccessRange(thr, (uptr)pc, (uptr)addr, size, true);
 }
 
 void __tsan_func_enter(ThreadState *thr, void *pc) {
@@ -183,40 +185,6 @@ void __tsan_release_merge(ThreadState *thr, void *addr) {
 void __tsan_finalizer_goroutine(ThreadState *thr) {
   AcquireGlobal(thr, 0);
 }
-
-#if SANITIZER_WINDOWS
-// MinGW gcc emits calls to the function.
-void ___chkstk_ms(void) {
-// The implementation must be along the lines of:
-// .code64
-// PUBLIC ___chkstk_ms
-//     //cfi_startproc()
-// ___chkstk_ms:
-//     push rcx
-//     //cfi_push(%rcx)
-//     push rax
-//     //cfi_push(%rax)
-//     cmp rax, PAGE_SIZE
-//     lea rcx, [rsp + 24]
-//     jb l_LessThanAPage
-// .l_MoreThanAPage:
-//     sub rcx, PAGE_SIZE
-//     or rcx, 0
-//     sub rax, PAGE_SIZE
-//     cmp rax, PAGE_SIZE
-//     ja l_MoreThanAPage
-// .l_LessThanAPage:
-//     sub rcx, rax
-//     or [rcx], 0
-//     pop rax
-//     //cfi_pop(%rax)
-//     pop rcx
-//     //cfi_pop(%rcx)
-//     ret
-//     //cfi_endproc()
-// END
-}
-#endif
 
 }  // extern "C"
 }  // namespace __tsan
