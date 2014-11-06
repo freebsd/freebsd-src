@@ -139,6 +139,18 @@
 	    <entry>21&nbsp;October&nbsp;2014</entry>
 	    <entry><para>Multiple vulerabilities.</para></entry>
 	  </row>
+
+	  <row>
+	    <entry><link xlink:href="http://www.freebsd.org/security/advisories/FreeBSD-SA-14:25.setlogin.asc">SA-14:25.setlogin</link></entry>
+	    <entry>04&nbsp;November&nbsp;2014</entry>
+	    <entry><para>Kernel stack disclosure.</para></entry>
+	  </row>
+
+	  <row>
+	    <entry><link xlink:href="http://www.freebsd.org/security/advisories/FreeBSD-SA-14:26.ftp.asc">SA-14:26.ftp</link></entry>
+	    <entry>04&nbsp;November&nbsp;2014</entry>
+	    <entry><para>Remote code execution.</para></entry>
+	  </row>
 	</tbody>
       </tgroup>
     </informaltable>
