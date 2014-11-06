@@ -56,7 +56,6 @@ __FBSDID("$FreeBSD$");
 #include <net/if_llatbl.h>
 #include <net/if_types.h>
 #include <net/route.h>
-#include <net/route_internal.h>
 #include <net/vnet.h>
 
 #include <netinet/if_ether.h>
@@ -68,6 +67,8 @@ __FBSDID("$FreeBSD$");
 #include <netinet/igmp_var.h>
 #include <netinet/udp.h>
 #include <netinet/udp_var.h>
+
+#include <net/rt_nhops.h>
 
 static int in_aifaddr_ioctl(u_long, caddr_t, struct ifnet *, struct thread *);
 static int in_difaddr_ioctl(caddr_t, struct ifnet *, struct thread *);
@@ -1007,16 +1008,14 @@ in_lltable_prefix_free(struct lltable *llt, const struct sockaddr *prefix,
 static int
 in_lltable_rtcheck(struct ifnet *ifp, u_int flags, const struct sockaddr *l3addr)
 {
-	struct rtentry *rt;
+	struct nhop4_basic nh4;
+	struct in_addr dst;
 
 	KASSERT(l3addr->sa_family == AF_INET,
 	    ("sin_family %d", l3addr->sa_family));
 
-	/* XXX rtalloc1_fib should take a const param */
-	rt = rtalloc1_fib(__DECONST(struct sockaddr *, l3addr), 0, 0,
-	    ifp->if_fib);
-
-	if (rt == NULL)
+	dst = ((struct sockaddr_in *)l3addr)->sin_addr;
+	if (fib4_lookup_nh_ifp(ifp->if_fib, dst, 0, &nh4) != 0)
 		return (EINVAL);
 
 	/*
@@ -1024,57 +1023,26 @@ in_lltable_rtcheck(struct ifnet *ifp, u_int flags, const struct sockaddr *l3addr
 	 * address, which is a special route inserted by some implementation
 	 * such as MANET, and the interface is of the correct type, then
 	 * allow for ARP to proceed.
+	 * XXX: !RTF_HOST condition (temporarily) skipped.
 	 */
-	if (rt->rt_flags & RTF_GATEWAY) {
-		if (!(rt->rt_flags & RTF_HOST) || !rt->rt_ifp ||
-		    rt->rt_ifp->if_type != IFT_ETHER ||
-		    (rt->rt_ifp->if_flags & (IFF_NOARP | IFF_STATICARP)) != 0 ||
-		    memcmp(rt->rt_gateway->sa_data, l3addr->sa_data,
-		    sizeof(in_addr_t)) != 0) {
-			RTFREE_LOCKED(rt);
+	if (nh4.nh_flags & NHF_GATEWAY) {
+		if (nh4.nh_ifp->if_type != IFT_ETHER ||
+		    (nh4.nh_ifp->if_flags & (IFF_NOARP | IFF_STATICARP)) != 0 ||
+		    nh4.nh_addr.s_addr != dst.s_addr) {
 			return (EINVAL);
 		}
+
+		return (0);
 	}
 
-	/*
-	 * Make sure that at least the destination address is covered
-	 * by the route. This is for handling the case where 2 or more
-	 * interfaces have the same prefix. An incoming packet arrives
-	 * on one interface and the corresponding outgoing packet leaves
-	 * another interface.
-	 */
-	if (!(rt->rt_flags & RTF_HOST) && rt->rt_ifp != ifp) {
-		const char *sa, *mask, *addr, *lim;
-		int len;
-
-		mask = (const char *)rt_mask(rt);
-		/*
-		 * Just being extra cautious to avoid some custom
-		 * code getting into trouble.
-		 */
-		if (mask == NULL) {
-			RTFREE_LOCKED(rt);
-			return (EINVAL);
-		}
-
-		sa = (const char *)rt_key(rt);
-		addr = (const char *)l3addr;
-		len = ((const struct sockaddr_in *)l3addr)->sin_len;
-		lim = addr + len;
-
-		for ( ; addr < lim; sa++, mask++, addr++) {
-			if ((*sa ^ *addr) & *mask) {
+	if (((nh4.nh_flags & NHF_GATEWAY) != 0) || nh4.nh_ifp != ifp) {
 #ifdef DIAGNOSTIC
-				log(LOG_INFO, "IPv4 address: \"%s\" is not on the network\n",
-				    inet_ntoa(((const struct sockaddr_in *)l3addr)->sin_addr));
+		log(LOG_INFO, "IPv4 address: \"%s\" is not on the network\n",
+		    inet_ntoa(dst));
 #endif
-				RTFREE_LOCKED(rt);
-				return (EINVAL);
-			}
-		}
+		return (EINVAL);
 	}
 
-	RTFREE_LOCKED(rt);
 	return (0);
 }
 
