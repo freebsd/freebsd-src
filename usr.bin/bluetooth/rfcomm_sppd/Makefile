@@ -6,6 +6,6 @@ SRCS=		rfcomm_sppd.c rfcomm_sdp.c
 WARNS?=		2
 
 DPADD=		${LIBBLUETOOTH} ${LIBSDP}
-LDADD=		-lbluetooth -lsdp
+LDADD=		-lbluetooth -lsdp -lutil
 
 .include <bsd.prog.mk>
