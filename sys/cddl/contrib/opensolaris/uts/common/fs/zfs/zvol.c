@@ -2459,10 +2459,38 @@ zvol_geom_start(struct bio *bp)
 			goto enqueue;
 		zvol_strategy(bp);
 		break;
-	case BIO_GETATTR:
+	case BIO_GETATTR: {
+		spa_t *spa = dmu_objset_spa(zv->zv_objset);
+		uint64_t refd, avail, usedobjs, availobjs, val;
+
 		if (g_handleattr_int(bp, "GEOM::candelete", 1))
 			return;
+		if (strcmp(bp->bio_attribute, "blocksavail") == 0) {
+			dmu_objset_space(zv->zv_objset, &refd, &avail,
+			    &usedobjs, &availobjs);
+			if (g_handleattr_off_t(bp, "blocksavail",
+			    avail / DEV_BSIZE))
+				return;
+		} else if (strcmp(bp->bio_attribute, "blocksused") == 0) {
+			dmu_objset_space(zv->zv_objset, &refd, &avail,
+			    &usedobjs, &availobjs);
+			if (g_handleattr_off_t(bp, "blocksused",
+			    refd / DEV_BSIZE))
+				return;
+		} else if (strcmp(bp->bio_attribute, "poolblocksavail") == 0) {
+			avail = metaslab_class_get_space(spa_normal_class(spa));
+			avail -= metaslab_class_get_alloc(spa_normal_class(spa));
+			if (g_handleattr_off_t(bp, "poolblocksavail",
+			    avail / DEV_BSIZE))
+				return;
+		} else if (strcmp(bp->bio_attribute, "poolblocksused") == 0) {
+			refd = metaslab_class_get_alloc(spa_normal_class(spa));
+			if (g_handleattr_off_t(bp, "poolblocksused",
+			    refd / DEV_BSIZE))
+				return;
+		}
 		/* FALLTHROUGH */
+	}
 	default:
 		g_io_deliver(bp, EOPNOTSUPP);
 		break;
@@ -2861,6 +2889,30 @@ zvol_d_ioctl(struct cdev *dev, u_long cmd, caddr_t data, int fflag, struct threa
 	case DIOCGSTRIPEOFFSET:
 		*(off_t *)data = 0;
 		break;
+	case DIOCGATTR: {
+		spa_t *spa = dmu_objset_spa(zv->zv_objset);
+		struct diocgattr_arg *arg = (struct diocgattr_arg *)data;
+		uint64_t refd, avail, usedobjs, availobjs;
+
+		if (strcmp(arg->name, "blocksavail") == 0) {
+			dmu_objset_space(zv->zv_objset, &refd, &avail,
+			    &usedobjs, &availobjs);
+			arg->value.off = avail / DEV_BSIZE;
+		} else if (strcmp(arg->name, "blocksused") == 0) {
+			dmu_objset_space(zv->zv_objset, &refd, &avail,
+			    &usedobjs, &availobjs);
+			arg->value.off = refd / DEV_BSIZE;
+		} else if (strcmp(arg->name, "poolblocksavail") == 0) {
+			avail = metaslab_class_get_space(spa_normal_class(spa));
+			avail -= metaslab_class_get_alloc(spa_normal_class(spa));
+			arg->value.off = avail / DEV_BSIZE;
+		} else if (strcmp(arg->name, "poolblocksused") == 0) {
+			refd = metaslab_class_get_alloc(spa_normal_class(spa));
+			arg->value.off = refd / DEV_BSIZE;
+		} else
+			error = ENOIOCTL;
+		break;
+	}
 	default:
 		error = ENOIOCTL;
 	}
