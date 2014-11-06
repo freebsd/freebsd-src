@@ -6,8 +6,8 @@ CFLAGS+= -I${.CURDIR}/../lib
 
 MAN=
 
-DPADD=	${LIBFIFOLOG} ${LIBUTIL} ${LIBZ}
-LDADD=	${LIBFIFOLOG} -lutil -lz
+DPADD=	${LIBFIFOLOG} ${LIBZ}
+LDADD=	${LIBFIFOLOG} -lz
 
 regress:
 	./${PROG} /tmp/fifolog.0
