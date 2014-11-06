@@ -14,6 +14,7 @@
 #define	_SYS_DISK_H_
 
 #include <sys/ioccom.h>
+#include <sys/types.h>
 
 #ifdef _KERNEL
 
