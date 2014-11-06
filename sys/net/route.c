@@ -264,15 +264,10 @@ vnet_route_init(const void *unused __unused)
 			if (table != 0 && fam != AF_INET6 && fam != AF_INET)
 				break;
 
-			/*
-			 * XXX MRT rtattach will be also called from
-			 * vfs_export.c but the offset will be 0 (only for
-			 * AF_INET and AF_INET6 which don't need it anyhow).
-			 */
 			rnh = rt_tables_get_rnh_ptr(table, fam);
 			if (rnh == NULL)
 				panic("%s: rnh NULL", __func__);
-			dom->dom_rtattach((void **)rnh, dom->dom_rtoffset);
+			dom->dom_rtattach((void **)rnh, 0);
 		}
 	}
 }
