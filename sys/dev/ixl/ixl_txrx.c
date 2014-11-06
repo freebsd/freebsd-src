@@ -238,6 +238,11 @@ ixl_xmit(struct ixl_queue *que, struct mbuf **m_headp)
 		maxsegs = IXL_MAX_TSO_SEGS;
 		if (ixl_tso_detect_sparse(m_head)) {
 			m = m_defrag(m_head, M_NOWAIT);
+			if (m == NULL) {
+				m_freem(*m_headp);
+				*m_headp = NULL;
+				return (ENOBUFS);
+			}
 			*m_headp = m;
 		}
 	}
@@ -791,6 +796,7 @@ ixl_txeof(struct ixl_queue *que)
 
 	mtx_assert(&txr->mtx, MA_OWNED);
 
+
 	/* These are not the descriptors you seek, move along :) */
 	if (txr->avail == que->num_desc) {
 		que->busy = 0;
@@ -1186,6 +1192,9 @@ skip_head:
 	rxr->bytes = 0;
 	rxr->discard = FALSE;
 
+	wr32(vsi->hw, rxr->tail, que->num_desc - 1);
+	ixl_flush(vsi->hw);
+
 #if defined(INET6) || defined(INET)
 	/*
 	** Now set up the LRO interface:
@@ -1364,6 +1373,7 @@ ixl_rxeof(struct ixl_queue *que, int count)
 
 
 	IXL_RX_LOCK(rxr);
+
 
 	for (i = rxr->next_check; count != 0;) {
 		struct mbuf	*sendmp, *mh, *mp;
@@ -1660,3 +1670,4 @@ ixl_get_counter(if_t ifp, ift_counter cnt)
 	}
 }
 #endif
+
