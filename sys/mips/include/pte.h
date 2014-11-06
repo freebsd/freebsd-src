@@ -80,7 +80,7 @@ typedef	pt_entry_t *pd_entry_t;
 #if defined(__mips_n64) || defined(__mips_n32) /*  PHYSADDR_64_BIT */
 #define	TLBLO_SWBITS_SHIFT	(53)		/* XXXRW: Was 55. */
 #define	TLBLO_SWBITS_CLEAR_SHIFT	(9)
-#define	TLBLO_PFN_MASK		0x3FFFFFFC0ULL
+#define	TLBLO_PFN_MASK		0xFFFFFFC0ULL
 #else
 #define	TLBLO_SWBITS_SHIFT	(29)
 #define	TLBLO_SWBITS_CLEAR_SHIFT	(3)
