@@ -296,7 +296,7 @@ vnet_route_uninit(const void *unused __unused)
 			rnh = rt_tables_get_rnh_ptr(table, fam);
 			if (rnh == NULL)
 				panic("%s: rnh NULL", __func__);
-			dom->dom_rtdetach((void **)rnh, dom->dom_rtoffset);
+			dom->dom_rtdetach((void **)rnh, 0);
 		}
 	}
 
