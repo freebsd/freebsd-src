@@ -225,14 +225,15 @@ static const struct cheri_test cheri_tests[] = {
 	  .ct_desc = "check tags are stored for /dev/zero MAP_PRIVATE pages",
 	  .ct_func = cheritest_vm_tag_dev_zero_private, },
 
-	/* XXXRW: Also need a load case. */
+	/* XXXRW: I wonder if we also need some sort of load-related test? */
 	{ .ct_name = "cheritest_vm_notag_tmpfile_shared",
 	  .ct_desc = "check tags are not stored for tmpfile() MAP_SHARED pages",
 	  .ct_func = cheritest_vm_notag_tmpfile_shared,
-	  .ct_flags = CT_FLAG_SIGNAL | CT_FLAG_MIPS_EXCCODE,
-	  .ct_signum = SIGSEGV,
-	  .ct_mips_exccode = 17,	/* XXXRW: Use a constant here. */
-	  .ct_xfail_reason = "VM doesn't enforce no tags on file mappings", },
+	  .ct_flags = CT_FLAG_SIGNAL | CT_FLAG_MIPS_EXCCODE |
+	    CT_FLAG_CP2_EXCCODE,
+	  .ct_signum = SIGPROT,
+	  .ct_mips_exccode = T_C2E,
+	  .ct_cp2_exccode = CHERI_EXCCODE_TLBSTORE },
 
 	{ .ct_name = "cheritest_vm_tag_tmpfile_private",
 	  .ct_desc = "check tags are stored for tmpfile() MAP_PRIVATE pages",
