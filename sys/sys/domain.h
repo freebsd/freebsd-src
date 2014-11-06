@@ -60,8 +60,6 @@ struct domain {
 		(void **, int);
 	int	(*dom_rtdetach)		/* clean up routing table */
 		(void **, int);
-	int	dom_rtoffset;		/* an arg to rtattach, in bits */
-	int	dom_maxrtkey;		/* for routing layer */
 	void	*(*dom_ifattach)(struct ifnet *);
 	void	(*dom_ifdetach)(struct ifnet *, void *);
 	int	(*dom_ifmtu)(struct ifnet *);
