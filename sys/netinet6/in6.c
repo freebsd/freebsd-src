@@ -2367,6 +2367,13 @@ in6_domifattach(struct ifnet *ifp)
 	return ext;
 }
 
+int
+in6_domifmtu(struct ifnet *ifp)
+{
+
+	return (IN6_LINKMTU(ifp));
+}
+
 void
 in6_domifdetach(struct ifnet *ifp, void *aux)
 {
