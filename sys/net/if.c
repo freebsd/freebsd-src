@@ -2009,8 +2009,6 @@ link_rtrequest(int cmd, struct rtentry *rt, struct rt_addrinfo *info)
 	struct sockaddr *dst;
 	struct ifnet *ifp;
 
-	RT_LOCK_ASSERT(rt);
-
 	if (cmd != RTM_ADD || ((ifa = rt->rt_ifa) == 0) ||
 	    ((ifp = ifa->ifa_ifp) == 0) || ((dst = rt_key(rt)) == 0))
 		return;
@@ -3756,6 +3754,19 @@ int
 if_getmtu(if_t ifp)
 {
 	return ((struct ifnet *)ifp)->if_mtu;
+}
+
+int
+if_getmtu_family(if_t ifp, int family)
+{
+	struct domain *dp;
+
+	for (dp = domains; dp; dp = dp->dom_next) {
+		if (dp->dom_family == family && dp->dom_ifmtu != NULL)
+			return (dp->dom_ifmtu((struct ifnet *)ifp));
+	}
+
+	return (((struct ifnet *)ifp)->if_mtu);
 }
 
 int

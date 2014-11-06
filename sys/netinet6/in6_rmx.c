@@ -136,8 +136,18 @@ in6_addroute(void *v_arg, void *n_arg, struct radix_node_head *head,
 		}
 	}
 
-	if (!rt->rt_mtu && rt->rt_ifp)
-		rt->rt_mtu = IN6_LINKMTU(rt->rt_ifp);
+	if (rt->rt_ifp != NULL) {
+
+		/*
+		 * Check route MTU:
+		 * inherit interface MTU if not set or
+		 * check if MTU is too large.
+		 */
+		if (rt->rt_mtu == 0) {
+			rt->rt_mtu = IN6_LINKMTU(rt->rt_ifp);
+		} else if (rt->rt_mtu > IN6_LINKMTU(rt->rt_ifp))
+			rt->rt_mtu = IN6_LINKMTU(rt->rt_ifp);
+	}
 
 	ret = rn_addroute(v_arg, n_arg, head, treenodes);
 	if (ret == NULL) {

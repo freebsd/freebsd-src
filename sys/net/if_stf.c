@@ -179,7 +179,6 @@ static int stf_checkaddr4(struct stf_softc *, struct in_addr *,
 	struct ifnet *);
 static int stf_checkaddr6(struct stf_softc *, struct in6_addr *,
 	struct ifnet *);
-static void stf_rtrequest(int, struct rtentry *, struct rt_addrinfo *);
 static int stf_ioctl(struct ifnet *, u_long, caddr_t);
 
 static int stf_clone_match(struct if_clone *, const char *);
@@ -722,17 +721,6 @@ in_stf_input(struct mbuf **mp, int *offp, int proto)
 	return (IPPROTO_DONE);
 }
 
-/* ARGSUSED */
-static void
-stf_rtrequest(cmd, rt, info)
-	int cmd;
-	struct rtentry *rt;
-	struct rt_addrinfo *info;
-{
-	RT_LOCK_ASSERT(rt);
-	rt->rt_mtu = rt->rt_ifp->if_mtu;
-}
-
 static int
 stf_ioctl(ifp, cmd, data)
 	struct ifnet *ifp;
@@ -764,7 +752,6 @@ stf_ioctl(ifp, cmd, data)
 			break;
 		}
 
-		ifa->ifa_rtrequest = stf_rtrequest;
 		ifp->if_flags |= IFF_UP;
 		break;
 

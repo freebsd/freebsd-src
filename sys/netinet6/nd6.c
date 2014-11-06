@@ -1188,7 +1188,6 @@ nd6_rtrequest(int req, struct rtentry *rt, struct rt_addrinfo *info)
 	struct nd_defrouter *dr;
 	struct ifnet *ifp;
 
-	RT_LOCK_ASSERT(rt);
 	gateway = (struct sockaddr_in6 *)rt->rt_gateway;
 	ifp = rt->rt_ifp;
 
