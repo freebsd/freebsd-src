@@ -1859,11 +1859,13 @@ fddrop(struct filedesc *fdp)
 {
 	int i;
 
-	mtx_lock(&fdesc_mtx);
-	i = --fdp->fd_holdcnt;
-	mtx_unlock(&fdesc_mtx);
-	if (i > 0)
-		return;
+	if (fdp->fd_holdcnt > 1) {
+		mtx_lock(&fdesc_mtx);
+		i = --fdp->fd_holdcnt;
+		mtx_unlock(&fdesc_mtx);
+		if (i > 0)
+			return;
+	}
 
 	FILEDESC_LOCK_DESTROY(fdp);
 	uma_zfree(filedesc0_zone, fdp);
