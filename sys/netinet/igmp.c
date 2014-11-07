@@ -249,32 +249,32 @@ static VNET_DEFINE(int, igmp_default_version) = IGMP_VERSION_3;
 /*
  * Virtualized sysctls.
  */
-SYSCTL_VNET_STRUCT(_net_inet_igmp, IGMPCTL_STATS, stats, CTLFLAG_RW,
+SYSCTL_STRUCT(_net_inet_igmp, IGMPCTL_STATS, stats, CTLFLAG_VNET | CTLFLAG_RW,
     &VNET_NAME(igmpstat), igmpstat, "");
-SYSCTL_VNET_INT(_net_inet_igmp, OID_AUTO, recvifkludge, CTLFLAG_RW,
+SYSCTL_INT(_net_inet_igmp, OID_AUTO, recvifkludge, CTLFLAG_VNET | CTLFLAG_RW,
     &VNET_NAME(igmp_recvifkludge), 0,
     "Rewrite IGMPv1/v2 reports from 0.0.0.0 to contain subnet address");
-SYSCTL_VNET_INT(_net_inet_igmp, OID_AUTO, sendra, CTLFLAG_RW,
+SYSCTL_INT(_net_inet_igmp, OID_AUTO, sendra, CTLFLAG_VNET | CTLFLAG_RW,
     &VNET_NAME(igmp_sendra), 0,
     "Send IP Router Alert option in IGMPv2/v3 messages");
-SYSCTL_VNET_INT(_net_inet_igmp, OID_AUTO, sendlocal, CTLFLAG_RW,
+SYSCTL_INT(_net_inet_igmp, OID_AUTO, sendlocal, CTLFLAG_VNET | CTLFLAG_RW,
     &VNET_NAME(igmp_sendlocal), 0,
     "Send IGMP membership reports for 224.0.0.0/24 groups");
-SYSCTL_VNET_INT(_net_inet_igmp, OID_AUTO, v1enable, CTLFLAG_RW,
+SYSCTL_INT(_net_inet_igmp, OID_AUTO, v1enable, CTLFLAG_VNET | CTLFLAG_RW,
     &VNET_NAME(igmp_v1enable), 0,
     "Enable backwards compatibility with IGMPv1");
-SYSCTL_VNET_INT(_net_inet_igmp, OID_AUTO, v2enable, CTLFLAG_RW,
+SYSCTL_INT(_net_inet_igmp, OID_AUTO, v2enable, CTLFLAG_VNET | CTLFLAG_RW,
     &VNET_NAME(igmp_v2enable), 0,
     "Enable backwards compatibility with IGMPv2");
-SYSCTL_VNET_INT(_net_inet_igmp, OID_AUTO, legacysupp, CTLFLAG_RW,
+SYSCTL_INT(_net_inet_igmp, OID_AUTO, legacysupp, CTLFLAG_VNET | CTLFLAG_RW,
     &VNET_NAME(igmp_legacysupp), 0,
     "Allow v1/v2 reports to suppress v3 group responses");
-SYSCTL_VNET_PROC(_net_inet_igmp, OID_AUTO, default_version,
-    CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_MPSAFE,
+SYSCTL_PROC(_net_inet_igmp, OID_AUTO, default_version,
+    CTLFLAG_VNET | CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_MPSAFE,
     &VNET_NAME(igmp_default_version), 0, sysctl_igmp_default_version, "I",
     "Default version of IGMP to run on each interface");
-SYSCTL_VNET_PROC(_net_inet_igmp, OID_AUTO, gsrdelay,
-    CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_MPSAFE,
+SYSCTL_PROC(_net_inet_igmp, OID_AUTO, gsrdelay,
+    CTLFLAG_VNET | CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_MPSAFE,
     &VNET_NAME(igmp_gsrdelay.tv_sec), 0, sysctl_igmp_gsr, "I",
     "Rate limit for IGMPv3 Group-and-Source queries in seconds");
 

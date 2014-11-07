@@ -32,25 +32,12 @@
 INTERFACE gpiobus;
 
 #
-# Lock the gpio bus
-#
-METHOD void lock_bus {
-	device_t busdev;
-};
-
-#
-# Unlock the gpio bus
-#
-METHOD void unlock_bus {
-	device_t busdev;
-};
-
-#
 # Dedicate the gpio bus control for a child
 #
-METHOD void acquire_bus {
+METHOD int acquire_bus {
 	device_t busdev;
 	device_t dev;
+	int how;
 };
 
 #

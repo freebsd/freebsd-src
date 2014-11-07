@@ -77,8 +77,8 @@ static VNET_DEFINE(int, ip4_ipsec_filtertunnel) = 0;
 #define	V_ip4_ipsec_filtertunnel VNET(ip4_ipsec_filtertunnel)
 
 SYSCTL_DECL(_net_inet_ipsec);
-SYSCTL_VNET_INT(_net_inet_ipsec, OID_AUTO, filtertunnel,
-	CTLFLAG_RW, &VNET_NAME(ip4_ipsec_filtertunnel), 0,
+SYSCTL_INT(_net_inet_ipsec, OID_AUTO, filtertunnel,
+	CTLFLAG_VNET | CTLFLAG_RW, &VNET_NAME(ip4_ipsec_filtertunnel), 0,
 	"If set filter packets from an IPsec tunnel.");
 
 /*

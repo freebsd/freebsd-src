@@ -434,7 +434,9 @@ ATF_TP_ADD_TCS(tp)
 	ATF_TP_ADD_TC(tp, fopen_err);
 	ATF_TP_ADD_TC(tp, fopen_mode);
 	ATF_TP_ADD_TC(tp, fopen_perm);
+#ifdef __NetBSD__
 	ATF_TP_ADD_TC(tp, fopen_regular);
+#endif
 	ATF_TP_ADD_TC(tp, fopen_seek);
 	ATF_TP_ADD_TC(tp, freopen_std);
 

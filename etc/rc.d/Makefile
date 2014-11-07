@@ -49,6 +49,7 @@ FILES=	DAEMON \
 	geli \
 	geli2 \
 	gptboot \
+	growfs \
 	gssd \
 	hastd \
 	${_hcsecd} \
@@ -111,7 +112,6 @@ FILES=	DAEMON \
 	pf \
 	pflog \
 	pfsync \
-	postrandom \
 	powerd \
 	power_profile \
 	ppp \

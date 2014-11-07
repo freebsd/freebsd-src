@@ -111,7 +111,7 @@ __FBSDID("$FreeBSD$");
 static VNET_DEFINE(int, ipfastforward_active);
 #define	V_ipfastforward_active		VNET(ipfastforward_active)
 
-SYSCTL_VNET_INT(_net_inet_ip, OID_AUTO, fastforwarding, CTLFLAG_RW,
+SYSCTL_INT(_net_inet_ip, OID_AUTO, fastforwarding, CTLFLAG_VNET | CTLFLAG_RW,
     &VNET_NAME(ipfastforward_active), 0, "Enable fast IP forwarding");
 
 static struct sockaddr_in *

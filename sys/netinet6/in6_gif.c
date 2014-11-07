@@ -78,7 +78,7 @@ VNET_DEFINE(int, ip6_gif_hlim) = GIF_HLIM;
 #define	V_ip6_gif_hlim			VNET(ip6_gif_hlim)
 
 SYSCTL_DECL(_net_inet6_ip6);
-SYSCTL_VNET_INT(_net_inet6_ip6, IPV6CTL_GIF_HLIM, gifhlim, CTLFLAG_RW,
+SYSCTL_INT(_net_inet6_ip6, IPV6CTL_GIF_HLIM, gifhlim, CTLFLAG_VNET | CTLFLAG_RW,
     &VNET_NAME(ip6_gif_hlim), 0, "");
 
 static int gif_validate6(const struct ip6_hdr *, struct gif_softc *,

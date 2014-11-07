@@ -606,17 +606,6 @@ _x86bios=	x86bios
 _ixl=		ixl
 _ixlv=		ixlv
 _ntb=		ntb
-_nvd=		nvd
-_nvme=		nvme
-_nvram=		nvram
-_nxge=		nxge
-.if ${MK_CDDL} != "no" || defined(ALL_MODULES)
-_opensolaris=	opensolaris
-.endif
-.if ${MK_CRYPT} != "no" || defined(ALL_MODULES)
-_padlock=	padlock
-.endif
-_pccard=	pccard
 _qlxge=		qlxge
 _qlxgb=		qlxgb
 _qlxgbe=	qlxgbe

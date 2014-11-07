@@ -1,4 +1,4 @@
-/* $NetBSD: t_siginfo.c,v 1.23 2014/02/09 21:26:07 jmmv Exp $ */
+/* $NetBSD: t_siginfo.c,v 1.24 2014/11/04 00:20:19 justin Exp $ */
 
 /*-
  * Copyright (c) 2010 The NetBSD Foundation, Inc.
@@ -27,7 +27,6 @@
  */
 
 #include <atf-c.h>
-#include <atf-c/config.h>
 
 #if defined(__NetBSD__)
 #include <sys/inttypes.h>

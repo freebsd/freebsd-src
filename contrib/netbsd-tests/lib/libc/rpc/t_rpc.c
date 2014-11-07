@@ -47,6 +47,10 @@ reply(caddr_t replyp, struct netbuf * raddrp, struct netconfig * nconf)
 	return 0;
 }
 
+#ifdef __FreeBSD__
+#define	__rpc_control	rpc_control
+#endif
+
 extern bool __rpc_control(int, void *);
 
 static void

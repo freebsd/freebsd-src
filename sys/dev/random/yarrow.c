@@ -508,7 +508,9 @@ void
 random_yarrow_reseed(void)
 {
 
+	mtx_lock(&random_reseed_mtx);
 	reseed(SLOW);
+	mtx_unlock(&random_reseed_mtx);
 }
 
 int

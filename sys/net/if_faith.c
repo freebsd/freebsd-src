@@ -87,7 +87,6 @@ struct faith_softc {
 static int faithioctl(struct ifnet *, u_long, caddr_t);
 static int faithoutput(struct ifnet *, struct mbuf *, const struct sockaddr *,
 	struct route *);
-static void faithrtrequest(int, struct rtentry *, struct rt_addrinfo *);
 #ifdef INET6
 static int faithprefix(struct in6_addr *);
 #endif
@@ -238,17 +237,6 @@ faithoutput(struct ifnet *ifp, struct mbuf *m, const struct sockaddr *dst,
 	return (0);
 }
 
-/* ARGSUSED */
-static void
-faithrtrequest(cmd, rt, info)
-	int cmd;
-	struct rtentry *rt;
-	struct rt_addrinfo *info;
-{
-	RT_LOCK_ASSERT(rt);
-	rt->rt_mtu = rt->rt_ifp->if_mtu;
-}
-
 /*
  * Process an ioctl request.
  */
@@ -259,7 +247,6 @@ faithioctl(ifp, cmd, data)
 	u_long cmd;
 	caddr_t data;
 {
-	struct ifaddr *ifa;
 	struct ifreq *ifr = (struct ifreq *)data;
 	int error = 0;
 
@@ -268,8 +255,7 @@ faithioctl(ifp, cmd, data)
 	case SIOCSIFADDR:
 		ifp->if_flags |= IFF_UP;
 		ifp->if_drv_flags |= IFF_DRV_RUNNING;
-		ifa = (struct ifaddr *)data;
-		ifa->ifa_rtrequest = faithrtrequest;
+
 		/*
 		 * Everything else is done at a higher level.
 		 */

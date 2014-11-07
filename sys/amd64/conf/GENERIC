@@ -361,3 +361,7 @@ device		xenpci			# Xen HVM Hypervisor services driver
 
 # VMware support
 device		vmx			# VMware VMXNET3 Ethernet
+
+# Netmap provides direct access to TX/RX rings on supported NICs
+device		netmap			# netmap(4) support
+
