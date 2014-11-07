@@ -406,8 +406,8 @@ SYSCTL_INT(_net_link_bridge, OID_AUTO, inherit_mac,
 
 static VNET_DEFINE(int, allow_llz_overlap) = 0;
 #define	V_allow_llz_overlap	VNET(allow_llz_overlap)
-SYSCTL_VNET_INT(_net_link_bridge, OID_AUTO, allow_llz_overlap,
-    CTLFLAG_RW | CTLFLAG_VNET, &VNET_NAME(allow_llz_overlap), 0,
+SYSCTL_INT(_net_link_bridge, OID_AUTO, allow_llz_overlap,
+    CTLFLAG_VNET | CTLFLAG_RW | CTLFLAG_VNET, &VNET_NAME(allow_llz_overlap), 0,
     "Allow overlap of link-local scope "
     "zones of a bridge interface and the member interfaces");
 

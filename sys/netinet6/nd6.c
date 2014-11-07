@@ -2366,10 +2366,10 @@ SYSCTL_NODE(_net_inet6_icmp6, ICMPV6CTL_ND6_DRLIST, nd6_drlist,
 	CTLFLAG_RD, nd6_sysctl_drlist, "");
 SYSCTL_NODE(_net_inet6_icmp6, ICMPV6CTL_ND6_PRLIST, nd6_prlist,
 	CTLFLAG_RD, nd6_sysctl_prlist, "");
-SYSCTL_VNET_INT(_net_inet6_icmp6, ICMPV6CTL_ND6_MAXQLEN, nd6_maxqueuelen,
-	CTLFLAG_RW, &VNET_NAME(nd6_maxqueuelen), 1, "");
-SYSCTL_VNET_INT(_net_inet6_icmp6, OID_AUTO, nd6_gctimer,
-	CTLFLAG_RW, &VNET_NAME(nd6_gctimer), (60 * 60 * 24), "");
+SYSCTL_INT(_net_inet6_icmp6, ICMPV6CTL_ND6_MAXQLEN, nd6_maxqueuelen,
+	CTLFLAG_VNET | CTLFLAG_RW, &VNET_NAME(nd6_maxqueuelen), 1, "");
+SYSCTL_INT(_net_inet6_icmp6, OID_AUTO, nd6_gctimer,
+	CTLFLAG_VNET | CTLFLAG_RW, &VNET_NAME(nd6_gctimer), (60 * 60 * 24), "");
 
 static int
 nd6_sysctl_drlist(SYSCTL_HANDLER_ARGS)

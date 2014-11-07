@@ -171,7 +171,7 @@ static VNET_DEFINE(int, flowtable_enable) = 1;
 
 static SYSCTL_NODE(_net, OID_AUTO, flowtable, CTLFLAG_RD, NULL,
     "flowtable");
-SYSCTL_VNET_INT(_net_flowtable, OID_AUTO, enable, CTLFLAG_RW,
+SYSCTL_INT(_net_flowtable, OID_AUTO, enable, CTLFLAG_VNET | CTLFLAG_RW,
     &VNET_NAME(flowtable_enable), 0, "enable flowtable caching.");
 SYSCTL_UMA_MAX(_net_flowtable, OID_AUTO, maxflows, CTLFLAG_RW,
     &flow_zone, "Maximum number of flows allowed");

@@ -505,112 +505,115 @@ sysctl_ip6_tempvltime(SYSCTL_HANDLER_ARGS)
 	return (error);
 }
 
-SYSCTL_VNET_INT(_net_inet6_ip6, IPV6CTL_FORWARDING, forwarding, CTLFLAG_RW,
-	&VNET_NAME(ip6_forwarding), 0, "");
-SYSCTL_VNET_INT(_net_inet6_ip6, IPV6CTL_SENDREDIRECTS, redirect, CTLFLAG_RW,
-	&VNET_NAME(ip6_sendredirects), 0, "");
-SYSCTL_VNET_INT(_net_inet6_ip6, IPV6CTL_DEFHLIM, hlim, CTLFLAG_RW,
+SYSCTL_INT(_net_inet6_ip6, IPV6CTL_FORWARDING, forwarding,
+	CTLFLAG_VNET | CTLFLAG_RW, &VNET_NAME(ip6_forwarding), 0, "");
+SYSCTL_INT(_net_inet6_ip6, IPV6CTL_SENDREDIRECTS, redirect,
+	CTLFLAG_VNET | CTLFLAG_RW, &VNET_NAME(ip6_sendredirects), 0, "");
+SYSCTL_INT(_net_inet6_ip6, IPV6CTL_DEFHLIM, hlim, CTLFLAG_VNET | CTLFLAG_RW,
 	&VNET_NAME(ip6_defhlim), 0, "");
 SYSCTL_VNET_PCPUSTAT(_net_inet6_ip6, IPV6CTL_STATS, stats, struct ip6stat,
-    ip6stat, "IP6 statistics (struct ip6stat, netinet6/ip6_var.h)");
-SYSCTL_VNET_INT(_net_inet6_ip6, IPV6CTL_MAXFRAGPACKETS, maxfragpackets,
-	CTLFLAG_RW, &VNET_NAME(ip6_maxfragpackets), 0, "");
-SYSCTL_VNET_INT(_net_inet6_ip6, IPV6CTL_ACCEPT_RTADV, accept_rtadv,
-	CTLFLAG_RW, &VNET_NAME(ip6_accept_rtadv), 0,
+	ip6stat, "IP6 statistics (struct ip6stat, netinet6/ip6_var.h)");
+SYSCTL_INT(_net_inet6_ip6, IPV6CTL_MAXFRAGPACKETS, maxfragpackets,
+	CTLFLAG_VNET | CTLFLAG_RW, &VNET_NAME(ip6_maxfragpackets), 0, "");
+SYSCTL_INT(_net_inet6_ip6, IPV6CTL_ACCEPT_RTADV, accept_rtadv,
+	CTLFLAG_VNET | CTLFLAG_RW, &VNET_NAME(ip6_accept_rtadv), 0,
 	"Default value of per-interface flag for accepting ICMPv6 Router"
 	"Advertisement messages");
-SYSCTL_VNET_INT(_net_inet6_ip6, IPV6CTL_NO_RADR, no_radr,
-	CTLFLAG_RW, &VNET_NAME(ip6_no_radr), 0,
+SYSCTL_INT(_net_inet6_ip6, IPV6CTL_NO_RADR, no_radr,
+	CTLFLAG_VNET | CTLFLAG_RW, &VNET_NAME(ip6_no_radr), 0,
 	"Default value of per-interface flag to control whether routers "
 	"sending ICMPv6 RA messages on that interface are added into the "
 	"default router list.");
-SYSCTL_VNET_INT(_net_inet6_ip6, IPV6CTL_NORBIT_RAIF, norbit_raif, CTLFLAG_RW,
-	&VNET_NAME(ip6_norbit_raif), 0,
+SYSCTL_INT(_net_inet6_ip6, IPV6CTL_NORBIT_RAIF, norbit_raif,
+	CTLFLAG_VNET | CTLFLAG_RW, &VNET_NAME(ip6_norbit_raif), 0,
 	"Always set 0 to R flag in ICMPv6 NA messages when accepting RA"
 	" on the interface.");
-SYSCTL_VNET_INT(_net_inet6_ip6, IPV6CTL_RFC6204W3, rfc6204w3,
-	CTLFLAG_RW, &VNET_NAME(ip6_rfc6204w3), 0,
+SYSCTL_INT(_net_inet6_ip6, IPV6CTL_RFC6204W3, rfc6204w3,
+	CTLFLAG_VNET | CTLFLAG_RW, &VNET_NAME(ip6_rfc6204w3), 0,
 	"Accept the default router list from ICMPv6 RA messages even "
 	"when packet forwarding enabled.");
-SYSCTL_VNET_INT(_net_inet6_ip6, IPV6CTL_KEEPFAITH, keepfaith, CTLFLAG_RW,
-	&VNET_NAME(ip6_keepfaith), 0, "");
-SYSCTL_VNET_INT(_net_inet6_ip6, IPV6CTL_LOG_INTERVAL, log_interval,
-	CTLFLAG_RW, &VNET_NAME(ip6_log_interval), 0, "");
-SYSCTL_VNET_INT(_net_inet6_ip6, IPV6CTL_HDRNESTLIMIT, hdrnestlimit,
-	CTLFLAG_RW, &VNET_NAME(ip6_hdrnestlimit), 0, "");
-SYSCTL_VNET_INT(_net_inet6_ip6, IPV6CTL_DAD_COUNT, dad_count, CTLFLAG_RW,
-	&VNET_NAME(ip6_dad_count), 0, "");
-SYSCTL_VNET_INT(_net_inet6_ip6, IPV6CTL_AUTO_FLOWLABEL, auto_flowlabel,
-	CTLFLAG_RW, &VNET_NAME(ip6_auto_flowlabel), 0, "");
-SYSCTL_VNET_INT(_net_inet6_ip6, IPV6CTL_DEFMCASTHLIM, defmcasthlim,
-	CTLFLAG_RW, &VNET_NAME(ip6_defmcasthlim), 0, "");
+SYSCTL_INT(_net_inet6_ip6, IPV6CTL_KEEPFAITH, keepfaith,
+	CTLFLAG_VNET | CTLFLAG_RW, &VNET_NAME(ip6_keepfaith), 0, "");
+SYSCTL_INT(_net_inet6_ip6, IPV6CTL_LOG_INTERVAL, log_interval,
+	CTLFLAG_VNET | CTLFLAG_RW, &VNET_NAME(ip6_log_interval), 0, "");
+SYSCTL_INT(_net_inet6_ip6, IPV6CTL_HDRNESTLIMIT, hdrnestlimit,
+	CTLFLAG_VNET | CTLFLAG_RW, &VNET_NAME(ip6_hdrnestlimit), 0, "");
+SYSCTL_INT(_net_inet6_ip6, IPV6CTL_DAD_COUNT, dad_count,
+	CTLFLAG_VNET | CTLFLAG_RW, &VNET_NAME(ip6_dad_count), 0, "");
+SYSCTL_INT(_net_inet6_ip6, IPV6CTL_AUTO_FLOWLABEL, auto_flowlabel,
+	CTLFLAG_VNET | CTLFLAG_RW, &VNET_NAME(ip6_auto_flowlabel), 0, "");
+SYSCTL_INT(_net_inet6_ip6, IPV6CTL_DEFMCASTHLIM, defmcasthlim,
+	CTLFLAG_VNET | CTLFLAG_RW, &VNET_NAME(ip6_defmcasthlim), 0, "");
 SYSCTL_STRING(_net_inet6_ip6, IPV6CTL_KAME_VERSION, kame_version,
 	CTLFLAG_RD, __KAME_VERSION, 0, "");
-SYSCTL_VNET_INT(_net_inet6_ip6, IPV6CTL_USE_DEPRECATED, use_deprecated,
-	CTLFLAG_RW, &VNET_NAME(ip6_use_deprecated), 0, "");
-SYSCTL_VNET_INT(_net_inet6_ip6, IPV6CTL_RR_PRUNE, rr_prune, CTLFLAG_RW,
-	&VNET_NAME(ip6_rr_prune), 0, "");
-SYSCTL_VNET_INT(_net_inet6_ip6, IPV6CTL_USETEMPADDR, use_tempaddr,
-	CTLFLAG_RW, &VNET_NAME(ip6_use_tempaddr), 0, "");
-SYSCTL_VNET_PROC(_net_inet6_ip6, IPV6CTL_TEMPPLTIME, temppltime,
-	CTLTYPE_INT|CTLFLAG_RW, &VNET_NAME(ip6_temp_preferred_lifetime), 0,
+SYSCTL_INT(_net_inet6_ip6, IPV6CTL_USE_DEPRECATED, use_deprecated,
+	CTLFLAG_VNET | CTLFLAG_RW, &VNET_NAME(ip6_use_deprecated), 0, "");
+SYSCTL_INT(_net_inet6_ip6, IPV6CTL_RR_PRUNE, rr_prune,
+	CTLFLAG_VNET | CTLFLAG_RW, &VNET_NAME(ip6_rr_prune), 0, "");
+SYSCTL_INT(_net_inet6_ip6, IPV6CTL_USETEMPADDR, use_tempaddr,
+	CTLFLAG_VNET | CTLFLAG_RW, &VNET_NAME(ip6_use_tempaddr), 0, "");
+SYSCTL_PROC(_net_inet6_ip6, IPV6CTL_TEMPPLTIME, temppltime,
+	CTLFLAG_VNET | CTLTYPE_INT | CTLFLAG_RW,
+	&VNET_NAME(ip6_temp_preferred_lifetime), 0,
    	sysctl_ip6_temppltime, "I", "");
-SYSCTL_VNET_PROC(_net_inet6_ip6, IPV6CTL_TEMPVLTIME, tempvltime,
-	CTLTYPE_INT|CTLFLAG_RW, &VNET_NAME(ip6_temp_valid_lifetime), 0,
+SYSCTL_PROC(_net_inet6_ip6, IPV6CTL_TEMPVLTIME, tempvltime,
+	CTLFLAG_VNET | CTLTYPE_INT | CTLFLAG_RW,
+	&VNET_NAME(ip6_temp_valid_lifetime), 0,
    	sysctl_ip6_tempvltime, "I", "");
-SYSCTL_VNET_INT(_net_inet6_ip6, IPV6CTL_V6ONLY, v6only,	CTLFLAG_RW,
-	&VNET_NAME(ip6_v6only), 0, "");
-SYSCTL_VNET_INT(_net_inet6_ip6, IPV6CTL_AUTO_LINKLOCAL, auto_linklocal,
-	CTLFLAG_RW, &VNET_NAME(ip6_auto_linklocal), 0,
+SYSCTL_INT(_net_inet6_ip6, IPV6CTL_V6ONLY, v6only,
+	CTLFLAG_VNET | CTLFLAG_RW, &VNET_NAME(ip6_v6only), 0, "");
+SYSCTL_INT(_net_inet6_ip6, IPV6CTL_AUTO_LINKLOCAL, auto_linklocal,
+	CTLFLAG_VNET | CTLFLAG_RW, &VNET_NAME(ip6_auto_linklocal), 0,
 	"Default value of per-interface flag for automatically adding an IPv6"
 	" link-local address to interfaces when attached");
 SYSCTL_VNET_PCPUSTAT(_net_inet6_ip6, IPV6CTL_RIP6STATS, rip6stats,
-    struct rip6stat, rip6stat,
-    "Raw IP6 statistics (struct rip6stat, netinet6/raw_ip6.h)");
-SYSCTL_VNET_INT(_net_inet6_ip6, IPV6CTL_PREFER_TEMPADDR, prefer_tempaddr,
-	CTLFLAG_RW, &VNET_NAME(ip6_prefer_tempaddr), 0, "");
-SYSCTL_VNET_INT(_net_inet6_ip6, IPV6CTL_USE_DEFAULTZONE, use_defaultzone,
-	CTLFLAG_RW, &VNET_NAME(ip6_use_defzone), 0,"");
-SYSCTL_VNET_INT(_net_inet6_ip6, IPV6CTL_MAXFRAGS, maxfrags, CTLFLAG_RW,
-	&VNET_NAME(ip6_maxfrags), 0, "");
-SYSCTL_VNET_INT(_net_inet6_ip6, IPV6CTL_MCAST_PMTU, mcast_pmtu, CTLFLAG_RW,
-	&VNET_NAME(ip6_mcast_pmtu), 0, "");
+	struct rip6stat, rip6stat,
+	"Raw IP6 statistics (struct rip6stat, netinet6/raw_ip6.h)");
+SYSCTL_INT(_net_inet6_ip6, IPV6CTL_PREFER_TEMPADDR, prefer_tempaddr,
+	CTLFLAG_VNET | CTLFLAG_RW, &VNET_NAME(ip6_prefer_tempaddr), 0, "");
+SYSCTL_INT(_net_inet6_ip6, IPV6CTL_USE_DEFAULTZONE, use_defaultzone,
+	CTLFLAG_VNET | CTLFLAG_RW, &VNET_NAME(ip6_use_defzone), 0,"");
+SYSCTL_INT(_net_inet6_ip6, IPV6CTL_MAXFRAGS, maxfrags,
+	CTLFLAG_VNET | CTLFLAG_RW, &VNET_NAME(ip6_maxfrags), 0, "");
+SYSCTL_INT(_net_inet6_ip6, IPV6CTL_MCAST_PMTU, mcast_pmtu,
+	CTLFLAG_VNET | CTLFLAG_RW, &VNET_NAME(ip6_mcast_pmtu), 0, "");
 #ifdef IPSTEALTH
-SYSCTL_VNET_INT(_net_inet6_ip6, IPV6CTL_STEALTH, stealth, CTLFLAG_RW,
+SYSCTL_INT(_net_inet6_ip6, IPV6CTL_STEALTH, stealth, CTLFLAG_VNET | CTLFLAG_RW,
 	&VNET_NAME(ip6stealth), 0, "");
 #endif
 
 /* net.inet6.icmp6 */
-SYSCTL_VNET_INT(_net_inet6_icmp6, ICMPV6CTL_REDIRACCEPT, rediraccept,
-	CTLFLAG_RW, &VNET_NAME(icmp6_rediraccept), 0, "");
-SYSCTL_VNET_INT(_net_inet6_icmp6, ICMPV6CTL_REDIRTIMEOUT, redirtimeout,
-	CTLFLAG_RW, &VNET_NAME(icmp6_redirtimeout), 0, "");
+SYSCTL_INT(_net_inet6_icmp6, ICMPV6CTL_REDIRACCEPT, rediraccept,
+	CTLFLAG_VNET | CTLFLAG_RW, &VNET_NAME(icmp6_rediraccept), 0, "");
+SYSCTL_INT(_net_inet6_icmp6, ICMPV6CTL_REDIRTIMEOUT, redirtimeout,
+	CTLFLAG_VNET | CTLFLAG_RW, &VNET_NAME(icmp6_redirtimeout), 0, "");
 SYSCTL_VNET_PCPUSTAT(_net_inet6_icmp6, ICMPV6CTL_STATS, stats,
-    struct icmp6stat, icmp6stat,
-    "ICMPv6 statistics (struct icmp6stat, netinet/icmp6.h)");
-SYSCTL_VNET_INT(_net_inet6_icmp6, ICMPV6CTL_ND6_PRUNE, nd6_prune, CTLFLAG_RW,
-	&VNET_NAME(nd6_prune), 0, "");
-SYSCTL_VNET_INT(_net_inet6_icmp6, ICMPV6CTL_ND6_DELAY, nd6_delay, CTLFLAG_RW,
-	&VNET_NAME(nd6_delay), 0, "");
-SYSCTL_VNET_INT(_net_inet6_icmp6, ICMPV6CTL_ND6_UMAXTRIES, nd6_umaxtries,
-	CTLFLAG_RW, &VNET_NAME(nd6_umaxtries), 0, "");
-SYSCTL_VNET_INT(_net_inet6_icmp6, ICMPV6CTL_ND6_MMAXTRIES, nd6_mmaxtries,
-	CTLFLAG_RW, &VNET_NAME(nd6_mmaxtries), 0, "");
-SYSCTL_VNET_INT(_net_inet6_icmp6, ICMPV6CTL_ND6_USELOOPBACK, nd6_useloopback,
-	CTLFLAG_RW, &VNET_NAME(nd6_useloopback), 0, "");
-SYSCTL_VNET_INT(_net_inet6_icmp6, ICMPV6CTL_NODEINFO, nodeinfo, CTLFLAG_RW,
-	&VNET_NAME(icmp6_nodeinfo), 0, "");
-SYSCTL_VNET_INT(_net_inet6_icmp6, ICMPV6CTL_NODEINFO_OLDMCPREFIX,
-	nodeinfo_oldmcprefix, CTLFLAG_RW,
+	struct icmp6stat, icmp6stat,
+	"ICMPv6 statistics (struct icmp6stat, netinet/icmp6.h)");
+SYSCTL_INT(_net_inet6_icmp6, ICMPV6CTL_ND6_PRUNE, nd6_prune,
+	CTLFLAG_VNET | CTLFLAG_RW, &VNET_NAME(nd6_prune), 0, "");
+SYSCTL_INT(_net_inet6_icmp6, ICMPV6CTL_ND6_DELAY, nd6_delay,
+	CTLFLAG_VNET | CTLFLAG_RW, &VNET_NAME(nd6_delay), 0, "");
+SYSCTL_INT(_net_inet6_icmp6, ICMPV6CTL_ND6_UMAXTRIES, nd6_umaxtries,
+	CTLFLAG_VNET | CTLFLAG_RW, &VNET_NAME(nd6_umaxtries), 0, "");
+SYSCTL_INT(_net_inet6_icmp6, ICMPV6CTL_ND6_MMAXTRIES, nd6_mmaxtries,
+	CTLFLAG_VNET | CTLFLAG_RW, &VNET_NAME(nd6_mmaxtries), 0, "");
+SYSCTL_INT(_net_inet6_icmp6, ICMPV6CTL_ND6_USELOOPBACK, nd6_useloopback,
+	CTLFLAG_VNET | CTLFLAG_RW, &VNET_NAME(nd6_useloopback), 0, "");
+SYSCTL_INT(_net_inet6_icmp6, ICMPV6CTL_NODEINFO, nodeinfo,
+	CTLFLAG_VNET | CTLFLAG_RW, &VNET_NAME(icmp6_nodeinfo), 0, "");
+SYSCTL_INT(_net_inet6_icmp6, ICMPV6CTL_NODEINFO_OLDMCPREFIX,
+	nodeinfo_oldmcprefix, CTLFLAG_VNET | CTLFLAG_RW,
 	&VNET_NAME(icmp6_nodeinfo_oldmcprefix), 0, 
 	"Join old IPv6 NI group address in draft-ietf-ipngwg-icmp-name-lookup"
 	" for compatibility with KAME implememtation.");
-SYSCTL_VNET_INT(_net_inet6_icmp6, ICMPV6CTL_ERRPPSLIMIT, errppslimit,
-	CTLFLAG_RW, &VNET_NAME(icmp6errppslim), 0, "");
-SYSCTL_VNET_INT(_net_inet6_icmp6, ICMPV6CTL_ND6_MAXNUDHINT, nd6_maxnudhint,
-	CTLFLAG_RW, &VNET_NAME(nd6_maxnudhint), 0, "");
-SYSCTL_VNET_INT(_net_inet6_icmp6, ICMPV6CTL_ND6_DEBUG, nd6_debug, CTLFLAG_RW,
-	&VNET_NAME(nd6_debug), 0, "");
-SYSCTL_VNET_INT(_net_inet6_icmp6, ICMPV6CTL_ND6_ONLINKNSRFC4861,
-	nd6_onlink_ns_rfc4861, CTLFLAG_RW, &VNET_NAME(nd6_onlink_ns_rfc4861),
-	0, "Accept 'on-link' nd6 NS in compliance with RFC 4861.");
+SYSCTL_INT(_net_inet6_icmp6, ICMPV6CTL_ERRPPSLIMIT, errppslimit,
+	CTLFLAG_VNET | CTLFLAG_RW, &VNET_NAME(icmp6errppslim), 0, "");
+SYSCTL_INT(_net_inet6_icmp6, ICMPV6CTL_ND6_MAXNUDHINT, nd6_maxnudhint,
+	CTLFLAG_VNET | CTLFLAG_RW, &VNET_NAME(nd6_maxnudhint), 0, "");
+SYSCTL_INT(_net_inet6_icmp6, ICMPV6CTL_ND6_DEBUG, nd6_debug,
+	CTLFLAG_VNET | CTLFLAG_RW, &VNET_NAME(nd6_debug), 0, "");
+SYSCTL_INT(_net_inet6_icmp6, ICMPV6CTL_ND6_ONLINKNSRFC4861,
+	nd6_onlink_ns_rfc4861, CTLFLAG_VNET | CTLFLAG_RW,
+	&VNET_NAME(nd6_onlink_ns_rfc4861), 0,
+	"Accept 'on-link' nd6 NS in compliance with RFC 4861.");
