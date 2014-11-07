@@ -459,8 +459,8 @@ autofs_readdir(struct vop_readdir_args *ap)
 static int
 autofs_reclaim(struct vop_reclaim_args *ap)
 {
-	struct vnode *vp = ap->a_vp;
-	struct autofs_node *anp = vp->v_data;
+	struct vnode *vp;
+	struct autofs_node *anp;
 
 	vp = ap->a_vp;
 	anp = vp->v_data;
