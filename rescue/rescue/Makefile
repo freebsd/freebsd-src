@@ -52,7 +52,7 @@ CRUNCH_SRCDIRS+= bin
 CRUNCH_PROGS_bin= cat chflags chio chmod cp date dd df echo 	\
 	 ed expr getfacl hostname kenv kill ln ls mkdir mv	\
 	 pkill ps pwd realpath rm rmdir setfacl sh stty sync test
-CRUNCH_LIBS+= -lcrypt -ledit -ljail -lkvm -ll -ltermcapw -lutil
+CRUNCH_LIBS+= -lcrypt -ledit -ljail -lkvm -ll -ltermcapw -lutil -lxo
 CRUNCH_BUILDTOOLS+= bin/sh
 
 # Additional options for specific programs
