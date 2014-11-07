@@ -149,7 +149,7 @@ static SYSCTL_NODE(_net_link, IFT_GIF, gif, CTLFLAG_RW, 0,
 #endif
 static VNET_DEFINE(int, max_gif_nesting) = MAX_GIF_NEST;
 #define	V_max_gif_nesting	VNET(max_gif_nesting)
-SYSCTL_VNET_INT(_net_link_gif, OID_AUTO, max_nesting, CTLFLAG_RW,
+SYSCTL_INT(_net_link_gif, OID_AUTO, max_nesting, CTLFLAG_VNET | CTLFLAG_RW,
     &VNET_NAME(max_gif_nesting), 0, "Max nested tunnels");
 
 /*
@@ -163,8 +163,9 @@ static VNET_DEFINE(int, parallel_tunnels) = 1;
 static VNET_DEFINE(int, parallel_tunnels) = 0;
 #endif
 #define	V_parallel_tunnels	VNET(parallel_tunnels)
-SYSCTL_VNET_INT(_net_link_gif, OID_AUTO, parallel_tunnels, CTLFLAG_RW,
-    &VNET_NAME(parallel_tunnels), 0, "Allow parallel tunnels?");
+SYSCTL_INT(_net_link_gif, OID_AUTO, parallel_tunnels,
+    CTLFLAG_VNET | CTLFLAG_RW, &VNET_NAME(parallel_tunnels), 0,
+    "Allow parallel tunnels?");
 
 /* copy from src/sys/net/if_ethersubr.c */
 static const u_char etherbroadcastaddr[ETHER_ADDR_LEN] =

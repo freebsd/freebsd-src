@@ -134,21 +134,21 @@ in_matroute(void *v_arg, struct radix_node_head *head)
 
 static VNET_DEFINE(int, rtq_reallyold) = 60*60; /* one hour is "really old" */
 #define	V_rtq_reallyold		VNET(rtq_reallyold)
-SYSCTL_VNET_INT(_net_inet_ip, IPCTL_RTEXPIRE, rtexpire, CTLFLAG_RW,
+SYSCTL_INT(_net_inet_ip, IPCTL_RTEXPIRE, rtexpire, CTLFLAG_VNET | CTLFLAG_RW,
     &VNET_NAME(rtq_reallyold), 0,
     "Default expiration time on dynamically learned routes");
 
 /* never automatically crank down to less */
 static VNET_DEFINE(int, rtq_minreallyold) = 10;
 #define	V_rtq_minreallyold	VNET(rtq_minreallyold)
-SYSCTL_VNET_INT(_net_inet_ip, IPCTL_RTMINEXPIRE, rtminexpire, CTLFLAG_RW,
+SYSCTL_INT(_net_inet_ip, IPCTL_RTMINEXPIRE, rtminexpire, CTLFLAG_VNET | CTLFLAG_RW,
     &VNET_NAME(rtq_minreallyold), 0,
     "Minimum time to attempt to hold onto dynamically learned routes");
 
 /* 128 cached routes is "too many" */
 static VNET_DEFINE(int, rtq_toomany) = 128;
 #define	V_rtq_toomany		VNET(rtq_toomany)
-SYSCTL_VNET_INT(_net_inet_ip, IPCTL_RTMAXCACHE, rtmaxcache, CTLFLAG_RW,
+SYSCTL_INT(_net_inet_ip, IPCTL_RTMAXCACHE, rtmaxcache, CTLFLAG_VNET | CTLFLAG_RW,
     &VNET_NAME(rtq_toomany), 0,
     "Upper limit on dynamically learned routes");
 

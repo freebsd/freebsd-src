@@ -78,7 +78,7 @@ __FBSDID("$FreeBSD$");
 #include <security/mac/mac_framework.h>
 
 VNET_DEFINE(int, ip_defttl) = IPDEFTTL;
-SYSCTL_VNET_INT(_net_inet_ip, IPCTL_DEFTTL, ttl, CTLFLAG_RW,
+SYSCTL_INT(_net_inet_ip, IPCTL_DEFTTL, ttl, CTLFLAG_VNET | CTLFLAG_RW,
     &VNET_NAME(ip_defttl), 0,
     "Maximum TTL on IP packets");
 

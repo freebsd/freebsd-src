@@ -184,7 +184,7 @@ SYSCTL_DECL(_net_inet6_ip6);
 static VNET_DEFINE(int, rtq_toomany6) = 128;
 	/* 128 cached routes is ``too many'' */
 #define	V_rtq_toomany6			VNET(rtq_toomany6)
-SYSCTL_VNET_INT(_net_inet6_ip6, IPV6CTL_RTMAXCACHE, rtmaxcache, CTLFLAG_RW,
+SYSCTL_INT(_net_inet6_ip6, IPV6CTL_RTMAXCACHE, rtmaxcache, CTLFLAG_VNET | CTLFLAG_RW,
     &VNET_NAME(rtq_toomany6) , 0, "");
 
 struct rtqk_arg {
