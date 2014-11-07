@@ -33,7 +33,9 @@
 
 #include <machine/cheri.h>
 
+#include <stdlib.h>
 #include <stdio.h>
+#include <time.h>
 
 #include "cheri_enter.h"
 #include "cheri_system.h"
@@ -103,6 +105,18 @@ cheri_system_clock_gettime(clockid_t clock_id, __capability struct timespec *tp)
 	return (ret);
 }
 
+int
+cheri_system_calloc(size_t count, size_t size,
+    void __capability * __capability *ptrp)
+{
+	__capability void *ptr;
+
+	if ((ptr = (__capability void *)calloc(count, size)) == NULL)
+		return (-1);
+	*ptrp = ptr;
+	return (0);
+}
+
 /*
  * This function implements the "landing pad" for CHERI method invocations on
  * system capabilities.  For now, several pretty critical limitations, which
@@ -154,6 +168,13 @@ cheri_system_enter(register_t methodnum, register_t a1, register_t a2,
 
 	case CHERI_SYSTEM_CLOCK_GETTIME:
 		return (cheri_system_clock_gettime(a1, c3));
+
+	case CHERI_SYSTEM_CALLOC:
+		return (cheri_system_calloc(a1, a2,
+		    (void __capability * __capability *)c3));
+	case CHERI_SYSTEM_FREE:
+		free((void *)c3);
+		return 0;
 
 	default:
 		if (methodnum >= CHERI_SYSTEM_USER_BASE &&

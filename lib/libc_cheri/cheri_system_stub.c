@@ -101,3 +101,27 @@ cheri_system_clock_gettime(clockid_t clock_id, __capability struct timespec *tp)
 	    cheri_zerocap(), cheri_zerocap(), cheri_zerocap(),
 	    cheri_zerocap()));
 }
+
+register_t cheri_system_methodnum_calloc = CHERI_SYSTEM_CALLOC;
+int
+cheri_system_calloc(size_t number, size_t size, void **ptrp)
+{
+
+	return (cheri_invoke(cheri_system_object,
+	    cheri_system_methodnum_calloc, number, size, 0, 0, 0, 0, 0, ptrp,
+	    cheri_zerocap(), cheri_zerocap(), cheri_zerocap(),
+	    cheri_zerocap(), cheri_zerocap(), cheri_zerocap(),
+	    cheri_zerocap()));
+}
+
+register_t cheri_system_methodnum_free = CHERI_SYSTEM_FREE;
+int
+cheri_system_free(const void *ptr)
+{
+
+	cheri_invoke(cheri_system_object,
+	    cheri_system_methodnum_free, 0, 0, 0, 0, 0, 0, 0, ptr,
+	    cheri_zerocap(), cheri_zerocap(), cheri_zerocap(),
+	    cheri_zerocap(), cheri_zerocap(), cheri_zerocap(),
+	    cheri_zerocap());
+}

@@ -45,6 +45,8 @@
 #define	CHERI_SYSTEM_METHOD_PUTS	2	/* puts(). */
 #define	CHERI_SYSTEM_METHOD_PUTCHAR	3	/* putchar(). */
 #define	CHERI_SYSTEM_CLOCK_GETTIME	4	/* clock_gettime(). */
+#define	CHERI_SYSTEM_CALLOC		5	/* calloc(). */
+#define	CHERI_SYSTEM_FREE		6	/* free(). */
 
 /*
  * In the sandbox: notify the stub implementation of the object capability to
@@ -60,6 +62,9 @@ int	cheri_system_puts(__capability const char *str);
 int	cheri_system_putchar(int c);
 int	cheri_system_clock_gettime(clockid_t clock_id,
 	    __capability struct timespec *tp);
+int	cheri_system_calloc(size_t number, size_t size,
+	    void __capability * __capability * ptrp);
+int	cheri_system_free(__capability const void *ptr);
 
 /*
  * Method numbers, which can be modified to override the bottom layer of the
