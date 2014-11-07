@@ -132,4 +132,4 @@ rdrand_modevent(module_t mod, int type, void *unused)
 
 DEV_MODULE(rdrand, rdrand_modevent, NULL);
 MODULE_VERSION(rdrand, 1);
-MODULE_DEPEND(rdrand, random_adaptors, 1, 1, 1);
+MODULE_DEPEND(rdrand, randomdev, 1, 1, 1);
