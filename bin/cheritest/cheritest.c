@@ -239,6 +239,10 @@ static const struct cheri_test cheri_tests[] = {
 	  .ct_desc = "check tags are stored for tmpfile() MAP_PRIVATE pages",
 	  .ct_func = cheritest_vm_tag_tmpfile_private, },
 
+	{ .ct_name = "cheritest_vm_tag_tmpfile_private_prefault",
+	  .ct_desc = "check tags are stored for tmpfile() MAP_PRIVATE, "				"MAP_PREFAULT_READ pages",
+	  .ct_func = cheritest_vm_tag_tmpfile_private, },
+
 	{ .ct_name = "cheritest_vm_cow_read",
 	  .ct_desc = "read capabilities from a copy-on-write page",
 	  .ct_func = cheritest_vm_cow_read, },

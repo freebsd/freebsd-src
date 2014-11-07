@@ -258,6 +258,35 @@ cheritest_vm_tag_tmpfile_private(const struct cheri_test *ctp __unused)
 	cheritest_success();
 }
 
+void
+cheritest_vm_tag_tmpfile_private_prefault(const struct cheri_test *ctp __unused)
+{
+	__capability void * volatile *cp;
+	__capability void *cp_value;
+	char template[] = "/tmp/cheritest.XXXXXXXX";
+	int fd, v;
+
+	fd = mkstemp(template);
+	if (fd < 0)
+		cheritest_failure_err("%s", template);
+	if (ftruncate(fd, getpagesize()) < 0)
+		cheritest_failure_err("ftruncate");
+	cp = mmap(NULL, getpagesize(), PROT_READ | PROT_WRITE,
+	    MAP_PRIVATE | MAP_PREFAULT_READ, fd, 0);
+	if (cp == MAP_FAILED)
+		cheritest_failure_err("mmap");
+	cp_value = cheri_ptr(&v, sizeof(v));
+	*cp = cp_value;
+	cp_value = *cp;
+	if (cheri_gettag(cp_value) == 0)
+		cheritest_failure_errx("tag lost");
+	if (munmap((void *)cp, getpagesize()) < 0)
+		cheritest_failure_err("munmap");
+	if (close(fd) < 0)
+		cheritest_failure_err("close");
+	cheritest_success();
+}
+
 /*
  * Exercise copy-on-write:
  *
