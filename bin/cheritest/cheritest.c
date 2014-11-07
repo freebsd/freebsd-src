@@ -412,6 +412,11 @@ static const struct cheri_test cheri_tests[] = {
 	  .ct_func_arg = test_sandbox_simple_op,
 	  .ct_arg = CHERITEST_HELPER_OP_MALLOC },
 
+	{ .ct_name = "test_sandbox_system_calloc",
+	  .ct_desc = "Allocate memory in base for use in the sandbox",
+	  .ct_func_arg = test_sandbox_simple_op,
+	  .ct_arg = CHERITEST_HELPER_OP_SYSTEM_CALLOC },
+
 	{ .ct_name = "test_sandbox_printf",
 	  .ct_desc = "printf() in a libcheri sandbox",
 	  .ct_func_arg = test_sandbox_simple_op,

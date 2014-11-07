@@ -63,6 +63,7 @@
 #define	CHERITEST_HELPER_GET_VAR_DATA	29
 #define	CHERITEST_HELPER_GET_VAR_CONSTRUCTOR	30
 #define	CHERITEST_HELPER_OP_INFLATE	31
+#define CHERITEST_HELPER_OP_SYSTEM_CALLOC	32
 
 /*
  * We use system-class extensions to allow cheritest-helper code to call back

@@ -223,6 +223,26 @@ invoke_malloc(void)
 }
 
 static int
+invoke_system_calloc(void)
+{
+	size_t i;
+	void *tmp;
+	const size_t sizes[] = {1, 2, 4, 8, 16, 32, 64, 128, 1024, 4096, 10000};
+
+	for (i = 0; i < sizeof(sizes) / sizeof(*sizes); i++) {
+		if (cheri_system_calloc(1, sizes[i], &tmp) != 0)
+			return (-1);
+		if (tmp == NULL)
+			return (-1);
+		if (cheri_getlen(tmp) != sizes[i])
+			return (-1);
+		if (cheri_system_free(tmp) != 0)
+			return (-1);
+	}
+	return (0);
+}
+
+static int
 invoke_clock_gettime(void)
 {
 	struct timespec t;
@@ -407,6 +427,9 @@ invoke(register_t op, register_t arg, size_t len,
 
 	case CHERITEST_HELPER_OP_MALLOC:
 		return (invoke_malloc());
+
+	case CHERITEST_HELPER_OP_SYSTEM_CALLOC:
+		return (invoke_system_calloc());
 
 	case CHERITEST_HELPER_OP_FD_FSTAT_C:
 		return (invoke_fd_fstat_c(fd_object));
