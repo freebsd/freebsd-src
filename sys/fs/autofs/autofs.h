@@ -97,7 +97,7 @@ struct autofs_request {
 	char				ar_prefix[MAXPATHLEN];
 	char				ar_key[MAXPATHLEN];
 	char				ar_options[MAXPATHLEN];
-	struct callout			ar_callout;
+	struct timeout_task		ar_task;
 	volatile u_int			ar_refcount;
 };
 
