@@ -118,10 +118,13 @@ typedef int rn_walktree_from_t(struct radix_node_head *head,
     void *a, void *m, walktree_f_t *f, void *w);
 typedef void rn_close_t(struct radix_node *rn, struct radix_node_head *head);
 
+struct radix_head {
+	struct	radix_node *rnh_treetop;
+	struct	radix_head *rnh_masks;	/* Storage for our masks */
+};
 
 struct radix_node_head {
-	struct	radix_node *rnh_treetop;
-	struct	radix_node_head *rnh_masks;	/* Storage for our masks */
+	struct radix_head rh;
 	u_int	rnh_gen;		/* generation counter */
 	int	rnh_multipath;		/* multipath capable ? */
 	rn_matchaddr_f_t	*rnh_matchaddr;	/* longest match for sockaddr */
@@ -163,13 +166,11 @@ struct radix_node_head {
 int	 rn_inithead(void **, int);
 int	 rn_detachhead(void **);
 int	 rn_refines(void *, void *);
-struct radix_node
-	 *rn_addmask(void *, struct radix_node_head *, int, int),
-	 *rn_addroute (void *, void *, struct radix_node_head *,
-			struct radix_node [2]),
-	 *rn_delete(void *, void *, struct radix_node_head *),
-	 *rn_lookup (void *v_arg, void *m_arg,
-		        struct radix_node_head *head),
-	 *rn_match(void *, struct radix_node_head *);
+struct radix_node *rn_addroute (void *, void *, struct radix_head *,
+    struct radix_node [2]);
+struct radix_node *rn_delete(void *, void *, struct radix_head *);
+struct radix_node *rn_lookup (void *v_arg, void *m_arg,
+    struct radix_head *head);
+struct radix_node *rn_match(void *, struct radix_head *);
 
 #endif /* _RADIX_H_ */

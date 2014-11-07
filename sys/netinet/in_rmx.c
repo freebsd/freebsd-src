@@ -98,7 +98,7 @@ in_addroute(void *v_arg, void *n_arg, struct radix_node_head *head,
 	if (rt->rt_mtu == 0 && rt->rt_ifp != NULL)
 		rt->rt_mtu = rt->rt_ifp->if_mtu;
 
-	return (rn_addroute(v_arg, n_arg, head, treenodes));
+	return (rn_addroute(v_arg, n_arg, &head->rh, treenodes));
 }
 
 /*
@@ -109,7 +109,7 @@ in_addroute(void *v_arg, void *n_arg, struct radix_node_head *head,
 static struct radix_node *
 in_matroute(void *v_arg, struct radix_node_head *head)
 {
-	struct radix_node *rn = rn_match(v_arg, head);
+	struct radix_node *rn = rn_match(v_arg, &head->rh);
 	struct rtentry *rt = (struct rtentry *)rn;
 
 	if (rt) {
@@ -330,7 +330,8 @@ void
 in_setmatchfunc(struct radix_node_head *rnh, int val)
 {
 
-	rnh->rnh_matchaddr = (val != 0) ? rn_match : in_matroute;
+	rnh->rnh_matchaddr = (val != 0) ?
+	    (rn_matchaddr_f_t *)rn_match : in_matroute;
 }
 
 static int _in_rt_was_here;
