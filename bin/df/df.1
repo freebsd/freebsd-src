@@ -29,7 +29,7 @@
 .\"     @(#)df.1	8.3 (Berkeley) 5/8/95
 .\" $FreeBSD$
 .\"
-.Dd January 16, 2014
+.Dd November 6, 2014
 .Dt DF 1
 .Os
 .Sh NAME
@@ -37,6 +37,7 @@
 .Nd display free disk space
 .Sh SYNOPSIS
 .Nm
+.Op Fl -libxo
 .Op Fl b | g | H | h | k | m | P
 .Op Fl acilnT
 .Op Fl \&,
@@ -193,7 +194,9 @@ If the value is outside, it will be set to the appropriate limit.
 .Xr statfs 2 ,
 .Xr getbsize 3 ,
 .Xr getmntinfo 3 ,
+.Xr libxo 3 ,
 .Xr localeconv 3 ,
+.Xr xo_parse_args 3 ,
 .Xr fstab 5 ,
 .Xr mount 8 ,
 .Xr pstat 8 ,
