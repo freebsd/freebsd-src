@@ -9,10 +9,31 @@
 export PATH="/bin:/usr/bin:/sbin:/usr/sbin:/usr/local/bin:/usr/local/sbin"
 trap "cleanup" INT QUIT TRAP ABRT TERM
 
-mkimg_bootcode="/boot/pmbr"
-mkimg_partitions="-p freebsd-boot/bootfs:=/boot/gptboot"
-mkimg_partitions="${mkimg_partitions} -p freebsd-swap/swapfs::1G"
-mkimg_partitions="${mkimg_partitions} freebsd-ufs/rootfs:=${VMBASE}"
+write_partition_layout() {
+
+	case "${TARGET}:${TARGET_ARCH}" in
+		amd64:amd64 | i386:i386)
+			mkimg -f gpt -b /boot/pmbr \
+				-p freebsd-boot/bootfs:=/boot/gptboot \
+				-p freebsd-swap/swapfs::1G \
+				-p freebsd-ufs/rootfs:=${VMBASE}
+				-o ${VMIMAGE}
+			;;
+		powerpc:powerpc*)
+			mkimg -f apm \
+				-p freebsd-boot/bootfs:=/boot/boot1.hfs \
+				-p freebsd-swap/swapfs::1G \
+				-p freebsd-ufs/rootfs:=${VMBASE}
+				-o ${VMIMAGE}
+			;;
+		*)
+			# ENOTSUPP
+			return 1
+			;;
+	esac
+
+	return 0
+}
 
 usage() {
 	echo "${0} usage:"
@@ -130,15 +151,8 @@ vm_create_disk() {
 	fi
 	echo "Creating image...  Please wait."
 	echo
-	mkimg -f ${mkimg_format} -s ${mkimg_scheme} \
-		${mkimg_bootcode} \
-		${mkimg_partitions} \
-		${mkimg_outfile}
 
-	mkimg 	-b /boot/pmbr -p freebsd-boot/bootfs:=/boot/gptboot \
-		-p freebsd-swap/swapfs::1G \
-		-p freebsd-ufs/rootfs:=${VMBASE} \
-		-o ${VMIMAGE}.raw
+	write_partition_layout || return 1
 
 	return 0
 }
