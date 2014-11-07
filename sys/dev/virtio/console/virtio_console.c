@@ -34,6 +34,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/kernel.h>
 #include <sys/malloc.h>
 #include <sys/module.h>
+#include <sys/kdb.h>
 #include <sys/lock.h>
 #include <sys/mutex.h>
 #include <sys/sglist.h>
@@ -78,6 +79,11 @@ struct vtcon_port {
 	int				 vtcport_id;
 	int				 vtcport_flags;
 #define VTCON_PORT_FLAG_GONE	0x01
+#define VTCON_PORT_FLAG_CONSOLE	0x02
+
+#if defined(KDB)
+	int				 vtcport_alt_break_state;
+#endif
 };
 
 #define VTCON_PORT_LOCK(_port)		mtx_lock(&(_port)->vtcport_mtx)
@@ -94,17 +100,11 @@ struct vtcon_softc {
 	device_t		 vtcon_dev;
 	struct mtx		 vtcon_mtx;
 	uint64_t		 vtcon_features;
-	uint32_t		 vtcon_flags;
-#define VTCON_FLAG_DETACHED	0x0001
-#define VTCON_FLAG_SIZE		0x0010
-#define VTCON_FLAG_MULTIPORT	0x0020
-
-	struct task		 vtcon_ctrl_task;
-	struct virtqueue	*vtcon_ctrl_rxvq;
-	struct virtqueue	*vtcon_ctrl_txvq;
-	struct mtx		 vtcon_ctrl_tx_mtx;
-
 	uint32_t		 vtcon_max_ports;
+	uint32_t		 vtcon_flags;
+#define VTCON_FLAG_DETACHED	0x01
+#define VTCON_FLAG_SIZE		0x02
+#define VTCON_FLAG_MULTIPORT	0x04
 
 	/*
 	 * Ports can be added and removed during runtime, but we have
@@ -112,6 +112,11 @@ struct vtcon_softc {
 	 * indexed by the port ID.
 	 */
 	struct vtcon_softc_port	*vtcon_ports;
+
+	struct task		 vtcon_ctrl_task;
+	struct virtqueue	*vtcon_ctrl_rxvq;
+	struct virtqueue	*vtcon_ctrl_txvq;
+	struct mtx		 vtcon_ctrl_tx_mtx;
 };
 
 #define VTCON_LOCK(_sc)			mtx_lock(&(_sc)->vtcon_mtx)
@@ -133,6 +138,7 @@ struct vtcon_softc {
 static struct virtio_feature_desc vtcon_feature_desc[] = {
 	{ VIRTIO_CONSOLE_F_SIZE,	"ConsoleSize"	},
 	{ VIRTIO_CONSOLE_F_MULTIPORT,	"MultiplePorts"	},
+	{ VIRTIO_CONSOLE_F_EMERG_WRITE,	"EmergencyWrite" },
 
 	{ 0, NULL }
 };
@@ -331,10 +337,15 @@ vtcon_attach(device_t dev)
 	if (sc->vtcon_flags & VTCON_FLAG_MULTIPORT) {
 		TASK_INIT(&sc->vtcon_ctrl_task, 0, vtcon_ctrl_task_cb, sc);
 		error = vtcon_ctrl_init(sc);
-	} else
+		if (error)
+			goto fail;
+	} else {
 		error = vtcon_port_create(sc, 0);
-	if (error)
-		goto fail;
+		if (error)
+			goto fail;
+		if (sc->vtcon_flags & VTCON_FLAG_SIZE)
+			vtcon_port_update_console_size(sc);
+	}
 
 	error = virtio_setup_intr(dev, INTR_TYPE_TTY);
 	if (error) {
@@ -703,6 +714,7 @@ vtcon_ctrl_port_add_event(struct vtcon_softc *sc, int id)
 	if (error) {
 		device_printf(dev, "%s: cannot create port %d: %d\n",
 		    __func__, id, error);
+		vtcon_ctrl_send_control(sc, id, VIRTIO_CONSOLE_PORT_READY, 0);
 		return;
 	}
 }
@@ -735,9 +747,27 @@ vtcon_ctrl_port_remove_event(struct vtcon_softc *sc, int id)
 static void
 vtcon_ctrl_port_console_event(struct vtcon_softc *sc, int id)
 {
+	device_t dev;
+	struct vtcon_softc_port *scport;
+	struct vtcon_port *port;
 
-	device_printf(sc->vtcon_dev, "%s: port %d console event\n",
-	    __func__, id);
+	dev = sc->vtcon_dev;
+	scport = &sc->vtcon_ports[id];
+
+	VTCON_LOCK(sc);
+	port = scport->vcsp_port;
+	if (port == NULL) {
+		VTCON_UNLOCK(sc);
+		device_printf(dev, "%s: console port %d, but does not exist\n",
+		    __func__, id);
+		return;
+	}
+
+	VTCON_PORT_LOCK(port);
+	VTCON_UNLOCK(sc);
+	port->vtcport_flags |= VTCON_PORT_FLAG_CONSOLE;
+	vtcon_port_submit_event(port, VIRTIO_CONSOLE_PORT_OPEN, 1);
+	VTCON_PORT_UNLOCK(port);
 }
 
 static void
@@ -1179,8 +1209,14 @@ again:
 	deq = 0;
 
 	while ((buf = virtqueue_dequeue(vq, &len)) != NULL) {
-		for (i = 0; i < len; i++)
+		for (i = 0; i < len; i++) {
+#if defined(KDB)
+			if (port->vtcport_flags & VTCON_PORT_FLAG_CONSOLE)
+				kdb_alt_break(buf[i],
+				    &port->vtcport_alt_break_state);
+#endif
 			ttydisc_rint(tp, buf[i], 0);
+		}
 		vtcon_port_requeue_buf(port, buf);
 		deq++;
 	}
