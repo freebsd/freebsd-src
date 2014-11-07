@@ -117,6 +117,8 @@ int fwd_destroy_fib(struct fwd_module *fm, u_int fib);
 
 static inline uint16_t fib_rte_to_nh_flags(int rt_flags);
 #ifdef INET
+static void rib4_rte_to_nh_extended(struct rtentry *rte, struct in_addr dst,
+    struct rt4_extended *prt4);
 static void fib4_rte_to_nh_extended(struct rtentry *rte, struct in_addr dst,
     struct nhop4_extended *pnh4);
 static void fib4_rte_to_nh_basic(struct rtentry *rte, struct in_addr dst,
@@ -452,6 +454,39 @@ fib4_rte_to_nh_extended(struct rtentry *rte, struct in_addr dst,
 	pnh4->nh_src = IA_SIN(ia)->sin_addr;
 }
 
+static void
+rib4_rte_to_nh_extended(struct rtentry *rte, struct in_addr dst,
+    struct rt4_extended *prt4)
+{
+	struct sockaddr_in *gw;
+	struct in_ifaddr *ia;
+
+	/* Do explicit nexthop zero unless we're copying it */
+	memset(prt4, 0, sizeof(*prt4));
+
+    	gw = ((struct sockaddr_in *)rt_key(rte));
+	prt4->rt_addr = gw->sin_addr;
+    	gw = ((struct sockaddr_in *)rt_mask(rte));
+	prt4->rt_mask.s_addr = (gw != NULL) ?
+	    gw->sin_addr.s_addr : INADDR_BROADCAST;
+
+	if (rte->rt_flags & RTF_GATEWAY) {
+		gw = (struct sockaddr_in *)rte->rt_gateway;
+		prt4->rt_gateway = gw->sin_addr;
+	} else
+		prt4->rt_gateway = dst;
+
+	prt4->rt_lifp = rte->rt_ifp;
+	prt4->rt_aifp = rte->rt_ifa->ifa_ifp;
+	prt4->rt_flags = rte->rt_flags;
+	prt4->rt_mtu = min(rte->rt_mtu, rte->rt_ifp->if_mtu);
+
+	prt4->rt_nhop = 0; /* XXX: fill real nexthop */
+
+	ia = ifatoia(rte->rt_ifa);
+	prt4->rt_src = IA_SIN(ia)->sin_addr;
+}
+
 /*
  * Performs IPv4 route table lookup on @dst. Returns 0 on success.
  * Stores nexthop info provided @pnh4 structure.
@@ -584,6 +619,50 @@ fib4_lookup_nh_ext(uint32_t fibnum, struct in_addr dst, uint32_t flowid,
 
 void
 fib4_free_nh_ext(uint32_t fibnum, struct nhop4_extended *pnh4)
+{
+
+}
+
+int
+rib4_lookup_nh_ext(uint32_t fibnum, struct in_addr dst, uint32_t flowid,
+    uint32_t flags, struct rt4_extended *prt4)
+{
+	struct radix_node_head *rnh;
+	struct radix_node *rn;
+	struct sockaddr_in sin;
+	struct rtentry *rte;
+
+	KASSERT((fibnum < rt_numfibs), ("rib4_lookup_nh_ext: bad fibnum"));
+	rnh = rt_tables_get_rnh(fibnum, AF_INET);
+	if (rnh == NULL)
+		return (ENOENT);
+
+	/* Prepare lookup key */
+	memset(&sin, 0, sizeof(sin));
+	sin.sin_len = sizeof(struct sockaddr_in);
+	sin.sin_addr = dst;
+
+	RADIX_NODE_HEAD_RLOCK(rnh);
+	rn = rnh->rnh_matchaddr((void *)&sin, rnh);
+	if (rn != NULL && ((rn->rn_flags & RNF_ROOT) == 0)) {
+		rte = RNTORT(rn);
+		/* Ensure route & ifp is UP */
+		if (RT_LINK_IS_UP(rte->rt_ifp)) {
+			rib4_rte_to_nh_extended(rte, dst, prt4);
+			if ((flags & NHOP_LOOKUP_REF) != 0) {
+				/* TODO: Do lwref on egress ifp's */
+			}
+			RADIX_NODE_HEAD_RUNLOCK(rnh);
+			return (0);
+		}
+	}
+	RADIX_NODE_HEAD_RUNLOCK(rnh);
+
+	return (ENOENT);
+}
+
+void
+rib4_free_nh_ext(uint32_t fibnum, struct rt4_extended *prt4)
 {
 
 }
@@ -898,6 +977,36 @@ fib6_lla_to_nh_extended(struct in6_addr *dst, uint32_t scopeid,
 }
 
 static int
+rib6_lla_to_nh_extended(struct in6_addr *dst, uint32_t scopeid,
+    struct rt6_extended *prt6)
+{
+	struct ifnet *ifp;
+
+	ifp = ifnet_byindex_locked(scopeid);
+	if (ifp == NULL)
+		return (ENOENT);
+
+	/* Do explicit nexthop zero unless we're copying it */
+	memset(prt6, 0, sizeof(*prt6));
+
+	prt6->rt_addr.s6_addr16[0] = htons(0xFE80);
+	prt6->rt_mask = 64; /* XXX check RFC */
+
+	prt6->rt_aifp = ifp;
+	prt6->rt_lifp = ifp;
+	/* Check id this is for-us address */
+	if (in6_ifawithifp_lla(ifp, dst)) {
+		if ((ifp = V_loif) != NULL)
+			prt6->rt_lifp = ifp;
+	}
+
+	prt6->rt_mtu = IN6_LINKMTU(ifp);
+	/* No flags set */
+
+	return (0);
+}
+
+static int
 fib6_lla_to_nh(struct in6_addr *dst, uint32_t scopeid,
     struct nhop_prepend *nh, struct ifnet **lifp)
 {
@@ -979,6 +1088,37 @@ fib6_rte_to_nh_extended(struct rtentry *rte, struct in6_addr *dst,
 	ia = ifatoia6(rte->rt_ifa);
 }
 
+#define ipv6_masklen(x)		bitcount32((x).__u6_addr.__u6_addr32[0]) + \
+				bitcount32((x).__u6_addr.__u6_addr32[1]) + \
+				bitcount32((x).__u6_addr.__u6_addr32[2]) + \
+				bitcount32((x).__u6_addr.__u6_addr32[3])
+static void
+rib6_rte_to_nh_extended(struct rtentry *rte, struct in6_addr *dst,
+    struct rt6_extended *prt6)
+{
+	struct sockaddr_in6 *gw;
+
+	/* Do explicit nexthop zero unless we're copying it */
+	memset(prt6, 0, sizeof(*prt6));
+
+    	gw = ((struct sockaddr_in6 *)rt_key(rte));
+	prt6->rt_addr = gw->sin6_addr;
+    	gw = ((struct sockaddr_in6 *)rt_mask(rte));
+	prt6->rt_mask = (gw != NULL) ? ipv6_masklen(gw->sin6_addr) : 128;
+
+	if (rte->rt_flags & RTF_GATEWAY) {
+		gw = (struct sockaddr_in6 *)rte->rt_gateway;
+		prt6->rt_gateway = gw->sin6_addr;
+		in6_clearscope(&prt6->rt_gateway);
+	} else
+		prt6->rt_gateway = *dst;
+
+	prt6->rt_lifp = rte->rt_ifp;
+	prt6->rt_aifp = ifnet_byindex(fib6_get_ifa(rte));
+	prt6->rt_flags = fib_rte_to_nh_flags(rte->rt_flags);
+	prt6->rt_mtu = min(rte->rt_mtu, IN6_LINKMTU(rte->rt_ifp));
+}
+
 int
 fib6_lookup_nh_ifp(uint32_t fibnum, struct in6_addr *dst, uint32_t scopeid,
     uint32_t flowid, struct nhop6_basic *pnh6)
@@ -990,6 +1130,7 @@ fib6_lookup_nh_ifp(uint32_t fibnum, struct in6_addr *dst, uint32_t scopeid,
 
 	if (IN6_IS_SCOPE_LINKLOCAL(dst)) {
 		/* Do not lookup link-local addresses in rtable */
+		/* XXX: Check if dst is local */
 		return (fib6_lla_to_nh_basic(dst, scopeid, pnh6));
 	}
 
@@ -1120,6 +1261,59 @@ fib6_lookup_nh_ext(uint32_t fibnum, struct in6_addr *dst, uint32_t scopeid,
 
 void
 fib6_free_nh_ext(uint32_t fibnum, struct nhop6_extended *pnh6)
+{
+
+}
+
+int
+rib6_lookup_nh_ext(uint32_t fibnum, struct in6_addr *dst, uint32_t scopeid,
+    uint32_t flowid, uint32_t flags, struct rt6_extended *prt6)
+{
+	struct radix_node_head *rnh;
+	struct radix_node *rn;
+	struct sockaddr_in6 sin6;
+	struct rtentry *rte;
+
+	if (IN6_IS_SCOPE_LINKLOCAL(dst)) {
+		/* Do not lookup link-local addresses in rtable */
+		/* XXX: Do lwref on egress ifp */
+		return (rib6_lla_to_nh_extended(dst, scopeid, prt6));
+	}
+
+	KASSERT((fibnum < rt_numfibs), ("rib6_lookup_nh_ext: bad fibnum"));
+	rnh = rt_tables_get_rnh(fibnum, AF_INET6);
+	if (rnh == NULL)
+		return (ENOENT);
+
+	/* Prepare lookup key */
+	memset(&sin6, 0, sizeof(sin6));
+	sin6.sin6_len = sizeof(struct sockaddr_in6);
+	sin6.sin6_addr = *dst;
+	sin6.sin6_scope_id = scopeid;
+	sa6_embedscope(&sin6, 0);
+
+	RADIX_NODE_HEAD_RLOCK(rnh);
+	rn = rnh->rnh_matchaddr((void *)&sin6, rnh);
+	if (rn != NULL && ((rn->rn_flags & RNF_ROOT) == 0)) {
+		rte = RNTORT(rn);
+		/* Ensure route & ifp is UP */
+		if (RT_LINK_IS_UP(rte->rt_ifp)) {
+			rib6_rte_to_nh_extended(rte, dst, prt6);
+			if ((flags & NHOP_LOOKUP_REF) != 0) {
+				/* TODO: Do lwref on egress ifp's */
+			}
+			RADIX_NODE_HEAD_RUNLOCK(rnh);
+
+			return (0);
+		}
+	}
+	RADIX_NODE_HEAD_RUNLOCK(rnh);
+
+	return (ENOENT);
+}
+
+void
+rib6_free_nh_ext(uint32_t fibnum, struct nhop6_extended *prt6)
 {
 
 }
