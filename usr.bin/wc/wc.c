@@ -164,8 +164,6 @@ show_cnt(const char *file, uintmax_t linect, uintmax_t wordct,
 		siginfo = 0;
 	}
 
-	xo_emit("{ek:filename/%s}", file);
-
 	if (doline)
 		xo_emit_h(xop, " {:lines/%7ju/%ju}", linect);
 	if (doword)
@@ -175,7 +173,7 @@ show_cnt(const char *file, uintmax_t linect, uintmax_t wordct,
 	if (dolongline)
 		xo_emit_h(xop, " {:long-lines/%7ju/%ju}", llct);
 	if (file != NULL)
-		xo_emit_h(xop, " {d:filename/%s}\n", file);
+		xo_emit_h(xop, " {:filename/%s}\n", file);
 	else
 		xo_emit_h(xop, "\n");
 }
