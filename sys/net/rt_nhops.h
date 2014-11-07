@@ -180,23 +180,28 @@ struct nhop6_extended {
 };
 
 /* route info used for control plane purposes */
-struct rt4_basic {
+struct rt4_extended {
 	struct in_addr	rt_addr;	/* route prefix */
 	struct in_addr	rt_gateway;	/* GW used */
+	struct ifnet	*rt_lifp;	/* logical interface */
+	struct ifnet	*rt_aifp;	/* address interface */
 	int		rt_flags;	/* Copy of rte flags */
 	uint16_t	rt_mtu;
 	uint16_t	rt_nhop;	/* nexthop id (might bi mpath) */
 	struct in_addr	rt_mask;	/* route mask */
+	struct in_addr	rt_src;
 	uint16_t	spare[2];
 };
 
-struct rt6_basic {
+struct rt6_extended {
 	struct in6_addr	rt_addr;
 	struct in6_addr	rt_gateway;
+	struct ifnet	*rt_lifp;	/* logical interface */
+	struct ifnet	*rt_aifp;	/* address interface */
 	int		rt_flags;
 	uint16_t	rt_mtu;
 	uint16_t	rt_nhop;
-	uint8_t		rt_mask;
+	uint8_t		rt_mask;	/*Hopefully, no more non-config masks */
 	uint8_t		spare[7];
 };
 
@@ -230,6 +235,9 @@ int fib4_lookup_nh_ext(uint32_t fibnum, struct in_addr dst,
     uint32_t flowid, uint32_t flags, struct nhop4_extended *pnh4);
 void fib4_free_nh_ext(uint32_t fibnum, struct nhop4_extended *pnh4);
 #define	NHOP_LOOKUP_REF	0x01
+int rib4_lookup_nh_ext(uint32_t fibnum, struct in_addr dst, uint32_t flowid,
+    uint32_t flags, struct rt4_extended *prt4);
+void rib4_free_nh_ext(uint32_t fibnum, struct rt4_extended *prt4);
 
 
 int fib6_lookup_nh_ifp(uint32_t fibnum, struct in6_addr *dst, uint32_t scopeid,
@@ -240,6 +248,9 @@ int fib6_lookup_nh_ext(uint32_t fibnum, struct in6_addr *dst,
     uint32_t scopeid, uint32_t flowid, uint32_t flags,
     struct nhop6_extended *pnh6);
 void fib6_free_nh_ext(uint32_t fibnum, struct nhop6_extended *pnh6);
+int rib6_lookup_nh_ext(uint32_t fibnum, struct in6_addr *dst, uint32_t scopeid,
+    uint32_t flowid, uint32_t flags, struct rt6_extended *prt6);
+void rib6_free_nh_ext(uint32_t fibnum, struct nhop6_extended *prt6);
 
 void fib_free_nh_ext(uint32_t fibnum, struct nhopu_extended *pnhu);
 
