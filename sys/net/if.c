@@ -2136,7 +2136,7 @@ do_link_state_change(void *arg, int pending)
 		(*vlan_link_state_p)(ifp);
 
 	if ((ifp->if_type == IFT_ETHER || ifp->if_type == IFT_L2VLAN) &&
-	    IFP2AC(ifp)->ac_netgraph != NULL)
+	    ifp->if_l2com != NULL)
 		(*ng_ether_link_state_p)(ifp, link_state);
 	if (ifp->if_carp)
 		(*carp_linkstate_p)(ifp);
