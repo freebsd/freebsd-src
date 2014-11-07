@@ -45,7 +45,10 @@ __FBSDID("$FreeBSD$");
 #include <sys/hash.h>
 #include <fs/nfs/nfsport.h>
 #include <netinet/if_ether.h>
+#include <netinet6/scope6_var.h>
+#include <netinet6/ip6_var.h>
 #include <net/if_types.h>
+#include <net/rt_nhops.h>
 
 #include <fs/nfsclient/nfs_kdtrace.h>
 
@@ -969,8 +972,6 @@ nfscl_loadfsinfo(struct nfsmount *nmp, struct nfsfsinfo *fsp)
 u_int8_t *
 nfscl_getmyip(struct nfsmount *nmp, int *isinet6p)
 {
-	struct sockaddr_in sad, *sin;
-	struct rtentry *rt;
 	u_int8_t *retp = NULL;
 	static struct in_addr laddr;
 
@@ -979,52 +980,30 @@ nfscl_getmyip(struct nfsmount *nmp, int *isinet6p)
 	 * Loop up a route for the destination address.
 	 */
 	if (nmp->nm_nam->sa_family == AF_INET) {
-		bzero(&sad, sizeof (sad));
-		sin = (struct sockaddr_in *)nmp->nm_nam;
-		sad.sin_family = AF_INET;
-		sad.sin_len = sizeof (struct sockaddr_in);
-		sad.sin_addr.s_addr = sin->sin_addr.s_addr;
+		struct in_addr dst;
+		struct nhop4_extended nh4;
+		dst = ((struct sockaddr_in *)nmp->nm_nam)->sin_addr;
+
 		CURVNET_SET(CRED_TO_VNET(nmp->nm_sockreq.nr_cred));
-		rt = rtalloc1_fib((struct sockaddr *)&sad, 0, 0UL,
-		     curthread->td_proc->p_fibnum);
-		if (rt != NULL) {
-			if (rt->rt_ifp != NULL &&
-			    rt->rt_ifa != NULL &&
-			    ((rt->rt_ifp->if_flags & IFF_LOOPBACK) == 0) &&
-			    rt->rt_ifa->ifa_addr->sa_family == AF_INET) {
-				sin = (struct sockaddr_in *)
-				    rt->rt_ifa->ifa_addr;
-				laddr.s_addr = sin->sin_addr.s_addr;
-				retp = (u_int8_t *)&laddr;
-			}
-			RTFREE_LOCKED(rt);
+		if (fib4_lookup_nh_ext(curthread->td_proc->p_fibnum,
+		    dst, 0, 0, &nh4) == 0) {
+			laddr = nh4.nh_src;
+			retp = (u_int8_t *)&laddr;
 		}
 		CURVNET_RESTORE();
 #ifdef INET6
 	} else if (nmp->nm_nam->sa_family == AF_INET6) {
-		struct sockaddr_in6 sad6, *sin6;
 		static struct in6_addr laddr6;
+		struct in6_addr dst;
+		uint32_t scopeid;
 
-		bzero(&sad6, sizeof (sad6));
-		sin6 = (struct sockaddr_in6 *)nmp->nm_nam;
-		sad6.sin6_family = AF_INET6;
-		sad6.sin6_len = sizeof (struct sockaddr_in6);
-		sad6.sin6_addr = sin6->sin6_addr;
 		CURVNET_SET(CRED_TO_VNET(nmp->nm_sockreq.nr_cred));
-		rt = rtalloc1_fib((struct sockaddr *)&sad6, 0, 0UL,
-		     curthread->td_proc->p_fibnum);
-		if (rt != NULL) {
-			if (rt->rt_ifp != NULL &&
-			    rt->rt_ifa != NULL &&
-			    ((rt->rt_ifp->if_flags & IFF_LOOPBACK) == 0) &&
-			    rt->rt_ifa->ifa_addr->sa_family == AF_INET6) {
-				sin6 = (struct sockaddr_in6 *)
-				    rt->rt_ifa->ifa_addr;
-				laddr6 = sin6->sin6_addr;
-				retp = (u_int8_t *)&laddr6;
-				*isinet6p = 1;
-			}
-			RTFREE_LOCKED(rt);
+		in6_splitscope(&((struct sockaddr_in6 *)nmp->nm_nam)->sin6_addr,
+		    &dst, &scopeid);
+		if (in6_selectsrc_addr(curthread->td_proc->p_fibnum,
+		    &dst, scopeid, &laddr6) == 0) {
+			retp = (u_int8_t *)&laddr6;
+			*isinet6p = 1;
 		}
 		CURVNET_RESTORE();
 #endif
