@@ -138,6 +138,6 @@ int	autofs_node_find(struct autofs_node *parent,
 	    const char *name, int namelen, struct autofs_node **anpp);
 void	autofs_node_delete(struct autofs_node *anp);
 int	autofs_node_vn(struct autofs_node *anp, struct mount *mp,
-	    struct vnode **vpp);
+	    int flags, struct vnode **vpp);
 
 #endif /* !AUTOFS_H */
