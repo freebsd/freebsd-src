@@ -379,15 +379,10 @@ ipsec4_common_input_cb(struct mbuf *m, struct secasvar *sav,
 	if_inc_counter(encif, IFCOUNTER_IPACKETS, 1);
 	if_inc_counter(encif, IFCOUNTER_IBYTES, m->m_pkthdr.len);
 
-	/*
-	 * Pass the mbuf to enc0 for bpf and pfil. We will filter the IPIP
-	 * packet later after it has been decapsulated.
-	 */
+	/* Pass the mbuf to enc0 for bpf and pfil. */
 	ipsec_bpf(m, sav, AF_INET, ENC_IN|ENC_BEFORE);
-
-	if (prot != IPPROTO_IPIP)
-		if ((error = ipsec_filter(&m, PFIL_IN, ENC_IN|ENC_BEFORE)) != 0)
-			return (error);
+	if ((error = ipsec_filter(&m, PFIL_IN, ENC_IN|ENC_BEFORE)) != 0)
+		return (error);
 #endif /* DEV_ENC */
 
 	/* IP-in-IP encapsulation */
@@ -683,16 +678,10 @@ ipsec6_common_input_cb(struct mbuf *m, struct secasvar *sav, int skip, int proto
 	if_inc_counter(encif, IFCOUNTER_IPACKETS, 1);
 	if_inc_counter(encif, IFCOUNTER_IBYTES, m->m_pkthdr.len);
 
-	/*
-	 * Pass the mbuf to enc0 for bpf and pfil. We will filter the IPIP
-	 * packet later after it has been decapsulated.
-	 */
+	/* Pass the mbuf to enc0 for bpf and pfil. */
 	ipsec_bpf(m, sav, AF_INET6, ENC_IN|ENC_BEFORE);
-
-	/* XXX-BZ does not make sense. */
-	if (prot != IPPROTO_IPIP)
-		if ((error = ipsec_filter(&m, PFIL_IN, ENC_IN|ENC_BEFORE)) != 0)
-			return (error);
+	if ((error = ipsec_filter(&m, PFIL_IN, ENC_IN|ENC_BEFORE)) != 0)
+		return (error);
 #endif /* DEV_ENC */
 
 #ifdef INET
