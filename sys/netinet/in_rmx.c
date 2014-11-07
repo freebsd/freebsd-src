@@ -459,12 +459,6 @@ in_ifadown(struct ifaddr *ifa, int delete)
  * for now will just reference the _fib variants.
  * eventually this order will be reversed,
  */
-void
-in_rtalloc_ign(struct route *ro, u_long ignflags, u_int fibnum)
-{
-	rtalloc_ign_fib(ro, ignflags, fibnum);
-}
-
 int
 in_rtrequest( int req,
 	struct sockaddr *dst,
@@ -478,12 +472,6 @@ in_rtrequest( int req,
 	    flags, ret_nrt, fibnum));
 }
 
-struct rtentry *
-in_rtalloc1(struct sockaddr *dst, int report, u_long ignflags, u_int fibnum)
-{
-	return (rtalloc1_fib(dst, report, ignflags, fibnum));
-}
-
 void
 in_rtredirect(struct sockaddr *dst,
 	struct sockaddr *gateway,
@@ -495,12 +483,6 @@ in_rtredirect(struct sockaddr *dst,
 	rtredirect_fib(dst, gateway, netmask, flags, src, fibnum);
 }
  
-void
-in_rtalloc(struct route *ro, u_int fibnum)
-{
-	rtalloc_ign_fib(ro, 0UL, fibnum);
-}
-
 #if 0
 int	 in_rt_getifa(struct rt_addrinfo *, u_int fibnum);
 int	 in_rtioctl(u_long, caddr_t, u_int);
