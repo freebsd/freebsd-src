@@ -96,7 +96,8 @@ cheri_system_clock_gettime(clockid_t clock_id, __capability struct timespec *tp)
 {
 
 	return (cheri_invoke(cheri_system_object,
-	    cheri_system_methodnum_putchar, clock_id, 0, 0, 0, 0, 0, 0, tp,
+	    cheri_system_methodnum_clock_gettime, clock_id, 0, 0, 0, 0, 0, 0,
+	    tp,
 	    cheri_zerocap(), cheri_zerocap(), cheri_zerocap(),
 	    cheri_zerocap(), cheri_zerocap(), cheri_zerocap(),
 	    cheri_zerocap()));
