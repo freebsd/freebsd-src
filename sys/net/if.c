@@ -99,10 +99,6 @@
 #include <compat/freebsd32/freebsd32.h>
 #endif
 
-struct ifindex_entry {
-	struct  ifnet *ife_ifnet;
-};
-
 SYSCTL_NODE(_net, PF_LINK, link, CTLFLAG_RW, 0, "Link layers");
 SYSCTL_NODE(_net_link, 0, generic, CTLFLAG_RW, 0, "Generic link-management");
 
@@ -196,7 +192,7 @@ VNET_DEFINE(struct ifgrouphead, ifg_head);
 static VNET_DEFINE(int, if_indexlim) = 8;
 
 /* Table of ifnet by index. */
-VNET_DEFINE(struct ifindex_entry *, ifindex_table);
+VNET_DEFINE(struct ifnet **, ifindex_table);
 
 #define	V_if_indexlim		VNET(if_indexlim)
 #define	V_ifindex_table		VNET(ifindex_table)
@@ -233,9 +229,9 @@ ifnet_byindex_locked(u_short idx)
 
 	if (idx > V_if_index)
 		return (NULL);
-	if (V_ifindex_table[idx].ife_ifnet == IFNET_HOLD)
+	if (V_ifindex_table[idx] == IFNET_HOLD)
 		return (NULL);
-	return (V_ifindex_table[idx].ife_ifnet);
+	return (V_ifindex_table[idx]);
 }
 
 struct ifnet *
@@ -282,7 +278,7 @@ retry:
 	 * next slot.
 	 */
 	for (idx = 1; idx <= V_if_index; idx++) {
-		if (V_ifindex_table[idx].ife_ifnet == NULL)
+		if (V_ifindex_table[idx] == NULL)
 			break;
 	}
 
@@ -303,9 +299,9 @@ ifindex_free_locked(u_short idx)
 
 	IFNET_WLOCK_ASSERT();
 
-	V_ifindex_table[idx].ife_ifnet = NULL;
+	V_ifindex_table[idx] = NULL;
 	while (V_if_index > 0 &&
-	    V_ifindex_table[V_if_index].ife_ifnet == NULL)
+	    V_ifindex_table[V_if_index] == NULL)
 		V_if_index--;
 }
 
@@ -324,7 +320,7 @@ ifnet_setbyindex_locked(u_short idx, struct ifnet *ifp)
 
 	IFNET_WLOCK_ASSERT();
 
-	V_ifindex_table[idx].ife_ifnet = ifp;
+	V_ifindex_table[idx] = ifp;
 }
 
 static void
@@ -402,7 +398,7 @@ if_grow(void)
 {
 	int oldlim;
 	u_int n;
-	struct ifindex_entry *e;
+	struct ifnet **e;
 
 	IFNET_WLOCK_ASSERT();
 	oldlim = V_if_indexlim;
