@@ -139,7 +139,8 @@ sandbox_object_load(struct sandbox_class *sbcp, struct sandbox_object *sbop)
 	 * Map program binary.
 	 */
 	if (mmap(base, sbcp->sbc_stat.st_size, PROT_READ | PROT_WRITE,
-	    MAP_PRIVATE | MAP_FIXED, sbcp->sbc_fd, 0) == MAP_FAILED) {
+	    MAP_PRIVATE | MAP_FIXED | MAP_PREFAULT_READ, sbcp->sbc_fd, 0) ==
+	    MAP_FAILED) {
 		saved_errno = errno;
 		warn("%s: mmap %s", __func__, sbcp->sbc_path);
 		goto error;
