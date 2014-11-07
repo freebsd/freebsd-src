@@ -271,7 +271,7 @@ union ctl_softcs {
 #define	CTL_DEFAULT_SECTORS_PER_TRACK	256
 #define	CTL_DEFAULT_HEADS		128
 
-#define	CTL_DEFAULT_ROTATION_RATE	10000
+#define	CTL_DEFAULT_ROTATION_RATE	SVPD_NON_ROTATING
 
 struct ctl_page_index;
 
