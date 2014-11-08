@@ -35,12 +35,6 @@ write_partition_layout() {
 	return 0
 }
 
-usage() {
-	echo "${0} usage:"
-	echo "${@}"
-	return 1
-}
-
 err() {
 	printf "${@}\n"
 	cleanup
