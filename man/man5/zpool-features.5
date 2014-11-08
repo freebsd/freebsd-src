@@ -18,7 +18,6 @@
 .SH NAME
 zpool\-features \- ZFS pool feature descriptions
 .SH DESCRIPTION
-.sp
 .LP
 ZFS pool on\-disk format versions are specified via "features" which replace
 the old on\-disk format numbers (the last supported on\-disk format number is
@@ -36,7 +35,6 @@ format of the pool is specified by the set of all features marked as
 \fBactive\fR on the pool. If the pool was created by another software version
 this set may include unsupported features.
 .SS "Identifying features"
-.sp
 .LP
 Every feature has a guid of the form \fIcom.example:feature_name\fR. The reverse
 DNS name ensures that the feature's guid is unique across all ZFS
@@ -51,7 +49,6 @@ name is the portion of its guid which follows the ':' (e.g.
 however a feature's short name may differ across ZFS implementations if
 following the convention would result in name conflicts.
 .SS "Feature states"
-.sp
 .LP
 Features can be in one of three states:
 .sp
@@ -97,7 +94,6 @@ cannot be disabled once they have been enabled.
 The state of supported features is exposed through pool properties of the form
 \fIfeature@short_name\fR.
 .SS "Read\-only compatibility"
-.sp
 .LP
 Some features may make on\-disk format changes that do not interfere with other
 software's ability to read from the pool. These features are referred to as
@@ -106,7 +102,6 @@ compatible, the pool can be imported in read\-only mode by setting the
 \fBreadonly\fR property during import (see \fBzpool\fR(1M) for details on
 importing pools).
 .SS "Unsupported features"
-.sp
 .LP
 For each unsupported feature enabled on an imported pool a pool property
 named \fIunsupported@feature_guid\fR will indicate why the import was allowed
@@ -133,13 +128,11 @@ read\-only mode.
 .RE
 
 .SS "Feature dependencies"
-.sp
 .LP
 Some features depend on other features being enabled in order to function
 properly. Enabling a feature will automatically enable any features it
 depends on.
 .SH FEATURES
-.sp
 .LP
 The following features are supported on this system:
 .sp
@@ -428,6 +421,27 @@ and no additional i/o is needed to read and write the data block.
 This feature becomes \fBactive\fR as soon as it is enabled and will
 never return to being \fBenabled\fR.
 
+.RE
+
+.sp
+.ne 2
+.na
+\fB\fBlarge_blocks\fR\fR
+.ad
+.RS 4n
+.TS
+l l .
+GUID	org.open-zfs:large_block
+READ\-ONLY COMPATIBLE	no
+DEPENDENCIES	extensible_dataset
+.TE
+
+The \fBlarge_block\fR feature allows the record size on a dataset to be
+set larger than 128KB.
+
+This feature becomes \fBactive\fR once a \fBrecordsize\fR property has been
+set larger than 128KB, and will return to being \fBenabled\fR once all
+filesystems that have ever had their recordsize larger than 128KB are destroyed.
 .RE
 
 .SH "SEE ALSO"
