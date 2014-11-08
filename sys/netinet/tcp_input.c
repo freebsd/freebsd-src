@@ -513,6 +513,7 @@ tcp6_input(struct mbuf **mp, int *offp, int proto)
 {
 	struct mbuf *m = *mp;
 	struct in6_ifaddr *ia6;
+	struct ip6_hdr *ip6;
 
 	IP6_EXTHDR_CHECK(m, *offp, sizeof(struct tcphdr), IPPROTO_DONE);
 
@@ -520,7 +521,8 @@ tcp6_input(struct mbuf **mp, int *offp, int proto)
 	 * draft-itojun-ipv6-tcp-to-anycast
 	 * better place to put this in?
 	 */
-	ia6 = ip6_getdstifaddr(m);
+	ip6 = mtod(m, struct ip6_hdr *);
+	ia6 = in6ifa_ifwithaddr(&ip6->ip6_dst, 0 /* XXX */);
 	if (ia6 && (ia6->ia6_flags & IN6_IFF_ANYCAST)) {
 		struct ip6_hdr *ip6;
 
@@ -1251,7 +1253,7 @@ relocked:
 		if (isipv6 && !V_ip6_use_deprecated) {
 			struct in6_ifaddr *ia6;
 
-			ia6 = ip6_getdstifaddr(m);
+			ia6 = in6ifa_ifwithaddr(&ip6->ip6_dst, 0 /* XXX */);
 			if (ia6 != NULL &&
 			    (ia6->ia6_flags & IN6_IFF_DEPRECATED)) {
 				ifa_free(&ia6->ia_ifa);
