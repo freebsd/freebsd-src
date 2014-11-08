@@ -61,33 +61,75 @@
 #include "cheritest_sandbox.h"
 
 /*
- * Configure $c1 and $c2 to enter a simple sandbox.  Not suitable for more
- * complex tests as it has no notion of configuring heaps/stacks/etc.  For
- * that, we use libcheri.
+ * Prepare a set of static sandboxes used (and reused) across various tests.
+ * These are hand-crafted, minimalist affairs that don't even have stacks --
+ * unlike libcheri tests that involve substantially more weight.  Those tests
+ * are arguably tests for libcheri, while these are tests of the CCall (and
+ * CReturn) mechanism itself.
+ *
+ * NB: Code and data capabilities are 100% overlapping; Base-relative $pc is
+ * always 0.
  */
-void
-cheritest_sandbox_setup(void *sandbox_base, void *sandbox_end,
-    register_t sandbox_pc, __capability void **codecapp,
-    __capability void **datacapp)
-{
-	__capability void *codecap, *datacap, *basecap, *typecap;
 
-	typecap = cheri_type_alloc();
-	basecap = cheri_ptr(sandbox_base, (uintptr_t)sandbox_end -
-	    (uintptr_t)sandbox_base);
+static __capability void *sandbox_creturn_basecap;
+static __capability void *sandbox_creturn_typecap;
+
+static __capability void *sandbox_nop_creturn_basecap;
+static __capability void *sandbox_nop_creturn_typecap;
+
+static __capability void *sandbox_dli_creturn_basecap;
+static __capability void *sandbox_dli_creturn_typecap;
+
+static __capability void *
+basecap_create(void *sandbox_base, void *sandbox_end)
+{
+
+	return (cheri_ptr(sandbox_base, (uintptr_t)sandbox_end -
+	    (uintptr_t)sandbox_base));
+}
+
+static __capability void *
+codecap_create(__capability void *basecap, __capability void *typecap)
+{
+	__capability void *codecap;
 
 	codecap = cheri_andperm(basecap, CHERI_PERM_GLOBAL | CHERI_PERM_LOAD |
 	    CHERI_PERM_EXECUTE);
-	codecap = cheri_setoffset(codecap, sandbox_pc);
+	codecap = cheri_setoffset(codecap, 0);
 	codecap = cheri_seal(codecap, typecap);
+	return (codecap);
+}
+
+static __capability void *
+datacap_create(__capability void *basecap, __capability void *typecap)
+{
+	__capability void *datacap;
 
 	datacap = cheri_andperm(basecap, CHERI_PERM_GLOBAL | CHERI_PERM_LOAD |
 	    CHERI_PERM_STORE | CHERI_PERM_LOAD_CAP | CHERI_PERM_STORE_CAP |
 	    CHERI_PERM_STORE_LOCAL_CAP);
 	datacap = cheri_seal(datacap, typecap);
+	return (datacap);
+}
 
-	*codecapp = codecap;
-	*datacapp = datacap;
+/*
+ * One-type setup for ccall-related tests.
+ */
+void
+cheritest_ccall_setup(void)
+{
+
+	sandbox_creturn_typecap = cheri_type_alloc();
+	sandbox_creturn_basecap = basecap_create(&sandbox_creturn,
+	    &sandbox_creturn_end);
+
+	sandbox_nop_creturn_typecap = cheri_type_alloc();
+	sandbox_nop_creturn_basecap = basecap_create(&sandbox_nop_creturn,
+	    &sandbox_nop_creturn_end);
+
+	sandbox_dli_creturn_typecap = cheri_type_alloc();
+	sandbox_dli_creturn_basecap = basecap_create(&sandbox_dli_creturn,
+	    &sandbox_dli_creturn_end);
 }
 
 /*
@@ -109,8 +151,10 @@ test_nofault_ccall_creturn(const struct cheri_test *ctp __unused)
 {
 	__capability void *codecap, *datacap;
 
-	cheritest_sandbox_setup(&sandbox_creturn, &sandbox_creturn_end, 0,
-	    &codecap, &datacap);
+	codecap = codecap_create(sandbox_creturn_basecap,
+	    sandbox_creturn_typecap);
+	datacap = datacap_create(sandbox_creturn_basecap,
+	    sandbox_creturn_typecap);
 	cheritest_ccall(codecap, datacap);
 	cheritest_success();
 }
@@ -123,8 +167,10 @@ test_nofault_ccall_nop_creturn(const struct cheri_test *ctp __unused)
 {
 	__capability void *codecap, *datacap;
 
-	cheritest_sandbox_setup(&sandbox_nop_creturn,
-	    &sandbox_nop_creturn_end, 0, &codecap, &datacap);
+	codecap = codecap_create(sandbox_nop_creturn_basecap,
+	    sandbox_nop_creturn_typecap);
+	datacap = datacap_create(sandbox_nop_creturn_basecap,
+	    sandbox_nop_creturn_typecap);
 	cheritest_ccall(codecap, datacap);
 	cheritest_success();
 }
@@ -142,12 +188,157 @@ test_nofault_ccall_dli_creturn(const struct cheri_test *ctp __unused)
 	register_t v0;
 
 	v0 = getpid();
-	cheritest_sandbox_setup(&sandbox_dli_creturn,
-	    &sandbox_dli_creturn_end, 0, &codecap, &datacap);
+	codecap = codecap_create(sandbox_dli_creturn_basecap,
+	    sandbox_dli_creturn_typecap);
+	datacap = datacap_create(sandbox_dli_creturn_basecap,
+	    sandbox_dli_creturn_typecap);
 	v0 = cheritest_ccall(codecap, datacap);
 	if (v0 != DLI_RETVAL)
 		cheritest_failure_errx("Invalid return value (got: 0x%jx; "
 		    "expected 0x%jx)", v0, DLI_RETVAL);
 	else
 		cheritest_success();
+}
+
+/*
+ * A series of tests exercising various potential failure modes for CCall.
+ * These all work within the defined ABI of using $c1 and $c2.
+ *
+ * XXXRW: We should have some additional tests that attempt to use registers
+ * other than $c1 and $c2 to see whether checks and implementation are done
+ * properly if the caller doesn't quite follow the ABI.
+ *
+ * XXXRW: We should also have a test for trusted-stack overflow.
+ *
+ * XXXRW: There should also be a test for out-of-range $pc.
+ */
+
+/*
+ * CCall with an untagged code capability.
+ */
+void
+test_fault_ccall_code_untagged(const struct cheri_test *ctp __unused)
+{
+	__capability void *codecap, *datacap;
+
+	codecap = codecap_create(sandbox_creturn_basecap,
+	    sandbox_creturn_typecap);
+	datacap = datacap_create(sandbox_creturn_basecap,
+	    sandbox_creturn_typecap);
+
+	codecap = cheri_ccleartag(codecap);
+	if (cheri_gettag(codecap) != 0)
+		cheritest_failure_errx("cheri_ccleartag failed");
+	cheritest_ccall(codecap, datacap);
+	cheritest_failure_errx("ccall returned successfully");
+}
+
+/*
+ * CCall with an untagged data capability.
+ */
+void
+test_fault_ccall_data_untagged(const struct cheri_test *ctp __unused)
+{
+	__capability void *codecap, *datacap;
+
+	codecap = codecap_create(sandbox_nop_creturn_basecap,
+	    sandbox_creturn_typecap);
+	datacap = datacap_create(sandbox_creturn_basecap,
+	    sandbox_creturn_typecap);
+
+	datacap = cheri_ccleartag(datacap);
+	if (cheri_gettag(datacap) != 0)
+		cheritest_failure_errx("cheri_ccleartag failed");
+	cheritest_ccall(codecap, datacap);
+	cheritest_failure_errx("ccall returned successfully");
+}
+
+/*
+ * CCall with an unsealed code capability.
+ */
+void
+test_fault_ccall_code_unsealed(const struct cheri_test *ctp __unused)
+{
+	__capability void *codecap, *datacap;
+
+	codecap = sandbox_creturn_basecap;
+	datacap = datacap_create(sandbox_creturn_basecap,
+	    sandbox_creturn_typecap);
+
+	if (cheri_getsealed(codecap) != 0)
+		cheritest_failure_errx("code capability was sealed");
+	cheritest_ccall(codecap, datacap);
+	cheritest_failure_errx("ccall returned successfully");
+}
+
+/*
+ * CCall with an unsealed data capability.
+ */
+void
+test_fault_ccall_data_unsealed(const struct cheri_test *ctp __unused)
+{
+	__capability void *codecap, *datacap;
+
+	codecap = codecap_create(sandbox_creturn_basecap,
+	    sandbox_creturn_typecap);
+	datacap = sandbox_creturn_basecap;
+
+	if (cheri_getsealed(datacap) != 0)
+		cheritest_failure_errx("data capability was sealed");
+	cheritest_ccall(codecap, datacap);
+	cheritest_failure_errx("ccall returned successfully");
+}
+
+/*
+ * CCall with non-matching types for code and data.
+ */
+void
+test_fault_ccall_typemismatch(const struct cheri_test *ctp __unused)
+{
+	__capability void *codecap, *datacap;
+
+	codecap = codecap_create(sandbox_creturn_basecap,
+	    sandbox_creturn_typecap);
+	datacap = datacap_create(sandbox_dli_creturn_basecap,
+	    sandbox_dli_creturn_typecap);
+
+	if (cheri_gettype(codecap) == cheri_gettype(datacap))
+		cheritest_failure_errx("code and data types match");
+	cheritest_ccall(codecap, datacap);
+	cheritest_failure_errx("ccall returned successfully");
+}
+
+/*
+ * CCall without execute permission on the code capability.
+ */
+void
+test_fault_ccall_code_noexecute(const struct cheri_test *ctp __unused)
+{
+	__capability void *codecap, *datacap;
+
+	codecap = datacap = datacap_create(sandbox_creturn_basecap,
+	    sandbox_creturn_typecap);
+
+	if ((cheri_getperm(codecap) & CHERI_PERM_EXECUTE) != 0)
+		cheritest_failure_errx("code capability has execute perm");
+	cheritest_ccall(codecap, datacap);
+	cheritest_failure_errx("ccall returned successfully");
+}
+
+/*
+ * CCall with execute permission on the data capability.
+ */
+void
+test_fault_ccall_data_execute(const struct cheri_test *ctp __unused)
+{
+	__capability void *codecap, *datacap;
+
+	codecap = datacap = codecap_create(sandbox_creturn_basecap,
+	    sandbox_creturn_typecap);
+
+	if ((cheri_getperm(datacap) & CHERI_PERM_EXECUTE) == 0)
+		cheritest_failure_errx("code capability does not have "
+		    "execute perm");
+	cheritest_ccall(codecap, datacap);
+	cheritest_failure_errx("ccall returned successfull");
 }

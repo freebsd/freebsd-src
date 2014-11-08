@@ -276,6 +276,73 @@ static const struct cheri_test cheri_tests[] = {
 	  .ct_func = test_nofault_ccall_dli_creturn },
 
 	/*
+	 * Further CCall/CReturn test cases the exercise various call-time
+	 * failures.
+	 */
+	{ .ct_name = "test_fault_ccall_code_untagged",
+	  .ct_desc = "Invoke CCall with untagged code capability",
+	  .ct_func = test_fault_ccall_code_untagged,
+	  .ct_flags = CT_FLAG_SIGNAL | CT_FLAG_MIPS_EXCCODE |
+		  CT_FLAG_CP2_EXCCODE,
+	  .ct_signum = SIGPROT,
+	  .ct_mips_exccode = T_C2E,
+	  .ct_cp2_exccode = CHERI_EXCCODE_TAG },
+
+	{ .ct_name = "test_fault_ccall_data_untagged",
+	  .ct_desc = "Invoke CCall with an untagged data capability",
+	  .ct_func = test_fault_ccall_data_untagged,
+	  .ct_flags = CT_FLAG_SIGNAL | CT_FLAG_MIPS_EXCCODE |
+		  CT_FLAG_CP2_EXCCODE,
+	  .ct_signum = SIGPROT,
+	  .ct_mips_exccode = T_C2E,
+	  .ct_cp2_exccode = CHERI_EXCCODE_TAG },
+
+	{ .ct_name = "test_fault_ccall_code_unsealed",
+	  .ct_desc = "Invoke CCall with an unsealed code capability",
+	  .ct_func = test_fault_ccall_code_unsealed,
+	  .ct_flags = CT_FLAG_SIGNAL | CT_FLAG_MIPS_EXCCODE |
+		  CT_FLAG_CP2_EXCCODE,
+	  .ct_signum = SIGPROT,
+	  .ct_mips_exccode = T_C2E,
+	  .ct_cp2_exccode = CHERI_EXCCODE_SEAL },
+
+	{ .ct_name = "test_fault_ccall_data_unsealed",
+	  .ct_desc = "Invoke CCall with an unsealed data capability",
+	  .ct_func = test_fault_ccall_data_unsealed,
+	  .ct_flags = CT_FLAG_SIGNAL | CT_FLAG_MIPS_EXCCODE |
+		  CT_FLAG_CP2_EXCCODE,
+	  .ct_signum = SIGPROT,
+	  .ct_mips_exccode = T_C2E,
+	  .ct_cp2_exccode = CHERI_EXCCODE_SEAL },
+
+	{ .ct_name = "test_fault_ccall_typemismatch",
+	  .ct_desc = "Invoke CCall with code/data type mismatch",
+	  .ct_func = test_fault_ccall_typemismatch,
+	  .ct_flags = CT_FLAG_SIGNAL | CT_FLAG_MIPS_EXCCODE |
+		  CT_FLAG_CP2_EXCCODE,
+	  .ct_signum = SIGPROT,
+	  .ct_mips_exccode = T_C2E,
+	  .ct_cp2_exccode = CHERI_EXCCODE_TYPE },
+
+	{ .ct_name = "test_fault_ccall_code_noexecute",
+	  .ct_desc = "Invoke CCall with a non-executable code capability",
+	  .ct_func = test_fault_ccall_code_noexecute,
+	  .ct_flags = CT_FLAG_SIGNAL | CT_FLAG_MIPS_EXCCODE |
+		  CT_FLAG_CP2_EXCCODE,
+	  .ct_signum = SIGPROT,
+	  .ct_mips_exccode = T_C2E,
+	  .ct_cp2_exccode = CHERI_EXCCODE_PERM_EXECUTE },
+
+	{ .ct_name = "test_fault_ccall_data_execute",
+	  .ct_desc = "Invoke CCall with an executable data capability",
+	  .ct_func = test_fault_ccall_data_execute,
+	  .ct_flags = CT_FLAG_SIGNAL | CT_FLAG_MIPS_EXCCODE |
+		  CT_FLAG_CP2_EXCCODE,
+	  .ct_signum = SIGPROT,
+	  .ct_mips_exccode = T_C2E,
+	  .ct_cp2_exccode = CHERI_EXCCODE_PERM_EXECUTE },
+
+	/*
 	 * Test libcheri sandboxing -- and kernel sandbox unwind.
 	 */
 	{ .ct_name = "test_sandbox_abort",
@@ -874,6 +941,7 @@ main(__unused int argc, __unused char *argv[])
 		err(EX_OSERR, "minherit");
 
 	/* Run the actual tests. */
+	cheritest_ccall_setup();
 	cheritest_libcheri_setup();
 	if (argc == 1 && strcmp(argv[0], "all") == 0) {
 		for (t = 0; t < cheri_tests_len; t++)

@@ -124,14 +124,19 @@ void	cheritest_failure_errx(const char *msg, ...) __dead2;
 void	cheritest_success(void) __dead2;
 
 /* cheritest_ccall.c */
-struct cheri_test;
-void	test_sandbox_setup(void *sandbox_base, void *sandbox_end,
-	    register_t sandbox_pc, __capability void **codecapp,
-	    __capability void **datacapp);
+void	cheritest_ccall_setup();
 void	test_fault_creturn(const struct cheri_test *ctp);
 void	test_nofault_ccall_creturn(const struct cheri_test *ctp);
 void	test_nofault_ccall_nop_creturn(const struct cheri_test *ctp);
 void	test_nofault_ccall_dli_creturn(const struct cheri_test *ctp);
+void	test_fault_creturn(const struct cheri_test *ctp);
+void	test_fault_ccall_code_untagged(const struct cheri_test *ctp);
+void	test_fault_ccall_data_untagged(const struct cheri_test *ctp);
+void	test_fault_ccall_code_unsealed(const struct cheri_test *ctp);
+void	test_fault_ccall_data_unsealed(const struct cheri_test *ctp);
+void	test_fault_ccall_typemismatch(const struct cheri_test *ctp);
+void	test_fault_ccall_code_noexecute(const struct cheri_test *ctp);
+void	test_fault_ccall_data_execute(const struct cheri_test *ctp);
 
 /* cheritest_fault.c */
 void	test_fault_bounds(const struct cheri_test *ctp);
