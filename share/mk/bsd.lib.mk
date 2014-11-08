@@ -36,7 +36,7 @@ NO_WERROR=
 .if defined(DEBUG_FLAGS)
 CFLAGS+= ${DEBUG_FLAGS}
 
-.if ${MK_CTF} != "no" && ${DEBUG_FLAGS:M-g} != ""
+.if ${MK_CTF} != "no"
 CTFFLAGS+= -g
 .endif
 .else

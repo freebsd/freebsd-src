@@ -1859,11 +1859,13 @@ fddrop(struct filedesc *fdp)
 {
 	int i;
 
-	mtx_lock(&fdesc_mtx);
-	i = --fdp->fd_holdcnt;
-	mtx_unlock(&fdesc_mtx);
-	if (i > 0)
-		return;
+	if (fdp->fd_holdcnt > 1) {
+		mtx_lock(&fdesc_mtx);
+		i = --fdp->fd_holdcnt;
+		mtx_unlock(&fdesc_mtx);
+		if (i > 0)
+			return;
+	}
 
 	FILEDESC_LOCK_DESTROY(fdp);
 	uma_zfree(filedesc0_zone, fdp);
@@ -2026,7 +2028,7 @@ fdescfree(struct thread *td)
 {
 	struct filedesc0 *fdp0;
 	struct filedesc *fdp;
-	struct freetable *ft;
+	struct freetable *ft, *tft;
 	struct filedescent *fde;
 	struct file *fp;
 	struct vnode *cdir, *jdir, *rdir;
@@ -2078,10 +2080,8 @@ fdescfree(struct thread *td)
 		free(fdp->fd_files, M_FILEDESC);
 
 	fdp0 = (struct filedesc0 *)fdp;
-	while ((ft = SLIST_FIRST(&fdp0->fd_free)) != NULL) {
-		SLIST_REMOVE_HEAD(&fdp0->fd_free, ft_next);
+	SLIST_FOREACH_SAFE(ft, &fdp0->fd_free, ft_next, tft)
 		free(ft->ft_table, M_FILEDESC);
-	}
 
 	if (cdir != NULL)
 		vrele(cdir);
@@ -3405,6 +3405,73 @@ vntype_to_kinfo(int vtype)
 static SYSCTL_NODE(_kern_proc, KERN_PROC_FILEDESC, filedesc,
     CTLFLAG_RD|CTLFLAG_MPSAFE, sysctl_kern_proc_filedesc,
     "Process filedesc entries");
+
+/*
+ * Store a process current working directory information to sbuf.
+ *
+ * Takes a locked proc as argument, and returns with the proc unlocked.
+ */
+int
+kern_proc_cwd_out(struct proc *p,  struct sbuf *sb, ssize_t maxlen)
+{
+	struct filedesc *fdp;
+	struct export_fd_buf *efbuf;
+	int error;
+
+	PROC_LOCK_ASSERT(p, MA_OWNED);
+
+	fdp = fdhold(p);
+	PROC_UNLOCK(p);
+	if (fdp == NULL)
+		return (EINVAL);
+
+	efbuf = malloc(sizeof(*efbuf), M_TEMP, M_WAITOK);
+	efbuf->fdp = fdp;
+	efbuf->sb = sb;
+	efbuf->remainder = maxlen;
+
+	FILEDESC_SLOCK(fdp);
+	if (fdp->fd_cdir == NULL)
+		error = EINVAL;
+	else {
+		vref(fdp->fd_cdir);
+		error = export_vnode_to_sb(fdp->fd_cdir, KF_FD_TYPE_CWD,
+		    FREAD, efbuf);
+	}
+	FILEDESC_SUNLOCK(fdp);
+	fddrop(fdp);
+	free(efbuf, M_TEMP);
+	return (error);
+}
+
+/*
+ * Get per-process current working directory.
+ */
+static int
+sysctl_kern_proc_cwd(SYSCTL_HANDLER_ARGS)
+{
+	struct sbuf sb;
+	struct proc *p;
+	ssize_t maxlen;
+	int error, error2, *name;
+
+	name = (int *)arg1;
+
+	sbuf_new_for_sysctl(&sb, NULL, sizeof(struct kinfo_file), req);
+	error = pget((pid_t)name[0], PGET_CANDEBUG | PGET_NOTWEXIT, &p);
+	if (error != 0) {
+		sbuf_delete(&sb);
+		return (error);
+	}
+	maxlen = req->oldptr != NULL ? req->oldlen : -1;
+	error = kern_proc_cwd_out(p, &sb, maxlen);
+	error2 = sbuf_finish(&sb);
+	sbuf_delete(&sb);
+	return (error != 0 ? error : error2);
+}
+
+static SYSCTL_NODE(_kern_proc, KERN_PROC_CWD, cwd, CTLFLAG_RD|CTLFLAG_MPSAFE,
+    sysctl_kern_proc_cwd, "Process current working directory");
 
 #ifdef DDB
 /*

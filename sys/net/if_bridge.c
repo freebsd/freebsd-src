@@ -111,7 +111,7 @@ __FBSDID("$FreeBSD$");
 #include <net/pfil.h>
 #include <net/vnet.h>
 
-#include <netinet/in.h> /* for struct arpcom */
+#include <netinet/in.h>
 #include <netinet/in_systm.h>
 #include <netinet/in_var.h>
 #include <netinet/ip.h>
@@ -125,7 +125,7 @@ __FBSDID("$FreeBSD$");
 #include <netinet/ip_carp.h>
 #endif
 #include <machine/in_cksum.h>
-#include <netinet/if_ether.h> /* for struct arpcom */
+#include <netinet/if_ether.h>
 #include <net/bridgestp.h>
 #include <net/if_bridgevar.h>
 #include <net/if_llc.h>
@@ -406,8 +406,8 @@ SYSCTL_INT(_net_link_bridge, OID_AUTO, inherit_mac,
 
 static VNET_DEFINE(int, allow_llz_overlap) = 0;
 #define	V_allow_llz_overlap	VNET(allow_llz_overlap)
-SYSCTL_VNET_INT(_net_link_bridge, OID_AUTO, allow_llz_overlap,
-    CTLFLAG_RW | CTLFLAG_VNET, &VNET_NAME(allow_llz_overlap), 0,
+SYSCTL_INT(_net_link_bridge, OID_AUTO, allow_llz_overlap,
+    CTLFLAG_VNET | CTLFLAG_RW | CTLFLAG_VNET, &VNET_NAME(allow_llz_overlap), 0,
     "Allow overlap of link-local scope "
     "zones of a bridge interface and the member interfaces");
 

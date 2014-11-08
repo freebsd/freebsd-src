@@ -896,7 +896,7 @@ void
 isns_register(struct isns *isns, struct isns *oldisns)
 {
 	struct conf *conf = isns->i_conf;
-	int s, res;
+	int s;
 	char hostname[256];
 
 	if (TAILQ_EMPTY(&conf->conf_targets) ||
@@ -912,8 +912,8 @@ isns_register(struct isns *isns, struct isns *oldisns)
 
 	if (oldisns == NULL || TAILQ_EMPTY(&oldisns->i_conf->conf_targets))
 		oldisns = isns;
-	res = isns_do_deregister(oldisns, s, hostname);
-	res = isns_do_register(isns, s, hostname);
+	isns_do_deregister(oldisns, s, hostname);
+	isns_do_register(isns, s, hostname);
 	close(s);
 	set_timeout(0, false);
 }
@@ -938,8 +938,8 @@ isns_check(struct isns *isns)
 
 	res = isns_do_check(isns, s, hostname);
 	if (res < 0) {
-		res = isns_do_deregister(isns, s, hostname);
-		res = isns_do_register(isns, s, hostname);
+		isns_do_deregister(isns, s, hostname);
+		isns_do_register(isns, s, hostname);
 	}
 	close(s);
 	set_timeout(0, false);
@@ -949,7 +949,7 @@ void
 isns_deregister(struct isns *isns)
 {
 	struct conf *conf = isns->i_conf;
-	int s, res;
+	int s;
 	char hostname[256];
 
 	if (TAILQ_EMPTY(&conf->conf_targets) ||
@@ -961,7 +961,7 @@ isns_deregister(struct isns *isns)
 		return;
 	gethostname(hostname, sizeof(hostname));
 
-	res = isns_do_deregister(isns, s, hostname);
+	isns_do_deregister(isns, s, hostname);
 	close(s);
 	set_timeout(0, false);
 }

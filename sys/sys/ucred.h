@@ -37,6 +37,8 @@
 
 struct loginclass;
 
+#define	XU_NGROUPS	16
+
 /*
  * Credentials.
  *
@@ -64,12 +66,11 @@ struct ucred {
 	struct auditinfo_addr	cr_audit;	/* Audit properties. */
 	gid_t	*cr_groups;		/* groups */
 	int	cr_agroups;		/* Available groups */
+	gid_t   cr_smallgroups[XU_NGROUPS];	/* storage for small groups */
 };
 #define	NOCRED	((struct ucred *)0)	/* no credential available */
 #define	FSCRED	((struct ucred *)-1)	/* filesystem credential */
 #endif /* _KERNEL || _WANT_UCRED */
-
-#define	XU_NGROUPS	16
 
 /*
  * Flags for cr_flags.

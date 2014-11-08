@@ -97,8 +97,8 @@ VNET_PCPUSTAT_SYSUNINIT(ipipstat);
 #endif /* VIMAGE */
 
 SYSCTL_DECL(_net_inet_ipip);
-SYSCTL_VNET_INT(_net_inet_ipip, OID_AUTO,
-	ipip_allow,	CTLFLAG_RW,	&VNET_NAME(ipip_allow),	0, "");
+SYSCTL_INT(_net_inet_ipip, OID_AUTO, ipip_allow, CTLFLAG_VNET | CTLFLAG_RW,
+    &VNET_NAME(ipip_allow), 0, "");
 SYSCTL_VNET_PCPUSTAT(_net_inet_ipip, IPSECCTL_STATS, stats,
     struct ipipstat, ipipstat,
     "IPIP statistics (struct ipipstat, netipsec/ipip_var.h)");
