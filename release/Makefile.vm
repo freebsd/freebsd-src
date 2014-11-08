@@ -42,39 +42,33 @@ vm-base:	vm-image
 
 vm-image:
 .if defined(WITH_VMIMAGES) && !empty(WITH_VMIMAGES)
-. if exists(${.CURDIR}/${TARGET}/mk-vmimage.sh)
-.  for FORMAT in ${VMFORMATS}
+. for FORMAT in ${VMFORMATS}
 	mkdir -p ${.OBJDIR}/${.TARGET}
 	env TARGET=${TARGET} TARGET_ARCH=${TARGET_ARCH} \
-		${.CURDIR}/${TARGET}/mk-vmimage.sh \
+		${.CURDIR}/scripts/mk-vmimage.sh \
 		-C ${.CURDIR}/tools/vmimage.subr -d ${.OBJDIR}/${.TARGET} \
-		-i ${VMBASE}.img -s ${VMSIZE} -f ${FORMAT} \
-		-S ${WORLDDIR} -o ${VMBASE}.${FORMAT}
-.  endfor
-. endif
+		-i ${.OBJDIR}/${VMBASE}.img -s ${VMSIZE} -f ${FORMAT} \
+		-S ${WORLDDIR} -o ${.OBJDIR}/${VMBASE}.${FORMAT}
+. endfor
 .endif
 	touch ${.TARGET}
 
 vm-cloudware:	${CLOUDTARGETS}
 
 vm-azure:
-.if exists(${.CURDIR}/${TARGET}/mk-vmimage.sh)
 	mkdir -p ${.OBJDIR}/${.TARGET}
 	env TARGET=${TARGET} TARGET_ARCH=${TARGET_ARCH} \
-		${.CURDIR}/${TARGET}/mk-vmimage.sh \
+		${.CURDIR}/scripts/mk-vmimage.sh \
 		-C ${.CURDIR}/tools/vmimage.subr -d ${.OBJDIR}/${.TARGET} \
-		-i azure.img -s ${VMSIZE} -f ${AZURE_FORMAT} \
-		-S ${WORLDDIR} -o ${AZUREIMAGE} -c ${AZURECONF}
-.endif
+		-i ${.OBJDIR}/azure.img -s ${VMSIZE} -f ${AZURE_FORMAT} \
+		-S ${WORLDDIR} -o ${.OBJDIR}/${AZUREIMAGE} -c ${AZURECONF}
 	touch ${.TARGET}
 
 vm-openstack:
-.if exists(${.CURDIR}/${TARGET}/mk-vmimage.sh)
 	mkdir -p ${.OBJDIR}/${.TARGET}
 	env TARGET=${TARGET} TARGET_ARCH=${TARGET_ARCH} \
-		${.CURDIR}/${TARGET}/mk-vmimage.sh \
+		${.CURDIR}/scripts/mk-vmimage.sh \
 		-C ${.CURDIR}/tools/vmimage.subr -d ${.OBJDIR}/${.TARGET} \
-		-i openstack.img -s ${VMSIZE} -f ${OPENSTACK_FORMAT} \
-		-S ${WORLDDIR} -o ${OPENSTACKIMAGE} -c ${OPENSTACKCONF}
-.endif
+		-i ${.OBJDIR}/openstack.img -s ${VMSIZE} -f ${OPENSTACK_FORMAT} \
+		-S ${WORLDDIR} -o ${.OBJDIR}/${OPENSTACKIMAGE} -c ${OPENSTACKCONF}
 	touch ${.TARGET}
