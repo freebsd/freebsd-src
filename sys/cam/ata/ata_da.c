@@ -451,6 +451,30 @@ static struct ada_quirk_entry ada_quirk_table[] =
 	},
 	{
 		/*
+		 * Samsung 843T Series SSDs
+		 * 4k optimised
+		 */
+		{ T_DIRECT, SIP_MEDIA_FIXED, "*", "SAMSUNG MZ7WD*", "*" },
+		/*quirks*/ADA_Q_4K
+	},
+ 	{
+ 		/*
+		 * Samsung 850 SSDs
+		 * 4k optimised
+		 */
+		{ T_DIRECT, SIP_MEDIA_FIXED, "*", "Samsung SSD 850*", "*" },
+		/*quirks*/ADA_Q_4K
+	},
+	{
+		/*
+		 * Samsung PM853T Series SSDs
+		 * 4k optimised
+		 */
+		{ T_DIRECT, SIP_MEDIA_FIXED, "*", "SAMSUNG MZ7GE*", "*" },
+		/*quirks*/ADA_Q_4K
+	},
+	{
+		/*
 		 * SuperTalent TeraDrive CT SSDs
 		 * 4k optimised & trim only works in 4k requests + 4k aligned
 		 */
