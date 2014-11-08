@@ -307,9 +307,6 @@ udp_append(struct inpcb *inp, struct ip *ip, struct mbuf *n, int off,
 		return;
 	}
 
-	if (n == NULL)
-		return;
-
 	off += sizeof(struct udphdr);
 
 #ifdef IPSEC
@@ -568,8 +565,10 @@ udp_input(struct mbuf *m, int off)
 			if (last != NULL) {
 				struct mbuf *n;
 
-				n = m_copy(m, 0, M_COPYALL);
-				udp_append(last, ip, n, iphlen, &udp_in);
+				if ((n = m_copy(m, 0, M_COPYALL)) != NULL) {
+					udp_append(last, ip, n, iphlen,
+					    &udp_in);
+				}
 				INP_RUNLOCK(last);
 			}
 			last = inp;
