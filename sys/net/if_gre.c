@@ -632,6 +632,7 @@ gre_set_tunnel(struct ifnet *ifp, struct sockaddr *src,
 	gre_updatehdr(sc);
 	GRE_WUNLOCK(sc);
 
+	error = 0;
 	switch (src->sa_family) {
 #ifdef INET
 	case AF_INET:
@@ -865,6 +866,8 @@ gre_transmit(struct ifnet *ifp, struct mbuf *m)
 	want_seq = (sc->gre_options & GRE_ENABLE_SEQ) != 0;
 	if (want_seq)
 		oseq = sc->gre_oseq++; /* XXX */
+	else
+		oseq = 0;		/* Make compiler happy. */
 	want_csum = (sc->gre_options & GRE_ENABLE_CSUM) != 0;
 	M_SETFIB(m, sc->gre_fibnum);
 	M_PREPEND(m, hlen, M_NOWAIT);
