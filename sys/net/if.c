@@ -265,13 +265,12 @@ ifnet_byindex_ref(u_short idx)
  * Allocate an ifindex array entry; return 0 on success or an error on
  * failure.
  */
-static int
-ifindex_alloc_locked(u_short *idxp)
+static u_short
+ifindex_alloc(void)
 {
 	u_short idx;
 
 	IFNET_WLOCK_ASSERT();
-
 retry:
 	/*
 	 * Try to find an empty slot below V_if_index.  If we fail, take the
@@ -289,8 +288,7 @@ retry:
 	}
 	if (idx > V_if_index)
 		V_if_index = idx;
-	*idxp = idx;
-	return (0);
+	return (idx);
 }
 
 static void
@@ -431,11 +429,7 @@ if_alloc(u_char type)
 
 	ifp = malloc(sizeof(struct ifnet), M_IFNET, M_WAITOK|M_ZERO);
 	IFNET_WLOCK();
-	if (ifindex_alloc_locked(&idx) != 0) {
-		IFNET_WUNLOCK();
-		free(ifp, M_IFNET);
-		return (NULL);
-	}
+	idx = ifindex_alloc();
 	ifnet_setbyindex_locked(idx, IFNET_HOLD);
 	IFNET_WUNLOCK();
 	ifp->if_index = idx;
@@ -1022,7 +1016,6 @@ if_detach_internal(struct ifnet *ifp, int vmove)
 void
 if_vmove(struct ifnet *ifp, struct vnet *new_vnet)
 {
-	u_short idx;
 
 	/*
 	 * Detach from current vnet, but preserve LLADDR info, do not
@@ -1054,11 +1047,7 @@ if_vmove(struct ifnet *ifp, struct vnet *new_vnet)
 	CURVNET_SET_QUIET(new_vnet);
 
 	IFNET_WLOCK();
-	if (ifindex_alloc_locked(&idx) != 0) {
-		IFNET_WUNLOCK();
-		panic("if_index overflow");
-	}
-	ifp->if_index = idx;
+	ifp->if_index = ifindex_alloc();
 	ifnet_setbyindex_locked(ifp->if_index, ifp);
 	IFNET_WUNLOCK();
 
