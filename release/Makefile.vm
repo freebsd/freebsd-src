@@ -44,9 +44,10 @@ vm-image:
 .if defined(WITH_VMIMAGES) && !empty(WITH_VMIMAGES)
 . if exists(${.CURDIR}/${TARGET}/mk-vmimage.sh)
 .  for FORMAT in ${VMFORMATS}
+	mkdir -p ${.OBJDIR}/${.TARGET}
 	env TARGET=${TARGET} TARGET_ARCH=${TARGET_ARCH} \
 		${.CURDIR}/${TARGET}/mk-vmimage.sh \
-		-C ${.CURDIR}/tools/vmimage.subr -d ${.TARGET} \
+		-C ${.CURDIR}/tools/vmimage.subr -d ${.OBJDIR}/${.TARGET} \
 		-i ${VMBASE}.img -s ${VMSIZE} -f ${FORMAT} \
 		-S ${WORLDDIR} -o ${VMBASE}.${FORMAT}
 .  endfor
@@ -58,9 +59,10 @@ vm-cloudware:	${CLOUDTARGETS}
 
 vm-azure:
 .if exists(${.CURDIR}/${TARGET}/mk-vmimage.sh)
+	mkdir -p ${.OBJDIR}/${.TARGET}
 	env TARGET=${TARGET} TARGET_ARCH=${TARGET_ARCH} \
 		${.CURDIR}/${TARGET}/mk-vmimage.sh \
-		-C ${.CURDIR}/tools/vmimage.subr -d ${.TARGET} \
+		-C ${.CURDIR}/tools/vmimage.subr -d ${.OBJDIR}/${.TARGET} \
 		-i azure.img -s ${VMSIZE} -f ${AZURE_FORMAT} \
 		-S ${WORLDDIR} -o ${AZUREIMAGE} -c ${AZURECONF}
 .endif
@@ -68,9 +70,10 @@ vm-azure:
 
 vm-openstack:
 .if exists(${.CURDIR}/${TARGET}/mk-vmimage.sh)
+	mkdir -p ${.OBJDIR}/${.TARGET}
 	env TARGET=${TARGET} TARGET_ARCH=${TARGET_ARCH} \
 		${.CURDIR}/${TARGET}/mk-vmimage.sh \
-		-C ${.CURDIR}/tools/vmimage.subr -d ${.TARGET} \
+		-C ${.CURDIR}/tools/vmimage.subr -d ${.OBJDIR}/${.TARGET} \
 		-i openstack.img -s ${VMSIZE} -f ${OPENSTACK_FORMAT} \
 		-S ${WORLDDIR} -o ${OPENSTACKIMAGE} -c ${OPENSTACKCONF}
 .endif
