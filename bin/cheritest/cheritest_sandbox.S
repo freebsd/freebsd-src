@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2013 Robert N. M. Watson
+ * Copyright (c) 2013-2014 Robert N. M. Watson
  * All rights reserved.
  *
  * This software was developed by SRI International and the University of
@@ -39,19 +39,70 @@
 	.global cheritest_ccall
 	.ent cheritest_ccall
 cheritest_ccall:
-        /* Move $c0 to $idc so that it will be saved by CCall. */
-        cmove $c26, $c0
 
-        /* Clear $c0 so it's not available to sandbox. */
-        ccleartag $c0, $c0
+	/* Save callee-save registers. */
+	daddiu	$sp, -96
+	sd	$s0, 0($sp)
+	sd	$s1, 8($sp)
+	sd	$s2, 16($sp)
+	sd	$s3, 24($sp)
+	sd	$s4, 32($sp)
+	sd	$s5, 40($sp)
+	sd	$s6, 48($sp)
+	sd	$s7, 56($sp)
+	sd	$gp, 64($sp)
+	sd	$fp, 72($sp)
+	sd	$ra, 80($sp)
+
+        daddiu  $sp, -256
+        csc     $c17, $sp, 0($c11)
+        csc     $c18, $sp, 32($c11)
+        csc     $c19, $sp, 64($c11)
+        csc     $c20, $sp, 96($c11)
+        csc     $c21, $sp, 128($c11)
+        csc     $c22, $sp, 160($c11)
+        csc     $c23, $sp, 192($c11)
+        csc     $c24, $sp, 224($c11)
+
+	/* Move $c0, with an offset of $sp, into $idc to be saved by CCall. */
+	csetoffset	$c26, $c0, $sp
 
         /* Invoke object capability. */
-        ccall $c1, $c2
+        ccall	$c1, $c2
 
-        /* Set $c0 back to stored $idc. */
-        cmove $c0, $c26
+	/* Restore $c0 and $sp from $idc.  Make sure to reset $c26's offset. */
+	cgetoffset	$sp, $c26
+	csetoffset	$c26, $c26, $zero
+	cmove		$c0, $c26
 
-	jalr $ra
+	/* Also use $idc for $c11. */
+	cmove	$c11, $c26
+
+	/* Restore callee-save registers. */
+        clc     $c17, $sp, 0($c11)
+        clc     $c18, $sp, 32($c11)
+        clc     $c19, $sp, 64($c11)
+        clc     $c20, $sp, 96($c11)
+        clc     $c21, $sp, 128($c11)
+        clc     $c22, $sp, 160($c11)
+        clc     $c23, $sp, 192($c11)
+        clc     $c24, $sp, 224($c11)
+        daddiu  $sp, 256
+
+        ld      $s0, 0($sp)
+        ld      $s1, 8($sp)
+        ld      $s2, 16($sp)
+        ld      $s3, 24($sp)
+        ld      $s4, 32($sp)
+        ld      $s5, 40($sp)
+        ld      $s6, 48($sp)
+        ld      $s7, 56($sp)
+        ld      $gp, 64($sp)
+        ld      $fp, 72($sp)
+        ld      $ra, 80($sp)
+        daddiu  $sp, 96
+
+	jalr	$ra
 	nop
 	.end cheritest_ccall
 

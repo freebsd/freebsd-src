@@ -74,6 +74,8 @@ __cheri_ ## class ## _entry:						\
 	 * version of $c0; as $pcc.offset contains the entry address,	\
 	 * we must clear that in $c0.  Also install as the stack	\
 	 * capability.							\
+	 *								\
+	 * XXXRW: Should we clearing CHERI_PERM_EXECUTE on $c0?		\
 	 */								\
 	cgetpcc $c0;							\
 	csetoffset	$c0, $c0, $zero;				\
@@ -89,11 +91,6 @@ __cheri_ ## class ## _entry:						\
 	move	$fp, $sp;						\
 									\
 	/*								\
-	 * XXXRW: Defensively clear all general-purpose and capability	\
-	 * registers that aren't explicit or ABI-implied arguments.	\
-	 */								\
-									\
-	/*								\
 	 * Set up global pointer.					\
 	 */								\
 	dla	$gp, _gp;						\
@@ -104,15 +101,6 @@ __cheri_ ## class ## _entry:						\
 	dla	$t9, function;						\
 	jalr	$t9;							\
 	nop;			/* Branch-delay slot */			\
-									\
-	/*								\
-	 * Clear our $c0 so that it is not leaked back to caller.	\
-	 *								\
-	 * XXXRW: Arguably we should do this for many other registers	\
-	 * too, especially as the compiler starts using them.		\
-	 */								\
-	ccleartag	$c0, $c0;					\
-	ccleartag	$c11, $c11;					\
 									\
 	/*								\
 	 * Return to caller.						\

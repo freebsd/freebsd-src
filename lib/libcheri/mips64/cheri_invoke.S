@@ -34,27 +34,28 @@
 .set noat
 
 #
-# Assembly wrapper for CCall on an object-capability.  Its function is to
-# save, clear, and restore general-purpose and capability registers as needed
-# on either side of CCall.  $c0/$sp assumed to provide a valid stack, and the
-# caller must have set up $c1, $c2, and general-purpose/capability argument
-# registers before calling this function.
+# Assembly wrapper for CCall on an object-capability.  Its function is to save
+# and restore any general-purpose and capability registers needed on either
+# side of CCall, but not handled by the compiler.  This is done by creating an
+# on-stack frame which will be pointed to by $idc before CCall, and then
+# unwrapping it again.  We rely on the compiler and CCall to sort out clearing
+# of registers that require it, since they have the information to do so.
 #
 # Calling conventions into cheri_invoke:
 #
-# Registers	Description			Before, After
-# $c0		MIPS address space		Save/Clear, Restore
-# $c1, $c2	Invoked capabilities		Pass through, Clear
-# $c3..$c10	Argument capabilities		Pass through, Clear
-# $c11..$c16	Caller-save capabilities	Clear, Clear
-# $c17..$c24	Callee-save capabilities	Save/Clear, Restore
-# $c26		IDC				Handled by CCall
+# Registers	Description
+# $c0		MIPS address space
+# $c1, $c2	Invoked capabilities
+# $c3..$c10	Argument capabilities
+# $c11..$c16	Caller-save capabilities
+# $c17..$c24	Callee-save capabilities
+# $c26		IDC
 #
 # Calling conventions implemented around CCall:
 #
 # $c1		Invoked code capability
 # $c2		Invoked data capability
-# $c3..$c10	Argument capabilities
+# $c3..$c10	Argument capabilities; $c3 as return capability
 # $c11..$c16	n/a
 # $c17..$c24	n/a
 # $c26		IDC
@@ -62,16 +63,7 @@
 # XXXRW: Worries/TODO:
 #
 # - Floating-point registers.
-# - Unused argument registers (capability and general-purpose) -- only the
-#   caller knows which are used, and hence which need to be scrubbed.
-# - Check that CCall scrubs $sp in callee.
-# - What about $c25?  Should we swap $c25 and $c26 in the ISA definition?
-# - Easy to imagine a #ifdef FAST_BUT_LOOSE that does less clearing but trusts
-#   the compiler more.  Would also be nice to have a CClearMask that took a
-#   bitmask of capability registers to flush -- and likeways ClearMask for
-#   MIPS registers.
-# - Not yet using $c11 for stack access, so we depend on $c0 and $c11 being
-#   the same.  At least we save/restore $c11?
+# - The compiler needs to handle unused argument/return registers.
 #
 
 	.text
@@ -108,6 +100,9 @@ cheri_invoke:
 	# NB: Use 96 rather than 88 for the stack to ensure 32-byte alignment
 	# for capabilities stored and loaded from it later.
 	#
+	# XXXRW: Possibly with the __ccall calling convention, the compiler
+	# should be doing this?
+	#
 	daddiu	$sp, -96
 	sd	$s0, 0($sp)
 	sd	$s1, 8($sp)
@@ -124,6 +119,9 @@ cheri_invoke:
 	#
 	# Save capability registers we later need to restore (that won't be
 	# handled by CCall for us).
+	#
+	# XXXRW: Possibly with the __ccall calling convention, the compiler
+	# should be doing this?
 	#
 	daddiu	$sp, -256
 	csc	$c17, $sp, 0($c11)
@@ -150,64 +148,10 @@ cheri_invoke:
 	csetlen		$c26, $c26, $t0
 
 	#
-	# Scrub callee-save non-argument general-purpose registers.
+	# The compiler is responsible for scrubbing unused argument registers
+	# (since only it has the information required to do so).  CCall is
+	# responsible for scrubbing all other registers.
 	#
-	# Don't scrub $sp as CCall will do that for us ... right?
-	#
-	li	$s0, 0
-	li	$s1, 0
-	li	$s2, 0
-	li	$s3, 0
-	li	$s4, 0
-	li	$s5, 0
-	li	$s6, 0
-	li	$s7, 0
-	li	$gp, 0
-	li	$fp, 0
-	li	$sp, 0
-	li	$ra, 0
-
-	#
-	# Scrub unpreserved general-purpose registers: $at, $v0, $v1,
-	# temporaries, hi/lo, and exception-handling registers.
-	#
-	li	$at, 0
-	li	$v0, 0
-	li	$v1, 0
-	li	$t0, 0
-	li	$t1, 0
-	li	$t2, 0
-	li	$t3, 0
-	li	$t8, 0
-	li	$t9, 0
-	li	$k0, 0		# Is this really necessary?
-	li	$k1, 0		# Is this really necessary?
-	mtlo	$0
-	mthi    $0
-
-	#
-	# Scrub non-{invoked, argument} capabilities; we do this after
-	# general-purpose registers as clearing $c0 will disable MIPS memory
-	# instructions.
-	#
-	# XXXRW: For information-leakage reasons, we'd rather install a null
-	# capability?
-	#
-	ccleartag	$c0, $c0
-	ccleartag	$c11, $c11
-	ccleartag	$c12, $c12
-	ccleartag	$c13, $c13
-	ccleartag	$c14, $c14
-	ccleartag	$c15, $c15
-	ccleartag	$c16, $c16
-	ccleartag	$c17, $c17
-	ccleartag	$c18, $c18
-	ccleartag	$c19, $c19
-	ccleartag	$c20, $c20
-	ccleartag	$c21, $c21
-	ccleartag	$c22, $c22
-	ccleartag	$c23, $c23
-	ccleartag	$c24, $c24
 
 	#
 	# Invoke object capability.  CCall/CReturn will save and restore $sp
@@ -228,6 +172,9 @@ cheri_invoke:
 	#
 	# Restore capability registers from stack.
 	#
+	# XXXRW: Possibly with the __ccall calling convention, the compiler
+	# should be doing this?
+	#
 	clc	$c17, $sp, 0($c11)
 	clc	$c18, $sp, 32($c11)
 	clc	$c19, $sp, 64($c11)
@@ -239,30 +186,14 @@ cheri_invoke:
 	daddiu	$sp, 256
 
 	#
-	# Conservative: clear capability registers that aren't return values
-	# and haven't been restored, to prevent accidental use.  Could save on
-	# cycles by not doing this, but have to trust the compiler more.
-	#
-	# NB: $c11 intentionally skipped, as we restored it earlier.
-	#
-	ccleartag	$c1, $c1
-	ccleartag	$c2, $c2
-	ccleartag	$c3, $c3
-	ccleartag	$c4, $c4
-	ccleartag	$c5, $c5
-	ccleartag	$c6, $c6
-	ccleartag	$c7, $c7
-	ccleartag	$c8, $c8
-	ccleartag	$c9, $c9
-	ccleartag	$c10, $c10
-	ccleartag	$c12, $c12
-	ccleartag	$c13, $c13
-	ccleartag	$c14, $c14
-	ccleartag	$c15, $c15
-	ccleartag	$c16, $c16
+	# CCall has conservatively cleared all non-return-value registers, and
+	# so we don't need to.
 
 	#
 	# Restore general-purpose registers from the stack.
+	#
+	# XXXRW: Possibly with the __ccall calling convention, the compiler
+	# should be doing this?
 	#
 	ld	$s0, 0($sp)
 	ld	$s1, 8($sp)
@@ -276,33 +207,6 @@ cheri_invoke:
 	ld	$fp, 72($sp)
 	ld	$ra, 80($sp)
 	daddiu	$sp, 96
-
-	#
-	# Conservative: clear general-purpose registers that aren't return
-	# values and haven't been restored, to prevent accidental use.  This
-	# includes argument registers, whose values we can no longer trust.
-	# Could save on cycles by not doing this, but have to trust the
-	# compiler more.
-	#
-	li	$at, 0
-	li	$a0, 0
-	li	$a1, 0
-	li	$a2, 0
-	li	$a3, 0
-	li	$a4, 0
-	li	$a5, 0
-	li	$a6, 0
-	li	$a7, 0
-	li	$t0, 0
-	li	$t1, 0
-	li	$t2, 0
-	li	$t3, 0
-	li	$t8, 0
-	li	$t9, 0
-	li	$k0, 0		# Is this really necessary?
-	li	$k1, 0		# Is this really necessary?
-	mtlo	$0
-	mthi	$0
 
 	#
 	# Return to C-language caller.

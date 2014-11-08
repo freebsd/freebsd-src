@@ -228,6 +228,81 @@ CHERICCall:
 	MTC0		k0, MIPS_COP_0_EXC_PC
 	COP0_SYNC
 
+	/*
+	 * Clear non-argument registers.  The compiler (or runtime) is
+	 * responsible for clearing unused argument registers to prevent
+	 * leaks.
+	 *
+	 * XXXRW: There is a strong argument that this should be done in
+	 * userspace to avoid encoding ABI choices about argument registers in
+	 * this exception handler.  This would also leave choices about
+	 * symmetric vs. asymmetric trust in userspace (and the hands of the
+	 * compiler and runtime).  However, this also leaves both caller and
+	 * callee with a need to clear overlapping sets of registers,
+	 * increasing overall work.  As a result, we do it here (for now).
+	 */
+
+	/* Non-argument general-purpose registers (n64). */
+	li		AT, 0
+	li		v0, 0
+	li		v1, 0
+	/* $a0 handled by compiler. */
+	/* $a1 handled by compiler. */
+	/* $a2 handled by compiler. */
+	/* $a3 handled by compiler. */
+	/* $a4 handled by compiler. */
+	/* $a5 handled by compiler. */
+	/* $a6 handled by compiler. */
+	/* $a7 handled by compiler. */
+	li		t0, 0
+	li		t1, 0
+	li		t2, 0
+	li		t3, 0
+	li		s0, 0
+	li		s1, 0
+	li		s2, 0
+	li		s3, 0
+	li		s4, 0
+	li		s5, 0
+	li		s6, 0
+	li		s7, 0
+	li		t8, 0
+	li		t9, 0
+	li		gp, 0
+	li		sp, 0
+	li		s8, 0
+	li		ra, 0
+	mtlo		zero
+	mthi		zero
+
+	/* Non-argument capability registers. */
+	cfromptr	$c0, $c0, zero
+	/* $c1 preserved as the passed code capability. */
+	/* $c2 preserved as the passed data capability. */
+	/* $c3 handled by compiler. */
+	/* $c4 handled by compiler. */
+	/* $c5 handled by compiler. */
+	/* $c6 handled by compiler. */
+	/* $c7 handled by compiler. */
+	/* $c8 handled by compiler. */
+	/* $c9 handled by compiler. */
+	/* $c10 handled by compiler. */
+	cfromptr	$c11, $c11, zero
+	cfromptr	$c12, $c12, zero
+	cfromptr	$c13, $c13, zero
+	cfromptr	$c14, $c14, zero
+	cfromptr	$c15, $c15, zero
+	cfromptr	$c16, $c16, zero
+	cfromptr	$c17, $c17, zero
+	cfromptr	$c18, $c18, zero
+	cfromptr	$c19, $c19, zero
+	cfromptr	$c20, $c20, zero
+	cfromptr	$c21, $c21, zero
+	cfromptr	$c22, $c22, zero
+	cfromptr	$c23, $c23, zero
+	cfromptr	$c24, $c24, zero
+	cfromptr	$c25, $c25, zero
+
 	CHERI_EXCEPTION_RETURN(k0)
 	eret
 
@@ -330,6 +405,76 @@ CHERICReturn:
 	PTR_ADDIU	k0, CHERI_FRAME_SIZE
 	PTR_S		k0, U_PCB_CHERISTACK_TSP(k1)
 
+	/*
+	 * Clear non-return-value registers.  The compiler (or runtime) is
+	 * responsible for clearing unused return-value registers to prevent
+	 * leaks.
+	 *
+	 * XXXRW: See note above for CCall-side register clearing for comments
+	 * on why this isn't necessarily the right thing, but is what we do in
+	 * practice.
+	 */
+
+	/* Non-return-value general-purpose registers (n64). */
+	li		AT, 0
+	/* v0 handled by compiler. */
+	/* v1 handled by compiler. */
+	li		a0, 0
+	li		a1, 0
+	li		a2, 0
+	li		a3, 0
+	li		a4, 0
+	li		a5, 0
+	li		a6, 0
+	li		a7, 0
+	li		t0, 0
+	li		t1, 0
+	li		t2, 0
+	li		t3, 0
+	li		s0, 0
+	li		s1, 0
+	li		s2, 0
+	li		s3, 0
+	li		s4, 0
+	li		s5, 0
+	li		s6, 0
+	li		s7, 0
+	li		t8, 0
+	li		t9, 0
+	li		gp, 0
+	li		sp, 0
+	li		s8, 0
+	li		ra, 0
+	mtlo		zero
+	mthi		zero
+
+	/* Non-return-value capability registers. */
+	cfromptr	$c0, $c0, zero
+	cfromptr	$c1, $c1, zero
+	cfromptr	$c2, $c2, zero
+	/* $c3 handled by compiler. */
+	cfromptr	$c4, $c4, zero
+	cfromptr	$c5, $c5, zero
+	cfromptr	$c6, $c6, zero
+	cfromptr	$c7, $c7, zero
+	cfromptr	$c8, $c8, zero
+	cfromptr	$c9, $c9, zero
+	cfromptr	$c10, $c10, zero
+	cfromptr	$c11, $c11, zero
+	cfromptr	$c12, $c12, zero
+	cfromptr	$c13, $c13, zero
+	cfromptr	$c14, $c14, zero
+	cfromptr	$c15, $c15, zero
+	cfromptr	$c16, $c16, zero
+	cfromptr	$c17, $c17, zero
+	cfromptr	$c18, $c18, zero
+	cfromptr	$c19, $c19, zero
+	cfromptr	$c20, $c20, zero
+	cfromptr	$c21, $c21, zero
+	cfromptr	$c22, $c22, zero
+	cfromptr	$c23, $c23, zero
+	cfromptr	$c24, $c24, zero
+	cfromptr	$c25, $c25, zero
 	CHERI_EXCEPTION_RETURN(k0)
 	eret
 

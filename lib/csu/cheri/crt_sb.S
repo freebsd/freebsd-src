@@ -46,7 +46,7 @@
 #    $idc contains the unsealed invoked data capability
 #
 # Expectations on the caller
-#    $a0-$17 will contain non-capability arguments
+#    $a0-$a7 will contain non-capability arguments
 #    $c3-$c10 will contain capability arguments
 #
 # Expectations on the class code and instance setup:
@@ -104,8 +104,9 @@ __ccall_enter:
 	candperm	$c0, $c26, $t0
 
 	#
-	# XXXRW: Defensively clear all general-purpose and capability
-	# registers that aren't explicit or ABI-implied arguments.
+	# The compiler is responsible for scrubbing unused argument registers
+	# (since only it has the information required to do so).  CCall is
+	# responsible for scrubbing all other registers.
 	#
 
 	#
@@ -152,13 +153,10 @@ __ccall_enter:
 
 abort_target:
 	#
-	# Clear our $c0 so that it is not leaked back to caller.
+	# The compiler is responsible for scrubbing unused return-value
+	# registers # (since only it has the information required to do so).
+	# CReturn is responsible for scrubbing all other registers.
 	#
-	# XXXRW: Arguably we should do this for many other registers too,
-	# especially as the compiler starts using them.
-	#
-	ccleartag	$c0, $c0
-	ccleartag	$c11, $c11
 
 	#
 	# Return to caller.
@@ -169,7 +167,16 @@ abort_target:
 	.global abort
 	.ent abort
 abort:
+	#
+	# In general, the compiler should be scrubbing unused return values,
+	# as  only it has the information to do so.  However, in the case of
+	# abort(), that responsibility lies with the runtime: we explicitly
+	# set $v0, and clear $v1/$c3.
+	#
+	cfromptr	$c3, $c3, $zero
+
 	dli	$v0, -2
+	dli	$v1, 0
 	b	abort_target
 	nop
 	.end abort
@@ -185,12 +192,19 @@ _exit:
 constructors:
 	#
 	# Perform constructor intialisation from C; the C code must be very
-	# careful not to depend on the outcome of any constructors!
+	# careful not to depend on the outcome of any constructors!  Here, as
+	# above, set $v0 to indicate success, and scrub $v1/$c3 before
+	# returning.
+	#
+	# XXXRW: Really, this should be another entry point not available via
+	# the general invocation method.
 	#
 	dla	$t9, crt_sb_constructors
 	jalr	$t9
 	nop
+	cfromptr	$c3, $c3, $zero
+	dli	$v0, 0
 	b	abort_target
-	dli	$v0, 0		# Branch-delay slot
+	dli	$v1, 0		# Branch-delay slot
 
 	.data
