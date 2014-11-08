@@ -170,22 +170,12 @@ in6_addroute(void *v_arg, void *n_arg, struct radix_node_head *head,
 	return (ret);
 }
 
-SYSCTL_DECL(_net_inet6_ip6);
-
-static VNET_DEFINE(int, rtq_toomany6) = 128;
-	/* 128 cached routes is ``too many'' */
-#define	V_rtq_toomany6			VNET(rtq_toomany6)
-SYSCTL_VNET_INT(_net_inet6_ip6, IPV6CTL_RTMAXCACHE, rtmaxcache, CTLFLAG_RW,
-    &VNET_NAME(rtq_toomany6) , 0, "");
-
 struct rtqk_arg {
 	struct radix_node_head *rnh;
 	int mode;
-	int updating;
 	int draining;
 	int killed;
 	int found;
-	time_t nextstop;
 };
 
 /*
@@ -193,7 +183,6 @@ struct rtqk_arg {
  */
 struct mtuex_arg {
 	struct radix_node_head *rnh;
-	time_t nextstop;
 };
 static VNET_DEFINE(struct callout, rtq_mtutimer);
 #define	V_rtq_mtutimer			VNET(rtq_mtutimer)
@@ -202,7 +191,6 @@ static int
 in6_mtuexpire(struct radix_node *rn, void *rock)
 {
 	struct rtentry *rt = (struct rtentry *)rn;
-	struct mtuex_arg *ap = rock;
 
 	/* sanity */
 	if (!rt)
@@ -211,8 +199,6 @@ in6_mtuexpire(struct radix_node *rn, void *rock)
 	if (rt->rt_expire && !(rt->rt_flags & RTF_PROBEMTU)) {
 		if (rt->rt_expire <= time_uptime) {
 			rt->rt_flags |= RTF_PROBEMTU;
-		} else {
-			ap->nextstop = lmin(ap->nextstop, rt->rt_expire);
 		}
 	}
 
@@ -227,7 +213,6 @@ in6_mtutimo_one(struct radix_node_head *rnh)
 	struct mtuex_arg arg;
 
 	arg.rnh = rnh;
-	arg.nextstop = time_uptime + MTUTIMO_DEFAULT;
 	RADIX_NODE_HEAD_LOCK(rnh);
 	rnh->rnh_walktree(rnh, in6_mtuexpire, &arg);
 	RADIX_NODE_HEAD_UNLOCK(rnh);
