@@ -111,6 +111,17 @@ CHERICCall:
         .set push
         .set noat
 
+	/*
+	 * The effective ABI requires that the code capability be in $c0, and
+	 * the data capability be in $c1.  Throw an exception if this isn't
+	 * how CCall was invoked.
+	 */
+	/*
+	 * XXXRW: Not yet: can't get both register numbers from cause code.
+	 * Once we can, we can remove all pre-trusted-stack tests from this
+	 * handler.
+	 */
+
 	/* First, test argument registers for tag validity. */
 	cbtu		CHERI_REG_CCALLCODE, CCall_c1_untagged
 	nop
