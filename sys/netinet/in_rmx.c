@@ -165,14 +165,11 @@ struct rtqk_arg {
 	int draining;
 	int killed;
 	int found;
-	int updating;
-	time_t nextstop;
 };
 
 /*
  * Get rid of old routes.  When draining, this deletes everything, even when
- * the timeout is not expired yet.  When updating, this makes sure that
- * nothing has a timeout longer than the current value of rtq_reallyold.
+ * the timeout is not expired yet.
  */
 static int
 in_rtqkill(struct radix_node *rn, void *rock)
@@ -195,16 +192,10 @@ in_rtqkill(struct radix_node *rn, void *rock)
 					rt->rt_gateway, rt_mask(rt),
 					rt->rt_flags | RTF_RNH_LOCKED, 0,
 					rt->rt_fibnum);
-			if (err) {
+			if (err != 0) {
 				log(LOG_WARNING, "in_rtqkill: error %d\n", err);
-			} else {
+			} else
 				ap->killed++;
-			}
-		} else {
-			if (ap->updating &&
-			    (rt->rt_expire - time_uptime > V_rtq_reallyold))
-				rt->rt_expire = time_uptime + V_rtq_reallyold;
-			ap->nextstop = lmin(ap->nextstop, rt->rt_expire);
 		}
 	}
 
@@ -247,8 +238,7 @@ in_rtqtimo_one(void *rock)
 
 	arg.found = arg.killed = 0;
 	arg.rnh = rnh;
-	arg.nextstop = time_uptime + V_rtq_timeout;
-	arg.draining = arg.updating = 0;
+	arg.draining = 0;
 	RADIX_NODE_HEAD_LOCK(rnh);
 	rnh->rnh_walktree(rnh, in_rtqkill, &arg);
 	RADIX_NODE_HEAD_UNLOCK(rnh);
@@ -270,9 +260,7 @@ in_rtqdrain(void)
 			rnh = rt_tables_get_rnh(fibnum, AF_INET);
 			arg.found = arg.killed = 0;
 			arg.rnh = rnh;
-			arg.nextstop = 0;
 			arg.draining = 1;
-			arg.updating = 0;
 			RADIX_NODE_HEAD_LOCK(rnh);
 			rnh->rnh_walktree(rnh, in_rtqkill, &arg);
 			RADIX_NODE_HEAD_UNLOCK(rnh);
