@@ -129,20 +129,6 @@ SYSCTL_VNET_INT(_net_inet_ip, IPCTL_RTEXPIRE, rtexpire, CTLFLAG_RW,
     &VNET_NAME(rtq_reallyold), 0,
     "Default expiration time on dynamically learned routes");
 
-/* never automatically crank down to less */
-static VNET_DEFINE(int, rtq_minreallyold) = 10;
-#define	V_rtq_minreallyold	VNET(rtq_minreallyold)
-SYSCTL_VNET_INT(_net_inet_ip, IPCTL_RTMINEXPIRE, rtminexpire, CTLFLAG_RW,
-    &VNET_NAME(rtq_minreallyold), 0,
-    "Minimum time to attempt to hold onto dynamically learned routes");
-
-/* 128 cached routes is "too many" */
-static VNET_DEFINE(int, rtq_toomany) = 128;
-#define	V_rtq_toomany		VNET(rtq_toomany)
-SYSCTL_VNET_INT(_net_inet_ip, IPCTL_RTMAXCACHE, rtmaxcache, CTLFLAG_RW,
-    &VNET_NAME(rtq_toomany), 0,
-    "Upper limit on dynamically learned routes");
-
 /*
  * On last reference drop, mark the route as belong to us so that it can be
  * timed out.
@@ -258,7 +244,6 @@ in_rtqtimo_one(void *rock)
 {
 	struct radix_node_head *rnh = rock;
 	struct rtqk_arg arg;
-	static time_t last_adjusted_timeout = 0;
 
 	arg.found = arg.killed = 0;
 	arg.rnh = rnh;
@@ -267,35 +252,6 @@ in_rtqtimo_one(void *rock)
 	RADIX_NODE_HEAD_LOCK(rnh);
 	rnh->rnh_walktree(rnh, in_rtqkill, &arg);
 	RADIX_NODE_HEAD_UNLOCK(rnh);
-
-	/*
-	 * Attempt to be somewhat dynamic about this:
-	 * If there are ``too many'' routes sitting around taking up space,
-	 * then crank down the timeout, and see if we can't make some more
-	 * go away.  However, we make sure that we will never adjust more
-	 * than once in rtq_timeout seconds, to keep from cranking down too
-	 * hard.
-	 */
-	if ((arg.found - arg.killed > V_rtq_toomany) &&
-	    (time_uptime - last_adjusted_timeout >= V_rtq_timeout) &&
-	    V_rtq_reallyold > V_rtq_minreallyold) {
-		V_rtq_reallyold = 2 * V_rtq_reallyold / 3;
-		if (V_rtq_reallyold < V_rtq_minreallyold) {
-			V_rtq_reallyold = V_rtq_minreallyold;
-		}
-
-		last_adjusted_timeout = time_uptime;
-#ifdef DIAGNOSTIC
-		log(LOG_DEBUG, "in_rtqtimo: adjusted rtq_reallyold to %d\n",
-		    V_rtq_reallyold);
-#endif
-		arg.found = arg.killed = 0;
-		arg.updating = 1;
-		RADIX_NODE_HEAD_LOCK(rnh);
-		rnh->rnh_walktree(rnh, in_rtqkill, &arg);
-		RADIX_NODE_HEAD_UNLOCK(rnh);
-	}
-
 }
 
 void
