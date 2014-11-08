@@ -55,7 +55,7 @@ main() {
 				VMFORMAT="${OPTARG}"
 				;;
 			i)
-				VMBASE="${VMBASE}"
+				VMBASE="${OPTARG}"
 				;;
 			o)
 				VMIMAGE="${OPTARG}"
@@ -93,6 +93,7 @@ main() {
 		. "${VMCONFIG}"
 	fi
 
+	vm_create_base
 	vm_install_base
 	vm_extra_install_base
 	vm_extra_install_packages
