@@ -566,6 +566,8 @@ udp_input(struct mbuf *m, int off)
 				struct mbuf *n;
 
 				if ((n = m_copy(m, 0, M_COPYALL)) != NULL) {
+					UDP_PROBE(receive, NULL, last, ip,
+					    last, uh);
 					udp_append(last, ip, n, iphlen,
 					    &udp_in);
 				}
@@ -597,6 +599,7 @@ udp_input(struct mbuf *m, int off)
 			INP_INFO_RUNLOCK(pcbinfo);
 			goto badunlocked;
 		}
+		UDP_PROBE(receive, NULL, last, ip, last, uh);
 		udp_append(last, ip, m, iphlen, &udp_in);
 		INP_RUNLOCK(last);
 		INP_INFO_RUNLOCK(pcbinfo);
