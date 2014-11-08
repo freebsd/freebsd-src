@@ -101,7 +101,7 @@ invoke_cap_fault(register_t op)
 
 	case CHERITEST_HELPER_OP_CP2_TAG:
 		cap = cheri_ptrperm(buffer, sizeof(buffer), CHERI_PERM_LOAD);
-		cap = cheri_ccleartag(cap);
+		cap = cheri_cleartag(cap);
 		ch = cap[0];
 		return (ch);
 

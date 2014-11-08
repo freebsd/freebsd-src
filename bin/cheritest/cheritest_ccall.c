@@ -226,9 +226,9 @@ test_fault_ccall_code_untagged(const struct cheri_test *ctp __unused)
 	datacap = datacap_create(sandbox_creturn_basecap,
 	    sandbox_creturn_typecap);
 
-	codecap = cheri_ccleartag(codecap);
+	codecap = cheri_cleartag(codecap);
 	if (cheri_gettag(codecap) != 0)
-		cheritest_failure_errx("cheri_ccleartag failed");
+		cheritest_failure_errx("cheri_cleartag failed");
 	cheritest_ccall(codecap, datacap);
 	cheritest_failure_errx("ccall returned successfully");
 }
@@ -246,9 +246,9 @@ test_fault_ccall_data_untagged(const struct cheri_test *ctp __unused)
 	datacap = datacap_create(sandbox_creturn_basecap,
 	    sandbox_creturn_typecap);
 
-	datacap = cheri_ccleartag(datacap);
+	datacap = cheri_cleartag(datacap);
 	if (cheri_gettag(datacap) != 0)
-		cheritest_failure_errx("cheri_ccleartag failed");
+		cheritest_failure_errx("cheri_cleartag failed");
 	cheritest_ccall(codecap, datacap);
 	cheritest_failure_errx("ccall returned successfully");
 }

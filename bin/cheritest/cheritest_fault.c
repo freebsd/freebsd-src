@@ -119,7 +119,7 @@ test_fault_tag(const struct cheri_test *ctp __unused)
 	char ch;
 	__capability char *chp = cheri_ptr(&ch, sizeof(ch));
 
-	chp = cheri_ccleartag(chp);
+	chp = cheri_cleartag(chp);
 	*chp = '\0';
 }
 
