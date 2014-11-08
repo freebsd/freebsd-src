@@ -125,7 +125,7 @@ int metaslab_debug_unload = 0;
  * an allocation of this size then it switches to using more
  * aggressive strategy (i.e search by size rather than offset).
  */
-uint64_t metaslab_df_alloc_threshold = SPA_MAXBLOCKSIZE;
+uint64_t metaslab_df_alloc_threshold = SPA_OLD_MAXBLOCKSIZE;
 
 /*
  * The minimum free space, in percent, which must be available

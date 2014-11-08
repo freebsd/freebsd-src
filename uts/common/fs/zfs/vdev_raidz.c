@@ -1604,7 +1604,7 @@ vdev_raidz_physio(vdev_t *vd, caddr_t data, size_t size,
 	/*
 	 * Don't write past the end of the block
 	 */
-	VERIFY3U(offset + size, <=, origoffset + SPA_MAXBLOCKSIZE);
+	VERIFY3U(offset + size, <=, origoffset + SPA_OLD_MAXBLOCKSIZE);
 
 	start = offset;
 	end = start + size;
@@ -1619,8 +1619,8 @@ vdev_raidz_physio(vdev_t *vd, caddr_t data, size_t size,
 	 * KB size.
 	 */
 	rm = vdev_raidz_map_alloc(data - (offset - origoffset),
-	    SPA_MAXBLOCKSIZE, origoffset, tvd->vdev_ashift, vd->vdev_children,
-	    vd->vdev_nparity);
+	    SPA_OLD_MAXBLOCKSIZE, origoffset, tvd->vdev_ashift,
+	    vd->vdev_children, vd->vdev_nparity);
 
 	coloffset = origoffset;
 
