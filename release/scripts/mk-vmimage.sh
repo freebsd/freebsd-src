@@ -32,6 +32,12 @@
 # $FreeBSD$
 #
 
+usage() {
+	echo "${0} usage:"
+	echo "${@}"
+	return 1
+}
+
 main() {
 	local arg
 	while getopts "C:c:d:f:i:o:s:S:" arg; do
