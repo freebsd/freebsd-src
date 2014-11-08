@@ -1671,7 +1671,7 @@ _lib_libypclnt=	lib/libypclnt
 lib/libradius__L: lib/libmd__L
 .endif
 
-gnu/lib/libdialog__L: lib/ncurses/ncursesw__L
+gnu/lib/libdialog__L: lib/msun__L lib/ncurses/ncursesw__L
 
 .for _lib in ${_prereq_libs}
 ${_lib}__PL: .PHONY .MAKE

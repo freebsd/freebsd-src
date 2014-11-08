@@ -111,7 +111,7 @@ __FBSDID("$FreeBSD$");
 #include <net/pfil.h>
 #include <net/vnet.h>
 
-#include <netinet/in.h> /* for struct arpcom */
+#include <netinet/in.h>
 #include <netinet/in_systm.h>
 #include <netinet/in_var.h>
 #include <netinet/ip.h>
@@ -125,7 +125,7 @@ __FBSDID("$FreeBSD$");
 #include <netinet/ip_carp.h>
 #endif
 #include <machine/in_cksum.h>
-#include <netinet/if_ether.h> /* for struct arpcom */
+#include <netinet/if_ether.h>
 #include <net/bridgestp.h>
 #include <net/if_bridgevar.h>
 #include <net/if_llc.h>
