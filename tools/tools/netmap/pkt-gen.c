@@ -202,6 +202,7 @@ struct glob_arg {
 	int dummy_send;
 	int virt_header;	/* send also the virt_header */
 	int extra_bufs;		/* goes in nr_arg3 */
+	char *packet_file;	/* -P option */
 };
 enum dev_type { DEV_NONE, DEV_NETMAP, DEV_PCAP, DEV_TAP };
 
@@ -224,6 +225,7 @@ struct targ {
 	int affinity;
 
 	struct pkt pkt;
+	void *frame;
 };
 
 
@@ -613,6 +615,28 @@ initialize_packet(struct targ *targ)
 		indirect_payload : default_payload;
 	int i, l0 = strlen(payload);
 
+	char errbuf[PCAP_ERRBUF_SIZE];
+	pcap_t *file;
+	struct pcap_pkthdr *header;
+	const unsigned char *packet;
+	
+	/* Read a packet from a PCAP file if asked. */
+	if (targ->g->packet_file != NULL) {
+		if ((file = pcap_open_offline(targ->g->packet_file,
+			    errbuf)) == NULL)
+			D("failed to open pcap file %s",
+			    targ->g->packet_file);
+		if (pcap_next_ex(file, &header, &packet) < 0)
+			D("failed to read packet from %s",
+			    targ->g->packet_file);
+		if ((targ->frame = malloc(header->caplen)) == NULL)
+			D("out of memory");
+		bcopy(packet, (unsigned char *)targ->frame, header->caplen);
+		targ->g->pkt_size = header->caplen;
+		pcap_close(file);
+		return;
+	}
+
 	/* create a nice NUL-terminated string */
 	for (i = 0; i < paylen; i += l0) {
 		if (l0 > paylen - i)
@@ -782,7 +806,6 @@ pinger_body(void *data)
 	frame = &targ->pkt;
 	frame += sizeof(targ->pkt.vh) - targ->g->virt_header;
 	size = targ->g->pkt_size + targ->g->virt_header;
-
 
 	if (targ->g->nthreads > 1) {
 		D("can only ping with 1 thread");
@@ -1038,10 +1061,15 @@ sender_body(void *data)
 	void *frame;
 	int size;
 
-	frame = pkt;
-	frame += sizeof(pkt->vh) - targ->g->virt_header;
-	size = targ->g->pkt_size + targ->g->virt_header;
-
+	if (targ->frame == NULL) {
+		frame = pkt;
+		frame += sizeof(pkt->vh) - targ->g->virt_header;
+		size = targ->g->pkt_size + targ->g->virt_header;
+	} else {
+		frame = targ->frame;
+		size = targ->g->pkt_size;
+	}
+	
 	D("start, fd %d main_fd %d", targ->fd, targ->g->main_fd);
 	if (setaffinity(targ->thread, targ->affinity))
 		goto quit;
@@ -1366,6 +1394,7 @@ usage(void)
 		"\t-R rate		in packets per second\n"
 		"\t-X			dump payload\n"
 		"\t-H len		add empty virtio-net-header with size 'len'\n"
+	        "\t-P file		load packet from pcap file"
 		"",
 		cmd);
 
@@ -1638,7 +1667,7 @@ main(int arc, char **argv)
 	g.virt_header = 0;
 
 	while ( (ch = getopt(arc, argv,
-			"a:f:F:n:i:Il:d:s:D:S:b:c:o:p:T:w:WvR:XC:H:e:m:")) != -1) {
+			"a:f:F:n:i:Il:d:s:D:S:b:c:o:p:T:w:WvR:XC:H:e:m:P:")) != -1) {
 		struct sf *fn;
 
 		switch(ch) {
@@ -1781,7 +1810,11 @@ main(int arc, char **argv)
 				D("unrecognized monitor mode %s", optarg);
 			}
 			break;
+		case 'P':
+			g.packet_file = strdup(optarg);
+			break;
 		}
+
 	}
 
 	if (g.ifname == NULL) {
