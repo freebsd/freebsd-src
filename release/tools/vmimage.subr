@@ -127,6 +127,13 @@ vm_extra_install_ports() {
 	return 0
 }
 
+vm_extra_pre_umount() {
+	# Prototype.  When overridden, installs additional ports within the
+	# virtual machine environment.
+
+	return 0
+}
+
 vm_umount_base() {
 	i=0
 	sync
