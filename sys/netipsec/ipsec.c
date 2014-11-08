@@ -141,38 +141,38 @@ FEATURE(ipsec_natt, "UDP Encapsulation of IPsec ESP Packets ('NAT-T')");
 SYSCTL_DECL(_net_inet_ipsec);
 
 /* net.inet.ipsec */
-SYSCTL_VNET_INT(_net_inet_ipsec, IPSECCTL_DEF_POLICY, def_policy,
-	CTLFLAG_RW, &VNET_NAME(ip4_def_policy).policy, 0,
+SYSCTL_INT(_net_inet_ipsec, IPSECCTL_DEF_POLICY, def_policy,
+	CTLFLAG_VNET | CTLFLAG_RW, &VNET_NAME(ip4_def_policy).policy, 0,
 	"IPsec default policy.");
-SYSCTL_VNET_INT(_net_inet_ipsec, IPSECCTL_DEF_ESP_TRANSLEV, esp_trans_deflev,
-	CTLFLAG_RW, &VNET_NAME(ip4_esp_trans_deflev), 0,
+SYSCTL_INT(_net_inet_ipsec, IPSECCTL_DEF_ESP_TRANSLEV, esp_trans_deflev,
+	CTLFLAG_VNET | CTLFLAG_RW, &VNET_NAME(ip4_esp_trans_deflev), 0,
 	"Default ESP transport mode level");
-SYSCTL_VNET_INT(_net_inet_ipsec, IPSECCTL_DEF_ESP_NETLEV, esp_net_deflev,
-	CTLFLAG_RW, &VNET_NAME(ip4_esp_net_deflev), 0,
+SYSCTL_INT(_net_inet_ipsec, IPSECCTL_DEF_ESP_NETLEV, esp_net_deflev,
+	CTLFLAG_VNET | CTLFLAG_RW, &VNET_NAME(ip4_esp_net_deflev), 0,
 	"Default ESP tunnel mode level.");
-SYSCTL_VNET_INT(_net_inet_ipsec, IPSECCTL_DEF_AH_TRANSLEV, ah_trans_deflev,
-	CTLFLAG_RW, &VNET_NAME(ip4_ah_trans_deflev), 0,
+SYSCTL_INT(_net_inet_ipsec, IPSECCTL_DEF_AH_TRANSLEV, ah_trans_deflev,
+	CTLFLAG_VNET | CTLFLAG_RW, &VNET_NAME(ip4_ah_trans_deflev), 0,
 	"AH transfer mode default level.");
-SYSCTL_VNET_INT(_net_inet_ipsec, IPSECCTL_DEF_AH_NETLEV, ah_net_deflev,
-	CTLFLAG_RW, &VNET_NAME(ip4_ah_net_deflev), 0,
+SYSCTL_INT(_net_inet_ipsec, IPSECCTL_DEF_AH_NETLEV, ah_net_deflev,
+	CTLFLAG_VNET | CTLFLAG_RW, &VNET_NAME(ip4_ah_net_deflev), 0,
 	"AH tunnel mode default level.");
-SYSCTL_VNET_INT(_net_inet_ipsec, IPSECCTL_AH_CLEARTOS, ah_cleartos,
-	CTLFLAG_RW, &VNET_NAME(ah_cleartos), 0,
+SYSCTL_INT(_net_inet_ipsec, IPSECCTL_AH_CLEARTOS, ah_cleartos,
+	CTLFLAG_VNET | CTLFLAG_RW, &VNET_NAME(ah_cleartos), 0,
 	"If set clear type-of-service field when doing AH computation.");
-SYSCTL_VNET_INT(_net_inet_ipsec, IPSECCTL_AH_OFFSETMASK, ah_offsetmask,
-	CTLFLAG_RW, &VNET_NAME(ip4_ah_offsetmask), 0,
+SYSCTL_INT(_net_inet_ipsec, IPSECCTL_AH_OFFSETMASK, ah_offsetmask,
+	CTLFLAG_VNET | CTLFLAG_RW, &VNET_NAME(ip4_ah_offsetmask), 0,
 	"If not set clear offset field mask when doing AH computation.");
-SYSCTL_VNET_INT(_net_inet_ipsec, IPSECCTL_DFBIT, dfbit,
-	CTLFLAG_RW, &VNET_NAME(ip4_ipsec_dfbit), 0,
+SYSCTL_INT(_net_inet_ipsec, IPSECCTL_DFBIT, dfbit,
+	CTLFLAG_VNET | CTLFLAG_RW, &VNET_NAME(ip4_ipsec_dfbit), 0,
 	"Do not fragment bit on encap.");
-SYSCTL_VNET_INT(_net_inet_ipsec, IPSECCTL_ECN, ecn,
-	CTLFLAG_RW, &VNET_NAME(ip4_ipsec_ecn), 0,
+SYSCTL_INT(_net_inet_ipsec, IPSECCTL_ECN, ecn,
+	CTLFLAG_VNET | CTLFLAG_RW, &VNET_NAME(ip4_ipsec_ecn), 0,
 	"Explicit Congestion Notification handling.");
-SYSCTL_VNET_INT(_net_inet_ipsec, IPSECCTL_DEBUG, debug,
-	CTLFLAG_RW, &VNET_NAME(ipsec_debug), 0,
+SYSCTL_INT(_net_inet_ipsec, IPSECCTL_DEBUG, debug,
+	CTLFLAG_VNET | CTLFLAG_RW, &VNET_NAME(ipsec_debug), 0,
 	"Enable IPsec debugging output when set.");
-SYSCTL_VNET_INT(_net_inet_ipsec, OID_AUTO, crypto_support,
-	CTLFLAG_RW, &VNET_NAME(crypto_support), 0,
+SYSCTL_INT(_net_inet_ipsec, OID_AUTO, crypto_support,
+	CTLFLAG_VNET | CTLFLAG_RW, &VNET_NAME(crypto_support), 0,
 	"Crypto driver selection.");
 SYSCTL_VNET_PCPUSTAT(_net_inet_ipsec, OID_AUTO, ipsecstats, struct ipsecstat,
     ipsec4stat, "IPsec IPv4 statistics.");
@@ -183,16 +183,16 @@ SYSCTL_VNET_PCPUSTAT(_net_inet_ipsec, OID_AUTO, ipsecstats, struct ipsecstat,
  * This allows to verify if the other side has proper replay attacks detection.
  */
 VNET_DEFINE(int, ipsec_replay) = 0;
-SYSCTL_VNET_INT(_net_inet_ipsec, OID_AUTO, test_replay,
-	CTLFLAG_RW, &VNET_NAME(ipsec_replay), 0,
+SYSCTL_INT(_net_inet_ipsec, OID_AUTO, test_replay,
+	CTLFLAG_VNET | CTLFLAG_RW, &VNET_NAME(ipsec_replay), 0,
 	"Emulate replay attack");
 /*
  * When set 1, IPsec will send packets with corrupted HMAC.
  * This allows to verify if the other side properly detects modified packets.
  */
 VNET_DEFINE(int, ipsec_integrity) = 0;
-SYSCTL_VNET_INT(_net_inet_ipsec, OID_AUTO, test_integrity,
-	CTLFLAG_RW, &VNET_NAME(ipsec_integrity), 0,
+SYSCTL_INT(_net_inet_ipsec, OID_AUTO, test_integrity,
+	CTLFLAG_VNET | CTLFLAG_RW, &VNET_NAME(ipsec_integrity), 0,
 	"Emulate man-in-the-middle attack");
 #endif
 
@@ -213,26 +213,26 @@ VNET_DEFINE(int, ip6_ipsec_ecn) = 0;	/* ECN ignore(-1)/forbidden(0)/allowed(1) *
 SYSCTL_DECL(_net_inet6_ipsec6);
 
 /* net.inet6.ipsec6 */
-SYSCTL_VNET_INT(_net_inet6_ipsec6, IPSECCTL_DEF_POLICY, def_policy, CTLFLAG_RW,
-	&VNET_NAME(ip4_def_policy).policy, 0,
+SYSCTL_INT(_net_inet6_ipsec6, IPSECCTL_DEF_POLICY, def_policy,
+	CTLFLAG_VNET | CTLFLAG_RW, &VNET_NAME(ip4_def_policy).policy, 0,
 	"IPsec default policy.");
-SYSCTL_VNET_INT(_net_inet6_ipsec6, IPSECCTL_DEF_ESP_TRANSLEV, 
-	esp_trans_deflev, CTLFLAG_RW, &VNET_NAME(ip6_esp_trans_deflev),	0,
+SYSCTL_INT(_net_inet6_ipsec6, IPSECCTL_DEF_ESP_TRANSLEV, esp_trans_deflev,
+	CTLFLAG_VNET | CTLFLAG_RW, &VNET_NAME(ip6_esp_trans_deflev), 0,
 	"Default ESP transport mode level.");
-SYSCTL_VNET_INT(_net_inet6_ipsec6, IPSECCTL_DEF_ESP_NETLEV, 
-	esp_net_deflev, CTLFLAG_RW, &VNET_NAME(ip6_esp_net_deflev),	0,
+SYSCTL_INT(_net_inet6_ipsec6, IPSECCTL_DEF_ESP_NETLEV, esp_net_deflev,
+	CTLFLAG_VNET | CTLFLAG_RW, &VNET_NAME(ip6_esp_net_deflev), 0,
 	"Default ESP tunnel mode level.");
-SYSCTL_VNET_INT(_net_inet6_ipsec6, IPSECCTL_DEF_AH_TRANSLEV, 
-	ah_trans_deflev, CTLFLAG_RW, &VNET_NAME(ip6_ah_trans_deflev),	0,
+SYSCTL_INT(_net_inet6_ipsec6, IPSECCTL_DEF_AH_TRANSLEV, ah_trans_deflev,
+	CTLFLAG_VNET | CTLFLAG_RW, &VNET_NAME(ip6_ah_trans_deflev), 0,
 	"AH transfer mode default level.");
-SYSCTL_VNET_INT(_net_inet6_ipsec6, IPSECCTL_DEF_AH_NETLEV, 
-	ah_net_deflev, CTLFLAG_RW, &VNET_NAME(ip6_ah_net_deflev),	0,
+SYSCTL_INT(_net_inet6_ipsec6, IPSECCTL_DEF_AH_NETLEV, ah_net_deflev,
+	CTLFLAG_VNET | CTLFLAG_RW, &VNET_NAME(ip6_ah_net_deflev), 0,
 	"AH tunnel mode default level.");
-SYSCTL_VNET_INT(_net_inet6_ipsec6, IPSECCTL_ECN,
-	ecn, CTLFLAG_RW, &VNET_NAME(ip6_ipsec_ecn),	0,
+SYSCTL_INT(_net_inet6_ipsec6, IPSECCTL_ECN, ecn,
+	CTLFLAG_VNET | CTLFLAG_RW, &VNET_NAME(ip6_ipsec_ecn), 0,
 	"Explicit Congestion Notification handling.");
-SYSCTL_VNET_INT(_net_inet6_ipsec6, IPSECCTL_DEBUG, debug, CTLFLAG_RW,
-	&VNET_NAME(ipsec_debug), 0,
+SYSCTL_INT(_net_inet6_ipsec6, IPSECCTL_DEBUG, debug,
+	CTLFLAG_VNET | CTLFLAG_RW, &VNET_NAME(ipsec_debug), 0,
 	"Enable IPsec debugging output when set.");
 SYSCTL_VNET_PCPUSTAT(_net_inet6_ipsec6, IPSECCTL_STATS, ipsecstats,
     struct ipsecstat, ipsec6stat, "IPsec IPv6 statistics.");

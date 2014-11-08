@@ -90,8 +90,8 @@ static VNET_DEFINE(int, ip6_ipsec6_filtertunnel) = 0;
 #define	V_ip6_ipsec6_filtertunnel	VNET(ip6_ipsec6_filtertunnel)
 
 SYSCTL_DECL(_net_inet6_ipsec6);
-SYSCTL_VNET_INT(_net_inet6_ipsec6, OID_AUTO,
-	filtertunnel, CTLFLAG_RW, &VNET_NAME(ip6_ipsec6_filtertunnel),  0,
+SYSCTL_INT(_net_inet6_ipsec6, OID_AUTO, filtertunnel,
+	CTLFLAG_VNET | CTLFLAG_RW, &VNET_NAME(ip6_ipsec6_filtertunnel),  0,
 	"If set filter packets from an IPsec tunnel.");
 #endif /* IPSEC */
 #endif /* INET6 */

@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd November 3, 2014
+.Dd November 4, 2014
 .Dt SYSRC 8
 .Os
 .Sh NAME
@@ -246,6 +246,12 @@ Working on other files, such as
 .Nm
 -f /etc/crontab MAILTO
 .Dl returns the value of the MAILTO setting Pq if configured .
+.Pp
+Appending to existing values:
+.Pp
+.Nm
+\&cloned_interfaces+=" gif0"
+.Dl appends Qo \ gif0 Qc to $cloned_interfaces .
 .Pp
 In addition to the above syntax,
 .Nm

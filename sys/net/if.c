@@ -100,10 +100,6 @@
 #include <compat/freebsd32/freebsd32.h>
 #endif
 
-struct ifindex_entry {
-	struct  ifnet *ife_ifnet;
-};
-
 SYSCTL_NODE(_net, PF_LINK, link, CTLFLAG_RW, 0, "Link layers");
 SYSCTL_NODE(_net_link, 0, generic, CTLFLAG_RW, 0, "Generic link-management");
 
@@ -196,7 +192,7 @@ VNET_DEFINE(struct ifgrouphead, ifg_head);
 static VNET_DEFINE(int, if_indexlim) = 8;
 
 /* Table of ifnet by index. */
-VNET_DEFINE(struct ifindex_entry *, ifindex_table);
+VNET_DEFINE(struct ifnet **, ifindex_table);
 
 #define	V_if_indexlim		VNET(if_indexlim)
 #define	V_ifindex_table		VNET(ifindex_table)
@@ -233,9 +229,9 @@ ifnet_byindex_locked(u_short idx)
 
 	if (idx > V_if_index)
 		return (NULL);
-	if (V_ifindex_table[idx].ife_ifnet == IFNET_HOLD)
+	if (V_ifindex_table[idx] == IFNET_HOLD)
 		return (NULL);
-	return (V_ifindex_table[idx].ife_ifnet);
+	return (V_ifindex_table[idx]);
 }
 
 struct ifnet *
@@ -269,20 +265,19 @@ ifnet_byindex_ref(u_short idx)
  * Allocate an ifindex array entry; return 0 on success or an error on
  * failure.
  */
-static int
-ifindex_alloc_locked(u_short *idxp)
+static u_short
+ifindex_alloc(void)
 {
 	u_short idx;
 
 	IFNET_WLOCK_ASSERT();
-
 retry:
 	/*
 	 * Try to find an empty slot below V_if_index.  If we fail, take the
 	 * next slot.
 	 */
 	for (idx = 1; idx <= V_if_index; idx++) {
-		if (V_ifindex_table[idx].ife_ifnet == NULL)
+		if (V_ifindex_table[idx] == NULL)
 			break;
 	}
 
@@ -293,8 +288,7 @@ retry:
 	}
 	if (idx > V_if_index)
 		V_if_index = idx;
-	*idxp = idx;
-	return (0);
+	return (idx);
 }
 
 static void
@@ -303,9 +297,9 @@ ifindex_free_locked(u_short idx)
 
 	IFNET_WLOCK_ASSERT();
 
-	V_ifindex_table[idx].ife_ifnet = NULL;
+	V_ifindex_table[idx] = NULL;
 	while (V_if_index > 0 &&
-	    V_ifindex_table[V_if_index].ife_ifnet == NULL)
+	    V_ifindex_table[V_if_index] == NULL)
 		V_if_index--;
 }
 
@@ -324,7 +318,7 @@ ifnet_setbyindex_locked(u_short idx, struct ifnet *ifp)
 
 	IFNET_WLOCK_ASSERT();
 
-	V_ifindex_table[idx].ife_ifnet = ifp;
+	V_ifindex_table[idx] = ifp;
 }
 
 static void
@@ -402,7 +396,7 @@ if_grow(void)
 {
 	int oldlim;
 	u_int n;
-	struct ifindex_entry *e;
+	struct ifnet **e;
 
 	IFNET_WLOCK_ASSERT();
 	oldlim = V_if_indexlim;
@@ -435,11 +429,7 @@ if_alloc(u_char type)
 
 	ifp = malloc(sizeof(struct ifnet), M_IFNET, M_WAITOK|M_ZERO);
 	IFNET_WLOCK();
-	if (ifindex_alloc_locked(&idx) != 0) {
-		IFNET_WUNLOCK();
-		free(ifp, M_IFNET);
-		return (NULL);
-	}
+	idx = ifindex_alloc();
 	ifnet_setbyindex_locked(idx, IFNET_HOLD);
 	IFNET_WUNLOCK();
 	ifp->if_index = idx;
@@ -1009,7 +999,6 @@ if_detach_internal(struct ifnet *ifp, int vmove)
 void
 if_vmove(struct ifnet *ifp, struct vnet *new_vnet)
 {
-	u_short idx;
 
 	/*
 	 * Detach from current vnet, but preserve LLADDR info, do not
@@ -1041,11 +1030,7 @@ if_vmove(struct ifnet *ifp, struct vnet *new_vnet)
 	CURVNET_SET_QUIET(new_vnet);
 
 	IFNET_WLOCK();
-	if (ifindex_alloc_locked(&idx) != 0) {
-		IFNET_WUNLOCK();
-		panic("if_index overflow");
-	}
-	ifp->if_index = idx;
+	ifp->if_index = ifindex_alloc();
 	ifnet_setbyindex_locked(ifp->if_index, ifp);
 	IFNET_WUNLOCK();
 
@@ -1949,8 +1934,6 @@ link_rtrequest(int cmd, struct rtentry *rt, struct rt_addrinfo *info)
 	struct sockaddr *dst;
 	struct ifnet *ifp;
 
-	RT_LOCK_ASSERT(rt);
-
 	if (cmd != RTM_ADD || ((ifa = rt->rt_ifa) == 0) ||
 	    ((ifp = ifa->ifa_ifp) == 0) || ((dst = rt_key(rt)) == 0))
 		return;
@@ -2082,7 +2065,7 @@ do_link_state_change(void *arg, int pending)
 		(*vlan_link_state_p)(ifp);
 
 	if ((ifp->if_type == IFT_ETHER || ifp->if_type == IFT_L2VLAN) &&
-	    IFP2AC(ifp)->ac_netgraph != NULL)
+	    ifp->if_l2com != NULL)
 		(*ng_ether_link_state_p)(ifp, link_state);
 	if (ifp->if_carp)
 		(*carp_linkstate_p)(ifp);
@@ -3696,6 +3679,19 @@ int
 if_getmtu(if_t ifp)
 {
 	return ((struct ifnet *)ifp)->if_mtu;
+}
+
+int
+if_getmtu_family(if_t ifp, int family)
+{
+	struct domain *dp;
+
+	for (dp = domains; dp; dp = dp->dom_next) {
+		if (dp->dom_family == family && dp->dom_ifmtu != NULL)
+			return (dp->dom_ifmtu((struct ifnet *)ifp));
+	}
+
+	return (((struct ifnet *)ifp)->if_mtu);
 }
 
 int

@@ -180,8 +180,8 @@ static SYSCTL_NODE(_net_bpf, OID_AUTO, stats, CTLFLAG_MPSAFE | CTLFLAG_RW,
 
 static VNET_DEFINE(int, bpf_optimize_writers) = 0;
 #define	V_bpf_optimize_writers VNET(bpf_optimize_writers)
-SYSCTL_VNET_INT(_net_bpf, OID_AUTO, optimize_writers,
-    CTLFLAG_RW, &VNET_NAME(bpf_optimize_writers), 0,
+SYSCTL_INT(_net_bpf, OID_AUTO, optimize_writers, CTLFLAG_VNET | CTLFLAG_RW,
+    &VNET_NAME(bpf_optimize_writers), 0,
     "Do not send packets until BPF program is set");
 
 static	d_open_t	bpfopen;

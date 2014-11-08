@@ -216,18 +216,21 @@ static VNET_DEFINE(int, carp_ifdown_adj) = CARP_MAXSKEW;
 static int carp_demote_adj_sysctl(SYSCTL_HANDLER_ARGS);
 
 SYSCTL_NODE(_net_inet, IPPROTO_CARP,	carp,	CTLFLAG_RW, 0,	"CARP");
-SYSCTL_VNET_INT(_net_inet_carp, OID_AUTO, allow, CTLFLAG_RW,
+SYSCTL_INT(_net_inet_carp, OID_AUTO, allow, CTLFLAG_VNET | CTLFLAG_RW,
     &VNET_NAME(carp_allow), 0, "Accept incoming CARP packets");
-SYSCTL_VNET_INT(_net_inet_carp, OID_AUTO, preempt, CTLFLAG_RW,
+SYSCTL_INT(_net_inet_carp, OID_AUTO, preempt, CTLFLAG_VNET | CTLFLAG_RW,
     &VNET_NAME(carp_preempt), 0, "High-priority backup preemption mode");
-SYSCTL_VNET_INT(_net_inet_carp, OID_AUTO, log, CTLFLAG_RW,
+SYSCTL_INT(_net_inet_carp, OID_AUTO, log, CTLFLAG_VNET | CTLFLAG_RW,
     &VNET_NAME(carp_log), 0, "CARP log level");
-SYSCTL_VNET_PROC(_net_inet_carp, OID_AUTO, demotion, CTLTYPE_INT|CTLFLAG_RW,
+SYSCTL_PROC(_net_inet_carp, OID_AUTO, demotion,
+    CTLFLAG_VNET | CTLTYPE_INT | CTLFLAG_RW,
     0, 0, carp_demote_adj_sysctl, "I",
     "Adjust demotion factor (skew of advskew)");
-SYSCTL_VNET_INT(_net_inet_carp, OID_AUTO, senderr_demotion_factor, CTLFLAG_RW,
+SYSCTL_INT(_net_inet_carp, OID_AUTO, senderr_demotion_factor,
+    CTLFLAG_VNET | CTLFLAG_RW,
     &VNET_NAME(carp_senderr_adj), 0, "Send error demotion factor adjustment");
-SYSCTL_VNET_INT(_net_inet_carp, OID_AUTO, ifdown_demotion_factor, CTLFLAG_RW,
+SYSCTL_INT(_net_inet_carp, OID_AUTO, ifdown_demotion_factor,
+    CTLFLAG_VNET | CTLFLAG_RW,
     &VNET_NAME(carp_ifdown_adj), 0,
     "Interface down demotion factor adjustment");
 

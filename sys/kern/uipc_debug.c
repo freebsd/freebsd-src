@@ -255,8 +255,6 @@ db_print_domain(struct domain *d, const char *domain_name, int indent)
 
 	db_print_indent(indent);
 	db_printf("dom_rtattach: %p   ", d->dom_rtattach);
-	db_printf("dom_rtoffset: %d   ", d->dom_rtoffset);
-	db_printf("dom_maxrtkey: %d\n", d->dom_maxrtkey);
 
 	db_print_indent(indent);
 	db_printf("dom_ifattach: %p   ", d->dom_ifattach);

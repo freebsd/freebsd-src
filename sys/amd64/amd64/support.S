@@ -100,6 +100,8 @@ END(bcmp)
  *  ws@tools.de     (Wolfgang Solfrank, TooLs GmbH) +49-228-985800
  */
 ENTRY(bcopy)
+	pushq	%rbp
+	movq	%rsp,%rbp
 	xchgq	%rsi,%rdi
 	movq	%rdx,%rcx
 
@@ -116,6 +118,7 @@ ENTRY(bcopy)
 	andq	$7,%rcx				/* any bytes left? */
 	rep
 	movsb
+	popq	%rbp
 	ret
 
 	/* ALIGN_TEXT */
@@ -135,6 +138,7 @@ ENTRY(bcopy)
 	rep
 	movsq
 	cld
+	popq	%rbp
 	ret
 END(bcopy)
 

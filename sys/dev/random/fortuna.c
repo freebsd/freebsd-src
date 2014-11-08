@@ -25,6 +25,17 @@
  *
  */
 
+/* This implementation of Fortuna is based on the descriptions found in
+ * ISBN 0-471-22357-3 "Practical Cryptography" by Ferguson and Schneier
+ * ("K&S").
+ *
+ * The above book is superceded by ISBN 978-0-470-47424-2 "Cryptography
+ * Engineering" by Ferguson, Schneier and Kohno ("FS&K").
+ *
+ * This code has not yet caught up with FS&K, but differences are not
+ * expected to be complex.
+ */
+
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
@@ -234,27 +245,26 @@ static void
 reseed(uint8_t *junk, u_int length)
 {
 	struct randomdev_hash context;
-	uint8_t hash[KEYSIZE], temp[KEYSIZE];
+	uint8_t hash[KEYSIZE];
 
 	KASSERT(fortuna_state.minpoolsize > 0, ("random: Fortuna threshold = 0"));
 #ifdef _KERNEL
 	mtx_assert(&random_reseed_mtx, MA_OWNED);
 #endif
 
-	/* F&S - temp = H(K|s) */
+	/* F&S - K = Hd(K|s) where Hd(m) is H(H(m)) */
 	randomdev_hash_init(&context);
+#if 0
+	/* FS&K defines Hd(m) as H(H(0^512|m)) */
+	randomdev_hash_iterate(&context, zero_region, KEYSIZE);
+#endif
 	randomdev_hash_iterate(&context, &fortuna_state.key, sizeof(fortuna_state.key));
 	randomdev_hash_iterate(&context, junk, length);
-	randomdev_hash_finish(&context, temp);
-
-	/* F&S - hash = H(temp) */
-	randomdev_hash_init(&context);
-	randomdev_hash_iterate(&context, temp, KEYSIZE);
 	randomdev_hash_finish(&context, hash);
-
-	/* F&S - K = hash */
-	randomdev_encrypt_init(&fortuna_state.key, temp);
-	memset(temp, 0, sizeof(temp));
+	randomdev_hash_init(&context);
+	randomdev_hash_iterate(&context, hash, KEYSIZE);
+	randomdev_hash_finish(&context, hash);
+	randomdev_encrypt_init(&fortuna_state.key, hash);
 	memset(hash, 0, sizeof(hash));
 
 	/* Unblock the device if it was blocked due to being unseeded */
