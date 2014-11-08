@@ -56,6 +56,11 @@ extern int	in_inithead(void **head, int off);
 extern int	in_detachhead(void **head, int off);
 #endif
 
+static void in_setifarnh(struct radix_node_head *rnh, uint32_t fibnum,
+    int af, void *_arg);
+static void in_rtqtimo_setrnh(struct radix_node_head *rnh, uint32_t fibnum,
+    int af, void *_arg);
+
 #define RTPRF_OURS		RTF_PROTO3	/* set on routes we manage */
 
 /*
@@ -172,10 +177,9 @@ struct rtqk_arg {
  * the timeout is not expired yet.
  */
 static int
-in_rtqkill(struct radix_node *rn, void *rock)
+in_rtqkill(struct rtentry *rt, void *rock)
 {
 	struct rtqk_arg *ap = rock;
-	struct rtentry *rt = (struct rtentry *)rn;
 	int err;
 
 	RADIX_NODE_HEAD_WLOCK_ASSERT(ap->rnh);
@@ -209,62 +213,52 @@ static VNET_DEFINE(struct callout, rtq_timer);
 #define	V_rtq_timeout		VNET(rtq_timeout)
 #define	V_rtq_timer		VNET(rtq_timer)
 
-static void in_rtqtimo_one(void *rock);
+static void
+in_rtqtimo_setrnh(struct radix_node_head *rnh, uint32_t fibnum, int af,
+    void *_arg)
+{
+	struct rtqk_arg *arg;
+	int draining;
+
+	arg = (struct rtqk_arg *)_arg;
+
+	draining = arg->draining;
+	memset(arg, 0, sizeof(*arg));
+	arg->rnh = rnh;
+	arg->draining = arg->draining;
+}
 
 static void
 in_rtqtimo(void *rock)
 {
 	CURVNET_SET((struct vnet *) rock);
-	int fibnum;
-	void *newrock;
+	struct rtqk_arg arg;
 	struct timeval atv;
 
-	for (fibnum = 0; fibnum < rt_numfibs; fibnum++) {
-		newrock = rt_tables_get_rnh(fibnum, AF_INET);
-		if (newrock != NULL)
-			in_rtqtimo_one(newrock);
-	}
+	memset(&arg, 0, sizeof(arg));
+	rt_foreach_fib(AF_INET, in_rtqtimo_setrnh, in_rtqkill, &arg);
+
 	atv.tv_usec = 0;
 	atv.tv_sec = V_rtq_timeout;
 	callout_reset(&V_rtq_timer, tvtohz(&atv), in_rtqtimo, rock);
 	CURVNET_RESTORE();
 }
 
-static void
-in_rtqtimo_one(void *rock)
-{
-	struct radix_node_head *rnh = rock;
-	struct rtqk_arg arg;
-
-	arg.found = arg.killed = 0;
-	arg.rnh = rnh;
-	arg.draining = 0;
-	RADIX_NODE_HEAD_LOCK(rnh);
-	rnh->rnh_walktree(rnh, in_rtqkill, &arg);
-	RADIX_NODE_HEAD_UNLOCK(rnh);
-}
-
 void
 in_rtqdrain(void)
 {
 	VNET_ITERATOR_DECL(vnet_iter);
-	struct radix_node_head *rnh;
 	struct rtqk_arg arg;
-	int 	fibnum;
+
+	memset(&arg, 0, sizeof(arg));
+	arg.draining = 1;
 
 	VNET_LIST_RLOCK_NOSLEEP();
 	VNET_FOREACH(vnet_iter) {
 		CURVNET_SET(vnet_iter);
 
-		for ( fibnum = 0; fibnum < rt_numfibs; fibnum++) {
-			rnh = rt_tables_get_rnh(fibnum, AF_INET);
-			arg.found = arg.killed = 0;
-			arg.rnh = rnh;
-			arg.draining = 1;
-			RADIX_NODE_HEAD_LOCK(rnh);
-			rnh->rnh_walktree(rnh, in_rtqkill, &arg);
-			RADIX_NODE_HEAD_UNLOCK(rnh);
-		}
+		rt_foreach_fib(AF_INET, in_rtqtimo_setrnh, in_rtqkill, &arg);
+
 		CURVNET_RESTORE();
 	}
 	VNET_LIST_RUNLOCK_NOSLEEP();
@@ -341,10 +335,9 @@ struct in_ifadown_arg {
 };
 
 static int
-in_ifadownkill(struct radix_node *rn, void *xap)
+in_ifadownkill(struct rtentry *rt, void *xap)
 {
 	struct in_ifadown_arg *ap = xap;
-	struct rtentry *rt = (struct rtentry *)rn;
 
 	RT_LOCK(rt);
 	if (rt->rt_ifa == ap->ifa &&
@@ -377,26 +370,30 @@ in_ifadownkill(struct radix_node *rn, void *xap)
 	return 0;
 }
 
+static void
+in_setifarnh(struct radix_node_head *rnh, uint32_t fibnum, int af,
+    void *_arg)
+{
+	struct in_ifadown_arg *arg;
+
+	arg = (struct in_ifadown_arg *)_arg;
+
+	arg->rnh = rnh;
+}
+
 void
 in_ifadown(struct ifaddr *ifa, int delete)
 {
 	struct in_ifadown_arg arg;
-	struct radix_node_head *rnh;
-	int	fibnum;
 
 	KASSERT(ifa->ifa_addr->sa_family == AF_INET,
 	    ("%s: wrong family", __func__));
 
-	for ( fibnum = 0; fibnum < rt_numfibs; fibnum++) {
-		rnh = rt_tables_get_rnh(fibnum, AF_INET);
-		arg.rnh = rnh;
-		arg.ifa = ifa;
-		arg.del = delete;
-		RADIX_NODE_HEAD_LOCK(rnh);
-		rnh->rnh_walktree(rnh, in_ifadownkill, &arg);
-		RADIX_NODE_HEAD_UNLOCK(rnh);
-		ifa->ifa_flags &= ~IFA_ROUTE;		/* XXXlocking? */
-	}
+	arg.ifa = ifa;
+	arg.del = delete;
+
+	rt_foreach_fib(AF_INET, in_setifarnh, in_ifadownkill, &arg);
+	ifa->ifa_flags &= ~IFA_ROUTE;		/* XXXlocking? */
 }
 
 /*
