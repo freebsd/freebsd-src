@@ -102,6 +102,7 @@ main() {
 	vm_extra_pre_umount
 	vm_create_disk || return 0
 	vm_extra_create_disk
+	cleanup
 
 	return 0
 }
