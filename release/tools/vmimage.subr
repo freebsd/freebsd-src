@@ -16,14 +16,14 @@ write_partition_layout() {
 			mkimg -f gpt -b /boot/pmbr \
 				-p freebsd-boot/bootfs:=/boot/gptboot \
 				-p freebsd-swap/swapfs::1G \
-				-p freebsd-ufs/rootfs:=${VMBASE}
+				-p freebsd-ufs/rootfs:=${VMBASE} \
 				-o ${VMIMAGE}
 			;;
 		powerpc:powerpc*)
 			mkimg -f apm \
 				-p freebsd-boot/bootfs:=/boot/boot1.hfs \
 				-p freebsd-swap/swapfs::1G \
-				-p freebsd-ufs/rootfs:=${VMBASE}
+				-p freebsd-ufs/rootfs:=${VMBASE} \
 				-o ${VMIMAGE}
 			;;
 		*)
@@ -146,10 +146,6 @@ vm_umount_base() {
 }
 
 vm_create_disk() {
-	if [ -z "${mkimg_paritions}" ]; then
-		err "No partition types specified.  Skipping."
-		return 1
-	fi
 	echo "Creating image...  Please wait."
 	echo
 
