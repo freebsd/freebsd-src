@@ -13,14 +13,14 @@ write_partition_layout() {
 
 	case "${TARGET}:${TARGET_ARCH}" in
 		amd64:amd64 | i386:i386)
-			mkimg -f gpt -b /boot/pmbr \
+			mkimg -s gpt -b /boot/pmbr \
 				-p freebsd-boot/bootfs:=/boot/gptboot \
 				-p freebsd-swap/swapfs::1G \
 				-p freebsd-ufs/rootfs:=${VMBASE} \
 				-o ${VMIMAGE}
 			;;
 		powerpc:powerpc*)
-			mkimg -f apm \
+			mkimg -s apm \
 				-p freebsd-boot/bootfs:=/boot/boot1.hfs \
 				-p freebsd-swap/swapfs::1G \
 				-p freebsd-ufs/rootfs:=${VMBASE} \
