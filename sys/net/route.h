@@ -44,10 +44,7 @@
  */
 
 /*
- * A route consists of a destination address, a reference
- * to a routing entry, and a reference to an llentry.  
- * These are often held by protocols in their control
- * blocks, e.g. inpcb.
+ * Legacy structure.
  */
 struct route {
 	struct	rtentry *ro_rt;
@@ -56,10 +53,6 @@ struct route {
 	int		ro_flags;
 	struct	sockaddr ro_dst;
 };
-
-#define	RT_CACHING_CONTEXT	0x1	/* XXX: not used anywhere */
-#define	RT_NORTREF		0x2	/* doesn't hold reference on ro_rt */
-#define	RT_NHOP			0x4
 
 struct rt_metrics {
 	u_long	rmx_locks;	/* Kernel must leave these values alone */
@@ -109,6 +102,22 @@ VNET_DECLARE(u_int, rt_add_addr_allfibs); /* Announce interfaces to all fibs */
 
 struct rib_head;
 struct rtentry;
+struct nhop_prepend;
+
+/*
+ * Structure used to pass prepend information
+ * to if_output() routines.
+ */
+struct nhop_info {
+	struct nhop_prepend	*ni_nh;		/* MUST be non-NULL */
+	uint32_t		ni_flags;
+	uint8_t			ni_family;
+	uint8_t			spare[3];
+};
+
+#define	RT_NHOP			0x01
+#define	RT_NORTREF		0x2	/* doesn't hold reference on ro_rt */
+
 #if !defined(_KERNEL) || defined(_WANT_RTENTRY)
 /* This structure is kept for compatibility reasons only */
 struct rtentry {
@@ -316,8 +325,6 @@ int	rtsock_routemsg(int, struct ifnet *ifp, int, struct rtentry *, int);
 /*
  * Note the following locking behavior:
  *
- *    rtalloc_ign() and rtalloc() return ro->ro_rt unlocked
- *
  *    rtalloc1() returns a locked rtentry
  *
  *    rtfree() and RTFREE_LOCKED() require a locked rtentry
@@ -338,7 +345,6 @@ void	rt_flushifroutes(struct ifnet *ifp);
 /* Thes are used by old code not yet converted to use multiple FIBS */
 int	 rt_getifa(struct rt_addrinfo *);
 void	 rtalloc_ign(struct route *ro, u_long ignflags);
-void	 rtalloc(struct route *ro); /* XXX deprecated, use rtalloc_ign(ro, 0) */
 struct rtentry *rtalloc1(struct sockaddr *, int, u_long);
 int	 rtinit(struct ifaddr *, int, int);
 int	 rtioctl(u_long, caddr_t);
@@ -352,8 +358,6 @@ int	 rtrequest(int, struct sockaddr *,
  * but this will change.. 
  */
 int	 rt_getifa_fib(struct rt_addrinfo *, u_int fibnum);
-void	 rtalloc_ign_fib(struct route *ro, u_long ignflags, u_int fibnum);
-void	 rtalloc_fib(struct route *ro, u_int fibnum);
 struct rtentry *rtalloc1_fib(struct sockaddr *, int, u_long, u_int);
 int	 rtioctl_fib(u_long, caddr_t, u_int);
 void	 rtredirect_fib(struct sockaddr *, struct sockaddr *,

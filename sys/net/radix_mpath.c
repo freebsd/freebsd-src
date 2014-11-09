@@ -198,6 +198,7 @@ rt_mpath_conflict(struct radix_node_head *rnh, struct rtentry *rt,
 	return (0);
 }
 
+#if 0
 void
 rtalloc_mpath_fib(struct route *ro, uint32_t hash, u_int fibnum)
 {
@@ -257,6 +258,7 @@ rtalloc_mpath_fib(struct route *ro, uint32_t hash, u_int fibnum)
 	} 
 	RT_UNLOCK(ro->ro_rt);
 }
+#endif
 
 extern int	in6_inithead(void **head, int off);
 extern int	in_inithead(void **head, int off);

@@ -96,7 +96,7 @@ u_int8_t  arcbroadcastaddr = 0;
  */
 int
 arc_output(struct ifnet *ifp, struct mbuf *m, const struct sockaddr *dst,
-    struct route *ro)
+    struct nhop_info *ni)
 {
 	struct arc_header	*ah;
 	int			error;

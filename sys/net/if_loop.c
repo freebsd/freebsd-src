@@ -54,7 +54,6 @@
 #include <net/if_types.h>
 #include <net/netisr.h>
 #include <net/route.h>
-#include <net/route_internal.h>
 #include <net/bpf.h>
 #include <net/vnet.h>
 
@@ -70,6 +69,8 @@
 #include <netinet6/in6_var.h>
 #include <netinet/ip6.h>
 #endif
+
+#include <net/rt_nhops.h>
 
 #include <security/mac/mac_framework.h>
 
@@ -90,7 +91,7 @@
 
 int		loioctl(struct ifnet *, u_long, caddr_t);
 int		looutput(struct ifnet *ifp, struct mbuf *m,
-		    const struct sockaddr *dst, struct route *ro);
+		    const struct sockaddr *dst, struct nhop_info *ni);
 static int	lo_clone_create(struct if_clone *, int, caddr_t);
 static void	lo_clone_destroy(struct ifnet *);
 
@@ -200,18 +201,24 @@ DECLARE_MODULE(if_lo, loop_mod, SI_SUB_PROTO_IFATTACHDOMAIN, SI_ORDER_ANY);
 
 int
 looutput(struct ifnet *ifp, struct mbuf *m, const struct sockaddr *dst,
-    struct route *ro)
+    struct nhop_info *ni)
 {
-	u_int32_t af;
-	struct rtentry *rt = NULL;
+	uint32_t af;
+	uint32_t nh_flags;
 #ifdef MAC
 	int error;
 #endif
 
 	M_ASSERTPKTHDR(m); /* check if we have the packet header */
 
-	if (ro != NULL)
-		rt = ro->ro_rt;
+	nh_flags = 0;
+	af = AF_UNSPEC;
+	if (ni != NULL && ni->ni_nh != NULL) {
+		nh_flags = ni->ni_nh->nh_flags;
+		af = ni->ni_family;
+	} else if (dst != NULL)
+		af = dst->sa_family;
+
 #ifdef MAC
 	error = mac_ifnet_check_transmit(ifp, m);
 	if (error) {
@@ -220,20 +227,18 @@ looutput(struct ifnet *ifp, struct mbuf *m, const struct sockaddr *dst,
 	}
 #endif
 
-	if (rt && rt->rt_flags & (RTF_REJECT|RTF_BLACKHOLE)) {
+	if (nh_flags & (NHF_REJECT | NHF_BLACKHOLE)) {
 		m_freem(m);
-		return (rt->rt_flags & RTF_BLACKHOLE ? 0 :
-		        rt->rt_flags & RTF_HOST ? EHOSTUNREACH : ENETUNREACH);
+		/* XXX: RTF_HOST */
+		return (nh_flags & NHF_BLACKHOLE ? 0 : EHOSTUNREACH);
 	}
 
 	if_inc_counter(ifp, IFCOUNTER_OPACKETS, 1);
 	if_inc_counter(ifp, IFCOUNTER_OBYTES, m->m_pkthdr.len);
 
 	/* BPF writes need to be handled specially. */
-	if (dst->sa_family == AF_UNSPEC)
+	if (af == AF_UNSPEC && dst != NULL)
 		bcopy(dst->sa_data, &af, sizeof(af));
-	else
-		af = dst->sa_family;
 
 #if 1	/* XXX */
 	switch (af) {

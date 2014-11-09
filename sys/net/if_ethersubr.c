@@ -121,7 +121,7 @@ static	void ether_reassign(struct ifnet *, struct vnet *, char *);
 #endif
 
 int ether_output_full(struct ifnet *ifp, struct mbuf *m,
-    const struct sockaddr *dst, struct route *ro);
+    const struct sockaddr *dst, struct nhop_info *ni);
 int ether_output2(struct ifnet *ifp, struct mbuf *m, struct nhop_prepend *nh,
     int af);
 
@@ -151,13 +151,12 @@ update_mbuf_csumflags(struct mbuf *src, struct mbuf *dst)
 
 int
 ether_output(struct ifnet *ifp, struct mbuf *m,
-	const struct sockaddr *dst, struct route *ro)
+	const struct sockaddr *dst, struct nhop_info *ni)
 {
-	if (ro != NULL && (ro->ro_flags & RT_NHOP))
-		return (ether_output2(ifp, m, (struct nhop_prepend *)ro->ro_lle,
-		    (ro->ro_flags >> 8) & 0xFF));
+	if (ni != NULL && (ni->ni_flags & RT_NHOP))
+		return (ether_output2(ifp, m, ni->ni_nh, ni->ni_family));
 
-	return (ether_output_full(ifp, m, dst, ro));
+	return (ether_output_full(ifp, m, dst, NULL));
 }
 
 /*
@@ -168,7 +167,7 @@ ether_output(struct ifnet *ifp, struct mbuf *m,
  */
 int
 ether_output_full(struct ifnet *ifp, struct mbuf *m,
-	const struct sockaddr *dst, struct route *ro)
+	const struct sockaddr *dst, struct nhop_info *ni)
 {
 	short type;
 	int error = 0, hdrcmplt = 0;
@@ -180,11 +179,13 @@ ether_output_full(struct ifnet *ifp, struct mbuf *m,
 	int loop_copy = 1;
 	int hlen;	/* link layer header length */
 
+#if 0
 	if (ro != NULL) {
 		if (!(m->m_flags & (M_BCAST | M_MCAST)))
 			lle = ro->ro_lle;
 		rt0 = ro->ro_rt;
 	}
+#endif
 #ifdef MAC
 	error = mac_ifnet_check_transmit(ifp, m);
 	if (error)

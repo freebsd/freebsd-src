@@ -98,7 +98,7 @@ int	ieee80211_raw_xmit(struct ieee80211_node *, struct mbuf *,
 		const struct ieee80211_bpf_params *);
 #if __FreeBSD_version >= 1000031
 int	ieee80211_output(struct ifnet *, struct mbuf *,
-               const struct sockaddr *, struct route *ro);
+               const struct sockaddr *, struct nhop_info *ni);
 #else
 int	ieee80211_output(struct ifnet *, struct mbuf *,
                struct sockaddr *, struct route *ro);

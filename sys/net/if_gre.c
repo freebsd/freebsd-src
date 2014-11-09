@@ -112,7 +112,7 @@ static void	gre_qflush(struct ifnet *);
 static int	gre_transmit(struct ifnet *, struct mbuf *);
 static int	gre_ioctl(struct ifnet *, u_long, caddr_t);
 static int	gre_output(struct ifnet *, struct mbuf *,
-		    const struct sockaddr *, struct route *);
+		    const struct sockaddr *, struct nhop_info *);
 
 static void	gre_updatehdr(struct gre_softc *);
 static int	gre_set_tunnel(struct ifnet *, struct sockaddr *,
@@ -785,7 +785,7 @@ gre_check_nesting(struct ifnet *ifp, struct mbuf *m)
 
 static int
 gre_output(struct ifnet *ifp, struct mbuf *m, const struct sockaddr *dst,
-   struct route *ro)
+   struct nhop_info *ni)
 {
 	uint32_t af;
 	int error;

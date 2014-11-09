@@ -203,7 +203,7 @@ iso88025_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
  */
 int
 iso88025_output(struct ifnet *ifp, struct mbuf *m, const struct sockaddr *dst,
-	struct route *ro)
+	struct nhop_info *ni)
 {
 	u_int16_t snap_type = 0;
 	int loop_copy = 0, error = 0, rif_len = 0;

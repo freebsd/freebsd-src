@@ -510,7 +510,7 @@ ieee80211_raw_output(struct ieee80211vap *vap, struct ieee80211_node *ni,
 #if __FreeBSD_version >= 1000031
 int
 ieee80211_output(struct ifnet *ifp, struct mbuf *m,
-	const struct sockaddr *dst, struct route *ro)
+	const struct sockaddr *dst, struct nhop_info *ni_rt)
 #else
 int
 ieee80211_output(struct ifnet *ifp, struct mbuf *m,
@@ -543,7 +543,7 @@ ieee80211_output(struct ifnet *ifp, struct mbuf *m,
 	 * a raw 802.11 frame.
 	 */
 	if (dst->sa_family != AF_IEEE80211)
-		return vap->iv_output(ifp, m, dst, ro);
+		return vap->iv_output(ifp, m, dst, ni_rt);
 #ifdef MAC
 	error = mac_ifnet_check_transmit(ifp, m);
 	if (error)

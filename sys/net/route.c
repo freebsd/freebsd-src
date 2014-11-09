@@ -364,19 +364,10 @@ sys_setfib(struct thread *td, struct setfib_args *uap)
 /*
  * Packet routing routines.
  */
-void
-rtalloc(struct route *ro)
-{
 
-	rtalloc_ign_fib(ro, 0UL, RT_DEFAULT_FIB);
-}
-
-void
-rtalloc_fib(struct route *ro, u_int fibnum)
-{
-	rtalloc_ign_fib(ro, 0UL, fibnum);
-}
-
+/*
+ * Legacy function for SCTP support.
+ */
 void
 rtalloc_ign(struct route *ro, u_long ignore)
 {
@@ -393,21 +384,6 @@ rtalloc_ign(struct route *ro, u_long ignore)
 		RT_UNLOCK(ro->ro_rt);
 }
 
-void
-rtalloc_ign_fib(struct route *ro, u_long ignore, u_int fibnum)
-{
-	struct rtentry *rt;
-
-	if ((rt = ro->ro_rt) != NULL) {
-		if (rt->rt_ifp != NULL && rt->rt_flags & RTF_UP)
-			return;
-		RTFREE(rt);
-		ro->ro_rt = NULL;
-	}
-	ro->ro_rt = rtalloc1_fib(&ro->ro_dst, 1, ignore, fibnum);
-	if (ro->ro_rt)
-		RT_UNLOCK(ro->ro_rt);
-}
 
 /*
  * Look up the route that matches the address given

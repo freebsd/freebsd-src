@@ -450,7 +450,7 @@ gif_qflush(struct ifnet *ifp __unused)
 
 int
 gif_output(struct ifnet *ifp, struct mbuf *m, const struct sockaddr *dst,
-	struct route *ro)
+	struct nhop_info *ni)
 {
 	struct m_tag *mtag;
 	uint32_t af;
