@@ -61,7 +61,7 @@ int
 rn_mpath_capable(struct radix_node_head *rnh)
 {
 
-	return rnh->rnh_multipath;
+	return 0;
 }
 
 struct radix_node *
@@ -270,7 +270,6 @@ rn4_mpath_inithead(void **head, int off)
 	hashjitter = arc4random();
 	if (in_inithead(head, off) == 1) {
 		rnh = (struct radix_node_head *)*head;
-		rnh->rnh_multipath = 1;
 		return 1;
 	} else
 		return 0;
@@ -286,7 +285,6 @@ rn6_mpath_inithead(void **head, int off)
 	hashjitter = arc4random();
 	if (in6_inithead(head, off) == 1) {
 		rnh = (struct radix_node_head *)*head;
-		rnh->rnh_multipath = 1;
 		return 1;
 	} else
 		return 0;

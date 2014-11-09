@@ -128,8 +128,6 @@ struct radix_head {
 
 struct radix_node_head {
 	struct radix_head rh;
-	u_int	rnh_gen;		/* generation counter */
-	int	rnh_multipath;		/* multipath capable ? */
 	rn_matchaddr_f_t	*rnh_matchaddr;	/* longest match for sockaddr */
 	rn_addaddr_f_t	*rnh_addaddr;	/* add based on sockaddr*/
 	rn_deladdr_f_t	*rnh_deladdr;	/* remove based on sockaddr */
