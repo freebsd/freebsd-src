@@ -61,7 +61,6 @@
 #include <net/if_types.h>
 #include <net/netisr.h>
 #include <net/route.h>
-#include <net/route_internal.h>
 #include <net/bpf.h>
 #include <net/vnet.h>
 
@@ -80,6 +79,8 @@
 #include <netinet/ip6.h>
 #include <netinet6/ip6_var.h>
 #endif
+
+#include <net/rt_nhops.h>
 
 struct faith_softc {
 	struct ifnet *sc_ifp;
@@ -191,24 +192,32 @@ faithoutput(struct ifnet *ifp, struct mbuf *m, const struct sockaddr *dst,
 {
 	int isr;
 	u_int32_t af;
-	struct rtentry *rt = NULL;
+	uint32_t nh_flags;
 
 	M_ASSERTPKTHDR(m);
 
-	/* BPF writes need to be handled specially. */
-	if (dst->sa_family == AF_UNSPEC)
-		bcopy(dst->sa_data, &af, sizeof(af));
-	else
+	nh_flags = 0;
+	af = AF_UNSPEC;
+	if (ni != NULL && ni->ni_nh != NULL) {
+		nh_flags = ni->ni_nh->nh_flags;
+		af = ni->ni_family;
+	} else if (dst != NULL)
 		af = dst->sa_family;
+
+	/* BPF writes need to be handled specially. */
+	if (af == AF_UNSPEC && dst != NULL)
+		bcopy(dst->sa_data, &af, sizeof(af));
 
 	if (bpf_peers_present(ifp->if_bpf))
 		bpf_mtap2(ifp->if_bpf, &af, sizeof(af), m);
 
-	if (rt && rt->rt_flags & (RTF_REJECT|RTF_BLACKHOLE)) {
+	
+	if (nh_flags & (NHF_REJECT | NHF_BLACKHOLE)) {
 		m_freem(m);
-		return (rt->rt_flags & RTF_BLACKHOLE ? 0 :
-		        rt->rt_flags & RTF_HOST ? EHOSTUNREACH : ENETUNREACH);
+		/* XXX: RTF_HOST */
+		return (nh_flags & NHF_BLACKHOLE ? 0 : EHOSTUNREACH);
 	}
+
 	if_inc_counter(ifp, IFCOUNTER_OPACKETS, 1);
 	if_inc_counter(ifp, IFCOUNTER_OBYTES, m->m_pkthdr.len);
 	switch (af) {
@@ -306,6 +315,8 @@ static int
 faithprefix(in6)
 	struct in6_addr *in6;
 {
+	return (0);
+#if 0
 	struct rtentry *rt;
 	struct sockaddr_in6 sin6;
 	int ret;
@@ -326,5 +337,6 @@ faithprefix(in6)
 	if (rt)
 		RTFREE_LOCKED(rt);
 	return ret;
+#endif
 }
 #endif
