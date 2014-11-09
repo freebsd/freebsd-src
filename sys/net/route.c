@@ -201,48 +201,6 @@ route_init(void)
 }
 SYSINIT(route_init, SI_SUB_PROTO_DOMAIN, SI_ORDER_THIRD, route_init, 0);
 
-static int
-rtentry_zinit(void *mem, int size, int how)
-{
-	struct rtentry *rt = mem;
-
-	rt->rt_pksent = counter_u64_alloc(how);
-	if (rt->rt_pksent == NULL)
-		return (ENOMEM);
-
-	RT_LOCK_INIT(rt);
-
-	return (0);
-}
-
-static void
-rtentry_zfini(void *mem, int size)
-{
-	struct rtentry *rt = mem;
-
-	RT_LOCK_DESTROY(rt);
-	counter_u64_free(rt->rt_pksent);
-}
-
-static int
-rtentry_ctor(void *mem, int size, void *arg, int how)
-{
-	struct rtentry *rt = mem;
-
-	bzero(rt, offsetof(struct rtentry, rt_endzero));
-	counter_u64_zero(rt->rt_pksent);
-
-	return (0);
-}
-
-static void
-rtentry_dtor(void *mem, int size, void *arg)
-{
-	struct rtentry *rt = mem;
-
-	RT_UNLOCK_COND(rt);
-}
-
 static void
 vnet_route_init(const void *unused __unused)
 {
@@ -255,8 +213,7 @@ vnet_route_init(const void *unused __unused)
 	    sizeof(struct rib_head *), M_RTABLE, M_WAITOK|M_ZERO);
 
 	V_rtzone = uma_zcreate("rtentry", sizeof(struct rtentry),
-	    rtentry_ctor, rtentry_dtor,
-	    rtentry_zinit, rtentry_zfini, UMA_ALIGN_PTR, 0);
+	    NULL, NULL, NULL, NULL, UMA_ALIGN_PTR, 0);
 	for (dom = domains; dom; dom = dom->dom_next) {
 		if (dom->dom_rtattach == NULL)
 			continue;
@@ -1341,11 +1298,12 @@ rtrequest1_fib(int req, struct rt_addrinfo *info, struct rtentry **ret_nrt,
 		} else
 			ifa_ref(info->rti_ifa);
 		ifa = info->rti_ifa;
-		rt = uma_zalloc(V_rtzone, M_NOWAIT);
+		rt = uma_zalloc(V_rtzone, M_NOWAIT | M_ZERO);
 		if (rt == NULL) {
 			ifa_free(ifa);
 			senderr(ENOBUFS);
 		}
+		RT_LOCK_INIT(rt);
 		rt->rt_flags = RTF_UP | flags;
 		rt->rt_fibnum = fibnum;
 		/*
@@ -1353,6 +1311,7 @@ rtrequest1_fib(int req, struct rt_addrinfo *info, struct rtentry **ret_nrt,
 		 */
 		RT_LOCK(rt);
 		if ((error = rt_setgate(rt, dst, gateway)) != 0) {
+			RT_LOCK_DESTROY(rt);
 			ifa_free(ifa);
 			uma_zfree(V_rtzone, rt);
 			senderr(error);
@@ -1388,6 +1347,7 @@ rtrequest1_fib(int req, struct rt_addrinfo *info, struct rtentry **ret_nrt,
 			rt_mpath_conflict(rh, rt, netmask)) {
 			ifa_free(rt->rt_ifa);
 			Free(rt_key(rt));
+			RT_LOCK_DESTROY(rt);
 			uma_zfree(V_rtzone, rt);
 			senderr(EEXIST);
 		}
