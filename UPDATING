@@ -833,8 +833,8 @@ COMMON ITEMS:
 	2.) update the ZFS boot block on your boot drive
 
 	The following example updates the ZFS boot block on the first
-	partition (freebsd-boot) of a GPT partitioned drive ad0:
-	"gpart bootcode -p /boot/gptzfsboot -i 1 ad0"
+	partition (freebsd-boot) of a GPT partitioned drive ada0:
+	"gpart bootcode -p /boot/gptzfsboot -i 1 ada0"
 
 	Non-boot pools do not need these updates.
 
