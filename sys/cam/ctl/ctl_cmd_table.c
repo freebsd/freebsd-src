@@ -180,7 +180,16 @@ const struct ctl_cmd_entry ctl_cmd_table_5f[32] =
  10, { 0x04, 0xff, 0, 0, 0xff, 0xff, 0xff, 0xff, 0x07}},
 
 /* 05 PREEMPT AND ABORT */
-{NULL, CTL_SERIDX_INVLD, CTL_CMD_FLAG_NONE, CTL_LUN_PAT_NONE},
+{ctl_persistent_reserve_out, CTL_SERIDX_RES, CTL_CMD_FLAG_ALLOW_ON_RESV |
+						CTL_CMD_FLAG_OK_ON_BOTH |
+						CTL_CMD_FLAG_OK_ON_STOPPED |
+						CTL_CMD_FLAG_OK_ON_INOPERABLE |
+						CTL_CMD_FLAG_OK_ON_OFFLINE |
+						CTL_CMD_FLAG_OK_ON_SECONDARY |
+						CTL_FLAG_DATA_OUT |
+						CTL_CMD_FLAG_ALLOW_ON_PR_RESV,
+ CTL_LUN_PAT_NONE,
+ 10, { 0x05, 0xff, 0, 0, 0xff, 0xff, 0xff, 0xff, 0x07}},
 
 /* 06 REGISTER AND IGNORE EXISTING KEY */
 {ctl_persistent_reserve_out, CTL_SERIDX_RES, CTL_CMD_FLAG_ALLOW_ON_RESV |
