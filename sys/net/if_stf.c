@@ -97,7 +97,6 @@
 #include <net/if_var.h>
 #include <net/if_clone.h>
 #include <net/route.h>
-#include <net/route_internal.h>
 #include <net/netisr.h>
 #include <net/if_types.h>
 #include <net/if_stf.h>
