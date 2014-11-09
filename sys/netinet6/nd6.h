@@ -413,7 +413,7 @@ int nd6_output_lle(struct ifnet *, struct ifnet *, struct mbuf *,
 	struct sockaddr_in6 *, struct rtentry *, struct llentry *,
 	struct mbuf **);
 int nd6_output_flush(struct ifnet *, struct ifnet *, struct mbuf *,
-	struct sockaddr_in6 *, struct route *);
+	struct sockaddr_in6 *);
 int nd6_need_cache(struct ifnet *);
 int nd6_add_ifa_lle(struct in6_ifaddr *);
 void nd6_rem_ifa_lle(struct in6_ifaddr *);
