@@ -1764,7 +1764,7 @@ nd6_cache_lladdr(struct ifnet *ifp, struct in6_addr *from, char *lladdr,
 			ln = NULL;
 	}
 	if (chain)
-		nd6_output_flush(ifp, ifp, chain, &sin6, NULL);
+		nd6_output_flush(ifp, ifp, chain, &sin6);
 	
 	/*
 	 * When the link-layer address of a router changes, select the
