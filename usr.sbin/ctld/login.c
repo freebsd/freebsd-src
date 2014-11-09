@@ -620,11 +620,10 @@ login_redirect(struct pdu *request, const char *target_address)
 	struct keys *response_keys;
 
 	response = login_new_response(request);
+	login_set_csg(response, login_csg(request));
 	bhslr2 = (struct iscsi_bhs_login_response *)response->pdu_bhs;
 	bhslr2->bhslr_status_class = 0x01;
 	bhslr2->bhslr_status_detail = 0x01;
-	login_set_csg(response, BHSLR_STAGE_OPERATIONAL_NEGOTIATION);
-	login_set_nsg(response, BHSLR_STAGE_OPERATIONAL_NEGOTIATION);
 
 	response_keys = keys_new();
 	keys_add(response_keys, "TargetAddress", target_address);
@@ -679,7 +678,7 @@ login_negotiate(struct connection *conn, struct pdu *request)
 	struct iscsi_bhs_login_response *bhslr2;
 	struct keys *request_keys, *response_keys;
 	int i;
-	bool skipped_security;
+	bool redirected, skipped_security;
 
 	if (request == NULL) {
 		log_debugx("beginning operational parameter negotiation; "
@@ -688,6 +687,18 @@ login_negotiate(struct connection *conn, struct pdu *request)
 		skipped_security = false;
 	} else
 		skipped_security = true;
+
+	/*
+	 * RFC 3720, 10.13.5.  Status-Class and Status-Detail, says
+	 * the redirection SHOULD be accepted by the initiator before
+	 * authentication, but MUST be be accepted afterwards; that's
+	 * why we're doing it here and not earlier.
+	 */
+	redirected = login_target_redirect(conn, request);
+	if (redirected) {
+		log_debugx("initiator redirected; exiting");
+		exit(0);
+	}
 
 	request_keys = keys_new();
 	keys_load(request_keys, request);
@@ -876,12 +887,6 @@ login(struct connection *conn)
 
 		keys_delete(request_keys);
 
-		redirected = login_target_redirect(conn, request);
-		if (redirected) {
-			log_debugx("initiator redirected; exiting");
-			exit(0);
-		}
-
 		log_debugx("initiator skipped the authentication, "
 		    "and we don't need it; proceeding with negotiation");
 		login_negotiate(conn, request);
@@ -893,12 +898,6 @@ login(struct connection *conn)
 		 * Initiator might want to to authenticate,
 		 * but we don't need it.
 		 */
-		redirected = login_target_redirect(conn, request);
-		if (redirected) {
-			log_debugx("initiator redirected; exiting");
-			exit(0);
-		}
-
 		log_debugx("authentication not required; "
 		    "transitioning to operational parameter negotiation");
 
@@ -986,18 +985,6 @@ login(struct connection *conn)
 	keys_delete(request_keys);
 
 	login_chap(conn, ag);
-
-	/*
-	 * RFC 3720, 10.13.5.  Status-Class and Status-Detail, says
-	 * the redirection SHOULD be accepted by the initiator before
-	 * authentication, but MUST be be accepted afterwards; that's
-	 * why we're doing it here and not earlier.
-	 */
-	redirected = login_target_redirect(conn, request);
-	if (redirected) {
-		log_debugx("initiator redirected; exiting");
-		exit(0);
-	}
 
 	login_negotiate(conn, NULL);
 }
