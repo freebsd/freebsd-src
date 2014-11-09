@@ -8914,7 +8914,8 @@ ctl_persistent_reserve_out(struct ctl_scsiio *ctsio)
 		}
 		break;
 
-	case SPRO_PREEMPT: {
+	case SPRO_PREEMPT:
+	case SPRO_PRE_ABO: {
 		int nretval;
 
 		nretval = ctl_pro_preempt(softc, lun, res_key, sa_res_key, type,
