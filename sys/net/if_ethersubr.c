@@ -78,11 +78,6 @@
 #ifdef INET6
 #include <netinet6/nd6.h>
 #endif
-
-int (*ef_inputp)(struct ifnet*, struct ether_header *eh, struct mbuf *m);
-int (*ef_outputp)(struct ifnet *ifp, struct mbuf **mp,
-		const struct sockaddr *dst, short *tp, int *hlen);
-
 #include <security/mac/mac_framework.h>
 
 #ifdef CTASSERT
