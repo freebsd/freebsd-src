@@ -87,7 +87,7 @@ struct faith_softc {
 
 static int faithioctl(struct ifnet *, u_long, caddr_t);
 static int faithoutput(struct ifnet *, struct mbuf *, const struct sockaddr *,
-	struct route *);
+	struct nhop_info *);
 #ifdef INET6
 static int faithprefix(struct in6_addr *);
 #endif
@@ -187,7 +187,7 @@ faith_clone_destroy(ifp)
 
 static int
 faithoutput(struct ifnet *ifp, struct mbuf *m, const struct sockaddr *dst,
-	struct route *ro)
+	struct nhop_info *ni)
 {
 	int isr;
 	u_int32_t af;
@@ -195,8 +195,6 @@ faithoutput(struct ifnet *ifp, struct mbuf *m, const struct sockaddr *dst,
 
 	M_ASSERTPKTHDR(m);
 
-	if (ro != NULL)
-		rt = ro->ro_rt;
 	/* BPF writes need to be handled specially. */
 	if (dst->sa_family == AF_UNSPEC)
 		bcopy(dst->sa_data, &af, sizeof(af));

@@ -498,7 +498,7 @@ struct ieee80211vap {
 	/* 802.3 output method for raw frame xmit */
 #if __FreeBSD_version >= 1000031
 	int			(*iv_output)(struct ifnet *, struct mbuf *,
-				    const struct sockaddr *, struct route *);
+				    const struct sockaddr *, struct nhop_info *);
 #else
 	int			(*iv_output)(struct ifnet *, struct mbuf *,
 				    struct sockaddr *, struct route *);

@@ -235,28 +235,23 @@ nd6_ns_input(struct mbuf *m, int off, int icmp6len)
 
 	/* (2) check. */
 	if (ifa == NULL) {
-		struct route_in6 ro;
+		struct sockaddr_in6 dst;
+		struct rtentry *rt;
 		int need_proxy;
 
-		bzero(&ro, sizeof(ro));
-		ro.ro_dst.sin6_len = sizeof(struct sockaddr_in6);
-		ro.ro_dst.sin6_family = AF_INET6;
-		ro.ro_dst.sin6_addr = taddr6;
+		bzero(&dst, sizeof(dst));
+		dst.sin6_len = sizeof(struct sockaddr_in6);
+		dst.sin6_family = AF_INET6;
+		dst.sin6_addr = taddr6;
 
 		/* Always use the default FIB. */
-#ifdef RADIX_MPATH
-		rtalloc_mpath_fib((struct route *)&ro, ntohl(taddr6.s6_addr32[3]),
-		    RT_DEFAULT_FIB);
-#else
-		in6_rtalloc(&ro, RT_DEFAULT_FIB);
-#endif
-		need_proxy = (ro.ro_rt &&
-		    (ro.ro_rt->rt_flags & RTF_ANNOUNCE) != 0 &&
-		    ro.ro_rt->rt_gateway->sa_family == AF_LINK);
-		if (ro.ro_rt != NULL) {
+		rt = rtalloc1_fib((struct sockaddr *)&dst, 0, 0,RT_DEFAULT_FIB);
+		need_proxy = (rt && (rt->rt_flags & RTF_ANNOUNCE) != 0 &&
+		    rt->rt_gateway->sa_family == AF_LINK);
+		if (rt != NULL) {
 			if (need_proxy)
-				proxydl = *SDL(ro.ro_rt->rt_gateway);
-			RTFREE(ro.ro_rt);
+				proxydl = *SDL(rt->rt_gateway);
+			RTFREE_LOCKED(rt);
 		}
 		if (need_proxy) {
 			/*
@@ -951,9 +946,6 @@ nd6_na_output_fib(struct ifnet *ifp, const struct in6_addr *daddr6_0,
 	int icmp6len, maxlen, error;
 	uint32_t scopeid;
 	caddr_t mac = NULL;
-	struct route_in6 ro;
-
-	bzero(&ro, sizeof(ro));
 
 	daddr6 = *daddr6_0;	/* make a local copy for modification */
 

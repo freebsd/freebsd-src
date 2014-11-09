@@ -3637,7 +3637,7 @@ lmc_ifnet_start(struct ifnet *ifp)
 /* Called from a syscall (user context; no spinlocks). */
 static int
 lmc_raw_output(struct ifnet *ifp, struct mbuf *m,
- const struct sockaddr *dst, struct route *ro)
+ const struct sockaddr *dst, struct nhop_info *ni)
   {
   softc_t *sc = IFP2SC(ifp);
   int error = 0;

@@ -110,7 +110,7 @@ static void	lagg_linkstate(struct lagg_softc *);
 static void	lagg_port_state(struct ifnet *, int);
 static int	lagg_port_ioctl(struct ifnet *, u_long, caddr_t);
 static int	lagg_port_output(struct ifnet *, struct mbuf *,
-		    const struct sockaddr *, struct route *);
+		    const struct sockaddr *, struct nhop_info *);
 static void	lagg_port_ifdetach(void *arg __unused, struct ifnet *);
 #ifdef LAGG_PORT_STACKING
 static int	lagg_port_checkstacking(struct lagg_softc *);
@@ -1065,14 +1065,14 @@ lagg_get_counter(struct ifnet *ifp, ift_counter cnt)
  */
 static int
 lagg_port_output(struct ifnet *ifp, struct mbuf *m,
-	const struct sockaddr *dst, struct route *ro)
+	const struct sockaddr *dst, struct nhop_info *ni)
 {
 	struct lagg_port *lp = ifp->if_lagg;
 
 	switch (dst->sa_family) {
 		case pseudo_AF_HDRCMPLT:
 		case AF_UNSPEC:
-			return ((*lp->lp_output)(ifp, m, dst, ro));
+			return ((*lp->lp_output)(ifp, m, dst, ni));
 	}
 
 	/* drop any other frames */

@@ -82,7 +82,7 @@ static const u_char fddibroadcastaddr[FDDI_ADDR_LEN] =
 static int fddi_resolvemulti(struct ifnet *, struct sockaddr **,
 			      struct sockaddr *);
 static int fddi_output(struct ifnet *, struct mbuf *, const struct sockaddr *,
-		       struct route *); 
+		       struct nhop_info *); 
 static void fddi_input(struct ifnet *ifp, struct mbuf *m);
 
 #define	senderr(e)	do { error = (e); goto bad; } while (0)
@@ -95,7 +95,7 @@ static void fddi_input(struct ifnet *ifp, struct mbuf *m);
  */
 static int
 fddi_output(struct ifnet *ifp, struct mbuf *m, const struct sockaddr *dst,
-	struct route *ro)
+	struct nhop_info *ni)
 {
 	u_int16_t type;
 	int loop_copy = 0, error = 0, hdrcmplt = 0;
@@ -121,11 +121,8 @@ fddi_output(struct ifnet *ifp, struct mbuf *m, const struct sockaddr *dst,
 	switch (dst->sa_family) {
 #ifdef INET
 	case AF_INET: {
-		struct rtentry *rt0 = NULL;
-
-		if (ro != NULL)
-			rt0 = ro->ro_rt;
-		error = arpresolve(ifp, rt0, m, dst, edst, &lle);
+		/* XXX: Pass is_gw flag */
+		error = arpresolve(ifp, NULL, m, dst, edst, &lle);
 		if (error)
 			return (error == EWOULDBLOCK ? 0 : error);
 		type = htons(ETHERTYPE_IP);

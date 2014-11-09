@@ -175,7 +175,7 @@ static u_char *ctxmith;
 static int lpinittables(void);
 static int lpioctl(struct ifnet *, u_long, caddr_t);
 static int lpoutput(struct ifnet *, struct mbuf *, const struct sockaddr *,
-       struct route *);
+       struct nhop_info *);
 static void lpstop(struct lp_data *);
 static void lp_intr(void *);
 static int lp_module_handler(module_t, int, void *);
@@ -683,7 +683,7 @@ lpoutbyte(u_char byte, int spin, device_t ppbus)
 
 static int
 lpoutput(struct ifnet *ifp, struct mbuf *m, const struct sockaddr *dst,
-    struct route *ro)
+    struct nhop_info *ni)
 {
 	struct lp_data *sc = ifp->if_softc;
 	device_t dev = sc->sc_dev;

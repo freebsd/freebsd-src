@@ -138,7 +138,8 @@ struct wtap_softc {
 	    (struct ieee80211vap *, const uint8_t [IEEE80211_ADDR_LEN]);
 	void (*sc_node_free)(struct ieee80211_node *);
 	int (*if_output)			/* output routine (enqueue) */
-	    (struct ifnet *, struct mbuf *, struct sockaddr *, struct route *);
+	    (struct ifnet *, struct mbuf *, struct sockaddr *,
+	     struct nhop_info *);
 	void (*if_input) (struct ifnet *, struct mbuf *);/* from h/w driver */
 	int (*if_transmit)(struct ifnet *, struct mbuf *);/* output routine */
 	struct mtx		sc_mtx;		/* master lock (recursive) */

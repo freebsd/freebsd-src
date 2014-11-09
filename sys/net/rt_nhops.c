@@ -369,18 +369,19 @@ fib4_sendmbuf(struct ifnet *ifp, struct mbuf *m, struct nhop_prepend *nh,
 		 * TODO: Make special ifnet
 		 * 'if_output_frame' handler for that.
 		 */
-		struct route_compat rc;
+		struct nhop_info ni;
 		struct ether_header *eh;
-		rc.ro_flags = AF_INET << 8 | RT_NHOP;
-		rc.ro_nh = nh;
+		bzero(&ni, sizeof(ni));
+		ni.ni_flags = RT_NHOP;
+		ni.ni_family = AF_INET;
+		ni.ni_nh = nh;
 
 		M_PREPEND(m, nh->nh_count, M_NOWAIT);
 		if (m == NULL)
 			return (ENOBUFS);
 		eh = mtod(m, struct ether_header *);
 		memcpy(eh, nh->d.data, nh->nh_count);
-		error = (*ifp->if_output)(ifp, m,
-		    NULL, (struct route *)&rc);
+		error = (*ifp->if_output)(ifp, m, NULL, &ni);
 	} else {
 		struct sockaddr_in gw_out;
 		memset(&gw_out, 0, sizeof(gw_out));
@@ -869,18 +870,19 @@ fib6_sendmbuf(struct ifnet *ifp, struct ifnet *origifp, struct mbuf *m,
 		 * TODO: Make special ifnet
 		 * 'if_output_frame' handler for that.
 		 */
-		struct route_compat rc;
+		struct nhop_info ni;
 		struct ether_header *eh;
-		rc.ro_flags = AF_INET6 << 8 | RT_NHOP;
-		rc.ro_nh = nh;
+		bzero(&ni, sizeof(ni));
+		ni.ni_family = AF_INET6;
+		ni.ni_flags = RT_NHOP;
+		ni.ni_nh = nh;
 
 		M_PREPEND(m, nh->nh_count, M_NOWAIT);
 		if (m == NULL)
 			return (ENOBUFS);
 		eh = mtod(m, struct ether_header *);
 		memcpy(eh, nh->d.data, nh->nh_count);
-		error = (*ifp->if_output)(ifp, m,
-		    NULL, (struct route *)&rc);
+		error = (*ifp->if_output)(ifp, m, NULL, &ni);
 	} else {
 		/* We need to perform ND lookup */
 		struct sockaddr_in6 gw_out;

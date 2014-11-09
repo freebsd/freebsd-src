@@ -1365,7 +1365,7 @@ static int lmc_raw_ioctl(struct ifnet *, u_long, caddr_t);
 static int lmc_ifnet_ioctl(struct ifnet *, u_long, caddr_t);
 static void lmc_ifnet_start(struct ifnet *);
 static int lmc_raw_output(struct ifnet *, struct mbuf *,
- const struct sockaddr *, struct route *);
+ const struct sockaddr *, struct nhop_info *);
 static void setup_ifnet(struct ifnet *);
 static int lmc_ifnet_attach(softc_t *);
 static void lmc_ifnet_detach(softc_t *);

@@ -257,7 +257,7 @@ static const u_short interactive_ports[8] = {
 	int debug = ifp->if_flags & IFF_DEBUG
 
 static int sppp_output(struct ifnet *ifp, struct mbuf *m,
-	const struct sockaddr *dst, struct route *ro);
+	const struct sockaddr *dst, struct nhop_info *ni);
 
 static void sppp_cisco_send(struct sppp *sp, int type, long par1, long par2);
 static void sppp_cisco_input(struct sppp *sp, struct mbuf *m);
@@ -767,7 +767,7 @@ sppp_ifstart(struct ifnet *ifp)
  */
 static int
 sppp_output(struct ifnet *ifp, struct mbuf *m, const struct sockaddr *dst,
-	struct route *ro)
+	struct nhop_info *ni)
 {
 	struct sppp *sp = IFP2SP(ifp);
 	struct ppp_header *h;
