@@ -140,14 +140,12 @@ struct pf_send_entry {
 		PFSE_ICMP6,
 	}				pfse_type;
 	union {
-		struct route		ro;
 		struct {
 			int		type;
 			int		code;
 			int		mtu;
 		} icmpopts;
 	} u;
-#define	pfse_ro		u.ro
 #define	pfse_icmp_type	u.icmpopts.type
 #define	pfse_icmp_code	u.icmpopts.code
 #define	pfse_icmp_mtu	u.icmpopts.mtu
