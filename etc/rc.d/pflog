@@ -24,25 +24,41 @@ pflog_prestart()
 {
 	load_kld pflog || return 1
 
-	# set pflog0 interface to up state
-	if ! ifconfig pflog0 up; then
-		warn 'could not bring up pflog0.'
+	# set pflog_dev interface to up state
+	if ! ifconfig $pflog_dev up; then
+		warn "could not bring up $pflog_dev."
 		return 1
 	fi
 
 	# prepare the command line for pflogd
-	rc_flags="-f $pflog_logfile $rc_flags"
+	rc_flags="-f $pflog_logfile -i $pflog_dev $rc_flags"
 
 	# report we're ready to run pflogd
 	return 0
 }
 
+pflog_poststart() {
+	# Allow child pflogd to settle
+	sleep 0.10
+	# More elegant(?) method for getting a unique pid
+	if [ -f /var/run/pflogd.pid ]; then
+		mv /var/run/pflogd.pid $pidfile
+	else
+		warn "/var/run/pflogd.pid does not exist. Too fast."
+	fi
+}
+
 pflog_poststop()
 {
-	if ! ifconfig pflog0 down; then
-		warn 'could not bring down pflog0.'
+	if ! ifconfig $pflog_dev down; then
+		warn "could not bring down $pflog_dev."
 		return 1
 	fi
+
+	if [ "$pflog_instances" ] && [ -n "$pflog_instances" ]; then
+		rm $pidfile
+	fi
+
 	return 0
 }
 
@@ -53,4 +69,33 @@ pflog_resync()
 }
 
 load_rc_config $name
-run_rc_command "$1"
+
+# Check if spawning multiple pflogd
+echo "Starting pflogd: $pflog_instances"
+if [ "$pflog_instances" ] && [ -n "$pflog_instances" ]; then
+	start_postcmd="pflog_poststart"
+	# Interate through requested instances.
+	for i in $pflog_instances; do
+		# Set required variables
+		eval pflog_dev=\$pflog_${i}_dev
+		eval pflog_logfile=\$pflog_${i}_logfile
+		eval pflog_flags=\$pflog_${i}_flags
+		# Check that required vars have non-zero length, warn if not.
+		if [ -z $pflog_dev ]; then
+			warn "pflog_dev not set"
+			continue
+		fi
+		if [ -z $pflog_logfile ]; then
+			warn "pflog_logfile not set"
+			continue
+		fi
+		# pflogd sets a pidfile, but the name is hardcoded. Concoct a
+		# unique pidfile name.
+		pidfile="/var/run/pflogd.$i.pid"
+		run_rc_command "$1"
+	done
+else
+	# Typical case, spawn single instance only.
+	pflog_dev=${pflog_dev:-"pflog0"}
+	run_rc_command "$1"
+fi
