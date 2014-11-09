@@ -104,12 +104,6 @@ SYSCTL_INT(_net_inet_ip, IPCTL_SENDREDIRECTS, redirect, CTLFLAG_VNET | CTLFLAG_R
     &VNET_NAME(ipsendredirects), 0,
     "Enable sending IP redirects");
 
-static VNET_DEFINE(int, ip_keepfaith);
-#define	V_ip_keepfaith		VNET(ip_keepfaith)
-SYSCTL_INT(_net_inet_ip, IPCTL_KEEPFAITH, keepfaith, CTLFLAG_VNET | CTLFLAG_RW,
-    &VNET_NAME(ip_keepfaith), 0,
-    "Enable packet capture for FAITH IPv4->IPv6 translater daemon");
-
 static VNET_DEFINE(int, ip_sendsourcequench);
 #define	V_ip_sendsourcequench	VNET(ip_sendsourcequench)
 SYSCTL_INT(_net_inet_ip, OID_AUTO, sendsourcequench, CTLFLAG_VNET | CTLFLAG_RW,
@@ -751,18 +745,6 @@ passin:
 		goto ours;
 	if (ip->ip_dst.s_addr == INADDR_ANY)
 		goto ours;
-
-	/*
-	 * FAITH(Firewall Aided Internet Translator)
-	 */
-	if (ifp && ifp->if_type == IFT_FAITH) {
-		if (V_ip_keepfaith) {
-			if (ip->ip_p == IPPROTO_TCP || ip->ip_p == IPPROTO_ICMP) 
-				goto ours;
-		}
-		m_freem(m);
-		return;
-	}
 
 	/*
 	 * Not for us; forward if possible and desirable.
