@@ -137,8 +137,6 @@ static int in6_notify_ifa(struct ifnet *, struct in6_ifaddr *,
 	struct in6_aliasreq *, int);
 static void in6_unlink_ifa(struct in6_ifaddr *, struct ifnet *);
 
-int	(*faithprefix_p)(struct in6_addr *);
-
 static int in6_validate_ifra(struct ifnet *, struct in6_aliasreq *,
     struct in6_ifaddr *, int);
 static struct in6_ifaddr *in6_alloc_ifa(struct ifnet *,
@@ -1948,34 +1946,20 @@ in6if_do_dad(struct ifnet *ifp)
 	if (ND_IFINFO(ifp)->flags & ND6_IFF_IFDISABLED)
 		return (0);
 
-	switch (ifp->if_type) {
-#ifdef IFT_DUMMY
-	case IFT_DUMMY:
-#endif
-	case IFT_FAITH:
-		/*
-		 * These interfaces do not have the IFF_LOOPBACK flag,
-		 * but loop packets back.  We do not have to do DAD on such
-		 * interfaces.  We should even omit it, because loop-backed
-		 * NS would confuse the DAD procedure.
-		 */
+	/*
+	 * Our DAD routine requires the interface up and running.
+	 * However, some interfaces can be up before the RUNNING
+	 * status.  Additionaly, users may try to assign addresses
+	 * before the interface becomes up (or running).
+	 * We simply skip DAD in such a case as a work around.
+	 * XXX: we should rather mark "tentative" on such addresses,
+	 * and do DAD after the interface becomes ready.
+	 */
+	if (!((ifp->if_flags & IFF_UP) &&
+	    (ifp->if_drv_flags & IFF_DRV_RUNNING)))
 		return (0);
-	default:
-		/*
-		 * Our DAD routine requires the interface up and running.
-		 * However, some interfaces can be up before the RUNNING
-		 * status.  Additionaly, users may try to assign addresses
-		 * before the interface becomes up (or running).
-		 * We simply skip DAD in such a case as a work around.
-		 * XXX: we should rather mark "tentative" on such addresses,
-		 * and do DAD after the interface becomes ready.
-		 */
-		if (!((ifp->if_flags & IFF_UP) &&
-		    (ifp->if_drv_flags & IFF_DRV_RUNNING)))
-			return (0);
 
-		return (1);
-	}
+	return (1);
 }
 
 /*

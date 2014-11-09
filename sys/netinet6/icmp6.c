@@ -482,22 +482,6 @@ icmp6_input(struct mbuf **mp, int *offp, int proto)
 		goto freeit;
 	}
 
-	if (faithprefix_p != NULL && (*faithprefix_p)(&ip6->ip6_dst)) {
-		/*
-		 * Deliver very specific ICMP6 type only.
-		 * This is important to deliver TOOBIG.  Otherwise PMTUD
-		 * will not work.
-		 */
-		switch (icmp6->icmp6_type) {
-		case ICMP6_DST_UNREACH:
-		case ICMP6_PACKET_TOO_BIG:
-		case ICMP6_TIME_EXCEEDED:
-			break;
-		default:
-			goto freeit;
-		}
-	}
-
 	ICMP6STAT_INC(icp6s_inhist[icmp6->icmp6_type]);
 	icmp6_ifstat_inc(ifp, ifs6_in_msg);
 	if (icmp6->icmp6_type < ICMP6_INFOMSG_MASK)

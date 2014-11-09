@@ -511,7 +511,7 @@ short	inp_so_options(const struct inpcb *inp);
 #define	INP_ANONPORT		0x00000040 /* port chosen for user */
 #define	INP_RECVIF		0x00000080 /* receive incoming interface */
 #define	INP_MTUDISC		0x00000100 /* user can do MTU discovery */
-#define	INP_FAITH		0x00000200 /* accept FAITH'ed connections */
+				   	   /* 0x000200 unused: was INP_FAITH */
 #define	INP_RECVTTL		0x00000400 /* receive incoming IP TTL */
 #define	INP_DONTFRAG		0x00000800 /* don't fragment packet */
 #define	INP_BINDANY		0x00001000 /* allow bind to any address */
