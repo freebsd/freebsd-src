@@ -921,7 +921,7 @@ nd6_na_input(struct mbuf *m, int off, int icmp6len)
 		LLE_WUNLOCK(ln);
 
 		if (chain)
-			nd6_output_flush(ifp, ifp, chain, &sin6, NULL);
+			nd6_output_flush(ifp, ifp, chain, &sin6);
 	}
 	if (checklink)
 		pfxlist_onlink_check();
