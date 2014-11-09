@@ -1518,7 +1518,7 @@ static int
 nd6_prefix_onlink_rtrequest(struct nd_prefix *pr, struct ifaddr *ifa)
 {
 	static struct sockaddr_dl null_sdl = {sizeof(null_sdl), AF_LINK};
-	struct radix_node_head *rnh;
+	struct rib_head *rh;
 	struct rtentry *rt;
 	struct sockaddr_in6 mask6;
 	u_long rtflags;
@@ -1545,9 +1545,9 @@ nd6_prefix_onlink_rtrequest(struct nd_prefix *pr, struct ifaddr *ifa)
 			    "error(%d) but rt is NULL, pr=%p, ifa=%p", __func__,
 			    error, pr, ifa));
 
-			rnh = rt_tables_get_rnh(rt->rt_fibnum, AF_INET6);
+			rh = rt_tables_get_rnh(rt->rt_fibnum, AF_INET6);
 			/* XXX what if rhn == NULL? */
-			RADIX_NODE_HEAD_LOCK(rnh);
+			RIB_WLOCK(rh);
 			RT_LOCK(rt);
 			if (rt_setgate(rt, rt_key(rt),
 			    (struct sockaddr *)&null_sdl) == 0) {
@@ -1557,7 +1557,7 @@ nd6_prefix_onlink_rtrequest(struct nd_prefix *pr, struct ifaddr *ifa)
 				dl->sdl_type = rt->rt_ifp->if_type;
 				dl->sdl_index = rt->rt_ifp->if_index;
 			}
-			RADIX_NODE_HEAD_UNLOCK(rnh);
+			RIB_WUNLOCK(rh);
 			nd6_rtmsg(RTM_ADD, rt);
 			RT_UNLOCK(rt);
 			pr->ndpr_stateflags |= NDPRF_ONLINK;

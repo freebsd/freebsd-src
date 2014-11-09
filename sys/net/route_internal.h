@@ -30,6 +30,31 @@
 #ifndef _NET_ROUTE_INTERNAL_H_
 #define	_NET_ROUTE_INTERNAL_H_
 
+struct rib_head {
+	struct radix_head head;
+	rn_matchaddr_f_t	*rnh_matchaddr;	/* longest match for sockaddr */
+	rn_addaddr_f_t	*rnh_addaddr;	/* add based on sockaddr*/
+	rn_deladdr_f_t	*rnh_deladdr;	/* remove based on sockaddr */
+	rn_lookup_f_t	*rnh_lookup;	/* exact match for sockaddr */
+	rn_walktree_t	*rnh_walktree;	/* traverse tree */
+	rn_walktree_from_t	*rnh_walktree_from; /* traverse tree below a */
+	rn_close_t	*rnh_close;	/*do something when the last ref drops*/
+	struct	radix_node rnh_nodes[3];	/* empty tree for common case */
+	struct	rwlock rib_lock;		/* locks entire radix tree */
+	struct radix_mask_head rmhead;	/* masks radix head */
+};
+
+#define	RIB_RLOCK(rh)	rw_rlock(&(rh)->rib_lock)
+#define	RIB_RUNLOCK(rh)	rw_runlock(&(rh)->rib_lock)
+#define	RIB_WLOCK(rh)	rw_wlock(&(rh)->rib_lock)
+#define	RIB_WUNLOCK(rh)	rw_wunlock(&(rh)->rib_lock)
+#define	RIB_LOCK_ASSERT(rh)	rw_assert(&(rh)->rib_lock, RA_LOCKED)
+#define	RIB_WLOCK_ASSERT(rh)	rw_assert(&(rh)->rib_lock, RA_WLOCKED)
+
+struct rib_head *rt_table_init(int offset);
+void rt_table_destroy(struct rib_head *rh);
+
+
 struct rtentry {
 	struct	radix_node rt_nodes[2];	/* tree glue, and other values */
 	/*

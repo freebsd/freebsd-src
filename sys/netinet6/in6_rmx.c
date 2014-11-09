@@ -104,14 +104,13 @@ extern int	in6_detachhead(void **head, int off);
  * Do what we need to do when inserting a route.
  */
 static struct radix_node *
-in6_addroute(void *v_arg, void *n_arg, struct radix_node_head *head,
+in6_addroute(void *v_arg, void *n_arg, struct radix_head *head,
     struct radix_node *treenodes)
 {
 	struct rtentry *rt = (struct rtentry *)treenodes;
 	struct sockaddr_in6 *sin6 = (struct sockaddr_in6 *)rt_key(rt);
 	struct radix_node *ret;
 
-	RADIX_NODE_HEAD_WLOCK_ASSERT(head);
 	if (IN6_IS_ADDR_MULTICAST(&sin6->sin6_addr))
 		rt->rt_flags |= RTF_MULTICAST;
 
@@ -150,7 +149,7 @@ in6_addroute(void *v_arg, void *n_arg, struct radix_node_head *head,
 			rt->rt_mtu = IN6_LINKMTU(rt->rt_ifp);
 	}
 
-	ret = rn_addroute(v_arg, n_arg, &head->rh, treenodes);
+	ret = rn_addroute(v_arg, n_arg, head, treenodes);
 	if (ret == NULL) {
 		struct rtentry *rt2;
 		/*
@@ -181,7 +180,7 @@ in6_addroute(void *v_arg, void *n_arg, struct radix_node_head *head,
 }
 
 struct rtqk_arg {
-	struct radix_node_head *rnh;
+	struct rib_head *rh;
 	int mode;
 	int draining;
 	int killed;
@@ -192,7 +191,7 @@ struct rtqk_arg {
  * Age old PMTUs.
  */
 struct mtuex_arg {
-	struct radix_node_head *rnh;
+	struct rib_head *rh;
 };
 static VNET_DEFINE(struct callout, rtq_mtutimer);
 #define	V_rtq_mtutimer			VNET(rtq_mtutimer)
@@ -213,13 +212,13 @@ in6_mtuexpire(struct rtentry *rt, void *rock)
 #define	MTUTIMO_DEFAULT	(60*1)
 
 static void
-in6_mtutimo_setwa(struct radix_node_head *rnh, uint32_t fibum, int af, void *_arg)
+in6_mtutimo_setwa(struct rib_head *rh, uint32_t fibum, int af, void *_arg)
 {
 	struct mtuex_arg *arg;
 
 	arg = (struct mtuex_arg *)_arg;
 
-	arg->rnh = rnh;
+	arg->rh = rh;
 }
 
 static void
@@ -246,15 +245,14 @@ static VNET_DEFINE(int, _in6_rt_was_here);
 int
 in6_inithead(void **head, int off)
 {
-	struct radix_node_head *rnh;
+	struct rib_head *rh;
 
-	if (!rn_inithead(head, offsetof(struct sockaddr_in6, sin6_addr) << 3))
+	rh = rt_table_init(offsetof(struct sockaddr_in6, sin6_addr) << 3);
+	if (rh == NULL)
 		return (0);
 
-	rnh = *head;
-	RADIX_NODE_HEAD_LOCK_INIT(rnh);
-
-	rnh->rnh_addaddr = in6_addroute;
+	rh->rnh_addaddr = in6_addroute;
+	*head = (void *)rh;
 
 	if (V__in6_rt_was_here == 0) {
 		callout_init(&V_rtq_mtutimer, CALLOUT_MPSAFE);

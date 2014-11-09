@@ -287,7 +287,7 @@ int fib6_sendmbuf(struct ifnet *ifp, struct ifnet *origifp, struct mbuf *m,
 
 typedef void *fib_init_t(u_int fibnum);
 typedef void fib_destroy_t(void *state);
-typedef int fib_dump_t(void *state, struct radix_node_head *rnh);
+typedef int fib_dump_t(void *state, struct rib_head *rh);
 typedef	int fib_change_t(void *state, int req, struct rtentry *rte,
     struct rt_addrinfo *info);
 typedef int fib_lookup_t(void *state, void *key, uint64_t *attr, u_int flowid,
@@ -320,7 +320,7 @@ struct fwd_module {
 
 int fwd_attach_module(struct fwd_module_info *m, void **);
 int fwd_destroy_module(void *state);
-int fwd_change_fib(struct radix_node_head *rnh, int req, struct rtentry *rte,
+int fwd_change_fib(struct rib_head *rh, int req, struct rtentry *rte,
     struct rt_addrinfo *info);
 
 #endif

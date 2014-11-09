@@ -170,7 +170,7 @@ sysctl_net_icmp_drop_redir(SYSCTL_HANDLER_ARGS)
 {
 	int error, new;
 	int i;
-	struct radix_node_head *rnh;
+	struct rib_head *rh;
 
 	new = V_drop_redirect;
 	error = sysctl_handle_int(oidp, &new, 0, req);
@@ -181,11 +181,9 @@ sysctl_net_icmp_drop_redir(SYSCTL_HANDLER_ARGS)
 			return (0);
 
 		for (i = 0; i < rt_numfibs; i++) {
-			if ((rnh = rt_tables_get_rnh(i, AF_INET)) == NULL)
+			if ((rh = rt_tables_get_rnh(i, AF_INET)) == NULL)
 				continue;
-			RADIX_NODE_HEAD_LOCK(rnh);
-			in_setmatchfunc(rnh, new);
-			RADIX_NODE_HEAD_UNLOCK(rnh);
+			in_setmatchfunc(rh, new);
 		}
 		
 		V_drop_redirect = new;

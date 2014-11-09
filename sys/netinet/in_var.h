@@ -382,7 +382,7 @@ inm_acquire_locked(struct in_multi *inm)
 
 struct	rtentry;
 struct	ip_moptions;
-struct radix_node_head;
+struct	rib_head;
 
 struct in_multi *inm_lookup_locked(struct ifnet *, const struct in_addr);
 struct in_multi *inm_lookup(struct ifnet *, const struct in_addr);
@@ -422,7 +422,7 @@ void	 in_rtredirect(struct sockaddr *, struct sockaddr *,
 	    struct sockaddr *, int, struct sockaddr *, u_int);
 int	 in_rtrequest(int, struct sockaddr *,
 	    struct sockaddr *, struct sockaddr *, int, struct rtentry **, u_int);
-void	in_setmatchfunc(struct radix_node_head *, int);
+void	in_setmatchfunc(struct rib_head *, int);
 
 #if 0
 int	 in_rt_getifa(struct rt_addrinfo *, u_int fibnum);

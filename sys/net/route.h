@@ -107,6 +107,7 @@ VNET_DECLARE(u_int, rt_add_addr_allfibs); /* Announce interfaces to all fibs */
 #endif
 #endif
 
+struct rib_head;
 struct rtentry;
 #if !defined(_KERNEL) || defined(_WANT_RTENTRY)
 /* This structure is kept for compatibility reasons only */
@@ -292,7 +293,7 @@ struct rt_addrinfo {
 #define RT_LINK_IS_UP(ifp)	(!((ifp)->if_capabilities & IFCAP_LINKSTATE) \
 				 || (ifp)->if_link_state == LINK_STATE_UP)
 
-struct radix_node_head *rt_tables_get_rnh(int, int);
+struct rib_head *rt_tables_get_rnh(int, int);
 
 struct ifmultiaddr;
 
@@ -324,12 +325,12 @@ int	rtsock_routemsg(int, struct ifnet *ifp, int, struct rtentry *, int);
  *    RTFREE() uses an unlocked entry.
  */
 
-int	 rt_expunge(struct radix_node_head *, struct rtentry *);
+int	 rt_expunge(struct rib_head *, struct rtentry *);
 void	 rtfree(struct rtentry *);
 int	 rt_check(struct rtentry **, struct rtentry **, struct sockaddr *);
 
 typedef int rt_walktree_f_t(struct rtentry *, void *);
-typedef void rt_setwarg_t(struct radix_node_head *, uint32_t, int, void *);
+typedef void rt_setwarg_t(struct rib_head *, uint32_t, int, void *);
 void	rt_foreach_fib(int af, rt_setwarg_t *, rt_walktree_f_t *, void *);
 void	rt_flushifroutes(struct ifnet *ifp);
 
