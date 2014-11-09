@@ -194,8 +194,8 @@ fib_choose_prepend(uint32_t fibnum, struct nhop_prepend *nh_src,
 		idx = nh_multi->nh_nhops[flowid % nh_multi->nh_count];
 #if 0
 		KASSERT((fibnum < rt_numfibs), ("fib4_lookup_prepend§: bad fibnum"));
-		rnh = rt_tables_get_rnh(fibnum, AF_INET);
-		//nh_src = &rnh->nhops[i];
+		rh = rt_tables_get_rnh(fibnum, AF_INET);
+		//nh_src = &rh->nhops[i];
 #endif
 	}
 
@@ -255,7 +255,7 @@ int
 fib4_lookup_prepend(uint32_t fibnum, struct in_addr dst, struct mbuf *m,
     struct nhop_prepend *nh, struct nhop4_extended *nh_ext)
 {
-	struct radix_node_head *rnh;
+	struct rib_head *rh;
 	struct radix_node *rn;
 	struct sockaddr_in *gw_sa, sin;
 	struct ifnet *lifp;
@@ -266,8 +266,8 @@ fib4_lookup_prepend(uint32_t fibnum, struct in_addr dst, struct mbuf *m,
 	struct rtentry *rte;
 
 	KASSERT((fibnum < rt_numfibs), ("fib4_lookup_prepend: bad fibnum"));
-	rnh = rt_tables_get_rnh(fibnum, AF_INET);
-	if (rnh == NULL)
+	rh = rt_tables_get_rnh(fibnum, AF_INET);
+	if (rh == NULL)
 		return (EHOSTUNREACH);
 
 	/* Prepare lookup key */
@@ -275,12 +275,12 @@ fib4_lookup_prepend(uint32_t fibnum, struct in_addr dst, struct mbuf *m,
 	sin.sin_len = sizeof(struct sockaddr_in);
 	sin.sin_addr = dst;
 
-	RADIX_NODE_HEAD_RLOCK(rnh);
-	rn = rnh->rnh_matchaddr((void *)&sin, rnh);
+	RIB_RLOCK(rh);
+	rn = rh->rnh_matchaddr((void *)&sin, &rh->head);
 	rte = RNTORT(rn);
 	if (rn == NULL || ((rn->rn_flags & RNF_ROOT) != 0) ||
 	    RT_LINK_IS_UP(rte->rt_ifp) == 0) {
-		RADIX_NODE_HEAD_RUNLOCK(rnh);
+		RIB_RUNLOCK(rh);
 		return (EHOSTUNREACH);
 	}
 
@@ -321,7 +321,7 @@ fib4_lookup_prepend(uint32_t fibnum, struct in_addr dst, struct mbuf *m,
 		fib4_rte_to_nh_extended(rte, dst, nh_ext);
 	}
 
-	RADIX_NODE_HEAD_RUNLOCK(rnh);
+	RIB_RUNLOCK(rh);
 
 	nh->nh_flags = flags;
 	/*
@@ -501,14 +501,14 @@ int
 fib4_lookup_nh_basic(uint32_t fibnum, struct in_addr dst, uint32_t flowid,
     struct nhop4_basic *pnh4)
 {
-	struct radix_node_head *rnh;
+	struct rib_head *rh;
 	struct radix_node *rn;
 	struct sockaddr_in sin;
 	struct rtentry *rte;
 
 	KASSERT((fibnum < rt_numfibs), ("fib4_lookup_nh_basic: bad fibnum"));
-	rnh = rt_tables_get_rnh(fibnum, AF_INET);
-	if (rnh == NULL)
+	rh = rt_tables_get_rnh(fibnum, AF_INET);
+	if (rh == NULL)
 		return (ENOENT);
 
 	/* Prepare lookup key */
@@ -516,19 +516,19 @@ fib4_lookup_nh_basic(uint32_t fibnum, struct in_addr dst, uint32_t flowid,
 	sin.sin_len = sizeof(struct sockaddr_in);
 	sin.sin_addr = dst;
 
-	RADIX_NODE_HEAD_RLOCK(rnh);
-	rn = rnh->rnh_matchaddr((void *)&sin, rnh);
+	RIB_RLOCK(rh);
+	rn = rh->rnh_matchaddr((void *)&sin, &rh->head);
 	if (rn != NULL && ((rn->rn_flags & RNF_ROOT) == 0)) {
 		rte = RNTORT(rn);
 		/* Ensure route & ifp is UP */
 		if (RT_LINK_IS_UP(rte->rt_ifp)) {
 			fib4_rte_to_nh_basic(rte, dst, pnh4);
-			RADIX_NODE_HEAD_RUNLOCK(rnh);
+			RIB_RUNLOCK(rh);
 
 			return (0);
 		}
 	}
-	RADIX_NODE_HEAD_RUNLOCK(rnh);
+	RIB_RUNLOCK(rh);
 
 	return (ENOENT);
 }
@@ -537,14 +537,14 @@ int
 fib4_lookup_nh_ifp(uint32_t fibnum, struct in_addr dst, uint32_t flowid,
     struct nhop4_basic *pnh4)
 {
-	struct radix_node_head *rnh;
+	struct rib_head *rh;
 	struct radix_node *rn;
 	struct sockaddr_in sin;
 	struct rtentry *rte;
 
 	KASSERT((fibnum < rt_numfibs), ("fib4_lookup_nh_ifp: bad fibnum"));
-	rnh = rt_tables_get_rnh(fibnum, AF_INET);
-	if (rnh == NULL)
+	rh = rt_tables_get_rnh(fibnum, AF_INET);
+	if (rh == NULL)
 		return (ENOENT);
 
 	/* Prepare lookup key */
@@ -552,19 +552,19 @@ fib4_lookup_nh_ifp(uint32_t fibnum, struct in_addr dst, uint32_t flowid,
 	sin.sin_len = sizeof(struct sockaddr_in);
 	sin.sin_addr = dst;
 
-	RADIX_NODE_HEAD_RLOCK(rnh);
-	rn = rnh->rnh_matchaddr((void *)&sin, rnh);
+	RIB_RLOCK(rh);
+	rn = rh->rnh_matchaddr((void *)&sin, &rh->head);
 	if (rn != NULL && ((rn->rn_flags & RNF_ROOT) == 0)) {
 		rte = RNTORT(rn);
 		/* Ensure route & ifp is UP */
 		if (RT_LINK_IS_UP(rte->rt_ifp)) {
 			fib4_rte_to_nh_basic(rte, dst, pnh4);
-			RADIX_NODE_HEAD_RUNLOCK(rnh);
+			RIB_RUNLOCK(rh);
 			pnh4->nh_ifp = rte->rt_ifp;
 			return (0);
 		}
 	}
-	RADIX_NODE_HEAD_RUNLOCK(rnh);
+	RIB_RUNLOCK(rh);
 
 	return (ENOENT);
 }
@@ -582,14 +582,14 @@ int
 fib4_lookup_nh_ext(uint32_t fibnum, struct in_addr dst, uint32_t flowid,
     uint32_t flags, struct nhop4_extended *pnh4)
 {
-	struct radix_node_head *rnh;
+	struct rib_head *rh;
 	struct radix_node *rn;
 	struct sockaddr_in sin;
 	struct rtentry *rte;
 
 	KASSERT((fibnum < rt_numfibs), ("fib4_lookup_nh_ext: bad fibnum"));
-	rnh = rt_tables_get_rnh(fibnum, AF_INET);
-	if (rnh == NULL)
+	rh = rt_tables_get_rnh(fibnum, AF_INET);
+	if (rh == NULL)
 		return (ENOENT);
 
 	/* Prepare lookup key */
@@ -597,8 +597,8 @@ fib4_lookup_nh_ext(uint32_t fibnum, struct in_addr dst, uint32_t flowid,
 	sin.sin_len = sizeof(struct sockaddr_in);
 	sin.sin_addr = dst;
 
-	RADIX_NODE_HEAD_RLOCK(rnh);
-	rn = rnh->rnh_matchaddr((void *)&sin, rnh);
+	RIB_RLOCK(rh);
+	rn = rh->rnh_matchaddr((void *)&sin, &rh->head);
 	if (rn != NULL && ((rn->rn_flags & RNF_ROOT) == 0)) {
 		rte = RNTORT(rn);
 		/* Ensure route & ifp is UP */
@@ -607,12 +607,12 @@ fib4_lookup_nh_ext(uint32_t fibnum, struct in_addr dst, uint32_t flowid,
 			if ((flags & NHOP_LOOKUP_REF) != 0) {
 				/* TODO: Do lwref on egress ifp's */
 			}
-			RADIX_NODE_HEAD_RUNLOCK(rnh);
+			RIB_RUNLOCK(rh);
 
 			return (0);
 		}
 	}
-	RADIX_NODE_HEAD_RUNLOCK(rnh);
+	RIB_RUNLOCK(rh);
 
 	return (ENOENT);
 }
@@ -627,14 +627,14 @@ int
 rib4_lookup_nh_ext(uint32_t fibnum, struct in_addr dst, uint32_t flowid,
     uint32_t flags, struct rt4_extended *prt4)
 {
-	struct radix_node_head *rnh;
+	struct rib_head *rh;
 	struct radix_node *rn;
 	struct sockaddr_in sin;
 	struct rtentry *rte;
 
 	KASSERT((fibnum < rt_numfibs), ("rib4_lookup_nh_ext: bad fibnum"));
-	rnh = rt_tables_get_rnh(fibnum, AF_INET);
-	if (rnh == NULL)
+	rh = rt_tables_get_rnh(fibnum, AF_INET);
+	if (rh == NULL)
 		return (ENOENT);
 
 	/* Prepare lookup key */
@@ -642,8 +642,8 @@ rib4_lookup_nh_ext(uint32_t fibnum, struct in_addr dst, uint32_t flowid,
 	sin.sin_len = sizeof(struct sockaddr_in);
 	sin.sin_addr = dst;
 
-	RADIX_NODE_HEAD_RLOCK(rnh);
-	rn = rnh->rnh_matchaddr((void *)&sin, rnh);
+	RIB_RLOCK(rh);
+	rn = rh->rnh_matchaddr((void *)&sin, &rh->head);
 	if (rn != NULL && ((rn->rn_flags & RNF_ROOT) == 0)) {
 		rte = RNTORT(rn);
 		/* Ensure route & ifp is UP */
@@ -652,11 +652,11 @@ rib4_lookup_nh_ext(uint32_t fibnum, struct in_addr dst, uint32_t flowid,
 			if ((flags & NHOP_LOOKUP_REF) != 0) {
 				/* TODO: Do lwref on egress ifp's */
 			}
-			RADIX_NODE_HEAD_RUNLOCK(rnh);
+			RIB_RUNLOCK(rh);
 			return (0);
 		}
 	}
-	RADIX_NODE_HEAD_RUNLOCK(rnh);
+	RIB_RUNLOCK(rh);
 
 	return (ENOENT);
 }
@@ -749,7 +749,7 @@ int
 fib6_lookup_prepend(uint32_t fibnum, struct in6_addr *dst, uint32_t scopeid,
     struct mbuf *m, struct nhop_prepend *nh, struct nhop6_extended *nh_ext)
 {
-	struct radix_node_head *rnh;
+	struct rib_head *rh;
 	struct radix_node *rn;
 	struct sockaddr_in6 sin6, *gw_sa;
 	struct in6_addr gw6;
@@ -771,8 +771,8 @@ fib6_lookup_prepend(uint32_t fibnum, struct in6_addr *dst, uint32_t scopeid,
 
 
 	KASSERT((fibnum < rt_numfibs), ("fib6_lookup_prepend: bad fibnum"));
-	rnh = rt_tables_get_rnh(fibnum, AF_INET6);
-	if (rnh == NULL)
+	rh = rt_tables_get_rnh(fibnum, AF_INET6);
+	if (rh == NULL)
 		return (ENOENT);
 
 	/* Prepare lookup key */
@@ -783,12 +783,12 @@ fib6_lookup_prepend(uint32_t fibnum, struct in6_addr *dst, uint32_t scopeid,
 	sa6_embedscope(&sin6, 0);
 	
 
-	RADIX_NODE_HEAD_RLOCK(rnh);
-	rn = rnh->rnh_matchaddr((void *)&sin6, rnh);
+	RIB_RLOCK(rh);
+	rn = rh->rnh_matchaddr((void *)&sin6, &rh->head);
 	rte = RNTORT(rn);
 	if (rn == NULL || ((rn->rn_flags & RNF_ROOT) != 0) ||
 	    RT_LINK_IS_UP(rte->rt_ifp) == 0) {
-		RADIX_NODE_HEAD_RUNLOCK(rnh);
+		RIB_RUNLOCK(rh);
 		return (EHOSTUNREACH);
 	}
 
@@ -820,7 +820,7 @@ fib6_lookup_prepend(uint32_t fibnum, struct in6_addr *dst, uint32_t scopeid,
 	nh->lifp_idx = lifp->if_index;
 	nh->i.ifp_idx = nh->lifp_idx;
 
-	RADIX_NODE_HEAD_RUNLOCK(rnh);
+	RIB_RUNLOCK(rh);
 
 	nh->nh_flags = flags;
 do_l2:
@@ -1123,7 +1123,7 @@ int
 fib6_lookup_nh_ifp(uint32_t fibnum, struct in6_addr *dst, uint32_t scopeid,
     uint32_t flowid, struct nhop6_basic *pnh6)
 {
-	struct radix_node_head *rnh;
+	struct rib_head *rh;
 	struct radix_node *rn;
 	struct sockaddr_in6 sin6;
 	struct rtentry *rte;
@@ -1135,8 +1135,8 @@ fib6_lookup_nh_ifp(uint32_t fibnum, struct in6_addr *dst, uint32_t scopeid,
 	}
 
 	KASSERT((fibnum < rt_numfibs), ("fib6_lookup_nh_basic: bad fibnum"));
-	rnh = rt_tables_get_rnh(fibnum, AF_INET6);
-	if (rnh == NULL)
+	rh = rt_tables_get_rnh(fibnum, AF_INET6);
+	if (rh == NULL)
 		return (ENOENT);
 
 	/* Prepare lookup key */
@@ -1145,19 +1145,19 @@ fib6_lookup_nh_ifp(uint32_t fibnum, struct in6_addr *dst, uint32_t scopeid,
 	sin6.sin6_scope_id = scopeid;
 	sa6_embedscope(&sin6, 0);
 
-	RADIX_NODE_HEAD_RLOCK(rnh);
-	rn = rnh->rnh_matchaddr((void *)&sin6, rnh);
+	RIB_RLOCK(rh);
+	rn = rh->rnh_matchaddr((void *)&sin6, &rh->head);
 	if (rn != NULL && ((rn->rn_flags & RNF_ROOT) == 0)) {
 		rte = RNTORT(rn);
 		/* Ensure route & ifp is UP */
 		if (RT_LINK_IS_UP(rte->rt_ifp)) {
 			fib6_rte_to_nh_basic(rte, dst, pnh6);
 			pnh6->nh_ifp = rte->rt_ifp;
-			RADIX_NODE_HEAD_RUNLOCK(rnh);
+			RIB_RUNLOCK(rh);
 			return (0);
 		}
 	}
-	RADIX_NODE_HEAD_RUNLOCK(rnh);
+	RIB_RUNLOCK(rh);
 
 	return (ENOENT);
 }
@@ -1166,7 +1166,7 @@ int
 fib6_lookup_nh_basic(uint32_t fibnum, struct in6_addr *dst, uint32_t scopeid,
     uint32_t flowid, struct nhop6_basic *pnh6)
 {
-	struct radix_node_head *rnh;
+	struct rib_head *rh;
 	struct radix_node *rn;
 	struct sockaddr_in6 sin6;
 	struct rtentry *rte;
@@ -1177,8 +1177,8 @@ fib6_lookup_nh_basic(uint32_t fibnum, struct in6_addr *dst, uint32_t scopeid,
 	}
 
 	KASSERT((fibnum < rt_numfibs), ("fib6_lookup_nh_basic: bad fibnum"));
-	rnh = rt_tables_get_rnh(fibnum, AF_INET6);
-	if (rnh == NULL)
+	rh = rt_tables_get_rnh(fibnum, AF_INET6);
+	if (rh == NULL)
 		return (ENOENT);
 
 	/* Prepare lookup key */
@@ -1187,18 +1187,18 @@ fib6_lookup_nh_basic(uint32_t fibnum, struct in6_addr *dst, uint32_t scopeid,
 	sin6.sin6_scope_id = scopeid;
 	sa6_embedscope(&sin6, 0);
 
-	RADIX_NODE_HEAD_RLOCK(rnh);
-	rn = rnh->rnh_matchaddr((void *)&sin6, rnh);
+	RIB_RLOCK(rh);
+	rn = rh->rnh_matchaddr((void *)&sin6, &rh->head);
 	if (rn != NULL && ((rn->rn_flags & RNF_ROOT) == 0)) {
 		rte = RNTORT(rn);
 		/* Ensure route & ifp is UP */
 		if (RT_LINK_IS_UP(rte->rt_ifp)) {
 			fib6_rte_to_nh_basic(rte, dst, pnh6);
-			RADIX_NODE_HEAD_RUNLOCK(rnh);
+			RIB_RUNLOCK(rh);
 			return (0);
 		}
 	}
-	RADIX_NODE_HEAD_RUNLOCK(rnh);
+	RIB_RUNLOCK(rh);
 
 	return (ENOENT);
 }
@@ -1216,7 +1216,7 @@ int
 fib6_lookup_nh_ext(uint32_t fibnum, struct in6_addr *dst, uint32_t scopeid,
     uint32_t flowid, uint32_t flags, struct nhop6_extended *pnh6)
 {
-	struct radix_node_head *rnh;
+	struct rib_head *rh;
 	struct radix_node *rn;
 	struct sockaddr_in6 sin6;
 	struct rtentry *rte;
@@ -1228,8 +1228,8 @@ fib6_lookup_nh_ext(uint32_t fibnum, struct in6_addr *dst, uint32_t scopeid,
 	}
 
 	KASSERT((fibnum < rt_numfibs), ("fib4_lookup_nh_ext: bad fibnum"));
-	rnh = rt_tables_get_rnh(fibnum, AF_INET6);
-	if (rnh == NULL)
+	rh = rt_tables_get_rnh(fibnum, AF_INET6);
+	if (rh == NULL)
 		return (ENOENT);
 
 	/* Prepare lookup key */
@@ -1239,8 +1239,8 @@ fib6_lookup_nh_ext(uint32_t fibnum, struct in6_addr *dst, uint32_t scopeid,
 	sin6.sin6_scope_id = scopeid;
 	sa6_embedscope(&sin6, 0);
 
-	RADIX_NODE_HEAD_RLOCK(rnh);
-	rn = rnh->rnh_matchaddr((void *)&sin6, rnh);
+	RIB_RLOCK(rh);
+	rn = rh->rnh_matchaddr((void *)&sin6, &rh->head);
 	if (rn != NULL && ((rn->rn_flags & RNF_ROOT) == 0)) {
 		rte = RNTORT(rn);
 		/* Ensure route & ifp is UP */
@@ -1249,12 +1249,12 @@ fib6_lookup_nh_ext(uint32_t fibnum, struct in6_addr *dst, uint32_t scopeid,
 			if ((flags & NHOP_LOOKUP_REF) != 0) {
 				/* TODO: Do lwref on egress ifp's */
 			}
-			RADIX_NODE_HEAD_RUNLOCK(rnh);
+			RIB_RUNLOCK(rh);
 
 			return (0);
 		}
 	}
-	RADIX_NODE_HEAD_RUNLOCK(rnh);
+	RIB_RUNLOCK(rh);
 
 	return (ENOENT);
 }
@@ -1269,7 +1269,7 @@ int
 rib6_lookup_nh_ext(uint32_t fibnum, struct in6_addr *dst, uint32_t scopeid,
     uint32_t flowid, uint32_t flags, struct rt6_extended *prt6)
 {
-	struct radix_node_head *rnh;
+	struct rib_head *rh;
 	struct radix_node *rn;
 	struct sockaddr_in6 sin6;
 	struct rtentry *rte;
@@ -1281,8 +1281,8 @@ rib6_lookup_nh_ext(uint32_t fibnum, struct in6_addr *dst, uint32_t scopeid,
 	}
 
 	KASSERT((fibnum < rt_numfibs), ("rib6_lookup_nh_ext: bad fibnum"));
-	rnh = rt_tables_get_rnh(fibnum, AF_INET6);
-	if (rnh == NULL)
+	rh = rt_tables_get_rnh(fibnum, AF_INET6);
+	if (rh == NULL)
 		return (ENOENT);
 
 	/* Prepare lookup key */
@@ -1292,8 +1292,8 @@ rib6_lookup_nh_ext(uint32_t fibnum, struct in6_addr *dst, uint32_t scopeid,
 	sin6.sin6_scope_id = scopeid;
 	sa6_embedscope(&sin6, 0);
 
-	RADIX_NODE_HEAD_RLOCK(rnh);
-	rn = rnh->rnh_matchaddr((void *)&sin6, rnh);
+	RIB_RLOCK(rh);
+	rn = rh->rnh_matchaddr((void *)&sin6, &rh->head);
 	if (rn != NULL && ((rn->rn_flags & RNF_ROOT) == 0)) {
 		rte = RNTORT(rn);
 		/* Ensure route & ifp is UP */
@@ -1302,12 +1302,12 @@ rib6_lookup_nh_ext(uint32_t fibnum, struct in6_addr *dst, uint32_t scopeid,
 			if ((flags & NHOP_LOOKUP_REF) != 0) {
 				/* TODO: Do lwref on egress ifp's */
 			}
-			RADIX_NODE_HEAD_RUNLOCK(rnh);
+			RIB_RUNLOCK(rh);
 
 			return (0);
 		}
 	}
-	RADIX_NODE_HEAD_RUNLOCK(rnh);
+	RIB_RUNLOCK(rh);
 
 	return (ENOENT);
 }

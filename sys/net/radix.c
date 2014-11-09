@@ -56,9 +56,6 @@
 #include <net/radix.h>
 #endif /* !_KERNEL */
 
-static int	rn_walktree_from(struct radix_head *h, void *a, void *m,
-		    walktree_f_t *f, void *w);
-static int rn_walktree(struct radix_head *, walktree_f_t *, void *);
 static struct radix_node
 	 *rn_insert(void *, struct radix_head *, int *,
 	     struct radix_node [2]),
@@ -68,7 +65,6 @@ static struct radix_node
 static struct radix_node *rn_addmask(void *, struct radix_head *, int, int);
 
 static void rn_detachhead_internal(void **head);
-static int rn_inithead_internal(void **head, int off);
 
 #define	RADIX_MAX_KEY_LEN	32
 
@@ -225,7 +221,7 @@ rn_lookup(void *v_arg, void *m_arg, struct radix_head *head)
 		/*
 		 * Most common case: search exact prefix/mask
 		 */
-		x = rn_addmask(m_arg, head->rnh_masks, 1,
+		x = rn_addmask(m_arg, head->s.rnh_masks, 1,
 		    head->rnh_treetop->rn_offset);
 		if (x == NULL)
 			return (NULL);
@@ -507,7 +503,7 @@ rn_addmask(void *n_arg, struct radix_head *maskhead, int search, int skip)
 	if (skip == 0)
 		skip = 1;
 	if (mlen <= skip)
-		return (((struct radix_node_head *)maskhead)->rnh_nodes);
+		return (maskhead->s.mask_nodes);
 
 	bzero(addmask_key, RADIX_MAX_KEY_LEN);
 	if (skip > 1)
@@ -520,7 +516,7 @@ rn_addmask(void *n_arg, struct radix_head *maskhead, int search, int skip)
 		cp--;
 	mlen = cp - addmask_key;
 	if (mlen <= skip)
-		return (((struct radix_node_head *)maskhead)->rnh_nodes);
+		return (maskhead->s.mask_nodes);
 	*addmask_key = mlen;
 	x = rn_search(addmask_key, maskhead->rnh_treetop);
 	if (bcmp(addmask_key, x->rn_key, mlen) != 0)
@@ -619,7 +615,7 @@ rn_addroute(void *v_arg, void *n_arg, struct radix_head *head,
 	 * nodes and possibly save time in calculating indices.
 	 */
 	if (netmask)  {
-		x = rn_addmask(netmask, head->rnh_masks, 0, top->rn_offset);
+		x = rn_addmask(netmask, head->s.rnh_masks, 0, top->rn_offset);
 		if (x == NULL)
 			return (0);
 		b_leaf = x->rn_bit;
@@ -797,7 +793,7 @@ rn_delete(void *v_arg, void *netmask_arg, struct radix_head *head)
 	 * Delete our route from mask lists.
 	 */
 	if (netmask) {
-		x = rn_addmask(netmask, head->rnh_masks, 1, head_off);
+		x = rn_addmask(netmask, head->s.rnh_masks, 1, head_off);
 		if (x == NULL)
 			return (0);
 		netmask = x->rn_key;
@@ -961,7 +957,7 @@ out:
  * This is the same as rn_walktree() except for the parameters and the
  * exit.
  */
-static int
+int
 rn_walktree_from(struct radix_head *h, void *a, void *m,
     walktree_f_t *f, void *w)
 {
@@ -1067,7 +1063,7 @@ rn_walktree_from(struct radix_head *h, void *a, void *m,
 	return (0);
 }
 
-static int
+int
 rn_walktree(struct radix_head *h, walktree_f_t *f, void *w)
 {
 	int error;
@@ -1107,75 +1103,74 @@ rn_walktree(struct radix_head *h, walktree_f_t *f, void *w)
 }
 
 /*
- * Allocate and initialize an empty tree. This has 3 nodes, which are
- * part of the radix_node_head (in the order <left,root,right>) and are
+ * Initialize an empty tree. This has 3 nodes, which are passed
+ * via base_nodes (in the order <left,root,right>) and are
  * marked RNF_ROOT so they cannot be freed.
  * The leaves have all-zero and all-one keys, with significant
  * bits starting at 'off'.
- * Return 1 on success, 0 on error.
  */
-static int
-rn_inithead_internal(void **head, int off)
+void
+rn_inithead_internal(struct radix_head *rh, struct radix_node *base_nodes, int off)
 {
-	struct radix_node_head *rnh;
 	struct radix_node *t, *tt, *ttt;
-	if (*head)
-		return (1);
-	R_Zalloc(rnh, struct radix_node_head *, sizeof (*rnh));
-	if (rnh == 0)
-		return (0);
-	*head = rnh;
-	t = rn_newpair(rn_zeros, off, rnh->rnh_nodes);
-	ttt = rnh->rnh_nodes + 2;
+
+	t = rn_newpair(rn_zeros, off, base_nodes);
+	ttt = base_nodes + 2;
 	t->rn_right = ttt;
 	t->rn_parent = t;
-	tt = t->rn_left;	/* ... which in turn is rnh->rnh_nodes */
+	tt = t->rn_left;	/* ... which in turn is base_nodes */
 	tt->rn_flags = t->rn_flags = RNF_ROOT | RNF_ACTIVE;
 	tt->rn_bit = -1 - off;
 	*ttt = *tt;
 	ttt->rn_key = rn_ones;
-	rnh->rnh_addaddr = (rn_addaddr_f_t *)rn_addroute;
-	rnh->rnh_deladdr = (rn_deladdr_f_t *)rn_delete;
-	rnh->rnh_matchaddr = (rn_matchaddr_f_t *)rn_match;
-	rnh->rnh_lookup = (rn_lookup_f_t *)rn_lookup;
-	rnh->rnh_walktree = (rn_walktree_t *)rn_walktree;
-	rnh->rnh_walktree_from = (rn_walktree_from_t *)rn_walktree_from;
-	rnh->rh.rnh_treetop = t;
-	return (1);
+
+	rh->rnh_treetop = t;
 }
 
 static void
 rn_detachhead_internal(void **head)
 {
-	struct radix_node_head *rnh;
 
 	KASSERT((head != NULL && *head != NULL),
 	    ("%s: head already freed", __func__));
-	rnh = *head;
 	
 	/* Free <left,root,right> nodes. */
-	Free(rnh);
+	Free(*head);
 
 	*head = NULL;
 }
 
+/* BELOW ARE FUNCTIONS TO SUPPORT struct radix_node_head USERS */
 int
 rn_inithead(void **head, int off)
 {
 	struct radix_node_head *rnh;
+	struct radix_mask_head *rmh;
 
 	if (*head != NULL)
 		return (1);
 
-	if (rn_inithead_internal(head, off) == 0)
-		return (0);
-
-	rnh = (struct radix_node_head *)(*head);
-
-	if (rn_inithead_internal((void **)&rnh->rh.rnh_masks, 0) == 0) {
-		rn_detachhead_internal(head);
-		return (0);
+	R_Zalloc(rnh, struct radix_node_head *, sizeof (*rnh));
+	R_Zalloc(rmh, struct radix_mask_head *, sizeof (*rmh));
+	if (rnh == NULL || rmh == NULL) {
+		if (rnh != NULL)
+			Free(rnh);
+		return (1);
 	}
+
+	/* Init trees */
+	rn_inithead_internal(&rnh->rh, rnh->rnh_nodes, off);
+	rn_inithead_internal(&rmh->head, rmh->mask_nodes, 0);
+	rnh->rh.s.rnh_masks = &rmh->head;
+	rmh->head.s.mask_nodes = rmh->mask_nodes;
+
+	/* Finally, set base callbacks */
+	rnh->rnh_addaddr = rn_addroute;
+	rnh->rnh_deladdr = rn_delete;
+	rnh->rnh_matchaddr = rn_match;
+	rnh->rnh_lookup = rn_lookup;
+	rnh->rnh_walktree = rn_walktree;
+	rnh->rnh_walktree_from = rn_walktree_from;
 
 	return (1);
 }
@@ -1202,8 +1197,8 @@ rn_detachhead(void **head)
 
 	rnh = *head;
 
-	rn_walktree(rnh->rh.rnh_masks, rn_freeentry, rnh->rh.rnh_masks);
-	rn_detachhead_internal((void **)&rnh->rh.rnh_masks);
+	rn_walktree(rnh->rh.s.rnh_masks, rn_freeentry, rnh->rh.s.rnh_masks);
+	rn_detachhead_internal((void **)&rnh->rh.s.rnh_masks);
 	rn_detachhead_internal(head);
 	return (1);
 }

@@ -101,26 +101,29 @@ struct radix_mask {
 #define	rm_mask rm_rmu.rmu_mask
 #define	rm_leaf rm_rmu.rmu_leaf		/* extra field would make 32 bytes */
 
-struct radix_node_head;
+struct radix_head;
 
 typedef int walktree_f_t(struct radix_node *, void *);
 typedef struct radix_node *rn_matchaddr_f_t(void *v,
-    struct radix_node_head *head);
+    struct radix_head *head);
 typedef struct radix_node *rn_addaddr_f_t(void *v, void *mask,
-    struct radix_node_head *head, struct radix_node nodes[]);
+    struct radix_head *head, struct radix_node nodes[]);
 typedef struct radix_node *rn_deladdr_f_t(void *v, void *mask,
-    struct radix_node_head *head);
+    struct radix_head *head);
 typedef struct radix_node *rn_lookup_f_t(void *v, void *mask,
-    struct radix_node_head *head);
-typedef int rn_walktree_t(struct radix_node_head *head, walktree_f_t *f,
+    struct radix_head *head);
+typedef int rn_walktree_t(struct radix_head *head, walktree_f_t *f,
     void *w);
-typedef int rn_walktree_from_t(struct radix_node_head *head,
+typedef int rn_walktree_from_t(struct radix_head *head,
     void *a, void *m, walktree_f_t *f, void *w);
-typedef void rn_close_t(struct radix_node *rn, struct radix_node_head *head);
+typedef void rn_close_t(struct radix_node *rn, struct radix_head *head);
 
 struct radix_head {
 	struct	radix_node *rnh_treetop;
-	struct	radix_head *rnh_masks;	/* Storage for our masks */
+	union {
+		struct	radix_head *rnh_masks;	/* Storage for our masks */
+		struct	radix_node *mask_nodes;
+	} s;
 };
 
 struct radix_node_head {
@@ -139,6 +142,14 @@ struct radix_node_head {
 	struct	rwlock rnh_lock;		/* locks entire radix tree */
 #endif
 };
+
+/* XXX: Temporarily xported to support external radix users */
+struct radix_mask_head {
+	struct radix_head head;
+	struct radix_node mask_nodes[3];
+};
+void rn_inithead_internal(struct radix_head *rh, struct radix_node *base_nodes,
+    int off);
 
 #ifndef _KERNEL
 #define R_Malloc(p, t, n) (p = (t) malloc((unsigned int)(n)))
@@ -172,5 +183,8 @@ struct radix_node *rn_delete(void *, void *, struct radix_head *);
 struct radix_node *rn_lookup (void *v_arg, void *m_arg,
     struct radix_head *head);
 struct radix_node *rn_match(void *, struct radix_head *);
+int	rn_walktree_from(struct radix_head *h, void *a, void *m,
+		    walktree_f_t *f, void *w);
+int rn_walktree(struct radix_head *, walktree_f_t *, void *);
 
 #endif /* _RADIX_H_ */
