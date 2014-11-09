@@ -31,6 +31,10 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 11.x IS SLOW:
 	disable the most expensive debugging functionality run
 	"ln -s 'abort:false,junk:false' /etc/malloc.conf".)
 
+20141109:
+	faith(4) and faithd(8) has been removed from base system. It
+	has been obsolete for a very long time.
+
 20141104:
 	vt(4), the new console driver, is enabled by default. It brings
 	support for Unicode and double-width characters, as well as

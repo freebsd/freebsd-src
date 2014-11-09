@@ -42,7 +42,6 @@ FILES=	DAEMON \
 	dhclient \
 	dmesg \
 	dumpon \
-	faith \
 	fsck \
 	ftpd \
 	gbde \
