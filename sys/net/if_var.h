@@ -421,11 +421,6 @@ struct ifmultiaddr {
 extern	struct rwlock ifnet_rwlock;
 extern	struct sx ifnet_sxlock;
 
-#define	IFNET_LOCK_INIT() do {						\
-	rw_init_flags(&ifnet_rwlock, "ifnet_rw",  RW_RECURSE);		\
-	sx_init_flags(&ifnet_sxlock, "ifnet_sx",  SX_RECURSE);		\
-} while(0)
-
 #define	IFNET_WLOCK() do {						\
 	sx_xlock(&ifnet_sxlock);					\
 	rw_wlock(&ifnet_rwlock);					\

@@ -159,7 +159,6 @@ static void	if_attachdomain(void *);
 static void	if_attachdomain1(struct ifnet *);
 static int	ifconf(u_long, caddr_t);
 static void	if_freemulti(struct ifmultiaddr *);
-static void	if_init(void *);
 static void	if_grow(void);
 static void	if_route(struct ifnet *, int flag, int fam);
 static int	if_setflag(struct ifnet *, int, int, int *, int);
@@ -207,7 +206,9 @@ VNET_DEFINE(struct ifnet **, ifindex_table);
  * inversions and deadlocks.
  */
 struct rwlock ifnet_rwlock;
+RW_SYSINIT_FLAGS(ifnet_rw, &ifnet_rwlock, "ifnet_rw", RW_RECURSE);
 struct sx ifnet_sxlock;
+SX_SYSINIT_FLAGS(ifnet_sx, &ifnet_sxlock, "ifnet_sx", SX_RECURSE);
 
 /*
  * The allocation of network interfaces is a rather non-atomic affair; we
@@ -363,17 +364,6 @@ vnet_if_init(const void *unused __unused)
 }
 VNET_SYSINIT(vnet_if_init, SI_SUB_INIT_IF, SI_ORDER_SECOND, vnet_if_init,
     NULL);
-
-/* ARGSUSED*/
-static void
-if_init(void *dummy __unused)
-{
-
-	IFNET_LOCK_INIT();
-	if_clone_init();
-}
-SYSINIT(interfaces, SI_SUB_INIT_IF, SI_ORDER_FIRST, if_init, NULL);
-
 
 #ifdef VIMAGE
 static void
