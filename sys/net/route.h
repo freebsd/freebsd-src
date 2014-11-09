@@ -33,7 +33,6 @@
 #ifndef _NET_ROUTE_H_
 #define _NET_ROUTE_H_
 
-#include <sys/counter.h>
 #include <net/vnet.h>
 
 /*

@@ -73,8 +73,7 @@ struct rtentry {
 	u_long		rt_mtu;		/* MTU for this path */
 	u_long		rt_weight;	/* absolute weight */ 
 	u_long		rt_expire;	/* lifetime for route, e.g. redirect */
-#define	rt_endzero	rt_pksent
-	counter_u64_t	rt_pksent;	/* packets sent using this route */
+#define	rt_endzero	rt_mtx
 	struct mtx	rt_mtx;		/* mutex for routing entry */
 };
 
