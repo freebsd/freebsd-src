@@ -95,7 +95,7 @@ static char                 BatchBuffer[AE_BUFFER_SIZE];    /* Batch command buf
 static AE_TABLE_DESC        *AeTableListHead = NULL;
 
 #define ACPIEXEC_NAME               "AML Execution/Debug Utility"
-#define AE_SUPPORTED_OPTIONS        "?b:d:e:f:ghm^orv^:x:"
+#define AE_SUPPORTED_OPTIONS        "?b:d:e:f^ghm^orv^:x:"
 
 
 /* Stubs for the disassembler */
@@ -158,12 +158,16 @@ usage (
     ACPI_OPTION ("-et",                 "Enable debug semaphore timeout");
     printf ("\n");
 
-    ACPI_OPTION ("-f <Value>",          "Operation Region initialization fill value");
+    ACPI_OPTION ("-fv <Value>",         "Operation Region initialization fill value");
+    ACPI_OPTION ("-fi <file>",          "Specify namespace initialization file");
     ACPI_OPTION ("-r",                  "Use hardware-reduced FADT V5");
     ACPI_OPTION ("-v",                  "Display version information");
     ACPI_OPTION ("-vi",                 "Verbose initialization output");
     ACPI_OPTION ("-vr",                 "Verbose region handler output");
     ACPI_OPTION ("-x <DebugLevel>",     "Debug output level");
+
+    printf ("\n  From within the interactive mode, use '?' or \"help\" to see\n"
+        "  a list of available AML Debugger commands\n");
 }
 
 
@@ -285,7 +289,36 @@ AeDoOptions (
 
     case 'f':
 
-        AcpiGbl_RegionFillValue = (UINT8) strtoul (AcpiGbl_Optarg, NULL, 0);
+        switch (AcpiGbl_Optarg[0])
+        {
+        case 'v':   /* -fv: region fill value */
+
+            if (AcpiGetoptArgument (argc, argv))
+            {
+                return (-1);
+            }
+
+            AcpiGbl_RegionFillValue = (UINT8) strtoul (AcpiGbl_Optarg, NULL, 0);
+            break;
+
+        case 'i':   /* -fi: specify initialization file */
+
+            if (AcpiGetoptArgument (argc, argv))
+            {
+                return (-1);
+            }
+
+            if (AeOpenInitializationFile (AcpiGbl_Optarg))
+            {
+                return (-1);
+            }
+            break;
+
+        default:
+
+            printf ("Unknown option: -f%s\n", AcpiGbl_Optarg);
+            return (-1);
+        }
         break;
 
     case 'g':
@@ -436,6 +469,7 @@ main (
     }
 
     AcpiGbl_DbOpt_tables = TRUE;
+    AcpiGbl_CstyleDisassembly = FALSE; /* Not supported for AcpiExec */
     TableCount = 0;
 
     /* Get each of the ACPI table files on the command line */
@@ -579,7 +613,6 @@ EnterDebugger:
 
 
 ErrorExit:
-
     (void) AcpiOsTerminate ();
     return (-1);
 }

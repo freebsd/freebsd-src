@@ -544,12 +544,26 @@ AdDisassemblerHeader (
 {
     time_t                  Timer;
 
+
     time (&Timer);
 
     /* Header and input table info */
 
     AcpiOsPrintf ("/*\n");
-    AcpiOsPrintf (ACPI_COMMON_HEADER ("AML Disassembler", " * "));
+    AcpiOsPrintf (ACPI_COMMON_HEADER (AML_DISASSEMBLER_NAME, " * "));
+
+    if (AcpiGbl_CstyleDisassembly)
+    {
+        AcpiOsPrintf (
+            " * Disassembling to symbolic ASL+ operators\n"
+            " *\n");
+    }
+    else
+    {
+        AcpiOsPrintf (
+            " * Disassembling to non-symbolic legacy ASL operators\n"
+            " *\n");
+    }
 
     AcpiOsPrintf (" * Disassembly of %s, %s", Filename, ctime (&Timer));
     AcpiOsPrintf (" *\n");

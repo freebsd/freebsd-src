@@ -41,8 +41,6 @@
  * POSSIBILITY OF SUCH DAMAGES.
  */
 
-#define __DTTABLE_C__
-
 /* Compile all complex data tables */
 
 #include "aslcompiler.h"

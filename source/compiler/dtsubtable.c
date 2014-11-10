@@ -41,8 +41,6 @@
  * POSSIBILITY OF SUCH DAMAGES.
  */
 
-#define __DTSUBTABLE_C__
-
 #include "aslcompiler.h"
 #include "dtcompiler.h"
 

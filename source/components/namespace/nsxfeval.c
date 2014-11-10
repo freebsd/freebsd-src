@@ -42,7 +42,6 @@
  * POSSIBILITY OF SUCH DAMAGES.
  */
 
-#define __NSXFEVAL_C__
 #define EXPORT_ACPI_INTERFACES
 
 #include "acpi.h"

@@ -979,11 +979,23 @@ AcpiDmCheckResourceReference (
 
 
 /*
+ * dmcstyle
+ */
+BOOLEAN
+AcpiDmCheckForSymbolicOpcode (
+    ACPI_PARSE_OBJECT       *Op,
+    ACPI_OP_WALK_INFO       *Info);
+
+void
+AcpiDmCloseOperator (
+    ACPI_PARSE_OBJECT       *Op);
+
+
+/*
  * acdisasm
  */
 void
 AdDisassemblerHeader (
     char                    *Filename);
-
 
 #endif  /* __ACDISASM_H__ */

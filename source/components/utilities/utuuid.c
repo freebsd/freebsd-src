@@ -41,8 +41,6 @@
  * POSSIBILITY OF SUCH DAMAGES.
  */
 
-#define __UTUUID_C__
-
 #include "acpi.h"
 #include "accommon.h"
 

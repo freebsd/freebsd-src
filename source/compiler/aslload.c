@@ -41,8 +41,6 @@
  * POSSIBILITY OF SUCH DAMAGES.
  */
 
-#define __ASLLOAD_C__
-
 #include "aslcompiler.h"
 #include "amlcode.h"
 #include "acdispat.h"

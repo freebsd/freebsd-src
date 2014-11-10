@@ -41,8 +41,6 @@
  * POSSIBILITY OF SUCH DAMAGES.
  */
 
-#define __EXOPARG2_C__
-
 #include "acpi.h"
 #include "accommon.h"
 #include "acparser.h"

@@ -832,6 +832,8 @@ XfNamespaceLocateBegin (
         if ((Op->Asl.Parent) &&
            ((Op->Asl.Parent->Asl.ParseOpcode == PARSEOP_REFOF)      ||
             (Op->Asl.Parent->Asl.ParseOpcode == PARSEOP_DEREFOF)    ||
+            (Op->Asl.Parent->Asl.ParseOpcode == PARSEOP_PACKAGE)    ||
+            (Op->Asl.Parent->Asl.ParseOpcode == PARSEOP_VAR_PACKAGE)||
             (Op->Asl.Parent->Asl.ParseOpcode == PARSEOP_OBJECTTYPE)))
         {
             return_ACPI_STATUS (AE_OK);

@@ -869,6 +869,7 @@ typedef union acpi_parse_value
     ACPI_DISASM_ONLY_MEMBERS (\
     UINT8                           DisasmFlags;    /* Used during AML disassembly */\
     UINT8                           DisasmOpcode;   /* Subtype used for disassembly */\
+    char                            *OperatorSymbol;/* Used for C-style operator name strings */\
     char                            AmlOpName[16])  /* Op name (debug only) */
 
 
@@ -991,6 +992,8 @@ typedef struct acpi_parse_state
 #define ACPI_PARSEOP_EMPTY_TERMLIST     0x04
 #define ACPI_PARSEOP_PREDEF_CHECKED     0x08
 #define ACPI_PARSEOP_SPECIAL            0x10
+#define ACPI_PARSEOP_COMPOUND           0x20
+#define ACPI_PARSEOP_ASSIGNMENT         0x40
 
 
 /*****************************************************************************

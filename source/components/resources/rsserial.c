@@ -41,8 +41,6 @@
  * POSSIBILITY OF SUCH DAMAGES.
  */
 
-#define __RSIRQ_C__
-
 #include "acpi.h"
 #include "accommon.h"
 #include "acresrc.h"
