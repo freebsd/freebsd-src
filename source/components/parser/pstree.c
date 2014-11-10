@@ -41,8 +41,6 @@
  * POSSIBILITY OF SUCH DAMAGES.
  */
 
-#define __PSTREE_C__
-
 #include "acpi.h"
 #include "accommon.h"
 #include "acparser.h"

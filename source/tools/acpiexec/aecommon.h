@@ -70,6 +70,7 @@ extern UINT8                AcpiGbl_UseHwReducedFadt;
 extern BOOLEAN              AcpiGbl_DisplayRegionAccess;
 extern BOOLEAN              AcpiGbl_DoInterfaceTests;
 extern BOOLEAN              AcpiGbl_LoadTestTables;
+extern FILE                 *AcpiGbl_NamespaceInitFile;
 extern ACPI_CONNECTION_INFO AeMyContext;
 
 /* Check for unexpected exceptions */
@@ -212,5 +213,15 @@ void
 AeOverrideRegionHandlers (
     void);
 
+
+/* aeinitfile */
+
+int
+AeOpenInitializationFile (
+    char                    *Filename);
+
+void
+AeDoObjectOverrides (
+    void);
 
 #endif /* _AECOMMON */

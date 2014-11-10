@@ -41,8 +41,6 @@
  * POSSIBILITY OF SUCH DAMAGES.
  */
 
-#define __EXTABLES_C__
-
 #include "examples.h"
 #include "actables.h"
 

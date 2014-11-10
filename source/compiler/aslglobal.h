@@ -173,6 +173,7 @@ ASL_EXTERN BOOLEAN                  ASL_INIT_GLOBAL (Gbl_VerboseTemplates, FALSE
 ASL_EXTERN BOOLEAN                  ASL_INIT_GLOBAL (Gbl_DoTemplates, FALSE);
 ASL_EXTERN BOOLEAN                  ASL_INIT_GLOBAL (Gbl_CompileGeneric, FALSE);
 ASL_EXTERN BOOLEAN                  ASL_INIT_GLOBAL (Gbl_AllExceptionsDisabled, FALSE);
+ASL_EXTERN BOOLEAN                  ASL_INIT_GLOBAL (Gbl_PruneParseTree, FALSE);
 
 
 #define HEX_OUTPUT_NONE             0
@@ -251,6 +252,8 @@ ASL_EXTERN UINT32                   ASL_INIT_GLOBAL (Gbl_NumNamespaceObjects, 0)
 ASL_EXTERN UINT32                   ASL_INIT_GLOBAL (Gbl_ReservedMethods, 0);
 ASL_EXTERN char                     ASL_INIT_GLOBAL (*Gbl_TableSignature, "NO_SIG");
 ASL_EXTERN char                     ASL_INIT_GLOBAL (*Gbl_TableId, "NO_ID");
+ASL_EXTERN UINT8                    ASL_INIT_GLOBAL (Gbl_PruneDepth, 0);
+ASL_EXTERN UINT16                   ASL_INIT_GLOBAL (Gbl_PruneType, 0);
 
 
 /* Static structures */

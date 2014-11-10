@@ -374,6 +374,12 @@ AnGetBtype (
     UINT32                  ThisNodeBtype = 0;
 
 
+    if (!Op)
+    {
+        AcpiOsPrintf ("Null Op in AnGetBtype\n");
+        return (ACPI_UINT32_MAX);
+    }
+
     if ((Op->Asl.ParseOpcode == PARSEOP_NAMESEG)     ||
         (Op->Asl.ParseOpcode == PARSEOP_NAMESTRING)  ||
         (Op->Asl.ParseOpcode == PARSEOP_METHODCALL))

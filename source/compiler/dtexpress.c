@@ -41,8 +41,6 @@
  * POSSIBILITY OF SUCH DAMAGES.
  */
 
-#define __DTEXPRESS_C__
-
 #include "aslcompiler.h"
 #include "dtcompiler.h"
 #include "dtparser.y.h"

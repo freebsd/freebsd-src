@@ -42,8 +42,6 @@
  * POSSIBILITY OF SUCH DAMAGES.
  */
 
-#define __DSARGS_C__
-
 #include "acpi.h"
 #include "accommon.h"
 #include "acparser.h"

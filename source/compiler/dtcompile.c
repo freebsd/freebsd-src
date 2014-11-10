@@ -41,7 +41,6 @@
  * POSSIBILITY OF SUCH DAMAGES.
  */
 
-#define __DTCOMPILE_C__
 #define _DECLARE_DT_GLOBALS
 
 #include "aslcompiler.h"

@@ -41,8 +41,6 @@
  * POSSIBILITY OF SUCH DAMAGES.
  */
 
-#define __NSDUMPDV_C__
-
 #include "acpi.h"
 
 
