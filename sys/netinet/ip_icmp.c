@@ -486,12 +486,6 @@ icmp_input(struct mbuf **mp, int *offp, int proto)
 		if (code > 1)
 			goto badcode;
 		code = PRC_PARAMPROB;
-		goto deliver;
-
-	case ICMP_SOURCEQUENCH:
-		if (code)
-			goto badcode;
-		code = PRC_QUENCH;
 	deliver:
 		/*
 		 * Problem with datagram; advise higher level routines.
@@ -670,6 +664,7 @@ reflect:
 	case ICMP_TSTAMPREPLY:
 	case ICMP_IREQREPLY:
 	case ICMP_MASKREPLY:
+	case ICMP_SOURCEQUENCH:
 	default:
 		break;
 	}

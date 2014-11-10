@@ -104,12 +104,6 @@ SYSCTL_INT(_net_inet_ip, IPCTL_SENDREDIRECTS, redirect, CTLFLAG_VNET | CTLFLAG_R
     &VNET_NAME(ipsendredirects), 0,
     "Enable sending IP redirects");
 
-static VNET_DEFINE(int, ip_sendsourcequench);
-#define	V_ip_sendsourcequench	VNET(ip_sendsourcequench)
-SYSCTL_INT(_net_inet_ip, OID_AUTO, sendsourcequench, CTLFLAG_VNET | CTLFLAG_RW,
-    &VNET_NAME(ip_sendsourcequench), 0,
-    "Enable the transmission of source quench packets");
-
 VNET_DEFINE(int, ip_do_randomid);
 SYSCTL_INT(_net_inet_ip, OID_AUTO, random_id, CTLFLAG_VNET | CTLFLAG_RW,
     &VNET_NAME(ip_do_randomid), 0,
@@ -1647,25 +1641,6 @@ ip_forward(struct mbuf *m, int srcrt)
 		break;
 
 	case ENOBUFS:
-		/*
-		 * A router should not generate ICMP_SOURCEQUENCH as
-		 * required in RFC1812 Requirements for IP Version 4 Routers.
-		 * Source quench could be a big problem under DoS attacks,
-		 * or if the underlying interface is rate-limited.
-		 * Those who need source quench packets may re-enable them
-		 * via the net.inet.ip.sendsourcequench sysctl.
-		 */
-		if (V_ip_sendsourcequench == 0) {
-			m_freem(mcopy);
-			if (ia != NULL)
-				ifa_free(&ia->ia_ifa);
-			return;
-		} else {
-			type = ICMP_SOURCEQUENCH;
-			code = 0;
-		}
-		break;
-
 	case EACCES:			/* ipfw denied packet */
 		m_freem(mcopy);
 		if (ia != NULL)
