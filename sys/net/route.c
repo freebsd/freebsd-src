@@ -44,6 +44,9 @@
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/syslog.h>
+#include <sys/lock.h>
+#include <sys/rwlock.h>
+#include <sys/rmlock.h>
 #include <sys/malloc.h>
 #include <sys/mbuf.h>
 #include <sys/socket.h>
@@ -281,7 +284,8 @@ rt_table_init(int offset)
 	rh->rmhead.head.s.mask_nodes = rh->rmhead.mask_nodes;
 
 	/* Init locks */
-	rw_init(&rh->rib_lock, "rib head");
+	rm_init(&rh->rib_lock, "rib head run");
+	rw_init(&rh->rib_cfglock, "rib head cfg");
 
 	/* Finally, set base callbacks */
 	rh->rnh_addaddr = rn_addroute;
@@ -299,7 +303,8 @@ rt_table_destroy(struct rib_head *rh)
 {
 
 	/* Assume table is already empty */
-	rw_destroy(&rh->rib_lock);
+	rw_destroy(&rh->rib_cfglock);
+	rm_destroy(&rh->rib_lock);
 	free(rh, M_RTABLE);
 }
 
@@ -365,6 +370,7 @@ rtalloc1_fib(struct sockaddr *dst, int report, u_long ignflags,
 	struct rt_addrinfo info;
 	int err = 0, msgtype = RTM_MISS;
 	int needlock;
+	RIB_LOCK_READER;
 
 	KASSERT((fibnum < rt_numfibs), ("rtalloc1_fib: bad fibnum"));
 	rh = rt_tables_get_rnh(fibnum, dst->sa_family);
@@ -612,11 +618,13 @@ rtredirect_fib(struct sockaddr *dst,
 			 * add the key and gateway (in one malloc'd chunk).
 			 */
 			RT_UNLOCK(rt);
+			RIB_CFG_WLOCK(rh);
 			RIB_WLOCK(rh);
 			RT_LOCK(rt);
 			rt_setgate(rt, rt_key(rt), gateway);
 			gwrt = rtalloc1(gateway, 1, RTF_RNH_LOCKED);
 			RIB_WUNLOCK(rh);
+			RIB_CFG_WUNLOCK(rh);
 			EVENTHANDLER_INVOKE(route_redirect_event, rt, gwrt, dst);
 			RTFREE_LOCKED(gwrt);
 		}
@@ -794,9 +802,12 @@ rt_foreach_fib(int af, rt_setwarg_t *setwa_f, rt_walktree_f_t *wa_f, void *arg)
 			if (setwa_f != NULL)
 				setwa_f(rh, fibnum, i, arg);
 
+			RIB_CFG_WLOCK(rh);
+			/* Do runtime locking for now */
 			RIB_WLOCK(rh);
 			rh->rnh_walktree(&rh->head, (walktree_f_t *)wa_f, arg);
 			RIB_WUNLOCK(rh);
+			RIB_CFG_WUNLOCK(rh);
 			continue;
 		}
 
@@ -807,9 +818,12 @@ rt_foreach_fib(int af, rt_setwarg_t *setwa_f, rt_walktree_f_t *wa_f, void *arg)
 			if (setwa_f != NULL)
 				setwa_f(rh, fibnum, i, arg);
 
+			RIB_CFG_WLOCK(rh);
 			RIB_WLOCK(rh);
+			/* Do runtime locking for now */
 			rh->rnh_walktree(&rh->head, (walktree_f_t *)wa_f, arg);
 			RIB_WUNLOCK(rh);
+			RIB_CFG_WUNLOCK(rh);
 		}
 	}
 }
@@ -1203,9 +1217,10 @@ rtrequest1_fib(int req, struct rt_addrinfo *info, struct rtentry **ret_nrt,
 		return (EAFNOSUPPORT);
 	needlock = ((flags & RTF_RNH_LOCKED) == 0);
 	flags &= ~RTF_RNH_LOCKED;
-	if (needlock)
+	if (needlock) {
+		RIB_CFG_WLOCK(rh);
 		RIB_WLOCK(rh);
-	else
+	} else
 		RIB_LOCK_ASSERT(rh);
 	/*
 	 * If we are adding a host route then we don't want to put
@@ -1453,8 +1468,10 @@ rtrequest1_fib(int req, struct rt_addrinfo *info, struct rtentry **ret_nrt,
 		error = EOPNOTSUPP;
 	}
 bad:
-	if (needlock)
+	if (needlock) {
 		RIB_WUNLOCK(rh);
+		RIB_CFG_WUNLOCK(rh);
+	}
 	return (error);
 #undef senderr
 }
@@ -1730,7 +1747,7 @@ rtinit1(struct ifaddr *ifa, int cmd, int flags, int fibnum)
 			if (rh == NULL)
 				/* this table doesn't exist but others might */
 				continue;
-			RIB_RLOCK(rh);
+			RIB_CFG_RLOCK(rh);
 			rn = rh->rnh_lookup(dst, netmask, &rh->head);
 #ifdef RADIX_MPATH
 			if (rn_mpath_capable(rh)) {
@@ -1756,7 +1773,7 @@ rtinit1(struct ifaddr *ifa, int cmd, int flags, int fibnum)
 			error = (rn == NULL ||
 			    (rn->rn_flags & RNF_ROOT) ||
 			    RNTORT(rn)->rt_ifa != ifa);
-			RIB_RUNLOCK(rh);
+			RIB_CFG_RUNLOCK(rh);
 			if (error) {
 				/* this is only an error if bad on ALL tables */
 				continue;
@@ -1789,6 +1806,7 @@ rtinit1(struct ifaddr *ifa, int cmd, int flags, int fibnum)
 			 * interface prefix.
 			 */
 			rh = rt_tables_get_rnh(fibnum, dst->sa_family);
+			RIB_CFG_WLOCK(rh);
 			RIB_WLOCK(rh);
 
 			/* Delete old prefix */
@@ -1804,6 +1822,7 @@ rtinit1(struct ifaddr *ifa, int cmd, int flags, int fibnum)
 			}
 
 			RIB_WUNLOCK(rh);
+			RIB_CFG_WUNLOCK(rh);
 		}
 
 

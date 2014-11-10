@@ -46,6 +46,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/lock.h>
 #include <sys/errno.h>
 #include <sys/rwlock.h>
+#include <sys/rmlock.h>
 #include <sys/syslog.h>
 #include <sys/queue.h>
 
@@ -1547,6 +1548,7 @@ nd6_prefix_onlink_rtrequest(struct nd_prefix *pr, struct ifaddr *ifa)
 
 			rh = rt_tables_get_rnh(rt->rt_fibnum, AF_INET6);
 			/* XXX what if rhn == NULL? */
+			RIB_CFG_WLOCK(rh);
 			RIB_WLOCK(rh);
 			RT_LOCK(rt);
 			if (rt_setgate(rt, rt_key(rt),
@@ -1558,6 +1560,7 @@ nd6_prefix_onlink_rtrequest(struct nd_prefix *pr, struct ifaddr *ifa)
 				dl->sdl_index = rt->rt_ifp->if_index;
 			}
 			RIB_WUNLOCK(rh);
+			RIB_CFG_WUNLOCK(rh);
 			nd6_rtmsg(RTM_ADD, rt);
 			RT_UNLOCK(rt);
 			pr->ndpr_stateflags |= NDPRF_ONLINK;

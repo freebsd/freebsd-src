@@ -33,6 +33,9 @@ __FBSDID("$FreeBSD$");
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/kernel.h>
+#include <sys/lock.h>
+#include <sys/rwlock.h>
+#include <sys/rmlock.h>
 #include <sys/sysctl.h>
 #include <sys/socket.h>
 #include <sys/mbuf.h>
@@ -192,7 +195,7 @@ in_rtqkill(struct rtentry *rt, void *rock)
 	struct rtqk_arg *ap = rock;
 	int err;
 
-	RIB_WLOCK_ASSERT(ap->rh);
+	//RIB_WLOCK_ASSERT(ap->rh);
 
 	if (rt->rt_flags & RTPRF_OURS) {
 		ap->found++;
@@ -278,9 +281,11 @@ void
 in_setmatchfunc(struct rib_head *rh, int val)
 {
 
+	RIB_CFG_WLOCK(rh);
 	RIB_WLOCK(rh);
 	rh->rnh_matchaddr = (val != 0) ?  rn_match : in_matroute;
 	RIB_WUNLOCK(rh);
+	RIB_CFG_WUNLOCK(rh);
 }
 
 static int _in_rt_was_here;

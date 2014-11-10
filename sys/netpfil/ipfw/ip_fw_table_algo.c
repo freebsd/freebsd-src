@@ -4019,6 +4019,7 @@ ta_foreach_kfib(void *ta_state, struct table_info *ti, ta_foreach_f *f,
     void *arg)
 {
 	struct rib_head *rh;
+	RIB_LOCK_READER;
 	int error;
 
 	rh = rt_tables_get_rnh(ti->data, AF_INET);
