@@ -39,6 +39,9 @@
 #include <sys/kernel.h>
 #include <sys/domain.h>
 #include <sys/lock.h>
+#include <sys/lock.h>
+#include <sys/rwlock.h>
+#include <sys/rmlock.h>
 #include <sys/malloc.h>
 #include <sys/mbuf.h>
 #include <sys/priv.h>
@@ -703,7 +706,7 @@ route_output(struct mbuf *m, struct socket *so, ...)
 		if (rh == NULL)
 			senderr(EAFNOSUPPORT);
 
-		RIB_RLOCK(rh);
+		RIB_CFG_RLOCK(rh);
 
 		if (info.rti_info[RTAX_NETMASK] == NULL &&
 		    rtm->rtm_type == RTM_GET) {
@@ -720,7 +723,7 @@ route_output(struct mbuf *m, struct socket *so, ...)
 			    info.rti_info[RTAX_NETMASK], &rh->head);
 
 		if (rt == NULL) {
-			RIB_RUNLOCK(rh);
+			RIB_CFG_RUNLOCK(rh);
 			senderr(ESRCH);
 		}
 #ifdef RADIX_MPATH
@@ -736,7 +739,7 @@ route_output(struct mbuf *m, struct socket *so, ...)
 		    (rtm->rtm_type != RTM_GET || info.rti_info[RTAX_GATEWAY])) {
 			rt = rt_mpath_matchgate(rt, info.rti_info[RTAX_GATEWAY]);
 			if (!rt) {
-				RIB_RUNLOCK(rh);
+				RIB_CFG_RUNLOCK(rh);
 				senderr(ESRCH);
 			}
 		}
@@ -769,13 +772,13 @@ route_output(struct mbuf *m, struct socket *so, ...)
 			 */
 			rt = (struct rtentry *)rh->rnh_matchaddr(&laddr, &rh->head);
 			if (rt == NULL) {
-				RIB_RUNLOCK(rh);
+				RIB_CFG_RUNLOCK(rh);
 				senderr(ESRCH);
 			}
 		} 
 		RT_LOCK(rt);
 		RT_ADDREF(rt);
-		RIB_RUNLOCK(rh);
+		RIB_CFG_RUNLOCK(rh);
 
 report:
 		RT_LOCK_ASSERT(rt);
@@ -1868,10 +1871,10 @@ sysctl_rtsock(SYSCTL_HANDLER_ARGS)
 		for (error = 0; error == 0 && i <= lim; i++) {
 			rh = rt_tables_get_rnh(fib, i);
 			if (rh != NULL) {
-				RIB_RLOCK(rh); 
+				RIB_CFG_RLOCK(rh); 
 			    	error = rh->rnh_walktree(&rh->head,
 				    sysctl_dumpentry, &w);
-				RIB_RUNLOCK(rh);
+				RIB_CFG_RUNLOCK(rh);
 			} else if (af != 0)
 				error = EAFNOSUPPORT;
 		}
