@@ -145,7 +145,6 @@ SUBDIR=	\
 	if_disc \
 	if_edsc \
 	if_epair \
-	if_faith \
 	${_if_gif} \
 	${_if_gre} \
 	${_if_me} \

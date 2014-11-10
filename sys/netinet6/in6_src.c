@@ -555,6 +555,7 @@ selectroute(struct sockaddr_in6 *dstsock, struct ip6_pktopts *opts,
 	struct sockaddr_in6 *sin6_next;
 	struct in6_pktinfo *pi = NULL;
 	struct in6_addr *dst = &dstsock->sin6_addr;
+	uint32_t zoneid;
 #if 0
 	char ip6buf[INET6_ADDRSTRLEN];
 
@@ -585,7 +586,6 @@ selectroute(struct sockaddr_in6 *dstsock, struct ip6_pktopts *opts,
 		} else
 			goto getroute;
 	}
-
 	/*
 	 * If the destination address is a multicast address and the outgoing
 	 * interface for the address is specified by the caller, use it.
@@ -593,6 +593,18 @@ selectroute(struct sockaddr_in6 *dstsock, struct ip6_pktopts *opts,
 	if (IN6_IS_ADDR_MULTICAST(dst) &&
 	    mopts != NULL && (ifp = mopts->im6o_multicast_ifp) != NULL) {
 		goto done; /* we do not need a route for multicast. */
+	}
+	/*
+	 * If destination address is LLA or link- or node-local multicast,
+	 * use it's embedded scope zone id to determine outgoing interface.
+	 */
+	if (IN6_IS_ADDR_MC_LINKLOCAL(dst) ||
+	    IN6_IS_ADDR_MC_NODELOCAL(dst)) {
+		zoneid = ntohs(in6_getscope(dst));
+		if (zoneid > 0) {
+			ifp = in6_getlinkifnet(zoneid);
+			goto done;
+		}
 	}
 
   getroute:

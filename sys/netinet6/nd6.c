@@ -1763,7 +1763,7 @@ nd6_cache_lladdr(struct ifnet *ifp, struct in6_addr *from, char *lladdr,
 			ln = NULL;
 	}
 	if (chain)
-		nd6_output_flush(ifp, ifp, chain, &sin6, NULL);
+		nd6_output_flush(ifp, ifp, chain, &sin6);
 	
 	/*
 	 * When the link-layer address of a router changes, select the
@@ -1811,7 +1811,7 @@ nd6_slowtimo(void *arg)
 	callout_reset(&V_nd6_slowtimo_ch, ND6_SLOWTIMER_INTERVAL * hz,
 	    nd6_slowtimo, curvnet);
 	IFNET_RLOCK_NOSLEEP();
-	TAILQ_FOREACH(ifp, &V_ifnet, if_list) {
+	TAILQ_FOREACH(ifp, &V_ifnet, if_link) {
 		if (ifp->if_afdata[AF_INET6] == NULL)
 			continue;
 		nd6if = ND_IFINFO(ifp);
@@ -2156,7 +2156,7 @@ nd6_output_lle(struct ifnet *ifp, struct ifnet *origifp, struct mbuf *m,
 
 int
 nd6_output_flush(struct ifnet *ifp, struct ifnet *origifp, struct mbuf *chain,
-    struct sockaddr_in6 *dst, struct route *ro)
+    struct sockaddr_in6 *dst)
 {
 	struct mbuf *m, *m_head;
 	struct ifnet *outifp;
@@ -2171,7 +2171,7 @@ nd6_output_flush(struct ifnet *ifp, struct ifnet *origifp, struct mbuf *chain,
 	while (m_head) {
 		m = m_head;
 		m_head = m_head->m_nextpkt;
-		error = (*ifp->if_output)(ifp, m, (struct sockaddr *)dst, ro);			       
+		error = (*ifp->if_output)(ifp, m, (struct sockaddr *)dst, NULL);
 	}
 
 	/*

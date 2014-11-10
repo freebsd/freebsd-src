@@ -160,7 +160,6 @@ SUBDIR+=	gpioctl
 .endif
 
 .if ${MK_INET6} != "no"
-SUBDIR+=	faithd
 SUBDIR+=	ip6addrctl
 SUBDIR+=	mld6query
 SUBDIR+=	ndp

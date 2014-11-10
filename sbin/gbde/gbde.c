@@ -300,7 +300,6 @@ cmd_attach(const struct g_bde_softc *sc, const char *dest, const char *lfile)
 		gctl_ro_param(r, "key", 16, buf);
 		close(ffd);
 	}
-	/* gctl_dump(r, stdout); */
 	errstr = gctl_issue(r);
 	if (errstr != NULL)
 		errx(1, "Attach to %s failed: %s", dest, errstr);
@@ -371,7 +370,7 @@ cmd_open(struct g_bde_softc *sc, int dfd , const char *l_opt, u_int *nkey)
 	if (error != 0)
 		errx(1, "Error %d decrypting lock", error);
 	if (nkey)
-		printf("Opened with key %u\n", *nkey);
+		printf("Opened with key %u\n", 1 + *nkey);
 	return;
 }
 
@@ -392,7 +391,7 @@ cmd_nuke(struct g_bde_key *gl, int dfd , int key)
 	free(sbuf);
 	if (i != (int)gl->sectorsize)
 		err(1, "write");
-	printf("Nuked key %d\n", key);
+	printf("Nuked key %d\n", 1 + key);
 }
 
 static void
@@ -493,7 +492,7 @@ cmd_destroy(struct g_bde_key *gl, int nkey)
 	bzero(&gl->sector0, sizeof gl->sector0);
 	bzero(&gl->sectorN, sizeof gl->sectorN);
 	bzero(&gl->keyoffset, sizeof gl->keyoffset);
-	bzero(&gl->flags, sizeof gl->flags);
+	gl->flags &= GBDE_F_SECT0;
 	bzero(gl->mkey, sizeof gl->mkey);
 	for (i = 0; i < G_BDE_MAXKEYS; i++)
 		if (i != nkey)

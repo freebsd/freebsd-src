@@ -410,19 +410,6 @@ icmp_input(struct mbuf **mp, int *offp, int proto)
 	m->m_len += hlen;
 	m->m_data -= hlen;
 
-	if (m->m_pkthdr.rcvif && m->m_pkthdr.rcvif->if_type == IFT_FAITH) {
-		/*
-		 * Deliver very specific ICMP type only.
-		 */
-		switch (icp->icmp_type) {
-		case ICMP_UNREACH:
-		case ICMP_TIMXCEED:
-			break;
-		default:
-			goto freeit;
-		}
-	}
-
 #ifdef ICMPPRINTFS
 	if (icmpprintfs)
 		printf("icmp_input, type %d code %d\n", icp->icmp_type,
