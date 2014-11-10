@@ -266,7 +266,7 @@ struct netmap_kring {
 
 	struct netmap_adapter *na;
 
-	/* The folloiwing fields are for VALE switch support */
+	/* The following fields are for VALE switch support */
 	struct nm_bdg_fwd *nkr_ft;
 	uint32_t	*nkr_leases;
 #define NR_NOSLOT	((uint32_t)~0)	/* used in nkr_*lease* */
