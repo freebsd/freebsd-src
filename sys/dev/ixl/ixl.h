@@ -162,7 +162,9 @@
 /*
 ** Default number of entries in Tx queue buf_ring.
 */
-#define DEFAULT_TXBRSZ	(4096 * 4096)
+#define SMALL_TXBRSZ 4096
+/* This may require mbuf cluster tuning */
+#define DEFAULT_TXBRSZ (SMALL_TXBRSZ * SMALL_TXBRSZ)
 
 /* Alignment for rings */
 #define DBA_ALIGN	128
@@ -194,7 +196,7 @@
 
 #define MAX_MULTICAST_ADDR	128
 
-#define IXL_BAR		3
+#define IXL_BAR			3
 #define IXL_ADM_LIMIT		2
 #define IXL_TSO_SIZE		65535
 #define IXL_TX_BUF_SZ		((u32) 1514)
@@ -208,7 +210,7 @@
 #define IXL_ITR_NONE		3
 #define IXL_QUEUE_EOL		0x7FF
 #define IXL_MAX_FRAME		0x2600
-#define IXL_MAX_TX_SEGS	8 
+#define IXL_MAX_TX_SEGS		8
 #define IXL_MAX_TSO_SEGS	66 
 #define IXL_SPARSE_CHAIN	6
 #define IXL_QUEUE_HUNG		0x80000000
@@ -263,6 +265,34 @@
 #define IXL_RX_LOCK(_sc)                mtx_lock(&(_sc)->mtx)
 #define IXL_RX_UNLOCK(_sc)              mtx_unlock(&(_sc)->mtx)
 #define IXL_RX_LOCK_DESTROY(_sc)        mtx_destroy(&(_sc)->mtx)
+
+#if __FreeBSD_version >= 1100000
+#define IXL_SET_IPACKETS(vsi, count)	(vsi)->ipackets = (count)
+#define IXL_SET_IERRORS(vsi, count)	(vsi)->ierrors = (count)
+#define IXL_SET_OPACKETS(vsi, count)	(vsi)->opackets = (count)
+#define IXL_SET_OERRORS(vsi, count)	(vsi)->oerrors = (count)
+#define IXL_SET_COLLISIONS(vsi, count)	/* Do nothing; collisions is always 0. */
+#define IXL_SET_IBYTES(vsi, count)	(vsi)->ibytes = (count)
+#define IXL_SET_OBYTES(vsi, count)	(vsi)->obytes = (count)
+#define IXL_SET_IMCASTS(vsi, count)	(vsi)->imcasts = (count)
+#define IXL_SET_OMCASTS(vsi, count)	(vsi)->omcasts = (count)
+#define IXL_SET_IQDROPS(vsi, count)	(vsi)->iqdrops = (count)
+#define IXL_SET_OQDROPS(vsi, count)	(vsi)->iqdrops = (count)
+#define IXL_SET_NOPROTO(vsi, count)	(vsi)->noproto = (count)
+#else
+#define IXL_SET_IPACKETS(vsi, count)	(vsi)->ifp->if_ipackets = (count)
+#define IXL_SET_IERRORS(vsi, count)	(vsi)->ifp->if_ierrors = (count)
+#define IXL_SET_OPACKETS(vsi, count)	(vsi)->ifp->if_opackets = (count)
+#define IXL_SET_OERRORS(vsi, count)	(vsi)->ifp->if_oerrors = (count)
+#define IXL_SET_COLLISIONS(vsi, count)	(vsi)->ifp->if_collisions = (count)
+#define IXL_SET_IBYTES(vsi, count)	(vsi)->ifp->if_ibytes = (count)
+#define IXL_SET_OBYTES(vsi, count)	(vsi)->ifp->if_obytes = (count)
+#define IXL_SET_IMCASTS(vsi, count)	(vsi)->ifp->if_imcasts = (count)
+#define IXL_SET_OMCASTS(vsi, count)	(vsi)->ifp->if_omcasts = (count)
+#define IXL_SET_IQDROPS(vsi, count)	(vsi)->ifp->if_iqdrops = (count)
+#define IXL_SET_OQDROPS(vsi, odrops)	(vsi)->ifp->if_snd.ifq_drops = (odrops)
+#define IXL_SET_NOPROTO(vsi, count)	(vsi)->noproto = (count)
+#endif
 
 /*
  *****************************************************************************
@@ -447,6 +477,18 @@ struct ixl_vsi {
 	struct i40e_eth_stats	eth_stats;
 	struct i40e_eth_stats	eth_stats_offsets;
 	bool 			stat_offsets_loaded;
+	/* VSI stat counters */
+	u64			ipackets;
+	u64			ierrors;
+	u64			opackets;
+	u64			oerrors;
+	u64			ibytes;
+	u64			obytes;
+	u64			imcasts;
+	u64			omcasts;
+	u64			iqdrops;
+	u64			oqdrops;
+	u64			noproto;
 
 	/* Driver statistics */
 	u64			hw_filters_del;
@@ -483,7 +525,8 @@ ixl_get_filter(struct ixl_vsi *vsi)
 	/* create a new empty filter */
 	f = malloc(sizeof(struct ixl_mac_filter),
 	    M_DEVBUF, M_NOWAIT | M_ZERO);
-	SLIST_INSERT_HEAD(&vsi->ftl, f, next);
+	if (f)
+		SLIST_INSERT_HEAD(&vsi->ftl, f, next);
 
 	return (f);
 }
@@ -553,6 +596,9 @@ void	ixl_free_que_tx(struct ixl_queue *);
 void	ixl_free_que_rx(struct ixl_queue *);
 #ifdef IXL_FDIR
 void	ixl_atr(struct ixl_queue *, struct tcphdr *, int);
+#endif
+#if __FreeBSD_version >= 1100000
+uint64_t ixl_get_counter(if_t ifp, ift_counter cnt);
 #endif
 
 #endif /* _IXL_H_ */

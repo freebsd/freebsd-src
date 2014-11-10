@@ -36,11 +36,13 @@
 #ifndef _IXLV_H_
 #define _IXLV_H_
 
-#define IXLV_AQ_MAX_ERR	100
+#include "ixlv_vc_mgr.h"
+
+#define IXLV_AQ_MAX_ERR		1000
 #define IXLV_MAX_FILTERS	128
-#define IXLV_MAX_QUEUES	16
-#define IXLV_AQ_TIMEOUT	(1 * hz)
-#define IXLV_CALLOUT_TIMO	(hz / 50)	// 20 msec
+#define IXLV_MAX_QUEUES		16
+#define IXLV_AQ_TIMEOUT		(1 * hz)
+#define IXLV_CALLOUT_TIMO	(hz / 50)	/* 20 msec */
 
 #define IXLV_FLAG_AQ_ENABLE_QUEUES            (u32)(1)
 #define IXLV_FLAG_AQ_DISABLE_QUEUES           (u32)(1 << 1)
@@ -51,8 +53,8 @@
 #define IXLV_FLAG_AQ_CONFIGURE_QUEUES         (u32)(1 << 6)
 #define IXLV_FLAG_AQ_MAP_VECTORS              (u32)(1 << 7)
 #define IXLV_FLAG_AQ_HANDLE_RESET             (u32)(1 << 8)
-#define IXLV_FLAG_AQ_CONFIGURE_PROMISC	(u32)(1 << 9)
-#define IXLV_FLAG_AQ_GET_STATS		(u32)(1 << 10)
+#define IXLV_FLAG_AQ_CONFIGURE_PROMISC        (u32)(1 << 9)
+#define IXLV_FLAG_AQ_GET_STATS                (u32)(1 << 10)
 
 /* printf %b arg */
 #define IXLV_FLAGS \
@@ -60,6 +62,9 @@
     "\4ADD_VLAN_FILTER\5DEL_MAC_FILTER\6DEL_VLAN_FILTER" \
     "\7CONFIGURE_QUEUES\10MAP_VECTORS\11HANDLE_RESET" \
     "\12CONFIGURE_PROMISC\13GET_STATS"
+
+/* Hack for compatibility with 1.0.x linux pf driver */
+#define I40E_VIRTCHNL_OP_EVENT 17
 
 /* Driver state */
 enum ixlv_state_t {
@@ -111,12 +116,10 @@ struct ixlv_sc {
 
 	struct ifmedia		media;
 	struct callout		timer;
-	struct callout		aq_task;
 	int			msix;
 	int			if_flags;
 
 	struct mtx		mtx;
-	struct mtx		aq_task_mtx;
 
 	u32			qbase;
 	u32 			admvec;
@@ -127,10 +130,8 @@ struct ixlv_sc {
 
 	struct ixl_vsi		vsi;
 
-	/* Mac Filter List */
+	/* Filter lists */
 	struct mac_list		*mac_filters;
-
-	/* Vlan Filter List */
 	struct vlan_list	*vlan_filters;
 
 	/* Promiscuous mode */
@@ -138,11 +139,19 @@ struct ixlv_sc {
 
 	/* Admin queue task flags */
 	u32			aq_wait_count;
-	u32			aq_required;
-	u32			aq_pending;
+
+	struct ixl_vc_mgr	vc_mgr;
+	struct ixl_vc_cmd	add_mac_cmd;
+	struct ixl_vc_cmd	del_mac_cmd;
+	struct ixl_vc_cmd	config_queues_cmd;
+	struct ixl_vc_cmd	map_vectors_cmd;
+	struct ixl_vc_cmd	enable_queues_cmd;
+	struct ixl_vc_cmd	add_vlan_cmd;
+	struct ixl_vc_cmd	del_vlan_cmd;
+	struct ixl_vc_cmd	add_multi_cmd;
+	struct ixl_vc_cmd	del_multi_cmd;
 
 	/* Virtual comm channel */
-	enum i40e_virtchnl_ops	current_op;
 	struct i40e_virtchnl_vf_resource *vf_res;
 	struct i40e_virtchnl_vsi_resource *vsi_res;
 
@@ -150,16 +159,10 @@ struct ixlv_sc {
 	u64			watchdog_events;
 	u64			admin_irq;
 
-	/* Signaling channels */
-	u8			init_done;
-	u8			config_queues_done;
-	u8			map_vectors_done;
-	u8			enable_queues_done;
-	u8			disable_queues_done;
-	u8			add_ether_done;
-	u8			del_ether_done;
+	u8			aq_buffer[IXL_AQ_BUF_SZ];
 };
 
+#define IXLV_CORE_LOCK_ASSERT(sc)	mtx_assert(&(sc)->mtx, MA_OWNED)
 /*
 ** This checks for a zero mac addr, something that will be likely
 ** unless the Admin on the Host has created one.
@@ -174,7 +177,7 @@ ixlv_check_ether_addr(u8 *addr)
 		status = FALSE;
 	return (status);
 }
-	    
+
 /*
 ** VF Common function prototypes
 */
@@ -201,5 +204,6 @@ void	ixlv_add_vlans(struct ixlv_sc *);
 void	ixlv_del_vlans(struct ixlv_sc *);
 void	ixlv_update_stats_counters(struct ixlv_sc *,
 		    struct i40e_eth_stats *);
+void	ixlv_update_link_status(struct ixlv_sc *);
 
 #endif /* _IXLV_H_ */
