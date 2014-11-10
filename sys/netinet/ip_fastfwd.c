@@ -502,7 +502,6 @@ passout:
 	if ((ifp->if_snd.ifq_len + ip_len / ifp->if_mtu + 1) >=
 	    ifp->if_snd.ifq_maxlen) {
 		IPSTAT_INC(ips_odropped);
-		/* would send source quench here but that is depreciated */
 		goto drop;
 	}
 #endif
