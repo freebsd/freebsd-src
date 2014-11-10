@@ -466,6 +466,8 @@ netmap_dev_pager_ctor(void *handle, vm_ooffset_t size, vm_prot_t prot,
 	if (netmap_verbose)
 		D("handle %p size %jd prot %d foff %jd",
 			handle, (intmax_t)size, prot, (intmax_t)foff);
+	if (color)
+		*color = 0;
 	dev_ref(vmh->dev);
 	return 0;
 }
