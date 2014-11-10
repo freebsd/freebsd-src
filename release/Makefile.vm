@@ -20,7 +20,6 @@ OPENSTACK_FORMAT=qcow2
 CLOUDTARGETS+=	vm-${_CW:tl}
 CLEANDIRS+=	vm-${_CW:tl}
 CLEANFILES+=	${_CW:tl}.img \
-		vm-${_CW:tl} \
 		${_CW:tl}.${${_CW:tu}_FORMAT} \
 		${_CW:tl}.${${_CW:tu}_FORMAT}.raw
 ${_CW:tu}IMAGE=	${_CW:tl}.${${_CW:tu}_FORMAT}
