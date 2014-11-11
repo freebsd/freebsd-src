@@ -3,6 +3,7 @@
 #
 
 USE_CHERI=	yes
+USE_CHERI_STACK=	yes
 
 .include <src.opts.mk>
 
