@@ -331,6 +331,7 @@ tcpdump_sandbox_invoke(struct tcpdump_sandbox *sb,
 {
 	int ret;
 	struct timeval now;
+	packetbody_t save_packetp, save_snapend;
 
 	/* Reset the sandbox if time or packet count exceeded */
 	if (ctdc->ctdc_sb_max_packets > 0 &&
@@ -348,6 +349,10 @@ tcpdump_sandbox_invoke(struct tcpdump_sandbox *sb,
 		if (ctdc->ctdc_sb_max_lifetime > 0)
 			gettimeofday(&sb->tds_current_start, NULL);
 
+		save_packetp = gndo->ndo_packetp;
+		save_snapend = gndo->ndo_snapend;
+		gndo->ndo_packetp = NULL;
+		gndo->ndo_snapend = NULL;
 		ret = sandbox_object_cinvoke(sb->tds_sandbox_object,
 		    TCPDUMP_HELPER_OP_INIT, g_localnet, g_mask, 0, 0, 0, 0, 0,
 		    sandbox_object_getsystemobject(sb->tds_sandbox_object).co_codecap,
@@ -360,6 +365,8 @@ tcpdump_sandbox_invoke(struct tcpdump_sandbox *sb,
 			CHERI_PERM_LOAD | CHERI_PERM_LOAD_CAP),
 		    cheri_zerocap(), cheri_zerocap(), cheri_zerocap(),
 		    cheri_zerocap());
+		gndo->ndo_snapend = save_snapend;
+		gndo->ndo_packetp = save_packetp;
 		if (ret != 0)
 			error("failed to initialize sandbox: %d \n",
 			    ret);
