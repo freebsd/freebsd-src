@@ -392,7 +392,7 @@ tcpdump_sandbox_object_setup()
 {
 
 	if (sandbox_class_new("/usr/libexec/tcpdump-helper.bin",
-	    6*1024*1024, &tcpdump_classp) < 0) {
+	    14*1024*1024, &tcpdump_classp) < 0) {
 		fprintf(stderr, "failed to create sandbox class: %s",
 		    strerror(errno));
 		return (-1);
