@@ -1330,7 +1330,6 @@ ip_drain(void)
 	}
 	IPQ_UNLOCK();
 	VNET_LIST_RUNLOCK_NOSLEEP();
-	in_rtqdrain();
 }
 
 /*

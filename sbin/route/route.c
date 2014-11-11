@@ -847,9 +847,6 @@ newroute(int argc, char **argv)
 			case K_PROTO2:
 				flags |= RTF_PROTO2;
 				break;
-			case K_PROTO3:
-				flags |= RTF_PROTO3;
-				break;
 			case K_PROXY:
 				nrflags |= F_PROXY;
 				break;

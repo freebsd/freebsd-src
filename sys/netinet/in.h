@@ -619,9 +619,9 @@ int	getsourcefilter(int, uint32_t, struct sockaddr *, socklen_t,
 #ifdef notyet
 #define	IPCTL_DEFMTU		4	/* default MTU */
 #endif
-#define	IPCTL_RTEXPIRE		5	/* cloned route expiration time */
-#define	IPCTL_RTMINEXPIRE	6	/* min value for expiration time */
-#define	IPCTL_RTMAXCACHE	7	/* trigger level for dynamic expire */
+/*	IPCTL_RTEXPIRE		5	deprecated */
+/*	IPCTL_RTMINEXPIRE	6	deprecated */
+/*	IPCTL_RTMAXCACHE	7	deprecated */
 #define	IPCTL_SOURCEROUTE	8	/* may perform source routes */
 #define	IPCTL_DIRECTEDBROADCAST	9	/* may re-broadcast received packets */
 #define	IPCTL_INTRQMAXLEN	10	/* max length of netisr queue */
