@@ -285,7 +285,7 @@ kvp_file_init(void)
 	int alloc_unit = sizeof(struct kvp_record) * ENTRIES_PER_BLOCK;
 
 	if (mkdir("/var/db/hyperv/pool", S_IRUSR | S_IWUSR | S_IROTH) < 0 &&
-	    errno != EISDIR) {
+	    (errno != EEXIST && errno != EISDIR)) {
 		KVP_LOG(LOG_ERR, " Failed to create /var/db/hyperv/pool\n");
 		exit(EXIT_FAILURE);
 	}
