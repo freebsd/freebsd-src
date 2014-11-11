@@ -84,10 +84,13 @@ __FBSDID("$FreeBSD$");
 /* 
  * Arasan HC seems to have problem with Data CRC on lower frequencies.
  * Use this tunable to cap initialization sequence frequency at higher
- * value. Default is standard 400kHz
+ * value.  Default is standard 400kHz.
+ * HS mode brings too many problems for most of cards, so disable HS mode
+ * until a better fix comes up.
+ * HS mode still can be enabled with the tunable.
  */
 static int bcm2835_sdhci_min_freq = 400000;
-static int bcm2835_sdhci_hs = 1;
+static int bcm2835_sdhci_hs = 0;
 static int bcm2835_sdhci_pio_mode = 0;
 
 TUNABLE_INT("hw.bcm2835.sdhci.min_freq", &bcm2835_sdhci_min_freq);
