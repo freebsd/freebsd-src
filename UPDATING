@@ -16,6 +16,9 @@ from older versions of FreeBSD, try WITHOUT_CLANG to bootstrap to the tip of
 stable/10, and then rebuild without this option. The bootstrap process from
 older version of current is a bit fragile.
 
+20141118:
+	10.1-RELEASE.
+
 20140904:
 	The ofwfb driver, used to provide a graphics console on PowerPC when
 	using vt(4), no longer allows mmap() of all of physical memory. This
