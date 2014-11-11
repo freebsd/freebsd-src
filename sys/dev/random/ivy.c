@@ -70,7 +70,7 @@ ivy_rng_store(u_long *buf)
 	retry = RETRY_COUNT;
 	__asm __volatile(
 	    "1:\n\t"
-	    "rdrand	%1\n\t"	/* read randomness into tmp */
+	    "rdrand	%1\n\t"	/* read randomness into rndval */
 	    "jc		2f\n\t" /* CF is set on success, exit retry loop */
 	    "dec	%0\n\t" /* otherwise, retry-- */
 	    "jne	1b\n\t" /* and loop if retries are not exhausted */
