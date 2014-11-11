@@ -90,9 +90,6 @@ struct	sockbuf {
 					 * record in socket buffer */
 	struct	mbuf *sb_sndptr; /* (c/d) pointer into mbuf chain */
 	struct	mbuf *sb_fnrdy;	/* (c/d) pointer to first not ready buffer */
-#if 0
-	struct	mbuf *sb_lnrdy;	/* (c/d) pointer to last not ready buffer */
-#endif
 	u_int	sb_sndptroff;	/* (c/d) byte offset of ptr into chain */
 	u_int	sb_acc;		/* (c/d) available chars in buffer */
 	u_int	sb_ccc;		/* (c/d) claimed chars in buffer */
