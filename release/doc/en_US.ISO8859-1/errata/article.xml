@@ -175,6 +175,56 @@ boot</screen>
 	    directly.</para>
 	</note>
       </listitem>
+
+      <listitem>
+	<para>Due to an incompatibility between &man.bsdconfig.8;
+	  and &man.pkg.8;&nbsp;version 1.3, packages included on the
+	  &os;&nbsp;dvd installer will not be recognized by
+	  &man.bsdconfig.8;.</para>
+
+	<para>To install packages from the <literal>dvd1.iso</literal>
+	  installer, create the <filename
+	    class="directory">/dist</filename> target directory, and
+	  manually mount the <literal>dvd1.iso</literal>
+	  <acronym>ISO</acronym>:</para>
+
+	<screen>&prompt.root; mkdir -p /dist
+&prompt.root; mount -t cd9660 /dev/<replaceable>cd0</replaceable> /dist</screen>
+
+	<note>
+	  <para>Be sure to use the correct <filename
+	      class="directory">/dev</filename> device path for the
+	    <literal>dvd1.iso</literal> <acronym>ISO</acronym>
+	    installer.</para>
+	</note>
+
+	<para>Next, set <envar>REPOS_DIR</envar> to the path of the
+	  <filename class="directory">repos/</filename> directory
+	  within the installer so &man.pkg.8; will use the correct
+	  repository metadata.</para>
+
+	<para>If using &man.sh.1;:</para>
+
+	<screen>&prompt.root; export REPOS_DIR=/dist/packages/repos</screen>
+
+	<para>If using &man.csh.1;:</para>
+
+	<screen>&prompt.root; setenv REPOS_DIR /dist/packages/repos</screen>
+
+	<note>
+	  <para>Keep in mind that <envar>REPOS_DIR</envar> will need
+	    to be set again after the current shell session is
+	    terminated, if continuing to use the packages provided on
+	    the <literal>dvd1.iso</literal> installer.</para>
+	</note>
+
+	<para>Finally, bootstrap &man.pkg.8; from the
+	  <acronym>ISO</acronym>, and install required
+	  packages:</para>
+
+	<screen>&prompt.root; pkg bootstrap
+&prompt.root; pkg install <replaceable>xorg-server</replaceable> <replaceable>xorg</replaceable> <replaceable>gnome2</replaceable> [...]</screen>
+      </listitem>
     </itemizedlist>
   </sect1>
 
