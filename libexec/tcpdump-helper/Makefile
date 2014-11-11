@@ -49,8 +49,8 @@ FILESOWN=       ${LIBOWN}
 FILESGRP=       ${LIBGRP}
 FILESMODE=      ${LIBMODE}
 FILESDIR=       ${LIBEXECDIR}
-FILES=		tcpdump-helper.bin tcpdump-helper.dump chsbrt.o
-CLEANFILES=	tcpdump-helper.bin tcpdump-helper.dump chsbrt.o
+FILES=		tcpdump-helper.bin chsbrt.o
+CLEANFILES=	tcpdump-helper.bin chsbrt.o
 
 chsbrt.o:
 	${AS} -G0 -o ${.TARGET} ${.ALLSRC}
@@ -59,13 +59,12 @@ tcpdump-helper.bin: tcpdump-helper
 	objcopy -S -O binary ${.ALLSRC} ${.TARGET}
 	@echo created ${.TARGET}
 
-tcpdump-helper.dump: tcpdump-helper
-	objdump -xsSD ${.ALLSRC} > ${.TARGET}
-
 .PATH: ${.CURDIR}/${MACHINE_ARCH}
 .PATH: ${.CURDIR}/../../lib/libc/${MACHINE}/string
 .PATH: ${.CURDIR}/../../lib/libc/string
 .PATH: ${.CURDIR}/../../contrib/tcpdump
+
+WANT_DUMP=yes
 
 .include <src.opts.mk>
 .include <bsd.prog.mk>
