@@ -48,5 +48,7 @@ version.c: ${TCPDUMP_DISTDIR}/VERSION
 	    sed 's/.*/char version[] = "&";/' ${TCPDUMP_DISTDIR}/VERSION \
 		> version.c
 
+WANT_DUMP=yes
+
 .include <src.opts.mk>
 .include <bsd.prog.mk>
