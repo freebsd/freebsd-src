@@ -312,21 +312,6 @@ mapped address on
 .Dv AF_INET6
 sockets.
 Defaults to on.
-.It Dv IPV6CTL_RTEXPIRE
-.Pq ip6.rtexpire
-Integer: lifetime in seconds of protocol-cloned
-.Tn IP
-routes after the last reference drops (default one hour).
-.\"This value varies dynamically as described above.
-.It Dv IPV6CTL_RTMINEXPIRE
-.Pq ip6.rtminexpire
-Integer: minimum value of ip.rtexpire (default ten seconds).
-.\"This value has no effect on user modifications, but restricts the dynamic
-.\"adaptation described above.
-.It Dv IPV6CTL_RTMAXCACHE
-.Pq ip6.rtmaxcache
-Integer: trigger level of cached, unreferenced, protocol-cloned routes
-which initiates dynamic adaptation (default 128).
 .El
 .Ss Interaction between IPv4/v6 sockets
 By default,
