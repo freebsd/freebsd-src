@@ -119,16 +119,6 @@ static int	filt_sfsync_attach(struct knote *kn);
 static void	filt_sfsync_detach(struct knote *kn);
 static int	filt_sfsync(struct knote *kn, long hint);
 
-/*
- * sendfile(2)-related variables and associated sysctls
- */
-static SYSCTL_NODE(_kern_ipc, OID_AUTO, sendfile, CTLFLAG_RW, 0,
-    "sendfile(2) tunables");
-
-static int sfreadahead = 0;
-SYSCTL_INT(_kern_ipc_sendfile, OID_AUTO, readahead, CTLFLAG_RW,
-    &sfreadahead, 0, "Read this more pages than socket buffer can accept");
-
 #ifdef	SFSYNC_DEBUG
 static int sf_sync_debug = 0;
 SYSCTL_INT(_debug, OID_AUTO, sf_sync_debug, CTLFLAG_RW,
@@ -3087,10 +3077,8 @@ retry_space:
 		else
 			npages = howmany(space, PAGE_SIZE);
 
-		rhpages = SF_READAHEAD(flags) ?
-		    SF_READAHEAD(flags) : sfreadahead;
 		rhpages = min(howmany(obj_size - (off & ~PAGE_MASK) -
-		    (npages * PAGE_SIZE), PAGE_SIZE), rhpages);
+		    (npages * PAGE_SIZE), PAGE_SIZE), SF_READAHEAD(flags));
 
 		sfio = malloc(sizeof(struct sf_io) +
 		    (rhpages + npages) * sizeof(vm_page_t), M_TEMP, M_WAITOK);
