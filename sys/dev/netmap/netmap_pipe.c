@@ -197,10 +197,10 @@ netmap_pipe_txsync(struct netmap_kring *txkring, int flags)
         if (m < 0)
                 m += txkring->nkr_num_slots;
         limit = m;
-        m = rxkring->nkr_num_slots - 1; /* max avail space on destination */
+        m = lim_rx; /* max avail space on destination */
         busy = j - rxkring->nr_hwcur; /* busy slots */
 	if (busy < 0)
-		busy += txkring->nkr_num_slots;
+		busy += rxkring->nkr_num_slots;
 	m -= busy; /* subtract busy slots */
         ND(2, "m %d limit %d", m, limit);
         if (m < limit)
