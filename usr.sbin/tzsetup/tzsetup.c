@@ -911,15 +911,15 @@ main(int argc, char **argv)
 {
 	char		title[64], prompt[128];
 	int		c, fd, rv, skiputc;
-        char		vm_guest[16] = "";
-        size_t		len = sizeof(vm_guest);
+	char		vm_guest[16] = "";
+	size_t		len = sizeof(vm_guest);
 
 	skiputc = 0;
 
 	/* Default skiputc to 1 for VM guests */
-        if (sysctlbyname("kern.vm_guest", vm_guest, &len, NULL, 0) == 0 &&
+	if (sysctlbyname("kern.vm_guest", vm_guest, &len, NULL, 0) == 0 &&
 	    strcmp(vm_guest, "none") != 0)
-                skiputc = 1;
+		skiputc = 1;
 
 	while ((c = getopt(argc, argv, "C:nrs")) != -1) {
 		switch(c) {
