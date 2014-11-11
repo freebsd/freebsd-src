@@ -710,7 +710,7 @@ acpi_set_power_children(device_t dev, int state)
 		child = devlist[i];
 		dstate = state;
 		if (device_is_attached(child) &&
-		    acpi_device_pwr_for_sleep(parent, dev, &dstate) == 0)
+		    acpi_device_pwr_for_sleep(parent, child, &dstate) == 0)
 			acpi_set_powerstate(child, dstate);
 	}
 	free(devlist, M_TEMP);
