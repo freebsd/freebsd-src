@@ -78,8 +78,8 @@ VNET_PCPUSTAT_SYSUNINIT(ipcompstat);
 #endif /* VIMAGE */
 
 SYSCTL_DECL(_net_inet_ipcomp);
-SYSCTL_VNET_INT(_net_inet_ipcomp, OID_AUTO,
-	ipcomp_enable,	CTLFLAG_RW,	&VNET_NAME(ipcomp_enable),	0, "");
+SYSCTL_INT(_net_inet_ipcomp, OID_AUTO, ipcomp_enable,
+	CTLFLAG_VNET | CTLFLAG_RW, &VNET_NAME(ipcomp_enable), 0, "");
 SYSCTL_VNET_PCPUSTAT(_net_inet_ipcomp, IPSECCTL_STATS, stats,
     struct ipcompstat, ipcompstat,
     "IPCOMP statistics (struct ipcompstat, netipsec/ipcomp_var.h");

@@ -27,7 +27,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd October 23, 2014
+.Dd November 9, 2014
 .Dt CTL.CONF 5
 .Os
 .Sh NAME
@@ -111,8 +111,10 @@ An IPv4 or IPv6 address and optionally port of iSNS server to register on.
 .It Ic isns-period Ar seconds
 iSNS registration period.
 Registered Network Entity not updated during this period will be unregistered.
+The default is 900.
 .It Ic isns-timeout Ar seconds
 Timeout for iSNS requests.
+The default is 5.
 .El
 .Ss auth-group Context
 .Bl -tag -width indent
@@ -173,11 +175,60 @@ Another predefined
 .Qq Ar no-authentication ,
 may be used
 to permit discovery without authentication.
+.It Ic discovery-filter Ar filter
+Determines which targets are returned during discovery.
+Filter can be either
+.Qq Ar none ,
+.Qq Ar portal ,
+.Qq Ar portal-name ,
+or
+.Qq Ar portal-name-auth .
+When set to
+.Qq Ar none ,
+discovery will return all targets assigned to that portal group.
+When set to
+.Qq Ar portal ,
+discovery will not return targets that cannot be accessed by the
+initiator because of their
+.Sy initiator-portal .
+When set to
+.Qq Ar portal-name ,
+the check will include both
+.Sy initiator-portal
+and
+.Sy initiator-name .
+When set to
+.Qq Ar portal-name-auth ,
+the check will include
+.Sy initiator-portal ,
+.Sy initiator-name ,
+and authentication credentials.
+The target is returned if it does not require CHAP authentication,
+or if the CHAP user and secret used during discovery match those
+used by the target.
+Note that when using
+.Qq Ar portal-name-auth ,
+targets that require CHAP authentication will only be returned if
+.Sy discovery-auth-group
+requires CHAP.
+The default is
+.Qq Ar none .
 .It Ic listen Ar address
 An IPv4 or IPv6 address and port to listen on for incoming connections.
 .\".It Ic listen-iser Ar address
 .\"An IPv4 or IPv6 address and port to listen on for incoming connections
 .\"using iSER (iSCSI over RDMA) protocol.
+.It Ic redirect Aq Ar address
+IPv4 or IPv6 address to redirect initiators to.
+When configured, all initiators attempting to connect to portal
+belonging to this
+.Sy portal-group
+will get redirected using "Target moved temporarily" login response.
+Redirection happens before authentication and any
+.Sy initiator-name
+or
+.Sy initiator-portal
+checks are skipped.
 .El
 .Ss target Context
 .Bl -tag -width indent
@@ -256,6 +307,11 @@ The default portal group is
 .Qq Ar default ,
 which makes the target available
 on TCP port 3260 on all configured IPv4 and IPv6 addresses.
+.It Ic redirect Aq Ar address
+IPv4 or IPv6 address to redirect initiators to.
+When configured, all initiators attempting to connect to this target
+will get redirected using "Target moved temporarily" login response.
+Redirection happens after successful authentication.
 .It Ic lun Ar number
 Create a
 .Sy lun

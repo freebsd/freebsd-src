@@ -1246,8 +1246,10 @@ initarm(struct arm_boot_params *abp)
 	print_kenv();
 
 	env = kern_getenv("kernelname");
-	if (env != NULL)
+	if (env != NULL) {
 		strlcpy(kernelname, env, sizeof(kernelname));
+		freeenv(env);
+	}
 
 	if (err_devmap != 0)
 		printf("WARNING: could not fully configure devmap, error=%d\n",

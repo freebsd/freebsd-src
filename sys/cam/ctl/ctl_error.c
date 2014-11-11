@@ -463,6 +463,11 @@ ctl_build_ua(ctl_ua_type *ua_type, struct scsi_sense_data *sense,
 		asc = 0x2A;
 		ascq = 0x09;
 		break;
+	case CTL_UA_THIN_PROV_THRES:
+		/* 38h/07n  THIN PROVISIONING SOFT THRESHOLD REACHED */
+		asc = 0x38;
+		ascq = 0x07;
+		break;
 	default:
 		panic("ctl_build_ua: Unknown UA %x", ua_to_build);
 	}
@@ -803,6 +808,18 @@ ctl_set_task_aborted(struct ctl_scsiio *ctsio)
 	ctsio->scsi_status = SCSI_STATUS_TASK_ABORTED;
 	ctsio->sense_len = 0;
 	ctsio->io_hdr.status = CTL_CMD_ABORTED;
+}
+
+void
+ctl_set_space_alloc_fail(struct ctl_scsiio *ctsio)
+{
+	/* "Space allocation failed write protect" */
+	ctl_set_sense(ctsio,
+		      /*current_error*/ 1,
+		      /*sense_key*/ SSD_KEY_DATA_PROTECT,
+		      /*asc*/ 0x27,
+		      /*ascq*/ 0x07,
+		      SSD_ELEM_NONE);
 }
 
 void

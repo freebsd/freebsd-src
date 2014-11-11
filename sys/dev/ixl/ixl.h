@@ -162,7 +162,9 @@
 /*
 ** Default number of entries in Tx queue buf_ring.
 */
-#define DEFAULT_TXBRSZ	(4096 * 4096)
+#define SMALL_TXBRSZ 4096
+/* This may require mbuf cluster tuning */
+#define DEFAULT_TXBRSZ (SMALL_TXBRSZ * SMALL_TXBRSZ)
 
 /* Alignment for rings */
 #define DBA_ALIGN	128
@@ -194,7 +196,7 @@
 
 #define MAX_MULTICAST_ADDR	128
 
-#define IXL_BAR		3
+#define IXL_BAR			3
 #define IXL_ADM_LIMIT		2
 #define IXL_TSO_SIZE		65535
 #define IXL_TX_BUF_SZ		((u32) 1514)
@@ -208,7 +210,7 @@
 #define IXL_ITR_NONE		3
 #define IXL_QUEUE_EOL		0x7FF
 #define IXL_MAX_FRAME		0x2600
-#define IXL_MAX_TX_SEGS	8 
+#define IXL_MAX_TX_SEGS		8
 #define IXL_MAX_TSO_SEGS	66 
 #define IXL_SPARSE_CHAIN	6
 #define IXL_QUEUE_HUNG		0x80000000
@@ -291,7 +293,6 @@
 #define IXL_SET_OQDROPS(vsi, odrops)	(vsi)->ifp->if_snd.ifq_drops = (odrops)
 #define IXL_SET_NOPROTO(vsi, count)	(vsi)->noproto = (count)
 #endif
-
 
 /*
  *****************************************************************************
@@ -476,6 +477,7 @@ struct ixl_vsi {
 	struct i40e_eth_stats	eth_stats;
 	struct i40e_eth_stats	eth_stats_offsets;
 	bool 			stat_offsets_loaded;
+	/* VSI stat counters */
 	u64			ipackets;
 	u64			ierrors;
 	u64			opackets;
@@ -523,7 +525,8 @@ ixl_get_filter(struct ixl_vsi *vsi)
 	/* create a new empty filter */
 	f = malloc(sizeof(struct ixl_mac_filter),
 	    M_DEVBUF, M_NOWAIT | M_ZERO);
-	SLIST_INSERT_HEAD(&vsi->ftl, f, next);
+	if (f)
+		SLIST_INSERT_HEAD(&vsi->ftl, f, next);
 
 	return (f);
 }

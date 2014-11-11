@@ -290,8 +290,6 @@ vm_page_startup(vm_offset_t vaddr)
 	vm_paddr_t pa;
 	vm_paddr_t last_pa;
 	char *list;
-
-	/* the biggest memory array is the second group of pages */
 	vm_paddr_t end;
 	vm_paddr_t biggestsize;
 	vm_paddr_t low_water, high_water;

@@ -424,8 +424,7 @@ struct route_in6 {
 #define IPV6_IPSEC_POLICY	28 /* struct; get/set security policy */
 #endif /* IPSEC */
 
-#define IPV6_FAITH		29 /* bool; accept FAITH'ed connections */
-
+				   /* 29; unused; was IPV6_FAITH */
 #if 1 /* IPV6FIREWALL */
 #define IPV6_FW_ADD		30 /* add a firewall rule to chain */
 #define IPV6_FW_DEL		31 /* delete a firewall rule from chain */
@@ -580,7 +579,7 @@ struct ip6_mtuinfo {
 #define IPV6CTL_SOURCECHECK	10	/* verify source route and intf */
 #define IPV6CTL_SOURCECHECK_LOGINT 11	/* minimume logging interval */
 #define IPV6CTL_ACCEPT_RTADV	12
-#define IPV6CTL_KEEPFAITH	13
+					/* 13; unused; was: IPV6CTL_KEEPFAITH */
 #define IPV6CTL_LOG_INTERVAL	14
 #define IPV6CTL_HDRNESTLIMIT	15
 #define IPV6CTL_DAD_COUNT	16
@@ -594,9 +593,9 @@ struct ip6_mtuinfo {
 #define IPV6CTL_MAPPED_ADDR	23
 #endif
 #define IPV6CTL_V6ONLY		24
-#define IPV6CTL_RTEXPIRE	25	/* cloned route expiration time */
-#define IPV6CTL_RTMINEXPIRE	26	/* min value for expiration time */
-#define IPV6CTL_RTMAXCACHE	27	/* trigger level for dynamic expire */
+/*	IPV6CTL_RTEXPIRE	25	deprecated */
+/*	IPV6CTL_RTMINEXPIRE	26	deprecated */
+/*	IPV6CTL_RTMAXCACHE	27	deprecated */
 
 #define IPV6CTL_USETEMPADDR	32	/* use temporary addresses (RFC3041) */
 #define IPV6CTL_TEMPPLTIME	33	/* preferred lifetime for tmpaddrs */
@@ -669,7 +668,6 @@ extern void addrsel_policy_init(void);
 #define	sin6tosa(sin6)	((struct sockaddr *)(sin6))
 #define	ifatoia6(ifa)	((struct in6_ifaddr *)(ifa))
 
-extern int	(*faithprefix_p)(struct in6_addr *);
 #endif /* _KERNEL */
 
 #ifndef _SIZE_T_DECLARED

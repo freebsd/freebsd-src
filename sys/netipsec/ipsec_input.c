@@ -379,15 +379,10 @@ ipsec4_common_input_cb(struct mbuf *m, struct secasvar *sav,
 	if_inc_counter(encif, IFCOUNTER_IPACKETS, 1);
 	if_inc_counter(encif, IFCOUNTER_IBYTES, m->m_pkthdr.len);
 
-	/*
-	 * Pass the mbuf to enc0 for bpf and pfil. We will filter the IPIP
-	 * packet later after it has been decapsulated.
-	 */
+	/* Pass the mbuf to enc0 for bpf and pfil. */
 	ipsec_bpf(m, sav, AF_INET, ENC_IN|ENC_BEFORE);
-
-	if (prot != IPPROTO_IPIP)
-		if ((error = ipsec_filter(&m, PFIL_IN, ENC_IN|ENC_BEFORE)) != 0)
-			return (error);
+	if ((error = ipsec_filter(&m, PFIL_IN, ENC_IN|ENC_BEFORE)) != 0)
+		return (error);
 #endif /* DEV_ENC */
 
 	/* IP-in-IP encapsulation */
@@ -432,7 +427,7 @@ ipsec4_common_input_cb(struct mbuf *m, struct secasvar *sav,
 	}
 #ifdef INET6
 	/* IPv6-in-IP encapsulation. */
-	if (prot == IPPROTO_IPV6 &&
+	else if (prot == IPPROTO_IPV6 &&
 	    saidx->mode != IPSEC_MODE_TRANSPORT) {
 
 		if (m->m_pkthdr.len - skip < sizeof(struct ip6_hdr)) {
@@ -469,6 +464,15 @@ ipsec4_common_input_cb(struct mbuf *m, struct secasvar *sav,
 #endif /* notyet */
 	}
 #endif /* INET6 */
+	else if (prot != IPPROTO_IPV6 && saidx->mode == IPSEC_MODE_ANY) {
+		/*
+		 * When mode is wildcard, inner protocol is IPv6 and
+		 * we have no INET6 support - drop this packet a bit later.
+		 * In other cases we assume transport mode and outer
+		 * header was already stripped in xform_xxx_cb.
+		 */
+		prot = IPPROTO_IPIP;
+	}
 
 	/*
 	 * Record what we've done to the packet (under what SA it was
@@ -674,16 +678,10 @@ ipsec6_common_input_cb(struct mbuf *m, struct secasvar *sav, int skip, int proto
 	if_inc_counter(encif, IFCOUNTER_IPACKETS, 1);
 	if_inc_counter(encif, IFCOUNTER_IBYTES, m->m_pkthdr.len);
 
-	/*
-	 * Pass the mbuf to enc0 for bpf and pfil. We will filter the IPIP
-	 * packet later after it has been decapsulated.
-	 */
+	/* Pass the mbuf to enc0 for bpf and pfil. */
 	ipsec_bpf(m, sav, AF_INET6, ENC_IN|ENC_BEFORE);
-
-	/* XXX-BZ does not make sense. */
-	if (prot != IPPROTO_IPIP)
-		if ((error = ipsec_filter(&m, PFIL_IN, ENC_IN|ENC_BEFORE)) != 0)
-			return (error);
+	if ((error = ipsec_filter(&m, PFIL_IN, ENC_IN|ENC_BEFORE)) != 0)
+		return (error);
 #endif /* DEV_ENC */
 
 #ifdef INET

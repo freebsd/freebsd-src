@@ -1,7 +1,4 @@
-/*
- * Automated Testing Framework (atf)
- *
- * Copyright (c) 2007 The NetBSD Foundation, Inc.
+/* Copyright (c) 2007 The NetBSD Foundation, Inc.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -24,11 +21,10 @@
  * INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER
  * IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR
  * OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN
- * IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
- */
+ * IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.  */
 
-#if !defined(ATF_C_USER_H)
-#define ATF_C_USER_H
+#if !defined(ATF_C_DETAIL_USER_H)
+#define ATF_C_DETAIL_USER_H
 
 #include <sys/types.h>
 
@@ -46,4 +42,4 @@ bool atf_user_is_member_of_group(gid_t);
 bool atf_user_is_root(void);
 bool atf_user_is_unprivileged(void);
 
-#endif /* !defined(ATF_C_USER_H) */
+#endif /* !defined(ATF_C_DETAIL_USER_H) */

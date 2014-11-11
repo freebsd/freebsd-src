@@ -132,7 +132,6 @@ MAN=	aac.4 \
 	et.4 \
 	eventtimers.4 \
 	exca.4 \
-	faith.4 \
 	fatm.4 \
 	fd.4 \
 	fdc.4 \
@@ -252,6 +251,7 @@ MAN=	aac.4 \
 	malo.4 \
 	mcd.4 \
 	md.4 \
+	me.4 \
 	mem.4 \
 	meteor.4 \
 	mfi.4 \
@@ -636,7 +636,6 @@ MLINKS+=en.4 if_en.4
 MLINKS+=enc.4 if_enc.4
 MLINKS+=epair.4 if_epair.4
 MLINKS+=et.4 if_et.4
-MLINKS+=faith.4 if_faith.4
 MLINKS+=fatm.4 if_fatm.4
 MLINKS+=fd.4 stderr.4 \
 	fd.4 stdin.4 \

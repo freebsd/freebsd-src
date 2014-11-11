@@ -36,6 +36,7 @@ SRCS=		atf-check.cpp
 MAN=		atf-check.1
 
 CFLAGS+=	-I${ATF}
+CFLAGS+=	-DATF_SHELL='"/bin/sh"'
 
 DPADD+=		${LIBATF_CXX} ${LIBATF_C}
 LDADD+=		${LDATF_CXX} ${LDATF_C}

@@ -5827,15 +5827,31 @@ scsisanitize(struct cam_device *device, int argc, char **argv,
 	if (arglist & CAM_ARG_ERR_RECOVER)
 		ccb->ccb_h.flags |= CAM_PASS_ERR_RECOVER;
 
-	if (((retval = cam_send_ccb(device, ccb)) < 0)
-	 || ((immediate == 0)
-	   && ((ccb->ccb_h.status & CAM_STATUS_MASK) != CAM_REQ_CMP))) {
-		const char errstr[] = "error sending sanitize command";
+	if (cam_send_ccb(device, ccb) < 0) {
+		warn("error sending sanitize command");
+		error = 1;
+		goto scsisanitize_bailout;
+	}
 
-		if (retval < 0)
-			warn(errstr);
-		else
-			warnx(errstr);
+	if ((ccb->ccb_h.status & CAM_STATUS_MASK) != CAM_REQ_CMP) {
+		struct scsi_sense_data *sense;
+		int error_code, sense_key, asc, ascq;
+
+		if ((ccb->ccb_h.status & CAM_STATUS_MASK) ==
+		    CAM_SCSI_STATUS_ERROR) {
+			sense = &ccb->csio.sense_data;
+			scsi_extract_sense_len(sense, ccb->csio.sense_len -
+			    ccb->csio.sense_resid, &error_code, &sense_key,
+			    &asc, &ascq, /*show_errors*/ 1);
+
+			if (sense_key == SSD_KEY_ILLEGAL_REQUEST &&
+			    asc == 0x20 && ascq == 0x00)
+				warnx("sanitize is not supported by "
+				      "this device");
+			else
+				warnx("error sanitizing this device");
+		} else
+			warnx("error sanitizing this device");
 
 		if (arglist & CAM_ARG_VERBOSE) {
 			cam_error_print(device, ccb, CAM_ESF_ALL,

@@ -2690,11 +2690,7 @@ static device_method_t envy24_methods[] = {
 static driver_t envy24_driver = {
 	"pcm",
 	envy24_methods,
-#if __FreeBSD_version > 500000
 	PCM_SOFTC_SIZE,
-#else
-	sizeof(struct snddev_info),
-#endif
 };
 
 DRIVER_MODULE(snd_envy24, pci, envy24_driver, pcm_devclass, 0, 0);

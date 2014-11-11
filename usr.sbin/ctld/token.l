@@ -58,6 +58,7 @@ chap-mutual		{ return CHAP_MUTUAL; }
 debug			{ return DEBUG; }
 device-id		{ return DEVICE_ID; }
 discovery-auth-group	{ return DISCOVERY_AUTH_GROUP; }
+discovery-filter	{ return DISCOVERY_FILTER; }
 initiator-name		{ return INITIATOR_NAME; }
 initiator-portal	{ return INITIATOR_PORTAL; }
 listen			{ return LISTEN; }
@@ -71,6 +72,7 @@ isns-server		{ return ISNS_SERVER; }
 isns-period		{ return ISNS_PERIOD; }
 isns-timeout		{ return ISNS_TIMEOUT; }
 portal-group		{ return PORTAL_GROUP; }
+redirect		{ return REDIRECT; }
 serial			{ return SERIAL; }
 size			{ return SIZE; }
 target			{ return TARGET; }
@@ -81,7 +83,9 @@ timeout			{ return TIMEOUT; }
 \{			{ return OPENING_BRACKET; }
 \}			{ return CLOSING_BRACKET; }
 #.*$			/* ignore comments */;
+\r\n			{ lineno++; }
 \n			{ lineno++; }
+;			{ return SEMICOLON; }
 [ \t]+			/* ignore whitespace */;
 .			{ yylval.str = strdup(yytext); return STR; }
 %%

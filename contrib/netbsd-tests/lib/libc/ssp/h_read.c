@@ -36,12 +36,30 @@ __RCSID("$NetBSD: h_read.c,v 1.1 2010/12/27 02:04:19 pgoyette Exp $");
 #include <unistd.h>
 #include <stdlib.h>
 
+#ifdef __FreeBSD__
+#include <fcntl.h>
+
+int
+main(int argc, char *argv[])
+{
+	char b[MAXPATHLEN];
+	int fd, n;
+	size_t len = atoi(argv[1]);
+
+	fd = open("/dev/zero", O_RDONLY);
+	if ((n = read(fd, b, len)) == -1)
+		abort();
+	(void)printf("%s\n", b);
+	return (0);
+}
+#else
 int
 main(int argc, char *argv[])
 {
 	char b[MAXPATHLEN];
 	size_t len = atoi(argv[1]);
-	(void)read(0, b, len);
+
 	(void)printf("%s\n", b);
 	return 0;
 }
+#endif

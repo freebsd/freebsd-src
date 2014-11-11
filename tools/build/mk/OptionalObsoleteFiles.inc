@@ -1954,7 +1954,6 @@ OLD_FILES+=usr/share/man/man3/iconvlist.3.gz
 .if ${MK_INET6} == no
 OLD_FILES+=sbin/ping6
 OLD_FILES+=sbin/rtsol
-OLD_FILES+=usr/sbin/faithd
 OLD_FILES+=usr/sbin/ip6addrctl
 OLD_FILES+=usr/sbin/mld6query
 OLD_FILES+=usr/sbin/ndp
@@ -4068,9 +4067,10 @@ OLD_DIRS+=usr/share/sendmail/cf
 OLD_DIRS+=usr/share/sendmail
 .endif
 
-#.if ${MK_SHAREDOCS} == no
-# to be filled in
-#.endif
+.if ${MK_SHAREDOCS} == no
+OLD_FILES+=usr/share/doc/pjdfstest/README
+OLD_DIRS+=usr/share/doc/pjdfstest
+.endif
 
 #.if ${MK_SYSCONS} == no
 # to be filled in
@@ -4145,6 +4145,8 @@ OLD_FILES+=usr/share/man/man8/telnetd.8.gz
 
 .if ${MK_TESTS} == yes
 OLD_FILES+=usr/bin/atf-sh
+OLD_FILES+=usr/include/atf-c++/config.hpp
+OLD_FILES+=usr/include/atf-c/config.h
 OLD_LIBS+=usr/lib/libatf-c++.a
 OLD_LIBS+=usr/lib/libatf-c++.so
 OLD_LIBS+=usr/lib/libatf-c++.so.1
@@ -4154,8 +4156,8 @@ OLD_LIBS+=usr/lib/libatf-c.a
 OLD_LIBS+=usr/lib/libatf-c.so
 OLD_LIBS+=usr/lib/libatf-c.so.1
 OLD_LIBS+=usr/lib/libatf-c_p.a
-OLD_LIBS+=usr/lib/private/libatf-c.so.1
-OLD_LIBS+=usr/lib/private/libatf-c++.so.2
+OLD_LIBS+=usr/lib/private/libatf-c.so.0
+OLD_LIBS+=usr/lib/private/libatf-c++.so.1
 .if ${TARGET_ARCH} == "amd64" || ${TARGET_ARCH} == "powerpc64"
 OLD_LIBS+=usr/lib32/libatf-c++.a
 OLD_LIBS+=usr/lib32/libatf-c++.so
@@ -4166,8 +4168,8 @@ OLD_LIBS+=usr/lib32/libatf-c.a
 OLD_LIBS+=usr/lib32/libatf-c.so
 OLD_LIBS+=usr/lib32/libatf-c.so.1
 OLD_LIBS+=usr/lib32/libatf-c_p.a
-OLD_LIBS+=usr/lib32/private/libatf-c.so.1
-OLD_LIBS+=usr/lib32/private/libatf-c++.so.2
+OLD_LIBS+=usr/lib32/private/libatf-c.so.0
+OLD_LIBS+=usr/lib32/private/libatf-c++.so.1
 .endif
 OLD_FILES+=usr/libdata/pkgconfig/atf-c++.pc
 OLD_FILES+=usr/libdata/pkgconfig/atf-c.pc
@@ -4194,8 +4196,10 @@ OLD_DIRS+=usr/tests/usr.bin/atf
 OLD_FILES+=usr/tests/lib/atf/libatf-c/test_helpers_test
 OLD_FILES+=usr/tests/lib/atf/test-programs/fork_test
 OLD_FILES+=usr/tests/lib/atf/libatf-c++/application_test
+OLD_FILES+=usr/tests/lib/atf/libatf-c++/config_test
 OLD_FILES+=usr/tests/lib/atf/libatf-c++/detail/expand_test
 OLD_FILES+=usr/tests/lib/atf/libatf-c++/detail/parser_test
+OLD_FILES+=usr/tests/lib/atf/libatf-c++/detail/sanity_test
 OLD_FILES+=usr/tests/lib/atf/libatf-c++/detail/ui_test
 OLD_FILES+=usr/tests/lib/atf/libatf-c++/env_test
 OLD_FILES+=usr/tests/lib/atf/libatf-c++/exceptions_test
@@ -4207,6 +4211,7 @@ OLD_FILES+=usr/tests/lib/atf/libatf-c++/sanity_test
 OLD_FILES+=usr/tests/lib/atf/libatf-c++/pkg_config_test
 OLD_FILES+=usr/tests/lib/atf/libatf-c++/text_test
 OLD_FILES+=usr/tests/lib/atf/libatf-c++/ui_test
+OLD_FILES+=usr/tests/lib/atf/libatf-c/config_test
 OLD_FILES+=usr/tests/lib/atf/libatf-c/dynstr_test
 OLD_FILES+=usr/tests/lib/atf/libatf-c/env_test
 OLD_FILES+=usr/tests/lib/atf/libatf-c/fs_test

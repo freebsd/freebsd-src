@@ -82,7 +82,6 @@ device		ether		# Ethernet support
 device		tun		# Packet tunnel.
 device		md		# Memory "disks"
 device		gif		# IPv6 and IPv4 tunneling
-device		faith		# IPv6-to-IPv4 relaying (translation)
 
 # Wireless cards
 options 	IEEE80211_SUPPORT_MESH

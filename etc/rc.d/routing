@@ -6,7 +6,7 @@
 #
 
 # PROVIDE: routing
-# REQUIRE: faith netif ppp stf
+# REQUIRE: netif ppp stf
 # KEYWORD: nojailvnet
 
 . /etc/rc.subr
@@ -245,7 +245,7 @@ static_inet6()
 			[Nn][Oo][Nn][Ee])
 				return
 				;;
-			lo0|faith[0-9]*)
+			lo0)
 				continue
 				;;
 			esac

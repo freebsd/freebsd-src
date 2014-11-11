@@ -58,10 +58,11 @@ extern void	yyrestart(FILE *);
 %}
 
 %token ALIAS AUTH_GROUP AUTH_TYPE BACKEND BLOCKSIZE CHAP CHAP_MUTUAL
-%token CLOSING_BRACKET DEBUG DEVICE_ID DISCOVERY_AUTH_GROUP INITIATOR_NAME
-%token INITIATOR_PORTAL LISTEN LISTEN_ISER LUN MAXPROC OPENING_BRACKET
-%token OPTION PATH PIDFILE PORTAL_GROUP SERIAL SIZE STR TARGET TIMEOUT
-%token ISNS_SERVER ISNS_PERIOD ISNS_TIMEOUT
+%token CLOSING_BRACKET DEBUG DEVICE_ID DISCOVERY_AUTH_GROUP DISCOVERY_FILTER
+%token INITIATOR_NAME INITIATOR_PORTAL ISNS_SERVER ISNS_PERIOD ISNS_TIMEOUT
+%token LISTEN LISTEN_ISER LUN MAXPROC OPENING_BRACKET OPTION
+%token PATH PIDFILE PORTAL_GROUP REDIRECT SEMICOLON SERIAL SIZE STR
+%token TARGET TIMEOUT 
 
 %union
 {
@@ -75,6 +76,8 @@ extern void	yyrestart(FILE *);
 statements:
 	|
 	statements statement
+	|
+	statements statement SEMICOLON
 	;
 
 statement:
@@ -220,6 +223,8 @@ auth_group_name:	STR
 auth_group_entries:
 	|
 	auth_group_entries auth_group_entry
+	|
+	auth_group_entries auth_group_entry SEMICOLON
 	;
 
 auth_group_entry:
@@ -238,7 +243,7 @@ auth_group_auth_type:	AUTH_TYPE STR
 	{
 		int error;
 
-		error = auth_group_set_type_str(auth_group, $2);
+		error = auth_group_set_type(auth_group, $2);
 		free($2);
 		if (error != 0)
 			return (1);
@@ -322,14 +327,20 @@ portal_group_name:	STR
 portal_group_entries:
 	|
 	portal_group_entries portal_group_entry
+	|
+	portal_group_entries portal_group_entry SEMICOLON
 	;
 
 portal_group_entry:
 	portal_group_discovery_auth_group
 	|
+	portal_group_discovery_filter
+	|
 	portal_group_listen
 	|
 	portal_group_listen_iser
+	|
+	portal_group_redirect
 	;
 
 portal_group_discovery_auth_group:	DISCOVERY_AUTH_GROUP STR
@@ -349,6 +360,17 @@ portal_group_discovery_auth_group:	DISCOVERY_AUTH_GROUP STR
 			return (1);
 		}
 		free($2);
+	}
+	;
+
+portal_group_discovery_filter:	DISCOVERY_FILTER STR
+	{
+		int error;
+
+		error = portal_group_set_filter(portal_group, $2);
+		free($2);
+		if (error != 0)
+			return (1);
 	}
 	;
 
@@ -374,6 +396,17 @@ portal_group_listen_iser:	LISTEN_ISER STR
 	}
 	;
 
+portal_group_redirect:	REDIRECT STR
+	{
+		int error;
+
+		error = portal_group_set_redirection(portal_group, $2);
+		free($2);
+		if (error != 0)
+			return (1);
+	}
+	;
+
 target:	TARGET target_name
     OPENING_BRACKET target_entries CLOSING_BRACKET
 	{
@@ -393,6 +426,8 @@ target_name:	STR
 target_entries:
 	|
 	target_entries target_entry
+	|
+	target_entries target_entry SEMICOLON
 	;
 
 target_entry:
@@ -411,6 +446,8 @@ target_entry:
 	target_initiator_portal
 	|
 	target_portal_group
+	|
+	target_redirect
 	|
 	target_lun
 	;
@@ -467,7 +504,7 @@ target_auth_type:	AUTH_TYPE STR
 			}
 			target->t_auth_group->ag_target = target;
 		}
-		error = auth_group_set_type_str(target->t_auth_group, $2);
+		error = auth_group_set_type(target->t_auth_group, $2);
 		free($2);
 		if (error != 0)
 			return (1);
@@ -614,6 +651,17 @@ target_portal_group:	PORTAL_GROUP STR
 	}
 	;
 
+target_redirect:	REDIRECT STR
+	{
+		int error;
+
+		error = target_set_redirection(target, $2);
+		free($2);
+		if (error != 0)
+			return (1);
+	}
+	;
+
 target_lun:	LUN lun_number
     OPENING_BRACKET lun_entries CLOSING_BRACKET
 	{
@@ -640,6 +688,8 @@ lun_number:	STR
 lun_entries:
 	|
 	lun_entries lun_entry
+	|
+	lun_entries lun_entry SEMICOLON
 	;
 
 lun_entry:

@@ -66,7 +66,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/systm.h>
 #include <sys/kernel.h>
 #include <sys/lock.h>
-#include <sys/sysctl.h>
 #include <sys/queue.h>
 #include <sys/socket.h>
 #include <sys/socketvar.h>
@@ -136,8 +135,18 @@ in6_addroute(void *v_arg, void *n_arg, struct radix_node_head *head,
 		}
 	}
 
-	if (!rt->rt_mtu && rt->rt_ifp)
-		rt->rt_mtu = IN6_LINKMTU(rt->rt_ifp);
+	if (rt->rt_ifp != NULL) {
+
+		/*
+		 * Check route MTU:
+		 * inherit interface MTU if not set or
+		 * check if MTU is too large.
+		 */
+		if (rt->rt_mtu == 0) {
+			rt->rt_mtu = IN6_LINKMTU(rt->rt_ifp);
+		} else if (rt->rt_mtu > IN6_LINKMTU(rt->rt_ifp))
+			rt->rt_mtu = IN6_LINKMTU(rt->rt_ifp);
+	}
 
 	ret = rn_addroute(v_arg, n_arg, head, treenodes);
 	if (ret == NULL) {
@@ -168,24 +177,6 @@ in6_addroute(void *v_arg, void *n_arg, struct radix_node_head *head,
 	}
 	return (ret);
 }
-
-SYSCTL_DECL(_net_inet6_ip6);
-
-static VNET_DEFINE(int, rtq_toomany6) = 128;
-	/* 128 cached routes is ``too many'' */
-#define	V_rtq_toomany6			VNET(rtq_toomany6)
-SYSCTL_VNET_INT(_net_inet6_ip6, IPV6CTL_RTMAXCACHE, rtmaxcache, CTLFLAG_RW,
-    &VNET_NAME(rtq_toomany6) , 0, "");
-
-struct rtqk_arg {
-	struct radix_node_head *rnh;
-	int mode;
-	int updating;
-	int draining;
-	int killed;
-	int found;
-	time_t nextstop;
-};
 
 /*
  * Age old PMTUs.
@@ -254,10 +245,6 @@ in6_mtutimo(void *rock)
 
 /*
  * Initialize our routing tree.
- * XXX MRT When off == 0, we are being called from vfs_export.c
- * so just set up their table and leave. (we know what the correct
- * value should be so just use that).. FIX AFTER RELENG_7 is MFC'd
- * see also comments in in_inithead() vfs_export.c and domain.h
  */
 static VNET_DEFINE(int, _in6_rt_was_here);
 #define	V__in6_rt_was_here	VNET(_in6_rt_was_here)
@@ -268,13 +255,10 @@ in6_inithead(void **head, int off)
 	struct radix_node_head *rnh;
 
 	if (!rn_inithead(head, offsetof(struct sockaddr_in6, sin6_addr) << 3))
-		return 0;		/* See above */
+		return (0);
 
 	rnh = *head;
 	RADIX_NODE_HEAD_LOCK_INIT(rnh);
-
-	if (off == 0)		/* See above */
-		return 1;	/* only do the rest for the real thing */
 
 	rnh->rnh_addaddr = in6_addroute;
 
@@ -284,7 +268,7 @@ in6_inithead(void **head, int off)
 		V__in6_rt_was_here = 1;
 	}
 
-	return 1;
+	return (1);
 }
 
 #ifdef VIMAGE

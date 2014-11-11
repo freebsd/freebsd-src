@@ -76,7 +76,7 @@ static void	in_purgemaddrs(struct ifnet *);
 
 static VNET_DEFINE(int, nosameprefix);
 #define	V_nosameprefix			VNET(nosameprefix)
-SYSCTL_VNET_INT(_net_inet_ip, OID_AUTO, no_same_prefix, CTLFLAG_RW,
+SYSCTL_INT(_net_inet_ip, OID_AUTO, no_same_prefix, CTLFLAG_VNET | CTLFLAG_RW,
 	&VNET_NAME(nosameprefix), 0,
 	"Refuse to create same prefixes on different interfaces");
 

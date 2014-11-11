@@ -522,25 +522,10 @@ auth_group_find(const struct conf *conf, const char *name)
 	return (NULL);
 }
 
-static int
-auth_group_set_type(struct auth_group *ag, int type)
-{
-
-	if (ag->ag_type == AG_TYPE_UNKNOWN) {
-		ag->ag_type = type;
-		return (0);
-	}
-
-	if (ag->ag_type == type)
-		return (0);
-
-	return (1);
-}
-
 int
-auth_group_set_type_str(struct auth_group *ag, const char *str)
+auth_group_set_type(struct auth_group *ag, const char *str)
 {
-	int error, type;
+	int type;
 
 	if (strcmp(str, "none") == 0) {
 		type = AG_TYPE_NO_AUTHENTICATION;
@@ -560,20 +545,22 @@ auth_group_set_type_str(struct auth_group *ag, const char *str)
 		return (1);
 	}
 
-	error = auth_group_set_type(ag, type);
-	if (error != 0) {
-		if (ag->ag_name != NULL)
+	if (ag->ag_type != AG_TYPE_UNKNOWN && ag->ag_type != type) {
+		if (ag->ag_name != NULL) {
 			log_warnx("cannot set auth-type to \"%s\" for "
 			    "auth-group \"%s\"; already has a different "
 			    "type", str, ag->ag_name);
-		else
+		} else {
 			log_warnx("cannot set auth-type to \"%s\" for target "
 			    "\"%s\"; already has a different type",
 			    str, ag->ag_target->t_name);
+		}
 		return (1);
 	}
 
-	return (error);
+	ag->ag_type = type;
+
+	return (0);
 }
 
 static struct portal *
@@ -635,6 +622,7 @@ portal_group_delete(struct portal_group *pg)
 	TAILQ_FOREACH_SAFE(portal, &pg->pg_portals, p_next, tmp)
 		portal_delete(portal);
 	free(pg->pg_name);
+	free(pg->pg_redirection);
 	free(pg);
 }
 
@@ -909,7 +897,7 @@ void
 isns_register(struct isns *isns, struct isns *oldisns)
 {
 	struct conf *conf = isns->i_conf;
-	int s, res;
+	int s;
 	char hostname[256];
 
 	if (TAILQ_EMPTY(&conf->conf_targets) ||
@@ -925,8 +913,8 @@ isns_register(struct isns *isns, struct isns *oldisns)
 
 	if (oldisns == NULL || TAILQ_EMPTY(&oldisns->i_conf->conf_targets))
 		oldisns = isns;
-	res = isns_do_deregister(oldisns, s, hostname);
-	res = isns_do_register(isns, s, hostname);
+	isns_do_deregister(oldisns, s, hostname);
+	isns_do_register(isns, s, hostname);
 	close(s);
 	set_timeout(0, false);
 }
@@ -951,8 +939,8 @@ isns_check(struct isns *isns)
 
 	res = isns_do_check(isns, s, hostname);
 	if (res < 0) {
-		res = isns_do_deregister(isns, s, hostname);
-		res = isns_do_register(isns, s, hostname);
+		isns_do_deregister(isns, s, hostname);
+		isns_do_register(isns, s, hostname);
 	}
 	close(s);
 	set_timeout(0, false);
@@ -962,7 +950,7 @@ void
 isns_deregister(struct isns *isns)
 {
 	struct conf *conf = isns->i_conf;
-	int s, res;
+	int s;
 	char hostname[256];
 
 	if (TAILQ_EMPTY(&conf->conf_targets) ||
@@ -974,9 +962,59 @@ isns_deregister(struct isns *isns)
 		return;
 	gethostname(hostname, sizeof(hostname));
 
-	res = isns_do_deregister(isns, s, hostname);
+	isns_do_deregister(isns, s, hostname);
 	close(s);
 	set_timeout(0, false);
+}
+
+int
+portal_group_set_filter(struct portal_group *pg, const char *str)
+{
+	int filter;
+
+	if (strcmp(str, "none") == 0) {
+		filter = PG_FILTER_NONE;
+	} else if (strcmp(str, "portal") == 0) {
+		filter = PG_FILTER_PORTAL;
+	} else if (strcmp(str, "portal-name") == 0) {
+		filter = PG_FILTER_PORTAL_NAME;
+	} else if (strcmp(str, "portal-name-auth") == 0) {
+		filter = PG_FILTER_PORTAL_NAME_AUTH;
+	} else {
+		log_warnx("invalid discovery-filter \"%s\" for portal-group "
+		    "\"%s\"; valid values are \"none\", \"portal\", "
+		    "\"portal-name\", and \"portal-name-auth\"",
+		    str, pg->pg_name);
+		return (1);
+	}
+
+	if (pg->pg_discovery_filter != PG_FILTER_UNKNOWN &&
+	    pg->pg_discovery_filter != filter) {
+		log_warnx("cannot set discovery-filter to \"%s\" for "
+		    "portal-group \"%s\"; already has a different "
+		    "value", str, pg->pg_name);
+		return (1);
+	}
+
+	pg->pg_discovery_filter = filter;
+
+	return (0);
+}
+
+int
+portal_group_set_redirection(struct portal_group *pg, const char *addr)
+{
+
+	if (pg->pg_redirection != NULL) {
+		log_warnx("cannot set redirection to \"%s\" for "
+		    "portal-group \"%s\"; already defined",
+		    addr, pg->pg_name);
+		return (1);
+	}
+
+	pg->pg_redirection = checked_strdup(addr);
+
+	return (0);
 }
 
 static bool
@@ -1123,6 +1161,7 @@ target_delete(struct target *targ)
 	TAILQ_FOREACH_SAFE(lun, &targ->t_luns, l_next, tmp)
 		lun_delete(lun);
 	free(targ->t_name);
+	free(targ->t_redirection);
 	free(targ);
 }
 
@@ -1137,6 +1176,22 @@ target_find(struct conf *conf, const char *name)
 	}
 
 	return (NULL);
+}
+
+int
+target_set_redirection(struct target *target, const char *addr)
+{
+
+	if (target->t_redirection != NULL) {
+		log_warnx("cannot set redirection to \"%s\" for "
+		    "target \"%s\"; already defined",
+		    addr, target->t_name);
+		return (1);
+	}
+
+	target->t_redirection = checked_strdup(addr);
+
+	return (0);
 }
 
 struct lun *
@@ -1465,8 +1520,13 @@ conf_verify(struct conf *conf)
 				return (error);
 			found = true;
 		}
-		if (!found) {
+		if (!found && targ->t_redirection == NULL) {
 			log_warnx("no LUNs defined for target \"%s\"",
+			    targ->t_name);
+		}
+		if (found && targ->t_redirection != NULL) {
+			log_debugx("target \"%s\" contains luns, "
+			    " but configured for redirection",
 			    targ->t_name);
 		}
 	}
@@ -1478,17 +1538,29 @@ conf_verify(struct conf *conf)
 			assert(pg->pg_discovery_auth_group != NULL);
 		}
 
+		if (pg->pg_discovery_filter == PG_FILTER_UNKNOWN)
+			pg->pg_discovery_filter = PG_FILTER_NONE;
+
 		TAILQ_FOREACH(targ, &conf->conf_targets, t_next) {
 			if (targ->t_portal_group == pg)
 				break;
 		}
-		if (targ == NULL) {
+		if (pg->pg_redirection != NULL) {
+			if (targ != NULL) {
+				log_debugx("portal-group \"%s\" assigned "
+				    "to target \"%s\", but configured "
+				    "for redirection",
+				    pg->pg_name, targ->t_name);
+			}
+			pg->pg_unassigned = false;
+		} else if (targ != NULL) {
+			pg->pg_unassigned = false;
+		} else {
 			if (strcmp(pg->pg_name, "default") != 0)
 				log_warnx("portal-group \"%s\" not assigned "
 				    "to any target", pg->pg_name);
 			pg->pg_unassigned = true;
-		} else
-			pg->pg_unassigned = false;
+		}
 	}
 	TAILQ_FOREACH(ag, &conf->conf_auth_groups, ag_next) {
 		if (ag->ag_name == NULL)

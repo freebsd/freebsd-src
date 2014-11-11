@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd Jul 18, 2014
+.Dd November 4, 2014
 .Dt SYSRC 8
 .Os
 .Sh NAME
@@ -35,7 +35,7 @@
 .Op Fl cdDeFhinNqvx
 .Op Fl f Ar file
 .Op Fl j Ar jail | Fl R Ar dir
-.Ar name Ns Op = Ns Ar value
+.Ar name Ns Op Ns Oo + Oc Ns = Ns Ar value
 .Ar ...
 .Nm
 .Op Fl cdDeFhinNqvx
@@ -135,6 +135,10 @@ It shares the `-e' and `-n' options
 and also has the same
 .Ql name[=value]
 syntax for making queries/assignments.
+In addition
+.Pq unlike Xr sysctl 8 ,
+.Ql name+=value
+is supported for appending values.
 .Pp
 However, while
 .Xr sysctl 8
@@ -242,6 +246,12 @@ Working on other files, such as
 .Nm
 -f /etc/crontab MAILTO
 .Dl returns the value of the MAILTO setting Pq if configured .
+.Pp
+Appending to existing values:
+.Pp
+.Nm
+\&cloned_interfaces+=" gif0"
+.Dl appends Qo \ gif0 Qc to $cloned_interfaces .
 .Pp
 In addition to the above syntax,
 .Nm

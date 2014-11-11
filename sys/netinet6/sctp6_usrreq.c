@@ -149,10 +149,6 @@ sctp6_input_with_port(struct mbuf **i_pak, int *offp, uint16_t port)
 	if (in6_setscope(&dst.sin6_addr, m->m_pkthdr.rcvif, NULL) != 0) {
 		goto out;
 	}
-	if (faithprefix_p != NULL && (*faithprefix_p) (&dst.sin6_addr)) {
-		/* XXX send icmp6 host/port unreach? */
-		goto out;
-	}
 	length = ntohs(ip6->ip6_plen) + iphlen;
 	/* Validate mbuf chain length with IP payload length. */
 	if (SCTP_HEADER_LEN(m) != length) {

@@ -90,36 +90,36 @@ __FBSDID("$FreeBSD$");
 #include <security/mac/mac_framework.h>
 
 VNET_DEFINE(int, path_mtu_discovery) = 1;
-SYSCTL_VNET_INT(_net_inet_tcp, OID_AUTO, path_mtu_discovery, CTLFLAG_RW,
+SYSCTL_INT(_net_inet_tcp, OID_AUTO, path_mtu_discovery, CTLFLAG_VNET | CTLFLAG_RW,
 	&VNET_NAME(path_mtu_discovery), 1,
 	"Enable Path MTU Discovery");
 
 VNET_DEFINE(int, tcp_do_tso) = 1;
 #define	V_tcp_do_tso		VNET(tcp_do_tso)
-SYSCTL_VNET_INT(_net_inet_tcp, OID_AUTO, tso, CTLFLAG_RW,
+SYSCTL_INT(_net_inet_tcp, OID_AUTO, tso, CTLFLAG_VNET | CTLFLAG_RW,
 	&VNET_NAME(tcp_do_tso), 0,
 	"Enable TCP Segmentation Offload");
 
 VNET_DEFINE(int, tcp_sendspace) = 1024*32;
 #define	V_tcp_sendspace	VNET(tcp_sendspace)
-SYSCTL_VNET_INT(_net_inet_tcp, TCPCTL_SENDSPACE, sendspace, CTLFLAG_RW,
+SYSCTL_INT(_net_inet_tcp, TCPCTL_SENDSPACE, sendspace, CTLFLAG_VNET | CTLFLAG_RW,
 	&VNET_NAME(tcp_sendspace), 0, "Initial send socket buffer size");
 
 VNET_DEFINE(int, tcp_do_autosndbuf) = 1;
 #define	V_tcp_do_autosndbuf	VNET(tcp_do_autosndbuf)
-SYSCTL_VNET_INT(_net_inet_tcp, OID_AUTO, sendbuf_auto, CTLFLAG_RW,
+SYSCTL_INT(_net_inet_tcp, OID_AUTO, sendbuf_auto, CTLFLAG_VNET | CTLFLAG_RW,
 	&VNET_NAME(tcp_do_autosndbuf), 0,
 	"Enable automatic send buffer sizing");
 
 VNET_DEFINE(int, tcp_autosndbuf_inc) = 8*1024;
 #define	V_tcp_autosndbuf_inc	VNET(tcp_autosndbuf_inc)
-SYSCTL_VNET_INT(_net_inet_tcp, OID_AUTO, sendbuf_inc, CTLFLAG_RW,
+SYSCTL_INT(_net_inet_tcp, OID_AUTO, sendbuf_inc, CTLFLAG_VNET | CTLFLAG_RW,
 	&VNET_NAME(tcp_autosndbuf_inc), 0,
 	"Incrementor step size of automatic send buffer");
 
 VNET_DEFINE(int, tcp_autosndbuf_max) = 2*1024*1024;
 #define	V_tcp_autosndbuf_max	VNET(tcp_autosndbuf_max)
-SYSCTL_VNET_INT(_net_inet_tcp, OID_AUTO, sendbuf_max, CTLFLAG_RW,
+SYSCTL_INT(_net_inet_tcp, OID_AUTO, sendbuf_max, CTLFLAG_VNET | CTLFLAG_RW,
 	&VNET_NAME(tcp_autosndbuf_max), 0,
 	"Max size of automatic send buffer");
 
@@ -807,9 +807,9 @@ send:
 				max_len = (if_hw_tsomax - hdrlen);
 				if (max_len <= 0) {
 					len = 0;
-				} else if (len > (u_int)max_len) {
+				} else if (len > max_len) {
 					sendalot = 1;
-					len = (u_int)max_len;
+					len = max_len;
 				}
 			}
 
@@ -822,7 +822,7 @@ send:
 				max_len = 0;
 				mb = sbsndmbuf(&so->so_snd, off, &moff);
 
-				while (mb != NULL && (u_int)max_len < len) {
+				while (mb != NULL && max_len < len) {
 					u_int mlen;
 					u_int frags;
 
@@ -856,9 +856,9 @@ send:
 				}
 				if (max_len <= 0) {
 					len = 0;
-				} else if (len > (u_int)max_len) {
+				} else if (len > max_len) {
 					sendalot = 1;
-					len = (u_int)max_len;
+					len = max_len;
 				}
 			}
 
@@ -869,7 +869,7 @@ send:
 			 */
 			max_len = (tp->t_maxopd - optlen);
 			if ((off + len) < sbavail(&so->so_snd)) {
-				moff = len % (u_int)max_len;
+				moff = len % max_len;
 				if (moff != 0) {
 					len -= moff;
 					sendalot = 1;
@@ -880,8 +880,8 @@ send:
 			 * In case there are too many small fragments
 			 * don't use TSO:
 			 */
-			if (len <= (u_int)max_len) {
-				len = (u_int)max_len;
+			if (len <= max_len) {
+				len = max_len;
 				sendalot = 1;
 				tso = 0;
 			}
