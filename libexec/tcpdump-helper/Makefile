@@ -12,8 +12,7 @@ SRCS=	tcpdump-helper.c			\
 	pcap_datalink_val_to_name.c		\
 	pcap-eproto_db.c			\
 	stub.c					\
-	util.c					\
-	chsbrt.S
+	util.c
 
 .include "${.CURDIR}/../../usr.sbin/tcpdump/tcpdump/Makefile.print"
 
@@ -28,7 +27,8 @@ CFLAGS+=	-DHAVE_CONFIG_H \
 		-I${.CURDIR}/../../lib/libcheri \
 		-I${.CURDIR}/../../usr.sbin/tcpdump/tcpdump \
 		-I${.CURDIR}/../../usr.sbin/tcpdump/cheri_tcpdump
-LDFLAGS+=	-Wl,--script=${.CURDIR}/sandbox.ld -nostdlib
+LDFLAGS+=	-Wl,--script=${.CURDIR}/../../lib/libc_cheri/sandbox.ld \
+		-nostdlib
 
 # Contains a table of formats selected by a function so safe-ish
 CFLAGS.print-icmp.c= -Wno-format-nonliteral
@@ -49,8 +49,8 @@ FILESOWN=       ${LIBOWN}
 FILESGRP=       ${LIBGRP}
 FILESMODE=      ${LIBMODE}
 FILESDIR=       ${LIBEXECDIR}
-FILES=		tcpdump-helper.bin chsbrt.o
-CLEANFILES=	tcpdump-helper.bin chsbrt.o
+FILES=		tcpdump-helper.bin
+CLEANFILES=	tcpdump-helper.bin
 
 chsbrt.o:
 	${AS} -G0 -o ${.TARGET} ${.ALLSRC}
