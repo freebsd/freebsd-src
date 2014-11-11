@@ -534,7 +534,7 @@ cheri_get_cyclecount(void)
 	CHERI_CGETBASE(c_base, (crn));					\
 	CHERI_CGETLEN(c_length, (crn));					\
 	CHERI_CGETOFFSET(c_offset, (crn));				\
-	printf("t:%u s:%u p:%08jx b:%016jx l:%016jx o:%jx y:%jx\n",	\
+	printf("v:%u s:%u p:%08jx b:%016jx l:%016jx o:%jx t:%jx\n",	\
 	    ctag, c_sealed, c_perms, c_base, c_length, c_offset,	\
 	    c_otype);							\
 } while (0)
@@ -556,7 +556,7 @@ cheri_get_cyclecount(void)
 	CHERI_CGETBASE(c_base, (crn));					\
 	CHERI_CGETLEN(c_length, (crn));					\
 	CHERI_CGETOFFSET(c_offset, (crn));				\
-	db_printf("t:%u s:%u p:%08jx b:%016jx l:%016jx o:%jx y:%jx\n",	\
+	db_printf("v:%u s:%u p:%08jx b:%016jx l:%016jx o:%jx t:%jx\n",	\
 	    ctag, c_sealed, c_perms, c_base, c_length, c_offset,	\
 	    c_otype);							\
 } while (0)
