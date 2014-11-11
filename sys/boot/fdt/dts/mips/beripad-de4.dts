@@ -283,9 +283,10 @@
 
 		avgen@0x7f00e000 {
 			compatible = "sri-cambridge,avgen";
-			reg = <0x7f00e000 0x400>;
+			reg = <0x7f00e000 0x1000>;
 			sri-cambridge,width = <4>;
 			sri-cambridge,fileio = "rw";
+			sri-cambridge,mmapio = "rw";
 			sri-cambridge,devname = "altpll_reconfig";
 		};
 	};
