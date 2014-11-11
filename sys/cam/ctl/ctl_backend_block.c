@@ -2369,7 +2369,7 @@ ctl_be_block_modify(struct ctl_be_block_softc *softc, struct ctl_lun_req *req)
 
 	be_lun->params.lun_size_bytes = params->lun_size_bytes;
 
-	oldsize = be_lun->size_blocks;
+	oldsize = be_lun->size_bytes;
 	if (be_lun->vn == NULL)
 		error = ctl_be_block_open(softc, be_lun, req);
 	else if (be_lun->vn->v_type == VREG)
@@ -2377,7 +2377,7 @@ ctl_be_block_modify(struct ctl_be_block_softc *softc, struct ctl_lun_req *req)
 	else
 		error = ctl_be_block_modify_dev(be_lun, req);
 
-	if (error == 0 && be_lun->size_blocks != oldsize) {
+	if (error == 0 && be_lun->size_bytes != oldsize) {
 		be_lun->size_blocks = be_lun->size_bytes >>
 		    be_lun->blocksize_shift;
 
