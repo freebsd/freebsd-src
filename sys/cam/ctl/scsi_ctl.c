@@ -1796,6 +1796,7 @@ ctlfe_online(void *arg)
 	struct cam_path *path;
 	cam_status status;
 	struct ctlfe_lun_softc *lun_softc;
+	struct cam_periph *periph;
 
 	bus_softc = (struct ctlfe_softc *)arg;
 
@@ -1821,12 +1822,16 @@ ctlfe_online(void *arg)
 	}
 
 	xpt_path_lock(path);
+	periph = cam_periph_find(path, "ctl");
+	if (periph != NULL) {
+		/* We've already got a periph, no need to alloc a new one. */
+		xpt_path_unlock(path);
+		xpt_free_path(path);
+		free(lun_softc, M_CTLFE);
+		return;
+	}
 	lun_softc->parent_softc = bus_softc;
 	lun_softc->flags |= CTLFE_LUN_WILDCARD;
-
-	mtx_lock(&bus_softc->lun_softc_mtx);
-	STAILQ_INSERT_TAIL(&bus_softc->lun_softc_list, lun_softc, links);
-	mtx_unlock(&bus_softc->lun_softc_mtx);
 
 	status = cam_periph_alloc(ctlferegister,
 				  ctlfeoninvalidate,
@@ -1843,13 +1848,16 @@ ctlfe_online(void *arg)
 		const struct cam_status_entry *entry;
 
 		entry = cam_fetch_status_entry(status);
-
 		printf("%s: CAM error %s (%#x) returned from "
 		       "cam_periph_alloc()\n", __func__, (entry != NULL) ?
 		       entry->status_text : "Unknown", status);
+		free(lun_softc, M_CTLFE);
+	} else {
+		mtx_lock(&bus_softc->lun_softc_mtx);
+		STAILQ_INSERT_TAIL(&bus_softc->lun_softc_list, lun_softc, links);
+		mtx_unlock(&bus_softc->lun_softc_mtx);
+		ctlfe_onoffline(arg, /*online*/ 1);
 	}
-
-	ctlfe_onoffline(arg, /*online*/ 1);
 
 	xpt_path_unlock(path);
 	xpt_free_path(path);
@@ -1924,11 +1932,7 @@ ctlfe_lun_enable(void *arg, struct ctl_id targ_id, int lun_id)
 		free(softc, M_CTLFE);
 		return (0);
 	}
-
 	softc->parent_softc = bus_softc;
-	mtx_lock(&bus_softc->lun_softc_mtx);
-	STAILQ_INSERT_TAIL(&bus_softc->lun_softc_list, softc, links);
-	mtx_unlock(&bus_softc->lun_softc_mtx);
 
 	status = cam_periph_alloc(ctlferegister,
 				  ctlfeoninvalidate,
@@ -1940,6 +1944,21 @@ ctlfe_lun_enable(void *arg, struct ctl_id targ_id, int lun_id)
 				  ctlfeasync,
 				  0,
 				  softc);
+
+	if ((status & CAM_STATUS_MASK) != CAM_REQ_CMP) {
+		const struct cam_status_entry *entry;
+
+		entry = cam_fetch_status_entry(status);
+		printf("%s: CAM error %s (%#x) returned from "
+		       "cam_periph_alloc()\n", __func__, (entry != NULL) ?
+		       entry->status_text : "Unknown", status);
+		free(softc, M_CTLFE);
+	} else {
+		mtx_lock(&bus_softc->lun_softc_mtx);
+		STAILQ_INSERT_TAIL(&bus_softc->lun_softc_list, softc, links);
+		mtx_unlock(&bus_softc->lun_softc_mtx);
+		ctlfe_onoffline(arg, /*online*/ 1);
+	}
 
 	xpt_path_unlock(path);
 	xpt_free_path(path);
