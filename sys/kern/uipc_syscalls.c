@@ -1940,7 +1940,7 @@ do_sendfile(struct thread *td, struct sendfile_args *uap, int compat)
 		}
 	}
 
-	AUDIT_ARG_FD(src_fd);
+	AUDIT_ARG_FD(uap->fd);
 
 	/*
 	 * sendfile(2) can start at any offset within a file so we require

@@ -1570,6 +1570,8 @@ freebsd32_do_sendfile(struct thread *td,
 	struct sf_hdtr32 hdtr32;
 	struct sf_hdtr hdtr;
 	struct uio *hdr_uio, *trl_uio;
+	struct file *fp;
+	cap_rights_t rights;
 	struct iovec32 *iov32;
 	off_t offset, sbytes;
 	int error;
