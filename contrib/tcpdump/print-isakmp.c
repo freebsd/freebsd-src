@@ -160,13 +160,14 @@ static const char *npstr[] = {
 };
 
 /* isakmp->np */
-static packetbody_t (*npfunc[])(netdissect_options *ndo, u_char tpay, 
+typedef packetbody_t npfunc_t(netdissect_options *ndo, u_char tpay, 
 				 __capability const struct isakmp_gen *ext,
 				 u_int item_len,
 				 packetbody_t end_pointer,
 				 u_int32_t phase,
 				 u_int32_t doi0,
-				 u_int32_t proto0, int depth) = {
+				 u_int32_t proto0, int depth);
+static npfunc_t *npfunc[]= {
 	NULL,
 	ikev1_sa_print,
 	ikev1_p_print,
@@ -230,7 +231,7 @@ static const char *etypestr[] = {
 
 #define NPFUNC(x) \
 	(((x) < sizeof(npfunc)/sizeof(npfunc[0]) && npfunc[(x)]) \
-		? npfunc[(x)] : NULL)
+		? npfunc[(x)] : (npfunc_t*)NULL)
 
 static int
 iszero(u_char *p, size_t l)
