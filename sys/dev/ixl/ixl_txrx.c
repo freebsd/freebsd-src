@@ -238,6 +238,11 @@ ixl_xmit(struct ixl_queue *que, struct mbuf **m_headp)
 		maxsegs = IXL_MAX_TSO_SEGS;
 		if (ixl_tso_detect_sparse(m_head)) {
 			m = m_defrag(m_head, M_NOWAIT);
+			if (m == NULL) {
+				m_freem(*m_headp);
+				*m_headp = NULL;
+				return (ENOBUFS);
+			}
 			*m_headp = m;
 		}
 	}
@@ -783,8 +788,6 @@ ixl_get_tx_head(struct ixl_queue *que)
 bool
 ixl_txeof(struct ixl_queue *que)
 {
-	struct ixl_vsi		*vsi = que->vsi;
-	struct ifnet		*ifp = vsi->ifp;
 	struct tx_ring		*txr = &que->txr;
 	u32			first, last, head, done, processed;
 	struct ixl_tx_buf	*buf;
@@ -792,6 +795,7 @@ ixl_txeof(struct ixl_queue *que)
 
 
 	mtx_assert(&txr->mtx, MA_OWNED);
+
 
 	/* These are not the descriptors you seek, move along :) */
 	if (txr->avail == que->num_desc) {
@@ -857,7 +861,6 @@ ixl_txeof(struct ixl_queue *que)
 			tx_desc = &txr->base[first];
 		}
 		++txr->packets;
-		++ifp->if_opackets;
 		/* See if there is more work now */
 		last = buf->eop_index;
 		if (last != -1) {
@@ -1189,6 +1192,9 @@ skip_head:
 	rxr->bytes = 0;
 	rxr->discard = FALSE;
 
+	wr32(vsi->hw, rxr->tail, que->num_desc - 1);
+	ixl_flush(vsi->hw);
+
 #if defined(INET6) || defined(INET)
 	/*
 	** Now set up the LRO interface:
@@ -1368,6 +1374,7 @@ ixl_rxeof(struct ixl_queue *que, int count)
 
 	IXL_RX_LOCK(rxr);
 
+
 	for (i = rxr->next_check; count != 0;) {
 		struct mbuf	*sendmp, *mh, *mp;
 		u32		rsc, status, error;
@@ -1420,7 +1427,6 @@ ixl_rxeof(struct ixl_queue *que, int count)
 		** error results.
 		*/
                 if (eop && (error & (1 << I40E_RX_DESC_ERROR_RXE_SHIFT))) {
-			ifp->if_ierrors++;
 			rxr->discarded++;
 			ixl_rx_discard(rxr, i);
 			goto next_desc;
@@ -1529,7 +1535,6 @@ ixl_rxeof(struct ixl_queue *que, int count)
 		if (eop) {
 			sendmp->m_pkthdr.rcvif = ifp;
 			/* gather stats */
-			ifp->if_ipackets++;
 			rxr->rx_packets++;
 			rxr->rx_bytes += sendmp->m_pkthdr.len;
 			/* capture data for dynamic ITR adjustment */
@@ -1625,3 +1630,44 @@ ixl_rx_checksum(struct mbuf * mp, u32 status, u32 error, u8 ptype)
 	}
 	return;
 }
+
+#if __FreeBSD_version >= 1100000
+uint64_t
+ixl_get_counter(if_t ifp, ift_counter cnt)
+{
+	struct ixl_vsi *vsi;
+
+	vsi = if_getsoftc(ifp);
+
+	switch (cnt) {
+	case IFCOUNTER_IPACKETS:
+		return (vsi->ipackets);
+	case IFCOUNTER_IERRORS:
+		return (vsi->ierrors);
+	case IFCOUNTER_OPACKETS:
+		return (vsi->opackets);
+	case IFCOUNTER_OERRORS:
+		return (vsi->oerrors);
+	case IFCOUNTER_COLLISIONS:
+		/* Collisions are by standard impossible in 40G/10G Ethernet */
+		return (0);
+	case IFCOUNTER_IBYTES:
+		return (vsi->ibytes);
+	case IFCOUNTER_OBYTES:
+		return (vsi->obytes);
+	case IFCOUNTER_IMCASTS:
+		return (vsi->imcasts);
+	case IFCOUNTER_OMCASTS:
+		return (vsi->omcasts);
+	case IFCOUNTER_IQDROPS:
+		return (vsi->iqdrops);
+	case IFCOUNTER_OQDROPS:
+		return (vsi->oqdrops);
+	case IFCOUNTER_NOPROTO:
+		return (vsi->noproto);
+	default:
+		return (if_get_counter_default(ifp, cnt));
+	}
+}
+#endif
+
