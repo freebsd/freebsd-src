@@ -361,7 +361,7 @@ tcpdump_sandbox_invoke(struct tcpdump_sandbox *sb,
 		    cheri_zerocap(), cheri_zerocap(), cheri_zerocap(),
 		    cheri_zerocap());
 		if (ret != 0)
-			fprintf(stderr, "failed to initalizse sandbox: %d \n",
+			error("failed to initialize sandbox: %d \n",
 			    ret);
 	}
 
