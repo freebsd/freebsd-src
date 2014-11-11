@@ -158,7 +158,7 @@
 #define PACKAGE_NAME "libxo"
 
 /* Define to the full name and version of this package. */
-#define PACKAGE_STRING "libxo 0.1.4"
+#define PACKAGE_STRING "libxo 0.1.5"
 
 /* Define to the one symbol short name of this package. */
 #define PACKAGE_TARNAME "libxo"
@@ -167,7 +167,7 @@
 #define PACKAGE_URL ""
 
 /* Define to the version of this package. */
-#define PACKAGE_VERSION "0.1.4"
+#define PACKAGE_VERSION "0.1.5"
 
 /* If using the C implementation of alloca, define if you know the
    direction of stack growth for your system; otherwise it will be
@@ -181,7 +181,7 @@
 #define STDC_HEADERS 1
 
 /* Version number of package */
-#define VERSION "0.1.4"
+#define VERSION "0.1.5"
 
 /* Define to `__inline__' or `__inline' if that's what the C compiler
    calls it, or to nothing if 'inline' is not supported under any name.  */

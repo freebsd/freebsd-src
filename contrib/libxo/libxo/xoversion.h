@@ -18,7 +18,7 @@
 /**
  * The version string
  */
-#define LIBXO_VERSION		"0.1.4"
+#define LIBXO_VERSION		"0.1.5"
 
 /**
  * The version number
