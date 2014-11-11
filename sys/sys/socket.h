@@ -584,21 +584,6 @@ struct sf_hdtr {
 };
 
 /*
- * sendfile(2) kqueue information
- */
-struct sf_hdtr_kq {
-	uintptr_t kq_ident;	/* ident (from userland?) */
-	void	*kq_udata;	/* user data pointer */
-	uint32_t kq_flags;	/* extra flags to pass in */
-	int	kq_fd;	/* kq fd to post completion events on */
-};
-
-struct sf_hdtr_all {
-	struct sf_hdtr hdtr;
-	struct sf_hdtr_kq kq;
-};
-
-/*
  * Sendfile-specific flag(s)
  *
  * SF_NODISKIO and SF_MNOWAIT are unused since 11.0, but we keep
@@ -608,7 +593,6 @@ struct sf_hdtr_all {
 #define	SF_NODISKIO     0x00000000	/* was 0x00000001 */
 #define	SF_MNOWAIT	0x00000000	/* was 0x00000002 */
 #define	SF_SYNC		0x00000004
-#define	SF_KQUEUE	0x00000008
 #define	SF_NOCACHE	0x00000010
 #define	SF_FLAGS(rh, flags)	(((rh) << 16) | (flags))
 
