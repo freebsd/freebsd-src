@@ -694,7 +694,7 @@ acpi_attach(device_t dev)
 static void
 acpi_set_power_children(device_t dev, int state)
 {
-	device_t child, parent;
+	device_t child;
 	device_t *devlist;
 	int dstate, i, numdevs;
 
@@ -705,12 +705,11 @@ acpi_set_power_children(device_t dev, int state)
 	 * Retrieve and set D-state for the sleep state if _SxD is present.
 	 * Skip children who aren't attached since they are handled separately.
 	 */
-	parent = device_get_parent(dev);
 	for (i = 0; i < numdevs; i++) {
 		child = devlist[i];
 		dstate = state;
 		if (device_is_attached(child) &&
-		    acpi_device_pwr_for_sleep(parent, child, &dstate) == 0)
+		    acpi_device_pwr_for_sleep(dev, child, &dstate) == 0)
 			acpi_set_powerstate(child, dstate);
 	}
 	free(devlist, M_TEMP);
