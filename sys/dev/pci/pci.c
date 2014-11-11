@@ -3651,7 +3651,7 @@ pci_set_power_child(device_t dev, device_t child, int state)
 	dinfo = device_get_ivars(child);
 	dstate = state;
 	if (device_is_attached(child) &&
-	    PCIB_POWER_FOR_SLEEP(pcib, dev, &dstate) == 0)
+	    PCIB_POWER_FOR_SLEEP(pcib, child, &dstate) == 0)
 		pci_set_powerstate(child, dstate);
 }
 
