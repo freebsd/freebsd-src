@@ -749,7 +749,8 @@ agp_i810_match(device_t dev)
 	int i, devid;
 
 	if (pci_get_class(dev) != PCIC_DISPLAY
-	    || pci_get_subclass(dev) != PCIS_DISPLAY_VGA)
+	    || (pci_get_subclass(dev) != PCIS_DISPLAY_VGA &&
+	    pci_get_subclass(dev) != PCIS_DISPLAY_OTHER))
 		return (NULL);
 
 	devid = pci_get_devid(dev);
