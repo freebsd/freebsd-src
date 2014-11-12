@@ -5,7 +5,7 @@ TESTSRC=	${.CURDIR}/../../../contrib/netbsd-tests/usr.sbin/useradd
 
 TESTSDIR=	${TESTSBASE}/usr.sbin/pw
 
-ATF_TESTS_SH=	pw_delete pw_modify
+ATF_TESTS_SH=	pw_delete pw_modify pw_etcdir
 
 TEST_METADATA.pw_delete+=	required_user="root"
 TEST_METADATA.pw_modify+=	required_user="root"
