@@ -793,10 +793,9 @@ uipc_rcvd(struct socket *so, int flags)
 	u_int mbcnt, sbcc;
 
 	unp = sotounpcb(so);
-	KASSERT(unp != NULL, ("uipc_rcvd: unp == NULL"));
-
-	if (so->so_type != SOCK_STREAM && so->so_type != SOCK_SEQPACKET)
-		panic("uipc_rcvd socktype %d", so->so_type);
+	KASSERT(unp != NULL, ("%s: unp == NULL", __func__));
+	KASSERT(so->so_type == SOCK_STREAM || so->so_type == SOCK_SEQPACKET,
+	    ("%s: socktype %d", __func__, so->so_type));
 
 	/*
 	 * Adjust backpressure on sender and wakeup any waiting to write.
@@ -810,7 +809,7 @@ uipc_rcvd(struct socket *so, int flags)
 	 */
 	SOCKBUF_LOCK(&so->so_rcv);
 	mbcnt = so->so_rcv.sb_mbcnt;
-	sbcc = so->so_rcv.sb_cc;
+	sbcc = sbavail(&so->so_rcv);
 	SOCKBUF_UNLOCK(&so->so_rcv);
 	/*
 	 * There is a benign race condition at this point.  If we're planning to
@@ -846,7 +845,10 @@ uipc_send(struct socket *so, int flags, struct mbuf *m, struct sockaddr *nam,
 	int error = 0;
 
 	unp = sotounpcb(so);
-	KASSERT(unp != NULL, ("uipc_send: unp == NULL"));
+	KASSERT(unp != NULL, ("%s: unp == NULL", __func__));
+	KASSERT(so->so_type == SOCK_STREAM || so->so_type == SOCK_DGRAM ||
+	    so->so_type == SOCK_SEQPACKET,
+	    ("%s: socktype %d", __func__, so->so_type));
 
 	if (flags & PRUS_OOB) {
 		error = EOPNOTSUPP;
@@ -997,8 +999,11 @@ uipc_send(struct socket *so, int flags, struct mbuf *m, struct sockaddr *nam,
 		}
 
 		mbcnt = so2->so_rcv.sb_mbcnt;
-		sbcc = so2->so_rcv.sb_cc;
-		sorwakeup_locked(so2);
+		sbcc = sbavail(&so2->so_rcv);
+		if (sbcc)
+			sorwakeup_locked(so2);
+		else
+			SOCKBUF_UNLOCK(&so2->so_rcv);
 
 		/*
 		 * The PCB lock on unp2 protects the SB_STOP flag.  Without it,
@@ -1014,9 +1019,6 @@ uipc_send(struct socket *so, int flags, struct mbuf *m, struct sockaddr *nam,
 		UNP_PCB_UNLOCK(unp2);
 		m = NULL;
 		break;
-
-	default:
-		panic("uipc_send unknown socktype");
 	}
 
 	/*
