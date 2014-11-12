@@ -2416,9 +2416,9 @@ pv_to_chunk(pv_entry_t pv)
 #define	PC_FREE1	0xfffffffffffffffful
 #define	PC_FREE2	0x000000fffffffffful
 
-#if 0
 static const uint64_t pc_freemask[_NPCM] = { PC_FREE0, PC_FREE1, PC_FREE2 };
 
+#if 0
 #ifdef PV_STATS
 static int pc_chunk_count, pc_chunk_allocs, pc_chunk_frees, pc_chunk_tryfail;
 
@@ -4968,23 +4968,26 @@ pmap_page_is_mapped(vm_page_t m)
 void
 pmap_remove_pages(pmap_t pmap)
 {
-	panic("pmap_remove_pages");
+	pd_entry_t ptepde, *l2;
+	pt_entry_t *l3, tl3;
 #if 0
-	pd_entry_t ptepde;
-	pt_entry_t *pte, tpte;
 	pt_entry_t PG_M, PG_RW, PG_V;
+#endif
 	struct spglist free;
-	vm_page_t m, mpte, mt;
+	vm_page_t m; //, mpte, mt;
 	pv_entry_t pv;
+#if 0
 	struct md_page *pvh;
+#endif
 	struct pv_chunk *pc, *npc;
 	struct rwlock *lock;
 	int64_t bit;
 	uint64_t inuse, bitmask;
 	int allfree, field, freed, idx;
-	boolean_t superpage;
+	//boolean_t superpage;
 	vm_paddr_t pa;
 
+#if 0
 	/*
 	 * Assert that the given pmap is only active on the current
 	 * CPU.  Unfortunately, we cannot block another CPU from
@@ -5003,11 +5006,9 @@ pmap_remove_pages(pmap_t pmap)
 		KASSERT(CPU_EMPTY(&other_cpus), ("pmap active %p", pmap));
 	}
 #endif
+#endif
 
 	lock = NULL;
-	PG_M = pmap_modified_bit(pmap);
-	PG_V = pmap_valid_bit(pmap);
-	PG_RW = pmap_rw_bit(pmap);
 
 	SLIST_INIT(&free);
 	rw_rlock(&pvh_global_lock);
@@ -5018,16 +5019,17 @@ pmap_remove_pages(pmap_t pmap)
 		for (field = 0; field < _NPCM; field++) {
 			inuse = ~pc->pc_map[field] & pc_freemask[field];
 			while (inuse != 0) {
-				bit = bsfq(inuse);
+				bit = ffsl(inuse) - 1;
 				bitmask = 1UL << bit;
 				idx = field * 64 + bit;
 				pv = &pc->pc_pventry[idx];
 				inuse &= ~bitmask;
 
-				pte = pmap_pdpe(pmap, pv->pv_va);
-				ptepde = *pte;
-				pte = pmap_pdpe_to_pde(pte, pv->pv_va);
-				tpte = *pte;
+				l2 = pmap_l2(pmap, pv->pv_va);
+				ptepde = *l2;
+				l3 = pmap_l2_to_l3(l2, pv->pv_va);
+				tl3 = *l3;
+#if 0
 				if ((tpte & (PG_PS | PG_V)) == PG_V) {
 					superpage = FALSE;
 					ptepde = tpte;
@@ -5053,19 +5055,22 @@ pmap_remove_pages(pmap_t pmap)
 					panic("bad pte va %lx pte %lx",
 					    pv->pv_va, tpte);
 				}
+#endif
 
 /*
  * We cannot remove wired pages from a process' mapping at this time
  */
-				if (tpte & PG_W) {
+				if (tl3 & ATTR_SW_W) {
 					allfree = 0;
 					continue;
 				}
 
+#if 0
 				if (superpage)
 					pa = tpte & PG_PS_FRAME;
 				else
-					pa = tpte & PG_FRAME;
+#endif
+					pa = tl3 & ~ATTR_MASK;
 
 				m = PHYS_TO_VM_PAGE(pa);
 				KASSERT(m->phys_addr == pa,
@@ -5078,16 +5083,18 @@ pmap_remove_pages(pmap_t pmap)
 				    ("pmap_remove_pages: bad tpte %#jx",
 				    (uintmax_t)tpte));
 
-				pte_clear(pte);
+				*l3 = 0;
 
 				/*
 				 * Update the vm_page_t clean/reference bits.
 				 */
-				if ((tpte & (PG_M | PG_RW)) == (PG_M | PG_RW)) {
+				if ((tl3 & (1 << 7)) == ATTR_AP(ATTR_AP_RW)) {
+#if 0
 					if (superpage) {
 						for (mt = m; mt < &m[NBPDR / PAGE_SIZE]; mt++)
 							vm_page_dirty(mt);
 					} else
+#endif
 						vm_page_dirty(m);
 				}
 
@@ -5095,6 +5102,7 @@ pmap_remove_pages(pmap_t pmap)
 
 				/* Mark free */
 				pc->pc_map[field] |= bitmask;
+#if 0
 				if (superpage) {
 					pmap_resident_count_dec(pmap, NBPDR / PAGE_SIZE);
 					pvh = pa_to_pvh(tpte & PG_PS_FRAME);
@@ -5117,9 +5125,11 @@ pmap_remove_pages(pmap_t pmap)
 						atomic_subtract_int(&vm_cnt.v_wire_count, 1);
 					}
 				} else {
+#endif
 					pmap_resident_count_dec(pmap, 1);
 					TAILQ_REMOVE(&m->md.pv_list, pv, pv_next);
 					m->md.pv_gen++;
+#if 0
 					if ((m->aflags & PGA_WRITEABLE) != 0 &&
 					    TAILQ_EMPTY(&m->md.pv_list) &&
 					    (m->flags & PG_FICTITIOUS) == 0) {
@@ -5127,8 +5137,9 @@ pmap_remove_pages(pmap_t pmap)
 						if (TAILQ_EMPTY(&pvh->pv_list))
 							vm_page_aflag_clear(m, PGA_WRITEABLE);
 					}
-				}
-				pmap_unuse_pt(pmap, pv->pv_va, ptepde, &free);
+#endif
+				//}
+				pmap_unuse_l3(pmap, pv->pv_va, ptepde, &free);
 				freed++;
 			}
 		}
@@ -5146,7 +5157,6 @@ pmap_remove_pages(pmap_t pmap)
 	rw_runlock(&pvh_global_lock);
 	PMAP_UNLOCK(pmap);
 	pmap_free_zero_pages(&free);
-#endif
 }
 
 #if 0
