@@ -105,6 +105,13 @@ extern int SIZE_BUF;
 #include "pcap-missing.h"
 #include "print.h"
 
+
+#if __has_feature(capabilities)
+#define cheri_string(str)	cheri_ptr((str), strlen(str) + 1)
+#else
+#define cheri_string(str)	(str)
+#endif
+
 #ifndef PATH_MAX
 #define PATH_MAX 1024
 #endif
@@ -502,10 +509,12 @@ main(int argc, char **argv)
         gndo->ndo_Oflag=1;
 	gndo->ndo_Rflag=1;
 	gndo->ndo_dlt=-1;
+#if !__has_feature(capabilities)
 	gndo->ndo_default_print=ndo_default_print;
 	gndo->ndo_printf=tcpdump_printf;
 	gndo->ndo_error=ndo_error;
 	gndo->ndo_warning=ndo_warning;
+#endif
 	gndo->ndo_snaplen = DEFAULT_SNAPLEN;
   
 	cnt = -1;
@@ -596,7 +605,7 @@ main(int argc, char **argv)
 #ifndef HAVE_LIBCRYPTO
 			warning("crypto code not compiled in");
 #endif
-			gndo->ndo_espsecret = optarg;
+			gndo->ndo_espsecret = cheri_string(optarg);
 			break;
 
 		case 'f':
@@ -733,7 +742,7 @@ main(int argc, char **argv)
 #ifndef HAVE_LIBCRYPTO
 			warning("crypto code not compiled in");
 #endif
-			sigsecret = optarg;
+			sigsecret = cheri_string(optarg);
 			break;
 
 		case 'n':
@@ -853,11 +862,12 @@ main(int argc, char **argv)
 			break;
 
 		case 'y':
-			gndo->ndo_dltname = optarg;
+			gndo->ndo_dltname = cheri_string(optarg);
 			gndo->ndo_dlt =
-			  pcap_datalink_name_to_val(gndo->ndo_dltname);
+			  pcap_datalink_name_to_val((const char *)gndo->ndo_dltname);
 			if (gndo->ndo_dlt < 0)
-				error("invalid data link type %s", gndo->ndo_dltname);
+				error("invalid data link type %s",
+				    (const char *)gndo->ndo_dltname);
 			break;
 
 #if defined(HAVE_PCAP_DEBUG) || defined(HAVE_YYDEBUG)
@@ -1165,7 +1175,7 @@ main(int argc, char **argv)
 			}
 #endif
 			(void)fprintf(stderr, "%s: data link type %s\n",
-				      program_name, gndo->ndo_dltname);
+				      program_name, (const char *)gndo->ndo_dltname);
 			(void)fflush(stderr);
 		}
 		i = pcap_snapshot(pd);
@@ -1852,7 +1862,7 @@ print_packet(u_char *user, const struct pcap_pkthdr *h, const u_char *sp)
 	 * end of the packet.
 	 * Rather than pass it all the way down, we set this global.
 	 */
-	snapend = cheri_ptrperm((void *)(sp + h->caplen), 0, 0);
+	snapend = packetp + h->caplen;
 
 	pretty_print_packet(print_info, h, packetp);
 

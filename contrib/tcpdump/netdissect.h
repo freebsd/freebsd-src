@@ -85,6 +85,9 @@ extern char *bittok2str_nosep(const struct tok *, const char *, int);
 
 typedef struct netdissect_options netdissect_options;
 
+#if __has_feature(capabilities)
+#pragma pointer_interpretation capability
+#endif
 struct netdissect_options {
   int ndo_aflag;		/* translate network and broadcast addresses */
   int ndo_bflag;		/* print 4 byte ASes in ASDOT notation */
@@ -172,6 +175,9 @@ struct netdissect_options {
 #endif
 		     ;
 };
+#if __has_feature(capabilities)
+#pragma pointer_interpretation default
+#endif
 
 #define PT_VAT		1	/* Visual Audio Tool */
 #define PT_WB		2	/* distributed White Board */
