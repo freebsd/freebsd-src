@@ -1745,7 +1745,7 @@ tcp_do_segment(struct mbuf *m, struct tcphdr *th, struct socket *so,
 					tcp_timer_activate(tp, TT_REXMT,
 						      tp->t_rxtcur);
 				sowwakeup(so);
-				if (so->so_snd.sb_cc)
+				if (sbavail(&so->so_snd))
 					(void) tcp_output(tp);
 				goto check_delack;
 			}
@@ -2526,7 +2526,7 @@ tcp_do_segment(struct mbuf *m, struct tcphdr *th, struct socket *so,
 					 * Otherwise we would send pure ACKs.
 					 */
 					SOCKBUF_LOCK(&so->so_snd);
-					avail = so->so_snd.sb_cc -
+					avail = sbavail(&so->so_snd) -
 					    (tp->snd_nxt - tp->snd_una);
 					SOCKBUF_UNLOCK(&so->so_snd);
 					if (avail > 0)
@@ -2661,10 +2661,10 @@ process_ACK:
 		cc_ack_received(tp, th, CC_ACK);
 
 		SOCKBUF_LOCK(&so->so_snd);
-		if (acked > so->so_snd.sb_cc) {
-			tp->snd_wnd -= so->so_snd.sb_cc;
+		if (acked > sbavail(&so->so_snd)) {
+			tp->snd_wnd -= sbavail(&so->so_snd);
 			mfree = sbcut_locked(&so->so_snd,
-			    (int)so->so_snd.sb_cc);
+			    (int)sbavail(&so->so_snd));
 			ourfinisacked = 1;
 		} else {
 			mfree = sbcut_locked(&so->so_snd, acked);
@@ -2790,7 +2790,7 @@ step6:
 		 * actually wanting to send this much urgent data.
 		 */
 		SOCKBUF_LOCK(&so->so_rcv);
-		if (th->th_urp + so->so_rcv.sb_cc > sb_max) {
+		if (th->th_urp + sbavail(&so->so_rcv) > sb_max) {
 			th->th_urp = 0;			/* XXX */
 			thflags &= ~TH_URG;		/* XXX */
 			SOCKBUF_UNLOCK(&so->so_rcv);	/* XXX */
@@ -2812,7 +2812,7 @@ step6:
 		 */
 		if (SEQ_GT(th->th_seq+th->th_urp, tp->rcv_up)) {
 			tp->rcv_up = th->th_seq + th->th_urp;
-			so->so_oobmark = so->so_rcv.sb_cc +
+			so->so_oobmark = sbavail(&so->so_rcv) +
 			    (tp->rcv_up - tp->rcv_nxt) - 1;
 			if (so->so_oobmark == 0)
 				so->so_rcv.sb_state |= SBS_RCVATMARK;
