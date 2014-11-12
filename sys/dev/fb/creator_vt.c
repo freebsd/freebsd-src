@@ -53,7 +53,6 @@ static const struct vt_driver vt_creatorfb_driver = {
 	.vd_init	= creatorfb_init,
 	.vd_blank	= creatorfb_blank,
 	.vd_bitbltchr	= creatorfb_bitbltchr,
-	.vd_maskbitbltchr = creatorfb_bitbltchr,
 	.vd_fb_ioctl	= vt_fb_ioctl,
 	.vd_fb_mmap	= vt_fb_mmap,
 	.vd_priority	= VD_PRIORITY_SPECIFIC

@@ -124,7 +124,7 @@
 .\" ========================================================================
 .\"
 .IX Title "CIPHERS 1"
-.TH CIPHERS 1 "2014-06-05" "1.0.1h" "OpenSSL"
+.TH CIPHERS 1 "2014-08-06" "1.0.1i" "OpenSSL"
 .\" For nroff, turn off justification.  Always turn off hyphenation; it makes
 .\" way too many mistakes in technical documents.
 .if n .ad l
@@ -158,7 +158,7 @@ in a cipher list; this is when similar ciphers are available for
 \&\s-1SSL\s0 v2 and for \s-1SSL\s0 v3/TLS v1.
 .IP "\fB\-V\fR" 4
 .IX Item "-V"
-Like \fB\-V\fR, but include cipher suite codes in output (hex format).
+Like \fB\-v\fR, but include cipher suite codes in output (hex format).
 .IP "\fB\-ssl3\fR" 4
 .IX Item "-ssl3"
 only include \s-1SSL\s0 v3 ciphers.
@@ -225,8 +225,8 @@ specified.
 .IP "\fB\s-1COMPLEMENTOFDEFAULT\s0\fR" 4
 .IX Item "COMPLEMENTOFDEFAULT"
 the ciphers included in \fB\s-1ALL\s0\fR, but not enabled by default. Currently
-this is \fB\s-1ADH\s0\fR. Note that this rule does not cover \fBeNULL\fR, which is
-not included by \fB\s-1ALL\s0\fR (use \fB\s-1COMPLEMENTOFALL\s0\fR if necessary).
+this is \fB\s-1ADH\s0\fR and \fB\s-1AECDH\s0\fR. Note that this rule does not cover \fBeNULL\fR,
+which is not included by \fB\s-1ALL\s0\fR (use \fB\s-1COMPLEMENTOFALL\s0\fR if necessary).
 .IP "\fB\s-1ALL\s0\fR" 4
 .IX Item "ALL"
 all cipher suites except the \fBeNULL\fR ciphers which must be explicitly enabled;
@@ -264,18 +264,47 @@ included.
 .IP "\fBaNULL\fR" 4
 .IX Item "aNULL"
 the cipher suites offering no authentication. This is currently the anonymous
-\&\s-1DH\s0 algorithms. These cipher suites are vulnerable to a \*(L"man in the middle\*(R"
-attack and so their use is normally discouraged.
+\&\s-1DH\s0 algorithms and anonymous \s-1ECDH\s0 algorithms. These cipher suites are vulnerable
+to a \*(L"man in the middle\*(R" attack and so their use is normally discouraged.
 .IP "\fBkRSA\fR, \fB\s-1RSA\s0\fR" 4
 .IX Item "kRSA, RSA"
 cipher suites using \s-1RSA\s0 key exchange.
+.IP "\fBkDHr\fR, \fBkDHd\fR, \fBkDH\fR" 4
+.IX Item "kDHr, kDHd, kDH"
+cipher suites using \s-1DH\s0 key agreement and \s-1DH\s0 certificates signed by CAs with \s-1RSA\s0
+and \s-1DSS\s0 keys or either respectively. Not implemented.
 .IP "\fBkEDH\fR" 4
 .IX Item "kEDH"
-cipher suites using ephemeral \s-1DH\s0 key agreement.
-.IP "\fBkDHr\fR, \fBkDHd\fR" 4
-.IX Item "kDHr, kDHd"
-cipher suites using \s-1DH\s0 key agreement and \s-1DH\s0 certificates signed by CAs with \s-1RSA\s0
-and \s-1DSS\s0 keys respectively. Not implemented.
+cipher suites using ephemeral \s-1DH\s0 key agreement, including anonymous cipher
+suites.
+.IP "\fB\s-1EDH\s0\fR" 4
+.IX Item "EDH"
+cipher suites using authenticated ephemeral \s-1DH\s0 key agreement.
+.IP "\fB\s-1ADH\s0\fR" 4
+.IX Item "ADH"
+anonymous \s-1DH\s0 cipher suites, note that this does not include anonymous Elliptic
+Curve \s-1DH\s0 (\s-1ECDH\s0) cipher suites.
+.IP "\fB\s-1DH\s0\fR" 4
+.IX Item "DH"
+cipher suites using \s-1DH\s0, including anonymous \s-1DH\s0, ephemeral \s-1DH\s0 and fixed \s-1DH\s0.
+.IP "\fBkECDHr\fR, \fBkECDHe\fR, \fBkECDH\fR" 4
+.IX Item "kECDHr, kECDHe, kECDH"
+cipher suites using fixed \s-1ECDH\s0 key agreement signed by CAs with \s-1RSA\s0 and \s-1ECDSA\s0
+keys or either respectively.
+.IP "\fBkEECDH\fR" 4
+.IX Item "kEECDH"
+cipher suites using ephemeral \s-1ECDH\s0 key agreement, including anonymous
+cipher suites.
+.IP "\fB\s-1EECDHE\s0\fR" 4
+.IX Item "EECDHE"
+cipher suites using authenticated ephemeral \s-1ECDH\s0 key agreement.
+.IP "\fB\s-1AECDH\s0\fR" 4
+.IX Item "AECDH"
+anonymous Elliptic Curve Diffie Hellman cipher suites.
+.IP "\fB\s-1ECDH\s0\fR" 4
+.IX Item "ECDH"
+cipher suites using \s-1ECDH\s0 key exchange, including anonymous, ephemeral and
+fixed \s-1ECDH\s0.
 .IP "\fBaRSA\fR" 4
 .IX Item "aRSA"
 cipher suites using \s-1RSA\s0 authentication, i.e. the certificates carry \s-1RSA\s0 keys.
@@ -286,25 +315,33 @@ cipher suites using \s-1DSS\s0 authentication, i.e. the certificates carry \s-1D
 .IX Item "aDH"
 cipher suites effectively using \s-1DH\s0 authentication, i.e. the certificates carry
 \&\s-1DH\s0 keys.  Not implemented.
+.IP "\fBaECDH\fR" 4
+.IX Item "aECDH"
+cipher suites effectively using \s-1ECDH\s0 authentication, i.e. the certificates
+carry \s-1ECDH\s0 keys.
+.IP "\fBaECDSA\fR, \fB\s-1ECDSA\s0\fR" 4
+.IX Item "aECDSA, ECDSA"
+cipher suites using \s-1ECDSA\s0 authentication, i.e. the certificates carry \s-1ECDSA\s0
+keys.
 .IP "\fBkFZA\fR, \fBaFZA\fR, \fBeFZA\fR, \fB\s-1FZA\s0\fR" 4
 .IX Item "kFZA, aFZA, eFZA, FZA"
 ciphers suites using \s-1FORTEZZA\s0 key exchange, authentication, encryption or all
 \&\s-1FORTEZZA\s0 algorithms. Not implemented.
-.IP "\fBTLSv1\fR, \fBSSLv3\fR, \fBSSLv2\fR" 4
-.IX Item "TLSv1, SSLv3, SSLv2"
-\&\s-1TLS\s0 v1.0, \s-1SSL\s0 v3.0 or \s-1SSL\s0 v2.0 cipher suites respectively.
-.IP "\fB\s-1DH\s0\fR" 4
-.IX Item "DH"
-cipher suites using \s-1DH\s0, including anonymous \s-1DH\s0.
-.IP "\fB\s-1ADH\s0\fR" 4
-.IX Item "ADH"
-anonymous \s-1DH\s0 cipher suites.
-.IP "\fB\s-1AES\s0\fR" 4
-.IX Item "AES"
-cipher suites using \s-1AES\s0.
-.IP "\fB\s-1CAMELLIA\s0\fR" 4
-.IX Item "CAMELLIA"
-cipher suites using Camellia.
+.IP "\fBTLSv1.2\fR, \fBTLSv1\fR, \fBSSLv3\fR, \fBSSLv2\fR" 4
+.IX Item "TLSv1.2, TLSv1, SSLv3, SSLv2"
+\&\s-1TLS\s0 v1.2, \s-1TLS\s0 v1.0, \s-1SSL\s0 v3.0 or \s-1SSL\s0 v2.0 cipher suites respectively. Note:
+there are no ciphersuites specific to \s-1TLS\s0 v1.1.
+.IP "\fB\s-1AES128\s0\fR, \fB\s-1AES256\s0\fR, \fB\s-1AES\s0\fR" 4
+.IX Item "AES128, AES256, AES"
+cipher suites using 128 bit \s-1AES\s0, 256 bit \s-1AES\s0 or either 128 or 256 bit \s-1AES\s0.
+.IP "\fB\s-1AESGCM\s0\fR" 4
+.IX Item "AESGCM"
+\&\s-1AES\s0 in Galois Counter Mode (\s-1GCM\s0): these ciphersuites are only supported
+in \s-1TLS\s0 v1.2.
+.IP "\fB\s-1CAMELLIA128\s0\fR, \fB\s-1CAMELLIA256\s0\fR, \fB\s-1CAMELLIA\s0\fR" 4
+.IX Item "CAMELLIA128, CAMELLIA256, CAMELLIA"
+cipher suites using 128 bit \s-1CAMELLIA\s0, 256 bit \s-1CAMELLIA\s0 or either 128 or 256 bit
+\&\s-1CAMELLIA\s0.
 .IP "\fB3DES\fR" 4
 .IX Item "3DES"
 cipher suites using triple \s-1DES\s0.
@@ -329,6 +366,9 @@ cipher suites using \s-1MD5\s0.
 .IP "\fB\s-1SHA1\s0\fR, \fB\s-1SHA\s0\fR" 4
 .IX Item "SHA1, SHA"
 cipher suites using \s-1SHA1\s0.
+.IP "\fB\s-1SHA256\s0\fR, \fB\s-1SHA384\s0\fR" 4
+.IX Item "SHA256, SHA384"
+ciphersuites using \s-1SHA256\s0 or \s-1SHA384\s0.
 .IP "\fBaGOST\fR" 4
 .IX Item "aGOST"
 cipher suites using \s-1GOST\s0 R 34.10 (either 2001 or 94) for authenticaction
@@ -349,6 +389,9 @@ cipher suites, using \s-1HMAC\s0 based on \s-1GOST\s0 R 34.11\-94.
 .IP "\fB\s-1GOST89MAC\s0\fR" 4
 .IX Item "GOST89MAC"
 cipher suites using \s-1GOST\s0 28147\-89 \s-1MAC\s0 \fBinstead of\fR \s-1HMAC\s0.
+.IP "\fB\s-1PSK\s0\fR" 4
+.IX Item "PSK"
+cipher suites using pre-shared keys (\s-1PSK\s0).
 .SH "CIPHER SUITE NAMES"
 .IX Header "CIPHER SUITE NAMES"
 The following lists give the \s-1SSL\s0 or \s-1TLS\s0 cipher suites names from the
@@ -498,8 +541,104 @@ Note: these ciphers can also be used in \s-1SSL\s0 v3.
 \& TLS_DHE_DSS_EXPORT1024_WITH_RC4_56_SHA  EXP1024\-DHE\-DSS\-RC4\-SHA
 \& TLS_DHE_DSS_WITH_RC4_128_SHA            DHE\-DSS\-RC4\-SHA
 .Ve
-.SS "\s-1SSL\s0 v2.0 cipher suites."
-.IX Subsection "SSL v2.0 cipher suites."
+.SS "Elliptic curve cipher suites."
+.IX Subsection "Elliptic curve cipher suites."
+.Vb 5
+\& TLS_ECDH_RSA_WITH_NULL_SHA              ECDH\-RSA\-NULL\-SHA
+\& TLS_ECDH_RSA_WITH_RC4_128_SHA           ECDH\-RSA\-RC4\-SHA
+\& TLS_ECDH_RSA_WITH_3DES_EDE_CBC_SHA      ECDH\-RSA\-DES\-CBC3\-SHA
+\& TLS_ECDH_RSA_WITH_AES_128_CBC_SHA       ECDH\-RSA\-AES128\-SHA
+\& TLS_ECDH_RSA_WITH_AES_256_CBC_SHA       ECDH\-RSA\-AES256\-SHA
+\&
+\& TLS_ECDH_ECDSA_WITH_NULL_SHA            ECDH\-ECDSA\-NULL\-SHA
+\& TLS_ECDH_ECDSA_WITH_RC4_128_SHA         ECDH\-ECDSA\-RC4\-SHA
+\& TLS_ECDH_ECDSA_WITH_3DES_EDE_CBC_SHA    ECDH\-ECDSA\-DES\-CBC3\-SHA
+\& TLS_ECDH_ECDSA_WITH_AES_128_CBC_SHA     ECDH\-ECDSA\-AES128\-SHA
+\& TLS_ECDH_ECDSA_WITH_AES_256_CBC_SHA     ECDH\-ECDSA\-AES256\-SHA
+\&
+\& TLS_ECDHE_RSA_WITH_NULL_SHA             ECDHE\-RSA\-NULL\-SHA
+\& TLS_ECDHE_RSA_WITH_RC4_128_SHA          ECDHE\-RSA\-RC4\-SHA
+\& TLS_ECDHE_RSA_WITH_3DES_EDE_CBC_SHA     ECDHE\-RSA\-DES\-CBC3\-SHA
+\& TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA      ECDHE\-RSA\-AES128\-SHA
+\& TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA      ECDHE\-RSA\-AES256\-SHA
+\&
+\& TLS_ECDHE_ECDSA_WITH_NULL_SHA           ECDHE\-ECDSA\-NULL\-SHA
+\& TLS_ECDHE_ECDSA_WITH_RC4_128_SHA        ECDHE\-ECDSA\-RC4\-SHA
+\& TLS_ECDHE_ECDSA_WITH_3DES_EDE_CBC_SHA   ECDHE\-ECDSA\-DES\-CBC3\-SHA
+\& TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA    ECDHE\-ECDSA\-AES128\-SHA
+\& TLS_ECDHE_ECDSA_WITH_AES_256_CBC_SHA    ECDHE\-ECDSA\-AES256\-SHA
+\&
+\& TLS_ECDH_anon_WITH_NULL_SHA             AECDH\-NULL\-SHA
+\& TLS_ECDH_anon_WITH_RC4_128_SHA          AECDH\-RC4\-SHA
+\& TLS_ECDH_anon_WITH_3DES_EDE_CBC_SHA     AECDH\-DES\-CBC3\-SHA
+\& TLS_ECDH_anon_WITH_AES_128_CBC_SHA      AECDH\-AES128\-SHA
+\& TLS_ECDH_anon_WITH_AES_256_CBC_SHA      AECDH\-AES256\-SHA
+.Ve
+.SS "\s-1TLS\s0 v1.2 cipher suites"
+.IX Subsection "TLS v1.2 cipher suites"
+.Vb 1
+\& TLS_RSA_WITH_NULL_SHA256                  NULL\-SHA256
+\&
+\& TLS_RSA_WITH_AES_128_CBC_SHA256           AES128\-SHA256
+\& TLS_RSA_WITH_AES_256_CBC_SHA256           AES256\-SHA256
+\& TLS_RSA_WITH_AES_128_GCM_SHA256           AES128\-GCM\-SHA256
+\& TLS_RSA_WITH_AES_256_GCM_SHA384           AES256\-GCM\-SHA384
+\&
+\& TLS_DH_RSA_WITH_AES_128_CBC_SHA256        Not implemented.
+\& TLS_DH_RSA_WITH_AES_256_CBC_SHA256        Not implemented.
+\& TLS_DH_RSA_WITH_AES_128_GCM_SHA256        Not implemented.
+\& TLS_DH_RSA_WITH_AES_256_GCM_SHA384        Not implemented.
+\&
+\& TLS_DH_DSS_WITH_AES_128_CBC_SHA256        Not implemented.
+\& TLS_DH_DSS_WITH_AES_256_CBC_SHA256        Not implemented.
+\& TLS_DH_DSS_WITH_AES_128_GCM_SHA256        Not implemented.
+\& TLS_DH_DSS_WITH_AES_256_GCM_SHA384        Not implemented.
+\&
+\& TLS_DHE_RSA_WITH_AES_128_CBC_SHA256       DHE\-RSA\-AES128\-SHA256
+\& TLS_DHE_RSA_WITH_AES_256_CBC_SHA256       DHE\-RSA\-AES256\-SHA256
+\& TLS_DHE_RSA_WITH_AES_128_GCM_SHA256       DHE\-RSA\-AES128\-GCM\-SHA256
+\& TLS_DHE_RSA_WITH_AES_256_GCM_SHA384       DHE\-RSA\-AES256\-GCM\-SHA384
+\&
+\& TLS_DHE_DSS_WITH_AES_128_CBC_SHA256       DHE\-DSS\-AES128\-SHA256
+\& TLS_DHE_DSS_WITH_AES_256_CBC_SHA256       DHE\-DSS\-AES256\-SHA256
+\& TLS_DHE_DSS_WITH_AES_128_GCM_SHA256       DHE\-DSS\-AES128\-GCM\-SHA256
+\& TLS_DHE_DSS_WITH_AES_256_GCM_SHA384       DHE\-DSS\-AES256\-GCM\-SHA384
+\&
+\& TLS_ECDH_RSA_WITH_AES_128_CBC_SHA256      ECDH\-RSA\-AES128\-SHA256
+\& TLS_ECDH_RSA_WITH_AES_256_CBC_SHA384      ECDH\-RSA\-AES256\-SHA384
+\& TLS_ECDH_RSA_WITH_AES_128_GCM_SHA256      ECDH\-RSA\-AES128\-GCM\-SHA256
+\& TLS_ECDH_RSA_WITH_AES_256_GCM_SHA384      ECDH\-RSA\-AES256\-GCM\-SHA384
+\&
+\& TLS_ECDH_ECDSA_WITH_AES_128_CBC_SHA256    ECDH\-ECDSA\-AES128\-SHA256
+\& TLS_ECDH_ECDSA_WITH_AES_256_CBC_SHA384    ECDH\-ECDSA\-AES256\-SHA384
+\& TLS_ECDH_ECDSA_WITH_AES_128_GCM_SHA256    ECDH\-ECDSA\-AES128\-GCM\-SHA256
+\& TLS_ECDH_ECDSA_WITH_AES_256_GCM_SHA384    ECDH\-ECDSA\-AES256\-GCM\-SHA384
+\&
+\& TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA256     ECDHE\-RSA\-AES128\-SHA256
+\& TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA384     ECDHE\-RSA\-AES256\-SHA384
+\& TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256     ECDHE\-RSA\-AES128\-GCM\-SHA256
+\& TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384     ECDHE\-RSA\-AES256\-GCM\-SHA384
+\&
+\& TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA256   ECDHE\-ECDSA\-AES128\-SHA256
+\& TLS_ECDHE_ECDSA_WITH_AES_256_CBC_SHA384   ECDHE\-ECDSA\-AES256\-SHA384
+\& TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256   ECDHE\-ECDSA\-AES128\-GCM\-SHA256
+\& TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384   ECDHE\-ECDSA\-AES256\-GCM\-SHA384
+\&
+\& TLS_DH_anon_WITH_AES_128_CBC_SHA256       ADH\-AES128\-SHA256
+\& TLS_DH_anon_WITH_AES_256_CBC_SHA256       ADH\-AES256\-SHA256
+\& TLS_DH_anon_WITH_AES_128_GCM_SHA256       ADH\-AES128\-GCM\-SHA256
+\& TLS_DH_anon_WITH_AES_256_GCM_SHA384       ADH\-AES256\-GCM\-SHA384
+.Ve
+.SS "Pre shared keying (\s-1PSK\s0) cipheruites"
+.IX Subsection "Pre shared keying (PSK) cipheruites"
+.Vb 4
+\& TLS_PSK_WITH_RC4_128_SHA                  PSK\-RC4\-SHA
+\& TLS_PSK_WITH_3DES_EDE_CBC_SHA             PSK\-3DES\-EDE\-CBC\-SHA
+\& TLS_PSK_WITH_AES_128_CBC_SHA              PSK\-AES128\-CBC\-SHA
+\& TLS_PSK_WITH_AES_256_CBC_SHA              PSK\-AES256\-CBC\-SHA
+.Ve
+.SS "Deprecated \s-1SSL\s0 v2.0 cipher suites."
+.IX Subsection "Deprecated SSL v2.0 cipher suites."
 .Vb 7
 \& SSL_CK_RC4_128_WITH_MD5                 RC4\-MD5
 \& SSL_CK_RC4_128_EXPORT40_WITH_MD5        EXP\-RC4\-MD5
@@ -529,6 +668,13 @@ strength:
 .PP
 .Vb 1
 \& openssl ciphers \-v \*(AqALL:!ADH:@STRENGTH\*(Aq
+.Ve
+.PP
+Include all ciphers except ones with no encryption (eNULL) or no
+authentication (aNULL):
+.PP
+.Vb 1
+\& openssl ciphers \-v \*(AqALL:!aNULL\*(Aq
 .Ve
 .PP
 Include only 3DES ciphers and then place \s-1RSA\s0 ciphers last:

@@ -64,8 +64,7 @@ struct sockopt;
  * similar to the vnode VOP interface.
  */
 /* USE THESE FOR YOUR PROTOTYPES ! */
-typedef void	pr_input_t (struct mbuf *, int);
-typedef int	pr_input6_t (struct mbuf **, int*, int);  /* XXX FIX THIS */
+typedef int	pr_input_t (struct mbuf **, int*, int);
 typedef int	pr_output_t (struct mbuf *, struct socket *);
 typedef void	pr_ctlinput_t (int, struct sockaddr *, void *);
 typedef int	pr_ctloutput_t (struct socket *, struct sockopt *);

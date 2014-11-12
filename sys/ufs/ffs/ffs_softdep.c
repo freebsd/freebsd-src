@@ -931,6 +931,7 @@ static	inline struct jsegdep *inoref_jseg(struct inoref *);
 static	struct jmvref *newjmvref(struct inode *, ino_t, off_t, off_t);
 static	struct jfreeblk *newjfreeblk(struct freeblks *, ufs_lbn_t,
 	    ufs2_daddr_t, int);
+static	void adjust_newfreework(struct freeblks *, int);
 static	struct jtrunc *newjtrunc(struct freeblks *, off_t, int);
 static	void move_newblock_dep(struct jaddref *, struct inodedep *);
 static	void cancel_jfreeblk(struct freeblks *, ufs2_daddr_t);
@@ -4163,6 +4164,33 @@ newjfreeblk(freeblks, lbn, blkno, frags)
 }
 
 /*
+ * The journal is only prepared to handle full-size block numbers, so we
+ * have to adjust the record to reflect the change to a full-size block.
+ * For example, suppose we have a block made up of fragments 8-15 and
+ * want to free its last two fragments. We are given a request that says:
+ *     FREEBLK ino=5, blkno=14, lbn=0, frags=2, oldfrags=0
+ * where frags are the number of fragments to free and oldfrags are the
+ * number of fragments to keep. To block align it, we have to change it to
+ * have a valid full-size blkno, so it becomes:
+ *     FREEBLK ino=5, blkno=8, lbn=0, frags=2, oldfrags=6
+ */
+static void
+adjust_newfreework(freeblks, frag_offset)
+	struct freeblks *freeblks;
+	int frag_offset;
+{
+	struct jfreeblk *jfreeblk;
+
+	KASSERT((LIST_FIRST(&freeblks->fb_jblkdephd) != NULL &&
+	    LIST_FIRST(&freeblks->fb_jblkdephd)->jb_list.wk_type == D_JFREEBLK),
+	    ("adjust_newfreework: Missing freeblks dependency"));
+
+	jfreeblk = WK_JFREEBLK(LIST_FIRST(&freeblks->fb_jblkdephd));
+	jfreeblk->jf_blkno -= frag_offset;
+	jfreeblk->jf_frags += frag_offset;
+}
+
+/*
  * Allocate a new jtrunc to track a partial truncation.
  */
 static struct jtrunc *
@@ -6529,6 +6557,9 @@ softdep_journal_freeblocks(ip, cred, length, flags)
 				blkno += numfrags(ip->i_fs, frags);
 				newfreework(ump, freeblks, NULL, lastlbn,
 				    blkno, oldfrags, 0, needj);
+				if (needj)
+					adjust_newfreework(freeblks,
+					    numfrags(ip->i_fs, frags));
 			} else if (blkno == 0)
 				allocblock = 1;
 		}

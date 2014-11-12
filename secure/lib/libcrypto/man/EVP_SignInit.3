@@ -124,7 +124,7 @@
 .\" ========================================================================
 .\"
 .IX Title "EVP_SignInit 3"
-.TH EVP_SignInit 3 "2014-06-05" "1.0.1h" "OpenSSL"
+.TH EVP_SignInit 3 "2014-08-06" "1.0.1i" "OpenSSL"
 .\" For nroff, turn off justification.  Always turn off hyphenation; it makes
 .\" way too many mistakes in technical documents.
 .if n .ad l
@@ -158,9 +158,11 @@ signature context \fBctx\fR. This function can be called several times on the
 same \fBctx\fR to include additional data.
 .PP
 \&\fIEVP_SignFinal()\fR signs the data in \fBctx\fR using the private key \fBpkey\fR and
-places the signature in \fBsig\fR. The number of bytes of data written (i.e. the
-length of the signature) will be written to the integer at \fBs\fR, at most
-EVP_PKEY_size(pkey) bytes will be written.
+places the signature in \fBsig\fR. \fBsig\fR must be at least EVP_PKEY_size(pkey)
+bytes in size. \fBs\fR is an \s-1OUT\s0 paramter, and not used as an \s-1IN\s0 parameter.
+The number of bytes of data written (i.e. the length of the signature)
+will be written to the integer at \fBs\fR, at most EVP_PKEY_size(pkey) bytes
+will be written.
 .PP
 \&\fIEVP_SignInit()\fR initializes a signing context \fBctx\fR to use the default
 implementation of digest \fBtype\fR.

@@ -81,7 +81,7 @@ struct protosw in_gif_protosw = {
 	.pr_protocol =		0/* IPPROTO_IPV[46] */,
 	.pr_flags =		PR_ATOMIC|PR_ADDR,
 	.pr_input =		in_gif_input,
-	.pr_output =		(pr_output_t*)rip_output,
+	.pr_output =		(pr_output_t *)rip_output,
 	.pr_ctloutput =		rip_ctloutput,
 	.pr_usrreqs =		&rip_usrreqs
 };
@@ -270,31 +270,34 @@ in_gif_output(struct ifnet *ifp, int family, struct mbuf *m)
 	return (error);
 }
 
-void
-in_gif_input(struct mbuf *m, int off)
+int
+in_gif_input(struct mbuf **mp, int *offp, int proto)
 {
+	struct mbuf *m;
 	struct ifnet *gifp = NULL;
 	struct gif_softc *sc;
 	struct ip *ip;
 	int af;
+	int off;
 	u_int8_t otos;
-	int proto;
 
+	m = *mp;
 	ip = mtod(m, struct ip *);
-	proto = ip->ip_p;
+	off = *offp;
+	*mp = NULL;
 
 	sc = (struct gif_softc *)encap_getarg(m);
 	if (sc == NULL) {
 		m_freem(m);
 		KMOD_IPSTAT_INC(ips_nogif);
-		return;
+		return (IPPROTO_DONE);
 	}
 
 	gifp = GIF2IFP(sc);
 	if (gifp == NULL || (gifp->if_flags & IFF_UP) == 0) {
 		m_freem(m);
 		KMOD_IPSTAT_INC(ips_nogif);
-		return;
+		return (IPPROTO_DONE);
 	}
 
 	otos = ip->ip_tos;
@@ -309,14 +312,14 @@ in_gif_input(struct mbuf *m, int off)
 		if (m->m_len < sizeof(*ip)) {
 			m = m_pullup(m, sizeof(*ip));
 			if (!m)
-				return;
+				return (IPPROTO_DONE);
 		}
 		ip = mtod(m, struct ip *);
 		if (ip_ecn_egress((gifp->if_flags & IFF_LINK1) ?
 				  ECN_ALLOWED : ECN_NOCARE,
 				  &otos, &ip->ip_tos) == 0) {
 			m_freem(m);
-			return;
+			return (IPPROTO_DONE);
 		}
 		break;
 	    }
@@ -331,7 +334,7 @@ in_gif_input(struct mbuf *m, int off)
 		if (m->m_len < sizeof(*ip6)) {
 			m = m_pullup(m, sizeof(*ip6));
 			if (!m)
-				return;
+				return (IPPROTO_DONE);
 		}
 		ip6 = mtod(m, struct ip6_hdr *);
 		itos = oitos = (ntohl(ip6->ip6_flow) >> 20) & 0xff;
@@ -339,7 +342,7 @@ in_gif_input(struct mbuf *m, int off)
 				  ECN_ALLOWED : ECN_NOCARE,
 				  &otos, &itos) == 0) {
 			m_freem(m);
-			return;
+			return (IPPROTO_DONE);
 		}
 		if (itos != oitos) {
 			ip6->ip6_flow &= ~htonl(0xff << 20);
@@ -355,10 +358,10 @@ in_gif_input(struct mbuf *m, int off)
 	default:
 		KMOD_IPSTAT_INC(ips_nogif);
 		m_freem(m);
-		return;
+		return (IPPROTO_DONE);
 	}
 	gif_input(m, af, gifp);
-	return;
+	return (IPPROTO_DONE);
 }
 
 /*

@@ -299,15 +299,12 @@ retry_nlist:
 		argv = getdrivedata(argv);
 	}
 
-#define	BACKWARD_COMPATIBILITY
-#ifdef	BACKWARD_COMPATIBILITY
 	if (*argv) {
 		f = atof(*argv);
 		interval = f * 1000;
 		if (*++argv)
 			reps = atoi(*argv);
 	}
-#endif
 
 	if (interval) {
 		if (!reps)
@@ -1360,7 +1357,7 @@ static void
 usage(void)
 {
 	(void)fprintf(stderr, "%s%s",
-		"usage: vmstat [-afHhimPsz] [-c count] [-M core [-N system]] [-w wait]\n",
-		"              [-n devs] [-p type,if,pass] [disks]\n");
+		"usage: vmstat [-afHhimPsz] [-M core [-N system]] [-c count] [-n devs]\n",
+		"              [-p type,if,pass] [-w wait] [disks] [wait [count]]\n");
 	exit(1);
 }

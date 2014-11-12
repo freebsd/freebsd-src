@@ -124,7 +124,7 @@
 .\" ========================================================================
 .\"
 .IX Title "VERIFY 1"
-.TH VERIFY 1 "2014-06-05" "1.0.1h" "OpenSSL"
+.TH VERIFY 1 "2014-08-06" "1.0.1i" "OpenSSL"
 .\" For nroff, turn off justification.  Always turn off hyphenation; it makes
 .\" way too many mistakes in technical documents.
 .if n .ad l
@@ -168,12 +168,12 @@ of the form: hash.0 or have symbolic links to them of this
 form (\*(L"hash\*(R" is the hashed certificate subject name: see the \fB\-hash\fR option
 of the \fBx509\fR utility). Under Unix the \fBc_rehash\fR script will automatically
 create symbolic links to a directory of certificates.
-.IP "\fB\-CAfile file\fR" 4
-.IX Item "-CAfile file"
-A file of trusted certificates. The file should contain multiple certificates
-in \s-1PEM\s0 format concatenated together.
+.IP "\fB\-CAfile file\fR A file of trusted certificates. The file should contain multiple certificates in \s-1PEM\s0 format concatenated together." 4
+.IX Item "-CAfile file A file of trusted certificates. The file should contain multiple certificates in PEM format concatenated together."
+.PD 0
 .IP "\fB\-untrusted file\fR" 4
 .IX Item "-untrusted file"
+.PD
 A file of untrusted certificates. The file should contain multiple certificates
 in \s-1PEM\s0 format concatenated together.
 .IP "\fB\-purpose purpose\fR" 4

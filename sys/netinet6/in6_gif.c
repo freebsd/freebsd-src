@@ -65,7 +65,6 @@ __FBSDID("$FreeBSD$");
 #include <netinet6/in6_gif.h>
 #include <netinet6/in6_var.h>
 #endif
-#include <netinet6/ip6protosw.h>
 #include <netinet/ip_ecn.h>
 #ifdef INET6
 #include <netinet6/ip6_ecn.h>
@@ -84,13 +83,13 @@ static int gif_validate6(const struct ip6_hdr *, struct gif_softc *,
 			 struct ifnet *);
 
 extern  struct domain inet6domain;
-struct ip6protosw in6_gif_protosw = {
+struct protosw in6_gif_protosw = {
 	.pr_type =	SOCK_RAW,
 	.pr_domain =	&inet6domain,
 	.pr_protocol =	0,			/* IPPROTO_IPV[46] */
 	.pr_flags =	PR_ATOMIC|PR_ADDR,
 	.pr_input =	in6_gif_input,
-	.pr_output =	rip6_output,
+	.pr_output =	(pr_output_t *)rip6_output,
 	.pr_ctloutput =	rip6_ctloutput,
 	.pr_usrreqs =	&rip6_usrreqs
 };

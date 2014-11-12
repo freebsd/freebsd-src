@@ -40,12 +40,13 @@
  *  Layout
  *  ------
  *   RSDP  ->   0xf2400    (36 bytes fixed)
- *     RSDT  ->   0xf2440    (36 bytes + 4*N table addrs, 2 used)
- *     XSDT  ->   0xf2480    (36 bytes + 8*N table addrs, 2 used)
+ *     RSDT  ->   0xf2440    (36 bytes + 4*7 table addrs, 4 used)
+ *     XSDT  ->   0xf2480    (36 bytes + 8*7 table addrs, 4 used)
  *       MADT  ->   0xf2500  (depends on #CPUs)
  *       FADT  ->   0xf2600  (268 bytes)
  *       HPET  ->   0xf2740  (56 bytes)
- *         FACS  ->   0xf2780 (64 bytes)
+ *       MCFG  ->   0xf2780  (60 bytes)
+ *         FACS  ->   0xf27C0 (64 bytes)
  *         DSDT  ->   0xf2800 (variable - can go up to 0x100000)
  */
 
@@ -80,7 +81,8 @@ __FBSDID("$FreeBSD$");
 #define MADT_OFFSET		0x100
 #define FADT_OFFSET		0x200
 #define	HPET_OFFSET		0x340
-#define FACS_OFFSET		0x380
+#define	MCFG_OFFSET		0x380
+#define FACS_OFFSET		0x3C0
 #define DSDT_OFFSET		0x400
 
 #define	BHYVE_ASL_TEMPLATE	"bhyve.XXXXXXX"
@@ -178,6 +180,8 @@ basl_fwrite_rsdt(FILE *fp)
 	    basl_acpi_base + FADT_OFFSET);
 	EFPRINTF(fp, "[0004]\t\tACPI Table Address 2 : %08X\n",
 	    basl_acpi_base + HPET_OFFSET);
+	EFPRINTF(fp, "[0004]\t\tACPI Table Address 3 : %08X\n",
+	    basl_acpi_base + MCFG_OFFSET);
 
 	EFFLUSH(fp);
 
@@ -216,6 +220,8 @@ basl_fwrite_xsdt(FILE *fp)
 	    basl_acpi_base + FADT_OFFSET);
 	EFPRINTF(fp, "[0004]\t\tACPI Table Address 2 : 00000000%08X\n",
 	    basl_acpi_base + HPET_OFFSET);
+	EFPRINTF(fp, "[0004]\t\tACPI Table Address 3 : 00000000%08X\n",
+	    basl_acpi_base + MCFG_OFFSET);
 
 	EFFLUSH(fp);
 
@@ -583,6 +589,39 @@ err_exit:
 }
 
 static int
+basl_fwrite_mcfg(FILE *fp)
+{
+	int err = 0;
+
+	EFPRINTF(fp, "/*\n");
+	EFPRINTF(fp, " * bhyve MCFG template\n");
+	EFPRINTF(fp, " */\n");
+	EFPRINTF(fp, "[0004]\t\tSignature : \"MCFG\"\n");
+	EFPRINTF(fp, "[0004]\t\tTable Length : 00000000\n");
+	EFPRINTF(fp, "[0001]\t\tRevision : 01\n");
+	EFPRINTF(fp, "[0001]\t\tChecksum : 00\n");
+	EFPRINTF(fp, "[0006]\t\tOem ID : \"BHYVE \"\n");
+	EFPRINTF(fp, "[0008]\t\tOem Table ID : \"BVMCFG  \"\n");
+	EFPRINTF(fp, "[0004]\t\tOem Revision : 00000001\n");
+
+	/* iasl will fill in the compiler ID/revision fields */
+	EFPRINTF(fp, "[0004]\t\tAsl Compiler ID : \"xxxx\"\n");
+	EFPRINTF(fp, "[0004]\t\tAsl Compiler Revision : 00000000\n");
+	EFPRINTF(fp, "[0008]\t\tReserved : 0\n");
+	EFPRINTF(fp, "\n");
+
+	EFPRINTF(fp, "[0008]\t\tBase Address : %016lX\n", pci_ecfg_base());
+	EFPRINTF(fp, "[0002]\t\tSegment Group: 0000\n");
+	EFPRINTF(fp, "[0001]\t\tStart Bus: 00\n");
+	EFPRINTF(fp, "[0001]\t\tEnd Bus: FF\n");
+	EFPRINTF(fp, "[0004]\t\tReserved : 0\n");
+	EFFLUSH(fp);
+	return (0);
+err_exit:
+	return (errno);
+}
+
+static int
 basl_fwrite_facs(FILE *fp)
 {
 	int err;
@@ -921,6 +960,7 @@ static struct {
 	{ basl_fwrite_madt, MADT_OFFSET },
 	{ basl_fwrite_fadt, FADT_OFFSET },
 	{ basl_fwrite_hpet, HPET_OFFSET },
+	{ basl_fwrite_mcfg, MCFG_OFFSET },
 	{ basl_fwrite_facs, FACS_OFFSET },
 	{ basl_fwrite_dsdt, DSDT_OFFSET },
 	{ NULL }

@@ -124,7 +124,7 @@
 .\" ========================================================================
 .\"
 .IX Title "des 3"
-.TH des 3 "2014-06-05" "1.0.1h" "OpenSSL"
+.TH des 3 "2014-08-06" "1.0.1i" "OpenSSL"
 .\" For nroff, turn off justification.  Always turn off hyphenation; it makes
 .\" way too many mistakes in technical documents.
 .if n .ad l
@@ -263,9 +263,8 @@ depend on a global variable.
 .PP
 \&\fIDES_set_odd_parity()\fR sets the parity of the passed \fIkey\fR to odd.
 .PP
-\&\fIDES_is_weak_key()\fR returns 1 is the passed key is a weak key, 0 if it
-is ok.  The probability that a randomly generated key is weak is
-1/2^52, so it is not really worth checking for them.
+\&\fIDES_is_weak_key()\fR returns 1 if the passed key is a weak key, 0 if it
+is ok.
 .PP
 The following routines mostly operate on an input and output stream of
 \&\fIDES_cblock\fRs.
@@ -309,7 +308,7 @@ of 24 bytes.  This is much better than \s-1CBC\s0 \s-1DES\s0.
 .PP
 \&\fIDES_ede3_cbc_encrypt()\fR implements outer triple \s-1CBC\s0 \s-1DES\s0 encryption with
 three keys. This means that each \s-1DES\s0 operation inside the \s-1CBC\s0 mode is
-really an \f(CW\*(C`C=E(ks3,D(ks2,E(ks1,M)))\*(C'\fR.  This mode is used by \s-1SSL\s0.
+an \f(CW\*(C`C=E(ks3,D(ks2,E(ks1,M)))\*(C'\fR.  This mode is used by \s-1SSL\s0.
 .PP
 The \fIDES_ede2_cbc_encrypt()\fR macro implements two-key Triple-DES by
 reusing \fIks1\fR for the final encryption.  \f(CW\*(C`C=E(ks1,D(ks2,E(ks1,M)))\*(C'\fR.

@@ -77,7 +77,6 @@ static struct vt_driver vt_ps3fb_driver = {
 	.vd_init = ps3fb_init,
 	.vd_blank = vt_fb_blank,
 	.vd_bitbltchr = vt_fb_bitbltchr,
-	.vd_maskbitbltchr = vt_fb_maskbitbltchr,
 	.vd_fb_ioctl = vt_fb_ioctl,
 	.vd_fb_mmap = vt_fb_mmap,
 	/* Better than VGA, but still generic driver. */

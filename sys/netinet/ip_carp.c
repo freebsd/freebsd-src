@@ -78,7 +78,6 @@ __FBSDID("$FreeBSD$");
 #ifdef INET6
 #include <netinet/icmp6.h>
 #include <netinet/ip6.h>
-#include <netinet6/ip6protosw.h>
 #include <netinet6/in6_var.h>
 #include <netinet6/ip6_var.h>
 #include <netinet6/scope6_var.h>
@@ -435,18 +434,22 @@ carp_hmac_verify(struct carp_softc *sc, uint32_t counter[2],
  * but it seems more efficient this way or not possible otherwise.
  */
 #ifdef INET
-void
-carp_input(struct mbuf *m, int hlen)
+int
+carp_input(struct mbuf **mp, int *offp, int proto)
 {
+	struct mbuf *m = *mp;
 	struct ip *ip = mtod(m, struct ip *);
 	struct carp_header *ch;
 	int iplen, len;
+
+	iplen = *offp;
+	*mp = NULL;
 
 	CARPSTATS_INC(carps_ipackets);
 
 	if (!V_carp_allow) {
 		m_freem(m);
-		return;
+		return (IPPROTO_DONE);
 	}
 
 	/* verify that the IP TTL is 255.  */
@@ -456,7 +459,7 @@ carp_input(struct mbuf *m, int hlen)
 		    ip->ip_ttl,
 		    m->m_pkthdr.rcvif->if_xname);
 		m_freem(m);
-		return;
+		return (IPPROTO_DONE);
 	}
 
 	iplen = ip->ip_hl << 2;
@@ -467,14 +470,14 @@ carp_input(struct mbuf *m, int hlen)
 		    "on %s\n", __func__, m->m_len - sizeof(struct ip),
 		    m->m_pkthdr.rcvif->if_xname);
 		m_freem(m);
-		return;
+		return (IPPROTO_DONE);
 	}
 
 	if (iplen + sizeof(*ch) < m->m_len) {
 		if ((m = m_pullup(m, iplen + sizeof(*ch))) == NULL) {
 			CARPSTATS_INC(carps_hdrops);
 			CARP_DEBUG("%s: pullup failed\n", __func__);
-			return;
+			return (IPPROTO_DONE);
 		}
 		ip = mtod(m, struct ip *);
 	}
@@ -491,12 +494,12 @@ carp_input(struct mbuf *m, int hlen)
 		    m->m_pkthdr.len,
 		    m->m_pkthdr.rcvif->if_xname);
 		m_freem(m);
-		return;
+		return (IPPROTO_DONE);
 	}
 
 	if ((m = m_pullup(m, len)) == NULL) {
 		CARPSTATS_INC(carps_hdrops);
-		return;
+		return (IPPROTO_DONE);
 	}
 	ip = mtod(m, struct ip *);
 	ch = (struct carp_header *)((char *)ip + iplen);
@@ -508,11 +511,12 @@ carp_input(struct mbuf *m, int hlen)
 		CARP_DEBUG("%s: checksum failed on %s\n", __func__,
 		    m->m_pkthdr.rcvif->if_xname);
 		m_freem(m);
-		return;
+		return (IPPROTO_DONE);
 	}
 	m->m_data -= iplen;
 
 	carp_input_c(m, ch, AF_INET);
+	return (IPPROTO_DONE);
 }
 #endif
 
@@ -2058,13 +2062,13 @@ static struct protosw in_carp_protosw = {
 
 #ifdef INET6
 extern	struct domain inet6domain;
-static struct ip6protosw in6_carp_protosw = {
+static struct protosw in6_carp_protosw = {
 	.pr_type =		SOCK_RAW,
 	.pr_domain =		&inet6domain,
 	.pr_protocol =		IPPROTO_CARP,
 	.pr_flags =		PR_ATOMIC|PR_ADDR,
 	.pr_input =		carp6_input,
-	.pr_output =		rip6_output,
+	.pr_output =		(pr_output_t *)rip6_output,
 	.pr_ctloutput =		rip6_ctloutput,
 	.pr_usrreqs =		&rip6_usrreqs
 };

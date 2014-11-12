@@ -124,7 +124,7 @@
 .\" ========================================================================
 .\"
 .IX Title "CRL 1"
-.TH CRL 1 "2014-06-05" "1.0.1h" "OpenSSL"
+.TH CRL 1 "2014-08-06" "1.0.1i" "OpenSSL"
 .\" For nroff, turn off justification.  Always turn off hyphenation; it makes
 .\" way too many mistakes in technical documents.
 .if n .ad l
@@ -139,6 +139,7 @@ crl \- CRL utility
 [\fB\-text\fR]
 [\fB\-in filename\fR]
 [\fB\-out filename\fR]
+[\fB\-nameopt option\fR]
 [\fB\-noout\fR]
 [\fB\-hash\fR]
 [\fB\-issuer\fR]
@@ -171,6 +172,10 @@ default.
 .IP "\fB\-text\fR" 4
 .IX Item "-text"
 print out the \s-1CRL\s0 in text form.
+.IP "\fB\-nameopt option\fR" 4
+.IX Item "-nameopt option"
+option which determines how the subject or issuer names are displayed. See
+the description of \fB\-nameopt\fR in \fIx509\fR\|(1).
 .IP "\fB\-noout\fR" 4
 .IX Item "-noout"
 don't output the encoded version of the \s-1CRL\s0.

@@ -124,7 +124,7 @@
 .\" ========================================================================
 .\"
 .IX Title "DHPARAM 1"
-.TH DHPARAM 1 "2014-06-05" "1.0.1h" "OpenSSL"
+.TH DHPARAM 1 "2014-08-06" "1.0.1i" "OpenSSL"
 .\" For nroff, turn off justification.  Always turn off hyphenation; it makes
 .\" way too many mistakes in technical documents.
 .if n .ad l
@@ -139,6 +139,7 @@ dhparam \- DH parameter manipulation and generation
 [\fB\-in\fR \fIfilename\fR]
 [\fB\-out\fR \fIfilename\fR]
 [\fB\-dsaparam\fR]
+[\fB\-check\fR]
 [\fB\-noout\fR]
 [\fB\-text\fR]
 [\fB\-C\fR]
@@ -182,6 +183,9 @@ and the recommended exponent length is shorter, which makes \s-1DH\s0 key
 exchange more efficient.  Beware that with such DSA-style \s-1DH\s0
 parameters, a fresh \s-1DH\s0 key should be created for each use to
 avoid small-subgroup attacks that may be possible otherwise.
+.IP "\fB\-check\fR" 4
+.IX Item "-check"
+check if the parameters are valid primes and generator.
 .IP "\fB\-2\fR, \fB\-5\fR" 4
 .IX Item "-2, -5"
 The generator to use, either 2 or 5. 2 is the default. If present then the

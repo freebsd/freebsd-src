@@ -124,7 +124,7 @@
 .\" ========================================================================
 .\"
 .IX Title "RSA 1"
-.TH RSA 1 "2014-06-05" "1.0.1h" "OpenSSL"
+.TH RSA 1 "2014-08-06" "1.0.1i" "OpenSSL"
 .\" For nroff, turn off justification.  Always turn off hyphenation; it makes
 .\" way too many mistakes in technical documents.
 .if n .ad l
@@ -141,6 +141,12 @@ rsa \- RSA key processing tool
 [\fB\-out filename\fR]
 [\fB\-passout arg\fR]
 [\fB\-sgckey\fR]
+[\fB\-aes128\fR]
+[\fB\-aes192\fR]
+[\fB\-aes256\fR]
+[\fB\-camellia128\fR]
+[\fB\-camellia192\fR]
+[\fB\-camellia256\fR]
 [\fB\-des\fR]
 [\fB\-des3\fR]
 [\fB\-idea\fR]
@@ -197,10 +203,10 @@ see the \fB\s-1PASS\s0 \s-1PHRASE\s0 \s-1ARGUMENTS\s0\fR section in \fIopenssl\f
 .IX Item "-sgckey"
 use the modified \s-1NET\s0 algorithm used with some versions of Microsoft \s-1IIS\s0 and \s-1SGC\s0
 keys.
-.IP "\fB\-des|\-des3|\-idea\fR" 4
-.IX Item "-des|-des3|-idea"
-These options encrypt the private key with the \s-1DES\s0, triple \s-1DES\s0, or the 
-\&\s-1IDEA\s0 ciphers respectively before outputting it. A pass phrase is prompted for.
+.IP "\fB\-aes128|\-aes192|\-aes256|\-camellia128|\-camellia192|\-camellia256|\-des|\-des3|\-idea\fR" 4
+.IX Item "-aes128|-aes192|-aes256|-camellia128|-camellia192|-camellia256|-des|-des3|-idea"
+These options encrypt the private key with the specified
+cipher before outputting it. A pass phrase is prompted for.
 If none of these options is specified the key is written in plain text. This
 means that using the \fBrsa\fR utility to read in an encrypted key with no
 encryption option can be used to remove the pass phrase from a key, or by

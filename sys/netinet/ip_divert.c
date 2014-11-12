@@ -173,12 +173,14 @@ div_destroy(void)
  * IPPROTO_DIVERT is not in the real IP protocol number space; this
  * function should never be called.  Just in case, drop any packets.
  */
-static void
-div_input(struct mbuf *m, int off)
+static int
+div_input(struct mbuf **mp, int *offp, int proto)
 {
+	struct mbuf *m = *mp;
 
 	KMOD_IPSTAT_INC(ips_noproto);
 	m_freem(m);
+	return (IPPROTO_DONE);
 }
 
 /*

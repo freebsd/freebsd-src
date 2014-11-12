@@ -76,8 +76,6 @@ __FBSDID("$FreeBSD$");
 #include <netipsec/key.h>
 #endif /* IPSEC */
 
-#include <netinet6/ip6protosw.h>
-
 /*
  * Forward a packet.  If some error occurs return the sender
  * an icmp packet.  Note we can't always generate a meaningful

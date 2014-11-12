@@ -326,7 +326,7 @@ int sctp_ctloutput(struct socket *, struct sockopt *);
 
 #ifdef INET
 void sctp_input_with_port(struct mbuf *, int, uint16_t);
-void sctp_input(struct mbuf *, int);
+int sctp_input(struct mbuf **, int *, int);
 
 #endif
 void sctp_pathmtu_adjustment(struct sctp_tcb *, uint16_t);
