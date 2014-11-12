@@ -224,15 +224,15 @@ insert_ddp_data(struct toepcb *toep, uint32_t n)
 	tp->rcv_wnd -= n;
 #endif
 
-	KASSERT(toep->sb_cc >= sb->sb_cc,
+	KASSERT(toep->sb_cc >= sbused(sb),
 	    ("%s: sb %p has more data (%d) than last time (%d).",
-	    __func__, sb, sb->sb_cc, toep->sb_cc));
-	toep->rx_credits += toep->sb_cc - sb->sb_cc;
+	    __func__, sb, sbused(sb), toep->sb_cc));
+	toep->rx_credits += toep->sb_cc - sbused(sb);
 #ifdef USE_DDP_RX_FLOW_CONTROL
 	toep->rx_credits -= n;	/* adjust for F_RX_FC_DDP */
 #endif
 	sbappendstream_locked(sb, m);
-	toep->sb_cc = sb->sb_cc;
+	toep->sb_cc = sbused(sb);
 }
 
 /* SET_TCB_FIELD sent as a ULP command looks like this */
@@ -459,15 +459,15 @@ handle_ddp_data(struct toepcb *toep, __be32 ddp_report, __be32 rcv_nxt, int len)
 	else
 		discourage_ddp(toep);
 
-	KASSERT(toep->sb_cc >= sb->sb_cc,
+	KASSERT(toep->sb_cc >= sbused(sb),
 	    ("%s: sb %p has more data (%d) than last time (%d).",
-	    __func__, sb, sb->sb_cc, toep->sb_cc));
-	toep->rx_credits += toep->sb_cc - sb->sb_cc;
+	    __func__, sb, sbused(sb), toep->sb_cc));
+	toep->rx_credits += toep->sb_cc - sbused(sb);
 #ifdef USE_DDP_RX_FLOW_CONTROL
 	toep->rx_credits -= len;	/* adjust for F_RX_FC_DDP */
 #endif
 	sbappendstream_locked(sb, m);
-	toep->sb_cc = sb->sb_cc;
+	toep->sb_cc = sbused(sb);
 wakeup:
 	KASSERT(toep->ddp_flags & db_flag,
 	    ("%s: DDP buffer not active. toep %p, ddp_flags 0x%x, report 0x%x",
@@ -908,7 +908,7 @@ handle_ddp(struct socket *so, struct uio *uio, int flags, int error)
 #endif
 
 	/* XXX: too eager to disable DDP, could handle NBIO better than this. */
-	if (sb->sb_cc >= uio->uio_resid || uio->uio_resid < sc->tt.ddp_thres ||
+	if (sbused(sb) >= uio->uio_resid || uio->uio_resid < sc->tt.ddp_thres ||
 	    uio->uio_resid > MAX_DDP_BUFFER_SIZE || uio->uio_iovcnt > 1 ||
 	    so->so_state & SS_NBIO || flags & (MSG_DONTWAIT | MSG_NBIO) ||
 	    error || so->so_error || sb->sb_state & SBS_CANTRCVMORE)
@@ -946,7 +946,7 @@ handle_ddp(struct socket *so, struct uio *uio, int flags, int error)
 	 * payload.
 	 */
 	ddp_flags = select_ddp_flags(so, flags, db_idx);
-	wr = mk_update_tcb_for_ddp(sc, toep, db_idx, sb->sb_cc, ddp_flags);
+	wr = mk_update_tcb_for_ddp(sc, toep, db_idx, sbused(sb), ddp_flags);
 	if (wr == NULL) {
 		/*
 		 * Just unhold the pages.  The DDP buffer's software state is
@@ -1134,8 +1134,8 @@ restart:
 
 		/* uio should be just as it was at entry */
 		KASSERT(oresid == uio->uio_resid,
-		    ("%s: oresid = %d, uio_resid = %zd, sb_cc = %d",
-		    __func__, oresid, uio->uio_resid, sb->sb_cc));
+		    ("%s: oresid = %d, uio_resid = %zd, sbused = %d",
+		    __func__, oresid, uio->uio_resid, sbused(sb)));
 
 		error = handle_ddp(so, uio, flags, 0);
 		ddp_handled = 1;
@@ -1145,7 +1145,7 @@ restart:
 
 	/* Abort if socket has reported problems. */
 	if (so->so_error) {
-		if (sb->sb_cc > 0)
+		if (sbused(sb))
 			goto deliver;
 		if (oresid > uio->uio_resid)
 			goto out;
@@ -1157,32 +1157,32 @@ restart:
 
 	/* Door is closed.  Deliver what is left, if any. */
 	if (sb->sb_state & SBS_CANTRCVMORE) {
-		if (sb->sb_cc > 0)
+		if (sbused(sb))
 			goto deliver;
 		else
 			goto out;
 	}
 
 	/* Socket buffer is empty and we shall not block. */
-	if (sb->sb_cc == 0 &&
+	if (sbused(sb) == 0 &&
 	    ((so->so_state & SS_NBIO) || (flags & (MSG_DONTWAIT|MSG_NBIO)))) {
 		error = EAGAIN;
 		goto out;
 	}
 
 	/* Socket buffer got some data that we shall deliver now. */
-	if (sb->sb_cc > 0 && !(flags & MSG_WAITALL) &&
+	if (sbused(sb) && !(flags & MSG_WAITALL) &&
 	    ((sb->sb_flags & SS_NBIO) ||
 	     (flags & (MSG_DONTWAIT|MSG_NBIO)) ||
-	     sb->sb_cc >= sb->sb_lowat ||
-	     sb->sb_cc >= uio->uio_resid ||
-	     sb->sb_cc >= sb->sb_hiwat) ) {
+	     sbused(sb) >= sb->sb_lowat ||
+	     sbused(sb) >= uio->uio_resid ||
+	     sbused(sb) >= sb->sb_hiwat) ) {
 		goto deliver;
 	}
 
 	/* On MSG_WAITALL we must wait until all data or error arrives. */
 	if ((flags & MSG_WAITALL) &&
-	    (sb->sb_cc >= uio->uio_resid || sb->sb_cc >= sb->sb_lowat))
+	    (sbused(sb) >= uio->uio_resid || sbused(sb) >= sb->sb_lowat))
 		goto deliver;
 
 	/*
@@ -1201,7 +1201,7 @@ restart:
 
 deliver:
 	SOCKBUF_LOCK_ASSERT(&so->so_rcv);
-	KASSERT(sb->sb_cc > 0, ("%s: sockbuf empty", __func__));
+	KASSERT(sbused(sb) > 0, ("%s: sockbuf empty", __func__));
 	KASSERT(sb->sb_mb != NULL, ("%s: sb_mb == NULL", __func__));
 
 	if (sb->sb_flags & SB_DDP_INDICATE && !ddp_handled)
@@ -1212,7 +1212,7 @@ deliver:
 		uio->uio_td->td_ru.ru_msgrcv++;
 
 	/* Fill uio until full or current end of socket buffer is reached. */
-	len = min(uio->uio_resid, sb->sb_cc);
+	len = min(uio->uio_resid, sbused(sb));
 	if (mp0 != NULL) {
 		/* Dequeue as many mbufs as possible. */
 		if (!(flags & MSG_PEEK) && len >= sb->sb_mb->m_len) {

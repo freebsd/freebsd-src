@@ -365,15 +365,15 @@ t4_rcvd(struct toedev *tod, struct tcpcb *tp)
 	INP_WLOCK_ASSERT(inp);
 
 	SOCKBUF_LOCK(sb);
-	KASSERT(toep->sb_cc >= sb->sb_cc,
+	KASSERT(toep->sb_cc >= sbused(sb),
 	    ("%s: sb %p has more data (%d) than last time (%d).",
-	    __func__, sb, sb->sb_cc, toep->sb_cc));
+	    __func__, sb, sbused(sb), toep->sb_cc));
 	if (toep->ulp_mode == ULP_MODE_ISCSI) {
 		toep->rx_credits += toep->sb_cc;
 		toep->sb_cc = 0;
 	} else {
-		toep->rx_credits += toep->sb_cc - sb->sb_cc;
-		toep->sb_cc = sb->sb_cc;
+		toep->rx_credits += toep->sb_cc - sbused(sb);
+		toep->sb_cc = sbused(sb);
 	}
 	credits = toep->rx_credits;
 	SOCKBUF_UNLOCK(sb);
@@ -1079,15 +1079,15 @@ do_peer_close(struct sge_iq *iq, const struct rss_header *rss, struct mbuf *m)
 		tp->rcv_nxt = be32toh(cpl->rcv_nxt);
 		toep->ddp_flags &= ~(DDP_BUF0_ACTIVE | DDP_BUF1_ACTIVE);
 
-		KASSERT(toep->sb_cc >= sb->sb_cc,
+		KASSERT(toep->sb_cc >= sbused(sb),
 		    ("%s: sb %p has more data (%d) than last time (%d).",
-		    __func__, sb, sb->sb_cc, toep->sb_cc));
-		toep->rx_credits += toep->sb_cc - sb->sb_cc;
+		    __func__, sb, sbused(sb), toep->sb_cc));
+		toep->rx_credits += toep->sb_cc - sbused(sb);
 #ifdef USE_DDP_RX_FLOW_CONTROL
 		toep->rx_credits -= m->m_len;	/* adjust for F_RX_FC_DDP */
 #endif
 		sbappendstream_locked(sb, m);
-		toep->sb_cc = sb->sb_cc;
+		toep->sb_cc = sbused(sb);
 	}
 	socantrcvmore_locked(so);	/* unlocks the sockbuf */
 
@@ -1582,12 +1582,12 @@ do_rx_data(struct sge_iq *iq, const struct rss_header *rss, struct mbuf *m)
 		}
 	}
 
-	KASSERT(toep->sb_cc >= sb->sb_cc,
+	KASSERT(toep->sb_cc >= sbused(sb),
 	    ("%s: sb %p has more data (%d) than last time (%d).",
-	    __func__, sb, sb->sb_cc, toep->sb_cc));
-	toep->rx_credits += toep->sb_cc - sb->sb_cc;
+	    __func__, sb, sbused(sb), toep->sb_cc));
+	toep->rx_credits += toep->sb_cc - sbused(sb);
 	sbappendstream_locked(sb, m);
-	toep->sb_cc = sb->sb_cc;
+	toep->sb_cc = sbused(sb);
 	sorwakeup_locked(so);
 	SOCKBUF_UNLOCK_ASSERT(sb);
 

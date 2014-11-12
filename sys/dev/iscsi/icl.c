@@ -758,7 +758,7 @@ icl_receive_thread(void *arg)
 		 * is enough data received to read the PDU.
 		 */
 		SOCKBUF_LOCK(&so->so_rcv);
-		available = so->so_rcv.sb_cc;
+		available = sbavail(&so->so_rcv);
 		if (available < ic->ic_receive_len) {
 			so->so_rcv.sb_lowat = ic->ic_receive_len;
 			cv_wait(&ic->ic_receive_cv, &so->so_rcv.sb_mtx);
