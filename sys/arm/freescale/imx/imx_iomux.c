@@ -139,7 +139,7 @@ iomux_configure_pins(device_t dev, phandle_t cfgxref)
 		WR4(sc, cfg->mux_reg, cfg->mux_val | sion);
 		if (cfg->input_reg != 0)
 			WR4(sc, cfg->input_reg, cfg->input_val);
-		if ((cfg->padconf_val & PADCONF_NONE) != 0)
+		if ((cfg->padconf_val & PADCONF_NONE) == 0)
 			WR4(sc, cfg->padconf_reg, cfg->padconf_val);
 		if (bootverbose) {
 			char name[32]; 
