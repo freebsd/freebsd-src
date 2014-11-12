@@ -158,21 +158,10 @@ data_abort(struct trapframe *frame, uint64_t esr, int lower)
 		panic("vm_fault failed");
 }
 
-void
-do_el1h_sync(struct trapframe *frame)
+static void
+print_registers(struct trapframe *frame)
 {
-	uint32_t exception;
-	uint64_t esr;
 	u_int reg;
-
-	/* Read the esr register to get the exception details */
-	__asm __volatile("mrs %x0, esr_el1" : "=&r"(esr));
-	KASSERT((esr & (1 << 25)) != 0,
-	    ("Invalid instruction length in exception"));
-
-	exception = (esr >> 26) & 0x3f;
-
-	printf("In do_el1h_sync %llx %llx %x\n", frame->tf_elr, esr, exception);
 
 	for (reg = 0; reg < 31; reg++) {
 		printf(" %sx%d: %llx\n", (reg < 10) ? " " : "", reg, frame->tf_x[reg]);
@@ -181,6 +170,28 @@ do_el1h_sync(struct trapframe *frame)
 	printf("  lr: %llx\n", frame->tf_lr);
 	printf(" elr: %llx\n", frame->tf_elr);
 	printf("spsr: %llx\n", frame->tf_spsr);
+}
+
+void
+do_el1h_sync(struct trapframe *frame)
+{
+	uint32_t exception;
+	uint64_t esr;
+
+	/* Read the esr register to get the exception details */
+	__asm __volatile("mrs %x0, esr_el1" : "=&r"(esr));
+	KASSERT((esr & (1 << 25)) != 0,
+	    ("Invalid instruction length in exception"));
+
+	exception = (esr >> 26) & 0x3f;
+
+	if (0) {
+		printf("In do_el1h_sync\n");
+		printf(" esr: %llx\n", esr);
+		printf("excp: %x\n", exception);
+		print_registers(frame);
+	}
+
 	switch(exception) {
 	case 0x25:
 		data_abort(frame, esr, 0);
@@ -192,7 +203,6 @@ do_el1h_sync(struct trapframe *frame)
 	default:
 		panic("Unknown exception %x\n", exception);
 	}
-	printf("Done do_el1h_sync\n");
 }
 
 void
@@ -200,19 +210,17 @@ do_el0_sync(struct trapframe *frame)
 {
 	uint32_t exception;
 	uint64_t esr;
-	u_int reg;
 
 	__asm __volatile("mrs %x0, esr_el1" : "=&r"(esr));
 	exception = (esr >> 26) & 0x3f;
-	printf("In do_el0_sync %llx %llx %x\n", frame->tf_elr, esr, exception);
 
-	for (reg = 0; reg < 31; reg++) {
-		printf(" %sx%d: %llx\n", (reg < 10) ? " " : "", reg, frame->tf_x[reg]);
+	if (0)
+	{
+		printf("In do_el0_sync\n");
+		printf(" esr: %llx\n", esr);
+		printf("excp: %x\n", exception);
+		print_registers(frame);
 	}
-	printf("  sp: %llx\n", frame->tf_sp);
-	printf("  lr: %llx\n", frame->tf_lr);
-	printf(" elr: %llx\n", frame->tf_elr);
-	printf("spsr: %llx\n", frame->tf_spsr);
 
 	switch(exception) {
 	case 0x15:
