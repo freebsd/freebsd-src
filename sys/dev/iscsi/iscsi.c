@@ -26,8 +26,10 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
  */
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/condvar.h>
@@ -57,10 +59,10 @@
 #include <cam/scsi/scsi_all.h>
 #include <cam/scsi/scsi_message.h>
 
-#include "iscsi_ioctl.h"
-#include "iscsi.h"
-#include "icl.h"
-#include "iscsi_proto.h"
+#include <dev/iscsi/icl.h>
+#include <dev/iscsi/iscsi_ioctl.h>
+#include <dev/iscsi/iscsi_proto.h>
+#include <dev/iscsi/iscsi.h>
 
 #ifdef ICL_KERNEL_PROXY
 #include <sys/socketvar.h>

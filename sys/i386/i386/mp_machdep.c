@@ -1522,9 +1522,11 @@ cpususpend_handler(void)
 
 	cpu = PCPU_GET(cpuid);
 	if (savectx(susppcbs[cpu])) {
+		npxsuspend(&susppcbs[cpu]->pcb_fpususpend);
 		wbinvd();
 		CPU_SET_ATOMIC(cpu, &suspended_cpus);
 	} else {
+		npxresume(&susppcbs[cpu]->pcb_fpususpend);
 		pmap_init_pat();
 		PCPU_SET(switchtime, 0);
 		PCPU_SET(switchticks, ticks);

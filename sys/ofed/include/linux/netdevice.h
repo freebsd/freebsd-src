@@ -2,6 +2,7 @@
  * Copyright (c) 2010 Isilon Systems, Inc.
  * Copyright (c) 2010 iX Systems, Inc.
  * Copyright (c) 2010 Panasas, Inc.
+ * Copyright (c) 2013, 2014 Mellanox Technologies, Ltd.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -97,6 +98,24 @@ _handle_ifnet_departure_event(void *arg, struct ifnet *ifp)
 	nb->notifier_call(nb, NETDEV_UNREGISTER, ifp);
 }
 
+static inline void
+_handle_iflladdr_event(void *arg, struct ifnet *ifp)
+{
+	struct notifier_block *nb;
+
+	nb = arg;
+	nb->notifier_call(nb, NETDEV_CHANGEADDR, ifp);
+}
+
+static inline void
+_handle_ifaddr_event(void *arg, struct ifnet *ifp)
+{
+	struct notifier_block *nb;
+
+	nb = arg;
+	nb->notifier_call(nb, NETDEV_CHANGEIFADDR, ifp);
+}
+
 static inline int
 register_netdevice_notifier(struct notifier_block *nb)
 {
@@ -107,7 +126,19 @@ register_netdevice_notifier(struct notifier_block *nb)
 	    ifnet_arrival_event, _handle_ifnet_arrival_event, nb, 0);
 	nb->tags[NETDEV_UNREGISTER] = EVENTHANDLER_REGISTER(
 	    ifnet_departure_event, _handle_ifnet_departure_event, nb, 0);
+	nb->tags[NETDEV_CHANGEADDR] = EVENTHANDLER_REGISTER(
+	    iflladdr_event, _handle_iflladdr_event, nb, 0);
+
 	return (0);
+}
+
+static inline int
+register_inetaddr_notifier(struct notifier_block *nb)
+{
+
+        nb->tags[NETDEV_CHANGEIFADDR] = EVENTHANDLER_REGISTER(
+            ifaddr_event, _handle_ifaddr_event, nb, 0);
+        return (0);
 }
 
 static inline int
@@ -118,8 +149,22 @@ unregister_netdevice_notifier(struct notifier_block *nb)
         EVENTHANDLER_DEREGISTER(ifnet_arrival_event, nb->tags[NETDEV_REGISTER]);
         EVENTHANDLER_DEREGISTER(ifnet_departure_event,
 	    nb->tags[NETDEV_UNREGISTER]);
+        EVENTHANDLER_DEREGISTER(iflladdr_event,
+            nb->tags[NETDEV_CHANGEADDR]);
+
 	return (0);
 }
+
+static inline int
+unregister_inetaddr_notifier(struct notifier_block *nb)
+{
+
+        EVENTHANDLER_DEREGISTER(ifaddr_event,
+            nb->tags[NETDEV_CHANGEIFADDR]);
+
+        return (0);
+}
+
 
 #define	rtnl_lock()
 #define	rtnl_unlock()

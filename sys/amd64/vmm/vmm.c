@@ -572,6 +572,21 @@ vm_malloc(struct vm *vm, vm_paddr_t gpa, size_t len)
 	return (0);
 }
 
+static vm_paddr_t
+vm_maxmem(struct vm *vm)
+{
+	int i;
+	vm_paddr_t gpa, maxmem;
+
+	maxmem = 0;
+	for (i = 0; i < vm->num_mem_segs; i++) {
+		gpa = vm->mem_segs[i].gpa + vm->mem_segs[i].len;
+		if (gpa > maxmem)
+			maxmem = gpa;
+	}
+	return (maxmem);
+}
+
 static void
 vm_gpa_unwire(struct vm *vm)
 {
@@ -709,7 +724,7 @@ vm_assign_pptdev(struct vm *vm, int bus, int slot, int func)
 	if (ppt_assigned_devices(vm) == 0) {
 		KASSERT(vm->iommu == NULL,
 		    ("vm_assign_pptdev: iommu must be NULL"));
-		maxaddr = vmm_mem_maxaddr();
+		maxaddr = vm_maxmem(vm);
 		vm->iommu = iommu_create_domain(maxaddr);
 
 		error = vm_gpa_wire(vm);

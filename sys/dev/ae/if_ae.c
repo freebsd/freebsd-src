@@ -363,7 +363,7 @@ ae_attach(device_t dev)
 
 	ether_ifattach(ifp, sc->eaddr);
 	/* Tell the upper layer(s) we support long frames. */
-	ifp->if_data.ifi_hdrlen = sizeof(struct ether_vlan_header);
+	ifp->if_hdrlen = sizeof(struct ether_vlan_header);
 
 	/*
 	 * Create and run all helper tasks.

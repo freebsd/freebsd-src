@@ -13,8 +13,6 @@ CFLAGS+= -DINFODIR=\"${INFODIR}:/usr/local/info:.\"
 DPADD=	${LIBTERMCAPW} ${LIBTXI}
 LDADD=	-ltermcapw ${LIBTXI}
 
-NO_PIE=	yes
-
 .include <bsd.prog.mk>
 
 .PATH:	${TXIDIR}/info ${TXIDIR}/doc

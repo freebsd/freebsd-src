@@ -177,8 +177,8 @@ static void pmap_invalidate_all(pmap_t pmap);
 static void pmap_invalidate_page(pmap_t pmap, vm_offset_t va);
 static void _pmap_unwire_ptp(pmap_t pmap, vm_offset_t va, vm_page_t m);
 
-static vm_page_t pmap_allocpte(pmap_t pmap, vm_offset_t va, int flags);
-static vm_page_t _pmap_allocpte(pmap_t pmap, unsigned ptepindex, int flags);
+static vm_page_t pmap_allocpte(pmap_t pmap, vm_offset_t va, u_int flags);
+static vm_page_t _pmap_allocpte(pmap_t pmap, unsigned ptepindex, u_int flags);
 static int pmap_unuse_pt(pmap_t, vm_offset_t, pd_entry_t);
 static pt_entry_t init_pte_prot(vm_page_t m, vm_prot_t access, vm_prot_t prot);
 
@@ -1094,20 +1094,16 @@ pmap_pinit(pmap_t pmap)
  * mapped correctly.
  */
 static vm_page_t
-_pmap_allocpte(pmap_t pmap, unsigned ptepindex, int flags)
+_pmap_allocpte(pmap_t pmap, unsigned ptepindex, u_int flags)
 {
 	vm_offset_t pageva;
 	vm_page_t m;
-
-	KASSERT((flags & (M_NOWAIT | M_WAITOK)) == M_NOWAIT ||
-	    (flags & (M_NOWAIT | M_WAITOK)) == M_WAITOK,
-	    ("_pmap_allocpte: flags is neither M_NOWAIT nor M_WAITOK"));
 
 	/*
 	 * Find or fabricate a new pagetable page
 	 */
 	if ((m = pmap_alloc_direct_page(ptepindex, VM_ALLOC_NORMAL)) == NULL) {
-		if (flags & M_WAITOK) {
+		if ((flags & PMAP_ENTER_NOSLEEP) == 0) {
 			PMAP_UNLOCK(pmap);
 			rw_wunlock(&pvh_global_lock);
 			pmap_grow_direct_page_cache();
@@ -1164,15 +1160,11 @@ _pmap_allocpte(pmap_t pmap, unsigned ptepindex, int flags)
 }
 
 static vm_page_t
-pmap_allocpte(pmap_t pmap, vm_offset_t va, int flags)
+pmap_allocpte(pmap_t pmap, vm_offset_t va, u_int flags)
 {
 	unsigned ptepindex;
 	pd_entry_t *pde;
 	vm_page_t m;
-
-	KASSERT((flags & (M_NOWAIT | M_WAITOK)) == M_NOWAIT ||
-	    (flags & (M_NOWAIT | M_WAITOK)) == M_WAITOK,
-	    ("pmap_allocpte: flags is neither M_NOWAIT nor M_WAITOK"));
 
 	/*
 	 * Calculate pagetable page index
@@ -1197,7 +1189,7 @@ retry:
 		 * deallocated.
 		 */
 		m = _pmap_allocpte(pmap, ptepindex, flags);
-		if (m == NULL && (flags & M_WAITOK))
+		if (m == NULL && (flags & PMAP_ENTER_NOSLEEP) == 0)
 			goto retry;
 	}
 	return (m);
@@ -1994,9 +1986,9 @@ pmap_protect(pmap_t pmap, vm_offset_t sva, vm_offset_t eva, vm_prot_t prot)
  *	or lose information.  That is, this routine must actually
  *	insert this page into the given map NOW.
  */
-void
-pmap_enter(pmap_t pmap, vm_offset_t va, vm_prot_t access, vm_page_t m,
-    vm_prot_t prot, boolean_t wired)
+int
+pmap_enter(pmap_t pmap, vm_offset_t va, vm_page_t m, vm_prot_t prot,
+    u_int flags, int8_t psind __unused)
 {
 	vm_paddr_t pa, opa;
 	pt_entry_t *pte;
@@ -2009,11 +2001,11 @@ pmap_enter(pmap_t pmap, vm_offset_t va, vm_prot_t access, vm_page_t m,
 	KASSERT((m->oflags & VPO_UNMANAGED) != 0 || va < kmi.clean_sva ||
 	    va >= kmi.clean_eva,
 	    ("pmap_enter: managed mapping within the clean submap"));
-	KASSERT((m->oflags & VPO_UNMANAGED) != 0 || vm_page_xbusied(m),
-	    ("pmap_enter: page %p is not busy", m));
+	if ((m->oflags & VPO_UNMANAGED) == 0 && !vm_page_xbusied(m))
+		VM_OBJECT_ASSERT_LOCKED(m->object);
 	pa = VM_PAGE_TO_PHYS(m);
-	newpte = TLBLO_PA_TO_PFN(pa) | init_pte_prot(m, access, prot);
-	if (wired)
+	newpte = TLBLO_PA_TO_PFN(pa) | init_pte_prot(m, flags, prot);
+	if ((flags & PMAP_ENTER_WIRED) != 0)
 		newpte |= PTE_W;
 	if (is_kernel_pmap(pmap))
 		newpte |= PTE_G;
@@ -2032,7 +2024,14 @@ pmap_enter(pmap_t pmap, vm_offset_t va, vm_prot_t access, vm_page_t m,
 	 * creating it here.
 	 */
 	if (va < VM_MAXUSER_ADDRESS) {
-		mpte = pmap_allocpte(pmap, va, M_WAITOK);
+		mpte = pmap_allocpte(pmap, va, flags);
+		if (mpte == NULL) {
+			KASSERT((flags & PMAP_ENTER_NOSLEEP) != 0,
+			    ("pmap_allocpte failed with sleep allowed"));
+			rw_wunlock(&pvh_global_lock);
+			PMAP_UNLOCK(pmap);
+			return (KERN_RESOURCE_SHORTAGE);
+		}
 	}
 	pte = pmap_pte(pmap, va);
 
@@ -2057,9 +2056,10 @@ pmap_enter(pmap_t pmap, vm_offset_t va, vm_prot_t access, vm_page_t m,
 		 * are valid mappings in them. Hence, if a user page is
 		 * wired, the PT page will be also.
 		 */
-		if (wired && !pte_test(&origpte, PTE_W))
+		if (pte_test(&newpte, PTE_W) && !pte_test(&origpte, PTE_W))
 			pmap->pm_stats.wired_count++;
-		else if (!wired && pte_test(&origpte, PTE_W))
+		else if (!pte_test(&newpte, PTE_W) && pte_test(&origpte,
+		    PTE_W))
 			pmap->pm_stats.wired_count--;
 
 		KASSERT(!pte_test(&origpte, PTE_D | PTE_RO),
@@ -2123,7 +2123,7 @@ pmap_enter(pmap_t pmap, vm_offset_t va, vm_prot_t access, vm_page_t m,
 	/*
 	 * Increment counters
 	 */
-	if (wired)
+	if (pte_test(&newpte, PTE_W))
 		pmap->pm_stats.wired_count++;
 
 validate:
@@ -2170,6 +2170,7 @@ validate:
 	}
 	rw_wunlock(&pvh_global_lock);
 	PMAP_UNLOCK(pmap);
+	return (KERN_SUCCESS);
 }
 
 /*
@@ -2235,7 +2236,7 @@ pmap_enter_quick_locked(pmap_t pmap, vm_offset_t va, vm_page_t m,
 				mpte->wire_count++;
 			} else {
 				mpte = _pmap_allocpte(pmap, ptepindex,
-				    M_NOWAIT);
+				    PMAP_ENTER_NOSLEEP);
 				if (mpte == NULL)
 					return (mpte);
 			}

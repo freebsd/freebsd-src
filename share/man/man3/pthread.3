@@ -30,7 +30,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd January 8, 2010
+.Dd August 12, 2014
 .Dt PTHREAD 3
 .Os
 .Sh NAME
@@ -344,13 +344,13 @@ Unblock at least one of the threads blocked on the specified condition variable.
 .Fa "const struct timespec *abstime"
 .Fc
 .Xc
-Wait no longer than the specified time for a condition
-and lock the specified mutex.
+Unlock the specified mutex, wait no longer than the specified time for
+a condition, and then relock the mutex.
 .It Xo
 .Ft int
 .Fn pthread_cond_wait "pthread_cond_t *" "pthread_mutex_t *mutex"
 .Xc
-Wait for a condition and lock the specified mutex.
+Unlock the specified mutex, wait for a condition, and relock the mutex.
 .El
 .Ss Read/Write Lock Routines
 .Bl -tag -width indent

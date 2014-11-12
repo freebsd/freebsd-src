@@ -645,8 +645,10 @@ linprocfs_doprocstat(PFS_FILL_ARGS)
 	static int ratelimit = 0;
 	vm_offset_t startcode, startdata;
 
+	sx_slock(&proctree_lock);
 	PROC_LOCK(p);
 	fill_kinfo_proc(p, &kp);
+	sx_sunlock(&proctree_lock);
 	if (p->p_vmspace) {
 	   startcode = (vm_offset_t)p->p_vmspace->vm_taddr;
 	   startdata = (vm_offset_t)p->p_vmspace->vm_daddr;
@@ -722,9 +724,11 @@ linprocfs_doprocstatm(PFS_FILL_ARGS)
 	struct kinfo_proc kp;
 	segsz_t lsize;
 
+	sx_slock(&proctree_lock);
 	PROC_LOCK(p);
 	fill_kinfo_proc(p, &kp);
 	PROC_UNLOCK(p);
+	sx_sunlock(&proctree_lock);
 
 	/*
 	 * See comments in linprocfs_doprocstatus() regarding the
@@ -757,6 +761,7 @@ linprocfs_doprocstatus(PFS_FILL_ARGS)
 	struct sigacts *ps;
 	int i;
 
+	sx_slock(&proctree_lock);
 	PROC_LOCK(p);
 	td2 = FIRST_THREAD_IN_PROC(p); /* XXXKSE pretend only one thread */
 
@@ -795,6 +800,8 @@ linprocfs_doprocstatus(PFS_FILL_ARGS)
 	}
 
 	fill_kinfo_proc(p, &kp);
+	sx_sunlock(&proctree_lock);
+
 	sbuf_printf(sb, "Name:\t%s\n",		p->p_comm); /* XXX escape */
 	sbuf_printf(sb, "State:\t%s\n",		state);
 

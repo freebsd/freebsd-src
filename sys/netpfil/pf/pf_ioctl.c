@@ -265,6 +265,15 @@ pfattach(void)
 	/* XXX do our best to avoid a conflict */
 	V_pf_status.hostid = arc4random();
 
+	for (int i = 0; i < PFRES_MAX; i++)
+		V_pf_status.counters[i] = counter_u64_alloc(M_WAITOK);
+	for (int i = 0; i < LCNT_MAX; i++)
+		V_pf_status.lcounters[i] = counter_u64_alloc(M_WAITOK);
+	for (int i = 0; i < FCNT_MAX; i++)
+		V_pf_status.fcounters[i] = counter_u64_alloc(M_WAITOK);
+	for (int i = 0; i < SCNT_MAX; i++)
+		V_pf_status.scounters[i] = counter_u64_alloc(M_WAITOK);
+
 	if ((error = kproc_create(pf_purge_thread, curvnet, NULL, 0, 0,
 	    "pf purge")) != 0)
 		/* XXXGL: leaked all above. */
@@ -1787,8 +1796,32 @@ DIOCGETSTATES_full:
 
 	case DIOCGETSTATUS: {
 		struct pf_status *s = (struct pf_status *)addr;
+
 		PF_RULES_RLOCK();
-		bcopy(&V_pf_status, s, sizeof(struct pf_status));
+		s->running = V_pf_status.running;
+		s->since   = V_pf_status.since;
+		s->debug   = V_pf_status.debug;
+		s->hostid  = V_pf_status.hostid;
+		s->states  = V_pf_status.states;
+		s->src_nodes = V_pf_status.src_nodes;
+
+		for (int i = 0; i < PFRES_MAX; i++)
+			s->counters[i] =
+			    counter_u64_fetch(V_pf_status.counters[i]);
+		for (int i = 0; i < LCNT_MAX; i++)
+			s->lcounters[i] =
+			    counter_u64_fetch(V_pf_status.lcounters[i]);
+		for (int i = 0; i < FCNT_MAX; i++)
+			s->fcounters[i] =
+			    counter_u64_fetch(V_pf_status.fcounters[i]);
+		for (int i = 0; i < SCNT_MAX; i++)
+			s->scounters[i] =
+			    counter_u64_fetch(V_pf_status.scounters[i]);
+
+		bcopy(V_pf_status.ifname, s->ifname, IFNAMSIZ);
+		bcopy(V_pf_status.pf_chksum, s->pf_chksum,
+		    PF_MD5_DIGEST_LENGTH);
+
 		pfi_update_status(s->ifname, s);
 		PF_RULES_RUNLOCK();
 		break;
@@ -1809,9 +1842,12 @@ DIOCGETSTATES_full:
 
 	case DIOCCLRSTATUS: {
 		PF_RULES_WLOCK();
-		bzero(V_pf_status.counters, sizeof(V_pf_status.counters));
-		bzero(V_pf_status.fcounters, sizeof(V_pf_status.fcounters));
-		bzero(V_pf_status.scounters, sizeof(V_pf_status.scounters));
+		for (int i = 0; i < PFRES_MAX; i++)
+			counter_u64_zero(V_pf_status.counters[i]);
+		for (int i = 0; i < FCNT_MAX; i++)
+			counter_u64_zero(V_pf_status.fcounters[i]);
+		for (int i = 0; i < SCNT_MAX; i++)
+			counter_u64_zero(V_pf_status.scounters[i]);
 		V_pf_status.since = time_second;
 		if (*V_pf_status.ifname)
 			pfi_update_status(V_pf_status.ifname, NULL);
@@ -3157,7 +3193,6 @@ DIOCCHANGEADDR_error:
 
 		pf_clear_srcnodes(NULL);
 		pf_purge_expired_src_nodes();
-		V_pf_status.src_nodes = 0;
 		break;
 	}
 
@@ -3454,6 +3489,15 @@ shutdown_pf(void)
 	counter_u64_free(V_pf_default_rule.states_cur);
 	counter_u64_free(V_pf_default_rule.states_tot);
 	counter_u64_free(V_pf_default_rule.src_nodes);
+
+	for (int i = 0; i < PFRES_MAX; i++)
+		counter_u64_free(V_pf_status.counters[i]);
+	for (int i = 0; i < LCNT_MAX; i++)
+		counter_u64_free(V_pf_status.lcounters[i]);
+	for (int i = 0; i < FCNT_MAX; i++)
+		counter_u64_free(V_pf_status.fcounters[i]);
+	for (int i = 0; i < SCNT_MAX; i++)
+		counter_u64_free(V_pf_status.scounters[i]);
 
 	do {
 		if ((error = pf_begin_rules(&t[0], PF_RULESET_SCRUB, &nn))

@@ -591,7 +591,7 @@ nfe_attach(device_t dev)
 	nfe_sysctl_node(sc);
 
 	if_setsoftc(ifp, sc);
-	if_initname_drv(ifp, device_get_name(dev), device_get_unit(dev));
+	if_initname(ifp, device_get_name(dev), device_get_unit(dev));
 	if_setflags(ifp, IFF_BROADCAST | IFF_SIMPLEX | IFF_MULTICAST);
 	if_setioctlfn(ifp, nfe_ioctl);
 	if_setstartfn(ifp, nfe_start);
@@ -624,8 +624,8 @@ nfe_attach(device_t dev)
 
 	/*
 	 * Tell the upper layer(s) we support long frames.
-	 * Must appear after the call to ether_ifattach_drv() because
-	 * ether_ifattach_drv() sets ifi_hdrlen to the default value.
+	 * Must appear after the call to ether_ifattach() because
+	 * ether_ifattach() sets ifi_hdrlen to the default value.
 	 */
 	if_setifheaderlen(ifp, sizeof(struct ether_vlan_header));
 
@@ -649,7 +649,7 @@ nfe_attach(device_t dev)
 		device_printf(dev, "attaching PHYs failed\n");
 		goto fail;
 	}
-	ether_ifattach_drv(ifp, sc->eaddr);
+	ether_ifattach(ifp, sc->eaddr);
 
 	TASK_INIT(&sc->nfe_int_task, 0, nfe_int_task, sc);
 	sc->nfe_tq = taskqueue_create_fast("nfe_taskq", M_WAITOK,
@@ -674,7 +674,7 @@ nfe_attach(device_t dev)
 		device_printf(dev, "couldn't set up irq\n");
 		taskqueue_free(sc->nfe_tq);
 		sc->nfe_tq = NULL;
-		ether_ifdetach_drv(ifp);
+		ether_ifdetach(ifp);
 		goto fail;
 	}
 
@@ -708,7 +708,7 @@ nfe_detach(device_t dev)
 		if_setflagbits(ifp, 0, IFF_UP);
 		NFE_UNLOCK(sc);
 		callout_drain(&sc->nfe_stat_ch);
-		ether_ifdetach_drv(ifp);
+		ether_ifdetach(ifp);
 	}
 
 	if (ifp) {
@@ -720,7 +720,7 @@ nfe_detach(device_t dev)
 		} else
 			bcopy(sc->eaddr, eaddr, ETHER_ADDR_LEN);
 		nfe_set_macaddr(sc, eaddr);
-		if_free_drv(ifp);
+		if_free(ifp);
 	}
 	if (sc->nfe_miibus)
 		device_delete_child(dev, sc->nfe_miibus);
@@ -1775,7 +1775,7 @@ nfe_ioctl(if_t ifp, u_long cmd, caddr_t data)
 	case SIOCSIFMEDIA:
 	case SIOCGIFMEDIA:
 		mii = device_get_softc(sc->nfe_miibus);
-		error = ifmedia_ioctl_drv(ifp, ifr, &mii->mii_media, cmd);
+		error = ifmedia_ioctl(ifp, ifr, &mii->mii_media, cmd);
 		break;
 	case SIOCSIFCAP:
 		mask = ifr->ifr_reqcap ^ if_getcapenable(ifp);
@@ -1853,7 +1853,7 @@ nfe_ioctl(if_t ifp, u_long cmd, caddr_t data)
 		if_vlancap(ifp);
 		break;
 	default:
-		error = ether_ioctl_drv(ifp, cmd, data);
+		error = ether_ioctl(ifp, cmd, data);
 		break;
 	}
 

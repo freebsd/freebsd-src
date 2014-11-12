@@ -448,6 +448,8 @@ in6_selectsrc(struct sockaddr_in6 *dstsock, struct ip6_pktopts *opts,
 		 */
 		if (ifa_preferred(&ia_best->ia_ifa, &ia->ia_ifa))
 			REPLACE(9);
+		if (ifa_preferred(&ia->ia_ifa, &ia_best->ia_ifa))
+			NEXT(9);
 
 		/*
 		 * Rule 14: Use longest matching prefix.

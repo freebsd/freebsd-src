@@ -423,7 +423,7 @@ cas_attach(struct cas_softc *sc)
 	/*
 	 * Tell the upper layer(s) we support long frames/checksum offloads.
 	 */
-	ifp->if_data.ifi_hdrlen = sizeof(struct ether_vlan_header);
+	ifp->if_hdrlen = sizeof(struct ether_vlan_header);
 	ifp->if_capabilities = IFCAP_VLAN_MTU;
 	if ((sc->sc_flags & CAS_NO_CSUM) == 0) {
 		ifp->if_capabilities |= IFCAP_HWCSUM;

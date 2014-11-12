@@ -228,7 +228,7 @@ ctl_tpc_lun_shutdown(struct ctl_lun *lun)
 	}
 
 	/* Free ROD tokens for this LUN. */
-	mtx_lock(&control_softc->ctl_lock);
+	mtx_assert(&control_softc->ctl_lock, MA_OWNED);
 	TAILQ_FOREACH_SAFE(token, &control_softc->tpc_tokens, links, ttoken) {
 		if (token->lun != lun->lun || token->active)
 			continue;
@@ -236,7 +236,6 @@ ctl_tpc_lun_shutdown(struct ctl_lun *lun)
 		free(token->params, M_CTL);
 		free(token, M_CTL);
 	}
-	mtx_unlock(&control_softc->ctl_lock);
 }
 
 int

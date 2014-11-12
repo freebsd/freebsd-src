@@ -90,6 +90,8 @@ struct pcb {
 	struct region_descriptor pcb_idt;
 	uint16_t	pcb_ldt;
 	uint16_t	pcb_tr;
+
+	union	savefpu pcb_fpususpend;
 };
 
 #ifdef _KERNEL

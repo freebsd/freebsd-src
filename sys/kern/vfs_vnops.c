@@ -438,7 +438,8 @@ static int
 sequential_heuristic(struct uio *uio, struct file *fp)
 {
 
-	if (atomic_load_acq_int(&(fp->f_flag)) & FRDAHEAD)
+	ASSERT_VOP_LOCKED(fp->f_vnode, __func__);
+	if (fp->f_flag & FRDAHEAD)
 		return (fp->f_seqcount << IO_SEQSHIFT);
 
 	/*

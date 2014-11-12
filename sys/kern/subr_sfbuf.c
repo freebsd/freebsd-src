@@ -99,8 +99,7 @@ sf_buf_init(void *arg)
 	TAILQ_INIT(&sf_buf_freelist);
 	sf_base = kva_alloc(nsfbufs * PAGE_SIZE);
 	sf_bufs = malloc(nsfbufs * sizeof(struct sf_buf), M_TEMP,
-	    M_NOWAIT | M_ZERO);
-	KASSERT(sf_bufs, ("%s: malloc failure", __func__));
+	    M_WAITOK | M_ZERO);
 	for (i = 0; i < nsfbufs; i++) {
 		sf_bufs[i].kva = sf_base + i * PAGE_SIZE;
 		TAILQ_INSERT_TAIL(&sf_buf_freelist, &sf_bufs[i], free_entry);
@@ -198,6 +197,21 @@ sf_buf_free(struct sf_buf *sf)
 		if (sf_buf_alloc_want > 0)
 			wakeup(&sf_buf_freelist);
 	}
+	mtx_unlock(&sf_buf_lock);
+}
+
+void
+sf_buf_ref(struct sf_buf *sf)
+{
+
+#ifdef SFBUF_OPTIONAL_DIRECT_MAP
+	if (SFBUF_OPTIONAL_DIRECT_MAP)
+		return;
+#endif
+
+	mtx_lock(&sf_buf_lock);
+	KASSERT(sf->ref_count > 0, ("%s: sf %p not allocated", __func__, sf));
+	sf->ref_count++;
 	mtx_unlock(&sf_buf_lock);
 }
 

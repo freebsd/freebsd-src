@@ -476,7 +476,6 @@ kern_fcntl(struct thread *td, int fd, int cmd, intptr_t arg)
 	struct vnode *vp;
 	cap_rights_t rights;
 	int error, flg, tmp;
-	u_int old, new;
 	uint64_t bsize;
 	off_t foffset;
 
@@ -760,26 +759,24 @@ kern_fcntl(struct thread *td, int fd, int cmd, intptr_t arg)
 			error = EBADF;
 			break;
 		}
-		if (arg >= 0) {
-			vp = fp->f_vnode;
-			error = vn_lock(vp, LK_SHARED);
-			if (error != 0) {
-				fdrop(fp, td);
-				break;
-			}
-			bsize = fp->f_vnode->v_mount->mnt_stat.f_iosize;
-			VOP_UNLOCK(vp, 0);
-			fp->f_seqcount = (arg + bsize - 1) / bsize;
-			do {
-				new = old = fp->f_flag;
-				new |= FRDAHEAD;
-			} while (!atomic_cmpset_rel_int(&fp->f_flag, old, new));
-		} else {
-			do {
-				new = old = fp->f_flag;
-				new &= ~FRDAHEAD;
-			} while (!atomic_cmpset_rel_int(&fp->f_flag, old, new));
+		vp = fp->f_vnode;
+		/*
+		 * Exclusive lock synchronizes against f_seqcount reads and
+		 * writes in sequential_heuristic().
+		 */
+		error = vn_lock(vp, LK_EXCLUSIVE);
+		if (error != 0) {
+			fdrop(fp, td);
+			break;
 		}
+		if (arg >= 0) {
+			bsize = fp->f_vnode->v_mount->mnt_stat.f_iosize;
+			fp->f_seqcount = (arg + bsize - 1) / bsize;
+			atomic_set_int(&fp->f_flag, FRDAHEAD);
+		} else {
+			atomic_clear_int(&fp->f_flag, FRDAHEAD);
+		}
+		VOP_UNLOCK(vp, 0);
 		fdrop(fp, td);
 		break;
 
@@ -3945,6 +3942,14 @@ struct fileops badfileops = {
 	.fo_chown = badfo_chown,
 	.fo_sendfile = badfo_sendfile,
 };
+
+int
+invfo_truncate(struct file *fp, off_t length, struct ucred *active_cred,
+    struct thread *td)
+{
+
+	return (EINVAL);
+}
 
 int
 invfo_chmod(struct file *fp, mode_t mode, struct ucred *active_cred,

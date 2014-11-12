@@ -173,13 +173,14 @@ echo "Launching virtual machine \"$vmname\" ..."
 
 virtio_diskdev="$disk_dev0"
 
-while [ 1 ]; do
-	${BHYVECTL} --vm=${vmname} --destroy > /dev/null 2>&1
+${BHYVECTL} --vm=${vmname} --destroy > /dev/null 2>&1
 
-	file ${virtio_diskdev} | grep "boot sector" > /dev/null
+while [ 1 ]; do
+
+	file -s ${virtio_diskdev} | grep "boot sector" > /dev/null
 	rc=$?
 	if [ $rc -ne 0 ]; then
-		file ${virtio_diskdev} | grep ": Unix Fast File sys" > /dev/null
+		file -s ${virtio_diskdev} | grep ": Unix Fast File sys" > /dev/null
 		rc=$?
 	fi
 	if [ $rc -ne 0 ]; then
@@ -237,6 +238,14 @@ while [ 1 ]; do
 		-l com1,${console}					\
 		${installer_opt}					\
 		${vmname}
+
+	# bhyve returns the following status codes:
+	#  0 - VM has been reset
+	#  1 - VM has been powered off
+	#  2 - VM has been halted
+	#  3 - VM generated a triple fault
+	#  all other non-zero status codes are errors
+	#
 	if [ $? -ne 0 ]; then
 		break
 	fi

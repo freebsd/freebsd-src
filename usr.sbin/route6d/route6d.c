@@ -2835,6 +2835,8 @@ addroute(struct riprt *rrt,
 	sin6->sin6_len = sizeof(struct sockaddr_in6);
 	sin6->sin6_family = AF_INET6;
 	sin6->sin6_addr = *gw;
+	if (IN6_IS_ADDR_LINKLOCAL(&sin6->sin6_addr))
+		sin6->sin6_scope_id = ifcp->ifc_index;
 	sin6 = (struct sockaddr_in6 *)((char *)sin6 + ROUNDUP(sin6->sin6_len));
 	/* Netmask */
 	sin6->sin6_len = sizeof(struct sockaddr_in6);

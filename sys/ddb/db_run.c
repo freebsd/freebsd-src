@@ -188,14 +188,14 @@ db_restart_at_pc(watchpt)
 	if ((db_run_mode == STEP_COUNT) ||
 	    (db_run_mode == STEP_RETURN) ||
 	    (db_run_mode == STEP_CALLT)) {
-	    db_expr_t		ins;
-
 	    /*
 	     * We are about to execute this instruction,
 	     * so count it now.
 	     */
-
-	    ins = db_get_value(pc, sizeof(int), FALSE);
+#ifdef	SOFTWARE_SSTEP
+	    db_expr_t		ins =
+#endif
+	    db_get_value(pc, sizeof(int), FALSE);
 	    db_inst_count++;
 	    db_load_count += inst_load(ins);
 	    db_store_count += inst_store(ins);

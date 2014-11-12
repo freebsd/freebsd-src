@@ -1599,9 +1599,9 @@ ath_vap_delete(struct ieee80211vap *vap)
 		 * the vap state by any frames pending on the tx queues.
 		 */
 		ath_hal_intrset(ah, 0);		/* disable interrupts */
-		ath_draintxq(sc, ATH_RESET_DEFAULT);		/* stop hw xmit side */
 		/* XXX Do all frames from all vaps/nodes need draining here? */
 		ath_stoprecv(sc, 1);		/* stop recv side */
+		ath_draintxq(sc, ATH_RESET_DEFAULT);		/* stop hw xmit side */
 	}
 
 	/* .. leave the hardware awake for now. */
@@ -2503,12 +2503,13 @@ ath_stop_locked(struct ifnet *ifp)
 			}
 			ath_hal_intrset(ah, 0);
 		}
-		ath_draintxq(sc, ATH_RESET_DEFAULT);
+		/* XXX we should stop RX regardless of whether it's valid */
 		if (!sc->sc_invalid) {
 			ath_stoprecv(sc, 1);
 			ath_hal_phydisable(ah);
 		} else
 			sc->sc_rxlink = NULL;
+		ath_draintxq(sc, ATH_RESET_DEFAULT);
 		ath_beacon_free(sc);	/* XXX not needed */
 	}
 
@@ -2710,19 +2711,19 @@ ath_reset(struct ifnet *ifp, ATH_RESET_TYPE reset_type)
 	ATH_PCU_UNLOCK(sc);
 
 	/*
-	 * Should now wait for pending TX/RX to complete
-	 * and block future ones from occuring. This needs to be
-	 * done before the TX queue is drained.
-	 */
-	ath_draintxq(sc, reset_type);	/* stop xmit side */
-
-	/*
 	 * Regardless of whether we're doing a no-loss flush or
 	 * not, stop the PCU and handle what's in the RX queue.
 	 * That way frames aren't dropped which shouldn't be.
 	 */
 	ath_stoprecv(sc, (reset_type != ATH_RESET_NOLOSS));
 	ath_rx_flush(sc);
+
+	/*
+	 * Should now wait for pending TX/RX to complete
+	 * and block future ones from occuring. This needs to be
+	 * done before the TX queue is drained.
+	 */
+	ath_draintxq(sc, reset_type);	/* stop xmit side */
 
 	ath_settkipmic(sc);		/* configure TKIP MIC handling */
 	/* NB: indicate channel change so we do a full reset */

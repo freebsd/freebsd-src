@@ -1116,18 +1116,16 @@ int mrsas_bus_scan(struct mrsas_softc *sc)
     union ccb *ccb_0;
     union ccb *ccb_1;
 
-    mtx_lock(&sc->sim_lock);
     if ((ccb_0 = xpt_alloc_ccb()) == NULL) {
-        mtx_unlock(&sc->sim_lock);
         return(ENOMEM);
     }
 
     if ((ccb_1 = xpt_alloc_ccb()) == NULL) {
 	xpt_free_ccb(ccb_0);
-        mtx_unlock(&sc->sim_lock);
         return(ENOMEM);
     } 
 
+    mtx_lock(&sc->sim_lock);
     if (xpt_create_path(&ccb_0->ccb_h.path, xpt_periph, cam_sim_path(sc->sim_0),
             CAM_TARGET_WILDCARD, CAM_LUN_WILDCARD) != CAM_REQ_CMP){
         xpt_free_ccb(ccb_0);
@@ -1144,9 +1142,9 @@ int mrsas_bus_scan(struct mrsas_softc *sc)
         return(EIO);
     }
 
+    mtx_unlock(&sc->sim_lock);
     xpt_rescan(ccb_0);
     xpt_rescan(ccb_1);
-    mtx_unlock(&sc->sim_lock);
 
     return(0);
 }
@@ -1161,19 +1159,18 @@ int mrsas_bus_scan_sim(struct mrsas_softc *sc, struct cam_sim *sim)
 {
     union ccb *ccb;
 
-    mtx_lock(&sc->sim_lock);
     if ((ccb = xpt_alloc_ccb()) == NULL) {
-        mtx_unlock(&sc->sim_lock);
         return(ENOMEM);
     }
+    mtx_lock(&sc->sim_lock);
     if (xpt_create_path(&ccb->ccb_h.path, xpt_periph, cam_sim_path(sim),
             CAM_TARGET_WILDCARD, CAM_LUN_WILDCARD) != CAM_REQ_CMP){
         xpt_free_ccb(ccb);
         mtx_unlock(&sc->sim_lock);
         return(EIO);
     }
-    xpt_rescan(ccb);
     mtx_unlock(&sc->sim_lock);
+    xpt_rescan(ccb);
 
     return(0);
 }

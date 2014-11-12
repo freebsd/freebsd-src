@@ -1118,7 +1118,6 @@ syncache_add(struct in_conninfo *inc, struct tcpopt *to, struct tcphdr *th,
 	struct syncache scs;
 	struct ucred *cred;
 
-	INP_INFO_WLOCK_ASSERT(&V_tcbinfo);
 	INP_WLOCK_ASSERT(inp);			/* listen socket */
 	KASSERT((th->th_flags & (TH_RST|TH_ACK|TH_SYN)) == TH_SYN,
 	    ("%s: unexpected tcp flags", __func__));
@@ -1149,13 +1148,11 @@ syncache_add(struct in_conninfo *inc, struct tcpopt *to, struct tcphdr *th,
 #ifdef MAC
 	if (mac_syncache_init(&maclabel) != 0) {
 		INP_WUNLOCK(inp);
-		INP_INFO_WUNLOCK(&V_tcbinfo);
 		goto done;
 	} else
 		mac_syncache_create(maclabel, inp);
 #endif
 	INP_WUNLOCK(inp);
-	INP_INFO_WUNLOCK(&V_tcbinfo);
 
 	/*
 	 * Remember the IP options, if any.

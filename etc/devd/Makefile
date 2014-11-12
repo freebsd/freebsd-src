@@ -1,6 +1,6 @@
 # $FreeBSD$
 
-FILES=	uath.conf usb.conf zfs.conf
+.include <src.opts.mk>
 
 .if ${MACHINE} == "powerpc"
 FILES+=	apple.conf
@@ -8,6 +8,14 @@ FILES+=	apple.conf
 
 .if ${MACHINE} == "amd64" || ${MACHINE} == "i386"
 FILES+=	asus.conf
+.endif
+
+.if ${MK_USB} != "no"
+FILES+=	uath.conf usb.conf
+.endif
+
+.if ${MK_ZFS} != "no"
+FILES+=	zfs.conf
 .endif
 
 NO_OBJ=

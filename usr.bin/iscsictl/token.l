@@ -46,6 +46,7 @@ extern int	yylex(void);
 
 %option noinput
 %option nounput
+%option noyywrap
 
 %%
 HeaderDigest		{ return HEADER_DIGEST; }

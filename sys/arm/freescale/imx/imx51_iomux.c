@@ -74,8 +74,8 @@ __FBSDID("$FreeBSD$");
 #include <dev/ofw/ofw_bus.h>
 #include <dev/ofw/ofw_bus_subr.h>
 
-#include <arm/freescale/imx/imx51_iomuxvar.h>
-#include <arm/freescale/imx/imx51_iomuxreg.h>
+#include <arm/freescale/imx/imx_iomuxvar.h>
+#include "imx51_iomuxreg.h"
 
 
 #define	IOMUX_WRITE(_sc, _r, _v)					\
@@ -176,45 +176,58 @@ iomux_set_pad(unsigned int pin, unsigned int config)
 	iomux_set_pad_sub(iomuxsc, pin, config);
 }
 
-#ifdef notyet
-void
-iomux_set_input(unsigned int input, unsigned int config)
+static uint32_t
+iomux_get_pad_config_sub(struct iomux_softc *sc, uint32_t pin)
 {
-	bus_size_t input_ctl_reg = input;
+	bus_size_t pad_reg = IOMUX_PIN_TO_PAD_ADDRESS(pin);
+	uint32_t result;
 
-	bus_space_write_4(iomuxsc->iomux_memt, iomuxsc->iomux_memh,
-	    input_ctl_reg, config);
-}
-#endif
+	result = IOMUX_READ(sc, pad_reg);
 
-void
-iomux_mux_config(const struct iomux_conf *conflist)
-{
-	int i;
-
-	if (iomuxsc == NULL)
-		return;
-	for (i = 0; conflist[i].pin != IOMUX_CONF_EOT; i++) {
-		iomux_set_pad_sub(iomuxsc, conflist[i].pin, conflist[i].pad);
-		iomux_set_function_sub(iomuxsc, conflist[i].pin,
-		    conflist[i].mux);
-	}
+	return(result);
 }
 
-#ifdef notyet
-void
-iomux_input_config(const struct iomux_input_conf *conflist)
+unsigned int
+iomux_get_pad_config(unsigned int pin)
 {
-	int i;
 
-	if (iomuxsc == NULL)
-		return;
-	for (i = 0; conflist[i].inout != -1; i++) {
-		iomux_set_inout(iomuxsc, conflist[i].inout,
-		    conflist[i].inout_mode);
-	}
+	return(iomux_get_pad_config_sub(iomuxsc, pin));
 }
-#endif
+
+uint32_t
+imx_iomux_gpr_get(u_int regnum)
+{
+
+	KASSERT(iomuxsc != NULL, ("imx_iomux_gpr_get() called before attach"));
+	KASSERT(regnum >= 0 && regnum <= 1, 
+	    ("imx_iomux_gpr_get bad regnum %u", regnum));
+	return (IOMUX_READ(iomuxsc, IOMUXC_GPR0 + regnum));
+}
+
+void
+imx_iomux_gpr_set(u_int regnum, uint32_t val)
+{
+
+	KASSERT(iomuxsc != NULL, ("imx_iomux_gpr_set() called before attach"));
+	KASSERT(regnum >= 0 && regnum <= 1, 
+	    ("imx_iomux_gpr_set bad regnum %u", regnum));
+	IOMUX_WRITE(iomuxsc, IOMUXC_GPR0 + regnum, val);
+}
+
+void
+imx_iomux_gpr_set_masked(u_int regnum, uint32_t clrbits, uint32_t setbits)
+{
+	uint32_t val;
+
+	KASSERT(iomuxsc != NULL, 
+	    ("imx_iomux_gpr_set_masked called before attach"));
+	KASSERT(regnum >= 0 && regnum <= 1, 
+	    ("imx_iomux_gpr_set_masked bad regnum %u", regnum));
+
+	val = IOMUX_READ(iomuxsc, IOMUXC_GPR0 + regnum);
+	val = (val & ~clrbits) | setbits;
+	IOMUX_WRITE(iomuxsc, IOMUXC_GPR0 + regnum, val);
+}
 
 static device_method_t imx_iomux_methods[] = {
 	DEVMETHOD(device_probe,		iomux_probe),
@@ -232,5 +245,5 @@ static driver_t imx_iomux_driver = {
 static devclass_t imx_iomux_devclass;
 
 EARLY_DRIVER_MODULE(imx_iomux, simplebus, imx_iomux_driver,
-    imx_iomux_devclass, 0, 0, BUS_PASS_BUS - 1);
+    imx_iomux_devclass, 0, 0, BUS_PASS_CPU + BUS_PASS_ORDER_LATE);
 

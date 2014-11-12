@@ -1993,8 +1993,7 @@ sf_ext_ref(void *arg1, void *arg2)
 	struct sendfile_sync *sfs = arg2;
 	vm_page_t pg = sf_buf_page(sf);
 
-	/* XXXGL: there should be sf_buf_ref() */
-	sf_buf_alloc(sf_buf_page(sf), SFB_NOWAIT);
+	sf_buf_ref(sf);
 
 	vm_page_lock(pg);
 	vm_page_wire(pg);

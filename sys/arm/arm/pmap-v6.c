@@ -231,8 +231,8 @@ static boolean_t	pmap_pv_insert_section(pmap_t, vm_offset_t,
 static struct pv_entry	*pmap_remove_pv(struct vm_page *, pmap_t, vm_offset_t);
 static int		pmap_pvh_wired_mappings(struct md_page *, int);
 
-static void		pmap_enter_locked(pmap_t, vm_offset_t, vm_prot_t,
-    vm_page_t, vm_prot_t, boolean_t, int);
+static int		pmap_enter_locked(pmap_t, vm_offset_t, vm_page_t,
+    vm_prot_t, u_int);
 static vm_paddr_t	pmap_extract_locked(pmap_t pmap, vm_offset_t va);
 static void		pmap_alloc_l1(pmap_t);
 static void		pmap_free_l1(pmap_t);
@@ -2934,35 +2934,38 @@ pmap_protect(pmap_t pmap, vm_offset_t sva, vm_offset_t eva, vm_prot_t prot)
  *	insert this page into the given map NOW.
  */
 
-void
-pmap_enter(pmap_t pmap, vm_offset_t va, vm_prot_t access, vm_page_t m,
-    vm_prot_t prot, boolean_t wired)
+int
+pmap_enter(pmap_t pmap, vm_offset_t va, vm_page_t m, vm_prot_t prot,
+    u_int flags, int8_t psind __unused)
 {
 	struct l2_bucket *l2b;
+	int rv;
 
 	rw_wlock(&pvh_global_lock);
 	PMAP_LOCK(pmap);
-	pmap_enter_locked(pmap, va, access, m, prot, wired, M_WAITOK);
-	/*
-	 * If both the l2b_occupancy and the reservation are fully
-	 * populated, then attempt promotion.
-	 */
-	l2b = pmap_get_l2_bucket(pmap, va);
-	if ((l2b != NULL) && (l2b->l2b_occupancy == L2_PTE_NUM_TOTAL) &&
-	    sp_enabled && (m->flags & PG_FICTITIOUS) == 0 &&
-	    vm_reserv_level_iffullpop(m) == 0)
-		pmap_promote_section(pmap, va);
-
+	rv = pmap_enter_locked(pmap, va, m, prot, flags);
+	if (rv == KERN_SUCCESS) {
+		/*
+		 * If both the l2b_occupancy and the reservation are fully
+		 * populated, then attempt promotion.
+		 */
+		l2b = pmap_get_l2_bucket(pmap, va);
+		if (l2b != NULL && l2b->l2b_occupancy == L2_PTE_NUM_TOTAL &&
+		    sp_enabled && (m->flags & PG_FICTITIOUS) == 0 &&
+		    vm_reserv_level_iffullpop(m) == 0)
+			pmap_promote_section(pmap, va);
+	}
 	PMAP_UNLOCK(pmap);
 	rw_wunlock(&pvh_global_lock);
+	return (rv);
 }
 
 /*
  *	The pvh global and pmap locks must be held.
  */
-static void
-pmap_enter_locked(pmap_t pmap, vm_offset_t va, vm_prot_t access, vm_page_t m,
-    vm_prot_t prot, boolean_t wired, int flags)
+static int
+pmap_enter_locked(pmap_t pmap, vm_offset_t va, vm_page_t m, vm_prot_t prot,
+    u_int flags)
 {
 	struct l2_bucket *l2b = NULL;
 	struct vm_page *om;
@@ -2980,9 +2983,8 @@ pmap_enter_locked(pmap_t pmap, vm_offset_t va, vm_prot_t access, vm_page_t m,
 		pa = systempage.pv_pa;
 		m = NULL;
 	} else {
-		KASSERT((m->oflags & VPO_UNMANAGED) != 0 ||
-		    vm_page_xbusied(m) || (flags & M_NOWAIT) != 0,
-		    ("pmap_enter_locked: page %p is not busy", m));
+		if ((m->oflags & VPO_UNMANAGED) == 0 && !vm_page_xbusied(m))
+			VM_OBJECT_ASSERT_LOCKED(m->object);
 		pa = VM_PAGE_TO_PHYS(m);
 	}
 
@@ -3003,12 +3005,12 @@ pmap_enter_locked(pmap_t pmap, vm_offset_t va, vm_prot_t access, vm_page_t m,
 
 	if (prot & VM_PROT_WRITE)
 		nflags |= PVF_WRITE;
-	if (wired)
+	if ((flags & PMAP_ENTER_WIRED) != 0)
 		nflags |= PVF_WIRED;
 
 	PDEBUG(1, printf("pmap_enter: pmap = %08x, va = %08x, m = %08x, "
-	    "prot = %x, wired = %x\n", (uint32_t) pmap, va, (uint32_t) m,
-	    prot, wired));
+	    "prot = %x, flags = %x\n", (uint32_t) pmap, va, (uint32_t) m,
+	    prot, flags));
 
 	if (pmap == pmap_kernel()) {
 		l2b = pmap_get_l2_bucket(pmap, va);
@@ -3018,7 +3020,7 @@ pmap_enter_locked(pmap_t pmap, vm_offset_t va, vm_prot_t access, vm_page_t m,
 do_l2b_alloc:
 		l2b = pmap_alloc_l2_bucket(pmap, va);
 		if (l2b == NULL) {
-			if (flags & M_WAITOK) {
+			if ((flags & PMAP_ENTER_NOSLEEP) == 0) {
 				PMAP_UNLOCK(pmap);
 				rw_wunlock(&pvh_global_lock);
 				VM_WAIT;
@@ -3026,7 +3028,7 @@ do_l2b_alloc:
 				PMAP_LOCK(pmap);
 				goto do_l2b_alloc;
 			}
-			return;
+			return (KERN_RESOURCE_SHORTAGE);
 		}
 	}
 
@@ -3185,6 +3187,7 @@ validate:
 
 	if ((pmap != pmap_kernel()) && (pmap == &curproc->p_vmspace->vm_pmap))
 		cpu_icache_sync_range(va, PAGE_SIZE);
+	return (KERN_SUCCESS);
 }
 
 /*
@@ -3206,13 +3209,12 @@ pmap_enter_object(pmap_t pmap, vm_offset_t start, vm_offset_t end,
 	vm_offset_t va;
 	vm_page_t m;
 	vm_pindex_t diff, psize;
-	vm_prot_t access;
 
 	VM_OBJECT_ASSERT_LOCKED(m_start->object);
 
 	psize = atop(end - start);
 	m = m_start;
-	access = prot = prot & (VM_PROT_READ | VM_PROT_EXECUTE);
+	prot &= VM_PROT_READ | VM_PROT_EXECUTE;
 	rw_wlock(&pvh_global_lock);
 	PMAP_LOCK(pmap);
 	while (m != NULL && (diff = m->pindex - m_start->pindex) < psize) {
@@ -3222,8 +3224,8 @@ pmap_enter_object(pmap_t pmap, vm_offset_t start, vm_offset_t end,
 		    pmap_enter_section(pmap, va, m, prot))
 			m = &m[L1_S_SIZE / PAGE_SIZE - 1];
 		else
-			pmap_enter_locked(pmap, va, access, m, prot,
-			    FALSE, M_NOWAIT);
+			pmap_enter_locked(pmap, va, m, prot,
+			    PMAP_ENTER_NOSLEEP);
 		m = TAILQ_NEXT(m, listq);
 	}
 	PMAP_UNLOCK(pmap);
@@ -3242,12 +3244,11 @@ pmap_enter_object(pmap_t pmap, vm_offset_t start, vm_offset_t end,
 void
 pmap_enter_quick(pmap_t pmap, vm_offset_t va, vm_page_t m, vm_prot_t prot)
 {
-	vm_prot_t access;
 
-	access = prot = prot & (VM_PROT_READ | VM_PROT_EXECUTE);
+	prot &= VM_PROT_READ | VM_PROT_EXECUTE;
 	rw_wlock(&pvh_global_lock);
 	PMAP_LOCK(pmap);
-	pmap_enter_locked(pmap, va, access, m, prot, FALSE, M_NOWAIT);
+	pmap_enter_locked(pmap, va, m, prot, PMAP_ENTER_NOSLEEP);
 	PMAP_UNLOCK(pmap);
 	rw_wunlock(&pvh_global_lock);
 }
@@ -3499,8 +3500,8 @@ pmap_pinit(pmap_t pmap)
 	pmap->pm_stats.resident_count = 1;
 	if (vector_page < KERNBASE) {
 		pmap_enter(pmap, vector_page,
-		    VM_PROT_READ, PHYS_TO_VM_PAGE(systempage.pv_pa),
-		    VM_PROT_READ, 1);
+		    PHYS_TO_VM_PAGE(systempage.pv_pa), VM_PROT_READ,
+		    PMAP_ENTER_WIRED, 0);
 	}
 	return (1);
 }

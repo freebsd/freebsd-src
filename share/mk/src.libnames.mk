@@ -17,6 +17,10 @@ LIBATF_CXXDIR=	${ROOTOBJDIR}/lib/atf/libatf-c++
 LDATF_CXX?=	${LIBATF_CXXDIR}/libatf-c++.so
 LIBATF_CXX?=	${LIBATF_CXXDIR}/libatf-c++.a
 
+LIBBSDSTATDIR=	${ROOTOBJDIR}/lib/libbsdstat
+LDBSDSTAT?=	${LIBBSDSTATDIR}/libbsdstat.so
+LIBBSDSTAT?=	${LIBBSDSTATDIR}/libbsdstat.a
+
 LIBHEIMIPCCDIR=	${ROOTOBJDIR}/kerberos5/lib/libheimipcc
 LDHEIMIPCC?=	${LIBHEIMIPCCDIR}/libheimipcc.so
 LIBHEIMIPCC?=	${LIBHEIMIPCCDIR}/libheimipcc.a

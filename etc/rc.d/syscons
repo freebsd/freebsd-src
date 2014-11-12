@@ -45,13 +45,119 @@ stop_cmd=":"
 kbddev=/dev/ttyv0
 viddev=/dev/ttyv0
 
-_sc_config="syscons"
+_sc_config=
+_sc_console=
 _sc_initdone=
+_sc_keymap_msg=
 sc_init()
 {
 	if [ -z "${_sc_initdone}" ]; then
+		if [ -z "${_sc_console}" ]; then
+			if [ x`sysctl -n kern.vty` = x"vt" ]; then
+				_sc_console="vt"
+			else
+				_sc_console="syscons"
+			fi
+			_sc_config="${_sc_console}"
+		fi
 		echo -n "Configuring ${_sc_config}:"
 		_sc_initdone=yes
+	fi
+}
+
+# syscons to vt migration helper
+lookup_keymap_for_vt()
+{
+	keymap=`basename $1 .kbd`
+	case $keymap in
+hy.armscii-8)			echo am;;
+be.iso.acc)			echo be.acc;;
+be.iso)				echo be;;
+bg.bds.ctrlcaps)		echo bg.bds;;
+bg.phonetic.ctrlcaps)		echo bg.phonetic;;
+br275.iso.acc)			echo br;;
+br275.*)			echo br.noacc;;
+by.*)				echo by;;
+fr_CA.iso.acc)			echo ca-fr;;
+swissgerman.macbook.acc)	echo ch.macbook.acc;;
+swissgerman.iso.acc)		echo ch.acc;;
+swissgerman.*)			echo ch;;
+swissfrench.iso.acc)		echo ch-fr.acc;;
+swissfrench.*)			echo ch-fr;;
+ce.iso2)			echo centraleuropean.qwerty;;
+colemak.iso15.acc)		echo colemak.acc;;
+cs.*|cz.*)			echo cz;;
+german.iso.acc)			echo de.acc;;
+german.*)			echo de;;
+danish.iso.acc)			echo dk.acc;;
+danish.iso.macbook)		echo dk.macbook;;
+danish.*)			echo dk;;
+estonian.*)			echo ee;;
+spanish.dvorak)			echo es.dvorak;;
+spanish.iso*.acc)		echo es.acc;;
+spanish.iso)			echo es;;
+finnish.*)			echo fi;;
+fr.macbook.acc)			echo fr.macbook;;
+fr.iso.acc)			echo fr.acc;;
+fr.iso)				echo fr;;
+el.iso07)			echo gr;;
+gr.us101.acc)			echo gr.101.acc;;
+hr.iso)				echo hr;;
+hu.iso2.101keys)		echo hu.101;;
+hu.iso2.102keys)		echo hu.102;;
+iw.iso8)			echo il;;
+icelandic.iso.acc)		echo is.acc;;
+icelandic.iso)			echo is;;
+it.iso)				echo it;;
+jp.106x)			echo jp.capsctrl;;
+jp.106)				echo jp;;
+#?? jp.pc98.iso)		echo jp.pc98;;
+kk.pt154.io)			echo kz.io;;
+kk.pt154.kst)			echo kz.kst;;
+latinamerican.iso.acc)		echo latinamerican.acc;;
+lt.iso4)			echo lt;;
+norwegian.iso)			echo no;;
+norwegian.dvorak)		echo no.dvorak;;
+dutch.iso.acc)			echo nl;;
+eee_nordic)			echo nordic.asus-eee;;
+pl_PL.dvorak)			echo pl.dvorak;;
+pl_PL.ISO8859-2)		echo pl;;
+pt.iso.acc)			echo pt.acc;;
+pt.iso)				echo pt;;
+ru.koi8-r.shift)		echo ru.shift;;
+ru.koi8-r.win)			echo ru.win;;
+ru.*)				echo ru;;
+swedish.*)			echo se;;
+si.iso)				echo si;;
+sk.iso2)			echo sk;;
+tr.iso9.q)			echo tr;;
+ua.koi8-u.shift.alt)		echo ua.shift.alt;;
+ua.*)				echo ua;;
+uk.*-ctrl)			echo uk.capsctrl;;
+uk.dvorak)			echo uk.dvorak;;
+uk.*)				echo uk;;
+us.iso.acc)			echo us.acc;;
+us.pc-ctrl)			echo us.ctrl;;
+us.iso)				echo us;;
+    esac
+}
+
+kbdcontrol_load_keymap()
+{
+	errmsg=`kbdcontrol < ${kbddev} -l ${keymap} 2>&1`
+	if [ -n "${errmsg}" -a "${_sc_console}" = "vt" ]; then
+		_sc_keymap_msg="${errmsg}"
+		keymap_vt=`lookup_keymap_for_vt ${keymap}`
+		if [ -n "${keymap_vt}" ]; then
+			errmsg=`kbdcontrol < ${kbddev} -l ${keymap_vt} 2>&1`
+			if [ -z "${errmsg}" ]; then
+		    		_sc_keymap_msg="New keymap: In /etc/rc.conf replace 'keymap=${keymap}' by 'keymap=${keymap_vt}'"
+			fi
+		else
+			_sc_keymap_msg="No replacement found for keymap '${keymap}'.
+You may try to convert your keymap file using 'convert-keymap.pl', which is
+part of the system sources and located in /usr/src/tools/tools/vt/keymaps/"
+		fi
 	fi
 }
 
@@ -65,7 +171,7 @@ syscons_configure_keyboard()
 		;;
 	*)
 		sc_init
-		echo -n ' keymap';	kbdcontrol < ${kbddev} -l ${keymap}
+		echo -n ' keymap';	kbdcontrol_load_keymap
 		;;
 	esac
 
@@ -139,10 +245,9 @@ syscons_setkeyboard()
 	#
 	if [ -n "${_sc_initdone}" ]; then
 		echo '.'
-		_sc_config="syscons"
+		_sc_config="${_sc_console}"
 		_sc_initdone=
 	fi
-
 }
 
 syscons_precmd()
@@ -256,6 +361,12 @@ syscons_start()
 	fi
 
 	[ -n "${_sc_initdone}" ] && echo '.'
+	if [ -n "${_sc_keymap_msg}" ]; then
+		echo
+		echo "WARNING:"
+		echo "${_sc_keymap_msg}."
+		echo
+	fi
 }
 
 load_rc_config $name

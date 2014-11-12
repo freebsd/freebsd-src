@@ -27,7 +27,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd July 28, 2014
+.Dd September 5, 2014
 .Dt CTL.CONF 5
 .Os
 .Sh NAME
@@ -118,8 +118,9 @@ If not defined, there will be no restrictions based on initiator
 name.
 Otherwise, only initiators with names matching one of defined
 ones will be allowed to connect.
-.It Ic initiator-portal Ao Ar address Ac
-Specifies iSCSI initiator portal - IPv4 or IPv6 address or network.
+.It Ic initiator-portal Ao Ar address Ac Ao Ar / prefixlen Ac
+Specifies the iSCSI initiator portal: an IPv4 or IPv6 address, optionally
+followed by slash and prefix length.
 If not defined, there will be no restrictions based on initiator
 address.
 Otherwise, only initiators with addresses matching one of defined
@@ -178,8 +179,9 @@ Otherwise, only initiators with names matching one of defined
 ones will be allowed to connect.
 This clause is mutually exclusive with auth-group; one cannot use
 both in a single target.
-.It Ic initiator-portal Ao Ar address Ac
-Specifies iSCSI initiator portal - IPv4 or IPv6 address.
+.It Ic initiator-portal Ao Ar address Ac Ao Ar / prefixlen Ac
+Specifies the iSCSI initiator portal: an IPv4 or IPv6 address, optionally
+followed by slash and prefix length.
 If not defined, there will be no restrictions based on initiator
 address.
 Otherwise, only initiators with addresses matching one of defined
@@ -234,6 +236,7 @@ pidfile	/var/run/ctld.pid
 auth-group example2 {
 	chap-mutual "user" "secret" "mutualuser" "mutualsecret"
 	chap-mutual "user2" "secret2" "mutualuser" "mutualsecret"
+	initiator-portal 192.168.1.1/16
 }
 
 portal-group example2 {

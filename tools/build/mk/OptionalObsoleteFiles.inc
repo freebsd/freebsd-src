@@ -444,6 +444,7 @@ OLD_FILES+=usr/share/man/man1/dtrace.1.gz
 OLD_FILES+=boot/gptzfsboot
 OLD_FILES+=boot/zfsboot
 OLD_FILES+=boot/zfsloader
+OLD_FILES+=etc/devd/zfs.conf
 OLD_FILES+=etc/periodic/daily/404.status-zfs
 OLD_FILES+=etc/periodic/daily/800.scrub-zfs
 OLD_LIBS+=lib/libzfs.so.2
@@ -4168,6 +4169,8 @@ OLD_FILES+=usr/share/aclocal/atf-common.m4
 OLD_FILES+=usr/share/aclocal/atf-sh.m4
 OLD_DIRS+=usr/share/aclocal
 OLD_FILES+=usr/tests/bin/chown/units_basics
+OLD_FILES+=usr/tests/bin/date/legacy_test
+OLD_FILES+=usr/tests/bin/sh/legacy_test
 OLD_FILES+=usr/tests/usr.bin/atf/Kyuafile
 OLD_FILES+=usr/tests/usr.bin/atf/atf-sh/Kyuafile
 OLD_FILES+=usr/tests/usr.bin/atf/atf-sh/atf_check_test
@@ -4575,6 +4578,24 @@ OLD_DIRS+=usr/tests/usr.bin/make/archives/fmt_44bsd_mod
 OLD_DIRS+=usr/tests/usr.bin/make/archives/fmt_44bsd
 OLD_DIRS+=usr/tests/usr.bin/make/archives
 OLD_DIRS+=usr/tests/usr.bin/make
+OLD_FILES+=usr/tests/usr.bin/yacc/legacy_test
+OLD_FILES+=usr/tests/usr.bin/yacc/regress.00.out
+OLD_FILES+=usr/tests/usr.bin/yacc/regress.01.out
+OLD_FILES+=usr/tests/usr.bin/yacc/regress.02.out
+OLD_FILES+=usr/tests/usr.bin/yacc/regress.03.out
+OLD_FILES+=usr/tests/usr.bin/yacc/regress.04.out
+OLD_FILES+=usr/tests/usr.bin/yacc/regress.05.out
+OLD_FILES+=usr/tests/usr.bin/yacc/regress.06.out
+OLD_FILES+=usr/tests/usr.bin/yacc/regress.07.out
+OLD_FILES+=usr/tests/usr.bin/yacc/regress.08.out
+OLD_FILES+=usr/tests/usr.bin/yacc/regress.09.out
+OLD_FILES+=usr/tests/usr.bin/yacc/regress.10.out
+OLD_FILES+=usr/tests/usr.bin/yacc/regress.11.out
+OLD_FILES+=usr/tests/usr.bin/yacc/regress.12.out
+OLD_FILES+=usr/tests/usr.bin/yacc/regress.13.out
+OLD_FILES+=usr/tests/usr.bin/yacc/regress.14.out
+OLD_FILES+=usr/tests/usr.bin/yacc/regress.sh
+OLD_FILES+=usr/tests/usr.bin/yacc/undefined.y
 .endif
 .else
 # ATF libraries.
@@ -4657,9 +4678,10 @@ OLD_FILES+=usr/sbin/unbound-control
 OLD_FILES+=usr/sbin/unbound-control-setup
 .endif
 
-#.if ${MK_USB} == no
-# to be filled in
-#.endif
+.if ${MK_USB} == no
+OLD_FILES+=etc/devd/uauth.conf
+OLD_FILES+=etc/devd/usb.conf
+.endif
 
 .if ${MK_UTMPX} == no
 OLD_FILES+=etc/periodic/monthly/200.accounting

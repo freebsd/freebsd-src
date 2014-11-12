@@ -235,7 +235,7 @@ void	rip_init(void);
 void	rip_destroy(void);
 #endif
 int	rip_input(struct mbuf **, int *, int);
-int	rip_output(struct mbuf *, struct socket *, u_long);
+int	rip_output(struct mbuf *, struct socket *, ...);
 int	ipip_input(struct mbuf **, int *, int);
 int	rsvp_input(struct mbuf **, int *, int);
 int	ip_rsvp_init(struct socket *);

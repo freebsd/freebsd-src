@@ -200,7 +200,8 @@
 89	AUE_GETDTABLESIZE	NOPROTO	{ int getdtablesize(void); }
 90	AUE_DUP2	NOPROTO	{ int dup2(u_int from, u_int to); }
 91	AUE_NULL	UNIMPL	getdopt
-92	AUE_FCNTL	NOPROTO	{ int fcntl(int fd, int cmd, long arg); }
+92	AUE_FCNTL	STD	{ int freebsd32_fcntl(int fd, int cmd, \
+				    int arg); }
 93	AUE_SELECT	STD	{ int freebsd32_select(int nd, fd_set *in, \
 				    fd_set *ou, fd_set *ex, \
 				    struct timeval32 *tv); }

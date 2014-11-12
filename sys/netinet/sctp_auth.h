@@ -112,7 +112,6 @@ extern sctp_auth_chklist_t *sctp_copy_chunklist(sctp_auth_chklist_t * chklist);
 extern int sctp_auth_add_chunk(uint8_t chunk, sctp_auth_chklist_t * list);
 extern int sctp_auth_delete_chunk(uint8_t chunk, sctp_auth_chklist_t * list);
 extern size_t sctp_auth_get_chklist_size(const sctp_auth_chklist_t * list);
-extern void sctp_auth_set_default_chunks(sctp_auth_chklist_t * list);
 extern int 
 sctp_serialize_auth_chunks(const sctp_auth_chklist_t * list,
     uint8_t * ptr);

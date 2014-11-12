@@ -445,7 +445,6 @@ void sf_ext_free(void *, void *);
 #define	CSUM_UDP_IPV6		CSUM_IP6_UDP
 #define	CSUM_TCP_IPV6		CSUM_IP6_TCP
 #define	CSUM_SCTP_IPV6		CSUM_IP6_SCTP
-#define	CSUM_FRAGMENT		0x0		/* Unused */
 
 /*
  * mbuf types describing the content of the mbuf (including external storage).
@@ -673,7 +672,7 @@ m_clget(struct mbuf *m, int how)
 {
 
 	if (m->m_flags & M_EXT)
-		printf("%s: %p mbuf already has cluster\n", __func__, m);
+		printf("%s: %p mbuf already has external storage\n", __func__, m);
 	m->m_ext.ext_buf = (char *)NULL;
 	uma_zalloc_arg(zone_clust, m, how);
 	/*
@@ -699,7 +698,7 @@ m_cljget(struct mbuf *m, int how, int size)
 	uma_zone_t zone;
 
 	if (m && m->m_flags & M_EXT)
-		printf("%s: %p mbuf already has cluster\n", __func__, m);
+		printf("%s: %p mbuf already has external storage\n", __func__, m);
 	if (m != NULL)
 		m->m_ext.ext_buf = NULL;
 
@@ -916,6 +915,7 @@ int		 m_apply(struct mbuf *, int, int,
 		    int (*)(void *, void *, u_int), void *);
 int		 m_append(struct mbuf *, int, c_caddr_t);
 void		 m_cat(struct mbuf *, struct mbuf *);
+void		 m_catpkt(struct mbuf *, struct mbuf *);
 int		 m_extadd(struct mbuf *, caddr_t, u_int,
 		    void (*)(struct mbuf *, void *, void *), void *, void *,
 		    int, int, int);

@@ -223,7 +223,7 @@ fwe_attach(device_t dev)
 	splx(s);
 
         /* Tell the upper layer(s) we support long frames. */
-	ifp->if_data.ifi_hdrlen = sizeof(struct ether_vlan_header);
+	ifp->if_hdrlen = sizeof(struct ether_vlan_header);
 #if defined(__FreeBSD__) && __FreeBSD_version >= 500000
 	ifp->if_capabilities |= IFCAP_VLAN_MTU | IFCAP_POLLING;
 	ifp->if_capenable |= IFCAP_VLAN_MTU;

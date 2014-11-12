@@ -434,19 +434,18 @@ cxgbe_netmap_on(struct adapter *sc, struct port_info *pi, struct ifnet *ifp,
 
 	hwb = &sc->sge.hw_buf_info[0];
 	for (i = 0; i < SGE_FLBUF_SIZES; i++, hwb++) {
-		if (hwb->size == NETMAP_BUF_SIZE)
+		if (hwb->size == NETMAP_BUF_SIZE(na))
 			break;
 	}
 	if (i >= SGE_FLBUF_SIZES) {
 		if_printf(ifp, "no hwidx for netmap buffer size %d.\n",
-		    NETMAP_BUF_SIZE);
+		    NETMAP_BUF_SIZE(na));
 		return (ENXIO);
 	}
 	hwidx = i;
 
 	/* Must set caps before calling netmap_reset */
-	na->na_flags |= (NAF_NATIVE_ON | NAF_NETMAP_ON);
-	ifp->if_capenable |= IFCAP_NETMAP;
+	nm_set_native_flags(na);
 
 	for_each_nm_rxq(pi, i, nm_rxq) {
 		alloc_nm_rxq_hwq(pi, nm_rxq);
@@ -460,7 +459,7 @@ cxgbe_netmap_on(struct adapter *sc, struct port_info *pi, struct ifnet *ifp,
 		for (j = 0; j < nm_rxq->fl_sidx - 8; j++) {
 			uint64_t ba;
 
-			PNMB(&slot[j], &ba);
+			PNMB(na, &slot[j], &ba);
 			nm_rxq->fl_desc[j] = htobe64(ba | hwidx);
 		}
 		nm_rxq->fl_pidx = j;
@@ -512,8 +511,7 @@ cxgbe_netmap_off(struct adapter *sc, struct port_info *pi, struct ifnet *ifp,
 	rc = -t4_enable_vi(sc, sc->mbox, pi->nm_viid, false, false);
 	if (rc != 0)
 		if_printf(ifp, "netmap disable_vi failed: %d\n", rc);
-	na->na_flags &= ~(NAF_NATIVE_ON | NAF_NETMAP_ON);
-	ifp->if_capenable &= ~IFCAP_NETMAP;
+	nm_clear_native_flags(na);
 
 	/*
 	 * XXXNM: We need to make sure that the tx queues are quiet and won't
@@ -669,7 +667,7 @@ cxgbe_nm_tx(struct adapter *sc, struct sge_nm_txq *nm_txq,
 
 		for (i = 0; i < n; i++) {
 			slot = &ring->slot[kring->nr_hwcur];
-			PNMB(slot, &ba);
+			PNMB(kring->na, slot, &ba);
 
 			cpl->ctrl0 = nm_txq->cpl_ctrl0;
 			cpl->pack = 0;
@@ -786,13 +784,13 @@ reclaim_nm_tx_desc(struct sge_nm_txq *nm_txq)
 }
 
 static int
-cxgbe_netmap_txsync(struct netmap_adapter *na, u_int ring_nr, int flags)
+cxgbe_netmap_txsync(struct netmap_kring *kring, int flags)
 {
-	struct netmap_kring *kring = &na->tx_rings[ring_nr];
+	struct netmap_adapter *na = kring->na;
 	struct ifnet *ifp = na->ifp;
 	struct port_info *pi = ifp->if_softc;
 	struct adapter *sc = pi->adapter;
-	struct sge_nm_txq *nm_txq = &sc->sge.nm_txq[pi->first_nm_txq + ring_nr];
+	struct sge_nm_txq *nm_txq = &sc->sge.nm_txq[pi->first_nm_txq + kring->ring_id];
 	const u_int head = kring->rhead;
 	u_int reclaimed = 0;
 	int n, d, npkt_remaining, ndesc_remaining;
@@ -851,14 +849,14 @@ cxgbe_netmap_txsync(struct netmap_adapter *na, u_int ring_nr, int flags)
 }
 
 static int
-cxgbe_netmap_rxsync(struct netmap_adapter *na, u_int ring_nr, int flags)
+cxgbe_netmap_rxsync(struct netmap_kring *kring, int flags)
 {
-	struct netmap_kring *kring = &na->rx_rings[ring_nr];
+	struct netmap_adapter *na = kring->na;
 	struct netmap_ring *ring = kring->ring;
 	struct ifnet *ifp = na->ifp;
 	struct port_info *pi = ifp->if_softc;
 	struct adapter *sc = pi->adapter;
-	struct sge_nm_rxq *nm_rxq = &sc->sge.nm_rxq[pi->first_nm_rxq + ring_nr];
+	struct sge_nm_rxq *nm_rxq = &sc->sge.nm_rxq[pi->first_nm_rxq + kring->ring_id];
 	u_int const head = nm_rxsync_prologue(kring);
 	u_int n;
 	int force_update = (flags & NAF_FORCE_READ) || kring->nr_kflags & NKR_PENDINTR;
@@ -891,7 +889,7 @@ cxgbe_netmap_rxsync(struct netmap_adapter *na, u_int ring_nr, int flags)
 
 		while (n > 0) {
 			for (i = 0; i < 8; i++, fl_pidx++, slot++) {
-				PNMB(slot, &ba);
+				PNMB(na, slot, &ba);
 				nm_rxq->fl_desc[fl_pidx] = htobe64(ba | hwidx);
 				slot->flags &= ~NS_BUF_CHANGED;
 				MPASS(fl_pidx <= nm_rxq->fl_sidx);

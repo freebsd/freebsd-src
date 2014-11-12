@@ -558,7 +558,8 @@ hpet_attach(device_t dev)
 			    device_get_parent(device_get_parent(dev)), dev,
 			    &t->irq))) {
 				device_printf(dev,
-				    "Can't allocate interrupt for t%d.\n", j);
+				    "Can't allocate interrupt for t%d: %d\n",
+				    i, j);
 			}
 		}
 #endif

@@ -30,6 +30,10 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#ifdef __i386__
+#include "opt_npx.h"
+#endif
+
 #include <sys/param.h>
 #include <sys/bus.h>
 #include <sys/eventhandler.h>
@@ -203,6 +207,8 @@ acpi_sleep_machdep(struct acpi_softc *sc, int state)
 	if (savectx(susppcbs[0])) {
 #ifdef __amd64__
 		fpususpend(susppcbs[0]->pcb_fpususpend);
+#elif defined(DEV_NPX)
+		npxsuspend(&susppcbs[0]->pcb_fpususpend);
 #endif
 #ifdef SMP
 		if (!CPU_EMPTY(&suspcpus) && suspend_cpus(suspcpus) == 0) {
@@ -237,6 +243,10 @@ acpi_sleep_machdep(struct acpi_softc *sc, int state)
 
 		for (;;)
 			ia32_pause();
+	} else {
+#ifdef DEV_NPX
+		npxresume(&susppcbs[0]->pcb_fpususpend);
+#endif
 	}
 
 	return (1);	/* wakeup successfully */

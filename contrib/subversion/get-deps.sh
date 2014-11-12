@@ -33,11 +33,11 @@
 
 APR_VERSION=${APR_VERSION:-"1.4.6"}
 APU_VERSION=${APU_VERSION:-"1.5.1"}
-SERF_VERSION=${SERF_VERSION:-"1.2.1"}
+SERF_VERSION=${SERF_VERSION:-"1.3.4"}
 ZLIB_VERSION=${ZLIB_VERSION:-"1.2.8"}
 SQLITE_VERSION=${SQLITE_VERSION:-"3.7.15.1"}
 GTEST_VERSION=${GTEST_VERSION:-"1.6.0"}
-HTTPD_VERSION=${HTTPD_VERSION:-"2.4.6"}
+HTTPD_VERSION=${HTTPD_VERSION:-"2.4.10"}
 APR_ICONV_VERSION=${APR_ICONV_VERSION:-"1.2.1"}
 
 APR=apr-${APR_VERSION}
@@ -57,7 +57,7 @@ TEMPDIR=$BASEDIR/temp
 
 HTTP_FETCH=
 [ -z "$HTTP_FETCH" ] && type wget  >/dev/null 2>&1 && HTTP_FETCH="wget -q -nc"
-[ -z "$HTTP_FETCH" ] && type curl  >/dev/null 2>&1 && HTTP_FETCH="curl -sO"
+[ -z "$HTTP_FETCH" ] && type curl  >/dev/null 2>&1 && HTTP_FETCH="curl -sOL"
 [ -z "$HTTP_FETCH" ] && type fetch >/dev/null 2>&1 && HTTP_FETCH="fetch -q"
 
 # Need this uncommented if any of the specific versions of the ASF tarballs to
@@ -89,7 +89,7 @@ get_serf() {
     test -d $BASEDIR/serf && return
 
     cd $TEMPDIR
-    $HTTP_FETCH http://serf.googlecode.com/files/$SERF.tar.bz2
+    $HTTP_FETCH http://serf.googlecode.com/svn/src_releases/$SERF.tar.bz2
     cd $BASEDIR
 
     bzip2 -dc $TEMPDIR/$SERF.tar.bz2 | tar -xf -
@@ -101,7 +101,7 @@ get_zlib() {
     test -d $BASEDIR/zlib && return
 
     cd $TEMPDIR
-    $HTTP_FETCH http://www.zlib.net/$ZLIB.tar.gz
+    $HTTP_FETCH http://sourceforge.net/projects/libpng/files/zlib/$ZLIB_VERSION/$ZLIB.tar.gz
     cd $BASEDIR
 
     gzip -dc $TEMPDIR/$ZLIB.tar.gz | tar -xf -

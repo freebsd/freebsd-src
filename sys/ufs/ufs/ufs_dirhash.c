@@ -85,10 +85,10 @@ SYSCTL_INT(_vfs_ufs, OID_AUTO, dirhash_docheck, CTLFLAG_RW, &ufs_dirhashcheck,
 static int ufs_dirhashlowmemcount = 0;
 SYSCTL_INT(_vfs_ufs, OID_AUTO, dirhash_lowmemcount, CTLFLAG_RD, 
     &ufs_dirhashlowmemcount, 0, "number of times low memory hook called");
-static int ufs_dirhashreclaimage = 60;
-SYSCTL_INT(_vfs_ufs, OID_AUTO, dirhash_reclaimage, CTLFLAG_RW, 
-    &ufs_dirhashreclaimage, 0, 
-    "max time in seconds of hash inactivity before deletion in low VM events");
+static int ufs_dirhash_reclaimperc = 10;
+SYSCTL_INT(_vfs_ufs, OID_AUTO, dirhash_reclaimperc, CTLFLAG_RW, 
+    &ufs_dirhash_reclaimperc, 0, 
+    "percentage of dirhash cache to be removed in low VM events");
 
 
 static int ufsdirhash_hash(struct dirhash *dh, char *name, int namelen);
@@ -1247,45 +1247,28 @@ static void
 ufsdirhash_lowmem()
 {
 	struct dirhash *dh, *dh_temp;
-	int memfreed = 0;
-	/* 
-	 * Will free a *minimum* of 10% of the dirhash, but possibly much
-	 * more (depending on dirhashreclaimage). System with large dirhashes
-	 * probably also need a much larger dirhashreclaimage.
-	 * XXX: this percentage may need to be adjusted.
-	 */
-	int memwanted = ufs_dirhashmem / 10;
+	int memfreed, memwanted;
 
 	ufs_dirhashlowmemcount++;
+	memfreed = 0;
+	memwanted = ufs_dirhashmem / ufs_dirhash_reclaimperc;
 
 	DIRHASHLIST_LOCK();
-	/* 
-	 * Delete dirhashes not used for more than ufs_dirhashreclaimage 
-	 * seconds. If we can't get a lock on the dirhash, it will be skipped.
+
+	/*
+	 * Reclaim up to memwanted from the oldest dirhashes. This will allow
+	 * us to make some progress when the system is running out of memory
+	 * without compromising the dinamicity of maximum age. If the situation
+	 * does not improve lowmem will be eventually retriggered and free some
+	 * other entry in the cache. The entries on the head of the list should
+	 * be the oldest. If during list traversal we can't get a lock on the
+	 * dirhash, it will be skipped.
 	 */
 	TAILQ_FOREACH_SAFE(dh, &ufsdirhash_list, dh_list, dh_temp) {
-		if (!sx_try_xlock(&dh->dh_lock))
-			continue;
-		if (time_second - dh->dh_lastused > ufs_dirhashreclaimage)
+		if (sx_try_xlock(&dh->dh_lock))
 			memfreed += ufsdirhash_destroy(dh);
-		/* Unlock if we didn't delete the dirhash */
-		else
-			ufsdirhash_release(dh);
-	}
-
-	/* 
-	 * If not enough memory was freed, keep deleting hashes from the head 
-	 * of the dirhash list. The ones closest to the head should be the 
-	 * oldest. 
-	 */
-	if (memfreed < memwanted) {
-		TAILQ_FOREACH_SAFE(dh, &ufsdirhash_list, dh_list, dh_temp) {
-			if (!sx_try_xlock(&dh->dh_lock))
-				continue;
-			memfreed += ufsdirhash_destroy(dh);
-			if (memfreed >= memwanted)
-				break;
-		}
+		if (memfreed >= memwanted)
+			break;
 	}
 	DIRHASHLIST_UNLOCK();
 }

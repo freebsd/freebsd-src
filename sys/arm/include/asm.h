@@ -53,7 +53,7 @@
 # define _ALIGN_TEXT .align 0
 #endif
 
-#ifdef __ARM_EABI__
+#if defined(__ARM_EABI__) && !defined(_STANDALONE)
 #define	STOP_UNWINDING	.cantunwind
 #define	_FNSTART	.fnstart
 #define	_FNEND		.fnend

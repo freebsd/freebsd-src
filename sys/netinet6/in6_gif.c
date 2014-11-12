@@ -89,7 +89,7 @@ struct protosw in6_gif_protosw = {
 	.pr_protocol =	0,			/* IPPROTO_IPV[46] */
 	.pr_flags =	PR_ATOMIC|PR_ADDR,
 	.pr_input =	in6_gif_input,
-	.pr_output =	(pr_output_t *)rip6_output,
+	.pr_output =	rip6_output,
 	.pr_ctloutput =	rip6_ctloutput,
 	.pr_usrreqs =	&rip6_usrreqs
 };

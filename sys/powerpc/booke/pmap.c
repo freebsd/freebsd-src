@@ -146,8 +146,8 @@ static struct mtx copy_page_mutex;
 /* PMAP */
 /**************************************************************************/
 
-static void mmu_booke_enter_locked(mmu_t, pmap_t, vm_offset_t, vm_page_t,
-    vm_prot_t, boolean_t);
+static int mmu_booke_enter_locked(mmu_t, pmap_t, vm_offset_t, vm_page_t,
+    vm_prot_t, u_int flags, int8_t psind);
 
 unsigned int kptbl_min;		/* Index of the first kernel ptbl. */
 unsigned int kernel_ptbls;	/* Number of KVA ptbls. */
@@ -228,14 +228,14 @@ static struct ptbl_buf *ptbl_buf_alloc(void);
 static void ptbl_buf_free(struct ptbl_buf *);
 static void ptbl_free_pmap_ptbl(pmap_t, pte_t *);
 
-static pte_t *ptbl_alloc(mmu_t, pmap_t, unsigned int);
+static pte_t *ptbl_alloc(mmu_t, pmap_t, unsigned int, boolean_t);
 static void ptbl_free(mmu_t, pmap_t, unsigned int);
 static void ptbl_hold(mmu_t, pmap_t, unsigned int);
 static int ptbl_unhold(mmu_t, pmap_t, unsigned int);
 
 static vm_paddr_t pte_vatopa(mmu_t, pmap_t, vm_offset_t);
 static pte_t *pte_find(mmu_t, pmap_t, vm_offset_t);
-static void pte_enter(mmu_t, pmap_t, vm_page_t, vm_offset_t, uint32_t);
+static int pte_enter(mmu_t, pmap_t, vm_page_t, vm_offset_t, uint32_t, boolean_t);
 static int pte_remove(mmu_t, pmap_t, vm_offset_t, uint8_t);
 
 static pv_entry_t pv_alloc(void);
@@ -272,8 +272,8 @@ static void		mmu_booke_copy(mmu_t, pmap_t, pmap_t, vm_offset_t,
 static void		mmu_booke_copy_page(mmu_t, vm_page_t, vm_page_t);
 static void		mmu_booke_copy_pages(mmu_t, vm_page_t *,
     vm_offset_t, vm_page_t *, vm_offset_t, int);
-static void		mmu_booke_enter(mmu_t, pmap_t, vm_offset_t, vm_page_t,
-    vm_prot_t, boolean_t);
+static int		mmu_booke_enter(mmu_t, pmap_t, vm_offset_t, vm_page_t,
+    vm_prot_t, u_int flags, int8_t psind);
 static void		mmu_booke_enter_object(mmu_t, pmap_t, vm_offset_t, vm_offset_t,
     vm_page_t, vm_prot_t);
 static void		mmu_booke_enter_quick(mmu_t, pmap_t, vm_offset_t, vm_page_t,
@@ -558,14 +558,14 @@ ptbl_free_pmap_ptbl(pmap_t pmap, pte_t *ptbl)
 
 /* Allocate page table. */
 static pte_t *
-ptbl_alloc(mmu_t mmu, pmap_t pmap, unsigned int pdir_idx)
+ptbl_alloc(mmu_t mmu, pmap_t pmap, unsigned int pdir_idx, boolean_t nosleep)
 {
 	vm_page_t mtbl[PTBL_PAGES];
 	vm_page_t m;
 	struct ptbl_buf *pbuf;
 	unsigned int pidx;
 	pte_t *ptbl;
-	int i;
+	int i, j;
 
 	CTR4(KTR_PMAP, "%s: pmap = %p su = %d pdir_idx = %d", __func__, pmap,
 	    (pmap == kernel_pmap), pdir_idx);
@@ -588,9 +588,15 @@ ptbl_alloc(mmu_t mmu, pmap_t pmap, unsigned int pdir_idx)
 		pidx = (PTBL_PAGES * pdir_idx) + i;
 		while ((m = vm_page_alloc(NULL, pidx,
 		    VM_ALLOC_NOOBJ | VM_ALLOC_WIRED)) == NULL) {
-
 			PMAP_UNLOCK(pmap);
 			rw_wunlock(&pvh_global_lock);
+			if (nosleep) {
+				ptbl_free_pmap_ptbl(pmap, ptbl);
+				for (j = 0; j < i; j++)
+					vm_page_free(mtbl[j]);
+				atomic_subtract_int(&vm_cnt.v_wire_count, i);
+				return (NULL);
+			}
 			VM_WAIT;
 			rw_wlock(&pvh_global_lock);
 			PMAP_LOCK(pmap);
@@ -885,8 +891,9 @@ pte_remove(mmu_t mmu, pmap_t pmap, vm_offset_t va, uint8_t flags)
 /*
  * Insert PTE for a given page and virtual address.
  */
-static void
-pte_enter(mmu_t mmu, pmap_t pmap, vm_page_t m, vm_offset_t va, uint32_t flags)
+static int
+pte_enter(mmu_t mmu, pmap_t pmap, vm_page_t m, vm_offset_t va, uint32_t flags,
+    boolean_t nosleep)
 {
 	unsigned int pdir_idx = PDIR_IDX(va);
 	unsigned int ptbl_idx = PTBL_IDX(va);
@@ -900,7 +907,11 @@ pte_enter(mmu_t mmu, pmap_t pmap, vm_page_t m, vm_offset_t va, uint32_t flags)
 
 	if (ptbl == NULL) {
 		/* Allocate page table pages. */
-		ptbl = ptbl_alloc(mmu, pmap, pdir_idx);
+		ptbl = ptbl_alloc(mmu, pmap, pdir_idx, nosleep);
+		if (ptbl == NULL) {
+			KASSERT(nosleep, ("nosleep and NULL ptbl"));
+			return (ENOMEM);
+		}
 	} else {
 		/*
 		 * Check if there is valid mapping for requested
@@ -949,6 +960,7 @@ pte_enter(mmu_t mmu, pmap_t pmap, vm_page_t m, vm_offset_t va, uint32_t flags)
 
 	tlb_miss_unlock();
 	mtx_unlock_spin(&tlbivax_mutex);
+	return (0);
 }
 
 /* Return the pa for the given pmap/va. */
@@ -1576,35 +1588,37 @@ mmu_booke_release(mmu_t mmu, pmap_t pmap)
  * target physical map with the protection requested. If specified the page
  * will be wired down.
  */
-static void
+static int
 mmu_booke_enter(mmu_t mmu, pmap_t pmap, vm_offset_t va, vm_page_t m,
-    vm_prot_t prot, boolean_t wired)
+    vm_prot_t prot, u_int flags, int8_t psind)
 {
+	int error;
 
 	rw_wlock(&pvh_global_lock);
 	PMAP_LOCK(pmap);
-	mmu_booke_enter_locked(mmu, pmap, va, m, prot, wired);
+	error = mmu_booke_enter_locked(mmu, pmap, va, m, prot, flags, psind);
 	rw_wunlock(&pvh_global_lock);
 	PMAP_UNLOCK(pmap);
+	return (error);
 }
 
-static void
+static int
 mmu_booke_enter_locked(mmu_t mmu, pmap_t pmap, vm_offset_t va, vm_page_t m,
-    vm_prot_t prot, boolean_t wired)
+    vm_prot_t prot, u_int pmap_flags, int8_t psind __unused)
 {
 	pte_t *pte;
 	vm_paddr_t pa;
 	uint32_t flags;
-	int su, sync;
+	int error, su, sync;
 
 	pa = VM_PAGE_TO_PHYS(m);
 	su = (pmap == kernel_pmap);
 	sync = 0;
 
 	//debugf("mmu_booke_enter_locked: s (pmap=0x%08x su=%d tid=%d m=0x%08x va=0x%08x "
-	//		"pa=0x%08x prot=0x%08x wired=%d)\n",
+	//		"pa=0x%08x prot=0x%08x flags=%#x)\n",
 	//		(u_int32_t)pmap, su, pmap->pm_tid,
-	//		(u_int32_t)m, va, pa, prot, wired);
+	//		(u_int32_t)m, va, pa, prot, flags);
 
 	if (su) {
 		KASSERT(((va >= virtual_avail) &&
@@ -1634,7 +1648,7 @@ mmu_booke_enter_locked(mmu_t mmu, pmap_t pmap, vm_offset_t va, vm_page_t m,
 		flags &= ~(PTE_UW | PTE_UX | PTE_SW | PTE_SX | PTE_MODIFIED);
 
 		/* Wiring change, just update stats. */
-		if (wired) {
+		if ((pmap_flags & PMAP_ENTER_WIRED) != 0) {
 			if (!PTE_ISWIRED(pte)) {
 				flags |= PTE_WIRED;
 				pmap->pm_stats.wired_count++;
@@ -1730,12 +1744,16 @@ mmu_booke_enter_locked(mmu_t mmu, pmap_t pmap, vm_offset_t va, vm_page_t m,
 		}
 
 		/* If its wired update stats. */
-		if (wired) {
-			pmap->pm_stats.wired_count++;
+		if ((pmap_flags & PMAP_ENTER_WIRED) != 0)
 			flags |= PTE_WIRED;
-		}
 
-		pte_enter(mmu, pmap, m, va, flags);
+		error = pte_enter(mmu, pmap, m, va, flags,
+		    (pmap_flags & PMAP_ENTER_NOSLEEP) != 0);
+		if (error != 0)
+			return (KERN_RESOURCE_SHORTAGE);
+
+		if ((flags & PMAP_ENTER_WIRED) != 0)
+			pmap->pm_stats.wired_count++;
 
 		/* Flush the real memory from the instruction cache. */
 		if (prot & VM_PROT_EXECUTE)
@@ -1746,6 +1764,8 @@ mmu_booke_enter_locked(mmu_t mmu, pmap_t pmap, vm_offset_t va, vm_page_t m,
 		__syncicache((void *)va, PAGE_SIZE);
 		sync = 0;
 	}
+
+	return (KERN_SUCCESS);
 }
 
 /*
@@ -1775,7 +1795,8 @@ mmu_booke_enter_object(mmu_t mmu, pmap_t pmap, vm_offset_t start,
 	PMAP_LOCK(pmap);
 	while (m != NULL && (diff = m->pindex - m_start->pindex) < psize) {
 		mmu_booke_enter_locked(mmu, pmap, start + ptoa(diff), m,
-		    prot & (VM_PROT_READ | VM_PROT_EXECUTE), FALSE);
+		    prot & (VM_PROT_READ | VM_PROT_EXECUTE),
+		    PMAP_ENTER_NOSLEEP, 0);
 		m = TAILQ_NEXT(m, listq);
 	}
 	rw_wunlock(&pvh_global_lock);
@@ -1790,7 +1811,8 @@ mmu_booke_enter_quick(mmu_t mmu, pmap_t pmap, vm_offset_t va, vm_page_t m,
 	rw_wlock(&pvh_global_lock);
 	PMAP_LOCK(pmap);
 	mmu_booke_enter_locked(mmu, pmap, va, m,
-	    prot & (VM_PROT_READ | VM_PROT_EXECUTE), FALSE);
+	    prot & (VM_PROT_READ | VM_PROT_EXECUTE), PMAP_ENTER_NOSLEEP,
+	    0);
 	rw_wunlock(&pvh_global_lock);
 	PMAP_UNLOCK(pmap);
 }
@@ -2074,7 +2096,7 @@ mmu_booke_sync_icache(mmu_t mmu, pmap_t pm, vm_offset_t va, vm_size_t sz)
 				m = PHYS_TO_VM_PAGE(pa);
 				PMAP_LOCK(pmap);
 				pte_enter(mmu, pmap, m, addr,
-				    PTE_SR | PTE_VALID | PTE_UR);
+				    PTE_SR | PTE_VALID | PTE_UR, FALSE);
 				__syncicache((void *)addr, PAGE_SIZE);
 				pte_remove(mmu, pmap, addr, PTBL_UNHOLD);
 				PMAP_UNLOCK(pmap);

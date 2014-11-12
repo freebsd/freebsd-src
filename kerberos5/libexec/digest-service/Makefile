@@ -14,8 +14,6 @@ LDADD=	-lhdb -lkdc ${LDHEIMIPCS} -lkrb5 -lroken -lasn1 -lcrypto -lcrypt \
 	${LIBVERS} -lheimntlm
 USEPRIVATELIB= heimipcs
 
-NO_PIE=	yes
-
 .include <bsd.prog.mk>
 
 .PATH: ${KRB5DIR}/kdc

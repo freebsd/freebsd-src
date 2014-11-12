@@ -193,9 +193,6 @@ extern int zfs_prefetch_disable;
  */
 static boolean_t arc_warm;
 
-/*
- * These tunables are for performance analysis.
- */
 uint64_t zfs_arc_max;
 uint64_t zfs_arc_min;
 uint64_t zfs_arc_meta_limit = 0;
@@ -204,6 +201,20 @@ int zfs_arc_shrink_shift = 0;
 int zfs_arc_p_min_shift = 0;
 int zfs_disable_dup_eviction = 0;
 uint64_t zfs_arc_average_blocksize = 8 * 1024; /* 8KB */
+u_int zfs_arc_free_target = (1 << 19); /* default before pagedaemon init only */
+
+static int sysctl_vfs_zfs_arc_free_target(SYSCTL_HANDLER_ARGS);
+
+#ifdef _KERNEL
+static void
+arc_free_target_init(void *unused __unused)
+{
+
+	zfs_arc_free_target = kmem_free_target();
+}
+SYSINIT(arc_free_target_init, SI_SUB_KTHREAD_PAGE, SI_ORDER_ANY,
+    arc_free_target_init, NULL);
+#endif
 
 TUNABLE_QUAD("vfs.zfs.arc_meta_limit", &zfs_arc_meta_limit);
 SYSCTL_DECL(_vfs_zfs);
@@ -214,6 +225,35 @@ SYSCTL_UQUAD(_vfs_zfs, OID_AUTO, arc_min, CTLFLAG_RDTUN, &zfs_arc_min, 0,
 SYSCTL_UQUAD(_vfs_zfs, OID_AUTO, arc_average_blocksize, CTLFLAG_RDTUN,
     &zfs_arc_average_blocksize, 0,
     "ARC average blocksize");
+/*
+ * We don't have a tunable for arc_free_target due to the dependency on
+ * pagedaemon initialisation.
+ */
+SYSCTL_PROC(_vfs_zfs, OID_AUTO, arc_free_target,
+    CTLTYPE_UINT | CTLFLAG_MPSAFE | CTLFLAG_RW, 0, sizeof(u_int),
+    sysctl_vfs_zfs_arc_free_target, "IU",
+    "Desired number of free pages below which ARC triggers reclaim");
+
+static int
+sysctl_vfs_zfs_arc_free_target(SYSCTL_HANDLER_ARGS)
+{
+	u_int val;
+	int err;
+
+	val = zfs_arc_free_target;
+	err = sysctl_handle_int(oidp, &val, 0, req);
+	if (err != 0 || req->newptr == NULL)
+		return (err);
+
+	if (val < kmem_free_min())
+		return (EINVAL);
+	if (val > kmem_page_count())
+		return (EINVAL);
+
+	zfs_arc_free_target = val;
+
+	return (0);
+}
 
 /*
  * Note that buffers can be in one of 6 states:
@@ -2418,9 +2458,12 @@ arc_flush(spa_t *spa)
 void
 arc_shrink(void)
 {
+
 	if (arc_c > arc_c_min) {
 		uint64_t to_free;
 
+		DTRACE_PROBE2(arc__shrink, uint64_t, arc_c, uint64_t,
+			arc_c_min);
 #ifdef _KERNEL
 		to_free = arc_c >> arc_shrink_shift;
 #else
@@ -2440,8 +2483,11 @@ arc_shrink(void)
 		ASSERT((int64_t)arc_p >= 0);
 	}
 
-	if (arc_size > arc_c)
+	if (arc_size > arc_c) {
+		DTRACE_PROBE2(arc__shrink_adjust, uint64_t, arc_size,
+			uint64_t, arc_c);
 		arc_adjust();
+	}
 }
 
 static int needfree = 0;
@@ -2452,15 +2498,25 @@ arc_reclaim_needed(void)
 
 #ifdef _KERNEL
 
-	if (needfree)
+	if (needfree) {
+		DTRACE_PROBE(arc__reclaim_needfree);
 		return (1);
+	}
+
+	if (kmem_free_count() < zfs_arc_free_target) {
+		DTRACE_PROBE2(arc__reclaim_freetarget, uint64_t,
+		    kmem_free_count(), uint64_t, zfs_arc_free_target);
+		return (1);
+	}
 
 	/*
 	 * Cooperate with pagedaemon when it's time for it to scan
 	 * and reclaim some pages.
 	 */
-	if (vm_paging_needed())
+	if (vm_paging_needed()) {
+		DTRACE_PROBE(arc__reclaim_paging);
 		return (1);
+	}
 
 #ifdef sun
 	/*
@@ -2504,15 +2560,23 @@ arc_reclaim_needed(void)
 	    (btop(vmem_size(heap_arena, VMEM_FREE | VMEM_ALLOC)) >> 2))
 		return (1);
 #endif
-#else	/* !sun */
-	if (kmem_used() > (kmem_size() * 3) / 4)
+#else	/* sun */
+#ifdef __i386__
+	/* i386 has KVA limits that the raw page counts above don't consider */
+	if (kmem_used() > (kmem_size() * 3) / 4) {
+		DTRACE_PROBE2(arc__reclaim_used, uint64_t,
+		    kmem_used(), uint64_t, (kmem_size() * 3) / 4);
 		return (1);
+	}
+#endif
 #endif	/* sun */
 
 #else
 	if (spa_get_random(100) == 0)
 		return (1);
 #endif
+	DTRACE_PROBE(arc__reclaim_no);
+
 	return (0);
 }
 

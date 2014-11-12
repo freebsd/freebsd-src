@@ -1,9 +1,13 @@
 # $FreeBSD$
 
-.include <bsd.own.mk>
+.include <src.opts.mk>
 
-FILESDIR=	${TESTSBASE}/bin/sh/builtins
-KYUAFILE=	no
+TESTSDIR=	${TESTSBASE}/bin/sh/${.CURDIR:T}
+
+.PATH: ${.CURDIR:H}
+ATF_TESTS_SH=	functional_test
+
+FILESDIR=	${TESTSDIR}
 
 FILES=		alias.0 alias.0.stdout
 FILES+=		alias.1 alias.1.stderr

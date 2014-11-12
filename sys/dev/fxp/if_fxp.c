@@ -439,7 +439,7 @@ fxp_attach(device_t dev)
 	mtx_init(&sc->sc_mtx, device_get_nameunit(dev), MTX_NETWORK_LOCK,
 	    MTX_DEF);
 	callout_init_mtx(&sc->stat_ch, &sc->sc_mtx, 0);
-	ifmedia_init_drv(&sc->sc_media, 0, fxp_serial_ifmedia_upd,
+	ifmedia_init(&sc->sc_media, 0, fxp_serial_ifmedia_upd,
 	    fxp_serial_ifmedia_sts);
 
 	ifp = sc->ifp = if_gethandle(IFT_ETHER);
@@ -837,7 +837,7 @@ fxp_attach(device_t dev)
 		}
 	}
 
-	if_initname_drv(ifp, device_get_name(dev), device_get_unit(dev));
+	if_initname(ifp, device_get_name(dev), device_get_unit(dev));
 	if_setdev(ifp, dev);
 	if_setinitfn(ifp, fxp_init);
 	if_setsoftc(ifp, sc);
@@ -873,7 +873,7 @@ fxp_attach(device_t dev)
 	/*
 	 * Attach the interface.
 	 */
-	ether_ifattach_drv(ifp, eaddr);
+	ether_ifattach(ifp, eaddr);
 
 	/*
 	 * Tell the upper layer(s) we support long frames.
@@ -904,7 +904,7 @@ fxp_attach(device_t dev)
 			       NULL, fxp_intr, sc, &sc->ih);
 	if (error) {
 		device_printf(dev, "could not setup irq\n");
-		ether_ifdetach_drv(sc->ifp);
+		ether_ifdetach(sc->ifp);
 		goto fail;
 	}
 
@@ -993,7 +993,7 @@ fxp_release(struct fxp_softc *sc)
 	if (sc->mcs_tag)
 		bus_dma_tag_destroy(sc->mcs_tag);
 	if (sc->ifp)
-		if_free_drv(sc->ifp);
+		if_free(sc->ifp);
 
 	mtx_destroy(&sc->sc_mtx);
 }
@@ -1023,7 +1023,7 @@ fxp_detach(device_t dev)
 	/*
 	 * Close down routes etc.
 	 */
-	ether_ifdetach_drv(sc->ifp);
+	ether_ifdetach(sc->ifp);
 
 	/*
 	 * Unhook interrupt before dropping lock. This is to prevent
@@ -2874,10 +2874,10 @@ fxp_ioctl(if_t ifp, u_long command, caddr_t data)
 	case SIOCGIFMEDIA:
 		if (sc->miibus != NULL) {
 			mii = device_get_softc(sc->miibus);
-                        error = ifmedia_ioctl_drv(ifp, ifr,
+                        error = ifmedia_ioctl(ifp, ifr,
                             &mii->mii_media, command);
 		} else {
-                        error = ifmedia_ioctl_drv(ifp, ifr, &sc->sc_media, command);
+                        error = ifmedia_ioctl(ifp, ifr, &sc->sc_media, command);
 		}
 		break;
 
@@ -2966,7 +2966,7 @@ fxp_ioctl(if_t ifp, u_long command, caddr_t data)
 		break;
 
 	default:
-		error = ether_ioctl_drv(ifp, command, data);
+		error = ether_ioctl(ifp, command, data);
 	}
 	return (error);
 }

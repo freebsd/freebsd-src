@@ -48,12 +48,6 @@ __FBSDID("$FreeBSD$");
 #define CPU_ENABLE_SSE
 #endif
 
-#if defined(I586_CPU) && defined(CPU_WT_ALLOC)
-void	enable_K5_wt_alloc(void);
-void	enable_K6_wt_alloc(void);
-void	enable_K6_2_wt_alloc(void);
-#endif
-
 #ifdef I486_CPU
 static void init_5x86(void);
 static void init_bluelightning(void);
@@ -81,35 +75,36 @@ SYSCTL_INT(_hw, OID_AUTO, instruction_sse, CTLFLAG_RD,
  */
 static int	hw_clflush_disable = -1;
 
-/* Must *NOT* be BSS or locore will bzero these after setting them */
-int	cpu = 0;		/* Are we 386, 386sx, 486, etc? */
-u_int	cpu_feature = 0;	/* Feature flags */
-u_int	cpu_feature2 = 0;	/* Feature flags */
-u_int	amd_feature = 0;	/* AMD feature flags */
-u_int	amd_feature2 = 0;	/* AMD feature flags */
-u_int	amd_pminfo = 0;		/* AMD advanced power management info */
-u_int	via_feature_rng = 0;	/* VIA RNG features */
-u_int	via_feature_xcrypt = 0;	/* VIA ACE features */
-u_int	cpu_high = 0;		/* Highest arg to CPUID */
-u_int	cpu_id = 0;		/* Stepping ID */
-u_int	cpu_procinfo = 0;	/* HyperThreading Info / Brand Index / CLFUSH */
-u_int	cpu_procinfo2 = 0;	/* Multicore info */
-char	cpu_vendor[20] = "";	/* CPU Origin code */
-u_int	cpu_vendor_id = 0;	/* CPU vendor ID */
+int	cpu;			/* Are we 386, 386sx, 486, etc? */
+u_int	cpu_feature;		/* Feature flags */
+u_int	cpu_feature2;		/* Feature flags */
+u_int	amd_feature;		/* AMD feature flags */
+u_int	amd_feature2;		/* AMD feature flags */
+u_int	amd_pminfo;		/* AMD advanced power management info */
+u_int	via_feature_rng;	/* VIA RNG features */
+u_int	via_feature_xcrypt;	/* VIA ACE features */
+u_int	cpu_high;		/* Highest arg to CPUID */
+u_int	cpu_exthigh;		/* Highest arg to extended CPUID */
+u_int	cpu_id;			/* Stepping ID */
+u_int	cpu_procinfo;		/* HyperThreading Info / Brand Index / CLFUSH */
+u_int	cpu_procinfo2;		/* Multicore info */
+char	cpu_vendor[20];		/* CPU Origin code */
+u_int	cpu_vendor_id;		/* CPU vendor ID */
+#ifdef CPU_ENABLE_SSE
+u_int	cpu_fxsr;		/* SSE enabled */
+u_int	cpu_mxcsr_mask;		/* Valid bits in mxcsr */
+#endif
 u_int	cpu_clflush_line_size = 32;
+u_int	cpu_stdext_feature;
 u_int	cpu_mon_mwait_flags;	/* MONITOR/MWAIT flags (CPUID.05H.ECX) */
 u_int	cpu_mon_min_size;	/* MONITOR minimum range size, bytes */
 u_int	cpu_mon_max_size;	/* MONITOR minimum range size, bytes */
+u_int	cyrix_did;		/* Device ID of Cyrix CPU */
 
 SYSCTL_UINT(_hw, OID_AUTO, via_feature_rng, CTLFLAG_RD,
 	&via_feature_rng, 0, "VIA RNG feature available in CPU");
 SYSCTL_UINT(_hw, OID_AUTO, via_feature_xcrypt, CTLFLAG_RD,
 	&via_feature_xcrypt, 0, "VIA xcrypt feature available in CPU");
-
-#ifdef CPU_ENABLE_SSE
-u_int	cpu_fxsr;		/* SSE enabled */
-u_int	cpu_mxcsr_mask;		/* valid bits in mxcsr */
-#endif
 
 #ifdef I486_CPU
 /*

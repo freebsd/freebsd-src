@@ -8,8 +8,6 @@ PROG=		${LOADER}.sym
 INTERNALPROG=
 NEWVERSWHAT=	"bootstrap loader" pc98
 
-NO_PIE=	yes
-
 # architecture-specific loader code
 SRCS=		main.c conf.c vers.c
 .PATH:		${.CURDIR}/../../i386/loader

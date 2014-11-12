@@ -258,8 +258,8 @@ static struct	pte *moea_pvo_to_pte(const struct pvo_entry *, int);
 /*
  * Utility routines.
  */
-static void		moea_enter_locked(pmap_t, vm_offset_t, vm_page_t,
-			    vm_prot_t, boolean_t);
+static int		moea_enter_locked(pmap_t, vm_offset_t, vm_page_t,
+			    vm_prot_t, u_int, int8_t);
 static void		moea_syncicache(vm_offset_t, vm_size_t);
 static boolean_t	moea_query_bit(vm_page_t, int);
 static u_int		moea_clear_bit(vm_page_t, int);
@@ -273,7 +273,8 @@ void moea_clear_modify(mmu_t, vm_page_t);
 void moea_copy_page(mmu_t, vm_page_t, vm_page_t);
 void moea_copy_pages(mmu_t mmu, vm_page_t *ma, vm_offset_t a_offset,
     vm_page_t *mb, vm_offset_t b_offset, int xfersize);
-void moea_enter(mmu_t, pmap_t, vm_offset_t, vm_page_t, vm_prot_t, boolean_t);
+int moea_enter(mmu_t, pmap_t, vm_offset_t, vm_page_t, vm_prot_t, u_int,
+    int8_t);
 void moea_enter_object(mmu_t, pmap_t, vm_offset_t, vm_offset_t, vm_page_t,
     vm_prot_t);
 void moea_enter_quick(mmu_t, pmap_t, vm_offset_t, vm_page_t, vm_prot_t);
@@ -1100,16 +1101,25 @@ moea_zero_page_idle(mmu_t mmu, vm_page_t m)
  * target pmap with the protection requested.  If specified the page
  * will be wired down.
  */
-void
+int
 moea_enter(mmu_t mmu, pmap_t pmap, vm_offset_t va, vm_page_t m, vm_prot_t prot,
-	   boolean_t wired)
+    u_int flags, int8_t psind)
 {
+	int error;
 
-	rw_wlock(&pvh_global_lock);
-	PMAP_LOCK(pmap);
-	moea_enter_locked(pmap, va, m, prot, wired);
-	rw_wunlock(&pvh_global_lock);
-	PMAP_UNLOCK(pmap);
+	for (;;) {
+		rw_wlock(&pvh_global_lock);
+		PMAP_LOCK(pmap);
+		error = moea_enter_locked(pmap, va, m, prot, flags, psind);
+		rw_wunlock(&pvh_global_lock);
+		PMAP_UNLOCK(pmap);
+		if (error != ENOMEM)
+			return (KERN_SUCCESS);
+		if ((flags & PMAP_ENTER_NOSLEEP) != 0)
+			return (KERN_RESOURCE_SHORTAGE);
+		VM_OBJECT_ASSERT_UNLOCKED(m->object);
+		VM_WAIT;
+	}
 }
 
 /*
@@ -1119,9 +1129,9 @@ moea_enter(mmu_t mmu, pmap_t pmap, vm_offset_t va, vm_page_t m, vm_prot_t prot,
  *
  * The global pvh and pmap must be locked.
  */
-static void
+static int
 moea_enter_locked(pmap_t pmap, vm_offset_t va, vm_page_t m, vm_prot_t prot,
-    boolean_t wired)
+    u_int flags, int8_t psind __unused)
 {
 	struct		pvo_head *pvo_head;
 	uma_zone_t	zone;
@@ -1154,7 +1164,7 @@ moea_enter_locked(pmap_t pmap, vm_offset_t va, vm_page_t m, vm_prot_t prot,
 	} else
 		pte_lo |= PTE_BR;
 
-	if (wired)
+	if ((flags & PMAP_ENTER_WIRED) != 0)
 		pvo_flags |= PVO_WIRED;
 
 	error = moea_pvo_enter(pmap, zone, pvo_head, va, VM_PAGE_TO_PHYS(m),
@@ -1169,6 +1179,8 @@ moea_enter_locked(pmap_t pmap, vm_offset_t va, vm_page_t m, vm_prot_t prot,
 	if (pmap != kernel_pmap && error == ENOENT &&
 	    (pte_lo & (PTE_I | PTE_G)) == 0)
 		moea_syncicache(VM_PAGE_TO_PHYS(m), PAGE_SIZE);
+
+	return (error);
 }
 
 /*
@@ -1198,7 +1210,7 @@ moea_enter_object(mmu_t mmu, pmap_t pm, vm_offset_t start, vm_offset_t end,
 	PMAP_LOCK(pm);
 	while (m != NULL && (diff = m->pindex - m_start->pindex) < psize) {
 		moea_enter_locked(pm, start + ptoa(diff), m, prot &
-		    (VM_PROT_READ | VM_PROT_EXECUTE), FALSE);
+		    (VM_PROT_READ | VM_PROT_EXECUTE), 0, 0);
 		m = TAILQ_NEXT(m, listq);
 	}
 	rw_wunlock(&pvh_global_lock);
@@ -1213,7 +1225,7 @@ moea_enter_quick(mmu_t mmu, pmap_t pm, vm_offset_t va, vm_page_t m,
 	rw_wlock(&pvh_global_lock);
 	PMAP_LOCK(pm);
 	moea_enter_locked(pm, va, m, prot & (VM_PROT_READ | VM_PROT_EXECUTE),
-	    FALSE);
+	    0, 0);
 	rw_wunlock(&pvh_global_lock);
 	PMAP_UNLOCK(pm);
 }

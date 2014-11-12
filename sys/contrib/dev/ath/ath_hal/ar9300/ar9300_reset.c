@@ -1987,13 +1987,25 @@ HAL_BOOL
 ar9300_chip_reset(struct ath_hal *ah, struct ieee80211_channel *chan)
 {
     struct ath_hal_9300     *ahp = AH9300(ah);
+    int type = HAL_RESET_WARM;
 
     OS_MARK(ah, AH_MARK_CHIPRESET, chan ? chan->ic_freq : 0);
 
     /*
      * Warm reset is optimistic.
+     *
+     * If the TX/RX DMA engines aren't shut down (eg, they're
+     * wedged) then we're better off doing a full cold reset
+     * to try and shake that condition.
      */
-    if (!ar9300_set_reset_reg(ah, HAL_RESET_WARM)) {
+    if (ahp->ah_chip_full_sleep ||
+        (ah->ah_config.ah_force_full_reset == 1) ||
+        OS_REG_READ(ah, AR_Q_TXE) ||
+        (OS_REG_READ(ah, AR_CR) & AR_CR_RXE)) {
+            type = HAL_RESET_COLD;
+    }
+
+    if (!ar9300_set_reset_reg(ah, type)) {
         return AH_FALSE;
     }
 

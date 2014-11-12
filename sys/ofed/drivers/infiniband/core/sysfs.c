@@ -36,6 +36,7 @@
 
 #include <linux/slab.h>
 #include <linux/string.h>
+#include <linux/fs.h>
 
 #include <rdma/ib_mad.h>
 #include <rdma/ib_pma.h>

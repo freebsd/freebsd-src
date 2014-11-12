@@ -344,7 +344,7 @@ ofw_bus_search_intrmap(void *intr, int intrsz, void *regs, int physsz,
 	i = imapsz;
 	while (i > 0) {
 		bcopy(mptr + physsz + intrsz, &parent, sizeof(parent));
-		if (OF_searchencprop(OF_xref_phandle(parent),
+		if (OF_searchencprop(OF_node_from_xref(parent),
 		    "#interrupt-cells", &pintrsz, sizeof(pintrsz)) == -1)
 			pintrsz = 1;	/* default */
 		pintrsz *= sizeof(pcell_t);

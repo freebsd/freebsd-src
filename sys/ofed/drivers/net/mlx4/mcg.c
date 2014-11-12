@@ -886,7 +886,7 @@ int mlx4_flow_detach(struct mlx4_dev *dev, u64 reg_id)
 	err = mlx4_QP_FLOW_STEERING_DETACH(dev, reg_id);
 	if (err)
 		mlx4_err(dev, "Fail to detach network rule. registration id = 0x%llx\n",
-			 reg_id);
+			 (long long)reg_id);
 	return err;
 }
 EXPORT_SYMBOL_GPL(mlx4_flow_detach);

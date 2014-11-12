@@ -37,15 +37,14 @@
 #include <linux/proc_fs.h>
 #endif
 
-#include <linux/init.h>
 #include <linux/slab.h>
 #include <linux/errno.h>
 #include <linux/netdevice.h>
 #include <linux/inetdevice.h>
-#include <linux/rtnetlink.h>
 #include <linux/if_vlan.h>
 #include <linux/bitops.h>
 #include <linux/if_ether.h>
+#include <linux/fs.h>
 
 #include <rdma/ib_smi.h>
 #include <rdma/ib_user_verbs.h>

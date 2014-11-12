@@ -19,11 +19,12 @@ arm/arm/bus_space-v6.c			standard
 arm/arm/mpcore_timer.c			standard
 arm/freescale/fsl_ocotp.c		standard
 arm/freescale/imx/imx6_anatop.c		standard
-arm/freescale/imx/imx_common.c		standard
 arm/freescale/imx/imx6_ccm.c		standard
+arm/freescale/imx/imx6_iomux.c		standard
 arm/freescale/imx/imx6_machdep.c	standard
 arm/freescale/imx/imx6_mp.c		optional smp
 arm/freescale/imx/imx6_pl310.c		standard
+arm/freescale/imx/imx_common.c		standard
 arm/freescale/imx/imx_machdep.c		standard
 arm/freescale/imx/imx_gpt.c		standard
 arm/freescale/imx/imx_gpio.c		optional gpio
@@ -51,6 +52,4 @@ arm/freescale/imx/imx6_usbphy.c		optional ehci
 #
 # Not ready yet...
 #
-#arm/freescale/imx/imx51_iomux.c  	optional iomux
-#dev/ata/chipsets/ata-fsl.c  		optional imxata
 #arm/freescale/imx/imx51_ipuv3.c  	optional sc

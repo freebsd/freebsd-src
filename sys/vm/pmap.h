@@ -97,6 +97,13 @@ struct thread;
  */
 extern vm_offset_t kernel_vm_end;
 
+/*
+ * Flags for pmap_enter().  The bits in the low-order byte are reserved
+ * for the protection code (vm_prot_t) that describes the fault type.
+ */
+#define	PMAP_ENTER_NOSLEEP	0x0100
+#define	PMAP_ENTER_WIRED	0x0200
+
 void		 pmap_activate(struct thread *td);
 void		 pmap_advise(pmap_t pmap, vm_offset_t sva, vm_offset_t eva,
 		    int advice);
@@ -107,8 +114,8 @@ void		 pmap_copy(pmap_t, pmap_t, vm_offset_t, vm_size_t, vm_offset_t);
 void		 pmap_copy_page(vm_page_t, vm_page_t);
 void		 pmap_copy_pages(vm_page_t ma[], vm_offset_t a_offset,
 		    vm_page_t mb[], vm_offset_t b_offset, int xfersize);
-void		 pmap_enter(pmap_t, vm_offset_t, vm_prot_t, vm_page_t,
-		    vm_prot_t, boolean_t);
+int		 pmap_enter(pmap_t pmap, vm_offset_t va, vm_page_t m,
+		    vm_prot_t prot, u_int flags, int8_t psind);
 void		 pmap_enter_object(pmap_t pmap, vm_offset_t start,
 		    vm_offset_t end, vm_page_t m_start, vm_prot_t prot);
 void		 pmap_enter_quick(pmap_t pmap, vm_offset_t va, vm_page_t m,

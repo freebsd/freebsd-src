@@ -443,7 +443,6 @@ i386/xen/exception.s		optional xen
 i386/i386/gdb_machdep.c		optional gdb
 i386/i386/geode.c		optional cpu_geode
 i386/i386/i686_mem.c		optional mem
-i386/i386/identcpu.c		standard
 i386/i386/in_cksum.c		optional inet | inet6
 i386/i386/initcpu.c		standard
 i386/i386/io.c			optional io
@@ -581,6 +580,7 @@ x86/x86/busdma_bounce.c		standard
 x86/x86/busdma_machdep.c	standard
 x86/x86/dump_machdep.c		standard
 x86/x86/fdt_machdep.c		optional fdt
+x86/x86/identcpu.c		standard
 x86/x86/intr_machdep.c		standard
 x86/x86/io_apic.c		optional apic
 x86/x86/legacy.c		optional native

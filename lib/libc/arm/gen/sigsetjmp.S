@@ -51,6 +51,7 @@ ENTRY(sigsetjmp)
 	teq	r1, #0
 	beq	PIC_SYM(_C_LABEL(_setjmp), PLT)
 	b	PIC_SYM(_C_LABEL(setjmp), PLT)
+END(sigsetjmp)
 
 .L_setjmp_magic:
 	.word	_JB_MAGIC__SETJMP
@@ -64,3 +65,4 @@ ENTRY(siglongjmp)
 	teq	r2, r3				/* magic correct? */
 	beq	PIC_SYM(_C_LABEL(_longjmp), PLT)
 	b	PIC_SYM(_C_LABEL(longjmp), PLT)
+END(siglongjmp)

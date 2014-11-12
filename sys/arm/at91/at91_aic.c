@@ -176,13 +176,9 @@ static driver_t at91_aic_driver = {
 static devclass_t at91_aic_devclass;
 
 #ifdef FDT
-DRIVER_MODULE(at91_aic, simplebus, at91_aic_driver, at91_aic_devclass, NULL,
-    NULL);
-#else
-DRIVER_MODULE(at91_aic, atmelarm, at91_aic_driver, at91_aic_devclass, NULL,
-    NULL);
-#endif
-/* not yet
 EARLY_DRIVER_MODULE(at91_aic, simplebus, at91_aic_driver, at91_aic_devclass,
     NULL, NULL, BUS_PASS_INTERRUPT);
-*/
+#else
+EARLY_DRIVER_MODULE(at91_aic, atmelarm, at91_aic_driver, at91_aic_devclass,
+    NULL, NULL, BUS_PASS_INTERRUPT);
+#endif

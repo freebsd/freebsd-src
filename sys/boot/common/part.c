@@ -212,8 +212,8 @@ gpt_checktbl(const struct gpt_hdr *hdr, u_char *tbl, size_t size,
 			return (-1);
 		}
 	}
-	ent = (struct gpt_ent *)tbl;
-	for (i = 0; i < cnt; i++, ent++) {
+	for (i = 0; i < cnt; i++) {
+		ent = (struct gpt_ent *)(tbl + i * hdr->hdr_entsz);
 		uuid_letoh(&ent->ent_type);
 		if (uuid_equal(&ent->ent_type, &gpt_uuid_unused, NULL))
 			continue;
@@ -254,8 +254,8 @@ ptable_gptread(struct ptable *table, void *dev, diskread_t dread)
 	    table->sectorsize);
 	if (phdr != NULL) {
 		/* Read the primary GPT table. */
-		size = MIN(MAXTBLSZ,
-		    phdr->hdr_entries * phdr->hdr_entsz / table->sectorsize);
+		size = MIN(MAXTBLSZ, (phdr->hdr_entries * phdr->hdr_entsz +
+		    table->sectorsize - 1) / table->sectorsize);
 		if (dread(dev, tbl, size, phdr->hdr_lba_table) == 0 &&
 		    gpt_checktbl(phdr, tbl, size * table->sectorsize,
 		    table->sectors - 1) == 0) {
@@ -287,8 +287,9 @@ ptable_gptread(struct ptable *table, void *dev, diskread_t dread)
 		    hdr.hdr_entsz != phdr->hdr_entsz ||
 		    hdr.hdr_crc_table != phdr->hdr_crc_table) {
 			/* Read the backup GPT table. */
-			size = MIN(MAXTBLSZ, phdr->hdr_entries *
-			    phdr->hdr_entsz / table->sectorsize);
+			size = MIN(MAXTBLSZ, (phdr->hdr_entries *
+			    phdr->hdr_entsz + table->sectorsize - 1) /
+			    table->sectorsize);
 			if (dread(dev, tbl, size, phdr->hdr_lba_table) == 0 &&
 			    gpt_checktbl(phdr, tbl, size * table->sectorsize,
 			    table->sectors - 1) == 0) {
@@ -302,10 +303,10 @@ ptable_gptread(struct ptable *table, void *dev, diskread_t dread)
 		table->type = PTABLE_NONE;
 		goto out;
 	}
-	ent = (struct gpt_ent *)tbl;
 	size = MIN(hdr.hdr_entries * hdr.hdr_entsz,
 	    MAXTBLSZ * table->sectorsize);
-	for (i = 0; i < size / hdr.hdr_entsz; i++, ent++) {
+	for (i = 0; i < size / hdr.hdr_entsz; i++) {
+		ent = (struct gpt_ent *)(tbl + i * hdr.hdr_entsz);
 		if (uuid_equal(&ent->ent_type, &gpt_uuid_unused, NULL))
 			continue;
 		entry = malloc(sizeof(*entry));

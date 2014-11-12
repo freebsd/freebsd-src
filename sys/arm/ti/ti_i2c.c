@@ -1,6 +1,6 @@
 /*-
- * Copyright (c) 2011
- *	Ben Gray <ben.r.gray@gmail.com>.
+ * Copyright (c) 2011 Ben Gray <ben.r.gray@gmail.com>.
+ * Copyright (c) 2014 Luiz Otavio O Souza <loos@freebsd.org>.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -58,9 +58,9 @@ __FBSDID("$FreeBSD$");
 #include <sys/module.h>
 #include <sys/mutex.h>
 #include <sys/rman.h>
+#include <sys/sysctl.h>
 #include <machine/bus.h>
 
-#include <dev/fdt/fdt_common.h>
 #include <dev/ofw/openfirm.h>
 #include <dev/ofw/ofw_bus.h>
 #include <dev/ofw/ofw_bus_subr.h>
@@ -90,8 +90,13 @@ struct ti_i2c_softc
 
 	struct mtx		sc_mtx;
 
-	volatile uint16_t	sc_stat_flags;	/* contains the status flags last IRQ */
+	struct iic_msg*		sc_buffer;
+	int			sc_bus_inuse;
+	int			sc_buffer_pos;
+	int			sc_error;
+	int			sc_fifo_trsh;
 
+	uint16_t		sc_con_reg;
 	uint16_t		sc_rev;
 };
 
@@ -106,62 +111,53 @@ struct ti_i2c_clock_config
 	uint8_t hssclh;		/* High Speed mode SCL high time */
 };
 
+#if defined(SOC_OMAP3)
+#error "Unsupported SoC"
+#endif
+
 #if defined(SOC_OMAP4)
 static struct ti_i2c_clock_config ti_omap4_i2c_clock_configs[] = {
-	{ IIC_SLOW,      100000, 23,  13,  15, 0,  0},
-	{ IIC_FAST,      400000,  9,   5,   7, 0,  0},
-	{ IIC_FASTEST,	3310000,  1, 113, 115, 7, 10},
+	{ IIC_UNKNOWN,	 100000, 23, 13, 15,  0, 0},
+	{ IIC_SLOW,	 100000, 23, 13, 15,  0, 0},
+	{ IIC_FAST,	 400000,  9,  5,  7,  0, 0},
+	{ IIC_FASTEST,	1000000,  5,  3,  4,  0, 0},
+	/* { IIC_FASTEST, 3200000,  1, 113, 115, 7, 10}, - HS mode */
 	{ -1, 0 }
 };
 #endif
 
 #if defined(SOC_TI_AM335X)
+/*
+ * AM335X doesn't support HS mode.  For 100kHz I2C clock set the internal
+ * clock to 12Mhz, for 400kHz I2C clock set the internal clock to 24Mhz.
+ */
 static struct ti_i2c_clock_config ti_am335x_i2c_clock_configs[] = {
-	{ IIC_SLOW,      100000,  3,  53,  55, 0,  0},
-	{ IIC_FAST,      400000,  3,   8,  10, 0,  0},
-	{ IIC_FASTEST,   400000,  3,   8,  10, 0,  0}, /* This might be higher */
+	{ IIC_UNKNOWN,	 100000, 7, 59, 61, 0, 0},
+	{ IIC_SLOW,	 100000, 7, 59, 61, 0, 0},
+	{ IIC_FAST,	 400000, 3, 23, 25, 0, 0},
+	{ IIC_FASTEST,	 400000, 3, 23, 25, 0, 0},
 	{ -1, 0 }
 };
 #endif
 
-
-#define TI_I2C_REV1  0x003C      /* OMAP3 */
-#define TI_I2C_REV2  0x000A      /* OMAP4 */
-
 /**
  *	Locking macros used throughout the driver
  */
-#define TI_I2C_LOCK(_sc)             mtx_lock(&(_sc)->sc_mtx)
-#define	TI_I2C_UNLOCK(_sc)           mtx_unlock(&(_sc)->sc_mtx)
-#define TI_I2C_LOCK_INIT(_sc) \
-	mtx_init(&_sc->sc_mtx, device_get_nameunit(_sc->sc_dev), \
-	         "ti_i2c", MTX_DEF)
-#define TI_I2C_LOCK_DESTROY(_sc)      mtx_destroy(&_sc->sc_mtx);
-#define TI_I2C_ASSERT_LOCKED(_sc)     mtx_assert(&_sc->sc_mtx, MA_OWNED);
-#define TI_I2C_ASSERT_UNLOCKED(_sc)   mtx_assert(&_sc->sc_mtx, MA_NOTOWNED);
+#define	TI_I2C_LOCK(_sc)		mtx_lock(&(_sc)->sc_mtx)
+#define	TI_I2C_UNLOCK(_sc)		mtx_unlock(&(_sc)->sc_mtx)
+#define	TI_I2C_LOCK_INIT(_sc)						\
+	mtx_init(&_sc->sc_mtx, device_get_nameunit(_sc->sc_dev),	\
+	    "ti_i2c", MTX_DEF)
+#define	TI_I2C_LOCK_DESTROY(_sc)	mtx_destroy(&_sc->sc_mtx)
+#define	TI_I2C_ASSERT_LOCKED(_sc)	mtx_assert(&_sc->sc_mtx, MA_OWNED)
+#define	TI_I2C_ASSERT_UNLOCKED(_sc)	mtx_assert(&_sc->sc_mtx, MA_NOTOWNED)
 
 #ifdef DEBUG
-#define ti_i2c_dbg(_sc, fmt, args...) \
-    device_printf((_sc)->sc_dev, fmt, ##args)
+#define	ti_i2c_dbg(_sc, fmt, args...)					\
+	device_printf((_sc)->sc_dev, fmt, ##args)
 #else
-#define ti_i2c_dbg(_sc, fmt, args...)
+#define	ti_i2c_dbg(_sc, fmt, args...)
 #endif
-
-static devclass_t ti_i2c_devclass;
-
-/* bus entry points */
-
-static int ti_i2c_probe(device_t dev);
-static int ti_i2c_attach(device_t dev);
-static int ti_i2c_detach(device_t dev);
-static void ti_i2c_intr(void *);
-
-/* OFW routine */
-static phandle_t ti_i2c_get_node(device_t bus, device_t dev);
-
-/* helper routines */
-static int ti_i2c_activate(device_t dev);
-static void ti_i2c_deactivate(device_t dev);
 
 /**
  *	ti_i2c_read_2 - reads a 16-bit value from one of the I2C registers
@@ -178,7 +174,8 @@ static void ti_i2c_deactivate(device_t dev);
 static inline uint16_t
 ti_i2c_read_2(struct ti_i2c_softc *sc, bus_size_t off)
 {
-	return bus_read_2(sc->sc_mem_res, off);
+
+	return (bus_read_2(sc->sc_mem_res, off));
 }
 
 /**
@@ -196,142 +193,117 @@ ti_i2c_read_2(struct ti_i2c_softc *sc, bus_size_t off)
 static inline void
 ti_i2c_write_2(struct ti_i2c_softc *sc, bus_size_t off, uint16_t val)
 {
+
 	bus_write_2(sc->sc_mem_res, off, val);
 }
 
-/**
- *	ti_i2c_read_reg - reads a 16-bit value from one of the I2C registers
- *	    take into account revision-dependent register offset
- *	@sc: I2C device context
- *	@off: the byte offset within the register bank to read from.
- *
- *
- *	LOCKING:
- *	No locking required
- *
- *	RETURNS:
- *	16-bit value read from the register.
- */
-static inline uint16_t
-ti_i2c_read_reg(struct ti_i2c_softc *sc, bus_size_t off)
-{
-	/* XXXOMAP3: FIXME add registers mapping here */
-	return bus_read_2(sc->sc_mem_res, off);
-}
-
-/**
- *	ti_i2c_write_reg - writes a 16-bit value to one of the I2C registers
- *	    take into account revision-dependent register offset
- *	@sc: I2C device context
- *	@off: the byte offset within the register bank to read from.
- *	@val: the value to write into the register
- *
- *	LOCKING:
- *	No locking required
- *
- *	RETURNS:
- *	16-bit value read from the register.
- */
-static inline void
-ti_i2c_write_reg(struct ti_i2c_softc *sc, bus_size_t off, uint16_t val)
-{
-	/* XXXOMAP3: FIXME add registers mapping here */
-	bus_write_2(sc->sc_mem_res, off, val);
-}
-
-/**
- *	ti_i2c_set_intr_enable - writes the interrupt enable register
- *	@sc: I2C device context
- *	@ie: bitmask of the interrupts to enable
- *
- *	This function is needed as writing the I2C_IE register on the OMAP4 devices
- *	doesn't seem to actually enable the interrupt, rather you have to write
- *	through the I2C_IRQENABLE_CLR and I2C_IRQENABLE_SET registers.
- *
- *	LOCKING:
- *	No locking required
- *
- *	RETURNS:
- *	Nothing.
- */
-static inline void
-ti_i2c_set_intr_enable(struct ti_i2c_softc *sc, uint16_t ie)
-{
-	/* XXXOMAP3: FIXME */
-	ti_i2c_write_2(sc, I2C_REG_IRQENABLE_CLR, 0xffff);
-	if (ie)
-		ti_i2c_write_2(sc, I2C_REG_IRQENABLE_SET, ie);
-}
-
-/**
- *	ti_i2c_reset - attach function for the driver
- *	@dev: i2c device handle
- *
- *
- *
- *	LOCKING:
- *	Called from timer context
- *
- *	RETURNS:
- *	EH_HANDLED or EH_NOT_HANDLED
- */
 static int
-ti_i2c_reset(device_t dev, u_char speed, u_char addr, u_char *oldaddr)
+ti_i2c_transfer_intr(struct ti_i2c_softc* sc, uint16_t status)
 {
-	struct ti_i2c_softc *sc = device_get_softc(dev);
-	struct ti_i2c_clock_config *clkcfg;
-	uint16_t con_reg;
+	int amount, done, i;
 
-	switch (ti_chip()) {
-#ifdef SOC_OMAP4
-	case CHIP_OMAP_4:
-		clkcfg = ti_omap4_i2c_clock_configs;
-		break;
-#endif
-#ifdef SOC_TI_AM335X
-	case CHIP_AM335X:
-		clkcfg = ti_am335x_i2c_clock_configs;
-		break;
-#endif
-	default:
-		panic("Unknown Ti SoC, unable to reset the i2c");
+	done = 0;
+	amount = 0;
+	/* Check for the error conditions. */
+	if (status & I2C_STAT_NACK) {
+		/* No ACK from slave. */
+		ti_i2c_dbg(sc, "NACK\n");
+		ti_i2c_write_2(sc, I2C_REG_STATUS, I2C_STAT_NACK);
+		sc->sc_error = ENXIO;
+	} else if (status & I2C_STAT_AL) {
+		/* Arbitration lost. */
+		ti_i2c_dbg(sc, "Arbitration lost\n");
+		ti_i2c_write_2(sc, I2C_REG_STATUS, I2C_STAT_AL);
+		sc->sc_error = ENXIO;
 	}
-	while (clkcfg->speed != -1) {
-		if (clkcfg->speed == speed)
-			break;
-		/* take slow if speed is unknown */
-		if ((speed == IIC_UNKNOWN) && (clkcfg->speed == IIC_SLOW))
-			break;
-		clkcfg++;
+
+	/* Check if we have finished. */
+	if (status & I2C_STAT_ARDY) {
+		/* Register access ready - transaction complete basically. */
+		ti_i2c_dbg(sc, "ARDY transaction complete\n");
+		if (sc->sc_error != 0 && sc->sc_buffer->flags & IIC_M_NOSTOP) {
+			ti_i2c_write_2(sc, I2C_REG_CON,
+			    sc->sc_con_reg | I2C_CON_STP);
+		}
+		ti_i2c_write_2(sc, I2C_REG_STATUS,
+		    I2C_STAT_ARDY | I2C_STAT_RDR | I2C_STAT_RRDY |
+		    I2C_STAT_XDR | I2C_STAT_XRDY);
+		return (1);
 	}
-	if (clkcfg->speed == -1)
-		return (EINVAL);
 
-	TI_I2C_LOCK(sc);
+	if (sc->sc_buffer->flags & IIC_M_RD) {
+		/* Read some data. */
+		if (status & I2C_STAT_RDR) {
+			/*
+			 * Receive draining interrupt - last data received.
+			 * The set FIFO threshold wont be reached to trigger
+			 * RRDY.
+			 */
+			ti_i2c_dbg(sc, "Receive draining interrupt\n");
 
-	/* First disable the controller while changing the clocks */
-	con_reg = ti_i2c_read_reg(sc, I2C_REG_CON);
-	ti_i2c_write_reg(sc, I2C_REG_CON, 0x0000);
+			/*
+			 * Drain the FIFO.  Read the pending data in the FIFO.
+			 */
+			amount = sc->sc_buffer->len - sc->sc_buffer_pos;
+		} else if (status & I2C_STAT_RRDY) {
+			/*
+			 * Receive data ready interrupt - FIFO has reached the
+			 * set threshold.
+			 */
+			ti_i2c_dbg(sc, "Receive data ready interrupt\n");
 
-	/* Program the prescaler */
-	ti_i2c_write_reg(sc, I2C_REG_PSC, clkcfg->psc);
+			amount = min(sc->sc_fifo_trsh,
+			    sc->sc_buffer->len - sc->sc_buffer_pos);
+		}
 
-	/* Set the bitrate */
-	ti_i2c_write_reg(sc, I2C_REG_SCLL, clkcfg->scll | (clkcfg->hsscll<<8));
-	ti_i2c_write_reg(sc, I2C_REG_SCLH, clkcfg->sclh | (clkcfg->hssclh<<8));
+		/* Read the bytes from the fifo. */
+		for (i = 0; i < amount; i++)
+			sc->sc_buffer->buf[sc->sc_buffer_pos++] = 
+			    (uint8_t)(ti_i2c_read_2(sc, I2C_REG_DATA) & 0xff);
 
-	/* Check if we are dealing with high speed mode */
-	if ((clkcfg->hsscll + clkcfg->hssclh) > 0)
-		con_reg  = I2C_CON_OPMODE_HS;
-	else
-		con_reg  = I2C_CON_OPMODE_STD;
+		if (status & I2C_STAT_RDR)
+			ti_i2c_write_2(sc, I2C_REG_STATUS, I2C_STAT_RDR);
+		if (status & I2C_STAT_RRDY)
+			ti_i2c_write_2(sc, I2C_REG_STATUS, I2C_STAT_RRDY);
 
-	/* Enable the I2C module again */
-	ti_i2c_write_reg(sc, I2C_REG_CON, I2C_CON_I2C_EN | con_reg);
+	} else {
+		/* Write some data. */
+		if (status & I2C_STAT_XDR) {
+			/*
+			 * Transmit draining interrupt - FIFO level is below
+			 * the set threshold and the amount of data still to
+			 * be transferred wont reach the set FIFO threshold.
+			 */
+			ti_i2c_dbg(sc, "Transmit draining interrupt\n");
 
-	TI_I2C_UNLOCK(sc);
+			/*
+			 * Drain the TX data.  Write the pending data in the
+			 * FIFO.
+			 */
+			amount = sc->sc_buffer->len - sc->sc_buffer_pos;
+		} else if (status & I2C_STAT_XRDY) {
+			/*
+			 * Transmit data ready interrupt - the FIFO level
+			 * is below the set threshold.
+			 */
+			ti_i2c_dbg(sc, "Transmit data ready interrupt\n");
 
-	return (IIC_ENOADDR);
+			amount = min(sc->sc_fifo_trsh,
+			    sc->sc_buffer->len - sc->sc_buffer_pos);
+		}
+
+		/* Write the bytes from the fifo. */
+		for (i = 0; i < amount; i++)
+			ti_i2c_write_2(sc, I2C_REG_DATA,
+			    sc->sc_buffer->buf[sc->sc_buffer_pos++]);
+
+		if (status & I2C_STAT_XDR)
+			ti_i2c_write_2(sc, I2C_REG_STATUS, I2C_STAT_XDR);
+		if (status & I2C_STAT_XRDY)
+			ti_i2c_write_2(sc, I2C_REG_STATUS, I2C_STAT_XRDY);
+	}
+
+	return (done);
 }
 
 /**
@@ -349,381 +321,41 @@ ti_i2c_reset(device_t dev, u_char speed, u_char addr, u_char *oldaddr)
 static void
 ti_i2c_intr(void *arg)
 {
-	struct ti_i2c_softc *sc = (struct ti_i2c_softc*) arg;
-	uint16_t status;
+	int done;
+	struct ti_i2c_softc *sc;
+	uint16_t events, status;
 
-	status = ti_i2c_read_reg(sc, I2C_REG_STAT);
-	if (status == 0)
-		return;
+ 	sc = (struct ti_i2c_softc *)arg;
 
 	TI_I2C_LOCK(sc);
 
-	/* save the flags */
-	sc->sc_stat_flags |= status;
+	status = ti_i2c_read_2(sc, I2C_REG_STATUS);
+	if (status == 0) {
+		TI_I2C_UNLOCK(sc);
+		return;
+	}
 
-	/* clear the status flags */
-	ti_i2c_write_reg(sc, I2C_REG_STAT, status);
+	/* Save enabled interrupts. */
+	events = ti_i2c_read_2(sc, I2C_REG_IRQENABLE_SET);
 
-	/* wakeup the process the started the transaction */
-	wakeup(sc);
+	/* We only care about enabled interrupts. */
+	status &= events;
+
+	done = 0;
+
+	if (sc->sc_buffer != NULL)
+		done = ti_i2c_transfer_intr(sc, status);
+	else {
+		ti_i2c_dbg(sc, "Transfer interrupt without buffer\n");
+		sc->sc_error = EINVAL;
+		done = 1;
+	}
+
+	if (done)
+		/* Wakeup the process that started the transaction. */
+		wakeup(sc);
 
 	TI_I2C_UNLOCK(sc);
-
-	return;
-}
-
-/**
- *	ti_i2c_wait - waits for the specific event to occur
- *	@sc: i2c driver context
- *	@flags: the event(s) to wait on, this is a bitmask of the I2C_STAT_??? flags
- *	@statp: if not null will contain the status flags upon return
- *	@timo: the number of ticks to wait
- *
- *
- *
- *	LOCKING:
- *	The driver context must be locked before calling this function. Internally
- *	the function sleeps, releasing the lock as it does so, however the lock is
- *	always retaken before this function returns.
- *
- *	RETURNS:
- *	0 if the event(s) were tripped within timeout period
- *	EBUSY if timedout waiting for the events
- *	ENXIO if a NACK event was received
- */
-static int
-ti_i2c_wait(struct ti_i2c_softc *sc, uint16_t flags, uint16_t *statp, int timo)
-{
-	int waittime = timo;
-	int start_ticks = ticks;
-	int rc;
-
-	TI_I2C_ASSERT_LOCKED(sc);
-
-	/* check if the condition has already occured, the interrupt routine will
-	 * clear the status flags.
-	 */
-	if ((sc->sc_stat_flags & flags) == 0) {
-
-		/* condition(s) haven't occured so sleep on the IRQ */
-		while (waittime > 0) {
-
-			rc = mtx_sleep(sc, &sc->sc_mtx, 0, "I2Cwait", waittime);
-			if (rc == EWOULDBLOCK) {
-				/* timed-out, simply break out of the loop */
-				break;
-			} else {
-				/* IRQ has been tripped, but need to sanity check we have the
-				 * right events in the status flag.
-				 */
-				if ((sc->sc_stat_flags & flags) != 0)
-					break;
-
-				/* event hasn't been tripped so wait some more */
-				waittime -= (ticks - start_ticks);
-				start_ticks = ticks;
-			}
-		}
-	}
-
-	/* copy the actual status bits */
-	if (statp != NULL)
-		*statp = sc->sc_stat_flags;
-
-	/* return the status found */
-	if ((sc->sc_stat_flags & flags) != 0)
-		rc = 0;
-	else
-		rc = EBUSY;
-
-	/* clear the flags set by the interrupt handler */
-	sc->sc_stat_flags = 0;
-
-	return (rc);
-}
-
-/**
- *	ti_i2c_wait_for_free_bus - waits for the bus to become free
- *	@sc: i2c driver context
- *	@timo: the time to wait for the bus to become free
- *
- *
- *
- *	LOCKING:
- *	The driver context must be locked before calling this function. Internally
- *	the function sleeps, releasing the lock as it does so, however the lock is
- *	always taken before this function returns.
- *
- *	RETURNS:
- *	0 if the event(s) were tripped within timeout period
- *	EBUSY if timedout waiting for the events
- *	ENXIO if a NACK event was received
- */
-static int
-ti_i2c_wait_for_free_bus(struct ti_i2c_softc *sc, int timo)
-{
-	/* check if the bus is free, BB bit = 0 */
-	if ((ti_i2c_read_reg(sc, I2C_REG_STAT) & I2C_STAT_BB) == 0)
-		return 0;
-
-	/* enable bus free interrupts */
-	ti_i2c_set_intr_enable(sc, I2C_IE_BF);
-
-	/* wait for the bus free interrupt to be tripped */
-	return ti_i2c_wait(sc, I2C_STAT_BF, NULL, timo);
-}
-
-/**
- *	ti_i2c_read_bytes - attempts to perform a read operation
- *	@sc: i2c driver context
- *	@buf: buffer to hold the received bytes
- *	@len: the number of bytes to read
- *
- *	This function assumes the slave address is already set
- *
- *	LOCKING:
- *	The context lock should be held before calling this function
- *
- *	RETURNS:
- *	0 on function succeeded
- *	EINVAL if invalid message is passed as an arg
- */
-static int
-ti_i2c_read_bytes(struct ti_i2c_softc *sc, uint8_t *buf, uint16_t len)
-{
-	int      timo = (hz / 4);
-	int      err = 0;
-	uint16_t con_reg;
-	uint16_t events;
-	uint16_t status;
-	uint32_t amount = 0;
-	uint32_t sofar = 0;
-	uint32_t i;
-
-	/* wait for the bus to become free */
-	err = ti_i2c_wait_for_free_bus(sc, timo);
-	if (err != 0) {
-		device_printf(sc->sc_dev, "bus never freed\n");
-		return (err);
-	}
-
-	/* set the events to wait for */
-	events = I2C_IE_RDR |   /* Receive draining interrupt */
-	         I2C_IE_RRDY |  /* Receive Data Ready interrupt */
-	         I2C_IE_ARDY |  /* Register Access Ready interrupt */
-	         I2C_IE_NACK |  /* No Acknowledgment interrupt */
-	         I2C_IE_AL;
-
-	/* enable interrupts for the events we want */
-	ti_i2c_set_intr_enable(sc, events);
-
-	/* write the number of bytes to read */
-	ti_i2c_write_reg(sc, I2C_REG_CNT, len);
-
-	/* clear the write bit and initiate the read transaction. Setting the STT
-	 * (start) bit initiates the transfer.
-	 */
-	con_reg = ti_i2c_read_reg(sc, I2C_REG_CON);
-	con_reg &= ~I2C_CON_TRX;
-	con_reg |=  I2C_CON_MST | I2C_CON_STT | I2C_CON_STP;
-	ti_i2c_write_reg(sc, I2C_REG_CON, con_reg);
-
-	/* reading loop */
-	while (1) {
-
-		/* wait for an event */
-		err = ti_i2c_wait(sc, events, &status, timo);
-		if (err != 0) {
-			break;
-		}
-
-		/* check for the error conditions */
-		if (status & I2C_STAT_NACK) {
-			/* no ACK from slave */
-			ti_i2c_dbg(sc, "NACK\n");
-			err = ENXIO;
-			break;
-		}
-		if (status & I2C_STAT_AL) {
-			/* arbitration lost */
-			ti_i2c_dbg(sc, "Arbitration lost\n");
-			err = ENXIO;
-			break;
-		}
-
-		/* check if we have finished */
-		if (status & I2C_STAT_ARDY) {
-			/* register access ready - transaction complete basically */
-			ti_i2c_dbg(sc, "ARDY transaction complete\n");
-			err = 0;
-			break;
-		}
-
-		/* read some data */
-		if (status & I2C_STAT_RDR) {
-			/* Receive draining interrupt - last data received */
-			ti_i2c_dbg(sc, "Receive draining interrupt\n");
-
-			/* get the number of bytes in the FIFO */
-			amount = ti_i2c_read_reg(sc, I2C_REG_BUFSTAT);
-			amount >>= 8;
-			amount &= 0x3f;
-		}
-		else if (status & I2C_STAT_RRDY) {
-			/* Receive data ready interrupt - enough data received */
-			ti_i2c_dbg(sc, "Receive data ready interrupt\n");
-
-			/* get the number of bytes in the FIFO */
-			amount = ti_i2c_read_reg(sc, I2C_REG_BUF);
-			amount >>= 8;
-			amount &= 0x3f;
-			amount += 1;
-		}
-
-		/* sanity check we haven't overwritten the array */
-		if ((sofar + amount) > len) {
-			ti_i2c_dbg(sc, "to many bytes to read\n");
-			amount = (len - sofar);
-		}
-
-		/* read the bytes from the fifo */
-		for (i = 0; i < amount; i++) {
-			buf[sofar++] = (uint8_t)(ti_i2c_read_reg(sc, I2C_REG_DATA) & 0xff);
-		}
-
-		/* attempt to clear the receive ready bits */
-		ti_i2c_write_reg(sc, I2C_REG_STAT, I2C_STAT_RDR | I2C_STAT_RRDY);
-	}
-
-	/* reset the registers regardless if there was an error or not */
-	ti_i2c_set_intr_enable(sc, 0x0000);
-	ti_i2c_write_reg(sc, I2C_REG_CON, I2C_CON_I2C_EN | I2C_CON_MST | I2C_CON_STP);
-
-	return (err);
-}
-
-/**
- *	ti_i2c_write_bytes - attempts to perform a read operation
- *	@sc: i2c driver context
- *	@buf: buffer containing the bytes to write
- *	@len: the number of bytes to write
- *
- *	This function assumes the slave address is already set
- *
- *	LOCKING:
- *	The context lock should be held before calling this function
- *
- *	RETURNS:
- *	0 on function succeeded
- *	EINVAL if invalid message is passed as an arg
- */
-static int
-ti_i2c_write_bytes(struct ti_i2c_softc *sc, const uint8_t *buf, uint16_t len)
-{
-	int      timo = (hz / 4);
-	int      err = 0;
-	uint16_t con_reg;
-	uint16_t events;
-	uint16_t status;
-	uint32_t amount = 0;
-	uint32_t sofar = 0;
-	uint32_t i;
-
-	/* wait for the bus to become free */
-	err = ti_i2c_wait_for_free_bus(sc, timo);
-	if (err != 0)
-		return (err);
-
-	/* set the events to wait for */
-	events = I2C_IE_XDR |   /* Transmit draining interrupt */
-	         I2C_IE_XRDY |  /* Transmit Data Ready interrupt */
-	         I2C_IE_ARDY |  /* Register Access Ready interrupt */
-	         I2C_IE_NACK |  /* No Acknowledgment interrupt */
-	         I2C_IE_AL;
-
-	/* enable interrupts for the events we want*/
-	ti_i2c_set_intr_enable(sc, events);
-
-	/* write the number of bytes to write */
-	ti_i2c_write_reg(sc, I2C_REG_CNT, len);
-
-	/* set the write bit and initiate the write transaction. Setting the STT
-	 * (start) bit initiates the transfer.
-	 */
-	con_reg = ti_i2c_read_reg(sc, I2C_REG_CON);
-	con_reg |= I2C_CON_TRX | I2C_CON_MST | I2C_CON_STT | I2C_CON_STP;
-	ti_i2c_write_reg(sc, I2C_REG_CON, con_reg);
-
-	/* writing loop */
-	while (1) {
-
-		/* wait for an event */
-		err = ti_i2c_wait(sc, events, &status, timo);
-		if (err != 0) {
-			break;
-		}
-
-		/* check for the error conditions */
-		if (status & I2C_STAT_NACK) {
-			/* no ACK from slave */
-			ti_i2c_dbg(sc, "NACK\n");
-			err = ENXIO;
-			break;
-		}
-		if (status & I2C_STAT_AL) {
-			/* arbitration lost */
-			ti_i2c_dbg(sc, "Arbitration lost\n");
-			err = ENXIO;
-			break;
-		}
-
-		/* check if we have finished */
-		if (status & I2C_STAT_ARDY) {
-			/* register access ready - transaction complete basically */
-			ti_i2c_dbg(sc, "ARDY transaction complete\n");
-			err = 0;
-			break;
-		}
-
-		/* read some data */
-		if (status & I2C_STAT_XDR) {
-			/* Receive draining interrupt - last data received */
-			ti_i2c_dbg(sc, "Transmit draining interrupt\n");
-
-			/* get the number of bytes in the FIFO */
-			amount = ti_i2c_read_reg(sc, I2C_REG_BUFSTAT);
-			amount &= 0x3f;
-		}
-		else if (status & I2C_STAT_XRDY) {
-			/* Receive data ready interrupt - enough data received */
-			ti_i2c_dbg(sc, "Transmit data ready interrupt\n");
-
-			/* get the number of bytes in the FIFO */
-			amount = ti_i2c_read_reg(sc, I2C_REG_BUF);
-			amount &= 0x3f;
-			amount += 1;
-		}
-
-		/* sanity check we haven't overwritten the array */
-		if ((sofar + amount) > len) {
-			ti_i2c_dbg(sc, "to many bytes to write\n");
-			amount = (len - sofar);
-		}
-
-		/* write the bytes from the fifo */
-		for (i = 0; i < amount; i++) {
-			ti_i2c_write_reg(sc, I2C_REG_DATA, buf[sofar++]);
-		}
-
-		/* attempt to clear the transmit ready bits */
-		ti_i2c_write_reg(sc, I2C_REG_STAT, I2C_STAT_XDR | I2C_STAT_XRDY);
-	}
-
-	/* reset the registers regardless if there was an error or not */
-	ti_i2c_set_intr_enable(sc, 0x0000);
-	ti_i2c_write_reg(sc, I2C_REG_CON, I2C_CON_I2C_EN | I2C_CON_MST | I2C_CON_STP);
-
-	return (err);
 }
 
 /**
@@ -743,45 +375,109 @@ ti_i2c_write_bytes(struct ti_i2c_softc *sc, const uint8_t *buf, uint16_t len)
 static int
 ti_i2c_transfer(device_t dev, struct iic_msg *msgs, uint32_t nmsgs)
 {
-	struct ti_i2c_softc *sc = device_get_softc(dev);
-	int err = 0;
-	uint32_t i;
-	uint16_t len;
-	uint8_t *buf;
+	int err, i, repstart, timeout;
+	struct ti_i2c_softc *sc;
+	uint16_t reg;
 
+ 	sc = device_get_softc(dev);
 	TI_I2C_LOCK(sc);
 
+	/* If the controller is busy wait until it is available. */
+	while (sc->sc_bus_inuse == 1)
+		mtx_sleep(dev, &sc->sc_mtx, 0, "i2cbuswait", 0);
+
+	/* Now we have control over the I2C controller. */
+	sc->sc_bus_inuse = 1;
+
+	err = 0;
+	repstart = 0;
 	for (i = 0; i < nmsgs; i++) {
 
-		len = msgs[i].len;
-		buf = msgs[i].buf;
+		sc->sc_buffer = &msgs[i];
+		sc->sc_buffer_pos = 0;
+		sc->sc_error = 0;
 
-		/* zero byte transfers aren't allowed */
-		if (len == 0 || buf == NULL) {
+		/* Zero byte transfers aren't allowed. */
+		if (sc->sc_buffer == NULL || sc->sc_buffer->buf == NULL ||
+		    sc->sc_buffer->len == 0) {
 			err = EINVAL;
-			goto out;
+			break;
 		}
 
-		/* set the slave address */
-		ti_i2c_write_reg(sc, I2C_REG_SA, msgs[i].slave >> 1);
+		/* Check if the i2c bus is free. */
+		if (repstart == 0) {
+			/*
+			 * On repeated start we send the START condition while
+			 * the bus _is_ busy.
+			 */
+			timeout = 0;
+			while (ti_i2c_read_2(sc, I2C_REG_STATUS_RAW) & I2C_STAT_BB) {
+				if (timeout++ > 100) {
+					err = EBUSY;
+					goto out;
+				}
+				DELAY(1000);
+			}
+			timeout = 0;
+		} else
+			repstart = 0;
 
-		/* perform the read or write */
-		if (msgs[i].flags & IIC_M_RD) {
-			err = ti_i2c_read_bytes(sc, buf, len);
-		} else {
-			err = ti_i2c_write_bytes(sc, buf, len);
-		}
+		if (sc->sc_buffer->flags & IIC_M_NOSTOP)
+			repstart = 1;
 
+		/* Set the slave address. */
+		ti_i2c_write_2(sc, I2C_REG_SA, msgs[i].slave >> 1);
+
+		/* Write the data length. */
+		ti_i2c_write_2(sc, I2C_REG_CNT, sc->sc_buffer->len);
+
+		/* Clear the RX and the TX FIFO. */
+		reg = ti_i2c_read_2(sc, I2C_REG_BUF);
+		reg |= I2C_BUF_RXFIFO_CLR | I2C_BUF_TXFIFO_CLR;
+		ti_i2c_write_2(sc, I2C_REG_BUF, reg);
+
+		reg = sc->sc_con_reg | I2C_CON_STT;
+		if (repstart == 0)
+			reg |= I2C_CON_STP;
+		if ((sc->sc_buffer->flags & IIC_M_RD) == 0)
+			reg |= I2C_CON_TRX;
+		ti_i2c_write_2(sc, I2C_REG_CON, reg);
+
+		/* Wait for an event. */
+		err = mtx_sleep(sc, &sc->sc_mtx, 0, "i2ciowait", hz);
+		if (err == 0)
+			err = sc->sc_error;
+
+		if (err)
+			break;
 	}
 
 out:
+	if (timeout == 0) {
+		while (ti_i2c_read_2(sc, I2C_REG_STATUS_RAW) & I2C_STAT_BB) {
+			if (timeout++ > 100)
+				break;
+			DELAY(1000);
+		}
+	}
+	/* Put the controller in master mode again. */
+	if ((ti_i2c_read_2(sc, I2C_REG_CON) & I2C_CON_MST) == 0)
+		ti_i2c_write_2(sc, I2C_REG_CON, sc->sc_con_reg);
+
+	sc->sc_buffer = NULL;
+	sc->sc_bus_inuse = 0;
+
+	/* Wake up the processes that are waiting for the bus. */
+	wakeup(sc);
+
 	TI_I2C_UNLOCK(sc);
 
 	return (err);
 }
 
 /**
- *	ti_i2c_callback - not sure about this one
+ *	ti_i2c_callback - as we only provide iicbus_transfer() interface
+ * 		we don't need to implement the serialization here.
  *	@dev: i2c device handle
  *
  *
@@ -811,156 +507,229 @@ ti_i2c_callback(device_t dev, int index, caddr_t data)
 	return (error);
 }
 
-/**
- *	ti_i2c_activate - initialises and activates an I2C bus
- *	@dev: i2c device handle
- *	@num: the number of the I2C controller to activate; 1, 2 or 3
- *
- *
- *	LOCKING:
- *	Assumed called in an atomic context.
- *
- *	RETURNS:
- *	nothing
- */
+static int
+ti_i2c_reset(struct ti_i2c_softc *sc, u_char speed)
+{
+	int timeout;
+	struct ti_i2c_clock_config *clkcfg;
+	uint16_t fifo_trsh, reg, scll, sclh;
+
+	switch (ti_chip()) {
+#ifdef SOC_OMAP4
+	case CHIP_OMAP_4:
+		clkcfg = ti_omap4_i2c_clock_configs;
+		break;
+#endif
+#ifdef SOC_TI_AM335X
+	case CHIP_AM335X:
+		clkcfg = ti_am335x_i2c_clock_configs;
+		break;
+#endif
+	default:
+		panic("Unknown Ti SoC, unable to reset the i2c");
+	}
+	while (clkcfg->speed != -1) {
+		if (clkcfg->speed == speed)
+			break;
+		clkcfg++;
+	}
+	if (clkcfg->speed == -1)
+		return (EINVAL);
+
+	/*
+	 * 23.1.4.3 - HS I2C Software Reset
+	 *    From OMAP4 TRM at page 4068.
+	 *
+	 * 1. Ensure that the module is disabled.
+	 */
+	sc->sc_con_reg = 0;
+	ti_i2c_write_2(sc, I2C_REG_CON, sc->sc_con_reg);
+
+	/* 2. Issue a softreset to the controller. */
+	bus_write_2(sc->sc_mem_res, I2C_REG_SYSC, I2C_REG_SYSC_SRST);
+
+	/*
+	 * 3. Enable the module.
+	 *    The I2Ci.I2C_SYSS[0] RDONE bit is asserted only after the module
+	 *    is enabled by setting the I2Ci.I2C_CON[15] I2C_EN bit to 1.
+	 */
+	ti_i2c_write_2(sc, I2C_REG_CON, I2C_CON_I2C_EN);
+
+ 	/* 4. Wait for the software reset to complete. */
+	timeout = 0;
+	while ((ti_i2c_read_2(sc, I2C_REG_SYSS) & I2C_SYSS_RDONE) == 0) {
+		if (timeout++ > 100)
+			return (EBUSY);
+		DELAY(100);
+	}
+
+	/*
+	 * Disable the I2C controller once again, now that the reset has
+	 * finished.
+	 */
+	ti_i2c_write_2(sc, I2C_REG_CON, sc->sc_con_reg);
+
+	/*
+	 * The following sequence is taken from the OMAP4 TRM at page 4077.
+	 *
+	 * 1. Enable the functional and interface clocks (see Section
+	 *    23.1.5.1.1.1.1).  Done at ti_i2c_activate().
+	 *
+	 * 2. Program the prescaler to obtain an approximately 12MHz internal
+	 *    sampling clock (I2Ci_INTERNAL_CLK) by programming the
+	 *    corresponding value in the I2Ci.I2C_PSC[3:0] PSC field.
+	 *    This value depends on the frequency of the functional clock
+	 *    (I2Ci_FCLK).  Because this frequency is 96MHz, the
+	 *    I2Ci.I2C_PSC[7:0] PSC field value is 0x7.
+	 */
+	ti_i2c_write_2(sc, I2C_REG_PSC, clkcfg->psc);
+
+	/*
+	 * 3. Program the I2Ci.I2C_SCLL[7:0] SCLL and I2Ci.I2C_SCLH[7:0] SCLH
+	 *    bit fields to obtain a bit rate of 100 Kbps, 400 Kbps or 1Mbps.
+	 *    These values depend on the internal sampling clock frequency
+	 *    (see Table 23-8).
+	 */
+	scll = clkcfg->scll & I2C_SCLL_MASK;
+	sclh = clkcfg->sclh & I2C_SCLH_MASK;
+
+	/*
+	 * 4. (Optional) Program the I2Ci.I2C_SCLL[15:8] HSSCLL and
+	 *    I2Ci.I2C_SCLH[15:8] HSSCLH fields to obtain a bit rate of
+	 *    400K bps or 3.4M bps (for the second phase of HS mode).  These
+	 *    values depend on the internal sampling clock frequency (see
+	 *    Table 23-8).
+	 *
+	 * 5. (Optional) If a bit rate of 3.4M bps is used and the bus line
+	 *    capacitance exceeds 45 pF, (see Section 18.4.8, PAD Functional
+	 *    Multiplexing and Configuration).
+	 */
+	switch (ti_chip()) {
+#ifdef SOC_OMAP4
+	case CHIP_OMAP_4:
+		if ((clkcfg->hsscll + clkcfg->hssclh) > 0) {
+			scll |= clkcfg->hsscll << I2C_HSSCLL_SHIFT;
+			sclh |= clkcfg->hssclh << I2C_HSSCLH_SHIFT;
+			sc->sc_con_reg |= I2C_CON_OPMODE_HS;
+		}
+		break;
+#endif
+	}
+
+	/* Write the selected bit rate. */
+	ti_i2c_write_2(sc, I2C_REG_SCLL, scll);
+	ti_i2c_write_2(sc, I2C_REG_SCLH, sclh);
+
+	/*
+	 * 6. Configure the Own Address of the I2C controller by storing it in
+	 *    the I2Ci.I2C_OA0 register.  Up to four Own Addresses can be
+	 *    programmed in the I2Ci.I2C_OAi registers (where i = 0, 1, 2, 3)
+	 *    for each I2C controller.
+	 *
+	 * Note: For a 10-bit address, set the corresponding expand Own Address
+	 * bit in the I2Ci.I2C_CON register.
+	 *
+	 * Driver currently always in single master mode so ignore this step.
+	 */
+
+	/*
+	 * 7. Set the TX threshold (in transmitter mode) and the RX threshold
+	 *    (in receiver mode) by setting the I2Ci.I2C_BUF[5:0]XTRSH field to
+	 *    (TX threshold - 1) and the I2Ci.I2C_BUF[13:8]RTRSH field to (RX
+	 *    threshold - 1), where the TX and RX thresholds are greater than
+	 *    or equal to 1.
+	 *
+	 * The threshold is set to 5 for now.
+	 */
+	fifo_trsh = (sc->sc_fifo_trsh - 1) & I2C_BUF_TRSH_MASK;
+	reg = fifo_trsh | (fifo_trsh << I2C_BUF_RXTRSH_SHIFT);
+	ti_i2c_write_2(sc, I2C_REG_BUF, reg);
+
+	/*
+	 * 8. Take the I2C controller out of reset by setting the
+	 *    I2Ci.I2C_CON[15] I2C_EN bit to 1.
+	 *
+	 * 23.1.5.1.1.1.2 - Initialize the I2C Controller
+	 *
+	 * To initialize the I2C controller, perform the following steps:
+	 *
+	 * 1. Configure the I2Ci.I2C_CON register:
+	 *     . For master or slave mode, set the I2Ci.I2C_CON[10] MST bit
+	 *       (0: slave, 1: master).
+	 *     . For transmitter or receiver mode, set the I2Ci.I2C_CON[9] TRX
+	 *       bit (0: receiver, 1: transmitter).
+	 */
+
+	/* Enable the I2C controller in master mode. */
+	sc->sc_con_reg |= I2C_CON_I2C_EN | I2C_CON_MST;
+	ti_i2c_write_2(sc, I2C_REG_CON, sc->sc_con_reg);
+
+	/*
+	 * 2. If using an interrupt to transmit/receive data, set the
+	 *    corresponding bit in the I2Ci.I2C_IE register (the I2Ci.I2C_IE[4]
+	 *    XRDY_IE bit for the transmit interrupt, the I2Ci.I2C_IE[3] RRDY
+	 *    bit for the receive interrupt).
+	 */
+
+	/* Set the interrupts we want to be notified. */
+	reg = I2C_IE_XDR |	/* Transmit draining interrupt. */
+	    I2C_IE_XRDY |	/* Transmit Data Ready interrupt. */
+	    I2C_IE_RDR |	/* Receive draining interrupt. */
+	    I2C_IE_RRDY |	/* Receive Data Ready interrupt. */
+	    I2C_IE_ARDY |	/* Register Access Ready interrupt. */
+	    I2C_IE_NACK |	/* No Acknowledgment interrupt. */
+	    I2C_IE_AL;		/* Arbitration lost interrupt. */
+
+	/* Enable the interrupts. */
+	ti_i2c_write_2(sc, I2C_REG_IRQENABLE_SET, reg);
+
+	/*
+	 * 3. If using DMA to receive/transmit data, set to 1 the corresponding
+	 *    bit in the I2Ci.I2C_BUF register (the I2Ci.I2C_BUF[15] RDMA_EN
+	 *    bit for the receive DMA channel, the I2Ci.I2C_BUF[7] XDMA_EN bit
+	 *    for the transmit DMA channel).
+	 *
+	 * Not using DMA for now, so ignore this.
+	 */
+
+	return (0);
+}
+
+static int
+ti_i2c_iicbus_reset(device_t dev, u_char speed, u_char addr, u_char *oldaddr)
+{
+	struct ti_i2c_softc *sc;
+	int err;
+
+	sc = device_get_softc(dev);
+	TI_I2C_LOCK(sc);
+	err = ti_i2c_reset(sc, speed);
+	TI_I2C_UNLOCK(sc);
+	if (err)
+		return (err);
+
+	return (IIC_ENOADDR);
+}
+
 static int
 ti_i2c_activate(device_t dev)
 {
-	struct ti_i2c_softc *sc = (struct ti_i2c_softc*) device_get_softc(dev);
-	unsigned int timeout = 0;
-	uint16_t con_reg;
-	int err;
 	clk_ident_t clk;
+	int err;
+	struct ti_i2c_softc *sc;
+
+	sc = (struct ti_i2c_softc*)device_get_softc(dev);
 
 	/*
-	 * The following sequence is taken from the OMAP3530 technical reference
-	 *
-	 * 1. Enable the functional and interface clocks (see Section 18.3.1.1.1).
+	 * 1. Enable the functional and interface clocks (see Section
+	 * 23.1.5.1.1.1.1).
 	 */
 	clk = I2C0_CLK + sc->device_id;
 	err = ti_prcm_clk_enable(clk);
 	if (err)
 		return (err);
 
-	/* There seems to be a bug in the I2C reset mechanism, for some reason you
-	 * need to disable the I2C module before issuing the reset and then enable
-	 * it again after to detect the reset done.
-	 *
-	 * I found this out by looking at the Linux driver implementation, thanks
-	 * linux guys!
-	 */
-
-	/* Disable the I2C controller */
-	ti_i2c_write_reg(sc, I2C_REG_CON, 0x0000);
-
-	/* Issue a softreset to the controller */
-	/* XXXOMAP3: FIXME */
-	bus_write_2(sc->sc_mem_res, I2C_REG_SYSC, 0x0002);
-
-	/* Re-enable the module and then check for the reset done */
-	ti_i2c_write_reg(sc, I2C_REG_CON, I2C_CON_I2C_EN);
-
-	while ((ti_i2c_read_reg(sc, I2C_REG_SYSS) & 0x01) == 0x00) {
-		if (timeout++ > 100) {
-			return (EBUSY);
-		}
-		DELAY(100);
-	}
-
-	/* Disable the I2C controller once again, now that the reset has finished */
-	ti_i2c_write_reg(sc, I2C_REG_CON, 0x0000);
-
-	/* 2. Program the prescaler to obtain an approximately 12-MHz internal
-	 *    sampling clock (I2Ci_INTERNAL_CLK) by programming the corresponding
-	 *    value in the I2Ci.I2C_PSC[3:0] PSC field.
-	 *    This value depends on the frequency of the functional clock (I2Ci_FCLK).
-	 *    Because this frequency is 96MHz, the I2Ci.I2C_PSC[7:0] PSC field value
-	 *    is 0x7.
-	 */
-
-	/* Program the prescaler to obtain an approximately 12-MHz internal
-	 * sampling clock.
-	 */
-	ti_i2c_write_reg(sc, I2C_REG_PSC, 0x0017);
-
-	/* 3. Program the I2Ci.I2C_SCLL[7:0] SCLL and I2Ci.I2C_SCLH[7:0] SCLH fields
-	 *    to obtain a bit rate of 100K bps or 400K bps. These values depend on
-	 *    the internal sampling clock frequency (see Table 18-12).
-	 */
-
-	/* Set the bitrate to 100kbps */
-	ti_i2c_write_reg(sc, I2C_REG_SCLL, 0x000d);
-	ti_i2c_write_reg(sc, I2C_REG_SCLH, 0x000f);
-
-	/* 4. (Optional) Program the I2Ci.I2C_SCLL[15:8] HSSCLL and
-	 *    I2Ci.I2C_SCLH[15:8] HSSCLH fields to obtain a bit rate of 400K bps or
-	 *    3.4M bps (for the second phase of HS mode). These values depend on the
-	 *    internal sampling clock frequency (see Table 18-12).
-	 *
-	 * 5. (Optional) If a bit rate of 3.4M bps is used and the bus line
-	 *    capacitance exceeds 45 pF, program the CONTROL.CONTROL_DEVCONF1[12]
-	 *    I2C1HSMASTER bit for I2C1, the CONTROL.CONTROL_DEVCONF1[13]
-	 *    I2C2HSMASTER bit for I2C2, or the CONTROL.CONTROL_DEVCONF1[14]
-	 *    I2C3HSMASTER bit for I2C3.
-	 */
-
-	/* 6. Configure the Own Address of the I2C controller by storing it in the
-	 *    I2Ci.I2C_OA0 register. Up to four Own Addresses can be programmed in
-	 *    the I2Ci.I2C_OAi registers (with I = 0, 1, 2, 3) for each I2C
-	 *    controller.
-	 *
-	 * Note: For a 10-bit address, set the corresponding expand Own Address bit
-	 * in the I2Ci.I2C_CON register.
-	 */
-
-	/* Driver currently always in single master mode so ignore this step */
-
-	/* 7. Set the TX threshold (in transmitter mode) and the RX threshold (in
-	 *    receiver mode) by setting the I2Ci.I2C_BUF[5:0]XTRSH field to (TX
-	 *    threshold - 1) and the I2Ci.I2C_BUF[13:8]RTRSH field to (RX threshold
-	 *    - 1), where the TX and RX thresholds are greater than or equal to 1.
-	 */
-
-	/* Set the FIFO buffer threshold, note I2C1 & I2C2 have 8 byte FIFO, whereas
-	 * I2C3 has 64 bytes.  Threshold set to 5 for now.
-	 */
-	ti_i2c_write_reg(sc, I2C_REG_BUF, 0x0404);
-
-	/*
-	 * 8. Take the I2C controller out of reset by setting the I2Ci.I2C_CON[15]
-	 *    I2C_EN bit to 1.
-	 */
-	ti_i2c_write_reg(sc, I2C_REG_CON, I2C_CON_I2C_EN | I2C_CON_OPMODE_STD);
-
-	/*
-	 * To initialize the I2C controller, perform the following steps:
-	 *
-	 * 1. Configure the I2Ci.I2C_CON register:
-	 *    · For master or slave mode, set the I2Ci.I2C_CON[10] MST bit (0: slave,
-	 *      1: master).
-	 *    · For transmitter or receiver mode, set the I2Ci.I2C_CON[9] TRX bit
-	 *      (0: receiver, 1: transmitter).
-	 */
-	con_reg = ti_i2c_read_reg(sc, I2C_REG_CON);
-	con_reg |= I2C_CON_MST;
-	ti_i2c_write_reg(sc, I2C_REG_CON, con_reg);
-
-	/* 2. If using an interrupt to transmit/receive data, set to 1 the
-	 *    corresponding bit in the I2Ci.I2C_IE register (the I2Ci.I2C_IE[4]
-	 *    XRDY_IE bit for the transmit interrupt, the I2Ci.I2C_IE[3] RRDY bit
-	 *    for the receive interrupt).
-	 */
-	ti_i2c_set_intr_enable(sc, I2C_IE_XRDY | I2C_IE_RRDY);
-
-	/* 3. If using DMA to receive/transmit data, set to 1 the corresponding bit
-	 *    in the I2Ci.I2C_BUF register (the I2Ci.I2C_BUF[15] RDMA_EN bit for the
-	 *    receive DMA channel, the I2Ci.I2C_BUF[7] XDMA_EN bit for the transmit
-	 *    DMA channel).
-	 */
-
-	/* not using DMA for now, so ignore this */
-
-	return (0);
+	return (ti_i2c_reset(sc, IIC_UNKNOWN));
 }
 
 /**
@@ -981,136 +750,154 @@ ti_i2c_deactivate(device_t dev)
 	struct ti_i2c_softc *sc = device_get_softc(dev);
 	clk_ident_t clk;
 
-	/* Disable the controller - cancel all transactions */
-	ti_i2c_write_reg(sc, I2C_REG_CON, 0x0000);
+	/* Disable the controller - cancel all transactions. */
+	ti_i2c_write_2(sc, I2C_REG_IRQENABLE_CLR, 0xffff);
+	ti_i2c_write_2(sc, I2C_REG_STATUS, 0xffff);
+	ti_i2c_write_2(sc, I2C_REG_CON, 0);
 
-	/* Release the interrupt handler */
-	if (sc->sc_irq_h) {
+	/* Release the interrupt handler. */
+	if (sc->sc_irq_h != NULL) {
 		bus_teardown_intr(dev, sc->sc_irq_res, sc->sc_irq_h);
-		sc->sc_irq_h = 0;
+		sc->sc_irq_h = NULL;
 	}
 
 	bus_generic_detach(sc->sc_dev);
 
-	/* Unmap the I2C controller registers */
-	if (sc->sc_mem_res != 0) {
-		bus_release_resource(dev, SYS_RES_MEMORY, rman_get_rid(sc->sc_irq_res),
-							 sc->sc_mem_res);
+	/* Unmap the I2C controller registers. */
+	if (sc->sc_mem_res != NULL) {
+		bus_release_resource(dev, SYS_RES_MEMORY, 0, sc->sc_mem_res);
 		sc->sc_mem_res = NULL;
 	}
 
-	/* Release the IRQ resource */
+	/* Release the IRQ resource. */
 	if (sc->sc_irq_res != NULL) {
-		bus_release_resource(dev, SYS_RES_IRQ, rman_get_rid(sc->sc_irq_res),
-							 sc->sc_irq_res);
+		bus_release_resource(dev, SYS_RES_IRQ, 0, sc->sc_irq_res);
 		sc->sc_irq_res = NULL;
 	}
 
-	/* Finally disable the functional and interface clocks */
+	/* Finally disable the functional and interface clocks. */
 	clk = I2C0_CLK + sc->device_id;
 	ti_prcm_clk_disable(clk);
-
-	return;
 }
 
-/**
- *	ti_i2c_probe - probe function for the driver
- *	@dev: i2c device handle
- *
- *
- *
- *	LOCKING:
- *
- *
- *	RETURNS:
- *	Always returns 0
- */
+static int
+ti_i2c_sysctl_clk(SYSCTL_HANDLER_ARGS)
+{
+	device_t dev;
+	int clk, psc, sclh, scll;
+	struct ti_i2c_softc *sc;
+
+	dev = (device_t)arg1;
+	sc = device_get_softc(dev);
+
+	TI_I2C_LOCK(sc);
+	/* Get the system prescaler value. */
+	psc = (int)ti_i2c_read_2(sc, I2C_REG_PSC) + 1;
+
+	/* Get the bitrate. */
+	scll = (int)ti_i2c_read_2(sc, I2C_REG_SCLL) & I2C_SCLL_MASK;
+	sclh = (int)ti_i2c_read_2(sc, I2C_REG_SCLH) & I2C_SCLH_MASK;
+
+	clk = I2C_CLK / psc / (scll + 7 + sclh + 5);
+	TI_I2C_UNLOCK(sc);
+
+	return (sysctl_handle_int(oidp, &clk, 0, req));
+}
+
 static int
 ti_i2c_probe(device_t dev)
 {
 
 	if (!ofw_bus_status_okay(dev))
 		return (ENXIO);
-
 	if (!ofw_bus_is_compatible(dev, "ti,i2c"))
 		return (ENXIO);
-
 	device_set_desc(dev, "TI I2C Controller");
+
 	return (0);
 }
 
-/**
- *	ti_i2c_attach - attach function for the driver
- *	@dev: i2c device handle
- *
- *	Initialised driver data structures and activates the I2C controller.
- *
- *	LOCKING:
- *
- *
- *	RETURNS:
- *
- */
 static int
 ti_i2c_attach(device_t dev)
 {
-	struct ti_i2c_softc *sc = device_get_softc(dev);
+	int err, rid;
 	phandle_t node;
-	pcell_t did;
-	int err;
-	int rid;
+	struct ti_i2c_softc *sc;
+	struct sysctl_ctx_list *ctx;
+	struct sysctl_oid_list *tree;
+	uint16_t fifosz;
 
+ 	sc = device_get_softc(dev);
 	sc->sc_dev = dev;
 
-	/* Get the i2c device id from FDT */
+	/* Get the i2c device id from FDT. */
 	node = ofw_bus_get_node(dev);
-	if ((OF_getprop(node, "i2c-device-id", &did, sizeof(did))) <= 0) {
+	if ((OF_getencprop(node, "i2c-device-id", &sc->device_id,
+	    sizeof(sc->device_id))) <= 0) {
 		device_printf(dev, "missing i2c-device-id attribute in FDT\n");
 		return (ENXIO);
 	}
-	sc->device_id = fdt32_to_cpu(did);
+
+	/* Get the memory resource for the register mapping. */
+	rid = 0;
+	sc->sc_mem_res = bus_alloc_resource_any(dev, SYS_RES_MEMORY, &rid,
+	    RF_ACTIVE);
+	if (sc->sc_mem_res == NULL) {
+		device_printf(dev, "Cannot map registers.\n");
+		return (ENXIO);
+	}
+
+	/* Allocate our IRQ resource. */
+	rid = 0;
+	sc->sc_irq_res = bus_alloc_resource_any(dev, SYS_RES_IRQ, &rid,
+	    RF_ACTIVE | RF_SHAREABLE);
+	if (sc->sc_irq_res == NULL) {
+		bus_release_resource(dev, SYS_RES_MEMORY, 0, sc->sc_mem_res);
+		device_printf(dev, "Cannot allocate interrupt.\n");
+		return (ENXIO);
+	}
 
 	TI_I2C_LOCK_INIT(sc);
 
-	/* Get the memory resource for the register mapping */
-	rid = 0;
-	sc->sc_mem_res = bus_alloc_resource_any(dev, SYS_RES_MEMORY, &rid,
-	                                        RF_ACTIVE);
-	if (sc->sc_mem_res == NULL)
-		panic("%s: Cannot map registers", device_get_name(dev));
-
-	/* Allocate an IRQ resource for the MMC controller */
-	rid = 0;
-	sc->sc_irq_res = bus_alloc_resource_any(dev, SYS_RES_IRQ, &rid,
-	                                        RF_ACTIVE | RF_SHAREABLE);
-	if (sc->sc_irq_res == NULL) {
-		err = ENOMEM;
-		goto out;
-	}
-
-	/* First we _must_ activate the H/W */
+	/* First of all, we _must_ activate the H/W. */
 	err = ti_i2c_activate(dev);
 	if (err) {
 		device_printf(dev, "ti_i2c_activate failed\n");
 		goto out;
 	}
 
-	/* XXXOMAP3: FIXME get proper revision here */
 	/* Read the version number of the I2C module */
 	sc->sc_rev = ti_i2c_read_2(sc, I2C_REG_REVNB_HI) & 0xff;
 
-	device_printf(dev, "I2C revision %d.%d\n", sc->sc_rev >> 4,
-	    sc->sc_rev & 0xf);
+	/* Get the fifo size. */
+	fifosz = ti_i2c_read_2(sc, I2C_REG_BUFSTAT);
+	fifosz >>= I2C_BUFSTAT_FIFODEPTH_SHIFT;
+	fifosz &= I2C_BUFSTAT_FIFODEPTH_MASK;
 
-	/* activate the interrupt */
+	device_printf(dev, "I2C revision %d.%d FIFO size: %d bytes\n",
+	    sc->sc_rev >> 4, sc->sc_rev & 0xf, 8 << fifosz);
+
+	/* Set the FIFO threshold to 5 for now. */
+	sc->sc_fifo_trsh = 5;
+
+	ctx = device_get_sysctl_ctx(dev);
+	tree = SYSCTL_CHILDREN(device_get_sysctl_tree(dev));
+	SYSCTL_ADD_PROC(ctx, tree, OID_AUTO, "i2c_clock",
+	    CTLFLAG_RD | CTLTYPE_UINT | CTLFLAG_MPSAFE, dev, 0,
+	    ti_i2c_sysctl_clk, "IU", "I2C bus clock");
+
+	/* Activate the interrupt. */
 	err = bus_setup_intr(dev, sc->sc_irq_res, INTR_TYPE_MISC | INTR_MPSAFE,
-				NULL, ti_i2c_intr, sc, &sc->sc_irq_h);
+	    NULL, ti_i2c_intr, sc, &sc->sc_irq_h);
 	if (err)
 		goto out;
 
-	/* Attach to the iicbus */
-	if ((sc->sc_iicbus = device_add_child(dev, "iicbus", -1)) == NULL)
+	/* Attach the iicbus. */
+	if ((sc->sc_iicbus = device_add_child(dev, "iicbus", -1)) == NULL) {
 		device_printf(dev, "could not allocate iicbus instance\n");
+		err = ENXIO;
+		goto out;
+	}
 
 	/* Probe and attach the iicbus */
 	bus_generic_attach(dev);
@@ -1124,42 +911,28 @@ out:
 	return (err);
 }
 
-/**
- *	ti_i2c_detach - detach function for the driver
- *	@dev: i2c device handle
- *
- *
- *
- *	LOCKING:
- *
- *
- *	RETURNS:
- *	Always returns 0
- */
 static int
 ti_i2c_detach(device_t dev)
 {
-	struct ti_i2c_softc *sc = device_get_softc(dev);
+	struct ti_i2c_softc *sc;
 	int rv;
 
+ 	sc = device_get_softc(dev);
 	ti_i2c_deactivate(dev);
-
-	if (sc->sc_iicbus && (rv = device_delete_child(dev, sc->sc_iicbus)) != 0)
-		return (rv);
-
 	TI_I2C_LOCK_DESTROY(sc);
+	if (sc->sc_iicbus &&
+	    (rv = device_delete_child(dev, sc->sc_iicbus)) != 0)
+		return (rv);
 
 	return (0);
 }
 
-
 static phandle_t
 ti_i2c_get_node(device_t bus, device_t dev)
 {
-	/* 
-	 * Share controller node with iibus device
-	 */
-	return ofw_bus_get_node(bus);
+
+	/* Share controller node with iibus device. */
+	return (ofw_bus_get_node(bus));
 }
 
 static device_method_t ti_i2c_methods[] = {
@@ -1173,9 +946,10 @@ static device_method_t ti_i2c_methods[] = {
 
 	/* iicbus interface */
 	DEVMETHOD(iicbus_callback,	ti_i2c_callback),
-	DEVMETHOD(iicbus_reset,		ti_i2c_reset),
+	DEVMETHOD(iicbus_reset,		ti_i2c_iicbus_reset),
 	DEVMETHOD(iicbus_transfer,	ti_i2c_transfer),
-	{ 0, 0 }
+
+	DEVMETHOD_END
 };
 
 static driver_t ti_i2c_driver = {
@@ -1183,6 +957,8 @@ static driver_t ti_i2c_driver = {
 	ti_i2c_methods,
 	sizeof(struct ti_i2c_softc),
 };
+
+static devclass_t ti_i2c_devclass;
 
 DRIVER_MODULE(ti_iic, simplebus, ti_i2c_driver, ti_i2c_devclass, 0, 0);
 DRIVER_MODULE(iicbus, ti_iic, iicbus_driver, iicbus_devclass, 0, 0);

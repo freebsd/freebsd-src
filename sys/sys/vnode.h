@@ -428,6 +428,7 @@ extern	struct vattr va_null;		/* predefined null vattr structure */
 
 #define	VN_LOCK_AREC(vp)	lockallowrecurse((vp)->v_vnlock)
 #define	VN_LOCK_ASHARE(vp)	lockallowshare((vp)->v_vnlock)
+#define	VN_LOCK_DSHARE(vp)	lockdisableshare((vp)->v_vnlock)
 
 #endif /* _KERNEL */
 

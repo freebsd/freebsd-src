@@ -56,10 +56,18 @@ __FBSDID("$FreeBSD$");
 
 #include <security/mac/mac_framework.h>
 
+static fo_rdwr_t soo_read;
+static fo_rdwr_t soo_write;
+static fo_ioctl_t soo_ioctl;
+static fo_poll_t soo_poll;
+extern fo_kqfilter_t soo_kqfilter;
+static fo_stat_t soo_stat;
+static fo_close_t soo_close;
+
 struct fileops	socketops = {
 	.fo_read = soo_read,
 	.fo_write = soo_write,
-	.fo_truncate = soo_truncate,
+	.fo_truncate = invfo_truncate,
 	.fo_ioctl = soo_ioctl,
 	.fo_poll = soo_poll,
 	.fo_kqfilter = soo_kqfilter,
@@ -71,8 +79,7 @@ struct fileops	socketops = {
 	.fo_flags = DFLAG_PASSABLE
 };
 
-/* ARGSUSED */
-int
+static int
 soo_read(struct file *fp, struct uio *uio, struct ucred *active_cred,
     int flags, struct thread *td)
 {
@@ -88,8 +95,7 @@ soo_read(struct file *fp, struct uio *uio, struct ucred *active_cred,
 	return (error);
 }
 
-/* ARGSUSED */
-int
+static int
 soo_write(struct file *fp, struct uio *uio, struct ucred *active_cred,
     int flags, struct thread *td)
 {
@@ -110,15 +116,7 @@ soo_write(struct file *fp, struct uio *uio, struct ucred *active_cred,
 	return (error);
 }
 
-int
-soo_truncate(struct file *fp, off_t length, struct ucred *active_cred,
-    struct thread *td)
-{
-
-	return (EINVAL);
-}
-
-int
+static int
 soo_ioctl(struct file *fp, u_long cmd, void *data, struct ucred *active_cred,
     struct thread *td)
 {
@@ -226,7 +224,7 @@ soo_ioctl(struct file *fp, u_long cmd, void *data, struct ucred *active_cred,
 	return (error);
 }
 
-int
+static int
 soo_poll(struct file *fp, int events, struct ucred *active_cred,
     struct thread *td)
 {
@@ -241,7 +239,7 @@ soo_poll(struct file *fp, int events, struct ucred *active_cred,
 	return (sopoll(so, events, fp->f_cred, td));
 }
 
-int
+static int
 soo_stat(struct file *fp, struct stat *ub, struct ucred *active_cred,
     struct thread *td)
 {
@@ -281,8 +279,7 @@ soo_stat(struct file *fp, struct stat *ub, struct ucred *active_cred,
  * file reference but the actual socket will not go away until the socket's
  * ref count hits 0.
  */
-/* ARGSUSED */
-int
+static int
 soo_close(struct file *fp, struct thread *td)
 {
 	int error = 0;

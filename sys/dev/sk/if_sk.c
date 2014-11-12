@@ -1496,7 +1496,7 @@ sk_attach(dev)
 	 * Must appear after the call to ether_ifattach() because
 	 * ether_ifattach() sets ifi_hdrlen to the default value.
 	 */
-        ifp->if_data.ifi_hdrlen = sizeof(struct ether_vlan_header);
+        ifp->if_hdrlen = sizeof(struct ether_vlan_header);
 
 	/*
 	 * Do miibus setup.

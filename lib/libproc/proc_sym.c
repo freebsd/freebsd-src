@@ -57,21 +57,15 @@ demangle(const char *symbol, char *buf, size_t len)
 {
 #ifndef NO_CXA_DEMANGLE
 	char *dembuf;
-	size_t demlen;
 
 	if (symbol[0] == '_' && symbol[1] == 'Z' && symbol[2]) {
-		dembuf = malloc(len);
-		if (!dembuf)
-			goto fail;
-		demlen = len;
-		dembuf = __cxa_demangle(symbol, dembuf, &demlen, NULL);
+		dembuf = __cxa_demangle(symbol, NULL, NULL, NULL);
 		if (!dembuf)
 			goto fail;
 		strlcpy(buf, dembuf, len);
 		free(dembuf);
+		return;
 	}
-
-	return;
 fail:
 #endif /* NO_CXA_DEMANGLE */
 	strlcpy(buf, symbol, len);
@@ -127,10 +121,12 @@ proc_obj2map(struct proc_handle *p, const char *objname)
 			break;
 		}
 	}
-	if (rdl == NULL && strcmp(objname, "a.out") == 0 && p->rdexec != NULL)
-		rdl = p->rdexec;
-	else
-		return (NULL);
+	if (rdl == NULL) {
+		if (strcmp(objname, "a.out") == 0 && p->rdexec != NULL)
+			rdl = p->rdexec;
+		else
+			return (NULL);
+	}
 
 	if ((map = malloc(sizeof(*map))) == NULL)
 		return (NULL);

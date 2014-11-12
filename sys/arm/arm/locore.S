@@ -37,6 +37,7 @@
 #include <sys/syscall.h>
 #include <machine/asm.h>
 #include <machine/armreg.h>
+#include <machine/cpuconf.h>
 #include <machine/pte.h>
 
 __FBSDID("$FreeBSD$");
@@ -389,9 +390,9 @@ ASENTRY_NP(mpentry)
 	nop
 	CPWAIT(r0)
 
-#if defined(ARM_MMU_V6)
+#if ARM_MMU_V6
 	bl	armv6_idcache_inv_all	/* Modifies r0 only */
-#elif defined(ARM_MMU_V7)
+#elif ARM_MMU_V7
 	bl	armv7_idcache_inv_all	/* Modifies r0-r3, ip */
 #endif
 

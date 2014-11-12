@@ -2,7 +2,8 @@
 # $FreeBSD$
 #
 
-.include <src.opts.mk>
+SYSDIR?=${.CURDIR}/../..
+.include "${SYSDIR}/conf/kern.opts.mk"
 
 SUBDIR=	if_cxgbe
 SUBDIR+=	t4_firmware

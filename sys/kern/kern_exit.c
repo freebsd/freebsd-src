@@ -104,8 +104,12 @@ proc_realparent(struct proc *child)
 
 	sx_assert(&proctree_lock, SX_LOCKED);
 	if ((child->p_treeflag & P_TREE_ORPHANED) == 0) {
-		return (child->p_pptr->p_pid == child->p_oppid ?
-		    child->p_pptr : initproc);
+		if (child->p_oppid == 0 ||
+		    child->p_pptr->p_pid == child->p_oppid)
+			parent = child->p_pptr;
+		else
+			parent = initproc;
+		return (parent);
 	}
 	for (p = child; (p->p_treeflag & P_TREE_FIRST_ORPHAN) == 0;) {
 		/* Cannot use LIST_PREV(), since the list head is not known. */
@@ -156,7 +160,8 @@ sys_sys_exit(struct thread *td, struct sys_exit_args *uap)
 void
 exit1(struct thread *td, int rv)
 {
-	struct proc *p, *nq, *q;
+	struct proc *p, *nq, *q, *t;
+	struct thread *tdt;
 	struct vnode *ttyvp = NULL;
 
 	mtx_assert(&Giant, MA_NOTOWNED);
@@ -437,7 +442,9 @@ exit1(struct thread *td, int rv)
 	WITNESS_WARN(WARN_PANIC, NULL, "process (pid %d) exiting", p->p_pid);
 
 	/*
-	 * Reparent all of our children to init.
+	 * Reparent all children processes:
+	 * - traced ones to the original parent (or init if we are that parent)
+	 * - the rest to init
 	 */
 	sx_xlock(&proctree_lock);
 	q = LIST_FIRST(&p->p_children);
@@ -446,15 +453,23 @@ exit1(struct thread *td, int rv)
 	for (; q != NULL; q = nq) {
 		nq = LIST_NEXT(q, p_sibling);
 		PROC_LOCK(q);
-		proc_reparent(q, initproc);
 		q->p_sigparent = SIGCHLD;
-		/*
-		 * Traced processes are killed
-		 * since their existence means someone is screwing up.
-		 */
-		if (q->p_flag & P_TRACED) {
-			struct thread *temp;
 
+		if (!(q->p_flag & P_TRACED)) {
+			proc_reparent(q, initproc);
+		} else {
+			/*
+			 * Traced processes are killed since their existence
+			 * means someone is screwing up.
+			 */
+			t = proc_realparent(q);
+			if (t == p) {
+				proc_reparent(q, initproc);
+			} else {
+				PROC_LOCK(t);
+				proc_reparent(q, t);
+				PROC_UNLOCK(t);
+			}
 			/*
 			 * Since q was found on our children list, the
 			 * proc_reparent() call moved q to the orphan
@@ -463,8 +478,8 @@ exit1(struct thread *td, int rv)
 			 */
 			clear_orphan(q);
 			q->p_flag &= ~(P_TRACED | P_STOPPED_TRACE);
-			FOREACH_THREAD_IN_PROC(q, temp)
-				temp->td_dbgflags &= ~TDB_SUSPEND;
+			FOREACH_THREAD_IN_PROC(q, tdt)
+				tdt->td_dbgflags &= ~TDB_SUSPEND;
 			kern_psignal(q, SIGKILL);
 		}
 		PROC_UNLOCK(q);
@@ -1278,8 +1293,8 @@ proc_reparent(struct proc *child, struct proc *parent)
 			LIST_INSERT_HEAD(&child->p_pptr->p_orphans, child,
 			    p_orphan);
 		} else {
-			LIST_INSERT_AFTER(child,
-			    LIST_FIRST(&child->p_pptr->p_orphans), p_orphan);
+			LIST_INSERT_AFTER(LIST_FIRST(&child->p_pptr->p_orphans),
+			    child, p_orphan);
 		}
 		child->p_treeflag |= P_TREE_ORPHANED;
 	}

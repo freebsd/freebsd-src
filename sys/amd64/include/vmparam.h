@@ -87,7 +87,7 @@
  * largest physical address that is accessible by ISA DMA is split
  * into two PHYSSEG entries. 
  */
-#define	VM_PHYSSEG_MAX		31
+#define	VM_PHYSSEG_MAX		63
 
 /*
  * Create three free page pools: VM_FREEPOOL_DEFAULT is the default pool

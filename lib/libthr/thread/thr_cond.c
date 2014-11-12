@@ -150,7 +150,7 @@ _pthread_cond_destroy(pthread_cond_t *cond)
 }
 
 /*
- * Cancellation behaivor:
+ * Cancellation behavior:
  *   Thread may be canceled at start, if thread is canceled, it means it
  *   did not get a wakeup from pthread_cond_signal(), otherwise, it is
  *   not canceled.

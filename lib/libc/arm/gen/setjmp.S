@@ -101,7 +101,7 @@ ENTRY(setjmp)
 .Lfpu_present:
 	.word	PIC_SYM(_libc_arm_fpu_present, GOTOFF)
 #endif /* __ARM_EABI__ */
-
+END(setjmp)
 
 .weak _C_LABEL(longjmp)
 .set _C_LABEL(longjmp), _C_LABEL(__longjmp)
@@ -150,3 +150,4 @@ ENTRY(__longjmp)
 	bl	PIC_SYM(_C_LABEL(longjmperror), PLT)
 	bl	PIC_SYM(_C_LABEL(abort), PLT)
 	b	. - 8		/* Cannot get here */
+END(__longjmp)

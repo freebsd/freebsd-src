@@ -246,8 +246,9 @@ fbd_register(struct fb_info* info)
 		return (err);
 
 	if (first) {
-		if (vt_fb_attach(info) == CN_DEAD)
-			return (ENXIO);
+		err = vt_fb_attach(info);
+		if (err)
+			return (err);
 	}
 
 	return (0);

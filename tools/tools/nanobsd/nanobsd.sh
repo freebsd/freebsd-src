@@ -347,6 +347,18 @@ install_kernel ( ) (
 	) > ${NANO_OBJ}/_.ik 2>&1
 )
 
+native_xtools ( ) (
+	print 2 "Installing the optimized native build tools for cross env"
+	pprint 3 "log: ${NANO_OBJ}/_.native_xtools"
+
+	cd ${NANO_SRC}
+	env TARGET_ARCH=${NANO_ARCH} \
+	${NANO_MAKE} SRCCONF=${SRCCONF} \
+		__MAKE_CONF=${NANO_MAKE_CONF_INSTALL} native-xtools \
+		DESTDIR=${NANO_WORLDDIR} \
+		> ${NANO_OBJ}/_.native_xtools 2>&1
+)
+
 run_customize() (
 
 	pprint 2 "run customize scripts"
@@ -487,7 +499,7 @@ populate_data_slice ( ) (
 	populate_slice "$1" "$2" "$3" "$4"
 )
 
-create_i386_diskimage ( ) (
+create_diskimage ( ) (
 	pprint 2 "build diskimage"
 	pprint 3 "log: ${NANO_OBJ}/_.di"
 
@@ -581,8 +593,14 @@ create_i386_diskimage ( ) (
 	fdisk ${MD}
 	# XXX: params
 	# XXX: pick up cached boot* files, they may not be in image anymore.
-	boot0cfg -B -b ${NANO_WORLDDIR}/${NANO_BOOTLOADER} ${NANO_BOOT0CFG} ${MD}
-	bsdlabel -w -B -b ${NANO_WORLDDIR}/boot/boot ${MD}s1
+	if [ -f ${NANO_WORLDDIR}/${NANO_BOOTLOADER} ]; then
+		boot0cfg -B -b ${NANO_WORLDDIR}/${NANO_BOOTLOADER} ${NANO_BOOT0CFG} ${MD}
+	fi
+	if [ -f ${NANO_WORLDDIR}/boot/boot ]; then
+		bsdlabel -w -B -b ${NANO_WORLDDIR}/boot/boot ${MD}s1
+	else
+		bsdlabel -w ${MD}s1
+	fi
 	bsdlabel ${MD}s1
 
 	# Create first image
@@ -641,11 +659,6 @@ create_i386_diskimage ( ) (
 	trap nano_cleanup EXIT
 
 	) > ${NANO_OBJ}/_.di 2>&1
-)
-
-# i386 and amd64 are identical for disk images
-create_amd64_diskimage ( ) (
-	create_i386_diskimage
 )
 
 last_orders () (
@@ -919,9 +932,10 @@ do_installkernel=true
 do_world=true
 do_image=true
 do_copyout_partition=true
+do_native_xtools=false
 
 set +e
-args=`getopt Kbc:fhiknqvw $*`
+args=`getopt KXbc:fhiknqvw $*`
 if [ $? -ne 0 ] ; then
 	usage
 	exit 2
@@ -935,6 +949,10 @@ do
 	in
 	-K)
 		do_installkernel=false
+		shift
+		;;
+	-X)
+		do_native_xtools=true
 		shift
 		;;
 	-b)
@@ -1088,6 +1106,9 @@ clean_world
 make_conf_install
 install_world
 install_etc
+if $do_native_xtools ; then
+	native_xtools
+fi
 setup_nanobsd_etc
 if $do_installkernel ; then
 	install_kernel
@@ -1100,7 +1121,7 @@ setup_nanobsd
 prune_usr
 run_late_customize
 if $do_image ; then
-	create_${NANO_ARCH}_diskimage
+	create_diskimage
 else
 	pprint 2 "Skipping image build (as instructed)"
 fi

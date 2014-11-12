@@ -13,6 +13,7 @@
 //===----------------------------------------------------------------------===//
 
 #include "PPC.h"
+#include "PPCSubtarget.h"
 #include "MCTargetDesc/PPCMCExpr.h"
 #include "llvm/ADT/SmallString.h"
 #include "llvm/ADT/Twine.h"
@@ -24,6 +25,7 @@
 #include "llvm/MC/MCExpr.h"
 #include "llvm/MC/MCInst.h"
 #include "llvm/Target/Mangler.h"
+#include "llvm/Target/TargetMachine.h"
 using namespace llvm;
 
 static MachineModuleInfoMachO &getMachOMMI(AsmPrinter &AP) {
@@ -32,7 +34,9 @@ static MachineModuleInfoMachO &getMachOMMI(AsmPrinter &AP) {
 
 
 static MCSymbol *GetSymbolFromOperand(const MachineOperand &MO, AsmPrinter &AP){
+  const TargetMachine &TM = AP.TM;
   MCContext &Ctx = AP.OutContext;
+  bool isDarwin = TM.getSubtarget<PPCSubtarget>().isDarwin();
 
   SmallString<128> Name;
   if (!MO.isGlobal()) {
@@ -42,7 +46,7 @@ static MCSymbol *GetSymbolFromOperand(const MachineOperand &MO, AsmPrinter &AP){
   } else {    
     const GlobalValue *GV = MO.getGlobal();
     bool isImplicitlyPrivate = false;
-    if (MO.getTargetFlags() == PPCII::MO_DARWIN_STUB ||
+    if (MO.getTargetFlags() == PPCII::MO_PLT_OR_STUB ||
         (MO.getTargetFlags() & PPCII::MO_NLP_FLAG))
       isImplicitlyPrivate = true;
     
@@ -51,7 +55,7 @@ static MCSymbol *GetSymbolFromOperand(const MachineOperand &MO, AsmPrinter &AP){
   
   // If the target flags on the operand changes the name of the symbol, do that
   // before we return the symbol.
-  if (MO.getTargetFlags() == PPCII::MO_DARWIN_STUB) {
+  if (MO.getTargetFlags() == PPCII::MO_PLT_OR_STUB && isDarwin) {
     Name += "$stub";
     const char *PGP = AP.MAI->getPrivateGlobalPrefix();
     const char *Prefix = "";
@@ -131,6 +135,9 @@ static MCOperand GetSymbolRef(const MachineOperand &MO, const MCSymbol *Symbol,
       RefKind = MCSymbolRefExpr::VK_PPC_TLS;
       break;
   }
+
+  if (MO.getTargetFlags() == PPCII::MO_PLT_OR_STUB && !isDarwin)
+    RefKind = MCSymbolRefExpr::VK_PLT;
 
   const MCExpr *Expr = MCSymbolRefExpr::Create(Symbol, RefKind, Ctx);
 

@@ -436,7 +436,7 @@ txp_attach(device_t dev)
 	ifp->if_capabilities |= IFCAP_VLAN_HWTAGGING | IFCAP_VLAN_HWCSUM;
 	ifp->if_capenable = ifp->if_capabilities;
 	/* Tell the upper layer(s) we support long frames. */
-	ifp->if_data.ifi_hdrlen = sizeof(struct ether_vlan_header);
+	ifp->if_hdrlen = sizeof(struct ether_vlan_header);
 
 	WRITE_REG(sc, TXP_IER, TXP_INTR_NONE);
 	WRITE_REG(sc, TXP_IMR, TXP_INTR_ALL);

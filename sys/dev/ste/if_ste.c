@@ -1024,7 +1024,7 @@ ste_attach(device_t dev)
 	/*
 	 * Tell the upper layer(s) we support long frames.
 	 */
-	ifp->if_data.ifi_hdrlen = sizeof(struct ether_vlan_header);
+	ifp->if_hdrlen = sizeof(struct ether_vlan_header);
 	ifp->if_capabilities |= IFCAP_VLAN_MTU;
 	if (pci_find_cap(dev, PCIY_PMG, &pmc) == 0)
 		ifp->if_capabilities |= IFCAP_WOL_MAGIC;

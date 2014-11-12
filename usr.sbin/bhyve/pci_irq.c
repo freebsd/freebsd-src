@@ -115,7 +115,7 @@ void
 pci_irq_reserve(int irq)
 {
 
-	assert(irq < nitems(irq_counts));
+	assert(irq >= 0 && irq < nitems(irq_counts));
 	assert(pirq_cold);
 	assert(irq_counts[irq] == 0 || irq_counts[irq] == IRQ_DISABLED);
 	irq_counts[irq] = IRQ_DISABLED;
@@ -125,10 +125,10 @@ void
 pci_irq_use(int irq)
 {
 
-	assert(irq < nitems(irq_counts));
+	assert(irq >= 0 && irq < nitems(irq_counts));
 	assert(pirq_cold);
-	if (irq_counts[irq] != IRQ_DISABLED)
-		irq_counts[irq]++;
+	assert(irq_counts[irq] != IRQ_DISABLED);
+	irq_counts[irq]++;
 }
 
 void
@@ -197,7 +197,7 @@ pirq_alloc_pin(struct vmctx *ctx)
 {
 	int best_count, best_irq, best_pin, irq, pin;
 
-	pirq_cold = 1;
+	pirq_cold = 0;
 
 	/* First, find the least-used PIRQ pin. */
 	best_pin = 0;
@@ -222,7 +222,7 @@ pirq_alloc_pin(struct vmctx *ctx)
 				best_count = irq_counts[irq];
 			}
 		}
-		assert(best_irq != 0);
+		assert(best_irq >= 0);
 		irq_counts[best_irq]++;
 		pirqs[best_pin].reg = best_irq;
 		vm_isa_set_irq_trigger(ctx, best_irq, LEVEL_TRIGGER);
@@ -234,9 +234,6 @@ pirq_alloc_pin(struct vmctx *ctx)
 int
 pirq_irq(int pin)
 {
-
-	if (pin == -1)
-		return (255);
 	assert(pin > 0 && pin <= nitems(pirqs));
 	return (pirqs[pin - 1].reg & PIRQ_IRQ);
 }

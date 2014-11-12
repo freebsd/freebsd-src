@@ -3792,9 +3792,9 @@ setpte:
  *	or lose information.  That is, this routine must actually
  *	insert this page into the given map NOW.
  */
-void
-pmap_enter(pmap_t pmap, vm_offset_t va, vm_prot_t access, vm_page_t m,
-    vm_prot_t prot, boolean_t wired)
+int
+pmap_enter(pmap_t pmap, vm_offset_t va, vm_page_t m, vm_prot_t prot,
+    u_int flags, int8_t psind __unused)
 {
 	struct rwlock *lock;
 	pd_entry_t *l1, *l2;
@@ -3803,6 +3803,7 @@ pmap_enter(pmap_t pmap, vm_offset_t va, vm_prot_t access, vm_page_t m,
 	pv_entry_t pv;
 	vm_paddr_t opa, pa, l2_pa, l3_pa;
 	vm_page_t mpte, om, l2_m, l3_m;
+	boolean_t nosleep;
 
 	va = trunc_page(va);
 #if 0
@@ -3815,16 +3816,16 @@ pmap_enter(pmap_t pmap, vm_offset_t va, vm_prot_t access, vm_page_t m,
 	    ("pmap_enter: managed mapping within the clean submap"));
 #endif
 	if ((m->oflags & VPO_UNMANAGED) == 0 && !vm_page_xbusied(m))
-		VM_OBJECT_ASSERT_WLOCKED(m->object);
+		VM_OBJECT_ASSERT_LOCKED(m->object);
 	pa = VM_PAGE_TO_PHYS(m);
 	new_l3 = (pt_entry_t)(pa | ATTR_AF | ATTR_IDX(1) | L3_PAGE);
 #if 0
-	if ((access & VM_PROT_WRITE) != 0)
+	if ((flags & VM_PROT_WRITE) != 0)
 		newpte |= PG_M;
 #endif
 	if ((prot & VM_PROT_WRITE) == 0)
 		new_l3 |= ATTR_AP(ATTR_AP_RO);
-	if (wired)
+	if ((flags & PMAP_ENTER_WIRED) != 0)
 		new_l3 |= ATTR_SW_W;
 	if ((va >> 63) == 0)
 		new_l3 |= ATTR_AP(ATTR_AP_USER);
@@ -3837,7 +3838,15 @@ pmap_enter(pmap_t pmap, vm_offset_t va, vm_prot_t access, vm_page_t m,
 	PMAP_LOCK(pmap);
 
 	if (va < VM_MAXUSER_ADDRESS) {
-		mpte = pmap_alloc_l3(pmap, va, &lock);
+		nosleep = (flags & PMAP_ENTER_NOSLEEP) != 0;
+		mpte = pmap_alloc_l3(pmap, va, nosleep ? NULL : &lock);
+		if (mpte == NULL && nosleep) {
+			if (lock != NULL)
+				rw_wunlock(lock);
+			rw_runlock(&pvh_global_lock);
+			PMAP_UNLOCK(pmap);
+			return (KERN_RESOURCE_SHORTAGE);
+		}
 		l3 = pmap_l3(pmap, va);
 	} else {
 		l3 = pmap_l3(pmap, va);
@@ -3890,9 +3899,11 @@ pmap_enter(pmap_t pmap, vm_offset_t va, vm_prot_t access, vm_page_t m,
 		 * are valid mappings in them. Hence, if a user page is wired,
 		 * the PT page will be also.
 		 */
-		if (wired && (orig_l3 & ATTR_SW_W) == 0)
+		if ((flags & PMAP_ENTER_WIRED) != 0 &&
+		    (orig_l3 & ATTR_SW_W) == 0)
 			pmap->pm_stats.wired_count++;
-		else if (!wired && (orig_l3 & ATTR_SW_W) != 0)
+		else if ((flags & PMAP_ENTER_WIRED) == 0 &&
+		    (orig_l3 & ATTR_SW_W) != 0)
 			pmap->pm_stats.wired_count--;
 
 		/*
@@ -4015,6 +4026,7 @@ validate:
 		rw_wunlock(lock);
 	rw_runlock(&pvh_global_lock);
 	PMAP_UNLOCK(pmap);
+	return (KERN_SUCCESS);
 }
 
 #if 0

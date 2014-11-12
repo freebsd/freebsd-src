@@ -221,6 +221,7 @@ static VNET_DEFINE(uint32_t, cdg_hold_backoff);
 
 /* Function prototypes. */
 static int cdg_mod_init(void);
+static int cdg_mod_destroy(void);
 static void cdg_conn_init(struct cc_var *ccv);
 static int cdg_cb_init(struct cc_var *ccv);
 static void cdg_cb_destroy(struct cc_var *ccv);
@@ -234,7 +235,8 @@ struct cc_algo cdg_cc_algo = {
 	.cb_destroy = cdg_cb_destroy,
 	.cb_init = cdg_cb_init,
 	.conn_init = cdg_conn_init,
-	.cong_signal = cdg_cong_signal
+	.cong_signal = cdg_cong_signal,
+	.mod_destroy = cdg_mod_destroy
 };
 
 /* Vnet created and being initialised. */
@@ -274,6 +276,14 @@ cdg_mod_init(void)
 	cdg_cc_algo.post_recovery = newreno_cc_algo.post_recovery;
 	cdg_cc_algo.after_idle = newreno_cc_algo.after_idle;
 
+	return (0);
+}
+
+static int
+cdg_mod_destroy(void)
+{
+
+	uma_zdestroy(qdiffsample_zone);
 	return (0);
 }
 

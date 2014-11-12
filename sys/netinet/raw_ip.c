@@ -74,6 +74,7 @@ __FBSDID("$FreeBSD$");
 #include <netipsec/ipsec.h>
 #endif /*IPSEC*/
 
+#include <machine/stdarg.h>
 #include <security/mac/mac_framework.h>
 
 VNET_DEFINE(int, ip_defttl) = IPDEFTTL;
@@ -289,11 +290,6 @@ rip_input(struct mbuf **mp, int *offp, int proto)
 	last = NULL;
 
 	ifp = m->m_pkthdr.rcvif;
-	/*
-	 * Applications on raw sockets expect host byte order.
-	 */
-	ip->ip_len = ntohs(ip->ip_len);
-	ip->ip_off = ntohs(ip->ip_off);
 
 	hash = INP_PCBHASH_RAW(proto, ip->ip_src.s_addr,
 	    ip->ip_dst.s_addr, V_ripcbinfo.ipi_hashmask);
@@ -426,13 +422,19 @@ rip_input(struct mbuf **mp, int *offp, int proto)
  * have setup with control call.
  */
 int
-rip_output(struct mbuf *m, struct socket *so, u_long dst)
+rip_output(struct mbuf *m, struct socket *so, ...)
 {
 	struct ip *ip;
 	int error;
 	struct inpcb *inp = sotoinpcb(so);
+	va_list ap;
+	u_long dst;
 	int flags = ((so->so_options & SO_DONTROUTE) ? IP_ROUTETOIF : 0) |
 	    IP_ALLOWBROADCAST;
+
+	va_start(ap, so);
+	dst = va_arg(ap, u_long);
+	va_end(ap);
 
 	/*
 	 * If the user handed us a complete IP packet, use it.  Otherwise,
@@ -497,21 +499,14 @@ rip_output(struct mbuf *m, struct socket *so, u_long dst)
 		 * and don't allow packet length sizes that will crash.
 		 */
 		if (((ip->ip_hl != (sizeof (*ip) >> 2)) && inp->inp_options)
-		    || (ip->ip_len > m->m_pkthdr.len)
-		    || (ip->ip_len < (ip->ip_hl << 2))) {
+		    || (ntohs(ip->ip_len) > m->m_pkthdr.len)
+		    || (ntohs(ip->ip_len) < (ip->ip_hl << 2))) {
 			INP_RUNLOCK(inp);
 			m_freem(m);
 			return (EINVAL);
 		}
 		if (ip->ip_id == 0)
 			ip->ip_id = ip_newid();
-
-		/*
-		 * Applications on raw sockets pass us packets
-		 * in host byte order.
-		 */
-		ip->ip_len = htons(ip->ip_len);
-		ip->ip_off = htons(ip->ip_off);
 
 		/*
 		 * XXX prevent ip_output from overwriting header fields.

@@ -12,6 +12,10 @@ if [ -z "$dts" ]; then
     exit 1
 fi
 
+if [ -z "${MACHINE}" ]; then
+    MACHINE=$(uname -m)
+fi
+
 for d in ${dts}; do
     dtb=${dtb_path}/`basename $d .dts`.dtb
     echo "converting $d -> $dtb"

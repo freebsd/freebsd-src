@@ -38,6 +38,7 @@
 #include <sys/selinfo.h>		/* for struct selinfo */
 #include <sys/_lock.h>
 #include <sys/_mutex.h>
+#include <sys/osd.h>
 #include <sys/_sx.h>
 #include <sys/sockbuf.h>
 #include <sys/sockstate.h>
@@ -117,6 +118,7 @@ struct socket {
 		void	*so_accept_filter_arg;	/* saved filter args */
 		char	*so_accept_filter_str;	/* saved user args */
 	} *so_accf;
+	struct	osd	osd;		/* Object Specific extensions */
 	/*
 	 * so_fibnum, so_user_cookie and friends can be used to attach
 	 * some user-specified metadata to a socket, which then can be
@@ -291,6 +293,26 @@ MALLOC_DECLARE(M_ACCF);
 MALLOC_DECLARE(M_PCB);
 MALLOC_DECLARE(M_SONAME);
 #endif
+
+/*
+ * Socket specific helper hook point identifiers
+ * Do not leave holes in the sequence, hook registration is a loop.
+ */
+#define HHOOK_SOCKET_OPT		0
+#define HHOOK_SOCKET_CREATE		1
+#define HHOOK_SOCKET_RCV 		2
+#define HHOOK_SOCKET_SND		3
+#define HHOOK_FILT_SOREAD		4
+#define HHOOK_FILT_SOWRITE		5
+#define HHOOK_SOCKET_CLOSE		6
+#define HHOOK_SOCKET_LAST		HHOOK_SOCKET_CLOSE
+
+struct socket_hhook_data {
+	struct socket	*so;
+	struct mbuf	*m;
+	void		*hctx;		/* hook point specific data*/
+	int		status;
+};
 
 extern int	maxsockets;
 extern u_long	sb_max;

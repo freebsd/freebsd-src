@@ -1744,6 +1744,7 @@ get_exportlist(void)
 		iov[3].iov_len = strlen(fsp->f_mntonname) + 1;
 		iov[5].iov_base = fsp->f_mntfromname;
 		iov[5].iov_len = strlen(fsp->f_mntfromname) + 1;
+		errmsg[0] = '\0';
 
 		if (nmount(iov, iovlen, fsp->f_flags) < 0 &&
 		    errno != ENOENT && errno != ENOTSUP) {
@@ -2501,6 +2502,7 @@ do_mount(struct exportlist *ep, struct grouplist *grp, int exflags,
 			iov[3].iov_len = strlen(fsb->f_mntonname) + 1;
 			iov[5].iov_base = fsb->f_mntfromname; /* "from" */
 			iov[5].iov_len = strlen(fsb->f_mntfromname) + 1;
+			errmsg[0] = '\0';
 	
 			while (nmount(iov, iovlen, fsb->f_flags) < 0) {
 				if (cp)

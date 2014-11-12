@@ -1213,7 +1213,7 @@ ffs_unmount(mp, mntflags)
 	susp = 0;
 	if (mntflags & MNT_FORCE) {
 		flags |= FORCECLOSE;
-		susp = fs->fs_ronly != 0;
+		susp = fs->fs_ronly == 0;
 	}
 #ifdef UFS_EXTATTR
 	if ((error = ufs_extattr_stop(mp, td))) {
