@@ -1345,8 +1345,10 @@ static int ael2005_intr_handler(struct cphy *phy)
 		return ret;
 
 	ret |= cause;
-	if (!ret)
+	if (!ret) {
+		(void) ael2005_reset(phy, 0);
 		ret |= cphy_cause_link_change;
+	}
 	return ret;
 }
 
