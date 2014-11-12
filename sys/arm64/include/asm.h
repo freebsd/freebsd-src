@@ -47,4 +47,10 @@
 
 #define	UINT64_C(x)	(x)
 
+#if defined(PIC)
+#define	PIC_SYM(x,y)	x ## @ ## y
+#else
+#define	PIC_SYM(x,y)	x
+#endif
+
 #endif /* _MACHINE_ASM_H_ */

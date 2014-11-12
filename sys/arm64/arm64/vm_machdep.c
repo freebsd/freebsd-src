@@ -40,6 +40,7 @@ __FBSDID("$FreeBSD$");
 #include <vm/uma.h>
 #include <vm/uma_int.h>
 
+#include <machine/armreg.h>
 #include <machine/cpu.h>
 #include <machine/pcb.h>
 #include <machine/frame.h>
@@ -115,6 +116,7 @@ cpu_set_syscall_retval(struct thread *td, int error)
 	case 0:
 		frame->tf_x[0] = td->td_retval[0];
 		frame->tf_x[1] = td->td_retval[1];
+		frame->tf_spsr &= ~PSR_C;	/* carry bit */
 		break;
 	case ERESTART:
 		frame->tf_elr -= 4;
@@ -122,6 +124,7 @@ cpu_set_syscall_retval(struct thread *td, int error)
 	case EJUSTRETURN:
 		break;
 	default:
+		frame->tf_spsr |= PSR_C;	/* carry bit */
 		frame->tf_x[0] = error;
 		break;
 	}
