@@ -353,16 +353,14 @@ tcpdump_sandbox_invoke(struct tcpdump_sandbox *sb,
 		save_snapend = gndo->ndo_snapend;
 		gndo->ndo_packetp = NULL;
 		gndo->ndo_snapend = NULL;
+		/* XXXBD: don't pass in ndo_espsecret */
 		ret = sandbox_object_cinvoke(sb->tds_sandbox_object,
 		    TCPDUMP_HELPER_OP_INIT, g_localnet, g_mask, 0, 0, 0, 0, 0,
 		    sandbox_object_getsystemobject(sb->tds_sandbox_object).co_codecap,
 		    sandbox_object_getsystemobject(sb->tds_sandbox_object).co_datacap,
-		    cheri_ptrperm((void *)gndo, sizeof(netdissect_options),
+		    cheri_ptrperm(gndo, sizeof(netdissect_options),
 			CHERI_PERM_LOAD | CHERI_PERM_LOAD_CAP),
-		    gndo->ndo_espsecret == NULL ? cheri_zerocap() :
-			cheri_ptrperm((void *)gndo->ndo_espsecret,
-			strlen(gndo->ndo_espsecret) + 1,
-			CHERI_PERM_LOAD | CHERI_PERM_LOAD_CAP),
+		    (__capability void*)gndo->ndo_espsecret,
 		    cheri_zerocap(), cheri_zerocap(), cheri_zerocap(),
 		    cheri_zerocap());
 		gndo->ndo_snapend = save_snapend;
@@ -382,7 +380,8 @@ tcpdump_sandbox_invoke(struct tcpdump_sandbox *sb,
 	    cheri_zerocap(), cheri_zerocap(),
 	    cheri_ptrperm((void *)hdr, sizeof(*hdr),
 		CHERI_PERM_LOAD | CHERI_PERM_LOAD_CAP),
-	    (__capability void *)data,
+	    cheri_ptrperm((void *)data, hdr->caplen,
+		CHERI_PERM_LOAD | CHERI_PERM_LOAD_CAP),
 	    cheri_zerocap(), cheri_zerocap());
 
 	/* If it fails, reset it */

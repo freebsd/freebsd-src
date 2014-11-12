@@ -96,8 +96,10 @@ invoke_init(bpf_u_int32 localnet, bpf_u_int32 netmask,
 {
 	size_t espsec_len;
 
+/* XXXBD: broken, use system default
 	cheri_system_methodnum_puts = CHERI_TCPDUMP_PUTS;
 	cheri_system_methodnum_putchar = CHERI_TCPDUMP_PUTCHAR;
+*/
 
 	program_name = "tcpdump-helper"; /* XXX: copy from parent? */
 
@@ -108,8 +110,7 @@ invoke_init(bpf_u_int32 localnet, bpf_u_int32 netmask,
 	 * those for now and allow them to be reinitalized on a
 	 * per-sandbox basis.
 	 */
-	memcpy_c(cheri_ptr(gndo, sizeof(netdissect_options)), ndo,
-	    sizeof(netdissect_options));
+	memcpy_c(gndo, ndo, sizeof(netdissect_options));
 	if (ndo->ndo_espsecret != NULL) { /* XXX: check the real thing */
 		if (gndo->ndo_espsecret != NULL)
 			free(gndo->ndo_espsecret);
@@ -166,7 +167,6 @@ invoke(register_t op, register_t arg1, register_t arg2,
     __capability const struct pcap_pkthdr *h, __capability const u_char *sp)
 {
 	int ret;
-	struct pcap_pkthdr hdr;
 
 	cheri_system_setup(system_object);
 
@@ -174,24 +174,39 @@ invoke(register_t op, register_t arg1, register_t arg2,
 
 	switch (op) {
 	case TCPDUMP_HELPER_OP_INIT:
+#ifdef DEBUG
+		printf("calling invoke_init\n");
+#endif
 		return (invoke_init(arg1, arg2, ndo, ndo_espsecret));
 
 	case TCPDUMP_HELPER_OP_PRINT_PACKET:
+#ifdef DEBUG
+		/* XXX printf broken here */
+		printf("printing a packet of length 0x%x\n", h->caplen);
+		printf("sp b:%016jx l:%016zx o:%jx\n",
+		    cheri_getbase((void *)sp),
+		    cheri_getlen((void *)sp),
+		    cheri_getoffset((void *)sp));
+#endif
 		assert(h->caplen == cheri_getlen((__capability void *)sp));
 
-		memcpy_c((__capability struct pcap_pkthdr *)&hdr, h,
-		    sizeof(struct pcap_pkthdr));
-
-		gndo->ndo_packetp = sp;
-		gndo->ndo_snapend = sp + h->caplen;
+		/*
+		 * XXXBD: Hack around the need to not store the packet except
+		 * on the stack.  Should really avoid this somehow...
+		 */
+		gndo->ndo_packetp = malloc(h->caplen);
+		if (gndo->ndo_packetp == NULL)
+			error("failed to malloc packet space\n");
+		gndo->ndo_snapend = gndo->ndo_packetp + h->caplen;
 
 		if (printinfo.ndo_type)
 			ret = (*printinfo.p.ndo_printer)(printinfo.ndo,
-			     &hdr, sp);
+			     h, gndo->ndo_packetp);
 		else
-			ret = (*printinfo.p.printer)(&hdr, sp);
+			ret = (*printinfo.p.printer)(h, gndo->ndo_packetp);
 
 		/* XXX: what else to reset? */
+		free((void*)(gndo->ndo_packetp));
 		gndo->ndo_packetp = NULL;
 		snapend = NULL;
 		break;
