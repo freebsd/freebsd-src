@@ -405,16 +405,18 @@ image_copyin_mapped(lba_t blk, int fd, uint64_t *sizep)
 	error = 0;
 	while (!error && cur < end) {
 		hole = lseek(fd, cur, SEEK_HOLE);
+		if (hole == -1)
+			hole = end;
 		data = lseek(fd, cur, SEEK_DATA);
+		if (data == -1)
+			data = end;
 
 		/*
 		 * Treat the entire file as data if sparse files
 		 * are not supported by the underlying file system.
 		 */
-		if (hole == -1 && data == -1) {
+		if (hole == end && data == end)
 			data = cur;
-			hole = end;
-		}
 
 		if (cur == hole && data > hole) {
 			hole = pos;
