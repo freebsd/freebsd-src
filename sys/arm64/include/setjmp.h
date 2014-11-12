@@ -35,8 +35,15 @@
 
 #include <sys/cdefs.h>
 
-/* TODO: Add the registers */
-#define	_JBLEN		1
+/*
+ * We nned to sore: the sp + lr + 11 gp registers + 8 fp registers,
+ * i.e. 21 values, this can be rounded up to 32 to give us some space to
+ * expand into without affecting the ABI.
+ * XXX: Is this enough spacce for expansion?
+ *
+ * The registers to save are: r19 to r29, and v8 to v15.
+ */
+#define	_JBLEN		32
 
 /*
  * jmp_buf and sigjmp_buf are encapsulated in different structs to force

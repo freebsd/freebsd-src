@@ -25,13 +25,48 @@
  *
  */
 
-	.globl _setjmp
-_setjmp:
-	b _setjmp
-	ret
+#include <machine/asm.h>
+__FBSDID("$FreeBSD$");
 
-	.globl _longjmp
-_longjmp:
-	b _longjmp
+ENTRY(_setjmp)
+	/* Store the general purpose registers and lr */
+	stp	x19, x20, [x0], #16
+	stp	x21, x22, [x0], #16
+	stp	x23, x24, [x0], #16
+	stp	x25, x26, [x0], #16
+	stp	x27, x28, [x0], #16
+	stp	x29, x29, [x0], #16
+
+	/* Reserve space for the floating point register */
+	add	x0, x0, #(8 * 8)
+
+	/* Store the stack pointer */
+	mov	x8, sp
+	str	x8, [x0]
+
+	/* Return value */
+	mov	x0, #0
 	ret
+END(_setjmp)
+
+ENTRY(_longjmp)
+	/* restore the general purpose registers and lr */
+	ldp	x19, x20, [x0], #16
+	ldp	x21, x22, [x0], #16
+	ldp	x23, x24, [x0], #16
+	ldp	x25, x26, [x0], #16
+	ldp	x27, x28, [x0], #16
+	ldp	x29, x29, [x0], #16
+
+	/* Reserve space for the floating point register */
+	add	x0, x0, #(8 * 8)
+
+	/* Store the stack pointer */
+	ldr	x8, [x0]
+	mov	sp, x8
+
+	/* Load the return value */
+	mov	x0, x1
+	ret
+END(_longjmp)
 
