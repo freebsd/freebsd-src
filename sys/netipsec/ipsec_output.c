@@ -649,6 +649,8 @@ ipsec6_process_packet(
 	sav = isr->sav;
 	dst = &sav->sah->saidx.dst;
 
+	ip6 = mtod(m, struct ip6_hdr *);
+	ip6->ip6_plen = htons(m->m_pkthdr.len - sizeof(*ip6));
 #ifdef DEV_ENC
 	if_inc_counter(encif, IFCOUNTER_OPACKETS, 1);
 	if_inc_counter(encif, IFCOUNTER_OBYTES, m->m_pkthdr.len);
@@ -659,8 +661,6 @@ ipsec6_process_packet(
 	if ((error = ipsec_filter(&m, PFIL_OUT, ENC_OUT|ENC_BEFORE)) != 0)
 		goto bad;
 #endif /* DEV_ENC */
-
-	ip6 = mtod(m, struct ip6_hdr *); /* XXX */
 
 	/* Do the appropriate encapsulation, if necessary */
 	if (isr->saidx.mode == IPSEC_MODE_TUNNEL || /* Tunnel requ'd */
@@ -683,9 +683,6 @@ ipsec6_process_packet(
 			error = ENXIO;   /*XXX*/
 			goto bad;
 		}
-
-		ip6 = mtod(m, struct ip6_hdr *);
-		ip6->ip6_plen = htons(m->m_pkthdr.len - sizeof(*ip6));
 
 		/* Encapsulate the packet */
 		error = ipip_output(m, isr, &mp, 0, 0);
