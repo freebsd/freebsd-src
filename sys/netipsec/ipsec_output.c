@@ -358,7 +358,16 @@ again:
 		 * this packet because it is responsibility for
 		 * upper layer to retransmit the packet.
 		 */
-		IPSECSTAT_INC(ips_out_nosa);
+		switch(af) {
+		case AF_INET:
+			IPSECSTAT_INC(ips_out_nosa);
+			break;
+#ifdef INET6
+		case AF_INET6:
+			IPSEC6STAT_INC(ips_out_nosa);
+			break;
+#endif
+		}
 		goto bad;
 	}
 	sav = isr->sav;
