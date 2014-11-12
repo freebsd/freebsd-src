@@ -441,7 +441,7 @@ bcm_bsc_transfer(device_t dev, struct iic_msg *msgs, uint32_t nmsgs)
 		err = mtx_sleep(dev, &sc->sc_mtx, 0, "bsciow", hz);
 
 		/* Check for errors. */
-		if (err != 0 && (sc->sc_flags & BCM_I2C_ERROR))
+		if (err == 0 && (sc->sc_flags & BCM_I2C_ERROR))
 			err = EIO;
 		if (err != 0)
 			break;
