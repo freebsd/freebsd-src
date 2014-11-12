@@ -166,6 +166,34 @@ int	sblock(struct sockbuf *sb, int flags);
 void	sbunlock(struct sockbuf *sb);
 
 /*
+ * Return how much data is available to be taken out of socket
+ * bufffer right now.
+ */
+static inline u_int
+sbavail(struct sockbuf *sb)
+{
+
+#if 0
+	SOCKBUF_LOCK_ASSERT(sb);
+#endif
+	return (sb->sb_cc);
+}
+
+/*
+ * Return how much data sits there in the socket buffer
+ * It might be that some data is not yet ready to be read.
+ */
+static inline u_int
+sbused(struct sockbuf *sb)
+{
+
+#if 0
+	SOCKBUF_LOCK_ASSERT(sb);
+#endif
+	return (sb->sb_cc);
+}
+
+/*
  * How much space is there in a socket buffer (so->so_snd or so->so_rcv)?
  * This is problematical if the fields are unsigned, as the space might
  * still be negative (cc > hiwat or mbcnt > mbmax).  Should detect
