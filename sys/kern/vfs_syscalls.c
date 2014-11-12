@@ -4553,38 +4553,29 @@ kern_posix_fallocate(struct thread *td, int fd, off_t offset, off_t len)
 	off_t olen, ooffset;
 	int error;
 
-	fp = NULL;
+	if (offset < 0 || len <= 0)
+		return (EINVAL);
+	/* Check for wrap. */
+	if (offset > OFF_MAX - len)
+		return (EFBIG);
 	error = fget(td, fd, cap_rights_init(&rights, CAP_WRITE), &fp);
 	if (error != 0)
-		goto out;
-
-	switch (fp->f_type) {
-	case DTYPE_VNODE:
-		break;
-	case DTYPE_PIPE:
-	case DTYPE_FIFO:
+		return (error);
+	if ((fp->f_ops->fo_flags & DFLAG_SEEKABLE) == 0) {
 		error = ESPIPE;
-		goto out;
-	default:
-		error = ENODEV;
 		goto out;
 	}
 	if ((fp->f_flag & FWRITE) == 0) {
 		error = EBADF;
 		goto out;
 	}
-	vp = fp->f_vnode;
-	if (vp->v_type != VREG) {
+	if (fp->f_type != DTYPE_VNODE) {
 		error = ENODEV;
 		goto out;
 	}
-	if (offset < 0 || len <= 0) {
-		error = EINVAL;
-		goto out;
-	}
-	/* Check for wrap. */
-	if (offset > OFF_MAX - len) {
-		error = EFBIG;
+	vp = fp->f_vnode;
+	if (vp->v_type != VREG) {
+		error = ENODEV;
 		goto out;
 	}
 
@@ -4621,8 +4612,7 @@ kern_posix_fallocate(struct thread *td, int fd, off_t offset, off_t len)
 		maybe_yield();
 	}
  out:
-	if (fp != NULL)
-		fdrop(fp, td);
+	fdrop(fp, td);
 	return (error);
 }
 
@@ -4672,15 +4662,11 @@ kern_posix_fadvise(struct thread *td, int fd, off_t offset, off_t len,
 	error = fget(td, fd, cap_rights_init(&rights), &fp);
 	if (error != 0)
 		goto out;
-
-	switch (fp->f_type) {
-	case DTYPE_VNODE:
-		break;
-	case DTYPE_PIPE:
-	case DTYPE_FIFO:
+	if ((fp->f_ops->fo_flags & DFLAG_SEEKABLE) == 0) {
 		error = ESPIPE;
 		goto out;
-	default:
+	}
+	if (fp->f_type != DTYPE_VNODE) {
 		error = ENODEV;
 		goto out;
 	}
