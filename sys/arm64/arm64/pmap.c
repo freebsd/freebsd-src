@@ -5642,7 +5642,6 @@ out:
 void
 pmap_advise(pmap_t pmap, vm_offset_t sva, vm_offset_t eva, int advice)
 {
-	panic("pmap_advise");
 #if 0
 	struct rwlock *lock;
 	pml4_entry_t *pml4e;
