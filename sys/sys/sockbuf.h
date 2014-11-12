@@ -177,6 +177,10 @@ void	sbfree(struct sockbuf *, struct mbuf *);
 void	sbmtrim(struct sockbuf *, struct mbuf *, int);
 int	sbready(struct sockbuf *, struct mbuf *, int);
 
+/*
+ * Return how much data is available to be taken out of socket
+ * buffer right now.
+ */
 static inline u_int
 sbavail(struct sockbuf *sb)
 {
@@ -187,6 +191,10 @@ sbavail(struct sockbuf *sb)
 	return (sb->sb_acc);
 }
 
+/*
+ * Return how much data sits there in the socket buffer
+ * It might be that some data is not yet ready to be read.
+ */
 static inline u_int
 sbused(struct sockbuf *sb)
 {
