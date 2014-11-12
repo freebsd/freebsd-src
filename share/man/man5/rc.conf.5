@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd August 27, 2014
+.Dd September 11, 2014
 .Dt RC.CONF 5
 .Os
 .Sh NAME
@@ -1199,6 +1199,19 @@ or
 .Li inet6 2001:db8:1-f::1/64 .
 This notation allows address and prefix length part only,
 not the other address modifiers.
+Note that the maximum number of the generated addresses from a range
+specification is limited to an integer value specified in
+.Va netif_ipexpand_max
+in
+.Xr rc.conf 5
+because a small typo can unexpectedly generate a large number of addresses.
+The default value is
+.Li 2048 .
+It can be increased by adding the following line into
+.Xr rc.conf 5 :
+.Bd -literal
+netif_ipexpand_max="4096"
+.Ed
 .Pp
 In the case of
 .Li 192.0.2.5-23/24 ,
@@ -2935,15 +2948,6 @@ This can be set to
 .Pq Vt str
 IPv6 Site Level Aggregator for
 .Xr stf 4 .
-.It Va ipv6_faith_prefix
-.Pq Vt str
-If not set to
-.Dq Li NO ,
-this is the faith prefix to enable a FAITH IPv6-to-IPv4 TCP
-translator.
-You also need
-.Xr faithd 8
-setup.
 .It Va ipv6_ipv4mapping
 .Pq Vt bool
 If set to

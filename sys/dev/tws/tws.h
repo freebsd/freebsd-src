@@ -268,4 +268,5 @@ struct tws_softc {
     union ccb *scan_ccb;                  /* pointer to a ccb */
     struct tws_request *q_head[TWS_MAX_QS]; /* head pointers to q's */
     struct tws_request *q_tail[TWS_MAX_QS]; /* tail pointers to q's */
+    struct callout stats_timer;
 };

@@ -79,6 +79,8 @@ struct linker_file {
     int			id;		/* unique id */
     caddr_t		address;	/* load address */
     size_t		size;		/* size of file */
+    caddr_t		ctors_addr;	/* address of .ctors */
+    size_t		ctors_size;	/* size of .ctors */
     int			ndeps;		/* number of dependencies */
     linker_file_t*	deps;		/* list of dependencies */
     STAILQ_HEAD(, common_symbol) common; /* list of common symbols */
@@ -211,6 +213,8 @@ void *linker_hwpmc_list_objects(void);
 #define MODINFOMD_KERNEND	0x0008		/* kernend */
 #endif
 #define MODINFOMD_SHDR		0x0009		/* section header table */
+#define MODINFOMD_CTORS_ADDR	0x000a		/* address of .ctors */
+#define MODINFOMD_CTORS_SIZE	0x000b		/* size of .ctors */
 #define MODINFOMD_NOCOPY	0x8000		/* don't copy this metadata to the kernel */
 
 #define MODINFOMD_DEPLIST	(0x4001 | MODINFOMD_NOCOPY)	/* depends on */

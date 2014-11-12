@@ -23,7 +23,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd June 23, 2014
+.Dd October 23, 2014
 .Dt FPU_KERN 9
 .Os
 .Sh NAME
@@ -157,12 +157,17 @@ There are no errors defined for the function, it always returns 0.
 .Pp
 The
 .Fn fpu_kern_thread
-function provides an optimization for threads which never leave to
+function enables an optimization for threads which never leave to
 the usermode.
-Such thread can reuse the usermode save area for the FPU state,
-which is allowed by the function call.
-There is no flags defined for the function, and no error states
+The current thread will reuse the usermode save area for the kernel FPU state
+instead of requiring an explicitly allocated context.
+There are no flags defined for the function, and no error states
 that the function returns.
+Once this function has been called, neither
+.Fn fpu_kern_enter
+nor
+.Fn fpu_kern_leave
+is required to be called and the fpu is available for use in the calling thread.
 .Pp
 The
 .Fn is_fpu_kern_thread

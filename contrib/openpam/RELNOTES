@@ -1,6 +1,6 @@
 
-		 Release notes for OpenPAM Nummularia
-		 ====================================
+                 Release notes for OpenPAM Ourouparia
+                 ====================================
 
 This release corresponds to the code used in FreeBSD HEAD as of the
 release date, and is also expected to work on almost any POSIX-like
@@ -20,5 +20,3 @@ The distribution consists of the following components:
  - Unit tests for limited portions of the libraries.
 
 Please direct bug reports and inquiries to <des@des.no>.
-
-$Id: RELNOTES 741 2013-09-07 13:34:02Z des $

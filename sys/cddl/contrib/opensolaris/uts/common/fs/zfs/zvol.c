@@ -167,6 +167,14 @@ static LIST_HEAD(, zvol_state) all_zvols;
  */
 int zvol_maxphys = DMU_MAX_ACCESS/2;
 
+/*
+ * Toggle unmap functionality.
+ */
+boolean_t zvol_unmap_enabled = B_TRUE;
+SYSCTL_INT(_vfs_zfs_vol, OID_AUTO, unmap_enabled, CTLFLAG_RWTUN,
+    &zvol_unmap_enabled, 0,
+    "Enable UNMAP functionality");
+
 static d_open_t		zvol_d_open;
 static d_close_t	zvol_d_close;
 static d_read_t		zvol_read;
@@ -250,7 +258,7 @@ int
 zvol_check_volblocksize(uint64_t volblocksize)
 {
 	if (volblocksize < SPA_MINBLOCKSIZE ||
-	    volblocksize > SPA_MAXBLOCKSIZE ||
+	    volblocksize > SPA_OLD_MAXBLOCKSIZE ||
 	    !ISP2(volblocksize))
 		return (SET_ERROR(EDOM));
 
@@ -820,7 +828,7 @@ zvol_prealloc(zvol_state_t *zv)
 
 	while (resid != 0) {
 		int error;
-		uint64_t bytes = MIN(resid, SPA_MAXBLOCKSIZE);
+		uint64_t bytes = MIN(resid, SPA_OLD_MAXBLOCKSIZE);
 
 		tx = dmu_tx_create(os);
 		dmu_tx_hold_write(tx, ZVOL_OBJ, off, bytes);
@@ -882,7 +890,8 @@ zvol_remove_minors(const char *name)
 	LIST_FOREACH_SAFE(zv, &all_zvols, zv_links, tzv) {
 		if (strcmp(zv->zv_name, name) == 0 ||
 		    (strncmp(zv->zv_name, name, namelen) == 0 &&
-		     zv->zv_name[namelen] == '/')) {
+		    strlen(zv->zv_name) > namelen && (zv->zv_name[namelen] == '/' ||
+		    zv->zv_name[namelen] == '@'))) {
 			(void) zvol_remove_zv(zv);
 		}
 	}
@@ -1633,7 +1642,7 @@ zvol_write(struct cdev *dev, struct uio *uio, int ioflag)
 #ifdef sun
 	sync = !(zv->zv_flags & ZVOL_WCE) ||
 #else
-	sync =
+	sync = (ioflag & IO_SYNC) ||
 #endif
 	    (zv->zv_objset->os_sync == ZFS_SYNC_ALWAYS);
 
@@ -1857,7 +1866,8 @@ zvol_ioctl(dev_t dev, int cmd, intptr_t arg, int flag, cred_t *cr, int *rvalp)
 		(void) strcpy(dki.dki_dname, "zvol");
 		dki.dki_ctype = DKC_UNKNOWN;
 		dki.dki_unit = getminor(dev);
-		dki.dki_maxtransfer = 1 << (SPA_MAXBLOCKSHIFT - zv->zv_min_bs);
+		dki.dki_maxtransfer =
+		    1 << (SPA_OLD_MAXBLOCKSHIFT - zv->zv_min_bs);
 		mutex_exit(&spa_namespace_lock);
 		if (ddi_copyout(&dki, (void *)arg, sizeof (dki), flag))
 			error = SET_ERROR(EFAULT);
@@ -1970,6 +1980,9 @@ zvol_ioctl(dev_t dev, int cmd, intptr_t arg, int flag, cred_t *cr, int *rvalp)
 		dkioc_free_t df;
 		dmu_tx_t *tx;
 
+		if (!zvol_unmap_enabled)
+			break;
+
 		if (ddi_copyin((void *)arg, &df, sizeof (df), flag)) {
 			error = SET_ERROR(EFAULT);
 			break;
@@ -1982,8 +1995,8 @@ zvol_ioctl(dev_t dev, int cmd, intptr_t arg, int flag, cred_t *cr, int *rvalp)
 		 */
 		if (df.df_start >= zv->zv_volsize)
 			break;	/* No need to do anything... */
-		if (df.df_start + df.df_length > zv->zv_volsize)
-			df.df_length = DMU_OBJECT_END;
+
+		mutex_exit(&spa_namespace_lock);
 
 		rl = zfs_range_lock(&zv->zv_znode, df.df_start, df.df_length,
 		    RL_WRITER);
@@ -2022,7 +2035,7 @@ zvol_ioctl(dev_t dev, int cmd, intptr_t arg, int flag, cred_t *cr, int *rvalp)
 				    dmu_objset_pool(zv->zv_objset), 0);
 			}
 		}
-		break;
+		return (error);
 	}
 
 	default:
@@ -2173,14 +2186,14 @@ zvol_dump_init(zvol_state_t *zv, boolean_t resize)
 		    zfs_prop_to_name(ZFS_PROP_VOLBLOCKSIZE), 8, 1,
 		    &vbs, tx);
 		error = error ? error : dmu_object_set_blocksize(
-		    os, ZVOL_OBJ, SPA_MAXBLOCKSIZE, 0, tx);
+		    os, ZVOL_OBJ, SPA_OLD_MAXBLOCKSIZE, 0, tx);
 		if (version >= SPA_VERSION_DEDUP) {
 			error = error ? error : zap_update(os, ZVOL_ZAP_OBJ,
 			    zfs_prop_to_name(ZFS_PROP_DEDUP), 8, 1,
 			    &dedup, tx);
 		}
 		if (error == 0)
-			zv->zv_volblocksize = SPA_MAXBLOCKSIZE;
+			zv->zv_volblocksize = SPA_OLD_MAXBLOCKSIZE;
 	}
 	dmu_tx_commit(tx);
 
@@ -2447,10 +2460,38 @@ zvol_geom_start(struct bio *bp)
 			goto enqueue;
 		zvol_strategy(bp);
 		break;
-	case BIO_GETATTR:
+	case BIO_GETATTR: {
+		spa_t *spa = dmu_objset_spa(zv->zv_objset);
+		uint64_t refd, avail, usedobjs, availobjs, val;
+
 		if (g_handleattr_int(bp, "GEOM::candelete", 1))
 			return;
+		if (strcmp(bp->bio_attribute, "blocksavail") == 0) {
+			dmu_objset_space(zv->zv_objset, &refd, &avail,
+			    &usedobjs, &availobjs);
+			if (g_handleattr_off_t(bp, "blocksavail",
+			    avail / DEV_BSIZE))
+				return;
+		} else if (strcmp(bp->bio_attribute, "blocksused") == 0) {
+			dmu_objset_space(zv->zv_objset, &refd, &avail,
+			    &usedobjs, &availobjs);
+			if (g_handleattr_off_t(bp, "blocksused",
+			    refd / DEV_BSIZE))
+				return;
+		} else if (strcmp(bp->bio_attribute, "poolblocksavail") == 0) {
+			avail = metaslab_class_get_space(spa_normal_class(spa));
+			avail -= metaslab_class_get_alloc(spa_normal_class(spa));
+			if (g_handleattr_off_t(bp, "poolblocksavail",
+			    avail / DEV_BSIZE))
+				return;
+		} else if (strcmp(bp->bio_attribute, "poolblocksused") == 0) {
+			refd = metaslab_class_get_alloc(spa_normal_class(spa));
+			if (g_handleattr_off_t(bp, "poolblocksused",
+			    refd / DEV_BSIZE))
+				return;
+		}
 		/* FALLTHROUGH */
+	}
 	default:
 		g_io_deliver(bp, EOPNOTSUPP);
 		break;
@@ -2570,9 +2611,10 @@ zvol_create_minors(const char *name)
 	if (dmu_objset_type(os) == DMU_OST_ZVOL) {
 		dsl_dataset_long_hold(os->os_dsl_dataset, FTAG);
 		dsl_pool_rele(dmu_objset_pool(os), FTAG);
-		if ((error = zvol_create_minor(name)) == 0)
+		error = zvol_create_minor(name);
+		if (error == 0 || error == EEXIST) {
 			error = zvol_create_snapshots(os, name);
-		else {
+		} else {
 			printf("ZFS WARNING: Unable to create ZVOL %s (error=%d).\n",
 			    name, error);
 		}
@@ -2673,12 +2715,17 @@ zvol_rename_minors(const char *oldname, const char *newname)
 	size_t oldnamelen, newnamelen;
 	zvol_state_t *zv;
 	char *namebuf;
+	boolean_t locked = B_FALSE;
 
 	oldnamelen = strlen(oldname);
 	newnamelen = strlen(newname);
 
 	DROP_GIANT();
-	mutex_enter(&spa_namespace_lock);
+	/* See comment in zvol_open(). */
+	if (!MUTEX_HELD(&spa_namespace_lock)) {
+		mutex_enter(&spa_namespace_lock);
+		locked = B_TRUE;
+	}
 
 	LIST_FOREACH(zv, &all_zvols, zv_links) {
 		if (strcmp(zv->zv_name, oldname) == 0) {
@@ -2693,7 +2740,8 @@ zvol_rename_minors(const char *oldname, const char *newname)
 		}
 	}
 
-	mutex_exit(&spa_namespace_lock);
+	if (locked)
+		mutex_exit(&spa_namespace_lock);
 	PICKUP_GIANT();
 }
 
@@ -2807,6 +2855,9 @@ zvol_d_ioctl(struct cdev *dev, u_long cmd, caddr_t data, int fflag, struct threa
 		zil_commit(zv->zv_zilog, ZVOL_OBJ);
 		break;
 	case DIOCGDELETE:
+		if (!zvol_unmap_enabled)
+			break;
+
 		offset = ((off_t *)data)[0];
 		length = ((off_t *)data)[1];
 		if ((offset % DEV_BSIZE) != 0 || (length % DEV_BSIZE) != 0 ||
@@ -2839,6 +2890,30 @@ zvol_d_ioctl(struct cdev *dev, u_long cmd, caddr_t data, int fflag, struct threa
 	case DIOCGSTRIPEOFFSET:
 		*(off_t *)data = 0;
 		break;
+	case DIOCGATTR: {
+		spa_t *spa = dmu_objset_spa(zv->zv_objset);
+		struct diocgattr_arg *arg = (struct diocgattr_arg *)data;
+		uint64_t refd, avail, usedobjs, availobjs;
+
+		if (strcmp(arg->name, "blocksavail") == 0) {
+			dmu_objset_space(zv->zv_objset, &refd, &avail,
+			    &usedobjs, &availobjs);
+			arg->value.off = avail / DEV_BSIZE;
+		} else if (strcmp(arg->name, "blocksused") == 0) {
+			dmu_objset_space(zv->zv_objset, &refd, &avail,
+			    &usedobjs, &availobjs);
+			arg->value.off = refd / DEV_BSIZE;
+		} else if (strcmp(arg->name, "poolblocksavail") == 0) {
+			avail = metaslab_class_get_space(spa_normal_class(spa));
+			avail -= metaslab_class_get_alloc(spa_normal_class(spa));
+			arg->value.off = avail / DEV_BSIZE;
+		} else if (strcmp(arg->name, "poolblocksused") == 0) {
+			refd = metaslab_class_get_alloc(spa_normal_class(spa));
+			arg->value.off = refd / DEV_BSIZE;
+		} else
+			error = ENOIOCTL;
+		break;
+	}
 	default:
 		error = ENOIOCTL;
 	}

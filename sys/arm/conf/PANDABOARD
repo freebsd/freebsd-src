@@ -35,7 +35,7 @@ makeoptions WITHOUT_MODULES="ahc"
 options 	HZ=100
 options 	SCHED_4BSD		# 4BSD scheduler
 options 	INET			# InterNETworking
-#options 	INET6			# IPv6 communications protocols
+options 	INET6			# IPv6 communications protocols
 options 	FFS			# Berkeley Fast Filesystem
 options 	SOFTUPDATES		# Enable FFS soft updates support
 options 	UFS_ACL			# Support for access control lists
@@ -44,8 +44,8 @@ options 	GEOM_PART_BSD		# BSD partition scheme
 options 	GEOM_PART_MBR		# MBR partition scheme
 options 	TMPFS			# Efficient memory filesystem
 options 	MSDOSFS			# MSDOS Filesystem
-#options 	CD9660			# ISO 9660 Filesystem
-#options 	PROCFS			# Process filesystem (requires PSEUDOFS)
+options 	CD9660			# ISO 9660 Filesystem
+options 	PROCFS			# Process filesystem (requires PSEUDOFS)
 options 	PSEUDOFS		# Pseudo-filesystem framework
 options 	COMPAT_43		# Compatible with BSD 4.3 [KEEP THIS!]
 options 	SCSI_DELAY=5000		# Delay (in ms) before probing SCSI

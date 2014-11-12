@@ -249,6 +249,8 @@
     ..
     libmilter
     ..
+    libxo
+    ..
     lzma
     ..
     machine

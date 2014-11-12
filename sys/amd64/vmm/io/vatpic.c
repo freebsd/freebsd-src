@@ -606,20 +606,19 @@ vatpic_write(struct vatpic *vatpic, struct atpic *atpic, bool in, int port,
 	VATPIC_LOCK(vatpic);
 
 	if (port & ICU_IMR_OFFSET) {
-		if (atpic->ready) {
+		switch (atpic->icw_num) {
+		case 2:
+			error = vatpic_icw2(vatpic, atpic, val);
+			break;
+		case 3:
+			error = vatpic_icw3(vatpic, atpic, val);
+			break;
+		case 4:
+			error = vatpic_icw4(vatpic, atpic, val);
+			break;
+		default:
 			error = vatpic_ocw1(vatpic, atpic, val);
-		} else {
-			switch (atpic->icw_num) {
-			case 2:
-				error = vatpic_icw2(vatpic, atpic, val);
-				break;
-			case 3:
-				error = vatpic_icw3(vatpic, atpic, val);
-				break;
-			case 4:
-				error = vatpic_icw4(vatpic, atpic, val);
-				break;
-			}
+			break;
 		}
 	} else {
 		if (val & (1 << 4))
@@ -642,7 +641,7 @@ vatpic_write(struct vatpic *vatpic, struct atpic *atpic, bool in, int port,
 }
 
 int
-vatpic_master_handler(void *vm, int vcpuid, bool in, int port, int bytes,
+vatpic_master_handler(struct vm *vm, int vcpuid, bool in, int port, int bytes,
     uint32_t *eax)
 {
 	struct vatpic *vatpic;
@@ -662,7 +661,7 @@ vatpic_master_handler(void *vm, int vcpuid, bool in, int port, int bytes,
 }
 
 int
-vatpic_slave_handler(void *vm, int vcpuid, bool in, int port, int bytes,
+vatpic_slave_handler(struct vm *vm, int vcpuid, bool in, int port, int bytes,
     uint32_t *eax)
 {
 	struct vatpic *vatpic;
@@ -682,7 +681,7 @@ vatpic_slave_handler(void *vm, int vcpuid, bool in, int port, int bytes,
 }
 
 int
-vatpic_elc_handler(void *vm, int vcpuid, bool in, int port, int bytes,
+vatpic_elc_handler(struct vm *vm, int vcpuid, bool in, int port, int bytes,
     uint32_t *eax)
 {
 	struct vatpic *vatpic;

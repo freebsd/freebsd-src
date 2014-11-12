@@ -17,6 +17,8 @@
         doc
             atf
             ..
+            pjdfstest
+            ..
         ..
     ..
     tests
@@ -47,6 +49,8 @@
                 set-e
                 ..
             ..
+            sleep
+            ..
             test
             ..
         ..
@@ -68,6 +72,8 @@
             lib
             ..
             usr.bin
+                diff
+                ..
             ..
         ..
         lib
@@ -83,11 +89,65 @@
                 test-programs
                 ..
             ..
+            libc
+                c063
+                ..
+                db
+                ..
+                gen
+                    execve
+                    ..
+                    posix_spawn
+                    ..
+                ..
+                hash
+                    data
+                    ..
+                ..
+                inet
+                ..
+                locale
+                ..
+                net
+                    getaddrinfo
+                        data
+                        ..
+                    ..
+                ..
+                regex
+                    data
+                    ..
+                ..
+                ssp
+                ..
+                stdio
+                ..
+                stdlib
+                ..
+                string
+                ..
+                sys
+                ..
+                time
+                ..
+                tls
+                    dso
+                    ..
+                ..
+                termios
+                ..
+                ttyio
+                ..
+            ..
             libcrypt
             ..
             libmp
             ..
             libnv
+            ..
+            libpam
+            ..
+            libproc
             ..
             libutil
             ..
@@ -137,9 +197,43 @@
             ..
             netinet
             ..
+            pjdfstest
+                chflags
+                ..
+                chmod
+                ..
+                chown
+                ..
+                ftruncate
+                ..
+                granular
+                ..
+                link
+                ..
+                mkdir
+                ..
+                mkfifo
+                ..
+                mknod
+                ..
+                open
+                ..
+                rename
+                ..
+                rmdir
+                ..
+                symlink
+                ..
+                truncate
+                ..
+                unlink
+                ..
+            ..
         ..
         usr.bin
             apply
+            ..
+            basename
             ..
             bmake
                 archives
@@ -241,9 +335,19 @@
             ..
             calendar
             ..
+            cmp
+            ..
             comm
             ..
+            cut
+            ..
+            dirname
+            ..
             file2c
+            ..
+            grep
+            ..
+            gzip
             ..
             join
             ..
@@ -253,6 +357,8 @@
             ..
             m4
             ..
+            mkimg
+            ..
             ncal
             ..
             printf
@@ -260,6 +366,8 @@
             sed
                 regress.multitest.out
                 ..
+            ..
+            timeout
             ..
             tr
             ..
@@ -283,8 +391,14 @@
             ..
             newsyslog
             ..
+            nmtree
+            ..
+            pw
+            ..
             sa
             ..
         ..
     ..
 ..
+
+# vim: set expandtab ts=4 sw=4:

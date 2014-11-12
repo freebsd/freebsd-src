@@ -30,7 +30,7 @@
 #define	_DDB_DB_OUTPUT_H_
 
 /*
- * 	Author: David B. Golub, Carnegie Mellon University
+ *	Author: David B. Golub, Carnegie Mellon University
  *	Date:	8/90
  */
 

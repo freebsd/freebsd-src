@@ -64,6 +64,8 @@ __FBSDID("$FreeBSD$");
 #include <machine/cpufunc.h>
 #include <machine/md_var.h>
 
+#define	IS_POWER_OF_2(val)	(((val) & ((val) - 1)) == 0)
+
 #define MAX_BPAGES 64
 #define MAX_DMA_SEGMENTS	4096
 #define BUS_DMA_EXCL_BOUNCE	BUS_DMA_BUS2
@@ -466,16 +468,17 @@ bus_dma_tag_create(bus_dma_tag_t parent, bus_size_t alignment,
 		parent = arm_root_dma_tag;
 #endif
 
-	/* Basic sanity checking */
-	if (boundary != 0 && boundary < maxsegsz)
-		maxsegsz = boundary;
+	/* Basic sanity checking. */
+	KASSERT(boundary == 0 || IS_POWER_OF_2(boundary),
+	    ("dma tag boundary %lu, must be a power of 2", boundary));
+	KASSERT(boundary == 0 || boundary >= maxsegsz,
+	    ("dma tag boundary %lu is < maxsegsz %lu\n", boundary, maxsegsz));
+	KASSERT(alignment != 0 && IS_POWER_OF_2(alignment),
+	    ("dma tag alignment %lu, must be non-zero power of 2", alignment));
+	KASSERT(maxsegsz != 0, ("dma tag maxsegsz must not be zero"));
 
 	/* Return a NULL tag on failure */
 	*dmat = NULL;
-
-	if (maxsegsz == 0) {
-		return (EINVAL);
-	}
 
 	newtag = (bus_dma_tag_t)malloc(sizeof(*newtag), M_DEVBUF,
 	    M_ZERO | M_NOWAIT);
@@ -719,6 +722,8 @@ bus_dmamap_create(bus_dma_tag_t dmat, int flags, bus_dmamap_t *mapp)
 	if (map->flags & DMAMAP_COHERENT)
 		atomic_add_32(&maps_coherent, 1);
 	atomic_add_32(&maps_total, 1);
+	dmat->map_count++;
+
 	return (0);
 }
 
@@ -1525,9 +1530,9 @@ alloc_bounce_zone(bus_dma_tag_t dmat)
 	SYSCTL_ADD_STRING(busdma_sysctl_tree(bz),
 	    SYSCTL_CHILDREN(busdma_sysctl_tree_top(bz)), OID_AUTO,
 	    "lowaddr", CTLFLAG_RD, bz->lowaddrid, 0, "");
-	SYSCTL_ADD_INT(busdma_sysctl_tree(bz),
+	SYSCTL_ADD_ULONG(busdma_sysctl_tree(bz),
 	    SYSCTL_CHILDREN(busdma_sysctl_tree_top(bz)), OID_AUTO,
-	    "alignment", CTLFLAG_RD, &bz->alignment, 0, "");
+	    "alignment", CTLFLAG_RD, &bz->alignment, "");
 
 	return (0);
 }

@@ -62,6 +62,7 @@ oui INTEL			0x00aa00	Intel Corporation
 oui JMICRON			0x00d831	JMicron Technologies
 oui LEVEL1			0x00207b	Level 1
 oui MARVELL			0x005043	Marvell Semiconductor
+oui MICREL			0x0010a1	Micrel
 oui MYSON			0x00c0b4	Myson Technology
 oui NATSEMI			0x080017	National Semiconductor
 oui PMCSIERRA			0x00e004	PMC-Sierra
@@ -273,6 +274,9 @@ model MARVELL E1011		0x0002 Marvell 88E1011 Gigabit PHY
 model MARVELL E1000_3		0x0003 Marvell 88E1000 Gigabit PHY
 model MARVELL E1000_5		0x0005 Marvell 88E1000 Gigabit PHY
 model MARVELL E1111		0x000c Marvell 88E1111 Gigabit PHY
+
+/* Micrel PHYs */
+model MICREL KSZ9021		0x0021 Micrel KSZ9021 10/100/1000 PHY
 
 /* Myson Technology PHYs */
 model xxMYSON MTD972		0x0000 MTD972 10/100 media interface

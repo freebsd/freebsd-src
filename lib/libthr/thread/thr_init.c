@@ -445,7 +445,7 @@ init_private(void)
 	struct rlimit rlim;
 	size_t len;
 	int mib[2];
-	char *env;
+	char *env, *env_bigstack, *env_splitstack;
 
 	_thr_umutex_init(&_mutex_static_lock);
 	_thr_umutex_init(&_cond_static_lock);
@@ -473,8 +473,9 @@ init_private(void)
 		len = sizeof (_usrstack);
 		if (sysctl(mib, 2, &_usrstack, &len, NULL, 0) == -1)
 			PANIC("Cannot get kern.usrstack from sysctl");
-		env = getenv("LIBPTHREAD_BIGSTACK_MAIN");
-		if (env != NULL) {
+		env_bigstack = getenv("LIBPTHREAD_BIGSTACK_MAIN");
+		env_splitstack = getenv("LIBPTHREAD_SPLITSTACK_MAIN");
+		if (env_bigstack != NULL || env_splitstack == NULL) {
 			if (getrlimit(RLIMIT_STACK, &rlim) == -1)
 				PANIC("Cannot get stack rlimit");
 			_thr_stack_initial = rlim.rlim_cur;

@@ -704,7 +704,7 @@ ath_rx_pkt(struct ath_softc *sc, struct ath_rx_status *rs, HAL_STATUS status,
 					rs->rs_keyix-32 : rs->rs_keyix);
 			}
 		}
-		ifp->if_ierrors++;
+		if_inc_counter(ifp, IFCOUNTER_IERRORS, 1);
 rx_error:
 		/*
 		 * Cleanup any pending partial frame.
@@ -830,7 +830,7 @@ rx_accept:
 			rs->rs_antenna |= 0x4;
 	}
 
-	ifp->if_ipackets++;
+	if_inc_counter(ifp, IFCOUNTER_IPACKETS, 1);
 	sc->sc_stats.ast_ant_rx[rs->rs_antenna]++;
 
 	/*

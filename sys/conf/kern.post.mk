@@ -126,7 +126,7 @@ ${FULLKERNEL}: ${SYSTEM_DEP} vers.o ${MFS_IMAGE}
 	@echo linking ${.TARGET}
 	${SYSTEM_LD}
 .if ${MK_CTF} != "no"
-	@echo ${CTFMERGE} ${CTFFLAGS} -o ${.TARGET} ...
+	#@echo ${CTFMERGE} ${CTFFLAGS} -o ${.TARGET} ...
 	#@${CTFMERGE} ${CTFFLAGS} -o ${.TARGET} ${SYSTEM_OBJS} vers.o
 .endif
 .if !defined(DEBUG)

@@ -123,7 +123,8 @@ int		pci_child_pnpinfo_str_method(device_t cbdev, device_t child,
 		    char *buf, size_t buflen);
 int		pci_assign_interrupt_method(device_t dev, device_t child);
 int		pci_resume(device_t dev);
-int		pci_suspend(device_t dev);
+int		pci_resume_child(device_t dev, device_t child);
+int		pci_suspend_child(device_t dev, device_t child);
 bus_dma_tag_t pci_get_dma_tag(device_t bus, device_t dev);
 void		pci_child_added_method(device_t dev, device_t child);
 

@@ -49,7 +49,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/socketvar.h>
 #include <sys/protosw.h>
 #include <sys/random.h>
-#include <sys/refcount.h>
 
 #include <vm/uma.h>
 
@@ -101,6 +100,11 @@ static int	maxtcptw;
  * currently in the TIME_WAIT state.  The queue pointers, including the
  * queue pointers in each tcptw structure, are protected using the global
  * timewait lock, which must be held over queue iteration and modification.
+ *
+ * Rules on tcptw usage:
+ *  - a inpcb is always freed _after_ its tcptw
+ *  - a tcptw relies on its inpcb reference counting for memory stability
+ *  - a tcptw is dereferenceable only while its inpcb is locked
  */
 static VNET_DEFINE(TAILQ_HEAD(, tcptw), twq_2msl);
 #define	V_twq_2msl		VNET(twq_2msl)
@@ -123,32 +127,6 @@ static VNET_DEFINE(struct rwlock, tw_lock);
 static void	tcp_tw_2msl_reset(struct tcptw *, int);
 static void	tcp_tw_2msl_stop(struct tcptw *, int);
 static int	tcp_twrespond(struct tcptw *, int);
-
-/*
- * tw_pcbref() bumps the reference count on an tw in order to maintain
- * stability of an tw pointer despite the tw lock being released.
- */
-static void
-tw_pcbref(struct tcptw *tw)
-{
-
-	KASSERT(tw->tw_refcount > 0, ("%s: refcount 0", __func__));
-	refcount_acquire(&tw->tw_refcount);
-}
-
-/*
- * Drop a refcount on an tw elevated using tw_pcbref().
- */
-static int
-tw_pcbrele(struct tcptw *tw)
-{
-
-	KASSERT(tw->tw_refcount > 0, ("%s: refcount 0", __func__));
-	if (!refcount_release(&tw->tw_refcount))
-		return (0);
-	uma_zfree(V_tcptw_zone, tw);
-	return (1);
-}
 
 static int
 tcptw_auto_size(void)
@@ -191,7 +169,7 @@ SYSCTL_PROC(_net_inet_tcp, OID_AUTO, maxtcptw, CTLTYPE_INT|CTLFLAG_RW,
 
 VNET_DEFINE(int, nolocaltimewait) = 0;
 #define	V_nolocaltimewait	VNET(nolocaltimewait)
-SYSCTL_VNET_INT(_net_inet_tcp, OID_AUTO, nolocaltimewait, CTLFLAG_RW,
+SYSCTL_INT(_net_inet_tcp, OID_AUTO, nolocaltimewait, CTLFLAG_VNET | CTLFLAG_RW,
     &VNET_NAME(nolocaltimewait), 0,
     "Do not create compressed TCP TIME_WAIT entries for local connections");
 
@@ -279,8 +257,11 @@ tcp_twstart(struct tcpcb *tp)
 		 * Reached limit on total number of TIMEWAIT connections
 		 * allowed. Remove a connection from TIMEWAIT queue in LRU
 		 * fashion to make room for this connection.
+		 *
+		 * pcbinfo lock is needed here to prevent deadlock as
+		 * two inpcb locks can be acquired simultaneously.
 		 */
-		tw = tcp_tw_2msl_reuse();
+		tw = tcp_tw_2msl_scan(1);
 		if (tw == NULL) {
 			tp = tcp_close(tp);
 			if (tp != NULL)
@@ -288,8 +269,12 @@ tcp_twstart(struct tcpcb *tp)
 			return;
 		}
 	}
+	/*
+	 * The tcptw will hold a reference on its inpcb until tcp_twclose
+	 * is called
+	 */
 	tw->tw_inpcb = inp;
-	refcount_init(&tw->tw_refcount, 1);
+	in_pcbref(inp);	/* Reference from tw */
 
 	/*
 	 * Recover last window size sent.
@@ -479,7 +464,6 @@ tcp_twclose(struct tcptw *tw, int reuse)
 	INP_INFO_WLOCK_ASSERT(&V_tcbinfo);	/* in_pcbfree() */
 	INP_WLOCK_ASSERT(inp);
 
-	tw->tw_inpcb = NULL;
 	tcp_tw_2msl_stop(tw, reuse);
 	inp->inp_ppcb = NULL;
 	in_pcbdrop(inp);
@@ -509,8 +493,13 @@ tcp_twclose(struct tcptw *tw, int reuse)
 			 */
 			INP_WUNLOCK(inp);
 		}
-	} else
+	} else {
+		/*
+		 * The socket has been already cleaned-up for us, only free the
+		 * inpcb.
+		 */
 		in_pcbfree(inp);
+	}
 	TCPSTAT_INC(tcps_closed);
 }
 
@@ -641,71 +630,94 @@ tcp_tw_2msl_reset(struct tcptw *tw, int rearm)
 static void
 tcp_tw_2msl_stop(struct tcptw *tw, int reuse)
 {
+	struct ucred *cred;
+	struct inpcb *inp;
+	int released;
 
 	INP_INFO_WLOCK_ASSERT(&V_tcbinfo);
 
 	TW_WLOCK(V_tw_lock);
+	inp = tw->tw_inpcb;
+	tw->tw_inpcb = NULL;
+
 	TAILQ_REMOVE(&V_twq_2msl, tw, tw_2msl);
-	crfree(tw->tw_cred);
+	cred = tw->tw_cred;
 	tw->tw_cred = NULL;
 	TW_WUNLOCK(V_tw_lock);
 
+	if (cred != NULL)
+		crfree(cred);
+
+	released = in_pcbrele_wlocked(inp);
+	KASSERT(!released, ("%s: inp should not be released here", __func__));
+
 	if (!reuse)
-		tw_pcbrele(tw);
+		uma_zfree(V_tcptw_zone, tw);
 }
 
 struct tcptw *
-tcp_tw_2msl_reuse(void)
+tcp_tw_2msl_scan(int reuse)
 {
 	struct tcptw *tw;
+	struct inpcb *inp;
 
-	INP_INFO_WLOCK_ASSERT(&V_tcbinfo);
-
-	TW_WLOCK(V_tw_lock);
-	tw = TAILQ_FIRST(&V_twq_2msl);
-	if (tw == NULL) {
-		TW_WUNLOCK(V_tw_lock);
-		return NULL;
+#ifdef INVARIANTS
+	if (reuse) {
+		/*
+		 * pcbinfo lock is needed in reuse case to prevent deadlock
+		 * as two inpcb locks can be acquired simultaneously:
+		 *  - the inpcb transitioning to TIME_WAIT state in
+		 *    tcp_tw_start(),
+		 *  - the inpcb closed by tcp_twclose().
+		 */
+		INP_INFO_WLOCK_ASSERT(&V_tcbinfo);
 	}
-	TW_WUNLOCK(V_tw_lock);
-
-	INP_WLOCK(tw->tw_inpcb);
-	tcp_twclose(tw, 1);
-
-	return (tw);
-}
-
-void
-tcp_tw_2msl_scan(void)
-{
-	struct tcptw *tw;
+#endif
 
 	for (;;) {
 		TW_RLOCK(V_tw_lock);
 		tw = TAILQ_FIRST(&V_twq_2msl);
-		if (tw == NULL || tw->tw_time - ticks > 0) {
+		if (tw == NULL || (!reuse && (tw->tw_time - ticks) > 0)) {
 			TW_RUNLOCK(V_tw_lock);
 			break;
 		}
-		tw_pcbref(tw);
+		KASSERT(tw->tw_inpcb != NULL, ("%s: tw->tw_inpcb == NULL",
+		    __func__));
+
+		inp = tw->tw_inpcb;
+		in_pcbref(inp);
 		TW_RUNLOCK(V_tw_lock);
 
-		/* Close timewait state */
 		if (INP_INFO_TRY_WLOCK(&V_tcbinfo)) {
-			if (tw_pcbrele(tw)) {
+
+			INP_WLOCK(inp);
+			tw = intotw(inp);
+			if (in_pcbrele_wlocked(inp)) {
+				KASSERT(tw == NULL, ("%s: held last inp "
+				    "reference but tw not NULL", __func__));
 				INP_INFO_WUNLOCK(&V_tcbinfo);
 				continue;
 			}
 
-			KASSERT(tw->tw_inpcb != NULL,
-			    ("%s: tw->tw_inpcb == NULL", __func__));
-			INP_WLOCK(tw->tw_inpcb);
-			tcp_twclose(tw, 0);
+			if (tw == NULL) {
+				/* tcp_twclose() has already been called */
+				INP_WUNLOCK(inp);
+				INP_INFO_WUNLOCK(&V_tcbinfo);
+				continue;
+			}
+
+			tcp_twclose(tw, reuse);
 			INP_INFO_WUNLOCK(&V_tcbinfo);
+			if (reuse)
+			    return tw;
 		} else {
-			/* INP_INFO lock is busy; continue later. */
-			tw_pcbrele(tw);
+			/* INP_INFO lock is busy, continue later. */
+			INP_WLOCK(inp);
+			if (!in_pcbrele_wlocked(inp))
+				INP_WUNLOCK(inp);
 			break;
 		}
 	}
+
+	return NULL;
 }

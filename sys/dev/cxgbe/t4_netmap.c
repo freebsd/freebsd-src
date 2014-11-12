@@ -377,7 +377,7 @@ alloc_nm_txq_hwq(struct port_info *pi, struct sge_nm_txq *nm_txq)
 
 	nm_txq->pidx = nm_txq->cidx = 0;
 	MPASS(nm_txq->sidx == na->num_tx_desc);
-	nm_txq->equiqidx = nm_txq-> equeqidx = nm_txq->dbidx = 0;
+	nm_txq->equiqidx = nm_txq->equeqidx = nm_txq->dbidx = 0;
 
 	nm_txq->doorbells = sc->doorbells;
 	if (isset(&nm_txq->doorbells, DOORBELL_UDB) ||

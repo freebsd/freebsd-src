@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2007 Mellanox Technologies. All rights reserved.
+ * Copyright (c) 2007, 2014 Mellanox Technologies. All rights reserved.
  *
  * This software is available to you under a choice of one of two
  * licenses.  You may choose to be licensed under the terms of the GNU
@@ -53,7 +53,7 @@ int mlx4_SENSE_PORT(struct mlx4_dev *dev, int port,
 	}
 
 	if (out_param > 2) {
-		mlx4_err(dev, "Sense returned illegal value: 0x%llx\n", (long long)out_param);
+		mlx4_err(dev, "Sense returned illegal value: 0x%llx\n", (unsigned long long)out_param);
 		return -EINVAL;
 	}
 
@@ -108,9 +108,8 @@ static void mlx4_sense_port(struct work_struct *work)
 
 sense_again:
 	mutex_unlock(&priv->port_mutex);
-	if (sense->resched)
-		queue_delayed_work(sense->sense_wq , &sense->sense_poll,
-				   round_jiffies(MLX4_SENSE_RANGE));
+	queue_delayed_work(mlx4_wq , &sense->sense_poll,
+			   round_jiffies_relative(MLX4_SENSE_RANGE));
 }
 
 void mlx4_start_sense(struct mlx4_dev *dev)
@@ -121,40 +120,24 @@ void mlx4_start_sense(struct mlx4_dev *dev)
 	if (!(dev->caps.flags & MLX4_DEV_CAP_FLAG_DPDP))
 		return;
 
-	sense->resched = 1;
-	queue_delayed_work(sense->sense_wq , &sense->sense_poll,
-			   round_jiffies(MLX4_SENSE_RANGE));
+	queue_delayed_work(mlx4_wq , &sense->sense_poll,
+			   round_jiffies_relative(MLX4_SENSE_RANGE));
 }
 
 void mlx4_stop_sense(struct mlx4_dev *dev)
 {
-	mlx4_priv(dev)->sense.resched = 0;
+	cancel_delayed_work_sync(&mlx4_priv(dev)->sense.sense_poll);
 }
 
-void mlx4_sense_cleanup(struct mlx4_dev *dev)
-{
-        mlx4_stop_sense(dev);
-        cancel_delayed_work(&mlx4_priv(dev)->sense.sense_poll);
-        destroy_workqueue(mlx4_priv(dev)->sense.sense_wq);
-}
-
-
-int  mlx4_sense_init(struct mlx4_dev *dev)
+void  mlx4_sense_init(struct mlx4_dev *dev)
 {
 	struct mlx4_priv *priv = mlx4_priv(dev);
 	struct mlx4_sense *sense = &priv->sense;
 	int port;
 
-
 	sense->dev = dev;
-	sense->sense_wq = create_singlethread_workqueue("mlx4_sense");
-	if (!sense->sense_wq)
-		return -ENOMEM;
-
 	for (port = 1; port <= dev->caps.num_ports; port++)
 		sense->do_sense_port[port] = 1;
 
 	INIT_DEFERRABLE_WORK(&sense->sense_poll, mlx4_sense_port);
-
-        return 0;
 }

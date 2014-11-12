@@ -274,8 +274,8 @@ int	pru_sopoll_notsupp(struct socket *so, int events, struct ucred *cred,
 #define	PRC_IFDOWN		0	/* interface transition */
 #define	PRC_ROUTEDEAD		1	/* select new route if possible ??? */
 #define	PRC_IFUP		2	/* interface has come back up */
-#define	PRC_QUENCH2		3	/* DEC congestion bit says slow down */
-#define	PRC_QUENCH		4	/* some one said to slow down */
+/* was	PRC_QUENCH2		3	DEC congestion bit says slow down */
+/* was	PRC_QUENCH		4	Deprecated by RFC 6633 */
 #define	PRC_MSGSIZE		5	/* message size forced drop */
 #define	PRC_HOSTDEAD		6	/* host appears to be down */
 #define	PRC_HOSTUNREACH		7	/* deprecated (use PRC_UNREACH_HOST) */

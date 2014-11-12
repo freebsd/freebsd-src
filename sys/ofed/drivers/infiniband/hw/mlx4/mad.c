@@ -1081,7 +1081,7 @@ static void handle_lid_change_event(struct mlx4_ib_dev *dev, u8 port_num)
 
 	if (mlx4_is_master(dev->dev) && !dev->sriov.is_going_down)
 		mlx4_gen_slaves_port_mgt_ev(dev->dev, port_num,
-					    MLX4_EQ_PORT_INFO_LID_CHANGE_MASK);
+					    MLX4_EQ_PORT_INFO_LID_CHANGE_MASK, 0, 0);
 }
 
 static void handle_client_rereg_event(struct mlx4_ib_dev *dev, u8 port_num)
@@ -1093,7 +1093,7 @@ static void handle_client_rereg_event(struct mlx4_ib_dev *dev, u8 port_num)
 		if (!dev->sriov.is_going_down) {
 			mlx4_ib_mcg_port_cleanup(&dev->sriov.demux[port_num - 1], 0);
 			mlx4_gen_slaves_port_mgt_ev(dev->dev, port_num,
-						    MLX4_EQ_PORT_INFO_CLIENT_REREG_MASK);
+						    MLX4_EQ_PORT_INFO_CLIENT_REREG_MASK, 0, 0);
 		}
 	}
 	mlx4_ib_dispatch_event(dev, port_num, IB_EVENT_CLIENT_REREGISTER);
@@ -1191,7 +1191,7 @@ void handle_port_mgmt_change_event(struct work_struct *work)
 			/*if master, notify all slaves*/
 			if (mlx4_is_master(dev->dev))
 				mlx4_gen_slaves_port_mgt_ev(dev->dev, port,
-							    MLX4_EQ_PORT_INFO_GID_PFX_CHANGE_MASK);
+							    MLX4_EQ_PORT_INFO_GID_PFX_CHANGE_MASK, 0, 0);
 		}
 
 		if (changed_attr & MLX4_EQ_PORT_INFO_CLIENT_REREG_MASK)

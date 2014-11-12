@@ -375,7 +375,7 @@ enum ahci_slot_states {
 };
 
 struct ahci_slot {
-    device_t                    dev;            /* Device handle */
+    struct ahci_channel		*ch;		/* Channel */
     u_int8_t			slot;           /* Number of this slot */
     enum ahci_slot_states	state;          /* Slot state */
     union ccb			*ccb;		/* CCB occupying slot */
@@ -422,20 +422,19 @@ struct ahci_channel {
 	int			quirks;
 	int			numslots;	/* Number of present slots */
 	int			pm_level;	/* power management level */
-
-	struct ahci_slot	slot[AHCI_MAX_SLOTS];
-	union ccb		*hold[AHCI_MAX_SLOTS];
-	struct mtx		mtx;		/* state lock */
-	STAILQ_HEAD(, ccb_hdr)	doneq;		/* queue of completed CCBs */
-	int			batch;		/* doneq is in use */
 	int			devices;        /* What is present */
 	int			pm_present;	/* PM presence reported */
 	int			fbs_enabled;	/* FIS-based switching enabled */
+
+	union ccb		*hold[AHCI_MAX_SLOTS];
+	struct ahci_slot	slot[AHCI_MAX_SLOTS];
 	uint32_t		oslots;		/* Occupied slots */
 	uint32_t		rslots;		/* Running slots */
 	uint32_t		aslots;		/* Slots with atomic commands  */
 	uint32_t		eslots;		/* Slots in error */
 	uint32_t		toslots;	/* Slots in timeout */
+	int			lastslot;	/* Last used slot */
+	int			taggedtarget;	/* Last tagged target */
 	int			numrslots;	/* Number of running slots */
 	int			numrslotspd[16];/* Number of running slots per dev */
 	int			numtslots;	/* Number of tagged slots */
@@ -443,8 +442,6 @@ struct ahci_channel {
 	int			numhslots;	/* Number of held slots */
 	int			recoverycmd;	/* Our READ LOG active */
 	int			fatalerr;	/* Fatal error happend */
-	int			lastslot;	/* Last used slot */
-	int			taggedtarget;	/* Last tagged target */
 	int			resetting;	/* Hard-reset in progress. */
 	int			resetpolldiv;	/* Hard-reset poll divider. */
 	int			listening;	/* SUD bit is cleared. */
@@ -455,6 +452,10 @@ struct ahci_channel {
 
 	struct ahci_device	user[16];	/* User-specified settings */
 	struct ahci_device	curr[16];	/* Current settings */
+
+	struct mtx_padalign	mtx;		/* state lock */
+	STAILQ_HEAD(, ccb_hdr)	doneq;		/* queue of completed CCBs */
+	int			batch;		/* doneq is in use */
 };
 
 struct ahci_enclosure {

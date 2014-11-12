@@ -1434,7 +1434,7 @@ mwl_start(struct ifnet *ifp)
 		 * Pass the frame to the h/w for transmission.
 		 */
 		if (mwl_tx_start(sc, ni, bf, m)) {
-			ifp->if_oerrors++;
+			if_inc_counter(ifp, IFCOUNTER_OERRORS, 1);
 			mwl_puttxbuf_head(txq, bf);
 			ieee80211_free_node(ni);
 			continue;
@@ -1504,7 +1504,7 @@ mwl_raw_xmit(struct ieee80211_node *ni, struct mbuf *m,
 	 * Pass the frame to the h/w for transmission.
 	 */
 	if (mwl_tx_start(sc, ni, bf, m)) {
-		ifp->if_oerrors++;
+		if_inc_counter(ifp, IFCOUNTER_OERRORS, 1);
 		mwl_puttxbuf_head(txq, bf);
 
 		ieee80211_free_node(ni);
@@ -2741,7 +2741,7 @@ mwl_rx_proc(void *arg, int npending)
 #endif
 		status = ds->Status;
 		if (status & EAGLE_RXD_STATUS_DECRYPT_ERR_MASK) {
-			ifp->if_ierrors++;
+			if_inc_counter(ifp, IFCOUNTER_IERRORS, 1);
 			sc->sc_stats.mst_rx_crypto++;
 			/*
 			 * NB: Check EAGLE_RXD_STATUS_GENERAL_DECRYPT_ERR
@@ -2887,7 +2887,7 @@ mwl_rx_proc(void *arg, int npending)
 			ieee80211_dump_pkt(ic, mtod(m, caddr_t),
 			    len, ds->Rate, rssi);
 		}
-		ifp->if_ipackets++;
+		if_inc_counter(ifp, IFCOUNTER_IPACKETS, 1);
 
 		/* dispatch */
 		ni = ieee80211_find_rxnode(ic,
@@ -3405,7 +3405,7 @@ mwl_tx_start(struct mwl_softc *sc, struct ieee80211_node *ni, struct mwl_txbuf *
 	STAILQ_INSERT_TAIL(&txq->active, bf, bf_list);
 	MWL_TXDESC_SYNC(txq, ds, BUS_DMASYNC_PREREAD | BUS_DMASYNC_PREWRITE);
 
-	ifp->if_opackets++;
+	if_inc_counter(ifp, IFCOUNTER_OPACKETS, 1);
 	sc->sc_tx_timer = 5;
 	MWL_TXQ_UNLOCK(txq);
 
@@ -4785,7 +4785,7 @@ mwl_watchdog(void *arg)
 		mwl_reset(ifp);
 mwl_txq_dump(&sc->sc_txq[0]);/*XXX*/
 #endif
-		ifp->if_oerrors++;
+		if_inc_counter(ifp, IFCOUNTER_OERRORS, 1);
 		sc->sc_stats.mst_watchdog++;
 	}
 }
@@ -4928,8 +4928,10 @@ mwl_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 	case SIOCGMVSTATS:
 		mwl_hal_gethwstats(sc->sc_mh, &sc->sc_stats.hw_stats);
 		/* NB: embed these numbers to get a consistent view */
-		sc->sc_stats.mst_tx_packets = ifp->if_opackets;
-		sc->sc_stats.mst_rx_packets = ifp->if_ipackets;
+		sc->sc_stats.mst_tx_packets =
+		    ifp->if_get_counter(ifp, IFCOUNTER_OPACKETS);
+		sc->sc_stats.mst_rx_packets =
+		    ifp->if_get_counter(ifp, IFCOUNTER_IPACKETS);
 		/*
 		 * NB: Drop the softc lock in case of a page fault;
 		 * we'll accept any potential inconsisentcy in the

@@ -214,6 +214,9 @@ comc_port_set(struct env_var *ev, int flags, const void *value)
 static uint32_t
 comc_parse_pcidev(const char *string)
 {
+#ifdef NO_PCI
+	return (0);
+#else
 	char *p, *p1;
 	uint8_t bus, dev, func, bar;
 	uint32_t locator;
@@ -247,11 +250,15 @@ comc_parse_pcidev(const char *string)
 
 	locator = (bar << 16) | biospci_locator(bus, dev, func);
 	return (locator);
+#endif
 }
 
 static int
 comc_pcidev_handle(uint32_t locator)
 {
+#ifdef NO_PCI
+	return (CMD_ERROR);
+#else
 	char intbuf[64];
 	uint32_t port;
 
@@ -275,6 +282,7 @@ comc_pcidev_handle(uint32_t locator)
 	comc_locator = locator;
 
 	return (CMD_OK);
+#endif
 }
 
 static int

@@ -176,10 +176,8 @@ sb_dspwr(struct sb_info *sb, u_char val)
 			return 1;
 		}
     	}
-#if __FreeBSD_version > 500000
 	if (curthread->td_intr_nesting_level == 0)
 		printf("sb_dspwr(0x%02x) timed out.\n", val);
-#endif
     	return 0;
 }
 

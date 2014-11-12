@@ -1008,7 +1008,7 @@ fxp_detach(device_t dev)
 
 #ifdef DEVICE_POLLING
 	if (if_getcapenable(sc->ifp) & IFCAP_POLLING)
-		ether_poll_deregister_drv(sc->ifp);
+		ether_poll_deregister(sc->ifp);
 #endif
 
 	FXP_LOCK(sc);
@@ -1670,7 +1670,7 @@ fxp_encap(struct fxp_softc *sc, struct mbuf **m_head)
 }
 
 #ifdef DEVICE_POLLING
-static poll_handler_drv_t fxp_poll;
+static poll_handler_t fxp_poll;
 
 static int
 fxp_poll(if_t ifp, enum poll_cmd cmd, int count)
@@ -2012,7 +2012,7 @@ fxp_intr_body(struct fxp_softc *sc, if_t ifp, uint8_t statack,
 				return (rx_npkts);
 		} else {
 			/* Reuse RFA and loaded DMA map. */
-			if_inciqdrops(ifp, 1);
+			if_inc_counter(ifp, IFCOUNTER_IQDROPS, 1);
 			fxp_discard_rfabuf(sc, rxp);
 		}
 		fxp_add_rfabuf(sc, rxp);
@@ -2070,10 +2070,12 @@ fxp_update_stats(struct fxp_softc *sc)
 		hsp->tx_tco += le16toh(sp->tx_tco);
 		hsp->rx_tco += le16toh(sp->rx_tco);
 
-		if_incopackets(ifp, le32toh(sp->tx_good));
-		if_inccollisions(ifp, le32toh(sp->tx_total_collisions));
+		if_inc_counter(ifp, IFCOUNTER_OPACKETS, le32toh(sp->tx_good));
+		if_inc_counter(ifp, IFCOUNTER_COLLISIONS,
+		    le32toh(sp->tx_total_collisions));
 		if (sp->rx_good) {
-			if_incipackets(ifp, le32toh(sp->rx_good));
+			if_inc_counter(ifp, IFCOUNTER_IPACKETS,
+			    le32toh(sp->rx_good));
 			sc->rx_idle_secs = 0;
 		} else if (sc->flags & FXP_FLAG_RXBUG) {
 			/*
@@ -2081,7 +2083,7 @@ fxp_update_stats(struct fxp_softc *sc)
 			 */
 			sc->rx_idle_secs++;
 		}
-		if_incierrors(ifp,
+		if_inc_counter(ifp, IFCOUNTER_IERRORS,
 		    le32toh(sp->rx_crc_errors) +
 		    le32toh(sp->rx_alignment_errors) +
 		    le32toh(sp->rx_rnr_errors) +
@@ -2091,7 +2093,8 @@ fxp_update_stats(struct fxp_softc *sc)
 		 * threshold by another 512 bytes (64 * 8).
 		 */
 		if (sp->tx_underruns) {
-			if_incoerrors(ifp, le32toh(sp->tx_underruns));
+			if_inc_counter(ifp, IFCOUNTER_OERRORS,
+			    le32toh(sp->tx_underruns));
 			if (tx_threshold < 192)
 				tx_threshold += 64;
 		}
@@ -2244,7 +2247,7 @@ fxp_watchdog(struct fxp_softc *sc)
 		return;
 
 	device_printf(sc->dev, "device timeout\n");
-	if_incoerrors(ifp, 1);
+	if_inc_counter(ifp, IFCOUNTER_OERRORS, 1);
 
 	if_setdrvflagbits(ifp, 0, IFF_DRV_RUNNING);
 	fxp_init_body(sc, 1);
@@ -2887,7 +2890,7 @@ fxp_ioctl(if_t ifp, u_long command, caddr_t data)
 #ifdef DEVICE_POLLING
 		if (mask & IFCAP_POLLING) {
 			if (ifr->ifr_reqcap & IFCAP_POLLING) {
-				error = ether_poll_register_drv(fxp_poll, ifp);
+				error = ether_poll_register(fxp_poll, ifp);
 				if (error)
 					return(error);
 				FXP_LOCK(sc);
@@ -2896,7 +2899,7 @@ fxp_ioctl(if_t ifp, u_long command, caddr_t data)
 				if_setcapenablebit(ifp, IFCAP_POLLING, 0);
 				FXP_UNLOCK(sc);
 			} else {
-				error = ether_poll_deregister_drv(ifp);
+				error = ether_poll_deregister(ifp);
 				/* Enable interrupts in any case */
 				FXP_LOCK(sc);
 				CSR_WRITE_1(sc, FXP_CSR_SCB_INTRCNTL, 0);

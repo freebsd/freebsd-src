@@ -59,13 +59,6 @@ __FBSDID("$FreeBSD$");
 
 #include <security/mac/mac_framework.h>
 
-/*
- * Define it to get a correct behavior on per-interface statistics.
- * You will need to perform an extra routing table lookup, per fragment,
- * to do it.  This may, or may not be, a performance hit.
- */
-#define IN6_IFSTAT_STRICT
-
 static void frag6_enq(struct ip6asfrag *, struct ip6asfrag *);
 static void frag6_deq(struct ip6asfrag *);
 static void frag6_insque(struct ip6q *, struct ip6q *);
@@ -160,9 +153,7 @@ frag6_input(struct mbuf **mp, int *offp, int proto)
 	struct ip6_frag *ip6f;
 	struct ip6q *q6;
 	struct ip6asfrag *af6, *ip6af, *af6dwn;
-#ifdef IN6_IFSTAT_STRICT
 	struct in6_ifaddr *ia;
-#endif
 	int offset = *offp, nxt, i, next;
 	int first_frag = 0;
 	int fragoff, frgpartlen;	/* must be larger than u_int16_t */
@@ -183,18 +174,12 @@ frag6_input(struct mbuf **mp, int *offp, int proto)
 #endif
 
 	dstifp = NULL;
-#ifdef IN6_IFSTAT_STRICT
 	/* find the destination interface of the packet. */
-	if ((ia = ip6_getdstifaddr(m)) != NULL) {
+	ia = in6ifa_ifwithaddr(&ip6->ip6_dst, 0 /* XXX */);
+	if (ia != NULL) {
 		dstifp = ia->ia_ifp;
 		ifa_free(&ia->ia_ifa);
 	}
-#else
-	/* we are violating the spec, this is not the destination interface */
-	if ((m->m_flags & M_PKTHDR) != 0)
-		dstifp = m->m_pkthdr.rcvif;
-#endif
-
 	/* jumbo payload can't contain a fragment header */
 	if (ip6->ip6_plen == 0) {
 		icmp6_error(m, ICMP6_PARAM_PROB, ICMP6_PARAMPROB_HEADER, offset);

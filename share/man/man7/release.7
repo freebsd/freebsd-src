@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd April 11, 2014
+.Dd October 2, 2014
 .Dt RELEASE 7
 .Os
 .Sh NAME
@@ -351,6 +351,61 @@ Set to the target directory within
 to check out
 .Va ${UBOOTSRC}/${UBOOTBRANCH} .
 .El
+.Sh VIRTUAL MACHINE DISK IMAGES
+The following
+.Fa release.conf
+variables are relevant only to virtual machine disk image builds:
+.Bl -tag -width Ev
+.It Va WITH_VMIMAGES
+Set to a non-null value to build virtual machine disk images as part
+of the release build.
+.Va WITH_VMIMAGES
+may also be specified as an envirionment variable passed to
+.Xr make 1 .
+.Pp
+The option requires
+.Xr mkimg 1
+version 20140927 or later.
+.It Va WITH_COMPRESSED_VMIMAGES
+Set to a non-null value to compress the virtual machine disk images with
+.Xr xz 1
+as part of the
+.Cm install
+.Xr make 1
+target.
+Note that compressing virtual machine disk images may take a very long
+time on some systems.
+.It Va VMBASE
+Set to change the name of the resulting virtual machine disk image file.
+The default value is
+.Va vm .
+.It Va VMSIZE
+Set to change the size of the virtual machine disk capacity.
+The default value is
+.Va 20G .
+See
+.Xr truncate 1
+for valid values.
+.Pp
+Virtual machine disk images are, by default, created as sparse images.
+When
+.Va WITH_COMPRESSED_VMIMAGES
+is used, the resulting files compressed with
+.Xr xz 1
+compress to roughly the same size, regardless of the specified disk image
+size.
+.It Va VMFORMATS
+Set to the target virtual disk image format(s) to create.
+By default, the
+.Va vhdf , Va vmdk , Va qcow2 ,
+and
+.Va raw
+formats are created.
+See
+.Xr mkimg 1
+for valid format values
+.Pq requires version 20140927 or later .
+.El
 .Sh MAKEFILE TARGETS
 The release makefile
 .Pq Pa src/release/Makefile
@@ -407,6 +462,14 @@ Creates a directory named
 .Pa ftp
 containing the distribution files used in network installations
 and suitable for upload to an FTP mirror.
+.It Cm vm-image
+Creates virtual machine disk images in various formats.
+The
+.Cm vm-image
+target requires the
+.Va WITH_VMIMAGES
+.Xr make 1
+envirionment variable to be set to a non-null value.
 .El
 .Pp
 Major subtargets called by targets above:

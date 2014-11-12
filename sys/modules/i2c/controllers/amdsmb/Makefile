@@ -1,6 +1,6 @@
 # $FreeBSD$
 
-.PATH: ${.CURDIR}/../../../../pci
+.PATH: ${.CURDIR}/../../../../dev/amdsmb
 
 KMOD=	amdsmb
 SRCS=	amdsmb.c

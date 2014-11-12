@@ -31,7 +31,7 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#include <sys/types.h>
+#include <sys/param.h>
 #include <sys/socket.h>
 
 #include <errno.h>
@@ -55,6 +55,8 @@ __FBSDID("$FreeBSD$");
 #define	PJDLOG_RASSERT(expr, ...)	assert(expr)
 #define	PJDLOG_ABORT(...)		abort()
 #endif
+
+#define	PKG_MAX_SIZE	(MCLBYTES / CMSG_SPACE(sizeof(int)) - 1)
 
 static int
 msghdr_add_fd(struct cmsghdr *cmsg, int fd)
@@ -234,22 +236,31 @@ cred_recv(int sock, struct cmsgcred *cred)
 	return (0);
 }
 
-int
-fd_send(int sock, const int *fds, size_t nfds)
+static int
+fd_package_send(int sock, const int *fds, size_t nfds)
 {
 	struct msghdr msg;
 	struct cmsghdr *cmsg;
+	struct iovec iov;
 	unsigned int i;
 	int serrno, ret;
+	uint8_t dummy;
 
-	if (nfds == 0 || fds == NULL) {
-		errno = EINVAL;
-		return (-1);
-	}
+	PJDLOG_ASSERT(sock >= 0);
+	PJDLOG_ASSERT(fds != NULL);
+	PJDLOG_ASSERT(nfds > 0);
 
 	bzero(&msg, sizeof(msg));
-	msg.msg_iov = NULL;
-	msg.msg_iovlen = 0;
+
+	/*
+	 * XXX: Look into cred_send function for more details.
+	 */
+	dummy = 0;
+	iov.iov_base = &dummy;
+	iov.iov_len = sizeof(dummy);
+
+	msg.msg_iov = &iov;
+	msg.msg_iovlen = 1;
 	msg.msg_controllen = nfds * CMSG_SPACE(sizeof(int));
 	msg.msg_control = calloc(1, msg.msg_controllen);
 	if (msg.msg_control == NULL)
@@ -274,22 +285,32 @@ end:
 	return (ret);
 }
 
-int
-fd_recv(int sock, int *fds, size_t nfds)
+static int
+fd_package_recv(int sock, int *fds, size_t nfds)
 {
 	struct msghdr msg;
 	struct cmsghdr *cmsg;
 	unsigned int i;
 	int serrno, ret;
+	struct iovec iov;
+	uint8_t dummy;
 
-	if (nfds == 0 || fds == NULL) {
-		errno = EINVAL;
-		return (-1);
-	}
+	PJDLOG_ASSERT(sock >= 0);
+	PJDLOG_ASSERT(nfds > 0);
+	PJDLOG_ASSERT(fds != NULL);
 
+	i = 0;
 	bzero(&msg, sizeof(msg));
-	msg.msg_iov = NULL;
-	msg.msg_iovlen = 0;
+	bzero(&iov, sizeof(iov));
+
+	/*
+	 * XXX: Look into cred_send function for more details.
+	 */
+	iov.iov_base = &dummy;
+	iov.iov_len = sizeof(dummy);
+
+	msg.msg_iov = &iov;
+	msg.msg_iovlen = 1;
 	msg.msg_controllen = nfds * CMSG_SPACE(sizeof(int));
 	msg.msg_control = calloc(1, msg.msg_controllen);
 	if (msg.msg_control == NULL)
@@ -329,6 +350,64 @@ end:
 	serrno = errno;
 	free(msg.msg_control);
 	errno = serrno;
+	return (ret);
+}
+
+int
+fd_recv(int sock, int *fds, size_t nfds)
+{
+	unsigned int i, step, j;
+	int ret, serrno;
+
+	if (nfds == 0 || fds == NULL) {
+		errno = EINVAL;
+		return (-1);
+	}
+
+	ret = i = step = 0;
+	while (i < nfds) {
+		if (PKG_MAX_SIZE < nfds - i)
+			step = PKG_MAX_SIZE;
+		else
+			step = nfds - i;
+		ret = fd_package_recv(sock, fds + i, step);
+		if (ret != 0) {
+			/* Close all received descriptors. */
+			serrno = errno;
+			for (j = 0; j < i; j++)
+				close(fds[j]);
+			errno = serrno;
+			break;
+		}
+		i += step;
+	}
+
+	return (ret);
+}
+
+int
+fd_send(int sock, const int *fds, size_t nfds)
+{
+	unsigned int i, step;
+	int ret;
+
+	if (nfds == 0 || fds == NULL) {
+		errno = EINVAL;
+		return (-1);
+	}
+
+	ret = i = step = 0;
+	while (i < nfds) {
+		if (PKG_MAX_SIZE < nfds - i)
+			step = PKG_MAX_SIZE;
+		else
+			step = nfds - i;
+		ret = fd_package_send(sock, fds + i, step);
+		if (ret != 0)
+			break;
+		i += step;
+	}
+
 	return (ret);
 }
 

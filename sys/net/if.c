@@ -99,10 +99,6 @@
 #include <compat/freebsd32/freebsd32.h>
 #endif
 
-struct ifindex_entry {
-	struct  ifnet *ife_ifnet;
-};
-
 SYSCTL_NODE(_net, PF_LINK, link, CTLFLAG_RW, 0, "Link layers");
 SYSCTL_NODE(_net_link, 0, generic, CTLFLAG_RW, 0, "Generic link-management");
 
@@ -163,7 +159,6 @@ static void	if_attachdomain(void *);
 static void	if_attachdomain1(struct ifnet *);
 static int	ifconf(u_long, caddr_t);
 static void	if_freemulti(struct ifmultiaddr *);
-static void	if_init(void *);
 static void	if_grow(void);
 static void	if_route(struct ifnet *, int flag, int fam);
 static int	if_setflag(struct ifnet *, int, int, int *, int);
@@ -196,7 +191,7 @@ VNET_DEFINE(struct ifgrouphead, ifg_head);
 static VNET_DEFINE(int, if_indexlim) = 8;
 
 /* Table of ifnet by index. */
-VNET_DEFINE(struct ifindex_entry *, ifindex_table);
+VNET_DEFINE(struct ifnet **, ifindex_table);
 
 #define	V_if_indexlim		VNET(if_indexlim)
 #define	V_ifindex_table		VNET(ifindex_table)
@@ -211,7 +206,9 @@ VNET_DEFINE(struct ifindex_entry *, ifindex_table);
  * inversions and deadlocks.
  */
 struct rwlock ifnet_rwlock;
+RW_SYSINIT_FLAGS(ifnet_rw, &ifnet_rwlock, "ifnet_rw", RW_RECURSE);
 struct sx ifnet_sxlock;
+SX_SYSINIT_FLAGS(ifnet_sx, &ifnet_sxlock, "ifnet_sx", SX_RECURSE);
 
 /*
  * The allocation of network interfaces is a rather non-atomic affair; we
@@ -233,9 +230,9 @@ ifnet_byindex_locked(u_short idx)
 
 	if (idx > V_if_index)
 		return (NULL);
-	if (V_ifindex_table[idx].ife_ifnet == IFNET_HOLD)
+	if (V_ifindex_table[idx] == IFNET_HOLD)
 		return (NULL);
-	return (V_ifindex_table[idx].ife_ifnet);
+	return (V_ifindex_table[idx]);
 }
 
 struct ifnet *
@@ -269,20 +266,19 @@ ifnet_byindex_ref(u_short idx)
  * Allocate an ifindex array entry; return 0 on success or an error on
  * failure.
  */
-static int
-ifindex_alloc_locked(u_short *idxp)
+static u_short
+ifindex_alloc(void)
 {
 	u_short idx;
 
 	IFNET_WLOCK_ASSERT();
-
 retry:
 	/*
 	 * Try to find an empty slot below V_if_index.  If we fail, take the
 	 * next slot.
 	 */
 	for (idx = 1; idx <= V_if_index; idx++) {
-		if (V_ifindex_table[idx].ife_ifnet == NULL)
+		if (V_ifindex_table[idx] == NULL)
 			break;
 	}
 
@@ -293,8 +289,7 @@ retry:
 	}
 	if (idx > V_if_index)
 		V_if_index = idx;
-	*idxp = idx;
-	return (0);
+	return (idx);
 }
 
 static void
@@ -303,9 +298,9 @@ ifindex_free_locked(u_short idx)
 
 	IFNET_WLOCK_ASSERT();
 
-	V_ifindex_table[idx].ife_ifnet = NULL;
+	V_ifindex_table[idx] = NULL;
 	while (V_if_index > 0 &&
-	    V_ifindex_table[V_if_index].ife_ifnet == NULL)
+	    V_ifindex_table[V_if_index] == NULL)
 		V_if_index--;
 }
 
@@ -324,7 +319,7 @@ ifnet_setbyindex_locked(u_short idx, struct ifnet *ifp)
 
 	IFNET_WLOCK_ASSERT();
 
-	V_ifindex_table[idx].ife_ifnet = ifp;
+	V_ifindex_table[idx] = ifp;
 }
 
 static void
@@ -370,17 +365,6 @@ vnet_if_init(const void *unused __unused)
 VNET_SYSINIT(vnet_if_init, SI_SUB_INIT_IF, SI_ORDER_SECOND, vnet_if_init,
     NULL);
 
-/* ARGSUSED*/
-static void
-if_init(void *dummy __unused)
-{
-
-	IFNET_LOCK_INIT();
-	if_clone_init();
-}
-SYSINIT(interfaces, SI_SUB_INIT_IF, SI_ORDER_FIRST, if_init, NULL);
-
-
 #ifdef VIMAGE
 static void
 vnet_if_uninit(const void *unused __unused)
@@ -402,7 +386,7 @@ if_grow(void)
 {
 	int oldlim;
 	u_int n;
-	struct ifindex_entry *e;
+	struct ifnet **e;
 
 	IFNET_WLOCK_ASSERT();
 	oldlim = V_if_indexlim;
@@ -435,11 +419,7 @@ if_alloc(u_char type)
 
 	ifp = malloc(sizeof(struct ifnet), M_IFNET, M_WAITOK|M_ZERO);
 	IFNET_WLOCK();
-	if (ifindex_alloc_locked(&idx) != 0) {
-		IFNET_WUNLOCK();
-		free(ifp, M_IFNET);
-		return (NULL);
-	}
+	idx = ifindex_alloc();
 	ifnet_setbyindex_locked(idx, IFNET_HOLD);
 	IFNET_WUNLOCK();
 	ifp->if_index = idx;
@@ -467,6 +447,9 @@ if_alloc(u_char type)
 	ifq_init(&ifp->if_snd, ifp);
 
 	refcount_init(&ifp->if_refcount, 1);	/* Index reference. */
+	for (int i = 0; i < IFCOUNTERS; i++)
+		ifp->if_counters[i] = counter_u64_alloc(M_WAITOK);
+	ifp->if_get_counter = if_get_counter_default;
 	ifnet_setbyindex(ifp->if_index, ifp);
 	return (ifp);
 }
@@ -495,6 +478,10 @@ if_free_internal(struct ifnet *ifp)
 	IF_AFDATA_DESTROY(ifp);
 	IF_ADDR_LOCK_DESTROY(ifp);
 	ifq_delete(&ifp->if_snd);
+
+	for (int i = 0; i < IFCOUNTERS; i++)
+		counter_u64_free(ifp->if_counters[i]);
+
 	free(ifp, M_IFNET);
 }
 
@@ -584,6 +571,57 @@ if_attach(struct ifnet *ifp)
 	if_attach_internal(ifp, 0);
 }
 
+/*
+ * Compute the least common TSO limit.
+ */
+void
+if_hw_tsomax_common(if_t ifp, struct ifnet_hw_tsomax *pmax)
+{
+	/*
+	 * 1) If there is no limit currently, take the limit from
+	 * the network adapter.
+	 *
+	 * 2) If the network adapter has a limit below the current
+	 * limit, apply it.
+	 */
+	if (pmax->tsomaxbytes == 0 || (ifp->if_hw_tsomax != 0 &&
+	    ifp->if_hw_tsomax < pmax->tsomaxbytes)) {
+		pmax->tsomaxbytes = ifp->if_hw_tsomax;
+	}
+	if (pmax->tsomaxsegcount == 0 || (ifp->if_hw_tsomaxsegcount != 0 &&
+	    ifp->if_hw_tsomaxsegcount < pmax->tsomaxsegcount)) {
+		pmax->tsomaxsegcount = ifp->if_hw_tsomaxsegcount;
+	}
+	if (pmax->tsomaxsegsize == 0 || (ifp->if_hw_tsomaxsegsize != 0 &&
+	    ifp->if_hw_tsomaxsegsize < pmax->tsomaxsegsize)) {
+		pmax->tsomaxsegsize = ifp->if_hw_tsomaxsegsize;
+	}
+}
+
+/*
+ * Update TSO limit of a network adapter.
+ *
+ * Returns zero if no change. Else non-zero.
+ */
+int
+if_hw_tsomax_update(if_t ifp, struct ifnet_hw_tsomax *pmax)
+{
+	int retval = 0;
+	if (ifp->if_hw_tsomax != pmax->tsomaxbytes) {
+		ifp->if_hw_tsomax = pmax->tsomaxbytes;
+		retval++;
+	}
+	if (ifp->if_hw_tsomaxsegsize != pmax->tsomaxsegsize) {
+		ifp->if_hw_tsomaxsegsize = pmax->tsomaxsegsize;
+		retval++;
+	}
+	if (ifp->if_hw_tsomaxsegcount != pmax->tsomaxsegcount) {
+		ifp->if_hw_tsomaxsegcount = pmax->tsomaxsegcount;
+		retval++;
+	}
+	return (retval);
+}
+
 static void
 if_attach_internal(struct ifnet *ifp, int vmove)
 {
@@ -614,9 +652,6 @@ if_attach_internal(struct ifnet *ifp, int vmove)
 		ifp->if_transmit = if_transmit;
 		ifp->if_qflush = if_qflush;
 	}
-
-	if (ifp->if_get_counter == NULL)
-		ifp->if_get_counter = if_get_counter_compat;
 
 	if (!vmove) {
 #ifdef MAC
@@ -659,13 +694,29 @@ if_attach_internal(struct ifnet *ifp, int vmove)
 		ifp->if_broadcastaddr = NULL;
 
 #if defined(INET) || defined(INET6)
-		/* Initialize to max value. */
-		if (ifp->if_hw_tsomax == 0)
-			ifp->if_hw_tsomax = min(IP_MAXPACKET, 32 * MCLBYTES -
+		/* Use defaults for TSO, if nothing is set */
+		if (ifp->if_hw_tsomax == 0 &&
+		    ifp->if_hw_tsomaxsegcount == 0 &&
+		    ifp->if_hw_tsomaxsegsize == 0) {
+			/*
+			 * The TSO defaults needs to be such that an
+			 * NFS mbuf list of 35 mbufs totalling just
+			 * below 64K works and that a chain of mbufs
+			 * can be defragged into at most 32 segments:
+			 */
+			ifp->if_hw_tsomax = min(IP_MAXPACKET, (32 * MCLBYTES) -
 			    (ETHER_HDR_LEN + ETHER_VLAN_ENCAP_LEN));
-		KASSERT(ifp->if_hw_tsomax <= IP_MAXPACKET &&
-		    ifp->if_hw_tsomax >= IP_MAXPACKET / 8,
-		    ("%s: tsomax outside of range", __func__));
+			ifp->if_hw_tsomaxsegcount = 35;
+			ifp->if_hw_tsomaxsegsize = 2048;	/* 2K */
+
+			/* XXX some drivers set IFCAP_TSO after ethernet attach */
+			if (ifp->if_capabilities & IFCAP_TSO) {
+				if_printf(ifp, "Using defaults for TSO: %u/%u/%u\n",
+				    ifp->if_hw_tsomax,
+				    ifp->if_hw_tsomaxsegcount,
+				    ifp->if_hw_tsomaxsegsize);
+			}
+		}
 #endif
 	}
 #ifdef VIMAGE
@@ -948,7 +999,6 @@ if_detach_internal(struct ifnet *ifp, int vmove)
 void
 if_vmove(struct ifnet *ifp, struct vnet *new_vnet)
 {
-	u_short idx;
 
 	/*
 	 * Detach from current vnet, but preserve LLADDR info, do not
@@ -980,11 +1030,7 @@ if_vmove(struct ifnet *ifp, struct vnet *new_vnet)
 	CURVNET_SET_QUIET(new_vnet);
 
 	IFNET_WLOCK();
-	if (ifindex_alloc_locked(&idx) != 0) {
-		IFNET_WUNLOCK();
-		panic("if_index overflow");
-	}
-	ifp->if_index = idx;
+	ifp->if_index = ifindex_alloc();
 	ifnet_setbyindex_locked(ifp->if_index, ifp);
 	IFNET_WUNLOCK();
 
@@ -1386,39 +1432,28 @@ if_rtdel(struct radix_node *rn, void *arg)
 }
 
 /*
- * Return counter values from old racy non-pcpu counters.
+ * Return counter values from counter(9)s stored in ifnet.
  */
 uint64_t
-if_get_counter_compat(struct ifnet *ifp, ifnet_counter cnt)
+if_get_counter_default(struct ifnet *ifp, ift_counter cnt)
 {
 
-	switch (cnt) {
-		case IFCOUNTER_IPACKETS:
-			return (ifp->if_ipackets);
-		case IFCOUNTER_IERRORS:
-			return (ifp->if_ierrors);
-		case IFCOUNTER_OPACKETS:
-			return (ifp->if_opackets);
-		case IFCOUNTER_OERRORS:
-			return (ifp->if_oerrors);
-		case IFCOUNTER_COLLISIONS:
-			return (ifp->if_collisions);
-		case IFCOUNTER_IBYTES:
-			return (ifp->if_ibytes);
-		case IFCOUNTER_OBYTES:
-			return (ifp->if_obytes);
-		case IFCOUNTER_IMCASTS:
-			return (ifp->if_imcasts);
-		case IFCOUNTER_OMCASTS:
-			return (ifp->if_omcasts);
-		case IFCOUNTER_IQDROPS:
-			return (ifp->if_iqdrops);
-		case IFCOUNTER_OQDROPS:
-			return (ifp->if_oqdrops);
-		case IFCOUNTER_NOPROTO:
-			return (ifp->if_noproto);
-	}
-	panic("%s: unknown counter %d", __func__, cnt);
+	KASSERT(cnt < IFCOUNTERS, ("%s: invalid cnt %d", __func__, cnt));
+
+	return (counter_u64_fetch(ifp->if_counters[cnt]));
+}
+
+/*
+ * Increase an ifnet counter. Usually used for counters shared
+ * between the stack and a driver, but function supports them all.
+ */
+void
+if_inc_counter(struct ifnet *ifp, ift_counter cnt, int64_t inc)
+{
+
+	KASSERT(cnt < IFCOUNTERS, ("%s: invalid cnt %d", __func__, cnt));
+
+	counter_u64_add(ifp->if_counters[cnt], inc);
 }
 
 /*
@@ -1694,13 +1729,15 @@ ifa_ifwithaddr_check(struct sockaddr *addr)
  */
 /* ARGSUSED */
 struct ifaddr *
-ifa_ifwithbroadaddr(struct sockaddr *addr)
+ifa_ifwithbroadaddr(struct sockaddr *addr, int fibnum)
 {
 	struct ifnet *ifp;
 	struct ifaddr *ifa;
 
 	IFNET_RLOCK_NOSLEEP();
 	TAILQ_FOREACH(ifp, &V_ifnet, if_link) {
+		if ((fibnum != RT_ALL_FIBS) && (ifp->if_fib != fibnum))
+			continue;
 		IF_ADDR_RLOCK(ifp);
 		TAILQ_FOREACH(ifa, &ifp->if_addrhead, ifa_link) {
 			if (ifa->ifa_addr->sa_family != addr->sa_family)
@@ -1727,7 +1764,7 @@ done:
  */
 /*ARGSUSED*/
 struct ifaddr *
-ifa_ifwithdstaddr_fib(struct sockaddr *addr, int fibnum)
+ifa_ifwithdstaddr(struct sockaddr *addr, int fibnum)
 {
 	struct ifnet *ifp;
 	struct ifaddr *ifa;
@@ -1757,19 +1794,12 @@ done:
 	return (ifa);
 }
 
-struct ifaddr *
-ifa_ifwithdstaddr(struct sockaddr *addr)
-{
-
-	return (ifa_ifwithdstaddr_fib(addr, RT_ALL_FIBS));
-}
-
 /*
  * Find an interface on a specific network.  If many, choice
  * is most specific found.
  */
 struct ifaddr *
-ifa_ifwithnet_fib(struct sockaddr *addr, int ignore_ptp, int fibnum)
+ifa_ifwithnet(struct sockaddr *addr, int ignore_ptp, int fibnum)
 {
 	struct ifnet *ifp;
 	struct ifaddr *ifa;
@@ -1867,13 +1897,6 @@ done:
 	return (ifa);
 }
 
-struct ifaddr *
-ifa_ifwithnet(struct sockaddr *addr, int ignore_ptp)
-{
-
-	return (ifa_ifwithnet_fib(addr, ignore_ptp, RT_ALL_FIBS));
-}
-
 /*
  * Find an interface address specific to an interface best matching
  * a given address.
@@ -1953,8 +1976,6 @@ link_rtrequest(int cmd, struct rtentry *rt, struct rt_addrinfo *info)
 	struct ifaddr *ifa, *oifa;
 	struct sockaddr *dst;
 	struct ifnet *ifp;
-
-	RT_LOCK_ASSERT(rt);
 
 	if (cmd != RTM_ADD || ((ifa = rt->rt_ifa) == 0) ||
 	    ((ifp = ifa->ifa_ifp) == 0) || ((dst = rt_key(rt)) == 0))
@@ -2087,7 +2108,7 @@ do_link_state_change(void *arg, int pending)
 		(*vlan_link_state_p)(ifp);
 
 	if ((ifp->if_type == IFT_ETHER || ifp->if_type == IFT_L2VLAN) &&
-	    IFP2AC(ifp)->ac_netgraph != NULL)
+	    ifp->if_l2com != NULL)
 		(*ng_ether_link_state_p)(ifp, link_state);
 	if (ifp->if_carp)
 		(*carp_linkstate_p)(ifp);
@@ -3483,15 +3504,15 @@ if_handoff(struct ifqueue *ifq, struct mbuf *m, struct ifnet *ifp, int adjust)
 
 	IF_LOCK(ifq);
 	if (_IF_QFULL(ifq)) {
-		_IF_DROP(ifq);
 		IF_UNLOCK(ifq);
+		if_inc_counter(ifp, IFCOUNTER_OQDROPS, 1);
 		m_freem(m);
 		return (0);
 	}
 	if (ifp != NULL) {
-		ifp->if_obytes += m->m_pkthdr.len + adjust;
+		if_inc_counter(ifp, IFCOUNTER_OBYTES, m->m_pkthdr.len + adjust);
 		if (m->m_flags & (M_BCAST|M_MCAST))
-			ifp->if_omcasts++;
+			if_inc_counter(ifp, IFCOUNTER_OMCASTS, 1);
 		active = ifp->if_drv_flags & IFF_DRV_OACTIVE;
 	}
 	_IF_ENQUEUE(ifq, m);
@@ -3704,6 +3725,19 @@ if_getmtu(if_t ifp)
 }
 
 int
+if_getmtu_family(if_t ifp, int family)
+{
+	struct domain *dp;
+
+	for (dp = domains; dp; dp = dp->dom_next) {
+		if (dp->dom_family == family && dp->dom_ifmtu != NULL)
+			return (dp->dom_ifmtu((struct ifnet *)ifp));
+	}
+
+	return (((struct ifnet *)ifp)->if_mtu);
+}
+
+int
 if_setsoftc(if_t ifp, void *softc)
 {
 	((struct ifnet *)ifp)->if_softc = softc;
@@ -3735,138 +3769,11 @@ if_getvtag(struct mbuf *m)
 	return (m->m_pkthdr.ether_vtag);
 }
 
-/* Statistics */
-int
-if_incipackets(if_t ifp, int pkts)
-{
-	((struct ifnet *)ifp)->if_ipackets += pkts;
-	return (0);
-}
-
-int
-if_incopackets(if_t ifp, int pkts)
-{
-	((struct ifnet *)ifp)->if_opackets += pkts;
-	return (0);
-}
-
-int
-if_incierrors(if_t ifp, int ierrors)
-{
-	((struct ifnet *)ifp)->if_ierrors += ierrors;
-	return (0);
-}
-
-
-int
-if_setierrors(if_t ifp, int ierrors)
-{
-	((struct ifnet *)ifp)->if_ierrors = ierrors;
-	return (0);
-}
-
-int
-if_setoerrors(if_t ifp, int oerrors)
-{
-	((struct ifnet *)ifp)->if_oerrors = oerrors;
-	return (0);
-}
-
-int if_incoerrors(if_t ifp, int oerrors)
-{
-	((struct ifnet *)ifp)->if_oerrors += oerrors;
-	return (0);
-}
-
-int if_inciqdrops(if_t ifp, int val)
-{
-	((struct ifnet *)ifp)->if_iqdrops += val;
-	return (0);
-}
-
-int
-if_setcollisions(if_t ifp, int collisions)
-{
-	((struct ifnet *)ifp)->if_collisions = collisions;
-	return (0);
-}
-
-int
-if_inccollisions(if_t ifp, int collisions)
-{
-	((struct ifnet *)ifp)->if_collisions += collisions;
-	return (0);
-}
- 
-int
-if_setipackets(if_t ifp, int pkts)
-{
-	((struct ifnet *)ifp)->if_ipackets = pkts;
-	return (0);
-}
-
-int
-if_setopackets(if_t ifp, int pkts)
-{
-	((struct ifnet *)ifp)->if_opackets = pkts;
-	return (0);
-}
-
-int
-if_incobytes(if_t ifp, int bytes)
-{
-	((struct ifnet *)ifp)->if_obytes += bytes;
-	return (0);
-}
-
-int
-if_setibytes(if_t ifp, int bytes)
-{
-	((struct ifnet *)ifp)->if_ibytes = bytes;
-	return (0);
-}
-
-int
-if_setobytes(if_t ifp, int bytes)
-{
-	((struct ifnet *)ifp)->if_obytes = bytes;
-	return (0);
-}
-
-
 int
 if_sendq_empty(if_t ifp)
 {
 	return IFQ_DRV_IS_EMPTY(&((struct ifnet *)ifp)->if_snd);
 }
-
-int if_getiqdrops(if_t ifp)
-{
-	return ((struct ifnet *)ifp)->if_iqdrops;
-}
-
-int
-if_incimcasts(if_t ifp, int mcast)
-{
-	((struct ifnet *)ifp)->if_imcasts += mcast;
-	return (0);
-}
-
-
-int
-if_incomcasts(if_t ifp, int mcast)
-{
-	((struct ifnet *)ifp)->if_omcasts += mcast;
-	return (0);
-}
-
-int
-if_setimcasts(if_t ifp, int mcast)
-{
-	((struct ifnet *)ifp)->if_imcasts = mcast;
-	return (0);
-}
-
 
 struct ifaddr *
 if_getifaddr(if_t ifp)
@@ -4055,6 +3962,13 @@ void if_setqflushfn(if_t ifp, if_qflush_fn_t flush_fn)
 {
 	((struct ifnet *)ifp)->if_qflush = flush_fn;
 	
+}
+
+void
+if_setgetcounterfn(if_t ifp, if_get_counter_t fn)
+{
+
+	ifp->if_get_counter = fn;
 }
 
 /* Revisit these - These are inline functions originally. */

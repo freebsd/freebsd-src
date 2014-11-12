@@ -675,10 +675,14 @@ fetch_ssl_setup_transport_layer(SSL_CTX *ctx, int verbose)
 	ssl_ctx_options = SSL_OP_ALL | SSL_OP_NO_TICKET;
 	if (getenv("SSL_ALLOW_SSL2") == NULL)
 		ssl_ctx_options |= SSL_OP_NO_SSLv2;
-	if (getenv("SSL_NO_SSL3") != NULL)
+	if (getenv("SSL_ALLOW_SSL3") == NULL)
 		ssl_ctx_options |= SSL_OP_NO_SSLv3;
 	if (getenv("SSL_NO_TLS1") != NULL)
 		ssl_ctx_options |= SSL_OP_NO_TLSv1;
+	if (getenv("SSL_NO_TLS1_1") != NULL)
+		ssl_ctx_options |= SSL_OP_NO_TLSv1_1;
+	if (getenv("SSL_NO_TLS1_2") != NULL)
+		ssl_ctx_options |= SSL_OP_NO_TLSv1_2;
 	if (verbose)
 		fetch_info("SSL options: %lx", ssl_ctx_options);
 	SSL_CTX_set_options(ctx, ssl_ctx_options);
@@ -873,8 +877,8 @@ fetch_ssl(conn_t *conn, const struct url *URL, int verbose)
 	}
 
 	if (verbose) {
-		fetch_info("SSL connection established using %s",
-		    SSL_get_cipher(conn->ssl));
+		fetch_info("%s connection established using %s",
+		    SSL_get_version(conn->ssl), SSL_get_cipher(conn->ssl));
 		name = X509_get_subject_name(conn->ssl_cert);
 		str = X509_NAME_oneline(name, 0, 0);
 		fetch_info("Certificate subject: %s", str);

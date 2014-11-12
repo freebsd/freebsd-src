@@ -296,7 +296,7 @@ struct ng_btsocket_rfcomm_pcb {
 	int16_t					 tx_cred; /* TX credits */
 
 	struct mtx				 pcb_mtx; /* PCB lock */
-	struct callout_handle			 timo;    /* timeout */
+	struct callout				 timo;    /* timeout */
 
 	LIST_ENTRY(ng_btsocket_rfcomm_pcb)	 session_next;/* link to next */
 	LIST_ENTRY(ng_btsocket_rfcomm_pcb)	 next;	  /* link to next */

@@ -2679,10 +2679,10 @@ static int mlx4_wq_overflow(struct mlx4_ib_wq *wq, int nreq, struct ib_cq *ib_cq
 
 static __be32 convert_access(int acc)
 {
-	return (acc & IB_ACCESS_REMOTE_ATOMIC ? cpu_to_be32(MLX4_WQE_FMR_PERM_ATOMIC)       : 0) |
-	       (acc & IB_ACCESS_REMOTE_WRITE  ? cpu_to_be32(MLX4_WQE_FMR_PERM_REMOTE_WRITE) : 0) |
-	       (acc & IB_ACCESS_REMOTE_READ   ? cpu_to_be32(MLX4_WQE_FMR_PERM_REMOTE_READ)  : 0) |
-	       (acc & IB_ACCESS_LOCAL_WRITE   ? cpu_to_be32(MLX4_WQE_FMR_PERM_LOCAL_WRITE)  : 0) |
+	return (acc & IB_ACCESS_REMOTE_ATOMIC ? cpu_to_be32(MLX4_WQE_FMR_AND_BIND_PERM_ATOMIC)		: 0) |
+	       (acc & IB_ACCESS_REMOTE_WRITE  ? cpu_to_be32(MLX4_WQE_FMR_AND_BIND_PERM_REMOTE_WRITE)	: 0) |
+	       (acc & IB_ACCESS_REMOTE_READ   ? cpu_to_be32(MLX4_WQE_FMR_AND_BIND_PERM_REMOTE_READ)	: 0) |
+	       (acc & IB_ACCESS_LOCAL_WRITE   ? cpu_to_be32(MLX4_WQE_FMR_PERM_LOCAL_WRITE)  		: 0) |
 		cpu_to_be32(MLX4_WQE_FMR_PERM_LOCAL_READ);
 }
 
@@ -2709,10 +2709,12 @@ static void set_fmr_seg(struct mlx4_wqe_fmr_seg *fseg, struct ib_send_wr *wr)
 
 static void set_local_inv_seg(struct mlx4_wqe_local_inval_seg *iseg, u32 rkey)
 {
-	iseg->flags	= 0;
-	iseg->mem_key	= cpu_to_be32(rkey);
-	iseg->guest_id	= 0;
-	iseg->pa	= 0;
+	iseg->mem_key = cpu_to_be32(rkey);
+
+	iseg->reserved1    = 0;
+	iseg->reserved2    = 0;
+	iseg->reserved3[0] = 0;
+	iseg->reserved3[1] = 0;
 }
 
 static __always_inline void set_raddr_seg(struct mlx4_wqe_raddr_seg *rseg,

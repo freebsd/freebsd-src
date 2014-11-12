@@ -435,11 +435,13 @@
 256	AUE_NULL	STD	{ int linux_epoll_wait(void); }
 257	AUE_NULL	STD	{ int linux_remap_file_pages(void); }
 258	AUE_NULL	STD	{ int linux_set_tid_address(int *tidptr); }
-259	AUE_NULL	STD	{ int linux_timer_create(void); }
-260	AUE_NULL	STD	{ int linux_timer_settime(void); }
-261	AUE_NULL	STD	{ int linux_timer_gettime(void); }
-262	AUE_NULL	STD	{ int linux_timer_getoverrun(void); }
-263	AUE_NULL	STD	{ int linux_timer_delete(void); }
+259	AUE_NULL	STD	{ int linux_timer_create(clockid_t clock_id, \
+					struct sigevent *evp, l_timer_t *timerid); }
+260	AUE_NULL	STD	{ int linux_timer_settime(l_timer_t timerid, l_int flags, \
+					const struct itimerspec *new, struct itimerspec *old); }
+261	AUE_NULL	STD	{ int linux_timer_gettime(l_timer_t timerid, struct itimerspec *setting); }
+262	AUE_NULL	STD	{ int linux_timer_getoverrun(l_timer_t timerid); }
+263	AUE_NULL	STD	{ int linux_timer_delete(l_timer_t timerid); }
 264	AUE_CLOCK_SETTIME	STD	{ int linux_clock_settime(clockid_t which, struct l_timespec *tp); }
 265	AUE_NULL	STD	{ int linux_clock_gettime(clockid_t which, struct l_timespec *tp); }
 266	AUE_NULL	STD	{ int linux_clock_getres(clockid_t which, struct l_timespec *tp); }

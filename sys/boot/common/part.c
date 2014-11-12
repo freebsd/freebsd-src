@@ -53,6 +53,7 @@ static const uuid_t gpt_uuid_unused = GPT_ENT_TYPE_UNUSED;
 static const uuid_t gpt_uuid_ms_basic_data = GPT_ENT_TYPE_MS_BASIC_DATA;
 static const uuid_t gpt_uuid_freebsd_ufs = GPT_ENT_TYPE_FREEBSD_UFS;
 static const uuid_t gpt_uuid_efi = GPT_ENT_TYPE_EFI;
+static const uuid_t gpt_uuid_freebsd = GPT_ENT_TYPE_FREEBSD;
 static const uuid_t gpt_uuid_freebsd_boot = GPT_ENT_TYPE_FREEBSD_BOOT;
 static const uuid_t gpt_uuid_freebsd_nandfs = GPT_ENT_TYPE_FREEBSD_NANDFS;
 static const uuid_t gpt_uuid_freebsd_swap = GPT_ENT_TYPE_FREEBSD_SWAP;
@@ -139,6 +140,8 @@ gpt_parttype(uuid_t type)
 		return (PART_FREEBSD_VINUM);
 	else if (uuid_equal(&type, &gpt_uuid_freebsd_nandfs, NULL))
 		return (PART_FREEBSD_NANDFS);
+	else if (uuid_equal(&type, &gpt_uuid_freebsd, NULL))
+		return (PART_FREEBSD);
 	return (PART_UNKNOWN);
 }
 
@@ -298,6 +301,7 @@ ptable_gptread(struct ptable *table, void *dev, diskread_t dread)
 			}
 		}
 	}
+	DEBUG("GPT detected");
 	if (pri == 0 && sec == 0) {
 		/* Both primary and backup tables are invalid. */
 		table->type = PTABLE_NONE;
@@ -375,6 +379,7 @@ ptable_ebrread(struct ptable *table, void *dev, diskread_t dread)
 	buf = malloc(table->sectorsize);
 	if (buf == NULL)
 		return (table);
+	DEBUG("EBR detected");
 	for (i = 0; i < MAXEBRENTRIES; i++) {
 #if 0	/* Some BIOSes return an incorrect number of sectors */
 		if (offset >= table->sectors)
@@ -467,6 +472,7 @@ ptable_bsdread(struct ptable *table, void *dev, diskread_t dread)
 		DEBUG("invalid number of partitions");
 		goto out;
 	}
+	DEBUG("BSD detected");
 	part = &dl->d_partitions[0];
 	raw_offset = le32toh(part[RAW_PART].p_offset);
 	for (i = 0; i < dl->d_npartitions; i++, part++) {
@@ -550,6 +556,7 @@ ptable_vtoc8read(struct ptable *table, void *dev, diskread_t dread)
 		DEBUG("invalid geometry");
 		goto out;
 	}
+	DEBUG("VTOC8 detected");
 	for (i = 0; i < VTOC8_NPARTS; i++) {
 		dl->part[i].tag = be16toh(dl->part[i].tag);
 		if (i == VTOC_RAW_PART ||
@@ -662,6 +669,7 @@ ptable_open(void *dev, off_t sectors, uint16_t sectorsize,
 #endif
 #ifdef LOADER_MBR_SUPPORT
 	/* Read MBR. */
+	DEBUG("MBR detected");
 	table->type = PTABLE_MBR;
 	for (i = has_ext = 0; i < NDOSPART; i++) {
 		if (dp[i].dp_typ == 0)

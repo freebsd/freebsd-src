@@ -50,6 +50,11 @@ is_scheme_bootable(const char *part_type) {
 	return (1);
 }
 
+int
+is_fs_bootable(const char *part_type, const char *fs) {
+	return (1);
+}
+
 /* No clue => no boot partition, bootcode, or partcode */
 
 size_t
@@ -68,7 +73,7 @@ bootcode_path(const char *part_type) {
 }
 	
 const char *
-partcode_path(const char *part_type) {
+partcode_path(const char *part_type, const char *fs_type) {
 	return (NULL);
 }
 

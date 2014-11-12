@@ -1,0 +1,22 @@
+$FreeBSD: head/tools/regression/pjdfstest/README 211354 2010-08-15 21:29:03Z pjd $
+
+Few notes on how to use pjdfstest in short steps:
+
+	# cd pjdfstest
+	# vi tests/conf
+	Change 'fs' to file system type you want to test (UFS or ZFS).
+	# vi Makefile
+	You need to manually tweak few things by editing CFLAGS lines
+	at the top of the file.
+	# make
+	It will compile pjdfstest utility which is used by regression tests.
+	# cd /path/to/file/system/you/want/to/test/
+	# prove -r /path/to/pjdfstest/tests
+
+That's all. Enjoy.
+
+Currently supported operating systems: FreeBSD, Solaris.
+Currently supported file system types: UFS, ZFS.
+
+-- 
+Pawel Jakub Dawidek <pawel@dawidek.net>

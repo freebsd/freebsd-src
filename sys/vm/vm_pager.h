@@ -106,6 +106,8 @@ static __inline int vm_pager_get_pages(vm_object_t, vm_page_t *, int, int);
 static __inline boolean_t vm_pager_has_page(vm_object_t, vm_pindex_t, int *, int *);
 void vm_pager_init(void);
 vm_object_t vm_pager_object_lookup(struct pagerlst *, void *);
+void vm_pager_free_nonreq(vm_object_t object, vm_page_t ma[], int reqpage,
+    int npages);
 
 /*
  *	vm_page_get_pages:

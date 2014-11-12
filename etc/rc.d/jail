@@ -321,8 +321,6 @@ jail_extract_address()
 	elif [ "${_type}" = "inet6" ]; then
 		# In case _mask is not set for IPv6, use /128.
 		_mask=${_mask:-/128}
-		warn "$_type $_addr: an IPv6 address should always be " \
-		    "specified with a prefix length.  /128 is used."
 	fi
 }
 

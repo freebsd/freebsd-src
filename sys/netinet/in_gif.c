@@ -1,5 +1,3 @@
-/*	$KAME: in_gif.c,v 1.54 2001/05/14 14:02:16 itojun Exp $	*/
-
 /*-
  * Copyright (C) 1995, 1996, 1997, and 1998 WIDE Project.
  * All rights reserved.
@@ -27,16 +25,19 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
+ *
+ *	$KAME: in_gif.c,v 1.54 2001/05/14 14:02:16 itojun Exp $
  */
 
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#include "opt_mrouting.h"
 #include "opt_inet.h"
 #include "opt_inet6.h"
 
 #include <sys/param.h>
+#include <sys/lock.h>
+#include <sys/rmlock.h>
 #include <sys/systm.h>
 #include <sys/socket.h>
 #include <sys/sockio.h>
@@ -65,11 +66,7 @@ __FBSDID("$FreeBSD$");
 #include <netinet/ip6.h>
 #endif
 
-#ifdef MROUTING
-#include <netinet/ip_mroute.h>
-#endif /* MROUTING */
-
-#include <net/if_gif.h>	
+#include <net/if_gif.h>
 
 static int gif_validate4(const struct ip *, struct gif_softc *,
 	struct ifnet *);
@@ -88,131 +85,28 @@ struct protosw in_gif_protosw = {
 
 VNET_DEFINE(int, ip_gif_ttl) = GIF_TTL;
 #define	V_ip_gif_ttl		VNET(ip_gif_ttl)
-SYSCTL_VNET_INT(_net_inet_ip, IPCTL_GIF_TTL, gifttl, CTLFLAG_RW,
+SYSCTL_INT(_net_inet_ip, IPCTL_GIF_TTL, gifttl, CTLFLAG_VNET | CTLFLAG_RW,
 	&VNET_NAME(ip_gif_ttl), 0, "");
 
 int
-in_gif_output(struct ifnet *ifp, int family, struct mbuf *m)
+in_gif_output(struct ifnet *ifp, struct mbuf *m, int proto, uint8_t ecn)
 {
+	GIF_RLOCK_TRACKER;
 	struct gif_softc *sc = ifp->if_softc;
-	struct sockaddr_in *dst = (struct sockaddr_in *)&sc->gif_ro.ro_dst;
-	struct sockaddr_in *sin_src = (struct sockaddr_in *)sc->gif_psrc;
-	struct sockaddr_in *sin_dst = (struct sockaddr_in *)sc->gif_pdst;
-	struct ip iphdr;	/* capsule IP header, host byte ordered */
-	struct etherip_header eiphdr;
-	int error, len, proto;
-	u_int8_t tos;
-
-	GIF_LOCK_ASSERT(sc);
-
-	if (sin_src == NULL || sin_dst == NULL ||
-	    sin_src->sin_family != AF_INET ||
-	    sin_dst->sin_family != AF_INET) {
-		m_freem(m);
-		return EAFNOSUPPORT;
-	}
-
-	switch (family) {
-#ifdef INET
-	case AF_INET:
-	    {
-		struct ip *ip;
-
-		proto = IPPROTO_IPV4;
-		if (m->m_len < sizeof(*ip)) {
-			m = m_pullup(m, sizeof(*ip));
-			if (!m)
-				return ENOBUFS;
-		}
-		ip = mtod(m, struct ip *);
-		tos = ip->ip_tos;
-		break;
-	    }
-#endif /* INET */
-#ifdef INET6
-	case AF_INET6:
-	    {
-		struct ip6_hdr *ip6;
-		proto = IPPROTO_IPV6;
-		if (m->m_len < sizeof(*ip6)) {
-			m = m_pullup(m, sizeof(*ip6));
-			if (!m)
-				return ENOBUFS;
-		}
-		ip6 = mtod(m, struct ip6_hdr *);
-		tos = (ntohl(ip6->ip6_flow) >> 20) & 0xff;
-		break;
-	    }
-#endif /* INET6 */
-	case AF_LINK:
- 		proto = IPPROTO_ETHERIP;
-
-		/*
-		 * GIF_SEND_REVETHIP (disabled by default) intentionally
-		 * sends an EtherIP packet with revered version field in
-		 * the header.  This is a knob for backward compatibility
-		 * with FreeBSD 7.2R or prior.
-		 */
-		if ((sc->gif_options & GIF_SEND_REVETHIP)) {
- 			eiphdr.eip_ver = 0;
- 			eiphdr.eip_resvl = ETHERIP_VERSION;
- 			eiphdr.eip_resvh = 0;
-		} else {
- 			eiphdr.eip_ver = ETHERIP_VERSION;
- 			eiphdr.eip_resvl = 0;
- 			eiphdr.eip_resvh = 0;
-		}
- 		/* prepend Ethernet-in-IP header */
- 		M_PREPEND(m, sizeof(struct etherip_header), M_NOWAIT);
- 		if (m && m->m_len < sizeof(struct etherip_header))
- 			m = m_pullup(m, sizeof(struct etherip_header));
- 		if (m == NULL)
- 			return ENOBUFS;
- 		bcopy(&eiphdr, mtod(m, struct etherip_header *),
-		    sizeof(struct etherip_header));
-		tos = 0;
-		break;
-
-	default:
-#ifdef DEBUG
-		printf("in_gif_output: warning: unknown family %d passed\n",
-			family);
-#endif
-		m_freem(m);
-		return EAFNOSUPPORT;
-	}
-
-	bzero(&iphdr, sizeof(iphdr));
-	iphdr.ip_src = sin_src->sin_addr;
-	/* bidirectional configured tunnel mode */
-	if (sin_dst->sin_addr.s_addr != INADDR_ANY)
-		iphdr.ip_dst = sin_dst->sin_addr;
-	else {
-		m_freem(m);
-		return ENETUNREACH;
-	}
-	iphdr.ip_p = proto;
-	/* version will be set in ip_output() */
-	iphdr.ip_ttl = V_ip_gif_ttl;
-	iphdr.ip_len = htons(m->m_pkthdr.len + sizeof(struct ip));
-	ip_ecn_ingress((ifp->if_flags & IFF_LINK1) ? ECN_ALLOWED : ECN_NOCARE,
-		       &iphdr.ip_tos, &tos);
+	struct ip *ip;
+	int len;
 
 	/* prepend new IP header */
 	len = sizeof(struct ip);
 #ifndef __NO_STRICT_ALIGNMENT
-	if (family == AF_LINK)
+	if (proto == IPPROTO_ETHERIP)
 		len += ETHERIP_ALIGN;
 #endif
 	M_PREPEND(m, len, M_NOWAIT);
-	if (m != NULL && m->m_len < len)
-		m = m_pullup(m, len);
-	if (m == NULL) {
-		printf("ENOBUFS in in_gif_output %d\n", __LINE__);
-		return ENOBUFS;
-	}
+	if (m == NULL)
+		return (ENOBUFS);
 #ifndef __NO_STRICT_ALIGNMENT
-	if (family == AF_LINK) {
+	if (proto == IPPROTO_ETHERIP) {
 		len = mtod(m, vm_offset_t) & 3;
 		KASSERT(len == 0 || len == ETHERIP_ALIGN,
 		    ("in_gif_output: unexpected misalignment"));
@@ -220,147 +114,50 @@ in_gif_output(struct ifnet *ifp, int family, struct mbuf *m)
 		m->m_len -= ETHERIP_ALIGN;
 	}
 #endif
-	bcopy(&iphdr, mtod(m, struct ip *), sizeof(struct ip));
-
-	M_SETFIB(m, sc->gif_fibnum);
-
-	if (dst->sin_family != sin_dst->sin_family ||
-	    dst->sin_addr.s_addr != sin_dst->sin_addr.s_addr) {
-		/* cache route doesn't match */
-		bzero(dst, sizeof(*dst));
-		dst->sin_family = sin_dst->sin_family;
-		dst->sin_len = sizeof(struct sockaddr_in);
-		dst->sin_addr = sin_dst->sin_addr;
-		if (sc->gif_ro.ro_rt) {
-			RTFREE(sc->gif_ro.ro_rt);
-			sc->gif_ro.ro_rt = NULL;
-		}
-#if 0
-		GIF2IFP(sc)->if_mtu = GIF_MTU;
-#endif
+	ip = mtod(m, struct ip *);
+	GIF_RLOCK(sc);
+	if (sc->gif_family != AF_INET) {
+		m_freem(m);
+		GIF_RUNLOCK(sc);
+		return (ENETDOWN);
 	}
+	bcopy(sc->gif_iphdr, ip, sizeof(struct ip));
+	GIF_RUNLOCK(sc);
 
-	if (sc->gif_ro.ro_rt == NULL) {
-		in_rtalloc_ign(&sc->gif_ro, 0, sc->gif_fibnum);
-		if (sc->gif_ro.ro_rt == NULL) {
-			m_freem(m);
-			return ENETUNREACH;
-		}
+	ip->ip_p = proto;
+	/* version will be set in ip_output() */
+	ip->ip_ttl = V_ip_gif_ttl;
+	ip->ip_len = htons(m->m_pkthdr.len);
+	ip->ip_tos = ecn;
 
-		/* if it constitutes infinite encapsulation, punt. */
-		if (sc->gif_ro.ro_rt->rt_ifp == ifp) {
-			m_freem(m);
-			return ENETUNREACH;	/* XXX */
-		}
-#if 0
-		ifp->if_mtu = sc->gif_ro.ro_rt->rt_ifp->if_mtu
-			- sizeof(struct ip);
-#endif
-	}
-
-	m->m_flags &= ~(M_BCAST|M_MCAST);
-	error = ip_output(m, NULL, &sc->gif_ro, 0, NULL, NULL);
-
-	if (!(GIF2IFP(sc)->if_flags & IFF_LINK0) &&
-	    sc->gif_ro.ro_rt != NULL) {
-		RTFREE(sc->gif_ro.ro_rt);
-		sc->gif_ro.ro_rt = NULL;
-	}
-
-	return (error);
+	return (ip_output(m, NULL, NULL, 0, NULL, NULL));
 }
 
 int
 in_gif_input(struct mbuf **mp, int *offp, int proto)
 {
-	struct mbuf *m;
-	struct ifnet *gifp = NULL;
+	struct mbuf *m = *mp;
 	struct gif_softc *sc;
+	struct ifnet *gifp;
 	struct ip *ip;
-	int af;
-	int off;
-	u_int8_t otos;
+	uint8_t ecn;
 
-	m = *mp;
-	ip = mtod(m, struct ip *);
-	off = *offp;
-	*mp = NULL;
-
-	sc = (struct gif_softc *)encap_getarg(m);
+	sc = encap_getarg(m);
 	if (sc == NULL) {
 		m_freem(m);
 		KMOD_IPSTAT_INC(ips_nogif);
 		return (IPPROTO_DONE);
 	}
-
 	gifp = GIF2IFP(sc);
-	if (gifp == NULL || (gifp->if_flags & IFF_UP) == 0) {
-		m_freem(m);
-		KMOD_IPSTAT_INC(ips_nogif);
-		return (IPPROTO_DONE);
-	}
-
-	otos = ip->ip_tos;
-	m_adj(m, off);
-
-	switch (proto) {
-#ifdef INET
-	case IPPROTO_IPV4:
-	    {
-		struct ip *ip;
-		af = AF_INET;
-		if (m->m_len < sizeof(*ip)) {
-			m = m_pullup(m, sizeof(*ip));
-			if (!m)
-				return (IPPROTO_DONE);
-		}
+	if ((gifp->if_flags & IFF_UP) != 0) {
 		ip = mtod(m, struct ip *);
-		if (ip_ecn_egress((gifp->if_flags & IFF_LINK1) ?
-				  ECN_ALLOWED : ECN_NOCARE,
-				  &otos, &ip->ip_tos) == 0) {
-			m_freem(m);
-			return (IPPROTO_DONE);
-		}
-		break;
-	    }
-#endif
-#ifdef INET6
-	case IPPROTO_IPV6:
-	    {
-		struct ip6_hdr *ip6;
-		u_int8_t itos, oitos;
-
-		af = AF_INET6;
-		if (m->m_len < sizeof(*ip6)) {
-			m = m_pullup(m, sizeof(*ip6));
-			if (!m)
-				return (IPPROTO_DONE);
-		}
-		ip6 = mtod(m, struct ip6_hdr *);
-		itos = oitos = (ntohl(ip6->ip6_flow) >> 20) & 0xff;
-		if (ip_ecn_egress((gifp->if_flags & IFF_LINK1) ?
-				  ECN_ALLOWED : ECN_NOCARE,
-				  &otos, &itos) == 0) {
-			m_freem(m);
-			return (IPPROTO_DONE);
-		}
-		if (itos != oitos) {
-			ip6->ip6_flow &= ~htonl(0xff << 20);
-			ip6->ip6_flow |= htonl((u_int32_t)itos << 20);
-		}
-		break;
-	    }
-#endif /* INET6 */
- 	case IPPROTO_ETHERIP:
- 		af = AF_LINK;
- 		break;	
-
-	default:
-		KMOD_IPSTAT_INC(ips_nogif);
+		ecn = ip->ip_tos;
+		m_adj(m, *offp);
+		gif_input(m, gifp, proto, ecn);
+	} else {
 		m_freem(m);
-		return (IPPROTO_DONE);
+		KMOD_IPSTAT_INC(ips_nogif);
 	}
-	gif_input(m, af, gifp);
 	return (IPPROTO_DONE);
 }
 
@@ -370,37 +167,23 @@ in_gif_input(struct mbuf **mp, int *offp, int proto)
 static int
 gif_validate4(const struct ip *ip, struct gif_softc *sc, struct ifnet *ifp)
 {
-	struct sockaddr_in *src, *dst;
-	struct in_ifaddr *ia4;
 
-	src = (struct sockaddr_in *)sc->gif_psrc;
-	dst = (struct sockaddr_in *)sc->gif_pdst;
+	GIF_RLOCK_ASSERT(sc);
 
 	/* check for address match */
-	if (src->sin_addr.s_addr != ip->ip_dst.s_addr ||
-	    dst->sin_addr.s_addr != ip->ip_src.s_addr)
-		return 0;
+	if (sc->gif_iphdr->ip_src.s_addr != ip->ip_dst.s_addr ||
+	    sc->gif_iphdr->ip_dst.s_addr != ip->ip_src.s_addr)
+		return (0);
 
 	/* martian filters on outer source - NOT done in ip_input! */
 	if (IN_MULTICAST(ntohl(ip->ip_src.s_addr)))
-		return 0;
+		return (0);
 	switch ((ntohl(ip->ip_src.s_addr) & 0xff000000) >> 24) {
-	case 0: case 127: case 255:
-		return 0;
+	case 0:
+	case 127:
+	case 255:
+		return (0);
 	}
-
-	/* reject packets with broadcast on source */
-	/* XXXRW: should use hash lists? */
-	IN_IFADDR_RLOCK();
-	TAILQ_FOREACH(ia4, &V_in_ifaddrhead, ia_link) {
-		if ((ia4->ia_ifa.ifa_ifp->if_flags & IFF_BROADCAST) == 0)
-			continue;
-		if (ip->ip_src.s_addr == ia4->ia_broadaddr.sin_addr.s_addr) {
-			IN_IFADDR_RUNLOCK();
-			return 0;
-		}
-	}
-	IN_IFADDR_RUNLOCK();
 
 	/* ingress filters on outer source */
 	if ((GIF2IFP(sc)->if_flags & IFF_LINK2) == 0 && ifp) {
@@ -415,19 +198,13 @@ gif_validate4(const struct ip *ip, struct gif_softc *sc, struct ifnet *ifp)
 		rt = in_rtalloc1((struct sockaddr *)&sin, 0,
 		    0UL, sc->gif_fibnum);
 		if (!rt || rt->rt_ifp != ifp) {
-#if 0
-			log(LOG_WARNING, "%s: packet from 0x%x dropped "
-			    "due to ingress filter\n", if_name(GIF2IFP(sc)),
-			    (u_int32_t)ntohl(sin.sin_addr.s_addr));
-#endif
 			if (rt)
 				RTFREE_LOCKED(rt);
-			return 0;
+			return (0);
 		}
 		RTFREE_LOCKED(rt);
 	}
-
-	return 32 * 2;
+	return (32 * 2);
 }
 
 /*
@@ -435,7 +212,7 @@ gif_validate4(const struct ip *ip, struct gif_softc *sc, struct ifnet *ifp)
  * matched the physical addr family.  see gif_encapcheck().
  */
 int
-gif_encapcheck4(const struct mbuf *m, int off, int proto, void *arg)
+in_gif_encapcheck(const struct mbuf *m, int off, int proto, void *arg)
 {
 	struct ip ip;
 	struct gif_softc *sc;
@@ -443,31 +220,21 @@ gif_encapcheck4(const struct mbuf *m, int off, int proto, void *arg)
 
 	/* sanity check done in caller */
 	sc = (struct gif_softc *)arg;
+	GIF_RLOCK_ASSERT(sc);
 
-	/* LINTED const cast */
 	m_copydata(m, 0, sizeof(ip), (caddr_t)&ip);
 	ifp = ((m->m_flags & M_PKTHDR) != 0) ? m->m_pkthdr.rcvif : NULL;
-
-	return gif_validate4(&ip, sc, ifp);
+	return (gif_validate4(&ip, sc, ifp));
 }
 
 int
 in_gif_attach(struct gif_softc *sc)
 {
-	sc->encap_cookie4 = encap_attach_func(AF_INET, -1, gif_encapcheck,
+
+	KASSERT(sc->gif_ecookie == NULL, ("gif_ecookie isn't NULL"));
+	sc->gif_ecookie = encap_attach_func(AF_INET, -1, gif_encapcheck,
 	    &in_gif_protosw, sc);
-	if (sc->encap_cookie4 == NULL)
-		return EEXIST;
-	return 0;
-}
-
-int
-in_gif_detach(struct gif_softc *sc)
-{
-	int error;
-
-	error = encap_detach(sc->encap_cookie4);
-	if (error == 0)
-		sc->encap_cookie4 = NULL;
-	return error;
+	if (sc->gif_ecookie == NULL)
+		return (EEXIST);
+	return (0);
 }

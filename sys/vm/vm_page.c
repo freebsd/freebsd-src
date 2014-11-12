@@ -290,8 +290,6 @@ vm_page_startup(vm_offset_t vaddr)
 	vm_paddr_t pa;
 	vm_paddr_t last_pa;
 	char *list;
-
-	/* the biggest memory array is the second group of pages */
 	vm_paddr_t end;
 	vm_paddr_t biggestsize;
 	vm_paddr_t low_water, high_water;
@@ -453,7 +451,7 @@ vm_page_startup(vm_offset_t vaddr)
 	 */
 	vm_cnt.v_page_count = 0;
 	vm_cnt.v_free_count = 0;
-	list = getenv("vm.blacklist");
+	list = kern_getenv("vm.blacklist");
 	for (i = 0; phys_avail[i + 1] != 0; i += 2) {
 		pa = phys_avail[i];
 		last_pa = phys_avail[i + 1];

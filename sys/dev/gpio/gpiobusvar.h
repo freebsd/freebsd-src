@@ -41,7 +41,12 @@
 
 #include "gpio_if.h"
 
+#ifdef FDT
+#define	GPIOBUS_IVAR(d) (struct gpiobus_ivar *)				\
+	&((struct ofw_gpiobus_devinfo *)device_get_ivars(d))->opd_dinfo
+#else
 #define	GPIOBUS_IVAR(d) (struct gpiobus_ivar *) device_get_ivars(d)
+#endif
 #define	GPIOBUS_SOFTC(d) (struct gpiobus_softc *) device_get_softc(d)
 #define	GPIOBUS_LOCK(_sc) mtx_lock(&(_sc)->sc_mtx)
 #define	GPIOBUS_UNLOCK(_sc) mtx_unlock(&(_sc)->sc_mtx)
@@ -50,6 +55,9 @@
 #define	GPIOBUS_LOCK_DESTROY(_sc) mtx_destroy(&_sc->sc_mtx)
 #define	GPIOBUS_ASSERT_LOCKED(_sc) mtx_assert(&_sc->sc_mtx, MA_OWNED)
 #define	GPIOBUS_ASSERT_UNLOCKED(_sc) mtx_assert(&_sc->sc_mtx, MA_NOTOWNED)
+
+#define	GPIOBUS_WAIT		1
+#define	GPIOBUS_DONTWAIT	2
 
 struct gpiobus_softc
 {
@@ -84,6 +92,7 @@ gpio_map_gpios(device_t bus, phandle_t dev, phandle_t gparent, int gcells,
 device_t ofw_gpiobus_add_fdt_child(device_t, phandle_t);
 #endif
 void gpiobus_print_pins(struct gpiobus_ivar *);
+int gpiobus_init_softc(device_t);
 
 extern driver_t gpiobus_driver;
 

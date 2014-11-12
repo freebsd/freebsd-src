@@ -1,0 +1,64 @@
+Pull in r217410 from upstream llvm trunk (by Bob Wilson):
+
+  Set trunc store action to Expand for all X86 targets.
+
+  When compiling without SSE2, isTruncStoreLegal(F64, F32) would return
+  Legal, whereas with SSE2 it would return Expand. And since the Target
+  doesn't seem to actually handle a truncstore for double -> float, it
+  would just output a store of a full double in the space for a float
+  hence overwriting other bits on the stack.
+
+  Patch by Luqman Aden!
+
+This should fix clang -O0 on i386 assigning garbage to floats, in
+certain scenarios.
+
+Introduced here: http://svnweb.freebsd.org/changeset/base/271597
+
+Index: lib/Target/X86/X86ISelLowering.cpp
+===================================================================
+--- lib/Target/X86/X86ISelLowering.cpp	(revision 208032)
++++ lib/Target/X86/X86ISelLowering.cpp	(working copy)
+@@ -300,6 +300,8 @@ void X86TargetLowering::resetOperationActions() {
+   setTruncStoreAction(MVT::i32, MVT::i8 , Expand);
+   setTruncStoreAction(MVT::i16, MVT::i8,  Expand);
+ 
++  setTruncStoreAction(MVT::f64, MVT::f32, Expand);
++
+   // SETOEQ and SETUNE require checking two conditions.
+   setCondCodeAction(ISD::SETOEQ, MVT::f32, Expand);
+   setCondCodeAction(ISD::SETOEQ, MVT::f64, Expand);
+@@ -1011,8 +1013,6 @@ void X86TargetLowering::resetOperationActions() {
+       AddPromotedToType (ISD::SELECT, VT, MVT::v2i64);
+     }
+ 
+-    setTruncStoreAction(MVT::f64, MVT::f32, Expand);
+-
+     // Custom lower v2i64 and v2f64 selects.
+     setOperationAction(ISD::LOAD,               MVT::v2f64, Legal);
+     setOperationAction(ISD::LOAD,               MVT::v2i64, Legal);
+Index: test/CodeGen/X86/dont-trunc-store-double-to-float.ll
+===================================================================
+--- test/CodeGen/X86/dont-trunc-store-double-to-float.ll	(revision 0)
++++ test/CodeGen/X86/dont-trunc-store-double-to-float.ll	(working copy)
+@@ -0,0 +1,20 @@
++; RUN: llc -march=x86 < %s | FileCheck %s
++
++; CHECK-LABEL: @bar
++; CHECK: movl $1074339512,
++; CHECK: movl $1374389535,
++; CHECK: movl $1078523331,
++define void @bar() unnamed_addr {
++entry-block:
++  %a = alloca double
++  %b = alloca float
++
++  store double 3.140000e+00, double* %a
++  %0 = load double* %a
++
++  %1 = fptrunc double %0 to float
++
++  store float %1, float* %b
++
++  ret void
++}

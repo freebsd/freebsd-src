@@ -62,7 +62,10 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/kernel.h>
+#include <sys/lock.h>
 #include <sys/malloc.h>
+#include <sys/mutex.h>
+#include <sys/queue.h>
 #include <sys/systm.h>
 #include <sys/endian.h>
 
@@ -92,6 +95,7 @@ struct xrefinfo {
 };
 
 static SLIST_HEAD(, xrefinfo) xreflist = SLIST_HEAD_INITIALIZER(xreflist);
+static struct mtx xreflist_lock;
 static boolean_t xref_init_done;
 
 #define	FIND_BY_XREF	0
@@ -138,6 +142,12 @@ static void
 xrefinfo_init(void *unsed)
 {
 
+	/*
+	 * There is no locking during this init because it runs much earlier
+	 * than any of the clients/consumers of the xref list data, but we do
+	 * initialize the mutex that will be used for access later.
+	 */
+	mtx_init(&xreflist_lock, "OF xreflist lock", NULL, MTX_DEF);
 	xrefinfo_create(OF_peer(0));
 	xref_init_done = true;
 }
@@ -146,17 +156,35 @@ SYSINIT(xrefinfo, SI_SUB_KMEM, SI_ORDER_ANY, xrefinfo_init, NULL);
 static struct xrefinfo *
 xrefinfo_find(phandle_t phandle, int find_by)
 {
-	struct xrefinfo * xi;
+	struct xrefinfo *rv, *xi;
 
+	rv = NULL;
+	mtx_lock(&xreflist_lock);
 	SLIST_FOREACH(xi, &xreflist, next_entry) {
-		if (find_by == FIND_BY_XREF && phandle == xi->xref)
-			return (xi);
-		else if (find_by == FIND_BY_NODE && phandle == xi->node)
-			return (xi);
-		else if (find_by == FIND_BY_DEV && phandle == (uintptr_t)xi->dev)
-			return (xi);
+		if ((find_by == FIND_BY_XREF && phandle == xi->xref) ||
+		    (find_by == FIND_BY_NODE && phandle == xi->node) ||
+		    (find_by == FIND_BY_DEV && phandle == (uintptr_t)xi->dev)) {
+			rv = xi;
+			break;
+		}
 	}
-	return (NULL);
+	mtx_unlock(&xreflist_lock);
+	return (rv);
+}
+
+static struct xrefinfo *
+xrefinfo_add(phandle_t node, phandle_t xref, device_t dev)
+{
+	struct xrefinfo *xi;
+
+	xi = malloc(sizeof(*xi), M_OFWPROP, M_WAITOK);
+	xi->node = node;
+	xi->xref = xref;
+	xi->dev  = dev;
+	mtx_lock(&xreflist_lock);
+	SLIST_INSERT_HEAD(&xreflist, xi, next_entry);
+	mtx_unlock(&xreflist_lock);
+	return (xi);
 }
 
 /*
@@ -605,10 +633,17 @@ OF_device_register_xref(phandle_t xref, device_t dev)
 {
 	struct xrefinfo *xi;
 
+	/*
+	 * If the given xref handle doesn't already exist in the list then we
+	 * add a list entry.  In theory this can only happen on a system where
+	 * nodes don't contain phandle properties and xref and node handles are
+	 * synonymous, so the xref handle is added as the node handle as well.
+	 */
 	if (xref_init_done) {
 		if ((xi = xrefinfo_find(xref, FIND_BY_XREF)) == NULL)
-			return (ENXIO);
-		xi->dev = dev;
+			xrefinfo_add(xref, xref, dev);
+		else 
+			xi->dev = dev;
 		return (0);
 	}
 	panic("Attempt to register device before xreflist_init");

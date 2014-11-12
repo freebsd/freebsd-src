@@ -84,10 +84,13 @@ __FBSDID("$FreeBSD$");
 /* 
  * Arasan HC seems to have problem with Data CRC on lower frequencies.
  * Use this tunable to cap initialization sequence frequency at higher
- * value. Default is standard 400kHz
+ * value.  Default is standard 400kHz.
+ * HS mode brings too many problems for most of cards, so disable HS mode
+ * until a better fix comes up.
+ * HS mode still can be enabled with the tunable.
  */
 static int bcm2835_sdhci_min_freq = 400000;
-static int bcm2835_sdhci_hs = 1;
+static int bcm2835_sdhci_hs = 0;
 static int bcm2835_sdhci_pio_mode = 0;
 
 TUNABLE_INT("hw.bcm2835.sdhci.min_freq", &bcm2835_sdhci_min_freq);
@@ -312,21 +315,15 @@ RD4(struct bcm_sdhci_softc *sc, bus_size_t off)
 static inline void
 WR4(struct bcm_sdhci_softc *sc, bus_size_t off, uint32_t val)
 {
+
 	bus_space_write_4(sc->sc_bst, sc->sc_bsh, off, val);
-
-	if ((off != SDHCI_BUFFER && off != SDHCI_INT_STATUS && off != SDHCI_CLOCK_CONTROL))
-	{
-		int timeout = 100000;
-		while (val != bus_space_read_4(sc->sc_bst, sc->sc_bsh, off) 
-		    && --timeout > 0)
-			continue;
-
-		if (timeout <= 0)
-			printf("sdhci_brcm: writing 0x%X to reg 0x%X "
-				"always gives 0x%X\n",
-				val, (uint32_t)off, 
-				bus_space_read_4(sc->sc_bst, sc->sc_bsh, off));
-	}
+	/*
+	 * The Arasan HC has a bug where it may lose the content of
+	 * consecutive writes to registers that are within two SD-card
+	 * clock cycles of each other (a clock domain crossing problem). 
+	 */
+	if (sc->sc_slot.clock > 0)
+		DELAY(((2 * 1000000) / sc->sc_slot.clock) + 1);
 }
 
 static uint8_t

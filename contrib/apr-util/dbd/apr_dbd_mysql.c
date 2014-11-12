@@ -1050,9 +1050,9 @@ static int dbd_mysql_end_transaction(apr_dbd_transaction_t *trans)
         else {
             ret = mysql_commit(trans->handle->conn);
         }
+        ret |= mysql_autocommit(trans->handle->conn, 1);
+        trans->handle->trans = NULL;
     }
-    ret |= mysql_autocommit(trans->handle->conn, 1);
-    trans->handle->trans = NULL;
     return ret;
 }
 /* Whether or not transactions work depends on whether the

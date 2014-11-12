@@ -33,35 +33,35 @@ __FBSDID("$FreeBSD$");
 #include <sys/resourcevar.h>
 
 int
-fubyte(const void *base)
+fubyte(volatile const void *base)
 {
 
-	return *(uint8_t *)base;
+	return *(volatile uint8_t *)base;
 }
 
 long
-fuword(const void *base)
+fuword(volatile const void *base)
 {
 
-	return *(long *)base;
+	return *(volatile long *)base;
 }
 
 int
-fuword16(void *base)
+fuword16(volatile const void *base)
 {
 
 	panic("fuword16");
 }
 
 int32_t
-fuword32(const void *base)
+fuword32(volatile const void *base)
 {
 
 	panic("fuword32");
 }
 
 int64_t
-fuword64(const void *base)
+fuword64(volatile const void *base)
 {
 
 	panic("fuword64");
@@ -75,44 +75,44 @@ fuswintr(void *base)
 }
 
 int
-subyte(void *base, int byte)
+subyte(volatile void *base, int byte)
 {
 
-	*(uint8_t *)base = byte;
+	*(volatile uint8_t *)base = byte;
 
 	return 0;
 }
 
 int
-suword(void *base, long word)
+suword(volatile void *base, long word)
 {
 
-	*(long *)base = word;
+	*(volatile long *)base = word;
 
 	return 0;
 }
 
 int
-suword16(void *base, int word)
+suword16(volatile void *base, int word)
 {
 
 	panic("suword16");
 }
 
 int
-suword32(void *base, int32_t word)
+suword32(volatile void *base, int32_t word)
 {
 
-	*(int32_t *)base = word;
+	*(volatile int32_t *)base = word;
 
 	return 0;
 }
 
 int
-suword64(void *base, int64_t word)
+suword64(volatile void *base, int64_t word)
 {
 
-	*(int64_t *)base = word;
+	*(volatile int64_t *)base = word;
 
 	return 0;
 }

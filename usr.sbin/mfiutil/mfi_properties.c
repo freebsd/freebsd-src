@@ -68,7 +68,7 @@ mfi_ctrl_set_properties(int fd, struct mfi_ctrl_props *info)
 static int
 mfi_ctrl_rebuild_rate(int ac, char **av)
 {
-        int error, fd;
+	int error, fd;
 	struct mfi_ctrl_props ctrl_props;
 
 	if (ac > 2) {
@@ -76,40 +76,40 @@ mfi_ctrl_rebuild_rate(int ac, char **av)
 		return(-1);
 	}
 		
-        fd = mfi_open(mfi_unit, O_RDWR);
-        if (fd < 0) {
-                error = errno;
-                warn("mfi_open");
-                return (error);
-        }
+	fd = mfi_open(mfi_unit, O_RDWR);
+	if (fd < 0) {
+		error = errno;
+		warn("mfi_open");
+		return (error);
+	}
 
 	error = mfi_ctrl_get_properties(fd, &ctrl_props);
-        if ( error < 0) {
-                error = errno;
-                warn("Failed to get controller properties");
-                close(fd);
-                return (error);
-        }
+	if ( error < 0) {
+		error = errno;
+		warn("Failed to get controller properties");
+		close(fd);
+		return (error);
+	}
 	/*
 	 * User requested a change to the rebuild rate
 	 */
 	if (ac > 1) {
 		ctrl_props.rebuild_rate = atoi(av[ac - 1]);
 		error = mfi_ctrl_set_properties(fd, &ctrl_props);
-        	if ( error < 0) {
-                	error = errno;
-                	warn("Failed to set controller properties");
-                	close(fd);
-                	return (error);
-        	}
+		if ( error < 0) {
+			error = errno;
+			warn("Failed to set controller properties");
+			close(fd);
+			return (error);
+		}
 
 		error = mfi_ctrl_get_properties(fd, &ctrl_props);
-        	if ( error < 0) {
-                	error = errno;
-                	warn("Failed to get controller properties");
-                	close(fd);
-                	return (error);
-        	}
+		if ( error < 0) {
+			error = errno;
+			warn("Failed to get controller properties");
+			close(fd);
+			return (error);
+		}
 	}
 	printf ("controller rebuild rate: %%%u \n",
 		ctrl_props.rebuild_rate);
@@ -120,7 +120,7 @@ MFI_COMMAND(ctrlprop, rebuild, mfi_ctrl_rebuild_rate);
 static int
 mfi_ctrl_alarm_enable(int ac, char **av)
 {
-        int error, fd;
+	int error, fd;
 	struct mfi_ctrl_props ctrl_props;
 
 	if (ac > 2) {
@@ -128,40 +128,40 @@ mfi_ctrl_alarm_enable(int ac, char **av)
 		return(-1);
 	}
 		
-        fd = mfi_open(mfi_unit, O_RDWR);
-        if (fd < 0) {
-                error = errno;
-                warn("mfi_open");
-                return (error);
-        }
+	fd = mfi_open(mfi_unit, O_RDWR);
+	if (fd < 0) {
+		error = errno;
+		warn("mfi_open");
+		return (error);
+	}
 
 	error = mfi_ctrl_get_properties(fd, &ctrl_props);
-        if ( error < 0) {
-                error = errno;
-                warn("Failed to get controller properties");
-                close(fd);
-                return (error);
-        }
+	if ( error < 0) {
+		error = errno;
+		warn("Failed to get controller properties");
+		close(fd);
+		return (error);
+	}
 	printf ("controller alarm was : %s\n",
 		(ctrl_props.alarm_enable ? "enabled" : "disabled"));
 
 	if (ac > 1) {
 		ctrl_props.alarm_enable = atoi(av[ac - 1]);
 		error = mfi_ctrl_set_properties(fd, &ctrl_props);
-        	if ( error < 0) {
-                	error = errno;
-                	warn("Failed to set controller properties");
-                	close(fd);
-                	return (error);
-        	}
+		if ( error < 0) {
+			error = errno;
+			warn("Failed to set controller properties");
+			close(fd);
+			return (error);
+		}
 
 		error = mfi_ctrl_get_properties(fd, &ctrl_props);
-        	if ( error < 0) {
-                	error = errno;
-                	warn("Failed to get controller properties");
-                	close(fd);
-                	return (error);
-        	}
+		if ( error < 0) {
+			error = errno;
+			warn("Failed to get controller properties");
+			close(fd);
+			return (error);
+		}
 	}
 	printf ("controller alarm was : %s\n",
 		(ctrl_props.alarm_enable ? "enabled" : "disabled"));

@@ -10,7 +10,7 @@ arm/at91/at91_smc.c		standard
 arm/at91/at91_cfata.c		optional	at91_cfata
 arm/at91/at91_common.c		optional	fdt
 arm/at91/at91_mci.c		optional	at91_mci
-arm/at91/at91_pinctrl.c		optional	fdt
+arm/at91/at91_pinctrl.c		optional	fdt fdt_pinctrl
 arm/at91/at91_pit.c		optional	at91sam9
 arm/at91/at91_reset.S		optional	at91sam9
 arm/at91/at91_rst.c		optional	at91sam9

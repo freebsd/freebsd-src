@@ -847,9 +847,6 @@ newroute(int argc, char **argv)
 			case K_PROTO2:
 				flags |= RTF_PROTO2;
 				break;
-			case K_PROTO3:
-				flags |= RTF_PROTO3;
-				break;
 			case K_PROXY:
 				nrflags |= F_PROXY;
 				break;
@@ -1533,9 +1530,19 @@ rtmsg(int cmd, int flags, int fib)
 	if (debugonly)
 		return (0);
 	if ((rlen = write(s, (char *)&m_rtmsg, l)) < 0) {
-		if (errno == EPERM)
+		switch (errno) {
+		case EPERM:
 			err(1, "writing to routing socket");
-		warn("writing to routing socket");
+			break;
+		case ESRCH:
+			warnx("route has not been found");
+			break;
+		case EEXIST:
+			/* Handled by newroute() */
+			break;
+		default:
+			warn("writing to routing socket");
+		}
 		return (-1);
 	}
 	if (cmd == RTM_GET) {

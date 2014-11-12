@@ -175,8 +175,24 @@
 #define	VM_MAX_ADDRESS		UPT_MAX_ADDRESS
 #define	VM_MIN_ADDRESS		(0)
 
-#define	PHYS_TO_DMAP(x)		((x) | DMAP_MIN_ADDRESS)
-#define	DMAP_TO_PHYS(x)		((x) & ~DMAP_MIN_ADDRESS)
+/*
+ * XXX Allowing dmaplimit == 0 is a temporary workaround for vt(4) efifb's
+ * early use of PHYS_TO_DMAP before the mapping is actually setup. This works
+ * because the result is not actually accessed until later, but the early
+ * vt fb startup needs to be reworked.
+ */
+#define	PHYS_TO_DMAP(x)	({						\
+	KASSERT(dmaplimit == 0 || (x) < dmaplimit,			\
+	    ("physical address %#jx not covered by the DMAP",		\
+	    (uintmax_t)x));						\
+	(x) | DMAP_MIN_ADDRESS; })
+
+#define	DMAP_TO_PHYS(x)	({						\
+	KASSERT((x) < (DMAP_MIN_ADDRESS + dmaplimit) &&			\
+	    (x) >= DMAP_MIN_ADDRESS,					\
+	    ("virtual address %#jx not covered by the DMAP",		\
+	    (uintmax_t)x));						\
+	(x) & ~DMAP_MIN_ADDRESS; })
 
 /*
  * How many physical pages per kmem arena virtual page.

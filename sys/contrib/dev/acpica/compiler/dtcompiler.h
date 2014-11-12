@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2013, Intel Corp.
+ * Copyright (C) 2000 - 2014, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -48,6 +48,10 @@
 
 #include <stdio.h>
 #include <contrib/dev/acpica/include/acdisasm.h>
+
+
+#define ASL_FIELD_CACHE_SIZE            512
+#define ASL_SUBTABLE_CACHE_SIZE         128
 
 
 #undef DT_EXTERN
@@ -142,6 +146,18 @@ DT_EXTERN DT_FIELD          DT_INIT_GLOBAL (*Gbl_LabelList, NULL);
 /* Current offset within the binary output table */
 
 DT_EXTERN UINT32            DT_INIT_GLOBAL (Gbl_CurrentTableOffset, 0);
+
+/* Local caches */
+
+DT_EXTERN UINT32            DT_INIT_GLOBAL (Gbl_SubtableCount, 0);
+DT_EXTERN ASL_CACHE_INFO    DT_INIT_GLOBAL (*Gbl_SubtableCacheList, NULL);
+DT_EXTERN DT_SUBTABLE       DT_INIT_GLOBAL (*Gbl_SubtableCacheNext, NULL);
+DT_EXTERN DT_SUBTABLE       DT_INIT_GLOBAL (*Gbl_SubtableCacheLast, NULL);
+
+DT_EXTERN UINT32            DT_INIT_GLOBAL (Gbl_FieldCount, 0);
+DT_EXTERN ASL_CACHE_INFO    DT_INIT_GLOBAL (*Gbl_FieldCacheList, NULL);
+DT_EXTERN DT_FIELD          DT_INIT_GLOBAL (*Gbl_FieldCacheNext, NULL);
+DT_EXTERN DT_FIELD          DT_INIT_GLOBAL (*Gbl_FieldCacheLast, NULL);
 
 
 /* dtcompiler - main module */
@@ -321,20 +337,20 @@ DtWalkTableTree (
 void
 DtError (
     UINT8                   Level,
-    UINT8                   MessageId,
+    UINT16                  MessageId,
     DT_FIELD                *FieldObject,
     char                    *ExtraMessage);
 
 void
 DtNameError (
     UINT8                   Level,
-    UINT8                   MessageId,
+    UINT16                  MessageId,
     DT_FIELD                *FieldObject,
     char                    *ExtraMessage);
 
 void
 DtFatal (
-    UINT8                   MessageId,
+    UINT16                  MessageId,
     DT_FIELD                *FieldObject,
     char                    *ExtraMessage);
 
@@ -342,10 +358,6 @@ ACPI_STATUS
 DtStrtoul64 (
     char                    *String,
     UINT64                  *ReturnInteger);
-
-UINT32
-DtGetFileSize (
-    FILE                    *Handle);
 
 char*
 DtGetFieldValue (
@@ -372,8 +384,16 @@ void
 DtSetTableLength(
     void);
 
+DT_SUBTABLE *
+UtSubtableCacheCalloc (
+    void);
+
+DT_FIELD *
+UtFieldCacheCalloc (
+    void);
+
 void
-DtFreeFieldList (
+DtDeleteCaches (
     void);
 
 
@@ -400,6 +420,10 @@ DtCompileCsrt (
     void                    **PFieldList);
 
 ACPI_STATUS
+DtCompileDbg2 (
+    void                    **PFieldList);
+
+ACPI_STATUS
 DtCompileDmar (
     void                    **PFieldList);
 
@@ -420,11 +444,19 @@ DtCompileFpdt (
     void                    **PFieldList);
 
 ACPI_STATUS
+DtCompileGtdt (
+    void                    **PFieldList);
+
+ACPI_STATUS
 DtCompileHest (
     void                    **PFieldList);
 
 ACPI_STATUS
 DtCompileIvrs (
+    void                    **PFieldList);
+
+ACPI_STATUS
+DtCompileLpit (
     void                    **PFieldList);
 
 ACPI_STATUS
@@ -449,6 +481,10 @@ DtCompileMtmr (
 
 ACPI_STATUS
 DtCompilePmtt (
+    void                    **PFieldList);
+
+ACPI_STATUS
+DtCompilePcct (
     void                    **PFieldList);
 
 ACPI_STATUS
@@ -503,6 +539,7 @@ extern const unsigned char  TemplateBert[];
 extern const unsigned char  TemplateBgrt[];
 extern const unsigned char  TemplateCpep[];
 extern const unsigned char  TemplateCsrt[];
+extern const unsigned char  TemplateDbg2[];
 extern const unsigned char  TemplateDbgp[];
 extern const unsigned char  TemplateDmar[];
 extern const unsigned char  TemplateEcdt[];
@@ -514,12 +551,14 @@ extern const unsigned char  TemplateGtdt[];
 extern const unsigned char  TemplateHest[];
 extern const unsigned char  TemplateHpet[];
 extern const unsigned char  TemplateIvrs[];
+extern const unsigned char  TemplateLpit[];
 extern const unsigned char  TemplateMadt[];
 extern const unsigned char  TemplateMcfg[];
 extern const unsigned char  TemplateMchi[];
 extern const unsigned char  TemplateMpst[];
 extern const unsigned char  TemplateMsct[];
 extern const unsigned char  TemplateMtmr[];
+extern const unsigned char  TemplatePcct[];
 extern const unsigned char  TemplatePmtt[];
 extern const unsigned char  TemplateRsdt[];
 extern const unsigned char  TemplateS3pt[];

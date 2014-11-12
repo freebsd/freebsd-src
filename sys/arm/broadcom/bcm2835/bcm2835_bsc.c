@@ -210,6 +210,8 @@ static void
 bcm_bsc_reset(struct bcm_bsc_softc *sc)
 {
 
+	/* Enable the BSC Controller, disable interrupts. */
+	BCM_BSC_WRITE(sc, BCM_BSC_CTRL, BCM_BSC_CTRL_I2CEN);
 	/* Clear pending interrupts. */
 	BCM_BSC_WRITE(sc, BCM_BSC_STATUS, BCM_BSC_STATUS_CLKT |
 	    BCM_BSC_STATUS_ERR | BCM_BSC_STATUS_DONE);
@@ -302,7 +304,6 @@ bcm_bsc_attach(device_t dev)
 
 	/* Enable the BSC controller.  Flush the FIFO. */
 	BCM_BSC_LOCK(sc);
-	BCM_BSC_WRITE(sc, BCM_BSC_CTRL, BCM_BSC_CTRL_I2CEN);
 	bcm_bsc_reset(sc);
 	BCM_BSC_UNLOCK(sc);
 
@@ -351,9 +352,8 @@ bcm_bsc_intr(void *arg)
 	/* Check for errors. */
 	if (status & (BCM_BSC_STATUS_CLKT | BCM_BSC_STATUS_ERR)) {
 		/* Disable interrupts. */
-		BCM_BSC_WRITE(sc, BCM_BSC_CTRL, BCM_BSC_CTRL_I2CEN);
-		sc->sc_flags |= BCM_I2C_ERROR;
 		bcm_bsc_reset(sc);
+		sc->sc_flags |= BCM_I2C_ERROR;
 		wakeup(sc->sc_dev);
 		BCM_BSC_UNLOCK(sc);
 		return;
@@ -375,7 +375,6 @@ bcm_bsc_intr(void *arg)
 
 	if (status & BCM_BSC_STATUS_DONE) {
 		/* Disable interrupts. */
-		BCM_BSC_WRITE(sc, BCM_BSC_CTRL, BCM_BSC_CTRL_I2CEN);
 		bcm_bsc_reset(sc);
 		wakeup(sc->sc_dev);
 	}
@@ -395,7 +394,7 @@ bcm_bsc_transfer(device_t dev, struct iic_msg *msgs, uint32_t nmsgs)
 
 	/* If the controller is busy wait until it is available. */
 	while (sc->sc_flags & BCM_I2C_BUSY)
-		mtx_sleep(dev, &sc->sc_mtx, 0, "bcm_bsc", 0);
+		mtx_sleep(dev, &sc->sc_mtx, 0, "bscbusw", 0);
 
 	/* Now we have control over the BSC controller. */
 	sc->sc_flags = BCM_I2C_BUSY;
@@ -439,22 +438,56 @@ bcm_bsc_transfer(device_t dev, struct iic_msg *msgs, uint32_t nmsgs)
 		    BCM_BSC_CTRL_ST | read | intr);
 
 		/* Wait for the transaction to complete. */
-		err = mtx_sleep(dev, &sc->sc_mtx, 0, "bcm_bsc", hz);
+		err = mtx_sleep(dev, &sc->sc_mtx, 0, "bsciow", hz);
 
-		/* Check if we have a timeout or an I2C error. */
-		if ((sc->sc_flags & BCM_I2C_ERROR) || err == EWOULDBLOCK) {
-			device_printf(sc->sc_dev, "I2C error\n");
+		/* Check for errors. */
+		if (err == 0 && (sc->sc_flags & BCM_I2C_ERROR))
 			err = EIO;
+		if (err != 0)
 			break;
-		}
 	}
 
 	/* Clean the controller flags. */
 	sc->sc_flags = 0;
 
+	/* Wake up the threads waiting for bus. */
+	wakeup(dev);
+
 	BCM_BSC_UNLOCK(sc);
 
 	return (err);
+}
+
+static int
+bcm_bsc_iicbus_reset(device_t dev, u_char speed, u_char addr, u_char *oldaddr)
+{
+	struct bcm_bsc_softc *sc;
+	uint32_t freq;
+        
+	sc = device_get_softc(dev);
+	BCM_BSC_LOCK(sc);
+	bcm_bsc_reset(sc);
+	freq = 0;
+	switch (speed) {
+	case IIC_SLOW:
+		freq = BCM_BSC_SLOW;
+		break;
+	case IIC_FAST:
+		freq = BCM_BSC_FAST;
+		break;
+	case IIC_FASTEST:
+		freq = BCM_BSC_FASTEST;
+		break;
+	case IIC_UNKNOWN:
+	default:
+		/* Reuse last frequency. */
+		break;
+	}
+	if (freq != 0)
+		BCM_BSC_WRITE(sc, BCM_BSC_CLOCK, BCM_BSC_CORE_CLK / freq);
+	BCM_BSC_UNLOCK(sc);
+
+	return (IIC_ENOADDR);
 }
 
 static phandle_t
@@ -472,6 +505,7 @@ static device_method_t bcm_bsc_methods[] = {
 	DEVMETHOD(device_detach,	bcm_bsc_detach),
 
 	/* iicbus interface */
+	DEVMETHOD(iicbus_reset,		bcm_bsc_iicbus_reset),
 	DEVMETHOD(iicbus_callback,	iicbus_null_callback),
 	DEVMETHOD(iicbus_transfer,	bcm_bsc_transfer),
 

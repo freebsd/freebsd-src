@@ -1127,9 +1127,8 @@ ng_btsocket_l2cap_process_l2ca_write_rsp(struct ng_mesg *msg,
 	/*
  	 * Check if we have more data to send
  	 */
-
 	sbdroprecord(&pcb->so->so_snd);
-	if (pcb->so->so_snd.sb_cc > 0) {
+	if (sbavail(&pcb->so->so_snd) > 0) {
 		if (ng_btsocket_l2cap_send2(pcb) == 0)
 			ng_btsocket_l2cap_timeout(pcb);
 		else
@@ -1967,8 +1966,6 @@ ng_btsocket_l2cap_attach(struct socket *so, int proto, struct thread *td)
 	pcb->flush_timo = NG_L2CAP_FLUSH_TIMO_DEFAULT;
 	pcb->link_timo = NG_L2CAP_LINK_TIMO_DEFAULT;
 
-	callout_handle_init(&pcb->timo);
-
 	/*
 	 * XXX Mark PCB mutex as DUPOK to prevent "duplicated lock of
 	 * the same type" message. When accepting new L2CAP connection 
@@ -1978,6 +1975,7 @@ ng_btsocket_l2cap_attach(struct socket *so, int proto, struct thread *td)
 		
 	mtx_init(&pcb->pcb_mtx, "btsocks_l2cap_pcb_mtx", NULL,
 		MTX_DEF|MTX_DUPOK);
+	callout_init_mtx(&pcb->timo, &pcb->pcb_mtx, 0);
 
         /*
 	 * Add the PCB to the list
@@ -2514,7 +2512,7 @@ ng_btsocket_l2cap_send2(ng_btsocket_l2cap_pcb_p pcb)
 	
 	mtx_assert(&pcb->pcb_mtx, MA_OWNED);
 
-	if (pcb->so->so_snd.sb_cc == 0)
+	if (sbavail(&pcb->so->so_snd) == 0)
 		return (EINVAL); /* XXX */
 
 	m = m_dup(pcb->so->so_snd.sb_mb, M_NOWAIT);
@@ -2664,8 +2662,8 @@ ng_btsocket_l2cap_timeout(ng_btsocket_l2cap_pcb_p pcb)
 
 	if (!(pcb->flags & NG_BTSOCKET_L2CAP_TIMO)) {
 		pcb->flags |= NG_BTSOCKET_L2CAP_TIMO;
-		pcb->timo = timeout(ng_btsocket_l2cap_process_timeout, pcb,
-					bluetooth_l2cap_ertx_timeout());
+		callout_reset(&pcb->timo, bluetooth_l2cap_ertx_timeout(),
+		    ng_btsocket_l2cap_process_timeout, pcb);
 	} else
 		KASSERT(0,
 ("%s: Duplicated socket timeout?!\n", __func__));
@@ -2681,7 +2679,7 @@ ng_btsocket_l2cap_untimeout(ng_btsocket_l2cap_pcb_p pcb)
 	mtx_assert(&pcb->pcb_mtx, MA_OWNED);
 
 	if (pcb->flags & NG_BTSOCKET_L2CAP_TIMO) {
-		untimeout(ng_btsocket_l2cap_process_timeout, pcb, pcb->timo);
+		callout_stop(&pcb->timo);
 		pcb->flags &= ~NG_BTSOCKET_L2CAP_TIMO;
 	} else
 		KASSERT(0,
@@ -2697,7 +2695,7 @@ ng_btsocket_l2cap_process_timeout(void *xpcb)
 {
 	ng_btsocket_l2cap_pcb_p	pcb = (ng_btsocket_l2cap_pcb_p) xpcb;
 
-	mtx_lock(&pcb->pcb_mtx);
+	mtx_assert(&pcb->pcb_mtx, MA_OWNED);
 
 	pcb->flags &= ~NG_BTSOCKET_L2CAP_TIMO;
 	pcb->so->so_error = ETIMEDOUT;
@@ -2731,8 +2729,6 @@ ng_btsocket_l2cap_process_timeout(void *xpcb)
 "%s: Invalid socket state=%d\n", __func__, pcb->state);
 		break;
 	}
-
-	mtx_unlock(&pcb->pcb_mtx);
 } /* ng_btsocket_l2cap_process_timeout */
 
 /*

@@ -87,7 +87,11 @@ __FBSDID("$FreeBSD$");
 #define GICC_ABPR		0x001C			/* v1 ICCABPR */
 #define GICC_IIDR		0x00FC			/* v1 ICCIIDR*/
 
-#define	GIC_LAST_IPI		15	/* Irqs 0-15 are IPIs. */
+#define	GIC_FIRST_IPI		 0	/* Irqs 0-15 are SGIs/IPIs. */
+#define	GIC_LAST_IPI		15
+#define	GIC_FIRST_PPI		16	/* Irqs 16-31 are private (per */
+#define	GIC_LAST_PPI		31	/* core) peripheral interrupts. */
+#define	GIC_FIRST_SPI		32	/* Irqs 32+ are shared peripherals. */
 
 /* First bit is a polarity bit (0 - low, 1 - high) */
 #define GICD_ICFGR_POL_LOW	(0 << 0)
@@ -108,12 +112,6 @@ struct arm_gic_softc {
 	device_t		dev;
 	struct mtx		mutex;
 	uint32_t		nirqs;
-};
-
-static struct ofw_compat_data compat_data[] = {
-	{ "arm,cortex-a9-gic", 1 },
-	{ "arm,gic", 1 },
-	{ NULL, 0 },
 };
 
 static struct resource_spec arm_gic_spec[] = {
@@ -139,6 +137,17 @@ static pic_dispatch_t gic_dispatch;
 static pic_eoi_t gic_eoi;
 static pic_mask_t gic_mask_irq;
 static pic_unmask_t gic_unmask_irq;
+
+static struct ofw_compat_data compat_data[] = {
+	{"arm,gic",		true},	/* Non-standard, used in FreeBSD dts. */
+	{"arm,gic-400",		true},
+	{"arm,cortex-a15-gic",	true},
+	{"arm,cortex-a9-gic",	true},
+	{"arm,cortex-a7-gic",	true},
+	{"arm,arm11mp-gic",	true},
+	{"brcm,brahma-b15-gic",	true},
+	{NULL,			false}
+};
 
 static int
 arm_gic_probe(device_t dev)
@@ -181,9 +190,57 @@ gic_init_secondary(void)
 	/* Enable interrupt distribution */
 	gic_d_write_4(GICD_CTLR, 0x01);
 
-	/* Activate IRQ 29-30, ie private timer (secure & non-secure) IRQs */
+	/*
+	 * Activate the timer interrupts: virtual, secure, and non-secure.
+	 */
+	gic_d_write_4(GICD_ISENABLER(27 >> 5), (1UL << (27 & 0x1F)));
 	gic_d_write_4(GICD_ISENABLER(29 >> 5), (1UL << (29 & 0x1F)));
 	gic_d_write_4(GICD_ISENABLER(30 >> 5), (1UL << (30 & 0x1F)));
+}
+
+int
+gic_decode_fdt(uint32_t iparent, uint32_t *intr, int *interrupt,
+    int *trig, int *pol)
+{
+	static u_int num_intr_cells;
+
+	if (num_intr_cells == 0) {
+		if (OF_searchencprop(OF_node_from_xref(iparent), 
+		    "#interrupt-cells", &num_intr_cells, 
+		    sizeof(num_intr_cells)) == -1) {
+			num_intr_cells = 1;
+		}
+	}
+
+	if (num_intr_cells == 1) {
+		*interrupt = fdt32_to_cpu(intr[0]);
+		*trig = INTR_TRIGGER_CONFORM;
+		*pol = INTR_POLARITY_CONFORM;
+	} else {
+		if (intr[0] == 0)
+			*interrupt = fdt32_to_cpu(intr[1]) + GIC_FIRST_SPI;
+		else
+			*interrupt = fdt32_to_cpu(intr[1]) + GIC_FIRST_PPI;
+		/*
+		 * In intr[2], bits[3:0] are trigger type and level flags.
+		 *   1 = low-to-high edge triggered
+		 *   2 = high-to-low edge triggered
+		 *   4 = active high level-sensitive
+		 *   8 = active low level-sensitive
+		 * The hardware only supports active-high-level or rising-edge.
+		 */
+		if (intr[2] & 0x0a) {
+			printf("unsupported trigger/polarity configuration "
+			    "0x%2x\n", intr[2] & 0x0f);
+			return (ENOTSUP);
+		}
+		*pol  = INTR_POLARITY_CONFORM;
+		if (intr[2] & 0x01)
+			*trig = INTR_TRIGGER_EDGE;
+		else
+			*trig = INTR_TRIGGER_LEVEL;
+	}
+	return (0);
 }
 #endif
 
@@ -287,7 +344,8 @@ static devclass_t arm_gic_devclass;
 
 EARLY_DRIVER_MODULE(gic, simplebus, arm_gic_driver, arm_gic_devclass, 0, 0,
     BUS_PASS_INTERRUPT + BUS_PASS_ORDER_MIDDLE);
-DRIVER_MODULE(gic, ofwbus, arm_gic_driver, arm_gic_devclass, 0, 0);
+EARLY_DRIVER_MODULE(gic, ofwbus, arm_gic_driver, arm_gic_devclass, 0, 0,
+    BUS_PASS_INTERRUPT + BUS_PASS_ORDER_MIDDLE);
 
 static void gic_dispatch(device_t dev, struct trapframe *frame)
 {

@@ -224,12 +224,13 @@ static void 		ctlfe_dump(void);
 static struct periph_driver ctlfe_driver =
 {
 	ctlfeperiphinit, "ctl",
-	TAILQ_HEAD_INITIALIZER(ctlfe_driver.units), /*generation*/ 0
+	TAILQ_HEAD_INITIALIZER(ctlfe_driver.units), /*generation*/ 0,
+	CAM_PERIPH_DRV_EARLY
 };
 
 static struct ctl_frontend ctlfe_frontend =
 {
-	.name = "camtarget",
+	.name = "camtgt",
 	.init = ctlfeinitialize,
 	.fe_dump = ctlfe_dump,
 	.shutdown = ctlfeshutdown,
@@ -270,10 +271,18 @@ ctlfeperiphinit(void)
 static void
 ctlfeasync(void *callback_arg, uint32_t code, struct cam_path *path, void *arg)
 {
+	struct ctlfe_softc *softc;
 
 #ifdef CTLFEDEBUG
 	printf("%s: entered\n", __func__);
 #endif
+
+	mtx_lock(&ctlfe_list_mtx);
+	STAILQ_FOREACH(softc, &ctlfe_softc_list, links) {
+		if (softc->path_id == xpt_path_path_id(path))
+			break;
+	}
+	mtx_unlock(&ctlfe_list_mtx);
 
 	/*
 	 * When a new path gets registered, and it is capable of target
@@ -283,7 +292,6 @@ ctlfeasync(void *callback_arg, uint32_t code, struct cam_path *path, void *arg)
 	switch (code) {
 	case AC_PATH_REGISTERED: {
 		struct ctl_port *port;
-		struct ctlfe_softc *bus_softc;
 		struct ccb_pathinq *cpi;
 		int retval;
 
@@ -294,6 +302,14 @@ ctlfeasync(void *callback_arg, uint32_t code, struct cam_path *path, void *arg)
 #ifdef CTLFEDEBUG
 			printf("%s: SIM %s%d doesn't support target mode\n",
 			       __func__, cpi->dev_name, cpi->unit_number);
+#endif
+			break;
+		}
+
+		if (softc != NULL) {
+#ifdef CTLFEDEBUG
+			printf("%s: CTL port for CAM path %u already exists\n",
+			       __func__, xpt_path_path_id(path));
 #endif
 			break;
 		}
@@ -346,25 +362,23 @@ ctlfeasync(void *callback_arg, uint32_t code, struct cam_path *path, void *arg)
 		 * use M_NOWAIT.  Of course this means trouble if we
 		 * can't allocate memory.
 		 */
-		bus_softc = malloc(sizeof(*bus_softc), M_CTLFE,
-				   M_NOWAIT | M_ZERO);
-		if (bus_softc == NULL) {
+		softc = malloc(sizeof(*softc), M_CTLFE, M_NOWAIT | M_ZERO);
+		if (softc == NULL) {
 			printf("%s: unable to malloc %zd bytes for softc\n",
-			       __func__, sizeof(*bus_softc));
+			       __func__, sizeof(*softc));
 			return;
 		}
 
-		bus_softc->path_id = cpi->ccb_h.path_id;
-		bus_softc->sim = xpt_path_sim(path);
+		softc->path_id = cpi->ccb_h.path_id;
+		softc->sim = xpt_path_sim(path);
 		if (cpi->maxio != 0)
-			bus_softc->maxio = cpi->maxio;
+			softc->maxio = cpi->maxio;
 		else
-			bus_softc->maxio = DFLTPHYS;
-		mtx_init(&bus_softc->lun_softc_mtx, "LUN softc mtx", NULL,
-		    MTX_DEF);
-		STAILQ_INIT(&bus_softc->lun_softc_list);
+			softc->maxio = DFLTPHYS;
+		mtx_init(&softc->lun_softc_mtx, "LUN softc mtx", NULL, MTX_DEF);
+		STAILQ_INIT(&softc->lun_softc_list);
 
-		port = &bus_softc->port;
+		port = &softc->port;
 		port->frontend = &ctlfe_frontend;
 
 		/*
@@ -379,21 +393,21 @@ ctlfeasync(void *callback_arg, uint32_t code, struct cam_path *path, void *arg)
 
 		/* XXX KDM what should the real number be here? */
 		port->num_requested_ctl_io = 4096;
-		snprintf(bus_softc->port_name, sizeof(bus_softc->port_name),
+		snprintf(softc->port_name, sizeof(softc->port_name),
 			 "%s%d", cpi->dev_name, cpi->unit_number);
 		/*
 		 * XXX KDM it would be nice to allocate storage in the
 		 * frontend structure itself.
 	 	 */
-		port->port_name = bus_softc->port_name;
-		port->physical_port = cpi->unit_number;
-		port->virtual_port = cpi->bus_id;
+		port->port_name = softc->port_name;
+		port->physical_port = cpi->bus_id;
+		port->virtual_port = 0;
 		port->port_online = ctlfe_online;
 		port->port_offline = ctlfe_offline;
-		port->onoff_arg = bus_softc;
+		port->onoff_arg = softc;
 		port->lun_enable = ctlfe_lun_enable;
 		port->lun_disable = ctlfe_lun_disable;
-		port->targ_lun_arg = bus_softc;
+		port->targ_lun_arg = softc;
 		port->fe_datamove = ctlfe_datamove_done;
 		port->fe_done = ctlfe_datamove_done;
 		/*
@@ -415,35 +429,28 @@ ctlfeasync(void *callback_arg, uint32_t code, struct cam_path *path, void *arg)
 		if (retval != 0) {
 			printf("%s: ctl_port_register() failed with "
 			       "error %d!\n", __func__, retval);
-			mtx_destroy(&bus_softc->lun_softc_mtx);
-			free(bus_softc, M_CTLFE);
+			mtx_destroy(&softc->lun_softc_mtx);
+			free(softc, M_CTLFE);
 			break;
 		} else {
 			mtx_lock(&ctlfe_list_mtx);
-			STAILQ_INSERT_TAIL(&ctlfe_softc_list, bus_softc, links);
+			STAILQ_INSERT_TAIL(&ctlfe_softc_list, softc, links);
 			mtx_unlock(&ctlfe_list_mtx);
 		}
 
 		break;
 	}
 	case AC_PATH_DEREGISTERED: {
-		struct ctlfe_softc *softc = NULL;
-
-		mtx_lock(&ctlfe_list_mtx);
-		STAILQ_FOREACH(softc, &ctlfe_softc_list, links) {
-			if (softc->path_id == xpt_path_path_id(path)) {
-				STAILQ_REMOVE(&ctlfe_softc_list, softc,
-						ctlfe_softc, links);
-				break;
-			}
-		}
-		mtx_unlock(&ctlfe_list_mtx);
 
 		if (softc != NULL) {
 			/*
 			 * XXX KDM are we certain at this point that there
 			 * are no outstanding commands for this frontend?
 			 */
+			mtx_lock(&ctlfe_list_mtx);
+			STAILQ_REMOVE(&ctlfe_softc_list, softc, ctlfe_softc,
+			    links);
+			mtx_unlock(&ctlfe_list_mtx);
 			ctl_port_deregister(&softc->port);
 			mtx_destroy(&softc->lun_softc_mtx);
 			free(softc, M_CTLFE);
@@ -458,8 +465,7 @@ ctlfeasync(void *callback_arg, uint32_t code, struct cam_path *path, void *arg)
 		switch (ac->contract_number) {
 		case AC_CONTRACT_DEV_CHG: {
 			struct ac_device_changed *dev_chg;
-			struct ctlfe_softc *softc;
-			int retval, found;
+			int retval;
 
 			dev_chg = (struct ac_device_changed *)ac->contract_data;
 
@@ -468,18 +474,7 @@ ctlfeasync(void *callback_arg, uint32_t code, struct cam_path *path, void *arg)
 			       xpt_path_path_id(path), dev_chg->target,
 			       (dev_chg->arrived == 0) ?  "left" : "arrived");
 
-			found = 0;
-
-			mtx_lock(&ctlfe_list_mtx);
-			STAILQ_FOREACH(softc, &ctlfe_softc_list, links) {
-				if (softc->path_id == xpt_path_path_id(path)) {
-					found = 1;
-					break;
-				}
-			}
-			mtx_unlock(&ctlfe_list_mtx);
-
-			if (found == 0) {
+			if (softc == NULL) {
 				printf("%s: CTL port for CAM path %u not "
 				       "found!\n", __func__,
 				       xpt_path_path_id(path));
@@ -1115,6 +1110,7 @@ ctlfe_adjust_cdb(struct ccb_accept_tio *atio, uint32_t offset)
 	}
 	case READ_16:
 	case WRITE_16:
+	case WRITE_ATOMIC_16:
 	{
 		struct scsi_rw_16 *cdb = (struct scsi_rw_16 *)cmdbyt;
 		lba = scsi_8btou64(cdb->addr);
@@ -1517,11 +1513,6 @@ ctlfedone(struct cam_periph *periph, union ccb *done_ccb)
 			case CAM_MESSAGE_RECV:
 				switch (inot->arg) {
 				case MSG_ABORT_TASK_SET:
-					/*
-					 * XXX KDM this isn't currently
-					 * supported by CTL.  It ends up
-					 * being a no-op.
-					 */
 					io->taskio.task_action =
 						CTL_TASK_ABORT_TASK_SET;
 					break;
@@ -1538,11 +1529,6 @@ ctlfedone(struct cam_periph *periph, union ccb *done_ccb)
 						CTL_TASK_LUN_RESET;
 					break;
 				case MSG_CLEAR_TASK_SET:
-					/*
-					 * XXX KDM this isn't currently
-					 * supported by CTL.  It ends up
-					 * being a no-op.
-					 */
 					io->taskio.task_action =
 						CTL_TASK_CLEAR_TASK_SET;
 					break;
@@ -1810,6 +1796,7 @@ ctlfe_online(void *arg)
 	struct cam_path *path;
 	cam_status status;
 	struct ctlfe_lun_softc *lun_softc;
+	struct cam_periph *periph;
 
 	bus_softc = (struct ctlfe_softc *)arg;
 
@@ -1835,12 +1822,16 @@ ctlfe_online(void *arg)
 	}
 
 	xpt_path_lock(path);
+	periph = cam_periph_find(path, "ctl");
+	if (periph != NULL) {
+		/* We've already got a periph, no need to alloc a new one. */
+		xpt_path_unlock(path);
+		xpt_free_path(path);
+		free(lun_softc, M_CTLFE);
+		return;
+	}
 	lun_softc->parent_softc = bus_softc;
 	lun_softc->flags |= CTLFE_LUN_WILDCARD;
-
-	mtx_lock(&bus_softc->lun_softc_mtx);
-	STAILQ_INSERT_TAIL(&bus_softc->lun_softc_list, lun_softc, links);
-	mtx_unlock(&bus_softc->lun_softc_mtx);
 
 	status = cam_periph_alloc(ctlferegister,
 				  ctlfeoninvalidate,
@@ -1857,13 +1848,16 @@ ctlfe_online(void *arg)
 		const struct cam_status_entry *entry;
 
 		entry = cam_fetch_status_entry(status);
-
 		printf("%s: CAM error %s (%#x) returned from "
 		       "cam_periph_alloc()\n", __func__, (entry != NULL) ?
 		       entry->status_text : "Unknown", status);
+		free(lun_softc, M_CTLFE);
+	} else {
+		mtx_lock(&bus_softc->lun_softc_mtx);
+		STAILQ_INSERT_TAIL(&bus_softc->lun_softc_list, lun_softc, links);
+		mtx_unlock(&bus_softc->lun_softc_mtx);
+		ctlfe_onoffline(arg, /*online*/ 1);
 	}
-
-	ctlfe_onoffline(arg, /*online*/ 1);
 
 	xpt_path_unlock(path);
 	xpt_free_path(path);
@@ -1938,11 +1932,7 @@ ctlfe_lun_enable(void *arg, struct ctl_id targ_id, int lun_id)
 		free(softc, M_CTLFE);
 		return (0);
 	}
-
 	softc->parent_softc = bus_softc;
-	mtx_lock(&bus_softc->lun_softc_mtx);
-	STAILQ_INSERT_TAIL(&bus_softc->lun_softc_list, softc, links);
-	mtx_unlock(&bus_softc->lun_softc_mtx);
 
 	status = cam_periph_alloc(ctlferegister,
 				  ctlfeoninvalidate,
@@ -1954,6 +1944,20 @@ ctlfe_lun_enable(void *arg, struct ctl_id targ_id, int lun_id)
 				  ctlfeasync,
 				  0,
 				  softc);
+
+	if ((status & CAM_STATUS_MASK) != CAM_REQ_CMP) {
+		const struct cam_status_entry *entry;
+
+		entry = cam_fetch_status_entry(status);
+		printf("%s: CAM error %s (%#x) returned from "
+		       "cam_periph_alloc()\n", __func__, (entry != NULL) ?
+		       entry->status_text : "Unknown", status);
+		free(softc, M_CTLFE);
+	} else {
+		mtx_lock(&bus_softc->lun_softc_mtx);
+		STAILQ_INSERT_TAIL(&bus_softc->lun_softc_list, softc, links);
+		mtx_unlock(&bus_softc->lun_softc_mtx);
+	}
 
 	xpt_path_unlock(path);
 	xpt_free_path(path);

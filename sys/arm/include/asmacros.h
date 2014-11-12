@@ -45,6 +45,18 @@
 	ldr	tmp, [tmp, #PC_CURTHREAD]
 #endif
 
+#define	ELFNOTE(section, type, vendor, desctype, descdata...)	  \
+	.pushsection section					; \
+	    .balign 4						; \
+	    .long 2f - 1f		/* namesz */		; \
+	    .long 4f - 3f		/* descsz */		; \
+	    .long type			/* type */		; \
+	    1: .asciz vendor		/* vendor name */	; \
+	    2: .balign 4					; \
+	    3:  desctype descdata	/* node */		; \
+	    4: .balign 4					; \
+	.popsection
+
 #endif /* LOCORE */
 
 #endif /* _KERNEL */

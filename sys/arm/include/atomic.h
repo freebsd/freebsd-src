@@ -40,6 +40,7 @@
 #define	_MACHINE_ATOMIC_H_
 
 #include <sys/types.h>
+#include <machine/armreg.h>
 
 #ifndef _KERNEL
 #include <machine/sysarch.h>
@@ -67,12 +68,7 @@
 #define wmb()  dmb()
 #define rmb()  dmb()
 
-#ifndef I32_bit
-#define I32_bit (1 << 7)        /* IRQ disable */
-#endif
-#ifndef F32_bit
-#define F32_bit (1 << 6)        /* FIQ disable */
-#endif
+
 
 /*
  * It would be nice to use _HAVE_ARMv6_INSTRUCTIONS from machine/asm.h
@@ -268,12 +264,12 @@ atomic_cmpset_64(volatile uint64_t *p, uint64_t cmpval, uint64_t newval)
 	__asm __volatile(
 		"1:          \n"
 		"   ldrexd   %[tmp], [%[ptr]]\n"
-		"   teq      %Q[tmp], %Q[cmp]\n"
+		"   teq      %Q[tmp], %Q[cmpval]\n"
 		"   itee eq  \n"
-		"   teqeq    %R[tmp], %R[cmp]\n"
+		"   teqeq    %R[tmp], %R[cmpval]\n"
 		"   movne    %[ret], #0\n"
 		"   bne      2f\n"
-		"   strexd   %[ret], %[new], [%[ptr]]\n"
+		"   strexd   %[ret], %[newval], [%[ptr]]\n"
 		"   teq      %[ret], #0\n"
 		"   it ne    \n"
 		"   bne      1b\n"
@@ -282,8 +278,8 @@ atomic_cmpset_64(volatile uint64_t *p, uint64_t cmpval, uint64_t newval)
 		:   [ret]    "=&r"  (ret), 
 		    [tmp]    "=&r"  (tmp)
 		:   [ptr]    "r"    (p), 
-		    [cmp]    "r"    (cmpval), 
-		    [new]    "r"    (newval)
+		    [cmpval] "r"    (cmpval), 
+		    [newval] "r"    (newval)
 		:   "cc", "memory");
 	return (ret);
 }
@@ -702,7 +698,7 @@ atomic_store_rel_long(volatile u_long *p, u_long v)
 			"orr  %1, %0, %2;"		\
 			"msr  cpsr_fsxc, %1;"		\
 			: "=r" (cpsr_save), "=r" (tmp)	\
-			: "I" (I32_bit | F32_bit)		\
+			: "I" (PSR_I | PSR_F)		\
 		        : "cc" );		\
 		(expr);				\
 		 __asm __volatile(		\

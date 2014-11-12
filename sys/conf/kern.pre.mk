@@ -33,8 +33,8 @@ CP?=		cp
 LINT?=		lint
 NM?=		nm
 OBJCOPY?=	objcopy
-.if ${MACHINE_CPUARCH} == "arm64"
-SIZE?=		true
+.if ${MACHINE_ARCH} == "arm64"
+SIZE=		true
 .else
 SIZE?=		size
 .endif

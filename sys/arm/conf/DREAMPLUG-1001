@@ -57,7 +57,6 @@ options 	FDT_DTB_STATIC
 
 # Misc pseudo devices
 device		bpf			# Required for DHCP
-device  	faith			# IPv6-to-IPv4 relaying (translation)
 device  	firmware		# firmware(9) required for USB wlan
 device  	gif			# IPv6 and IPv4 tunneling
 device		loop			# Network loopback

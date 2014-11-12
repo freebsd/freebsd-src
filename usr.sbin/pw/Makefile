@@ -11,4 +11,10 @@ WARNS?=	2
 DPADD=	${LIBCRYPT} ${LIBUTIL}
 LDADD=	-lcrypt -lutil
 
+.include <src.opts.mk>
+
+.if ${MK_TESTS} != "no"
+SUBDIR+=	tests
+.endif
+
 .include <bsd.prog.mk>

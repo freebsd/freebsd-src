@@ -125,7 +125,7 @@ scan_callback(struct cam_periph *periph, union ccb *ccb)
 
      debug_called(8);
 
-     free(ccb, M_TEMP);
+     xpt_free_ccb(ccb);
 
      if(sp->flags & ISC_SCANWAIT) {
 	  sp->flags &= ~ISC_SCANWAIT;
@@ -141,30 +141,15 @@ ic_scan(isc_session_t *sp)
      debug_called(8);
      sdebug(2, "scanning sid=%d", sp->sid);
 
-     if((ccb = malloc(sizeof(union ccb), M_TEMP, M_WAITOK | M_ZERO)) == NULL) {
-	  xdebug("scan failed (can't allocate CCB)");
-	  return ENOMEM; // XXX
-     }
-
      sp->flags &= ~ISC_CAMDEVS;
      sp->flags |= ISC_SCANWAIT;
 
-     CAM_LOCK(sp);
-     if(xpt_create_path(&sp->cam_path, NULL, cam_sim_path(sp->cam_sim),
-			0, CAM_LUN_WILDCARD) != CAM_REQ_CMP) {
-	  xdebug("can't create cam path");
-	  CAM_UNLOCK(sp);
-	  free(ccb, M_TEMP);
-	  return ENODEV; // XXX
-     }
-     xpt_setup_ccb(&ccb->ccb_h, sp->cam_path, 5/*priority (low)*/);
-     ccb->ccb_h.func_code	= XPT_SCAN_BUS;
+     ccb = xpt_alloc_ccb();
+     ccb->ccb_h.path		= sp->cam_path;
      ccb->ccb_h.cbfcnp		= scan_callback;
-     ccb->crcn.flags		= CAM_FLAG_NONE;
      ccb->ccb_h.spriv_ptr0	= sp;
 
-     xpt_action(ccb);
-     CAM_UNLOCK(sp);
+     xpt_rescan(ccb);
 
      while(sp->flags & ISC_SCANWAIT)
 	  tsleep(sp, PRIBIO, "ffp", 5*hz); // the timeout time should
@@ -374,6 +359,16 @@ ic_init(isc_session_t *sp)
 	  return ENXIO;
      }
      sp->cam_sim = sim;
+     if(xpt_create_path(&sp->cam_path, NULL, cam_sim_path(sp->cam_sim),
+	    CAM_TARGET_WILDCARD, CAM_LUN_WILDCARD) != CAM_REQ_CMP) {
+	  xpt_bus_deregister(cam_sim_path(sp->cam_sim));
+	  cam_sim_free(sim, /*free_devq*/TRUE);
+	  CAM_UNLOCK(sp);
+#if __FreeBSD_version >= 700000
+	  mtx_destroy(&sp->cam_mtx);
+#endif
+	  return ENXIO;
+     }
      CAM_UNLOCK(sp);
 
      sdebug(1, "cam subsystem initialized");

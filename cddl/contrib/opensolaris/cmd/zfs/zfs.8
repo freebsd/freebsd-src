@@ -27,10 +27,11 @@
 .\" Copyright (c) 2014, Joyent, Inc. All rights reserved.
 .\" Copyright (c) 2013, Steven Hartland <smh@FreeBSD.org>
 .\" Copyright (c) 2014, Xin LI <delphij@FreeBSD.org>
+.\" Copyright (c) 2014, The FreeBSD Foundation, All Rights Reserved.
 .\"
 .\" $FreeBSD$
 .\"
-.Dd June 30, 2014
+.Dd November 12, 2014
 .Dt ZFS 8
 .Os
 .Sh NAME
@@ -179,12 +180,12 @@
 .Ar bookmark
 .Nm
 .Cm send
-.Op Fl DnPpRve
+.Op Fl DnPpRveL
 .Op Fl i Ar snapshot | Fl I Ar snapshot
 .Ar snapshot
 .Nm
 .Cm send
-.Op Fl e
+.Op Fl eL
 .Op Fl i Ar snapshot Ns | Ns bookmark
 .Ar filesystem Ns | Ns Ar volume Ns | Ns Ar snapshot
 .Nm
@@ -1187,6 +1188,12 @@ systems is strongly discouraged, and may adversely affect performance.
 .Pp
 The size specified must be a power of two greater than or equal to 512 and less
 than or equal to 128 Kbytes.
+If the
+.Sy large_blocks
+feature is enabled on the pool, the size may be up to 1 Mbyte.
+See
+.Xr zpool-features 7
+for details on ZFS feature flags.
 .Pp
 Changing the file system's
 .Sy recordsize
@@ -1785,7 +1792,7 @@ descendent file systems.
 Recursively destroy all clones of these snapshots, including the clones,
 snapshots, and children.
 If this flag is specified, the
-.Op fl d
+.Fl d
 flag will have no effect.
 .It Fl n
 Do a dry-run ("No-op") deletion. No data will be deleted. This is useful in
@@ -2477,7 +2484,7 @@ feature.
 .It Xo
 .Nm
 .Cm send
-.Op Fl DnPpRve
+.Op Fl DnPpRveL
 .Op Fl i Ar snapshot | Fl I Ar snapshot
 .Ar snapshot
 .Xc
@@ -2549,6 +2556,22 @@ be used regardless of the dataset's
 property, but performance will be much better if the filesystem uses a
 dedup-capable checksum (eg.
 .Sy sha256 ) .
+.It Fl L
+Generate a stream which may contain blocks larger than 128KB.
+This flag
+has no effect if the
+.Sy large_blocks
+pool feature is disabled, or if the
+.Sy recordsize
+property of this filesystem has never been set above 128KB.
+The receiving system must have the
+.Sy large_blocks
+pool feature enabled as well.
+See
+.Xr zpool-features 7
+for details on ZFS feature flags and the
+.Sy large_blocks
+feature.
 .It Fl e
 Generate a more compact stream by using WRITE_EMBEDDED records for blocks
 which are stored more compactly on disk by the
@@ -2596,7 +2619,7 @@ on future versions of
 .It Xo
 .Nm
 .Cm send
-.Op Fl e
+.Op Fl eL
 .Op Fl i Ar snapshot Ns | Ns Ar bookmark
 .Ar filesystem Ns | Ns Ar volume Ns | Ns Ar snapshot
 .Xc
@@ -2622,6 +2645,22 @@ specified as the last component of the name
 If the incremental target is a clone, the incremental source can
 be the origin snapshot, or an earlier snapshot in the origin's filesystem,
 or the origin's origin, etc.
+.It Fl L
+Generate a stream which may contain blocks larger than 128KB.
+This flag
+has no effect if the
+.Sy large_blocks
+pool feature is disabled, or if the
+.Sy recordsize
+property of this filesystem has never been set above 128KB.
+The receiving system must have the
+.Sy large_blocks
+pool feature enabled as well.
+See
+.Xr zpool-features 7
+for details on ZFS feature flags and the
+.Sy large_blocks
+feature.
 .It Fl e
 Generate a more compact stream by using WRITE_EMBEDDED records for blocks
 which are stored more compactly on disk by the

@@ -562,20 +562,11 @@ static void
 sctp_handle_heartbeat_ack(struct sctp_heartbeat_chunk *cp,
     struct sctp_tcb *stcb, struct sctp_nets *net)
 {
-	struct sockaddr_storage store;
+	union sctp_sockstore store;
 	struct sctp_nets *r_net, *f_net;
 	struct timeval tv;
 	int req_prim = 0;
 	uint16_t old_error_counter;
-
-#ifdef INET
-	struct sockaddr_in *sin;
-
-#endif
-#ifdef INET6
-	struct sockaddr_in6 *sin6;
-
-#endif
 
 	if (ntohs(cp->ch.chunk_length) != sizeof(struct sctp_heartbeat_chunk)) {
 		/* Invalid length */
@@ -586,12 +577,11 @@ sctp_handle_heartbeat_ack(struct sctp_heartbeat_chunk *cp,
 #ifdef INET
 	case AF_INET:
 		if (cp->heartbeat.hb_info.addr_len == sizeof(struct sockaddr_in)) {
-			sin = (struct sockaddr_in *)&store;
-			sin->sin_family = cp->heartbeat.hb_info.addr_family;
-			sin->sin_len = cp->heartbeat.hb_info.addr_len;
-			sin->sin_port = stcb->rport;
-			memcpy(&sin->sin_addr, cp->heartbeat.hb_info.address,
-			    sizeof(sin->sin_addr));
+			store.sin.sin_family = cp->heartbeat.hb_info.addr_family;
+			store.sin.sin_len = cp->heartbeat.hb_info.addr_len;
+			store.sin.sin_port = stcb->rport;
+			memcpy(&store.sin.sin_addr, cp->heartbeat.hb_info.address,
+			    sizeof(store.sin.sin_addr));
 		} else {
 			return;
 		}
@@ -600,12 +590,10 @@ sctp_handle_heartbeat_ack(struct sctp_heartbeat_chunk *cp,
 #ifdef INET6
 	case AF_INET6:
 		if (cp->heartbeat.hb_info.addr_len == sizeof(struct sockaddr_in6)) {
-			sin6 = (struct sockaddr_in6 *)&store;
-			sin6->sin6_family = cp->heartbeat.hb_info.addr_family;
-			sin6->sin6_len = cp->heartbeat.hb_info.addr_len;
-			sin6->sin6_port = stcb->rport;
-			memcpy(&sin6->sin6_addr, cp->heartbeat.hb_info.address,
-			    sizeof(sin6->sin6_addr));
+			store.sin6.sin6_family = cp->heartbeat.hb_info.addr_family;
+			store.sin6.sin6_len = cp->heartbeat.hb_info.addr_len;
+			store.sin6.sin6_port = stcb->rport;
+			memcpy(&store.sin6.sin6_addr, cp->heartbeat.hb_info.address, sizeof(struct in6_addr));
 		} else {
 			return;
 		}
@@ -614,7 +602,7 @@ sctp_handle_heartbeat_ack(struct sctp_heartbeat_chunk *cp,
 	default:
 		return;
 	}
-	r_net = sctp_findnet(stcb, (struct sockaddr *)&store);
+	r_net = sctp_findnet(stcb, &store.sa);
 	if (r_net == NULL) {
 		SCTPDBG(SCTP_DEBUG_INPUT1, "Huh? I can't find the address I sent it to, discard\n");
 		return;
@@ -2030,22 +2018,13 @@ sctp_process_cookie_new(struct mbuf *m, int iphlen, int offset,
 	struct sctp_tcb *stcb;
 	struct sctp_init_chunk *init_cp, init_buf;
 	struct sctp_init_ack_chunk *initack_cp, initack_buf;
-	struct sockaddr_storage sa_store;
-	struct sockaddr *initack_src = (struct sockaddr *)&sa_store;
+	union sctp_sockstore store;
 	struct sctp_association *asoc;
 	int init_offset, initack_offset, initack_limit;
 	int retval;
 	int error = 0;
 	uint8_t auth_chunk_buf[SCTP_PARAM_BUFFER_SIZE];
 
-#ifdef INET
-	struct sockaddr_in *sin;
-
-#endif
-#ifdef INET6
-	struct sockaddr_in6 *sin6;
-
-#endif
 #if defined(__APPLE__) || defined(SCTP_SO_LOCK_TESTING)
 	struct socket *so;
 
@@ -2269,23 +2248,20 @@ sctp_process_cookie_new(struct mbuf *m, int iphlen, int offset,
 #ifdef INET
 	case SCTP_IPV4_ADDRESS:
 		/* source addr is IPv4 */
-		sin = (struct sockaddr_in *)initack_src;
-		memset(sin, 0, sizeof(*sin));
-		sin->sin_family = AF_INET;
-		sin->sin_len = sizeof(struct sockaddr_in);
-		sin->sin_addr.s_addr = cookie->laddress[0];
+		memset(&store.sin, 0, sizeof(struct sockaddr_in));
+		store.sin.sin_family = AF_INET;
+		store.sin.sin_len = sizeof(struct sockaddr_in);
+		store.sin.sin_addr.s_addr = cookie->laddress[0];
 		break;
 #endif
 #ifdef INET6
 	case SCTP_IPV6_ADDRESS:
 		/* source addr is IPv6 */
-		sin6 = (struct sockaddr_in6 *)initack_src;
-		memset(sin6, 0, sizeof(*sin6));
-		sin6->sin6_family = AF_INET6;
-		sin6->sin6_len = sizeof(struct sockaddr_in6);
-		sin6->sin6_scope_id = cookie->scope_id;
-		memcpy(&sin6->sin6_addr, cookie->laddress,
-		    sizeof(sin6->sin6_addr));
+		memset(&store.sin6, 0, sizeof(struct sockaddr_in6));
+		store.sin6.sin6_family = AF_INET6;
+		store.sin6.sin6_len = sizeof(struct sockaddr_in6);
+		store.sin6.sin6_scope_id = cookie->scope_id;
+		memcpy(&store.sin6.sin6_addr, cookie->laddress, sizeof(struct in6_addr));
 		break;
 #endif
 	default:
@@ -2366,7 +2342,7 @@ sctp_process_cookie_new(struct mbuf *m, int iphlen, int offset,
 	sctp_check_address_list(stcb, m,
 	    initack_offset + sizeof(struct sctp_init_ack_chunk),
 	    initack_limit - (initack_offset + sizeof(struct sctp_init_ack_chunk)),
-	    initack_src, cookie->local_scope, cookie->site_scope,
+	    &store.sa, cookie->local_scope, cookie->site_scope,
 	    cookie->ipv4_scope, cookie->loopback_scope);
 
 
@@ -2906,9 +2882,9 @@ sctp_handle_cookie_ack(struct sctp_cookie_ack_chunk *cp SCTP_UNUSED,
 
 	SCTPDBG(SCTP_DEBUG_INPUT2,
 	    "sctp_handle_cookie_ack: handling COOKIE-ACK\n");
-	if (stcb == NULL)
+	if ((stcb == NULL) || (net == NULL)) {
 		return;
-
+	}
 	asoc = &stcb->asoc;
 
 	sctp_stop_all_cookie_timers(stcb);
@@ -3520,12 +3496,12 @@ sctp_reset_out_streams(struct sctp_tcb *stcb, uint32_t number_entries, uint16_t 
 }
 
 
-struct sctp_stream_reset_out_request *
+struct sctp_stream_reset_request *
 sctp_find_stream_reset(struct sctp_tcb *stcb, uint32_t seq, struct sctp_tmit_chunk **bchk)
 {
 	struct sctp_association *asoc;
 	struct sctp_chunkhdr *ch;
-	struct sctp_stream_reset_out_request *r;
+	struct sctp_stream_reset_request *r;
 	struct sctp_tmit_chunk *chk;
 	int len, clen;
 
@@ -3548,7 +3524,7 @@ sctp_find_stream_reset(struct sctp_tcb *stcb, uint32_t seq, struct sctp_tmit_chu
 	}
 	clen = chk->send_size;
 	ch = mtod(chk->data, struct sctp_chunkhdr *);
-	r = (struct sctp_stream_reset_out_request *)(ch + 1);
+	r = (struct sctp_stream_reset_request *)(ch + 1);
 	if (ntohl(r->request_seq) == seq) {
 		/* found it */
 		return (r);
@@ -3556,7 +3532,7 @@ sctp_find_stream_reset(struct sctp_tcb *stcb, uint32_t seq, struct sctp_tmit_chu
 	len = SCTP_SIZE32(ntohs(r->ph.param_length));
 	if (clen > (len + (int)sizeof(struct sctp_chunkhdr))) {
 		/* move to the next one, there can only be a max of two */
-		r = (struct sctp_stream_reset_out_request *)((caddr_t)r + len);
+		r = (struct sctp_stream_reset_request *)((caddr_t)r + len);
 		if (ntohl(r->request_seq) == seq) {
 			return (r);
 		}
@@ -3600,7 +3576,9 @@ sctp_handle_stream_reset_response(struct sctp_tcb *stcb,
 	int lparm_len;
 	struct sctp_association *asoc = &stcb->asoc;
 	struct sctp_tmit_chunk *chk;
-	struct sctp_stream_reset_out_request *srparam;
+	struct sctp_stream_reset_request *req_param;
+	struct sctp_stream_reset_out_request *req_out_param;
+	struct sctp_stream_reset_in_request *req_in_param;
 	uint32_t number_entries;
 
 	if (asoc->stream_reset_outstanding == 0) {
@@ -3608,35 +3586,36 @@ sctp_handle_stream_reset_response(struct sctp_tcb *stcb,
 		return (0);
 	}
 	if (seq == stcb->asoc.str_reset_seq_out) {
-		srparam = sctp_find_stream_reset(stcb, seq, &chk);
-		if (srparam) {
+		req_param = sctp_find_stream_reset(stcb, seq, &chk);
+		if (req_param != NULL) {
 			stcb->asoc.str_reset_seq_out++;
-			type = ntohs(srparam->ph.param_type);
-			lparm_len = ntohs(srparam->ph.param_length);
+			type = ntohs(req_param->ph.param_type);
+			lparm_len = ntohs(req_param->ph.param_length);
 			if (type == SCTP_STR_RESET_OUT_REQUEST) {
+				req_out_param = (struct sctp_stream_reset_out_request *)req_param;
 				number_entries = (lparm_len - sizeof(struct sctp_stream_reset_out_request)) / sizeof(uint16_t);
 				asoc->stream_reset_out_is_outstanding = 0;
 				if (asoc->stream_reset_outstanding)
 					asoc->stream_reset_outstanding--;
 				if (action == SCTP_STREAM_RESET_RESULT_PERFORMED) {
 					/* do it */
-					sctp_reset_out_streams(stcb, number_entries, srparam->list_of_streams);
+					sctp_reset_out_streams(stcb, number_entries, req_out_param->list_of_streams);
 				} else if (action == SCTP_STREAM_RESET_RESULT_DENIED) {
-					sctp_ulp_notify(SCTP_NOTIFY_STR_RESET_DENIED_OUT, stcb, number_entries, srparam->list_of_streams, SCTP_SO_NOT_LOCKED);
+					sctp_ulp_notify(SCTP_NOTIFY_STR_RESET_DENIED_OUT, stcb, number_entries, req_out_param->list_of_streams, SCTP_SO_NOT_LOCKED);
 				} else {
-					sctp_ulp_notify(SCTP_NOTIFY_STR_RESET_FAILED_OUT, stcb, number_entries, srparam->list_of_streams, SCTP_SO_NOT_LOCKED);
+					sctp_ulp_notify(SCTP_NOTIFY_STR_RESET_FAILED_OUT, stcb, number_entries, req_out_param->list_of_streams, SCTP_SO_NOT_LOCKED);
 				}
 			} else if (type == SCTP_STR_RESET_IN_REQUEST) {
-				/* Answered my request */
+				req_in_param = (struct sctp_stream_reset_in_request *)req_param;
 				number_entries = (lparm_len - sizeof(struct sctp_stream_reset_in_request)) / sizeof(uint16_t);
 				if (asoc->stream_reset_outstanding)
 					asoc->stream_reset_outstanding--;
 				if (action == SCTP_STREAM_RESET_RESULT_DENIED) {
 					sctp_ulp_notify(SCTP_NOTIFY_STR_RESET_DENIED_IN, stcb,
-					    number_entries, srparam->list_of_streams, SCTP_SO_NOT_LOCKED);
+					    number_entries, req_in_param->list_of_streams, SCTP_SO_NOT_LOCKED);
 				} else if (action != SCTP_STREAM_RESET_RESULT_PERFORMED) {
 					sctp_ulp_notify(SCTP_NOTIFY_STR_RESET_FAILED_IN, stcb,
-					    number_entries, srparam->list_of_streams, SCTP_SO_NOT_LOCKED);
+					    number_entries, req_in_param->list_of_streams, SCTP_SO_NOT_LOCKED);
 				}
 			} else if (type == SCTP_STR_RESET_ADD_OUT_STREAMS) {
 				/* Ok we now may have more streams */
@@ -4093,8 +4072,10 @@ __attribute__((noinline))
 	if (chk == NULL) {
 		return (ret_code);
 	}
+	chk->copy_by_ref = 0;
 	chk->rec.chunk_id.id = SCTP_STREAM_RESET;
 	chk->rec.chunk_id.can_take_data = 0;
+	chk->flags = 0;
 	chk->asoc = &stcb->asoc;
 	chk->no_fr_allowed = 0;
 	chk->book_size = chk->send_size = sizeof(struct sctp_chunkhdr);

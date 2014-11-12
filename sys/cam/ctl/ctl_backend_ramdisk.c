@@ -595,6 +595,7 @@ ctl_backend_ramdisk_create(struct ctl_be_ramdisk_softc *softc,
 	be_lun->ctl_be_lun.flags = CTL_LUN_FLAG_PRIMARY;
 	if (unmap)
 		be_lun->ctl_be_lun.flags |= CTL_LUN_FLAG_UNMAP;
+	be_lun->ctl_be_lun.atomicblock = UINT32_MAX;
 	be_lun->ctl_be_lun.be_lun = be_lun;
 
 	if (params->flags & CTL_LUN_FLAG_ID_REQ) {

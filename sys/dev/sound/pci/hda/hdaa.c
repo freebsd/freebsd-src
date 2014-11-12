@@ -7092,7 +7092,7 @@ hdaa_pcm_attach(device_t dev)
 		    "rec.autosrc", &pdevinfo->autorecsrc);
 		SYSCTL_ADD_INT(&d->rec_sysctl_ctx,
 		    SYSCTL_CHILDREN(d->rec_sysctl_tree), OID_AUTO,
-		    "autosrc", CTLTYPE_INT | CTLFLAG_RW,
+		    "autosrc", CTLFLAG_RW,
 		    &pdevinfo->autorecsrc, 0,
 		    "Automatic recording source selection");
 	}

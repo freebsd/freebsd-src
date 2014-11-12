@@ -76,8 +76,12 @@
 
 #ifndef lint
 extern boolean_t zfs_recover;
+extern uint64_t zfs_arc_max, zfs_arc_meta_limit;
+extern int zfs_vdev_async_read_max_active;
 #else
 boolean_t zfs_recover;
+uint64_t zfs_arc_max, zfs_arc_meta_limit;
+int zfs_vdev_async_read_max_active;
 #endif
 
 const char cmdname[] = "zdb";
@@ -89,7 +93,7 @@ extern void dump_intent_log(zilog_t *);
 uint64_t *zopt_object = NULL;
 int zopt_objects = 0;
 libzfs_handle_t *g_zfs;
-uint64_t max_inflight = 200;
+uint64_t max_inflight = 1000;
 
 /*
  * These libumem hooks provide a reasonable set of defaults for the allocator's
@@ -1461,6 +1465,11 @@ dump_deadlist(dsl_deadlist_t *dl)
 	if (dump_opt['d'] < 3)
 		return;
 
+	if (dl->dl_oldfmt) {
+		dump_bpobj(&dl->dl_bpobj, "old-format deadlist", 0);
+		return;
+	}
+
 	zdb_nicenum(dl->dl_phys->dl_used, bytes);
 	zdb_nicenum(dl->dl_phys->dl_comp, comp);
 	zdb_nicenum(dl->dl_phys->dl_uncomp, uncomp);
@@ -2138,6 +2147,8 @@ dump_label(const char *dev)
 	(void) close(fd);
 }
 
+static uint64_t num_large_blocks;
+
 /*ARGSUSED*/
 static int
 dump_one_dir(const char *dsname, void *arg)
@@ -2150,6 +2161,8 @@ dump_one_dir(const char *dsname, void *arg)
 		(void) printf("Could not open %s, error %d\n", dsname, error);
 		return (0);
 	}
+	if (dmu_objset_ds(os)->ds_large_blocks)
+		num_large_blocks++;
 	dump_dir(os);
 	dmu_objset_disown(os, FTAG);
 	fuid_table_destroy();
@@ -2160,7 +2173,7 @@ dump_one_dir(const char *dsname, void *arg)
 /*
  * Block statistics.
  */
-#define	PSIZE_HISTO_SIZE (SPA_MAXBLOCKSIZE / SPA_MINBLOCKSIZE + 1)
+#define	PSIZE_HISTO_SIZE (SPA_OLD_MAXBLOCKSIZE / SPA_MINBLOCKSIZE + 2)
 typedef struct zdb_blkstats {
 	uint64_t zb_asize;
 	uint64_t zb_lsize;
@@ -2225,7 +2238,15 @@ zdb_count_block(zdb_cb_t *zcb, zilog_t *zilog, const blkptr_t *bp,
 		zb->zb_lsize += BP_GET_LSIZE(bp);
 		zb->zb_psize += BP_GET_PSIZE(bp);
 		zb->zb_count++;
-		zb->zb_psize_histogram[BP_GET_PSIZE(bp) >> SPA_MINBLOCKSHIFT]++;
+
+		/*
+		 * The histogram is only big enough to record blocks up to
+		 * SPA_OLD_MAXBLOCKSIZE; larger blocks go into the last,
+		 * "other", bucket.
+		 */
+		int idx = BP_GET_PSIZE(bp) >> SPA_MINBLOCKSHIFT;
+		idx = MIN(idx, SPA_OLD_MAXBLOCKSIZE / SPA_MINBLOCKSIZE + 1);
+		zb->zb_psize_histogram[idx]++;
 
 		zb->zb_gangs += BP_COUNT_GANG(bp);
 
@@ -2377,8 +2398,14 @@ zdb_blkptr_cb(spa_t *spa, zilog_t *zilog, const blkptr_t *bp,
 
 	zcb->zcb_readfails = 0;
 
-	if (dump_opt['b'] < 5 && isatty(STDERR_FILENO) &&
-	    gethrtime() > zcb->zcb_lastprint + NANOSEC) {
+	/* only call gethrtime() every 100 blocks */
+	static int iters;
+	if (++iters > 100)
+		iters = 0;
+	else
+		return (0);
+
+	if (dump_opt['b'] < 5 && gethrtime() > zcb->zcb_lastprint + NANOSEC) {
 		uint64_t now = gethrtime();
 		char buf[10];
 		uint64_t bytes = zcb->zcb_type[ZB_TOTAL][ZDB_OT_TOTAL].zb_asize;
@@ -2462,9 +2489,9 @@ zdb_leak_init(spa_t *spa, zdb_cb_t *zcb)
 
 	if (!dump_opt['L']) {
 		vdev_t *rvd = spa->spa_root_vdev;
-		for (int c = 0; c < rvd->vdev_children; c++) {
+		for (uint64_t c = 0; c < rvd->vdev_children; c++) {
 			vdev_t *vd = rvd->vdev_child[c];
-			for (int m = 0; m < vd->vdev_ms_count; m++) {
+			for (uint64_t m = 0; m < vd->vdev_ms_count; m++) {
 				metaslab_t *msp = vd->vdev_ms[m];
 				mutex_enter(&msp->ms_lock);
 				metaslab_unload(msp);
@@ -2477,7 +2504,24 @@ zdb_leak_init(spa_t *spa, zdb_cb_t *zcb)
 				 * interfaces.
 				 */
 				if (msp->ms_sm != NULL) {
+					(void) fprintf(stderr,
+					    "\rloading space map for "
+					    "vdev %llu of %llu, "
+					    "metaslab %llu of %llu ...",
+					    (longlong_t)c,
+					    (longlong_t)rvd->vdev_children,
+					    (longlong_t)m,
+					    (longlong_t)vd->vdev_ms_count);
+
 					msp->ms_ops = &zdb_metaslab_ops;
+
+					/*
+					 * We don't want to spend the CPU
+					 * manipulating the size-ordered
+					 * tree, so clear the range_tree
+					 * ops.
+					 */
+					msp->ms_tree->rt_ops = NULL;
 					VERIFY0(space_map_load(msp->ms_sm,
 					    msp->ms_tree, SM_ALLOC));
 					msp->ms_loaded = B_TRUE;
@@ -2485,6 +2529,7 @@ zdb_leak_init(spa_t *spa, zdb_cb_t *zcb)
 				mutex_exit(&msp->ms_lock);
 			}
 		}
+		(void) fprintf(stderr, "\n");
 	}
 
 	spa_config_enter(spa, SCL_CONFIG, FTAG, RW_READER);
@@ -2594,10 +2639,12 @@ dump_block_stats(spa_t *spa)
 	 * all async I/Os to complete.
 	 */
 	if (dump_opt['c']) {
-		(void) zio_wait(spa->spa_async_zio_root);
-		spa->spa_async_zio_root = zio_root(spa, NULL, NULL,
-		    ZIO_FLAG_CANFAIL | ZIO_FLAG_SPECULATIVE |
-		    ZIO_FLAG_GODFATHER);
+		for (int i = 0; i < max_ncpus; i++) {
+			(void) zio_wait(spa->spa_async_zio_root[i]);
+			spa->spa_async_zio_root[i] = zio_root(spa, NULL, NULL,
+			    ZIO_FLAG_CANFAIL | ZIO_FLAG_SPECULATIVE |
+			    ZIO_FLAG_GODFATHER);
+		}
 	}
 
 	if (zcb.zcb_haderrors) {
@@ -2911,6 +2958,7 @@ dump_zpool(spa_t *spa)
 		dump_metaslab_groups(spa);
 
 	if (dump_opt['d'] || dump_opt['i']) {
+		uint64_t refcount;
 		dump_dir(dp->dp_meta_objset);
 		if (dump_opt['d'] >= 3) {
 			dump_bpobj(&spa->spa_deferred_bpobj,
@@ -2930,8 +2978,21 @@ dump_zpool(spa_t *spa)
 		}
 		(void) dmu_objset_find(spa_name(spa), dump_one_dir,
 		    NULL, DS_FIND_SNAPSHOTS | DS_FIND_CHILDREN);
+
+		(void) feature_get_refcount(spa,
+		    &spa_feature_table[SPA_FEATURE_LARGE_BLOCKS], &refcount);
+		if (num_large_blocks != refcount) {
+			(void) printf("large_blocks feature refcount mismatch: "
+			    "expected %lld != actual %lld\n",
+			    (longlong_t)num_large_blocks,
+			    (longlong_t)refcount);
+			rc = 2;
+		} else {
+			(void) printf("Verified large_blocks feature refcount "
+			    "is correct (%llu)\n", (longlong_t)refcount);
+		}
 	}
-	if (dump_opt['b'] || dump_opt['c'])
+	if (rc == 0 && (dump_opt['b'] || dump_opt['c']))
 		rc = dump_block_stats(spa);
 
 	if (rc == 0)
@@ -3482,6 +3543,19 @@ main(int argc, char **argv)
 		(void) fprintf(stderr, "-p option requires use of -e\n");
 		usage();
 	}
+
+	/*
+	 * ZDB does not typically re-read blocks; therefore limit the ARC
+	 * to 256 MB, which can be used entirely for metadata.
+	 */
+	zfs_arc_max = zfs_arc_meta_limit = 256 * 1024 * 1024;
+
+	/*
+	 * "zdb -c" uses checksum-verifying scrub i/os which are async reads.
+	 * "zdb -b" uses traversal prefetch which uses async reads.
+	 * For good performance, let several of them be active at once.
+	 */
+	zfs_vdev_async_read_max_active = 10;
 
 	kernel_init(FREAD);
 	g_zfs = libzfs_init();

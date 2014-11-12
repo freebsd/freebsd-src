@@ -364,7 +364,7 @@ vm_reserv_populate(vm_reserv_t rv, int index)
 
 /*
  * Allocates a contiguous set of physical pages of the given size "npages"
- * from an existing or newly-created reservation.  All of the physical pages
+ * from existing or newly created reservations.  All of the physical pages
  * must be at or above the given physical address "low" and below the given
  * physical address "high".  The given value "alignment" determines the
  * alignment of the first physical page in the set.  If the given value
@@ -436,8 +436,8 @@ vm_reserv_alloc_contig(vm_object_t object, vm_pindex_t pindex, u_long npages,
 
 	/*
 	 * Could at least one reservation fit between the first index to the
-	 * left that can be used and the first index to the right that cannot
-	 * be used?
+	 * left that can be used ("leftcap") and the first index to the right
+	 * that cannot be used ("rightcap")?
 	 */
 	first = pindex - VM_RESERV_INDEX(object, pindex);
 	if (mpred != NULL) {
@@ -459,6 +459,13 @@ vm_reserv_alloc_contig(vm_object_t object, vm_pindex_t pindex, u_long npages,
 		if (first + maxpages > rightcap) {
 			if (maxpages == VM_LEVEL_0_NPAGES)
 				return (NULL);
+
+			/*
+			 * At least one reservation will fit between "leftcap"
+			 * and "rightcap".  However, a reservation for the
+			 * last of the requested pages will not fit.  Reduce
+			 * the size of the upcoming allocation accordingly.
+			 */
 			allocpages = minpages;
 		}
 	}
@@ -482,16 +489,23 @@ vm_reserv_alloc_contig(vm_object_t object, vm_pindex_t pindex, u_long npages,
 	}
 
 	/*
-	 * Allocate and populate the new reservations.  The alignment and
-	 * boundary specified for this allocation may be different from the
-	 * alignment and boundary specified for the requested pages.  For
-	 * instance, the specified index may not be the first page within the
-	 * first new reservation.
+	 * Allocate the physical pages.  The alignment and boundary specified
+	 * for this allocation may be different from the alignment and
+	 * boundary specified for the requested pages.  For instance, the
+	 * specified index may not be the first page within the first new
+	 * reservation.
 	 */
 	m = vm_phys_alloc_contig(allocpages, low, high, ulmax(alignment,
 	    VM_LEVEL_0_SIZE), boundary > VM_LEVEL_0_SIZE ? boundary : 0);
 	if (m == NULL)
 		return (NULL);
+
+	/*
+	 * The allocated physical pages always begin at a reservation
+	 * boundary, but they do not always end at a reservation boundary.
+	 * Initialize every reservation that is completely covered by the
+	 * allocated physical pages.
+	 */
 	m_ret = NULL;
 	index = VM_RESERV_INDEX(object, pindex);
 	do {
@@ -525,7 +539,7 @@ vm_reserv_alloc_contig(vm_object_t object, vm_pindex_t pindex, u_long npages,
 		m += VM_LEVEL_0_NPAGES;
 		first += VM_LEVEL_0_NPAGES;
 		allocpages -= VM_LEVEL_0_NPAGES;
-	} while (allocpages > 0);
+	} while (allocpages >= VM_LEVEL_0_NPAGES);
 	return (m_ret);
 
 	/*

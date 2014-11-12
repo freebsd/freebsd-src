@@ -43,6 +43,7 @@
 #include <sys/sockbuf.h>
 #include <sys/sockstate.h>
 #ifdef _KERNEL
+#include <sys/caprights.h>
 #include <sys/sockopt.h>
 #endif
 
@@ -207,7 +208,7 @@ struct xsocket {
 
 /* can we read something from so? */
 #define	soreadabledata(so) \
-    ((so)->so_rcv.sb_cc >= (so)->so_rcv.sb_lowat || \
+    (sbavail(&(so)->so_rcv) >= (so)->so_rcv.sb_lowat || \
 	!TAILQ_EMPTY(&(so)->so_comp) || (so)->so_error)
 #define	soreadable(so) \
 	(soreadabledata(so) || ((so)->so_rcv.sb_state & SBS_CANTRCVMORE))
@@ -318,6 +319,8 @@ extern int	maxsockets;
 extern u_long	sb_max;
 extern so_gen_t so_gencnt;
 
+struct file;
+struct filedesc;
 struct mbuf;
 struct sockaddr;
 struct ucred;
@@ -336,6 +339,8 @@ struct uio;
  */
 int	sockargs(struct mbuf **mp, caddr_t buf, int buflen, int type);
 int	getsockaddr(struct sockaddr **namp, caddr_t uaddr, size_t len);
+int	getsock_cap(struct filedesc *fdp, int fd, cap_rights_t *rightsp,
+	    struct file **fpp, u_int *fflagp);
 void	soabort(struct socket *so);
 int	soaccept(struct socket *so, struct sockaddr **nam);
 int	socheckuid(struct socket *so, uid_t uid);
