@@ -1,4 +1,4 @@
-typedef short YYINT;
+typedef int YYINT;
 const YYINT error_lhs[] = {                       -1,
     0,
 };
