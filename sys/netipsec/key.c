@@ -3901,33 +3901,14 @@ key_dup_lifemsg(const struct sadb_lifetime *src,
  *	0: false
  */
 int
-key_ismyaddr(sa)
-	struct sockaddr *sa;
+key_ismyaddr(struct sockaddr *sa)
 {
-#ifdef INET
-	struct sockaddr_in *sin;
-	struct in_ifaddr *ia;
-#endif
 
 	IPSEC_ASSERT(sa != NULL, ("null sockaddr"));
-
 	switch (sa->sa_family) {
 #ifdef INET
 	case AF_INET:
-		sin = (struct sockaddr_in *)sa;
-		IN_IFADDR_RLOCK();
-		TAILQ_FOREACH(ia, &V_in_ifaddrhead, ia_link)
-		{
-			if (sin->sin_family == ia->ia_addr.sin_family &&
-			    sin->sin_len == ia->ia_addr.sin_len &&
-			    sin->sin_addr.s_addr == ia->ia_addr.sin_addr.s_addr)
-			{
-				IN_IFADDR_RUNLOCK();
-				return 1;
-			}
-		}
-		IN_IFADDR_RUNLOCK();
-		break;
+		return (in_localip(satosin(sa)->sin_addr));
 #endif
 #ifdef INET6
 	case AF_INET6:
