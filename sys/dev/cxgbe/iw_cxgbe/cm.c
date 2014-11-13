@@ -2114,9 +2114,11 @@ int c4iw_connect(struct iw_cm_id *cm_id, struct iw_cm_conn_param *conn_param)
 		ep->com.thread);
 
 	if (!err) {
-
 		CTR2(KTR_IW_CXGBE, "%s:cca %p", __func__, ep);
 		goto out;
+	} else {
+		close_socket(&ep->com, 0);
+		goto fail2;
 	}
 
 fail3:
