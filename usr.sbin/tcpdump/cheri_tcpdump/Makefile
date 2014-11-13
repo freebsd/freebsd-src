@@ -30,6 +30,8 @@ CFLAGS+= -I${.CURDIR}/../../../lib/libcheri
 CFLAGS+= -DHAVE_CONFIG_H
 CFLAGS+= -D_U_="__attribute__((unused))"
 
+CFLAGS+= -DCOLORIZE
+
 .if ${MACHINE_CPUARCH} != "i386"
 CFLAGS+=	-DLBL_ALIGN
 .endif

@@ -98,12 +98,21 @@ STAILQ_HEAD(tcpdump_sandbox_list, tcpdump_sandbox);
 #define	TDS_MODE_HASH_TCP	CTDC_MODE_HASH_TCP
 
 #define	DEFAULT_COLOR		"\x1b[1;37;40m"
+#ifdef COLORIZE
 #define	SB_FAIL_COLOR		"\x1b[1;31;40m"
 #define	SB_GREEN		"\x1b[1;32;40m"
 #define	SB_YELLOW		"\x1b[1;33;40m"
 #define	SB_BLUE			"\x1b[1;34;40m"
 #define	SB_MAGENTA		"\x1b[1;35;40m"
 #define	SB_CYAN			"\x1b[1;36;40m"
+#else
+#define	SB_FAIL_COLOR		DEFAULT_COLOR
+#define	SB_GREEN		DEFAULT_COLOR
+#define	SB_YELLOW		DEFAULT_COLOR
+#define	SB_BLUE			DEFAULT_COLOR
+#define	SB_MAGENTA		DEFAULT_COLOR
+#define	SB_CYAN			DEFAULT_COLOR
+#endif
 
 u_int32_t	g_localnet;
 u_int32_t	g_mask;
