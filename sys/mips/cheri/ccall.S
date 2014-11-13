@@ -212,49 +212,49 @@ CHERICCall:
 	cgettag		k0, $c4			/* k0 = tagged. */
 	cgetperm	k1, $c4			/* k1 = permissions. */
 	andi		k1, CHERI_PERM_GLOBAL	/* k1 = global. */
-	not		k1, k1, k1		/* k1 = !global. */
+	not		k1, k1			/* k1 = !global. */
 	and		k0, k0, k1		/* k0 = tagged && !global */
 	movn		AT, zero, k0		/* Clear if true. */
 
 	cgettag		k0, $c5			/* k0 = tagged. */
 	cgetperm	k1, $c5			/* k1 = permissions. */
 	andi		k1, CHERI_PERM_GLOBAL	/* k1 = global. */
-	not		k1, k1, k1		/* k1 = !global. */
+	not		k1, k1			/* k1 = !global. */
 	and		k0, k0, k1		/* k0 = tagged && !global */
 	movn		AT, zero, k0		/* Clear if true. */
 
 	cgettag		k0, $c6			/* k0 = tagged. */
 	cgetperm	k1, $c6			/* k1 = permissions. */
 	andi		k1, CHERI_PERM_GLOBAL	/* k1 = global. */
-	not		k1, k1, k1		/* k1 = !global. */
+	not		k1, k1			/* k1 = !global. */
 	and		k0, k0, k1		/* k0 = tagged && !global */
 	movn		AT, zero, k0		/* Clear if true. */
 
 	cgettag		k0, $c7			/* k0 = tagged. */
 	cgetperm	k1, $c7			/* k1 = permissions. */
 	andi		k1, CHERI_PERM_GLOBAL	/* k1 = global. */
-	not		k1, k1, k1		/* k1 = !global. */
+	not		k1, k1			/* k1 = !global. */
 	and		k0, k0, k1		/* k0 = tagged && !global */
 	movn		AT, zero, k0		/* Clear if true. */
 
 	cgettag		k0, $c8			/* k0 = tagged. */
 	cgetperm	k1, $c8			/* k1 = permissions. */
 	andi		k1, CHERI_PERM_GLOBAL	/* k1 = global. */
-	not		k1, k1, k1		/* k1 = !global. */
+	not		k1, k1			/* k1 = !global. */
 	and		k0, k0, k1		/* k0 = tagged && !global */
 	movn		AT, zero, k0		/* Clear if true. */
 
 	cgettag		k0, $c9			/* k0 = tagged. */
 	cgetperm	k1, $c9			/* k1 = permissions. */
 	andi		k1, CHERI_PERM_GLOBAL	/* k1 = global. */
-	not		k1, k1, k1		/* k1 = !global. */
+	not		k1, k1			/* k1 = !global. */
 	and		k0, k0, k1		/* k0 = tagged && !global */
 	movn		AT, zero, k0		/* Clear if true. */
 
 	cgettag		k0, $c10		/* k0 = tagged. */
 	cgetperm	k1, $c10		/* k1 = permissions. */
 	andi		k1, CHERI_PERM_GLOBAL	/* k1 = global. */
-	not		k1, k1, k1		/* k1 = !global. */
+	not		k1, k1			/* k1 = !global. */
 	and		k0, k0, k1		/* k0 = tagged && !global */
 	movn		AT, zero, k0		/* Clear if true. */
 
@@ -479,7 +479,7 @@ CHERICReturn:
 	cgettag		k0, $c3			/* k0 = tagged. */
 	cgetperm	k1, $c3			/* k1 = permissions. */
 	andi		k1, CHERI_PERM_GLOBAL	/* k1 = global. */
-	not		k1, k1, k1		/* k1 = !global. */
+	not		k1, k1			/* k1 = !global. */
 	and		k0, k0, k1		/* k0 = tagged && !global */
 	bnez		k1, CReturn_local_retval
 	nop
