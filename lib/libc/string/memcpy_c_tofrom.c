@@ -36,13 +36,21 @@ __capability void *
 memcpy_c_tocap(__capability void *dst, const void *src, size_t len)
 {
 
+#ifdef __CHERI_SANDBOX__
+	return (memcpy_c(dst, src, len));
+#else
 	return (memcpy_c(dst, cheri_ptr((void *)src, len), len));
+#endif
 }
 
 void *
 memcpy_c_fromcap(void *dst, __capability const void *src, size_t len)
 {
 
+#ifdef __CHERI_SANDBOX__
+	return (memcpy_c(dst, src, len));
+#else
 	memcpy_c(cheri_ptr(dst, len), src, len);
 	return (dst);
+#endif
 }
