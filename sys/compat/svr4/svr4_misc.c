@@ -653,10 +653,13 @@ svr4_mknod(td, retval, path, mode, dev)
 
 	CHECKALTEXIST(td, path, &newpath);
 
-	if (S_ISFIFO(mode))
-		error = kern_mkfifo(td, newpath, UIO_SYSSPACE, mode);
-	else
-		error = kern_mknod(td, newpath, UIO_SYSSPACE, mode, dev);
+	if (S_ISFIFO(mode)) {
+		error = kern_mkfifoat(td, AT_FDCWD, newpath, UIO_SYSSPACE,
+		    mode);
+	} else {
+		error = kern_mknodat(td, AT_FDCWD, newpath, UIO_SYSSPACE,
+		    mode, dev);
+	}
 	free(newpath, M_TEMP);
 	return (error);
 }
