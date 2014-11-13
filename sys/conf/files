@@ -555,7 +555,6 @@ ddb/db_textdump.c		optional ddb
 ddb/db_variables.c		optional ddb
 ddb/db_watch.c			optional ddb
 ddb/db_write_cmd.c		optional ddb
-#dev/dpt/dpt_control.c		optional dpt
 dev/aac/aac.c			optional aac
 dev/aac/aac_cam.c		optional aacp aac
 dev/aac/aac_debug.c		optional aac
