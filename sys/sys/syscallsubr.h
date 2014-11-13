@@ -46,6 +46,7 @@ struct ksiginfo;
 struct mbuf;
 struct msghdr;
 struct msqid_ds;
+struct pollfd;
 struct ogetdirentries_args;
 struct rlimit;
 struct rusage;
@@ -164,6 +165,8 @@ int	kern_pathconf(struct thread *td, char *path, enum uio_seg pathseg,
 	    int name, u_long flags);
 int	kern_pipe(struct thread *td, int fildes[2]);
 int	kern_pipe2(struct thread *td, int fildes[2], int flags);
+int	kern_poll(struct thread *td, struct pollfd *fds, u_int nfds,
+	    struct timespec *tsp, sigset_t *uset);
 int	kern_posix_fadvise(struct thread *td, int fd, off_t offset, off_t len,
 	    int advice);
 int	kern_posix_fallocate(struct thread *td, int fd, off_t offset,
