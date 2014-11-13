@@ -42,7 +42,7 @@
 #include <machine/pcb.h>
 #include <machine/sysarch.h>
 
-static const char *cheri_exccode_array[] = {
+static const char *cheri_exccode_isa_array[] = {
 	"none",					/* CHERI_EXCCODE_NONE */
 	"length violation",			/* CHERI_EXCCODE_LENGTH */
 	"tag violation",			/* CHERI_EXCCODE_TAG */
@@ -76,16 +76,29 @@ static const char *cheri_exccode_array[] = {
 	"access KR2C violation",		/* CHERI_EXCCODE_ACCESS_KR2C */
 	"reserved",				/* 0x1f */
 };
-static const int cheri_exccode_array_length = sizeof(cheri_exccode_array) /
-    sizeof(cheri_exccode_array[0]);
+static const int cheri_exccode_isa_array_length =
+    sizeof(cheri_exccode_isa_array) / sizeof(cheri_exccode_isa_array[0]);
+
+static const char *cheri_exccode_sw_array[] = {
+	"local capability in argument",		/* CHERI_EXCCODE_SW_LOCALARG */
+	"local capability in return value",	/* CHERI_EXCCODE_SW_LOCALRET */
+};
+static const int cheri_exccode_sw_array_length =
+    sizeof(cheri_exccode_sw_array) / sizeof(cheri_exccode_sw_array[0]);
 
 static const char *
 cheri_exccode_string(uint8_t exccode)
 {
 
-	if (exccode >= cheri_exccode_array_length)
-		return ("unknown exception");
-	return (cheri_exccode_array[exccode]);
+	if (exccode >= 128) {
+		if (exccode >= cheri_exccode_sw_array_length)
+			return ("unknown software exception");
+		return (cheri_exccode_sw_array[exccode]);
+	} else {
+		if (exccode >= cheri_exccode_isa_array_length)
+			return ("unknown ISA exception");
+		return (cheri_exccode_isa_array[exccode]);
+	}
 }
 
 void

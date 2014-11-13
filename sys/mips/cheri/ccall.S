@@ -447,7 +447,7 @@ CCall_c1_range:
 	csetcause	k0		/* Branch-delay slot. */
 
 CCall_local_argument:
-	dli	k0, ((CHERI_EXCCODE_OS_LOCALARG << 8) | 1)
+	dli	k0, ((CHERI_EXCCODE_SW_LOCALARG << 8) | 1)
 	b	CCall_throw_exception
 	csetcause	k0		/* Branch-delay slot. */
 
@@ -599,7 +599,7 @@ CHERICReturn:
 	eret
 
 CReturn_local_retval:
-	dli	k0, ((CHERI_EXCCODE_OS_LOCALRET << 8) | 1)
+	dli	k0, ((CHERI_EXCCODE_SW_LOCALRET << 8) | 1)
 	b	CCall_throw_exception
 	csetcause	k0		/* Branch-delay slot. */
 

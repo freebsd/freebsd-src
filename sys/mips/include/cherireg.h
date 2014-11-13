@@ -258,8 +258,8 @@
 /*
  * User-defined CHERI exception codes are numbered 128...255.
  */
-#define	CHERI_EXCCODE_OS_LOCALARG	0x80	/* Non-global CCall argument. */
-#define	CHERI_EXCCODE_OS_LOCALRET	0x81	/* Non-global CReturn value. */
+#define	CHERI_EXCCODE_SW_LOCALARG	0x80	/* Non-global CCall argument. */
+#define	CHERI_EXCCODE_SW_LOCALRET	0x81	/* Non-global CReturn value. */
 
 /*
  * How to turn the cause register into an exception code and register number.
