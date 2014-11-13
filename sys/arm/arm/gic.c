@@ -277,7 +277,7 @@ arm_gic_attach(device_t dev)
 	arm_config_irq = gic_config_irq;
 
 	icciidr = gic_c_read_4(GICC_IIDR);
-	device_printf(dev,"pn 0x%x, arch 0x%x, rev 0x%x, implementer 0x%x sc->nirqs %u\n",
+	device_printf(dev,"pn 0x%x, arch 0x%x, rev 0x%x, implementer 0x%x irqs %u\n",
 			icciidr>>20, (icciidr>>16) & 0xF, (icciidr>>12) & 0xf,
 			(icciidr & 0xfff), sc->nirqs);
 
