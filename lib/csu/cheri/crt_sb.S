@@ -54,7 +54,7 @@
 #
 # Things that will be set up for the callee C code
 #    $c0, $c11 will be set up to match the class
-#    $c11 will have have the non-ephemeral bit cleared
+#    $c11 will have have the global bit cleared
 #    $sp, $fp will point into an in-sandbox stack, relative to $c11
 #
 # __ccall_enter will jump to the 'invoke' symbol and arrange a CReturn when
@@ -98,7 +98,8 @@ __ccall_enter:
 	#
 	# Install $idc as $c0.  From here on out, we can do MIPS fetches and
 	# stores to memory inside the sandbox, and $c0-relative capability
-	# fetches and stores.
+	# fetches and stores.  We are not allowed to store non-global
+	# capabilities to the sandbox-local heap (currently).
 	#
 	dli	$t0, (~CHERI_PERM_STORE_LOCAL_CAP)
 	candperm	$c0, $c26, $t0
