@@ -141,4 +141,19 @@ cheri_zerocap(void)
 } while (0)
 #endif
 
+/* XXXBD: casts are due to cheri_get*() not taking const pointers */
+#ifdef __CHERI_SANDBOX__
+#define CHERI_PRINT_PTR(ptr)						\
+	printf("%s: " #ptr " b:%016jx l:%016zx o:%jx\n", __func__,	\
+	   cheri_getbase((void *)(ptr)),				\
+	   cheri_getlen((void *)(ptr)),					\
+	   cheri_getoffset((void *)(ptr)))
+#else
+#define CHERI_PRINT_PTR(ptr)						\
+	printf("%s: " #ptr " b:%016jx l:%016zx o:%jx\n", __func__,	\
+	   cheri_getbase((__capability void *)(ptr)),			\
+	   cheri_getlen((__capability void *)(ptr)),			\
+	   cheri_getoffset((__capability void *)(ptr)))
+#endif
+
 #endif /* _MIPS_INCLUDE_CHERIC_H_ */
