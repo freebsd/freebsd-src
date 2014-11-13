@@ -60,6 +60,13 @@
 /*
  * CCall/CReturn low-level exception handler; this code must be position-
  * independent, as it will be relocated into the vector table.
+ *
+ * NB: Our CCall/CReturn will always step on $at, even if the operation fails,
+ * in order to give us a bit more register space than just $k0 and $k1.
+ *
+ * XXXRW: If we had separate vectors for CCall and CReturn, we might be able
+ * to pull off CReturn without branching to a larger function elsewhere in
+ * memory, reducing overhead.  CCall remains pretty big, at least or now.
  */
 VECTOR(CHERICCallVector, unknown)
         .set push
@@ -105,7 +112,11 @@ VECTOR_END(CHERICCallVector)
  * assembly and by the compiler.
  *
  * NB: No attempt to make this pipeline well yet -- branch-delay slots not
- * well-utilised, some CP2 fields accessed multiple times.
+ * well-utilised, some CP2 fields accessed multiple times.  Also, CCall
+ * provides hardware acceleration of some checks which we currently duplicate.
+ * There are optimisation opportunities in terms of the ISA, especially as
+ * relates to 'global' checking and general-purpose and capability register
+ * clearing.
  */
 CHERICCall:
         .set push
@@ -160,6 +171,95 @@ CHERICCall:
 	cgetlen		k1, CHERI_REG_CCALLDATA
 	sltu		k1, k1, k0
 	bnez		k1, CCall_c1_range
+	nop
+
+	/*
+	 * Sixth: check that all argument capabilities have the 'global'
+	 * permission bit set or are capability NULL.
+	 *
+	 * NB: We use $at here as we know that we will want to clear it later;
+	 * this is a little naughty for an exception handler, but fine for
+	 * CCall/CReturn.  This way we avoid lots of branches here, though.
+	 *
+	 * XXXRW: This is not very efficient using the current ISA; we might
+	 * want some sort of 'set-if-not-global-and-also-not-null'
+	 * instruction?  Then we could run down all the pertinent registers
+	 * and simply branch once at the end.
+	 */
+	dli		AT, 1		/* Cleared if a failure. */
+
+	cgettag		k0, $c1			/* k0 = tagged. */
+	cgetperm	k1, $c1			/* k1 = global. */
+	andi		k1, CHERI_PERM_GLOBAL	/* k1 = global. */
+	xor		k1, k1, k1		/* k1 = !global. */
+	and		k0, k0, k1		/* k0 = tagged && !global */
+	movn		AT, zero, k0		/* Clear if true. */
+
+	cgettag		k0, $c2			/* k0 = tagged. */
+	cgetperm	k1, $c2			/* k1 = global. */
+	andi		k1, CHERI_PERM_GLOBAL	/* k1 = global. */
+	xor		k1, k1, k1		/* k1 = !global. */
+	and		k0, k0, k1		/* k0 = tagged && !global */
+	movn		AT, zero, k0		/* Clear if true. */
+
+	cgettag		k0, $c3			/* k0 = tagged. */
+	cgetperm	k1, $c3			/* k1 = global. */
+	andi		k1, CHERI_PERM_GLOBAL	/* k1 = global. */
+	xor		k1, k1, k1		/* k1 = !global. */
+	and		k0, k0, k1		/* k0 = tagged && !global */
+	movn		AT, zero, k0		/* Clear if true. */
+
+	cgettag		k0, $c4			/* k0 = tagged. */
+	cgetperm	k1, $c4			/* k1 = global. */
+	andi		k1, CHERI_PERM_GLOBAL	/* k1 = global. */
+	xor		k1, k1, k1		/* k1 = !global. */
+	and		k0, k0, k1		/* k0 = tagged && !global */
+	movn		AT, zero, k0		/* Clear if true. */
+
+	cgettag		k0, $c5			/* k0 = tagged. */
+	cgetperm	k1, $c5			/* k1 = global. */
+	andi		k1, CHERI_PERM_GLOBAL	/* k1 = global. */
+	xor		k1, k1, k1		/* k1 = !global. */
+	and		k0, k0, k1		/* k0 = tagged && !global */
+	movn		AT, zero, k0		/* Clear if true. */
+
+	cgettag		k0, $c6			/* k0 = tagged. */
+	cgetperm	k1, $c6			/* k1 = global. */
+	andi		k1, CHERI_PERM_GLOBAL	/* k1 = global. */
+	xor		k1, k1, k1		/* k1 = !global. */
+	and		k0, k0, k1		/* k0 = tagged && !global */
+	movn		AT, zero, k0		/* Clear if true. */
+
+	cgettag		k0, $c7			/* k0 = tagged. */
+	cgetperm	k1, $c7			/* k1 = global. */
+	andi		k1, CHERI_PERM_GLOBAL	/* k1 = global. */
+	xor		k1, k1, k1		/* k1 = !global. */
+	and		k0, k0, k1		/* k0 = tagged && !global */
+	movn		AT, zero, k0		/* Clear if true. */
+
+	cgettag		k0, $c8			/* k0 = tagged. */
+	cgetperm	k1, $c8			/* k1 = global. */
+	andi		k1, CHERI_PERM_GLOBAL	/* k1 = global. */
+	xor		k1, k1, k1		/* k1 = !global. */
+	and		k0, k0, k1		/* k0 = tagged && !global */
+	movn		AT, zero, k0		/* Clear if true. */
+
+	cgettag		k0, $c9			/* k0 = tagged. */
+	cgetperm	k1, $c9			/* k1 = global. */
+	andi		k1, CHERI_PERM_GLOBAL	/* k1 = global. */
+	xor		k1, k1, k1		/* k1 = !global. */
+	and		k0, k0, k1		/* k0 = tagged && !global */
+	movn		AT, zero, k0		/* Clear if true. */
+
+	cgettag		k0, $c10		/* k0 = tagged. */
+	cgetperm	k1, $c10		/* k1 = global. */
+	andi		k1, CHERI_PERM_GLOBAL	/* k1 = global. */
+	xor		k1, k1, k1		/* k1 = !global. */
+	and		k0, k0, k1		/* k0 = tagged && !global */
+	movn		AT, zero, k0		/* Clear if true. */
+
+	/* One branch to rule them all. */
+	beqz		AT, CCall_local_argument
 	nop
 
 	/*
@@ -279,14 +379,14 @@ CHERICCall:
 	cfromptr	$c0, $c0, zero
 	/* $c1 preserved as the passed code capability. */
 	/* $c2 preserved as the passed data capability. */
-	/* $c3 handled by compiler. */
-	/* $c4 handled by compiler. */
-	/* $c5 handled by compiler. */
-	/* $c6 handled by compiler. */
-	/* $c7 handled by compiler. */
-	/* $c8 handled by compiler. */
-	/* $c9 handled by compiler. */
-	/* $c10 handled by compiler. */
+	/* $c3 handled by compiler; global bit checked earlier. */
+	/* $c4 handled by compiler; global bit checked earlier. */
+	/* $c5 handled by compiler; global bit checked earlier. */
+	/* $c6 handled by compiler; global bit checked earlier. */
+	/* $c7 handled by compiler; global bit checked earlier. */
+	/* $c8 handled by compiler; global bit checked earlier. */
+	/* $c9 handled by compiler; global bit checked earlier. */
+	/* $c10 handled by compiler; global bit checked earlier. */
 	cfromptr	$c11, $c11, zero
 	cfromptr	$c12, $c12, zero
 	cfromptr	$c13, $c13, zero
@@ -346,6 +446,11 @@ CCall_c1_range:
 	b	CCall_throw_exception
 	csetcause	k0		/* Branch-delay slot. */
 
+CCall_local_argument:
+	dli	k0, ((CHERI_EXCCODE_OS_LOCALARG << 8) | 1)
+	b	CCall_throw_exception
+	csetcause	k0		/* Branch-delay slot. */
+
 CCall_stack_overflow:
 	dli	k0, ((CHERI_EXCCODE_CALL << 8) | 0)
 	b	CCall_throw_exception
@@ -363,11 +468,21 @@ CCall_throw_exception:
  *
  * Possible failure modes:
  *
- * 1. Trusted stack underflow.
+ * 1. Attempt to return a non-global capability.
+ * 2. Trusted stack underflow.
  */
 CHERICReturn:
         .set push
         .set noat
+
+	/* Check that return capability is global or untagged. */
+	cgettag		k0, $c3			/* k0 = tagged. */
+	cgetperm	k1, $c3			/* k1 = global. */
+	andi		k1, CHERI_PERM_GLOBAL	/* k1 = global. */
+	xor		k1, k1, k1		/* k1 = !global. */
+	and		k0, k0, k1		/* k0 = tagged && !global */
+	bnez		k1, CReturn_local_retval
+	nop
 
 	/* Retrieve current PCB pointer. */
 	GET_CPU_PCPU(k1)   
@@ -382,7 +497,12 @@ CHERICReturn:
 	beqz		k0, CReturn_stack_underflow
 	nop
 
-	/* Reload trusted stack pointer. */
+	/*
+	 * Reload trusted stack pointer.
+	 *
+	 * XXXRW: Actually, we could avoid this by borrowing a to-be-cleared
+	 * user register, such as $at, rather than juggling just $k0/$k1.
+	 */
 	PTR_L		k0, U_PCB_CHERISTACK_TSP(k1)
 	
 	/* Convert trusted stack-relative offset to global pointer. */
@@ -452,7 +572,7 @@ CHERICReturn:
 	cfromptr	$c0, $c0, zero
 	cfromptr	$c1, $c1, zero
 	cfromptr	$c2, $c2, zero
-	/* $c3 handled by compiler. */
+	/* $c3 handled by compiler; global bit checked earlier. */
 	cfromptr	$c4, $c4, zero
 	cfromptr	$c5, $c5, zero
 	cfromptr	$c6, $c6, zero
@@ -477,6 +597,11 @@ CHERICReturn:
 	cfromptr	$c25, $c25, zero
 	CHERI_EXCEPTION_RETURN(k0)
 	eret
+
+CReturn_local_retval:
+	dli	k0, ((CHERI_EXCCODE_OS_LOCALRET << 8) | 1)
+	b	CCall_throw_exception
+	csetcause	k0		/* Branch-delay slot. */
 
 CReturn_stack_underflow:
 	dli	k0, ((CHERI_EXCCODE_RETURN << 8) | 0)

@@ -232,6 +232,12 @@
 #define	CHERI_EXCCODE_UNDERFLOW		0x07
 #define	CHERI_EXCCODE_USER_PERM		0x08
 #define	CHERI_EXCCODE_TLBSTORE		0x09
+#define	_CHERI_EXCCODE_RESERVED0a	0x0a
+#define	_CHERI_EXCCODE_RESERVED0b	0x0b
+#define	_CHERI_EXCCODE_RESERVED0c	0x0c
+#define	_CHERI_EXCCODE_RESERVED0d	0x0d
+#define	_CHERI_EXCCODE_RESERVED0e	0x0e
+#define	_CHERI_EXCCODE_RESERVED0f	0x0f
 #define	CHERI_EXCCODE_GLOBAL		0x10
 #define	CHERI_EXCCODE_PERM_EXECUTE	0x11
 #define	CHERI_EXCCODE_PERM_LOAD		0x12
@@ -241,11 +247,19 @@
 #define	CHERI_EXCCODE_STORE_LOCALCAP	0x16
 #define	CHERI_EXCCODE_PERM_SEAL		0x17
 #define	CHERI_EXCCODE_PERM_SETTYPE	0x18
+#define	_CHERI_EXCCODE_RESERVED19	0x19
 #define	CHERI_EXCCODE_ACCESS_EPCC	0x1a
 #define	CHERI_EXCCODE_ACCESS_KDC	0x1b	/* XXXRW */
 #define	CHERI_EXCCODE_ACCESS_KCC	0x1c
 #define	CHERI_EXCCODE_ACCESS_KR1C	0x1d
 #define	CHERI_EXCCODE_ACCESS_KR2C	0x1e
+#define	_CHERI_EXCCODE_RESERVED1f	0x1f
+
+/*
+ * User-defined CHERI exception codes are numbered 128...255.
+ */
+#define	CHERI_EXCCODE_OS_LOCALARG	0x80	/* Non-global CCall argument. */
+#define	CHERI_EXCCODE_OS_LOCALRET	0x81	/* Non-global CReturn value. */
 
 /*
  * How to turn the cause register into an exception code and register number.
