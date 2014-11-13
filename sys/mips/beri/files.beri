@@ -40,6 +40,7 @@ mips/cheri/cheri_debug.c		optional cpu_cheri
 mips/cheri/cheri_exception.c		optional cpu_cheri
 mips/cheri/cheri_signal.c		optional cpu_cheri
 mips/cheri/cheri_stack.c		optional cpu_cheri
+mips/cheri/cheri_syscall.c		optional cpu_cheri
 mips/beri/beri_simplebus.c		optional fdt
 mips/beri/fdt_ic_if.m			optional fdt
 mips/mips/intr_machdep.c		standard

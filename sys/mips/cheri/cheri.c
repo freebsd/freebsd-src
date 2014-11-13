@@ -33,7 +33,6 @@
 #include <sys/param.h>
 #include <sys/kernel.h>
 #include <sys/proc.h>
-#include <sys/syscall.h>
 #include <sys/sysctl.h>
 
 #include <ddb/ddb.h>
@@ -66,7 +65,7 @@ SYSCTL_NODE(_security_cheri, OID_AUTO, stats, CTLFLAG_RD, 0,
     "CHERI statistics");
 
 /* XXXRW: Should possibly be u_long. */
-static u_int	security_cheri_syscall_violations;
+u_int	security_cheri_syscall_violations;
 SYSCTL_UINT(_security_cheri, OID_AUTO, syscall_violations, CTLFLAG_RD,
     &security_cheri_syscall_violations, 0, "Number of system calls blocked");
 
@@ -267,49 +266,4 @@ cheri_exec_setregs(struct thread *td)
 	cheri_capability_set_user_stack(&csigp->csig_c11);
 	cheri_capability_set_user_idc(&csigp->csig_idc);
 	cheri_capability_set_user_pcc(&csigp->csig_pcc);
-}
-
-/*
- * Only allow most system calls from either ambient authority, or from
- * sandboxes that have been explicitly delegated CHERI_PERM_SYSCALL via their
- * code capability.  Note that CHERI_PERM_SYSCALL effectively implies ambient
- * authority, as the kernel does not [currently] interpret pointers/lengths
- * via userspace $c0.
- */
-int
-cheri_syscall_authorize(struct thread *td, u_int code, int nargs,
-    register_t *args)
-{
-	uintmax_t c_perms;
-
-	/*
-	 * Allow the cycle counter to be read via sysarch.
-	 *
-	 * XXXRW: Now that we support a userspace cycle counter, we should
-	 * remove this.
-	 */
-	if (code == SYS_sysarch && args[0] == MIPS_GET_COUNT)
-		return (0);
-
-	/*
-	 * Check whether userspace holds the rights defined in
-	 * cheri_capability_set_user() in $PCC.  Note that object type doesn't
-	 * come into play here.
-	 *
-	 * XXXRW: Possibly ECAPMODE should be EPROT or ESANDBOX?
-	 */
-	CHERI_CLC(CHERI_CR_CTEMP0, CHERI_CR_KDC,
-	    &td->td_pcb->pcb_cheriframe.cf_pcc, 0);
-	CHERI_CGETPERM(c_perms, CHERI_CR_CTEMP0);
-	if ((c_perms & CHERI_PERM_SYSCALL) == 0) {
-		atomic_add_int(&security_cheri_syscall_violations, 1);
-
-#if DDB
-		if (security_cheri_debugger_on_sandbox_syscall)
-			kdb_enter(KDB_WHY_CHERI,
-			    "Syscall rejected in CHERI sandbox");
-#endif
-		return (ECAPMODE);
-	}
-	return (0);
 }
