@@ -55,7 +55,7 @@
 #define NMG_UNLOCK()	sx_xunlock(&netmap_global_lock)
 #define NMG_LOCK_ASSERT()	sx_assert(&netmap_global_lock, SA_XLOCKED)
 
-#define	NM_SELINFO_T	struct selinfo
+#define	NM_SELINFO_T	struct nm_selinfo
 #define	MBUF_LEN(m)	((m)->m_pkthdr.len)
 #define	MBUF_IFP(m)	((m)->m_pkthdr.rcvif)
 #define	NM_SEND_UP(ifp, m)	((NA(ifp))->if_input)(ifp, m)
@@ -87,6 +87,13 @@ struct netmap_adapter *netmap_getna(if_t ifp);
 #endif
 
 MALLOC_DECLARE(M_NETMAP);
+
+struct nm_selinfo {
+	struct selinfo si;
+	struct mtx m;
+};
+
+void freebsd_selwakeup(struct nm_selinfo *si, int pri);
 
 // XXX linux struct, not used in FreeBSD
 struct net_device_ops {
