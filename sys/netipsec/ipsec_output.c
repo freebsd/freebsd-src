@@ -165,11 +165,11 @@ ipsec_process_done(struct mbuf *m, struct ipsecrequest *isr)
 	 * doing further processing.
 	 */
 	if (isr->next) {
-		IPSECSTAT_INC(ips_out_bundlesa);
 		/* XXX-BZ currently only support same AF bundles. */
 		switch (saidx->dst.sa.sa_family) {
 #ifdef INET
 		case AF_INET:
+			IPSECSTAT_INC(ips_out_bundlesa);
 			return ipsec4_process_packet(m, isr->next, 0, 0);
 			/* NOTREACHED */
 #endif
@@ -177,6 +177,7 @@ ipsec_process_done(struct mbuf *m, struct ipsecrequest *isr)
 #ifdef INET6
 		case AF_INET6:
 			/* XXX */
+			IPSEC6STAT_INC(ips_out_bundlesa);
 			return ipsec6_process_packet(m, isr->next);
 			/* NOTREACHED */
 #endif /* INET6 */
