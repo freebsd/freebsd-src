@@ -1797,7 +1797,7 @@ finstall(struct thread *td, struct file *fp, int *fd, int flags,
  * If fdp is not NULL, return with it shared locked.
  */
 struct filedesc *
-fdinit(struct filedesc *fdp)
+fdinit(struct filedesc *fdp, bool prepfiles)
 {
 	struct filedesc0 *newfdp0;
 	struct filedesc *newfdp;
@@ -1818,7 +1818,7 @@ fdinit(struct filedesc *fdp)
 	if (fdp == NULL)
 		return (newfdp);
 
-	if (fdp->fd_lastfile >= newfdp->fd_nfiles)
+	if (prepfiles && fdp->fd_lastfile >= newfdp->fd_nfiles)
 		fdgrowtable(newfdp, fdp->fd_lastfile + 1);
 
 	FILEDESC_SLOCK(fdp);
@@ -1832,10 +1832,14 @@ fdinit(struct filedesc *fdp)
 	if (newfdp->fd_jdir)
 		VREF(newfdp->fd_jdir);
 
-	while (fdp->fd_lastfile >= newfdp->fd_nfiles) {
+	if (!prepfiles) {
 		FILEDESC_SUNLOCK(fdp);
-		fdgrowtable(newfdp, fdp->fd_lastfile + 1);
-		FILEDESC_SLOCK(fdp);
+	} else {
+		while (fdp->fd_lastfile >= newfdp->fd_nfiles) {
+			FILEDESC_SUNLOCK(fdp);
+			fdgrowtable(newfdp, fdp->fd_lastfile + 1);
+			FILEDESC_SLOCK(fdp);
+		}
 	}
 
 	return (newfdp);
@@ -1914,7 +1918,7 @@ fdcopy(struct filedesc *fdp)
 
 	MPASS(fdp != NULL);
 
-	newfdp = fdinit(fdp);
+	newfdp = fdinit(fdp, true);
 	/* copy all passable descriptors (i.e. not kqueue) */
 	newfdp->fd_freefile = -1;
 	for (i = 0; i <= fdp->fd_lastfile; ++i) {
