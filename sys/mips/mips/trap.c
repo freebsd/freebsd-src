@@ -1791,6 +1791,7 @@ mips_unaligned_load_store(struct trapframe *frame, int mode, register_t addr, re
 	 * now we'll just let them fail as they probably indicate bugs.
 	 */
 	case OP_SDC2: case OP_LDC2:
+		cheri_log_exception(frame, 0);
 		return (0);
 	/*
 	 * If it's a capability load or store, then the last three bits indicate
