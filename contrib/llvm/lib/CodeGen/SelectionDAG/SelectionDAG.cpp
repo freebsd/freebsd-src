@@ -629,8 +629,8 @@ void SDDbgInfo::erase(const SDNode *Node) {
   DbgValMapType::iterator I = DbgValMap.find(Node);
   if (I == DbgValMap.end())
     return;
-  for (auto &Val: I->second)
-    Val->setIsInvalidated();
+  for (unsigned J = 0, N = I->second.size(); J != N; ++J)
+    I->second[J]->setIsInvalidated();
   DbgValMap.erase(I);
 }
 
