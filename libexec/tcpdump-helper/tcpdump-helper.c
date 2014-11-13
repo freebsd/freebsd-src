@@ -197,6 +197,8 @@ invoke(register_t op, register_t arg1, register_t arg2,
 		gndo->ndo_packetp = malloc(h->caplen);
 		if (gndo->ndo_packetp == NULL)
 			error("failed to malloc packet space\n");
+		/* XXXBD: void* cast works around type bug */
+		memcpy_c((void *)gndo->ndo_packetp, sp, h->caplen);
 		gndo->ndo_snapend = gndo->ndo_packetp + h->caplen;
 
 		if (printinfo.ndo_type)
