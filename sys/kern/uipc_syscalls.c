@@ -242,13 +242,13 @@ sys_bind(td, uap)
 
 	error = getsockaddr(&sa, uap->name, uap->namelen);
 	if (error == 0) {
-		error = kern_bind(td, uap->s, sa);
+		error = kern_bindat(td, AT_FDCWD, uap->s, sa);
 		free(sa, M_SONAME);
 	}
 	return (error);
 }
 
-static int
+int
 kern_bindat(struct thread *td, int dirfd, int fd, struct sockaddr *sa)
 {
 	struct socket *so;
@@ -280,13 +280,6 @@ kern_bindat(struct thread *td, int dirfd, int fd, struct sockaddr *sa)
 #endif
 	fdrop(fp, td);
 	return (error);
-}
-
-int
-kern_bind(struct thread *td, int fd, struct sockaddr *sa)
-{
-
-	return (kern_bindat(td, AT_FDCWD, fd, sa));
 }
 
 /* ARGSUSED */
@@ -595,13 +588,13 @@ sys_connect(td, uap)
 
 	error = getsockaddr(&sa, uap->name, uap->namelen);
 	if (error == 0) {
-		error = kern_connect(td, uap->s, sa);
+		error = kern_connectat(td, AT_FDCWD, uap->s, sa);
 		free(sa, M_SONAME);
 	}
 	return (error);
 }
 
-static int
+int
 kern_connectat(struct thread *td, int dirfd, int fd, struct sockaddr *sa)
 {
 	struct socket *so;
@@ -662,13 +655,6 @@ bad:
 done1:
 	fdrop(fp, td);
 	return (error);
-}
-
-int
-kern_connect(struct thread *td, int fd, struct sockaddr *sa)
-{
-
-	return (kern_connectat(td, AT_FDCWD, fd, sa));
 }
 
 /* ARGSUSED */
