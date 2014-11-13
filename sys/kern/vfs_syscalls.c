@@ -2864,7 +2864,7 @@ sys_chown(td, uap)
 	} */ *uap;
 {
 
-	return (kern_fchownat(td, 0, uap->path, UIO_USERSPACE, uap->uid,
+	return (kern_fchownat(td, AT_FDCWD, uap->path, UIO_USERSPACE, uap->uid,
 	    uap->gid, 0));
 }
 
