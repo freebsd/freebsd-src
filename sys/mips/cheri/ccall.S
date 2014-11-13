@@ -174,8 +174,8 @@ CHERICCall:
 	nop
 
 	/*
-	 * Sixth: check that all argument capabilities have the 'global'
-	 * permission bit set or are capability NULL.
+	 * Sixth: check that all argument capabilities with tags have the
+	 * 'global' permission bit set.
 	 *
 	 * NB: We use $at here as we know that we will want to clear it later;
 	 * this is a little naughty for an exception handler, but fine for
@@ -189,72 +189,72 @@ CHERICCall:
 	dli		AT, 1		/* Cleared if a failure. */
 
 	cgettag		k0, $c1			/* k0 = tagged. */
-	cgetperm	k1, $c1			/* k1 = global. */
+	cgetperm	k1, $c1			/* k1 = permissions. */
 	andi		k1, CHERI_PERM_GLOBAL	/* k1 = global. */
-	xor		k1, k1, k1		/* k1 = !global. */
+	not		k1, k1			/* k1 = !global. */
 	and		k0, k0, k1		/* k0 = tagged && !global */
 	movn		AT, zero, k0		/* Clear if true. */
 
 	cgettag		k0, $c2			/* k0 = tagged. */
-	cgetperm	k1, $c2			/* k1 = global. */
+	cgetperm	k1, $c2			/* k1 = permissions. */
 	andi		k1, CHERI_PERM_GLOBAL	/* k1 = global. */
-	xor		k1, k1, k1		/* k1 = !global. */
+	not		k1, k1			/* k1 = !global. */
 	and		k0, k0, k1		/* k0 = tagged && !global */
 	movn		AT, zero, k0		/* Clear if true. */
 
 	cgettag		k0, $c3			/* k0 = tagged. */
-	cgetperm	k1, $c3			/* k1 = global. */
+	cgetperm	k1, $c3			/* k1 = permissions. */
 	andi		k1, CHERI_PERM_GLOBAL	/* k1 = global. */
-	xor		k1, k1, k1		/* k1 = !global. */
+	not		k1, k1			/* k1 = !global. */
 	and		k0, k0, k1		/* k0 = tagged && !global */
 	movn		AT, zero, k0		/* Clear if true. */
 
 	cgettag		k0, $c4			/* k0 = tagged. */
-	cgetperm	k1, $c4			/* k1 = global. */
+	cgetperm	k1, $c4			/* k1 = permissions. */
 	andi		k1, CHERI_PERM_GLOBAL	/* k1 = global. */
-	xor		k1, k1, k1		/* k1 = !global. */
+	not		k1, k1, k1		/* k1 = !global. */
 	and		k0, k0, k1		/* k0 = tagged && !global */
 	movn		AT, zero, k0		/* Clear if true. */
 
 	cgettag		k0, $c5			/* k0 = tagged. */
-	cgetperm	k1, $c5			/* k1 = global. */
+	cgetperm	k1, $c5			/* k1 = permissions. */
 	andi		k1, CHERI_PERM_GLOBAL	/* k1 = global. */
-	xor		k1, k1, k1		/* k1 = !global. */
+	not		k1, k1, k1		/* k1 = !global. */
 	and		k0, k0, k1		/* k0 = tagged && !global */
 	movn		AT, zero, k0		/* Clear if true. */
 
 	cgettag		k0, $c6			/* k0 = tagged. */
-	cgetperm	k1, $c6			/* k1 = global. */
+	cgetperm	k1, $c6			/* k1 = permissions. */
 	andi		k1, CHERI_PERM_GLOBAL	/* k1 = global. */
-	xor		k1, k1, k1		/* k1 = !global. */
+	not		k1, k1, k1		/* k1 = !global. */
 	and		k0, k0, k1		/* k0 = tagged && !global */
 	movn		AT, zero, k0		/* Clear if true. */
 
 	cgettag		k0, $c7			/* k0 = tagged. */
-	cgetperm	k1, $c7			/* k1 = global. */
+	cgetperm	k1, $c7			/* k1 = permissions. */
 	andi		k1, CHERI_PERM_GLOBAL	/* k1 = global. */
-	xor		k1, k1, k1		/* k1 = !global. */
+	not		k1, k1, k1		/* k1 = !global. */
 	and		k0, k0, k1		/* k0 = tagged && !global */
 	movn		AT, zero, k0		/* Clear if true. */
 
 	cgettag		k0, $c8			/* k0 = tagged. */
-	cgetperm	k1, $c8			/* k1 = global. */
+	cgetperm	k1, $c8			/* k1 = permissions. */
 	andi		k1, CHERI_PERM_GLOBAL	/* k1 = global. */
-	xor		k1, k1, k1		/* k1 = !global. */
+	not		k1, k1, k1		/* k1 = !global. */
 	and		k0, k0, k1		/* k0 = tagged && !global */
 	movn		AT, zero, k0		/* Clear if true. */
 
 	cgettag		k0, $c9			/* k0 = tagged. */
-	cgetperm	k1, $c9			/* k1 = global. */
+	cgetperm	k1, $c9			/* k1 = permissions. */
 	andi		k1, CHERI_PERM_GLOBAL	/* k1 = global. */
-	xor		k1, k1, k1		/* k1 = !global. */
+	not		k1, k1, k1		/* k1 = !global. */
 	and		k0, k0, k1		/* k0 = tagged && !global */
 	movn		AT, zero, k0		/* Clear if true. */
 
 	cgettag		k0, $c10		/* k0 = tagged. */
-	cgetperm	k1, $c10		/* k1 = global. */
+	cgetperm	k1, $c10		/* k1 = permissions. */
 	andi		k1, CHERI_PERM_GLOBAL	/* k1 = global. */
-	xor		k1, k1, k1		/* k1 = !global. */
+	not		k1, k1, k1		/* k1 = !global. */
 	and		k0, k0, k1		/* k0 = tagged && !global */
 	movn		AT, zero, k0		/* Clear if true. */
 
@@ -477,9 +477,9 @@ CHERICReturn:
 
 	/* Check that return capability is global or untagged. */
 	cgettag		k0, $c3			/* k0 = tagged. */
-	cgetperm	k1, $c3			/* k1 = global. */
+	cgetperm	k1, $c3			/* k1 = permissions. */
 	andi		k1, CHERI_PERM_GLOBAL	/* k1 = global. */
-	xor		k1, k1, k1		/* k1 = !global. */
+	not		k1, k1, k1		/* k1 = !global. */
 	and		k0, k0, k1		/* k0 = tagged && !global */
 	bnez		k1, CReturn_local_retval
 	nop
