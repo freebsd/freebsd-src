@@ -2215,8 +2215,8 @@ fdcheckstd(struct thread *td)
 		if (devnull != -1) {
 			error = do_dup(td, DUP_FIXED, devnull, i);
 		} else {
-			error = kern_open(td, "/dev/null", UIO_SYSSPACE,
-			    O_RDWR, 0);
+			error = kern_openat(td, AT_FDCWD, "/dev/null",
+			    UIO_SYSSPACE, O_RDWR, 0);
 			if (error == 0) {
 				devnull = td->td_retval[0];
 				KASSERT(devnull == i, ("we didn't get our fd"));
