@@ -906,8 +906,8 @@ sbappendcontrol(struct sockbuf *sb, struct mbuf *m0, struct mbuf *control)
  *
  * (2) The mbuf may be coalesced -- i.e., data in the mbuf may be copied into
  *     an mbuf already in the socket buffer.  This can occur if an
- *     appropriate mbuf exists, there is room, and no merging of data types
- *     will occur.
+ *     appropriate mbuf exists, there is room, both mbufs are not marked as
+ *     not ready, and no merging of data types will occur.
  *
  * (3) The mbuf may be appended to the end of the existing mbuf chain.
  *
@@ -937,6 +937,7 @@ sbcompress(struct sockbuf *sb, struct mbuf *m, struct mbuf *n)
 		    M_WRITABLE(n) &&
 		    ((sb->sb_flags & SB_NOCOALESCE) == 0) &&
 		    !(m->m_flags & M_NOTREADY) &&
+		    !(n->m_flags & M_NOTREADY) &&
 		    m->m_len <= MCLBYTES / 4 && /* XXX: Don't copy too much */
 		    m->m_len <= M_TRAILINGSPACE(n) &&
 		    n->m_type == m->m_type) {
