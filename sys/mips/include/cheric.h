@@ -119,11 +119,7 @@ cheri_maketype(void *ptr, register_t perm)
 static __inline __capability void *
 cheri_zerocap(void)
 {
-	__capability void *cap;
-
-	/* XXXRW: Use ccleartag instead? */
-	((char *)&cap)[0] = 0;
-	return (cap);
+	return (__capability void*)0;
 }
 
 #define	cheri_getreg(x) ({						\
