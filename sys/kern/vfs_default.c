@@ -730,7 +730,7 @@ vop_stdgetpages(ap)
 	    ap->a_count, ap->a_reqpage, NULL, NULL);
 }
 
-/* XXX Needs good comment and a manpage. */
+/* XXX Needs good comment and a manpage (VOP_GETPAGES_ASYNC(9). */
 int
 vop_stdgetpages_async(struct vop_getpages_async_args *ap)
 {
