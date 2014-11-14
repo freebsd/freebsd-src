@@ -78,15 +78,15 @@ sbready(struct sockbuf *sb, struct mbuf *m, int count)
 
 	SOCKBUF_LOCK_ASSERT(sb);
 
-	if (m->m_flags & M_SBCUTTED) {
+	if (m->m_flags & M_SBCUT) {
 		/*
 		 * Oops, something bad happened to the socket buffer while
 		 * we were working on the data.  Our mbufs are detached from
 		 * the sockbuf, and all what we can do is free them.
 		 */
 		for (int i = 0; i < count; i++) {
-			KASSERT(m->m_flags & M_SBCUTTED,
-			    ("%s: m %p !M_SBCUTTED", __func__, m));
+			KASSERT(m->m_flags & M_SBCUT,
+			    ("%s: m %p !M_SBCUT", __func__, m));
 			m = m_free(m);
 		}
 		return (EPIPE);
@@ -1060,7 +1060,7 @@ sbcut_internal(struct sockbuf *sb, int len)
 		sbfree(sb, m);
 		n = m->m_next;
 		if (m->m_flags & M_NOTREADY)
-			m->m_flags |= M_SBCUTTED;
+			m->m_flags |= M_SBCUT;
 		else {
 			m->m_next = mfree;
 			mfree = m;

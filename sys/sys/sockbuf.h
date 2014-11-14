@@ -128,7 +128,7 @@ struct	sockbuf {
 #define	M_NOTREADY	M_PROTO1	/* m_data not populated yet */
 #define	M_BLOCKED	M_PROTO2	/* M_NOTREADY in front of m */
 #define	M_NOTAVAIL	(M_NOTREADY | M_BLOCKED)
-#define	M_SBCUTTED	M_PROTO3	/* mbuf was sbcutted out */
+#define	M_SBCUT		M_PROTO3	/* mbuf was sbcutted out */
 
 void	sbappend(struct sockbuf *sb, struct mbuf *m);
 void	sbappend_locked(struct sockbuf *sb, struct mbuf *m);
