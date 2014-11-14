@@ -1766,12 +1766,13 @@ mips_unaligned_load_store(struct trapframe *frame, int mode, register_t addr, re
 	 * XXXRW: Should just use the CP0 'faulting instruction' register
 	 * available in CHERI.
 	 *
-	 * XXXRW: As interrupts have been enabled at this point, EPCC may not
-	 * be the faulting one we would like -- e.g., it could be for a kernel
-	 * TLB miss.  We should be loading CTEMP0 from the saved EPCC from the
-	 * trap frame instead.
+	 * XXXRW: The below uses the saved $epcc for the user thread, but if
+	 * this is an emulated unaligned access for a kernel thread, then this
+	 * will not work.
 	 */
-	CHERI_CLW(inst, 0, 0, CHERI_CR_EPCC);
+	CHERI_CLC(CHERI_CR_CTEMP0, CHERI_CR_KDC,
+	    &curthread->td_pcb->pcb_cheriframe.cf_pcc, 0);
+	CHERI_CLW(inst, 0, 0, CHERI_CR_CTEMP0);
 #else
 	inst = *((u_int32_t *)(intptr_t)pc);;
 #endif
