@@ -21,7 +21,7 @@ write_partition_layout() {
 			;;
 		powerpc:powerpc*)
 			mkimg -s apm \
-				-p freebsd-boot/bootfs:=/boot/boot1.hfs \
+				-p apple-boot/bootfs:=/boot/boot1.hfs \
 				-p freebsd-swap/swapfs::1G \
 				-p freebsd-ufs/rootfs:=${VMBASE} \
 				-o ${VMIMAGE}
