@@ -152,7 +152,7 @@ typedef int YYSTYPE;
 #define YYTRANSLATE(a) ((a) > YYMAXTOKEN ? YYUNDFTOKEN : (a))
 
 extern int YYPARSE_DECL();
-typedef short YYINT;
+typedef int YYINT;
 extern YYINT yylhs[];
 extern YYINT yylen[];
 extern YYINT yydefred[];

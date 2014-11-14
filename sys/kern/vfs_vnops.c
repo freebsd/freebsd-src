@@ -1881,8 +1881,10 @@ vfs_write_suspend_umnt(struct mount *mp)
 	for (;;) {
 		vn_finished_write(mp);
 		error = vfs_write_suspend(mp, 0);
-		if (error != 0)
+		if (error != 0) {
+			vn_start_write(NULL, &mp, V_WAIT);
 			return (error);
+		}
 		MNT_ILOCK(mp);
 		if ((mp->mnt_kern_flag & MNTK_SUSPENDED) != 0)
 			break;

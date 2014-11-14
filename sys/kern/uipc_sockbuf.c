@@ -1024,12 +1024,10 @@ sbcut_internal(struct sockbuf *sb, int len)
 	mfree = NULL;
 
 	while (len > 0) {
-		if (m == 0) {
-			if (next == 0)
-				panic("sbdrop");
+		if (m == NULL) {
+			KASSERT(next, ("%s: no next, len %d", __func__, len));
 			m = next;
 			next = m->m_nextpkt;
-			continue;
 		}
 		if (m->m_len > len) {
 			KASSERT(!(m->m_flags & M_NOTAVAIL),
@@ -1045,13 +1043,6 @@ sbcut_internal(struct sockbuf *sb, int len)
 			break;
 		}
 		len -= m->m_len;
-		sbfree(sb, m);
-		n = m->m_next;
-		m->m_next = mfree;
-		mfree = m;
-		m = n;
-	}
-	while (m && m->m_len == 0) {
 		sbfree(sb, m);
 		n = m->m_next;
 		m->m_next = mfree;

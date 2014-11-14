@@ -77,7 +77,7 @@ linux_kern_statat(struct thread *td, int flag, int fd, char *path,
     enum uio_seg pathseg, struct stat *sbp)
 {
 
-	return (kern_statat_vnhook(td, flag, fd, path, pathseg, sbp,
+	return (kern_statat(td, flag, fd, path, pathseg, sbp,
 	    translate_vnhook_major_minor));
 }
 
