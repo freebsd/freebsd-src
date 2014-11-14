@@ -68,6 +68,9 @@ static	u_long sb_efficiency = 8;	/* parameter for sbreserve() */
 static struct mbuf	*sbcut_internal(struct sockbuf *sb, int len);
 static void	sbflush_internal(struct sockbuf *sb);
 
+/*
+ * Mark ready "count" mbufs starting with "m".
+ */
 int
 sbready(struct sockbuf *sb, struct mbuf *m, int count)
 {
