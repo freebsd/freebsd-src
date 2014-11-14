@@ -905,13 +905,6 @@ sbcut_internal(struct sockbuf *sb, int len)
 		mfree = m;
 		m = n;
 	}
-	while (m && m->m_len == 0) {
-		sbfree(sb, m);
-		n = m->m_next;
-		m->m_next = mfree;
-		mfree = m;
-		m = n;
-	}
 	if (m) {
 		sb->sb_mb = m;
 		m->m_nextpkt = next;
