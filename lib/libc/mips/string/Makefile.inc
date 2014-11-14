@@ -13,14 +13,13 @@ _CHERI_CC=	${CHERI_CC} -integrated-as --target=cheri-unknown-freebsd \
 .if defined(SYSROOT)
 _CHERI_CC+=	--sysroot=${SYSROOT}
 .endif
-SRCS+=	memcpy_c.s memcpy_c_tofrom.c memmove_c.c memset_c.c	\
-	strnlen_c.c strncpy_c.c
-CC.memcpy_c.s=	${_CHERI_CC}
-CC.memcpy_c_tofrom.c=	${_CHERI_CC}
-CC.memmove_c.c=	${_CHERI_CC}
-CC.memset_c.c=	${_CHERI_CC}
-CC.strnlen_c.c=	${_CHERI_CC}
-CC.strncpy_c.c=	${_CHERI_CC}
+CHERI_SRCS=	memchr_c.c memcmp_c.c memcpy_c.s memcpy_c_tofrom.c memmove_c.c memset_c.c	\
+	strchr_c.c strcmp_c.c strnlen_c.c strncmp_c.c strncpy_c.c strtol_c.c
+SRCS+=	${CHERI_SRCS}
+
+.for src in ${CHERI_SRCS}
+CC.${src}=	${_CHERI_CC}
+.endfor
 
 SYM_MAPS+=	${LIBC_SRCTOP}/mips/string/Symbol.map
 .endif

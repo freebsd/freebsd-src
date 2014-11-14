@@ -3,13 +3,19 @@
  */
 
 FBSD_1.0 {
+	memchr_c;
+	memcmp_c;
 	memcpy_c;
 	memcpy_c_fromcap;
 	memcpy_c_tocap;
 	memmove_c;
 	memset_c;
+	strchr_c;
+	strcmp_c;
 	strnlen_c;
+	strncmp_c;
 	strncpy_c;
 	strncpy_c_fromcap;
 	strncpy_c_tocap;
+	strtol_c;
 };
