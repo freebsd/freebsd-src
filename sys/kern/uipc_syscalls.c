@@ -2078,7 +2078,7 @@ struct sf_io {
 };
 
 static void
-sf_io_done(void *arg)
+sf_iodone(void *arg)
 {
 	struct sf_io *sfio = arg;
 	struct socket *so;
@@ -2151,7 +2151,7 @@ sendfile_swapin(vm_object_t obj, struct sf_io *sfio, off_t off, off_t len,
 
 		refcount_acquire(&sfio->nios);
 		rv = vm_pager_get_pages_async(obj, pa + i, count, 0,
-		    &sf_io_done, sfio);
+		    &sf_iodone, sfio);
 
 		KASSERT(rv == VM_PAGER_OK, ("%s: pager fail obj %p page %p",
 		    __func__, obj, pa[i]));
@@ -2578,7 +2578,7 @@ retry_space:
 			fhold(sock_fp);
 			error = (*so->so_proto->pr_usrreqs->pru_send)
 			    (so, PRUS_NOTREADY, m, NULL, NULL, td);
-			sf_io_done(sfio);
+			sf_iodone(sfio);
 		}
 		CURVNET_RESTORE();
 
