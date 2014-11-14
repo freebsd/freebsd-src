@@ -1029,11 +1029,12 @@ sbcut_internal(struct sockbuf *sb, int len)
 			continue;
 		}
 		if (m->m_len > len) {
+			KASSERT(!(m->m_flags & M_NOTAVAIL),
+			    ("%s: m %p M_NOTAVAIL", __func__, m));
 			m->m_len -= len;
 			m->m_data += len;
 			sb->sb_ccc -= len;
-			if (!(m->m_flags & M_NOTAVAIL))
-				sb->sb_acc -= len;
+			sb->sb_acc -= len;
 			if (sb->sb_sndptroff != 0)
 				sb->sb_sndptroff -= len;
 			if (m->m_type != MT_DATA && m->m_type != MT_OOBDATA)
