@@ -965,8 +965,17 @@ dofault:
 			 * XXXRW: Especially, we need to be prepared for the
 			 * possibility that $pcc ($epcc) is not readable or
 			 * unaligned.
+			 *
+			 * XXXRW: Should just use the CP0 'faulting
+			 * instruction' register available in CHERI.
+			 *
+			 * XXXRW: As interrupts have been enabled at this
+			 * point, EPCC may not be the faulting one we would
+			 * like -- e.g., it could be for a kernel TLB miss.
+			 * We should be loading CTEMP0 from the saved EPCC
+			 * from the trap frame instead.
 			 */
-			CHERI_CLW(inst.word, trapframe->pc, 0, CHERI_CR_EPCC);
+			CHERI_CLW(inst.word, 0, 0, CHERI_CR_EPCC);
 #else
 			inst = *(InstFmt *)(intptr_t)trapframe->pc;
 #endif
@@ -1740,7 +1749,6 @@ mips_unaligned_load_store(struct trapframe *frame, int mode, register_t addr, re
 	int is_store = 0;
 	int sign_extend = 0;
 #ifdef CPU_CHERI
-	register_t v;
 
 	/*
 	 * XXXRW: This code isn't really post-CHERI ready.
@@ -1754,23 +1762,16 @@ mips_unaligned_load_store(struct trapframe *frame, int mode, register_t addr, re
 	 * of the CHERI exceptions to guarantee that the load or store should have
 	 * succeeded, but a malicious program could generate an alignment trap and
 	 * then substitute a different instruction...
+	 *
+	 * XXXRW: Should just use the CP0 'faulting instruction' register
+	 * available in CHERI.
+	 *
+	 * XXXRW: As interrupts have been enabled at this point, EPCC may not
+	 * be the faulting one we would like -- e.g., it could be for a kernel
+	 * TLB miss.  We should be loading CTEMP0 from the saved EPCC from the
+	 * trap frame instead.
 	 */
-	/*
-	 * Construct a temporary capbility that will have load permission and no offset
-	 * defined, unlike $epcc, which might be execute-only, or have a straggling (or
-	 * even, intentional) offset.
-	 */
-	CHERI_CMOVE(CHERI_CR_CTEMP0, CHERI_CR_KDC);
-	CHERI_CGETBASE(v, CHERI_CR_EPCC);
-	if ((v % 4) != 0) {
-		printf("%s: unaligned $epcc base", __func__);
-		return (0);
-	}
-	CHERI_CINCBASE(CHERI_CR_CTEMP0, CHERI_CR_CTEMP0, v);
-	CHERI_CGETLEN(v, CHERI_CR_EPCC);
-	CHERI_CSETLEN(CHERI_CR_CTEMP0, CHERI_CR_CTEMP0, v);
-	CHERI_CSETOFFSET(CHERI_CR_CTEMP0, CHERI_CR_CTEMP0, 0);
-	CHERI_CLW(inst, pc, 0, CHERI_CR_CTEMP0);
+	CHERI_CLW(inst, 0, 0, CHERI_CR_EPCC);
 #else
 	inst = *((u_int32_t *)(intptr_t)pc);;
 #endif
