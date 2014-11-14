@@ -56,12 +56,12 @@ typedef boolean_t pgo_haspage_t(vm_object_t, vm_pindex_t, int *, int *);
 typedef void pgo_pageunswapped_t(vm_page_t);
 
 struct pagerops {
-	pgo_init_t		*pgo_init;	/* Initialize pager. */
-	pgo_alloc_t		*pgo_alloc;	/* Allocate pager. */
-	pgo_dealloc_t		*pgo_dealloc;	/* Disassociate. */
-	pgo_getpages_t		*pgo_getpages;	/* Get (read) page. */
-	pgo_putpages_t		*pgo_putpages;	/* Put (write) page. */
-	pgo_haspage_t		*pgo_haspage;	/* Does pager have page? */
+	pgo_init_t		*pgo_init;		/* Initialize pager. */
+	pgo_alloc_t		*pgo_alloc;		/* Allocate pager. */
+	pgo_dealloc_t		*pgo_dealloc;		/* Disassociate. */
+	pgo_getpages_t		*pgo_getpages;		/* Get (read) page. */
+	pgo_putpages_t		*pgo_putpages;		/* Put (write) page. */
+	pgo_haspage_t		*pgo_haspage;		/* Query page. */
 	pgo_pageunswapped_t	*pgo_pageunswapped;
 };
 
