@@ -881,12 +881,10 @@ sbcut_internal(struct sockbuf *sb, int len)
 	mfree = NULL;
 
 	while (len > 0) {
-		if (m == 0) {
-			if (next == 0)
-				panic("sbdrop");
+		if (m == NULL) {
+			KASSERT(next, ("%s: no next, len %d", __func__, len));
 			m = next;
 			next = m->m_nextpkt;
-			continue;
 		}
 		if (m->m_len > len) {
 			m->m_len -= len;
