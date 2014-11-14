@@ -2057,6 +2057,7 @@ fixspace(int old, int new, off_t off, int *space)
 
 struct sf_io {
 	u_int		nios;
+	u_int		error;
 	int		npages;
 	struct file	*sock_fp;
 	struct mbuf	*m;
@@ -2064,17 +2065,44 @@ struct sf_io {
 };
 
 static void
-sf_iodone(void *arg)
+sf_iodone(void *arg, int error)
 {
 	struct sf_io *sfio = arg;
 	struct socket *so;
+
+	if (error)
+		sfio->error = error;
 
 	if (!refcount_release(&sfio->nios))
 		return;
 
 	so = sfio->sock_fp->f_data;
 
-	(void)(so->so_proto->pr_usrreqs->pru_ready)(so, sfio->m, sfio->npages);
+	if (sfio->error) {
+		struct mbuf *m;
+
+		/*
+		 * I/O operation failed.  The state of data in the socket
+		 * is now inconsistent, and all what we can do is to tear
+		 * it down. sbflush() would free all ready mbufs and detach
+		 * not ready. We will free the mbufs corresponding to this
+		 * I/O manually.
+		 *
+		 * The socket would be marked with EIO and made available
+		 * for read, so that application receives EIO on next
+		 * syscall and eventually closes the socket.
+		 */
+		SOCKBUF_LOCK(&(so)->so_snd);
+		sbflush_locked(&so->so_snd);
+		so->so_error = EIO;
+		sowakeup((so), &(so)->so_snd);
+
+		m = sfio->m;
+		for (int i = 0; i < sfio->npages; i++)
+			m = m_free(m);
+	} else
+		(void )(so->so_proto->pr_usrreqs->pru_ready)(so, sfio->m,
+		    sfio->npages);
 
 	/* XXXGL: curthread */
 	fdrop(sfio->sock_fp, curthread);
@@ -2445,6 +2473,7 @@ retry_space:
 		sfio = malloc(sizeof(struct sf_io) +
 		    (rhpages + npages) * sizeof(vm_page_t), M_TEMP, M_WAITOK);
 		refcount_init(&sfio->nios, 1);
+		sfio->error = 0;
 
 		nios = sendfile_swapin(obj, sfio, off, space, npages, rhpages);
 
@@ -2564,7 +2593,7 @@ retry_space:
 			fhold(sock_fp);
 			error = (*so->so_proto->pr_usrreqs->pru_send)
 			    (so, PRUS_NOTREADY, m, NULL, NULL, td);
-			sf_iodone(sfio);
+			sf_iodone(sfio, 0);
 		}
 		CURVNET_RESTORE();
 
