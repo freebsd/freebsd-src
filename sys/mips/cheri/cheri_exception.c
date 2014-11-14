@@ -90,7 +90,8 @@ static const char *
 cheri_exccode_string(uint8_t exccode)
 {
 
-	if (exccode >= 128) {
+	if (exccode >= CHERI_EXCCODE_SW_BASE) {
+		exccode -= CHERI_EXCCODE_SW_BASE;
 		if (exccode >= cheri_exccode_sw_array_length)
 			return ("unknown software exception");
 		return (cheri_exccode_sw_array[exccode]);

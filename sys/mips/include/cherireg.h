@@ -258,6 +258,7 @@
 /*
  * User-defined CHERI exception codes are numbered 128...255.
  */
+#define	CHERI_EXCCODE_SW_BASE		0x80
 #define	CHERI_EXCCODE_SW_LOCALARG	0x80	/* Non-global CCall argument. */
 #define	CHERI_EXCCODE_SW_LOCALRET	0x81	/* Non-global CReturn value. */
 
