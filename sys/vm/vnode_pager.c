@@ -77,6 +77,25 @@ __FBSDID("$FreeBSD$");
 #include <vm/vnode_pager.h>
 #include <vm/vm_extern.h>
 
+/*
+ * Structure to communicate to pass state from vnode_pager_generic_getpages()
+ * to vnode_pager_generic_getpages_done() either to
+ * vnode_pager_generic_getpages_done_async().
+ */
+struct getpages_softc {
+	vm_page_t *m;
+	struct buf *bp;
+	vm_object_t object;
+	vm_offset_t kva;
+	off_t foff;
+	int size;
+	int count;
+	int unmapped;
+	int reqpage;
+	void (*iodone)(void *, int);
+	void *arg;
+};
+
 static int vnode_pager_addr(struct vnode *vp, vm_ooffset_t address,
     daddr_t *rtaddress, int *run);
 static int vnode_pager_input_smlfs(vm_object_t object, vm_page_t m);
@@ -91,6 +110,8 @@ static void vnode_pager_putpages(vm_object_t, vm_page_t *, int, int, int *);
 static boolean_t vnode_pager_haspage(vm_object_t, vm_pindex_t, int *, int *);
 static vm_object_t vnode_pager_alloc(void *, vm_ooffset_t, vm_prot_t,
     vm_ooffset_t, struct ucred *cred);
+static int vnode_pager_generic_getpages_done(struct getpages_softc *);
+static void vnode_pager_generic_getpages_done_async(struct buf *);
 
 struct pagerops vnodepagerops = {
 	.pgo_alloc =	vnode_pager_alloc,
@@ -686,23 +707,6 @@ vnode_pager_getpages_async(vm_object_t object, vm_page_t *m, int count,
 	return rtval;
 }
 
-struct getpages_softc {
-	vm_page_t *m;
-	struct buf *bp;
-	vm_object_t object;
-	vm_offset_t kva;
-	off_t foff;
-	int size;
-	int count;
-	int unmapped;
-	int reqpage;
-	void (*iodone)(void *, int);
-	void *arg;
-};
-
-int	vnode_pager_generic_getpages_done(struct getpages_softc *);
-void	vnode_pager_generic_getpages_done_async(struct buf *);
-
 /*
  * The implementation of VOP_GETPAGES() and VOP_GETPAGES_ASYNC() for
  * local filesystems, where partially valid pages can only occur at
@@ -1049,7 +1053,7 @@ vnode_pager_generic_getpages(struct vnode *vp, vm_page_t *m, int bytecount,
 	return (error ? VM_PAGER_ERROR : VM_PAGER_OK);
 }
 
-void
+static void
 vnode_pager_generic_getpages_done_async(struct buf *bp)
 {
 	struct getpages_softc *sc = bp->b_caller1;
@@ -1064,7 +1068,7 @@ vnode_pager_generic_getpages_done_async(struct buf *bp)
 	free(sc, M_TEMP);
 }
 
-int
+static int
 vnode_pager_generic_getpages_done(struct getpages_softc *sc)
 {
 	vm_object_t object;
