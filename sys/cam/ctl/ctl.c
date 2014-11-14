@@ -4106,17 +4106,11 @@ ctl_init_page_index(struct ctl_lun *lun)
 			 * works out a fake geometry based on the capacity.
 			 */
 			memcpy(&lun->mode_pages.rigid_disk_page[
-			       CTL_PAGE_CURRENT], &rigid_disk_page_default,
+			       CTL_PAGE_DEFAULT], &rigid_disk_page_default,
 			       sizeof(rigid_disk_page_default));
 			memcpy(&lun->mode_pages.rigid_disk_page[
 			       CTL_PAGE_CHANGEABLE],&rigid_disk_page_changeable,
 			       sizeof(rigid_disk_page_changeable));
-			memcpy(&lun->mode_pages.rigid_disk_page[
-			       CTL_PAGE_DEFAULT], &rigid_disk_page_default,
-			       sizeof(rigid_disk_page_default));
-			memcpy(&lun->mode_pages.rigid_disk_page[
-			       CTL_PAGE_SAVED], &rigid_disk_page_default,
-			       sizeof(rigid_disk_page_default));
 
 			sectors_per_cylinder = CTL_DEFAULT_SECTORS_PER_TRACK *
 				CTL_DEFAULT_HEADS;
@@ -4153,16 +4147,21 @@ ctl_init_page_index(struct ctl_lun *lun)
 				cylinders = 0xffffff;
 
 			rigid_disk_page = &lun->mode_pages.rigid_disk_page[
-				CTL_PAGE_CURRENT];
-			scsi_ulto3b(cylinders, rigid_disk_page->cylinders);
-
-			rigid_disk_page = &lun->mode_pages.rigid_disk_page[
 				CTL_PAGE_DEFAULT];
 			scsi_ulto3b(cylinders, rigid_disk_page->cylinders);
 
-			rigid_disk_page = &lun->mode_pages.rigid_disk_page[
-				CTL_PAGE_SAVED];
-			scsi_ulto3b(cylinders, rigid_disk_page->cylinders);
+			if ((value = ctl_get_opt(&lun->be_lun->options,
+			    "rpm")) != NULL) {
+				scsi_ulto2b(strtol(value, NULL, 0),
+				     rigid_disk_page->rotation_rate);
+			}
+
+			memcpy(&lun->mode_pages.rigid_disk_page[CTL_PAGE_CURRENT],
+			       &lun->mode_pages.rigid_disk_page[CTL_PAGE_DEFAULT],
+			       sizeof(rigid_disk_page_default));
+			memcpy(&lun->mode_pages.rigid_disk_page[CTL_PAGE_SAVED],
+			       &lun->mode_pages.rigid_disk_page[CTL_PAGE_DEFAULT],
+			       sizeof(rigid_disk_page_default));
 
 			page_index->page_data =
 				(uint8_t *)lun->mode_pages.rigid_disk_page;
@@ -10190,7 +10189,7 @@ ctl_inquiry_evpd_bdc(struct ctl_scsiio *ctsio, int alloc_len)
 	    (value = ctl_get_opt(&lun->be_lun->options, "rpm")) != NULL)
 		i = strtol(value, NULL, 0);
 	else
-		i = SVPD_NON_ROTATING;
+		i = CTL_DEFAULT_ROTATION_RATE;
 	scsi_ulto2b(i, bdc_ptr->medium_rotation_rate);
 	if (lun != NULL &&
 	    (value = ctl_get_opt(&lun->be_lun->options, "formfactor")) != NULL)
