@@ -78,7 +78,7 @@ __FBSDID("$FreeBSD$");
 #include <vm/vm_extern.h>
 
 /*
- * Structure to communicate to pass state from vnode_pager_generic_getpages()
+ * Structure to pass state from vnode_pager_generic_getpages()
  * to vnode_pager_generic_getpages_done() either to
  * vnode_pager_generic_getpages_done_async().
  */
