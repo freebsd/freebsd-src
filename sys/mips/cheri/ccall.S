@@ -259,7 +259,11 @@ CHERICCall:
 	movn		AT, zero, k0		/* Clear if true. */
 
 	/* One branch to rule them all. */
+#if 0
 	beqz		AT, CCall_local_argument
+#else
+	nop
+#endif
 	nop
 
 	/*
@@ -481,7 +485,11 @@ CHERICReturn:
 	andi		k1, CHERI_PERM_GLOBAL	/* k1 = global. */
 	not		k1, k1			/* k1 = !global. */
 	and		k0, k0, k1		/* k0 = tagged && !global */
+#if 0
 	bnez		k1, CReturn_local_retval
+#else
+	nop
+#endif
 	nop
 
 	/* Retrieve current PCB pointer. */
