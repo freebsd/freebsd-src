@@ -366,7 +366,7 @@ wait_for_children(bool block)
 			log_warnx("child process %d terminated with signal %d",
 			    pid, WTERMSIG(status));
 		} else if (WEXITSTATUS(status) != 0) {
-			log_warnx("child process %d terminated with exit status %d",
+			log_debugx("child process %d terminated with exit status %d",
 			    pid, WEXITSTATUS(status));
 		} else {
 			log_debugx("child process %d terminated gracefully", pid);
