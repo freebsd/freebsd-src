@@ -482,6 +482,7 @@ void
 init_print(u_int32_t localnet, u_int32_t mask)
 {
 	char *control_file;
+	char *sandboxes;
 	int control_fd = -1, i;
 
 	if ((control_file = getenv("DEMO_CONTROL")) == NULL ||
@@ -491,7 +492,11 @@ init_print(u_int32_t localnet, u_int32_t mask)
 		ctdc = &_ctdc;
 		ctdc->ctdc_sb_mode = TDS_MODE_HASH_TCP;
 		ctdc->ctdc_colorize = 1;
-		ctdc->ctdc_sandboxes = 3;
+		sandboxes = getenv("TCP_SANDBOXES");
+		if (sandboxes != NULL && *sandboxes >= '1' && *sandboxes <= '9')
+			ctdc->ctdc_sandboxes = atoi(sandboxes);
+		else
+			ctdc->ctdc_sandboxes = 3;
 	} else
 		if (control_fd != -1)
 			close(control_fd);
