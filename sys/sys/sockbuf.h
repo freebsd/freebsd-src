@@ -174,7 +174,6 @@ int	sblock(struct sockbuf *sb, int flags);
 void	sbunlock(struct sockbuf *sb);
 void	sballoc(struct sockbuf *, struct mbuf *);
 void	sbfree(struct sockbuf *, struct mbuf *);
-void	sbmtrim(struct sockbuf *, struct mbuf *, int);
 int	sbready(struct sockbuf *, struct mbuf *, int);
 
 /*

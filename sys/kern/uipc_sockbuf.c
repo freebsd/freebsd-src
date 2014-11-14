@@ -184,22 +184,6 @@ sbfree(struct sockbuf *sb, struct mbuf *m)
 }
 
 /*
- * Trim some amount of data from (first?) mbuf in buffer.
- */
-void
-sbmtrim(struct sockbuf *sb, struct mbuf *m, int len)
-{
-
-	SOCKBUF_LOCK_ASSERT(sb);
-	KASSERT(len < m->m_len, ("%s: m %p len %d", __func__, m, len));
-
-	m->m_data += len;
-	m->m_len -= len;
-	sb->sb_acc -= len;
-	sb->sb_ccc -= len;
-}
-
-/*
  * Socantsendmore indicates that no more data will be sent on the socket; it
  * would normally be applied to a socket when the user informs the system
  * that no more data is to be sent, by the protocol code (in case

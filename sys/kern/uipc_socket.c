@@ -1810,7 +1810,7 @@ dontblock:
 						SOCKBUF_LOCK(&so->so_rcv);
 					}
 				}
-				sbmtrim(&so->so_rcv, m, len);
+				sbcut_locked(&so->so_rcv, len);
 			}
 		}
 		SOCKBUF_LOCK_ASSERT(&so->so_rcv);
