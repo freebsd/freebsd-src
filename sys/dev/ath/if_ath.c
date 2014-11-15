@@ -669,8 +669,8 @@ ath_attach(u_int16_t devid, struct ath_softc *sc)
 		goto bad;
 	}
 
-	callout_init(&sc->sc_cal_ch, 1);	/* MPSAFE */
-	callout_init(&sc->sc_wd_ch, 1);		/* MPSAFE */
+	callout_init_mtx(&sc->sc_cal_ch, &sc->sc_mtx, 0);
+	callout_init_mtx(&sc->sc_wd_ch, &sc->sc_mtx, 0);
 
 	ATH_TXBUF_LOCK_INIT(sc);
 
@@ -5602,9 +5602,7 @@ ath_calibrate(void *arg)
 	HAL_BOOL aniCal, shortCal = AH_FALSE;
 	int nextcal;
 
-	ATH_UNLOCK_ASSERT(sc);
-
-	ATH_LOCK(sc);
+	ATH_LOCK_ASSERT(sc);
 
 	/*
 	 * Force the hardware awake for ANI work.
@@ -5645,7 +5643,6 @@ ath_calibrate(void *arg)
 			taskqueue_enqueue(sc->sc_tq, &sc->sc_resettask);
 			callout_reset(&sc->sc_cal_ch, 1, ath_calibrate, sc);
 			ath_power_restore_power_state(sc);
-			ATH_UNLOCK(sc);
 			return;
 		}
 		/*
@@ -5721,7 +5718,6 @@ restart:
 	 * Restore power state now that we're done.
 	 */
 	ath_power_restore_power_state(sc);
-	ATH_UNLOCK(sc);
 }
 
 static void
@@ -6471,7 +6467,7 @@ ath_watchdog(void *arg)
 	struct ath_softc *sc = arg;
 	int do_reset = 0;
 
-	ATH_LOCK(sc);
+	ATH_LOCK_ASSERT(sc);
 
 	if (sc->sc_wd_timer != 0 && --sc->sc_wd_timer == 0) {
 		struct ifnet *ifp = sc->sc_ifp;
@@ -6503,8 +6499,6 @@ ath_watchdog(void *arg)
 	}
 
 	callout_schedule(&sc->sc_wd_ch, hz);
-
-	ATH_UNLOCK(sc);
 }
 
 /*
