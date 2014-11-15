@@ -147,8 +147,7 @@ llentry_alloc(struct ifnet *ifp, struct lltable *lt,
 	if ((la == NULL) &&
 	    (ifp->if_flags & (IFF_NOARP | IFF_STATICARP)) == 0) {
 		IF_AFDATA_WLOCK(ifp);
-		la = lla_lookup(lt, (LLE_CREATE | LLE_EXCLUSIVE),
-		    (struct sockaddr *)dst);
+		la = lla_create(lt, 0, (struct sockaddr *)dst);
 		IF_AFDATA_WUNLOCK(ifp);
 	}
 
@@ -259,7 +258,7 @@ lltable_init(struct ifnet *ifp, int af)
 }
 
 /*
- * Called in route_output when adding/deleting a route to an interface.
+ * Called in route_output when rtm_flags contains RTF_LLDATA.
  */
 int
 lla_rt_output(struct rt_msghdr *rtm, struct rt_addrinfo *info)
@@ -270,8 +269,8 @@ lla_rt_output(struct rt_msghdr *rtm, struct rt_addrinfo *info)
 	struct ifnet *ifp;
 	struct lltable *llt;
 	struct llentry *lle;
-	u_int laflags = 0, flags = 0;
-	int error = 0;
+	u_int laflags = 0;
+	int error;
 
 	KASSERT(dl != NULL && dl->sdl_family == AF_LINK,
 	    ("%s: invalid dl\n", __func__));
@@ -281,24 +280,6 @@ lla_rt_output(struct rt_msghdr *rtm, struct rt_addrinfo *info)
 		log(LOG_INFO, "%s: invalid ifp (sdl_index %d)\n",
 		    __func__, dl->sdl_index);
 		return EINVAL;
-	}
-
-	switch (rtm->rtm_type) {
-	case RTM_ADD:
-		if (rtm->rtm_flags & RTF_ANNOUNCE)
-			flags |= LLE_PUB;
-		flags |= LLE_CREATE;
-		break;
-
-	case RTM_DELETE:
-		flags |= LLE_DELETE;
-		break;
-
-	case RTM_CHANGE:
-		break;
-
-	default:
-		return EINVAL; /* XXX not implemented yet */
 	}
 
 	/* XXX linked list may be too expensive */
@@ -311,58 +292,62 @@ lla_rt_output(struct rt_msghdr *rtm, struct rt_addrinfo *info)
 	LLTABLE_RUNLOCK();
 	KASSERT(llt != NULL, ("Yep, ugly hacks are bad\n"));
 
-	if (flags & LLE_CREATE)
-		flags |= LLE_EXCLUSIVE;
+	error = 0;
 
-	IF_AFDATA_LOCK(ifp);
-	lle = lla_lookup(llt, flags, dst);
-	IF_AFDATA_UNLOCK(ifp);
-	if (LLE_IS_VALID(lle)) {
-		if (flags & LLE_CREATE) {
-			/*
-			 * If we delay the delete, then a subsequent
-			 * "arp add" should look up this entry, reset the
-			 * LLE_DELETED flag, and reset the expiration timer
-			 */
-			bcopy(LLADDR(dl), &lle->ll_addr, ifp->if_addrlen);
-			lle->la_flags |= (flags & LLE_PUB);
-			lle->la_flags |= LLE_VALID;
-			lle->la_flags &= ~LLE_DELETED;
-#ifdef INET6
-			/*
-			 * ND6
-			 */
-			if (dst->sa_family == AF_INET6)
-				lle->ln_state = ND6_LLINFO_REACHABLE;
-#endif
-			/*
-			 * NB: arp and ndp always set (RTF_STATIC | RTF_HOST)
-			 */
-
-			if (rtm->rtm_rmx.rmx_expire == 0) {
-				lle->la_flags |= LLE_STATIC;
-				lle->la_expire = 0;
-			} else
-				lle->la_expire = rtm->rtm_rmx.rmx_expire;
-			laflags = lle->la_flags;
-			LLE_WUNLOCK(lle);
-#ifdef INET
-			/* gratuitous ARP */
-			if ((laflags & LLE_PUB) && dst->sa_family == AF_INET)
-				arprequest(ifp,
-				    &((struct sockaddr_in *)dst)->sin_addr,
-				    &((struct sockaddr_in *)dst)->sin_addr,
-				    (u_char *)LLADDR(dl));
-#endif
-		} else {
-			if (flags & LLE_EXCLUSIVE)
-				LLE_WUNLOCK(lle);
-			else
-				LLE_RUNLOCK(lle);
+	switch (rtm->rtm_type) {
+	case RTM_ADD:
+		/* Add static LLE */
+		IF_AFDATA_WLOCK(ifp);
+		lle = lla_create(llt, 0, dst);
+		if (lle == NULL) {
+			IF_AFDATA_WUNLOCK(ifp);
+			return (ENOMEM);
 		}
-	} else if ((lle == NULL) && (flags & LLE_DELETE))
-		error = EINVAL;
 
+
+		bcopy(LLADDR(dl), &lle->ll_addr, ifp->if_addrlen);
+		if ((rtm->rtm_flags & RTF_ANNOUNCE))
+			lle->la_flags |= LLE_PUB;
+		lle->la_flags |= LLE_VALID;
+#ifdef INET6
+		/*
+		 * ND6
+		 */
+		if (dst->sa_family == AF_INET6)
+			lle->ln_state = ND6_LLINFO_REACHABLE;
+#endif
+		/*
+		 * NB: arp and ndp always set (RTF_STATIC | RTF_HOST)
+		 */
+
+		if (rtm->rtm_rmx.rmx_expire == 0) {
+			lle->la_flags |= LLE_STATIC;
+			lle->la_expire = 0;
+		} else
+			lle->la_expire = rtm->rtm_rmx.rmx_expire;
+		laflags = lle->la_flags;
+		LLE_WUNLOCK(lle);
+		IF_AFDATA_WUNLOCK(ifp);
+#ifdef INET
+		/* gratuitous ARP */
+		if ((laflags & LLE_PUB) && dst->sa_family == AF_INET)
+			arprequest(ifp,
+			    &((struct sockaddr_in *)dst)->sin_addr,
+			    &((struct sockaddr_in *)dst)->sin_addr,
+			    (u_char *)LLADDR(dl));
+#endif
+
+		break;
+
+	case RTM_DELETE:
+		IF_AFDATA_WLOCK(ifp);
+		error = lla_delete(llt, 0, dst);
+		IF_AFDATA_WUNLOCK(ifp);
+		return (error == 0 ? 0 : ENOENT);
+
+	default:
+		error = EINVAL;
+	}
 
 	return (error);
 }
