@@ -14,8 +14,8 @@ CFLAGS+= -DCONFIG_CTRL_IFACE_UNIX
 # enable use of d_type to identify unix domain sockets
 CFLAGS+= -D_DIRENT_HAVE_D_TYPE
 
-CFLAGS+= -DCONFIG_READLINE -I${DESTDIR}/${INCLUDEDIR}/edit
-LDADD+= -ledit -ltermcapw -lutil
-DPADD+= ${LIBEDIT} ${LIBTERMCAPW} ${LIBUTIL}
+CFLAGS+= -DCONFIG_WPA_CLI_EDIT=y
+LDADD+= -lutil
+DPADD+= ${LIBUTIL}
 
 .include <bsd.prog.mk>
