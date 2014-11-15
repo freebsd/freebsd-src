@@ -50,10 +50,12 @@
 
 #include "cheritest-helper.h"
 
-int	invoke(register_t op, register_t arg, size_t len,
+int	invoke(__capability void *sealedcodecap,
+	    __capability void *sealeddatacap,
+	    register_t op, register_t arg, size_t len,
 	    struct cheri_object system_object, __capability char *data_input,
 	    __capability char *data_output, struct cheri_object fd_object,
-	    struct zstream_proxy *zspp);
+	    struct zstream_proxy *zspp) __attribute__((cheri_ccall));
 
 static int
 invoke_md5(size_t len, __capability char *data_input,
@@ -373,7 +375,9 @@ invoke_inflate(struct zstream_proxy *zspp)
  */
 static volatile int zero = 0;
 int
-invoke(register_t op, register_t arg, size_t len,
+invoke(__capability void *sealedcodecap __unused,
+    __capability void *sealeddatacap __unused,
+    register_t op, register_t arg, size_t len,
     struct cheri_object system_object, __capability char *data_input,
     __capability char *data_output, struct cheri_object fd_object,
     struct zstream_proxy* zspp)
