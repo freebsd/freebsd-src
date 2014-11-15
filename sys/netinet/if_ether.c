@@ -130,6 +130,8 @@ static void	arptimer(void *);
 #ifdef INET
 static void	in_arpinput(struct mbuf *);
 #endif
+static int	arpresolve_slow(struct ifnet *, int is_gw, struct mbuf *,
+    const struct sockaddr *, u_char *, struct llentry **);
 
 static const struct netisr_handler arp_nh = {
 	.nh_name = "arp",
@@ -368,13 +370,10 @@ int
 arpresolve(struct ifnet *ifp, struct rtentry *rt0, struct mbuf *m,
 	const struct sockaddr *dst, u_char *desten, struct llentry **lle)
 {
-	struct llentry *la = 0;
-	u_int flags = 0;
-	struct mbuf *curr = NULL;
-	struct mbuf *next = NULL;
-	int create, error, renew;
+	struct llentry *la = NULL;
+	int is_gw;
+	uint16_t la_flags;
 
-	create = 0;
 	*lle = NULL;
 	if (m != NULL) {
 		if (m->m_flags & M_BCAST) {
@@ -389,16 +388,61 @@ arpresolve(struct ifnet *ifp, struct rtentry *rt0, struct mbuf *m,
 			return (0);
 		}
 	}
-retry:
+
 	IF_AFDATA_RLOCK(ifp);
-	la = lla_lookup(LLTABLE(ifp), flags, dst);
+	la = lla_lookup(LLTABLE(ifp), 0, dst);
 	IF_AFDATA_RUNLOCK(ifp);
-	if ((la == NULL) && ((flags & LLE_EXCLUSIVE) == 0)
-	    && ((ifp->if_flags & (IFF_NOARP | IFF_STATICARP)) == 0)) {
+	la_flags = la != NULL ? la->la_flags : 0;
+
+	/* Return to slow path if entry is not found or invalid/expired */
+	if (la == NULL || (la_flags & LLE_VALID) == 0 ||
+	    ((la_flags & LLE_STATIC) == 0 && la->la_expire <= time_uptime)) {
+		is_gw = (rt0 != NULL && (rt0->rt_flags & RTF_GATEWAY)) ? 1 : 0;
+		if (la != NULL)
+			LLE_RUNLOCK(la);
+		return (arpresolve_slow(ifp, is_gw, m, dst, desten, lle));
+	}
+
+
+	/* Entry found, let's copy lle info */
+	bcopy(&la->ll_addr, desten, ifp->if_addrlen);
+
+	/*
+	 * If entry has an expiry time and it is approaching,
+	 * see if we need to send an ARP request within this
+	 * arpt_down interval.
+	 */
+	if (!(la->la_flags & LLE_STATIC) &&
+	    time_uptime + la->la_preempt > la->la_expire) {
+		arprequest(ifp, NULL, &SIN(dst)->sin_addr, NULL);
+		la->la_preempt--;
+	}
+
+	/* XXX: Possible use-after-free */
+	*lle = la;
+	LLE_RUNLOCK(la);
+	return (0);
+}
+
+static int
+arpresolve_slow(struct ifnet *ifp, int is_gw, struct mbuf *m,
+	const struct sockaddr *dst, u_char *desten, struct llentry **lle)
+{
+	struct llentry *la = 0;
+	struct mbuf *curr = NULL;
+	struct mbuf *next = NULL;
+	int create, error, renew;
+
+	create = 0;
+	*lle = NULL;
+
+	IF_AFDATA_RLOCK(ifp);
+	la = lla_lookup(LLTABLE(ifp), LLE_EXCLUSIVE, dst);
+	IF_AFDATA_RUNLOCK(ifp);
+	if (la == NULL && (ifp->if_flags & (IFF_NOARP | IFF_STATICARP)) == 0) {
 		create = 1;
-		flags |= LLE_EXCLUSIVE;
 		IF_AFDATA_WLOCK(ifp);
-		la = lla_create(LLTABLE(ifp), flags, dst);
+		la = lla_create(LLTABLE(ifp), 0, dst);
 		IF_AFDATA_WUNLOCK(ifp);
 	}
 	if (la == NULL) {
@@ -438,11 +482,6 @@ retry:
 	}
 
 	renew = (la->la_asked == 0 || la->la_expire != time_uptime);
-	if ((renew || m != NULL) && (flags & LLE_EXCLUSIVE) == 0) {
-		flags |= LLE_EXCLUSIVE;
-		LLE_RUNLOCK(la);
-		goto retry;
-	}
 	/*
 	 * There is an arptab entry, but no ethernet address
 	 * response yet.  Add the mbuf to the list, dropping
@@ -467,11 +506,6 @@ retry:
 		} else
 			la->la_hold = m;
 		la->la_numheld++;
-		if (renew == 0 && (flags & LLE_EXCLUSIVE)) {
-			flags &= ~LLE_EXCLUSIVE;
-			LLE_DOWNGRADE(la);
-		}
-
 	}
 	/*
 	 * Return EWOULDBLOCK if we have tried less than arp_maxtries. It
@@ -482,8 +516,7 @@ retry:
 	if (la->la_asked < V_arp_maxtries)
 		error = EWOULDBLOCK;	/* First request. */
 	else
-		error = rt0 != NULL && (rt0->rt_flags & RTF_GATEWAY) ?
-		    EHOSTUNREACH : EHOSTDOWN;
+		error = (is_gw != 0) ?  EHOSTUNREACH : EHOSTDOWN;
 
 	if (renew) {
 		int canceled;
@@ -500,10 +533,7 @@ retry:
 		return (error);
 	}
 done:
-	if (flags & LLE_EXCLUSIVE)
-		LLE_WUNLOCK(la);
-	else
-		LLE_RUNLOCK(la);
+	LLE_WUNLOCK(la);
 	return (error);
 }
 
