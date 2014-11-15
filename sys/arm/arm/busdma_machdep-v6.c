@@ -1385,8 +1385,18 @@ _bus_dmamap_sync(bus_dma_tag_t dmat, bus_dmamap_t map, bus_dmasync_op_t op)
 			dmat->bounce_zone->total_bounced++;
 		}
 	}
-	if (map->flags & DMAMAP_COHERENT)
+
+	/*
+	 * For COHERENT memory no cache maintenance is necessary, but ensure all
+	 * writes have reached memory for the PREWRITE case.
+	 */
+	if (map->flags & DMAMAP_COHERENT) {
+		if (op & BUS_DMASYNC_PREWRITE) {
+		    dsb();
+		    cpu_l2cache_drain_writebuf();
+		}
 		return;
+	}
 
 	if (map->sync_count != 0) {
 		if (!pmap_dmap_iscurrent(map->pmap))
