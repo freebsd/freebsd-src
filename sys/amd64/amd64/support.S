@@ -426,8 +426,8 @@ ENTRY(fueword)
 	movq	%r11,(%rsi)
 	POP_FRAME_POINTER
 	ret
-END(fuword64)
-END(fuword)
+END(fueword64)
+END(fueword)
 
 ENTRY(fueword32)
 	PUSH_FRAME_POINTER
