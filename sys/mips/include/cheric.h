@@ -33,6 +33,8 @@
 
 #include <sys/cdefs.h>
 
+#include <machine/cheri.h>
+
 #if !defined(_KERNEL) && __has_feature(capabilities)
 /*
  * Programmer-friendly macros for CHERI-aware C code -- requires use of
@@ -95,7 +97,7 @@ cheri_ptrperm(void *ptr, size_t len, register_t perm)
 {
 
 	return (cheri_andperm(cheri_setlen((__capability void *)ptr, len),
-	    perm));
+	    perm | CHERI_PERM_GLOBAL));
 }
 
 static __inline __capability void *
