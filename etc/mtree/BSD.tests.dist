@@ -149,6 +149,10 @@
             ..
             libproc
             ..
+            libthr
+                dlopen
+                ..
+            ..
             libutil
             ..
         ..
