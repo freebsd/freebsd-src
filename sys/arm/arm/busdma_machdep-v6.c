@@ -1416,6 +1416,7 @@ _bus_dmamap_sync(bus_dma_tag_t dmat, bus_dmamap_t map, bus_dmasync_op_t op)
 
 		switch (op) {
 		case BUS_DMASYNC_PREWRITE:
+		case BUS_DMASYNC_PREWRITE | BUS_DMASYNC_PREREAD:
 			while (sl != end) {
 				cpu_dcache_wb_range(sl->vaddr, sl->datacount);
 				l2cache_wb_range(sl->vaddr, sl->busaddr,
@@ -1433,19 +1434,19 @@ _bus_dmamap_sync(bus_dma_tag_t dmat, bus_dmamap_t map, bus_dmasync_op_t op)
 			}
 			break;
 
-		case BUS_DMASYNC_PREWRITE | BUS_DMASYNC_PREREAD:
+		case BUS_DMASYNC_POSTWRITE:
+			break;
+
+		case BUS_DMASYNC_POSTREAD:
+		case BUS_DMASYNC_POSTREAD | BUS_DMASYNC_POSTWRITE:
 			while (sl != end) {
-				cpu_dcache_wbinv_range(sl->vaddr, sl->datacount);
-				l2cache_wbinv_range(sl->vaddr,
-				    sl->busaddr, sl->datacount);
+				l2cache_inv_range(sl->vaddr, sl->busaddr, 
+				    sl->datacount);
+				cpu_dcache_inv_range(sl->vaddr, sl->datacount);
 				sl++;
 			}
 			break;
 
-		case BUS_DMASYNC_POSTREAD:
-		case BUS_DMASYNC_POSTWRITE:
-		case BUS_DMASYNC_POSTREAD | BUS_DMASYNC_POSTWRITE:
-			break;
 		default:
 			panic("unsupported combination of sync operations: 0x%08x\n", op);
 			break;
