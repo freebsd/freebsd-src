@@ -80,6 +80,8 @@ contrib/pf	glebius	Pre-commit review recommended.
 file		obrien	Insists to keep file blocked from other's unapproved
 			commits
 contrib/bzip2	obrien	Pre-commit review required.
+contrib/netbsd-tests	freebsd-testing,ngie	Pre-commit review requested.
+contrib/pjdfstest	freebsd-testing,ngie	Pre-commit review requested.
 geom_concat	pjd	Pre-commit review preferred.
 geom_eli	pjd	Pre-commit review preferred.
 geom_gate	pjd	Pre-commit review preferred.
