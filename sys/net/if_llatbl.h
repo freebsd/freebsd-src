@@ -48,13 +48,24 @@ extern struct rwlock lltable_rwlock;
 #define	LLTABLE_WUNLOCK()	rw_wunlock(&lltable_rwlock)
 #define	LLTABLE_LOCK_ASSERT()	rw_assert(&lltable_rwlock, RA_LOCKED)
 
-/*
- * Code referencing llentry must at least hold
- * a shared lock
- */
 struct llentry {
+	/* FIELDS PROTECTED BY IFDATA LOCK */
 	LIST_ENTRY(llentry)	 lle_next;
-	struct rwlock		 lle_lock;
+	union {
+		struct in_addr	addr4;
+		struct in6_addr	addr6;
+	} r_l3addr;
+	union {
+		uint64_t	mac_aligned;
+		uint16_t	mac16[3];
+		uint8_t		mac8[20];	/* IB needs 20 bytes. */
+		char		ll_prepend[20];	/* L2 data to prepend */
+	} ll_addr;
+	uint16_t		r_flags;	/* runtime flags */
+	uint16_t		r_len;		/* length of prepend data */
+	uint64_t		r_kick;		/* for unused lle detection */
+
+	/* FIELDS PROTECTED BY LLE rwlock */
 	struct lltable		 *lle_tbl;
 	struct llentries	 *lle_head;
 	void			(*lle_free)(struct lltable *, struct llentry *);
@@ -69,12 +80,7 @@ struct llentry {
 	uint16_t		 ln_router;
 	time_t			 ln_ntick;
 	int			 lle_refcnt;
-
-	union {
-		uint64_t	mac_aligned;
-		uint16_t	mac16[3];
-		uint8_t		mac8[20];	/* IB needs 20 bytes. */
-	} ll_addr;
+	struct rwlock		 lle_lock;
 
 	/* XXX af-private? */
 	union {
@@ -93,8 +99,6 @@ struct llentry {
 #define	LLE_LOCK_INIT(lle)	rw_init_flags(&(lle)->lle_lock, "lle", RW_DUPOK)
 #define	LLE_LOCK_DESTROY(lle)	rw_destroy(&(lle)->lle_lock)
 #define	LLE_WLOCK_ASSERT(lle)	rw_assert(&(lle)->lle_lock, RA_WLOCKED)
-
-#define LLE_IS_VALID(lle)	(((lle) != NULL) && ((lle) != (void *)-1))
 
 #define	LLE_ADDREF(lle) do {					\
 	LLE_WLOCK_ASSERT(lle);					\
@@ -170,6 +174,11 @@ struct lltable {
 MALLOC_DECLARE(M_LLTABLE);
 
 /*
+ * LLE flags used by fast path code
+ */
+#define	RLLE_VALID	0x0001	/* ll_addr can be used */
+
+/*
  * Various LLE flags
  */
 #define	LLE_DELETED	0x0001	/* entry must be deleted */
@@ -178,8 +187,10 @@ MALLOC_DECLARE(M_LLTABLE);
 #define	LLE_VALID	0x0008	/* ll_addr is valid */
 #define	LLE_PUB		0x0020	/* publish entry ??? */
 #define	LLE_LINKED	0x0040	/* linked to lookup structure */
+#define	LLE_CALLOUTREF	0x0080	/* callout set */
 /* LLE request flags */
-#define	LLE_EXCLUSIVE	0x2000	/* return lle xlocked  */
+#define	LLE_UNLOCKED	0x0100	/* return lle unlocked  */
+#define	LLE_EXCLUSIVE	0x0200	/* return lle wlocked  */
 
 #define LLATBL_HASH(key, mask) \
 	(((((((key >> 8) ^ key) >> 8) ^ key) >> 8) ^ key) & mask)

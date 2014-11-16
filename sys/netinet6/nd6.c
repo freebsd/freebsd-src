@@ -447,6 +447,8 @@ nd6_llinfo_settimer_locked(struct llentry *ln, long tick)
 	}
 	if (canceled)
 		LLE_REMREF(ln);
+	else
+		ln->la_flags |= LLE_CALLOUTREF;
 }
 
 void
@@ -1138,12 +1140,16 @@ nd6_free(struct llentry *ln, int gc)
 	IF_AFDATA_LOCK(ifp);
 	LLE_WLOCK(ln);
 
-	/* Guard against race with other llentry_free(). */
-	if (ln->la_flags & LLE_LINKED) {
+	/*
+	 * Note other thread could have removed given entry
+	 * stopping callout and removing LLE reference.
+	 */
+	if ((ln->la_flags & LLE_CALLOUTREF) != 0) {
 		LLE_REMREF(ln);
-		llentry_free(ln);
-	} else
-		LLE_FREE_LOCKED(ln);
+		ln->la_flags &= ~LLE_CALLOUTREF;
+	}
+
+	llentry_free(ln);
 
 	IF_AFDATA_UNLOCK(ifp);
 

@@ -76,6 +76,9 @@ static int in_difaddr_ioctl(caddr_t, struct ifnet *, struct thread *);
 static void	in_socktrim(struct sockaddr_in *);
 static void	in_purgemaddrs(struct ifnet *);
 
+static void	in_lltable_link(struct lltable *llt, struct llentry *lle);
+static void	in_lltable_unlink(struct llentry *lle);
+
 static VNET_DEFINE(int, nosameprefix);
 #define	V_nosameprefix			VNET(nosameprefix)
 SYSCTL_INT(_net_inet_ip, OID_AUTO, no_same_prefix, CTLFLAG_VNET | CTLFLAG_RW,
@@ -950,17 +953,21 @@ static struct llentry *
 in_lltable_new(const struct sockaddr *l3addr, u_int flags)
 {
 	struct in_llentry *lle;
+	const struct sockaddr_in *l3addr_sin;
 
 	lle = malloc(sizeof(struct in_llentry), M_LLTABLE, M_NOWAIT | M_ZERO);
 	if (lle == NULL)		/* NB: caller generates msg */
 		return NULL;
+
+	l3addr_sin = (const struct sockaddr_in *)l3addr;
+	lle->base.r_l3addr.addr4 = l3addr_sin->sin_addr;
+	lle->l3_addr4 = *l3addr_sin;
 
 	/*
 	 * For IPv4 this will trigger "arpresolve" to generate
 	 * an ARP request.
 	 */
 	lle->base.la_expire = time_uptime; /* mark expired */
-	lle->l3_addr4 = *(const struct sockaddr_in *)l3addr;
 	lle->base.lle_refcnt = 1;
 	lle->base.lle_free = in_lltable_free;
 	LLE_LOCK_INIT(&lle->base);
@@ -994,8 +1001,10 @@ in_lltable_prefix_free(struct lltable *llt, const struct sockaddr *prefix,
 			    pfx, msk) && ((flags & LLE_STATIC) ||
 			    !(lle->la_flags & LLE_STATIC))) {
 				LLE_WLOCK(lle);
-				if (callout_stop(&lle->la_timer))
+				if (callout_stop(&lle->la_timer)) {
 					LLE_REMREF(lle);
+					lle->la_flags &= ~LLE_CALLOUTREF;
+				}
 				pkts_dropped = llentry_free(lle);
 				ARPSTAT_ADD(dropped, pkts_dropped);
 			}
@@ -1051,16 +1060,12 @@ in_lltable_find_dst(struct lltable *llt, struct in_addr dst)
 {
 	struct llentry *lle;
 	struct llentries *lleh;
-	struct sockaddr_in *sa2;
 	u_int hashkey;
 
 	hashkey = dst.s_addr;
 	lleh = &llt->lle_head[LLATBL_HASH(hashkey, LLTBL_HASHMASK)];
 	LIST_FOREACH(lle, lleh, lle_next) {
-		sa2 = satosin(L3_ADDR(lle)); /* XXX: Change to proper L3 */
-		if (lle->la_flags & LLE_DELETED)
-			continue;
-		if (sa2->sin_addr.s_addr == dst.s_addr)
+		if (lle->r_l3addr.addr4.s_addr == dst.s_addr)
 			break;
 	}
 
@@ -1091,6 +1096,7 @@ in_lltable_delete(struct lltable *llt, u_int flags,
 		LLE_WLOCK(lle);
 		lle->la_flags |= LLE_DELETED;
 		EVENTHANDLER_INVOKE(lle_event, lle, LLENTRY_DELETED);
+		in_lltable_unlink(lle);
 #ifdef DIAGNOSTIC
 		log(LOG_INFO, "ifaddr cache = %p is deleted\n", lle);
 #endif
@@ -1109,8 +1115,6 @@ in_lltable_create(struct lltable *llt, u_int flags, const struct sockaddr *l3add
 	const struct sockaddr_in *sin = (const struct sockaddr_in *)l3addr;
 	struct ifnet *ifp = llt->llt_ifp;
 	struct llentry *lle;
-	struct llentries *lleh;
-	u_int hashkey;
 
 	IF_AFDATA_WLOCK_ASSERT(ifp);
 	KASSERT(l3addr->sa_family == AF_INET,
@@ -1145,16 +1149,38 @@ in_lltable_create(struct lltable *llt, u_int flags, const struct sockaddr *l3add
 		lle->la_flags |= (LLE_VALID | LLE_STATIC);
 	}
 
-	hashkey = sin->sin_addr.s_addr;
+	in_lltable_link(llt, lle);
+	LLE_WLOCK(lle);
+
+	return (lle);
+}
+
+static void
+in_lltable_link(struct lltable *llt, struct llentry *lle)
+{
+	struct in_addr dst;
+	struct llentries *lleh;
+	u_int hashkey;
+
+	dst = lle->r_l3addr.addr4;
+	hashkey = dst.s_addr;
 	lleh = &llt->lle_head[LLATBL_HASH(hashkey, LLTBL_HASHMASK)];
 
 	lle->lle_tbl  = llt;
 	lle->lle_head = lleh;
 	lle->la_flags |= LLE_LINKED;
 	LIST_INSERT_HEAD(lleh, lle, lle_next);
-	LLE_WLOCK(lle);
 
-	return (lle);
+}
+
+static void
+in_lltable_unlink(struct llentry *lle)
+{
+
+	LIST_REMOVE(lle, lle_next);
+	lle->la_flags &= ~(LLE_VALID | LLE_LINKED);
+	lle->lle_tbl = NULL;
+	lle->lle_head = NULL;
 }
 
 /*
@@ -1164,32 +1190,23 @@ in_lltable_create(struct lltable *llt, u_int flags, const struct sockaddr *l3add
 static struct llentry *
 in_lltable_lookup(struct lltable *llt, u_int flags, const struct sockaddr *l3addr)
 {
-	const struct sockaddr_in *sin = (const struct sockaddr_in *)l3addr;
 	struct ifnet *ifp = llt->llt_ifp;
 	struct llentry *lle;
-	struct llentries *lleh;
-	u_int hashkey;
+	struct in_addr dst;
 
 	IF_AFDATA_LOCK_ASSERT(ifp);
 	KASSERT(l3addr->sa_family == AF_INET,
 	    ("sin_family %d", l3addr->sa_family));
 
-	hashkey = sin->sin_addr.s_addr;
-	lleh = &llt->lle_head[LLATBL_HASH(hashkey, LLTBL_HASHMASK)];
-	LIST_FOREACH(lle, lleh, lle_next) {
-		struct sockaddr_in *sa2 = satosin(L3_ADDR(lle));
-		if (lle->la_flags & LLE_DELETED)
-			continue;
-		if (sa2->sin_addr.s_addr == sin->sin_addr.s_addr)
-			break;
-	}
+	dst = ((const struct sockaddr_in *)l3addr)->sin_addr;
+	lle = in_lltable_find_dst(llt, dst);
 
 	if (lle == NULL)
 		return (NULL);
 
 	if (flags & LLE_EXCLUSIVE)
 		LLE_WLOCK(lle);
-	else
+	else if ((flags & LLE_UNLOCKED) == 0)
 		LLE_RLOCK(lle);
 
 	return (lle);
@@ -1216,9 +1233,6 @@ in_lltable_dump(struct lltable *llt, struct sysctl_req *wr)
 		LIST_FOREACH(lle, &llt->lle_head[i], lle_next) {
 			struct sockaddr_dl *sdl;
 
-			/* skip deleted entries */
-			if ((lle->la_flags & LLE_DELETED) == LLE_DELETED)
-				continue;
 			/* Skip if jailed and not a valid IP of the prison. */
 			if (prison_if(wr->td->td_ucred, L3_ADDR(lle)) != 0)
 				continue;
