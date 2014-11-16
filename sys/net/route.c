@@ -517,7 +517,6 @@ rtfree(struct rtentry *rt)
 		/*
 		 * and the rtentry itself of course
 		 */
-		RT_LOCK_DESTROY(rt);
 		uma_zfree(V_rtzone, rt);
 		return;
 	}
