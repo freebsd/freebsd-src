@@ -1372,8 +1372,8 @@ _bus_dmamap_sync(bus_dma_tag_t dmat, bus_dmamap_t map, bus_dmasync_op_t op)
 					len = (len -
 					    (len & arm_dcache_align_mask)) +
 					    arm_dcache_align;
-				cpu_dcache_inv_range(startv, len);
 				l2cache_inv_range(startv, startp, len);
+				cpu_dcache_inv_range(startv, len);
 				if (bpage->datavaddr != 0)
 					bcopy((void *)bpage->vaddr,
 					    (void *)bpage->datavaddr,
