@@ -4385,7 +4385,7 @@ ixgbe_initialize_receive_units(struct adapter *adapter)
 		 * this code is moved elsewhere.
 		 */
 		if (adapter->num_queues > 1 &&
-		    adapter->hw.fc.requested_mode == ixgbe_fc_none) {
+		    adapter->fc == ixgbe_fc_none) {
 			srrctl |= IXGBE_SRRCTL_DROP_EN;
 		} else {
 			srrctl &= ~IXGBE_SRRCTL_DROP_EN;
