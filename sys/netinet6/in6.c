@@ -151,6 +151,9 @@ static int in6_update_ifa_internal(struct ifnet *, struct in6_aliasreq *,
 static int in6_broadcast_ifa(struct ifnet *, struct in6_aliasreq *,
     struct in6_ifaddr *, int);
 
+static void in6_lltable_link(struct lltable *llt, struct llentry *lle);
+static void in6_lltable_unlink(struct llentry *lle);
+
 #define ifa2ia6(ifa)	((struct in6_ifaddr *)(ifa))
 #define ia62ifa(ia6)	(&((ia6)->ia_ifa))
 
@@ -2117,12 +2120,15 @@ static struct llentry *
 in6_lltable_new(const struct sockaddr *l3addr, u_int flags)
 {
 	struct in6_llentry *lle;
+	const struct sockaddr_in6 *l3addr_sin6;
 
 	lle = malloc(sizeof(struct in6_llentry), M_LLTABLE, M_NOWAIT | M_ZERO);
 	if (lle == NULL)		/* NB: caller generates msg */
 		return NULL;
 
-	lle->l3_addr6 = *(const struct sockaddr_in6 *)l3addr;
+	l3addr_sin6 = (const struct sockaddr_in6 *)l3addr;
+	lle->l3_addr6 = *l3addr_sin6;
+	lle->base.r_l3addr.addr6 = l3addr_sin6->sin6_addr;
 	lle->base.lle_refcnt = 1;
 	lle->base.lle_free = in6_lltable_free;
 	LLE_LOCK_INIT(&lle->base);
@@ -2154,8 +2160,10 @@ in6_lltable_prefix_free(struct lltable *llt, const struct sockaddr *prefix,
 			    ((flags & LLE_STATIC) ||
 			    !(lle->la_flags & LLE_STATIC))) {
 				LLE_WLOCK(lle);
-				if (callout_stop(&lle->la_timer))
+				if (callout_stop(&lle->la_timer)) {
 					LLE_REMREF(lle);
+					lle->la_flags &= ~LLE_CALLOUTREF;
+				}
 				llentry_free(lle);
 			}
 		}
@@ -2210,10 +2218,7 @@ in6_lltable_find_dst(struct lltable *llt, const struct in6_addr *dst)
 	hashkey = dst->s6_addr32[3];
 	lleh = &llt->lle_head[LLATBL_HASH(hashkey, LLTBL_HASHMASK)];
 	LIST_FOREACH(lle, lleh, lle_next) {
-		struct sockaddr_in6 *sa6 = (struct sockaddr_in6 *)L3_ADDR(lle);
-		if (lle->la_flags & LLE_DELETED)
-			continue;
-		if (bcmp(&sa6->sin6_addr, dst, sizeof(struct in6_addr)) == 0)
+		if (IN6_ARE_ADDR_EQUAL(&lle->r_l3addr.addr6, dst) != 0)
 			break;
 	}
 
@@ -2240,6 +2245,7 @@ in6_lltable_delete(struct lltable *llt, u_int flags,
 	if (!(lle->la_flags & LLE_IFADDR) || (flags & LLE_IFADDR)) {
 		LLE_WLOCK(lle);
 		lle->la_flags |= LLE_DELETED;
+		in6_lltable_unlink(lle);
 #ifdef DIAGNOSTIC
 		log(LOG_INFO, "ifaddr cache = %p is deleted\n", lle);
 #endif
@@ -2259,8 +2265,6 @@ in6_lltable_create(struct lltable *llt, u_int flags,
 	const struct sockaddr_in6 *sin6 = (const struct sockaddr_in6 *)l3addr;
 	struct ifnet *ifp = llt->llt_ifp;
 	struct llentry *lle;
-	struct llentries *lleh;
-	u_int hashkey;
 
 	IF_AFDATA_WLOCK_ASSERT(ifp);
 	KASSERT(l3addr->sa_family == AF_INET6,
@@ -2293,17 +2297,40 @@ in6_lltable_create(struct lltable *llt, u_int flags,
 		lle->la_flags |= (LLE_VALID | LLE_STATIC);
 	}
 
-	hashkey = sin6->sin6_addr.s6_addr32[3];
+	in6_lltable_link(llt, lle);
+	LLE_WLOCK(lle);
+
+	return (lle);
+}
+
+static void
+in6_lltable_link(struct lltable *llt, struct llentry *lle)
+{
+	struct in6_addr dst;
+	struct llentries *lleh;
+	u_int hashkey;
+
+	dst = lle->r_l3addr.addr6;;
+	hashkey = dst.s6_addr32[3];
 	lleh = &llt->lle_head[LLATBL_HASH(hashkey, LLTBL_HASHMASK)];
 
 	lle->lle_tbl  = llt;
 	lle->lle_head = lleh;
 	lle->la_flags |= LLE_LINKED;
 	LIST_INSERT_HEAD(lleh, lle, lle_next);
-	LLE_WLOCK(lle);
 
-	return (lle);
 }
+
+static void
+in6_lltable_unlink(struct llentry *lle)
+{
+
+	LIST_REMOVE(lle, lle_next);
+	lle->la_flags &= ~(LLE_VALID | LLE_LINKED);
+	lle->lle_tbl = NULL;
+	lle->lle_head = NULL;
+}
+
 
 static struct llentry *
 in6_lltable_lookup(struct lltable *llt, u_int flags,
@@ -2358,8 +2385,8 @@ in6_lltable_dump(struct lltable *llt, struct sysctl_req *wr)
 		LIST_FOREACH(lle, &llt->lle_head[i], lle_next) {
 			struct sockaddr_dl *sdl;
 
-			/* skip deleted or invalid entries */
-			if ((lle->la_flags & (LLE_DELETED|LLE_VALID)) != LLE_VALID)
+			/* skip invalid entries */
+			if ((lle->la_flags & LLE_VALID) == 0)
 				continue;
 			/* Skip if jailed and not a valid IP of the prison. */
 			if (prison_if(wr->td->td_ucred, L3_ADDR(lle)) != 0)
