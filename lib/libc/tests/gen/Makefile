@@ -4,6 +4,8 @@
 
 TESTSDIR=	${TESTSBASE}/lib/libc/gen
 
+ATF_TESTS_C=		arc4random_test
+
 # TODO: t_closefrom, t_cpuset, t_fmtcheck, t_randomid, t_sleep
 # TODO: t_siginfo (fixes require further inspection)
 # TODO: t_sethostname_test (consistently screws up the hostname)
