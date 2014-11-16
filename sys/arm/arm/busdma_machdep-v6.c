@@ -1314,17 +1314,20 @@ _bus_dmamap_sync(bus_dma_tag_t dmat, bus_dmamap_t map, bus_dmasync_op_t op)
 	/*
 	 * If the buffer was from user space, it is possible that this is not
 	 * the same vm map, especially on a POST operation.  It's not clear that
-	 * dma on userland buffers can work at all right now, certainly not if a
-	 * partial cacheline flush has to be handled.  To be safe, until we're
-	 * able to test direct userland dma, panic on a map mismatch.
+	 * dma on userland buffers can work at all right now.  To be safe, until
+	 * we're able to test direct userland dma, panic on a map mismatch.
 	 */
 	if ((bpage = STAILQ_FIRST(&map->bpages)) != NULL) {
 		if (!pmap_dmap_iscurrent(map->pmap))
 			panic("_bus_dmamap_sync: wrong user map for bounce sync.");
-		/* Handle data bouncing. */
+
 		CTR4(KTR_BUSDMA, "%s: tag %p tag flags 0x%x op 0x%x "
 		    "performing bounce", __func__, dmat, dmat->flags, op);
 
+		/*
+		 * For PREWRITE do a writeback.  Clean the caches from the
+		 * innermost to the outermost levels.
+		 */
 		if (op & BUS_DMASYNC_PREWRITE) {
 			while (bpage != NULL) {
 				if (bpage->datavaddr != 0)
@@ -1345,6 +1348,17 @@ _bus_dmamap_sync(bus_dma_tag_t dmat, bus_dmamap_t map, bus_dmasync_op_t op)
 			dmat->bounce_zone->total_bounced++;
 		}
 
+		/*
+		 * Do an invalidate for PREREAD unless a writeback was already
+		 * done above due to PREWRITE also being set.  The reason for a
+		 * PREREAD invalidate is to prevent dirty lines currently in the
+		 * cache from being evicted during the DMA.  If a writeback was
+		 * done due to PREWRITE also being set there will be no dirty
+		 * lines and the POSTREAD invalidate handles the rest. The
+		 * invalidate is done from the innermost to outermost level. If
+		 * L2 were done first, a dirty cacheline could be automatically
+		 * evicted from L1 before we invalidated it, re-dirtying the L2.
+		 */
 		if ((op & BUS_DMASYNC_PREREAD) && !(op & BUS_DMASYNC_PREWRITE)) {
 			bpage = STAILQ_FIRST(&map->bpages);
 			while (bpage != NULL) {
@@ -1356,6 +1370,16 @@ _bus_dmamap_sync(bus_dma_tag_t dmat, bus_dmamap_t map, bus_dmasync_op_t op)
 				bpage = STAILQ_NEXT(bpage, links);
 			}
 		}
+
+		/*
+		 * Re-invalidate the caches on a POSTREAD, even though they were
+		 * already invalidated at PREREAD time.  Aggressive prefetching
+		 * due to accesses to other data near the dma buffer could have
+		 * brought buffer data into the caches which is now stale.  The
+		 * caches are invalidated from the outermost to innermost; the
+		 * prefetches could be happening right now, and if L1 were
+		 * invalidated first, stale L2 data could be prefetched into L1.
+		 */
 		if (op & BUS_DMASYNC_POSTREAD) {
 			while (bpage != NULL) {
 				vm_offset_t startv;
@@ -1404,10 +1428,16 @@ _bus_dmamap_sync(bus_dma_tag_t dmat, bus_dmamap_t map, bus_dmasync_op_t op)
 		return;
 	}
 
+	/*
+	 * Cache maintenance for normal (non-COHERENT non-bounce) buffers.  All
+	 * the comments about the sequences for flushing cache levels in the
+	 * bounce buffer code above apply here as well.  In particular, the fact
+	 * that the sequence is inner-to-outer for PREREAD invalidation and
+	 * outer-to-inner for POSTREAD invalidation is not a mistake.
+	 */
 	if (map->sync_count != 0) {
 		if (!pmap_dmap_iscurrent(map->pmap))
 			panic("_bus_dmamap_sync: wrong user map for sync.");
-		/* ARM caches are not self-snooping for dma */
 
 		sl = &map->slist[0];
 		end = &map->slist[map->sync_count];
