@@ -149,6 +149,8 @@
             ..
             libproc
             ..
+            librt
+            ..
             libthr
                 dlopen
                 ..
