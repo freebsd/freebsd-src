@@ -392,6 +392,7 @@ compute_cn_lkflags(struct mount *mp, int lkflags, int cnflags)
 		lkflags &= ~LK_SHARED;
 		lkflags |= LK_EXCLUSIVE;
 	}
+	lkflags |= LK_NODDLKTREAT;
 	return (lkflags);
 }
 

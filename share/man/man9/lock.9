@@ -26,7 +26,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd October 6, 2013
+.Dd November 2, 2014
 .Dt LOCK 9
 .Os
 .Sh NAME
@@ -145,7 +145,7 @@ Their arguments are:
 A pointer to the lock to manipulate.
 .It Fa flags
 Flags indicating what action is to be taken.
-.Bl -tag -width ".Dv LK_CANRECURSE"
+.Bl -tag -width ".Dv LK_NODDLKTREAT"
 .It Dv LK_SHARED
 Acquire a shared lock.
 If an exclusive lock is currently held,
@@ -199,6 +199,29 @@ Allow recursion on an exclusive lock.
 For every lock there must be a release.
 .It Dv LK_INTERLOCK
 Unlock the interlock (which should be locked already).
+.It Dv LK_NODDLKTREAT
+Normally,
+.Fn lockmgr
+postpones serving further shared requests for shared-locked lock if there is
+exclusive waiter, to avoid exclusive lock starvation.
+But, if the thread requesting the shared lock already owns a shared lockmgr
+lock, the request is granted even in presence of the parallel exclusive lock
+request, which is done to avoid deadlocks with recursive shared acquisition.
+.Pp
+The
+.Dv LK_NODDLKTREAT
+flag can only be used by code which requests shared non-recursive lock.
+The flag allows exclusive requests to preempt the current shared request
+even if the current thread owns shared locks.
+This is safe since shared lock is guaranteed to not recurse, and is used
+when thread is known to held unrelated shared locks, to not cause
+unneccessary starvation.  An example is
+.Dv vp
+locking in VFS
+.Xr lookup 9 ,
+when
+.Dv dvp
+is already locked.
 .El
 .It Fa ilk
 An interlock mutex for controlling group access to the lock.
