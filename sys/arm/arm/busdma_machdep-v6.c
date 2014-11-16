@@ -1336,7 +1336,7 @@ _bus_dmamap_sync(bus_dma_tag_t dmat, bus_dmamap_t map, bus_dmasync_op_t op)
 					    (void *)bpage->vaddr,
 					    bpage->datacount);
 				cpu_dcache_wb_range((vm_offset_t)bpage->vaddr,
-					bpage->datacount);
+				    bpage->datacount);
 				l2cache_wb_range((vm_offset_t)bpage->vaddr,
 				    (vm_offset_t)bpage->busaddr, 
 				    bpage->datacount);
@@ -1390,12 +1390,16 @@ _bus_dmamap_sync(bus_dma_tag_t dmat, bus_dmamap_t map, bus_dmasync_op_t op)
 
 	/*
 	 * For COHERENT memory no cache maintenance is necessary, but ensure all
-	 * writes have reached memory for the PREWRITE case.
+	 * writes have reached memory for the PREWRITE case.  No action is
+	 * needed for a PREREAD without PREWRITE also set, because that would
+	 * imply that the cpu had written to the COHERENT buffer and expected
+	 * the dma device to see that change, and by definition a PREWRITE sync
+	 * is required to make that happen.
 	 */
 	if (map->flags & DMAMAP_COHERENT) {
 		if (op & BUS_DMASYNC_PREWRITE) {
-		    dsb();
-		    cpu_l2cache_drain_writebuf();
+			dsb();
+			cpu_l2cache_drain_writebuf();
 		}
 		return;
 	}
