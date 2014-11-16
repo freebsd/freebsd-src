@@ -37,6 +37,10 @@ __RCSID("$NetBSD: t_join.c,v 1.8 2012/03/12 20:17:16 joerg Exp $");
 
 #include <atf-c.h>
 
+#ifdef __FreeBSD__
+#include <pthread_np.h>
+#endif
+
 #include "h_common.h"
 
 #ifdef CHECK_STACK_ALIGNMENT
@@ -152,6 +156,9 @@ threadfunc2(void *arg)
 
 	j = (uintptr_t)arg;
 
+#ifdef __FreeBSD__
+	pthread_attr_init(&attr);
+#endif
 	ATF_REQUIRE(pthread_attr_get_np(pthread_self(), &attr) == 0);
 	ATF_REQUIRE(pthread_attr_getstacksize(&attr, &stacksize) == 0);
 	ATF_REQUIRE(stacksize == STACKSIZE * (j + 1));
