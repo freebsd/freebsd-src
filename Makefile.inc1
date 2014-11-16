@@ -1459,10 +1459,13 @@ native-xtools: .MAKE
     bin/chmod \
     bin/cp \
     bin/csh \
+    bin/echo \
     bin/expr \
+    bin/hostname \
     bin/ln \
     bin/ls \
     bin/mkdir \
+    bin/mv \
     bin/ps \
     bin/realpath \
     bin/rm \
