@@ -483,7 +483,7 @@ void
 init_print(u_int32_t localnet, u_int32_t mask)
 {
 	char *control_file;
-	char *sandboxes;
+	char *sandboxes, *max_packets;
 	int control_fd = -1, i;
 
 	if ((control_file = getenv("DEMO_CONTROL")) == NULL ||
@@ -498,6 +498,9 @@ init_print(u_int32_t localnet, u_int32_t mask)
 			ctdc->ctdc_sandboxes = atoi(sandboxes);
 		else
 			ctdc->ctdc_sandboxes = 3;
+		max_packets = getenv("TCP_SANDBOX_MAX_PACKETS");
+		if (max_packets != NULL && isdigit(*max_packets))
+			ctdc->ctdc_sb_max_packets = atoi(max_packets);
 	} else
 		if (control_fd != -1)
 			close(control_fd);
