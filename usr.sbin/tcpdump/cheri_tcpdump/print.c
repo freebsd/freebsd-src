@@ -50,6 +50,7 @@
 #include <tcpdump-helper.h>
 
 #include <assert.h>
+#include <ctype.h>
 #include <errno.h>
 #include <fcntl.h>
 #include <stdlib.h>
@@ -493,7 +494,7 @@ init_print(u_int32_t localnet, u_int32_t mask)
 		ctdc->ctdc_sb_mode = TDS_MODE_HASH_TCP;
 		ctdc->ctdc_colorize = 1;
 		sandboxes = getenv("TCP_SANDBOXES");
-		if (sandboxes != NULL && *sandboxes >= '1' && *sandboxes <= '9')
+		if (sandboxes != NULL && isdigit(*sandboxes))
 			ctdc->ctdc_sandboxes = atoi(sandboxes);
 		else
 			ctdc->ctdc_sandboxes = 3;
