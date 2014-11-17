@@ -35,7 +35,7 @@
 __RCSID("$NetBSD: h_tls_dynamic.c,v 1.5 2013/10/21 19:11:17 joerg Exp $");
 
 #include <unistd.h>
-#if defined(__NetBSD__)
+#ifdef __NetBSD__
 #include <sys/tls.h>
 #endif
 
