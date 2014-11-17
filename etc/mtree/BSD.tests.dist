@@ -157,6 +157,8 @@
             ..
             libutil
             ..
+            msun
+            ..
         ..
         libexec
             atf
