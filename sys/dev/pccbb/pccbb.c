@@ -992,8 +992,6 @@ cbb_cardbus_reset_power(device_t brdev, device_t child, int on)
 	 * a cardbus bus, so that's the only register we check here.
 	 */
 	if (on && CBB_CARD_PRESENT(cbb_get(sc, CBB_SOCKET_STATE))) {
-		/*
-		 */
 		PCI_MASK_CONFIG(brdev, CBBR_BRIDGECTRL,
 		    &~CBBM_BRIDGECTRL_RESET, 2);
 		b = pcib_get_bus(child);
