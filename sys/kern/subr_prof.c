@@ -533,6 +533,7 @@ out:
 	if (--p->p_profthreads == 0) {
 		if (p->p_flag & P_STOPPROF) {
 			wakeup(&p->p_profthreads);
+			p->p_flag &= ~P_STOPPROF;
 			stop = 0;
 		}
 	}

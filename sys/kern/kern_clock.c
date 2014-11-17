@@ -669,11 +669,11 @@ stopprofclock(p)
 	PROC_LOCK_ASSERT(p, MA_OWNED);
 	if (p->p_flag & P_PROFIL) {
 		if (p->p_profthreads != 0) {
-			p->p_flag |= P_STOPPROF;
-			while (p->p_profthreads != 0)
+			while (p->p_profthreads != 0) {
+				p->p_flag |= P_STOPPROF;
 				msleep(&p->p_profthreads, &p->p_mtx, PPAUSE,
 				    "stopprof", 0);
-			p->p_flag &= ~P_STOPPROF;
+			}
 		}
 		if ((p->p_flag & P_PROFIL) == 0)
 			return;
