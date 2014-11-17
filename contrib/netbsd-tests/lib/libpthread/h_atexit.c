@@ -180,7 +180,7 @@ main(int argc, char *argv[])
 
 	exiting_state = 5;
 
-#if defined(__FreeBSD__)
+#ifdef __FreeBSD__
 	ASSERT(0 == atexit(normal_handler_0));
 	ASSERT(0 == atexit(normal_handler_1));
 	ASSERT(0 == __cxa_atexit(cxa_handler_4, &arg_1, dso_handle_1));

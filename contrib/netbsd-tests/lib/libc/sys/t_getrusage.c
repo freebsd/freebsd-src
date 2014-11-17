@@ -47,7 +47,7 @@ static void		sighandler(int);
 static const size_t	maxiter = 2000;
 
 static void
-#if defined(__FreeBSD__)
+#ifdef __FreeBSD__
 sighandler(int signo __unused)
 #else
 sighandler(int signo)
