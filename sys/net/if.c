@@ -2494,6 +2494,7 @@ ifhwioctl(u_long cmd, struct ifnet *ifp, caddr_t data, struct thread *td)
 #ifdef INET6
 			nd6_setmtu(ifp);
 #endif
+			rt_updatemtu(ifp);
 		}
 		break;
 	}
