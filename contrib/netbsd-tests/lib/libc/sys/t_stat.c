@@ -47,7 +47,7 @@ __RCSID("$NetBSD: t_stat.c,v 1.4 2012/03/17 08:37:08 jruoho Exp $");
 
 #include <stdio.h>
 
-#if defined(__FreeBSD__)
+#ifdef __FreeBSD__
 #include <netinet/in.h>
 #endif
 
