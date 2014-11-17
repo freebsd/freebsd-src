@@ -146,10 +146,8 @@ trim_map_create(vdev_t *vd)
 {
 	trim_map_t *tm;
 
-	ASSERT(vd->vdev_ops->vdev_op_leaf);
-
-	if (!zfs_trim_enabled)
-		return;
+	ASSERT(zfs_trim_enabled && !vd->vdev_notrim &&
+		vd->vdev_ops->vdev_op_leaf);
 
 	tm = kmem_zalloc(sizeof (*tm), KM_SLEEP);
 	mutex_init(&tm->tm_lock, NULL, MUTEX_DEFAULT, NULL);
