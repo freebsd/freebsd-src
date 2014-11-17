@@ -27,7 +27,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd August 23, 2014
+.Dd November 17, 2014
 .Dt AUTO_MASTER 5
 .Os
 .Sh NAME
@@ -170,7 +170,7 @@ mount options:
 .Pp
 Automatically mount the CD drive on access:
 .Bd -literal -offset indent
-.Li cd -intr,fstype=cd9660 :/dev/cd0
+.Li cd -fstype=cd9660 :/dev/cd0
 .Ed
 .Sh SPECIAL MAPS
 Special maps have names beginning with
@@ -224,7 +224,7 @@ and this in
 map file:
 .Bd -literal -offset indent
 .Li /example/x -intr,nfsv4 192.168.1.1:/share/example/x
-.Li /example/cd -intr,fstype=cd9660 :/dev/cd0
+.Li /example/cd -fstype=cd9660 :/dev/cd0
 .Ed
 .Sh DIRECTORY SERVICES
 Both
