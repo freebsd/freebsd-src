@@ -238,9 +238,7 @@ bcm_gpio_set_pud(struct bcm_gpio_softc *sc, uint32_t pin, uint32_t state)
 	offset = pin - 32 * bank;
 
 	BCM_GPIO_WRITE(sc, BCM_GPIO_GPPUD(0), state);
-	DELAY(10);
 	BCM_GPIO_WRITE(sc, BCM_GPIO_GPPUDCLK(bank), (1 << offset));
-	DELAY(10);
 	BCM_GPIO_WRITE(sc, BCM_GPIO_GPPUD(0), 0);
 	BCM_GPIO_WRITE(sc, BCM_GPIO_GPPUDCLK(bank), 0);
 }
