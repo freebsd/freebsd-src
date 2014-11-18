@@ -80,7 +80,7 @@ int	setfault(faultbuf);	/* defined in locore.S */
 
 #ifdef __powerpc64__
 static __inline void
-set_user_sr(pmap_t pm, const void *addr)
+set_user_sr(pmap_t pm, volatile const void *addr)
 {
 	struct slb *slb;
 	register_t slbv;
@@ -113,7 +113,7 @@ set_user_sr(pmap_t pm, const void *addr)
 }
 #else
 static __inline void
-set_user_sr(pmap_t pm, const void *addr)
+set_user_sr(pmap_t pm, volatile const void *addr)
 {
 	register_t vsid;
 
@@ -135,7 +135,7 @@ set_user_sr(pmap_t pm, const void *addr)
 #endif
 
 static __inline int
-map_user_ptr(pmap_t pm, const void *uaddr, void **kaddr, size_t ulen,
+map_user_ptr(pmap_t pm, volatile const void *uaddr, void **kaddr, size_t ulen,
     size_t *klen)
 {
 	size_t l;
@@ -156,7 +156,7 @@ map_user_ptr(pmap_t pm, const void *uaddr, void **kaddr, size_t ulen,
 }
 #else /* Book-E uses a combined kernel/user mapping */
 static __inline int
-map_user_ptr(pmap_t pm, const void *uaddr, void **kaddr, size_t ulen,
+map_user_ptr(pmap_t pm, volatile const void *uaddr, void **kaddr, size_t ulen,
     size_t *klen)
 {
 
@@ -281,7 +281,7 @@ copyinstr(const void *udaddr, void *kaddr, size_t len, size_t *done)
 }
 
 int
-subyte(void *addr, int byte)
+subyte(volatile void *addr, int byte)
 {
 	struct		thread *td;
 	pmap_t		pm;
@@ -309,7 +309,7 @@ subyte(void *addr, int byte)
 
 #ifdef __powerpc64__
 int
-suword32(void *addr, int word)
+suword32(volatile void *addr, int word)
 {
 	struct		thread *td;
 	pmap_t		pm;
@@ -337,7 +337,7 @@ suword32(void *addr, int word)
 #endif
 
 int
-suword(void *addr, long word)
+suword(volatile void *addr, long word)
 {
 	struct		thread *td;
 	pmap_t		pm;
@@ -365,20 +365,20 @@ suword(void *addr, long word)
 
 #ifdef __powerpc64__
 int
-suword64(void *addr, int64_t word)
+suword64(volatile void *addr, int64_t word)
 {
 	return (suword(addr, (long)word));
 }
 #else
 int
-suword32(void *addr, int32_t word)
+suword32(volatile void *addr, int32_t word)
 {
 	return (suword(addr, (long)word));
 }
 #endif
 
 int
-fubyte(const void *addr)
+fubyte(volatile const void *addr)
 {
 	struct		thread *td;
 	pmap_t		pm;
@@ -405,14 +405,68 @@ fubyte(const void *addr)
 	return (val);
 }
 
+int
+fuword16(volatile const void *addr)
+{
+	struct		thread *td;
+	pmap_t		pm;
+	faultbuf	env;
+	uint16_t	*p, val;
+
+	td = curthread;
+	pm = &td->td_proc->p_vmspace->vm_pmap;
+
+	if (setfault(env)) {
+		td->td_pcb->pcb_onfault = NULL;
+		return (-1);
+	}
+
+	if (map_user_ptr(pm, addr, (void **)&p, sizeof(*p), NULL)) {
+		td->td_pcb->pcb_onfault = NULL;
+		return (-1);
+	}
+
+	val = *p;
+
+	td->td_pcb->pcb_onfault = NULL;
+	return (val);
+}
+
+int
+fueword32(volatile const void *addr, int32_t *val)
+{
+	struct		thread *td;
+	pmap_t		pm;
+	faultbuf	env;
+	int32_t		*p;
+
+	td = curthread;
+	pm = &td->td_proc->p_vmspace->vm_pmap;
+
+	if (setfault(env)) {
+		td->td_pcb->pcb_onfault = NULL;
+		return (-1);
+	}
+
+	if (map_user_ptr(pm, addr, (void **)&p, sizeof(*p), NULL)) {
+		td->td_pcb->pcb_onfault = NULL;
+		return (-1);
+	}
+
+	*val = *p;
+
+	td->td_pcb->pcb_onfault = NULL;
+	return (0);
+}
+
 #ifdef __powerpc64__
-int32_t
-fuword32(const void *addr)
+int
+fueword64(volatile const void *addr, int64_t *val)
 {
 	struct		thread *td;
 	pmap_t		pm;
 	faultbuf	env;
-	int32_t		*p, val;
+	int64_t		*p;
 
 	td = curthread;
 	pm = &td->td_proc->p_vmspace->vm_pmap;
@@ -427,20 +481,20 @@ fuword32(const void *addr)
 		return (-1);
 	}
 
-	val = *p;
+	*val = *p;
 
 	td->td_pcb->pcb_onfault = NULL;
-	return (val);
+	return (0);
 }
 #endif
 
-long
-fuword(const void *addr)
+int
+fueword(volatile const void *addr, long *val)
 {
 	struct		thread *td;
 	pmap_t		pm;
 	faultbuf	env;
-	long		*p, val;
+	long		*p;
 
 	td = curthread;
 	pm = &td->td_proc->p_vmspace->vm_pmap;
@@ -455,22 +509,15 @@ fuword(const void *addr)
 		return (-1);
 	}
 
-	val = *p;
+	*val = *p;
 
 	td->td_pcb->pcb_onfault = NULL;
-	return (val);
+	return (0);
 }
 
-#ifndef __powerpc64__
-int32_t
-fuword32(const void *addr)
-{
-	return ((int32_t)fuword(addr));
-}
-#endif
-
-uint32_t
-casuword32(volatile uint32_t *addr, uint32_t old, uint32_t new)
+int
+casueword32(volatile uint32_t *addr, uint32_t old, uint32_t *oldvalp,
+    uint32_t new)
 {
 	struct thread *td;
 	pmap_t pm;
@@ -507,18 +554,21 @@ casuword32(volatile uint32_t *addr, uint32_t old, uint32_t new)
 
 	td->td_pcb->pcb_onfault = NULL;
 
-	return (val);
+	*oldvalp = val;
+	return (0);
 }
 
 #ifndef __powerpc64__
-u_long
-casuword(volatile u_long *addr, u_long old, u_long new)
+int
+casueword(volatile u_long *addr, u_long old, u_long *oldvalp, u_long new)
 {
-	return (casuword32((volatile uint32_t *)addr, old, new));
+
+	return (casueword32((volatile uint32_t *)addr, old,
+	    (uint32_t *)oldvalp, new));
 }
 #else
-u_long
-casuword(volatile u_long *addr, u_long old, u_long new)
+int
+casueword(volatile u_long *addr, u_long old, u_long *oldvalp, u_long new)
 {
 	struct thread *td;
 	pmap_t pm;
@@ -555,7 +605,7 @@ casuword(volatile u_long *addr, u_long old, u_long new)
 
 	td->td_pcb->pcb_onfault = NULL;
 
-	return (val);
+	*oldvalp = val;
+	return (0);
 }
 #endif
-

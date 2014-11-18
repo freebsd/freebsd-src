@@ -46,6 +46,7 @@ MAN=	accept_filter.9 \
 	BUS_SETUP_INTR.9 \
 	bus_space.9 \
 	byteorder.9 \
+	casuword.9 \
 	cd.9 \
 	condvar.9 \
 	config_intrhook.9 \
@@ -566,6 +567,9 @@ MLINKS+=condvar.9 cv_broadcast.9 \
 MLINKS+=config_intrhook.9 config_intrhook_disestablish.9 \
 	config_intrhook.9 config_intrhook_establish.9
 MLINKS+=contigmalloc.9 contigfree.9
+MLINKS+=casuword.9 casueword.9 \
+	casuword.9 casueword32.9 \
+	casuword.9 casuword32.9
 MLINKS+=copy.9 copyin.9 \
 	copy.9 copyin_nofault.9 \
 	copy.9 copyinstr.9 \
@@ -668,7 +672,10 @@ MLINKS+=fetch.9 fubyte.9 \
 	fetch.9 fuword.9 \
 	fetch.9 fuword16.9 \
 	fetch.9 fuword32.9 \
-	fetch.9 fuword64.9
+	fetch.9 fuword64.9 \
+	fetch.9 fueword.9 \
+	fetch.9 fueword32.9 \
+	fetch.9 fueword64.9
 MLINKS+=fpu_kern.9 fpu_kern_alloc_ctx.9 \
 	fpu_kern.9 fpu_kern_free_ctx.9 \
 	fpu_kern.9 fpu_kern_enter.9 \
