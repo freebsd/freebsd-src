@@ -63,7 +63,7 @@ SYSCTL_DECL(_vfs_zfs);
  * of this setting.
  */
 int zfs_max_recordsize = 1 * 1024 * 1024;
-SYSCTL_INT(_vfs_zfs, OID_AUTO, max_recordsize, CTLFLAG_RDTUN,
+SYSCTL_INT(_vfs_zfs, OID_AUTO, max_recordsize, CTLFLAG_RWTUN,
     &zfs_max_recordsize, 0,
     "Maximum block size.  Expect dragons when tuning this.");
 
