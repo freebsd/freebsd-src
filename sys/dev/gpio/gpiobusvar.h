@@ -94,6 +94,7 @@ gpio_map_gpios(device_t bus, phandle_t dev, phandle_t gparent, int gcells,
 
 device_t ofw_gpiobus_add_fdt_child(device_t, phandle_t);
 #endif
+int gpio_check_flags(uint32_t, uint32_t);
 int gpiobus_init_softc(device_t);
 
 extern driver_t gpiobus_driver;
