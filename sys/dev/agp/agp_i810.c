@@ -113,6 +113,8 @@ static int agp_sb_get_gtt_total_entries(device_t dev);
 
 static int agp_i810_install_gatt(device_t dev);
 static int agp_i830_install_gatt(device_t dev);
+static int agp_i965_install_gatt(device_t dev);
+static int agp_g4x_install_gatt(device_t dev);
 
 static void agp_i810_deinstall_gatt(device_t dev);
 static void agp_i830_deinstall_gatt(device_t dev);
@@ -395,7 +397,7 @@ static const struct agp_i810_driver agp_i810_g965_driver = {
 	.get_stolen_size = agp_i915_get_stolen_size,
 	.get_gtt_mappable_entries = agp_i915_get_gtt_mappable_entries,
 	.get_gtt_total_entries = agp_i965_get_gtt_total_entries,
-	.install_gatt = agp_i830_install_gatt,
+	.install_gatt = agp_i965_install_gatt,
 	.deinstall_gatt = agp_i830_deinstall_gatt,
 	.write_gtt = agp_i965_write_gtt,
 	.install_gtt_pte = agp_i965_install_gtt_pte,
@@ -464,7 +466,7 @@ static const struct agp_i810_driver agp_i810_g4x_driver = {
 	.get_stolen_size = agp_i915_get_stolen_size,
 	.get_gtt_mappable_entries = agp_i915_get_gtt_mappable_entries,
 	.get_gtt_total_entries = agp_gen5_get_gtt_total_entries,
-	.install_gatt = agp_i830_install_gatt,
+	.install_gatt = agp_g4x_install_gatt,
 	.deinstall_gatt = agp_i830_deinstall_gatt,
 	.write_gtt = agp_g4x_write_gtt,
 	.install_gtt_pte = agp_g4x_install_gtt_pte,
@@ -487,7 +489,7 @@ static const struct agp_i810_driver agp_i810_sb_driver = {
 	.get_stolen_size = agp_sb_get_stolen_size,
 	.get_gtt_mappable_entries = agp_i915_get_gtt_mappable_entries,
 	.get_gtt_total_entries = agp_sb_get_gtt_total_entries,
-	.install_gatt = agp_i830_install_gatt,
+	.install_gatt = agp_g4x_install_gatt,
 	.deinstall_gatt = agp_i830_deinstall_gatt,
 	.write_gtt = agp_sb_write_gtt,
 	.install_gtt_pte = agp_sb_install_gtt_pte,
@@ -1405,13 +1407,10 @@ agp_i810_install_gatt(device_t dev)
 	return (0);
 }
 
-static int
-agp_i830_install_gatt(device_t dev)
+static void
+agp_i830_install_gatt_init(struct agp_i810_softc *sc)
 {
-	struct agp_i810_softc *sc;
 	uint32_t pgtblctl;
-
-	sc = device_get_softc(dev);
 
 	/*
 	 * The i830 automatically initializes the 128k gatt on boot.
@@ -1422,7 +1421,43 @@ agp_i830_install_gatt(device_t dev)
 	bus_write_4(sc->sc_res[0], AGP_I810_PGTBL_CTL, pgtblctl);
 	
 	sc->gatt->ag_physical = pgtblctl & ~1;
+}
+
+static int
+agp_i830_install_gatt(device_t dev)
+{
+	struct agp_i810_softc *sc;
+
+	sc = device_get_softc(dev);
+	agp_i830_install_gatt_init(sc);
 	return (0);
+}
+
+static int
+agp_gen4_install_gatt(device_t dev, const vm_size_t gtt_offset)
+{
+	struct agp_i810_softc *sc;
+
+	sc = device_get_softc(dev);
+	pmap_change_attr((vm_offset_t)rman_get_virtual(sc->sc_res[0]) +
+	    gtt_offset, rman_get_size(sc->sc_res[0]) - gtt_offset,
+	    VM_MEMATTR_WRITE_COMBINING);
+	agp_i830_install_gatt_init(sc);
+	return (0);
+}
+
+static int
+agp_i965_install_gatt(device_t dev)
+{
+
+	return (agp_gen4_install_gatt(dev, 512 * 1024));
+}
+
+static int
+agp_g4x_install_gatt(device_t dev)
+{
+
+	return (agp_gen4_install_gatt(dev, 2 * 1024 * 1024));
 }
 
 static int
