@@ -317,7 +317,7 @@ xo_init_handle (xo_handle_t *xop)
 	    cp = getenv("LC_ALL");
 	if (cp == NULL)
 	    cp = "UTF-8";	/* Optimistic? */
-	cp = setlocale(LC_CTYPE, cp);
+	(void) setlocale(LC_CTYPE, cp);
     }
 
     /*
@@ -607,8 +607,10 @@ xo_vsnprintf (xo_handle_t *xop, xo_buffer_t *xbp, const char *fmt, va_list vap)
 	rc = vsnprintf(xbp->xb_curp, left, fmt, va_local);
 
     if (rc > xbp->xb_size) {
-	if (!xo_buf_has_room(xbp, rc))
+	if (!xo_buf_has_room(xbp, rc)) {
+	    va_end(va_local);
 	    return -1;
+	}
 
 	/*
 	 * After we call vsnprintf(), the stage of vap is not defined.
@@ -648,8 +650,10 @@ xo_printf_v (xo_handle_t *xop, const char *fmt, va_list vap)
     rc = vsnprintf(xbp->xb_curp, left, fmt, va_local);
 
     if (rc > xbp->xb_size) {
-	if (!xo_buf_has_room(xbp, rc))
+	if (!xo_buf_has_room(xbp, rc)) {
+	    va_end(va_local);
 	    return -1;
+	}
 
 	va_end(va_local);	/* Reset vap to the start */
 	va_copy(va_local, vap);
@@ -974,8 +978,10 @@ xo_warn_hcv (xo_handle_t *xop, int code, int check_warn,
 	int left = xbp->xb_size - (xbp->xb_curp - xbp->xb_bufp);
 	int rc = vsnprintf(xbp->xb_curp, left, newfmt, vap);
 	if (rc > xbp->xb_size) {
-	    if (!xo_buf_has_room(xbp, rc))
+	    if (!xo_buf_has_room(xbp, rc)) {
+		va_end(va_local);
 		return;
+	    }
 
 	    va_end(vap);	/* Reset vap to the start */
 	    va_copy(vap, va_local);
@@ -1118,8 +1124,10 @@ xo_message_hcv (xo_handle_t *xop, int code, const char *fmt, va_list vap)
 	int left = xbp->xb_size - (xbp->xb_curp - xbp->xb_bufp);
 	rc = vsnprintf(xbp->xb_curp, left, fmt, vap);
 	if (rc > xbp->xb_size) {
-	    if (!xo_buf_has_room(xbp, rc))
+	    if (!xo_buf_has_room(xbp, rc)) {
+		va_end(va_local);
 		return;
+	    }
 
 	    va_end(vap);	/* Reset vap to the start */
 	    va_copy(vap, va_local);
@@ -1154,14 +1162,15 @@ xo_message_hcv (xo_handle_t *xop, int code, const char *fmt, va_list vap)
 
 	    va_copy(va_local, vap);
 
-	    rc = vsnprintf(buf, bufsiz, fmt, va_local);
+	    rc = vsnprintf(bp, bufsiz, fmt, va_local);
 	    if (rc > bufsiz) {
 		bufsiz = rc + BUFSIZ;
 		bp = alloca(bufsiz);
 		va_end(va_local);
 		va_copy(va_local, vap);
-		rc = vsnprintf(buf, bufsiz, fmt, va_local);
+		rc = vsnprintf(bp, bufsiz, fmt, va_local);
 	    }
+	    va_end(va_local);
 	    cp = bp + rc;
 
 	    if (need_nl) {
@@ -1302,9 +1311,9 @@ xo_create_to_file (FILE *fp, xo_style_t style, xo_xof_flags_t flags)
  * @xop XO handle to alter (or NULL for default handle)
  */
 void
-xo_destroy (xo_handle_t *xop)
+xo_destroy (xo_handle_t *xop_arg)
 {
-    xop = xo_default(xop);
+    xo_handle_t *xop = xo_default(xop_arg);
 
     if (xop->xo_close && (xop->xo_flags & XOF_CLOSE_FP))
 	xop->xo_close(xop->xo_opaque);
@@ -1315,7 +1324,7 @@ xo_destroy (xo_handle_t *xop)
     xo_buf_cleanup(&xop->xo_predicate);
     xo_buf_cleanup(&xop->xo_attrs);
 
-    if (xop == &xo_default_handle) {
+    if (xop_arg == NULL) {
 	bzero(&xo_default_handle, sizeof(&xo_default_handle));
 	xo_default_inited = 0;
     } else
@@ -1743,7 +1752,7 @@ xo_format_string_direct (xo_handle_t *xop, xo_buffer_t *xbp,
 			 int need_enc, int have_enc)
 {
     int cols = 0;
-    wchar_t wc;
+    wchar_t wc = 0;
     int ilen, olen, width;
     int attr = (flags & XFF_ATTR);
     const char *sp;
