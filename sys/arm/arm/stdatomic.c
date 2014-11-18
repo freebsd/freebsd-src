@@ -34,10 +34,6 @@ __FBSDID("$FreeBSD$");
 #include <machine/cpufunc.h>
 #include <machine/sysarch.h>
 
-#ifdef _KERNEL
-#include "opt_global.h"
-#endif
-
 /*
  * Executing statements with interrupts disabled.
  */
