@@ -111,10 +111,15 @@ struct ti_i2c_clock_config
 };
 
 #if defined(SOC_OMAP4)
+/*
+ * OMAP4 i2c bus clock is 96MHz / ((psc + 1) * (scll + 7 + sclh + 5)).
+ * The prescaler values for 100KHz and 400KHz modes come from the table in the
+ * OMAP4 TRM.  The table doesn't list 1MHz; these values should give that speed.
+ */
 static struct ti_i2c_clock_config ti_omap4_i2c_clock_configs[] = {
 	{  100000, 23,  13,  15,  0,  0},
 	{  400000,  9,   5,   7,  0,  0},
-	{ 1000000,  5,   3,   4,  0,  0},
+	{ 1000000,  5,   1,   3,  0,  0},
 /*	{ 3200000,  1, 113, 115,  7, 10}, - HS mode */
 	{       0 /* Table terminator */ }
 };
@@ -122,12 +127,13 @@ static struct ti_i2c_clock_config ti_omap4_i2c_clock_configs[] = {
 
 #if defined(SOC_TI_AM335X)
 /*
- * AM335X doesn't support HS mode.  For 100kHz I2C clock set the internal
- * clock to 12Mhz, for 400kHz I2C clock set the internal clock to 24Mhz.
+ * AM335x i2c bus clock is 48MHZ / ((psc + 1) * (scll + 7 + sclh + 5))
+ * In all cases we prescale the clock to 24MHz as recommended in the manual.
  */
 static struct ti_i2c_clock_config ti_am335x_i2c_clock_configs[] = {
-	{  100000, 7, 59, 61, 0, 0},
-	{  400000, 3, 23, 25, 0, 0},
+	{  100000, 1, 111, 117, 0, 0},
+	{  400000, 1,  23,  25, 0, 0},
+	{ 1000000, 1,   5,   7, 0, 0},
 	{       0 /* Table terminator */ }
 };
 #endif
