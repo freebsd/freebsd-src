@@ -501,6 +501,29 @@ static const struct agp_i810_driver agp_i810_sb_driver = {
 	.chipset_flush = agp_i810_chipset_flush,
 };
 
+static const struct agp_i810_driver agp_i810_hsw_driver = {
+	.chiptype = CHIP_SB,
+	.gen = 7,
+	.busdma_addr_mask_sz = 40,
+	.res_spec = agp_g4x_res_spec,
+	.check_active = agp_sb_check_active,
+	.set_desc = agp_i810_set_desc,
+	.dump_regs = agp_sb_dump_regs,
+	.get_stolen_size = agp_sb_get_stolen_size,
+	.get_gtt_mappable_entries = agp_i915_get_gtt_mappable_entries,
+	.get_gtt_total_entries = agp_sb_get_gtt_total_entries,
+	.install_gatt = agp_g4x_install_gatt,
+	.deinstall_gatt = agp_i830_deinstall_gatt,
+	.write_gtt = agp_sb_write_gtt,
+	.install_gtt_pte = agp_sb_install_gtt_pte,
+	.read_gtt_pte = agp_g4x_read_gtt_pte,
+	.read_gtt_pte_paddr = agp_sb_read_gtt_pte_paddr,
+	.set_aperture = agp_i915_set_aperture,
+	.chipset_flush_setup = agp_i810_chipset_flush_setup,
+	.chipset_flush_teardown = agp_i810_chipset_flush_teardown,
+	.chipset_flush = agp_i810_chipset_flush,
+};
+
 /* For adding new devices, devid is the id of the graphics controller
  * (pci:0:2:0, for example).  The placeholder (usually at pci:0:2:1) for the
  * second head should never be added.  The bridge_offset is the offset to
@@ -735,6 +758,41 @@ static const struct agp_i810_match {
 		.devid = 0x016a8086,
 		.name = "IvyBridge server GT2 IG",
 		.driver = &agp_i810_sb_driver
+	},
+	{
+		.devid = 0x04028086,
+		.name = "Haswell desktop GT1",
+		.driver = &agp_i810_hsw_driver
+	},
+	{
+		.devid = 0x04128086,
+		.name = "Haswell desktop GT2",
+		.driver = &agp_i810_hsw_driver
+	},
+	{
+		.devid = 0x040a8086,
+		.name = "Haswell server GT1",
+		.driver = &agp_i810_hsw_driver
+	},
+	{
+		.devid = 0x041a8086,
+		.name = "Haswell server GT2",
+		.driver = &agp_i810_hsw_driver
+	},
+	{
+		.devid = 0x04068086,
+		.name = "Haswell mobile GT1",
+		.driver = &agp_i810_hsw_driver
+	},
+	{
+		.devid = 0x04168086,
+		.name = "Haswell mobile GT2",
+		.driver = &agp_i810_hsw_driver
+	},
+	{
+		.devid = 0x0c168086,
+		.name = "Haswell SDV",
+		.driver = &agp_i810_hsw_driver
 	},
 	{
 		.devid = 0,
