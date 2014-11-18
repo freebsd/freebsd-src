@@ -730,7 +730,6 @@ int	vop_stdbmap(struct vop_bmap_args *);
 int	vop_stdfsync(struct vop_fsync_args *);
 int	vop_stdgetwritemount(struct vop_getwritemount_args *);
 int	vop_stdgetpages(struct vop_getpages_args *);
-int	vop_stdgetpages_async(struct vop_getpages_async_args *);
 int	vop_stdinactive(struct vop_inactive_args *);
 int	vop_stdislocked(struct vop_islocked_args *);
 int	vop_stdkqfilter(struct vop_kqfilter_args *);
