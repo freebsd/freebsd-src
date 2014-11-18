@@ -737,7 +737,7 @@ vop_stdgetpages_async(struct vop_getpages_async_args *ap)
 
 	error = VOP_GETPAGES(ap->a_vp, ap->a_m, ap->a_count, ap->a_reqpage);
 	vm_page_xunbusy(ap->a_m[ap->a_reqpage]);
-	ap->a_vop_getpages_iodone(ap->a_arg, error);
+	ap->a_vop_getpages_iodone(ap->a_arg, ap->a_m, ap->a_reqpage, error);
 	return (error);
 }
 

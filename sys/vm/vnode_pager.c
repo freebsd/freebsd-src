@@ -92,7 +92,7 @@ struct getpages_data {
 	int size;
 	int count;
 	int reqpage;
-	void (*iodone)(void *, int);
+	void (*iodone)(void *, vm_page_t *, int, int);
 	void *arg;
 };
 
@@ -102,10 +102,10 @@ static int vnode_pager_input_smlfs(vm_object_t object, vm_page_t m);
 static int vnode_pager_input_old(vm_object_t object, vm_page_t m);
 static void vnode_pager_dealloc(vm_object_t);
 static int vnode_pager_local_getpages0(struct vnode *, vm_page_t *, int, int,
-    void (*)(void *, int), void *);
+    void (*)(void *, vm_page_t *, int, int), void *);
 static int vnode_pager_getpages(vm_object_t, vm_page_t *, int, int);
 static int vnode_pager_getpages_async(vm_object_t, vm_page_t *, int, int,
-    void(*)(void  *, int), void *);
+    void(*)(void  *, vm_page_t *, int, int), void *);
 static void vnode_pager_putpages(vm_object_t, vm_page_t *, int, int, int *);
 static boolean_t vnode_pager_haspage(vm_object_t, vm_pindex_t, int *, int *);
 static vm_object_t vnode_pager_alloc(void *, vm_ooffset_t, vm_prot_t,
@@ -692,7 +692,7 @@ vnode_pager_getpages(vm_object_t object, vm_page_t *m, int count, int reqpage)
 
 static int
 vnode_pager_getpages_async(vm_object_t object, vm_page_t *m, int count,
-    int reqpage, void (*iodone)(void *, int), void *arg)
+    int reqpage, void (*iodone)(void *, vm_page_t *, int, int), void *arg)
 {
 	int rtval;
 	struct vnode *vp;
@@ -730,7 +730,7 @@ vnode_pager_local_getpages_async(struct vop_getpages_async_args *ap)
 
 static int
 vnode_pager_local_getpages0(struct vnode *vp, vm_page_t *m, int bytecount,
-    int reqpage, void (*iodone)(void *, int), void *arg)
+    int reqpage, void (*iodone)(void *, vm_page_t *, int, int), void *arg)
 {
 	vm_page_t mreq;
 
@@ -752,7 +752,7 @@ vnode_pager_local_getpages0(struct vnode *vp, vm_page_t *m, int bytecount,
 		vm_pager_free_nonreq(mreq->object, m, reqpage,
 		    round_page(bytecount) / PAGE_SIZE);
 		if (iodone != NULL)
-			iodone(arg, 0);
+			iodone(arg, m, reqpage, 0);
 		return (VM_PAGER_OK);
 	}
 
@@ -766,7 +766,7 @@ vnode_pager_local_getpages0(struct vnode *vp, vm_page_t *m, int bytecount,
  */
 int
 vnode_pager_generic_getpages(struct vnode *vp, vm_page_t *m, int bytecount,
-    int reqpage, void (*iodone)(void *, int), void *arg)
+    int reqpage, void (*iodone)(void *, vm_page_t *, int, int), void *arg)
 {
 	vm_object_t object;
 	vm_offset_t kva;
@@ -1061,7 +1061,7 @@ vnode_pager_generic_getpages_done_async(struct buf *bp)
 
 	error = vnode_pager_generic_getpages_done(d);
 	vm_page_xunbusy(d->m[d->reqpage]);
-	d->iodone(d->arg, error);
+	d->iodone(d->arg, d->m, d->reqpage, error);
 	free(d, M_TEMP);
 }
 

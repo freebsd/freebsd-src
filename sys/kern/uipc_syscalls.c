@@ -2065,7 +2065,7 @@ struct sf_io {
 };
 
 static void
-sf_iodone(void *arg, int error)
+sf_iodone(void *arg, vm_page_t *pg, int reqpage, int error)
 {
 	struct sf_io *sfio = arg;
 	struct socket *so;
@@ -2593,7 +2593,7 @@ retry_space:
 			fhold(sock_fp);
 			error = (*so->so_proto->pr_usrreqs->pru_send)
 			    (so, PRUS_NOTREADY, m, NULL, NULL, td);
-			sf_iodone(sfio, 0);
+			sf_iodone(sfio, NULL, 0, 0);
 		}
 		CURVNET_RESTORE();
 
