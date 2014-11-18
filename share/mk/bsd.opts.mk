@@ -51,6 +51,7 @@ __<bsd.opts.mk>__:
 __DEFAULT_YES_OPTIONS = \
     ASSERT_DEBUG \
     DOCCOMPRESS \
+    INCLUDES \
     INSTALLLIB \
     KERBEROS \
     MAN \
