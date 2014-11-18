@@ -38,7 +38,6 @@
 
 #include "opt_ddb.h"
 #include "opt_platform.h"
-#include "opt_global.h"
 
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
