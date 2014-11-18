@@ -604,14 +604,13 @@ fetchupgrade_check_params () {
 		echo ${WORKDIR}
 		exit 1
 	fi
-	for i in tmpfs mdmfs; do
-		if df -t ${i} ${WORKDIR} >/dev/null 2>1; then
-			echo -n "`basename $0`: "
-			echo -n "${_WORKDIR_bad2}"
-			echo ${WORKDIR}
-			exit 1
-		fi
-	done
+	case `df -T ${WORKDIR}` in */dev/md[0-9]* | *tmpfs*)
+		echo -n "`basename $0`: "
+		echo -n "${_WORKDIR_bad2}"
+		echo ${WORKDIR}
+		exit 1
+		;;
+	esac
 	chmod 700 ${WORKDIR}
 	cd ${WORKDIR} || exit 1
 
