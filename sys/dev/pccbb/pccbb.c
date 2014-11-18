@@ -1591,10 +1591,10 @@ cbb_resume(device_t self)
 	 * from D0 and back to D0 cause the bridge to lose its config space, so
 	 * all the bus mappings and such are preserved.
 	 *
-	 * For most drivers, the PCI layer handles this saving. However,
-	 * sicne there's much black magic and archane art hidden in these
-	 * few lines of code that would be difficult to transition into
-	 * the PCI layer.
+	 * For most drivers, the PCI layer handles this saving. However, since
+	 * there's much black magic and arcane art hidden in these few lines of
+	 * code that would be difficult to transition into the PCI
+	 * layer. chipinit was several years of trial and error to write.
 	 */
 	pci_write_config(self, CBBR_SOCKBASE, rman_get_start(sc->base_res), 4);
 	DEVPRINTF((self, "PCI Memory allocated: %08lx\n",
