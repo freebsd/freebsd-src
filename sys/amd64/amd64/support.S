@@ -312,12 +312,13 @@ copyin_fault:
 END(copyin)
 
 /*
- * casuword32.  Compare and set user integer.  Returns -1 or the current value.
- *        dst = %rdi, old = %rsi, new = %rdx
+ * casueword32.  Compare and set user integer.  Returns -1 on fault,
+ *        0 if access was successful.  Old value is written to *oldp.
+ *        dst = %rdi, old = %esi, oldp = %rdx, new = %ecx
  */
-ENTRY(casuword32)
-	movq	PCPU(CURPCB),%rcx
-	movq	$fusufault,PCB_ONFAULT(%rcx)
+ENTRY(casueword32)
+	movq	PCPU(CURPCB),%r8
+	movq	$fusufault,PCB_ONFAULT(%r8)
 
 	movq	$VM_MAXUSER_ADDRESS-4,%rax
 	cmpq	%rax,%rdi			/* verify address is valid */
@@ -327,26 +328,34 @@ ENTRY(casuword32)
 #ifdef SMP
 	lock
 #endif
-	cmpxchgl %edx,(%rdi)			/* new = %edx */
+	cmpxchgl %ecx,(%rdi)			/* new = %ecx */
 
 	/*
 	 * The old value is in %eax.  If the store succeeded it will be the
 	 * value we expected (old) from before the store, otherwise it will
-	 * be the current value.
+	 * be the current value.  Save %eax into %esi to prepare the return
+	 * value.
 	 */
+	movl	%eax,%esi
+	xorl	%eax,%eax
+	movq	%rax,PCB_ONFAULT(%r8)
 
-	movq	PCPU(CURPCB),%rcx
-	movq	$0,PCB_ONFAULT(%rcx)
+	/*
+	 * Access the oldp after the pcb_onfault is cleared, to correctly
+	 * catch corrupted pointer.
+	 */
+	movl	%esi,(%rdx)			/* oldp = %rdx */
 	ret
-END(casuword32)
+END(casueword32)
 
 /*
- * casuword.  Compare and set user word.  Returns -1 or the current value.
- *        dst = %rdi, old = %rsi, new = %rdx
+ * casueword.  Compare and set user long.  Returns -1 on fault,
+ *        0 if access was successful.  Old value is written to *oldp.
+ *        dst = %rdi, old = %rsi, oldp = %rdx, new = %rcx
  */
-ENTRY(casuword)
-	movq	PCPU(CURPCB),%rcx
-	movq	$fusufault,PCB_ONFAULT(%rcx)
+ENTRY(casueword)
+	movq	PCPU(CURPCB),%r8
+	movq	$fusufault,PCB_ONFAULT(%r8)
 
 	movq	$VM_MAXUSER_ADDRESS-4,%rax
 	cmpq	%rax,%rdi			/* verify address is valid */
@@ -356,28 +365,28 @@ ENTRY(casuword)
 #ifdef SMP
 	lock
 #endif
-	cmpxchgq %rdx,(%rdi)			/* new = %rdx */
+	cmpxchgq %rcx,(%rdi)			/* new = %rcx */
 
 	/*
-	 * The old value is in %eax.  If the store succeeded it will be the
+	 * The old value is in %rax.  If the store succeeded it will be the
 	 * value we expected (old) from before the store, otherwise it will
 	 * be the current value.
 	 */
-
-	movq	PCPU(CURPCB),%rcx
-	movq	$fusufault,PCB_ONFAULT(%rcx)
-	movq	$0,PCB_ONFAULT(%rcx)
+	movq	%rax,%rsi
+	xorl	%eax,%eax
+	movq	%rax,PCB_ONFAULT(%r8)
+	movq	%rsi,(%rdx)
 	ret
-END(casuword)
+END(casueword)
 
 /*
  * Fetch (load) a 64-bit word, a 32-bit word, a 16-bit word, or an 8-bit
- * byte from user memory.  All these functions are MPSAFE.
- * addr = %rdi
+ * byte from user memory.
+ * addr = %rdi, valp = %rsi
  */
 
-ALTENTRY(fuword64)
-ENTRY(fuword)
+ALTENTRY(fueword64)
+ENTRY(fueword)
 	movq	PCPU(CURPCB),%rcx
 	movq	$fusufault,PCB_ONFAULT(%rcx)
 
@@ -385,13 +394,15 @@ ENTRY(fuword)
 	cmpq	%rax,%rdi			/* verify address is valid */
 	ja	fusufault
 
-	movq	(%rdi),%rax
-	movq	$0,PCB_ONFAULT(%rcx)
+	xorl	%eax,%eax
+	movq	(%rdi),%r11
+	movq	%rax,PCB_ONFAULT(%rcx)
+	movq	%r11,(%rsi)
 	ret
 END(fuword64)
 END(fuword)
 
-ENTRY(fuword32)
+ENTRY(fueword32)
 	movq	PCPU(CURPCB),%rcx
 	movq	$fusufault,PCB_ONFAULT(%rcx)
 
@@ -399,10 +410,12 @@ ENTRY(fuword32)
 	cmpq	%rax,%rdi			/* verify address is valid */
 	ja	fusufault
 
-	movl	(%rdi),%eax
-	movq	$0,PCB_ONFAULT(%rcx)
+	xorl	%eax,%eax
+	movl	(%rdi),%r11d
+	movq	%rax,PCB_ONFAULT(%rcx)
+	movl	%r11d,(%rsi)
 	ret
-END(fuword32)
+END(fueword32)
 
 /*
  * fuswintr() and suswintr() are specialized variants of fuword16() and

@@ -1062,6 +1062,7 @@ cpu_fetch_syscall_args(struct thread *td, struct syscall_args *sa)
 	struct proc *p;
 	struct trapframe *frame;
 	caddr_t params;
+	long tmp;
 	int error;
 
 	p = td->td_proc;
@@ -1077,14 +1078,20 @@ cpu_fetch_syscall_args(struct thread *td, struct syscall_args *sa)
 		/*
 		 * Code is first argument, followed by actual args.
 		 */
-		sa->code = fuword(params);
+		error = fueword(params, &tmp);
+		if (error == -1)
+			return (EFAULT);
+		sa->code = tmp;
 		params += sizeof(int);
 	} else if (sa->code == SYS___syscall) {
 		/*
 		 * Like syscall, but code is a quad, so as to maintain
 		 * quad alignment for the rest of the arguments.
 		 */
-		sa->code = fuword(params);
+		error = fueword(params, &tmp);
+		if (error == -1)
+			return (EFAULT);
+		sa->code = tmp;
 		params += sizeof(quad_t);
 	}
 
