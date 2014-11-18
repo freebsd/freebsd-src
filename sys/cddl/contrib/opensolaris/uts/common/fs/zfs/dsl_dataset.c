@@ -51,6 +51,8 @@
 #include <sys/dsl_userhold.h>
 #include <sys/dsl_bookmark.h>
 
+SYSCTL_DECL(_vfs_zfs);
+
 /*
  * The SPA supports block sizes up to 16MB.  However, very large blocks
  * can have an impact on i/o latency (e.g. tying up a spinning disk for
@@ -61,6 +63,9 @@
  * of this setting.
  */
 int zfs_max_recordsize = 1 * 1024 * 1024;
+SYSCTL_INT(_vfs_zfs, OID_AUTO, max_recordsize, CTLFLAG_RDTUN,
+    &zfs_max_recordsize, 0,
+    "Maximum block size.  Expect dragons when tuning this.");
 
 #define	SWITCH64(x, y) \
 	{ \
