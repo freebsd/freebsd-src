@@ -47,6 +47,7 @@ __FBSDID("$FreeBSD$");
 #include <vm/vm_kern.h>
 
 #include <machine/clock.h>
+#include <machine/cpuinfo.h>
 #include <machine/smp.h>
 #include <machine/hwfunc.h>
 #include <machine/intr_machdep.h>
@@ -275,6 +276,12 @@ cpu_mp_start(void)
 void
 smp_init_secondary(u_int32_t cpuid)
 {
+
+	/*
+	 * If the UserLocal register (ULRI) is implemented then enable it.
+	 */
+	if (cpuinfo.userlocal_reg)
+		mips_wr_hwrena(mips_rd_hwrena() | MIPS_HWRENA_UL);
 
 	/* TLB */
 	mips_wr_wired(0);
