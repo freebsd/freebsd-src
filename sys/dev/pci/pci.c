@@ -3637,6 +3637,7 @@ static void
 pci_set_power_child(device_t dev, device_t child, int state)
 {
 	struct pci_devinfo *dinfo;
+	device_t pcib;
 	int dstate;
 
 	/*
@@ -3646,10 +3647,11 @@ pci_set_power_child(device_t dev, device_t child, int state)
 	 * device power.  Skip children who aren't attached since they
 	 * are handled separately.
 	 */
+	pcib = device_get_parent(dev);
 	dinfo = device_get_ivars(child);
 	dstate = state;
 	if (device_is_attached(child) &&
-	    PCIB_POWER_FOR_SLEEP(dev, child, &dstate) == 0)
+	    PCIB_POWER_FOR_SLEEP(pcib, child, &dstate) == 0)
 		pci_set_powerstate(child, dstate);
 }
 
