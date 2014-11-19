@@ -105,9 +105,7 @@ sys_getpid(struct thread *td, struct getpid_args *uap)
 
 	td->td_retval[0] = p->p_pid;
 #if defined(COMPAT_43)
-	PROC_LOCK(p);
-	td->td_retval[1] = p->p_pptr->p_pid;
-	PROC_UNLOCK(p);
+	td->td_retval[1] = kern_getppid(td);
 #endif
 	return (0);
 }
@@ -121,12 +119,31 @@ struct getppid_args {
 int
 sys_getppid(struct thread *td, struct getppid_args *uap)
 {
+
+	td->td_retval[0] = kern_getppid(td);
+	return (0);
+}
+
+int
+kern_getppid(struct thread *td)
+{
 	struct proc *p = td->td_proc;
+	struct proc *pp;
+	int ppid;
 
 	PROC_LOCK(p);
-	td->td_retval[0] = p->p_pptr->p_pid;
-	PROC_UNLOCK(p);
-	return (0);
+	if (!(p->p_flag & P_TRACED)) {
+		ppid = p->p_pptr->p_pid;
+		PROC_UNLOCK(p);
+	} else {
+		PROC_UNLOCK(p);
+		sx_slock(&proctree_lock);
+		pp = proc_realparent(p);
+		ppid = pp->p_pid;
+		sx_sunlock(&proctree_lock);
+	}
+
+	return (ppid);
 }
 
 /*
@@ -286,45 +303,24 @@ struct getgroups_args {
 int
 sys_getgroups(struct thread *td, register struct getgroups_args *uap)
 {
-	gid_t *groups;
+	struct ucred *cred;
 	u_int ngrp;
 	int error;
 
-	if (uap->gidsetsize < td->td_ucred->cr_ngroups) {
-		if (uap->gidsetsize == 0)
-			ngrp = 0;
-		else
-			return (EINVAL);
-	} else
-		ngrp = td->td_ucred->cr_ngroups;
-	groups = malloc(ngrp * sizeof(*groups), M_TEMP, M_WAITOK);
-	error = kern_getgroups(td, &ngrp, groups);
-	if (error)
-		goto out;
-	if (uap->gidsetsize > 0)
-		error = copyout(groups, uap->gidset, ngrp * sizeof(gid_t));
-	if (error == 0)
-		td->td_retval[0] = ngrp;
-out:
-	free(groups, M_TEMP);
-	return (error);
-}
-
-int
-kern_getgroups(struct thread *td, u_int *ngrp, gid_t *groups)
-{
-	struct ucred *cred;
-
 	cred = td->td_ucred;
-	if (*ngrp == 0) {
-		*ngrp = cred->cr_ngroups;
-		return (0);
+	ngrp = cred->cr_ngroups;
+
+	if (uap->gidsetsize == 0) {
+		error = 0;
+		goto out;
 	}
-	if (*ngrp < cred->cr_ngroups)
+	if (uap->gidsetsize < ngrp)
 		return (EINVAL);
-	*ngrp = cred->cr_ngroups;
-	bcopy(cred->cr_groups, groups, *ngrp * sizeof(gid_t));
-	return (0);
+
+	error = copyout(cred->cr_groups, uap->gidset, ngrp * sizeof(gid_t));
+out:
+	td->td_retval[0] = ngrp;
+	return (error);
 }
 
 #ifndef _SYS_SYSPROTO_H_
@@ -809,18 +805,26 @@ struct setgroups_args {
 int
 sys_setgroups(struct thread *td, struct setgroups_args *uap)
 {
-	gid_t *groups = NULL;
+	gid_t smallgroups[XU_NGROUPS];
+	gid_t *groups;
+	u_int gidsetsize;
 	int error;
 
-	if (uap->gidsetsize > ngroups_max + 1)
+	gidsetsize = uap->gidsetsize;
+	if (gidsetsize > ngroups_max + 1)
 		return (EINVAL);
-	groups = malloc(uap->gidsetsize * sizeof(gid_t), M_TEMP, M_WAITOK);
-	error = copyin(uap->gidset, groups, uap->gidsetsize * sizeof(gid_t));
-	if (error)
-		goto out;
-	error = kern_setgroups(td, uap->gidsetsize, groups);
-out:
-	free(groups, M_TEMP);
+
+	if (gidsetsize > XU_NGROUPS)
+		groups = malloc(gidsetsize * sizeof(gid_t), M_TEMP, M_WAITOK);
+	else
+		groups = smallgroups;
+
+	error = copyin(uap->gidset, groups, gidsetsize * sizeof(gid_t));
+	if (error == 0)
+		error = kern_setgroups(td, gidsetsize, groups);
+
+	if (gidsetsize > XU_NGROUPS)
+		free(groups, M_TEMP);
 	return (error);
 }
 
@@ -831,8 +835,7 @@ kern_setgroups(struct thread *td, u_int ngrp, gid_t *groups)
 	struct ucred *newcred, *oldcred;
 	int error;
 
-	if (ngrp > ngroups_max + 1)
-		return (EINVAL);
+	MPASS(ngrp <= ngroups_max + 1);
 	AUDIT_ARG_GROUPSET(groups, ngrp);
 	newcred = crget();
 	crextend(newcred, ngrp);
@@ -849,7 +852,7 @@ kern_setgroups(struct thread *td, u_int ngrp, gid_t *groups)
 	if (error)
 		goto fail;
 
-	if (ngrp < 1) {
+	if (ngrp == 0) {
 		/*
 		 * setgroups(0, NULL) is a legitimate way of clearing the
 		 * groups vector on non-BSD systems (which generally do not
@@ -1814,7 +1817,9 @@ crget(void)
 #ifdef MAC
 	mac_cred_init(cr);
 #endif
-	crextend(cr, XU_NGROUPS);
+	cr->cr_groups = cr->cr_smallgroups;
+	cr->cr_agroups =
+	    sizeof(cr->cr_smallgroups) / sizeof(cr->cr_smallgroups[0]);
 	return (cr);
 }
 
@@ -1861,19 +1866,10 @@ crfree(struct ucred *cr)
 #ifdef MAC
 		mac_cred_destroy(cr);
 #endif
-		free(cr->cr_groups, M_CRED);
+		if (cr->cr_groups != cr->cr_smallgroups)
+			free(cr->cr_groups, M_CRED);
 		free(cr, M_CRED);
 	}
-}
-
-/*
- * Check to see if this ucred is shared.
- */
-int
-crshared(struct ucred *cr)
-{
-
-	return (cr->cr_ref > 1);
 }
 
 /*
@@ -1883,7 +1879,7 @@ void
 crcopy(struct ucred *dest, struct ucred *src)
 {
 
-	KASSERT(crshared(dest) == 0, ("crcopy of shared ucred"));
+	KASSERT(dest->cr_ref == 1, ("crcopy of shared ucred"));
 	bcopy(&src->cr_startcopy, &dest->cr_startcopy,
 	    (unsigned)((caddr_t)&src->cr_endcopy -
 		(caddr_t)&src->cr_startcopy));
@@ -2004,7 +2000,7 @@ crextend(struct ucred *cr, int n)
 		cnt = roundup2(n, PAGE_SIZE / sizeof(gid_t));
 
 	/* Free the old array. */
-	if (cr->cr_groups)
+	if (cr->cr_groups != cr->cr_smallgroups)
 		free(cr->cr_groups, M_CRED);
 
 	cr->cr_groups = malloc(cnt * sizeof(gid_t), M_CRED, M_WAITOK | M_ZERO);
@@ -2073,21 +2069,20 @@ struct getlogin_args {
 int
 sys_getlogin(struct thread *td, struct getlogin_args *uap)
 {
-	int error;
 	char login[MAXLOGNAME];
 	struct proc *p = td->td_proc;
+	size_t len;
 
 	if (uap->namelen > MAXLOGNAME)
 		uap->namelen = MAXLOGNAME;
 	PROC_LOCK(p);
 	SESS_LOCK(p->p_session);
-	bcopy(p->p_session->s_login, login, uap->namelen);
+	len = strlcpy(login, p->p_session->s_login, uap->namelen) + 1;
 	SESS_UNLOCK(p->p_session);
 	PROC_UNLOCK(p);
-	if (strlen(login) + 1 > uap->namelen)
+	if (len > uap->namelen)
 		return (ERANGE);
-	error = copyout(login, uap->namebuf, uap->namelen);
-	return (error);
+	return (copyout(login, uap->namebuf, len));
 }
 
 /*
@@ -2106,21 +2101,23 @@ sys_setlogin(struct thread *td, struct setlogin_args *uap)
 	int error;
 	char logintmp[MAXLOGNAME];
 
+	CTASSERT(sizeof(p->p_session->s_login) >= sizeof(logintmp));
+
 	error = priv_check(td, PRIV_PROC_SETLOGIN);
 	if (error)
 		return (error);
 	error = copyinstr(uap->namebuf, logintmp, sizeof(logintmp), NULL);
-	if (error == ENAMETOOLONG)
-		error = EINVAL;
-	else if (!error) {
-		PROC_LOCK(p);
-		SESS_LOCK(p->p_session);
-		(void) memcpy(p->p_session->s_login, logintmp,
-		    sizeof(logintmp));
-		SESS_UNLOCK(p->p_session);
-		PROC_UNLOCK(p);
+	if (error != 0) {
+		if (error == ENAMETOOLONG)
+			error = EINVAL;
+		return (error);
 	}
-	return (error);
+	PROC_LOCK(p);
+	SESS_LOCK(p->p_session);
+	strcpy(p->p_session->s_login, logintmp);
+	SESS_UNLOCK(p->p_session);
+	PROC_UNLOCK(p);
+	return (0);
 }
 
 void

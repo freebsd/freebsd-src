@@ -99,7 +99,6 @@ static	d_poll_t	msepoll;
 
 static struct cdevsw mse_cdevsw = {
 	.d_version =	D_VERSION,
-	.d_flags =	D_NEEDGIANT,
 	.d_open =	mseopen,
 	.d_close =	mseclose,
 	.d_read =	mseread,
@@ -109,9 +108,10 @@ static struct cdevsw mse_cdevsw = {
 };
 
 static	void		mseintr(void *);
-static	timeout_t	msetimeout;
+static	void		mseintr_locked(mse_softc_t *sc);
+static	void		msetimeout(void *);
 
-#define	MSE_NBLOCKIO(dev)	dev2unit(dev)
+#define	MSE_NBLOCKIO(dev)	(dev2unit(dev) != 0)
 
 #define	MSEPRI	(PZERO + 3)
 
@@ -123,29 +123,65 @@ mse_common_attach(device_t dev)
 
 	sc = device_get_softc(dev);
 	unit = device_get_unit(dev);
+	mtx_init(&sc->sc_lock, "mse", NULL, MTX_DEF);
+	callout_init_mtx(&sc->sc_callout, &sc->sc_lock, 0);
 
 	rid = 0;
 	sc->sc_intr = bus_alloc_resource_any(dev, SYS_RES_IRQ, &rid,
 					     RF_ACTIVE);
 	if (sc->sc_intr == NULL) {
 		bus_release_resource(dev, SYS_RES_IOPORT, rid, sc->sc_port);
+		mtx_destroy(&sc->sc_lock);
 		return ENXIO;
 	}
 
-	if (bus_setup_intr(dev, sc->sc_intr,
-	    INTR_TYPE_TTY, NULL, mseintr, sc, &sc->sc_ih)) {
+	if (bus_setup_intr(dev, sc->sc_intr, INTR_TYPE_TTY | INTR_MPSAFE,
+	    NULL, mseintr, sc, &sc->sc_ih)) {
 		bus_release_resource(dev, SYS_RES_IOPORT, rid, sc->sc_port);
 		bus_release_resource(dev, SYS_RES_IRQ, rid, sc->sc_intr);
+		mtx_destroy(&sc->sc_lock);
 		return ENXIO;
 	}
 	flags = device_get_flags(dev);
 	sc->mode.accelfactor = (flags & MSE_CONFIG_ACCEL) >> 4;
-	callout_handle_init(&sc->sc_callout);
 
-	sc->sc_dev = make_dev(&mse_cdevsw, 0, 0, 0, 0600, "mse%d", unit);
+	sc->sc_dev = make_dev(&mse_cdevsw, 0, UID_ROOT, GID_WHEEL, 0600,
+	    "mse%d", unit);
 	sc->sc_dev->si_drv1 = sc;
-	sc->sc_ndev = make_dev(&mse_cdevsw, 1, 0, 0, 0600, "nmse%d", unit);
+	sc->sc_ndev = make_dev(&mse_cdevsw, 1, UID_ROOT, GID_WHEEL, 0600,
+	    "nmse%d", unit);
 	sc->sc_ndev->si_drv1 = sc;
+	return 0;
+}
+
+int
+mse_detach(device_t dev)
+{
+	mse_softc_t *sc;
+	int rid;
+
+	sc = device_get_softc(dev);
+	MSE_LOCK(sc);
+	if (sc->sc_flags & MSESC_OPEN) {
+		MSE_UNLOCK(sc);
+		return EBUSY;
+	}
+
+	/* Sabotage subsequent opens. */
+	sc->sc_mousetype = MSE_NONE;
+	MSE_UNLOCK(sc);
+
+	destroy_dev(sc->sc_dev);
+	destroy_dev(sc->sc_ndev);
+
+	rid = 0;
+	bus_teardown_intr(dev, sc->sc_intr, sc->sc_ih);
+	bus_release_resource(dev, SYS_RES_IRQ, rid, sc->sc_intr);
+	bus_release_resource(dev, SYS_RES_IOPORT, rid, sc->sc_port);
+
+	callout_drain(&sc->sc_callout);
+	mtx_destroy(&sc->sc_lock);
+
 	return 0;
 }
 
@@ -156,18 +192,22 @@ static	int
 mseopen(struct cdev *dev, int flags, int fmt, struct thread *td)
 {
 	mse_softc_t *sc = dev->si_drv1;
-	int s;
 
-	if (sc->sc_mousetype == MSE_NONE)
+	MSE_LOCK(sc);
+	if (sc->sc_mousetype == MSE_NONE) {
+		MSE_UNLOCK(sc);
 		return (ENXIO);
-	if (sc->sc_flags & MSESC_OPEN)
+	}
+	if (sc->sc_flags & MSESC_OPEN) {
+		MSE_UNLOCK(sc);
 		return (EBUSY);
+	}
 	sc->sc_flags |= MSESC_OPEN;
 	sc->sc_obuttons = sc->sc_buttons = MOUSE_MSC_BUTTONS;
 	sc->sc_deltax = sc->sc_deltay = 0;
 	sc->sc_bytesread = sc->mode.packetsize = MOUSE_MSC_PACKETSIZE;
 	sc->sc_watchdog = FALSE;
-	sc->sc_callout = timeout(msetimeout, dev, hz*2);
+	callout_reset(&sc->sc_callout, hz * 2, msetimeout, dev);
 	sc->mode.level = 0;
 	sc->status.flags = 0;
 	sc->status.button = sc->status.obutton = 0;
@@ -176,9 +216,8 @@ mseopen(struct cdev *dev, int flags, int fmt, struct thread *td)
 	/*
 	 * Initialize mouse interface and enable interrupts.
 	 */
-	s = spltty();
-	(*sc->sc_enablemouse)(sc->sc_iot, sc->sc_ioh);
-	splx(s);
+	(*sc->sc_enablemouse)(sc->sc_port);
+	MSE_UNLOCK(sc);
 	return (0);
 }
 
@@ -189,14 +228,12 @@ static	int
 mseclose(struct cdev *dev, int flags, int fmt, struct thread *td)
 {
 	mse_softc_t *sc = dev->si_drv1;
-	int s;
 
-	untimeout(msetimeout, dev, sc->sc_callout);
-	callout_handle_init(&sc->sc_callout);
-	s = spltty();
-	(*sc->sc_disablemouse)(sc->sc_iot, sc->sc_ioh);
+	MSE_LOCK(sc);
+	callout_stop(&sc->sc_callout);
+	(*sc->sc_disablemouse)(sc->sc_port);
 	sc->sc_flags &= ~MSESC_OPEN;
-	splx(s);
+	MSE_UNLOCK(sc);
 	return(0);
 }
 
@@ -209,27 +246,38 @@ static	int
 mseread(struct cdev *dev, struct uio *uio, int ioflag)
 {
 	mse_softc_t *sc = dev->si_drv1;
-	int xfer, s, error;
+	int xfer, error;
 
 	/*
 	 * If there are no protocol bytes to be read, set up a new protocol
 	 * packet.
 	 */
-	s = spltty(); /* XXX Should be its own spl, but where is imlXX() */
+	MSE_LOCK(sc);
+	while (sc->sc_flags & MSESC_READING) {
+		if (MSE_NBLOCKIO(dev)) {
+			MSE_UNLOCK(sc);
+			return (0);
+		}
+		sc->sc_flags |= MSESC_WANT;
+		error = mtx_sleep(sc, &sc->sc_lock, MSEPRI | PCATCH, "mseread",
+		    0);
+		if (error) {
+			MSE_UNLOCK(sc);
+			return (error);
+		}
+	}
+	sc->sc_flags |= MSESC_READING;
+	xfer = 0;
 	if (sc->sc_bytesread >= sc->mode.packetsize) {
 		while (sc->sc_deltax == 0 && sc->sc_deltay == 0 &&
 		       (sc->sc_obuttons ^ sc->sc_buttons) == 0) {
-			if (MSE_NBLOCKIO(dev)) {
-				splx(s);
-				return (0);
-			}
+			if (MSE_NBLOCKIO(dev))
+				goto out;
 			sc->sc_flags |= MSESC_WANT;
-			error = tsleep(sc, MSEPRI | PCATCH,
+			error = mtx_sleep(sc, &sc->sc_lock, MSEPRI | PCATCH,
 				"mseread", 0);
-			if (error) {
-				splx(s);
-				return (error);
-			}
+			if (error)
+				goto out;
 		}
 
 		/*
@@ -257,13 +305,21 @@ mseread(struct cdev *dev, struct uio *uio, int ioflag)
 		sc->sc_deltax = sc->sc_deltay = 0;
 		sc->sc_bytesread = 0;
 	}
-	splx(s);
 	xfer = min(uio->uio_resid, sc->mode.packetsize - sc->sc_bytesread);
+	MSE_UNLOCK(sc);
 	error = uiomove(&sc->sc_bytes[sc->sc_bytesread], xfer, uio);
-	if (error)
-		return (error);
-	sc->sc_bytesread += xfer;
-	return(0);
+	MSE_LOCK(sc);
+out:
+	sc->sc_flags &= ~MSESC_READING;
+	if (error == 0)
+		sc->sc_bytesread += xfer;
+	if (sc->sc_flags & MSESC_WANT) {
+		sc->sc_flags &= ~MSESC_WANT;
+		MSE_UNLOCK(sc);
+		wakeup(sc);
+	} else
+		MSE_UNLOCK(sc);
+	return (error);
 }
 
 /*
@@ -275,20 +331,19 @@ mseioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flag, struct thread *td
 	mse_softc_t *sc = dev->si_drv1;
 	mousestatus_t status;
 	int err = 0;
-	int s;
 
 	switch (cmd) {
 
 	case MOUSE_GETHWINFO:
-		s = spltty();
+		MSE_LOCK(sc);
 		*(mousehw_t *)addr = sc->hw;
 		if (sc->mode.level == 0)
 			((mousehw_t *)addr)->model = MOUSE_MODEL_GENERIC;
-		splx(s);
+		MSE_UNLOCK(sc);
 		break;
 
 	case MOUSE_GETMODE:
-		s = spltty();
+		MSE_LOCK(sc);
 		*(mousemode_t *)addr = sc->mode;
 		switch (sc->mode.level) {
 		case 0:
@@ -299,7 +354,7 @@ mseioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flag, struct thread *td
 	    		((mousemode_t *)addr)->syncmask[1] = MOUSE_SYS_SYNC;
 			break;
 		}
-		splx(s);
+		MSE_UNLOCK(sc);
 		break;
 
 	case MOUSE_SETMODE:
@@ -310,9 +365,11 @@ mseioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flag, struct thread *td
 		default:
 			return (EINVAL);
 		}
-		if (((mousemode_t *)addr)->accelfactor < -1)
+		MSE_LOCK(sc);
+		if (((mousemode_t *)addr)->accelfactor < -1) {
+			MSE_UNLOCK(sc);
 			return (EINVAL);
-		else if (((mousemode_t *)addr)->accelfactor >= 0)
+		} else if (((mousemode_t *)addr)->accelfactor >= 0)
 			sc->mode.accelfactor = 
 			    ((mousemode_t *)addr)->accelfactor;
 		sc->mode.level = ((mousemode_t *)addr)->level;
@@ -326,23 +383,30 @@ mseioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flag, struct thread *td
 			    = MOUSE_SYS_PACKETSIZE;
 			break;
 		}
+		MSE_UNLOCK(sc);
 		break;
 
 	case MOUSE_GETLEVEL:
+		MSE_LOCK(sc);
 		*(int *)addr = sc->mode.level;
+		MSE_UNLOCK(sc);
 		break;
 
 	case MOUSE_SETLEVEL:
 		switch (*(int *)addr) {
 		case 0:
+			MSE_LOCK(sc);
 			sc->mode.level = *(int *)addr;
 			sc->sc_bytesread = sc->mode.packetsize 
 			    = MOUSE_MSC_PACKETSIZE;
+			MSE_UNLOCK(sc);
 			break;
 		case 1:
+			MSE_LOCK(sc);
 			sc->mode.level = *(int *)addr;
 			sc->sc_bytesread = sc->mode.packetsize 
 			    = MOUSE_SYS_PACKETSIZE;
+			MSE_UNLOCK(sc);
 			break;
 		default:
 			return (EINVAL);
@@ -350,7 +414,7 @@ mseioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flag, struct thread *td
 		break;
 
 	case MOUSE_GETSTATUS:
-		s = spltty();
+		MSE_LOCK(sc);
 		status = sc->status;
 		sc->status.flags = 0;
 		sc->status.obutton = sc->status.button;
@@ -358,7 +422,7 @@ mseioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flag, struct thread *td
 		sc->status.dx = 0;
 		sc->status.dy = 0;
 		sc->status.dz = 0;
-		splx(s);
+		MSE_UNLOCK(sc);
 		*(mousestatus_t *)addr = status;
 		break;
 
@@ -385,24 +449,18 @@ static	int
 msepoll(struct cdev *dev, int events, struct thread *td)
 {
 	mse_softc_t *sc = dev->si_drv1;
-	int s;
 	int revents = 0;
 
-	s = spltty();
+	MSE_LOCK(sc);
 	if (events & (POLLIN | POLLRDNORM)) {
 		if (sc->sc_bytesread != sc->mode.packetsize ||
 		    sc->sc_deltax != 0 || sc->sc_deltay != 0 ||
 		    (sc->sc_obuttons ^ sc->sc_buttons) != 0)
 			revents |= events & (POLLIN | POLLRDNORM);
-		else {
-			/*
-			 * Since this is an exclusive open device, any previous
-			 * proc pointer is trash now, so we can just assign it.
-			 */
+		else
 			selrecord(td, &sc->sc_selp);
-		}
 	}
-	splx(s);
+	MSE_UNLOCK(sc);
 	return (revents);
 }
 
@@ -417,13 +475,14 @@ msetimeout(void *arg)
 
 	dev = (struct cdev *)arg;
 	sc = dev->si_drv1;
+	MSE_ASSERT_LOCKED(sc);
 	if (sc->sc_watchdog) {
 		if (bootverbose)
 			printf("%s: lost interrupt?\n", devtoname(dev));
-		mseintr(sc);
+		mseintr_locked(sc);
 	}
 	sc->sc_watchdog = TRUE;
-	sc->sc_callout = timeout(msetimeout, dev, hz);
+	callout_schedule(&sc->sc_callout, hz);
 }
 
 /*
@@ -431,6 +490,16 @@ msetimeout(void *arg)
  */
 static void
 mseintr(void *arg)
+{
+	mse_softc_t *sc = arg;
+
+	MSE_LOCK(sc);
+	mseintr_locked(sc);
+	MSE_UNLOCK(sc);
+}
+
+static void
+mseintr_locked(mse_softc_t *sc)
 {
 	/*
 	 * the table to turn MouseSystem button bits (MOUSE_MSC_BUTTON?UP)
@@ -446,7 +515,6 @@ mseintr(void *arg)
 		MOUSE_BUTTON1DOWN | MOUSE_BUTTON2DOWN,
         	MOUSE_BUTTON1DOWN | MOUSE_BUTTON2DOWN | MOUSE_BUTTON3DOWN
 	};
-	mse_softc_t *sc = arg;
 	int dx, dy, but;
 	int sign;
 
@@ -458,7 +526,7 @@ mseintr(void *arg)
 	if ((sc->sc_flags & MSESC_OPEN) == 0)
 		return;
 
-	(*sc->sc_getmouse)(sc->sc_iot, sc->sc_ioh, &dx, &dy, &but);
+	(*sc->sc_getmouse)(sc->sc_port, &dx, &dy, &but);
 	if (sc->mode.accelfactor > 0) {
 		sign = (dx < 0);
 		dx = dx * dx / sc->mode.accelfactor;

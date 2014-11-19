@@ -35,7 +35,7 @@ LDNSDIR=	${.CURDIR}/../../../contrib/ldns
 CFLAGS+=	-DHAVE_LDNS=1 -I${LDNSDIR}
 SRCS+=	getrrsetbyname-ldns.c
 DPADD+=	${LIBLDNS}
-LDADD+=	-lldns
+LDADD+=	${LDLDNS}
 USEPRIVATELIB+= ldns
 .endif
 

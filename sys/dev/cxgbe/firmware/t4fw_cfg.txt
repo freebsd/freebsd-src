@@ -28,8 +28,8 @@
 	tp_ntxch = 0
 
 	# TP rx and tx payload memory (% of the total EDRAM + DDR3).
-	tp_pmrx = 38
-	tp_pmtx = 60
+	tp_pmrx = 38, 512
+	tp_pmtx = 60, 512
 	tp_pmrx_pagesize = 64K
 	tp_pmtx_pagesize = 64K
 
@@ -41,26 +41,34 @@
 [function "0"]
 	nvf = 16
 	nvi = 1
+	rssnvi = 0
 [function "0/*"]
 	nvi = 1
+	rssnvi = 0
 
 [function "1"]
 	nvf = 16
 	nvi = 1
+	rssnvi = 0
 [function "1/*"]
 	nvi = 1
+	rssnvi = 0
 
 [function "2"]
 	nvf = 16
 	nvi = 1
+	rssnvi = 0
 [function "2/*"]
 	nvi = 1
+	rssnvi = 0
 
 [function "3"]
 	nvf = 16
 	nvi = 1
+	rssnvi = 0
 [function "3/*"]
 	nvi = 1
+	rssnvi = 0
 
 # PF4 is the resource-rich PF that the bus/nexus driver attaches to.
 # It gets 32 MSI/128 MSI-X vectors.
@@ -68,9 +76,10 @@
 	wx_caps = all
 	r_caps = all
 	nvi = 32
-	niqflint = 256
-	nethctrl = 128
-	neq = 256
+	rssnvi = 8
+	niqflint = 512
+	nethctrl = 1024
+	neq = 2048
 	nexactf = 328
 	cmask = all
 	pmask = all
@@ -94,11 +103,13 @@
 # Not used right now.
 [function "5"]
 	nvi = 1
+	rssnvi = 0
 
 # PF6 is the FCoE Controller PF. It gets 32 MSI/40 MSI-X vectors.
 # Not used right now.
 [function "6"]
 	nvi = 1
+	rssnvi = 0
 
 # The following function, 1023, is not an actual PCIE function but is used to
 # configure and reserve firmware internal resources that come from the global
@@ -107,6 +118,7 @@
 	wx_caps = all
 	r_caps = all
 	nvi = 4
+	rssnvi = 0
 	cmask = all
 	pmask = all
 	nexactf = 8
@@ -148,7 +160,7 @@
 
 [fini]
 	version = 0x1
-	checksum = 0x6f516705
+	checksum = 0xb4168add
 #
 # $FreeBSD$
 #

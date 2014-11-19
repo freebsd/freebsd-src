@@ -184,7 +184,7 @@ struct fwohcidb {
 
 #define FWOHCIEV_MASK 0x1f
 
-struct ohci_dma{
+struct ohci_dma {
 	fwohcireg_t	cntl;
 
 #define	OHCI_CNTL_CYCMATCH_S	(0x1 << 31)
@@ -211,7 +211,7 @@ struct ohci_dma{
 	fwohcireg_t	dummy3;
 };
 
-struct ohci_itdma{
+struct ohci_itdma {
 	fwohcireg_t	cntl;
 	fwohcireg_t	cntl_clr;
 	fwohcireg_t	dummy0;
@@ -237,7 +237,7 @@ struct ohci_registers {
 	fwohcireg_t	config_rom;	/* config ROM map 0x34 */
 	fwohcireg_t	post_wr_lo;	/* post write addr lo 0x38 */
 	fwohcireg_t	post_wr_hi;	/* post write addr hi 0x3c */
-	fwohcireg_t	vender;		/* vender ID 0x40 */
+	fwohcireg_t	vendor;		/* vendor ID 0x40 */
 	fwohcireg_t	dummy1[3];	/* dummy 0x44-0x4c */
 	fwohcireg_t	hcc_cntl_set;	/* HCC control set 0x50 */
 	fwohcireg_t	hcc_cntl_clr;	/* HCC control clr 0x54 */
@@ -308,7 +308,7 @@ struct ohci_registers {
 	fwohcireg_t	pys_upper;	/* Physical Upper bound 0x120 */
 
 	fwohcireg_t	dummy7[23];	/* dummy 0x124-0x17c */
-	
+
 	/*       0x180, 0x184, 0x188, 0x18c */
 	/*       0x190, 0x194, 0x198, 0x19c */
 	/*       0x1a0, 0x1a4, 0x1a8, 0x1ac */
@@ -328,7 +328,7 @@ struct ohci_registers {
 	struct ohci_dma dma_irch[0x20];
 };
 
-struct fwohcidb_tr{
+struct fwohcidb_tr {
 	STAILQ_ENTRY(fwohcidb_tr) link;
 	struct fw_xfer *xfer;
 	struct fwohcidb *db;
@@ -341,8 +341,8 @@ struct fwohcidb_tr{
 /*
  * OHCI info structure.
  */
-struct fwohci_txpkthdr{
-	union{
+struct fwohci_txpkthdr {
+	union {
 		uint32_t ld[4];
 		struct {
 #if BYTE_ORDER == BIG_ENDIAN
@@ -376,7 +376,7 @@ struct fwohci_txpkthdr{
 				 :8;
 #endif
 			BIT16x2(dst, );
-		}asycomm;
+		} asycomm;
 		struct {
 #if BYTE_ORDER == BIG_ENDIAN
 			uint32_t :13,
@@ -392,16 +392,17 @@ struct fwohci_txpkthdr{
 				 :13;
 #endif
 			BIT16x2(len, );
-		}stream;
-	}mode;
+		} stream;
+	} mode;
 };
-struct fwohci_trailer{
+
+struct fwohci_trailer {
 #if BYTE_ORDER == BIG_ENDIAN
 	uint32_t stat:16,
-		  time:16;
+		 time:16;
 #else
 	uint32_t time:16,
-		  stat:16;
+		 stat:16;
 #endif
 };
 
@@ -412,7 +413,7 @@ struct fwohci_trailer{
 #define	OHCI_CNTL_SID		(0x1 << 9)
 
 /*
- * defined in OHCI 1.1 
+ * defined in OHCI 1.1
  * chapter 6.1
  */
 #define OHCI_INT_DMA_ATRQ	(0x1 << 0)

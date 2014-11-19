@@ -38,7 +38,6 @@ __FBSDID("$FreeBSD$");
 #include "opt_capsicum.h"
 #include "opt_inet.h"
 #include "opt_inet6.h"
-#include "opt_sctp.h"
 #include "opt_compat.h"
 #include "opt_ktrace.h"
 
@@ -64,8 +63,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/protosw.h>
 #include <sys/rwlock.h>
 #include <sys/sf_buf.h>
-#include <sys/sf_sync.h>
-#include <sys/sf_base.h>
 #include <sys/sysent.h>
 #include <sys/socket.h>
 #include <sys/socketvar.h>
@@ -95,13 +92,6 @@ __FBSDID("$FreeBSD$");
 #include <vm/vm_extern.h>
 #include <vm/uma.h>
 
-#if defined(INET) || defined(INET6)
-#ifdef SCTP
-#include <netinet/sctp.h>
-#include <netinet/sctp_peeloff.h>
-#endif /* SCTP */
-#endif /* INET || INET6 */
-
 /*
  * Flags for accept1() and kern_accept4(), in addition to SOCK_CLOEXEC
  * and SOCK_NONBLOCK.
@@ -123,10 +113,6 @@ static int getpeername1(struct thread *td, struct getpeername_args *uap,
 
 counter_u64_t sfstat[sizeof(struct sfstat) / sizeof(uint64_t)];
 
-static int	filt_sfsync_attach(struct knote *kn);
-static void	filt_sfsync_detach(struct knote *kn);
-static int	filt_sfsync(struct knote *kn, long hint);
-
 /*
  * sendfile(2)-related variables and associated sysctls
  */
@@ -136,28 +122,6 @@ static int sfreadahead = 1;
 SYSCTL_INT(_kern_ipc_sendfile, OID_AUTO, readahead, CTLFLAG_RW,
     &sfreadahead, 0, "Number of sendfile(2) read-ahead MAXBSIZE blocks");
 
-#ifdef	SFSYNC_DEBUG
-static int sf_sync_debug = 0;
-SYSCTL_INT(_debug, OID_AUTO, sf_sync_debug, CTLFLAG_RW,
-    &sf_sync_debug, 0, "Output debugging during sf_sync lifecycle");
-#define	SFSYNC_DPRINTF(s, ...)				\
-		do {					\
-			if (sf_sync_debug)		\
-				printf((s), ##__VA_ARGS__); \
-		} while (0)
-#else
-#define	SFSYNC_DPRINTF(c, ...)
-#endif
-
-static uma_zone_t	zone_sfsync;
-
-static struct filterops sendfile_filtops = {
-	.f_isfd = 0,
-	.f_attach = filt_sfsync_attach,
-	.f_detach = filt_sfsync_detach,
-	.f_event = filt_sfsync,
-};
-
 static void
 sfstat_init(const void *unused)
 {
@@ -166,19 +130,6 @@ sfstat_init(const void *unused)
 	    M_WAITOK);
 }
 SYSINIT(sfstat, SI_SUB_MBUF, SI_ORDER_FIRST, sfstat_init, NULL);
-
-static void
-sf_sync_init(const void *unused)
-{
-
-	zone_sfsync = uma_zcreate("sendfile_sync", sizeof(struct sendfile_sync),
-	    NULL, NULL,
-	    NULL, NULL,
-	    UMA_ALIGN_CACHE,
-	    0);
-	kqueue_add_filteropts(EVFILT_SENDFILE, &sendfile_filtops);
-}
-SYSINIT(sf_sync, SI_SUB_MBUF, SI_ORDER_FIRST, sf_sync_init, NULL);
 
 static int
 sfstat_sysctl(SYSCTL_HANDLER_ARGS)
@@ -198,7 +149,7 @@ SYSCTL_PROC(_kern_ipc, OID_AUTO, sfstat, CTLTYPE_OPAQUE | CTLFLAG_RW,
  * capability rights are present.
  * A reference on the file entry is held upon returning.
  */
-static int
+int
 getsock_cap(struct filedesc *fdp, int fd, cap_rights_t *rightsp,
     struct file **fpp, u_int *fflagp)
 {
@@ -291,13 +242,13 @@ sys_bind(td, uap)
 
 	error = getsockaddr(&sa, uap->name, uap->namelen);
 	if (error == 0) {
-		error = kern_bind(td, uap->s, sa);
+		error = kern_bindat(td, AT_FDCWD, uap->s, sa);
 		free(sa, M_SONAME);
 	}
 	return (error);
 }
 
-static int
+int
 kern_bindat(struct thread *td, int dirfd, int fd, struct sockaddr *sa)
 {
 	struct socket *so;
@@ -329,13 +280,6 @@ kern_bindat(struct thread *td, int dirfd, int fd, struct sockaddr *sa)
 #endif
 	fdrop(fp, td);
 	return (error);
-}
-
-int
-kern_bind(struct thread *td, int fd, struct sockaddr *sa)
-{
-
-	return (kern_bindat(td, AT_FDCWD, fd, sa));
 }
 
 /* ARGSUSED */
@@ -644,13 +588,13 @@ sys_connect(td, uap)
 
 	error = getsockaddr(&sa, uap->name, uap->namelen);
 	if (error == 0) {
-		error = kern_connect(td, uap->s, sa);
+		error = kern_connectat(td, AT_FDCWD, uap->s, sa);
 		free(sa, M_SONAME);
 	}
 	return (error);
 }
 
-static int
+int
 kern_connectat(struct thread *td, int dirfd, int fd, struct sockaddr *sa)
 {
 	struct socket *so;
@@ -711,13 +655,6 @@ bad:
 done1:
 	fdrop(fp, td);
 	return (error);
-}
-
-int
-kern_connect(struct thread *td, int fd, struct sockaddr *sa)
-{
-
-	return (kern_connectat(td, AT_FDCWD, fd, sa));
 }
 
 /* ARGSUSED */
@@ -1872,116 +1809,11 @@ getsockaddr(namp, uaddr, len)
 	return (error);
 }
 
-static int
-filt_sfsync_attach(struct knote *kn)
-{
-	struct sendfile_sync *sfs = (struct sendfile_sync *) kn->kn_sdata;
-	struct knlist *knl = &sfs->klist;
-
-	SFSYNC_DPRINTF("%s: kn=%p, sfs=%p\n", __func__, kn, sfs);
-
-	/*
-	 * Validate that we actually received this via the kernel API.
-	 */
-	if ((kn->kn_flags & EV_FLAG1) == 0)
-		return (EPERM);
-
-	kn->kn_ptr.p_v = sfs;
-	kn->kn_flags &= ~EV_FLAG1;
-
-	knl->kl_lock(knl->kl_lockarg);
-	/*
-	 * If we're in the "freeing" state,
-	 * don't allow the add.  That way we don't
-	 * end up racing with some other thread that
-	 * is trying to finish some setup.
-	 */
-	if (sfs->state == SF_STATE_FREEING) {
-		knl->kl_unlock(knl->kl_lockarg);
-		return (EINVAL);
-	}
-	knlist_add(&sfs->klist, kn, 1);
-	knl->kl_unlock(knl->kl_lockarg);
-
-	return (0);
-}
-
-/*
- * Called when a knote is being detached.
- */
-static void
-filt_sfsync_detach(struct knote *kn)
-{
-	struct knlist *knl;
-	struct sendfile_sync *sfs;
-	int do_free = 0;
-
-	sfs = kn->kn_ptr.p_v;
-	knl = &sfs->klist;
-
-	SFSYNC_DPRINTF("%s: kn=%p, sfs=%p\n", __func__, kn, sfs);
-
-	knl->kl_lock(knl->kl_lockarg);
-	if (!knlist_empty(knl))
-		knlist_remove(knl, kn, 1);
-
-	/*
-	 * If the list is empty _AND_ the refcount is 0
-	 * _AND_ we've finished the setup phase and now
-	 * we're in the running phase, we can free the
-	 * underlying sendfile_sync.
-	 *
-	 * But we shouldn't do it before finishing the
-	 * underlying divorce from the knote.
-	 *
-	 * So, we have the sfsync lock held; transition
-	 * it to "freeing", then unlock, then free
-	 * normally.
-	 */
-	if (knlist_empty(knl)) {
-		if (sfs->state == SF_STATE_COMPLETED && sfs->count == 0) {
-			SFSYNC_DPRINTF("%s: (%llu) sfs=%p; completed, "
-			    "count==0, empty list: time to free!\n",
-			    __func__,
-			    (unsigned long long) curthread->td_tid,
-			    sfs);
-			sf_sync_set_state(sfs, SF_STATE_FREEING, 1);
-			do_free = 1;
-		}
-	}
-	knl->kl_unlock(knl->kl_lockarg);
-
-	/*
-	 * Only call free if we're the one who has transitioned things
-	 * to free.  Otherwise we could race with another thread that
-	 * is currently tearing things down.
-	 */
-	if (do_free == 1) {
-		SFSYNC_DPRINTF("%s: (%llu) sfs=%p, %s:%d\n",
-		    __func__,
-		    (unsigned long long) curthread->td_tid,
-		    sfs,
-		    __FILE__,
-		    __LINE__);
-		sf_sync_free(sfs);
-	}
-}
-
-static int
-filt_sfsync(struct knote *kn, long hint)
-{
-	struct sendfile_sync *sfs = (struct sendfile_sync *) kn->kn_ptr.p_v;
-	int ret;
-
-	SFSYNC_DPRINTF("%s: kn=%p, sfs=%p\n", __func__, kn, sfs);
-
-	/*
-	 * XXX add a lock assertion here!
-	 */
-	ret = (sfs->count == 0 && sfs->state == SF_STATE_COMPLETED);
-
-	return (ret);
-}
+struct sendfile_sync {
+	struct mtx	mtx;
+	struct cv	cv;
+	unsigned	count;
+};
 
 /*
  * Add more references to a vm_page + sf_buf + sendfile_sync.
@@ -1993,8 +1825,7 @@ sf_ext_ref(void *arg1, void *arg2)
 	struct sendfile_sync *sfs = arg2;
 	vm_page_t pg = sf_buf_page(sf);
 
-	/* XXXGL: there should be sf_buf_ref() */
-	sf_buf_alloc(sf_buf_page(sf), SFB_NOWAIT);
+	sf_buf_ref(sf);
 
 	vm_page_lock(pg);
 	vm_page_wire(pg);
@@ -2031,344 +1862,13 @@ sf_ext_free(void *arg1, void *arg2)
 		vm_page_free(pg);
 	vm_page_unlock(pg);
 
-	if (sfs != NULL)
-		sf_sync_deref(sfs);
-}
-
-/*
- * Called to remove a reference to a sf_sync object.
- *
- * This is generally done during the mbuf free path to signify
- * that one of the mbufs in the transaction has been completed.
- *
- * If we're doing SF_SYNC and the refcount is zero then we'll wake
- * up any waiters.
- *
- * IF we're doing SF_KQUEUE and the refcount is zero then we'll
- * fire off the knote.
- */
-void
-sf_sync_deref(struct sendfile_sync *sfs)
-{
-	int do_free = 0;
-
-	if (sfs == NULL)
-		return;
-
-	mtx_lock(&sfs->mtx);
-	KASSERT(sfs->count> 0, ("Sendfile sync botchup count == 0"));
-	sfs->count --;
-
-	/*
-	 * Only fire off the wakeup / kqueue notification if
-	 * we are in the running state.
-	 */
-	if (sfs->count == 0 && sfs->state == SF_STATE_COMPLETED) {
-		if (sfs->flags & SF_SYNC)
-			cv_signal(&sfs->cv);
-
-		if (sfs->flags & SF_KQUEUE) {
-			SFSYNC_DPRINTF("%s: (%llu) sfs=%p: knote!\n",
-			    __func__,
-			    (unsigned long long) curthread->td_tid,
-			    sfs);
-			KNOTE_LOCKED(&sfs->klist, 1);
-		}
-
-		/*
-		 * If we're not waiting around for a sync,
-		 * check if the knote list is empty.
-		 * If it is, we transition to free.
-		 *
-		 * XXX I think it's about time I added some state
-		 * or flag that says whether we're supposed to be
-		 * waiting around until we've done a signal.
-		 *
-		 * XXX Ie, the reason that I don't free it here
-		 * is because the caller will free the last reference,
-		 * not us.  That should be codified in some flag
-		 * that indicates "self-free" rather than checking
-		 * for SF_SYNC all the time.
-		 */
-		if ((sfs->flags & SF_SYNC) == 0 && knlist_empty(&sfs->klist)) {
-			SFSYNC_DPRINTF("%s: (%llu) sfs=%p; completed, "
-			    "count==0, empty list: time to free!\n",
-			    __func__,
-			    (unsigned long long) curthread->td_tid,
-			    sfs);
-			sf_sync_set_state(sfs, SF_STATE_FREEING, 1);
-			do_free = 1;
-		}
-
-	}
-	mtx_unlock(&sfs->mtx);
-
-	/*
-	 * Attempt to do a free here.
-	 *
-	 * We do this outside of the lock because it may destroy the
-	 * lock in question as it frees things.  We can optimise this
-	 * later.
-	 *
-	 * XXX yes, we should make it a requirement to hold the
-	 * lock across sf_sync_free().
-	 */
-	if (do_free == 1) {
-		SFSYNC_DPRINTF("%s: (%llu) sfs=%p\n",
-		    __func__,
-		    (unsigned long long) curthread->td_tid,
-		    sfs);
-		sf_sync_free(sfs);
-	}
-}
-
-/*
- * Allocate a sendfile_sync state structure.
- *
- * For now this only knows about the "sleep" sync, but later it will
- * grow various other personalities.
- */
-struct sendfile_sync *
-sf_sync_alloc(uint32_t flags)
-{
-	struct sendfile_sync *sfs;
-
-	sfs = uma_zalloc(zone_sfsync, M_WAITOK | M_ZERO);
-	mtx_init(&sfs->mtx, "sendfile", NULL, MTX_DEF);
-	cv_init(&sfs->cv, "sendfile");
-	sfs->flags = flags;
-	sfs->state = SF_STATE_SETUP;
-	knlist_init_mtx(&sfs->klist, &sfs->mtx);
-
-	SFSYNC_DPRINTF("%s: sfs=%p, flags=0x%08x\n", __func__, sfs, sfs->flags);
-
-	return (sfs);
-}
-
-/*
- * Take a reference to a sfsync instance.
- *
- * This has to map 1:1 to free calls coming in via sf_ext_free(),
- * so typically this will be referenced once for each mbuf allocated.
- */
-void
-sf_sync_ref(struct sendfile_sync *sfs)
-{
-
-	if (sfs == NULL)
-		return;
-
-	mtx_lock(&sfs->mtx);
-	sfs->count++;
-	mtx_unlock(&sfs->mtx);
-}
-
-void
-sf_sync_syscall_wait(struct sendfile_sync *sfs)
-{
-
-	if (sfs == NULL)
-		return;
-
-	KASSERT(mtx_owned(&sfs->mtx), ("%s: sfs=%p: not locked but should be!",
-	    __func__,
-	    sfs));
-
-	/*
-	 * If we're not requested to wait during the syscall,
-	 * don't bother waiting.
-	 */
-	if ((sfs->flags & SF_SYNC) == 0)
-		goto out;
-
-	/*
-	 * This is a bit suboptimal and confusing, so bear with me.
-	 *
-	 * Ideally sf_sync_syscall_wait() will wait until
-	 * all pending mbuf transmit operations are done.
-	 * This means that when sendfile becomes async, it'll
-	 * run in the background and will transition from
-	 * RUNNING to COMPLETED when it's finished acquiring
-	 * new things to send.  Then, when the mbufs finish
-	 * sending, COMPLETED + sfs->count == 0 is enough to
-	 * know that no further work is being done.
-	 *
-	 * So, we will sleep on both RUNNING and COMPLETED.
-	 * It's up to the (in progress) async sendfile loop
-	 * to transition the sf_sync from RUNNING to
-	 * COMPLETED so the wakeup above will actually
-	 * do the cv_signal() call.
-	 */
-	if (sfs->state != SF_STATE_COMPLETED && sfs->state != SF_STATE_RUNNING)
-		goto out;
-
-	if (sfs->count != 0)
-		cv_wait(&sfs->cv, &sfs->mtx);
-	KASSERT(sfs->count == 0, ("sendfile sync still busy"));
-
-out:
-	return;
-}
-
-/*
- * Free an sf_sync if it's appropriate to.
- */
-void
-sf_sync_free(struct sendfile_sync *sfs)
-{
-
-	if (sfs == NULL)
-		return;
-
-	SFSYNC_DPRINTF("%s: (%lld) sfs=%p; called; state=%d, flags=0x%08x "
-	    "count=%d\n",
-	    __func__,
-	    (long long) curthread->td_tid,
-	    sfs,
-	    sfs->state,
-	    sfs->flags,
-	    sfs->count);
-
-	mtx_lock(&sfs->mtx);
-
-	/*
-	 * We keep the sf_sync around if the state is active,
-	 * we are doing kqueue notification and we have active
-	 * knotes.
-	 *
-	 * If the caller wants to free us right this second it
-	 * should transition this to the freeing state.
-	 *
-	 * So, complain loudly if they break this rule.
-	 */
-	if (sfs->state != SF_STATE_FREEING) {
-		printf("%s: (%llu) sfs=%p; not freeing; let's wait!\n",
-		    __func__,
-		    (unsigned long long) curthread->td_tid,
-		    sfs);
-		mtx_unlock(&sfs->mtx);
-		return;
-	}
-
-	KASSERT(sfs->count == 0, ("sendfile sync still busy"));
-	cv_destroy(&sfs->cv);
-	/*
-	 * This doesn't call knlist_detach() on each knote; it just frees
-	 * the entire list.
-	 */
-	knlist_delete(&sfs->klist, curthread, 1);
-	mtx_destroy(&sfs->mtx);
-	SFSYNC_DPRINTF("%s: (%llu) sfs=%p; freeing\n",
-	    __func__,
-	    (unsigned long long) curthread->td_tid,
-	    sfs);
-	uma_zfree(zone_sfsync, sfs);
-}
-
-/*
- * Setup a sf_sync to post a kqueue notification when things are complete.
- */
-int
-sf_sync_kqueue_setup(struct sendfile_sync *sfs, struct sf_hdtr_kq *sfkq)
-{
-	struct kevent kev;
-	int error;
-
-	sfs->flags |= SF_KQUEUE;
-
-	/* Check the flags are valid */
-	if ((sfkq->kq_flags & ~(EV_CLEAR | EV_DISPATCH | EV_ONESHOT)) != 0)
-		return (EINVAL);
-
-	SFSYNC_DPRINTF("%s: sfs=%p: kqfd=%d, flags=0x%08x, ident=%p, udata=%p\n",
-	    __func__,
-	    sfs,
-	    sfkq->kq_fd,
-	    sfkq->kq_flags,
-	    (void *) sfkq->kq_ident,
-	    (void *) sfkq->kq_udata);
-
-	/* Setup and register a knote on the given kqfd. */
-	kev.ident = (uintptr_t) sfkq->kq_ident;
-	kev.filter = EVFILT_SENDFILE;
-	kev.flags = EV_ADD | EV_ENABLE | EV_FLAG1 | sfkq->kq_flags;
-	kev.data = (intptr_t) sfs;
-	kev.udata = sfkq->kq_udata;
-
-	error = kqfd_register(sfkq->kq_fd, &kev, curthread, 1);
-	if (error != 0) {
-		SFSYNC_DPRINTF("%s: returned %d\n", __func__, error);
-	}
-	return (error);
-}
-
-void
-sf_sync_set_state(struct sendfile_sync *sfs, sendfile_sync_state_t state,
-    int islocked)
-{
-	sendfile_sync_state_t old_state;
-
-	if (! islocked)
+	if (sfs != NULL) {
 		mtx_lock(&sfs->mtx);
-
-	/*
-	 * Update our current state.
-	 */
-	old_state = sfs->state;
-	sfs->state = state;
-	SFSYNC_DPRINTF("%s: (%llu) sfs=%p; going from %d to %d\n",
-	    __func__,
-	    (unsigned long long) curthread->td_tid,
-	    sfs,
-	    old_state,
-	    state);
-
-	/*
-	 * If we're transitioning from RUNNING to COMPLETED and the count is
-	 * zero, then post the knote.  The caller may have completed the
-	 * send before we updated the state to COMPLETED and we need to make
-	 * sure this is communicated.
-	 */
-	if (old_state == SF_STATE_RUNNING
-	    && state == SF_STATE_COMPLETED
-	    && sfs->count == 0
-	    && sfs->flags & SF_KQUEUE) {
-		SFSYNC_DPRINTF("%s: (%llu) sfs=%p: triggering knote!\n",
-		    __func__,
-		    (unsigned long long) curthread->td_tid,
-		    sfs);
-		KNOTE_LOCKED(&sfs->klist, 1);
-	}
-
-	if (! islocked)
+		KASSERT(sfs->count > 0, ("Sendfile sync botchup count == 0"));
+		if (--sfs->count == 0)
+			cv_signal(&sfs->cv);
 		mtx_unlock(&sfs->mtx);
-}
-
-/*
- * Set the retval/errno for the given transaction.
- *
- * This will eventually/ideally be used when the KNOTE is fired off
- * to signify the completion of this transaction.
- *
- * The sfsync lock should be held before entering this function.
- */
-void
-sf_sync_set_retval(struct sendfile_sync *sfs, off_t retval, int xerrno)
-{
-
-	KASSERT(mtx_owned(&sfs->mtx), ("%s: sfs=%p: not locked but should be!",
-	    __func__,
-	    sfs));
-
-	SFSYNC_DPRINTF("%s: (%llu) sfs=%p: errno=%d, retval=%jd\n",
-	    __func__,
-	    (unsigned long long) curthread->td_tid,
-	    sfs,
-	    xerrno,
-	    (intmax_t) retval);
-
-	sfs->retval = retval;
-	sfs->xerrno = xerrno;
+	}
 }
 
 /*
@@ -2389,174 +1889,15 @@ sys_sendfile(struct thread *td, struct sendfile_args *uap)
 	return (do_sendfile(td, uap, 0));
 }
 
-int
-_do_sendfile(struct thread *td, int src_fd, int sock_fd, int flags,
-    int compat, off_t offset, size_t nbytes, off_t *sbytes,
-    struct uio *hdr_uio,
-    struct uio *trl_uio, struct sf_hdtr_kq *hdtr_kq)
-{
-	cap_rights_t rights;
-	struct sendfile_sync *sfs = NULL;
-	struct file *fp;
-	int error;
-	int do_kqueue = 0;
-	int do_free = 0;
-
-	AUDIT_ARG_FD(src_fd);
-
-	if (hdtr_kq != NULL)
-		do_kqueue = 1;
-
-	/*
-	 * sendfile(2) can start at any offset within a file so we require
-	 * CAP_READ+CAP_SEEK = CAP_PREAD.
-	 */
-	if ((error = fget_read(td, src_fd,
-	    cap_rights_init(&rights, CAP_PREAD), &fp)) != 0) {
-		goto out;
-	}
-
-	/*
-	 * IF SF_KQUEUE is set but we haven't copied in anything for
-	 * kqueue data, error out.
-	 */
-	if (flags & SF_KQUEUE && do_kqueue == 0) {
-		SFSYNC_DPRINTF("%s: SF_KQUEUE but no KQUEUE data!\n", __func__);
-		goto out;
-	}
-
-	/*
-	 * If we need to wait for completion, initialise the sfsync
-	 * state here.
-	 */
-	if (flags & (SF_SYNC | SF_KQUEUE))
-		sfs = sf_sync_alloc(flags & (SF_SYNC | SF_KQUEUE));
-
-	if (flags & SF_KQUEUE) {
-		error = sf_sync_kqueue_setup(sfs, hdtr_kq);
-		if (error) {
-			SFSYNC_DPRINTF("%s: (%llu) error; sfs=%p\n",
-			    __func__,
-			    (unsigned long long) curthread->td_tid,
-			    sfs);
-			sf_sync_set_state(sfs, SF_STATE_FREEING, 0);
-			sf_sync_free(sfs);
-			goto out;
-		}
-	}
-
-	/*
-	 * Do the sendfile call.
-	 *
-	 * If this fails, it'll free the mbuf chain which will free up the
-	 * sendfile_sync references.
-	 */
-	error = fo_sendfile(fp, sock_fd, hdr_uio, trl_uio, offset,
-	    nbytes, sbytes, flags, compat ? SFK_COMPAT : 0, sfs, td);
-
-	/*
-	 * If the sendfile call succeeded, transition the sf_sync state
-	 * to RUNNING, then COMPLETED.
-	 *
-	 * If the sendfile call failed, then the sendfile call may have
-	 * actually sent some data first - so we check to see whether
-	 * any data was sent.  If some data was queued (ie, count > 0)
-	 * then we can't call free; we have to wait until the partial
-	 * transaction completes before we continue along.
-	 *
-	 * This has the side effect of firing off the knote
-	 * if the refcount has hit zero by the time we get here.
-	 */
-	if (sfs != NULL) {
-		mtx_lock(&sfs->mtx);
-		if (error == 0 || sfs->count > 0) {
-			/*
-			 * When it's time to do async sendfile, the transition
-			 * to RUNNING signifies that we're actually actively
-			 * adding and completing mbufs.  When the last disk
-			 * buffer is read (ie, when we're not doing any
-			 * further read IO and all subsequent stuff is mbuf
-			 * transmissions) we'll transition to COMPLETED
-			 * and when the final mbuf is freed, the completion
-			 * will be signaled.
-			 */
-			sf_sync_set_state(sfs, SF_STATE_RUNNING, 1);
-
-			/*
-			 * Set the retval before we signal completed.
-			 * If we do it the other way around then transitioning to
-			 * COMPLETED may post the knote before you set the return
-			 * status!
-			 *
-			 * XXX for now, errno is always 0, as we don't post
-			 * knotes if sendfile failed.  Maybe that'll change later.
-			 */
-			sf_sync_set_retval(sfs, *sbytes, error);
-
-			/*
-			 * And now transition to completed, which will kick off
-			 * the knote if required.
-			 */
-			sf_sync_set_state(sfs, SF_STATE_COMPLETED, 1);
-		} else {
-			/*
-			 * Error isn't zero, sfs_count is zero, so we
-			 * won't have some other thing to wake things up.
-			 * Thus free.
-			 */
-			sf_sync_set_state(sfs, SF_STATE_FREEING, 1);
-			do_free = 1;
-		}
-
-		/*
-		 * Next - wait if appropriate.
-		 */
-		sf_sync_syscall_wait(sfs);
-
-		/*
-		 * If we're not doing kqueue notifications, we can
-		 * transition this immediately to the freeing state.
-		 */
-		if ((sfs->flags & SF_KQUEUE) == 0) {
-			sf_sync_set_state(sfs, SF_STATE_FREEING, 1);
-			do_free = 1;
-		}
-
-		mtx_unlock(&sfs->mtx);
-	}
-
-	/*
-	 * If do_free is set, free here.
-	 *
-	 * If we're doing no-kqueue notification and it's just sleep notification,
-	 * we also do free; it's the only chance we have.
-	 */
-	if (sfs != NULL && do_free == 1) {
-		sf_sync_free(sfs);
-	}
-
-	/*
-	 * XXX Should we wait until the send has completed before freeing the source
-	 * file handle? It's the previous behaviour, sure, but is it required?
-	 * We've wired down the page references after all.
-	 */
-	fdrop(fp, td);
-
-out:
-	/* Return error */
-	return (error);
-}
-
-
 static int
 do_sendfile(struct thread *td, struct sendfile_args *uap, int compat)
 {
 	struct sf_hdtr hdtr;
-	struct sf_hdtr_kq hdtr_kq;
 	struct uio *hdr_uio, *trl_uio;
-	int error;
+	struct file *fp;
+	cap_rights_t rights;
 	off_t sbytes;
-	int do_kqueue = 0;
+	int error;
 
 	/*
 	 * File offset must be positive.  If it goes beyond EOF
@@ -2572,38 +1913,37 @@ do_sendfile(struct thread *td, struct sendfile_args *uap, int compat)
 		if (error != 0)
 			goto out;
 		if (hdtr.headers != NULL) {
-			error = copyinuio(hdtr.headers, hdtr.hdr_cnt, &hdr_uio);
+			error = copyinuio(hdtr.headers, hdtr.hdr_cnt,
+			    &hdr_uio);
 			if (error != 0)
 				goto out;
 		}
 		if (hdtr.trailers != NULL) {
-			error = copyinuio(hdtr.trailers, hdtr.trl_cnt, &trl_uio);
+			error = copyinuio(hdtr.trailers, hdtr.trl_cnt,
+			    &trl_uio);
 			if (error != 0)
 				goto out;
-		}
-
-		/*
-		 * If SF_KQUEUE is set, then we need to also copy in
-		 * the kqueue data after the normal hdtr set and set
-		 * do_kqueue=1.
-		 */
-		if (uap->flags & SF_KQUEUE) {
-			error = copyin(((char *) uap->hdtr) + sizeof(hdtr),
-			    &hdtr_kq,
-			    sizeof(hdtr_kq));
-			if (error != 0)
-				goto out;
-			do_kqueue = 1;
 		}
 	}
 
-	/* Call sendfile */
-	error = _do_sendfile(td, uap->fd, uap->s, uap->flags, compat,
-	    uap->offset, uap->nbytes, &sbytes, hdr_uio, trl_uio, &hdtr_kq);
+	AUDIT_ARG_FD(uap->fd);
 
-	if (uap->sbytes != NULL) {
+	/*
+	 * sendfile(2) can start at any offset within a file so we require
+	 * CAP_READ+CAP_SEEK = CAP_PREAD.
+	 */
+	if ((error = fget_read(td, uap->fd,
+	    cap_rights_init(&rights, CAP_PREAD), &fp)) != 0) {
+		goto out;
+	}
+
+	error = fo_sendfile(fp, uap->s, hdr_uio, trl_uio, uap->offset,
+	    uap->nbytes, &sbytes, uap->flags, compat ? SFK_COMPAT : 0, td);
+	fdrop(fp, td);
+
+	if (uap->sbytes != NULL)
 		copyout(&sbytes, uap->sbytes, sizeof(off_t));
-	}
+
 out:
 	free(hdr_uio, M_IOV);
 	free(trl_uio, M_IOV);
@@ -2828,7 +2168,7 @@ kern_sendfile_getsock(struct thread *td, int s, struct file **sock_fp,
 int
 vn_sendfile(struct file *fp, int sockfd, struct uio *hdr_uio,
     struct uio *trl_uio, off_t offset, size_t nbytes, off_t *sent, int flags,
-    int kflags, struct sendfile_sync *sfs, struct thread *td)
+    int kflags, struct thread *td)
 {
 	struct file *sock_fp;
 	struct vnode *vp;
@@ -2838,6 +2178,7 @@ vn_sendfile(struct file *fp, int sockfd, struct uio *hdr_uio,
 	struct sf_buf *sf;
 	struct vm_page *pg;
 	struct shmfd *shmfd;
+	struct sendfile_sync *sfs;
 	struct vattr va;
 	off_t off, xfsize, fsbytes, sbytes, rem, obj_size;
 	int error, bsize, nd, hdrlen, mnw;
@@ -2846,6 +2187,7 @@ vn_sendfile(struct file *fp, int sockfd, struct uio *hdr_uio,
 	obj = NULL;
 	so = NULL;
 	m = NULL;
+	sfs = NULL;
 	fsbytes = sbytes = 0;
 	hdrlen = mnw = 0;
 	rem = nbytes;
@@ -2868,6 +2210,12 @@ vn_sendfile(struct file *fp, int sockfd, struct uio *hdr_uio,
 	 */
 	if (flags & SF_MNOWAIT)
 		mnw = 1;
+
+	if (flags & SF_SYNC) {
+		sfs = malloc(sizeof *sfs, M_TEMP, M_WAITOK | M_ZERO);
+		mtx_init(&sfs->mtx, "sendfile", NULL, MTX_DEF);
+		cv_init(&sfs->cv, "sendfile");
+	}
 
 #ifdef MAC
 	error = mac_socket_check_send(td->td_ucred, so);
@@ -3115,12 +2463,11 @@ retry_space:
 			loopbytes += xfsize;
 			off += xfsize;
 
-			/*
-			 * XXX eventually this should be a sfsync
-			 * method call!
-			 */
-			if (sfs != NULL)
-				sf_sync_ref(sfs);
+			if (sfs != NULL) {
+				mtx_lock(&sfs->mtx);
+				sfs->count++;
+				mtx_unlock(&sfs->mtx);
+			}
 		}
 
 		if (vp != NULL)
@@ -3202,489 +2549,18 @@ out:
 	if (m)
 		m_freem(m);
 
+	if (sfs != NULL) {
+		mtx_lock(&sfs->mtx);
+		if (sfs->count != 0)
+			cv_wait(&sfs->cv, &sfs->mtx);
+		KASSERT(sfs->count == 0, ("sendfile sync still busy"));
+		cv_destroy(&sfs->cv);
+		mtx_destroy(&sfs->mtx);
+		free(sfs, M_TEMP);
+	}
+
 	if (error == ERESTART)
 		error = EINTR;
 
 	return (error);
-}
-
-/*
- * SCTP syscalls.
- * Functionality only compiled in if SCTP is defined in the kernel Makefile,
- * otherwise all return EOPNOTSUPP.
- * XXX: We should make this loadable one day.
- */
-int
-sys_sctp_peeloff(td, uap)
-	struct thread *td;
-	struct sctp_peeloff_args /* {
-		int	sd;
-		caddr_t	name;
-	} */ *uap;
-{
-#if (defined(INET) || defined(INET6)) && defined(SCTP)
-	struct file *nfp = NULL;
-	struct socket *head, *so;
-	cap_rights_t rights;
-	u_int fflag;
-	int error, fd;
-
-	AUDIT_ARG_FD(uap->sd);
-	error = fgetsock(td, uap->sd, cap_rights_init(&rights, CAP_PEELOFF),
-	    &head, &fflag);
-	if (error != 0)
-		goto done2;
-	if (head->so_proto->pr_protocol != IPPROTO_SCTP) {
-		error = EOPNOTSUPP;
-		goto done;
-	}
-	error = sctp_can_peel_off(head, (sctp_assoc_t)uap->name);
-	if (error != 0)
-		goto done;
-	/*
-	 * At this point we know we do have a assoc to pull
-	 * we proceed to get the fd setup. This may block
-	 * but that is ok.
-	 */
-
-	error = falloc(td, &nfp, &fd, 0);
-	if (error != 0)
-		goto done;
-	td->td_retval[0] = fd;
-
-	CURVNET_SET(head->so_vnet);
-	so = sonewconn(head, SS_ISCONNECTED);
-	if (so == NULL) {
-		error = ENOMEM;
-		goto noconnection;
-	}
-	/*
-	 * Before changing the flags on the socket, we have to bump the
-	 * reference count.  Otherwise, if the protocol calls sofree(),
-	 * the socket will be released due to a zero refcount.
-	 */
-        SOCK_LOCK(so);
-        soref(so);                      /* file descriptor reference */
-        SOCK_UNLOCK(so);
-
-	ACCEPT_LOCK();
-
-	TAILQ_REMOVE(&head->so_comp, so, so_list);
-	head->so_qlen--;
-	so->so_state |= (head->so_state & SS_NBIO);
-	so->so_state &= ~SS_NOFDREF;
-	so->so_qstate &= ~SQ_COMP;
-	so->so_head = NULL;
-	ACCEPT_UNLOCK();
-	finit(nfp, fflag, DTYPE_SOCKET, so, &socketops);
-	error = sctp_do_peeloff(head, so, (sctp_assoc_t)uap->name);
-	if (error != 0)
-		goto noconnection;
-	if (head->so_sigio != NULL)
-		fsetown(fgetown(&head->so_sigio), &so->so_sigio);
-
-noconnection:
-	/*
-	 * close the new descriptor, assuming someone hasn't ripped it
-	 * out from under us.
-	 */
-	if (error != 0)
-		fdclose(td->td_proc->p_fd, nfp, fd, td);
-
-	/*
-	 * Release explicitly held references before returning.
-	 */
-	CURVNET_RESTORE();
-done:
-	if (nfp != NULL)
-		fdrop(nfp, td);
-	fputsock(head);
-done2:
-	return (error);
-#else  /* SCTP */
-	return (EOPNOTSUPP);
-#endif /* SCTP */
-}
-
-int
-sys_sctp_generic_sendmsg (td, uap)
-	struct thread *td;
-	struct sctp_generic_sendmsg_args /* {
-		int sd,
-		caddr_t msg,
-		int mlen,
-		caddr_t to,
-		__socklen_t tolen,
-		struct sctp_sndrcvinfo *sinfo,
-		int flags
-	} */ *uap;
-{
-#if (defined(INET) || defined(INET6)) && defined(SCTP)
-	struct sctp_sndrcvinfo sinfo, *u_sinfo = NULL;
-	struct socket *so;
-	struct file *fp = NULL;
-	struct sockaddr *to = NULL;
-#ifdef KTRACE
-	struct uio *ktruio = NULL;
-#endif
-	struct uio auio;
-	struct iovec iov[1];
-	cap_rights_t rights;
-	int error = 0, len;
-
-	if (uap->sinfo != NULL) {
-		error = copyin(uap->sinfo, &sinfo, sizeof (sinfo));
-		if (error != 0)
-			return (error);
-		u_sinfo = &sinfo;
-	}
-
-	cap_rights_init(&rights, CAP_SEND);
-	if (uap->tolen != 0) {
-		error = getsockaddr(&to, uap->to, uap->tolen);
-		if (error != 0) {
-			to = NULL;
-			goto sctp_bad2;
-		}
-		cap_rights_set(&rights, CAP_CONNECT);
-	}
-
-	AUDIT_ARG_FD(uap->sd);
-	error = getsock_cap(td->td_proc->p_fd, uap->sd, &rights, &fp, NULL);
-	if (error != 0)
-		goto sctp_bad;
-#ifdef KTRACE
-	if (to && (KTRPOINT(td, KTR_STRUCT)))
-		ktrsockaddr(to);
-#endif
-
-	iov[0].iov_base = uap->msg;
-	iov[0].iov_len = uap->mlen;
-
-	so = (struct socket *)fp->f_data;
-	if (so->so_proto->pr_protocol != IPPROTO_SCTP) {
-		error = EOPNOTSUPP;
-		goto sctp_bad;
-	}
-#ifdef MAC
-	error = mac_socket_check_send(td->td_ucred, so);
-	if (error != 0)
-		goto sctp_bad;
-#endif /* MAC */
-
-	auio.uio_iov =  iov;
-	auio.uio_iovcnt = 1;
-	auio.uio_segflg = UIO_USERSPACE;
-	auio.uio_rw = UIO_WRITE;
-	auio.uio_td = td;
-	auio.uio_offset = 0;			/* XXX */
-	auio.uio_resid = 0;
-	len = auio.uio_resid = uap->mlen;
-	CURVNET_SET(so->so_vnet);
-	error = sctp_lower_sosend(so, to, &auio, (struct mbuf *)NULL,
-	    (struct mbuf *)NULL, uap->flags, u_sinfo, td);
-	CURVNET_RESTORE();
-	if (error != 0) {
-		if (auio.uio_resid != len && (error == ERESTART ||
-		    error == EINTR || error == EWOULDBLOCK))
-			error = 0;
-		/* Generation of SIGPIPE can be controlled per socket. */
-		if (error == EPIPE && !(so->so_options & SO_NOSIGPIPE) &&
-		    !(uap->flags & MSG_NOSIGNAL)) {
-			PROC_LOCK(td->td_proc);
-			tdsignal(td, SIGPIPE);
-			PROC_UNLOCK(td->td_proc);
-		}
-	}
-	if (error == 0)
-		td->td_retval[0] = len - auio.uio_resid;
-#ifdef KTRACE
-	if (ktruio != NULL) {
-		ktruio->uio_resid = td->td_retval[0];
-		ktrgenio(uap->sd, UIO_WRITE, ktruio, error);
-	}
-#endif /* KTRACE */
-sctp_bad:
-	if (fp != NULL)
-		fdrop(fp, td);
-sctp_bad2:
-	free(to, M_SONAME);
-	return (error);
-#else  /* SCTP */
-	return (EOPNOTSUPP);
-#endif /* SCTP */
-}
-
-int
-sys_sctp_generic_sendmsg_iov(td, uap)
-	struct thread *td;
-	struct sctp_generic_sendmsg_iov_args /* {
-		int sd,
-		struct iovec *iov,
-		int iovlen,
-		caddr_t to,
-		__socklen_t tolen,
-		struct sctp_sndrcvinfo *sinfo,
-		int flags
-	} */ *uap;
-{
-#if (defined(INET) || defined(INET6)) && defined(SCTP)
-	struct sctp_sndrcvinfo sinfo, *u_sinfo = NULL;
-	struct socket *so;
-	struct file *fp = NULL;
-	struct sockaddr *to = NULL;
-#ifdef KTRACE
-	struct uio *ktruio = NULL;
-#endif
-	struct uio auio;
-	struct iovec *iov, *tiov;
-	cap_rights_t rights;
-	ssize_t len;
-	int error, i;
-
-	if (uap->sinfo != NULL) {
-		error = copyin(uap->sinfo, &sinfo, sizeof (sinfo));
-		if (error != 0)
-			return (error);
-		u_sinfo = &sinfo;
-	}
-	cap_rights_init(&rights, CAP_SEND);
-	if (uap->tolen != 0) {
-		error = getsockaddr(&to, uap->to, uap->tolen);
-		if (error != 0) {
-			to = NULL;
-			goto sctp_bad2;
-		}
-		cap_rights_set(&rights, CAP_CONNECT);
-	}
-
-	AUDIT_ARG_FD(uap->sd);
-	error = getsock_cap(td->td_proc->p_fd, uap->sd, &rights, &fp, NULL);
-	if (error != 0)
-		goto sctp_bad1;
-
-#ifdef COMPAT_FREEBSD32
-	if (SV_CURPROC_FLAG(SV_ILP32))
-		error = freebsd32_copyiniov((struct iovec32 *)uap->iov,
-		    uap->iovlen, &iov, EMSGSIZE);
-	else
-#endif
-		error = copyiniov(uap->iov, uap->iovlen, &iov, EMSGSIZE);
-	if (error != 0)
-		goto sctp_bad1;
-#ifdef KTRACE
-	if (to && (KTRPOINT(td, KTR_STRUCT)))
-		ktrsockaddr(to);
-#endif
-
-	so = (struct socket *)fp->f_data;
-	if (so->so_proto->pr_protocol != IPPROTO_SCTP) {
-		error = EOPNOTSUPP;
-		goto sctp_bad;
-	}
-#ifdef MAC
-	error = mac_socket_check_send(td->td_ucred, so);
-	if (error != 0)
-		goto sctp_bad;
-#endif /* MAC */
-
-	auio.uio_iov = iov;
-	auio.uio_iovcnt = uap->iovlen;
-	auio.uio_segflg = UIO_USERSPACE;
-	auio.uio_rw = UIO_WRITE;
-	auio.uio_td = td;
-	auio.uio_offset = 0;			/* XXX */
-	auio.uio_resid = 0;
-	tiov = iov;
-	for (i = 0; i <uap->iovlen; i++, tiov++) {
-		if ((auio.uio_resid += tiov->iov_len) < 0) {
-			error = EINVAL;
-			goto sctp_bad;
-		}
-	}
-	len = auio.uio_resid;
-	CURVNET_SET(so->so_vnet);
-	error = sctp_lower_sosend(so, to, &auio,
-		    (struct mbuf *)NULL, (struct mbuf *)NULL,
-		    uap->flags, u_sinfo, td);
-	CURVNET_RESTORE();
-	if (error != 0) {
-		if (auio.uio_resid != len && (error == ERESTART ||
-		    error == EINTR || error == EWOULDBLOCK))
-			error = 0;
-		/* Generation of SIGPIPE can be controlled per socket */
-		if (error == EPIPE && !(so->so_options & SO_NOSIGPIPE) &&
-		    !(uap->flags & MSG_NOSIGNAL)) {
-			PROC_LOCK(td->td_proc);
-			tdsignal(td, SIGPIPE);
-			PROC_UNLOCK(td->td_proc);
-		}
-	}
-	if (error == 0)
-		td->td_retval[0] = len - auio.uio_resid;
-#ifdef KTRACE
-	if (ktruio != NULL) {
-		ktruio->uio_resid = td->td_retval[0];
-		ktrgenio(uap->sd, UIO_WRITE, ktruio, error);
-	}
-#endif /* KTRACE */
-sctp_bad:
-	free(iov, M_IOV);
-sctp_bad1:
-	if (fp != NULL)
-		fdrop(fp, td);
-sctp_bad2:
-	free(to, M_SONAME);
-	return (error);
-#else  /* SCTP */
-	return (EOPNOTSUPP);
-#endif /* SCTP */
-}
-
-int
-sys_sctp_generic_recvmsg(td, uap)
-	struct thread *td;
-	struct sctp_generic_recvmsg_args /* {
-		int sd,
-		struct iovec *iov,
-		int iovlen,
-		struct sockaddr *from,
-		__socklen_t *fromlenaddr,
-		struct sctp_sndrcvinfo *sinfo,
-		int *msg_flags
-	} */ *uap;
-{
-#if (defined(INET) || defined(INET6)) && defined(SCTP)
-	uint8_t sockbufstore[256];
-	struct uio auio;
-	struct iovec *iov, *tiov;
-	struct sctp_sndrcvinfo sinfo;
-	struct socket *so;
-	struct file *fp = NULL;
-	struct sockaddr *fromsa;
-	cap_rights_t rights;
-#ifdef KTRACE
-	struct uio *ktruio = NULL;
-#endif
-	ssize_t len;
-	int error, fromlen, i, msg_flags;
-
-	AUDIT_ARG_FD(uap->sd);
-	error = getsock_cap(td->td_proc->p_fd, uap->sd,
-	    cap_rights_init(&rights, CAP_RECV), &fp, NULL);
-	if (error != 0)
-		return (error);
-#ifdef COMPAT_FREEBSD32
-	if (SV_CURPROC_FLAG(SV_ILP32))
-		error = freebsd32_copyiniov((struct iovec32 *)uap->iov,
-		    uap->iovlen, &iov, EMSGSIZE);
-	else
-#endif
-		error = copyiniov(uap->iov, uap->iovlen, &iov, EMSGSIZE);
-	if (error != 0)
-		goto out1;
-
-	so = fp->f_data;
-	if (so->so_proto->pr_protocol != IPPROTO_SCTP) {
-		error = EOPNOTSUPP;
-		goto out;
-	}
-#ifdef MAC
-	error = mac_socket_check_receive(td->td_ucred, so);
-	if (error != 0)
-		goto out;
-#endif /* MAC */
-
-	if (uap->fromlenaddr != NULL) {
-		error = copyin(uap->fromlenaddr, &fromlen, sizeof (fromlen));
-		if (error != 0)
-			goto out;
-	} else {
-		fromlen = 0;
-	}
-	if (uap->msg_flags) {
-		error = copyin(uap->msg_flags, &msg_flags, sizeof (int));
-		if (error != 0)
-			goto out;
-	} else {
-		msg_flags = 0;
-	}
-	auio.uio_iov = iov;
-	auio.uio_iovcnt = uap->iovlen;
-	auio.uio_segflg = UIO_USERSPACE;
-	auio.uio_rw = UIO_READ;
-	auio.uio_td = td;
-	auio.uio_offset = 0;			/* XXX */
-	auio.uio_resid = 0;
-	tiov = iov;
-	for (i = 0; i <uap->iovlen; i++, tiov++) {
-		if ((auio.uio_resid += tiov->iov_len) < 0) {
-			error = EINVAL;
-			goto out;
-		}
-	}
-	len = auio.uio_resid;
-	fromsa = (struct sockaddr *)sockbufstore;
-
-#ifdef KTRACE
-	if (KTRPOINT(td, KTR_GENIO))
-		ktruio = cloneuio(&auio);
-#endif /* KTRACE */
-	memset(&sinfo, 0, sizeof(struct sctp_sndrcvinfo));
-	CURVNET_SET(so->so_vnet);
-	error = sctp_sorecvmsg(so, &auio, (struct mbuf **)NULL,
-		    fromsa, fromlen, &msg_flags,
-		    (struct sctp_sndrcvinfo *)&sinfo, 1);
-	CURVNET_RESTORE();
-	if (error != 0) {
-		if (auio.uio_resid != len && (error == ERESTART ||
-		    error == EINTR || error == EWOULDBLOCK))
-			error = 0;
-	} else {
-		if (uap->sinfo)
-			error = copyout(&sinfo, uap->sinfo, sizeof (sinfo));
-	}
-#ifdef KTRACE
-	if (ktruio != NULL) {
-		ktruio->uio_resid = len - auio.uio_resid;
-		ktrgenio(uap->sd, UIO_READ, ktruio, error);
-	}
-#endif /* KTRACE */
-	if (error != 0)
-		goto out;
-	td->td_retval[0] = len - auio.uio_resid;
-
-	if (fromlen && uap->from) {
-		len = fromlen;
-		if (len <= 0 || fromsa == 0)
-			len = 0;
-		else {
-			len = MIN(len, fromsa->sa_len);
-			error = copyout(fromsa, uap->from, (size_t)len);
-			if (error != 0)
-				goto out;
-		}
-		error = copyout(&len, uap->fromlenaddr, sizeof (socklen_t));
-		if (error != 0)
-			goto out;
-	}
-#ifdef KTRACE
-	if (KTRPOINT(td, KTR_STRUCT))
-		ktrsockaddr(fromsa);
-#endif
-	if (uap->msg_flags) {
-		error = copyout(&msg_flags, uap->msg_flags, sizeof (int));
-		if (error != 0)
-			goto out;
-	}
-out:
-	free(iov, M_IOV);
-out1:
-	if (fp != NULL)
-		fdrop(fp, td);
-
-	return (error);
-#else  /* SCTP */
-	return (EOPNOTSUPP);
-#endif /* SCTP */
 }

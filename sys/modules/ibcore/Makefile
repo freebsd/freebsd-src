@@ -2,8 +2,6 @@
 .PATH:  ${.CURDIR}/../../ofed/drivers/infiniband/core
 .PATH:  ${.CURDIR}/../../ofed/include/linux
 
-.include <bsd.own.mk>
-
 KMOD    = ibcore
 SRCS    = addr.c cm_msgs.h iwcm.c mad_rmpp.h sa_query.c ucma.c uverbs_cmd.c
 SRCS+= agent.c    local_sa.c iwcm.h multicast.c smi.c ud_header.c uverbs_main.c

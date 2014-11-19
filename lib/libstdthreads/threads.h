@@ -79,15 +79,24 @@ int	cnd_broadcast(cnd_t *);
 void	cnd_destroy(cnd_t *);
 int	cnd_init(cnd_t *);
 int	cnd_signal(cnd_t *);
-int	cnd_timedwait(cnd_t *__restrict, mtx_t *__restrict,
-    const struct timespec *__restrict);
-int	cnd_wait(cnd_t *, mtx_t *);
-void	mtx_destroy(mtx_t *);
-int	mtx_init(mtx_t *, int);
-int	mtx_lock(mtx_t *);
-int	mtx_timedlock(mtx_t *__restrict, const struct timespec *__restrict);
-int	mtx_trylock(mtx_t *);
-int	mtx_unlock(mtx_t *);
+int	cnd_timedwait(cnd_t *__restrict, mtx_t *__restrict __mtx,
+    const struct timespec *__restrict)
+    __requires_exclusive(*__mtx);
+int	cnd_wait(cnd_t *, mtx_t *__mtx)
+    __requires_exclusive(*__mtx);
+void	mtx_destroy(mtx_t *__mtx)
+    __requires_unlocked(*__mtx);
+int	mtx_init(mtx_t *__mtx, int)
+    __requires_unlocked(*__mtx);
+int	mtx_lock(mtx_t *__mtx)
+    __locks_exclusive(*__mtx);
+int	mtx_timedlock(mtx_t *__restrict __mtx,
+    const struct timespec *__restrict)
+    __trylocks_exclusive(thrd_success, *__mtx);
+int	mtx_trylock(mtx_t *__mtx)
+    __trylocks_exclusive(thrd_success, *__mtx);
+int	mtx_unlock(mtx_t *__mtx)
+    __unlocks(*__mtx);
 int	thrd_create(thrd_t *, thrd_start_t, void *);
 thrd_t	thrd_current(void);
 int	thrd_detach(thrd_t);

@@ -8,29 +8,24 @@
 .include <src.opts.mk>
 
 PROG=	atmconfig
-.ifndef RESCUE
-SRCS=	oid.h
-.endif
-SRCS+=	main.c diag.c natm.c
-.ifndef RESCUE
-SRCS+=	atmconfig_device.c
-.endif
+SRCS=	main.c diag.c natm.c
 MAN=	atmconfig.8
 # CFLAGS+= -DPATH_HELP='".:/usr/share/doc/atm:/usr/local/share/doc/atm"'
 
 CFLAGS+= -I.
 
-.ifndef RESCUE
-DPADD=	${LIBBSNMP}
-LDADD=	-lbsnmp
+.if !defined(RESCUE) && ${MK_BSNMP} != "no"
+CFLAGS+=	-DWITH_BSNMP
+SRCS+=	oid.h atmconfig_device.c
+DPADD+=	${LIBBSNMP}
+LDADD+=	-lbsnmp
 . if ${MK_DYNAMICROOT} == "no" && ${MK_OPENSSL} != "no"
+DPADD+=	${LIBCRYPTO}
 LDADD+= -lcrypto
 . endif
 .endif
 
-.ifndef RESCUE
 CLEANFILES+= oid.h
-.endif
 
 # XXX - this is verboten
 .if ${MACHINE_CPUARCH} == "arm"

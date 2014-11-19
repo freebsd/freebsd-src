@@ -88,7 +88,6 @@ int fdt_get_phyaddr(phandle_t, device_t, int *, void **);
 int fdt_get_range(phandle_t, int, u_long *, u_long *);
 int fdt_immr_addr(vm_offset_t);
 int fdt_regsize(phandle_t, u_long *, u_long *);
-int fdt_intr_to_rl(device_t, phandle_t, struct resource_list *, struct fdt_sense_level *);
 int fdt_is_compatible(phandle_t, const char *);
 int fdt_is_compatible_strict(phandle_t, const char *);
 int fdt_is_enabled(phandle_t);

@@ -160,6 +160,7 @@ ASENTRY_NOPROF(__start)
 	li	8,1
 	insrdi	9,8,1,0
 	mtmsrd	9
+	isync
 	
 	bl	OF_initial_setup
 	nop

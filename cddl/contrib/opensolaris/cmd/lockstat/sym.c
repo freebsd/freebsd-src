@@ -50,6 +50,9 @@
 /* FreeBSD */
 #include <sys/elf.h>
 #include <sys/ksyms.h>
+#include <sys/param.h>
+#include <sys/module.h>
+#include <sys/linker.h>
 #endif
 #include <sys/cpuvar.h>
 

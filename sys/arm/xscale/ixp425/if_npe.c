@@ -681,7 +681,8 @@ npe_activate(device_t dev)
 	/* MAC */
 	if (!override_addr(dev, "mac", &macbase))
 		macbase = npeconfig[sc->sc_npeid].macbase;
-	device_printf(sc->sc_dev, "MAC at 0x%x\n", macbase);
+	if (bootverbose)
+		device_printf(sc->sc_dev, "MAC at 0x%x\n", macbase);
 	if (bus_space_map(sc->sc_iot, macbase, IXP425_REG_SIZE, 0, &sc->sc_ioh)) {
 		device_printf(dev, "cannot map mac registers 0x%x:0x%x\n",
 		    macbase, IXP425_REG_SIZE);
@@ -693,7 +694,8 @@ npe_activate(device_t dev)
 		phy = npeconfig[sc->sc_npeid].phy;
 	if (!override_addr(dev, "mii", &miibase))
 		miibase = npeconfig[sc->sc_npeid].miibase;
-	device_printf(sc->sc_dev, "MII at 0x%x\n", miibase);
+	if (bootverbose)
+		device_printf(sc->sc_dev, "MII at 0x%x\n", miibase);
 	if (miibase != macbase) {
 		/*
 		 * PHY is mapped through a different MAC, setup an
@@ -904,20 +906,18 @@ npe_addstats(struct npe_softc *sc)
 	      be32toh(ns->RxOverrunDiscards)
 	    + be32toh(ns->RxUnderflowEntryDiscards);
 
-	ifp->if_oerrors +=
-		  be32toh(ns->dot3StatsInternalMacTransmitErrors)
-		+ be32toh(ns->dot3StatsCarrierSenseErrors)
-		+ be32toh(ns->TxVLANIdFilterDiscards)
-		;
-	ifp->if_ierrors += be32toh(ns->dot3StatsFCSErrors)
-		+ be32toh(ns->dot3StatsInternalMacReceiveErrors)
-		+ be32toh(ns->RxOverrunDiscards)
-		+ be32toh(ns->RxUnderflowEntryDiscards)
-		;
-	ifp->if_collisions +=
-		  be32toh(ns->dot3StatsSingleCollisionFrames)
-		+ be32toh(ns->dot3StatsMultipleCollisionFrames)
-		;
+	if_inc_counter(ifp, IFCOUNTER_OERRORS,
+	    be32toh(ns->dot3StatsInternalMacTransmitErrors) +
+	    be32toh(ns->dot3StatsCarrierSenseErrors) +
+	    be32toh(ns->TxVLANIdFilterDiscards));
+	if_inc_counter(ifp, IFCOUNTER_IERRORS,
+	    be32toh(ns->dot3StatsFCSErrors) +
+	    be32toh(ns->dot3StatsInternalMacReceiveErrors) +
+	    be32toh(ns->RxOverrunDiscards) +
+	    be32toh(ns->RxUnderflowEntryDiscards));
+	if_inc_counter(ifp, IFCOUNTER_COLLISIONS,
+	    be32toh(ns->dot3StatsSingleCollisionFrames) +
+	    be32toh(ns->dot3StatsMultipleCollisionFrames));
 #undef NPEADD
 #undef MIBADD
 }
@@ -997,7 +997,7 @@ npe_txdone_finish(struct npe_softc *sc, const struct txdone *td)
 	 * We're no longer busy, so clear the busy flag and call the
 	 * start routine to xmit more packets.
 	 */
-	ifp->if_opackets += td->count;
+	if_inc_counter(ifp, IFCOUNTER_OPACKETS, td->count);
 	ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
 	sc->npe_watchdog_timer = 0;
 	npestart_locked(ifp);
@@ -1136,7 +1136,7 @@ npe_rxdone(int qid, void *arg)
 			mrx->m_pkthdr.len = mrx->m_len;
 			mrx->m_pkthdr.rcvif = ifp;
 
-			ifp->if_ipackets++;
+			if_inc_counter(ifp, IFCOUNTER_IPACKETS, 1);
 			ifp->if_input(ifp, mrx);
 			rx_npkts++;
 		} else {
@@ -1465,7 +1465,7 @@ npewatchdog(struct npe_softc *sc)
 		return;
 
 	device_printf(sc->sc_dev, "watchdog timeout\n");
-	sc->sc_ifp->if_oerrors++;
+	if_inc_counter(sc->sc_ifp, IFCOUNTER_OERRORS, 1);
 
 	npeinit_locked(sc);
 }

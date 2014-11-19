@@ -169,12 +169,6 @@ rip6_input(struct mbuf **mp, int *offp, int proto)
 
 	RIP6STAT_INC(rip6s_ipackets);
 
-	if (faithprefix_p != NULL && (*faithprefix_p)(&ip6->ip6_dst)) {
-		/* XXX Send icmp6 host/port unreach? */
-		m_freem(m);
-		return (IPPROTO_DONE);
-	}
-
 	init_sin6(&fromsa, m); /* general init */
 
 	ifp = m->m_pkthdr.rcvif;
@@ -390,17 +384,10 @@ rip6_ctlinput(int cmd, struct sockaddr *sa, void *d)
  * may have setup with control call.
  */
 int
-#if __STDC__
-rip6_output(struct mbuf *m, ...)
-#else
-rip6_output(m, va_alist)
-	struct mbuf *m;
-	va_dcl
-#endif
+rip6_output(struct mbuf *m, struct socket *so, ...)
 {
 	struct mbuf *control;
 	struct m_tag *mtag;
-	struct socket *so;
 	struct sockaddr_in6 *dstsock;
 	struct in6_addr *dst;
 	struct ip6_hdr *ip6;
@@ -415,8 +402,7 @@ rip6_output(m, va_alist)
 	struct in6_addr in6a;
 	va_list ap;
 
-	va_start(ap, m);
-	so = va_arg(ap, struct socket *);
+	va_start(ap, so);
 	dstsock = va_arg(ap, struct sockaddr_in6 *);
 	control = va_arg(ap, struct mbuf *);
 	va_end(ap);

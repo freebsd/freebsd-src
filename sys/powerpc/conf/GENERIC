@@ -59,6 +59,8 @@ options 	COMPAT_FREEBSD4		#Keep this for a while
 options 	COMPAT_FREEBSD5		#Compatible with FreeBSD5
 options 	COMPAT_FREEBSD6		#Compatible with FreeBSD6
 options 	COMPAT_FREEBSD7		#Compatible with FreeBSD7
+options 	COMPAT_FREEBSD9		# Compatible with FreeBSD9
+options 	COMPAT_FREEBSD10	# Compatible with FreeBSD10
 options 	SCSI_DELAY=5000		#Delay (in ms) before probing SCSI 
 options 	KTRACE			#ktrace(1) syscall trace support
 options 	STACK			#stack(9) support
@@ -152,7 +154,6 @@ device		tun		# Packet tunnel.
 device		md		# Memory "disks"
 device		ofwd		# Open Firmware disks
 device		gif		# IPv6 and IPv4 tunneling
-device		faith		# IPv6-to-IPv4 relaying/(translation)
 device		firmware	# firmware assist module
 
 # The `bpf' device enables the Berkeley Packet Filter.
@@ -196,7 +197,7 @@ device		fcu		# Apple Fan Control Unit
 device		max6690		# PowerMac7,2 temperature sensor
 device		powermac_nvram	# Open Firmware configuration NVRAM
 device		smu		# Apple System Management Unit
-device		windtunnel	# Apple G4 MDD fan controller
+device		adm1030		# Apple G4 MDD fan controller
 device		atibl		# ATI-based backlight driver for PowerBooks/iBooks
 device		nvbl		# nVidia-based backlight driver for PowerBooks/iBooks
 

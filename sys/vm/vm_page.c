@@ -290,8 +290,6 @@ vm_page_startup(vm_offset_t vaddr)
 	vm_paddr_t pa;
 	vm_paddr_t last_pa;
 	char *list;
-
-	/* the biggest memory array is the second group of pages */
 	vm_paddr_t end;
 	vm_paddr_t biggestsize;
 	vm_paddr_t low_water, high_water;
@@ -306,9 +304,23 @@ vm_page_startup(vm_offset_t vaddr)
 		phys_avail[i + 1] = trunc_page(phys_avail[i + 1]);
 	}
 
+#ifdef XEN
+	/*
+	 * There is no obvious reason why i386 PV Xen needs vm_page structs
+	 * created for these pseudo-physical addresses.  XXX
+	 */
+	vm_phys_add_seg(0, phys_avail[0]);
+#endif
+
 	low_water = phys_avail[0];
 	high_water = phys_avail[1];
 
+	for (i = 0; i < vm_phys_nsegs; i++) {
+		if (vm_phys_segs[i].start < low_water)
+			low_water = vm_phys_segs[i].start;
+		if (vm_phys_segs[i].end > high_water)
+			high_water = vm_phys_segs[i].end;
+	}
 	for (i = 0; phys_avail[i + 1]; i += 2) {
 		vm_paddr_t size = phys_avail[i + 1] - phys_avail[i];
 
@@ -321,10 +333,6 @@ vm_page_startup(vm_offset_t vaddr)
 		if (phys_avail[i + 1] > high_water)
 			high_water = phys_avail[i + 1];
 	}
-
-#ifdef XEN
-	low_water = 0;
-#endif	
 
 	end = phys_avail[biggestone+1];
 
@@ -393,6 +401,10 @@ vm_page_startup(vm_offset_t vaddr)
 	first_page = low_water / PAGE_SIZE;
 #ifdef VM_PHYSSEG_SPARSE
 	page_range = 0;
+	for (i = 0; i < vm_phys_nsegs; i++) {
+		page_range += atop(vm_phys_segs[i].end -
+		    vm_phys_segs[i].start);
+	}
 	for (i = 0; phys_avail[i + 1] != 0; i += 2)
 		page_range += atop(phys_avail[i + 1] - phys_avail[i]);
 #elif defined(VM_PHYSSEG_DENSE)
@@ -435,6 +447,13 @@ vm_page_startup(vm_offset_t vaddr)
 	phys_avail[biggestone + 1] = new_end;
 
 	/*
+	 * Add physical memory segments corresponding to the available
+	 * physical pages.
+	 */
+	for (i = 0; phys_avail[i + 1] != 0; i += 2)
+		vm_phys_add_seg(phys_avail[i], phys_avail[i + 1]);
+
+	/*
 	 * Clear all of the page structures
 	 */
 	bzero((caddr_t) vm_page_array, page_range * sizeof(struct vm_page));
@@ -453,7 +472,7 @@ vm_page_startup(vm_offset_t vaddr)
 	 */
 	vm_cnt.v_page_count = 0;
 	vm_cnt.v_free_count = 0;
-	list = getenv("vm.blacklist");
+	list = kern_getenv("vm.blacklist");
 	for (i = 0; phys_avail[i + 1] != 0; i += 2) {
 		pa = phys_avail[i];
 		last_pa = phys_avail[i + 1];
@@ -2501,7 +2520,7 @@ vm_page_cache(vm_page_t m)
 	    (object->type == OBJT_SWAP &&
 	    !vm_pager_has_page(object, m->pindex, NULL, NULL))) {
 		/*
-		 * Hypothesis: A cache-elgible page belonging to a
+		 * Hypothesis: A cache-eligible page belonging to a
 		 * default object or swap object but without a backing
 		 * store must be zero filled.
 		 */
@@ -3133,6 +3152,24 @@ vm_page_object_lock_assert(vm_page_t m)
 	 */
 	if (m->object != NULL && !vm_page_xbusied(m))
 		VM_OBJECT_ASSERT_WLOCKED(m->object);
+}
+
+void
+vm_page_assert_pga_writeable(vm_page_t m, uint8_t bits)
+{
+
+	if ((bits & PGA_WRITEABLE) == 0)
+		return;
+
+	/*
+	 * The PGA_WRITEABLE flag can only be set if the page is
+	 * managed, is exclusively busied or the object is locked.
+	 * Currently, this flag is only set by pmap_enter().
+	 */
+	KASSERT((m->oflags & VPO_UNMANAGED) == 0,
+	    ("PGA_WRITEABLE on unmanaged page"));
+	if (!vm_page_xbusied(m))
+		VM_OBJECT_ASSERT_LOCKED(m->object);
 }
 #endif
 

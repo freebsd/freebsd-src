@@ -1,4 +1,6 @@
 .\" $FreeBSD$
 Set to not build
 .Xr rcs 1
-and related utilities.
+,
+.Xr etcupdate 8
+, and related utilities.

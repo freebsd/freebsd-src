@@ -32,7 +32,7 @@
 #ifndef _MPSVAR_H
 #define _MPSVAR_H
 
-#define MPS_DRIVER_VERSION	"16.00.00.00-fbsd"
+#define MPS_DRIVER_VERSION	"19.00.00.00-fbsd"
 
 #define MPS_DB_MAX_WAIT		2500
 
@@ -417,6 +417,10 @@ struct mps_softc {
 
 	char				exclude_ids[80];
 	struct timeval			lastfail;
+
+	/* StartStopUnit command handling at shutdown */
+	uint32_t			SSU_refcount;
+	uint8_t				SSU_started;
 };
 
 struct mps_config_params {
@@ -759,6 +763,7 @@ struct mpssas_target * mpssas_find_target_by_handle(struct mpssas_softc *, int, 
 void mpssas_realloc_targets(struct mps_softc *sc, int maxtargets);
 struct mps_command * mpssas_alloc_tm(struct mps_softc *sc);
 void mpssas_free_tm(struct mps_softc *sc, struct mps_command *tm);
+void mpssas_release_simq_reinit(struct mpssas_softc *sassc);
 
 SYSCTL_DECL(_hw_mps);
 

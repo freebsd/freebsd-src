@@ -33,6 +33,6 @@
 #ifndef _NET_IF_STF_H_
 #define _NET_IF_STF_H_
 
-void in_stf_input(struct mbuf *, int);
+int in_stf_input(struct mbuf **, int *, int);
 
 #endif /* _NET_IF_STF_H_ */

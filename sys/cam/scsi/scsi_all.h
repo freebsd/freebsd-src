@@ -317,6 +317,7 @@ struct scsi_per_res_cap
 #define	SPRI_ALLOW_2		0x20
 #define	SPRI_ALLOW_3		0x30
 #define	SPRI_ALLOW_4		0x40
+#define	SPRI_ALLOW_5		0x50
 #define	SPRI_PTPL_A		0x01
 	uint8_t type_mask[2];
 #define	SPRI_TM_WR_EX_AR	0x8000
@@ -550,7 +551,7 @@ struct scsi_log_sense
 #define	SLS_PPC				0x02
 	u_int8_t page;
 #define	SLS_PAGE_CODE 			0x3F
-#define	SLS_ALL_PAGES_PAGE		0x00
+#define	SLS_SUPPORTED_PAGES_PAGE	0x00
 #define	SLS_OVERRUN_PAGE		0x01
 #define	SLS_ERROR_WRITE_PAGE		0x02
 #define	SLS_ERROR_READ_PAGE		0x03
@@ -558,6 +559,7 @@ struct scsi_log_sense
 #define	SLS_ERROR_VERIFY_PAGE		0x05
 #define	SLS_ERROR_NONMEDIUM_PAGE	0x06
 #define	SLS_ERROR_LASTN_PAGE		0x07
+#define	SLS_LOGICAL_BLOCK_PROVISIONING	0x0c
 #define	SLS_SELF_TEST_PAGE		0x10
 #define	SLS_IE_PAGE			0x2f
 #define	SLS_PAGE_CTRL_MASK		0xC0
@@ -565,7 +567,9 @@ struct scsi_log_sense
 #define	SLS_PAGE_CTRL_CUMULATIVE	0x40
 #define	SLS_PAGE_CTRL_THRESH_DEFAULT	0x80
 #define	SLS_PAGE_CTRL_CUMUL_DEFAULT	0xC0
-	u_int8_t reserved[2];
+	u_int8_t subpage;
+#define	SLS_SUPPORTED_SUBPAGES_SUBPAGE	0xff
+	u_int8_t reserved;
 	u_int8_t paramptr[2];
 	u_int8_t length[2];
 	u_int8_t control;
@@ -591,7 +595,10 @@ struct scsi_log_select
 struct scsi_log_header
 {
 	u_int8_t page;
-	u_int8_t reserved;
+#define	SL_PAGE_CODE			0x3F
+#define	SL_SPF				0x40
+#define	SL_DS				0x80
+	u_int8_t subpage;
 	u_int8_t datalen[2];
 };
 
@@ -703,40 +710,6 @@ struct scsi_caching_page {
 /*
  * XXX KDM move this off to a vendor shim.
  */
-struct copan_power_subpage {
-	uint8_t page_code;
-#define	PWR_PAGE_CODE		0x00
-	uint8_t subpage;
-#define	PWR_SUBPAGE_CODE	0x02
-	uint8_t page_length[2];
-	uint8_t page_version;
-#define	PWR_VERSION		    0x01
-	uint8_t total_luns;
-	uint8_t max_active_luns;
-#define	PWR_DFLT_MAX_LUNS	    0x07
-	uint8_t reserved[25];
-};
-
-/*
- * XXX KDM move this off to a vendor shim.
- */
-struct copan_aps_subpage {
-	uint8_t page_code;
-#define	APS_PAGE_CODE		0x00
-	uint8_t subpage;
-#define	APS_SUBPAGE_CODE	0x03
-	uint8_t page_length[2];
-	uint8_t page_version;
-#define	APS_VERSION		    0x00
-	uint8_t lock_active;
-#define	APS_LOCK_ACTIVE	    0x01
-#define	APS_LOCK_INACTIVE	0x00
-	uint8_t reserved[26];
-};
-
-/*
- * XXX KDM move this off to a vendor shim.
- */
 struct copan_debugconf_subpage {
 	uint8_t page_code;
 #define DBGCNF_PAGE_CODE		0x00
@@ -764,6 +737,28 @@ struct scsi_info_exceptions_page {
 	u_int8_t mrie;
 	u_int8_t interval_timer[4];
 	u_int8_t report_count[4];
+};
+
+struct scsi_logical_block_provisioning_page_descr {
+	uint8_t flags;
+#define	SLBPPD_ENABLED		0x80
+#define	SLBPPD_TYPE_MASK	0x38
+#define	SLBPPD_ARMING_MASK	0x07
+#define	SLBPPD_ARMING_DEC	0x02
+#define	SLBPPD_ARMING_INC	0x01
+	uint8_t resource;
+	uint8_t reserved[2];
+	uint8_t count[4];
+};
+
+struct scsi_logical_block_provisioning_page {
+	uint8_t page_code;
+	uint8_t subpage_code;
+	uint8_t page_length[2];
+	uint8_t flags;
+#define	SLBPP_SITUA		0x01
+	uint8_t reserved[11];
+	struct scsi_logical_block_provisioning_page_descr descr[0];
 };
 
 /*
@@ -1030,6 +1025,7 @@ struct scsi_write_same_16
 {
 	uint8_t	opcode;
 	uint8_t	byte2;
+#define	SWS_NDOB	0x01
 	uint8_t	addr[8];
 	uint8_t	length[4];
 	uint8_t	group;
@@ -1351,7 +1347,7 @@ struct scsi_receive_copy_status_lid4_data
 	uint8_t  transfer_count_units;
 	uint8_t  transfer_count[8];
 	uint8_t  segments_processed[2];
-	uint8_t  reserved[2];
+	uint8_t  reserved[6];
 	uint8_t  sense_data[];
 };
 
@@ -1533,6 +1529,110 @@ struct scsi_copy_operation_abort
 	uint8_t  control;
 };
 
+struct scsi_populate_token
+{
+	uint8_t  opcode;
+	uint8_t  service_action;
+#define EC_PT			0x10
+	uint8_t  reserved[4];
+	uint8_t  list_identifier[4];
+	uint8_t  length[4];
+	uint8_t  group_number;
+	uint8_t  control;
+};
+
+struct scsi_range_desc
+{
+	uint8_t	lba[8];
+	uint8_t	length[4];
+	uint8_t	reserved[4];
+};
+
+struct scsi_populate_token_data
+{
+	uint8_t  length[2];
+	uint8_t  flags;
+#define EC_PT_IMMED			0x01
+#define EC_PT_RTV			0x02
+	uint8_t  reserved;
+	uint8_t  inactivity_timeout[4];
+	uint8_t  rod_type[4];
+	uint8_t  reserved2[2];
+	uint8_t  range_descriptor_length[2];
+	struct scsi_range_desc desc[];
+};
+
+struct scsi_write_using_token
+{
+	uint8_t  opcode;
+	uint8_t  service_action;
+#define EC_WUT			0x11
+	uint8_t  reserved[4];
+	uint8_t  list_identifier[4];
+	uint8_t  length[4];
+	uint8_t  group_number;
+	uint8_t  control;
+};
+
+struct scsi_write_using_token_data
+{
+	uint8_t  length[2];
+	uint8_t  flags;
+#define EC_WUT_IMMED			0x01
+#define EC_WUT_DEL_TKN			0x02
+	uint8_t  reserved[5];
+	uint8_t  offset_into_rod[8];
+	uint8_t  rod_token[512];
+	uint8_t  reserved2[6];
+	uint8_t  range_descriptor_length[2];
+	struct scsi_range_desc desc[];
+};
+
+struct scsi_receive_rod_token_information
+{
+	uint8_t  opcode;
+	uint8_t  service_action;
+#define RCS_RRTI		0x07
+	uint8_t  list_identifier[4];
+	uint8_t  reserved[4];
+	uint8_t  length[4];
+	uint8_t  reserved2;
+	uint8_t  control;
+};
+
+struct scsi_token
+{
+	uint8_t  type[4];
+#define ROD_TYPE_INTERNAL	0x00000000
+#define ROD_TYPE_AUR		0x00010000
+#define ROD_TYPE_PIT_DEF	0x00800000
+#define ROD_TYPE_PIT_VULN	0x00800001
+#define ROD_TYPE_PIT_PERS	0x00800002
+#define ROD_TYPE_PIT_ANY	0x0080FFFF
+#define ROD_TYPE_BLOCK_ZERO	0xFFFF0001
+	uint8_t  reserved[2];
+	uint8_t  length[2];
+	uint8_t  body[0];
+};
+
+struct scsi_report_all_rod_tokens
+{
+	uint8_t  opcode;
+	uint8_t  service_action;
+#define RCS_RART		0x08
+	uint8_t  reserved[8];
+	uint8_t  length[4];
+	uint8_t  reserved2;
+	uint8_t  control;
+};
+
+struct scsi_report_all_rod_tokens_data
+{
+	uint8_t  available_data[4];
+	uint8_t  reserved[4];
+	uint8_t  rod_management_token_list[];
+};
+
 struct ata_pass_16 {
 	u_int8_t opcode;
 	u_int8_t protocol;
@@ -1614,6 +1714,7 @@ struct ata_pass_16 {
 #define	VERIFY_16		0x8F
 #define	SYNCHRONIZE_CACHE_16	0x91
 #define	WRITE_SAME_16		0x93
+#define	WRITE_ATOMIC_16		0x9C
 #define	SERVICE_ACTION_IN	0x9E
 #define	REPORT_LUNS		0xA0
 #define	ATA_PASS_12		0xA1
@@ -1716,7 +1817,7 @@ struct scsi_inquiry_data
 					 * reserved for this peripheral
 					 * qualifier.
 					 */
-#define	SID_QUAL_IS_VENDOR_UNIQUE(inq_data) ((SID_QUAL(inq_data) & 0x08) != 0)
+#define	SID_QUAL_IS_VENDOR_UNIQUE(inq_data) ((SID_QUAL(inq_data) & 0x04) != 0)
 	u_int8_t dev_qual2;
 #define	SID_QUAL2	0x7F
 #define	SID_LU_CONG	0x40
@@ -2006,6 +2107,76 @@ struct scsi_service_action_in
 	uint8_t control;
 };
 
+struct scsi_vpd_extended_inquiry_data
+{
+	uint8_t device;
+	uint8_t page_code;
+#define	SVPD_EXTENDED_INQUIRY_DATA	0x86
+	uint8_t reserved;
+	uint8_t page_length;
+	uint8_t flags1;
+#define	SVPD_EID_AM		0xC0
+#define	SVPD_EID_SPT		0x38
+#define	SVPD_EID_SPT_1		0x00
+#define	SVPD_EID_SPT_12		0x08
+#define	SVPD_EID_SPT_2		0x10
+#define	SVPD_EID_SPT_13		0x18
+#define	SVPD_EID_SPT_3		0x20
+#define	SVPD_EID_SPT_23		0x28
+#define	SVPD_EID_SPT_123	0x38
+#define	SVPD_EID_GRD_CHK	0x04
+#define	SVPD_EID_APP_CHK	0x02
+#define	SVPD_EID_REF_CHK	0x01
+	uint8_t flags2;
+#define	SVPD_EID_UASK_SUP	0x20
+#define	SVPD_EID_GROUP_SUP	0x10
+#define	SVPD_EID_PRIOR_SUP	0x08
+#define	SVPD_EID_HEADSUP	0x04
+#define	SVPD_EID_ORDSUP		0x02
+#define	SVPD_EID_SIMPSUP	0x01
+	uint8_t flags3;
+#define	SVPD_EID_WU_SUP		0x08
+#define	SVPD_EID_CRD_SUP	0x04
+#define	SVPD_EID_NV_SUP		0x02
+#define	SVPD_EID_V_SUP		0x01
+	uint8_t flags4;
+#define	SVPD_EID_P_I_I_SUP	0x10
+#define	SVPD_EID_LUICLT		0x01
+	uint8_t flags5;
+#define	SVPD_EID_R_SUP		0x10
+#define	SVPD_EID_CBCS		0x01
+	uint8_t flags6;
+#define	SVPD_EID_MULTI_I_T_FW	0x0F
+	uint8_t est[2];
+	uint8_t flags7;
+#define	SVPD_EID_POA_SUP	0x80
+#define	SVPD_EID_HRA_SUP	0x80
+#define	SVPD_EID_VSA_SUP	0x80
+	uint8_t max_sense_length;
+	uint8_t reserved2[50];
+};
+
+struct scsi_vpd_mode_page_policy_descr
+{
+	uint8_t page_code;
+	uint8_t subpage_code;
+	uint8_t policy;
+#define	SVPD_MPP_SHARED		0x00
+#define	SVPD_MPP_PORT		0x01
+#define	SVPD_MPP_I_T		0x03
+#define	SVPD_MPP_MLUS		0x80
+	uint8_t reserved;
+};
+
+struct scsi_vpd_mode_page_policy
+{
+	uint8_t device;
+	uint8_t page_code;
+#define	SVPD_MODE_PAGE_POLICY	0x87
+	uint8_t page_length[2];
+	struct scsi_vpd_mode_page_policy_descr descr[0];
+};
+
 struct scsi_diag_page {
 	uint8_t page_code;
 	uint8_t page_specific_flags;
@@ -2050,6 +2221,19 @@ struct scsi_vpd_tpc_descriptor
 	uint8_t desc_type[2];
 	uint8_t desc_length[2];
 	uint8_t parameters[];
+};
+
+struct scsi_vpd_tpc_descriptor_bdrl
+{
+	uint8_t desc_type[2];
+#define	SVPD_TPC_BDRL			0x0000
+	uint8_t desc_length[2];
+	uint8_t vendor_specific[6];
+	uint8_t maximum_ranges[2];
+	uint8_t maximum_inactivity_timeout[4];
+	uint8_t default_inactivity_timeout[4];
+	uint8_t maximum_token_transfer_size[8];
+	uint8_t optimal_transfer_count[8];
 };
 
 struct scsi_vpd_tpc_descriptor_sc_descr
@@ -2099,6 +2283,58 @@ struct scsi_vpd_tpc_descriptor_sdid
 	uint8_t supported_descriptor_ids[];
 };
 
+struct scsi_vpd_tpc_descriptor_rtf_block
+{
+	uint8_t type_format;
+#define	SVPD_TPC_RTF_BLOCK			0x00
+	uint8_t reserved;
+	uint8_t desc_length[2];
+	uint8_t reserved2[2];
+	uint8_t optimal_length_granularity[2];
+	uint8_t maximum_bytes[8];
+	uint8_t optimal_bytes[8];
+	uint8_t optimal_bytes_to_token_per_segment[8];
+	uint8_t optimal_bytes_from_token_per_segment[8];
+	uint8_t reserved3[8];
+};
+
+struct scsi_vpd_tpc_descriptor_rtf
+{
+	uint8_t desc_type[2];
+#define	SVPD_TPC_RTF			0x0106
+	uint8_t desc_length[2];
+	uint8_t remote_tokens;
+	uint8_t reserved[11];
+	uint8_t minimum_token_lifetime[4];
+	uint8_t maximum_token_lifetime[4];
+	uint8_t maximum_token_inactivity_timeout[4];
+	uint8_t reserved2[18];
+	uint8_t type_specific_features_length[2];
+	uint8_t type_specific_features[0];
+};
+
+struct scsi_vpd_tpc_descriptor_srtd
+{
+	uint8_t rod_type[4];
+	uint8_t flags;
+#define	SVPD_TPC_SRTD_TOUT		0x01
+#define	SVPD_TPC_SRTD_TIN		0x02
+#define	SVPD_TPC_SRTD_ECPY		0x80
+	uint8_t reserved;
+	uint8_t preference_indicator[2];
+	uint8_t reserved2[56];
+};
+
+struct scsi_vpd_tpc_descriptor_srt
+{
+	uint8_t desc_type[2];
+#define	SVPD_TPC_SRT			0x0108
+	uint8_t desc_length[2];
+	uint8_t reserved[2];
+	uint8_t rod_type_descriptors_length[2];
+	uint8_t rod_type_descriptors[0];
+};
+
 struct scsi_vpd_tpc_descriptor_gco
 {
 	uint8_t desc_type[2];
@@ -2146,6 +2382,27 @@ struct scsi_vpd_block_characteristics
 };
 
 /*
+ * Block Device Characteristics VPD Page
+ */
+struct scsi_vpd_block_device_characteristics
+{
+	uint8_t device;
+	uint8_t page_code;
+#define	SVPD_BDC		0xB1
+	uint8_t page_length[2];
+	uint8_t medium_rotation_rate[2];
+#define	SVPD_NOT_REPORTED	0x0000
+#define	SVPD_NON_ROTATING	0x0001
+	uint8_t product_type;
+	uint8_t wab_wac_ff;
+	uint8_t flags;
+#define	SVPD_VBULS		0x01
+#define	SVPD_FUAB		0x02
+#define	SVPD_HAW_ZBC		0x10
+	uint8_t reserved[55];
+};
+
+/*
  * Logical Block Provisioning VPD Page based on
  * T10/1799-D Revision 31
  */
@@ -2175,8 +2432,7 @@ struct scsi_vpd_logical_block_prov
 };
 
 /*
- * Block Limits VDP Page based on
- * T10/1799-D Revision 31
+ * Block Limits VDP Page based on SBC-4 Revision 2
  */
 struct scsi_vpd_block_limits
 {
@@ -2197,7 +2453,10 @@ struct scsi_vpd_block_limits
 	u_int8_t opt_unmap_grain[4];
 	u_int8_t unmap_grain_align[4];
 	u_int8_t max_write_same_length[8];
-	u_int8_t reserved2[20];
+	u_int8_t max_atomic_transfer_length[4];
+	u_int8_t atomic_alignment[4];
+	u_int8_t atomic_transfer_length_granularity[4];
+	u_int8_t reserved2[8];
 };
 
 struct scsi_read_capacity
@@ -3026,6 +3285,9 @@ int		scsi_devid_is_lun_name(uint8_t *bufp);
 int		scsi_devid_is_lun_t10(uint8_t *bufp);
 struct scsi_vpd_id_descriptor *
 		scsi_get_devid(struct scsi_vpd_device_id *id, uint32_t len,
+			       scsi_devid_checkfn_t ck_fn);
+struct scsi_vpd_id_descriptor *
+		scsi_get_devid_desc(struct scsi_vpd_id_descriptor *desc, uint32_t len,
 			       scsi_devid_checkfn_t ck_fn);
 
 int		scsi_transportid_sbuf(struct sbuf *sb,

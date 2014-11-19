@@ -448,6 +448,11 @@ vtd_update_mapping(void *arg, vm_paddr_t gpa, vm_paddr_t hpa, uint64_t len,
 	ptpindex = 0;
 	ptpshift = 0;
 
+	KASSERT(gpa + len > gpa, ("%s: invalid gpa range %#lx/%#lx", __func__,
+	    gpa, len));
+	KASSERT(gpa + len <= dom->maxaddr, ("%s: gpa range %#lx/%#lx beyond "
+	    "domain maxaddr %#lx", __func__, gpa, len, dom->maxaddr));
+
 	if (gpa & PAGE_MASK)
 		panic("vtd_create_mapping: unaligned gpa 0x%0lx", gpa);
 

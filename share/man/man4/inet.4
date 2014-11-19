@@ -211,21 +211,6 @@ Boolean: enable/disable accepting of source-routed IP packets (default false).
 .It Dv IPCTL_SOURCEROUTE
 .Pq ip.sourceroute
 Boolean: enable/disable forwarding of source-routed IP packets (default false).
-.It Dv IPCTL_RTEXPIRE
-.Pq ip.rtexpire
-Integer: lifetime in seconds of protocol-cloned
-.Tn IP
-routes after the last reference drops (default one hour).
-This value varies dynamically as described above.
-.It Dv IPCTL_RTMINEXPIRE
-.Pq ip.rtminexpire
-Integer: minimum value of ip.rtexpire (default ten seconds).
-This value has no effect on user modifications, but restricts the dynamic
-adaptation described above.
-.It Dv IPCTL_RTMAXCACHE
-.Pq ip.rtmaxcache
-Integer: trigger level of cached, unreferenced, protocol-cloned routes
-which initiates dynamic adaptation (default 128).
 .It Va ip.process_options
 Integer: control IP options processing.
 By setting this variable to 0, all IP options in the incoming packets

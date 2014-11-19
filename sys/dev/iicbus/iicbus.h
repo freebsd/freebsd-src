@@ -44,27 +44,32 @@ struct iicbus_softc
 	u_char strict;		/* deny operations that violate the
 				 * I2C protocol */
 	struct mtx lock;
+	u_int bus_freq;		/* Configured bus Hz. */
 };
 
 struct iicbus_ivar
 {
 	uint32_t	addr;
+	bool		nostop;
 };
 
 enum {
-	IICBUS_IVAR_ADDR		/* Address or base address */
+	IICBUS_IVAR_ADDR,		/* Address or base address */
+	IICBUS_IVAR_NOSTOP,		/* nostop defaults */
 };
 
 #define IICBUS_ACCESSOR(A, B, T)					\
 	__BUS_ACCESSOR(iicbus, A, IICBUS, B, T)
 	
 IICBUS_ACCESSOR(addr,		ADDR,		uint32_t)
+IICBUS_ACCESSOR(nostop,		NOSTOP,		bool)
 
 #define	IICBUS_LOCK(sc)			mtx_lock(&(sc)->lock)
 #define	IICBUS_UNLOCK(sc)      		mtx_unlock(&(sc)->lock)
 #define	IICBUS_ASSERT_LOCKED(sc)       	mtx_assert(&(sc)->lock, MA_OWNED)
 
-extern int iicbus_generic_intr(device_t dev, int event, char *buf);
+int  iicbus_generic_intr(device_t dev, int event, char *buf);
+void iicbus_init_frequency(device_t dev, u_int bus_freq);
 
 extern driver_t iicbus_driver;
 extern devclass_t iicbus_devclass;

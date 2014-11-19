@@ -17,6 +17,6 @@ LDADD=	-lmd
 CLEANFILES+=	fmtree.8
 
 fmtree.8: mtree.8
-	cp ${.ALLSRC} ${.TARGET}
+	cp -f ${.ALLSRC} ${.TARGET}
 
 .include <bsd.prog.mk>

@@ -66,6 +66,7 @@ SRCS=	openpam_asprintf.c \
 	openpam_straddch.c \
 	openpam_strlcat.c \
 	openpam_strlcpy.c \
+	openpam_strlset.c \
 	openpam_subst.c \
 	openpam_ttyconv.c \
 	openpam_vasprintf.c \
@@ -174,5 +175,9 @@ ADD_HEADERS=	security/pam_mod_misc.h
 # Headers
 INCS=		${HEADERS} ${ADD_HEADERS}
 INCSDIR=	${INCLUDEDIR}/security
+
+.if ${MK_TESTS} != "no"
+SUBDIR+=        tests
+.endif
 
 .include <bsd.lib.mk>

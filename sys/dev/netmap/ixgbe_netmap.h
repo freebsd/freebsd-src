@@ -153,10 +153,10 @@ ixgbe_netmap_reg(struct netmap_adapter *na, int onoff)
  * methods should be handled by the individual drivers.
  */
 static int
-ixgbe_netmap_txsync(struct netmap_adapter *na, u_int ring_nr, int flags)
+ixgbe_netmap_txsync(struct netmap_kring *kring, int flags)
 {
+	struct netmap_adapter *na = kring->na;
 	struct ifnet *ifp = na->ifp;
-	struct netmap_kring *kring = &na->tx_rings[ring_nr];
 	struct netmap_ring *ring = kring->ring;
 	u_int nm_i;	/* index into the netmap ring */
 	u_int nic_i;	/* index into the NIC ring */
@@ -171,7 +171,7 @@ ixgbe_netmap_txsync(struct netmap_adapter *na, u_int ring_nr, int flags)
 
 	/* device-specific */
 	struct adapter *adapter = ifp->if_softc;
-	struct tx_ring *txr = &adapter->tx_rings[ring_nr];
+	struct tx_ring *txr = &adapter->tx_rings[kring->ring_id];
 	int reclaim_tx;
 
 	bus_dmamap_sync(txr->txdma.dma_tag, txr->txdma.dma_map,
@@ -223,7 +223,7 @@ ixgbe_netmap_txsync(struct netmap_adapter *na, u_int ring_nr, int flags)
 			struct netmap_slot *slot = &ring->slot[nm_i];
 			u_int len = slot->len;
 			uint64_t paddr;
-			void *addr = PNMB(slot, &paddr);
+			void *addr = PNMB(na, slot, &paddr);
 
 			/* device-specific */
 			union ixgbe_adv_tx_desc *curr = &txr->tx_base[nic_i];
@@ -236,11 +236,11 @@ ixgbe_netmap_txsync(struct netmap_adapter *na, u_int ring_nr, int flags)
 			__builtin_prefetch(&ring->slot[nm_i + 1]);
 			__builtin_prefetch(&txr->tx_buffers[nic_i + 1]);
 
-			NM_CHECK_ADDR_LEN(addr, len);
+			NM_CHECK_ADDR_LEN(na, addr, len);
 
 			if (slot->flags & NS_BUF_CHANGED) {
 				/* buffer has changed, reload map */
-				netmap_reload_map(txr->txtag, txbuf->map, addr);
+				netmap_reload_map(na, txr->txtag, txbuf->map, addr);
 			}
 			slot->flags &= ~(NS_REPORT | NS_BUF_CHANGED);
 
@@ -309,7 +309,7 @@ ixgbe_netmap_txsync(struct netmap_adapter *na, u_int ring_nr, int flags)
 		 * REPORT_STATUS in a few slots so TDH is the only
 		 * good way.
 		 */
-		nic_i = IXGBE_READ_REG(&adapter->hw, IXGBE_TDH(ring_nr));
+		nic_i = IXGBE_READ_REG(&adapter->hw, IXGBE_TDH(kring->ring_id));
 		if (nic_i >= kring->nkr_num_slots) { /* XXX can it happen ? */
 			D("TDH wrap %d", nic_i);
 			nic_i -= kring->nkr_num_slots;
@@ -341,10 +341,10 @@ ixgbe_netmap_txsync(struct netmap_adapter *na, u_int ring_nr, int flags)
  * of whether or not we received an interrupt.
  */
 static int
-ixgbe_netmap_rxsync(struct netmap_adapter *na, u_int ring_nr, int flags)
+ixgbe_netmap_rxsync(struct netmap_kring *kring, int flags)
 {
+	struct netmap_adapter *na = kring->na;
 	struct ifnet *ifp = na->ifp;
-	struct netmap_kring *kring = &na->rx_rings[ring_nr];
 	struct netmap_ring *ring = kring->ring;
 	u_int nm_i;	/* index into the netmap ring */
 	u_int nic_i;	/* index into the NIC ring */
@@ -355,7 +355,7 @@ ixgbe_netmap_rxsync(struct netmap_adapter *na, u_int ring_nr, int flags)
 
 	/* device-specific */
 	struct adapter *adapter = ifp->if_softc;
-	struct rx_ring *rxr = &adapter->rx_rings[ring_nr];
+	struct rx_ring *rxr = &adapter->rx_rings[kring->ring_id];
 
 	if (head > lim)
 		return netmap_ring_reinit(kring);
@@ -425,17 +425,17 @@ ixgbe_netmap_rxsync(struct netmap_adapter *na, u_int ring_nr, int flags)
 		for (n = 0; nm_i != head; n++) {
 			struct netmap_slot *slot = &ring->slot[nm_i];
 			uint64_t paddr;
-			void *addr = PNMB(slot, &paddr);
+			void *addr = PNMB(na, slot, &paddr);
 
 			union ixgbe_adv_rx_desc *curr = &rxr->rx_base[nic_i];
 			struct ixgbe_rx_buf *rxbuf = &rxr->rx_buffers[nic_i];
 
-			if (addr == netmap_buffer_base) /* bad buf */
+			if (addr == NETMAP_BUF_BASE(na)) /* bad buf */
 				goto ring_reset;
 
 			if (slot->flags & NS_BUF_CHANGED) {
 				/* buffer has changed, reload map */
-				netmap_reload_map(rxr->ptag, rxbuf->pmap, addr);
+				netmap_reload_map(na, rxr->ptag, rxbuf->pmap, addr);
 				slot->flags &= ~NS_BUF_CHANGED;
 			}
 			curr->wb.upper.status_error = 0;

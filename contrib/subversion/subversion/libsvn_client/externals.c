@@ -1017,19 +1017,30 @@ svn_client__handle_externals(apr_hash_t *externals_new,
 
         parent_abspath = svn_dirent_dirname(parent_abspath, iterpool);
         SVN_ERR(svn_wc_read_kind2(&kind, ctx->wc_ctx, parent_abspath,
-                                  TRUE, FALSE, iterpool));
+                                  FALSE /* show_deleted*/,
+                                  FALSE /* show_hidden */,
+                                  iterpool));
         if (kind == svn_node_none)
           {
             svn_error_t *err;
 
             err = svn_io_dir_remove_nonrecursive(parent_abspath, iterpool);
-            if (err && APR_STATUS_IS_ENOTEMPTY(err->apr_err))
+            if (err)
               {
-                svn_error_clear(err);
-                break;
+                if (APR_STATUS_IS_ENOTEMPTY(err->apr_err))
+                  {
+                    svn_error_clear(err);
+                    break; /* No parents to delete */
+                  }
+                else if (APR_STATUS_IS_ENOENT(err->apr_err)
+                         || APR_STATUS_IS_ENOTDIR(err->apr_err))
+                  {
+                    svn_error_clear(err);
+                    /* Fall through; parent dir might be unversioned */
+                  }
+                else
+                  return svn_error_trace(err);
               }
-            else
-              SVN_ERR(err);
           }
       } while (strcmp(parent_abspath, defining_abspath) != 0);
     }

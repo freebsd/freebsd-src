@@ -65,9 +65,10 @@ KMODLOAD?=	/sbin/kldload
 KMODUNLOAD?=	/sbin/kldunload
 OBJCOPY?=	objcopy
 
-# Grab all the options for a kernel build.
-.include "kern.opts.mk"
 .include <bsd.init.mk>
+# Grab all the options for a kernel build. For backwards compat, we need to
+# do this after bsd.own.mk.
+.include "kern.opts.mk"
 .include <bsd.compiler.mk>
 
 .SUFFIXES: .out .o .c .cc .cxx .C .y .l .s .S
@@ -98,11 +99,11 @@ CFLAGS+=	-DHAVE_KERNEL_OPTION_HEADERS -include ${KERNBUILDDIR}/opt_global.h
 # Add -I paths for system headers.  Individual module makefiles don't
 # need any -I paths for this.  Similar defaults for .PATH can't be
 # set because there are no standard paths for non-headers.
-CFLAGS+=	-I. -I@
+CFLAGS+=	-I. -I${SYSDIR}
 
 # Add -I path for altq headers as they are included via net/if_var.h
 # for example.
-CFLAGS+=	-I@/contrib/altq
+CFLAGS+=	-I${SYSDIR}/contrib/altq
 
 CFLAGS.gcc+=	-finline-limit=${INLINE_LIMIT}
 CFLAGS.gcc+= --param inline-unit-growth=100
@@ -131,12 +132,8 @@ CTFFLAGS+=	-g
 .endif
 
 .if defined(FIRMWS)
-.if !exists(@)
-${KMOD:S/$/.c/}: @
-.else
-${KMOD:S/$/.c/}: @/tools/fw_stub.awk
-.endif
-	${AWK} -f @/tools/fw_stub.awk ${FIRMWS} -m${KMOD} -c${KMOD:S/$/.c/g} \
+${KMOD:S/$/.c/}: ${SYSDIR}/tools/fw_stub.awk
+	${AWK} -f ${SYSDIR}/tools/fw_stub.awk ${FIRMWS} -m${KMOD} -c${KMOD:S/$/.c/g} \
 	    ${FIRMWARE_LICENSE:C/.+/-l/}${FIRMWARE_LICENSE}
 
 SRCS+=	${KMOD:S/$/.c/}
@@ -215,7 +212,7 @@ ${FULLPROG}: ${OBJS}
 	${OBJCOPY} --strip-debug ${.TARGET}
 .endif
 
-_ILINKS=@ machine
+_ILINKS=machine
 .if ${MACHINE} != ${MACHINE_CPUARCH}
 _ILINKS+=${MACHINE_CPUARCH}
 .endif
@@ -252,8 +249,6 @@ ${_ILINKS}:
 	@case ${.TARGET} in \
 	machine) \
 		path=${SYSDIR}/${MACHINE}/include ;; \
-	@) \
-		path=${SYSDIR} ;; \
 	*) \
 		path=${SYSDIR}/${.TARGET:T}/include ;; \
 	esac ; \
@@ -311,6 +306,34 @@ unload:
 	${KMODUNLOAD} -v ${PROG}
 .endif
 
+# Generate options files that otherwise would be built
+# in substantially similar ways through the tree. Move
+# the code here when they all produce identical results
+# (or should)
+.if !defined(KERNBUILDDIR)
+opt_bpf.h:
+	echo "#define DEV_BPF 1" > ${.TARGET}
+.if ${MK_INET_SUPPORT} != "no"
+opt_inet.h:
+	@echo "#define INET 1" > ${.TARGET}
+	@echo "#define TCP_OFFLOAD 1" >> ${.TARGET}
+.endif
+.if ${MK_INET6_SUPPORT} != "no"
+opt_inet6.h:
+	@echo "#define INET6 1" > ${.TARGET}
+.endif
+opt_mrouting.h:
+	echo "#define MROUTING 1" > ${.TARGET}
+opt_natm.h:
+	echo "#define NATM 1" > ${.TARGET}
+opt_scsi.h:
+	echo "#define SCSI_DELAY 15000" > ${.TARGET}
+opt_wlan.h:
+	echo "#define IEEE80211_DEBUG 1" > ${.TARGET}
+	echo "#define IEEE80211_AMPDU_AGE 1" >> ${.TARGET}
+	echo "#define IEEE80211_SUPPORT_MESH 1" >> ${.TARGET}
+.endif
+
 .if defined(KERNBUILDDIR)
 .PATH: ${KERNBUILDDIR}
 CFLAGS+=	-I${KERNBUILDDIR}
@@ -358,12 +381,8 @@ MFILES?= dev/acpica/acpi_if.m dev/acpi_support/acpi_wmi_if.m \
 .for _src in ${SRCS:M${_srcsrc:T:R}.${_ext}}
 CLEANFILES+=	${_src}
 .if !target(${_src})
-.if !exists(@)
-${_src}: @
-.else
-${_src}: @/tools/makeobjops.awk @/${_srcsrc}
-.endif
-	${AWK} -f @/tools/makeobjops.awk @/${_srcsrc} -${_ext}
+${_src}: ${SYSDIR}/tools/makeobjops.awk ${SYSDIR}/${_srcsrc}
+	${AWK} -f ${SYSDIR}/tools/makeobjops.awk ${SYSDIR}/${_srcsrc} -${_ext}
 .endif
 .endfor # _src
 .endfor # _ext
@@ -371,70 +390,46 @@ ${_src}: @/tools/makeobjops.awk @/${_srcsrc}
 
 .if !empty(SRCS:Mvnode_if.c)
 CLEANFILES+=	vnode_if.c
-.if !exists(@)
-vnode_if.c: @
-.else
-vnode_if.c: @/tools/vnode_if.awk @/kern/vnode_if.src
-.endif
-	${AWK} -f @/tools/vnode_if.awk @/kern/vnode_if.src -c
+vnode_if.c: ${SYSDIR}/tools/vnode_if.awk ${SYSDIR}/kern/vnode_if.src
+	${AWK} -f ${SYSDIR}/tools/vnode_if.awk ${SYSDIR}/kern/vnode_if.src -c
 .endif
 
 .if !empty(SRCS:Mvnode_if.h)
 CLEANFILES+=	vnode_if.h vnode_if_newproto.h vnode_if_typedef.h
-.if !exists(@)
-vnode_if.h vnode_if_newproto.h vnode_if_typedef.h: @
-.else
-vnode_if.h vnode_if_newproto.h vnode_if_typedef.h: @/tools/vnode_if.awk \
-    @/kern/vnode_if.src
-.endif
+vnode_if.h vnode_if_newproto.h vnode_if_typedef.h: ${SYSDIR}/tools/vnode_if.awk \
+    ${SYSDIR}/kern/vnode_if.src
 vnode_if.h: vnode_if_newproto.h vnode_if_typedef.h
-	${AWK} -f @/tools/vnode_if.awk @/kern/vnode_if.src -h
+	${AWK} -f ${SYSDIR}/tools/vnode_if.awk ${SYSDIR}/kern/vnode_if.src -h
 vnode_if_newproto.h:
-	${AWK} -f @/tools/vnode_if.awk @/kern/vnode_if.src -p
+	${AWK} -f ${SYSDIR}/tools/vnode_if.awk ${SYSDIR}/kern/vnode_if.src -p
 vnode_if_typedef.h:
-	${AWK} -f @/tools/vnode_if.awk @/kern/vnode_if.src -q
+	${AWK} -f ${SYSDIR}/tools/vnode_if.awk ${SYSDIR}/kern/vnode_if.src -q
 .endif
 
 .for _i in mii pccard
 .if !empty(SRCS:M${_i}devs.h)
 CLEANFILES+=	${_i}devs.h
-.if !exists(@)
-${_i}devs.h: @
-.else
-${_i}devs.h: @/tools/${_i}devs2h.awk @/dev/${_i}/${_i}devs
-.endif
-	${AWK} -f @/tools/${_i}devs2h.awk @/dev/${_i}/${_i}devs
+${_i}devs.h: ${SYSDIR}/tools/${_i}devs2h.awk ${SYSDIR}/dev/${_i}/${_i}devs
+	${AWK} -f ${SYSDIR}/tools/${_i}devs2h.awk ${SYSDIR}/dev/${_i}/${_i}devs
 .endif
 .endfor # _i
 
 .if !empty(SRCS:Musbdevs.h)
 CLEANFILES+=	usbdevs.h
-.if !exists(@)
-usbdevs.h: @
-.else
-usbdevs.h: @/tools/usbdevs2h.awk @/dev/usb/usbdevs
-.endif
-	${AWK} -f @/tools/usbdevs2h.awk @/dev/usb/usbdevs -h
+usbdevs.h: ${SYSDIR}/tools/usbdevs2h.awk ${SYSDIR}/dev/usb/usbdevs
+	${AWK} -f ${SYSDIR}/tools/usbdevs2h.awk ${SYSDIR}/dev/usb/usbdevs -h
 .endif
 
 .if !empty(SRCS:Musbdevs_data.h)
 CLEANFILES+=	usbdevs_data.h
-.if !exists(@)
-usbdevs_data.h: @
-.else
-usbdevs_data.h: @/tools/usbdevs2h.awk @/dev/usb/usbdevs
-.endif
-	${AWK} -f @/tools/usbdevs2h.awk @/dev/usb/usbdevs -d
+usbdevs_data.h: ${SYSDIR}/tools/usbdevs2h.awk ${SYSDIR}/dev/usb/usbdevs
+	${AWK} -f ${SYSDIR}/tools/usbdevs2h.awk ${SYSDIR}/dev/usb/usbdevs -d
 .endif
 
 .if !empty(SRCS:Macpi_quirks.h)
 CLEANFILES+=	acpi_quirks.h
-.if !exists(@)
-acpi_quirks.h: @
-.else
-acpi_quirks.h: @/tools/acpi_quirks2h.awk @/dev/acpica/acpi_quirks
-.endif
-	${AWK} -f @/tools/acpi_quirks2h.awk @/dev/acpica/acpi_quirks
+acpi_quirks.h: ${SYSDIR}/tools/acpi_quirks2h.awk ${SYSDIR}/dev/acpica/acpi_quirks
+	${AWK} -f ${SYSDIR}/tools/acpi_quirks2h.awk ${SYSDIR}/dev/acpica/acpi_quirks
 .endif
 
 .if !empty(SRCS:Massym.s)
@@ -443,18 +438,12 @@ assym.s: genassym.o
 .if defined(KERNBUILDDIR)
 genassym.o: opt_global.h
 .endif
-.if !exists(@)
-assym.s: @
-.else
-assym.s: @/kern/genassym.sh
-.endif
-	sh @/kern/genassym.sh genassym.o > ${.TARGET}
-.if exists(@)
-genassym.o: @/${MACHINE_CPUARCH}/${MACHINE_CPUARCH}/genassym.c
-.endif
-genassym.o: @ machine ${SRCS:Mopt_*.h}
+assym.s: ${SYSDIR}/kern/genassym.sh
+	sh ${SYSDIR}/kern/genassym.sh genassym.o > ${.TARGET}
+genassym.o: ${SYSDIR}/${MACHINE_CPUARCH}/${MACHINE_CPUARCH}/genassym.c
+genassym.o: ${SRCS:Mopt_*.h}
 	${CC} -c ${CFLAGS:N-fno-common} \
-	    @/${MACHINE_CPUARCH}/${MACHINE_CPUARCH}/genassym.c
+	    ${SYSDIR}/${MACHINE_CPUARCH}/${MACHINE_CPUARCH}/genassym.c
 .endif
 
 lint: ${SRCS}

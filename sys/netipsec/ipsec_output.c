@@ -165,11 +165,11 @@ ipsec_process_done(struct mbuf *m, struct ipsecrequest *isr)
 	 * doing further processing.
 	 */
 	if (isr->next) {
-		IPSECSTAT_INC(ips_out_bundlesa);
 		/* XXX-BZ currently only support same AF bundles. */
 		switch (saidx->dst.sa.sa_family) {
 #ifdef INET
 		case AF_INET:
+			IPSECSTAT_INC(ips_out_bundlesa);
 			return ipsec4_process_packet(m, isr->next, 0, 0);
 			/* NOTREACHED */
 #endif
@@ -177,6 +177,7 @@ ipsec_process_done(struct mbuf *m, struct ipsecrequest *isr)
 #ifdef INET6
 		case AF_INET6:
 			/* XXX */
+			IPSEC6STAT_INC(ips_out_bundlesa);
 			return ipsec6_process_packet(m, isr->next);
 			/* NOTREACHED */
 #endif /* INET6 */
@@ -358,7 +359,16 @@ again:
 		 * this packet because it is responsibility for
 		 * upper layer to retransmit the packet.
 		 */
-		IPSECSTAT_INC(ips_out_nosa);
+		switch(af) {
+		case AF_INET:
+			IPSECSTAT_INC(ips_out_nosa);
+			break;
+#ifdef INET6
+		case AF_INET6:
+			IPSEC6STAT_INC(ips_out_nosa);
+			break;
+#endif
+		}
 		goto bad;
 	}
 	sav = isr->sav;
@@ -441,8 +451,8 @@ ipsec4_process_packet(
 	sav = isr->sav;
 
 #ifdef DEV_ENC
-	encif->if_opackets++;
-	encif->if_obytes += m->m_pkthdr.len;
+	if_inc_counter(encif, IFCOUNTER_OPACKETS, 1);
+	if_inc_counter(encif, IFCOUNTER_OBYTES, m->m_pkthdr.len);
 
 	/* pass the mbuf to enc0 for bpf processing */
 	ipsec_bpf(m, sav, AF_INET, ENC_OUT|ENC_BEFORE);
@@ -640,9 +650,11 @@ ipsec6_process_packet(
 	sav = isr->sav;
 	dst = &sav->sah->saidx.dst;
 
+	ip6 = mtod(m, struct ip6_hdr *);
+	ip6->ip6_plen = htons(m->m_pkthdr.len - sizeof(*ip6));
 #ifdef DEV_ENC
-	encif->if_opackets++;
-	encif->if_obytes += m->m_pkthdr.len;
+	if_inc_counter(encif, IFCOUNTER_OPACKETS, 1);
+	if_inc_counter(encif, IFCOUNTER_OBYTES, m->m_pkthdr.len);
 
 	/* pass the mbuf to enc0 for bpf processing */
 	ipsec_bpf(m, isr->sav, AF_INET6, ENC_OUT|ENC_BEFORE);
@@ -650,8 +662,6 @@ ipsec6_process_packet(
 	if ((error = ipsec_filter(&m, PFIL_OUT, ENC_OUT|ENC_BEFORE)) != 0)
 		goto bad;
 #endif /* DEV_ENC */
-
-	ip6 = mtod(m, struct ip6_hdr *); /* XXX */
 
 	/* Do the appropriate encapsulation, if necessary */
 	if (isr->saidx.mode == IPSEC_MODE_TUNNEL || /* Tunnel requ'd */
@@ -674,9 +684,6 @@ ipsec6_process_packet(
 			error = ENXIO;   /*XXX*/
 			goto bad;
 		}
-
-		ip6 = mtod(m, struct ip6_hdr *);
-		ip6->ip6_plen = htons(m->m_pkthdr.len - sizeof(*ip6));
 
 		/* Encapsulate the packet */
 		error = ipip_output(m, isr, &mp, 0, 0);

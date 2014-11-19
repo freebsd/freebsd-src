@@ -329,7 +329,6 @@ toe_syncache_add(struct in_conninfo *inc, struct tcpopt *to, struct tcphdr *th,
 {
 	struct socket *lso = inp->inp_socket;
 
-	INP_INFO_WLOCK_ASSERT(&V_tcbinfo);
 	INP_WLOCK_ASSERT(inp);
 
 	syncache_add(inc, to, th, inp, &lso, NULL, tod, todctx);

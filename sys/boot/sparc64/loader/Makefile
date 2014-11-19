@@ -7,8 +7,6 @@ PROG?=		loader
 NEWVERSWHAT?=	"bootstrap loader" sparc64
 INSTALLFLAGS=	-b
 
-NO_PIE=	yes
-
 # Architecture-specific loader code
 SRCS=		locore.S main.c metadata.c vers.c
 

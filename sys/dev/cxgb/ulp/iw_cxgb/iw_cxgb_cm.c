@@ -1507,11 +1507,11 @@ process_data(struct iwch_ep *ep)
 		process_mpa_request(ep);
 		break;
 	default:
-		if (ep->com.so->so_rcv.sb_cc) 
+		if (sbavail(&ep->com.so->so_rcv)) 
 			printf("%s Unexpected streaming data."
 			       " ep %p state %d so %p so_state %x so_rcv.sb_cc %u so_rcv.sb_mb %p\n",
 			       __FUNCTION__, ep, state_read(&ep->com), ep->com.so, ep->com.so->so_state,
-			       ep->com.so->so_rcv.sb_cc, ep->com.so->so_rcv.sb_mb);
+			       sbavail(&ep->com.so->so_rcv), ep->com.so->so_rcv.sb_mb);
 		break;
 	}
 	return;

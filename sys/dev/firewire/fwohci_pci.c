@@ -46,34 +46,12 @@ __FBSDID("$FreeBSD$");
 #include <machine/bus.h>
 #include <sys/rman.h>
 #include <sys/malloc.h>
-#if defined(__FreeBSD__) && __FreeBSD_version >= 501102
 #include <sys/lock.h>
 #include <sys/mutex.h>
-#endif
 #include <machine/resource.h>
 
-#if defined(__DragonFly__) || __FreeBSD_version < 500000
-#include <machine/clock.h>		/* for DELAY() */
-#endif
-
-#ifdef __DragonFly__
-#include <bus/pci/pcivar.h>
-#include <bus/pci/pcireg.h>
-
-#include "firewire.h"
-#include "firewirereg.h"
-
-#include "fwdma.h"
-#include "fwohcireg.h"
-#include "fwohcivar.h"
-#else
-#if __FreeBSD_version < 500000
-#include <pci/pcivar.h>
-#include <pci/pcireg.h>
-#else
 #include <dev/pci/pcivar.h>
 #include <dev/pci/pcireg.h>
-#endif
 
 #include <dev/firewire/firewire.h>
 #include <dev/firewire/firewirereg.h>
@@ -81,7 +59,6 @@ __FBSDID("$FreeBSD$");
 #include <dev/firewire/fwdma.h>
 #include <dev/firewire/fwohcireg.h>
 #include <dev/firewire/fwohcivar.h>
-#endif
 
 static int fwohci_pci_attach(device_t self);
 static int fwohci_pci_detach(device_t self);
@@ -90,9 +67,8 @@ static int fwohci_pci_detach(device_t self);
  * The probe routine.
  */
 static int
-fwohci_pci_probe( device_t dev )
+fwohci_pci_probe(device_t dev)
 {
-#if 1
 	uint32_t id;
 
 	id = pci_get_devid(dev);
@@ -213,7 +189,6 @@ fwohci_pci_probe( device_t dev )
 		device_set_desc(dev, "Sun PCIO-2");
 		return BUS_PROBE_DEFAULT;
 	}
-#endif
 	if (pci_get_class(dev) == PCIC_SERIALBUS
 			&& pci_get_subclass(dev) == PCIS_SERIALBUS_FW
 			&& pci_get_progif(dev) == PCI_INTERFACE_OHCI) {
@@ -227,14 +202,6 @@ fwohci_pci_probe( device_t dev )
 	return ENXIO;
 }
 
-#if defined(__DragonFly__) || __FreeBSD_version < 500000
-static void
-fwohci_dummy_intr(void *arg)
-{
-	/* XXX do nothing */
-}
-#endif
-
 static int
 fwohci_pci_init(device_t self)
 {
@@ -244,7 +211,7 @@ fwohci_pci_init(device_t self)
 	cmd = pci_read_config(self, PCIR_COMMAND, 2);
 	cmd |= PCIM_CMD_BUSMASTEREN | PCIM_CMD_MWRICEN;
 #if 1  /* for broken hardware */
-	cmd &= ~PCIM_CMD_MWRICEN; 
+	cmd &= ~PCIM_CMD_MWRICEN;
 #endif
 	pci_write_config(self, PCIR_COMMAND, cmd, 2);
 
@@ -286,17 +253,6 @@ fwohci_pci_attach(device_t self)
 	fwohci_softc_t *sc = device_get_softc(self);
 	int err;
 	int rid;
-#if defined(__DragonFly__) || __FreeBSD_version < 500000
-	int intr;
-	/* For the moment, put in a message stating what is wrong */
-	intr = pci_read_config(self, PCIR_INTLINE, 1);
-	if (intr == 0 || intr == 255) {
-		device_printf(self, "Invalid irq %d\n", intr);
-#ifdef __i386__
-		device_printf(self, "Please switch PNP-OS to 'No' in BIOS\n");
-#endif
-	}
-#endif
 
 #if 0
 	if (bootverbose)
@@ -307,12 +263,7 @@ fwohci_pci_attach(device_t self)
 	fwohci_pci_init(self);
 
 	rid = PCI_CBMEM;
-#if __FreeBSD_version >= 502109
 	sc->bsr = bus_alloc_resource_any(self, SYS_RES_MEMORY, &rid, RF_ACTIVE);
-#else
-	sc->bsr = bus_alloc_resource(self, SYS_RES_MEMORY, &rid,
-	    0, ~0, 1, RF_ACTIVE);
-#endif
 	if (!sc->bsr) {
 		device_printf(self, "Could not map memory\n");
 		return ENXIO;
@@ -322,13 +273,8 @@ fwohci_pci_attach(device_t self)
 	sc->bsh = rman_get_bushandle(sc->bsr);
 
 	rid = 0;
-#if __FreeBSD_version >= 502109
 	sc->irq_res = bus_alloc_resource_any(self, SYS_RES_IRQ, &rid,
 				     RF_SHAREABLE | RF_ACTIVE);
-#else
-	sc->irq_res = bus_alloc_resource(self, SYS_RES_IRQ, &rid, 0, ~0, 1,
-				     RF_SHAREABLE | RF_ACTIVE);
-#endif
 	if (sc->irq_res == NULL) {
 		device_printf(self, "Could not allocate irq\n");
 		fwohci_pci_detach(self);
@@ -340,14 +286,6 @@ fwohci_pci_attach(device_t self)
 				NULL, (driver_intr_t *) fwohci_intr,
 				sc, &sc->ih);
 
-#if defined(__DragonFly__) || __FreeBSD_version < 500000
-	/* XXX splcam() should mask this irq for sbp.c*/
-	err = bus_setup_intr(self, sc->irq_res, INTR_TYPE_CAM,
-		     (driver_intr_t *) fwohci_dummy_intr, sc, &sc->ih_cam);
-	/* XXX splbio() should mask this irq for physio()/fwmem_strategy() */
-	err = bus_setup_intr(self, sc->irq_res, INTR_TYPE_BIO,
-		     (driver_intr_t *) fwohci_dummy_intr, sc, &sc->ih_bio);
-#endif
 	if (err) {
 		device_printf(self, "Could not setup irq, %d\n", err);
 		fwohci_pci_detach(self);
@@ -355,11 +293,7 @@ fwohci_pci_attach(device_t self)
 	}
 
 	err = bus_dma_tag_create(
-#if defined(__FreeBSD__) && __FreeBSD_version >= 700020
 				/*parent*/bus_get_dma_tag(self),
-#else
-				/*parent*/NULL,
-#endif
 				/*alignment*/1,
 				/*boundary*/0,
 #if BOUNCE_BUFFER_TEST
@@ -373,20 +307,19 @@ fwohci_pci_attach(device_t self)
 				/*nsegments*/0x20,
 				/*maxsegsz*/0x8000,
 				/*flags*/BUS_DMA_ALLOCNOW,
-#if defined(__FreeBSD__) && __FreeBSD_version >= 501102
 				/*lockfunc*/busdma_lock_mutex,
 				/*lockarg*/FW_GMTX(&sc->fc),
-#endif
 				&sc->fc.dmat);
 	if (err != 0) {
-		printf("fwohci_pci_attach: Could not allocate DMA tag "
-			"- error %d\n", err);
-			return (ENOMEM);
+		device_printf(self, "fwohci_pci_attach: Could not allocate DMA "
+		    "tag - error %d\n", err);
+		fwohci_pci_detach(self);
+		return (ENOMEM);
 	}
 
 	err = fwohci_init(sc, self);
 
-	if (err) {
+	if (err != 0) {
 		device_printf(self, "fwohci_init failed with err=%d\n", err);
 		fwohci_pci_detach(self);
 		return EIO;
@@ -405,13 +338,13 @@ fwohci_pci_detach(device_t self)
 	fwohci_softc_t *sc = device_get_softc(self);
 	int s;
 
-
 	s = splfw();
 
 	if (sc->bsr)
 		fwohci_stop(sc, self);
 
 	bus_generic_detach(self);
+
 	if (sc->fc.bdev) {
 		device_delete_child(self, sc->fc.bdev);
 		sc->fc.bdev = NULL;
@@ -429,10 +362,6 @@ fwohci_pci_detach(device_t self)
 			if (err)
 				device_printf(self,
 					 "Could not tear down irq, %d\n", err);
-#if defined(__DragonFly__) || __FreeBSD_version < 500000
-			bus_teardown_intr(self, sc->irq_res, sc->ih_cam);
-			bus_teardown_intr(self, sc->irq_res, sc->ih_bio);
-#endif
 			sc->ih = NULL;
 		}
 		bus_release_resource(self, SYS_RES_IRQ, 0, sc->irq_res);
@@ -440,7 +369,7 @@ fwohci_pci_detach(device_t self)
 	}
 
 	if (sc->bsr) {
-		bus_release_resource(self, SYS_RES_MEMORY,PCI_CBMEM,sc->bsr);
+		bus_release_resource(self, SYS_RES_MEMORY, PCI_CBMEM, sc->bsr);
 		sc->bsr = NULL;
 		sc->bst = 0;
 		sc->bsh = 0;
@@ -500,7 +429,7 @@ fwohci_pci_add_child(device_t dev, u_int order, const char *name, int unit)
 		return (child);
 
 	sc->fc.bdev = child;
-	device_set_ivars(child, (void *)&sc->fc);
+	device_set_ivars(child, &sc->fc);
 
 	err = device_probe_and_attach(child);
 	if (err) {
@@ -519,7 +448,7 @@ fwohci_pci_add_child(device_t dev, u_int order, const char *name, int unit)
 		int s;
 		DELAY(250); /* 2 cycles */
 		s = splfw();
-		fwohci_poll((void *)sc, 0, -1);
+		fwohci_poll(&sc->fc, 0, -1);
 		splx(s);
 	}
 

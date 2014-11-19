@@ -161,6 +161,7 @@ void	kmod_ipstat_dec(int statnum);
 #define	IP_SENDTOIF		0x8		/* send on specific ifnet */
 #define IP_ROUTETOIF		SO_DONTROUTE	/* 0x10 bypass routing tables */
 #define IP_ALLOWBROADCAST	SO_BROADCAST	/* 0x20 can send broadcast packets */
+#define	IP_NODEFAULTFLOWID	0x40		/* Don't set the flowid from inp */
 
 #ifdef __NO_STRICT_ALIGNMENT
 #define IP_HDR_ALIGNED_P(ip)	1
@@ -234,15 +235,15 @@ void	rip_init(void);
 #ifdef VIMAGE
 void	rip_destroy(void);
 #endif
-void	rip_input(struct mbuf *, int);
-int	rip_output(struct mbuf *, struct socket *, u_long);
-void	ipip_input(struct mbuf *, int);
-void	rsvp_input(struct mbuf *, int);
+int	rip_input(struct mbuf **, int *, int);
+int	rip_output(struct mbuf *, struct socket *, ...);
+int	ipip_input(struct mbuf **, int *, int);
+int	rsvp_input(struct mbuf **, int *, int);
 int	ip_rsvp_init(struct socket *);
 int	ip_rsvp_done(void);
 extern int	(*ip_rsvp_vif)(struct socket *, struct sockopt *);
 extern void	(*ip_rsvp_force_done)(struct socket *);
-extern void	(*rsvp_input_p)(struct mbuf *m, int off);
+extern int	(*rsvp_input_p)(struct mbuf **, int *, int);
 
 VNET_DECLARE(struct pfil_head, inet_pfil_hook);	/* packet filter hooks */
 #define	V_inet_pfil_hook	VNET(inet_pfil_hook)

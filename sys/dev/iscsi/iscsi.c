@@ -26,8 +26,10 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
  */
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/condvar.h>
@@ -57,10 +59,10 @@
 #include <cam/scsi/scsi_all.h>
 #include <cam/scsi/scsi_message.h>
 
-#include "iscsi_ioctl.h"
-#include "iscsi.h"
-#include "icl.h"
-#include "iscsi_proto.h"
+#include <dev/iscsi/icl.h>
+#include <dev/iscsi/iscsi_ioctl.h>
+#include <dev/iscsi/iscsi_proto.h>
+#include <dev/iscsi/iscsi.h>
 
 #ifdef ICL_KERNEL_PROXY
 #include <sys/socketvar.h>
@@ -264,7 +266,7 @@ iscsi_session_logout(struct iscsi_session *is)
 	struct icl_pdu *request;
 	struct iscsi_bhs_logout_request *bhslr;
 
-	request = icl_pdu_new_bhs(is->is_conn, M_NOWAIT);
+	request = icl_pdu_new(is->is_conn, M_NOWAIT);
 	if (request == NULL)
 		return;
 
@@ -365,7 +367,6 @@ static void
 iscsi_maintenance_thread_reconnect(struct iscsi_session *is)
 {
 
-	icl_conn_shutdown(is->is_conn);
 	icl_conn_close(is->is_conn);
 
 	ISCSI_SESSION_LOCK(is);
@@ -536,7 +537,7 @@ iscsi_callout(void *context)
 	is->is_timeout++;
 
 	if (is->is_waiting_for_iscsid) {
-		if (is->is_timeout > iscsid_timeout) {
+		if (iscsid_timeout > 0 && is->is_timeout > iscsid_timeout) {
 			ISCSI_SESSION_WARN(is, "timed out waiting for iscsid(8) "
 			    "for %d seconds; reconnecting",
 			    is->is_timeout);
@@ -546,11 +547,21 @@ iscsi_callout(void *context)
 	}
 
 	if (is->is_login_phase) {
-		if (is->is_timeout > login_timeout) {
+		if (login_timeout > 0 && is->is_timeout > login_timeout) {
 			ISCSI_SESSION_WARN(is, "login timed out after %d seconds; "
 			    "reconnecting", is->is_timeout);
 			reconnect_needed = true;
 		}
+		goto out;
+	}
+
+	if (ping_timeout <= 0) {
+		/*
+		 * Pings are disabled.  Don't send NOP-Out in this case.
+		 * Reset the timeout, to avoid triggering reconnection,
+		 * should the user decide to reenable them.
+		 */
+		is->is_timeout = 0;
 		goto out;
 	}
 
@@ -574,7 +585,7 @@ iscsi_callout(void *context)
 	if (is->is_timeout < 2)
 		return;
 
-	request = icl_pdu_new_bhs(is->is_conn, M_NOWAIT);
+	request = icl_pdu_new(is->is_conn, M_NOWAIT);
 	if (request == NULL) {
 		ISCSI_SESSION_WARN(is, "failed to allocate PDU");
 		return;
@@ -778,7 +789,7 @@ iscsi_pdu_handle_nop_in(struct icl_pdu *response)
 		icl_pdu_get_data(response, 0, data, datasize);
 	}
 
-	request = icl_pdu_new_bhs(response->ip_conn, M_NOWAIT);
+	request = icl_pdu_new(response->ip_conn, M_NOWAIT);
 	if (request == NULL) {
 		ISCSI_SESSION_WARN(is, "failed to allocate memory; "
 		    "reconnecting");
@@ -1139,7 +1150,7 @@ iscsi_pdu_handle_r2t(struct icl_pdu *response)
 			return;
 		}
 
-		request = icl_pdu_new_bhs(response->ip_conn, M_NOWAIT);
+		request = icl_pdu_new(response->ip_conn, M_NOWAIT);
 		if (request == NULL) {
 			icl_pdu_free(response);
 			iscsi_session_reconnect(is);
@@ -1543,7 +1554,7 @@ iscsi_ioctl_daemon_send(struct iscsi_softc *sc,
 		}
 	}
 
-	ip = icl_pdu_new_bhs(is->is_conn, M_WAITOK);
+	ip = icl_pdu_new(is->is_conn, M_WAITOK);
 	memcpy(ip->ip_bhs, ids->ids_bhs, sizeof(*ip->ip_bhs));
 	if (datalen > 0) {
 		error = icl_pdu_append_data(ip, data, datalen, M_WAITOK);
@@ -1741,18 +1752,16 @@ static bool
 iscsi_session_conf_matches(unsigned int id1, const struct iscsi_session_conf *c1,
     unsigned int id2, const struct iscsi_session_conf *c2)
 {
-	if (id2 == 0 && c2->isc_target[0] == '\0' &&
-	    c2->isc_target_addr[0] == '\0')
-		return (true);
-	if (id2 != 0 && id2 == id1)
-		return (true);
+
+	if (id2 != 0 && id2 != id1)
+		return (false);
 	if (c2->isc_target[0] != '\0' &&
-	    strcmp(c1->isc_target, c2->isc_target) == 0)
-		return (true);
+	    strcmp(c1->isc_target, c2->isc_target) != 0)
+		return (false);
 	if (c2->isc_target_addr[0] != '\0' &&
-	    strcmp(c1->isc_target_addr, c2->isc_target_addr) == 0)
-		return (true);
-	return (false);
+	    strcmp(c1->isc_target_addr, c2->isc_target_addr) != 0)
+		return (false);
+	return (true);
 }
 
 static int
@@ -1995,7 +2004,7 @@ iscsi_action_abort(struct iscsi_session *is, union ccb *ccb)
 		return;
 	}
 
-	request = icl_pdu_new_bhs(is->is_conn, M_NOWAIT);
+	request = icl_pdu_new(is->is_conn, M_NOWAIT);
 	if (request == NULL) {
 		ccb->ccb_h.status = CAM_RESRC_UNAVAIL;
 		xpt_done(ccb);
@@ -2049,7 +2058,7 @@ iscsi_action_scsiio(struct iscsi_session *is, union ccb *ccb)
 	}
 #endif
 
-	request = icl_pdu_new_bhs(is->is_conn, M_NOWAIT);
+	request = icl_pdu_new(is->is_conn, M_NOWAIT);
 	if (request == NULL) {
 		if ((ccb->ccb_h.status & CAM_DEV_QFRZN) == 0) {
 			xpt_freeze_devq(ccb->ccb_h.path, 1);
@@ -2167,7 +2176,12 @@ iscsi_action(struct cam_sim *sim, union ccb *ccb)
 		cpi->hba_misc = PIM_EXTLUNS;
 		cpi->hba_eng_cnt = 0;
 		cpi->max_target = 0;
-		cpi->max_lun = 0;
+		/*
+		 * Note that the variable below is only relevant for targets
+		 * that don't claim compliance with anything above SPC2, which
+		 * means they don't support REPORT_LUNS.
+		 */
+		cpi->max_lun = 255;
 		cpi->initiator_id = ~0;
 		strlcpy(cpi->sim_vid, "FreeBSD", SIM_IDLEN);
 		strlcpy(cpi->hba_vid, "iSCSI", HBA_IDLEN);

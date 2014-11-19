@@ -145,12 +145,15 @@ struct ctl_be_block_lun;
 
 typedef void (*cbb_dispatch_t)(struct ctl_be_block_lun *be_lun,
 			       struct ctl_be_block_io *beio);
+typedef uint64_t (*cbb_getattr_t)(struct ctl_be_block_lun *be_lun,
+				  const char *attrname);
 
 /*
  * Backend LUN structure.  There is a 1:1 mapping between a block device
  * and a backend block LUN, and between a backend block LUN and a CTL LUN.
  */
 struct ctl_be_block_lun {
+	struct ctl_lun_create_params params;
 	struct ctl_block_disk *disk;
 	char lunname[32];
 	char *dev_path;
@@ -160,6 +163,7 @@ struct ctl_be_block_lun {
 	cbb_dispatch_t dispatch;
 	cbb_dispatch_t lun_flush;
 	cbb_dispatch_t unmap;
+	cbb_getattr_t getattr;
 	uma_zone_t lun_zone;
 	uint64_t size_blocks;
 	uint64_t size_bytes;
@@ -203,7 +207,6 @@ struct ctl_be_block_io {
 	struct ctl_sg_entry		sg_segs[CTLBLK_MAX_SEGS];
 	struct iovec			xiovecs[CTLBLK_MAX_SEGS];
 	int				bio_cmd;
-	int				bio_flags;
 	int				num_segs;
 	int				num_bios_sent;
 	int				num_bios_done;
@@ -240,6 +243,8 @@ static void ctl_be_block_unmap_dev(struct ctl_be_block_lun *be_lun,
 				   struct ctl_be_block_io *beio);
 static void ctl_be_block_dispatch_dev(struct ctl_be_block_lun *be_lun,
 				      struct ctl_be_block_io *beio);
+static uint64_t ctl_be_block_getattr_dev(struct ctl_be_block_lun *be_lun,
+					 const char *attrname);
 static void ctl_be_block_cw_dispatch(struct ctl_be_block_lun *be_lun,
 				    union ctl_io *io);
 static void ctl_be_block_dispatch(struct ctl_be_block_lun *be_lun,
@@ -272,6 +277,7 @@ static void ctl_be_block_lun_config_status(void *be_lun,
 static int ctl_be_block_config_write(union ctl_io *io);
 static int ctl_be_block_config_read(union ctl_io *io);
 static int ctl_be_block_lun_info(void *be_lun, struct sbuf *sb);
+static uint64_t ctl_be_block_lun_attr(void *be_lun, const char *attrname);
 int ctl_be_block_init(void);
 
 static struct ctl_backend_driver ctl_be_block_driver = 
@@ -284,7 +290,8 @@ static struct ctl_backend_driver ctl_be_block_driver =
 	.config_read = ctl_be_block_config_read,
 	.config_write = ctl_be_block_config_write,
 	.ioctl = ctl_be_block_ioctl,
-	.lun_info = ctl_be_block_lun_info
+	.lun_info = ctl_be_block_lun_info,
+	.lun_attr = ctl_be_block_lun_attr
 };
 
 MALLOC_DEFINE(M_CTLBLK, "ctlblk", "Memory used for CTL block backend");
@@ -501,6 +508,8 @@ ctl_be_block_biodone(struct bio *bio)
 	if (beio->num_errors > 0) {
 		if (error == EOPNOTSUPP) {
 			ctl_set_invalid_opcode(&io->scsiio);
+		} else if (error == ENOSPC) {
+			ctl_set_space_alloc_fail(&io->scsiio);
 		} else if (beio->bio_cmd == BIO_FLUSH) {
 			/* XXX KDM is there is a better error here? */
 			ctl_set_internal_failure(&io->scsiio,
@@ -599,7 +608,11 @@ ctl_be_block_dispatch_file(struct ctl_be_block_lun *be_lun,
 
 	file_data = &be_lun->backend.file;
 	io = beio->io;
-	flags = beio->bio_flags;
+	flags = 0;
+	if (ARGS(io)->flags & CTL_LLF_DPO)
+		flags |= IO_DIRECT;
+	if (beio->bio_cmd == BIO_WRITE && ARGS(io)->flags & CTL_LLF_FUA)
+		flags |= IO_SYNC;
 
 	bzero(&xuio, sizeof(xuio));
 	if (beio->bio_cmd == BIO_READ) {
@@ -649,8 +662,7 @@ ctl_be_block_dispatch_file(struct ctl_be_block_lun *be_lun,
 		 * So, to attempt to provide some barrier semantics in the
 		 * BIO_ORDERED case, set both IO_DIRECT and IO_SYNC.
 		 */
-		error = VOP_READ(be_lun->vn, &xuio, (flags & BIO_ORDERED) ?
-				 (IO_DIRECT|IO_SYNC) : 0, file_data->cred);
+		error = VOP_READ(be_lun->vn, &xuio, flags, file_data->cred);
 
 		VOP_UNLOCK(be_lun->vn, 0);
 		SDT_PROBE(cbb, kernel, read, file_done, 0, 0, 0, 0, 0);
@@ -687,8 +699,7 @@ ctl_be_block_dispatch_file(struct ctl_be_block_lun *be_lun,
 		 * So if we've got the BIO_ORDERED flag set, we want
 		 * IO_SYNC in either the UFS or ZFS case.
 		 */
-		error = VOP_WRITE(be_lun->vn, &xuio, (flags & BIO_ORDERED) ?
-				  IO_SYNC : 0, file_data->cred);
+		error = VOP_WRITE(be_lun->vn, &xuio, flags, file_data->cred);
 		VOP_UNLOCK(be_lun->vn, 0);
 
 		vn_finished_write(mountpoint);
@@ -709,14 +720,12 @@ ctl_be_block_dispatch_file(struct ctl_be_block_lun *be_lun,
 		char path_str[32];
 
 		ctl_scsi_path_string(io, path_str, sizeof(path_str));
-		/*
-		 * XXX KDM ZFS returns ENOSPC when the underlying
-		 * filesystem fills up.  What kind of SCSI error should we
-		 * return for that?
-		 */
 		printf("%s%s command returned errno %d\n", path_str,
 		       (beio->bio_cmd == BIO_READ) ? "READ" : "WRITE", error);
-		ctl_set_medium_error(&io->scsiio);
+		if (error == ENOSPC) {
+			ctl_set_space_alloc_fail(&io->scsiio);
+		} else
+			ctl_set_medium_error(&io->scsiio);
 		ctl_complete_beio(beio);
 		return;
 	}
@@ -752,7 +761,11 @@ ctl_be_block_dispatch_zvol(struct ctl_be_block_lun *be_lun,
 
 	dev_data = &be_lun->backend.dev;
 	io = beio->io;
-	flags = beio->bio_flags;
+	flags = 0;
+	if (ARGS(io)->flags & CTL_LLF_DPO)
+		flags |= IO_DIRECT;
+	if (beio->bio_cmd == BIO_WRITE && ARGS(io)->flags & CTL_LLF_FUA)
+		flags |= IO_SYNC;
 
 	bzero(&xuio, sizeof(xuio));
 	if (beio->bio_cmd == BIO_READ) {
@@ -780,10 +793,10 @@ ctl_be_block_dispatch_zvol(struct ctl_be_block_lun *be_lun,
 	mtx_unlock(&be_lun->io_lock);
 
 	if (beio->bio_cmd == BIO_READ) {
-		error = (*dev_data->csw->d_read)(dev_data->cdev, &xuio, 0);
+		error = (*dev_data->csw->d_read)(dev_data->cdev, &xuio, flags);
 		SDT_PROBE(cbb, kernel, read, file_done, 0, 0, 0, 0, 0);
 	} else {
-		error = (*dev_data->csw->d_write)(dev_data->cdev, &xuio, 0);
+		error = (*dev_data->csw->d_write)(dev_data->cdev, &xuio, flags);
 		SDT_PROBE(cbb, kernel, write, file_done, 0, 0, 0, 0, 0);
 	}
 
@@ -798,7 +811,10 @@ ctl_be_block_dispatch_zvol(struct ctl_be_block_lun *be_lun,
 	 * return the I/O to the user.
 	 */
 	if (error != 0) {
-		ctl_set_medium_error(&io->scsiio);
+		if (error == ENOSPC) {
+			ctl_set_space_alloc_fail(&io->scsiio);
+		} else
+			ctl_set_medium_error(&io->scsiio);
 		ctl_complete_beio(beio);
 		return;
 	}
@@ -874,7 +890,6 @@ ctl_be_block_unmap_dev_range(struct ctl_be_block_lun *be_lun,
 	while (len > 0) {
 		bio = g_alloc_bio();
 		bio->bio_cmd	    = BIO_DELETE;
-		bio->bio_flags	   |= beio->bio_flags;
 		bio->bio_dev	    = dev_data->cdev;
 		bio->bio_offset	    = off;
 		bio->bio_length	    = MIN(len, maxlen);
@@ -973,7 +988,6 @@ ctl_be_block_dispatch_dev(struct ctl_be_block_lun *be_lun,
 			KASSERT(bio != NULL, ("g_alloc_bio() failed!\n"));
 
 			bio->bio_cmd = beio->bio_cmd;
-			bio->bio_flags |= beio->bio_flags;
 			bio->bio_dev = dev_data->cdev;
 			bio->bio_caller1 = beio;
 			bio->bio_length = min(cur_size, max_iosize);
@@ -1003,6 +1017,24 @@ ctl_be_block_dispatch_dev(struct ctl_be_block_lun *be_lun,
 		TAILQ_REMOVE(&queue, bio, bio_queue);
 		(*dev_data->csw->d_strategy)(bio);
 	}
+}
+
+static uint64_t
+ctl_be_block_getattr_dev(struct ctl_be_block_lun *be_lun, const char *attrname)
+{
+	struct ctl_be_block_devdata	*dev_data = &be_lun->backend.dev;
+	struct diocgattr_arg	arg;
+	int			error;
+
+	if (dev_data->csw == NULL || dev_data->csw->d_ioctl == NULL)
+		return (UINT64_MAX);
+	strlcpy(arg.name, attrname, sizeof(arg.name));
+	arg.len = sizeof(arg.value.off);
+	error = dev_data->csw->d_ioctl(dev_data->cdev,
+	    DIOCGATTR, (caddr_t)&arg, FREAD, curthread);
+	if (error != 0)
+		return (UINT64_MAX);
+	return (arg.value.off);
 }
 
 static void
@@ -1039,8 +1071,8 @@ ctl_be_block_cw_dispatch_ws(struct ctl_be_block_lun *be_lun,
 	softc = be_lun->softc;
 	lbalen = ARGS(beio->io);
 
-	if (lbalen->flags & ~(SWS_LBDATA | SWS_UNMAP) ||
-	    (lbalen->flags & SWS_UNMAP && be_lun->unmap == NULL)) {
+	if (lbalen->flags & ~(SWS_LBDATA | SWS_UNMAP | SWS_ANCHOR | SWS_NDOB) ||
+	    (lbalen->flags & (SWS_UNMAP | SWS_ANCHOR) && be_lun->unmap == NULL)) {
 		ctl_free_beio(beio);
 		ctl_set_invalid_field(&io->scsiio,
 				      /*sks_valid*/ 1,
@@ -1051,15 +1083,6 @@ ctl_be_block_cw_dispatch_ws(struct ctl_be_block_lun *be_lun,
 		ctl_config_write_done(io);
 		return;
 	}
-
-	/*
-	 * If the I/O came down with an ordered or head of queue tag, set
-	 * the BIO_ORDERED attribute.  For head of queue tags, that's
-	 * pretty much the best we can do.
-	 */
-	if ((io->scsiio.tag_type == CTL_TAG_ORDERED)
-	 || (io->scsiio.tag_type == CTL_TAG_HEAD_OF_QUEUE))
-		beio->bio_flags = BIO_ORDERED;
 
 	switch (io->scsiio.tag_type) {
 	case CTL_TAG_ORDERED:
@@ -1076,7 +1099,7 @@ ctl_be_block_cw_dispatch_ws(struct ctl_be_block_lun *be_lun,
 		break;
 	}
 
-	if (lbalen->flags & SWS_UNMAP) {
+	if (lbalen->flags & (SWS_UNMAP | SWS_ANCHOR)) {
 		beio->io_offset = lbalen->lba * be_lun->blocksize;
 		beio->io_len = (uint64_t)lbalen->len * be_lun->blocksize;
 		beio->bio_cmd = BIO_DELETE;
@@ -1146,7 +1169,7 @@ ctl_be_block_cw_dispatch_unmap(struct ctl_be_block_lun *be_lun,
 	softc = be_lun->softc;
 	ptrlen = (struct ctl_ptr_len_flags *)&io->io_hdr.ctl_private[CTL_PRIV_LBA_LEN];
 
-	if (ptrlen->flags != 0 || be_lun->unmap == NULL) {
+	if ((ptrlen->flags & ~SU_ANCHOR) != 0 || be_lun->unmap == NULL) {
 		ctl_free_beio(beio);
 		ctl_set_invalid_field(&io->scsiio,
 				      /*sks_valid*/ 0,
@@ -1157,15 +1180,6 @@ ctl_be_block_cw_dispatch_unmap(struct ctl_be_block_lun *be_lun,
 		ctl_config_write_done(io);
 		return;
 	}
-
-	/*
-	 * If the I/O came down with an ordered or head of queue tag, set
-	 * the BIO_ORDERED attribute.  For head of queue tags, that's
-	 * pretty much the best we can do.
-	 */
-	if ((io->scsiio.tag_type == CTL_TAG_ORDERED)
-	 || (io->scsiio.tag_type == CTL_TAG_HEAD_OF_QUEUE))
-		beio->bio_flags = BIO_ORDERED;
 
 	switch (io->scsiio.tag_type) {
 	case CTL_TAG_ORDERED:
@@ -1304,20 +1318,6 @@ ctl_be_block_dispatch(struct ctl_be_block_lun *be_lun,
 	beio->lun = be_lun;
 	bptrlen = PRIV(io);
 	bptrlen->ptr = (void *)beio;
-
-	/*
-	 * If the I/O came down with an ordered or head of queue tag, set
-	 * the BIO_ORDERED attribute.  For head of queue tags, that's
-	 * pretty much the best we can do.
-	 *
-	 * XXX KDM we don't have a great way to easily know about the FUA
-	 * bit right now (it is decoded in ctl_read_write(), but we don't
-	 * pass that knowledge to the backend), and in any case we would
-	 * need to determine how to handle it.  
-	 */
-	if ((io->scsiio.tag_type == CTL_TAG_ORDERED)
-	 || (io->scsiio.tag_type == CTL_TAG_HEAD_OF_QUEUE))
-		beio->bio_flags = BIO_ORDERED;
 
 	switch (io->scsiio.tag_type) {
 	case CTL_TAG_ORDERED:
@@ -1550,7 +1550,7 @@ ctl_be_block_ioctl(struct cdev *dev, u_long cmd, caddr_t addr,
 		default:
 			lun_req->status = CTL_LUN_ERROR;
 			snprintf(lun_req->error_str, sizeof(lun_req->error_str),
-				 "%s: invalid LUN request type %d", __func__,
+				 "invalid LUN request type %d",
 				 lun_req->reqtype);
 			break;
 		}
@@ -1570,11 +1570,12 @@ ctl_be_block_open_file(struct ctl_be_block_lun *be_lun, struct ctl_lun_req *req)
 	struct ctl_be_block_filedata *file_data;
 	struct ctl_lun_create_params *params;
 	struct vattr		      vattr;
+	off_t			      pss;
 	int			      error;
 
 	error = 0;
 	file_data = &be_lun->backend.file;
-	params = &req->reqdata.create;
+	params = &be_lun->params;
 
 	be_lun->dev_type = CTL_BE_BLOCK_FILE;
 	be_lun->dispatch = ctl_be_block_dispatch_file;
@@ -1618,21 +1619,21 @@ ctl_be_block_open_file(struct ctl_be_block_lun *be_lun, struct ctl_lun_req *req)
 	be_lun->flags |= CTL_BE_BLOCK_LUN_MULTI_THREAD;
 
 	/*
-	 * XXX KDM vattr.va_blocksize may be larger than 512 bytes here.
-	 * With ZFS, it is 131072 bytes.  Block sizes that large don't work
-	 * with disklabel and UFS on FreeBSD at least.  Large block sizes
-	 * may not work with other OSes as well.  So just export a sector
-	 * size of 512 bytes, which should work with any OS or
-	 * application.  Since our backing is a file, any block size will
-	 * work fine for the backing store.
+	 * For files we can use any logical block size.  Prefer 512 bytes
+	 * for compatibility reasons.  If file's vattr.va_blocksize
+	 * (preferred I/O block size) is bigger and multiple to chosen
+	 * logical block size -- report it as physical block size.
 	 */
-#if 0
-	be_lun->blocksize= vattr.va_blocksize;
-#endif
 	if (params->blocksize_bytes != 0)
 		be_lun->blocksize = params->blocksize_bytes;
 	else
 		be_lun->blocksize = 512;
+	pss = vattr.va_blocksize / be_lun->blocksize;
+	if ((pss > 0) && (pss * be_lun->blocksize == vattr.va_blocksize) &&
+	    ((pss & (pss - 1)) == 0)) {
+		be_lun->pblockexp = fls(pss) - 1;
+		be_lun->pblockoff = 0;
+	}
 
 	/*
 	 * Sanity check.  The media size has to be at least one
@@ -1657,7 +1658,7 @@ ctl_be_block_open_dev(struct ctl_be_block_lun *be_lun, struct ctl_lun_req *req)
 	int			      error;
 	off_t			      ps, pss, po, pos;
 
-	params = &req->reqdata.create;
+	params = &be_lun->params;
 
 	be_lun->dev_type = CTL_BE_BLOCK_DEV;
 	be_lun->backend.dev.cdev = be_lun->vn->v_rdev;
@@ -1671,12 +1672,13 @@ ctl_be_block_open_dev(struct ctl_be_block_lun *be_lun, struct ctl_lun_req *req)
 		be_lun->dispatch = ctl_be_block_dispatch_dev;
 	be_lun->lun_flush = ctl_be_block_flush_dev;
 	be_lun->unmap = ctl_be_block_unmap_dev;
+	be_lun->getattr = ctl_be_block_getattr_dev;
 
 	error = VOP_GETATTR(be_lun->vn, &vattr, NOCRED);
 	if (error) {
 		snprintf(req->error_str, sizeof(req->error_str),
-			 "%s: error getting vnode attributes for device %s",
-			 __func__, be_lun->dev_path);
+			 "error getting vnode attributes for device %s",
+			 be_lun->dev_path);
 		return (error);
 	}
 
@@ -1684,7 +1686,7 @@ ctl_be_block_open_dev(struct ctl_be_block_lun *be_lun, struct ctl_lun_req *req)
 	devsw = dev->si_devsw;
 	if (!devsw->d_ioctl) {
 		snprintf(req->error_str, sizeof(req->error_str),
-			 "%s: no d_ioctl for device %s!", __func__,
+			 "no d_ioctl for device %s!",
 			 be_lun->dev_path);
 		return (ENODEV);
 	}
@@ -1694,8 +1696,8 @@ ctl_be_block_open_dev(struct ctl_be_block_lun *be_lun, struct ctl_lun_req *req)
 			       curthread);
 	if (error) {
 		snprintf(req->error_str, sizeof(req->error_str),
-			 "%s: error %d returned for DIOCGSECTORSIZE ioctl "
-			 "on %s!", __func__, error, be_lun->dev_path);
+			 "error %d returned for DIOCGSECTORSIZE ioctl "
+			 "on %s!", error, be_lun->dev_path);
 		return (error);
 	}
 
@@ -1717,9 +1719,9 @@ ctl_be_block_open_dev(struct ctl_be_block_lun *be_lun, struct ctl_lun_req *req)
 			be_lun->blocksize = params->blocksize_bytes;
 		} else {
 			snprintf(req->error_str, sizeof(req->error_str),
-				 "%s: requested blocksize %u is not an even "
+				 "requested blocksize %u is not an even "
 				 "multiple of backing device blocksize %u",
-				 __func__, params->blocksize_bytes,
+				 params->blocksize_bytes,
 				 be_lun->blocksize);
 			return (EINVAL);
 			
@@ -1727,8 +1729,8 @@ ctl_be_block_open_dev(struct ctl_be_block_lun *be_lun, struct ctl_lun_req *req)
 	} else if ((params->blocksize_bytes != 0)
 		&& (params->blocksize_bytes != be_lun->blocksize)) {
 		snprintf(req->error_str, sizeof(req->error_str),
-			 "%s: requested blocksize %u < backing device "
-			 "blocksize %u", __func__, params->blocksize_bytes,
+			 "requested blocksize %u < backing device "
+			 "blocksize %u", params->blocksize_bytes,
 			 be_lun->blocksize);
 		return (EINVAL);
 	}
@@ -1738,8 +1740,8 @@ ctl_be_block_open_dev(struct ctl_be_block_lun *be_lun, struct ctl_lun_req *req)
 			       curthread);
 	if (error) {
 		snprintf(req->error_str, sizeof(req->error_str),
-			 "%s: error %d returned for DIOCGMEDIASIZE "
-			 " ioctl on %s!", __func__, error,
+			 "error %d returned for DIOCGMEDIASIZE "
+			 " ioctl on %s!", error,
 			 be_lun->dev_path);
 		return (error);
 	}
@@ -1747,8 +1749,8 @@ ctl_be_block_open_dev(struct ctl_be_block_lun *be_lun, struct ctl_lun_req *req)
 	if (params->lun_size_bytes != 0) {
 		if (params->lun_size_bytes > be_lun->size_bytes) {
 			snprintf(req->error_str, sizeof(req->error_str),
-				 "%s: requested LUN size %ju > backing device "
-				 "size %ju", __func__,
+				 "requested LUN size %ju > backing device "
+				 "size %ju",
 				 (uintmax_t)params->lun_size_bytes,
 				 (uintmax_t)be_lun->size_bytes);
 			return (EINVAL);
@@ -1821,6 +1823,7 @@ ctl_be_block_close(struct ctl_be_block_lun *be_lun)
 			panic("Unexpected backend type.");
 			break;
 		}
+		be_lun->dev_type = CTL_BE_BLOCK_NONE;
 	}
 	PICKUP_GIANT();
 
@@ -1843,7 +1846,7 @@ ctl_be_block_open(struct ctl_be_block_softc *softc,
 
 	if (rootvnode == NULL) {
 		snprintf(req->error_str, sizeof(req->error_str),
-			 "%s: Root filesystem is not mounted", __func__);
+			 "Root filesystem is not mounted");
 		return (1);
 	}
 
@@ -1887,7 +1890,7 @@ ctl_be_block_open(struct ctl_be_block_softc *softc,
 			}
 		}
 		snprintf(req->error_str, sizeof(req->error_str),
-			 "%s: error opening %s", __func__, be_lun->dev_path);
+		    "error opening %s: %d", be_lun->dev_path, error);
 		return (error);
 	}
 
@@ -1931,11 +1934,13 @@ ctl_be_block_create(struct ctl_be_block_softc *softc, struct ctl_lun_req *req)
 
 	params = &req->reqdata.create;
 	retval = 0;
+	req->status = CTL_LUN_OK;
 
 	num_threads = cbb_num_threads;
 
 	be_lun = malloc(sizeof(*be_lun), M_CTLBLK, M_ZERO | M_WAITOK);
 
+	be_lun->params = req->reqdata.create;
 	be_lun->softc = softc;
 	STAILQ_INIT(&be_lun->input_queue);
 	STAILQ_INIT(&be_lun->config_write_queue);
@@ -1951,7 +1956,7 @@ ctl_be_block_create(struct ctl_be_block_softc *softc, struct ctl_lun_req *req)
 
 	if (be_lun->lun_zone == NULL) {
 		snprintf(req->error_str, sizeof(req->error_str),
-			 "%s: error allocating UMA zone", __func__);
+			 "error allocating UMA zone");
 		goto bailout_error;
 	}
 
@@ -1964,26 +1969,18 @@ ctl_be_block_create(struct ctl_be_block_softc *softc, struct ctl_lun_req *req)
 		value = ctl_get_opt(&be_lun->ctl_be_lun.options, "file");
 		if (value == NULL) {
 			snprintf(req->error_str, sizeof(req->error_str),
-				 "%s: no file argument specified", __func__);
+				 "no file argument specified");
 			goto bailout_error;
 		}
 		be_lun->dev_path = strdup(value, M_CTLBLK);
+		be_lun->blocksize = 512;
+		be_lun->blocksize_shift = fls(be_lun->blocksize) - 1;
 
 		retval = ctl_be_block_open(softc, be_lun, req);
 		if (retval != 0) {
 			retval = 0;
-			goto bailout_error;
+			req->status = CTL_LUN_WARNING;
 		}
-
-		/*
-		 * Tell the user the size of the file/device.
-		 */
-		params->lun_size_bytes = be_lun->size_bytes;
-
-		/*
-		 * The maximum LBA is the size - 1.
-		 */
-		be_lun->ctl_be_lun.maxlba = be_lun->size_blocks - 1;
 	} else {
 		/*
 		 * For processor devices, we don't have any size.
@@ -1994,7 +1991,6 @@ ctl_be_block_create(struct ctl_be_block_softc *softc, struct ctl_lun_req *req)
 		be_lun->size_blocks = 0;
 		be_lun->size_bytes = 0;
 		be_lun->ctl_be_lun.maxlba = 0;
-		params->lun_size_bytes = 0;
 
 		/*
 		 * Default to just 1 thread for processor devices.
@@ -2017,26 +2013,35 @@ ctl_be_block_create(struct ctl_be_block_softc *softc, struct ctl_lun_req *req)
 		 */
 		if (tmp_num_threads < 1) {
 			snprintf(req->error_str, sizeof(req->error_str),
-				 "%s: invalid number of threads %s",
-			         __func__, num_thread_str);
+				 "invalid number of threads %s",
+				 num_thread_str);
 			goto bailout_error;
 		}
 		num_threads = tmp_num_threads;
 	}
-	unmap = 0;
+	unmap = (be_lun->dispatch == ctl_be_block_dispatch_zvol);
 	value = ctl_get_opt(&be_lun->ctl_be_lun.options, "unmap");
-	if (value != NULL && strcmp(value, "on") == 0)
-		unmap = 1;
+	if (value != NULL)
+		unmap = (strcmp(value, "on") == 0);
 
 	be_lun->flags = CTL_BE_BLOCK_LUN_UNCONFIGURED;
 	be_lun->ctl_be_lun.flags = CTL_LUN_FLAG_PRIMARY;
+	if (be_lun->vn == NULL)
+		be_lun->ctl_be_lun.flags |= CTL_LUN_FLAG_OFFLINE;
 	if (unmap)
 		be_lun->ctl_be_lun.flags |= CTL_LUN_FLAG_UNMAP;
 	be_lun->ctl_be_lun.be_lun = be_lun;
+	be_lun->ctl_be_lun.maxlba = (be_lun->size_blocks == 0) ?
+	    0 : (be_lun->size_blocks - 1);
 	be_lun->ctl_be_lun.blocksize = be_lun->blocksize;
 	be_lun->ctl_be_lun.pblockexp = be_lun->pblockexp;
 	be_lun->ctl_be_lun.pblockoff = be_lun->pblockoff;
+	if (be_lun->dispatch == ctl_be_block_dispatch_zvol &&
+	    be_lun->blocksize != 0)
+		be_lun->ctl_be_lun.atomicblock = CTLBLK_MAX_IO_SIZE /
+		    be_lun->blocksize;
 	/* Tell the user the blocksize we ended up using */
+	params->lun_size_bytes = be_lun->size_bytes;
 	params->blocksize_bytes = be_lun->blocksize;
 	if (params->flags & CTL_LUN_FLAG_ID_REQ) {
 		be_lun->ctl_be_lun.req_lun_id = params->req_lun_id;
@@ -2088,7 +2093,7 @@ ctl_be_block_create(struct ctl_be_block_softc *softc, struct ctl_lun_req *req)
 
 	if (be_lun->io_taskqueue == NULL) {
 		snprintf(req->error_str, sizeof(req->error_str),
-			 "%s: Unable to create taskqueue", __func__);
+			 "unable to create taskqueue");
 		goto bailout_error;
 	}
 
@@ -2131,8 +2136,8 @@ ctl_be_block_create(struct ctl_be_block_softc *softc, struct ctl_lun_req *req)
 		softc->num_luns--;
 		mtx_unlock(&softc->lock);
 		snprintf(req->error_str, sizeof(req->error_str),
-			 "%s: ctl_add_lun() returned error %d, see dmesg for "
-			"details", __func__, retval);
+			 "ctl_add_lun() returned error %d, see dmesg for "
+			 "details", retval);
 		retval = 0;
 		goto bailout_error;
 	}
@@ -2154,8 +2159,7 @@ ctl_be_block_create(struct ctl_be_block_softc *softc, struct ctl_lun_req *req)
 
 	if (be_lun->flags & CTL_BE_BLOCK_LUN_CONFIG_ERR) {
 		snprintf(req->error_str, sizeof(req->error_str),
-			 "%s: LUN configuration error, see dmesg for details",
-			 __func__);
+			 "LUN configuration error, see dmesg for details");
 		STAILQ_REMOVE(&softc->lun_list, be_lun, ctl_be_block_lun,
 			      links);
 		softc->num_luns--;
@@ -2173,9 +2177,6 @@ ctl_be_block_create(struct ctl_be_block_softc *softc, struct ctl_lun_req *req)
 					       be_lun->ctl_be_lun.lun_type
 					       | DEVSTAT_TYPE_IF_OTHER,
 					       DEVSTAT_PRIORITY_OTHER);
-
-
-	req->status = CTL_LUN_OK;
 
 	return (retval);
 
@@ -2218,8 +2219,8 @@ ctl_be_block_rm(struct ctl_be_block_softc *softc, struct ctl_lun_req *req)
 
 	if (be_lun == NULL) {
 		snprintf(req->error_str, sizeof(req->error_str),
-			 "%s: LUN %u is not managed by the block backend",
-			 __func__, params->lun_id);
+			 "LUN %u is not managed by the block backend",
+			 params->lun_id);
 		goto bailout_error;
 	}
 
@@ -2227,8 +2228,8 @@ ctl_be_block_rm(struct ctl_be_block_softc *softc, struct ctl_lun_req *req)
 
 	if (retval != 0) {
 		snprintf(req->error_str, sizeof(req->error_str),
-			 "%s: error %d returned from ctl_disable_lun() for "
-			 "LUN %d", __func__, retval, params->lun_id);
+			 "error %d returned from ctl_disable_lun() for "
+			 "LUN %d", retval, params->lun_id);
 		goto bailout_error;
 
 	}
@@ -2236,8 +2237,8 @@ ctl_be_block_rm(struct ctl_be_block_softc *softc, struct ctl_lun_req *req)
 	retval = ctl_invalidate_lun(&be_lun->ctl_be_lun);
 	if (retval != 0) {
 		snprintf(req->error_str, sizeof(req->error_str),
-			 "%s: error %d returned from ctl_invalidate_lun() for "
-			 "LUN %d", __func__, retval, params->lun_id);
+			 "error %d returned from ctl_invalidate_lun() for "
+			 "LUN %d", retval, params->lun_id);
 		goto bailout_error;
 	}
 
@@ -2255,8 +2256,7 @@ ctl_be_block_rm(struct ctl_be_block_softc *softc, struct ctl_lun_req *req)
 
 	if ((be_lun->flags & CTL_BE_BLOCK_LUN_UNCONFIGURED) == 0) {
 		snprintf(req->error_str, sizeof(req->error_str),
-			 "%s: interrupted waiting for LUN to be freed", 
-			 __func__);
+			 "interrupted waiting for LUN to be freed");
 		mtx_unlock(&softc->lock);
 		goto bailout_error;
 	}
@@ -2300,14 +2300,14 @@ ctl_be_block_modify_file(struct ctl_be_block_lun *be_lun,
 {
 	struct vattr vattr;
 	int error;
-	struct ctl_lun_modify_params *params;
-
-	params = &req->reqdata.modify;
+	struct ctl_lun_create_params *params = &be_lun->params;
 
 	if (params->lun_size_bytes != 0) {
 		be_lun->size_bytes = params->lun_size_bytes;
 	} else  {
+		vn_lock(be_lun->vn, LK_SHARED | LK_RETRY);
 		error = VOP_GETATTR(be_lun->vn, &vattr, curthread->td_ucred);
+		VOP_UNLOCK(be_lun->vn, 0);
 		if (error != 0) {
 			snprintf(req->error_str, sizeof(req->error_str),
 				 "error calling VOP_GETATTR() for file %s",
@@ -2325,38 +2325,33 @@ static int
 ctl_be_block_modify_dev(struct ctl_be_block_lun *be_lun,
 			struct ctl_lun_req *req)
 {
-	struct cdev *dev;
-	struct cdevsw *devsw;
+	struct ctl_be_block_devdata *dev_data;
 	int error;
-	struct ctl_lun_modify_params *params;
+	struct ctl_lun_create_params *params = &be_lun->params;
 	uint64_t size_bytes;
 
-	params = &req->reqdata.modify;
-
-	dev = be_lun->vn->v_rdev;
-	devsw = dev->si_devsw;
-	if (!devsw->d_ioctl) {
+	dev_data = &be_lun->backend.dev;
+	if (!dev_data->csw->d_ioctl) {
 		snprintf(req->error_str, sizeof(req->error_str),
-			 "%s: no d_ioctl for device %s!", __func__,
-			 be_lun->dev_path);
+			 "no d_ioctl for device %s!", be_lun->dev_path);
 		return (ENODEV);
 	}
 
-	error = devsw->d_ioctl(dev, DIOCGMEDIASIZE,
+	error = dev_data->csw->d_ioctl(dev_data->cdev, DIOCGMEDIASIZE,
 			       (caddr_t)&size_bytes, FREAD,
 			       curthread);
 	if (error) {
 		snprintf(req->error_str, sizeof(req->error_str),
-			 "%s: error %d returned for DIOCGMEDIASIZE ioctl "
-			 "on %s!", __func__, error, be_lun->dev_path);
+			 "error %d returned for DIOCGMEDIASIZE ioctl "
+			 "on %s!", error, be_lun->dev_path);
 		return (error);
 	}
 
 	if (params->lun_size_bytes != 0) {
 		if (params->lun_size_bytes > size_bytes) {
 			snprintf(req->error_str, sizeof(req->error_str),
-				 "%s: requested LUN size %ju > backing device "
-				 "size %ju", __func__,
+				 "requested LUN size %ju > backing device "
+				 "size %ju",
 				 (uintmax_t)params->lun_size_bytes,
 				 (uintmax_t)size_bytes);
 			return (EINVAL);
@@ -2375,14 +2370,13 @@ ctl_be_block_modify(struct ctl_be_block_softc *softc, struct ctl_lun_req *req)
 {
 	struct ctl_lun_modify_params *params;
 	struct ctl_be_block_lun *be_lun;
+	uint64_t oldsize;
 	int error;
 
 	params = &req->reqdata.modify;
 
 	mtx_lock(&softc->lock);
-
 	be_lun = NULL;
-
 	STAILQ_FOREACH(be_lun, &softc->lun_list, links) {
 		if (be_lun->ctl_be_lun.lun_id == params->lun_id)
 			break;
@@ -2391,47 +2385,49 @@ ctl_be_block_modify(struct ctl_be_block_softc *softc, struct ctl_lun_req *req)
 
 	if (be_lun == NULL) {
 		snprintf(req->error_str, sizeof(req->error_str),
-			 "%s: LUN %u is not managed by the block backend",
-			 __func__, params->lun_id);
+			 "LUN %u is not managed by the block backend",
+			 params->lun_id);
 		goto bailout_error;
 	}
 
-	if (params->lun_size_bytes != 0) {
-		if (params->lun_size_bytes < be_lun->blocksize) {
-			snprintf(req->error_str, sizeof(req->error_str),
-				"%s: LUN size %ju < blocksize %u", __func__,
-				params->lun_size_bytes, be_lun->blocksize);
-			goto bailout_error;
-		}
-	}
+	be_lun->params.lun_size_bytes = params->lun_size_bytes;
 
-	vn_lock(be_lun->vn, LK_SHARED | LK_RETRY);
-
-	if (be_lun->vn->v_type == VREG)
+	oldsize = be_lun->size_bytes;
+	if (be_lun->vn == NULL)
+		error = ctl_be_block_open(softc, be_lun, req);
+	else if (be_lun->vn->v_type == VREG)
 		error = ctl_be_block_modify_file(be_lun, req);
 	else
 		error = ctl_be_block_modify_dev(be_lun, req);
 
-	VOP_UNLOCK(be_lun->vn, 0);
+	if (error == 0 && be_lun->size_bytes != oldsize) {
+		be_lun->size_blocks = be_lun->size_bytes >>
+		    be_lun->blocksize_shift;
 
-	if (error != 0)
-		goto bailout_error;
-
-	be_lun->size_blocks = be_lun->size_bytes >> be_lun->blocksize_shift;
-
-	/*
-	 * The maximum LBA is the size - 1.
-	 *
-	 * XXX: Note that this field is being updated without locking,
-	 * 	which might cause problems on 32-bit architectures.
-	 */
-	be_lun->ctl_be_lun.maxlba = be_lun->size_blocks - 1;
-	ctl_lun_capacity_changed(&be_lun->ctl_be_lun);
+		/*
+		 * The maximum LBA is the size - 1.
+		 *
+		 * XXX: Note that this field is being updated without locking,
+		 * 	which might cause problems on 32-bit architectures.
+		 */
+		be_lun->ctl_be_lun.maxlba = (be_lun->size_blocks == 0) ?
+		    0 : (be_lun->size_blocks - 1);
+		be_lun->ctl_be_lun.blocksize = be_lun->blocksize;
+		be_lun->ctl_be_lun.pblockexp = be_lun->pblockexp;
+		be_lun->ctl_be_lun.pblockoff = be_lun->pblockoff;
+		if (be_lun->dispatch == ctl_be_block_dispatch_zvol &&
+		    be_lun->blocksize != 0)
+			be_lun->ctl_be_lun.atomicblock = CTLBLK_MAX_IO_SIZE /
+			    be_lun->blocksize;
+		ctl_lun_capacity_changed(&be_lun->ctl_be_lun);
+		if (oldsize == 0 && be_lun->size_blocks != 0)
+			ctl_lun_online(&be_lun->ctl_be_lun);
+	}
 
 	/* Tell the user the exact size we ended up using */
 	params->lun_size_bytes = be_lun->size_bytes;
 
-	req->status = CTL_LUN_OK;
+	req->status = error ? CTL_LUN_WARNING : CTL_LUN_OK;
 
 	return (0);
 
@@ -2610,6 +2606,16 @@ ctl_be_block_lun_info(void *be_lun, struct sbuf *sb)
 bailout:
 
 	return (retval);
+}
+
+static uint64_t
+ctl_be_block_lun_attr(void *be_lun, const char *attrname)
+{
+	struct ctl_be_block_lun *lun = (struct ctl_be_block_lun *)be_lun;
+
+	if (lun->getattr == NULL)
+		return (UINT64_MAX);
+	return (lun->getattr(lun, attrname));
 }
 
 int

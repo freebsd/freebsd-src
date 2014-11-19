@@ -69,6 +69,7 @@ dbuf_cons(void *vdb, void *unused, int kmflag)
 	mutex_init(&db->db_mtx, NULL, MUTEX_DEFAULT, NULL);
 	cv_init(&db->db_changed, NULL, CV_DEFAULT, NULL);
 	refcount_create(&db->db_holds);
+
 	return (0);
 }
 
@@ -175,7 +176,7 @@ dbuf_hash_insert(dmu_buf_impl_t *db)
 	db->db_hash_next = h->hash_table[idx];
 	h->hash_table[idx] = db;
 	mutex_exit(DBUF_HASH_MUTEX(h, idx));
-	atomic_add_64(&dbuf_hash_count, 1);
+	atomic_inc_64(&dbuf_hash_count);
 
 	return (NULL);
 }
@@ -209,7 +210,7 @@ dbuf_hash_remove(dmu_buf_impl_t *db)
 	*dbp = db->db_hash_next;
 	db->db_hash_next = NULL;
 	mutex_exit(DBUF_HASH_MUTEX(h, idx));
-	atomic_add_64(&dbuf_hash_count, -1);
+	atomic_dec_64(&dbuf_hash_count);
 }
 
 static arc_evict_func_t dbuf_do_evict;
@@ -330,7 +331,7 @@ dbuf_verify(dmu_buf_impl_t *db)
 		ASSERT3U(db->db_level, <, dn->dn_nlevels);
 		ASSERT(db->db_blkid == DMU_BONUS_BLKID ||
 		    db->db_blkid == DMU_SPILL_BLKID ||
-		    !list_is_empty(&dn->dn_dbufs));
+		    !avl_is_empty(&dn->dn_dbufs));
 	}
 	if (db->db_blkid == DMU_BONUS_BLKID) {
 		ASSERT(dn != NULL);
@@ -670,6 +671,8 @@ dbuf_read(dmu_buf_impl_t *db, zio_t *zio, uint32_t flags)
 			    db->db_state == DB_FILL) {
 				ASSERT(db->db_state == DB_READ ||
 				    (flags & DB_RF_HAVESTRUCT) == 0);
+				DTRACE_PROBE2(blocked__read, dmu_buf_impl_t *,
+				    db, zio_t *, zio);
 				cv_wait(&db->db_changed, &db->db_mtx);
 			}
 			if (db->db_state == DB_UNCACHED)
@@ -803,18 +806,30 @@ dbuf_unoverride(dbuf_dirty_record_t *dr)
  * receive; see comment below for details.
  */
 void
-dbuf_free_range(dnode_t *dn, uint64_t start, uint64_t end, dmu_tx_t *tx)
+dbuf_free_range(dnode_t *dn, uint64_t start_blkid, uint64_t end_blkid,
+    dmu_tx_t *tx)
 {
-	dmu_buf_impl_t *db, *db_next;
+	dmu_buf_impl_t *db, *db_next, db_search;
 	uint64_t txg = tx->tx_txg;
+	avl_index_t where;
 
-	if (end > dn->dn_maxblkid && (end != DMU_SPILL_BLKID))
-		end = dn->dn_maxblkid;
-	dprintf_dnode(dn, "start=%llu end=%llu\n", start, end);
+	if (end_blkid > dn->dn_maxblkid && (end_blkid != DMU_SPILL_BLKID))
+		end_blkid = dn->dn_maxblkid;
+	dprintf_dnode(dn, "start=%llu end=%llu\n", start_blkid, end_blkid);
+
+	db_search.db_level = 0;
+	db_search.db_blkid = start_blkid;
+	db_search.db_state = DB_SEARCH;
 
 	mutex_enter(&dn->dn_dbufs_mtx);
-	if (start >= dn->dn_unlisted_l0_blkid * dn->dn_datablksz) {
+	if (start_blkid >= dn->dn_unlisted_l0_blkid) {
 		/* There can't be any dbufs in this range; no need to search. */
+#ifdef DEBUG
+		db = avl_find(&dn->dn_dbufs, &db_search, &where);
+		ASSERT3P(db, ==, NULL);
+		db = avl_nearest(&dn->dn_dbufs, where, AVL_AFTER);
+		ASSERT(db == NULL || db->db_level > 0);
+#endif
 		mutex_exit(&dn->dn_dbufs_mtx);
 		return;
 	} else if (dmu_objset_is_receiving(dn->dn_objset)) {
@@ -828,14 +843,18 @@ dbuf_free_range(dnode_t *dn, uint64_t start, uint64_t end, dmu_tx_t *tx)
 		atomic_inc_64(&zfs_free_range_recv_miss);
 	}
 
-	for (db = list_head(&dn->dn_dbufs); db != NULL; db = db_next) {
-		db_next = list_next(&dn->dn_dbufs, db);
+	db = avl_find(&dn->dn_dbufs, &db_search, &where);
+	ASSERT3P(db, ==, NULL);
+	db = avl_nearest(&dn->dn_dbufs, where, AVL_AFTER);
+
+	for (; db != NULL; db = db_next) {
+		db_next = AVL_NEXT(&dn->dn_dbufs, db);
 		ASSERT(db->db_blkid != DMU_BONUS_BLKID);
 
-		if (db->db_level != 0)
-			continue;
-		if (db->db_blkid < start || db->db_blkid > end)
-			continue;
+		if (db->db_level != 0 || db->db_blkid > end_blkid) {
+			break;
+		}
+		ASSERT3U(db->db_blkid, >=, start_blkid);
 
 		/* found a level 0 buffer in the range */
 		mutex_enter(&db->db_mtx);
@@ -1585,8 +1604,8 @@ dbuf_clear(dmu_buf_impl_t *db)
 	dn = DB_DNODE(db);
 	dndb = dn->dn_dbuf;
 	if (db->db_blkid != DMU_BONUS_BLKID && MUTEX_HELD(&dn->dn_dbufs_mtx)) {
-		list_remove(&dn->dn_dbufs, db);
-		(void) atomic_dec_32_nv(&dn->dn_dbufs_count);
+		avl_remove(&dn->dn_dbufs, db);
+		atomic_dec_32(&dn->dn_dbufs_count);
 		membar_producer();
 		DB_DNODE_EXIT(db);
 		/*
@@ -1748,7 +1767,7 @@ dbuf_create(dnode_t *dn, uint8_t level, uint64_t blkid,
 		mutex_exit(&dn->dn_dbufs_mtx);
 		return (odb);
 	}
-	list_insert_head(&dn->dn_dbufs, db);
+	avl_add(&dn->dn_dbufs, db);
 	if (db->db_level == 0 && db->db_blkid >=
 	    dn->dn_unlisted_l0_blkid)
 		dn->dn_unlisted_l0_blkid = db->db_blkid + 1;
@@ -1762,7 +1781,7 @@ dbuf_create(dnode_t *dn, uint8_t level, uint64_t blkid,
 	ASSERT(dn->dn_object == DMU_META_DNODE_OBJECT ||
 	    refcount_count(&dn->dn_holds) > 0);
 	(void) refcount_add(&dn->dn_holds, db);
-	(void) atomic_inc_32_nv(&dn->dn_dbufs_count);
+	atomic_inc_32(&dn->dn_dbufs_count);
 
 	dprintf_dbuf(db, "db=%p\n", db);
 
@@ -1807,8 +1826,8 @@ dbuf_destroy(dmu_buf_impl_t *db)
 			DB_DNODE_ENTER(db);
 			dn = DB_DNODE(db);
 			mutex_enter(&dn->dn_dbufs_mtx);
-			list_remove(&dn->dn_dbufs, db);
-			(void) atomic_dec_32_nv(&dn->dn_dbufs_count);
+			avl_remove(&dn->dn_dbufs, db);
+			atomic_dec_32(&dn->dn_dbufs_count);
 			mutex_exit(&dn->dn_dbufs_mtx);
 			DB_DNODE_EXIT(db);
 			/*
@@ -1825,7 +1844,6 @@ dbuf_destroy(dmu_buf_impl_t *db)
 	db->db_parent = NULL;
 	db->db_buf = NULL;
 
-	ASSERT(!list_link_active(&db->db_link));
 	ASSERT(db->db.db_data == NULL);
 	ASSERT(db->db_hash_next == NULL);
 	ASSERT(db->db_blkptr == NULL);
@@ -2004,10 +2022,8 @@ dbuf_spill_set_blksz(dmu_buf_t *db_fake, uint64_t blksz, dmu_tx_t *tx)
 		return (SET_ERROR(ENOTSUP));
 	if (blksz == 0)
 		blksz = SPA_MINBLOCKSIZE;
-	if (blksz > SPA_MAXBLOCKSIZE)
-		blksz = SPA_MAXBLOCKSIZE;
-	else
-		blksz = P2ROUNDUP(blksz, SPA_MINBLOCKSIZE);
+	ASSERT3U(blksz, <=, spa_maxblocksize(dmu_objset_spa(db->db_objset)));
+	blksz = P2ROUNDUP(blksz, SPA_MINBLOCKSIZE);
 
 	DB_DNODE_ENTER(db);
 	dn = DB_DNODE(db);
@@ -2093,7 +2109,7 @@ dbuf_rele_and_unlock(dmu_buf_impl_t *db, void *tag)
 			 * until the move completes.
 			 */
 			DB_DNODE_ENTER(db);
-			(void) atomic_dec_32_nv(&DB_DNODE(db)->dn_dbufs_count);
+			atomic_dec_32(&DB_DNODE(db)->dn_dbufs_count);
 			DB_DNODE_EXIT(db);
 			/*
 			 * The bonus buffer's dnode hold is no longer discounted

@@ -3837,6 +3837,7 @@ s_arm_eabi_attribute (int ignored ATTRIBUTE_UNUSED)
 #endif /* OBJ_ELF */
 
 static void s_arm_arch (int);
+static void s_arm_arch_extension (int);
 static void s_arm_object_arch (int);
 static void s_arm_cpu (int);
 static void s_arm_fpu (int);
@@ -3891,6 +3892,7 @@ const pseudo_typeS md_pseudo_table[] =
   { "syntax",	   s_syntax,	  0 },
   { "cpu",	   s_arm_cpu,	  0 },
   { "arch",	   s_arm_arch,	  0 },
+  { "arch_extension",	   s_arm_arch_extension,	  0 },
   { "object_arch", s_arm_object_arch,	0 },
   { "fpu",	   s_arm_fpu,	  0 },
 #ifdef OBJ_ELF
@@ -4685,6 +4687,23 @@ parse_address_main (char **str, int i, int group_relocations,
 	    if (my_get_expression (&inst.reloc.exp, &p, GE_IMM_PREFIX))
 	      return PARSE_OPERAND_FAIL;
 	}
+    }
+  else if (skip_past_char (&p, ':') == SUCCESS)
+    {
+      /* FIXME: '@' should be used here, but it's filtered out by generic
+         code before we get to see it here. This may be subject to
+         change.  */
+      expressionS exp;
+      my_get_expression (&exp, &p, GE_NO_PREFIX);
+      if (exp.X_op != O_constant)
+        {
+          inst.error = _("alignment must be constant");
+          return PARSE_OPERAND_FAIL;
+        }
+      inst.operands[i].imm = exp.X_add_number << 8;
+      inst.operands[i].immisalign = 1;
+      /* Alignments are not pre-indexes.  */
+      inst.operands[i].preind = 0;
     }
 
   if (skip_past_char (&p, ']') == FAIL)
@@ -6569,6 +6588,7 @@ do_barrier (void)
   if (inst.operands[0].present)
     {
       constraint ((inst.instruction & 0xf0) != 0x40
+		  && (inst.instruction & 0xf0) != 0x50
 		  && inst.operands[0].imm != 0xf,
 		  "bad barrier type");
       inst.instruction |= inst.operands[0].imm;
@@ -14692,10 +14712,18 @@ static const struct asm_cond conds[] =
 
 static struct asm_barrier_opt barrier_opt_names[] =
 {
-  { "sy",   0xf },
-  { "un",   0x7 },
-  { "st",   0xe },
-  { "unst", 0x6 }
+  { "sy",    0xf },
+  { "un",    0x7 },
+  { "st",    0xe },
+  { "unst",  0x6 },
+  { "ish",   0xb },
+  { "sh",    0xb },
+  { "ishst", 0xa },
+  { "shst",  0xa },
+  { "nsh",   0x7 },
+  { "nshst", 0x6 },
+  { "osh",   0x3 },
+  { "oshst", 0x2 }
 };
 
 /* Table of ARM-format instructions.	*/
@@ -19367,6 +19395,12 @@ arm_fix_adjustable (fixS * fixP)
       || fixP->fx_r_type == BFD_RELOC_ARM_LDR_PC_G0)
     return 0;
 
+  if (fixP->fx_r_type == BFD_RELOC_ARM_MOVW
+      || fixP->fx_r_type == BFD_RELOC_ARM_MOVT
+      || fixP->fx_r_type == BFD_RELOC_ARM_THUMB_MOVW
+      || fixP->fx_r_type == BFD_RELOC_ARM_THUMB_MOVT)
+    return 0;
+
   return 1;
 }
 #endif /* defined (OBJ_ELF) || defined (OBJ_COFF) */
@@ -20154,6 +20188,7 @@ static const struct arm_option_cpu_value_table arm_extensions[] =
   {"xscale",		ARM_FEATURE (0, ARM_CEXT_XSCALE)},
   {"iwmmxt",		ARM_FEATURE (0, ARM_CEXT_IWMMXT)},
   {"iwmmxt2",		ARM_FEATURE (0, ARM_CEXT_IWMMXT2)},
+  {"sec",		ARM_FEATURE (ARM_EXT_V6Z, 0)},
   {NULL,		ARM_ARCH_NONE}
 };
 
@@ -20337,7 +20372,7 @@ arm_parse_arch (char * str)
     }
 
   for (opt = arm_archs; opt->name != NULL; opt++)
-    if (streq (opt->name, str))
+    if (strncmp (opt->name, str, optlen) == 0)
       {
 	march_cpu_opt = &opt->value;
 	march_fpu_opt = &opt->default_fpu;
@@ -20738,6 +20773,34 @@ s_arm_arch (int ignored ATTRIBUTE_UNUSED)
   ignore_rest_of_line ();
 }
 
+/* Parse a .arch_extension directive.  */
+
+static void
+s_arm_arch_extension (int ignored ATTRIBUTE_UNUSED)
+{
+  const struct arm_option_cpu_value_table *opt;
+  char saved_char;
+  char *name;
+
+  name = input_line_pointer;
+  while (*input_line_pointer && !ISSPACE(*input_line_pointer))
+    input_line_pointer++;
+  saved_char = *input_line_pointer;
+  *input_line_pointer = 0;
+
+  for (opt = arm_extensions; opt->name != NULL; opt++)
+    if (streq (opt->name, name))
+      {
+	ARM_MERGE_FEATURE_SETS (cpu_variant, cpu_variant, opt->value);
+	*input_line_pointer = saved_char;
+	demand_empty_rest_of_line ();
+	return;
+      }
+
+  as_bad (_("unknown architecture `%s'\n"), name);
+  *input_line_pointer = saved_char;
+  ignore_rest_of_line ();
+}
 
 /* Parse a .object_arch directive.  */
 

@@ -216,14 +216,14 @@ lmc_parse(char *lm_p, size_t lm_len)
 	p = NULL;
 	while (cnt < lm_len) {
 		i = 0;
-		while (lm_p[cnt] != '\n' && cnt < lm_len &&
+		while (cnt < lm_len && lm_p[cnt] != '\n' &&
 		    i < sizeof(line) - 1) {
 			line[i] = lm_p[cnt];
 			cnt++;
 			i++;
 		}
 		line[i] = '\0';
-		while (lm_p[cnt] != '\n' && cnt < lm_len)
+		while (cnt < lm_len && lm_p[cnt] != '\n')
 			cnt++;
 		/* skip over nl */
 		cnt++;

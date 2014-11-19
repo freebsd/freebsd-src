@@ -240,14 +240,15 @@ ipfw_log_bpf(int onoff)
 }
 #endif /* !WITHOUT_BPF */
 
+#define	TARG(k, f)	IP_FW_ARG_TABLEARG(chain, k, f)
 /*
  * We enter here when we have a rule with O_LOG.
  * XXX this function alone takes about 2Kbytes of code!
  */
 void
-ipfw_log(struct ip_fw *f, u_int hlen, struct ip_fw_args *args,
-    struct mbuf *m, struct ifnet *oif, u_short offset, uint32_t tablearg,
-    struct ip *ip)
+ipfw_log(struct ip_fw_chain *chain, struct ip_fw *f, u_int hlen,
+    struct ip_fw_args *args, struct mbuf *m, struct ifnet *oif,
+    u_short offset, uint32_t tablearg, struct ip *ip)
 {
 	char *action;
 	int limit_reached = 0;
@@ -343,27 +344,27 @@ ipfw_log(struct ip_fw *f, u_int hlen, struct ip_fw_args *args,
 			break;
 		case O_DIVERT:
 			snprintf(SNPARGS(action2, 0), "Divert %d",
-				cmd->arg1);
+				TARG(cmd->arg1, divert));
 			break;
 		case O_TEE:
 			snprintf(SNPARGS(action2, 0), "Tee %d",
-				cmd->arg1);
+				TARG(cmd->arg1, divert));
 			break;
 		case O_SETFIB:
 			snprintf(SNPARGS(action2, 0), "SetFib %d",
-				IP_FW_ARG_TABLEARG(cmd->arg1));
+				TARG(cmd->arg1, fib));
 			break;
 		case O_SKIPTO:
 			snprintf(SNPARGS(action2, 0), "SkipTo %d",
-				IP_FW_ARG_TABLEARG(cmd->arg1));
+				TARG(cmd->arg1, skipto));
 			break;
 		case O_PIPE:
 			snprintf(SNPARGS(action2, 0), "Pipe %d",
-				IP_FW_ARG_TABLEARG(cmd->arg1));
+				TARG(cmd->arg1, pipe));
 			break;
 		case O_QUEUE:
 			snprintf(SNPARGS(action2, 0), "Queue %d",
-				IP_FW_ARG_TABLEARG(cmd->arg1));
+				TARG(cmd->arg1, pipe));
 			break;
 		case O_FORWARD_IP: {
 			ipfw_insn_sa *sa = (ipfw_insn_sa *)cmd;

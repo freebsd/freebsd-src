@@ -36,11 +36,10 @@ SRCS=		atf-check.cpp
 MAN=		atf-check.1
 
 CFLAGS+=	-I${ATF}
+CFLAGS+=	-DATF_SHELL='"/bin/sh"'
 
-LDFLAGS+=	-L${.OBJDIR}/../../../lib/atf/libatf-c++
-LDFLAGS+=	-L${.OBJDIR}/../../../lib/atf/libatf-c
 DPADD+=		${LIBATF_CXX} ${LIBATF_C}
-LDADD+=		-latf-c++ -latf-c
+LDADD+=		${LDATF_CXX} ${LDATF_C}
 USEPRIVATELIB=	atf-c++ atf-c
 
 .if ${MK_TESTS} != "no"

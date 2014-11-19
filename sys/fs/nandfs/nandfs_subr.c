@@ -639,16 +639,14 @@ nandfs_get_node_raw(struct nandfs_device *nandfsdev, struct nandfsmount *nmp,
 	if (nmp) {
 		mp = nmp->nm_vfs_mountp;
 		error = getnewvnode("nandfs", mp, &nandfs_vnodeops, &nvp);
-		if (error) {
+		if (error)
 			return (error);
-		}
 	} else {
 		mp = NULL;
 		error = getnewvnode("snandfs", mp, &nandfs_system_vnodeops,
 		    &nvp);
-		if (error) {
+		if (error)
 			return (error);
-		}
 	}
 
 	if (mp)

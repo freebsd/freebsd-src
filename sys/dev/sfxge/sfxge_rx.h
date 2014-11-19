@@ -30,25 +30,25 @@
  */
 
 #ifndef _SFXGE_RX_H
-#define _SFXGE_RX_H
+#define	_SFXGE_RX_H
 
-#define SFXGE_MAGIC_RESERVED    0x8000
+#define	SFXGE_MAGIC_RESERVED	0x8000
 
-#define SFXGE_MAGIC_DMAQ_LABEL_WIDTH  6
-#define SFXGE_MAGIC_DMAQ_LABEL_MASK   \
-        ((1 << SFXGE_MAGIC_DMAQ_LABEL_WIDTH) - 1)
+#define	SFXGE_MAGIC_DMAQ_LABEL_WIDTH	6
+#define	SFXGE_MAGIC_DMAQ_LABEL_MASK					\
+	((1 << SFXGE_MAGIC_DMAQ_LABEL_WIDTH) - 1)
 
-#define SFXGE_MAGIC_RX_QFLUSH_DONE                                      \
-        (SFXGE_MAGIC_RESERVED | (1 << SFXGE_MAGIC_DMAQ_LABEL_WIDTH))
+#define	SFXGE_MAGIC_RX_QFLUSH_DONE					\
+	(SFXGE_MAGIC_RESERVED | (1 << SFXGE_MAGIC_DMAQ_LABEL_WIDTH))
 
-#define SFXGE_MAGIC_RX_QFLUSH_FAILED                                    \
-        (SFXGE_MAGIC_RESERVED | (2 << SFXGE_MAGIC_DMAQ_LABEL_WIDTH))
+#define	SFXGE_MAGIC_RX_QFLUSH_FAILED					\
+	(SFXGE_MAGIC_RESERVED | (2 << SFXGE_MAGIC_DMAQ_LABEL_WIDTH))
 
-#define SFXGE_MAGIC_RX_QREFILL                                          \
-        (SFXGE_MAGIC_RESERVED | (3 << SFXGE_MAGIC_DMAQ_LABEL_WIDTH))
+#define	SFXGE_MAGIC_RX_QREFILL						\
+	(SFXGE_MAGIC_RESERVED | (3 << SFXGE_MAGIC_DMAQ_LABEL_WIDTH))
 
-#define SFXGE_MAGIC_TX_QFLUSH_DONE                                      \
-        (SFXGE_MAGIC_RESERVED | (4 << SFXGE_MAGIC_DMAQ_LABEL_WIDTH))
+#define	SFXGE_MAGIC_TX_QFLUSH_DONE					\
+	(SFXGE_MAGIC_RESERVED | (4 << SFXGE_MAGIC_DMAQ_LABEL_WIDTH))
 
 #define	SFXGE_RX_SCALE_MAX	EFX_MAXRSS
 
@@ -159,6 +159,8 @@ struct sfxge_rxq {
 	efsys_mem_t			mem;
 	unsigned int			buf_base_id;
 	enum sfxge_rxq_state		init_state;
+	unsigned int			entries;
+	unsigned int			ptr_mask;
 
 	struct sfxge_rx_sw_desc		*queue __aligned(CACHE_LINE_SIZE);
 	unsigned int			added;
@@ -166,6 +168,7 @@ struct sfxge_rxq {
 	unsigned int			completed;
 	unsigned int			loopback;
 	struct sfxge_lro_state		lro;
+	unsigned int			refill_threshold;
 	struct callout			refill_callout;
 	unsigned int			refill_delay;
 

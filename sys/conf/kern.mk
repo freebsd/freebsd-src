@@ -29,14 +29,23 @@ NO_WSOMETIMES_UNINITIALIZED=	-Wno-error-sometimes-uninitialized
 # enough to error out the whole kernel build.  Display them anyway, so there is
 # some incentive to fix them eventually.
 CWARNEXTRA?=	-Wno-error-tautological-compare -Wno-error-empty-body \
-		-Wno-error-parentheses-equality -Wno-error-unused-function \
-		${NO_WFORMAT}
+		-Wno-error-parentheses-equality -Wno-error-unused-function
+.endif
+
+.if ${COMPILER_TYPE} == "gcc" && ${COMPILER_VERSION} >= 40300
+# Catch-all for all the things that are in our tree, but for which we're
+# not yet ready for this compiler. Note: we likely only really "support"
+# building with gcc 4.8 and newer. Nothing older has been tested.
+CWARNEXTRA?=	-Wno-error=inline -Wno-error=enum-compare -Wno-error=unused-but-set-variable \
+		-Wno-error=aggressive-loop-optimizations -Wno-error=maybe-uninitialized \
+		-Wno-error=array-bounds -Wno-error=address \
+		-Wno-error=cast-qual -Wno-error=sequence-point -Wno-error=attributes
 .endif
 
 # External compilers may not support our format extensions.  Allow them
 # to be disabled.  WARNING: format checking is disabled in this case.
 .if ${MK_FORMAT_EXTENSIONS} == "no"
-NO_WFORMAT=		-Wno-format
+FORMAT_EXTENSIONS=	-Wno-format
 .else
 FORMAT_EXTENSIONS=	-fformat-extensions
 .endif

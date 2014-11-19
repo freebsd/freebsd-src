@@ -57,7 +57,7 @@ static struct lapic_info {
 	u_int la_acpi_id:8;
 } lapics[MAX_APIC_ID + 1];
 
-static int madt_found_sci_override;
+int madt_found_sci_override;
 static ACPI_TABLE_MADT *madt;
 static vm_paddr_t madt_physaddr;
 static vm_offset_t madt_length;
@@ -102,7 +102,7 @@ madt_probe(void)
 	madt_physaddr = acpi_find_table(ACPI_SIG_MADT);
 	if (madt_physaddr == 0)
 		return (ENXIO);
-	return (0);
+	return (-50);
 }
 
 /*
@@ -380,6 +380,61 @@ madt_find_interrupt(int intr, void **apic, u_int *pin)
 	return (0);
 }
 
+void
+madt_parse_interrupt_values(void *entry,
+    enum intr_trigger *trig, enum intr_polarity *pol)
+{
+	ACPI_MADT_INTERRUPT_OVERRIDE *intr;
+	char buf[64];
+
+	intr = entry;
+
+	if (bootverbose)
+		printf("MADT: Interrupt override: source %u, irq %u\n",
+		    intr->SourceIrq, intr->GlobalIrq);
+	KASSERT(intr->Bus == 0, ("bus for interrupt overrides must be zero"));
+
+	/*
+	 * Lookup the appropriate trigger and polarity modes for this
+	 * entry.
+	 */
+	*trig = interrupt_trigger(intr->IntiFlags, intr->SourceIrq);
+	*pol = interrupt_polarity(intr->IntiFlags, intr->SourceIrq);
+
+	/*
+	 * If the SCI is identity mapped but has edge trigger and
+	 * active-hi polarity or the force_sci_lo tunable is set,
+	 * force it to use level/lo.
+	 */
+	if (intr->SourceIrq == AcpiGbl_FADT.SciInterrupt) {
+		madt_found_sci_override = 1;
+		if (getenv_string("hw.acpi.sci.trigger", buf, sizeof(buf))) {
+			if (tolower(buf[0]) == 'e')
+				*trig = INTR_TRIGGER_EDGE;
+			else if (tolower(buf[0]) == 'l')
+				*trig = INTR_TRIGGER_LEVEL;
+			else
+				panic(
+				"Invalid trigger %s: must be 'edge' or 'level'",
+				    buf);
+			printf("MADT: Forcing SCI to %s trigger\n",
+			    *trig == INTR_TRIGGER_EDGE ? "edge" : "level");
+		}
+		if (getenv_string("hw.acpi.sci.polarity", buf, sizeof(buf))) {
+			if (tolower(buf[0]) == 'h')
+				*pol = INTR_POLARITY_HIGH;
+			else if (tolower(buf[0]) == 'l')
+				*pol = INTR_POLARITY_LOW;
+			else
+				panic(
+				"Invalid polarity %s: must be 'high' or 'low'",
+				    buf);
+			printf("MADT: Forcing SCI to active %s polarity\n",
+			    *pol == INTR_POLARITY_HIGH ? "high" : "low");
+		}
+	}
+}
+
 /*
  * Parse an interrupt source override for an ISA interrupt.
  */
@@ -390,7 +445,6 @@ madt_parse_interrupt_override(ACPI_MADT_INTERRUPT_OVERRIDE *intr)
 	u_int new_pin, old_pin;
 	enum intr_trigger trig;
 	enum intr_polarity pol;
-	char buf[64];
 
 	if (acpi_quirks & ACPI_Q_MADT_IRQ0 && intr->SourceIrq == 0 &&
 	    intr->GlobalIrq == 2) {
@@ -398,55 +452,14 @@ madt_parse_interrupt_override(ACPI_MADT_INTERRUPT_OVERRIDE *intr)
 			printf("MADT: Skipping timer override\n");
 		return;
 	}
-	if (bootverbose)
-		printf("MADT: Interrupt override: source %u, irq %u\n",
-		    intr->SourceIrq, intr->GlobalIrq);
-	KASSERT(intr->Bus == 0, ("bus for interrupt overrides must be zero"));
+
 	if (madt_find_interrupt(intr->GlobalIrq, &new_ioapic, &new_pin) != 0) {
 		printf("MADT: Could not find APIC for vector %u (IRQ %u)\n",
 		    intr->GlobalIrq, intr->SourceIrq);
 		return;
 	}
 
-	/*
-	 * Lookup the appropriate trigger and polarity modes for this
-	 * entry.
-	 */
-	trig = interrupt_trigger(intr->IntiFlags, intr->SourceIrq);
-	pol = interrupt_polarity(intr->IntiFlags, intr->SourceIrq);
-	
-	/*
-	 * If the SCI is identity mapped but has edge trigger and
-	 * active-hi polarity or the force_sci_lo tunable is set,
-	 * force it to use level/lo.
-	 */
-	if (intr->SourceIrq == AcpiGbl_FADT.SciInterrupt) {
-		madt_found_sci_override = 1;
-		if (getenv_string("hw.acpi.sci.trigger", buf, sizeof(buf))) {
-			if (tolower(buf[0]) == 'e')
-				trig = INTR_TRIGGER_EDGE;
-			else if (tolower(buf[0]) == 'l')
-				trig = INTR_TRIGGER_LEVEL;
-			else
-				panic(
-				"Invalid trigger %s: must be 'edge' or 'level'",
-				    buf);
-			printf("MADT: Forcing SCI to %s trigger\n",
-			    trig == INTR_TRIGGER_EDGE ? "edge" : "level");
-		}
-		if (getenv_string("hw.acpi.sci.polarity", buf, sizeof(buf))) {
-			if (tolower(buf[0]) == 'h')
-				pol = INTR_POLARITY_HIGH;
-			else if (tolower(buf[0]) == 'l')
-				pol = INTR_POLARITY_LOW;
-			else
-				panic(
-				"Invalid polarity %s: must be 'high' or 'low'",
-				    buf);
-			printf("MADT: Forcing SCI to active %s polarity\n",
-			    pol == INTR_POLARITY_HIGH ? "high" : "low");
-		}
-	}
+	madt_parse_interrupt_values(intr, &trig, &pol);
 
 	/* Remap the IRQ if it is mapped to a different interrupt vector. */
 	if (intr->SourceIrq != intr->GlobalIrq) {

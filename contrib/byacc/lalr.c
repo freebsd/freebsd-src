@@ -1,4 +1,4 @@
-/* $Id: lalr.c,v 1.10 2014/02/19 00:35:17 Tom.Shields Exp $ */
+/* $Id: lalr.c,v 1.11 2014/09/18 00:26:39 tom Exp $ */
 
 #include "defs.h"
 
@@ -34,6 +34,7 @@ Value_t *accessing_symbol;
 core **state_table;
 shifts **shift_table;
 reductions **reduction_table;
+Value_t *goto_base;
 Value_t *goto_map;
 Value_t *from_state;
 Value_t *to_state;
@@ -179,12 +180,16 @@ set_goto_map(void)
     int i;
     int symbol;
     int k;
+    Value_t *temp_base;
     Value_t *temp_map;
     Value_t state2;
     Value_t state1;
 
-    goto_map = NEW2(nvars + 1, Value_t) - ntokens;
-    temp_map = NEW2(nvars + 1, Value_t) - ntokens;
+    goto_base = NEW2(nvars + 1, Value_t);
+    temp_base = NEW2(nvars + 1, Value_t);
+
+    goto_map = goto_base - ntokens;
+    temp_map = temp_base - ntokens;
 
     ngotos = 0;
     for (sp = first_shift; sp; sp = sp->next)
@@ -237,7 +242,7 @@ set_goto_map(void)
 	}
     }
 
-    FREE(temp_map + ntokens);
+    FREE(temp_base);
 }
 
 /*  Map_goto maps a state/symbol pair into its numeric representation.	*/

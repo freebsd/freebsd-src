@@ -187,4 +187,9 @@
 
 #define	ZERO_REGION_SIZE	(64 * 1024)	/* 64KB */
 
+#ifndef __mips_n64
+#define	SFBUF
+#define	SFBUF_MAP
+#endif
+
 #endif /* !_MACHINE_VMPARAM_H_ */

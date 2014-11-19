@@ -1,6 +1,5 @@
 # $FreeBSD$
 
-.include <bsd.own.mk>
 .include "Makefile.inc"
 
 SUBDIR=		dtmalloc	\

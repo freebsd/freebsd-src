@@ -14,7 +14,7 @@ WARNS?=	3
 CFLAGS+= -I${SSHDIR} -include ssh_namespace.h
 
 DPADD=	${LIBSSH} ${LIBCRYPTO} ${LIBCRYPT}
-LDADD=	-lssh -lcrypto -lcrypt
+LDADD=	${LDSSH} -lcrypto -lcrypt
 USEPRIVATELIB= ssh
 
 .include <bsd.lib.mk>

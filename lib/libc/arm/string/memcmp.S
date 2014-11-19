@@ -178,3 +178,4 @@ ENTRY(memcmp)
 	sub	r0, r3, r2		/* r0 = b1#5 - b2#5 */
 	RET
 #endif
+END(memcmp)

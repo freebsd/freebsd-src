@@ -37,6 +37,7 @@ __FBSDID("$FreeBSD$");
 #include "opt_ipstealth.h"
 #include "opt_ipsec.h"
 #include "opt_route.h"
+#include "opt_rss.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -77,6 +78,7 @@ __FBSDID("$FreeBSD$");
 #ifdef IPSEC
 #include <netinet/ip_ipsec.h>
 #endif /* IPSEC */
+#include <netinet/in_rss.h>
 
 #include <sys/socketvar.h>
 
@@ -92,30 +94,18 @@ RW_SYSINIT(in_ifaddr_lock, &in_ifaddr_lock, "in_ifaddr_lock");
 VNET_DEFINE(int, rsvp_on);
 
 VNET_DEFINE(int, ipforwarding);
-SYSCTL_VNET_INT(_net_inet_ip, IPCTL_FORWARDING, forwarding, CTLFLAG_RW,
+SYSCTL_INT(_net_inet_ip, IPCTL_FORWARDING, forwarding, CTLFLAG_VNET | CTLFLAG_RW,
     &VNET_NAME(ipforwarding), 0,
     "Enable IP forwarding between interfaces");
 
 static VNET_DEFINE(int, ipsendredirects) = 1;	/* XXX */
 #define	V_ipsendredirects	VNET(ipsendredirects)
-SYSCTL_VNET_INT(_net_inet_ip, IPCTL_SENDREDIRECTS, redirect, CTLFLAG_RW,
+SYSCTL_INT(_net_inet_ip, IPCTL_SENDREDIRECTS, redirect, CTLFLAG_VNET | CTLFLAG_RW,
     &VNET_NAME(ipsendredirects), 0,
     "Enable sending IP redirects");
 
-static VNET_DEFINE(int, ip_keepfaith);
-#define	V_ip_keepfaith		VNET(ip_keepfaith)
-SYSCTL_VNET_INT(_net_inet_ip, IPCTL_KEEPFAITH, keepfaith, CTLFLAG_RW,
-    &VNET_NAME(ip_keepfaith), 0,
-    "Enable packet capture for FAITH IPv4->IPv6 translater daemon");
-
-static VNET_DEFINE(int, ip_sendsourcequench);
-#define	V_ip_sendsourcequench	VNET(ip_sendsourcequench)
-SYSCTL_VNET_INT(_net_inet_ip, OID_AUTO, sendsourcequench, CTLFLAG_RW,
-    &VNET_NAME(ip_sendsourcequench), 0,
-    "Enable the transmission of source quench packets");
-
 VNET_DEFINE(int, ip_do_randomid);
-SYSCTL_VNET_INT(_net_inet_ip, OID_AUTO, random_id, CTLFLAG_RW,
+SYSCTL_INT(_net_inet_ip, OID_AUTO, random_id, CTLFLAG_VNET | CTLFLAG_RW,
     &VNET_NAME(ip_do_randomid), 0,
     "Assign random ip_id values");
 
@@ -134,7 +124,7 @@ SYSCTL_VNET_INT(_net_inet_ip, OID_AUTO, random_id, CTLFLAG_RW,
  */
 static VNET_DEFINE(int, ip_checkinterface);
 #define	V_ip_checkinterface	VNET(ip_checkinterface)
-SYSCTL_VNET_INT(_net_inet_ip, OID_AUTO, check_interface, CTLFLAG_RW,
+SYSCTL_INT(_net_inet_ip, OID_AUTO, check_interface, CTLFLAG_VNET | CTLFLAG_RW,
     &VNET_NAME(ip_checkinterface), 0,
     "Verify packet arrives on correct interface");
 
@@ -144,8 +134,32 @@ static struct netisr_handler ip_nh = {
 	.nh_name = "ip",
 	.nh_handler = ip_input,
 	.nh_proto = NETISR_IP,
+#ifdef	RSS
+	.nh_m2cpuid = rss_soft_m2cpuid,
+	.nh_policy = NETISR_POLICY_CPU,
+	.nh_dispatch = NETISR_DISPATCH_HYBRID,
+#else
 	.nh_policy = NETISR_POLICY_FLOW,
+#endif
 };
+
+#ifdef	RSS
+/*
+ * Directly dispatched frames are currently assumed
+ * to have a flowid already calculated.
+ *
+ * It should likely have something that assert it
+ * actually has valid flow details.
+ */
+static struct netisr_handler ip_direct_nh = {
+	.nh_name = "ip_direct",
+	.nh_handler = ip_direct_input,
+	.nh_proto = NETISR_IP_DIRECT,
+	.nh_m2cpuid = rss_m2cpuid,
+	.nh_policy = NETISR_POLICY_CPU,
+	.nh_dispatch = NETISR_DISPATCH_HYBRID,
+};
+#endif
 
 extern	struct domain inetdomain;
 extern	struct protosw inetsw[];
@@ -174,13 +188,13 @@ static VNET_DEFINE(int, maxnipq);  /* Administrative limit on # reass queues. */
 static VNET_DEFINE(int, nipq);			/* Total # of reass queues */
 #define	V_maxnipq		VNET(maxnipq)
 #define	V_nipq			VNET(nipq)
-SYSCTL_VNET_INT(_net_inet_ip, OID_AUTO, fragpackets, CTLFLAG_RD,
+SYSCTL_INT(_net_inet_ip, OID_AUTO, fragpackets, CTLFLAG_VNET | CTLFLAG_RD,
     &VNET_NAME(nipq), 0,
     "Current number of IPv4 fragment reassembly queue entries");
 
 static VNET_DEFINE(int, maxfragsperpacket);
 #define	V_maxfragsperpacket	VNET(maxfragsperpacket)
-SYSCTL_VNET_INT(_net_inet_ip, OID_AUTO, maxfragsperpacket, CTLFLAG_RW,
+SYSCTL_INT(_net_inet_ip, OID_AUTO, maxfragsperpacket, CTLFLAG_VNET | CTLFLAG_RW,
     &VNET_NAME(maxfragsperpacket), 0,
     "Maximum number of IPv4 fragments allowed per packet");
 
@@ -191,7 +205,7 @@ SYSCTL_INT(_net_inet_ip, IPCTL_DEFMTU, mtu, CTLFLAG_RW,
 
 #ifdef IPSTEALTH
 VNET_DEFINE(int, ipstealth);
-SYSCTL_VNET_INT(_net_inet_ip, OID_AUTO, stealth, CTLFLAG_RW,
+SYSCTL_INT(_net_inet_ip, OID_AUTO, stealth, CTLFLAG_VNET | CTLFLAG_RW,
     &VNET_NAME(ipstealth), 0,
     "IP stealth mode, no TTL decrementation on forwarding");
 #endif
@@ -266,6 +280,46 @@ SYSCTL_PROC(_net_inet_ip, IPCTL_INTRQDROPS, intr_queue_drops,
     CTLTYPE_INT|CTLFLAG_RD, 0, 0, sysctl_netinet_intr_queue_drops, "I",
     "Number of packets dropped from the IP input queue");
 
+#ifdef	RSS
+static int
+sysctl_netinet_intr_direct_queue_maxlen(SYSCTL_HANDLER_ARGS)
+{
+	int error, qlimit;
+
+	netisr_getqlimit(&ip_direct_nh, &qlimit);
+	error = sysctl_handle_int(oidp, &qlimit, 0, req);
+	if (error || !req->newptr)
+		return (error);
+	if (qlimit < 1)
+		return (EINVAL);
+	return (netisr_setqlimit(&ip_direct_nh, qlimit));
+}
+SYSCTL_PROC(_net_inet_ip, IPCTL_INTRQMAXLEN, intr_direct_queue_maxlen,
+    CTLTYPE_INT|CTLFLAG_RW, 0, 0, sysctl_netinet_intr_direct_queue_maxlen, "I",
+    "Maximum size of the IP direct input queue");
+
+static int
+sysctl_netinet_intr_direct_queue_drops(SYSCTL_HANDLER_ARGS)
+{
+	u_int64_t qdrops_long;
+	int error, qdrops;
+
+	netisr_getqdrops(&ip_direct_nh, &qdrops_long);
+	qdrops = qdrops_long;
+	error = sysctl_handle_int(oidp, &qdrops, 0, req);
+	if (error || !req->newptr)
+		return (error);
+	if (qdrops != 0)
+		return (EINVAL);
+	netisr_clearqdrops(&ip_direct_nh);
+	return (0);
+}
+
+SYSCTL_PROC(_net_inet_ip, IPCTL_INTRQDROPS, intr_direct_queue_drops,
+    CTLTYPE_INT|CTLFLAG_RD, 0, 0, sysctl_netinet_intr_direct_queue_drops, "I",
+    "Number of packets dropped from the IP direct input queue");
+#endif	/* RSS */
+
 /*
  * IP initialization: fill in IP protocol switch table.
  * All protocols not implemented in kernel go to raw IP protocol handler.
@@ -327,6 +381,9 @@ ip_init(void)
 	/* Initialize various other remaining things. */
 	IPQ_LOCK_INIT();
 	netisr_register(&ip_nh);
+#ifdef	RSS
+	netisr_register(&ip_direct_nh);
+#endif
 }
 
 #ifdef VIMAGE
@@ -347,6 +404,28 @@ ip_destroy(void)
 	IPQ_UNLOCK();
 
 	uma_zdestroy(V_ipq_zone);
+}
+#endif
+
+#ifdef	RSS
+/*
+ * IP direct input routine.
+ *
+ * This is called when reinjecting completed fragments where
+ * all of the previous checking and book-keeping has been done.
+ */
+void
+ip_direct_input(struct mbuf *m)
+{
+	struct ip *ip;
+	int hlen;
+
+	ip = mtod(m, struct ip *);
+	hlen = ip->ip_hl << 2;
+
+	IPSTAT_INC(ips_delivered);
+	(*inetsw[ip_protox[ip->ip_p]].pr_input)(&m, &hlen, ip->ip_p);
+	return;
 }
 #endif
 
@@ -463,6 +542,7 @@ tooshort:
 		} else
 			m_adj(m, ip_len - m->m_pkthdr.len);
 	}
+
 #ifdef IPSEC
 	/*
 	 * Bypass packet filtering for packets previously handled by IPsec.
@@ -661,18 +741,6 @@ passin:
 		goto ours;
 
 	/*
-	 * FAITH(Firewall Aided Internet Translator)
-	 */
-	if (ifp && ifp->if_type == IFT_FAITH) {
-		if (V_ip_keepfaith) {
-			if (ip->ip_p == IPPROTO_TCP || ip->ip_p == IPPROTO_ICMP) 
-				goto ours;
-		}
-		m_freem(m);
-		return;
-	}
-
-	/*
 	 * Not for us; forward if possible and desirable.
 	 */
 	if (V_ipforwarding == 0) {
@@ -726,7 +794,7 @@ ours:
 	 */
 	IPSTAT_INC(ips_delivered);
 
-	(*inetsw[ip_protox[ip->ip_p]].pr_input)(m, hlen);
+	(*inetsw[ip_protox[ip->ip_p]].pr_input)(&m, &hlen, ip->ip_p);
 	return;
 bad:
 	m_freem(m);
@@ -817,6 +885,9 @@ ip_reass(struct mbuf *m)
 	int i, hlen, next;
 	u_int8_t ecn, ecn0;
 	u_short hash;
+#ifdef	RSS
+	uint32_t rss_hash, rss_type;
+#endif
 
 	/* If maxnipq or maxfragsperpacket are 0, never accept fragments. */
 	if (V_maxnipq == 0 || V_maxfragsperpacket == 0) {
@@ -1106,6 +1177,40 @@ found:
 		m_fixhdr(m);
 	IPSTAT_INC(ips_reassembled);
 	IPQ_UNLOCK();
+
+#ifdef	RSS
+	/*
+	 * Query the RSS layer for the flowid / flowtype for the
+	 * mbuf payload.
+	 *
+	 * For now, just assume we have to calculate a new one.
+	 * Later on we should check to see if the assigned flowid matches
+	 * what RSS wants for the given IP protocol and if so, just keep it.
+	 *
+	 * We then queue into the relevant netisr so it can be dispatched
+	 * to the correct CPU.
+	 *
+	 * Note - this may return 1, which means the flowid in the mbuf
+	 * is correct for the configured RSS hash types and can be used.
+	 */
+	if (rss_mbuf_software_hash_v4(m, 0, &rss_hash, &rss_type) == 0) {
+		m->m_pkthdr.flowid = rss_hash;
+		M_HASHTYPE_SET(m, rss_type);
+		m->m_flags |= M_FLOWID;
+	}
+
+	/*
+	 * Queue/dispatch for reprocessing.
+	 *
+	 * Note: this is much slower than just handling the frame in the
+	 * current receive context.  It's likely worth investigating
+	 * why this is.
+	 */
+	netisr_dispatch(NETISR_IP_DIRECT, m);
+	return (NULL);
+#endif
+
+	/* Handle in-line */
 	return (m);
 
 dropfrag:
@@ -1225,7 +1330,6 @@ ip_drain(void)
 	}
 	IPQ_UNLOCK();
 	VNET_LIST_RUNLOCK_NOSLEEP();
-	in_rtqdrain();
 }
 
 /*
@@ -1536,25 +1640,6 @@ ip_forward(struct mbuf *m, int srcrt)
 		break;
 
 	case ENOBUFS:
-		/*
-		 * A router should not generate ICMP_SOURCEQUENCH as
-		 * required in RFC1812 Requirements for IP Version 4 Routers.
-		 * Source quench could be a big problem under DoS attacks,
-		 * or if the underlying interface is rate-limited.
-		 * Those who need source quench packets may re-enable them
-		 * via the net.inet.ip.sendsourcequench sysctl.
-		 */
-		if (V_ip_sendsourcequench == 0) {
-			m_freem(mcopy);
-			if (ia != NULL)
-				ifa_free(&ia->ia_ifa);
-			return;
-		} else {
-			type = ICMP_SOURCEQUENCH;
-			code = 0;
-		}
-		break;
-
 	case EACCES:			/* ipfw denied packet */
 		m_freem(mcopy);
 		if (ia != NULL)
@@ -1662,6 +1747,43 @@ makedummy:
 		if (*mp)
 			mp = &(*mp)->m_next;
 	}
+
+	if (inp->inp_flags2 & INP_RECVFLOWID) {
+		uint32_t flowid, flow_type;
+
+		flowid = m->m_pkthdr.flowid;
+		flow_type = M_HASHTYPE_GET(m);
+
+		/*
+		 * XXX should handle the failure of one or the
+		 * other - don't populate both?
+		 */
+		*mp = sbcreatecontrol((caddr_t) &flowid,
+		    sizeof(uint32_t), IP_FLOWID, IPPROTO_IP);
+		if (*mp)
+			mp = &(*mp)->m_next;
+		*mp = sbcreatecontrol((caddr_t) &flow_type,
+		    sizeof(uint32_t), IP_FLOWTYPE, IPPROTO_IP);
+		if (*mp)
+			mp = &(*mp)->m_next;
+	}
+
+#ifdef	RSS
+	if (inp->inp_flags2 & INP_RECVRSSBUCKETID) {
+		uint32_t flowid, flow_type;
+		uint32_t rss_bucketid;
+
+		flowid = m->m_pkthdr.flowid;
+		flow_type = M_HASHTYPE_GET(m);
+
+		if (rss_hash2bucket(flowid, flow_type, &rss_bucketid) == 0) {
+			*mp = sbcreatecontrol((caddr_t) &rss_bucketid,
+			   sizeof(uint32_t), IP_RSSBUCKETID, IPPROTO_IP);
+			if (*mp)
+				mp = &(*mp)->m_next;
+		}
+	}
+#endif
 }
 
 /*
@@ -1715,13 +1837,18 @@ ip_rsvp_done(void)
 	return 0;
 }
 
-void
-rsvp_input(struct mbuf *m, int off)	/* XXX must fixup manually */
+int
+rsvp_input(struct mbuf **mp, int *offp, int proto)
 {
+	struct mbuf *m;
+
+	m = *mp;
+	*mp = NULL;
 
 	if (rsvp_input_p) { /* call the real one if loaded */
-		rsvp_input_p(m, off);
-		return;
+		*mp = m;
+		rsvp_input_p(mp, offp, proto);
+		return (IPPROTO_DONE);
 	}
 
 	/* Can still get packets with rsvp_on = 0 if there is a local member
@@ -1731,13 +1858,15 @@ rsvp_input(struct mbuf *m, int off)	/* XXX must fixup manually */
 	
 	if (!V_rsvp_on) {
 		m_freem(m);
-		return;
+		return (IPPROTO_DONE);
 	}
 
 	if (V_ip_rsvpd != NULL) { 
-		rip_input(m, off);
-		return;
+		*mp = m;
+		rip_input(mp, offp, proto);
+		return (IPPROTO_DONE);
 	}
 	/* Drop the packet */
 	m_freem(m);
+	return (IPPROTO_DONE);
 }

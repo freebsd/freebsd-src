@@ -38,7 +38,8 @@
 	} while (0)
 #define INIT_LINK(elt, link) \
 	INIT_LINK_TYPE(elt, link, void)
-#define LINKED(elt, link) ((void *)((elt)->link.prev) != (void *)(-1))
+#define LINKED(elt, link) ((void *)((elt)->link.prev) != (void *)(-1) && \
+			   (void *)((elt)->link.next) != (void *)(-1))
 
 #define HEAD(list) ((list).head)
 #define TAIL(list) ((list).tail)

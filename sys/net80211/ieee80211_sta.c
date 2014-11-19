@@ -938,7 +938,7 @@ sta_input(struct ieee80211_node *ni, struct mbuf *m, int rssi, int nf)
 		break;
 	}
 err:
-	ifp->if_ierrors++;
+	if_inc_counter(ifp, IFCOUNTER_IERRORS, 1);
 out:
 	if (m != NULL) {
 		if (need_tap && ieee80211_radiotap_active_vap(vap))

@@ -23,19 +23,7 @@ SRCS=	vnode_if.h \
 	opt_ufs.h
 
 .if !defined(KERNBUILDDIR)
-NFS_INET?=	1	# 0/1 - requires INET to be configured in kernel
-NFS_INET6?=	1	# 0/1 - requires INET6 to be configured in kernel
 NFS_ROOT?=	1	# 0/1 - requires NFS_ROOT to be configured in kernel
-
-.if ${NFS_INET} > 0
-opt_inet.h:
-	echo "#define INET 1" > ${.TARGET}
-.endif
-
-.if ${NFS_INET6} > 0
-opt_inet6.h:
-	echo "#define INET6 1" > ${.TARGET}
-.endif
 
 .if ${NFS_ROOT} > 0
 opt_nfsroot.h:

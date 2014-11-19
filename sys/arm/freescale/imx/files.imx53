@@ -22,7 +22,7 @@ dev/uart/uart_dev_imx.c 		optional uart
 arm/freescale/imx/tzic.c		standard
 
 # IOMUX - external pins multiplexor
-arm/freescale/imx/imx51_iomux.c		optional iomux
+arm/freescale/imx/imx_iomux.c		standard
 
 # GPIO
 arm/freescale/imx/imx_gpio.c		optional gpio

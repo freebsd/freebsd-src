@@ -336,12 +336,13 @@ _mapping_get_high_missing_mt_idx(struct mps_softc *sc)
 	end_idx = sc->max_devices;
 	if (ioc_pg8_flags & MPI2_IOCPAGE8_FLAGS_RESERVED_TARGETID_0)
 		start_idx = 1;
-	if (sc->ir_firmware)
+	if (sc->ir_firmware) {
 		_mapping_get_ir_maprange(sc, &start_idx_ir, &end_idx_ir);
-	if (start_idx == start_idx_ir)
-		start_idx = end_idx_ir + 1;
-	else
-		end_idx = start_idx_ir;
+		if (start_idx == start_idx_ir)
+			start_idx = end_idx_ir + 1;
+		else
+			end_idx = start_idx_ir;
+	}
 	mt_entry = &sc->mapping_table[start_idx];
 	for (map_idx = start_idx; map_idx < end_idx; map_idx++, mt_entry++) {
 		if (mt_entry->missing_count > high_missing_count) {

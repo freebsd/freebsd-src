@@ -220,9 +220,9 @@ void  os_request_timer(void * osext, HPT_U32 interval)
 	PVBUS_EXT vbus_ext = osext;
 
 	HPT_ASSERT(vbus_ext->ext_type==EXT_TYPE_VBUS);
-	
-	untimeout(os_timer_for_ldm, vbus_ext, vbus_ext->timer);
-	vbus_ext->timer = timeout(os_timer_for_ldm, vbus_ext, interval * hz / 1000000);
+
+	callout_reset(&vbus_ext->timer, interval * hz / 1000000,
+	    os_timer_for_ldm, vbus_ext);
 }
 
 HPT_TIME os_query_time(void)

@@ -248,8 +248,8 @@ gx_transmit(struct ifnet *ifp, struct mbuf *m)
 
 	ETHER_BPF_MTAP(ifp, m);
 
-	ifp->if_opackets++;
-	ifp->if_obytes += m->m_pkthdr.len;
+	if_inc_counter(ifp, IFCOUNTER_OPACKETS, 1);
+	if_inc_counter(ifp, IFCOUNTER_OBYTES, m->m_pkthdr.len);
 
 	m_freem(m);
 
@@ -324,7 +324,7 @@ gx_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 		return (0);
 
 	case SIOCSIFMTU:
-		if (ifr->ifr_mtu + ifp->if_data.ifi_hdrlen > GXEMUL_ETHER_DEV_MTU)
+		if (ifr->ifr_mtu + ifp->if_hdrlen > GXEMUL_ETHER_DEV_MTU)
 			return (ENOTSUP);
 		return (0);
 
@@ -366,14 +366,14 @@ gx_rx_intr(void *arg)
 			break;
 		length = GXEMUL_ETHER_DEV_READ(GXEMUL_ETHER_DEV_LENGTH);
 		if (length > MCLBYTES - ETHER_ALIGN) {
-			sc->sc_ifp->if_ierrors++;
+			if_inc_counter(sc->sc_ifp, IFCOUNTER_IERRORS, 1);
 			continue;
 		}
 
 		m = m_getcl(M_NOWAIT, MT_DATA, M_PKTHDR);
 		if (m == NULL) {
 			device_printf(sc->sc_dev, "no memory for receive mbuf.\n");
-			sc->sc_ifp->if_iqdrops++;
+			if_inc_counter(sc->sc_ifp, IFCOUNTER_IQDROPS, 1);
 			GXEMUL_ETHER_UNLOCK(sc);
 			return;
 		}
@@ -386,7 +386,7 @@ gx_rx_intr(void *arg)
 		m->m_pkthdr.rcvif = sc->sc_ifp;
 		m->m_pkthdr.len = m->m_len = length;
 
-		sc->sc_ifp->if_ipackets++;
+		if_inc_counter(sc->sc_ifp, IFCOUNTER_IPACKETS, 1);
 
 		GXEMUL_ETHER_UNLOCK(sc);
 

@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2013, Intel Corp.
+ * Copyright (C) 2000 - 2014, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -212,14 +212,29 @@ AcpiNsSimpleRepair (
      * this predefined name. Either one return value is expected, or none,
      * for both methods and other objects.
      *
-     * Exit now if there is no return object. Warning if one was expected.
+     * Try to fix if there was no return object. Warning if failed to fix.
      */
     if (!ReturnObject)
     {
         if (ExpectedBtypes && (!(ExpectedBtypes & ACPI_RTYPE_NONE)))
         {
-            ACPI_WARN_PREDEFINED ((AE_INFO, Info->FullPathname,
-                ACPI_WARN_ALWAYS, "Missing expected return value"));
+            if (PackageIndex != ACPI_NOT_PACKAGE_ELEMENT)
+            {
+                ACPI_WARN_PREDEFINED ((AE_INFO, Info->FullPathname,
+                    ACPI_WARN_ALWAYS, "Found unexpected NULL package element"));
+
+                Status = AcpiNsRepairNullElement (Info, ExpectedBtypes,
+                            PackageIndex, ReturnObjectPtr);
+                if (ACPI_SUCCESS (Status))
+                {
+                    return (AE_OK); /* Repair was successful */
+                }
+            }
+            else
+            {
+                ACPI_WARN_PREDEFINED ((AE_INFO, Info->FullPathname,
+                    ACPI_WARN_ALWAYS, "Missing expected return value"));
+            }
 
             return (AE_AML_NO_RETURN_VALUE);
         }
@@ -474,7 +489,7 @@ AcpiNsRepairNullElement (
  * RETURN:      None.
  *
  * DESCRIPTION: Remove all NULL package elements from packages that contain
- *              a variable number of sub-packages. For these types of
+ *              a variable number of subpackages. For these types of
  *              packages, NULL elements can be safely removed.
  *
  *****************************************************************************/
@@ -498,7 +513,7 @@ AcpiNsRemoveNullElements (
     /*
      * We can safely remove all NULL elements from these package types:
      * PTYPE1_VAR packages contain a variable number of simple data types.
-     * PTYPE2 packages contain a variable number of sub-packages.
+     * PTYPE2 packages contain a variable number of subpackages.
      */
     switch (PackageType)
     {

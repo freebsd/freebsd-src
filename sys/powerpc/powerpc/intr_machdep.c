@@ -293,7 +293,7 @@ powerpc_intr_post_ithread(void *arg)
 }
 
 static int
-powerpc_assign_intr_cpu(void *arg, u_char cpu)
+powerpc_assign_intr_cpu(void *arg, int cpu)
 {
 #ifdef SMP
 	struct powerpc_intr *i = arg;

@@ -21,7 +21,7 @@
 /*
  * Copyright (c) 2005, 2010, Oracle and/or its affiliates. All rights reserved.
  * Portions Copyright (c) 2011 Martin Matuska <mm@FreeBSD.org>
- * Copyright (c) 2013, 2014 by Delphix. All rights reserved.
+ * Copyright (c) 2011, 2014 by Delphix. All rights reserved.
  * Copyright (c) 2014, Joyent, Inc. All rights reserved.
  * Copyright (c) 2014 RackTop Systems.
  */
@@ -51,6 +51,22 @@
 #include <sys/dsl_userhold.h>
 #include <sys/dsl_bookmark.h>
 
+SYSCTL_DECL(_vfs_zfs);
+
+/*
+ * The SPA supports block sizes up to 16MB.  However, very large blocks
+ * can have an impact on i/o latency (e.g. tying up a spinning disk for
+ * ~300ms), and also potentially on the memory allocator.  Therefore,
+ * we do not allow the recordsize to be set larger than zfs_max_recordsize
+ * (default 1MB).  Larger blocks can be created by changing this tunable,
+ * and pools with larger blocks can always be imported and used, regardless
+ * of this setting.
+ */
+int zfs_max_recordsize = 1 * 1024 * 1024;
+SYSCTL_INT(_vfs_zfs, OID_AUTO, max_recordsize, CTLFLAG_RWTUN,
+    &zfs_max_recordsize, 0,
+    "Maximum block size.  Expect dragons when tuning this.");
+
 #define	SWITCH64(x, y) \
 	{ \
 		uint64_t __tmp = (x); \
@@ -59,8 +75,6 @@
 	}
 
 #define	DS_REF_MAX	(1ULL << 62)
-
-#define	DSL_DEADLIST_BLOCKSIZE	SPA_MAXBLOCKSIZE
 
 /*
  * Figure out how much of this delta should be propogated to the dsl_dir
@@ -111,6 +125,8 @@ dsl_dataset_block_born(dsl_dataset_t *ds, const blkptr_t *bp, dmu_tx_t *tx)
 	ds->ds_phys->ds_compressed_bytes += compressed;
 	ds->ds_phys->ds_uncompressed_bytes += uncompressed;
 	ds->ds_phys->ds_unique_bytes += used;
+	if (BP_GET_LSIZE(bp) > SPA_OLD_MAXBLOCKSIZE)
+		ds->ds_need_large_blocks = B_TRUE;
 	mutex_exit(&ds->ds_lock);
 	dsl_dir_diduse_space(ds->ds_dir, DD_USED_HEAD, delta,
 	    compressed, uncompressed, tx);
@@ -391,6 +407,14 @@ dsl_dataset_hold_obj(dsl_pool_t *dp, uint64_t dsobj, void *tag,
 
 		list_create(&ds->ds_sendstreams, sizeof (dmu_sendarg_t),
 		    offsetof(dmu_sendarg_t, dsa_link));
+
+		if (doi.doi_type == DMU_OTN_ZAP_METADATA) {
+			err = zap_contains(mos, dsobj, DS_FIELD_LARGE_BLOCKS);
+			if (err == 0)
+				ds->ds_large_blocks = B_TRUE;
+			else
+				ASSERT3U(err, ==, ENOENT);
+		}
 
 		if (err == 0) {
 			err = dsl_dir_hold_obj(dp,
@@ -699,7 +723,16 @@ dsl_dataset_create_sync_dd(dsl_dir_t *dd, dsl_dataset_t *origin,
 		dsphys->ds_uncompressed_bytes =
 		    origin->ds_phys->ds_uncompressed_bytes;
 		dsphys->ds_bp = origin->ds_phys->ds_bp;
-		dsphys->ds_flags |= origin->ds_phys->ds_flags;
+
+		/*
+		 * Inherit flags that describe the dataset's contents
+		 * (INCONSISTENT) or properties (Case Insensitive).
+		 */
+		dsphys->ds_flags |= origin->ds_phys->ds_flags &
+		    (DS_FLAG_INCONSISTENT | DS_FLAG_CI_DATASET);
+
+		if (origin->ds_large_blocks)
+			dsl_dataset_activate_large_blocks_sync_impl(dsobj, tx);
 
 		dmu_buf_will_dirty(origin->ds_dbuf, tx);
 		origin->ds_phys->ds_num_children++;
@@ -1256,6 +1289,9 @@ dsl_dataset_snapshot_sync_impl(dsl_dataset_t *ds, const char *snapname,
 	dsphys->ds_bp = ds->ds_phys->ds_bp;
 	dmu_buf_rele(dbuf, FTAG);
 
+	if (ds->ds_large_blocks)
+		dsl_dataset_activate_large_blocks_sync_impl(dsobj, tx);
+
 	ASSERT3U(ds->ds_prev != 0, ==, ds->ds_phys->ds_prev_snap_obj != 0);
 	if (ds->ds_prev) {
 		uint64_t next_clones_obj =
@@ -1540,6 +1576,11 @@ dsl_dataset_sync(dsl_dataset_t *ds, zio_t *zio, dmu_tx_t *tx)
 	ds->ds_phys->ds_fsid_guid = ds->ds_fsid_guid;
 
 	dmu_objset_sync(ds->ds_objset, zio, tx);
+
+	if (ds->ds_need_large_blocks && !ds->ds_large_blocks) {
+		dsl_dataset_activate_large_blocks_sync_impl(ds->ds_object, tx);
+		ds->ds_large_blocks = B_TRUE;
+	}
 }
 
 static void
@@ -2257,6 +2298,9 @@ dsl_dataset_promote_sync(void *arg, dmu_tx_t *tx)
 	dsl_dir_t *odd = NULL;
 	uint64_t oldnext_obj;
 	int64_t delta;
+#if defined(__FreeBSD__) && defined(_KERNEL)
+	char *oldname, *newname;
+#endif
 
 	VERIFY0(promote_hold(ddpa, dp, FTAG));
 	hds = ddpa->ddpa_clone;
@@ -2322,6 +2366,14 @@ dsl_dataset_promote_sync(void *arg, dmu_tx_t *tx)
 		    dd->dd_phys->dd_clones, origin_head->ds_object, tx));
 	}
 
+#if defined(__FreeBSD__) && defined(_KERNEL)
+	/* Take the spa_namespace_lock early so zvol renames don't deadlock. */
+	mutex_enter(&spa_namespace_lock);
+
+	oldname = kmem_alloc(MAXPATHLEN, KM_SLEEP);
+	newname = kmem_alloc(MAXPATHLEN, KM_SLEEP);
+#endif
+
 	/* move snapshots to this dir */
 	for (snap = list_head(&ddpa->shared_snaps); snap;
 	    snap = list_next(&ddpa->shared_snaps, snap)) {
@@ -2355,6 +2407,12 @@ dsl_dataset_promote_sync(void *arg, dmu_tx_t *tx)
 		dsl_dir_rele(ds->ds_dir, ds);
 		VERIFY0(dsl_dir_hold_obj(dp, dd->dd_object,
 		    NULL, ds, &ds->ds_dir));
+
+#if defined(__FreeBSD__) && defined(_KERNEL)
+		dsl_dataset_name(ds, newname);
+		zfsvfs_update_fromname(oldname, newname);
+		zvol_rename_minors(oldname, newname);
+#endif
 
 		/* move any clone references */
 		if (ds->ds_phys->ds_next_clones_obj &&
@@ -2393,6 +2451,12 @@ dsl_dataset_promote_sync(void *arg, dmu_tx_t *tx)
 		ASSERT(!dsl_prop_hascb(ds));
 	}
 
+#if defined(__FreeBSD__) && defined(_KERNEL)
+	mutex_exit(&spa_namespace_lock);
+
+	kmem_free(newname, MAXPATHLEN);
+	kmem_free(oldname, MAXPATHLEN);
+#endif
 	/*
 	 * Change space accounting.
 	 * Note, pa->*usedsnap and dd_used_breakdown[SNAP] will either
@@ -3200,6 +3264,77 @@ dsl_dataset_space_wouldfree(dsl_dataset_t *firstsnap,
 		dsl_dataset_rele(ds, FTAG);
 	}
 	return (err);
+}
+
+static int
+dsl_dataset_activate_large_blocks_check(void *arg, dmu_tx_t *tx)
+{
+	const char *dsname = arg;
+	dsl_dataset_t *ds;
+	dsl_pool_t *dp = dmu_tx_pool(tx);
+	int error = 0;
+
+	if (!spa_feature_is_enabled(dp->dp_spa, SPA_FEATURE_LARGE_BLOCKS))
+		return (SET_ERROR(ENOTSUP));
+
+	ASSERT(spa_feature_is_enabled(dp->dp_spa,
+	    SPA_FEATURE_EXTENSIBLE_DATASET));
+
+	error = dsl_dataset_hold(dp, dsname, FTAG, &ds);
+	if (error != 0)
+		return (error);
+
+	if (ds->ds_large_blocks)
+		error = EALREADY;
+	dsl_dataset_rele(ds, FTAG);
+
+	return (error);
+}
+
+void
+dsl_dataset_activate_large_blocks_sync_impl(uint64_t dsobj, dmu_tx_t *tx)
+{
+	spa_t *spa = dmu_tx_pool(tx)->dp_spa;
+	objset_t *mos = dmu_tx_pool(tx)->dp_meta_objset;
+	uint64_t zero = 0;
+
+	spa_feature_incr(spa, SPA_FEATURE_LARGE_BLOCKS, tx);
+	dmu_object_zapify(mos, dsobj, DMU_OT_DSL_DATASET, tx);
+
+	VERIFY0(zap_add(mos, dsobj, DS_FIELD_LARGE_BLOCKS,
+	    sizeof (zero), 1, &zero, tx));
+}
+
+static void
+dsl_dataset_activate_large_blocks_sync(void *arg, dmu_tx_t *tx)
+{
+	const char *dsname = arg;
+	dsl_dataset_t *ds;
+
+	VERIFY0(dsl_dataset_hold(dmu_tx_pool(tx), dsname, FTAG, &ds));
+
+	dsl_dataset_activate_large_blocks_sync_impl(ds->ds_object, tx);
+	ASSERT(!ds->ds_large_blocks);
+	ds->ds_large_blocks = B_TRUE;
+	dsl_dataset_rele(ds, FTAG);
+}
+
+int
+dsl_dataset_activate_large_blocks(const char *dsname)
+{
+	int error;
+
+	error = dsl_sync_task(dsname,
+	    dsl_dataset_activate_large_blocks_check,
+	    dsl_dataset_activate_large_blocks_sync, (void *)dsname,
+	    1, ZFS_SPACE_CHECK_RESERVED);
+
+	/*
+	 * EALREADY indicates that this dataset already supports large blocks.
+	 */
+	if (error == EALREADY)
+		error = 0;
+	return (error);
 }
 
 /*

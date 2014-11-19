@@ -37,6 +37,8 @@
 # xdev-build          - Build cross-development tools.
 # xdev-install        - Install cross-development tools.
 # xdev-links          - Create traditional links in /usr/bin for cc, etc
+# native-xtools       - Create host binaries that produce target objects
+#                       for use in qemu user-mode jails.
 # 
 # "quick" way to test all kernel builds:
 # 	_jflag=`sysctl -n hw.ncpu`
@@ -111,7 +113,7 @@ TGTS=	all all-man buildenv buildenvvars buildkernel buildworld \
 	_worldtmp _legacy _bootstrap-tools _cleanobj _obj \
 	_build-tools _cross-tools _includes _libraries _depend \
 	build32 builddtb distribute32 install32 xdev xdev-build xdev-install \
-	xdev-links \
+	xdev-links native-xtools \
 
 TGTS+=	${SUBDIR_TARGETS}
 

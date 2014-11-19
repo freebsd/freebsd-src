@@ -261,7 +261,7 @@ ieee80211_deliver_data(struct ieee80211vap *vap,
 	/*
 	 * Do accounting.
 	 */
-	ifp->if_ipackets++;
+	if_inc_counter(ifp, IFCOUNTER_IPACKETS, 1);
 	IEEE80211_NODE_STAT(ni, rx_data);
 	IEEE80211_NODE_STAT_ADD(ni, rx_bytes, m->m_pkthdr.len);
 	if (ETHER_IS_MULTICAST(eh->ether_dhost)) {

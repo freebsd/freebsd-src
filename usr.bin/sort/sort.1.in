@@ -581,7 +581,7 @@ An error occurred.
 .Sh SEE ALSO
 .Xr comm 1 ,
 .Xr join 1 ,
-.Xr uniq 1 .
+.Xr uniq 1
 .Sh STANDARDS
 The
 .Nm

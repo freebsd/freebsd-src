@@ -1014,6 +1014,7 @@ int radeon_device_init(struct radeon_device *rdev,
 	rdev->mc.gtt_size = radeon_gart_size * 1024 * 1024;
 	rdev->accel_working = false;
 	rdev->fictitious_range_registered = false;
+	rdev->fictitious_agp_range_registered = false;
 	/* set up ring ids */
 	for (i = 0; i < RADEON_NUM_RINGS; i++) {
 		rdev->ring[i].idx = i;
@@ -1168,6 +1169,24 @@ int radeon_device_init(struct radeon_device *rdev,
 		return (-r);
 	}
 	rdev->fictitious_range_registered = true;
+#if __OS_HAS_AGP
+	if (rdev->flags & RADEON_IS_AGP) {
+		DRM_INFO("%s: Taking over the fictitious range 0x%jx-0x%jx\n",
+		    __func__, (uintmax_t)rdev->mc.agp_base,
+		    (uintmax_t)rdev->mc.agp_base + rdev->mc.gtt_size);
+		r = vm_phys_fictitious_reg_range(
+		    rdev->mc.agp_base,
+		    rdev->mc.agp_base + rdev->mc.gtt_size,
+		    VM_MEMATTR_WRITE_COMBINING);
+		if (r != 0) {
+			DRM_ERROR("Failed to register fictitious range "
+			    "0x%jx-0x%jx (%d).\n", (uintmax_t)rdev->mc.agp_base,
+			    (uintmax_t)rdev->mc.agp_base + rdev->mc.gtt_size, r);
+			return (-r);
+		}
+		rdev->fictitious_agp_range_registered = true;
+	}
+#endif
 
 	if ((radeon_testing & 1)) {
 		radeon_test_moves(rdev);
@@ -1205,6 +1224,13 @@ void radeon_device_fini(struct radeon_device *rdev)
 		    rdev->mc.aper_base,
 		    rdev->mc.aper_base + rdev->mc.visible_vram_size);
 	}
+#if __OS_HAS_AGP
+	if (rdev->fictitious_agp_range_registered) {
+		vm_phys_fictitious_unreg_range(
+		    rdev->mc.agp_base,
+		    rdev->mc.agp_base + rdev->mc.gtt_size);
+	}
+#endif
 
 	radeon_fini(rdev);
 #ifdef DUMBBELL_WIP

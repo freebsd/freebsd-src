@@ -357,7 +357,7 @@ arc_defrag(struct ifnet *ifp, struct mbuf *m)
 	if (m->m_len < ARC_HDRNEWLEN) {
 		m = m_pullup(m, ARC_HDRNEWLEN);
 		if (m == NULL) {
-			++ifp->if_ierrors;
+			if_inc_counter(ifp, IFCOUNTER_IERRORS, 1);
 			return NULL;
 		}
 	}
@@ -377,7 +377,7 @@ arc_defrag(struct ifnet *ifp, struct mbuf *m)
 		if (m->m_len < ARC_HDRNEWLEN) {
 			m = m_pullup(m, ARC_HDRNEWLEN);
 			if (m == NULL) {
-				++ifp->if_ierrors;
+				if_inc_counter(ifp, IFCOUNTER_IERRORS, 1);
 				return NULL;
 			}
 		}
@@ -530,11 +530,11 @@ arc_input(struct ifnet *ifp, struct mbuf *m)
 		return;
 	}
 
-	ifp->if_ibytes += m->m_pkthdr.len;
+	if_inc_counter(ifp, IFCOUNTER_IBYTES, m->m_pkthdr.len);
 
 	if (ah->arc_dhost == arcbroadcastaddr) {
 		m->m_flags |= M_BCAST|M_MCAST;
-		ifp->if_imcasts++;
+		if_inc_counter(ifp, IFCOUNTER_IMCASTS, 1);
 	}
 
 	atype = ah->arc_type;

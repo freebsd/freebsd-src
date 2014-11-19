@@ -199,7 +199,11 @@ struct tcpcb {
 	u_int	t_keepintvl;		/* interval between keepalives */
 	u_int	t_keepcnt;		/* number of keepalives before close */
 
-	u_int	t_tsomax;		/* tso burst length limit */
+	u_int	t_tsomax;		/* TSO total burst length limit in bytes */
+	u_int	t_tsomaxsegcount;	/* TSO maximum segment count */
+	u_int	t_tsomaxsegsize;	/* TSO maximum segment size in bytes */
+	u_int	t_pmtud_saved_maxopd;	/* pre-blackhole MSS */
+	u_int	t_flags2;		/* More tcpcb flags storage */
 
 	uint32_t t_ispare[8];		/* 5 UTO, 3 TBD */
 	void	*t_pspare2[4];		/* 1 TCP_SIGNATURE, 3 TBD */
@@ -275,6 +279,13 @@ struct tcpcb {
 #endif /* TCP_SIGNATURE */
 
 /*
+ * Flags for PLPMTU handling, t_flags2
+ */
+#define	TF2_PLPMTU_BLACKHOLE	0x00000001 /* Possible PLPMTUD Black Hole. */
+#define	TF2_PLPMTU_PMTUD	0x00000002 /* Allowed to attempt PLPMTUD. */
+#define	TF2_PLPMTU_MAXSEGSNT	0x00000004 /* Last seg sent was full seg. */
+
+/*
  * Structure to hold TCP options that are only used during segment
  * processing (in tcp_input), but not held in the tcpcb.
  * It's basically used to reduce the number of parameters
@@ -324,6 +335,8 @@ struct hc_metrics_lite {	/* must stay in sync with hc_metrics */
 struct tcp_ifcap {
 	int	ifcap;
 	u_int	tsomax;
+	u_int	tsomaxsegcount;
+	u_int	tsomaxsegsize;
 };
 
 #ifndef _NETINET_IN_PCB_H_
@@ -344,7 +357,8 @@ struct tcptw {
 	u_int		t_starttime;
 	int		tw_time;
 	TAILQ_ENTRY(tcptw) tw_2msl;
-	u_int		tw_refcount;	/* refcount */
+	void		*tw_pspare;	/* TCP_SIGNATURE */
+	u_int		*tw_spare;	/* TCP_SIGNATURE */
 };
 
 #define	intotcpcb(ip)	((struct tcpcb *)(ip)->inp_ppcb)
@@ -637,7 +651,7 @@ struct tcpcb *
 	 tcp_close(struct tcpcb *);
 void	 tcp_discardcb(struct tcpcb *);
 void	 tcp_twstart(struct tcpcb *);
-void	 tcp_twclose(struct tcptw *_tw, int _reuse);
+void	 tcp_twclose(struct tcptw *, int);
 void	 tcp_ctlinput(int, struct sockaddr *, void *);
 int	 tcp_ctloutput(struct socket *, struct sockopt *);
 struct tcpcb *
@@ -654,7 +668,7 @@ char	*tcp_log_vain(struct in_conninfo *, struct tcphdr *, void *,
 	    const void *);
 int	 tcp_reass(struct tcpcb *, struct tcphdr *, int *, struct mbuf *);
 void	 tcp_reass_flush(struct tcpcb *);
-void	 tcp_input(struct mbuf *, int);
+int	 tcp_input(struct mbuf **, int *, int);
 u_long	 tcp_maxmtu(struct in_conninfo *, struct tcp_ifcap *);
 u_long	 tcp_maxmtu6(struct in_conninfo *, struct tcp_ifcap *);
 void	 tcp_mss_update(struct tcpcb *, int, int, struct hc_metrics_lite *,
@@ -680,9 +694,15 @@ int	 tcp_twcheck(struct inpcb *, struct tcpopt *, struct tcphdr *,
 	    struct mbuf *, int);
 void	 tcp_setpersist(struct tcpcb *);
 #ifdef TCP_SIGNATURE
+struct secasvar;
+struct secasvar *tcp_get_sav(struct mbuf *, u_int);
+int	 tcp_signature_do_compute(struct mbuf *, int, int, u_char *,
+	    struct secasvar *);
 int	 tcp_signature_compute(struct mbuf *, int, int, int, u_char *, u_int);
 int	 tcp_signature_verify(struct mbuf *, int, int, int, struct tcpopt *,
 	    struct tcphdr *, u_int);
+int	tcp_signature_check(struct mbuf *m, int off0, int tlen, int optlen,
+	    struct tcpopt *to, struct tcphdr *th, u_int tcpbflag);
 #endif
 void	 tcp_slowtimo(void);
 struct tcptemp *

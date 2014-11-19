@@ -633,6 +633,7 @@ vlapic_fire_timer(struct vlapic *vlapic)
 	// The timer LVT always uses the fixed delivery mode.
 	lvt = vlapic_get_lvt(vlapic, APIC_OFFSET_TIMER_LVT);
 	if (vlapic_fire_lvt(vlapic, lvt | APIC_LVT_DM_FIXED)) {
+		VLAPIC_CTR0(vlapic, "vlapic timer fired");
 		vmm_stat_incr(vlapic->vm, vlapic->vcpuid, VLAPIC_INTR_TIMER, 1);
 	}
 }
@@ -911,8 +912,12 @@ vlapic_set_tpr(struct vlapic *vlapic, uint8_t val)
 {
 	struct LAPIC *lapic = vlapic->apic_page;
 
-	lapic->tpr = val;
-	vlapic_update_ppr(vlapic);
+	if (lapic->tpr != val) {
+		VCPU_CTR2(vlapic->vm, vlapic->vcpuid, "vlapic TPR changed "
+		    "from %#x to %#x", lapic->tpr, val);
+		lapic->tpr = val;
+		vlapic_update_ppr(vlapic);
+	}
 }
 
 static uint8_t

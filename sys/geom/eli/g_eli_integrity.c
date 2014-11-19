@@ -41,7 +41,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/proc.h>
 #include <sys/sched.h>
 #include <sys/smp.h>
-#include <sys/uio.h>
 #include <sys/vnode.h>
 
 #include <vm/uma.h>
@@ -363,8 +362,6 @@ g_eli_auth_read(struct g_eli_softc *sc, struct bio *bp)
 	size += sizeof(struct cryptop) * nsec;
 	size += sizeof(struct cryptodesc) * nsec * 2;
 	size += G_ELI_AUTH_SECKEYLEN * nsec;
-	size += sizeof(struct uio) * nsec;
-	size += sizeof(struct iovec) * nsec;
 	cbp->bio_offset = (bp->bio_offset / bp->bio_to->sectorsize) * sc->sc_bytes_per_sector;
 	bp->bio_driver2 = malloc(size, M_ELI, M_WAITOK);
 	cbp->bio_data = bp->bio_driver2;
@@ -409,8 +406,6 @@ g_eli_auth_run(struct g_eli_worker *wr, struct bio *bp)
 	struct g_eli_softc *sc;
 	struct cryptop *crp;
 	struct cryptodesc *crde, *crda;
-	struct uio *uio;
-	struct iovec *iov;
 	u_int i, lsec, nsec, data_secsize, decr_secsize, encr_secsize;
 	off_t dstoff;
 	int err, error;
@@ -449,8 +444,6 @@ g_eli_auth_run(struct g_eli_worker *wr, struct bio *bp)
 		size += sizeof(*crde) * nsec;
 		size += sizeof(*crda) * nsec;
 		size += G_ELI_AUTH_SECKEYLEN * nsec;
-		size += sizeof(*uio) * nsec;
-		size += sizeof(*iov) * nsec;
 		data = malloc(size, M_ELI, M_WAITOK);
 		bp->bio_driver2 = data;
 		p = data + encr_secsize * nsec;
@@ -464,8 +457,6 @@ g_eli_auth_run(struct g_eli_worker *wr, struct bio *bp)
 		crde = (struct cryptodesc *)p;	p += sizeof(*crde);
 		crda = (struct cryptodesc *)p;	p += sizeof(*crda);
 		authkey = (u_char *)p;		p += G_ELI_AUTH_SECKEYLEN;
-		uio = (struct uio *)p;		p += sizeof(*uio);
-		iov = (struct iovec *)p;	p += sizeof(*iov);
 
 		data_secsize = sc->sc_data_per_sector;
 		if ((i % lsec) == 0)
@@ -482,21 +473,13 @@ g_eli_auth_run(struct g_eli_worker *wr, struct bio *bp)
 			plaindata += data_secsize;
 		}
 
-		iov->iov_len = sc->sc_alen + data_secsize;
-		iov->iov_base = data;
-		data += encr_secsize;
-
-		uio->uio_iov = iov;
-		uio->uio_iovcnt = 1;
-		uio->uio_segflg = UIO_SYSSPACE;
-		uio->uio_resid = iov->iov_len;
-
 		crp->crp_sid = wr->w_sid;
-		crp->crp_ilen = uio->uio_resid;
+		crp->crp_ilen = sc->sc_alen + data_secsize;
 		crp->crp_olen = data_secsize;
 		crp->crp_opaque = (void *)bp;
-		crp->crp_buf = (void *)uio;
-		crp->crp_flags = CRYPTO_F_IOV | CRYPTO_F_CBIFSYNC | CRYPTO_F_REL;
+		crp->crp_buf = (void *)data;
+		data += encr_secsize;
+		crp->crp_flags = CRYPTO_F_CBIFSYNC | CRYPTO_F_REL;
 		if (g_eli_batch)
 			crp->crp_flags |= CRYPTO_F_BATCH;
 		if (bp->bio_cmd == BIO_WRITE) {

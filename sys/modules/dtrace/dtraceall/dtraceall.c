@@ -67,7 +67,9 @@ MODULE_DEPEND(dtraceall, cyclic, 1, 1, 1);
 MODULE_DEPEND(dtraceall, opensolaris, 1, 1, 1);
 MODULE_DEPEND(dtraceall, dtrace, 1, 1, 1);
 MODULE_DEPEND(dtraceall, dtmalloc, 1, 1, 1);
+#if defined(NFSCLIENT)
 MODULE_DEPEND(dtraceall, dtnfscl, 1, 1, 1);
+#endif
 #if defined(NFSCLIENT)
 MODULE_DEPEND(dtraceall, dtnfsclient, 1, 1, 1);
 #endif

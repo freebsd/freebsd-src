@@ -53,9 +53,6 @@
 #include <sys/errno.h>
 #include <sys/malloc.h>
 #include <sys/bus.h>
-#if __FreeBSD_version < 500000
-#include <sys/buf.h>
-#endif
 #include <machine/resource.h>
 #include <machine/bus.h>
 #include <sys/rman.h>
@@ -120,11 +117,7 @@ struct snd_mixer;
 #define PCMCHAN(x)		(snd_unit2c(dev2unit(x)))
 
 /* XXX unit2minor compat */
-#if __FreeBSD_version >= 800062
 #define PCMMINOR(x)	(x)
-#else
-#define PCMMINOR(x)	unit2minor(x)
-#endif
 
 /*
  * By design, limit possible channels for each direction.

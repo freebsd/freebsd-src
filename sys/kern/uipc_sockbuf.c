@@ -881,12 +881,10 @@ sbcut_internal(struct sockbuf *sb, int len)
 	mfree = NULL;
 
 	while (len > 0) {
-		if (m == 0) {
-			if (next == 0)
-				panic("sbdrop");
+		if (m == NULL) {
+			KASSERT(next, ("%s: no next, len %d", __func__, len));
 			m = next;
 			next = m->m_nextpkt;
-			continue;
 		}
 		if (m->m_len > len) {
 			m->m_len -= len;
@@ -899,13 +897,6 @@ sbcut_internal(struct sockbuf *sb, int len)
 			break;
 		}
 		len -= m->m_len;
-		sbfree(sb, m);
-		n = m->m_next;
-		m->m_next = mfree;
-		mfree = m;
-		m = n;
-	}
-	while (m && m->m_len == 0) {
 		sbfree(sb, m);
 		n = m->m_next;
 		m->m_next = mfree;
@@ -1012,6 +1003,37 @@ sbsndptr(struct sockbuf *sb, u_int off, u_int len, u_int *moff)
 	sb->sb_sndptr = m;
 
 	return (ret);
+}
+
+/*
+ * Return the first mbuf and the mbuf data offset for the provided
+ * send offset without changing the "sb_sndptroff" field.
+ */
+struct mbuf *
+sbsndmbuf(struct sockbuf *sb, u_int off, u_int *moff)
+{
+	struct mbuf *m;
+
+	KASSERT(sb->sb_mb != NULL, ("%s: sb_mb is NULL", __func__));
+
+	/*
+	 * If the "off" is below the stored offset, which happens on
+	 * retransmits, just use "sb_mb":
+	 */
+	if (sb->sb_sndptr == NULL || sb->sb_sndptroff > off) {
+		m = sb->sb_mb;
+	} else {
+		m = sb->sb_sndptr;
+		off -= sb->sb_sndptroff;
+	}
+	while (off > 0 && m != NULL) {
+		if (off < m->m_len)
+			break;
+		off -= m->m_len;
+		m = m->m_next;
+	}
+	*moff = off;
+	return (m);
 }
 
 /*

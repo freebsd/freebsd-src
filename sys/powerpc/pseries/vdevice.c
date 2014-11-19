@@ -128,8 +128,6 @@ vdevice_attach(device_t dev)
 {
 	phandle_t root, child;
 	device_t cdev;
-	int icells, i, nintr, *intr;
-	phandle_t iparent;
 	struct vdevice_devinfo *dinfo;
 
 	root = ofw_bus_get_node(dev);
@@ -144,25 +142,7 @@ vdevice_attach(device_t dev)
                 }
 		resource_list_init(&dinfo->mdi_resources);
 
-		if (OF_searchprop(child, "#interrupt-cells", &icells,
-		    sizeof(icells)) <= 0)
-			icells = 2;
-		if (OF_getprop(child, "interrupt-parent", &iparent,
-		    sizeof(iparent)) <= 0)
-			iparent = -1;
-		nintr = OF_getprop_alloc(child, "interrupts", sizeof(*intr),
-		    (void **)&intr);
-		if (nintr > 0) {
-			for (i = 0; i < nintr; i += icells) {
-				u_int irq = intr[i];
-				if (iparent != -1)
-					irq = ofw_bus_map_intr(dev, iparent,
-					    icells, &intr[i]);
-
-				resource_list_add(&dinfo->mdi_resources,
-				    SYS_RES_IRQ, i, irq, irq, i);
-			}
-		}
+		ofw_bus_intr_to_rl(dev, child, &dinfo->mdi_resources);
 
                 cdev = device_add_child(dev, NULL, -1);
                 if (cdev == NULL) {

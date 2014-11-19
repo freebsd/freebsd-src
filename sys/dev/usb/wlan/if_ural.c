@@ -805,7 +805,7 @@ ural_bulk_write_callback(struct usb_xfer *xfer, usb_error_t error)
 		ural_tx_free(data, 0);
 		usbd_xfer_set_priv(xfer, NULL);
 
-		ifp->if_opackets++;
+		if_inc_counter(ifp, IFCOUNTER_OPACKETS, 1);
 		ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
 
 		/* FALLTHROUGH */
@@ -859,7 +859,7 @@ tr_setup:
 		DPRINTFN(11, "transfer error, %s\n",
 		    usbd_errstr(error));
 
-		ifp->if_oerrors++;
+		if_inc_counter(ifp, IFCOUNTER_OERRORS, 1);
 		data = usbd_xfer_get_priv(xfer);
 		if (data != NULL) {
 			ural_tx_free(data, error);
@@ -900,7 +900,7 @@ ural_bulk_read_callback(struct usb_xfer *xfer, usb_error_t error)
 		if (len < (int)(RAL_RX_DESC_SIZE + IEEE80211_MIN_LEN)) {
 			DPRINTF("%s: xfer too short %d\n",
 			    device_get_nameunit(sc->sc_dev), len);
-			ifp->if_ierrors++;
+			if_inc_counter(ifp, IFCOUNTER_IERRORS, 1);
 			goto tr_setup;
 		}
 
@@ -919,14 +919,14 @@ ural_bulk_read_callback(struct usb_xfer *xfer, usb_error_t error)
 		         * filled RAL_TXRX_CSR2:
 		         */
 			DPRINTFN(5, "PHY or CRC error\n");
-			ifp->if_ierrors++;
+			if_inc_counter(ifp, IFCOUNTER_IERRORS, 1);
 			goto tr_setup;
 		}
 
 		m = m_getcl(M_NOWAIT, MT_DATA, M_PKTHDR);
 		if (m == NULL) {
 			DPRINTF("could not allocate mbuf\n");
-			ifp->if_ierrors++;
+			if_inc_counter(ifp, IFCOUNTER_IERRORS, 1);
 			goto tr_setup;
 		}
 		usbd_copy_out(pc, 0, mtod(m, uint8_t *), len);
@@ -1370,7 +1370,7 @@ ural_start(struct ifnet *ifp)
 		ni = (struct ieee80211_node *) m->m_pkthdr.rcvif;
 		if (ural_tx_data(sc, m, ni) != 0) {
 			ieee80211_free_node(ni);
-			ifp->if_oerrors++;
+			if_inc_counter(ifp, IFCOUNTER_OERRORS, 1);
 			break;
 		}
 	}
@@ -2210,7 +2210,7 @@ ural_raw_xmit(struct ieee80211_node *ni, struct mbuf *m,
 		return EIO;
 	}
 
-	ifp->if_opackets++;
+	if_inc_counter(ifp, IFCOUNTER_OPACKETS, 1);
 
 	if (params == NULL) {
 		/*
@@ -2230,7 +2230,7 @@ ural_raw_xmit(struct ieee80211_node *ni, struct mbuf *m,
 	RAL_UNLOCK(sc);
 	return 0;
 bad:
-	ifp->if_oerrors++;
+	if_inc_counter(ifp, IFCOUNTER_OERRORS, 1);
 	RAL_UNLOCK(sc);
 	ieee80211_free_node(ni);
 	return EIO;		/* XXX */
@@ -2284,7 +2284,7 @@ ural_ratectl_task(void *arg, int pending)
 	ieee80211_ratectl_tx_update(vap, ni, &sum, &ok, &retrycnt);
 	(void) ieee80211_ratectl_rate(ni, NULL, 0);
 
-	ifp->if_oerrors += fail;	/* count TX retry-fail as Tx errors */
+	if_inc_counter(ifp, IFCOUNTER_OERRORS, fail);	/* count TX retry-fail as Tx errors */
 
 	usb_callout_reset(&uvp->ratectl_ch, hz, ural_ratectl_timeout, uvp);
 	RAL_UNLOCK(sc);

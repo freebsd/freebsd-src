@@ -42,11 +42,14 @@ SUBDIR=	${SUBDIR_ORDERED} \
 	libcrypt \
 	libdevinfo \
 	libdevstat \
+	libdpv \
 	libdwarf \
 	libedit \
+	${_libevent} \
 	libexecinfo \
 	libexpat \
 	libfetch \
+	libfigpar \
 	libgeom \
 	${_libgpib} \
 	${_libgssapi} \
@@ -69,6 +72,7 @@ SUBDIR=	${SUBDIR_ORDERED} \
 	${_libnetgraph} \
 	${_libngatm} \
 	libnv \
+	libohash \
 	libopie \
 	libpam \
 	libpcap \
@@ -104,6 +108,7 @@ SUBDIR=	${SUBDIR_ORDERED} \
 	${_libvgl} \
 	${_libvmmapi} \
 	libwrap \
+	libxo \
 	liby \
 	${_libypclnt} \
 	libz \
@@ -126,7 +131,7 @@ SUBDIR_DEPEND_libcam= libsbuf
 SUBDIR_DEPEND_libcapsicum= libnv
 SUBDIR_DEPEND_libcasper= libcapsicum libnv libpjdlog
 SUBDIR_DEPEND_libdevstat= libkvm
-SUBDIR_DEPEND_libdiaglog= ncurses
+SUBDIR_DEPEND_libdpv= libfigpar ncurses libutil
 SUBDIR_DEPEND_libedit= ncurses
 SUBDIR_DEPEND_libg++= msun
 SUBDIR_DEPEND_libgeom= libexpat libsbuf
@@ -225,6 +230,10 @@ _libnetgraph=	libnetgraph
 _libypclnt=	libypclnt
 .endif
 
+.if ${MK_PF} != "no"
+_libevent=	libevent
+.endif
+
 .if ${MACHINE_CPUARCH} == "i386" || ${MACHINE_CPUARCH} == "amd64"
 _libsmb=	libsmb
 _libvgl=	libvgl
@@ -270,8 +279,10 @@ _libsmutil=	libsmutil
 _libtelnet=	libtelnet
 .endif
 
-.if ${MK_TESTS} != "no"
+.if ${MK_TESTS_SUPPORT} != "no"
 _atf=		atf
+.endif
+.if ${MK_TESTS} != "no"
 _tests=		tests
 .endif
 

@@ -114,6 +114,7 @@ ar9160InitPLL(struct ath_hal *ah, const struct ieee80211_channel *chan)
 static struct ath_hal *
 ar9160Attach(uint16_t devid, HAL_SOFTC sc,
 	HAL_BUS_TAG st, HAL_BUS_HANDLE sh, uint16_t *eepromdata,
+	HAL_OPS_CONFIG *ah_config,
 	HAL_STATUS *status)
 {
 	struct ath_hal_5416 *ahp5416;

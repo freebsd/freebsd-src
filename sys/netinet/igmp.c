@@ -249,32 +249,32 @@ static VNET_DEFINE(int, igmp_default_version) = IGMP_VERSION_3;
 /*
  * Virtualized sysctls.
  */
-SYSCTL_VNET_STRUCT(_net_inet_igmp, IGMPCTL_STATS, stats, CTLFLAG_RW,
+SYSCTL_STRUCT(_net_inet_igmp, IGMPCTL_STATS, stats, CTLFLAG_VNET | CTLFLAG_RW,
     &VNET_NAME(igmpstat), igmpstat, "");
-SYSCTL_VNET_INT(_net_inet_igmp, OID_AUTO, recvifkludge, CTLFLAG_RW,
+SYSCTL_INT(_net_inet_igmp, OID_AUTO, recvifkludge, CTLFLAG_VNET | CTLFLAG_RW,
     &VNET_NAME(igmp_recvifkludge), 0,
     "Rewrite IGMPv1/v2 reports from 0.0.0.0 to contain subnet address");
-SYSCTL_VNET_INT(_net_inet_igmp, OID_AUTO, sendra, CTLFLAG_RW,
+SYSCTL_INT(_net_inet_igmp, OID_AUTO, sendra, CTLFLAG_VNET | CTLFLAG_RW,
     &VNET_NAME(igmp_sendra), 0,
     "Send IP Router Alert option in IGMPv2/v3 messages");
-SYSCTL_VNET_INT(_net_inet_igmp, OID_AUTO, sendlocal, CTLFLAG_RW,
+SYSCTL_INT(_net_inet_igmp, OID_AUTO, sendlocal, CTLFLAG_VNET | CTLFLAG_RW,
     &VNET_NAME(igmp_sendlocal), 0,
     "Send IGMP membership reports for 224.0.0.0/24 groups");
-SYSCTL_VNET_INT(_net_inet_igmp, OID_AUTO, v1enable, CTLFLAG_RW,
+SYSCTL_INT(_net_inet_igmp, OID_AUTO, v1enable, CTLFLAG_VNET | CTLFLAG_RW,
     &VNET_NAME(igmp_v1enable), 0,
     "Enable backwards compatibility with IGMPv1");
-SYSCTL_VNET_INT(_net_inet_igmp, OID_AUTO, v2enable, CTLFLAG_RW,
+SYSCTL_INT(_net_inet_igmp, OID_AUTO, v2enable, CTLFLAG_VNET | CTLFLAG_RW,
     &VNET_NAME(igmp_v2enable), 0,
     "Enable backwards compatibility with IGMPv2");
-SYSCTL_VNET_INT(_net_inet_igmp, OID_AUTO, legacysupp, CTLFLAG_RW,
+SYSCTL_INT(_net_inet_igmp, OID_AUTO, legacysupp, CTLFLAG_VNET | CTLFLAG_RW,
     &VNET_NAME(igmp_legacysupp), 0,
     "Allow v1/v2 reports to suppress v3 group responses");
-SYSCTL_VNET_PROC(_net_inet_igmp, OID_AUTO, default_version,
-    CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_MPSAFE,
+SYSCTL_PROC(_net_inet_igmp, OID_AUTO, default_version,
+    CTLFLAG_VNET | CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_MPSAFE,
     &VNET_NAME(igmp_default_version), 0, sysctl_igmp_default_version, "I",
     "Default version of IGMP to run on each interface");
-SYSCTL_VNET_PROC(_net_inet_igmp, OID_AUTO, gsrdelay,
-    CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_MPSAFE,
+SYSCTL_PROC(_net_inet_igmp, OID_AUTO, gsrdelay,
+    CTLFLAG_VNET | CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_MPSAFE,
     &VNET_NAME(igmp_gsrdelay.tv_sec), 0, sysctl_igmp_gsr, "I",
     "Rate limit for IGMPv3 Group-and-Source queries in seconds");
 
@@ -1424,26 +1424,29 @@ out_locked:
 	return (0);
 }
 
-void
-igmp_input(struct mbuf *m, int off)
+int
+igmp_input(struct mbuf **mp, int *offp, int proto)
 {
 	int iphlen;
 	struct ifnet *ifp;
 	struct igmp *igmp;
 	struct ip *ip;
+	struct mbuf *m;
 	int igmplen;
 	int minlen;
 	int queryver;
 
-	CTR3(KTR_IGMPV3, "%s: called w/mbuf (%p,%d)", __func__, m, off);
+	CTR3(KTR_IGMPV3, "%s: called w/mbuf (%p,%d)", __func__, *mp, *offp);
 
+	m = *mp;
 	ifp = m->m_pkthdr.rcvif;
+	*mp = NULL;
 
 	IGMPSTAT_INC(igps_rcv_total);
 
 	ip = mtod(m, struct ip *);
-	iphlen = off;
-	igmplen = ntohs(ip->ip_len) - off;
+	iphlen = *offp;
+	igmplen = ntohs(ip->ip_len) - iphlen;
 
 	/*
 	 * Validate lengths.
@@ -1451,7 +1454,7 @@ igmp_input(struct mbuf *m, int off)
 	if (igmplen < IGMP_MINLEN) {
 		IGMPSTAT_INC(igps_rcv_tooshort);
 		m_freem(m);
-		return;
+		return (IPPROTO_DONE);
 	}
 
 	/*
@@ -1463,10 +1466,10 @@ igmp_input(struct mbuf *m, int off)
 		minlen += IGMP_V3_QUERY_MINLEN;
 	else
 		minlen += IGMP_MINLEN;
-	if ((m->m_flags & M_EXT || m->m_len < minlen) &&
+	if ((!M_WRITABLE(m) || m->m_len < minlen) &&
 	    (m = m_pullup(m, minlen)) == 0) {
 		IGMPSTAT_INC(igps_rcv_tooshort);
-		return;
+		return (IPPROTO_DONE);
 	}
 	ip = mtod(m, struct ip *);
 
@@ -1479,7 +1482,7 @@ igmp_input(struct mbuf *m, int off)
 	if (in_cksum(m, igmplen)) {
 		IGMPSTAT_INC(igps_rcv_badsum);
 		m_freem(m);
-		return;
+		return (IPPROTO_DONE);
 	}
 	m->m_data -= iphlen;
 	m->m_len += iphlen;
@@ -1492,7 +1495,7 @@ igmp_input(struct mbuf *m, int off)
 	if (igmp->igmp_type != IGMP_DVMRP && ip->ip_ttl != 1) {
 		IGMPSTAT_INC(igps_rcv_badttl);
 		m_freem(m);
-		return;
+		return (IPPROTO_DONE);
 	}
 
 	switch (igmp->igmp_type) {
@@ -1507,7 +1510,7 @@ igmp_input(struct mbuf *m, int off)
 		} else {
 			IGMPSTAT_INC(igps_rcv_tooshort);
 			m_freem(m);
-			return;
+			return (IPPROTO_DONE);
 		}
 
 		switch (queryver) {
@@ -1517,7 +1520,7 @@ igmp_input(struct mbuf *m, int off)
 				break;
 			if (igmp_input_v1_query(ifp, ip, igmp) != 0) {
 				m_freem(m);
-				return;
+				return (IPPROTO_DONE);
 			}
 			break;
 
@@ -1527,7 +1530,7 @@ igmp_input(struct mbuf *m, int off)
 				break;
 			if (igmp_input_v2_query(ifp, ip, igmp) != 0) {
 				m_freem(m);
-				return;
+				return (IPPROTO_DONE);
 			}
 			break;
 
@@ -1546,7 +1549,7 @@ igmp_input(struct mbuf *m, int off)
 				srclen = sizeof(struct in_addr) * nsrc;
 				if (nsrc * sizeof(in_addr_t) > srclen) {
 					IGMPSTAT_INC(igps_rcv_tooshort);
-					return;
+					return (IPPROTO_DONE);
 				}
 				/*
 				 * m_pullup() may modify m, so pullup in
@@ -1554,17 +1557,17 @@ igmp_input(struct mbuf *m, int off)
 				 */
 				igmpv3len = iphlen + IGMP_V3_QUERY_MINLEN +
 				    srclen;
-				if ((m->m_flags & M_EXT ||
+				if ((!M_WRITABLE(m) ||
 				     m->m_len < igmpv3len) &&
 				    (m = m_pullup(m, igmpv3len)) == NULL) {
 					IGMPSTAT_INC(igps_rcv_tooshort);
-					return;
+					return (IPPROTO_DONE);
 				}
 				igmpv3 = (struct igmpv3 *)(mtod(m, uint8_t *)
 				    + iphlen);
 				if (igmp_input_v3_query(ifp, ip, igmpv3) != 0) {
 					m_freem(m);
-					return;
+					return (IPPROTO_DONE);
 				}
 			}
 			break;
@@ -1576,7 +1579,7 @@ igmp_input(struct mbuf *m, int off)
 			break;
 		if (igmp_input_v1_report(ifp, ip, igmp) != 0) {
 			m_freem(m);
-			return;
+			return (IPPROTO_DONE);
 		}
 		break;
 
@@ -1587,7 +1590,7 @@ igmp_input(struct mbuf *m, int off)
 			IGMPSTAT_INC(igps_rcv_nora);
 		if (igmp_input_v2_report(ifp, ip, igmp) != 0) {
 			m_freem(m);
-			return;
+			return (IPPROTO_DONE);
 		}
 		break;
 
@@ -1608,7 +1611,8 @@ igmp_input(struct mbuf *m, int off)
 	 * Pass all valid IGMP packets up to any process(es) listening on a
 	 * raw IGMP socket.
 	 */
-	rip_input(m, off);
+	*mp = m;
+	return (rip_input(mp, offp, proto));
 }
 
 

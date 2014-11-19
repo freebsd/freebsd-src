@@ -55,6 +55,7 @@ compat/linux/linux_socket.c	optional compat_linux
 compat/linux/linux_stats.c	optional compat_linux
 compat/linux/linux_sysctl.c	optional compat_linux
 compat/linux/linux_time.c	optional compat_linux
+compat/linux/linux_timer.c	optional compat_linux
 compat/linux/linux_uid16.c	optional compat_linux
 compat/linux/linux_util.c	optional compat_linux
 compat/svr4/imgact_svr4.c	optional compat_svr4
@@ -88,7 +89,8 @@ dev/agp/agp_via.c		optional agp
 dev/aic/aic_cbus.c		optional aic isa
 dev/ce/ceddk.c			optional ce
 dev/ce/if_ce.c			optional ce
-dev/ce/tau32-ddk.c		optional ce
+dev/ce/tau32-ddk.c		optional ce \
+	compile-with "${NORMAL_C} ${NO_WCONSTANT_CONVERSION}"
 dev/cp/cpddk.c			optional cp
 dev/cp/if_cp.c			optional cp
 dev/ct/bshw_machdep.c		optional ct
@@ -97,6 +99,8 @@ dev/ct/ct_isa.c			optional ct isa
 dev/ed/if_ed_cbus.c		optional ed isa
 dev/ed/if_ed_wd80x3.c		optional ed isa
 dev/fb/fb.c			optional fb | gdc
+dev/fdc/fdc.c			optional fdc
+dev/fdc/fdc_cbus.c		optional fdc isa
 dev/fe/if_fe_cbus.c		optional fe isa
 dev/hwpmc/hwpmc_amd.c		optional hwpmc
 dev/hwpmc/hwpmc_intel.c		optional hwpmc
@@ -140,12 +144,12 @@ i386/i386/elf_machdep.c		standard
 i386/i386/exception.s		standard
 i386/i386/gdb_machdep.c		optional gdb
 i386/i386/i686_mem.c		optional mem
-i386/i386/identcpu.c		standard
 i386/i386/in_cksum.c		optional inet | inet6
 i386/i386/initcpu.c		standard
 i386/i386/io.c			optional io
 i386/i386/k6_mem.c		optional mem
 i386/i386/locore.s		standard	no-obj
+i386/i386/machdep.c		standard
 i386/i386/mem.c			optional mem
 i386/i386/minidump_machdep.c	standard
 i386/i386/mp_clock.c		optional smp
@@ -205,6 +209,7 @@ i386/svr4/svr4_machdep.c	optional compat_svr4
 kern/kern_clocksource.c		standard
 kern/imgact_aout.c		optional compat_aout
 kern/imgact_gzip.c		optional gzip
+kern/subr_sfbuf.c		standard
 libkern/divdi3.c		standard
 libkern/flsll.c			standard
 libkern/memmove.c		standard
@@ -216,8 +221,6 @@ libkern/udivdi3.c		standard
 libkern/umoddi3.c		standard
 pc98/apm/apm_bioscall.S		optional apm
 pc98/cbus/cbus_dma.c		optional isa
-pc98/cbus/fdc.c			optional fdc
-pc98/cbus/fdc_cbus.c		optional fdc isa
 pc98/cbus/gdc.c			optional gdc
 pc98/cbus/nmi.c			standard
 pc98/cbus/olpt.c		optional olpt
@@ -235,18 +238,18 @@ pc98/pc98/busiosubr.c		standard
 pc98/pc98/canbepm.c		optional canbepm
 pc98/pc98/canbus.c		optional canbus
 pc98/pc98/canbus_if.m		optional canbus
-pc98/pc98/machdep.c		standard
 pc98/pc98/pc98_machdep.c	standard
 #
 # x86 shared code between IA32, AMD64 and PC98 architectures
 #
-x86/isa/atpic.c			optional atpic	
+x86/isa/atpic.c			optional atpic
 x86/isa/clock.c			standard
 x86/isa/isa.c			optional isa
 x86/pci/pci_bus.c		optional pci
 x86/x86/busdma_bounce.c		standard
 x86/x86/busdma_machdep.c	standard
 x86/x86/dump_machdep.c		standard
+x86/x86/identcpu.c		standard
 x86/x86/intr_machdep.c		standard
 x86/x86/io_apic.c		optional apic
 x86/x86/legacy.c		standard
@@ -256,6 +259,5 @@ x86/x86/mptable.c		optional apic
 x86/x86/mptable_pci.c		optional apic pci
 x86/x86/msi.c			optional apic pci
 x86/x86/nexus.c			standard
-x86/x86/tsc.c			standard
 x86/x86/tsc.c			standard
 x86/x86/delay.c			standard

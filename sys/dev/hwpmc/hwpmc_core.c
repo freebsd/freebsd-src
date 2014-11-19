@@ -1796,7 +1796,7 @@ iap_is_event_architectural(enum pmc_event pe, enum pmc_event *map)
 	switch (pe) {
 	case PMC_EV_IAP_ARCH_UNH_COR_CYC:
 		ae = CORE_AE_UNHALTED_CORE_CYCLES;
-		*map = PMC_EV_IAP_EVENT_C4H_00H;
+		*map = PMC_EV_IAP_EVENT_3CH_00H;
 		break;
 	case PMC_EV_IAP_ARCH_INS_RET:
 		ae = CORE_AE_INSTRUCTION_RETIRED;

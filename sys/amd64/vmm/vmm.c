@@ -74,7 +74,7 @@ __FBSDID("$FreeBSD$");
 #include "vhpet.h"
 #include "vioapic.h"
 #include "vlapic.h"
-#include "vmm_msr.h"
+#include "vpmtmr.h"
 #include "vmm_ipi.h"
 #include "vmm_stat.h"
 #include "vmm_lapic.h"
@@ -105,7 +105,6 @@ struct vcpu {
 	struct savefpu	*guestfpu;	/* (a,i) guest fpu state */
 	uint64_t	guest_xcr0;	/* (i) guest %xcr0 register */
 	void		*stats;		/* (a,i) statistics */
-	uint64_t guest_msrs[VMM_MSR_NUM]; /* (i) emulated MSRs */
 	struct vm_exit	exitinfo;	/* (x) exit reason and collateral */
 };
 
@@ -136,6 +135,7 @@ struct vm {
 	struct vioapic	*vioapic;		/* (i) virtual ioapic */
 	struct vatpic	*vatpic;		/* (i) virtual atpic */
 	struct vatpit	*vatpit;		/* (i) virtual atpit */
+	struct vpmtmr	*vpmtmr;		/* (i) virtual ACPI PM timer */
 	volatile cpuset_t active_cpus;		/* (i) active vcpus */
 	int		suspend;		/* (i) stop VM execution */
 	volatile cpuset_t suspended_cpus; 	/* (i) suspended vcpus */
@@ -188,7 +188,6 @@ static struct vmm_ops *ops;
 #define	fpu_stop_emulating()	clts()
 
 static MALLOC_DEFINE(M_VM, "vm", "vm");
-CTASSERT(VMM_MSR_NUM <= 64);	/* msr_mask can keep track of up to 64 msrs */
 
 /* statistics */
 static VMM_STAT(VCPU_TOTAL_RUNTIME, "vcpu total runtime");
@@ -249,7 +248,6 @@ vcpu_init(struct vm *vm, int vcpu_id, bool create)
 	vcpu->guest_xcr0 = XFEATURE_ENABLED_X87;
 	fpu_save_area_reset(vcpu->guestfpu);
 	vmm_stat_init(vcpu->stats);
-	guest_msrs_init(vm, vcpu_id);
 }
 
 struct vm_exit *
@@ -293,7 +291,6 @@ vmm_init(void)
 	else
 		return (ENXIO);
 
-	vmm_msr_init();
 	vmm_resume_p = vmm_resume;
 
 	return (VMM_INIT(vmm_ipinum));
@@ -365,6 +362,7 @@ vm_init(struct vm *vm, bool create)
 	vm->vhpet = vhpet_init(vm);
 	vm->vatpic = vatpic_init(vm);
 	vm->vatpit = vatpit_init(vm);
+	vm->vpmtmr = vpmtmr_init(vm);
 
 	CPU_ZERO(&vm->active_cpus);
 
@@ -427,6 +425,7 @@ vm_cleanup(struct vm *vm, bool destroy)
 	if (vm->iommu != NULL)
 		iommu_destroy_domain(vm->iommu);
 
+	vpmtmr_cleanup(vm->vpmtmr);
 	vatpit_cleanup(vm->vatpit);
 	vhpet_cleanup(vm->vhpet);
 	vatpic_cleanup(vm->vatpic);
@@ -572,6 +571,21 @@ vm_malloc(struct vm *vm, vm_paddr_t gpa, size_t len)
 	return (0);
 }
 
+static vm_paddr_t
+vm_maxmem(struct vm *vm)
+{
+	int i;
+	vm_paddr_t gpa, maxmem;
+
+	maxmem = 0;
+	for (i = 0; i < vm->num_mem_segs; i++) {
+		gpa = vm->mem_segs[i].gpa + vm->mem_segs[i].len;
+		if (gpa > maxmem)
+			maxmem = gpa;
+	}
+	return (maxmem);
+}
+
 static void
 vm_gpa_unwire(struct vm *vm)
 {
@@ -709,7 +723,7 @@ vm_assign_pptdev(struct vm *vm, int bus, int slot, int func)
 	if (ppt_assigned_devices(vm) == 0) {
 		KASSERT(vm->iommu == NULL,
 		    ("vm_assign_pptdev: iommu must be NULL"));
-		maxaddr = vmm_mem_maxaddr();
+		maxaddr = vm_maxmem(vm);
 		vm->iommu = iommu_create_domain(maxaddr);
 
 		error = vm_gpa_wire(vm);
@@ -1075,13 +1089,29 @@ vm_handle_hlt(struct vm *vm, int vcpuid, bool intr_disabled, bool *retu)
 {
 	struct vcpu *vcpu;
 	const char *wmesg;
-	int t, vcpu_halted, vm_halted;
+	int error, t, vcpu_halted, vm_halted;
 
 	KASSERT(!CPU_ISSET(vcpuid, &vm->halted_cpus), ("vcpu already halted"));
 
 	vcpu = &vm->vcpu[vcpuid];
 	vcpu_halted = 0;
 	vm_halted = 0;
+
+	/*
+	 * The typical way to halt a cpu is to execute: "sti; hlt"
+	 *
+	 * STI sets RFLAGS.IF to enable interrupts. However, the processor
+	 * remains in an "interrupt shadow" for an additional instruction
+	 * following the STI. This guarantees that "sti; hlt" sequence is
+	 * atomic and a pending interrupt will be recognized after the HLT.
+	 *
+	 * After the HLT emulation is done the vcpu is no longer in an
+	 * interrupt shadow and a pending interrupt can be injected on
+	 * the next entry into the guest.
+	 */
+	error = vm_set_register(vm, vcpuid, VM_REG_GUEST_INTR_SHADOW, 0);
+	KASSERT(error == 0, ("%s: error %d clearing interrupt shadow",
+	    __func__, error));
 
 	vcpu_lock(vcpu);
 	while (1) {
@@ -1171,8 +1201,12 @@ vm_handle_paging(struct vm *vm, int vcpuid, bool *retu)
 	if (ftype == VM_PROT_READ || ftype == VM_PROT_WRITE) {
 		rv = pmap_emulate_accessed_dirty(vmspace_pmap(vm->vmspace),
 		    vme->u.paging.gpa, ftype);
-		if (rv == 0)
+		if (rv == 0) {
+			VCPU_CTR2(vm, vcpuid, "%s bit emulation for gpa %#lx",
+			    ftype == VM_PROT_READ ? "accessed" : "dirty",
+			    vme->u.paging.gpa);
 			goto done;
+		}
 	}
 
 	map = &vm->vmspace->vm_map;
@@ -1201,7 +1235,7 @@ vm_handle_inst_emul(struct vm *vm, int vcpuid, bool *retu)
 	mem_region_read_t mread;
 	mem_region_write_t mwrite;
 	enum vm_cpu_mode cpu_mode;
-	int cs_d, error;
+	int cs_d, error, length;
 
 	vcpu = &vm->vcpu[vcpuid];
 	vme = &vcpu->exitinfo;
@@ -1213,11 +1247,23 @@ vm_handle_inst_emul(struct vm *vm, int vcpuid, bool *retu)
 	paging = &vme->u.inst_emul.paging;
 	cpu_mode = paging->cpu_mode;
 
-	vie_init(vie);
+	VCPU_CTR1(vm, vcpuid, "inst_emul fault accessing gpa %#lx", gpa);
 
 	/* Fetch, decode and emulate the faulting instruction */
-	error = vmm_fetch_instruction(vm, vcpuid, paging, vme->rip,
-	    vme->inst_length, vie);
+	if (vie->num_valid == 0) {
+		/*
+		 * If the instruction length is not known then assume a
+		 * maximum size instruction.
+		 */
+		length = vme->inst_length ? vme->inst_length : VIE_INST_SIZE;
+		error = vmm_fetch_instruction(vm, vcpuid, paging, vme->rip,
+		    length, vie);
+	} else {
+		/*
+		 * The instruction bytes have already been copied into 'vie'
+		 */
+		error = 0;
+	}
 	if (error == 1)
 		return (0);		/* Resume guest to handle page fault */
 	else if (error == -1)
@@ -1228,6 +1274,12 @@ vm_handle_inst_emul(struct vm *vm, int vcpuid, bool *retu)
 	if (vmm_decode_instruction(vm, vcpuid, gla, cpu_mode, cs_d, vie) != 0)
 		return (EFAULT);
 
+	/*
+	 * If the instruction length is not specified the update it now.
+	 */
+	if (vme->inst_length == 0)
+		vme->inst_length = vie->num_processed;
+ 
 	/* return to userland unless this is an in-kernel emulated device */
 	if (gpa >= DEFAULT_APIC_BASE && gpa < DEFAULT_APIC_BASE + PAGE_SIZE) {
 		mread = lapic_mmio_read;
@@ -1409,7 +1461,6 @@ restart:
 	pcb = PCPU_GET(curpcb);
 	set_pcb_flags(pcb, PCB_FULL_IRET);
 
-	restore_guest_msrs(vm, vcpuid);	
 	restore_guest_fpustate(vcpu);
 
 	vcpu_require_state(vm, vcpuid, VCPU_RUNNING);
@@ -1417,7 +1468,6 @@ restart:
 	vcpu_require_state(vm, vcpuid, VCPU_FROZEN);
 
 	save_guest_fpustate(vcpu);
-	restore_host_msrs(vm, vcpuid);
 
 	vmm_stat_incr(vm, vcpuid, VCPU_TOTAL_RUNTIME, rdtsc() - tscval);
 
@@ -1450,6 +1500,10 @@ restart:
 		case VM_EXITCODE_INOUT:
 		case VM_EXITCODE_INOUT_STR:
 			error = vm_handle_inout(vm, vcpuid, vme, &retu);
+			break;
+		case VM_EXITCODE_MONITOR:
+		case VM_EXITCODE_MWAIT:
+			vm_inject_ud(vm, vcpuid);
 			break;
 		default:
 			retu = true;	/* handled in userland */
@@ -1859,12 +1913,6 @@ vm_set_capability(struct vm *vm, int vcpu, int type, int val)
 	return (VMSETCAP(vm->cookie, vcpu, type, val));
 }
 
-uint64_t *
-vm_guest_msrs(struct vm *vm, int cpu)
-{
-	return (vm->vcpu[cpu].guest_msrs);
-}
-
 struct vlapic *
 vm_lapic(struct vm *vm, int cpu)
 {
@@ -1906,7 +1954,7 @@ vmm_is_pptdev(int bus, int slot, int func)
 	/* set pptdevs="1/2/3 4/5/6 7/8/9 10/11/12" */
 	found = 0;
 	for (i = 0; names[i] != NULL && !found; i++) {
-		cp = val = getenv(names[i]);
+		cp = val = kern_getenv(names[i]);
 		while (cp != NULL && *cp != '\0') {
 			if ((cp2 = strchr(cp, ' ')) != NULL)
 				*cp2 = '\0';
@@ -2153,6 +2201,13 @@ struct vatpit *
 vm_atpit(struct vm *vm)
 {
 	return (vm->vatpit);
+}
+
+struct vpmtmr *
+vm_pmtmr(struct vm *vm)
+{
+
+	return (vm->vpmtmr);
 }
 
 enum vm_reg_name

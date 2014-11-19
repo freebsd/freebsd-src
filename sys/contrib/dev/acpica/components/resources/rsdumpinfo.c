@@ -5,7 +5,7 @@
  ******************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2013, Intel Corp.
+ * Copyright (C) 2000 - 2014, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -41,7 +41,6 @@
  * POSSIBILITY OF SUCH DAMAGES.
  */
 
-
 #define __RSDUMPINFO_C__
 
 #include <contrib/dev/acpica/include/acpi.h>
@@ -52,7 +51,7 @@
         ACPI_MODULE_NAME    ("rsdumpinfo")
 
 
-#if defined(ACPI_DEBUG_OUTPUT) || defined(ACPI_DEBUGGER)
+#if defined(ACPI_DEBUG_OUTPUT) || defined(ACPI_DISASSEMBLER) || defined(ACPI_DEBUGGER)
 
 
 #define ACPI_RSD_OFFSET(f)          (UINT8) ACPI_OFFSET (ACPI_RESOURCE_DATA,f)

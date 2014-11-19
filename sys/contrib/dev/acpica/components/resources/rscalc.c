@@ -5,7 +5,7 @@
  ******************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2013, Intel Corp.
+ * Copyright (C) 2000 - 2014, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -197,6 +197,7 @@ AcpiRsStreamOptionLength (
  * FUNCTION:    AcpiRsGetAmlLength
  *
  * PARAMETERS:  Resource            - Pointer to the resource linked list
+ *              ResourceListSize    - Size of the resource linked list
  *              SizeNeeded          - Where the required size is returned
  *
  * RETURN:      Status
@@ -210,9 +211,11 @@ AcpiRsStreamOptionLength (
 ACPI_STATUS
 AcpiRsGetAmlLength (
     ACPI_RESOURCE           *Resource,
+    ACPI_SIZE               ResourceListSize,
     ACPI_SIZE               *SizeNeeded)
 {
     ACPI_SIZE               AmlSizeNeeded = 0;
+    ACPI_RESOURCE           *ResourceEnd;
     ACPI_RS_LENGTH          TotalSize;
 
 
@@ -221,7 +224,8 @@ AcpiRsGetAmlLength (
 
     /* Traverse entire list of internal resource descriptors */
 
-    while (Resource)
+    ResourceEnd = ACPI_ADD_PTR (ACPI_RESOURCE, Resource, ResourceListSize);
+    while (Resource < ResourceEnd)
     {
         /* Validate the descriptor type */
 
@@ -655,7 +659,7 @@ AcpiRsGetPciRoutingTableLength (
 
     for (Index = 0; Index < NumberOfElements; Index++)
     {
-        /* Dereference the sub-package */
+        /* Dereference the subpackage */
 
         PackageElement = *TopObjectList;
 

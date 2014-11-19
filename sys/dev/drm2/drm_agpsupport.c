@@ -396,7 +396,7 @@ void *drm_agp_allocate_memory(size_t pages, u32 type)
 	if (!agpdev)
 		return NULL;
 
-	return agp_alloc_memory(agpdev, type, pages << AGP_PAGE_SHIFT);
+	return agp_alloc_memory(agpdev, type, pages << PAGE_SHIFT);
 }
 
 int drm_agp_free_memory(void *handle)

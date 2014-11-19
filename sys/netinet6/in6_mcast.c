@@ -1073,6 +1073,8 @@ in6m_purge(struct in6_multi *inm)
 		free(ims, M_IP6MSOURCE);
 		inm->in6m_nsrc--;
 	}
+	/* Free state-change requests that might be queued. */
+	_IF_DRAIN(&inm->in6m_scq);
 }
 
 /*

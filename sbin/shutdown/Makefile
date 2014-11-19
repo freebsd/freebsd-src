@@ -8,6 +8,6 @@ MLINKS=	shutdown.8 poweroff.8
 
 BINOWN=	root
 BINGRP=	operator
-BINMODE=4550
+BINMODE=4554
 
 .include <bsd.prog.mk>

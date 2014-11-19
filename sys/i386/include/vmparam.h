@@ -64,9 +64,15 @@
 #endif
 
 /*
- * The physical address space is densely populated.
+ * Choose between DENSE and SPARSE based on whether lower execution time or
+ * lower kernel address space consumption is desired.  Under PAE, kernel
+ * address space is often in short supply.
  */
+#ifdef PAE
+#define	VM_PHYSSEG_SPARSE
+#else
 #define	VM_PHYSSEG_DENSE
+#endif
 
 /*
  * The number of PHYSSEG entries must be one greater than the number
@@ -197,5 +203,10 @@
 #ifndef VM_MAX_AUTOTUNE_MAXUSERS
 #define VM_MAX_AUTOTUNE_MAXUSERS 384
 #endif
+
+#define	SFBUF
+#define	SFBUF_MAP
+#define	SFBUF_CPUSET
+#define	SFBUF_PROCESS_PAGE
 
 #endif /* _MACHINE_VMPARAM_H_ */

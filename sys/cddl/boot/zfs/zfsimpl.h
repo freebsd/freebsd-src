@@ -113,16 +113,13 @@
 #define	BSWAP_64(x)	((BSWAP_32(x) << 32) | BSWAP_32((x) >> 32))
 
 /*
- * We currently support nine block sizes, from 512 bytes to 128K.
- * We could go higher, but the benefits are near-zero and the cost
- * of COWing a giant block to modify one byte would become excessive.
+ * Note: the boot loader can't actually read blocks larger than 128KB,
+ * due to lack of memory.  Therefore its SPA_MAXBLOCKSIZE is still 128KB.
  */
 #define	SPA_MINBLOCKSHIFT	9
 #define	SPA_MAXBLOCKSHIFT	17
 #define	SPA_MINBLOCKSIZE	(1ULL << SPA_MINBLOCKSHIFT)
 #define	SPA_MAXBLOCKSIZE	(1ULL << SPA_MAXBLOCKSHIFT)
-
-#define	SPA_BLOCKSIZES		(SPA_MAXBLOCKSHIFT - SPA_MINBLOCKSHIFT + 1)
 
 /*
  * The DVA size encodings for LSIZE and PSIZE support blocks up to 32MB.
@@ -840,7 +837,7 @@ struct uberblock {
  * Fixed constants.
  */
 #define	DNODE_SHIFT		9	/* 512 bytes */
-#define	DN_MIN_INDBLKSHIFT	10	/* 1k */
+#define	DN_MIN_INDBLKSHIFT	12	/* 4k */
 #define	DN_MAX_INDBLKSHIFT	14	/* 16k */
 #define	DNODE_BLOCK_SHIFT	14	/* 16k */
 #define	DNODE_CORE_SIZE		64	/* 64 bytes for dnode sans blkptrs */
