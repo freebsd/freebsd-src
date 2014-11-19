@@ -156,6 +156,13 @@ cninit(void)
 	 * Make the best console the preferred console.
 	 */
 	cnselect(best_cn);
+
+#ifdef EARLY_PRINTF
+	/*
+	 * Release early console.
+	 */
+	early_putc = NULL;
+#endif
 }
 
 void
