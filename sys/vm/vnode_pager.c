@@ -780,7 +780,7 @@ vnode_pager_generic_getpages(struct vnode *vp, vm_page_t *m, int bytecount,
 	struct mount *mp;
 	int count;
 	int error;
-	int unmapped;
+	boolean_t unmapped;
 
 	object = vp->v_object;
 	count = bytecount / PAGE_SIZE;
