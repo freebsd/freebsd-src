@@ -210,11 +210,23 @@ struct ifnet {
 	u_int	if_fib;			/* interface FIB */
 	u_char	if_alloctype;		/* if_type at time of allocation */
 
-	u_int	if_hw_tsomax;		/* TSO total burst length
-					 * limit in bytes. A value of
-					 * zero means no limit. Have
-					 * to find a better place for
-					 * it eventually. */
+	/*
+	 * Network adapter TSO limits:
+	 * ===========================
+	 *
+	 * If the "if_hw_tsomax" field is zero the maximum segment
+	 * length limit does not apply. If the "if_hw_tsomaxsegcount"
+	 * or the "if_hw_tsomaxsegsize" field is zero the TSO segment
+	 * count limit does not apply. If all three fields are zero,
+	 * there is no TSO limit.
+	 *
+	 * NOTE: The TSO limits only apply to the data payload part of
+	 * a TCP/IP packet. That means there is no need to subtract
+	 * space for ethernet-, vlan-, IP- or TCP- headers from the
+	 * TSO limits unless the hardware driver in question requires
+	 * so.
+	 */
+	u_int	if_hw_tsomax;
 
 	/*
 	 * Spare fields are added so that we can modify sensitive data
