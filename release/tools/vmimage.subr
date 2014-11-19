@@ -85,6 +85,8 @@ vm_install_base() {
 	chroot ${DESTDIR} /etc/rc.d/ldconfig forcestart
 	umount ${DESTDIR}/dev
 
+	cp /etc/resolv.conf ${DESTDIR}/etc/resolv.conf
+
 	return 0
 }
 
@@ -130,6 +132,8 @@ vm_extra_install_ports() {
 vm_extra_pre_umount() {
 	# Prototype.  When overridden, installs additional ports within the
 	# virtual machine environment.
+
+	rm -f ${DESTDIR}/etc/resolv.conf
 
 	return 0
 }
