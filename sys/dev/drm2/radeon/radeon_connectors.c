@@ -748,7 +748,7 @@ radeon_vga_detect(struct drm_connector *connector, bool force)
 		radeon_connector->edid = drm_get_edid(&radeon_connector->base, radeon_connector->ddc_bus->adapter);
 
 		if (!radeon_connector->edid) {
-			DRM_ERROR("%s: probed a monitor but no|invalid EDID\n",
+			DRM_DEBUG_KMS("%s: probed a monitor but no|invalid EDID\n",
 					drm_get_connector_name(connector));
 			ret = connector_status_connected;
 		} else {
@@ -954,7 +954,7 @@ radeon_dvi_detect(struct drm_connector *connector, bool force)
 		radeon_connector->edid = drm_get_edid(&radeon_connector->base, radeon_connector->ddc_bus->adapter);
 
 		if (!radeon_connector->edid) {
-			DRM_ERROR("%s: probed a monitor but no|invalid EDID\n",
+			DRM_DEBUG_KMS("%s: probed a monitor but no|invalid EDID\n",
 					drm_get_connector_name(connector));
 			/* rs690 seems to have a problem with connectors not existing and always
 			 * return a block of 0's. If we see this just stop polling on this output */

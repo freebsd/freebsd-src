@@ -119,7 +119,7 @@ typedef enum {
 	CTL_UA_I_T_NEXUS_LOSS	= 0x0008,
 	CTL_UA_LUN_RESET	= 0x0010,
 	CTL_UA_LUN_CHANGE	= 0x0020,
-	CTL_UA_MODE_CHANGE	= 0x0030,
+	CTL_UA_MODE_CHANGE	= 0x0040,
 	CTL_UA_LOG_CHANGE	= 0x0080,
 	CTL_UA_LVD		= 0x0100,
 	CTL_UA_SE		= 0x0200,
@@ -127,7 +127,8 @@ typedef enum {
 	CTL_UA_RES_RELEASE	= 0x0800,
 	CTL_UA_REG_PREEMPT  	= 0x1000,
 	CTL_UA_ASYM_ACC_CHANGE  = 0x2000,
-	CTL_UA_CAPACITY_CHANGED = 0x4000
+	CTL_UA_CAPACITY_CHANGED = 0x4000,
+	CTL_UA_THIN_PROV_THRES	= 0x8000
 } ctl_ua_type;
 
 #ifdef	_KERNEL
@@ -156,12 +157,14 @@ int ctl_port_list(struct ctl_port_entry *entries, int num_entries_alloced,
  * Put a string into an sbuf, escaping characters that are illegal or not
  * recommended in XML.  Note this doesn't escape everything, just > < and &.
  */
-int ctl_sbuf_printf_esc(struct sbuf *sb, char *str);
+int ctl_sbuf_printf_esc(struct sbuf *sb, char *str, int size);
 
 int ctl_ffz(uint32_t *mask, uint32_t size);
 int ctl_set_mask(uint32_t *mask, uint32_t bit);
 int ctl_clear_mask(uint32_t *mask, uint32_t bit);
 int ctl_is_set(uint32_t *mask, uint32_t bit);
+int ctl_caching_sp_handler(struct ctl_scsiio *ctsio,
+			 struct ctl_page_index *page_index, uint8_t *page_ptr);
 int ctl_control_page_handler(struct ctl_scsiio *ctsio,
 			     struct ctl_page_index *page_index,
 			     uint8_t *page_ptr);
@@ -170,18 +173,15 @@ int ctl_failover_sp_handler(struct ctl_scsiio *ctsio,
 			    struct ctl_page_index *page_index,
 			    uint8_t *page_ptr);
 **/
-int ctl_power_sp_handler(struct ctl_scsiio *ctsio,
-			 struct ctl_page_index *page_index, uint8_t *page_ptr);
-int ctl_power_sp_sense_handler(struct ctl_scsiio *ctsio,
-			       struct ctl_page_index *page_index, int pc);
-int ctl_aps_sp_handler(struct ctl_scsiio *ctsio,
-		       struct ctl_page_index *page_index, uint8_t *page_ptr);
 int ctl_debugconf_sp_sense_handler(struct ctl_scsiio *ctsio,
 				   struct ctl_page_index *page_index,
 				   int pc);
 int ctl_debugconf_sp_select_handler(struct ctl_scsiio *ctsio,
 				    struct ctl_page_index *page_index,
 				    uint8_t *page_ptr);
+int ctl_lbp_log_sense_handler(struct ctl_scsiio *ctsio,
+				   struct ctl_page_index *page_index,
+				   int pc);
 int ctl_config_move_done(union ctl_io *io);
 void ctl_datamove(union ctl_io *io);
 void ctl_done(union ctl_io *io);

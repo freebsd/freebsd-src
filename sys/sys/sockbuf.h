@@ -158,10 +158,40 @@ int	sbreserve_locked(struct sockbuf *sb, u_long cc, struct socket *so,
 	    struct thread *td);
 struct mbuf *
 	sbsndptr(struct sockbuf *sb, u_int off, u_int len, u_int *moff);
+struct mbuf *
+	sbsndmbuf(struct sockbuf *sb, u_int off, u_int *moff);
 void	sbtoxsockbuf(struct sockbuf *sb, struct xsockbuf *xsb);
 int	sbwait(struct sockbuf *sb);
 int	sblock(struct sockbuf *sb, int flags);
 void	sbunlock(struct sockbuf *sb);
+
+/*
+ * Return how much data is available to be taken out of socket
+ * bufffer right now.
+ */
+static inline u_int
+sbavail(struct sockbuf *sb)
+{
+
+#if 0
+	SOCKBUF_LOCK_ASSERT(sb);
+#endif
+	return (sb->sb_cc);
+}
+
+/*
+ * Return how much data sits there in the socket buffer
+ * It might be that some data is not yet ready to be read.
+ */
+static inline u_int
+sbused(struct sockbuf *sb)
+{
+
+#if 0
+	SOCKBUF_LOCK_ASSERT(sb);
+#endif
+	return (sb->sb_cc);
+}
 
 /*
  * How much space is there in a socket buffer (so->so_snd or so->so_rcv)?

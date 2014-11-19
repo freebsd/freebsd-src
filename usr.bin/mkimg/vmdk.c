@@ -110,7 +110,7 @@ static int
 vmdk_write(int fd)
 {
 	struct vmdk_header hdr;
-	uint32_t *gt, *gd;
+	uint32_t *gt, *gd, *rgd;
 	char *buf, *desc;
 	off_t cur, lim;
 	uint64_t imagesz;
@@ -143,22 +143,34 @@ vmdk_write(int fd)
 	le32enc(&hdr.ngtes, VMDK_NGTES);
 
 	sec = desc_len / VMDK_SECTOR_SIZE + 1;
-	le64enc(&hdr.rgd_offset, sec);
-	le64enc(&hdr.gd_offset, sec);
 
 	ngrains = imagesz / grainsz;
 	ngts = (ngrains + VMDK_NGTES - 1) / VMDK_NGTES;
 	gdsz = (ngts * sizeof(uint32_t) + VMDK_SECTOR_SIZE - 1) &
 	    ~(VMDK_SECTOR_SIZE - 1);
+
 	gd = calloc(gdsz, 1);
 	if (gd == NULL) {
 		free(desc);
 		return (ENOMEM);
 	}
-
+	le64enc(&hdr.gd_offset, sec);
 	sec += gdsz / VMDK_SECTOR_SIZE;
 	for (n = 0; n < ngts; n++) {
 		le32enc(gd + n, sec);
+		sec += VMDK_NGTES * sizeof(uint32_t) / VMDK_SECTOR_SIZE;
+	}
+
+	rgd = calloc(gdsz, 1);
+	if (rgd == NULL) {
+		free(gd);
+		free(desc);
+		return (ENOMEM);
+	}
+	le64enc(&hdr.rgd_offset, sec);
+	sec += gdsz / VMDK_SECTOR_SIZE;
+	for (n = 0; n < ngts; n++) {
+		le32enc(rgd + n, sec);
 		sec += VMDK_NGTES * sizeof(uint32_t) / VMDK_SECTOR_SIZE;
 	}
 
@@ -174,6 +186,7 @@ vmdk_write(int fd)
 	gtsz = ngts * VMDK_NGTES * sizeof(uint32_t);
 	gt = calloc(gtsz, 1);
 	if (gt == NULL) {
+		free(rgd);
 		free(gd);
 		free(desc);
 		return (ENOMEM);
@@ -198,13 +211,18 @@ vmdk_write(int fd)
 		error = errno;
 	if (!error && sparse_write(fd, gt, gtsz) < 0)
 		error = errno;
+	if (!error && sparse_write(fd, rgd, gdsz) < 0)
+		error = errno;
+	if (!error && sparse_write(fd, gt, gtsz) < 0)
+		error = errno;
 	free(gt);
+	free(rgd);
 	free(gd);
 	free(desc);
 	if (error)
 		return (error);
 
-	cur = VMDK_SECTOR_SIZE + desc_len + gdsz + gtsz;
+	cur = VMDK_SECTOR_SIZE + desc_len + (gdsz + gtsz) * 2;
 	lim = sec * VMDK_SECTOR_SIZE;
 	if (cur < lim) {
 		buf = calloc(VMDK_SECTOR_SIZE, 1);

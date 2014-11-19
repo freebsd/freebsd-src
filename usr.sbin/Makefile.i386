@@ -28,6 +28,9 @@ SUBDIR+=	zzz
 SUBDIR+=	acpi
 .endif
 SUBDIR+=	boot0cfg
+.if ${MK_HYPERV} != "no"
+SUBDIR+=	hyperv
+.endif
 .if ${MK_WIRELESS} != "no"
 SUBDIR+=	wlconfig
 .endif

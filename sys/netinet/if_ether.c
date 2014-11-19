@@ -103,21 +103,21 @@ static VNET_DEFINE(int, arp_maxhold) = 1;
 #define	V_arp_proxyall		VNET(arp_proxyall)
 #define	V_arp_maxhold		VNET(arp_maxhold)
 
-SYSCTL_VNET_INT(_net_link_ether_inet, OID_AUTO, max_age, CTLFLAG_RW,
+SYSCTL_INT(_net_link_ether_inet, OID_AUTO, max_age, CTLFLAG_VNET | CTLFLAG_RW,
 	&VNET_NAME(arpt_keep), 0,
 	"ARP entry lifetime in seconds");
-SYSCTL_VNET_INT(_net_link_ether_inet, OID_AUTO, maxtries, CTLFLAG_RW,
+SYSCTL_INT(_net_link_ether_inet, OID_AUTO, maxtries, CTLFLAG_VNET | CTLFLAG_RW,
 	&VNET_NAME(arp_maxtries), 0,
 	"ARP resolution attempts before returning error");
-SYSCTL_VNET_INT(_net_link_ether_inet, OID_AUTO, proxyall, CTLFLAG_RW,
+SYSCTL_INT(_net_link_ether_inet, OID_AUTO, proxyall, CTLFLAG_VNET | CTLFLAG_RW,
 	&VNET_NAME(arp_proxyall), 0,
 	"Enable proxy ARP for all suitable requests");
-SYSCTL_VNET_INT(_net_link_ether_inet, OID_AUTO, wait, CTLFLAG_RW,
+SYSCTL_INT(_net_link_ether_inet, OID_AUTO, wait, CTLFLAG_VNET | CTLFLAG_RW,
 	&VNET_NAME(arpt_down), 0,
 	"Incomplete ARP entry lifetime in seconds");
 SYSCTL_VNET_PCPUSTAT(_net_link_ether_arp, OID_AUTO, stats, struct arpstat,
     arpstat, "ARP statistics (struct arpstat, net/if_arp.h)");
-SYSCTL_VNET_INT(_net_link_ether_inet, OID_AUTO, maxhold, CTLFLAG_RW,
+SYSCTL_INT(_net_link_ether_inet, OID_AUTO, maxhold, CTLFLAG_VNET | CTLFLAG_RW,
 	&VNET_NAME(arp_maxhold), 0,
 	"Number of packets to hold per ARP entry");
 
@@ -258,8 +258,8 @@ arprequest(struct ifnet *ifp, const struct in_addr *sip,
 
 	if ((m = m_gethdr(M_NOWAIT, MT_DATA)) == NULL)
 		return;
-	m->m_len = sizeof(*ah) + 2*sizeof(struct in_addr) +
-		2*ifp->if_data.ifi_addrlen;
+	m->m_len = sizeof(*ah) + 2 * sizeof(struct in_addr) +
+		2 * ifp->if_addrlen;
 	m->m_pkthdr.len = m->m_len;
 	MH_ALIGN(m, m->m_len);
 	ah = mtod(m, struct arphdr *);

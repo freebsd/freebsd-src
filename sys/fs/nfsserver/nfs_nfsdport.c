@@ -1008,7 +1008,7 @@ nfsvno_getsymlink(struct nfsrv_descript *nd, struct nfsvattr *nvap,
 	*pathcpp = NULL;
 	*lenp = 0;
 	if ((nd->nd_flag & ND_NFSV3) &&
-	    (error = nfsrv_sattr(nd, nvap, NULL, NULL, p)))
+	    (error = nfsrv_sattr(nd, NULL, nvap, NULL, NULL, p)))
 		goto nfsmout;
 	NFSM_DISSECT(tl, u_int32_t *, NFSX_UNSIGNED);
 	len = fxdr_unsigned(int, *tl);
@@ -2298,7 +2298,7 @@ nfsmout:
  * (Return 0 or EBADRPC)
  */
 int
-nfsrv_sattr(struct nfsrv_descript *nd, struct nfsvattr *nvap,
+nfsrv_sattr(struct nfsrv_descript *nd, vnode_t vp, struct nfsvattr *nvap,
     nfsattrbit_t *attrbitp, NFSACL_T *aclp, struct thread *p)
 {
 	u_int32_t *tl;
@@ -2380,7 +2380,7 @@ nfsrv_sattr(struct nfsrv_descript *nd, struct nfsvattr *nvap,
 		};
 		break;
 	case ND_NFSV4:
-		error = nfsv4_sattr(nd, nvap, attrbitp, aclp, p);
+		error = nfsv4_sattr(nd, vp, nvap, attrbitp, aclp, p);
 	};
 nfsmout:
 	NFSEXITCODE2(error, nd);
@@ -2392,7 +2392,7 @@ nfsmout:
  * Returns NFSERR_BADXDR if it can't be parsed, 0 otherwise.
  */
 int
-nfsv4_sattr(struct nfsrv_descript *nd, struct nfsvattr *nvap,
+nfsv4_sattr(struct nfsrv_descript *nd, vnode_t vp, struct nfsvattr *nvap,
     nfsattrbit_t *attrbitp, NFSACL_T *aclp, struct thread *p)
 {
 	u_int32_t *tl;
@@ -2429,6 +2429,11 @@ nfsv4_sattr(struct nfsrv_descript *nd, struct nfsvattr *nvap,
 		switch (bitpos) {
 		case NFSATTRBIT_SIZE:
 			NFSM_DISSECT(tl, u_int32_t *, NFSX_HYPER);
+                     if (vp != NULL && vp->v_type != VREG) {
+                            error = (vp->v_type == VDIR) ? NFSERR_ISDIR :
+                                NFSERR_INVAL;
+                            goto nfsmout;
+			}
 			nvap->na_size = fxdr_hyper(tl);
 			attrsum += NFSX_HYPER;
 			break;
@@ -3321,23 +3326,16 @@ nfsd_modevent(module_t mod, int type, void *data)
 			goto out;
 		newnfs_portinit();
 		for (i = 0; i < NFSRVCACHE_HASHSIZE; i++) {
-			snprintf(nfsrchash_table[i].lock_name,
-			    sizeof(nfsrchash_table[i].lock_name), "nfsrc_tcp%d",
-			    i);
-			mtx_init(&nfsrchash_table[i].mtx,
-			    nfsrchash_table[i].lock_name, NULL, MTX_DEF);
-			snprintf(nfsrcahash_table[i].lock_name,
-			    sizeof(nfsrcahash_table[i].lock_name), "nfsrc_tcpa%d",
-			    i);
-			mtx_init(&nfsrcahash_table[i].mtx,
-			    nfsrcahash_table[i].lock_name, NULL, MTX_DEF);
+			mtx_init(&nfsrchash_table[i].mtx, "nfsrtc", NULL,
+			    MTX_DEF);
+			mtx_init(&nfsrcahash_table[i].mtx, "nfsrtca", NULL,
+			    MTX_DEF);
 		}
-		mtx_init(&nfsrc_udpmtx, "nfs_udpcache_mutex", NULL, MTX_DEF);
-		mtx_init(&nfs_v4root_mutex, "nfs_v4root_mutex", NULL, MTX_DEF);
-		mtx_init(&nfsv4root_mnt.mnt_mtx, "struct mount mtx", NULL,
-		    MTX_DEF);
+		mtx_init(&nfsrc_udpmtx, "nfsuc", NULL, MTX_DEF);
+		mtx_init(&nfs_v4root_mutex, "nfs4rt", NULL, MTX_DEF);
+		mtx_init(&nfsv4root_mnt.mnt_mtx, "nfs4mnt", NULL, MTX_DEF);
 		for (i = 0; i < NFSSESSIONHASHSIZE; i++)
-			mtx_init(&nfssessionhash[i].mtx, "nfs_session_mutex",
+			mtx_init(&nfssessionhash[i].mtx, "nfssm",
 			    NULL, MTX_DEF);
 		lockinit(&nfsv4root_mnt.mnt_explock, PVFS, "explock", 0, 0);
 		nfsrvd_initcache();

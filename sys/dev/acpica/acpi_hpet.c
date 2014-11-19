@@ -35,11 +35,13 @@ __FBSDID("$FreeBSD$");
 #include "opt_apic.h"
 #endif
 #include <sys/param.h>
+#include <sys/conf.h>
 #include <sys/bus.h>
 #include <sys/kernel.h>
 #include <sys/module.h>
 #include <sys/proc.h>
 #include <sys/rman.h>
+#include <sys/mman.h>
 #include <sys/time.h>
 #include <sys/smp.h>
 #include <sys/sysctl.h>
@@ -106,12 +108,28 @@ struct hpet_softc {
 		char			name[8];
 	} 			t[32];
 	int			num_timers;
+	struct cdev		*pdev;
+	int			mmap_allow;
+	int			mmap_allow_write;
+};
+
+static d_open_t hpet_open;
+static d_mmap_t hpet_mmap;
+
+static struct cdevsw hpet_cdevsw = {
+	.d_version =	D_VERSION,
+	.d_name =	"hpet",
+	.d_open =	hpet_open,
+	.d_mmap =	hpet_mmap,
 };
 
 static u_int hpet_get_timecount(struct timecounter *tc);
 static void hpet_test(struct hpet_softc *sc);
 
 static char *hpet_ids[] = { "PNP0103", NULL };
+
+/* Knob to disable acpi_hpet device */
+bool acpi_hpet_disabled = false;
 
 static u_int
 hpet_get_timecount(struct timecounter *tc)
@@ -314,8 +332,37 @@ hpet_find_irq_rid(device_t dev, u_long start, u_long end)
 	}
 }
 
+static int
+hpet_open(struct cdev *cdev, int oflags, int devtype, struct thread *td)
+{
+	struct hpet_softc *sc;
+
+	sc = cdev->si_drv1;
+	if (!sc->mmap_allow)
+		return (EPERM);
+	else
+		return (0);
+}
+
+static int
+hpet_mmap(struct cdev *cdev, vm_ooffset_t offset, vm_paddr_t *paddr,
+    int nprot, vm_memattr_t *memattr)
+{
+	struct hpet_softc *sc;
+
+	sc = cdev->si_drv1;
+	if (offset > rman_get_size(sc->mem_res))
+		return (EINVAL);
+	if (!sc->mmap_allow_write && (nprot & PROT_WRITE))
+		return (EPERM);
+	*paddr = rman_get_start(sc->mem_res) + offset;
+	*memattr = VM_MEMATTR_UNCACHEABLE;
+
+	return (0);
+}
+
 /* Discover the HPET via the ACPI table of the same name. */
-static void 
+static void
 hpet_identify(driver_t *driver, device_t parent)
 {
 	ACPI_TABLE_HPET *hpet;
@@ -360,7 +407,7 @@ hpet_probe(device_t dev)
 {
 	ACPI_FUNCTION_TRACE((char *)(uintptr_t) __func__);
 
-	if (acpi_disabled("hpet"))
+	if (acpi_disabled("hpet") || acpi_hpet_disabled)
 		return (ENXIO);
 	if (acpi_get_handle(dev) != NULL &&
 	    ACPI_ID_PROBE(device_get_parent(dev), dev, hpet_ids) == NULL)
@@ -555,7 +602,8 @@ hpet_attach(device_t dev)
 			    device_get_parent(device_get_parent(dev)), dev,
 			    &t->irq))) {
 				device_printf(dev,
-				    "Can't allocate interrupt for t%d.\n", j);
+				    "Can't allocate interrupt for t%d: %d\n",
+				    i, j);
 			}
 		}
 #endif
@@ -646,8 +694,8 @@ hpet_attach(device_t dev)
 #ifdef DEV_APIC
 		if ((t->caps & HPET_TCAP_FSB_INT_DEL) && t->irq >= 0) {
 			uint64_t addr;
-			uint32_t data;	
-			
+			uint32_t data;
+
 			if (PCIB_MAP_MSI(
 			    device_get_parent(device_get_parent(dev)), dev,
 			    t->irq, &addr, &data) == 0) {
@@ -697,6 +745,31 @@ hpet_attach(device_t dev)
 			maxhpetet++;
 		}
 	}
+
+	sc->pdev = make_dev(&hpet_cdevsw, 0, UID_ROOT, GID_WHEEL,
+	    0600, "hpet%d", device_get_unit(dev));
+	if (sc->pdev) {
+		sc->pdev->si_drv1 = sc;
+		sc->mmap_allow = 1;
+		TUNABLE_INT_FETCH("hw.acpi.hpet.mmap_allow",
+		    &sc->mmap_allow);
+		sc->mmap_allow_write = 1;
+		TUNABLE_INT_FETCH("hw.acpi.hpet.mmap_allow_write",
+		    &sc->mmap_allow_write);
+		SYSCTL_ADD_INT(device_get_sysctl_ctx(dev),
+		    SYSCTL_CHILDREN(device_get_sysctl_tree(dev)),
+		    OID_AUTO, "mmap_allow",
+		    CTLFLAG_RW, &sc->mmap_allow, 0,
+		    "Allow userland to memory map HPET");
+		SYSCTL_ADD_INT(device_get_sysctl_ctx(dev),
+		    SYSCTL_CHILDREN(device_get_sysctl_tree(dev)),
+		    OID_AUTO, "mmap_allow_write",
+		    CTLFLAG_RW, &sc->mmap_allow_write, 0,
+		    "Allow userland write to the HPET register space");
+	} else
+		device_printf(dev, "could not create /dev/hpet%d\n",
+		    device_get_unit(dev));
+
 	return (0);
 }
 
@@ -741,8 +814,8 @@ hpet_resume(device_t dev)
 #ifdef DEV_APIC
 		if (t->irq >= 0 && (sc->legacy_route == 0 || i >= 2)) {
 			uint64_t addr;
-			uint32_t data;	
-			
+			uint32_t data;
+
 			if (PCIB_MAP_MSI(
 			    device_get_parent(device_get_parent(dev)), dev,
 			    t->irq, &addr, &data) == 0) {
@@ -813,7 +886,7 @@ hpet_remap_intr(device_t dev, device_t child, u_int irq)
 	struct hpet_softc *sc = device_get_softc(dev);
 	struct hpet_timer *t;
 	uint64_t addr;
-	uint32_t data;	
+	uint32_t data;
 	int error, i;
 
 	for (i = 0; i < sc->num_timers; i++) {

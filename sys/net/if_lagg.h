@@ -47,26 +47,30 @@
 				  "\05DISTRIBUTING\06DISABLED"
 
 /* Supported lagg PROTOs */
-#define	LAGG_PROTO_NONE		0	/* no lagg protocol defined */
-#define	LAGG_PROTO_ROUNDROBIN	1	/* simple round robin */
-#define	LAGG_PROTO_FAILOVER	2	/* active failover */
-#define	LAGG_PROTO_LOADBALANCE	3	/* loadbalance */
-#define	LAGG_PROTO_LACP		4	/* 802.3ad lacp */
-#define	LAGG_PROTO_ETHERCHANNEL	5	/* Cisco FEC */
-#define	LAGG_PROTO_MAX		6
+typedef enum {
+	LAGG_PROTO_NONE = 0,	/* no lagg protocol defined */
+	LAGG_PROTO_ROUNDROBIN,	/* simple round robin */
+	LAGG_PROTO_FAILOVER,	/* active failover */
+	LAGG_PROTO_LOADBALANCE,	/* loadbalance */
+	LAGG_PROTO_LACP,	/* 802.3ad lacp */
+	LAGG_PROTO_ETHERCHANNEL,/* Cisco FEC */
+	LAGG_PROTO_BROADCAST,	/* broadcast */
+	LAGG_PROTO_MAX,
+} lagg_proto;
 
 struct lagg_protos {
 	const char		*lpr_name;
-	int			lpr_proto;
+	lagg_proto		lpr_proto;
 };
 
 #define	LAGG_PROTO_DEFAULT	LAGG_PROTO_FAILOVER
 #define LAGG_PROTOS	{						\
-	{ "failover",		LAGG_PROTO_FAILOVER },			\
+	{ "failover",		LAGG_PROTO_FAILOVER },		\
 	{ "fec",		LAGG_PROTO_ETHERCHANNEL },		\
 	{ "lacp",		LAGG_PROTO_LACP },			\
 	{ "loadbalance",	LAGG_PROTO_LOADBALANCE },		\
-	{ "roundrobin",		LAGG_PROTO_ROUNDROBIN },		\
+	{ "roundrobin",	LAGG_PROTO_ROUNDROBIN },		\
+	{ "broadcast",	LAGG_PROTO_BROADCAST },		\
 	{ "none",		LAGG_PROTO_NONE },			\
 	{ "default",		LAGG_PROTO_DEFAULT }			\
 }
@@ -134,19 +138,38 @@ struct lagg_reqflags {
 #define	SIOCGLAGGFLAGS		_IOWR('i', 145, struct lagg_reqflags)
 #define	SIOCSLAGGHASH		 _IOW('i', 146, struct lagg_reqflags)
 
-#ifdef _KERNEL
+struct lagg_reqopts {
+	char			ro_ifname[IFNAMSIZ];	/* name of the lagg */
 
-#include <sys/counter.h>
+	int			ro_opts;		/* Option bitmap */
+#define	LAGG_OPT_NONE			0x00
+#define	LAGG_OPT_USE_FLOWID		0x01		/* use M_FLOWID */
+/* Pseudo flags which are used in ro_opts but not stored into sc_opts. */
+#define	LAGG_OPT_FLOWIDSHIFT		0x02		/* Set flowid */
+#define	LAGG_OPT_FLOWIDSHIFT_MASK	0x1f		/* flowid is uint32_t */
+#define	LAGG_OPT_LACP_STRICT		0x10		/* LACP strict mode */
+#define	LAGG_OPT_LACP_TXTEST		0x20		/* LACP debug: txtest */
+#define	LAGG_OPT_LACP_RXTEST		0x40		/* LACP debug: rxtest */
+	u_int			ro_count;		/* number of ports */
+	u_int			ro_active;		/* active port count */
+	u_int			ro_flapping;		/* number of flapping */
+	int			ro_flowid_shift;	/* shift the flowid */
+};
+
+#define	SIOCGLAGGOPTS		_IOWR('i', 152, struct lagg_reqopts)
+#define	SIOCSLAGGOPTS		 _IOW('i', 153, struct lagg_reqopts)
+
+#define	LAGG_OPT_BITS		"\020\001USE_FLOWID\005LACP_STRICT" \
+				"\006LACP_TXTEST\007LACP_RXTEST"
+
+#ifdef _KERNEL
 
 /*
  * Internal kernel part
  */
 
-#define	lp_ifname		lp_ifp->if_xname	/* interface name */
-#define	lp_link_state		lp_ifp->if_link_state	/* link state */
-
 #define	LAGG_PORTACTIVE(_tp)	(					\
-	((_tp)->lp_link_state == LINK_STATE_UP) &&			\
+	((_tp)->lp_ifp->if_link_state == LINK_STATE_UP) &&		\
 	((_tp)->lp_ifp->if_flags & IFF_UP)				\
 )
 
@@ -174,6 +197,7 @@ struct lagg_lb {
 };
 
 struct lagg_mc {
+	struct sockaddr_dl	mc_addr;
 	struct ifmultiaddr      *mc_ifma;
 	SLIST_ENTRY(lagg_mc)	mc_entries;
 };
@@ -182,13 +206,17 @@ struct lagg_mc {
 struct lagg_llq {
 	struct ifnet		*llq_ifp;
 	uint8_t			llq_lladdr[ETHER_ADDR_LEN];
+	uint8_t			llq_primary;
 	SLIST_ENTRY(lagg_llq)	llq_entries;
+};
+
+struct lagg_counters {
+	uint64_t	val[IFCOUNTERS];
 };
 
 struct lagg_softc {
 	struct ifnet			*sc_ifp;	/* virtual interface */
 	struct rmlock			sc_mtx;
-	struct mtx			sc_call_mtx;
 	int				sc_proto;	/* lagg protocol */
 	u_int				sc_count;	/* number of ports */
 	u_int				sc_active;	/* active port count */
@@ -196,14 +224,9 @@ struct lagg_softc {
 							 * events */
 	struct lagg_port		*sc_primary;	/* primary port */
 	struct ifmedia			sc_media;	/* media config */
-	caddr_t				sc_psc;		/* protocol data */
+	void				*sc_psc;	/* protocol data */
 	uint32_t			sc_seq;		/* sequence counter */
 	uint32_t			sc_flags;
-
-	counter_u64_t			sc_ipackets;
-	counter_u64_t			sc_opackets;
-	counter_u64_t			sc_ibytes;
-	counter_u64_t			sc_obytes;
 
 	SLIST_HEAD(__tplhd, lagg_port)	sc_ports;	/* list of interfaces */
 	SLIST_ENTRY(lagg_softc)	sc_entries;
@@ -211,27 +234,12 @@ struct lagg_softc {
 	struct task			sc_lladdr_task;
 	SLIST_HEAD(__llqhd, lagg_llq)	sc_llq_head;	/* interfaces to program
 							   the lladdr on */
-
-	/* lagg protocol callbacks */
-	int	(*sc_detach)(struct lagg_softc *);
-	int	(*sc_start)(struct lagg_softc *, struct mbuf *);
-	struct mbuf *(*sc_input)(struct lagg_softc *, struct lagg_port *,
-		    struct mbuf *);
-	int	(*sc_port_create)(struct lagg_port *);
-	void	(*sc_port_destroy)(struct lagg_port *);
-	void	(*sc_linkstate)(struct lagg_port *);
-	void	(*sc_init)(struct lagg_softc *);
-	void	(*sc_stop)(struct lagg_softc *);
-	void	(*sc_lladdr)(struct lagg_softc *);
-	void	(*sc_req)(struct lagg_softc *, caddr_t);
-	void	(*sc_portreq)(struct lagg_port *, caddr_t);
 	eventhandler_tag vlan_attach;
 	eventhandler_tag vlan_detach;
 	struct callout			sc_callout;
-	struct sysctl_ctx_list		ctx;		/* sysctl variables */
-	struct sysctl_oid		*sc_oid;	/* sysctl tree oid */
-	int				use_flowid;	/* use M_FLOWID */
+	u_int				sc_opts;
 	int				flowid_shift;	/* shift the flowid */
+	struct lagg_counters		detached_counters; /* detached ports sum */
 };
 
 struct lagg_port {
@@ -244,7 +252,7 @@ struct lagg_port {
 	uint32_t			lp_flags;	/* port flags */
 	int				lp_ifflags;	/* saved ifp flags */
 	void				*lh_cookie;	/* if state hook */
-	caddr_t				lp_psc;		/* protocol data */
+	void				*lp_psc;	/* protocol data */
 	int				lp_detaching;	/* ifnet is detaching */
 
 	SLIST_HEAD(__mclhd, lagg_mc)	lp_mc_head;	/* multicast addresses */
@@ -253,6 +261,7 @@ struct lagg_port {
 	int	(*lp_ioctl)(struct ifnet *, u_long, caddr_t);
 	int	(*lp_output)(struct ifnet *, struct mbuf *,
 		     const struct sockaddr *, struct route *);
+	struct lagg_counters		port_counters;	/* ifp counters copy */
 
 	SLIST_ENTRY(lagg_port)		lp_entries;
 };
@@ -265,11 +274,6 @@ struct lagg_port {
 #define	LAGG_WUNLOCK(_sc)	rm_wunlock(&(_sc)->sc_mtx)
 #define	LAGG_RLOCK_ASSERT(_sc)	rm_assert(&(_sc)->sc_mtx, RA_RLOCKED)
 #define	LAGG_WLOCK_ASSERT(_sc)	rm_assert(&(_sc)->sc_mtx, RA_WLOCKED)
-
-#define	LAGG_CALLOUT_LOCK_INIT(_sc)					\
-	    mtx_init(&(_sc)->sc_call_mtx, "if_lagg callout mutex", NULL,\
-	    MTX_DEF)
-#define	LAGG_CALLOUT_LOCK_DESTROY(_sc)	mtx_destroy(&(_sc)->sc_call_mtx)
 
 extern struct mbuf *(*lagg_input_p)(struct ifnet *, struct mbuf *);
 extern void	(*lagg_linkstate_p)(struct ifnet *, int );

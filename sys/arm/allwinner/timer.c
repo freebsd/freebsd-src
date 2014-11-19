@@ -72,7 +72,7 @@ __FBSDID("$FreeBSD$");
 #define TIMER_ENABLE		(1<<0)
 #define TIMER_AUTORELOAD	(1<<1)
 #define TIMER_OSC24M		(1<<2) /* oscillator = 24mhz */
-#define TIMER_PRESCALAR		(4<<4) /* prescalar = 16 */
+#define TIMER_PRESCALAR		(0<<4) /* prescalar = 1 */
 
 #define SYS_TIMER_CLKSRC	24000000 /* clock source */
 

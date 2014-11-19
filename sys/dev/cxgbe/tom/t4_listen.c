@@ -1311,7 +1311,7 @@ do_pass_accept_req(struct sge_iq *iq, const struct rss_header *rss,
 		REJECT_PASS_ACCEPT();
 	rpl = wrtod(wr);
 
-	INP_INFO_WLOCK(&V_tcbinfo);	/* for 4-tuple check, syncache_add */
+	INP_INFO_WLOCK(&V_tcbinfo);	/* for 4-tuple check */
 
 	/* Don't offload if the 4-tuple is already in use */
 	if (toe_4tuple_check(&inc, &th, ifp) != 0) {
@@ -1319,6 +1319,7 @@ do_pass_accept_req(struct sge_iq *iq, const struct rss_header *rss,
 		free(wr, M_CXGBE);
 		REJECT_PASS_ACCEPT();
 	}
+	INP_INFO_WUNLOCK(&V_tcbinfo);
 
 	inp = lctx->inp;		/* listening socket, not owned by TOE */
 	INP_WLOCK(inp);
@@ -1331,7 +1332,6 @@ do_pass_accept_req(struct sge_iq *iq, const struct rss_header *rss,
 		 * resources tied to this listen context.
 		 */
 		INP_WUNLOCK(inp);
-		INP_INFO_WUNLOCK(&V_tcbinfo);
 		free(wr, M_CXGBE);
 		REJECT_PASS_ACCEPT();
 	}
@@ -1378,12 +1378,10 @@ do_pass_accept_req(struct sge_iq *iq, const struct rss_header *rss,
 
 	/*
 	 * If all goes well t4_syncache_respond will get called during
-	 * syncache_add.  Also note that syncache_add releases both pcbinfo and
-	 * pcb locks.
+	 * syncache_add.  Note that syncache_add releases the pcb lock.
 	 */
 	toe_syncache_add(&inc, &to, &th, inp, tod, synqe);
 	INP_UNLOCK_ASSERT(inp);	/* ok to assert, we have a ref on the inp */
-	INP_INFO_UNLOCK_ASSERT(&V_tcbinfo);
 
 	/*
 	 * If we replied during syncache_add (synqe->wr has been consumed),

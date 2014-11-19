@@ -57,13 +57,12 @@ static struct mkimg_alias apm_aliases[] = {
     {	ALIAS_NONE, 0 }
 };
 
-static u_int
-apm_metadata(u_int where)
+static lba_t
+apm_metadata(u_int where, lba_t blk)
 {
-	u_int secs;
 
-	secs = (where == SCHEME_META_IMG_START) ? nparts + 2 : 0;
-	return (secs);
+	blk += (where == SCHEME_META_IMG_START) ? nparts + 2 : 0;
+	return (round_block(blk));
 }
 
 static int

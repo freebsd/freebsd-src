@@ -748,10 +748,10 @@ aue_intr_callback(struct usb_xfer *xfer, usb_error_t error)
 			usbd_copy_out(pc, 0, &pkt, sizeof(pkt));
 
 			if (pkt.aue_txstat0)
-				ifp->if_oerrors++;
-			if (pkt.aue_txstat0 & (AUE_TXSTAT0_LATECOLL &
+				if_inc_counter(ifp, IFCOUNTER_OERRORS, 1);
+			if (pkt.aue_txstat0 & (AUE_TXSTAT0_LATECOLL |
 			    AUE_TXSTAT0_EXCESSCOLL))
-				ifp->if_collisions++;
+				if_inc_counter(ifp, IFCOUNTER_COLLISIONS, 1);
 		}
 		/* FALLTHROUGH */
 	case USB_ST_SETUP:
@@ -790,13 +790,13 @@ aue_bulk_read_callback(struct usb_xfer *xfer, usb_error_t error)
 		if (sc->sc_flags & AUE_FLAG_VER_2) {
 
 			if (actlen == 0) {
-				ifp->if_ierrors++;
+				if_inc_counter(ifp, IFCOUNTER_IERRORS, 1);
 				goto tr_setup;
 			}
 		} else {
 
 			if (actlen <= (int)(sizeof(stat) + ETHER_CRC_LEN)) {
-				ifp->if_ierrors++;
+				if_inc_counter(ifp, IFCOUNTER_IERRORS, 1);
 				goto tr_setup;
 			}
 			usbd_copy_out(pc, actlen - sizeof(stat), &stat,
@@ -808,7 +808,7 @@ aue_bulk_read_callback(struct usb_xfer *xfer, usb_error_t error)
 			 */
 			stat.aue_rxstat &= AUE_RXSTAT_MASK;
 			if (stat.aue_rxstat) {
-				ifp->if_ierrors++;
+				if_inc_counter(ifp, IFCOUNTER_IERRORS, 1);
 				goto tr_setup;
 			}
 			/* No errors; receive the packet. */
@@ -853,7 +853,7 @@ aue_bulk_write_callback(struct usb_xfer *xfer, usb_error_t error)
 	switch (USB_GET_STATE(xfer)) {
 	case USB_ST_TRANSFERRED:
 		DPRINTFN(11, "transfer of %d bytes complete\n", actlen);
-		ifp->if_opackets++;
+		if_inc_counter(ifp, IFCOUNTER_OPACKETS, 1);
 
 		/* FALLTHROUGH */
 	case USB_ST_SETUP:
@@ -910,7 +910,7 @@ tr_setup:
 		DPRINTFN(11, "transfer error, %s\n",
 		    usbd_errstr(error));
 
-		ifp->if_oerrors++;
+		if_inc_counter(ifp, IFCOUNTER_OERRORS, 1);
 
 		if (error != USB_ERR_CANCELLED) {
 			/* try to clear stall first */

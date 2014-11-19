@@ -137,6 +137,8 @@ OBJCFLAGS	?=	${OBJCINCLUDES} ${CFLAGS} -Wno-import
 
 OBJCOPY		?=	objcopy
 
+OBJDUMP		?=	objdump
+
 PC		?=	pc
 PFLAGS		?=
 
@@ -145,6 +147,10 @@ RFLAGS		?=
 .endif
 
 SHELL		?=	sh
+
+.if !defined(%POSIX)
+SIZE		?=	size
+.endif
 
 YACC		?=	yacc
 .if defined(%POSIX)

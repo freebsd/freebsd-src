@@ -1,0 +1,152 @@
+.\" Copyright (c) 2014 The FreeBSD Foundation
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHORS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHORS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd October 17, 2014
+.Dt UEFI 8
+.Os
+.Sh NAME
+.Nm UEFI
+.Nd Unified Extensible Firmware Interface bootstrapping procedures
+.Sh DESCRIPTION
+The
+.Nm
+Unified Extensible Firmware Interface provides boot- and run-time services
+to operating systems.
+.Nm
+is a replacement for the legacy BIOS on the i386 and amd64 CPU architectures,
+and is also used on arm64 and ia64.
+.Pp
+The
+.Nm
+boot process loads system bootstrap code located in an EFI System Partition
+(ESP).
+The ESP is a GPT or MBR partition with a specific identifier that contains an
+.Xr msdosfs 5
+FAT file system with a specified file hierarchy.
+.Bl -column -offset indent ".Sy Partition Scheme" ".Sy ESP Identifier"
+.It Sy "Partition Scheme" Ta Sy "ESP Identifier"
+.It GPT Ta C12A7328-F81F-11D2-BA4B-00A0C93EC93B
+.It MBR Ta 0xEF
+.El
+.Pp
+The
+.Nm
+boot process proceeds as follows:
+.Bl -enum -offset indent -compact
+.It
+.Nm
+firmware runs at power up and searches for an OS loader in the EFI system
+partition.
+The path to the loader may be set by an EFI environment variable.
+If not set, the default is
+.Pa /EFI/BOOT/BOOTX64.EFI .
+The default
+.Nm
+boot configuration for
+.Fx
+installs
+.Pa boot1.efi
+as
+.Pa /EFI/BOOT/BOOTX64.EFI .
+.It
+.Pa boot1.efi
+locates the first partition with the type
+.Li freebsd-ufs ,
+and from it loads
+.Pa loader.efi .
+.It
+.Pa loader.efi
+loads and boots the kernel, as described in
+.Xr loader 8 .
+.El
+.Pp
+The
+.Xr vt 4
+system console is automatically selected when booting via
+.Nm .
+.Sh FILES
+.Bl -tag -width /boot/loader -compact
+.It Pa /boot/boot1.efi
+First stage
+.Nm
+bootstrap
+.It Pa /boot/boot1.efifat
+.Xr msdosfs 5
+FAT file system image containing
+.Pa boot1.efi
+for use by
+.Xr bsdinstall 8
+and the
+.Ar bootcode
+argument to
+.Xr gpart 8 .
+.It Pa /boot/loader.efi
+Final stage bootstrap
+.It Pa /boot/kernel/kernel
+default kernel
+.It Pa /boot/kernel.old/kernel
+typical non-default kernel (optional)
+.El
+.Sh SEE ALSO
+.Xr vt 4 ,
+.Xr msdosfs 5 ,
+.Xr boot 8 ,
+.Xr gpart 8
+.Sh HISTORY
+.Nm
+boot support first appeared in
+.Fx 10.1 .
+.Sh AUTHORS
+.An -nosplit
+.Nm
+boot support was developed by
+.An Benno Rice Aq Mt benno@FreeBSD.org ,
+.An Ed Maste Aq Mt emaste@FreeBSD.org ,
+and
+.An Nathan Whitehorn Aq Mt nwhitehorn@FreeBSD.org .
+The
+.Fx
+Foundation sponsored portions of the work.
+.Sh CAVEATS
+EFI environment variables are not supported by
+.Xr loader 8
+or the kernel.
+.Pp
+.Pa boot1.efi
+loads
+.Pa loader.efi
+from the first FreeBSD-UFS file system it locates, even if it is on a
+different disk.
+.Pp
+.Pa boot1.efi
+cannot load
+.Pa loader.efi
+from a
+.Xr ZFS 8
+file system.
+As a result,
+.Nm
+does not support a typical root file system on ZFS configuration.

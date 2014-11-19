@@ -123,7 +123,7 @@ static uint32_t
 regread(int s, struct ath_diag *atd, uint32_t r)
 {
 	HAL_REGRANGE ra;
-	uint32_t v[2];
+	uint32_t v[3];
 
 	ra.start = r;
 	ra.end = 0;
@@ -135,7 +135,7 @@ regread(int s, struct ath_diag *atd, uint32_t r)
 	atd->ad_id = HAL_DIAG_REGS | ATH_DIAG_IN | ATH_DIAG_DYN;
 	if (ioctl(s, SIOCGATHDIAG, atd) < 0)
 		err(1, atd->ad_name);
-	return v[1];
+	return v[2];
 }
 
 static void

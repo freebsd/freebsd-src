@@ -115,10 +115,10 @@ exec_shell_imgact(imgp)
 	 * Don't allow a shell script to be the shell for a shell
 	 *	script. :-)
 	 */
-	if (imgp->interpreted)
+	if (imgp->interpreted & IMGACT_SHELL)
 		return (ENOEXEC);
 
-	imgp->interpreted = 1;
+	imgp->interpreted |= IMGACT_SHELL;
 
 	/*
 	 * At this point we have the first page of the file mapped.

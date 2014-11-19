@@ -135,7 +135,7 @@ typedef union
 #  define YYPARSE_DECL() yyparse(void *YYPARSE_PARAM)
 # endif
 #else
-# define YYPARSE_DECL() yyparse(int  regs[26], int * base)
+# define YYPARSE_DECL() yyparse(int regs[26], int *base)
 #endif
 
 /* Parameters sent to lex. */
@@ -147,13 +147,13 @@ typedef union
 # endif
 # define YYLEX yylex(&yylval, YYLEX_PARAM)
 #else
-# define YYLEX_DECL() yylex(YYSTYPE *yylval, int * base)
+# define YYLEX_DECL() yylex(YYSTYPE *yylval, int *base)
 # define YYLEX yylex(&yylval, base)
 #endif
 
 /* Parameters sent to yyerror. */
 #ifndef YYERROR_DECL
-#define YYERROR_DECL() yyerror(int  regs[26], int * base, const char *s)
+#define YYERROR_DECL() yyerror(int regs[26], int *base, const char *s)
 #endif
 #ifndef YYERROR_CALL
 #define YYERROR_CALL(msg) yyerror(regs, base, msg)
@@ -178,7 +178,7 @@ extern int YYPARSE_DECL();
 #define VT 272
 #define UMINUS 273
 #define YYERRCODE 256
-typedef short YYINT;
+typedef int YYINT;
 static const YYINT ok_syntax1_lhs[] = {                  -1,
     0,    0,    0,    1,    1,    2,    2,    2,    2,    2,
     2,    2,    2,    2,    2,    2,    3,    3,

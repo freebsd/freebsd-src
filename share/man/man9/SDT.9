@@ -24,13 +24,15 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd August 17, 2013
+.Dd September 18, 2014
 .Dt SDT 9
 .Os
 .Sh NAME
 .Nm SDT
 .Nd a DTrace framework for adding statically-defined tracing probes
 .Sh SYNOPSIS
+.In sys/param.h
+.In sys/queue.h
 .In sys/sdt.h
 .Fn SDT_PROVIDER_DECLARE prov
 .Fn SDT_PROVIDER_DEFINE prov

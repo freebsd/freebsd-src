@@ -1,7 +1,5 @@
 # $FreeBSD$
 
-NO_PIE=	yes
-
 LLVM_SRCS= ${.CURDIR}/../../../contrib/llvm
 
 .include "../../lib/clang/clang.build.mk"

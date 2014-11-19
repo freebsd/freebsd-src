@@ -76,3 +76,4 @@ ENTRY(strlen)
 .Lexit:
 	mov	r0, r1
 	RET
+END(strlen)

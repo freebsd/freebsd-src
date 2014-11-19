@@ -33,6 +33,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/pcpu.h>
 #include <sys/systm.h>
 #include <sys/cpuset.h>
+#include <sys/sysctl.h>
 
 #include <machine/clock.h>
 #include <machine/cpufunc.h>
@@ -43,13 +44,46 @@ __FBSDID("$FreeBSD$");
 #include <machine/vmm.h>
 
 #include "vmm_host.h"
+#include "vmm_ktr.h"
+#include "vmm_util.h"
 #include "x86.h"
+
+SYSCTL_DECL(_hw_vmm);
+static SYSCTL_NODE(_hw_vmm, OID_AUTO, topology, CTLFLAG_RD, 0, NULL);
 
 #define	CPUID_VM_HIGH		0x40000000
 
 static const char bhyve_id[12] = "bhyve bhyve ";
 
 static uint64_t bhyve_xcpuids;
+SYSCTL_ULONG(_hw_vmm, OID_AUTO, bhyve_xcpuids, CTLFLAG_RW, &bhyve_xcpuids, 0,
+    "Number of times an unknown cpuid leaf was accessed");
+
+/*
+ * The default CPU topology is a single thread per package.
+ */
+static u_int threads_per_core = 1;
+SYSCTL_UINT(_hw_vmm_topology, OID_AUTO, threads_per_core, CTLFLAG_RDTUN,
+    &threads_per_core, 0, NULL);
+
+static u_int cores_per_package = 1;
+SYSCTL_UINT(_hw_vmm_topology, OID_AUTO, cores_per_package, CTLFLAG_RDTUN,
+    &cores_per_package, 0, NULL);
+
+static int cpuid_leaf_b = 1;
+SYSCTL_INT(_hw_vmm_topology, OID_AUTO, cpuid_leaf_b, CTLFLAG_RDTUN,
+    &cpuid_leaf_b, 0, NULL);
+
+/*
+ * Round up to the next power of two, if necessary, and then take log2.
+ * Returns -1 if argument is zero.
+ */
+static __inline int
+log2(u_int x)
+{
+
+	return (fls(x << (1 - powerof2(x))) - 1);
+}
 
 int
 x86_emulate_cpuid(struct vm *vm, int vcpu_id,
@@ -57,9 +91,11 @@ x86_emulate_cpuid(struct vm *vm, int vcpu_id,
 {
 	const struct xsave_limits *limits;
 	uint64_t cr4;
-	int error, enable_invpcid;
-	unsigned int 	func, regs[4];
+	int error, enable_invpcid, level, width, x2apic_id;
+	unsigned int func, regs[4], logical_cpus;
 	enum x2apic_state x2apic_state;
+
+	VCPU_CTR2(vm, vcpu_id, "cpuid %#x,%#x", *eax, *ecx);
 
 	/*
 	 * Requests for invalid CPUID levels should map to the highest
@@ -94,25 +130,80 @@ x86_emulate_cpuid(struct vm *vm, int vcpu_id,
 		case CPUID_8000_0003:
 		case CPUID_8000_0004:
 		case CPUID_8000_0006:
+			cpuid_count(*eax, *ecx, regs);
+			break;
 		case CPUID_8000_0008:
 			cpuid_count(*eax, *ecx, regs);
+			if (vmm_is_amd()) {
+				/*
+				 * XXX this might appear silly because AMD
+				 * cpus don't have threads.
+				 *
+				 * However this matches the logical cpus as
+				 * advertised by leaf 0x1 and will work even
+				 * if the 'threads_per_core' tunable is set
+				 * incorrectly on an AMD host.
+				 */
+				logical_cpus = threads_per_core *
+				    cores_per_package;
+				regs[2] = logical_cpus - 1;
+			}
 			break;
 
 		case CPUID_8000_0001:
+			cpuid_count(*eax, *ecx, regs);
+
+			/*
+			 * Hide SVM and Topology Extension features from guest.
+			 */
+			regs[2] &= ~(AMDID2_SVM | AMDID2_TOPOLOGY);
+
+			/*
+			 * Don't advertise extended performance counter MSRs
+			 * to the guest.
+			 */
+			regs[2] &= ~AMDID2_PCXC;
+			regs[2] &= ~AMDID2_PNXC;
+			regs[2] &= ~AMDID2_PTSCEL2I;
+
+			/*
+			 * Don't advertise Instruction Based Sampling feature.
+			 */
+			regs[2] &= ~AMDID2_IBS;
+
+			/* NodeID MSR not available */
+			regs[2] &= ~AMDID2_NODE_ID;
+
+			/* Don't advertise the OS visible workaround feature */
+			regs[2] &= ~AMDID2_OSVW;
+
 			/*
 			 * Hide rdtscp/ia32_tsc_aux until we know how
 			 * to deal with them.
 			 */
-			cpuid_count(*eax, *ecx, regs);
 			regs[3] &= ~AMDID_RDTSCP;
 			break;
 
 		case CPUID_8000_0007:
-			cpuid_count(*eax, *ecx, regs);
 			/*
-			 * If the host TSCs are not synchronized across
-			 * physical cpus then we cannot advertise an
-			 * invariant tsc to a vcpu.
+			 * AMD uses this leaf to advertise the processor's
+			 * power monitoring and RAS capabilities. These
+			 * features are hardware-specific and exposing
+			 * them to a guest doesn't make a lot of sense.
+			 *
+			 * Intel uses this leaf only to advertise the
+			 * "Invariant TSC" feature with all other bits
+			 * being reserved (set to zero).
+			 */
+			regs[0] = 0;
+			regs[1] = 0;
+			regs[2] = 0;
+			regs[3] = 0;
+
+			/*
+			 * "Invariant TSC" can be advertised to the guest if:
+			 * - host TSC frequency is invariant
+			 * - host TSCs are synchronized across physical cpus
 			 *
 			 * XXX This still falls short because the vcpu
 			 * can observe the TSC moving backwards as it
@@ -120,8 +211,8 @@ x86_emulate_cpuid(struct vm *vm, int vcpu_id,
 			 * it should discourage the guest from using the
 			 * TSC to keep track of time.
 			 */
-			if (!smp_tsc)
-				regs[3] &= ~AMDPM_TSC_INVARIANT;
+			if (tsc_is_invariant && smp_tsc)
+				regs[3] |= AMDPM_TSC_INVARIANT;
 			break;
 
 		case CPUID_0000_0001:
@@ -207,30 +298,31 @@ x86_emulate_cpuid(struct vm *vm, int vcpu_id,
                         */
 			regs[3] &= ~CPUID_DS;
 
-			/*
-			 * Disable multi-core.
-			 */
+			logical_cpus = threads_per_core * cores_per_package;
 			regs[1] &= ~CPUID_HTT_CORES;
-			regs[3] &= ~CPUID_HTT;
+			regs[1] |= (logical_cpus & 0xff) << 16;
+			regs[3] |= CPUID_HTT;
 			break;
 
 		case CPUID_0000_0004:
-			do_cpuid(4, regs);
+			cpuid_count(*eax, *ecx, regs);
 
-			/*
-			 * Do not expose topology.
-			 *
-			 * The maximum number of processor cores in
-			 * this physical processor package and the
-			 * maximum number of threads sharing this
-			 * cache are encoded with "plus 1" encoding.
-			 * Adding one to the value in this register
-			 * field to obtains the actual value.
-			 *
-			 * Therefore 0 for both indicates 1 core per
-			 * package and no cache sharing.
-			 */
-			regs[0] &= 0xffff8000;
+			if (regs[0] || regs[1] || regs[2] || regs[3]) {
+				regs[0] &= 0x3ff;
+				regs[0] |= (cores_per_package - 1) << 26;
+				/*
+				 * Cache topology:
+				 * - L1 and L2 are shared only by the logical
+				 *   processors in a single core.
+				 * - L3 and above are shared by all logical
+				 *   processors in the package.
+				 */
+				logical_cpus = threads_per_core;
+				level = (regs[0] >> 5) & 0x7;
+				if (level >= 3)
+					logical_cpus *= cores_per_package;
+				regs[0] |= (logical_cpus - 1) << 14;
+			}
 			break;
 
 		case CPUID_0000_0007:
@@ -284,10 +376,32 @@ x86_emulate_cpuid(struct vm *vm, int vcpu_id,
 			/*
 			 * Processor topology enumeration
 			 */
-			regs[0] = 0;
-			regs[1] = 0;
-			regs[2] = *ecx & 0xff;
-			regs[3] = vcpu_id;
+			if (*ecx == 0) {
+				logical_cpus = threads_per_core;
+				width = log2(logical_cpus);
+				level = CPUID_TYPE_SMT;
+				x2apic_id = vcpu_id;
+			}
+
+			if (*ecx == 1) {
+				logical_cpus = threads_per_core *
+				    cores_per_package;
+				width = log2(logical_cpus);
+				level = CPUID_TYPE_CORE;
+				x2apic_id = vcpu_id;
+			}
+
+			if (!cpuid_leaf_b || *ecx >= 2) {
+				width = 0;
+				logical_cpus = 0;
+				level = 0;
+				x2apic_id = 0;
+			}
+
+			regs[0] = width & 0x1f;
+			regs[1] = logical_cpus & 0xffff;
+			regs[2] = (level << 8) | (*ecx & 0xff);
+			regs[3] = x2apic_id;
 			break;
 
 		case CPUID_0000_000D:

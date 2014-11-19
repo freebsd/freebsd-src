@@ -35,12 +35,31 @@
 
 	memory {
 		device_type = "memory";
-		reg = < 0x20000000 0x40000000 >;  /* 1G */
+		reg = < 0x20000000 0x7f200000 >;  /* 2G */
 	};
 
 	SOC: Exynos5@0 {
 		serial3: serial@12C30000 {
 			status = "okay";
+		};
+
+		usb@12110000 {
+			status = "okay";
+		};
+
+		mmc2: dwmmc@12220000 {
+			status = "okay";
+			num-slots = <1>;
+			supports-highspeed;
+			samsung,dw-mshc-ciu-div = <3>;
+			samsung,dw-mshc-sdr-timing = <2 3>;
+			samsung,dw-mshc-ddr-timing = <1 2>;
+			bus-frequency = <50000000>;
+
+			slot@0 {
+				reg = <0>;
+				bus-width = <4>;
+			};
 		};
 	};
 

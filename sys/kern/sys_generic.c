@@ -646,6 +646,10 @@ struct ioctl_args {
 int
 sys_ioctl(struct thread *td, struct ioctl_args *uap)
 {
+#ifndef SYS_IOCTL_SMALL_SIZE
+#define	SYS_IOCTL_SMALL_SIZE 128
+#endif
+	u_char smalldata[SYS_IOCTL_SMALL_SIZE] __aligned(8);
 	u_long com;
 	int arg, error;
 	u_int size;
@@ -680,17 +684,18 @@ sys_ioctl(struct thread *td, struct ioctl_args *uap)
 			arg = (intptr_t)uap->data;
 			data = (void *)&arg;
 			size = 0;
-		} else
-			data = malloc((u_long)size, M_IOCTLOPS, M_WAITOK);
+		} else {
+			if (size > SYS_IOCTL_SMALL_SIZE)
+				data = malloc((u_long)size, M_IOCTLOPS, M_WAITOK);
+			else
+				data = smalldata;
+		}
 	} else
 		data = (void *)&uap->data;
 	if (com & IOC_IN) {
 		error = copyin(uap->data, data, (u_int)size);
-		if (error) {
-			if (size > 0)
-				free(data, M_IOCTLOPS);
-			return (error);
-		}
+		if (error != 0)
+			goto out;
 	} else if (com & IOC_OUT) {
 		/*
 		 * Zero the buffer so the user always
@@ -704,7 +709,8 @@ sys_ioctl(struct thread *td, struct ioctl_args *uap)
 	if (error == 0 && (com & IOC_OUT))
 		error = copyout(data, uap->data, (u_int)size);
 
-	if (size > 0)
+out:
+	if (size > SYS_IOCTL_SMALL_SIZE)
 		free(data, M_IOCTLOPS);
 	return (error);
 }
@@ -1283,26 +1289,60 @@ selscan(td, ibits, obits, nfd)
 	return (0);
 }
 
-#ifndef _SYS_SYSPROTO_H_
-struct poll_args {
-	struct pollfd *fds;
-	u_int	nfds;
-	int	timeout;
-};
-#endif
 int
-sys_poll(td, uap)
-	struct thread *td;
-	struct poll_args *uap;
+sys_poll(struct thread *td, struct poll_args *uap)
+{
+	struct timespec ts, *tsp;
+
+	if (uap->timeout != INFTIM) {
+		if (uap->timeout < 0)
+			return (EINVAL);
+		ts.tv_sec = uap->timeout / 1000;
+		ts.tv_nsec = (uap->timeout % 1000) * 1000000;
+		tsp = &ts;
+	} else
+		tsp = NULL;
+
+	return (kern_poll(td, uap->fds, uap->nfds, tsp, NULL));
+}
+
+int
+kern_poll(struct thread *td, struct pollfd *fds, u_int nfds,
+    struct timespec *tsp, sigset_t *uset)
 {
 	struct pollfd *bits;
 	struct pollfd smallbits[32];
-	sbintime_t asbt, precision, rsbt;
-	u_int nfds;
+	sbintime_t sbt, precision, tmp;
+	time_t over;
+	struct timespec ts;
 	int error;
 	size_t ni;
 
-	nfds = uap->nfds;
+	precision = 0;
+	if (tsp != NULL) {
+		if (tsp->tv_sec < 0)
+			return (EINVAL);
+		if (tsp->tv_nsec < 0 || tsp->tv_nsec >= 1000000000)
+			return (EINVAL);
+		if (tsp->tv_sec == 0 && tsp->tv_nsec == 0)
+			sbt = 0;
+		else {
+			ts = *tsp;
+			if (ts.tv_sec > INT32_MAX / 2) {
+				over = ts.tv_sec - INT32_MAX / 2;
+				ts.tv_sec -= over;
+			} else
+				over = 0;
+			tmp = tstosbt(ts);
+			precision = tmp;
+			precision >>= tc_precexp;
+			if (TIMESEL(&sbt, tmp))
+				sbt += tc_tick_sbt;
+			sbt += tmp;
+		}
+	} else
+		sbt = -1;
+
 	if (nfds > maxfilesperproc && nfds > FD_SETSIZE) 
 		return (EINVAL);
 	ni = nfds * sizeof(struct pollfd);
@@ -1310,34 +1350,33 @@ sys_poll(td, uap)
 		bits = malloc(ni, M_TEMP, M_WAITOK);
 	else
 		bits = smallbits;
-	error = copyin(uap->fds, bits, ni);
+	error = copyin(fds, bits, ni);
 	if (error)
 		goto done;
-	precision = 0;
-	if (uap->timeout != INFTIM) {
-		if (uap->timeout < 0) {
-			error = EINVAL;
+
+	if (uset != NULL) {
+		error = kern_sigprocmask(td, SIG_SETMASK, uset,
+		    &td->td_oldsigmask, 0);
+		if (error)
 			goto done;
-		}
-		if (uap->timeout == 0)
-			asbt = 0;
-		else {
-			rsbt = SBT_1MS * uap->timeout;
-			precision = rsbt;
-			precision >>= tc_precexp;
-			if (TIMESEL(&asbt, rsbt))
-				asbt += tc_tick_sbt;
-			asbt += rsbt;
-		}
-	} else
-		asbt = -1;
+		td->td_pflags |= TDP_OLDMASK;
+		/*
+		 * Make sure that ast() is called on return to
+		 * usermode and TDP_OLDMASK is cleared, restoring old
+		 * sigmask.
+		 */
+		thread_lock(td);
+		td->td_flags |= TDF_ASTPENDING;
+		thread_unlock(td);
+	}
+
 	seltdinit(td);
 	/* Iterate until the timeout expires or descriptors become ready. */
 	for (;;) {
 		error = pollscan(td, bits, nfds);
 		if (error || td->td_retval[0] != 0)
 			break;
-		error = seltdwait(td, asbt, precision);
+		error = seltdwait(td, sbt, precision);
 		if (error)
 			break;
 		error = pollrescan(td);
@@ -1353,7 +1392,7 @@ done:
 	if (error == EWOULDBLOCK)
 		error = 0;
 	if (error == 0) {
-		error = pollout(td, bits, uap->fds, nfds);
+		error = pollout(td, bits, fds, nfds);
 		if (error)
 			goto out;
 	}
@@ -1361,6 +1400,35 @@ out:
 	if (ni > sizeof(smallbits))
 		free(bits, M_TEMP);
 	return (error);
+}
+
+int
+sys_ppoll(struct thread *td, struct ppoll_args *uap)
+{
+	struct timespec ts, *tsp;
+	sigset_t set, *ssp;
+	int error;
+
+	if (uap->ts != NULL) {
+		error = copyin(uap->ts, &ts, sizeof(ts));
+		if (error)
+			return (error);
+		tsp = &ts;
+	} else
+		tsp = NULL;
+	if (uap->set != NULL) {
+		error = copyin(uap->set, &set, sizeof(set));
+		if (error)
+			return (error);
+		ssp = &set;
+	} else
+		ssp = NULL;
+	/*
+	 * fds is still a pointer to user space. kern_poll() will
+	 * take care of copyin that array to the kernel space.
+	 */
+
+	return (kern_poll(td, uap->fds, uap->nfds, tsp, ssp));
 }
 
 static int
@@ -1600,10 +1668,12 @@ static void
 selfdfree(struct seltd *stp, struct selfd *sfp)
 {
 	STAILQ_REMOVE(&stp->st_selq, sfp, selfd, sf_link);
-	mtx_lock(sfp->sf_mtx);
-	if (sfp->sf_si)
-		TAILQ_REMOVE(&sfp->sf_si->si_tdlist, sfp, sf_threads);
-	mtx_unlock(sfp->sf_mtx);
+	if (sfp->sf_si != NULL) {
+		mtx_lock(sfp->sf_mtx);
+		if (sfp->sf_si != NULL)
+			TAILQ_REMOVE(&sfp->sf_si->si_tdlist, sfp, sf_threads);
+		mtx_unlock(sfp->sf_mtx);
+	}
 	uma_zfree(selfd_zone, sfp);
 }
 

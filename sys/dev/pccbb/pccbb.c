@@ -992,8 +992,6 @@ cbb_cardbus_reset_power(device_t brdev, device_t child, int on)
 	 * a cardbus bus, so that's the only register we check here.
 	 */
 	if (on && CBB_CARD_PRESENT(cbb_get(sc, CBB_SOCKET_STATE))) {
-		/*
-		 */
 		PCI_MASK_CONFIG(brdev, CBBR_BRIDGECTRL,
 		    &~CBBM_BRIDGECTRL_RESET, 2);
 		b = pcib_get_bus(child);
@@ -1586,13 +1584,17 @@ cbb_resume(device_t self)
 	uint32_t tmp;
 
 	/*
-	 * Some BIOSes will not save the BARs for the pci chips, so we
-	 * must do it ourselves.  If the BAR is reset to 0 for an I/O
-	 * device, it will read back as 0x1, so no explicit test for
-	 * memory devices are needed.
+	 * In the APM and early ACPI era, BIOSes saved the PCI config
+	 * registers. As chips became more complicated, that functionality moved
+	 * into the ACPI code / tables. We must therefore, restore the settings
+	 * we made here to make sure the device come back. Transitions to Dx
+	 * from D0 and back to D0 cause the bridge to lose its config space, so
+	 * all the bus mappings and such are preserved.
 	 *
-	 * Note: The PCI bus code should do this automatically for us on
-	 * suspend/resume, but until it does, we have to cope.
+	 * For most drivers, the PCI layer handles this saving. However, since
+	 * there's much black magic and arcane art hidden in these few lines of
+	 * code that would be difficult to transition into the PCI
+	 * layer. chipinit was several years of trial and error to write.
 	 */
 	pci_write_config(self, CBBR_SOCKBASE, rman_get_start(sc->base_res), 4);
 	DEVPRINTF((self, "PCI Memory allocated: %08lx\n",

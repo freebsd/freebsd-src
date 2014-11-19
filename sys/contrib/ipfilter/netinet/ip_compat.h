@@ -118,6 +118,10 @@ struct  ether_addr {
 #  if defined(INET6) && !defined(USE_INET6)
 #   define USE_INET6
 #  endif
+# else
+#  if !defined(USE_INET6) && !defined(NOINET6)
+#   define	USE_INET6
+#  endif
 # endif
 
 # if defined(_KERNEL)

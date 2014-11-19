@@ -80,7 +80,7 @@ options 	NFS_ROOT		# NFS usable as /, requires NFSCLIENT
 
 device		mmc			# mmc/sd bus
 device		mmcsd			# mmc/sd flash cards
-device		sdhci			# generic sdhci
+device		dwmmc
 
 options 	ROOTDEVNAME=\"ufs:/dev/da0\"
 
@@ -101,9 +101,10 @@ options 	USB_DEBUG
 #device		musb
 device		ehci
 #device		ohci
+device		xhci
 
 device		umass
-device		scbus			# SCSI bus (required for SCSI)
+device		scbus			# SCSI bus (required for ATA/SCSI)
 device		da			# Direct Access (disks)
 device		pass
 
@@ -118,6 +119,10 @@ device		uart
 # I2C (TWSI)
 device		iic
 device		iicbus
+
+# SPI
+device		spibus
+device		exynos_spi
 
 # Ethernet
 device		ether

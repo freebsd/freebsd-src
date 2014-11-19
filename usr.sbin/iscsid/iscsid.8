@@ -27,7 +27,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd September 20, 2012
+.Dd September 12, 2014
 .Dt ISCSID 8
 .Os
 .Sh NAME
@@ -49,12 +49,13 @@ as well as performing SendTargets discovery.
 Upon startup, the
 .Nm
 daemon opens the iSCSI initiator device file and waits for kernel requests.
-It doesn't use any configuration file; all the information it needs it gets
-from the kernel.
+.Nm
+does not use any configuration files.
+All needed information is supplied by the kernel.
 .Pp
 When the
 .Nm
-damon is not running, already established iSCSI connections continue
+daemon is not running, already established iSCSI connections continue
 to work.
 However, establishing new connections, or recovering existing ones in case
 of connection error, is not possible.
@@ -99,6 +100,7 @@ The
 .Nm
 utility exits 0 on success, and >0 if an error occurs.
 .Sh SEE ALSO
+.Xr iscsi 4 ,
 .Xr iscsictl 8
 .Sh HISTORY
 The
@@ -108,6 +110,6 @@ command appeared in
 .Sh AUTHORS
 The
 .Nm
-was developed by
+utility was developed by
 .An Edward Tomasz Napierala Aq Mt trasz@FreeBSD.org
 under sponsorship from the FreeBSD Foundation.

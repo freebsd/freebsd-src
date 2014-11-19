@@ -35,9 +35,19 @@ __FBSDID("$FreeBSD$");
 #include <sys/systm.h>
 #include <sys/smp.h>
 
+#include <contrib/dev/acpica/include/acpi.h>
+
+#include <dev/acpica/acpivar.h>
+
+#include <x86/init.h>
 #include <machine/nexusvar.h>
+#include <machine/intr_machdep.h>
 
 #include <xen/xen-os.h>
+#include <xen/xen_intr.h>
+#include <xen/xen_msi.h>
+
+#include "pcib_if.h"
 
 /*
  * Xen nexus(4) driver.
@@ -49,24 +59,110 @@ nexus_xen_probe(device_t dev)
 	if (!xen_pv_domain())
 		return (ENXIO);
 
-	return (BUS_PROBE_DEFAULT);
+	return (BUS_PROBE_SPECIFIC);
 }
 
 static int
 nexus_xen_attach(device_t dev)
 {
+	int error;
+#ifndef XEN
+	device_t acpi_dev;
+#endif
 
 	nexus_init_resources();
 	bus_generic_probe(dev);
-	bus_generic_attach(dev);
 
-	return (0);
+#ifndef XEN
+	if (xen_initial_domain()) {
+		/* Disable some ACPI devices that are not usable by Dom0 */
+		acpi_cpu_disabled = true;
+		acpi_hpet_disabled = true;
+		acpi_timer_disabled = true;
+
+		acpi_dev = BUS_ADD_CHILD(dev, 10, "acpi", 0);
+		if (acpi_dev == NULL)
+			panic("Unable to add ACPI bus to Xen Dom0");
+	}
+#endif
+
+	error = bus_generic_attach(dev);
+#ifndef XEN
+	if (xen_initial_domain() && (error == 0))
+		acpi_install_wakeup_handler(device_get_softc(acpi_dev));
+#endif
+
+	return (error);
+}
+
+static int
+nexus_xen_config_intr(device_t dev, int irq, enum intr_trigger trig,
+    enum intr_polarity pol)
+{
+	int ret;
+
+	/*
+	 * ISA and PCI intline IRQs are not preregistered on Xen, so
+	 * intercept calls to configure those and register them on the fly.
+	 */
+	if ((irq < FIRST_MSI_INT) && (intr_lookup_source(irq) == NULL)) {
+		ret = xen_register_pirq(irq, trig, pol);
+		if (ret != 0)
+			return (ret);
+		nexus_add_irq(irq);
+	}
+	return (intr_config_intr(irq, trig, pol));
+}
+
+static int
+nexus_xen_alloc_msix(device_t pcib, device_t dev, int *irq)
+{
+
+	return (xen_msix_alloc(dev, irq));
+}
+
+static int
+nexus_xen_release_msix(device_t pcib, device_t dev, int irq)
+{
+
+	return (xen_msix_release(irq));
+}
+
+static int
+nexus_xen_alloc_msi(device_t pcib, device_t dev, int count, int maxcount, int *irqs)
+{
+
+	return (xen_msi_alloc(dev, count, maxcount, irqs));
+}
+
+static int
+nexus_xen_release_msi(device_t pcib, device_t dev, int count, int *irqs)
+{
+
+	return (xen_msi_release(irqs, count));
+}
+
+static int
+nexus_xen_map_msi(device_t pcib, device_t dev, int irq, uint64_t *addr, uint32_t *data)
+{
+
+	return (xen_msi_map(irq, addr, data));
 }
 
 static device_method_t nexus_xen_methods[] = {
 	/* Device interface */
 	DEVMETHOD(device_probe,		nexus_xen_probe),
 	DEVMETHOD(device_attach,	nexus_xen_attach),
+
+	/* INTR */
+	DEVMETHOD(bus_config_intr,	nexus_xen_config_intr),
+
+	/* MSI */
+	DEVMETHOD(pcib_alloc_msi,	nexus_xen_alloc_msi),
+	DEVMETHOD(pcib_release_msi,	nexus_xen_release_msi),
+	DEVMETHOD(pcib_alloc_msix,	nexus_xen_alloc_msix),
+	DEVMETHOD(pcib_release_msix,	nexus_xen_release_msix),
+	DEVMETHOD(pcib_map_msi,		nexus_xen_map_msi),
 
 	{ 0, 0 }
 };

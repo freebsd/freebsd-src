@@ -282,52 +282,52 @@ static VNET_DEFINE(int, ipsec_ah_keymin) = 128;
 SYSCTL_DECL(_net_key);
 #endif
 
-SYSCTL_VNET_INT(_net_key, KEYCTL_DEBUG_LEVEL,	debug,
-	CTLFLAG_RW, &VNET_NAME(key_debug_level),	0,	"");
+SYSCTL_INT(_net_key, KEYCTL_DEBUG_LEVEL,	debug,
+	CTLFLAG_VNET | CTLFLAG_RW, &VNET_NAME(key_debug_level), 0, "");
 
 /* max count of trial for the decision of spi value */
-SYSCTL_VNET_INT(_net_key, KEYCTL_SPI_TRY, spi_trycnt,
-	CTLFLAG_RW, &VNET_NAME(key_spi_trycnt),	0,	"");
+SYSCTL_INT(_net_key, KEYCTL_SPI_TRY, spi_trycnt,
+	CTLFLAG_VNET | CTLFLAG_RW, &VNET_NAME(key_spi_trycnt), 0, "");
 
 /* minimum spi value to allocate automatically. */
-SYSCTL_VNET_INT(_net_key, KEYCTL_SPI_MIN_VALUE,
-	spi_minval,	CTLFLAG_RW, &VNET_NAME(key_spi_minval),	0,	"");
+SYSCTL_INT(_net_key, KEYCTL_SPI_MIN_VALUE, spi_minval,
+	CTLFLAG_VNET | CTLFLAG_RW, &VNET_NAME(key_spi_minval), 0, "");
 
 /* maximun spi value to allocate automatically. */
-SYSCTL_VNET_INT(_net_key, KEYCTL_SPI_MAX_VALUE,
-	spi_maxval,	CTLFLAG_RW, &VNET_NAME(key_spi_maxval),	0,	"");
+SYSCTL_INT(_net_key, KEYCTL_SPI_MAX_VALUE, spi_maxval,
+	CTLFLAG_VNET | CTLFLAG_RW, &VNET_NAME(key_spi_maxval), 0, "");
 
 /* interval to initialize randseed */
-SYSCTL_VNET_INT(_net_key, KEYCTL_RANDOM_INT,
-	int_random,	CTLFLAG_RW, &VNET_NAME(key_int_random),	0,	"");
+SYSCTL_INT(_net_key, KEYCTL_RANDOM_INT, int_random,
+	CTLFLAG_VNET | CTLFLAG_RW, &VNET_NAME(key_int_random), 0, "");
 
 /* lifetime for larval SA */
-SYSCTL_VNET_INT(_net_key, KEYCTL_LARVAL_LIFETIME,
-	larval_lifetime, CTLFLAG_RW, &VNET_NAME(key_larval_lifetime),	0, "");
+SYSCTL_INT(_net_key, KEYCTL_LARVAL_LIFETIME, larval_lifetime,
+	CTLFLAG_VNET | CTLFLAG_RW, &VNET_NAME(key_larval_lifetime), 0, "");
 
 /* counter for blocking to send SADB_ACQUIRE to IKEd */
-SYSCTL_VNET_INT(_net_key, KEYCTL_BLOCKACQ_COUNT,
-	blockacq_count,	CTLFLAG_RW, &VNET_NAME(key_blockacq_count),	0, "");
+SYSCTL_INT(_net_key, KEYCTL_BLOCKACQ_COUNT, blockacq_count,
+	CTLFLAG_VNET | CTLFLAG_RW, &VNET_NAME(key_blockacq_count), 0, "");
 
 /* lifetime for blocking to send SADB_ACQUIRE to IKEd */
-SYSCTL_VNET_INT(_net_key, KEYCTL_BLOCKACQ_LIFETIME,
-	blockacq_lifetime, CTLFLAG_RW, &VNET_NAME(key_blockacq_lifetime), 0, "");
+SYSCTL_INT(_net_key, KEYCTL_BLOCKACQ_LIFETIME, blockacq_lifetime,
+	CTLFLAG_VNET | CTLFLAG_RW, &VNET_NAME(key_blockacq_lifetime), 0, "");
 
 /* ESP auth */
-SYSCTL_VNET_INT(_net_key, KEYCTL_ESP_AUTH,	esp_auth,
-	CTLFLAG_RW, &VNET_NAME(ipsec_esp_auth),	0,	"");
+SYSCTL_INT(_net_key, KEYCTL_ESP_AUTH, esp_auth,
+	CTLFLAG_VNET | CTLFLAG_RW, &VNET_NAME(ipsec_esp_auth), 0, "");
 
 /* minimum ESP key length */
-SYSCTL_VNET_INT(_net_key, KEYCTL_ESP_KEYMIN,
-	esp_keymin, CTLFLAG_RW, &VNET_NAME(ipsec_esp_keymin),	0,	"");
+SYSCTL_INT(_net_key, KEYCTL_ESP_KEYMIN, esp_keymin,
+	CTLFLAG_VNET | CTLFLAG_RW, &VNET_NAME(ipsec_esp_keymin), 0, "");
 
 /* minimum AH key length */
-SYSCTL_VNET_INT(_net_key, KEYCTL_AH_KEYMIN,	ah_keymin,
-	CTLFLAG_RW, &VNET_NAME(ipsec_ah_keymin),	0,	"");
+SYSCTL_INT(_net_key, KEYCTL_AH_KEYMIN, ah_keymin,
+	CTLFLAG_VNET | CTLFLAG_RW, &VNET_NAME(ipsec_ah_keymin), 0, "");
 
 /* perfered old SA rather than new SA */
-SYSCTL_VNET_INT(_net_key, KEYCTL_PREFERED_OLDSA,
-	preferred_oldsa, CTLFLAG_RW, &VNET_NAME(key_preferred_oldsa),	0, "");
+SYSCTL_INT(_net_key, KEYCTL_PREFERED_OLDSA, preferred_oldsa,
+	CTLFLAG_VNET | CTLFLAG_RW, &VNET_NAME(key_preferred_oldsa), 0, "");
 
 #define __LIST_CHAINED(elm) \
 	(!((elm)->chain.le_next == NULL && (elm)->chain.le_prev == NULL))
@@ -409,6 +409,10 @@ struct sadb_msghdr {
 	int extoff[SADB_EXT_MAX + 1];
 	int extlen[SADB_EXT_MAX + 1];
 };
+
+#ifndef IPSEC_DEBUG2
+static struct callout key_timer;
+#endif
 
 static struct secasvar *key_allocsa_policy __P((const struct secasindex *));
 static void key_freesp_so __P((struct secpolicy **));
@@ -3902,33 +3906,14 @@ key_dup_lifemsg(const struct sadb_lifetime *src,
  *	0: false
  */
 int
-key_ismyaddr(sa)
-	struct sockaddr *sa;
+key_ismyaddr(struct sockaddr *sa)
 {
-#ifdef INET
-	struct sockaddr_in *sin;
-	struct in_ifaddr *ia;
-#endif
 
 	IPSEC_ASSERT(sa != NULL, ("null sockaddr"));
-
 	switch (sa->sa_family) {
 #ifdef INET
 	case AF_INET:
-		sin = (struct sockaddr_in *)sa;
-		IN_IFADDR_RLOCK();
-		TAILQ_FOREACH(ia, &V_in_ifaddrhead, ia_link)
-		{
-			if (sin->sin_family == ia->ia_addr.sin_family &&
-			    sin->sin_len == ia->ia_addr.sin_len &&
-			    sin->sin_addr.s_addr == ia->ia_addr.sin_addr.s_addr)
-			{
-				IN_IFADDR_RUNLOCK();
-				return 1;
-			}
-		}
-		IN_IFADDR_RUNLOCK();
-		break;
+		return (in_localip(satosin(sa)->sin_addr));
 #endif
 #ifdef INET6
 	case AF_INET6:
@@ -4525,8 +4510,8 @@ key_flush_spacq(time_t now)
  * and do to remove or to expire.
  * XXX: year 2038 problem may remain.
  */
-void
-key_timehandler(void)
+static void
+key_timehandler(void *arg)
 {
 	VNET_ITERATOR_DECL(vnet_iter);
 	time_t now = time_second;
@@ -4544,7 +4529,7 @@ key_timehandler(void)
 
 #ifndef IPSEC_DEBUG2
 	/* do exchange to tick time !! */
-	(void)timeout((void *)key_timehandler, (void *)0, hz);
+	callout_schedule(&key_timer, hz);
 #endif /* IPSEC_DEBUG2 */
 }
 
@@ -7769,7 +7754,8 @@ key_init(void)
 	SPACQ_LOCK_INIT();
 
 #ifndef IPSEC_DEBUG2
-	timeout((void *)key_timehandler, (void *)0, hz);
+	callout_init(&key_timer, CALLOUT_MPSAFE);
+	callout_reset(&key_timer, hz, key_timehandler, NULL);
 #endif /*IPSEC_DEBUG2*/
 
 	/* initialize key statistics */

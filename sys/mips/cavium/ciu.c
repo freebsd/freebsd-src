@@ -91,13 +91,13 @@ static void		ciu_hinted_child(device_t, const char *, int);
 static void		ciu_en0_intr_mask(void *);
 static void		ciu_en0_intr_unmask(void *);
 #ifdef SMP
-static int		ciu_en0_intr_bind(void *, u_char);
+static int		ciu_en0_intr_bind(void *, int);
 #endif
 
 static void		ciu_en1_intr_mask(void *);
 static void		ciu_en1_intr_unmask(void *);
 #ifdef SMP
-static int		ciu_en1_intr_bind(void *, u_char);
+static int		ciu_en1_intr_bind(void *, int);
 #endif
 
 static int		ciu_intr(void *);
@@ -208,7 +208,7 @@ ciu_setup_intr(device_t bus, device_t child, struct resource *res, int flags,
 	struct intr_event *event, **eventp;
 	void (*mask_func)(void *);
 	void (*unmask_func)(void *);
-	int (*bind_func)(void *, u_char);
+	int (*bind_func)(void *, int);
 	mips_intrcnt_t intrcnt;
 	int error;
 	int irq;
@@ -343,7 +343,7 @@ ciu_en0_intr_unmask(void *arg)
 
 #ifdef SMP
 static int
-ciu_en0_intr_bind(void *arg, u_char target)
+ciu_en0_intr_bind(void *arg, int target)
 {
 	uint64_t mask;
 	int core;
@@ -389,7 +389,7 @@ ciu_en1_intr_unmask(void *arg)
 
 #ifdef SMP
 static int
-ciu_en1_intr_bind(void *arg, u_char target)
+ciu_en1_intr_bind(void *arg, int target)
 {
 	uint64_t mask;
 	int core;

@@ -11,7 +11,7 @@ PROG=	unbound-anchor
 SRCS=	unbound-anchor.c
 CFLAGS=	-I${UNBOUNDDIR} -I${LDNSDIR} -I${EXPATDIR}/lib
 DPADD=	${LIBUNBOUND} ${LIBLDNS} ${LIBUTIL} ${LIBBSDXML} ${LIBSSL} ${LIBCRYPTO} ${LIBPTHREAD}
-LDADD=	-lunbound -lldns -lutil -lbsdxml -lssl -lcrypto -lpthread
+LDADD=	${LDUNBOUND} ${LDLDNS} -lutil -lbsdxml -lssl -lcrypto -lpthread
 USEPRIVATELIB=	ldns
 MAN=	unbound-anchor.8
 

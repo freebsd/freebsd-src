@@ -16,9 +16,6 @@ LIB=		stdc++
 SHLIB_MAJOR=	6
 
 CFLAGS+=	-DIN_GLIBCPP_V3 -DHAVE_CONFIG_H
-.if ${MACHINE_CPUARCH} == "arm" && ${MK_ARM_EABI} == "no"
-CFLAGS+=	-D_GLIBCXX_SJLJ_EXCEPTIONS=1
-.endif
 CFLAGS+=	-I${.CURDIR} -I${SUPDIR} -I${GCCDIR} -I${SRCDIR}/include
 CFLAGS+=	-I${GCCLIB}/include -I${SRCDIR}/include -I.
 CFLAGS+=	-frandom-seed=RepeatabilityConsideredGood
@@ -596,7 +593,7 @@ gthr-default.h: ${GCCDIR}/gthr-posix.h
 
 CLEANFILES+=	${THRHDRS}
 
-.if ${MACHINE_CPUARCH} == "arm" && ${MK_ARM_EABI} != "no"
+.if ${MACHINE_CPUARCH} == "arm"
 unwind.h: ${GCCDIR}/config/arm/unwind-arm.h
 .else
 unwind.h: ${GCCDIR}/unwind-generic.h

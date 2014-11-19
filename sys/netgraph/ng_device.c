@@ -270,7 +270,6 @@ ng_device_rcvdata(hook_p hook, item_p item)
 
 	IF_LOCK(&priv->readq);
 	if (_IF_QFULL(&priv->readq)) {
-		_IF_DROP(&priv->readq);
 		IF_UNLOCK(&priv->readq);
 		NG_FREE_M(m);
 		return (ENOBUFS);

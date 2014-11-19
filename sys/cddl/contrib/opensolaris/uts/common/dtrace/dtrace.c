@@ -3415,7 +3415,10 @@ dtrace_dif_variable(dtrace_mstate_t *mstate, dtrace_state_t *state, uint64_t v,
 		 */
 		return ((uint64_t)curthread->t_procp->p_ppid);
 #else
-		return ((uint64_t)curproc->p_pptr->p_pid);
+		if (curproc->p_pid == proc0.p_pid)
+			return (curproc->p_pid);
+		else
+			return (curproc->p_pptr->p_pid);
 #endif
 
 	case DIF_VAR_TID:
@@ -13049,7 +13052,7 @@ dtrace_dof_property(const char *name)
 	char *p;
 	char *p_env;
 
-	if ((p_env = getenv(name)) == NULL)
+	if ((p_env = kern_getenv(name)) == NULL)
 		return (NULL);
 
 	len = strlen(p_env) / 2;

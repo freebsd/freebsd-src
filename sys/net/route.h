@@ -34,6 +34,7 @@
 #define _NET_ROUTE_H_
 
 #include <sys/counter.h>
+#include <net/vnet.h>
 
 /*
  * Kernel resident routing tables.
@@ -84,8 +85,11 @@ struct rt_metrics {
 
 #define	RT_DEFAULT_FIB	0	/* Explicitly mark fib=0 restricted cases */
 #define	RT_ALL_FIBS	-1	/* Announce event for every fib */
+#ifdef _KERNEL
 extern u_int rt_numfibs;	/* number of usable routing tables */
-extern u_int rt_add_addr_allfibs;	/* Announce interfaces to all fibs */
+VNET_DECLARE(u_int, rt_add_addr_allfibs); /* Announce interfaces to all fibs */
+#define	V_rt_add_addr_allfibs	VNET(rt_add_addr_allfibs)
+#endif
 
 /*
  * We distinguish between routes to hosts and routes to networks,
@@ -147,7 +151,7 @@ struct rtentry {
 /*			0x10000		   unused, was RTF_PRCLONING */
 /*			0x20000		   unused, was RTF_WASCLONED */
 #define RTF_PROTO3	0x40000		/* protocol specific routing flag */
-/*			0x80000		   unused */
+#define	RTF_FIXEDMTU	0x80000		/* MTU was explicitly specified */
 #define RTF_PINNED	0x100000	/* route is immutable */
 #define	RTF_LOCAL	0x200000 	/* route represents a local address */
 #define	RTF_BROADCAST	0x400000	/* route represents a bcast address */
@@ -374,6 +378,7 @@ int	rtsock_routemsg(int, struct ifnet *ifp, int, struct rtentry *, int);
 int	 rt_expunge(struct radix_node_head *, struct rtentry *);
 void	 rtfree(struct rtentry *);
 int	 rt_check(struct rtentry **, struct rtentry **, struct sockaddr *);
+void	rt_updatemtu(struct ifnet *);
 
 /* XXX MRT COMPAT VERSIONS THAT SET UNIVERSE to 0 */
 /* Thes are used by old code not yet converted to use multiple FIBS */

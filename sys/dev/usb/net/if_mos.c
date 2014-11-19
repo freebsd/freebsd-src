@@ -792,7 +792,7 @@ mos_bulk_read_callback(struct usb_xfer *xfer, usb_error_t error)
 	case USB_ST_TRANSFERRED:
 		MOS_DPRINTFN("actlen : %d", actlen);
 		if (actlen <= 1) {
-			ifp->if_ierrors++;
+			if_inc_counter(ifp, IFCOUNTER_IERRORS, 1);
 			goto tr_setup;
 		}
 		/* evaluate status byte at the end */
@@ -811,7 +811,7 @@ mos_bulk_read_callback(struct usb_xfer *xfer, usb_error_t error)
 				MOS_DPRINTFN("CRC error");
 			if (rxstat & MOS_RXSTS_ALIGN_ERROR)
 				MOS_DPRINTFN("alignment error");
-			ifp->if_ierrors++;
+			if_inc_counter(ifp, IFCOUNTER_IERRORS, 1);
 			goto tr_setup;
 		}
 		/* Remember the last byte was used for the status fields */
@@ -820,7 +820,7 @@ mos_bulk_read_callback(struct usb_xfer *xfer, usb_error_t error)
 			MOS_DPRINTFN("error: pktlen %d is smaller "
 			    "than ether_header %zd", pktlen,
 			    sizeof(struct ether_header));
-			ifp->if_ierrors++;
+			if_inc_counter(ifp, IFCOUNTER_IERRORS, 1);
 			goto tr_setup;
 		}
 		uether_rxbuf(ue, pc, 0, actlen);
@@ -859,7 +859,7 @@ mos_bulk_write_callback(struct usb_xfer *xfer, usb_error_t error)
 	switch (USB_GET_STATE(xfer)) {
 	case USB_ST_TRANSFERRED:
 		MOS_DPRINTFN("transfer of complete");
-		ifp->if_opackets++;
+		if_inc_counter(ifp, IFCOUNTER_OPACKETS, 1);
 		/* FALLTHROUGH */
 	case USB_ST_SETUP:
 tr_setup:
@@ -886,11 +886,11 @@ tr_setup:
 
 		usbd_transfer_submit(xfer);
 
-		ifp->if_opackets++;
+		if_inc_counter(ifp, IFCOUNTER_OPACKETS, 1);
 		return;
 	default:
 		MOS_DPRINTFN("usb error on tx: %s\n", usbd_errstr(error));
-		ifp->if_oerrors++;
+		if_inc_counter(ifp, IFCOUNTER_OERRORS, 1);
 		if (error != USB_ERR_CANCELLED) {
 			usbd_xfer_set_stall(xfer);
 			goto tr_setup;
@@ -981,7 +981,7 @@ mos_intr_callback(struct usb_xfer *xfer, usb_error_t error)
 	uint32_t pkt;
 	int actlen;
 
-	ifp->if_oerrors++;
+	if_inc_counter(ifp, IFCOUNTER_OERRORS, 1);
 
 	usbd_xfer_status(xfer, &actlen, NULL, NULL, NULL);
 	MOS_DPRINTFN("actlen %i", actlen);

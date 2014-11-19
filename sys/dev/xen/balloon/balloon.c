@@ -39,6 +39,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/malloc.h>
 #include <sys/mutex.h>
 #include <sys/sysctl.h>
+#include <sys/module.h>
 
 #include <vm/vm.h>
 #include <vm/vm_page.h>
@@ -348,25 +349,50 @@ watch_target(struct xs_watch *watch,
 	set_new_target(new_target >> KB_TO_PAGE_SHIFT);
 }
 
-static void 
-balloon_init_watcher(void *arg)
+/*------------------ Private Device Attachment Functions  --------------------*/
+/**
+ * \brief Identify instances of this device type in the system.
+ *
+ * \param driver  The driver performing this identify action.
+ * \param parent  The NewBus parent device for any devices this method adds.
+ */
+static void
+xenballoon_identify(driver_t *driver __unused, device_t parent)
+{
+	/*
+	 * A single device instance for our driver is always present
+	 * in a system operating under Xen.
+	 */
+	BUS_ADD_CHILD(parent, 0, driver->name, 0);
+}
+
+/**
+ * \brief Probe for the existance of the Xen Balloon device
+ *
+ * \param dev  NewBus device_t for this Xen control instance.
+ *
+ * \return  Always returns 0 indicating success.
+ */
+static int 
+xenballoon_probe(device_t dev)
+{
+
+	device_set_desc(dev, "Xen Balloon Device");
+	return (0);
+}
+
+/**
+ * \brief Attach the Xen Balloon device.
+ *
+ * \param dev  NewBus device_t for this Xen control instance.
+ *
+ * \return  On success, 0. Otherwise an errno value indicating the
+ *          type of failure.
+ */
+static int
+xenballoon_attach(device_t dev)
 {
 	int err;
-
-	if (!is_running_on_xen())
-		return;
-
-	err = xs_register_watch(&target_watch);
-	if (err)
-		printf("Failed to set balloon watcher\n");
-
-}
-SYSINIT(balloon_init_watcher, SI_SUB_PSEUDO, SI_ORDER_ANY,
-    balloon_init_watcher, NULL);
-
-static void 
-balloon_init(void *arg)
-{
 #ifndef XENHVM
 	vm_page_t page;
 	unsigned long pfn;
@@ -374,15 +400,13 @@ balloon_init(void *arg)
 #define max_pfn HYPERVISOR_shared_info->arch.max_pfn
 #endif
 
-	if (!is_running_on_xen())
-		return;
-
 	mtx_init(&balloon_mutex, "balloon_mutex", NULL, MTX_DEF);
 
 #ifndef XENHVM
 	bs.current_pages = min(xen_start_info->nr_pages, max_pfn);
 #else
-	bs.current_pages = realmem;
+	bs.current_pages = xen_pv_domain() ?
+	    HYPERVISOR_start_info->nr_pages : realmem;
 #endif
 	bs.target_pages  = bs.current_pages;
 	bs.balloon_low   = 0;
@@ -403,17 +427,27 @@ balloon_init(void *arg)
 #endif
 
 	target_watch.callback = watch_target;
-    
-	return;
-}
-SYSINIT(balloon_init, SI_SUB_PSEUDO, SI_ORDER_ANY, balloon_init, NULL);
 
-void balloon_update_driver_allowance(long delta);
+	err = xs_register_watch(&target_watch);
+	if (err)
+		device_printf(dev,
+		    "xenballon: failed to set balloon watcher\n");
 
-void 
-balloon_update_driver_allowance(long delta)
-{
-	mtx_lock(&balloon_mutex);
-	bs.driver_pages += delta;
-	mtx_unlock(&balloon_mutex);
+	return (err);
 }
+
+/*-------------------- Private Device Attachment Data  -----------------------*/
+static device_method_t xenballoon_methods[] = {
+	/* Device interface */
+	DEVMETHOD(device_identify,	xenballoon_identify),
+	DEVMETHOD(device_probe,         xenballoon_probe),
+	DEVMETHOD(device_attach,        xenballoon_attach),
+
+	DEVMETHOD_END
+};
+
+DEFINE_CLASS_0(xenballoon, xenballoon_driver, xenballoon_methods, 0);
+devclass_t xenballoon_devclass;
+
+DRIVER_MODULE(xenballoon, xenstore, xenballoon_driver, xenballoon_devclass,
+    NULL, NULL);

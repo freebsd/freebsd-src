@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2003 Alan L. Cox <alc@cs.rice.edu>
+ * Copyright (c) 2014 Gleb Smirnoff <glebius@FreeBSD.org>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -29,31 +29,7 @@
 #ifndef _MACHINE_SF_BUF_H_
 #define _MACHINE_SF_BUF_H_
 
-#include <sys/queue.h>
-
-struct vm_page;
-
-struct sf_buf {
-	SLIST_ENTRY(sf_buf) free_list;	/* list of free buffer slots */
-	struct		vm_page *m;	/* currently mapped page */
-	vm_offset_t	kva;		/* va of mapping */
-};
-
-struct sf_buf * sf_buf_alloc(struct vm_page *m, int flags);
-void sf_buf_free(struct sf_buf *sf);
-
-static __inline vm_offset_t
-sf_buf_kva(struct sf_buf *sf)
-{
-
-	return (sf->kva);
-}
-
-static __inline struct vm_page *
-sf_buf_page(struct sf_buf *sf)
-{
-
-	return (sf->m);
-}
+void sf_buf_map(struct sf_buf *, int);
+int sf_buf_unmap(struct sf_buf *);
 
 #endif /* !_MACHINE_SF_BUF_H_ */

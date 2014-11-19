@@ -2,12 +2,12 @@
 
 .include <bsd.own.mk>
 
-.PATH: ${.CURDIR}/..
+TESTSDIR= ${TESTSBASE}/sys
 
 TESTS_SUBDIRS+=		kern
 TESTS_SUBDIRS+=		netinet
-TESTSDIR= ${TESTSBASE}/sys
 
-KYUAFILE= yes
+# Items not integrated into kyua runs by default
+SUBDIR+=		pjdfstest
 
 .include <bsd.test.mk>

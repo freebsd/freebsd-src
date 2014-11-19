@@ -34,8 +34,6 @@ LDFLAGS+=${SENDMAIL_LDFLAGS}
 DPADD+=	${SENDMAIL_DPADD}
 LDADD+=	${SENDMAIL_LDADD}
 
-NO_PIE=	yes
-
 sm_os.h:
 	ln -sf ${SENDMAIL_DIR}/include/sm/os/sm_os_freebsd.h sm_os.h
 

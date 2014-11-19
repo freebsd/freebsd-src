@@ -306,6 +306,7 @@ struct ata_pci_controller {
 #define ATA_JMB365              0x2365197b
 #define ATA_JMB366              0x2366197b
 #define ATA_JMB368              0x2368197b
+#define ATA_JMB368_2            0x0368197b
 
 #define ATA_MARVELL_ID          0x11ab
 #define ATA_M88SX5040           0x504011ab

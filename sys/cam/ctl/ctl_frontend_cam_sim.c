@@ -609,14 +609,16 @@ cfcs_action(struct cam_sim *sim, union ccb *ccb)
 		bcopy(csio->cdb_io.cdb_bytes, io->scsiio.cdb,
 		      io->scsiio.cdb_len);
 
+		ccb->ccb_h.status |= CAM_SIM_QUEUED;
 		err = ctl_queue(io);
 		if (err != CTL_RETVAL_COMPLETE) {
 			printf("%s: func %d: error %d returned by "
 			       "ctl_queue()!\n", __func__,
 			       ccb->ccb_h.func_code, err);
 			ctl_free_io(io);
-		} else {
-			ccb->ccb_h.status |= CAM_SIM_QUEUED;
+			ccb->ccb_h.status = CAM_REQ_INVALID;
+			xpt_done(ccb);
+			return;
 		}
 		break;
 	}

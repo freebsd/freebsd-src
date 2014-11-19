@@ -38,7 +38,10 @@
 #include <sys/_null.h>
 #include <sys/_types.h>
 
+#ifndef _PTRDIFF_T_DECLARED
 typedef	__ptrdiff_t	ptrdiff_t;
+#define	_PTRDIFF_T_DECLARED
+#endif
 
 #if __BSD_VISIBLE
 #ifndef _RUNE_T_DECLARED

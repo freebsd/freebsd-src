@@ -13,8 +13,6 @@ LDADD=	${LIBNTP} -lm -lmd -lrt
 
 CLEANFILES+= .version version.c
 
-NO_PIE=	yes
-
 version.c: 
 	sh -e ${.CURDIR}/../scripts/mkver ntpdate
 

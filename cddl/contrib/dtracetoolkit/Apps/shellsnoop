@@ -1,4 +1,4 @@
-#!/usr/bin/sh
+#!/bin/sh
 #
 # shellsnoop - A program to print read/write details from shells,
 #	       such as keystrokes and command outputs.
@@ -140,18 +140,14 @@ dtrace -n '
  /*
   * Remember this PID is a shell child
   */
- syscall::exec:entry, syscall::exece:entry
+ syscall::execve:entry
  /execname == "sh"   || execname == "ksh"  || execname == "csh"  || 
   execname == "tcsh" || execname == "zsh"  || execname == "bash"/
  {
 	child[pid] = 1;
  
-	/* debug */
-	this->parent = (char *)curthread->t_procp->p_parent->p_user.u_comm;
-	OPT_debug == 1 ? printf("PID %d CMD %s started. (%s)\n",
-	    pid, execname, stringof(this->parent)) : 1;
  }
- syscall::exec:entry, syscall::exece:entry
+ syscall::execve:entry
  /(OPT_pid == 1 && PID != ppid) || (OPT_uid == 1 && UID != uid)/
  {
 	/* forget if filtered */
@@ -256,12 +252,12 @@ dtrace -n '
  /*
   *  Cleanup
   */
- syscall::rexit:entry
+ syscall::exit:entry
  {
 	child[pid] = 0;
 
 	/* debug */
-	this->parent = (char *)curthread->t_procp->p_parent->p_user.u_comm;
+	this->parent = (char *)curthread->td_proc->p_pptr->p_comm;
 	OPT_debug == 1 ? printf("PID %d CMD %s exited. (%s)\n",
 	 pid, execname, stringof(this->parent)) : 1;
  }

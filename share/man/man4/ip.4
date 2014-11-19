@@ -28,7 +28,7 @@
 .\"     @(#)ip.4	8.2 (Berkeley) 11/30/93
 .\" $FreeBSD$
 .\"
-.Dd October 12, 2012
+.Dd September 1, 2014
 .Dt IP 4
 .Os
 .Sh NAME
@@ -755,13 +755,11 @@ number the socket is created with),
 unless the
 .Dv IP_HDRINCL
 option has been set.
-Incoming packets are received with
+Unlike in previous
+.Bx
+releases, incoming packets are received with
 .Tn IP
-header and options intact, except for
-.Va ip_len
-and
-.Va ip_off
-fields converted to host byte order.
+header and options intact, leaving all fields in network byte order.
 .Pp
 .Dv IP_HDRINCL
 indicates the complete IP header is included with the data
@@ -784,17 +782,16 @@ the fields of the IP header, including the following:
 ip->ip_v = IPVERSION;
 ip->ip_hl = hlen >> 2;
 ip->ip_id = 0;  /* 0 means kernel set appropriate value */
-ip->ip_off = offset;
+ip->ip_off = htons(offset);
+ip->ip_len = htons(len);
 .Ed
 .Pp
-The
+The packet should be provided as is to be sent over wire.
+This implies all fields, including
 .Va ip_len
 and
 .Va ip_off
-fields
-.Em must
-be provided in host byte order.
-All other fields must be provided in network byte order.
+to be in network byte order.
 See
 .Xr byteorder 3
 for more information on network byte order.
@@ -891,3 +888,16 @@ packets received on raw IP sockets had the
 subtracted from the
 .Va ip_len
 field.
+.Pp
+Before
+.Fx 11.0
+packets received on raw IP sockets had the
+.Va ip_len
+and
+.Va ip_off
+fields converted to host byte order.
+Packets written to raw IP sockets were expected to have
+.Va ip_len
+and
+.Va ip_off
+in host byte order.

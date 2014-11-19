@@ -1022,7 +1022,7 @@ wlstart(struct ifnet *ifp)
 	/* try 10 ticks, not very long */
 	sc->watchdog_ch = timeout(wlwatchdog, sc, 10);
 	sc->ifp->if_drv_flags |= IFF_DRV_OACTIVE;
-	sc->ifp->if_opackets++;
+	if_inc_counter(sc->ifp, IFCOUNTER_OPACKETS, 1);
 	wlxmt(sc, m);
     } else {
 	sc->ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
@@ -1478,7 +1478,7 @@ wlwatchdog(void *vsc)
 
     log(LOG_ERR, "wl%d: wavelan device timeout on xmit\n", unit);
     WL_LOCK(sc);
-    sc->ifp->if_oerrors++;
+    if_inc_counter(sc->ifp, IFCOUNTER_OERRORS, 1);
     wlinit(sc);
     WL_UNLOCK(sc);
 }
@@ -1542,14 +1542,14 @@ wlintr(void *arg)
 	 * incoming packet
 	 */
 	if (int_type & SCB_SW_FR) {
-	    sc->ifp->if_ipackets++;
+	    if_inc_counter(sc->ifp, IFCOUNTER_IPACKETS, 1);
 	    wlrcv(sc);
 	}
 	/*
 	 * receiver not ready
 	 */
 	if (int_type & SCB_SW_RNR) {
-	    sc->ifp->if_ierrors++;
+	    if_inc_counter(sc->ifp, IFCOUNTER_IERRORS, 1);
 #ifdef	WLDEBUG
 	    if (sc->ifp->if_flags & IFF_DEBUG)
 		printf("wl%d intr(): receiver overrun! begin_fd = %x\n",
@@ -1610,13 +1610,13 @@ wlintr(void *arg)
 	    /* if the transmit actually failed, or returned some status */
 	    if ((!(ac_status & AC_SW_OK)) || (ac_status & 0xfff)) {
 		if (ac_status & (TC_COLLISION | TC_CLS | TC_DMA)) {
-		    sc->ifp->if_oerrors++;
+		    if_inc_counter(sc->ifp, IFCOUNTER_OERRORS, 1);
 		}
 		/* count collisions */
-		sc->ifp->if_collisions += (ac_status & 0xf);
+		if_inc_counter(sc->ifp, IFCOUNTER_COLLISIONS, (ac_status & 0xf));
 		/* if TC_COLLISION set and collision count zero, 16 collisions */
 		if ((ac_status & 0x20) == 0x20) {
-		    sc->ifp->if_collisions += 0x10;
+		    if_inc_counter(sc->ifp, IFCOUNTER_COLLISIONS, 0x10);
 		}
 	    }
 	    sc->tbusy = 0;
@@ -1671,13 +1671,13 @@ wlrcv(struct wl_softc *sc)
 		if (sc->ifp->if_flags & IFF_DEBUG)
 		    printf("wl%d RCV: RSC %x\n", sc->unit, status);
 #endif
-		sc->ifp->if_ierrors++;
+		if_inc_counter(sc->ifp, IFCOUNTER_IERRORS, 1);
 	    } else if (!(status & RFD_OK)) {
 		printf("wl%d RCV: !OK %x\n", sc->unit, status);
-		sc->ifp->if_ierrors++;
+		if_inc_counter(sc->ifp, IFCOUNTER_IERRORS, 1);
 	    } else if (status & 0xfff) {	/* can't happen */
 		printf("wl%d RCV: ERRs %x\n", sc->unit, status);
-		sc->ifp->if_ierrors++;
+		if_inc_counter(sc->ifp, IFCOUNTER_IERRORS, 1);
 	    } else if (!wlread(sc, fd_p))
 		return;
 

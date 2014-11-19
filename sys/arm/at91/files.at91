@@ -3,28 +3,34 @@ arm/arm/cpufunc_asm_arm9.S	standard
 arm/at91/at91_machdep.c		standard
 arm/at91/at91_aic.c		standard
 arm/at91/at91.c			standard
-arm/at91/at91_cfata.c		optional	at91_cfata
-arm/at91/at91_mci.c		optional	at91_mci
-dev/nand/nfc_at91.c		optional	nand
+arm/at91/at91_aic.c		standard
 arm/at91/at91_pio.c		standard
 arm/at91/at91_pmc.c		standard
+arm/at91/at91_smc.c		standard
+arm/at91/at91_cfata.c		optional	at91_cfata
+arm/at91/at91_common.c		optional	fdt
+arm/at91/at91_mci.c		optional	at91_mci
+arm/at91/at91_pinctrl.c		optional	fdt fdt_pinctrl
 arm/at91/at91_pit.c		optional	at91sam9
 arm/at91/at91_reset.S		optional	at91sam9
 arm/at91/at91_rst.c		optional	at91sam9
 arm/at91/at91_rtc.c		optional	at91_rtc
-arm/at91/at91_smc.c		standard
+arm/at91/at91_sdramc.c		optional	fdt
+arm/at91/at91_shdwc.c		optional	fdt
 arm/at91/at91_spi.c		optional	at91_spi		\
 	dependency	"spibus_if.h"
 arm/at91/at91_ssc.c		optional	at91_ssc
 arm/at91/at91_st.c		optional	at91rm9200
-arm/at91/at91_tc.c		optional	at91_tc
+arm/at91/at91_tcb.c		optional	fdt
 arm/at91/at91_twi.c		optional	at91_twi
 arm/at91/at91_wdt.c		optional	at91_wdt
 arm/at91/if_ate.c		optional	ate
 arm/at91/if_macb.c		optional	macb
-arm/at91/uart_bus_at91usart.c	optional	uart
-arm/at91/uart_cpu_at91usart.c	optional	uart
+arm/at91/uart_bus_at91usart.c	optional	uart ! fdt
+arm/at91/uart_cpu_at91usart.c	optional	uart ! fdt
 arm/at91/uart_dev_at91usart.c	optional	uart
+dev/uart/uart_cpu_fdt.c		optional	uart fdt
+dev/nand/nfc_at91.c		optional	nand
 #
 # All the "systems on a chip" we support
 #
@@ -54,5 +60,7 @@ arm/at91/board_tsc4370.c	optional	at91_board_tsc4370
 # usb
 #
 dev/usb/controller/at91dci.c		optional	at91_dci
-dev/usb/controller/at91dci_atmelarm.c	optional	at91_dci
-dev/usb/controller/ohci_atmelarm.c	optional	ohci
+dev/usb/controller/at91dci_atmelarm.c	optional	at91_dci !fdt
+dev/usb/controller/ohci_atmelarm.c	optional	ohci !fdt
+dev/usb/controller/at91dci_fdt.c	optional	at91_dci fdt
+dev/usb/controller/ohci_fdt.c		optional	ohci fdt

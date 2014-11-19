@@ -618,7 +618,7 @@ elf_note_thrmisc(void *arg, size_t *sizep)
 static void *
 procstat_sysctl(void *arg, int what, size_t structsz, size_t *sizep)
 {
-	size_t len, oldlen;
+	size_t len;
 	pid_t pid;
 	int name[4], structsize;
 	void *buf, *p;

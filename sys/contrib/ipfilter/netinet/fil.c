@@ -4436,6 +4436,39 @@ ipf_matchicmpqueryreply(v, ic, icmp, rev)
 
 
 /* ------------------------------------------------------------------------ */
+/* Function:    ipf_rule_compare                                            */
+/* Parameters:  fr1(I) - first rule structure to compare                    */
+/*              fr2(I) - second rule structure to compare                   */
+/* Returns:     int    - 0 == rules are the same, else mismatch             */
+/*                                                                          */
+/* Compare two rules and return 0 if they match or a number indicating      */
+/* which of the individual checks failed.                                   */
+/* ------------------------------------------------------------------------ */
+static int
+ipf_rule_compare(frentry_t *fr1, frentry_t *fr2)
+{
+	if (fr1->fr_cksum != fr2->fr_cksum)
+		return 1;
+	if (fr1->fr_size != fr2->fr_size)
+		return 2;
+	if (fr1->fr_dsize != fr2->fr_dsize)
+		return 3;
+	if (bcmp((char *)&fr1->fr_func, (char *)&fr2->fr_func,
+		 fr1->fr_size - offsetof(struct frentry, fr_func)) != 0)
+		return 4;
+	if (fr1->fr_data && !fr2->fr_data)
+		return 5;
+	if (!fr1->fr_data && fr2->fr_data)
+		return 6;
+	if (fr1->fr_data) {
+		if (bcmp(fr1->fr_caddr, fr2->fr_caddr, fr1->fr_dsize))
+			return 7;
+	}
+	return 0;
+}
+
+
+/* ------------------------------------------------------------------------ */
 /* Function:    frrequest                                                   */
 /* Returns:     int - 0 == success, > 0 == errno value                      */
 /* Parameters:  unit(I)     - device for which this is for                  */
@@ -4496,7 +4529,15 @@ frrequest(softc, unit, req, data, set, makecopy)
 
 		fp = f;
 		f = NULL;
+		fp->fr_next = NULL;
 		fp->fr_dnext = NULL;
+		fp->fr_pnext = NULL;
+		fp->fr_pdnext = NULL;
+		fp->fr_grp = NULL;
+		fp->fr_grphead = NULL;
+		fp->fr_icmpgrp = NULL;
+		fp->fr_isc = (void *)-1;
+		fp->fr_ptr = NULL;
 		fp->fr_ref = 0;
 		fp->fr_flags |= FR_COPIED;
 	} else {
@@ -4920,17 +4961,7 @@ frrequest(softc, unit, req, data, set, makecopy)
 	}
 
 	for (; (f = *ftail) != NULL; ftail = &f->fr_next) {
-		DT2(rule_cmp, frentry_t *, fp, frentry_t *, f);
-		if ((fp->fr_cksum != f->fr_cksum) ||
-		    (fp->fr_size != f->fr_size) ||
-		    (f->fr_dsize != fp->fr_dsize))
-			continue;
-		if (bcmp((char *)&f->fr_func, (char *)&fp->fr_func,
-			 fp->fr_size - offsetof(struct frentry, fr_func)) != 0)
-			continue;
-		if ((!ptr && !f->fr_data) ||
-		    (ptr && f->fr_data &&
-		     !bcmp((char *)ptr, (char *)f->fr_data, f->fr_dsize)))
+		if (ipf_rule_compare(fp, f) == 0)
 			break;
 	}
 
@@ -5000,7 +5031,9 @@ frrequest(softc, unit, req, data, set, makecopy)
 				if (f->fr_collect > fp->fr_collect)
 					break;
 				ftail = &f->fr_next;
+				fprev = ftail;
 			}
+			ftail = fprev;
 			f = NULL;
 			ptr = NULL;
 		} else if (req == (ioctlcmd_t)SIOCINAFR ||
@@ -5091,6 +5124,8 @@ frrequest(softc, unit, req, data, set, makecopy)
 			fp->fr_ref = 1;
 		fp->fr_pnext = ftail;
 		fp->fr_next = *ftail;
+		if (fp->fr_next != NULL)
+			fp->fr_next->fr_pnext = &fp->fr_next;
 		*ftail = fp;
 		if (addrem == 0)
 			ipf_fixskip(ftail, fp, 1);

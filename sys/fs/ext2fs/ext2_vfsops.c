@@ -974,9 +974,9 @@ ext2_vget(struct mount *mp, ino_t ino, int flags, struct vnode **vpp)
 		for (i = used_blocks; i < EXT2_NDIR_BLOCKS; i++)
 			ip->i_db[i] = 0;
 	}
-/*
+#ifdef EXT2FS_DEBUG
 	ext2_print_inode(ip);
-*/
+#endif
 	bqrelse(bp);
 
 	/*

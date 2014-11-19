@@ -106,11 +106,3 @@ last_orders () (
 	-o bootimage="i386;_.w/boot/cdboot" -o no-emul-boot _.disk.iso _.w/
 	)
 )
-
-#create_i386_diskimage () {
-#	#currently not used
-#}
-
-#create_amd64_diskimage () {
-#	create_i386_diskimage
-#}

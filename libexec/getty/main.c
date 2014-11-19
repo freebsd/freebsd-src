@@ -187,7 +187,7 @@ main(int argc, char *argv[])
 	signal(SIGINT, SIG_IGN);
 	signal(SIGQUIT, SIG_IGN);
 
-	openlog("getty", LOG_ODELAY|LOG_CONS|LOG_PID, LOG_AUTH);
+	openlog("getty", LOG_CONS|LOG_PID, LOG_AUTH);
 	gethostname(hostname, sizeof(hostname) - 1);
 	hostname[sizeof(hostname) - 1] = '\0';
 	if (hostname[0] == '\0')

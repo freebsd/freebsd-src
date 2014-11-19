@@ -4,6 +4,8 @@
 dir=`dirname $0`
 . ${dir}/../../misc.sh
 
+[ "${os}" = "FreeBSD" ] && die "panics FreeBSD; see bug # 194587"
+
 echo "1..100"
 
 disks_create 7

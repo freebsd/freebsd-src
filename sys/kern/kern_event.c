@@ -65,6 +65,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/syscallsubr.h>
 #include <sys/taskqueue.h>
 #include <sys/uio.h>
+#include <sys/user.h>
 #ifdef KTRACE
 #include <sys/ktrace.h>
 #endif
@@ -109,19 +110,17 @@ static void 	kqueue_wakeup(struct kqueue *kq);
 static struct filterops *kqueue_fo_find(int filt);
 static void	kqueue_fo_release(int filt);
 
-static fo_rdwr_t	kqueue_read;
-static fo_rdwr_t	kqueue_write;
-static fo_truncate_t	kqueue_truncate;
 static fo_ioctl_t	kqueue_ioctl;
 static fo_poll_t	kqueue_poll;
 static fo_kqfilter_t	kqueue_kqfilter;
 static fo_stat_t	kqueue_stat;
 static fo_close_t	kqueue_close;
+static fo_fill_kinfo_t	kqueue_fill_kinfo;
 
 static struct fileops kqueueops = {
-	.fo_read = kqueue_read,
-	.fo_write = kqueue_write,
-	.fo_truncate = kqueue_truncate,
+	.fo_read = invfo_rdwr,
+	.fo_write = invfo_rdwr,
+	.fo_truncate = invfo_truncate,
 	.fo_ioctl = kqueue_ioctl,
 	.fo_poll = kqueue_poll,
 	.fo_kqfilter = kqueue_kqfilter,
@@ -130,6 +129,7 @@ static struct fileops kqueueops = {
 	.fo_chmod = invfo_chmod,
 	.fo_chown = invfo_chown,
 	.fo_sendfile = invfo_sendfile,
+	.fo_fill_kinfo = kqueue_fill_kinfo,
 };
 
 static int 	knote_attach(struct knote *kn, struct kqueue *kq);
@@ -281,19 +281,20 @@ MTX_SYSINIT(kqueue_filterops, &filterops_lock, "protect sysfilt_ops",
 	MTX_DEF);
 static struct {
 	struct filterops *for_fop;
+	int for_nolock;
 	int for_refcnt;
 } sysfilt_ops[EVFILT_SYSCOUNT] = {
-	{ &file_filtops },			/* EVFILT_READ */
-	{ &file_filtops },			/* EVFILT_WRITE */
+	{ &file_filtops, 1 },			/* EVFILT_READ */
+	{ &file_filtops, 1 },			/* EVFILT_WRITE */
 	{ &null_filtops },			/* EVFILT_AIO */
-	{ &file_filtops },			/* EVFILT_VNODE */
-	{ &proc_filtops },			/* EVFILT_PROC */
-	{ &sig_filtops },			/* EVFILT_SIGNAL */
-	{ &timer_filtops },			/* EVFILT_TIMER */
-	{ &file_filtops },			/* EVFILT_PROCDESC */
-	{ &fs_filtops },			/* EVFILT_FS */
+	{ &file_filtops, 1 },			/* EVFILT_VNODE */
+	{ &proc_filtops, 1 },			/* EVFILT_PROC */
+	{ &sig_filtops, 1 },			/* EVFILT_SIGNAL */
+	{ &timer_filtops, 1 },			/* EVFILT_TIMER */
+	{ &file_filtops, 1 },			/* EVFILT_PROCDESC */
+	{ &fs_filtops, 1 },			/* EVFILT_FS */
 	{ &null_filtops },			/* EVFILT_LIO */
-	{ &user_filtops },			/* EVFILT_USER */
+	{ &user_filtops, 1 },			/* EVFILT_USER */
 	{ &null_filtops },			/* EVFILT_SENDFILE */
 };
 
@@ -465,6 +466,10 @@ knote_fork(struct knlist *list, int pid)
 	list->kl_lock(list->kl_lockarg);
 
 	SLIST_FOREACH(kn, &list->kl_list, kn_selnext) {
+		/*
+		 * XXX - Why do we skip the kn if it is _INFLUX?  Does this
+		 * mean we will not properly wake up some notes?
+		 */
 		if ((kn->kn_status & KN_INFLUX) == KN_INFLUX)
 			continue;
 		kq = kn->kn_kq;
@@ -569,9 +574,10 @@ filt_timerexpire(void *knx)
 
 	if ((kn->kn_flags & EV_ONESHOT) != EV_ONESHOT) {
 		calloutp = (struct callout *)kn->kn_hook;
-		callout_reset_sbt_on(calloutp,
-		    timer2sbintime(kn->kn_sdata, kn->kn_sfflags), 0,
-		    filt_timerexpire, kn, PCPU_GET(cpuid), 0);
+		*kn->kn_ptr.p_nexttime += timer2sbintime(kn->kn_sdata, 
+		    kn->kn_sfflags);
+		callout_reset_sbt_on(calloutp, *kn->kn_ptr.p_nexttime, 0,
+		    filt_timerexpire, kn, PCPU_GET(cpuid), C_ABSOLUTE);
 	}
 }
 
@@ -607,11 +613,13 @@ filt_timerattach(struct knote *kn)
 
 	kn->kn_flags |= EV_CLEAR;		/* automatically set */
 	kn->kn_status &= ~KN_DETACHED;		/* knlist_add clears it */
+	kn->kn_ptr.p_nexttime = malloc(sizeof(sbintime_t), M_KQUEUE, M_WAITOK);
 	calloutp = malloc(sizeof(*calloutp), M_KQUEUE, M_WAITOK);
 	callout_init(calloutp, CALLOUT_MPSAFE);
 	kn->kn_hook = calloutp;
-	callout_reset_sbt_on(calloutp, to, 0,
-	    filt_timerexpire, kn, PCPU_GET(cpuid), 0);
+	*kn->kn_ptr.p_nexttime = to + sbinuptime();
+	callout_reset_sbt_on(calloutp, *kn->kn_ptr.p_nexttime, 0,
+	    filt_timerexpire, kn, PCPU_GET(cpuid), C_ABSOLUTE);
 
 	return (0);
 }
@@ -625,6 +633,7 @@ filt_timerdetach(struct knote *kn)
 	calloutp = (struct callout *)kn->kn_hook;
 	callout_drain(calloutp);
 	free(calloutp, M_KQUEUE);
+	free(kn->kn_ptr.p_nexttime, M_KQUEUE);
 	old = atomic_fetch_sub_explicit(&kq_ncallouts, 1, memory_order_relaxed);
 	KASSERT(old > 0, ("Number of callouts cannot become negative"));
 	kn->kn_status |= KN_DETACHED;	/* knlist_remove sets it */
@@ -998,6 +1007,9 @@ kqueue_fo_find(int filt)
 	if (filt > 0 || filt + EVFILT_SYSCOUNT < 0)
 		return NULL;
 
+	if (sysfilt_ops[~filt].for_nolock)
+		return sysfilt_ops[~filt].for_fop;
+
 	mtx_lock(&filterops_lock);
 	sysfilt_ops[~filt].for_refcnt++;
 	if (sysfilt_ops[~filt].for_fop == NULL)
@@ -1012,6 +1024,9 @@ kqueue_fo_release(int filt)
 {
 
 	if (filt > 0 || filt + EVFILT_SYSCOUNT < 0)
+		return;
+
+	if (sysfilt_ops[~filt].for_nolock)
 		return;
 
 	mtx_lock(&filterops_lock);
@@ -1047,7 +1062,10 @@ kqueue_register(struct kqueue *kq, struct kevent *kev, struct thread *td, int wa
 	if (fops == NULL)
 		return EINVAL;
 
-	tkn = knote_alloc(waitok);		/* prevent waiting with locks */
+	if (kev->flags & EV_ADD)
+		tkn = knote_alloc(waitok);	/* prevent waiting with locks */
+	else
+		tkn = NULL;
 
 findkn:
 	if (fops->f_isfd) {
@@ -1158,7 +1176,7 @@ findkn:
 			kev->data = 0;
 			kn->kn_kevent = *kev;
 			kn->kn_kevent.flags &= ~(EV_ADD | EV_DELETE |
-			    EV_ENABLE | EV_DISABLE);
+			    EV_ENABLE | EV_DISABLE | EV_FORCEONESHOT);
 			kn->kn_status = KN_INFLUX|KN_DETACHED;
 
 			error = knote_attach(kn, kq);
@@ -1191,6 +1209,11 @@ findkn:
 		goto done;
 	}
 
+	if (kev->flags & EV_FORCEONESHOT) {
+		kn->kn_flags |= EV_ONESHOT;
+		KNOTE_ACTIVATE(kn, 1);
+	}
+
 	/*
 	 * The user may change some filter values after the initial EV_ADD,
 	 * but doing so will not reset any filter which has already been
@@ -1215,17 +1238,20 @@ findkn:
 	 * kn_knlist.
 	 */
 done_ev_add:
-	event = kn->kn_fop->f_event(kn, 0);
+	if ((kev->flags & EV_DISABLE) &&
+	    ((kn->kn_status & KN_DISABLED) == 0)) {
+		kn->kn_status |= KN_DISABLED;
+	}
+
+	if ((kn->kn_status & KN_DISABLED) == 0)
+		event = kn->kn_fop->f_event(kn, 0);
+	else
+		event = 0;
 	KQ_LOCK(kq);
 	if (event)
 		KNOTE_ACTIVATE(kn, 1);
 	kn->kn_status &= ~(KN_INFLUX | KN_SCAN);
 	KN_LIST_UNLOCK(kn);
-
-	if ((kev->flags & EV_DISABLE) &&
-	    ((kn->kn_status & KN_DISABLED) == 0)) {
-		kn->kn_status |= KN_DISABLED;
-	}
 
 	if ((kev->flags & EV_ENABLE) && (kn->kn_status & KN_DISABLED)) {
 		kn->kn_status &= ~KN_DISABLED;
@@ -1602,35 +1628,6 @@ done_nl:
 	return (error);
 }
 
-/*
- * XXX
- * This could be expanded to call kqueue_scan, if desired.
- */
-/*ARGSUSED*/
-static int
-kqueue_read(struct file *fp, struct uio *uio, struct ucred *active_cred,
-	int flags, struct thread *td)
-{
-	return (ENXIO);
-}
-
-/*ARGSUSED*/
-static int
-kqueue_write(struct file *fp, struct uio *uio, struct ucred *active_cred,
-	 int flags, struct thread *td)
-{
-	return (ENXIO);
-}
-
-/*ARGSUSED*/
-static int
-kqueue_truncate(struct file *fp, off_t length, struct ucred *active_cred,
-	struct thread *td)
-{
-
-	return (EINVAL);
-}
-
 /*ARGSUSED*/
 static int
 kqueue_ioctl(struct file *fp, u_long cmd, void *data,
@@ -1831,6 +1828,14 @@ kqueue_close(struct file *fp, struct thread *td)
 	free(kq, M_KQUEUE);
 	fp->f_data = NULL;
 
+	return (0);
+}
+
+static int
+kqueue_fill_kinfo(struct file *fp, struct kinfo_file *kif, struct filedesc *fdp)
+{
+
+	kif->kf_type = KF_TYPE_KQUEUE;
 	return (0);
 }
 

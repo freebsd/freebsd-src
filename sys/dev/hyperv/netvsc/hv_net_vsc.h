@@ -965,7 +965,6 @@ typedef struct {
  */
 typedef struct hn_softc {
 	struct ifnet    *hn_ifp;
-	struct arpcom   arpcom;
 	device_t        hn_dev;
 	uint8_t         hn_unit;
 	int             hn_carrier;

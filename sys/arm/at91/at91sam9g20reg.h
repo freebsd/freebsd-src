@@ -165,7 +165,7 @@
  * 8: USART 2
  * 9: MMC Interface
  * 10: USB device port
- * 11: Two-wirte interface
+ * 11: Two-wire interface
  * 12: SPI 0
  * 13: SPI 1
  * 14: SSC

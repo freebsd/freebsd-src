@@ -26,8 +26,10 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
  */
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #include <assert.h>
 #include <stdbool.h>
@@ -37,9 +39,6 @@
 #include <string.h>
 #include <unistd.h>
 #include <netinet/in.h>
-#include <openssl/err.h>
-#include <openssl/md5.h>
-#include <openssl/rand.h>
 
 #include "ctld.h"
 #include "iscsi_proto.h"
@@ -227,150 +226,6 @@ login_list_prefers(const char *list,
 	return (-1);
 }
 
-static int
-login_hex2int(const char hex)
-{
-	switch (hex) {
-	case '0':
-		return (0x00);
-	case '1':
-		return (0x01);
-	case '2':
-		return (0x02);
-	case '3':
-		return (0x03);
-	case '4':
-		return (0x04);
-	case '5':
-		return (0x05);
-	case '6':
-		return (0x06);
-	case '7':
-		return (0x07);
-	case '8':
-		return (0x08);
-	case '9':
-		return (0x09);
-	case 'a':
-	case 'A':
-		return (0x0a);
-	case 'b':
-	case 'B':
-		return (0x0b);
-	case 'c':
-	case 'C':
-		return (0x0c);
-	case 'd':
-	case 'D':
-		return (0x0d);
-	case 'e':
-	case 'E':
-		return (0x0e);
-	case 'f':
-	case 'F':
-		return (0x0f);
-	default:
-		return (-1);
-	}
-}
-
-/*
- * XXX: Review this _carefully_.
- */
-static int
-login_hex2bin(const char *hex, char **binp, size_t *bin_lenp)
-{
-	int i, hex_len, nibble;
-	bool lo = true; /* As opposed to 'hi'. */
-	char *bin;
-	size_t bin_off, bin_len;
-
-	if (strncasecmp(hex, "0x", strlen("0x")) != 0) {
-		log_warnx("malformed variable, should start with \"0x\"");
-		return (-1);
-	}
-
-	hex += strlen("0x");
-	hex_len = strlen(hex);
-	if (hex_len < 1) {
-		log_warnx("malformed variable; doesn't contain anything "
-		    "but \"0x\"");
-		return (-1);
-	}
-
-	bin_len = hex_len / 2 + hex_len % 2;
-	bin = calloc(bin_len, 1);
-	if (bin == NULL)
-		log_err(1, "calloc");
-
-	bin_off = bin_len - 1;
-	for (i = hex_len - 1; i >= 0; i--) {
-		nibble = login_hex2int(hex[i]);
-		if (nibble < 0) {
-			log_warnx("malformed variable, invalid char \"%c\"",
-			    hex[i]);
-			return (-1);
-		}
-
-		assert(bin_off < bin_len);
-		if (lo) {
-			bin[bin_off] = nibble;
-			lo = false;
-		} else {
-			bin[bin_off] |= nibble << 4;
-			bin_off--;
-			lo = true;
-		}
-	}
-
-	*binp = bin;
-	*bin_lenp = bin_len;
-	return (0);
-}
-
-static char *
-login_bin2hex(const char *bin, size_t bin_len)
-{
-	unsigned char *hex, *tmp, ch;
-	size_t hex_len;
-	size_t i;
-
-	hex_len = bin_len * 2 + 3; /* +2 for "0x", +1 for '\0'. */
-	hex = malloc(hex_len);
-	if (hex == NULL)
-		log_err(1, "malloc");
-
-	tmp = hex;
-	tmp += sprintf(tmp, "0x");
-	for (i = 0; i < bin_len; i++) {
-		ch = bin[i];
-		tmp += sprintf(tmp, "%02x", ch);
-	}
-
-	return (hex);
-}
-
-static void
-login_compute_md5(const char id, const char *secret,
-    const void *challenge, size_t challenge_len, void *response,
-    size_t response_len)
-{
-	MD5_CTX ctx;
-	int rv;
-
-	assert(response_len == MD5_DIGEST_LENGTH);
-
-	MD5_Init(&ctx);
-	MD5_Update(&ctx, &id, sizeof(id));
-	MD5_Update(&ctx, secret, strlen(secret));
-	MD5_Update(&ctx, challenge, challenge_len);
-	rv = MD5_Final(response, &ctx);
-	if (rv != 1)
-		log_errx(1, "MD5_Final");
-}
-
-#define	LOGIN_CHALLENGE_LEN	1024
-
 static struct pdu *
 login_receive_chap_a(struct connection *conn)
 {
@@ -398,21 +253,21 @@ login_receive_chap_a(struct connection *conn)
 }
 
 static void
-login_send_chap_c(struct pdu *request, const unsigned char id,
-    const void *challenge, const size_t challenge_len)
+login_send_chap_c(struct pdu *request, struct chap *chap)
 {
 	struct pdu *response;
 	struct keys *response_keys;
-	char *chap_c, chap_i[4];
+	char *chap_c, *chap_i;
 
-	chap_c = login_bin2hex(challenge, challenge_len);
-	snprintf(chap_i, sizeof(chap_i), "%d", id);
+	chap_c = chap_get_challenge(chap);
+	chap_i = chap_get_id(chap);
 
 	response = login_new_response(request);
 	response_keys = keys_new();
 	keys_add(response_keys, "CHAP_A", "5");
 	keys_add(response_keys, "CHAP_I", chap_i);
 	keys_add(response_keys, "CHAP_C", chap_c);
+	free(chap_i);
 	free(chap_c);
 	keys_save(response_keys, response);
 	pdu_send(response);
@@ -421,15 +276,12 @@ login_send_chap_c(struct pdu *request, const unsigned char id,
 }
 
 static struct pdu *
-login_receive_chap_r(struct connection *conn,
-    struct auth_group *ag, const unsigned char id, const void *challenge,
-    const size_t challenge_len, const struct auth **cap)
+login_receive_chap_r(struct connection *conn, struct auth_group *ag,
+    struct chap *chap, const struct auth **authp)
 {
 	struct pdu *request;
 	struct keys *request_keys;
 	const char *chap_n, *chap_r;
-	char *response_bin, expected_response_bin[MD5_DIGEST_LENGTH];
-	size_t response_bin_len;
 	const struct auth *auth;
 	int error;
 
@@ -447,7 +299,7 @@ login_receive_chap_r(struct connection *conn,
 		login_send_error(request, 0x02, 0x07);
 		log_errx(1, "received CHAP Login PDU without CHAP_R");
 	}
-	error = login_hex2bin(chap_r, &response_bin, &response_bin_len);
+	error = chap_receive(chap, chap_r);
 	if (error != 0) {
 		login_send_error(request, 0x02, 0x07);
 		log_errx(1, "received CHAP Login PDU with malformed CHAP_R");
@@ -467,21 +319,17 @@ login_receive_chap_r(struct connection *conn,
 
 	assert(auth->a_secret != NULL);
 	assert(strlen(auth->a_secret) > 0);
-	login_compute_md5(id, auth->a_secret, challenge,
-	    challenge_len, expected_response_bin,
-	    sizeof(expected_response_bin));
 
-	if (memcmp(response_bin, expected_response_bin,
-	    sizeof(expected_response_bin)) != 0) {
+	error = chap_authenticate(chap, auth->a_secret);
+	if (error != 0) {
 		login_send_error(request, 0x02, 0x01);
 		log_errx(1, "CHAP authentication failed for user \"%s\"",
 		    auth->a_user);
 	}
 
 	keys_delete(request_keys);
-	free(response_bin);
 
-	*cap = auth;
+	*authp = auth;
 	return (request);
 }
 
@@ -492,10 +340,9 @@ login_send_chap_success(struct pdu *request,
 	struct pdu *response;
 	struct keys *request_keys, *response_keys;
 	struct iscsi_bhs_login_response *bhslr2;
+	struct rchap *rchap;
 	const char *chap_i, *chap_c;
-	char *chap_r, *challenge, response_bin[MD5_DIGEST_LENGTH];
-	size_t challenge_len;
-	unsigned char id;
+	char *chap_r;
 	int error;
 
 	response = login_new_response(request);
@@ -528,21 +375,18 @@ login_send_chap_success(struct pdu *request,
 			    "is not set", auth->a_user);
 		}
 
-		id = strtoul(chap_i, NULL, 10);
-		error = login_hex2bin(chap_c, &challenge, &challenge_len);
+		log_debugx("performing mutual authentication as user \"%s\"",
+		    auth->a_mutual_user);
+
+		rchap = rchap_new(auth->a_mutual_secret);
+		error = rchap_receive(rchap, chap_i, chap_c);
 		if (error != 0) {
 			login_send_error(request, 0x02, 0x07);
 			log_errx(1, "received CHAP Login PDU with malformed "
-			    "CHAP_C");
+			    "CHAP_I or CHAP_C");
 		}
-
-		log_debugx("performing mutual authentication as user \"%s\"",
-		    auth->a_mutual_user);
-		login_compute_md5(id, auth->a_mutual_secret, challenge,
-		    challenge_len, response_bin, sizeof(response_bin));
-
-		chap_r = login_bin2hex(response_bin,
-		    sizeof(response_bin));
+		chap_r = rchap_get_response(rchap);
+		rchap_delete(rchap);
 		response_keys = keys_new();
 		keys_add(response_keys, "CHAP_N", auth->a_mutual_user);
 		keys_add(response_keys, "CHAP_R", chap_r);
@@ -562,10 +406,8 @@ static void
 login_chap(struct connection *conn, struct auth_group *ag)
 {
 	const struct auth *auth;
+	struct chap *chap;
 	struct pdu *request;
-	char challenge_bin[LOGIN_CHALLENGE_LEN];
-	unsigned char id;
-	int rv;
 
 	/*
 	 * Receive CHAP_A PDU.
@@ -576,34 +418,21 @@ login_chap(struct connection *conn, struct auth_group *ag)
 	/*
 	 * Generate the challenge.
 	 */
-	rv = RAND_bytes(challenge_bin, sizeof(challenge_bin));
-	if (rv != 1) {
-		login_send_error(request, 0x03, 0x02);
-		log_errx(1, "RAND_bytes failed: %s",
-		    ERR_error_string(ERR_get_error(), NULL));
-	}
-	rv = RAND_bytes(&id, sizeof(id));
-	if (rv != 1) {
-		login_send_error(request, 0x03, 0x02);
-		log_errx(1, "RAND_bytes failed: %s",
-		    ERR_error_string(ERR_get_error(), NULL));
-	}
+	chap = chap_new();
 
 	/*
 	 * Send the challenge.
 	 */
 	log_debugx("sending CHAP_C, binary challenge size is %zd bytes",
-	    sizeof(challenge_bin));
-	login_send_chap_c(request, id, challenge_bin,
-	    sizeof(challenge_bin));
+	    sizeof(chap->chap_challenge));
+	login_send_chap_c(request, chap);
 	pdu_delete(request);
 
 	/*
 	 * Receive CHAP_N/CHAP_R PDU and authenticate.
 	 */
 	log_debugx("waiting for CHAP_N/CHAP_R");
-	request = login_receive_chap_r(conn, ag, id, challenge_bin,
-	    sizeof(challenge_bin), &auth);
+	request = login_receive_chap_r(conn, ag, chap, &auth);
 
 	/*
 	 * Yay, authentication succeeded!
@@ -612,6 +441,12 @@ login_chap(struct connection *conn, struct auth_group *ag)
 	    "transitioning to Negotiation Phase", auth->a_user);
 	login_send_chap_success(request, auth);
 	pdu_delete(request);
+
+	/*
+	 * Leave username and CHAP information for discovery().
+	 */
+	conn->conn_user = auth->a_user;
+	conn->conn_chap = chap;
 }
 
 static void
@@ -718,8 +553,8 @@ login_negotiate_key(struct pdu *request, const char *name,
 			    "MaxRecvDataSegmentLength");
 		}
 		if (tmp > MAX_DATA_SEGMENT_LENGTH) {
-			log_debugx("capping MaxDataSegmentLength from %d to %d",
-			    tmp, MAX_DATA_SEGMENT_LENGTH);
+			log_debugx("capping MaxRecvDataSegmentLength "
+			    "from %d to %d", tmp, MAX_DATA_SEGMENT_LENGTH);
 			tmp = MAX_DATA_SEGMENT_LENGTH;
 		}
 		conn->conn_max_data_segment_length = tmp;
@@ -778,13 +613,72 @@ login_negotiate_key(struct pdu *request, const char *name,
 }
 
 static void
+login_redirect(struct pdu *request, const char *target_address)
+{
+	struct pdu *response;
+	struct iscsi_bhs_login_response *bhslr2;
+	struct keys *response_keys;
+
+	response = login_new_response(request);
+	login_set_csg(response, login_csg(request));
+	bhslr2 = (struct iscsi_bhs_login_response *)response->pdu_bhs;
+	bhslr2->bhslr_status_class = 0x01;
+	bhslr2->bhslr_status_detail = 0x01;
+
+	response_keys = keys_new();
+	keys_add(response_keys, "TargetAddress", target_address);
+
+	keys_save(response_keys, response);
+	pdu_send(response);
+	pdu_delete(response);
+	keys_delete(response_keys);
+}
+
+static bool
+login_portal_redirect(struct connection *conn, struct pdu *request)
+{
+	const struct portal_group *pg;
+
+	pg = conn->conn_portal->p_portal_group;
+	if (pg->pg_redirection == NULL)
+		return (false);
+
+	log_debugx("portal-group \"%s\" configured to redirect to %s",
+	    pg->pg_name, pg->pg_redirection);
+	login_redirect(request, pg->pg_redirection);
+
+	return (true);
+}
+
+static bool
+login_target_redirect(struct connection *conn, struct pdu *request)
+{
+	const char *target_address;
+
+	assert(conn->conn_portal->p_portal_group->pg_redirection == NULL);
+
+	if (conn->conn_target == NULL)
+		return (false);
+
+	target_address = conn->conn_target->t_redirection;
+	if (target_address == NULL)
+		return (false);
+
+	log_debugx("target \"%s\" configured to redirect to %s",
+	  conn->conn_target->t_name, target_address);
+	login_redirect(request, target_address);
+
+	return (true);
+}
+
+static void
 login_negotiate(struct connection *conn, struct pdu *request)
 {
 	struct pdu *response;
 	struct iscsi_bhs_login_response *bhslr2;
 	struct keys *request_keys, *response_keys;
 	int i;
-	bool skipped_security;
+	bool redirected, skipped_security;
 
 	if (request == NULL) {
 		log_debugx("beginning operational parameter negotiation; "
@@ -793,6 +687,18 @@ login_negotiate(struct connection *conn, struct pdu *request)
 		skipped_security = false;
 	} else
 		skipped_security = true;
+
+	/*
+	 * RFC 3720, 10.13.5.  Status-Class and Status-Detail, says
+	 * the redirection SHOULD be accepted by the initiator before
+	 * authentication, but MUST be be accepted afterwards; that's
+	 * why we're doing it here and not earlier.
+	 */
+	redirected = login_target_redirect(conn, request);
+	if (redirected) {
+		log_debugx("initiator redirected; exiting");
+		exit(0);
+	}
 
 	request_keys = keys_new();
 	keys_load(request_keys, request);
@@ -804,6 +710,16 @@ login_negotiate(struct connection *conn, struct pdu *request)
 	login_set_csg(response, BHSLR_STAGE_OPERATIONAL_NEGOTIATION);
 	login_set_nsg(response, BHSLR_STAGE_FULL_FEATURE_PHASE);
 	response_keys = keys_new();
+
+	if (skipped_security &&
+	    conn->conn_session_type == CONN_SESSION_TYPE_NORMAL) {
+		if (conn->conn_target->t_alias != NULL)
+			keys_add(response_keys,
+			    "TargetAlias", conn->conn_target->t_alias);
+		keys_add_int(response_keys, "TargetPortalGroupTag",
+		    conn->conn_portal->p_portal_group->pg_tag);
+	}
+
 	for (i = 0; i < KEYS_MAX; i++) {
 		if (request_keys->keys_names[i] == NULL)
 			break;
@@ -832,10 +748,10 @@ login(struct connection *conn)
 	struct iscsi_bhs_login_response *bhslr2;
 	struct keys *request_keys, *response_keys;
 	struct auth_group *ag;
+	struct portal_group *pg;
 	const char *initiator_name, *initiator_alias, *session_type,
 	    *target_name, *auth_method;
-	char *portal_group_tag;
-	int rv;
+	bool redirected;
 
 	/*
 	 * Handle the initial Login Request - figure out required authentication
@@ -849,6 +765,8 @@ login(struct connection *conn)
 		login_send_error(request, 0x02, 0x0a);
 		log_errx(1, "received Login PDU with non-zero TSIH");
 	}
+
+	pg = conn->conn_portal->p_portal_group;
 
 	memcpy(conn->conn_initiator_isid, bhslr->bhslr_isid,
 	    sizeof(conn->conn_initiator_isid));
@@ -875,6 +793,12 @@ login(struct connection *conn)
 	 * XXX: This doesn't work (does nothing) because of Capsicum.
 	 */
 	setproctitle("%s (%s)", conn->conn_initiator_addr, conn->conn_initiator_name);
+
+	redirected = login_portal_redirect(conn, request);
+	if (redirected) {
+		log_debugx("initiator redirected; exiting");
+		exit(0);
+	}
 
 	initiator_alias = keys_find(request_keys, "InitiatorAlias");
 	if (initiator_alias != NULL)
@@ -903,9 +827,7 @@ login(struct connection *conn)
 			log_errx(1, "received Login PDU without TargetName");
 		}
 
-		conn->conn_target =
-		    target_find(conn->conn_portal->p_portal_group->pg_conf,
-		    target_name);
+		conn->conn_target = target_find(pg->pg_conf, target_name);
 		if (conn->conn_target == NULL) {
 			login_send_error(request, 0x02, 0x03);
 			log_errx(1, "requested target \"%s\" not found",
@@ -922,14 +844,14 @@ login(struct connection *conn)
 			log_debugx("initiator requests to connect "
 			    "to target \"%s\"; auth-group \"%s\"",
 			    conn->conn_target->t_name,
-			    conn->conn_target->t_auth_group->ag_name);
+			    ag->ag_name);
 		} else {
 			log_debugx("initiator requests to connect "
 			    "to target \"%s\"", conn->conn_target->t_name);
 		}
 	} else {
 		assert(conn->conn_session_type == CONN_SESSION_TYPE_DISCOVERY);
-		ag = conn->conn_portal->p_portal_group->pg_discovery_auth_group;
+		ag = pg->pg_discovery_auth_group;
 		if (ag->ag_name != NULL) {
 			log_debugx("initiator requests "
 			    "discovery session; auth-group \"%s\"", ag->ag_name);
@@ -941,28 +863,15 @@ login(struct connection *conn)
 	/*
 	 * Enforce initiator-name and initiator-portal.
 	 */
-	if (auth_name_defined(ag)) {
-		if (auth_name_find(ag, initiator_name) == NULL) {
-			login_send_error(request, 0x02, 0x02);
-			log_errx(1, "initiator does not match allowed "
-			    "initiator names");
-		}
-		log_debugx("initiator matches allowed initiator names");
-	} else {
-		log_debugx("auth-group does not define initiator name "
-		    "restrictions");
+	if (auth_name_check(ag, initiator_name) != 0) {
+		login_send_error(request, 0x02, 0x02);
+		log_errx(1, "initiator does not match allowed initiator names");
 	}
 
-	if (auth_portal_defined(ag)) {
-		if (auth_portal_find(ag, &conn->conn_initiator_sa) == NULL) {
-			login_send_error(request, 0x02, 0x02);
-			log_errx(1, "initiator does not match allowed "
-			    "initiator portals");
-		}
-		log_debugx("initiator matches allowed initiator portals");
-	} else {
-		log_debugx("auth-group does not define initiator portal "
-		    "restrictions");
+	if (auth_portal_check(ag, &conn->conn_initiator_sa) != 0) {
+		login_send_error(request, 0x02, 0x02);
+		log_errx(1, "initiator does not match allowed "
+		    "initiator portals");
 	}
 
 	/*
@@ -999,8 +908,7 @@ login(struct connection *conn)
 		response = login_new_response(request);
 		bhslr2 = (struct iscsi_bhs_login_response *)response->pdu_bhs;
 		bhslr2->bhslr_flags |= BHSLR_FLAGS_TRANSIT;
-		login_set_nsg(response,
-		    BHSLR_STAGE_OPERATIONAL_NEGOTIATION);
+		login_set_nsg(response, BHSLR_STAGE_OPERATIONAL_NEGOTIATION);
 		response_keys = keys_new();
 		/*
 		 * Required by Linux initiator.
@@ -1014,13 +922,8 @@ login(struct connection *conn)
 			if (conn->conn_target->t_alias != NULL)
 				keys_add(response_keys,
 				    "TargetAlias", conn->conn_target->t_alias);
-			rv = asprintf(&portal_group_tag, "%d",
-			    conn->conn_portal->p_portal_group->pg_tag);
-			if (rv <= 0)
-				log_err(1, "asprintf");
-			keys_add(response_keys,
-			    "TargetPortalGroupTag", portal_group_tag);
-			free(portal_group_tag);
+			keys_add_int(response_keys,
+			    "TargetPortalGroupTag", pg->pg_tag);
 		}
 		keys_save(response_keys, response);
 		pdu_send(response);
@@ -1067,16 +970,11 @@ login(struct connection *conn)
 	response_keys = keys_new();
 	keys_add(response_keys, "AuthMethod", "CHAP");
 	if (conn->conn_session_type == CONN_SESSION_TYPE_NORMAL) {
-		rv = asprintf(&portal_group_tag, "%d",
-		    conn->conn_portal->p_portal_group->pg_tag);
-		if (rv <= 0)
-			log_err(1, "asprintf");
-		keys_add(response_keys,
-		    "TargetPortalGroupTag", portal_group_tag);
-		free(portal_group_tag);
 		if (conn->conn_target->t_alias != NULL)
 			keys_add(response_keys,
 			    "TargetAlias", conn->conn_target->t_alias);
+		keys_add_int(response_keys,
+		    "TargetPortalGroupTag", pg->pg_tag);
 	}
 	keys_save(response_keys, response);
 

@@ -250,7 +250,7 @@ OPENSSL_GLOBAL const SSL_CIPHER ssl2_ciphers[]={
 	SSL_SSLV2,
 	SSL_NOT_EXP|SSL_HIGH,
 	0,
-	168,
+	112,
 	168,
 	},
 
@@ -391,6 +391,8 @@ long ssl2_ctrl(SSL *s, int cmd, long larg, void *parg)
 	case SSL_CTRL_GET_SESSION_REUSED:
 		ret=s->hit;
 		break;
+	case SSL_CTRL_CHECK_PROTO_VERSION:
+		return ssl3_ctrl(s, SSL_CTRL_CHECK_PROTO_VERSION, larg, parg);
 	default:
 		break;
 		}
@@ -437,7 +439,7 @@ int ssl2_put_cipher_by_char(const SSL_CIPHER *c, unsigned char *p)
 	if (p != NULL)
 		{
 		l=c->id;
-		if ((l & 0xff000000) != 0x02000000) return(0);
+		if ((l & 0xff000000) != 0x02000000 && l != SSL3_CK_FALLBACK_SCSV) return(0);
 		p[0]=((unsigned char)(l>>16L))&0xFF;
 		p[1]=((unsigned char)(l>> 8L))&0xFF;
 		p[2]=((unsigned char)(l     ))&0xFF;

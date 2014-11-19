@@ -382,7 +382,7 @@ db_stack_trace_cmd(struct unwind_state *state)
 			} else {
 				/* A prel31 offset to the unwind table */
 				state->insn = (uint32_t *)
-				    ((uintptr_t)&index->insn + 
+				    ((uintptr_t)&index->insn +
 				     db_expand_prel31(index->insn));
 			}
 			/* Run the unwind function */
@@ -407,7 +407,7 @@ db_stack_trace_cmd(struct unwind_state *state)
 		    state->registers[SP], state->registers[FP]);
 
 		/* Don't print the registers we have already printed */
-		upd_mask = state->update_mask & 
+		upd_mask = state->update_mask &
 		    ~((1 << SP) | (1 << FP) | (1 << LR) | (1 << PC));
 		sep = "\n\t";
 		for (i = 0, reg = 0; upd_mask != 0; upd_mask >>= 1, reg++) {
@@ -421,7 +421,7 @@ db_stack_trace_cmd(struct unwind_state *state)
 					i = 0;
 				} else
 					sep = " ";
-				
+
 			}
 		}
 		db_printf("\n");
@@ -436,7 +436,6 @@ db_stack_trace_cmd(struct unwind_state *state)
 		 * message (maybe it needs a STOP_UNWINDING).
 		 */
 		if (index->insn == EXIDX_CANTUNWIND) {
-			db_printf("Unable to unwind further\n");
 			finished = true;
 		} else if (state->registers[PC] < VM_MIN_KERNEL_ADDRESS) {
 			db_printf("Unable to unwind into user mode\n");

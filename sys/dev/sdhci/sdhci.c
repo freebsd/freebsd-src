@@ -52,21 +52,9 @@ __FBSDID("$FreeBSD$");
 #include "sdhci.h"
 #include "sdhci_if.h"
 
-struct sdhci_softc;
+SYSCTL_NODE(_hw, OID_AUTO, sdhci, CTLFLAG_RD, 0, "sdhci driver");
 
-struct sdhci_softc {
-	device_t	dev;		/* Controller device */
-	struct resource *irq_res;	/* IRQ resource */
-	int 		irq_rid;
-	void 		*intrhand;	/* Interrupt handle */
-
-	int		num_slots;	/* Number of slots on this controller */
-	struct sdhci_slot slots[6];
-};
-
-static SYSCTL_NODE(_hw, OID_AUTO, sdhci, CTLFLAG_RD, 0, "sdhci driver");
-
-int	sdhci_debug = 0;
+static int sdhci_debug;
 SYSCTL_INT(_hw_sdhci, OID_AUTO, debug, CTLFLAG_RWTUN, &sdhci_debug, 0, "Debug level");
 
 #define RD1(slot, off)	SDHCI_READ_1((slot)->bus, (slot), (off))

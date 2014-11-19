@@ -135,13 +135,13 @@
 #define	ARM_MMU_GENERIC		0
 #endif
 
-#if defined(CPU_ARM1136) || defined(CPU_ARM1176) || defined(CPU_MV_PJ4B)
+#if defined(CPU_ARM1136) || defined(CPU_ARM1176)
 #define ARM_MMU_V6		1
 #else
 #define ARM_MMU_V6		0
 #endif
 
-#if defined(CPU_CORTEXA) || defined(CPU_KRAIT)
+#if defined(CPU_CORTEXA) || defined(CPU_KRAIT) || defined(CPU_MV_PJ4B)
 #define ARM_MMU_V7		1
 #else
 #define ARM_MMU_V7		0

@@ -254,10 +254,18 @@ ipsec4_common_input(struct mbuf *m, ...)
 				  AF_INET, nxt);
 }
 
-void
-ah4_input(struct mbuf *m, int off)
+int
+ah4_input(struct mbuf **mp, int *offp, int proto)
 {
+	struct mbuf *m;
+	int off;
+
+	m = *mp;
+	off = *offp;
+	*mp = NULL;
+
 	ipsec4_common_input(m, off, IPPROTO_AH);
+	return (IPPROTO_DONE);
 }
 void
 ah4_ctlinput(int cmd, struct sockaddr *sa, void *v)
@@ -267,11 +275,20 @@ ah4_ctlinput(int cmd, struct sockaddr *sa, void *v)
 		ipsec4_common_ctlinput(cmd, sa, v, IPPROTO_AH);
 }
 
-void
-esp4_input(struct mbuf *m, int off)
+int
+esp4_input(struct mbuf **mp, int *offp, int proto)
 {
+	struct mbuf *m;
+	int off;
+
+	m = *mp;
+	off = *offp;
+	mp = NULL;
+
 	ipsec4_common_input(m, off, IPPROTO_ESP);
+	return (IPPROTO_DONE);
 }
+
 void
 esp4_ctlinput(int cmd, struct sockaddr *sa, void *v)
 {
@@ -280,10 +297,18 @@ esp4_ctlinput(int cmd, struct sockaddr *sa, void *v)
 		ipsec4_common_ctlinput(cmd, sa, v, IPPROTO_ESP);
 }
 
-void
-ipcomp4_input(struct mbuf *m, int off)
+int
+ipcomp4_input(struct mbuf **mp, int *offp, int proto)
 {
+	struct mbuf *m;
+	int off;
+
+	m = *mp;
+	off = *offp;
+	mp = NULL;
+
 	ipsec4_common_input(m, off, IPPROTO_IPCOMP);
+	return (IPPROTO_DONE);
 }
 
 /*
@@ -351,22 +376,18 @@ ipsec4_common_input_cb(struct mbuf *m, struct secasvar *sav,
 	prot = ip->ip_p;
 
 #ifdef DEV_ENC
-	encif->if_ipackets++;
-	encif->if_ibytes += m->m_pkthdr.len;
+	if_inc_counter(encif, IFCOUNTER_IPACKETS, 1);
+	if_inc_counter(encif, IFCOUNTER_IBYTES, m->m_pkthdr.len);
 
-	/*
-	 * Pass the mbuf to enc0 for bpf and pfil. We will filter the IPIP
-	 * packet later after it has been decapsulated.
-	 */
+	/* Pass the mbuf to enc0 for bpf and pfil. */
 	ipsec_bpf(m, sav, AF_INET, ENC_IN|ENC_BEFORE);
-
-	if (prot != IPPROTO_IPIP)
-		if ((error = ipsec_filter(&m, PFIL_IN, ENC_IN|ENC_BEFORE)) != 0)
-			return (error);
+	if ((error = ipsec_filter(&m, PFIL_IN, ENC_IN|ENC_BEFORE)) != 0)
+		return (error);
 #endif /* DEV_ENC */
 
 	/* IP-in-IP encapsulation */
-	if (prot == IPPROTO_IPIP) {
+	if (prot == IPPROTO_IPIP &&
+	    saidx->mode != IPSEC_MODE_TRANSPORT) {
 
 		if (m->m_pkthdr.len - skip < sizeof(struct ip)) {
 			IPSEC_ISTAT(sproto, hdrops);
@@ -406,7 +427,8 @@ ipsec4_common_input_cb(struct mbuf *m, struct secasvar *sav,
 	}
 #ifdef INET6
 	/* IPv6-in-IP encapsulation. */
-	if (prot == IPPROTO_IPV6) {
+	else if (prot == IPPROTO_IPV6 &&
+	    saidx->mode != IPSEC_MODE_TRANSPORT) {
 
 		if (m->m_pkthdr.len - skip < sizeof(struct ip6_hdr)) {
 			IPSEC_ISTAT(sproto, hdrops);
@@ -442,6 +464,15 @@ ipsec4_common_input_cb(struct mbuf *m, struct secasvar *sav,
 #endif /* notyet */
 	}
 #endif /* INET6 */
+	else if (prot != IPPROTO_IPV6 && saidx->mode == IPSEC_MODE_ANY) {
+		/*
+		 * When mode is wildcard, inner protocol is IPv6 and
+		 * we have no INET6 support - drop this packet a bit later.
+		 * In other cases we assume transport mode and outer
+		 * header was already stripped in xform_xxx_cb.
+		 */
+		prot = IPPROTO_IPIP;
+	}
 
 	/*
 	 * Record what we've done to the packet (under what SA it was
@@ -477,6 +508,12 @@ ipsec4_common_input_cb(struct mbuf *m, struct secasvar *sav,
 
 	key_sa_recordxfer(sav, m);		/* record data transfer */
 
+	/*
+	 * In transport mode requeue decrypted mbuf back to IPv4 protocol
+	 * handler. This is necessary to correctly expose rcvif.
+	 */
+	if (saidx->mode == IPSEC_MODE_TRANSPORT)
+		prot = IPPROTO_IPIP;
 #ifdef DEV_ENC
 	/*
 	 * Pass the mbuf to enc0 for bpf and pfil.
@@ -634,28 +671,60 @@ ipsec6_common_input_cb(struct mbuf *m, struct secasvar *sav, int skip, int proto
 	ip6->ip6_plen = htons(m->m_pkthdr.len - sizeof(struct ip6_hdr));
 
 	/* Save protocol */
-	prot = 0;
-	m_copydata(m, protoff, 1, (unsigned char *) &prot);
+	m_copydata(m, protoff, 1, &nxt8);
+	prot = nxt8;
 
 #ifdef DEV_ENC
-	encif->if_ipackets++;
-	encif->if_ibytes += m->m_pkthdr.len;
+	if_inc_counter(encif, IFCOUNTER_IPACKETS, 1);
+	if_inc_counter(encif, IFCOUNTER_IBYTES, m->m_pkthdr.len);
 
-	/*
-	 * Pass the mbuf to enc0 for bpf and pfil. We will filter the IPIP
-	 * packet later after it has been decapsulated.
-	 */
+	/* Pass the mbuf to enc0 for bpf and pfil. */
 	ipsec_bpf(m, sav, AF_INET6, ENC_IN|ENC_BEFORE);
-
-	/* XXX-BZ does not make sense. */
-	if (prot != IPPROTO_IPIP)
-		if ((error = ipsec_filter(&m, PFIL_IN, ENC_IN|ENC_BEFORE)) != 0)
-			return (error);
+	if ((error = ipsec_filter(&m, PFIL_IN, ENC_IN|ENC_BEFORE)) != 0)
+		return (error);
 #endif /* DEV_ENC */
 
+	/* IPv6-in-IP encapsulation */
+	if (prot == IPPROTO_IPV6 &&
+	    saidx->mode != IPSEC_MODE_TRANSPORT) {
+		if (m->m_pkthdr.len - skip < sizeof(struct ip6_hdr)) {
+			IPSEC_ISTAT(sproto, hdrops);
+			error = EINVAL;
+			goto bad;
+		}
+		/* ip6n will now contain the inner IPv6 header. */
+		m_striphdr(m, 0, skip);
+		skip = 0;
+#ifdef notyet
+		/*
+		 * Check that the inner source address is the same as
+		 * the proxy address, if available.
+		 */
+		if ((saidx->proxy.sa.sa_family == AF_INET6 &&
+		    !IN6_IS_ADDR_UNSPECIFIED(&saidx->proxy.sin6.sin6_addr) &&
+		    !IN6_ARE_ADDR_EQUAL(&ip6n.ip6_src,
+			&saidx->proxy.sin6.sin6_addr)) ||
+		    (saidx->proxy.sa.sa_family != AF_INET6 &&
+			saidx->proxy.sa.sa_family != 0)) {
+
+			DPRINTF(("%s: inner source address %s doesn't "
+			    "correspond to expected proxy source %s, "
+			    "SA %s/%08lx\n", __func__,
+			    ip6_sprintf(ip6buf, &ip6n.ip6_src),
+			    ipsec_address(&saidx->proxy),
+			    ipsec_address(&saidx->dst),
+			    (u_long) ntohl(sav->spi)));
+
+			IPSEC_ISTAT(sproto, pdrops);
+			error = EACCES;
+			goto bad;
+		}
+#endif /* notyet */
+	}
 #ifdef INET
 	/* IP-in-IP encapsulation */
-	if (prot == IPPROTO_IPIP) {
+	else if (prot == IPPROTO_IPIP &&
+	    saidx->mode != IPSEC_MODE_TRANSPORT) {
 		if (m->m_pkthdr.len - skip < sizeof(struct ip)) {
 			IPSEC_ISTAT(sproto, hdrops);
 			error = EINVAL;
@@ -690,41 +759,8 @@ ipsec6_common_input_cb(struct mbuf *m, struct secasvar *sav, int skip, int proto
 #endif /* notyet */
 	}
 #endif /* INET */
-	/* IPv6-in-IP encapsulation */
-	if (prot == IPPROTO_IPV6) {
-		if (m->m_pkthdr.len - skip < sizeof(struct ip6_hdr)) {
-			IPSEC_ISTAT(sproto, hdrops);
-			error = EINVAL;
-			goto bad;
-		}
-		/* ip6n will now contain the inner IPv6 header. */
-		m_striphdr(m, 0, skip);
-		skip = 0;
-#ifdef notyet
-		/*
-		 * Check that the inner source address is the same as
-		 * the proxy address, if available.
-		 */
-		if ((saidx->proxy.sa.sa_family == AF_INET6 &&
-		    !IN6_IS_ADDR_UNSPECIFIED(&saidx->proxy.sin6.sin6_addr) &&
-		    !IN6_ARE_ADDR_EQUAL(&ip6n.ip6_src,
-			&saidx->proxy.sin6.sin6_addr)) ||
-		    (saidx->proxy.sa.sa_family != AF_INET6 &&
-			saidx->proxy.sa.sa_family != 0)) {
-
-			DPRINTF(("%s: inner source address %s doesn't "
-			    "correspond to expected proxy source %s, "
-			    "SA %s/%08lx\n", __func__,
-			    ip6_sprintf(ip6buf, &ip6n.ip6_src),
-			    ipsec_address(&saidx->proxy),
-			    ipsec_address(&saidx->dst),
-			    (u_long) ntohl(sav->spi)));
-
-			IPSEC_ISTAT(sproto, pdrops);
-			error = EACCES;
-			goto bad;
-		}
-#endif /* notyet */
+	else {
+		prot = IPPROTO_IPV6; /* for correct BPF processing */
 	}
 
 	/*
@@ -776,10 +812,6 @@ ipsec6_common_input_cb(struct mbuf *m, struct secasvar *sav, int skip, int proto
 	if ((error = ipsec_filter(&m, PFIL_IN, ENC_IN|ENC_AFTER)) != 0)
 		return (error);
 #endif /* DEV_ENC */
-	/* Retrieve new protocol */
-	/* We have stripped the IP6 header from the mbuf, we have to use the backuped proto value instead */
-	nxt8 = prot;
-
 	/*
 	 * See the end of ip6_input for this logic.
 	 * IPPROTO_IPV[46] case will be processed just like other ones

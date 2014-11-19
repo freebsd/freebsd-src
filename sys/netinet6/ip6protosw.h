@@ -110,39 +110,8 @@ struct ip6ctlparam {
 	u_int8_t ip6c_nxt;		/* final next header field */
 };
 
-struct ip6protosw {
-	short	pr_type;		/* socket type used for */
-	struct	domain *pr_domain;	/* domain protocol a member of */
-	short	pr_protocol;		/* protocol number */
-	short	pr_flags;		/* see below */
-
-/* protocol-protocol hooks */
-	int	(*pr_input)		/* input to protocol (from below) */
-			(struct mbuf **, int *, int);
-	int	(*pr_output)		/* output to protocol (from above) */
-			(struct mbuf *, ...);
-	void	(*pr_ctlinput)		/* control input (from below) */
-			(int, struct sockaddr *, void *);
-	int	(*pr_ctloutput)		/* control output (from above) */
-			(struct socket *, struct sockopt *);
-
-/* utility hooks */
-	void	(*pr_init)		/* initialization hook */
-			(void);
-	void	(*pr_destroy)		/* cleanup hook */
-			(void);
-
-	void	(*pr_fasttimo)		/* fast timeout (200ms) */
-			(void);
-	void	(*pr_slowtimo)		/* slow timeout (500ms) */
-			(void);
-	void	(*pr_drain)		/* flush any excess space possible */
-			(void);
-	struct	pr_usrreqs *pr_usrreqs;	/* user-protocol hook */
-};
-
 #ifdef _KERNEL
-extern struct ip6protosw inet6sw[];
+extern struct protosw inet6sw[];
 #endif
 
 #endif /* !_NETINET6_IP6PROTOSW_H_ */

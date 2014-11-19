@@ -74,6 +74,7 @@ mbq_unlock(struct mbq *q)
 	mtx_unlock_spin(&q->lock);
 }
 
+
 void mbq_safe_init(struct mbq *q);
 void mbq_safe_destroy(struct mbq *q);
 void mbq_safe_enqueue(struct mbq *q, struct mbuf *m);

@@ -11,8 +11,6 @@ DPSRCS+=	${GENHDRS}
 
 CLEANFILES+=	${GENHDRS} ipnat_y.c ipnat_l.c
 
-NO_PIE=	yes
-
 ipnat_y.c: ipnat_y.y
 	${YACC} -d ${.ALLSRC}
 	sed -e 's/yy/ipnat_yy/g' \

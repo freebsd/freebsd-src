@@ -26,7 +26,7 @@ MAN=	sshd.8 sshd_config.5
 CFLAGS+=-I${SSHDIR} -include ssh_namespace.h
 
 DPADD=	${LIBSSH} ${LIBUTIL} ${LIBWRAP} ${LIBPAM}
-LDADD=	-lssh -lutil -lwrap ${MINUSLPAM}
+LDADD=	${LDSSH} -lutil -lwrap ${MINUSLPAM}
 USEPRIVATELIB= ssh
 
 .if ${MK_LDNS} != "no"
@@ -47,7 +47,7 @@ CFLAGS+= -include krb5_config.h
 DPADD+=	 ${LIBGSSAPI_KRB5} ${LIBGSSAPI} ${LIBKRB5} ${LIBHX509} ${LIBASN1} \
 	${LIBCOM_ERR} ${LIBROKEN} ${LIBWIND} ${LIBHEIMBASE} ${LIBHEIMIPCC}
 LDADD+=	 -lgssapi_krb5 -lgssapi -lkrb5 -lhx509 -lasn1 \
-	-lcom_err -lroken -lwind -lheimbase -lheimipcc
+	-lcom_err -lroken -lwind -lheimbase ${LDHEIMIPCC}
 .endif
 
 .if ${MK_OPENSSH_NONE_CIPHER} != "no"

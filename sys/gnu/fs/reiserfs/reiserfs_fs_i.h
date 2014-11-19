@@ -59,7 +59,7 @@ struct reiserfs_node {
 						 flags read from sd_attrs. */
 
 	uint16_t	 i_mode;              /* IFMT, permissions. */
-	uint16_t	 i_nlink;             /* File link count. */
+	int16_t		 i_nlink;             /* File link count. */
 	uint64_t	 i_size;              /* File byte count. */
 	uint32_t	 i_bytes;
 	uid_t		 i_uid;               /* File owner. */

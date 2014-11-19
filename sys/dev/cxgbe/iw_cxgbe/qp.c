@@ -42,7 +42,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/sockio.h>
 #include <sys/taskqueue.h>
 #include <netinet/in.h>
-#include <net/neighbour.h>
 #include <net/route.h>
 
 #include <netinet/in_systm.h>
@@ -1360,9 +1359,9 @@ err:
 	qhp->ep = NULL;
 	set_state(qhp, C4IW_QP_STATE_ERROR);
 	free = 1;
-	wake_up(&qhp->wait);
 	BUG_ON(!ep);
 	flush_qp(qhp);
+	wake_up(&qhp->wait);
 out:
 	mutex_unlock(&qhp->mutex);
 

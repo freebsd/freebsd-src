@@ -40,7 +40,7 @@ BSDCFG_SHARE="/usr/share/bsdconfig"
 #
 # Version information
 #
-SYSRC_VERSION="6.1 Jul-18,2014"
+SYSRC_VERSION="6.2 Nov-3,2014"
 
 #
 # Options
@@ -80,7 +80,7 @@ die()
 #
 usage()
 {
-	f_err "Usage: %s [OPTIONS] name[=value] ...\n" "$pgm"
+	f_err "Usage: %s [OPTIONS] name[[+]=value] ...\n" "$pgm"
 	f_err "Try \`%s --help' for more information.\n" "$pgm"
 	die
 }
@@ -94,7 +94,7 @@ help()
 	local optfmt="\t%-11s%s\n"
 	local envfmt="\t%-17s%s\n"
 
-	f_err "Usage: %s [OPTIONS] name[=value] ...\n" "$pgm"
+	f_err "Usage: %s [OPTIONS] name[[+]=value] ...\n" "$pgm"
 
 	f_err "OPTIONS:\n"
 	f_err "$optfmt" "-a" \
@@ -529,6 +529,11 @@ status=$SUCCESS
 while [ $# -gt 0 ]; do
 	NAME="${1%%=*}"
 
+	case "$NAME" in
+	*+) mode=APPEND NAME="${NAME%+}" ;;
+	 *) mode=ASSIGN
+	esac
+
 	[ "$DESCRIBE" ] && \
 		echo "$NAME: $( f_sysrc_desc "$NAME" )"
 
@@ -593,14 +598,25 @@ while [ $# -gt 0 ]; do
 		#
 		if [ ! "$SHOW_VALUE" ]; then
 			echo "$NAME"
-			f_sysrc_set "$NAME" "${1#*}"
+			case "$mode" in
+			APPEND)
+				before=$( f_sysrc_get "$NAME" )
+				f_sysrc_set "$NAME" "$before${1#*=}"
+				;;
+			*)
+				f_sysrc_set "$NAME" "${1#*=}"
+			esac
 		else
 			if [ "$SHOW_FILE" ]; then
 				before=$( f_sysrc_find "$NAME" )
 			else
 				before=$( f_sysrc_get "$NAME" )
 			fi
-			if f_sysrc_set "$NAME" "${1#*=}"; then
+			if case "$mode" in
+				APPEND) f_sysrc_set "$NAME" "$before${1#*=}" ;;
+				     *) f_sysrc_set "$NAME" "${1#*=}"
+				esac
+			then
 				if [ "$SHOW_FILE" ]; then
 					after=$( f_sysrc_find "$NAME" )
 				else

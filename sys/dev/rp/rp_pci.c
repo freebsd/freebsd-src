@@ -237,7 +237,7 @@ rp_pcishutdown(device_t dev)
 static void
 rp_pcireleaseresource(CONTROLLER_t *ctlp)
 {
-	rp_untimeout();
+	rp_releaseresource(ctlp);
 	if (ctlp->io != NULL) {
 		if (ctlp->io[0] != NULL)
 			bus_release_resource(ctlp->dev, SYS_RES_IOPORT, ctlp->io_rid[0], ctlp->io[0]);
@@ -248,7 +248,6 @@ rp_pcireleaseresource(CONTROLLER_t *ctlp)
 		free(ctlp->io_rid, M_DEVBUF);
 		ctlp->io = NULL;
 	}
-	rp_releaseresource(ctlp);
 }
 
 static int

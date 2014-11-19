@@ -393,16 +393,12 @@ m_demote(struct mbuf *m0, int all)
 	struct mbuf *m;
 
 	for (m = all ? m0 : m0->m_next; m != NULL; m = m->m_next) {
+		KASSERT(m->m_nextpkt == NULL, ("%s: m_nextpkt in m %p, m0 %p",
+		    __func__, m, m0));
 		if (m->m_flags & M_PKTHDR) {
 			m_tag_delete_chain(m, NULL);
 			m->m_flags &= ~M_PKTHDR;
 			bzero(&m->m_pkthdr, sizeof(struct pkthdr));
-		}
-		if (m != m0 && m->m_nextpkt != NULL) {
-			KASSERT(m->m_nextpkt == NULL,
-			    ("%s: m_nextpkt not NULL", __func__));
-			m_freem(m->m_nextpkt);
-			m->m_nextpkt = NULL;
 		}
 		m->m_flags = m->m_flags & (M_EXT|M_RDONLY|M_NOFREE);
 	}
@@ -988,6 +984,22 @@ m_cat(struct mbuf *m, struct mbuf *n)
 		m->m_len += n->m_len;
 		n = m_free(n);
 	}
+}
+
+/*
+ * Concatenate two pkthdr mbuf chains.
+ */
+void
+m_catpkt(struct mbuf *m, struct mbuf *n)
+{
+
+	M_ASSERTPKTHDR(m);
+	M_ASSERTPKTHDR(n);
+
+	m->m_pkthdr.len += n->m_pkthdr.len;
+	m_demote(n, 1);
+
+	m_cat(m, n);
 }
 
 void

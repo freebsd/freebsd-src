@@ -642,10 +642,18 @@ int ssl3_cert_verify_mac(SSL *s, int md_nid, unsigned char *p)
 int ssl3_final_finish_mac(SSL *s, 
 	     const char *sender, int len, unsigned char *p)
 	{
-	int ret;
+	int ret, sha1len;
 	ret=ssl3_handshake_mac(s,NID_md5,sender,len,p);
+	if(ret == 0)
+		return 0;
+
 	p+=ret;
-	ret+=ssl3_handshake_mac(s,NID_sha1,sender,len,p);
+
+	sha1len=ssl3_handshake_mac(s,NID_sha1,sender,len,p);
+	if(sha1len == 0)
+		return 0;
+
+	ret+=sha1len;
 	return(ret);
 	}
 static int ssl3_handshake_mac(SSL *s, int md_nid,
@@ -892,7 +900,7 @@ int ssl3_alert_code(int code)
 	case SSL_AD_BAD_CERTIFICATE_STATUS_RESPONSE: return(SSL3_AD_HANDSHAKE_FAILURE);
 	case SSL_AD_BAD_CERTIFICATE_HASH_VALUE: return(SSL3_AD_HANDSHAKE_FAILURE);
 	case SSL_AD_UNKNOWN_PSK_IDENTITY:return(TLS1_AD_UNKNOWN_PSK_IDENTITY);
+	case SSL_AD_INAPPROPRIATE_FALLBACK:return(TLS1_AD_INAPPROPRIATE_FALLBACK);
 	default:			return(-1);
 		}
 	}
-

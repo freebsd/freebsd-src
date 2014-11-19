@@ -444,6 +444,7 @@ OLD_FILES+=usr/share/man/man1/dtrace.1.gz
 OLD_FILES+=boot/gptzfsboot
 OLD_FILES+=boot/zfsboot
 OLD_FILES+=boot/zfsloader
+OLD_FILES+=etc/devd/zfs.conf
 OLD_FILES+=etc/periodic/daily/404.status-zfs
 OLD_FILES+=etc/periodic/daily/800.scrub-zfs
 OLD_LIBS+=lib/libzfs.so.2
@@ -590,13 +591,18 @@ OLD_FILES+=usr/share/man/man1/ctm_smail.1.gz
 OLD_FILES+=usr/share/man/man5/ctm.5.gz
 .endif
 
-# devd(8) and gperf(1) not listed here on purpose
+# devd(8) not listed here on purpose
 .if ${MK_CXX} == no
 OLD_FILES+=usr/bin/CC
 OLD_FILES+=usr/bin/c++
 OLD_FILES+=usr/bin/c++filt
 OLD_FILES+=usr/bin/g++
 OLD_FILES+=usr/libexec/cc1plus
+.if ${MK_GCC} == no
+OLD_FILES+=usr/bin/gperf
+OLD_FILES+=usr/share/info/gperf.info.gz
+OLD_FILES+=usr/share/man/man1/gperf.1.gz
+.endif
 .endif
 
 .if ${MK_FMTREE} == no
@@ -1948,7 +1954,6 @@ OLD_FILES+=usr/share/man/man3/iconvlist.3.gz
 .if ${MK_INET6} == no
 OLD_FILES+=sbin/ping6
 OLD_FILES+=sbin/rtsol
-OLD_FILES+=usr/sbin/faithd
 OLD_FILES+=usr/sbin/ip6addrctl
 OLD_FILES+=usr/sbin/mld6query
 OLD_FILES+=usr/sbin/ndp
@@ -3509,9 +3514,9 @@ OLD_FILES+=usr/libexec/ssh-pkcs11-helper
 OLD_FILES+=usr/sbin/sshd
 .endif
 
-#.if ${MK_OPENSSL} == no
-# to be filled in
-#.endif
+.if ${MK_OPENSSL} == no
+OLD_FILES+=etc/rc.d/keyserv
+.endif
 
 .if ${MK_PC_SYSINSTALL} == no
 # backend-partmanager
@@ -3605,6 +3610,7 @@ OLD_DIRS+=usr/share/examples/pc-sysinstall
 .if ${MK_PF} == no
 OLD_FILES+=etc/periodic/security/520.pfdenied
 OLD_FILES+=etc/pf.os
+OLD_FILES+=etc/rc.d/ftp-proxy
 OLD_FILES+=sbin/pfctl
 OLD_FILES+=sbin/pflogd
 OLD_FILES+=usr/libexec/tftp-proxy
@@ -3765,6 +3771,7 @@ OLD_FILES+=usr/lib/private/libssh_p.a
 
 .if ${MK_RCMDS} == no
 OLD_FILES+=bin/rcp
+OLD_FILES+=etc/rc.d/rwho
 OLD_FILES+=etc/periodic/daily/140.clean-rwho 
 OLD_FILES+=etc/periodic/daily/430.status-rwho
 OLD_FILES+=rescue/rcp
@@ -3796,6 +3803,7 @@ OLD_FILES+=usr/bin/rcsdiff
 OLD_FILES+=usr/bin/rcsfreeze
 OLD_FILES+=usr/bin/rcsmerge
 OLD_FILES+=usr/bin/rlog
+OLD_FILES+=usr/sbin/etcupdate
 OLD_FILES+=usr/share/man/man1/ci.1.gz
 OLD_FILES+=usr/share/man/man1/co.1.gz
 OLD_FILES+=usr/share/man/man1/ident.1.gz
@@ -3808,6 +3816,7 @@ OLD_FILES+=usr/share/man/man1/rcsintro.1.gz
 OLD_FILES+=usr/share/man/man1/rcsmerge.1.gz
 OLD_FILES+=usr/share/man/man1/rlog.1.gz
 OLD_FILES+=usr/share/man/man5/rcsfile.5.gz
+OLD_FILES+=usr/share/man/man8/etcupdate.8.gz
 .endif
 
 #.if ${MK_RESCUE} == no
@@ -4058,9 +4067,10 @@ OLD_DIRS+=usr/share/sendmail/cf
 OLD_DIRS+=usr/share/sendmail
 .endif
 
-#.if ${MK_SHAREDOCS} == no
-# to be filled in
-#.endif
+.if ${MK_SHAREDOCS} == no
+OLD_FILES+=usr/share/doc/pjdfstest/README
+OLD_DIRS+=usr/share/doc/pjdfstest
+.endif
 
 #.if ${MK_SYSCONS} == no
 # to be filled in
@@ -4135,6 +4145,8 @@ OLD_FILES+=usr/share/man/man8/telnetd.8.gz
 
 .if ${MK_TESTS} == yes
 OLD_FILES+=usr/bin/atf-sh
+OLD_FILES+=usr/include/atf-c++/config.hpp
+OLD_FILES+=usr/include/atf-c/config.h
 OLD_LIBS+=usr/lib/libatf-c++.a
 OLD_LIBS+=usr/lib/libatf-c++.so
 OLD_LIBS+=usr/lib/libatf-c++.so.1
@@ -4144,8 +4156,8 @@ OLD_LIBS+=usr/lib/libatf-c.a
 OLD_LIBS+=usr/lib/libatf-c.so
 OLD_LIBS+=usr/lib/libatf-c.so.1
 OLD_LIBS+=usr/lib/libatf-c_p.a
-OLD_LIBS+=usr/lib/private/libatf-c.so.1
-OLD_LIBS+=usr/lib/private/libatf-c++.so.2
+OLD_LIBS+=usr/lib/private/libatf-c.so.0
+OLD_LIBS+=usr/lib/private/libatf-c++.so.1
 .if ${TARGET_ARCH} == "amd64" || ${TARGET_ARCH} == "powerpc64"
 OLD_LIBS+=usr/lib32/libatf-c++.a
 OLD_LIBS+=usr/lib32/libatf-c++.so
@@ -4156,8 +4168,8 @@ OLD_LIBS+=usr/lib32/libatf-c.a
 OLD_LIBS+=usr/lib32/libatf-c.so
 OLD_LIBS+=usr/lib32/libatf-c.so.1
 OLD_LIBS+=usr/lib32/libatf-c_p.a
-OLD_LIBS+=usr/lib32/private/libatf-c.so.1
-OLD_LIBS+=usr/lib32/private/libatf-c++.so.2
+OLD_LIBS+=usr/lib32/private/libatf-c.so.0
+OLD_LIBS+=usr/lib32/private/libatf-c++.so.1
 .endif
 OLD_FILES+=usr/libdata/pkgconfig/atf-c++.pc
 OLD_FILES+=usr/libdata/pkgconfig/atf-c.pc
@@ -4168,6 +4180,8 @@ OLD_FILES+=usr/share/aclocal/atf-common.m4
 OLD_FILES+=usr/share/aclocal/atf-sh.m4
 OLD_DIRS+=usr/share/aclocal
 OLD_FILES+=usr/tests/bin/chown/units_basics
+OLD_FILES+=usr/tests/bin/date/legacy_test
+OLD_FILES+=usr/tests/bin/sh/legacy_test
 OLD_FILES+=usr/tests/usr.bin/atf/Kyuafile
 OLD_FILES+=usr/tests/usr.bin/atf/atf-sh/Kyuafile
 OLD_FILES+=usr/tests/usr.bin/atf/atf-sh/atf_check_test
@@ -4182,8 +4196,10 @@ OLD_DIRS+=usr/tests/usr.bin/atf
 OLD_FILES+=usr/tests/lib/atf/libatf-c/test_helpers_test
 OLD_FILES+=usr/tests/lib/atf/test-programs/fork_test
 OLD_FILES+=usr/tests/lib/atf/libatf-c++/application_test
+OLD_FILES+=usr/tests/lib/atf/libatf-c++/config_test
 OLD_FILES+=usr/tests/lib/atf/libatf-c++/detail/expand_test
 OLD_FILES+=usr/tests/lib/atf/libatf-c++/detail/parser_test
+OLD_FILES+=usr/tests/lib/atf/libatf-c++/detail/sanity_test
 OLD_FILES+=usr/tests/lib/atf/libatf-c++/detail/ui_test
 OLD_FILES+=usr/tests/lib/atf/libatf-c++/env_test
 OLD_FILES+=usr/tests/lib/atf/libatf-c++/exceptions_test
@@ -4195,6 +4211,7 @@ OLD_FILES+=usr/tests/lib/atf/libatf-c++/sanity_test
 OLD_FILES+=usr/tests/lib/atf/libatf-c++/pkg_config_test
 OLD_FILES+=usr/tests/lib/atf/libatf-c++/text_test
 OLD_FILES+=usr/tests/lib/atf/libatf-c++/ui_test
+OLD_FILES+=usr/tests/lib/atf/libatf-c/config_test
 OLD_FILES+=usr/tests/lib/atf/libatf-c/dynstr_test
 OLD_FILES+=usr/tests/lib/atf/libatf-c/env_test
 OLD_FILES+=usr/tests/lib/atf/libatf-c/fs_test
@@ -4575,6 +4592,24 @@ OLD_DIRS+=usr/tests/usr.bin/make/archives/fmt_44bsd_mod
 OLD_DIRS+=usr/tests/usr.bin/make/archives/fmt_44bsd
 OLD_DIRS+=usr/tests/usr.bin/make/archives
 OLD_DIRS+=usr/tests/usr.bin/make
+OLD_FILES+=usr/tests/usr.bin/yacc/legacy_test
+OLD_FILES+=usr/tests/usr.bin/yacc/regress.00.out
+OLD_FILES+=usr/tests/usr.bin/yacc/regress.01.out
+OLD_FILES+=usr/tests/usr.bin/yacc/regress.02.out
+OLD_FILES+=usr/tests/usr.bin/yacc/regress.03.out
+OLD_FILES+=usr/tests/usr.bin/yacc/regress.04.out
+OLD_FILES+=usr/tests/usr.bin/yacc/regress.05.out
+OLD_FILES+=usr/tests/usr.bin/yacc/regress.06.out
+OLD_FILES+=usr/tests/usr.bin/yacc/regress.07.out
+OLD_FILES+=usr/tests/usr.bin/yacc/regress.08.out
+OLD_FILES+=usr/tests/usr.bin/yacc/regress.09.out
+OLD_FILES+=usr/tests/usr.bin/yacc/regress.10.out
+OLD_FILES+=usr/tests/usr.bin/yacc/regress.11.out
+OLD_FILES+=usr/tests/usr.bin/yacc/regress.12.out
+OLD_FILES+=usr/tests/usr.bin/yacc/regress.13.out
+OLD_FILES+=usr/tests/usr.bin/yacc/regress.14.out
+OLD_FILES+=usr/tests/usr.bin/yacc/regress.sh
+OLD_FILES+=usr/tests/usr.bin/yacc/undefined.y
 .endif
 .else
 # ATF libraries.
@@ -4657,9 +4692,10 @@ OLD_FILES+=usr/sbin/unbound-control
 OLD_FILES+=usr/sbin/unbound-control-setup
 .endif
 
-#.if ${MK_USB} == no
-# to be filled in
-#.endif
+.if ${MK_USB} == no
+OLD_FILES+=etc/devd/uauth.conf
+OLD_FILES+=etc/devd/usb.conf
+.endif
 
 .if ${MK_UTMPX} == no
 OLD_FILES+=etc/periodic/monthly/200.accounting
@@ -4741,4 +4777,13 @@ OLD_FILES+=usr/libexec/dma
 OLD_FILES+=usr/libexec/dma-mbox-create
 OLD_FILES+=usr/share/man/man8/dma.8.gz
 OLD_FILES+=usr/share/examples/dma/mailer.conf
+.endif
+
+.if ${MK_HYPERV} == no
+OLD_FILES+=etc/devd/hyperv.conf
+OLD_FILES+=usr/libexec/hyperv/hv_set_ifconfig
+OLD_FILES+=usr/libexec/hyperv/hv_get_dns_info
+OLD_FILES+=usr/libexec/hyperv/hv_get_dhcp_info
+OLD_FILES+=usr/sbin/hv_kvp_daemon
+OLD_FILES+=usr/share/man/man8/hv_kvp_daemon.8.gz
 .endif

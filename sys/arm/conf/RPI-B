@@ -72,8 +72,6 @@ device		pty
 # Comment following lines for boot console on serial port
 device		vt
 device		kbdmux
-options         SC_DFLT_FONT		# compile font in
-makeoptions     SC_DFLT_FONT=cp437
 device		ukbd
 
 device		sdhci

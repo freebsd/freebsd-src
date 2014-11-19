@@ -527,7 +527,7 @@ proc0_init(void *dummy __unused)
 	siginit(&proc0);
 
 	/* Create the file descriptor table. */
-	p->p_fd = fdinit(NULL);
+	p->p_fd = fdinit(NULL, false);
 	p->p_fdtol = NULL;
 
 	/* Create the limits structures. */
@@ -716,7 +716,7 @@ start_init(void *dummy)
 	p->p_vmspace->vm_maxsaddr = (caddr_t)addr;
 	p->p_vmspace->vm_ssize = 1;
 
-	if ((var = getenv("init_path")) != NULL) {
+	if ((var = kern_getenv("init_path")) != NULL) {
 		strlcpy(init_path, var, sizeof(init_path));
 		freeenv(var);
 	}
@@ -853,4 +853,4 @@ kick_init(const void *udata __unused)
 	sched_add(td, SRQ_BORING);
 	thread_unlock(td);
 }
-SYSINIT(kickinit, SI_SUB_KTHREAD_INIT, SI_ORDER_FIRST, kick_init, NULL);
+SYSINIT(kickinit, SI_SUB_KTHREAD_INIT, SI_ORDER_MIDDLE, kick_init, NULL);

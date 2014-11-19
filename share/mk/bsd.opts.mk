@@ -51,6 +51,7 @@ __<bsd.opts.mk>__:
 __DEFAULT_YES_OPTIONS = \
     ASSERT_DEBUG \
     DOCCOMPRESS \
+    INCLUDES \
     INSTALLLIB \
     KERBEROS \
     MAN \
@@ -68,8 +69,7 @@ __DEFAULT_NO_OPTIONS = \
     CTF \
     DEBUG_FILES \
     INSTALL_AS_USER \
-    INFO \
-    PIE
+    INFO
 
 
 # meta mode related

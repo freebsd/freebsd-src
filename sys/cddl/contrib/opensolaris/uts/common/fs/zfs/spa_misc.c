@@ -243,9 +243,6 @@ int zfs_flags = ~(ZFS_DEBUG_DPRINTF | ZFS_DEBUG_SPA);
 #else
 int zfs_flags = 0;
 #endif
-SYSCTL_DECL(_debug);
-SYSCTL_INT(_debug, OID_AUTO, zfs_flags, CTLFLAG_RWTUN, &zfs_flags, 0,
-    "ZFS debug flags.");
 
 /*
  * zfs_recover can be set to nonzero to attempt to recover from
@@ -258,6 +255,32 @@ boolean_t zfs_recover = B_FALSE;
 SYSCTL_DECL(_vfs_zfs);
 SYSCTL_INT(_vfs_zfs, OID_AUTO, recover, CTLFLAG_RDTUN, &zfs_recover, 0,
     "Try to recover from otherwise-fatal errors.");
+
+static int
+sysctl_vfs_zfs_debug_flags(SYSCTL_HANDLER_ARGS)
+{
+	int err, val;
+
+	val = zfs_flags;
+	err = sysctl_handle_int(oidp, &val, 0, req);
+	if (err != 0 || req->newptr == NULL)
+		return (err);
+
+	/*
+	 * ZFS_DEBUG_MODIFY must be enabled prior to boot so all
+	 * arc buffers in the system have the necessary additional
+	 * checksum data.  However, it is safe to disable at any
+	 * time.
+	 */
+	if (!(zfs_flags & ZFS_DEBUG_MODIFY))
+		val &= ~ZFS_DEBUG_MODIFY;
+	zfs_flags = val;
+
+	return (0);
+}
+SYSCTL_PROC(_vfs_zfs, OID_AUTO, debug_flags,
+    CTLTYPE_UINT | CTLFLAG_MPSAFE | CTLFLAG_RWTUN, 0, sizeof(int),
+    sysctl_vfs_zfs_debug_flags, "IU", "Debug flags for ZFS testing.");
 
 /*
  * If destroy encounters an EIO while reading metadata (e.g. indirect
@@ -378,6 +401,9 @@ zfs_deadman_init()
  * See also the comments in zfs_space_check_t.
  */
 int spa_slop_shift = 5;
+SYSCTL_INT(_vfs_zfs, OID_AUTO, spa_slop_shift, CTLFLAG_RWTUN,
+    &spa_slop_shift, 0,
+    "Shift value of reserved space (1/(2^spa_slop_shift)).");
 
 /*
  * ==========================================================================
@@ -570,6 +596,12 @@ spa_deadman(void *arg)
 	    ++spa->spa_deadman_calls);
 	if (zfs_deadman_enabled)
 		vdev_deadman(spa->spa_root_vdev);
+#ifdef __FreeBSD__
+#ifdef _KERNEL
+	callout_schedule(&spa->spa_deadman_cycid,
+	    hz * zfs_deadman_checktime_ms / MILLISEC);
+#endif
+#endif
 }
 
 /*
@@ -2018,4 +2050,13 @@ boolean_t
 spa_debug_enabled(spa_t *spa)
 {
 	return (spa->spa_debug);
+}
+
+int
+spa_maxblocksize(spa_t *spa)
+{
+	if (spa_feature_is_enabled(spa, SPA_FEATURE_LARGE_BLOCKS))
+		return (SPA_MAXBLOCKSIZE);
+	else
+		return (SPA_OLD_MAXBLOCKSIZE);
 }

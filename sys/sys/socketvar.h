@@ -38,10 +38,12 @@
 #include <sys/selinfo.h>		/* for struct selinfo */
 #include <sys/_lock.h>
 #include <sys/_mutex.h>
+#include <sys/osd.h>
 #include <sys/_sx.h>
 #include <sys/sockbuf.h>
 #include <sys/sockstate.h>
 #ifdef _KERNEL
+#include <sys/caprights.h>
 #include <sys/sockopt.h>
 #endif
 
@@ -117,6 +119,7 @@ struct socket {
 		void	*so_accept_filter_arg;	/* saved filter args */
 		char	*so_accept_filter_str;	/* saved user args */
 	} *so_accf;
+	struct	osd	osd;		/* Object Specific extensions */
 	/*
 	 * so_fibnum, so_user_cookie and friends can be used to attach
 	 * some user-specified metadata to a socket, which then can be
@@ -205,7 +208,7 @@ struct xsocket {
 
 /* can we read something from so? */
 #define	soreadabledata(so) \
-    ((so)->so_rcv.sb_cc >= (so)->so_rcv.sb_lowat || \
+    (sbavail(&(so)->so_rcv) >= (so)->so_rcv.sb_lowat || \
 	!TAILQ_EMPTY(&(so)->so_comp) || (so)->so_error)
 #define	soreadable(so) \
 	(soreadabledata(so) || ((so)->so_rcv.sb_state & SBS_CANTRCVMORE))
@@ -292,10 +295,32 @@ MALLOC_DECLARE(M_PCB);
 MALLOC_DECLARE(M_SONAME);
 #endif
 
+/*
+ * Socket specific helper hook point identifiers
+ * Do not leave holes in the sequence, hook registration is a loop.
+ */
+#define HHOOK_SOCKET_OPT		0
+#define HHOOK_SOCKET_CREATE		1
+#define HHOOK_SOCKET_RCV 		2
+#define HHOOK_SOCKET_SND		3
+#define HHOOK_FILT_SOREAD		4
+#define HHOOK_FILT_SOWRITE		5
+#define HHOOK_SOCKET_CLOSE		6
+#define HHOOK_SOCKET_LAST		HHOOK_SOCKET_CLOSE
+
+struct socket_hhook_data {
+	struct socket	*so;
+	struct mbuf	*m;
+	void		*hctx;		/* hook point specific data*/
+	int		status;
+};
+
 extern int	maxsockets;
 extern u_long	sb_max;
 extern so_gen_t so_gencnt;
 
+struct file;
+struct filedesc;
 struct mbuf;
 struct sockaddr;
 struct ucred;
@@ -314,6 +339,8 @@ struct uio;
  */
 int	sockargs(struct mbuf **mp, caddr_t buf, int buflen, int type);
 int	getsockaddr(struct sockaddr **namp, caddr_t uaddr, size_t len);
+int	getsock_cap(struct filedesc *fdp, int fd, cap_rights_t *rightsp,
+	    struct file **fpp, u_int *fflagp);
 void	soabort(struct socket *so);
 int	soaccept(struct socket *so, struct sockaddr **nam);
 int	socheckuid(struct socket *so, uid_t uid);

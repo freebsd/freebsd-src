@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2013, Intel Corp.
+ * Copyright (C) 2000 - 2014, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -48,7 +48,7 @@
 
 /* Function name is used for debug output. Non-ANSI, compiler-dependent */
 
-#define ACPI_GET_FUNCTION_NAME          __FUNCTION__
+#define ACPI_GET_FUNCTION_NAME          __func__
 
 /*
  * This macro is used to tag functions as "printf-like" because
@@ -63,5 +63,16 @@
  * is unused.
  */
 #define ACPI_UNUSED_VAR __attribute__ ((unused))
+
+/*
+ * Some versions of gcc implement strchr() with a buggy macro. So,
+ * undef it here. Prevents error messages of this form (usually from the
+ * file getopt.c):
+ *
+ * error: logical '&&' with non-zero constant will always evaluate as true
+ */
+#ifdef strchr
+#undef strchr
+#endif
 
 #endif /* __ACGCC_H__ */

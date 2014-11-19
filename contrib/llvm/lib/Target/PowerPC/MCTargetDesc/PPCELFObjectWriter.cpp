@@ -64,7 +64,15 @@ unsigned PPCELFObjectWriter::getRelocTypeInner(const MCValue &Target,
       llvm_unreachable("Unimplemented");
     case PPC::fixup_ppc_br24:
     case PPC::fixup_ppc_br24abs:
-      Type = ELF::R_PPC_REL24;
+      switch (Modifier) {
+      default: llvm_unreachable("Unsupported Modifier");
+      case MCSymbolRefExpr::VK_None:
+        Type = ELF::R_PPC_REL24;
+        break;
+      case MCSymbolRefExpr::VK_PLT:
+        Type = ELF::R_PPC_PLTREL24;
+        break;
+      }
       break;
     case PPC::fixup_ppc_brcond14:
     case PPC::fixup_ppc_brcond14abs:
@@ -205,7 +213,10 @@ unsigned PPCELFObjectWriter::getRelocTypeInner(const MCValue &Target,
         Type = ELF::R_PPC64_DTPREL16_HIGHESTA;
         break;
       case MCSymbolRefExpr::VK_PPC_GOT_TLSGD:
-        Type = ELF::R_PPC64_GOT_TLSGD16;
+        if (is64Bit())
+          Type = ELF::R_PPC64_GOT_TLSGD16;
+        else
+          Type = ELF::R_PPC_GOT_TLSGD16;
         break;
       case MCSymbolRefExpr::VK_PPC_GOT_TLSGD_LO:
         Type = ELF::R_PPC64_GOT_TLSGD16_LO;
@@ -217,7 +228,10 @@ unsigned PPCELFObjectWriter::getRelocTypeInner(const MCValue &Target,
         Type = ELF::R_PPC64_GOT_TLSGD16_HA;
         break;
       case MCSymbolRefExpr::VK_PPC_GOT_TLSLD:
-        Type = ELF::R_PPC64_GOT_TLSLD16;
+        if (is64Bit())
+          Type = ELF::R_PPC64_GOT_TLSLD16;
+        else
+          Type = ELF::R_PPC_GOT_TLSLD16;
         break;
       case MCSymbolRefExpr::VK_PPC_GOT_TLSLD_LO:
         Type = ELF::R_PPC64_GOT_TLSLD16_LO;
@@ -313,13 +327,22 @@ unsigned PPCELFObjectWriter::getRelocTypeInner(const MCValue &Target,
       switch (Modifier) {
       default: llvm_unreachable("Unsupported Modifier");
       case MCSymbolRefExpr::VK_PPC_TLSGD:
-        Type = ELF::R_PPC64_TLSGD;
+        if (is64Bit())
+          Type = ELF::R_PPC64_TLSGD;
+        else
+          Type = ELF::R_PPC_TLSGD;
         break;
       case MCSymbolRefExpr::VK_PPC_TLSLD:
-        Type = ELF::R_PPC64_TLSLD;
+        if (is64Bit())
+          Type = ELF::R_PPC64_TLSLD;
+        else
+          Type = ELF::R_PPC_TLSLD;
         break;
       case MCSymbolRefExpr::VK_PPC_TLS:
-        Type = ELF::R_PPC64_TLS;
+        if (is64Bit())
+          Type = ELF::R_PPC64_TLS;
+        else
+          Type = ELF::R_PPC_TLS;
         break;
       }
       break;

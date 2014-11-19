@@ -267,17 +267,8 @@ __FBSDID("$FreeBSD$");
 /* how many addresses per assoc remote and local */
 #define SCTP_SCALE_FOR_ADDR	2
 
-/* default AUTO_ASCONF mode enable(1)/disable(0) value (sysctl) */
-#define SCTP_DEFAULT_AUTO_ASCONF	1
-
 /* default MULTIPLE_ASCONF mode enable(1)/disable(0) value (sysctl) */
 #define SCTP_DEFAULT_MULTIPLE_ASCONFS	0
-
-/* default MOBILITY_BASE mode enable(1)/disable(0) value (sysctl) */
-#define SCTP_DEFAULT_MOBILITY_BASE	0
-
-/* default MOBILITY_FASTHANDOFF mode enable(1)/disable(0) value (sysctl) */
-#define SCTP_DEFAULT_MOBILITY_FASTHANDOFF	0
 
 /*
  * Theshold for rwnd updates, we have to read (sb_hiwat >>

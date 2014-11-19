@@ -33,13 +33,17 @@ ATF=		${.CURDIR:H:H:H}/contrib/atf
 
 PROG_CXX=	atf-sh
 SRCS=		atf-sh.cpp
-MAN=            atf-sh.1 atf-sh-api.3
+MAN=		atf-sh.1 atf-sh.3
+MLINKS+=	atf-sh.3 atf-sh-api.3  # Backwards compatibility.
 
 CFLAGS+=	-DHAVE_CONFIG_H
+CFLAGS+=	-DATF_LIBEXECDIR='"${LIBEXECDIR}"'
+CFLAGS+=	-DATF_PKGDATADIR='"${SHAREDIR}/atf"'
+CFLAGS+=	-DATF_SHELL='"/bin/sh"'
 CFLAGS+=	-I${ATF}
 
 DPADD+=		${LIBATF_C} ${LIBATF_CXX}
-LDADD+=		-latf-c++ -latf-c
+LDADD+=		${LDATF_C} ${LDATF_CXX}
 USEPRIVATELIB=	atf-c++ atf-c
 
 FILESGROUPS=	SUBR

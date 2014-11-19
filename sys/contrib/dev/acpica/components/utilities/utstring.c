@@ -5,7 +5,7 @@
  ******************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2013, Intel Corp.
+ * Copyright (C) 2000 - 2014, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -40,7 +40,6 @@
  * IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGES.
  */
-
 
 #define __UTSTRING_C__
 
@@ -420,7 +419,7 @@ AcpiUtPrintString (
     }
 
     AcpiOsPrintf ("\"");
-    for (i = 0; String[i] && (i < MaxLength); i++)
+    for (i = 0; (i < MaxLength) && String[i]; i++)
     {
         /* Escape sequences */
 
@@ -684,4 +683,82 @@ UtConvertBackslashes (
         Pathname++;
     }
 }
+#endif
+
+#if defined (ACPI_DEBUGGER) || defined (ACPI_APPLICATION)
+/*******************************************************************************
+ *
+ * FUNCTION:    AcpiUtSafeStrcpy, AcpiUtSafeStrcat, AcpiUtSafeStrncat
+ *
+ * PARAMETERS:  Adds a "DestSize" parameter to each of the standard string
+ *              functions. This is the size of the Destination buffer.
+ *
+ * RETURN:      TRUE if the operation would overflow the destination buffer.
+ *
+ * DESCRIPTION: Safe versions of standard Clib string functions. Ensure that
+ *              the result of the operation will not overflow the output string
+ *              buffer.
+ *
+ * NOTE:        These functions are typically only helpful for processing
+ *              user input and command lines. For most ACPICA code, the
+ *              required buffer length is precisely calculated before buffer
+ *              allocation, so the use of these functions is unnecessary.
+ *
+ ******************************************************************************/
+
+BOOLEAN
+AcpiUtSafeStrcpy (
+    char                    *Dest,
+    ACPI_SIZE               DestSize,
+    char                    *Source)
+{
+
+    if (ACPI_STRLEN (Source) >= DestSize)
+    {
+        return (TRUE);
+    }
+
+    ACPI_STRCPY (Dest, Source);
+    return (FALSE);
+}
+
+BOOLEAN
+AcpiUtSafeStrcat (
+    char                    *Dest,
+    ACPI_SIZE               DestSize,
+    char                    *Source)
+{
+
+    if ((ACPI_STRLEN (Dest) + ACPI_STRLEN (Source)) >= DestSize)
+    {
+        return (TRUE);
+    }
+
+    ACPI_STRCAT (Dest, Source);
+    return (FALSE);
+}
+
+#ifndef _KERNEL
+BOOLEAN
+AcpiUtSafeStrncat (
+    char                    *Dest,
+    ACPI_SIZE               DestSize,
+    char                    *Source,
+    ACPI_SIZE               MaxTransferLength)
+{
+    ACPI_SIZE               ActualTransferLength;
+
+
+    ActualTransferLength = ACPI_MIN (MaxTransferLength, ACPI_STRLEN (Source));
+
+    if ((ACPI_STRLEN (Dest) + ActualTransferLength) >= DestSize)
+    {
+        return (TRUE);
+    }
+
+    ACPI_STRNCAT (Dest, Source, MaxTransferLength);
+    return (FALSE);
+}
+#endif
+
 #endif

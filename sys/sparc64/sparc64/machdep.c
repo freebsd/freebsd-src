@@ -114,10 +114,6 @@ __FBSDID("$FreeBSD$");
 
 typedef int ofw_vec_t(void *);
 
-#ifdef DDB
-extern vm_offset_t ksym_start, ksym_end;
-#endif
-
 int dtlb_slots;
 int itlb_slots;
 struct tlb_entry *kernel_tlbs;
@@ -515,7 +511,7 @@ sparc64_init(caddr_t mdp, u_long o1, u_long o2, u_long o3, ofw_vec_t *vec)
 	 * Initialize tunables.
 	 */
 	init_param2(physmem);
-	env = getenv("kernelname");
+	env = kern_getenv("kernelname");
 	if (env != NULL) {
 		strlcpy(kernelname, env, sizeof(kernelname));
 		freeenv(env);

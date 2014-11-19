@@ -2,6 +2,7 @@
  * Copyright (c) 2010 Isilon Systems, Inc.
  * Copyright (c) 2010 iX Systems, Inc.
  * Copyright (c) 2010 Panasas, Inc.
+ * Copyright (c) 2013, 2014 Mellanox Technologies, Ltd.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -56,5 +57,54 @@ ipv6_ib_mc_map(const struct in6_addr *addr, const unsigned char *broadcast,
 	memcpy(&buf[10], &addr->s6_addr[6], 10);
 }
 #endif
+
+static inline void __ipv6_addr_set_half(__be32 *addr,
+                                        __be32 wh, __be32 wl)
+{
+#if BITS_PER_LONG == 64
+#if defined(__BIG_ENDIAN)
+        if (__builtin_constant_p(wh) && __builtin_constant_p(wl)) {
+                *(__force u64 *)addr = ((__force u64)(wh) << 32 | (__force u64)(wl));
+                return;
+        }
+#elif defined(__LITTLE_ENDIAN)
+        if (__builtin_constant_p(wl) && __builtin_constant_p(wh)) {
+                *(__force u64 *)addr = ((__force u64)(wl) << 32 | (__force u64)(wh));
+                return;
+        }
+#endif
+#endif
+        addr[0] = wh;
+        addr[1] = wl;
+}
+
+static inline void ipv6_addr_set(struct in6_addr *addr,
+                                     __be32 w1, __be32 w2,
+                                     __be32 w3, __be32 w4)
+{
+        __ipv6_addr_set_half(&addr->s6_addr32[0], w1, w2);
+        __ipv6_addr_set_half(&addr->s6_addr32[2], w3, w4);
+}
+
+static inline void ipv6_addr_set_v4mapped(const __be32 addr,
+					  struct in6_addr *v4mapped)
+{
+	ipv6_addr_set(v4mapped,
+			0, 0,
+			htonl(0x0000FFFF),
+			addr);
+}
+
+static inline int ipv6_addr_v4mapped(const struct in6_addr *a)
+{
+	return ((a->s6_addr32[0] | a->s6_addr32[1] |
+		(a->s6_addr32[2] ^ htonl(0x0000ffff))) == 0);
+}
+
+static inline int ipv6_addr_cmp(const struct in6_addr *a1, const struct in6_addr *a2)
+{
+        return memcmp(a1, a2, sizeof(struct in6_addr));
+}
+
 
 #endif	/* _LINUX_NET_IPV6_H_ */

@@ -53,44 +53,44 @@ extern "C" {
 #define	EFSYS_HAS_UINT64 1
 #define	EFSYS_USE_UINT64 0
 #if _BYTE_ORDER == _BIG_ENDIAN
-#define EFSYS_IS_BIG_ENDIAN 1
-#define EFSYS_IS_LITTLE_ENDIAN 0
+#define	EFSYS_IS_BIG_ENDIAN 1
+#define	EFSYS_IS_LITTLE_ENDIAN 0
 #elif _BYTE_ORDER == _LITTLE_ENDIAN
-#define EFSYS_IS_BIG_ENDIAN 0
-#define EFSYS_IS_LITTLE_ENDIAN 1
+#define	EFSYS_IS_BIG_ENDIAN 0
+#define	EFSYS_IS_LITTLE_ENDIAN 1
 #endif
 #include "efx_types.h"
 
 /* Common code requires this */
 #if __FreeBSD_version < 800068
-#define memmove(d, s, l) bcopy(s, d, l)
+#define	memmove(d, s, l) bcopy(s, d, l)
 #endif
-	
+
 /* FreeBSD equivalents of Solaris things */
 #ifndef _NOTE
-#define _NOTE(s)
+#define	_NOTE(s)
 #endif
 
 #ifndef B_FALSE
-#define B_FALSE FALSE
+#define	B_FALSE	FALSE
 #endif
 #ifndef B_TRUE
-#define B_TRUE TRUE
+#define	B_TRUE	TRUE
 #endif
 
 #ifndef IS_P2ALIGNED
-#define	IS_P2ALIGNED(v, a) ((((uintptr_t)(v)) & ((uintptr_t)(a) - 1)) == 0)
+#define	IS_P2ALIGNED(v, a)	((((uintptr_t)(v)) & ((uintptr_t)(a) - 1)) == 0)
 #endif
 
 #ifndef P2ROUNDUP
-#define P2ROUNDUP(x, align)             (-(-(x) & -(align)))
+#define	P2ROUNDUP(x, align)	(-(-(x) & -(align)))
 #endif
 
 #ifndef IS2P
-#define ISP2(x)         (((x) & ((x) - 1)) == 0)
+#define	ISP2(x)			(((x) & ((x) - 1)) == 0)
 #endif
 
-#define ENOTACTIVE EINVAL
+#define	ENOTACTIVE EINVAL
 
 /* Memory type to use on FreeBSD */
 MALLOC_DECLARE(M_SFXGE);
@@ -242,7 +242,7 @@ sfxge_map_mbuf_fast(bus_dma_tag_t tag, bus_dmamap_t map,
 #define	EFSYS_OPT_PHY_PROPS 0
 #define	EFSYS_OPT_PHY_BIST 1
 #define	EFSYS_OPT_PHY_LED_CONTROL 1
-#define EFSYS_OPT_PHY_FLAGS 0
+#define	EFSYS_OPT_PHY_FLAGS 0
 
 #define	EFSYS_OPT_VPD 1
 #define	EFSYS_OPT_NVRAM 1
@@ -256,8 +256,8 @@ sfxge_map_mbuf_fast(bus_dma_tag_t tag, bus_dmamap_t map,
 #define	EFSYS_OPT_WOL 1
 #define	EFSYS_OPT_RX_SCALE 1
 #define	EFSYS_OPT_QSTATS 1
-#define EFSYS_OPT_FILTER 0
-#define EFSYS_OPT_RX_SCATTER 0
+#define	EFSYS_OPT_FILTER 0
+#define	EFSYS_OPT_RX_SCATTER 0
 #define	EFSYS_OPT_RX_HDR_SPLIT 0
 
 #define	EFSYS_OPT_EV_PREFETCH 0
@@ -272,7 +272,7 @@ typedef struct __efsys_identifier_s	efsys_identifier_t;
 
 #ifndef DTRACE_PROBE
 
-#define EFSYS_PROBE(_name)
+#define	EFSYS_PROBE(_name)
 
 #define	EFSYS_PROBE1(_name, _type1, _arg1)
 
@@ -815,16 +815,16 @@ extern void	sfxge_err(efsys_identifier_t *, unsigned int,
 		panic(#_exp);						\
 	} while (0)
 
-#define EFSYS_ASSERT3(_x, _op, _y, _t) do {				\
+#define	EFSYS_ASSERT3(_x, _op, _y, _t) do {				\
 	const _t __x = (_t)(_x);					\
 	const _t __y = (_t)(_y);					\
 	if (!(__x _op __y))						\
-	        panic("assertion failed at %s:%u", __FILE__, __LINE__);	\
+		panic("assertion failed at %s:%u", __FILE__, __LINE__);	\
 	} while(0)
 
-#define EFSYS_ASSERT3U(_x, _op, _y)	EFSYS_ASSERT3(_x, _op, _y, uint64_t)
-#define EFSYS_ASSERT3S(_x, _op, _y)	EFSYS_ASSERT3(_x, _op, _y, int64_t)
-#define EFSYS_ASSERT3P(_x, _op, _y)	EFSYS_ASSERT3(_x, _op, _y, uintptr_t)
+#define	EFSYS_ASSERT3U(_x, _op, _y)	EFSYS_ASSERT3(_x, _op, _y, uint64_t)
+#define	EFSYS_ASSERT3S(_x, _op, _y)	EFSYS_ASSERT3(_x, _op, _y, int64_t)
+#define	EFSYS_ASSERT3P(_x, _op, _y)	EFSYS_ASSERT3(_x, _op, _y, uintptr_t)
 
 #ifdef	__cplusplus
 }

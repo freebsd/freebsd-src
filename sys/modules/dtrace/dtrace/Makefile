@@ -4,8 +4,6 @@ SYSDIR?=	${.CURDIR}/../../..
 
 ARCHDIR=	${MACHINE_CPUARCH}
 
-SUNW=	${SYSDIR}/../cddl/contrib/opensolaris
-
 .PATH: ${SYSDIR}/cddl/contrib/opensolaris/uts/common/dtrace
 .PATH: ${SYSDIR}/cddl/compat/opensolaris/kern
 .PATH: ${SYSDIR}/cddl/kern
@@ -44,7 +42,7 @@ CFLAGS+=	-I${SYSDIR}/cddl/compat/opensolaris \
 		-I${SYSDIR}/cddl/dev/dtrace \
 		-I${SYSDIR}/cddl/dev/dtrace/${ARCHDIR} \
 		-I${SYSDIR}/cddl/contrib/opensolaris/uts/common \
-		-I${SUNW}/common/util \
+		-I${SYSDIR}/cddl/contrib/opensolaris/common/util \
 		-I${SYSDIR} -DDIS_MEM
 
 CFLAGS+=	-DSMP

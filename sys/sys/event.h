@@ -69,6 +69,7 @@ struct kevent {
 #define EV_DELETE	0x0002		/* delete event from kq */
 #define EV_ENABLE	0x0004		/* enable event */
 #define EV_DISABLE	0x0008		/* disable event (not reported) */
+#define EV_FORCEONESHOT	0x0100		/* enable _ONESHOT and force trigger */
 
 /* flags */
 #define EV_ONESHOT	0x0010		/* only report one occurrence */
@@ -221,6 +222,7 @@ struct knote {
 		struct		proc *p_proc;	/* proc pointer */
 		struct		aiocblist *p_aio;	/* AIO job pointer */
 		struct		aioliojob *p_lio;	/* LIO job pointer */
+		sbintime_t	*p_nexttime;	/* next timer event fires at */
 		void		*p_v;		/* generic other pointer */
 	} kn_ptr;
 	struct			filterops *kn_fop;

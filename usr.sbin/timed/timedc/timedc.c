@@ -66,7 +66,7 @@ main(int argc, char *argv[])
 {
 	register struct cmd *c;
 
-	openlog("timedc", LOG_ODELAY, LOG_AUTH);
+	openlog("timedc", 0, LOG_AUTH);
 
 	/*
 	 * security dictates!

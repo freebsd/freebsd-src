@@ -124,7 +124,7 @@
  * 9: USART 3
  * 10: MMC Interface
  * 11: USB device port
- * 12: Two-wirte interface
+ * 12: Two-wire interface
  * 13: SPI
  * 14: SSC
  * 15: SSC
@@ -134,7 +134,7 @@
  * 19: Timer Counter 2
  * 20: Timer Counter 3
  * 21: Timer Counter 4
- * 22: Timer Counter 6
+ * 22: Timer Counter 5
  * 23: USB Host port
  * 24: Ethernet
  * 25: AIC

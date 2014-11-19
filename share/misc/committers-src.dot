@@ -170,6 +170,7 @@ grehan [label="Peter Grehan\ngrehan@FreeBSD.org\n2002/08/08"]
 grog [label="Greg Lehey\ngrog@FreeBSD.org\n1998/08/30"]
 gshapiro [label="Gregory Shapiro\ngshapiro@FreeBSD.org\n2000/07/12"]
 harti [label="Hartmut Brandt\nharti@FreeBSD.org\n2003/01/29"]
+hiren [label="Hiren Panchasara\nhiren@FreeBSD.org\n2013/04/12"]
 hmp [label="Hiten Pandya\nhmp@FreeBSD.org\n2004/03/23"]
 ian [label="Ian Lepore\nian@FreeBSD.org\n2013/01/07"]
 iedowse [label="Ian Dowse\niedowse@FreeBSD.org\n2000/12/01"]
@@ -178,6 +179,7 @@ ivoras [label="Ivan Voras\nivoras@FreeBSD.org\n2008/06/10"]
 jamie [label="Jamie Gritton\njamie@FreeBSD.org\n2009/01/28"]
 jasone [label="Jason Evans\njasone@FreeBSD.org\n1999/03/03"]
 jceel [label="Jakub Klama\njceel@FreeBSD.org\n2011/09/25"]
+jch [label="Julien Charbon\njch@FreeBSD.org\n2014/09/24"]
 jchandra [label="Jayachandran C.\njchandra@FreeBSD.org\n2010/05/19"]
 jeff [label="Jeff Roberson\njeff@FreeBSD.org\n2002/02/21"]
 jh [label="Jaakko Heinonen\njh@FreeBSD.org\n2009/10/02"]
@@ -228,6 +230,7 @@ mp [label="Mark Peek\nmp@FreeBSD.org\n2001/07/27"]
 mr [label="Michael Reifenberger\nmr@FreeBSD.org\n2001/09/30"]
 neel [label="Neel Natu\nneel@FreeBSD.org\n2009/09/20"]
 netchild [label="Alexander Leidinger\nnetchild@FreeBSD.org\n2005/03/31"]
+ngie [label="Garrett Cooper\nngie@FreeBSD.org\n2014/07/27"]
 nork [label="Norikatsu Shigemura\nnork@FreeBSD.org\n2009/06/09"]
 np [label="Navdeep Parhar\nnp@FreeBSD.org\n2009/06/05"]
 nwhitehorn [label="Nathan Whitehorn\nnwhitehorn@FreeBSD.org\n2008/07/03"]
@@ -482,6 +485,7 @@ jdp -> fjoe
 
 jhb -> arr
 jhb -> avg
+jhb -> jch
 jhb -> jeff
 jhb -> kbyanc
 jhb -> peterj
@@ -511,6 +515,8 @@ jlemon -> bmilekic
 jlemon -> brooks
 
 jmallett -> pkelsey
+
+jmmv -> ngie
 
 joerg -> brian
 joerg -> eik
@@ -623,6 +629,7 @@ rpaulo -> avg
 rpaulo -> bschmidt
 rpaulo -> dim
 rpaulo -> jmmv
+rpaulo -> ngie
 
 rrs -> brucec
 rrs -> jchandra
@@ -660,6 +667,7 @@ sam -> andre
 sam -> benjsc
 sam -> sephe
 
+sbruno -> hiren
 sbruno -> jimharris
 
 schweikh -> dds

@@ -147,9 +147,11 @@ struct sctp_paramhdr *
 sctp_get_next_param(struct mbuf *, int,
     struct sctp_paramhdr *, int);
 
-int sctp_add_pad_tombuf(struct mbuf *, int);
+struct mbuf *
+     sctp_add_pad_tombuf(struct mbuf *, int);
 
-int sctp_pad_lastmbuf(struct mbuf *, int, struct mbuf *);
+struct mbuf *
+     sctp_pad_lastmbuf(struct mbuf *, int, struct mbuf *);
 
 void 
 sctp_ulp_notify(uint32_t, struct sctp_tcb *, uint32_t, void *, int

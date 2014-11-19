@@ -1467,7 +1467,7 @@ fasttrap_proc_lookup(pid_t pid)
 			mutex_enter(&fprc->ftpc_mtx);
 			mutex_exit(&bucket->ftb_mtx);
 			fprc->ftpc_rcount++;
-			atomic_add_64(&fprc->ftpc_acount, 1);
+			atomic_inc_64(&fprc->ftpc_acount);
 			ASSERT(fprc->ftpc_acount <= fprc->ftpc_rcount);
 			mutex_exit(&fprc->ftpc_mtx);
 
@@ -1501,7 +1501,7 @@ fasttrap_proc_lookup(pid_t pid)
 			mutex_enter(&fprc->ftpc_mtx);
 			mutex_exit(&bucket->ftb_mtx);
 			fprc->ftpc_rcount++;
-			atomic_add_64(&fprc->ftpc_acount, 1);
+			atomic_inc_64(&fprc->ftpc_acount);
 			ASSERT(fprc->ftpc_acount <= fprc->ftpc_rcount);
 			mutex_exit(&fprc->ftpc_mtx);
 
@@ -1738,7 +1738,7 @@ fasttrap_provider_free(fasttrap_provider_t *provider)
 	 * count of active providers on the associated process structure.
 	 */
 	if (!provider->ftp_retired) {
-		atomic_add_64(&provider->ftp_proc->ftpc_acount, -1);
+		atomic_dec_64(&provider->ftp_proc->ftpc_acount);
 		ASSERT(provider->ftp_proc->ftpc_acount <
 		    provider->ftp_proc->ftpc_rcount);
 	}
@@ -1814,7 +1814,7 @@ fasttrap_provider_retire(pid_t pid, const char *name, int mprov)
 	 * bucket lock therefore protects the integrity of the provider hash
 	 * table.
 	 */
-	atomic_add_64(&fp->ftp_proc->ftpc_acount, -1);
+	atomic_dec_64(&fp->ftp_proc->ftpc_acount);
 	ASSERT(fp->ftp_proc->ftpc_acount < fp->ftp_proc->ftpc_rcount);
 
 	fp->ftp_retired = 1;
@@ -1910,10 +1910,10 @@ fasttrap_add_probe(fasttrap_probe_spec_t *pdata)
 			    pdata->ftps_mod, pdata->ftps_func, name_str) != 0)
 				continue;
 
-			atomic_add_32(&fasttrap_total, 1);
+			atomic_inc_32(&fasttrap_total);
 
 			if (fasttrap_total > fasttrap_max) {
-				atomic_add_32(&fasttrap_total, -1);
+				atomic_dec_32(&fasttrap_total);
 				goto no_mem;
 			}
 
@@ -2311,9 +2311,11 @@ fasttrap_ioctl(struct cdev *dev, u_long cmd, caddr_t arg, int fflag,
 			 * Report an error if the process doesn't exist
 			 * or is actively being birthed.
 			 */
+			sx_slock(&proctree_lock);
 			p = pfind(pid);
 			if (p)
 				fill_kinfo_proc(p, &kp);
+			sx_sunlock(&proctree_lock);
 			if (p == NULL || kp.ki_stat == SIDL) {
 #if defined(sun)
 				mutex_exit(&pidlock);
@@ -2377,9 +2379,11 @@ err:
 			 * Report an error if the process doesn't exist
 			 * or is actively being birthed.
 			 */
+			sx_slock(&proctree_lock);
 			p = pfind(pid);
 			if (p)
 				fill_kinfo_proc(p, &kp);
+			sx_sunlock(&proctree_lock);
 			if (p == NULL || kp.ki_stat == SIDL) {
 #if defined(sun)
 				mutex_exit(&pidlock);
