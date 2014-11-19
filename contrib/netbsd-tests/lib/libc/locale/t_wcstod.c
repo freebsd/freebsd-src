@@ -66,7 +66,7 @@ __RCSID("$NetBSD: t_wcstod.c,v 1.3 2011/10/01 17:56:11 christos Exp $");
 
 #include <atf-c.h>
 
-#if defined(__FreeBSD__)
+#ifdef __FreeBSD__
 #include <stdio.h>
 #endif
 

@@ -40,6 +40,10 @@ __RCSID("$NetBSD: t_condwait.c,v 1.4 2013/04/12 17:18:11 christos Exp $");
 
 #include "isqemu.h"
 
+#ifdef __FreeBSD__
+#include <sys/time.h>
+#endif
+
 #define WAITTIME 2	/* Timeout wait secound */
 
 static const int debug = 1;

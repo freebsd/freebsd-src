@@ -64,8 +64,8 @@ typedef struct dt_probe_iter {
 } dt_probe_iter_t;
 
 typedef struct dt_probe_instance {
-	char pi_fname[DTRACE_FUNCNAMELEN]; /* function name */
-	char pi_rname[DTRACE_FUNCNAMELEN + 20]; /* mangled relocation name */
+	char *pi_fname;			/* function name */
+	char *pi_rname;			/* mangled relocation name */
 	uint32_t *pi_offs;		/* offsets into the function */
 	uint32_t *pi_enoffs;		/* is-enabled offsets */
 	uint_t pi_noffs;		/* number of offsets */
