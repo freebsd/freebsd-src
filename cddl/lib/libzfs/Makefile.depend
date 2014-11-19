@@ -6,6 +6,7 @@ DIRDEPS = \
 	cddl/lib/libavl \
 	cddl/lib/libnvpair \
 	cddl/lib/libumem \
+	cddl/lib/libuutil \
 	cddl/lib/libzfs_core \
 	gnu/lib/csu \
 	gnu/lib/libgcc \
@@ -14,6 +15,7 @@ DIRDEPS = \
 	lib/${CSU_DIR} \
 	lib/libc \
 	lib/libcompiler_rt \
+	lib/libexpat \
 	lib/libgeom \
 	lib/libmd \
 	lib/libthr \

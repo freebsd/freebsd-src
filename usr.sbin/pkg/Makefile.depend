@@ -13,7 +13,6 @@ DIRDEPS = \
 	lib/libbz2 \
 	lib/libc \
 	lib/libcompiler_rt \
-	lib/libelf \
 	lib/libexpat \
 	lib/libfetch \
 	lib/liblzma \

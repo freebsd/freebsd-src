@@ -12,6 +12,7 @@ DIRDEPS = \
 	lib/libc \
 	lib/libcompiler_rt \
 	lib/libsdp \
+	lib/libutil \
 
 
 .include <dirdeps.mk>
