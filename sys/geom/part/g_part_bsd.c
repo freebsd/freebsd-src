@@ -521,7 +521,7 @@ g_part_bsd_ioctl(struct g_part_table *basetable, struct g_provider *pp,
 
 		table = (struct g_part_bsd_table *)basetable;
 		p = table->bbarea + pp->sectorsize;
-		return (bsd_disklabel_le_dec(p, data, MAXPARTITIONS));
+		return (bsd_disklabel_le_dec(p, data, basetable->gpt_entries));
 	}
 	default:
 		return (ENOIOCTL);
