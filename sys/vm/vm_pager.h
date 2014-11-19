@@ -145,17 +145,8 @@ vm_pager_get_pages_async(vm_object_t object, vm_page_t *m, int count,
 	int r;
 
 	VM_OBJECT_ASSERT_WLOCKED(object);
-
-	if (*pagertab[object->type]->pgo_getpages_async == NULL) {
-		/* Emulate async operation. */
-		r = vm_pager_get_pages(object, m, count, reqpage);
-		VM_OBJECT_WUNLOCK(object);
-		(iodone)(arg, m, count, r);
-		VM_OBJECT_WLOCK(object);
-	} else
-		r = (*pagertab[object->type]->pgo_getpages_async)(object, m,
-		    count, reqpage, iodone, arg);
-
+	r = (*pagertab[object->type]->pgo_getpages_async)(object, m, count,
+	    reqpage, iodone, arg);
 	return (r);
 }
 
