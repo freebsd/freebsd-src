@@ -42,11 +42,11 @@ err() {
 }
 
 cleanup() {
+	umount ${DESTDIR}/dev 2>/dev/null
+	umount ${DESTDIR}
 	if [ ! -z "${mddev}" ]; then
 		mdconfig -d -u ${mddev}
 	fi
-	umount ${DESTDIR}/dev
-	umount ${DESTDIR}
 
 	return 0
 }
