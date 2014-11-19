@@ -683,6 +683,10 @@ sbcheck(struct sockbuf *sb, const char *file, int line)
 	for (m = sb->sb_mb; m; m = n) {
 	    n = m->m_nextpkt;
 	    for (; m; m = m->m_next) {
+		if (m->m_len == 0) {
+			printf("sb %p empty mbuf %p\n", sb, m);
+			goto fail;
+		}
 		if ((m->m_flags & M_NOTREADY) && fnrdy == NULL) {
 			if (m != sb->sb_fnrdy) {
 				printf("sb %p: fnrdy %p != m %p\n",
