@@ -285,7 +285,7 @@ kvp_file_init(void)
 	int alloc_unit = sizeof(struct kvp_record) * ENTRIES_PER_BLOCK;
 
 	if (mkdir("/var/db/hyperv/pool", S_IRUSR | S_IWUSR | S_IROTH) < 0 &&
-	    errno != EISDIR) {
+	    (errno != EEXIST && errno != EISDIR)) {
 		KVP_LOG(LOG_ERR, " Failed to create /var/db/hyperv/pool\n");
 		exit(EXIT_FAILURE);
 	}
@@ -511,25 +511,25 @@ kvp_get_value(int pool, __u8 *key, int key_size, __u8 *value,
 
 
 static int
-kvp_pool_enumerate(int pool, int index, __u8 *key, int key_size,
+kvp_pool_enumerate(int pool, int idx, __u8 *key, int key_size,
     __u8 *value, int value_size)
 {
 	struct kvp_record *record;
 
 	KVP_LOG(LOG_DEBUG, "kvp_pool_enumerate: pool = %d, index = %d\n,",
-	    pool, index);
+	    pool, idx);
 
 	/* First update our in-memory state first. */
 	kvp_update_mem_state(pool);
 	record = kvp_pools[pool].records;
 
 	/* Index starts with 0 */
-	if (index >= kvp_pools[pool].num_records) {
+	if (idx >= kvp_pools[pool].num_records) {
 		return (1);
 	}
 
-	memcpy(key, record[index].key, key_size);
-	memcpy(value, record[index].value, value_size);
+	memcpy(key, record[idx].key, key_size);
+	memcpy(value, record[idx].value, value_size);
 	return (0);
 }
 

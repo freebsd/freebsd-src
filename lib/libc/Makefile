@@ -158,6 +158,8 @@ libkern.${LIBC_ARCH}:: ${KMSRCS}
 	cp -fp ${.ALLSRC} ${DESTDIR}/sys/libkern/${LIBC_ARCH}
 .endif
 
+.include <bsd.arch.inc.mk>
+
 .include <bsd.lib.mk>
 
 # Disable warnings in contributed sources.

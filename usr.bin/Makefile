@@ -36,6 +36,7 @@ SUBDIR=	alias \
 	ctlstat \
 	cut \
 	dirname \
+	dpv \
 	du \
 	ee \
 	elf2aout \
@@ -196,6 +197,7 @@ SUBDIR=	alias \
 	xargs \
 	xinstall \
 	${_xlint} \
+	xo \
 	${_xstr} \
 	xz \
 	xzdec \

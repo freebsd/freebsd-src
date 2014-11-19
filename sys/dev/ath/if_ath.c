@@ -1812,7 +1812,10 @@ ath_suspend(struct ath_softc *sc)
 	 */
 	ath_hal_intrset(sc->sc_ah, 0);
 	taskqueue_block(sc->sc_tq);
-	callout_drain(&sc->sc_cal_ch);
+
+	ATH_LOCK(sc);
+	callout_stop(&sc->sc_cal_ch);
+	ATH_UNLOCK(sc);
 
 	/*
 	 * XXX ensure sc_invalid is 1
@@ -5599,6 +5602,8 @@ ath_calibrate(void *arg)
 	HAL_BOOL aniCal, shortCal = AH_FALSE;
 	int nextcal;
 
+	ATH_LOCK_ASSERT(sc);
+
 	/*
 	 * Force the hardware awake for ANI work.
 	 */
@@ -5888,12 +5893,17 @@ ath_newstate(struct ieee80211vap *vap, enum ieee80211_state nstate, int arg)
 	 * Now, wake the thing up.
 	 */
 	ath_power_set_power_state(sc, HAL_PM_AWAKE);
+
+	/*
+	 * And stop the calibration callout whilst we have
+	 * ATH_LOCK held.
+	 */
+	callout_stop(&sc->sc_cal_ch);
 	ATH_UNLOCK(sc);
 
 	if (ostate == IEEE80211_S_CSA && nstate == IEEE80211_S_RUN)
 		csa_run_transition = 1;
 
-	callout_drain(&sc->sc_cal_ch);
 	ath_hal_setledstate(ah, leds[nstate]);	/* set LED */
 
 	if (nstate == IEEE80211_S_SCAN) {
@@ -6084,7 +6094,6 @@ ath_newstate(struct ieee80211vap *vap, enum ieee80211_state nstate, int arg)
 		ATH_LOCK(sc);
 		ath_power_setselfgen(sc, HAL_PM_AWAKE);
 		ath_power_setpower(sc, HAL_PM_AWAKE);
-		ATH_UNLOCK(sc);
 
 		/*
 		 * Finally, start any timers and the task q thread
@@ -6097,6 +6106,7 @@ ath_newstate(struct ieee80211vap *vap, enum ieee80211_state nstate, int arg)
 			DPRINTF(sc, ATH_DEBUG_CALIBRATE,
 			    "%s: calibration disabled\n", __func__);
 		}
+		ATH_UNLOCK(sc);
 
 		taskqueue_unblock(sc->sc_tq);
 	} else if (nstate == IEEE80211_S_INIT) {
@@ -6457,13 +6467,13 @@ ath_watchdog(void *arg)
 	struct ath_softc *sc = arg;
 	int do_reset = 0;
 
+	ATH_LOCK_ASSERT(sc);
+
 	if (sc->sc_wd_timer != 0 && --sc->sc_wd_timer == 0) {
 		struct ifnet *ifp = sc->sc_ifp;
 		uint32_t hangs;
 
-		ATH_LOCK(sc);
 		ath_power_set_power_state(sc, HAL_PM_AWAKE);
-		ATH_UNLOCK(sc);
 
 		if (ath_hal_gethangstate(sc->sc_ah, 0xffff, &hangs) &&
 		    hangs != 0) {
@@ -6475,9 +6485,7 @@ ath_watchdog(void *arg)
 		if_inc_counter(ifp, IFCOUNTER_OERRORS, 1);
 		sc->sc_stats.ast_watchdog++;
 
-		ATH_LOCK(sc);
 		ath_power_restore_power_state(sc);
-		ATH_UNLOCK(sc);
 	}
 
 	/*

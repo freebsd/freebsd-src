@@ -318,6 +318,9 @@ extern LZMA_API(lzma_ret) lzma_block_header_encode(
  * The size of the Block Header must have already been decoded with
  * lzma_block_header_size_decode() macro and stored to block->header_size.
  *
+ * The integrity check type from Stream Header must have been stored
+ * to block->check.
+ *
  * block->filters must have been allocated, but they don't need to be
  * initialized (possible existing filter options are not freed).
  *

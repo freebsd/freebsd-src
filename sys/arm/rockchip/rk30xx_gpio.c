@@ -318,20 +318,6 @@ rk30_gpio_pin_setflags(device_t dev, uint32_t pin, uint32_t flags)
 	if (i >= sc->sc_gpio_npins)
 		return (EINVAL);
 
-	/* Check for unwanted flags. */
-	if ((flags & sc->sc_gpio_pins[i].gp_caps) != flags)
-		return (EINVAL);
-
-	/* Can't mix input/output together. */
-	if ((flags & (GPIO_PIN_INPUT|GPIO_PIN_OUTPUT)) ==
-	    (GPIO_PIN_INPUT|GPIO_PIN_OUTPUT))
-		return (EINVAL);
-
-	/* Can't mix pull-up/pull-down together. */
-	if ((flags & (GPIO_PIN_PULLUP|GPIO_PIN_PULLDOWN)) ==
-	    (GPIO_PIN_PULLUP|GPIO_PIN_PULLDOWN))
-		return (EINVAL);
-
 	rk30_gpio_pin_configure(sc, &sc->sc_gpio_pins[i], flags);
 
 	return (0);
@@ -504,8 +490,8 @@ rk30_gpio_attach(device_t dev)
 	}
 	sc->sc_gpio_npins = i;
 
-	device_add_child(dev, "gpioc", device_get_unit(dev));
-	device_add_child(dev, "gpiobus", device_get_unit(dev));
+	device_add_child(dev, "gpioc", -1);
+	device_add_child(dev, "gpiobus", -1);
 
 	rk30_gpio_sc = sc;
 

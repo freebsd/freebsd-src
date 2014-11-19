@@ -241,17 +241,6 @@ Defaults to off.
 Boolean: the default value of a per-interface flag to
 enable/disable performing automatic link-local address configuration.
 Defaults to on.
-.It Dv IPV6CTL_KEEPFAITH
-.Pq ip6.keepfaith
-Boolean: enable/disable
-.Dq FAITH
-TCP relay IPv6-to-IPv4 translator code in the kernel.
-Refer
-.Xr faith 4
-and
-.Xr faithd 8
-for detail.
-Defaults to off.
 .It Dv IPV6CTL_LOG_INTERVAL
 .Pq ip6.log_interval
 Integer: default interval between
@@ -323,21 +312,6 @@ mapped address on
 .Dv AF_INET6
 sockets.
 Defaults to on.
-.It Dv IPV6CTL_RTEXPIRE
-.Pq ip6.rtexpire
-Integer: lifetime in seconds of protocol-cloned
-.Tn IP
-routes after the last reference drops (default one hour).
-.\"This value varies dynamically as described above.
-.It Dv IPV6CTL_RTMINEXPIRE
-.Pq ip6.rtminexpire
-Integer: minimum value of ip.rtexpire (default ten seconds).
-.\"This value has no effect on user modifications, but restricts the dynamic
-.\"adaptation described above.
-.It Dv IPV6CTL_RTMAXCACHE
-.Pq ip6.rtmaxcache
-Integer: trigger level of cached, unreferenced, protocol-cloned routes
-which initiates dynamic adaptation (default 128).
 .El
 .Ss Interaction between IPv4/v6 sockets
 By default,

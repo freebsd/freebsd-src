@@ -59,11 +59,13 @@ ATF_TC_BODY(sethostname_basic, tc)
 	char name[MAXHOSTNAMELEN];
 	size_t i;
 
+	atf_tc_skip("screws up the test host's hostname on FreeBSD");
+
 	for (i = 0; i < __arraycount(hosts); i++) {
 
 		(void)memset(name, 0, sizeof(name));
 
-#if defined(__FreeBSD__)
+#ifdef __FreeBSD__
 		/* 
 		 * Sanity checks to ensure that the wrong invariant isn't being
 		 * tested for per PR # 181127
@@ -106,7 +108,7 @@ ATF_TC_BODY(sethostname_limit, tc)
 
 ATF_TC_CLEANUP(sethostname_limit, tc)
 {
-#if defined(__FreeBSD__)
+#ifdef __FreeBSD__
 	ATF_REQUIRE(sethostname(host, MAXHOSTNAMELEN - 1 ) == 0);
 	ATF_REQUIRE(sethostname(host, MAXHOSTNAMELEN) == -1);
 #endif

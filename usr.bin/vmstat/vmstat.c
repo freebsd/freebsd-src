@@ -767,22 +767,26 @@ dovmstat(unsigned int interval, int reps)
 
 		fill_vmmeter(&sum);
 		fill_vmtotal(&total);
-		(void)printf("%2d %1d %1d",
+		(void)printf("%1d %1d %1d",
 		    total.t_rq - 1, total.t_dw + total.t_pw, total.t_sw);
 #define vmstat_pgtok(a) ((a) * (sum.v_page_size >> 10))
 #define	rate(x)	(((x) * rate_adj + halfuptime) / uptime)	/* round */
 		if (hflag) {
+			printf("");
+			prthuman(total.t_avm * (u_int64_t)sum.v_page_size, 5);
 			printf(" ");
-			prthuman(total.t_avm * (u_int64_t)sum.v_page_size, 7);
+			prthuman(total.t_free * (u_int64_t)sum.v_page_size, 5);
 			printf(" ");
-			prthuman(total.t_free * (u_int64_t)sum.v_page_size, 6);
-			printf(" ");
+			(void)printf("%5lu ",
+			    (unsigned long)rate(sum.v_vm_faults -
+			    osum.v_vm_faults));
 		} else {
-			printf(" %7d ", vmstat_pgtok(total.t_avm));
-			printf(" %6d ", vmstat_pgtok(total.t_free));
+			printf(" %7d", vmstat_pgtok(total.t_avm));
+			printf(" %7d ", vmstat_pgtok(total.t_free));
+			(void)printf("%4lu ",
+			    (unsigned long)rate(sum.v_vm_faults -
+			    osum.v_vm_faults));
 		}
-		(void)printf("%5lu ",
-		    (unsigned long)rate(sum.v_vm_faults - osum.v_vm_faults));
 		(void)printf("%3lu ",
 		    (unsigned long)rate(sum.v_reactivated - osum.v_reactivated));
 		(void)printf("%3lu ",
@@ -793,10 +797,10 @@ dovmstat(unsigned int interval, int reps)
 		    (osum.v_swapout + osum.v_vnodeout)));
 		(void)printf("%5lu ",
 		    (unsigned long)rate(sum.v_tfree - osum.v_tfree));
-		(void)printf("%3lu ",
+		(void)printf("%4lu ",
 		    (unsigned long)rate(sum.v_pdpages - osum.v_pdpages));
 		devstats();
-		(void)printf("%4lu %4lu %4lu",
+		(void)printf("%4lu %5lu %5lu",
 		    (unsigned long)rate(sum.v_intr - osum.v_intr),
 		    (unsigned long)rate(sum.v_syscall - osum.v_syscall),
 		    (unsigned long)rate(sum.v_swtch - osum.v_swtch));
@@ -829,28 +833,36 @@ printhdr(int maxid, u_long cpumask)
 	int i, num_shown;
 
 	num_shown = (num_selected < maxshowdevs) ? num_selected : maxshowdevs;
-	(void)printf(" procs      memory      page%*s", 19, "");
+	if (hflag) {
+		(void)printf("procs  memory      page%*s ", 19, "");
+	} else {
+		(void)printf("procs     memory       page%*s ", 19, "");
+	}
 	if (num_shown > 1)
-		(void)printf(" disks %*s", num_shown * 4 - 7, "");
+		(void)printf("   disks %*s", num_shown * 4 - 7, "");
 	else if (num_shown == 1)
-		(void)printf("disk");
-	(void)printf("   faults         ");
+		(void)printf("   disk");
+	(void)printf("   faults      ");
 	if (Pflag) {
 		for (i = 0; i <= maxid; i++) {
 			if (cpumask & (1ul << i))
-				printf("cpu%-2d    ", i);
+				printf("  cpu%d   ", i);
 		}
 		printf("\n");
 	} else
-		printf("cpu\n");
-	(void)printf(" r b w     avm    fre   flt  re  pi  po    fr  sr ");
+		printf("   cpu\n");
+	if (hflag) {
+		(void)printf("r b w  avm   fre   flt  re  pi  po    fr   sr ");
+	} else {
+		(void)printf("r b w     avm     fre  flt  re  pi  po    fr   sr ");
+	}
 	for (i = 0; i < num_devices; i++)
 		if ((dev_select[i].selected)
 		 && (dev_select[i].selected <= maxshowdevs))
 			(void)printf("%c%c%d ", dev_select[i].device_name[0],
 				     dev_select[i].device_name[1],
 				     dev_select[i].unit_number);
-	(void)printf("  in   sy   cs");
+	(void)printf("  in    sy    cs");
 	if (Pflag) {
 		for (i = 0; i <= maxid; i++) {
 			if (cpumask & (1ul << i))
@@ -982,7 +994,8 @@ dosum(void)
 	(void)printf("%9u intransit blocking page faults\n", sum.v_intrans);
 	(void)printf("%9u total VM faults taken\n", sum.v_vm_faults);
 	(void)printf("%9u page faults requiring I/O\n", sum.v_io_faults);
-	(void)printf("%9u pages affected by kernel thread creation\n", sum.v_kthreadpages);
+	(void)printf("%9u pages affected by kernel thread creation\n",
+	    sum.v_kthreadpages);
 	(void)printf("%9u pages affected by  fork()\n", sum.v_forkpages);
 	(void)printf("%9u pages affected by vfork()\n", sum.v_vforkpages);
 	(void)printf("%9u pages affected by rfork()\n", sum.v_rforkpages);
@@ -1124,7 +1137,8 @@ pcpustats(int ncpus, u_long cpumask, int maxid)
 			continue;
 		for (state = 0; state < CPUSTATES; ++state) {
 			tmp = cur_cp_times[i * CPUSTATES + state];
-			cur_cp_times[i * CPUSTATES + state] -= last_cp_times[i * CPUSTATES + state];
+			cur_cp_times[i * CPUSTATES + state] -= last_cp_times[i *
+			    CPUSTATES + state];
 			last_cp_times[i * CPUSTATES + state] = tmp;
 		}
 	}

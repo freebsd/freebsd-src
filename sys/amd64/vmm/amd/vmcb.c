@@ -389,6 +389,7 @@ vmcb_setdesc(void *arg, int vcpu, int reg, struct seg_desc *desc)
 	case VM_REG_GUEST_ES:
 	case VM_REG_GUEST_SS:
 		svm_set_dirty(sc, vcpu, VMCB_CACHE_SEG);
+		break;
 	case VM_REG_GUEST_GDTR:
 	case VM_REG_GUEST_IDTR:
 		svm_set_dirty(sc, vcpu, VMCB_CACHE_DT);

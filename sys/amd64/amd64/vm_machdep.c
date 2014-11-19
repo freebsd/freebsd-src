@@ -127,7 +127,7 @@ get_pcb_td(struct thread *td)
 void *
 alloc_fpusave(int flags)
 {
-	struct pcb *res;
+	void *res;
 	struct savefpu_ymm *sf;
 
 	res = malloc(cpu_max_ext_state_size, M_DEVBUF, flags);

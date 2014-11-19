@@ -53,7 +53,11 @@ run(int flags)
 	while ((i = open("/", O_RDONLY)) < 3)
 		ATF_REQUIRE(i != -1);
 
+#ifdef __FreeBSD__
+	closefrom(3);
+#else
 	ATF_REQUIRE(fcntl(3, F_CLOSEM) != -1);
+#endif
 
 	ATF_REQUIRE(pipe2(fd, flags) == 0);
 
@@ -76,6 +80,7 @@ run(int flags)
 		ATF_REQUIRE((fcntl(fd[1], F_GETFL) & O_NONBLOCK) == 0);
 	}
 
+#ifndef __FreeBSD__
 	if (flags & O_NOSIGPIPE) {
 		ATF_REQUIRE(fcntl(fd[0], F_GETNOSIGPIPE) != 0);
 		ATF_REQUIRE(fcntl(fd[1], F_GETNOSIGPIPE) != 0);
@@ -83,6 +88,7 @@ run(int flags)
 		ATF_REQUIRE(fcntl(fd[0], F_GETNOSIGPIPE) == 0);
 		ATF_REQUIRE(fcntl(fd[1], F_GETNOSIGPIPE) == 0);
 	}
+#endif
 
 	ATF_REQUIRE(close(fd[0]) != -1);
 	ATF_REQUIRE(close(fd[1]) != -1);
@@ -110,9 +116,14 @@ ATF_TC_BODY(pipe2_consume, tc)
 {
 	struct rlimit rl;
 	int err, filedes[2];
+#ifdef __FreeBSD__
+	int old;
 
+	closefrom(4);
+#else
 	err = fcntl(4, F_CLOSEM);
 	ATF_REQUIRE(err == 0);
+#endif
 
 	err = getrlimit(RLIMIT_NOFILE, &rl);
 	ATF_REQUIRE(err == 0);
@@ -121,12 +132,19 @@ ATF_TC_BODY(pipe2_consume, tc)
 	 * file descriptor limit in the middle of a pipe2() call - i.e.
 	 * before the call only a single descriptor may be openend.
 	 */
+#ifdef __FreeBSD__
+	old = rl.rlim_cur;
+#endif
 	rl.rlim_cur = 4;
 	err = setrlimit(RLIMIT_NOFILE, &rl);
 	ATF_REQUIRE(err == 0);
 
 	err = pipe2(filedes, O_CLOEXEC);
 	ATF_REQUIRE(err == -1);
+#ifdef __FreeBSD__
+	rl.rlim_cur = old;
+	err = setrlimit(RLIMIT_NOFILE, &rl);
+#endif
 }
 
 ATF_TC(pipe2_nonblock);
@@ -151,6 +169,7 @@ ATF_TC_BODY(pipe2_cloexec, tc)
 	run(O_CLOEXEC);
 }
 
+#ifdef __NetBSD__
 ATF_TC(pipe2_nosigpipe);
 ATF_TC_HEAD(pipe2_nosigpipe, tc)
 {
@@ -161,6 +180,7 @@ ATF_TC_BODY(pipe2_nosigpipe, tc)
 {
 	run(O_NOSIGPIPE);
 }
+#endif
 
 ATF_TC(pipe2_einval);
 ATF_TC_HEAD(pipe2_einval, tc)
@@ -181,7 +201,9 @@ ATF_TP_ADD_TCS(tp)
 	ATF_TP_ADD_TC(tp, pipe2_consume);
 	ATF_TP_ADD_TC(tp, pipe2_nonblock);
 	ATF_TP_ADD_TC(tp, pipe2_cloexec);
+#ifdef __NetBSD__
 	ATF_TP_ADD_TC(tp, pipe2_nosigpipe);
+#endif
 	ATF_TP_ADD_TC(tp, pipe2_einval);
 
 	return atf_no_error();

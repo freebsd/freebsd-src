@@ -52,7 +52,7 @@ else
 fi
 
 b=share/examples/etc/bsd-style-copyright
-year=`date '+%Y'`
+year=$(sed -Ee '/^Copyright .* The FreeBSD Project/!d;s/^.*1992-([0-9]*) .*$/\1/g' ${SYSDIR}/../COPYRIGHT)
 # look for copyright template
 for bsd_copyright in ../$b ../../$b ../../../$b /usr/src/$b /usr/$b
 do

@@ -199,4 +199,8 @@ DPSRCS=		openpam_static.c
 INCS=		${HEADERS} ${ADD_HEADERS}
 INCSDIR=	${INCLUDEDIR}/security
 
+.if ${MK_TESTS} != "no"
+SUBDIR+=        tests
+.endif
+
 .include <bsd.lib.mk>

@@ -109,7 +109,7 @@ h_wctomb(const struct test *t, char tc)
 	size_t sz, ret, i;
 
 	ATF_REQUIRE_STREQ(setlocale(LC_ALL, "C"), "C");
-#if defined(__NetBSD__)
+#ifdef __NetBSD__
 	ATF_REQUIRE(setlocale(LC_CTYPE, t->locale) != NULL);
 #else
 	if (setlocale(LC_CTYPE, t->locale) == NULL) {

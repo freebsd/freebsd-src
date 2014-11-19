@@ -58,6 +58,9 @@ ATF_TC_BODY(revoke_basic, tc)
 	size_t i, n;
 	int *buf;
 
+#ifdef __FreeBSD__
+	atf_tc_skip("revoke(2) is only implemented for devfs(5).");
+#endif
 	(void)memset(&res, 0, sizeof(struct rlimit));
 	(void)getrlimit(RLIMIT_NOFILE, &res);
 
@@ -113,6 +116,9 @@ ATF_TC_BODY(revoke_err, tc)
 	errno = 0;
 	ATF_REQUIRE_ERRNO(ENAMETOOLONG, revoke(buf) == -1);
 
+#ifdef __FreeBSD__
+	atf_tc_skip("revoke(2) is only implemented for devfs(5).");
+#endif
 	errno = 0;
 	ATF_REQUIRE_ERRNO(EPERM, revoke("/etc/passwd") == -1);
 
@@ -133,6 +139,9 @@ ATF_TC_BODY(revoke_perm, tc)
 	int fd, sta;
 	pid_t pid;
 
+#ifdef __FreeBSD__
+	atf_tc_skip("revoke(2) is only implemented for devfs(5).");
+#endif
 	pw = getpwnam("nobody");
 	fd = open(path, O_RDWR | O_CREAT, 0600);
 

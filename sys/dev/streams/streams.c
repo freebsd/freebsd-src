@@ -302,7 +302,8 @@ svr4_ptm_alloc(td)
 		ptyname[8] = ttyletters[l];
 		ptyname[9] = ttynumbers[n];
 
-		error = kern_open(td, ptyname, UIO_SYSSPACE, O_RDWR, 0);
+		error = kern_openat(td, AT_FDCWD, ptyname, UIO_SYSSPACE,
+		    O_RDWR, 0);
 		switch (error) {
 		case ENOENT:
 		case ENXIO:

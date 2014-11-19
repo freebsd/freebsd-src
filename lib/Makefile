@@ -46,12 +46,14 @@ SUBDIR=	${SUBDIR_ORDERED} \
 	${_libcurl} \
 	libdevinfo \
 	libdevstat \
+	libdpv \
 	libdwarf \
 	libedit \
 	${_libevent} \
 	libexecinfo \
 	libexpat \
 	libfetch \
+	libfigpar \
 	libgeom \
 	${_libgpib} \
 	${_libgssapi} \
@@ -114,6 +116,7 @@ SUBDIR=	${SUBDIR_ORDERED} \
 	${_libvgl} \
 	${_libvmmapi} \
 	libwrap \
+	libxo \
 	liby \
 	${_libypclnt} \
 	libz \
@@ -138,7 +141,7 @@ SUBDIR_DEPEND_libcam= libsbuf
 SUBDIR_DEPEND_libcapsicum= libnv
 SUBDIR_DEPEND_libcasper= libcapsicum libnv libpjdlog
 SUBDIR_DEPEND_libdevstat= libkvm
-SUBDIR_DEPEND_libdiaglog= ncurses
+SUBDIR_DEPEND_libdpv= libfigpar ncurses libutil
 SUBDIR_DEPEND_libedit= ncurses
 SUBDIR_DEPEND_libg++= msun
 SUBDIR_DEPEND_libgeom= libexpat libsbuf

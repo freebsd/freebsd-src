@@ -174,29 +174,8 @@ check_svm_features(void)
 	do_cpuid(0x8000000A, regs);
 	svm_feature = regs[3];
 
-	printf("SVM: Revision %d\n", regs[0] & 0xFF);
-	printf("SVM: NumASID %u\n", regs[1]);
-
 	nasid = regs[1];
 	KASSERT(nasid > 1, ("Insufficient ASIDs for guests: %#x", nasid));
-
-	printf("SVM: Features 0x%b\n", svm_feature,
-		"\020"
-		"\001NP"		/* Nested paging */
-		"\002LbrVirt"		/* LBR virtualization */
-		"\003SVML"		/* SVM lock */
-		"\004NRIPS"		/* NRIP save */
-		"\005TscRateMsr"	/* MSR based TSC rate control */
-		"\006VmcbClean"		/* VMCB clean bits */
-		"\007FlushByAsid"	/* Flush by ASID */
-		"\010DecodeAssist"	/* Decode assist */
-		"\011<b8>"
-		"\012<b9>"
-		"\013PauseFilter"	
-		"\014<b11>"
-		"\015PauseFilterThreshold"	
-		"\016AVIC"	
-		);
 
 	/* bhyve requires the Nested Paging feature */
 	if (!(svm_feature & AMD_CPUID_SVM_NP)) {

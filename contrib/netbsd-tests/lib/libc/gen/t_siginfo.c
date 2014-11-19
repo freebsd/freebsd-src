@@ -1,4 +1,4 @@
-/* $NetBSD: t_siginfo.c,v 1.23 2014/02/09 21:26:07 jmmv Exp $ */
+/* $NetBSD: t_siginfo.c,v 1.24 2014/11/04 00:20:19 justin Exp $ */
 
 /*-
  * Copyright (c) 2010 The NetBSD Foundation, Inc.
@@ -27,9 +27,8 @@
  */
 
 #include <atf-c.h>
-#include <atf-c/config.h>
 
-#if defined(__NetBSD__)
+#ifdef __NetBSD__
 #include <sys/inttypes.h>
 #endif
 #include <sys/resource.h>
@@ -88,7 +87,7 @@ sig_debug(int signo, siginfo_t *info, ucontext_t *ctx)
 		printf("uc_stack %p %lu 0x%x\n", ctx->uc_stack.ss_sp,
 		    (unsigned long)ctx->uc_stack.ss_size,
 		    ctx->uc_stack.ss_flags);
-#if defined(__NetBSD__)
+#ifdef __NetBSD__
 		for (i = 0; i < __arraycount(ctx->uc_mcontext.__gregs); i++)
 			printf("uc_mcontext.greg[%d] 0x%lx\n", i,
 			    (long)ctx->uc_mcontext.__gregs[i]);
@@ -145,7 +144,7 @@ sigchild_action(int signo, siginfo_t *info, void *ptr)
 		printf("si_uid=%d\n", info->si_uid);
 		printf("si_pid=%d\n", info->si_pid);
 		printf("si_status=%d\n", info->si_status);
-#if defined(__NetBSD__)
+#ifdef __NetBSD__
 		printf("si_utime=%lu\n", (unsigned long int)info->si_utime);
 		printf("si_stime=%lu\n", (unsigned long int)info->si_stime);
 #endif

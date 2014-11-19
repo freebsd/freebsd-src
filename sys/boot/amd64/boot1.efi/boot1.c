@@ -168,9 +168,12 @@ static int
 dskread(void *buf, u_int64_t lba, int nblk)
 {
 	EFI_STATUS status;
+	int size;
 
+	lba = lba / (bootdev->Media->BlockSize / DEV_BSIZE);
+	size = nblk * DEV_BSIZE;
 	status = bootdev->ReadBlocks(bootdev, bootdev->Media->MediaId, lba,
-	    nblk * bootdev->Media->BlockSize, buf);
+	    size, buf);
 
 	if (EFI_ERROR(status))
 		return (-1);

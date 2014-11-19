@@ -97,8 +97,8 @@ VNET_PCPUSTAT_SYSUNINIT(ipipstat);
 #endif /* VIMAGE */
 
 SYSCTL_DECL(_net_inet_ipip);
-SYSCTL_VNET_INT(_net_inet_ipip, OID_AUTO,
-	ipip_allow,	CTLFLAG_RW,	&VNET_NAME(ipip_allow),	0, "");
+SYSCTL_INT(_net_inet_ipip, OID_AUTO, ipip_allow, CTLFLAG_VNET | CTLFLAG_RW,
+    &VNET_NAME(ipip_allow), 0, "");
 SYSCTL_VNET_PCPUSTAT(_net_inet_ipip, IPSECCTL_STATS, stats,
     struct ipipstat, ipipstat,
     "IPIP statistics (struct ipipstat, netipsec/ipip_var.h)");
@@ -488,12 +488,9 @@ ipip_output(
 		ip6o->ip6_flow = 0;
 		ip6o->ip6_vfc &= ~IPV6_VERSION_MASK;
 		ip6o->ip6_vfc |= IPV6_VERSION;
-		ip6o->ip6_plen = htons(m->m_pkthdr.len);
 		ip6o->ip6_hlim = IPV6_DEFHLIM;
 		ip6o->ip6_dst = saidx->dst.sin6.sin6_addr;
 		ip6o->ip6_src = saidx->src.sin6.sin6_addr;
-
-		/* Fix payload length */
 		ip6o->ip6_plen = htons(m->m_pkthdr.len - sizeof(*ip6));
 
 		switch (tp) {

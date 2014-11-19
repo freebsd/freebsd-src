@@ -78,11 +78,6 @@
 #ifdef INET6
 #include <netinet6/nd6.h>
 #endif
-
-int (*ef_inputp)(struct ifnet*, struct ether_header *eh, struct mbuf *m);
-int (*ef_outputp)(struct ifnet *ifp, struct mbuf **mp,
-		const struct sockaddr *dst, short *tp, int *hlen);
-
 #include <security/mac/mac_framework.h>
 
 #ifdef CTASSERT
@@ -118,9 +113,6 @@ static	int ether_resolvemulti(struct ifnet *, struct sockaddr **,
 #ifdef VIMAGE
 static	void ether_reassign(struct ifnet *, struct vnet *, char *);
 #endif
-
-/* XXX: should be in an arp support file, not here */
-static MALLOC_DEFINE(M_ARPCOM, "arpcom", "802.* interface internals");
 
 #define	ETHER_IS_BROADCAST(addr) \
 	(bcmp(etherbroadcastaddr, (addr), ETHER_ADDR_LEN) == 0)
@@ -330,7 +322,7 @@ ether_output(struct ifnet *ifp, struct mbuf *m,
 #endif
 
 	/* Handle ng_ether(4) processing, if any */
-	if (IFP2AC(ifp)->ac_netgraph != NULL) {
+	if (ifp->if_l2com != NULL) {
 		KASSERT(ng_ether_output_p != NULL,
 		    ("ng_ether_output_p is NULL"));
 		if ((error = (*ng_ether_output_p)(ifp, &m)) != 0) {
@@ -521,7 +513,7 @@ ether_input_internal(struct ifnet *ifp, struct mbuf *m)
 	M_SETFIB(m, ifp->if_fib);
 
 	/* Allow ng_ether(4) to claim this frame. */
-	if (IFP2AC(ifp)->ac_netgraph != NULL) {
+	if (ifp->if_l2com != NULL) {
 		KASSERT(ng_ether_input_p != NULL,
 		    ("%s: ng_ether_input_p is NULL", __func__));
 		m->m_flags &= ~M_PROMISC;
@@ -576,8 +568,7 @@ ether_input_internal(struct ifnet *ifp, struct mbuf *m)
 			m->m_flags |= M_PROMISC;
 	}
 
-	if (harvest.ethernet)
-		random_harvest(&(m->m_data), 12, 2, RANDOM_NET_ETHER);
+	random_harvest(&(m->m_data), 12, 2, RANDOM_NET_ETHER);
 
 	ether_demux(ifp, m);
 	CURVNET_RESTORE();
@@ -781,7 +772,7 @@ discard:
 	 * hand the packet to it for last chance processing;
 	 * otherwise dispose of it.
 	 */
-	if (IFP2AC(ifp)->ac_netgraph != NULL) {
+	if (ifp->if_l2com != NULL) {
 		KASSERT(ng_ether_input_orphan_p != NULL,
 		    ("ng_ether_input_orphan_p is NULL"));
 		/*
@@ -867,7 +858,7 @@ ether_ifdetach(struct ifnet *ifp)
 	sdl = (struct sockaddr_dl *)(ifp->if_addr->ifa_addr);
 	uuid_ether_del(LLADDR(sdl));
 
-	if (IFP2AC(ifp)->ac_netgraph != NULL) {
+	if (ifp->if_l2com != NULL) {
 		KASSERT(ng_ether_detach_p != NULL,
 		    ("ng_ether_detach_p is NULL"));
 		(*ng_ether_detach_p)(ifp);
@@ -882,7 +873,7 @@ void
 ether_reassign(struct ifnet *ifp, struct vnet *new_vnet, char *unused __unused)
 {
 
-	if (IFP2AC(ifp)->ac_netgraph != NULL) {
+	if (ifp->if_l2com != NULL) {
 		KASSERT(ng_ether_detach_p != NULL,
 		    ("ng_ether_detach_p is NULL"));
 		(*ng_ether_detach_p)(ifp);
@@ -1093,46 +1084,8 @@ ether_resolvemulti(struct ifnet *ifp, struct sockaddr **llsa,
 	}
 }
 
-static void*
-ether_alloc(u_char type, struct ifnet *ifp)
-{
-	struct arpcom	*ac;
-	
-	ac = malloc(sizeof(struct arpcom), M_ARPCOM, M_WAITOK | M_ZERO);
-	ac->ac_ifp = ifp;
-
-	return (ac);
-}
-
-static void
-ether_free(void *com, u_char type)
-{
-
-	free(com, M_ARPCOM);
-}
-
-static int
-ether_modevent(module_t mod, int type, void *data)
-{
-
-	switch (type) {
-	case MOD_LOAD:
-		if_register_com_alloc(IFT_ETHER, ether_alloc, ether_free);
-		break;
-	case MOD_UNLOAD:
-		if_deregister_com_alloc(IFT_ETHER);
-		break;
-	default:
-		return EOPNOTSUPP;
-	}
-
-	return (0);
-}
-
 static moduledata_t ether_mod = {
-	"ether",
-	ether_modevent,
-	0
+	.name = "ether",
 };
 
 void

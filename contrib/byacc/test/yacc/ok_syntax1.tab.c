@@ -178,7 +178,7 @@ extern int YYPARSE_DECL();
 #define VT 272
 #define UMINUS 273
 #define YYERRCODE 256
-typedef short YYINT;
+typedef int YYINT;
 static const YYINT ok_syntax1_lhs[] = {                  -1,
     0,    0,    0,    1,    1,    2,    2,    2,    2,    2,
     2,    2,    2,    2,    2,    2,    3,    3,

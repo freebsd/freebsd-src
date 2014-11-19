@@ -218,7 +218,7 @@ netvsc_probe(device_t dev)
 		if (bootverbose)
 			printf("Netvsc probe... DONE \n");
 
-		return (0);
+		return (BUS_PROBE_DEFAULT);
 	}
 
 	return (ENXIO);
@@ -255,7 +255,7 @@ netvsc_attach(device_t dev)
 
 	sc->hn_dev_obj = device_ctx;
 
-	ifp = sc->hn_ifp = sc->arpcom.ac_ifp = if_alloc(IFT_ETHER);
+	ifp = sc->hn_ifp = if_alloc(IFT_ETHER);
 	ifp->if_softc = sc;
 
 	if_initname(ifp, device_get_name(dev), device_get_unit(dev));
@@ -634,8 +634,6 @@ netvsc_recv(struct hv_device *device_ctx, netvsc_packet *packet)
 	}
 
 	ifp = sc->hn_ifp;
-	
-	ifp = sc->arpcom.ac_ifp;
 
 	if (!(ifp->if_drv_flags & IFF_DRV_RUNNING)) {
 		return (0);

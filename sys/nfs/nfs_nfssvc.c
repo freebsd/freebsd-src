@@ -123,7 +123,7 @@ nfssvc_modevent(module_t mod, int type, void *data)
 	switch (type) {
 	case MOD_LOAD:
 		error = syscall_register(&nfssvc_offset, &nfssvc_sysent,
-		    &nfssvc_prev_sysent);
+		    &nfssvc_prev_sysent, SY_THR_STATIC_KLD);
 		if (error)
 			break;
 		registered = 1;

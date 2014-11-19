@@ -351,6 +351,12 @@ options 	COMPAT_FREEBSD6
 # Enable FreeBSD7 compatibility syscalls
 options 	COMPAT_FREEBSD7
 
+# Enable FreeBSD9 compatibility syscalls
+options 	COMPAT_FREEBSD9
+
+# Enable FreeBSD10 compatibility syscalls
+options 	COMPAT_FREEBSD10
+
 #
 # These three options provide support for System V Interface
 # Definition-style interprocess communication, in the form of shared
@@ -873,18 +879,18 @@ device		tun
 #  The `gif' device implements IPv6 over IP4 tunneling,
 #  IPv4 over IPv6 tunneling, IPv4 over IPv4 tunneling and
 #  IPv6 over IPv6 tunneling.
-#  The `gre' device implements two types of IP4 over IP4 tunneling:
-#  GRE and MOBILE, as specified in the RFC1701 and RFC2004.
+#  The `gre' device implements GRE (Generic Routing Encapsulation) tunneling,
+#  as specified in the RFC 2784 and RFC 2890.
+#  The `me' device implements Minimal Encapsulation within IPv4 as
+#  specified in the RFC 2004.
 #  The XBONEHACK option allows the same pair of addresses to be configured on
 #  multiple gif interfaces.
 device		gif
 device		gre
+device		me
 options 	XBONEHACK
 
-#  The `faith' device captures packets sent to it and diverts them
-#  to the IPv4/IPv6 translation daemon.
 #  The `stf' device implements 6to4 encapsulation.
-device		faith
 device		stf
 
 # The pf packet filter consists of three devices:
@@ -2987,10 +2993,10 @@ options 	BROOKTREE_ALLOC_PAGES=(217*4+1)
 options 	MAXFILES=999
 
 # Random number generator
-options 	RANDOM_YARROW	# Yarrow RNG
-##options 	RANDOM_FORTUNA	# Fortuna RNG - not yet implemented
+# Only ONE of the below two may be used; they are mutually exclusive.
+options 	RANDOM_YARROW	# Yarrow CSPRNG (Default)
+#options 	RANDOM_FORTUNA	# Fortuna CSPRNG
 options 	RANDOM_DEBUG	# Debugging messages
-options 	RANDOM_RWFILE	# Read and write entropy cache
 
 # Module to enable execution of application via emulators like QEMU
 options         IMAGACT_BINMISC

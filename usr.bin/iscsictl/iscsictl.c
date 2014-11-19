@@ -758,14 +758,9 @@ main(int argc, char **argv)
 				errx(1, "-n and -p and mutually exclusive");
 			if (target != NULL)
 				errx(1, "-n and -t and mutually exclusive");
-		} else if (portal != NULL) {
-			if (target != NULL)
-				errx(1, "-p and -t and mutually exclusive");
-		} else if (target != NULL) {
-			if (portal != NULL)
-				errx(1, "-t and -p and mutually exclusive");
-		} else
+		} else if (target == NULL && portal == NULL) {
 			errx(1, "must specify either -a, -n, -t, or -p");
+		}
 
 		if (session_id != -1)
 			errx(1, "-i cannot be used with -R");

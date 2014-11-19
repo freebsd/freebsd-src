@@ -170,14 +170,21 @@ gr_copy(int ffd, int tfd, const struct group *gr, struct group *old_gr)
 	size_t len;
 	int eof, readlen;
 
-	sgr = gr;
+	if (old_gr == NULL && gr == NULL)
+		return(-1);
+
+	sgr = old_gr;
+	/* deleting a group */
 	if (gr == NULL) {
 		line = NULL;
-		if (old_gr == NULL)
+	} else {
+		if ((line = gr_make(gr)) == NULL)
 			return (-1);
-		sgr = old_gr;
-	} else if ((line = gr_make(gr)) == NULL)
-		return (-1);
+	}
+
+	/* adding a group */
+	if (sgr == NULL)
+		sgr = gr;
 
 	eof = 0;
 	len = 0;

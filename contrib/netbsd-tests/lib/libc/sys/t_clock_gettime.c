@@ -63,7 +63,9 @@ __RCSID("$NetBSD: t_clock_gettime.c,v 1.1 2011/10/15 06:42:16 jruoho Exp $");
 #include <sys/param.h>
 #include <sys/sysctl.h>
 
+#ifdef __NetBSD__
 #include <machine/int_limits.h>
+#endif
 
 #include <atf-c.h>
 #include <errno.h>
@@ -73,7 +75,13 @@ __RCSID("$NetBSD: t_clock_gettime.c,v 1.1 2011/10/15 06:42:16 jruoho Exp $");
 #include <time.h>
 #include <unistd.h>
 
+#ifdef __NetBSD__
 #include "../../../h_macros.h"
+#else
+#include <limits.h>
+#include <stdint.h>
+#include "h_macros.h"
+#endif
 
 #define MINPOSDIFF	15000000	/* 15 ms for now */
 #define TIMEOUT		5

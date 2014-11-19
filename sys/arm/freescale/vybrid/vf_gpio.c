@@ -146,8 +146,8 @@ vf_gpio_attach(device_t dev)
 		    "vf_gpio%d.%d", device_get_unit(dev), i);
 	}
 
-	device_add_child(dev, "gpioc", device_get_unit(dev));
-	device_add_child(dev, "gpiobus", device_get_unit(dev));
+	device_add_child(dev, "gpioc", -1);
+	device_add_child(dev, "gpiobus", -1);
 
 	return (bus_generic_attach(dev));
 }
@@ -310,15 +310,6 @@ vf_gpio_pin_setflags(device_t dev, uint32_t pin, uint32_t flags)
 	}
 
 	if (i >= sc->gpio_npins)
-		return (EINVAL);
-
-	/* Check for unwanted flags. */
-	if ((flags & sc->gpio_pins[i].gp_caps) != flags)
-		return (EINVAL);
-
-	/* Can't mix input/output together */
-	if ((flags & (GPIO_PIN_INPUT|GPIO_PIN_OUTPUT)) ==
-	    (GPIO_PIN_INPUT|GPIO_PIN_OUTPUT))
 		return (EINVAL);
 
 	vf_gpio_pin_configure(sc, &sc->gpio_pins[i], flags);

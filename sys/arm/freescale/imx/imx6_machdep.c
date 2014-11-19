@@ -54,8 +54,39 @@ struct fdt_fixup_entry fdt_fixup_table[] = {
 	{ NULL, NULL }
 };
 
+static uint32_t gpio1_node;
+
+/*
+ * Work around the linux workaround for imx6 erratum 006687, in which some
+ * ethernet interrupts don't go to the GPC and thus won't wake the system from
+ * Wait mode. We don't use Wait mode (which halts the GIC, leaving only GPC
+ * interrupts able to wake the system), so we don't experience the bug at all.
+ * The linux workaround is to reconfigure GPIO1_6 as the ENET interrupt by
+ * writing magic values to an undocumented IOMUX register, then letting the gpio
+ * interrupt driver notify the ethernet driver.  We'll be able to do all that
+ * (even though we don't need to) once the INTRNG project is committed and the
+ * imx_gpio driver becomes an interrupt driver.  Until then, this crazy little
+ * workaround watches for requests to map an interrupt 6 with the interrupt
+ * controller node referring to gpio1, and it substitutes the proper ffec
+ * interrupt number.
+ */
+static int
+imx6_decode_fdt(uint32_t iparent, uint32_t *intr, int *interrupt,
+    int *trig, int *pol)
+{
+
+	if (fdt32_to_cpu(intr[0]) == 6 && 
+	    OF_node_from_xref(iparent) == gpio1_node) {
+		*interrupt = 150;
+		*trig = INTR_TRIGGER_CONFORM;
+		*pol  = INTR_POLARITY_CONFORM;
+		return (0);
+	}
+	return (gic_decode_fdt(iparent, intr, interrupt, trig, pol));
+}
+
 fdt_pic_decode_t fdt_pic_table[] = {
-	&gic_decode_fdt,
+	&imx6_decode_fdt,
 	NULL
 };
 
@@ -84,6 +115,9 @@ void
 platform_late_init(void)
 {
 
+	/* Cache the gpio1 node handle for imx6_decode_fdt() workaround code. */
+	gpio1_node = OF_node_from_xref(
+	    OF_finddevice("/soc/aips-bus@02000000/gpio@0209c000"));
 }
 
 /*

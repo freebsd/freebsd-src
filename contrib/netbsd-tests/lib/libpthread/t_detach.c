@@ -75,6 +75,10 @@ ATF_TC_BODY(pthread_detach, tc)
 	rv = pthread_join(t, NULL);
 	ATF_REQUIRE(rv == EINVAL);
 
+#ifdef __FreeBSD__
+	atf_tc_expect_fail("PR # 191906: fails with EINVAL, not ESRCH");
+#endif
+
 	/*
 	 * As usual, ESRCH should follow if
 	 * we try to detach an invalid thread.

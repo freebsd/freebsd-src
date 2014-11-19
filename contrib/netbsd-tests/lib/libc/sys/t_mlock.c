@@ -31,6 +31,9 @@
 #include <sys/cdefs.h>
 __RCSID("$NetBSD: t_mlock.c,v 1.5 2014/02/26 20:49:26 martin Exp $");
 
+#ifdef __FreeBSD__
+#include <sys/types.h>
+#endif
 #include <sys/mman.h>
 #include <sys/resource.h>
 #include <sys/sysctl.h>
@@ -42,6 +45,11 @@ __RCSID("$NetBSD: t_mlock.c,v 1.5 2014/02/26 20:49:26 martin Exp $");
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
+
+#ifdef __FreeBSD__
+#define _KMEMUSER
+#include <machine/vmparam.h>
+#endif
 
 static long page = 0;
 
@@ -79,16 +87,25 @@ ATF_TC_HEAD(mlock_err, tc)
 
 ATF_TC_BODY(mlock_err, tc)
 {
+#ifdef __NetBSD__
 	unsigned long vmin = 0;
 	size_t len = sizeof(vmin);
+#endif
 	void *invalid_ptr;
 	int null_errno = ENOMEM;	/* error expected for NULL */
 
+#ifdef __FreeBSD__
+#ifdef VM_MIN_ADDRESS
+	if ((uintptr_t)VM_MIN_ADDRESS > 0)
+		null_errno = EINVAL;	/* NULL is not inside user VM */
+#endif
+#else
 	if (sysctlbyname("vm.minaddress", &vmin, &len, NULL, 0) != 0)
 		atf_tc_fail("failed to read vm.minaddress");
 
 	if (vmin > 0)
 		null_errno = EINVAL;	/* NULL is not inside user VM */
+#endif
 
 	errno = 0;
 	ATF_REQUIRE_ERRNO(null_errno, mlock(NULL, page) == -1);
@@ -156,7 +173,17 @@ ATF_TC_BODY(mlock_limits, tc)
 
 			errno = 0;
 
+#ifdef __FreeBSD__
+			/*
+			 * NetBSD doesn't conform to POSIX with ENOMEM requirement;
+			 * FreeBSD does.
+			 *
+			 * See: NetBSD PR # kern/48962 for more details.
+			 */
+			if (mlock(buf, i) != -1 || errno != ENOMEM) {
+#else
 			if (mlock(buf, i) != -1 || errno != EAGAIN) {
+#endif
 				(void)munlock(buf, i);
 				_exit(EXIT_FAILURE);
 			}
@@ -181,7 +208,11 @@ ATF_TC_HEAD(mlock_mmap, tc)
 
 ATF_TC_BODY(mlock_mmap, tc)
 {
+#ifdef __NetBSD__
 	static const int flags = MAP_ANON | MAP_PRIVATE | MAP_WIRED;
+#else
+	static const int flags = MAP_ANON | MAP_PRIVATE;
+#endif
 	void *buf;
 
 	/*
@@ -191,6 +222,13 @@ ATF_TC_BODY(mlock_mmap, tc)
 	buf = mmap(NULL, page, PROT_READ | PROT_WRITE, flags, -1, 0);
 
 	ATF_REQUIRE(buf != MAP_FAILED);
+#ifdef __FreeBSD__
+	/*
+	 * The duplicate mlock call is added to ensure that the call works
+	 * as described above without MAP_WIRED support.
+	 */
+	ATF_REQUIRE(mlock(buf, page) == 0);
+#endif
 	ATF_REQUIRE(mlock(buf, page) == 0);
 	ATF_REQUIRE(munlock(buf, page) == 0);
 	ATF_REQUIRE(munmap(buf, page) == 0);
@@ -202,7 +240,11 @@ ATF_TC_BODY(mlock_mmap, tc)
 	buf = mmap(NULL, page, PROT_NONE, flags, -1, 0);
 
 	ATF_REQUIRE(buf != MAP_FAILED);
+#ifdef __FreeBSD__
+	ATF_REQUIRE_ERRNO(ENOMEM, mlock(buf, page) != 0);
+#else
 	ATF_REQUIRE(mlock(buf, page) != 0);
+#endif
 	ATF_REQUIRE(munmap(buf, page) == 0);
 }
 

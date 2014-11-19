@@ -490,6 +490,7 @@ struct {
 	{0x5411,  "Chelsio T520-LL-CR"},	/* 2 x 10G */
 	{0x5412,  "Chelsio T560-CR"},		/* 1 x 40G, 2 x 10G */
 	{0x5414,  "Chelsio T580-LP-SO-CR"},	/* 2 x 40G, nomem */
+	{0x5415,  "Chelsio T502-BT"},		/* 2 x 1G */
 #ifdef notyet
 	{0x5404,  "Chelsio T520-BCH"},
 	{0x5405,  "Chelsio T540-BCH"},
@@ -1589,7 +1590,9 @@ cxgbe_media_status(struct ifnet *ifp, struct ifmediareq *ifmr)
 	struct ifmedia *media = NULL;
 	struct ifmedia_entry *cur;
 	int speed = pi->link_cfg.speed;
+#ifdef INVARIANTS
 	int data = (pi->port_type << 8) | pi->mod_type;
+#endif
 
 	if (ifp == pi->ifp)
 		media = &pi->media;
@@ -1600,10 +1603,7 @@ cxgbe_media_status(struct ifnet *ifp, struct ifmediareq *ifmr)
 	MPASS(media != NULL);
 
 	cur = media->ifm_cur;
-	if (cur->ifm_data != data) {
-		build_medialist(pi, media);
-		cur = media->ifm_cur;
-	}
+	MPASS(cur->ifm_data == data);
 
 	ifmr->ifm_status = IFM_AVALID;
 	if (!pi->link_cfg.link_ok)
@@ -8003,6 +8003,11 @@ t4_os_portmod_changed(const struct adapter *sc, int idx)
 	static const char *mod_str[] = {
 		NULL, "LR", "SR", "ER", "TWINAX", "active TWINAX", "LRM"
 	};
+
+	build_medialist(pi, &pi->media);
+#ifdef DEV_NETMAP
+	build_medialist(pi, &pi->nm_media);
+#endif
 
 	if (pi->mod_type == FW_PORT_MOD_TYPE_NONE)
 		if_printf(pi->ifp, "transceiver unplugged.\n");

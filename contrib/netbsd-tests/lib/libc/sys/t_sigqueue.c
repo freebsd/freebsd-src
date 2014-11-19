@@ -46,7 +46,11 @@ static void	handler(int, siginfo_t *, void *);
 static int value;
 
 static void
+#ifdef __FreeBSD__
+handler(int signo __unused, siginfo_t *info __unused, void *data __unused)
+#else
 handler(int signo, siginfo_t *info, void *data)
+#endif
 {
 	value = info->si_value.sival_int;
 	kill(0, SIGINFO);
@@ -72,7 +76,15 @@ ATF_TC_BODY(sigqueue_basic, tc)
 
 	sv.sival_int = VALUE;
 
+#ifdef __FreeBSD__
+	/* 
+	 * From kern_sig.c:
+	 * Specification says sigqueue can only send signal to single process.
+	 */
+	if (sigqueue(getpid(), SIGUSR1, sv) != 0)
+#else
 	if (sigqueue(0, SIGUSR1, sv) != 0)
+#endif
 		atf_tc_fail("sigqueue failed");
 
 	sched_yield();

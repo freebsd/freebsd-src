@@ -47,6 +47,10 @@ __RCSID("$NetBSD: t_msgsnd.c,v 1.2 2011/11/05 08:47:54 jruoho Exp $");
 #include <time.h>
 #include <unistd.h>
 
+#ifdef __FreeBSD__
+#include <limits.h>
+#endif
+
 #define MSG_KEY		1234
 #define MSG_MTYPE_1	0x41
 #define	MSG_MTYPE_2	0x42

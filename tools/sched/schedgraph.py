@@ -70,6 +70,7 @@ eventcolors = [
 	("count",	"red"),
 	("running",	"green"),
 	("idle",	"grey"),
+	("spinning",	"red"),
 	("yielding",	"yellow"),
 	("swapped",	"violet"),
 	("suspended",	"purple"),
@@ -286,6 +287,10 @@ class ColorConfigure(Toplevel):
 			color = graph.getcolor(type[0])
 			if (color != ""):
 				self.additem(type[0], color)
+		self.bind("<Control-w>", self.destroycb)
+
+	def destroycb(self, event):
+		self.destroy()
 
 	def additem(self, name, color):
 		item = ColorConf(self.items, name, color)
@@ -371,6 +376,10 @@ class SourceConfigure(Toplevel):
 			self.addsource(source)
 		self.drawbuttons()
 		self.buttons.grid(row=1, column=0, sticky=W)
+		self.bind("<Control-w>", self.destroycb)
+
+	def destroycb(self, event):
+		self.destroy()
 
 	def addsource(self, source):
 		if (self.irow > 30):
@@ -485,6 +494,10 @@ class SourceStats(Toplevel):
 			    bd=1, relief=SUNKEN, width=10).grid(
 			    row=ypos, column=3, sticky=W+E)
 			ypos += 1
+		self.bind("<Control-w>", self.destroycb)
+
+	def destroycb(self, event):
+		self.destroy()
 
 
 class SourceContext(Menu):
@@ -527,6 +540,7 @@ class EventView(Toplevel):
 		self.drawbuttons()
 		event.displayref(canvas)
 		self.bind("<Destroy>", self.destroycb)
+		self.bind("<Control-w>", self.destroycb)
 
 	def destroycb(self, event):
 		self.unbind("<Destroy>")
@@ -1307,6 +1321,10 @@ class SchedGraph(Frame):
 		self.pack(expand=1, fill="both")
 		self.buildwidgets()
 		self.layout()
+		self.bind_all("<Control-q>", self.quitcb)
+
+	def quitcb(self, event):
+		self.quit()
 
 	def buildwidgets(self):
 		global status

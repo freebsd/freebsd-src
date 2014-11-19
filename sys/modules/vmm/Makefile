@@ -4,6 +4,7 @@ KMOD=	vmm
 
 SRCS=	opt_acpi.h opt_ddb.h device_if.h bus_if.h pci_if.h
 SRCS+=	vmx_assym.h svm_assym.h
+DPSRCS=	vmx_genassym.c svm_genassym.c
 
 CFLAGS+= -DVMM_KEEP_STATS -DSMP
 CFLAGS+= -I${.CURDIR}/../../amd64/vmm
@@ -33,7 +34,8 @@ SRCS+=	iommu.c		\
 	vatpit.c	\
 	vhpet.c		\
 	vioapic.c	\
-	vlapic.c
+	vlapic.c	\
+	vpmtmr.c
 
 # intel-specific files
 .PATH: ${.CURDIR}/../../amd64/vmm/intel
@@ -52,20 +54,14 @@ SRCS+=	vmcb.c		\
 	npt.c		\
 	amdv.c		\
 	svm_msr.c
-	
+
 CLEANFILES=	vmx_assym.h vmx_genassym.o svm_assym.h svm_genassym.o
 
 vmx_assym.h:    vmx_genassym.o
-.if exists(@)
-vmx_assym.h:    @/kern/genassym.sh
-.endif
-	sh @/kern/genassym.sh vmx_genassym.o > ${.TARGET}
+	sh ${SYSDIR}/kern/genassym.sh vmx_genassym.o > ${.TARGET}
 
 svm_assym.h:    svm_genassym.o
-.if exists(@)
-svm_assym.h:    @/kern/genassym.sh
-.endif
-	sh @/kern/genassym.sh svm_genassym.o > ${.TARGET}
+	sh ${SYSDIR}/kern/genassym.sh svm_genassym.o > ${.TARGET}
 
 vmx_support.o:
 	${CC} -c -x assembler-with-cpp -DLOCORE ${CFLAGS} \

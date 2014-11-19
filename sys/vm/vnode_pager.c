@@ -727,17 +727,12 @@ vnode_pager_generic_getpages(struct vnode *vp, vm_page_t *m, int bytecount,
 		return VM_PAGER_BAD;
 
 	bsize = vp->v_mount->mnt_stat.f_iosize;
-
-	/* get the UNDERLYING device for the file with VOP_BMAP() */
-
-	/*
-	 * originally, we did not check for an error return value -- assuming
-	 * an fs always has a bmap entry point -- that assumption is wrong!!!
-	 */
 	foff = IDX_TO_OFF(m[reqpage]->pindex);
 
 	/*
-	 * if we can't bmap, use old VOP code
+	 * Get the underlying device blocks for the file with VOP_BMAP().
+	 * If the file system doesn't support VOP_BMAP, use old way of
+	 * getting pages via VOP_READ.
 	 */
 	error = VOP_BMAP(vp, foff / bsize, &bo, &reqblock, NULL, NULL);
 	if (error == EOPNOTSUPP) {

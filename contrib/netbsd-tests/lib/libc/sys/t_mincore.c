@@ -74,6 +74,10 @@ __RCSID("$NetBSD: t_mincore.c,v 1.8 2012/06/08 07:18:58 martin Exp $");
 #include <unistd.h>
 #include <sys/resource.h>
 
+#ifdef __FreeBSD__
+#include <sys/stat.h>
+#endif
+
 static long		page = 0;
 static const char	path[] = "mincore";
 static size_t		check_residency(void *, size_t);
@@ -121,8 +125,10 @@ ATF_TC_BODY(mincore_err, tc)
 	ATF_REQUIRE(vec != NULL);
 	ATF_REQUIRE(map != MAP_FAILED);
 
+#ifdef __NetBSD__
 	errno = 0;
 	ATF_REQUIRE_ERRNO(EINVAL, mincore(map, 0, vec) == -1);
+#endif
 
 	errno = 0;
 	ATF_REQUIRE_ERRNO(ENOMEM, mincore(0, page, vec) == -1);
@@ -187,13 +193,21 @@ ATF_TC_BODY(mincore_resid, tc)
 
 	npgs = 128;
 
+#ifdef __FreeBSD__
+	addr = mmap(NULL, npgs * page, PROT_READ | PROT_WRITE,
+	    MAP_ANON | MAP_PRIVATE, -1, (off_t)0);
+#else
 	addr = mmap(NULL, npgs * page, PROT_READ | PROT_WRITE,
 	    MAP_ANON | MAP_PRIVATE | MAP_WIRED, -1, (off_t)0);
+#endif
 
 	if (addr == MAP_FAILED)
 		atf_tc_skip("could not mmap wired anonymous test area, system "
 		    "might be low on memory");
 
+#ifdef __FreeBSD__
+	ATF_REQUIRE(mlock(addr, npgs * page) == 0);
+#endif
 	ATF_REQUIRE(check_residency(addr, npgs) == npgs);
 	ATF_REQUIRE(munmap(addr, npgs * page) == 0);
 
@@ -238,12 +252,16 @@ ATF_TC_BODY(mincore_resid, tc)
 	(void)munlockall();
 
 	ATF_REQUIRE(madvise(addr2, npgs * page, MADV_FREE) == 0);
+#ifdef __NetBSD__
 	ATF_REQUIRE(check_residency(addr2, npgs) == 0);
+#endif
 
 	(void)memset(addr, 0, npgs * page);
 
 	ATF_REQUIRE(madvise(addr, npgs * page, MADV_FREE) == 0);
+#ifdef __NetBSD__
 	ATF_REQUIRE(check_residency(addr, npgs) == 0);
+#endif
 
 	(void)munmap(addr, npgs * page);
 	(void)munmap(addr2, npgs * page);

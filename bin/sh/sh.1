@@ -32,7 +32,7 @@
 .\"	from: @(#)sh.1	8.6 (Berkeley) 5/4/95
 .\" $FreeBSD$
 .\"
-.Dd September 21, 2014
+.Dd November 14, 2014
 .Dt SH 1
 .Os
 .Sh NAME
@@ -795,10 +795,13 @@ should indicate the various exit codes and what they mean.
 Additionally, the built-in commands return exit codes, as does
 an executed shell function.
 .Pp
-If a command is terminated by a signal, its exit status is 128 plus
-the signal number.
-Signal numbers are defined in the header file
-.In sys/signal.h .
+If a command is terminated by a signal, its exit status is greater than 128.
+The signal name can be found by passing the exit status to
+.Li kill -l .
+.Pp
+If there is no command word,
+the exit status is the exit status of the last command substitution executed,
+or zero if the command does not contain any command substitutions.
 .Ss Complex Commands
 Complex commands are combinations of simple commands
 with control operators or keywords, together creating a larger complex
@@ -818,7 +821,8 @@ function definition
 .El
 .Pp
 Unless otherwise stated, the exit status of a command is
-that of the last simple command executed by the command.
+that of the last simple command executed by the command,
+or zero if no simple command was executed.
 .Ss Pipelines
 A pipeline is a sequence of one or more commands separated
 by the control operator
@@ -902,6 +906,8 @@ The format for running a command in background is:
 If the shell is not interactive, the standard input of an
 asynchronous command is set to
 .Pa /dev/null .
+.Pp
+The exit status is zero.
 .Ss Lists (Generally Speaking)
 A list is a sequence of zero or more commands separated by
 newlines, semicolons, or ampersands,
@@ -940,6 +946,13 @@ command is:
 .Ic fi
 .Ed
 .Pp
+The exit status is that of selected
+.Ic then
+or
+.Ic else
+list,
+or zero if no list was selected.
+.Pp
 The syntax of the
 .Ic while
 command is:
@@ -959,6 +972,9 @@ in place of
 .Ic while ,
 which causes it to
 repeat until the exit status of the first list is zero.
+.Pp
+The exit status is that of the last execution of the second list,
+or zero if it was never executed.
 .Pp
 The syntax of the
 .Ic for
@@ -1040,10 +1056,6 @@ continuing until a list terminated with
 or the end of the
 .Ic case
 command.
-The exit code of the
-.Ic case
-command is the exit code of the last command executed in the list or
-zero if no patterns were matched.
 .Ss Grouping Commands Together
 Commands may be grouped by writing either
 .Pp
@@ -1131,6 +1143,8 @@ and the syntax is:
 The
 .Ic local
 command is implemented as a built-in command.
+The exit status is zero
+unless the command is not in a function or a variable name is invalid.
 .Pp
 When a variable is made local, it inherits the initial
 value and exported and readonly flags from the variable
@@ -2522,7 +2536,8 @@ and so on,
 decreasing the value of
 .Li $#
 by one.
-If there are zero positional parameters, shifting does not do anything.
+For portability, shifting if there are zero positional parameters
+should be avoided, since the shell may abort.
 .It Ic test
 A built-in equivalent of
 .Xr test 1 .

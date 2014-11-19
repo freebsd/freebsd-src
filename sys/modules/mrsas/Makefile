@@ -27,4 +27,3 @@ cscope:	clean_cscope
 	/usr/local/bin/cscope -b *.[ch]
 
 cleanall:	clean clean_cscope
-	rm -f '@' machine

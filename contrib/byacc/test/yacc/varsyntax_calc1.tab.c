@@ -176,7 +176,7 @@ extern int YYPARSE_DECL();
 #define CONST 259
 #define UMINUS 260
 #define YYERRCODE 256
-typedef short YYINT;
+typedef int YYINT;
 static const YYINT varsyntax_calc1_lhs[] = {             -1,
     3,    3,    0,    0,    0,    0,    0,    1,    1,    1,
     1,    1,    1,    1,    1,    2,    2,    2,    2,    2,

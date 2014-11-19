@@ -555,7 +555,6 @@ ddb/db_textdump.c		optional ddb
 ddb/db_variables.c		optional ddb
 ddb/db_watch.c			optional ddb
 ddb/db_write_cmd.c		optional ddb
-#dev/dpt/dpt_control.c		optional dpt
 dev/aac/aac.c			optional aac
 dev/aac/aac_cam.c		optional aacp aac
 dev/aac/aac_debug.c		optional aac
@@ -2132,16 +2131,15 @@ rt2860.fw			optional rt2860fw | ralfw		\
 	compile-with	"${NORMAL_FW}"					\
 	no-obj no-implicit-rule						\
 	clean		"rt2860.fw"
-dev/random/harvest.c		standard
-dev/random/dummy_rng.c		standard
+dev/random/randomdev.c		standard
 dev/random/random_adaptors.c	standard
-dev/random/live_entropy_sources.c	optional random
-dev/random/random_harvestq.c	optional random
-dev/random/randomdev.c		optional random
+dev/random/dummy_rng.c		standard
+dev/random/live_entropy_sources.c	standard
+dev/random/random_harvestq.c	standard
 dev/random/randomdev_soft.c	optional random
 dev/random/yarrow.c		optional random
+dev/random/fortuna.c		optional random
 dev/random/hash.c		optional random
-dev/random/rwfile.c		optional random
 dev/rc/rc.c			optional rc
 dev/re/if_re.c			optional re
 dev/rl/if_rl.c			optional rl pci
@@ -2775,7 +2773,7 @@ geom/eli/pkcs5v2.c		optional geom_eli
 geom/gate/g_gate.c		optional geom_gate
 geom/geom_aes.c			optional geom_aes
 geom/geom_bsd.c			optional geom_bsd
-geom/geom_bsd_enc.c		optional geom_bsd
+geom/geom_bsd_enc.c		optional geom_bsd | geom_part_bsd
 geom/geom_ccd.c			optional ccd | geom_ccd
 geom/geom_ctl.c			standard
 geom/geom_dev.c			standard
@@ -3230,16 +3228,16 @@ net/if_edsc.c			optional edsc
 net/if_enc.c			optional enc ipsec inet | enc ipsec inet6
 net/if_epair.c			optional epair
 net/if_ethersubr.c		optional ether
-net/if_faith.c			optional faith
 net/if_fddisubr.c		optional fddi
 net/if_fwsubr.c			optional fwip
 net/if_gif.c			optional gif inet | gif inet6 | \
 					 netgraph_gif inet | netgraph_gif inet6
-net/if_gre.c			optional gre inet
+net/if_gre.c			optional gre inet | gre inet6
 net/if_iso88025subr.c		optional token
 net/if_lagg.c			optional lagg
 net/if_loop.c			optional loop
 net/if_llatbl.c			standard
+net/if_me.c			optional me inet
 net/if_media.c			standard
 net/if_mib.c			standard
 net/if_spppfr.c			optional sppp | netgraph_sppp
@@ -3474,6 +3472,7 @@ netinet6/in6_proto.c		optional inet6
 netinet6/in6_rmx.c		optional inet6
 netinet6/in6_src.c		optional inet6
 netinet6/ip6_forward.c		optional inet6
+netinet6/ip6_gre.c		optional gre inet6
 netinet6/ip6_id.c		optional inet6
 netinet6/ip6_input.c		optional inet6
 netinet6/ip6_mroute.c		optional mrouting inet6

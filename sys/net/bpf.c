@@ -180,8 +180,8 @@ static SYSCTL_NODE(_net_bpf, OID_AUTO, stats, CTLFLAG_MPSAFE | CTLFLAG_RW,
 
 static VNET_DEFINE(int, bpf_optimize_writers) = 0;
 #define	V_bpf_optimize_writers VNET(bpf_optimize_writers)
-SYSCTL_VNET_INT(_net_bpf, OID_AUTO, optimize_writers,
-    CTLFLAG_RW, &VNET_NAME(bpf_optimize_writers), 0,
+SYSCTL_INT(_net_bpf, OID_AUTO, optimize_writers, CTLFLAG_VNET | CTLFLAG_RW,
+    &VNET_NAME(bpf_optimize_writers), 0,
     "Do not send packets until BPF program is set");
 
 static	d_open_t	bpfopen;
@@ -2807,7 +2807,8 @@ bpfstats_fill_xbpf(struct xbpf_d *d, struct bpf_d *bd)
 static int
 bpf_stats_sysctl(SYSCTL_HANDLER_ARGS)
 {
-	struct xbpf_d *xbdbuf, *xbd, zerostats;
+	static const struct xbpf_d zerostats;
+	struct xbpf_d *xbdbuf, *xbd, tempstats;
 	int index, error;
 	struct bpf_if *bp;
 	struct bpf_d *bd;
@@ -2827,11 +2828,13 @@ bpf_stats_sysctl(SYSCTL_HANDLER_ARGS)
 	 * as we aren't allowing the user to set the counters currently.
 	 */
 	if (req->newptr != NULL) {
-		if (req->newlen != sizeof(zerostats))
+		if (req->newlen != sizeof(tempstats))
 			return (EINVAL);
-		bzero(&zerostats, sizeof(zerostats));
-		xbd = req->newptr;
-		if (bcmp(xbd, &zerostats, sizeof(*xbd)) != 0)
+		memset(&tempstats, 0, sizeof(tempstats));
+		error = SYSCTL_IN(req, &tempstats, sizeof(tempstats));
+		if (error)
+			return (error);
+		if (bcmp(&tempstats, &zerostats, sizeof(tempstats)) != 0)
 			return (EINVAL);
 		bpf_zero_counters();
 		return (0);

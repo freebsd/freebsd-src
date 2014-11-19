@@ -118,7 +118,7 @@ whereobj:
 
 .if ${CANONICALOBJDIR} != ${.CURDIR} && exists(${CANONICALOBJDIR}/)
 cleanobj:
-	@rm -rf ${CANONICALOBJDIR}
+	@-rm -rf ${CANONICALOBJDIR}
 .else
 cleanobj: clean cleandepend
 .endif
@@ -136,7 +136,7 @@ clean:
 	rm -f ${CLEANFILES}
 .endif
 .if defined(CLEANDIRS) && !empty(CLEANDIRS)
-	rm -rf ${CLEANDIRS}
+	-rm -rf ${CLEANDIRS}
 .endif
 .endif
 

@@ -694,7 +694,7 @@ acpi_attach(device_t dev)
 static void
 acpi_set_power_children(device_t dev, int state)
 {
-	device_t child, parent;
+	device_t child;
 	device_t *devlist;
 	int dstate, i, numdevs;
 
@@ -705,12 +705,11 @@ acpi_set_power_children(device_t dev, int state)
 	 * Retrieve and set D-state for the sleep state if _SxD is present.
 	 * Skip children who aren't attached since they are handled separately.
 	 */
-	parent = device_get_parent(dev);
 	for (i = 0; i < numdevs; i++) {
 		child = devlist[i];
 		dstate = state;
 		if (device_is_attached(child) &&
-		    acpi_device_pwr_for_sleep(parent, dev, &dstate) == 0)
+		    acpi_device_pwr_for_sleep(dev, child, &dstate) == 0)
 			acpi_set_powerstate(child, dstate);
 	}
 	free(devlist, M_TEMP);
@@ -3783,6 +3782,7 @@ acpi_debug_sysctl(SYSCTL_HANDLER_ARGS)
     int		 error, *dbg;
     struct	 debugtag *tag;
     struct	 sbuf sb;
+    char	 temp[128];
 
     if (sbuf_new(&sb, NULL, 128, SBUF_AUTOEXTEND) == NULL)
 	return (ENOMEM);
@@ -3806,16 +3806,16 @@ acpi_debug_sysctl(SYSCTL_HANDLER_ARGS)
     }
     sbuf_trim(&sb);
     sbuf_finish(&sb);
-
-    /* Copy out the old values to the user. */
-    error = SYSCTL_OUT(req, sbuf_data(&sb), sbuf_len(&sb));
+    strlcpy(temp, sbuf_data(&sb), sizeof(temp));
     sbuf_delete(&sb);
 
-    /* If the user is setting a string, parse it. */
+    error = sysctl_handle_string(oidp, temp, sizeof(temp), req);
+
+    /* Check for error or no change */
     if (error == 0 && req->newptr != NULL) {
-		*dbg = 0;
-		kern_setenv((char *)oidp->oid_arg1, (char *)req->newptr);
-		acpi_set_debugging(NULL);
+	*dbg = 0;
+	kern_setenv((char *)oidp->oid_arg1, temp);
+	acpi_set_debugging(NULL);
     }
     ACPI_SERIAL_END(acpi);
 

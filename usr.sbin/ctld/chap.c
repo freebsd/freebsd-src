@@ -33,6 +33,8 @@ __FBSDID("$FreeBSD$");
 
 #include <assert.h>
 #include <string.h>
+#include <netinet/in.h>
+#include <resolv.h>
 #include <openssl/err.h>
 #include <openssl/md5.h>
 #include <openssl/rand.h>
@@ -105,6 +107,29 @@ chap_hex2int(const char hex)
 	}
 }
 
+static int
+chap_b642bin(const char *b64, void **binp, size_t *bin_lenp)
+{
+	char *bin;
+	int b64_len, bin_len;
+
+	b64_len = strlen(b64);
+	bin_len = (b64_len + 3) / 4 * 3;
+	bin = calloc(bin_len, 1);
+	if (bin == NULL)
+		log_err(1, "calloc");
+
+	bin_len = b64_pton(b64, bin, bin_len);
+	if (bin_len < 0) {
+		log_warnx("malformed base64 variable");
+		free(bin);
+		return (-1);
+	}
+	*binp = bin;
+	*bin_lenp = bin_len;
+	return (0);
+}
+
 /*
  * XXX: Review this _carefully_.
  */
@@ -116,8 +141,12 @@ chap_hex2bin(const char *hex, void **binp, size_t *bin_lenp)
 	char *bin;
 	size_t bin_off, bin_len;
 
+	if (strncasecmp(hex, "0b", strlen("0b")) == 0)
+		return (chap_b642bin(hex + 2, binp, bin_lenp));
+
 	if (strncasecmp(hex, "0x", strlen("0x")) != 0) {
-		log_warnx("malformed variable, should start with \"0x\"");
+		log_warnx("malformed variable, should start with \"0x\""
+		    " or \"0b\"");
 		return (-1);
 	}
 
@@ -160,6 +189,25 @@ chap_hex2bin(const char *hex, void **binp, size_t *bin_lenp)
 	return (0);
 }
 
+#ifdef USE_BASE64
+static char *
+chap_bin2hex(const char *bin, size_t bin_len)
+{
+	unsigned char *b64, *tmp;
+	size_t b64_len;
+
+	b64_len = (bin_len + 2) / 3 * 4 + 3; /* +2 for "0b", +1 for '\0'. */
+	b64 = malloc(b64_len);
+	if (b64 == NULL)
+		log_err(1, "malloc");
+
+	tmp = b64;
+	tmp += sprintf(tmp, "0b");
+	b64_ntop(bin, bin_len, tmp, b64_len - 2);
+
+	return (b64);
+}
+#else
 static char *
 chap_bin2hex(const char *bin, size_t bin_len)
 {
@@ -181,6 +229,7 @@ chap_bin2hex(const char *bin, size_t bin_len)
 
 	return (hex);
 }
+#endif /* !USE_BASE64 */
 
 struct chap *
 chap_new(void)
