@@ -132,6 +132,10 @@ SUBDIR+=	bluetooth
 SUBDIR+=	bsnmpd
 .endif
 
+.if ${MK_CHERI} != "no"
+SUBDIR+=	cheri_tcpdump_control
+.endif
+
 .if ${MK_CTM} != "no"
 SUBDIR+=	ctm
 .endif
