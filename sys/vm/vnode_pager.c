@@ -1028,6 +1028,7 @@ vnode_pager_generic_getpages(struct vnode *vp, vm_page_t *m, int bytecount,
 
 		bp->b_iodone = vnode_pager_generic_getpages_done_async;
 		bp->b_caller1 = d;
+		bp->b_flags |= B_ASYNC;
 		BUF_KERNPROC(bp);
 		bstrategy(bp);
 		/* Good bye! */
