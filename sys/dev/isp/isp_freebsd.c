@@ -2136,9 +2136,8 @@ static void
 isp_refire_putback_atio(void *arg)
 {
 	union ccb *ccb = arg;
-	ispsoftc_t *isp = XS_ISP(ccb);
 
-	ISP_ASSERT_LOCKED(isp);
+	ISP_ASSERT_LOCKED((ispsoftc_t *)XS_ISP(ccb));
 	isp_target_putback_atio(ccb);
 }
 

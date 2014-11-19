@@ -957,7 +957,7 @@ vnode_pager_generic_getpages(struct vnode *vp, vm_page_t *m, int bytecount,
 	 * and map the pages to be read into the kva, if the filesystem
 	 * requires mapped buffers.
 	 */
-	if ((vp->v_mount->mnt_kern_flag & MNTK_UNMAPPED_BUFS) &&
+	if ((vp->v_mount->mnt_kern_flag & MNTK_UNMAPPED_BUFS) != 0 &&
 	    unmapped_buf_allowed) {
 		bp->b_data = unmapped_buf;
 		bp->b_kvabase = unmapped_buf;

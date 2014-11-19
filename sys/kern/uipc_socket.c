@@ -1310,7 +1310,7 @@ restart:
 				resid = 0;
 				if (flags & MSG_EOR)
 					top->m_flags |= M_EOR;
-			} else {
+			} else if (resid > 0) {
 				/*
 				 * Copy the data from userland into a mbuf
 				 * chain.  If no data is to be copied in,
