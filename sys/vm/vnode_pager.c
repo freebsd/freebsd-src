@@ -1014,7 +1014,7 @@ vnode_pager_generic_getpages(struct vnode *vp, vm_page_t *m, int bytecount,
 		relpbuf(bp, &vnode_pbuf_freecnt);
 	}
 
-	return (error ? VM_PAGER_ERROR : VM_PAGER_OK);
+	return (error != 0 ? VM_PAGER_ERROR : VM_PAGER_OK);
 }
 
 static void
