@@ -7,7 +7,11 @@
 .error src.libnames.mk cannot be included directly.
 .endif
 
+.if defined(OBJTOP)
+ROOTOBJDIR= ${OBJTOP}
+.else
 ROOTOBJDIR=	${.OBJDIR:S/${.CURDIR}//}${.MAKE.MAKEFILES:M*/src.libnames.mk:H:H:H}
+.endif
 
 LIBATF_CDIR=	${ROOTOBJDIR}/lib/atf/libatf-c
 LDATF_C?=	${LIBATF_CDIR}/libatf-c.so
