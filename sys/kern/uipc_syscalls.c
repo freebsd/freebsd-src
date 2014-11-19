@@ -2070,8 +2070,11 @@ sf_iodone(void *arg, vm_page_t *pg, int reqpage, int error)
 	struct sf_io *sfio = arg;
 	struct socket *so;
 
-	if (error)
-		sfio->error = error;
+	if (pg) {
+		vm_page_xunbusy(pg[reqpage]);
+		if (error)
+			sfio->error = error;
+	}
 
 	if (!refcount_release(&sfio->nios))
 		return;

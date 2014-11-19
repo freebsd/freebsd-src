@@ -1061,7 +1061,6 @@ vnode_pager_generic_getpages_done_async(struct buf *bp)
 	int error;
 
 	error = vnode_pager_generic_getpages_done(d);
-	vm_page_xunbusy(d->m[d->reqpage]);
 	d->iodone(d->arg, d->m, d->reqpage, error);
 	free(d, M_TEMP);
 }
