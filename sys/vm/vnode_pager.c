@@ -714,7 +714,6 @@ vnode_pager_generic_getpages(struct vnode *vp, vm_page_t *m, int bytecount,
 	int runpg;
 	int runend;
 	struct buf *bp;
-	struct mount *mp;
 	int count;
 	int error;
 
@@ -906,8 +905,7 @@ vnode_pager_generic_getpages(struct vnode *vp, vm_page_t *m, int bytecount,
 	 * and map the pages to be read into the kva, if the filesystem
 	 * requires mapped buffers.
 	 */
-	mp = vp->v_mount;
-	if (mp != NULL && (mp->mnt_kern_flag & MNTK_UNMAPPED_BUFS) != 0 &&
+	if ((vp->v_mount->mnt_kern_flag & MNTK_UNMAPPED_BUFS) != 0 &&
 	    unmapped_buf_allowed) {
 		bp->b_data = unmapped_buf;
 		bp->b_kvabase = unmapped_buf;
@@ -955,7 +953,7 @@ vnode_pager_generic_getpages(struct vnode *vp, vm_page_t *m, int bytecount,
 	}
 	if ((bp->b_flags & B_UNMAPPED) == 0)
 		pmap_qremove(kva, count);
-	if (mp != NULL && (mp->mnt_kern_flag & MNTK_UNMAPPED_BUFS) != 0) {
+	if ((vp->v_mount->mnt_kern_flag & MNTK_UNMAPPED_BUFS) != 0) {
 		bp->b_data = (caddr_t)kva;
 		bp->b_kvabase = (caddr_t)kva;
 		bp->b_flags &= ~B_UNMAPPED;
