@@ -981,11 +981,9 @@ vnode_pager_generic_getpages(struct vnode *vp, vm_page_t *m, int bytecount,
 			 */
 			mt->valid = VM_PAGE_BITS_ALL;
 			KASSERT(mt->dirty == 0,
-			    ("vnode_pager_generic_getpages: page %p is dirty",
-			    mt));
+			    ("%s: page %p is dirty", __func__, mt));
 			KASSERT(!pmap_page_is_mapped(mt),
-			    ("vnode_pager_generic_getpages: page %p is mapped",
-			    mt));
+			    ("%s: page %p is mapped", __func__, mt));
 		} else {
 			/*
 			 * Read did not fill up entire page.
@@ -998,8 +996,7 @@ vnode_pager_generic_getpages(struct vnode *vp, vm_page_t *m, int bytecount,
 			    object->un_pager.vnp.vnp_size - tfoff);
 			KASSERT((mt->dirty & vm_page_bits(0,
 			    object->un_pager.vnp.vnp_size - tfoff)) == 0,
-			    ("vnode_pager_generic_getpages: page %p is dirty",
-			    mt));
+			    ("%s: page %p is dirty", __func__, mt));
 		}
 		
 		if (i != reqpage)
