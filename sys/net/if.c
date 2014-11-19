@@ -747,13 +747,6 @@ if_attach_internal(struct ifnet *ifp, int vmove)
 				    ifp->if_hw_tsomaxsegsize);
 			}
 		}
-		/*
-		 * If the "if_hw_tsomax" limit is set, check if it is
-		 * too small:
-		 */
-		KASSERT(ifp->if_hw_tsomax == 0 ||
-		    ifp->if_hw_tsomax >= (IP_MAXPACKET / 8),
-		    ("%s: if_hw_tsomax is outside of range", __func__));
 #endif
 	}
 #ifdef VIMAGE

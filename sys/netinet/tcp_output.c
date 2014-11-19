@@ -794,9 +794,9 @@ send:
 				max_len = (if_hw_tsomax - hdrlen);
 				if (max_len <= 0) {
 					len = 0;
-				} else if (len > (u_int)max_len) {
+				} else if (len > max_len) {
 					sendalot = 1;
-					len = (u_int)max_len;
+					len = max_len;
 				}
 			}
 
@@ -809,7 +809,7 @@ send:
 				max_len = 0;
 				mb = sbsndmbuf(&so->so_snd, off, &moff);
 
-				while (mb != NULL && (u_int)max_len < len) {
+				while (mb != NULL && max_len < len) {
 					u_int mlen;
 					u_int frags;
 
@@ -843,9 +843,9 @@ send:
 				}
 				if (max_len <= 0) {
 					len = 0;
-				} else if (len > (u_int)max_len) {
+				} else if (len > max_len) {
 					sendalot = 1;
-					len = (u_int)max_len;
+					len = max_len;
 				}
 			}
 
@@ -856,7 +856,7 @@ send:
 			 */
 			max_len = (tp->t_maxopd - optlen);
 			if ((off + len) < so->so_snd.sb_cc) {
-				moff = len % (u_int)max_len;
+				moff = len % max_len;
 				if (moff != 0) {
 					len -= moff;
 					sendalot = 1;
@@ -867,8 +867,8 @@ send:
 			 * In case there are too many small fragments
 			 * don't use TSO:
 			 */
-			if (len <= (u_int)max_len) {
-				len = (u_int)max_len;
+			if (len <= max_len) {
+				len = max_len;
 				sendalot = 1;
 				tso = 0;
 			}
