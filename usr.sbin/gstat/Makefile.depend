@@ -16,7 +16,6 @@ DIRDEPS = \
 	lib/libgeom \
 	lib/libkvm \
 	lib/libsbuf \
-	lib/ncurses/ncurses \
 	lib/ncurses/ncursesw \
 
 

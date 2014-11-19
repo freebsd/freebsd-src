@@ -101,7 +101,6 @@ DIRDEPS = \
 	usr.sbin/etcupdate \
 	usr.sbin/extattr \
 	usr.sbin/extattrctl \
-	usr.sbin/faithd \
 	usr.sbin/fdcontrol \
 	usr.sbin/fdformat \
 	usr.sbin/fdread \
@@ -112,8 +111,6 @@ DIRDEPS = \
 	usr.sbin/fifolog/fifolog_reader \
 	usr.sbin/flowctl \
 	usr.sbin/freebsd-update \
-	usr.sbin/ftp-proxy/libevent \
-	usr.sbin/ftp-proxy/ftp-proxy \
 	usr.sbin/fwcontrol \
 	usr.sbin/genrandom \
 	usr.sbin/getfmac \

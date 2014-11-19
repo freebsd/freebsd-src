@@ -40,6 +40,10 @@ aslload.o: aslcompiler.y.h
 aslload.po: aslcompiler.y.h
 asllookup.o: aslcompiler.y.h
 asllookup.po: aslcompiler.y.h
+aslmapoutput.o: aslcompiler.y.h
+aslmapoutput.po: aslcompiler.y.h
+aslmaputils.o: aslcompiler.y.h
+aslmaputils.po: aslcompiler.y.h
 aslmethod.o: aslcompiler.y.h
 aslmethod.po: aslcompiler.y.h
 aslnamesp.o: aslcompiler.y.h
