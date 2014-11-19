@@ -821,7 +821,11 @@ tcp_usr_send(struct socket *so, int flags, struct mbuf *m,
 	if (inp->inp_flags & (INP_TIMEWAIT | INP_DROPPED)) {
 		if (control)
 			m_freem(control);
-		if (m)
+		/*
+		 * In case of PRUS_NOTREADY, tcp_usr_ready() is responsible
+		 * for freeing memory.
+		 */
+		if (m && (flags & PRUS_NOTREADY) == 0)
 			m_freem(m);
 		error = ECONNRESET;
 		goto out;
