@@ -77,21 +77,6 @@ sbready(struct sockbuf *sb, struct mbuf *m, int count)
 	u_int blocker;
 
 	SOCKBUF_LOCK_ASSERT(sb);
-
-	if (m->m_flags & M_SBCUT) {
-		/*
-		 * Oops, something bad happened to the socket buffer while
-		 * we were working on the data.  Our mbufs are detached from
-		 * the sockbuf, and all what we can do is free them.
-		 */
-		for (int i = 0; i < count; i++) {
-			KASSERT(m->m_flags & M_SBCUT,
-			    ("%s: m %p !M_SBCUT", __func__, m));
-			m = m_free(m);
-		}
-		return (EPIPE);
-	}
-
 	KASSERT(sb->sb_fnrdy != NULL, ("%s: sb %p NULL fnrdy", __func__, sb));
 
 	blocker = (sb->sb_fnrdy == m) ? M_BLOCKED : 0;
@@ -1032,7 +1017,7 @@ sbflush(struct sockbuf *sb)
 static struct mbuf *
 sbcut_internal(struct sockbuf *sb, int len)
 {
-	struct mbuf *m, *n, *next, *mfree;
+	struct mbuf *m, *next, *mfree;
 
 	next = (m = sb->sb_mb) ? m->m_nextpkt : 0;
 	mfree = NULL;
@@ -1058,14 +1043,20 @@ sbcut_internal(struct sockbuf *sb, int len)
 		}
 		len -= m->m_len;
 		sbfree(sb, m);
-		n = m->m_next;
+		/*
+		 * Do not put M_NOTREADY buffers to the free list, they
+		 * are referenced from outside.
+		 */
 		if (m->m_flags & M_NOTREADY)
-			m->m_flags |= M_SBCUT;
+			m = m->m_next;
 		else {
+			struct mbuf *n;
+
+			n = m->m_next;
 			m->m_next = mfree;
 			mfree = m;
+			m = n;
 		}
-		m = n;
 	}
 	if (m) {
 		sb->sb_mb = m;

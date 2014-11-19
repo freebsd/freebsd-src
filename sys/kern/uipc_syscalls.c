@@ -2092,10 +2092,8 @@ sf_iodone(void *arg, vm_page_t *pg, int reqpage, int error)
 		 * for read, so that application receives EIO on next
 		 * syscall and eventually closes the socket.
 		 */
-		SOCKBUF_LOCK(&(so)->so_snd);
-		sbflush_locked(&so->so_snd);
 		so->so_error = EIO;
-		sowakeup((so), &(so)->so_snd);
+		soisdisconnected(so);
 
 		m = sfio->m;
 		for (int i = 0; i < sfio->npages; i++)
