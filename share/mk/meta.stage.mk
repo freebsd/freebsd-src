@@ -1,4 +1,4 @@
-# $Id: meta.stage.mk,v 1.30 2013/04/19 16:32:57 sjg Exp $
+# $Id: meta.stage.mk,v 1.34 2014/11/20 22:40:08 sjg Exp $
 #
 #	@(#) Copyright (c) 2011, Simon J. Gerraty
 #
@@ -52,7 +52,7 @@ STAGE_DIR_FILTER = tA:@d@$${_STAGED_DIRS::+=$$d}$$d@
 # convert _STAGED_DIRS into suitable filters
 GENDIRDEPS_FILTER += Nnot-empty-is-important \
 	${_STAGED_DIRS:O:u:M${OBJTOP}*:S,${OBJTOP}/,N,} \
-	${_STAGED_DIRS:O:u:N${OBJTOP}*:S,${_objroot},,:C,^([^/]+)/(.*),N\2.\1,:S,${HOST_TARGET},.host,}
+	${_STAGED_DIRS:O:u:M${_objroot}*:N${OBJTOP}*:S,${_objroot},,:C,^([^/]+)/(.*),N\2.\1,:S,${HOST_TARGET},.host,}
 
 LN_CP_SCRIPT = LnCp() { \
   rm -f $$2 2> /dev/null; \
@@ -118,6 +118,9 @@ STAGE_AS_SCRIPT = ${STAGE_DIRDEP_SCRIPT}; StageAs() { \
 # this is simple, a list of the "staged" files depends on this,
 _STAGE_BASENAME_USE:	.USE ${.TARGET:T}
 	@${STAGE_FILE_SCRIPT}; StageFiles ${.TARGET:H:${STAGE_DIR_FILTER}} ${.TARGET:T}
+
+_STAGE_AS_BASENAME_USE:        .USE ${.TARGET:T}
+	@${STAGE_AS_SCRIPT}; StageAs ${.TARGET:H:${STAGE_DIR_FILTER}} ${.TARGET:T} ${STAGE_AS_${.TARGET:T}:U${.TARGET:T}}
 
 .if !empty(STAGE_INCSDIR)
 STAGE_TARGETS += stage_incs
@@ -249,5 +252,26 @@ INSTALL := ${STAGE_INSTALL}
 beforeinstall: .dirdep
 .endif
 .endif
+.NOPATH: ${STAGE_FILES}
 
+.if !empty(STAGE_TARGETS)
+MK_STALE_STAGED?= no
+.if ${MK_STALE_STAGED} == "yes"
+all: stale_staged
+# get a list of paths that we have just staged
+# get a list of paths that we have previously staged to those same dirs
+# anything in the 2nd list but not the first is stale - remove it.
+stale_staged: staging .NOMETA
+	@egrep '^[WL] .*${STAGE_OBJTOP}' /dev/null ${.MAKE.META.FILES:M*stage_*} | \
+	sed "/\.dirdep/d;s,.* '*\(${STAGE_OBJTOP}/[^ '][^ ']*\).*,\1," | \
+	sort > ${.TARGET}.staged1
+	@grep -l '${_dirdep}' /dev/null ${_STAGED_DIRS:M${STAGE_OBJTOP}*:O:u:@d@$d/*.dirdep@} | \
+	sed 's,\.dirdep,,' | sort > ${.TARGET}.staged2
+	@comm -13 ${.TARGET}.staged1 ${.TARGET}.staged2 > ${.TARGET}.stale
+	@test ! -s ${.TARGET}.stale || { \
+		echo "Removing stale staged files..."; \
+		sed 's,.*,& &.dirdep,' ${.TARGET}.stale | xargs rm -f; }
+
+.endif
+.endif
 .endif
