@@ -1811,7 +1811,7 @@ struct scsi_inquiry_data
 					 * reserved for this peripheral
 					 * qualifier.
 					 */
-#define	SID_QUAL_IS_VENDOR_UNIQUE(inq_data) ((SID_QUAL(inq_data) & 0x08) != 0)
+#define	SID_QUAL_IS_VENDOR_UNIQUE(inq_data) ((SID_QUAL(inq_data) & 0x04) != 0)
 	u_int8_t dev_qual2;
 #define	SID_QUAL2	0x7F
 #define	SID_LU_CONG	0x40
