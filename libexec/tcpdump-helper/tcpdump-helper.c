@@ -84,15 +84,15 @@ void	pawned(void);
 
 int	invoke(register_t op, register_t localnet, register_t netmask,
 	    struct cheri_object system_object,
-	    __capability const netdissect_options *ndo,
-	    __capability const char *ndo_espsecret,
-	    __capability const struct pcap_pkthdr *h,
-	    __capability const u_char *sp);
+	    const netdissect_options *ndo,
+	    const char *ndo_espsecret,
+	    const struct pcap_pkthdr *h,
+	    const u_char *sp);
 
 static int
 invoke_init(bpf_u_int32 localnet, bpf_u_int32 netmask,
-    __capability const netdissect_options *ndo,
-    __capability const char *ndo_espsecret)
+    const netdissect_options *ndo,
+    const char *ndo_espsecret)
 {
 	size_t espsec_len;
 
@@ -115,7 +115,7 @@ invoke_init(bpf_u_int32 localnet, bpf_u_int32 netmask,
 		if (gndo->ndo_espsecret != NULL)
 			free(gndo->ndo_espsecret);
 		
-		espsec_len = cheri_getlen((__capability void *)ndo_espsecret);
+		espsec_len = cheri_getlen((void *)ndo_espsecret);
 		gndo->ndo_espsecret = malloc(espsec_len);
 		if (gndo->ndo_espsecret == NULL)
 			abort();
@@ -162,9 +162,9 @@ invoke_init(bpf_u_int32 localnet, bpf_u_int32 netmask,
 int
 invoke(register_t op, register_t arg1, register_t arg2,
     struct cheri_object system_object,
-    __capability const netdissect_options *ndo,
-    __capability const char *ndo_espsecret,
-    __capability const struct pcap_pkthdr *h, __capability const u_char *sp)
+    const netdissect_options *ndo,
+    const char *ndo_espsecret,
+    const struct pcap_pkthdr *h, const u_char *sp)
 {
 	int ret;
 
@@ -188,7 +188,7 @@ invoke(register_t op, register_t arg1, register_t arg2,
 		    cheri_getlen((void *)sp),
 		    cheri_getoffset((void *)sp));
 #endif
-		assert(h->caplen == cheri_getlen((__capability void *)sp));
+		assert(h->caplen == cheri_getlen((void *)sp));
 
 		/*
 		 * XXXBD: Hack around the need to not store the packet except
