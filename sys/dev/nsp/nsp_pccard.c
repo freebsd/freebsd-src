@@ -84,7 +84,12 @@ const struct pccard_product nsp_products[] = {
 static void
 nsp_pccard_intr(void * arg)
 {
-	nspintr(arg);
+	struct nsp_softc *sc;
+
+	sc = arg;
+	SCSI_LOW_LOCK(&sc->sc_sclow);
+	nspintr(sc);
+	SCSI_LOW_UNLOCK(&sc->sc_sclow);
 }
 
 static void
@@ -103,6 +108,7 @@ nsp_release_resource(device_t dev)
 	if (sc->mem_res)
 		bus_release_resource(dev, SYS_RES_MEMORY,
 				     sc->mem_rid, sc->mem_res);
+	mtx_destroy(&sc->sc_sclow.sl_lock);
 }
 
 static int
@@ -116,6 +122,7 @@ nsp_alloc_resource(device_t dev)
 	if (error || iosize < NSP_IOSIZE)
 		return(ENOMEM);
 
+	mtx_init(&sc->sc_sclow.sl_lock, "nsp", NULL, MTX_DEF);
 	sc->port_rid = 0;
 	sc->port_res = bus_alloc_resource(dev, SYS_RES_IOPORT, &sc->port_rid,
 					  0, ~0, NSP_IOSIZE, RF_ACTIVE);
@@ -167,7 +174,7 @@ nsp_pccard_probe(device_t dev)
 	    sizeof(nsp_products[0]), NULL)) != NULL) {
 		if (pp->pp_name)
 			device_set_desc(dev, pp->pp_name);
-		return(0);
+		return (BUS_PROBE_DEFAULT);
 	}
 	return(EIO);
 }
@@ -185,8 +192,8 @@ nsp_pccard_attach(device_t dev)
 		nsp_release_resource(dev);
 		return(ENXIO);
 	}
-	error = bus_setup_intr(dev, sc->irq_res, INTR_TYPE_CAM | INTR_ENTROPY,
-			       NULL, nsp_pccard_intr, (void *)sc, &sc->nsp_intrhand);
+	error = bus_setup_intr(dev, sc->irq_res, INTR_TYPE_CAM | INTR_ENTROPY |
+	    INTR_MPSAFE, NULL, nsp_pccard_intr, sc, &sc->nsp_intrhand);
 	if (error) {
 		nsp_release_resource(dev);
 		return(error);
@@ -231,12 +238,9 @@ static void
 nsp_card_unload(device_t devi)
 {
 	struct nsp_softc *sc = device_get_softc(devi);
-	intrmask_t s;
 
-	s = splcam();
-	scsi_low_deactivate((struct scsi_low_softc *)sc);
-        scsi_low_dettach(&sc->sc_sclow);
-	splx(s);
+	scsi_low_deactivate(&sc->sc_sclow);
+        scsi_low_detach(&sc->sc_sclow);
 }
 
 static	int
@@ -245,8 +249,7 @@ nspprobe(device_t devi)
 	int rv;
 	struct nsp_softc *sc = device_get_softc(devi);
 
-	rv = nspprobesubr(rman_get_bustag(sc->port_res),
-			  rman_get_bushandle(sc->port_res),
+	rv = nspprobesubr(sc->port_res,
 			  device_get_flags(devi));
 
 	return rv;
@@ -259,36 +262,22 @@ nspattach(device_t devi)
 	struct scsi_low_softc *slp;
 	u_int32_t flags = device_get_flags(devi);
 	u_int	iobase = bus_get_resource_start(devi, SYS_RES_IOPORT, 0);
-	intrmask_t s;
-	char	dvname[16];
-
-	strcpy(dvname,"nsp");
 
 	if (iobase == 0) {
-		printf("%s: no ioaddr is given\n", dvname);
-		return (0);
+		device_printf(devi, "no ioaddr is given\n");
+		return (ENXIO);
 	}
 
 	sc = device_get_softc(devi);
-	if (sc == NULL)
-		return (0);
-
 	slp = &sc->sc_sclow;
 	slp->sl_dev = devi;
-	sc->sc_iot = rman_get_bustag(sc->port_res);
-	sc->sc_ioh = rman_get_bushandle(sc->port_res);
 
 	if (sc->mem_res == NULL) {
-		printf("WARNING: CANNOT GET Memory RESOURCE going PIO mode");
+		device_printf(devi,
+		    "WARNING: CANNOT GET Memory RESOURCE going PIO mode\n");
 		flags |= PIO_MODE;
 	}
 
-	if ((flags & PIO_MODE) == 0) {
-		sc->sc_memt = rman_get_bustag(sc->mem_res);
-		sc->sc_memh = rman_get_bushandle(sc->mem_res);
-	} else {
-		sc->sc_memh = 0;
-	}
 	/* slp->sl_irq = devi->pd_irq; */
 	sc->sc_iclkdiv = CLKDIVR_20M;
 	sc->sc_clkdiv = CLKDIVR_40M;
@@ -296,9 +285,7 @@ nspattach(device_t devi)
 	slp->sl_hostid = NSP_HOSTID;
 	slp->sl_cfgflags = flags;
 
-	s = splcam();
 	nspattachsubr(sc);
-	splx(s);
 
 	return(NSP_IOSIZE);
 }

@@ -49,6 +49,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/queue.h>
 #include <sys/malloc.h>
 #include <sys/errno.h>
+#include <sys/rman.h>
 
 #include <machine/cpu.h>
 #include <machine/bus.h>
@@ -169,7 +170,7 @@ static __inline void
 stghw_bcr_write_1(struct stg_softc *sc, u_int8_t bcv)
 {
 
-	bus_space_write_1(sc->sc_iot, sc->sc_ioh, tmc_bctl, bcv);
+	bus_write_1(sc->port_res, tmc_bctl, bcv);
 	sc->sc_busimg = bcv;
 }
 
@@ -178,13 +179,11 @@ stghw_check(sc)
 	struct stg_softc *sc;
 {
 	struct scsi_low_softc *slp = &sc->sc_sclow;
-	bus_space_tag_t iot = sc->sc_iot;
-	bus_space_handle_t ioh = sc->sc_ioh;
 	u_int fcbsize, fcb;
 	u_int16_t lsb, msb;
 
-	lsb = bus_space_read_1(iot, ioh, tmc_idlsb);
-	msb = bus_space_read_1(iot, ioh, tmc_idmsb);
+	lsb = bus_read_1(sc->port_res, tmc_idlsb);
+	msb = bus_read_1(sc->port_res, tmc_idmsb);
 	switch (msb << 8 | lsb)
 	{
 		case 0x6127:
@@ -193,7 +192,7 @@ stghw_check(sc)
 			return EINVAL;
 
 		case 0x60e9:
-			if (bus_space_read_1(iot, ioh, tmc_cfg2) & 0x02)
+			if (bus_read_1(sc->port_res, tmc_cfg2) & 0x02)
 			{
 				sc->sc_chip = TMCCHIP_18C30;
 				sc->sc_fsz = TMC18C30_FIFOSZ;
@@ -234,17 +233,15 @@ static void
 stghw_init(sc)
 	struct stg_softc *sc;
 {
-	bus_space_tag_t iot = sc->sc_iot;
-	bus_space_handle_t ioh = sc->sc_ioh;
 
-	bus_space_write_1(iot, ioh, tmc_ictl, 0);
+	bus_write_1(sc->port_res, tmc_ictl, 0);
 	stghw_bcr_write_1(sc, BCTL_BUSFREE);
-	bus_space_write_1(iot, ioh, tmc_fctl,
+	bus_write_1(sc->port_res, tmc_fctl,
 			  sc->sc_fcRinit | FCTL_CLRFIFO | FCTL_CLRINT);
-	bus_space_write_1(iot, ioh, tmc_fctl, sc->sc_fcRinit);
-	bus_space_write_1(iot, ioh, tmc_ictl, sc->sc_icinit);
+	bus_write_1(sc->port_res, tmc_fctl, sc->sc_fcRinit);
+	bus_write_1(sc->port_res, tmc_ictl, sc->sc_icinit);
 
-	bus_space_write_1(iot, ioh, tmc_ssctl, 0);
+	bus_write_1(sc->port_res, tmc_ssctl, 0);
 }
 
 static int
@@ -275,7 +272,7 @@ stghw_attention(sc)
 
 	sc->sc_busc |= BCTL_ATN;
 	sc->sc_busimg |= BCTL_ATN;
-	bus_space_write_1(sc->sc_iot, sc->sc_ioh, tmc_bctl, sc->sc_busimg);
+	bus_write_1(sc->port_res, tmc_bctl, sc->sc_busimg);
 	DELAY(10);
 }
 
@@ -283,11 +280,9 @@ static void
 stghw_bus_reset(sc)
 	struct stg_softc *sc;
 {
-	bus_space_tag_t iot = sc->sc_iot;
-	bus_space_handle_t ioh = sc->sc_ioh;
 
-	bus_space_write_1(iot, ioh, tmc_ictl, 0);
-	bus_space_write_1(iot, ioh, tmc_fctl, 0);
+	bus_write_1(sc->port_res, tmc_ictl, 0);
+	bus_write_1(sc->port_res, tmc_fctl, 0);
 	stghw_bcr_write_1(sc, BCTL_RST);
 	DELAY(100000);
 	stghw_bcr_write_1(sc, BCTL_BUSFREE);
@@ -298,29 +293,23 @@ stghw_start_selection(sc, cb)
 	struct stg_softc *sc;
 	struct slccb *cb;
 {
-	bus_space_tag_t iot = sc->sc_iot;
-	bus_space_handle_t ioh = sc->sc_ioh;
 	struct targ_info *ti = cb->ti;
 	register u_int8_t stat;
-	int s;
 
 	sc->sc_tmaxcnt = cb->ccb_tcmax * 1000 * 1000;
 	sc->sc_dataout_timeout = 0;
 	sc->sc_ubf_timeout = 0;
 	stghw_bcr_write_1(sc, BCTL_BUSFREE);
-	bus_space_write_1(iot, ioh, tmc_ictl, sc->sc_icinit);
+	bus_write_1(sc->port_res, tmc_ictl, sc->sc_icinit);
 
-	s = splhigh();
-	stat = bus_space_read_1(iot, ioh, tmc_astat);
+	stat = bus_read_1(sc->port_res, tmc_astat);
 	if ((stat & ASTAT_INT) != 0)
 	{
-		splx(s);
 		return SCSI_LOW_START_FAIL;
 	}
 
-	bus_space_write_1(iot, ioh, tmc_scsiid, sc->sc_idbit);
-	bus_space_write_1(iot, ioh, tmc_fctl, sc->sc_fcRinit | FCTL_ARBIT);
-	splx(s);
+	bus_write_1(sc->port_res, tmc_scsiid, sc->sc_idbit);
+	bus_write_1(sc->port_res, tmc_fctl, sc->sc_fcRinit | FCTL_ARBIT);
 
 	SCSI_LOW_SETUP_PHASE(ti, PH_ARBSTART);
 	return SCSI_LOW_START_OK;
@@ -355,8 +344,6 @@ stg_msg(sc, ti, msg)
 	struct targ_info *ti;
 	u_int msg;
 {
-	bus_space_tag_t iot = sc->sc_iot;
-	bus_space_handle_t ioh = sc->sc_ioh;
 	struct stg_targ_info *sti = (void *) ti;
 	u_int period, offset;
 
@@ -390,7 +377,7 @@ stg_msg(sc, ti, msg)
 			sti->sti_reg_synch ++;
 		sti->sti_reg_synch |= SSCTL_SYNCHEN | SSCTL_FSYNCHEN;
 	}
-	bus_space_write_1(iot, ioh, tmc_ssctl, sti->sti_reg_synch);
+	bus_write_1(sc->port_res, tmc_ssctl, sti->sti_reg_synch);
 	return 0;
 }
 
@@ -398,15 +385,12 @@ stg_msg(sc, ti, msg)
  * General probe attach
  **************************************************************/
 int
-stgprobesubr(iot, ioh, dvcfg)
-	bus_space_tag_t iot;
-	bus_space_handle_t ioh;
-	u_int dvcfg;
+stgprobesubr(struct resource *res, u_int dvcfg)
 {
 	u_int16_t lsb, msb;
 
-	lsb = bus_space_read_1(iot, ioh, tmc_idlsb);
-	msb = bus_space_read_1(iot, ioh, tmc_idmsb);
+	lsb = bus_read_1(res, tmc_idlsb);
+	msb = bus_read_1(res, tmc_idmsb);
 	switch (msb << 8 | lsb)
 	{
 		default:
@@ -448,8 +432,6 @@ stg_pdma_end(sc, ti)
 	struct targ_info *ti;
 {
 	struct scsi_low_softc *slp = &sc->sc_sclow;
-	bus_space_tag_t iot = sc->sc_iot;
-	bus_space_handle_t ioh = sc->sc_ioh;
 	struct slccb *cb = slp->sl_Qnexus;
 	u_int len, tres;
 
@@ -465,7 +447,7 @@ stg_pdma_end(sc, ti)
 
 	if (ti->ti_phase == PH_DATA)
 	{
-		len = bus_space_read_2(iot, ioh, tmc_fdcnt);
+		len = bus_read_2(sc->port_res, tmc_fdcnt);
 		if (slp->sl_scp.scp_direction == SCSI_LOW_WRITE)
 		{
 			if (len != 0)
@@ -504,7 +486,7 @@ stg_pdma_end(sc, ti)
 	}
 
 out:
-	bus_space_write_1(iot, ioh, tmc_fctl, sc->sc_fcRinit);
+	bus_write_1(sc->port_res, tmc_fctl, sc->sc_fcRinit);
 }
 
 static void
@@ -514,16 +496,14 @@ stg_pio_read(sc, ti, thold)
 	u_int thold;
 {
 	struct scsi_low_softc *slp = &sc->sc_sclow;
-	bus_space_tag_t iot = sc->sc_iot;
-	bus_space_handle_t ioh = sc->sc_ioh;
 	struct sc_p *sp = &slp->sl_scp;
-	int s, tout;
+	int tout;
 	u_int res;
 	u_int8_t stat;
 
 	if ((slp->sl_flags & HW_PDMASTART) == 0)
 	{
-		bus_space_write_1(iot, ioh, tmc_fctl,
+		bus_write_1(sc->port_res, tmc_fctl,
 				  sc->sc_fcRinit | FCTL_FIFOEN);
 		slp->sl_flags |= HW_PDMASTART;
 	}
@@ -533,21 +513,18 @@ stg_pio_read(sc, ti, thold)
 	{
 		if (thold > 0)
 		{
-			s = splhigh();
-			res = bus_space_read_2(iot, ioh, tmc_fdcnt);
+			res = bus_read_2(sc->port_res, tmc_fdcnt);
 			if (res < thold)
 			{
-				bus_space_write_1(iot, ioh, tmc_ictl,
+				bus_write_1(sc->port_res, tmc_ictl,
 						  sc->sc_icinit);
-				splx(s);
 				break;
 			}
-			splx(s);
 		}
 		else
 		{
-			stat = bus_space_read_1(iot, ioh, tmc_bstat);
-			res = bus_space_read_2(iot, ioh, tmc_fdcnt);
+			stat = bus_read_1(sc->port_res, tmc_bstat);
+			res = bus_read_2(sc->port_res, tmc_fdcnt);
 			if (res == 0)
 			{
 				if ((stat & PHASE_MASK) != DATA_IN_PHASE)
@@ -578,7 +555,7 @@ stg_pio_read(sc, ti, thold)
 				res = STG_MAX_DATA_SIZE;
 			while (res -- > 0)
 			{
-				(void) bus_space_read_1(iot, ioh, tmc_rfifo);
+				(void) bus_read_1(sc->port_res, tmc_rfifo);
 			}
 			continue;
 		}
@@ -586,12 +563,12 @@ stg_pio_read(sc, ti, thold)
 		sp->scp_datalen -= res;
 		if (res & 1)
 		{
-			*sp->scp_data = bus_space_read_1(iot, ioh, tmc_rfifo);
+			*sp->scp_data = bus_read_1(sc->port_res, tmc_rfifo);
 			sp->scp_data ++;
 			res --;
 		}
 
-		bus_space_read_multi_2(iot, ioh, tmc_rfifo,
+		bus_read_multi_2(sc->port_res, tmc_rfifo,
 				       (u_int16_t *) sp->scp_data, res >> 1);
 		sp->scp_data += res;
 	}
@@ -607,25 +584,23 @@ stg_pio_write(sc, ti, thold)
 	u_int thold;
 {
 	struct scsi_low_softc *slp = &sc->sc_sclow;
-	bus_space_tag_t iot = sc->sc_iot;
-	bus_space_handle_t ioh = sc->sc_ioh;
 	struct sc_p *sp = &slp->sl_scp;
 	u_int res;
-	int s, tout;
+	int tout;
 	register u_int8_t stat;
 
 	if ((slp->sl_flags & HW_PDMASTART) == 0)
 	{
 		stat = sc->sc_fcWinit | FCTL_FIFOEN | FCTL_FIFOW;
-		bus_space_write_1(iot, ioh, tmc_fctl, stat | FCTL_CLRFIFO);
-		bus_space_write_1(iot, ioh, tmc_fctl, stat);
+		bus_write_1(sc->port_res, tmc_fctl, stat | FCTL_CLRFIFO);
+		bus_write_1(sc->port_res, tmc_fctl, stat);
 		slp->sl_flags |= HW_PDMASTART;
 	}
 
 	tout = sc->sc_tmaxcnt;
 	while (tout -- > 0)
 	{
-		stat = bus_space_read_1(iot, ioh, tmc_bstat);
+		stat = bus_read_1(sc->port_res, tmc_bstat);
 		if ((stat & PHASE_MASK) != DATA_OUT_PHASE)
 			break;
 
@@ -638,20 +613,17 @@ stg_pio_write(sc, ti, thold)
 
 		if (thold > 0)
 		{
-			s = splhigh();
-			res = bus_space_read_2(iot, ioh, tmc_fdcnt);
+			res = bus_read_2(sc->port_res, tmc_fdcnt);
 			if (res > thold)
 			{
-				bus_space_write_1(iot, ioh, tmc_ictl,
+				bus_write_1(sc->port_res, tmc_ictl,
 						  sc->sc_icinit);
-				splx(s);
 				break;
 			}
-			splx(s);
 		}
 		else
 		{
-			res = bus_space_read_2(iot, ioh, tmc_fdcnt);
+			res = bus_read_2(sc->port_res, tmc_fdcnt);
 			if (res > sc->sc_maxwsize / 2)
 			{
 				DELAY(1);
@@ -668,12 +640,12 @@ stg_pio_write(sc, ti, thold)
 		sp->scp_datalen -= res;
 		if ((res & 0x1) != 0)
 		{
-			bus_space_write_1(iot, ioh, tmc_wfifo, *sp->scp_data);
+			bus_write_1(sc->port_res, tmc_wfifo, *sp->scp_data);
 			sp->scp_data ++;
 			res --;
 		}
 
-		bus_space_write_multi_2(iot, ioh, tmc_wfifo, 
+		bus_write_multi_2(sc->port_res, tmc_wfifo, 
 					(u_int16_t *) sp->scp_data, res >> 1);
 		sp->scp_data += res;
 	}
@@ -686,14 +658,12 @@ static int
 stg_negate_signal(struct stg_softc *sc, u_int8_t mask, u_char *s)
 {
 	struct scsi_low_softc *slp = &sc->sc_sclow;
-	bus_space_tag_t bst = sc->sc_iot;
-	bus_space_handle_t bsh = sc->sc_ioh;
 	int wc;
 	u_int8_t regv;
 
 	for (wc = 0; wc < STG_DELAY_MAX / STG_DELAY_INTERVAL; wc ++)
 	{
-		regv = bus_space_read_1(bst, bsh, tmc_bstat);
+		regv = bus_read_1(sc->port_res, tmc_bstat);
 		if (regv == (u_int8_t) -1)
 			return -1;
 		if ((regv & mask) == 0)
@@ -710,15 +680,13 @@ static int
 stg_expect_signal(struct stg_softc *sc, u_int8_t phase, u_int8_t mask)
 {
 	struct scsi_low_softc *slp = &sc->sc_sclow;
-	bus_space_tag_t bst = sc->sc_iot;
-	bus_space_handle_t bsh = sc->sc_ioh;
 	int wc;
 	u_int8_t ph;
 
 	phase &= PHASE_MASK;
 	for (wc = 0; wc < STG_DELAY_MAX / STG_DELAY_INTERVAL; wc ++)
 	{
-		ph = bus_space_read_1(bst, bsh, tmc_bstat);
+		ph = bus_read_1(sc->port_res, tmc_bstat);
 		if (ph == (u_int8_t) -1)
 			return -1;
 		if ((ph & PHASE_MASK) != phase)
@@ -741,14 +709,12 @@ stg_xfer(sc, buf, len, phase, clear_atn)
 	int phase;
 	int clear_atn;
 {
-	bus_space_tag_t iot = sc->sc_iot;
-	bus_space_handle_t ioh = sc->sc_ioh;
 	int rv, ptr;
 
 	if (phase & BSTAT_IO)
-		bus_space_write_1(iot, ioh, tmc_fctl, sc->sc_fcRinit);
+		bus_write_1(sc->port_res, tmc_fctl, sc->sc_fcRinit);
 	else
-		bus_space_write_1(iot, ioh, tmc_fctl, sc->sc_fcWinit);
+		bus_write_1(sc->port_res, tmc_fctl, sc->sc_fcWinit);
 
 	for (ptr = 0; len > 0; len --)
 	{
@@ -765,18 +731,18 @@ stg_xfer(sc, buf, len, phase, clear_atn)
 
 		if (phase & BSTAT_IO)
 		{
-			buf[ptr ++] = bus_space_read_1(iot, ioh, tmc_rdata);
+			buf[ptr ++] = bus_read_1(sc->port_res, tmc_rdata);
 		}
 		else
 		{
-			bus_space_write_1(iot, ioh, tmc_wdata, buf[ptr ++]);
+			bus_write_1(sc->port_res, tmc_wdata, buf[ptr ++]);
 		}
 
 		stg_negate_signal(sc, BSTAT_ACK, "xfer<ACK>");
 	}
 
 bad:
-	bus_space_write_1(iot, ioh, tmc_fctl, sc->sc_fcRinit);
+	bus_write_1(sc->port_res, tmc_fctl, sc->sc_fcRinit);
 	return len;
 }
 
@@ -788,8 +754,6 @@ stg_reselected(sc)
 	struct stg_softc *sc;
 {
 	struct scsi_low_softc *slp = &sc->sc_sclow;
-	bus_space_tag_t iot = sc->sc_iot;
-	bus_space_handle_t ioh = sc->sc_ioh;
 	int tout;
 	u_int sid;
 	u_int8_t regv;
@@ -799,7 +763,7 @@ stg_reselected(sc)
 		/* XXX:
 		 * Selection vs Reselection conflicts.
 		 */
-		bus_space_write_1(iot, ioh, tmc_fctl, sc->sc_fcRinit);
+		bus_write_1(sc->port_res, tmc_fctl, sc->sc_fcRinit);
 		stghw_bcr_write_1(sc, BCTL_BUSFREE);
 	}
 	else if (slp->sl_Tnexus != NULL)
@@ -816,12 +780,12 @@ stg_reselected(sc)
 	tout = STG_DELAY_SELECT_POLLING_MAX;
 	while (tout -- > 0)
 	{
-		regv = bus_space_read_1(iot, ioh, tmc_bstat);
+		regv = bus_read_1(sc->port_res, tmc_bstat);
 		if ((regv & (BSTAT_IO | BSTAT_SEL | BSTAT_BSY)) == 
 			    (BSTAT_IO | BSTAT_SEL))
 		{
 			DELAY(1);
-			regv = bus_space_read_1(iot, ioh, tmc_bstat);
+			regv = bus_read_1(sc->port_res, tmc_bstat);
 			if ((regv & (BSTAT_IO | BSTAT_SEL | BSTAT_BSY)) == 
 				    (BSTAT_IO | BSTAT_SEL))
 				goto reselect_start;
@@ -832,21 +796,21 @@ stg_reselected(sc)
 	return EJUSTRETURN;
 	
 reselect_start:
-	sid = (u_int) bus_space_read_1(iot, ioh, tmc_scsiid);
+	sid = (u_int) bus_read_1(sc->port_res, tmc_scsiid);
 	if ((sid & sc->sc_idbit) == 0)
 	{
 		/* not us */
 		return EJUSTRETURN;
 	}
 
-	bus_space_write_1(iot, ioh, tmc_fctl, 
+	bus_write_1(sc->port_res, tmc_fctl, 
 			    sc->sc_fcRinit | FCTL_CLRFIFO | FCTL_CLRINT);
-	bus_space_write_1(iot, ioh, tmc_fctl, sc->sc_fcRinit);
+	bus_write_1(sc->port_res, tmc_fctl, sc->sc_fcRinit);
 	stghw_bcr_write_1(sc, sc->sc_busc | BCTL_BSY);
 
 	while (tout -- > 0)
 	{
-		regv = bus_space_read_1(iot, ioh, tmc_bstat);
+		regv = bus_read_1(sc->port_res, tmc_bstat);
 		if ((regv & (BSTAT_SEL | BSTAT_BSY)) == BSTAT_BSY)
 			goto reselected;
 		DELAY(1);
@@ -872,12 +836,10 @@ stg_disconnected(sc, ti)
 	struct targ_info *ti;
 {
 	struct scsi_low_softc *slp = &sc->sc_sclow;
-	bus_space_tag_t iot = sc->sc_iot;
-	bus_space_handle_t ioh = sc->sc_ioh;
 
 	/* clear bus status & fifo */
-	bus_space_write_1(iot, ioh, tmc_fctl, sc->sc_fcRinit | FCTL_CLRFIFO);
-	bus_space_write_1(iot, ioh, tmc_fctl, sc->sc_fcRinit);
+	bus_write_1(sc->port_res, tmc_fctl, sc->sc_fcRinit | FCTL_CLRFIFO);
+	bus_write_1(sc->port_res, tmc_fctl, sc->sc_fcRinit);
 	stghw_bcr_write_1(sc, BCTL_BUSFREE);
 	sc->sc_icinit &= ~ICTL_FIFO;
 	sc->sc_busc &= ~BCTL_ATN;
@@ -899,12 +861,10 @@ stg_target_nexus_establish(sc)
 	struct stg_softc *sc;
 {
 	struct scsi_low_softc *slp = &sc->sc_sclow;
-	bus_space_tag_t iot = sc->sc_iot;
-	bus_space_handle_t ioh = sc->sc_ioh;
 	struct targ_info *ti = slp->sl_Tnexus;
 	struct stg_targ_info *sti = (void *) ti;
 
-	bus_space_write_1(iot, ioh, tmc_ssctl, sti->sti_reg_synch);
+	bus_write_1(sc->port_res, tmc_ssctl, sti->sti_reg_synch);
 	if ((stg_io_control & STG_FIFO_INTERRUPTS) != 0)
 	{
 		sc->sc_icinit |= ICTL_FIFO;
@@ -938,19 +898,17 @@ stghw_select_targ_wait(sc, mu)
 	struct stg_softc *sc;
 	int mu;
 {
-	bus_space_tag_t iot = sc->sc_iot;
-	bus_space_handle_t ioh = sc->sc_ioh;
 
 	mu = mu / STGHW_SELECT_INTERVAL;
 	while (mu -- > 0)
 	{
-		if ((bus_space_read_1(iot, ioh, tmc_bstat) & BSTAT_BSY) == 0)
+		if ((bus_read_1(sc->port_res, tmc_bstat) & BSTAT_BSY) == 0)
 		{
 			DELAY(STGHW_SELECT_INTERVAL);
 			continue;
 		}
 		DELAY(1);
-		if ((bus_space_read_1(iot, ioh, tmc_bstat) & BSTAT_BSY) != 0)
+		if ((bus_read_1(sc->port_res, tmc_bstat) & BSTAT_BSY) != 0)
 		{
 			return 0;
 		}
@@ -963,11 +921,9 @@ stg_selection_done_and_expect_msgout(sc)
 	struct stg_softc *sc;
 {
 	struct scsi_low_softc *slp = &sc->sc_sclow;
-	bus_space_tag_t iot = sc->sc_iot;
-	bus_space_handle_t ioh = sc->sc_ioh;
 
-	bus_space_write_1(iot, ioh, tmc_fctl, sc->sc_fcRinit | FCTL_CLRFIFO);
-	bus_space_write_1(iot, ioh, tmc_fctl, sc->sc_fcRinit);
+	bus_write_1(sc->port_res, tmc_fctl, sc->sc_fcRinit | FCTL_CLRFIFO);
+	bus_write_1(sc->port_res, tmc_fctl, sc->sc_fcRinit);
 	stghw_bcr_write_1(sc, sc->sc_imsg | sc->sc_busc);
 	SCSI_LOW_ASSERT_ATN(slp);
 }
@@ -978,12 +934,10 @@ stgintr(arg)
 {
 	struct stg_softc *sc = arg;
 	struct scsi_low_softc *slp = &sc->sc_sclow;
-	bus_space_tag_t iot = sc->sc_iot;
-	bus_space_handle_t ioh = sc->sc_ioh;
 	struct targ_info *ti;
 	struct buf *bp;
 	u_int derror, flags;
-	int len, s;
+	int len;
 	u_int8_t status, astatus, regv;
 
 	/*******************************************
@@ -992,19 +946,19 @@ stgintr(arg)
 	if (slp->sl_flags & HW_INACTIVE)
 		return 0;
 
-	astatus = bus_space_read_1(iot, ioh, tmc_astat);
-	status = bus_space_read_1(iot, ioh, tmc_bstat);
+	astatus = bus_read_1(sc->port_res, tmc_astat);
+	status = bus_read_1(sc->port_res, tmc_bstat);
 
 	if ((astatus & ASTAT_STATMASK) == 0 || astatus == (u_int8_t) -1)
 		return 0;
 
-	bus_space_write_1(iot, ioh, tmc_ictl, 0);
+	bus_write_1(sc->port_res, tmc_ictl, 0);
 	if (astatus & ASTAT_SCSIRST)
 	{
-		bus_space_write_1(iot, ioh, tmc_fctl,
+		bus_write_1(sc->port_res, tmc_fctl,
 				  sc->sc_fcRinit | FCTL_CLRFIFO);
-		bus_space_write_1(iot, ioh, tmc_fctl, sc->sc_fcRinit);
-		bus_space_write_1(iot, ioh, tmc_ictl, 0);
+		bus_write_1(sc->port_res, tmc_fctl, sc->sc_fcRinit);
+		bus_write_1(sc->port_res, tmc_ictl, 0);
 
 		scsi_low_restart(slp, SCSI_LOW_RESTART_SOFT, 
 				 "bus reset (power off?)");
@@ -1065,7 +1019,7 @@ stgintr(arg)
 			goto arb_fail;
 		}
 
-		status = bus_space_read_1(iot, ioh, tmc_bstat);
+		status = bus_read_1(sc->port_res, tmc_bstat);
 		if ((status & BSTAT_IO) != 0)
 		{
 			/* XXX:
@@ -1075,7 +1029,7 @@ stgintr(arg)
 			stg_statics.arbit_fail_1 ++;
 #endif	/* STG_STATICS */
 arb_fail:
-			bus_space_write_1(iot, ioh, tmc_fctl, sc->sc_fcRinit);
+			bus_write_1(sc->port_res, tmc_fctl, sc->sc_fcRinit);
 			stghw_bcr_write_1(sc, BCTL_BUSFREE);
 			scsi_low_arbit_fail(slp, slp->sl_Qnexus);
 			goto out;
@@ -1087,11 +1041,10 @@ arb_fail:
 		SCSI_LOW_SETUP_PHASE(ti, PH_SELSTART);
 		scsi_low_arbit_win(slp);
 
-		s = splhigh();
-		bus_space_write_1(iot, ioh, tmc_scsiid,
+		bus_write_1(sc->port_res, tmc_scsiid,
 				  sc->sc_idbit | (1 << ti->ti_id));
 		stghw_bcr_write_1(sc, sc->sc_imsg | sc->sc_busc | BCTL_SEL);
-		bus_space_write_1(iot, ioh, tmc_fctl, sc->sc_fcWinit);
+		bus_write_1(sc->port_res, tmc_fctl, sc->sc_fcWinit);
 		if ((stg_io_control & STG_WAIT_FOR_SELECT) != 0)
 		{
 			/* selection abort delay 200 + 100 micro sec */
@@ -1101,7 +1054,6 @@ arb_fail:
 				stg_selection_done_and_expect_msgout(sc);
 			}	
 		}
-		splx(s);
 		goto out;
 
 	case PH_SELSTART:
@@ -1130,7 +1082,7 @@ arb_fail:
 			goto out;
 
 		/* clear a busy line */
-		bus_space_write_1(iot, ioh, tmc_fctl, sc->sc_fcRinit);
+		bus_write_1(sc->port_res, tmc_fctl, sc->sc_fcRinit);
 		stghw_bcr_write_1(sc, sc->sc_busc);
 		stg_target_nexus_establish(sc);
 		if ((status & PHASE_MASK) != MESSAGE_IN_PHASE)
@@ -1209,12 +1161,12 @@ arb_fail:
 			break;
 
 		SCSI_LOW_SETUP_PHASE(ti, PH_STAT);
-		regv = bus_space_read_1(iot, ioh, tmc_sdna);
+		regv = bus_read_1(sc->port_res, tmc_sdna);
 		if (scsi_low_statusin(slp, ti, regv | derror) != 0)
 		{
 			scsi_low_attention(slp);
 		}
-		if (regv != bus_space_read_1(iot, ioh, tmc_rdata))
+		if (regv != bus_read_1(sc->port_res, tmc_rdata))
 		{
 			device_printf(slp->sl_dev, "STATIN: data mismatch\n");
 		}
@@ -1257,7 +1209,7 @@ arb_fail:
 		SCSI_LOW_SETUP_PHASE(ti, PH_MSGIN);
 
 		/* read data with NOACK */
-		regv = bus_space_read_1(iot, ioh, tmc_sdna);
+		regv = bus_read_1(sc->port_res, tmc_sdna);
 
 		if (scsi_low_msgin(slp, ti, derror | regv) == 0)
 		{
@@ -1268,7 +1220,7 @@ arb_fail:
 		}
 
 		/* read data with ACK */
-		if (regv != bus_space_read_1(iot, ioh, tmc_rdata))
+		if (regv != bus_read_1(sc->port_res, tmc_rdata))
 		{
 			device_printf(slp->sl_dev, "MSGIN: data mismatch\n");
 		}
@@ -1295,7 +1247,7 @@ arb_fail:
 	}
 
 out:
-	bus_space_write_1(iot, ioh, tmc_ictl, sc->sc_icinit);
+	bus_write_1(sc->port_res, tmc_ictl, sc->sc_icinit);
 	return 1;
 }
 
@@ -1304,15 +1256,13 @@ stg_timeout(sc)
 	struct stg_softc *sc;
 {
 	struct scsi_low_softc *slp = &sc->sc_sclow;
-	bus_space_tag_t iot = sc->sc_iot;
-	bus_space_handle_t ioh = sc->sc_ioh;
 	int tout, count;
 	u_int8_t status;
 
 	if (slp->sl_Tnexus == NULL)
 		return 0;
 
-	status = bus_space_read_1(iot, ioh, tmc_bstat);
+	status = bus_read_1(sc->port_res, tmc_bstat);
 	if ((status & PHASE_MASK) == 0)
 	{
 		if (sc->sc_ubf_timeout ++ == 0)
@@ -1332,7 +1282,7 @@ stg_timeout(sc)
 			break;
 		if ((status & BSTAT_REQ) == 0)
 			break;
-		if (bus_space_read_2(iot, ioh, tmc_fdcnt) != 0)
+		if (bus_read_2(sc->port_res, tmc_fdcnt) != 0)
 			break;
 		if ((-- sc->sc_dataout_timeout) > 0)
 			break;	
@@ -1344,30 +1294,30 @@ stg_timeout(sc)
 			break;
 		}	
 
-		bus_space_write_1(iot, ioh, tmc_ictl, 0);
+		bus_write_1(sc->port_res, tmc_ictl, 0);
 
 		tout = STG_DELAY_MAX;
 		while (tout --)
 		{
-			status = bus_space_read_1(iot, ioh, tmc_bstat);
+			status = bus_read_1(sc->port_res, tmc_bstat);
 			if ((status & PHASE_MASK) != DATA_OUT_PHASE)
 				break;
 
-			if (bus_space_read_2(iot, ioh, tmc_fdcnt) != 0)
+			if (bus_read_2(sc->port_res, tmc_fdcnt) != 0)
 			{
 				DELAY(1);
 				continue;
 			}
 
 			for (count = sc->sc_maxwsize; count > 0; count --)
-				bus_space_write_1(iot, ioh, tmc_wfifo, 0);
+				bus_write_1(sc->port_res, tmc_wfifo, 0);
 		}
 
-		status = bus_space_read_1(iot, ioh, tmc_bstat);
+		status = bus_read_1(sc->port_res, tmc_bstat);
 		if ((status & PHASE_MASK) == DATA_OUT_PHASE)
 			sc->sc_dataout_timeout = SCSI_LOW_TIMEOUT_HZ;
 
-		bus_space_write_1(iot, ioh, tmc_ictl, sc->sc_icinit);
+		bus_write_1(sc->port_res, tmc_ictl, sc->sc_icinit);
 		break;
 
 	default:
