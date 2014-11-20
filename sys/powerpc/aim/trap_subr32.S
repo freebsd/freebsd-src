@@ -313,7 +313,6 @@ cpu_reset:
 	mflr	%r1
 	addi	%r1,%r1,(124-16)@l
 
-	lis	%r3,1@l
 	bla	CNAME(cpudep_ap_early_bootstrap)
 	lis	%r3,1@l
 	bla	CNAME(pmap_cpu_bootstrap)

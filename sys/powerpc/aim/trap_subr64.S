@@ -312,7 +312,6 @@ cpu_reset:
 
 	lis	%r3,tocbase@ha
 	ld	%r2,tocbase@l(%r3)
-	lis	%r3,1@l
 	bl	CNAME(cpudep_ap_early_bootstrap) /* Set PCPU */
 	nop
 	lis	%r3,1@l
