@@ -26,6 +26,15 @@ ${_CW:tu}IMAGE=	${_CW:tl}.${${_CW:tu}_FORMAT}
 .  if exists(${.CURDIR}/tools/${_CW:tl}.conf) && !defined(${_CW:tu}CONF)
 ${_CW:tu}CONF?=	${.CURDIR}/tools/${_CW:tl}.conf
 .  endif
+
+vm-${_CW:tl}:
+	mkdir -p ${.OBJDIR}/${.TARGET}
+	env TARGET=${TARGET} TARGET_ARCH=${TARGET_ARCH} \
+		${.CURDIR}/scripts/mk-vmimage.sh \
+		-C ${.CURDIR}/tools/vmimage.subr -d ${.OBJDIR}/${.TARGET} \
+		-i ${.OBJDIR}/${_CW:tl}.img -s ${VMSIZE} -f ${${_CW}_FORMAT} \
+		-S ${WORLDDIR} -o ${.OBJDIR}/${${_CW}IMAGE} -c ${${_CW}CONF}
+	touch ${.TARGET}
 . endfor
 .endif
 
@@ -53,21 +62,3 @@ vm-image:
 	touch ${.TARGET}
 
 vm-cloudware:	${CLOUDTARGETS}
-
-vm-azure:
-	mkdir -p ${.OBJDIR}/${.TARGET}
-	env TARGET=${TARGET} TARGET_ARCH=${TARGET_ARCH} \
-		${.CURDIR}/scripts/mk-vmimage.sh \
-		-C ${.CURDIR}/tools/vmimage.subr -d ${.OBJDIR}/${.TARGET} \
-		-i ${.OBJDIR}/azure.img -s ${VMSIZE} -f ${AZURE_FORMAT} \
-		-S ${WORLDDIR} -o ${.OBJDIR}/${AZUREIMAGE} -c ${AZURECONF}
-	touch ${.TARGET}
-
-vm-openstack:
-	mkdir -p ${.OBJDIR}/${.TARGET}
-	env TARGET=${TARGET} TARGET_ARCH=${TARGET_ARCH} \
-		${.CURDIR}/scripts/mk-vmimage.sh \
-		-C ${.CURDIR}/tools/vmimage.subr -d ${.OBJDIR}/${.TARGET} \
-		-i ${.OBJDIR}/openstack.img -s ${VMSIZE} -f ${OPENSTACK_FORMAT} \
-		-S ${WORLDDIR} -o ${.OBJDIR}/${OPENSTACKIMAGE} -c ${OPENSTACKCONF}
-	touch ${.TARGET}
