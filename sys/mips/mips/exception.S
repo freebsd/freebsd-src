@@ -115,11 +115,11 @@ VECTOR(MipsTLBMiss, unknown)
 	.set push
 	.set noat
 
-	# Increment exception counter, if enabled.
-	INC_EXCEPTION_CNTR(TLB_MISS_CNT)
 #ifdef CPU_CHERI
 	CHERI_EXCEPTION_ENTER(k0)
 #endif
+	# Increment exception counter, if enabled.
+	INC_EXCEPTION_CNTR(TLB_MISS_CNT)
 	j	MipsDoTLBMiss
 	MFC0	k0, MIPS_COP_0_BAD_VADDR	# get the fault address
 	.set pop
