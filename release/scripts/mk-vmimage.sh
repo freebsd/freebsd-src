@@ -100,9 +100,9 @@ main() {
 	vm_extra_install_ports
 	vm_extra_enable_services
 	vm_extra_pre_umount
+	cleanup
 	vm_create_disk || return 0
 	vm_extra_create_disk
-	cleanup
 
 	return 0
 }
