@@ -137,7 +137,7 @@ static struct scsi_da_rw_recovery_page rw_er_page_default = {
 	/*correction_span*/0,
 	/*head_offset_count*/0,
 	/*data_strobe_offset_cnt*/0,
-	/*byte8*/0,
+	/*byte8*/SMS_RWER_LBPERE,
 	/*write_retry_count*/0,
 	/*reserved2*/0,
 	/*recovery_time_limit*/{0, 0},
@@ -297,22 +297,58 @@ static struct scsi_info_exceptions_page ie_page_changeable = {
 	/*report_count*/{0, 0, 0, 0}
 };
 
-static struct scsi_logical_block_provisioning_page lbp_page_default = {
+#define CTL_LBPM_LEN	(sizeof(struct ctl_logical_block_provisioning_page) - 4)
+
+static struct ctl_logical_block_provisioning_page lbp_page_default = {{
 	/*page_code*/SMS_INFO_EXCEPTIONS_PAGE | SMPH_SPF,
 	/*subpage_code*/0x02,
-	/*page_length*/{0, sizeof(struct scsi_logical_block_provisioning_page) - 4},
+	/*page_length*/{CTL_LBPM_LEN >> 8, CTL_LBPM_LEN},
 	/*flags*/0,
 	/*reserved*/{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
-	/*descr*/{}
+	/*descr*/{}},
+	{{/*flags*/0,
+	  /*resource*/0x01,
+	  /*reserved*/{0, 0},
+	  /*count*/{0, 0, 0, 0}},
+	 {/*flags*/0,
+	  /*resource*/0x02,
+	  /*reserved*/{0, 0},
+	  /*count*/{0, 0, 0, 0}},
+	 {/*flags*/0,
+	  /*resource*/0xf1,
+	  /*reserved*/{0, 0},
+	  /*count*/{0, 0, 0, 0}},
+	 {/*flags*/0,
+	  /*resource*/0xf2,
+	  /*reserved*/{0, 0},
+	  /*count*/{0, 0, 0, 0}}
+	}
 };
 
-static struct scsi_logical_block_provisioning_page lbp_page_changeable = {
+static struct ctl_logical_block_provisioning_page lbp_page_changeable = {{
 	/*page_code*/SMS_INFO_EXCEPTIONS_PAGE | SMPH_SPF,
 	/*subpage_code*/0x02,
-	/*page_length*/{0, sizeof(struct scsi_logical_block_provisioning_page) - 4},
+	/*page_length*/{CTL_LBPM_LEN >> 8, CTL_LBPM_LEN},
 	/*flags*/0,
 	/*reserved*/{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
-	/*descr*/{}
+	/*descr*/{}},
+	{{/*flags*/0,
+	  /*resource*/0,
+	  /*reserved*/{0, 0},
+	  /*count*/{0, 0, 0, 0}},
+	 {/*flags*/0,
+	  /*resource*/0,
+	  /*reserved*/{0, 0},
+	  /*count*/{0, 0, 0, 0}},
+	 {/*flags*/0,
+	  /*resource*/0,
+	  /*reserved*/{0, 0},
+	  /*count*/{0, 0, 0, 0}},
+	 {/*flags*/0,
+	  /*resource*/0,
+	  /*reserved*/{0, 0},
+	  /*count*/{0, 0, 0, 0}}
+	}
 };
 
 /*
@@ -449,6 +485,7 @@ static void ctl_datamove_remote_read(union ctl_io *io);
 static void ctl_datamove_remote(union ctl_io *io);
 static int ctl_process_done(union ctl_io *io);
 static void ctl_lun_thread(void *arg);
+static void ctl_thresh_thread(void *arg);
 static void ctl_work_thread(void *arg);
 static void ctl_enqueue_incoming(union ctl_io *io);
 static void ctl_enqueue_rtr(union ctl_io *io);
@@ -1082,6 +1119,15 @@ ctl_init(void)
 	    &softc->ctl_proc, NULL, 0, 0, "ctl", "lun");
 	if (error != 0) {
 		printf("error creating CTL lun thread!\n");
+		ctl_pool_free(internal_pool);
+		ctl_pool_free(emergency_pool);
+		ctl_pool_free(other_pool);
+		return (error);
+	}
+	error = kproc_kthread_add(ctl_thresh_thread, softc,
+	    &softc->ctl_proc, NULL, 0, 0, "ctl", "thresh");
+	if (error != 0) {
+		printf("error creating CTL threshold thread!\n");
 		ctl_pool_free(internal_pool);
 		ctl_pool_free(emergency_pool);
 		ctl_pool_free(other_pool);
@@ -3993,6 +4039,52 @@ ctl_copy_io(union ctl_io *src, union ctl_io *dest)
 	dest->io_hdr.flags |= CTL_FLAG_INT_COPY;
 }
 
+static int
+ctl_expand_number(const char *buf, uint64_t *num)
+{
+	char *endptr;
+	uint64_t number;
+	unsigned shift;
+
+	number = strtoq(buf, &endptr, 0);
+
+	switch (tolower((unsigned char)*endptr)) {
+	case 'e':
+		shift = 60;
+		break;
+	case 'p':
+		shift = 50;
+		break;
+	case 't':
+		shift = 40;
+		break;
+	case 'g':
+		shift = 30;
+		break;
+	case 'm':
+		shift = 20;
+		break;
+	case 'k':
+		shift = 10;
+		break;
+	case 'b':
+	case '\0': /* No unit. */
+		*num = number;
+		return (0);
+	default:
+		/* Unrecognized unit. */
+		return (-1);
+	}
+
+	if ((number << shift) >> shift != number) {
+		/* Overflow */
+		return (-1);
+	}
+	*num = number << shift;
+	return (0);
+}
+
+
 /*
  * This routine could be used in the future to load default and/or saved
  * mode page parameters for a particuar lun.
@@ -4003,6 +4095,7 @@ ctl_init_page_index(struct ctl_lun *lun)
 	int i;
 	struct ctl_page_index *page_index;
 	const char *value;
+	uint64_t ival;
 
 	memcpy(&lun->mode_pages.index, page_index_template,
 	       sizeof(page_index_template));
@@ -4246,22 +4339,77 @@ ctl_init_page_index(struct ctl_lun *lun)
 				page_index->page_data =
 					(uint8_t *)lun->mode_pages.ie_page;
 				break;
-			case 0x02:
-				memcpy(&lun->mode_pages.lbp_page[CTL_PAGE_CURRENT],
+			case 0x02: {
+				struct ctl_logical_block_provisioning_page *page;
+
+				memcpy(&lun->mode_pages.lbp_page[CTL_PAGE_DEFAULT],
 				       &lbp_page_default,
 				       sizeof(lbp_page_default));
 				memcpy(&lun->mode_pages.lbp_page[
 				       CTL_PAGE_CHANGEABLE], &lbp_page_changeable,
 				       sizeof(lbp_page_changeable));
-				memcpy(&lun->mode_pages.lbp_page[CTL_PAGE_DEFAULT],
-				       &lbp_page_default,
-				       sizeof(lbp_page_default));
 				memcpy(&lun->mode_pages.lbp_page[CTL_PAGE_SAVED],
 				       &lbp_page_default,
 				       sizeof(lbp_page_default));
+				page = &lun->mode_pages.lbp_page[CTL_PAGE_SAVED];
+				value = ctl_get_opt(&lun->be_lun->options,
+				    "avail-threshold");
+				if (value != NULL &&
+				    ctl_expand_number(value, &ival) == 0) {
+					page->descr[0].flags |= SLBPPD_ENABLED |
+					    SLBPPD_ARMING_DEC;
+					if (lun->be_lun->blocksize)
+						ival /= lun->be_lun->blocksize;
+					else
+						ival /= 512;
+					scsi_ulto4b(ival >> CTL_LBP_EXPONENT,
+					    page->descr[0].count);
+				}
+				value = ctl_get_opt(&lun->be_lun->options,
+				    "used-threshold");
+				if (value != NULL &&
+				    ctl_expand_number(value, &ival) == 0) {
+					page->descr[1].flags |= SLBPPD_ENABLED |
+					    SLBPPD_ARMING_INC;
+					if (lun->be_lun->blocksize)
+						ival /= lun->be_lun->blocksize;
+					else
+						ival /= 512;
+					scsi_ulto4b(ival >> CTL_LBP_EXPONENT,
+					    page->descr[1].count);
+				}
+				value = ctl_get_opt(&lun->be_lun->options,
+				    "pool-avail-threshold");
+				if (value != NULL &&
+				    ctl_expand_number(value, &ival) == 0) {
+					page->descr[2].flags |= SLBPPD_ENABLED |
+					    SLBPPD_ARMING_DEC;
+					if (lun->be_lun->blocksize)
+						ival /= lun->be_lun->blocksize;
+					else
+						ival /= 512;
+					scsi_ulto4b(ival >> CTL_LBP_EXPONENT,
+					    page->descr[2].count);
+				}
+				value = ctl_get_opt(&lun->be_lun->options,
+				    "pool-used-threshold");
+				if (value != NULL &&
+				    ctl_expand_number(value, &ival) == 0) {
+					page->descr[3].flags |= SLBPPD_ENABLED |
+					    SLBPPD_ARMING_INC;
+					if (lun->be_lun->blocksize)
+						ival /= lun->be_lun->blocksize;
+					else
+						ival /= 512;
+					scsi_ulto4b(ival >> CTL_LBP_EXPONENT,
+					    page->descr[3].count);
+				}
+				memcpy(&lun->mode_pages.lbp_page[CTL_PAGE_CURRENT],
+				       &lun->mode_pages.lbp_page[CTL_PAGE_SAVED],
+				       sizeof(lbp_page_default));
 				page_index->page_data =
 					(uint8_t *)lun->mode_pages.lbp_page;
-			}
+			}}
 			break;
 		}
 		case SMS_VENDOR_SPECIFIC_PAGE:{
@@ -4320,13 +4468,13 @@ static int
 ctl_init_log_page_index(struct ctl_lun *lun)
 {
 	struct ctl_page_index *page_index;
-	int i, j, prev;
+	int i, j, k, prev;
 
 	memcpy(&lun->log_pages.index, log_page_index_template,
 	       sizeof(log_page_index_template));
 
 	prev = -1;
-	for (i = 0, j = 0; i < CTL_NUM_LOG_PAGES; i++) {
+	for (i = 0, j = 0, k = 0; i < CTL_NUM_LOG_PAGES; i++) {
 
 		page_index = &lun->log_pages.index[i];
 		/*
@@ -4339,18 +4487,26 @@ ctl_init_log_page_index(struct ctl_lun *lun)
 		 && (page_index->page_flags & CTL_PAGE_FLAG_DISK_ONLY))
 			continue;
 
+		if (page_index->page_code == SLS_LOGICAL_BLOCK_PROVISIONING &&
+		    ((lun->be_lun->flags & CTL_LUN_FLAG_UNMAP) == 0 ||
+		     lun->backend->lun_attr == NULL))
+			continue;
+
 		if (page_index->page_code != prev) {
 			lun->log_pages.pages_page[j] = page_index->page_code;
 			prev = page_index->page_code;
 			j++;
 		}
-		lun->log_pages.subpages_page[i*2] = page_index->page_code;
-		lun->log_pages.subpages_page[i*2+1] = page_index->subpage;
+		lun->log_pages.subpages_page[k*2] = page_index->page_code;
+		lun->log_pages.subpages_page[k*2+1] = page_index->subpage;
+		k++;
 	}
 	lun->log_pages.index[0].page_data = &lun->log_pages.pages_page[0];
 	lun->log_pages.index[0].page_len = j;
 	lun->log_pages.index[1].page_data = &lun->log_pages.subpages_page[0];
-	lun->log_pages.index[1].page_len = i * 2;
+	lun->log_pages.index[1].page_len = k * 2;
+	lun->log_pages.index[2].page_data = &lun->log_pages.lbp_page[0];
+	lun->log_pages.index[2].page_len = 12*CTL_NUM_LBP_PARAMS;
 
 	return (CTL_RETVAL_COMPLETE);
 }
@@ -6936,6 +7092,75 @@ ctl_mode_sense(struct ctl_scsiio *ctsio)
 	ctl_datamove((union ctl_io *)ctsio);
 
 	return (CTL_RETVAL_COMPLETE);
+}
+
+int
+ctl_lbp_log_sense_handler(struct ctl_scsiio *ctsio,
+			       struct ctl_page_index *page_index,
+			       int pc)
+{
+	struct ctl_lun *lun;
+	struct scsi_log_param_header *phdr;
+	uint8_t *data;
+	uint64_t val;
+
+	lun = (struct ctl_lun *)ctsio->io_hdr.ctl_private[CTL_PRIV_LUN].ptr;
+	data = page_index->page_data;
+
+	if (lun->backend->lun_attr != NULL &&
+	    (val = lun->backend->lun_attr(lun->be_lun->be_lun, "blocksavail"))
+	     != UINT64_MAX) {
+		phdr = (struct scsi_log_param_header *)data;
+		scsi_ulto2b(0x0001, phdr->param_code);
+		phdr->param_control = SLP_LBIN | SLP_LP;
+		phdr->param_len = 8;
+		data = (uint8_t *)(phdr + 1);
+		scsi_ulto4b(val >> CTL_LBP_EXPONENT, data);
+		data[4] = 0x01; /* per-LUN */
+		data += phdr->param_len;
+	}
+
+	if (lun->backend->lun_attr != NULL &&
+	    (val = lun->backend->lun_attr(lun->be_lun->be_lun, "blocksused"))
+	     != UINT64_MAX) {
+		phdr = (struct scsi_log_param_header *)data;
+		scsi_ulto2b(0x0002, phdr->param_code);
+		phdr->param_control = SLP_LBIN | SLP_LP;
+		phdr->param_len = 8;
+		data = (uint8_t *)(phdr + 1);
+		scsi_ulto4b(val >> CTL_LBP_EXPONENT, data);
+		data[4] = 0x02; /* per-pool */
+		data += phdr->param_len;
+	}
+
+	if (lun->backend->lun_attr != NULL &&
+	    (val = lun->backend->lun_attr(lun->be_lun->be_lun, "poolblocksavail"))
+	     != UINT64_MAX) {
+		phdr = (struct scsi_log_param_header *)data;
+		scsi_ulto2b(0x00f1, phdr->param_code);
+		phdr->param_control = SLP_LBIN | SLP_LP;
+		phdr->param_len = 8;
+		data = (uint8_t *)(phdr + 1);
+		scsi_ulto4b(val >> CTL_LBP_EXPONENT, data);
+		data[4] = 0x02; /* per-pool */
+		data += phdr->param_len;
+	}
+
+	if (lun->backend->lun_attr != NULL &&
+	    (val = lun->backend->lun_attr(lun->be_lun->be_lun, "poolblocksused"))
+	     != UINT64_MAX) {
+		phdr = (struct scsi_log_param_header *)data;
+		scsi_ulto2b(0x00f2, phdr->param_code);
+		phdr->param_control = SLP_LBIN | SLP_LP;
+		phdr->param_len = 8;
+		data = (uint8_t *)(phdr + 1);
+		scsi_ulto4b(val >> CTL_LBP_EXPONENT, data);
+		data[4] = 0x02; /* per-pool */
+		data += phdr->param_len;
+	}
+
+	page_index->page_len = data - page_index->page_data;
+	return (0);
 }
 
 int
@@ -10247,9 +10472,10 @@ ctl_inquiry_evpd_lbp(struct ctl_scsiio *ctsio, int alloc_len)
 	lbp_ptr->page_code = SVPD_LBP;
 	scsi_ulto2b(sizeof(*lbp_ptr) - 4, lbp_ptr->page_length);
 	if (lun != NULL && lun->be_lun->flags & CTL_LUN_FLAG_UNMAP) {
+		lbp_ptr->threshold_exponent = CTL_LBP_EXPONENT;
 		lbp_ptr->flags = SVPD_LBP_UNMAP | SVPD_LBP_WS16 |
 		    SVPD_LBP_WS10 | SVPD_LBP_RZ | SVPD_LBP_ANC_SUP;
-		lbp_ptr->prov_type = SVPD_LBP_RESOURCE;
+		lbp_ptr->prov_type = SVPD_LBP_THIN;
 	}
 
 	ctsio->scsi_status = SCSI_STATUS_OK;
@@ -13992,6 +14218,88 @@ ctl_lun_thread(void *arg)
 		/* Sleep until we have something to do. */
 		mtx_sleep(&softc->pending_lun_queue, &softc->ctl_lock,
 		    PDROP | PRIBIO, "-", 0);
+	}
+}
+
+static void
+ctl_thresh_thread(void *arg)
+{
+	struct ctl_softc *softc = (struct ctl_softc *)arg;
+	struct ctl_lun *lun;
+	struct ctl_be_lun *be_lun;
+	struct scsi_da_rw_recovery_page *rwpage;
+	struct ctl_logical_block_provisioning_page *page;
+	const char *attr;
+	uint64_t thres, val;
+	int i, e;
+
+	CTL_DEBUG_PRINT(("ctl_thresh_thread starting\n"));
+
+	for (;;) {
+		mtx_lock(&softc->ctl_lock);
+		STAILQ_FOREACH(lun, &softc->lun_list, links) {
+			be_lun = lun->be_lun;
+			if ((lun->flags & CTL_LUN_DISABLED) ||
+			    (lun->flags & CTL_LUN_OFFLINE) ||
+			    (be_lun->flags & CTL_LUN_FLAG_UNMAP) == 0 ||
+			    lun->backend->lun_attr == NULL)
+				continue;
+			rwpage = &lun->mode_pages.rw_er_page[CTL_PAGE_CURRENT];
+			if ((rwpage->byte8 & SMS_RWER_LBPERE) == 0)
+				continue;
+			e = 0;
+			page = &lun->mode_pages.lbp_page[CTL_PAGE_CURRENT];
+			for (i = 0; i < CTL_NUM_LBP_THRESH; i++) {
+				if ((page->descr[i].flags & SLBPPD_ENABLED) == 0)
+					continue;
+				thres = scsi_4btoul(page->descr[i].count);
+				thres <<= CTL_LBP_EXPONENT;
+				switch (page->descr[i].resource) {
+				case 0x01:
+					attr = "blocksavail";
+					break;
+				case 0x02:
+					attr = "blocksused";
+					break;
+				case 0xf1:
+					attr = "poolblocksavail";
+					break;
+				case 0xf2:
+					attr = "poolblocksused";
+					break;
+				default:
+					continue;
+				}
+				mtx_unlock(&softc->ctl_lock); // XXX
+				val = lun->backend->lun_attr(
+				    lun->be_lun->be_lun, attr);
+				mtx_lock(&softc->ctl_lock);
+				if (val == UINT64_MAX)
+					continue;
+				if ((page->descr[i].flags & SLBPPD_ARMING_MASK)
+				    == SLBPPD_ARMING_INC)
+					e |= (val >= thres);
+				else
+					e |= (val <= thres);
+			}
+			mtx_lock(&lun->lun_lock);
+			if (e) {
+				if (lun->lasttpt == 0 ||
+				    time_uptime - lun->lasttpt >= CTL_LBP_UA_PERIOD) {
+					lun->lasttpt = time_uptime;
+					for (i = 0; i < CTL_MAX_INITIATORS; i++)
+						lun->pending_ua[i] |=
+						    CTL_UA_THIN_PROV_THRES;
+				}
+			} else {
+				lun->lasttpt = 0;
+				for (i = 0; i < CTL_MAX_INITIATORS; i++)
+					lun->pending_ua[i] &= ~CTL_UA_THIN_PROV_THRES;
+			}
+			mtx_unlock(&lun->lun_lock);
+		}
+		mtx_unlock(&softc->ctl_lock);
+		pause("-", CTL_LBP_PERIOD * hz);
 	}
 }
 

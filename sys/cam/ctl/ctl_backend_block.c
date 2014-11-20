@@ -147,6 +147,8 @@ struct ctl_be_block_lun;
 
 typedef void (*cbb_dispatch_t)(struct ctl_be_block_lun *be_lun,
 			       struct ctl_be_block_io *beio);
+typedef uint64_t (*cbb_getattr_t)(struct ctl_be_block_lun *be_lun,
+				  const char *attrname);
 
 /*
  * Backend LUN structure.  There is a 1:1 mapping between a block device
@@ -163,6 +165,7 @@ struct ctl_be_block_lun {
 	cbb_dispatch_t dispatch;
 	cbb_dispatch_t lun_flush;
 	cbb_dispatch_t unmap;
+	cbb_getattr_t getattr;
 	uma_zone_t lun_zone;
 	uint64_t size_blocks;
 	uint64_t size_bytes;
@@ -243,6 +246,8 @@ static void ctl_be_block_unmap_dev(struct ctl_be_block_lun *be_lun,
 				   struct ctl_be_block_io *beio);
 static void ctl_be_block_dispatch_dev(struct ctl_be_block_lun *be_lun,
 				      struct ctl_be_block_io *beio);
+static uint64_t ctl_be_block_getattr_dev(struct ctl_be_block_lun *be_lun,
+					 const char *attrname);
 static void ctl_be_block_cw_dispatch(struct ctl_be_block_lun *be_lun,
 				    union ctl_io *io);
 static void ctl_be_block_dispatch(struct ctl_be_block_lun *be_lun,
@@ -275,6 +280,7 @@ static void ctl_be_block_lun_config_status(void *be_lun,
 static int ctl_be_block_config_write(union ctl_io *io);
 static int ctl_be_block_config_read(union ctl_io *io);
 static int ctl_be_block_lun_info(void *be_lun, struct sbuf *sb);
+static uint64_t ctl_be_block_lun_attr(void *be_lun, const char *attrname);
 int ctl_be_block_init(void);
 
 static struct ctl_backend_driver ctl_be_block_driver = 
@@ -287,7 +293,8 @@ static struct ctl_backend_driver ctl_be_block_driver =
 	.config_read = ctl_be_block_config_read,
 	.config_write = ctl_be_block_config_write,
 	.ioctl = ctl_be_block_ioctl,
-	.lun_info = ctl_be_block_lun_info
+	.lun_info = ctl_be_block_lun_info,
+	.lun_attr = ctl_be_block_lun_attr
 };
 
 MALLOC_DEFINE(M_CTLBLK, "ctlblk", "Memory used for CTL block backend");
@@ -1015,6 +1022,24 @@ ctl_be_block_dispatch_dev(struct ctl_be_block_lun *be_lun,
 	}
 }
 
+static uint64_t
+ctl_be_block_getattr_dev(struct ctl_be_block_lun *be_lun, const char *attrname)
+{
+	struct ctl_be_block_devdata	*dev_data = &be_lun->backend.dev;
+	struct diocgattr_arg	arg;
+	int			error;
+
+	if (dev_data->csw == NULL || dev_data->csw->d_ioctl == NULL)
+		return (UINT64_MAX);
+	strlcpy(arg.name, attrname, sizeof(arg.name));
+	arg.len = sizeof(arg.value.off);
+	error = dev_data->csw->d_ioctl(dev_data->cdev,
+	    DIOCGATTR, (caddr_t)&arg, FREAD, curthread);
+	if (error != 0)
+		return (UINT64_MAX);
+	return (arg.value.off);
+}
+
 static void
 ctl_be_block_cw_done_ws(struct ctl_be_block_io *beio)
 {
@@ -1650,6 +1675,7 @@ ctl_be_block_open_dev(struct ctl_be_block_lun *be_lun, struct ctl_lun_req *req)
 		be_lun->dispatch = ctl_be_block_dispatch_dev;
 	be_lun->lun_flush = ctl_be_block_flush_dev;
 	be_lun->unmap = ctl_be_block_unmap_dev;
+	be_lun->getattr = ctl_be_block_getattr_dev;
 
 	error = VOP_GETATTR(be_lun->vn, &vattr, NOCRED);
 	if (error) {
@@ -1996,10 +2022,10 @@ ctl_be_block_create(struct ctl_be_block_softc *softc, struct ctl_lun_req *req)
 		}
 		num_threads = tmp_num_threads;
 	}
-	unmap = 0;
+	unmap = (be_lun->dispatch == ctl_be_block_dispatch_zvol);
 	value = ctl_get_opt(&be_lun->ctl_be_lun.options, "unmap");
-	if (value != NULL && strcmp(value, "on") == 0)
-		unmap = 1;
+	if (value != NULL)
+		unmap = (strcmp(value, "on") == 0);
 
 	be_lun->flags = CTL_BE_BLOCK_LUN_UNCONFIGURED;
 	be_lun->ctl_be_lun.flags = CTL_LUN_FLAG_PRIMARY;
@@ -2583,6 +2609,16 @@ ctl_be_block_lun_info(void *be_lun, struct sbuf *sb)
 bailout:
 
 	return (retval);
+}
+
+static uint64_t
+ctl_be_block_lun_attr(void *be_lun, const char *attrname)
+{
+	struct ctl_be_block_lun *lun = (struct ctl_be_block_lun *)be_lun;
+
+	if (lun->getattr == NULL)
+		return (UINT64_MAX);
+	return (lun->getattr(lun, attrname));
 }
 
 int

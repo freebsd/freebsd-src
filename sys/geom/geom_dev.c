@@ -508,6 +508,16 @@ g_dev_ioctl(struct cdev *dev, u_long cmd, caddr_t data, int fflag, struct thread
 		if (error == 0 && *(char *)data == '\0')
 			error = ENOENT;
 		break;
+	case DIOCGATTR: {
+		struct diocgattr_arg *arg = (struct diocgattr_arg *)data;
+
+		if (arg->len > sizeof(arg->value)) {
+			error = EINVAL;
+			break;
+		}
+		error = g_io_getattr(arg->name, cp, &arg->len, &arg->value);
+		break;
+	}
 	default:
 		if (cp->provider->geom->ioctl != NULL) {
 			error = cp->provider->geom->ioctl(cp->provider, cmd, data, fflag, td);

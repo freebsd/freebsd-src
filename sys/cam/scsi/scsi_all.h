@@ -559,6 +559,7 @@ struct scsi_log_sense
 #define	SLS_ERROR_VERIFY_PAGE		0x05
 #define	SLS_ERROR_NONMEDIUM_PAGE	0x06
 #define	SLS_ERROR_LASTN_PAGE		0x07
+#define	SLS_LOGICAL_BLOCK_PROVISIONING	0x0c
 #define	SLS_SELF_TEST_PAGE		0x10
 #define	SLS_IE_PAGE			0x2f
 #define	SLS_PAGE_CTRL_MASK		0xC0
@@ -740,6 +741,11 @@ struct scsi_info_exceptions_page {
 
 struct scsi_logical_block_provisioning_page_descr {
 	uint8_t flags;
+#define	SLBPPD_ENABLED		0x80
+#define	SLBPPD_TYPE_MASK	0x38
+#define	SLBPPD_ARMING_MASK	0x07
+#define	SLBPPD_ARMING_DEC	0x02
+#define	SLBPPD_ARMING_INC	0x01
 	uint8_t resource;
 	uint8_t reserved[2];
 	uint8_t count[4];
