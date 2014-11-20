@@ -77,15 +77,6 @@ __FBSDID("$FreeBSD$");
 #include <vm/vnode_pager.h>
 #include <vm/vm_extern.h>
 
-/*
- * Structure to pass state from vnode_pager_generic_getpages()
- * to vnode_pager_generic_getpages_done_async().
- */
-struct getpages_data {
-	void (*iodone)(void *, vm_page_t *, int, int);
-	void *arg;
-};
-
 static int vnode_pager_addr(struct vnode *vp, vm_ooffset_t address,
     daddr_t *rtaddress, int *run);
 static int vnode_pager_input_smlfs(vm_object_t object, vm_page_t m);
@@ -991,12 +982,8 @@ vnode_pager_generic_getpages(struct vnode *vp, vm_page_t *m, int bytecount,
 	bp->b_iooffset = dbtob(bp->b_blkno);
 
 	if (iodone) { /* async */
-		struct getpages_data *d;
-
-		d = malloc(sizeof(*d), M_TEMP, M_WAITOK);
-		d->iodone = iodone;
-		d->arg = arg;
-		bp->b_caller1 = d;
+		bp->b_pager.pg_iodone = iodone;
+		bp->b_caller1 = arg;
 		bp->b_iodone = vnode_pager_generic_getpages_done_async;
 		bp->b_flags |= B_ASYNC;
 		BUF_KERNPROC(bp);
@@ -1020,17 +1007,16 @@ vnode_pager_generic_getpages(struct vnode *vp, vm_page_t *m, int bytecount,
 static void
 vnode_pager_generic_getpages_done_async(struct buf *bp)
 {
-	struct getpages_data *d = bp->b_caller1;
 	int error;
 
 	error = vnode_pager_generic_getpages_done(bp);
-	d->iodone(d->arg, bp->b_pages, bp->b_pager.pg_reqpage, error);
+	bp->b_pager.pg_iodone(bp->b_caller1, bp->b_pages,
+	  bp->b_pager.pg_reqpage, error);
 	for (int i = 0; i < bp->b_npages; i++)
 		bp->b_pages[i] = NULL;
 	bp->b_vp = NULL;
 	pbrelbo(bp);
 	relpbuf(bp, &vnode_pbuf_freecnt);
-	free(d, M_TEMP);
 }
 
 static int
