@@ -2032,23 +2032,7 @@ scsi_scan_bus(struct cam_periph *periph, union ccb *request_ccb)
 				scan_info->lunindex[target_id]++;
 			} else {
 				mtx_unlock(&target->luns_mtx);
-				/*
-				 * We're done with scanning all luns.
-				 *
-				 * Nuke the bogus device for lun 0 if lun 0
-				 * wasn't on the list.
-				 */
-				if (first != 0) {
-					TAILQ_FOREACH(device,
-					    &target->ed_entries, links) {
-						if (device->lun_id == 0) {
-							break;
-						}
-					}
-					if (device) {
-						xpt_release_device(device);
-					}
-				}
+				/* We're done with scanning all luns. */
 			}
 		} else {
 			mtx_unlock(&target->luns_mtx);
