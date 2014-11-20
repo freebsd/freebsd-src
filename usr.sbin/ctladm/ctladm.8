@@ -34,7 +34,7 @@
 .\" $Id: //depot/users/kenm/FreeBSD-test2/usr.sbin/ctladm/ctladm.8#3 $
 .\" $FreeBSD$
 .\"
-.Dd October 26, 2014
+.Dd November 5, 2014
 .Dt CTLADM 8
 .Os
 .Sh NAME
@@ -1003,6 +1003,14 @@ Specifies nominal form factor of the device: 0 -- not reported, 1 -- 5.25",
 2 -- 3.5", 3 -- 2.5", 4 -- 1.8", 5 -- less then 1.8".
 .It Va unmap
 Set to "on", enables UNMAP support for the LUN, if supported by the backend.
+.It Va avail-threshold
+.It Va used-threshold
+.It Va pool-avail-threshold
+.It Va pool-used-threshold
+Set per-LUN/-pool thin provisioning soft thresholds for ZVOL-backed LUNs.
+LUN will establish UNIT ATTENTION condition if its or pool available space
+get below configured avail values, or its or pool used space get above
+configured used values.
 .It Va writecache
 Set to "off", disables write caching for the LUN, if supported by the backend.
 .El

@@ -302,6 +302,17 @@ struct ctl_page_index {
 #define	CTL_PAGE_DEFAULT	0x02
 #define	CTL_PAGE_SAVED		0x03
 
+#define CTL_NUM_LBP_PARAMS	4
+#define CTL_NUM_LBP_THRESH	4
+#define CTL_LBP_EXPONENT	11	/* 2048 sectors */
+#define CTL_LBP_PERIOD		10	/* 10 seconds */
+#define CTL_LBP_UA_PERIOD	300	/* 5 minutes */
+
+struct ctl_logical_block_provisioning_page {
+	struct scsi_logical_block_provisioning_page	main;
+	struct scsi_logical_block_provisioning_page_descr descr[CTL_NUM_LBP_THRESH];
+};
+
 static const struct ctl_page_index page_index_template[] = {
 	{SMS_RW_ERROR_RECOVERY_PAGE, 0, sizeof(struct scsi_da_rw_recovery_page), NULL,
 	 CTL_PAGE_FLAG_DISK_ONLY, NULL, NULL},
@@ -316,7 +327,7 @@ static const struct ctl_page_index page_index_template[] = {
 	{SMS_INFO_EXCEPTIONS_PAGE, 0, sizeof(struct scsi_info_exceptions_page), NULL,
 	 CTL_PAGE_FLAG_NONE, NULL, NULL},
 	{SMS_INFO_EXCEPTIONS_PAGE | SMPH_SPF, 0x02,
-	 sizeof(struct scsi_logical_block_provisioning_page), NULL,
+	 sizeof(struct ctl_logical_block_provisioning_page), NULL,
 	 CTL_PAGE_FLAG_DISK_ONLY, NULL, NULL},
 	{SMS_VENDOR_SPECIFIC_PAGE | SMPH_SPF, DBGCNF_SUBPAGE_CODE,
 	 sizeof(struct copan_debugconf_subpage), NULL, CTL_PAGE_FLAG_NONE,
@@ -333,7 +344,7 @@ struct ctl_mode_pages {
 	struct scsi_caching_page	caching_page[4];
 	struct scsi_control_page	control_page[4];
 	struct scsi_info_exceptions_page ie_page[4];
-	struct scsi_logical_block_provisioning_page lbp_page[4];
+	struct ctl_logical_block_provisioning_page lbp_page[4];
 	struct copan_debugconf_subpage	debugconf_subpage[4];
 	struct ctl_page_index		index[CTL_NUM_MODE_PAGES];
 };
@@ -343,6 +354,8 @@ static const struct ctl_page_index log_page_index_template[] = {
 	 CTL_PAGE_FLAG_NONE, NULL, NULL},
 	{SLS_SUPPORTED_PAGES_PAGE, SLS_SUPPORTED_SUBPAGES_SUBPAGE, 0, NULL,
 	 CTL_PAGE_FLAG_NONE, NULL, NULL},
+	{SLS_LOGICAL_BLOCK_PROVISIONING, 0, 0, NULL,
+	 CTL_PAGE_FLAG_NONE, ctl_lbp_log_sense_handler, NULL},
 };
 
 #define	CTL_NUM_LOG_PAGES sizeof(log_page_index_template)/   \
@@ -351,6 +364,7 @@ static const struct ctl_page_index log_page_index_template[] = {
 struct ctl_log_pages {
 	uint8_t				pages_page[CTL_NUM_LOG_PAGES];
 	uint8_t				subpages_page[CTL_NUM_LOG_PAGES * 2];
+	uint8_t				lbp_page[12*CTL_NUM_LBP_PARAMS];
 	struct ctl_page_index		index[CTL_NUM_LOG_PAGES];
 };
 
@@ -411,6 +425,7 @@ struct ctl_lun {
 	struct scsi_sense_data		pending_sense[CTL_MAX_INITIATORS];
 #endif
 	ctl_ua_type			pending_ua[CTL_MAX_INITIATORS];
+	time_t				lasttpt;
 	struct ctl_mode_pages		mode_pages;
 	struct ctl_log_pages		log_pages;
 	struct ctl_lun_io_stats		stats;
